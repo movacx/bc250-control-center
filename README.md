@@ -2,7 +2,20 @@
 
 Graphical interface to manage an AMD BC-250 from Linux. It brings monitoring, processes, memory, GPU, CPU OC and 40CU into one app, with warnings and validations so you do not have to depend on scattered terminal commands.
 
-![BC250 Control Center screenshot](docs/images/bc250-control-center.png)
+![BC250 Control Center GPU panel](docs/images/bc250-gpu.png)
+
+<details>
+<summary>More screenshots</summary>
+
+### CPU panel
+
+![BC250 Control Center CPU panel](docs/images/bc250-cpu.png)
+
+### 40CU panel
+
+![BC250 Control Center 40CU panel](docs/images/bc250-40cu.png)
+
+</details>
 
 ## Installation
 
