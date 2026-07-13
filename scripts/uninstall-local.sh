@@ -5,6 +5,8 @@ SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
 if [[ -z "${PREFIX:-}" ]]; then
   if [[ "$SCRIPT_PATH" == */share/bc250-control-center/scripts/uninstall-local.sh ]]; then
     PREFIX="${SCRIPT_PATH%/share/bc250-control-center/scripts/uninstall-local.sh}"
+  elif [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
+    PREFIX="$HOME/.local"
   else
     PREFIX="/usr/local"
   fi
