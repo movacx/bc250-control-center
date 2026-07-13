@@ -6,7 +6,7 @@ Summary:        Linux gaming task manager and safe AMD BC-250 control panel
 %{!?_userunitdir:%global _userunitdir /usr/lib/systemd/user}
 
 License:        MIT
-URL:            https://github.com/movacx/ModoJuegoRAM
+URL:            https://github.com/movacx/bc250-control-center
 Source0:        %{name}-%{version}.tar.gz
 BuildArch:      noarch
 

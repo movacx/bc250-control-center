@@ -1,6 +1,6 @@
 [Unit]
 Description=BC250 Control Center daemon conservador
-Documentation=https://github.com/movacx/ModoJuegoRAM
+Documentation=https://github.com/movacx/bc250-control-center
 After=graphical-session.target
 
 [Service]

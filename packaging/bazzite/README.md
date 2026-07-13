@@ -12,7 +12,7 @@ systemctl reboot
 ## Generar RPM
 
 ```bash
-cd /ruta/al/ModoJuegoRAM
+cd /ruta/al/bc250-control-center
 ./packaging/bazzite/build-rpm-bazzite.sh
 ```
 

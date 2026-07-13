@@ -1,11 +1,11 @@
 # Maintainer: Fabian Beita <fabianbeita@users.noreply.github.com>
 pkgname=bc250-control-center-git
-_pkgname=ModoJuegoRAM
+_pkgname=bc250-control-center
 pkgver=r1.local
 pkgrel=47
 pkgdesc='Administrador de tareas Linux gaming con panel seguro para AMD BC-250'
 arch=('any')
-url='https://github.com/movacx/ModoJuegoRAM'
+url='https://github.com/movacx/bc250-control-center'
 license=('MIT')
 depends=('python' 'python-pyqt6' 'python-psutil' 'lm_sensors' 'stress')
 makedepends=('git')
@@ -20,7 +20,7 @@ optdepends=(
 )
 provides=('bc250-control-center')
 conflicts=('bc250-control-center')
-source=('git+https://github.com/movacx/ModoJuegoRAM.git')
+source=('git+https://github.com/movacx/bc250-control-center.git')
 sha256sums=('SKIP')
 install=bc250-control-center.install
 
