@@ -6004,3 +6004,576 @@ _GPU_ALERT_LAYOUT_TRANSLATIONS = {
 }
 for _lang, _items in _GPU_ALERT_LAYOUT_TRANSLATIONS.items():
     BASE_TRANSLATIONS.setdefault(_lang, {}).update(_items)
+
+# Ukrainian language pack. It is added at the end so it can inherit every
+# registered text key and then override visible UI/dialog strings in Ukrainian.
+LANGUAGES.update({'uk': 'Українська'})
+BASE_TRANSLATIONS['uk'] = dict(BASE_TRANSLATIONS.get('en', {}))
+_UKRAINIAN_TRANSLATIONS = {
+    'Información': 'Інформація',
+    'Ayuda': 'Допомога',
+    'Opciones': 'Параметри',
+    'Advertencias': 'Попередження',
+    'Configuración': 'Налаштування',
+    'Idioma': 'Мова',
+    'Tema': 'Тема',
+    'Claro': 'Світла',
+    'Oscuro': 'Темна',
+    'Acerca de': 'Про програму',
+    'Uso seguro BC250': 'Безпечне використання BC250',
+    'BC250 Control Center': 'BC250 Control Center',
+    'Task Manager': 'Диспетчер завдань',
+    'Sistema protegido': 'Система захищена',
+    'Procesos': 'Процеси',
+    'Rendimiento': 'Продуктивність',
+    'Memoria': 'Памʼять',
+    'Historial': 'Історія',
+    'Vista compacta inspirada en Administrador de tareas: menos aire, mas datos utiles.': 'Компактний вигляд у стилі диспетчера завдань: менше порожнього місця, більше корисних даних.',
+    'Graficas compactas y sensores principales sin ocupar media pantalla por dato.': 'Компактні графіки й основні сенсори без зайвого простору для кожного показника.',
+    'Linux usa cache; se prioriza memoria disponible, swap y procesos recuperables.': 'Linux використовує кеш; пріоритет мають доступна памʼять, swap і процеси, які можна відновити.',
+    'Metricas en tiempo real arriba; abajo cambias entre GPU, CPU y 40CU sin salir de esta vista.': 'Угорі показники в реальному часі; нижче можна перемикати GPU, CPU і 40CU без виходу з цього вікна.',
+    'Ocultar sistema': 'Приховати системні',
+    'Agrupar apps': 'Групувати програми',
+    'Actualizar': 'Оновити',
+    'Seleccionar seguras': 'Вибрати безпечні',
+    'Quitar seleccion': 'Зняти вибір',
+    'Finalizar tarea': 'Завершити завдання',
+    'Buscar proceso, PID o comando': 'Пошук процесу, PID або команди',
+    'Liberar cache con aviso': 'Звільнити кеш з попередженням',
+    'Nombre': 'Назва',
+    'Impacto': 'Вплив',
+    'Protegido': 'Захищено',
+    'Comando': 'Команда',
+    'Grupo': 'Група',
+    'Sensores detectados': 'Виявлені сенсори',
+    'Sensor': 'Сенсор',
+    'Valor': 'Значення',
+    'Fuente': 'Джерело',
+    'Disponible': 'Доступно',
+    'RAM usada': 'Використано RAM',
+    'Disco sistema': 'Системний диск',
+    'Acciones recomendadas': 'Рекомендовані дії',
+    'Primero cierra apps pesadas desde Procesos. Usa liberar cache solo como accion avanzada.': 'Спочатку закрий важкі програми в розділі процесів. Очищення кешу використовуй лише як розширену дію.',
+    'CPU temp': 'Температура CPU',
+    'CPU voltaje': 'Напруга CPU',
+    'GPU temp / PPT': 'Температура GPU / PPT',
+    'Rango GPU': 'Діапазон GPU',
+    'Panel BC250': 'Панель BC250',
+    'Sin valores manuales. Solo safe-points validos del TOML.': 'Без ручних значень. Лише дійсні safe-points з TOML.',
+    'Minimo': 'Мінімум',
+    'Eco hasta 1000': 'Еко до 1000',
+    'Recomendado 1500': 'Рекомендовано 1500',
+    'Alto 1850': 'Високо 1850',
+    'Riesgo 2000': 'Ризик 2000',
+    'Riesgo 2200': 'Ризик 2200',
+    'Max TOML': 'Макс. TOML',
+    'Refrescar': 'Оновити',
+    'Estado detallado GPU': 'Детальний стан GPU',
+    'Campo': 'Поле',
+    'CPU OC temporal: no hay campos manuales. Vid limitado a perfiles seguros; monitorea temperatura y estabilidad.': 'Тимчасовий CPU OC: без ручних полів. VID обмежений безпечними профілями; стеж за температурою і стабільністю.',
+    'Perfiles CPU temporales': 'Тимчасові профілі CPU',
+    'Todos usan --keep y no instalan servicio.': 'Усі використовують --keep і не встановлюють сервіс.',
+    'Instalar bc250-detect': 'Встановити bc250-detect',
+    'Comandos usados': 'Використані команди',
+    '40CU live: puede subir consumo y temperatura. Recomendado: GPU 1500 MHz / 900 mV antes de probar.': '40CU live може підвищити споживання і температуру. Рекомендовано перед тестом: GPU 1500 MHz / 900 mV.',
+    'CU manager': 'Менеджер CU',
+    'Modo': 'Режим',
+    'Recomendacion': 'Рекомендація',
+    'Acciones 40CU': 'Дії 40CU',
+    'Estado 40CU': 'Стан 40CU',
+    'Aplicar GPU 1500 recomendado': 'Застосувати рекомендований GPU 1500',
+    'Activar 40CU temporal': 'Тимчасово увімкнути 40CU',
+    'Activar 40CU': 'Увімкнути 40CU',
+    'Restaurar 24CU': 'Відновити 24CU',
+    'Instalar UMR': 'Встановити UMR',
+    'Acciones usadas': 'Використані дії',
+    'Activo': 'Активно',
+    'Inactivo': 'Неактивно',
+    'Habilitado': 'Увімкнено',
+    'Deshabilitado': 'Вимкнено',
+    'Activando': 'Активація',
+    'Fallido': 'Помилка',
+    'Desconocido': 'Невідомо',
+    'disponible': 'доступно',
+    'no disponible': 'недоступно',
+    'No': 'Ні',
+    'Si': 'Так',
+    'Sí': 'Так',
+    'Alto': 'Високий',
+    'Medio': 'Середній',
+    'Normal': 'Нормальний',
+    'Seguras': 'Безпечні',
+    'Limpiar': 'Очистити',
+    'Finalizar': 'Завершити',
+    'D-Bus no disponible': 'D-Bus недоступний',
+    'No persistente salvo servicio': 'Не постійно, якщо не використовується сервіс',
+    'Recomendado para 40CU': 'Рекомендовано для 40CU',
+    'GPU path': 'Шлях GPU',
+    'Device/Vendor': 'Пристрій/виробник',
+    'Governor service': 'Сервіс governor',
+    'Rango actual': 'Поточний діапазон',
+    'Rango permitido D-Bus': 'Дозволений діапазон D-Bus',
+    'Maximo registrado en config': 'Максимум у конфігурації',
+    'SCLK actual': 'Поточний SCLK',
+    'Voltaje actual': 'Поточна напруга',
+    'GPU busy': 'Завантаження GPU',
+    'Power state': 'Стан живлення',
+    'Safe points config': 'Safe-points конфігурації',
+    'Safe points sin voltage': 'Safe-points без напруги',
+    'Curva voltage invalida': 'Некоректна крива напруги',
+    'Frecuencias duplicadas': 'Дубльовані частоти',
+    'PID/Grupo': 'PID/Група',
+    'Control de rango, piso de frecuencia y laboratorio de voltaje': 'Керування діапазоном, мінімальною частотою і лабораторією напруги',
+    'Piso GPU': 'Мінімум GPU',
+    'Fuerza un mínimo para juegos livianos que no despiertan el governor': 'Примусово задає мінімум для легких ігор, які не активують governor',
+    'OC avanzado': 'Розширений OC',
+    'Ajustes por safe-points existentes del TOML': 'Налаштування з наявних safe-points TOML',
+    'Aplicar OC': 'Застосувати OC',
+    'Lab voltaje GPU': 'Лабораторія напруги GPU',
+    'Lab voltaje': 'Лабораторія напруги',
+    'Laboratorio de voltaje GPU': 'Лабораторія напруги GPU',
+    'Aplicar nivel': 'Застосувати рівень',
+    'Muy alto': 'Дуже високо',
+    'Alertas inteligentes': 'Розумні сповіщення',
+    'Modo discreto': 'Дискретний режим',
+    'Preparar dependencias': 'Підготувати залежності',
+    'CPU, GPU, governor y memoria de video en vivo': 'CPU, GPU, governor і відеопамʼять у реальному часі',
+    'Compute / carga GPU': 'Compute / навантаження GPU',
+    'Historial de uso': 'Історія використання',
+    'Liberar cache': 'Звільнити кеш',
+    'Limpiar historial': 'Очистити історію',
+    'Registro local JSONL': 'Локальний журнал JSONL',
+    'OC alto': 'Високий OC',
+    'Safe-points TOML': 'Safe-points TOML',
+    'Sin datos de placa': 'Немає даних плати',
+    'Advertencia: la app no modifica el TOML. Solo usa safe-points ya definidos con voltage activo.': 'Попередження: програма не змінює TOML. Вона використовує лише вже визначені safe-points з активною напругою.',
+    'Governor/D-Bus no disponible. Revisa systemctl status cyan-skillfish-governor-smu y journalctl antes de aplicar perfiles.': 'Governor/D-Bus недоступний. Перед застосуванням профілів перевір systemctl status cyan-skillfish-governor-smu і journalctl.',
+    'Rutas locales': 'Локальні шляхи',
+    'Evaluar presión de memoria': 'Оцінити тиск памʼяті',
+    'Daemon opcional': 'Додатковий daemon',
+    'Mostrar OC alto': 'Показати високий OC',
+    'OC alto visible: la app no modifica el TOML. Si el voltaje del safe-point es menor a la curva estable conocida, se bloquea para evitar undervolt y congelamientos.': 'Високий OC видимий: програма не змінює TOML. Якщо напруга safe-point нижча за відому стабільну криву, дія блокується, щоб уникнути undervolt і зависань.',
+    'Activar governor': 'Увімкнути governor',
+    'Desactivar governor': 'Вимкнути governor',
+    'Confirmacion manual requerida': 'Потрібне ручне підтвердження',
+    'Soporta dos formatos:': 'Підтримує два формати:',
+    'CPU OC temporal': 'Тимчасовий CPU OC',
+    'Aplicar personalizado': 'Застосувати власний',
+    'Ajusta segun cada placa. Prueba escalado y detente ante congelamientos.': 'Налаштовуй під конкретну плату. Тестуй поступово і зупиняйся при зависаннях.',
+    'Mapa de unidades de computo': 'Мапа обчислювальних блоків',
+    'Muestra filas SE/SH para detectar placas con CUs desordenadas o cosechadas.': 'Показує рядки SE/SH, щоб знайти плати з розкиданими або відключеними CU.',
+    'Actualizar mapa CU': 'Оновити мапу CU',
+    'Mas informacion CPU:': 'Більше інформації CPU:',
+    'Mas informacion GPU y governor:': 'Більше інформації GPU і governor:',
+    'Mas informacion 40CU:': 'Більше інформації 40CU:',
+    'Vista compacta: procesos agrupados, busqueda rapida y acciones seguras.': 'Компактний вигляд: згруповані процеси, швидкий пошук і безпечні дії.',
+    'Monitor compacto: recursos, grafica, metricas y sensores visibles.': 'Компактний монітор: ресурси, графік, метрики й сенсори.',
+    'Eventos, alertas y acciones importantes de la placa y del sistema.': 'Події, сповіщення і важливі дії плати та системи.',
+    'Presion': 'Тиск',
+    'baja': 'низький',
+    'media': 'середній',
+    'alta': 'високий',
+    'disponibles': 'доступно',
+    'KDE protegido': 'KDE захищено',
+    'GNOME protegido': 'GNOME захищено',
+    'Cinnamon protegido': 'Cinnamon захищено',
+    'Swap/zram': 'Swap/zram',
+    'Disco': 'Диск',
+    'Ventilador': 'Вентилятор',
+    'Temperatura': 'Температура',
+    'Fecha': 'Дата',
+    'Tipo': 'Тип',
+    'Titulo': 'Заголовок',
+    'Detalle': 'Деталі',
+    'Datos': 'Дані',
+    'Servicio / perfil custom': 'Сервіс / власний профіль',
+    'Dashboard 40CU live dispatch': 'Live dispatch dashboard 40CU',
+    'Refrescar dashboard': 'Оновити dashboard',
+    'Abrir dashboard en terminal': 'Відкрити dashboard у терміналі',
+    'Habilitar personalizado': 'Увімкнути власний режим',
+    'Muestra el estado real de WGP/CU: D+, S+, D! y -- por fila SE/SH.': 'Показує реальний стан WGP/CU: D+, S+, D! і -- за рядками SE/SH.',
+    'Pulsa "Refrescar dashboard" para leer el dashboard real de bc250-cu-live-manager.': 'Натисни "Оновити dashboard", щоб прочитати реальний dashboard bc250-cu-live-manager.',
+    'Leyendo dashboard 40CU...': 'Читання dashboard 40CU...',
+    'El dashboard no devolvio salida.': 'Dashboard не повернув вивід.',
+    'No se pudo leer el dashboard 40CU.': 'Не вдалося прочитати dashboard 40CU.',
+    'Usa "Abrir dashboard en terminal" si el sistema requiere sudo interactivo.': 'Використай "Відкрити dashboard у терміналі", якщо система потребує інтерактивного sudo.',
+    'Abre el menu oficial para editar tabla, guardar perfil e instalar servicio': 'Відкриває офіційне меню для редагування таблиці, збереження профілю і встановлення сервісу',
+    'Modo seguro: las frecuencias altas solo se habilitan si el TOML iguala la curva estable conocida. Activa "Mostrar OC alto" para ver el combo de 2050+.': 'Безпечний режим: високі частоти вмикаються лише якщо TOML відповідає відомій стабільній кривій. Увімкни "Показати високий OC", щоб побачити 2050+.',
+    'Modo laboratorio OC: puedes probar frecuencias altas aunque el voltaje este debajo de la curva estable. Hazlo por pasos y sin carga 3D al cambiar.': 'Режим лабораторії OC: можна тестувати високі частоти навіть якщо напруга нижча за стабільну криву. Роби це поступово і без 3D-навантаження під час зміни.',
+    'Bloqueado por seguridad: maximo 4000 MHz y 1275 mV. El repo advierte que subir frecuencia sin undervolt puede dañar o brickear la placa; no se instala servicio CPU.': 'Заблоковано для безпеки: максимум 4000 MHz і 1275 mV. Репозиторій попереджає, що підняття частоти без undervolt може пошкодити або заблокувати плату; CPU-сервіс не встановлюється.',
+    '40CU live-manager permite enrutar WGP/CU en vivo con UMR. Puede subir consumo y temperatura. Recomendado: GPU 1500 MHz / 900 mV antes de probar.': '40CU live-manager дозволяє наживо маршрутизувати WGP/CU через UMR. Це може підвищити споживання і температуру. Рекомендовано перед тестом: GPU 1500 MHz / 900 mV.',
+    'Primero marca "Habilitar personalizado" para evitar aplicar un perfil manual por accidente.': 'Спочатку познач "Увімкнути власний режим", щоб випадково не застосувати ручний профіль.',
+    'Continuar?': 'Продовжити?',
+    'Acceso a registros AMD': 'Доступ до регістрів AMD',
+    'GPU 1500/900 antes de probar': 'GPU 1500/900 перед тестом',
+    'Live temporal': 'Тимчасовий live',
+    'Falta': 'Відсутній',
+    'Opcional': 'Додатково',
+    'solo si tu flujo lo requiere': 'лише якщо це потрібно для твого сценарію',
+    'Se abrira el menu oficial de bc250-cu-live-manager para editar tabla, guardar perfil personalizado e instalar el servicio si lo decides.': 'Відкриється офіційне меню bc250-cu-live-manager для редагування таблиці, збереження власного профілю і встановлення сервісу, якщо ти цього захочеш.',
+    'El voltaje no puede bajar al subir MHz. La app no modifica el TOML; corrige o comenta ese safe-point y reinicia cyan-skillfish-governor-smu.service.': 'Напруга не може зменшуватися при збільшенні MHz. Програма не змінює TOML; виправ або закоментуй цей safe-point і перезапусти cyan-skillfish-governor-smu.service.',
+    'Governor/D-Bus caido: curva de voltage invalida.': 'Governor/D-Bus не працює: некоректна крива напруги.',
+    'Governor/D-Bus caido: safe-points incompletos sin voltage activo.': 'Governor/D-Bus не працює: неповні safe-points без активної напруги.',
+    'La app no modifica el TOML; completa o comenta esos bloques y reinicia cyan-skillfish-governor-smu.service.': 'Програма не змінює TOML; доповни або закоментуй ці блоки й перезапусти cyan-skillfish-governor-smu.service.',
+    'Accion governor no valida.': 'Некоректна дія governor.',
+    'Actualizar lista de procesos': 'Оновити список процесів',
+    'Aplicar Lab voltaje': 'Застосувати лабораторію напруги',
+    'Aplicar perfil GPU': 'Застосувати профіль GPU',
+    'Bajada brusca bloqueada': 'Різке зниження заблоковано',
+    'Bajada brusca de frecuencia': 'Різке зниження частоти',
+    'CPU OC': 'CPU OC',
+    'Confirmacion final': 'Остаточне підтвердження',
+    'Confirmas que no hay prueba de estres activa y que entiendes el riesgo de cuelgue/apagon?': 'Підтверджуєш, що немає активного stress test і ти розумієш ризик зависання/вимкнення?',
+    'Ejecuta systemctl disable --now cyan-skillfish-governor-smu': 'Виконує systemctl disable --now cyan-skillfish-governor-smu',
+    'Ejecuta systemctl enable --now cyan-skillfish-governor-smu': 'Виконує systemctl enable --now cyan-skillfish-governor-smu',
+    'El minimo no puede ser mayor que el maximo.': 'Мінімум не може бути більшим за максимум.',
+    'Esta accion usa pkexec para ejecutar sync y drop_caches.': 'Ця дія використовує pkexec для запуску sync і drop_caches.',
+    'Finalizar tarea seleccionada': 'Завершити вибране завдання',
+    'Frecuencias altas tomadas de safe-points validos del TOML': 'Високі частоти взято з дійсних safe-points TOML',
+    'Governor no permite esa frecuencia ahora': 'Governor зараз не дозволяє цю частоту',
+    'Leyendo mapa CU...': 'Читання мапи CU...',
+    'Muestra frecuencias altas y permite laboratorio de undervolt controlado': 'Показує високі частоти і дозволяє контрольовану лабораторію undervolt',
+    'No hay aplicaciones seleccionadas.': 'Немає вибраних програм.',
+    'No hay frecuencia alta disponible con safe-point y voltage activo en el TOML.': 'У TOML немає доступної високої частоти з safe-point і активною напругою.',
+    'Perfiles inteligentes': 'Розумні профілі',
+    'Se borrara el historial local JSONL. Continuar?': 'Локальну історію JSONL буде видалено. Продовжити?',
+    'Seleccionar apps seguras': 'Вибрати безпечні програми',
+    'Si se pidio contrasena, la accion se aplicara al aceptarla.': 'Якщо було запитано пароль, дія застосовується після підтвердження.',
+    'TOML rechazado por governor': 'TOML відхилено governor',
+    'Techo estable': 'Стабільна межа',
+    'Ultima confirmacion': 'Останнє підтвердження',
+    'Voltaje GPU insuficiente': 'Недостатня напруга GPU',
+    'Zona de riesgo GPU': 'Зона ризику GPU',
+    'Consola CPU OC': 'Консоль CPU OC',
+    'Limpiar consola': 'Очистити консоль',
+    'La salida de CPU OC aparecera aqui.': 'Вивід CPU OC зʼявиться тут.',
+    'Ya hay un proceso CPU OC en ejecucion. Espera a que termine.': 'Процес CPU OC вже виконується. Дочекайся завершення.',
+    'CPU OC temporal aplicado. Revisa temperaturas y estabilidad.': 'Тимчасовий CPU OC застосовано. Перевір температуру і стабільність.',
+    'CPU OC termino con error. Revisa la consola embebida.': 'CPU OC завершився з помилкою. Перевір вбудовану консоль.',
+    'Persistencia avanzada': 'Розширена постійність',
+    'Hacer persistente ultimo OC': 'Зробити останній OC постійним',
+    'CPU OC persistente': 'Постійний CPU OC',
+    'Instala el ultimo overclock.conf probado como servicio systemd. Solo para configuraciones ya estables.': 'Встановлює останній протестований overclock.conf як сервіс systemd. Лише для вже стабільних конфігурацій.',
+    'Confirmacion invalida. Debes escribir exactamente CONFIRMO.': 'Некоректне підтвердження. Потрібно написати точно CONFIRMO.',
+    'Servicio persistente instalado. Reinicia solo despues de verificar que entiendes el riesgo.': 'Постійний сервіс встановлено. Перезавантажуйся лише після перевірки, що ти розумієш ризик.',
+    'La instalacion persistente termino con error. Revisa la consola embebida.': 'Постійне встановлення завершилося з помилкою. Перевір вбудовану консоль.',
+    'Ver status': 'Переглянути статус',
+    'Desactivar servicio': 'Вимкнути сервіс',
+    'Pulsa Ver status': 'Натисни Переглянути статус',
+    'No encontrada': 'Не знайдено',
+    'Aplicado / enabled': 'Застосовано / enabled',
+    'Activo / enabled': 'Активно / enabled',
+    'Listo / enabled': 'Готово / enabled',
+    'Desactivado': 'Вимкнено',
+    'Fallo': 'Помилка',
+    'One-shot finalizo con exito; se repetira al arranque': 'One-shot успішно завершився; повториться під час запуску',
+    'Habilitado para el proximo arranque': 'Увімкнено для наступного запуску',
+    'Ejecutandose ahora': 'Виконується зараз',
+    'Servicio persistente desactivado. No se aplicara al iniciar el sistema.': 'Постійний сервіс вимкнено. Він не застосовуватиметься під час запуску системи.',
+    'La desactivacion persistente termino con error. Revisa la consola embebida.': 'Вимкнення постійності завершилося з помилкою. Перевір вбудовану консоль.',
+    'Falta UMR en el sistema.': 'UMR відсутній у системі.',
+    'Quieres abrir el instalador de UMR ahora?': 'Відкрити інсталятор UMR зараз?',
+    'UMR es la herramienta que bc250-cu-live-manager usa para leer y escribir registros AMD/AMDGPU. Sin UMR no se puede refrescar el dashboard live ni activar/restaurar 40CU desde la interfaz.': 'UMR — це інструмент, який bc250-cu-live-manager використовує для читання і запису регістрів AMD/AMDGPU. Без UMR неможливо оновити live dashboard або увімкнути/відновити 40CU з інтерфейсу.',
+    'Solucion: pulsa el boton "Instalar UMR" en el panel 40CU. La app detectara tu distribucion e intentara instalar el paquete correspondiente.': 'Рішення: натисни кнопку "Встановити UMR" на панелі 40CU. Програма визначить дистрибутив і спробує встановити відповідний пакет.',
+    '== Desactivando CPU OC persistente ==': '== Вимкнення постійного CPU OC ==',
+    '== Ejecutando CPU OC temporal ==': '== Запуск тимчасового CPU OC ==',
+    '== Instalando CPU OC persistente ==': '== Встановлення постійного CPU OC ==',
+    '== Status CPU OC persistente ==': '== Статус постійного CPU OC ==',
+    'Bloqueado por posible undervolt en el TOML.': 'Заблоковано через можливий undervolt у TOML.',
+    'CPU OC sigue ejecutandose': 'CPU OC ще виконується',
+    'Candidatos de cierre': 'Кандидати на закриття',
+    'El OC ya fue aplicado en este arranque y volvera a aplicarse al iniciar si sigue enabled.': 'OC вже застосовано в цьому запуску і буде застосовано знову під час старту, якщо лишиться enabled.',
+    'El TOML tiene': 'TOML має',
+    'Escribe CONFIRMO para instalar el servicio persistente:': 'Напиши CONFIRMO для встановлення постійного сервісу:',
+    'Juegos detectados': 'Виявлені ігри',
+    'La GPU parece estar bajo carga': 'GPU схоже перебуває під навантаженням',
+    'La app no modificara el TOML. Corrige/reinicia cyan-skillfish-governor-smu.service para usar ese valor.': 'Програма не змінюватиме TOML. Виправ/перезапусти cyan-skillfish-governor-smu.service, щоб використати це значення.',
+    'La curva de voltage del TOML es invalida:': 'Крива напруги TOML некоректна:',
+    'Monitorea CPU MHz, temperatura y voltaje en el monitor superior.': 'Стеж за CPU MHz, температурою і напругою у верхньому моніторі.',
+    'No aplico perfiles hasta corregir o comentar ese safe-point y reiniciar cyan-skillfish-governor-smu.service.': 'Профілі не застосовано, доки цей safe-point не буде виправлено або закоментовано і cyan-skillfish-governor-smu.service не буде перезапущено.',
+    'No cierres la app. El proceso puede tardar varios segundos.': 'Не закривай програму. Процес може тривати кілька секунд.',
+    'No se pudo aplicar el rango:': 'Не вдалося застосувати діапазон:',
+    'No se pudo desactivar persistencia CPU OC:': 'Не вдалося вимкнути постійний CPU OC:',
+    'No se pudo instalar persistencia CPU OC:': 'Не вдалося встановити постійний CPU OC:',
+    'No se pudo leer el TOML actual:': 'Не вдалося прочитати поточний TOML:',
+    'No se pudo leer status:': 'Не вдалося прочитати статус:',
+    'No se pudo liberar cache:': 'Не вдалося звільнити кеш:',
+    'No se pudo limpiar historial:': 'Не вдалося очистити історію:',
+    'No se pudo validar contra safe-points del TOML:': 'Не вдалося перевірити за safe-points TOML:',
+    'Nota: inactive/dead es normal en este servicio one-shot cuando ExecStart termina con SUCCESS.': 'Примітка: inactive/dead нормально для цього one-shot сервісу, коли ExecStart завершується з SUCCESS.',
+    'Para pruebas controladas activa "Mostrar OC alto".': 'Для контрольованих тестів увімкни "Показати високий OC".',
+    'Perfil no reconocido:': 'Невідомий профіль:',
+    'Recomendado: baja por pasos y espera unos segundos entre cambios. Continuar?': 'Рекомендовано: знижуй поступово і чекай кілька секунд між змінами. Продовжити?',
+    'Se abrira Polkit para permisos de administrador.': 'Polkit відкриється для прав адміністратора.',
+    'Se abrira la autenticacion grafica de Polkit si hace falta.': 'За потреби відкриється графічна автентифікація Polkit.',
+    'Se intentara cerrar limpio con SIGTERM antes de forzar.': 'Спочатку буде спроба коректно закрити через SIGTERM перед примусовим завершенням.',
+    'Si la salida queda quieta pero la frecuencia sube, el proceso sigue trabajando.': 'Якщо вивід не змінюється, але частота росте, процес усе ще працює.',
+    'Vas a bajar de': 'Ти збираєшся знизити з',
+    'como safe-point, pero D-Bus actualmente permite': 'як safe-point, але D-Bus зараз дозволяє',
+    'espera a que finalice...': 'дочекайся завершення...',
+    'esta en': 'зараз на',
+    'no tiene safe-point valido con voltage activo en el TOML. No lo aplico.': 'не має дійсного safe-point з активною напругою в TOML. Не застосовано.',
+    'pero la curva estable conocida pide al menos': 'але відома стабільна крива потребує щонайменше',
+    'y quieres bajar de': 'і ти хочеш знизити з',
+    '0 seleccionados': '0 вибрано',
+    '40 unidades de computo activadas.': '40 обчислювальних блоків увімкнено.',
+    'Abre una ventana para probar curvas GPU por niveles de +10 mV': 'Відкриває вікно для тестування кривих GPU з кроком +10 mV',
+    'Advertencia: la app no modifica el TOML salvo que uses Lab voltaje. Cambia frecuencias sin carga 3D activa.': 'Попередження: програма не змінює TOML, якщо не використовується лабораторія напруги. Змінюй частоти без активного 3D-навантаження.',
+    'BC250 Control Center administra procesos y perfiles BC250 con validaciones de seguridad. La app intenta usar rutas universales y herramientas instaladas antes de depender de carpetas locales.': 'BC250 Control Center керує процесами і профілями BC250 з перевірками безпеки. Програма намагається використовувати універсальні шляхи й встановлені інструменти перед залежністю від локальних тек.',
+    'Desde 2000 MHz en GPU hay riesgo de apagones, cuelgues o daño. 40CU aumenta consumo y temperatura. CPU OC temporal puede crashear si la placa no es estable.': 'Починаючи з 2000 MHz на GPU є ризик вимкнень, зависань або пошкодження. 40CU підвищує споживання і температуру. Тимчасовий CPU OC може спричинити збій, якщо плата нестабільна.',
+    'Deten el juego/prueba de estres primero o baja por pasos: 2400->2200->2000->1850->1500->1000. Esto evita saltos fuertes de voltage/frecuencia que pueden congelar la pantalla.': 'Спочатку зупини гру/stress test або знижуй поетапно: 2400->2200->2000->1850->1500->1000. Це допомагає уникнути різких стрибків напруги/частоти, які можуть заморозити екран.',
+    'Instalar/clonar herramientas faltantes para BC250': 'Встановити/клонувати відсутні інструменти BC250',
+    'Monitor BC250': 'Монітор BC250',
+    'Nivel 0  (Default governor)': 'Рівень 0  (стандартний governor)',
+    'Nivel 0 usa los valores default del governor. Los niveles suben +10 mV por paso. Personalizado solo modifica mV y tiene limite duro de 1150 mV.': 'Рівень 0 використовує стандартні значення governor. Рівні додають +10 mV за крок. Власний режим змінює лише mV і має жорстку межу 1150 mV.',
+    'No se pudo ejecutar accion 40CU:': 'Не вдалося виконати дію 40CU:',
+    'No se pudo ejecutar bc250-detect:': 'Не вдалося запустити bc250-detect:',
+    'Para bajar frecuencias altas, detén juegos o pruebas de estres primero. Evita saltos bruscos como 2000 MHz a 1000 MHz bajo carga; baja por pasos y monitorea temperatura, voltaje y estabilidad.': 'Щоб знижувати високі частоти, спершу зупини ігри або stress tests. Уникай різких переходів, як 2000 MHz до 1000 MHz під навантаженням; знижуй поступово і стеж за температурою, напругою та стабільністю.',
+    'Perfiles inteligentes conservadores: aplican rangos GPU validados. No activan 40CU ni CPU OC automaticamente.': 'Консервативні розумні профілі: застосовують перевірені діапазони GPU. Вони не вмикають 40CU або CPU OC автоматично.',
+    'Perfiles y laboratorio seguro para bc250-detect --keep': 'Профілі й безпечна лабораторія для bc250-detect --keep',
+    'Preparar bc250-detect': 'Підготувати bc250-detect',
+    'Preparar dependencias BC250': 'Підготувати залежності BC250',
+    'Salida del proceso bc250-detect dentro de la aplicacion.': 'Вивід процесу bc250-detect усередині програми.',
+    'Se restauro el perfil de 24 unidades de computo.': 'Профіль 24 обчислювальних блоків відновлено.',
+    'Si hay juego, FurMark o carga 3D activa, detente antes.': 'Якщо працює гра, FurMark або активне 3D-навантаження, спочатку зупини його.',
+    'Ultima confirmacion: no hay juego, FurMark ni prueba 3D corriendo y tienes forma de reiniciar si se congela?': 'Останнє підтвердження: немає гри, FurMark або 3D-тесту, і ти маєш спосіб перезавантажити систему, якщо вона зависне?',
+    'Usando overclock.conf generado por bc250-detect.': 'Використовується overclock.conf, створений bc250-detect.',
+    'Es temporal, no instala el servicio CPU.': 'Це тимчасово, CPU-сервіс не встановлюється.',
+    'La UI bloquea mas de 4000 MHz y mas de 1275 mV por seguridad.': 'UI блокує понад 4000 MHz і понад 1275 mV з міркувань безпеки.',
+    'La app verifico que el TOML tenga un voltaje igual o superior a la curva estable conocida, pero sigue siendo OC.': 'Програма перевірила, що TOML має напругу не нижчу за відому стабільну криву, але це все одно OC.',
+    'No cambies frecuencia con FurMark/juego/carga 3D activa.': 'Не змінюй частоту при активному FurMark/грі/3D-навантаженні.',
+    'No cambies frecuencias bajo FurMark/juego/carga 3D. Continuar?': 'Не змінюй частоти під FurMark/грою/3D-навантаженням. Продовжити?',
+    'Puede congelar la PC si tu placa no es estable. Deten pruebas pesadas antes de cambiar.': 'Це може заморозити ПК, якщо плата нестабільна. Зупини важкі тести перед зміною.',
+    'Se aplicara por D-Bus del governor.': 'Буде застосовано через D-Bus governor.',
+    'Se ejecutara': 'Буде виконано',
+    'Si hay cuelgue, reinicia y sube nivel en Lab voltaje.': 'Якщо зависне, перезавантажся і підніми рівень у лабораторії напруги.',
+    'Vas a usar': 'Ти збираєшся використати',
+    'hacia': 'до',
+    'ADVERTENCIA EXTREMA': 'КРИТИЧНЕ ПОПЕРЕДЖЕННЯ',
+    'Servicio systemd encontrado': 'Сервіс systemd знайдено',
+    'Servicio no instalado': 'Сервіс не встановлено',
+    'Se aplicara al iniciar': 'Буде застосовано під час запуску',
+    'No arranca automaticamente': 'Не запускається автоматично',
+    'Config persistente presente': 'Постійна конфігурація присутня',
+    'Primero instala persistencia': 'Спочатку встанови постійність',
+    'Se aplicara Nivel': 'Буде застосовано рівень',
+    'Solo se modifican voltajes mV en safe-points existentes del TOML.': 'Змінюються лише напруги mV у наявних safe-points TOML.',
+    'No se permite ningun valor mayor a 1150 mV.': 'Значення понад 1150 mV не дозволені.',
+    'El script preserva el rango D-Bus anterior tras reiniciar el governor.': 'Скрипт зберігає попередній діапазон D-Bus після перезапуску governor.',
+    'libres': 'вільно',
+    'usados': 'використано',
+    'seleccionados': 'вибрано',
+    'procesos reales': 'реальних процесів',
+    'recuperacion aprox.': 'прибл. відновлення',
+    'Aplicar': 'Застосувати',
+    'Seguro': 'Безпечно',
+    'Gaming': 'Ігровий',
+    '40CU recomendado': '40CU рекомендовано',
+    'Benchmark controlado': 'Контрольований benchmark',
+    'Recuperacion': 'Відновлення',
+    '500-1500 MHz, recomendado para estabilidad diaria.': '500-1500 MHz, рекомендовано для щоденної стабільності.',
+    '1000-1850 MHz, buen balance para juegos.': '1000-1850 MHz, хороший баланс для ігор.',
+    '500/1000-1500 MHz antes de probar 40CU.': '500/1000-1500 MHz перед тестом 40CU.',
+    '1000-2000 MHz con advertencia de riesgo.': '1000-2000 MHz з попередженням про ризик.',
+    '500-1000 MHz para bajar carga y estabilizar.': '500-1000 MHz для зниження навантаження і стабілізації.',
+    'Recomendado': 'Рекомендовано',
+    'Voltaje': 'Напруга',
+    'Uso CPU': 'Використання CPU',
+    'Descripcion': 'Опис',
+    'Frecuencia': 'Частота',
+    'Uso RAM': 'Використання RAM',
+    'En uso': 'Використовується',
+    'Temperatura GPU': 'Температура GPU',
+    'Uso swap': 'Використання swap',
+    'Swap usado': 'Використано swap',
+    'Uso disco': 'Використання диска',
+    'Actividad': 'Активність',
+    'Dato 1': 'Дані 1',
+    'Dato 2': 'Дані 2',
+    'Total RAM': 'Усього RAM',
+    'carga': 'навантаження',
+    'Estado': 'Стан',
+    'Personalizado': 'Власний',
+    'Servicio': 'Сервіс',
+    'Eficiente': 'Ефективний',
+    'Placa media': 'Середня плата',
+    'Balance': 'Баланс',
+    'Punto medio': 'Середня точка',
+    'Max seguro UI': 'Безпечний максимум UI',
+    'Carga': 'Навантаження',
+    'hilos': 'потоків',
+    'Aceptar': 'OK',
+    'Cancelar': 'Скасувати',
+    'Cerrar': 'Закрити',
+    'Confirmacion': 'Підтвердження',
+    'Perfil': 'Профіль',
+    'Rango': 'Діапазон',
+    'Nivel': 'Рівень',
+    'Actual': 'Поточний',
+    'Margen': 'Запас',
+    'Si se congela, reinicia y sube el nivel en Lab voltaje.': 'Якщо зависне, перезавантажся і підніми рівень у лабораторії напруги.',
+    'la curva estable conocida pide': 'відома стабільна крива потребує',
+    'Esto es laboratorio de undervolt.': 'Це лабораторний тест undervolt.',
+    'No persistente': 'Не постійно',
+    'No ejecuta bc250-apply --install ni systemctl enable bc250-smu-oc.': 'Не виконує bc250-apply --install і systemctl enable bc250-smu-oc.',
+    'Regla practica': 'Практичне правило',
+    'Si crashea, sube voltaje con cuidado o baja frecuencia; cada BC250 es distinta.': 'Якщо падає, обережно підніми напругу або знизь частоту; кожна BC250 відрізняється.',
+    'No inicia automaticamente': 'Не запускається автоматично',
+    'Se ejecutara bc250-cu-live-manager para enrutar todos los WGP/CU en vivo. Es temporal salvo que guardes/instales servicio dentro del manager.': 'Буде запущено bc250-cu-live-manager для live-маршрутизації всіх WGP/CU. Це тимчасово, якщо не збережеш/не встановиш сервіс у manager.',
+    'Se restaurara en vivo el despacho factory/24CU usando bc250-cu-live-manager.': 'Factory/24CU dispatch буде відновлено наживо через bc250-cu-live-manager.',
+    'Safe-points del TOML:': 'Safe-points TOML:',
+    'Maximo registrado:': 'Зареєстрований максимум:',
+    'Safe-points sin voltage:': 'Safe-points без напруги:',
+    'Curva voltage invalida:': 'Некоректна крива напруги:',
+    'Frecuencias duplicadas:': 'Дубльовані частоти:',
+    'eventos locales en JSONL': 'локальних подій у JSONL',
+    'No se pudo leer historial:': 'Не вдалося прочитати історію:',
+    'bc250-cu-live-manager was not found. Use Prepare dependencies first.': 'bc250-cu-live-manager не знайдено. Спочатку використай Підготувати залежності.',
+    'polkit/pkexec was not found. Install polkit or use Service / custom profile from a terminal.': 'polkit/pkexec не знайдено. Встанови polkit або використай Сервіс / власний профіль з термінала.',
+    'The live dashboard needs administrator permissions. If the Polkit window does not appear, check that your desktop has an active authentication agent.': 'Live dashboard потребує прав адміністратора. Якщо вікно Polkit не зʼявляється, перевір, що у desktop працює агент автентифікації.',
+    'No se pudo leer el mapa CU.': 'Не вдалося прочитати мапу CU.',
+    'El mapa CU heredado no es necesario para el live-manager. Usa Preparar dependencias si necesitas reinstalar herramientas.': 'Застаріла мапа CU не потрібна для live-manager. Використай Підготувати залежності, якщо треба перевстановити інструменти.',
+    'Repositorios oficiales': 'Офіційні репозиторії',
+    'BC250 Control Center no es propietario de estas herramientas. Se clonan o instalan desde repositorios oficiales y conservan sus creditos upstream.': 'BC250 Control Center не є власником цих інструментів. Вони клонуються або встановлюються з офіційних репозиторіїв і зберігають upstream credits.',
+    'Abrir': 'Відкрити',
+    'Si Firefox muestra perfil bloqueado desde una terminal, abre los enlaces desde esta ventana o copia la URL en el navegador ya abierto.': 'Якщо Firefox показує заблокований профіль із термінала, відкрий посилання з цього вікна або скопіюй URL у вже відкритий браузер.',
+    'Status governor': 'Статус governor',
+    'Status governor no disponible.': 'Статус governor недоступний.',
+    'Muestra systemctl status cyan-skillfish-governor-smu sin abrir terminal': 'Показує systemctl status cyan-skillfish-governor-smu без відкриття термінала',
+    'Lab voltaje aplicado correctamente.': 'Лабораторію напруги застосовано успішно.',
+    'Lab voltaje personalizado aplicado correctamente.': 'Власну лабораторію напруги застосовано успішно.',
+    'Nota: los controles GPU de esta app requieren cyan-skillfish-governor-smu; cyan-skillfish-governor sin SMU no es compatible con estos controles D-Bus.': 'Примітка: елементи керування GPU у цій програмі потребують cyan-skillfish-governor-smu; cyan-skillfish-governor без SMU несумісний з цими D-Bus controls.',
+    'Aviso GPU': 'Сповіщення GPU',
+    'Compatibilidad SMU': 'Сумісність SMU',
+    'Requiere cyan-skillfish-governor-smu. El paquete cyan-skillfish-governor sin SMU no es compatible con los controles D-Bus de esta app.': 'Потрібен cyan-skillfish-governor-smu. Пакет cyan-skillfish-governor без SMU несумісний з D-Bus controls цієї програми.',
+}
+BASE_TRANSLATIONS['uk'].update(_UKRAINIAN_TRANSLATIONS)
+
+# Long Ukrainian dialog overrides. These are matched by stable fragments because
+# some original strings are multi-line and are reused in more than one layer.
+def _uk_set_by_fragment(fragmento, traduccion):
+    for _clave in list(BASE_TRANSLATIONS.get('en', {}).keys()):
+        if fragmento in _clave:
+            BASE_TRANSLATIONS['uk'][_clave] = traduccion
+
+BASE_TRANSLATIONS['uk'].update({
+    'Aceptar': 'Гаразд',
+    'Power state:': 'Стан живлення:',
+    'Perfil inteligente Seguro': 'Розумний профіль: безпечний',
+    'Perfil inteligente Gaming': 'Розумний профіль: ігровий',
+    'Perfil inteligente 40CU recomendado': 'Розумний профіль: рекомендований 40CU',
+    'Perfil inteligente Benchmark controlado': 'Розумний профіль: контрольований benchmark',
+    'Perfil inteligente Recuperacion': 'Розумний профіль: відновлення',
+    'Advertencia: la app no modifica el TOML. Solo usa safe-points existentes con voltage activo. 1500 MHz / 900 mV es recomendado para 40CU; desde 2000 MHz hay riesgo de temperatura, apagones o dano.': 'Попередження: програма не змінює TOML. Вона використовує лише наявні safe-points з активною напругою. 1500 MHz / 900 mV рекомендовано для 40CU; від 2000 MHz є ризик температури, вимкнень або пошкодження.',
+    'El Lab no debe cambiar el rango min/max: el script preserva el rango D-Bus anterior tras reiniciar el governor. Cambia voltajes sin FurMark/juego activo.': 'Лабораторія не повинна змінювати діапазон min/max: скрипт зберігає попередній діапазон D-Bus після перезапуску governor. Змінюй напруги без активного FurMark/гри.',
+})
+
+_uk_set_by_fragment(
+    'UMR permite que bc250-cu-live-manager lea y escriba registros AMD/AMDGPU',
+    'UMR дозволяє bc250-cu-live-manager читати й записувати регістри AMD/AMDGPU, щоб показувати live dashboard і вмикати/відновлювати 40CU.\n\n'
+    'Програма визначить твій дистрибутив і спробує відповідний метод:\n'
+    '- Arch/Manjaro/CachyOS: yay/paru або pacman.\n'
+    '- Fedora/Nobara: dnf.\n'
+    '- Bazzite/Fedora Atomic: rpm-ostree; може знадобитися перезавантаження.\n'
+    '- Debian/Ubuntu: apt, якщо пакет доступний.\n'
+    '- Резервний варіант: bc250-cu-live-manager install-umr.\n\n'
+    'Продовжити?'
+)
+_uk_set_by_fragment(
+    'Se preparara la herramienta desde el repo local bc250_smu_oc sin pip',
+    'Інструмент буде підготовлено з локального репозиторію bc250_smu_oc без pip. Сервіси не встановлюються.\n\nПродовжити?'
+)
+_uk_set_by_fragment(
+    'El daemon bc250-control-centerd es opcional. Monitorea temperatura, RAM, swap, governor',
+    'Daemon bc250-control-centerd є додатковим. Він моніторить температуру, RAM, swap, governor і записує метрики JSONL навіть коли GUI закрито.\n\n'
+    'Увімкнути:\n'
+    'systemctl --user enable --now bc250-control-centerd.service\n\n'
+    'Вимкнути:\n'
+    'systemctl --user disable --now bc250-control-centerd.service\n\n'
+    'Переглянути статус:\n'
+    'systemctl --user status bc250-control-centerd.service\n\n'
+    'Автоматичний OC не застосовується.'
+)
+_uk_set_by_fragment(
+    'ADVERTENCIA EXTREMA\n\nEsta accion instala el overclock de CPU como servicio persistente',
+    'КРИТИЧНЕ ПОПЕРЕДЖЕННЯ\n\n'
+    'Ця дія встановлює overclock CPU як постійний сервіс systemd.\n'
+    'Якщо overclock нестабільний, можна втратити дані, пошкодити встановлення або отримати систему, яка не завантажується коректно.\n\n'
+    'Перед підтвердженням:\n'
+    '- Зроби резервну копію.\n'
+    '- Перевір стабільність в іграх і реальних навантаженнях.\n'
+    '- Перевір температури, напругу і можливі вимкнення.\n'
+    '- Переконайся, що тимчасовий overclock працює добре.\n\n'
+    'Ми не несемо відповідальності за втрату інформації, пошкодження системи або шкоду.\n\n'
+    'Щоб продовжити, у наступному вікні введи точно CONFIRMO.'
+)
+_uk_set_by_fragment(
+    'Se detendra y deshabilitara bc250-smu-oc.service',
+    'bc250-smu-oc.service буде зупинено і вимкнено.\n\n'
+    'Це не дозволить постійному CPU OC застосовуватися під час запуску системи.\n'
+    'Файл /etc/bc250-smu-oc.conf не видаляється, якщо ти захочеш переглянути конфігурацію пізніше.\n\n'
+    'Продовжити?'
+)
+_uk_set_by_fragment(
+    'Se abrira una terminal para preparar dependencias faltantes',
+    'Відкриється термінал для підготовки відсутніх залежностей.\n\n'
+    '- cyan-skillfish-governor-smu: встановлює пакет, якщо його немає.\n'
+    '- bc250_smu_oc: клонує/оновлює і запускає напряму без pip.\n'
+    '- bc250-cu-live-manager: клонує/оновлює основний інструмент 40CU.\n'
+    '- UMR: показує або виконує рекомендований метод, якщо його немає.\n\n'
+    'Термінал покаже credits і офіційні посилання. BC250 Control Center не є власником цих інструментів; кожен репозиторій належить своїм авторам.\n\n'
+    'CPU OC як сервіс не вмикається, TOML не змінюється і частоти не застосовуються. Продовжити?'
+)
+_uk_set_by_fragment(
+    'Se ejecutara:\n\nsudo systemctl enable --now cyan-skillfish-governor-smu.service',
+    'Буде виконано:\n\n'
+    'sudo systemctl enable --now cyan-skillfish-governor-smu.service\n\n'
+    'Це запускає governor зараз і залишає його увімкненим для старту системи. Саме по собі це не змінює TOML і не застосовує OC. Продовжити?'
+)
+_uk_set_by_fragment(
+    'Se ejecutara:\n\nsudo systemctl disable --now cyan-skillfish-governor-smu.service',
+    'Буде виконано:\n\n'
+    'sudo systemctl disable --now cyan-skillfish-governor-smu.service\n\n'
+    'Це зупиняє governor зараз і забороняє його автоматичний запуск. Поки він вимкнений, програма не зможе застосовувати діапазони GPU через D-Bus. Продовжити?'
+)
+_uk_set_by_fragment(
+    'Se aplicara una curva personalizada.',
+    'Буде застосовано власну криву.\n\n'
+    'Змінюються лише напруги mV у наявних safe-points TOML.\n'
+    'Значення понад 1150 mV не дозволені.\n'
+    'Скрипт зберігає попередній діапазон D-Bus після перезапуску governor.\n\n'
+    'Продовжити?'
+)
+_uk_set_by_fragment(
+    'Esta accion usa pkexec para ejecutar sync y drop_caches.\n\nNo reemplaza cerrar apps pesadas',
+    'Ця дія використовує pkexec для запуску sync і drop_caches.\n\n'
+    'Вона не замінює закриття важких програм і може спричинити повторне завантаження даних з диска.\n\n'
+    'Продовжити?'
+)
+_uk_set_by_fragment(
+    'UMR is missing from the system.',
+    'UMR відсутній у системі.\n\n'
+    'UMR — це інструмент, який bc250-cu-live-manager використовує для читання і запису регістрів AMD/AMDGPU. Без UMR live dashboard і дії увімкнення/відновлення 40CU не можуть працювати з інтерфейсу.\n\n'
+    'Рішення: натисни кнопку "Встановити UMR" на панелі 40CU. Програма визначить твій дистрибутив і спробує встановити відповідний пакет.'
+)
+_uk_set_by_fragment(
+    'BC250 Control Center es una interfaz grafica para administrar, preparar y supervisar herramientas comunitarias',
+    'BC250 Control Center — це графічний інтерфейс для керування, підготовки та моніторингу community tools для плати AMD BC-250.\n\n'
+    'Що робить програма:\n'
+    '- Обʼєднує GPU, CPU, 40CU, процеси, памʼять, сенсори та історію в одному вікні.\n'
+    '- Готує залежності у сумісних дистрибутивах, щоб свіжа система була готова без пошуку команд в інтернеті.\n'
+    '- Дозволяє використовувати профілі й дії з попередженнями, перевірками та візуальними межами.\n'
+    '- Показує шляхи, стан сервісів і важливий вивід, щоб користувач розумів, що відбувається.\n\n'
+    'Що використовується всередині:\n'
+    '- cyan-skillfish-governor-smu для керування діапазонами GPU через governor/D-Bus.\n'
+    '- bc250_smu_oc для тимчасового або постійного CPU OC, якщо користувач цього хоче.\n'
+    '- bc250-cu-live-manager для live dashboard і дій 40CU/24CU.\n'
+    '- UMR, lm_sensors, systemd, Polkit і системні інструменти за потреби.\n\n'
+    'Кредити й межі проєкту:\n'
+    '- Наша робота — створити launcher/графічний центр, який зручніше інтегрує, організовує і керує цими репозиторіями.\n'
+    '- Ми не претендуємо на авторство зовнішніх community tools; кожен інструмент зберігає свої credits, ліцензію і офіційний репозиторій.\n'
+    '- Мета — щоб користувачу було зручно працювати з BC-250 без постійної залежності від термінала або переходів між багатьма репозиторіями.\n\n'
+    'Важливо:\n'
+    '- Overclock, 40CU і зміни частот можуть спричинити зависання, вимкнення, втрату даних або пошкодження hardware.\n'
+    '- Кожна BC-250 різна; тестуй поступово і під свою відповідальність.'
+)

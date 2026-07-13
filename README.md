@@ -107,6 +107,7 @@ The interface includes language support for:
 - Simplified Chinese
 - Korean
 - Russian
+- Ukrainian
 - German
 - French
 - Japanese
