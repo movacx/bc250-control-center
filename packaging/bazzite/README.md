@@ -1,35 +1,39 @@
 # Bazzite RPM build
 
-Carpeta separada para generar el RPM directamente desde Bazzite/Fedora Atomic.
+Separate folder to generate the RPM directly from Bazzite/Fedora Atomic.
 
-## Preparar Bazzite
+Stable package files are published in the project releases:
+
+[https://github.com/movacx/bc250-control-center/releases](https://github.com/movacx/bc250-control-center/releases)
+
+## Prepare Bazzite
 
 ```bash
 sudo rpm-ostree install rpm-build rpmdevtools rsync
 systemctl reboot
 ```
 
-## Generar RPM
+## Build RPM
 
 ```bash
-cd /ruta/al/bc250-control-center
+cd /path/to/bc250-control-center
 ./packaging/bazzite/build-rpm-bazzite.sh
 ```
 
-Salida esperada:
+Expected output:
 
 ```text
 packaging/bazzite/out/bc250-control-center-0.1.0-*.noarch.rpm
 ```
 
-## Instalar el RPM generado
+## Install the generated RPM
 
 ```bash
 sudo rpm-ostree install ./packaging/bazzite/out/bc250-control-center-0.1.0-*.noarch.rpm
 systemctl reboot
 ```
 
-## Verificar archivo
+## Check the file
 
 ```bash
 file packaging/bazzite/out/bc250-control-center-0.1.0-*.noarch.rpm

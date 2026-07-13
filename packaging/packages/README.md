@@ -1,32 +1,36 @@
-# Paquetes listos para probar
+# Ready packages
 
-Esta carpeta es solo para dejar juntos los paquetes generados localmente antes de compartir una version.
-Los binarios no se suben al repositorio; se generan en tu maquina y quedan ignorados por Git.
+This folder is only used to keep locally generated packages together before sharing a version.
+Binary packages are not committed to the source repository; they are generated on your machine and ignored by Git.
+
+Stable package files are published in the project releases:
+
+[https://github.com/movacx/bc250-control-center/releases](https://github.com/movacx/bc250-control-center/releases)
 
 ```text
 packaging/packages/
-  arch/      .pkg.tar.zst para Arch, CachyOS y Manjaro
-  fedora/    .rpm para Fedora y Nobara
-  bazzite/   .rpm generado desde Bazzite/Fedora Atomic
+  arch/      .pkg.tar.zst for Arch, CachyOS and Manjaro
+  fedora/    .rpm for Fedora and Nobara
+  bazzite/   .rpm generated from Bazzite/Fedora Atomic
 ```
 
-## Comandos de instalacion
+## Install commands
 
 Arch/CachyOS/Manjaro:
 
 ```bash
-sudo pacman -U packaging/packages/arch/bc250-control-center-git-*.pkg.tar.zst
+sudo pacman -U ./bc250-control-center-git-*.pkg.tar.zst
 ```
 
 Fedora/Nobara:
 
 ```bash
-sudo dnf install packaging/packages/fedora/bc250-control-center-*.noarch.rpm
+sudo dnf install ./bc250-control-center-*.fedora.rpm
 ```
 
 Bazzite/Fedora Atomic:
 
 ```bash
-sudo rpm-ostree install packaging/packages/bazzite/bc250-control-center-*.noarch.rpm
+sudo rpm-ostree install ./bc250-control-center-*.bazzite.rpm
 systemctl reboot
 ```

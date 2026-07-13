@@ -1,54 +1,68 @@
 # Packaging
 
-Aqui estan las recetas y salidas de paquetes para BC250 Control Center.
+This folder contains the package recipes and local package outputs for BC250 Control Center.
 
-## Paquetes listos
+## Ready packages
 
-Cuando se construyen paquetes, tambien se copian a:
+Stable package files are published in the project releases:
+
+[https://github.com/movacx/bc250-control-center/releases](https://github.com/movacx/bc250-control-center/releases)
+
+Download the file for your distribution from the latest release.
+
+Local builds can also be copied to:
 
 ```text
-packaging/packages/arch/      .pkg.tar.zst para Arch, CachyOS y Manjaro
-packaging/packages/fedora/    .rpm para Fedora y Nobara
-packaging/packages/bazzite/   .rpm para Bazzite / Fedora Atomic
+packaging/packages/arch/      .pkg.tar.zst for Arch, CachyOS and Manjaro
+packaging/packages/fedora/    .rpm for Fedora and Nobara
+packaging/packages/bazzite/   .rpm for Bazzite / Fedora Atomic
 ```
 
-Esos binarios son para compartir releases o pruebas locales. No se suben al repositorio fuente.
+Those binaries are for local testing or release preparation. They are not meant to be committed to the source repository.
 
-## Instalar paquetes
+## Install packages
 
 Arch/CachyOS/Manjaro:
 
 ```bash
-sudo pacman -U packaging/packages/arch/bc250-control-center-git-*.pkg.tar.zst
+sudo pacman -U ./bc250-control-center-git-*.pkg.tar.zst
 ```
 
 Fedora/Nobara:
 
 ```bash
-sudo dnf install packaging/packages/fedora/bc250-control-center-*.noarch.rpm
+sudo dnf install ./bc250-control-center-*.fedora.rpm
 ```
 
 Bazzite/Fedora Atomic:
 
 ```bash
-sudo rpm-ostree install packaging/packages/bazzite/bc250-control-center-*.noarch.rpm
+sudo rpm-ostree install ./bc250-control-center-*.bazzite.rpm
 systemctl reboot
 ```
 
-## Instalacion local sin paquete
+If you are installing from local build folders instead of GitHub releases, use:
+
+```bash
+sudo pacman -U packaging/packages/arch/bc250-control-center-git-*.pkg.tar.zst
+sudo dnf install packaging/packages/fedora/bc250-control-center-*.rpm
+sudo rpm-ostree install packaging/packages/bazzite/bc250-control-center-*.rpm
+```
+
+## Local install without package
 
 ```bash
 PREFIX="$HOME/.local" ./scripts/install-local.sh
 bc250-control-center
 ```
 
-Desinstalar:
+Uninstall:
 
 ```bash
 PREFIX="$HOME/.local" ./scripts/uninstall-local.sh
 ```
 
-## Construir paquetes
+## Build packages
 
 Arch-like:
 
@@ -62,20 +76,20 @@ Fedora/Nobara:
 ./packaging/scripts/build-rpm.sh
 ```
 
-Bazzite/Fedora Atomic, ejecutado desde Bazzite:
+Bazzite/Fedora Atomic, executed from Bazzite:
 
 ```bash
 ./packaging/bazzite/build-rpm-bazzite.sh
 ```
 
-## Estructura
+## Structure
 
 ```text
 packaging/
-  arch/       PKGBUILD local y AUR
-  rpm/        spec RPM
-  bazzite/    builder RPM para Bazzite/Fedora Atomic
-  common/     desktop entry, metainfo y systemd user service
-  packages/   copia local de paquetes finales
-  scripts/    scripts de construccion
+  arch/       local and AUR PKGBUILD
+  rpm/        RPM spec
+  bazzite/    RPM builder for Bazzite/Fedora Atomic
+  common/     desktop entry, metainfo and systemd user service
+  packages/   local copy of final packages
+  scripts/    build scripts
 ```
