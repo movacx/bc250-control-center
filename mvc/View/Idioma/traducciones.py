@@ -6578,3 +6578,40 @@ _uk_set_by_fragment(
     '- Overclock, 40CU і зміни частот можуть спричинити зависання, вимкнення, втрату даних або пошкодження hardware.\n'
     '- Кожна BC-250 різна; тестуй поступово і під свою відповідальність.'
 )
+
+# Small visible option states for Ukrainian.
+BASE_TRANSLATIONS['uk'].update({
+    'activadas': 'увімкнені',
+    'desactivadas': 'вимкнені',
+    'activado': 'увімкнено',
+    'desactivado': 'вимкнено',
+    'Alertas': 'Сповіщення',
+})
+
+# Ukrainian dynamic UI fragments and console endings.
+BASE_TRANSLATIONS['uk'].update({
+    'No se pudieron leer rutas locales:': 'Не вдалося прочитати локальні шляхи:',
+    'No se pudo evaluar memoria:': 'Не вдалося оцінити памʼять:',
+    'No se pudo detectar el maximo actual del governor': 'Не вдалося визначити поточний максимум governor',
+    'El minimo': 'Мінімум',
+    'no puede ser mayor que el maximo actual': 'не може бути більшим за поточний максимум',
+    'Primero aplica un perfil/OC con maximo': 'Спочатку застосуй профіль/OC з максимумом',
+    'o superior, luego establece este minimo.': 'або вище, потім встанови цей мінімум.',
+    'no tiene safe-point valido con voltage activo en el TOML.': 'не має дійсного safe-point з активною напругою в TOML.',
+    'No se pudo aplicar el minimo GPU por D-Bus:': 'Не вдалося застосувати мінімум GPU через D-Bus:',
+    'No se pudo leer estado de la placa:': 'Не вдалося прочитати стан плати:',
+    'No se pudo preparar el comando CPU OC': 'Не вдалося підготувати команду CPU OC',
+    'No se pudo iniciar el proceso CPU OC': 'Не вдалося запустити процес CPU OC',
+    'No se pudo iniciar la instalacion persistente': 'Не вдалося запустити постійне встановлення',
+    'No se pudo iniciar la desactivacion persistente': 'Не вдалося запустити вимкнення постійності',
+    'CPU OC finalizado con codigo': 'CPU OC завершено з кодом',
+    'Persistencia CPU OC finalizada con codigo': 'Постійність CPU OC завершена з кодом',
+    'Desactivacion CPU OC persistente finalizada con codigo': 'Вимкнення постійного CPU OC завершено з кодом',
+})
+
+# Final visible Ukrainian labels that are safe to localize.
+BASE_TRANSLATIONS['uk'].update({
+    'Driver': 'Драйвер',
+    'Config': 'Конфігурація',
+    'Eco': 'Еко',
+})

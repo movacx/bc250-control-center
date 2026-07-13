@@ -385,7 +385,7 @@ class Vista(QMainWindow):
         try:
             rutas = self.controlador.config_paths()
         except Exception as error:
-            self.msg_warn('Rutas locales', f'No se pudieron leer rutas locales: {error}')
+            self.msg_warn('Rutas locales', f'{self.t("No se pudieron leer rutas locales:")} {error}')
             return
         texto = '\n'.join(f'{clave}: {valor}' for clave, valor in rutas.items())
         self.msg_info('Rutas locales', texto)
@@ -394,7 +394,7 @@ class Vista(QMainWindow):
         try:
             resultado = self.controlador.proteccion_memoria(False)
         except Exception as error:
-            self.msg_warn('Evaluar presión de memoria', f'No se pudo evaluar memoria: {error}')
+            self.msg_warn('Evaluar presión de memoria', f'{self.t("No se pudo evaluar memoria:")} {error}')
             return
         estado = resultado.get('estado', {})
         candidatos = resultado.get('candidatos', [])
@@ -733,16 +733,16 @@ class Vista(QMainWindow):
             estado = self.controlador.estado_bc250()
             maximo = estado.get('current_max')
             if not maximo:
-                raise RuntimeError('No se pudo detectar el maximo actual del governor')
+                raise RuntimeError(self.t('No se pudo detectar el maximo actual del governor'))
             maximo = int(maximo)
             minimo = int(valor)
             if minimo > maximo:
-                QMessageBox.warning(self, 'BC-250', f'El minimo {minimo} MHz no puede ser mayor que el maximo actual {maximo} MHz.\n\nPrimero aplica un perfil/OC con maximo {minimo} MHz o superior, luego establece este minimo.')
+                QMessageBox.warning(self, 'BC-250', f'{self.t("El minimo")} {minimo} MHz {self.t("no puede ser mayor que el maximo actual")} {maximo} MHz.\n\n{self.t("Primero aplica un perfil/OC con maximo")} {minimo} MHz {self.t("o superior, luego establece este minimo.")}')
                 self.set_gpu_minimo(minimo_anterior)
                 return
             safe_freqs = sorted({int(p.get('frequency')) for p in estado.get('safe_points_with_voltage', []) if p.get('frequency')})
             if minimo not in safe_freqs:
-                QMessageBox.warning(self, 'BC-250', f'{minimo} MHz no tiene safe-point valido con voltage activo en el TOML.')
+                QMessageBox.warning(self, 'BC-250', f'{minimo} MHz {self.t("no tiene safe-point valido con voltage activo en el TOML.")}')
                 self.set_gpu_minimo(minimo_anterior)
                 return
             self.controlador.aplicar_rango_bc250(minimo, maximo)
@@ -751,7 +751,7 @@ class Vista(QMainWindow):
             self.actualizar_bc250()
             self.notificar_evento('Mínimo GPU aplicado', f'Rango GPU actualizado a {minimo}-{maximo} MHz.', 'normal', 'gpu_minimo', 20)
         except Exception as error:
-            QMessageBox.warning(self, 'BC-250', f'No se pudo aplicar el minimo GPU por D-Bus: {error}')
+            QMessageBox.warning(self, 'BC-250', f'{self.t("No se pudo aplicar el minimo GPU por D-Bus:")} {error}')
             self.set_gpu_minimo(minimo_anterior)
             self.actualizar_bc250(silencioso=True)
 
@@ -1117,7 +1117,7 @@ class Vista(QMainWindow):
         except Exception as error:
             self.placa_pill.setText('Sin datos de placa')
             if not silencioso:
-                QMessageBox.warning(self, 'BC-250', f'No se pudo leer estado de la placa: {error}')
+                QMessageBox.warning(self, 'BC-250', f'{self.t("No se pudo leer estado de la placa:")} {error}')
             return None
         self.ultimo_estado_bc250 = datos
         active = datos.get('service_active') == 'active'
@@ -1427,7 +1427,7 @@ class Vista(QMainWindow):
             return
         comando = self.controlador.comando_cpu_oc_temporal_embebido(frecuencia, vid, temp)
         if not comando:
-            raise RuntimeError('No se pudo preparar el comando CPU OC')
+            raise RuntimeError(self.t('No se pudo preparar el comando CPU OC'))
         if hasattr(self, 'cpu_oc_console'):
             self.cpu_oc_console.setPlainText('')
             self.cpu_oc_console.appendPlainText(self.t('== Ejecutando CPU OC temporal =='))
@@ -1444,7 +1444,7 @@ class Vista(QMainWindow):
         self.cpu_oc_process.finished.connect(self.finalizar_cpu_oc_embebido)
         self.cpu_oc_process.start()
         if not self.cpu_oc_process.waitForStarted(3000):
-            raise RuntimeError('No se pudo iniciar el proceso CPU OC')
+            raise RuntimeError(self.t('No se pudo iniciar el proceso CPU OC'))
         self.cpu_oc_inicio = time.time()
         self.cpu_oc_timer = QTimer(self)
         self.cpu_oc_timer.timeout.connect(self.pulso_cpu_oc_embebido)
@@ -1481,7 +1481,7 @@ class Vista(QMainWindow):
             self.cpu_oc_timer = None
         if hasattr(self, 'cpu_oc_console'):
             self.cpu_oc_console.appendPlainText('')
-            self.cpu_oc_console.appendPlainText(f'== CPU OC finalizado con codigo {codigo} ==')
+            self.cpu_oc_console.appendPlainText(f'== {self.t("CPU OC finalizado con codigo")} {codigo} ==')
         if codigo == 0:
             QMessageBox.information(self, 'CPU OC', self.t('CPU OC temporal aplicado. Revisa temperaturas y estabilidad.'))
         else:
@@ -1535,12 +1535,12 @@ class Vista(QMainWindow):
         self.cpu_oc_process.finished.connect(self.finalizar_cpu_oc_persistente)
         self.cpu_oc_process.start()
         if not self.cpu_oc_process.waitForStarted(3000):
-            raise RuntimeError('No se pudo iniciar la instalacion persistente')
+            raise RuntimeError(self.t('No se pudo iniciar la instalacion persistente'))
 
     def finalizar_cpu_oc_persistente(self, codigo, estado):
         if hasattr(self, 'cpu_oc_console'):
             self.cpu_oc_console.appendPlainText('')
-            self.cpu_oc_console.appendPlainText(f'== Persistencia CPU OC finalizada con codigo {codigo} ==')
+            self.cpu_oc_console.appendPlainText(f'== {self.t("Persistencia CPU OC finalizada con codigo")} {codigo} ==')
         if codigo == 0:
             QMessageBox.information(self, self.t('CPU OC persistente'), self.t('Servicio persistente instalado. Reinicia solo despues de verificar que entiendes el riesgo.'))
         else:
@@ -1625,12 +1625,12 @@ class Vista(QMainWindow):
         self.cpu_oc_process.finished.connect(self.finalizar_cpu_oc_desactivar_persistente)
         self.cpu_oc_process.start()
         if not self.cpu_oc_process.waitForStarted(3000):
-            raise RuntimeError('No se pudo iniciar la desactivacion persistente')
+            raise RuntimeError(self.t('No se pudo iniciar la desactivacion persistente'))
 
     def finalizar_cpu_oc_desactivar_persistente(self, codigo, estado):
         if hasattr(self, 'cpu_oc_console'):
             self.cpu_oc_console.appendPlainText('')
-            self.cpu_oc_console.appendPlainText(f'== Desactivacion CPU OC persistente finalizada con codigo {codigo} ==')
+            self.cpu_oc_console.appendPlainText(f'== {self.t("Desactivacion CPU OC persistente finalizada con codigo")} {codigo} ==')
         if codigo == 0:
             QMessageBox.information(self, self.t('CPU OC persistente'), self.t('Servicio persistente desactivado. No se aplicara al iniciar el sistema.'))
         else:
