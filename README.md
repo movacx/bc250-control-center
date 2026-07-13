@@ -119,7 +119,7 @@ BC250 Control Center does not replace or claim ownership of the community tools.
 
 Repositories used or referenced:
 
-- `cyan-skillfish-governor`: https://github.com/Magnap/cyan-skillfish-governor
+- `cyan-skillfish-governor`: https://github.com/filippor/cyan-skillfish-governor/tree/smu
 - `bc250_smu_oc`: https://github.com/bc250-collective/bc250_smu_oc
 - `bc250-cu-live-manager`: https://github.com/WinnieLV/bc250-cu-live-manager
 - `bc250-40cu-unlock`: https://github.com/duggasco/bc250-40cu-unlock

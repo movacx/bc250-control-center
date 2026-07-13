@@ -98,7 +98,7 @@ print_credits() {
   echo "BC250 Control Center integrates community tools. These projects remain property of their respective authors."
   echo "Tools are cloned/installed from official upstream repositories or distro packages when requested."
   echo "If your terminal/browser has trouble opening multiple links, use: Information > Official repositories."
-  echo "- cyan-skillfish-governor-smu / cyan-skillfish-governor: https://github.com/Magnap/cyan-skillfish-governor"
+  echo "- cyan-skillfish-governor-smu / cyan-skillfish-governor: https://github.com/filippor/cyan-skillfish-governor/tree/smu"
   echo "- bc250_smu_oc by bc250-collective: https://github.com/bc250-collective/bc250_smu_oc"
   echo "- bc250-cu-live-manager by WinnieLV: https://github.com/WinnieLV/bc250-cu-live-manager"
   echo "- bc250-40cu-unlock reference by duggasco: https://github.com/duggasco/bc250-40cu-unlock"

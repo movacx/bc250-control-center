@@ -9,9 +9,9 @@ La aplicacion no empaqueta estos repositorios dentro del codigo fuente principal
 ### cyan-skillfish-governor / cyan-skillfish-governor-smu
 
 - Uso dentro de BC250 Control Center: control de rangos GPU BC-250 mediante governor SMU y D-Bus.
-- Repositorio oficial: https://github.com/Magnap/cyan-skillfish-governor
-- Rama/paquete usado por algunas distribuciones: `cyan-skillfish-governor-smu`
-- Creditos: proyecto cyan-skillfish-governor y sus autores/contribuidores.
+- Repositorio SMU usado/recomendado: https://github.com/filippor/cyan-skillfish-governor/tree/smu
+- Paquete usado por algunas distribuciones: `cyan-skillfish-governor-smu`
+- Creditos: fork/rama SMU de filippor y proyecto cyan-skillfish-governor con sus autores/contribuidores.
 - Licencia observada en paquetes/repositorios disponibles: MIT.
 
 ### bc250_smu_oc

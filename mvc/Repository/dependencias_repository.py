@@ -112,7 +112,7 @@ class DependenciasRepository:
             'echo "BC250 Control Center integrates community tools from official upstream repositories."',
             'echo "These tools remain property of their respective authors/contributors."',
             'echo "If your terminal/browser has trouble opening multiple links, use: Information > Official repositories."',
-            'echo "cyan-skillfish-governor: https://github.com/Magnap/cyan-skillfish-governor"',
+            'echo "cyan-skillfish-governor: https://github.com/filippor/cyan-skillfish-governor/tree/smu"',
             'echo "bc250_smu_oc: https://github.com/bc250-collective/bc250_smu_oc"',
             'echo "bc250-cu-live-manager: https://github.com/WinnieLV/bc250-cu-live-manager"',
             'echo "bc250-40cu-unlock reference/docs: https://github.com/duggasco/bc250-40cu-unlock"',

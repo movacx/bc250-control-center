@@ -197,7 +197,7 @@ class Vista(QMainWindow):
         nota = html.escape(self.t('Requiere cyan-skillfish-governor-smu. El paquete cyan-skillfish-governor sin SMU no es compatible con los controles D-Bus de esta app.'))
         info = html.escape(self.t('Mas informacion GPU y governor:'))
         texto = html.escape(str(mensaje))
-        enlace = '<a href="https://github.com/Magnap/cyan-skillfish-governor">Magnap/cyan-skillfish-governor</a>'
+        enlace = '<a href="https://github.com/filippor/cyan-skillfish-governor/tree/smu">filippor/cyan-skillfish-governor/tree/smu</a>'
         return (
             f'<div><b>{titulo}:</b> {texto}</div>'
             f'<div style="margin-top:3px;"><b>{compat}:</b> {nota}</div>'
@@ -434,7 +434,7 @@ class Vista(QMainWindow):
         intro.setWordWrap(True)
         layout.addWidget(intro)
         repos = [
-            ('cyan-skillfish-governor', 'Magnap/cyan-skillfish-governor', 'https://github.com/Magnap/cyan-skillfish-governor'),
+            ('cyan-skillfish-governor', 'filippor/cyan-skillfish-governor/tree/smu', 'https://github.com/filippor/cyan-skillfish-governor/tree/smu'),
             ('bc250_smu_oc', 'bc250-collective/bc250_smu_oc', 'https://github.com/bc250-collective/bc250_smu_oc'),
             ('bc250-cu-live-manager', 'WinnieLV/bc250-cu-live-manager', 'https://github.com/WinnieLV/bc250-cu-live-manager'),
             ('bc250-40cu-unlock', 'duggasco/bc250-40cu-unlock', 'https://github.com/duggasco/bc250-40cu-unlock'),
