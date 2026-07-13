@@ -1,0 +1,27 @@
+pkgbase = bc250-control-center-git
+	pkgdesc = Administrador de tareas Linux gaming con panel seguro para AMD BC-250
+	pkgver = r1.local
+	pkgrel = 47
+	url = https://github.com/movacx/ModoJuegoRAM
+	arch = any
+	license = MIT
+	makedepends = git
+	depends = python
+	depends = python-pyqt6
+	depends = python-psutil
+	depends = lm_sensors
+	depends = stress
+	optdepends = cyan-skillfish-governor-smu: control GPU BC250 mediante governor SMU
+	optdepends = umr: soporte para herramientas 40CU
+	optdepends = python-pip: instalacion local opcional de bc250_smu_oc
+	optdepends = yay: instalacion opcional de dependencias AUR desde la GUI
+	optdepends = paru: instalacion opcional de dependencias AUR desde la GUI
+	optdepends = libnotify: notificaciones de escritorio mediante notify-send
+	optdepends = polkit: ventana grafica de autenticacion para dashboard 40CU y acciones elevadas
+	provides = bc250-control-center
+	conflicts = bc250-control-center
+	source = git+https://github.com/movacx/ModoJuegoRAM.git
+	sha256sums = SKIP
+	install = bc250-control-center.install
+
+pkgname = bc250-control-center-git

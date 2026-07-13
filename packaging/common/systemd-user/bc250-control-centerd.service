@@ -1,0 +1,14 @@
+[Unit]
+Description=BC250 Control Center daemon conservador
+Documentation=https://github.com/movacx/ModoJuegoRAM
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/bc250-control-centerd
+Restart=on-failure
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=default.target

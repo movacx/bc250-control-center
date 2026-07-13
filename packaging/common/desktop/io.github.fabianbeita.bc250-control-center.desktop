@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=BC250 Control Center
+GenericName=Linux Gaming Task Manager
+Comment=Monitor de procesos, memoria y control seguro para BC250
+Exec=bc250-control-center
+Icon=bc250-control-center
+Terminal=false
+Categories=System;Monitor;
+Keywords=task;manager;ram;gpu;bc250;linux;gaming;monitor;
+StartupNotify=true

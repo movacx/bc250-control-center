@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Build/package outputs
+build/
+dist/
+*.egg-info/
+packaging/arch/local/*.pkg.tar.*
+packaging/arch/local/*.tar.gz
+packaging/arch/local/src/
+packaging/arch/local/pkg/
+packaging/rpm/out/
+packaging/tar-local/out/
+
+# Local runtime/state
+ResourceTools/
+Data/
+config.json
+perfiles.json
+historial_eventos.jsonl
+*.log
+
+# Editors/OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+# Release/package collection folder
+packaging/packages/arch/*.pkg.tar.*
+packaging/packages/fedora/*.rpm
+packaging/packages/bazzite/*.rpm
+
+packaging/bazzite/out/
+tmp/
+output/

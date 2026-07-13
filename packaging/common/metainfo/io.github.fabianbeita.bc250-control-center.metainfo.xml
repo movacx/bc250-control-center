@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.fabianbeita.bc250-control-center</id>
+  <name>BC250 Control Center</name>
+  <summary>Monitor Linux gaming con panel BC250</summary>
+  <developer id="io.github.fabianbeita">
+    <name>Fabian Beita</name>
+  </developer>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+  <description>
+    <p>BC250 Control Center combina administrador de procesos, monitoreo de rendimiento, historial local y control conservador para placas AMD BC-250.</p>
+    <p>El panel BC250 usa safe-points existentes del governor y evita valores manuales peligrosos.</p>
+  </description>
+  <launchable type="desktop-id">io.github.fabianbeita.bc250-control-center.desktop</launchable>
+  <provides>
+    <binary>bc250-control-center</binary>
+  </provides>
+  <categories>
+    <category>System</category>
+    <category>Monitor</category>
+    <category>Utility</category>
+  </categories>
+  <url type="homepage">https://github.com/movacx/ModoJuegoRAM</url>
+  <releases>
+    <release version="0.1.0" date="2026-07-10">
+      <description>
+        <p>Primera version comunitaria con GUI PyQt6, BC250, historial JSONL y daemon opcional.</p>
+      </description>
+    </release>
+  </releases>
+  <content_rating type="oars-1.1" />
+</component>
