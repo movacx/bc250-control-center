@@ -15,6 +15,18 @@ Graphical interface to manage an AMD BC-250 from Linux. It brings monitoring, pr
 
 ![BC250 Control Center 40CU panel](docs/images/bc250-40cu.png)
 
+### Performance view
+
+![BC250 Control Center performance view](docs/images/performance.png)
+
+### Processes view
+
+![BC250 Control Center processes view](docs/images/processes.png)
+
+### Language menu
+
+![BC250 Control Center language menu](docs/images/languages-menu.png)
+
 </details>
 
 ## Installation
