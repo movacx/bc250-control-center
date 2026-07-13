@@ -2,6 +2,8 @@
 
 Graphical interface to manage an AMD BC-250 from Linux. It brings monitoring, processes, memory, GPU, CPU OC and 40CU into one app, with warnings and validations so you do not have to depend on scattered terminal commands.
 
+![BC250 Control Center screenshot](docs/images/bc250-control-center.png)
+
 ## Installation
 
 ### Quick option with script
@@ -69,6 +71,22 @@ systemctl reboot
 - 40CU/24CU dashboard and actions through `bc250-cu-live-manager`.
 - Local JSONL history.
 - Translations from settings.
+
+## Languages
+
+The interface includes language support for:
+
+- English
+- Spanish
+- Portuguese
+- Simplified Chinese
+- Korean
+- Russian
+- German
+- French
+- Japanese
+- Arabic
+- Hindi
 
 ## External tools and credits
 
