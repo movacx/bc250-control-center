@@ -86,7 +86,7 @@ Bazzite/Fedora Atomic, executed from Bazzite:
 
 ```text
 packaging/
-  arch/       local and AUR PKGBUILD
+  arch/       local Arch PKGBUILD
   rpm/        RPM spec
   bazzite/    RPM builder for Bazzite/Fedora Atomic
   common/     desktop entry, metainfo and systemd user service
