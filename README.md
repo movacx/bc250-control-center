@@ -10,7 +10,7 @@ Usa esta opcion si estas ejecutando desde el codigo fuente o desde un tarball:
 
 ```bash
 PREFIX="$HOME/.local" ./scripts/install-local.sh
-bc250-control-center
+"$HOME/.local/bin/bc250-control-center"
 ```
 
 Para desinstalar esa instalacion:

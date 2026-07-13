@@ -41,11 +41,17 @@ rm -f "$ICON_DIR/scalable/apps/bc250-control-center.svg"
 for size in 32 48 64 128 256 512 1024; do
   install -Dm644 "$ROOT_DIR/mvc/Resources/icons/bc250-control-center-${size}.png" "$ICON_DIR/${size}x${size}/apps/bc250-control-center.png"
 done
-install -Dm644 "$ROOT_DIR/packaging/common/desktop/io.github.fabianbeita.bc250-control-center.desktop" "$DESKTOP_DIR/io.github.fabianbeita.bc250-control-center.desktop"
+desktop_file="$DESKTOP_DIR/io.github.fabianbeita.bc250-control-center.desktop"
+install -Dm644 "$ROOT_DIR/packaging/common/desktop/io.github.fabianbeita.bc250-control-center.desktop" "$desktop_file"
+sed -i "s|^Exec=.*|Exec=$BIN_DIR/bc250-control-center|" "$desktop_file"
 install -Dm644 "$ROOT_DIR/packaging/common/metainfo/io.github.fabianbeita.bc250-control-center.metainfo.xml" "$METAINFO_DIR/io.github.fabianbeita.bc250-control-center.metainfo.xml"
 install -Dm644 "$ROOT_DIR/packaging/common/systemd-user/bc250-control-centerd.service" "$SYSTEMD_USER_DIR/bc250-control-centerd.service"
 
 echo "Installed in $PREFIX"
-echo "GUI: bc250-control-center"
+echo "GUI: $BIN_DIR/bc250-control-center"
 echo "Optional daemon: systemctl --user enable --now bc250-control-centerd.service"
 echo "Uninstall: PREFIX=\"$PREFIX\" $APP_DIR/scripts/uninstall-local.sh"
+case ":$PATH:" in
+  *":$BIN_DIR:"*) ;;
+  *) echo "Note: $BIN_DIR is not in PATH. Use the full GUI command above or add it to your shell PATH." ;;
+esac
