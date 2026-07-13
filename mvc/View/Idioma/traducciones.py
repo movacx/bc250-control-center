@@ -6008,6 +6008,7 @@ for _lang, _items in _GPU_ALERT_LAYOUT_TRANSLATIONS.items():
 # Ukrainian language pack. It is added at the end so it can inherit every
 # registered text key and then override visible UI/dialog strings in Ukrainian.
 LANGUAGES.update({'uk': 'Українська'})
+LANGUAGES = {k: LANGUAGES[k] for k in ['es', 'en', 'pt', 'zh', 'ko', 'ru', 'uk', 'de', 'fr', 'ja', 'ar', 'hi'] if k in LANGUAGES}
 BASE_TRANSLATIONS['uk'] = dict(BASE_TRANSLATIONS.get('en', {}))
 _UKRAINIAN_TRANSLATIONS = {
     'Información': 'Інформація',
