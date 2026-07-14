@@ -52,6 +52,24 @@ If you already deleted the project folder, the installer leaves a copy here:
 PREFIX="$HOME/.local" "$HOME/.local/share/bc250-control-center/scripts/uninstall-local.sh"
 ```
 
+### Arch AUR
+
+The package is available in AUR:
+
+[https://aur.archlinux.org/packages/bc250-control-center-git](https://aur.archlinux.org/packages/bc250-control-center-git)
+
+Install it on Arch/CachyOS/Manjaro with an AUR helper:
+
+```bash
+yay -S bc250-control-center-git
+```
+
+or:
+
+```bash
+paru -S bc250-control-center-git
+```
+
 ### Packages by distribution
 
 Stable package files are published in the project releases:
