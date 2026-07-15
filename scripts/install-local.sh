@@ -54,11 +54,15 @@ sed -i "s|^ExecStart=.*|ExecStart=$BIN_DIR/bc250-control-centerd|" "$SYSTEMD_USE
 if [[ "$SYSTEMD_USER_DIR" != "$PREFIX/lib/systemd/user" ]]; then
   rm -f "$PREFIX/lib/systemd/user/bc250-control-centerd.service"
 fi
+if [[ "${EUID:-$(id -u)}" -ne 0 ]] && command -v systemctl >/dev/null 2>&1; then
+  systemctl --user daemon-reload >/dev/null 2>&1 || true
+fi
 
 echo "Installed in $PREFIX"
 echo "GUI: $BIN_DIR/bc250-control-center"
 echo "Optional daemon: systemctl --user enable --now bc250-control-centerd.service"
-echo "If the daemon was just installed, run: systemctl --user daemon-reload"
+echo "Daemon reload: attempted automatically when possible"
+echo "If systemd still does not find the daemon, run: systemctl --user daemon-reload"
 echo "Uninstall: PREFIX=\"$PREFIX\" $APP_DIR/scripts/uninstall-local.sh"
 case ":$PATH:" in
   *":$BIN_DIR:"*) ;;

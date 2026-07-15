@@ -1242,7 +1242,7 @@ class Vista(QMainWindow):
             self.msg_warn('Ventiladores', str(error))
 
     def preparar_fan_pwm(self):
-        texto = (
+        texto = self.t(
             'Se prepararan las dependencias del ventilador para controlar PWM con nct6687/nct6687d.\n\n'
             'Esto es independiente de las dependencias BC250/OC. Puede instalar un modulo DKMS externo, bloquear nct6683 y dejar nct6687 como modulo preferido al arrancar.\n\n'
             'Continuar?'
@@ -1256,7 +1256,7 @@ class Vista(QMainWindow):
             self.msg_warn('Ventiladores', str(error))
 
     def desactivar_fan_pwm(self):
-        texto = (
+        texto = self.t(
             'Se desactivara la configuracion PWM del ventilador y se volvera a nct6683 en modo lectura.\n\n'
             'No se elimina el paquete DKMS; solo se quitan las preferencias de arranque/modulo para nct6687. '
             'Si el cambio no se refleja al instante, reinicia.\n\n'
@@ -1301,7 +1301,7 @@ class Vista(QMainWindow):
         porcentaje = int(porcentaje_objetivo if porcentaje_objetivo is not None else (self.fan_pwm_valor.value() if hasattr(self, 'fan_pwm_valor') else 0))
         porcentaje = max(0, min(100, porcentaje))
         if pwm is None:
-            self.msg_warn('Ventiladores', 'No hay canal PWM seleccionado.')
+            self.msg_warn('Ventiladores', self.t('No hay canal PWM seleccionado.'))
             return
         self.fan_pwm_preferido = int(pwm)
         self.guardar_config_fan_curve()
@@ -1322,7 +1322,7 @@ class Vista(QMainWindow):
             QApplication.processEvents()
             self.registrar_evento('fan', 'warning', 'Manual fan speed applied', f'PWM {pwm} set to {porcentaje}%.', {'pwm': pwm, 'percent': porcentaje, 'raw': valor})
             self.actualizar_fans_bc250()
-            self.msg_info('Ventiladores', 'Velocidad aplicada. Refrescando sensores.')
+            self.msg_info('Ventiladores', self.t('Velocidad aplicada. Refrescando sensores.'))
         except Exception as error:
             self.msg_warn('Ventiladores', f'{self.t("No se pudo aplicar PWM:")} {error}')
         finally:
@@ -1394,7 +1394,7 @@ class Vista(QMainWindow):
         temp = datos.get('gpu_temp')
         if temp is None:
             if mostrar:
-                self.msg_warn('Ventiladores', 'No se pudo leer la temperatura GPU para calcular la curva.')
+                self.msg_warn('Ventiladores', self.t('No se pudo leer la temperatura GPU para calcular la curva.'))
             return
         pwm = self.fan_pwm_combo.currentData() if hasattr(self, 'fan_pwm_combo') else 2
         porcentaje = self._fan_curve_percent_for_temp(float(temp))
@@ -1415,7 +1415,7 @@ class Vista(QMainWindow):
             if hasattr(self, 'fan_detalle'):
                 self.fan_detalle.appendPlainText(f'\nGPU fan curve: {temp:.1f} C -> {porcentaje}% on PWM {pwm}')
             if mostrar:
-                self.msg_info('Ventiladores', f'Curva aplicada: GPU {temp:.1f} C -> ventilador {porcentaje}%.')
+                self.msg_info('Ventiladores', self.t('Curva aplicada: GPU {temp:.1f} C -> ventilador {porcentaje}%.').format(temp=temp, porcentaje=porcentaje))
             self.actualizar_fans_bc250()
         except Exception as error:
             self.ultimo_fan_curve_apply = time.monotonic()

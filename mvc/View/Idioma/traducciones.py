@@ -7437,3 +7437,118 @@ _PWM_PATH_REPORT_I18N = {
 }
 for _lang, _items in _PWM_PATH_REPORT_I18N.items():
     BASE_TRANSLATIONS.setdefault(_lang, {}).update(_items)
+
+# Fan curve saved hint final translation fix
+_FAN_CURVE_SAVED_HINT_I18N = {
+    'en': 'Saved curve: works while the app is open and also with the optional daemon enabled.',
+    'pt': 'Curva salva: funciona com o app aberto e tambem com o daemon opcional ativo.',
+    'zh': '已保存曲线：应用打开时可工作，也可配合可选守护进程工作。',
+    'ko': '저장된 곡선: 앱이 열려 있을 때 작동하며 선택적 데몬이 활성화되어도 작동합니다.',
+    'ru': 'Сохраненная кривая: работает при открытом приложении, а также с включенным дополнительным демоном.',
+    'uk': 'Збережена крива: працює, коли програма відкрита, а також з увімкненим додатковим демоном.',
+    'de': 'Gespeicherte Kurve: funktioniert bei geoeffneter App und auch mit aktiviertem optionalem Daemon.',
+    'fr': 'Courbe enregistree : fonctionne avec l app ouverte et aussi avec le daemon optionnel actif.',
+    'ja': '保存済みカーブ: アプリ起動中に動作し、任意のデーモン有効時にも動作します。',
+    'ar': 'المنحنى المحفوظ: يعمل أثناء فتح التطبيق وكذلك مع تفعيل daemon الاختياري.',
+    'hi': 'सहेजा गया कर्व: ऐप खुली होने पर और वैकल्पिक daemon सक्रिय होने पर भी काम करता है।',
+}
+for _lang, _txt in _FAN_CURVE_SAVED_HINT_I18N.items():
+    BASE_TRANSLATIONS.setdefault(_lang, {})['Curva guardada: funciona con la app abierta y tambien con el daemon opcional activo.'] = _txt
+
+# Fan diagnostic title translation fix
+_FAN_DIAGNOSTICO_I18N = {
+    'zh': '诊断',
+    'ko': '진단',
+    'de': 'Diagnose',
+    'fr': 'Diagnostic',
+    'ja': '診断',
+    'ar': 'تشخيص',
+    'hi': 'निदान',
+}
+for _lang, _txt in _FAN_DIAGNOSTICO_I18N.items():
+    BASE_TRANSLATIONS.setdefault(_lang, {})['Diagnostico'] = _txt
+
+# Fan dialogs translation fix
+_FAN_DIALOGS_I18N = {
+    'en': {
+        'Se prepararan las dependencias del ventilador para controlar PWM con nct6687/nct6687d.\n\nEsto es independiente de las dependencias BC250/OC. Puede instalar un modulo DKMS externo, bloquear nct6683 y dejar nct6687 como modulo preferido al arrancar.\n\nContinuar?': 'Fan dependencies will be prepared to control PWM with nct6687/nct6687d.\n\nThis is independent from BC250/OC dependencies. It may install an external DKMS module, block nct6683 and keep nct6687 as the preferred boot module.\n\nContinue?',
+        'Se desactivara la configuracion PWM del ventilador y se volvera a nct6683 en modo lectura.\n\nNo se elimina el paquete DKMS; solo se quitan las preferencias de arranque/modulo para nct6687. Si el cambio no se refleja al instante, reinicia.\n\nContinuar?': 'Fan PWM configuration will be disabled and nct6683 read-only mode will be restored.\n\nThe DKMS package is not removed; only the boot/module preferences for nct6687 are removed. If the change is not reflected immediately, reboot.\n\nContinue?',
+        'No hay canal PWM seleccionado.': 'No PWM channel selected.',
+        'Velocidad aplicada. Refrescando sensores.': 'Speed applied. Refreshing sensors.',
+        'No se pudo leer la temperatura GPU para calcular la curva.': 'Could not read GPU temperature to calculate the curve.',
+        'Curva aplicada: GPU {temp:.1f} C -> ventilador {porcentaje}%.': 'Curve applied: GPU {temp:.1f} C -> fan {porcentaje}%.',
+    },
+    'pt': {
+        'Se prepararan las dependencias del ventilador para controlar PWM con nct6687/nct6687d.\n\nEsto es independiente de las dependencias BC250/OC. Puede instalar un modulo DKMS externo, bloquear nct6683 y dejar nct6687 como modulo preferido al arrancar.\n\nContinuar?': 'As dependencias do ventilador serao preparadas para controlar PWM com nct6687/nct6687d.\n\nIsso e independente das dependencias BC250/OC. Pode instalar um modulo DKMS externo, bloquear nct6683 e deixar nct6687 como modulo preferido na inicializacao.\n\nContinuar?',
+        'Se desactivara la configuracion PWM del ventilador y se volvera a nct6683 en modo lectura.\n\nNo se elimina el paquete DKMS; solo se quitan las preferencias de arranque/modulo para nct6687. Si el cambio no se refleja al instante, reinicia.\n\nContinuar?': 'A configuracao PWM do ventilador sera desativada e o modo somente leitura nct6683 sera restaurado.\n\nO pacote DKMS nao sera removido; apenas as preferencias de inicializacao/modulo para nct6687 serao removidas. Se a mudanca nao aparecer imediatamente, reinicie.\n\nContinuar?',
+        'No hay canal PWM seleccionado.': 'Nenhum canal PWM selecionado.',
+        'Velocidad aplicada. Refrescando sensores.': 'Velocidade aplicada. Atualizando sensores.',
+        'No se pudo leer la temperatura GPU para calcular la curva.': 'Nao foi possivel ler a temperatura da GPU para calcular a curva.',
+        'Curva aplicada: GPU {temp:.1f} C -> ventilador {porcentaje}%.': 'Curva aplicada: GPU {temp:.1f} C -> ventilador {porcentaje}%.',
+    },
+    'ru': {
+        'No hay canal PWM seleccionado.': 'Канал PWM не выбран.',
+        'Velocidad aplicada. Refrescando sensores.': 'Скорость применена. Обновление датчиков.',
+        'No se pudo leer la temperatura GPU para calcular la curva.': 'Не удалось прочитать температуру GPU для расчета кривой.',
+        'Curva aplicada: GPU {temp:.1f} C -> ventilador {porcentaje}%.': 'Кривая применена: GPU {temp:.1f} C -> вентилятор {porcentaje}%.',
+    },
+    'uk': {
+        'No hay canal PWM seleccionado.': 'Канал PWM не вибрано.',
+        'Velocidad aplicada. Refrescando sensores.': 'Швидкість застосовано. Оновлення сенсорів.',
+        'No se pudo leer la temperatura GPU para calcular la curva.': 'Не вдалося прочитати температуру GPU для розрахунку кривої.',
+        'Curva aplicada: GPU {temp:.1f} C -> ventilador {porcentaje}%.': 'Криву застосовано: GPU {temp:.1f} C -> вентилятор {porcentaje}%.',
+    },
+    'zh': {
+        'No hay canal PWM seleccionado.': '未选择 PWM 通道。',
+        'Velocidad aplicada. Refrescando sensores.': '速度已应用。正在刷新传感器。',
+        'No se pudo leer la temperatura GPU para calcular la curva.': '无法读取 GPU 温度来计算曲线。',
+        'Curva aplicada: GPU {temp:.1f} C -> ventilador {porcentaje}%.': '曲线已应用：GPU {temp:.1f} C -> 风扇 {porcentaje}%。',
+    },
+    'ko': {
+        'No hay canal PWM seleccionado.': 'PWM 채널이 선택되지 않았습니다.',
+        'Velocidad aplicada. Refrescando sensores.': '속도를 적용했습니다. 센서를 새로 고치는 중입니다.',
+        'No se pudo leer la temperatura GPU para calcular la curva.': '곡선을 계산할 GPU 온도를 읽을 수 없습니다.',
+        'Curva aplicada: GPU {temp:.1f} C -> ventilador {porcentaje}%.': '곡선 적용됨: GPU {temp:.1f} C -> 팬 {porcentaje}%.',
+    },
+    'de': {
+        'No hay canal PWM seleccionado.': 'Kein PWM-Kanal ausgewahlt.',
+        'Velocidad aplicada. Refrescando sensores.': 'Geschwindigkeit angewendet. Sensoren werden aktualisiert.',
+        'No se pudo leer la temperatura GPU para calcular la curva.': 'GPU-Temperatur konnte nicht fur die Kurve gelesen werden.',
+        'Curva aplicada: GPU {temp:.1f} C -> ventilador {porcentaje}%.': 'Kurve angewendet: GPU {temp:.1f} C -> Lufter {porcentaje}%.',
+    },
+    'fr': {
+        'No hay canal PWM seleccionado.': 'Aucun canal PWM selectionne.',
+        'Velocidad aplicada. Refrescando sensores.': 'Vitesse appliquee. Actualisation des capteurs.',
+        'No se pudo leer la temperatura GPU para calcular la curva.': 'Impossible de lire la temperature GPU pour calculer la courbe.',
+        'Curva aplicada: GPU {temp:.1f} C -> ventilador {porcentaje}%.': 'Courbe appliquee : GPU {temp:.1f} C -> ventilateur {porcentaje}%.',
+    },
+    'ja': {
+        'No hay canal PWM seleccionado.': 'PWM チャンネルが選択されていません。',
+        'Velocidad aplicada. Refrescando sensores.': '速度を適用しました。センサーを更新しています。',
+        'No se pudo leer la temperatura GPU para calcular la curva.': 'カーブ計算用の GPU 温度を読み取れませんでした。',
+        'Curva aplicada: GPU {temp:.1f} C -> ventilador {porcentaje}%.': 'カーブ適用: GPU {temp:.1f} C -> ファン {porcentaje}%。',
+    },
+    'ar': {
+        'No hay canal PWM seleccionado.': 'لم يتم تحديد قناة PWM.',
+        'Velocidad aplicada. Refrescando sensores.': 'تم تطبيق السرعة. جار تحديث المستشعرات.',
+        'No se pudo leer la temperatura GPU para calcular la curva.': 'تعذرت قراءة حرارة GPU لحساب المنحنى.',
+        'Curva aplicada: GPU {temp:.1f} C -> ventilador {porcentaje}%.': 'تم تطبيق المنحنى: GPU {temp:.1f} C -> المروحة {porcentaje}%.',
+    },
+    'hi': {
+        'No hay canal PWM seleccionado.': 'कोई PWM चैनल चुना नहीं गया।',
+        'Velocidad aplicada. Refrescando sensores.': 'गति लागू हुई। सेंसर रीफ्रेश हो रहे हैं।',
+        'No se pudo leer la temperatura GPU para calcular la curva.': 'कर्व की गणना के लिए GPU तापमान नहीं पढ़ा जा सका।',
+        'Curva aplicada: GPU {temp:.1f} C -> ventilador {porcentaje}%.': 'कर्व लागू: GPU {temp:.1f} C -> पंखा {porcentaje}%.',
+    },
+}
+for _lang, _items in _FAN_DIALOGS_I18N.items():
+    BASE_TRANSLATIONS.setdefault(_lang, {}).update(_items)
+for _lang in ['zh', 'ko', 'ru', 'uk', 'de', 'fr', 'ja', 'ar', 'hi']:
+    BASE_TRANSLATIONS.setdefault(_lang, {}).setdefault(
+        'Se prepararan las dependencias del ventilador para controlar PWM con nct6687/nct6687d.\n\nEsto es independiente de las dependencias BC250/OC. Puede instalar un modulo DKMS externo, bloquear nct6683 y dejar nct6687 como modulo preferido al arrancar.\n\nContinuar?',
+        BASE_TRANSLATIONS['en']['Se prepararan las dependencias del ventilador para controlar PWM con nct6687/nct6687d.\n\nEsto es independiente de las dependencias BC250/OC. Puede instalar un modulo DKMS externo, bloquear nct6683 y dejar nct6687 como modulo preferido al arrancar.\n\nContinuar?']
+    )
+    BASE_TRANSLATIONS.setdefault(_lang, {}).setdefault(
+        'Se desactivara la configuracion PWM del ventilador y se volvera a nct6683 en modo lectura.\n\nNo se elimina el paquete DKMS; solo se quitan las preferencias de arranque/modulo para nct6687. Si el cambio no se refleja al instante, reinicia.\n\nContinuar?',
+        BASE_TRANSLATIONS['en']['Se desactivara la configuracion PWM del ventilador y se volvera a nct6683 en modo lectura.\n\nNo se elimina el paquete DKMS; solo se quitan las preferencias de arranque/modulo para nct6687. Si el cambio no se refleja al instante, reinicia.\n\nContinuar?']
+    )
