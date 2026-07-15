@@ -36,20 +36,19 @@ Graphical interface to manage an AMD BC-250 from Linux. It brings monitoring, pr
 Use this option when running from the source code or from a tarball:
 
 ```bash
-PREFIX="$HOME/.local" ./scripts/install-local.sh
-"$HOME/.local/bin/bc250-control-center"
+./scripts/install-local.sh
 ```
 
 To uninstall that installation:
 
 ```bash
-PREFIX="$HOME/.local" ./scripts/uninstall-local.sh
+./scripts/uninstall-local.sh
 ```
 
 If you already deleted the project folder, the installer leaves a copy here:
 
 ```bash
-PREFIX="$HOME/.local" "$HOME/.local/share/bc250-control-center/scripts/uninstall-local.sh"
+.local/share/bc250-control-center/scripts/uninstall-local.sh"
 ```
 
 ### Arch AUR
