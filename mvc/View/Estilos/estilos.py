@@ -6,11 +6,13 @@ def obtener_estilo(tema):
         border = '#344052'; hover = '#243044'; active = '#263a59'; active_text = '#ffffff'; header = '#202734'; table_alt = '#15181e'
         input_bg = '#111318'; disabled_bg = '#141820'; disabled_border = '#252c38'; button_bg = '#1f2937'; button_hover = '#26364f'; button_checked = '#27466f'
         warn_bg = '#33210f'; warn_border = '#a16207'; warn_text = '#fed7aa'; danger_bg = '#2a1118'; danger_border = '#7f1d1d'; danger_text = '#fecdd3'
+        apply_bg = '#2563eb'; apply_hover = '#1d4ed8'; apply_text = '#ffffff'
     else:
         root = '#eef3f8'; panel = '#f8fbff'; panel2 = '#ffffff'; text = '#0f172a'; muted = '#64748b'
         border = '#d8e2ef'; hover = '#f1f7ff'; active = '#dcebff'; active_text = '#075985'; header = '#f1f5fa'; table_alt = '#f6f9fd'
         input_bg = '#ffffff'; disabled_bg = '#eef2f7'; disabled_border = '#cbd5e1'; button_bg = '#ffffff'; button_hover = '#f1f7ff'; button_checked = '#dcebff'
         warn_bg = '#fff7ed'; warn_border = '#fed7aa'; warn_text = '#9a3412'; danger_bg = '#fff1f2'; danger_border = '#fecdd3'; danger_text = '#be123c'
+        apply_bg = '#eaf3ff'; apply_hover = '#dbeafe'; apply_text = '#0f172a'
     icon_dir = Path(__file__).resolve().parents[2] / 'Resources' / 'icons'
     check_icon = (icon_dir / 'checkbox-check.svg').as_posix()
     spin_up_icon = (icon_dir / 'spin-up.svg').as_posix()
@@ -65,13 +67,19 @@ def obtener_estilo(tema):
         QLineEdit, QSpinBox, QDoubleSpinBox {{ background: {input_bg}; border: 1px solid {border}; border-radius: 9px; padding: 6px 26px 6px 9px; color: {text}; selection-background-color: {active}; }}
         QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus {{ border-color: #60a5fa; background: {panel2}; }}
         QLineEdit:disabled, QSpinBox:disabled, QDoubleSpinBox:disabled {{ background: {disabled_bg}; color: {muted}; border-color: {disabled_border}; }}
-        QSpinBox::up-button, QDoubleSpinBox::up-button {{ subcontrol-origin: border; subcontrol-position: top right; width: 22px; min-height: 13px; background: {button_bg}; border-left: 1px solid {border}; border-bottom: 1px solid {border}; border-top-right-radius: 8px; }}
-        QSpinBox::down-button, QDoubleSpinBox::down-button {{ subcontrol-origin: border; subcontrol-position: bottom right; width: 22px; min-height: 13px; background: {button_bg}; border-left: 1px solid {border}; border-bottom-right-radius: 8px; }}
+        QSpinBox::up-button, QDoubleSpinBox::up-button {{ subcontrol-origin: border; subcontrol-position: top right; width: 18px; min-height: 13px; background: {button_bg}; border-left: 1px solid {border}; border-bottom: 1px solid {border}; border-top-right-radius: 8px; }}
+        QSpinBox::down-button, QDoubleSpinBox::down-button {{ subcontrol-origin: border; subcontrol-position: bottom right; width: 18px; min-height: 13px; background: {button_bg}; border-left: 1px solid {border}; border-bottom-right-radius: 8px; }}
         QSpinBox::up-button:hover, QSpinBox::down-button:hover, QDoubleSpinBox::up-button:hover, QDoubleSpinBox::down-button:hover {{ background: {button_hover}; }}
         QSpinBox::up-button:disabled, QSpinBox::down-button:disabled, QDoubleSpinBox::up-button:disabled, QDoubleSpinBox::down-button:disabled {{ background: {disabled_bg}; border-color: {disabled_border}; }}
         QSpinBox::up-arrow, QDoubleSpinBox::up-arrow {{ image: url({spin_up_icon}); width: 10px; height: 10px; }}
         QSpinBox::down-arrow, QDoubleSpinBox::down-arrow {{ image: url({spin_down_icon}); width: 10px; height: 10px; }}
         QSpinBox::up-arrow:disabled, QSpinBox::down-arrow:disabled, QDoubleSpinBox::up-arrow:disabled, QDoubleSpinBox::down-arrow:disabled {{ image: none; }}
+        QSpinBox#PercentSpin {{ padding: 5px 18px 5px 8px; border-radius: 8px; font-weight: 800; }}
+        QSlider::groove:horizontal {{ border: 1px solid {border}; height: 8px; background: {input_bg}; border-radius: 4px; }}
+        QSlider::sub-page:horizontal {{ background: #2563eb; border: 1px solid #60a5fa; height: 8px; border-radius: 4px; }}
+        QSlider::add-page:horizontal {{ background: {button_bg}; border: 1px solid {border}; height: 8px; border-radius: 4px; }}
+        QSlider::handle:horizontal {{ background: #bfdbfe; border: 1px solid #60a5fa; width: 16px; height: 16px; margin: -5px 0; border-radius: 8px; }}
+        QSlider::handle:horizontal:hover {{ background: #ffffff; border-color: #93c5fd; }}
         QComboBox#RiskCombo {{ background: {panel2}; border: 1px solid {border}; border-radius: 10px; padding: 7px 10px; color: {text}; font-weight: 800; }}
         QComboBox#RiskCombo:hover {{ background: {hover}; border-color: #93c5fd; }}
         QComboBox#RiskCombo::drop-down {{ border: 0px; width: 22px; }}
@@ -86,8 +94,9 @@ def obtener_estilo(tema):
         QPushButton {{ background: {button_bg}; border: 1px solid {border}; border-radius: 10px; padding: 8px 11px; color: {text}; font-weight: 700; }}
         QPushButton:hover {{ background: {button_hover}; border-color: #60a5fa; }}
         QPushButton:checked {{ background: {button_checked}; border-color: #93c5fd; color: {active_text}; }}
-        QPushButton#ApplyButton {{ background: #2563eb; border: 1px solid #60a5fa; border-radius: 10px; color: #ffffff; font-weight: 850; padding: 8px 12px; }}
-        QPushButton#ApplyButton:hover {{ background: #2563eb; border-color: #bfdbfe; color: #ffffff; }}
+        QPushButton#ApplyButton {{ background: {apply_bg}; border: 1px solid #60a5fa; border-radius: 10px; color: {apply_text}; font-weight: 850; padding: 8px 12px; }}
+        QPushButton#ApplyButton:hover {{ background: {apply_hover}; border-color: #3b82f6; color: {apply_text}; }}
+        QPushButton#ApplyButton:disabled {{ background: {disabled_bg}; border-color: {disabled_border}; color: {muted}; }}
         QPushButton#DangerButton {{ background: {danger_bg}; border-color: {danger_border}; color: {danger_text}; }}
         QPushButton#DangerButton:hover {{ background: {danger_bg}; border-color: #fb7185; }}
         QCheckBox {{ color: {text}; font-weight: 650; spacing: 8px; background: transparent; }}

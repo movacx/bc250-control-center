@@ -35,6 +35,13 @@ La aplicacion no empaqueta estos repositorios dentro del codigo fuente principal
 - Creditos: duggasco y contribuidores del repositorio.
 - Licencia observada en documentacion local: GPL-2.0.
 
+### nct6687d
+
+- Uso dentro de BC250 Control Center: control PWM experimental de ventiladores BC-250 mediante el modulo `nct6687` cuando el usuario prepara PWM ventilador.
+- Repositorio oficial: https://github.com/Fred78290/nct6687d
+- Creditos: Fred78290 y contribuidores del repositorio.
+- Nota: el modulo puede instalarse como DKMS desde AUR en sistemas Arch-like. La aplicacion solo lo prepara cuando el usuario lo solicita.
+
 ## Politica de integracion
 
 BC250 Control Center funciona como interfaz grafica, monitor, integrador y lanzador seguro. El objetivo es facilitar el uso de herramientas comunitarias sin ocultar su origen.

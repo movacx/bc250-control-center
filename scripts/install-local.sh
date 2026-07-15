@@ -21,6 +21,10 @@ METAINFO_DIR="$PREFIX/share/metainfo"
 SYSTEMD_USER_DIR="$PREFIX/lib/systemd/user"
 DOC_DIR="$PREFIX/share/doc/bc250-control-center"
 
+if [[ "${EUID:-$(id -u)}" -ne 0 && "$PREFIX" == "$HOME/.local" ]]; then
+  SYSTEMD_USER_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
+fi
+
 if [[ ! -d "$ROOT_DIR/mvc" || ! -d "$ROOT_DIR/scripts" || ! -d "$ROOT_DIR/packaging" ]]; then
   echo "Error: no se encontro la raiz del proyecto BC250 Control Center." >&2
   echo "Script: $SCRIPT_PATH" >&2
@@ -46,10 +50,15 @@ install -Dm644 "$ROOT_DIR/packaging/common/desktop/io.github.fabianbeita.bc250-c
 sed -i "s|^Exec=.*|Exec=$BIN_DIR/bc250-control-center|" "$desktop_file"
 install -Dm644 "$ROOT_DIR/packaging/common/metainfo/io.github.fabianbeita.bc250-control-center.metainfo.xml" "$METAINFO_DIR/io.github.fabianbeita.bc250-control-center.metainfo.xml"
 install -Dm644 "$ROOT_DIR/packaging/common/systemd-user/bc250-control-centerd.service" "$SYSTEMD_USER_DIR/bc250-control-centerd.service"
+sed -i "s|^ExecStart=.*|ExecStart=$BIN_DIR/bc250-control-centerd|" "$SYSTEMD_USER_DIR/bc250-control-centerd.service"
+if [[ "$SYSTEMD_USER_DIR" != "$PREFIX/lib/systemd/user" ]]; then
+  rm -f "$PREFIX/lib/systemd/user/bc250-control-centerd.service"
+fi
 
 echo "Installed in $PREFIX"
 echo "GUI: $BIN_DIR/bc250-control-center"
 echo "Optional daemon: systemctl --user enable --now bc250-control-centerd.service"
+echo "If the daemon was just installed, run: systemctl --user daemon-reload"
 echo "Uninstall: PREFIX=\"$PREFIX\" $APP_DIR/scripts/uninstall-local.sh"
 case ":$PATH:" in
   *":$BIN_DIR:"*) ;;

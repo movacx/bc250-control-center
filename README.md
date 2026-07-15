@@ -39,6 +39,18 @@ Use this option when running from the source code or from a tarball:
 ./scripts/install-local.sh
 ```
 
+Then open the app from your menu or run:
+
+```bash
+bc250-control-center
+```
+
+If your shell does not find the command, use:
+
+```bash
+"$HOME/.local/bin/bc250-control-center"
+```
+
 To uninstall that installation:
 
 ```bash
@@ -48,7 +60,7 @@ To uninstall that installation:
 If you already deleted the project folder, the installer leaves a copy here:
 
 ```bash
-.local/share/bc250-control-center/scripts/uninstall-local.sh"
+"$HOME/.local/share/bc250-control-center/scripts/uninstall-local.sh"
 ```
 
 ### Arch AUR
@@ -111,6 +123,7 @@ systemctl reboot
 - GPU control through the `cyan-skillfish-governor-smu` TOML safe-points.
 - Temporary and persistent CPU OC with visible limits.
 - 40CU/24CU dashboard and actions through `bc250-cu-live-manager`.
+- Experimental fan monitoring and PWM control with `nct6687d` when the user prepares that module.
 - Local JSONL history.
 - Translations from settings.
 
@@ -141,6 +154,7 @@ Repositories used or referenced:
 - `bc250_smu_oc`: https://github.com/bc250-collective/bc250_smu_oc
 - `bc250-cu-live-manager`: https://github.com/WinnieLV/bc250-cu-live-manager
 - `bc250-40cu-unlock`: https://github.com/duggasco/bc250-40cu-unlock
+- `nct6687d`: https://github.com/Fred78290/nct6687d
 
 More details in `docs/THIRD_PARTY_NOTICES.md`.
 

@@ -48,6 +48,7 @@ def crear_nav_icono(tipo):
         'Memoria': ('#34d399', '#16a34a'),
         'BC250': ('#fb923c', '#ea580c'),
         'Historial': ('#60a5fa', '#2563eb'),
+        'Ventiladores': ('#22d3ee', '#0891b2'),
     }
     claro, oscuro = colores.get(tipo, ('#93c5fd', '#2563eb'))
     pix = QPixmap(96, 96)
@@ -87,6 +88,15 @@ def crear_nav_icono(tipo):
         painter.setBrush(QBrush(QColor(claro)))
         for y in [27, 43, 59]:
             painter.drawEllipse(18, y, 8, 8)
+    elif tipo == 'Ventiladores':
+        painter.setPen(QPen(QColor(oscuro), 7, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+        painter.drawEllipse(28, 28, 40, 40)
+        painter.drawLine(48, 48, 48, 25)
+        painter.drawLine(48, 48, 68, 58)
+        painter.drawLine(48, 48, 28, 58)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QBrush(QColor(claro)))
+        painter.drawEllipse(42, 42, 12, 12)
     painter.end()
     return QIcon(pix)
 

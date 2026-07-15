@@ -316,3 +316,24 @@ class SistemaService:
 
     def ejecutar_cu_manager(self, accion):
         return self.repo.ejecutar_cu_manager(accion)
+
+    def estado_fans_bc250(self):
+        return self.repo.estado_fans_bc250()
+
+    def cargar_nct6683_solo_lectura(self):
+        return self.repo.cargar_nct6683_solo_lectura()
+
+    def preparar_nct6687_control_pwm(self):
+        return self.repo.preparar_nct6687_control_pwm()
+
+    def desactivar_nct6687_control_pwm(self):
+        return self.repo.desactivar_nct6687_control_pwm()
+
+    def instalar_coolercontrol(self):
+        return self.repo.instalar_coolercontrol()
+
+    def abrir_coolercontrol(self):
+        return self.repo.abrir_coolercontrol()
+
+    def aplicar_pwm_fan(self, pwm, valor):
+        return self.repo.aplicar_pwm_fan(pwm, valor)

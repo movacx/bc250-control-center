@@ -9,7 +9,7 @@ from pathlib import Path
 from collections import deque
 
 from PyQt6.QtWidgets import (
-    QCheckBox, QComboBox, QDialog, QFrame, QGridLayout, QHBoxLayout, QHeaderView, QLabel,
+    QApplication, QCheckBox, QComboBox, QDialog, QFrame, QGridLayout, QHBoxLayout, QHeaderView, QLabel,
     QInputDialog, QLineEdit, QMainWindow, QMessageBox, QPushButton, QSpinBox, QStackedWidget,
     QPlainTextEdit, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget
 )
@@ -87,6 +87,7 @@ from mvc.View.Frame.rendimiento_frame import RendimientoFrame
 from mvc.View.Frame.memoria_frame import MemoriaFrame
 from mvc.View.Frame.bc250_frame import Bc250Frame
 from mvc.View.Frame.historial_frame import HistorialFrame
+from mvc.View.Frame.fan_frame import FanFrame
 
 
 class Vista(QMainWindow):
@@ -113,6 +114,8 @@ class Vista(QMainWindow):
         self.ultimo_aviso = {}
         self.procesos_actuales = []
         self.filtrados = []
+        self.cargar_config_fan_curve_inicial()
+        self.fan_pwm_operacion_activa = False
         self.setWindowTitle(self.t('BC250 Control Center'))
         icono = Path(__file__).resolve().parents[1] / 'Resources' / 'icons' / 'bc250-control-center.png'
         if icono.exists():
@@ -142,6 +145,123 @@ class Vista(QMainWindow):
 
     def t(self, texto):
         return traducir_texto(texto, self.idioma)
+
+    def cargar_config_fan_curve_inicial(self):
+        config = {}
+        try:
+            config = self.controlador.leer_config_local().get('fan_curve') or {}
+        except Exception:
+            config = {}
+        enabled_default = str(self.setting_value('fan_curve_activa', 'false')).lower() == 'true'
+        self.fan_curve_activa = bool(config.get('enabled', enabled_default))
+        self.fan_curve_edicion_activa = self.fan_curve_activa
+        self.fan_pwm_preferido = int(config.get('pwm', self.setting_value('fan_pwm_canal', 2)))
+        self.fan_curve_valores = {
+            't1': int(config.get('t1', self.setting_value('fan_curve_t1', 50))),
+            's1': int(config.get('s1', self.setting_value('fan_curve_s1', 70))),
+            't2': int(config.get('t2', self.setting_value('fan_curve_t2', 65))),
+            's2': int(config.get('s2', self.setting_value('fan_curve_s2', 100))),
+            't3': int(config.get('t3', self.setting_value('fan_curve_t3', 70))),
+            's3': int(config.get('s3', self.setting_value('fan_curve_s3', 100))),
+        }
+        self.fan_curve_preset_actual = str(config.get('preset', self.setting_value('fan_curve_preset', 'custom')) or 'custom')
+        self.ultimo_fan_pwm_texto = str(config.get('last_pwm_text', self.setting_value('fan_last_pwm_text', '--')) or '--')
+
+    def fan_curve_valor(self, clave, defecto):
+        try:
+            return int((getattr(self, 'fan_curve_valores', {}) or {}).get(clave, defecto))
+        except Exception:
+            return defecto
+
+    def guardar_config_fan_curve(self):
+        self._normalizar_fan_curve_ui()
+        datos = {
+            'enabled': bool(getattr(self, 'fan_curve_activa', False)),
+            'edit_enabled': bool(getattr(self, 'fan_curve_edicion_activa', False)),
+            'pwm': int(getattr(self, 'fan_pwm_preferido', 2) or 2),
+            't1': self.fan_curve_t1.value() if hasattr(self, 'fan_curve_t1') else self.fan_curve_valor('t1', 50),
+            's1': self.fan_curve_s1.value() if hasattr(self, 'fan_curve_s1') else self.fan_curve_valor('s1', 70),
+            't2': self.fan_curve_t2.value() if hasattr(self, 'fan_curve_t2') else self.fan_curve_valor('t2', 65),
+            's2': self.fan_curve_s2.value() if hasattr(self, 'fan_curve_s2') else self.fan_curve_valor('s2', 100),
+            't3': self.fan_curve_t3.value() if hasattr(self, 'fan_curve_t3') else self.fan_curve_valor('t3', 70),
+            's3': self.fan_curve_s3.value() if hasattr(self, 'fan_curve_s3') else self.fan_curve_valor('s3', 100),
+            'preset': str(getattr(self, 'fan_curve_preset_actual', 'custom') or 'custom'),
+            'last_pwm_text': str(getattr(self, 'ultimo_fan_pwm_texto', '--') or '--'),
+        }
+        self.fan_curve_valores = {k: datos[k] for k in ['t1', 's1', 't2', 's2', 't3', 's3']}
+        self.fan_pwm_preferido = datos['pwm']
+        self.fan_curve_preset_actual = datos['preset']
+        self.ultimo_fan_pwm_texto = datos['last_pwm_text']
+        for clave, valor in datos.items():
+            self.settings.setValue('fan_curve_' + clave, 'true' if valor is True else 'false' if valor is False else valor)
+        self.settings.setValue('fan_curve_activa', 'true' if datos['enabled'] else 'false')
+        self.settings.setValue('fan_pwm_canal', datos['pwm'])
+        try:
+            self.controlador.guardar_config_local({'fan_curve': datos})
+        except Exception:
+            pass
+        self.actualizar_estado_fan_curve()
+
+    def _fan_curve_widget_pairs(self):
+        if not all(hasattr(self, name) for name in ['fan_curve_t1', 'fan_curve_s1', 'fan_curve_t2', 'fan_curve_s2', 'fan_curve_t3', 'fan_curve_s3']):
+            return []
+        return [
+            (self.fan_curve_t1, self.fan_curve_s1),
+            (self.fan_curve_t2, self.fan_curve_s2),
+            (self.fan_curve_t3, self.fan_curve_s3),
+        ]
+
+    def _normalizar_fan_curve_ui(self):
+        pares = self._fan_curve_widget_pairs()
+        if not pares:
+            return
+        valores = [(temp.value(), speed.value()) for temp, speed in pares]
+        ordenados = sorted(valores, key=lambda item: item[0])
+        if valores == ordenados:
+            return
+        for (temp_widget, speed_widget), (temp, speed) in zip(pares, ordenados):
+            temp_widget.blockSignals(True)
+            speed_widget.blockSignals(True)
+            temp_widget.setValue(temp)
+            speed_widget.setValue(speed)
+            temp_widget.blockSignals(False)
+            speed_widget.blockSignals(False)
+
+    def actualizar_estado_fan_curve(self):
+        puntos = []
+        if self._fan_curve_widget_pairs():
+            puntos = self._fan_curve_points()
+        else:
+            valores = getattr(self, 'fan_curve_valores', {}) or {}
+            puntos = [(valores.get('t1', 50), valores.get('s1', 70)), (valores.get('t2', 65), valores.get('s2', 100)), (valores.get('t3', 70), valores.get('s3', 100))]
+        texto_puntos = ' · '.join([f'{int(t)} C/{int(s)}%' for t, s in sorted(puntos, key=lambda item: item[0])])
+        preset = getattr(self, 'fan_curve_preset_actual', 'custom') or 'custom'
+        nombre_preset = self.t({'silent': 'Silenciosa', 'balanced': 'Balanceada', 'cool': 'Fria'}.get(preset, 'Personalizada'))
+        if hasattr(self, 'fan_curve_summary'):
+            self.fan_curve_summary.setText(f'{self.t("Curva guardada")}: {texto_puntos}  |  {self.t("Perfil")}: {nombre_preset}')
+        if hasattr(self, 'fan_last_pwm_label'):
+            ultimo = getattr(self, 'ultimo_fan_pwm_texto', '--') or '--'
+            self.fan_last_pwm_label.setText(f'{self.t("Ultimo PWM")}: {ultimo}')
+
+    def aplicar_preset_curva_fan(self, preset):
+        presets = {
+            'silent': [(50, 45), (65, 70), (75, 100)],
+            'balanced': [(50, 60), (65, 85), (72, 100)],
+            'cool': [(45, 70), (60, 90), (68, 100)],
+        }
+        puntos = presets.get(preset)
+        if not puntos or not self._fan_curve_widget_pairs():
+            return
+        self.fan_curve_preset_actual = preset
+        for (temp_widget, speed_widget), (temp, speed) in zip(self._fan_curve_widget_pairs(), puntos):
+            temp_widget.blockSignals(True)
+            speed_widget.blockSignals(True)
+            temp_widget.setValue(temp)
+            speed_widget.setValue(speed)
+            temp_widget.blockSignals(False)
+            speed_widget.blockSignals(False)
+        self.guardar_config_fan_curve()
+        self.actualizar_controles_curva_fan()
 
     def estilo_risk_popup(self):
         if self.tema == 'dark':
@@ -193,6 +313,7 @@ class Vista(QMainWindow):
 
     def alerta_gpu_html(self, mensaje):
         titulo = html.escape(self.t('Aviso GPU'))
+        deps = html.escape(self.t('Primero usa "Preparar dependencias" para instalar el governor SMU y las herramientas BC250. Sin eso varios botones no podran funcionar.'))
         compat = html.escape(self.t('Compatibilidad SMU'))
         nota = html.escape(self.t('Requiere cyan-skillfish-governor-smu. El paquete cyan-skillfish-governor sin SMU no es compatible con los controles D-Bus de esta app.'))
         info = html.escape(self.t('Mas informacion GPU y governor:'))
@@ -200,6 +321,7 @@ class Vista(QMainWindow):
         enlace = '<a href="https://github.com/filippor/cyan-skillfish-governor/tree/smu">filippor/cyan-skillfish-governor/tree/smu</a>'
         return (
             f'<div><b>{titulo}:</b> {texto}</div>'
+            f'<div style="margin-top:3px;"><b>{html.escape(self.t("Dependencias"))}:</b> {deps}</div>'
             f'<div style="margin-top:3px;"><b>{compat}:</b> {nota}</div>'
             f'<div style="margin-top:3px;">{info} {enlace}</div>'
         )
@@ -302,6 +424,8 @@ class Vista(QMainWindow):
     def recrear_interfaz(self):
         pagina = self.stack.currentIndex() if hasattr(self, 'stack') else 0
         panel = self.bc_panel_stack.currentIndex() if hasattr(self, 'bc_panel_stack') else 0
+        if hasattr(self, 'fan_curve_enable'):
+            self.fan_curve_edicion_activa = bool(self.fan_curve_enable.isChecked())
         viejo = self.centralWidget()
         if viejo:
             viejo.deleteLater()
@@ -313,6 +437,11 @@ class Vista(QMainWindow):
         self.cambiar_pagina(min(pagina, self.stack.count() - 1))
         if hasattr(self, 'bc_panel_stack'):
             self.cambiar_bc_panel(min(panel, self.bc_panel_stack.count() - 1))
+        if hasattr(self, 'fan_curve_enable'):
+            self.fan_curve_enable.blockSignals(True)
+            self.fan_curve_enable.setChecked(bool(self.fan_curve_edicion_activa))
+            self.fan_curve_enable.blockSignals(False)
+            self.actualizar_controles_curva_fan()
         self.actualizar_rendimiento()
         self.actualizar_procesos()
 
@@ -410,18 +539,43 @@ class Vista(QMainWindow):
         self.msg_info('Evaluar presión de memoria', '\n'.join(lineas))
 
     def mostrar_daemon_opcional(self):
-        texto = (
-            'El daemon bc250-control-centerd es opcional. Monitorea temperatura, RAM, swap, governor y registra metricas JSONL aunque la GUI este cerrada.\n\n'
-            'Activar:\n'
-            'systemctl --user enable --now bc250-control-centerd.service\n\n'
-            'Desactivar:\n'
-            'systemctl --user disable --now bc250-control-centerd.service\n\n'
-            'Ver estado:\n'
-            'systemctl --user status bc250-control-centerd.service\n\n'
-            'No aplica OC automatico.'
-        )
-        self.msg_info('Daemon opcional', texto)
+        lineas = [
+            self.t('El daemon bc250-control-centerd es opcional. Monitorea temperatura, RAM, swap, governor y registra metricas JSONL aunque la GUI este cerrada.'),
+            '',
+            self.t('Activar:'),
+            'systemctl --user enable --now bc250-control-centerd.service',
+            '',
+            self.t('Desactivar:'),
+            'systemctl --user disable --now bc250-control-centerd.service',
+            '',
+            self.t('Ver estado:'),
+            'systemctl --user status bc250-control-centerd.service',
+            '',
+            self.t('Tambien puede aplicar la curva de ventilador guardada mientras la GUI este cerrada.'),
+            self.t('Para eso primero prepara PWM ventilador y deja activada la curva GPU.'),
+            '',
+            self.t('No aplica OC automatico.'),
+        ]
+        self.msg_info('Daemon opcional', '\n'.join(lineas))
 
+    def mostrar_aviso_daemon_fan_curve(self):
+        if str(self.setting_value('fan_curve_daemon_info_seen', 'false')).lower() == 'true':
+            return
+        lineas = [
+            self.t('La curva automatica de ventiladores queda guardada y puede seguir funcionando aunque cierres la GUI si activas el daemon opcional.'),
+            '',
+            self.t('Activar daemon:'),
+            'systemctl --user enable --now bc250-control-centerd.service',
+            '',
+            self.t('Ver estado:'),
+            'systemctl --user status bc250-control-centerd.service --no-pager',
+            '',
+            self.t('Mas informacion en: Opciones > Configuracion > Daemon opcional.'),
+            '',
+            self.t('Nota: el primer cambio PWM puede pedir autenticacion de Polkit porque Linux protege la escritura en /sys/class/hwmon.'),
+        ]
+        self.msg_info('Curva de ventiladores', '\n'.join(lineas))
+        self.settings.setValue('fan_curve_daemon_info_seen', 'true')
 
     def abrir_url_oficial(self, url):
         QDesktopServices.openUrl(QUrl(url))
@@ -434,10 +588,12 @@ class Vista(QMainWindow):
         intro.setWordWrap(True)
         layout.addWidget(intro)
         repos = [
+            ('BC250 Control Center', 'movacx/bc250-control-center', 'https://github.com/movacx/bc250-control-center'),
             ('cyan-skillfish-governor', 'filippor/cyan-skillfish-governor/tree/smu', 'https://github.com/filippor/cyan-skillfish-governor/tree/smu'),
             ('bc250_smu_oc', 'bc250-collective/bc250_smu_oc', 'https://github.com/bc250-collective/bc250_smu_oc'),
             ('bc250-cu-live-manager', 'WinnieLV/bc250-cu-live-manager', 'https://github.com/WinnieLV/bc250-cu-live-manager'),
             ('bc250-40cu-unlock', 'duggasco/bc250-40cu-unlock', 'https://github.com/duggasco/bc250-40cu-unlock'),
+            ('nct6687d fan driver', 'Fred78290/nct6687d', 'https://github.com/Fred78290/nct6687d'),
         ]
         for nombre, repo, url in repos:
             fila = QHBoxLayout()
@@ -453,7 +609,7 @@ class Vista(QMainWindow):
         cerrar = QPushButton(self.t('Cerrar'))
         cerrar.clicked.connect(dialogo.accept)
         layout.addWidget(cerrar, alignment=Qt.AlignmentFlag.AlignRight)
-        dialogo.resize(620, 260)
+        dialogo.resize(720, 360)
         dialogo.exec()
 
     def mostrar_acerca_de(self):
@@ -468,10 +624,12 @@ class Vista(QMainWindow):
             '- cyan-skillfish-governor-smu para controlar rangos GPU mediante governor/D-Bus.\n'
             '- bc250_smu_oc para CPU OC temporal o persistente cuando el usuario lo decide.\n'
             '- bc250-cu-live-manager para dashboard live y acciones 40CU/24CU.\n'
+            '- nct6687d para control PWM experimental de ventiladores cuando el usuario prepara ese modulo.\n'
             '- UMR, lm_sensors, systemd, Polkit y herramientas del sistema cuando hacen falta.\n\n'
             'Credito y alcance del proyecto:\n'
             '- Nuestro trabajo es crear un launcher/centro grafico que integra, organiza y administra estos repositorios de forma mas amigable.\n'
             '- No reclamamos autoria sobre herramientas comunitarias externas; cada una conserva sus creditos, licencia y repositorio oficial.\n'
+            '- El controlador nct6687d conserva sus creditos y licencia upstream en Fred78290/nct6687d.\n'
             '- El objetivo es que el usuario se sienta comodo usando la BC-250 sin depender tanto de la terminal ni navegar entre multiples repositorios.\n\n'
             'Importante:\n'
             '- Overclock, 40CU y cambios de frecuencia pueden causar cuelgues, apagones, perdida de datos o dano de hardware.\n'
@@ -530,7 +688,7 @@ class Vista(QMainWindow):
         side.addWidget(desc)
         side.addSpacing(14)
 
-        nombres = ['Procesos', 'Rendimiento', 'Memoria', 'BC250', 'Historial']
+        nombres = ['Procesos', 'Rendimiento', 'Memoria', 'BC250', 'Ventiladores', 'Historial']
         self.nav_buttons = []
         for i, nombre in enumerate(nombres):
             btn = NavButton(self.t(nombre), crear_nav_icono(nombre))
@@ -552,6 +710,7 @@ class Vista(QMainWindow):
         self.stack.addWidget(self.crear_pagina_rendimiento())
         self.stack.addWidget(self.crear_pagina_memoria())
         self.stack.addWidget(self.crear_pagina_bc250())
+        self.stack.addWidget(self.crear_pagina_ventiladores())
         self.stack.addWidget(self.crear_pagina_historial())
 
         root_layout.addWidget(sidebar)
@@ -705,6 +864,8 @@ class Vista(QMainWindow):
         return MemoriaFrame(self).contenedor
     def crear_pagina_bc250(self):
         return Bc250Frame(self).contenedor
+    def crear_pagina_ventiladores(self):
+        return FanFrame(self).contenedor
     def crear_pagina_historial(self):
         return HistorialFrame(self).contenedor
 
@@ -767,6 +928,512 @@ class Vista(QMainWindow):
         if indice == 3 and time.monotonic() - getattr(self, 'ultimo_bc250_refresh', 0) >= 1:
             self.actualizar_bc250(silencioso=True)
             self.ultimo_bc250_refresh = time.monotonic()
+        if indice == 4 and hasattr(self, 'fan_table'):
+            if time.monotonic() - getattr(self, 'ultimo_bc250_refresh', 0) >= 1:
+                self.actualizar_bc250(silencioso=True)
+                self.ultimo_bc250_refresh = time.monotonic()
+            self.actualizar_fans_bc250()
+
+
+    def actualizar_fans_bc250(self):
+        try:
+            estado = self.controlador.estado_fans_bc250()
+        except Exception as error:
+            self.msg_warn('Ventiladores', f'{self.t("No se pudo leer estado de ventiladores:")} {error}')
+            return
+        self.ultimo_estado_fans = estado
+        sensores = estado.get('sensores', {})
+        modulos = estado.get('modulos', {})
+        cooler = estado.get('coolercontrol', {})
+        fans = sensores.get('fans', [])
+        fans_visibles = self._fans_visibles(fans)
+        fan_principal = self._fan_principal(fans)
+        pwm_control = bool(estado.get('driver_control'))
+        drivers = []
+        if modulos.get('nct6683'):
+            drivers.append('nct6683')
+        if modulos.get('nct6687'):
+            drivers.append('nct6687')
+        driver_texto = ', '.join(drivers) if drivers else '--'
+        datos = self.ultimo_rendimiento or {}
+        estado_gpu = getattr(self, 'ultimo_estado_bc250', {}) or {}
+        if (not estado_gpu or estado_gpu.get('sclk_actual') is None) and time.monotonic() - getattr(self, 'ultimo_bc250_refresh', 0) >= 1:
+            self.actualizar_bc250(silencioso=True)
+            self.ultimo_bc250_refresh = time.monotonic()
+            estado_gpu = getattr(self, 'ultimo_estado_bc250', {}) or {}
+        rpm = fan_principal.get('rpm') if fan_principal else None
+        pwm = fan_principal.get('pwm') if fan_principal else None
+        porcentaje = self._pwm_a_porcentaje(pwm)
+        rpm_texto = '--' if rpm is None else f'{rpm} RPM'
+        velocidad_texto = '--' if porcentaje is None else f'{porcentaje}%'
+        fan_detalle = fan_principal.get('label') if fan_principal else 'Sin canal principal'
+        if hasattr(self, 'fan_rpm_main'):
+            sclk_fan = datos.get('sclk_actual') or estado_gpu.get('sclk_actual') or getattr(self, 'ultimo_gpu_sclk', None)
+            volt_fan = estado_gpu.get('voltaje_actual') or getattr(self, 'ultimo_gpu_volt', None)
+            busy_fan = estado_gpu.get('gpu_busy') if estado_gpu.get('gpu_busy') is not None else getattr(self, 'ultimo_gpu_busy', None)
+            self.fan_rpm_main.actualizar(rpm_texto, fan_detalle, 0)
+            self.fan_speed_percent.actualizar(velocidad_texto, f'PWM {fan_principal.get("index") if fan_principal else "--"}', 0)
+            self.fan_cpu_temp.actualizar(formato_temp(datos.get('cpu_temp')), 'Tctl k10temp', 0)
+            self.fan_gpu_temp.actualizar(formato_temp(datos.get('gpu_temp')), 'edge amdgpu', 0)
+            self.fan_cpu_mhz.actualizar('--' if datos.get('cpu_freq') is None else f'{datos.get("cpu_freq"):.0f} MHz', f'{self.t("Carga")} {datos.get("cpu", 0):.0f}%', 0)
+            detalle_gpu = '--' if volt_fan is None else f'{volt_fan} mV'
+            if busy_fan is not None:
+                detalle_gpu += f' | {self.t("carga")} {busy_fan}%'
+            self.fan_gpu_sclk.actualizar('--' if sclk_fan is None else f'{sclk_fan} MHz', detalle_gpu, 0)
+            self.fan_driver_status.actualizar(driver_texto, sensores.get('chip') or '--', 0)
+            self.fan_pwm_status.actualizar(self.t('Disponible') if pwm_control else self.t('Solo lectura'), 'pkexec' if pwm_control else 'read-only', 0)
+            if hasattr(self, 'fan_status_pill'):
+                self.fan_status_pill.setText(('PWM ' + self.t('Disponible')) if pwm_control else ('PWM ' + self.t('Solo lectura')))
+                self.fan_status_pill.setProperty('ready', pwm_control)
+                self.fan_status_pill.style().unpolish(self.fan_status_pill)
+                self.fan_status_pill.style().polish(self.fan_status_pill)
+        if hasattr(self, 'fan_table'):
+            self.fan_table.setRowCount(len(fans_visibles))
+            for fila, fan in enumerate(fans_visibles):
+                pct = self._pwm_a_porcentaje(fan.get('pwm'))
+                valores = [
+                    f'PWM/Fan {fan.get("index")}',
+                    fan.get('label') or '',
+                    '--' if fan.get('rpm') is None else f'{fan.get("rpm")} RPM',
+                    '--' if pct is None else f'{pct}%',
+                    self._texto_permiso_pwm(fan),
+                ]
+                for col, valor in enumerate(valores):
+                    self.fan_table.setItem(fila, col, QTableWidgetItem(str(valor)))
+        if hasattr(self, 'fan_pwm_combo'):
+            actual = self.fan_pwm_combo.currentData()
+            self.fan_pwm_combo.blockSignals(True)
+            self.fan_pwm_combo.clear()
+            for fan in fans_visibles:
+                self.fan_pwm_combo.addItem(f'PWM {fan.get("index")} - {fan.get("label")}', fan.get('index'))
+            objetivo = actual if actual is not None else int(getattr(self, 'fan_pwm_preferido', 2) or 2)
+            idx = self.fan_pwm_combo.findData(objetivo)
+            if idx < 0:
+                idx = 0
+            if idx >= 0:
+                self.fan_pwm_combo.setCurrentIndex(idx)
+            self.fan_pwm_combo.blockSignals(False)
+            self.actualizar_fan_pwm_ui(pwm_control)
+        if hasattr(self, 'fan_detalle'):
+            lineas = [
+                '== BC250 fan / sensor diagnostic ==',
+                f'Chip: {sensores.get("chip") or "--"}',
+                f'Hwmon: {sensores.get("path") or "--"}',
+                f'Modules: nct6683={modulos.get("nct6683")} nct6687={modulos.get("nct6687")}',
+                f'CoolerControl: cmd={cooler.get("cmd") or "--"} service={cooler.get("service_state")}',
+                f'Summary: {estado.get("resumen")}',
+                '',
+                f'Main fan: {rpm_texto} | {fan_detalle} | Speed={velocidad_texto}',
+                'Visible channels: PWM 2, PWM 1, PWM 3',
+                '',
+                'Notes:',
+                '- Splitters and PWM hubs usually share one PWM control signal and report only one RPM/tach signal.',
+                '- nct6683 is read-only monitoring; nct6687/nct6687d is required for PWM control.',
+                '- The GPU curve is saved and can keep working with the optional user daemon enabled.',
+            ]
+            self.fan_detalle.setPlainText('\n'.join(lineas))
+        self.aplicar_curva_fan_gpu_auto()
+
+    def _fans_visibles(self, fans):
+        orden = {2: 0, 1: 1, 3: 2}
+        filtrados = [fan for fan in fans if fan.get('index') in orden]
+        return sorted(filtrados, key=lambda fan: orden.get(fan.get('index'), 99))
+
+    def _fan_principal(self, fans):
+        activos = [fan for fan in fans if fan.get('rpm')]
+        if activos:
+            return max(activos, key=lambda fan: fan.get('rpm') or 0)
+        for fan in fans:
+            if fan.get('index') == 2:
+                return fan
+        return fans[0] if fans else {}
+
+    def _pwm_a_porcentaje(self, pwm):
+        if pwm is None:
+            return None
+        try:
+            return max(0, min(100, round(int(pwm) * 100 / 255)))
+        except Exception:
+            return None
+
+    def _porcentaje_a_pwm(self, porcentaje):
+        return max(0, min(255, round(int(porcentaje) * 255 / 100)))
+
+    def _texto_permiso_pwm(self, fan):
+        modo = fan.get('pwm_mode') or ''
+        if fan.get('pwm_writable'):
+            return f'{self.t("escritura")} {modo}'.strip()
+        if fan.get('pwm_root_writable'):
+            return f'{self.t("admin/pkexec")} {modo}'.strip()
+        return f'{self.t("solo lectura")} {modo}'.strip()
+
+    def _fan_pwm_control_disponible(self):
+        estado = getattr(self, 'ultimo_estado_fans', None) or {}
+        return bool(estado.get('driver_control'))
+
+    def actualizar_fan_pwm_ui(self, pwm_control=None):
+        if pwm_control is None:
+            pwm_control = self._fan_pwm_control_disponible()
+        curva_activa = bool(getattr(self, 'fan_curve_activa', False))
+        if hasattr(self, 'fan_curve_enable'):
+            curva_activa = bool(self.fan_curve_enable.isChecked())
+        controles_bloqueables = [
+            getattr(self, 'fan_pwm_combo', None),
+            getattr(self, 'fan_pwm_valor', None),
+            getattr(self, 'fan_speed_slider', None),
+        ]
+        for widget in controles_bloqueables:
+            if widget is not None:
+                widget.setEnabled(bool(pwm_control))
+        self.actualizar_controles_curva_fan(curva_activa and bool(pwm_control))
+        for widget in [
+            getattr(self, 'fan_pwm_apply', None),
+            getattr(self, 'fan_curve_enable', None),
+            *getattr(self, 'fan_speed_buttons', []),
+        ]:
+            if widget is not None:
+                widget.setEnabled(True)
+
+    def actualizar_controles_curva_fan(self, activo=None):
+        if activo is None:
+            activo = bool(getattr(self, 'fan_curve_edicion_activa', False)) and self._fan_pwm_control_disponible()
+            if hasattr(self, 'fan_curve_enable'):
+                activo = bool(self.fan_curve_enable.isChecked()) and self._fan_pwm_control_disponible()
+        for widget in [
+            getattr(self, 'fan_curve_t1', None),
+            getattr(self, 'fan_curve_s1', None),
+            getattr(self, 'fan_curve_t2', None),
+            getattr(self, 'fan_curve_s2', None),
+            getattr(self, 'fan_curve_t3', None),
+            getattr(self, 'fan_curve_s3', None),
+            getattr(self, 'fan_curve_apply', None),
+            *getattr(self, 'fan_curve_preset_buttons', []),
+        ]:
+            if widget is not None:
+                widget.setEnabled(bool(activo))
+        self.actualizar_estado_fan_curve()
+
+    def _avisar_fan_pwm_no_listo(self):
+        self.msg_warn(
+            'Ventiladores',
+            self.t('Primero prepara las dependencias PWM del ventilador. Usa "Preparar PWM ventilador" para instalar/configurar nct6687.')
+        )
+
+    def _fan_pwm_listo_o_avisar(self):
+        if self._fan_pwm_control_disponible():
+            return True
+        self._avisar_fan_pwm_no_listo()
+        return False
+
+    def _editando_control_fan(self):
+        slider = getattr(self, 'fan_speed_slider', None)
+        spin = getattr(self, 'fan_pwm_valor', None)
+        return bool((slider is not None and slider.isSliderDown()) or (spin is not None and spin.hasFocus()))
+
+    def _set_fan_pwm_ui_value(self, porcentaje):
+        porcentaje = int(max(0, min(100, porcentaje)))
+        spin = getattr(self, 'fan_pwm_valor', None)
+        slider = getattr(self, 'fan_speed_slider', None)
+        if spin is not None:
+            spin.blockSignals(True)
+            spin.setValue(porcentaje)
+            spin.blockSignals(False)
+        if slider is not None:
+            slider.blockSignals(True)
+            slider.setValue(porcentaje)
+            slider.blockSignals(False)
+
+    def actualizar_valor_pwm_seleccionado(self):
+        estado = getattr(self, 'ultimo_estado_fans', None) or {}
+        fans = (estado.get('sensores') or {}).get('fans', [])
+        pwm = self.fan_pwm_combo.currentData() if hasattr(self, 'fan_pwm_combo') else None
+        if pwm is not None:
+            self.fan_pwm_preferido = int(pwm)
+            self.guardar_config_fan_curve()
+        fan = next((item for item in fans if item.get('index') == pwm), None)
+        if fan and fan.get('pwm') is not None and hasattr(self, 'fan_pwm_valor'):
+            pct_sel = self._pwm_a_porcentaje(fan.get('pwm')) or 0
+            self._set_fan_pwm_ui_value(pct_sel)
+
+    def mostrar_status_chip_fan(self):
+        estado = getattr(self, 'ultimo_estado_fans', None)
+        if not estado:
+            try:
+                estado = self.controlador.estado_fans_bc250()
+                self.ultimo_estado_fans = estado
+            except Exception as error:
+                self.msg_warn('Ventiladores', str(error))
+                return
+        sensores = estado.get('sensores', {})
+        modulos = estado.get('modulos', {})
+        cooler = estado.get('coolercontrol', {})
+        texto = '\n'.join([
+            f'Chip: {sensores.get("chip") or "--"}',
+            f'Hwmon: {sensores.get("path") or "--"}',
+            f'Modules: nct6683={modulos.get("nct6683")} nct6687={modulos.get("nct6687")}',
+            f'CoolerControl: cmd={cooler.get("cmd") or "--"} service={cooler.get("service_state")}',
+            f'Summary: {estado.get("resumen")}',
+        ])
+        self.msg_info('Ventiladores', texto)
+
+    def mostrar_informe_rutas_pwm(self):
+        estado = getattr(self, 'ultimo_estado_fans', None) or {}
+        sensores = estado.get('sensores', {}) if isinstance(estado, dict) else {}
+        hwmon = sensores.get('path') or '/sys/class/hwmon/hwmonX'
+        cache = os.environ.get('XDG_CACHE_HOME') or str(Path.home() / '.cache')
+        helper = str(Path(cache) / 'bc250-control-center' / 'bc250-fan-pwm-control-helper')
+        texto = '\n'.join([
+            self.t('Informe rutas PWM'),
+            '',
+            self.t('El boton "Preparar PWM ventilador" instala/configura el driver nct6687d para controlar PWM.'),
+            self.t('No se guarda dentro de ResourceTools; se instala como modulo del sistema.'),
+            '',
+            self.t('Arch/CachyOS/Manjaro:'),
+            '- nct6687d-dkms-git',
+            '',
+            self.t('Archivos de configuracion que puede crear/modificar:'),
+            '- /etc/modprobe.d/nct6683.conf',
+            '- /etc/modprobe.d/nct6687.conf',
+            '- /etc/modules-load.d/nct6687.conf',
+            '',
+            self.t('Rutas del modulo DKMS/kernel:'),
+            '- /var/lib/dkms/',
+            '- /usr/lib/modules/$(uname -r)/',
+            '',
+            self.t('Rutas PWM en vivo detectadas por Linux:'),
+            f'- {hwmon}',
+            f'- {hwmon}/pwm1',
+            f'- {hwmon}/pwm2',
+            f'- {hwmon}/pwm3',
+            '',
+            self.t('Helper local usado por la GUI para pedir permisos con Polkit:'),
+            f'- {helper}',
+            '',
+            self.t('Cache de construccion AUR, segun el helper usado:'),
+            '- ~/.cache/yay/nct6687d-dkms-git/',
+            '- ~/.cache/paru/clone/nct6687d-dkms-git/',
+            '',
+            self.t('Comandos utiles para revisar:'),
+            '- pacman -Ql nct6687d-dkms-git',
+            '- lsmod | grep -E "nct6683|nct6687"',
+            '- sensors | sed -n "/nct668/,+45p"',
+        ])
+
+        dialogo = QDialog(self)
+        dialogo.setWindowTitle(self.t('Informe rutas PWM'))
+        layout = QVBoxLayout(dialogo)
+        caja = QPlainTextEdit()
+        caja.setReadOnly(True)
+        caja.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
+        caja.setPlainText(texto)
+        caja.setMinimumSize(620, 380)
+        layout.addWidget(caja)
+        cerrar = QPushButton(self.t('Cerrar'))
+        cerrar.clicked.connect(dialogo.accept)
+        layout.addWidget(cerrar, alignment=Qt.AlignmentFlag.AlignRight)
+        dialogo.resize(700, 520)
+        dialogo.exec()
+
+    def cargar_fan_readonly(self):
+        try:
+            self.controlador.cargar_nct6683_solo_lectura()
+            self.registrar_evento('fan', 'info', 'Fan read-only setup', 'Opened terminal to configure nct6683 read-only monitoring.', {})
+        except Exception as error:
+            self.msg_warn('Ventiladores', str(error))
+
+    def preparar_fan_pwm(self):
+        texto = (
+            'Se prepararan las dependencias del ventilador para controlar PWM con nct6687/nct6687d.\n\n'
+            'Esto es independiente de las dependencias BC250/OC. Puede instalar un modulo DKMS externo, bloquear nct6683 y dejar nct6687 como modulo preferido al arrancar.\n\n'
+            'Continuar?'
+        )
+        if self.msg_question('Ventiladores', texto) != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            self.controlador.preparar_nct6687_control_pwm()
+            self.registrar_evento('fan', 'warning', 'Fan PWM setup', 'Opened terminal to prepare nct6687 PWM driver.', {})
+        except Exception as error:
+            self.msg_warn('Ventiladores', str(error))
+
+    def desactivar_fan_pwm(self):
+        texto = (
+            'Se desactivara la configuracion PWM del ventilador y se volvera a nct6683 en modo lectura.\n\n'
+            'No se elimina el paquete DKMS; solo se quitan las preferencias de arranque/modulo para nct6687. '
+            'Si el cambio no se refleja al instante, reinicia.\n\n'
+            'Continuar?'
+        )
+        if self.msg_question('Ventiladores', texto) != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            self.controlador.desactivar_nct6687_control_pwm()
+            self.registrar_evento('fan', 'warning', 'Fan PWM disabled', 'Opened terminal to disable nct6687 PWM preference.', {})
+        except Exception as error:
+            self.msg_warn('Ventiladores', str(error))
+
+    def instalar_coolercontrol(self):
+        try:
+            self.controlador.instalar_coolercontrol()
+            self.registrar_evento('fan', 'info', 'Install CoolerControl', 'Opened terminal to install CoolerControl.', {})
+        except Exception as error:
+            self.msg_warn('Ventiladores', str(error))
+
+    def abrir_coolercontrol(self):
+        try:
+            self.controlador.abrir_coolercontrol()
+        except Exception as error:
+            self.msg_warn('Ventiladores', str(error))
+
+    def aplicar_fan_pwm_porcentaje(self, porcentaje):
+        if not self._fan_pwm_listo_o_avisar():
+            return
+        self.aplicar_fan_pwm_manual(int(porcentaje))
+
+    def aplicar_fan_pwm_manual(self, porcentaje_objetivo=None):
+        if getattr(self, 'fan_pwm_operacion_activa', False):
+            return
+        if not self._fan_pwm_listo_o_avisar():
+            return
+        pwm = self.fan_pwm_combo.currentData() if hasattr(self, 'fan_pwm_combo') else None
+        if isinstance(porcentaje_objetivo, bool):
+            porcentaje_objetivo = None
+        if porcentaje_objetivo is None and hasattr(self, 'fan_pwm_valor'):
+            self.fan_pwm_valor.interpretText()
+        porcentaje = int(porcentaje_objetivo if porcentaje_objetivo is not None else (self.fan_pwm_valor.value() if hasattr(self, 'fan_pwm_valor') else 0))
+        porcentaje = max(0, min(100, porcentaje))
+        if pwm is None:
+            self.msg_warn('Ventiladores', 'No hay canal PWM seleccionado.')
+            return
+        self.fan_pwm_preferido = int(pwm)
+        self.guardar_config_fan_curve()
+        valor = self._porcentaje_a_pwm(porcentaje)
+        texto = self.t('Aplicar velocidad del ventilador {porcentaje}% en PWM {pwm}?\n\nLa app escribira PWM interno {valor}/255. Monitorea temperatura y RPM.').format(
+            porcentaje=porcentaje,
+            pwm=pwm,
+            valor=valor,
+        )
+        if self.msg_question('Ventiladores', texto) != QMessageBox.StandardButton.Yes:
+            return
+        self.fan_pwm_operacion_activa = True
+        try:
+            self.controlador.aplicar_pwm_fan(pwm, valor)
+            self._set_fan_pwm_ui_value(porcentaje)
+            self.ultimo_fan_pwm_texto = f'PWM {pwm} · {porcentaje}%'
+            self.guardar_config_fan_curve()
+            QApplication.processEvents()
+            self.registrar_evento('fan', 'warning', 'Manual fan speed applied', f'PWM {pwm} set to {porcentaje}%.', {'pwm': pwm, 'percent': porcentaje, 'raw': valor})
+            self.actualizar_fans_bc250()
+            self.msg_info('Ventiladores', 'Velocidad aplicada. Refrescando sensores.')
+        except Exception as error:
+            self.msg_warn('Ventiladores', f'{self.t("No se pudo aplicar PWM:")} {error}')
+        finally:
+            self.fan_pwm_operacion_activa = False
+
+    def _fan_curve_points(self):
+        return [
+            (self.fan_curve_t1.value(), self.fan_curve_s1.value()),
+            (self.fan_curve_t2.value(), self.fan_curve_s2.value()),
+            (self.fan_curve_t3.value(), self.fan_curve_s3.value()),
+        ]
+
+    def _fan_curve_percent_for_temp(self, temp):
+        puntos = sorted(self._fan_curve_points(), key=lambda item: item[0])
+        objetivo = puntos[0][1]
+        for limite, velocidad in puntos:
+            if temp >= limite:
+                objetivo = velocidad
+        return max(0, min(100, int(objetivo)))
+
+    def aplicar_curva_fan_gpu_manual(self):
+        if not self._fan_pwm_listo_o_avisar():
+            return
+        self.mostrar_aviso_daemon_fan_curve()
+        self.fan_curve_activa = True
+        self.fan_curve_edicion_activa = True
+        self.settings.setValue('fan_curve_activa', 'true')
+        self.guardar_config_fan_curve()
+        if hasattr(self, 'fan_curve_enable'):
+            self.fan_curve_enable.blockSignals(True)
+            self.fan_curve_enable.setChecked(True)
+            self.fan_curve_enable.blockSignals(False)
+        self.actualizar_controles_curva_fan(True)
+        self.aplicar_curva_fan_gpu_auto(forzar=True, mostrar=True)
+
+    def validar_fan_curve_toggle(self):
+        if not hasattr(self, 'fan_curve_enable'):
+            return
+        if self.fan_curve_enable.isChecked() and not self._fan_pwm_control_disponible():
+            self.fan_curve_enable.blockSignals(True)
+            self.fan_curve_enable.setChecked(False)
+            self.fan_curve_enable.blockSignals(False)
+            self.fan_curve_activa = False
+            self.fan_curve_edicion_activa = False
+            self.settings.setValue('fan_curve_activa', 'false')
+            self.guardar_config_fan_curve()
+            self.actualizar_controles_curva_fan(False)
+            self._avisar_fan_pwm_no_listo()
+            return
+        self.fan_curve_edicion_activa = bool(self.fan_curve_enable.isChecked())
+        if not self.fan_curve_edicion_activa:
+            self.fan_curve_activa = False
+            self.settings.setValue('fan_curve_activa', 'false')
+        self.guardar_config_fan_curve()
+        self.actualizar_controles_curva_fan(self.fan_curve_edicion_activa and self._fan_pwm_control_disponible())
+
+    def aplicar_curva_fan_gpu_auto(self, forzar=False, mostrar=False):
+        if getattr(self, 'fan_pwm_operacion_activa', False):
+            return
+        if not hasattr(self, 'fan_curve_enable'):
+            return
+        if not forzar and not bool(getattr(self, 'fan_curve_activa', False)):
+            return
+        if not self._fan_pwm_control_disponible():
+            if mostrar:
+                self._avisar_fan_pwm_no_listo()
+            return
+        datos = self.ultimo_rendimiento or {}
+        temp = datos.get('gpu_temp')
+        if temp is None:
+            if mostrar:
+                self.msg_warn('Ventiladores', 'No se pudo leer la temperatura GPU para calcular la curva.')
+            return
+        pwm = self.fan_pwm_combo.currentData() if hasattr(self, 'fan_pwm_combo') else 2
+        porcentaje = self._fan_curve_percent_for_temp(float(temp))
+        ahora = time.monotonic()
+        if not forzar:
+            if ahora - getattr(self, 'ultimo_fan_curve_apply', 0) < 5:
+                return
+            if getattr(self, 'ultimo_fan_curve_percent', None) == porcentaje:
+                return
+        valor = self._porcentaje_a_pwm(porcentaje)
+        self.fan_pwm_operacion_activa = True
+        try:
+            self.controlador.aplicar_pwm_fan(pwm, valor)
+            self.ultimo_fan_curve_apply = ahora
+            self.ultimo_fan_curve_percent = porcentaje
+            self.ultimo_fan_pwm_texto = f'PWM {pwm} · {porcentaje}%'
+            self.guardar_config_fan_curve()
+            if hasattr(self, 'fan_detalle'):
+                self.fan_detalle.appendPlainText(f'\nGPU fan curve: {temp:.1f} C -> {porcentaje}% on PWM {pwm}')
+            if mostrar:
+                self.msg_info('Ventiladores', f'Curva aplicada: GPU {temp:.1f} C -> ventilador {porcentaje}%.')
+            self.actualizar_fans_bc250()
+        except Exception as error:
+            self.ultimo_fan_curve_apply = time.monotonic()
+            texto_error = str(error).lower()
+            if any(x in texto_error for x in ['not authorized', 'cancel', 'cancelado', 'authentication', 'autenticacion', 'autenticación']):
+                self.fan_curve_activa = False
+                self.fan_curve_edicion_activa = False
+                self.settings.setValue('fan_curve_activa', 'false')
+                self.guardar_config_fan_curve()
+                if hasattr(self, 'fan_curve_enable'):
+                    self.fan_curve_enable.blockSignals(True)
+                    self.fan_curve_enable.setChecked(False)
+                    self.fan_curve_enable.blockSignals(False)
+                self.actualizar_controles_curva_fan(False)
+            if mostrar:
+                self.msg_warn('Ventiladores', f'{self.t("No se pudo aplicar PWM:")} {error}')
+        finally:
+            self.fan_pwm_operacion_activa = False
 
     def registrar_evento(self, tipo, nivel, titulo, detalle='', datos=None):
         try:
@@ -1058,6 +1725,33 @@ class Vista(QMainWindow):
             estado_bc250 = self.actualizar_bc250(silencioso=True) or estado_bc250
             self.ultimo_bc250_refresh = ahora
         self.evaluar_alertas(datos, estado_bc250)
+        self.actualizar_curva_fan_en_segundo_plano()
+        if hasattr(self, 'stack') and self.stack.currentIndex() == 4 and hasattr(self, 'fan_table'):
+            ahora_fan = time.monotonic()
+            if ahora_fan - getattr(self, 'ultimo_fan_refresh', 0) >= 2:
+                self.ultimo_fan_refresh = ahora_fan
+                self.actualizar_fans_bc250()
+
+    def actualizar_curva_fan_en_segundo_plano(self):
+        if not bool(getattr(self, 'fan_curve_activa', False)):
+            return
+        if not hasattr(self, 'fan_curve_enable'):
+            return
+        if getattr(self, 'fan_pwm_operacion_activa', False):
+            return
+        ahora = time.monotonic()
+        if ahora - getattr(self, 'ultimo_fan_curve_background_check', 0) < 2:
+            return
+        self.ultimo_fan_curve_background_check = ahora
+        if not self._fan_pwm_control_disponible():
+            if ahora - getattr(self, 'ultimo_fan_background_probe', 0) < 10:
+                return
+            self.ultimo_fan_background_probe = ahora
+            try:
+                self.ultimo_estado_fans = self.controlador.estado_fans_bc250()
+            except Exception:
+                return
+        self.aplicar_curva_fan_gpu_auto()
 
     def texto_estado(self, valor):
         if valor is None or valor == '':

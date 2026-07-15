@@ -20,6 +20,10 @@ METAINFO_DIR="$PREFIX/share/metainfo"
 SYSTEMD_USER_DIR="$PREFIX/lib/systemd/user"
 DOC_DIR="$PREFIX/share/doc/bc250-control-center"
 
+if [[ "${EUID:-$(id -u)}" -ne 0 && "$PREFIX" == "$HOME/.local" ]]; then
+  SYSTEMD_USER_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
+fi
+
 YES=0
 DRY_RUN=0
 PURGE_USER_DATA=0
@@ -126,6 +130,9 @@ remove_path "$BIN_DIR/bc250-control-centerd"
 remove_path "$DESKTOP_DIR/io.github.fabianbeita.bc250-control-center.desktop"
 remove_path "$METAINFO_DIR/io.github.fabianbeita.bc250-control-center.metainfo.xml"
 remove_path "$SYSTEMD_USER_DIR/bc250-control-centerd.service"
+if [[ "$SYSTEMD_USER_DIR" != "$PREFIX/lib/systemd/user" ]]; then
+  remove_path "$PREFIX/lib/systemd/user/bc250-control-centerd.service"
+fi
 remove_path "$DOC_DIR"
 remove_path "$APP_DIR"
 

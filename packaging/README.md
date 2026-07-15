@@ -52,14 +52,26 @@ sudo rpm-ostree install packaging/packages/bazzite/bc250-control-center-*.rpm
 ## Local install without package
 
 ```bash
-PREFIX="$HOME/.local" ./scripts/install-local.sh
+./scripts/install-local.sh
 bc250-control-center
+```
+
+If your shell does not find the command, run:
+
+```bash
+"$HOME/.local/bin/bc250-control-center"
 ```
 
 Uninstall:
 
 ```bash
-PREFIX="$HOME/.local" ./scripts/uninstall-local.sh
+./scripts/uninstall-local.sh
+```
+
+If the source folder was deleted:
+
+```bash
+"$HOME/.local/share/bc250-control-center/scripts/uninstall-local.sh"
 ```
 
 ## Build packages

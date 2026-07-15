@@ -134,6 +134,17 @@ class ConfiguracionLocal:
                 'dry_run': True,
                 'priorizar_juego': True,
                 'cerrar_candidatos': False
+            },
+            'fan_curve': {
+                'enabled': False,
+                'edit_enabled': False,
+                'pwm': 2,
+                't1': 50,
+                's1': 70,
+                't2': 65,
+                's2': 100,
+                't3': 70,
+                's3': 100
             }
         }
         self.migrar_legacy_si_existe()

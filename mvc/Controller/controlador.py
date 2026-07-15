@@ -112,3 +112,24 @@ class Controlador:
 
     def ejecutar_cu_manager(self, accion):
         return self.servicio.ejecutar_cu_manager(accion)
+
+    def estado_fans_bc250(self):
+        return self.servicio.estado_fans_bc250()
+
+    def cargar_nct6683_solo_lectura(self):
+        return self.servicio.cargar_nct6683_solo_lectura()
+
+    def preparar_nct6687_control_pwm(self):
+        return self.servicio.preparar_nct6687_control_pwm()
+
+    def desactivar_nct6687_control_pwm(self):
+        return self.servicio.desactivar_nct6687_control_pwm()
+
+    def instalar_coolercontrol(self):
+        return self.servicio.instalar_coolercontrol()
+
+    def abrir_coolercontrol(self):
+        return self.servicio.abrir_coolercontrol()
+
+    def aplicar_pwm_fan(self, pwm, valor):
+        return self.servicio.aplicar_pwm_fan(pwm, valor)
