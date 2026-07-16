@@ -329,11 +329,5 @@ class SistemaService:
     def desactivar_nct6687_control_pwm(self):
         return self.repo.desactivar_nct6687_control_pwm()
 
-    def instalar_coolercontrol(self):
-        return self.repo.instalar_coolercontrol()
-
-    def abrir_coolercontrol(self):
-        return self.repo.abrir_coolercontrol()
-
     def aplicar_pwm_fan(self, pwm, valor):
         return self.repo.aplicar_pwm_fan(pwm, valor)

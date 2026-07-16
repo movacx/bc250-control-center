@@ -10,14 +10,12 @@ class FanRepository:
     def estado_fans_bc250(self):
         sensores = self._leer_sensores_nct()
         modulos = self._modulos_nct()
-        coolercontrol = self._estado_coolercontrol()
         return {
             'sensores': sensores,
             'modulos': modulos,
-            'coolercontrol': coolercontrol,
             'driver_lectura': bool(modulos.get('nct6683')),
             'driver_control': bool(modulos.get('nct6687')) or any(item.get('pwm_writable') for item in sensores.get('fans', [])),
-            'resumen': self._resumen_fan(sensores, modulos, coolercontrol),
+            'resumen': self._resumen_fan(sensores, modulos),
         }
 
     def cargar_nct6683_solo_lectura(self):
@@ -89,26 +87,6 @@ class FanRepository:
         ])
         self.estado_herramientas_cache = None
         return self._abrir_terminal(comando, 'BC250 fan PWM disable')
-
-    def instalar_coolercontrol(self):
-        comando = self._comando_instalar_coolercontrol()
-        if not comando:
-            raise RuntimeError('No compatible installer found for CoolerControl. Install coolercontrol manually for your distribution.')
-        comando = '; '.join([
-            'set +e',
-            'echo "== Installing CoolerControl =="',
-            comando,
-            'sudo systemctl enable --now coolercontrold 2>/dev/null || true',
-            'systemctl status coolercontrold --no-pager || true',
-            'echo "Launch with: coolercontrol"',
-        ])
-        return self._abrir_terminal(comando, 'Instalar CoolerControl')
-
-    def abrir_coolercontrol(self):
-        if shutil.which('coolercontrol'):
-            subprocess.Popen(['coolercontrol'])
-            return True
-        raise RuntimeError('CoolerControl is not installed. Use Install CoolerControl first.')
 
     def aplicar_pwm_fan(self, pwm, valor):
         pwm = int(pwm)
@@ -437,14 +415,6 @@ for line in sys.stdin:
             'raw': '\n'.join(line for line in texto.splitlines() if line.startswith(('nct6683 ', 'nct6687 ', 'nct6687d '))),
         }
 
-    def _estado_coolercontrol(self):
-        rc, out, _ = self._ejecutar(['systemctl', 'is-active', 'coolercontrold'], timeout=2)
-        return {
-            'cmd': self._command_path('coolercontrol'),
-            'service_active': (out.strip() == 'active' and rc == 0),
-            'service_state': out.strip() if out else 'unknown',
-        }
-
     def _comando_instalar_nct6687(self):
         tools_dir = shlex.quote(str(self._tool_dir() / 'nct6687d'))
         if self._command_path('paru'):
@@ -554,22 +524,7 @@ else
 fi
 '''.strip()
 
-    def _comando_instalar_coolercontrol(self):
-        if self._command_path('paru'):
-            return 'paru -S --needed coolercontrol-bin lm_sensors'
-        if self._command_path('yay'):
-            return 'yay -S --needed coolercontrol-bin lm_sensors'
-        if self._command_path('shelly'):
-            return 'shelly aur install coolercontrol-bin -b -m; sudo pacman -S --needed lm_sensors || true'
-        if self._es_ostree():
-            return 'sudo rpm-ostree install coolercontrol lm_sensors; echo "NOTICE: rpm-ostree may require reboot."'
-        if self._command_path('dnf'):
-            return 'sudo dnf install -y coolercontrol lm_sensors'
-        if self._command_path('apt'):
-            return 'sudo apt update && sudo apt install -y coolercontrol lm-sensors'
-        return ''
-
-    def _resumen_fan(self, sensores, modulos, coolercontrol):
+    def _resumen_fan(self, sensores, modulos):
         fans = sensores.get('fans') or []
         activos = [f for f in fans if f.get('rpm')]
         pwm_write = [f for f in fans if f.get('pwm_writable') or f.get('pwm_root_writable')]

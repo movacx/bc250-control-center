@@ -949,7 +949,6 @@ class Vista(QMainWindow):
         self.ultimo_estado_fans = estado
         sensores = estado.get('sensores', {})
         modulos = estado.get('modulos', {})
-        cooler = estado.get('coolercontrol', {})
         fans = sensores.get('fans', [])
         fans_visibles = self._fans_visibles(fans)
         fan_principal = self._fan_principal(fans)
@@ -1025,7 +1024,6 @@ class Vista(QMainWindow):
                 f'Chip: {sensores.get("chip") or "--"}',
                 f'Hwmon: {sensores.get("path") or "--"}',
                 f'Modules: nct6683={modulos.get("nct6683")} nct6687={modulos.get("nct6687")}',
-                f'CoolerControl: cmd={cooler.get("cmd") or "--"} service={cooler.get("service_state")}',
                 f'Summary: {estado.get("resumen")}',
                 '',
                 f'Main fan: {rpm_texto} | {fan_detalle} | Speed={velocidad_texto}',
@@ -1171,12 +1169,10 @@ class Vista(QMainWindow):
                 return
         sensores = estado.get('sensores', {})
         modulos = estado.get('modulos', {})
-        cooler = estado.get('coolercontrol', {})
         texto = '\n'.join([
             f'Chip: {sensores.get("chip") or "--"}',
             f'Hwmon: {sensores.get("path") or "--"}',
             f'Modules: nct6683={modulos.get("nct6683")} nct6687={modulos.get("nct6687")}',
-            f'CoolerControl: cmd={cooler.get("cmd") or "--"} service={cooler.get("service_state")}',
             f'Summary: {estado.get("resumen")}',
         ])
         self.msg_info('Ventiladores', texto)
@@ -1185,7 +1181,6 @@ class Vista(QMainWindow):
         estado = getattr(self, 'ultimo_estado_fans', None) or {}
         sensores = estado.get('sensores', {}) if isinstance(estado, dict) else {}
         modulos = estado.get('modulos', {}) if isinstance(estado, dict) else {}
-        cooler = estado.get('coolercontrol', {}) if isinstance(estado, dict) else {}
         hwmon = sensores.get('path') or '/sys/class/hwmon/hwmonX'
         cache = os.environ.get('XDG_CACHE_HOME') or str(Path.home() / '.cache')
         helper = str(Path(cache) / 'bc250-control-center' / 'bc250-fan-pwm-control-helper')
@@ -1212,7 +1207,6 @@ class Vista(QMainWindow):
                     f'{self.t("Chip")}: {sensores.get("chip") or "--"}',
                     f'Hwmon: {hwmon}',
                     f'{self.t("Modulos")}: nct6683={modulos.get("nct6683")} nct6687={modulos.get("nct6687")}',
-                    f'CoolerControl: cmd={cooler.get("cmd") or "--"} service={cooler.get("service_state")}',
                     '',
                     self.t('Rutas PWM en vivo detectadas por Linux:'),
                     *pwm_lines,
@@ -1376,19 +1370,6 @@ class Vista(QMainWindow):
         try:
             self.controlador.desactivar_nct6687_control_pwm()
             self.registrar_evento('fan', 'warning', 'Fan PWM disabled', 'Opened terminal to disable nct6687 PWM preference.', {})
-        except Exception as error:
-            self.msg_warn('Ventiladores', str(error))
-
-    def instalar_coolercontrol(self):
-        try:
-            self.controlador.instalar_coolercontrol()
-            self.registrar_evento('fan', 'info', 'Install CoolerControl', 'Opened terminal to install CoolerControl.', {})
-        except Exception as error:
-            self.msg_warn('Ventiladores', str(error))
-
-    def abrir_coolercontrol(self):
-        try:
-            self.controlador.abrir_coolercontrol()
         except Exception as error:
             self.msg_warn('Ventiladores', str(error))
 
