@@ -105,3 +105,7 @@ packaging/
   packages/   local copy of final packages
   scripts/    build scripts
 ```
+
+## AUR recipe backup
+
+The AUR publication files are kept in `packaging/arch/aur/`. They are useful when moving to another PC: clone the AUR package repository, copy those files, regenerate `.SRCINFO` if needed, then commit and push to AUR. Built packages should stay out of AUR.
