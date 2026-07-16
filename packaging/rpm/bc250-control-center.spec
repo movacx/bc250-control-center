@@ -1,6 +1,6 @@
 Name:           bc250-control-center
 Version:        0.1.0
-Release:        51%{?dist}
+Release:        52%{?dist}
 Summary:        Linux gaming task manager and safe AMD BC-250 control panel
 
 %{!?_userunitdir:%global _userunitdir /usr/lib/systemd/user}
@@ -94,6 +94,9 @@ fi
 %{_userunitdir}/bc250-control-centerd.service
 
 %changelog
+* Thu Jul 16 2026 Fabian Beita <fabianbeita@users.noreply.github.com> - 0.1.0-52
+- Fix Bazzite fan PWM startup loader when nct6687 is already loaded or uses fallback module.
+
 * Thu Jul 16 2026 Fabian Beita <fabianbeita@users.noreply.github.com> - 0.1.0-51
 - Add fan PWM control packaging metadata and persistent nct6687 boot loader support.
 - Keep hardware helper tools as weak dependencies so Fedora/Bazzite installs are not blocked.

@@ -58,6 +58,7 @@ class FanRepository:
             'sudo modprobe -r nct6683 2>/dev/null || true',
             'sudo modprobe nct6687 force=true 2>/dev/null || true',
             self._comando_servicio_nct6687_persistente(),
+            'sudo systemctl reset-failed nct6687-load.service 2>/dev/null || true',
             'sudo systemctl start nct6687-load.service 2>/dev/null || true',
             'echo "== Verification =="',
             'systemctl status nct6687-load.service --no-pager 2>/dev/null || true',
@@ -480,12 +481,19 @@ sudo tee /usr/local/sbin/bc250-load-nct6687 >/dev/null <<'EOF'
 set -u
 MODPROBE="$(command -v modprobe || echo /usr/sbin/modprobe)"
 INSMOD="$(command -v insmod || echo /usr/sbin/insmod)"
+LSMOD="$(command -v lsmod || echo /usr/sbin/lsmod)"
+if "$LSMOD" | grep -q '^nct6687 '; then
+  exit 0
+fi
 "$MODPROBE" -r nct6683 2>/dev/null || true
 if "$MODPROBE" nct6687 force=true 2>/dev/null; then
   exit 0
 fi
 if [ -r /var/lib/nct6687/nct6687.ko ]; then
-  "$INSMOD" /var/lib/nct6687/nct6687.ko force=1 2>/dev/null && exit 0
+  "$INSMOD" /var/lib/nct6687/nct6687.ko force=1 2>/dev/null || true
+  if "$LSMOD" | grep -q '^nct6687 '; then
+    exit 0
+  fi
 fi
 exit 1
 EOF
@@ -493,7 +501,7 @@ sudo chmod 0755 /usr/local/sbin/bc250-load-nct6687;
 sudo tee /etc/systemd/system/nct6687-load.service >/dev/null <<'EOF'
 [Unit]
 Description=Load nct6687 SuperIO sensor module for BC250 fan PWM
-After=systemd-modules-load.service
+After=local-fs.target systemd-modules-load.service
 Before=multi-user.target
 
 [Service]
@@ -527,24 +535,10 @@ else
     if [ -d {tools_dir}/.git ]; then git -C {tools_dir} pull --ff-only || true; else git clone --depth 1 https://github.com/Fred78290/nct6687d {tools_dir}; fi;
     (cd {tools_dir} && make build) && {{
       sudo install -Dm644 {tools_dir}/"$(uname -r)"/nct6687.ko /var/lib/nct6687/nct6687.ko;
-      sudo tee /etc/systemd/system/nct6687-load.service >/dev/null <<'EOF'
-[Unit]
-Description=Load nct6687 SuperIO sensor module
-After=multi-user.target
-
-[Service]
-Type=oneshot
-ExecStart=/usr/sbin/insmod /var/lib/nct6687/nct6687.ko force=1
-RemainAfterExit=yes
-
-[Install]
-WantedBy=multi-user.target
-EOF
-      sudo systemctl daemon-reload;
-      sudo systemctl enable nct6687-load.service;
       sudo modprobe -r nct6683 2>/dev/null || true;
       sudo insmod /var/lib/nct6687/nct6687.ko force=1 2>/dev/null || true;
       echo "OK: custom nct6687 module prepared under /var/lib/nct6687.";
+      echo "The persistent systemd loader will be installed in the next step.";
     }};
   fi;
 fi
