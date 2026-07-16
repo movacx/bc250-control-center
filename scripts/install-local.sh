@@ -33,6 +33,46 @@ if [[ ! -d "$ROOT_DIR/mvc" || ! -d "$ROOT_DIR/scripts" || ! -d "$ROOT_DIR/packag
   exit 1
 fi
 
+missing_python_deps=0
+missing_python_deps_command=""
+missing_python_deps_reboot_notice=0
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "Warning: python3 is not installed or is not in PATH." >&2
+  missing_python_deps=1
+elif ! python3 - <<'PY' >/dev/null 2>&1
+from PyQt6.QtWidgets import QApplication
+import psutil
+PY
+then
+  echo "Warning: Python GUI dependencies are missing. The app will install, but it will not open until they are installed." >&2
+  if [[ -e /run/ostree-booted ]] && command -v rpm-ostree >/dev/null 2>&1; then
+    missing_python_deps_command="rpm-ostree install --idempotent python3-pyqt6 python3-psutil"
+    missing_python_deps_reboot_notice=1
+    echo "Bazzite/Fedora Atomic: sudo $missing_python_deps_command" >&2
+  elif command -v dnf >/dev/null 2>&1; then
+    missing_python_deps_command="dnf install -y python3-pyqt6 python3-psutil"
+    echo "Fedora/Nobara: sudo $missing_python_deps_command" >&2
+  elif command -v pacman >/dev/null 2>&1; then
+    missing_python_deps_command="pacman -S --needed python-pyqt6 python-psutil"
+    echo "Arch/CachyOS: sudo $missing_python_deps_command" >&2
+  elif command -v apt >/dev/null 2>&1; then
+    missing_python_deps_command="apt install -y python3-pyqt6 python3-psutil"
+    echo "Debian/Ubuntu: sudo $missing_python_deps_command" >&2
+  fi
+  missing_python_deps=1
+fi
+
+if [[ -n "$missing_python_deps_command" ]]; then
+  echo "Installing missing Python GUI dependencies..."
+  if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
+    $missing_python_deps_command
+  elif command -v sudo >/dev/null 2>&1; then
+    sudo $missing_python_deps_command
+  else
+    echo "Warning: sudo is not available. Install manually: $missing_python_deps_command" >&2
+  fi
+fi
+
 install -dm755 "$APP_DIR" "$BIN_DIR" "$DESKTOP_DIR" "$ICON_DIR" "$METAINFO_DIR" "$SYSTEMD_USER_DIR" "$DOC_DIR"
 rm -rf "$APP_DIR/mvc"
 cp -a "$ROOT_DIR/mvc" "$APP_DIR/"
@@ -64,6 +104,12 @@ echo "Optional daemon: systemctl --user enable --now bc250-control-centerd.servi
 echo "Daemon reload: attempted automatically when possible"
 echo "If systemd still does not find the daemon, run: systemctl --user daemon-reload"
 echo "Uninstall: PREFIX=\"$PREFIX\" $APP_DIR/scripts/uninstall-local.sh"
+if [[ "$missing_python_deps" -eq 1 ]]; then
+  echo "Important: install the Python GUI dependencies above before opening the app."
+  if [[ "$missing_python_deps_reboot_notice" -eq 1 ]]; then
+    echo "Bazzite/Fedora Atomic note: reboot after rpm-ostree installs new packages, then open the app again."
+  fi
+fi
 case ":$PATH:" in
   *":$BIN_DIR:"*) ;;
   *) echo "Note: $BIN_DIR is not in PATH. Use the full GUI command above or add it to your shell PATH." ;;

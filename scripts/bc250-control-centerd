@@ -10,7 +10,7 @@ for APP_DIR in \
   "$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"; do
   if [ -n "$APP_DIR" ] && [ -f "$APP_DIR/mvc/Daemon/control_centerd.py" ]; then
     cd "$APP_DIR"
-    exec python -m mvc.Daemon.control_centerd "$@"
+    exec python3 -m mvc.Daemon.control_centerd "$@"
   fi
 done
 echo "No se encontro la instalacion de BC250 Control Center" >&2

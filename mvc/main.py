@@ -18,6 +18,9 @@ def main():
     controlador = Controlador(servicio)
 
     app = QApplication(sys.argv)
+    app.setApplicationName('BC250 Control Center')
+    app.setApplicationDisplayName('BC250 Control Center')
+    app.setDesktopFileName('io.github.fabianbeita.bc250-control-center')
     ventana = Vista(controlador)
     ventana.show()
     sys.exit(app.exec())

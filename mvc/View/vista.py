@@ -10,7 +10,7 @@ from collections import deque
 
 from PyQt6.QtWidgets import (
     QApplication, QCheckBox, QComboBox, QDialog, QFrame, QGridLayout, QHBoxLayout, QHeaderView, QLabel,
-    QInputDialog, QLineEdit, QMainWindow, QMessageBox, QPushButton, QSpinBox, QStackedWidget,
+    QInputDialog, QLineEdit, QMainWindow, QMessageBox, QPushButton, QSpinBox, QStackedWidget, QTabWidget,
     QPlainTextEdit, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget
 )
 
@@ -93,6 +93,11 @@ from mvc.View.Frame.fan_frame import FanFrame
 class Vista(QMainWindow):
     def __init__(self, controlador):
         super().__init__()
+        app = QApplication.instance()
+        if app is not None:
+            app.setApplicationName('BC250 Control Center')
+            app.setApplicationDisplayName('BC250 Control Center')
+            app.setDesktopFileName('io.github.fabianbeita.bc250-control-center')
         self.controlador = controlador
         self.settings = QSettings('BC250ControlCenter', 'BC250ControlCenter')
         self.legacy_settings = QSettings('ModoJuegoRAM', 'ModoJuegoRAM')
@@ -1179,59 +1184,163 @@ class Vista(QMainWindow):
     def mostrar_informe_rutas_pwm(self):
         estado = getattr(self, 'ultimo_estado_fans', None) or {}
         sensores = estado.get('sensores', {}) if isinstance(estado, dict) else {}
+        modulos = estado.get('modulos', {}) if isinstance(estado, dict) else {}
+        cooler = estado.get('coolercontrol', {}) if isinstance(estado, dict) else {}
         hwmon = sensores.get('path') or '/sys/class/hwmon/hwmonX'
         cache = os.environ.get('XDG_CACHE_HOME') or str(Path.home() / '.cache')
         helper = str(Path(cache) / 'bc250-control-center' / 'bc250-fan-pwm-control-helper')
-        texto = '\n'.join([
-            self.t('Informe rutas PWM'),
-            '',
-            self.t('El boton "Preparar PWM ventilador" instala/configura el driver nct6687d para controlar PWM.'),
-            self.t('No se guarda dentro de ResourceTools; se instala como modulo del sistema.'),
-            '',
-            self.t('Arch/CachyOS/Manjaro:'),
-            '- nct6687d-dkms-git',
-            '',
-            self.t('Archivos de configuracion que puede crear/modificar:'),
-            '- /etc/modprobe.d/nct6683.conf',
-            '- /etc/modprobe.d/nct6687.conf',
-            '- /etc/modules-load.d/nct6687.conf',
-            '',
-            self.t('Rutas del modulo DKMS/kernel:'),
-            '- /var/lib/dkms/',
-            '- /usr/lib/modules/$(uname -r)/',
-            '',
-            self.t('Rutas PWM en vivo detectadas por Linux:'),
-            f'- {hwmon}',
-            f'- {hwmon}/pwm1',
-            f'- {hwmon}/pwm2',
-            f'- {hwmon}/pwm3',
-            '',
-            self.t('Helper local usado por la GUI para pedir permisos con Polkit:'),
-            f'- {helper}',
-            '',
-            self.t('Cache de construccion AUR, segun el helper usado:'),
-            '- ~/.cache/yay/nct6687d-dkms-git/',
-            '- ~/.cache/paru/clone/nct6687d-dkms-git/',
-            '',
-            self.t('Comandos utiles para revisar:'),
-            '- pacman -Ql nct6687d-dkms-git',
-            '- lsmod | grep -E "nct6683|nct6687"',
-            '- sensors | sed -n "/nct668/,+45p"',
-        ])
+
+        pwms = sensores.get('pwms') if isinstance(sensores, dict) else []
+        pwm_lines = [f'- {item.get("path")}' for item in pwms if isinstance(item, dict) and item.get('path')]
+        if not pwm_lines:
+            pwm_lines = [f'- {hwmon}', f'- {hwmon}/pwm1', f'- {hwmon}/pwm2', f'- {hwmon}/pwm3']
+
+        def texto_base(titulo):
+            return [
+                titulo,
+                '',
+                self.t('El boton "Preparar PWM ventilador" instala/configura el driver nct6687d para controlar PWM.'),
+                self.t('No se guarda dentro de ResourceTools; se instala como modulo del sistema.'),
+            ]
+
+        informes = [
+            (
+                self.t('Detectado'),
+                '\n'.join([
+                    self.t('Informe rutas PWM'),
+                    '',
+                    f'{self.t("Chip")}: {sensores.get("chip") or "--"}',
+                    f'Hwmon: {hwmon}',
+                    f'{self.t("Modulos")}: nct6683={modulos.get("nct6683")} nct6687={modulos.get("nct6687")}',
+                    f'CoolerControl: cmd={cooler.get("cmd") or "--"} service={cooler.get("service_state")}',
+                    '',
+                    self.t('Rutas PWM en vivo detectadas por Linux:'),
+                    *pwm_lines,
+                    '',
+                    self.t('Helper local usado por la GUI para pedir permisos con Polkit:'),
+                    f'- {helper}',
+                    '',
+                    self.t('Comandos utiles para revisar:'),
+                    '- lsmod | grep -E "nct6683|nct6687"',
+                    '- modinfo nct6687',
+                    '- sensors | sed -n "/nct668/,+45p"',
+                ])
+            ),
+            (
+                self.t('Arch / CachyOS'),
+                '\n'.join(texto_base(self.t('Arch / CachyOS / Manjaro')) + [
+                    '',
+                    self.t('Metodo usado por la app:'),
+                    self.t('- Instala lm_sensors, git, base-devel, linux-headers y dkms con pacman.'),
+                    self.t('- Instala nct6687d-dkms-git con paru, yay o shelly si estan disponibles.'),
+                    '',
+                    self.t('Archivos de configuracion que puede crear/modificar:'),
+                    '- /etc/modprobe.d/nct6683.conf',
+                    '- /etc/modprobe.d/nct6687.conf',
+                    '- /etc/modules-load.d/nct6687.conf',
+                    '',
+                    self.t('Rutas del modulo DKMS/kernel:'),
+                    '- /var/lib/dkms/',
+                    '- /usr/lib/modules/$(uname -r)/',
+                    '',
+                    self.t('Cache de construccion/instalacion segun la distribucion:'),
+                    '- ~/.cache/yay/nct6687d-dkms-git/',
+                    '- ~/.cache/paru/clone/nct6687d-dkms-git/',
+                    '',
+                    self.t('Comandos utiles para revisar:'),
+                    '- pacman -Ql nct6687d-dkms-git',
+                    '- dkms status',
+                    '- lsmod | grep -E "nct6683|nct6687"',
+                    '- sensors | sed -n "/nct668/,+45p"',
+                ])
+            ),
+            (
+                self.t('Fedora / Bazzite'),
+                '\n'.join(texto_base(self.t('Fedora / Nobara / Bazzite')) + [
+                    '',
+                    self.t('Fedora/Nobara mutable:'),
+                    self.t('- Instala lm_sensors, git, make, gcc, elfutils-libelf-devel y kernel-devel-$(uname -r) con dnf.'),
+                    self.t('- Clona Fred78290/nct6687d y compila el modulo para el kernel actual.'),
+                    self.t('- Instala nct6687.ko dentro del arbol de modulos del sistema.'),
+                    '',
+                    self.t('Bazzite/Fedora Atomic:'),
+                    self.t('- Usa rpm-ostree para lm_sensors, herramientas de compilacion y kernel-devel.'),
+                    self.t('- Intenta instalar/cargar akmod-nct6687d si esta disponible.'),
+                    self.t('- Si rpm-ostree agrega paquetes nuevos, puede requerir reinicio y ejecutar el boton otra vez.'),
+                    self.t('- Si compila manualmente, deja el modulo en /var/lib/nct6687/ y crea nct6687-load.service.'),
+                    '',
+                    self.t('Archivos de configuracion que puede crear/modificar:'),
+                    '- /etc/modprobe.d/nct6683.conf',
+                    '- /etc/modprobe.d/nct6687.conf',
+                    '- /etc/modules-load.d/nct6687.conf',
+                    '- /etc/systemd/system/nct6687-load.service',
+                    '',
+                    self.t('Rutas del modulo DKMS/kernel:'),
+                    '- /lib/modules/$(uname -r)/kernel/drivers/hwmon/nct6687.ko',
+                    '- /var/lib/nct6687/nct6687.ko',
+                    '',
+                    self.t('Cache de construccion/instalacion segun la distribucion:'),
+                    '- ResourceTools/nct6687d/',
+                    '- /var/lib/nct6687/',
+                    '',
+                    self.t('Comandos utiles para revisar:'),
+                    '- rpm -q lm_sensors kernel-devel akmod-nct6687d',
+                    '- rpm-ostree status',
+                    '- systemctl status nct6687-load.service',
+                    '- modinfo nct6687',
+                    '- lsmod | grep -E "nct6683|nct6687"',
+                    '- sensors | sed -n "/nct668/,+45p"',
+                ])
+            ),
+            (
+                self.t('Debian / Ubuntu'),
+                '\n'.join(texto_base(self.t('Debian / Ubuntu')) + [
+                    '',
+                    self.t('Metodo usado por la app:'),
+                    self.t('- Ejecuta apt update.'),
+                    self.t('- Instala lm-sensors, git, make, gcc y linux-headers-$(uname -r).'),
+                    self.t('- Clona Fred78290/nct6687d y compila el modulo para el kernel actual.'),
+                    self.t('- Ejecuta depmod y update-initramfs cuando corresponde.'),
+                    '',
+                    self.t('Archivos de configuracion que puede crear/modificar:'),
+                    '- /etc/modprobe.d/nct6683.conf',
+                    '- /etc/modprobe.d/nct6687.conf',
+                    '- /etc/modules-load.d/nct6687.conf',
+                    '',
+                    self.t('Rutas del modulo DKMS/kernel:'),
+                    '- /lib/modules/$(uname -r)/kernel/drivers/hwmon/nct6687.ko',
+                    '- /lib/modules/$(uname -r)/build',
+                    '',
+                    self.t('Cache de construccion/instalacion segun la distribucion:'),
+                    '- ResourceTools/nct6687d/',
+                    '',
+                    self.t('Comandos utiles para revisar:'),
+                    '- dpkg -l | grep -E "lm-sensors|linux-headers"',
+                    '- modinfo nct6687',
+                    '- lsmod | grep -E "nct6683|nct6687"',
+                    '- sensors | sed -n "/nct668/,+45p"',
+                ])
+            ),
+        ]
 
         dialogo = QDialog(self)
         dialogo.setWindowTitle(self.t('Informe rutas PWM'))
         layout = QVBoxLayout(dialogo)
-        caja = QPlainTextEdit()
-        caja.setReadOnly(True)
-        caja.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
-        caja.setPlainText(texto)
-        caja.setMinimumSize(620, 380)
-        layout.addWidget(caja)
+        tabs = QTabWidget()
+        tabs.setDocumentMode(True)
+        informes_visibles = [item for item in informes if item[0] != self.t('Debian / Ubuntu')]
+        for titulo, texto in informes_visibles:
+            caja = QPlainTextEdit()
+            caja.setReadOnly(True)
+            caja.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
+            caja.setPlainText(texto)
+            caja.setMinimumSize(640, 400)
+            tabs.addTab(caja, titulo)
+        layout.addWidget(tabs)
         cerrar = QPushButton(self.t('Cerrar'))
         cerrar.clicked.connect(dialogo.accept)
         layout.addWidget(cerrar, alignment=Qt.AlignmentFlag.AlignRight)
-        dialogo.resize(700, 520)
+        dialogo.resize(760, 560)
         dialogo.exec()
 
     def cargar_fan_readonly(self):

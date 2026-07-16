@@ -21,13 +21,21 @@ class FanRepository:
         }
 
     def cargar_nct6683_solo_lectura(self):
+        comando_instalar = self._comando_instalar_lm_sensors()
         comando = '; '.join([
-            'set -e',
+            'set +e',
             'echo "== BC250 fan sensors: read-only nct6683 =="',
             'echo "This enables temperatures, voltages and fan RPM monitoring only."',
-            'sudo modprobe nct6683 || true',
+            comando_instalar,
+            'echo "== Configuring read-only module =="',
+            'sudo modprobe -r nct6687 2>/dev/null || true',
+            'sudo modprobe nct6683 force=true || true',
             "echo nct6683 | sudo tee /etc/modules-load.d/nct6683.conf >/dev/null",
             "echo 'options nct6683 force=true' | sudo tee /etc/modprobe.d/nct6683.conf >/dev/null",
+            "sudo rm -f /etc/modules-load.d/nct6687.conf",
+            "sudo rm -f /etc/modprobe.d/nct6687.conf",
+            'if command -v dracut >/dev/null 2>&1 && [ -d /boot ]; then sudo dracut --force 2>/dev/null || true; fi',
+            'if command -v mkinitcpio >/dev/null 2>&1; then sudo mkinitcpio -P 2>/dev/null || true; fi',
             'echo "OK: nct6683 configured for read-only monitoring."',
             'echo "Reboot if sensors do not show nct6686-isa-0a20."',
             'sensors | sed -n "/nct668/,+35p" || true',
@@ -38,11 +46,11 @@ class FanRepository:
     def preparar_nct6687_control_pwm(self):
         comando_instalar = self._comando_instalar_nct6687()
         if not comando_instalar:
-            raise RuntimeError('No compatible installer found for nct6687d-dkms-git. Install it manually, then load nct6687 with force=true.')
+            raise RuntimeError('No compatible installer found for nct6687. Install Fred78290/nct6687d manually, then load nct6687 with force=true.')
         comando = '; '.join([
             'set +e',
             'echo "== BC250 fan control: nct6687 PWM driver =="',
-            'echo "nct6687d-dkms-git is an out-of-tree driver. Reboot may be required after install."',
+            'echo "nct6687 is an out-of-tree driver. Reboot may be required after install."',
             comando_instalar,
             'echo "== Configuring module preference =="',
             "echo 'blacklist nct6683' | sudo tee /etc/modprobe.d/nct6683.conf >/dev/null",
@@ -50,10 +58,12 @@ class FanRepository:
             "sudo rm -f /etc/modules-load.d/nct6683.conf",
             "echo nct6687 | sudo tee /etc/modules-load.d/nct6687.conf >/dev/null",
             'sudo modprobe -r nct6683 2>/dev/null || true',
-            'sudo modprobe nct6687 2>/dev/null || true',
+            'sudo modprobe nct6687 force=true 2>/dev/null || true',
             'echo "== Verification =="',
             'lsmod | grep -E "nct6683|nct6687" || true',
             'sensors | sed -n "/nct668/,+45p" || true',
+            'echo',
+            'if lsmod | grep -q "^nct6687 "; then echo "OK: nct6687 is loaded. Reopen/refresh the Fans panel."; else echo "WARN: nct6687 is not loaded yet. Reboot may be required, especially on rpm-ostree/Bazzite or after kernel-devel installation."; fi',
             'echo "If PWM files remain read-only, reboot and verify the loaded module."',
         ])
         self.estado_herramientas_cache = None
@@ -436,13 +446,113 @@ for line in sys.stdin:
         }
 
     def _comando_instalar_nct6687(self):
+        tools_dir = shlex.quote(str(self._tool_dir() / 'nct6687d'))
         if self._command_path('paru'):
-            return 'paru -S --needed nct6687d-dkms-git'
+            return 'sudo pacman -S --needed --noconfirm lm_sensors git base-devel linux-headers dkms || true; paru -S --needed nct6687d-dkms-git'
         if self._command_path('yay'):
-            return 'yay -S --needed nct6687d-dkms-git'
+            return 'sudo pacman -S --needed --noconfirm lm_sensors git base-devel linux-headers dkms || true; yay -S --needed nct6687d-dkms-git'
         if self._command_path('shelly'):
-            return 'shelly aur install nct6687d-dkms-git -b -m'
+            return 'sudo pacman -S --needed --noconfirm lm_sensors git base-devel linux-headers dkms || true; shelly aur install nct6687d-dkms-git -b -m'
+        if self._es_ostree():
+            return self._comando_instalar_nct6687_ostree(tools_dir)
+        if self._command_path('dnf'):
+            return self._comando_instalar_nct6687_fedora(tools_dir)
+        if self._command_path('apt'):
+            return self._comando_instalar_nct6687_debian(tools_dir)
         return ''
+
+    def _comando_instalar_lm_sensors(self):
+        if self._command_path('pacman'):
+            return 'sudo pacman -S --needed --noconfirm lm_sensors || true'
+        if self._es_ostree():
+            return 'sudo rpm-ostree install --idempotent lm_sensors || true; echo "NOTICE: rpm-ostree may require a reboot before newly layered packages are usable."'
+        if self._command_path('dnf'):
+            return 'sudo dnf install -y lm_sensors || true'
+        if self._command_path('apt'):
+            return 'sudo apt update || true; sudo apt install -y lm-sensors || true'
+        return 'echo "WARN: no supported package manager found for lm_sensors."'
+
+    def _comando_instalar_nct6687_fedora(self, tools_dir):
+        return f'''
+echo "== Fedora/Nobara mutable: installing build and sensor dependencies ==";
+sudo dnf install -y lm_sensors git make gcc elfutils-libelf-devel "kernel-devel-$(uname -r)" || {{
+  echo "WARN: exact kernel-devel package was not installed. Update/reboot or install kernel-devel for $(uname -r).";
+}};
+echo "== Preparing Fred78290/nct6687d source ==";
+mkdir -p "$(dirname {tools_dir})";
+if [ -d {tools_dir}/.git ]; then git -C {tools_dir} pull --ff-only || true; else git clone --depth 1 https://github.com/Fred78290/nct6687d {tools_dir}; fi;
+if [ ! -d "/lib/modules/$(uname -r)/build" ]; then
+  echo "ERROR: /lib/modules/$(uname -r)/build is missing. Install kernel-devel-$(uname -r), reboot if needed, then run Prepare fan PWM again.";
+else
+  echo "== Building nct6687 for $(uname -r) ==";
+  (cd {tools_dir} && make build) && {{
+    echo "== Installing nct6687.ko into the running kernel module tree ==";
+    sudo install -Dm644 {tools_dir}/"$(uname -r)"/nct6687.ko "/lib/modules/$(uname -r)/kernel/drivers/hwmon/nct6687.ko";
+    sudo depmod -a "$(uname -r)";
+  }};
+fi;
+if command -v dracut >/dev/null 2>&1 && [ -d /boot ]; then sudo dracut --force 2>/dev/null || true; fi
+'''.strip()
+
+    def _comando_instalar_nct6687_ostree(self, tools_dir):
+        return f'''
+echo "== Bazzite/Fedora Atomic: preparing nct6687 PWM support ==";
+sudo rpm-ostree install --idempotent lm_sensors git make gcc elfutils-libelf-devel kernel-devel || true;
+sudo rpm-ostree install --idempotent akmod-nct6687d || true;
+echo "NOTICE: if rpm-ostree layered new packages, reboot and run Prepare fan PWM again.";
+echo "== Trying stock/prebuilt nct6687 module first ==";
+if sudo modprobe nct6687 force=true 2>/dev/null; then
+  echo "OK: prebuilt nct6687 module loaded.";
+else
+  echo "WARN: prebuilt nct6687 module was not available for this kernel.";
+  if [ ! -d "/lib/modules/$(uname -r)/build" ] || ! command -v make >/dev/null 2>&1 || ! command -v gcc >/dev/null 2>&1; then
+    echo "ERROR: build tools or kernel-devel are missing. Reboot if rpm-ostree just layered them, then run Prepare fan PWM again.";
+  else
+    echo "== Building nct6687 for custom/ostree kernel $(uname -r) ==";
+    mkdir -p "$(dirname {tools_dir})";
+    if [ -d {tools_dir}/.git ]; then git -C {tools_dir} pull --ff-only || true; else git clone --depth 1 https://github.com/Fred78290/nct6687d {tools_dir}; fi;
+    (cd {tools_dir} && make build) && {{
+      sudo install -Dm644 {tools_dir}/"$(uname -r)"/nct6687.ko /var/lib/nct6687/nct6687.ko;
+      sudo tee /etc/systemd/system/nct6687-load.service >/dev/null <<'EOF'
+[Unit]
+Description=Load nct6687 SuperIO sensor module
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/insmod /var/lib/nct6687/nct6687.ko force=1
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+      sudo systemctl daemon-reload;
+      sudo systemctl enable nct6687-load.service;
+      sudo modprobe -r nct6683 2>/dev/null || true;
+      sudo insmod /var/lib/nct6687/nct6687.ko force=1 2>/dev/null || true;
+      echo "OK: custom nct6687 module prepared under /var/lib/nct6687.";
+    }};
+  fi;
+fi
+'''.strip()
+
+    def _comando_instalar_nct6687_debian(self, tools_dir):
+        return f'''
+echo "== Debian/Ubuntu: installing build and sensor dependencies ==";
+sudo apt update || true;
+sudo apt install -y lm-sensors git make gcc "linux-headers-$(uname -r)" || true;
+mkdir -p "$(dirname {tools_dir})";
+if [ -d {tools_dir}/.git ]; then git -C {tools_dir} pull --ff-only || true; else git clone --depth 1 https://github.com/Fred78290/nct6687d {tools_dir}; fi;
+if [ -d "/lib/modules/$(uname -r)/build" ]; then
+  (cd {tools_dir} && make build) && {{
+    sudo install -Dm644 {tools_dir}/"$(uname -r)"/nct6687.ko "/lib/modules/$(uname -r)/kernel/drivers/hwmon/nct6687.ko";
+    sudo depmod -a "$(uname -r)";
+  }};
+  sudo update-initramfs -u 2>/dev/null || true;
+else
+  echo "ERROR: /lib/modules/$(uname -r)/build is missing. Install matching linux headers and run again.";
+fi
+'''.strip()
 
     def _comando_instalar_coolercontrol(self):
         if self._command_path('paru'):
