@@ -1,11 +1,15 @@
 # BC250 Control Center
 
-Graphical interface to manage an AMD BC-250 from Linux. It brings monitoring, processes, memory, GPU, CPU OC and 40CU into one app, with warnings and validations so you do not have to depend on scattered terminal commands.
+Graphical interface to manage an AMD BC-250 from Linux. It brings monitoring, processes, memory, GPU, CPU OC, 40CU and fan control into one app, with warnings and validations so you do not have to depend on scattered terminal commands.
 
 ![BC250 Control Center GPU panel](docs/images/bc250-gpu.png)
 
 <details>
 <summary>More screenshots</summary>
+
+### Fans panel
+
+![BC250 Control Center fans panel](docs/images/fans.png)
 
 ### CPU panel
 
@@ -15,17 +19,13 @@ Graphical interface to manage an AMD BC-250 from Linux. It brings monitoring, pr
 
 ![BC250 Control Center 40CU panel](docs/images/bc250-40cu.png)
 
-### Performance view
-
-![BC250 Control Center performance view](docs/images/performance.png)
-
 ### Processes view
 
 ![BC250 Control Center processes view](docs/images/processes.png)
 
-### Language menu
+### Performance view
 
-![BC250 Control Center language menu](docs/images/languages-menu.png)
+![BC250 Control Center performance view](docs/images/performance.png)
 
 </details>
 
@@ -123,9 +123,13 @@ systemctl reboot
 - GPU control through the `cyan-skillfish-governor-smu` TOML safe-points.
 - Temporary and persistent CPU OC with visible limits.
 - 40CU/24CU dashboard and actions through `bc250-cu-live-manager`.
-- Experimental fan monitoring and PWM control with `nct6687d` when the user prepares that module.
+- Fan module for BC-250 sensors, RPM monitoring, manual fan speed control and a simple GPU temperature curve when `nct6687d` is prepared.
 - Local JSONL history.
 - Translations from settings.
+
+## Fan module
+
+The fan panel is experimental and focused on the BC-250 fan header. It can show the main fan RPM, CPU/GPU temperatures, PWM status, visible fan channels and diagnostic output. When the `nct6687d` driver is prepared, the app can apply manual speed percentages and a simple GPU temperature curve. Splitters or PWM hubs usually share one control signal and may report only one RPM reading.
 
 ## Languages
 
