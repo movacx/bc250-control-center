@@ -57,11 +57,14 @@ class FanRepository:
             "echo nct6687 | sudo tee /etc/modules-load.d/nct6687.conf >/dev/null",
             'sudo modprobe -r nct6683 2>/dev/null || true',
             'sudo modprobe nct6687 force=true 2>/dev/null || true',
+            self._comando_servicio_nct6687_persistente(),
+            'sudo systemctl start nct6687-load.service 2>/dev/null || true',
             'echo "== Verification =="',
+            'systemctl status nct6687-load.service --no-pager 2>/dev/null || true',
             'lsmod | grep -E "nct6683|nct6687" || true',
             'sensors | sed -n "/nct668/,+45p" || true',
             'echo',
-            'if lsmod | grep -q "^nct6687 "; then echo "OK: nct6687 is loaded. Reopen/refresh the Fans panel."; else echo "WARN: nct6687 is not loaded yet. Reboot may be required, especially on rpm-ostree/Bazzite or after kernel-devel installation."; fi',
+            'if lsmod | grep -q "^nct6687 "; then echo "OK: nct6687 is loaded and nct6687-load.service is enabled for next boot."; else echo "WARN: nct6687 is not loaded yet. Reboot may be required, especially on rpm-ostree/Bazzite or after kernel-devel installation."; fi',
             'echo "If PWM files remain read-only, reboot and verify the loaded module."',
         ])
         self.estado_herramientas_cache = None
@@ -73,6 +76,10 @@ class FanRepository:
             'echo "== BC250 fan control: disable nct6687 PWM setup =="',
             'echo "This disables the automatic nct6687 preference and returns to read-only nct6683 monitoring."',
             'echo "The nct6687d package is not removed; only boot/module preference files are changed."',
+            'sudo systemctl disable --now nct6687-load.service 2>/dev/null || true',
+            "sudo rm -f /etc/systemd/system/nct6687-load.service",
+            "sudo rm -f /usr/local/sbin/bc250-load-nct6687",
+            'sudo systemctl daemon-reload 2>/dev/null || true',
             "sudo rm -f /etc/modules-load.d/nct6687.conf",
             "sudo rm -f /etc/modprobe.d/nct6687.conf",
             "sudo rm -f /etc/modprobe.d/nct6683.conf",
@@ -462,6 +469,43 @@ else
   }};
 fi;
 if command -v dracut >/dev/null 2>&1 && [ -d /boot ]; then sudo dracut --force 2>/dev/null || true; fi
+'''.strip()
+
+    def _comando_servicio_nct6687_persistente(self):
+        return '''
+echo "== Installing persistent nct6687 boot loader ==";
+sudo install -d /usr/local/sbin;
+sudo tee /usr/local/sbin/bc250-load-nct6687 >/dev/null <<'EOF'
+#!/usr/bin/env bash
+set -u
+MODPROBE="$(command -v modprobe || echo /usr/sbin/modprobe)"
+INSMOD="$(command -v insmod || echo /usr/sbin/insmod)"
+"$MODPROBE" -r nct6683 2>/dev/null || true
+if "$MODPROBE" nct6687 force=true 2>/dev/null; then
+  exit 0
+fi
+if [ -r /var/lib/nct6687/nct6687.ko ]; then
+  "$INSMOD" /var/lib/nct6687/nct6687.ko force=1 2>/dev/null && exit 0
+fi
+exit 1
+EOF
+sudo chmod 0755 /usr/local/sbin/bc250-load-nct6687;
+sudo tee /etc/systemd/system/nct6687-load.service >/dev/null <<'EOF'
+[Unit]
+Description=Load nct6687 SuperIO sensor module for BC250 fan PWM
+After=systemd-modules-load.service
+Before=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/bc250-load-nct6687
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+sudo systemctl daemon-reload;
+sudo systemctl enable nct6687-load.service
 '''.strip()
 
     def _comando_instalar_nct6687_ostree(self, tools_dir):
