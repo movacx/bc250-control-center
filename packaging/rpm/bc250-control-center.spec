@@ -1,6 +1,6 @@
 Name:           bc250-control-center
 Version:        0.1.0
-Release:        50%{?dist}
+Release:        51%{?dist}
 Summary:        Linux gaming task manager and safe AMD BC-250 control panel
 
 %{!?_userunitdir:%global _userunitdir /usr/lib/systemd/user}
@@ -13,8 +13,8 @@ BuildArch:      noarch
 Requires:       python3
 Requires:       python3-pyqt6
 Requires:       python3-psutil
-Requires:       lm_sensors
-Requires:       stress
+Recommends:     lm_sensors
+Recommends:     stress
 Recommends:     git
 Recommends:     pciutils
 Recommends:     libdrm
@@ -23,6 +23,11 @@ Recommends:     cyan-skillfish-governor-smu
 Recommends:     umr
 Recommends:     libnotify
 Recommends:     polkit
+Recommends:     kmod
+Recommends:     systemd
+Recommends:     make
+Recommends:     gcc
+Recommends:     elfutils-libelf-devel
 
 %description
 BC250 Control Center is a PyQt6 task manager and conservative AMD BC-250
@@ -89,6 +94,10 @@ fi
 %{_userunitdir}/bc250-control-centerd.service
 
 %changelog
+* Thu Jul 16 2026 Fabian Beita <fabianbeita@users.noreply.github.com> - 0.1.0-51
+- Add fan PWM control packaging metadata and persistent nct6687 boot loader support.
+- Keep hardware helper tools as weak dependencies so Fedora/Bazzite installs are not blocked.
+
 * Fri Jul 10 2026 Fabian Beita <fabianbeita@users.noreply.github.com> - 0.1.0-6
 - Move history handling to a dedicated JSONL repository style layer.
 - Auto-compact app history after 26 records, keeping the last 6 entries.
