@@ -89,7 +89,7 @@ apt_install() {
 
 ostree_install() {
   local pkgs=(python3 python3-pyqt6 python3-psutil lm_sensors stress git pciutils libdrm vulkan-tools)
-  run_cmd $SUDO rpm-ostree install "${pkgs[@]}"
+  run_cmd $SUDO rpm-ostree install --idempotent "${pkgs[@]}"
   warn "rpm-ostree usually requires a reboot before new layered packages are usable."
 }
 
@@ -144,7 +144,7 @@ install_governor_fedora() {
     else
       warn "dnf was not found to enable COPR filippor/bazzite; if the repo is already enabled, rpm-ostree may continue."
     fi
-    run_cmd $SUDO rpm-ostree install cyan-skillfish-governor-smu
+    run_cmd $SUDO rpm-ostree install --idempotent cyan-skillfish-governor-smu
     warn "Reboot Bazzite/Fedora Atomic before enabling the service."
     return 0
   fi
@@ -173,7 +173,7 @@ container_notice() {
   warn "GUI dependencies can be installed here, but governor/UMR/systemctl/rpm-ostree must be installed on the HOST."
   if have distrobox-host-exec; then
     warn "distrobox-host-exec exists. On Bazzite, run on the host:"
-    warn "  distrobox-host-exec rpm-ostree install stress git pciutils libdrm vulkan-tools"
+    warn "  distrobox-host-exec rpm-ostree install --idempotent stress git pciutils libdrm vulkan-tools"
   fi
 }
 

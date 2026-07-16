@@ -1,6 +1,6 @@
 Name:           bc250-control-center
 Version:        0.1.0
-Release:        49%{?dist}
+Release:        50%{?dist}
 Summary:        Linux gaming task manager and safe AMD BC-250 control panel
 
 %{!?_userunitdir:%global _userunitdir /usr/lib/systemd/user}
@@ -14,7 +14,7 @@ Requires:       python3
 Requires:       python3-pyqt6
 Requires:       python3-psutil
 Requires:       lm_sensors
-Recommends:     stress
+Requires:       stress
 Recommends:     git
 Recommends:     pciutils
 Recommends:     libdrm

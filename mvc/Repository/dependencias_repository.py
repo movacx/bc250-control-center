@@ -178,7 +178,7 @@ class DependenciasRepository:
                 qaur = shlex.quote(str(aur_dir))
                 return f'if [ -d {qaur}/.git ]; then {git_cmd} -C {qaur} pull --ff-only; else {git_cmd} clone https://aur.archlinux.org/cyan-skillfish-governor-smu.git {qaur}; fi; cd {qaur} && makepkg -si --needed'
         if self._es_ostree():
-            return 'sudo dnf -y copr enable filippor/bazzite; sudo rpm-ostree install cyan-skillfish-governor-smu; echo "NOTICE: Bazzite/rpm-ostree requires a reboot before enabling the governor."'
+            return 'sudo dnf -y copr enable filippor/bazzite; sudo rpm-ostree install --idempotent cyan-skillfish-governor-smu; echo "NOTICE: Bazzite/rpm-ostree requires a reboot before enabling the governor."'
         if self._command_path('dnf'):
             return 'sudo dnf -y copr enable filippor/bazzite; sudo dnf -y install cyan-skillfish-governor-smu'
         return ''
@@ -188,13 +188,13 @@ class DependenciasRepository:
         if self._command_path('pacman'):
             return 'sudo pacman -S --needed stress'
         if self._es_ostree():
-            return 'sudo rpm-ostree install stress; echo "NOTICE: Bazzite/rpm-ostree requires a reboot before using stress."'
+            return 'sudo rpm-ostree install --idempotent stress; echo "NOTICE: Bazzite/rpm-ostree requires a reboot before using stress."'
         if self._command_path('apt'):
             return 'sudo apt update && sudo apt install -y stress'
         if self._command_path('dnf'):
             return 'sudo dnf install -y stress'
         if self._command_path('rpm-ostree'):
-            return 'sudo rpm-ostree install stress; echo "NOTICE: rpm-ostree requires a reboot before using stress."'
+            return 'sudo rpm-ostree install --idempotent stress; echo "NOTICE: rpm-ostree requires a reboot before using stress."'
         helper = self._command_path('yay') or self._command_path('paru')
         if helper:
             return f'{shlex.quote(helper)} -S --needed stress'
@@ -254,7 +254,7 @@ class DependenciasRepository:
             comandos.append('if ! command -v umr >/dev/null 2>&1; then echo "== Trying pacman -S umr =="; sudo pacman -S --needed --noconfirm umr || true; fi')
         elif self._es_ostree():
             comandos.append('echo "== rpm-ostree/Bazzite system detected =="')
-            comandos.append('sudo rpm-ostree install umr || true')
+            comandos.append('sudo rpm-ostree install --idempotent umr || true')
             comandos.append('echo "NOTICE: if rpm-ostree installed UMR, reboot before using 40CU."')
         elif self._command_path('dnf'):
             comandos.append('echo "== Fedora/Nobara: installing UMR with dnf =="')
