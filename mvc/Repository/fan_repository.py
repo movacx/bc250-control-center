@@ -485,28 +485,41 @@ LSMOD="$(command -v lsmod || echo /usr/sbin/lsmod)"
 if "$LSMOD" | grep -q '^nct6687 '; then
   exit 0
 fi
-"$MODPROBE" -r nct6683 2>/dev/null || true
-if "$MODPROBE" nct6687 force=true 2>/dev/null; then
-  exit 0
-fi
-if [ -r /var/lib/nct6687/nct6687.ko ]; then
-  "$INSMOD" /var/lib/nct6687/nct6687.ko force=1 2>/dev/null || true
+attempt=1
+while [ "$attempt" -le 10 ]; do
+  "$MODPROBE" -r nct6683 2>/dev/null || true
+  # Custom BC-250 kernels (for example -ogc) cannot use Bazzite's stock
+  # akmod. Prefer the kernel-matched module kept on writable /var, exactly as
+  # documented for Atomic systems. Keep stderr in the journal for diagnosis.
+  if [ -r /var/lib/nct6687/nct6687.ko ]; then
+    "$INSMOD" /var/lib/nct6687/nct6687.ko force=1 || true
+  else
+    "$MODPROBE" nct6687 force=true || true
+  fi
   if "$LSMOD" | grep -q '^nct6687 '; then
     exit 0
   fi
-fi
+  echo "nct6687 is not ready yet; boot retry $attempt/10" >&2
+  attempt=$((attempt + 1))
+  sleep 2
+done
+echo "Could not load nct6687 after 10 boot attempts" >&2
 exit 1
 EOF
 sudo chmod 0755 /usr/local/sbin/bc250-load-nct6687;
+if [ -f /var/lib/nct6687/nct6687.ko ]; then
+  echo "== Applying SELinux kernel-module label ==";
+  sudo chcon -t modules_object_t /var/lib/nct6687/nct6687.ko || true;
+fi;
 sudo tee /etc/systemd/system/nct6687-load.service >/dev/null <<'EOF'
 [Unit]
 Description=Load nct6687 SuperIO sensor module for BC250 fan PWM
-After=local-fs.target systemd-modules-load.service
-Before=multi-user.target
+After=multi-user.target
 
 [Service]
 Type=oneshot
 ExecStart=/usr/local/sbin/bc250-load-nct6687
+TimeoutStartSec=40
 RemainAfterExit=yes
 
 [Install]
@@ -532,11 +545,23 @@ else
   else
     echo "== Building nct6687 for custom/ostree kernel $(uname -r) ==";
     mkdir -p "$(dirname {tools_dir})";
-    if [ -d {tools_dir}/.git ]; then git -C {tools_dir} pull --ff-only || true; else git clone --depth 1 https://github.com/Fred78290/nct6687d {tools_dir}; fi;
+    if [ -d {tools_dir}/.git ]; then
+      git -C {tools_dir} pull --ff-only || true;
+    elif [ -f {tools_dir}/Makefile ]; then
+      echo "OK: existing nct6687d source tree found.";
+    else
+      if [ -d {tools_dir} ]; then
+        incomplete="{tools_dir}.incomplete-$(date +%Y%m%d-%H%M%S)";
+        echo "WARN: incomplete nct6687d source found; preserving it at $incomplete";
+        mv {tools_dir} "$incomplete";
+      fi;
+      git clone --depth 1 https://github.com/Fred78290/nct6687d {tools_dir};
+    fi;
     (cd {tools_dir} && make build) && {{
       sudo install -Dm644 {tools_dir}/"$(uname -r)"/nct6687.ko /var/lib/nct6687/nct6687.ko;
+      sudo chcon -t modules_object_t /var/lib/nct6687/nct6687.ko || true;
       sudo modprobe -r nct6683 2>/dev/null || true;
-      sudo insmod /var/lib/nct6687/nct6687.ko force=1 2>/dev/null || true;
+      sudo insmod /var/lib/nct6687/nct6687.ko force=1 || true;
       echo "OK: custom nct6687 module prepared under /var/lib/nct6687.";
       echo "The persistent systemd loader will be installed in the next step.";
     }};

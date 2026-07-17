@@ -64,7 +64,15 @@ remove_path() {
   if [[ -e "$path" || -L "$path" ]]; then
     echo "Removing: $path"
     if [[ "$DRY_RUN" -eq 0 ]]; then
-      rm -rf -- "$path"
+      if ! rm -rf -- "$path"; then
+        if [[ "${EUID:-$(id -u)}" -ne 0 ]] && command -v sudo >/dev/null 2>&1; then
+          echo "Protected files found inside $path; requesting administrator permission..."
+          sudo rm -rf -- "$path"
+        else
+          echo "Error: could not completely remove $path" >&2
+          return 1
+        fi
+      fi
     fi
   fi
 }

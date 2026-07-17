@@ -1,5 +1,5 @@
 from PyQt6.QtCore import Qt, QTimer, QSize, QSettings, QProcess, QUrl
-from PyQt6.QtGui import QAction, QActionGroup, QColor, QDesktopServices, QIcon, QTextCursor
+from PyQt6.QtGui import QAction, QActionGroup, QColor, QDesktopServices, QIcon, QKeySequence, QTextCursor
 import shutil
 import os
 import subprocess
@@ -10,7 +10,7 @@ from collections import deque
 
 from PyQt6.QtWidgets import (
     QApplication, QCheckBox, QComboBox, QDialog, QFrame, QGridLayout, QHBoxLayout, QHeaderView, QLabel,
-    QInputDialog, QLineEdit, QMainWindow, QMessageBox, QPushButton, QSpinBox, QStackedWidget, QTabWidget,
+    QInputDialog, QLayout, QLineEdit, QMainWindow, QMessageBox, QPushButton, QSpinBox, QStackedWidget, QTabWidget,
     QPlainTextEdit, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget
 )
 
@@ -81,7 +81,7 @@ QMessageBox = QMessageBoxI18n
 
 from mvc.View.Componentes.componentes import formato_bytes, formato_temp, icono_app, crear_nav_icono, MetricStrip, NavButton
 from mvc.View.Idioma.traducciones import LANGUAGES, traducir_texto
-from mvc.View.Estilos.estilos import obtener_estilo
+from mvc.View.Estilos.estilos import escalar_estilo, obtener_estilo
 from mvc.View.Frame.procesos_frame import ProcesosFrame
 from mvc.View.Frame.rendimiento_frame import RendimientoFrame
 from mvc.View.Frame.memoria_frame import MemoriaFrame
@@ -103,6 +103,10 @@ class Vista(QMainWindow):
         self.legacy_settings = QSettings('ModoJuegoRAM', 'ModoJuegoRAM')
         self.idioma = self.setting_value('idioma', 'en')
         self.tema = self.setting_value('tema', 'light')
+        try:
+            self.zoom_ui = max(70, min(150, int(self.setting_value('zoom_ui', 100))))
+        except Exception:
+            self.zoom_ui = 100
         self.gpu_minimo = int(self.setting_value('gpu_minimo', 500))
         self.sidebar_colapsada = str(self.setting_value('sidebar_colapsada', 'false')).lower() == 'true'
         self.recurso_rendimiento = self.setting_value('recurso_rendimiento', 'gpu')
@@ -131,6 +135,8 @@ class Vista(QMainWindow):
         self.crear_interfaz()
         self.aplicar_estilo()
         self.aplicar_traducciones_widget(self)
+        self.capturar_geometria_zoom()
+        self.aplicar_geometria_zoom()
         self.actualizar_rendimiento()
         self.actualizar_procesos()
 
@@ -370,6 +376,20 @@ class Vista(QMainWindow):
             grupo_theme.addAction(act)
             m_theme.addAction(act)
 
+        m_zoom = m_conf.addMenu(f'{self.t("Zoom")} ({self.zoom_ui}%)')
+        zoom_in = QAction(self.t('Aumentar zoom'), self)
+        zoom_in.setShortcut(QKeySequence.StandardKey.ZoomIn)
+        zoom_in.triggered.connect(lambda: self.cambiar_zoom_ui(self.zoom_ui + 10))
+        m_zoom.addAction(zoom_in)
+        zoom_out = QAction(self.t('Reducir zoom'), self)
+        zoom_out.setShortcut(QKeySequence.StandardKey.ZoomOut)
+        zoom_out.triggered.connect(lambda: self.cambiar_zoom_ui(self.zoom_ui - 10))
+        m_zoom.addAction(zoom_out)
+        zoom_reset = QAction(self.t('Restaurar zoom (100%)'), self)
+        zoom_reset.setShortcut(QKeySequence('Ctrl+0'))
+        zoom_reset.triggered.connect(lambda: self.cambiar_zoom_ui(100))
+        m_zoom.addAction(zoom_reset)
+
         act_alertas = QAction(self.t('Alertas inteligentes'), self, checkable=True)
         act_alertas.setChecked(self.alertas_activas)
         act_alertas.triggered.connect(self.cambiar_alertas)
@@ -405,6 +425,60 @@ class Vista(QMainWindow):
         self.aplicar_estilo()
         self.aplicar_traducciones_widget(self)
 
+    def cambiar_zoom_ui(self, porcentaje):
+        nuevo = max(70, min(150, int(round(int(porcentaje) / 10) * 10)))
+        if nuevo == self.zoom_ui:
+            return
+        self.zoom_ui = nuevo
+        self.settings.setValue('zoom_ui', nuevo)
+        self.aplicar_estilo()
+        self.aplicar_geometria_zoom()
+        self.crear_menu()
+        self.statusBar().showMessage(f'{self.t("Zoom")}: {nuevo}%', 1800)
+
+    def capturar_geometria_zoom(self):
+        central = self.centralWidget()
+        self._zoom_widgets_base = []
+        self._zoom_layouts_base = []
+        if central is None:
+            return
+        for widget in [central, *central.findChildren(QWidget)]:
+            self._zoom_widgets_base.append((
+                widget,
+                widget.minimumWidth(), widget.minimumHeight(),
+                widget.maximumWidth(), widget.maximumHeight(),
+                widget.iconSize() if isinstance(widget, QPushButton) else None,
+            ))
+        for layout in central.findChildren(QLayout):
+            margins = layout.contentsMargins()
+            self._zoom_layouts_base.append((
+                layout,
+                (margins.left(), margins.top(), margins.right(), margins.bottom()),
+                layout.spacing(),
+            ))
+
+    def aplicar_geometria_zoom(self):
+        factor = self.zoom_ui / 100.0
+        limite = 16777215
+        for widget, min_w, min_h, max_w, max_h, icono in getattr(self, '_zoom_widgets_base', []):
+            try:
+                widget.setMinimumSize(round(min_w * factor), round(min_h * factor))
+                widget.setMaximumSize(
+                    limite if max_w >= limite else max(0, round(max_w * factor)),
+                    limite if max_h >= limite else max(0, round(max_h * factor)),
+                )
+                if icono is not None and not icono.isEmpty():
+                    widget.setIconSize(QSize(max(1, round(icono.width() * factor)), max(1, round(icono.height() * factor))))
+            except RuntimeError:
+                pass
+        for layout, margins, spacing in getattr(self, '_zoom_layouts_base', []):
+            try:
+                layout.setContentsMargins(*(round(valor * factor) for valor in margins))
+                if spacing >= 0:
+                    layout.setSpacing(round(spacing * factor))
+            except RuntimeError:
+                pass
+
     def cambiar_alertas(self, activo):
         self.alertas_activas = bool(activo)
         self.settings.setValue('alertas_activas', 'true' if self.alertas_activas else 'false')
@@ -439,6 +513,8 @@ class Vista(QMainWindow):
         self.crear_interfaz()
         self.aplicar_estilo()
         self.aplicar_traducciones_widget(self)
+        self.capturar_geometria_zoom()
+        self.aplicar_geometria_zoom()
         self.cambiar_pagina(min(pagina, self.stack.count() - 1))
         if hasattr(self, 'bc_panel_stack'):
             self.cambiar_bc_panel(min(panel, self.bc_panel_stack.count() - 1))
@@ -1195,7 +1271,7 @@ class Vista(QMainWindow):
                 titulo,
                 '',
                 self.t('El boton "Preparar PWM ventilador" instala/configura el driver nct6687d para controlar PWM.'),
-                self.t('No se guarda dentro de ResourceTools; se instala como modulo del sistema.'),
+                self.t('ResourceTools conserva las fuentes; el modulo activo se instala o copia en una ruta del sistema.'),
             ]
 
         informes = [
@@ -1263,7 +1339,10 @@ class Vista(QMainWindow):
                     self.t('- Usa rpm-ostree para lm_sensors, herramientas de compilacion y kernel-devel.'),
                     self.t('- Intenta instalar/cargar akmod-nct6687d si esta disponible.'),
                     self.t('- Si rpm-ostree agrega paquetes nuevos, puede requerir reinicio y ejecutar el boton otra vez.'),
-                    self.t('- Si compila manualmente, deja el modulo en /var/lib/nct6687/ y crea nct6687-load.service.'),
+                    self.t('- Con kernel Bazzite stock usa modprobe/akmod cuando el modulo esta disponible.'),
+                    self.t('- Con kernel personalizado como -ogc compila para uname -r y copia nct6687.ko en /var/lib/nct6687/.'),
+                    self.t('- Aplica la etiqueta SELinux modules_object_t para permitir la carga desde systemd.'),
+                    self.t('- Crea y habilita nct6687-load.service para cargar el modulo despues de multi-user.target.'),
                     '',
                     self.t('Archivos de configuracion que puede crear/modificar:'),
                     '- /etc/modprobe.d/nct6683.conf',
@@ -1275,6 +1354,7 @@ class Vista(QMainWindow):
                     self.t('Rutas del modulo DKMS/kernel:'),
                     '- /lib/modules/$(uname -r)/kernel/drivers/hwmon/nct6687.ko',
                     '- /var/lib/nct6687/nct6687.ko',
+                    '  SELinux: system_u:object_r:modules_object_t:s0',
                     '',
                     self.t('Cache de construccion/instalacion segun la distribucion:'),
                     '- ResourceTools/nct6687d/',
@@ -1284,6 +1364,8 @@ class Vista(QMainWindow):
                     '- rpm -q lm_sensors kernel-devel akmod-nct6687d',
                     '- rpm-ostree status',
                     '- systemctl status nct6687-load.service',
+                    '- ls -lZ /var/lib/nct6687/nct6687.ko',
+                    '- journalctl -b -u nct6687-load.service --no-pager',
                     '- modinfo nct6687',
                     '- lsmod | grep -E "nct6683|nct6687"',
                     '- sensors | sed -n "/nct668/,+45p"',
@@ -2982,6 +3064,7 @@ class Vista(QMainWindow):
             QMessageBox.warning(self, self.t('BC250 Control Center'), f'{self.t("No se pudo liberar cache:")} {error}')
 
     def aplicar_estilo(self):
-        self.setStyleSheet(obtener_estilo(self.tema))
+        factor = self.zoom_ui / 100.0
+        self.setStyleSheet(obtener_estilo(self.tema, factor))
         if hasattr(self, 'gpu_risk_combo'):
-            self.gpu_risk_combo.view().setStyleSheet(self.estilo_risk_popup())
+            self.gpu_risk_combo.view().setStyleSheet(escalar_estilo(self.estilo_risk_popup(), factor))

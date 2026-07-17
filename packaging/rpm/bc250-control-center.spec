@@ -1,6 +1,6 @@
 Name:           bc250-control-center
 Version:        0.1.0
-Release:        52%{?dist}
+Release:        59%{?dist}
 Summary:        Linux gaming task manager and safe AMD BC-250 control panel
 
 %{!?_userunitdir:%global _userunitdir /usr/lib/systemd/user}
@@ -94,6 +94,24 @@ fi
 %{_userunitdir}/bc250-control-centerd.service
 
 %changelog
+* Thu Jul 16 2026 Fabian Beita <fabianbeita@users.noreply.github.com> - 0.1.0-59
+- Add persistent global GUI zoom from 70% to 150% with Ctrl+Plus, Ctrl+Minus and Ctrl+0.
+
+* Thu Jul 16 2026 Fabian Beita <fabianbeita@users.noreply.github.com> - 0.1.0-58
+- Preserve the BC250 monitor layout with its own horizontal scrollbar on narrow windows.
+
+* Thu Jul 16 2026 Fabian Beita <fabianbeita@users.noreply.github.com> - 0.1.0-57
+- Allow horizontal scrolling in narrow BC250 GPU, CPU and 40CU panels.
+
+* Thu Jul 16 2026 Fabian Beita <fabianbeita@users.noreply.github.com> - 0.1.0-56
+- Label the custom nct6687 module as modules_object_t so SELinux permits systemd to load it.
+- Recover automatically from an incomplete nct6687d source directory on Bazzite.
+
+* Thu Jul 16 2026 Fabian Beita <fabianbeita@users.noreply.github.com> - 0.1.0-55
+- Load the Bazzite fallback nct6687 module after multi-user.target as documented for BC-250.
+- Prefer the kernel-matched module under /var for custom -ogc kernels and preserve loader errors in the journal.
+- Keep the visible terminal workflow for Prepare fan PWM.
+
 * Thu Jul 16 2026 Fabian Beita <fabianbeita@users.noreply.github.com> - 0.1.0-52
 - Fix Bazzite fan PWM startup loader when nct6687 is already loaded or uses fallback module.
 

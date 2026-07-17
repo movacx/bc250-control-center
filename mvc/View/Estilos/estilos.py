@@ -1,6 +1,20 @@
 from pathlib import Path
+import re
 
-def obtener_estilo(tema):
+def escalar_estilo(estilo, escala=1.0):
+    escala = max(0.7, min(1.5, float(escala)))
+    if abs(escala - 1.0) < 0.001:
+        return estilo
+
+    def reemplazar(match):
+        valor = float(match.group(1)) * escala
+        texto = f'{valor:.2f}'.rstrip('0').rstrip('.')
+        return texto + 'px'
+
+    return re.sub(r'(?<![#\w.-])(\d+(?:\.\d+)?)px', reemplazar, estilo)
+
+
+def obtener_estilo(tema, escala=1.0):
     if tema == 'dark':
         root = '#111318'; panel = '#0b0d12'; panel2 = '#191c22'; text = '#f4f4f5'; muted = '#a1a1aa'
         border = '#344052'; hover = '#243044'; active = '#263a59'; active_text = '#ffffff'; header = '#202734'; table_alt = '#15181e'
@@ -17,7 +31,7 @@ def obtener_estilo(tema):
     check_icon = (icon_dir / 'checkbox-check.svg').as_posix()
     spin_up_icon = (icon_dir / 'spin-up.svg').as_posix()
     spin_down_icon = (icon_dir / 'spin-down.svg').as_posix()
-    return f"""
+    estilo = f"""
         QMainWindow, QWidget#Root {{ background: {root}; color: {text}; font-family: "Segoe UI", "Inter", sans-serif; }}
         QLabel {{ background: transparent; color: {text}; }}
         QFrame#Sidebar {{ background: {panel}; border: 1px solid {border}; border-radius: 16px; }}
@@ -122,3 +136,4 @@ def obtener_estilo(tema):
         QScrollBar::handle:vertical {{ background: #94a3b8; border-radius: 5px; min-height: 34px; }}
         QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0px; }}
     """
+    return escalar_estilo(estilo, escala)
