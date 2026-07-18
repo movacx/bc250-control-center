@@ -8235,3 +8235,87 @@ _FINAL_RUNTIME_TRANSLATIONS = {
 }
 for _lang, _items in _FINAL_RUNTIME_TRANSLATIONS.items():
     BASE_TRANSLATIONS.setdefault(_lang, {}).update(_items)
+
+_FAN_PWM_PREPARE_DIALOG_KEY = (
+    'Se prepararan las dependencias del ventilador para controlar PWM con nct6687/nct6687d.\n\n'
+    'Esto es independiente de las dependencias BC250/OC. Puede instalar un modulo DKMS externo, '
+    'bloquear nct6683 y dejar nct6687 como modulo preferido al arrancar.\n\n'
+    'Continuar?'
+)
+_FAN_PWM_PREPARE_DIALOG_TRANSLATIONS = {
+    'es': (
+        'Se prepararan las dependencias del ventilador para controlar PWM con nct6687/nct6687d.\n\n'
+        'Esto es independiente de las dependencias BC250/OC. Puede instalar un modulo DKMS externo, '
+        'bloquear nct6683 y dejar nct6687 como modulo preferido al arrancar.\n\n'
+        'Continuar?'
+    ),
+    'en': (
+        'Fan dependencies will be prepared to control PWM with nct6687/nct6687d.\n\n'
+        'This is independent from BC250/OC dependencies. It may install an external DKMS module, '
+        'blacklist nct6683 and keep nct6687 as the preferred module at boot.\n\n'
+        'Continue?'
+    ),
+    'pt': (
+        'As dependencias do ventilador serao preparadas para controlar PWM com nct6687/nct6687d.\n\n'
+        'Isso e independente das dependencias BC250/OC. Pode instalar um modulo DKMS externo, '
+        'bloquear nct6683 e deixar nct6687 como modulo preferido na inicializacao.\n\n'
+        'Continuar?'
+    ),
+    'zh': (
+        '将准备风扇依赖项，以便使用 nct6687/nct6687d 控制 PWM。\n\n'
+        '这与 BC250/OC 依赖项无关。它可能会安装外部 DKMS 模块、禁用 nct6683，'
+        '并将 nct6687 设置为启动时的首选模块。\n\n'
+        '继续吗？'
+    ),
+    'ko': (
+        'nct6687/nct6687d로 PWM을 제어하기 위한 팬 의존성을 준비합니다.\n\n'
+        '이는 BC250/OC 의존성과 별개입니다. 외부 DKMS 모듈을 설치하고 nct6683을 차단하며 '
+        '부팅 시 nct6687을 우선 모듈로 설정할 수 있습니다.\n\n'
+        '계속할까요?'
+    ),
+    'ru': (
+        'Будут подготовлены зависимости вентилятора для управления PWM через nct6687/nct6687d.\n\n'
+        'Это не зависит от зависимостей BC250/OC. Может быть установлен внешний модуль DKMS, '
+        'nct6683 будет заблокирован, а nct6687 оставлен предпочтительным модулем при загрузке.\n\n'
+        'Продолжить?'
+    ),
+    'uk': (
+        'Буде підготовлено залежності вентилятора для керування PWM через nct6687/nct6687d.\n\n'
+        'Це не залежить від залежностей BC250/OC. Може бути встановлено зовнішній модуль DKMS, '
+        'nct6683 буде заблоковано, а nct6687 залишено пріоритетним модулем під час запуску.\n\n'
+        'Продовжити?'
+    ),
+    'de': (
+        'Die Luefter-Abhaengigkeiten werden vorbereitet, um PWM mit nct6687/nct6687d zu steuern.\n\n'
+        'Das ist unabhaengig von den BC250/OC-Abhaengigkeiten. Es kann ein externes DKMS-Modul installiert, '
+        'nct6683 blockiert und nct6687 als bevorzugtes Modul beim Start gesetzt werden.\n\n'
+        'Fortfahren?'
+    ),
+    'fr': (
+        'Les dependances du ventilateur seront preparees pour controler le PWM avec nct6687/nct6687d.\n\n'
+        'C est independant des dependances BC250/OC. Cela peut installer un module DKMS externe, '
+        'bloquer nct6683 et garder nct6687 comme module prefere au demarrage.\n\n'
+        'Continuer ?'
+    ),
+    'ja': (
+        'nct6687/nct6687d で PWM を制御するためのファン依存関係を準備します。\n\n'
+        'これは BC250/OC の依存関係とは別です。外部 DKMS モジュールをインストールし、nct6683 をブロックし、'
+        '起動時に nct6687 を優先モジュールとして設定する場合があります。\n\n'
+        '続行しますか？'
+    ),
+    'ar': (
+        'سيتم تجهيز تبعيات المروحة للتحكم في PWM باستخدام nct6687/nct6687d.\n\n'
+        'هذا مستقل عن تبعيات BC250/OC. قد يتم تثبيت وحدة DKMS خارجية، وحظر nct6683، '
+        'وجعل nct6687 الوحدة المفضلة عند الإقلاع.\n\n'
+        'هل تريد المتابعة؟'
+    ),
+    'hi': (
+        'nct6687/nct6687d से PWM नियंत्रित करने के लिए फैन निर्भरताएं तैयार की जाएंगी।\n\n'
+        'यह BC250/OC निर्भरताओं से अलग है। यह बाहरी DKMS मॉड्यूल इंस्टॉल कर सकता है, '
+        'nct6683 को ब्लॉक कर सकता है और boot पर nct6687 को preferred module बना सकता है।\n\n'
+        'जारी रखें?'
+    ),
+}
+for _lang, _txt in _FAN_PWM_PREPARE_DIALOG_TRANSLATIONS.items():
+    BASE_TRANSLATIONS.setdefault(_lang, {})[_FAN_PWM_PREPARE_DIALOG_KEY] = _txt
+

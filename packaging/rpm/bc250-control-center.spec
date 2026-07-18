@@ -1,6 +1,6 @@
 Name:           bc250-control-center
 Version:        0.1.0
-Release:        60%{?dist}
+Release:        61%{?dist}
 Summary:        Linux gaming task manager and safe AMD BC-250 control panel
 
 %{!?_userunitdir:%global _userunitdir /usr/lib/systemd/user}
@@ -94,6 +94,9 @@ fi
 %{_userunitdir}/bc250-control-centerd.service
 
 %changelog
+* Sat Jul 18 2026 Fabian Beita <fabianbeita@users.noreply.github.com> - 0.1.0-61
+- Fix fan PWM preparation dialog translations.
+
 * Sat Jul 18 2026 Fabian Beita <fabianbeita@users.noreply.github.com> - 0.1.0-60
 - Add Ubuntu and Debian dependency preparation.
 - Add Debian/Ubuntu fan PWM driver setup and package build support.

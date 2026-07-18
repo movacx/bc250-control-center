@@ -1,7 +1,7 @@
 # Maintainer: Fabian Beita <fabianbeita@users.noreply.github.com>
 pkgname=bc250-control-center-git
 pkgver=0.1.0.local
-pkgrel=60
+pkgrel=61
 pkgdesc='Administrador de tareas Linux gaming con panel seguro para AMD BC-250'
 arch=('any')
 url='https://github.com/movacx/bc250-control-center'
