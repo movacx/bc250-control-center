@@ -108,12 +108,26 @@ sudo rpm-ostree install ./bc250-control-center-*.bazzite.rpm
 systemctl reboot
 ```
 
+Ubuntu/Debian:
+
+```bash
+sudo apt install ./bc250-control-center_*.deb
+```
+
+If `apt` cannot resolve it directly, use:
+
+```bash
+sudo dpkg -i ./bc250-control-center_*.deb
+sudo apt -f install
+```
+
 ## First use
 
 1. Open `bc250-control-center`.
 2. Go to **BC250**.
-3. Press **Prepare dependencies**.
-4. Read **Information > Safe BC250 use** before applying OC, 40CU or persistent changes.
+3. Press **Prepare dependencies**. On a fresh compatible system, the app prepares the needed BC-250 tools without making you search for every command manually.
+4. For fan PWM on Ubuntu/Debian, open **Fans** and press **Prepare fan PWM** if the PWM driver is not ready yet.
+5. Read **Information > Safe BC250 use** before applying OC, 40CU, fan PWM or persistent changes.
 
 ## Main features
 

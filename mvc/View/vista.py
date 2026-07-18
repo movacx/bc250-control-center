@@ -1377,7 +1377,7 @@ class Vista(QMainWindow):
                     '',
                     self.t('Metodo usado por la app:'),
                     self.t('- Ejecuta apt update.'),
-                    self.t('- Instala lm-sensors, git, make, gcc y linux-headers-$(uname -r).'),
+                    self.t('- Instala lm-sensors, git, build-essential, dkms y linux-headers-$(uname -r).'),
                     self.t('- Clona Fred78290/nct6687d y compila el modulo para el kernel actual.'),
                     self.t('- Ejecuta depmod y update-initramfs cuando corresponde.'),
                     '',
@@ -1409,8 +1409,7 @@ class Vista(QMainWindow):
         layout = QVBoxLayout(dialogo)
         tabs = QTabWidget()
         tabs.setDocumentMode(True)
-        informes_visibles = [item for item in informes if item[0] != self.t('Debian / Ubuntu')]
-        for titulo, texto in informes_visibles:
+        for titulo, texto in informes:
             caja = QPlainTextEdit()
             caja.setReadOnly(True)
             caja.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
@@ -1442,6 +1441,10 @@ class Vista(QMainWindow):
         try:
             self.controlador.preparar_nct6687_control_pwm()
             self.registrar_evento('fan', 'warning', 'Fan PWM setup', 'Opened terminal to prepare nct6687 PWM driver.', {})
+            self.msg_info(
+                'Reinicio requerido',
+                self.t('Cuando termine la terminal de Preparar PWM ventilador, reinicia la computadora para aplicar los cambios del driver/modulo. Despues del reinicio, abre BC250 Control Center y revisa Ventiladores > PWM control.')
+            )
         except Exception as error:
             self.msg_warn('Ventiladores', str(error))
 

@@ -42,9 +42,10 @@ class FanRepository:
         return self._abrir_terminal(comando, 'BC250 fan sensors')
 
     def preparar_nct6687_control_pwm(self):
-        comando_instalar = self._comando_instalar_nct6687()
+        comando_instalar = self._comando_instalar_nct6687().strip().rstrip(';')
         if not comando_instalar:
             raise RuntimeError('No compatible installer found for nct6687. Install Fred78290/nct6687d manually, then load nct6687 with force=true.')
+        comando_servicio = self._comando_servicio_nct6687_persistente().strip().rstrip(';')
         comando = '; '.join([
             'set +e',
             'echo "== BC250 fan control: nct6687 PWM driver =="',
@@ -57,7 +58,7 @@ class FanRepository:
             "echo nct6687 | sudo tee /etc/modules-load.d/nct6687.conf >/dev/null",
             'sudo modprobe -r nct6683 2>/dev/null || true',
             'sudo modprobe nct6687 force=true 2>/dev/null || true',
-            self._comando_servicio_nct6687_persistente(),
+            comando_servicio,
             'sudo systemctl reset-failed nct6687-load.service 2>/dev/null || true',
             'sudo systemctl start nct6687-load.service 2>/dev/null || true',
             'echo "== Verification =="',
@@ -571,21 +572,42 @@ fi
 
     def _comando_instalar_nct6687_debian(self, tools_dir):
         return f'''
-echo "== Debian/Ubuntu: installing build and sensor dependencies ==";
+echo "== Debian/Ubuntu: preparing Fred78290/nct6687d PWM driver ==";
+echo "Source: https://github.com/Fred78290/nct6687d";
+echo "Debian Stable is best-effort. A matching linux-headers package for $(uname -r) is required.";
 sudo apt update || true;
-sudo apt install -y lm-sensors git make gcc "linux-headers-$(uname -r)" || true;
+sudo apt install -y lm-sensors git build-essential dkms dh-dkms "linux-headers-$(uname -r)" || {{
+  echo "WARN: full dependency install failed. Retrying minimal build stack.";
+  sudo apt install -y lm-sensors git build-essential "linux-headers-$(uname -r)" || true;
+}};
 mkdir -p "$(dirname {tools_dir})";
-if [ -d {tools_dir}/.git ]; then git -C {tools_dir} pull --ff-only || true; else git clone --depth 1 https://github.com/Fred78290/nct6687d {tools_dir}; fi;
+if [ -d {tools_dir}/.git ]; then
+  git -C {tools_dir} pull --ff-only || true;
+else
+  rm -rf {tools_dir};
+  git clone --depth 1 https://github.com/Fred78290/nct6687d {tools_dir};
+fi;
 if [ -d "/lib/modules/$(uname -r)/build" ]; then
   (cd {tools_dir} && make build) && {{
     sudo install -Dm644 {tools_dir}/"$(uname -r)"/nct6687.ko "/lib/modules/$(uname -r)/kernel/drivers/hwmon/nct6687.ko";
     sudo depmod -a "$(uname -r)";
-  }};
+    echo "OK: nct6687.ko installed for $(uname -r).";
+  }} || echo "ERROR: nct6687 build failed. Check compiler and kernel header output above.";
   sudo update-initramfs -u 2>/dev/null || true;
 else
   echo "ERROR: /lib/modules/$(uname -r)/build is missing. Install matching linux headers and run again.";
+fi;
+echo 'blacklist nct6683' | sudo tee /etc/modprobe.d/nct6683.conf >/dev/null;
+echo 'options nct6687 force=true' | sudo tee /etc/modprobe.d/nct6687.conf >/dev/null;
+echo nct6687 | sudo tee /etc/modules-load.d/nct6687.conf >/dev/null;
+sudo modprobe -r nct6683 2>/dev/null || true;
+if sudo modprobe nct6687 force=true 2>/dev/null || sudo modprobe nct6687 2>/dev/null; then
+  echo "OK: nct6687 loaded without reboot.";
+else
+  echo "WARN: nct6687 was installed but did not load immediately. Reboot once, then reopen the app.";
 fi
 '''.strip()
+
 
     def _resumen_fan(self, sensores, modulos):
         fans = sensores.get('fans') or []

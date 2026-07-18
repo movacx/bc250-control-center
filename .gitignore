@@ -38,3 +38,5 @@ packaging/packages/bazzite/*.rpm
 packaging/bazzite/out/
 tmp/
 output/
+packaging/debian/out/
+packaging/packages/debian/*.deb

@@ -12,6 +12,7 @@ packaging/packages/
   arch/      .pkg.tar.zst for Arch, CachyOS and Manjaro
   fedora/    .rpm for Fedora and Nobara
   bazzite/   .rpm generated from Bazzite/Fedora Atomic
+  debian/    .deb for Ubuntu and Debian
 ```
 
 ## Install commands
@@ -33,4 +34,10 @@ Bazzite/Fedora Atomic:
 ```bash
 sudo rpm-ostree install ./bc250-control-center-*.bazzite.rpm
 systemctl reboot
+```
+
+Ubuntu/Debian:
+
+```bash
+sudo apt install ./bc250-control-center_*.deb
 ```

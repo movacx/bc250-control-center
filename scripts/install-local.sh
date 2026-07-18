@@ -56,7 +56,7 @@ then
     missing_python_deps_command="pacman -S --needed python-pyqt6 python-psutil"
     echo "Arch/CachyOS: sudo $missing_python_deps_command" >&2
   elif command -v apt >/dev/null 2>&1; then
-    missing_python_deps_command="apt install -y python3-pyqt6 python3-psutil"
+    missing_python_deps_command="apt install -y python3 python-is-python3 python3-pyqt6 python3-psutil"
     echo "Debian/Ubuntu: sudo $missing_python_deps_command" >&2
   fi
   missing_python_deps=1

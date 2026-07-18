@@ -16,6 +16,7 @@ Local builds can also be copied to:
 packaging/packages/arch/      .pkg.tar.zst for Arch, CachyOS and Manjaro
 packaging/packages/fedora/    .rpm for Fedora and Nobara
 packaging/packages/bazzite/   .rpm for Bazzite / Fedora Atomic
+packaging/packages/debian/    .deb for Ubuntu and Debian
 ```
 
 Those binaries are for local testing or release preparation. They are not meant to be committed to the source repository.
@@ -41,12 +42,26 @@ sudo rpm-ostree install ./bc250-control-center-*.bazzite.rpm
 systemctl reboot
 ```
 
+Ubuntu/Debian:
+
+```bash
+sudo apt install ./bc250-control-center_*.deb
+```
+
+Alternative:
+
+```bash
+sudo dpkg -i ./bc250-control-center_*.deb
+sudo apt -f install
+```
+
 If you are installing from local build folders instead of GitHub releases, use:
 
 ```bash
 sudo pacman -U packaging/packages/arch/bc250-control-center-git-*.pkg.tar.zst
 sudo dnf install packaging/packages/fedora/bc250-control-center-*.rpm
 sudo rpm-ostree install packaging/packages/bazzite/bc250-control-center-*.rpm
+sudo apt install ./packaging/packages/debian/bc250-control-center_*.deb
 ```
 
 ## Local install without package
@@ -94,6 +109,12 @@ Bazzite/Fedora Atomic, executed from Bazzite:
 ./packaging/bazzite/build-rpm-bazzite.sh
 ```
 
+Ubuntu/Debian `.deb`:
+
+```bash
+./packaging/debian/build-deb.sh
+```
+
 ## Structure
 
 ```text
@@ -101,6 +122,7 @@ packaging/
   arch/       local Arch PKGBUILD
   rpm/        RPM spec
   bazzite/    RPM builder for Bazzite/Fedora Atomic
+  debian/     DEB builder for Ubuntu and Debian
   common/     desktop entry, metainfo and systemd user service
   packages/   local copy of final packages
   scripts/    build scripts

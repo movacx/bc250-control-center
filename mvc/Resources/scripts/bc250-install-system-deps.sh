@@ -82,9 +82,16 @@ dnf_install() {
 }
 
 apt_install() {
-  local pkgs=(python3 python3-pyqt6 python3-psutil lm-sensors stress git pciutils libdrm-amdgpu1 mesa-utils vulkan-tools)
+  local pkgs=(python3 python-is-python3 python3-pyqt6 python3-psutil lm-sensors stress git pciutils libdrm2 libdrm-amdgpu1 mesa-utils vulkan-tools curl ca-certificates dbus dbus-user-session build-essential dkms dh-dkms "linux-headers-$(uname -r)")
   run_cmd $SUDO apt update
-  run_cmd $SUDO apt install -y "${pkgs[@]}"
+  run_cmd $SUDO apt install -y "${pkgs[@]}" || {
+    warn "Some Debian/Ubuntu packages failed. Retrying core runtime packages without kernel headers/DKMS."
+    run_cmd $SUDO apt install -y python3 python-is-python3 python3-pyqt6 python3-psutil lm-sensors stress git pciutils libdrm2 libdrm-amdgpu1 mesa-utils vulkan-tools curl ca-certificates dbus dbus-user-session build-essential || true
+  }
+  if ! have pkexec; then
+    warn "pkexec was not found. Trying common Polkit packages."
+    run_cmd $SUDO apt install -y policykit-1 || run_cmd $SUDO apt install -y polkitd pkexec || true
+  fi
 }
 
 ostree_install() {
@@ -156,13 +163,47 @@ install_governor_fedora() {
   return 0
 }
 
-install_governor_debian_notice() {
+install_governor_debian() {
   if have cyan-skillfish-governor-smu; then
     info "cyan-skillfish-governor-smu already exists."
     return 0
   fi
-  warn "Debian/Ubuntu: automatic .deb installation for cyan-skillfish-governor-smu is not included yet."
-  warn "The app will install base dependencies and clone tools, but the governor still requires upstream manual packaging/building."
+
+  local version="${BC250_GOVERNOR_SMU_VERSION:-0.4.11}"
+  local tmpdir
+  tmpdir="$(mktemp -d)"
+  local deb="cyan-skillfish-governor-smu_${version}-1_amd64.deb"
+  local deb_url="https://github.com/filippor/cyan-skillfish-governor/releases/download/v${version}/${deb}"
+  local tar="cyan-skillfish-governor-smu-v${version}-x86_64-linux.tar.gz"
+  local tar_url="https://github.com/filippor/cyan-skillfish-governor/releases/download/v${version}/${tar}"
+
+  bold "== Preparing Debian/Ubuntu governor from upstream SMU release =="
+  warn "Debian Stable is best-effort for BC-250. If kernel/Mesa support is too old, the app may still need a newer kernel stack."
+  warn "Debian BC-250 docs may require kernel parameter amdgpu.sg_display=0; this script does not edit bootloader settings automatically."
+  if ! have curl; then
+    run_cmd $SUDO apt install -y curl ca-certificates || true
+  fi
+
+  if have curl && curl -L --fail -o "$tmpdir/$deb" "$deb_url"; then
+    info "Installing $deb from filippor/cyan-skillfish-governor SMU release."
+    run_cmd $SUDO apt install -y "$tmpdir/$deb" || {
+      run_cmd $SUDO dpkg -i "$tmpdir/$deb" || true
+      run_cmd $SUDO apt -f install -y || true
+    }
+  elif have curl && curl -L --fail -o "$tmpdir/$tar" "$tar_url"; then
+    warn "Debian .deb download failed; trying upstream tarball installer."
+    (cd "$tmpdir" && tar -xf "$tar" && cd "cyan-skillfish-governor-smu-v${version}-x86_64-linux" && run_cmd $SUDO ./scripts/install.sh) || true
+  else
+    warn "Could not download cyan-skillfish-governor-smu release assets."
+    warn "Manual source: https://github.com/filippor/cyan-skillfish-governor/tree/smu"
+  fi
+
+  run_cmd $SUDO systemctl daemon-reload || true
+  if have cyan-skillfish-governor-smu; then
+    info "cyan-skillfish-governor-smu installed. Use the app button to enable/start the service."
+  else
+    warn "cyan-skillfish-governor-smu is still not available. Check the terminal output above."
+  fi
 }
 
 container_notice() {
@@ -200,7 +241,7 @@ elif have dnf; then
 elif have apt; then
   bold "== Installing base dependencies with apt =="
   apt_install
-  install_governor_debian_notice
+  install_governor_debian
 else
   err "No supported package manager found: pacman, dnf, rpm-ostree or apt."
   exit 1
@@ -218,7 +259,7 @@ done
 if have cyan-skillfish-governor-smu; then
   printf 'OK: cyan-skillfish-governor-smu -> %s\n' "$(command -v cyan-skillfish-governor-smu)"
 else
-  warn "cyan-skillfish-governor-smu is still not in PATH. Bazzite may require reboot; Debian/Ubuntu still needs manual packaging/building."
+  warn "cyan-skillfish-governor-smu is still not in PATH. Bazzite/rpm-ostree may require reboot; Debian/Ubuntu may need manual review if the upstream .deb failed."
 fi
 
 bold "== System dependency phase finished =="

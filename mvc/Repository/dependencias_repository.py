@@ -42,10 +42,10 @@ class DependenciasRepository:
     def instalar_governor(self):
         if self._command_path('cyan-skillfish-governor-smu'):
             return True
-        helper = self._command_path('yay') or self._command_path('paru')
-        if not helper:
-            raise RuntimeError('Could not find yay or paru to install cyan-skillfish-governor-smu from AUR')
-        return self._abrir_terminal(f'{shlex.quote(helper)} -S --needed cyan-skillfish-governor-smu', 'Instalar governor')
+        comando = self._comando_instalar_governor_smu()
+        if not comando:
+            raise RuntimeError('Could not find a compatible installer for cyan-skillfish-governor-smu')
+        return self._abrir_terminal(comando, 'Instalar governor')
 
 
     def instalar_cpu_oc(self):
@@ -119,7 +119,7 @@ class DependenciasRepository:
             'echo',
         ]
 
-        comandos.append('command -v cyan-skillfish-governor-smu && echo "OK: cyan-skillfish-governor-smu available" || echo "WARN: governor is not available yet. On Bazzite/rpm-ostree reboot; on Debian/Ubuntu automatic packaging is not available yet."')
+        comandos.append('command -v cyan-skillfish-governor-smu && echo "OK: cyan-skillfish-governor-smu available" || echo "WARN: governor is not available yet. On Bazzite/rpm-ostree reboot; on Debian/Ubuntu check the upstream .deb install output."')
 
         if not tools.get('bc250_detect'):
             destino = cpu_destino
@@ -181,7 +181,37 @@ class DependenciasRepository:
             return 'sudo dnf -y copr enable filippor/bazzite; sudo rpm-ostree install --idempotent cyan-skillfish-governor-smu; echo "NOTICE: Bazzite/rpm-ostree requires a reboot before enabling the governor."'
         if self._command_path('dnf'):
             return 'sudo dnf -y copr enable filippor/bazzite; sudo dnf -y install cyan-skillfish-governor-smu'
+        if self._command_path('apt'):
+            return self._comando_instalar_governor_smu_debian()
         return ''
+
+
+    def _comando_instalar_governor_smu_debian(self):
+        return r'''
+set +e
+echo "== Debian/Ubuntu: installing cyan-skillfish-governor-smu =="
+echo "Source: https://github.com/filippor/cyan-skillfish-governor/tree/smu"
+echo "Debian Stable is best-effort; a newer kernel/Mesa stack may still be required on some BC-250 setups."
+echo "Debian BC-250 docs may require kernel parameter amdgpu.sg_display=0; the app does not edit bootloader settings automatically."
+VERSION="${BC250_GOVERNOR_SMU_VERSION:-0.4.11}"
+TMPDIR="$(mktemp -d)"
+DEB="cyan-skillfish-governor-smu_${VERSION}-1_amd64.deb"
+DEB_URL="https://github.com/filippor/cyan-skillfish-governor/releases/download/v${VERSION}/${DEB}"
+TAR="cyan-skillfish-governor-smu-v${VERSION}-x86_64-linux.tar.gz"
+TAR_URL="https://github.com/filippor/cyan-skillfish-governor/releases/download/v${VERSION}/${TAR}"
+sudo apt update || true
+sudo apt install -y curl ca-certificates dbus || true
+if command -v curl >/dev/null 2>&1 && curl -L --fail -o "$TMPDIR/$DEB" "$DEB_URL"; then
+  sudo apt install -y "$TMPDIR/$DEB" || { sudo dpkg -i "$TMPDIR/$DEB" || true; sudo apt -f install -y || true; }
+elif command -v curl >/dev/null 2>&1 && curl -L --fail -o "$TMPDIR/$TAR" "$TAR_URL"; then
+  echo "WARN: .deb download failed; trying tarball installer."
+  cd "$TMPDIR" && tar -xf "$TAR" && cd "cyan-skillfish-governor-smu-v${VERSION}-x86_64-linux" && sudo ./scripts/install.sh
+else
+  echo "ERROR: could not download cyan-skillfish-governor-smu release assets."
+fi
+sudo systemctl daemon-reload || true
+command -v cyan-skillfish-governor-smu && echo "OK: cyan-skillfish-governor-smu installed. Start it from the app with Enable governor." || echo "WARN: governor is still missing. Check the output above."
+'''
 
 
     def _comando_instalar_stress(self):
