@@ -21,6 +21,33 @@ METAINFO_DIR="$PREFIX/share/metainfo"
 SYSTEMD_USER_DIR="$PREFIX/lib/systemd/user"
 DOC_DIR="$PREFIX/share/doc/bc250-control-center"
 
+is_steamos_install_local() {
+  local text=""
+  if [[ -r /etc/os-release ]]; then
+    text="$(cat /etc/os-release)"
+  elif [[ -r /usr/lib/os-release ]]; then
+    text="$(cat /usr/lib/os-release)"
+  fi
+  printf '%s' "$text" | tr '[:upper:]' '[:lower:]' | grep -Eq 'steamos|steamdeck|holo'
+}
+
+prepare_steamos_pacman_install_local() {
+  if ! is_steamos_install_local || ! command -v pacman >/dev/null 2>&1; then
+    return 0
+  fi
+  echo "SteamOS detected: preparing writable pacman/keyring layer for GUI dependencies..."
+  if command -v steamos-readonly >/dev/null 2>&1; then
+    sudo steamos-readonly disable || true
+  fi
+  sudo timedatectl set-ntp true || true
+  sudo pacman-key --init || true
+  sudo pacman-key --populate holo || true
+  sudo pacman-key --populate archlinux || true
+  sudo pacman-key --populate || true
+  sudo rm -f /var/cache/pacman/pkg/python-pyqt6-*.pkg.tar.zst /var/cache/pacman/pkg/python-pyqt6-sip-*.pkg.tar.zst 2>/dev/null || true
+  sudo pacman -Syy --noconfirm || true
+}
+
 if [[ "${EUID:-$(id -u)}" -ne 0 && "$PREFIX" == "$HOME/.local" ]]; then
   SYSTEMD_USER_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
 fi
@@ -63,6 +90,7 @@ then
 fi
 
 if [[ -n "$missing_python_deps_command" ]]; then
+  prepare_steamos_pacman_install_local
   echo "Installing missing Python GUI dependencies..."
   if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
     $missing_python_deps_command

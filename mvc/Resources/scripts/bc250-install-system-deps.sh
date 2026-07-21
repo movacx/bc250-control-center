@@ -63,6 +63,11 @@ if have rpm-ostree && printf '%s' "$lower_os" | grep -Eq 'bazzite|silverblue|kin
   is_ostree=1
 fi
 
+is_steamos=0
+if printf '%s' "$lower_os" | grep -Eq 'steamos|steamdeck|holo'; then
+  is_steamos=1
+fi
+
 SUDO="sudo"
 [ "$(id -u)" = "0" ] && SUDO=""
 
@@ -112,6 +117,73 @@ print_credits() {
   echo
 }
 
+steamos_prepare_pacman() {
+  if [ "$is_steamos" != 1 ]; then
+    return 0
+  fi
+  bold "== Preparing SteamOS writable pacman/keyring layer =="
+  warn "SteamOS is immutable. The app will unlock the current system layer to install BC250 build dependencies."
+  if have steamos-readonly; then
+    run_cmd $SUDO steamos-readonly disable || warn "Could not disable SteamOS read-only mode. Continue only if pacman can write."
+  fi
+  run_cmd $SUDO timedatectl set-ntp true || true
+  run_cmd $SUDO pacman-key --init || true
+  run_cmd $SUDO pacman-key --populate holo || true
+  run_cmd $SUDO pacman-key --populate archlinux || true
+  run_cmd $SUDO pacman-key --populate || true
+  run_cmd $SUDO pacman -Syy --noconfirm || true
+}
+
+steamos_install_base() {
+  local pkgs=(python python-pyqt6 python-psutil lm_sensors stress git pciutils libdrm vulkan-tools mesa-utils base-devel fakeroot debugedit rust gcc make pkgconf)
+  steamos_prepare_pacman
+  bold "== Installing SteamOS base/build dependencies with pacman =="
+  run_cmd $SUDO pacman -S --needed --noconfirm "${pkgs[@]}"
+}
+
+steamos_install_yay() {
+  if have yay; then
+    info "yay already exists."
+    return 0
+  fi
+  if have paru; then
+    info "paru already exists; yay is not required."
+    return 0
+  fi
+  if ! have makepkg || ! have git; then
+    warn "makepkg/git are missing; installing base-devel/git before yay-bin."
+    run_cmd $SUDO pacman -S --needed --noconfirm base-devel git fakeroot debugedit
+  fi
+  bold "== Installing yay-bin for SteamOS AUR packages =="
+  local dir="${XDG_CACHE_HOME:-$HOME/.cache}/bc250-control-center/aur/yay-bin"
+  mkdir -p "$(dirname "$dir")"
+  if [ -d "$dir/.git" ]; then
+    git -C "$dir" pull --ff-only || true
+  else
+    rm -rf "$dir"
+    git clone https://aur.archlinux.org/yay-bin.git "$dir"
+  fi
+  (cd "$dir" && makepkg -si --noconfirm)
+}
+
+install_governor_steamos() {
+  if have cyan-skillfish-governor-smu; then
+    info "cyan-skillfish-governor-smu already exists."
+    return 0
+  fi
+  steamos_install_yay
+  if have yay; then
+    run_cmd yay -S --needed --noconfirm cyan-skillfish-governor-smu
+    return $?
+  fi
+  if have paru; then
+    run_cmd paru -S --needed --noconfirm cyan-skillfish-governor-smu
+    return $?
+  fi
+  warn "SteamOS AUR helper is still missing; falling back to makepkg."
+  install_governor_arch
+}
+
 install_governor_arch() {
   if have cyan-skillfish-governor-smu; then
     info "cyan-skillfish-governor-smu already exists."
@@ -133,7 +205,7 @@ install_governor_arch() {
     else
       git clone https://aur.archlinux.org/cyan-skillfish-governor-smu.git "$dir"
     fi
-    (cd "$dir" && makepkg -si --needed --noconfirm)
+    (cd "$dir" && makepkg -si --noconfirm)
     return $?
   fi
   warn "Could not find yay/paru/makepkg to install cyan-skillfish-governor-smu."
@@ -223,7 +295,11 @@ info "Detected OS: ${os_name:-unknown} (${os_id:-?}) like=${os_like:-?} variant=
 print_credits
 container_notice
 
-if have pacman; then
+if [ "$is_steamos" = 1 ] && have pacman; then
+  steamos_install_base
+  bold "== Preparing SteamOS/AUR governor =="
+  install_governor_steamos
+elif have pacman; then
   bold "== Installing base dependencies with pacman =="
   pacman_install
   bold "== Preparing Arch/AUR governor =="
