@@ -8319,3 +8319,146 @@ _FAN_PWM_PREPARE_DIALOG_TRANSLATIONS = {
 for _lang, _txt in _FAN_PWM_PREPARE_DIALOG_TRANSLATIONS.items():
     BASE_TRANSLATIONS.setdefault(_lang, {})[_FAN_PWM_PREPARE_DIALOG_KEY] = _txt
 
+
+
+_STEAMOS_40CU_TEXT_KEY = (
+    'SteamOS could not read the live 40CU registers with the standard UMR database.\n\n'
+    'Press "Prepare dependencies" again. On SteamOS the app installs the F5GO SteamOS 40CU backend '
+    'and runs it with UMR_DATABASE_PATH=/var/lib/bc250-cu-live-manager/umr/database for dashboard/actions.\n\n'
+    'If it still fails, send this output and verify from a terminal:\n'
+    'cat /etc/os-release\n'
+    'command -v umr\n'
+    'cd ~/.local/share/bc250-control-center/ResourceTools/bc250-cu-live-manager-steamos\n'
+    'sudo ./bc250-cu-live-manager.sh status'
+)
+_STEAMOS_40CU_TEXT_TRANSLATIONS = {
+    'es': (
+        'SteamOS no pudo leer los registros live 40CU con la base UMR estandar.\n\n'
+        'Pulsa "Preparar dependencias" otra vez. En SteamOS la app instala el backend 40CU de F5GO '
+        'y lo ejecuta con UMR_DATABASE_PATH=/var/lib/bc250-cu-live-manager/umr/database para dashboard/acciones.\n\n'
+        'Si sigue fallando, envia esta salida y verifica desde una terminal:\n'
+        'cat /etc/os-release\n'
+        'command -v umr\n'
+        'cd ~/.local/share/bc250-control-center/ResourceTools/bc250-cu-live-manager-steamos\n'
+        'sudo ./bc250-cu-live-manager.sh status'
+    ),
+    'en': _STEAMOS_40CU_TEXT_KEY,
+    'pt': (
+        'SteamOS nao conseguiu ler os registros live 40CU com a base UMR padrao.\n\n'
+        'Pressione "Preparar dependências" novamente. No SteamOS, o app instala o backend 40CU da F5GO '
+        'e o executa com UMR_DATABASE_PATH=/var/lib/bc250-cu-live-manager/umr/database para dashboard/acoes.\n\n'
+        'Se ainda falhar, envie esta saida e verifique em um terminal:\n'
+        'cat /etc/os-release\n'
+        'command -v umr\n'
+        'cd ~/.local/share/bc250-control-center/ResourceTools/bc250-cu-live-manager-steamos\n'
+        'sudo ./bc250-cu-live-manager.sh status'
+    ),
+    'zh': (
+        'SteamOS 无法使用标准 UMR 数据库读取实时 40CU 寄存器。\n\n'
+        '请再次点击“准备依赖项”。在 SteamOS 上，应用会安装 F5GO 的 40CU 后端，'
+        '并使用 UMR_DATABASE_PATH=/var/lib/bc250-cu-live-manager/umr/database 执行 dashboard/操作。\n\n'
+        '如果仍然失败，请发送此输出并在终端验证：\n'
+        'cat /etc/os-release\n'
+        'command -v umr\n'
+        'cd ~/.local/share/bc250-control-center/ResourceTools/bc250-cu-live-manager-steamos\n'
+        'sudo ./bc250-cu-live-manager.sh status'
+    ),
+    'ko': (
+        'SteamOS가 표준 UMR 데이터베이스로 live 40CU 레지스터를 읽지 못했습니다.\n\n'
+        '"의존성 준비"를 다시 누르세요. SteamOS에서는 앱이 F5GO 40CU 백엔드를 설치하고 '
+        'dashboard/작업에 UMR_DATABASE_PATH=/var/lib/bc250-cu-live-manager/umr/database 를 사용합니다.\n\n'
+        '그래도 실패하면 이 출력을 보내고 터미널에서 확인하세요:\n'
+        'cat /etc/os-release\n'
+        'command -v umr\n'
+        'cd ~/.local/share/bc250-control-center/ResourceTools/bc250-cu-live-manager-steamos\n'
+        'sudo ./bc250-cu-live-manager.sh status'
+    ),
+    'ru': (
+        'SteamOS не смог прочитать live-регистры 40CU со стандартной базой UMR.\n\n'
+        'Нажмите «Подготовить зависимости» еще раз. В SteamOS приложение устанавливает 40CU backend от F5GO '
+        'и запускает его с UMR_DATABASE_PATH=/var/lib/bc250-cu-live-manager/umr/database для dashboard/действий.\n\n'
+        'Если ошибка останется, отправьте этот вывод и проверьте в терминале:\n'
+        'cat /etc/os-release\n'
+        'command -v umr\n'
+        'cd ~/.local/share/bc250-control-center/ResourceTools/bc250-cu-live-manager-steamos\n'
+        'sudo ./bc250-cu-live-manager.sh status'
+    ),
+    'uk': (
+        'SteamOS не зміг прочитати live-регістри 40CU зі стандартною базою UMR.\n\n'
+        'Натисніть «Підготувати залежності» ще раз. У SteamOS програма встановлює 40CU backend від F5GO '
+        'і запускає його з UMR_DATABASE_PATH=/var/lib/bc250-cu-live-manager/umr/database для dashboard/дій.\n\n'
+        'Якщо помилка залишиться, надішліть цей вивід і перевірте в терміналі:\n'
+        'cat /etc/os-release\n'
+        'command -v umr\n'
+        'cd ~/.local/share/bc250-control-center/ResourceTools/bc250-cu-live-manager-steamos\n'
+        'sudo ./bc250-cu-live-manager.sh status'
+    ),
+    'de': (
+        'SteamOS konnte die live 40CU-Register mit der Standard-UMR-Datenbank nicht lesen.\n\n'
+        'Klicke erneut auf "Abhängigkeiten vorbereiten". Unter SteamOS installiert die App das F5GO 40CU-Backend '
+        'und startet es fuer Dashboard/Aktionen mit UMR_DATABASE_PATH=/var/lib/bc250-cu-live-manager/umr/database.\n\n'
+        'Falls es weiter fehlschlaegt, sende diese Ausgabe und pruefe im Terminal:\n'
+        'cat /etc/os-release\n'
+        'command -v umr\n'
+        'cd ~/.local/share/bc250-control-center/ResourceTools/bc250-cu-live-manager-steamos\n'
+        'sudo ./bc250-cu-live-manager.sh status'
+    ),
+    'fr': (
+        'SteamOS n a pas pu lire les registres live 40CU avec la base UMR standard.\n\n'
+        'Clique de nouveau sur "Préparer les dépendances". Sur SteamOS, l app installe le backend 40CU de F5GO '
+        'et l execute avec UMR_DATABASE_PATH=/var/lib/bc250-cu-live-manager/umr/database pour le dashboard/les actions.\n\n'
+        'Si cela echoue encore, envoie cette sortie et verifie dans un terminal :\n'
+        'cat /etc/os-release\n'
+        'command -v umr\n'
+        'cd ~/.local/share/bc250-control-center/ResourceTools/bc250-cu-live-manager-steamos\n'
+        'sudo ./bc250-cu-live-manager.sh status'
+    ),
+    'ja': (
+        'SteamOS は標準 UMR データベースで live 40CU レジスタを読み取れませんでした。\n\n'
+        'もう一度「依存関係を準備」を押してください。SteamOS ではアプリが F5GO の 40CU バックエンドをインストールし、'
+        'dashboard/操作用に UMR_DATABASE_PATH=/var/lib/bc250-cu-live-manager/umr/database を使用します。\n\n'
+        'まだ失敗する場合は、この出力を送り、端末で確認してください:\n'
+        'cat /etc/os-release\n'
+        'command -v umr\n'
+        'cd ~/.local/share/bc250-control-center/ResourceTools/bc250-cu-live-manager-steamos\n'
+        'sudo ./bc250-cu-live-manager.sh status'
+    ),
+    'ar': (
+        'تعذر على SteamOS قراءة سجلات 40CU الحية باستخدام قاعدة UMR القياسية.\n\n'
+        'اضغط "تحضير الاعتماديات" مرة أخرى. على SteamOS يثبت التطبيق خلفية F5GO الخاصة بـ 40CU '
+        'ويشغلها مع UMR_DATABASE_PATH=/var/lib/bc250-cu-live-manager/umr/database للوحة/الإجراءات.\n\n'
+        'إذا استمر الفشل، أرسل هذا الخرج وتحقق من الطرفية:\n'
+        'cat /etc/os-release\n'
+        'command -v umr\n'
+        'cd ~/.local/share/bc250-control-center/ResourceTools/bc250-cu-live-manager-steamos\n'
+        'sudo ./bc250-cu-live-manager.sh status'
+    ),
+    'hi': (
+        'SteamOS standard UMR database से live 40CU registers नहीं पढ़ सका।\n\n'
+        '"निर्भरताएं तैयार करें" फिर दबाएं। SteamOS पर app F5GO 40CU backend install करता है '
+        'और dashboard/actions के लिए UMR_DATABASE_PATH=/var/lib/bc250-cu-live-manager/umr/database के साथ चलाता है।\n\n'
+        'अगर फिर भी fail हो, यह output भेजें और terminal में verify करें:\n'
+        'cat /etc/os-release\n'
+        'command -v umr\n'
+        'cd ~/.local/share/bc250-control-center/ResourceTools/bc250-cu-live-manager-steamos\n'
+        'sudo ./bc250-cu-live-manager.sh status'
+    ),
+}
+_STEAMOS_40CU_EXTRA_TRANSLATIONS = {
+    'es': {'SteamOS live': 'SteamOS live'},
+    'en': {'SteamOS live': 'SteamOS live'},
+    'pt': {'SteamOS live': 'SteamOS live'},
+    'zh': {'SteamOS live': 'SteamOS live'},
+    'ko': {'SteamOS live': 'SteamOS live'},
+    'ru': {'SteamOS live': 'SteamOS live'},
+    'uk': {'SteamOS live': 'SteamOS live'},
+    'de': {'SteamOS live': 'SteamOS live'},
+    'fr': {'SteamOS live': 'SteamOS live'},
+    'ja': {'SteamOS live': 'SteamOS live'},
+    'ar': {'SteamOS live': 'SteamOS live'},
+    'hi': {'SteamOS live': 'SteamOS live'},
+}
+for _lang, _txt in _STEAMOS_40CU_TEXT_TRANSLATIONS.items():
+    BASE_TRANSLATIONS.setdefault(_lang, {})[_STEAMOS_40CU_TEXT_KEY] = _txt
+for _lang, _items in _STEAMOS_40CU_EXTRA_TRANSLATIONS.items():
+    BASE_TRANSLATIONS.setdefault(_lang, {}).update(_items)

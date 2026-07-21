@@ -636,7 +636,7 @@ class Bc250Frame:
 
         texto_40cu = v.t('40CU live-manager permite enrutar WGP/CU en vivo con UMR. Puede subir consumo y temperatura. Recomendado: GPU 1500 MHz / 900 mV antes de probar.')
         info_40cu = v.t('Mas informacion 40CU:')
-        aviso = QLabel(f'{texto_40cu} {info_40cu} <a href="https://github.com/WinnieLV/bc250-cu-live-manager">WinnieLV/bc250-cu-live-manager</a> · <a href="https://github.com/duggasco/bc250-40cu-unlock">duggasco/bc250-40cu-unlock</a>')
+        aviso = QLabel(f'{texto_40cu} {info_40cu} <a href="https://github.com/WinnieLV/bc250-cu-live-manager">WinnieLV/bc250-cu-live-manager</a> · <a href="https://github.com/F5GO/bc250-cu-live-manager-SteamOS">F5GO/SteamOS</a> · <a href="https://github.com/duggasco/bc250-40cu-unlock">duggasco/bc250-40cu-unlock</a>')
         aviso.setObjectName('WarningTextCompact')
         aviso.setWordWrap(True)
         aviso.setOpenExternalLinks(True)

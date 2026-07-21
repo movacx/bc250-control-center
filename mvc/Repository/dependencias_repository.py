@@ -8,10 +8,33 @@ class DependenciasRepository:
         ahora = time.monotonic()
         if self.estado_herramientas_cache is not None and ahora - self.estado_herramientas_cache_time < 10:
             return dict(self.estado_herramientas_cache)
-        cu_live = self._command_path('bc250-cu-live-manager') or self._buscar_archivo('bc250-cu-live-manager.sh')
-        live_repo = self._buscar_directorio_con('bc250-cu-live-manager.sh', 'bc250-cu-live-manager')
-        cu_manager = cu_live
-        cu_kind = 'WinnieLV/bc250-cu-live-manager' if cu_live else ''
+
+        os_info = self._os_release()
+        is_steamos = self._es_steamos(os_info)
+        cu_standard = self._command_path('bc250-cu-live-manager') or self._cu_script_local('bc250-cu-live-manager')
+        encontrado = self._buscar_archivo('bc250-cu-live-manager.sh')
+        if encontrado and 'bc250-cu-live-manager-steamos' not in encontrado and not cu_standard:
+            cu_standard = encontrado
+        cu_steamos = self._cu_script_local('bc250-cu-live-manager-steamos')
+        standard_repo = str(Path(cu_standard).parent) if cu_standard and Path(cu_standard).exists() else self._buscar_directorio_con('bc250-cu-live-manager.sh', 'bc250-cu-live-manager')
+        steamos_repo = str(Path(cu_steamos).parent) if cu_steamos and Path(cu_steamos).exists() else ''
+
+        cu_manager = cu_standard
+        cu_kind = 'WinnieLV/bc250-cu-live-manager' if cu_standard else ''
+        cu_backend = 'standard'
+        cu_repo = standard_repo
+        cu_repo_url = 'https://github.com/WinnieLV/bc250-cu-live-manager'
+        cu_warning = ''
+        if is_steamos:
+            if cu_steamos:
+                cu_manager = cu_steamos
+                cu_kind = 'F5GO/bc250-cu-live-manager-SteamOS'
+                cu_backend = 'steamos'
+                cu_repo = steamos_repo
+                cu_repo_url = 'https://github.com/F5GO/bc250-cu-live-manager-SteamOS'
+            else:
+                cu_warning = 'SteamOS detected: Prepare dependencies can install the SteamOS 40CU backend if the standard manager cannot read UMR registers.'
+
         smu_path = self._buscar_directorio_con('bc250_detect.py', 'bc250_smu_oc')
         bc250_detect = self._command_path('bc250-detect')
         resultado = {
@@ -25,9 +48,21 @@ class DependenciasRepository:
             'bc250_detect': bc250_detect,
             'cu_manager': cu_manager,
             'cu_manager_kind': cu_kind,
+            'cu_manager_backend': cu_backend,
+            'cu_manager_repo_url': cu_repo_url,
+            'cu_manager_warning': cu_warning,
             'cu_manager_exists': bool(cu_manager and (Path(cu_manager).exists() or shutil.which(Path(cu_manager).name))),
-            'cu_live_repo_path': live_repo,
-            'cu_repo_path': live_repo,
+            'cu_manager_standard_path': cu_standard,
+            'cu_manager_steamos_path': cu_steamos,
+            'cu_manager_standard_exists': bool(cu_standard and (Path(cu_standard).exists() or shutil.which(Path(cu_standard).name))),
+            'cu_manager_steamos_exists': bool(cu_steamos and Path(cu_steamos).exists()),
+            'cu_steamos_umr_database': '/var/lib/bc250-cu-live-manager/umr/database',
+            'is_steamos': is_steamos,
+            'os_id': os_info.get('ID', ''),
+            'os_like': os_info.get('ID_LIKE', ''),
+            'os_variant': os_info.get('VARIANT_ID', ''),
+            'cu_live_repo_path': cu_repo,
+            'cu_repo_path': cu_repo,
             'cu_map_repo_path': '',
             'cu_map_script': '',
             'smu_oc_path': smu_path,
@@ -37,6 +72,23 @@ class DependenciasRepository:
         self.estado_herramientas_cache = resultado
         self.estado_herramientas_cache_time = ahora
         return dict(resultado)
+
+
+    def _es_steamos(self, os_info=None):
+        datos = os_info or self._os_release()
+        texto = ' '.join([
+            datos.get('ID', ''),
+            datos.get('ID_LIKE', ''),
+            datos.get('VARIANT_ID', ''),
+            datos.get('NAME', ''),
+            datos.get('PRETTY_NAME', ''),
+        ]).lower()
+        return 'steamos' in texto or 'steamdeck' in texto
+
+
+    def _cu_script_local(self, carpeta):
+        ruta = self._tool_dir() / carpeta / 'bc250-cu-live-manager.sh'
+        return str(ruta) if ruta.exists() else ''
 
 
     def instalar_governor(self):
@@ -69,15 +121,22 @@ class DependenciasRepository:
 
     def instalar_cu_manager(self):
         tools = self.estado_herramientas_bc250()
-        if tools['cu_manager_exists']:
+        es_steamos = tools.get('is_steamos') or self._es_steamos()
+        if es_steamos and tools.get('cu_manager_steamos_exists'):
+            return True
+        if not es_steamos and tools['cu_manager_exists']:
             return True
         if not tools.get('git'):
             raise RuntimeError('Could not find local bc250-cu-live-manager or git to download it')
-        destino = self._tool_dir() / 'bc250-cu-live-manager'
+        repo = 'https://github.com/F5GO/bc250-cu-live-manager-SteamOS' if es_steamos else 'https://github.com/WinnieLV/bc250-cu-live-manager'
+        carpeta = 'bc250-cu-live-manager-steamos' if es_steamos else 'bc250-cu-live-manager'
+        destino = self._tool_dir() / carpeta
         destino.parent.mkdir(parents=True, exist_ok=True)
         qdest = shlex.quote(str(destino))
         git_cmd = shlex.quote(tools.get('git') or 'git')
-        cmd = f'mkdir -p {shlex.quote(str(destino.parent))}; if [ -d {qdest}/.git ]; then {git_cmd} -C {qdest} pull --ff-only; else {git_cmd} clone --depth 1 https://github.com/WinnieLV/bc250-cu-live-manager {qdest}; fi; chmod +x {qdest}/bc250-cu-live-manager.sh; test -x {qdest}/bc250-cu-live-manager.sh && echo "OK: bc250-cu-live-manager prepared at {qdest}" || echo "WARN: bc250-cu-live-manager.sh was not found"'
+        nombre = 'bc250-cu-live-manager SteamOS backend' if es_steamos else 'bc250-cu-live-manager'
+        cmd = f'mkdir -p {shlex.quote(str(destino.parent))}; if [ -d {qdest}/.git ]; then {git_cmd} -C {qdest} pull --ff-only; else {git_cmd} clone --depth 1 {repo} {qdest}; fi; chmod +x {qdest}/bc250-cu-live-manager.sh; test -x {qdest}/bc250-cu-live-manager.sh && echo "OK: {nombre} prepared at {qdest}" || echo "WARN: bc250-cu-live-manager.sh was not found"'
+        self.estado_herramientas_cache = None
         return self._abrir_terminal(cmd, 'Preparar bc250-cu-live-manager')
 
 
@@ -87,6 +146,8 @@ class DependenciasRepository:
         rutas = self.config_paths()
         cpu_destino = self._tool_dir() / 'bc250_smu_oc'
         cu_destino = self._tool_dir() / 'bc250-cu-live-manager'
+        cu_steamos_destino = self._tool_dir() / 'bc250-cu-live-manager-steamos'
+        es_steamos = tools.get('is_steamos') or self._es_steamos()
         aur_dir = self._tool_dir() / 'aur-cyan-skillfish-governor-smu'
         git_cmd = shlex.quote(tools.get('git') or 'git')
         deps_script = Path(__file__).resolve().parents[1] / 'Resources' / 'scripts' / 'bc250-install-system-deps.sh'
@@ -106,6 +167,7 @@ class DependenciasRepository:
             f'echo "History: {shlex.quote(rutas.get("historial", ""))}"',
             f'echo "Repo CPU OC bc250_smu_oc: {shlex.quote(str(cpu_destino))}"',
             f'echo "Repo 40CU live-manager: {shlex.quote(str(cu_destino))}"',
+            f'echo "Repo 40CU SteamOS backend: {shlex.quote(str(cu_steamos_destino))}"' if es_steamos else 'true',
             f'echo "Repo AUR governor: {shlex.quote(str(aur_dir))}"',
             'echo',
             'echo "== Third-party credits =="',
@@ -115,6 +177,7 @@ class DependenciasRepository:
             'echo "cyan-skillfish-governor: https://github.com/filippor/cyan-skillfish-governor/tree/smu"',
             'echo "bc250_smu_oc: https://github.com/bc250-collective/bc250_smu_oc"',
             'echo "bc250-cu-live-manager: https://github.com/WinnieLV/bc250-cu-live-manager"',
+            'echo "bc250-cu-live-manager SteamOS backend: https://github.com/F5GO/bc250-cu-live-manager-SteamOS"',
             'echo "bc250-40cu-unlock reference/docs: https://github.com/duggasco/bc250-40cu-unlock"',
             'echo',
         ]
@@ -134,7 +197,12 @@ class DependenciasRepository:
         else:
             comandos.append('echo "OK: bc250-detect found."')
 
-        if not tools.get('cu_manager_exists'):
+        if es_steamos:
+            comandos.append('echo "== Preparing SteamOS 40CU backend from F5GO =="')
+            comandos.append(f'if command -v git >/dev/null 2>&1; then if [ -d {shlex.quote(str(cu_steamos_destino))}/.git ]; then git -C {shlex.quote(str(cu_steamos_destino))} pull --ff-only; else git clone --depth 1 https://github.com/F5GO/bc250-cu-live-manager-SteamOS {shlex.quote(str(cu_steamos_destino))}; fi; else echo "WARN: git is not available to clone the SteamOS 40CU backend."; fi')
+            comandos.append(f'chmod +x {shlex.quote(str(cu_steamos_destino))}/bc250-cu-live-manager.sh 2>/dev/null || true')
+            comandos.append(f'test -x {shlex.quote(str(cu_steamos_destino))}/bc250-cu-live-manager.sh && echo "OK: SteamOS live-manager backend ready at {shlex.quote(str(cu_steamos_destino))}" || echo "WARN: SteamOS bc250-cu-live-manager.sh was not found after cloning."')
+        elif not tools.get('cu_manager_exists'):
             comandos.append('echo "== Cloning bc250-cu-live-manager from WinnieLV =="')
             comandos.append(f'if command -v git >/dev/null 2>&1; then if [ -d {shlex.quote(str(cu_destino))}/.git ]; then git -C {shlex.quote(str(cu_destino))} pull --ff-only; else git clone --depth 1 https://github.com/WinnieLV/bc250-cu-live-manager {shlex.quote(str(cu_destino))}; fi; else echo "WARN: git is not available to clone bc250-cu-live-manager."; fi')
             comandos.append(f'chmod +x {shlex.quote(str(cu_destino))}/bc250-cu-live-manager.sh 2>/dev/null || true')
@@ -146,7 +214,8 @@ class DependenciasRepository:
 
         if not tools.get('umr'):
             comandos.append('echo "== UMR not detected: live-manager can try to install it if you run install-umr =="')
-            script_expr = f'{shlex.quote(str(cu_destino))}/bc250-cu-live-manager.sh'
+            script_base = cu_steamos_destino if es_steamos else cu_destino
+            script_expr = f'{shlex.quote(str(script_base))}/bc250-cu-live-manager.sh'
             if tools.get('cu_manager_exists'):
                 comandos.append(f'echo "You can install UMR with: sudo {shlex.quote(str(tools.get("cu_manager", "")))} install-umr"')
             else:
@@ -160,10 +229,12 @@ class DependenciasRepository:
             f'echo "Tools: {shlex.quote(str(self._tool_dir()))}"',
             f'echo "CPU OC repo: {shlex.quote(str(cpu_destino))}"',
             f'echo "40CU live-manager: {shlex.quote(str(cu_destino))}"',
+            f'echo "40CU SteamOS backend: {shlex.quote(str(cu_steamos_destino))}"' if es_steamos else 'true',
             f'echo "History JSONL: {shlex.quote(rutas.get("historial", ""))}"',
             'echo',
             'echo "== Finished. Restart the app or open the BC250 view to refresh state. =="',
         ])
+        self.estado_herramientas_cache = None
         return self._abrir_terminal('; '.join(comandos), 'Preparar dependencias BC250')
 
 
@@ -258,6 +329,8 @@ command -v cyan-skillfish-governor-smu && echo "OK: cyan-skillfish-governor-smu 
     def _comando_instalar_umr(self, tools=None):
         tools = tools or self.estado_herramientas_bc250()
         script = tools.get('cu_manager') or ''
+        if tools.get('is_steamos') and tools.get('cu_manager_steamos_path'):
+            script = tools.get('cu_manager_steamos_path') or script
         qscript = shlex.quote(script) if script else ''
         helper = tools.get('yay') or tools.get('paru')
         distro = self._os_release()

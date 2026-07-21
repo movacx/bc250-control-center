@@ -673,6 +673,7 @@ class Vista(QMainWindow):
             ('cyan-skillfish-governor', 'filippor/cyan-skillfish-governor/tree/smu', 'https://github.com/filippor/cyan-skillfish-governor/tree/smu'),
             ('bc250_smu_oc', 'bc250-collective/bc250_smu_oc', 'https://github.com/bc250-collective/bc250_smu_oc'),
             ('bc250-cu-live-manager', 'WinnieLV/bc250-cu-live-manager', 'https://github.com/WinnieLV/bc250-cu-live-manager'),
+            ('bc250-cu-live-manager SteamOS', 'F5GO/bc250-cu-live-manager-SteamOS', 'https://github.com/F5GO/bc250-cu-live-manager-SteamOS'),
             ('bc250-40cu-unlock', 'duggasco/bc250-40cu-unlock', 'https://github.com/duggasco/bc250-40cu-unlock'),
             ('nct6687d fan driver', 'Fred78290/nct6687d', 'https://github.com/Fred78290/nct6687d'),
         ]
@@ -2147,7 +2148,7 @@ class Vista(QMainWindow):
             datos_cu = {
                 'manager': ('OK' if tools.get('cu_manager_exists') else 'Falta', f'{cu_kind} | {cu_manager}'),
                 'umr': ('OK' if tools.get('umr') else 'Opcional', tools.get('umr') or 'solo si tu flujo lo requiere'),
-                'modo': ('Live temporal' if cu_kind == 'WinnieLV/bc250-cu-live-manager' else '--', self.t('Confirmacion manual requerida')),
+                'modo': ('SteamOS live' if tools.get('cu_manager_backend') == 'steamos' else ('Live temporal' if tools.get('cu_manager_exists') else '--'), self.t('Confirmacion manual requerida')),
                 'recomendado': ('1500/900', self.t('Recomendado para 40CU')),
             }
             for clave, (valor, detalle_cu) in datos_cu.items():

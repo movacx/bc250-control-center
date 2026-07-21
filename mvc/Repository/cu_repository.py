@@ -31,10 +31,13 @@ class CURepository:
         tools = self.estado_herramientas_bc250()
         script = tools.get('cu_manager') or ''
         if script and Path(script).exists():
+            bash = self._command_path('bash') or '/bin/bash'
+            env_args = self._env_args_cu(tools)
+            export_env = self._exportar_env_cu(tools)
             comandos = [
-                {'cmd': ['sudo', '-n', script, 'status'], 'timeout': 12},
-                {'cmd': ['pkexec', script, 'status'], 'timeout': 90},
-                {'cmd': [script, 'status'], 'timeout': 12},
+                {'cmd': ['sudo', '-n', 'env'] + env_args + [script, 'status'], 'timeout': 12},
+                {'cmd': ['pkexec', bash, '-lc', f'{export_env}{shlex.quote(script)} status'], 'timeout': 90},
+                {'cmd': ['env'] + env_args + [script, 'status'], 'timeout': 12},
             ]
             errores = []
             for item in comandos:
@@ -55,6 +58,8 @@ class CURepository:
             detalle = '\n'.join(x for x in errores if x)
             if self._error_umr_faltante(detalle):
                 raise RuntimeError(self._mensaje_umr_faltante())
+            if self._error_steamos_umr_selector(detalle):
+                raise RuntimeError(self._mensaje_steamos_umr_selector())
             if self._requiere_terminal_sudo(detalle):
                 cache = self._leer_dashboard_cu_cache()
                 if cache:
@@ -146,7 +151,8 @@ class CURepository:
             return self._ejecutar_cu_accion_pkexec(['--yes', 'stock-dispatch'])
         elif accion == 'menu':
             script = shlex.quote(tools['cu_manager'])
-            return self._abrir_terminal(f'sudo {script} menu', 'BC-250 40CU live-manager')
+            export_env = self._exportar_env_cu(tools)
+            return self._abrir_terminal(f'{export_env}sudo -E {script} menu', 'BC-250 40CU live-manager')
         else:
             raise ValueError('Invalid CU action.')
 
@@ -160,8 +166,9 @@ class CURepository:
             raise RuntimeError('bc250-cu-live-manager was not found. Use Prepare dependencies first.')
 
         bash = self._command_path('bash') or '/bin/bash'
-        accion = ' '.join([shlex.quote(script)] + [shlex.quote(str(x)) for x in args])
-        status = f'{shlex.quote(script)} status'
+        export_env = self._exportar_env_cu(tools)
+        accion = export_env + ' '.join([shlex.quote(script)] + [shlex.quote(str(x)) for x in args])
+        status = export_env + f'{shlex.quote(script)} status'
         comando = (
             f'{accion}; '
             'resultado=$?; '
@@ -175,6 +182,8 @@ class CURepository:
             detalle = err or out or f'exit code {rc}'
             if self._error_umr_faltante(detalle):
                 raise RuntimeError(self._mensaje_umr_faltante())
+            if self._error_steamos_umr_selector(detalle):
+                raise RuntimeError(self._mensaje_steamos_umr_selector())
             raise RuntimeError(detalle)
 
         limpio = self._limpiar_dashboard_cu(out)
@@ -201,4 +210,47 @@ class CURepository:
             'Without UMR, the live dashboard and enable/restore 40CU actions cannot run from the interface.\n\n'
             'Solution: press the "Install UMR" button in the 40CU panel. '
             'The app will detect your distribution and try to install the matching package.'
+        )
+
+
+    def _cu_manager_env(self, tools):
+        env = {}
+        if tools.get('cu_manager_backend') == 'steamos' or tools.get('is_steamos'):
+            env['UMR_DATABASE_PATH'] = tools.get('cu_steamos_umr_database') or '/var/lib/bc250-cu-live-manager/umr/database'
+        return env
+
+
+    def _env_args_cu(self, tools):
+        return [f'{clave}={valor}' for clave, valor in self._cu_manager_env(tools).items() if valor]
+
+
+    def _exportar_env_cu(self, tools):
+        partes = []
+        for clave, valor in self._cu_manager_env(tools).items():
+            if valor:
+                partes.append(f'export {clave}={shlex.quote(str(valor))}; ')
+        return ''.join(partes)
+
+
+    def _error_steamos_umr_selector(self, texto):
+        texto = (texto or '').lower()
+        pistas = [
+            'failed to read cyan_skillfish.gfx1013',
+            'mmspi_pg_enable_static_wgp_mask',
+            'set umr_asic',
+            'exact selector if your board differs',
+        ]
+        return any(pista in texto for pista in pistas)
+
+
+    def _mensaje_steamos_umr_selector(self):
+        return (
+            'SteamOS could not read the live 40CU registers with the standard UMR database.\n\n'
+            'Press "Prepare dependencies" again. On SteamOS the app installs the F5GO SteamOS 40CU backend '
+            'and runs it with UMR_DATABASE_PATH=/var/lib/bc250-cu-live-manager/umr/database for dashboard/actions.\n\n'
+            'If it still fails, send this output and verify from a terminal:\n'
+            'cat /etc/os-release\n'
+            'command -v umr\n'
+            'cd ~/.local/share/bc250-control-center/ResourceTools/bc250-cu-live-manager-steamos\n'
+            'sudo ./bc250-cu-live-manager.sh status'
         )
