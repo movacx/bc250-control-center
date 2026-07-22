@@ -426,6 +426,8 @@ for line in sys.stdin:
 
     def _comando_instalar_nct6687(self):
         tools_dir = shlex.quote(str(self._tool_dir() / 'nct6687d'))
+        if self._es_steamos():
+            return self._comando_instalar_nct6687_steamos(tools_dir)
         if self._command_path('paru'):
             return 'sudo pacman -S --needed --noconfirm lm_sensors git base-devel linux-headers dkms || true; paru -S --needed nct6687d-dkms-git'
         if self._command_path('yay'):
@@ -570,6 +572,55 @@ else
 fi
 '''.strip()
 
+    def _comando_instalar_nct6687_steamos(self, tools_dir):
+        return f'''
+echo "== SteamOS: preparing nct6687 PWM support for the active Neptune kernel ==";
+echo "Source: https://github.com/Fred78290/nct6687d";
+if command -v steamos-readonly >/dev/null 2>&1; then
+  sudo steamos-readonly disable || true;
+fi;
+sudo pacman-key --init 2>/dev/null || true;
+sudo pacman-key --populate holo 2>/dev/null || true;
+sudo pacman-key --populate archlinux 2>/dev/null || true;
+sudo pacman -Syy --noconfirm || true;
+sudo pacman -S --needed --noconfirm lm_sensors git base-devel fakeroot debugedit gcc make pkgconf pahole dkms || true;
+if [ ! -d "/lib/modules/$(uname -r)/build" ]; then
+  echo "WARN: kernel build tree for $(uname -r) is missing. Trying SteamOS/Neptune headers.";
+  sudo pacman -S --needed --noconfirm linux-neptune-headers linux-neptune-61-headers linux-neptune-616-headers linux-headers 2>/dev/null || true;
+fi;
+if [ ! -d "/lib/modules/$(uname -r)/build" ]; then
+  echo "ERROR: /lib/modules/$(uname -r)/build is still missing.";
+  echo "The installed headers do not match the running SteamOS kernel.";
+  echo "Update/reboot SteamOS or install matching Neptune headers, then run Prepare fan PWM again.";
+else
+  echo "== Preparing Fred78290/nct6687d source ==";
+  mkdir -p "$(dirname {tools_dir})";
+  if [ -d {tools_dir}/.git ]; then
+    git -C {tools_dir} pull --ff-only || true;
+  elif [ -f {tools_dir}/Makefile ]; then
+    echo "OK: existing nct6687d source tree found.";
+  else
+    if [ -d {tools_dir} ]; then
+      incomplete="{tools_dir}.incomplete-$(date +%Y%m%d-%H%M%S)";
+      echo "WARN: incomplete nct6687d source found; preserving it at $incomplete";
+      mv {tools_dir} "$incomplete";
+    fi;
+    git clone --depth 1 https://github.com/Fred78290/nct6687d {tools_dir};
+  fi;
+  echo "== Building nct6687 for $(uname -r) ==";
+  if (cd {tools_dir} && make kver="$(uname -r)" build); then
+    sudo install -Dm644 {tools_dir}/"$(uname -r)"/nct6687.ko /var/lib/nct6687/nct6687.ko;
+    sudo chcon -t modules_object_t /var/lib/nct6687/nct6687.ko 2>/dev/null || true;
+    sudo modprobe -r nct6683 2>/dev/null || true;
+    sudo insmod /var/lib/nct6687/nct6687.ko force=1 2>/dev/null || sudo insmod /var/lib/nct6687/nct6687.ko 2>/dev/null || true;
+    echo "OK: SteamOS kernel-matched nct6687 module prepared at /var/lib/nct6687/nct6687.ko.";
+    echo "The persistent systemd loader will use this module on boot.";
+  else
+    echo "ERROR: nct6687 build failed. Check compiler and kernel header output above.";
+  fi;
+fi
+'''.strip()
+
     def _comando_instalar_nct6687_debian(self, tools_dir):
         return f'''
 echo "== Debian/Ubuntu: preparing Fred78290/nct6687d PWM driver ==";
@@ -710,3 +761,13 @@ fi
         datos = self._os_release()
         texto = ' '.join([datos.get('ID', ''), datos.get('ID_LIKE', ''), datos.get('VARIANT_ID', ''), datos.get('NAME', '')]).lower()
         return bool(self._command_path('rpm-ostree') and any(x in texto for x in ['bazzite', 'silverblue', 'kinoite', 'ublue', 'atomic']))
+
+    def _es_steamos(self):
+        datos = self._os_release()
+        texto = ' '.join([
+            datos.get('ID', ''),
+            datos.get('ID_LIKE', ''),
+            datos.get('VARIANT_ID', ''),
+            datos.get('NAME', ''),
+        ]).lower()
+        return any(x in texto for x in ['steamos', 'steamdeck', 'holo'])
