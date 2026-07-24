@@ -1,0 +1,83 @@
+#!/usr/bin/env python3
+"""Root-side, narrowly scoped PWM writer for BC250 Control Center."""
+
+from __future__ import annotations
+
+import os
+from pathlib import Path
+import sys
+
+PWM_MIN = 1
+PWM_MAX = 12
+VALUE_MIN = 0
+VALUE_MAX = 255
+
+
+def find_sensor() -> Path | None:
+    base = Path('/sys/class/hwmon')
+    for hwmon in sorted(base.glob('hwmon*')):
+        try:
+            name = (hwmon / 'name').read_text(encoding='utf-8').strip().lower()
+        except OSError:
+            continue
+        if name.startswith(('nct668', 'nct67', 'nct')):
+            return hwmon
+    return None
+
+
+def write_sysfs(path: Path, value: int) -> None:
+    flags = os.O_WRONLY
+    if hasattr(os, 'O_NOFOLLOW'):
+        flags |= os.O_NOFOLLOW
+    fd = os.open(path, flags)
+    try:
+        os.write(fd, f'{value}\n'.encode('ascii'))
+    finally:
+        os.close(fd)
+
+
+def apply_pwm(channel: int, value: int) -> str:
+    if channel < PWM_MIN or channel > PWM_MAX:
+        return f'ERR PWM channel must be between {PWM_MIN} and {PWM_MAX}.'
+    if value < VALUE_MIN or value > VALUE_MAX:
+        return f'ERR PWM value must be between {VALUE_MIN} and {VALUE_MAX}.'
+
+    sensor = find_sensor()
+    if sensor is None:
+        return 'ERR No NCT hwmon sensor was found.'
+
+    pwm_path = sensor / f'pwm{channel}'
+    enable_path = sensor / f'pwm{channel}_enable'
+    if not pwm_path.is_file():
+        return f'ERR {pwm_path} does not exist.'
+
+    try:
+        if enable_path.is_file():
+            write_sysfs(enable_path, 1)
+        write_sysfs(pwm_path, value)
+    except OSError as exc:
+        return f'ERR {exc}'
+    return f'OK PWM {channel} {value}'
+
+
+def session() -> int:
+    print('READY', flush=True)
+    for raw_line in sys.stdin:
+        line = raw_line.strip()
+        if not line:
+            continue
+        if line == 'EXIT':
+            print('BYE', flush=True)
+            return 0
+        try:
+            parts = line.split()
+            if len(parts) != 2:
+                raise ValueError('Expected PWM channel and value.')
+            print(apply_pwm(int(parts[0]), int(parts[1])), flush=True)
+        except (ValueError, OSError) as exc:
+            print(f'ERR {exc}', flush=True)
+    return 0
+
+
+if __name__ == '__main__':
+    raise SystemExit(session())
