@@ -1,6 +1,6 @@
 Name:           bc250-control-center
 Version:        0.1.0
-Release:        61%{?dist}
+Release:        64%{?dist}
 Summary:        Linux gaming task manager and safe AMD BC-250 control panel
 
 %{!?_userunitdir:%global _userunitdir /usr/lib/systemd/user}
@@ -47,6 +47,8 @@ cp -a mvc %{buildroot}%{_datadir}/bc250-control-center/
 
 install -Dm755 scripts/bc250-control-center %{buildroot}%{_bindir}/bc250-control-center
 install -Dm755 scripts/bc250-control-centerd %{buildroot}%{_bindir}/bc250-control-centerd
+install -Dm755 mvc/Resources/privileged/bc250-fan-pwm-helper %{buildroot}/usr/libexec/bc250-control-center/bc250-fan-pwm-helper
+install -Dm644 packaging/common/polkit/io.github.fabianbeita.bc250-control-center.policy %{buildroot}%{_datadir}/polkit-1/actions/io.github.fabianbeita.bc250-control-center.policy
 
 for size in 32 48 64 128 256 512 1024; do
   install -Dm644 mvc/Resources/icons/bc250-control-center-${size}.png %{buildroot}%{_datadir}/icons/hicolor/${size}x${size}/apps/bc250-control-center.png
@@ -87,6 +89,8 @@ fi
 %doc %{_docdir}/bc250-control-center/*.md
 %{_bindir}/bc250-control-center
 %{_bindir}/bc250-control-centerd
+/usr/libexec/bc250-control-center/bc250-fan-pwm-helper
+%{_datadir}/polkit-1/actions/io.github.fabianbeita.bc250-control-center.policy
 %{_datadir}/bc250-control-center/
 %{_datadir}/applications/io.github.fabianbeita.bc250-control-center.desktop
 %{_datadir}/metainfo/io.github.fabianbeita.bc250-control-center.metainfo.xml
@@ -94,6 +98,23 @@ fi
 %{_userunitdir}/bc250-control-centerd.service
 
 %changelog
+* Thu Jul 23 2026 Fabian Beita <fabianbeita@users.noreply.github.com> - 0.1.0-64
+- Fix Fedora PWM dependency preparation by treating kernel-headers as a generic userspace header package.
+- Require only kernel-devel to match the running kernel and provide a clear recovery path when it is unavailable.
+- Prevent an unavailable versioned kernel-headers argument from aborting the full DNF transaction.
+
+* Thu Jul 23 2026 Fabian Beita <fabianbeita@users.noreply.github.com> - 0.1.0-63
+- Prepare Bazzite user-space repositories before the transactional reboot so one dependency-button press is sufficient.
+- Consolidate Bazzite package layering into one rpm-ostree deployment and detect already pending packages.
+- Store nct6687 per kernel under /var, preserve the SELinux module label, and avoid depmod writes to immutable /usr.
+- Add a persistent Bazzite service that rebuilds nct6687 after compatible kernel updates and records Secure Boot/SELinux diagnostics.
+
+* Thu Jul 23 2026 Fabian Beita <fabianbeita@users.noreply.github.com> - 0.1.0-62
+- Isolate Arch, Manjaro, CachyOS, Debian, Ubuntu, Fedora, Bazzite and SteamOS preparation strategies.
+- Fix Manjaro AUR bootstrap by installing and verifying base-devel, fakeroot and Yay before the governor.
+- Add truthful failure and reboot-required states for governor, UMR and nct6687 preparation.
+- Harden PWM helper creation and Debian package permissions.
+
 * Sat Jul 18 2026 Fabian Beita <fabianbeita@users.noreply.github.com> - 0.1.0-61
 - Fix fan PWM preparation dialog translations.
 

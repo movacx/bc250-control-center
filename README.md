@@ -125,8 +125,8 @@ sudo apt -f install
 
 1. Open `bc250-control-center`.
 2. Go to **BC250**.
-3. Press **Prepare dependencies**. On a fresh compatible system, the app prepares the needed BC-250 tools without making you search for every command manually.
-4. For fan PWM on Ubuntu/Debian, open **Fans** and press **Prepare fan PWM** if the PWM driver is not ready yet.
+3. Press **Prepare dependencies**. The app selects an isolated strategy for Arch, Manjaro, CachyOS, Debian, Ubuntu, Fedora, Bazzite or SteamOS. On Arch-family systems it verifies the complete AUR toolchain and installs Yay when no supported helper exists. On Bazzite it downloads the user-space tools first, stages all host packages in one `rpm-ostree` deployment and asks for one reboot; a second press is not required.
+4. Open **Fans** and press **Prepare fan PWM** when the nct6687 driver is not ready. The app uses the active distribution strategy and reports missing kernel headers or an immutable-system reboot requirement without disabling read-only monitoring. On Bazzite the module is stored per kernel under `/var` and loaded by a persistent system service instead of modifying the immutable module tree.
 5. Read **Information > Safe BC250 use** before applying OC, 40CU, fan PWM or persistent changes.
 
 ## Main features
@@ -136,7 +136,7 @@ sudo apt -f install
 - BC250 panel with live metrics.
 - GPU control through the `cyan-skillfish-governor-smu` TOML safe-points.
 - Temporary and persistent CPU OC with visible limits.
-- 40CU/24CU dashboard and actions through `bc250-cu-live-manager`.
+- 40CU/24CU dashboard and actions through `bc250-cu-live-manager`; SteamOS uses a compatible SteamOS live-manager backend.
 - Fan module for BC-250 sensors, RPM monitoring, manual fan speed control and a simple GPU temperature curve when `nct6687d` is prepared.
 - Local JSONL history.
 - Translations from settings.
@@ -171,6 +171,7 @@ Repositories used or referenced:
 - `cyan-skillfish-governor`: https://github.com/filippor/cyan-skillfish-governor/tree/smu
 - `bc250_smu_oc`: https://github.com/bc250-collective/bc250_smu_oc
 - `bc250-cu-live-manager`: https://github.com/WinnieLV/bc250-cu-live-manager
+- `bc250-cu-live-manager-SteamOS`: https://github.com/F5GO/bc250-cu-live-manager-SteamOS
 - `bc250-40cu-unlock`: https://github.com/duggasco/bc250-40cu-unlock
 - `nct6687d`: https://github.com/Fred78290/nct6687d
 
@@ -188,3 +189,5 @@ scripts/             launchers and local installer
 packaging/           package recipes and outputs
 docs/                credits, architecture and project notes
 ```
+
+Distribution-specific integration lives in `mvc/Repository/Os_repository/`; see `docs/OS_REPOSITORIES.md`.

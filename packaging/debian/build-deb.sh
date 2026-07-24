@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 NAME="bc250-control-center"
 VERSION="${VERSION:-0.1.0}"
-RELEASE="${RELEASE:-61}"
+RELEASE="${RELEASE:-64}"
 PKG_VERSION="${VERSION}-${RELEASE}"
 BUILD_DIR="$ROOT/build/deb"
 PKG_DIR="$BUILD_DIR/${NAME}_${PKG_VERSION}_all"
@@ -18,13 +18,19 @@ mkdir -p "$PKG_DIR/usr/share/$NAME" \
          "$PKG_DIR/usr/share/doc/$NAME" \
          "$PKG_DIR/usr/share/applications" \
          "$PKG_DIR/usr/share/metainfo" \
-         "$PKG_DIR/usr/lib/systemd/user"
+         "$PKG_DIR/usr/share/polkit-1/actions" \
+         "$PKG_DIR/usr/lib/systemd/user" \
+         "$PKG_DIR/usr/libexec/bc250-control-center"
 
 cp -a "$ROOT/mvc" "$PKG_DIR/usr/share/$NAME/"
 find "$PKG_DIR/usr/share/$NAME/mvc" -type d -name '__pycache__' -prune -exec rm -rf {} +
 find "$PKG_DIR/usr/share/$NAME/mvc" -type f \( -name '*.pyc' -o -name '*.pyo' \) -delete
 install -Dm755 "$ROOT/scripts/bc250-control-center" "$PKG_DIR/usr/bin/bc250-control-center"
 install -Dm755 "$ROOT/scripts/bc250-control-centerd" "$PKG_DIR/usr/bin/bc250-control-centerd"
+install -Dm755 "$ROOT/mvc/Resources/privileged/bc250-fan-pwm-helper" \
+  "$PKG_DIR/usr/libexec/bc250-control-center/bc250-fan-pwm-helper"
+install -Dm644 "$ROOT/packaging/common/polkit/io.github.fabianbeita.bc250-control-center.policy" \
+  "$PKG_DIR/usr/share/polkit-1/actions/io.github.fabianbeita.bc250-control-center.policy"
 install -Dm644 "$ROOT/README.md" "$PKG_DIR/usr/share/doc/$NAME/README.md"
 install -Dm644 "$ROOT/LICENSE" "$PKG_DIR/usr/share/doc/$NAME/LICENSE"
 
@@ -81,8 +87,15 @@ fi
 exit 0
 POSTRM
 
-chmod 0755 "$PKG_DIR/DEBIAN/postinst" "$PKG_DIR/DEBIAN/postrm"
-find "$PKG_DIR" -type d -exec chmod 0755 {} +
+# Shared build directories can inherit setgid. Debian control directories must not.
+find "$PKG_DIR" -type d -exec chmod a-s,u=rwx,go=rx {} +
+find "$PKG_DIR" -type f -exec chmod a-s,u=rw,go=r {} +
+find "$PKG_DIR/usr/share/$NAME/mvc" -type f -name '*.sh' -exec chmod 0755 {} +
+chmod 0755 "$PKG_DIR/usr/bin/bc250-control-center" \
+           "$PKG_DIR/usr/bin/bc250-control-centerd" \
+           "$PKG_DIR/usr/libexec/bc250-control-center/bc250-fan-pwm-helper" \
+           "$PKG_DIR/DEBIAN/postinst" \
+           "$PKG_DIR/DEBIAN/postrm"
 
 deb_file="$OUT_DIR/${NAME}_${PKG_VERSION}_all.deb"
 if command -v dpkg-deb >/dev/null 2>&1; then

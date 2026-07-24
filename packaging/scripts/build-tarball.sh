@@ -13,14 +13,20 @@ mkdir -p "$SRC_DIR" "$OUT_DIR"
 rsync -a \
   --exclude '.git' \
   --exclude '__pycache__' \
+  --exclude '.pytest_cache' \
+  --exclude '*.pyc' \
   --exclude 'build' \
   --exclude '*.pkg.tar.*' \
   --exclude '*.rpm' \
+  --exclude '*.deb' \
   --exclude 'packaging/arch/local/src' \
   --exclude 'packaging/arch/local/pkg' \
   --exclude 'packaging/arch/local/*.tar.gz' \
   --exclude 'packaging/arch/local/*.pkg.tar.*' \
   --exclude 'packaging/rpm/out' \
+  --exclude 'packaging/debian/out' \
+  --exclude 'packaging/bazzite/out' \
+  --exclude 'packaging/packages' \
   --exclude 'packaging/tar-local/out' \
   --exclude 'packaging/local/src' \
   --exclude 'packaging/local/pkg' \

@@ -47,6 +47,10 @@ package() {
 
   install -Dm755 scripts/bc250-control-center "$pkgdir/usr/bin/bc250-control-center"
   install -Dm755 scripts/bc250-control-centerd "$pkgdir/usr/bin/bc250-control-centerd"
+  install -Dm755 mvc/Resources/privileged/bc250-fan-pwm-helper \
+    "$pkgdir/usr/libexec/bc250-control-center/bc250-fan-pwm-helper"
+  install -Dm644 packaging/common/polkit/io.github.fabianbeita.bc250-control-center.policy \
+    "$pkgdir/usr/share/polkit-1/actions/io.github.fabianbeita.bc250-control-center.policy"
 
   for size in 32 48 64 128 256 512 1024; do
     install -Dm644 "mvc/Resources/icons/bc250-control-center-${size}.png" \

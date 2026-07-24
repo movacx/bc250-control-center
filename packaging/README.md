@@ -71,6 +71,12 @@ sudo apt install ./packaging/packages/debian/bc250-control-center_*.deb
 bc250-control-center
 ```
 
+The installer keeps the GUI under `~/.local` by default and requests `sudo` only for
+missing system dependencies plus the fixed root-owned PWM helper and its Polkit action.
+Set `BC250_SKIP_PRIVILEGED_HELPER=1` only for development or GUI-only testing.
+On Bazzite/Fedora Atomic, prefer the RPM installed through `rpm-ostree`; a local install
+cannot place the hardened helper inside the immutable `/usr` deployment.
+
 If your shell does not find the command, run:
 
 ```bash

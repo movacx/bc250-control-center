@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC
+ "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<policyconfig>
+  <vendor>BC250 Control Center</vendor>
+  <vendor_url>https://github.com/movacx/bc250-control-center</vendor_url>
+  <action id="io.github.fabianbeita.bc250-control-center.fan-pwm">
+    <description>Control BC250 fan PWM channels</description>
+    <message>Authentication is required to change BC250 fan PWM values</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/bc250-control-center/bc250-fan-pwm-helper</annotate>
+  </action>
+</policyconfig>
