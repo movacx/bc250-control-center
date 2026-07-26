@@ -676,13 +676,13 @@ class ComputeUnitsPage(QWidget):
         selection_copy.addWidget(self.selection_title)
         selection_copy.addWidget(self.selection_detail)
 
-        self.discard_button = QPushButton(tr("Discard edits"))
+        self.discard_button = QPushButton(tr("Reset selection"))
         self.discard_button.setProperty("compactAction", True)
         self.discard_button.setMinimumSize(132, 38)
-        self.discard_button.clicked.connect(self.topology_table.reset_to_live)
+        self.discard_button.clicked.connect(self.discard_selection)
         selection_layout.addWidget(self.discard_button, 0, 1)
 
-        self.apply_live_button = QPushButton(tr("Review and apply live"))
+        self.apply_live_button = QPushButton(tr("Apply now"))
         self.apply_live_button.setObjectName("PrimaryAction")
         self.apply_live_button.setMinimumSize(166, 38)
         self.apply_live_button.setIcon(icon("rocket_blue"))
@@ -768,32 +768,29 @@ class ComputeUnitsPage(QWidget):
         action_grid.setHorizontalSpacing(8)
         action_grid.setVerticalSpacing(8)
 
-        # Keep these operation names in English on purpose. They mirror the
-        # upstream terminal vocabulary users already recognize; the surrounding
-        # descriptions, tooltips, confirmations, and results remain localized.
         self.save_boot_button = self._action_button(
-            "Write table", "app_blue", self.save_boot_layout,
-            literal_english=True, tooltip="Apply and save the selected WGP table for boot.",
+            "Save selection", "app_blue", self.save_boot_layout,
+            tooltip="Apply the selected WGP table now and save it for boot.",
         )
         self.install_service_button = self._action_button(
             "Install service", "download_blue", self.install_service,
-            literal_english=True, tooltip="Terminal action: [i] Install service",
+            tooltip="Install and enable the boot restore service.",
         )
         self.apply_saved_button = self._action_button(
-            "Apply saved layout", "rocket_blue", self.apply_saved_layout,
-            literal_english=True, tooltip="Apply the WGP table stored for boot.",
+            "Apply saved", "rocket_blue", self.apply_saved_layout,
+            tooltip="Apply the WGP table already stored for boot; it ignores the current selection.",
         )
         self.remove_service_button = self._action_button(
-            "Uninstall service", "power_gray", self.remove_service,
-            danger=True, literal_english=True, tooltip="Terminal action: [u] Uninstall service",
+            "Remove service", "power_gray", self.remove_service,
+            danger=True, tooltip="Remove the boot restore service and its saved table.",
         )
         self.restore_factory_button = self._action_button(
-            "Enable default CUs", "refresh_gray", self.restore_factory_now,
-            literal_english=True, tooltip="Terminal action: [t] Enable default CUs",
+            "Restore factory", "refresh_gray", self.restore_factory_now,
+            tooltip="Restore the amdgpu factory WGP table now.",
         )
         self.install_umr_button = self._action_button(
             "Install UMR", "compute_blue", self.install_umr,
-            literal_english=True, tooltip="Install the register-access dependency required by the live manager.",
+            tooltip="Install the register-access dependency required by the live manager.",
         )
         buttons = [
             self.save_boot_button,
@@ -982,18 +979,28 @@ class ComputeUnitsPage(QWidget):
     def _apply_state(self, state: dict, *, preserve_edits: bool = False) -> None:
         if not isinstance(state, dict):
             return
+        previous_target = self.topology_table.current_masks()
+        had_pending_edits = self._pending_wgp_count(previous_target) > 0
         self.current_state = dict(state)
-        if not preserve_edits:
-            self.topology_table.set_state(self.current_state)
+        self.topology_table.set_state(self.current_state)
+        if preserve_edits and had_pending_edits:
+            self.topology_table.set_masks(previous_target, emit=False)
         self.register_panel.set_state(
-            self.topology_table.baseline_masks,
+            self._live_masks(),
             self.topology_table.driver_masks,
             self.topology_table.cc_values,
         )
-        if preserve_edits:
+        if preserve_edits and had_pending_edits:
             self.register_panel.set_target_masks(self.topology_table.current_masks())
         state_verified = self._has_authorized_state()
         active = int(self.current_state.get("active_cus") or 0)
+        if state_verified:
+            mask_active = self._target_cus_from_masks(self._live_masks())
+            if mask_active != active:
+                logger.warning("CU state reported %s active CUs but live masks contain %s CUs; using masks", active, mask_active)
+                active = mask_active
+                self.current_state["active_cus"] = active
+                self.current_state["routed_wgps"] = active // 2
         routed = int(self.current_state.get("routed_wgps") or active // 2)
         mode = str(self.current_state.get("mode") or "Not verified")
         mode_short = mode.replace(" CUs", "")
@@ -1038,9 +1045,10 @@ class ComputeUnitsPage(QWidget):
         self._update_action_availability()
 
     def _selection_changed(self, masks) -> None:
+        masks = self.topology_table._normalize_masks(masks, self.topology_table.current_masks())
         self.register_panel.set_target_masks(masks)
-        target = self.topology_table.target_cus()
-        pending = self.topology_table.pending_count()
+        target = self._target_cus_from_masks(masks)
+        pending = self._pending_wgp_count(masks)
         state_verified = self._has_authorized_state()
         self.selection_title.setText(tr_format("Target: {count} / 40 CUs", count=target) if state_verified else tr("Target: Not verified"))
         if not state_verified:
@@ -1051,6 +1059,8 @@ class ComputeUnitsPage(QWidget):
             self.selection_detail.setText(tr("No pending WGP changes."))
         self.discard_button.setEnabled(pending > 0 and not self._busy)
         self.apply_live_button.setEnabled(state_verified and pending > 0 and not self._busy)
+        if hasattr(self, "apply_saved_button"):
+            self.apply_saved_button.setEnabled(state_verified and pending == 0 and not self._busy)
         if tuple(masks) == FULL_MASKS:
             self.profile_note.setText(tr("Current selection: Full 40 CUs"))
         elif tuple(masks) == tuple(self.topology_table.driver_masks):
@@ -1067,16 +1077,33 @@ class ComputeUnitsPage(QWidget):
         self._load_layout(masks, "Factory driver WGP topology loaded for review.")
 
     def load_custom_layout(self) -> None:
-        self.topology_table.reset_to_live()
+        self.discard_selection(record=False)
         self._record_action("Custom editor ready", "Use the 20 WGP buttons to build a custom live table.", "purple")
+
+    def discard_selection(self, *, record: bool = True) -> None:
+        self.topology_table.set_masks(self._live_masks())
+        if record:
+            self._record_action("Selection reset", "The editor returned to the last verified live WGP table.", "gray")
+
+    def _live_masks(self) -> list[int]:
+        return self.topology_table._normalize_masks(self.current_state.get("masks"), self.topology_table.baseline_masks)
+
+    @staticmethod
+    def _target_cus_from_masks(masks) -> int:
+        return sum(int(mask).bit_count() * 2 for mask in masks)
+
+    def _pending_wgp_count(self, masks=None) -> int:
+        target = self.topology_table._normalize_masks(masks or self.topology_table.current_masks(), self.topology_table.current_masks())
+        live = self._live_masks()
+        return sum((int(target[row]) ^ int(live[row])).bit_count() for row in range(4))
 
     def apply_selected_table(self) -> None:
         masks = self.topology_table.current_masks()
-        pending = self.topology_table.pending_count()
+        pending = self._pending_wgp_count(masks)
         if pending <= 0:
             self._show_info("No pending changes", "The selected WGP table already matches the last authorized live state.")
             return
-        target_cus = self.topology_table.target_cus()
+        target_cus = self._target_cus_from_masks(masks)
         tone = "red" if target_cus == 0 else "orange" if target_cus < 24 or target_cus > 32 else "blue"
         dialog = ConfirmDialog(
             "Apply WGP routing table",
@@ -1112,25 +1139,25 @@ class ComputeUnitsPage(QWidget):
 
     def save_boot_layout(self) -> None:
         masks = self.topology_table.current_masks()
-        target_cus = self.topology_table.target_cus()
-        pending = self.topology_table.pending_count()
+        target_cus = self._target_cus_from_masks(masks)
+        pending = self._pending_wgp_count(masks)
         dialog = ConfirmDialog(
-            "Write selected boot table",
-            "The selected WGP target will be applied live and then written to /etc/bc250-cu-live-manager.conf. This does not install the service by itself.",
+            "Save selected boot table",
+            "The selected WGP table will be applied now, verified, and saved to /etc/bc250-cu-live-manager.conf. The boot service is installed separately.",
             summary=(
                 ("Target", f"{target_cus} / 40 CUs"),
                 ("Changed WGP pairs", str(pending)),
                 ("Masks", ", ".join(f"0x{mask:02x}" for mask in masks)),
                 ("Boot sync", str(self.current_state.get("boot_sync") or "Unknown")),
             ),
-            confirm_text="Write selected table",
+            confirm_text="Save selection",
             tone="orange" if pending else "blue",
             parent=self,
         )
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
         self._run_task(
-            "Writing selected WGP boot table",
+            "Saving selected WGP boot table",
             lambda: self.controller.guardar_tabla_cu(masks),
             success_message="Boot layout saved",
             success_detail=f"Verified and saved target: {target_cus} / 40 CUs.",
@@ -1147,6 +1174,13 @@ class ComputeUnitsPage(QWidget):
         )
 
     def apply_saved_layout(self) -> None:
+        pending = self._pending_wgp_count(self.topology_table.current_masks())
+        if pending > 0:
+            self._show_info(
+                "Selection has pending changes",
+                "Use Apply now or Save selection first, or reset the selection before loading the saved boot table.",
+            )
+            return
         self._run_confirmed_action(
             "apply_saved",
             "Apply saved boot layout now",
@@ -1302,7 +1336,7 @@ class ComputeUnitsPage(QWidget):
         enabled = not self._busy
         state_verified = self._has_authorized_state()
         for button in (
-        self.save_boot_button,
+            self.save_boot_button,
             self.install_service_button,
             self.apply_saved_button,
             self.restore_factory_button,
@@ -1311,8 +1345,10 @@ class ComputeUnitsPage(QWidget):
             button.setEnabled(enabled)
         self.save_boot_button.setEnabled(enabled and state_verified)
         self.remove_service_button.setEnabled(enabled and bool(self.current_state.get("service_installed")))
-        self.discard_button.setEnabled(enabled and self.topology_table.pending_count() > 0)
-        self.apply_live_button.setEnabled(enabled and state_verified and self.topology_table.pending_count() > 0)
+        pending = self._pending_wgp_count(self.topology_table.current_masks())
+        self.apply_saved_button.setEnabled(enabled and state_verified and pending == 0)
+        self.discard_button.setEnabled(enabled and pending > 0)
+        self.apply_live_button.setEnabled(enabled and state_verified and pending > 0)
 
     def _has_authorized_state(self) -> bool:
         masks = self.current_state.get("masks")

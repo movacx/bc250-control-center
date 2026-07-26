@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 NAME="bc250-control-center"
 VERSION="${VERSION:-1.17.21}"
-RELEASE="${RELEASE:-2}"
+RELEASE="${RELEASE:-3}"
 PKG_VERSION="${VERSION}-${RELEASE}"
 BUILD_DIR="$ROOT/build/deb"
 PKG_DIR="$BUILD_DIR/${NAME}_${PKG_VERSION}_all"
@@ -55,7 +55,7 @@ Version: $PKG_VERSION
 Section: utils
 Priority: optional
 Architecture: all
-Maintainer: Fabian Beita <fabianbeita@users.noreply.github.com>
+Maintainer: Movacx <movacx@users.noreply.github.com>
 Depends: python3, python3-pyqt6, python3-psutil
 Recommends: python3-evdev, lm-sensors, stress, git, pciutils, mesa-utils, vulkan-tools, curl, ca-certificates, dbus, dbus-user-session, polkitd | policykit-1, build-essential, dkms
 Homepage: https://github.com/movacx/bc250-control-center

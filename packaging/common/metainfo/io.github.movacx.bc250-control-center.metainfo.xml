@@ -3,8 +3,8 @@
   <id>io.github.movacx.bc250-control-center</id>
   <name>BC250 Control Center</name>
   <summary>Monitor Linux gaming con panel BC250</summary>
-  <developer id="io.github.fabianbeita">
-    <name>Fabian Beita</name>
+  <developer id="io.github.movacx">
+    <name>Movacx</name>
   </developer>
   <metadata_license>MIT</metadata_license>
   <project_license>MIT</project_license>
