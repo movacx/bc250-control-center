@@ -140,6 +140,9 @@ class Controlador:
     def aplicar_tabla_cu(self, masks):
         return self.servicio.aplicar_tabla_cu(masks)
 
+    def guardar_tabla_cu(self, masks):
+        return self.servicio.guardar_tabla_cu(masks)
+
     def ejecutar_accion_cu_grafica(self, accion):
         return self.servicio.ejecutar_accion_cu_grafica(accion)
 

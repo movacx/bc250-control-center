@@ -418,6 +418,9 @@ class SistemaService:
     def aplicar_tabla_cu(self, masks):
         return self.repo.aplicar_tabla_cu(masks)
 
+    def guardar_tabla_cu(self, masks):
+        return self.repo.guardar_tabla_cu(masks)
+
     def ejecutar_accion_cu_grafica(self, accion):
         return self.repo.ejecutar_accion_cu_grafica(accion)
 

@@ -756,7 +756,7 @@ class ComputeUnitsPage(QWidget):
 
         persistence = SectionCard(
             "Boot persistence",
-            "Save the current live table and control the official systemd restore service without opening the terminal menu.",
+            "Save the selected WGP table and control the official systemd restore service without opening the terminal menu.",
             icon_name="app_blue",
             icon_background=COLORS["cyan_soft"],
             status=("Optional", "gray"),
@@ -773,7 +773,7 @@ class ComputeUnitsPage(QWidget):
         # descriptions, tooltips, confirmations, and results remain localized.
         self.save_boot_button = self._action_button(
             "Write table", "app_blue", self.save_boot_layout,
-            literal_english=True, tooltip="Terminal action: [w] Write table",
+            literal_english=True, tooltip="Apply and save the selected WGP table for boot.",
         )
         self.install_service_button = self._action_button(
             "Install service", "download_blue", self.install_service,
@@ -1111,11 +1111,30 @@ class ComputeUnitsPage(QWidget):
         )
 
     def save_boot_layout(self) -> None:
-        self._run_confirmed_action(
-            "save_boot",
-            "Save current boot layout",
-            "The currently verified live WGP table will be written to /etc/bc250-cu-live-manager.conf. This does not install the service by itself.",
-            "Save current table",
+        masks = self.topology_table.current_masks()
+        target_cus = self.topology_table.target_cus()
+        pending = self.topology_table.pending_count()
+        dialog = ConfirmDialog(
+            "Write selected boot table",
+            "The selected WGP target will be applied live and then written to /etc/bc250-cu-live-manager.conf. This does not install the service by itself.",
+            summary=(
+                ("Target", f"{target_cus} / 40 CUs"),
+                ("Changed WGP pairs", str(pending)),
+                ("Masks", ", ".join(f"0x{mask:02x}" for mask in masks)),
+                ("Boot sync", str(self.current_state.get("boot_sync") or "Unknown")),
+            ),
+            confirm_text="Write selected table",
+            tone="orange" if pending else "blue",
+            parent=self,
+        )
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        self._run_task(
+            "Writing selected WGP boot table",
+            lambda: self.controller.guardar_tabla_cu(masks),
+            success_message="Boot layout saved",
+            success_detail=f"Verified and saved target: {target_cus} / 40 CUs.",
+            event_action="save_boot",
         )
 
     def install_service(self) -> None:

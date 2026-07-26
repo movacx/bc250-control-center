@@ -491,15 +491,7 @@ class CURepository:
         return validated
 
 
-    def aplicar_tabla_cu(self, masks):
-        masks = self._validar_mascaras_cu(masks)
-        tools = self.estado_herramientas_bc250()
-        script = self._cu_manager_script_or_raise(tools)
-        if not self._command_path('pkexec'):
-            raise RuntimeError('polkit/pkexec was not found. Install polkit before applying a graphical WGP table.')
-
-        bash = self._command_path('bash') or '/bin/bash'
-        export_env = self._exportar_env_cu(tools)
+    def _comandos_tabla_cu(self, masks, script, export_env):
         enabled = []
         disabled = []
         for row_index, mask in enumerate(masks):
@@ -513,16 +505,31 @@ class CURepository:
                     disabled.append(item)
 
         commands = ['set -e']
-        # Apply removals before additions.  This avoids the unsafe transient
+        # Apply removals before additions. This avoids the unsafe transient
         # "enable everything first" state that can leave the board at 40 CUs
         # if a later disable command fails or the backend rejects part of the
-        # request.  The final status is still verified against the exact target
-        # masks below.
+        # request.
         if disabled:
             command = [script, '--yes', 'disable-wgp'] + disabled
             commands.append(export_env + ' '.join(shlex.quote(str(part)) for part in command))
         if enabled:
             command = [script, '--yes', 'enable-wgp'] + enabled
+            commands.append(export_env + ' '.join(shlex.quote(str(part)) for part in command))
+        return commands
+
+
+    def _ejecutar_tabla_cu(self, masks, *, save_boot=False):
+        masks = self._validar_mascaras_cu(masks)
+        tools = self.estado_herramientas_bc250()
+        script = self._cu_manager_script_or_raise(tools)
+        if not self._command_path('pkexec'):
+            raise RuntimeError('polkit/pkexec was not found. Install polkit before applying a graphical WGP table.')
+
+        bash = self._command_path('bash') or '/bin/bash'
+        export_env = self._exportar_env_cu(tools)
+        commands = self._comandos_tabla_cu(masks, script, export_env)
+        if save_boot:
+            command = [script, '--yes', 'write-service-table']
             commands.append(export_env + ' '.join(shlex.quote(str(part)) for part in command))
         commands.append('echo')
         commands.append('echo "== Current state =="')
@@ -552,6 +559,14 @@ class CURepository:
             )
         self._guardar_dashboard_cu_cache(limpio)
         return estado
+
+
+    def aplicar_tabla_cu(self, masks):
+        return self._ejecutar_tabla_cu(masks, save_boot=False)
+
+
+    def guardar_tabla_cu(self, masks):
+        return self._ejecutar_tabla_cu(masks, save_boot=True)
 
 
     def ejecutar_accion_cu_grafica(self, accion):

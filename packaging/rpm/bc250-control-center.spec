@@ -1,6 +1,6 @@
 Name:           bc250-control-center
 Version:        1.17.21
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Linux gaming task manager and safe AMD BC-250 control panel
 
 %{!?_userunitdir:%global _userunitdir /usr/lib/systemd/user}
