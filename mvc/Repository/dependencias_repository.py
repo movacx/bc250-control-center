@@ -18,17 +18,21 @@ class DependenciasRepository:
         os_repository = self._os_repository()
         os_info = os_repository.info
         is_steamos = os_info.family == 'steamos'
-        cu_standard = self._command_path('bc250-cu-live-manager') or self._cu_script_local('bc250-cu-live-manager')
+        cu_command = self._command_path('bc250-cu-live-manager')
+        cu_standard = cu_command or self._cu_script_local('bc250-cu-live-manager')
         encontrado = self._buscar_archivo('bc250-cu-live-manager.sh')
         if encontrado and 'bc250-cu-live-manager-steamos' not in encontrado and not cu_standard:
             cu_standard = encontrado
-        cu_steamos = self._cu_script_local('bc250-cu-live-manager-steamos')
+        cu_steamos = self._cu_script_local('bc250-cu-live-manager-steamos') or self._cu_steamos_installed_script(cu_command)
         standard_repo = str(Path(cu_standard).parent) if cu_standard and Path(cu_standard).exists() else self._buscar_directorio_con('bc250-cu-live-manager.sh', 'bc250-cu-live-manager')
         steamos_repo = str(Path(cu_steamos).parent) if cu_steamos and Path(cu_steamos).exists() else ''
 
-        standard_exists = bool(
+        standard_path_exists = bool(
             cu_standard and (Path(cu_standard).exists() or shutil.which(Path(cu_standard).name))
         )
+        standard_backend = self._cu_script_backend(cu_standard)
+        wrong_standard_on_steamos = bool(standard_path_exists and standard_backend != 'steamos')
+        standard_exists = wrong_standard_on_steamos if is_steamos else standard_path_exists
         steamos_exists = bool(cu_steamos and Path(cu_steamos).exists())
         expected_steamos_repo = self._tool_dir() / 'bc250-cu-live-manager-steamos'
 
@@ -85,7 +89,9 @@ class DependenciasRepository:
             'cu_manager_wrong_backend_present': bool(is_steamos and standard_exists),
             'cu_manager_standard_path': cu_standard,
             'cu_manager_steamos_path': cu_steamos,
+            'cu_manager_steamos_global_path': self._cu_steamos_installed_script(cu_command),
             'cu_manager_standard_exists': standard_exists,
+            'cu_manager_standard_backend': standard_backend,
             'cu_manager_steamos_exists': steamos_exists,
             'cu_steamos_umr_database': '/var/lib/bc250-cu-live-manager/umr/database',
             'is_steamos': is_steamos,
@@ -119,6 +125,48 @@ class DependenciasRepository:
     def _cu_script_local(self, carpeta):
         ruta = self._tool_dir() / carpeta / 'bc250-cu-live-manager.sh'
         return str(ruta) if ruta.exists() else ''
+
+    def _cu_script_backend(self, ruta):
+        if not ruta:
+            return ''
+        try:
+            path = Path(ruta)
+            if not path.is_file():
+                return ''
+            texto = path.read_text(encoding='utf-8', errors='ignore')[:262144]
+        except OSError:
+            return ''
+        if 'UMR_DATABASE_PATH' in texto and (
+            'ensure_umr_database' in texto
+            or 'umr_database_default_path' in texto
+            or 'bc250-cu-live-manager-SteamOS' in texto
+        ):
+            return 'steamos'
+        if 'BC-250 live CU/WGP manager' in texto and 'enable-wgp' in texto and 'write-service-table' in texto:
+            return 'standard'
+        return ''
+
+    def _cu_steamos_installed_script(self, preferred=''):
+        candidatos = []
+        if preferred:
+            candidatos.append(Path(preferred))
+        candidatos.extend([
+            Path('/usr/local/bin/bc250-cu-live-manager'),
+            Path('/var/usrlocal/bin/bc250-cu-live-manager'),
+            Path('/var/lib/bc250-cu-live-manager/umr/bc250-cu-live-manager'),
+        ])
+        vistos = set()
+        for ruta in candidatos:
+            try:
+                resolved = ruta.expanduser().resolve()
+            except OSError:
+                resolved = ruta.expanduser()
+            if str(resolved) in vistos:
+                continue
+            vistos.add(str(resolved))
+            if self._cu_script_backend(resolved) == 'steamos':
+                return str(resolved)
+        return ''
 
     def _cu_manager_spec(self, os_repository=None):
         os_repository = os_repository or self._os_repository()

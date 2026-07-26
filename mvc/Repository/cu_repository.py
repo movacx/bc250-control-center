@@ -23,10 +23,7 @@ class CURepository:
     def _cu_manager_script_or_raise(self, tools):
         script = str(tools.get('cu_manager') or '')
         if tools.get('is_steamos'):
-            expected = str(tools.get('cu_manager_steamos_path') or '')
             if tools.get('cu_manager_backend') != 'steamos':
-                raise RuntimeError(self._mensaje_cu_manager_no_disponible(tools))
-            if expected and script and Path(expected) != Path(script):
                 raise RuntimeError(self._mensaje_cu_manager_no_disponible(tools))
             if not script or not Path(script).exists():
                 raise RuntimeError(self._mensaje_cu_manager_no_disponible(tools))
@@ -374,7 +371,7 @@ class CURepository:
         if 'pending changes' in lowered:
             estado['boot_sync'] = 'Pending changes'
             estado['boot_sync_key'] = 'pending'
-        elif 'current table saved' in lowered:
+        elif 'current table saved' in lowered or 'saved boot table' in lowered:
             estado['boot_sync'] = 'Current table saved'
             estado['boot_sync_key'] = 'saved'
         elif 'no saved table' in lowered:

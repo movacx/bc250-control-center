@@ -1,6 +1,6 @@
 Name:           bc250-control-center
 Version:        1.17.21
-Release:        3%{?dist}
+Release:        4%{?dist}
 Summary:        Linux gaming task manager and safe AMD BC-250 control panel
 
 %{!?_userunitdir:%global _userunitdir /usr/lib/systemd/user}
@@ -95,6 +95,10 @@ fi
 %{_userunitdir}/bc250-control-centerd.service
 
 %changelog
+* Sun Jul 26 2026 Movacx <movacx@users.noreply.github.com> - 1.17.21-4
+- Validate SteamOS and standard CU live-manager backend detection.
+- Accept SteamOS-compatible F5GO installs outside ResourceTools and recognize saved-table output.
+
 * Sun Jul 26 2026 Movacx <movacx@users.noreply.github.com> - 1.17.21-3
 - Fix Compute Units selection state, save-selected flow and dialog translations.
 - Disable applying the saved boot table while a different target is selected.
