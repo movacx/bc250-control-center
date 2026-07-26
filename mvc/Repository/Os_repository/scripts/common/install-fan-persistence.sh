@@ -11,6 +11,7 @@ LSMOD="$(command -v lsmod || echo /usr/sbin/lsmod)"
 DEPMOD="$(command -v depmod || echo /usr/sbin/depmod)"
 UDEVADM="$(command -v udevadm || true)"
 DMESG="$(command -v dmesg || true)"
+MODINFO="$(command -v modinfo || true)"
 RUNTIME_DIR="/run/bc250-control-center"
 install -d -m 0755 "$RUNTIME_DIR"
 ERRLOG="$RUNTIME_DIR/nct6687-load.err"
@@ -56,6 +57,19 @@ unload_all() {
   "$MODPROBE" -r nct6687 2>/dev/null || true
 }
 
+module_matches_kernel() {
+  local module_path="$1" vermagic module_release
+  [ -r "$module_path" ] || return 1
+  [ -n "$MODINFO" ] || return 0
+  vermagic="$($MODINFO -F vermagic "$module_path" 2>/dev/null || true)"
+  module_release="${vermagic%% *}"
+  if [ "$module_release" != "$KVER" ]; then
+    echo "WARN: ignoring $module_path because its vermagic is ${module_release:-unknown}, not $KVER" >&2
+    return 1
+  fi
+  return 0
+}
+
 try_ready_after_load() {
   settle_hwmon
   if is_ready; then
@@ -79,14 +93,14 @@ while [ "$attempt" -le 60 ]; do
   : > "$ERRLOG"
   unload_all
 
-  if [ -r "$VAR_KO" ]; then
+  if module_matches_kernel "$VAR_KO"; then
     echo "Trying $VAR_KO, attempt $attempt/60" >&2
     "$INSMOD" "$VAR_KO" force=1 2>>"$ERRLOG" || "$INSMOD" "$VAR_KO" force=true 2>>"$ERRLOG" || "$INSMOD" "$VAR_KO" 2>>"$ERRLOG" || true
     if "$LSMOD" | grep -q '^nct6687 ' && try_ready_after_load; then exit 0; fi
     unload_all
   fi
 
-  if [ -n "$TREE_KO" ]; then
+  if [ -n "$TREE_KO" ] && module_matches_kernel "$TREE_KO"; then
     echo "Trying kernel tree module $TREE_KO, attempt $attempt/60" >&2
     "$INSMOD" "$TREE_KO" force=1 2>>"$ERRLOG" || "$INSMOD" "$TREE_KO" force=true 2>>"$ERRLOG" || "$INSMOD" "$TREE_KO" 2>>"$ERRLOG" || true
     if "$LSMOD" | grep -q '^nct6687 ' && try_ready_after_load; then exit 0; fi

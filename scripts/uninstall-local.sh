@@ -20,7 +20,7 @@ METAINFO_DIR="$PREFIX/share/metainfo"
 SYSTEMD_USER_DIR="$PREFIX/lib/systemd/user"
 DOC_DIR="$PREFIX/share/doc/bc250-control-center"
 SYSTEM_PRIV_HELPER="/usr/libexec/bc250-control-center/bc250-fan-pwm-helper"
-SYSTEM_POLKIT_ACTION="/usr/share/polkit-1/actions/io.github.fabianbeita.bc250-control-center.policy"
+SYSTEM_POLKIT_ACTION="/usr/share/polkit-1/actions/io.github.movacx.bc250-control-center.policy"
 
 if [[ "${EUID:-$(id -u)}" -ne 0 && "$PREFIX" == "$HOME/.local" ]]; then
   SYSTEMD_USER_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
@@ -109,8 +109,8 @@ Files installed by install-local.sh will be removed from:
 - $APP_DIR
 - $BIN_DIR/bc250-control-center
 - $BIN_DIR/bc250-control-centerd
-- $DESKTOP_DIR/io.github.fabianbeita.bc250-control-center.desktop
-- $METAINFO_DIR/io.github.fabianbeita.bc250-control-center.metainfo.xml
+- $DESKTOP_DIR/io.github.movacx.bc250-control-center.desktop
+- $METAINFO_DIR/io.github.movacx.bc250-control-center.metainfo.xml
 - $SYSTEMD_USER_DIR/bc250-control-centerd.service
 - $ICON_DIR/*/apps/bc250-control-center.png
 - $DOC_DIR
@@ -137,8 +137,8 @@ try_disable_user_daemon
 
 remove_path "$BIN_DIR/bc250-control-center"
 remove_path "$BIN_DIR/bc250-control-centerd"
-remove_path "$DESKTOP_DIR/io.github.fabianbeita.bc250-control-center.desktop"
-remove_path "$METAINFO_DIR/io.github.fabianbeita.bc250-control-center.metainfo.xml"
+remove_path "$DESKTOP_DIR/io.github.movacx.bc250-control-center.desktop"
+remove_path "$METAINFO_DIR/io.github.movacx.bc250-control-center.metainfo.xml"
 remove_path "$SYSTEMD_USER_DIR/bc250-control-centerd.service"
 if [[ -e "$SYSTEM_PRIV_HELPER" || -L "$SYSTEM_PRIV_HELPER" ]]; then
   remove_path "$SYSTEM_PRIV_HELPER"

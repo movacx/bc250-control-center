@@ -12,7 +12,7 @@ Uso:
   bc250-gpu-voltage-lab.sh status
   bc250-gpu-voltage-lab.sh preview <nivel>
   bc250-gpu-voltage-lab.sh apply <nivel>
-  bc250-gpu-voltage-lab.sh apply-custom 1850=970 2000=1000 ...
+  bc250-gpu-voltage-lab.sh apply-custom 500=700 1850=970 2000=1000 ...
   bc250-gpu-voltage-lab.sh menu
 
 Niveles:
@@ -164,7 +164,7 @@ PY
 
 apply_custom() {
   if [[ $# -lt 1 ]]; then
-    echo "ERROR: especifica valores tipo 1850=970 2000=1000" >&2
+    echo "ERROR: especifica valores tipo 500=700 1850=970 2000=1000" >&2
     exit 1
   fi
   if [[ $EUID -ne 0 ]]; then
@@ -182,7 +182,17 @@ from pathlib import Path
 import os
 import re
 config = Path(os.environ['CONFIG'])
-allowed = {1850, 2000, 2050, 2100, 2125, 2150, 2200, 2300, 2350, 2400}
+text = config.read_text()
+safe_point_pattern = re.compile(
+    r'(?ms)^[ \t]*\[\[safe-points\]\][ \t]*$(.*?)(?=^[ \t]*\[\[safe-points\]\][ \t]*$|\Z)'
+)
+active_points = {}
+for match in safe_point_pattern.finditer(text):
+    block = match.group(1)
+    frequency_match = re.search(r'^\s*frequency\s*=\s*(\d+)', block, re.M)
+    voltage_match = re.search(r'^\s*voltage\s*=\s*(\d+)', block, re.M)
+    if frequency_match and voltage_match:
+        active_points[int(frequency_match.group(1))] = int(voltage_match.group(1))
 updates = {}
 for item in os.environ.get('CUSTOM_VALUES', '').split():
     if '=' not in item:
@@ -190,12 +200,11 @@ for item in os.environ.get('CUSTOM_VALUES', '').split():
     left, right = item.split('=', 1)
     freq = int(left)
     volt = int(right)
-    if freq not in allowed:
-        raise SystemExit(f'Frecuencia no permitida para lab: {freq}')
+    if freq not in active_points:
+        raise SystemExit(f'La frecuencia {freq} no existe como safe-point activo con voltage en {config}')
     if volt < 600 or volt > 1150:
         raise SystemExit(f'Voltaje fuera de limite seguro para {freq}: {volt} mV. Maximo permitido: 1150 mV')
     updates[freq] = volt
-text = config.read_text()
 
 def repl(match):
     block = match.group(0)
@@ -208,7 +217,7 @@ def repl(match):
         return block
     return re.sub(r'(^\s*voltage\s*=\s*)\d+', lambda m: m.group(1) + str(updates[freq]), block, count=1, flags=re.M)
 
-nuevo_texto = re.sub(r'\[\[safe-points\]\].*?(?=\n\[\[safe-points\]\]|\Z)', repl, text, flags=re.S)
+nuevo_texto = safe_point_pattern.sub(repl, text)
 config.write_text(nuevo_texto)
 print('Aplicado nivel personalizado:')
 for freq in sorted(updates):

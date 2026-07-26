@@ -1,10 +1,13 @@
 from pathlib import Path
+import logging
 import os
-import shlex
 import shutil
 import stat
 import subprocess
 import time
+
+
+logger = logging.getLogger(__name__)
 
 
 class FanRepository:
@@ -43,15 +46,45 @@ class FanRepository:
         return self._abrir_terminal(comando, 'BC250 fan sensors')
 
     def preparar_nct6687_control_pwm(self):
-        comando_instalar = self._comando_instalar_nct6687().strip().rstrip(';')
+        os_repository = self._os_repository()
+        comando_instalar = os_repository.install_fan_pwm_command(
+            str(self._tool_dir() / 'nct6687d')
+        ).strip().rstrip(';')
         if not comando_instalar:
-            raise RuntimeError('No compatible installer found for nct6687. Install Fred78290/nct6687d manually, then load nct6687 with force=true.')
-        comando_servicio = self._comando_servicio_nct6687_persistente().strip().rstrip(';')
-        comando = '; '.join([
+            raise RuntimeError(
+                'No compatible installer found for nct6687. Install Fred78290/nct6687d manually, '
+                'then load nct6687 with force=true.'
+            )
+        comando_servicio = os_repository.install_fan_persistence_command(
+            str(self._tool_dir() / 'nct6687d')
+        ).strip().rstrip(';')
+        comandos = [
             'set -Eeuo pipefail',
+            'BC250_REBOOT_REQUIRED=0',
             'echo "== BC250 fan control: nct6687 PWM driver =="',
             'echo "nct6687 is an out-of-tree driver. Reboot may be required after install."',
-            comando_instalar,
+        ]
+        if os_repository.info.family == 'bazzite':
+            comandos.extend([
+                (
+                    'bc250_step_status=0; set +e; '
+                    + comando_instalar
+                    + '; bc250_step_status=$?; set -e; '
+                    + 'if [ "$bc250_step_status" -eq 20 ]; then '
+                    + 'BC250_REBOOT_REQUIRED=1; '
+                    + 'echo "The Bazzite fan build dependencies were staged successfully."; '
+                    + 'elif [ "$bc250_step_status" -ne 0 ]; then exit "$bc250_step_status"; fi'
+                ),
+                (
+                    'if [ "$BC250_REBOOT_REQUIRED" = "1" ]; then '
+                    'echo "Reboot once, then press Prepare PWM driver again to build for the active kernel."; '
+                    'exit 0; fi'
+                ),
+            ])
+        else:
+            comandos.append(comando_instalar)
+
+        comandos.extend([
             'echo "== Configuring module preference =="',
             "echo 'blacklist nct6683' | sudo tee /etc/modprobe.d/nct6683.conf >/dev/null",
             "echo 'options nct6687 force=true' | sudo tee /etc/modprobe.d/nct6687.conf >/dev/null",
@@ -74,7 +107,7 @@ class FanRepository:
             'echo "If PWM files remain read-only after a successful check, reboot once and verify the loaded module."',
         ])
         self.estado_herramientas_cache = None
-        return self._abrir_terminal(comando, 'BC250 fan PWM driver')
+        return self._abrir_terminal('; '.join(comandos), 'BC250 fan PWM driver')
 
     def desactivar_nct6687_control_pwm(self):
         comando = '; '.join([
@@ -158,8 +191,8 @@ class FanRepository:
         carpeta.mkdir(parents=True, exist_ok=True)
         try:
             carpeta.chmod(0o700)
-        except Exception:
-            pass
+        except OSError:
+            logger.debug("Could not restrict permissions on the fan helper cache directory", exc_info=True)
         return carpeta / 'bc250-fan-pwm-control-helper'
 
     def _fan_pwm_packaged_helper_path(self):
@@ -204,7 +237,7 @@ class FanRepository:
             try:
                 temporal.unlink()
             except FileNotFoundError:
-                pass
+                logger.debug("Temporary fan helper was already removed")
         return ruta
 
     def _iniciar_fan_pwm_helper(self):
@@ -347,8 +380,8 @@ for line in sys.stdin:
                 proceso.stdin.write('EXIT\n')
                 proceso.stdin.flush()
                 proceso.terminate()
-        except Exception:
-            pass
+        except (BrokenPipeError, OSError):
+            logger.debug("Fan PWM helper was already closed or unavailable", exc_info=True)
 
 
 
@@ -414,8 +447,8 @@ for line in sys.stdin:
         texto = ''
         try:
             texto = Path('/proc/modules').read_text(errors='ignore')
-        except Exception:
-            pass
+        except OSError:
+            logger.debug("Could not inspect /proc/modules for NCT drivers", exc_info=True)
         return {
             'nct6683': any(line.startswith('nct6683 ') for line in texto.splitlines()),
             'nct6687': any(line.startswith('nct6687 ') or line.startswith('nct6687d ') for line in texto.splitlines()),

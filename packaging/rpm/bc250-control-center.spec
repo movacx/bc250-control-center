@@ -1,6 +1,6 @@
 Name:           bc250-control-center
-Version:        0.1.0
-Release:        64%{?dist}
+Version:        1.17.21
+Release:        1%{?dist}
 Summary:        Linux gaming task manager and safe AMD BC-250 control panel
 
 %{!?_userunitdir:%global _userunitdir /usr/lib/systemd/user}
@@ -13,6 +13,7 @@ BuildArch:      noarch
 Requires:       python3
 Requires:       python3-pyqt6
 Requires:       python3-psutil
+Recommends:     python3-evdev
 Recommends:     lm_sensors
 Recommends:     stress
 Recommends:     git
@@ -48,22 +49,18 @@ cp -a mvc %{buildroot}%{_datadir}/bc250-control-center/
 install -Dm755 scripts/bc250-control-center %{buildroot}%{_bindir}/bc250-control-center
 install -Dm755 scripts/bc250-control-centerd %{buildroot}%{_bindir}/bc250-control-centerd
 install -Dm755 mvc/Resources/privileged/bc250-fan-pwm-helper %{buildroot}/usr/libexec/bc250-control-center/bc250-fan-pwm-helper
-install -Dm644 packaging/common/polkit/io.github.fabianbeita.bc250-control-center.policy %{buildroot}%{_datadir}/polkit-1/actions/io.github.fabianbeita.bc250-control-center.policy
+install -Dm644 packaging/common/polkit/io.github.movacx.bc250-control-center.policy %{buildroot}%{_datadir}/polkit-1/actions/io.github.movacx.bc250-control-center.policy
 
 for size in 32 48 64 128 256 512 1024; do
   install -Dm644 mvc/Resources/icons/bc250-control-center-${size}.png %{buildroot}%{_datadir}/icons/hicolor/${size}x${size}/apps/bc250-control-center.png
 done
-install -Dm644 packaging/common/desktop/io.github.fabianbeita.bc250-control-center.desktop %{buildroot}%{_datadir}/applications/io.github.fabianbeita.bc250-control-center.desktop
-install -Dm644 packaging/common/metainfo/io.github.fabianbeita.bc250-control-center.metainfo.xml %{buildroot}%{_datadir}/metainfo/io.github.fabianbeita.bc250-control-center.metainfo.xml
+install -Dm644 packaging/common/desktop/io.github.movacx.bc250-control-center.desktop %{buildroot}%{_datadir}/applications/io.github.movacx.bc250-control-center.desktop
+install -Dm644 packaging/common/metainfo/io.github.movacx.bc250-control-center.metainfo.xml %{buildroot}%{_datadir}/metainfo/io.github.movacx.bc250-control-center.metainfo.xml
 install -Dm644 packaging/common/systemd-user/bc250-control-centerd.service %{buildroot}%{_userunitdir}/bc250-control-centerd.service
 
 install -Dm644 README.md %{buildroot}%{_docdir}/bc250-control-center/README.md
-if [ -d docs ]; then
-  for doc in docs/*.md; do
-    [ -f "$doc" ] || continue
-    install -Dm644 "$doc" %{buildroot}%{_docdir}/bc250-control-center/$(basename "$doc")
-  done
-fi
+install -Dm644 docs/ARQUITECTURA_MVC.md %{buildroot}%{_docdir}/bc250-control-center/ARQUITECTURA_MVC.md
+install -Dm644 docs/THIRD_PARTY_NOTICES.md %{buildroot}%{_docdir}/bc250-control-center/THIRD_PARTY_NOTICES.md
 install -Dm644 LICENSE %{buildroot}%{_licensedir}/%{name}/LICENSE
 
 %post
@@ -90,14 +87,19 @@ fi
 %{_bindir}/bc250-control-center
 %{_bindir}/bc250-control-centerd
 /usr/libexec/bc250-control-center/bc250-fan-pwm-helper
-%{_datadir}/polkit-1/actions/io.github.fabianbeita.bc250-control-center.policy
+%{_datadir}/polkit-1/actions/io.github.movacx.bc250-control-center.policy
 %{_datadir}/bc250-control-center/
-%{_datadir}/applications/io.github.fabianbeita.bc250-control-center.desktop
-%{_datadir}/metainfo/io.github.fabianbeita.bc250-control-center.metainfo.xml
+%{_datadir}/applications/io.github.movacx.bc250-control-center.desktop
+%{_datadir}/metainfo/io.github.movacx.bc250-control-center.metainfo.xml
 %{_datadir}/icons/hicolor/*/apps/bc250-control-center.png
 %{_userunitdir}/bc250-control-centerd.service
 
 %changelog
+* Sun Jul 26 2026 Fabian Beita <fabianbeita@users.noreply.github.com> - 1.17.21-1
+- Ship the definitive restructured PyQt6 interface with responsive pages and optional gamepad navigation.
+- Add exact WGP mask verification for graphical Compute Units changes.
+- Refresh packaging metadata and document the six supported languages.
+
 * Thu Jul 23 2026 Fabian Beita <fabianbeita@users.noreply.github.com> - 0.1.0-64
 - Fix Fedora PWM dependency preparation by treating kernel-headers as a generic userspace header package.
 - Require only kernel-devel to match the running kernel and provide a clear recovery path when it is unavailable.

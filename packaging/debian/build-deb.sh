@@ -3,8 +3,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 NAME="bc250-control-center"
-VERSION="${VERSION:-0.1.0}"
-RELEASE="${RELEASE:-64}"
+VERSION="${VERSION:-1.17.21}"
+RELEASE="${RELEASE:-1}"
 PKG_VERSION="${VERSION}-${RELEASE}"
 BUILD_DIR="$ROOT/build/deb"
 PKG_DIR="$BUILD_DIR/${NAME}_${PKG_VERSION}_all"
@@ -29,26 +29,23 @@ install -Dm755 "$ROOT/scripts/bc250-control-center" "$PKG_DIR/usr/bin/bc250-cont
 install -Dm755 "$ROOT/scripts/bc250-control-centerd" "$PKG_DIR/usr/bin/bc250-control-centerd"
 install -Dm755 "$ROOT/mvc/Resources/privileged/bc250-fan-pwm-helper" \
   "$PKG_DIR/usr/libexec/bc250-control-center/bc250-fan-pwm-helper"
-install -Dm644 "$ROOT/packaging/common/polkit/io.github.fabianbeita.bc250-control-center.policy" \
-  "$PKG_DIR/usr/share/polkit-1/actions/io.github.fabianbeita.bc250-control-center.policy"
+install -Dm644 "$ROOT/packaging/common/polkit/io.github.movacx.bc250-control-center.policy" \
+  "$PKG_DIR/usr/share/polkit-1/actions/io.github.movacx.bc250-control-center.policy"
 install -Dm644 "$ROOT/README.md" "$PKG_DIR/usr/share/doc/$NAME/README.md"
 install -Dm644 "$ROOT/LICENSE" "$PKG_DIR/usr/share/doc/$NAME/LICENSE"
 
-if [[ -d "$ROOT/docs" ]]; then
-  while IFS= read -r -d '' doc_file; do
-    install -Dm644 "$doc_file" "$PKG_DIR/usr/share/doc/$NAME/$(basename "$doc_file")"
-  done < <(find "$ROOT/docs" -maxdepth 1 -type f \( -name '*.md' -o -name '*.txt' \) -print0)
-fi
+install -Dm644 "$ROOT/docs/ARQUITECTURA_MVC.md" "$PKG_DIR/usr/share/doc/$NAME/ARQUITECTURA_MVC.md"
+install -Dm644 "$ROOT/docs/THIRD_PARTY_NOTICES.md" "$PKG_DIR/usr/share/doc/$NAME/THIRD_PARTY_NOTICES.md"
 
 for size in 32 48 64 128 256 512 1024; do
   install -Dm644 "$ROOT/mvc/Resources/icons/bc250-control-center-${size}.png" \
     "$PKG_DIR/usr/share/icons/hicolor/${size}x${size}/apps/bc250-control-center.png"
 done
 
-install -Dm644 "$ROOT/packaging/common/desktop/io.github.fabianbeita.bc250-control-center.desktop" \
-  "$PKG_DIR/usr/share/applications/io.github.fabianbeita.bc250-control-center.desktop"
-install -Dm644 "$ROOT/packaging/common/metainfo/io.github.fabianbeita.bc250-control-center.metainfo.xml" \
-  "$PKG_DIR/usr/share/metainfo/io.github.fabianbeita.bc250-control-center.metainfo.xml"
+install -Dm644 "$ROOT/packaging/common/desktop/io.github.movacx.bc250-control-center.desktop" \
+  "$PKG_DIR/usr/share/applications/io.github.movacx.bc250-control-center.desktop"
+install -Dm644 "$ROOT/packaging/common/metainfo/io.github.movacx.bc250-control-center.metainfo.xml" \
+  "$PKG_DIR/usr/share/metainfo/io.github.movacx.bc250-control-center.metainfo.xml"
 install -Dm644 "$ROOT/packaging/common/systemd-user/bc250-control-centerd.service" \
   "$PKG_DIR/usr/lib/systemd/user/bc250-control-centerd.service"
 
@@ -60,7 +57,7 @@ Priority: optional
 Architecture: all
 Maintainer: Fabian Beita <fabianbeita@users.noreply.github.com>
 Depends: python3, python3-pyqt6, python3-psutil
-Recommends: lm-sensors, stress, git, pciutils, mesa-utils, vulkan-tools, curl, ca-certificates, dbus, dbus-user-session, polkitd | policykit-1, build-essential, dkms
+Recommends: python3-evdev, lm-sensors, stress, git, pciutils, mesa-utils, vulkan-tools, curl, ca-certificates, dbus, dbus-user-session, polkitd | policykit-1, build-essential, dkms
 Homepage: https://github.com/movacx/bc250-control-center
 Description: Graphical control center for AMD BC-250 community tools
  BC250 Control Center provides a PyQt6 interface for monitoring and managing

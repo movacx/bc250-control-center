@@ -1,55 +1,96 @@
-# Arquitectura MVC - BC250 Control Center
+# Arquitectura MVC — BC250 Control Center
 
-Este proyecto mantiene una estructura MVC simple y directa.
+La aplicación conserva una arquitectura MVC con una única interfaz PyQt6 y una fachada de Controller como límite obligatorio entre frontend y backend.
 
-## Capas principales
+## Flujo principal
+
+```text
+View → Controller → service → Repository → sistema / archivos / D-Bus / herramientas
+                         └── Model
+Daemon → service → Repository
+```
+
+La View no importa ni accede directamente a `Repository`, `service` o `Daemon`. Las operaciones de lectura lenta o con privilegios se ejecutan fuera del hilo de interfaz y sus resultados regresan mediante señales/callbacks de Qt.
+
+## Capas
 
 ```text
 mvc/
-├── Controller/     # Puente entre la vista y el servicio
-├── Model/          # Objetos simples de datos
-├── Repository/     # Acceso a sistema, archivos, comandos y herramientas externas
-├── service/        # Reglas, filtros y validaciones
-└── View/           # Interfaz PyQt6, frames, estilos, componentes e idiomas
+├── Controller/     # Fachada pública consumida por la interfaz
+├── Model/          # Objetos de datos y contratos simples
+├── Repository/     # Sistema, archivos, procesos, hardware y herramientas externas
+├── service/        # Reglas, validaciones y coordinación de repositorios
+├── Daemon/         # Supervisión opcional reutilizando service/Repository
+├── View/           # Única interfaz PyQt6 definitiva
+├── logging_config.py
+└── main.py          # Configuración de logging, QApplication y arranque
 ```
 
-## Repository
+## Estructura definitiva de View
 
-`SistemaRepository` se mantiene como fachada principal para no romper el flujo actual del controlador y el servicio.
-La implementacion pesada se separo en archivos mas pequenos:
+```text
+View/
+├── application.py          # Ventana principal, navegación y preferencias globales
+├── components/
+│   ├── async_tools.py      # Ejecución no bloqueante para la interfaz
+│   ├── dialogs.py          # Ajuste adaptativo y centrado de diálogos
+│   ├── page_widgets.py     # Componentes reutilizables de páginas
+│   ├── sidebar.py          # Navegación lateral
+│   └── widgets.py          # Tarjetas, indicadores y diálogo informativo
+├── core/
+│   ├── alerts.py           # Alertas inteligentes sin modificar hardware
+│   ├── preferences.py      # Normalización y migración de preferencias
+│   └── state.py            # Caché breve y estado compartido de frontend
+├── i18n/
+│   ├── backend_catalog.py  # Catálogo compatible de mensajes del backend
+│   ├── catalog.py          # Textos dinámicos y de seguridad
+│   ├── interface_catalog.py# Copia visible de la interfaz
+│   └── __init__.py         # Resolución, formato y traducción en caliente
+├── pages/
+│   ├── dashboard.py
+│   ├── performance.py
+│   ├── processes.py
+│   ├── cpu_smu.py
+│   ├── gpu_governor.py
+│   ├── compute_units.py
+│   ├── fans.py
+│   └── settings.py
+└── theme/
+    ├── __init__.py         # Paletas, escalado y QSS central
+    └── icons/              # Iconos SVG
+```
+
+`components/` evita duplicar controles y políticas de diálogo; `pages/` agrupa módulos navegables; `core/` contiene estado y servicios exclusivos del frontend; `theme/` e `i18n/` aíslan dos preocupaciones transversales que se actualizan en caliente.
+
+## Repositorios principales
+
+`SistemaRepository` continúa como fachada de composición del backend. Las responsabilidades especializadas viven en módulos separados:
 
 ```text
 Repository/
-├── sistema_repository.py        # fachada compatible y metricas generales
-├── terminal_repository.py       # apertura de terminales graficas
-├── dependencias_repository.py   # preparacion de dependencias y herramientas BC250
-├── gpu_repository.py            # governor, rango GPU y laboratorio de voltaje
-├── cpu_repository.py            # CPU OC temporal
-├── cu_repository.py             # dashboard y acciones 40CU
-├── historial_repository.py      # historial JSONL compacto
-└── configuracion_local.py       # rutas locales, Data y ResourceTools
+├── sistema_repository.py
+├── terminal_repository.py
+├── dependencias_repository.py
+├── gpu_repository.py
+├── cpu_repository.py
+├── cu_repository.py
+├── fan_repository.py
+├── historial_repository.py
+├── configuracion_local.py
+└── Os_repository/          # Estrategias por distribución
 ```
 
-## Rutas locales de usuario
+## Estado, historial y rutas locales
 
-La app guarda datos de ejecucion en:
+Los datos de usuario se guardan bajo:
 
 ```text
 ~/.local/share/bc250-control-center/Data/
 ~/.local/share/bc250-control-center/ResourceTools/
 ```
 
-`Data` contiene historial, metricas y datos locales.
-`ResourceTools` contiene repos clonados o herramientas preparadas por la app.
+El historial usa JSONL, escritura protegida y retención de hasta 1.000 registros; al compactarse conserva los 800 más recientes. La interfaz traduce los eventos estructurados al idioma activo sin alterar el registro canónico del backend.
 
-## Dashboard 40CU
+## Operaciones BC250
 
-El frame 40CU prioriza `WinnieLV/bc250-cu-live-manager` para mostrar el dashboard real.
-Si el sistema requiere sudo interactivo, el boton de refrescar no mezcla el fallback del mapa viejo con errores de sudo.
-En ese caso se informa al usuario que debe usar `Abrir dashboard en terminal` para autenticar.
-
-El flujo operativo de 40CU usa `WinnieLV/bc250-cu-live-manager`. `bc250-40cu-unlock` queda como referencia/documentacion comunitaria y credito upstream; ya no se clona como dependencia de ejecucion ni confirma el live routing actual.
-
-## Historial
-
-El historial usa JSONL local. Para no saturar archivos, cuando supera 26 registros se compacta automaticamente y conserva los ultimos 6 eventos.
+Las páginas CPU, GPU, Compute Units y Fans llaman únicamente a la fachada del Controller. El Controller delega validación y reglas al servicio, que usa los repositorios especializados y las estrategias de sistema operativo. Las lecturas se invalidan y refrescan después de cada acción para evitar que la GUI muestre un estado anterior como si fuera actual.

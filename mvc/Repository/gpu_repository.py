@@ -72,12 +72,11 @@ class GPURepository:
         if not script.exists():
             raise RuntimeError(f'GPU voltage lab was not found at {script}')
         partes = []
-        permitidas = {1850, 2000, 2050, 2100, 2125, 2150, 2200, 2300, 2350, 2400}
         for frecuencia, voltaje in valores.items():
             frecuencia = int(frecuencia)
             voltaje = int(voltaje)
-            if frecuencia not in permitidas:
-                raise ValueError(f'Frequency not allowed for lab: {frecuencia}')
+            if frecuencia <= 0:
+                raise ValueError(f'Invalid safe-point frequency: {frecuencia}')
             if voltaje < 600 or voltaje > 1150:
                 raise ValueError(f'Voltage outside safe limit for {frecuencia}: {voltaje} mV. Maximum allowed: 1150 mV')
             partes.append(f'{frecuencia}={voltaje}')

@@ -40,13 +40,15 @@ install_governor() {
 install_stress() { prepare_steamos_pacman; as_root pacman -S --needed --noconfirm stress; verify_command stress; }
 install_sensors() { prepare_steamos_pacman; as_root pacman -S --needed --noconfirm lm_sensors; verify_command sensors; }
 install_umr() {
-  if have umr; then info "UMR already installed"; return 0; fi
+  if [[ "${BC250_FORCE_UMR_FALLBACK:-0}" != "1" ]] && have umr; then info "UMR already installed"; return 0; fi
   prepare_steamos_pacman
   if ! as_root pacman -S --needed --noconfirm umr; then
-    install_aur_package umr
+    if ! install_aur_package umr; then
+      warn "AUR installation did not provide UMR; trying the SteamOS BC250 live-manager fallback"
+    fi
   fi
-  if ! have umr && [[ -n "${BC250_CU_MANAGER_SCRIPT:-}" && -x "${BC250_CU_MANAGER_SCRIPT}" ]]; then
-    as_root "${BC250_CU_MANAGER_SCRIPT}" install-umr
+  if { [[ "${BC250_FORCE_UMR_FALLBACK:-0}" == "1" ]] || ! have umr; } && [[ -n "${BC250_CU_MANAGER_SCRIPT:-}" && -x "${BC250_CU_MANAGER_SCRIPT}" ]]; then
+    run "${BC250_CU_MANAGER_SCRIPT}" install-umr
   fi
   hash -r
   verify_command umr

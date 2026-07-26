@@ -43,17 +43,19 @@ install_sensors() {
 }
 
 install_umr() {
-  if have umr; then
+  if [[ "${BC250_FORCE_UMR_FALLBACK:-0}" != "1" ]] && have umr; then
     info "UMR already installed: $(command -v umr)"
     return 0
   fi
   if ! as_root pacman -S --needed --noconfirm umr; then
     warn "umr is not available from pacman; trying AUR"
-    install_aur_package umr
+    if ! install_aur_package umr; then
+      warn "AUR installation did not provide UMR; trying the BC250 live-manager fallback"
+    fi
   fi
-  if ! have umr && [[ -n "${BC250_CU_MANAGER_SCRIPT:-}" && -x "${BC250_CU_MANAGER_SCRIPT}" ]]; then
+  if { [[ "${BC250_FORCE_UMR_FALLBACK:-0}" == "1" ]] || ! have umr; } && [[ -n "${BC250_CU_MANAGER_SCRIPT:-}" && -x "${BC250_CU_MANAGER_SCRIPT}" ]]; then
     warn "Package installation did not provide UMR; trying bc250-cu-live-manager fallback"
-    as_root "${BC250_CU_MANAGER_SCRIPT}" install-umr
+    run "${BC250_CU_MANAGER_SCRIPT}" install-umr
   fi
   hash -r
   verify_command umr

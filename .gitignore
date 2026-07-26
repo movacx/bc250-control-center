@@ -40,3 +40,5 @@ tmp/
 output/
 packaging/debian/out/
 packaging/packages/debian/*.deb
+.venv/
+.venv-*/

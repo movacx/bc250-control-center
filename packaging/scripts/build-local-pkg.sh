@@ -11,6 +11,8 @@ mkdir -p "$SRC_DIR" "$PKG_DIR" "$OUT_DIR"
 
 rsync -a \
   --exclude '.git' \
+  --exclude '.venv' \
+  --exclude '.venv-*' \
   --exclude '__pycache__' \
   --exclude 'build' \
   --exclude '*.pkg.tar.*' \

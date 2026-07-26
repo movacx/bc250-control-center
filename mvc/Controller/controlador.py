@@ -5,6 +5,9 @@ class Controlador:
     def rendimiento(self):
         return self.servicio.rendimiento()
 
+    def metricas_tiempo_real(self):
+        return self.servicio.metricas_tiempo_real()
+
     def procesos(self, ocultar_sistema=True):
         return self.servicio.procesos(ocultar_sistema)
 
@@ -127,3 +130,16 @@ class Controlador:
 
     def aplicar_pwm_fan(self, pwm, valor):
         return self.servicio.aplicar_pwm_fan(pwm, valor)
+
+    def obtener_estado_cu_cache(self):
+        return self.servicio.obtener_estado_cu_cache()
+
+    def obtener_estado_cu(self):
+        return self.servicio.obtener_estado_cu()
+
+    def aplicar_tabla_cu(self, masks):
+        return self.servicio.aplicar_tabla_cu(masks)
+
+    def ejecutar_accion_cu_grafica(self, accion):
+        return self.servicio.ejecutar_accion_cu_grafica(accion)
+
