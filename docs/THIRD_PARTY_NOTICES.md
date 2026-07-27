@@ -28,6 +28,13 @@ La aplicacion no empaqueta estos repositorios dentro del codigo fuente principal
 - Creditos: WinnieLV y contribuidores del repositorio.
 - Nota: BC250 Control Center clona/usa este proyecto desde su repositorio oficial cuando el usuario prepara dependencias o ejecuta acciones 40CU relacionadas. No se elimina ni reemplaza el credito upstream.
 
+### bc250-cu-live-manager-SteamOS
+
+- Uso dentro de BC250 Control Center: backend alternativo para SteamOS cuando el live-manager original no puede leer/enrutar el estado 40CU correctamente en ese entorno.
+- Repositorio oficial: https://github.com/F5GO/bc250-cu-live-manager-SteamOS
+- Creditos: F5GO y contribuidores del repositorio upstream.
+- Nota: BC250 Control Center lo clona/usa desde su repositorio oficial unicamente en sistemas SteamOS detectados o cuando se requiere ese flujo compatible.
+
 ### bc250-40cu-unlock
 
 - Uso dentro de BC250 Control Center: referencia/documentacion comunitaria y credito upstream. No se clona por defecto como dependencia de ejecucion; el flujo live usa `WinnieLV/bc250-cu-live-manager`.

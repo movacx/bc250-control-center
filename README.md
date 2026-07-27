@@ -2,66 +2,19 @@
 
 Graphical interface to manage an AMD BC-250 from Linux. It brings monitoring, processes, memory, GPU, CPU OC, 40CU and fan control into one app, with warnings and validations so you do not have to depend on scattered terminal commands.
 
-![BC250 Control Center GPU panel](docs/images/bc250-gpu.png)
+## Screenshots
 
-<details>
-<summary>More screenshots</summary>
-
-### Fans panel
-
-![BC250 Control Center fans panel](docs/images/fans.png)
-
-### CPU panel
-
-![BC250 Control Center CPU panel](docs/images/bc250-cpu.png)
-
-### 40CU panel
-
-![BC250 Control Center 40CU panel](docs/images/bc250-40cu.png)
-
-### Processes view
-
-![BC250 Control Center processes view](docs/images/processes.png)
-
-### Performance view
-
-![BC250 Control Center performance view](docs/images/performance.png)
-
-</details>
+<p align="center">
+  <img src="assets/screenshots/dashboard.png" alt="BC250 Control Center dashboard" width="49%">
+  <img src="assets/screenshots/compute-units.png" alt="Compute Units WGP routing" width="49%">
+</p>
+<p align="center">
+  <img src="assets/screenshots/cpu-smu.png" alt="CPU and SMU controls" width="32%">
+  <img src="assets/screenshots/gpu-governor.png" alt="GPU governor controls" width="32%">
+  <img src="assets/screenshots/fans.png" alt="Fan control panel" width="32%">
+</p>
 
 ## Installation
-
-### Quick option with script
-
-Use this option when running from the source code or from a tarball:
-
-```bash
-./scripts/install-local.sh
-```
-
-Then open the app from your menu or run:
-
-```bash
-bc250-control-center
-```
-
-If your shell does not find the command, use:
-
-```bash
-"$HOME/.local/bin/bc250-control-center"
-```
-
-To uninstall that installation:
-
-```bash
-./scripts/uninstall-local.sh
-```
-
-If you already deleted the project folder, the installer leaves a copy here:
-
-```bash
-"$HOME/.local/share/bc250-control-center/scripts/uninstall-local.sh"
-```
 
 ### Arch AUR
 
@@ -88,12 +41,6 @@ Stable package files are published in the project releases:
 [https://github.com/movacx/bc250-control-center/releases](https://github.com/movacx/bc250-control-center/releases)
 
 Download the file for your distribution from the latest release.
-
-Arch/CachyOS/Manjaro:
-
-```bash
-sudo pacman -U ./bc250-control-center-git-*.pkg.tar.zst
-```
 
 Fedora/Nobara:
 
@@ -133,13 +80,27 @@ sudo apt -f install
 
 - Processes grouped by application.
 - Performance view with CPU, memory, swap, GPU, disk, fans and sensors.
-- BC250 panel with live metrics.
+- BC250 panel with live metrics. The power tile reports **Total board power** only when Linux exposes a dedicated whole-system sensor; otherwise it is explicitly labeled **SoC package power** instead of estimating or mislabeling the value.
 - GPU control through the `cyan-skillfish-governor-smu` TOML safe-points.
 - Temporary and persistent CPU OC with visible limits.
 - 40CU/24CU dashboard and actions through `bc250-cu-live-manager`; SteamOS uses a compatible SteamOS live-manager backend.
 - Fan module for BC-250 sensors, RPM monitoring, manual fan speed control and a simple GPU temperature curve when `nct6687d` is prepared.
 - Local JSONL history.
-- Translations from settings.
+- Smart, throttled safety alerts for temperature, memory pressure and governor state.
+- Live theme, interface scaling and translation from Settings for English, Spanish, Portuguese, Russian, Ukrainian and German.
+- Content-aware dialogs that reflow after language changes.
+- Optional SteamOS-style gamepad navigation with hot-plug, ABXY hints, D-pad/left-stick focus movement, A/B actions and LB/RB section switching.
+
+## Gamepad navigation
+
+Compatible Xbox/ABXY controllers can navigate the interface without replacing mouse or keyboard use.
+
+- D-pad or left stick: move focus.
+- A: activate the focused control.
+- B: close dialogs or go back.
+- LB/RB: switch modules or Settings sections.
+
+The optional `python-evdev` backend is used when available; otherwise the app falls back to Linux `/dev/input/js*`. No controller is required at startup.
 
 ## Fan module
 
@@ -152,15 +113,9 @@ The interface includes language support for:
 - English
 - Spanish
 - Portuguese
-- Simplified Chinese
-- Korean
 - Russian
 - Ukrainian
 - German
-- French
-- Japanese
-- Arabic
-- Hindi
 
 ## External tools and credits
 
@@ -184,10 +139,17 @@ Overclock, 40CU and frequency changes can cause freezes, shutdowns, data loss or
 ## Quick structure
 
 ```text
-mvc/                 PyQt6 application
-scripts/             launchers and local installer
-packaging/           package recipes and outputs
-docs/                credits, architecture and project notes
+mvc/
+├── Controller/      frontend/backend facade
+├── Model/           data contracts
+├── Repository/      system and hardware access
+├── service/         validation and orchestration
+├── Daemon/          optional background monitor
+├── View/            definitive PyQt6 interface
+└── main.py           minimal application entry point
+scripts/              launchers and local installer
+packaging/            package recipes and outputs
+docs/                 architecture and third-party notices only
 ```
 
-Distribution-specific integration lives in `mvc/Repository/Os_repository/`; see `docs/OS_REPOSITORIES.md`.
+Distribution-specific integration lives in `mvc/Repository/Os_repository/`; the publishable docs folder intentionally keeps only `ARQUITECTURA_MVC.md` and `THIRD_PARTY_NOTICES.md`.
