@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-VERSION="${VERSION:-0.1.0}"
+VERSION="${VERSION:-1.17.22}"
 NAME="bc250-control-center"
 TOPDIR="$ROOT/build/rpm"
 SRC_DIR="$TOPDIR/${NAME}-${VERSION}"
@@ -21,6 +21,8 @@ mkdir -p "$SRC_DIR" "$TOPDIR/SOURCES" "$TOPDIR/SPECS" "$TOPDIR/BUILD" "$TOPDIR/R
 
 rsync -a \
   --exclude '.git' \
+  --exclude '.venv' \
+  --exclude '.venv-*' \
   --exclude '__pycache__' \
   --exclude 'build' \
   --exclude '*.pkg.tar.*' \

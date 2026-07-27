@@ -5,7 +5,7 @@
 <policyconfig>
   <vendor>BC250 Control Center</vendor>
   <vendor_url>https://github.com/movacx/bc250-control-center</vendor_url>
-  <action id="io.github.fabianbeita.bc250-control-center.fan-pwm">
+  <action id="io.github.movacx.bc250-control-center.fan-pwm">
     <description>Control BC250 fan PWM channels</description>
     <message>Authentication is required to change BC250 fan PWM values</message>
     <defaults>

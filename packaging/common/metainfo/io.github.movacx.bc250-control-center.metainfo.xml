@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>io.github.fabianbeita.bc250-control-center</id>
+  <id>io.github.movacx.bc250-control-center</id>
   <name>BC250 Control Center</name>
   <summary>Monitor Linux gaming con panel BC250</summary>
-  <developer id="io.github.fabianbeita">
-    <name>Fabian Beita</name>
+  <developer id="io.github.movacx">
+    <name>Movacx</name>
   </developer>
   <metadata_license>MIT</metadata_license>
   <project_license>MIT</project_license>
@@ -12,7 +12,7 @@
     <p>BC250 Control Center combina administrador de procesos, monitoreo de rendimiento, historial local y control conservador para placas AMD BC-250.</p>
     <p>El panel BC250 usa safe-points existentes del governor y evita valores manuales peligrosos.</p>
   </description>
-  <launchable type="desktop-id">io.github.fabianbeita.bc250-control-center.desktop</launchable>
+  <launchable type="desktop-id">io.github.movacx.bc250-control-center.desktop</launchable>
   <provides>
     <binary>bc250-control-center</binary>
   </provides>
@@ -23,9 +23,9 @@
   </categories>
   <url type="homepage">https://github.com/movacx/bc250-control-center</url>
   <releases>
-    <release version="0.1.0" date="2026-07-10">
+    <release version="1.17.22" date="2026-07-26">
       <description>
-        <p>Primera version comunitaria con GUI PyQt6, BC250, historial JSONL y daemon opcional.</p>
+        <p>Mayor compatibilidad con mando, navegacion mas fluida e ingreso numerico en pantalla para flujos de control.</p>
       </description>
     </release>
   </releases>
