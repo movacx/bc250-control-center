@@ -1,11 +1,11 @@
 from pathlib import Path
+import logging
 import os
 import re
-import shlex
 import shutil
 import subprocess
 import time
-import json
+import threading
 import psutil
 from mvc.Repository.configuracion_local import ConfiguracionLocal
 from mvc.Repository.historial_repository import HistorialRepository
@@ -15,6 +15,9 @@ from mvc.Repository.gpu_repository import GPURepository
 from mvc.Repository.cpu_repository import CPURepository
 from mvc.Repository.cu_repository import CURepository
 from mvc.Repository.fan_repository import FanRepository
+
+logger = logging.getLogger(__name__)
+
 
 class SistemaRepository(TerminalRepository, DependenciasRepository, GPURepository, CPURepository, CURepository, FanRepository):
     def __init__(self):
@@ -33,6 +36,10 @@ class SistemaRepository(TerminalRepository, DependenciasRepository, GPURepositor
         self.estado_herramientas_cache_time = 0
         self.estado_bc250_cache = None
         self.estado_bc250_cache_time = 0
+        self._metricas_rt_lock = threading.Lock()
+        self._metricas_rt_time = None
+        self._metricas_rt_disk = None
+        self._metricas_rt_network = {}
 
     def _leer_texto(self, ruta):
         try:
@@ -72,12 +79,105 @@ class SistemaRepository(TerminalRepository, DependenciasRepository, GPURepositor
             return None if valor is None else valor / 1000
         return None
 
-    def potencia_gpu(self):
+    @staticmethod
+    def _normalizar_potencia_microwatts(valor):
+        if valor is None:
+            return None
+        try:
+            watts = float(valor) / 1_000_000.0
+        except (TypeError, ValueError):
+            return None
+        return watts if watts >= 0 else None
+
+    def _canales_potencia(self):
+        """Enumerate passive hwmon power channels without guessing their scope.
+
+        Linux hwmon normally exposes instantaneous/average power as
+        ``powerN_average``; a few drivers use ``powerN_input``.  Both are read,
+        but one logical channel is returned only once and ``average`` wins when
+        both files exist.
+        """
+        channels = []
         for nombre, carpeta in self.hwmons:
-            if 'amdgpu' in nombre.lower():
-                valor = self._leer_entero(carpeta / 'power1_input')
-                return None if valor is None else valor / 1000000
-        return None
+            files = {}
+            for archivo in carpeta.glob('power*_average'):
+                files[archivo.name.removesuffix('_average')] = archivo
+            for archivo in carpeta.glob('power*_input'):
+                files.setdefault(archivo.name.removesuffix('_input'), archivo)
+            for prefix, archivo in sorted(files.items()):
+                valor = self._normalizar_potencia_microwatts(self._leer_entero(archivo))
+                if valor is None:
+                    continue
+                etiqueta = self._leer_texto(carpeta / f'{prefix}_label') or ''
+                channels.append({
+                    'value_w': valor,
+                    'hwmon_name': nombre,
+                    'sensor_label': etiqueta,
+                    'source': str(archivo),
+                })
+        return channels
+
+    @staticmethod
+    def _es_potencia_total(canal):
+        """Accept only sensors that explicitly identify whole-system power.
+
+        AMDGPU hwmon is deliberately excluded even when a firmware label uses
+        wording such as "board power".  That interface belongs to the GPU
+        driver and cannot prove that RAM, storage, fans, VRM losses and input
+        conversion are included in the measurement.
+        """
+        nombre = str(canal.get('hwmon_name') or '').lower()
+        etiqueta = str(canal.get('sensor_label') or '').lower()
+        if 'amdgpu' in nombre:
+            return False
+        texto = f'{nombre} {etiqueta}'
+        nombres_totales = ('acpi_power_meter', 'power_meter', 'powermeter', 'psu')
+        etiquetas_totales = (
+            'total power', 'board power', 'system power', 'platform power',
+            'input power', 'whole system', 'potencia total', 'consumo total',
+        )
+        return any(token in nombre for token in nombres_totales) or any(token in texto for token in etiquetas_totales)
+
+    def lectura_potencia(self):
+        """Return an honest power reading and its measurement scope.
+
+        A dedicated total-board/system sensor is preferred.  When the platform
+        exposes only AMDGPU hwmon power, the value is returned as GPU/SoC power
+        and is never presented as whole-board consumption.
+        """
+        channels = self._canales_potencia()
+        total = next((item for item in channels if self._es_potencia_total(item)), None)
+        gpu = next(
+            (item for item in channels if 'amdgpu' in str(item.get('hwmon_name') or '').lower()),
+            None,
+        )
+        selected = total or gpu
+        if selected is None:
+            return {
+                'value_w': None,
+                'gpu_w': None,
+                'is_total': False,
+                'scope': 'unavailable',
+                'label': 'Power sensor unavailable',
+                'source': '',
+                'sensor_name': '',
+                'sensor_label': '',
+            }
+        is_total = selected is total
+        return {
+            'value_w': selected.get('value_w'),
+            'gpu_w': gpu.get('value_w') if gpu is not None else None,
+            'is_total': is_total,
+            'scope': 'board_total' if is_total else 'gpu_soc',
+            'label': 'Total board power' if is_total else 'SoC package power',
+            'source': str(selected.get('source') or ''),
+            'sensor_name': str(selected.get('hwmon_name') or ''),
+            'sensor_label': str(selected.get('sensor_label') or ''),
+        }
+
+    def potencia_gpu(self):
+        """Compatibility accessor for the AMDGPU/SoC channel only."""
+        return self.lectura_potencia().get('gpu_w')
 
     def voltaje_chip(self, chip, etiqueta):
         for nombre, carpeta in self.hwmons:
@@ -309,12 +409,14 @@ class SistemaRepository(TerminalRepository, DependenciasRepository, GPURepositor
             try:
                 nuevo.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(viejo, nuevo)
-            except Exception:
-                pass
+            except OSError:
+                logger.warning("Could not migrate legacy data from %s to %s", viejo, nuevo, exc_info=True)
         return nuevo
 
     def _historial_repo(self):
-        return HistorialRepository(self._historial_path(), 26, 6)
+        # Keep a useful audit trail; the former 26/6 policy discarded twenty
+        # records at once as soon as the 27th event arrived.
+        return HistorialRepository(self._historial_path(), 1000, 800)
 
     def registrar_evento(self, tipo, nivel, titulo, detalle='', datos=None):
         repo = self._historial_repo()
@@ -395,8 +497,8 @@ class SistemaRepository(TerminalRepository, DependenciasRepository, GPURepositor
                             shutil.copytree(item, destino)
                         elif item.is_file() and not destino.exists():
                             shutil.copy2(item, destino)
-            except Exception:
-                pass
+            except OSError:
+                logger.warning("Could not migrate legacy data from %s to %s", viejo, nuevo, exc_info=True)
         return nuevo
 
     def _candidatos_busqueda(self):
@@ -461,6 +563,7 @@ class SistemaRepository(TerminalRepository, DependenciasRepository, GPURepositor
         cpu_freq = psutil.cpu_freq()
         gpu = self._gpu_device_path()
         gpu_busy = self._gpu_busy_percent(gpu) if gpu else self._gpu_busy_percent(None)
+        potencia = self.lectura_potencia()
         return {
             'cpu': psutil.cpu_percent(interval=None),
             'hilos': psutil.cpu_percent(interval=None, percpu=True),
@@ -480,10 +583,181 @@ class SistemaRepository(TerminalRepository, DependenciasRepository, GPURepositor
             'disco_escritura': escritura,
             'cpu_temp': self.temperatura_chip('k10temp', 'Tctl'),
             'gpu_temp': self.temperatura_chip('amdgpu', 'edge'),
-            'gpu_power': self.potencia_gpu(),
+            'gpu_power': potencia.get('gpu_w'),
+            'power_w': potencia.get('value_w'),
+            'power_scope': potencia.get('scope'),
+            'power_label': potencia.get('label'),
+            'power_source': potencia.get('source'),
+            'power_is_total': bool(potencia.get('is_total')),
             'fan_rpm': self.ventilador_principal(),
             'board_temps': self.temperaturas_board()
         }
+
+    def _interfaz_red_predeterminada(self):
+        try:
+            lineas = Path('/proc/net/route').read_text(encoding='utf-8', errors='ignore').splitlines()[1:]
+            for linea in lineas:
+                partes = linea.split()
+                if len(partes) >= 4 and partes[1] == '00000000' and int(partes[3], 16) & 0x2:
+                    return partes[0]
+        except (OSError, ValueError):
+            logger.debug("Could not determine the default network route from /proc/net/route", exc_info=True)
+        try:
+            estados = psutil.net_if_stats()
+            contadores = psutil.net_io_counters(pernic=True)
+            candidatas = [
+                nombre for nombre, estado in estados.items()
+                if nombre != 'lo' and estado.isup and nombre in contadores
+            ]
+            if candidatas:
+                return max(candidatas, key=lambda nombre: contadores[nombre].bytes_recv + contadores[nombre].bytes_sent)
+        except (OSError, RuntimeError):
+            logger.debug("Could not determine the busiest active network interface", exc_info=True)
+        return ''
+
+    def _contador_disco_raiz(self):
+        dispositivo = ''
+        try:
+            particiones = psutil.disk_partitions(all=False)
+            raiz = next((item for item in particiones if item.mountpoint == '/'), None)
+            dispositivo = raiz.device if raiz else ''
+        except Exception:
+            dispositivo = ''
+        try:
+            por_disco = psutil.disk_io_counters(perdisk=True, nowrap=True) or {}
+        except TypeError:
+            por_disco = psutil.disk_io_counters(perdisk=True) or {}
+        claves = []
+        if dispositivo:
+            claves.extend((Path(dispositivo).name, dispositivo.rsplit('/', 1)[-1]))
+            try:
+                resuelto = Path(dispositivo).resolve()
+                claves.append(resuelto.name)
+            except OSError:
+                logger.debug("Could not resolve disk device path %s", dispositivo, exc_info=True)
+        contador = next((por_disco.get(clave) for clave in claves if por_disco.get(clave) is not None), None)
+        etiqueta = next((clave for clave in claves if por_disco.get(clave) is not None), '')
+        if contador is None:
+            try:
+                contador = psutil.disk_io_counters(nowrap=True)
+            except TypeError:
+                contador = psutil.disk_io_counters()
+            etiqueta = Path(dispositivo).name if dispositivo else 'all disks'
+        return etiqueta or 'root disk', contador
+
+    def obtener_metricas_tiempo_real(self):
+        """Return one passive Linux performance sample for the live monitor.
+
+        Disk and network counters remain local to this sampler so their rates
+        represent the interval between real-time samples. The View shares each
+        completed sample briefly to avoid duplicate sensor enumeration.
+        """
+        with self._metricas_rt_lock:
+            ahora = time.monotonic()
+            anterior = self._metricas_rt_time
+            intervalo = max(0.001, ahora - anterior) if anterior is not None else 0.0
+
+            cpu_total = psutil.cpu_percent(interval=None)
+            cpu_hilos = psutil.cpu_percent(interval=None, percpu=True)
+            cpu_freq = psutil.cpu_freq()
+            memoria = psutil.virtual_memory()
+            swap = psutil.swap_memory()
+            raiz = psutil.disk_usage('/')
+
+            disco_nombre, disco = self._contador_disco_raiz()
+            lectura_bps = escritura_bps = actividad_disco = 0.0
+            if intervalo and disco is not None and self._metricas_rt_disk is not None:
+                previo_nombre, previo = self._metricas_rt_disk
+                if previo_nombre == disco_nombre:
+                    lectura_bps = max(0.0, (disco.read_bytes - previo.read_bytes) / intervalo)
+                    escritura_bps = max(0.0, (disco.write_bytes - previo.write_bytes) / intervalo)
+                    busy_actual = getattr(disco, 'busy_time', None)
+                    busy_previo = getattr(previo, 'busy_time', None)
+                    if busy_actual is not None and busy_previo is not None:
+                        actividad_disco = max(0.0, min(100.0, (busy_actual - busy_previo) / (intervalo * 10.0)))
+                    else:
+                        delta_ms = max(0, (disco.read_time - previo.read_time) + (disco.write_time - previo.write_time))
+                        actividad_disco = max(0.0, min(100.0, delta_ms / (intervalo * 10.0)))
+            self._metricas_rt_disk = (disco_nombre, disco)
+
+            interfaz = self._interfaz_red_predeterminada()
+            try:
+                redes = psutil.net_io_counters(pernic=True, nowrap=True) or {}
+            except TypeError:
+                redes = psutil.net_io_counters(pernic=True) or {}
+            red = redes.get(interfaz)
+            bajada_bps = subida_bps = 0.0
+            if intervalo and red is not None:
+                previo = self._metricas_rt_network.get(interfaz)
+                if previo is not None:
+                    bajada_bps = max(0.0, (red.bytes_recv - previo.bytes_recv) / intervalo)
+                    subida_bps = max(0.0, (red.bytes_sent - previo.bytes_sent) / intervalo)
+            if red is not None:
+                self._metricas_rt_network[interfaz] = red
+
+            gpu = self._gpu_device_path()
+            gpu_busy = self._gpu_busy_percent(gpu) if gpu else self._gpu_busy_percent(None)
+            gpu_sclk = self._parse_dpm_actual(self._leer_texto(gpu / 'pp_dpm_sclk')) if gpu else None
+            vram_total = self._leer_entero(gpu / 'mem_info_vram_total') if gpu else None
+            vram_used = self._leer_entero(gpu / 'mem_info_vram_used') if gpu else None
+            potencia = self.lectura_potencia()
+
+            self._metricas_rt_time = ahora
+            return {
+                'sample_interval': intervalo,
+                'cpu': {
+                    'usage_percent': max(0.0, min(100.0, float(cpu_total or 0.0))),
+                    'per_core_percent': [max(0.0, min(100.0, float(value or 0.0))) for value in cpu_hilos],
+                    'frequency_mhz': float(cpu_freq.current) if cpu_freq else None,
+                    'temperature_c': self.temperatura_chip('k10temp', 'Tctl'),
+                    'logical_cores': psutil.cpu_count(logical=True) or len(cpu_hilos),
+                    'physical_cores': psutil.cpu_count(logical=False),
+                    'load_average': list(os.getloadavg()) if hasattr(os, 'getloadavg') else [],
+                },
+                'gpu': {
+                    'usage_percent': None if gpu_busy is None else max(0.0, min(100.0, float(gpu_busy))),
+                    'frequency_mhz': gpu_sclk,
+                    'temperature_c': self.temperatura_chip('amdgpu', 'edge'),
+                    'power_w': potencia.get('gpu_w'),
+                    'vram_used': vram_used,
+                    'vram_total': vram_total,
+                },
+                'power': {
+                    'value_w': potencia.get('value_w'),
+                    'gpu_w': potencia.get('gpu_w'),
+                    'scope': potencia.get('scope'),
+                    'label': potencia.get('label'),
+                    'source': potencia.get('source'),
+                    'is_total': bool(potencia.get('is_total')),
+                },
+                'memory': {
+                    'usage_percent': float(memoria.percent),
+                    'used': max(0, int(memoria.total - memoria.available)),
+                    'available': int(memoria.available),
+                    'total': int(memoria.total),
+                    'swap_percent': float(swap.percent),
+                    'swap_used': int(swap.used),
+                    'swap_total': int(swap.total),
+                },
+                'disk': {
+                    'device': disco_nombre,
+                    'usage_percent': float(raiz.percent),
+                    'used': int(raiz.used),
+                    'total': int(raiz.total),
+                    'active_percent': actividad_disco,
+                    'read_bps': lectura_bps,
+                    'write_bps': escritura_bps,
+                    'read_total': int(getattr(disco, 'read_bytes', 0) or 0),
+                    'write_total': int(getattr(disco, 'write_bytes', 0) or 0),
+                },
+                'network': {
+                    'interface': interfaz or 'not detected',
+                    'download_bps': bajada_bps,
+                    'upload_bps': subida_bps,
+                    'bytes_received': int(getattr(red, 'bytes_recv', 0) or 0),
+                    'bytes_sent': int(getattr(red, 'bytes_sent', 0) or 0),
+                },
+            }
 
     def obtener_procesos(self):
         return psutil.process_iter(['pid', 'name', 'cmdline', 'memory_info', 'uids'])

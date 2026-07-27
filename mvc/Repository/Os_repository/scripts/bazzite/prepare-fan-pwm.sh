@@ -2,7 +2,7 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../common/common.sh"
 SOURCE_DIR="${BC250_NCT6687_SOURCE_DIR:-$BC250_TOOLS_DIR/nct6687d}"
-KERNEL_RELEASE="$(uname -r)"
+KERNEL_RELEASE="$(bc250_running_kernel_release)"
 STATE_DIR="/var/lib/bc250-control-center"
 MODULE_DIR="$STATE_DIR/kernel-modules/$KERNEL_RELEASE"
 MODULE_DEST="$MODULE_DIR/nct6687.ko"
@@ -28,23 +28,21 @@ ensure_build_dependencies() {
   exit 20
 }
 
-
 bold "${BC250_OS_LABEL:-Bazzite}: preparing nct6687 PWM support"
 if as_root modprobe nct6687 force=true 2>/dev/null; then
   info "A packaged nct6687 module is already available for $KERNEL_RELEASE"
   exit 0
 fi
 
+bc250_kernel_headers_preflight "$KERNEL_RELEASE" || true
 ensure_build_dependencies
-
-BUILD_DIR=""
-for candidate in "/usr/lib/modules/$KERNEL_RELEASE/build" "/lib/modules/$KERNEL_RELEASE/build"; do
-  if [[ -f "$candidate/Makefile" ]]; then BUILD_DIR="$candidate"; break; fi
-done
-[[ -n "$BUILD_DIR" ]] || {
-  error "Matching kernel-devel is not active for $KERNEL_RELEASE"
+if ! bc250_require_matching_kernel_headers "$KERNEL_RELEASE"; then
+  error "Bazzite has kernel-devel installed, but it does not match the active immutable kernel."
+  error "Apply the pending system update/deployment, reboot, and run Prepare PWM driver again."
+  error "Do not copy a kernel-devel tree from another deployment."
   exit 21
-}
+fi
+BUILD_DIR="$BC250_KERNEL_BUILD_DIR"
 
 clone_or_update https://github.com/Fred78290/nct6687d "$SOURCE_DIR"
 (
@@ -53,6 +51,7 @@ clone_or_update https://github.com/Fred78290/nct6687d "$SOURCE_DIR"
 )
 MODULE_PATH="$(find "$SOURCE_DIR/$KERNEL_RELEASE" -maxdepth 1 -type f -name nct6687.ko -print -quit)"
 [[ -n "$MODULE_PATH" ]] || { error "nct6687.ko was not produced for $KERNEL_RELEASE"; exit 22; }
+bc250_verify_module_vermagic "$MODULE_PATH" "$KERNEL_RELEASE"
 
 as_root install -d -m 0755 "$MODULE_DIR"
 as_root install -m 0644 "$MODULE_PATH" "$MODULE_DEST"

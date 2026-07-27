@@ -1,14 +1,17 @@
 import os
+import logging
 import signal
 import subprocess
-import time
 import psutil
 try:
     from mvc.Model.proceso import Proceso
     from mvc.Model.rendimiento import Rendimiento
-except Exception:
+except ImportError:
     from Model.proceso import Proceso
     from Model.rendimiento import Rendimiento
+
+logger = logging.getLogger(__name__)
+
 
 CRITICOS = [
     'systemd', 'dbus', 'sddm', 'gdm', 'gdm-wayland-session', 'xorg', 'xwayland', 'wayland',
@@ -34,6 +37,28 @@ class SistemaService:
         self.uid = os.getuid()
         self.pid_actual = os.getpid()
 
+    @staticmethod
+    def _config_int(value, default, minimum, maximum):
+        try:
+            parsed = int(float(value))
+        except (TypeError, ValueError, OverflowError):
+            parsed = int(default)
+        return max(int(minimum), min(int(maximum), parsed))
+
+    @staticmethod
+    def _config_bool(value, default=False):
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, (int, float)):
+            return value != 0
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {'1', 'true', 'yes', 'on', 'enabled'}:
+                return True
+            if normalized in {'0', 'false', 'no', 'off', 'disabled', ''}:
+                return False
+        return bool(default)
+
     def _contiene(self, texto, lista):
         texto = texto.lower()
         for palabra in lista:
@@ -49,6 +74,9 @@ class SistemaService:
 
     def rendimiento(self):
         return Rendimiento(self.repo.obtener_rendimiento())
+
+    def metricas_tiempo_real(self):
+        return self.repo.obtener_metricas_tiempo_real()
 
     def procesos(self, ocultar_sistema=True):
         lista = []
@@ -73,36 +101,75 @@ class SistemaService:
 
                 razon = self._es_critico(nombre, comando)
                 protegido = bool(razon)
-                lista.append(Proceso(p.pid, nombre, memoria, comando, protegido, razon))
-            except Exception:
-                pass
+                lista.append(Proceso(p.pid, nombre, memoria, comando, protegido, razon, p.create_time()))
+            except (psutil.Error, OSError, ValueError):
+                logger.debug("Skipping process %s because its metadata became unavailable", getattr(p, "pid", "?"), exc_info=True)
 
         lista.sort(key=lambda x: x.memoria, reverse=True)
         return lista
 
     def cerrar_procesos(self, procesos):
+        pendientes = []
         for proceso in procesos:
             if proceso.protegido:
                 continue
             try:
-                os.kill(proceso.pid, signal.SIGTERM)
-            except Exception:
-                pass
+                process = psutil.Process(int(proceso.pid))
+                expected_time = getattr(proceso, 'create_time', None)
+                current_time = process.create_time()
+                if expected_time is not None and float(expected_time) != float(current_time):
+                    continue
+                uids = process.uids()
+                nombre = process.name() or ''
+                comando = ' '.join(process.cmdline() or [])
+                if uids.real != self.uid or process.pid == self.pid_actual or self._es_critico(nombre, comando):
+                    continue
+                process.send_signal(signal.SIGTERM)
+                pendientes.append((process, current_time))
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess, ValueError, TypeError):
+                continue
 
-        time.sleep(1.5)
+        if not pendientes:
+            return []
+        _gone, alive = psutil.wait_procs([process for process, _created in pendientes], timeout=1.5)
+        alive_pids = {process.pid for process in alive}
 
-        for proceso in procesos:
-            if proceso.protegido:
+        force_closed = []
+        for process, create_time in pendientes:
+            if process.pid not in alive_pids:
                 continue
             try:
-                p = psutil.Process(proceso.pid)
-                if p.is_running():
-                    p.kill()
-            except Exception:
-                pass
+                # A PID may be reused after SIGTERM. Never kill a different
+                # process that appeared under the same numeric PID.
+                if process.is_running() and process.create_time() == create_time:
+                    uids = process.uids()
+                    nombre = process.name() or ''
+                    comando = ' '.join(process.cmdline() or [])
+                    if uids.real == self.uid and process.pid != self.pid_actual and not self._es_critico(nombre, comando):
+                        process.kill()
+                        force_closed.append(process.pid)
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                continue
+        return force_closed
 
     def limpiar_cache(self):
-        subprocess.Popen(['pkexec', 'sh', '-c', 'sync; echo 3 > /proc/sys/vm/drop_caches'])
+        """Run the fixed privileged cache workflow and report its real result."""
+        try:
+            result = subprocess.run(
+                ['pkexec', 'sh', '-c', 'sync; echo 3 > /proc/sys/vm/drop_caches'],
+                text=True,
+                capture_output=True,
+                timeout=120,
+                check=False,
+            )
+        except FileNotFoundError as error:
+            raise RuntimeError('pkexec is not available on this system.') from error
+        except subprocess.TimeoutExpired as error:
+            raise RuntimeError('The privileged cache operation timed out.') from error
+        output = (result.stdout or result.stderr or '').strip()
+        if result.returncode != 0:
+            raise RuntimeError(output or f'pkexec exited with code {result.returncode}.')
+        return {'returncode': result.returncode, 'output': output}
 
 
     def registrar_evento(self, tipo, nivel, titulo, detalle='', datos=None):
@@ -156,8 +223,8 @@ class SistemaService:
                         'memoria_mb': round(memoria / 1024 / 1024, 1),
                         'comando': comando[:240],
                     })
-            except Exception:
-                pass
+            except (psutil.Error, OSError, ValueError):
+                logger.debug("Skipping memory candidate %s because its metadata became unavailable", getattr(p, "pid", "?"), exc_info=True)
         candidatos.sort(key=lambda x: x['memoria'], reverse=True)
         return candidatos[:8]
 
@@ -165,9 +232,9 @@ class SistemaService:
         config = self.leer_config_local()
         memoria = psutil.virtual_memory()
         swap = psutil.swap_memory()
-        warning = int(config.get('ram_warning_percent', 82))
-        critical = int(config.get('ram_critical_percent', 92))
-        swap_warning = int(config.get('swap_warning_percent', 35))
+        warning = self._config_int(config.get('ram_warning_percent', 82), 82, 1, 99)
+        critical = self._config_int(config.get('ram_critical_percent', 92), 92, warning + 1, 100)
+        swap_warning = self._config_int(config.get('swap_warning_percent', 35), 35, 0, 100)
         nivel = 'normal'
         if memoria.percent >= critical or swap.percent >= max(swap_warning + 25, 70):
             nivel = 'critical'
@@ -214,14 +281,15 @@ class SistemaService:
                 razon = self._contiene(texto, patrones_candidatos) or 'memoria alta'
                 salida.append({
                     'pid': p.pid,
+                    'create_time': p.create_time(),
                     'nombre': nombre,
                     'memoria': memoria,
                     'memoria_mb': round(memoria / 1024 / 1024, 1),
                     'razon': razon,
                     'comando': comando[:240],
                 })
-            except Exception:
-                pass
+            except (psutil.Error, OSError, ValueError):
+                logger.debug("Skipping process detail %s because its metadata became unavailable", getattr(p, "pid", "?"), exc_info=True)
         salida.sort(key=lambda x: x['memoria'], reverse=True)
         return salida[:limite]
 
@@ -234,18 +302,27 @@ class SistemaService:
         cerrados = []
         puede_cerrar = bool(
             aplicar
-            and proteccion.get('enabled')
-            and proteccion.get('cerrar_candidatos')
-            and not proteccion.get('dry_run', True)
+            and self._config_bool(proteccion.get('enabled'))
+            and self._config_bool(proteccion.get('cerrar_candidatos'))
+            and not self._config_bool(proteccion.get('dry_run', True), True)
             and estado['nivel'] == 'critical'
         )
         if puede_cerrar:
             for item in candidatos[:3]:
                 try:
-                    os.kill(item['pid'], signal.SIGTERM)
+                    process = psutil.Process(int(item['pid']))
+                    expected_time = float(item.get('create_time') or 0)
+                    uids = process.uids()
+                    name = process.name() or ''
+                    command = ' '.join(process.cmdline() or [])
+                    if uids.real != self.uid or process.pid == self.pid_actual or self._es_critico(name, command):
+                        continue
+                    if expected_time and process.create_time() != expected_time:
+                        continue
+                    process.send_signal(signal.SIGTERM)
                     cerrados.append(item)
-                except Exception:
-                    pass
+                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess, ValueError, TypeError):
+                    continue
             accion = 'sigterm_conservador' if cerrados else 'sin_cierres'
         elif candidatos:
             accion = 'sugerir_cierre'
@@ -331,3 +408,19 @@ class SistemaService:
 
     def aplicar_pwm_fan(self, pwm, valor):
         return self.repo.aplicar_pwm_fan(pwm, valor)
+
+    def obtener_estado_cu_cache(self):
+        return self.repo.obtener_estado_cu_cache()
+
+    def obtener_estado_cu(self):
+        return self.repo.obtener_estado_cu()
+
+    def aplicar_tabla_cu(self, masks):
+        return self.repo.aplicar_tabla_cu(masks)
+
+    def guardar_tabla_cu(self, masks):
+        return self.repo.guardar_tabla_cu(masks)
+
+    def ejecutar_accion_cu_grafica(self, accion):
+        return self.repo.ejecutar_accion_cu_grafica(accion)
+

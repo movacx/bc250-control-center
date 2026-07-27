@@ -21,7 +21,7 @@ METAINFO_DIR="$PREFIX/share/metainfo"
 SYSTEMD_USER_DIR="$PREFIX/lib/systemd/user"
 DOC_DIR="$PREFIX/share/doc/bc250-control-center"
 SYSTEM_PRIV_HELPER="/usr/libexec/bc250-control-center/bc250-fan-pwm-helper"
-SYSTEM_POLKIT_ACTION="/usr/share/polkit-1/actions/io.github.fabianbeita.bc250-control-center.policy"
+SYSTEM_POLKIT_ACTION="/usr/share/polkit-1/actions/io.github.movacx.bc250-control-center.policy"
 
 is_steamos_install_local() {
   local text=""
@@ -112,7 +112,7 @@ install -Dm755 "$ROOT_DIR/scripts/bc250-control-center" "$BIN_DIR/bc250-control-
 install -Dm755 "$ROOT_DIR/scripts/bc250-control-centerd" "$BIN_DIR/bc250-control-centerd"
 install_privileged_pwm_components() {
   local helper_source="$ROOT_DIR/mvc/Resources/privileged/bc250-fan-pwm-helper"
-  local policy_source="$ROOT_DIR/packaging/common/polkit/io.github.fabianbeita.bc250-control-center.policy"
+  local policy_source="$ROOT_DIR/packaging/common/polkit/io.github.movacx.bc250-control-center.policy"
   local -a elevate=()
 
   if [[ "${BC250_SKIP_PRIVILEGED_HELPER:-0}" == "1" ]]; then
@@ -148,10 +148,10 @@ rm -f "$ICON_DIR/scalable/apps/bc250-control-center.svg"
 for size in 32 48 64 128 256 512 1024; do
   install -Dm644 "$ROOT_DIR/mvc/Resources/icons/bc250-control-center-${size}.png" "$ICON_DIR/${size}x${size}/apps/bc250-control-center.png"
 done
-desktop_file="$DESKTOP_DIR/io.github.fabianbeita.bc250-control-center.desktop"
-install -Dm644 "$ROOT_DIR/packaging/common/desktop/io.github.fabianbeita.bc250-control-center.desktop" "$desktop_file"
+desktop_file="$DESKTOP_DIR/io.github.movacx.bc250-control-center.desktop"
+install -Dm644 "$ROOT_DIR/packaging/common/desktop/io.github.movacx.bc250-control-center.desktop" "$desktop_file"
 sed -i "s|^Exec=.*|Exec=$BIN_DIR/bc250-control-center|" "$desktop_file"
-install -Dm644 "$ROOT_DIR/packaging/common/metainfo/io.github.fabianbeita.bc250-control-center.metainfo.xml" "$METAINFO_DIR/io.github.fabianbeita.bc250-control-center.metainfo.xml"
+install -Dm644 "$ROOT_DIR/packaging/common/metainfo/io.github.movacx.bc250-control-center.metainfo.xml" "$METAINFO_DIR/io.github.movacx.bc250-control-center.metainfo.xml"
 install -Dm644 "$ROOT_DIR/packaging/common/systemd-user/bc250-control-centerd.service" "$SYSTEMD_USER_DIR/bc250-control-centerd.service"
 sed -i "s|^ExecStart=.*|ExecStart=$BIN_DIR/bc250-control-centerd|" "$SYSTEMD_USER_DIR/bc250-control-centerd.service"
 if [[ "$SYSTEMD_USER_DIR" != "$PREFIX/lib/systemd/user" ]]; then

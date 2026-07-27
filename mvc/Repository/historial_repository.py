@@ -1,29 +1,53 @@
+from __future__ import annotations
+
+from contextlib import contextmanager
+from pathlib import Path
+import fcntl
 import json
 import os
+import tempfile
 import time
 
 
 class HistorialRepository:
     def __init__(self, ruta, max_registros=26, conservar=6):
         self.archivo = os.path.abspath(str(ruta))
-        self.max_registros = int(max_registros)
-        self.conservar = int(conservar)
+        self.max_registros = max(1, int(max_registros))
+        self.conservar = max(1, min(int(conservar), self.max_registros))
         self.lista = []
         self._load()
 
-    def _load(self):
-        self.lista = []
-        if not os.path.exists(self.archivo):
-            return None
-        with open(self.archivo, 'r', encoding='utf-8') as file:
+    @property
+    def _path(self):
+        return Path(self.archivo)
+
+    @contextmanager
+    def _lock(self, *, exclusive=True):
+        path = self._path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        lock_path = path.with_name(path.name + '.lock')
+        with lock_path.open('a+', encoding='utf-8') as lock_file:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH)
+            try:
+                yield
+            finally:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+
+    def _read_unlocked(self):
+        items = []
+        path = self._path
+        if not path.exists():
+            return items
+        with path.open('r', encoding='utf-8', errors='replace') as file:
             for linea in file:
                 texto = linea.strip()
                 if not texto:
                     continue
                 try:
-                    self.lista.append(json.loads(texto))
-                except Exception:
-                    self.lista.append({
+                    item = json.loads(texto)
+                    items.append(item if isinstance(item, dict) else {'detalle': str(item)})
+                except json.JSONDecodeError:
+                    items.append({
                         'id': 0,
                         'ts': 0,
                         'fecha': '--',
@@ -33,40 +57,72 @@ class HistorialRepository:
                         'detalle': texto[:240],
                         'datos': {},
                     })
-        self._compactar_si_ocupa()
+        return items
+
+    def _write_unlocked(self, items):
+        path = self._path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        descriptor, temporary_name = tempfile.mkstemp(
+            prefix=f'.{path.name}.', suffix='.tmp', dir=str(path.parent)
+        )
+        temporary = Path(temporary_name)
+        try:
+            with os.fdopen(descriptor, 'w', encoding='utf-8') as file:
+                for item in items:
+                    file.write(json.dumps(item, ensure_ascii=False, default=str) + '\n')
+                file.flush()
+                os.fsync(file.fileno())
+            os.replace(temporary, path)
+            return True
+        finally:
+            temporary.unlink(missing_ok=True)
+
+    def _load(self):
+        with self._lock(exclusive=True):
+            items = self._read_unlocked()
+            if len(items) > self.max_registros:
+                items = items[-self.conservar:]
+                self._write_unlocked(items)
+            self.lista = items
         return True
 
     def _save(self):
-        os.makedirs(os.path.dirname(self.archivo), exist_ok=True)
-        with open(self.archivo, 'w', encoding='utf-8') as file:
-            for item in self.lista:
-                file.write(json.dumps(item, ensure_ascii=False, default=str) + '\n')
+        with self._lock(exclusive=True):
+            self._write_unlocked(self.lista)
         return True
 
     def _compactar_si_ocupa(self):
         if len(self.lista) <= self.max_registros:
             return False
         self.lista = self.lista[-self.conservar:]
-        self._save()
         return True
 
     def agregar(self, evento):
-        self.lista.append(evento)
-        if not self._compactar_si_ocupa():
-            self._save()
+        with self._lock(exclusive=True):
+            # Reload while holding the lock so GUI and daemon writers cannot
+            # overwrite each other's most recent entries.
+            self.lista = self._read_unlocked()
+            self.lista.append(evento)
+            self._compactar_si_ocupa()
+            self._write_unlocked(self.lista)
         return True
 
     def listar(self, limite=300):
-        self._load()
         try:
-            limite = int(limite)
-        except Exception:
+            limite = max(0, int(limite))
+        except (TypeError, ValueError):
             limite = 300
-        return list(reversed(self.lista[-limite:]))
+        with self._lock(exclusive=True):
+            self.lista = self._read_unlocked()
+            if len(self.lista) > self.max_registros:
+                self.lista = self.lista[-self.conservar:]
+                self._write_unlocked(self.lista)
+            return list(reversed(self.lista[-limite:])) if limite else []
 
     def limpiar(self):
-        self.lista = []
-        self._save()
+        with self._lock(exclusive=True):
+            self.lista = []
+            self._write_unlocked(self.lista)
         return True
 
     def nuevo_evento(self, tipo, nivel, titulo, detalle='', datos=None):

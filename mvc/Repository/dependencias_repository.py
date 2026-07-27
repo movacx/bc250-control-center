@@ -18,29 +18,54 @@ class DependenciasRepository:
         os_repository = self._os_repository()
         os_info = os_repository.info
         is_steamos = os_info.family == 'steamos'
-        cu_standard = self._command_path('bc250-cu-live-manager') or self._cu_script_local('bc250-cu-live-manager')
+        cu_command = self._command_path('bc250-cu-live-manager')
+        cu_standard = cu_command or self._cu_script_local('bc250-cu-live-manager')
         encontrado = self._buscar_archivo('bc250-cu-live-manager.sh')
         if encontrado and 'bc250-cu-live-manager-steamos' not in encontrado and not cu_standard:
             cu_standard = encontrado
-        cu_steamos = self._cu_script_local('bc250-cu-live-manager-steamos')
+        cu_steamos = self._cu_script_local('bc250-cu-live-manager-steamos') or self._cu_steamos_installed_script(cu_command)
         standard_repo = str(Path(cu_standard).parent) if cu_standard and Path(cu_standard).exists() else self._buscar_directorio_con('bc250-cu-live-manager.sh', 'bc250-cu-live-manager')
         steamos_repo = str(Path(cu_steamos).parent) if cu_steamos and Path(cu_steamos).exists() else ''
 
-        cu_manager = cu_standard
-        cu_kind = 'WinnieLV/bc250-cu-live-manager' if cu_standard else ''
-        cu_backend = 'standard'
-        cu_repo = standard_repo
-        cu_repo_url = 'https://github.com/WinnieLV/bc250-cu-live-manager'
-        cu_warning = ''
+        standard_path_exists = bool(
+            cu_standard and (Path(cu_standard).exists() or shutil.which(Path(cu_standard).name))
+        )
+        standard_backend = self._cu_script_backend(cu_standard)
+        wrong_standard_on_steamos = bool(standard_path_exists and standard_backend != 'steamos')
+        standard_exists = wrong_standard_on_steamos if is_steamos else standard_path_exists
+        steamos_exists = bool(cu_steamos and Path(cu_steamos).exists())
+        expected_steamos_repo = self._tool_dir() / 'bc250-cu-live-manager-steamos'
+
         if is_steamos:
-            if cu_steamos:
-                cu_manager = cu_steamos
-                cu_kind = 'F5GO/bc250-cu-live-manager-SteamOS'
-                cu_backend = 'steamos'
-                cu_repo = steamos_repo
-                cu_repo_url = 'https://github.com/F5GO/bc250-cu-live-manager-SteamOS'
+            # SteamOS is an exceptional backend: the normal WinnieLV manager is
+            # intentionally never selected, even when it is installed globally
+            # or left behind by an older application version.  Its UMR database
+            # cannot be assumed to work with the SteamOS/Neptune environment.
+            cu_manager = cu_steamos if steamos_exists else ''
+            cu_kind = 'F5GO/bc250-cu-live-manager-SteamOS'
+            cu_backend = 'steamos'
+            cu_repo = steamos_repo or str(expected_steamos_repo)
+            cu_repo_url = 'https://github.com/F5GO/bc250-cu-live-manager-SteamOS'
+            if steamos_exists:
+                cu_warning = ''
+            elif standard_exists:
+                cu_warning = (
+                    'SteamOS requires the F5GO SteamOS 40CU backend. A standard WinnieLV installation '
+                    'was detected and has been ignored to prevent incompatible register operations. '
+                    'Use Prepare dependencies or Prepare Live Manager before using any 40CU action.'
+                )
             else:
-                cu_warning = 'SteamOS detected: Prepare dependencies installs the F5GO SteamOS 40CU backend and its persistent UMR database support.'
+                cu_warning = (
+                    'SteamOS requires the F5GO SteamOS 40CU backend. Use Prepare dependencies or '
+                    'Prepare Live Manager before using any 40CU action.'
+                )
+        else:
+            cu_manager = cu_standard
+            cu_kind = 'WinnieLV/bc250-cu-live-manager' if standard_exists else ''
+            cu_backend = 'standard'
+            cu_repo = standard_repo
+            cu_repo_url = 'https://github.com/WinnieLV/bc250-cu-live-manager'
+            cu_warning = ''
 
         smu_path = self._buscar_directorio_con('bc250_detect.py', 'bc250_smu_oc')
         bc250_detect = self._command_path('bc250-detect')
@@ -58,11 +83,16 @@ class DependenciasRepository:
             'cu_manager_backend': cu_backend,
             'cu_manager_repo_url': cu_repo_url,
             'cu_manager_warning': cu_warning,
-            'cu_manager_exists': bool(cu_manager and (Path(cu_manager).exists() or shutil.which(Path(cu_manager).name))),
+            'cu_manager_exists': steamos_exists if is_steamos else standard_exists,
+            'cu_manager_required_backend': 'steamos' if is_steamos else 'standard',
+            'cu_manager_blocked': bool(is_steamos and not steamos_exists),
+            'cu_manager_wrong_backend_present': bool(is_steamos and standard_exists),
             'cu_manager_standard_path': cu_standard,
             'cu_manager_steamos_path': cu_steamos,
-            'cu_manager_standard_exists': bool(cu_standard and (Path(cu_standard).exists() or shutil.which(Path(cu_standard).name))),
-            'cu_manager_steamos_exists': bool(cu_steamos and Path(cu_steamos).exists()),
+            'cu_manager_steamos_global_path': self._cu_steamos_installed_script(cu_command),
+            'cu_manager_standard_exists': standard_exists,
+            'cu_manager_standard_backend': standard_backend,
+            'cu_manager_steamos_exists': steamos_exists,
             'cu_steamos_umr_database': '/var/lib/bc250-cu-live-manager/umr/database',
             'is_steamos': is_steamos,
             'os_id': os_info.distro_id,
@@ -96,6 +126,79 @@ class DependenciasRepository:
         ruta = self._tool_dir() / carpeta / 'bc250-cu-live-manager.sh'
         return str(ruta) if ruta.exists() else ''
 
+    def _cu_script_backend(self, ruta):
+        if not ruta:
+            return ''
+        try:
+            path = Path(ruta)
+            if not path.is_file():
+                return ''
+            texto = path.read_text(encoding='utf-8', errors='ignore')[:262144]
+        except OSError:
+            return ''
+        if 'UMR_DATABASE_PATH' in texto and (
+            'ensure_umr_database' in texto
+            or 'umr_database_default_path' in texto
+            or 'bc250-cu-live-manager-SteamOS' in texto
+        ):
+            return 'steamos'
+        if 'BC-250 live CU/WGP manager' in texto and 'enable-wgp' in texto and 'write-service-table' in texto:
+            return 'standard'
+        return ''
+
+    def _cu_steamos_installed_script(self, preferred=''):
+        candidatos = []
+        if preferred:
+            candidatos.append(Path(preferred))
+        candidatos.extend([
+            Path('/usr/local/bin/bc250-cu-live-manager'),
+            Path('/var/usrlocal/bin/bc250-cu-live-manager'),
+            Path('/var/lib/bc250-cu-live-manager/umr/bc250-cu-live-manager'),
+        ])
+        vistos = set()
+        for ruta in candidatos:
+            try:
+                resolved = ruta.expanduser().resolve()
+            except OSError:
+                resolved = ruta.expanduser()
+            if str(resolved) in vistos:
+                continue
+            vistos.add(str(resolved))
+            if self._cu_script_backend(resolved) == 'steamos':
+                return str(resolved)
+        return ''
+
+    def _cu_manager_spec(self, os_repository=None):
+        os_repository = os_repository or self._os_repository()
+        is_steamos = os_repository.info.family == 'steamos'
+        folder = 'bc250-cu-live-manager-steamos' if is_steamos else 'bc250-cu-live-manager'
+        repository = (
+            'https://github.com/F5GO/bc250-cu-live-manager-SteamOS'
+            if is_steamos
+            else 'https://github.com/WinnieLV/bc250-cu-live-manager'
+        )
+        destination = self._tool_dir() / folder
+        return {
+            'is_steamos': is_steamos,
+            'folder': folder,
+            'repository': repository,
+            'destination': destination,
+            'script': destination / 'bc250-cu-live-manager.sh',
+        }
+
+    @staticmethod
+    def _accept_reboot_required(command, message):
+        """Treat the rpm-ostree pending-deployment exit code as success."""
+        return (
+            'bc250_step_status=0; set +e; '
+            + command
+            + '; bc250_step_status=$?; set -e; '
+            + 'if [ "$bc250_step_status" -eq 20 ]; then '
+            + 'BC250_REBOOT_REQUIRED=1; echo '
+            + shlex.quote(message)
+            + '; elif [ "$bc250_step_status" -ne 0 ]; then exit "$bc250_step_status"; fi'
+        )
+
     def instalar_governor(self):
         if self._command_path('cyan-skillfish-governor-smu'):
             return True
@@ -111,104 +214,129 @@ class DependenciasRepository:
             path = shlex.quote(tools['smu_oc_path'])
             cmd = f'echo "OK: bc250_smu_oc repository found at {path}"; echo "The app runs bc250_detect.py directly to avoid PEP 668 conflicts."'
             return self._abrir_terminal(cmd, 'Preparar bc250_smu_oc')
-        if not tools.get('git'):
-            raise RuntimeError('Could not find bc250-detect or git to download bc250_smu_oc')
-        destino = self._tool_dir() / 'bc250_smu_oc'
-        destino.parent.mkdir(parents=True, exist_ok=True)
-        cmd = self._clone_or_update_command('https://github.com/bc250-collective/bc250_smu_oc', destino)
-        cmd += f'; test -f {shlex.quote(str(destino / "bc250_detect.py"))} || {{ echo "ERROR: bc250_detect.py was not found"; exit 1; }}'
-        return self._abrir_terminal(cmd, 'Preparar bc250_smu_oc')
+
+        os_repository = self._os_repository()
+        destination = self._tool_dir() / 'bc250_smu_oc'
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        commands = [
+            'set -Eeuo pipefail',
+            'export LC_ALL=C LANG=C',
+            'echo "== Preparing bc250_smu_oc =="',
+        ]
+        if os_repository.info.family == 'bazzite':
+            commands.append(
+                self._clone_or_update_with_archive_command(
+                    'https://github.com/bc250-collective/bc250_smu_oc', destination
+                )
+            )
+        else:
+            runtime = os_repository.prepare_dependencies_command('runtime')
+            commands.append(f'command -v git >/dev/null 2>&1 || {{ {runtime}; }}')
+            commands.append(self._clone_or_update_command('https://github.com/bc250-collective/bc250_smu_oc', destination))
+        commands.extend([
+            f'test -f {shlex.quote(str(destination / "bc250_detect.py"))} || {{ echo "ERROR: bc250_detect.py was not found"; exit 1; }}',
+            f'echo "OK: bc250_smu_oc is ready at {shlex.quote(str(destination))}"',
+        ])
+        self.estado_herramientas_cache = None
+        return self._abrir_terminal('; '.join(commands), 'Preparar bc250_smu_oc')
 
     def instalar_cu_manager(self):
         tools = self.estado_herramientas_bc250()
-        es_steamos = tools.get('is_steamos') or self._es_steamos()
-        if es_steamos and tools.get('cu_manager_steamos_exists'):
+        os_repository = self._os_repository()
+        spec = self._cu_manager_spec(os_repository)
+        if spec['is_steamos'] and tools.get('cu_manager_steamos_exists'):
             return True
-        if not es_steamos and tools['cu_manager_exists']:
+        if not spec['is_steamos'] and tools['cu_manager_exists']:
             return True
-        if not tools.get('git'):
-            raise RuntimeError('Could not find local bc250-cu-live-manager or git to download it')
-        repo = 'https://github.com/F5GO/bc250-cu-live-manager-SteamOS' if es_steamos else 'https://github.com/WinnieLV/bc250-cu-live-manager'
-        carpeta = 'bc250-cu-live-manager-steamos' if es_steamos else 'bc250-cu-live-manager'
-        destino = self._tool_dir() / carpeta
-        destino.parent.mkdir(parents=True, exist_ok=True)
-        script = destino / 'bc250-cu-live-manager.sh'
-        cmd = self._clone_or_update_command(repo, destino)
-        cmd += f'; chmod 0755 {shlex.quote(str(script))}; test -x {shlex.quote(str(script))} || {{ echo "ERROR: bc250-cu-live-manager.sh was not found"; exit 1; }}'
+
+        destination = spec['destination']
+        script = spec['script']
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        commands = [
+            'set -Eeuo pipefail',
+            'export LC_ALL=C LANG=C',
+            'echo "== Preparing bc250-cu-live-manager =="',
+        ]
+        if os_repository.info.family == 'bazzite':
+            commands.append(self._clone_or_update_with_archive_command(spec['repository'], destination))
+        else:
+            runtime = os_repository.prepare_dependencies_command('runtime')
+            commands.append(f'command -v git >/dev/null 2>&1 || {{ {runtime}; }}')
+            commands.append(self._clone_or_update_command(spec['repository'], destination))
+        commands.extend([
+            f'chmod 0755 {shlex.quote(str(script))}',
+            f'test -x {shlex.quote(str(script))} || {{ echo "ERROR: bc250-cu-live-manager.sh was not found"; exit 1; }}',
+            f'echo "OK: 40CU manager is ready at {shlex.quote(str(script))}"',
+        ])
         self.estado_herramientas_cache = None
-        return self._abrir_terminal(cmd, 'Preparar bc250-cu-live-manager')
+        return self._abrir_terminal('; '.join(commands), 'Preparar bc250-cu-live-manager')
 
     def instalar_dependencias_bc250(self):
         os_repository = self._os_repository()
         self.estado_herramientas_bc250()
         self._tool_dir().mkdir(parents=True, exist_ok=True)
-        rutas = self.config_paths()
-        cpu_destino = self._tool_dir() / 'bc250_smu_oc'
-        es_steamos = os_repository.info.family == 'steamos'
-        cu_destino = self._tool_dir() / ('bc250-cu-live-manager-steamos' if es_steamos else 'bc250-cu-live-manager')
-        cu_repo = 'https://github.com/F5GO/bc250-cu-live-manager-SteamOS' if es_steamos else 'https://github.com/WinnieLV/bc250-cu-live-manager'
-        cu_script = cu_destino / 'bc250-cu-live-manager.sh'
+        paths = self.config_paths()
+        cpu_destination = self._tool_dir() / 'bc250_smu_oc'
+        cu_spec = self._cu_manager_spec(os_repository)
+        cu_destination = cu_spec['destination']
+        cu_script = cu_spec['script']
         immutable_pending = os_repository.info.family == 'bazzite'
 
-        comandos = [
+        commands = [
             'set -Eeuo pipefail',
             'export LC_ALL=C LANG=C',
+            'BC250_REBOOT_REQUIRED=0',
             f'mkdir -p {shlex.quote(str(self._tool_dir()))}',
             'echo "== Preparing BC250 dependencies =="',
-            f'echo "Detected strategy: {shlex.quote(os_repository.info.family)} ({shlex.quote(os_repository.info.label)})"',
+            f"printf '%s\\n' {shlex.quote(f'Detected strategy: {os_repository.info.family} ({os_repository.info.label})')}",
         ]
 
-        # On Bazzite, source repositories are prepared before rpm-ostree stages a
-        # deployment. A clean image may not have git active yet, so use GitHub
-        # release archives as a bootstrap fallback. This makes the first click
-        # complete all user-space preparation before requesting the one reboot.
         if immutable_pending:
-            comandos.extend([
+            commands.extend([
                 'echo "== Preparing BC250 user-space tools before the rpm-ostree reboot =="',
-                self._clone_or_update_with_archive_command('https://github.com/bc250-collective/bc250_smu_oc', cpu_destino),
-                f'test -f {shlex.quote(str(cpu_destino / "bc250_detect.py"))} || {{ echo "ERROR: bc250_detect.py is missing"; exit 30; }}',
-                self._clone_or_update_with_archive_command(cu_repo, cu_destino),
+                self._clone_or_update_with_archive_command(
+                    'https://github.com/bc250-collective/bc250_smu_oc', cpu_destination
+                ),
+                f'test -f {shlex.quote(str(cpu_destination / "bc250_detect.py"))} || {{ echo "ERROR: bc250_detect.py is missing"; exit 30; }}',
+                self._clone_or_update_with_archive_command(cu_spec['repository'], cu_destination),
                 f'chmod 0755 {shlex.quote(str(cu_script))}',
                 f'test -x {shlex.quote(str(cu_script))} || {{ echo "ERROR: 40CU manager script is missing"; exit 31; }}',
-                os_repository.prepare_dependencies_command('all', cu_manager_script=str(cu_script)),
+                self._accept_reboot_required(
+                    os_repository.prepare_dependencies_command('all', cu_manager_script=str(cu_script)),
+                    'The Bazzite deployment was staged successfully. Reboot once to activate the host packages.',
+                ),
             ])
         else:
-            comandos.extend([
+            commands.extend([
                 os_repository.prepare_dependencies_command('runtime'),
                 os_repository.prepare_dependencies_command('governor'),
                 'command -v git >/dev/null 2>&1 || { echo "ERROR: git is unavailable after dependency preparation"; exit 29; }',
                 'echo "== Preparing bc250_smu_oc source =="',
-                self._clone_or_update_command('https://github.com/bc250-collective/bc250_smu_oc', cpu_destino),
-                f'test -f {shlex.quote(str(cpu_destino / "bc250_detect.py"))} || {{ echo "ERROR: bc250_detect.py is missing"; exit 30; }}',
+                self._clone_or_update_command('https://github.com/bc250-collective/bc250_smu_oc', cpu_destination),
+                f'test -f {shlex.quote(str(cpu_destination / "bc250_detect.py"))} || {{ echo "ERROR: bc250_detect.py is missing"; exit 30; }}',
                 'echo "== Preparing 40CU live manager =="',
-                self._clone_or_update_command(cu_repo, cu_destino),
+                self._clone_or_update_command(cu_spec['repository'], cu_destination),
                 f'chmod 0755 {shlex.quote(str(cu_script))}',
                 f'test -x {shlex.quote(str(cu_script))} || {{ echo "ERROR: 40CU manager script is missing"; exit 31; }}',
+                os_repository.install_umr_command(str(cu_script)),
+                'command -v umr >/dev/null 2>&1 || { echo "ERROR: UMR is still unavailable"; exit 32; }',
+                'command -v cyan-skillfish-governor-smu >/dev/null 2>&1 || { echo "ERROR: cyan-skillfish-governor-smu is unavailable"; exit 33; }',
             ])
 
-        umr_fallback = os_repository.install_umr_command(str(cu_script))
-        if immutable_pending:
-            comandos.append('command -v umr >/dev/null 2>&1 || { echo "ERROR: UMR is unavailable in the active deployment"; exit 32; }')
-            comandos.append('command -v cyan-skillfish-governor-smu >/dev/null 2>&1 || { echo "ERROR: governor is unavailable in the active deployment"; exit 33; }')
-        else:
-            comandos.append(f'if ! command -v umr >/dev/null 2>&1; then {umr_fallback}; fi')
-            comandos.append('command -v umr >/dev/null 2>&1 || { echo "ERROR: UMR is still unavailable"; exit 32; }')
-            comandos.append('command -v cyan-skillfish-governor-smu >/dev/null 2>&1 || { echo "ERROR: cyan-skillfish-governor-smu is unavailable"; exit 33; }')
-
-        comandos.extend([
+        commands.extend([
             'echo',
             'echo "== BC250 dependency verification =="',
-            'for cmd in python3 git stress lspci sensors; do command -v "$cmd" >/dev/null 2>&1 && echo "OK: $cmd -> $(command -v "$cmd")" || { echo "ERROR: missing $cmd"; exit 34; }; done',
-            f'echo "Tools: {shlex.quote(str(self._tool_dir()))}"',
-            f'echo "Config: {shlex.quote(rutas.get("config", ""))}"',
-            f'echo "Profiles: {shlex.quote(rutas.get("perfiles", ""))}"',
-            f'echo "History: {shlex.quote(rutas.get("historial", ""))}"',
-            f'echo "CPU OC repo: {shlex.quote(str(cpu_destino))}"',
-            f'echo "40CU repo: {shlex.quote(str(cu_destino))}"',
-            'echo "== Finished successfully =="',
+            'if [ "$BC250_REBOOT_REQUIRED" = "1" ]; then echo "PENDING: host packages will be verified after reboot."; else for cmd in python3 git stress lspci sensors pkexec; do command -v "$cmd" >/dev/null 2>&1 && echo "OK: $cmd -> $(command -v "$cmd")" || { echo "ERROR: missing $cmd"; exit 34; }; done; python3 -c "import PyQt6, psutil" || { echo "ERROR: Python GUI dependencies are unavailable"; exit 35; }; fi',
+            f"printf '%s\\n' {shlex.quote(f'Tools: {self._tool_dir()}')}",
+            f"printf '%s\\n' {shlex.quote(f'Config: {paths.get("config", "")}')}",
+            f"printf '%s\\n' {shlex.quote(f'Profiles: {paths.get("perfiles", "")}')}",
+            f"printf '%s\\n' {shlex.quote(f'History: {paths.get("historial", "")}')}",
+            f"printf '%s\\n' {shlex.quote(f'CPU OC repo: {cpu_destination}')}",
+            f"printf '%s\\n' {shlex.quote(f'40CU repo: {cu_destination}')}",
+            'if [ "$BC250_REBOOT_REQUIRED" = "1" ]; then echo "== Finished: reboot required =="; else echo "== Finished successfully =="; fi',
         ])
         self.estado_herramientas_cache = None
-        return self._abrir_terminal('; '.join(comandos), 'Preparar dependencias BC250')
+        return self._abrir_terminal('; '.join(commands), 'Preparar dependencias BC250')
 
     def _clone_or_update_with_archive_command(self, repository_url, destination, branch='main'):
         qdest = shlex.quote(str(destination))
@@ -257,10 +385,42 @@ class DependenciasRepository:
     def instalar_umr(self):
         if self._command_path('umr'):
             return True
-        tools = self.estado_herramientas_bc250()
-        comando = self._comando_instalar_umr(tools)
+        os_repository = self._os_repository()
+        spec = self._cu_manager_spec(os_repository)
+        destination = spec['destination']
+        script = spec['script']
+        destination.parent.mkdir(parents=True, exist_ok=True)
+
+        commands = [
+            'set -Eeuo pipefail',
+            'export LC_ALL=C LANG=C',
+            'BC250_REBOOT_REQUIRED=0',
+            'echo "== Preparing UMR for BC250 =="',
+        ]
+        if os_repository.info.family == 'bazzite':
+            commands.extend([
+                self._clone_or_update_with_archive_command(spec['repository'], destination),
+                f'chmod 0755 {shlex.quote(str(script))}',
+                f'test -x {shlex.quote(str(script))} || {{ echo "ERROR: 40CU fallback helper is missing"; exit 31; }}',
+                self._accept_reboot_required(
+                    os_repository.install_umr_command(str(script)),
+                    'UMR was staged in a new Bazzite deployment. Reboot once to activate it.',
+                ),
+                'if [ "$BC250_REBOOT_REQUIRED" = "0" ]; then command -v umr >/dev/null 2>&1 || { echo "ERROR: UMR is still unavailable"; exit 32; }; fi',
+            ])
+        else:
+            runtime = os_repository.prepare_dependencies_command('runtime')
+            commands.extend([
+                f'command -v git >/dev/null 2>&1 || {{ {runtime}; }}',
+                self._clone_or_update_command(spec['repository'], destination),
+                f'chmod 0755 {shlex.quote(str(script))}',
+                f'test -x {shlex.quote(str(script))} || {{ echo "ERROR: 40CU fallback helper is missing"; exit 31; }}',
+                os_repository.install_umr_command(str(script)),
+                'command -v umr >/dev/null 2>&1 || { echo "ERROR: UMR is still unavailable"; exit 32; }',
+            ])
+        commands.append('if [ "$BC250_REBOOT_REQUIRED" = "1" ]; then echo "== UMR staged; reboot required =="; else echo "== UMR installation verified =="; fi')
         self.estado_herramientas_cache = None
-        return self._abrir_terminal(comando, 'Instalar UMR')
+        return self._abrir_terminal('; '.join(commands), 'Instalar UMR')
 
     def _comando_instalar_umr(self, tools=None):
         tools = tools or self.estado_herramientas_bc250()
