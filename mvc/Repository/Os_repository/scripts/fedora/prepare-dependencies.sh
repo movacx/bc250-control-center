@@ -6,7 +6,7 @@ parse_component "$@"
 install_runtime() {
   bold "${BC250_OS_LABEL:-Fedora family}: installing BC250 runtime dependencies"
   local packages=(
-    python3 python3-pyqt6 python3-psutil lm_sensors stress git pciutils libdrm
+    python3 python3-pyqt6 qt6-qtsvg python3-psutil lm_sensors stress git pciutils libdrm
     vulkan-tools polkit kmod curl ca-certificates make gcc elfutils-libelf-devel
     kernel-devel kernel-headers dkms dnf-plugins-core
   )

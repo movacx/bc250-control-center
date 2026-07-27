@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 NAME="bc250-control-center"
 VERSION="${VERSION:-1.17.22}"
-RELEASE="${RELEASE:-1}"
+RELEASE="${RELEASE:-2}"
 PKG_VERSION="${VERSION}-${RELEASE}"
 BUILD_DIR="$ROOT/build/deb"
 PKG_DIR="$BUILD_DIR/${NAME}_${PKG_VERSION}_all"
@@ -56,7 +56,7 @@ Section: utils
 Priority: optional
 Architecture: all
 Maintainer: Movacx <movacx@users.noreply.github.com>
-Depends: python3, python3-pyqt6, python3-psutil
+Depends: python3, python3-pyqt6, python3-psutil, libqt6svg6
 Recommends: python3-evdev, lm-sensors, stress, git, pciutils, mesa-utils, vulkan-tools, curl, ca-certificates, dbus, dbus-user-session, polkitd | policykit-1, build-essential, dkms
 Homepage: https://github.com/movacx/bc250-control-center
 Description: Graphical control center for AMD BC-250 community tools

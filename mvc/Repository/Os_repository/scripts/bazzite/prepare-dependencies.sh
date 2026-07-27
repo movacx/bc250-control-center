@@ -73,7 +73,7 @@ layer_packages() {
 }
 
 runtime_packages=(
-  python3 python3-pyqt6 python3-psutil lm_sensors stress git pciutils libdrm
+  python3 python3-pyqt6 qt6-qtsvg python3-psutil lm_sensors stress git pciutils libdrm
   vulkan-tools polkit kmod make gcc elfutils-libelf-devel kernel-devel dkms umr
 )
 

@@ -20,7 +20,7 @@ prepare_steamos_pacman() {
 install_runtime() {
   prepare_steamos_pacman
   local packages=(
-    python python-pyqt6 python-psutil lm_sensors stress git pciutils libdrm
+    python python-pyqt6 qt6-svg python-psutil lm_sensors stress git pciutils libdrm
     vulkan-tools mesa-utils polkit kmod curl ca-certificates tar zstd
     base-devel fakeroot debugedit gcc make pkgconf pahole dkms
   )

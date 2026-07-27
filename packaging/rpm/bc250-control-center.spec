@@ -1,6 +1,6 @@
 Name:           bc250-control-center
 Version:        1.17.22
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Linux gaming task manager and safe AMD BC-250 control panel
 
 %{!?_userunitdir:%global _userunitdir /usr/lib/systemd/user}
@@ -12,6 +12,7 @@ BuildArch:      noarch
 
 Requires:       python3
 Requires:       python3-pyqt6
+Requires:       qt6-qtsvg
 Requires:       python3-psutil
 Recommends:     python3-evdev
 Recommends:     lm_sensors
@@ -95,6 +96,9 @@ fi
 %{_userunitdir}/bc250-control-centerd.service
 
 %changelog
+* Mon Jul 27 2026 Movacx <movacx@users.noreply.github.com> - 1.17.22-2
+- Require Qt SVG support so interface icons render on Linux Mint, Ubuntu and Fedora-family desktops.
+
 * Sun Jul 26 2026 Movacx <movacx@users.noreply.github.com> - 1.17.22-1
 - Improve controller compatibility, focus navigation, and on-screen numeric input.
 - Keep voltage profile presets locked unless Custom mode is selected.

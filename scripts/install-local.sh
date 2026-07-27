@@ -69,23 +69,26 @@ if ! command -v python3 >/dev/null 2>&1; then
   echo "Warning: python3 is not installed or is not in PATH." >&2
   missing_python_deps=1
 elif ! python3 - <<'PY' >/dev/null 2>&1
+from PyQt6.QtGui import QImageReader
 from PyQt6.QtWidgets import QApplication
 import psutil
+formats = {bytes(fmt).decode("ascii", "ignore").lower() for fmt in QImageReader.supportedImageFormats()}
+assert "svg" in formats, "Qt SVG image plugin is missing"
 PY
 then
-  echo "Warning: Python GUI dependencies are missing. The app will install, but it will not open until they are installed." >&2
+  echo "Warning: Python GUI dependencies are missing or Qt SVG support is unavailable. The app will install, but icons or the GUI may fail until they are installed." >&2
   if [[ -e /run/ostree-booted ]] && command -v rpm-ostree >/dev/null 2>&1; then
-    missing_python_deps_command="rpm-ostree install --idempotent python3-pyqt6 python3-psutil"
+    missing_python_deps_command="rpm-ostree install --idempotent python3-pyqt6 qt6-qtsvg python3-psutil"
     missing_python_deps_reboot_notice=1
     echo "Bazzite/Fedora Atomic: sudo $missing_python_deps_command" >&2
   elif command -v dnf >/dev/null 2>&1; then
-    missing_python_deps_command="dnf install -y python3-pyqt6 python3-psutil"
+    missing_python_deps_command="dnf install -y python3-pyqt6 qt6-qtsvg python3-psutil"
     echo "Fedora/Nobara: sudo $missing_python_deps_command" >&2
   elif command -v pacman >/dev/null 2>&1; then
-    missing_python_deps_command="pacman -S --needed python-pyqt6 python-psutil"
+    missing_python_deps_command="pacman -S --needed python-pyqt6 qt6-svg python-psutil"
     echo "Arch/CachyOS: sudo $missing_python_deps_command" >&2
   elif command -v apt >/dev/null 2>&1; then
-    missing_python_deps_command="apt install -y python3 python-is-python3 python3-pyqt6 python3-psutil"
+    missing_python_deps_command="apt install -y python3 python-is-python3 python3-pyqt6 libqt6svg6 python3-psutil"
     echo "Debian/Ubuntu: sudo $missing_python_deps_command" >&2
   fi
   missing_python_deps=1
