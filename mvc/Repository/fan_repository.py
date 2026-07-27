@@ -143,6 +143,10 @@ class FanRepository:
             raise RuntimeError('Invalid PWM channel.')
         if valor < 0 or valor > 255:
             raise RuntimeError('PWM value must be between 0 and 255.')
+        if self._usar_steamos_game_helper():
+            salida = self._ejecutar_steamos_game_helper('fan-pwm', pwm, valor, timeout=120)
+            self.estado_herramientas_cache = None
+            return {'pwm': pwm, 'valor': valor, 'salida': salida}
         if not self._command_path('pkexec'):
             raise RuntimeError('polkit/pkexec was not found. Cannot authenticate PWM write from the GUI.')
         if not self._command_path('python3'):

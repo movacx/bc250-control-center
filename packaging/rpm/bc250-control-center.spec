@@ -1,5 +1,5 @@
 Name:           bc250-control-center
-Version:        1.17.22
+Version:        1.17.23
 Release:        1%{?dist}
 Summary:        Linux gaming task manager and safe AMD BC-250 control panel
 
@@ -12,6 +12,7 @@ BuildArch:      noarch
 
 Requires:       python3
 Requires:       python3-pyqt6
+Requires:       qt6-qtsvg
 Requires:       python3-psutil
 Recommends:     python3-evdev
 Recommends:     lm_sensors
@@ -49,6 +50,7 @@ cp -a mvc %{buildroot}%{_datadir}/bc250-control-center/
 install -Dm755 scripts/bc250-control-center %{buildroot}%{_bindir}/bc250-control-center
 install -Dm755 scripts/bc250-control-centerd %{buildroot}%{_bindir}/bc250-control-centerd
 install -Dm755 mvc/Resources/privileged/bc250-fan-pwm-helper %{buildroot}/usr/libexec/bc250-control-center/bc250-fan-pwm-helper
+install -Dm755 mvc/Resources/privileged/bc250-steamos-game-helper %{buildroot}/usr/libexec/bc250-control-center/bc250-steamos-game-helper
 install -Dm644 packaging/common/polkit/io.github.movacx.bc250-control-center.policy %{buildroot}%{_datadir}/polkit-1/actions/io.github.movacx.bc250-control-center.policy
 
 for size in 32 48 64 128 256 512 1024; do
@@ -87,6 +89,7 @@ fi
 %{_bindir}/bc250-control-center
 %{_bindir}/bc250-control-centerd
 /usr/libexec/bc250-control-center/bc250-fan-pwm-helper
+/usr/libexec/bc250-control-center/bc250-steamos-game-helper
 %{_datadir}/polkit-1/actions/io.github.movacx.bc250-control-center.policy
 %{_datadir}/bc250-control-center/
 %{_datadir}/applications/io.github.movacx.bc250-control-center.desktop
@@ -95,6 +98,25 @@ fi
 %{_userunitdir}/bc250-control-centerd.service
 
 %changelog
+* Mon Jul 27 2026 Movacx <movacx@users.noreply.github.com> - 1.17.23-1
+- Improve SteamOS Game Mode compatibility and Compute Units integration.
+
+* Mon Jul 27 2026 Movacx <movacx@users.noreply.github.com> - 1.17.22-6
+- Restore SteamOS 40CU backend default UMR selector and add selector fallback diagnostics.
+
+* Mon Jul 27 2026 Movacx <movacx@users.noreply.github.com> - 1.17.22-5
+- Harden SteamOS Game Mode detection with GUI-origin context and diagnostics.
+- Add right-stick page scrolling for controller navigation.
+
+* Mon Jul 27 2026 Movacx <movacx@users.noreply.github.com> - 1.17.22-4
+- Add a limited SteamOS Game Mode privileged helper for controller-native hardware actions.
+
+* Mon Jul 27 2026 Movacx <movacx@users.noreply.github.com> - 1.17.22-3
+- Resolve the SteamOS Cyan Skillfish UMR selector for the F5GO 40CU backend.
+
+* Mon Jul 27 2026 Movacx <movacx@users.noreply.github.com> - 1.17.22-2
+- Require Qt SVG support so interface icons render on Linux Mint, Ubuntu and Fedora-family desktops.
+
 * Sun Jul 26 2026 Movacx <movacx@users.noreply.github.com> - 1.17.22-1
 - Improve controller compatibility, focus navigation, and on-screen numeric input.
 - Keep voltage profile presets locked unless Custom mode is selected.

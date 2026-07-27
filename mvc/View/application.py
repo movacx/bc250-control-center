@@ -41,6 +41,23 @@ def _ui_perf_enabled() -> bool:
     return str(os.environ.get("BC250_UI_PERF", "")).strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _is_steamos_gamemode_session() -> bool:
+    markers = {
+        str(os.environ.get("XDG_CURRENT_DESKTOP", "")).strip().lower(),
+        str(os.environ.get("XDG_SESSION_DESKTOP", "")).strip().lower(),
+        str(os.environ.get("DESKTOP_SESSION", "")).strip().lower(),
+    }
+    if any("gamescope" in value for value in markers if value):
+        return True
+    if str(os.environ.get("GAMESCOPE_WAYLAND_DISPLAY", "")).strip():
+        return True
+    if str(os.environ.get("SteamGamepadUI", "")).strip() == "1":
+        return True
+    if str(os.environ.get("SteamTenfoot", "")).strip() == "1":
+        return True
+    return False
+
+
 class ControlCenterWindow(QMainWindow):
     """Definitive BC250 interface backed by the application controller."""
 
@@ -52,6 +69,7 @@ class ControlCenterWindow(QMainWindow):
         migration = self.preferences.initialize()
         self._background = BackgroundExecutor(self)
         self._state_cache = state_cache_for(controller)
+        self._gamemode_session = _is_steamos_gamemode_session()
         self._missing_backend_language = migration.missing_backend_language
         self._missing_backend_appearance = migration.missing_backend_appearance
         self._apply_language(str(self.settings.value("settings/language", "auto")), persist=False)
@@ -71,13 +89,19 @@ class ControlCenterWindow(QMainWindow):
         # remain intact through vertical scrolling, while the desktop window
         # manager retains a realistic resize target.
         self.setMinimumSize(720, 520)
+        if self._gamemode_session:
+            self.setWindowFlag(Qt.WindowType.FramelessWindowHint, True)
 
         root = QWidget()
         root.setObjectName("ApplicationRoot")
         layout = QHBoxLayout(root)
         self.root_layout = layout
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(16)
+        if self._gamemode_session:
+            layout.setContentsMargins(8, 8, 8, 8)
+            layout.setSpacing(10)
+        else:
+            layout.setContentsMargins(16, 16, 16, 16)
+            layout.setSpacing(16)
         self.setCentralWidget(root)
 
         # Every page uses an 8 px top inset before its first visible card.
@@ -87,7 +111,7 @@ class ControlCenterWindow(QMainWindow):
         self.sidebar_host.setMinimumWidth(0)
         self.sidebar_host.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
         sidebar_layout = QVBoxLayout(self.sidebar_host)
-        sidebar_layout.setContentsMargins(0, 8, 0, 0)
+        sidebar_layout.setContentsMargins(0, 0 if self._gamemode_session else 8, 0, 0)
         sidebar_layout.setSpacing(0)
 
         self.sidebar = Sidebar()
@@ -165,8 +189,22 @@ class ControlCenterWindow(QMainWindow):
         """
 
         super().showEvent(event)
+        if self._gamemode_session:
+            QTimer.singleShot(0, self._apply_gamemode_window_mode)
         QTimer.singleShot(0, self._sync_current_page_layout)
         QTimer.singleShot(80, self._sync_current_page_layout)
+
+    def _apply_gamemode_window_mode(self) -> None:
+        if not self._gamemode_session:
+            return
+        screen = self.screen()
+        if screen is None and self.windowHandle() is not None:
+            screen = self.windowHandle().screen()
+        if screen is not None:
+            geometry = screen.availableGeometry()
+            self.setGeometry(geometry)
+        if not self.isFullScreen():
+            self.showFullScreen()
 
     def _sync_current_page_layout(self) -> None:
         if not hasattr(self, "stack"):
@@ -532,6 +570,15 @@ class ControlCenterWindow(QMainWindow):
     def gamepad_open_settings(self) -> None:
         """Open layout/preferences from the controller View/Select button."""
         self._open_settings_dialog("general")
+
+    def gamepad_go_dashboard(self) -> None:
+        """Jump directly to the Dashboard from the controller guide/home button."""
+        if self.current_page_key != "dashboard":
+            self.navigate("dashboard")
+        else:
+            gamepad = getattr(self, "gamepad", None)
+            if gamepad is not None:
+                gamepad.defer_focus_current_scope()
 
     def _set_gamepad_navigation_enabled(self, enabled: bool) -> None:
         self._gamepad_navigation_enabled = bool(enabled)

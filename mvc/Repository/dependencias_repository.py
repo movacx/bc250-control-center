@@ -89,12 +89,19 @@ class DependenciasRepository:
             'cu_manager_wrong_backend_present': bool(is_steamos and standard_exists),
             'cu_manager_standard_path': cu_standard,
             'cu_manager_steamos_path': cu_steamos,
+            'cu_manager_steamos_compat_path': str(expected_steamos_repo / 'bc250-cu-live-manager-bc250.sh'),
+            'cu_manager_steamos_compat_ready': bool(
+                (expected_steamos_repo / 'bc250-cu-live-manager-bc250.sh').exists()
+            ),
             'cu_manager_steamos_global_path': self._cu_steamos_installed_script(cu_command),
             'cu_manager_standard_exists': standard_exists,
             'cu_manager_standard_backend': standard_backend,
             'cu_manager_steamos_exists': steamos_exists,
-            'cu_steamos_umr_database': '/var/lib/bc250-cu-live-manager/umr/database',
+            'cu_steamos_umr_database': str(self._steamos_umr_database_path()),
             'is_steamos': is_steamos,
+            'steamos_game_mode': self._steamos_game_mode_detected() if is_steamos else False,
+            'steamos_game_helper': self._steamos_game_helper_path() if is_steamos else '',
+            'steamos_game_helper_ready': self._usar_steamos_game_helper() if is_steamos else False,
             'os_id': os_info.distro_id,
             'os_like': ' '.join(os_info.id_like),
             'os_variant': os_info.variant_id,
@@ -123,8 +130,15 @@ class DependenciasRepository:
         return self._os_repository().info.family == 'steamos'
 
     def _cu_script_local(self, carpeta):
-        ruta = self._tool_dir() / carpeta / 'bc250-cu-live-manager.sh'
-        return str(ruta) if ruta.exists() else ''
+        base = self._tool_dir() / carpeta
+        nombres = ['bc250-cu-live-manager.sh']
+        if carpeta == 'bc250-cu-live-manager-steamos':
+            nombres.insert(0, 'bc250-cu-live-manager-bc250.sh')
+        for nombre in nombres:
+            ruta = base / nombre
+            if ruta.exists():
+                return str(ruta)
+        return ''
 
     def _cu_script_backend(self, ruta):
         if not ruta:
@@ -178,13 +192,118 @@ class DependenciasRepository:
             else 'https://github.com/WinnieLV/bc250-cu-live-manager'
         )
         destination = self._tool_dir() / folder
+        upstream_script = destination / 'bc250-cu-live-manager.sh'
+        runtime_script = (
+            destination / 'bc250-cu-live-manager-bc250.sh'
+            if is_steamos
+            else upstream_script
+        )
         return {
             'is_steamos': is_steamos,
             'folder': folder,
             'repository': repository,
             'destination': destination,
-            'script': destination / 'bc250-cu-live-manager.sh',
+            'upstream_script': upstream_script,
+            'script': runtime_script,
         }
+
+    def _steamos_cu_backend_prepare_command(self, spec):
+        if not spec.get('is_steamos'):
+            return ''
+        patcher = Path(__file__).resolve().parents[1] / 'Resources' / 'scripts' / 'prepare-steamos-cu-backend.py'
+        return ' '.join([
+            'python3',
+            shlex.quote(str(patcher)),
+            shlex.quote(str(spec['upstream_script'])),
+            shlex.quote(str(spec['script'])),
+        ])
+
+    def _steamos_umr_database_path(self):
+        # SteamOS /var is only a few hundred MiB on many images. The complete
+        # UMR database is kept in the user's large /home-backed data directory
+        # so atomic refreshes cannot fill /var and corrupt cyan_skillfish.asic.
+        return self._tool_dir() / 'umr-steamos' / 'database'
+
+
+    def _steamos_cu_env_shell(self):
+        database = self._steamos_umr_database_path()
+        return (
+            f'export UMR_DATABASE_PATH={shlex.quote(str(database))}; '
+            'export UMR_ASIC="${UMR_ASIC:-cyan_skillfish.gfx1010}"; '
+        )
+
+
+    def _steamos_umr_database_repair_command(self, check_only=False):
+        repair = Path(__file__).resolve().parents[1] / 'Resources' / 'scripts' / 'repair-steamos-umr-database.py'
+        command = [
+            'python3',
+            shlex.quote(str(repair)),
+            '--target',
+            shlex.quote(str(self._steamos_umr_database_path())),
+            '--legacy-root',
+            shlex.quote('/var/lib/bc250-cu-live-manager/umr'),
+            '--owner-uid',
+            '"$(id -u)"',
+        ]
+        if check_only:
+            command.append('--check-only')
+        else:
+            command.extend(['--cleanup-legacy', '--update-service-config'])
+        inner = ' '.join(command)
+        # Root is needed only for migrating/removing the obsolete /var trees.
+        # The installed database is chowned back to the invoking desktop user.
+        return f'sudo {inner}'
+
+
+    def _steamos_cu_service_backend_update_command(self, script):
+        qscript = shlex.quote(str(script))
+        service = '/etc/systemd/system/bc250-cu-live-manager.service'
+        return (
+            f'if sudo test -f {shlex.quote(service)}; then '
+            f"exec_path=\"$(sudo sed -n 's/^ExecStart=\\([^[:space:]]*\\).*/\\1/p' {shlex.quote(service)} | head -n 1)\"; "
+            'case "$exec_path" in '
+            '  /var/lib/bc250-cu-live-manager/umr/bc250-cu-live-manager|'
+            '  /usr/local/bin/bc250-cu-live-manager|'
+            '  /var/usrlocal/bin/bc250-cu-live-manager) '
+            f'    sudo install -m 0755 {qscript} "$exec_path"; '
+            '    echo "[OK] Updated installed CU service backend: $exec_path" ;; '
+            '  *) echo "[WARN] Existing CU service ExecStart is outside the allowed BC250 paths: $exec_path" ;; '
+            'esac; sudo systemctl daemon-reload; fi'
+        )
+
+
+    def _steamos_cu_status_probe_command(self, script):
+        qscript = shlex.quote(str(script))
+        env = self._steamos_cu_env_shell()
+        return (
+            'echo "== Verifying SteamOS 40CU UMR selector =="; '
+            + env
+            + 'echo "UMR_DATABASE_PATH=$UMR_DATABASE_PATH"; '
+            + self._steamos_umr_database_repair_command(check_only=True)
+            + ' || { echo "ERROR: CU_UMR_DATABASE_INVALID: the SteamOS user database is missing or malformed."; exit 37; }; '
+            + 'instance="${UMR_INSTANCE:-}"; '
+            + "bc250_bdf=\"$(lspci -Dnn 2>/dev/null | awk 'tolower($0) ~ /\\[1002:13fe\\]/ { print $1; exit }' || true)\"; "
+            + 'if [ -z "$instance" ] && [ -d /sys/kernel/debug/dri ]; then '
+            + '  for d in /sys/kernel/debug/dri/[0-9]*; do '
+            + '    n="${d##*/}"; [ "$n" -lt 128 ] 2>/dev/null || continue; '
+            + '    dri_name="$(sudo cat "$d/name" 2>/dev/null || true)"; '
+            + '    if [ -n "$bc250_bdf" ] && printf "%s" "$dri_name" | grep -Fqi "$bc250_bdf"; then instance="$n"; break; fi; '
+            + '    [ -z "$instance" ] && [ "$n" = "0" ] && instance=0; '
+            + '  done; '
+            + 'fi; '
+            + 'instance="${instance:-0}"; '
+            + 'echo "Trying UMR_ASIC=cyan_skillfish.gfx1010 UMR_INSTANCE=$instance"; '
+            + f'if sudo env UMR_DATABASE_PATH="$UMR_DATABASE_PATH" UMR_ASIC=cyan_skillfish.gfx1010 UMR_INSTANCE="$instance" {qscript} status >/tmp/bc250-cu-steamos-status.last 2>&1; then '
+            + '  echo "Selected UMR_ASIC=cyan_skillfish.gfx1010 UMR_INSTANCE=$instance"; '
+            + '  sed -n "1,120p" /tmp/bc250-cu-steamos-status.last; '
+            + 'else '
+            + '  cat /tmp/bc250-cu-steamos-status.last; '
+            + '  echo "ERROR: CU_UMR_REGISTER_ACCESS: UMR could not read the BC-250 gfx1010 banked WGP register."; '
+            + '  exit 36; '
+            + 'fi'
+        )
+
+
 
     @staticmethod
     def _accept_reboot_required(command, message):
@@ -244,13 +363,15 @@ class DependenciasRepository:
         tools = self.estado_herramientas_bc250()
         os_repository = self._os_repository()
         spec = self._cu_manager_spec(os_repository)
-        if spec['is_steamos'] and tools.get('cu_manager_steamos_exists'):
+        if spec['is_steamos'] and Path(spec['script']).exists():
             return True
         if not spec['is_steamos'] and tools['cu_manager_exists']:
             return True
 
         destination = spec['destination']
+        upstream_script = spec['upstream_script']
         script = spec['script']
+        prepare_backend = self._steamos_cu_backend_prepare_command(spec)
         destination.parent.mkdir(parents=True, exist_ok=True)
         commands = [
             'set -Eeuo pipefail',
@@ -264,8 +385,13 @@ class DependenciasRepository:
             commands.append(f'command -v git >/dev/null 2>&1 || {{ {runtime}; }}')
             commands.append(self._clone_or_update_command(spec['repository'], destination))
         commands.extend([
+            f'test -x {shlex.quote(str(upstream_script))} || {{ echo "ERROR: upstream bc250-cu-live-manager.sh was not found"; exit 1; }}',
+        ])
+        if prepare_backend:
+            commands.append(prepare_backend)
+        commands.extend([
             f'chmod 0755 {shlex.quote(str(script))}',
-            f'test -x {shlex.quote(str(script))} || {{ echo "ERROR: bc250-cu-live-manager.sh was not found"; exit 1; }}',
+            f'test -x {shlex.quote(str(script))} || {{ echo "ERROR: BC250 SteamOS CU runtime backend was not generated"; exit 1; }}',
             f'echo "OK: 40CU manager is ready at {shlex.quote(str(script))}"',
         ])
         self.estado_herramientas_cache = None
@@ -279,7 +405,9 @@ class DependenciasRepository:
         cpu_destination = self._tool_dir() / 'bc250_smu_oc'
         cu_spec = self._cu_manager_spec(os_repository)
         cu_destination = cu_spec['destination']
+        cu_upstream_script = cu_spec['upstream_script']
         cu_script = cu_spec['script']
+        prepare_cu_backend = self._steamos_cu_backend_prepare_command(cu_spec)
         immutable_pending = os_repository.info.family == 'bazzite'
 
         commands = [
@@ -299,8 +427,10 @@ class DependenciasRepository:
                 ),
                 f'test -f {shlex.quote(str(cpu_destination / "bc250_detect.py"))} || {{ echo "ERROR: bc250_detect.py is missing"; exit 30; }}',
                 self._clone_or_update_with_archive_command(cu_spec['repository'], cu_destination),
+                f'test -x {shlex.quote(str(cu_upstream_script))} || {{ echo "ERROR: upstream 40CU manager script is missing"; exit 31; }}',
+                *([prepare_cu_backend] if prepare_cu_backend else []),
                 f'chmod 0755 {shlex.quote(str(cu_script))}',
-                f'test -x {shlex.quote(str(cu_script))} || {{ echo "ERROR: 40CU manager script is missing"; exit 31; }}',
+                f'test -x {shlex.quote(str(cu_script))} || {{ echo "ERROR: 40CU runtime backend is missing"; exit 31; }}',
                 self._accept_reboot_required(
                     os_repository.prepare_dependencies_command('all', cu_manager_script=str(cu_script)),
                     'The Bazzite deployment was staged successfully. Reboot once to activate the host packages.',
@@ -316,10 +446,18 @@ class DependenciasRepository:
                 f'test -f {shlex.quote(str(cpu_destination / "bc250_detect.py"))} || {{ echo "ERROR: bc250_detect.py is missing"; exit 30; }}',
                 'echo "== Preparing 40CU live manager =="',
                 self._clone_or_update_command(cu_spec['repository'], cu_destination),
+                f'test -x {shlex.quote(str(cu_upstream_script))} || {{ echo "ERROR: upstream 40CU manager script is missing"; exit 31; }}',
+                *([prepare_cu_backend] if prepare_cu_backend else []),
                 f'chmod 0755 {shlex.quote(str(cu_script))}',
-                f'test -x {shlex.quote(str(cu_script))} || {{ echo "ERROR: 40CU manager script is missing"; exit 31; }}',
+                f'test -x {shlex.quote(str(cu_script))} || {{ echo "ERROR: 40CU runtime backend is missing"; exit 31; }}',
                 os_repository.install_umr_command(str(cu_script)),
                 'command -v umr >/dev/null 2>&1 || { echo "ERROR: UMR is still unavailable"; exit 32; }',
+            ])
+            if os_repository.info.family == 'steamos':
+                commands.append(self._steamos_umr_database_repair_command())
+                commands.append(self._steamos_cu_service_backend_update_command(cu_script))
+                commands.append(self._steamos_cu_status_probe_command(cu_script))
+            commands.extend([
                 'command -v cyan-skillfish-governor-smu >/dev/null 2>&1 || { echo "ERROR: cyan-skillfish-governor-smu is unavailable"; exit 33; }',
             ])
 
@@ -383,12 +521,14 @@ class DependenciasRepository:
         return self._abrir_terminal(comando, 'Instalar stress para CPU OC')
 
     def instalar_umr(self):
-        if self._command_path('umr'):
-            return True
         os_repository = self._os_repository()
+        if self._command_path('umr') and os_repository.info.family != 'steamos':
+            return True
         spec = self._cu_manager_spec(os_repository)
         destination = spec['destination']
+        upstream_script = spec['upstream_script']
         script = spec['script']
+        prepare_backend = self._steamos_cu_backend_prepare_command(spec)
         destination.parent.mkdir(parents=True, exist_ok=True)
 
         commands = [
@@ -400,8 +540,10 @@ class DependenciasRepository:
         if os_repository.info.family == 'bazzite':
             commands.extend([
                 self._clone_or_update_with_archive_command(spec['repository'], destination),
+                f'test -x {shlex.quote(str(upstream_script))} || {{ echo "ERROR: upstream 40CU helper is missing"; exit 31; }}',
+                *([prepare_backend] if prepare_backend else []),
                 f'chmod 0755 {shlex.quote(str(script))}',
-                f'test -x {shlex.quote(str(script))} || {{ echo "ERROR: 40CU fallback helper is missing"; exit 31; }}',
+                f'test -x {shlex.quote(str(script))} || {{ echo "ERROR: 40CU runtime helper is missing"; exit 31; }}',
                 self._accept_reboot_required(
                     os_repository.install_umr_command(str(script)),
                     'UMR was staged in a new Bazzite deployment. Reboot once to activate it.',
@@ -413,11 +555,17 @@ class DependenciasRepository:
             commands.extend([
                 f'command -v git >/dev/null 2>&1 || {{ {runtime}; }}',
                 self._clone_or_update_command(spec['repository'], destination),
+                f'test -x {shlex.quote(str(upstream_script))} || {{ echo "ERROR: upstream 40CU helper is missing"; exit 31; }}',
+                *([prepare_backend] if prepare_backend else []),
                 f'chmod 0755 {shlex.quote(str(script))}',
-                f'test -x {shlex.quote(str(script))} || {{ echo "ERROR: 40CU fallback helper is missing"; exit 31; }}',
+                f'test -x {shlex.quote(str(script))} || {{ echo "ERROR: 40CU runtime helper is missing"; exit 31; }}',
                 os_repository.install_umr_command(str(script)),
                 'command -v umr >/dev/null 2>&1 || { echo "ERROR: UMR is still unavailable"; exit 32; }',
             ])
+            if os_repository.info.family == 'steamos':
+                commands.append(self._steamos_umr_database_repair_command())
+                commands.append(self._steamos_cu_service_backend_update_command(script))
+                commands.append(self._steamos_cu_status_probe_command(script))
         commands.append('if [ "$BC250_REBOOT_REQUIRED" = "1" ]; then echo "== UMR staged; reboot required =="; else echo "== UMR installation verified =="; fi')
         self.estado_herramientas_cache = None
         return self._abrir_terminal('; '.join(commands), 'Instalar UMR')

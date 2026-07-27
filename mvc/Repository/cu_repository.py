@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 import logging
 import re
 import shlex
@@ -16,7 +17,7 @@ class CURepository:
                 'because it can use an incompatible UMR database or register workflow.\n\n'
                 'Use "Prepare dependencies" or "Prepare Live Manager", then retry. The required script is expected at:\n'
                 '~/.local/share/bc250-control-center/ResourceTools/bc250-cu-live-manager-steamos/'
-                'bc250-cu-live-manager.sh'
+                'bc250-cu-live-manager-bc250.sh'
             )
         return 'bc250-cu-live-manager was not found. Use Prepare dependencies first.'
 
@@ -58,6 +59,12 @@ class CURepository:
         tools = self.estado_herramientas_bc250()
         script = self._cu_manager_script_or_raise(tools)
         if script:
+            if self._usar_steamos_game_helper():
+                salida = self._ejecutar_steamos_game_helper('cu', 'status', timeout=25)
+                if salida and self._dashboard_cu_tiene_tabla(salida):
+                    limpio = self._limpiar_dashboard_cu(salida)
+                    self._guardar_dashboard_cu_cache(limpio)
+                    return limpio
             bash = self._command_path('bash') or '/bin/bash'
             env_args = self._env_args_cu(tools)
             export_env = self._exportar_env_cu(tools)
@@ -183,10 +190,17 @@ class CURepository:
 
 
     def _ejecutar_cu_accion_pkexec(self, args):
-        if not self._command_path('pkexec'):
-            raise RuntimeError('polkit/pkexec was not found. Install polkit or use Service / custom profile from a terminal.')
         tools = self.estado_herramientas_bc250()
         script = self._cu_manager_script_or_raise(tools)
+        if self._usar_steamos_game_helper():
+            action_name = self._cu_helper_action_name(args)
+            texto = self._ejecutar_steamos_game_helper('cu', 'action', action_name, timeout=70)
+            limpio = self._limpiar_dashboard_cu(texto)
+            if limpio:
+                self._guardar_dashboard_cu_cache(limpio)
+            return limpio
+        if not self._command_path('pkexec'):
+            raise RuntimeError('polkit/pkexec was not found. Install polkit or use Service / custom profile from a terminal.')
 
         bash = self._command_path('bash') or '/bin/bash'
         export_env = self._exportar_env_cu(tools)
@@ -214,9 +228,27 @@ class CURepository:
         return limpio
 
 
+    def _cu_helper_action_name(self, args):
+        normalized = [str(item) for item in args]
+        mapping = {
+            ('--yes', 'enable', 'all'): 'full',
+            ('--yes', 'stock-dispatch'): 'factory',
+            ('--yes', 'disable', 'all'): 'disable_all',
+            ('--yes', 'write-service-table'): 'save_boot',
+            ('--yes', 'install-service'): 'install_service',
+            ('--yes', 'apply-service'): 'apply_saved',
+            ('--yes', 'uninstall-service'): 'remove_service',
+        }
+        key = tuple(normalized)
+        if key not in mapping:
+            raise ValueError('Invalid CU helper action.')
+        return mapping[key]
+
+
     def _error_umr_faltante(self, texto):
         texto = (texto or '').lower()
         pistas = [
+            'cu_umr_missing',
             'umr not found',
             'no such file or directory: umr',
             'command not found: umr',
@@ -239,7 +271,16 @@ class CURepository:
     def _cu_manager_env(self, tools):
         env = {}
         if tools.get('cu_manager_backend') == 'steamos' or tools.get('is_steamos'):
-            env['UMR_DATABASE_PATH'] = tools.get('cu_steamos_umr_database') or '/var/lib/bc250-cu-live-manager/umr/database'
+            # SteamOS uses a generated compatibility copy of the F5GO backend.
+            # UMR can expose PCI ID 1002:13fe as the generic model ``amd13fe``;
+            # using cyan_skillfish.gfx1013 as the register namespace does not
+            # rebind the active ASIC model.  The generated runtime therefore forces
+            # the static cyan_skillfish model for every UMR read/write while keeping
+            # the upstream F5GO register sequence intact.
+            env['UMR_DATABASE_PATH'] = tools.get('cu_steamos_umr_database') or str(self._tool_dir() / 'umr-steamos' / 'database')
+            env['UMR_ASIC'] = os.environ.get('UMR_ASIC') or 'cyan_skillfish.gfx1010'
+            if os.environ.get('UMR_INSTANCE'):
+                env['UMR_INSTANCE'] = os.environ['UMR_INSTANCE']
         return env
 
 
@@ -247,7 +288,17 @@ class CURepository:
         return [f'{clave}={valor}' for clave, valor in self._cu_manager_env(tools).items() if valor]
 
 
-    def _exportar_env_cu(self, tools):
+    def _steamos_cu_env_probe_shell(self, tools):
+        # The UMR database itself declares the graphics register block as
+        # gfx1010. Older builds tried gfx1013 and up to eight DRI instances on
+        # every click, which made the page look frozen for minutes. The patched
+        # backend already auto-detects the concrete DRI instance, so only export
+        # the validated database and exact register namespace here.
+        return self._exportar_env_cu_simple(tools)
+
+
+
+    def _exportar_env_cu_simple(self, tools):
         partes = []
         for clave, valor in self._cu_manager_env(tools).items():
             if valor:
@@ -255,28 +306,54 @@ class CURepository:
         return ''.join(partes)
 
 
+    def _exportar_env_cu(self, tools):
+        return self._exportar_env_cu_simple(tools)
+
+
     def _error_steamos_umr_selector(self, texto):
         texto = (texto or '').lower()
         pistas = [
-            'failed to read cyan_skillfish.gfx1013',
+            'cu_umr_database_invalid',
+            'invalid asic header line',
+            'cyan_skillfish.asic is empty',
+            'invalid cyan_skillfish.asic header',
+            'missing or empty soc15',
+            'missing: mmspi_pg_enable_static_wgp_mask',
+            'cu_umr_asic_binding',
+            'cu_umr_version',
+            'cu_umr_register_access',
+            'unknown asic [amd13fe]',
+            'should be added to pci.did',
+            'regspi_pg_enable_static_wgp_mask',
+            'path <cyan_skillfish',
+            'failed to bind/read cyan_skillfish.gfx1013',
+            'failed to bind/read cyan_skillfish.gfx1010',
+            'cu_umr_storage_full',
+            'no space left on device',
+            'no queda espacio en el dispositivo',
             'mmspi_pg_enable_static_wgp_mask',
-            'set umr_asic',
-            'exact selector if your board differs',
+            'static cyan_skillfish model',
         ]
         return any(pista in texto for pista in pistas)
 
 
     def _mensaje_steamos_umr_selector(self):
+        tools = self.estado_herramientas_bc250()
+        database = tools.get('cu_steamos_umr_database') or '~/.local/share/bc250-control-center/ResourceTools/umr-steamos/database'
         return (
-            'SteamOS could not read the live 40CU registers with the standard UMR database.\n\n'
-            'Press "Prepare dependencies" again. On SteamOS the app installs the F5GO SteamOS 40CU backend '
-            'and runs it with UMR_DATABASE_PATH=/var/lib/bc250-cu-live-manager/umr/database for dashboard/actions.\n\n'
-            'If it still fails, send this output and verify from a terminal:\n'
-            'cat /etc/os-release\n'
-            'command -v umr\n'
-            'cd ~/.local/share/bc250-control-center/ResourceTools/bc250-cu-live-manager-steamos\n'
-            'sudo ./bc250-cu-live-manager.sh status'
+            'SteamOS Game Mode was verified, but UMR could not read the BC-250 CU registers.\n\n'
+            "The previous build used two wrong assumptions: it stored the full UMR database on SteamOS' tiny "
+            '/var partition, and it tried the nonexistent register namespace cyan_skillfish.gfx1013 before the '
+            'database-defined cyan_skillfish.gfx1010 selector. That caused partial databases, long selector scans, '
+            'and the page remaining in Working state.\n\n'
+            'This build stores the SteamOS-only database under /home, uses cyan_skillfish.gfx1010 directly, and '
+            'performs at most one bounded fallback. Other Linux distribution backends are unchanged.\n\n'
+            'From Desktop Mode, run Prepare dependencies once. The expected database is:\n'
+            f'{database}\n\n'
+            'If preparation reports CU_UMR_STORAGE_FULL, free space on /home. The obsolete /var database copies '
+            'are removed only after the new database validates successfully.'
         )
+
 
 
     _CU_ROW_NAMES = ('SE0.SH0', 'SE0.SH1', 'SE1.SH0', 'SE1.SH1')
@@ -319,7 +396,7 @@ class CURepository:
             'mode_key': 'factory',
             'umr': '',
             'umr_instance': '',
-            'asic': 'cyan_skillfish.gfx1013',
+            'asic': 'cyan_skillfish.gfx1010',
             'amdgpu_mode': 'not exposed',
             'amdgpu_active_cus': 'unknown',
             'service': 'Not installed',
@@ -519,6 +596,26 @@ class CURepository:
         masks = self._validar_mascaras_cu(masks)
         tools = self.estado_herramientas_bc250()
         script = self._cu_manager_script_or_raise(tools)
+        if self._usar_steamos_game_helper():
+            helper_args = ['cu', 'table']
+            if save_boot:
+                helper_args.append('--save-boot')
+            helper_args.extend(f'0x{mask:02x}' for mask in masks)
+            texto = self._ejecutar_steamos_game_helper(*helper_args, timeout=70)
+            limpio = self._limpiar_dashboard_cu(texto)
+            if not self._dashboard_cu_tiene_tabla(limpio):
+                raise RuntimeError('The WGP table was written, but the live state could not be verified.')
+            estado = self.parsear_dashboard_cu(limpio, source='live')
+            applied_masks = list(estado.get('masks') or [])
+            if applied_masks != masks:
+                expected = ', '.join(f'0x{mask:02x}' for mask in masks)
+                actual = ', '.join(f'0x{int(mask):02x}' for mask in applied_masks) if applied_masks else 'unverified'
+                raise RuntimeError(
+                    'The WGP table was applied, but verification did not match the selected target. '
+                    f'Expected masks: {expected}. Current masks: {actual}.'
+                )
+            self._guardar_dashboard_cu_cache(limpio)
+            return estado
         if not self._command_path('pkexec'):
             raise RuntimeError('polkit/pkexec was not found. Install polkit before applying a graphical WGP table.')
 

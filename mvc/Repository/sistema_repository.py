@@ -15,11 +15,12 @@ from mvc.Repository.gpu_repository import GPURepository
 from mvc.Repository.cpu_repository import CPURepository
 from mvc.Repository.cu_repository import CURepository
 from mvc.Repository.fan_repository import FanRepository
+from mvc.Repository.privilege_repository import PrivilegeRepository
 
 logger = logging.getLogger(__name__)
 
 
-class SistemaRepository(TerminalRepository, DependenciasRepository, GPURepository, CPURepository, CURepository, FanRepository):
+class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRepository, GPURepository, CPURepository, CURepository, FanRepository):
     def __init__(self):
         self.configuracion = ConfiguracionLocal()
         self.hwmons = []

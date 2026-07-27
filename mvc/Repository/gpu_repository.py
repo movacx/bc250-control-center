@@ -58,6 +58,11 @@ class GPURepository:
         nivel = int(nivel)
         if nivel < 0 or nivel > 6:
             raise ValueError('Invalid lab level. Use 0..6.')
+        if self._usar_steamos_game_helper():
+            salida = self._ejecutar_steamos_game_helper('gpu-voltage', 'apply', nivel, timeout=240)
+            self.estado_bc250_cache = None
+            self.estado_herramientas_cache = None
+            return salida
         script = Path(__file__).resolve().parents[1] / 'Resources' / 'scripts' / 'bc250-gpu-voltage-lab.sh'
         if not script.exists():
             raise RuntimeError(f'GPU voltage lab was not found at {script}')
@@ -68,9 +73,6 @@ class GPURepository:
     def aplicar_laboratorio_voltaje_gpu_personalizado(self, valores):
         if not valores:
             raise ValueError('No custom values to apply.')
-        script = Path(__file__).resolve().parents[1] / 'Resources' / 'scripts' / 'bc250-gpu-voltage-lab.sh'
-        if not script.exists():
-            raise RuntimeError(f'GPU voltage lab was not found at {script}')
         partes = []
         for frecuencia, voltaje in valores.items():
             frecuencia = int(frecuencia)
@@ -80,6 +82,14 @@ class GPURepository:
             if voltaje < 600 or voltaje > 1150:
                 raise ValueError(f'Voltage outside safe limit for {frecuencia}: {voltaje} mV. Maximum allowed: 1150 mV')
             partes.append(f'{frecuencia}={voltaje}')
+        if self._usar_steamos_game_helper():
+            salida = self._ejecutar_steamos_game_helper('gpu-voltage', 'apply-custom', *partes, timeout=240)
+            self.estado_bc250_cache = None
+            self.estado_herramientas_cache = None
+            return salida
+        script = Path(__file__).resolve().parents[1] / 'Resources' / 'scripts' / 'bc250-gpu-voltage-lab.sh'
+        if not script.exists():
+            raise RuntimeError(f'GPU voltage lab was not found at {script}')
         comando = f'{shlex.quote(str(script))} apply-custom ' + ' '.join(shlex.quote(x) for x in partes)
         return self._ejecutar_voltage_lab_pkexec(comando)
 

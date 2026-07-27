@@ -15,4 +15,15 @@
     </defaults>
     <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/bc250-control-center/bc250-fan-pwm-helper</annotate>
   </action>
+
+  <action id="io.github.movacx.bc250-control-center.steamos-game-helper">
+    <description>Run limited BC250 hardware actions in SteamOS Game Mode</description>
+    <message>SteamOS Game Mode is allowed to run limited BC250 hardware actions</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>yes</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/bc250-control-center/bc250-steamos-game-helper</annotate>
+  </action>
 </policyconfig>

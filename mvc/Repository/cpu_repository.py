@@ -52,6 +52,8 @@ class CPURepository:
             raise ValueError('The UI limits VID to 900-1275 mV')
         if temp < 70 or temp > 90:
             raise ValueError('The UI limits CPU/GPU temperature to 70-90 C')
+        if self._usar_steamos_game_helper():
+            return self._comando_steamos_game_helper('cpu-oc-temp', frecuencia, vid, temp)
         if not self._command_path('pkexec'):
             raise RuntimeError('polkit/pkexec was not found. Install polkit to use the embedded console with graphical authentication.')
 

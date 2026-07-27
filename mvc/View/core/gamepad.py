@@ -76,10 +76,13 @@ ACTION_PREVIOUS_SECTION = "previous_section"
 ACTION_NEXT_SECTION = "next_section"
 ACTION_TOGGLE_SIDEBAR = "toggle_sidebar"
 ACTION_OPEN_SETTINGS = "open_settings"
+ACTION_GO_DASHBOARD = "go_dashboard"
 ACTION_CONTEXT_X = "context_x"
 ACTION_CONTEXT_Y = "context_y"
+ACTION_SCROLL_UP = "scroll_up"
+ACTION_SCROLL_DOWN = "scroll_down"
 
-_REPEATABLE_ACTIONS = {ACTION_UP, ACTION_DOWN, ACTION_LEFT, ACTION_RIGHT}
+_REPEATABLE_ACTIONS = {ACTION_UP, ACTION_DOWN, ACTION_LEFT, ACTION_RIGHT, ACTION_SCROLL_UP, ACTION_SCROLL_DOWN}
 _AXIS_PRESS_THRESHOLD = 0.56
 _AXIS_RELEASE_THRESHOLD = 0.34
 _NAVIGATION_POLL_INTERVAL = 0.012
@@ -310,6 +313,7 @@ class EvdevGamepadBackend(_AxisStateMixin):
                 ecodes.BTN_TR: ACTION_NEXT_SECTION,
                 getattr(ecodes, "BTN_SELECT", -19): ACTION_OPEN_SETTINGS,
                 getattr(ecodes, "BTN_START", -20): ACTION_TOGGLE_SIDEBAR,
+                getattr(ecodes, "BTN_MODE", -25): ACTION_GO_DASHBOARD,
                 getattr(ecodes, "BTN_DPAD_UP", -21): ACTION_UP,
                 getattr(ecodes, "BTN_DPAD_DOWN", -22): ACTION_DOWN,
                 getattr(ecodes, "BTN_DPAD_LEFT", -23): ACTION_LEFT,
@@ -331,6 +335,15 @@ class EvdevGamepadBackend(_AxisStateMixin):
             if event.code == ecodes.ABS_X:
                 return self._axis_transition("left_x", normalized, ACTION_LEFT, ACTION_RIGHT)
             return self._axis_transition("left_y", normalized, ACTION_UP, ACTION_DOWN)
+        if event.code == getattr(ecodes, "ABS_RY", -200):
+            try:
+                info = self._device.absinfo(event.code)
+                center = (info.minimum + info.maximum) / 2.0
+                half_range = max(1.0, (info.maximum - info.minimum) / 2.0)
+                normalized = (event.value - center) / half_range
+            except Exception:
+                normalized = float(event.value) / 32767.0
+            return self._axis_transition("right_y", normalized, ACTION_SCROLL_UP, ACTION_SCROLL_DOWN)
         if event.code == ecodes.ABS_HAT0X:
             return self._axis_transition("hat_x", float(event.value), ACTION_LEFT, ACTION_RIGHT)
         if event.code == ecodes.ABS_HAT0Y:
@@ -440,7 +453,9 @@ class LinuxJoystickBackend(_AxisStateMixin):
                 5: ACTION_NEXT_SECTION,
                 6: ACTION_OPEN_SETTINGS,
                 7: ACTION_TOGGLE_SIDEBAR,
+                8: ACTION_GO_DASHBOARD,
                 10: ACTION_CONTEXT_X,
+                16: ACTION_GO_DASHBOARD,
             }.get(number)
             return [GamepadInput(action, bool(value), f"js_button:{number}")] if action else []
         if event_type != self._AXIS:
@@ -450,6 +465,8 @@ class LinuxJoystickBackend(_AxisStateMixin):
             return self._axis_transition("left_x", normalized, ACTION_LEFT, ACTION_RIGHT)
         if number == 1:
             return self._axis_transition("left_y", normalized, ACTION_UP, ACTION_DOWN)
+        if number == 4:
+            return self._axis_transition("right_y", normalized, ACTION_SCROLL_UP, ACTION_SCROLL_DOWN)
         if number == 6:
             return self._axis_transition("hat_x", normalized, ACTION_LEFT, ACTION_RIGHT)
         if number == 7:
@@ -1385,6 +1402,8 @@ class GamepadNavigationController(QObject):
                 self._move_keypad_focus(keypad, action)
             else:
                 self._move_focus(action)
+        elif action in {ACTION_SCROLL_UP, ACTION_SCROLL_DOWN}:
+            self._scroll_active_scope(ACTION_UP if action == ACTION_SCROLL_UP else ACTION_DOWN)
         elif action == ACTION_ACCEPT:
             keypad = self._active_keypad()
             focused = QApplication.focusWidget()
@@ -1405,6 +1424,8 @@ class GamepadNavigationController(QObject):
             self._toggle_sidebar()
         elif action == ACTION_OPEN_SETTINGS:
             self._open_settings()
+        elif action == ACTION_GO_DASHBOARD:
+            self._go_dashboard()
         elif action == ACTION_CONTEXT_X:
             self._toggle_keypad()
         elif action == ACTION_CONTEXT_Y:
@@ -1427,6 +1448,23 @@ class GamepadNavigationController(QObject):
             target = self._preferred_entry(candidates)
             self._safe_set_focus(target)
             self._ensure_visible(target)
+
+
+    def _scroll_active_scope(self, direction: str) -> None:
+        if self._active_popup() is not None:
+            target = QApplication.focusWidget()
+            if isinstance(target, QWidget) and _qobject_alive(target):
+                self._send_key(target, _DIRECTION_KEYS[direction])
+            return
+        top = self._active_top_level()
+        if top is None:
+            return
+        focused = QApplication.focusWidget()
+        for widget in (focused, self._focus_scope(top), top):
+            if isinstance(widget, QWidget) and _qobject_alive(widget):
+                if self._scroll_nearest(widget, direction, multiplier=2.4):
+                    self._queue_maintenance(visuals=True)
+                    return
 
     def _active_popup(self) -> QWidget | None:
         app = QApplication.instance()
@@ -1966,6 +2004,17 @@ class GamepadNavigationController(QObject):
         # Never switch the page behind an unrelated modal dialog.
         self.defer_focus_current_scope()
 
+    def _go_dashboard(self) -> None:
+        if self._active_popup() is not None:
+            return
+        top = self._active_top_level()
+        if top is None or top is not self.host:
+            return
+        callback = getattr(self.host, "gamepad_go_dashboard", None)
+        if callable(callback):
+            callback()
+            self.defer_focus_current_scope()
+
     def _open_settings(self) -> None:
         if self._active_popup() is not None:
             return
@@ -2155,7 +2204,7 @@ class GamepadNavigationController(QObject):
             return
 
     @staticmethod
-    def _scroll_nearest(widget: QWidget, direction: str) -> bool:
+    def _scroll_nearest(widget: QWidget, direction: str, *, multiplier: float = 1.0) -> bool:
         if not _qobject_alive(widget):
             return False
         try:
@@ -2165,6 +2214,7 @@ class GamepadNavigationController(QObject):
                     bar = parent.verticalScrollBar()
                     old = bar.value()
                     amount = max(bar.singleStep() * 4, max(24, bar.pageStep() // 5))
+                    amount = max(1, int(amount * max(0.25, multiplier)))
                     bar.setValue(old - amount if direction == ACTION_UP else old + amount)
                     return bar.value() != old
                 parent = parent.parentWidget()

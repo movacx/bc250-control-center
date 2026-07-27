@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 NAME="bc250-control-center"
-VERSION="${VERSION:-1.17.22}"
+VERSION="${VERSION:-1.17.23}"
 RELEASE="${RELEASE:-1}"
 PKG_VERSION="${VERSION}-${RELEASE}"
 BUILD_DIR="$ROOT/build/deb"
@@ -29,6 +29,8 @@ install -Dm755 "$ROOT/scripts/bc250-control-center" "$PKG_DIR/usr/bin/bc250-cont
 install -Dm755 "$ROOT/scripts/bc250-control-centerd" "$PKG_DIR/usr/bin/bc250-control-centerd"
 install -Dm755 "$ROOT/mvc/Resources/privileged/bc250-fan-pwm-helper" \
   "$PKG_DIR/usr/libexec/bc250-control-center/bc250-fan-pwm-helper"
+install -Dm755 "$ROOT/mvc/Resources/privileged/bc250-steamos-game-helper" \
+  "$PKG_DIR/usr/libexec/bc250-control-center/bc250-steamos-game-helper"
 install -Dm644 "$ROOT/packaging/common/polkit/io.github.movacx.bc250-control-center.policy" \
   "$PKG_DIR/usr/share/polkit-1/actions/io.github.movacx.bc250-control-center.policy"
 install -Dm644 "$ROOT/README.md" "$PKG_DIR/usr/share/doc/$NAME/README.md"
@@ -56,7 +58,7 @@ Section: utils
 Priority: optional
 Architecture: all
 Maintainer: Movacx <movacx@users.noreply.github.com>
-Depends: python3, python3-pyqt6, python3-psutil
+Depends: python3, python3-pyqt6, python3-psutil, libqt6svg6
 Recommends: python3-evdev, lm-sensors, stress, git, pciutils, mesa-utils, vulkan-tools, curl, ca-certificates, dbus, dbus-user-session, polkitd | policykit-1, build-essential, dkms
 Homepage: https://github.com/movacx/bc250-control-center
 Description: Graphical control center for AMD BC-250 community tools
@@ -91,6 +93,7 @@ find "$PKG_DIR/usr/share/$NAME/mvc" -type f -name '*.sh' -exec chmod 0755 {} +
 chmod 0755 "$PKG_DIR/usr/bin/bc250-control-center" \
            "$PKG_DIR/usr/bin/bc250-control-centerd" \
            "$PKG_DIR/usr/libexec/bc250-control-center/bc250-fan-pwm-helper" \
+           "$PKG_DIR/usr/libexec/bc250-control-center/bc250-steamos-game-helper" \
            "$PKG_DIR/DEBIAN/postinst" \
            "$PKG_DIR/DEBIAN/postrm"
 

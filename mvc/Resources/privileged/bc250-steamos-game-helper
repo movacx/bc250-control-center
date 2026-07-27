@@ -1,0 +1,841 @@
+#!/usr/bin/python3
+"""Limited privileged helper for BC250 Control Center in SteamOS Game Mode.
+
+This helper is intentionally narrow. It exists because SteamOS Game Mode runs
+apps under gamescope without a normal desktop Polkit authentication dialog or a
+controlling TTY. The GUI calls it only when it detects SteamOS Game Mode; the
+helper itself refuses to run outside SteamOS + gamescope.
+"""
+from __future__ import annotations
+
+import datetime
+import os
+import pathlib
+import pwd
+import shutil
+import subprocess
+import sys
+from typing import Iterable, Sequence
+
+APP_SHARE = pathlib.Path('/usr/share/bc250-control-center')
+GPU_LAB_SCRIPT = APP_SHARE / 'mvc' / 'Resources' / 'scripts' / 'bc250-gpu-voltage-lab.sh'
+CU_REPO_NAME = 'bc250-cu-live-manager-steamos'
+CU_RUNTIME_SCRIPT = 'bc250-cu-live-manager-bc250.sh'
+BC250_HELPER_PROTOCOL=6
+
+
+def fail(message: str, code: int = 1) -> int:
+    print(f'ERR {message}', file=sys.stderr, flush=True)
+    logger = globals().get('log_failure')
+    if callable(logger):
+        logger(message, code)
+    return code
+
+
+def read_os_release() -> str:
+    try:
+        return pathlib.Path('/etc/os-release').read_text(encoding='utf-8', errors='ignore').lower()
+    except OSError:
+        return ''
+
+
+def command_exists(name: str) -> bool:
+    return shutil.which(name) is not None
+
+
+def read_proc_environ(pid: int) -> dict[str, str]:
+    try:
+        payload = pathlib.Path(f'/proc/{int(pid)}/environ').read_bytes()
+    except (OSError, ValueError):
+        return {}
+    env: dict[str, str] = {}
+    for item in payload.split(b'\0'):
+        if not item or b'=' not in item:
+            continue
+        key, value = item.split(b'=', 1)
+        try:
+            env[key.decode('utf-8', 'replace')] = value.decode('utf-8', 'replace')
+        except Exception:
+            continue
+    return env
+
+
+def proc_comm(pid: int) -> str:
+    try:
+        return pathlib.Path(f'/proc/{int(pid)}/comm').read_text(encoding='utf-8', errors='ignore').strip()
+    except (OSError, ValueError):
+        return ''
+
+
+def proc_parent(pid: int) -> int:
+    try:
+        status = pathlib.Path(f'/proc/{int(pid)}/status').read_text(encoding='utf-8', errors='ignore')
+    except (OSError, ValueError):
+        return 0
+    for line in status.splitlines():
+        if line.startswith('PPid:'):
+            try:
+                return int(line.split()[1])
+            except (IndexError, ValueError):
+                return 0
+    return 0
+
+
+def process_tree(pid: int, *, limit: int = 32) -> list[tuple[int, str]]:
+    result: list[tuple[int, str]] = []
+    seen: set[int] = set()
+    try:
+        current = int(pid)
+    except (TypeError, ValueError):
+        return result
+    while current > 1 and current not in seen and len(result) < limit:
+        seen.add(current)
+        result.append((current, proc_comm(current)))
+        parent = proc_parent(current)
+        if parent <= 0 or parent == current:
+            break
+        current = parent
+    return result
+
+
+def global_process_names() -> set[str]:
+    names: set[str] = set()
+    for proc in pathlib.Path('/proc').glob('[0-9]*/comm'):
+        try:
+            value = proc.read_text(encoding='utf-8', errors='ignore').strip().lower()
+        except OSError:
+            continue
+        if value:
+            names.add(value)
+    return names
+
+
+def is_desktop_env(env: dict[str, str]) -> bool:
+    text = ' '.join(env.get(name, '') for name in ('XDG_CURRENT_DESKTOP', 'XDG_SESSION_DESKTOP', 'DESKTOP_SESSION')).lower()
+    return any(token in text for token in ('kde', 'plasma', 'gnome', 'cinnamon', 'xfce', 'mate', 'lxqt'))
+
+
+def detect_game_mode(origin_pid: int | None, forwarded_env: dict[str, str]) -> tuple[bool, list[str], list[str]]:
+    env = dict(forwarded_env)
+    if origin_pid:
+        proc_env = read_proc_environ(origin_pid)
+        proc_env.update(env)
+        env = proc_env
+    reasons: list[str] = []
+    negatives: list[str] = []
+    score = 0
+
+    desktop = is_desktop_env(env)
+    if desktop:
+        negatives.append('origin desktop shell detected')
+
+    direct_markers = (
+        'GAMESCOPE_WAYLAND_DISPLAY', 'SteamGamepadUI', 'STEAM_GAMEPADUI',
+        'SteamTenfoot', 'SteamDeck', 'SteamClientLaunch',
+    )
+    present_direct = [name for name in direct_markers if env.get(name)]
+    if present_direct:
+        score += 4
+        reasons.append('origin env markers: ' + ','.join(present_direct))
+
+    steam_ids = [name for name in ('SteamAppId', 'SteamGameId') if env.get(name)]
+    if steam_ids:
+        score += 2
+        reasons.append('Steam launch ids: ' + ','.join(steam_ids))
+
+    wayland = ' '.join(env.get(name, '') for name in ('WAYLAND_DISPLAY', 'GAMESCOPE_WAYLAND_DISPLAY')).lower()
+    if any(token in wayland for token in ('gamescope', 'steam')):
+        score += 3
+        reasons.append(f'Wayland display marker: {wayland}')
+
+    tree = process_tree(origin_pid or os.getpid())
+    names = {name.lower() for _pid, name in tree}
+    if 'gamescope' in names:
+        score += 4
+        reasons.append('origin process tree contains gamescope')
+    if names & {'steam', 'steamwebhelper'}:
+        score += 2
+        reasons.append('origin process tree contains Steam')
+
+    all_names = global_process_names()
+    if 'gamescope' in all_names:
+        score += 1
+        reasons.append('system has active gamescope process')
+
+    session_text = ' '.join(env.get(name, '') for name in ('XDG_SESSION_DESKTOP', 'DESKTOP_SESSION', 'XDG_CURRENT_DESKTOP')).lower()
+    if any(token in session_text for token in ('gamescope', 'steam')):
+        score += 3
+        reasons.append(f'session marker: {session_text}')
+
+    # Desktop shell wins unless a strong direct marker says this process was
+    # actually launched inside the gamescope child environment.
+    if desktop and not present_direct and 'gamescope' not in names:
+        return False, reasons, negatives
+    if score >= 3:
+        return True, reasons, negatives
+    negatives.append(f'insufficient Game Mode score: {score}')
+    return False, reasons, negatives
+
+
+def log_runtime(origin_pid: int | None, forwarded_env: dict[str, str], allowed: bool, reasons: list[str], negatives: list[str]) -> None:
+    try:
+        home = caller_home()
+        log_dir = home / '.local' / 'state' / 'bc250-control-center'
+        log_dir.mkdir(parents=True, exist_ok=True)
+        log_path = log_dir / 'steamos-game-helper.log'
+        watched = (
+            'XDG_CURRENT_DESKTOP', 'XDG_SESSION_DESKTOP', 'DESKTOP_SESSION',
+            'WAYLAND_DISPLAY', 'GAMESCOPE_WAYLAND_DISPLAY', 'SteamGamepadUI',
+            'STEAM_GAMEPADUI', 'SteamTenfoot', 'SteamDeck', 'SteamAppId',
+            'SteamGameId', 'SteamClientLaunch',
+        )
+        proc_env = read_proc_environ(origin_pid) if origin_pid else {}
+        merged = dict(proc_env)
+        merged.update(forwarded_env)
+        tree = ' <- '.join(f'{pid}:{name or "?"}' for pid, name in process_tree(origin_pid or os.getpid()))
+        line = {
+            'time': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            'allowed': allowed,
+            'origin_pid': origin_pid,
+            'helper_pid': os.getpid(),
+            'reasons': reasons,
+            'negatives': negatives,
+            'env': {name: merged.get(name, '') for name in watched if merged.get(name)},
+            'tree': tree,
+        }
+        with log_path.open('a', encoding='utf-8') as fh:
+            fh.write(repr(line) + '\n')
+        uid = caller_uid()
+        try:
+            os.chown(log_path, uid, -1)
+            os.chown(log_dir, uid, -1)
+        except OSError:
+            pass
+        try:
+            log_path.chmod(0o600)
+        except OSError:
+            pass
+    except Exception:
+        pass
+
+
+def log_failure(message: str, code: int) -> None:
+    try:
+        home = caller_home()
+        log_dir = home / '.local' / 'state' / 'bc250-control-center'
+        log_dir.mkdir(parents=True, exist_ok=True)
+        log_path = log_dir / 'steamos-game-helper.log'
+        event = {
+            'time': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            'event': 'failure',
+            'code': int(code),
+            'message': str(message)[:12000],
+        }
+        with log_path.open('a', encoding='utf-8') as fh:
+            fh.write(repr(event) + '\n')
+        uid = caller_uid()
+        try:
+            os.chown(log_path, uid, -1)
+            os.chown(log_dir, uid, -1)
+        except OSError:
+            pass
+        try:
+            log_path.chmod(0o600)
+        except OSError:
+            pass
+    except Exception:
+        pass
+
+
+def require_runtime(origin_pid: int | None = None, forwarded_env: dict[str, str] | None = None) -> int:
+    if os.geteuid() != 0:
+        return fail('HELPER_PRIVILEGE: This helper must be launched through pkexec as root.', 11)
+    os_release = read_os_release()
+    if not any(token in os_release for token in ('id=steamos', 'steamos', 'steamdeck', 'holo')):
+        return fail('GAME_MODE_CONTEXT: The privileged Game Mode helper is only valid on SteamOS.', 12)
+    forwarded_env = forwarded_env or {}
+    allowed, reasons, negatives = detect_game_mode(origin_pid, forwarded_env)
+    log_runtime(origin_pid, forwarded_env, allowed, reasons, negatives)
+    if not allowed:
+        detail = '; '.join(negatives + reasons) or 'no Game Mode signal was visible to the helper'
+        return fail(
+            'GAME_MODE_CONTEXT: The helper could not verify the Steam/gamescope launch context. '
+            f'Diagnostic: {detail}. Log: ~/.local/state/bc250-control-center/steamos-game-helper.log',
+            13,
+        )
+    return 0
+
+
+def caller_uid() -> int:
+    raw = os.environ.get('PKEXEC_UID') or os.environ.get('SUDO_UID') or ''
+    try:
+        uid = int(raw)
+        if uid >= 0:
+            return uid
+    except ValueError:
+        pass
+    return 1000
+
+
+def caller_home() -> pathlib.Path:
+    uid = caller_uid()
+    try:
+        return pathlib.Path(pwd.getpwuid(uid).pw_dir)
+    except KeyError:
+        return pathlib.Path('/home/deck')
+
+
+def tools_dir() -> pathlib.Path:
+    return caller_home() / '.local' / 'share' / 'bc250-control-center' / 'ResourceTools'
+
+
+def run_checked(command: Sequence[str], *, cwd: pathlib.Path | None = None, env: dict[str, str] | None = None, timeout: int = 240) -> int:
+    merged_env = os.environ.copy()
+    if env:
+        merged_env.update({k: str(v) for k, v in env.items() if v is not None})
+    result = subprocess.run(command, cwd=str(cwd) if cwd else None, env=merged_env, text=True, capture_output=True, timeout=timeout, check=False)
+    if result.stdout:
+        print(result.stdout.strip())
+    if result.stderr:
+        print(result.stderr.strip(), file=sys.stderr)
+    return result.returncode
+
+
+def find_nct_sensor() -> pathlib.Path | None:
+    base = pathlib.Path('/sys/class/hwmon')
+    for hwmon in sorted(base.glob('hwmon*')):
+        try:
+            name = (hwmon / 'name').read_text(encoding='utf-8', errors='ignore').strip().lower()
+        except OSError:
+            name = ''
+        if name.startswith(('nct668', 'nct67', 'nct')):
+            return hwmon
+    return None
+
+
+def action_fan_pwm(args: Sequence[str]) -> int:
+    if len(args) != 2:
+        return fail('fan-pwm expects: <pwm> <raw 0..255>', 21)
+    try:
+        pwm = int(args[0])
+        value = int(args[1])
+    except ValueError:
+        return fail('fan-pwm arguments must be integers.', 22)
+    if pwm < 1 or pwm > 12:
+        return fail('PWM channel must be between 1 and 12.', 23)
+    if value < 0 or value > 255:
+        return fail('PWM value must be between 0 and 255.', 24)
+    sensor = find_nct_sensor()
+    if sensor is None:
+        return fail('No NCT hwmon sensor was found.', 25)
+    pwm_path = sensor / f'pwm{pwm}'
+    enable_path = sensor / f'pwm{pwm}_enable'
+    if not pwm_path.is_file():
+        return fail(f'{pwm_path} does not exist.', 26)
+    try:
+        if enable_path.is_file():
+            enable_path.write_text('1\n', encoding='utf-8')
+        pwm_path.write_text(f'{value}\n', encoding='utf-8')
+    except OSError as exc:
+        return fail(str(exc), 27)
+    print(f'OK PWM {pwm} {value}')
+    return 0
+
+
+def action_gpu_voltage(args: Sequence[str]) -> int:
+    if not GPU_LAB_SCRIPT.exists():
+        return fail(f'GPU voltage lab script is missing at {GPU_LAB_SCRIPT}', 31)
+    if not args:
+        return fail('gpu-voltage expects apply/apply-custom.', 32)
+    mode = args[0]
+    if mode == 'apply':
+        if len(args) != 2:
+            return fail('gpu-voltage apply expects one level.', 33)
+        try:
+            level = int(args[1])
+        except ValueError:
+            return fail('Voltage level must be an integer.', 34)
+        if level not in (0, 3, 6):
+            return fail('Only validated voltage levels 0, 3 and 6 are allowed.', 35)
+        command = [str(GPU_LAB_SCRIPT), 'apply', str(level)]
+    elif mode == 'apply-custom':
+        if len(args) < 2:
+            return fail('gpu-voltage apply-custom expects frequency=millivolt pairs.', 36)
+        pairs = []
+        for item in args[1:]:
+            if '=' not in item:
+                return fail(f'Invalid custom voltage pair: {item}', 37)
+            left, right = item.split('=', 1)
+            try:
+                frequency = int(left)
+                millivolts = int(right)
+            except ValueError:
+                return fail(f'Invalid custom voltage pair: {item}', 38)
+            if frequency <= 0 or millivolts < 600 or millivolts > 1150:
+                return fail(f'Unsafe custom voltage pair: {item}', 39)
+            pairs.append(f'{frequency}={millivolts}')
+        command = [str(GPU_LAB_SCRIPT), 'apply-custom', *pairs]
+    else:
+        return fail('Invalid gpu-voltage action.', 40)
+    return run_checked(command, timeout=240)
+
+
+def action_cpu_oc(args: Sequence[str]) -> int:
+    if len(args) != 3:
+        return fail('cpu-oc-temp expects: <frequency> <vid> <temp>', 41)
+    try:
+        frequency = int(args[0])
+        vid = int(args[1])
+        temp = int(args[2])
+    except ValueError:
+        return fail('CPU OC arguments must be integers.', 42)
+    if frequency < 3000 or frequency > 4000:
+        return fail('Frequency must be between 3000 and 4000 MHz.', 43)
+    if vid < 900 or vid > 1275:
+        return fail('VID must be between 900 and 1275 mV.', 44)
+    if temp < 70 or temp > 90:
+        return fail('Temperature limit must be between 70 and 90 C.', 45)
+    if not command_exists('stress'):
+        return fail('stress is missing. Prepare dependencies from desktop first.', 46)
+    bc250_detect = shutil.which('bc250-detect')
+    if bc250_detect:
+        command = [bc250_detect, '--frequency', str(frequency), '--vid', str(vid), '--temp', str(temp), '--keep']
+        return run_checked(command, timeout=900)
+    repo = tools_dir() / 'bc250_smu_oc'
+    script = repo / 'bc250_detect.py'
+    if not script.exists():
+        return fail(f'bc250_smu_oc was not found at {repo}. Prepare dependencies from desktop first.', 47)
+    python = shutil.which('python3') or shutil.which('python') or '/usr/bin/python3'
+    env = {'PYTHONPATH': str(repo)}
+    command = [python, str(script), '--frequency', str(frequency), '--vid', str(vid), '--temp', str(temp), '--keep']
+    return run_checked(command, cwd=repo, env=env, timeout=900)
+
+
+def umr_database_path() -> pathlib.Path:
+    return tools_dir() / 'umr-steamos' / 'database'
+
+
+
+
+def safe_umr_database_file(database: pathlib.Path, relative: str) -> pathlib.Path:
+    if database.is_symlink() or database.parent.is_symlink():
+        raise RuntimeError(f'refusing symlinked UMR database path: {database}')
+    candidate = database / relative
+    if candidate.is_symlink():
+        raise RuntimeError(f'refusing symlinked UMR database file: {candidate}')
+    root = database.resolve(strict=True)
+    resolved = candidate.resolve(strict=True)
+    try:
+        resolved.relative_to(root)
+    except ValueError as exc:
+        raise RuntimeError(f'UMR database file escapes its root: {candidate}') from exc
+    return candidate
+
+def cu_env() -> dict[str, str]:
+    env = {
+        'UMR_DATABASE_PATH': str(umr_database_path()),
+        'UMR_ASIC': os.environ.get('UMR_ASIC') or 'cyan_skillfish.gfx1010',
+    }
+    if os.environ.get('UMR_INSTANCE'):
+        env['UMR_INSTANCE'] = os.environ['UMR_INSTANCE']
+    return env
+
+
+def numeric_debug_dri_entries(debug_root: pathlib.Path) -> list[pathlib.Path]:
+    """Return only numeric UMR/DRI nodes, ignoring PCI-BDF named debugfs nodes.
+
+    SteamOS may expose the same amdgpu device only as a directory such as
+    ``0000:01:00.0``.  ``Path.glob('[0-9]*')`` also matches that name, so sorting
+    the raw glob with ``int(item.name)`` raises ``ValueError`` before the helper
+    can use UMR instance 0 as its safe single-GPU fallback.
+    """
+    try:
+        entries = [
+            entry
+            for entry in debug_root.iterdir()
+            if entry.name.isdigit()
+            and int(entry.name) < 128
+            and (entry / 'name').is_file()
+        ]
+    except OSError:
+        return []
+    return sorted(entries, key=lambda item: int(item.name))
+
+
+def debug_dri_instances() -> list[str]:
+    debug_root = pathlib.Path('/sys/kernel/debug/dri')
+    return [entry.name for entry in numeric_debug_dri_entries(debug_root)]
+
+
+def bc250_pci_bdf() -> str:
+    lspci = shutil.which('lspci')
+    if not lspci:
+        return ''
+    try:
+        result = subprocess.run(
+            [lspci, '-Dnn'], text=True, capture_output=True, timeout=3, check=False
+        )
+    except Exception:
+        return ''
+    for line in result.stdout.splitlines():
+        if '[1002:13fe]' in line.lower():
+            return line.split()[0]
+    return ''
+
+
+def detect_bc250_dri_instance() -> str:
+    instances = debug_dri_instances()
+    bdf = bc250_pci_bdf()
+    if bdf:
+        for instance in instances:
+            try:
+                name = (pathlib.Path('/sys/kernel/debug/dri') / instance / 'name').read_text(
+                    encoding='utf-8', errors='ignore'
+                )
+            except OSError:
+                continue
+            if bdf.lower() in name.lower():
+                return instance
+    # A single numeric debugfs node below 128 is an unambiguous fallback. The
+    # duplicate render node 128 intentionally remains excluded.
+    if len(instances) == 1:
+        return instances[0]
+    if '0' in instances:
+        return '0'
+    return instances[0] if instances else '0'
+
+
+def discover_cu_selector(database: pathlib.Path) -> tuple[str, pathlib.Path]:
+    model = safe_umr_database_file(database, 'cyan_skillfish.asic')
+    lines = model.read_text(encoding='utf-8', errors='replace').splitlines()
+    required = (
+        'mmCC_GC_SHADER_ARRAY_CONFIG',
+        'mmSPI_PG_ENABLE_STATIC_WGP_MASK',
+        'mmRLC_PG_ALWAYS_ON_WGP_MASK',
+    )
+    for line in lines[1:]:
+        parts = line.split()
+        if len(parts) != 4:
+            continue
+        ip_common, ip_soc, _instance, regfile = parts
+        if not (ip_common.startswith('gfx') or ip_soc == 'GC'):
+            continue
+        candidate = safe_umr_database_file(database, regfile)
+        try:
+            text = candidate.read_text(encoding='utf-8', errors='replace')
+        except OSError:
+            continue
+        if all(register in text for register in required):
+            return f'cyan_skillfish.{ip_common}', candidate
+    raise RuntimeError('cyan_skillfish.asic does not expose a GC block with the three BC-250 CU registers')
+
+
+def cu_env_candidates() -> list[dict[str, str]]:
+    database = umr_database_path()
+    discovered, _regfile = discover_cu_selector(database)
+    selector = os.environ.get('UMR_ASIC') or discovered
+    instance = os.environ.get('UMR_INSTANCE') or detect_bc250_dri_instance()
+    # The BDF-matched debugfs resolver is deterministic on the BC-250. Keep a
+    # single candidate so a failed operation returns promptly instead of
+    # repeating the same UMR probe through an implicit auto-instance fallback.
+    return [{
+        'UMR_DATABASE_PATH': str(database),
+        'UMR_ASIC': selector,
+        'UMR_INSTANCE': instance,
+    }]
+
+
+def run_cu_capture(command: Sequence[str], *, cwd: pathlib.Path, env: dict[str, str], timeout: int = 8) -> tuple[int, str, str]:
+    merged_env = os.environ.copy()
+    merged_env.update({k: str(v) for k, v in env.items() if v is not None})
+    result = subprocess.run(
+        command, cwd=str(cwd), env=merged_env, text=True,
+        capture_output=True, timeout=timeout, check=False,
+    )
+    return result.returncode, result.stdout or '', result.stderr or ''
+
+
+def cu_database_issue() -> str:
+    database = umr_database_path()
+    if not database.is_dir():
+        return f'database directory is missing: {database}'
+    model = safe_umr_database_file(database, 'cyan_skillfish.asic')
+    try:
+        if not model.is_file():
+            return f'missing static model: {model}'
+        if model.stat().st_size <= 0:
+            return f'static model is empty: {model}'
+        lines = model.read_text(encoding='utf-8', errors='replace').splitlines()
+    except OSError as exc:
+        return f'cannot inspect {model}: {exc}'
+    header = next((line.strip() for line in lines if line.strip()), '')
+    fields = header.split()
+    if len(fields) != 6 or fields[0] != 'cyan_skillfish':
+        return f'invalid cyan_skillfish.asic header: {header!r}'
+    soc15 = safe_umr_database_file(database, fields[1])
+    try:
+        if not soc15.is_file() or soc15.stat().st_size <= 0:
+            return f'missing or empty SOC15 model: {soc15}'
+    except OSError as exc:
+        return f'cannot inspect {soc15}: {exc}'
+    try:
+        selector, regfile = discover_cu_selector(database)
+    except (OSError, RuntimeError) as exc:
+        return str(exc)
+
+    pci = safe_umr_database_file(database, 'pci.did')
+    try:
+        pci_lines = pci.read_text(encoding='utf-8', errors='replace').splitlines()
+    except OSError as exc:
+        return f'cannot read PCI database {pci}: {exc}'
+    mapped = False
+    for line in pci_lines:
+        parts = line.split()
+        if len(parts) >= 2 and parts[0].lower().lstrip('0x').lstrip('0') == '13fe':
+            if parts[1].lower() in {'cyan_skillfish', 'cyan_skillfish.asic'}:
+                mapped = True
+                break
+    if not mapped:
+        return f'{pci} does not map PCI ID 0x13FE to cyan_skillfish.asic'
+    if selector != 'cyan_skillfish.gfx1010':
+        return f'unexpected BC-250 register namespace {selector} from {regfile}'
+    return ''
+
+
+def cu_preflight() -> str:
+    database = umr_database_path()
+    umr = shutil.which('umr') or 'missing'
+    database_state = 'present' if database.is_dir() else 'missing'
+    try:
+        selector, _reg = discover_cu_selector(database)
+    except Exception:
+        selector = 'unavailable'
+    instance = detect_bc250_dri_instance()
+    try:
+        usage = shutil.disk_usage(database.parent if database.parent.exists() else caller_home())
+        free_mib = usage.free // (1024 * 1024)
+    except OSError:
+        free_mib = -1
+    return (
+        f'umr={umr}; database={database_state}; path={database}; selector={selector}; '
+        f'dri_instance={instance}; home_free_mib={free_mib}'
+    )
+
+
+def resolve_cu_env(script: pathlib.Path) -> tuple[dict[str, str], str]:
+    database_issue = cu_database_issue()
+    if database_issue:
+        raise RuntimeError(
+            'CU_UMR_DATABASE_INVALID: SteamOS Game Mode was verified, but the user-scoped UMR '
+            f'database is incomplete: {database_issue}. Run Prepare dependencies once from Desktop Mode. '
+            'The database now lives under /home, not the small SteamOS /var partition.'
+        )
+    attempts: list[str] = []
+    for env in cu_env_candidates():
+        label = f"UMR_ASIC={env['UMR_ASIC']} UMR_INSTANCE={env.get('UMR_INSTANCE') or 'auto'}"
+        try:
+            rc, out, err = run_cu_capture([str(script), 'status'], cwd=script.parent, env=env, timeout=8)
+        except subprocess.TimeoutExpired:
+            attempts.append(f'{label}: timed out after 8 seconds')
+            continue
+        if rc == 0 and out.strip():
+            return env, out
+        detail = (err or out or f'exit code {rc}').strip()
+        attempts.append(f'{label}: {detail[:1800]}')
+    diagnostic = cu_preflight()
+    combined = '\n'.join(attempts).lower()
+    if 'no space left on device' in combined or 'no queda espacio en el dispositivo' in combined:
+        code = 'CU_UMR_STORAGE_FULL'
+        explanation = 'The filesystem used for the private UMR database is full.'
+    elif 'invalid asic header line' in combined:
+        code = 'CU_UMR_DATABASE_INVALID'
+        explanation = 'UMR opened an empty or malformed cyan_skillfish.asic file.'
+    elif 'unrecognized option' in combined or 'unknown option' in combined:
+        code = 'CU_UMR_VERSION'
+        explanation = 'The installed UMR build does not support the required static-model options.'
+    else:
+        code = 'CU_UMR_REGISTER_ACCESS'
+        explanation = (
+            'UMR could not read cyan_skillfish.gfx1010.mmSPI_PG_ENABLE_STATIC_WGP_MASK '
+            'from the detected BC-250 DRI instance.'
+        )
+    detail = '\n\n'.join(attempts) or 'no selector attempt was executed'
+    raise RuntimeError(f'{code}: {explanation}\nPreflight: {diagnostic}\n\n{detail}')
+
+
+def cu_script() -> pathlib.Path | None:
+    repository = tools_dir() / CU_REPO_NAME
+    for name in (CU_RUNTIME_SCRIPT, 'bc250-cu-live-manager.sh'):
+        candidate = repository / name
+        if candidate.exists() and os.access(candidate, os.X_OK):
+            return candidate
+    return None
+
+
+def cu_status(script: pathlib.Path, env: dict[str, str] | None = None) -> int:
+    if env is None:
+        try:
+            env, output = resolve_cu_env(script)
+        except RuntimeError as exc:
+            return fail(str(exc), 60)
+    else:
+        try:
+            rc, output, error = run_cu_capture([str(script), 'status'], cwd=script.parent, env=env, timeout=8)
+        except subprocess.TimeoutExpired:
+            return fail('CU_STATUS_TIMEOUT: the final CU verification exceeded 8 seconds.', 61)
+        if rc != 0:
+            return fail(error or output or f'CU status exited with code {rc}', 61)
+    print(output.strip())
+    return 0
+
+
+def cu_table_commands(masks: Sequence[int]) -> list[list[str]]:
+    enabled: list[str] = []
+    disabled: list[str] = []
+    for row_index, mask in enumerate(masks):
+        se = row_index // 2
+        sh = row_index % 2
+        for wgp in range(5):
+            item = f'{se}.{sh}.{wgp}'
+            if mask & (1 << wgp):
+                enabled.append(item)
+            else:
+                disabled.append(item)
+    commands: list[list[str]] = []
+    if disabled:
+        commands.append(['--yes', 'disable-wgp', *disabled])
+    if enabled:
+        commands.append(['--yes', 'enable-wgp', *enabled])
+    return commands
+
+
+def action_cu(args: Sequence[str]) -> int:
+    script = cu_script()
+    if script is None:
+        return fail(f'CU_BACKEND_MISSING: SteamOS 40CU backend is missing at {tools_dir() / CU_REPO_NAME}. Run Prepare dependencies from desktop mode first.', 51)
+    if not command_exists('umr'):
+        return fail('CU_UMR_MISSING: umr is missing. Run Prepare dependencies from desktop mode first.', 52)
+    if not args:
+        return fail('cu expects status/action/table.', 53)
+    mode = args[0]
+    commands: list[list[str]] = []
+    if mode == 'status':
+        return cu_status(script)
+    if mode == 'action':
+        if len(args) != 2:
+            return fail('cu action expects one named action.', 54)
+        mapping = {
+            'full': ['--yes', 'enable', 'all'],
+            'factory': ['--yes', 'stock-dispatch'],
+            'disable_all': ['--yes', 'disable', 'all'],
+            'save_boot': ['--yes', 'write-service-table'],
+            'install_service': ['--yes', 'install-service'],
+            'apply_saved': ['--yes', 'apply-service'],
+            'remove_service': ['--yes', 'uninstall-service'],
+        }
+        command = mapping.get(args[1])
+        if command is None:
+            return fail('Invalid CU action.', 55)
+        commands = [command]
+    elif mode == 'table':
+        save_boot = False
+        raw_masks = list(args[1:])
+        if raw_masks and raw_masks[0] == '--save-boot':
+            save_boot = True
+            raw_masks = raw_masks[1:]
+        if len(raw_masks) != 4:
+            return fail('cu table expects four row masks.', 56)
+        try:
+            masks = [int(item, 0) for item in raw_masks]
+        except ValueError:
+            return fail('CU masks must be integers.', 57)
+        if any(mask < 0 or mask > 0x1f for mask in masks):
+            return fail('CU masks must be between 0x00 and 0x1f.', 58)
+        commands = cu_table_commands(masks)
+        if save_boot:
+            commands.append(['--yes', 'write-service-table'])
+    else:
+        return fail('Invalid CU mode.', 59)
+
+    # For a write action, validate the exact database/selector/DRI binding but
+    # do not run a full dashboard read before the write. The action itself and
+    # the mandatory final status already provide bounded failure + verification;
+    # the previous extra status doubled every click's latency.
+    database_issue = cu_database_issue()
+    if database_issue:
+        return fail(
+            'CU_UMR_DATABASE_INVALID: SteamOS Game Mode was verified, but the user-scoped UMR '
+            f'database is incomplete: {database_issue}. Run Prepare dependencies once from Desktop Mode.',
+            60,
+        )
+    try:
+        env = cu_env_candidates()[0]
+    except (OSError, RuntimeError) as exc:
+        return fail(f'CU_UMR_DATABASE_INVALID: {exc}', 60)
+
+    for command in commands:
+        rc = run_checked([str(script), *command], cwd=script.parent, env=env, timeout=20)
+        if rc != 0:
+            return rc
+    print('\n== Current state ==')
+    return cu_status(script, env)
+
+
+def _parse_invocation(argv: Sequence[str]) -> tuple[int | None, dict[str, str], str, list[str]]:
+    origin_pid: int | None = None
+    forwarded_env: dict[str, str] = {}
+    index = 1
+    while index < len(argv):
+        item = argv[index]
+        if item == '--':
+            index += 1
+            break
+        if item == '--origin-pid' and index + 1 < len(argv):
+            try:
+                origin_pid = int(argv[index + 1])
+            except ValueError:
+                origin_pid = None
+            index += 2
+            continue
+        if item == '--origin-uid' and index + 1 < len(argv):
+            os.environ['PKEXEC_UID'] = argv[index + 1]
+            index += 2
+            continue
+        if item == '--origin-env' and index + 1 < len(argv):
+            payload = argv[index + 1]
+            if '=' in payload:
+                key, value = payload.split('=', 1)
+                forwarded_env[key] = value
+            index += 2
+            continue
+        break
+    if index >= len(argv):
+        return origin_pid, forwarded_env, '', []
+    return origin_pid, forwarded_env, argv[index], list(argv[index + 1:])
+
+
+def main(argv: Sequence[str]) -> int:
+    origin_pid, forwarded_env, action, args = _parse_invocation(argv)
+    runtime_error = require_runtime(origin_pid, forwarded_env)
+    if runtime_error:
+        return runtime_error
+    if not action:
+        return fail('Missing helper action.', 2)
+    try:
+        if action == 'fan-pwm':
+            return action_fan_pwm(args)
+        if action == 'gpu-voltage':
+            return action_gpu_voltage(args)
+        if action == 'cpu-oc-temp':
+            return action_cpu_oc(args)
+        if action == 'cu':
+            return action_cu(args)
+        return fail('Unknown helper action.', 3)
+    except subprocess.TimeoutExpired:
+        return fail('The privileged helper action timed out.', 124)
+    except Exception as exc:  # Fail closed with a visible message.
+        return fail(str(exc), 125)
+
+
+if __name__ == '__main__':
+    raise SystemExit(main(sys.argv))

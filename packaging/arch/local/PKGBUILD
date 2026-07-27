@@ -1,12 +1,12 @@
 # Maintainer: Movacx <movacx@users.noreply.github.com>
 pkgname=bc250-control-center-git
-pkgver=1.17.22.local
+pkgver=1.17.23.local
 pkgrel=1
 pkgdesc='Administrador de tareas Linux gaming con panel seguro para AMD BC-250'
 arch=('any')
 url='https://github.com/movacx/bc250-control-center'
 license=('MIT')
-depends=('python' 'python-pyqt6' 'python-psutil' 'lm_sensors' 'stress')
+depends=('python' 'python-pyqt6' 'qt6-svg' 'python-psutil' 'lm_sensors' 'stress')
 makedepends=()
 optdepends=(
   'cyan-skillfish-governor-smu: control GPU BC250 mediante governor SMU'
@@ -35,6 +35,8 @@ package() {
   install -Dm755 scripts/bc250-control-centerd "$pkgdir/usr/bin/bc250-control-centerd"
   install -Dm755 mvc/Resources/privileged/bc250-fan-pwm-helper \
     "$pkgdir/usr/libexec/bc250-control-center/bc250-fan-pwm-helper"
+  install -Dm755 mvc/Resources/privileged/bc250-steamos-game-helper \
+    "$pkgdir/usr/libexec/bc250-control-center/bc250-steamos-game-helper"
   install -Dm644 packaging/common/polkit/io.github.movacx.bc250-control-center.policy \
     "$pkgdir/usr/share/polkit-1/actions/io.github.movacx.bc250-control-center.policy"
   for size in 32 48 64 128 256 512 1024; do

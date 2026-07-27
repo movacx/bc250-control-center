@@ -846,7 +846,7 @@ class ComputeUnitsPage(QWidget):
         self.umr_line = StatusLine("UMR availability", "Unknown", "Register access backend")
         self.driver_line = StatusLine("Driver topology", "Unknown", "amdgpu boot CU map")
         self.source_line = StatusLine("Routing source", "Cache", "SPI dispatch masks")
-        self.asic_line = StatusLine("ASIC selector", "cyan_skillfish.gfx1013", "BC250 gfx1013")
+        self.asic_line = StatusLine("ASIC selector", "cyan_skillfish.gfx1010", "BC250 UMR GC namespace")
         self.refresh_line = StatusLine("Last authorized refresh", "--:--:--", "No automatic authentication prompts")
         self.status_lines = [self.umr_line, self.driver_line, self.source_line, self.asic_line, self.refresh_line]
         for line in self.status_lines:
@@ -1302,6 +1302,9 @@ class ComputeUnitsPage(QWidget):
             self._register_event(event_action, success_message, success_detail)
 
         def failed(message: str) -> None:
+            # Keep the last authorized masks visible, but do not continue to
+            # label them as a fresh live read after a failed write/verification.
+            self.current_state["fresh"] = False
             self._set_busy(False, "")
             self._record_action("Operation failed", message, "red")
             self._show_error("Compute Units operation failed", message)
@@ -1325,7 +1328,7 @@ class ComputeUnitsPage(QWidget):
             self.header.action_button.setText(tr(label) if busy else tr("Prepare CU tools"))
         if busy:
             if self.topology_status is not None:
-                self.topology_status.setText(tr("Working"))
+                self.topology_status.setText(tr(label) if label else tr("Working"))
                 self.topology_status.set_tone("blue")
         else:
             self._apply_state(self.current_state, preserve_edits=True)
@@ -1434,6 +1437,17 @@ class ComputeUnitsPage(QWidget):
         ).exec()
 
     def _show_error(self, title: str, message: str) -> None:
+        normalized = str(message or "").lower()
+        if "helper_version_mismatch" in normalized:
+            notice = "The installed privileged helper does not match this application build."
+        elif "game_mode_context" in normalized:
+            notice = "The helper could not verify the Game Mode launch context."
+        elif "cu_umr_" in normalized or "game mode was verified" in normalized:
+            notice = "Game Mode was verified; the CU-specific UMR backend failed."
+        elif "cu_backend_missing" in normalized:
+            notice = "A Compute Units dependency is missing or unavailable."
+        else:
+            notice = "The application did not report this operation as successful."
         InfoDialog(
             title,
             message,
@@ -1441,6 +1455,6 @@ class ComputeUnitsPage(QWidget):
             parent=self,
             eyebrow="COMPUTE UNITS",
             button_text="Close",
-            notice="The application did not report this operation as successful.",
+            notice=notice,
             tone="red",
         ).exec()

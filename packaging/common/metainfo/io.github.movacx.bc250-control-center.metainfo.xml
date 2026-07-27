@@ -23,7 +23,7 @@
   </categories>
   <url type="homepage">https://github.com/movacx/bc250-control-center</url>
   <releases>
-    <release version="1.17.22" date="2026-07-26">
+    <release version="1.17.23" date="2026-07-27">
       <description>
         <p>Mayor compatibilidad con mando, navegacion mas fluida e ingreso numerico en pantalla para flujos de control.</p>
       </description>

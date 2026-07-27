@@ -5,16 +5,42 @@ Graphical interface to manage an AMD BC-250 from Linux. It brings monitoring, pr
 ## Screenshots
 
 <p align="center">
-  <img src="assets/screenshots/dashboard.png" alt="BC250 Control Center dashboard" width="49%">
-  <img src="assets/screenshots/compute-units.png" alt="Compute Units WGP routing" width="49%">
-</p>
-<p align="center">
-  <img src="assets/screenshots/cpu-smu.png" alt="CPU and SMU controls" width="32%">
-  <img src="assets/screenshots/gpu-governor.png" alt="GPU governor controls" width="32%">
-  <img src="assets/screenshots/fans.png" alt="Fan control panel" width="32%">
+  <img src="assets/screenshots/dashboard.png" alt="BC250 Control Center dashboard" width="86%">
 </p>
 
+<details>
+<summary>View more screenshots</summary>
+
+<p align="center">
+  <img src="assets/screenshots/compute-units.png" alt="Compute Units WGP routing" width="49%">
+  <img src="assets/screenshots/cpu-smu.png" alt="CPU and SMU controls" width="49%">
+</p>
+<p align="center">
+  <img src="assets/screenshots/gpu-governor.png" alt="GPU governor controls" width="49%">
+  <img src="assets/screenshots/fans.png" alt="Fan control panel" width="49%">
+</p>
+
+</details>
+
 ## Installation
+
+### Universal local install from source
+
+Use this method when testing directly from a cloned or extracted source tree:
+
+```bash
+cd bc250-control-center/scripts
+./install-local.sh
+```
+
+To uninstall files installed by the local script:
+
+```bash
+cd bc250-control-center/scripts
+./uninstall-local.sh
+```
+
+The installer places the launcher in the user prefix and installs the required privileged helpers/Polkit metadata when needed.
 
 ### Arch AUR
 
@@ -153,3 +179,9 @@ docs/                 architecture and third-party notices only
 ```
 
 Distribution-specific integration lives in `mvc/Repository/Os_repository/`; the publishable docs folder intentionally keeps only `ARQUITECTURA_MVC.md` and `THIRD_PARTY_NOTICES.md`.
+
+## SteamOS Game Mode CU protocol 6
+
+Protocol 6 fixes Compute Units actions on SteamOS layouts where debugfs exposes
+the GPU as `0000:01:00.0` instead of a numeric directory.  The helper now filters
+PCI-BDF names before converting numeric DRI instance names.

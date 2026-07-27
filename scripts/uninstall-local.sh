@@ -20,6 +20,7 @@ METAINFO_DIR="$PREFIX/share/metainfo"
 SYSTEMD_USER_DIR="$PREFIX/lib/systemd/user"
 DOC_DIR="$PREFIX/share/doc/bc250-control-center"
 SYSTEM_PRIV_HELPER="/usr/libexec/bc250-control-center/bc250-fan-pwm-helper"
+SYSTEM_STEAMOS_GAME_HELPER="/usr/libexec/bc250-control-center/bc250-steamos-game-helper"
 SYSTEM_POLKIT_ACTION="/usr/share/polkit-1/actions/io.github.movacx.bc250-control-center.policy"
 
 if [[ "${EUID:-$(id -u)}" -ne 0 && "$PREFIX" == "$HOME/.local" ]]; then
@@ -142,6 +143,9 @@ remove_path "$METAINFO_DIR/io.github.movacx.bc250-control-center.metainfo.xml"
 remove_path "$SYSTEMD_USER_DIR/bc250-control-centerd.service"
 if [[ -e "$SYSTEM_PRIV_HELPER" || -L "$SYSTEM_PRIV_HELPER" ]]; then
   remove_path "$SYSTEM_PRIV_HELPER"
+fi
+if [[ -e "$SYSTEM_STEAMOS_GAME_HELPER" || -L "$SYSTEM_STEAMOS_GAME_HELPER" ]]; then
+  remove_path "$SYSTEM_STEAMOS_GAME_HELPER"
 fi
 if [[ -e "$SYSTEM_POLKIT_ACTION" || -L "$SYSTEM_POLKIT_ACTION" ]]; then
   remove_path "$SYSTEM_POLKIT_ACTION"

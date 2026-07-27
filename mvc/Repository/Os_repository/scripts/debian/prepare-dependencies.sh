@@ -7,7 +7,7 @@ install_runtime() {
   bold "${BC250_OS_LABEL:-Debian family}: installing BC250 runtime dependencies"
   as_root apt-get update
   local core_packages=(
-    python3 python3-pyqt6 python3-psutil lm-sensors stress git pciutils
+    python3 python3-pyqt6 libqt6svg6 python3-psutil lm-sensors stress git pciutils
     libdrm2 libdrm-amdgpu1 curl ca-certificates dbus dbus-user-session kmod
   )
   as_root apt-get install -y "${core_packages[@]}"
