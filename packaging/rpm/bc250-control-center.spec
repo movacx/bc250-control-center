@@ -1,6 +1,6 @@
 Name:           bc250-control-center
 Version:        1.17.22
-Release:        2%{?dist}
+Release:        3%{?dist}
 Summary:        Linux gaming task manager and safe AMD BC-250 control panel
 
 %{!?_userunitdir:%global _userunitdir /usr/lib/systemd/user}
@@ -96,6 +96,9 @@ fi
 %{_userunitdir}/bc250-control-centerd.service
 
 %changelog
+* Mon Jul 27 2026 Movacx <movacx@users.noreply.github.com> - 1.17.22-3
+- Resolve the SteamOS Cyan Skillfish UMR selector for the F5GO 40CU backend.
+
 * Mon Jul 27 2026 Movacx <movacx@users.noreply.github.com> - 1.17.22-2
 - Require Qt SVG support so interface icons render on Linux Mint, Ubuntu and Fedora-family desktops.
 

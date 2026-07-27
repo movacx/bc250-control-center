@@ -239,8 +239,27 @@ class CURepository:
     def _cu_manager_env(self, tools):
         env = {}
         if tools.get('cu_manager_backend') == 'steamos' or tools.get('is_steamos'):
-            env['UMR_DATABASE_PATH'] = tools.get('cu_steamos_umr_database') or '/var/lib/bc250-cu-live-manager/umr/database'
+            database = tools.get('cu_steamos_umr_database') or '/var/lib/bc250-cu-live-manager/umr/database'
+            env['UMR_DATABASE_PATH'] = database
+            env['UMR_ASIC'] = self._steamos_umr_asic_selector(database)
         return env
+
+
+    def _steamos_umr_asic_selector(self, database):
+        # The F5GO SteamOS backend defaults to cyan_skillfish.gfx1013, but the
+        # current upstream UMR database shipped on SteamOS exposes Cyan Skillfish
+        # as gfx1010 inside cyan_skillfish.asic.  Keep this resolver SteamOS-only
+        # so the standard WinnieLV backend used by other distros is untouched.
+        db = Path(str(database or '/var/lib/bc250-cu-live-manager/umr/database'))
+        asic_file = db / 'cyan_skillfish.asic'
+        try:
+            for line in asic_file.read_text(encoding='utf-8', errors='ignore').splitlines():
+                parts = line.split()
+                if parts and parts[0].startswith('gfx'):
+                    return f'cyan_skillfish.{parts[0]}'
+        except OSError:
+            pass
+        return 'cyan_skillfish.gfx1010'
 
 
     def _env_args_cu(self, tools):
@@ -268,14 +287,14 @@ class CURepository:
 
     def _mensaje_steamos_umr_selector(self):
         return (
-            'SteamOS could not read the live 40CU registers with the standard UMR database.\n\n'
+            'SteamOS could not read the live 40CU registers with the resolved UMR selector.\n\n'
             'Press "Prepare dependencies" again. On SteamOS the app installs the F5GO SteamOS 40CU backend '
-            'and runs it with UMR_DATABASE_PATH=/var/lib/bc250-cu-live-manager/umr/database for dashboard/actions.\n\n'
+            'and runs it with UMR_DATABASE_PATH=/var/lib/bc250-cu-live-manager/umr/database plus the Cyan Skillfish selector exposed by the local UMR database.\n\n'
             'If it still fails, send this output and verify from a terminal:\n'
             'cat /etc/os-release\n'
             'command -v umr\n'
             'cd ~/.local/share/bc250-control-center/ResourceTools/bc250-cu-live-manager-steamos\n'
-            'sudo ./bc250-cu-live-manager.sh status'
+            'sudo UMR_DATABASE_PATH=/var/lib/bc250-cu-live-manager/umr/database UMR_ASIC=cyan_skillfish.gfx1010 ./bc250-cu-live-manager.sh status'
         )
 
 

@@ -186,6 +186,38 @@ class DependenciasRepository:
             'script': destination / 'bc250-cu-live-manager.sh',
         }
 
+    def _steamos_cu_env_shell(self):
+        database = '/var/lib/bc250-cu-live-manager/umr/database'
+        asic_file = f'{database}/cyan_skillfish.asic'
+        qdb = shlex.quote(database)
+        qasic = shlex.quote(asic_file)
+        awk = r'''awk '$1 ~ /^gfx/ { print "cyan_skillfish."$1; exit }' '''
+        return (
+            f'export UMR_DATABASE_PATH={qdb}; '
+            f'if [ -r {qasic} ]; then '
+            f'UMR_ASIC="$({awk}{qasic})"; '
+            'fi; '
+            'export UMR_ASIC="${UMR_ASIC:-cyan_skillfish.gfx1010}"; '
+        )
+
+
+    def _steamos_cu_status_probe_command(self, script):
+        qscript = shlex.quote(str(script))
+        env = self._steamos_cu_env_shell()
+        return (
+            'echo "== Verifying SteamOS 40CU UMR selector =="; '
+            + env
+            + 'echo "UMR_DATABASE_PATH=$UMR_DATABASE_PATH"; '
+            + 'echo "UMR_ASIC=$UMR_ASIC"; '
+            + f'sudo env UMR_DATABASE_PATH="$UMR_DATABASE_PATH" UMR_ASIC="$UMR_ASIC" {qscript} status '
+            + '>/tmp/bc250-cu-steamos-status.log 2>&1 || { '
+            + 'cat /tmp/bc250-cu-steamos-status.log; '
+            + 'echo "ERROR: SteamOS 40CU backend could not read WGP registers with the resolved UMR selector."; '
+            + 'exit 36; }; '
+            + 'cat /tmp/bc250-cu-steamos-status.log | sed -n "1,80p"'
+        )
+
+
     @staticmethod
     def _accept_reboot_required(command, message):
         """Treat the rpm-ostree pending-deployment exit code as success."""
@@ -320,6 +352,10 @@ class DependenciasRepository:
                 f'test -x {shlex.quote(str(cu_script))} || {{ echo "ERROR: 40CU manager script is missing"; exit 31; }}',
                 os_repository.install_umr_command(str(cu_script)),
                 'command -v umr >/dev/null 2>&1 || { echo "ERROR: UMR is still unavailable"; exit 32; }',
+            ])
+            if os_repository.info.family == 'steamos':
+                commands.append(self._steamos_cu_status_probe_command(cu_script))
+            commands.extend([
                 'command -v cyan-skillfish-governor-smu >/dev/null 2>&1 || { echo "ERROR: cyan-skillfish-governor-smu is unavailable"; exit 33; }',
             ])
 
@@ -418,6 +454,8 @@ class DependenciasRepository:
                 os_repository.install_umr_command(str(script)),
                 'command -v umr >/dev/null 2>&1 || { echo "ERROR: UMR is still unavailable"; exit 32; }',
             ])
+            if os_repository.info.family == 'steamos':
+                commands.append(self._steamos_cu_status_probe_command(script))
         commands.append('if [ "$BC250_REBOOT_REQUIRED" = "1" ]; then echo "== UMR staged; reboot required =="; else echo "== UMR installation verified =="; fi')
         self.estado_herramientas_cache = None
         return self._abrir_terminal('; '.join(commands), 'Instalar UMR')
