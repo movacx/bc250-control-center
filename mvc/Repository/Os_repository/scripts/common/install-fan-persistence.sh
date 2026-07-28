@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 echo "== Installing persistent nct6687 boot loader ==";
+echo "Please wait and do not close this terminal. Configuring the boot loader can take up to one minute.";
 sudo install -d /usr/local/sbin;
 sudo tee /usr/local/sbin/bc250-load-nct6687 >/dev/null <<'EOF'
 #!/usr/bin/env bash

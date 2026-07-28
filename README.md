@@ -29,6 +29,7 @@ Graphical interface to manage an AMD BC-250 from Linux. It brings monitoring, pr
 Use this method when testing directly from a cloned or extracted source tree:
 
 ```bash
+git clone https://github.com/movacx/bc250-control-center.git
 cd bc250-control-center/scripts
 ./install-local.sh
 ```
@@ -54,11 +55,6 @@ Install it on Arch/CachyOS/Manjaro with an AUR helper:
 yay -S bc250-control-center-git
 ```
 
-or:
-
-```bash
-paru -S bc250-control-center-git
-```
 
 ### Packages by distribution
 
@@ -87,12 +83,6 @@ Ubuntu/Debian:
 sudo apt install ./bc250-control-center_*.deb
 ```
 
-If `apt` cannot resolve it directly, use:
-
-```bash
-sudo dpkg -i ./bc250-control-center_*.deb
-sudo apt -f install
-```
 
 ## First use
 
@@ -179,9 +169,3 @@ docs/                 architecture and third-party notices only
 ```
 
 Distribution-specific integration lives in `mvc/Repository/Os_repository/`; the publishable docs folder intentionally keeps only `ARQUITECTURA_MVC.md` and `THIRD_PARTY_NOTICES.md`.
-
-## SteamOS Game Mode CU protocol 6
-
-Protocol 6 fixes Compute Units actions on SteamOS layouts where debugfs exposes
-the GPU as `0000:01:00.0` instead of a numeric directory.  The helper now filters
-PCI-BDF names before converting numeric DRI instance names.

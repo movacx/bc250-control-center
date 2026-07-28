@@ -86,6 +86,7 @@ class FanRepository:
 
         comandos.extend([
             'echo "== Configuring module preference =="',
+            'echo "Please wait and do not close this terminal. Configuring the boot loader can take up to one minute."',
             "echo 'blacklist nct6683' | sudo tee /etc/modprobe.d/nct6683.conf >/dev/null",
             "echo 'options nct6687 force=true' | sudo tee /etc/modprobe.d/nct6687.conf >/dev/null",
             "printf 'blacklist nct6683\\noptions nct6687 force=true\\n' | sudo tee /etc/modprobe.d/sensors.conf >/dev/null",

@@ -2505,7 +2505,7 @@ class GpuGovernorPage(QWidget):
                 )
             self.safety_notice.set_notice(
                 "Governor D-Bus unavailable",
-                tr("The page can still show passive telemetry, but runtime ranges cannot be applied. Read the service status and inspect the TOML before continuing.") + detail,
+                tr("The page can still show passive telemetry, but runtime ranges cannot be applied. Read the service status and inspect the TOML before continuing. The governor service may be disabled; enable it with the Enable service button.") + detail,
                 tone="orange",
             )
             if self.configuration_status is not None:

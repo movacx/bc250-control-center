@@ -1,6 +1,6 @@
 Name:           bc250-control-center
 Version:        1.17.23
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Linux gaming task manager and safe AMD BC-250 control panel
 
 %{!?_userunitdir:%global _userunitdir /usr/lib/systemd/user}
@@ -98,6 +98,9 @@ fi
 %{_userunitdir}/bc250-control-centerd.service
 
 %changelog
+* Mon Jul 27 2026 Movacx <movacx@users.noreply.github.com> - 1.17.23-2
+- Clarify installation, service guidance, and release assets.
+
 * Mon Jul 27 2026 Movacx <movacx@users.noreply.github.com> - 1.17.23-1
 - Improve SteamOS Game Mode compatibility and Compute Units integration.
 
