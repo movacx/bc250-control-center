@@ -7,10 +7,10 @@ class CPURepository:
         frecuencia = int(frecuencia)
         vid = int(vid)
         temp = int(temp)
-        if frecuencia < 3000 or frecuencia > 4000:
-            raise ValueError('The UI limits temporary CPU OC to 3000-4000 MHz')
-        if vid < 900 or vid > 1275:
-            raise ValueError('The UI limits VID to 900-1275 mV')
+        if frecuencia < 3000 or frecuencia > 4200:
+            raise ValueError('The UI limits temporary CPU OC to 3000-4200 MHz')
+        if vid < 900 or vid > 1375:
+            raise ValueError('The UI limits VID to 900-1375 mV')
         if temp < 70 or temp > 90:
             raise ValueError('The UI limits CPU/GPU temperature to 70-90 C')
         tools = self.estado_herramientas_bc250()
@@ -46,10 +46,10 @@ class CPURepository:
         frecuencia = int(frecuencia)
         vid = int(vid)
         temp = int(temp)
-        if frecuencia < 3000 or frecuencia > 4000:
-            raise ValueError('The UI limits temporary CPU OC to 3000-4000 MHz')
-        if vid < 900 or vid > 1275:
-            raise ValueError('The UI limits VID to 900-1275 mV')
+        if frecuencia < 3000 or frecuencia > 4200:
+            raise ValueError('The UI limits temporary CPU OC to 3000-4200 MHz')
+        if vid < 900 or vid > 1375:
+            raise ValueError('The UI limits VID to 900-1375 mV')
         if temp < 70 or temp > 90:
             raise ValueError('The UI limits CPU/GPU temperature to 70-90 C')
         if self._usar_steamos_game_helper():
@@ -107,7 +107,7 @@ class CPURepository:
         frecuencia = datos.getint('overclock', 'frequency', fallback=0)
         escala = datos.getint('overclock', 'scale', fallback=0)
         temp = datos.getint('overclock', 'max_temperature', fallback=0)
-        if frecuencia < 3000 or frecuencia > 4000:
+        if frecuencia < 3000 or frecuencia > 4200:
             raise RuntimeError(f'overclock.conf has a frequency outside the UI limit: {frecuencia} MHz')
         if temp < 70 or temp > 90:
             raise RuntimeError(f'overclock.conf has a temperature outside the UI limit: {temp} C')

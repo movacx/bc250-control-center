@@ -87,10 +87,9 @@ sudo apt install ./bc250-control-center_*.deb
 ## First use
 
 1. Open `bc250-control-center`.
-2. Go to **BC250**.
-3. Press **Prepare dependencies**. The app selects an isolated strategy for Arch, Manjaro, CachyOS, Debian, Ubuntu, Fedora, Bazzite or SteamOS. On Arch-family systems it verifies the complete AUR toolchain and installs Yay when no supported helper exists. On Bazzite it downloads the user-space tools first, stages all host packages in one `rpm-ostree` deployment and asks for one reboot; a second press is not required.
-4. Open **Fans** and press **Prepare fan PWM** when the nct6687 driver is not ready. The app uses the active distribution strategy and reports missing kernel headers or an immutable-system reboot requirement without disabling read-only monitoring. On Bazzite the module is stored per kernel under `/var` and loaded by a persistent system service instead of modifying the immutable module tree.
-5. Read **Information > Safe BC250 use** before applying OC, 40CU, fan PWM or persistent changes.
+2. Inside the dashboard, press **Prepare dependencies**. The app will select an isolated strategy for Arch, Manjaro, CachyOS, Debian, Ubuntu, Fedora, Bazzite, or SteamOS. On Arch-family systems, it verifies the complete AUR toolchain and installs Yay when no supported helper exists. On Bazzite, it downloads the user-space tools first, stages all host packages in a single `rpm-ostree` deployment, and asks for one reboot; a second press is not required.
+3. Inside the dashboard, press **Prepare fan PWM**. This will redirect you to the **Fans** module of the program. Scroll down to find the **Prepare fan PWM** button again and press it to install the `nct6687` driver if it is not ready. The app will use the active distribution strategy and report missing kernel headers or an immutable-system reboot requirement without disabling read-only monitoring. On Bazzite, the module is stored per kernel under `/var` and loaded by a persistent system service instead of modifying the immutable module tree.
+
 
 ## Main features
 

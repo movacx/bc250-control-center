@@ -53,8 +53,8 @@ def _number(value, default=0.0):
         return float(default)
 
 
-CPU_FREQUENCY_RANGE = (3000, 4000)
-CPU_VID_RANGE = (900, 1275)
+CPU_FREQUENCY_RANGE = (3000, 4200)
+CPU_VID_RANGE = (900, 1375)
 CPU_TEMPERATURE_RANGE = (70, 90)
 
 
@@ -356,7 +356,7 @@ class CpuSmuPage(QWidget):
         )
         self.vid_control = CpuValueField(
             "Target VID",
-            "The validated backend rejects values above 1275 mV.",
+            "The validated backend rejects values above 1375 mV.",
             *CPU_VID_RANGE,
             1050,
             "mV",
@@ -375,7 +375,7 @@ class CpuSmuPage(QWidget):
         card.body.addLayout(self.parameter_grid)
 
         self.range_note = QLabel(
-            "Validated UI range: 3000–4000 MHz · 900–1275 mV · temperature cap up to 90 °C."
+            "Validated UI range: 3000–4200 MHz · 900–1375 mV · temperature cap up to 90 °C."
         )
         self.range_note.setProperty("fieldHint", True)
         self.range_note.setWordWrap(True)
@@ -551,7 +551,7 @@ class CpuSmuPage(QWidget):
         contract_layout.setContentsMargins(12, 12, 12, 12)
         contract_layout.setSpacing(8)
         self.command_line = StatusLine("Command", "bc250-detect --keep", "Temporary CPU session action")
-        self.limits_line = StatusLine("UI limits", "3000–4000 MHz", "900–1275 mV · up to 90 °C")
+        self.limits_line = StatusLine("UI limits", "3000–4200 MHz", "900–1375 mV · up to 90 °C")
         self.persistence_line = StatusLine(
             "Persistence",
             "Disabled",

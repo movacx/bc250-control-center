@@ -389,10 +389,10 @@ def action_cpu_oc(args: Sequence[str]) -> int:
         temp = int(args[2])
     except ValueError:
         return fail('CPU OC arguments must be integers.', 42)
-    if frequency < 3000 or frequency > 4000:
-        return fail('Frequency must be between 3000 and 4000 MHz.', 43)
-    if vid < 900 or vid > 1275:
-        return fail('VID must be between 900 and 1275 mV.', 44)
+    if frequency < 3000 or frequency > 4200:
+        return fail('Frequency must be between 3000 and 4200 MHz.', 43)
+    if vid < 900 or vid > 1375:
+        return fail('VID must be between 900 and 1375 mV.', 44)
     if temp < 70 or temp > 90:
         return fail('Temperature limit must be between 70 and 90 C.', 45)
     if not command_exists('stress'):
