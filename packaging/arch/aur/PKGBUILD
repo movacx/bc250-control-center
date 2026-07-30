@@ -1,7 +1,7 @@
 # Maintainer: Movacx <movacx@users.noreply.github.com>
 
 pkgname=bc250-control-center-git
-pkgver=1.18.1
+pkgver=1.18.2
 pkgrel=1
 pkgdesc='Graphical control center for AMD BC-250 community tools'
 arch=('any')

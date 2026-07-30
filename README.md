@@ -97,7 +97,7 @@ sudo apt install ./bc250-control-center_*.deb
 - Performance view with CPU, memory, swap, GPU, disk, fans and sensors.
 - BC250 panel with live metrics. The power tile reports **Total board power** only when Linux exposes a dedicated whole-system sensor; otherwise it is explicitly labeled **SoC package power** instead of estimating or mislabeling the value.
 - GPU control through the `cyan-skillfish-governor-smu` TOML safe-points.
-- Temporary and persistent CPU OC with visible limits.
+- Temporary and persistent CPU OC with visible limits, plus experimental hidden-core unlocking through the official `bc250-core-unlock` tool.
 - 40CU/24CU dashboard and actions through `bc250-cu-live-manager`; SteamOS uses a compatible SteamOS live-manager backend.
 - Fan module for BC-250 sensors, RPM monitoring, manual fan speed control and a simple GPU temperature curve when `nct6687d` is prepared.
 - Local JSONL history.

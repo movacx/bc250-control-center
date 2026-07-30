@@ -1,5 +1,5 @@
 Name:           bc250-control-center
-Version:        1.18.1
+Version:        1.18.2
 Release:        1%{?dist}
 Summary:        Linux gaming task manager and safe AMD BC-250 control panel
 
@@ -104,6 +104,10 @@ fi
 %{_userunitdir}/bc250-control-centerd.service
 
 %changelog
+* Thu Jul 30 2026 Movacx <movacx@users.noreply.github.com> - 1.18.2-1
+- Restore the complete upstream GPU voltage curve and enforce every Level 3/6 increment.
+- Block unsafe high-frequency ranges until their full voltage profile is active.
+
 * Thu Jul 30 2026 Movacx <movacx@users.noreply.github.com> - 1.18.1-1
 - Integrate the official bc250-core-unlock workflow with guarded privileged execution.
 - Improve CPU/GPU layouts, controller navigation, governor safety and fan persistence.

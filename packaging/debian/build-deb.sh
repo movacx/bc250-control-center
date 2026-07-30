@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 NAME="bc250-control-center"
-VERSION="${VERSION:-1.18.1}"
+VERSION="${VERSION:-1.18.2}"
 RELEASE="${RELEASE:-1}"
 PKG_VERSION="${VERSION}-${RELEASE}"
 BUILD_DIR="$ROOT/build/deb"

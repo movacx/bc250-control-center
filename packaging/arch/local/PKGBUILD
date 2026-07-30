@@ -1,6 +1,6 @@
 # Maintainer: Movacx <movacx@users.noreply.github.com>
 pkgname=bc250-control-center-git
-pkgver=1.18.1
+pkgver=1.18.2
 pkgrel=1
 pkgdesc='Administrador de tareas Linux gaming con panel seguro para AMD BC-250'
 arch=('any')

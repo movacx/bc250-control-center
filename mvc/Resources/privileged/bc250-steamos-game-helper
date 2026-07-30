@@ -356,7 +356,7 @@ def action_gpu_voltage(args: Sequence[str]) -> int:
         except ValueError:
             return fail('Voltage level must be an integer.', 34)
         if level not in (0, 3, 6):
-            return fail('Only validated voltage levels 0, 3 and 6 are allowed.', 35)
+            return fail('Only supported voltage levels 0, 3 and 6 are allowed.', 35)
         command = [str(GPU_LAB_SCRIPT), 'apply', str(level)]
     elif mode == 'apply-custom':
         if len(args) < 2:
@@ -371,7 +371,7 @@ def action_gpu_voltage(args: Sequence[str]) -> int:
                 millivolts = int(right)
             except ValueError:
                 return fail(f'Invalid custom voltage pair: {item}', 38)
-            if frequency <= 0 or millivolts < 600 or millivolts > 1150:
+            if frequency <= 0 or millivolts < 600 or millivolts > 1210:
                 return fail(f'Unsafe custom voltage pair: {item}', 39)
             pairs.append(f'{frequency}={millivolts}')
         command = [str(GPU_LAB_SCRIPT), 'apply-custom', *pairs]

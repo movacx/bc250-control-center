@@ -2,18 +2,19 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
-from PyQt6.QtCore import QTimer, Qt, pyqtSignal
+
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QIntValidator
 from PyQt6.QtWidgets import (
-    QApplication,
     QAbstractItemView,
+    QApplication,
     QButtonGroup,
     QComboBox,
     QDialog,
     QFrame,
     QGridLayout,
-    QHeaderView,
     QHBoxLayout,
+    QHeaderView,
     QLabel,
     QLineEdit,
     QPlainTextEdit,
@@ -28,21 +29,33 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from ..components.responsive import clear_grid, configure_responsive_scroll_area, effective_viewport_width
+from ...Repository.governor_toml import (
+    CUSTOM_VOLTAGE_MAX_MV,
+    CUSTOM_VOLTAGE_MIN_MV,
+    GOVERNOR_DEFAULT_VOLTAGES,
+    SUPPORTED_VOLTAGE_LEVELS,
+    VOLTAGE_BOOST_START_MHZ,
+    voltage_profile,
+)
 from ..components.async_tools import AsyncRefresh, BackgroundExecutor
-from ..i18n import count_label, tr, tr_format
 from ..components.page_widgets import (
+    ConfirmDialog,
     ControlPageHeader,
     MetricTile,
-    ConfirmDialog,
     PresetButton,
     SectionCard,
     StatusLine,
 )
-from ..core.state import state_cache_for
-from ..core.external_links import open_local_file
-from ..theme import COLORS
+from ..components.responsive import (
+    clear_grid,
+    configure_responsive_scroll_area,
+    effective_viewport_width,
+)
 from ..components.widgets import IconBadge, InfoDialog, PillLabel, apply_shadow, icon
+from ..core.external_links import open_local_file
+from ..core.state import state_cache_for
+from ..i18n import count_label, tr, tr_format
+from ..theme import COLORS
 
 
 def _dict(value):
@@ -313,8 +326,8 @@ class VoltageSummaryStrip(QFrame):
         self.grid.setVerticalSpacing(6)
         self.items = [
             GpuSummaryItem("Safe-points", "--", "active TOML entries", "compute_blue", COLORS["blue_soft"], compact=True),
-            GpuSummaryItem("Active profile", "--", "closest validated curve", "gpu_purple", COLORS["purple_soft"], compact=True),
-            GpuSummaryItem("Maximum voltage", "-- mV", "hard UI ceiling 1150 mV", "bolt_blue", COLORS["orange_soft"], compact=True),
+            GpuSummaryItem("Active profile", "--", "closest defined curve", "gpu_purple", COLORS["purple_soft"], compact=True),
+            GpuSummaryItem("Maximum voltage", "-- mV", "advanced voltage editor range", "bolt_blue", COLORS["orange_soft"], compact=True),
             GpuSummaryItem("Runtime range", "--", "restored after restart", "settings_blue", COLORS["blue_soft"], compact=True),
             GpuSummaryItem("Safety state", "Checking", "monotonic validation", "shield_green", COLORS["green_soft"], compact=True),
         ]
@@ -406,7 +419,7 @@ class VoltageCurveGrid(QFrame):
     HEADERS = (
         ("Frequency", "safe-point"),
         ("Current", "active TOML"),
-        ("Proposed", "selected profile"),
+        ("Original", "governor default"),
         ("Added voltage", "vs governor default"),
         ("Custom control", "all active points"),
     )
@@ -419,7 +432,6 @@ class VoltageCurveGrid(QFrame):
         self.grid.setContentsMargins(7, 7, 7, 7)
         self.grid.setHorizontalSpacing(5)
         self.grid.setVerticalSpacing(5)
-        self.proposed_cells: dict[int, VoltageGridCell] = {}
         self.added_cells: dict[int, VoltageGridCell] = {}
         self._reset_headers()
 
@@ -435,7 +447,6 @@ class VoltageCurveGrid(QFrame):
             item = self.grid.takeAt(0)
             if item.widget() is not None:
                 item.widget().deleteLater()
-        self.proposed_cells = {}
         self.added_cells = {}
         self._reset_headers()
 
@@ -455,11 +466,9 @@ class VoltageCurveGrid(QFrame):
         *,
         frequency: int,
         current: int,
-        proposed: int | None,
+        original: int | None,
         added: int | None,
-        margin: int | None,
         editor: QWidget | None,
-        editable: bool,
         custom_available: bool,
     ) -> None:
         visual_row = int(row) + 1
@@ -469,16 +478,16 @@ class VoltageCurveGrid(QFrame):
             role="frequency",
         )
         current_cell = VoltageGridCell(f"{current} mV" if current else "Not set", "current curve", role="neutral")
-        proposed_cell = VoltageGridCell(
-            f"{proposed} mV" if proposed is not None else "Unchanged",
-            "new value" if editable else "kept as-is",
-            role="warning" if editable and margin is not None and margin < 0 else "proposed" if editable else "muted",
+        original_cell = VoltageGridCell(
+            f"{original} mV" if original is not None else "Not available",
+            "packaged default" if original is not None else "unknown safe-point",
+            role="safe" if original is not None else "muted",
         )
         added_value, added_detail, added_role = self._added_voltage_copy(added)
         added_cell = VoltageGridCell(added_value, added_detail, role=added_role)
         self.grid.addWidget(frequency_cell, visual_row, 0)
         self.grid.addWidget(current_cell, visual_row, 1)
-        self.grid.addWidget(proposed_cell, visual_row, 2)
+        self.grid.addWidget(original_cell, visual_row, 2)
         self.grid.addWidget(added_cell, visual_row, 3)
 
         editor_cell = QFrame()
@@ -500,17 +509,9 @@ class VoltageCurveGrid(QFrame):
             editor_layout.addWidget(locked, 1)
         self.grid.addWidget(editor_cell, visual_row, 4)
 
-        self.proposed_cells[int(frequency)] = proposed_cell
         self.added_cells[int(frequency)] = added_cell
 
-    def update_point(self, frequency: int, proposed: int, added: int | None, margin: int | None) -> None:
-        proposed_cell = self.proposed_cells.get(int(frequency))
-        if proposed_cell is not None:
-            proposed_cell.set_values(
-                f"{int(proposed)} mV",
-                "new value",
-                role="warning" if margin is not None and margin < 0 else "proposed",
-            )
+    def update_point(self, frequency: int, added: int | None) -> None:
         added_cell = self.added_cells.get(int(frequency))
         if added_cell is not None:
             added_value, added_detail, added_role = self._added_voltage_copy(added)
@@ -665,34 +666,12 @@ class GpuGovernorPage(QWidget):
         ("Benchmark", "1000–2000 MHz", (1000, 2000)),
     )
     QUICK_FLOORS = (500, 1000, 2000)
-    VOLTAGE_PROFILE_LEVELS = (0, 3, 6)
-    VOLTAGE_LAB_FREQUENCIES = (1850, 2000, 2050, 2100, 2125, 2150, 2200, 2300, 2350, 2400)
-    VOLTAGE_LAB_BASE = {
-        1850: 930,
-        2000: 960,
-        2050: 980,
-        2100: 1000,
-        2125: 1020,
-        2150: 1035,
-        2200: 1050,
-        2300: 1110,
-        2350: 1130,
-        2400: 1150,
-    }
-    KNOWN_STABLE_VOLTAGES = {
-        1600: 910,
-        1700: 920,
-        1850: 975,
-        2000: 1000,
-        2050: 1020,
-        2100: 1035,
-        2125: 1050,
-        2150: 1085,
-        2200: 1110,
-        2300: 1110,
-        2350: 1130,
-        2400: 1150,
-    }
+    VOLTAGE_PROFILE_LEVELS = SUPPORTED_VOLTAGE_LEVELS
+    VOLTAGE_LAB_FREQUENCIES = tuple(GOVERNOR_DEFAULT_VOLTAGES)
+    VOLTAGE_LAB_BASE = GOVERNOR_DEFAULT_VOLTAGES
+    # The packaged upstream curve is the only documented baseline. Previous
+    # local reference values were guesses and omitted 2230 MHz.
+    PACKAGED_DEFAULT_VOLTAGES = GOVERNOR_DEFAULT_VOLTAGES
 
     def __init__(self, controller, parent: QWidget | None = None):
         super().__init__(parent)
@@ -1108,7 +1087,7 @@ class GpuGovernorPage(QWidget):
 
         curve_card = SectionCard(
             "Voltage map",
-            "All active TOML safe-points with current, proposed, added voltage, and custom values.",
+            "All active TOML safe-points with current, original, added voltage, and custom values.",
             icon_name="compute_blue",
             icon_background=COLORS["blue_soft"],
             status=("Waiting", "gray"),
@@ -1121,7 +1100,7 @@ class GpuGovernorPage(QWidget):
 
         profiles_card = SectionCard(
             "Voltage profiles",
-            "Choose one of three validated levels or unlock every active safe-point for custom editing.",
+            "Choose one of three defined voltage levels or unlock every active safe-point for custom editing.",
             icon_name="gpu_purple",
             icon_background=COLORS["purple_soft"],
             status=("Ready", "orange"),
@@ -1148,7 +1127,7 @@ class GpuGovernorPage(QWidget):
         profile_specs = [
             (0, "Level 0", "Governor defaults", "green"),
             (3, "Level 3", "+30 mV", "blue"),
-            (6, "Level 6", "+60 mV / ceiling", "orange"),
+            (6, "Level 6", "+60 mV", "orange"),
             (-1, "Custom", "Edit every safe-point", "purple"),
         ]
         self.voltage_profile_buttons: list[VoltageProfileButton] = []
@@ -1161,7 +1140,7 @@ class GpuGovernorPage(QWidget):
         profiles_card.body.addLayout(self.voltage_profile_grid)
 
         self.voltage_level_detail = QLabel(
-            "Refresh to compare the selected curve against the active TOML and conservative reference values."
+            "Refresh to compare the selected curve against the active TOML and packaged original voltages."
         )
         self.voltage_level_detail.setProperty("voltageProfileDetail", True)
         self.voltage_level_detail.setWordWrap(True)
@@ -1186,7 +1165,7 @@ class GpuGovernorPage(QWidget):
         workflow_layout.setSpacing(6)
         checks = (
             ("1", "Stop games and stress tests"),
-            ("2", "Check orange proposed values"),
+            ("2", "Check original voltage and exact added amount"),
             ("3", "Confirm the preserved runtime range"),
         )
         checks_grid = QGridLayout()
@@ -1354,7 +1333,12 @@ class GpuGovernorPage(QWidget):
         safe_header.setProperty("fieldLabel", True)
         safe_layout.addWidget(safe_header)
         self.points_table = QTableWidget(0, 4)
-        self.points_table.setHorizontalHeaderLabels(("Frequency", "Voltage", "Known floor", "Role / validation"))
+        self.points_table.setHorizontalHeaderLabels(
+            tuple(
+                tr(label)
+                for label in ("Frequency", "Voltage", "Original voltage", "Role / validation")
+            )
+        )
         self.points_table.setAlternatingRowColors(True)
         self.points_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.points_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
@@ -1817,6 +1801,22 @@ class GpuGovernorPage(QWidget):
         )
         self._update_safety_notice(self.current_state)
 
+    def _high_oc_voltage_gaps(self, maximum: int) -> tuple[tuple[int, int, int | None], ...]:
+        """Return high-OC points that do not meet the complete Level 3 curve."""
+
+        if int(maximum) <= 2000:
+            return ()
+        required = voltage_profile(3)
+        gaps: list[tuple[int, int, int | None]] = []
+        for frequency in self.VOLTAGE_LAB_FREQUENCIES:
+            if frequency < VOLTAGE_BOOST_START_MHZ or frequency > int(maximum):
+                continue
+            expected = required[frequency]
+            current = self.safe_voltage_map.get(frequency)
+            if current is None or int(current) < expected:
+                gaps.append((frequency, expected, current))
+        return tuple(gaps)
+
     def _validate_range(self, minimum: int, maximum: int) -> tuple[bool, str]:
         if minimum <= 0 or maximum <= 0:
             self._show_info("Invalid range", "Enter both minimum and maximum frequencies.", tone="orange")
@@ -1868,14 +1868,35 @@ class GpuGovernorPage(QWidget):
             )
             return False, ""
 
+        voltage_gaps = self._high_oc_voltage_gaps(maximum)
+        if voltage_gaps:
+            details = ", ".join(
+                f"{frequency} MHz: {current if current is not None else '--'}"
+                f"/{required} mV"
+                for frequency, required, current in voltage_gaps
+            )
+            self._show_info(
+                "High OC voltage profile required",
+                tr(
+                    "A range above 2000 MHz requires the complete Level 3 or Level 6 curve. Apply a voltage level first; the range was not changed."
+                )
+                + f"\n\n{details}",
+                tone="red",
+            )
+            return False, ""
+
         voltage = self.safe_voltage_map.get(int(maximum))
-        known_floor = self.KNOWN_STABLE_VOLTAGES.get(int(maximum))
+        original_voltage = self.PACKAGED_DEFAULT_VOLTAGES.get(int(maximum))
         warning_parts: list[str] = []
-        if maximum > 1500 and (known_floor is None or voltage is None or voltage < known_floor):
+        if maximum > 1500 and (
+            original_voltage is None or voltage is None or voltage < original_voltage
+        ):
             warning_parts.append(
                 tr_format(
-                    "{maximum} MHz is configured at {voltage} mV; the conservative known-stable floor is {known_floor} mV. This is an undervolt laboratory condition.",
-                    maximum=maximum, voltage=voltage or "--", known_floor=known_floor or "--",
+                    "{maximum} MHz is configured at {voltage} mV; the packaged original voltage is {original} mV. This is an undervolt laboratory condition.",
+                    maximum=maximum,
+                    voltage=voltage or "--",
+                    original=original_voltage or "--",
                 )
             )
 
@@ -2078,12 +2099,10 @@ class GpuGovernorPage(QWidget):
         self.page_stack.setCurrentWidget(self.voltage_lab_page)
 
     def _voltage_for_level(self, frequency: int, level: int) -> int | None:
-        frequency = int(frequency)
-        base = self.VOLTAGE_LAB_BASE.get(frequency)
-        ceiling = self.KNOWN_STABLE_VOLTAGES.get(frequency)
-        if base is None or ceiling is None:
+        try:
+            return voltage_profile(int(level)).get(int(frequency))
+        except (TypeError, ValueError, RuntimeError):
             return None
-        return min(base + max(0, int(level)) * 10, ceiling)
 
     def _detect_voltage_level(self, voltage_map: dict[int, int]) -> int:
         best_level = 0
@@ -2155,9 +2174,7 @@ class GpuGovernorPage(QWidget):
         self._voltage_points = sorted(cleaned.items())
         self._voltage_current_map = {frequency: voltage for frequency, voltage in self._voltage_points if voltage > 0}
         self._voltage_editable_frequencies = {frequency for frequency, _voltage in self._voltage_points}
-        self._voltage_profile_frequencies = {
-            frequency for frequency, _voltage in self._voltage_points if frequency in self.VOLTAGE_LAB_FREQUENCIES
-        }
+        self._voltage_profile_frequencies = set(self.VOLTAGE_LAB_FREQUENCIES)
         self._voltage_detected_level = self._detect_voltage_level(self._voltage_current_map)
 
         if not getattr(self, "_voltage_lab_initialized", False):
@@ -2179,10 +2196,11 @@ class GpuGovernorPage(QWidget):
         max_voltage = max(self._voltage_current_map.values(), default=0)
         self.voltage_summary_items[0].set_values(str(len(self._voltage_points)), tr("active TOML entries"))
         self.voltage_summary_items[1].set_values(
-            tr_format("Level {level}", level=self._voltage_detected_level), tr("closest validated curve")
+            tr_format("Level {level}", level=self._voltage_detected_level), tr("closest defined curve")
         )
         self.voltage_summary_items[2].set_values(
-            f"{max_voltage} mV" if max_voltage else tr("Not detected"), tr("hard UI ceiling 1150 mV")
+            f"{max_voltage} mV" if max_voltage else tr("Not detected"),
+            tr_format("advanced editor range up to {maximum} mV", maximum=CUSTOM_VOLTAGE_MAX_MV),
         )
         self.voltage_summary_items[3].set_values(
             f"{active_min}–{active_max} MHz" if active_min or active_max else tr("Not available"),
@@ -2252,8 +2270,6 @@ class GpuGovernorPage(QWidget):
             current = int(current or 0)
             custom_available = frequency in self._voltage_editable_frequencies
             profile_editable = frequency in self._voltage_profile_frequencies
-            proposed_editable = custom_available if custom_mode else profile_editable
-            floor = self.KNOWN_STABLE_VOLTAGES.get(frequency)
             base = self.VOLTAGE_LAB_BASE.get(frequency)
             if custom_mode and custom_available:
                 proposed = int(self._voltage_custom_values.get(frequency, current or 900))
@@ -2261,13 +2277,12 @@ class GpuGovernorPage(QWidget):
                 proposed = self._voltage_for_level(frequency, selected_level)
             else:
                 proposed = current or None
-            margin = None if proposed is None or floor is None else int(proposed) - int(floor)
             added = None if proposed is None or base is None else int(proposed) - int(base)
 
             spin = None
             if custom_available:
                 spin = QSpinBox()
-                spin.setRange(600, 1150)
+                spin.setRange(CUSTOM_VOLTAGE_MIN_MV, CUSTOM_VOLTAGE_MAX_MV)
                 spin.setSingleStep(5)
                 spin.setSuffix(" mV")
                 spin.setValue(int(self._voltage_custom_values.get(frequency, current or proposed or 900)))
@@ -2279,11 +2294,9 @@ class GpuGovernorPage(QWidget):
                 row,
                 frequency=frequency,
                 current=current,
-                proposed=proposed,
+                original=base,
                 added=added,
-                margin=margin,
                 editor=spin,
-                editable=proposed_editable,
                 custom_available=custom_available,
             )
 
@@ -2295,20 +2308,33 @@ class GpuGovernorPage(QWidget):
             self.voltage_level_detail.setText(
                 tr_format("Custom mode: all {count} active safe-points are unlocked, including low-frequency entries such as 500 MHz when present.", count=len(self._voltage_editable_frequencies))
             )
+        elif selected_level == 0:
+            self.voltage_level_detail.setText(
+                tr_format(
+                    "Level 0 restores all {count} packaged original voltages and disables +2000 MHz TOML points. Detected curve: Level {detected}.",
+                    count=len(self._voltage_profile_frequencies),
+                    detected=self._voltage_detected_level,
+                )
+            )
         else:
             self.voltage_level_detail.setText(
-                tr_format("Level {level}: default +{added} mV on {count} validated laboratory points, capped at known-stable values. Detected curve: Level {detected}.", level=selected_level, added=selected_level * 10, count=len(self._voltage_profile_frequencies), detected=self._voltage_detected_level)
+                tr_format(
+                    "Level {level}: packaged defaults +{added} mV on every point from {start} MHz; all {count} original points are restored first. Detected curve: Level {detected}.",
+                    level=selected_level,
+                    added=selected_level * 10,
+                    start=VOLTAGE_BOOST_START_MHZ,
+                    count=len(self._voltage_profile_frequencies),
+                    detected=self._voltage_detected_level,
+                )
             )
 
     def _voltage_custom_changed(self, frequency: int, value: int) -> None:
         frequency = int(frequency)
         value = int(value)
         self._voltage_custom_values[frequency] = value
-        floor = self.KNOWN_STABLE_VOLTAGES.get(frequency)
         base = self.VOLTAGE_LAB_BASE.get(frequency)
-        margin = None if floor is None else value - int(floor)
         added = None if base is None else value - int(base)
-        self.voltage_curve_grid.update_point(frequency, value, added, margin)
+        self.voltage_curve_grid.update_point(frequency, added)
 
     def _request_apply_voltage_curve(self) -> None:
         level = _integer(self.voltage_level_combo.currentData(), 0)
@@ -2343,10 +2369,16 @@ class GpuGovernorPage(QWidget):
                 for frequency in sorted(active_frequencies)
             }
             title = tr_format("Apply GPU voltage Level {level}", level=level)
-            description = tr_format(
-                "This applies governor defaults +{added} mV to supported safe-points, capped at the known stable ceiling. A backup is created before the governor restarts.",
-                added=level * 10,
-            )
+            if level == 0:
+                description = tr(
+                    "This restores every packaged original voltage and disables the +2000 MHz TOML points. If the current range exceeds 2000 MHz, it is safely limited after the governor restarts. A backup is created first."
+                )
+            else:
+                description = tr_format(
+                    "This restores the complete packaged governor curve, then adds +{added} mV to every safe-point from {start} MHz. A backup is created before the governor restarts.",
+                    added=level * 10,
+                    start=VOLTAGE_BOOST_START_MHZ,
+                )
             profile_label = tr_format("Level {level}", level=level)
             maximum_voltage = max(
                 (self._voltage_for_level(frequency, level) or 0 for frequency in active_frequencies),
@@ -2377,9 +2409,14 @@ class GpuGovernorPage(QWidget):
             f"{tr(description)} {tr('Stop every game, benchmark, and 3D workload before continuing.')}",
             summary=(
                 ("Profile", profile_label),
-                ("Editable points", str(len(active_frequencies))),
-                ("Maximum proposed", f"{maximum_voltage} mV"),
-                ("D-Bus range", "Preserved and restored after restart"),
+                ("Curve points", str(len(active_frequencies))),
+                ("Maximum result", f"{maximum_voltage} mV"),
+                (
+                    "D-Bus range",
+                    "Safely limited to active points after restart"
+                    if level == 0
+                    else "Preserved and restored after restart",
+                ),
             ),
             confirm_text="Apply voltage curve",
             tone="orange",
@@ -2598,8 +2635,8 @@ class GpuGovernorPage(QWidget):
     ) -> None:
         self.points_table.setRowCount(len(cleaned))
         for row, (frequency, voltage) in enumerate(cleaned):
-            floor = self.KNOWN_STABLE_VOLTAGES.get(frequency)
-            stable = floor is None or voltage >= floor
+            original = self.PACKAGED_DEFAULT_VOLTAGES.get(frequency)
+            stable = original is None or voltage >= original
             if frequency == current:
                 role = "Current SCLK"
             elif frequency == self.active_max:
@@ -2616,7 +2653,7 @@ class GpuGovernorPage(QWidget):
                 role = "Safe-point"
             self.points_table.setItem(row, 0, QTableWidgetItem(f"{frequency} MHz"))
             self.points_table.setItem(row, 1, QTableWidgetItem(f"{voltage} mV" if voltage else "Not specified"))
-            self.points_table.setItem(row, 2, QTableWidgetItem(f"{floor} mV" if floor else "n/a"))
+            self.points_table.setItem(row, 2, QTableWidgetItem(f"{original} mV" if original else "n/a"))
             self.points_table.setItem(row, 3, QTableWidgetItem(role))
 
     def _sync_safe_point_combo(
@@ -2684,15 +2721,15 @@ class GpuGovernorPage(QWidget):
             self.safe_point_detail.setText(tr("No selectable safe-point is available."))
             return
         voltage = self.safe_voltage_map.get(frequency)
-        floor = self.KNOWN_STABLE_VOLTAGES.get(frequency)
-        if floor is None:
-            status = tr("No conservative reference floor is defined.")
+        original = self.PACKAGED_DEFAULT_VOLTAGES.get(frequency)
+        if original is None:
+            status = tr("No packaged original voltage is defined.")
         elif voltage is None:
-            status = tr_format("Voltage missing; known floor {floor} mV.", floor=floor)
-        elif voltage >= floor:
-            status = tr_format("TOML {voltage} mV · known floor {floor} mV · conservative check passed.", voltage=voltage, floor=floor)
+            status = tr_format("Voltage missing; packaged original {original} mV.", original=original)
+        elif voltage >= original:
+            status = tr_format("TOML {voltage} mV · packaged original {original} mV · baseline check passed.", voltage=voltage, original=original)
         else:
-            status = tr_format("TOML {voltage} mV · known floor {floor} mV · undervolt laboratory condition.", voltage=voltage, floor=floor)
+            status = tr_format("TOML {voltage} mV · packaged original {original} mV · undervolt laboratory condition.", voltage=voltage, original=original)
         self.safe_point_detail.setText(status)
 
     def _update_profile_availability(self) -> None:
@@ -2760,7 +2797,7 @@ class GpuGovernorPage(QWidget):
                 )
             self.safety_notice.set_notice(
                 "High OC laboratory mode",
-                tr("Active safe-points above 2000 MHz are visible by default. Voltage is validated against the conservative reference curve, but these points can still be unstable or undervolted. Stop all 3D load before every change.") + extra,
+                tr("Active safe-points above 2000 MHz are visible by default. Voltage is compared with the packaged upstream curve, but these points can still be unstable. Stop all 3D load before every change.") + extra,
                 tone="orange",
             )
             if self.configuration_status is not None:
@@ -2842,10 +2879,6 @@ class GpuGovernorPage(QWidget):
     def _safe_point_voltage_text(self, frequency: int) -> str:
         voltage = self.safe_voltage_map.get(int(frequency))
         return f"{voltage} mV" if voltage else tr("Not specified")
-
-    def _known_floor_text(self, frequency: int) -> str:
-        floor = self.KNOWN_STABLE_VOLTAGES.get(int(frequency))
-        return f"{floor} mV" if floor else tr("No reference")
 
     @classmethod
     def _profile_name(cls, minimum: int, maximum: int) -> str:

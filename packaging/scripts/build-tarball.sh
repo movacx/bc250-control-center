@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-VERSION="${VERSION:-1.18.1}"
+VERSION="${VERSION:-1.18.2}"
 NAME="bc250-control-center"
 BUILD_DIR="$ROOT/build/tarball"
 SRC_DIR="$BUILD_DIR/${NAME}-${VERSION}"

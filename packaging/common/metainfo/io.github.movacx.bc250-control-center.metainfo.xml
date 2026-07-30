@@ -23,6 +23,11 @@
   </categories>
   <url type="homepage">https://github.com/movacx/bc250-control-center</url>
   <releases>
+    <release version="1.18.2" date="2026-07-30">
+      <description>
+        <p>Corrige la curva de voltaje del governor, restaura los valores originales del paquete y bloquea rangos de OC alto con perfiles incompletos.</p>
+      </description>
+    </release>
     <release version="1.18.1" date="2026-07-30">
       <description>
         <p>Integra el desbloqueo experimental de nucleos de CPU mediante la herramienta upstream oficial, mejora los paneles de CPU y GPU, la persistencia de ventiladores y la navegacion con mando.</p>

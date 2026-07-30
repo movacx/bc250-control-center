@@ -1,12 +1,24 @@
-from pathlib import Path
+import os
 import shlex
 import time
-import os
+from pathlib import Path
 
 from mvc.Repository.governor_conflicts import ensure_no_incompatible_governors
-from mvc.Repository.governor_toml import GovernorTomlEditor
+from mvc.Repository.governor_toml import (
+    CUSTOM_VOLTAGE_MAX_MV,
+    CUSTOM_VOLTAGE_MIN_MV,
+    SUPPORTED_VOLTAGE_LEVELS,
+    VOLTAGE_BOOST_START_MHZ,
+    GovernorTomlEditor,
+    voltage_profile,
+)
+
 
 class GPURepository:
+    _GOVERNOR_CONFIG = Path('/etc/cyan-skillfish-governor-smu/config.toml')
+    _GOVERNOR_SERVICE = 'cyan-skillfish-governor-smu.service'
+    _GOVERNOR_RANGE_INTERFACE = 'com.cyanskillfish.Governor.Range'
+
     def controlar_governor(self, accion, confirmar_conflictos=False, desactivar_conflictos=False):
         servicio = 'cyan-skillfish-governor-smu.service'
         if not self._command_path('cyan-skillfish-governor-smu'):
@@ -69,17 +81,147 @@ class GPURepository:
         return (out or '').strip()
 
     def aplicar_perfil_gpu(self, minimo, maximo):
+        self._validar_curva_oc_alta(maximo)
         self._editar_governor_toml('clear-frequency-range')
         return self.aplicar_rango_bc250(minimo, maximo)
 
+    def _validar_curva_oc_alta(self, maximo):
+        """Refuse >2000 MHz unless every preceding point has Level 3 voltage."""
+
+        maximo = int(maximo)
+        if maximo <= VOLTAGE_BOOST_START_MHZ:
+            return
+        try:
+            points = GovernorTomlEditor(self._GOVERNOR_CONFIG).safe_point_state()
+        except (OSError, RuntimeError, ValueError) as error:
+            raise RuntimeError(
+                'The governor TOML could not be validated before applying a '
+                'range above 2000 MHz. The range was not changed.'
+            ) from error
+        active = {
+            int(point['frequency']): int(point['voltage'])
+            for point in points
+            if bool(point['active'])
+        }
+        if maximo not in active:
+            raise RuntimeError(
+                f'{maximo} MHz is not an active safe-point in the governor TOML. '
+                'The range was not changed.'
+            )
+        required = voltage_profile(3)
+        gaps = [
+            (frequency, required_voltage, active.get(frequency))
+            for frequency, required_voltage in required.items()
+            if (
+                VOLTAGE_BOOST_START_MHZ <= frequency <= maximo
+                and active.get(frequency, 0) < required_voltage
+            )
+        ]
+        if gaps:
+            details = ', '.join(
+                f'{frequency} MHz={current if current is not None else "--"}/'
+                f'{required_voltage} mV'
+                for frequency, required_voltage, current in gaps
+            )
+            raise RuntimeError(
+                'A range above 2000 MHz requires the complete Level 3 or '
+                f'Level 6 voltage curve. Missing or low points: {details}. '
+                'The range was not changed.'
+            )
+
+    def _leer_rango_governor(self, kind):
+        if kind not in {'Current', 'Allowed'}:
+            raise ValueError('Invalid governor range kind.')
+        objeto = f'/com/cyanskillfish/Governor/Range/{kind}'
+        minimo = self._dbus_uint_property(
+            objeto,
+            self._GOVERNOR_RANGE_INTERFACE,
+            'Min',
+        )
+        maximo = self._dbus_uint_property(
+            objeto,
+            self._GOVERNOR_RANGE_INTERFACE,
+            'Max',
+        )
+        if minimo is None or maximo is None or minimo > maximo:
+            return None
+        return int(minimo), int(maximo)
+
+    def _esperar_rango_governor(self, expected, *, timeout=1.5):
+        expected = int(expected[0]), int(expected[1])
+        deadline = time.monotonic() + max(0.1, float(timeout))
+        current = None
+        while time.monotonic() < deadline:
+            current = self._leer_rango_governor('Current')
+            if current == expected:
+                return current
+            time.sleep(0.05)
+        return current
+
+    @staticmethod
+    def _limitar_rango_governor(previous, allowed):
+        minimo_anterior, maximo_anterior = (int(previous[0]), int(previous[1]))
+        minimo_permitido, maximo_permitido = (int(allowed[0]), int(allowed[1]))
+        minimo = max(minimo_permitido, min(minimo_anterior, maximo_permitido))
+        maximo = max(minimo_permitido, min(maximo_anterior, maximo_permitido))
+        minimo = min(minimo, maximo)
+        return minimo, maximo
+
+    def _restaurar_rango_governor(self, previous, *, timeout=6.0):
+        deadline = time.monotonic() + max(0.5, float(timeout))
+        last_error = 'D-Bus range objects did not become ready.'
+        while time.monotonic() < deadline:
+            allowed = self._leer_rango_governor('Allowed')
+            if allowed is None:
+                time.sleep(0.15)
+                continue
+            minimo, maximo = self._limitar_rango_governor(previous, allowed)
+            rc, out, err = self._ejecutar([
+                'busctl',
+                'call',
+                'com.cyanskillfish.Governor',
+                '/com/cyanskillfish/Governor',
+                'com.cyanskillfish.Governor.PerformanceMode',
+                'SetRange',
+                'uu',
+                str(minimo),
+                str(maximo),
+            ], timeout=5)
+            if rc != 0:
+                last_error = err or out or 'busctl SetRange failed.'
+                time.sleep(0.15)
+                continue
+            current = self._leer_rango_governor('Current')
+            if current == (minimo, maximo):
+                return current
+            last_error = (
+                f'The governor reported {current!r} after requesting '
+                f'{minimo}-{maximo} MHz.'
+            )
+            time.sleep(0.15)
+        raise RuntimeError(
+            'The governor restarted, but its previous runtime range could not '
+            f'be restored safely. {last_error} Do not start a GPU workload; '
+            'apply a known-safe range first.'
+        )
+
     def alternar_puntos_gpu_altos(self, enabled):
         action = 'enable-high-points' if bool(enabled) else 'disable-high-points'
-        service = 'cyan-skillfish-governor-smu.service'
+        service = self._GOVERNOR_SERVICE
         active_rc, _out, _err = self._ejecutar(
             ['systemctl', 'is-active', '--quiet', service],
             timeout=5,
         )
         was_active = active_rc == 0
+        previous_range = None
+        if was_active:
+            previous_range = self._leer_rango_governor('Current')
+            if previous_range is None:
+                raise RuntimeError(
+                    'The active governor range could not be read through D-Bus. '
+                    'The +2000 MHz points were not changed because restarting '
+                    'now could expose the full unsafe range.'
+                )
         result = self._editar_governor_toml(action)
         if not was_active:
             self.estado_bc250_cache = None
@@ -97,8 +239,12 @@ class GPURepository:
                 (err or out or 'The governor service could not be restarted.')
                 + ' The TOML edit was validated, but the service must be restarted before the new points are used.'
             )
+        restored = self._restaurar_rango_governor(previous_range)
         self.estado_bc250_cache = None
-        return result
+        return (
+            f'{result} Runtime range preserved at '
+            f'{restored[0]}-{restored[1]} MHz after the governor restart.'
+        )
 
 
     def status_governor(self):
@@ -134,8 +280,8 @@ class GPURepository:
 
     def aplicar_laboratorio_voltaje_gpu(self, nivel):
         nivel = int(nivel)
-        if nivel < 0 or nivel > 6:
-            raise ValueError('Invalid lab level. Use 0..6.')
+        if nivel not in SUPPORTED_VOLTAGE_LEVELS:
+            raise ValueError('Invalid lab level. Use 0, 3 or 6.')
         if self._usar_steamos_game_helper():
             salida = self._ejecutar_steamos_game_helper('gpu-voltage', 'apply', nivel, timeout=240)
             self.estado_bc250_cache = None
@@ -157,8 +303,11 @@ class GPURepository:
             voltaje = int(voltaje)
             if frecuencia <= 0:
                 raise ValueError(f'Invalid safe-point frequency: {frecuencia}')
-            if voltaje < 600 or voltaje > 1150:
-                raise ValueError(f'Voltage outside safe limit for {frecuencia}: {voltaje} mV. Maximum allowed: 1150 mV')
+            if voltaje < CUSTOM_VOLTAGE_MIN_MV or voltaje > CUSTOM_VOLTAGE_MAX_MV:
+                raise ValueError(
+                    f'Voltage outside editor range for {frecuencia}: {voltaje} mV. '
+                    f'Allowed: {CUSTOM_VOLTAGE_MIN_MV}..{CUSTOM_VOLTAGE_MAX_MV} mV'
+                )
             partes.append(f'{frecuencia}={voltaje}')
         if self._usar_steamos_game_helper():
             salida = self._ejecutar_steamos_game_helper('gpu-voltage', 'apply-custom', *partes, timeout=240)
@@ -264,22 +413,36 @@ class GPURepository:
         self.estado_bc250_cache = None
         minimo = int(minimo)
         maximo = int(maximo)
+        self._validar_curva_oc_alta(maximo)
         rc, out, err = self._ejecutar([
             'busctl', 'call', 'com.cyanskillfish.Governor', '/com/cyanskillfish/Governor',
             'com.cyanskillfish.Governor.PerformanceMode', 'SetRange', 'uu', str(minimo), str(maximo)
         ], timeout=5)
         if rc != 0:
             raise RuntimeError(err or out or 'busctl SetRange failed')
+        current = self._esperar_rango_governor((minimo, maximo))
+        if current != (minimo, maximo):
+            raise RuntimeError(
+                'The governor accepted SetRange but did not report the requested '
+                f'{minimo}-{maximo} MHz range (reported {current!r}).'
+            )
         return self.estado_bc250()
 
 
     def fijar_frecuencia_bc250(self, frecuencia):
         self.estado_bc250_cache = None
         frecuencia = int(frecuencia)
+        self._validar_curva_oc_alta(frecuencia)
         rc, out, err = self._ejecutar([
             'busctl', 'call', 'com.cyanskillfish.Governor', '/com/cyanskillfish/Governor',
             'com.cyanskillfish.Governor.PerformanceMode', 'SetFixedFrequency', 'u', str(frecuencia)
         ], timeout=5)
         if rc != 0:
             raise RuntimeError(err or out or 'busctl SetFixedFrequency failed')
+        current = self._esperar_rango_governor((frecuencia, frecuencia))
+        if current != (frecuencia, frecuencia):
+            raise RuntimeError(
+                'The governor accepted SetFixedFrequency but did not report the '
+                f'requested {frecuencia} MHz fixed range (reported {current!r}).'
+            )
         return self.estado_bc250()
