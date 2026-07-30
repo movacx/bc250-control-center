@@ -21,6 +21,10 @@ SYSTEMD_USER_DIR="$PREFIX/lib/systemd/user"
 DOC_DIR="$PREFIX/share/doc/bc250-control-center"
 SYSTEM_PRIV_HELPER="/usr/libexec/bc250-control-center/bc250-fan-pwm-helper"
 SYSTEM_STEAMOS_GAME_HELPER="/usr/libexec/bc250-control-center/bc250-steamos-game-helper"
+SYSTEM_GOVERNOR_CONFIG_HELPER="/usr/libexec/bc250-control-center/bc250-governor-config-helper"
+SYSTEM_CORE_UNLOCK_HELPER="/usr/libexec/bc250-control-center/bc250-core-unlock-helper"
+SYSTEM_GOVERNOR_TOML_IMPLEMENTATION="/usr/libexec/bc250-control-center/lib/governor_toml.py"
+LEGACY_CORE_UNLOCK_IMPLEMENTATION="/usr/libexec/bc250-control-center/lib/core_unlock.py"
 SYSTEM_POLKIT_ACTION="/usr/share/polkit-1/actions/io.github.movacx.bc250-control-center.policy"
 
 if [[ "${EUID:-$(id -u)}" -ne 0 && "$PREFIX" == "$HOME/.local" ]]; then
@@ -147,6 +151,14 @@ fi
 if [[ -e "$SYSTEM_STEAMOS_GAME_HELPER" || -L "$SYSTEM_STEAMOS_GAME_HELPER" ]]; then
   remove_path "$SYSTEM_STEAMOS_GAME_HELPER"
 fi
+if [[ -e "$SYSTEM_GOVERNOR_CONFIG_HELPER" || -L "$SYSTEM_GOVERNOR_CONFIG_HELPER" ]]; then
+  remove_path "$SYSTEM_GOVERNOR_CONFIG_HELPER"
+fi
+if [[ -e "$SYSTEM_CORE_UNLOCK_HELPER" || -L "$SYSTEM_CORE_UNLOCK_HELPER" ]]; then
+  remove_path "$SYSTEM_CORE_UNLOCK_HELPER"
+fi
+remove_path "$SYSTEM_GOVERNOR_TOML_IMPLEMENTATION"
+remove_path "$LEGACY_CORE_UNLOCK_IMPLEMENTATION"
 if [[ -e "$SYSTEM_POLKIT_ACTION" || -L "$SYSTEM_POLKIT_ACTION" ]]; then
   remove_path "$SYSTEM_POLKIT_ACTION"
 fi

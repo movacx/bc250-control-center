@@ -3,8 +3,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 NAME="bc250-control-center"
-VERSION="${VERSION:-1.17.23}"
-RELEASE="${RELEASE:-2}"
+VERSION="${VERSION:-1.18.1}"
+RELEASE="${RELEASE:-1}"
 PKG_VERSION="${VERSION}-${RELEASE}"
 BUILD_DIR="$ROOT/build/deb"
 PKG_DIR="$BUILD_DIR/${NAME}_${PKG_VERSION}_all"
@@ -31,6 +31,12 @@ install -Dm755 "$ROOT/mvc/Resources/privileged/bc250-fan-pwm-helper" \
   "$PKG_DIR/usr/libexec/bc250-control-center/bc250-fan-pwm-helper"
 install -Dm755 "$ROOT/mvc/Resources/privileged/bc250-steamos-game-helper" \
   "$PKG_DIR/usr/libexec/bc250-control-center/bc250-steamos-game-helper"
+install -Dm755 "$ROOT/mvc/Resources/privileged/bc250-governor-config-helper" \
+  "$PKG_DIR/usr/libexec/bc250-control-center/bc250-governor-config-helper"
+install -Dm755 "$ROOT/mvc/Resources/privileged/bc250-core-unlock-helper" \
+  "$PKG_DIR/usr/libexec/bc250-control-center/bc250-core-unlock-helper"
+install -Dm644 "$ROOT/mvc/Repository/governor_toml.py" \
+  "$PKG_DIR/usr/libexec/bc250-control-center/lib/governor_toml.py"
 install -Dm644 "$ROOT/packaging/common/polkit/io.github.movacx.bc250-control-center.policy" \
   "$PKG_DIR/usr/share/polkit-1/actions/io.github.movacx.bc250-control-center.policy"
 install -Dm644 "$ROOT/README.md" "$PKG_DIR/usr/share/doc/$NAME/README.md"
@@ -94,6 +100,8 @@ chmod 0755 "$PKG_DIR/usr/bin/bc250-control-center" \
            "$PKG_DIR/usr/bin/bc250-control-centerd" \
            "$PKG_DIR/usr/libexec/bc250-control-center/bc250-fan-pwm-helper" \
            "$PKG_DIR/usr/libexec/bc250-control-center/bc250-steamos-game-helper" \
+           "$PKG_DIR/usr/libexec/bc250-control-center/bc250-governor-config-helper" \
+           "$PKG_DIR/usr/libexec/bc250-control-center/bc250-core-unlock-helper" \
            "$PKG_DIR/DEBIAN/postinst" \
            "$PKG_DIR/DEBIAN/postrm"
 

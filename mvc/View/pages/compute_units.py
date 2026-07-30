@@ -1355,7 +1355,11 @@ class ComputeUnitsPage(QWidget):
 
     def _has_authorized_state(self) -> bool:
         masks = self.current_state.get("masks")
-        return isinstance(masks, (list, tuple)) and len(masks) == 4
+        return (
+            bool(self.current_state.get("available"))
+            and isinstance(masks, (list, tuple))
+            and len(masks) == 4
+        )
 
     def _register_event(self, action: str, title: str, detail: str) -> None:
         self._event_sequence += 1

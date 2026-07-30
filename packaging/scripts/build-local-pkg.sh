@@ -14,6 +14,8 @@ rsync -a \
   --exclude '.venv' \
   --exclude '.venv-*' \
   --exclude '__pycache__' \
+  --exclude 'archive' \
+  --exclude 'tests' \
   --exclude 'build' \
   --exclude '*.pkg.tar.*' \
   --exclude 'packaging/arch/local/src' \

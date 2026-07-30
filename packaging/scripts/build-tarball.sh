@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-VERSION="${VERSION:-1.17.23}"
+VERSION="${VERSION:-1.18.1}"
 NAME="bc250-control-center"
 BUILD_DIR="$ROOT/build/tarball"
 SRC_DIR="$BUILD_DIR/${NAME}-${VERSION}"
@@ -17,6 +17,8 @@ rsync -a \
   --exclude '__pycache__' \
   --exclude '.pytest_cache' \
   --exclude '*.pyc' \
+  --exclude 'archive' \
+  --exclude 'tests' \
   --exclude 'build' \
   --exclude '*.pkg.tar.*' \
   --exclude '*.rpm' \

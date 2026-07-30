@@ -1,9 +1,18 @@
 from pathlib import Path
+import importlib.util
 import shlex
 import shutil
 import time
 
 from mvc.Repository.Os_repository import create_os_repository
+from mvc.Repository.governor_conflicts import (
+    detect_incompatible_governors,
+    ensure_no_incompatible_governors,
+)
+
+CORE_UNLOCK_REPOSITORY = "https://github.com/rw-r-r-0644/bc250-core-unlock"
+CORE_UNLOCK_DIRECTORY = "bc250-core-unlock"
+CORE_UNLOCK_SCRIPT = "bc250-unlock-cores.py"
 
 
 class DependenciasRepository:
@@ -68,7 +77,11 @@ class DependenciasRepository:
             cu_warning = ''
 
         smu_path = self._buscar_directorio_con('bc250_detect.py', 'bc250_smu_oc')
+        core_unlock_repo = self._tool_dir() / CORE_UNLOCK_DIRECTORY
+        core_unlock_script = core_unlock_repo / CORE_UNLOCK_SCRIPT
         bc250_detect = self._command_path('bc250-detect')
+        conflictos_gpu = detect_incompatible_governors(self)
+        optional_dependencies = self._optional_dependency_status()
         resultado = {
             'governor_cmd': self._command_path('cyan-skillfish-governor-smu'),
             'governor_pkg': bool(self._command_path('cyan-skillfish-governor-smu')),
@@ -98,6 +111,8 @@ class DependenciasRepository:
             'cu_manager_standard_backend': standard_backend,
             'cu_manager_steamos_exists': steamos_exists,
             'cu_steamos_umr_database': str(self._steamos_umr_database_path()),
+            'incompatible_gpu_governors': conflictos_gpu,
+            'incompatible_gpu_governor_detected': bool(conflictos_gpu),
             'is_steamos': is_steamos,
             'steamos_game_mode': self._steamos_game_mode_detected() if is_steamos else False,
             'steamos_game_helper': self._steamos_game_helper_path() if is_steamos else '',
@@ -114,11 +129,57 @@ class DependenciasRepository:
             'cu_map_script': '',
             'smu_oc_path': smu_path,
             'smu_oc_exists': bool(smu_path and Path(smu_path).exists()),
+            'core_unlock_repo_path': str(core_unlock_repo),
+            'core_unlock_script': str(core_unlock_script) if core_unlock_script.is_file() else '',
+            'core_unlock_repo_exists': bool(
+                (core_unlock_repo / '.git').is_dir() and core_unlock_script.is_file()
+            ),
+            'core_unlock_repo_url': CORE_UNLOCK_REPOSITORY,
             'tools_dir': str(self._tool_dir()),
+            'optional_dependencies': optional_dependencies,
+            'missing_optional_features': [
+                item
+                for item in optional_dependencies.values()
+                if not item.get('feature_available', item['available'])
+            ],
         }
         self.estado_herramientas_cache = resultado
         self.estado_herramientas_cache_time = ahora
         return dict(resultado)
+
+    def _optional_dependency_status(self):
+        """Describe Debian/RPM recommended components without treating them as hard failures."""
+        command_features = {
+            'sensors': ('Hardware sensors', 'lm-sensors is required for temperature, voltage and fan telemetry.'),
+            'stress': ('CPU tuning', 'stress is required by bc250_smu_oc to detect active CPU cores.'),
+            'git': ('Community tool preparation', 'git is required to clone or update upstream BC-250 tools.'),
+            'lspci': ('PCI device details', 'pciutils is required for detailed PCI hardware detection.'),
+            'vulkaninfo': ('Vulkan details', 'vulkan-tools is required for Vulkan capability reporting.'),
+            'pkexec': ('Privileged actions', 'polkit/pkexec is required for authenticated system changes.'),
+            'dkms': ('Fan driver preparation', 'dkms is required to keep the nct6687 fan driver across kernel updates.'),
+            'make': ('Driver builds', 'make is required to compile the optional fan kernel module.'),
+            'gcc': ('Driver builds', 'gcc is required to compile the optional fan kernel module.'),
+        }
+        result = {
+            command: {
+                'component': command,
+                'feature': feature,
+                'reason': reason,
+                'available': bool(self._command_path(command)),
+            }
+            for command, (feature, reason) in command_features.items()
+        }
+        result['python3-evdev'] = {
+            'component': 'python3-evdev',
+            'feature': 'Enhanced gamepad input backend',
+            'reason': (
+                'python3-evdev is preferred for controller identification; '
+                'the built-in Linux /dev/input/js* fallback remains available without it.'
+            ),
+            'available': importlib.util.find_spec('evdev') is not None,
+            'feature_available': True,
+        }
+        return result
 
     def _es_steamos(self, os_info=None):
         if os_info is not None:
@@ -318,10 +379,38 @@ class DependenciasRepository:
             + '; elif [ "$bc250_step_status" -ne 0 ]; then exit "$bc250_step_status"; fi'
         )
 
-    def instalar_governor(self):
+    def detectar_gobernadores_gpu_incompatibles(self):
+        return detect_incompatible_governors(self)
+
+    @staticmethod
+    def _comando_desactivar_gobernadores_incompatibles(conflicts):
+        services = sorted({
+            str(item.get('service') or '')
+            for item in conflicts
+            if str(item.get('service') or '').endswith('.service')
+        })
+        if not services:
+            return ''
+        quoted = ' '.join(shlex.quote(service) for service in services)
+        return (
+            f'echo "== Disabling incompatible GPU governors =="; '
+            f'sudo systemctl disable --now {quoted}; '
+            f'for service in {quoted}; do '
+            f'  systemctl is-active "$service" >/dev/null 2>&1 && '
+            f'    {{ echo "ERROR: $service is still active"; exit 41; }} || true; '
+            f'done'
+        )
+
+    def instalar_governor(self, confirmar_conflictos=False, desactivar_conflictos=False):
+        conflicts = ensure_no_incompatible_governors(
+            self,
+            confirmed=bool(confirmar_conflictos or desactivar_conflictos),
+        )
         if self._command_path('cyan-skillfish-governor-smu'):
             return True
         comando = self._os_repository().install_governor_command()
+        if desactivar_conflictos and conflicts:
+            comando = self._comando_desactivar_gobernadores_incompatibles(conflicts) + '; ' + comando
         self.estado_herramientas_cache = None
         return self._abrir_terminal(comando, 'Instalar governor')
 
@@ -358,6 +447,31 @@ class DependenciasRepository:
         ])
         self.estado_herramientas_cache = None
         return self._abrir_terminal('; '.join(commands), 'Preparar bc250_smu_oc')
+
+    def instalar_core_unlock(self):
+        os_repository = self._os_repository()
+        destination = self._tool_dir() / CORE_UNLOCK_DIRECTORY
+        script = destination / CORE_UNLOCK_SCRIPT
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        commands = [
+            'set -Eeuo pipefail',
+            'export LC_ALL=C LANG=C',
+            'echo "== Preparing official bc250-core-unlock repository =="',
+        ]
+        if os_repository.info.family != 'bazzite':
+            runtime = os_repository.prepare_dependencies_command('runtime')
+            commands.append(f'command -v git >/dev/null 2>&1 || {{ {runtime}; }}')
+        commands.extend([
+            'command -v git >/dev/null 2>&1 || { echo "ERROR: git is required to clone bc250-core-unlock"; exit 29; }',
+            self._clone_or_update_command(CORE_UNLOCK_REPOSITORY, destination),
+            f'test -d {shlex.quote(str(destination / ".git"))} || {{ echo "ERROR: bc250-core-unlock is not a Git clone"; exit 36; }}',
+            f'test -f {shlex.quote(str(script))} || {{ echo "ERROR: bc250-unlock-cores.py was not found"; exit 36; }}',
+            f'git -C {shlex.quote(str(destination))} diff --quiet -- {shlex.quote(CORE_UNLOCK_SCRIPT)} || {{ echo "ERROR: upstream core unlock script has local modifications"; exit 36; }}',
+            f'echo "OK: official bc250-core-unlock clone is ready at {shlex.quote(str(destination))}"',
+            f'echo "Source: {CORE_UNLOCK_REPOSITORY}"',
+        ])
+        self.estado_herramientas_cache = None
+        return self._abrir_terminal('; '.join(commands), 'Preparar bc250-core-unlock')
 
     def instalar_cu_manager(self):
         tools = self.estado_herramientas_bc250()
@@ -397,12 +511,18 @@ class DependenciasRepository:
         self.estado_herramientas_cache = None
         return self._abrir_terminal('; '.join(commands), 'Preparar bc250-cu-live-manager')
 
-    def instalar_dependencias_bc250(self):
+    def instalar_dependencias_bc250(self, confirmar_conflictos=False, desactivar_conflictos=False):
+        conflicts = ensure_no_incompatible_governors(
+            self,
+            confirmed=bool(confirmar_conflictos or desactivar_conflictos),
+        )
         os_repository = self._os_repository()
         self.estado_herramientas_bc250()
         self._tool_dir().mkdir(parents=True, exist_ok=True)
         paths = self.config_paths()
         cpu_destination = self._tool_dir() / 'bc250_smu_oc'
+        core_unlock_destination = self._tool_dir() / CORE_UNLOCK_DIRECTORY
+        core_unlock_script = core_unlock_destination / CORE_UNLOCK_SCRIPT
         cu_spec = self._cu_manager_spec(os_repository)
         cu_destination = cu_spec['destination']
         cu_upstream_script = cu_spec['upstream_script']
@@ -418,6 +538,8 @@ class DependenciasRepository:
             'echo "== Preparing BC250 dependencies =="',
             f"printf '%s\\n' {shlex.quote(f'Detected strategy: {os_repository.info.family} ({os_repository.info.label})')}",
         ]
+        if desactivar_conflictos and conflicts:
+            commands.append(self._comando_desactivar_gobernadores_incompatibles(conflicts))
 
         if immutable_pending:
             commands.extend([
@@ -426,6 +548,10 @@ class DependenciasRepository:
                     'https://github.com/bc250-collective/bc250_smu_oc', cpu_destination
                 ),
                 f'test -f {shlex.quote(str(cpu_destination / "bc250_detect.py"))} || {{ echo "ERROR: bc250_detect.py is missing"; exit 30; }}',
+                'command -v git >/dev/null 2>&1 || { echo "ERROR: git is required to clone bc250-core-unlock"; exit 29; }',
+                'echo "== Preparing official bc250-core-unlock source =="',
+                self._clone_or_update_command(CORE_UNLOCK_REPOSITORY, core_unlock_destination),
+                f'test -f {shlex.quote(str(core_unlock_script))} || {{ echo "ERROR: bc250-unlock-cores.py is missing"; exit 36; }}',
                 self._clone_or_update_with_archive_command(cu_spec['repository'], cu_destination),
                 f'test -x {shlex.quote(str(cu_upstream_script))} || {{ echo "ERROR: upstream 40CU manager script is missing"; exit 31; }}',
                 *([prepare_cu_backend] if prepare_cu_backend else []),
@@ -444,6 +570,10 @@ class DependenciasRepository:
                 'echo "== Preparing bc250_smu_oc source =="',
                 self._clone_or_update_command('https://github.com/bc250-collective/bc250_smu_oc', cpu_destination),
                 f'test -f {shlex.quote(str(cpu_destination / "bc250_detect.py"))} || {{ echo "ERROR: bc250_detect.py is missing"; exit 30; }}',
+                'echo "== Preparing official bc250-core-unlock source =="',
+                self._clone_or_update_command(CORE_UNLOCK_REPOSITORY, core_unlock_destination),
+                f'test -d {shlex.quote(str(core_unlock_destination / ".git"))} || {{ echo "ERROR: bc250-core-unlock is not a Git clone"; exit 36; }}',
+                f'test -f {shlex.quote(str(core_unlock_script))} || {{ echo "ERROR: bc250-unlock-cores.py is missing"; exit 36; }}',
                 'echo "== Preparing 40CU live manager =="',
                 self._clone_or_update_command(cu_spec['repository'], cu_destination),
                 f'test -x {shlex.quote(str(cu_upstream_script))} || {{ echo "ERROR: upstream 40CU manager script is missing"; exit 31; }}',
@@ -470,6 +600,7 @@ class DependenciasRepository:
             f"printf '%s\\n' {shlex.quote(f'Profiles: {paths.get("perfiles", "")}')}",
             f"printf '%s\\n' {shlex.quote(f'History: {paths.get("historial", "")}')}",
             f"printf '%s\\n' {shlex.quote(f'CPU OC repo: {cpu_destination}')}",
+            f"printf '%s\\n' {shlex.quote(f'CPU core unlock repo: {core_unlock_destination}')}",
             f"printf '%s\\n' {shlex.quote(f'40CU repo: {cu_destination}')}",
             'if [ "$BC250_REBOOT_REQUIRED" = "1" ]; then echo "== Finished: reboot required =="; else echo "== Finished successfully =="; fi',
         ])

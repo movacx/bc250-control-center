@@ -1,26 +1,104 @@
 from pathlib import Path
 import shlex
 import time
+import os
+
+from mvc.Repository.governor_conflicts import ensure_no_incompatible_governors
+from mvc.Repository.governor_toml import GovernorTomlEditor
 
 class GPURepository:
-    def controlar_governor(self, accion):
+    def controlar_governor(self, accion, confirmar_conflictos=False, desactivar_conflictos=False):
         servicio = 'cyan-skillfish-governor-smu.service'
         if not self._command_path('cyan-skillfish-governor-smu'):
             raise RuntimeError('cyan-skillfish-governor-smu is not installed. Use Prepare dependencies first.')
+        conflicts = []
+        prefix = ''
+        if accion in {'activar', 'reiniciar'}:
+            conflicts = ensure_no_incompatible_governors(
+                self,
+                confirmed=bool(confirmar_conflictos or desactivar_conflictos),
+            )
+            if desactivar_conflictos and conflicts:
+                prefix = self._comando_desactivar_gobernadores_incompatibles(conflicts) + '; '
         if accion == 'activar':
-            comando = f'sudo systemctl enable --now {servicio}; systemctl status {servicio} --no-pager'
+            comando = prefix + f'sudo systemctl enable --now {servicio}; systemctl status {servicio} --no-pager'
             titulo = 'Activar governor'
         elif accion == 'desactivar':
             comando = f'sudo systemctl disable --now {servicio}; systemctl status {servicio} --no-pager'
             titulo = 'Desactivar governor'
         elif accion == 'reiniciar':
-            comando = f'sudo systemctl restart {servicio}; systemctl status {servicio} --no-pager'
+            comando = prefix + f'sudo systemctl restart {servicio}; systemctl status {servicio} --no-pager'
             titulo = 'Reiniciar governor'
         else:
             raise ValueError('Invalid governor action.')
         self.estado_bc250_cache = None
         self.estado_herramientas_cache = None
         return self._abrir_terminal(comando, titulo)
+
+    def _governor_config_helper_path(self):
+        candidates = (
+            Path('/usr/libexec/bc250-control-center/bc250-governor-config-helper'),
+            Path('/usr/local/libexec/bc250-control-center/bc250-governor-config-helper'),
+        )
+        for candidate in candidates:
+            try:
+                metadata = candidate.stat(follow_symlinks=False)
+            except OSError:
+                continue
+            if candidate.is_symlink() or not candidate.is_file():
+                continue
+            if metadata.st_uid != 0 or metadata.st_mode & 0o022:
+                continue
+            if os.access(candidate, os.X_OK):
+                return str(candidate)
+        return ''
+
+    def _editar_governor_toml(self, action):
+        helper = self._governor_config_helper_path()
+        if not helper:
+            raise RuntimeError(
+                'The privileged governor configuration helper is not installed. '
+                'Reinstall BC250 Control Center locally or from its package before editing /etc.'
+            )
+        if action not in {'clear-frequency-range', 'enable-high-points', 'disable-high-points'}:
+            raise ValueError('Invalid governor TOML action.')
+        rc, out, err = self._ejecutar(['pkexec', helper, action], timeout=120)
+        if rc != 0:
+            raise RuntimeError(err or out or f'Governor configuration helper exited with code {rc}.')
+        self.estado_bc250_cache = None
+        return (out or '').strip()
+
+    def aplicar_perfil_gpu(self, minimo, maximo):
+        self._editar_governor_toml('clear-frequency-range')
+        return self.aplicar_rango_bc250(minimo, maximo)
+
+    def alternar_puntos_gpu_altos(self, enabled):
+        action = 'enable-high-points' if bool(enabled) else 'disable-high-points'
+        service = 'cyan-skillfish-governor-smu.service'
+        active_rc, _out, _err = self._ejecutar(
+            ['systemctl', 'is-active', '--quiet', service],
+            timeout=5,
+        )
+        was_active = active_rc == 0
+        result = self._editar_governor_toml(action)
+        if not was_active:
+            self.estado_bc250_cache = None
+            suffix = (
+                ' The governor is currently inactive, so it was not started automatically; '
+                'the validated TOML will be used on the next manual service activation.'
+            )
+            return (result + suffix).strip()
+        rc, out, err = self._ejecutar(
+            ['pkexec', 'systemctl', 'restart', service],
+            timeout=30,
+        )
+        if rc != 0:
+            raise RuntimeError(
+                (err or out or 'The governor service could not be restarted.')
+                + ' The TOML edit was validated, but the service must be restarted before the new points are used.'
+            )
+        self.estado_bc250_cache = None
+        return result
 
 
     def status_governor(self):
@@ -110,6 +188,15 @@ class GPURepository:
         allowed_obj = '/com/cyanskillfish/Governor/Range/Allowed'
         range_iface = 'com.cyanskillfish.Governor.Range'
         safe_info = self._safe_points_config()
+        try:
+            high_points = GovernorTomlEditor(safe_info['config_path']).high_frequency_state()
+        except Exception:
+            high_points = {
+                'available': False,
+                'frequencies': (),
+                'enabled_frequencies': (),
+                'enabled': False,
+            }
         tools = self.estado_herramientas_bc250()
         if tools.get('governor_cmd'):
             service_active = self._service_prop(servicio, 'ActiveState')
@@ -165,6 +252,7 @@ class GPURepository:
             'safe_points_voltage_errors': safe_info['voltage_order_errors'],
             'safe_points_duplicate_frequencies': safe_info['duplicate_frequencies'],
             'config_path': safe_info['config_path'],
+            'high_frequency_points': high_points,
             'tools': tools,
         }
         self.estado_bc250_cache = resultado

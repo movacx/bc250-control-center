@@ -5,6 +5,11 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+# Local-only QA and archived prototypes
+tests/
+archive/
+pyproject.toml
+requirements-dev.txt
 
 # Build/package outputs
 build/
@@ -40,5 +45,6 @@ tmp/
 output/
 packaging/debian/out/
 packaging/packages/debian/*.deb
+packaging/release/
 .venv/
 .venv-*/

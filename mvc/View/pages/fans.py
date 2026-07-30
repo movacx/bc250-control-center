@@ -1069,13 +1069,14 @@ class FansPage(QWidget):
         self.manual_preset_group = QButtonGroup(self)
         self.manual_preset_group.setExclusive(True)
         self.manual_preset_buttons: list[PresetButton] = []
-        for preset_title, summary, value in (
-            ("Quiet", "45% duty", 45),
-            ("Balanced", "60% duty", 60),
-            ("Cooling", "70% duty", 70),
-            ("Maximum", "100% duty", 100),
+        for preset_key, preset_title, summary, value in (
+            ("quiet", "Quiet", "45% duty", 45),
+            ("balanced", "Balanced", "60% duty", 60),
+            ("cooling", "Cooling", "70% duty", 70),
+            ("maximum", "Maximum", "100% duty", 100),
         ):
             button = PresetButton(preset_title, summary, value)
+            button.setProperty("fanPreset", preset_key)
             button.clicked.connect(lambda checked, b=button: self._select_manual_preset(b) if checked else None)
             self.manual_preset_group.addButton(button)
             self.manual_preset_buttons.append(button)
@@ -1085,7 +1086,10 @@ class FansPage(QWidget):
 
         footer = QHBoxLayout()
         footer.setSpacing(8)
-        self.manual_note = QLabel("Pump Fan / J4003 will be used for every staged write.")
+        self.manual_note = QLabel(
+            "The manual slider is temporary and does not survive reboot by itself. "
+            "Apply a named preset or enable and save the automatic curve, then enable the optional daemon in Settings to restore it after login."
+        )
         self.manual_note.setProperty("sectionSubtitle", True)
         self.manual_note.setWordWrap(True)
         self._manual_value_changed(self._staged_pwm_percent)
@@ -1207,7 +1211,10 @@ class FansPage(QWidget):
         self.curve_summary = QLabel("Curve not loaded")
         self.curve_summary.setProperty("fieldLabel", True)
         self.curve_summary.setWordWrap(True)
-        self.curve_detail = QLabel("The optional daemon can continue applying the saved curve after the GUI closes.")
+        self.curve_detail = QLabel(
+            "Save and enable the curve, then enable the optional daemon in Settings to restore it after login. "
+            "The manual slider does not persist by itself."
+        )
         self.curve_detail.setProperty("fieldHint", True)
         self.curve_detail.setWordWrap(True)
         controls_layout.addWidget(self.curve_summary)
@@ -1422,7 +1429,9 @@ class FansPage(QWidget):
         def success(payload: object) -> None:
             self._curve_config_busy = False
             self._curve_config_loaded = True
-            config = _dict(payload).get("fan_curve") or {}
+            root_config = _dict(payload)
+            config = root_config.get("fan_curve") or {}
+            self._fan_preset_config = _dict(root_config.get("fan_preset"))
             self._apply_curve_config(_dict(config))
 
         def failure(_message: str) -> None:
@@ -1482,7 +1491,15 @@ class FansPage(QWidget):
         config = self._curve_config()
 
         def operation() -> object:
-            self.controller.guardar_config_local({"fan_curve": config})
+            payload = {"fan_curve": config}
+            if config.get("enabled"):
+                payload["fan_preset"] = {
+                    "enabled": False,
+                    "preset": "",
+                    "percent": 0,
+                    "pwm": int(config.get("pwm") or 2),
+                }
+            self.controller.guardar_config_local(payload)
             return True
 
         def success(_result: object) -> None:
@@ -1569,7 +1586,7 @@ class FansPage(QWidget):
             self.curve_card.status.setText(status)
             self.curve_card.status.set_tone("green" if self.curve_enabled.isChecked() else "gray")
         self.curve_detail.setText(tr_format(
-            "Last PWM: {value}. The optional daemon reads this same saved curve from config.json.",
+            "Last PWM: {value}. The manual slider is temporary. A named preset or enabled automatic curve is restored after login only when the optional daemon is enabled in Settings.",
             value=self._last_pwm_text,
         ))
         self.curve_plot.set_curve(points)
@@ -1605,7 +1622,28 @@ class FansPage(QWidget):
         value = self._staged_pwm_percent
         raw = _percent_to_pwm(value)
         self.duty_gauge.setValue(value)
-        self.manual_note.setText(tr_format("Staged duty: {value}% · raw PWM {raw}/255. No write occurs until confirmed.", value=value, raw=raw))
+        preset = next(
+            (
+                str(button.property("fanPreset") or "")
+                for button in self.manual_preset_buttons
+                if button.isChecked()
+            ),
+            "",
+        )
+        persistence = (
+            "This named preset can be restored after login by the optional daemon."
+            if preset
+            else
+            "This custom slider value is temporary and will not be restored after reboot."
+        )
+        self.manual_note.setText(
+            tr_format(
+                "Staged duty: {value}% · raw PWM {raw}/255. No write occurs until confirmed. {persistence}",
+                value=value,
+                raw=raw,
+                persistence=tr(persistence),
+            )
+        )
 
     def _visible_fans(self) -> list[dict]:
         sensors = _dict(self.current_state.get("sensores"))
@@ -1671,7 +1709,12 @@ class FansPage(QWidget):
                 ("Channel", f"PWM {pwm} · {fan.get('label') or 'fan channel'}"),
                 ("Requested duty", f"{percent}%"),
                 ("Raw hwmon value", f"{raw} / 255"),
-                ("Persistence", "Live value; curve settings are separate"),
+                (
+                    "Persistence",
+                    "Named preset restored by optional daemon"
+                    if any(button.isChecked() for button in self.manual_preset_buttons)
+                    else "Temporary slider value; not restored after reboot",
+                ),
             ),
             confirm_text="Apply PWM value",
             tone="orange" if percent < 40 else "blue",
@@ -1724,7 +1767,50 @@ class FansPage(QWidget):
             self._last_pwm_text = f"PWM {pwm} · {percent}%"
             self._last_curve_apply = time.monotonic()
             self._last_curve_percent = percent if source == "curve" else self._last_curve_percent
-            self._persist_curve(show_error=False)
+            if source == "manual":
+                selected_preset = next(
+                    (
+                        str(button.property("fanPreset") or "")
+                        for button in self.manual_preset_buttons
+                        if button.isChecked()
+                    ),
+                    "",
+                )
+                if selected_preset:
+                    self.curve_enabled.blockSignals(True)
+                    self.curve_enabled.setChecked(False)
+                    self.curve_enabled.blockSignals(False)
+                    curve_config = self._curve_config()
+                    curve_config["enabled"] = False
+                    preset_config = {
+                        "enabled": True,
+                        "preset": selected_preset,
+                        "percent": percent,
+                        "pwm": pwm,
+                    }
+                else:
+                    curve_config = self._curve_config()
+                    preset_config = {
+                        "enabled": False,
+                        "preset": "",
+                        "percent": 0,
+                        "pwm": pwm,
+                    }
+
+                def persist_manual_mode() -> object:
+                    self.controller.guardar_config_local({
+                        "fan_curve": curve_config,
+                        "fan_preset": preset_config,
+                    })
+                    return True
+
+                self._background.start(
+                    "fan-manual-mode-save",
+                    persist_manual_mode,
+                    lambda _result: self._state_cache.invalidate("config"),
+                )
+            else:
+                self._persist_curve(show_error=False)
             self._record_event(
                 "info" if automatic else "warning",
                 "Fan curve applied" if source == "curve" else "Manual fan speed applied",
@@ -1769,7 +1855,14 @@ class FansPage(QWidget):
             self.header.action_button.setEnabled(not busy)
             self.header.action_button.setText(tr(label) if busy else tr("Prepare PWM driver"))
 
-    def _run_driver_action(self, operation, on_success, error_title: str) -> None:
+    def _run_driver_action(
+        self,
+        operation,
+        on_success,
+        error_title: str,
+        *,
+        error_parent: QWidget | None = None,
+    ) -> None:
         self._set_busy(True, "Working…")
 
         def success(result: object) -> None:
@@ -1778,7 +1871,7 @@ class FansPage(QWidget):
             self.refresh()
 
         def failure(message: str) -> None:
-            self._show_error(error_title, message)
+            self._show_error(error_title, message, parent=error_parent)
 
         def finished() -> None:
             self._set_busy(False, "")
@@ -1786,7 +1879,7 @@ class FansPage(QWidget):
         if not self._background.start("fan-driver-action", operation, success, failure, finished):
             self._set_busy(False, "")
 
-    def prepare_pwm_driver(self) -> None:
+    def prepare_pwm_driver(self, *, dialog_parent: QWidget | None = None) -> None:
         dialog = ConfirmDialog(
             "Prepare nct6687 PWM control",
             "The distribution-specific workflow checks that the installed kernel headers match the active kernel before compiling nct6687. It may try to install the exact headers package, but it will stop safely if only headers for another kernel are available. A reboot may be required after a system or kernel update.",
@@ -1798,7 +1891,7 @@ class FansPage(QWidget):
             ),
             confirm_text="Open preparation workflow",
             tone="orange",
-            parent=self,
+            parent=dialog_parent or self,
         )
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
@@ -1808,9 +1901,15 @@ class FansPage(QWidget):
                 "PWM preparation opened",
                 "Complete the visible terminal workflow. Reboot if requested, then return here and refresh the fan page.",
                 tone="orange",
+                parent=dialog_parent,
             )
 
-        self._run_driver_action(self.controller.preparar_nct6687_control_pwm, success, "PWM preparation failed")
+        self._run_driver_action(
+            self.controller.preparar_nct6687_control_pwm,
+            success,
+            "PWM preparation failed",
+            error_parent=dialog_parent,
+        )
 
     def enable_read_only(self) -> None:
         dialog = ConfirmDialog(
@@ -2055,18 +2154,31 @@ class FansPage(QWidget):
             operation,
         )
 
-    def _show_info(self, title: str, message: str, *, tone: str = "blue") -> None:
+    def _show_info(
+        self,
+        title: str,
+        message: str,
+        *,
+        tone: str = "blue",
+        parent: QWidget | None = None,
+    ) -> None:
         icon_name = "warning_orange" if tone in {"orange", "red"} else "info_blue"
         InfoDialog(
             title,
             message,
             icon_name=icon_name,
-            parent=self,
+            parent=parent or self,
             eyebrow="THERMAL CONTROL",
             button_text="Close",
             notice="No additional hardware command will run automatically.",
             tone=tone,
         ).exec()
 
-    def _show_error(self, title: str, message: str) -> None:
-        self._show_info(title, message, tone="red")
+    def _show_error(
+        self,
+        title: str,
+        message: str,
+        *,
+        parent: QWidget | None = None,
+    ) -> None:
+        self._show_info(title, message, tone="red", parent=parent)

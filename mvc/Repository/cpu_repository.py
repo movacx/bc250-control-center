@@ -1,8 +1,132 @@
 import shlex
 import configparser
 from pathlib import Path
+import os
+import psutil
+from mvc.Repository.cpu_telemetry import build_cpu_telemetry
+from mvc.Repository.hardware_identity import is_bc250_platform
+
+
+CORE_UNLOCK_REPOSITORY = 'https://github.com/rw-r-r-0644/bc250-core-unlock'
+CORE_UNLOCK_DIRECTORY = 'bc250-core-unlock'
+CORE_UNLOCK_SCRIPT = 'bc250-unlock-cores.py'
+CORE_UNLOCK_ORIGINS = {
+    CORE_UNLOCK_REPOSITORY,
+    f'{CORE_UNLOCK_REPOSITORY}.git',
+}
 
 class CPURepository:
+    def _core_unlock_repository_state(self, repository):
+        script = repository / CORE_UNLOCK_SCRIPT
+        if not (repository / '.git').is_dir() or not script.is_file():
+            return '', False, False
+        rc, out, _err = self._ejecutar(
+            ['git', '-C', str(repository), 'remote', 'get-url', 'origin'],
+            timeout=3,
+        )
+        origin = out.strip() if rc == 0 else ''
+        rc, out, _err = self._ejecutar(
+            ['git', '-C', str(repository), 'status', '--porcelain', '--untracked-files=all'],
+            timeout=3,
+        )
+        clean = rc == 0 and not out.strip()
+        rc_head, head, _err = self._ejecutar(
+            ['git', '-C', str(repository), 'rev-parse', 'HEAD'],
+            timeout=3,
+        )
+        rc_upstream, upstream, _err = self._ejecutar(
+            ['git', '-C', str(repository), 'rev-parse', 'refs/remotes/origin/main'],
+            timeout=3,
+        )
+        revision_matches = (
+            rc_head == 0
+            and rc_upstream == 0
+            and bool(head.strip())
+            and head.strip() == upstream.strip()
+        )
+        return origin, clean, revision_matches
+
+    def _core_unlock_helper_path(self):
+        candidates = (
+            Path('/usr/libexec/bc250-control-center/bc250-core-unlock-helper'),
+            Path('/usr/local/libexec/bc250-control-center/bc250-core-unlock-helper'),
+        )
+        for candidate in candidates:
+            try:
+                metadata = candidate.stat(follow_symlinks=False)
+            except OSError:
+                continue
+            if candidate.is_symlink() or not candidate.is_file():
+                continue
+            if metadata.st_uid != 0 or metadata.st_mode & 0o022:
+                continue
+            if os.access(candidate, os.X_OK):
+                return str(candidate)
+        return ''
+
+    def estado_desbloqueo_nucleos_cpu(self):
+        logical = os.cpu_count() or 0
+        physical = psutil.cpu_count(logical=False) or 0
+        hardware_detected = is_bc250_platform()
+        repository = self._tool_dir() / CORE_UNLOCK_DIRECTORY
+        script = repository / CORE_UNLOCK_SCRIPT
+        origin, clean, revision_matches = self._core_unlock_repository_state(repository)
+        repository_ready = bool(
+            origin in CORE_UNLOCK_ORIGINS
+            and clean
+            and revision_matches
+        )
+        try:
+            cpuinfo_text = Path('/proc/cpuinfo').read_text(encoding='utf-8', errors='replace')
+        except OSError:
+            cpuinfo_text = ''
+        telemetry = build_cpu_telemetry(
+            cpuinfo_text,
+            psutil.cpu_percent(interval=None, percpu=True),
+        )
+        governor_service = 'cyan-skillfish-governor-smu.service'
+        governor_active = self._systemctl_valor(['is-active', governor_service]) == 'active'
+        governor_enabled = self._systemctl_valor(['is-enabled', governor_service]) == 'enabled'
+        return {
+            'physical_cores': int(physical),
+            'logical_cpus': int(logical),
+            'unlocked': physical >= 8 and logical >= 16,
+            'supported_stock_shape': hardware_detected and physical == 6 and logical == 12,
+            'hardware_detected': hardware_detected,
+            'helper_ready': bool(self._core_unlock_helper_path()),
+            'repository_ready': repository_ready,
+            'repository_path': str(repository),
+            'script_path': str(script) if script.is_file() else '',
+            'repository_origin': origin,
+            'repository_clean': clean,
+            'repository_revision_matches': revision_matches,
+            'reference_url': CORE_UNLOCK_REPOSITORY,
+            'integration': 'official-upstream-clone',
+            'volatile_after_power_off': True,
+            'processor': telemetry['processor'],
+            'cores': telemetry['cores'],
+            'governor_active': governor_active,
+            'governor_enabled': governor_enabled,
+        }
+
+    def comando_desbloquear_nucleos_cpu(self):
+        helper = self._core_unlock_helper_path()
+        if not helper:
+            raise RuntimeError(
+                'The privileged CPU core unlock helper is not installed. '
+                'Reinstall BC250 Control Center before using this action.'
+            )
+        if not self._command_path('pkexec'):
+            raise RuntimeError('polkit/pkexec was not found. It is required for CPU core unlock.')
+        repository = self._tool_dir() / CORE_UNLOCK_DIRECTORY
+        script = repository / CORE_UNLOCK_SCRIPT
+        if not (repository / '.git').is_dir() or not script.is_file():
+            raise RuntimeError(
+                'The official bc250-core-unlock repository is not prepared. '
+                'Clone it from the CPU page before using this action.'
+            )
+        return ['pkexec', helper, '--repo', str(repository), '--reboot']
+
     def ejecutar_cpu_oc_temporal(self, frecuencia, vid, temp=90):
         frecuencia = int(frecuencia)
         vid = int(vid)

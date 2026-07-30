@@ -306,8 +306,11 @@ class EvdevGamepadBackend(_AxisStateMixin):
             action = {
                 ecodes.BTN_SOUTH: ACTION_ACCEPT,
                 ecodes.BTN_EAST: ACTION_CANCEL,
-                ecodes.BTN_WEST: ACTION_CONTEXT_X,
-                ecodes.BTN_NORTH: ACTION_CONTEXT_Y,
+                # Linux keeps the historical BTN_X/BTN_Y aliases: Xbox X is
+                # BTN_NORTH (307) and Xbox Y is BTN_WEST (308). Mapping the
+                # geometric names literally swaps the two physical buttons.
+                ecodes.BTN_NORTH: ACTION_CONTEXT_X,
+                ecodes.BTN_WEST: ACTION_CONTEXT_Y,
                 getattr(ecodes, "BTN_THUMBR", -18): ACTION_CONTEXT_X,
                 ecodes.BTN_TL: ACTION_PREVIOUS_SECTION,
                 ecodes.BTN_TR: ACTION_NEXT_SECTION,
@@ -1356,7 +1359,10 @@ class GamepadNavigationController(QObject):
             QEvent.Type.LayoutRequest,
             QEvent.Type.Hide,
         }:
-            self._invalidate_focus_cache()
+            # Candidate membership does not change when live labels resize or
+            # layouts move. Geometry is read fresh for every navigation action,
+            # and cached candidates are revalidated before use. Avoiding a full
+            # cache rebuild here keeps telemetry-heavy pages responsive.
             self._queue_maintenance(visuals=True)
         elif event_type in {QEvent.Type.EnabledChange, QEvent.Type.ParentChange}:
             self._invalidate_focus_cache()

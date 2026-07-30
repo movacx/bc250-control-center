@@ -256,6 +256,8 @@ print_credits() {
   echo "- bc250_smu_oc: https://github.com/bc250-collective/bc250_smu_oc"
   echo "- bc250-cu-live-manager: https://github.com/WinnieLV/bc250-cu-live-manager"
   echo "- SteamOS CU backend: https://github.com/F5GO/bc250-cu-live-manager-SteamOS"
+  echo "- bc250-40cu-unlock (documentation reference only): https://github.com/duggasco/bc250-40cu-unlock"
+  echo "- bc250-core-unlock (official repository cloned and launched by the GUI): https://github.com/rw-r-r-0644/bc250-core-unlock"
   echo "- nct6687d: https://github.com/Fred78290/nct6687d"
 }
 

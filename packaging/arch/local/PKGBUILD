@@ -1,22 +1,23 @@
 # Maintainer: Movacx <movacx@users.noreply.github.com>
 pkgname=bc250-control-center-git
-pkgver=1.17.23.local
-pkgrel=2
+pkgver=1.18.1
+pkgrel=1
 pkgdesc='Administrador de tareas Linux gaming con panel seguro para AMD BC-250'
 arch=('any')
 url='https://github.com/movacx/bc250-control-center'
 license=('MIT')
-depends=('python' 'python-pyqt6' 'qt6-svg' 'python-psutil' 'lm_sensors' 'stress')
+depends=('python' 'python-pyqt6' 'qt6-svg' 'python-psutil' 'lm_sensors' 'stress' 'git' 'pciutils')
 makedepends=()
 optdepends=(
   'cyan-skillfish-governor-smu: control GPU BC250 mediante governor SMU'
   'umr: acceso a registros para bc250-cu-live-manager'
-  'git: clonar dependencias opcionales desde la app'
   'yay: instalacion opcional de dependencias AUR desde la GUI'
   'paru: instalacion opcional de dependencias AUR desde la GUI'
   'libnotify: notificaciones de escritorio mediante notify-send'
   'polkit: ventana grafica de autenticacion para dashboard 40CU y acciones elevadas'
   'python-evdev: backend preferido para navegacion con mando en Linux'
+  'vulkan-tools: diagnosticos de Vulkan'
+  'mesa-utils: diagnosticos de OpenGL'
   'nct6687d-dkms-git: control PWM experimental de ventiladores BC-250'
 )
 provides=('bc250-control-center')
@@ -37,6 +38,12 @@ package() {
     "$pkgdir/usr/libexec/bc250-control-center/bc250-fan-pwm-helper"
   install -Dm755 mvc/Resources/privileged/bc250-steamos-game-helper \
     "$pkgdir/usr/libexec/bc250-control-center/bc250-steamos-game-helper"
+  install -Dm755 mvc/Resources/privileged/bc250-governor-config-helper \
+    "$pkgdir/usr/libexec/bc250-control-center/bc250-governor-config-helper"
+  install -Dm755 mvc/Resources/privileged/bc250-core-unlock-helper \
+    "$pkgdir/usr/libexec/bc250-control-center/bc250-core-unlock-helper"
+  install -Dm644 mvc/Repository/governor_toml.py \
+    "$pkgdir/usr/libexec/bc250-control-center/lib/governor_toml.py"
   install -Dm644 packaging/common/polkit/io.github.movacx.bc250-control-center.policy \
     "$pkgdir/usr/share/polkit-1/actions/io.github.movacx.bc250-control-center.policy"
   for size in 32 48 64 128 256 512 1024; do

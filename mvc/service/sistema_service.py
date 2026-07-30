@@ -343,14 +343,17 @@ class SistemaService:
     def estado_herramientas_bc250(self):
         return self.repo.estado_herramientas_bc250()
 
-    def instalar_dependencias_bc250(self):
-        return self.repo.instalar_dependencias_bc250()
+    def instalar_dependencias_bc250(self, confirmar_conflictos=False, desactivar_conflictos=False):
+        return self.repo.instalar_dependencias_bc250(confirmar_conflictos, desactivar_conflictos)
 
-    def instalar_governor(self):
-        return self.repo.instalar_governor()
+    def detectar_gobernadores_gpu_incompatibles(self):
+        return self.repo.detectar_gobernadores_gpu_incompatibles()
 
-    def controlar_governor(self, accion):
-        return self.repo.controlar_governor(accion)
+    def instalar_governor(self, confirmar_conflictos=False, desactivar_conflictos=False):
+        return self.repo.instalar_governor(confirmar_conflictos, desactivar_conflictos)
+
+    def controlar_governor(self, accion, confirmar_conflictos=False, desactivar_conflictos=False):
+        return self.repo.controlar_governor(accion, confirmar_conflictos, desactivar_conflictos)
 
     def status_governor(self):
         return self.repo.status_governor()
@@ -364,8 +367,17 @@ class SistemaService:
     def aplicar_laboratorio_voltaje_gpu_personalizado(self, valores):
         return self.repo.aplicar_laboratorio_voltaje_gpu_personalizado(valores)
 
+    def aplicar_perfil_gpu(self, minimo, maximo):
+        return self.repo.aplicar_perfil_gpu(minimo, maximo)
+
+    def alternar_puntos_gpu_altos(self, enabled):
+        return self.repo.alternar_puntos_gpu_altos(enabled)
+
     def instalar_cpu_oc(self):
         return self.repo.instalar_cpu_oc()
+
+    def instalar_core_unlock(self):
+        return self.repo.instalar_core_unlock()
 
     def instalar_umr(self):
         return self.repo.instalar_umr()
@@ -384,6 +396,12 @@ class SistemaService:
 
     def comando_cpu_oc_desactivar_persistente_embebido(self):
         return self.repo.comando_cpu_oc_desactivar_persistente_embebido()
+
+    def estado_desbloqueo_nucleos_cpu(self):
+        return self.repo.estado_desbloqueo_nucleos_cpu()
+
+    def comando_desbloquear_nucleos_cpu(self):
+        return self.repo.comando_desbloquear_nucleos_cpu()
 
     def obtener_mapa_cu(self):
         return self.repo.obtener_mapa_cu()
@@ -423,4 +441,3 @@ class SistemaService:
 
     def ejecutar_accion_cu_grafica(self, accion):
         return self.repo.ejecutar_accion_cu_grafica(accion)
-

@@ -185,6 +185,14 @@ class ConfiguracionLocal:
                 's2': 100,
                 't3': 70,
                 's3': 100,
+                'preset': 'custom',
+                'last_pwm_text': '--',
+            },
+            'fan_preset': {
+                'enabled': False,
+                'preset': '',
+                'percent': 0,
+                'pwm': 2,
             },
         }
 

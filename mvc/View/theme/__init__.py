@@ -947,6 +947,44 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         font-size: 13px;
         font-weight: 820;
     }}
+    QFrame[cpuWorkspaceTabs='true'] {{
+        background: {c['panel_alt']};
+        border: 1px solid {c['border_soft']};
+        border-radius: 12px;
+    }}
+    QStackedWidget[cpuWorkspaceStack='true'],
+    QWidget[cpuWorkspacePage='true'] {{
+        background: transparent;
+        border: none;
+    }}
+    QPushButton[cpuWorkspaceTab='true'] {{
+        min-height: 22px;
+        padding: 7px 14px;
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        color: {c['muted']};
+        font-size: 11px;
+        font-weight: 760;
+        text-align: center;
+    }}
+    QPushButton[cpuWorkspaceTab='true']:hover {{
+        background: {c['control_hover']};
+        border-color: {c['border_soft']};
+        color: {c['text']};
+    }}
+    QPushButton[cpuWorkspaceTab='true']:pressed {{
+        background: {c['control_pressed']};
+    }}
+    QPushButton[cpuWorkspaceTab='true']:checked {{
+        background: {c['blue_soft']};
+        border-color: {c['blue_border']};
+        color: {c['blue']};
+        font-weight: 820;
+    }}
+    QPushButton[cpuWorkspaceTab='true']:checked:hover {{
+        border-color: {c['blue']};
+    }}
     QWidget[gpuGovernorPage='true'] QPushButton[gpuFrequencyPreset='true'] {{
         min-height: 40px;
         padding: 11px 14px;
@@ -1607,4 +1645,3 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     base = scale_stylesheet(base)
     _STYLESHEET_CACHE[cache_key] = base
     return base
-

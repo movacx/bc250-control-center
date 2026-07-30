@@ -1,0 +1,202 @@
+#!/usr/bin/python3
+"""Narrow privileged launcher for the official bc250-core-unlock tool."""
+from __future__ import annotations
+
+import hashlib
+import os
+from pathlib import Path
+import pwd
+import subprocess
+import sys
+
+
+REPOSITORY_NAME = "bc250-core-unlock"
+OFFICIAL_ORIGINS = frozenset({
+    "https://github.com/rw-r-r-0644/bc250-core-unlock",
+    "https://github.com/rw-r-r-0644/bc250-core-unlock.git",
+})
+UPSTREAM_SCRIPT = "bc250-unlock-cores.py"
+GOVERNOR_SERVICE = "cyan-skillfish-governor-smu.service"
+
+
+def _run(
+    command: list[str],
+    *,
+    timeout: int = 30,
+    uid: int | None = None,
+    gid: int | None = None,
+) -> str:
+    result = subprocess.run(
+        command,
+        text=True,
+        capture_output=True,
+        check=False,
+        timeout=timeout,
+        user=uid,
+        group=gid,
+        env={
+            "PATH": "/usr/sbin:/usr/bin:/sbin:/bin",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "GIT_CONFIG_GLOBAL": "/dev/null",
+            "GIT_CONFIG_NOSYSTEM": "1",
+        },
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            result.stderr.strip()
+            or result.stdout.strip()
+            or f"Command failed: {command[0]}"
+        )
+    return result.stdout.strip()
+
+
+def _invoking_user() -> tuple[int, int, Path]:
+    value = os.environ.get("PKEXEC_UID", "")
+    if not value.isdecimal():
+        raise RuntimeError("The invoking desktop user could not be identified through Polkit.")
+    uid = int(value)
+    if uid <= 0:
+        raise RuntimeError("CPU core unlock must be requested by a non-root desktop user.")
+    account = pwd.getpwuid(uid)
+    return uid, account.pw_gid, Path(account.pw_dir).resolve()
+
+
+def _validate_repository(raw_path: str, uid: int, gid: int, home: Path) -> int:
+    requested = Path(raw_path)
+    if not requested.is_absolute():
+        raise RuntimeError("The upstream repository path must be absolute.")
+    try:
+        repository = requested.resolve(strict=True)
+        repository.relative_to(home)
+    except (OSError, ValueError) as error:
+        raise RuntimeError("The upstream repository must be inside the invoking user's home.") from error
+    if repository.name != REPOSITORY_NAME or requested.is_symlink():
+        raise RuntimeError("The selected path is not the expected bc250-core-unlock clone.")
+
+    git_dir = repository / ".git"
+    script = repository / UPSTREAM_SCRIPT
+    if not git_dir.is_dir() or git_dir.is_symlink():
+        raise RuntimeError("The bc250-core-unlock directory is not a Git clone.")
+    if script.is_symlink() or not script.is_file():
+        raise RuntimeError("The official bc250-unlock-cores.py script was not found.")
+
+    git = [
+        "/usr/bin/git",
+        "-c",
+        f"safe.directory={repository}",
+        "-c",
+        "core.hooksPath=/dev/null",
+        "-C",
+        str(repository),
+    ]
+    origin = _run(git + ["remote", "get-url", "origin"], uid=uid, gid=gid)
+    if origin not in OFFICIAL_ORIGINS:
+        raise RuntimeError(f"Unexpected bc250-core-unlock origin: {origin}")
+    if _run(git + ["status", "--porcelain", "--untracked-files=all"], uid=uid, gid=gid):
+        raise RuntimeError("The bc250-core-unlock clone has local modifications; update or restore it first.")
+    head = _run(git + ["rev-parse", "HEAD"], uid=uid, gid=gid)
+    upstream = _run(git + ["rev-parse", "refs/remotes/origin/main"], uid=uid, gid=gid)
+    if head != upstream:
+        raise RuntimeError("The bc250-core-unlock clone is not at the prepared upstream main revision.")
+
+    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    fd = os.open(script, flags)
+    metadata = os.fstat(fd)
+    if metadata.st_uid != uid or metadata.st_mode & 0o022:
+        os.close(fd)
+        raise RuntimeError(
+            "The upstream script must belong to the desktop user and not be writable by group or others."
+        )
+    working_bytes = os.read(fd, metadata.st_size + 1)
+    committed_bytes = subprocess.run(
+        git + ["show", f"{head}:{UPSTREAM_SCRIPT}"],
+        capture_output=True,
+        check=False,
+        timeout=15,
+        user=uid,
+        group=gid,
+        env={
+            "PATH": "/usr/bin:/bin",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "GIT_CONFIG_GLOBAL": "/dev/null",
+            "GIT_CONFIG_NOSYSTEM": "1",
+        },
+    )
+    if committed_bytes.returncode != 0:
+        os.close(fd)
+        raise RuntimeError("The committed upstream script could not be read.")
+    if hashlib.sha256(working_bytes).digest() != hashlib.sha256(committed_bytes.stdout).digest():
+        os.close(fd)
+        raise RuntimeError("The opened upstream script does not match the prepared Git revision.")
+    os.lseek(fd, 0, os.SEEK_SET)
+    return fd
+
+
+def _bc250_identity_present() -> bool:
+    for path in (
+        Path("/proc/cpuinfo"),
+        Path("/sys/class/dmi/id/board_name"),
+        Path("/sys/class/dmi/id/product_name"),
+    ):
+        try:
+            if "bc-250" in path.read_text(encoding="utf-8", errors="ignore").lower():
+                return True
+        except OSError:
+            continue
+    return False
+
+
+def main(argv: list[str]) -> int:
+    if os.geteuid() != 0:
+        raise RuntimeError("This helper must be launched through pkexec.")
+    if len(argv) != 4 or argv[1] != "--repo" or argv[3] != "--reboot":
+        raise RuntimeError("Expected exactly: --repo PATH --reboot")
+    if not _bc250_identity_present():
+        raise RuntimeError("AMD BC-250 hardware identity was not detected.")
+    if not Path("/usr/bin/git").is_file():
+        raise RuntimeError("git is required to validate the official upstream clone.")
+
+    uid, gid, home = _invoking_user()
+    script_fd = _validate_repository(argv[2], uid, gid, home)
+    try:
+        _run(["/usr/bin/systemctl", "disable", "--now", GOVERNOR_SERVICE])
+        active = subprocess.run(
+            ["/usr/bin/systemctl", "is-active", "--quiet", GOVERNOR_SERVICE],
+            check=False,
+            timeout=10,
+        )
+        if active.returncode == 0:
+            raise RuntimeError(
+                "cyan-skillfish-governor-smu is still active; upstream core unlock was not attempted."
+            )
+
+        result = subprocess.run(
+            ["/usr/bin/python3", f"/proc/self/fd/{script_fd}"],
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=30,
+            pass_fds=(script_fd,),
+            env={"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "LANG": "C", "LC_ALL": "C"},
+        )
+        if result.stdout:
+            print(result.stdout.rstrip())
+        if result.returncode != 0:
+            raise RuntimeError(result.stderr.strip() or "The official upstream core unlock tool failed.")
+    finally:
+        os.close(script_fd)
+
+    print("Executed official upstream tool: rw-r-r-0644/bc250-core-unlock")
+    print("The GPU governor is disabled. Enable it manually from GPU after reboot.")
+    _run(["/usr/bin/systemctl", "reboot"])
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main(sys.argv))
+    except Exception as error:
+        print(f"ERROR: {error}", file=sys.stderr)
+        raise SystemExit(1)

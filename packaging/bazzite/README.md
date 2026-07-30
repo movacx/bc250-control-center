@@ -23,20 +23,20 @@ cd /path/to/bc250-control-center
 Expected output:
 
 ```text
-packaging/bazzite/out/bc250-control-center-1.17.23-*.noarch.rpm
+packaging/bazzite/out/bc250-control-center-1.18.1-*.noarch.rpm
 ```
 
 ## Install the generated RPM
 
 ```bash
-sudo rpm-ostree install ./packaging/bazzite/out/bc250-control-center-1.17.23-*.noarch.rpm
+sudo rpm-ostree install ./packaging/bazzite/out/bc250-control-center-1.18.1-*.noarch.rpm
 systemctl reboot
 ```
 
 ## Check the file
 
 ```bash
-file packaging/bazzite/out/bc250-control-center-1.17.23-*.noarch.rpm
-rpm -qip packaging/bazzite/out/bc250-control-center-1.17.23-*.noarch.rpm
-sha256sum packaging/bazzite/out/bc250-control-center-1.17.23-*.noarch.rpm
+file packaging/bazzite/out/bc250-control-center-1.18.1-*.noarch.rpm
+rpm -qip packaging/bazzite/out/bc250-control-center-1.18.1-*.noarch.rpm
+sha256sum packaging/bazzite/out/bc250-control-center-1.18.1-*.noarch.rpm
 ```

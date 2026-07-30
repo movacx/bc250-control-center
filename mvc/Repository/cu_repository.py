@@ -406,6 +406,7 @@ class CURepository:
             'boot_sync_key': 'not_saved',
             'driver_topology_available': False,
             'updated_at': '--:--:--',
+            'parse_error': '',
         }
 
 
@@ -472,6 +473,13 @@ class CURepository:
         parsed_rows = {}
         for match in row_pattern.finditer(limpio):
             name = match.group(1).upper()
+            cus = int(match.group(9))
+            if name in parsed_rows or not 0 <= cus <= 10:
+                estado['parse_error'] = (
+                    'The 40CU tool returned duplicate rows or an out-of-range CU count. '
+                    'Its output format may have changed.'
+                )
+                continue
             tokens = [match.group(i).upper() for i in range(2, 7)]
             mask = 0
             driver_mask = 0
@@ -487,7 +495,7 @@ class CURepository:
                 'driver_mask': driver_mask,
                 'spi': match.group(7).lower(),
                 'cc': match.group(8).strip(),
-                'cus': int(match.group(9)),
+                'cus': cus,
             }
 
         if len(parsed_rows) == 4:
@@ -510,8 +518,20 @@ class CURepository:
                 re.IGNORECASE,
             )
             if total_match:
-                estado['active_cus'] = int(total_match.group(1))
-                estado['routed_wgps'] = estado['active_cus'] // 2
+                parsed_total = int(total_match.group(1))
+                if 0 <= parsed_total <= 40 and parsed_total % 2 == 0:
+                    estado['active_cus'] = parsed_total
+                    estado['routed_wgps'] = estado['active_cus'] // 2
+                else:
+                    estado['parse_error'] = (
+                        'The 40CU tool returned an invalid active-CU total. Its output format may have changed.'
+                    )
+
+        if limpio and not estado['available'] and not estado['parse_error']:
+            estado['parse_error'] = (
+                'The 40CU tool output was received, but the expected four topology rows could not be parsed. '
+                'Update BC250 Control Center or the live manager before changing CU routing.'
+            )
 
         active = int(estado.get('active_cus') or 0)
         masks = list(estado.get('masks') or [])
@@ -547,7 +567,13 @@ class CURepository:
 
 
     def obtener_estado_cu(self):
-        return self.parsear_dashboard_cu(self.obtener_dashboard_cu(), source='live')
+        estado = self.parsear_dashboard_cu(self.obtener_dashboard_cu(), source='live')
+        if not estado.get('available'):
+            raise RuntimeError(
+                estado.get('parse_error')
+                or 'The 40CU live-manager output did not contain a validated topology table.'
+            )
+        return estado
 
 
     def _validar_mascaras_cu(self, masks):

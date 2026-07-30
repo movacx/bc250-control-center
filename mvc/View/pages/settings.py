@@ -44,11 +44,13 @@ from ..i18n import (
     localize_widget_tree,
     project_overview,
     tr,
+    tr_format,
 )
 from ..components.dialogs import center_dialog, enable_adaptive_dialog
 from ..components.responsive import QT_MAX_SIZE, clear_grid, configure_responsive_scroll_area
 from ..components.page_widgets import ConfirmDialog
 from ..core.preferences import application_settings
+from ..core.external_links import open_external_url
 from ..core.state import state_cache_for
 from ..theme import COLORS, application_stylesheet, scale_stylesheet
 from ..components.widgets import IconBadge, InfoDialog, PillLabel, apply_shadow, icon
@@ -62,8 +64,10 @@ OFFICIAL_REPOSITORIES = (
     ("bc250-cu-live-manager", "WinnieLV/bc250-cu-live-manager", "https://github.com/WinnieLV/bc250-cu-live-manager"),
     ("bc250-cu-live-manager SteamOS", "F5GO/bc250-cu-live-manager-SteamOS", "https://github.com/F5GO/bc250-cu-live-manager-SteamOS"),
     ("bc250-40cu-unlock", "duggasco/bc250-40cu-unlock", "https://github.com/duggasco/bc250-40cu-unlock"),
+    ("bc250-core-unlock (cloned upstream tool)", "rw-r-r-0644/bc250-core-unlock", "https://github.com/rw-r-r-0644/bc250-core-unlock"),
     ("nct6687d fan driver", "Fred78290/nct6687d", "https://github.com/Fred78290/nct6687d"),
 )
+CONTACT_URL = "https://discord.com/users/719291715369959445"
 
 
 def settings_stylesheet() -> str:
@@ -468,7 +472,7 @@ class RepositoriesDialog(QDialog):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(18, 18, 18, 18)
         layout.setSpacing(8)
-        intro = QLabel("BC250 Control Center does not own these tools. They are cloned or installed from their official repositories and retain their upstream credits and licenses.")
+        intro = QLabel("BC250 Control Center does not own these tools. They are installed, cloned, or used as credited reference implementations according to each integration.")
         intro.setWordWrap(True)
         intro.setProperty("bannerText", True)
         layout.addWidget(intro)
@@ -1000,7 +1004,11 @@ class SettingsPage(QWidget):
         daemon_layout = QVBoxLayout(daemon_card)
         daemon_layout.setContentsMargins(14, 12, 14, 12)
         daemon_layout.setSpacing(8)
-        daemon_text = QLabel("The optional user daemon records JSONL metrics and can continue the saved GPU fan curve while the GUI is closed. It never applies CPU or GPU overclock automatically.")
+        daemon_text = QLabel(
+            "The optional user daemon records JSONL metrics and restores the saved fan mode after login: "
+            "either an enabled automatic GPU-temperature curve or a named fixed-speed preset. "
+            "The manual fan slider does not persist by itself. It never applies CPU or GPU overclock automatically."
+        )
         daemon_text.setProperty("bannerText", True)
         daemon_text.setWordWrap(True)
         daemon_layout.addWidget(daemon_text)
@@ -1136,6 +1144,7 @@ class SettingsPage(QWidget):
         action_row.addWidget(self._button("Official repositories", self._show_repositories))
         action_row.addWidget(self._button("Open settings folder", self._open_settings_folder))
         action_row.addWidget(self._button("Reset interface preferences", self._reset_preferences))
+        action_row.addWidget(self._button("Report a problem / Contact", self._open_contact))
         box_layout.addWidget(action_row)
         self._action_grids.append(action_row)
         layout.addWidget(about_box)
@@ -1327,7 +1336,7 @@ class SettingsPage(QWidget):
     def _change_daemon(self, enable: bool) -> None:
         action_text = "Enable optional daemon" if enable else "Disable optional daemon"
         message = (
-            "This runs systemctl --user enable --now bc250-control-centerd.service. The daemon records telemetry and can apply the saved fan curve; it does not apply overclock automatically."
+            "This runs systemctl --user enable --now bc250-control-centerd.service. The daemon records telemetry and restores an enabled automatic fan curve or named fixed-speed preset after login. The manual slider is temporary and is not restored. It does not apply overclock automatically."
             if enable else
             "This stops and disables bc250-control-centerd.service for the current user. Saved configuration and history files are preserved."
         )
@@ -1635,6 +1644,20 @@ class SettingsPage(QWidget):
 
     def _show_repositories(self) -> None:
         RepositoriesDialog(self).exec()
+
+    def _open_contact(self) -> None:
+        opened, message = open_external_url(CONTACT_URL)
+        if opened:
+            return
+        InfoDialog(
+            "Contact link could not be opened",
+            message,
+            icon_name="warning_orange",
+            parent=self,
+            eyebrow="CONTACT",
+            notice=tr_format("Copy this address manually: {url}", url=CONTACT_URL),
+            tone="orange",
+        ).exec()
 
     def gamepad_cycle_section(self, delta: int) -> None:
         current = next((key for key, button in self.nav_buttons.items() if button.isChecked()), self.section_order[0])

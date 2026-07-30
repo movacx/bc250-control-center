@@ -12,6 +12,11 @@ if str(RAIZ) not in sys.path:
     sys.path.insert(0, str(RAIZ))
 
 from mvc.Repository.sistema_repository import SistemaRepository
+from mvc.Repository.fan_persistence import (
+    fan_curve_percent_for_temp,
+    normalize_fan_curve,
+    normalize_fan_preset,
+)
 from mvc.service.sistema_service import SistemaService
 
 
@@ -69,17 +74,8 @@ class BC250ControlCenterDaemon:
         return max(0, min(255, round(percent * 255 / 100)))
 
     def fan_curve_percent_for_temp(self, temp, fan_config):
-        puntos = [
-            (self._safe_number(fan_config.get('t1'), 50, 0, 120, integer=True), self._safe_number(fan_config.get('s1'), 70, 0, 100, integer=True)),
-            (self._safe_number(fan_config.get('t2'), 65, 0, 120, integer=True), self._safe_number(fan_config.get('s2'), 100, 0, 100, integer=True)),
-            (self._safe_number(fan_config.get('t3'), 70, 0, 120, integer=True), self._safe_number(fan_config.get('s3'), 100, 0, 100, integer=True)),
-        ]
-        puntos.sort(key=lambda item: item[0])
-        objetivo = puntos[0][1]
-        for limite, velocidad in puntos:
-            if temp >= limite:
-                objetivo = velocidad
-        return max(0, min(100, int(objetivo)))
+        result = fan_curve_percent_for_temp(temp, fan_config)
+        return 0 if result is None else result
 
     def debe_notificar_temperatura(self, clave, temp, limite):
         if temp is None:
@@ -112,41 +108,61 @@ class BC250ControlCenterDaemon:
             return True
         return False
 
-    def aplicar_curva_fan_si_corresponde(self, metrica, config):
-        fan_config = (config or {}).get('fan_curve') or {}
-        if not self._safe_bool(fan_config.get('enabled', False)):
+    def aplicar_ventilador_persistente_si_corresponde(self, metrica, config):
+        config = config if isinstance(config, dict) else {}
+        fan_config = normalize_fan_curve(config.get('fan_curve'))
+        preset_config = normalize_fan_preset(config.get('fan_preset'))
+        curve_enabled = self._safe_bool(fan_config.get('enabled', False))
+        preset_enabled = self._safe_bool(preset_config.get('enabled', False))
+        if not curve_enabled and not preset_enabled:
             return
+
         temp = metrica.get('gpu_temp')
-        if temp is None:
-            return
-        try:
-            temp = float(temp)
-            if not math.isfinite(temp):
+        if curve_enabled:
+            porcentaje = fan_curve_percent_for_temp(temp, fan_config)
+            if porcentaje is None:
                 return
-        except (TypeError, ValueError, OverflowError):
-            return
+            pwm = self._safe_number(fan_config.get('pwm'), 2, 1, 12, integer=True)
+            source = 'curve'
+        else:
+            porcentaje = self._safe_number(preset_config.get('percent'), 70, 0, 100, integer=True)
+            pwm = self._safe_number(preset_config.get('pwm'), 2, 1, 12, integer=True)
+            source = f"preset:{preset_config.get('preset') or 'unknown'}"
+
         ahora = time.monotonic()
         if ahora - self.ultimo_fan_curve_apply < 5:
             return
-        porcentaje = self.fan_curve_percent_for_temp(temp, fan_config)
         if self.ultimo_fan_curve_percent == porcentaje:
             self.ultimo_fan_curve_apply = ahora
             return
-        pwm = self._safe_number(fan_config.get('pwm'), 2, 1, 7, integer=True)
         valor = self.porcentaje_a_pwm(porcentaje)
         try:
             self.servicio.aplicar_pwm_fan(pwm, valor)
             self.ultimo_fan_curve_apply = ahora
             self.ultimo_fan_curve_percent = porcentaje
             self.servicio.registrar_evento(
-                'fan', 'info', 'Fan curve daemon applied',
-                f'GPU {temp:.1f} C -> PWM {pwm} {porcentaje}%',
-                {'pwm': pwm, 'percent': porcentaje, 'raw': valor, 'gpu_temp': temp}
+                'fan', 'info', 'Persistent fan setting applied',
+                (
+                    f'GPU {float(temp):.1f} C -> PWM {pwm} {porcentaje}%'
+                    if curve_enabled and temp is not None
+                    else f'PWM {pwm} {porcentaje}% ({source})'
+                ),
+                {
+                    'pwm': pwm,
+                    'percent': porcentaje,
+                    'raw': valor,
+                    'gpu_temp': temp,
+                    'source': source,
+                }
             )
         except Exception as error:
             if ahora - self.ultimo_fan_curve_error > 60:
                 self.ultimo_fan_curve_error = ahora
                 self.servicio.registrar_evento('fan', 'error', 'Fan curve daemon error', str(error), {'pwm': pwm})
+
+    def aplicar_curva_fan_si_corresponde(self, metrica, config):
+        """Backward-compatible entry point for older callers/tests."""
+        return self.aplicar_ventilador_persistente_si_corresponde(metrica, config)
 
     def ciclo(self):
         rendimiento = self.servicio.rendimiento()
@@ -175,7 +191,7 @@ class BC250ControlCenterDaemon:
         self.servicio.registrar_metrica_runtime(metrica)
 
         config = self.servicio.leer_config_local()
-        self.aplicar_curva_fan_si_corresponde(metrica, config)
+        self.aplicar_ventilador_persistente_si_corresponde(metrica, config)
         alertas = self._safe_bool(config.get('alertas_activas', False))
         gpu_temp_warning = self._safe_number(config.get('gpu_temp_warning'), 82, 30, 120)
         cpu_temp_warning = self._safe_number(config.get('cpu_temp_warning'), 88, 30, 120)

@@ -598,42 +598,27 @@ class ControlCenterWindow(QMainWindow):
             self.navigate("cpu")
             return
         if action == "prepare_pwm":
-            self.navigate("fans")
+            # Dashboard quick actions execute their workflow in place.  The
+            # Fans page owns the validated confirmation and asynchronous
+            # terminal launcher, but it does not need to become visible.
+            self.fans_page.prepare_pwm_driver(dialog_parent=self)
             return
         if action == "open_logs":
             self._open_settings_dialog("reports")
             return
         if action != "prepare_dependencies":
             return
-        dialog = ConfirmDialog(
-            "Prepare BC250 dependencies",
-            "This reuses the existing distribution-specific R64 workflow in a visible terminal. It may install packages or stage an immutable-system reboot.",
-            summary=(("Scope", "Governor, CPU tools, UMR, 40CU manager"), ("Backend", "Existing R64 OS repositories")),
-            confirm_text="Open preparation workflow",
-            tone="blue",
-            parent=self,
-        )
-        if dialog.exec() != QDialog.DialogCode.Accepted:
-            return
-
-        def operation() -> object:
-            return self.controller.instalar_dependencias_bc250()
-
-        def failure(message: str) -> None:
-            InfoDialog(
-                "Dependency preparation failed",
-                message,
-                icon_name="warning_orange",
-                parent=self,
-                eyebrow="SYSTEM READINESS",
-                button_text="Close",
-                notice="No additional command will be attempted automatically.",
-                tone="red",
-            ).exec()
-
-        self._background.start(
-            "dashboard-dependency-preparation",
-            operation,
-            lambda _result: self._state_cache.invalidate("tools"),
-            failure,
-        )
+        # Keep the Dashboard selected while reusing the governor page's
+        # conflict-aware dependency preparation dialog and terminal workflow.
+        # The shared Dashboard refresh already warmed this cache; forwarding
+        # it prevents a never-opened GPU page from missing conflict detection.
+        try:
+            cached_tools = dict(self._state_cache.tools() or {})
+        except (AttributeError, OSError, RuntimeError, TypeError, ValueError):
+            cached_tools = {}
+        if cached_tools:
+            self.gpu_page.current_state = {
+                **dict(getattr(self.gpu_page, "current_state", {}) or {}),
+                "tools": cached_tools,
+            }
+        self.gpu_page.prepare_dependencies(dialog_parent=self)

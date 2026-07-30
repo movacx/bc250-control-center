@@ -65,14 +65,17 @@ class Controlador:
     def estado_herramientas_bc250(self):
         return self.servicio.estado_herramientas_bc250()
 
-    def instalar_dependencias_bc250(self):
-        return self.servicio.instalar_dependencias_bc250()
+    def instalar_dependencias_bc250(self, confirmar_conflictos=False, desactivar_conflictos=False):
+        return self.servicio.instalar_dependencias_bc250(confirmar_conflictos, desactivar_conflictos)
 
-    def instalar_governor(self):
-        return self.servicio.instalar_governor()
+    def detectar_gobernadores_gpu_incompatibles(self):
+        return self.servicio.detectar_gobernadores_gpu_incompatibles()
 
-    def controlar_governor(self, accion):
-        return self.servicio.controlar_governor(accion)
+    def instalar_governor(self, confirmar_conflictos=False, desactivar_conflictos=False):
+        return self.servicio.instalar_governor(confirmar_conflictos, desactivar_conflictos)
+
+    def controlar_governor(self, accion, confirmar_conflictos=False, desactivar_conflictos=False):
+        return self.servicio.controlar_governor(accion, confirmar_conflictos, desactivar_conflictos)
 
     def status_governor(self):
         return self.servicio.status_governor()
@@ -86,8 +89,17 @@ class Controlador:
     def aplicar_laboratorio_voltaje_gpu_personalizado(self, valores):
         return self.servicio.aplicar_laboratorio_voltaje_gpu_personalizado(valores)
 
+    def aplicar_perfil_gpu(self, minimo, maximo):
+        return self.servicio.aplicar_perfil_gpu(minimo, maximo)
+
+    def alternar_puntos_gpu_altos(self, enabled):
+        return self.servicio.alternar_puntos_gpu_altos(enabled)
+
     def instalar_cpu_oc(self):
         return self.servicio.instalar_cpu_oc()
+
+    def instalar_core_unlock(self):
+        return self.servicio.instalar_core_unlock()
 
     def instalar_umr(self):
         return self.servicio.instalar_umr()
@@ -106,6 +118,12 @@ class Controlador:
 
     def comando_cpu_oc_desactivar_persistente_embebido(self):
         return self.servicio.comando_cpu_oc_desactivar_persistente_embebido()
+
+    def estado_desbloqueo_nucleos_cpu(self):
+        return self.servicio.estado_desbloqueo_nucleos_cpu()
+
+    def comando_desbloquear_nucleos_cpu(self):
+        return self.servicio.comando_desbloquear_nucleos_cpu()
 
     def obtener_mapa_cu(self):
         return self.servicio.obtener_mapa_cu()
@@ -145,4 +163,3 @@ class Controlador:
 
     def ejecutar_accion_cu_grafica(self, accion):
         return self.servicio.ejecutar_accion_cu_grafica(accion)
-

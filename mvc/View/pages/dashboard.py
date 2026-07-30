@@ -1,15 +1,19 @@
 from __future__ import annotations
 
 from PyQt6.QtCore import QTimer, Qt, pyqtSignal
-from PyQt6.QtWidgets import QGridLayout, QScrollArea, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QGridLayout, QHBoxLayout, QPushButton, QScrollArea, QVBoxLayout, QWidget
 
 from ..components.async_tools import AsyncRefresh
 from ..components.page_widgets import ControlPageHeader
 from ..components.responsive import clear_grid, configure_responsive_scroll_area, effective_viewport_width
 from ..core.state import DashboardState, state_cache_for
-from ..i18n import tr
+from ..core.external_links import open_external_url
+from ..i18n import tr, tr_format
 from ..theme import COLORS
-from ..components.widgets import ActivityCard, ModuleCard, QuickActionsCard, ReadinessCard, SystemSummaryBar
+from ..components.widgets import ActivityCard, InfoDialog, ModuleCard, QuickActionsCard, ReadinessCard, SystemSummaryBar, icon
+
+
+CONTACT_URL = "https://discord.com/users/719291715369959445"
 
 
 class DashboardPage(QWidget):
@@ -96,6 +100,14 @@ class DashboardPage(QWidget):
         self.activity.view_all_clicked.connect(lambda: self.module_requested.emit("history"))
         self.bottom_cards = [self.readiness, self.quick_actions, self.activity]
 
+        contact_row = QHBoxLayout()
+        contact_row.addStretch(1)
+        self.contact_button = QPushButton(tr("Report a problem / Contact"))
+        self.contact_button.setProperty("compactAction", True)
+        self.contact_button.setIcon(icon("message_blue"))
+        self.contact_button.clicked.connect(self._open_contact)
+        contact_row.addWidget(self.contact_button)
+        self.layout.addLayout(contact_row)
         self.layout.addStretch(1)
 
         self._reflow(1400)
@@ -136,6 +148,20 @@ class DashboardPage(QWidget):
 
     def _refresh_failed(self, message: str) -> None:
         self.header.setToolTip(message)
+
+    def _open_contact(self) -> None:
+        opened, message = open_external_url(CONTACT_URL)
+        if opened:
+            return
+        InfoDialog(
+            "Contact link could not be opened",
+            message,
+            icon_name="warning_orange",
+            parent=self,
+            eyebrow="CONTACT",
+            notice=tr_format("Copy this address manually: {url}", url=CONTACT_URL),
+            tone="orange",
+        ).exec()
 
     def apply_state(self, state: DashboardState) -> None:
         self.state = state

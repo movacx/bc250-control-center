@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from datetime import datetime
+from pathlib import Path
 from PyQt6.QtCore import QTimer, Qt, pyqtSignal
 from PyQt6.QtGui import QIntValidator
 from PyQt6.QtWidgets import (
     QApplication,
     QAbstractItemView,
     QButtonGroup,
-    QCheckBox,
     QComboBox,
     QDialog,
     QFrame,
@@ -40,6 +40,7 @@ from ..components.page_widgets import (
     StatusLine,
 )
 from ..core.state import state_cache_for
+from ..core.external_links import open_local_file
 from ..theme import COLORS
 from ..components.widgets import IconBadge, InfoDialog, PillLabel, apply_shadow, icon
 
@@ -654,6 +655,9 @@ class DynamicSafetyNotice(QFrame):
 class GpuGovernorPage(QWidget):
     """Complete GPU control studio using the validated cyan-skillfish governor backend."""
 
+    GOVERNOR_CONFIG_PATH = Path("/etc/cyan-skillfish-governor-smu/config.toml")
+    SELECTED_RANGE_FLOOR = 1000
+
     PROFILE_VALUES = (
         ("Recovery", "500–1000 MHz", (500, 1000)),
         ("Balanced", "500–1500 MHz", (500, 1500)),
@@ -707,6 +711,7 @@ class GpuGovernorPage(QWidget):
         self._controls_initialized = False
         self.safe_frequencies: list[int] = []
         self.safe_voltage_map: dict[int, int] = {}
+        self._safe_point_combo_signature: tuple[tuple[int, int], ...] = ()
         self._workspace_columns = 0
         self._preset_columns = 0
         self._field_columns = 0
@@ -804,7 +809,7 @@ class GpuGovernorPage(QWidget):
 
         self.safety_notice = DynamicSafetyNotice(
             "Safe mode enabled",
-            "Only active TOML safe-points are offered. High OC points above 2000 MHz remain hidden until laboratory mode is enabled.",
+            "Every active TOML safe-point is visible. Points above 2000 MHz will appear automatically when they are enabled in the TOML.",
             tone="blue",
         )
         card.body.addWidget(self.safety_notice)
@@ -918,39 +923,83 @@ class GpuGovernorPage(QWidget):
         fixed_header = QHBoxLayout()
         fixed_copy = QVBoxLayout()
         fixed_copy.setSpacing(1)
-        fixed_title = QLabel("Fixed safe-point laboratory")
+        fixed_title = QLabel(tr("TOML safe-point laboratory"))
         fixed_title.setProperty("fieldLabel", True)
         fixed_hint = QLabel(
-            "Advanced OC workflow for fixed frequencies, rebuilt around the active TOML and conservative voltage validation."
+            tr(
+                "Inspect every active safe-point, including +2000 MHz entries, with conservative voltage validation."
+            )
         )
         fixed_hint.setProperty("fieldHint", True)
         fixed_hint.setWordWrap(True)
         fixed_copy.addWidget(fixed_title)
         fixed_copy.addWidget(fixed_hint)
         fixed_header.addLayout(fixed_copy, 1)
-        self.experimental_toggle = QCheckBox("Show high OC points (2050+ MHz)")
-        self.experimental_toggle.setToolTip(
-            "Exposes high safe-points for controlled laboratory use. It does not guarantee stability."
-        )
-        self.experimental_toggle.toggled.connect(self._experimental_mode_changed)
-        fixed_header.addWidget(self.experimental_toggle, 0, Qt.AlignmentFlag.AlignTop)
         fixed_layout.addLayout(fixed_header)
 
-        fixed_actions = QHBoxLayout()
-        fixed_actions.setSpacing(8)
+        fixed_actions = QGridLayout()
+        self.fixed_actions = fixed_actions
+        fixed_actions.setHorizontalSpacing(8)
+        fixed_actions.setVerticalSpacing(8)
+        fixed_actions.setColumnStretch(0, 1)
+        fixed_actions.setColumnStretch(1, 1)
+
+        active_range_label = QLabel(tr("Active range"))
+        active_range_label.setProperty("fieldLabel", True)
+        fixed_actions.addWidget(active_range_label, 0, 0)
+        toml_actions_label = QLabel(tr("TOML configuration"))
+        toml_actions_label.setProperty("fieldLabel", True)
+        fixed_actions.addWidget(toml_actions_label, 0, 1)
+
         self.oc_frequency = QComboBox()
-        self.oc_frequency.setMinimumWidth(190)
+        self.oc_frequency.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Fixed,
+        )
         self.oc_frequency.currentIndexChanged.connect(self._update_selected_safe_point)
-        fixed_actions.addWidget(self.oc_frequency)
+        fixed_actions.addWidget(self.oc_frequency, 1, 0)
         self.safe_point_detail = QLabel("Refresh to load safe-points.")
-        self.safe_point_detail.setProperty("fieldHint", True)
-        self.safe_point_detail.setWordWrap(True)
-        fixed_actions.addWidget(self.safe_point_detail, 1)
-        self.fixed_button = QPushButton("Review fixed safe-point")
-        self.fixed_button.setProperty("dangerAction", True)
-        self.fixed_button.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        self.fixed_button.clicked.connect(self._request_fixed)
-        fixed_actions.addWidget(self.fixed_button)
+        self.safe_point_detail.hide()
+        self.high_points_button = QPushButton(tr("Enable +2000 MHz TOML points"))
+        self.high_points_button.setProperty("dangerAction", True)
+        self.high_points_button.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.high_points_button.setToolTip(
+            tr(
+                "Comments or uncomments only safe-point blocks above 2000 MHz and validates the complete TOML. "
+                "The governor is reloaded only when it is already active."
+            )
+        )
+        self.high_points_button.clicked.connect(self._request_high_points_toggle)
+        fixed_actions.addWidget(self.high_points_button, 2, 1)
+
+        self.open_toml_button = QPushButton(tr("Open config.toml"))
+        self.open_toml_button.setProperty("compactAction", True)
+        self.open_toml_button.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self.open_toml_button.setProperty("gamepadEntry", True)
+        self.open_toml_button.setToolTip(
+            tr(
+                "Open the governor TOML in the system's default text or code editor. "
+                "Saving may require administrator privileges."
+            )
+        )
+        self.open_toml_button.clicked.connect(self._open_governor_config)
+        fixed_actions.addWidget(self.open_toml_button, 1, 1)
+
+        self.apply_selected_range_button = QPushButton(
+            tr("Apply active range · select a ceiling")
+        )
+        self.apply_selected_range_button.setObjectName("PrimaryAction")
+        self.apply_selected_range_button.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self.apply_selected_range_button.setProperty("gamepadEntry", True)
+        self.apply_selected_range_button.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Fixed,
+        )
+        self.apply_selected_range_button.setEnabled(False)
+        self.apply_selected_range_button.clicked.connect(
+            self._request_selected_safe_point_range
+        )
+        fixed_actions.addWidget(self.apply_selected_range_button, 2, 0)
         fixed_layout.addLayout(fixed_actions)
         return fixed_panel
 
@@ -1282,7 +1331,7 @@ class GpuGovernorPage(QWidget):
     def _build_advanced_card(self) -> SectionCard:
         card = SectionCard(
             "Advanced GPU diagnostics",
-            "Fixed-frequency laboratory controls, safe-point validation, hardware details, and operation output. Hidden by default.",
+            "TOML safe-point controls, voltage validation, hardware details, and operation output. Hidden by default.",
             icon_name="logs_gray",
             icon_background="neutral_soft",
             status=("Hidden", "gray"),
@@ -1572,20 +1621,6 @@ class GpuGovernorPage(QWidget):
     def _use_active_range(self) -> None:
         self._stage_range(self.active_min, self.active_max, preset=self._profile_name(self.active_min, self.active_max))
 
-    def _experimental_mode_changed(self, enabled: bool) -> None:
-        self._populate_points(
-            list(self.current_state.get("safe_points_with_voltage") or self.current_state.get("safe_points") or []),
-            _integer(self.current_state.get("sclk_actual"), 0),
-        )
-        self._update_profile_availability()
-        self._update_safety_notice(self.current_state)
-        if enabled:
-            self._show_info(
-                "High OC laboratory enabled",
-                "Safe-points above 2000 MHz are now visible. This does not make them stable. Change frequencies only with games, FurMark, and other 3D loads stopped.",
-                tone="orange",
-            )
-
     def _run_backend_action(
         self,
         operation,
@@ -1595,30 +1630,35 @@ class GpuGovernorPage(QWidget):
         controls: tuple[QWidget, ...] = (),
         refresh: bool = True,
         keep_voltage_lab: bool = False,
+        error_parent: QWidget | None = None,
     ) -> bool:
         if self._action_busy:
             self._show_info("GPU operation in progress", "Wait for the current GPU operation to finish.", tone="orange")
             return False
         self._action_busy = True
+        refresh_after_finish = False
         for control in controls:
             control.setEnabled(False)
 
         def success(result: object) -> None:
+            nonlocal refresh_after_finish
             on_success(result)
             if refresh:
                 self._state_cache.invalidate("gpu", "performance", "tools")
-                self.refresh()
+                refresh_after_finish = True
             if keep_voltage_lab:
                 self.page_stack.setCurrentWidget(self.voltage_lab_page)
 
         def failure(message: str) -> None:
-            self._show_info(error_title, message, tone="red")
+            self._show_info(error_title, message, tone="red", parent=error_parent)
             self._append_console(f"{error_title}: {message}")
 
         def finished() -> None:
             self._action_busy = False
             for control in controls:
                 control.setEnabled(True)
+            if refresh_after_finish:
+                self.refresh()
 
         started = self._background.start("gpu-hardware-action", operation, success, failure, finished)
         if not started:
@@ -1631,11 +1671,41 @@ class GpuGovernorPage(QWidget):
     def _request_custom_range(self) -> None:
         minimum = self.minimum_control.value()
         maximum = self.maximum_control.value()
+        self._request_runtime_range(
+            minimum,
+            maximum,
+            controls=(self.apply_range_button,),
+        )
+
+    def _request_selected_safe_point_range(self) -> None:
+        maximum = _integer(self.oc_frequency.currentData(), 0)
+        if maximum <= 0:
+            self._show_info(
+                "No safe-point selected",
+                "Refresh after installing or configuring the governor.",
+                tone="orange",
+            )
+            return
+        self._request_runtime_range(
+            self.SELECTED_RANGE_FLOOR,
+            maximum,
+            controls=(self.apply_selected_range_button,),
+        )
+
+    def _request_runtime_range(
+        self,
+        minimum: int,
+        maximum: int,
+        *,
+        controls: tuple[QWidget, ...],
+    ) -> None:
         valid, warning = self._validate_range(minimum, maximum)
         if not valid:
             return
         risk = maximum >= 1850 or minimum >= 2000
-        message = tr("This updates the active governor range through D-Bus. The TOML safe-point configuration is not rewritten.")
+        message = tr(
+            "This comments the initial min/max limits in the TOML, validates the file, and then updates the active governor range through D-Bus so an old boot limit does not override the selected profile."
+        )
         if warning:
             message += "\n\n" + tr_format("Safety note: {warning}", warning=warning)
         dialog = ConfirmDialog(
@@ -1645,7 +1715,7 @@ class GpuGovernorPage(QWidget):
                 ("Minimum", f"{minimum} MHz"),
                 ("Maximum", f"{maximum} MHz"),
                 ("Safe-point voltage", self._safe_point_voltage_text(maximum)),
-                ("Persistence", "Runtime range; governor service persistence is unchanged"),
+                ("Persistence", "Initial TOML range disabled; selected D-Bus profile remains authoritative"),
             ),
             confirm_text="Apply range",
             tone="orange" if risk else "blue",
@@ -1659,51 +1729,93 @@ class GpuGovernorPage(QWidget):
             self._append_console(self._last_operation_summary)
 
         self._run_backend_action(
-            lambda: self.controller.aplicar_rango_bc250(minimum, maximum),
+            lambda: self.controller.aplicar_perfil_gpu(minimum, maximum),
             success,
             "GPU range failed",
-            controls=(self.apply_range_button,),
+            controls=controls,
         )
 
-    def _request_fixed(self) -> None:
-        frequency = _integer(self.oc_frequency.currentData(), 0)
-        if frequency <= 0:
-            self._show_info("No safe-point selected", "Refresh after installing or configuring the governor.", tone="orange")
+    def _open_governor_config(self) -> None:
+        opened, message = open_local_file(self.GOVERNOR_CONFIG_PATH)
+        if not opened:
+            self._show_info(
+                "Governor configuration could not be opened",
+                tr_format(
+                    "{path}: {error}",
+                    path=str(self.GOVERNOR_CONFIG_PATH),
+                    error=tr(message),
+                ),
+                tone="orange",
+            )
             return
-        valid, warning = self._validate_range(frequency, frequency)
-        if not valid:
-            return
-        message = tr(
-            "The governor will hold one configured safe-point. Apply a dynamic runtime range later to return to normal scaling."
+        self._append_console(
+            tr_format(
+                "Opened {path} with the system default editor.",
+                path=str(self.GOVERNOR_CONFIG_PATH),
+            )
         )
-        if warning:
-            message += "\n\n" + tr_format("Safety note: {warning}", warning=warning)
+
+    def _request_high_points_toggle(self) -> None:
+        state = _dict(self.current_state.get("high_frequency_points"))
+        currently_enabled = bool(state.get("enabled"))
+        enable = not currently_enabled
+        frequencies = ", ".join(str(value) for value in state.get("frequencies") or ()) or "2050+"
+        governor_active = str(self.current_state.get("service_active") or "").lower() == "active"
         dialog = ConfirmDialog(
-            "Apply fixed GPU safe-point",
-            message,
-            summary=(
-                ("Frequency", f"{frequency} MHz"),
-                ("Voltage from TOML", self._safe_point_voltage_text(frequency)),
-                ("Known stable floor", self._known_floor_text(frequency)),
-                ("Persistence", "Runtime only"),
+            "Enable advanced +2000 MHz points" if enable else "Disable advanced +2000 MHz points",
+            (
+                "This edits only the TOML safe-point blocks above 2000 MHz and validates the complete "
+                "file. These frequencies are experimental, are not guaranteed stable, and can crash "
+                "the display or system. The governor is reloaded only if it is already active."
+                if enable
+                else
+                "This comments the TOML safe-point blocks above 2000 MHz and validates the complete "
+                "file. Active 3D workloads must be stopped first. The governor is reloaded only if it "
+                "is already active."
             ),
-            confirm_text="Apply fixed safe-point",
-            tone="orange",
+            summary=(
+                ("Safe-points", frequencies),
+                ("Requested state", "Enabled" if enable else "Commented"),
+                ("Validation", "Full TOML parse before replacement"),
+                (
+                    "Service",
+                    "Reload active service"
+                    if governor_active
+                    else "Keep disabled; apply on next activation",
+                ),
+            ),
+            confirm_text="Enable advanced points" if enable else "Disable advanced points",
+            tone="red" if enable else "orange",
             parent=self,
         )
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
-        def success(_result: object) -> None:
-            self._last_operation_summary = f"Requested fixed GPU safe-point at {frequency} MHz."
-            self.last_operation_line.set_values("Fixed safe-point", self._last_operation_summary)
+
+        def success(result: object) -> None:
+            self._apply_high_points_toggle_feedback(enable)
+            self._last_operation_summary = str(result or "Governor TOML updated.")
+            self.last_operation_line.set_values("Advanced safe-points", self._last_operation_summary)
             self._append_console(self._last_operation_summary)
 
         self._run_backend_action(
-            lambda: self.controller.fijar_frecuencia_bc250(frequency),
+            lambda: self.controller.alternar_puntos_gpu_altos(enable),
             success,
-            "Fixed frequency failed",
-            controls=(self.fixed_button,),
+            "Could not update advanced safe-points",
+            controls=(self.high_points_button,),
         )
+
+    def _apply_high_points_toggle_feedback(self, enabled: bool) -> None:
+        """Reflect a confirmed TOML edit immediately while the full refresh runs."""
+
+        state = dict(_dict(self.current_state.get("high_frequency_points")))
+        frequencies = tuple(state.get("frequencies") or ())
+        state["enabled"] = bool(enabled)
+        state["enabled_frequencies"] = frequencies if enabled else ()
+        self.current_state["high_frequency_points"] = state
+        self.high_points_button.setText(
+            tr("Disable +2000 MHz TOML points" if enabled else "Enable +2000 MHz TOML points")
+        )
+        self._update_safety_notice(self.current_state)
 
     def _validate_range(self, minimum: int, maximum: int) -> tuple[bool, str]:
         if minimum <= 0 or maximum <= 0:
@@ -1758,19 +1870,8 @@ class GpuGovernorPage(QWidget):
 
         voltage = self.safe_voltage_map.get(int(maximum))
         known_floor = self.KNOWN_STABLE_VOLTAGES.get(int(maximum))
-        experimental = self.experimental_toggle.isChecked()
         warning_parts: list[str] = []
         if maximum > 1500 and (known_floor is None or voltage is None or voltage < known_floor):
-            if maximum > 2000 and not experimental:
-                self._show_info(
-                    "High OC point blocked",
-                    tr_format(
-                        "{maximum} MHz uses {voltage} mV, while the conservative known-stable floor is {known_floor} mV. Enable high OC laboratory mode only for controlled testing.",
-                        maximum=maximum, voltage=voltage or "--", known_floor=known_floor or "--",
-                    ),
-                    tone="orange",
-                )
-                return False, ""
             warning_parts.append(
                 tr_format(
                     "{maximum} MHz is configured at {voltage} mV; the conservative known-stable floor is {known_floor} mV. This is an undervolt laboratory condition.",
@@ -1806,19 +1907,65 @@ class GpuGovernorPage(QWidget):
             warning_parts.append(tr("Do not change frequency while a game, FurMark, or another 3D workload is active."))
         return True, " ".join(warning_parts)
 
-    def prepare_dependencies(self) -> None:
-        dialog = ConfirmDialog(
-            "Prepare BC250 dependencies",
-            "This opens the existing distribution-aware R64 workflow. It can install or update the governor, bc250_smu_oc, UMR, and the compute-unit live manager in a visible terminal.",
-            summary=(
+    def prepare_dependencies(self, *, dialog_parent: QWidget | None = None) -> None:
+        tools = _dict(self.current_state.get("tools"))
+        conflicts = list(tools.get("incompatible_gpu_governors") or [])
+        missing_optional = list(tools.get("missing_optional_features") or [])
+        missing_names = ", ".join(
+            tr_format(
+                "{component} ({feature})",
+                component=str(item.get("component") or "unknown"),
+                feature=tr(str(item.get("feature") or "optional feature")),
+            )
+            for item in missing_optional
+            if isinstance(item, dict)
+        )
+        conflict_names = ", ".join(
+            str(item.get("identifier") or item.get("service") or "unknown")
+            for item in conflicts
+            if isinstance(item, dict)
+        )
+        if conflicts:
+            title = "Incompatible GPU governor detected"
+            description = tr_format(
+                "{governors} is installed, enabled, or running. Two GPU frequency governors can issue conflicting clock commands and cause a crash or green screen at the next boot. Continue only to stop and disable the incompatible service before preparing cyan-skillfish-governor-smu.",
+                governors=conflict_names,
+            )
+            summary = (
+                ("Detected", conflict_names),
+                ("Risk", "GPU crash / green screen at boot"),
+                ("Required action", "Stop and disable incompatible service"),
+                ("Package", "Retained; no uninstall is performed"),
+            )
+            confirm_text = "Disable conflict and continue"
+            tone = "red"
+        else:
+            title = "Prepare BC250 dependencies"
+            description = (
+                "This opens the distribution-aware workflow. It can install or update the governor, "
+                "bc250_smu_oc, UMR, and the compute-unit live manager in a visible terminal."
+            )
+            if missing_names:
+                description += tr_format(
+                    " Optional components currently missing: {components}. Their related features remain unavailable until installed.",
+                    components=missing_names,
+                )
+            summary = (
                 ("Scope", "Shared BC250 tools"),
                 ("Distribution", "Detected automatically"),
+                ("Missing optional components", missing_names or "None detected"),
                 ("Hardware changes", "No frequency or voltage is applied"),
                 ("Authentication", "Administrator prompt may appear"),
-            ),
-            confirm_text="Prepare dependencies",
-            tone="blue",
-            parent=self,
+            )
+            confirm_text = "Prepare dependencies"
+            tone = "blue"
+        dialog = ConfirmDialog(
+            title,
+            description,
+            summary=summary,
+            confirm_text=confirm_text,
+            tone=tone,
+            parent=dialog_parent or self,
         )
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
@@ -1831,10 +1978,15 @@ class GpuGovernorPage(QWidget):
             self._append_console(self._last_operation_summary)
 
         self._run_backend_action(
-            self.controller.instalar_dependencias_bc250,
+            (
+                lambda: self.controller.instalar_dependencias_bc250(True, True)
+                if conflicts
+                else self.controller.instalar_dependencias_bc250()
+            ),
             success,
             "Could not prepare dependencies",
             controls=(self.dependencies_metric.button,),
+            error_parent=dialog_parent,
         )
 
     def _service_action(self, action: str) -> None:
@@ -1849,16 +2001,41 @@ class GpuGovernorPage(QWidget):
             "desactivar": "This stops the governor now and disables it at boot. GPU range controls will be unavailable until it is enabled again.",
         }
         action_label = labels.get(action, action)
+        tools = _dict(self.current_state.get("tools"))
+        conflicts = (
+            list(tools.get("incompatible_gpu_governors") or [])
+            if action in {"activar", "reiniciar"}
+            else []
+        )
+        conflict_names = ", ".join(
+            str(item.get("identifier") or item.get("service") or "unknown")
+            for item in conflicts
+            if isinstance(item, dict)
+        )
+        description = descriptions.get(
+            action,
+            "The existing R64 workflow opens a visible terminal for sudo authentication and service output.",
+        )
+        confirm_text = action_label if action_label else "Continue"
+        tone = "orange" if action == "desactivar" else "blue"
+        if conflicts:
+            description = tr_format(
+                "{governors} conflicts with cyan-skillfish-governor-smu. Starting both can crash the GPU or produce a green screen at boot. This action will stop and disable the incompatible service before enabling the supported governor.",
+                governors=conflict_names,
+            )
+            confirm_text = "Disable conflict and enable service"
+            tone = "red"
         dialog = ConfirmDialog(
             tr_format("{action} GPU governor", action=tr(action_label)),
-            tr(descriptions.get(action, "The existing R64 workflow opens a visible terminal for sudo authentication and service output.")),
+            tr(description),
             summary=(
                 ("Service", "cyan-skillfish-governor-smu.service"),
                 ("Action", tr(action_label)),
                 ("Boot persistence", "Enabled" if action == "activar" else "Disabled" if action == "desactivar" else "Unchanged"),
+                *((("Conflict", conflict_names),) if conflicts else ()),
             ),
-            confirm_text=tr(action_label if action_label else "Continue"),
-            tone="orange" if action == "desactivar" else "blue",
+            confirm_text=tr(confirm_text),
+            tone=tone,
             parent=self,
         )
         if dialog.exec() != QDialog.DialogCode.Accepted:
@@ -1869,7 +2046,7 @@ class GpuGovernorPage(QWidget):
             self._append_console(self._last_operation_summary)
 
         self._run_backend_action(
-            lambda: self.controller.controlar_governor(action),
+            lambda: self.controller.controlar_governor(action, bool(conflicts), bool(conflicts)),
             success,
             "Governor service action failed",
         )
@@ -2313,6 +2490,10 @@ class GpuGovernorPage(QWidget):
         dbus_ok = bool(gpu.get("dbus_ok"))
         running = active.lower() in {"active", "running"}
         enabled_at_boot = enabled.lower() in {"enabled", "enabled-runtime", "static"}
+        governor_conflicts = list(
+            _dict(gpu.get("tools")).get("incompatible_gpu_governors") or []
+        )
+        conflict_blocked = bool(governor_conflicts)
         profile_name = self._profile_name(minimum, maximum)
 
         frequency_text = f"{frequency} MHz" if frequency else tr("Not detected")
@@ -2372,8 +2553,13 @@ class GpuGovernorPage(QWidget):
         self.enable_button.setEnabled(not (running and enabled_at_boot))
         self.disable_button.setEnabled(running or enabled_at_boot)
         self.restart_button.setEnabled(running)
-        self.apply_range_button.setEnabled(dbus_ok)
-        self.fixed_button.setEnabled(dbus_ok and self.oc_frequency.count() > 0)
+        self.apply_range_button.setEnabled(dbus_ok and not conflict_blocked)
+        high_points_state = _dict(gpu.get("high_frequency_points"))
+        high_points_enabled = bool(high_points_state.get("enabled"))
+        self.high_points_button.setText(
+            tr("Disable +2000 MHz TOML points" if high_points_enabled else "Enable +2000 MHz TOML points")
+        )
+        self.high_points_button.setEnabled(bool(high_points_state.get("available")) and not conflict_blocked)
 
         self.range_recommendation.setText(
             tr_format("D-Bus allowed range: {allowed_min}–{allowed_max} MHz · active profile: {minimum}–{maximum} MHz · TOML maximum: {toml_max} MHz.", allowed_min=self.allowed_min, allowed_max=self.allowed_max, minimum=minimum, maximum=maximum, toml_max=_integer(gpu.get("config_max_frequency"), 0) or "--")
@@ -2396,12 +2582,21 @@ class GpuGovernorPage(QWidget):
         self.safe_frequencies = [frequency for frequency, _voltage in cleaned]
         self.safe_voltage_map = {frequency: voltage for frequency, voltage in cleaned if voltage > 0}
 
+        # A passive refresh must not rebuild an open combo box. Clearing it
+        # closes Qt's popup and discards the row currently highlighted with a
+        # gamepad even when the safe-point data is unchanged.
+        popup_visible = self._safe_point_popup_visible()
+        if not popup_visible:
+            self._update_safe_points_table(cleaned, current)
+            self._sync_safe_point_combo(cleaned, current)
+        self._update_selected_safe_point()
+
+    def _update_safe_points_table(
+        self,
+        cleaned: list[tuple[int, int]],
+        current: int,
+    ) -> None:
         self.points_table.setRowCount(len(cleaned))
-        previous = self.oc_frequency.currentData()
-        self.oc_frequency.blockSignals(True)
-        self.oc_frequency.clear()
-        experimental = self.experimental_toggle.isChecked()
-        selectable: list[int] = []
         for row, (frequency, voltage) in enumerate(cleaned):
             floor = self.KNOWN_STABLE_VOLTAGES.get(frequency)
             stable = floor is None or voltage >= floor
@@ -2424,30 +2619,69 @@ class GpuGovernorPage(QWidget):
             self.points_table.setItem(row, 2, QTableWidgetItem(f"{floor} mV" if floor else "n/a"))
             self.points_table.setItem(row, 3, QTableWidgetItem(role))
 
-            if frequency <= 2000 or experimental:
-                selectable.append(frequency)
-        if not selectable:
-            selectable = list(self.safe_frequencies)
-        for frequency in selectable:
-            voltage = self.safe_voltage_map.get(frequency)
+    def _sync_safe_point_combo(
+        self,
+        cleaned: list[tuple[int, int]],
+        current: int,
+    ) -> None:
+        signature = tuple(cleaned)
+        if signature == self._safe_point_combo_signature:
+            return
+        selectable = [frequency for frequency, _voltage in cleaned]
+        previous = _integer(self.oc_frequency.currentData(), 0)
+        self.oc_frequency.blockSignals(True)
+        self.oc_frequency.clear()
+        for frequency, voltage in cleaned:
             self.oc_frequency.addItem(
                 f"{frequency} MHz · {voltage} mV" if voltage else f"{frequency} MHz",
                 frequency,
             )
-        desired = previous if previous in selectable else current if current in selectable else (selectable[0] if selectable else None)
+        desired = (
+            previous
+            if previous in selectable
+            else current
+            if current in selectable
+            else selectable[0]
+            if selectable
+            else None
+        )
         if desired is not None:
             index = self.oc_frequency.findData(desired)
             if index >= 0:
                 self.oc_frequency.setCurrentIndex(index)
         self.oc_frequency.blockSignals(False)
-        self._update_selected_safe_point()
+        self._safe_point_combo_signature = signature
+
+    def _safe_point_popup_visible(self) -> bool:
+        try:
+            return bool(self.oc_frequency.view().isVisible())
+        except (RuntimeError, TypeError):
+            return False
 
     def _update_selected_safe_point(self, _index: int = 0) -> None:
         frequency = _integer(self.oc_frequency.currentData(), 0)
+        if frequency > 0:
+            self.apply_selected_range_button.setText(
+                tr_format(
+                    "Apply active range · 1000–{maximum} MHz",
+                    maximum=frequency,
+                )
+            )
+        else:
+            self.apply_selected_range_button.setText(
+                tr("Apply active range · select a ceiling")
+            )
+        tools = _dict(self.current_state.get("tools"))
+        conflicts = list(tools.get("incompatible_gpu_governors") or [])
+        can_apply = (
+            frequency >= self.SELECTED_RANGE_FLOOR
+            and frequency in self.safe_frequencies
+            and bool(self.current_state.get("dbus_ok"))
+            and not conflicts
+        )
+        self.apply_selected_range_button.setEnabled(can_apply)
         if frequency <= 0:
             self.safe_point_detail.setText(tr("No selectable safe-point is available."))
-            if hasattr(self, "fixed_button"):
-                self.fixed_button.setEnabled(False)
             return
         voltage = self.safe_voltage_map.get(frequency)
         floor = self.KNOWN_STABLE_VOLTAGES.get(frequency)
@@ -2460,8 +2694,6 @@ class GpuGovernorPage(QWidget):
         else:
             status = tr_format("TOML {voltage} mV · known floor {floor} mV · undervolt laboratory condition.", voltage=voltage, floor=floor)
         self.safe_point_detail.setText(status)
-        if hasattr(self, "fixed_button"):
-            self.fixed_button.setEnabled(bool(self.current_state.get("dbus_ok", True)))
 
     def _update_profile_availability(self) -> None:
         safe = set(self.safe_frequencies)
@@ -2485,9 +2717,31 @@ class GpuGovernorPage(QWidget):
         missing = list(gpu.get("safe_points_missing_voltage") or [])
         duplicates = list(gpu.get("safe_points_duplicate_frequencies") or [])
         dbus_ok = bool(gpu.get("dbus_ok"))
-        experimental = self.experimental_toggle.isChecked()
+        high_points_state = _dict(gpu.get("high_frequency_points"))
+        if "enabled" in high_points_state:
+            high_points_visible = bool(high_points_state.get("enabled"))
+        else:
+            high_points_visible = any(frequency > 2000 for frequency in self.safe_frequencies)
+        conflicts = list(_dict(gpu.get("tools")).get("incompatible_gpu_governors") or [])
 
-        if errors:
+        if conflicts:
+            names = ", ".join(
+                str(item.get("identifier") or item.get("service") or "unknown")
+                for item in conflicts
+                if isinstance(item, dict)
+            )
+            self.safety_notice.set_notice(
+                "Incompatible GPU governor detected",
+                tr_format(
+                    "{governors} is installed, enabled, or running. Two GPU frequency governors can issue conflicting clock commands and cause a crash or green screen at the next boot. Use Prepare dependencies to stop and disable the incompatible service before changing cyan-skillfish-governor-smu.",
+                    governors=names,
+                ),
+                tone="red",
+            )
+            if self.configuration_status is not None:
+                self.configuration_status.setText(tr("Blocked"))
+                self.configuration_status.set_tone("red")
+        elif errors:
             self.safety_notice.set_notice(
                 "Governor blocked by invalid voltage curve",
                 "A later safe-point has lower voltage than an earlier frequency. Correct or comment the invalid TOML entry, then restart cyan-skillfish-governor-smu.service.",
@@ -2495,6 +2749,22 @@ class GpuGovernorPage(QWidget):
             )
             if self.configuration_status is not None:
                 self.configuration_status.setText(tr("Blocked"))
+                self.configuration_status.set_tone("orange")
+        elif high_points_visible:
+            extra = ""
+            if duplicates:
+                extra = " " + tr("Duplicate frequencies were also detected in the TOML.")
+            if not dbus_ok:
+                extra += " " + tr(
+                    "The governor is currently offline; these points will take effect after the service is activated."
+                )
+            self.safety_notice.set_notice(
+                "High OC laboratory mode",
+                tr("Active safe-points above 2000 MHz are visible by default. Voltage is validated against the conservative reference curve, but these points can still be unstable or undervolted. Stop all 3D load before every change.") + extra,
+                tone="orange",
+            )
+            if self.configuration_status is not None:
+                self.configuration_status.setText(tr("Lab mode"))
                 self.configuration_status.set_tone("orange")
         elif not dbus_ok:
             detail = ""
@@ -2511,22 +2781,10 @@ class GpuGovernorPage(QWidget):
             if self.configuration_status is not None:
                 self.configuration_status.setText(tr("Offline"))
                 self.configuration_status.set_tone("orange")
-        elif experimental:
-            extra = ""
-            if duplicates:
-                extra = " " + tr("Duplicate frequencies were also detected in the TOML.")
-            self.safety_notice.set_notice(
-                "High OC laboratory mode",
-                tr("Safe-points above 2000 MHz are visible. Voltage is validated against the conservative reference curve, but laboratory mode can still expose undervolted points. Stop all 3D load before every change.") + extra,
-                tone="orange",
-            )
-            if self.configuration_status is not None:
-                self.configuration_status.setText(tr("Lab mode"))
-                self.configuration_status.set_tone("orange")
         else:
             self.safety_notice.set_notice(
                 "Safe mode enabled",
-                "Only active TOML safe-points up to 2000 MHz are exposed. High OC points remain hidden, and abrupt frequency drops under GPU load are blocked.",
+                "Every active TOML safe-point is visible. Points above 2000 MHz will appear automatically when they are enabled in the TOML.",
                 tone="blue",
             )
             if self.configuration_status is not None:
@@ -2620,7 +2878,14 @@ class GpuGovernorPage(QWidget):
     def _clear_console(self) -> None:
         self.console.setPlainText("GPU Governor console cleared. No hardware command has been executed.")
 
-    def _show_info(self, title: str, message: str, *, tone: str = "blue") -> None:
+    def _show_info(
+        self,
+        title: str,
+        message: str,
+        *,
+        tone: str = "blue",
+        parent: QWidget | None = None,
+    ) -> None:
         icons = {
             "red": "warning_orange",
             "orange": "warning_orange",
@@ -2632,7 +2897,7 @@ class GpuGovernorPage(QWidget):
             title,
             message,
             icons.get(tone, "info_blue"),
-            self,
+            parent or self,
             eyebrow="GPU GOVERNOR",
             notice="",
             tone=tone,

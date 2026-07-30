@@ -17,6 +17,7 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QScrollArea,
     QSizePolicy,
+    QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
@@ -56,8 +57,6 @@ def _number(value, default=0.0):
 CPU_FREQUENCY_RANGE = (3000, 4200)
 CPU_VID_RANGE = (900, 1375)
 CPU_TEMPERATURE_RANGE = (70, 90)
-
-
 class CpuSummaryItem(QFrame):
     """CPU counterpart to the GPU governor summary chip."""
 
@@ -244,11 +243,14 @@ class CpuSmuPage(QWidget):
         self._last_operation_summary = "No hardware command has been executed."
         self._summary_columns = 5
         self._workspace_columns = 0
+        self._configuration_columns = 0
         self._runtime_columns = 0
         self._runtime_action_columns = 0
         self._metric_columns = 0
         self._field_columns = 0
         self._detail_columns = 0
+        self._processor_columns = 0
+        self._core_columns = 0
         self._selected_profile_name = self.PROFILE_VALUES[0][0]
 
         outer = QVBoxLayout(self)
@@ -285,26 +287,99 @@ class CpuSmuPage(QWidget):
         self.summary_strip = CpuSummaryStrip(self.content)
         self.summary_strip.hide()
 
-        self.workspace = QGridLayout()
+        self.configuration_card = self._build_configuration_card()
+        self.metrics_card = self._build_metrics_card()
+        self.processor_card = self._build_processor_card()
+        self.cores_card = self._build_cores_card()
+        self.runtime_card = self._build_runtime_card()
+        self.core_unlock_card = self._build_core_unlock_card()
+        for paired_card in (
+            self.configuration_card,
+            self.metrics_card,
+            self.processor_card,
+            self.core_unlock_card,
+        ):
+            paired_card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.advanced_card = self._build_advanced_card()
+        self.advanced_toggle.setText(tr("Hide advanced details"))
+        if self.advanced_card.status is not None:
+            self.advanced_card.status.setText(tr("Visible"))
+            self.advanced_card.status.set_tone("gray")
+
+        self.workspace_tabs = QFrame()
+        self.workspace_tabs.setProperty("cpuWorkspaceTabs", True)
+        tabs_layout = QHBoxLayout(self.workspace_tabs)
+        tabs_layout.setContentsMargins(5, 5, 5, 5)
+        tabs_layout.setSpacing(5)
+        self.workspace_tab_group = QButtonGroup(self)
+        self.workspace_tab_group.setExclusive(True)
+        self.workspace_tab_buttons: dict[str, QPushButton] = {}
+        tab_specs = (
+            (
+                "overview",
+                "Overview and live monitoring",
+                "Processor overview, live cores, and hidden-core unlock.",
+                "cpu_blue",
+            ),
+            (
+                "configuration",
+                "CPU configuration",
+                "Profiles, temporary tuning, persistence, and advanced details.",
+                "settings_blue",
+            ),
+        )
+        for key, text, tooltip, icon_name in tab_specs:
+            button = QPushButton(tr(text))
+            button.setCheckable(True)
+            button.setProperty("cpuWorkspaceTab", True)
+            button.setIcon(icon(icon_name))
+            button.setToolTip(tr(tooltip))
+            button.setCursor(Qt.CursorShape.PointingHandCursor)
+            button.setSizePolicy(
+                QSizePolicy.Policy.Expanding,
+                QSizePolicy.Policy.Fixed,
+            )
+            button.clicked.connect(
+                lambda checked, name=key: self._select_workspace(name)
+                if checked
+                else None
+            )
+            self.workspace_tab_group.addButton(button)
+            self.workspace_tab_buttons[key] = button
+            tabs_layout.addWidget(button, 1)
+        layout.addWidget(self.workspace_tabs)
+
+        self.workspace_stack = QStackedWidget()
+        self.workspace_stack.setProperty("cpuWorkspaceStack", True)
+        self.workspace_stack.setMinimumWidth(0)
+        self.workspace_stack.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Preferred,
+        )
+
+        self.overview_page = QWidget()
+        self.overview_page.setProperty("cpuWorkspacePage", True)
+        self.overview_page.setMinimumWidth(0)
+        self.workspace = QGridLayout(self.overview_page)
         self.workspace.setContentsMargins(0, 0, 0, 0)
         self.workspace.setHorizontalSpacing(14)
         self.workspace.setVerticalSpacing(14)
-        layout.addLayout(self.workspace)
 
-        self.configuration_card = self._build_configuration_card()
-        self.metrics_card = self._build_metrics_card()
-        # These cards share the first workspace row.  Let the grid stretch both
-        # vertically so their lower borders stay aligned even when one side has
-        # less content (the metrics card is intentionally more compact).
-        self.configuration_card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        self.metrics_card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        self.runtime_card = self._build_runtime_card()
-        self.advanced_card = self._build_advanced_card()
-        self.advanced_card.hide()
-        layout.addWidget(self.advanced_card)
+        self.configuration_page = QWidget()
+        self.configuration_page.setProperty("cpuWorkspacePage", True)
+        self.configuration_page.setMinimumWidth(0)
+        self.configuration_workspace = QGridLayout(self.configuration_page)
+        self.configuration_workspace.setContentsMargins(0, 0, 0, 0)
+        self.configuration_workspace.setHorizontalSpacing(14)
+        self.configuration_workspace.setVerticalSpacing(14)
+
+        self.workspace_stack.addWidget(self.overview_page)
+        self.workspace_stack.addWidget(self.configuration_page)
+        layout.addWidget(self.workspace_stack)
         layout.addStretch(1)
 
         self._select_preset(self.preset_buttons[0])
+        self._select_workspace("overview")
         self._reflow(1400)
         self.timer = QTimer(self)
         self.timer.setInterval(4000)
@@ -316,6 +391,14 @@ class CpuSmuPage(QWidget):
             self._apply_refresh_payload,
             self._refresh_failed,
         )
+
+    def _select_workspace(self, name: str) -> None:
+        key = "configuration" if name == "configuration" else "overview"
+        index = 1 if key == "configuration" else 0
+        self.workspace_stack.setCurrentIndex(index)
+        self.workspace_tab_buttons[key].setChecked(True)
+        self.scroll.verticalScrollBar().setValue(0)
+
     def _build_configuration_card(self) -> SectionCard:
         card = SectionCard(
             "CPU configuration",
@@ -438,6 +521,64 @@ class CpuSmuPage(QWidget):
         card.body.addWidget(note)
         return card
 
+    def _build_processor_card(self) -> SectionCard:
+        card = SectionCard(
+            "Processor overview",
+            "CPU-Z-style identification read directly from Linux kernel interfaces, without changing hardware state.",
+            icon_name="cpu_blue",
+            icon_background=COLORS["blue_soft"],
+            status=("Live", "green"),
+        )
+        self.processor_grid = QGridLayout()
+        self.processor_grid.setContentsMargins(0, 0, 0, 0)
+        self.processor_grid.setHorizontalSpacing(10)
+        self.processor_grid.setVerticalSpacing(10)
+        self.model_stat = RuntimeStat("Processor", "Checking", "kernel model name")
+        self.architecture_stat = RuntimeStat("Architecture", "Checking", "vendor / machine")
+        self.platform_stat = RuntimeStat("Platform / process", "Checking", "CPU-X-compatible hardware identity")
+        self.microcode_stat = RuntimeStat("Microcode", "Checking", "kernel-reported revision")
+        self.topology_stat = RuntimeStat("Topology", "Checking", "physical cores / logical threads")
+        self.cache_stat = RuntimeStat("Cache hierarchy", "Checking", "L1 / L2 / L3")
+        self.features_stat = RuntimeStat("Instruction features", "Checking", "selected acceleration flags")
+        self.total_load_stat = RuntimeStat("Total CPU load", "Checking", "average across logical threads")
+        self.processor_stats = [
+            self.model_stat,
+            self.architecture_stat,
+            self.platform_stat,
+            self.microcode_stat,
+            self.topology_stat,
+            self.cache_stat,
+            self.features_stat,
+            self.total_load_stat,
+        ]
+        self._reflow_processor_stats(1400)
+        card.body.addLayout(self.processor_grid)
+        return card
+
+    def _build_cores_card(self) -> SectionCard:
+        card = SectionCard(
+            "Live core monitor",
+            "All eight BC-250 core positions remain visible. Frequency and utilization are averaged across each core's logical threads.",
+            icon_name="compute_blue",
+            icon_background=COLORS["blue_soft"],
+            status=("Passive", "green"),
+        )
+        self.cores_grid = QGridLayout()
+        self.cores_grid.setContentsMargins(0, 0, 0, 0)
+        self.cores_grid.setHorizontalSpacing(10)
+        self.cores_grid.setVerticalSpacing(10)
+        self.core_stats = [
+            RuntimeStat(
+                tr_format("Core {index}", index=index),
+                "Checking",
+                "logical threads",
+            )
+            for index in range(8)
+        ]
+        self._reflow_core_stats(1400)
+        card.body.addLayout(self.cores_grid)
+        return card
+
     def _build_runtime_card(self) -> SectionCard:
         card = SectionCard(
             "Runtime status",
@@ -530,6 +671,68 @@ class CpuSmuPage(QWidget):
         card.body.addWidget(controls_panel)
         return card
 
+    def _build_core_unlock_card(self) -> SectionCard:
+        card = SectionCard(
+            "Unlock hidden CPU cores",
+            "Experimental, restart-required action for supported BC-250 boards.",
+            icon_name="cpu_blue",
+            icon_background=COLORS["orange_soft"],
+            status=("Checking", "gray"),
+        )
+
+        explanation = QLabel(
+            "The BC-250 normally exposes 6 cores and 12 threads. This action asks the SMU to expose "
+            "the two factory-hidden cores on the next warm restart. A full power-off clears the change."
+        )
+        explanation.setProperty("fieldHint", True)
+        explanation.setWordWrap(True)
+        card.body.addWidget(explanation)
+
+        status_panel = QFrame()
+        status_panel.setProperty("compactPanel", True)
+        status_layout = QVBoxLayout(status_panel)
+        status_layout.setContentsMargins(12, 10, 12, 10)
+        status_layout.setSpacing(8)
+        self.core_shape_line = StatusLine("Detected CPU", "Checking", "Expected stock shape: 6 cores / 12 threads")
+        self.core_source_line = StatusLine(
+            "Upstream tool",
+            "Checking",
+            "Official clone: rw-r-r-0644/bc250-core-unlock",
+        )
+        self.core_helper_line = StatusLine("Unlock support", "Checking", "Privileged local helper")
+        self.core_compatibility_line = StatusLine(
+            "Governor compatibility",
+            "cyan governor will be disabled",
+            "Reactivate it manually from GPU after the restart",
+        )
+        for line in (
+            self.core_shape_line,
+            self.core_source_line,
+            self.core_helper_line,
+            self.core_compatibility_line,
+        ):
+            status_layout.addWidget(line)
+        card.body.addWidget(status_panel)
+
+        warning = QLabel(
+            "CPU core unlocking is experimental. Continue with caution and save your work before "
+            "proceeding, because a restart is required to apply the changes."
+        )
+        warning.setProperty("warningText", True)
+        warning.setWordWrap(True)
+        card.body.addWidget(warning)
+
+        action_row = QHBoxLayout()
+        action_row.setSpacing(8)
+        action_row.addStretch(1)
+        self.core_unlock_button = QPushButton("Unlock cores and restart")
+        self.core_unlock_button.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.core_unlock_button.setProperty("dangerAction", True)
+        self.core_unlock_button.clicked.connect(self._request_core_unlock)
+        action_row.addWidget(self.core_unlock_button)
+        card.body.addLayout(action_row)
+        return card
+
     def _build_advanced_card(self) -> SectionCard:
         card = SectionCard(
             "Advanced details",
@@ -587,33 +790,104 @@ class CpuSmuPage(QWidget):
         self._reflow(effective_viewport_width(self, self.scroll))
 
     def _reflow(self, width: int) -> None:
-        self._reflow_presets(width)
-        self._reflow_parameter_fields(width)
+        columns = 2 if width >= 1080 else 1
+        column_width = int((width - 14) / 2) if columns == 2 else width
+        configuration_width = column_width
+        runtime_width = column_width
+        self._reflow_presets(configuration_width)
+        self._reflow_parameter_fields(configuration_width)
         self._reflow_metric_tiles(width)
-        self._reflow_runtime_stats(width)
-        self._reflow_runtime_actions(width)
+        self._reflow_processor_stats(configuration_width)
+        self._reflow_core_stats(width)
+        self._reflow_runtime_stats(runtime_width)
+        self._reflow_runtime_actions(runtime_width)
         self._reflow_advanced_details(width)
 
-        columns = 2 if width >= 1080 else 1
-        if columns == self._workspace_columns and self.workspace.count():
-            return
-        self._workspace_columns = columns
-        self._clear_grid(self.workspace)
-        self.workspace.setColumnStretch(0, 0)
-        self.workspace.setColumnStretch(1, 0)
-        if columns == 2:
-            # No AlignTop flag here: both widgets fill the same grid row and
-            # therefore finish on exactly the same baseline.
-            self.workspace.addWidget(self.configuration_card, 0, 0)
-            self.workspace.addWidget(self.metrics_card, 0, 1)
-            self.workspace.addWidget(self.runtime_card, 1, 0, 1, 2, Qt.AlignmentFlag.AlignTop)
-            self.workspace.setColumnStretch(0, 7)
-            self.workspace.setColumnStretch(1, 5)
-        else:
-            self.workspace.addWidget(self.configuration_card, 0, 0, 1, 1, Qt.AlignmentFlag.AlignTop)
-            self.workspace.addWidget(self.metrics_card, 1, 0, 1, 1, Qt.AlignmentFlag.AlignTop)
-            self.workspace.addWidget(self.runtime_card, 2, 0, 1, 1, Qt.AlignmentFlag.AlignTop)
-            self.workspace.setColumnStretch(0, 1)
+        if columns != self._workspace_columns or not self.workspace.count():
+            self._workspace_columns = columns
+            self._clear_grid(self.workspace)
+            self.workspace.setColumnStretch(0, 0)
+            self.workspace.setColumnStretch(1, 0)
+            self._reset_row_stretches(self.workspace, 5)
+            if columns == 2:
+                self.workspace.addWidget(self.processor_card, 0, 0)
+                self.workspace.addWidget(self.core_unlock_card, 0, 1)
+                self.workspace.addWidget(self.metrics_card, 1, 0, 1, 2)
+                self.workspace.addWidget(self.cores_card, 2, 0, 1, 2)
+                self.workspace.setColumnStretch(0, 1)
+                self.workspace.setColumnStretch(1, 1)
+                self.workspace.setRowStretch(3, 1)
+            else:
+                self.workspace.addWidget(
+                    self.processor_card,
+                    0,
+                    0,
+                    Qt.AlignmentFlag.AlignTop,
+                )
+                self.workspace.addWidget(
+                    self.metrics_card,
+                    1,
+                    0,
+                    Qt.AlignmentFlag.AlignTop,
+                )
+                self.workspace.addWidget(
+                    self.core_unlock_card,
+                    2,
+                    0,
+                    Qt.AlignmentFlag.AlignTop,
+                )
+                self.workspace.addWidget(
+                    self.cores_card,
+                    3,
+                    0,
+                    Qt.AlignmentFlag.AlignTop,
+                )
+                self.workspace.setColumnStretch(0, 1)
+                self.workspace.setRowStretch(4, 1)
+
+        if (
+            columns != self._configuration_columns
+            or not self.configuration_workspace.count()
+        ):
+            self._configuration_columns = columns
+            self._clear_grid(self.configuration_workspace)
+            self.configuration_workspace.setColumnStretch(0, 0)
+            self.configuration_workspace.setColumnStretch(1, 0)
+            self._reset_row_stretches(self.configuration_workspace, 4)
+            if columns == 2:
+                self.configuration_workspace.addWidget(self.configuration_card, 0, 0)
+                self.configuration_workspace.addWidget(self.runtime_card, 0, 1)
+                self.configuration_workspace.addWidget(
+                    self.advanced_card,
+                    1,
+                    0,
+                    1,
+                    2,
+                )
+                self.configuration_workspace.setColumnStretch(0, 1)
+                self.configuration_workspace.setColumnStretch(1, 1)
+                self.configuration_workspace.setRowStretch(2, 1)
+            else:
+                self.configuration_workspace.addWidget(
+                    self.configuration_card,
+                    0,
+                    0,
+                    Qt.AlignmentFlag.AlignTop,
+                )
+                self.configuration_workspace.addWidget(
+                    self.runtime_card,
+                    1,
+                    0,
+                    Qt.AlignmentFlag.AlignTop,
+                )
+                self.configuration_workspace.addWidget(
+                    self.advanced_card,
+                    2,
+                    0,
+                    Qt.AlignmentFlag.AlignTop,
+                )
+                self.configuration_workspace.setColumnStretch(0, 1)
+                self.configuration_workspace.setRowStretch(3, 1)
 
     def _reflow_presets(self, width: int) -> None:
         columns = 4 if width >= 1200 else 2 if width >= 620 else 1
@@ -638,7 +912,7 @@ class CpuSmuPage(QWidget):
             self.parameter_grid.setColumnStretch(column, 1)
 
     def _reflow_metric_tiles(self, width: int) -> None:
-        columns = 2 if width >= 720 else 1
+        columns = 4 if width >= 1100 else 2 if width >= 620 else 1
         if columns == self._metric_columns and self.metrics_grid.count():
             return
         self._metric_columns = columns
@@ -648,8 +922,30 @@ class CpuSmuPage(QWidget):
         for column in range(columns):
             self.metrics_grid.setColumnStretch(column, 1)
 
+    def _reflow_processor_stats(self, width: int) -> None:
+        columns = 2 if width >= 700 else 1
+        if columns == self._processor_columns and self.processor_grid.count():
+            return
+        self._processor_columns = columns
+        self._clear_grid(self.processor_grid)
+        for index, stat in enumerate(self.processor_stats):
+            self.processor_grid.addWidget(stat, index // columns, index % columns)
+        for column in range(columns):
+            self.processor_grid.setColumnStretch(column, 1)
+
+    def _reflow_core_stats(self, width: int) -> None:
+        columns = 8 if width >= 1260 else 4 if width >= 720 else 2 if width >= 420 else 1
+        if columns == self._core_columns and self.cores_grid.count():
+            return
+        self._core_columns = columns
+        self._clear_grid(self.cores_grid)
+        for index, stat in enumerate(self.core_stats):
+            self.cores_grid.addWidget(stat, index // columns, index % columns)
+        for column in range(columns):
+            self.cores_grid.setColumnStretch(column, 1)
+
     def _reflow_runtime_stats(self, width: int) -> None:
-        columns = 6 if width >= 1260 else 3 if width >= 760 else 2 if width >= 480 else 1
+        columns = 6 if width >= 1260 else 3 if width >= 900 else 2 if width >= 480 else 1
         if columns == self._runtime_columns and self.runtime_stats_grid.count():
             return
         self._runtime_columns = columns
@@ -660,7 +956,7 @@ class CpuSmuPage(QWidget):
             self.runtime_stats_grid.setColumnStretch(column, 1)
 
     def _reflow_runtime_actions(self, width: int) -> None:
-        columns = 6 if width >= 1260 else 3 if width >= 760 else 2 if width >= 520 else 1
+        columns = 6 if width >= 1260 else 3 if width >= 900 else 2 if width >= 520 else 1
         if columns == self._runtime_action_columns and self.runtime_actions_grid.count():
             return
         self._runtime_action_columns = columns
@@ -668,7 +964,7 @@ class CpuSmuPage(QWidget):
         for index, button in enumerate(self.runtime_action_buttons):
             self.runtime_actions_grid.addWidget(button, index // columns, index % columns)
         for column in range(columns):
-            self.runtime_actions_grid.setColumnStretch(column, 0)
+            self.runtime_actions_grid.setColumnStretch(column, 1)
 
     def _reflow_advanced_details(self, width: int) -> None:
         columns = 2 if width >= 960 else 1
@@ -684,6 +980,11 @@ class CpuSmuPage(QWidget):
     @staticmethod
     def _clear_grid(layout: QGridLayout) -> None:
         clear_grid(layout)
+
+    @staticmethod
+    def _reset_row_stretches(layout: QGridLayout, count: int) -> None:
+        for row in range(count):
+            layout.setRowStretch(row, 0)
 
     def _on_parameter_changed(self) -> None:
         frequency = self.frequency_control.value()
@@ -844,7 +1145,8 @@ class CpuSmuPage(QWidget):
             result = str(state.get("result") or "unknown")
             config = tr("present" if state.get("config_exists") else "not installed")
             status_text = str(state.get("status_text") or "No systemctl status output was returned.").rstrip()
-            if not self.advanced_card.isVisible():
+            self._select_workspace("configuration")
+            if self.advanced_card.isHidden():
                 self._toggle_advanced()
             self._append_console(f"\n[{datetime.now().strftime('%H:%M:%S')}] Persistence status")
             self._append_console(tr_format("Service: {value}", value=service))
@@ -913,6 +1215,53 @@ class CpuSmuPage(QWidget):
             "Could not build service command",
         )
 
+    def _request_core_unlock(self) -> None:
+        if self.process is not None and self.process.state() != QProcess.ProcessState.NotRunning:
+            self._show_info(
+                "CPU operation in progress",
+                "Wait for the current CPU operation to finish before unlocking cores.",
+                tone="orange",
+            )
+            return
+        if not self.current_state.get("core_unlock_repository_ready", False):
+            self._show_info(
+                "Official CPU core unlock tool is not prepared",
+                "Use Prepare dependencies to clone and validate the official rw-r-r-0644/bc250-core-unlock repository, then refresh this page.",
+                tone="orange",
+            )
+            return
+        if not self.current_state.get("core_unlock_helper_ready", False):
+            self._show_info(
+                "CPU core unlock support is not installed",
+                "The BC250 Control Center package currently installed on this system does not include "
+                "the privileged core-unlock helper. Rebuild and reinstall the local application package, "
+                "then reopen the application.",
+                tone="orange",
+            )
+            return
+        dialog = ConfirmDialog(
+            "Unlock CPU cores and restart",
+            "CPU core unlocking is experimental. Continue with caution and save your work before "
+            "proceeding, because a restart is required to apply the changes. For compatibility, "
+            "cyan-skillfish-governor-smu will be stopped and disabled before that restart.",
+            summary=(
+                ("Restart", "Required immediately"),
+                ("CPU after restart", "Expected: 8 cores / 16 threads"),
+                ("GPU governor", "Disabled for the next startup"),
+                ("Reactivate later", "GPU → Activate service"),
+            ),
+            confirm_text="Restart",
+            tone="red",
+            parent=self,
+        )
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        self._build_and_start_process(
+            self.controller.comando_desbloquear_nucleos_cpu,
+            "Unlock CPU cores and restart",
+            "Could not start CPU core unlock",
+        )
+
     def _show_runtime_details(self) -> None:
         frequency = self.frequency_control.value()
         vid = self.vid_control.value()
@@ -944,7 +1293,9 @@ class CpuSmuPage(QWidget):
         ).exec()
 
     def _toggle_advanced(self) -> None:
-        visible = not self.advanced_card.isVisible()
+        visible = self.advanced_card.isHidden()
+        if visible:
+            self._select_workspace("configuration")
         self.advanced_card.setVisible(visible)
         self.advanced_toggle.setText(tr("Hide advanced details" if visible else "Advanced details"))
         if self.advanced_card.status is not None:
@@ -971,7 +1322,8 @@ class CpuSmuPage(QWidget):
         self._set_running(True)
         self._last_operation_summary = tr_format("Started at {time}", time=datetime.now().strftime("%H:%M:%S"))
         self.last_operation_line.set_values(operation, self._last_operation_summary)
-        if not self.advanced_card.isVisible():
+        self._select_workspace("configuration")
+        if self.advanced_card.isHidden():
             self._toggle_advanced()
         self._append_console(tr_format("\n[{time}] Starting: {operation}", time=datetime.now().strftime("%H:%M:%S"), operation=operation))
         self._append_console(tr("Command source: existing R64 controller and repository validation"))
@@ -1024,6 +1376,7 @@ class CpuSmuPage(QWidget):
         self.prepare_tools_button.setEnabled(not running)
         self.persistence_status_button.setEnabled(not running)
         self.enable_persistence_button.setEnabled(not running)
+        self.core_unlock_button.setEnabled(not running and self.current_state.get("core_unlock_allowed", False))
         service_enabled = self.disable_service_button.property("serviceEnabled") is True
         self.disable_service_button.setEnabled(not running and service_enabled)
         if self.runtime_card.status is not None:
@@ -1052,7 +1405,7 @@ class CpuSmuPage(QWidget):
                 self.console_status.setText("Failed")
                 self.console_status.set_tone("red")
             else:
-                if self.advanced_card.isVisible():
+                if not self.advanced_card.isHidden():
                     self.console_status.setText("Idle")
                     self.console_status.set_tone("gray")
                 else:
@@ -1078,6 +1431,7 @@ class CpuSmuPage(QWidget):
             "performance": self._state_cache.performance(),
             "tools": self._state_cache.tools(),
             "persistent": self._state_cache.cpu_persistence(),
+            "core_unlock": self.controller.estado_desbloqueo_nucleos_cpu(),
         }
 
     def refresh(self) -> None:
@@ -1086,11 +1440,143 @@ class CpuSmuPage(QWidget):
     def _refresh_failed(self, message: str) -> None:
         self._append_console(f"Telemetry refresh warning: {message}")
 
+    def _apply_core_unlock_state(self, core_unlock: dict) -> bool:
+        physical_cores = int(_number(core_unlock.get("physical_cores"), 0))
+        logical_cpus = int(_number(core_unlock.get("logical_cpus"), 0))
+        core_shape = tr_format(
+            "{cores} cores / {threads} threads",
+            cores=physical_cores,
+            threads=logical_cpus,
+        )
+        if core_unlock.get("unlocked"):
+            core_detail = tr("The hidden cores are active for this powered session.")
+            status_text, status_tone = "Unlocked", "green"
+        elif core_unlock.get("supported_stock_shape"):
+            core_detail = tr("Supported stock CPU shape detected.")
+            status_text, status_tone = "Ready", "orange"
+        else:
+            core_detail = tr("This CPU shape is not eligible for automatic unlock.")
+            status_text, status_tone = "Unavailable", "red"
+
+        helper_ready = bool(core_unlock.get("helper_ready"))
+        repository_ready = bool(core_unlock.get("repository_ready"))
+        repository_path = str(core_unlock.get("repository_path") or "")
+        self.core_shape_line.set_values(core_shape, core_detail)
+        self.core_source_line.set_values(
+            tr("Ready" if repository_ready else "Not prepared"),
+            repository_path
+            if repository_ready
+            else tr("Use Prepare dependencies to clone and validate the official repository."),
+        )
+        self.core_helper_line.set_values(
+            tr("Ready" if helper_ready else "Not installed"),
+            tr("Privileged local helper" if helper_ready else "Reinstall BC250 Control Center to install the helper."),
+        )
+        governor_active = bool(core_unlock.get("governor_active"))
+        governor_enabled = bool(core_unlock.get("governor_enabled"))
+        if governor_active:
+            governor_value = tr("Active now")
+            governor_detail = tr("It will be stopped before any future upstream unlock action.")
+        else:
+            governor_value = tr("Inactive")
+            governor_detail = tr("Required state while the upstream unlock action is running.")
+        if governor_enabled:
+            governor_detail += " " + tr("Enabled again at boot.")
+        self.core_compatibility_line.set_values(governor_value, governor_detail)
+        if self.core_unlock_card.status is not None:
+            self.core_unlock_card.status.setText(tr(status_text))
+            self.core_unlock_card.status.set_tone(status_tone)
+        self.core_unlock_button.setText(
+            tr("Already unlocked" if core_unlock.get("unlocked") else "Unlock cores and restart")
+        )
+        helper_missing = bool(
+            core_unlock.get("supported_stock_shape")
+            and not core_unlock.get("unlocked")
+            and not helper_ready
+        )
+        repository_missing = bool(
+            core_unlock.get("supported_stock_shape")
+            and not core_unlock.get("unlocked")
+            and not repository_ready
+        )
+        self.core_unlock_button.setToolTip(
+            tr(
+                "Use Prepare dependencies to clone and validate the official repository."
+                if repository_missing
+                else "Reinstall the local application package to install the privileged helper."
+                if helper_missing
+                else "Restart is required and the cyan GPU governor will be disabled."
+            )
+        )
+        return bool(
+            core_unlock.get("supported_stock_shape")
+            and not core_unlock.get("unlocked")
+            and helper_ready
+            and repository_ready
+        )
+
+    def _apply_processor_telemetry(self, core_unlock: dict) -> None:
+        processor = _dict(core_unlock.get("processor"))
+        model_name = str(processor.get("model_name") or "Not detected")
+        vendor = str(processor.get("vendor") or "Not detected")
+        architecture = str(processor.get("architecture") or "Not detected")
+        self.model_stat.set_values(model_name, tr("kernel model name"))
+        self.architecture_stat.set_values(architecture, vendor)
+        self.platform_stat.set_values(
+            str(processor.get("platform_process") or "Not exposed"),
+            tr("CPU-X-compatible hardware identity"),
+        )
+        self.microcode_stat.set_values(
+            str(processor.get("microcode") or "Not exposed"),
+            tr("kernel-reported revision"),
+        )
+        self.topology_stat.set_values(
+            str(processor.get("topology") or "Not detected"),
+            tr("physical cores / logical threads"),
+        )
+        self.cache_stat.set_values(
+            str(processor.get("cache") or "Not exposed"),
+            tr("kernel cache hierarchy"),
+        )
+        self.features_stat.set_values(
+            str(processor.get("features") or "Not exposed"),
+            tr("selected acceleration flags"),
+        )
+        total_usage = _number(processor.get("total_usage_percent"), 0)
+        self.total_load_stat.set_values(
+            f"{total_usage:.0f} %",
+            tr("average across logical threads"),
+        )
+
+        core_data = core_unlock.get("cores")
+        cores = core_data if isinstance(core_data, list) else []
+        by_index = {
+            int(_number(item.get("index"), -1)): item
+            for item in cores
+            if isinstance(item, dict)
+        }
+        for index, stat in enumerate(self.core_stats):
+            item = by_index.get(index)
+            if not item:
+                stat.set_values(tr("Hidden / offline"), tr("No logical threads exposed"))
+                continue
+            frequency = _number(item.get("frequency_mhz"), 0)
+            usage = _number(item.get("usage_percent"), 0)
+            threads = tuple(item.get("threads") or ())
+            frequency_text = f"{frequency / 1000:.2f} GHz" if frequency else tr("Not detected")
+            value = tr_format("{frequency} · {usage:.0f}%", frequency=frequency_text, usage=usage)
+            thread_text = ", ".join(str(thread) for thread in threads) or "--"
+            stat.set_values(
+                value,
+                tr_format("Logical CPUs: {threads}", threads=thread_text),
+            )
+
     def _apply_refresh_payload(self, payload: object) -> None:
         data = payload if isinstance(payload, dict) else {}
         perf = _dict(data.get("performance"))
         tools = _dict(data.get("tools"))
         persistent = _dict(data.get("persistent"))
+        core_unlock = _dict(data.get("core_unlock"))
         tools_available = bool(tools)
         persistent_available = bool(persistent)
 
@@ -1135,7 +1621,11 @@ class CpuSmuPage(QWidget):
             "active_state": active_state,
             "config_exists": config_exists,
             "tool_path": tool_path,
+            "core_unlock_helper_ready": bool(core_unlock.get("helper_ready")),
+            "core_unlock_repository_ready": bool(core_unlock.get("repository_ready")),
+            "core_unlock_allowed": self._apply_core_unlock_state(core_unlock),
         }
+        self._apply_processor_telemetry(core_unlock)
 
         service_text = tr("Enabled" if enabled else "Disabled") if persistent_available else tr("Not detected")
         runtime_text = tr(str(active_state).capitalize()) if persistent_available else tr("Not detected")

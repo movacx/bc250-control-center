@@ -824,10 +824,10 @@ class ConfirmDialog(QDialog):
             grid.setHorizontalSpacing(18)
             grid.setVerticalSpacing(7)
             for index, (label, value) in enumerate(values):
-                name = QLabel(label)
+                name = QLabel(tr(label))
                 name.setProperty("confirmLabel", True)
                 name.setWordWrap(True)
-                data = QLabel(value)
+                data = QLabel(tr(value))
                 data.setProperty("confirmValue", True)
                 data.setWordWrap(True)
                 data.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)

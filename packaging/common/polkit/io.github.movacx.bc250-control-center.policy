@@ -26,4 +26,26 @@
     </defaults>
     <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/bc250-control-center/bc250-steamos-game-helper</annotate>
   </action>
+
+  <action id="io.github.movacx.bc250-control-center.governor-config">
+    <description>Edit the BC250 GPU governor configuration</description>
+    <message>Authentication is required to update the BC250 GPU governor configuration</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/bc250-control-center/bc250-governor-config-helper</annotate>
+  </action>
+
+  <action id="io.github.movacx.bc250-control-center.core-unlock">
+    <description>Unlock the two additional BC250 CPU cores</description>
+    <message>Authentication is required to unlock CPU cores and reboot the BC250</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/bc250-control-center/bc250-core-unlock-helper</annotate>
+  </action>
 </policyconfig>

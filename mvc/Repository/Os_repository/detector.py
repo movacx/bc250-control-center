@@ -43,7 +43,7 @@ def read_os_release() -> dict[str, str]:
 
 
 def detect_os_info(raw: Mapping[str, str] | None = None, *, has_rpm_ostree: bool = False) -> OSInfo:
-    data = dict(raw or read_os_release())
+    data = dict(read_os_release() if raw is None else raw)
     distro_id = data.get("ID", "").strip().lower()
     id_like = tuple(part.strip().lower() for part in data.get("ID_LIKE", "").split() if part.strip())
     name = data.get("NAME", "").strip()

@@ -134,7 +134,7 @@ The interface includes language support for:
 
 ## External tools and credits
 
-BC250 Control Center does not replace or claim ownership of the community tools. The app installs, clones or runs them from their official sources when needed.
+BC250 Control Center does not replace or claim ownership of the community tools. Runtime dependencies are installed, cloned or run from their official sources when needed; repositories marked as references are never downloaded or executed automatically.
 
 Repositories used or referenced:
 
@@ -142,7 +142,8 @@ Repositories used or referenced:
 - `bc250_smu_oc`: https://github.com/bc250-collective/bc250_smu_oc
 - `bc250-cu-live-manager`: https://github.com/WinnieLV/bc250-cu-live-manager
 - `bc250-cu-live-manager-SteamOS`: https://github.com/F5GO/bc250-cu-live-manager-SteamOS
-- `bc250-40cu-unlock`: https://github.com/duggasco/bc250-40cu-unlock
+- `bc250-40cu-unlock` (documentation/reference only): https://github.com/duggasco/bc250-40cu-unlock
+- `bc250-core-unlock`: https://github.com/rw-r-r-0644/bc250-core-unlock
 - `nct6687d`: https://github.com/Fred78290/nct6687d
 
 More details in `docs/THIRD_PARTY_NOTICES.md`.

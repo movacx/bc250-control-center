@@ -22,6 +22,10 @@ SYSTEMD_USER_DIR="$PREFIX/lib/systemd/user"
 DOC_DIR="$PREFIX/share/doc/bc250-control-center"
 SYSTEM_PRIV_HELPER="/usr/libexec/bc250-control-center/bc250-fan-pwm-helper"
 SYSTEM_STEAMOS_GAME_HELPER="/usr/libexec/bc250-control-center/bc250-steamos-game-helper"
+SYSTEM_GOVERNOR_CONFIG_HELPER="/usr/libexec/bc250-control-center/bc250-governor-config-helper"
+SYSTEM_CORE_UNLOCK_HELPER="/usr/libexec/bc250-control-center/bc250-core-unlock-helper"
+SYSTEM_GOVERNOR_TOML_IMPLEMENTATION="/usr/libexec/bc250-control-center/lib/governor_toml.py"
+LEGACY_CORE_UNLOCK_IMPLEMENTATION="/usr/libexec/bc250-control-center/lib/core_unlock.py"
 SYSTEM_POLKIT_ACTION="/usr/share/polkit-1/actions/io.github.movacx.bc250-control-center.policy"
 
 is_steamos_install_local() {
@@ -64,7 +68,8 @@ if [[ ! -d "$ROOT_DIR/mvc" || ! -d "$ROOT_DIR/scripts" || ! -d "$ROOT_DIR/packag
 fi
 
 missing_python_deps=0
-missing_python_deps_command=""
+missing_python_deps_command=()
+missing_python_deps_command_text=""
 missing_python_deps_reboot_notice=0
 if ! command -v python3 >/dev/null 2>&1; then
   echo "Warning: python3 is not installed or is not in PATH." >&2
@@ -79,31 +84,31 @@ PY
 then
   echo "Warning: Python GUI dependencies are missing or Qt SVG support is unavailable. The app will install, but icons or the GUI may fail until they are installed." >&2
   if [[ -e /run/ostree-booted ]] && command -v rpm-ostree >/dev/null 2>&1; then
-    missing_python_deps_command="rpm-ostree install --idempotent python3-pyqt6 qt6-qtsvg python3-psutil"
+    missing_python_deps_command=(rpm-ostree install --idempotent python3-pyqt6 qt6-qtsvg python3-psutil)
     missing_python_deps_reboot_notice=1
-    echo "Bazzite/Fedora Atomic: sudo $missing_python_deps_command" >&2
   elif command -v dnf >/dev/null 2>&1; then
-    missing_python_deps_command="dnf install -y python3-pyqt6 qt6-qtsvg python3-psutil"
-    echo "Fedora/Nobara: sudo $missing_python_deps_command" >&2
+    missing_python_deps_command=(dnf install -y python3-pyqt6 qt6-qtsvg python3-psutil)
   elif command -v pacman >/dev/null 2>&1; then
-    missing_python_deps_command="pacman -S --needed python-pyqt6 qt6-svg python-psutil"
-    echo "Arch/CachyOS: sudo $missing_python_deps_command" >&2
+    missing_python_deps_command=(pacman -S --needed python-pyqt6 qt6-svg python-psutil)
   elif command -v apt >/dev/null 2>&1; then
-    missing_python_deps_command="apt install -y python3 python-is-python3 python3-pyqt6 libqt6svg6 python3-psutil"
-    echo "Debian/Ubuntu: sudo $missing_python_deps_command" >&2
+    missing_python_deps_command=(apt install -y python3 python-is-python3 python3-pyqt6 libqt6svg6 python3-psutil)
+  fi
+  if [[ ${#missing_python_deps_command[@]} -gt 0 ]]; then
+    printf -v missing_python_deps_command_text '%q ' "${missing_python_deps_command[@]}"
+    echo "Install command: sudo ${missing_python_deps_command_text% }" >&2
   fi
   missing_python_deps=1
 fi
 
-if [[ -n "$missing_python_deps_command" ]]; then
+if [[ ${#missing_python_deps_command[@]} -gt 0 ]]; then
   prepare_steamos_pacman_install_local
   echo "Installing missing Python GUI dependencies..."
   if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
-    $missing_python_deps_command
+    "${missing_python_deps_command[@]}"
   elif command -v sudo >/dev/null 2>&1; then
-    sudo $missing_python_deps_command
+    sudo "${missing_python_deps_command[@]}"
   else
-    echo "Warning: sudo is not available. Install manually: $missing_python_deps_command" >&2
+    echo "Warning: sudo is not available. Install manually: ${missing_python_deps_command_text% }" >&2
   fi
 fi
 
@@ -117,6 +122,9 @@ install -Dm755 "$ROOT_DIR/scripts/bc250-control-centerd" "$BIN_DIR/bc250-control
 install_privileged_pwm_components() {
   local helper_source="$ROOT_DIR/mvc/Resources/privileged/bc250-fan-pwm-helper"
   local steamos_helper_source="$ROOT_DIR/mvc/Resources/privileged/bc250-steamos-game-helper"
+  local governor_helper_source="$ROOT_DIR/mvc/Resources/privileged/bc250-governor-config-helper"
+  local core_unlock_helper_source="$ROOT_DIR/mvc/Resources/privileged/bc250-core-unlock-helper"
+  local governor_toml_source="$ROOT_DIR/mvc/Repository/governor_toml.py"
   local policy_source="$ROOT_DIR/packaging/common/polkit/io.github.movacx.bc250-control-center.policy"
   local -a elevate=()
 
@@ -145,11 +153,37 @@ install_privileged_pwm_components() {
   echo "Installing root-owned privileged helpers and Polkit action..."
   "${elevate[@]}" install -Dm755 "$helper_source" "$SYSTEM_PRIV_HELPER"
   "${elevate[@]}" install -Dm755 "$steamos_helper_source" "$SYSTEM_STEAMOS_GAME_HELPER"
+  "${elevate[@]}" install -Dm755 "$governor_helper_source" "$SYSTEM_GOVERNOR_CONFIG_HELPER"
+  "${elevate[@]}" install -Dm755 "$core_unlock_helper_source" "$SYSTEM_CORE_UNLOCK_HELPER"
+  "${elevate[@]}" install -Dm644 "$governor_toml_source" "$SYSTEM_GOVERNOR_TOML_IMPLEMENTATION"
+  "${elevate[@]}" rm -f -- "$LEGACY_CORE_UNLOCK_IMPLEMENTATION"
   "${elevate[@]}" install -Dm644 "$policy_source" "$SYSTEM_POLKIT_ACTION"
-  if ! cmp -s "$steamos_helper_source" "$SYSTEM_STEAMOS_GAME_HELPER"; then
-    echo "ERROR: the installed SteamOS Game Mode helper does not match this build." >&2
-    exit 1
-  fi
+  for helper_pair in \
+    "$helper_source:$SYSTEM_PRIV_HELPER" \
+    "$steamos_helper_source:$SYSTEM_STEAMOS_GAME_HELPER" \
+    "$governor_helper_source:$SYSTEM_GOVERNOR_CONFIG_HELPER" \
+    "$core_unlock_helper_source:$SYSTEM_CORE_UNLOCK_HELPER"; do
+    helper_source_path="${helper_pair%%:*}"
+    helper_installed_path="${helper_pair#*:}"
+    if ! cmp -s "$helper_source_path" "$helper_installed_path"; then
+      echo "ERROR: installed privileged helper does not match this build: $helper_installed_path" >&2
+      exit 1
+    fi
+  done
+  for implementation_pair in \
+    "$governor_toml_source:$SYSTEM_GOVERNOR_TOML_IMPLEMENTATION"; do
+    implementation_source_path="${implementation_pair%%:*}"
+    implementation_installed_path="${implementation_pair#*:}"
+    if ! cmp -s "$implementation_source_path" "$implementation_installed_path"; then
+      echo "ERROR: installed privileged implementation does not match this build: $implementation_installed_path" >&2
+      exit 1
+    fi
+    implementation_metadata="$("${elevate[@]}" stat -c '%u:%a' "$implementation_installed_path")"
+    if [[ "$implementation_metadata" != "0:644" ]]; then
+      echo "ERROR: privileged implementation must be root-owned mode 0644: $implementation_installed_path" >&2
+      exit 1
+    fi
+  done
   if ! grep -q '^BC250_HELPER_PROTOCOL=6$' "$SYSTEM_STEAMOS_GAME_HELPER"; then
     echo "ERROR: the installed SteamOS Game Mode helper protocol marker is missing or stale." >&2
     exit 1
@@ -182,6 +216,11 @@ if [[ -x "$SYSTEM_PRIV_HELPER" ]]; then
   echo "PWM helper: $SYSTEM_PRIV_HELPER"
   if [[ -x "$SYSTEM_STEAMOS_GAME_HELPER" ]]; then
     echo "SteamOS Game Mode helper: $SYSTEM_STEAMOS_GAME_HELPER"
+  fi
+  if [[ -x "$SYSTEM_CORE_UNLOCK_HELPER" ]]; then
+    echo "CPU core unlock helper: $SYSTEM_CORE_UNLOCK_HELPER (official clone launcher ready)"
+  else
+    echo "CPU core unlock helper: not ready; rerun this installer with sudo access."
   fi
 else
   echo "PWM helper: not installed; use a native package or rerun with sudo access for hardened PWM control."

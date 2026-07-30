@@ -1,6 +1,6 @@
 Name:           bc250-control-center
-Version:        1.17.23
-Release:        2%{?dist}
+Version:        1.18.1
+Release:        1%{?dist}
 Summary:        Linux gaming task manager and safe AMD BC-250 control panel
 
 %{!?_userunitdir:%global _userunitdir /usr/lib/systemd/user}
@@ -51,6 +51,9 @@ install -Dm755 scripts/bc250-control-center %{buildroot}%{_bindir}/bc250-control
 install -Dm755 scripts/bc250-control-centerd %{buildroot}%{_bindir}/bc250-control-centerd
 install -Dm755 mvc/Resources/privileged/bc250-fan-pwm-helper %{buildroot}/usr/libexec/bc250-control-center/bc250-fan-pwm-helper
 install -Dm755 mvc/Resources/privileged/bc250-steamos-game-helper %{buildroot}/usr/libexec/bc250-control-center/bc250-steamos-game-helper
+install -Dm755 mvc/Resources/privileged/bc250-governor-config-helper %{buildroot}/usr/libexec/bc250-control-center/bc250-governor-config-helper
+install -Dm755 mvc/Resources/privileged/bc250-core-unlock-helper %{buildroot}/usr/libexec/bc250-control-center/bc250-core-unlock-helper
+install -Dm644 mvc/Repository/governor_toml.py %{buildroot}/usr/libexec/bc250-control-center/lib/governor_toml.py
 install -Dm644 packaging/common/polkit/io.github.movacx.bc250-control-center.policy %{buildroot}%{_datadir}/polkit-1/actions/io.github.movacx.bc250-control-center.policy
 
 for size in 32 48 64 128 256 512 1024; do
@@ -90,6 +93,9 @@ fi
 %{_bindir}/bc250-control-centerd
 /usr/libexec/bc250-control-center/bc250-fan-pwm-helper
 /usr/libexec/bc250-control-center/bc250-steamos-game-helper
+/usr/libexec/bc250-control-center/bc250-governor-config-helper
+/usr/libexec/bc250-control-center/bc250-core-unlock-helper
+/usr/libexec/bc250-control-center/lib/governor_toml.py
 %{_datadir}/polkit-1/actions/io.github.movacx.bc250-control-center.policy
 %{_datadir}/bc250-control-center/
 %{_datadir}/applications/io.github.movacx.bc250-control-center.desktop
@@ -98,6 +104,10 @@ fi
 %{_userunitdir}/bc250-control-centerd.service
 
 %changelog
+* Thu Jul 30 2026 Movacx <movacx@users.noreply.github.com> - 1.18.1-1
+- Integrate the official bc250-core-unlock workflow with guarded privileged execution.
+- Improve CPU/GPU layouts, controller navigation, governor safety and fan persistence.
+
 * Mon Jul 27 2026 Movacx <movacx@users.noreply.github.com> - 1.17.23-2
 - Clarify installation, service guidance, and release assets.
 

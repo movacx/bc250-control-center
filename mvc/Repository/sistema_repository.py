@@ -333,8 +333,15 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
         ])
         if rc != 0:
             return None
-        m = re.search(r'\b(\d+)\b', out)
-        return int(m.group(1)) if m else None
+        match = re.fullmatch(r'\s*(?:u|t|q)\s+(\d+)\s*', out or '')
+        if not match:
+            logger.warning("Unexpected busctl integer property format for %s: %r", propiedad, out)
+            return None
+        value = int(match.group(1))
+        if not 0 <= value <= 10_000:
+            logger.warning("Out-of-range busctl integer property for %s: %s", propiedad, value)
+            return None
+        return value
 
     def _dbus_bool_property(self, objeto, interfaz, propiedad):
         rc, out, _err = self._ejecutar([
@@ -342,7 +349,11 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
         ])
         if rc != 0:
             return None
-        return 'true' in out.lower()
+        match = re.fullmatch(r'\s*b\s+(true|false)\s*', out or '', re.IGNORECASE)
+        if not match:
+            logger.warning("Unexpected busctl boolean property format for %s: %r", propiedad, out)
+            return None
+        return match.group(1).lower() == 'true'
 
     def _service_prop(self, servicio, prop):
         rc, out, _err = self._ejecutar(['systemctl', 'show', servicio, f'--property={prop}', '--value'])

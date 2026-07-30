@@ -1,0 +1,62 @@
+#!/usr/bin/python3
+from __future__ import annotations
+
+import importlib.util
+import os
+from pathlib import Path
+import sys
+
+
+IMPLEMENTATION_PATH = Path(
+    '/usr/libexec/bc250-control-center/lib/governor_toml.py'
+)
+
+
+def _load_editor():
+    try:
+        metadata = IMPLEMENTATION_PATH.stat(follow_symlinks=False)
+    except OSError as error:
+        raise RuntimeError(
+            'The root-owned governor TOML editor is not installed.'
+        ) from error
+    if IMPLEMENTATION_PATH.is_symlink() or not IMPLEMENTATION_PATH.is_file():
+        raise RuntimeError('The governor TOML editor is not a regular file.')
+    if metadata.st_uid != 0 or metadata.st_mode & 0o022:
+        raise RuntimeError(
+            'The governor TOML editor must be owned by root and not writable by group or others.'
+        )
+    spec = importlib.util.spec_from_file_location(
+        'bc250_privileged_governor_toml',
+        IMPLEMENTATION_PATH,
+    )
+    if spec is None or spec.loader is None:
+        raise RuntimeError('The governor TOML editor could not be loaded.')
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module.GovernorTomlEditor
+
+
+def main(argv):
+    if os.geteuid() != 0:
+        raise RuntimeError('This helper must be launched through pkexec.')
+    if len(argv) != 2:
+        raise RuntimeError('Expected exactly one governor TOML action.')
+    action = argv[1]
+    if action not in {'clear-frequency-range', 'enable-high-points', 'disable-high-points'}:
+        raise RuntimeError('Unsupported governor TOML action.')
+    editor = _load_editor()('/etc/cyan-skillfish-governor-smu/config.toml')
+    if action == 'clear-frequency-range':
+        result = editor.clear_frequency_range()
+    else:
+        result = editor.set_high_frequency_points(action == 'enable-high-points')
+    print('Governor TOML updated and validated.' if result.changed else 'Governor TOML already matched the requested state.')
+    return 0
+
+
+if __name__ == '__main__':
+    try:
+        raise SystemExit(main(sys.argv))
+    except Exception as error:
+        print(f'ERROR: {error}', file=sys.stderr)
+        raise SystemExit(1)
