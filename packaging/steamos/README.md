@@ -1,1 +1,0 @@
-# SteamOS packaging

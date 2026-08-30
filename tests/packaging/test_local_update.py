@@ -6,7 +6,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_update_script_reuses_checkout_and_preserves_external_state():
-    script = (ROOT / "scripts" / "update-local.sh").read_text(encoding="utf-8")
+    script = (ROOT / "scripts" / "maintenance" / "update-local.sh").read_text(encoding="utf-8")
 
     assert "git -C \"$UPDATE_SOURCE\" pull --ff-only" in script
     assert "status --porcelain" in script
@@ -24,8 +24,10 @@ def test_local_installer_stages_and_rolls_back_application_code():
     assert "python3 -m compileall" in installer
     assert "APP_BACKUP" in installer
     assert "rolling back the application code" in installer
-    assert 'APP_COMPONENTS=(src frontends privileged packaging assets)' in installer
-    assert 'install -Dm755 "$ROOT_DIR/scripts/update-local.sh"' in installer
+    assert 'APP_COMPONENTS=(src frontends privileged packaging assets scripts integrations)' in installer
+    assert 'LEGACY_COMPONENTS=(mvc)' in installer
+    assert 'cp -a -- "$APP_DIR/$component" "$APP_BACKUP/$component"' in installer
+    assert 'install -Dm755 "$ROOT_DIR/scripts/maintenance/update-local.sh"' in installer
     assert 'privileged/policies' in installer
     assert 'packaging/common' in installer
     assert 'packaging/common' in installer
@@ -81,7 +83,7 @@ def test_updater_refuses_to_overwrite_rpm_ostree_owned_install(tmp_path):
     result = subprocess.run(
         [
             "/usr/bin/bash",
-            str(ROOT / "scripts" / "update-local.sh"),
+            str(ROOT / "scripts" / "maintenance" / "update-local.sh"),
             "--prefix",
             str(prefix),
             "--source",
@@ -126,7 +128,7 @@ def test_updater_refuses_when_payload_is_package_owned_even_if_launcher_is_missi
     result = subprocess.run(
         [
             "/usr/bin/bash",
-            str(ROOT / "scripts" / "update-local.sh"),
+            str(ROOT / "scripts" / "maintenance" / "update-local.sh"),
             "--prefix",
             str(prefix),
             "--source",
@@ -168,7 +170,7 @@ def test_updater_refuses_when_package_owned_sentinel_was_manually_deleted(tmp_pa
     result = subprocess.run(
         [
             "/usr/bin/bash",
-            str(ROOT / "scripts" / "update-local.sh"),
+            str(ROOT / "scripts" / "maintenance" / "update-local.sh"),
             "--prefix",
             str(prefix),
             "--source",
@@ -184,7 +186,7 @@ def test_updater_refuses_when_package_owned_sentinel_was_manually_deleted(tmp_pa
     assert "owned by the system package manager" in result.stderr
 
 def test_updater_documents_package_manager_guard():
-    script = (ROOT / "scripts" / "update-local.sh").read_text(encoding="utf-8")
+    script = (ROOT / "scripts" / "maintenance" / "update-local.sh").read_text(encoding="utf-8")
 
     assert "detect_package_owner" in script
     assert "rpm -qf" in script

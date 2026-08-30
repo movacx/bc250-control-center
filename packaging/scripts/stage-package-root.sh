@@ -15,9 +15,10 @@ if [[ "$DESTDIR" == / || -z "$DESTDIR" ]]; then
   exit 64
 fi
 
-bash "$ROOT_DIR/scripts/validate-install-source.sh" "$ROOT_DIR"
+bash "$ROOT_DIR/scripts/qa/validate-install-source.sh" "$ROOT_DIR"
 install -d -m755 \
   "$DESTDIR/usr/share/bc250-control-center" \
+  "$DESTDIR/usr/share/bc250-control-center/scripts" \
   "$DESTDIR/usr/share/bc250-control-center/integrations/decky" \
   "$DESTDIR/usr/share/bc250-control-center/packaging/common" \
   "$DESTDIR/usr/share/doc/bc250-control-center" \
@@ -32,6 +33,7 @@ cp -a -- "$ROOT_DIR/src" "$DESTDIR/usr/share/bc250-control-center/src"
 cp -a -- "$ROOT_DIR/frontends" "$DESTDIR/usr/share/bc250-control-center/frontends"
 cp -a -- "$ROOT_DIR/privileged" "$DESTDIR/usr/share/bc250-control-center/privileged"
 cp -a -- "$ROOT_DIR/assets" "$DESTDIR/usr/share/bc250-control-center/assets"
+cp -a -- "$ROOT_DIR/scripts/system" "$DESTDIR/usr/share/bc250-control-center/scripts/system"
 cp -a -- "$ROOT_DIR/packaging/common/os-scripts" \
   "$DESTDIR/usr/share/bc250-control-center/packaging/common/os-scripts"
 cp -a -- "$ROOT_DIR/integrations/decky/bc250-quick-access" \
@@ -49,10 +51,12 @@ find "$DESTDIR/usr/share/bc250-control-center/integrations/decky/bc250-quick-acc
   -type f \( -name '*.pyc' -o -name '*.pyo' \) -delete
 find "$DESTDIR/usr/share/bc250-control-center/src" "$DESTDIR/usr/share/bc250-control-center/frontends" \
   "$DESTDIR/usr/share/bc250-control-center/privileged" \
+  "$DESTDIR/usr/share/bc250-control-center/scripts/system" \
   "$DESTDIR/usr/share/bc250-control-center/packaging/common/os-scripts" \
   -type d -name __pycache__ -prune -exec rm -rf -- {} +
 find "$DESTDIR/usr/share/bc250-control-center/src" "$DESTDIR/usr/share/bc250-control-center/frontends" \
   "$DESTDIR/usr/share/bc250-control-center/privileged" \
+  "$DESTDIR/usr/share/bc250-control-center/scripts/system" \
   "$DESTDIR/usr/share/bc250-control-center/packaging/common/os-scripts" \
   -type f \( -name '*.pyc' -o -name '*.pyo' \) -delete
 
@@ -63,16 +67,19 @@ install -D -m644 "$ROOT_DIR/packaging/common/50-bc250-system-setup-uninstall.hoo
   "$DESTDIR/usr/share/libalpm/hooks/50-bc250-system-setup-uninstall.hook"
 install -m644 "$ROOT_DIR/VERSION" "$DESTDIR/usr/share/bc250-control-center/VERSION"
 for launcher in bc250-control-center bc250-control-center-cli bc250-control-centerd; do
-  install -m755 "$ROOT_DIR/scripts/$launcher" "$DESTDIR/usr/bin/$launcher"
+  install -m755 "$ROOT_DIR/scripts/entrypoints/$launcher" "$DESTDIR/usr/bin/$launcher"
 done
 install -m755 "$ROOT_DIR/scripts/install-decky-quick-access.sh" \
   "$DESTDIR/usr/bin/bc250-control-center-decky-install"
 install -m755 \
-  "$ROOT_DIR/scripts/bc250-gpu-voltage-lab.sh" \
+  "$ROOT_DIR/scripts/system/bc250-gpu-voltage-lab.sh" \
   "$DESTDIR/usr/libexec/bc250-control-center/bc250-gpu-voltage-lab.sh"
 install -m755 \
-  "$ROOT_DIR/scripts/prepare-steamos-telemetry-oc-overlay.py" \
+  "$ROOT_DIR/scripts/system/prepare-steamos-telemetry-oc-overlay.py" \
   "$DESTDIR/usr/libexec/bc250-control-center/bc250-steamos-amdgpu-overlay"
+install -m755 \
+  "$ROOT_DIR/packaging/common/bc250-package-maintenance" \
+  "$DESTDIR/usr/libexec/bc250-control-center/bc250-package-maintenance"
 install -m644 \
   "$ROOT_DIR/packaging/common/io.github.movacx.bc250-control-center.desktop" \
   "$DESTDIR/usr/share/applications/io.github.movacx.bc250-control-center.desktop"

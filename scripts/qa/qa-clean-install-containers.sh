@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
-ROOT_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd -P)"
+ROOT_DIR="$(cd -- "$SCRIPT_DIR/../.." && pwd -P)"
 
 declare -A IMAGES=(
   [arch]="docker.io/library/archlinux:base"
@@ -104,7 +104,7 @@ esac
 read -r -d '' validation <<'EOF' || true
 set -euo pipefail
 mkdir -p /tmp/bc250-home
-bash /src/scripts/validate-install-source.sh /src
+bash /src/scripts/qa/validate-install-source.sh /src
 QT_QPA_PLATFORM=offscreen PYTHONPATH=/src python3 -c 'from PyQt6.QtWidgets import QApplication; import psutil; import frontends.cli'
 HOME=/tmp/bc250-home PREFIX=/opt/bc250 BC250_SKIP_PRIVILEGED_HELPER=1 bash /src/scripts/install-local.sh
 test "$(cat /opt/bc250/share/bc250-control-center/VERSION)" = "$(cat /src/VERSION)"

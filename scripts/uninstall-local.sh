@@ -2,6 +2,18 @@
 set -euo pipefail
 
 SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
+SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
+if [[ -f "$SCRIPT_DIR/lib/user-paths.sh" ]]; then
+  # shellcheck source=lib/user-paths.sh
+  source "$SCRIPT_DIR/lib/user-paths.sh"
+elif [[ -f "$SCRIPT_DIR/../scripts/lib/user-paths.sh" ]]; then
+  # Repository invocation.
+  source "$SCRIPT_DIR/../scripts/lib/user-paths.sh"
+else
+  echo "Error: missing scripts/lib/user-paths.sh; refusing an incomplete uninstall." >&2
+  exit 1
+fi
+bc250_resolve_user_paths
 if [[ -z "${PREFIX:-}" ]]; then
   if [[ "$SCRIPT_PATH" == */share/bc250-control-center/scripts/uninstall-local.sh ]]; then
     PREFIX="${SCRIPT_PATH%/share/bc250-control-center/scripts/uninstall-local.sh}"
@@ -26,6 +38,7 @@ SYSTEM_GOVERNOR_CONFIG_HELPER="/usr/libexec/bc250-control-center/bc250-governor-
 SYSTEM_CORE_UNLOCK_HELPER="/usr/libexec/bc250-control-center/bc250-core-unlock-helper"
 SYSTEM_CPU_SMU_HELPER="/usr/libexec/bc250-control-center/bc250-cpu-smu-helper"
 SYSTEM_OPENRC_SERVICE_HELPER="/usr/libexec/bc250-control-center/bc250-openrc-service-helper"
+SYSTEM_QUICK_ACCESS_HELPER="/usr/libexec/bc250-control-center/bc250-quick-access-helper"
 SYSTEM_GPU_LAB_SCRIPT="/usr/libexec/bc250-control-center/bc250-gpu-voltage-lab.sh"
 SYSTEM_STEAMOS_AMDGPU_OVERLAY="/usr/libexec/bc250-control-center/bc250-steamos-amdgpu-overlay"
 SYSTEM_CYAN_OVERLAY_PREFLIGHT="/usr/libexec/bc250-control-center/bc250-cyan-overlay-preflight"
@@ -56,13 +69,14 @@ Usage:
 Options:
   -y, --yes             Do not ask for confirmation.
   --dry-run             Show what would be removed, but do not delete anything.
-  --purge-user-data     Also remove ~/.config and ~/.local/share data created by the app.
+  --purge-user-data     Also remove app config, data, state and cache from the resolved XDG paths.
   --keep-privileged     Keep global helpers, Polkit policy and managed CPU boot service.
   -h, --help            Show this help.
 
 This removes only files installed by scripts/install-local.sh.
 It does not uninstall system dependencies, AUR/RPM packages, cyan-skillfish-governor,
 UMR, or unrelated persistent CPU OC services. A service created by this build is disabled before its helper is removed.
+The BC250 Quick Access plugin is removed when its identity can be verified; Decky Loader itself is kept.
 USAGE
 }
 
@@ -176,6 +190,25 @@ remove_empty_dir() {
   fi
 }
 
+remove_verified_decky_plugin() {
+  [[ -d "$BC250_DECKY_PLUGIN_DIR" ]] || return 0
+  local manifest="$BC250_DECKY_PLUGIN_DIR/plugin.json"
+  if [[ ! -f "$manifest" ]] || ! grep -Eq '"name"[[:space:]]*:[[:space:]]*"BC250 Quick Access"' "$manifest"; then
+    echo "Warning: keeping unverified Decky plugin directory: $BC250_DECKY_PLUGIN_DIR" >&2
+    return 0
+  fi
+  remove_path "$BC250_DECKY_PLUGIN_DIR"
+}
+
+remove_verified_fsr4_checkout() {
+  [[ -d "$BC250_FSR4_DIR" ]] || return 0
+  if [[ ! -f "$BC250_FSR4_DIR/.bc250-upstream-revision" ]]; then
+    echo "Warning: keeping unverified FSR4 directory: $BC250_FSR4_DIR" >&2
+    return 0
+  fi
+  remove_path "$BC250_FSR4_DIR"
+}
+
 try_disable_user_daemon() {
   if [[ ! -d /run/systemd/system ]]; then
     return 0
@@ -234,8 +267,11 @@ if [[ "$PURGE_USER_DATA" -eq 1 ]]; then
   cat <<INFO
 
 User data purge enabled. It will also remove:
-- $HOME/.config/bc250-control-center
-- $HOME/.local/share/bc250-control-center
+- $BC250_USER_CONFIG_DIR
+- $BC250_USER_DATA_DIR
+- $BC250_USER_STATE_DIR
+- $BC250_USER_CACHE_DIR
+- verified legacy data and the app-managed FSR4 checkout
 INFO
 fi
 
@@ -274,8 +310,14 @@ remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-governor-confi
 remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-core-unlock-helper" "$SYSTEM_CORE_UNLOCK_HELPER"
 remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-cpu-smu-helper" "$SYSTEM_CPU_SMU_HELPER"
 remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-openrc-service-helper" "$SYSTEM_OPENRC_SERVICE_HELPER"
-remove_managed_privileged_file "$APP_DIR/scripts/bc250-gpu-voltage-lab.sh" "$SYSTEM_GPU_LAB_SCRIPT"
-remove_managed_privileged_file "$APP_DIR/scripts/prepare-steamos-telemetry-oc-overlay.py" "$SYSTEM_STEAMOS_AMDGPU_OVERLAY"
+remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-quick-access-helper" "$SYSTEM_QUICK_ACCESS_HELPER"
+gpu_lab_source="$APP_DIR/scripts/system/bc250-gpu-voltage-lab.sh"
+telemetry_overlay_source="$APP_DIR/scripts/system/prepare-steamos-telemetry-oc-overlay.py"
+# Accept the pre-reorganization 1.19 payload as an uninstall provenance source.
+[[ -f "$gpu_lab_source" ]] || gpu_lab_source="$APP_DIR/scripts/bc250-gpu-voltage-lab.sh"
+[[ -f "$telemetry_overlay_source" ]] || telemetry_overlay_source="$APP_DIR/scripts/prepare-steamos-telemetry-oc-overlay.py"
+remove_managed_privileged_file "$gpu_lab_source" "$SYSTEM_GPU_LAB_SCRIPT"
+remove_managed_privileged_file "$telemetry_overlay_source" "$SYSTEM_STEAMOS_AMDGPU_OVERLAY"
 remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-cyan-overlay-preflight" "$SYSTEM_CYAN_OVERLAY_PREFLIGHT"
 remove_managed_cyan_dropin
 # This directory is generated only from the pinned SteamOS toolkit by this
@@ -289,11 +331,24 @@ remove_managed_privileged_file "$APP_DIR/privileged/policies/io.github.movacx.bc
 remove_empty_dir "/usr/libexec/bc250-control-center"
 reload_systemd_after_overlay_removal
 fi
+if [[ "$PREFIX" == "$HOME/.local" || "$PURGE_USER_DATA" -eq 1 ]]; then
+  remove_verified_decky_plugin
+fi
 if [[ "$SYSTEMD_USER_DIR" != "$PREFIX/lib/systemd/user" ]]; then
   remove_path "$PREFIX/lib/systemd/user/bc250-control-centerd.service"
 fi
 remove_path "$DOC_DIR"
-remove_path "$APP_DIR"
+# With the default per-user prefix, APP_DIR and the XDG data directory are the
+# same path. Remove installed program components individually so a normal
+# uninstall preserves Data/, ResourceTools/ and other user-created state.
+if [[ "$APP_DIR" == "$BC250_USER_DATA_DIR" && "$PURGE_USER_DATA" -eq 0 ]]; then
+  for component in src frontends privileged packaging assets integrations scripts mvc VERSION; do
+    remove_path "$APP_DIR/$component"
+  done
+  remove_empty_dir "$APP_DIR"
+else
+  remove_path "$APP_DIR"
+fi
 
 for size in 32 48 64 128 256 512 1024; do
   remove_path "$ICON_DIR/${size}x${size}/apps/bc250-control-center.png"
@@ -305,8 +360,15 @@ remove_empty_dir "$ICON_DIR/scalable/apps"
 remove_empty_dir "$ICON_DIR/scalable"
 
 if [[ "$PURGE_USER_DATA" -eq 1 ]]; then
-  remove_path "$HOME/.config/bc250-control-center"
-  remove_path "$HOME/.local/share/bc250-control-center"
+  remove_path "$BC250_USER_CONFIG_DIR"
+  remove_path "$BC250_USER_DATA_DIR"
+  remove_path "$BC250_USER_STATE_DIR"
+  remove_path "$BC250_USER_CACHE_DIR"
+  remove_path "$BC250_LEGACY_CONFIG_DIR"
+  remove_path "$BC250_LEGACY_DATA_DIR"
+  remove_path "$BC250_LEGACY_CACHE_DIR"
+  remove_path "$BC250_LEGACY_QT_CONFIG_DIR"
+  remove_verified_fsr4_checkout
 fi
 
 runtime_prefix=0

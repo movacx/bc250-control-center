@@ -252,9 +252,14 @@ class DependenciasRepository:
 
     @staticmethod
     def _local_updater_path():
-        project_root = Path(__file__).resolve().parents[2]
+        project_root = Path(__file__).resolve().parents[3]
         candidates = (
-            project_root / 'scripts' / 'update-local.sh',
+            project_root / 'scripts' / 'maintenance' / 'update-local.sh',
+            Path.home() / '.local/share/bc250-control-center/scripts/maintenance/update-local.sh',
+            Path('/usr/local/share/bc250-control-center/scripts/maintenance/update-local.sh'),
+            Path('/usr/share/bc250-control-center/scripts/maintenance/update-local.sh'),
+            # Compatibility with installations made before scripts were
+            # grouped by responsibility.
             Path.home() / '.local/share/bc250-control-center/scripts/update-local.sh',
             Path('/usr/local/share/bc250-control-center/scripts/update-local.sh'),
             Path('/usr/share/bc250-control-center/scripts/update-local.sh'),
@@ -1089,7 +1094,7 @@ class DependenciasRepository:
         }
 
     def _steamos_cu_backend_prepare_command(self, spec):
-        patcher = Path(__file__).resolve().parents[3] / 'scripts' / 'prepare-steamos-cu-backend.py'
+        patcher = Path(__file__).resolve().parents[3] / 'scripts' / 'system' / 'prepare-steamos-cu-backend.py'
         return cu_backend_prepare_command(spec, patcher)
 
     def _steamos_umr_database_path(self):
@@ -1100,12 +1105,12 @@ class DependenciasRepository:
 
 
     def _steamos_cu_env_shell(self):
-        repair = Path(__file__).resolve().parents[3] / 'scripts' / 'repair-steamos-umr-database.py'
+        repair = Path(__file__).resolve().parents[3] / 'scripts' / 'system' / 'repair-steamos-umr-database.py'
         return cu_env_shell(self._steamos_umr_database_path(), repair)
 
 
     def _steamos_umr_database_repair_command(self, check_only=False):
-        repair = Path(__file__).resolve().parents[3] / 'scripts' / 'repair-steamos-umr-database.py'
+        repair = Path(__file__).resolve().parents[3] / 'scripts' / 'system' / 'repair-steamos-umr-database.py'
         return database_repair_command(
             self._steamos_umr_database_path(), repair, check_only=check_only
         )
@@ -1149,7 +1154,7 @@ class DependenciasRepository:
         boot_config = STEAMOS_AMDGPU_BOOT_CONFIG
         overlay_script = (
             Path(__file__).resolve().parents[3]
-            / 'scripts/prepare-steamos-telemetry-oc-overlay.py'
+            / 'scripts/system/prepare-steamos-telemetry-oc-overlay.py'
         )
         if not overlay_script.is_file():
             raise RuntimeError(

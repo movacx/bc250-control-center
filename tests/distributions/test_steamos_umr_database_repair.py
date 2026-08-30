@@ -6,7 +6,7 @@ import pytest
 
 SCRIPT = (
     Path(__file__).resolve().parents[2]
-    / "scripts" / "repair-steamos-umr-database.py"
+    / "scripts" / "system" / "repair-steamos-umr-database.py"
 )
 SPEC = importlib.util.spec_from_file_location("bc250_umr_database_repair", SCRIPT)
 MODULE = importlib.util.module_from_spec(SPEC)

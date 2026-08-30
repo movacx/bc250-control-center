@@ -5,14 +5,15 @@ for APP_DIR in \
   "${BC250_CONTROL_CENTER_DIR:-}" \
   "${MODO_JUEGO_RAM_DIR:-}" \
   "$(CDPATH= cd -- "$(dirname -- "$0")/../share/bc250-control-center" 2>/dev/null && pwd || true)" \
+  "$(CDPATH= cd -- "$(dirname -- "$0")/../.." 2>/dev/null && pwd || true)" \
   "$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)" \
   "$XDG_DATA_BASE/bc250-control-center" \
   /usr/share/bc250-control-center \
   /usr/local/share/bc250-control-center; do
-  if [ -n "$APP_DIR" ] && [ -f "$APP_DIR/frontends/desktop/main.py" ]; then
+  if [ -n "$APP_DIR" ] && [ -f "$APP_DIR/src/bc250cc/infrastructure/daemon.py" ]; then
     cd "$APP_DIR"
     export PYTHONPATH="$APP_DIR/src${PYTHONPATH:+:$PYTHONPATH}"
-    exec python3 -m frontends.desktop.main "$@"
+    exec python3 -m bc250cc.infrastructure.daemon "$@"
   fi
 done
 echo "No se encontro la instalacion de BC250 Control Center" >&2

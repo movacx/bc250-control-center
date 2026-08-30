@@ -546,7 +546,7 @@ class DashboardCoreSummary(QFrame):
         layout.setSpacing(7)
         header = QHBoxLayout()
         header.setSpacing(8)
-        self.label = _label("Available CPU cores", "dashboardMetricLabel", wrap=False)
+        self.label = _label("Available CPU cores", "dashboardMetricLabel", wrap=True)
         self.value = _label("Not detected", "dashboardMetricValue", wrap=False)
         self.detail = _label("Detected by the OS", "dashboardMetricDetail", wrap=False)
         header.addWidget(self.label)

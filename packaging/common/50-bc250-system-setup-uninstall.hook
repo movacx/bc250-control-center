@@ -6,5 +6,5 @@ Target = bc250-control-center
 [Action]
 Description = Checking optional BC250 memory and ACPI settings before removal
 When = PreTransaction
-Exec = /usr/libexec/bc250-control-center/bc250-system-setup-helper uninstall-check
+Exec = /usr/libexec/bc250-control-center/bc250-package-maintenance pre-remove
 AbortOnFail

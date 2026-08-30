@@ -2109,6 +2109,7 @@ class GpuGovernorPage(QWidget):
         fixed_title = QLabel(tr("TOML safe-point laboratory"))
         self.fixed_title = fixed_title
         fixed_title.setProperty("fieldLabel", True)
+        fixed_title.setWordWrap(True)
         fixed_hint = QLabel(
             tr(
                 "Inspect every active safe-point, including +2000 MHz entries, with conservative voltage validation."
@@ -2131,10 +2132,12 @@ class GpuGovernorPage(QWidget):
 
         active_range_label = QLabel(tr("Active range"))
         active_range_label.setProperty("fieldLabel", True)
+        active_range_label.setWordWrap(True)
         fixed_actions.addWidget(active_range_label, 0, 0)
         toml_actions_label = QLabel(tr("TOML configuration"))
         self.config_actions_label = toml_actions_label
         toml_actions_label.setProperty("fieldLabel", True)
+        toml_actions_label.setWordWrap(True)
         fixed_actions.addWidget(toml_actions_label, 0, 1)
 
         self.oc_frequency = QComboBox()
@@ -2665,6 +2668,7 @@ class GpuGovernorPage(QWidget):
         safe_header = QLabel(tr("Active TOML safe-points"))
         self.safe_header = safe_header
         safe_header.setProperty("fieldLabel", True)
+        safe_header.setWordWrap(True)
         safe_layout.addWidget(safe_header)
         self.points_table = QTableWidget(0, 4)
         self.points_table.setHorizontalHeaderLabels(
@@ -2699,6 +2703,7 @@ class GpuGovernorPage(QWidget):
         diagnostics_layout.setSpacing(8)
         diagnostics_header = QLabel(tr("Governor and hardware contract"))
         diagnostics_header.setProperty("fieldLabel", True)
+        diagnostics_header.setWordWrap(True)
         diagnostics_layout.addWidget(diagnostics_header)
         self.device_line = StatusLine("Device", "--", "PCI vendor / device")
         self.driver_line = StatusLine("Driver", "--", "amdgpu path")

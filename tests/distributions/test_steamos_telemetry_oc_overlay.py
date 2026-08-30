@@ -5,7 +5,7 @@ from pathlib import Path
 from bc250cc.infrastructure.gpu.governor_toml import GOVERNOR_DEFAULT_SAFE_POINTS
 from bc250cc.infrastructure.steamos_amdgpu import build_steamos_compatibility_command
 
-OVERLAY = Path("scripts/prepare-steamos-telemetry-oc-overlay.py")
+OVERLAY = Path("scripts/system/prepare-steamos-telemetry-oc-overlay.py")
 
 
 def _reviewed_build_script() -> str:

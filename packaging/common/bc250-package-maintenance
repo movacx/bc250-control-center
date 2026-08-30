@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+case "${1:-}" in
+  post-install)
+    # Package-manager upgrades normally remove files no longer owned by the
+    # new package. This explicit cleanup also covers hand-built 1.18 packages
+    # whose legacy mvc/ tree was not tracked consistently.
+    rm -rf -- /usr/share/bc250-control-center/mvc
+    if command -v systemctl >/dev/null 2>&1 && [[ -d /run/systemd/system ]]; then
+      systemctl daemon-reload >/dev/null 2>&1 || true
+    fi
+    if command -v update-desktop-database >/dev/null 2>&1; then
+      update-desktop-database /usr/share/applications >/dev/null 2>&1 || true
+    fi
+    if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+      gtk-update-icon-cache -q -t /usr/share/icons/hicolor >/dev/null 2>&1 || true
+    fi
+    ;;
+  pre-remove)
+    helper=/usr/libexec/bc250-control-center/bc250-system-setup-helper
+    if [[ -x "$helper" ]]; then
+      "$helper" uninstall-check
+    fi
+    ;;
+  *)
+    echo "Usage: $0 {post-install|pre-remove}" >&2
+    exit 64
+    ;;
+esac

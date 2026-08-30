@@ -33,6 +33,7 @@ def test_package_license_metadata_matches_project_license():
     appstream = (ROOT / "packaging/common/io.github.movacx.bc250-control-center.metainfo.xml").read_text(encoding="utf-8")
     arch_builder = (ROOT / "packaging/scripts/build-local-pkg.sh").read_text(encoding="utf-8")
     rpm_builder = (ROOT / "packaging/scripts/build-rpm.sh").read_text(encoding="utf-8")
+    deb_builder = (ROOT / "packaging/scripts/build-deb.sh").read_text(encoding="utf-8")
 
     assert license_text.startswith("MIT License\n")
     assert "<project_license>MIT</project_license>" in appstream
@@ -42,6 +43,8 @@ def test_package_license_metadata_matches_project_license():
     assert "python3-qt6" not in rpm_builder
     assert "_buildhost bc250-control-center.invalid" in rpm_builder
     assert "use_source_date_epoch_as_buildtime 1" in rpm_builder
+    assert "Architecture: all" in deb_builder
+    assert "bc250-package-maintenance post-install" in deb_builder
     assert f'<release version="{VERSION}"' in appstream
 
 
@@ -52,6 +55,7 @@ def test_package_staging_contains_runtime_and_no_generated_or_retired_code(tmp_p
 
     assert (stage / "usr/bin/bc250-control-center-cli").stat().st_mode & 0o111
     assert (stage / "usr/libexec/bc250-control-center/bc250-cpu-smu-helper").stat().st_mode & 0o111
+    assert (stage / "usr/libexec/bc250-control-center/bc250-package-maintenance").stat().st_mode & 0o111
     assert (stage / "usr/share/polkit-1/actions/io.github.movacx.bc250-control-center.policy").is_file()
     assert (stage / "usr/share/bc250-control-center/VERSION").read_text(encoding="utf-8").strip() == VERSION
     assert (stage / "usr/share/bc250-control-center/src/bc250cc/__init__.py").is_file()
@@ -78,6 +82,7 @@ def test_source_tarball_is_reproducible_and_excludes_qa_payload(tmp_path):
     assert any(name.endswith("/scripts/install-local.sh") for name in names)
     assert any(name.endswith("/VERSION") for name in names)
     assert any(name.endswith("/packaging/scripts/build-rpm.sh") for name in names)
+    assert any(name.endswith("/packaging/scripts/build-deb.sh") for name in names)
     assert any(name.endswith("/src/bc250cc/__init__.py") for name in names)
     assert any(name.endswith("/frontends/desktop/features/gpu/presenter.py") for name in names)
     assert any(name.endswith("/privileged/helpers/README.md") for name in names)

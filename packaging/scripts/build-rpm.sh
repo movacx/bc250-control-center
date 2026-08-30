@@ -42,6 +42,7 @@ URL:            https://github.com/movacx/bc250-control-center
 Source0:        bc250-control-center-root.tar.gz
 BuildArch:      noarch
 Requires:       python3, python3-psutil, python3-pyqt6, qt6-qtsvg, polkit, jq
+Suggests:       git, lm_sensors, pciutils, stress, vulkan-tools
 
 %description
 Desktop and headless management for AMD BC-250 systems.
@@ -71,8 +72,11 @@ tar -xzf %{SOURCE0} -C %{buildroot}
 
 %preun
 if [ "\$1" -eq 0 ]; then
-  /usr/libexec/bc250-control-center/bc250-system-setup-helper uninstall-check || exit 1
+  /usr/libexec/bc250-control-center/bc250-package-maintenance pre-remove || exit 1
 fi
+
+%post
+/usr/libexec/bc250-control-center/bc250-package-maintenance post-install
 
 %changelog
 * Thu Aug 13 2026 BC250 Control Center <noreply@example.invalid> - $RPM_VERSION-$RPM_RELEASE

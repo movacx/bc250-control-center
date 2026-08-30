@@ -2,7 +2,7 @@ import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-RUNNER = ROOT / "scripts/qa-clean-install-containers.sh"
+RUNNER = ROOT / "scripts/qa/qa-clean-install-containers.sh"
 
 
 def test_clean_install_runner_is_valid_and_lists_declared_base_families():

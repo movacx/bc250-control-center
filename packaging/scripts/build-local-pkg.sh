@@ -21,6 +21,7 @@ mkdir -p -- "$OUTPUT_DIR"
 work="$(mktemp -d /tmp/bc250-arch-package.XXXXXX)"
 trap 'rm -rf -- "$work"' EXIT
 bash "$SCRIPT_DIR/stage-package-root.sh" "$work/root"
+install -m644 "$ROOT_DIR/packaging/common/bc250-control-center.install" "$work/root/.INSTALL"
 installed_size="$(du -sk "$work/root" | awk '{print $1 * 1024}')"
 cat > "$work/root/.PKGINFO" <<EOF
 pkgname = bc250-control-center
@@ -34,11 +35,20 @@ size = $installed_size
 arch = any
 license = MIT
 depend = python
+depend = bash
 depend = python-pyqt6
 depend = python-psutil
 depend = qt6-svg
 depend = polkit
 depend = jq
+provides = bc250-control-center
+conflict = bc250-control-center-git
+replaces = bc250-control-center-git
+optdepend = git: download reviewed upstream BC-250 tools
+optdepend = lm_sensors: additional hardware sensor discovery
+optdepend = pciutils: PCI and amdgpu diagnostics
+optdepend = stress: CPU tuning stability checks
+optdepend = vulkan-tools: Vulkan capability diagnostics
 EOF
 target="$OUTPUT_DIR/bc250-control-center-$VERSION-$PKG_RELEASE-any.pkg.tar.zst"
 temporary="$target.tmp.$$"

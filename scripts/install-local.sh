@@ -4,7 +4,15 @@ set -euo pipefail
 SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
 SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
-STEAMOS_ROOT_HELPER="$ROOT_DIR/scripts/steamos-root.sh"
+STEAMOS_ROOT_HELPER="$ROOT_DIR/scripts/system/steamos-root.sh"
+USER_PATHS_HELPER="$ROOT_DIR/scripts/lib/user-paths.sh"
+if [[ ! -f "$USER_PATHS_HELPER" ]]; then
+  echo "Error: missing user path helper: $USER_PATHS_HELPER" >&2
+  exit 1
+fi
+# shellcheck source=lib/user-paths.sh
+source "$USER_PATHS_HELPER"
+bc250_resolve_user_paths
 if [[ -f "$STEAMOS_ROOT_HELPER" ]]; then
   # shellcheck source=steamos-root.sh
   source "$STEAMOS_ROOT_HELPER"
@@ -104,7 +112,7 @@ fi
 
 # Fail before package-manager or root-filesystem changes when the source tree
 # is incomplete. The full Python/vendor check runs after dependency recovery.
-bash "$ROOT_DIR/scripts/validate-install-source.sh" "$ROOT_DIR" --structure-only
+bash "$ROOT_DIR/scripts/qa/validate-install-source.sh" "$ROOT_DIR" --structure-only
 
 missing_python_deps=0
 missing_python_deps_command=()
@@ -156,26 +164,27 @@ elif [[ ${#missing_python_deps_command[@]} -gt 0 ]]; then
   echo "Skipping host dependency installation because BC250_SKIP_DEPENDENCY_INSTALL=1."
 fi
 
-bash "$ROOT_DIR/scripts/validate-install-source.sh" "$ROOT_DIR"
+bash "$ROOT_DIR/scripts/qa/validate-install-source.sh" "$ROOT_DIR"
 
 install -dm755 "$APP_DIR" "$BIN_DIR" "$DESKTOP_DIR" "$ICON_DIR" "$METAINFO_DIR" "$SYSTEMD_USER_DIR" "$DOC_DIR"
 
 # Validate a complete staging copy before replacing the installed Python tree.
-# Configuration, profiles and ResourceTools use XDG paths outside APP_DIR and
-# are intentionally never included in this application-code swap.
+# Configuration, profiles and ResourceTools are never component names in this
+# swap. They remain untouched even when the default XDG data directory and the
+# local application directory share the same parent.
 APP_STAGE="$(mktemp -d "${APP_DIR}.update.XXXXXX")"
 APP_BACKUP="${APP_DIR}.tree.previous.$$"
 VERSION_BACKUP="${APP_DIR}.VERSION.previous.$$"
 APP_SWAP_COMPLETE=0
-APP_HAD_PREVIOUS=0
 APP_HAD_VERSION=0
-APP_COMPONENTS=(src frontends privileged packaging assets)
+APP_COMPONENTS=(src frontends privileged packaging assets scripts integrations)
+LEGACY_COMPONENTS=(mvc)
 cleanup_application_swap() {
   local status=$?
   trap - EXIT
   if [[ "$status" -ne 0 && "$APP_SWAP_COMPLETE" -eq 1 ]]; then
     echo "Installation failed; rolling back the application code." >&2
-    for component in "${APP_COMPONENTS[@]}"; do
+    for component in "${APP_COMPONENTS[@]}" "${LEGACY_COMPONENTS[@]}"; do
       rm -rf -- "$APP_DIR/$component"
       if [[ -d "$APP_BACKUP/$component" ]]; then
         mv -- "$APP_BACKUP/$component" "$APP_DIR/$component"
@@ -198,8 +207,50 @@ cleanup_application_swap() {
   fi
 }
 trap cleanup_application_swap EXIT
-for component in "${APP_COMPONENTS[@]}"; do
+for component in src frontends privileged packaging assets; do
   cp -a "$ROOT_DIR/$component" "$APP_STAGE/"
+done
+# Version 1.18 installed its complete Python application in mvc/. Keep it in
+# the same rollback transaction, then discard it only after 1.19 is fully
+# installed. This prevents a failed privileged-helper update from leaving a
+# half-upgraded local installation.
+LEGACY_MVC_DETECTED=0
+for component in "${LEGACY_COMPONENTS[@]}"; do
+  if [[ -e "$APP_DIR/$component" ]]; then
+    LEGACY_MVC_DETECTED=1
+  fi
+done
+if [[ "$LEGACY_MVC_DETECTED" -eq 1 ]]; then
+  migration_dir="$BC250_USER_STATE_DIR/migration-backups/1.18-to-1.19-$(date -u +%Y%m%dT%H%M%SZ)"
+  install -d -m700 "$migration_dir"
+  for migration_file in \
+    "$BC250_USER_CONFIG_DIR/config.json" \
+    "$BC250_USER_CONFIG_DIR/perfiles.json" \
+    "$BC250_USER_CONFIG_DIR/ui.conf"; do
+    if [[ -f "$migration_file" ]]; then
+      install -m600 "$migration_file" "$migration_dir/$(basename "$migration_file")"
+    fi
+  done
+  printf '%s\n' 'BC250 Control Center 1.18 to 1.19 configuration snapshot' > "$migration_dir/README.txt"
+fi
+# Stage the small opt-in Decky runtime and installed maintenance scripts as
+# part of the same application transaction. Development dependencies are
+# deliberately excluded.
+install -Dm755 "$ROOT_DIR/scripts/install-decky-quick-access.sh" \
+  "$APP_STAGE/scripts/install-decky-quick-access.sh"
+install -Dm755 "$ROOT_DIR/scripts/uninstall-local.sh" "$APP_STAGE/scripts/uninstall-local.sh"
+install -Dm755 "$ROOT_DIR/scripts/maintenance/update-local.sh" \
+  "$APP_STAGE/scripts/maintenance/update-local.sh"
+install -Dm644 "$ROOT_DIR/scripts/lib/user-paths.sh" "$APP_STAGE/scripts/lib/user-paths.sh"
+cp -a -- "$ROOT_DIR/scripts/system" "$APP_STAGE/scripts/system"
+find "$APP_STAGE/scripts/system" -type d -name __pycache__ -prune -exec rm -rf -- {} +
+find "$APP_STAGE/scripts/system" -type f \( -name '*.pyc' -o -name '*.pyo' \) -delete
+for decky_runtime in plugin.json package.json main.py dist/index.js \
+  bc250cc/__init__.py bc250cc/domain/__init__.py \
+  bc250cc/domain/gpu/__init__.py bc250cc/domain/gpu/profiles.py; do
+  install -Dm644 \
+    "$ROOT_DIR/integrations/decky/bc250-quick-access/$decky_runtime" \
+    "$APP_STAGE/integrations/decky/bc250-quick-access/$decky_runtime"
 done
 install -m644 "$ROOT_DIR/VERSION" "$APP_STAGE/VERSION"
 PYTHONPYCACHEPREFIX="$APP_STAGE/pycache" python3 -m compileall -q \
@@ -207,16 +258,25 @@ PYTHONPYCACHEPREFIX="$APP_STAGE/pycache" python3 -m compileall -q \
 rm -rf -- "$APP_STAGE/pycache"
 for component in "${APP_COMPONENTS[@]}"; do
   if [[ -e "$APP_DIR/$component" ]]; then
-    APP_HAD_PREVIOUS=1
     install -d -m700 "$APP_BACKUP"
-    mv -- "$APP_DIR/$component" "$APP_BACKUP/$component"
+    cp -a -- "$APP_DIR/$component" "$APP_BACKUP/$component"
+  fi
+done
+for component in "${LEGACY_COMPONENTS[@]}"; do
+  if [[ -e "$APP_DIR/$component" ]]; then
+    install -d -m700 "$APP_BACKUP"
+    cp -a -- "$APP_DIR/$component" "$APP_BACKUP/$component"
   fi
 done
 if [[ -f "$APP_DIR/VERSION" ]]; then
   APP_HAD_VERSION=1
-  mv -- "$APP_DIR/VERSION" "$VERSION_BACKUP"
+  cp -a -- "$APP_DIR/VERSION" "$VERSION_BACKUP"
 fi
 APP_SWAP_COMPLETE=1
+for component in "${APP_COMPONENTS[@]}" "${LEGACY_COMPONENTS[@]}"; do
+  rm -rf -- "$APP_DIR/$component"
+done
+rm -f -- "$APP_DIR/VERSION"
 for component in "${APP_COMPONENTS[@]}"; do
   mv -- "$APP_STAGE/$component" "$APP_DIR/$component"
 done
@@ -224,22 +284,6 @@ mv -- "$APP_STAGE/VERSION" "$APP_DIR/VERSION"
 install -Dm644 "$ROOT_DIR/README.md" "$DOC_DIR/README.md"
 install -Dm644 "$ROOT_DIR/LICENSE" "$DOC_DIR/LICENSE"
 install -Dm644 "$ROOT_DIR/docs/THIRD_PARTY_NOTICES.md" "$DOC_DIR/THIRD_PARTY_NOTICES.md"
-install -Dm755 "$ROOT_DIR/scripts/bc250-control-center" "$BIN_DIR/bc250-control-center"
-install -Dm755 "$ROOT_DIR/scripts/bc250-control-center-cli" "$BIN_DIR/bc250-control-center-cli"
-install -Dm755 "$ROOT_DIR/scripts/bc250-control-centerd" "$BIN_DIR/bc250-control-centerd"
-# Quick Access remains opt-in: this copies only the local runtime required by
-# its explicit SteamOS Beta page.  It neither installs Decky Loader nor stages
-# the root-owned QAM helper.  The dedicated QAM installer performs that second
-# transaction only after the user chooses it from the GUI.
-install -Dm755 "$ROOT_DIR/scripts/install-decky-quick-access.sh" \
-  "$APP_DIR/scripts/install-decky-quick-access.sh"
-for decky_runtime in plugin.json package.json main.py dist/index.js \
-  bc250cc/__init__.py bc250cc/domain/__init__.py \
-  bc250cc/domain/gpu/__init__.py bc250cc/domain/gpu/profiles.py; do
-  install -Dm644 \
-    "$ROOT_DIR/integrations/decky/bc250-quick-access/$decky_runtime" \
-    "$APP_DIR/integrations/decky/bc250-quick-access/$decky_runtime"
-done
 install_privileged_pwm_components() {
   local helper_source="$ROOT_DIR/privileged/helpers/bc250-fan-pwm-helper"
   local steamos_helper_source="$ROOT_DIR/privileged/helpers/bc250-steamos-game-helper"
@@ -249,8 +293,8 @@ install_privileged_pwm_components() {
   local openrc_service_helper_source="$ROOT_DIR/privileged/helpers/bc250-openrc-service-helper"
   local cu_helper_source="$ROOT_DIR/privileged/helpers/bc250-cu-helper"
   local cu_helper_target="/usr/libexec/bc250-control-center/bc250-cu-helper"
-  local gpu_lab_source="$ROOT_DIR/scripts/bc250-gpu-voltage-lab.sh"
-  local steamos_amdgpu_overlay_source="$ROOT_DIR/scripts/prepare-steamos-telemetry-oc-overlay.py"
+  local gpu_lab_source="$ROOT_DIR/scripts/system/bc250-gpu-voltage-lab.sh"
+  local steamos_amdgpu_overlay_source="$ROOT_DIR/scripts/system/prepare-steamos-telemetry-oc-overlay.py"
   local cyan_overlay_preflight_source="$ROOT_DIR/privileged/helpers/bc250-cyan-overlay-preflight"
   local cpu_smu_vendor_source="$ROOT_DIR/privileged/lib/bc250_smu_oc_vendor.zip"
   local governor_toml_source="$ROOT_DIR/privileged/lib/governor_toml.py"
@@ -461,8 +505,11 @@ install_privileged_pwm_components
 if is_steamos_install_local; then
   restore_steamos_install_root 0
 fi
-install -Dm755 "$ROOT_DIR/scripts/uninstall-local.sh" "$APP_DIR/scripts/uninstall-local.sh"
-install -Dm755 "$ROOT_DIR/scripts/update-local.sh" "$APP_DIR/scripts/update-local.sh"
+# Replace launchers only after both the application-tree and privileged-file
+# transactions succeeded. Old 1.18 launchers remain usable during rollback.
+install -Dm755 "$ROOT_DIR/scripts/entrypoints/bc250-control-center" "$BIN_DIR/bc250-control-center"
+install -Dm755 "$ROOT_DIR/scripts/entrypoints/bc250-control-center-cli" "$BIN_DIR/bc250-control-center-cli"
+install -Dm755 "$ROOT_DIR/scripts/entrypoints/bc250-control-centerd" "$BIN_DIR/bc250-control-centerd"
 rm -f "$ICON_DIR/scalable/apps/bc250-control-center.svg"
 for size in 32 48 64 128 256 512 1024; do
   install -Dm644 "$ROOT_DIR/assets/icons/bc250-control-center-${size}.png" "$ICON_DIR/${size}x${size}/apps/bc250-control-center.png"

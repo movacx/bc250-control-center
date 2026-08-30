@@ -70,14 +70,14 @@ def test_local_installer_executes_dependency_commands_as_argv_arrays():
 
 def test_local_installer_preflights_complete_source_before_copying_or_privilege():
     installer = _text(ROOT / "scripts" / "install-local.sh")
-    validator = ROOT / "scripts" / "validate-install-source.sh"
+    validator = ROOT / "scripts" / "qa" / "validate-install-source.sh"
 
     assert validator.is_file()
-    assert installer.count('scripts/validate-install-source.sh') == 2
+    assert installer.count('scripts/qa/validate-install-source.sh') == 2
     assert installer.index('--structure-only') < installer.index(
         '\n  prepare_steamos_pacman_install_local'
     )
-    assert installer.rindex('scripts/validate-install-source.sh') < installer.index('install -dm755')
+    assert installer.rindex('scripts/qa/validate-install-source.sh') < installer.index('install -dm755')
 
     completed = subprocess.run(
         ["bash", str(validator), str(ROOT)],
@@ -94,7 +94,7 @@ def test_local_install_and_uninstall_manage_headless_cli_and_isolated_prefixes()
     installer = _text(ROOT / "scripts" / "install-local.sh")
     uninstaller = _text(ROOT / "scripts" / "uninstall-local.sh")
 
-    assert 'scripts/bc250-control-center-cli" "$BIN_DIR/bc250-control-center-cli"' in installer
+    assert 'scripts/entrypoints/bc250-control-center-cli" "$BIN_DIR/bc250-control-center-cli"' in installer
     assert 'remove_path "$BIN_DIR/bc250-control-center-cli"' in uninstaller
     assert '--keep-privileged' in uninstaller
     assert '"$SYSTEMD_USER_DIR" != "$expected_user_systemd_dir"' in uninstaller
@@ -141,7 +141,7 @@ def test_release_source_builders_exclude_the_archived_implementation():
         ROOT / "packaging" / "scripts" / "build-tarball.sh",
         ROOT / "packaging" / "scripts" / "build-rpm.sh",
         ROOT / "packaging" / "scripts" / "build-local-pkg.sh",
-        ROOT / "packaging" / "bazzite" / "build-rpm-bazzite.sh",
+        ROOT / "packaging" / "scripts" / "build-deb.sh",
     )
 
     if not all(builder.is_file() for builder in builders):
@@ -445,7 +445,7 @@ def test_cyan_frequency_overlay_preflight_is_staged_before_service_start():
 
 def test_game_mode_voltage_transaction_has_one_authoritative_dbus_deadline():
     helper = _text(PRIVILEGED / "bc250-steamos-game-helper")
-    script = _text(ROOT / "scripts" / "bc250-gpu-voltage-lab.sh")
+    script = _text(ROOT / "scripts" / "system" / "bc250-gpu-voltage-lab.sh")
 
     assert 'BC250_CYAN_DBUS_WAIT_ATTEMPTS:-240' in script
     assert 'if restart_governor_preserving_range; then' in script

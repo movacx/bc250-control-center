@@ -11,7 +11,7 @@ from bc250cc.infrastructure.persistence.recovery_engine import (
     RecoverySnapshotRepository,
 )
 from bc250cc.platform.init.services import InitManagerState
-from frontends.cli import main
+from frontends.cli import HeadlessHost, main
 
 
 class Host:
@@ -43,6 +43,12 @@ class RuntimeHost(Host):
         if tuple(command[3:]) == ("status", "--porcelain", "--untracked-files=all"):
             return 0, "?? overclock.conf\n", ""
         return 1, "", "unsupported"
+
+
+def test_default_headless_tool_directory_follows_xdg_data_home(tmp_path, monkeypatch):
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+
+    assert HeadlessHost()._tool_dir() == tmp_path / "data/bc250-control-center/ResourceTools"
 
 
 def test_system_and_component_json_are_machine_readable(tmp_path, capsys):

@@ -6,7 +6,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1] / "frontends" / "desktop" / "i18n" / "locales"
+ROOT = Path(__file__).resolve().parents[2] / "frontends" / "desktop" / "i18n" / "locales"
 SOURCES = (
     "Drivers",
     "Review active drivers and install distribution packages.",

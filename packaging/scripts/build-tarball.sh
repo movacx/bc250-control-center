@@ -14,7 +14,7 @@ RELEASE_SOURCE_EXCLUDES=(--exclude 'archive' --exclude 'tests')
 
 [[ "$VERSION" =~ ^[0-9]+([.][0-9A-Za-z]+)*(-[0-9A-Za-z.]+)?$ ]] || { echo "Invalid release version: $VERSION" >&2; exit 64; }
 mkdir -p -- "$OUTPUT_DIR"
-bash "$ROOT_DIR/scripts/validate-install-source.sh" "$ROOT_DIR"
+bash "$ROOT_DIR/scripts/qa/validate-install-source.sh" "$ROOT_DIR"
 target="$OUTPUT_DIR/bc250-control-center-$VERSION.tar.gz"
 temporary="$target.tmp.$$"
 trap 'rm -f -- "$temporary"' EXIT

@@ -4,7 +4,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+PROJECT_ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
 PYTHON_BIN="${BC250_QA_PYTHON:-python3}"
 DECKY_DIR="$PROJECT_ROOT/integrations/decky/bc250-quick-access"
 REPORT_FILE="$(mktemp "${TMPDIR:-/tmp}/bc250-release-gates.XXXXXX.json")"
@@ -46,7 +46,7 @@ printf '%s\n' '== BC250 release-candidate: full Python regression =='
 printf '%s\n' '== BC250 release-candidate: install-source validation =='
 (
     cd "$PROJECT_ROOT"
-    bash scripts/validate-install-source.sh .
+    bash scripts/qa/validate-install-source.sh .
 )
 
 printf '%s\n' '== BC250 release-candidate: Decky TypeScript and bundle =='
@@ -59,7 +59,7 @@ printf '%s\n' '== BC250 release-candidate: Decky TypeScript and bundle =='
 printf '%s\n' '== BC250 release-candidate: desktop scale matrix =='
 (
     cd "$PROJECT_ROOT"
-    BC250_QA_PYTHON="$PYTHON_BIN" bash scripts/qa-ui-scale-matrix.sh
+    BC250_QA_PYTHON="$PYTHON_BIN" bash scripts/qa/qa-ui-scale-matrix.sh
 )
 
 printf '%s\n' '== BC250 release-candidate: release gate contract =='

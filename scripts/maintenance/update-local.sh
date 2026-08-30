@@ -4,7 +4,7 @@ set -Eeuo pipefail
 OFFICIAL_REPOSITORY="https://github.com/movacx/bc250-control-center.git"
 SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
 SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
-SCRIPT_ROOT="$(dirname "$SCRIPT_DIR")"
+SCRIPT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
 UPDATE_CACHE_ROOT="${XDG_CACHE_HOME:-$HOME/.cache}/bc250-control-center"
 UPDATE_SOURCE="$UPDATE_CACHE_ROOT/update-source"
 SOURCE_OVERRIDE=""
@@ -44,7 +44,12 @@ done
 
 if [[ -z "${PREFIX:-}" ]]; then
   case "$SCRIPT_PATH" in
+    */share/bc250-control-center/scripts/maintenance/update-local.sh)
+      PREFIX="${SCRIPT_PATH%/share/bc250-control-center/scripts/maintenance/update-local.sh}"
+      ;;
     */share/bc250-control-center/scripts/update-local.sh)
+      # Compatibility with 1.19 installations created before scripts were
+      # grouped by responsibility.
       PREFIX="${SCRIPT_PATH%/share/bc250-control-center/scripts/update-local.sh}"
       ;;
     *) PREFIX="$HOME/.local" ;;

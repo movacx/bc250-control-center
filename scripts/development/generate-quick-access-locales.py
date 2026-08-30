@@ -9,12 +9,12 @@ import re
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 from frontends.desktop.i18n.locale_catalog import load_locale_catalog  # noqa: E402
 
-generator_path = ROOT / "scripts" / "generate-complete-locales.py"
+generator_path = ROOT / "scripts" / "development" / "generate-complete-locales.py"
 spec = importlib.util.spec_from_file_location("bc250_complete_locale_generator", generator_path)
 if spec is None or spec.loader is None:
     raise RuntimeError("could not load the complete locale generator")

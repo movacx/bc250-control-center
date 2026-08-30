@@ -1307,6 +1307,7 @@ class GPURepository:
         script = (
             Path(__file__).resolve().parents[3]
             / "scripts"
+            / "system"
             / "bc250-gpu-voltage-lab.sh"
         )
         if not script.exists():

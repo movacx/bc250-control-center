@@ -16,6 +16,7 @@ import subprocess  # nosec B404
 from pathlib import Path
 
 from bc250cc.application.headless_dispatch import dispatch_safe
+from bc250cc.infrastructure.persistence.config_paths import app_data_dir
 from bc250cc.platform.packages.strategies.detector import (
     detect_os_info,
     read_os_release,
@@ -32,7 +33,7 @@ class HeadlessHost:
         return shutil.which(name) or ""
 
     def _tool_dir(self) -> Path:
-        return Path.home() / ".local/share/bc250-control-center/ResourceTools"
+        return app_data_dir() / "ResourceTools"
 
     def _home(self) -> Path:
         return Path.home()

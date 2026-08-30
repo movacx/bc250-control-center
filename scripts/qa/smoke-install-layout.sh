@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
-PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_PATH")")"
+PROJECT_ROOT="$(dirname "$(dirname "$(dirname "$SCRIPT_PATH")")")"
 SMOKE_ROOT="$(mktemp -d /tmp/bc250-install-layout.XXXXXX)"
 SMOKE_PREFIX="$SMOKE_ROOT/prefix"
 
@@ -30,7 +30,9 @@ required=(
   share/bc250-control-center/privileged/helpers/README.md
   share/bc250-control-center/VERSION
   share/bc250-control-center/scripts/uninstall-local.sh
-  share/bc250-control-center/scripts/update-local.sh
+  share/bc250-control-center/scripts/maintenance/update-local.sh
+  share/bc250-control-center/scripts/lib/user-paths.sh
+  share/bc250-control-center/scripts/system/prepare-steamos-cu-backend.py
   share/bc250-control-center/scripts/install-decky-quick-access.sh
   share/bc250-control-center/integrations/decky/bc250-quick-access/plugin.json
   share/bc250-control-center/integrations/decky/bc250-quick-access/package.json
