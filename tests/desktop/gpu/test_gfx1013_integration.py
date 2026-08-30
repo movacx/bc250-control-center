@@ -25,15 +25,17 @@ def test_exact_upstream_fedora_host_is_recognized_but_not_auto_installed():
     assert state['exact_upstream_validated_host'] is True
     assert state['direct_installer_allowed'] is True
     assert state['automatic_install_allowed'] is False
-    assert state['reason_key'] == 'fedora-exact-upstream-host'
+    assert state['reason_key'] == 'fedora-upstream-managed'
+    assert state['upstream_branch'] == 'main'
+    assert state['upstream_managed'] is True
 
 
-def test_fedora_44_is_outside_exact_upstream_validation():
+def test_other_mutable_fedora_versions_delegate_compatibility_to_upstream():
     state = classify('fedora', 'fedora', '44', '7.1.5-200.fc44.x86_64')
     assert state['exact_upstream_validated_host'] is False
-    assert state['direct_installer_allowed'] is False
+    assert state['direct_installer_allowed'] is True
     assert state['automatic_install_allowed'] is False
-    assert state['reason_key'] == 'fedora-outside-upstream-validation'
+    assert state['reason_key'] == 'fedora-upstream-managed'
 
 
 @pytest.mark.parametrize('family,distro', (
@@ -82,17 +84,17 @@ def test_prepare_dependencies_never_invokes_unsafe_legacy_radv_installer():
     assert './install.sh install' not in source
 
 
-def test_third_party_credit_identifies_the_exact_gfx1013_workflow():
+def test_third_party_credit_identifies_the_official_gfx1013_workflow():
     common = Path('packaging/common/os-scripts/common/common.sh').read_text(encoding='utf-8')
-    expected = '- GFX1013 kernel/Mesa stack (exact reviewed Fedora 43 workflow): https://github.com/DryhoppedIPA/bc250-gfx1013-fix'
+    expected = '- GFX1013 kernel/Mesa stack (official upstream workflow): https://github.com/DryhoppedIPA/bc250-gfx1013-fix'
     assert expected in common
     assert 'GFX1013 kernel/Mesa async-compute research' not in common
 
 
-def test_third_party_notices_record_gfx1013_as_external_research():
+def test_third_party_notices_record_gfx1013_as_official_external_install():
     notices = Path('docs/THIRD_PARTY_NOTICES.md').read_text(encoding='utf-8')
     assert 'bc250-gfx1013-fix' in notices
-    assert 'External install/research' in notices
+    assert 'External install; Control Center updates official `main`' in notices
 
 
 def test_gfx1013_visible_copy_is_translated_for_every_supported_language():
@@ -103,7 +105,7 @@ def test_gfx1013_visible_copy_is_translated_for_every_supported_language():
         'Review required',
         'Kernel ready',
         'SteamOS backend',
-        'Upstream-validated host',
+        'Official upstream workflow',
         'Blocked',
         'Manual only',
         'Patched boot active',
@@ -112,7 +114,7 @@ def test_gfx1013_visible_copy_is_translated_for_every_supported_language():
         'An external DryhoppedIPA installation was detected, but this boot is not using its patched entry. Boot selection and rollback remain managed by the upstream installer.',
         'SteamOS uses its dedicated BC-250 kernel compatibility backend. Control Center will not run DryhoppedIPA\'s Fedora installer or the legacy mesh/task RADV path.',
         'The SteamOS kernel compute repair is active. The optional alternate RADV path is not installed by Control Center.',
-        'This Fedora host is outside the exact Fedora 43/kernel combination validated upstream. Control Center will not automate the patch.',
+        "Control Center updates DryhoppedIPA's official main branch and invokes its combined kernel + Mesa/RADV workflow unchanged. Upstream performs the Fedora/kernel compatibility checks and keeps the stock boot entry as the recovery path.",
         'Upstream documents this Arch-family path as manual and untested. Control Center does not automate kernel/Mesa changes here.',
         'Upstream currently says Bazzite is not supported. Control Center blocks the direct installer on immutable systems.',
         'Reviewed upstream: {version} · {commit}',

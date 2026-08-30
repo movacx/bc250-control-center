@@ -106,10 +106,10 @@ BC250 Control Center is based on community work and does not claim ownership of 
 - [bc250_smu_oc](https://github.com/bc250-collective/bc250_smu_oc) — CPU SMU detection and tuning.
 - [bc250-cu-live-manager](https://github.com/WinnieLV/bc250-cu-live-manager) and [its SteamOS backend](https://github.com/F5GO/bc250-cu-live-manager-SteamOS) — explicit Compute Units workflows; upstream license status remains under review.
 - [bc250-core-unlock](https://github.com/rw-r-r-0644/bc250-core-unlock) — experimental CPU core unlock workflow.
-- [bc250-steamos](https://github.com/keyboardspecialist/bc250-steamos) and [bc250-gfx1013-fix](https://github.com/DryhoppedIPA/bc250-gfx1013-fix) — explicit compatibility workflows; GFX1013 is restricted to its exact reviewed Fedora 43 host.
-- [bc250-fsr4](https://github.com/dmorazasanchez/bc250-fsr4) — explicit per-user, per-game FSR4 V3 workflow for Arch/CachyOS.
+- [bc250-steamos](https://github.com/keyboardspecialist/bc250-steamos) and [bc250-gfx1013-fix](https://github.com/DryhoppedIPA/bc250-gfx1013-fix) — explicit compatibility workflows; the Fedora path updates and invokes DryhoppedIPA's official `main` installer.
+- [bc250-fsr4](https://github.com/dmorazasanchez/bc250-fsr4) — official `v3` per-user FSR4 workflow for Arch/CachyOS; Manjaro is experimental and must pass the upstream ABI and Vulkan checks.
 - [nct6687d](https://github.com/Fred78290/nct6687d) — NCT sensor and PWM driver support.
-- [linux-cachyos-bc250](https://github.com/MastaG/linux-cachyos-bc250) — optional external CachyOS kernel source.
+- [linux-cachyos-bc250](https://github.com/MastaG/linux-cachyos-bc250) — matched external kernel and Mesa/RADV packages for Arch/CachyOS, including the GFX1013 async-compute fixes.
 
 See [third-party notices](docs/THIRD_PARTY_NOTICES.md) for licensing, review status and the exact integration boundary of every project.
 

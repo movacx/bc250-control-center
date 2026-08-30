@@ -7,8 +7,8 @@ from types import SimpleNamespace
 import pytest
 from PyQt6.QtWidgets import QPushButton
 
-import frontends.desktop.pages.compute_units as compute_units_module
 import bc250cc.infrastructure.cu_repository as cu_repository_module
+import frontends.desktop.pages.compute_units as compute_units_module
 from bc250cc.infrastructure.cu_repository import CURepository
 from frontends.desktop.i18n import SUPPORTED_LANGUAGES, set_language, tr
 from frontends.desktop.pages.compute_units import ComputeUnitsPage

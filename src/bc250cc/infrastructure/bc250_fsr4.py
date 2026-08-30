@@ -1,104 +1,153 @@
-"""Closed, per-game BC-250 FSR4 V3 runtime workflow.
+"""Official-upstream BC-250 FSR4 V3 lifecycle.
 
-The upstream project explicitly keeps this RADV build outside the system Mesa
-installation.  Control Center follows that boundary: the reviewed installer
-only writes beneath the current user's data directory and emits the Vulkan ICD
-launch option.  It never changes a package, boot loader, kernel or global
-Mesa configuration.
+Control Center does not reproduce the FSR4 patches or installer. It updates the
+official ``v3`` branch and invokes its installer/uninstaller unchanged. The
+local wrapper only enforces platform/hardware scope and restores the previous
+per-user runtime if upstream installation fails.
 """
 
 from __future__ import annotations
 
+import json
+import shlex
 from pathlib import Path
 
+from .source_checkout import clone_or_update_branch
+
 BC250_FSR4_REPOSITORY = "https://github.com/dmorazasanchez/bc250-fsr4"
-BC250_FSR4_VERSION = "v3.0.0"
-BC250_FSR4_ASSET = "bc250-fsr4-v3-cachyos-arch-llvm22-x86_64.tar.gz"
-BC250_FSR4_SHA256 = "faab5222388c2059bde591aab88f65e4e7edba27db0abe309d1e1dac23983e9d"
+BC250_FSR4_BRANCH = "v3"
 BC250_FSR4_PREFIX = Path.home() / ".local/share/bc250-fsr4/v3"
 BC250_FSR4_ICD = BC250_FSR4_PREFIX / "radv-bc250-fsr4-v3.json"
 BC250_FSR4_SUPPORTED_FAMILIES = frozenset({"arch", "cachyos"})
+BC250_FSR4_EXPERIMENTAL_IDS = frozenset({"manjaro"})
 
 
-def fsr4_runtime_state(family: str) -> dict:
-    """Describe the local, reversible FSR4 V3 runtime without executing it."""
+def _fsr4_platform_mode(*, family: str, distro_id: str) -> tuple[bool, bool]:
+    normalized_family = str(family or "").strip().lower()
+    normalized_id = str(distro_id or "").strip().lower()
+    documented = normalized_family in BC250_FSR4_SUPPORTED_FAMILIES and normalized_id in {
+        "",
+        "arch",
+        "cachyos",
+        "cachy",
+    }
+    experimental = normalized_id in BC250_FSR4_EXPERIMENTAL_IDS
+    return documented, experimental
+
+
+def fsr4_runtime_state(family: str, distro_id: str = "") -> dict:
+    """Validate the shape of the upstream-managed per-user runtime."""
 
     library = BC250_FSR4_PREFIX / "libvulkan_radeon.so"
-    installed = library.is_file() and BC250_FSR4_ICD.is_file()
+    revision_file = BC250_FSR4_PREFIX / ".bc250-upstream-revision"
+    artifacts_present = library.exists() or BC250_FSR4_ICD.exists()
+    valid_icd = False
+    if (
+        library.is_file()
+        and not library.is_symlink()
+        and BC250_FSR4_ICD.is_file()
+        and not BC250_FSR4_ICD.is_symlink()
+    ):
+        try:
+            manifest = json.loads(BC250_FSR4_ICD.read_text(encoding="utf-8"))
+            icd = manifest.get("ICD", {})
+            valid_icd = (
+                manifest.get("file_format_version") == "1.0.0"
+                and icd.get("library_path") == str(library)
+                and icd.get("api_version") == "1.4.0"
+            )
+        except (OSError, ValueError, TypeError):
+            pass
+    revision = ""
+    try:
+        revision = revision_file.read_text(encoding="utf-8").strip()
+    except OSError:
+        pass
+    current = bool(valid_icd)
+    documented, experimental = _fsr4_platform_mode(
+        family=family,
+        distro_id=distro_id,
+    )
     return {
         "repository": BC250_FSR4_REPOSITORY,
-        "version": BC250_FSR4_VERSION,
-        "sha256": BC250_FSR4_SHA256,
+        "branch": BC250_FSR4_BRANCH,
+        "version": "upstream-v3",
+        "upstream_revision": revision,
+        "upstream_managed": True,
         "prefix": str(BC250_FSR4_PREFIX),
         "icd": str(BC250_FSR4_ICD),
-        "installed": installed,
-        "precompiled_supported": str(family or "").lower()
-        in BC250_FSR4_SUPPORTED_FAMILIES,
-        "source_build_required": str(family or "").lower()
-        not in BC250_FSR4_SUPPORTED_FAMILIES,
+        "installed": artifacts_present,
+        "current": current,
+        "state": "ready" if current else "invalid" if artifacts_present else "not-installed",
+        "precompiled_supported": documented,
+        "experimental_precompiled": experimental,
+        "installer_available": documented or experimental,
+        "source_build_required": not (documented or experimental),
     }
 
 
-def build_fsr4_v3_install_command() -> str:
-    """Build the fixed Arch/CachyOS per-user installation transaction.
+def build_fsr4_v3_install_command(destination: str | Path) -> str:
+    """Update the official V3 branch and run its installer unchanged."""
 
-    The release archive checksum is verified before extraction.  This is a
-    static reproduction of the reviewed upstream V3 installer, rather than a
-    pipe-to-shell fetch of a moving script.
-    """
-
+    destination = Path(destination)
+    checkout = clone_or_update_branch(
+        BC250_FSR4_REPOSITORY,
+        destination,
+        BC250_FSR4_BRANCH,
+    )
+    qdest = shlex.quote(str(destination))
     return f'''set -euo pipefail
-echo "== BC-250 FSR4 V3 per-game runtime =="
+echo "== BC-250 FSR4 official upstream V3 workflow =="
 test -r /etc/os-release || {{ echo "ERROR: /etc/os-release is unavailable."; exit 64; }}
 . /etc/os-release
-case "${{ID:-}}" in arch|cachyos|cachy) ;; *)
-  echo "ERROR: The reviewed precompiled FSR4 V3 runtime is limited to Arch/CachyOS userspace."; exit 64;; esac
-test "$(uname -m)" = x86_64 || {{ echo "ERROR: FSR4 V3 is x86_64-only."; exit 64; }}
-command -v curl >/dev/null 2>&1 || {{ echo "ERROR: curl is required."; exit 69; }}
-command -v sha256sum >/dev/null 2>&1 || {{ echo "ERROR: sha256sum is required."; exit 69; }}
-command -v tar >/dev/null 2>&1 || {{ echo "ERROR: tar is required."; exit 69; }}
-if command -v lspci >/dev/null 2>&1 && ! lspci -Dn | grep -qiE '1002:13fe'; then
-  echo "ERROR: AMD BC-250 PCI ID 1002:13FE was not detected."; exit 64
-fi
-bc250_tmp="$(mktemp -d)"
-trap 'rm -rf -- "$bc250_tmp"' EXIT
+case "${{ID:-}}" in
+  arch|cachyos|cachy) ;;
+  manjaro) echo "[WARN] Upstream describes an Arch-style userspace but does not name Manjaro. Its own ABI and Vulkan checks must pass." ;;
+  *) echo "ERROR: The upstream precompiled V3 runtime targets CachyOS/Arch-style userspace; other systems must use its source-build path."; exit 64 ;;
+esac
+command -v git >/dev/null 2>&1 || {{ echo "ERROR: git is required to update the official FSR4 source."; exit 69; }}
+command -v lspci >/dev/null 2>&1 || {{ echo "ERROR: lspci (pciutils) is required to verify BC-250 hardware."; exit 69; }}
+lspci -Dn | grep -qiE '1002:13fe' || {{ echo "ERROR: AMD BC-250 PCI ID 1002:13FE was not detected."; exit 64; }}
+{checkout}
+test -f {qdest}/install-v3.sh || {{ echo "ERROR: official upstream install-v3.sh is missing."; exit 29; }}
+test -f {qdest}/uninstall-v3.sh || {{ echo "ERROR: official upstream uninstall-v3.sh is missing."; exit 29; }}
+test -f {qdest}/bc250-fsr4-v3.patch || {{ echo "ERROR: official upstream V3 patch is missing."; exit 29; }}
 bc250_prefix="$HOME/.local/share/bc250-fsr4/v3"
-bc250_asset="{BC250_FSR4_ASSET}"
-bc250_base="https://github.com/dmorazasanchez/bc250-fsr4/releases/download/{BC250_FSR4_VERSION}"
-echo "[INFO] Downloading the reviewed {BC250_FSR4_VERSION} release."
-curl --fail --location --retry 3 --connect-timeout 15 "$bc250_base/$bc250_asset" -o "$bc250_tmp/$bc250_asset"
-(cd "$bc250_tmp" && printf '%s  %s\n' '{BC250_FSR4_SHA256}' "$bc250_asset" | sha256sum -c -)
-case "$bc250_prefix" in "$HOME"/.local/share/bc250-fsr4/v3) ;; *) echo "ERROR: unexpected per-user target."; exit 70;; esac
-rm -rf -- "$bc250_prefix"
-mkdir -p "$bc250_prefix"
-tar -xzf "$bc250_tmp/$bc250_asset" -C "$bc250_prefix"
-test -f "$bc250_prefix/libvulkan_radeon.so" || {{ echo "ERROR: archive did not contain the FSR4 RADV library."; exit 71; }}
-if command -v ldd >/dev/null 2>&1 && ldd "$bc250_prefix/libvulkan_radeon.so" | grep -q 'not found'; then
-  echo "ERROR: This Arch/CachyOS binary is not ABI-compatible with the current system."
-  ldd "$bc250_prefix/libvulkan_radeon.so" | grep 'not found' || true
-  exit 72
+bc250_parent="$HOME/.local/share/bc250-fsr4"
+bc250_backup=''
+mkdir -p "$bc250_parent"
+if test -e "$bc250_prefix"; then
+  bc250_backup="$(mktemp -d "$bc250_parent/.v3.backup.XXXXXX")"
+  rmdir "$bc250_backup"
+  mv -- "$bc250_prefix" "$bc250_backup"
 fi
-python3 - "$bc250_prefix/libvulkan_radeon.so" "$bc250_prefix/radv-bc250-fsr4-v3.json" <<'PY'
-import json, sys
-library, icd = sys.argv[1:]
-with open(icd, 'w', encoding='utf-8') as handle:
-    json.dump({{'file_format_version': '1.0.0', 'ICD': {{'library_path': library, 'api_version': '1.4.0'}}}}, handle, indent=2)
-    handle.write('\\n')
-PY
-printf 'VK_DRIVER_FILES="%s" %%command%%\\n' "$bc250_prefix/radv-bc250-fsr4-v3.json" > "$bc250_prefix/STEAM-LAUNCH.txt"
-if command -v vulkaninfo >/dev/null 2>&1; then
-  VK_DRIVER_FILES="$bc250_prefix/radv-bc250-fsr4-v3.json" vulkaninfo --summary || {{ echo "ERROR: FSR4 V3 Vulkan validation failed."; exit 73; }}
+if BC250_FSR4_PREFIX="$bc250_prefix" bash {qdest}/install-v3.sh; then
+  test -z "$bc250_backup" || rm -rf -- "$bc250_backup"
+else
+  bc250_result=$?
+  rm -rf -- "$bc250_prefix"
+  if test -n "$bc250_backup" && test -e "$bc250_backup"; then
+    mv -- "$bc250_backup" "$bc250_prefix"
+  fi
+  echo "ERROR: The official upstream installer failed; the previous per-user runtime was restored."
+  exit "$bc250_result"
 fi
-echo "OK: FSR4 V3 was installed per-user; no system Mesa file was modified."
-echo "Steam launch option:"
-cat "$bc250_prefix/STEAM-LAUNCH.txt"'''
+git -C {qdest} rev-parse HEAD > "$bc250_prefix/.bc250-upstream-revision"
+echo "OK: official upstream FSR4 V3 installed per-user at revision $(cat "$bc250_prefix/.bc250-upstream-revision")."'''
 
 
-def build_fsr4_v3_uninstall_command() -> str:
-    """Return the fixed, per-user FSR4 V3 rollback command."""
+def build_fsr4_v3_uninstall_command(destination: str | Path) -> str:
+    """Update upstream and invoke its official uninstall script."""
 
-    return '''set -euo pipefail
-bc250_prefix="$HOME/.local/share/bc250-fsr4/v3"
-case "$bc250_prefix" in "$HOME"/.local/share/bc250-fsr4/v3) ;; *) echo "ERROR: unexpected per-user target."; exit 70;; esac
-rm -rf -- "$bc250_prefix"
-echo "OK: Removed the BC-250 FSR4 V3 runtime. Remove VK_DRIVER_FILES from affected Steam launch options to return to system RADV."'''
+    destination = Path(destination)
+    checkout = clone_or_update_branch(
+        BC250_FSR4_REPOSITORY,
+        destination,
+        BC250_FSR4_BRANCH,
+    )
+    qdest = shlex.quote(str(destination))
+    return f'''set -euo pipefail
+command -v git >/dev/null 2>&1 || {{ echo "ERROR: git is required to update the official FSR4 source."; exit 69; }}
+{checkout}
+test -f {qdest}/uninstall-v3.sh || {{ echo "ERROR: official upstream uninstall-v3.sh is missing."; exit 29; }}
+BC250_FSR4_PREFIX="$HOME/.local/share/bc250-fsr4/v3" bash {qdest}/uninstall-v3.sh'''

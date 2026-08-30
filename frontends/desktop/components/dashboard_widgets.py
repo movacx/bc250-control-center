@@ -57,7 +57,7 @@ DECKY_PREVIEW_IMAGE = (
     Path(__file__).resolve().parents[3]
     / "assets"
     / "screenshots"
-    / "decky-quick-access-preview.png"
+    / "decky-quick-access.png"
 )
 
 
@@ -2114,8 +2114,8 @@ class PreparationSidebar(QFrame):
         preview_copy = {
             "steamos": "SteamOS 3.8/3.9 provides a reviewed two-stage path: install the matching AMDGPU module, reboot, then install the matched Mesa/RADV runtime. FSR4 remains optional per game.",
             "bazzite": "Bazzite is immutable. Direct kernel/Mesa patching is blocked; use a BC-250 image or a matching rpm-ostree package instead.",
-            "arch": "Arch-family systems can use the matched MastaG kernel and Mesa stack. Installing only one half is not recommended.",
-            "fedora": "The automated upstream GFX1013 path is limited to the exact Fedora 43 kernel validated by that project.",
+            "arch": "Plain Arch and CachyOS can use the matched MastaG kernel/Mesa stack. Manjaro is limited to the experimental ABI-gated FSR4 runtime.",
+            "fedora": "Fedora uses DryhoppedIPA's official current GFX1013 workflow. Control Center adds local safety gates, then leaves kernel and Mesa compatibility checks to upstream.",
             "debian": "Ubuntu and Debian currently expose governor and userspace tools; the GFX1013 kernel/Mesa patch remains a manual upstream path.",
             "other": "This distribution can use common governors when its packages are available. Kernel/Mesa compatibility stays manual until a reviewed path exists.",
         }
@@ -2308,8 +2308,10 @@ class PreparationSidebar(QFrame):
         mesa_installed = bool(masta.get("mesa_installed"))
         if not masta_supported:
             self.cachyos_stack_card.set_status("Not compatible", "gray")
-        elif kernel_installed and mesa_installed:
+        elif kernel_installed and mesa_installed and kernel_active:
             self.cachyos_stack_card.set_status("Full stack installed", "green")
+        elif kernel_installed and mesa_installed:
+            self.cachyos_stack_card.set_status("Installed · reboot required", "orange")
         elif kernel_installed or mesa_installed:
             self.cachyos_stack_card.set_status("Partially installed", "orange")
         else:
@@ -2355,8 +2357,7 @@ class PreparationSidebar(QFrame):
         reason_key = str(gfx_state.get("reason_key") or "manual-patches-only")
         gfx_scope = {
             "steamos-dedicated-backend": "SteamOS · Dedicated toolkit",
-            "fedora-exact-upstream-host": "Fedora 43 · Exact validated kernel",
-            "fedora-outside-upstream-validation": "Fedora · Manual only",
+            "fedora-upstream-managed": "Fedora · Official upstream main",
             "arch-family-manual-untested": (
                 "Arch / CachyOS · Packaged below"
                 if masta_supported
@@ -2367,7 +2368,7 @@ class PreparationSidebar(QFrame):
         self.gfx_card.set_scope(
             gfx_scope,
             "blue"
-            if reason_key in {"steamos-dedicated-backend", "fedora-exact-upstream-host"}
+            if reason_key in {"steamos-dedicated-backend", "fedora-upstream-managed"}
             or masta_supported
             else "gray",
         )
@@ -2480,7 +2481,7 @@ class PreparationSidebar(QFrame):
                     fsr4_state != "not-installed" or radv_state != "not-installed"
                 ),
             )
-        elif reason_key == "fedora-exact-upstream-host":
+        elif reason_key == "fedora-upstream-managed":
             installed = bool(gfx_state.get("dryhopped_installed"))
             self.gfx_card.update_action(
                 self.gfx_primary_button,
@@ -2511,12 +2512,13 @@ class PreparationSidebar(QFrame):
             )
         else:
             if masta_supported:
-                self.gfx_card.set_status("Available in stack below", "blue")
-                self.gfx_card.detail.setText(
-                    tr(
-                        "Use the matched MastaG kernel and Mesa buttons below. Installing only one half can hang the GPU."
+                if not bool(gfx_state.get("masta_async_compute_ready")):
+                    self.gfx_card.set_status("Available in stack below", "blue")
+                    self.gfx_card.detail.setText(
+                        tr(
+                            "Use the matched MastaG kernel and Mesa buttons below. Installing only one half can hang the GPU."
+                        )
                     )
-                )
             self.gfx_card.update_action(
                 self.gfx_primary_button,
                 text="Open upstream manual path",
@@ -2525,29 +2527,41 @@ class PreparationSidebar(QFrame):
 
         fsr4 = _mapping(tools.get("fsr4"))
         fsr4_supported = bool(fsr4.get("precompiled_supported"))
+        fsr4_experimental = bool(fsr4.get("experimental_precompiled"))
+        fsr4_available = bool(
+            fsr4.get("installer_available", fsr4_supported or fsr4_experimental)
+        )
         fsr4_installed = bool(fsr4.get("installed"))
+        fsr4_current = bool(fsr4.get("current"))
+        fsr4_state = str(fsr4.get("state") or "not-installed")
         source_required = bool(fsr4.get("source_build_required"))
         self.fsr4_card.set_status(
-            "Installed"
-            if fsr4_installed
+            "Ready"
+            if fsr4_current
+            else "Repair required"
+            if fsr4_state == "invalid"
+            else "Experimental ABI check"
+            if fsr4_experimental
             else "Source build available"
             if source_required
             else "Available",
-            "green" if fsr4_installed else "blue",
+            "green" if fsr4_current else "orange" if fsr4_state == "invalid" or fsr4_experimental else "blue",
         )
         version = str(fsr4.get("version") or "V3")
         self.fsr4_card.detail.setText(
             tr(
                 f"Official upstream {version} per-game RADV runtime. It stays isolated from system Mesa."
                 if fsr4_supported
+                else f"Official upstream {version} Arch-style runtime. Manjaro is not claimed upstream; installation proceeds only after strict ABI and Vulkan checks."
+                if fsr4_experimental
                 else "This distribution needs the official reproducible Docker source build; no unverified binary is offered."
             )
         )
         self.fsr4_card.update_action(
             self.fsr4_install_button,
-            text="Update per-game FSR4" if fsr4_installed else "Install per-game FSR4",
-            enabled=fsr4_supported,
-            visible=fsr4_supported,
+            text="Repair per-game FSR4" if fsr4_state == "invalid" else "Update per-game FSR4" if fsr4_current else "Install per-game FSR4",
+            enabled=fsr4_available,
+            visible=fsr4_available,
         )
         self.fsr4_card.update_action(
             self.fsr4_remove_button,

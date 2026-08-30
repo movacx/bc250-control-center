@@ -23,12 +23,12 @@ Every canonical URL was checked on 29 August 2026 and returned HTTP 200. A link 
 | [bc250-40cu-unlock](https://github.com/duggasco/bc250-40cu-unlock) | 40 CU research | Reference only |
 | [bc250-core-unlock](https://github.com/rw-r-r-0644/bc250-core-unlock) | Experimental CPU core unlock | Integrated explicit workflow; MIT upstream |
 | [bc250-steamos](https://github.com/keyboardspecialist/bc250-steamos) | SteamOS AMDGPU and RADV compatibility | Integrated explicit workflow |
-| [bc250-gfx1013-fix](https://github.com/DryhoppedIPA/bc250-gfx1013-fix) | GFX1013 compute queue, kernel and Mesa/RADV stack | Integrated explicit workflow on the exact reviewed Fedora 43 host |
+| [bc250-gfx1013-fix](https://github.com/DryhoppedIPA/bc250-gfx1013-fix) | GFX1013 compute queue, kernel and Mesa/RADV stack | External install; Control Center updates official `main` and invokes its workflow unchanged after local safety gates |
 | [bc250-steamos-real-toolkit](https://github.com/rpf16rj/bc250-steamos-real-toolkit) | SteamOS ASIC fallback research | Reference only |
 | [bc250-toolkit](https://github.com/redbeard1083/bc250-toolkit) | Community toolkit research | Reference only |
 | [Latest Bazzite AMD BC-250 Patched Images](https://github.com/62fixolab/Latest-Bazzite-AMD-BC-250-Patched-Images) | Bazzite image reference | Reference only |
-| [linux-cachyos-bc250](https://github.com/MastaG/linux-cachyos-bc250) | CachyOS BC-250 kernel and Mesa | Integrated explicit opt-in repository; GPL-2.0 upstream |
-| [bc250-fsr4](https://github.com/dmorazasanchez/bc250-fsr4) | FSR4 V3 per-game RADV runtime | Integrated explicit per-user workflow on Arch/CachyOS; release asset hash pinned |
+| [linux-cachyos-bc250](https://github.com/MastaG/linux-cachyos-bc250) | Matched Arch/CachyOS BC-250 kernel and Mesa/RADV with GFX1013 async-compute fixes | Integrated explicit opt-in repository; GPL-2.0 upstream; Manjaro is not enabled |
+| [bc250-fsr4](https://github.com/dmorazasanchez/bc250-fsr4) | FSR4 V3 per-game RADV runtime | Integrated per-user workflow using official branch `v3` and its install/uninstall scripts; Manjaro is ABI-gated experimental |
 | [BC250-Telemetry](https://github.com/onlinermm/BC250-Telemetry) | Live telemetry research | Reference only |
 | [bc250-batocera-tools](https://github.com/tmghd272/bc250-batocera-tools) | Batocera compatibility research | Reference only |
 | [bc250-acpi-fix](https://github.com/e-tho/bc250-acpi-fix) | ACPI compatibility fix | Integrated explicit compatibility workflow; MIT upstream |

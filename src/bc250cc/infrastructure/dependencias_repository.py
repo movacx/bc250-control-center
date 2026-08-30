@@ -355,14 +355,16 @@ class DependenciasRepository:
         )
 
     def gestionar_fsr4_bc250(self, action: str) -> object:
-        """Run the opt-in, per-user FSR4 V3 lifecycle on Arch/CachyOS only."""
-        family = str(self._os_repository().info.family or '').lower()
-        if family not in {'arch', 'cachyos'}:
-            raise RuntimeError(
-                'The reviewed precompiled FSR4 V3 runtime is available only on Arch/CachyOS. '
-                'Other distributions require the upstream Docker source-build path.'
-            )
+        """Run the official upstream FSR4 lifecycle on supported or gated hosts."""
+        os_info = self._os_repository().info
+        state = fsr4_runtime_state(os_info.family, os_info.distro_id)
         action = str(action or '').strip().lower()
+        if action == 'install' and not state.get('installer_available'):
+            raise RuntimeError(
+                'The official upstream FSR4 V3 runtime is available only on Arch/CachyOS. '
+                'Manjaro is experimental and accepted only through mandatory ABI/Vulkan checks; '
+                'other distributions require the upstream Docker source-build path.'
+            )
         commands = {
             'install': build_fsr4_v3_install_command,
             'uninstall': build_fsr4_v3_uninstall_command,
@@ -370,20 +372,21 @@ class DependenciasRepository:
         if action not in commands:
             raise ValueError('Unsupported BC-250 FSR4 action.')
         self.estado_herramientas_cache = None
+        destination = self._tool_dir() / 'bc250-fsr4'
         return self._abrir_terminal(
-            commands[action](),
+            commands[action](destination),
             'BC-250 FSR4 V3 (per-game RADV)',
         )
 
     def gestionar_gfx1013_fedora(self, action: str) -> object:
-        """Run the explicit reviewed GFX1013 lifecycle on its exact Fedora host."""
+        """Run the official upstream GFX1013 lifecycle on mutable Fedora."""
         os_repository = self._os_repository()
         state = self._gfx1013_compute_state(os_repository)
         action = str(action or '').strip().lower()
         if os_repository.info.family != 'fedora':
             raise RuntimeError('The direct GFX1013 workflow is available only on Fedora.')
-        if action == 'install' and not state.get('exact_upstream_validated_host'):
-            raise RuntimeError('The direct GFX1013 workflow requires the exact upstream-validated Fedora 43 kernel.')
+        if action == 'install' and not state.get('direct_installer_allowed'):
+            raise RuntimeError('The direct GFX1013 workflow is not offered on this host by upstream policy.')
         if action not in {'install', 'status', 'uninstall'}:
             raise ValueError('Unsupported Fedora GFX1013 action.')
         destination = self._tool_dir() / 'bc250-gfx1013-fix'
@@ -411,6 +414,19 @@ class DependenciasRepository:
             version_id=version_id,
             kernel=kernel,
             immutable=os_repository.info.immutable,
+        )
+        masta_stack = masta_bc250_stack_state(
+            distro_id=os_repository.info.distro_id,
+            family=os_repository.info.family,
+        )
+        # MastaG publishes the matching BC-250 kernel and Mesa/RADV packages
+        # for both plain Arch and CachyOS. Treat async compute as active only
+        # when the running kernel and the repository Mesa pair are both
+        # verified; a half-installed stack must remain manual/review-only.
+        masta_async_compute_ready = bool(
+            masta_stack.get('supported')
+            and masta_stack.get('kernel_active')
+            and masta_stack.get('mesa_installed')
         )
 
         state_root = Path('/var/lib/bc250-gfx1013')
@@ -504,8 +520,14 @@ class DependenciasRepository:
             'steamos_safe_radv_reference_commit': STEAMOS_GFX1013_SAFE_RADV_REVIEWED_COMMIT,
             'steamos_safe_radv_reference_version': STEAMOS_GFX1013_SAFE_RADV_VERSION,
             'upstream_url': GFX1013_UPSTREAM,
+            'upstream_branch': 'main',
+            'upstream_managed': True,
             'reviewed_commit': GFX1013_REVIEWED_COMMIT,
             'reviewed_version': GFX1013_REVIEWED_VERSION,
+            'masta_bc250_supported': bool(masta_stack.get('supported')),
+            'masta_bc250_kernel_active': bool(masta_stack.get('kernel_active')),
+            'masta_bc250_mesa_installed': bool(masta_stack.get('mesa_installed')),
+            'masta_async_compute_ready': masta_async_compute_ready,
         })
         return policy
 
@@ -865,7 +887,8 @@ class DependenciasRepository:
             ),
             'fsr4': safe(
                 lambda: fsr4_runtime_state(
-                    getattr(getattr(os_repository, 'info', None), 'family', '')
+                    getattr(getattr(os_repository, 'info', None), 'family', ''),
+                    getattr(getattr(os_repository, 'info', None), 'distro_id', ''),
                 ),
                 {'installed': False, 'precompiled_supported': False},
             ),

@@ -25,7 +25,12 @@ from .core.alerts import SmartAlertMonitor
 from .core.gamepad import GamepadNavigationController
 from .core.preferences import UiPreferences
 from .core.state import state_cache_for
-from .i18n import localize_top_levels, localize_widget_tree, normalize_language, set_language
+from .i18n import (
+    localize_top_levels,
+    localize_widget_tree,
+    normalize_language,
+    set_language,
+)
 from .theme import application_stylesheet, configure_theme
 
 if TYPE_CHECKING:

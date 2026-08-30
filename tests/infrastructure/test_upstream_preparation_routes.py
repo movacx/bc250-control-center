@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from bc250cc.infrastructure.dependencias_repository import DependenciasRepository
@@ -25,6 +27,9 @@ def _repository_for(
         def _abrir_terminal(self, command, title=""):
             calls.append((command, title))
             return "terminal"
+
+        def _tool_dir(self):
+            return Path("/tmp/bc250-test-tools")
 
     return Repository()
 
@@ -77,7 +82,15 @@ def test_fsr4_route_is_user_scoped_and_limited_to_reviewed_userspace(action):
 
     command, terminal_title = calls[0]
     assert "bc250-fsr4/v3" in command
+    assert "github.com/dmorazasanchez/bc250-fsr4" in command
+    assert f"{action}-v3.sh" in command
     assert "FSR4 V3" in terminal_title
+
+
+def test_fsr4_manjaro_route_is_available_but_self_identifies_as_experimental():
+    calls: list[tuple[str, str]] = []
+    assert _repository_for("manjaro", calls).gestionar_fsr4_bc250("install") == "terminal"
+    assert "does not name Manjaro" in calls[0][0]
 
 
 @pytest.mark.parametrize("family", ("ubuntu", "fedora", "bazzite", "steamos"))

@@ -25,7 +25,7 @@ tar --create --file - \
   --exclude '*.pyc' --exclude '*.pyo' --exclude './dist' --exclude 'node_modules' \
   --transform "s,^,bc250-control-center-$VERSION/," \
   -C "$ROOT_DIR" \
-  VERSION README.md LICENSE CONTRIBUTING.md SECURITY.md pyproject.toml run.sh assets integrations src frontends privileged scripts packaging \
+  VERSION README.md LICENSE SECURITY.md pyproject.toml run.sh assets integrations src frontends privileged scripts packaging \
   | gzip -n -9 > "$temporary"
 mv -- "$temporary" "$target"
 trap - EXIT

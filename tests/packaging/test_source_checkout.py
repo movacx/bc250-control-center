@@ -101,6 +101,16 @@ def test_reviewed_commit_checkout_discards_interrupted_tracked_build_edits(tmp_p
     assert "checkout --detach --force FETCH_HEAD" in command
 
 
+def test_moving_branch_checkout_reasserts_official_origin_and_upstream_head(tmp_path):
+    command = clone_or_update_branch(URL, tmp_path / "tool", "main")
+
+    assert f"remote set-url origin {URL}" in command
+    assert "fetch --depth 1 origin main" in command
+    assert "checkout -B main FETCH_HEAD" in command
+    assert "reset --hard FETCH_HEAD" in command
+    assert "remote get-url origin" in command
+
+
 def test_exact_commit_archive_fallback_records_reviewed_provenance(tmp_path):
     archive_root = tmp_path / "archive-root" / f"project-{COMMIT}"
     archive_root.mkdir(parents=True)

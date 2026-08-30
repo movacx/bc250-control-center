@@ -1760,6 +1760,14 @@ INTERFACE_TRANSLATIONS = dict([
         'Von Upstream validiertes System',
     ),
     _e(
+        'Official upstream workflow',
+        'Flujo oficial de upstream',
+        'Fluxo oficial do upstream',
+        'Официальный процесс upstream',
+        'Офіційний процес upstream',
+        'Offizieller Upstream-Ablauf',
+    ),
+    _e(
         'Blocked',
         'Bloqueado',
         'Bloqueado',
@@ -1862,6 +1870,14 @@ INTERFACE_TRANSLATIONS = dict([
         'Эта точная комбинация Fedora 43/ядра соответствует проверке upstream. Control Center предлагает проверенную совместную процедуру для ядра + Mesa/RADV; штатная загрузочная запись остаётся основной, а исправленная сначала выбирается только для одной загрузки.',
         'Ця точна комбінація Fedora 43/ядра відповідає перевірці upstream. Control Center пропонує перевірену спільну процедуру для ядра + Mesa/RADV; штатний запис завантаження залишається основним, а виправлений спочатку вибирається лише для одного завантаження.',
         'Diese exakte Fedora-43/Kernel-Kombination entspricht der Upstream-Validierung. Control Center bietet den geprüften kombinierten Ablauf für Kernel + Mesa/RADV an; der reguläre Starteintrag bleibt Standard und der gepatchte Eintrag wird zunächst nur für einen Start ausgewählt.',
+    ),
+    _e(
+        "Control Center updates DryhoppedIPA's official main branch and invokes its combined kernel + Mesa/RADV workflow unchanged. Upstream performs the Fedora/kernel compatibility checks and keeps the stock boot entry as the recovery path.",
+        "Control Center actualiza la rama main oficial de DryhoppedIPA e invoca sin cambios su flujo combinado de kernel + Mesa/RADV. Upstream realiza las comprobaciones de compatibilidad de Fedora/kernel y conserva la entrada original como vía de recuperación.",
+        "O Control Center atualiza a branch main oficial do DryhoppedIPA e invoca sem alterações o fluxo combinado de kernel + Mesa/RADV. O upstream verifica a compatibilidade Fedora/kernel e mantém a entrada original como caminho de recuperação.",
+        "Control Center обновляет официальную ветку main DryhoppedIPA и без изменений запускает объединённый процесс ядра + Mesa/RADV. Upstream проверяет совместимость Fedora/ядра и сохраняет штатную запись загрузки для восстановления.",
+        "Control Center оновлює офіційну гілку main DryhoppedIPA та без змін запускає об’єднаний процес ядра + Mesa/RADV. Upstream перевіряє сумісність Fedora/ядра й зберігає штатний запис завантаження для відновлення.",
+        "Control Center aktualisiert den offiziellen main-Branch von DryhoppedIPA und ruft dessen kombinierten Kernel- und Mesa/RADV-Ablauf unverändert auf. Upstream prüft die Fedora-/Kernel-Kompatibilität; der reguläre Starteintrag bleibt der Wiederherstellungsweg.",
     ),
     _e(
         'This Fedora host is outside the exact Fedora 43/kernel combination validated upstream. Control Center will not automate the patch.',

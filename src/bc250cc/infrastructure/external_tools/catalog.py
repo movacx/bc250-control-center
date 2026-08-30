@@ -15,6 +15,7 @@ from urllib.parse import urlparse
 _PAYLOAD_DISTRIBUTION_MODES = frozenset({
     "bundled-reviewed-snapshot",
     "runtime-fetch-reviewed-revision",
+    "runtime-fetch-upstream-main",
     "reference-only",
 })
 
@@ -38,10 +39,14 @@ class ExternalToolSpec:
         parsed = urlparse(self.upstream)
         if parsed.scheme != "https" or not parsed.netloc:
             issues.append("canonical HTTPS upstream is required")
-        if self.automated and self.privilege_class != "userspace":
+        tracks_upstream = self.payload_distribution == "runtime-fetch-upstream-main"
+        if self.automated and self.privilege_class != "userspace" and not tracks_upstream:
             revision = self.reviewed_revision.lower()
             if len(revision) != 40 or any(char not in "0123456789abcdef" for char in revision):
                 issues.append("automated privileged integration requires an immutable 40-character revision")
+        if tracks_upstream and self.update_strategy != "upstream-branch":
+            issues.append("moving upstream payload requires the upstream-branch update strategy")
+        if self.automated and self.privilege_class != "userspace":
             if not self.rollback.strip():
                 issues.append("automated privileged integration requires rollback documentation")
         if not self.license.strip():
@@ -228,9 +233,10 @@ EXTERNAL_TOOLS: dict[str, ExternalToolSpec] = {
         privilege_class="boot-kernel-mesa",
         hardware_writes=False,
         automated=True,
-        rollback="Use the pinned upstream uninstall action; the stock Fedora boot entry remains the default during the one-shot validation boot.",
-        validation_level="upstream-exact-host-reviewed-and-mocked-hardware-gate-pending",
-        payload_distribution="runtime-fetch-reviewed-revision",
+        rollback="Use the official upstream uninstall action; the stock Fedora boot entry remains the recovery path.",
+        validation_level="official-upstream-main-with-local-host-and-hardware-gates",
+        update_strategy="upstream-branch",
+        payload_distribution="runtime-fetch-upstream-main",
     ),
 }
 
@@ -321,13 +327,13 @@ EXTERNAL_TOOL_LIFECYCLES: dict[str, ExternalToolLifecycle] = {
         actions=(LifecycleAction.CHECK, LifecycleAction.INSTALL, LifecycleAction.APPLY, LifecycleAction.ROLLBACK, LifecycleAction.UNINSTALL),
     ),
     "gfx1013_direct": _lifecycle(
-        "On the exact Fedora 43/kernel host only, fetch the reviewed revision and run its combined kernel + Mesa/RADV installer after explicit confirmation.",
-        "Report kernel and Mesa/RADV halves independently; reject Atomic/Bazzite, mismatched kernels and unsafe mesh/task series.",
-        "Run the pinned upstream uninstall action and retain the stock Fedora boot entry as the recovery default.",
+        "Update the official main branch and run its combined kernel + Mesa/RADV installer after explicit confirmation.",
+        "Report kernel and Mesa/RADV halves independently; reject Atomic/Bazzite and defer Fedora/kernel compatibility checks to upstream.",
+        "Run the official upstream uninstall action and retain the stock Fedora boot entry as the recovery default.",
         conflicts=("legacy mesh/task RADV patch",),
         vocabulary="GFX1013 async-compute compatibility",
         actions=(LifecycleAction.CHECK, LifecycleAction.INSTALL, LifecycleAction.ROLLBACK, LifecycleAction.UNINSTALL),
-        maintainer="The exact Fedora host and pinned patch series are re-reviewed before every repin.",
+        maintainer="DryhoppedIPA maintains the installer and patch series; Control Center only maintains safety gates and invocation.",
     ),
 }
 
@@ -465,13 +471,19 @@ class ExternalToolAdapter:
         origin = self.git_reader.origin(self.destination) if git_checkout else ""
         revision = self.git_reader.revision(self.destination) if git_checkout else ""
         dirty = self.git_reader.dirty(self.destination) if git_checkout else None
+        revision_matches = (
+            len(revision) == 40
+            and all(char in "0123456789abcdef" for char in revision.lower())
+            if self.spec.payload_distribution == "runtime-fetch-upstream-main"
+            else revision == self.spec.reviewed_revision
+        )
         return CheckoutEvidence(
             tool=self.spec.key,
             path=str(self.destination),
             present=present,
             git_checkout=git_checkout,
             origin_matches=origin.rstrip("/") == self.spec.upstream.rstrip("/"),
-            revision_matches=revision == self.spec.reviewed_revision,
+            revision_matches=revision_matches,
             dirty=dirty,
         )
 

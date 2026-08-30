@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from bc250cc.infrastructure import bc250_fsr4
 
 
@@ -9,29 +11,51 @@ def test_fsr4_state_reports_a_reversible_user_runtime(tmp_path, monkeypatch):
     monkeypatch.setattr(bc250_fsr4, "BC250_FSR4_PREFIX", prefix)
     monkeypatch.setattr(bc250_fsr4, "BC250_FSR4_ICD", icd)
 
-    state = bc250_fsr4.fsr4_runtime_state("cachyos")
+    state = bc250_fsr4.fsr4_runtime_state("cachyos", "cachyos")
 
     assert state["precompiled_supported"] is True
     assert state["source_build_required"] is False
     assert state["installed"] is False
+    assert state["current"] is False
+    assert state["state"] == "not-installed"
+    assert state["upstream_managed"] is True
+    assert state["branch"] == "v3"
     assert state["prefix"] == str(prefix)
     (prefix / "libvulkan_radeon.so").parent.mkdir(parents=True)
     (prefix / "libvulkan_radeon.so").touch()
-    icd.touch()
-    assert bc250_fsr4.fsr4_runtime_state("ubuntu")["installed"] is True
-    assert bc250_fsr4.fsr4_runtime_state("ubuntu")["source_build_required"] is True
+    icd.write_text(json.dumps({
+        "file_format_version": "1.0.0",
+        "ICD": {"library_path": str(prefix / "libvulkan_radeon.so"), "api_version": "1.4.0"},
+    }))
+    installed = bc250_fsr4.fsr4_runtime_state("ubuntu", "ubuntu")
+    assert installed["installed"] is True
+    assert installed["current"] is True
+    assert installed["source_build_required"] is True
 
 
-def test_fsr4_install_command_is_fixed_checksumed_and_never_mutates_system_mesa():
-    command = bc250_fsr4.build_fsr4_v3_install_command()
+def test_fsr4_manjaro_is_explicitly_experimental_and_abi_gated():
+    state = bc250_fsr4.fsr4_runtime_state("manjaro", "manjaro")
+
+    assert state["precompiled_supported"] is False
+    assert state["experimental_precompiled"] is True
+    assert state["installer_available"] is True
+    assert state["source_build_required"] is False
+
+
+def test_fsr4_install_command_invokes_official_v3_and_never_mutates_system_mesa(tmp_path):
+    destination = tmp_path / "bc250-fsr4"
+    command = bc250_fsr4.build_fsr4_v3_install_command(destination)
 
     assert bc250_fsr4.BC250_FSR4_REPOSITORY in command
-    assert bc250_fsr4.BC250_FSR4_ASSET in command
-    assert bc250_fsr4.BC250_FSR4_SHA256 in command
-    assert f"{bc250_fsr4.BC250_FSR4_ASSET}.sha256" not in command
-    assert "sha256sum -c" in command
+    assert "--branch v3" in command
+    assert "remote set-url origin" in command
+    assert "checkout -B v3 FETCH_HEAD" in command
+    assert f"bash {destination}/install-v3.sh" in command
+    assert "bc250-fsr4-v3.patch" in command
     assert "1002:13fe" in command
-    assert "VK_DRIVER_FILES" in command
+    assert "previous per-user runtime was restored" in command
+    assert ".v3.backup." in command
+    assert "manjaro)" in command
     assert "sudo" not in command
     assert "pacman" not in command
     assert "/etc/pacman.conf" not in command
@@ -39,8 +63,11 @@ def test_fsr4_install_command_is_fixed_checksumed_and_never_mutates_system_mesa(
     assert "curl |" not in command
 
 
-def test_fsr4_uninstall_only_targets_the_reviewed_user_prefix():
-    command = bc250_fsr4.build_fsr4_v3_uninstall_command()
+def test_fsr4_uninstall_invokes_the_official_v3_script(tmp_path):
+    destination = tmp_path / "bc250-fsr4"
+    command = bc250_fsr4.build_fsr4_v3_uninstall_command(destination)
 
-    assert 'case "$bc250_prefix" in "$HOME"/.local/share/bc250-fsr4/v3)' in command
-    assert 'rm -rf -- "$bc250_prefix"' in command
+    assert bc250_fsr4.BC250_FSR4_REPOSITORY in command
+    assert f"bash {destination}/uninstall-v3.sh" in command
+    assert 'BC250_FSR4_PREFIX="$HOME/.local/share/bc250-fsr4/v3"' in command
+    assert "sudo" not in command

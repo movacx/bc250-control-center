@@ -47,7 +47,8 @@ def test_undeclared_upstream_license_is_an_explicit_release_gate():
     assert EXTERNAL_TOOLS["cyan_smu"].release_gates == ()
     assert EXTERNAL_TOOLS["cpu_smu_oc"].bundled_payload is True
     assert EXTERNAL_TOOLS["cpu_smu_oc"].redistribution_ready is True
-    assert EXTERNAL_TOOLS["gfx1013_direct"].payload_distribution == "runtime-fetch-reviewed-revision"
+    assert EXTERNAL_TOOLS["gfx1013_direct"].payload_distribution == "runtime-fetch-upstream-main"
+    assert EXTERNAL_TOOLS["gfx1013_direct"].update_strategy == "upstream-branch"
 
 
 def test_privileged_automation_requires_immutable_revision_and_rollback():

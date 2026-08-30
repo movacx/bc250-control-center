@@ -8,6 +8,7 @@ plain Arch Linux or CachyOS, the two layouts documented by upstream.
 
 from __future__ import annotations
 
+import os
 import platform
 import subprocess
 from pathlib import Path
@@ -75,6 +76,7 @@ def masta_bc250_stack_state(*, distro_id: str, family: str) -> dict:
                 capture_output=True,
                 text=True,
                 timeout=2,
+                env={**os.environ, "LANG": "C", "LC_ALL": "C"},
             )
             installed_rows = {
                 fields[1]
@@ -153,6 +155,7 @@ echo "[INFO] Log out/restart games after Mesa changes; reboot is recommended whe
         else ""
     )
     return f'''set -euo pipefail
+export LANG=C LC_ALL=C
 echo "== Arch/CachyOS BC-250 {action} workflow (external upstream) =="
 test -r /etc/os-release || {{ echo "ERROR: /etc/os-release is unavailable."; exit 64; }}
 . /etc/os-release
@@ -163,6 +166,8 @@ case "${{ID:-}}" in
 esac
 command -v pacman >/dev/null 2>&1 || {{ echo "ERROR: pacman is required on Arch/CachyOS."; exit 69; }}
 command -v pacman-conf >/dev/null 2>&1 || {{ echo "ERROR: pacman-conf is required to validate repositories."; exit 69; }}
+command -v getent >/dev/null 2>&1 || {{ echo "ERROR: getent is required to validate DNS before changing pacman configuration."; exit 69; }}
+getent ahosts github.com >/dev/null 2>&1 || {{ echo "ERROR: DNS cannot resolve github.com. Check the network and DNS configuration, then try again. No pacman configuration was changed."; exit 68; }}
 echo "[WARN] External source: {CACHYOS_BC250_REPOSITORY}"
 echo "[WARN] Its pacman repository uses Optional TrustAll (unsigned packages)."
 echo "[INFO] The current kernel is not removed; keep its boot entry as a recovery fallback."
@@ -204,6 +209,13 @@ sudo install -D -m 0644 "$bc250_repo_file" "{include}"
 sudo install -m 0644 "$bc250_pacman_conf" /etc/pacman.conf
 echo "== Installing selected BC-250 packages in one system-upgrade transaction =="
 sudo pacman -Syu "${{bc250_scope_guard[@]}}" "${{bc250_packages[@]}}"
+for bc250_target in "${{bc250_packages[@]}}"; do
+  bc250_name="${{bc250_target#*/}}"
+  pacman -Sl '{repository}' | awk -v package="$bc250_name" '
+    $1 == "{repository}" && $2 == package && $NF == "[installed]" {{ found=1 }}
+    END {{ exit(found ? 0 : 1) }}
+  ' || {{ echo "ERROR: $bc250_name was not verified as the installed {repository} build."; exit 74; }}
+done
 {kernel_step}
 {mesa_step}
 echo "OK: Arch/CachyOS BC-250 {action} workflow completed. Review package output before rebooting."'''

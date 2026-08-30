@@ -89,6 +89,35 @@ def test_untested_abi_keeps_masta_actions_visible_but_safely_blocked():
     assert not sidebar.fsr4_upstream_button.isHidden()
 
 
+def test_manjaro_exposes_only_the_explicit_abi_gated_fsr4_candidate():
+    sidebar = _sidebar()
+    sidebar.set_state(
+        _state(
+            "manjaro",
+            {
+                "precompiled_supported": False,
+                "experimental_precompiled": True,
+                "installer_available": True,
+                "installed": False,
+                "current": False,
+                "state": "not-installed",
+                "source_build_required": False,
+            },
+        )
+    )
+
+    assert all(
+        not button.isEnabled()
+        for button in (
+            sidebar.cachyos_kernel_button,
+            sidebar.cachyos_mesa_button,
+            sidebar.cachyos_full_button,
+        )
+    )
+    assert sidebar.fsr4_install_button.isEnabled()
+    assert sidebar.fsr4_card.status.text() == "Experimental ABI check"
+
+
 def test_installed_stack_changes_badges_and_buttons_to_repair_actions():
     sidebar = _sidebar()
     state = _state(

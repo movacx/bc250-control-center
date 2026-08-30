@@ -26,6 +26,8 @@ class Gfx1013Compatibility:
     exact_upstream_validated_host: bool
     reason_key: str
     upstream: str = GFX1013_UPSTREAM
+    upstream_branch: str = "main"
+    upstream_managed: bool = True
     reviewed_commit: str = GFX1013_REVIEWED_COMMIT
     reviewed_version: str = GFX1013_REVIEWED_VERSION
     tested_kernel: str = GFX1013_TESTED_KERNEL
@@ -45,11 +47,9 @@ def classify_gfx1013_support(
 ) -> dict:
     """Return the conservative Control Center support policy for GFX1013.
 
-    This deliberately separates *upstream can be applied manually* from
-    *Control Center is allowed to automate it*.  The latter remains false:
-    the project is an alpha boot/kernel/initramfs/Mesa integration and our
-    hardware release gate requires dedicated physical rollback validation
-    before automation can be enabled.
+    The direct Fedora action always updates and invokes the official upstream
+    workflow. ``automatic_install_allowed`` remains false because this is a
+    boot/kernel/initramfs/Mesa change that must require an explicit user action.
     """
 
     family = str(family or "").strip().lower()
@@ -84,15 +84,11 @@ def classify_gfx1013_support(
         )
         return Gfx1013Compatibility(
             mode="fedora-upstream",
-            status="upstream-validated" if exact else "outside-validated-host",
-            direct_installer_allowed=exact,
+            status="upstream-current",
+            direct_installer_allowed=True,
             automatic_install_allowed=False,
             exact_upstream_validated_host=exact,
-            reason_key=(
-                "fedora-exact-upstream-host"
-                if exact
-                else "fedora-outside-upstream-validation"
-            ),
+            reason_key="fedora-upstream-managed",
         ).to_dict()
 
     if family in {"arch", "manjaro", "cachyos"}:

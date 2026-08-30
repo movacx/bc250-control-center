@@ -233,10 +233,10 @@ def test_gfx1013_card_enables_radv_only_when_kernel_is_ready(qtbot):
     assert _button(dialog, "2 · Install / repair Mesa RADV").isEnabled()
 
 
-def test_gfx1013_card_exposes_combined_install_only_on_exact_fedora_host(qtbot):
+def test_gfx1013_card_exposes_combined_official_upstream_install_on_fedora(qtbot):
     tools = _tools()
     tools["gfx1013_compute"] = {
-        "reason_key": "fedora-exact-upstream-host",
+        "reason_key": "fedora-upstream-managed",
         "exact_upstream_validated_host": True,
         "dryhopped_installed": False,
     }

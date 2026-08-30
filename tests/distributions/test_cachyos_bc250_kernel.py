@@ -62,6 +62,8 @@ def test_cachyos_kernel_workflow_has_a_fixed_reviewable_target():
     assert "arch) bc250_anchor='core'" in command
     assert "cachyos|cachy) bc250_anchor='cachyos-v3'" in command
     assert "BC250_REBOOT_REQUIRED=1" in command
+    assert "export LANG=C LC_ALL=C" in command
+    assert "was not verified as the installed bc250-cachyos build" in command
     assert "rm -f -- \"$bc250_repo_file\"" in command
     assert "$HOME" not in command
 
@@ -91,9 +93,30 @@ def test_cachyos_mesa_and_full_workflows_keep_their_scopes_explicit():
 def test_cachyos_configuration_is_checked_and_backed_up_before_replacement():
     command = build_cachyos_bc250_kernel_command("full")
     assert command.index("[$bc250_anchor] was not found") < command.index("sudo install -D")
+    assert command.index("DNS cannot resolve github.com") < command.index("sudo install -D")
     assert command.index('sudo cp -a /etc/pacman.conf') < command.index('sudo install -m 0644')
     assert "already configured outside Control Center" in command
     assert "full system upgrade" in command
+
+
+def test_cachyos_workflow_stops_on_dns_failure_before_privileged_changes(tmp_path):
+    import subprocess
+
+    release = tmp_path / "os-release"
+    release.write_text("ID=arch\n")
+    command = build_cachyos_bc250_kernel_command("mesa")
+    command = command.replace("/etc/os-release", str(release))
+    command = """
+pacman() { return 1; }
+pacman-conf() { test "$1" = --repo-list && printf '%s\\n' core extra; }
+getent() { return 2; }
+sudo() { echo UNEXPECTED_PRIVILEGE; return 99; }
+""" + command
+    result = subprocess.run(["bash", "-c", command], capture_output=True, text=True)
+
+    assert result.returncode == 68
+    assert "DNS cannot resolve github.com" in result.stdout
+    assert "UNEXPECTED_PRIVILEGE" not in result.stdout
 
 
 def test_cachyos_workflows_are_valid_shell_and_unsupported_host_stops_before_privilege(tmp_path):
@@ -129,6 +152,7 @@ def test_exact_arch_and_cachyos_layouts_reach_privilege_only_after_repo_validati
         command = '''
 pacman() { return 1; }
 pacman-conf() { test "$1" = --repo-list && printf '%s\\n' core extra; }
+getent() { return 0; }
 sudo() { echo PRIVILEGE_BOUNDARY; return 99; }
 ''' + command
         result = subprocess.run(

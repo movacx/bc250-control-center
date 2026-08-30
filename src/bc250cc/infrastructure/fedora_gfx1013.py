@@ -1,9 +1,9 @@
-"""Pinned Fedora 43 workflow for DryhoppedIPA's complete GFX1013 stack.
+"""Official-upstream Fedora workflow for DryhoppedIPA's GFX1013 stack.
 
 The reviewed upstream installer intentionally treats its kernel and Mesa/RADV
 patches as one compatibility unit.  This adapter does not fork that lifecycle:
-it verifies the exact upstream-tested host, checks out the reviewed revision,
-and runs the upstream dependency/build/install stages in order.
+it verifies the supported host, updates the official main branch, and runs the
+upstream dependency/build/install stages in order.
 """
 
 from __future__ import annotations
@@ -12,11 +12,9 @@ import shlex
 from pathlib import Path
 
 from .gfx1013_compute_policy import (
-    GFX1013_REVIEWED_COMMIT,
-    GFX1013_TESTED_KERNEL,
     GFX1013_UPSTREAM,
 )
-from .source_checkout import clone_or_update_commit
+from .source_checkout import clone_or_update_branch
 
 _ACTIONS = frozenset({"install", "status", "uninstall"})
 
@@ -28,26 +26,22 @@ def build_fedora_gfx1013_command(action: str, destination: str | Path) -> str:
     if action not in _ACTIONS:
         raise ValueError(f"Unsupported Fedora GFX1013 action: {action or '--'}")
     destination = Path(destination)
-    checkout = clone_or_update_commit(
-        GFX1013_UPSTREAM, destination, GFX1013_REVIEWED_COMMIT
-    )
+    checkout = clone_or_update_branch(GFX1013_UPSTREAM, destination, "main")
     qdest = shlex.quote(str(destination))
     fedora_gate = '''test -r /etc/os-release || { echo "ERROR: /etc/os-release is unavailable."; exit 64; }
 . /etc/os-release
 test "${ID:-}" = fedora || { echo "ERROR: This reviewed direct workflow supports Fedora only."; exit 64; }
 command -v rpm-ostree >/dev/null 2>&1 && { echo "ERROR: Fedora Atomic/Bazzite is not supported by this direct installer."; exit 64; }'''
-    install_gate = f'''test "${{VERSION_ID:-}}" = 43 || {{ echo "ERROR: This reviewed direct workflow supports Fedora 43 only."; exit 64; }}
-test "$(uname -r)" = {shlex.quote(GFX1013_TESTED_KERNEL)} || {{ echo "ERROR: The running kernel is outside the exact upstream-validated host ({GFX1013_TESTED_KERNEL})."; exit 64; }}
-bc250_found=0
+    install_gate = '''bc250_found=0
 for device in /sys/bus/pci/devices/*; do
   test -r "$device/vendor" && test -r "$device/device" || continue
   test "$(cat "$device/vendor")" = 0x1002 && test "$(cat "$device/device")" = 0x13fe && bc250_found=1 && break
 done
-test "$bc250_found" = 1 || {{ echo "ERROR: AMD BC-250 PCI device 1002:13fe was not found."; exit 64; }}'''
+test "$bc250_found" = 1 || { echo "ERROR: AMD BC-250 PCI device 1002:13fe was not found."; exit 64; }'''
     source_gate = f'''{checkout}
-test -x {qdest}/install.sh || {{ echo "ERROR: reviewed install.sh is missing."; exit 29; }}
+test -x {qdest}/install.sh || {{ echo "ERROR: official upstream install.sh is missing."; exit 29; }}
 test -f {qdest}/LICENSE -a -f {qdest}/LICENSES.md || {{ echo "ERROR: upstream component licenses are missing."; exit 29; }}
-test "$(sed -n '/^[^#[:space:]]/p' {qdest}/patches/mesa/series)" = 0001-gfx1013-compute-queue-fix.patch || {{ echo "ERROR: reviewed safe Mesa patch series changed; mesh/task remains blocked."; exit 29; }}'''
+test -f {qdest}/patches/mesa/series || {{ echo "ERROR: official upstream Mesa patch series is missing."; exit 29; }}'''
 
     commands = [
         "set -Eeuo pipefail",

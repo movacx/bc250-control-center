@@ -30,16 +30,19 @@ from frontends.desktop.core.gfx1013_presenter import present_gfx1013
             "Review required", "orange", "Do not use",
         ),
         (
-            {"reason_key": "fedora-exact-upstream-host"},
-            "Upstream-validated host", "blue", "reviewed combined kernel + Mesa/RADV",
-        ),
-        (
-            {"reason_key": "fedora-outside-upstream-validation"},
-            "Manual only", "gray", "outside the exact Fedora 43",
+            {"reason_key": "fedora-upstream-managed"},
+            "Official upstream workflow", "blue", "official main branch",
         ),
         (
             {"reason_key": "arch-family-manual-untested"},
             "Manual only", "gray", "manual and untested",
+        ),
+        (
+            {
+                "reason_key": "arch-family-manual-untested",
+                "masta_async_compute_ready": True,
+            },
+            "Async compute detected", "green", "MastaG's matched BC-250 kernel",
         ),
         (
             {"reason_key": "bazzite-not-supported-upstream"},
@@ -115,7 +118,7 @@ def test_steamos_actions_follow_kernel_readiness_only():
         "reason_key": "steamos-dedicated-backend",
         "steamos_kernel_ready": True,
     })
-    fedora = present_gfx1013({"reason_key": "fedora-exact-upstream-host"})
+    fedora = present_gfx1013({"reason_key": "fedora-upstream-managed"})
 
     assert missing.steamos_actions is True
     assert missing.compatibility_action == "1 · Install SteamOS kernel"

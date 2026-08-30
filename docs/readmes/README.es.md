@@ -83,9 +83,10 @@ BC250 Control Center se basa en trabajo comunitario y no reclama propiedad sobre
 - [bc250_smu_oc](https://github.com/bc250-collective/bc250_smu_oc) — detección y ajuste de CPU SMU.
 - [bc250-cu-live-manager](https://github.com/WinnieLV/bc250-cu-live-manager) y [su backend SteamOS](https://github.com/F5GO/bc250-cu-live-manager-SteamOS) — fuentes de investigación e integración de Compute Units.
 - [bc250-core-unlock](https://github.com/rw-r-r-0644/bc250-core-unlock) — flujo experimental de desbloqueo de núcleos CPU.
-- [bc250-steamos](https://github.com/keyboardspecialist/bc250-steamos) y [bc250-gfx1013-fix](https://github.com/DryhoppedIPA/bc250-gfx1013-fix) — investigación y flujos opcionales de compatibilidad.
+- [bc250-steamos](https://github.com/keyboardspecialist/bc250-steamos) y [bc250-gfx1013-fix](https://github.com/DryhoppedIPA/bc250-gfx1013-fix) — flujos explícitos de compatibilidad; en Fedora se actualiza `main` y se invoca el instalador oficial de DryhoppedIPA.
+- [bc250-fsr4](https://github.com/dmorazasanchez/bc250-fsr4) — flujo oficial `v3` aislado por usuario para Arch/CachyOS; Manjaro es experimental y debe superar las pruebas ABI y Vulkan de upstream.
 - [nct6687d](https://github.com/Fred78290/nct6687d) — soporte de controlador de sensores NCT y PWM.
-- [linux-cachyos-bc250](https://github.com/MastaG/linux-cachyos-bc250) — fuente externa opcional de kernel CachyOS.
+- [linux-cachyos-bc250](https://github.com/MastaG/linux-cachyos-bc250) — paquetes externos emparejados de kernel y Mesa/RADV para Arch/CachyOS, incluidas las correcciones de cómputo asíncrono GFX1013.
 
 Consulta los [avisos de terceros](../THIRD_PARTY_NOTICES.md) para licencias, estado de revisión y el límite exacto de integración de cada proyecto.
 

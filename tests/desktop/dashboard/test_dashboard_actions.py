@@ -145,12 +145,23 @@ def test_dashboard_cpu_frequency_uses_ghz():
 
 def test_dashboard_does_not_present_the_default_install_target_as_detected():
     class Cache:
-        performance = lambda self: {}
-        gpu = lambda self: {}
-        fans = lambda self: {}
-        cu_cache = lambda self: {}
-        events = lambda self, _limit: []
-        pump_fan_fallback = lambda self: (0, "Not detected")
+        def performance(self):
+            return {}
+
+        def gpu(self):
+            return {}
+
+        def fans(self):
+            return {}
+
+        def cu_cache(self):
+            return {}
+
+        def events(self, _limit):
+            return []
+
+        def pump_fan_fallback(self):
+            return 0, "Not detected"
 
         def tools(self):
             return {

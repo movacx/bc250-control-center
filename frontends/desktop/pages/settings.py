@@ -82,12 +82,12 @@ OFFICIAL_REPOSITORIES = (
     ("bc250-40cu-unlock", "duggasco/bc250-40cu-unlock", "https://github.com/duggasco/bc250-40cu-unlock"),
     ("bc250-core-unlock (cloned upstream tool)", "rw-r-r-0644/bc250-core-unlock", "https://github.com/rw-r-r-0644/bc250-core-unlock"),
     ("bc250-steamos AMDGPU/RADV workflow", "keyboardspecialist/bc250-steamos", "https://github.com/keyboardspecialist/bc250-steamos"),
-    ("GFX1013 fix (explicit Fedora 43 workflow)", "DryhoppedIPA/bc250-gfx1013-fix", "https://github.com/DryhoppedIPA/bc250-gfx1013-fix"),
+    ("GFX1013 fix (official upstream workflow)", "DryhoppedIPA/bc250-gfx1013-fix", "https://github.com/DryhoppedIPA/bc250-gfx1013-fix"),
     ("SteamOS real toolkit reference", "rpf16rj/bc250-steamos-real-toolkit", "https://github.com/rpf16rj/bc250-steamos-real-toolkit"),
     ("BC250 toolkit reference", "redbeard1083/bc250-toolkit", "https://github.com/redbeard1083/bc250-toolkit"),
     ("BC250 patched Bazzite image reference", "62fixolab/Latest-Bazzite-AMD-BC-250-Patched-Images", "https://github.com/62fixolab/Latest-Bazzite-AMD-BC-250-Patched-Images"),
-    ("CachyOS BC250 kernel and Mesa (opt-in workflow)", "MastaG/linux-cachyos-bc250", "https://github.com/MastaG/linux-cachyos-bc250"),
-    ("BC250 FSR4 V3 (per-game workflow)", "dmorazasanchez/bc250-fsr4", "https://github.com/dmorazasanchez/bc250-fsr4"),
+    ("Arch/CachyOS kernel + Mesa/GFX1013 (opt-in workflow)", "MastaG/linux-cachyos-bc250", "https://github.com/MastaG/linux-cachyos-bc250"),
+    ("BC250 FSR4 V3 (isolated per-game workflow)", "dmorazasanchez/bc250-fsr4", "https://github.com/dmorazasanchez/bc250-fsr4"),
     ("BC250 live telemetry reference", "onlinermm/BC250-Telemetry", "https://github.com/onlinermm/BC250-Telemetry"),
     ("BC250 Batocera tools reference", "tmghd272/bc250-batocera-tools", "https://github.com/tmghd272/bc250-batocera-tools"),
     ("BC250 ACPI fix", "e-tho/bc250-acpi-fix", "https://github.com/e-tho/bc250-acpi-fix"),
@@ -555,7 +555,11 @@ class RepositoriesDialog(QDialog):
         count.setToolTip(tr("Official repositories"))
         header.addWidget(count, 0, Qt.AlignmentFlag.AlignTop)
         layout.addLayout(header)
-        intro = QLabel("BC250 Control Center does not own these tools. Each entry identifies either an explicit reviewed workflow or a credited reference; availability and safety limits remain distribution-specific.")
+        intro = QLabel(
+            tr(
+                "BC250 Control Center does not own these tools. They are installed, cloned, or used as credited reference implementations according to each integration."
+            )
+        )
         intro.setWordWrap(True)
         intro.setProperty("bannerText", True)
         layout.addWidget(intro)

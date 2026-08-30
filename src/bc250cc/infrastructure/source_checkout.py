@@ -46,11 +46,15 @@ def clone_or_update_branch(repository_url, destination, branch) -> str:
     return (
         f"mkdir -p {qparent}; "
         f"if [ -d {qdest}/.git ]; then "
+        f"git -C {qdest} remote set-url origin {qurl}; "
         f"git -C {qdest} fetch --depth 1 origin {qbranch}; "
-        f"git -C {qdest} checkout {qbranch}; "
-        f"git -C {qdest} merge --ff-only FETCH_HEAD; "
+        f"git -C {qdest} checkout -B {qbranch} FETCH_HEAD; "
+        f"git -C {qdest} reset --hard FETCH_HEAD; "
         f"else rm -rf {qdest}; "
-        f"git clone --depth 1 --branch {qbranch} {qurl} {qdest}; fi"
+        f"git clone --depth 1 --branch {qbranch} {qurl} {qdest}; fi; "
+        f'test "$(git -C {qdest} remote get-url origin)" = {qurl} || '
+        f'{{ echo "ERROR: upstream origin mismatch: {_url}"; exit 29; }}; '
+        f'echo "[INFO] Current upstream source: {_url} @ $(git -C {qdest} rev-parse --short=12 HEAD)"'
     )
 
 

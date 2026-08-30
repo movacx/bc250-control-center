@@ -1,5 +1,8 @@
-from frontends.desktop.core.state import _dashboard_sources, collect_named_sources
-from frontends.desktop.core.state import ControllerStateCache
+from frontends.desktop.core.state import (
+    ControllerStateCache,
+    _dashboard_sources,
+    collect_named_sources,
+)
 
 
 def test_named_sources_keep_successful_data_when_one_loader_fails():

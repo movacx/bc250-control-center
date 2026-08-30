@@ -30,6 +30,8 @@ def _status(reason: str, **state: bool) -> tuple[str, str]:
         return "Patched boot active", "green"
     if state["external_installed"]:
         return "External install", "blue"
+    if state["masta_async_compute_ready"]:
+        return "Async compute detected", "green"
     if reason == "steamos-dedicated-backend":
         if kernel and state["external_fsr4_current"]:
             return "Async compute detected", "green"
@@ -40,8 +42,8 @@ def _status(reason: str, **state: bool) -> tuple[str, str]:
         if kernel:
             return "Kernel half ready", "blue"
         return "SteamOS backend", "blue"
-    if reason == "fedora-exact-upstream-host":
-        return "Upstream-validated host", "blue"
+    if reason == "fedora-upstream-managed":
+        return "Official upstream workflow", "blue"
     if reason == "bazzite-not-supported-upstream":
         return "Blocked", "orange"
     return "Manual only", "gray"
@@ -62,6 +64,8 @@ def _detail(reason: str, **state: bool) -> tuple[str, ...]:
         return ("An external DryhoppedIPA installation is active on this boot. Control Center will not modify its boot entry, initramfs, amdgpu module or Mesa files.",)
     if state["external_installed"]:
         return ("An external DryhoppedIPA installation was detected, but this boot is not using its patched entry. Boot selection and rollback remain managed by the upstream installer.",)
+    if state["masta_async_compute_ready"]:
+        return ("MastaG's matched BC-250 kernel and patched Mesa/RADV packages are active. Its Arch/CachyOS repository enables the GFX1013 async-compute path by default. Continue to test stability per game; async compute can increase GPU load and voltage requirements.",)
     if reason == "steamos-dedicated-backend":
         detail = ["SteamOS uses the reviewed BC-250 toolkit in two ordered stages: matching AMDGPU first, then the matching async-compute Mesa/RADV runtime. The unsafe legacy mesh/task series is never installed."]
         if kernel and safe_radv:
@@ -74,8 +78,7 @@ def _detail(reason: str, **state: bool) -> tuple[str, ...]:
             detail.append("The SteamOS kernel stage is active. Install the matched Mesa/RADV stage to complete GFX1013 async compute.")
         return tuple(detail)
     details = {
-        "fedora-exact-upstream-host": "This exact Fedora 43/kernel combination matches upstream validation. Control Center offers the reviewed combined kernel + Mesa/RADV workflow; it keeps the stock boot entry as default and selects the patched entry for one boot first.",
-        "fedora-outside-upstream-validation": "This Fedora host is outside the exact Fedora 43/kernel combination validated upstream. Control Center will not automate the patch.",
+        "fedora-upstream-managed": "Control Center updates DryhoppedIPA's official main branch and invokes its combined kernel + Mesa/RADV workflow unchanged. Upstream performs the Fedora/kernel compatibility checks and keeps the stock boot entry as the recovery path.",
         "arch-family-manual-untested": "Upstream documents this Arch-family path as manual and untested. Control Center does not automate kernel/Mesa changes here.",
         "bazzite-not-supported-upstream": "Upstream currently says Bazzite is not supported. Control Center blocks the direct installer on immutable systems.",
     }
@@ -94,6 +97,7 @@ def present_gfx1013(state: Mapping[str, object]) -> Gfx1013Presentation:
         "external_fsr4_current": bool(state.get("steamos_external_fsr4_current")),
         "external_installed": bool(state.get("dryhopped_installed")),
         "external_boot_active": bool(state.get("dryhopped_boot_active")),
+        "masta_async_compute_ready": bool(state.get("masta_async_compute_ready")),
     }
     status, tone = _status(reason, **values)
     return Gfx1013Presentation(
@@ -101,6 +105,6 @@ def present_gfx1013(state: Mapping[str, object]) -> Gfx1013Presentation:
         tone=tone,
         detail=_detail(reason, **values),
         steamos_actions=reason == "steamos-dedicated-backend",
-        fedora_actions=reason == "fedora-exact-upstream-host",
+        fedora_actions=reason == "fedora-upstream-managed",
         compatibility_action=("Update / repair SteamOS kernel" if values["kernel_ready"] else "1 · Install SteamOS kernel"),
     )

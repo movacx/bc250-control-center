@@ -8,6 +8,7 @@ from frontends.desktop.i18n import localize_widget_tree, set_language, tr
 from frontends.desktop.pages.dashboard import CONTACT_URL, SUPPORT_URL, DashboardPage
 from frontends.desktop.theme import application_stylesheet
 
+
 @pytest.mark.parametrize("width", (360, 720, 1440))
 @pytest.mark.parametrize("theme", ("light", "dark"))
 def test_header_actions_stay_visible_without_covering_scrolled_controls(qtbot, width, theme):

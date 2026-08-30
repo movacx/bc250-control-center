@@ -94,7 +94,7 @@ def test_integration_audit_is_valid_json(tmp_path, capsys):
     ]
     assert payload["tools"]["gfx1013_direct"]["automated"] is True
     assert payload["tools"]["gfx1013_direct"]["payload_distribution"] == (
-        "runtime-fetch-reviewed-revision"
+        "runtime-fetch-upstream-main"
     )
 
 

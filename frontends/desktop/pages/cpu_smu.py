@@ -38,7 +38,6 @@ from ..components.responsive import (
     effective_viewport_width,
 )
 from ..components.widgets import IconBadge, InfoDialog, apply_shadow, icon
-from ..core.external_links import open_external_url
 from ..core.cpu_persistence_plan import (
     CpuPersistencePlan,
     PersistenceBlocker,
@@ -53,6 +52,7 @@ from ..core.cpu_refresh_presenter import (
     present_cpu_telemetry,
     present_cpu_tuning,
 )
+from ..core.external_links import open_external_url
 from ..core.state import collect_named_sources, state_cache_for
 from ..i18n import tr, tr_format
 from ..theme import COLORS

@@ -403,6 +403,44 @@ class DashboardState:
         gpu = metrics.get("gpu") or {}
         power = metrics.get("power") or {}
         sensors = metrics.get("sensors") or {}
+        # Real-time providers can return a partial sample (for example, a
+        # sensor-only refresh after the CPU probe has already completed).
+        # Preserve the last fresh value for omitted groups; an entirely empty
+        # sample still clears live telemetry as before.
+        if metrics:
+            cpu = {
+                "frequency_mhz": self.cpu_frequency_mhz,
+                "temperature_c": self.cpu_temperature_c,
+                "usage_percent": self.cpu_utilization_percent,
+                "physical_cores": self.cpu_physical_cores,
+                "logical_cores": self.cpu_logical_cores,
+                "per_core_percent": self.cpu_per_core_percent,
+                "per_core_frequency_mhz": self.cpu_per_core_frequency_mhz,
+                **cpu,
+            }
+            gpu = {
+                "frequency_mhz": self.governor_frequency_mhz,
+                "temperature_c": self.gpu_temperature_c,
+                "usage_percent": self.gpu_utilization_percent,
+                "vram_used": self.vram_used_bytes,
+                "vram_total": self.vram_total_bytes,
+                **gpu,
+            }
+            power = {
+                "value_w": self.power_w,
+                "gpu_w": self.gpu_power_w,
+                "scope": self.power_scope,
+                "label": self.power_label,
+                "source": self.power_source,
+                "is_total": self.power_is_total,
+                **power,
+            }
+            sensors = {
+                "nvme_temperature_c": self.nvme_temperature_c,
+                "board_temperature_c": self.board_temperature_c,
+                "vrm_temperature_c": self.vrm_temperature_c,
+                **sensors,
+            }
         return replace(
             self,
             cpu_frequency_mhz=max(0, _integer(cpu.get("frequency_mhz"))),
