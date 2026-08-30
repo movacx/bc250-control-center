@@ -1,0 +1,4 @@
+[bc250-amdgpu] 6.18-test: installed, metrics and compute aware
+[bc250-amdgpu] 6.18-test: not installed
+[bc250-amdgpu] scheduler policy: configured and active (amdgpu.sched_policy=2)
+[bc250-amdgpu] state: installed

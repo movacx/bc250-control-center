@@ -1,0 +1,935 @@
+#!/usr/bin/python3
+"""Root-owned CPU/SMU execution boundary for BC250 Control Center.
+
+The desktop GUI may prepare/request values, but this helper is the only code
+that applies them with root authority. The upstream bc250_smu_oc implementation
+is shipped as a root-owned, audited zip rather than executed from the user's
+writable ResourceTools checkout.
+"""
+from __future__ import annotations
+
+import configparser
+import hashlib
+import json
+import os
+import pathlib
+import pwd
+import shutil
+import stat
+import subprocess
+import sys
+import tempfile
+import time
+from typing import Sequence
+
+HELPER_PATH = pathlib.Path('/usr/libexec/bc250-control-center/bc250-cpu-smu-helper')
+VENDOR_ZIP = pathlib.Path('/usr/libexec/bc250-control-center/lib/bc250_smu_oc_vendor.zip')
+BOOT_CONFIG = pathlib.Path('/etc/bc250-smu-oc.conf')
+SERVICE_PATH = pathlib.Path('/etc/systemd/system/bc250-smu-oc.service')
+OPENRC_SERVICE_PATH = pathlib.Path('/etc/init.d/bc250-smu-oc')
+RUNTIME_ROOT = pathlib.Path('/run/bc250-control-center')
+PRIVATE_RUNTIME = RUNTIME_ROOT / 'private'
+QAM_PUBLIC_STATE = RUNTIME_ROOT / 'cpu-live-state.json'
+QAM_CONFIG = PRIVATE_RUNTIME / 'cpu-qam-detected.conf'
+QAM_EVIDENCE = PRIVATE_RUNTIME / 'cpu-qam-detection.json'
+QAM_MANUAL_CONFIG = PRIVATE_RUNTIME / 'cpu-qam-manual.conf'
+QAM_MANUAL_EVIDENCE = PRIVATE_RUNTIME / 'cpu-qam-manual.json'
+BOOT_ID_PATH = pathlib.Path('/proc/sys/kernel/random/boot_id')
+QAM_EVIDENCE_SCHEMA = 1
+QAM_MANUAL_EVIDENCE_SCHEMA = 1
+QAM_PUBLIC_STATE_SCHEMA = 1
+QAM_HELPER_PROTOCOL = 8
+EXPECTED_VENDOR_COMMIT = '43d6b4c6e38c57bc9ec8908c44675ce7d5fd3d2f'
+EXPECTED_VENDOR_SHA256 = 'c9b0c9d18058e1ef20b88db098c975449eaea8fa940c1c23e39888723e128afd'
+
+
+def fail(message: str, code: int = 1) -> int:
+    print(f'ERR {message}', file=sys.stderr, flush=True)
+    return code
+
+
+def bc250_identity_present() -> bool:
+    try:
+        devices = tuple(pathlib.Path('/sys/bus/pci/devices').iterdir())
+    except OSError:
+        devices = ()
+    for device in devices:
+        try:
+            vendor = (device / 'vendor').read_text(encoding='ascii', errors='ignore').strip().lower()
+            device_id = (device / 'device').read_text(encoding='ascii', errors='ignore').strip().lower()
+        except OSError:
+            continue
+        if vendor in {'0x1002', '1002'} and device_id in {'0x13fe', '13fe'}:
+            return True
+    for path in (
+        pathlib.Path('/sys/class/dmi/id/board_name'),
+        pathlib.Path('/sys/class/dmi/id/product_name'),
+    ):
+        try:
+            if 'bc-250' in path.read_text(encoding='utf-8', errors='ignore').lower():
+                return True
+        except OSError:
+            continue
+    return False
+
+
+def require_root_and_payload() -> None:
+    if os.geteuid() != 0:
+        raise RuntimeError('This helper must run as root through pkexec or the active init service.')
+    if not bc250_identity_present():
+        raise RuntimeError('AMD BC-250 hardware identity was not detected.')
+    for path, executable in ((HELPER_PATH, True), (VENDOR_ZIP, False)):
+        metadata = path.stat(follow_symlinks=False)
+        if path.is_symlink() or not path.is_file():
+            raise RuntimeError(f'Privileged CPU payload is not a regular file: {path}')
+        if metadata.st_uid != 0 or metadata.st_mode & 0o022:
+            raise RuntimeError(f'Privileged CPU payload has unsafe ownership/permissions: {path}')
+        if executable and not (metadata.st_mode & stat.S_IXUSR):
+            raise RuntimeError(f'Privileged CPU helper is not executable: {path}')
+    digest = hashlib.sha256(VENDOR_ZIP.read_bytes()).hexdigest()
+    if digest != EXPECTED_VENDOR_SHA256:
+        raise RuntimeError('The installed bc250_smu_oc vendor payload SHA-256 does not match this build.')
+    import zipfile
+    with zipfile.ZipFile(VENDOR_ZIP) as archive:
+        commit = archive.read('UPSTREAM_COMMIT').decode('ascii', 'strict').strip()
+    if commit != EXPECTED_VENDOR_COMMIT:
+        raise RuntimeError('The installed bc250_smu_oc vendor payload does not match the audited upstream commit.')
+
+
+def caller_uid() -> int:
+    for name in ('PKEXEC_UID', 'SUDO_UID'):
+        value = os.environ.get(name, '').strip()
+        if value.isdigit():
+            return int(value)
+    return -1
+
+
+def estimated_vid(frequency: int, scale: int) -> int:
+    if type(frequency) is not int or type(scale) is not int:
+        raise TypeError('frequency and scale must be integers')
+    p = -1.519 + scale * 0.004325
+    q = 2800.0 - (scale * 10.0)
+    return round(0.0003 * frequency * frequency + p * frequency + q)
+
+
+def validate_values(frequency: int, scale: int, temperature: int) -> tuple[int, int, int]:
+    if any(type(value) is not int for value in (frequency, scale, temperature)):
+        raise ValueError('Frequency, scale and temperature must be integers.')
+    if not 3500 <= frequency <= 4200:
+        raise ValueError('Frequency must be between 3500 and 4200 MHz.')
+    if not -50 <= scale <= 0:
+        raise ValueError('Scale must be between -50 and 0.')
+    if not 70 <= temperature <= 90:
+        raise ValueError('Temperature must be between 70 and 90 C.')
+    # Same approximation used by upstream bc250_detect.py for guidance.
+    voltage = estimated_vid(frequency, scale)
+    if voltage > 1325:
+        raise ValueError(f'Estimated VID ~{voltage} mV exceeds the 1325 mV ceiling.')
+    return frequency, scale, temperature
+
+
+def write_config(path: pathlib.Path, frequency: int, scale: int, temperature: int, mode: int = 0o600) -> None:
+    frequency, scale, temperature = validate_values(frequency, scale, temperature)
+    parser = configparser.ConfigParser(interpolation=None)
+    parser['overclock'] = {
+        'frequency': str(frequency),
+        'scale': str(scale),
+        'max_temperature': str(temperature),
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, name = tempfile.mkstemp(prefix=f'.{path.name}.', suffix='.tmp', dir=str(path.parent))
+    tmp = pathlib.Path(name)
+    try:
+        with os.fdopen(fd, 'w', encoding='utf-8') as stream:
+            parser.write(stream)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.chmod(tmp, mode)
+        os.replace(tmp, path)
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
+def run_vendor_module(module: str, args: Sequence[str], *, pass_fds: Sequence[int] = ()) -> int:
+    env = {
+        'PATH': '/usr/sbin:/usr/bin:/sbin:/bin',
+        'PYTHONPATH': str(VENDOR_ZIP),
+        'LANG': os.environ.get('LANG', 'C.UTF-8'),
+    }
+    result = subprocess.run(
+        [sys.executable, '-m', module, *map(str, args)],
+        env=env,
+        cwd=str(HELPER_PATH.parent),
+        pass_fds=tuple(pass_fds),
+        check=False,
+    )
+    return int(result.returncode)
+
+
+def user_detection_config_fd(requested_path: str) -> tuple[int, pathlib.Path]:
+    uid = caller_uid()
+    if uid <= 0:
+        raise RuntimeError('A non-root authenticated desktop caller is required for bc250-detect.')
+    account = pwd.getpwuid(uid)
+    home = pathlib.Path(account.pw_dir).resolve()
+    path = pathlib.Path(requested_path)
+    if path.name != 'overclock.conf':
+        raise RuntimeError('Detection config must be named overclock.conf.')
+    repo = path.parent
+    if repo.name != 'bc250_smu_oc' or repo.parent.name != 'ResourceTools':
+        raise RuntimeError('Detection config must belong to the bc250_smu_oc ResourceTools checkout.')
+    if repo.is_symlink() or not repo.is_dir():
+        raise RuntimeError('The bc250_smu_oc ResourceTools directory is missing or is a symlink.')
+    repo_real = repo.resolve(strict=True)
+    repo_real.relative_to(home)
+    metadata = repo_real.stat()
+    if metadata.st_uid != uid or metadata.st_mode & 0o022:
+        raise RuntimeError('The bc250_smu_oc ResourceTools directory must be caller-owned and not group/world writable.')
+    path = repo_real / 'overclock.conf'
+    flags = os.O_RDWR | os.O_CREAT | getattr(os, 'O_CLOEXEC', 0) | getattr(os, 'O_NOFOLLOW', 0)
+    try:
+        fd = os.open(path, flags, 0o600)
+    except OSError as exc:
+        raise RuntimeError(f'Could not securely open overclock.conf: {exc}') from exc
+    try:
+        os.fchown(fd, uid, account.pw_gid)
+        os.fchmod(fd, 0o600)
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode) or info.st_uid != uid or info.st_mode & 0o022:
+            raise RuntimeError('overclock.conf must be a caller-owned regular file without group/world write permission.')
+        return fd, path
+    except Exception:
+        os.close(fd)
+        raise
+
+
+def action_detect(argv: Sequence[str]) -> int:
+    if len(argv) != 4:
+        return fail('detect expects: <frequency> <vid> <temperature> <config-path>', 20)
+    try:
+        frequency, vid, temperature = map(int, argv[:3])
+    except ValueError:
+        return fail('Detection arguments must be integers.', 21)
+    if not 3500 <= frequency <= 4200:
+        return fail('Frequency must be between 3500 and 4200 MHz.', 22)
+    if not 950 <= vid <= 1325:
+        return fail('VID must be between 950 and 1325 mV.', 23)
+    if not 70 <= temperature <= 90:
+        return fail('Temperature must be between 70 and 90 C.', 24)
+    if not shutil.which('stress', path='/usr/sbin:/usr/bin:/sbin:/bin'):
+        return fail('stress is required by bc250-detect.', 25)
+    fd = -1
+    try:
+        fd, path = user_detection_config_fd(argv[3])
+        print('== Temporary BC250 CPU OC ==', flush=True)
+        print(f'Frequency: {frequency} MHz | VID: {vid} mV | Temp: {temperature} C', flush=True)
+        print('Running root-owned audited bc250-detect payload.', flush=True)
+        result = run_vendor_module(
+            'bc250_detect',
+            ['--frequency', str(frequency), '--vid', str(vid), '--temp', str(temperature), '--keep', '--config', f'/proc/self/fd/{fd}'],
+            pass_fds=(fd,),
+        )
+        if result == 0:
+            print(f'Detector evidence written securely to {path}', flush=True)
+        return result
+    finally:
+        if fd >= 0:
+            os.close(fd)
+
+
+def root_temp_config(frequency: int, scale: int, temperature: int) -> pathlib.Path:
+    runtime = ensure_private_runtime()
+    fd, name = tempfile.mkstemp(prefix='cpu-', suffix='.conf', dir=str(runtime))
+    os.close(fd)
+    path = pathlib.Path(name)
+    write_config(path, frequency, scale, temperature, 0o600)
+    return path
+
+
+def action_apply_live(argv: Sequence[str]) -> int:
+    if len(argv) != 3:
+        return fail('apply-live expects: <frequency> <scale> <temperature>', 30)
+    try:
+        frequency, scale, temperature = validate_values(*map(int, argv))
+    except (ValueError, TypeError) as exc:
+        return fail(str(exc), 31)
+    config = root_temp_config(frequency, scale, temperature)
+    try:
+        print('== Live BC250 CPU scale test ==', flush=True)
+        print(f'Applying {frequency} MHz | scale {scale} | temp {temperature} C', flush=True)
+        return run_vendor_module('bc250_apply', ['--apply', str(config)])
+    finally:
+        config.unlink(missing_ok=True)
+
+
+def write_text_atomic(path: pathlib.Path, text: str, mode: int) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, name = tempfile.mkstemp(prefix=f'.{path.name}.', suffix='.tmp', dir=str(path.parent))
+    tmp = pathlib.Path(name)
+    try:
+        with os.fdopen(fd, 'w', encoding='utf-8') as stream:
+            stream.write(text)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.chmod(tmp, mode)
+        os.replace(tmp, path)
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
+def snapshot_regular_file(path: pathlib.Path) -> tuple[bytes, int] | None:
+    try:
+        metadata = path.stat(follow_symlinks=False)
+    except FileNotFoundError:
+        return None
+    if path.is_symlink() or not stat.S_ISREG(metadata.st_mode):
+        raise RuntimeError(f'Refusing to replace non-regular privileged path: {path}')
+    payload = path.read_bytes()
+    if len(payload) > 256 * 1024:
+        raise RuntimeError(f'Privileged file is unexpectedly large: {path}')
+    return payload, metadata.st_mode & 0o777
+
+
+def restore_regular_file(path: pathlib.Path, snapshot: tuple[bytes, int] | None) -> None:
+    if snapshot is None:
+        path.unlink(missing_ok=True)
+        return
+    payload, mode = snapshot
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, name = tempfile.mkstemp(prefix=f'.{path.name}.restore.', dir=str(path.parent))
+    tmp = pathlib.Path(name)
+    try:
+        with os.fdopen(fd, 'wb') as stream:
+            stream.write(payload)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.chmod(tmp, mode)
+        os.replace(tmp, path)
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
+def service_text() -> str:
+    return f'''[Unit]\nDescription=AMD BC-250 CPU Overclock\n\n[Service]\nType=oneshot\nExecStart={HELPER_PATH} apply-config {BOOT_CONFIG}\nRestart=no\n\n[Install]\nWantedBy=multi-user.target\n'''
+
+
+def openrc_service_text() -> str:
+    return f'''#!/sbin/openrc-run
+description="AMD BC-250 CPU Overclock"
+
+depend() {{
+    need localmount
+    after modules
+}}
+
+start() {{
+    ebegin "Applying BC-250 CPU overclock"
+    {HELPER_PATH} apply-config {BOOT_CONFIG}
+    eend $?
+}}
+'''
+
+
+def active_init_manager() -> str:
+    if (
+        pathlib.Path('/run/openrc/softlevel').exists()
+        and shutil.which('openrc-run')
+        and shutil.which('rc-service')
+        and shutil.which('rc-update')
+    ):
+        return 'openrc'
+    if pathlib.Path('/run/systemd/system').exists() and shutil.which('systemctl'):
+        return 'systemd'
+    raise RuntimeError('No supported active init manager was detected (expected OpenRC or systemd).')
+
+
+def openrc_service_enabled(service: str) -> bool:
+    """Read the explicit default runlevel rather than trusting rc-update's RC.
+
+    ``rc-update show default`` succeeds even when the requested service is not
+    present.  Treating that as enabled made rollback re-add a service that had
+    never been enabled.
+    """
+    result = subprocess.run(
+        ['rc-update', 'show', 'default'], text=True, capture_output=True,
+        check=False,
+    )
+    return any(
+        line.split() and line.split()[0] == service
+        for line in (result.stdout or '').splitlines()
+    )
+
+
+def remove_openrc_service_if_owned() -> None:
+    """Remove only the exact root-owned script generated by this helper."""
+    snapshot = snapshot_regular_file(OPENRC_SERVICE_PATH)
+    if snapshot is None:
+        return
+    payload, _mode = snapshot
+    if payload.decode('utf-8', errors='replace') != openrc_service_text():
+        raise RuntimeError(
+            f'Refusing to remove modified OpenRC service: {OPENRC_SERVICE_PATH}. '
+            'Remove it manually after reviewing its contents.'
+        )
+    OPENRC_SERVICE_PATH.unlink()
+
+
+def action_install_boot(argv: Sequence[str]) -> int:
+    if len(argv) != 3:
+        return fail('install-boot expects: <frequency> <scale> <temperature>', 40)
+    try:
+        frequency, scale, temperature = validate_values(*map(int, argv))
+    except (ValueError, TypeError) as exc:
+        return fail(str(exc), 41)
+
+    manager = active_init_manager()
+    service_path = OPENRC_SERVICE_PATH if manager == 'openrc' else SERVICE_PATH
+    service_name = 'bc250-smu-oc' if manager == 'openrc' else 'bc250-smu-oc.service'
+    config_before = snapshot_regular_file(BOOT_CONFIG)
+    service_before = snapshot_regular_file(service_path)
+    was_enabled = (
+        openrc_service_enabled(service_name)
+        if manager == 'openrc'
+        else subprocess.run(
+            ['systemctl', 'is-enabled', service_name],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False,
+        ).returncode == 0
+    )
+    try:
+        write_config(BOOT_CONFIG, frequency, scale, temperature, 0o644)
+        write_text_atomic(
+            service_path,
+            openrc_service_text() if manager == 'openrc' else service_text(),
+            0o755 if manager == 'openrc' else 0o644,
+        )
+        if manager == 'openrc':
+            subprocess.run(['rc-update', 'add', service_name, 'default'], check=True)
+        else:
+            subprocess.run(['systemctl', 'daemon-reload'], check=True)
+            subprocess.run(['systemctl', 'enable', service_name], check=True)
+    except Exception:
+        restore_regular_file(BOOT_CONFIG, config_before)
+        restore_regular_file(service_path, service_before)
+        if manager == 'openrc':
+            subprocess.run(['rc-update', 'add' if was_enabled else 'del', service_name, 'default'], check=False)
+        else:
+            subprocess.run(['systemctl', 'daemon-reload'], check=False)
+            subprocess.run(
+                ['systemctl', 'enable' if was_enabled else 'disable', service_name],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False,
+            )
+        raise
+
+    print(f'written config to {BOOT_CONFIG}', flush=True)
+    print(f'written service to {service_path}', flush=True)
+    print(f'Persistent service enabled: {service_name}', flush=True)
+    print('It will apply at system boot.', flush=True)
+    return 0
+
+
+def read_config(path: pathlib.Path) -> tuple[int, int, int]:
+    parser = configparser.ConfigParser(interpolation=None)
+    if not parser.read(path):
+        raise RuntimeError(f'Could not read {path}')
+    return validate_values(
+        parser.getint('overclock', 'frequency'),
+        parser.getint('overclock', 'scale'),
+        parser.getint('overclock', 'max_temperature'),
+    )
+
+
+def _trusted_root_directory(path: pathlib.Path) -> bool:
+    try:
+        metadata = path.stat(follow_symlinks=False)
+    except OSError:
+        return False
+    return bool(
+        not path.is_symlink()
+        and stat.S_ISDIR(metadata.st_mode)
+        and metadata.st_uid == 0
+        and not (metadata.st_mode & 0o022)
+    )
+
+
+def _trusted_root_file(path: pathlib.Path, *, maximum_size: int = 64 * 1024) -> bool:
+    try:
+        metadata = path.stat(follow_symlinks=False)
+    except OSError:
+        return False
+    return bool(
+        not path.is_symlink()
+        and stat.S_ISREG(metadata.st_mode)
+        and metadata.st_uid == 0
+        and not (metadata.st_mode & 0o022)
+        and metadata.st_size <= maximum_size
+    )
+
+
+def ensure_private_runtime() -> pathlib.Path:
+    """Keep public CU snapshots readable while CPU evidence stays root-only."""
+    RUNTIME_ROOT.mkdir(mode=0o755, parents=True, exist_ok=True)
+    if not _trusted_root_directory(RUNTIME_ROOT):
+        raise RuntimeError(f'Unsafe runtime directory: {RUNTIME_ROOT}')
+    # Older builds changed the shared directory to 0700 while creating a CPU
+    # temporary file, which made the verified CU snapshot unreadable by Qt.
+    os.chmod(RUNTIME_ROOT, 0o755)
+    PRIVATE_RUNTIME.mkdir(mode=0o700, exist_ok=True)
+    if not _trusted_root_directory(PRIVATE_RUNTIME):
+        raise RuntimeError(f'Unsafe private runtime directory: {PRIVATE_RUNTIME}')
+    os.chmod(PRIVATE_RUNTIME, 0o700)
+    return PRIVATE_RUNTIME
+
+
+def _current_boot_id() -> str:
+    value = BOOT_ID_PATH.read_text(encoding='ascii', errors='strict').strip()
+    if not value or len(value) > 128:
+        raise RuntimeError('Could not establish the current boot identity.')
+    return value
+
+
+def _fsync_directory(path: pathlib.Path) -> None:
+    descriptor = os.open(path, os.O_RDONLY | getattr(os, 'O_DIRECTORY', 0))
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def _clear_qam_files(paths: Sequence[pathlib.Path]) -> None:
+    ensure_private_runtime()
+    for path in paths:
+        if path.exists() or path.is_symlink():
+            if path.is_symlink() or not _trusted_root_file(path):
+                raise RuntimeError(f'Refusing to replace unsafe QAM CPU evidence: {path}')
+            path.unlink()
+    _fsync_directory(PRIVATE_RUNTIME)
+
+
+def _clear_qam_manual_evidence() -> None:
+    _clear_qam_files((QAM_MANUAL_EVIDENCE, QAM_MANUAL_CONFIG))
+
+
+def _clear_qam_evidence() -> None:
+    _clear_qam_files((QAM_EVIDENCE, QAM_CONFIG, QAM_MANUAL_EVIDENCE, QAM_MANUAL_CONFIG))
+
+
+def _validated_qam_evidence() -> dict[str, object]:
+    if not _trusted_root_file(QAM_EVIDENCE, maximum_size=16 * 1024):
+        raise RuntimeError('No trusted QAM CPU detector evidence is available.')
+    if not _trusted_root_file(QAM_CONFIG, maximum_size=16 * 1024):
+        raise RuntimeError('The detected QAM CPU configuration is missing or unsafe.')
+    try:
+        payload = json.loads(QAM_EVIDENCE.read_text(encoding='utf-8', errors='strict'))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f'QAM CPU detector evidence is invalid: {exc}') from exc
+    if not isinstance(payload, dict) or payload.get('schema') != QAM_EVIDENCE_SCHEMA:
+        raise RuntimeError('QAM CPU detector evidence has an unsupported schema.')
+    if payload.get('boot_id') != _current_boot_id():
+        raise RuntimeError('QAM CPU detector evidence belongs to another boot.')
+    if payload.get('vendor_commit') != EXPECTED_VENDOR_COMMIT:
+        raise RuntimeError('QAM CPU detector evidence belongs to another vendor revision.')
+    expected_digest = hashlib.sha256(QAM_CONFIG.read_bytes()).hexdigest()
+    if payload.get('config_sha256') != expected_digest:
+        raise RuntimeError('QAM CPU detector evidence no longer matches its configuration.')
+
+    request = payload.get('request')
+    result = payload.get('result')
+    if not isinstance(request, dict) or not isinstance(result, dict):
+        raise RuntimeError('QAM CPU detector evidence is incomplete.')
+    try:
+        requested_frequency = int(request['frequency'])
+        requested_vid = int(request['vid'])
+        requested_temperature = int(request['temperature'])
+        frequency, scale, temperature = read_config(QAM_CONFIG)
+    except (KeyError, TypeError, ValueError, configparser.Error) as exc:
+        raise RuntimeError(f'QAM CPU detector evidence contains invalid values: {exc}') from exc
+    if not 3500 <= requested_frequency <= 4200 or requested_frequency % 50:
+        raise RuntimeError('QAM CPU detector target frequency is invalid.')
+    if not 950 <= requested_vid <= 1325 or requested_vid % 5:
+        raise RuntimeError('QAM CPU detector target VID is invalid.')
+    if requested_temperature != 90 or temperature != requested_temperature:
+        raise RuntimeError('QAM CPU detector temperature does not match the fixed QAM limit.')
+    if frequency > requested_frequency:
+        raise RuntimeError('QAM CPU detector returned a frequency above its requested target.')
+    if result != {
+        'frequency': frequency,
+        'scale': scale,
+        'temperature': temperature,
+    }:
+        raise RuntimeError('QAM CPU detector result does not match its protected configuration.')
+    if payload.get('applied_live') is not True:
+        raise RuntimeError('QAM CPU detector result was not verified as applied live.')
+    return {
+        'ready': True,
+        'same_boot': True,
+        'requested_frequency': requested_frequency,
+        'requested_vid': requested_vid,
+        'requested_temperature': requested_temperature,
+        'frequency': frequency,
+        'scale': scale,
+        'temperature': temperature,
+        'observed_at': int(payload.get('observed_at', 0)),
+        'config_sha256': expected_digest,
+        'vendor_commit': EXPECTED_VENDOR_COMMIT,
+        'applied_live': True,
+    }
+
+
+def _validated_qam_manual_evidence(detected: dict[str, object]) -> dict[str, object] | None:
+    manual_paths_exist = any(
+        path.exists() or path.is_symlink()
+        for path in (QAM_MANUAL_CONFIG, QAM_MANUAL_EVIDENCE)
+    )
+    if not manual_paths_exist:
+        return None
+    if not _trusted_root_file(QAM_MANUAL_EVIDENCE, maximum_size=16 * 1024):
+        raise RuntimeError('The QAM manual-scale evidence is missing or unsafe.')
+    if not _trusted_root_file(QAM_MANUAL_CONFIG, maximum_size=16 * 1024):
+        raise RuntimeError('The QAM manual-scale configuration is missing or unsafe.')
+    try:
+        payload = json.loads(QAM_MANUAL_EVIDENCE.read_text(encoding='utf-8', errors='strict'))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f'QAM manual-scale evidence is invalid: {exc}') from exc
+    if not isinstance(payload, dict) or payload.get('schema') != QAM_MANUAL_EVIDENCE_SCHEMA:
+        raise RuntimeError('QAM manual-scale evidence has an unsupported schema.')
+    if payload.get('boot_id') != _current_boot_id():
+        raise RuntimeError('QAM manual-scale evidence belongs to another boot.')
+    if payload.get('vendor_commit') != EXPECTED_VENDOR_COMMIT:
+        raise RuntimeError('QAM manual-scale evidence belongs to another vendor revision.')
+    if payload.get('detector_config_sha256') != detected.get('config_sha256'):
+        raise RuntimeError('QAM manual-scale evidence no longer matches its detector reference.')
+    manual_digest = hashlib.sha256(QAM_MANUAL_CONFIG.read_bytes()).hexdigest()
+    if payload.get('config_sha256') != manual_digest:
+        raise RuntimeError('QAM manual-scale evidence no longer matches its configuration.')
+    try:
+        frequency, scale, temperature = read_config(QAM_MANUAL_CONFIG)
+    except Exception as exc:
+        raise RuntimeError(f'QAM manual-scale configuration is invalid: {exc}') from exc
+    if frequency != int(detected['frequency']) or temperature != int(detected['temperature']):
+        raise RuntimeError('QAM manual-scale values no longer match the detected frequency and limit.')
+    expected_result = {
+        'frequency': frequency,
+        'scale': scale,
+        'temperature': temperature,
+        'estimated_vid': estimated_vid(frequency, scale),
+    }
+    if payload.get('reference_scale') != int(detected['scale']):
+        raise RuntimeError('QAM manual-scale evidence has the wrong detected reference scale.')
+    if payload.get('result') != expected_result or payload.get('applied_live') is not True:
+        raise RuntimeError('QAM manual-scale evidence does not describe a verified live apply.')
+    return {
+        'mode': 'manual',
+        **expected_result,
+        'reference_scale': int(detected['scale']),
+        'observed_at': int(payload.get('observed_at', 0)),
+        'persistable': True,
+    }
+
+
+def _qam_active_profile(detected: dict[str, object]) -> dict[str, object]:
+    manual = _validated_qam_manual_evidence(detected)
+    if manual is not None:
+        return manual
+    frequency = int(detected['frequency'])
+    scale = int(detected['scale'])
+    return {
+        'mode': 'automatic',
+        'frequency': frequency,
+        'scale': scale,
+        'temperature': int(detected['temperature']),
+        'estimated_vid': estimated_vid(frequency, scale),
+        'reference_scale': scale,
+        'observed_at': int(detected.get('observed_at', 0)),
+        'persistable': True,
+    }
+
+
+def _publish_qam_state(payload: dict[str, object]) -> bool:
+    """Publish non-authorizing live state while detector evidence stays private."""
+    ensure_private_runtime()
+    active = payload.get('active_profile')
+    if not isinstance(active, dict):
+        return False
+    evidence_path = QAM_MANUAL_EVIDENCE if active.get('mode') == 'manual' else QAM_EVIDENCE
+    if not _trusted_root_file(evidence_path, maximum_size=16 * 1024):
+        raise RuntimeError(f'QAM CPU action evidence is missing or unsafe: {evidence_path}')
+    action_observed_at_unix_ns = evidence_path.stat(follow_symlinks=False).st_mtime_ns
+    if QAM_PUBLIC_STATE.exists() or QAM_PUBLIC_STATE.is_symlink():
+        if QAM_PUBLIC_STATE.is_symlink() or not _trusted_root_file(QAM_PUBLIC_STATE, maximum_size=16 * 1024):
+            raise RuntimeError(f'Refusing to replace unsafe QAM CPU snapshot: {QAM_PUBLIC_STATE}')
+    public = {
+        'schema': QAM_PUBLIC_STATE_SCHEMA,
+        'producer': 'bc250-cpu-smu-helper',
+        'helper_protocol': QAM_HELPER_PROTOCOL,
+        'boot_id': _current_boot_id(),
+        'observed_at_unix_ms': time.time_ns() // 1_000_000,
+        'action_observed_at_unix_ns': action_observed_at_unix_ns,
+        'active_profile': active,
+    }
+    write_text_atomic(QAM_PUBLIC_STATE, json.dumps(public, sort_keys=True) + '\n', 0o644)
+    os.chmod(RUNTIME_ROOT, 0o755)
+    _fsync_directory(RUNTIME_ROOT)
+    return True
+
+
+def _remove_qam_public_state() -> None:
+    if not (QAM_PUBLIC_STATE.exists() or QAM_PUBLIC_STATE.is_symlink()):
+        return
+    if QAM_PUBLIC_STATE.is_symlink() or not _trusted_root_file(QAM_PUBLIC_STATE, maximum_size=16 * 1024):
+        raise RuntimeError(f'Refusing to remove unsafe QAM CPU snapshot: {QAM_PUBLIC_STATE}')
+    QAM_PUBLIC_STATE.unlink()
+    _fsync_directory(RUNTIME_ROOT)
+
+
+def action_qam_status(argv: Sequence[str]) -> int:
+    if argv:
+        return fail('qam-status does not accept arguments.', 80)
+    try:
+        payload = _validated_qam_evidence()
+    except Exception as exc:
+        try:
+            _remove_qam_public_state()
+        except Exception as publish_exc:
+            print(f'WARN CPU live-state cleanup failed: {publish_exc}', file=sys.stderr, flush=True)
+        print(json.dumps({'ready': False, 'reason': str(exc)}), flush=True)
+        return 0
+    try:
+        payload['active_profile'] = _qam_active_profile(payload)
+        payload['manual_scale_ready'] = True
+    except Exception as exc:
+        payload['active_profile'] = {
+            'mode': 'automatic',
+            'frequency': int(payload['frequency']),
+            'scale': int(payload['scale']),
+            'temperature': int(payload['temperature']),
+            'estimated_vid': estimated_vid(int(payload['frequency']), int(payload['scale'])),
+            'reference_scale': int(payload['scale']),
+            'observed_at': int(payload.get('observed_at', 0)),
+            'persistable': True,
+        }
+        payload['manual_scale_ready'] = False
+        payload['manual_scale_error'] = str(exc)
+    try:
+        payload['runtime_snapshot_published'] = _publish_qam_state(payload)
+    except Exception as exc:
+        payload['runtime_snapshot_published'] = False
+        payload['runtime_snapshot_warning'] = str(exc)
+    print(json.dumps(payload, sort_keys=True), flush=True)
+    return 0
+
+
+def action_detect_qam(argv: Sequence[str]) -> int:
+    """Run upstream detection, validate its output, then apply that exact result."""
+    if len(argv) != 3:
+        return fail('detect-qam expects: <frequency> <vid> <temperature>', 81)
+    try:
+        frequency, vid, temperature = map(int, argv)
+    except ValueError:
+        return fail('QAM CPU detector arguments must be integers.', 82)
+    if not 3500 <= frequency <= 4200 or frequency % 50:
+        return fail('QAM CPU frequency must be 3500-4200 MHz in 50 MHz steps.', 83)
+    if not 950 <= vid <= 1325 or vid % 5:
+        return fail('QAM CPU VID must be 950-1325 mV in 5 mV steps.', 84)
+    if temperature != 90:
+        return fail('QAM CPU detection uses a fixed 90 C thermal limit.', 85)
+    if not shutil.which('stress', path='/usr/sbin:/usr/bin:/sbin:/bin'):
+        return fail('stress is required by bc250-detect.', 86)
+
+    _clear_qam_evidence()
+    runtime = ensure_private_runtime()
+    descriptor, name = tempfile.mkstemp(prefix='.cpu-qam-detect.', suffix='.conf', dir=str(runtime))
+    detected = pathlib.Path(name)
+    try:
+        os.fchmod(descriptor, 0o600)
+        print('== BC250 QAM CPU detector ==', flush=True)
+        print(f'Target: {frequency} MHz | maximum VID: {vid} mV | thermal limit: {temperature} C', flush=True)
+        detector_result = run_vendor_module(
+            'bc250_detect',
+            [
+                '--frequency', str(frequency), '--vid', str(vid),
+                '--temp', str(temperature), '--config', f'/proc/self/fd/{descriptor}',
+            ],
+            pass_fds=(descriptor,),
+        )
+        os.fsync(descriptor)
+        os.close(descriptor)
+        descriptor = -1
+        if detector_result != 0:
+            return detector_result
+        try:
+            result_frequency, result_scale, result_temperature = read_config(detected)
+        except Exception as exc:
+            return fail(f'bc250-detect did not produce a valid configuration: {exc}', 87)
+        if result_frequency > frequency or result_temperature != temperature:
+            return fail('bc250-detect returned values outside the requested QAM target.', 88)
+
+        # Upstream detection restores defaults when --keep is omitted. Apply
+        # only its validated output after the stress/detection process exits.
+        apply_result = run_vendor_module('bc250_apply', ['--apply', str(detected)])
+        if apply_result != 0:
+            return apply_result
+        os.chmod(detected, 0o600)
+        os.replace(detected, QAM_CONFIG)
+        _fsync_directory(runtime)
+        digest = hashlib.sha256(QAM_CONFIG.read_bytes()).hexdigest()
+        evidence = {
+            'schema': QAM_EVIDENCE_SCHEMA,
+            'boot_id': _current_boot_id(),
+            'observed_at': int(time.time()),
+            'vendor_commit': EXPECTED_VENDOR_COMMIT,
+            'vendor_sha256': EXPECTED_VENDOR_SHA256,
+            'config_sha256': digest,
+            'applied_live': True,
+            'request': {
+                'frequency': frequency,
+                'vid': vid,
+                'temperature': temperature,
+            },
+            'result': {
+                'frequency': result_frequency,
+                'scale': result_scale,
+                'temperature': result_temperature,
+            },
+        }
+        write_text_atomic(QAM_EVIDENCE, json.dumps(evidence, sort_keys=True) + '\n', 0o600)
+        _fsync_directory(runtime)
+        print(json.dumps(_validated_qam_evidence(), sort_keys=True), flush=True)
+        return 0
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+        detected.unlink(missing_ok=True)
+
+
+def action_apply_qam_scale(argv: Sequence[str]) -> int:
+    """Apply one manual scale bound to this boot's protected detector result."""
+    if len(argv) != 3:
+        return fail('apply-qam-scale expects: <frequency> <scale> <temperature>', 91)
+    try:
+        frequency, scale, temperature = validate_values(*map(int, argv))
+        detected = _validated_qam_evidence()
+    except Exception as exc:
+        return fail(str(exc), 92)
+    if frequency != int(detected['frequency']):
+        return fail('Run automatic detection at this exact frequency before using manual scale.', 93)
+    if temperature != int(detected['temperature']):
+        return fail('Manual scale must reuse the detected thermal limit.', 94)
+
+    _clear_qam_manual_evidence()
+    config = root_temp_config(frequency, scale, temperature)
+    try:
+        print('== BC250 QAM manual scale ==', flush=True)
+        print(f'Applying {frequency} MHz | scale {scale} | temp {temperature} C', flush=True)
+        result = run_vendor_module('bc250_apply', ['--apply', str(config)])
+        if result != 0:
+            return result
+        os.chmod(config, 0o600)
+        os.replace(config, QAM_MANUAL_CONFIG)
+        _fsync_directory(PRIVATE_RUNTIME)
+        manual_result = {
+            'frequency': frequency,
+            'scale': scale,
+            'temperature': temperature,
+            'estimated_vid': estimated_vid(frequency, scale),
+        }
+        evidence = {
+            'schema': QAM_MANUAL_EVIDENCE_SCHEMA,
+            'boot_id': _current_boot_id(),
+            'observed_at': int(time.time()),
+            'vendor_commit': EXPECTED_VENDOR_COMMIT,
+            'detector_config_sha256': str(detected['config_sha256']),
+            'config_sha256': hashlib.sha256(QAM_MANUAL_CONFIG.read_bytes()).hexdigest(),
+            'reference_scale': int(detected['scale']),
+            'result': manual_result,
+            'applied_live': True,
+        }
+        write_text_atomic(QAM_MANUAL_EVIDENCE, json.dumps(evidence, sort_keys=True) + '\n', 0o600)
+        _fsync_directory(PRIVATE_RUNTIME)
+        active = _validated_qam_manual_evidence(detected)
+        print(json.dumps(active, sort_keys=True), flush=True)
+        return 0
+    finally:
+        config.unlink(missing_ok=True)
+
+
+def action_install_qam(argv: Sequence[str]) -> int:
+    if argv:
+        return fail('install-qam does not accept arguments.', 89)
+    try:
+        evidence = _validated_qam_evidence()
+        active = _qam_active_profile(evidence)
+    except Exception as exc:
+        return fail(str(exc), 90)
+    return action_install_boot([
+        str(active['frequency']),
+        str(active['scale']),
+        str(active['temperature']),
+    ])
+
+
+def action_apply_config(argv: Sequence[str]) -> int:
+    if len(argv) != 1 or pathlib.Path(argv[0]) != BOOT_CONFIG:
+        return fail(f'apply-config accepts only {BOOT_CONFIG}', 50)
+    try:
+        frequency, scale, temperature = read_config(BOOT_CONFIG)
+    except Exception as exc:
+        return fail(str(exc), 51)
+    config = root_temp_config(frequency, scale, temperature)
+    try:
+        return run_vendor_module('bc250_apply', ['--apply', str(config)])
+    finally:
+        config.unlink(missing_ok=True)
+
+
+def action_disable_boot(argv: Sequence[str]) -> int:
+    if argv:
+        return fail('disable-boot does not accept arguments.', 60)
+    if active_init_manager() == 'openrc':
+        subprocess.run(['rc-update', 'del', 'bc250-smu-oc', 'default'], check=False)
+        subprocess.run(['rc-service', 'bc250-smu-oc', 'stop'], check=False)
+        remove_openrc_service_if_owned()
+        print('bc250-smu-oc OpenRC service stopped/disabled.', flush=True)
+    else:
+        subprocess.run(['systemctl', 'disable', '--now', 'bc250-smu-oc.service'], check=False)
+        subprocess.run(['systemctl', 'reset-failed', 'bc250-smu-oc.service'], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(['systemctl', 'daemon-reload'], check=False)
+        print('bc250-smu-oc.service stopped/disabled.', flush=True)
+    print(f'{BOOT_CONFIG} is not deleted so you can review or reinstall later.', flush=True)
+    return 0
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    argv = list(sys.argv[1:] if argv is None else argv)
+    try:
+        require_root_and_payload()
+    except Exception as exc:
+        return fail(str(exc), 10)
+    if not argv:
+        return fail('Missing action.', 2)
+    action, args = argv[0], argv[1:]
+    try:
+        if action == 'detect':
+            return action_detect(args)
+        if action == 'detect-qam':
+            return action_detect_qam(args)
+        if action == 'qam-status':
+            return action_qam_status(args)
+        if action == 'apply-qam-scale':
+            return action_apply_qam_scale(args)
+        if action == 'install-qam':
+            return action_install_qam(args)
+        if action == 'apply-live':
+            return action_apply_live(args)
+        if action == 'install-boot':
+            return action_install_boot(args)
+        if action == 'apply-config':
+            return action_apply_config(args)
+        if action == 'disable-boot':
+            return action_disable_boot(args)
+        return fail('Unknown action.', 3)
+    except Exception as exc:
+        return fail(str(exc), 70)
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

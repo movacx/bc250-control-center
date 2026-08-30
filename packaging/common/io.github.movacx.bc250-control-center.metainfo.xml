@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.movacx.bc250-control-center</id>
+  <name>BC250 Control Center</name>
+  <summary>Monitor and tune AMD BC-250 systems on Linux</summary>
+  <summary xml:lang="es">Supervisa y ajusta sistemas AMD BC-250 en Linux</summary>
+  <summary xml:lang="de">AMD-BC-250-Systeme unter Linux überwachen und abstimmen</summary>
+  <summary xml:lang="pl">Monitoruj i dostrajaj systemy AMD BC-250 w Linuksie</summary>
+  <developer id="io.github.movacx">
+    <name>Movacx</name>
+  </developer>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+  <description>
+    <p>BC250 Control Center combines process management, performance telemetry, local history and conservative controls for AMD BC-250 boards.</p>
+    <p>Hardware-changing workflows use reviewed integration boundaries, explicit safety checks and recovery evidence.</p>
+    <p xml:lang="es">BC250 Control Center combina gestión de procesos, telemetría de rendimiento, historial local y controles conservadores para placas AMD BC-250.</p>
+    <p xml:lang="es">Los flujos que modifican hardware usan integraciones revisadas, comprobaciones de seguridad explícitas y evidencia de recuperación.</p>
+    <p xml:lang="de">BC250 Control Center vereint Prozessverwaltung, Leistungstelemetrie, lokalen Verlauf und vorsichtige Steuerungen für AMD-BC-250-Platinen.</p>
+    <p xml:lang="de">Hardwareändernde Abläufe verwenden geprüfte Integrationen, ausdrückliche Sicherheitsprüfungen und Wiederherstellungsnachweise.</p>
+    <p xml:lang="pl">BC250 Control Center łączy zarządzanie procesami, telemetrię wydajności, lokalną historię i ostrożne sterowanie płytami AMD BC-250.</p>
+    <p xml:lang="pl">Operacje zmieniające sprzęt korzystają ze sprawdzonych integracji, jawnych kontroli bezpieczeństwa i danych odzyskiwania.</p>
+  </description>
+  <launchable type="desktop-id">io.github.movacx.bc250-control-center.desktop</launchable>
+  <provides>
+    <binary>bc250-control-center</binary>
+  </provides>
+  <categories>
+    <category>System</category>
+    <category>Monitor</category>
+    <category>Utility</category>
+  </categories>
+  <url type="homepage">https://github.com/movacx/bc250-control-center</url>
+  <releases>
+    <release version="1.19.0" date="2026-08-27">
+      <description>
+        <p>Rediseña el backend GPU de Cyan: separa rango solicitado, límite térmico y frecuencia observada; corrige el runtime SMU de Bazzite, conserva SMU/Kernel y fix-metrics/fix-freq como controles independientes, y habilita los safe-points experimentales superiores a 2000 MHz sin imponer un límite artificial.</p>
+      </description>
+    </release>
+    <release version="1.19.6" date="2026-08-22">
+      <description>
+        <p>Corrige la instalación nativa de Decky en Bazzite, protege 2000 MHz detrás del backend del kernel y mueve Controladores al diálogo de preparación.</p>
+      </description>
+    </release>
+    <release version="1.19.5" date="2026-08-21">
+      <description>
+        <p>Clarify and translate the Bazzite Memory and Swap card, including its confirmation flow.</p>
+      </description>
+    </release>
+    <release version="1.19.4" date="2026-08-21">
+      <description>
+        <p>Fix Bazzite zswap activation by generating the required systemd path-based swap unit name, and migrate the invalid unit created by earlier releases.</p>
+      </description>
+    </release>
+    <release version="1.19.3" date="2026-08-21">
+      <description>
+        <p>Corrige la reutilización del swapfile y la unidad systemd de memoria en Bazzite; simplifica las opciones de memoria y TTM.</p>
+      </description>
+    </release>
+    <release version="1.19.2" date="2026-08-21">
+      <description>
+        <p>Añade la instalación explícita del kernel BC-250 externo para CachyOS y habilita Quick Access con Decky en CachyOS y CachyOS Handheld.</p>
+      </description>
+    </release>
+    <release version="1.19.1" date="2026-08-21">
+      <description>
+        <p>Corrige Quick Access en Bazzite: habilita el runtime validado y el backend seguro de Compute Units persistente, sin cambiar el flujo de SteamOS.</p>
+      </description>
+    </release>
+    <release version="1.18.2" date="2026-07-30">
+      <description>
+        <p>Corrige la curva de voltaje del governor, restaura los valores originales del paquete y bloquea rangos de OC alto con perfiles incompletos.</p>
+      </description>
+    </release>
+    <release version="1.18.1" date="2026-07-30">
+      <description>
+        <p>Integra el desbloqueo experimental de nucleos de CPU mediante la herramienta upstream oficial, mejora los paneles de CPU y GPU, la persistencia de ventiladores y la navegacion con mando.</p>
+      </description>
+    </release>
+    <release version="1.17.23" date="2026-07-27">
+      <description>
+        <p>Mayor compatibilidad con mando, navegacion mas fluida e ingreso numerico en pantalla para flujos de control.</p>
+      </description>
+    </release>
+  </releases>
+  <content_rating type="oars-1.1" />
+</component>

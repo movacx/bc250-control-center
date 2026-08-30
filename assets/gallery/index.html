@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BC250 Control Center — Screenshots</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: #101113;
+      color: #f1f3f7;
+      font-family: system-ui, sans-serif;
+    }
+    .close {
+      position: fixed;
+      top: clamp(14px, 2vw, 26px);
+      right: clamp(14px, 2vw, 26px);
+      z-index: 3;
+      display: grid;
+      width: 48px;
+      aspect-ratio: 1;
+      place-items: center;
+      border: 1px solid #454b58;
+      border-radius: 999px;
+      background: rgb(28 30 35 / 92%);
+      box-shadow: 0 8px 28px rgb(0 0 0 / 45%);
+      color: #f7f8fb;
+      font-size: 31px;
+      font-weight: 400;
+      line-height: 1;
+      text-decoration: none;
+      backdrop-filter: blur(8px);
+    }
+    .viewer {
+      width: min(96vw, 1600px);
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: clamp(8px, 1.5vw, 24px);
+      align-items: center;
+    }
+    img {
+      display: block;
+      width: 100%;
+      max-height: 90vh;
+      object-fit: contain;
+      border: 1px solid #30333a;
+      border-radius: 12px;
+      box-shadow: 0 18px 60px rgb(0 0 0 / 35%);
+    }
+    button {
+      display: grid;
+      width: clamp(48px, 5vw, 64px);
+      aspect-ratio: 1;
+      place-items: center;
+      border: 1px solid #454b58;
+      border-radius: 999px;
+      background: linear-gradient(145deg, #292c33, #191b20);
+      box-shadow: 0 8px 28px rgb(0 0 0 / 42%), inset 0 1px rgb(255 255 255 / 8%);
+      color: #f1f3f7;
+      font-size: clamp(27px, 3vw, 40px);
+      font-weight: 700;
+      line-height: 1;
+      cursor: pointer;
+      transition: transform 140ms ease, border-color 140ms ease, background 140ms ease;
+    }
+    button:hover, button:focus-visible, .close:hover, .close:focus-visible {
+      border-color: #5d93f5;
+      background: #2563d8;
+      outline: 2px solid #78a7ff;
+      outline-offset: 3px;
+    }
+    button:hover { transform: scale(1.07); }
+    button:active { transform: scale(.96); }
+    @media (max-width: 560px) {
+      .viewer { grid-template-columns: 1fr; }
+      button { position: fixed; top: calc(50% - 22px); z-index: 1; }
+      #previous { left: 8px; }
+      #next { right: 8px; }
+    }
+  </style>
+</head>
+<body>
+  <a class="close" href="https://github.com/movacx/bc250-control-center#screenshots" aria-label="Close gallery and return to GitHub" title="Return to GitHub">&times;</a>
+  <main class="viewer">
+    <button id="previous" type="button" aria-label="Previous screenshot">&#10094;</button>
+    <img id="screenshot" src="../assets/screenshots/dashboard-overview.png" alt="BC250 Control Center dashboard">
+    <button id="next" type="button" aria-label="Next screenshot">&#10095;</button>
+  </main>
+  <script>
+    const photos = [
+      ['dashboard', '../assets/screenshots/dashboard-overview.png', 'BC250 Control Center dashboard'],
+      ['decky', '../assets/screenshots/decky-quick-access.png', 'BC250 Decky Quick Access'],
+      ['cpu', '../assets/screenshots/cpu-tuning.png', 'CPU tuning'],
+      ['gpu', '../assets/screenshots/gpu-governor.png', 'GPU governor'],
+      ['compute', '../assets/screenshots/compute-units.png', 'Compute Units'],
+      ['fans', '../assets/screenshots/fan-control.png', 'Fan control'],
+      ['compute-monitor', '../assets/screenshots/compute-units-monitor.png', 'Compute Units monitoring'],
+      ['preparation', '../assets/screenshots/dependency-preparation.png', 'Dependency preparation'],
+    ];
+    const image = document.querySelector('#screenshot');
+    const close = document.querySelector('.close');
+    let current = Math.max(0, photos.findIndex(([key]) => key === location.hash.slice(1)));
+
+    function render(index, updateHash = true) {
+      current = (index + photos.length) % photos.length;
+      const [key, source, alt] = photos[current];
+      image.src = source;
+      image.alt = alt;
+      if (updateHash) history.replaceState(null, '', `#${key}`);
+    }
+
+    document.querySelector('#previous').addEventListener('click', () => render(current - 1));
+    document.querySelector('#next').addEventListener('click', () => render(current + 1));
+    window.addEventListener('keydown', event => {
+      if (event.key === 'ArrowLeft') render(current - 1);
+      if (event.key === 'ArrowRight') render(current + 1);
+      if (event.key === 'Escape') location.href = close.href;
+    });
+    window.addEventListener('hashchange', () => {
+      const index = photos.findIndex(([key]) => key === location.hash.slice(1));
+      render(index >= 0 ? index : 0, false);
+    });
+    render(current, false);
+  </script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+"""Typed privileged-operation adapters."""

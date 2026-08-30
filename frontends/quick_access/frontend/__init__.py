@@ -1,0 +1,1 @@
+"""Decky UI translation boundary."""

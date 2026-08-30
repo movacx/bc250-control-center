@@ -1,0 +1,275 @@
+#!/usr/bin/python3
+"""Narrow root boundary for BC250 OpenRC service scripts.
+
+Only fixed BC250 service names and root-owned runtime paths are accepted.  It
+never executes a checkout below a desktop user's home and it refuses to delete
+an altered script, so switching init systems cannot turn cleanup into an
+arbitrary root-file deletion primitive.
+"""
+from __future__ import annotations
+
+import os
+import pathlib
+import shutil
+import stat
+import subprocess
+import sys
+import tempfile
+
+HELPER_PATH = pathlib.Path('/usr/libexec/bc250-control-center/bc250-openrc-service-helper')
+INIT_DIR = pathlib.Path('/etc/init.d')
+CONFIG_DIR = pathlib.Path('/etc/conf.d')
+MARKER = '# Managed by BC250 Control Center (OpenRC)'
+CU_BACKEND = pathlib.Path('/var/lib/bc250-control-center/bc250-cu-live-manager')
+CU_DATABASE = pathlib.Path('/usr/libexec/bc250-control-center/bc250-cu-umr-database')
+CU_CONFIG = pathlib.Path('/etc/bc250-cu-live-manager.conf')
+CPU_HELPER = pathlib.Path('/usr/libexec/bc250-control-center/bc250-cpu-smu-helper')
+CPU_CONFIG = pathlib.Path('/etc/bc250-smu-oc.conf')
+FAN_LOADER = pathlib.Path('/usr/local/sbin/bc250-load-nct6687')
+
+SERVICES = frozenset({'bc250-cu-live-manager', 'bc250-smu-oc', 'cyan-skillfish-governor-smu', 'oberon-governor', 'nct6687-load'})
+
+
+def fail(message: str, code: int = 1) -> int:
+    print(f'ERR {message}', file=sys.stderr, flush=True)
+    return code
+
+
+def _safe_regular(path: pathlib.Path, *, executable: bool = False) -> bool:
+    try:
+        info = path.stat(follow_symlinks=False)
+    except OSError:
+        return False
+    return bool(
+        not path.is_symlink() and stat.S_ISREG(info.st_mode) and info.st_uid == 0
+        and not (info.st_mode & 0o022) and (not executable or bool(info.st_mode & stat.S_IXUSR))
+    )
+
+
+def _require_root_openrc() -> None:
+    if os.geteuid() != 0:
+        raise RuntimeError('This helper must run through pkexec.')
+    if not all(shutil.which(command) for command in ('openrc-run', 'rc-service', 'rc-update')):
+        raise RuntimeError('OpenRC tools are unavailable.')
+    if not pathlib.Path('/run/openrc/softlevel').exists():
+        raise RuntimeError('OpenRC is not the active init system.')
+    if not _safe_regular(HELPER_PATH, executable=True):
+        raise RuntimeError('The OpenRC service helper is not a protected root-owned executable.')
+
+
+def _write_atomic(path: pathlib.Path, text: str, mode: int = 0o755) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, name = tempfile.mkstemp(prefix=f'.{path.name}.', dir=str(path.parent))
+    temporary = pathlib.Path(name)
+    try:
+        with os.fdopen(fd, 'w', encoding='utf-8') as stream:
+            stream.write(text)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.chmod(temporary, mode)
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def _cu_script() -> str:
+    if not (_safe_regular(CU_BACKEND, executable=True) and _safe_regular(CU_CONFIG)):
+        raise RuntimeError('The protected CU backend or saved CU table is missing/unsafe. Save the table and prepare dependencies first.')
+    model = CU_DATABASE / 'cyan_skillfish.asic'
+    # SteamOS needs the protected static model; generic OpenRC systems use
+    # their distribution UMR database and deliberately receive no override.
+    environment = ''
+    if model.exists():
+        if not _safe_regular(model):
+            raise RuntimeError('The protected CU UMR database is unsafe.')
+        environment = f'UMR_DATABASE_PATH={CU_DATABASE} '
+    return f'''#!/sbin/openrc-run
+{MARKER}
+description="Apply BC-250 saved Compute Unit routing"
+
+depend() {{
+    need localmount
+    after modules
+}}
+
+start_pre() {{
+    local waited=0
+    bc250_render_node() {{
+        for node in /dev/dri/renderD*; do
+            [ -c "$node" ] && {{ printf '%s\\n' "$node"; return 0; }}
+        done
+        return 1
+    }}
+    while ! bc250_render_node >/dev/null && [ "$waited" -lt 30 ]; do
+        sleep 1
+        waited=$((waited + 1))
+    done
+    bc250_render_node >/dev/null || eerror "A DRM render node did not appear"
+}}
+
+start() {{
+    ebegin "Applying BC-250 saved CU routing"
+    {environment}{CU_BACKEND} --yes apply-service
+    eend $?
+}}
+'''
+
+
+def _cpu_script() -> str:
+    if not (_safe_regular(CPU_HELPER, executable=True) and _safe_regular(CPU_CONFIG)):
+        raise RuntimeError('The protected CPU helper or saved CPU profile is missing/unsafe.')
+    return f'''#!/sbin/openrc-run
+{MARKER}
+description="Apply AMD BC-250 CPU overclock"
+
+depend() {{
+    need localmount
+    after modules
+}}
+
+start() {{
+    ebegin "Applying BC-250 CPU overclock"
+    {CPU_HELPER} apply-config {CPU_CONFIG}
+    eend $?
+}}
+'''
+
+
+def _fan_script() -> str:
+    if not _safe_regular(FAN_LOADER, executable=True):
+        raise RuntimeError('The protected NCT6687 loader is missing/unsafe.')
+    return f'''#!/sbin/openrc-run
+{MARKER}
+description="Load NCT6687 SuperIO fan PWM module for BC-250"
+
+depend() {{
+    need localmount
+    after modules
+}}
+
+start() {{
+    ebegin "Loading NCT6687 fan PWM module"
+    sleep 20
+    {FAN_LOADER} || {{ eend 1; return 1; }}
+    bc250_nct_ready=0
+    bc250_nct_waited=0
+    while [ "$bc250_nct_waited" -lt 15 ]; do
+        for bc250_nct_name in /sys/class/hwmon/hwmon*/name; do
+            [ -r "$bc250_nct_name" ] || continue
+            bc250_nct_label="$(cat "$bc250_nct_name" 2>/dev/null || true)"
+            case "$bc250_nct_label" in
+                nct668*|nct67*|nct*)
+                    bc250_nct_dir="${{bc250_nct_name%/name}}"
+                    if ls "$bc250_nct_dir"/fan*_input "$bc250_nct_dir"/pwm*_enable >/dev/null 2>&1; then
+                        bc250_nct_ready=1
+                        break
+                    fi
+                    ;;
+            esac
+        done
+        [ "$bc250_nct_ready" -eq 1 ] && break
+        sleep 1
+        bc250_nct_waited=$((bc250_nct_waited + 1))
+    done
+    if [ "$bc250_nct_ready" -ne 1 ]; then
+        eerror "NCT6687 loaded but no fan/PWM hwmon node became ready"
+        eend 1
+        return 1
+    fi
+    eend 0
+}}
+'''
+
+
+def _governor_script(name: str) -> str:
+    binary = pathlib.Path('/usr/local/bin') / name
+    if not _safe_regular(binary, executable=True):
+        binary = pathlib.Path('/usr/bin') / name
+    config = pathlib.Path('/etc/cyan-skillfish-governor-smu/config.toml') if name.startswith('cyan-') else pathlib.Path('/etc/oberon-config.yaml')
+    if not (_safe_regular(binary, executable=True) and _safe_regular(config)):
+        raise RuntimeError(f'The protected {name} binary or configuration is missing/unsafe.')
+    # The reviewed Cyan release takes its TOML path positionally, exactly as
+    # the existing systemd ExecStart does.  Do not invent a --config flag.
+    args = str(config)
+    return f'''#!/sbin/openrc-run
+{MARKER}
+description="BC-250 GPU governor: {name}"
+command="{binary}"
+command_args="{args.strip()}"
+command_background="yes"
+pidfile="/run/{name}.pid"
+
+depend() {{
+    need dbus
+    after localmount
+}}
+'''
+
+
+def _service_text(name: str) -> str:
+    if name == 'bc250-cu-live-manager':
+        return _cu_script()
+    if name == 'bc250-smu-oc':
+        return _cpu_script()
+    if name == 'nct6687-load':
+        return _fan_script()
+    if name in {'cyan-skillfish-governor-smu', 'oberon-governor'}:
+        return _governor_script(name)
+    raise RuntimeError('Unsupported OpenRC service.')
+
+
+def _service_enabled(name: str) -> bool:
+    result = subprocess.run(['rc-update', 'show', 'default'], text=True, capture_output=True, check=False)
+    return any(line.split() and line.split()[0] == name for line in result.stdout.splitlines())
+
+
+def install(name: str) -> int:
+    text = _service_text(name)
+    target = INIT_DIR / name
+    if target.exists() or target.is_symlink():
+        if not _safe_regular(target):
+            raise RuntimeError(f'Refusing to replace unsafe OpenRC script: {target}')
+        current = target.read_text(encoding='utf-8', errors='strict')
+        # A service name is a global OpenRC namespace.  A root-owned script
+        # can still belong to the distribution or to the operator, so do not
+        # turn an "Install" click into replacement of an unrelated service.
+        # The installer may refresh only a script we wrote and marked.
+        if MARKER not in current:
+            raise RuntimeError(
+                f'Refusing to replace an OpenRC script not managed by Control Center: {target}'
+            )
+    _write_atomic(target, text)
+    subprocess.run(['rc-update', 'add', name, 'default'], check=True)
+    print(f'OpenRC service enabled: {name}', flush=True)
+    return 0
+
+
+def remove(name: str) -> int:
+    target = INIT_DIR / name
+    if target.exists() or target.is_symlink():
+        if not _safe_regular(target):
+            raise RuntimeError(f'Refusing to remove unsafe OpenRC script: {target}')
+        current = target.read_text(encoding='utf-8', errors='strict')
+        if MARKER not in current:
+            raise RuntimeError(f'Refusing to remove an OpenRC script not managed by Control Center: {target}')
+    subprocess.run(['rc-update', 'del', name, 'default'], check=False)
+    subprocess.run(['rc-service', name, 'stop'], check=False)
+    if target.exists():
+        target.unlink()
+    print(f'OpenRC service removed: {name}', flush=True)
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    argv = list(sys.argv[1:] if argv is None else argv)
+    try:
+        _require_root_openrc()
+        if len(argv) != 2 or argv[0] not in {'install', 'remove'} or argv[1] not in SERVICES:
+            return fail('usage: install|remove <approved BC250 OpenRC service>', 2)
+        return install(argv[1]) if argv[0] == 'install' else remove(argv[1])
+    except Exception as exc:
+        return fail(str(exc), 70)
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

@@ -3,17 +3,24 @@ __pycache__/
 *.py[cod]
 *.pyo
 .pytest_cache/
+.coverage
+.coverage.*
 .mypy_cache/
 .ruff_cache/
-# Local-only QA and archived prototypes
-tests/
-archive/
-pyproject.toml
-requirements-dev.txt
+
+# JavaScript / Decky development
+node_modules/
+.pnpm-store/
+*.tsbuildinfo
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
 
 # Build/package outputs
 build/
 dist/
+!integrations/decky/bc250-quick-access/dist/
+!integrations/decky/bc250-quick-access/dist/index.js
 *.egg-info/
 packaging/arch/local/*.pkg.tar.*
 packaging/arch/local/*.tar.gz
@@ -29,6 +36,9 @@ config.json
 perfiles.json
 historial_eventos.jsonl
 *.log
+.env
+.env.*
+!.env.example
 
 # Editors/OS
 .vscode/
@@ -48,3 +58,7 @@ packaging/packages/debian/*.deb
 packaging/release/
 .venv/
 .venv-*/
+htmlcov/
+.tox/
+*.swp
+*~

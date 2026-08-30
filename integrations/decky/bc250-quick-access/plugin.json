@@ -1,0 +1,11 @@
+{
+  "name": "BC250 Quick Access",
+  "author": "movacx and BC-250 community contributors",
+  "flags": ["root", "_root"],
+  "api_version": 1,
+  "publish": {
+    "tags": ["hardware", "steamos", "bc250"],
+    "description": "Live, reversible BC-250 controls for the SteamOS Quick Access Menu.",
+    "image": ""
+  }
+}

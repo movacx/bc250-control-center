@@ -1,96 +1,47 @@
-# Arquitectura MVC — BC250 Control Center
+# Arquitectura — BC250 Control Center
 
-La aplicación conserva una arquitectura MVC con una única interfaz PyQt6 y una fachada de Controller como límite obligatorio entre frontend y backend.
-
-## Flujo principal
-
-```text
-View → Controller → service → Repository → sistema / archivos / D-Bus / herramientas
-                         └── Model
-Daemon → service → Repository
-```
-
-La View no importa ni accede directamente a `Repository`, `service` o `Daemon`. Las operaciones de lectura lenta o con privilegios se ejecutan fuera del hilo de interfaz y sus resultados regresan mediante señales/callbacks de Qt.
-
-## Capas
+La aplicación separa la interfaz, los casos de uso y los adaptadores del
+sistema para que ninguna vista escriba hardware ni construya comandos
+privilegiados por sí sola.
 
 ```text
-mvc/
-├── Controller/     # Fachada pública consumida por la interfaz
-├── Model/          # Objetos de datos y contratos simples
-├── Repository/     # Sistema, archivos, procesos, hardware y herramientas externas
-├── service/        # Reglas, validaciones y coordinación de repositorios
-├── Daemon/         # Supervisión opcional reutilizando service/Repository
-├── View/           # Única interfaz PyQt6 definitiva
-├── logging_config.py
-└── main.py          # Configuración de logging, QApplication y arranque
+Desktop / CLI / Quick Access
+            ↓
+        application
+            ↓
+ domain · infrastructure · platform
+            ↓
+ helpers tipados · sistema · D-Bus · sysfs · herramientas externas
 ```
 
-## Estructura definitiva de View
+## Capas activas
 
-```text
-View/
-├── application.py          # Ventana principal, navegación y preferencias globales
-├── components/
-│   ├── async_tools.py      # Ejecución no bloqueante para la interfaz
-│   ├── dialogs.py          # Ajuste adaptativo y centrado de diálogos
-│   ├── page_widgets.py     # Componentes reutilizables de páginas
-│   ├── sidebar.py          # Navegación lateral
-│   └── widgets.py          # Tarjetas, indicadores y diálogo informativo
-├── core/
-│   ├── alerts.py           # Alertas inteligentes sin modificar hardware
-│   ├── preferences.py      # Normalización y migración de preferencias
-│   └── state.py            # Caché breve y estado compartido de frontend
-├── i18n/
-│   ├── backend_catalog.py  # Catálogo compatible de mensajes del backend
-│   ├── catalog.py          # Textos dinámicos y de seguridad
-│   ├── interface_catalog.py# Copia visible de la interfaz
-│   └── __init__.py         # Resolución, formato y traducción en caliente
-├── pages/
-│   ├── dashboard.py
-│   ├── performance.py
-│   ├── processes.py
-│   ├── cpu_smu.py
-│   ├── gpu_governor.py
-│   ├── compute_units.py
-│   ├── fans.py
-│   └── settings.py
-└── theme/
-    ├── __init__.py         # Paletas, escalado y QSS central
-    └── icons/              # Iconos SVG
-```
+- `frontends/`: interfaz PyQt6, CLI y Quick Access. Recoge la intención del
+  usuario y presenta resultados, sin ser una frontera de seguridad.
+- `src/bc250cc/application/`: casos de uso y coordinación.
+- `src/bc250cc/domain/`: modelos, límites y políticas puras.
+- `src/bc250cc/infrastructure/`: persistencia, procesos, D-Bus, sysfs y
+  adaptadores de herramientas externas.
+- `src/bc250cc/platform/`: selección de distribución, paquetes e init.
+- `privileged/`: helpers root-owned con acciones tipadas y política Polkit.
+- `packaging/` y `scripts/`: artefactos de instalación y flujos explícitos.
 
-`components/` evita duplicar controles y políticas de diálogo; `pages/` agrupa módulos navegables; `core/` contiene estado y servicios exclusivos del frontend; `theme/` e `i18n/` aíslan dos preocupaciones transversales que se actualizan en caliente.
+`ApplicationContainer` compone las dependencias. Las acciones lentas o con
+privilegios salen del hilo de interfaz y regresan como resultados tipados; los
+frontends comparten la misma lógica de aplicación en lugar de implementar sus
+propias reglas de hardware.
 
-## Repositorios principales
+## Límites que no se deben romper
 
-`SistemaRepository` continúa como fachada de composición del backend. Las responsabilidades especializadas viven en módulos separados:
+1. La UI no escribe hardware ni ejecuta comandos root arbitrarios.
+2. Un helper privilegiado acepta acciones finitas, valida sus argumentos y no
+   ejecuta código que el usuario pueda sustituir.
+3. `ResourceTools` es espacio de usuario; no es una raíz de confianza para
+   Python o shell con privilegios.
+4. Los cambios de CPU, GPU, CU, PWM, kernel, ACPI, UEFI o servicios requieren
+   validación en su propia frontera, además de cualquier confirmación de UI.
+5. Telemetría rápida no debe iniciar red, Git, gestores de paquetes ni cambios
+   de systemd.
 
-```text
-Repository/
-├── sistema_repository.py
-├── terminal_repository.py
-├── dependencias_repository.py
-├── gpu_repository.py
-├── cpu_repository.py
-├── cu_repository.py
-├── fan_repository.py
-├── historial_repository.py
-├── configuracion_local.py
-└── Os_repository/          # Estrategias por distribución
-```
-
-## Estado, historial y rutas locales
-
-Los datos de usuario se guardan bajo:
-
-```text
-~/.local/share/bc250-control-center/Data/
-~/.local/share/bc250-control-center/ResourceTools/
-```
-
-El historial usa JSONL, escritura protegida y retención de hasta 1.000 registros; al compactarse conserva los 800 más recientes. La interfaz traduce los eventos estructurados al idioma activo sin alterar el registro canónico del backend.
-
-## Operaciones BC250
-
-Las páginas CPU, GPU, Compute Units y Fans llaman únicamente a la fachada del Controller. El Controller delega validación y reglas al servicio, que usa los repositorios especializados y las estrategias de sistema operativo. Las lecturas se invalidan y refrescan después de cada acción para evitar que la GUI muestre un estado anterior como si fuera actual.
+Los detalles de procedencia, revisión y límites de las herramientas externas
+están en [Third-party notices](THIRD_PARTY_NOTICES.md).

@@ -1,0 +1,116 @@
+#!/usr/bin/python3
+# Prepare the transient Cyan fix-freq bind target before systemd starts Cyan.
+#
+# Cyan's upstream frequency fix bind-mounts /dev/shm/patched_freq_metrics on
+# the amdgpu hwmon freq1_input file.  SteamOS can renumber hwmon directories
+# while a service is being restarted.  A previous mount targeting the old
+# directory then prevents a clean restart, even though the governor TOML and
+# the voltage curve are valid.  This helper is deliberately narrow: it only
+# lazily unmounts that exact Cyan-owned source below the BC-250 PCI device;
+# it never writes a GPU register or changes a clock/voltage value.
+from __future__ import annotations
+
+import glob
+import os
+from pathlib import Path
+import subprocess
+import tempfile
+import time
+
+
+SOURCE = "/dev/shm/patched_freq_metrics"
+DEVICE = Path("/sys/bus/pci/devices/0000:01:00.0")
+
+
+def cyan_frequency_targets() -> list[Path]:
+    return [
+        Path(candidate)
+        for candidate in glob.glob(str(DEVICE / "hwmon/hwmon*/freq1_input"))
+    ]
+
+
+def target_accepts_bind_mount(target: Path) -> bool:
+    """Prove that this volatile sysfs target is mountable before Cyan starts.
+
+    The probe is executed while Cyan is stopped. It bind-mounts an empty
+    temporary file only long enough to validate the kernel path, immediately
+    unmounts it, and never writes a GPU sysfs attribute or hardware register.
+    """
+    temporary_name = ""
+    try:
+        descriptor, temporary_name = tempfile.mkstemp(
+            prefix="bc250-cyan-preflight-", dir="/dev/shm"
+        )
+        os.close(descriptor)
+        mounted = subprocess.run(
+            ["/usr/bin/mount", "--bind", temporary_name, str(target)],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=4,
+            check=False,
+        ).returncode == 0
+        if mounted:
+            subprocess.run(
+                ["/usr/bin/umount", "--", str(target)],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=4,
+                check=False,
+            )
+        return mounted
+    except (OSError, subprocess.SubprocessError):
+        return False
+    finally:
+        if temporary_name:
+            Path(temporary_name).unlink(missing_ok=True)
+
+
+def main() -> int:
+    try:
+        mounts = subprocess.run(
+            ["/usr/bin/findmnt", "-rn", "-S", SOURCE, "-o", "TARGET"],
+            capture_output=True,
+            text=True,
+            timeout=4,
+            check=False,
+        ).stdout.splitlines()
+    except (OSError, subprocess.SubprocessError):
+        mounts = []
+    prefix = str(DEVICE / "hwmon") + "/"
+    for raw_target in mounts:
+        target = Path(raw_target.strip())
+        # Do not unmount arbitrary mounts: only Cyan's exact transient source
+        # and only a BC-250 amdgpu freq1_input target are eligible.
+        if (
+            str(target).startswith(prefix)
+            and target.name == "freq1_input"
+            and target.parent.name.startswith("hwmon")
+        ):
+            try:
+                subprocess.run(
+                    ["/usr/bin/umount", "-l", "--", str(target)],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    timeout=4,
+                    check=False,
+                )
+            except (OSError, subprocess.SubprocessError):
+                pass
+
+    # Avoid racing udev directly after a governor stop, but never hold the
+    # service start for a long time.  On some SteamOS kernels the target is
+    # created only *by Cyan while it starts*: waiting 75 seconds here delayed
+    # that start, then made the caller's D-Bus deadline expire before Cyan had
+    # a chance to complete its own retry loop.  A short best-effort probe
+    # catches an already-ready target; Cyan remains the authoritative retry
+    # owner when the target appears later.
+    for _ in range(40):
+        for path in cyan_frequency_targets():
+            if path.is_file() and path.exists() and target_accepts_bind_mount(path):
+                return 0
+        time.sleep(0.25)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -3,6 +3,7 @@ set -euo pipefail
 
 PROJECT_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$PROJECT_ROOT"
+export PYTHONPATH="$PROJECT_ROOT/src${PYTHONPATH:+:$PYTHONPATH}"
 
 if command -v python3 >/dev/null 2>&1; then
     PYTHON_BIN="$(command -v python3)"
@@ -13,4 +14,4 @@ else
     exit 127
 fi
 
-exec "$PYTHON_BIN" -m mvc.main "$@"
+exec "$PYTHON_BIN" -m frontends.desktop.main "$@"

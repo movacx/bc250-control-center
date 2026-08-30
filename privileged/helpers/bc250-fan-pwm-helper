@@ -1,0 +1,209 @@
+#!/usr/bin/env python3
+"""Root-side, narrowly scoped PWM writer for BC250 Control Center."""
+
+from __future__ import annotations
+
+import os
+from pathlib import Path
+import sys
+import time
+
+PWM_MIN = 1
+PWM_MAX = 12
+VALUE_MIN = 0
+VALUE_MAX = 255
+
+# NCT6687 exposes the requested manual mode before the duty register is
+# necessarily ready to consume a new value.  Keep this bounded, but allow the
+# register enough time to complete the automatic -> manual transition.  These
+# values deliberately match the hardened Quick Access path.
+PWM_MODE_VERIFY_ATTEMPTS = 10
+PWM_MODE_VERIFY_INTERVAL_SECONDS = 0.05
+PWM_MODE_SETTLE_SECONDS = 0.15
+PWM_DUTY_VERIFY_ATTEMPTS = 16
+PWM_DUTY_VERIFY_INTERVAL_SECONDS = 0.10
+
+
+def find_sensor() -> Path | None:
+    base = Path('/sys/class/hwmon')
+    for hwmon in sorted(base.glob('hwmon*')):
+        try:
+            name = (hwmon / 'name').read_text(encoding='utf-8').strip().lower()
+        except OSError:
+            continue
+        if name.startswith(('nct668', 'nct67', 'nct')):
+            return hwmon
+    return None
+
+
+def write_sysfs(path: Path, value: int) -> None:
+    flags = os.O_WRONLY
+    if hasattr(os, 'O_NOFOLLOW'):
+        flags |= os.O_NOFOLLOW
+    fd = os.open(path, flags)
+    try:
+        os.write(fd, f'{value}\n'.encode('ascii'))
+    finally:
+        os.close(fd)
+
+
+def wait_for_sysfs_value(
+    path: Path,
+    expected: str,
+    *,
+    retry_value: int | None = None,
+    attempts: int,
+    interval: float,
+) -> tuple[bool, str, int, float]:
+    """Wait for a hwmon register and optionally re-send its same duty.
+
+    A first duty write can be acknowledged while the NCT controller is still
+    switching out of firmware automatic control.  Retrying *only the already
+    validated same value* makes the transition reliable without turning this
+    helper into a general sysfs writer.
+    """
+    started = time.monotonic()
+    observed = ''
+    for attempt in range(1, max(1, attempts) + 1):
+        observed = path.read_text(encoding='ascii').strip()
+        if observed == expected:
+            return True, observed, attempt, (time.monotonic() - started) * 1000
+        if attempt < attempts:
+            time.sleep(interval)
+            if retry_value is not None:
+                write_sysfs(path, retry_value)
+    return False, observed, max(1, attempts), (time.monotonic() - started) * 1000
+
+
+def restore_previous_automatic_mode(enable_path: Path | None, was_automatic: bool) -> str:
+    """Best-effort rollback only when this request left firmware automatic.
+
+    Do not force a channel that was already manual back to automatic: that
+    would overwrite an existing explicit user choice.  A failed transition
+    from automatic mode, however, must not leave a board fan in an unverified
+    manual state.
+    """
+    if not was_automatic or enable_path is None:
+        return ''
+    try:
+        write_sysfs(enable_path, 2)
+        restored, observed, _attempts, _elapsed = wait_for_sysfs_value(
+            enable_path,
+            '2',
+            attempts=PWM_MODE_VERIFY_ATTEMPTS,
+            interval=PWM_MODE_VERIFY_INTERVAL_SECONDS,
+        )
+    except OSError as exc:
+        return f' Previous automatic-mode rollback failed: {exc}.'
+    if restored:
+        return ' Previous automatic mode was restored.'
+    return f' Previous automatic-mode rollback read-back was {observed!r}.'
+
+
+def apply_pwm(channel: int, value: int) -> str:
+    if channel < PWM_MIN or channel > PWM_MAX:
+        return f'ERR PWM channel must be between {PWM_MIN} and {PWM_MAX}.'
+    if value < VALUE_MIN or value > VALUE_MAX:
+        return f'ERR PWM value must be between {VALUE_MIN} and {VALUE_MAX}.'
+
+    sensor = find_sensor()
+    if sensor is None:
+        return 'ERR No NCT hwmon sensor was found.'
+
+    pwm_path = sensor / f'pwm{channel}'
+    enable_path = sensor / f'pwm{channel}_enable'
+    if not pwm_path.is_file():
+        return f'ERR {pwm_path} does not exist.'
+
+    was_automatic = False
+    try:
+        if enable_path.is_file():
+            was_automatic = enable_path.read_text(encoding='ascii').strip() == '2'
+            write_sysfs(enable_path, 1)
+            mode_ready, observed, attempts, elapsed_ms = wait_for_sysfs_value(
+                enable_path,
+                '1',
+                attempts=PWM_MODE_VERIFY_ATTEMPTS,
+                interval=PWM_MODE_VERIFY_INTERVAL_SECONDS,
+            )
+            if not mode_ready:
+                rollback = restore_previous_automatic_mode(enable_path, was_automatic)
+                return (
+                    f'ERR PWM {channel} manual-mode read-back was {observed!r} after '
+                    f'{attempts} attempts/{elapsed_ms:.1f} ms.{rollback}'
+                )
+            time.sleep(PWM_MODE_SETTLE_SECONDS)
+
+        write_sysfs(pwm_path, value)
+        duty_ready, observed, attempts, elapsed_ms = wait_for_sysfs_value(
+            pwm_path,
+            str(value),
+            retry_value=value,
+            attempts=PWM_DUTY_VERIFY_ATTEMPTS,
+            interval=PWM_DUTY_VERIFY_INTERVAL_SECONDS,
+        )
+    except OSError as exc:
+        return f'ERR {exc}'
+    if not duty_ready:
+        rollback = restore_previous_automatic_mode(
+            enable_path if enable_path.is_file() else None,
+            was_automatic,
+        )
+        return (
+            f'ERR PWM {channel} duty read-back was {observed!r} after '
+            f'{attempts} attempts/{elapsed_ms:.1f} ms.{rollback}'
+        )
+    return f'OK PWM {channel} {value}'
+
+
+def restore_automatic(channel: int) -> str:
+    if channel < PWM_MIN or channel > PWM_MAX:
+        return f'ERR PWM channel must be between {PWM_MIN} and {PWM_MAX}.'
+    sensor = find_sensor()
+    if sensor is None:
+        return 'ERR No NCT hwmon sensor was found.'
+    enable_path = sensor / f'pwm{channel}_enable'
+    if not enable_path.is_file():
+        return f'ERR {enable_path} does not exist; automatic mode cannot be restored.'
+    try:
+        write_sysfs(enable_path, 2)
+        restored, confirmed, attempts, elapsed_ms = wait_for_sysfs_value(
+            enable_path,
+            '2',
+            attempts=PWM_MODE_VERIFY_ATTEMPTS,
+            interval=PWM_MODE_VERIFY_INTERVAL_SECONDS,
+        )
+    except OSError as exc:
+        return f'ERR {exc}'
+    if not restored:
+        return (
+            f'ERR PWM {channel} automatic-mode readback was {confirmed!r} after '
+            f'{attempts} attempts/{elapsed_ms:.1f} ms, expected 2.'
+        )
+    return f'OK PWM {channel} AUTO'
+
+
+def session() -> int:
+    print('READY', flush=True)
+    for raw_line in sys.stdin:
+        line = raw_line.strip()
+        if not line:
+            continue
+        if line == 'EXIT':
+            print('BYE', flush=True)
+            return 0
+        try:
+            parts = line.split()
+            if len(parts) == 2 and parts[0] == 'AUTO':
+                print(restore_automatic(int(parts[1])), flush=True)
+                continue
+            if len(parts) != 2:
+                raise ValueError('Expected PWM channel and value, or AUTO and channel.')
+            print(apply_pwm(int(parts[0]), int(parts[1])), flush=True)
+        except (ValueError, OSError) as exc:
+            print(f'ERR {exc}', flush=True)
+    return 0
+
+
+if __name__ == '__main__':
+    raise SystemExit(session())

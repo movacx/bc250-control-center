@@ -1,0 +1,21 @@
+[Desktop Entry]
+Type=Application
+Name=BC250 Control Center
+GenericName=BC-250 System Monitor and Tuning
+GenericName[es]=Monitor y ajuste del sistema BC-250
+GenericName[de]=BC-250-Systemüberwachung und -Abstimmung
+GenericName[pl]=Monitorowanie i dostrajanie systemu BC-250
+Comment=Monitor performance and manage conservative AMD BC-250 controls
+Comment[es]=Supervisa el rendimiento y gestiona controles conservadores para AMD BC-250
+Comment[de]=Leistung überwachen und vorsichtige AMD-BC-250-Steuerungen verwalten
+Comment[pl]=Monitoruj wydajność i zarządzaj ostrożnymi ustawieniami AMD BC-250
+Exec=bc250-control-center
+Icon=bc250-control-center
+Terminal=false
+Categories=System;Monitor;
+Keywords=task;manager;ram;gpu;bc250;linux;gaming;monitor;
+Keywords[es]=tareas;procesos;memoria;gpu;bc250;linux;juegos;monitor;
+Keywords[de]=Aufgaben;Prozesse;Arbeitsspeicher;GPU;BC250;Linux;Spiele;Monitor;
+Keywords[pl]=zadania;procesy;pamięć;gpu;bc250;linux;gry;monitor;
+StartupNotify=true
+StartupWMClass=io.github.movacx.bc250-control-center

@@ -1,0 +1,60 @@
+#!/usr/bin/python3 -I
+"""Authenticated desktop CU entry point; never a generic root command runner.
+
+Use the same typed, root-owned backend executor as Game Mode, with a distinct
+auth_admin_keep Polkit action. The cached authorization covers CU only.
+"""
+
+import fcntl
+import os
+import pathlib
+import runpy
+import stat
+import sys
+
+EXECUTOR = pathlib.Path('/usr/libexec/bc250-control-center/bc250-steamos-game-helper')
+LOCK = pathlib.Path('/run/bc250-control-center-cu.lock')
+
+
+def protected_file(path):
+    try:
+        metadata = path.lstat()
+        if not stat.S_ISREG(metadata.st_mode) or metadata.st_uid != 0 or metadata.st_mode & 0o022:
+            return False
+        for parent in path.parents:
+            metadata = parent.lstat()
+            if not stat.S_ISDIR(metadata.st_mode) or metadata.st_uid != 0 or metadata.st_mode & 0o022:
+                return False
+        return True
+    except OSError:
+        return False
+
+
+def main(args):
+    if os.geteuid() != 0:
+        raise RuntimeError('CU authorization is required. Launch this helper through Polkit.')
+    if not args or sum(map(len, args)) > 8192:
+        raise ValueError('Invalid CU request.')
+    if not protected_file(EXECUTOR):
+        raise RuntimeError('CU executor is missing or untrusted. Reinstall Control Center.')
+    executor = runpy.run_path(str(EXECUTOR))
+    if not executor['bc250_identity_present']():
+        raise RuntimeError('AMD BC-250 hardware identity was not detected.')
+    # /run is root-owned. Do not follow a replaced lock-file symlink.
+    descriptor = os.open(LOCK, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+    try:
+        metadata = os.fstat(descriptor)
+        if not stat.S_ISREG(metadata.st_mode) or metadata.st_uid != 0 or metadata.st_mode & 0o077:
+            raise RuntimeError('Unsafe CU operation lock.')
+        fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return executor['action_cu'](args)
+    finally:
+        os.close(descriptor)
+
+
+if __name__ == '__main__':
+    try:
+        raise SystemExit(main(sys.argv[1:]))
+    except Exception as error:
+        print(str(error), file=sys.stderr)
+        raise SystemExit(1)

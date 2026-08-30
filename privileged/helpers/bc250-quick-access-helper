@@ -1,0 +1,2500 @@
+#!/usr/bin/python3
+"""Closed privileged protocol for the optional Decky Quick Access plugin.
+
+The Decky frontend is not trusted to form a command line.  This installed,
+root-owned payload accepts only named operations.  It has no generic command
+channel; GPU TOML selection, CU masks and CPU tuning remain finite, validated
+protocol values which are checked again immediately before execution.
+"""
+from __future__ import annotations
+
+import configparser
+import json
+import os
+import pathlib
+import re
+import stat
+import subprocess
+import sys
+import tempfile
+import time
+from collections.abc import Mapping, Sequence
+
+import tomllib
+
+HELPER_PROTOCOL = 13
+CYAN_SERVICE = "cyan-skillfish-governor-smu.service"
+CYAN_BUS = "com.cyanskillfish.Governor"
+CYAN_RANGE_PATH = "/com/cyanskillfish/Governor/Range/Current"
+CYAN_RANGE_INTERFACE = "com.cyanskillfish.Governor.Range"
+CYAN_PERFORMANCE_PATH = "/com/cyanskillfish/Governor"
+CYAN_PERFORMANCE_INTERFACE = "com.cyanskillfish.Governor.PerformanceMode"
+# Generic immutable hosts, including Bazzite, cannot create runtime payloads
+# below /usr.  The desktop workflow stages this reviewed root-owned backend in
+# persistent /var/lib; SteamOS uses its separate game helper and /usr payload.
+CU_BACKEND = pathlib.Path("/var/lib/bc250-control-center/bc250-cu-live-manager")
+CPU_HELPER = pathlib.Path("/usr/libexec/bc250-control-center/bc250-cpu-smu-helper")
+CPU_CONFIG = pathlib.Path("/etc/bc250-smu-oc.conf")
+CPU_SERVICE_NAME = "bc250-smu-oc.service"
+CPU_SERVICE_UNIT = pathlib.Path("/etc/systemd/system/bc250-smu-oc.service")
+CPU_QAM_TEMPERATURE = 90
+CPU_STRESS_PATHS = (
+    pathlib.Path("/usr/bin/stress"),
+    pathlib.Path("/bin/stress"),
+    pathlib.Path("/usr/local/bin/stress"),
+)
+CYAN_CONFIG = pathlib.Path("/etc/cyan-skillfish-governor-smu/config.toml")
+OBERON_SERVICE = "oberon-governor.service"
+OBERON_CONFIG = pathlib.Path("/etc/oberon-config.yaml")
+GOVERNOR_CONFIG_HELPER = pathlib.Path(
+    "/usr/libexec/bc250-control-center/bc250-governor-config-helper"
+)
+CU_SERVICE_NAME = "bc250-cu-live-manager.service"
+CU_SERVICE_UNIT = pathlib.Path("/etc/systemd/system/bc250-cu-live-manager.service")
+CU_SERVICE_CONFIG = pathlib.Path("/etc/bc250-cu-live-manager.conf")
+CU_LIVE_STATE = pathlib.Path("/run/bc250-control-center/cu-live-state.json")
+CU_LIVE_STATE_SCHEMA = 1
+CU_LIVE_STATE_BOOT_ID = pathlib.Path("/proc/sys/kernel/random/boot_id")
+CU_LIVE_STATE_MAX_RAW_BYTES = 64 * 1024
+CU_SERVICE_BINARIES = (
+    pathlib.Path("/var/lib/bc250-control-center/bc250-cu-live-manager"),
+    pathlib.Path("/var/lib/bc250-cu-live-manager/umr/bc250-cu-live-manager"),
+    pathlib.Path("/usr/local/bin/bc250-cu-live-manager"),
+    pathlib.Path("/var/usrlocal/bin/bc250-cu-live-manager"),
+)
+# On Bazzite, the persistent /var tree can map root-created payloads to the
+# root-squash uid.  It is accepted only for this fixed backend path when it is
+# non-symlinked and neither group nor world writable. SteamOS continues using
+# its own root-owned helper path and policy.
+GENERIC_IMMUTABLE_OWNER_UIDS = frozenset({0, 65534})
+
+GPU_PROFILES = {
+    "balanced": (500, 1500),
+    "gaming": (1000, 1850),
+    "benchmark": (1000, 2000),
+}
+# Oberon is deliberately a small, fixed Quick Access surface.  Unlike Cyan it
+# does not expose a runtime D-Bus range or TOML safe-point ladder, and showing
+# its full YAML-compatible curve invited players to select values their active
+# Oberon configuration did not advertise.  The last choice is deliberately a
+# 2000 MHz lock, as requested for predictable in-game testing.
+OBERON_QAM_PROFILES = {
+    "oberon-1500": (1000, 1500),
+    "oberon-1850": (1000, 1850),
+    "oberon-2000": (1000, 2000),
+}
+# Desktop Mode's high-range guard requires at least the packaged Level 3
+# curve (upstream voltage +30 mV from 2000 MHz onward).  Keep the Quick Access
+# reader at the same boundary: a high TOML point is shown only when every
+# packaged point leading to it is active and meets this floor.
+GPU_HIGH_POINT_MINIMUM_VOLTAGES = {
+    2000: 990,
+    2050: 1010,
+    2100: 1030,
+    2125: 1050,
+    2150: 1065,
+    2200: 1080,
+    2230: 1115,
+    2300: 1140,
+    2350: 1160,
+    2400: 1180,
+}
+# Root config receives voltages from this closed mapping rather than from the
+# Decky client.  These are Oberon's upstream reference endpoints, not values
+# interpolated from Cyan's unrelated TOML curve.  Game Mode intentionally owns
+# only the three conservative profiles below.
+OBERON_QAM_VOLTAGES = {1000: 1000, 1500: 1000, 1850: 1000, 2000: 1000}
+OBERON_FREQUENCY_RANGE = (500, 2400)
+OBERON_SAFE_VOLTAGE_RANGE = (920, 1210)
+# Keep identical to domain/gpu/oberon.py (covered by a parity test).
+OBERON_IDLE_MAX_BUSY_PERCENT = 5
+OBERON_IDLE_MAX_CLOCK_MHZ = 2000
+_OBERON_SECTION_RE = re.compile(
+    r"^(?P<indent> *)(?:-\s+)?(?P<section>frequency|voltage)\s*:\s*(?:#.*)?$"
+)
+_OBERON_BOUND_RE = re.compile(
+    r"^(?P<indent> *)(?:-\s+)?(?P<key>min|max)\s*:\s*(?P<value>[0-9]+)\s*(?:#.*)?$"
+)
+CU_TARGETS = tuple(range(24, 41, 2))
+FAN_SYSTEM_PRESETS = {
+    "quiet": 102,
+    "balanced": 153,
+    "boost": 204,
+    "automatic": None,
+}
+SYSTEM_FAN_CHANNELS = tuple(range(3, 9))
+QAM_FAN_CHANNELS = (2, 3, 4, 5)
+QAM_FAN_MIN_PERCENT = 20
+QAM_FAN_MAX_PERCENT = 100
+PWM_MODE_VERIFY_ATTEMPTS = 10
+PWM_MODE_VERIFY_INTERVAL_SECONDS = 0.05
+PWM_DUTY_VERIFY_ATTEMPTS = 16
+PWM_DUTY_VERIFY_INTERVAL_SECONDS = 0.10
+PWM_MODE_SETTLE_SECONDS = 0.15
+
+
+def fail(message: str, code: int = 1) -> int:
+    print(f"ERR {message}", file=sys.stderr, flush=True)
+    return code
+
+
+def trusted_cu_environment() -> dict[str, str]:
+    """Use the distribution UMR database selected by the generic backend.
+
+    The SteamOS-specific static database is handled by its separate Game Mode
+    helper.  Passing that nonexistent /usr payload on Bazzite overrides the
+    working rpm-ostree UMR installation and makes every Quick Access CU action
+    fail.
+    """
+    return {}
+
+
+def run(
+    command: Sequence[str],
+    *,
+    timeout: int = 45,
+    extra_env: Mapping[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
+    environment = {
+        "PATH": "/usr/sbin:/usr/bin:/sbin:/bin",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+    }
+    if extra_env:
+        environment.update({str(key): str(value) for key, value in extra_env.items()})
+    return subprocess.run(
+        list(command), text=True, capture_output=True,
+        timeout=timeout, check=False,
+        env=environment,
+    )
+
+
+def is_steamos() -> bool:
+    for path in (pathlib.Path("/etc/os-release"), pathlib.Path("/usr/lib/os-release")):
+        try:
+            text = path.read_text(encoding="utf-8", errors="ignore").lower()
+        except OSError:
+            continue
+        if any(marker in text for marker in ("id=steamos", "steamos", "steamdeck", "holo")):
+            return True
+    return False
+
+
+def is_bazzite() -> bool:
+    for path in (pathlib.Path("/etc/os-release"), pathlib.Path("/usr/lib/os-release")):
+        try:
+            text = path.read_text(encoding="utf-8", errors="ignore").lower()
+        except OSError:
+            continue
+        if any(marker in text for marker in ("id=bazzite", 'id="bazzite"', "variant_id=bazzite", "ublue")):
+            return True
+    return False
+
+
+def is_cachyos() -> bool:
+    for path in (pathlib.Path("/etc/os-release"), pathlib.Path("/usr/lib/os-release")):
+        try:
+            text = path.read_text(encoding="utf-8", errors="ignore").lower()
+        except OSError:
+            continue
+        if "id=cachyos" in text or "id=cachy" in text:
+            return True
+    return False
+
+
+def bc250_present() -> bool:
+    try:
+        devices = tuple(pathlib.Path("/sys/bus/pci/devices").iterdir())
+    except OSError:
+        devices = ()
+    for device in devices:
+        try:
+            vendor = (device / "vendor").read_text(encoding="ascii", errors="ignore").strip().lower()
+            device_id = (device / "device").read_text(encoding="ascii", errors="ignore").strip().lower()
+        except OSError:
+            continue
+        if vendor.lstrip("0x") == "1002" and device_id.lstrip("0x") == "13fe":
+            return True
+    return False
+
+
+def memory_runtime_state(
+    proc_swaps: pathlib.Path = pathlib.Path("/proc/swaps"),
+    zswap_enabled: pathlib.Path = pathlib.Path("/sys/module/zswap/parameters/enabled"),
+    ttm_pages_limit: pathlib.Path = pathlib.Path("/sys/module/ttm/parameters/pages_limit"),
+) -> dict[str, object]:
+    """Expose bounded read-only memory state; never change swap or a karg."""
+    zram_bytes = 0
+    backing_bytes = 0
+    try:
+        lines = proc_swaps.read_text(encoding="utf-8", errors="strict").splitlines()[1:]
+    except (OSError, UnicodeError):
+        lines = ()
+    for line in lines:
+        columns = line.split()
+        if len(columns) < 3:
+            continue
+        try:
+            size = max(0, int(columns[2], 10)) * 1024
+        except ValueError:
+            continue
+        if pathlib.Path(columns[0]).name.startswith("zram"):
+            zram_bytes += size
+        else:
+            backing_bytes += size
+    try:
+        zswap_value = zswap_enabled.read_text(encoding="ascii", errors="strict").strip().lower()
+    except (OSError, UnicodeError):
+        zswap_value = ""
+    try:
+        pages = int(ttm_pages_limit.read_text(encoding="ascii", errors="strict").strip(), 10)
+    except (OSError, UnicodeError, ValueError):
+        pages = None
+    page_size = int(os.sysconf("SC_PAGE_SIZE"))
+    return {
+        "memory_zram_active": zram_bytes > 0,
+        "memory_zram_total_bytes": zram_bytes,
+        "memory_backing_swap_active": backing_bytes > 0,
+        "memory_backing_swap_total_bytes": backing_bytes,
+        "memory_zswap_enabled": True if zswap_value in {"1", "y", "yes", "true"} else False if zswap_value in {"0", "n", "no", "false"} else None,
+        "memory_ttm_pages_limit": pages,
+        "memory_ttm_limit_bytes": pages * page_size if pages is not None and pages >= 0 else None,
+    }
+
+
+def gpu_core_mhz(drm_root: pathlib.Path = pathlib.Path("/sys/class/drm")) -> int | None:
+    """Read the current marked AMD DPM core clock without issuing a command."""
+    try:
+        devices = sorted(drm_root.glob("card*/device"))
+    except OSError:
+        return None
+    for device in devices:
+        dpm = device / "pp_dpm_sclk"
+        try:
+            vendor = (device / "vendor").read_text(encoding="ascii", errors="ignore").strip().lower()
+            payload = dpm.read_text(encoding="ascii", errors="ignore")
+        except OSError:
+            continue
+        if vendor != "0x1002":
+            continue
+        for line in payload.splitlines():
+            match = re.search(r"\b(\d+)\s*(?:mhz|mhs)\b.*\*", line, re.IGNORECASE)
+            if match:
+                return int(match.group(1))
+    return None
+
+
+def gpu_memory_clock_mhz(drm_root: pathlib.Path = pathlib.Path("/sys/class/drm")) -> int | None:
+    """Read the current marked AMD DPM memory clock."""
+    try:
+        devices = sorted(drm_root.glob("card*/device"))
+    except OSError:
+        return None
+    for device in devices:
+        try:
+            vendor = (device / "vendor").read_text(encoding="ascii", errors="ignore").strip().lower()
+            payload = (device / "pp_dpm_mclk").read_text(encoding="ascii", errors="ignore")
+        except OSError:
+            continue
+        if vendor != "0x1002":
+            continue
+        for line in payload.splitlines():
+            match = re.search(r"\b(\d+)\s*(?:mhz|mhs)\b.*\*", line, re.IGNORECASE)
+            if match:
+                return int(match.group(1))
+    return None
+
+
+def gpu_voltage_mv(drm_root: pathlib.Path = pathlib.Path("/sys/class/drm")) -> int | None:
+    """Read a labelled live VDDGFX value without assuming a hwmon index.
+
+    A voltage input without the ``vddgfx`` label may belong to another rail,
+    so it is intentionally ignored.  Kernels may report millivolts or
+    microvolts; normalize both forms before publishing the passive metric.
+    """
+    try:
+        devices = sorted(drm_root.glob("card*/device"))
+    except OSError:
+        return None
+    for device in devices:
+        try:
+            vendor = (device / "vendor").read_text(encoding="ascii", errors="ignore").strip().lower()
+        except OSError:
+            continue
+        if vendor != "0x1002":
+            continue
+        try:
+            sensors = sorted((device / "hwmon").glob("hwmon*"))
+        except OSError:
+            continue
+        for sensor in sensors:
+            try:
+                labels = sorted(sensor.glob("in*_label"))
+            except OSError:
+                continue
+            for label_path in labels:
+                try:
+                    label = label_path.read_text(encoding="ascii", errors="ignore").strip().lower()
+                    input_path = label_path.with_name(label_path.name.replace("_label", "_input"))
+                    raw = int(input_path.read_text(encoding="ascii").strip())
+                except (OSError, ValueError):
+                    continue
+                if label != "vddgfx":
+                    continue
+                millivolts = raw // 1000 if raw > 10_000 else raw
+                if 400 <= millivolts <= 1_500:
+                    return millivolts
+    return None
+
+
+def gpu_busy_percent(drm_root: pathlib.Path = pathlib.Path("/sys/class/drm")) -> int | None:
+    """Read amdgpu's passive busy counter without waking another service."""
+    try:
+        devices = sorted(drm_root.glob("card*/device"))
+    except OSError:
+        return None
+    for device in devices:
+        try:
+            vendor = (device / "vendor").read_text(encoding="ascii", errors="ignore").strip().lower()
+            value = int((device / "gpu_busy_percent").read_text(encoding="ascii").strip())
+        except (OSError, ValueError):
+            continue
+        if vendor == "0x1002" and 0 <= value <= 100:
+            return value
+    return None
+
+
+def gpu_vram_usage_mib(drm_root: pathlib.Path = pathlib.Path("/sys/class/drm")) -> tuple[int, int] | None:
+    """Return dedicated VRAM used/total in MiB when amdgpu exports it."""
+    try:
+        devices = sorted(drm_root.glob("card*/device"))
+    except OSError:
+        return None
+    for device in devices:
+        try:
+            vendor = (device / "vendor").read_text(encoding="ascii", errors="ignore").strip().lower()
+            used = int((device / "mem_info_vram_used").read_text(encoding="ascii").strip())
+            total = int((device / "mem_info_vram_total").read_text(encoding="ascii").strip())
+        except (OSError, ValueError):
+            continue
+        if vendor == "0x1002" and 0 <= used <= total:
+            return round(used / 1048576), round(total / 1048576)
+    return None
+
+
+def gpu_temperature_c(drm_root: pathlib.Path = pathlib.Path("/sys/class/drm")) -> float | None:
+    """Read the AMD GPU edge temperature when the driver exposes one.
+
+    This is intentionally a read-only best-effort metric.  Some BC-250
+    SteamOS combinations do not export the AMD hwmon temperature; in that
+    case the QAM must show no value rather than substitute a CPU or NCT value.
+    """
+    try:
+        devices = sorted(drm_root.glob("card*/device"))
+    except OSError:
+        return None
+    for device in devices:
+        try:
+            vendor = (device / "vendor").read_text(encoding="ascii", errors="ignore").strip().lower()
+        except OSError:
+            continue
+        if vendor != "0x1002":
+            continue
+        for sensor in sorted((device / "hwmon").glob("hwmon*")):
+            try:
+                millidegrees = int((sensor / "temp1_input").read_text(encoding="ascii").strip())
+            except (OSError, ValueError):
+                continue
+            if -40_000 <= millidegrees <= 150_000:
+                return millidegrees / 1000.0
+    return None
+
+
+def cpu_frequency_mhz(cpuinfo: pathlib.Path = pathlib.Path("/proc/cpuinfo")) -> int | None:
+    try:
+        payload = cpuinfo.read_text(encoding="ascii", errors="ignore")
+    except OSError:
+        return None
+    values = []
+    for match in re.finditer(r"^cpu MHz\s*:\s*([0-9]+(?:\.[0-9]+)?)\s*$", payload, re.MULTILINE):
+        try:
+            values.append(float(match.group(1)))
+        except ValueError:
+            continue
+    return round(sum(values) / len(values)) if values else None
+
+
+def cpu_temperature_c(hwmon_root: pathlib.Path = pathlib.Path("/sys/class/hwmon")) -> float | None:
+    for sensor in sorted(hwmon_root.glob("hwmon*")):
+        try:
+            name = (sensor / "name").read_text(encoding="ascii", errors="ignore").strip().lower()
+        except OSError:
+            continue
+        if name not in {"k10temp", "zenpower"}:
+            continue
+        for label in sorted(sensor.glob("temp*_label")):
+            try:
+                if label.read_text(encoding="ascii", errors="ignore").strip().lower() not in {"tctl", "tdie"}:
+                    continue
+                value = int(label.with_name(label.name.replace("_label", "_input")).read_text(encoding="ascii").strip())
+            except (OSError, ValueError):
+                continue
+            if -40_000 <= value <= 150_000:
+                return value / 1000.0
+    return None
+
+
+def cpu_telemetry() -> int:
+    """Publish a cheap read-only sample while CPU tuning runs separately.
+
+    This deliberately avoids the full status path (UMR, D-Bus, systemd and
+    fan discovery).  Decky's long-running detector can therefore keep its
+    exclusive write operation while the UI observes /proc and hwmon.
+    """
+    helper_ready = trusted_file(CPU_HELPER, executable=True)
+    stress_ready = any(trusted_file(path, executable=True) for path in CPU_STRESS_PATHS)
+    print(json.dumps({
+        "ok": True,
+        "protocol": HELPER_PROTOCOL,
+        "cpu_frequency_mhz": cpu_frequency_mhz(),
+        "cpu_temperature_c": cpu_temperature_c(),
+        # Bootstrap the controls without waiting for the much slower UMR/CU
+        # status pass. Detector evidence itself remains owned by full status.
+        "cpu_tuning_ready": helper_ready and stress_ready,
+        "cpu_tuning_temperature": CPU_QAM_TEMPERATURE,
+        "observed_at": int(time.time() * 1000),
+    }))
+    return 0
+
+
+def require_runtime() -> str:
+    if os.geteuid() != 0:
+        return "QUICK_ACCESS_PRIVILEGE: helper must run as root through Decky."
+    systemd_runtime = (
+        pathlib.Path("/run/systemd/system").is_dir()
+        and pathlib.Path("/usr/bin/systemctl").is_file()
+    )
+    if not systemd_runtime:
+        return (
+            "QUICK_ACCESS_CONTEXT: this Decky host has no supported systemd "
+            "runtime; use BC250 Control Center Desktop for live hardware state "
+            "and its OpenRC service integration."
+        )
+    if not bc250_present():
+        return "HARDWARE_CONTEXT: AMD BC-250 hardware identity was not detected."
+    return ""
+
+
+def trusted_file(path: pathlib.Path, *, executable: bool = False) -> bool:
+    try:
+        metadata = path.lstat()
+    except OSError:
+        return False
+    return (
+        stat.S_ISREG(metadata.st_mode)
+        and not stat.S_ISLNK(metadata.st_mode)
+        and metadata.st_uid == 0
+        and not metadata.st_mode & 0o022
+        and (not executable or bool(metadata.st_mode & stat.S_IXUSR))
+    )
+
+
+def service_active(service: str) -> bool:
+    """Return systemd's live state for one fixed, internal service name."""
+    return run(
+        ["/usr/bin/systemctl", "is-active", "--quiet", service], timeout=8
+    ).returncode == 0
+
+
+def active_gpu_governor() -> str:
+    """Select a governor only from unambiguous live service state.
+
+    Both services active is a conflict, never an invitation to guess which
+    process currently owns the hardware.
+    """
+    cyan = service_active(CYAN_SERVICE)
+    oberon = service_active(OBERON_SERVICE)
+    if cyan and oberon:
+        return "conflict"
+    if cyan:
+        return "cyan"
+    if oberon:
+        return "oberon"
+    return "none"
+
+
+def trusted_directory(path: pathlib.Path) -> bool:
+    """Require a non-symlinked root-owned directory before using its child."""
+    try:
+        metadata = path.lstat()
+    except OSError:
+        return False
+    return (
+        stat.S_ISDIR(metadata.st_mode)
+        and not stat.S_ISLNK(metadata.st_mode)
+        and metadata.st_uid == 0
+        and not metadata.st_mode & 0o022
+    )
+
+
+def trusted_generic_immutable_cu_path(
+    path: pathlib.Path, *, executable: bool = False
+) -> bool:
+    """Validate Bazzite's fixed /var CU backend without widening helper trust."""
+    try:
+        metadata = path.lstat()
+    except OSError:
+        return False
+    return (
+        (stat.S_ISREG(metadata.st_mode) if executable else stat.S_ISDIR(metadata.st_mode))
+        and not stat.S_ISLNK(metadata.st_mode)
+        and metadata.st_uid in GENERIC_IMMUTABLE_OWNER_UIDS
+        and not metadata.st_mode & 0o022
+        and (not executable or bool(metadata.st_mode & stat.S_IXUSR))
+    )
+
+
+def cu_backend_ready() -> bool:
+    return (
+        trusted_generic_immutable_cu_path(CU_BACKEND.parent)
+        and trusted_generic_immutable_cu_path(CU_BACKEND, executable=True)
+    )
+
+
+def parse_cu_dashboard_count(payload: str) -> tuple[int, int] | None:
+    """Accept exactly one authoritative live-dispatch total from the backend."""
+    matches = re.findall(
+        r"^\s*CUs\s+active\s*&\s*routed\s*:\s*(\d+)\s*/\s*(\d+)\s*$",
+        payload or "",
+        flags=re.IGNORECASE | re.MULTILINE,
+    )
+    if len(matches) != 1:
+        return None
+    try:
+        active, total = (int(value) for value in matches[0])
+    except ValueError:
+        return None
+    if not (0 <= active <= total <= 40):
+        return None
+    return active, total
+
+
+CU_ROW_PATTERN = re.compile(
+    r"\|\s*(SE[01]\.SH[01])\s*\|\s*"
+    + r"\s*\|\s*".join([r"(D\+|S\+|D!|--)"] * 5)
+    + r"\s*\|\s*(0x[0-9a-f]+)\s*\|\s*([^|]+?)\s*\|\s*(\d+)\s*/\s*10\s*\|",
+    re.IGNORECASE,
+)
+
+
+def parse_cu_topology(payload: str) -> dict[str, object] | None:
+    """Parse and cross-check the complete live WGP table.
+
+    The summary line alone is not authoritative: an earlier QAM build used it
+    as both its no-op test and post-write verification, so a stale or internally
+    inconsistent dashboard could be reported as a successful 26/40 transition
+    while the four SPI rows still described 40/40.  Match Desktop Mode's trust
+    boundary by requiring all four rows and making tokens, SPI masks, per-row
+    CU counts, and the unique final total agree.
+    """
+    rows: dict[str, dict[str, object]] = {}
+    for match in CU_ROW_PATTERN.finditer(payload or ""):
+        name = match.group(1).upper()
+        if name in rows:
+            return None
+        tokens = tuple(match.group(index).upper() for index in range(2, 7))
+        routed_mask = sum(
+            1 << index for index, token in enumerate(tokens)
+            if token in {"D+", "S+"}
+        )
+        driver_mask = sum(
+            1 << index for index, token in enumerate(tokens)
+            if token in {"D+", "D!"}
+        )
+        try:
+            spi_mask = int(match.group(7), 16)
+            row_cus = int(match.group(9))
+        except ValueError:
+            return None
+        if not 0 <= spi_mask <= 0x1F:
+            return None
+        if spi_mask != routed_mask or row_cus != routed_mask.bit_count() * 2:
+            return None
+        rows[name] = {
+            "tokens": tokens,
+            "mask": routed_mask,
+            "driver_mask": driver_mask,
+            "cus": row_cus,
+        }
+    row_names = ("SE0.SH0", "SE0.SH1", "SE1.SH0", "SE1.SH1")
+    if set(rows) != set(row_names):
+        return None
+    total = parse_cu_dashboard_count(payload)
+    masks = tuple(int(rows[name]["mask"]) for name in row_names)
+    active_cus = sum(int(rows[name]["cus"]) for name in row_names)
+    if total != (active_cus, 40) or active_cus % 2:
+        return None
+    return {
+        "masks": masks,
+        "driver_masks": tuple(int(rows[name]["driver_mask"]) for name in row_names),
+        "tokens": tuple(tuple(rows[name]["tokens"]) for name in row_names),
+        "active_cus": active_cus,
+        "total_cus": 40,
+    }
+
+
+def canonical_cu_masks(target: int) -> tuple[int, int, int, int]:
+    """Return a deterministic target table, adding one WGP per row at a time."""
+    if target not in CU_TARGETS:
+        raise ValueError("CU target must be an even value from 24 through 40.")
+    masks = [0x07, 0x07, 0x07, 0x07]
+    extras = (target - 24) // 2
+    # Distribute WGP3 across all rows before WGP4.  This is predictable on a
+    # controller and avoids concentrating every incremental pair in one row.
+    for wgp in (3, 4):
+        for row in range(4):
+            if extras <= 0:
+                return tuple(masks)  # type: ignore[return-value]
+            masks[row] |= 1 << wgp
+            extras -= 1
+    return tuple(masks)  # type: ignore[return-value]
+
+
+def validate_cu_masks(values: Sequence[object]) -> tuple[int, int, int, int]:
+    if len(values) != 4:
+        raise ValueError("exactly four CU row masks are required")
+    masks = []
+    for value in values:
+        try:
+            mask = int(str(value), 0)
+        except ValueError as exc:
+            raise ValueError("CU row masks must be integers from 0 through 31") from exc
+        if not 0 <= mask <= 0x1F:
+            raise ValueError("CU row masks must be integers from 0 through 31")
+        masks.append(mask)
+    active = sum(mask.bit_count() * 2 for mask in masks)
+    if active not in CU_TARGETS:
+        raise ValueError("Quick Access CU tables must route an even total from 24 through 40")
+    return tuple(masks)  # type: ignore[return-value]
+
+
+def saved_cu_masks(path: pathlib.Path = CU_SERVICE_CONFIG) -> tuple[int, int, int, int] | None:
+    """Read only a protected four-mask boot profile, never source its shell."""
+    if not trusted_file(path):
+        return None
+    try:
+        if path.stat().st_size > 16_384:
+            return None
+        payload = path.read_text(encoding="utf-8", errors="strict")
+    except (OSError, UnicodeError):
+        return None
+    matches = re.findall(r"^BC250_WGP_MASKS=([^\r\n]+)$", payload, re.MULTILINE)
+    if len(matches) != 1:
+        return None
+    values = [item.strip() for item in matches[0].split(",")]
+    try:
+        return validate_cu_masks(values)
+    except ValueError:
+        return None
+
+
+def cu_service_state() -> dict[str, object]:
+    installed = trusted_file(CU_SERVICE_UNIT)
+    enabled_result = run(
+        ["/usr/bin/systemctl", "is-enabled", "--quiet", CU_SERVICE_NAME],
+        timeout=8,
+    )
+    active_result = run(
+        ["/usr/bin/systemctl", "is-active", "--quiet", CU_SERVICE_NAME],
+        timeout=8,
+    )
+    masks = saved_cu_masks()
+    return {
+        "cu_service_installed": installed,
+        "cu_service_enabled": installed and enabled_result.returncode == 0,
+        "cu_service_active": installed and active_result.returncode == 0,
+        "cu_boot_saved": masks is not None,
+        "cu_saved_masks": list(masks) if masks is not None else None,
+    }
+
+
+def cu_live_state_boot_id(path: pathlib.Path = CU_LIVE_STATE_BOOT_ID) -> str | None:
+    """Read the current boot identity used to expire /run state safely."""
+    try:
+        value = path.read_text(encoding="ascii", errors="strict").strip().lower()
+    except (OSError, UnicodeError):
+        return None
+    if re.fullmatch(r"[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}", value) is None:
+        return None
+    return value
+
+
+def _cu_live_state_directory_is_safe(
+    path: pathlib.Path, *, exact_mode: bool = False
+) -> bool:
+    """Accept only a directory owned by this root helper and not writable by peers.
+
+    ``main()`` refuses to run this helper outside the root Decky context.  The
+    same-owner check makes the lower-level writer directly testable without
+    weakening the production invariant: while the helper is running normally,
+    the owner must be uid 0.
+    """
+    try:
+        metadata = path.lstat()
+    except OSError:
+        return False
+    permissions = stat.S_IMODE(metadata.st_mode)
+    return (
+        stat.S_ISDIR(metadata.st_mode)
+        and not stat.S_ISLNK(metadata.st_mode)
+        and metadata.st_uid == os.geteuid()
+        and (permissions == 0o755 if exact_mode else not permissions & 0o022)
+    )
+
+
+def _cu_live_state_file_is_safe(
+    path: pathlib.Path, *, exact_mode: bool = False
+) -> bool:
+    try:
+        metadata = path.lstat()
+    except OSError:
+        return False
+    permissions = stat.S_IMODE(metadata.st_mode)
+    return (
+        stat.S_ISREG(metadata.st_mode)
+        and not stat.S_ISLNK(metadata.st_mode)
+        and metadata.st_uid == os.geteuid()
+        and (permissions == 0o644 if exact_mode else not permissions & 0o022)
+    )
+
+
+def _fsync_directory(path: pathlib.Path) -> None:
+    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_DIRECTORY", 0)
+    descriptor = os.open(path, flags)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def _cu_live_state_topology(topology: Mapping[str, object]) -> dict[str, object] | None:
+    """Normalize the only topology representation the cross-UI snapshot accepts."""
+    try:
+        masks = validate_cu_masks(tuple(topology["masks"]))
+        driver_masks = tuple(int(value) for value in tuple(topology["driver_masks"]))
+        raw_tokens = tuple(topology["tokens"])
+        active_cus = int(topology["active_cus"])
+        total_cus = int(topology["total_cus"])
+    except (KeyError, TypeError, ValueError):
+        return None
+    if len(driver_masks) != 4 or any(not 0 <= value <= 0x1F for value in driver_masks):
+        return None
+    if len(raw_tokens) != 4 or total_cus != 40 or active_cus != sum(mask.bit_count() * 2 for mask in masks):
+        return None
+    tokens: list[list[str]] = []
+    for row, row_tokens in enumerate(raw_tokens):
+        try:
+            values = [str(value).upper() for value in tuple(row_tokens)]
+        except TypeError:
+            return None
+        if len(values) != 5 or any(value not in {"D+", "S+", "D!", "--"} for value in values):
+            return None
+        routed_mask = sum(1 << index for index, value in enumerate(values) if value in {"D+", "S+"})
+        driver_mask = sum(1 << index for index, value in enumerate(values) if value in {"D+", "D!"})
+        if routed_mask != masks[row] or driver_mask != driver_masks[row]:
+            return None
+        tokens.append(values)
+    return {
+        "cu_masks": list(masks),
+        "cu_driver_masks": list(driver_masks),
+        "cu_tokens": tokens,
+        "cu_active_cus": active_cus,
+        "cu_total_cus": total_cus,
+    }
+
+
+def publish_cu_live_state(
+    topology: Mapping[str, object],
+    persistence: Mapping[str, object],
+    *,
+    raw_dashboard: object,
+    path: pathlib.Path = CU_LIVE_STATE,
+    boot_id_path: pathlib.Path = CU_LIVE_STATE_BOOT_ID,
+    observed_at_unix_ms: int | None = None,
+) -> tuple[bool, str]:
+    """Atomically expose one verified CU reading to the Desktop application.
+
+    This is deliberately a runtime-only bridge: ``/run`` is cleared on boot,
+    so it cannot become a second persistence mechanism for CU routing.  A
+    publication error never changes the success of an already verified
+    hardware operation; callers surface it as an explicit warning instead.
+    """
+    normalized = _cu_live_state_topology(topology)
+    boot_id = cu_live_state_boot_id(boot_id_path)
+    raw = str(raw_dashboard or "")
+    if normalized is None:
+        return False, "CU live snapshot was not published: topology is not internally consistent."
+    if boot_id is None:
+        return False, "CU live snapshot was not published: the current boot ID is unavailable."
+    try:
+        raw_size = len(raw.encode("utf-8", errors="strict"))
+    except UnicodeError:
+        return False, "CU live snapshot was not published: raw dashboard is not valid UTF-8."
+    if not raw or "\x00" in raw or raw_size > CU_LIVE_STATE_MAX_RAW_BYTES:
+        return False, "CU live snapshot was not published: the verified raw dashboard is unavailable or too large."
+    raw_topology = parse_cu_topology(raw)
+    if raw_topology is None or _cu_live_state_topology(raw_topology) != normalized:
+        return False, "CU live snapshot was not published: raw dashboard does not match the verified topology."
+    try:
+        saved_raw = persistence.get("cu_saved_masks")
+        saved_masks = list(validate_cu_masks(tuple(saved_raw))) if saved_raw is not None else None
+        service = {
+            name: persistence[name]
+            for name in (
+                "cu_service_installed", "cu_service_enabled", "cu_service_active", "cu_boot_saved",
+            )
+        }
+    except (KeyError, TypeError, ValueError):
+        return False, "CU live snapshot was not published: persistence metadata is incomplete."
+    if any(type(value) is not bool for value in service.values()):
+        return False, "CU live snapshot was not published: persistence metadata is invalid."
+    observed_at = (
+        time.time_ns() // 1_000_000
+        if observed_at_unix_ms is None
+        else observed_at_unix_ms
+    )
+    if type(observed_at) is not int or observed_at < 0:
+        return False, "CU live snapshot was not published: observation time is invalid."
+    directory = path.parent
+    temporary: pathlib.Path | None = None
+    try:
+        directory.mkdir(mode=0o755, parents=True, exist_ok=True)
+        if not _cu_live_state_directory_is_safe(directory):
+            return False, "CU live snapshot was not published: runtime directory is not protected."
+        directory.chmod(0o755)
+        if not _cu_live_state_directory_is_safe(directory, exact_mode=True):
+            return False, "CU live snapshot was not published: runtime directory permissions are invalid."
+        if (path.exists() or path.is_symlink()) and not _cu_live_state_file_is_safe(path):
+            return False, "CU live snapshot was not published: existing output is not protected."
+        payload = {
+            "schema": CU_LIVE_STATE_SCHEMA,
+            "producer": "bc250-quick-access-helper",
+            "helper_protocol": HELPER_PROTOCOL,
+            "boot_id": boot_id,
+            "observed_at_unix_ms": observed_at,
+            "raw_dashboard": raw,
+            **normalized,
+            "cu_saved_masks": saved_masks,
+            **service,
+        }
+        descriptor, temporary_name = tempfile.mkstemp(prefix=".cu-live-state-", dir=directory)
+        temporary = pathlib.Path(temporary_name)
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle, separators=(",", ":"), sort_keys=True)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        temporary.chmod(0o644)
+        os.replace(temporary, path)
+        temporary = None
+        if not _cu_live_state_file_is_safe(path, exact_mode=True):
+            return False, "CU live snapshot was not published: atomic output did not retain protected ownership."
+        _fsync_directory(directory)
+    except (OSError, TypeError, UnicodeError) as exc:
+        return False, f"CU live snapshot was not published: {exc}."
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+    return True, ""
+
+
+def attach_cu_live_state(
+    payload: dict[str, object], topology: Mapping[str, object]
+) -> dict[str, object]:
+    """Attach non-fatal snapshot delivery feedback to a successful CU result."""
+    observed_at_unix_ms = time.time_ns() // 1_000_000
+    published, warning = publish_cu_live_state(
+        topology,
+        payload,
+        raw_dashboard=topology.get("raw_dashboard"),
+        observed_at_unix_ms=observed_at_unix_ms,
+    )
+    payload["cu_snapshot_published"] = published
+    payload["observed_at_unix_ms"] = observed_at_unix_ms
+    if warning:
+        payload["cu_snapshot_warning"] = warning
+    return payload
+
+
+def cu_result_payload(
+    topology: Mapping[str, object],
+    requested_masks: Sequence[int],
+    *,
+    unchanged: bool = False,
+) -> dict[str, object]:
+    target = sum(mask.bit_count() * 2 for mask in requested_masks)
+    return {
+        "ok": True,
+        "cu_mode": str(target),
+        "cu_masks": list(requested_masks),
+        "cu_driver_masks": list(topology["driver_masks"]),
+        "cu_tokens": topology["tokens"],
+        "cu_active_cus": topology["active_cus"],
+        "cu_total_cus": topology["total_cus"],
+        "unchanged": unchanged,
+        **cu_service_state(),
+    }
+
+
+def cu_dashboard_topology() -> dict[str, object] | None:
+    if not cu_backend_ready():
+        return None
+    result = run(
+        [str(CU_BACKEND), "status"],
+        timeout=45,
+        extra_env=trusted_cu_environment(),
+    )
+    if result.returncode != 0:
+        return None
+    topology = parse_cu_topology(result.stdout)
+    if topology is not None:
+        # Retain the exact, already validated dashboard only for the bounded
+        # runtime snapshot.  It is never forwarded as a Decky UI field.
+        topology["raw_dashboard"] = result.stdout
+    return topology
+
+
+def cu_dashboard_state() -> tuple[int, int] | None:
+    topology = cu_dashboard_topology()
+    if topology is None:
+        return None
+    return int(topology["active_cus"]), int(topology["total_cus"])
+
+
+def parse_uint(payload: str) -> int | None:
+    match = re.fullmatch(r"\s*(?:u|t|q)\s+(\d+)\s*", payload or "")
+    return int(match.group(1)) if match else None
+
+
+def cyan_range() -> tuple[int, int] | None:
+    values: list[int] = []
+    for property_name in ("Min", "Max"):
+        result = run([
+            "/usr/bin/busctl", "--system", "get-property", CYAN_BUS, CYAN_RANGE_PATH,
+            CYAN_RANGE_INTERFACE, property_name,
+        ], timeout=8)
+        value = parse_uint(result.stdout) if result.returncode == 0 else None
+        if value is None:
+            return None
+        values.append(value)
+    return values[0], values[1]
+
+
+def cyan_allowed_range() -> tuple[int, int] | None:
+    """Read Cyan's active safety envelope before a live range transition."""
+    values: list[int] = []
+    for property_name in ("Min", "Max"):
+        result = run([
+            "/usr/bin/busctl", "--system", "get-property", CYAN_BUS,
+            "/com/cyanskillfish/Governor/Range/Allowed", CYAN_RANGE_INTERFACE,
+            property_name,
+        ], timeout=8)
+        value = parse_uint(result.stdout) if result.returncode == 0 else None
+        if value is None:
+            return None
+        values.append(value)
+    return values[0], values[1]
+
+
+def cyan_set_method(config: pathlib.Path = CYAN_CONFIG) -> str | None:
+    """Read the protected Cyan write backend without accepting client input."""
+    if not trusted_directory(config.parent) or not trusted_file(config):
+        return None
+    try:
+        parsed = tomllib.loads(config.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, tomllib.TOMLDecodeError):
+        return None
+    gpu = parsed.get("gpu")
+    if not isinstance(gpu, dict):
+        return "smu"
+    method = str(gpu.get("set-method") or "smu").strip().lower()
+    return method if method in {"smu", "kernel"} else None
+
+
+def cyan_safe_point_ceilings(config: pathlib.Path = CYAN_CONFIG) -> tuple[dict[str, int], ...]:
+    """Return only active, validated TOML ceilings above 2000 MHz.
+
+    This is deliberately a read-only view of the root-owned governor file.
+    Commented TOML blocks are naturally absent from ``tomllib`` and therefore
+    cannot become QAM actions.  Duplicate or malformed points make the whole
+    advanced list unavailable instead of guessing which entry Cyan will use.
+    """
+    if not trusted_directory(config.parent) or not trusted_file(config):
+        return ()
+    try:
+        parsed = tomllib.loads(config.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, tomllib.TOMLDecodeError):
+        return ()
+    raw_points = parsed.get("safe-points")
+    if not isinstance(raw_points, list):
+        return ()
+    points: dict[int, int] = {}
+    for item in raw_points:
+        if not isinstance(item, dict):
+            return ()
+        frequency = item.get("frequency")
+        voltage = item.get("voltage")
+        if type(frequency) is not int or type(voltage) is not int:
+            return ()
+        if not 1 <= frequency <= 3000 or not 600 <= voltage <= 1210:
+            return ()
+        if frequency in points:
+            return ()
+        points[frequency] = voltage
+
+    eligible: list[dict[str, int]] = []
+    for frequency in sorted(value for value in points if value > 2000):
+        required = {
+            point: minimum
+            for point, minimum in GPU_HIGH_POINT_MINIMUM_VOLTAGES.items()
+            if point <= frequency
+        }
+        if all(points.get(point, 0) >= minimum for point, minimum in required.items()):
+            eligible.append({"frequency": frequency, "voltage": points[frequency]})
+    return tuple(eligible)
+
+
+def wait_for_cyan_range(requested: tuple[int, int], *, timeout: float = 6.0) -> tuple[int, int] | None:
+    """Match the full-app confirmation contract instead of reading once.
+
+    Cyan accepts a D-Bus request before a later governor tick publishes the
+    requested current range.  A one-shot post-call read was racy in Game Mode:
+    it made Decky consider an unfinished transition complete and allowed the
+    next controller action to race it.  Poll only the D-Bus state; no extra
+    SMU write is issued from this function.
+    """
+    deadline = time.monotonic() + max(0.2, float(timeout))
+    last_seen: tuple[int, int] | None = None
+    while time.monotonic() < deadline:
+        last_seen = cyan_range()
+        if last_seen == requested:
+            return last_seen
+        time.sleep(0.15)
+    return last_seen
+
+
+def oberon_state(config: pathlib.Path = OBERON_CONFIG) -> dict[str, int] | None:
+    """Parse only Oberon's four scalar endpoints from a protected YAML file."""
+    if not trusted_directory(config.parent) or not trusted_file(config):
+        return None
+    try:
+        metadata = config.stat(follow_symlinks=False)
+        if metadata.st_size > 1024 * 1024:
+            return None
+        text = config.read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        return None
+    if "\t" in text:
+        return None
+    values: dict[str, int] = {}
+    current_section = ""
+    section_indent = -1
+    for raw_line in text.splitlines():
+        stripped = raw_line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        section = _OBERON_SECTION_RE.match(raw_line)
+        if section:
+            current_section = section.group("section")
+            section_indent = len(section.group("indent"))
+            continue
+        indentation = len(raw_line) - len(raw_line.lstrip(" "))
+        if current_section and indentation <= section_indent:
+            current_section = ""
+            section_indent = -1
+        if not current_section:
+            continue
+        bound = _OBERON_BOUND_RE.match(raw_line)
+        if not bound or indentation <= section_indent:
+            continue
+        name = f"{current_section}_{bound.group('key')}"
+        if name in values:
+            return None
+        values[name] = int(bound.group("value"))
+    required = {"frequency_min", "frequency_max", "voltage_min", "voltage_max"}
+    if set(values) != required:
+        return None
+    if not (
+        OBERON_FREQUENCY_RANGE[0] <= values["frequency_min"]
+        <= values["frequency_max"] <= OBERON_FREQUENCY_RANGE[1]
+        and 1 <= values["voltage_min"] <= values["voltage_max"]
+        <= OBERON_SAFE_VOLTAGE_RANGE[1]
+    ):
+        return None
+    return values
+
+
+def oberon_voltage(frequency: int) -> int | None:
+    return OBERON_QAM_VOLTAGES.get(frequency)
+
+
+def oberon_idle_transition_ready(
+    *, samples: int = 3, interval: float = 0.15,
+) -> tuple[bool, str]:
+    """Require a stable low OPP before restarting the two-state governor.
+
+    Upstream loads its two OPPs only at process start and immediately writes
+    OPP 0 from the constructor.  Restarting it under 3D load can therefore
+    produce an abrupt frequency/voltage transition. When Fedora does not
+    expose ``gpu_busy_percent``, three stable readings at Oberon's 1000 MHz
+    minimum are accepted. A missing clock or any higher OPP still fails closed.
+    """
+    observed: list[tuple[int, int]] = []
+    for index in range(max(1, int(samples))):
+        busy = gpu_busy_percent()
+        clock = gpu_core_mhz()
+        if clock is None:
+            return False, "live GPU clock telemetry is unavailable"
+        observed.append((-1 if busy is None else busy, clock))
+        if busy is None:
+            if clock != 1000:
+                return False, f"GPU load is unavailable and the clock is {clock} MHz"
+        elif not 0 <= busy <= OBERON_IDLE_MAX_BUSY_PERCENT:
+            return False, f"GPU is active ({busy}% load, {clock} MHz)"
+        if not 0 < clock <= OBERON_IDLE_MAX_CLOCK_MHZ:
+            return False, f"GPU clock is too high for a safe governor restart ({clock} MHz)"
+        if index + 1 < samples:
+            time.sleep(max(0.0, float(interval)))
+    return True, f"GPU remained idle across {len(observed)} samples"
+
+
+def set_oberon_range(requested: tuple[int, int]) -> int:
+    if not trusted_file(GOVERNOR_CONFIG_HELPER, executable=True):
+        return fail(
+            "QUICK_ACCESS_GPU_HELPER: the protected governor configuration helper is unavailable. Reinstall BC250 Control Center.",
+            21,
+        )
+    if requested not in OBERON_QAM_PROFILES.values():
+        return fail(
+            "QUICK_ACCESS_GPU_ALLOWED: Oberon Quick Access supports only 1000-1500, 1000-1850 or 1000-2000 MHz.",
+            22,
+        )
+    before = oberon_state()
+    if before is None:
+        return fail(
+            "QUICK_ACCESS_GPU_CONFIG: the root-owned Oberon YAML is missing or invalid; no range was changed.",
+            22,
+        )
+    minimum, maximum = requested
+    minimum_voltage = oberon_voltage(minimum)
+    maximum_voltage = oberon_voltage(maximum)
+    if minimum_voltage is None or maximum_voltage is None:
+        return fail("QUICK_ACCESS_GPU_ALLOWED: requested Oberon range is unsupported.", 22)
+    expected = {
+        "frequency_min": minimum,
+        "frequency_max": maximum,
+        "voltage_min": minimum_voltage,
+        "voltage_max": maximum_voltage,
+    }
+    if before == expected:
+        print(json.dumps({
+            "ok": True, "gpu_range": [minimum, maximum],
+            "gpu_governor": "oberon", "unchanged": True,
+        }))
+        return 0
+
+    idle, idle_detail = oberon_idle_transition_ready()
+    if not idle:
+        return fail(
+            "QUICK_ACCESS_GPU_BUSY: Oberon can be changed only while the GPU is idle; "
+            f"{idle_detail}. Wait for the GPU to return to 1000 MHz, then retry.",
+            25,
+        )
+
+    def write(values: Mapping[str, int]) -> subprocess.CompletedProcess[str]:
+        return run([
+            str(GOVERNOR_CONFIG_HELPER), "set-oberon-operating-points",
+            str(values["frequency_min"]), str(values["frequency_max"]),
+            str(values["voltage_min"]), str(values["voltage_max"]),
+        ], timeout=20)
+
+    updated = write(expected)
+    if updated.returncode != 0 or oberon_state() != expected:
+        return fail(
+            updated.stderr.strip() or updated.stdout.strip()
+            or "QUICK_ACCESS_GPU_CONFIG: Oberon YAML verification failed.",
+            23,
+        )
+    restarted = run(["/usr/bin/systemctl", "restart", OBERON_SERVICE], timeout=20)
+    if restarted.returncode == 0 and service_active(OBERON_SERVICE) and oberon_state() == expected:
+        print(json.dumps({
+            "ok": True, "gpu_range": [minimum, maximum],
+            "gpu_governor": "oberon",
+            "message": "Oberon GPU range updated and service verified.",
+        }))
+        return 0
+
+    # The previous file was already parsed and bounded. Restore it whenever it
+    # also meets the editor's conservative voltage floor, then restart once so
+    # a failed new profile is not left as the next boot configuration.
+    rollback_note = ""
+    if (
+        before["voltage_min"] >= OBERON_SAFE_VOLTAGE_RANGE[0]
+        and before["voltage_max"] >= OBERON_SAFE_VOLTAGE_RANGE[0]
+    ):
+        restored = write(before)
+        if restored.returncode == 0 and oberon_state() == before:
+            run(["/usr/bin/systemctl", "restart", OBERON_SERVICE], timeout=20)
+            rollback_note = " Previous Oberon settings were restored."
+    detail = restarted.stderr.strip() or restarted.stdout.strip() or "service did not become active"
+    return fail(f"QUICK_ACCESS_GPU_VERIFY: Oberon restart failed: {detail}.{rollback_note}", 24)
+
+
+def cyan_performance_enabled() -> bool | None:
+    result = run([
+        "/usr/bin/busctl", "--system", "get-property", CYAN_BUS,
+        CYAN_PERFORMANCE_PATH, CYAN_PERFORMANCE_INTERFACE, "Enabled",
+    ], timeout=8)
+    if result.returncode == 0:
+        if result.stdout.strip() == "b true":
+            return True
+        if result.stdout.strip() == "b false":
+            return False
+    return None
+
+
+def set_cyan_range(requested: tuple[int, int]) -> int:
+    observed_before = cyan_range()
+    if observed_before is None:
+        return fail("QUICK_ACCESS_GPU_DBUS: Cyan D-Bus is not ready; no range was changed.", 22)
+    minimum, maximum = requested
+    # SetRange exits fixed/test mode even when the numerical bounds match.
+    # Upstream's loop decides whether a physical clock write is necessary.
+    allowed = cyan_allowed_range()
+    if allowed is None:
+        return fail("QUICK_ACCESS_GPU_DBUS: Cyan allowed-range state is not ready; no range was changed.", 22)
+    if not (allowed[0] <= minimum <= maximum <= allowed[1]):
+        return fail(
+            f"QUICK_ACCESS_GPU_ALLOWED: requested {minimum}-{maximum} MHz is outside Cyan's active {allowed[0]}-{allowed[1]} MHz envelope.",
+            22,
+        )
+    result = run([
+        "/usr/bin/busctl", "--system", "call", CYAN_BUS, CYAN_PERFORMANCE_PATH,
+        CYAN_PERFORMANCE_INTERFACE, "SetRange", "uu", str(minimum), str(maximum),
+    ], timeout=12)
+    if result.returncode != 0:
+        return fail(result.stderr.strip() or result.stdout.strip() or "Cyan SetRange failed.", 23)
+    observed = wait_for_cyan_range(requested)
+    if observed != requested:
+        return fail(
+            f"QUICK_ACCESS_GPU_VERIFY: Cyan reported {observed!r}, expected {minimum}-{maximum} MHz.",
+            24,
+        )
+    print(json.dumps({"ok": True, "gpu_range": [minimum, maximum], "gpu_performance_enabled": cyan_performance_enabled()}))
+    return 0
+
+
+def apply_gpu_range(requested: tuple[int, int]) -> int:
+    governor = active_gpu_governor()
+    if governor == "conflict":
+        return fail(
+            "QUICK_ACCESS_GPU_CONFLICT: Cyan and Oberon are both active. Stop one governor before changing GPU settings.",
+            21,
+        )
+    if governor == "none":
+        return fail(
+            "QUICK_ACCESS_GPU_SERVICE: no supported GPU governor is active. Enable Cyan or Oberon in Desktop Mode.",
+            21,
+        )
+    if governor == "oberon":
+        return set_oberon_range(requested)
+    return set_cyan_range(requested)
+
+
+def gpu_profile(profile: str) -> int:
+    governor = active_gpu_governor()
+    profiles = OBERON_QAM_PROFILES if governor == "oberon" else GPU_PROFILES
+    requested = profiles.get(str(profile))
+    if requested is None:
+        detail = (
+            "Oberon Quick Access supports only the 1000-1500, 1000-1850 and 1000-2000 MHz buttons."
+            if governor == "oberon" else "unknown profile."
+        )
+        return fail(f"QUICK_ACCESS_GPU_PROFILE: {detail}", 20)
+    return apply_gpu_range(requested)
+
+
+def gpu_safe_point(frequency_raw: str) -> int:
+    """Apply the 1000 MHz floor with a backend-validated finite ceiling."""
+    if re.fullmatch(r"[1-9][0-9]{3}", str(frequency_raw)) is None:
+        return fail("QUICK_ACCESS_GPU_SAFE_POINT: invalid TOML ceiling.", 20)
+    frequency = int(frequency_raw)
+    governor = active_gpu_governor()
+    if governor == "oberon":
+        return fail(
+            "QUICK_ACCESS_GPU_SAFE_POINT: Oberon does not expose advanced TOML frequencies in Quick Access.",
+            20,
+        )
+    available = {
+        int(point["frequency"]): int(point["voltage"])
+        for point in cyan_safe_point_ceilings()
+    }
+    source = "active, Level-3-compatible safe-point in the root-owned Cyan TOML"
+    if frequency not in available:
+        return fail(
+            f"QUICK_ACCESS_GPU_SAFE_POINT: {frequency} MHz is not available in the {source}.",
+            20,
+        )
+    return apply_gpu_range((1000, frequency))
+
+
+def cu_table(masks: Sequence[object], *, save_boot: bool = False) -> int:
+    """Apply and verify one complete four-row table like Desktop Mode.
+
+    Every command is derived here from four bounded 5-bit masks.  Disabled
+    pairs are removed first so an interrupted transition cannot leave more CUs
+    routed than the requested table; then every requested pair is enabled.
+    """
+    try:
+        requested_masks = validate_cu_masks(masks)
+    except ValueError as exc:
+        return fail(f"QUICK_ACCESS_CU_TABLE: {exc}.", 30)
+    if not cu_backend_ready():
+        return fail("QUICK_ACCESS_CU_BACKEND: trusted staged CU backend is missing. Prepare dependencies from Desktop Mode.", 31)
+    cu_environment = trusted_cu_environment()
+    before = run([str(CU_BACKEND), "status"], timeout=45, extra_env=cu_environment)
+    before_topology = parse_cu_topology(before.stdout) if before.returncode == 0 else None
+    if before_topology is not None:
+        before_topology["raw_dashboard"] = before.stdout
+    if before_topology is None:
+        return fail(
+            "QUICK_ACCESS_CU_STATE: a complete internally consistent live topology "
+            "is required before changing any WGP.",
+            32,
+        )
+    unchanged = tuple(int(mask) for mask in before_topology["masks"]) == requested_masks
+    if unchanged and not save_boot:
+        payload = cu_result_payload(before_topology, requested_masks, unchanged=True)
+        print(json.dumps(attach_cu_live_state(payload, before_topology)))
+        return 0
+
+    enabled: list[str] = []
+    disabled: list[str] = []
+    before_masks = tuple(int(mask) for mask in before_topology["masks"])
+    for row, mask in enumerate(requested_masks):
+        se, sh = divmod(row, 2)
+        for wgp in range(5):
+            target_wgp = f"{se}.{sh}.{wgp}"
+            bit = 1 << wgp
+            if mask & bit and not before_masks[row] & bit:
+                enabled.append(target_wgp)
+            elif before_masks[row] & bit and not mask & bit:
+                disabled.append(target_wgp)
+
+    if disabled:
+        remove = run(
+            [str(CU_BACKEND), "--yes", "disable-wgp", *disabled],
+            timeout=180,
+            extra_env=cu_environment,
+        )
+        if remove.returncode != 0:
+            return fail(remove.stderr.strip() or remove.stdout.strip() or "CU WGP removal failed.", remove.returncode)
+    if enabled:
+        add = run(
+            [str(CU_BACKEND), "--yes", "enable-wgp", *enabled],
+            timeout=180,
+            extra_env=cu_environment,
+        )
+        if add.returncode != 0:
+            return fail(add.stderr.strip() or add.stdout.strip() or "CU WGP routing failed.", add.returncode)
+    verify = run(
+        [str(CU_BACKEND), "status"],
+        timeout=45,
+        extra_env=cu_environment,
+    )
+    if verify.returncode != 0:
+        return fail(verify.stderr.strip() or verify.stdout.strip() or "CU verification failed.", verify.returncode)
+    topology = parse_cu_topology(verify.stdout)
+    if topology is None:
+        return fail(
+            "QUICK_ACCESS_CU_VERIFY: the backend did not return one internally consistent four-row topology.",
+            33,
+        )
+    topology["raw_dashboard"] = verify.stdout
+    observed_masks = tuple(int(mask) for mask in topology["masks"])
+    if observed_masks != requested_masks:
+        return fail(
+            f"QUICK_ACCESS_CU_VERIFY: expected row masks "
+            f"{[hex(mask) for mask in requested_masks]}, got "
+            f"{[hex(mask) for mask in observed_masks]}.",
+            33,
+        )
+    if save_boot:
+        save = run(
+            [str(CU_BACKEND), "--yes", "write-service-table"],
+            timeout=180,
+            extra_env=cu_environment,
+        )
+        if save.returncode != 0:
+            return fail(
+                save.stderr.strip() or save.stdout.strip() or "CU boot-table save failed.",
+                save.returncode,
+            )
+        observed_saved = saved_cu_masks()
+        if observed_saved != requested_masks:
+            return fail(
+                f"QUICK_ACCESS_CU_SAVE_VERIFY: expected saved row masks "
+                f"{[hex(mask) for mask in requested_masks]}, got "
+                f"{[hex(mask) for mask in observed_saved] if observed_saved else None}.",
+                34,
+            )
+    payload = cu_result_payload(topology, requested_masks, unchanged=unchanged)
+    payload["cu_saved"] = save_boot
+    print(json.dumps(attach_cu_live_state(payload, topology)))
+    return 0
+
+
+def cu_save(masks: Sequence[object]) -> int:
+    """Apply one exact table and persist only that verified live table."""
+    return cu_table(masks, save_boot=True)
+
+
+def cu_install_service() -> int:
+    """Install the known boot service only when it has a valid saved table."""
+    saved = saved_cu_masks()
+    if saved is None:
+        return fail(
+            "QUICK_ACCESS_CU_SERVICE_PROFILE: save a verified WGP selection before "
+            "installing the boot service.",
+            35,
+        )
+    if not cu_backend_ready():
+        return fail(
+            "QUICK_ACCESS_CU_BACKEND: trusted staged CU backend is missing. "
+            "Prepare dependencies from Desktop Mode.",
+            31,
+        )
+    result = run(
+        [str(CU_BACKEND), "--yes", "install-service"],
+        timeout=180,
+        extra_env=trusted_cu_environment(),
+    )
+    if result.returncode != 0:
+        return fail(
+            result.stderr.strip() or result.stdout.strip() or "CU service installation failed.",
+            result.returncode,
+        )
+    service = cu_service_state()
+    service_binary = CU_SERVICE_BINARIES[0]
+    if not (
+        service["cu_service_installed"]
+        and service["cu_service_enabled"]
+        and trusted_file(service_binary, executable=True)
+        and saved_cu_masks() == saved
+    ):
+        return fail(
+            "QUICK_ACCESS_CU_SERVICE_VERIFY: the protected unit, executable, enabled "
+            "state, and saved masks did not all verify after installation.",
+            36,
+        )
+    topology = cu_dashboard_topology()
+    payload: dict[str, object] = {"ok": True, "cu_service_action": "installed", **service}
+    if topology is not None:
+        payload.update(cu_result_payload(topology, tuple(int(mask) for mask in topology["masks"])))
+        payload["cu_service_action"] = "installed"
+        attach_cu_live_state(payload, topology)
+    else:
+        payload["cu_snapshot_published"] = False
+        payload["cu_snapshot_warning"] = "CU live snapshot was not published: no verified topology was available after service installation."
+    print(json.dumps(payload))
+    return 0
+
+
+def cu_remove_service() -> int:
+    """Remove only the known boot service and profile; never change live SPI masks."""
+    before = cu_dashboard_topology()
+    if not cu_backend_ready():
+        return fail(
+            "QUICK_ACCESS_CU_BACKEND: trusted staged CU backend is missing. "
+            "Prepare dependencies from Desktop Mode.",
+            31,
+        )
+    remove = run(
+        [str(CU_BACKEND), "--yes", "uninstall-service"],
+        timeout=180,
+        extra_env=trusted_cu_environment(),
+    )
+    errors: list[str] = []
+    if remove.returncode != 0:
+        errors.append(
+            remove.stderr.strip() or remove.stdout.strip() or "CU service removal failed"
+        )
+    after_service = cu_service_state()
+    if (
+        after_service["cu_service_installed"]
+        or after_service["cu_service_enabled"]
+        or after_service["cu_boot_saved"]
+        or after_service["cu_saved_masks"] is not None
+        or any(path.exists() for path in CU_SERVICE_BINARIES)
+    ):
+        errors.append("service files, saved masks, or enabled state remain after removal")
+    after = cu_dashboard_topology()
+    if before is not None and after is not None and before["masks"] != after["masks"]:
+        errors.append("live WGP masks changed while removing the boot service")
+    if errors:
+        return fail("QUICK_ACCESS_CU_SERVICE_REMOVE: " + "; ".join(errors), 37)
+    payload: dict[str, object] = {
+        "ok": True,
+        "cu_service_action": "removed",
+        "cu_live_unchanged": before is not None and after is not None,
+        **after_service,
+    }
+    if after is not None:
+        payload.update(cu_result_payload(after, tuple(int(mask) for mask in after["masks"]), unchanged=True))
+        payload.update(after_service)
+        payload["cu_service_action"] = "removed"
+        payload["cu_live_unchanged"] = before is not None
+        attach_cu_live_state(payload, after)
+    else:
+        payload["cu_snapshot_published"] = False
+        payload["cu_snapshot_warning"] = "CU live snapshot was not published: no verified topology was available after service removal."
+    print(json.dumps(payload))
+    return 0
+
+
+def cu_mode(mode: str) -> int:
+    normalized = str(mode).strip().lower()
+    aliases = {"stock": 24, "full": 40}
+    try:
+        target = aliases[normalized] if normalized in aliases else int(normalized)
+        masks = canonical_cu_masks(target)
+    except ValueError:
+        return fail("QUICK_ACCESS_CU_MODE: target must be an even value from 24 through 40.", 30)
+    return cu_table(masks)
+
+
+def _nct_sensor_score(sensor: pathlib.Path) -> tuple[int, int, int, str]:
+    """Prefer the NCT surface that can actually serve the QAM fan contract.
+
+    A machine can expose more than one NCT-compatible hwmon device.  Returning
+    the lexically first directory could then control an unrelated Super-I/O.
+    The board still needs a physical RPM-identification pass, but this ranking
+    selects the richest PWM 2–5 surface instead of trusting enumeration order.
+    """
+    try:
+        selectable = sum(
+            int((sensor / f"pwm{channel}").is_file() and (sensor / f"pwm{channel}_enable").is_file())
+            for channel in QAM_FAN_CHANNELS
+        )
+        fans = len(tuple(sensor.glob("fan*_input")))
+        pwm2 = int((sensor / "pwm2").is_file() and (sensor / "pwm2_enable").is_file())
+    except OSError:
+        return (0, 0, 0, sensor.name)
+    return (selectable, pwm2, fans, sensor.name)
+
+
+def nct_sensor(hwmon_root: pathlib.Path = pathlib.Path("/sys/class/hwmon")) -> pathlib.Path | None:
+    candidates: list[pathlib.Path] = []
+    for sensor in sorted(hwmon_root.glob("hwmon*")):
+        try:
+            name = (sensor / "name").read_text(encoding="utf-8", errors="ignore").strip().lower()
+        except OSError:
+            continue
+        if name.startswith(("nct668", "nct67", "nct")):
+            candidates.append(sensor)
+    return max(candidates, key=_nct_sensor_score) if candidates else None
+
+
+def fan_auto(channel_raw: str) -> int:
+    """Backward-compatible alias for the per-channel automatic action."""
+    return fan_channel_control(channel_raw, "automatic")
+
+
+def system_fan_channels(sensor: pathlib.Path | None = None) -> list[int]:
+    sensor = sensor or nct_sensor()
+    if sensor is None:
+        return []
+    candidates = [
+        channel for channel in SYSTEM_FAN_CHANNELS
+        if (sensor / f"pwm{channel}").is_file()
+        and (sensor / f"pwm{channel}_enable").is_file()
+    ]
+    # On the known BC-250 NCT layout, pwm6..8 often exist even when no fan is
+    # wired to them and remain at zero/manual.  Touching those pseudo-channels
+    # made one group operation fail and left the real system fans unchanged.
+    # Only expose channels currently driven by the controller.  Never include
+    # pwm2 (the pump), regardless of the hardware state.
+    active: list[int] = []
+    for channel in candidates:
+        try:
+            duty = int((sensor / f"pwm{channel}").read_text(encoding="ascii").strip())
+            # Do not assume that an automatic zero-PWM channel has a physical
+            # fan: unconnected NCT channels may present that same state.  The
+            # safer false-negative is preferable to writing a guessed channel.
+            if duty > 0:
+                active.append(channel)
+        except (OSError, ValueError):
+            continue
+    return active
+
+
+def system_fan_preset_state(sensor: pathlib.Path | None = None) -> tuple[str | None, int | None]:
+    """Describe the current QAM fan state using read-only PWM evidence.
+
+    ``None`` means that the channels do not agree on a named QAM preset, or
+    that no physically active channel can be established.  It is deliberately
+    not treated as a failure: Desktop Mode may have applied a custom curve,
+    which Quick Access must display but never overwrite until a user explicitly
+    picks a named live preset.
+    """
+    sensor = sensor or nct_sensor()
+    channels = system_fan_channels(sensor)
+    if sensor is None or not channels:
+        return None, None
+    modes: list[str] = []
+    duties: list[int] = []
+    try:
+        for channel in channels:
+            modes.append((sensor / f"pwm{channel}_enable").read_text(encoding="ascii").strip())
+            duties.append(int((sensor / f"pwm{channel}").read_text(encoding="ascii").strip()))
+    except (OSError, ValueError):
+        return None, None
+    if all(mode == "2" for mode in modes):
+        return "automatic", None
+    if all(mode == "1" for mode in modes) and len(set(duties)) == 1:
+        duty = duties[0]
+        for preset, expected_duty in FAN_SYSTEM_PRESETS.items():
+            if expected_duty == duty:
+                return preset, duty
+        return None, duty
+    return None, duties[0] if len(set(duties)) == 1 else None
+
+
+def qam_fan_channel_state(sensor: pathlib.Path | None = None) -> list[dict[str, object]]:
+    """Return read-only state for the four explicitly selectable QAM channels.
+
+    PWM2 was previously labelled as a pump from one observed wiring layout,
+    but community BC-250 conversions are not wired uniformly.  The user has
+    explicitly requested PWM2 as the default.  Report that uncertainty as
+    metadata while allowing deliberate, thermally bounded control.
+    """
+    sensor = sensor or nct_sensor()
+    states: list[dict[str, object]] = []
+    for channel in QAM_FAN_CHANNELS:
+        pwm = sensor / f"pwm{channel}" if sensor else None
+        enable = sensor / f"pwm{channel}_enable" if sensor else None
+        available = bool(pwm and enable and pwm.is_file() and enable.is_file())
+        raw_duty: int | None = None
+        raw_mode: str | None = None
+        rpm: int | None = None
+        if available:
+            try:
+                raw_duty = int(pwm.read_text(encoding="ascii").strip())
+                raw_mode = enable.read_text(encoding="ascii").strip()
+            except (OSError, ValueError):
+                available = False
+                raw_duty = None
+                raw_mode = None
+        # A matching fanN_input is useful evidence, but it is not a wiring
+        # guarantee: board conversions can route a PWM and tachometer through
+        # different headers.  Publish it as evidence only; the UI must never
+        # call a channel "identified" solely because this file exists.
+        if sensor is not None:
+            try:
+                candidate_rpm = int((sensor / f"fan{channel}_input").read_text(encoding="ascii").strip())
+                rpm = candidate_rpm if candidate_rpm > 0 else None
+            except (OSError, ValueError):
+                rpm = None
+        mode = "automatic" if raw_mode == "2" else "manual" if raw_mode == "1" else "unknown"
+        states.append({
+            "channel": channel,
+            "label": f"PWM {channel}",
+            "available": available,
+            "mode": mode,
+            "mode_raw": raw_mode,
+            "duty": raw_duty,
+            "percent": round(raw_duty * 100 / 255) if raw_duty is not None else None,
+            "rpm": rpm,
+            "rpm_observed": rpm is not None,
+            "wiring": "board-default; verify pump/fan wiring" if channel == 2 else "board-specific",
+            "wiring_uncertain": True,
+        })
+    return states
+
+
+def write_sysfs(path: pathlib.Path, payload: str) -> None:
+    flags = os.O_WRONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(path, flags)
+    try:
+        content = payload.encode("ascii")
+        written = 0
+        while written < len(content):
+            count = os.write(descriptor, content[written:])
+            if count <= 0:
+                raise OSError(f"PWM write made no progress for {path}")
+            written += count
+    finally:
+        os.close(descriptor)
+
+
+def wait_for_sysfs_value(
+    path: pathlib.Path,
+    expected: str,
+    *,
+    retry_payload: str | None = None,
+    attempts: int = PWM_DUTY_VERIFY_ATTEMPTS,
+    interval: float = PWM_DUTY_VERIFY_INTERVAL_SECONDS,
+) -> tuple[bool, str, int, float]:
+    """Wait briefly for an asynchronous hwmon write to become observable.
+
+    NCT6687 can expose the previous PWM duty while a channel changes from
+    automatic to manual mode.  When ``retry_payload`` is supplied, rewrite the
+    duty after each settling interval: the first duty write may have arrived
+    before the mode transition completed.  Mode writes are only polled so that
+    repeatedly writing the mode cannot restart a controller transition.
+    """
+    started = time.monotonic()
+    observed = ""
+    attempts = max(1, attempts)
+    for attempt in range(1, attempts + 1):
+        observed = path.read_text(encoding="ascii").strip()
+        if observed == expected:
+            return True, observed, attempt, (time.monotonic() - started) * 1000
+        if attempt < attempts:
+            time.sleep(interval)
+            if retry_payload is not None:
+                write_sysfs(path, retry_payload)
+    return False, observed, attempts, (time.monotonic() - started) * 1000
+
+
+def _qam_fan_channel(channel_raw: str) -> int:
+    if re.fullmatch(r"[2-5]", str(channel_raw)) is None:
+        raise ValueError("channel must be PWM 2, 3, 4, or 5")
+    return int(channel_raw)
+
+
+def _qam_fan_target(target_raw: str) -> tuple[str, int | None, int | None]:
+    normalized = str(target_raw).lower()
+    if normalized == "automatic":
+        return "automatic", None, None
+    # Keep the privileged grammar deliberately smaller than int(): signs,
+    # decimals, whitespace and arbitrary strings are not protocol values.
+    if re.fullmatch(r"(?:[2-9][0-9]|100)", normalized) is None:
+        raise ValueError("manual percentage must be an integer from 20 through 100")
+    percent = int(normalized)
+    if not QAM_FAN_MIN_PERCENT <= percent <= QAM_FAN_MAX_PERCENT:
+        raise ValueError("manual percentage must be an integer from 20 through 100")
+    return "manual", percent, round(percent * 255 / 100)
+
+
+def fan_channel_control(channel_raw: str, target_raw: str) -> int:
+    """Apply one bounded live setting to exactly one selected PWM channel."""
+    try:
+        channel = _qam_fan_channel(channel_raw)
+        mode, percent, duty = _qam_fan_target(target_raw)
+    except ValueError as exc:
+        return fail(f"QUICK_ACCESS_FAN: {exc}.", 40)
+    sensor = nct_sensor()
+    if sensor is None:
+        return fail("QUICK_ACCESS_FAN: no NCT hwmon sensor was found.", 42)
+    pwm = sensor / f"pwm{channel}"
+    enable = sensor / f"pwm{channel}_enable"
+    if not pwm.is_file() or not enable.is_file():
+        return fail(f"QUICK_ACCESS_FAN: PWM {channel} control is unavailable.", 44)
+
+    verification: dict[str, object] = {"channel": channel}
+    manual_transition = mode == "manual"
+    try:
+        if mode == "automatic":
+            write_sysfs(enable, "2\n")
+            matched, observed, attempts, elapsed_ms = wait_for_sysfs_value(
+                enable,
+                "2",
+                attempts=PWM_MODE_VERIFY_ATTEMPTS,
+                interval=PWM_MODE_VERIFY_INTERVAL_SECONDS,
+            )
+            verification.update({
+                "mode_attempts": attempts,
+                "mode_settle_ms": round(elapsed_ms, 1),
+            })
+            if not matched:
+                raise OSError(
+                    f"PWM {channel} automatic read-back was {observed!r} after "
+                    f"{attempts} attempts/{elapsed_ms:.1f} ms"
+                )
+        else:
+            assert duty is not None and percent is not None
+            write_sysfs(enable, "1\n")
+            matched, observed, attempts, elapsed_ms = wait_for_sysfs_value(
+                enable,
+                "1",
+                attempts=PWM_MODE_VERIFY_ATTEMPTS,
+                interval=PWM_MODE_VERIFY_INTERVAL_SECONDS,
+            )
+            verification.update({
+                "mode_attempts": attempts,
+                "mode_settle_ms": round(elapsed_ms, 1),
+            })
+            if not matched:
+                raise OSError(
+                    f"PWM {channel} manual-mode read-back was {observed!r} after "
+                    f"{attempts} attempts/{elapsed_ms:.1f} ms"
+                )
+            time.sleep(PWM_MODE_SETTLE_SECONDS)
+            payload = f"{duty}\n"
+            write_sysfs(pwm, payload)
+            matched, observed, attempts, elapsed_ms = wait_for_sysfs_value(
+                pwm,
+                str(duty),
+                retry_payload=payload,
+                attempts=PWM_DUTY_VERIFY_ATTEMPTS,
+                interval=PWM_DUTY_VERIFY_INTERVAL_SECONDS,
+            )
+            verification.update({
+                "duty_attempts": attempts,
+                "duty_settle_ms": round(elapsed_ms, 1),
+            })
+            if not matched:
+                raise OSError(
+                    f"PWM {channel} duty read-back was {observed!r} after "
+                    f"{attempts} attempts/{elapsed_ms:.1f} ms"
+                )
+    except OSError as exc:
+        fallback: dict[str, object] | None = None
+        if manual_transition:
+            fallback = {"requested": "automatic", "verified": False}
+            try:
+                write_sysfs(enable, "2\n")
+                restored, observed, attempts, elapsed_ms = wait_for_sysfs_value(
+                    enable,
+                    "2",
+                    attempts=PWM_MODE_VERIFY_ATTEMPTS,
+                    interval=PWM_MODE_VERIFY_INTERVAL_SECONDS,
+                )
+                fallback.update({
+                    "verified": restored,
+                    "observed": observed,
+                    "attempts": attempts,
+                    "settle_ms": round(elapsed_ms, 1),
+                })
+            except OSError as fallback_exc:
+                fallback["error"] = str(fallback_exc)
+        detail = f" fallback={json.dumps(fallback, separators=(',', ':'))}" if fallback else ""
+        return fail(f"QUICK_ACCESS_FAN: {exc}.{detail}", 48)
+
+    print(json.dumps({
+        "ok": True,
+        "fan_channel": channel,
+        "mode": mode,
+        "percent": percent,
+        "duty": duty,
+        "pwm_verification": verification,
+        "wiring_warning": (
+            "PWM 2 is the requested board default, but its pump/fan role depends on the physical wiring."
+            if channel == 2 else None
+        ),
+    }))
+    return 0
+
+
+def fan_system_preset(preset: str) -> int:
+    duty = FAN_SYSTEM_PRESETS.get(str(preset), "invalid")
+    if duty == "invalid":
+        return fail("QUICK_ACCESS_FAN: unknown system-fan preset.", 46)
+    sensor = nct_sensor()
+    channels = system_fan_channels(sensor)
+    if not channels:
+        return fail("QUICK_ACCESS_FAN: no active BC-250 system fan channels were found. Quick Access will never touch the pump.", 47)
+    verification = []
+    manual_transition = duty is not None
+    try:
+        if duty is None:
+            for channel in channels:
+                enable = sensor / f"pwm{channel}_enable"
+                write_sysfs(enable, "2\n")
+                matched, observed, attempts, elapsed_ms = wait_for_sysfs_value(
+                    enable, "2", attempts=PWM_MODE_VERIFY_ATTEMPTS,
+                    interval=PWM_MODE_VERIFY_INTERVAL_SECONDS,
+                )
+                verification.append({"channel": channel, "mode_attempts": attempts, "settle_ms": round(elapsed_ms, 1)})
+                if not matched:
+                    raise OSError(
+                        f"PWM {channel} automatic read-back was {observed!r} after "
+                        f"{attempts} attempts/{elapsed_ms:.1f} ms"
+                    )
+        else:
+            # Change the complete fan bank as one transaction.  Per-channel
+            # mode/duty interleaving left real hardware in a mixed state when
+            # a later channel rejected its first duty write.
+            for channel in channels:
+                write_sysfs(sensor / f"pwm{channel}_enable", "1\n")
+
+            mode_results: dict[int, tuple[int, float]] = {}
+            for channel in channels:
+                enable = sensor / f"pwm{channel}_enable"
+                mode_matched, mode_observed, mode_attempts, mode_elapsed_ms = wait_for_sysfs_value(
+                    enable, "1", attempts=PWM_MODE_VERIFY_ATTEMPTS,
+                    interval=PWM_MODE_VERIFY_INTERVAL_SECONDS,
+                )
+                if not mode_matched:
+                    raise OSError(
+                        f"PWM {channel} manual-mode read-back was {mode_observed!r} after "
+                        f"{mode_attempts} attempts/{mode_elapsed_ms:.1f} ms"
+                    )
+                mode_results[channel] = (mode_attempts, mode_elapsed_ms)
+
+            # The NCT register can acknowledge every pwmN_enable before its
+            # internal automatic-to-manual transition accepts new duties.  A
+            # 250 ms loop on real PWM4 remained pinned at the old value (204).
+            time.sleep(PWM_MODE_SETTLE_SECONDS)
+            for channel in channels:
+                write_sysfs(sensor / f"pwm{channel}", f"{duty}\n")
+
+            for channel in channels:
+                pwm = sensor / f"pwm{channel}"
+                mode_attempts, mode_elapsed_ms = mode_results[channel]
+                matched, observed, attempts, elapsed_ms = wait_for_sysfs_value(
+                    pwm,
+                    str(duty),
+                    retry_payload=f"{duty}\n",
+                    attempts=PWM_DUTY_VERIFY_ATTEMPTS,
+                    interval=PWM_DUTY_VERIFY_INTERVAL_SECONDS,
+                )
+                verification.append({
+                    "channel": channel,
+                    "mode_attempts": mode_attempts,
+                    "mode_settle_ms": round(mode_elapsed_ms, 1),
+                    "duty_attempts": attempts,
+                    "duty_settle_ms": round(elapsed_ms, 1),
+                })
+                if not matched:
+                    raise OSError(
+                        f"PWM {channel} duty read-back was {observed!r} after "
+                        f"{attempts} attempts/{elapsed_ms:.1f} ms"
+                    )
+    except OSError as exc:
+        fallback = ""
+        if manual_transition:
+            restored = []
+            for channel in channels:
+                try:
+                    write_sysfs(sensor / f"pwm{channel}_enable", "2\n")
+                    restored.append(channel)
+                except OSError:
+                    pass
+            fallback = f" Automatic fallback requested for PWM {restored}."
+        return fail(f"QUICK_ACCESS_FAN: {exc}.{fallback}", 48)
+    print(json.dumps({
+        "ok": True,
+        "fan_channels": channels,
+        "preset": preset,
+        "duty": duty,
+        "pwm_verification": verification,
+    }))
+    return 0
+
+
+def cpu_saved_profile() -> dict[str, int] | None:
+    if not trusted_file(CPU_CONFIG) or not trusted_file(CPU_HELPER, executable=True):
+        return None
+    parser = configparser.ConfigParser(interpolation=None)
+    try:
+        if not parser.read(CPU_CONFIG) or not parser.has_section("overclock"):
+            return None
+        frequency = parser.getint("overclock", "frequency")
+        scale = parser.getint("overclock", "scale")
+        temperature = parser.getint("overclock", "max_temperature")
+    except (OSError, ValueError, configparser.Error):
+        return None
+    if not (3500 <= frequency <= 4200 and -50 <= scale <= 0 and 70 <= temperature <= 90):
+        return None
+    return {"frequency": frequency, "scale": scale, "temperature": temperature}
+
+
+def cpu_estimated_vid(frequency: int, scale: int) -> int:
+    """Mirror the audited upstream estimate; this is not measured voltage."""
+    p = -1.519 + int(scale) * 0.004325
+    q = 2800.0 - (int(scale) * 10.0)
+    return round(0.0003 * int(frequency) * int(frequency) + p * int(frequency) + q)
+
+
+def cpu_qam_detection_state() -> dict[str, object] | None:
+    """Read only the CPU helper's root-validated, same-boot detector record."""
+    if not trusted_file(CPU_HELPER, executable=True):
+        return None
+    try:
+        result = run([str(CPU_HELPER), "qam-status"], timeout=12)
+    except OSError:
+        # The filesystem can change between the trust check and exec (package
+        # update, rollback, or immutable deployment switch). Treat that race
+        # as unavailable runtime evidence, never as a backend crash.
+        return None
+    if result.returncode != 0:
+        return None
+    for line in reversed(result.stdout.splitlines()):
+        try:
+            payload = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(payload, dict):
+            return payload
+    return None
+
+
+def cpu_tuning_context() -> dict[str, object]:
+    """Expose detector readiness without treating an estimated VID as evidence."""
+    helper_ready = trusted_file(CPU_HELPER, executable=True)
+    stress_ready = any(trusted_file(path, executable=True) for path in CPU_STRESS_PATHS)
+    if not helper_ready:
+        return {
+            "cpu_tuning_ready": False,
+            "cpu_tuning_temperature": CPU_QAM_TEMPERATURE,
+            "cpu_tuning_source": "helper-unavailable",
+            "cpu_tuning_error": "The protected CPU helper is missing or failed its root ownership and permission checks.",
+            "cpu_detected_profile": None,
+            "cpu_active_profile": None,
+            "cpu_manual_scale_ready": False,
+        }
+    detected = cpu_qam_detection_state()
+    detected_ready = bool(detected and detected.get("ready") is True)
+    detected_error = str(detected.get("reason") or "") if isinstance(detected, dict) else ""
+    return {
+        "cpu_tuning_ready": stress_ready,
+        "cpu_tuning_temperature": CPU_QAM_TEMPERATURE,
+        "cpu_tuning_source": (
+            "qam-detected" if detected_ready
+            else "detector-required" if stress_ready
+            else "stress-unavailable"
+        ),
+        "cpu_detected_profile": detected if detected_ready else None,
+        "cpu_active_profile": detected.get("active_profile") if detected_ready else None,
+        "cpu_manual_scale_ready": bool(detected_ready and detected.get("manual_scale_ready") is True),
+        "cpu_tuning_error": detected_error or None,
+    }
+
+
+def cpu_detection_candidate(frequency_raw: str, vid_raw: str) -> dict[str, int]:
+    """Validate the two real upstream bc250-detect inputs exposed by QAM."""
+    if re.fullmatch(r"[0-9]{4}", str(frequency_raw)) is None:
+        raise ValueError("CPU frequency must be a four-digit integer.")
+    if re.fullmatch(r"[0-9]{3,4}", str(vid_raw)) is None:
+        raise ValueError("CPU VID must be an integer.")
+    frequency = int(frequency_raw)
+    vid = int(vid_raw)
+    if not 3500 <= frequency <= 4200 or frequency % 50:
+        raise ValueError("CPU frequency must be 3500–4200 MHz in 50 MHz steps.")
+    if not 950 <= vid <= 1325 or vid % 5:
+        raise ValueError("CPU VID must be 950–1325 mV in 5 mV steps.")
+    context = cpu_tuning_context()
+    if context["cpu_tuning_ready"] is not True:
+        raise ValueError("The protected CPU detector and stress dependency are not ready.")
+    return {
+        "frequency": frequency,
+        "vid": vid,
+        "temperature": CPU_QAM_TEMPERATURE,
+    }
+
+
+def cpu_scale_candidate(frequency_raw: str, scale_raw: str) -> dict[str, int]:
+    """Validate a manual scale against the protected same-boot detector result."""
+    if re.fullmatch(r"[0-9]{4}", str(frequency_raw)) is None:
+        raise ValueError("CPU frequency must be a four-digit integer.")
+    if re.fullmatch(r"-?[0-9]{1,2}", str(scale_raw)) is None:
+        raise ValueError("CPU scale must be an integer.")
+    frequency = int(frequency_raw)
+    scale = int(scale_raw)
+    if not 3500 <= frequency <= 4200 or frequency % 50:
+        raise ValueError("CPU frequency must be 3500–4200 MHz in 50 MHz steps.")
+    if not -50 <= scale <= 0:
+        raise ValueError("CPU scale must be between -50 and 0.")
+    detected = cpu_qam_detection_state()
+    if not detected or detected.get("ready") is not True:
+        raise ValueError("Run automatic CPU detection in this boot before using manual scale.")
+    if detected.get("manual_scale_ready") is not True:
+        raise ValueError("The protected CPU helper cannot verify manual scale evidence.")
+    if frequency != detected.get("frequency"):
+        raise ValueError("Run automatic CPU detection at this exact frequency first.")
+    voltage = cpu_estimated_vid(frequency, scale)
+    if voltage > 1325:
+        raise ValueError(f"Estimated VID ~{voltage} mV exceeds the 1325 mV ceiling.")
+    return {
+        "frequency": frequency,
+        "scale": scale,
+        "temperature": CPU_QAM_TEMPERATURE,
+        "estimated_vid": voltage,
+    }
+
+
+def cpu_service_state() -> dict[str, object]:
+    installed = trusted_file(CPU_SERVICE_UNIT) and trusted_file(CPU_HELPER, executable=True)
+    enabled = run(
+        ["/usr/bin/systemctl", "is-enabled", "--quiet", CPU_SERVICE_NAME], timeout=8
+    ).returncode == 0
+    active = run(
+        ["/usr/bin/systemctl", "is-active", "--quiet", CPU_SERVICE_NAME], timeout=8
+    ).returncode == 0
+    return {
+        "cpu_service_installed": installed,
+        "cpu_service_enabled": enabled,
+        "cpu_service_active": active,
+    }
+
+
+def cpu_detect_tuning(frequency_raw: str, vid_raw: str) -> int:
+    try:
+        candidate = cpu_detection_candidate(frequency_raw, vid_raw)
+    except ValueError as exc:
+        return fail(f"QUICK_ACCESS_CPU: {exc}", 50)
+    result = run(
+        [
+            str(CPU_HELPER), "detect-qam", str(candidate["frequency"]),
+            str(candidate["vid"]), str(candidate["temperature"]),
+        ],
+        timeout=900,
+    )
+    if result.returncode != 0:
+        return fail(
+            result.stderr.strip() or result.stdout.strip() or "CPU detection failed.",
+            result.returncode,
+        )
+    detected = cpu_qam_detection_state()
+    if not detected or detected.get("ready") is not True:
+        return fail("QUICK_ACCESS_CPU_VERIFY: detector evidence was not published.", 51)
+    if (
+        detected.get("requested_frequency") != candidate["frequency"]
+        or detected.get("requested_vid") != candidate["vid"]
+        or detected.get("requested_temperature") != candidate["temperature"]
+    ):
+        return fail("QUICK_ACCESS_CPU_VERIFY: detector evidence does not match the request.", 51)
+    print(json.dumps({
+        "ok": True,
+        "cpu_detected_profile": detected,
+        "cpu_applied_profile": {
+            "frequency": detected["frequency"],
+            "scale": detected["scale"],
+            "temperature": detected["temperature"],
+        },
+        "cpu_active_profile": detected.get("active_profile"),
+        "message": "CPU detection completed and its exact result was applied live.",
+        **cpu_service_state(),
+    }))
+    return 0
+
+
+def cpu_apply_manual_scale(frequency_raw: str, scale_raw: str) -> int:
+    try:
+        candidate = cpu_scale_candidate(frequency_raw, scale_raw)
+    except ValueError as exc:
+        return fail(f"QUICK_ACCESS_CPU_SCALE: {exc}", 56)
+    result = run(
+        [
+            str(CPU_HELPER), "apply-qam-scale", str(candidate["frequency"]),
+            str(candidate["scale"]), str(candidate["temperature"]),
+        ],
+        timeout=180,
+    )
+    if result.returncode != 0:
+        return fail(
+            result.stderr.strip() or result.stdout.strip() or "Manual CPU scale apply failed.",
+            result.returncode,
+        )
+    detected = cpu_qam_detection_state()
+    active = detected.get("active_profile") if detected else None
+    if not isinstance(active, dict) or (
+        active.get("mode") != "manual"
+        or active.get("frequency") != candidate["frequency"]
+        or active.get("scale") != candidate["scale"]
+        or active.get("estimated_vid") != candidate["estimated_vid"]
+        or active.get("persistable") is not True
+    ):
+        return fail("QUICK_ACCESS_CPU_SCALE_VERIFY: manual live evidence does not match the request.", 57)
+    print(json.dumps({
+        "ok": True,
+        "cpu_detected_profile": detected,
+        "cpu_active_profile": active,
+        "cpu_applied_profile": {
+            "frequency": active["frequency"],
+            "scale": active["scale"],
+            "temperature": active["temperature"],
+        },
+        "message": "Manual CPU scale applied live and bound to the detected profile.",
+        **cpu_service_state(),
+    }))
+    return 0
+
+
+def cpu_install_service() -> int:
+    detected = cpu_qam_detection_state()
+    if not detected or detected.get("ready") is not True:
+        return fail(
+            "QUICK_ACCESS_CPU_SERVICE: run and complete QAM CPU detection in this boot first.",
+            52,
+        )
+    active = detected.get("active_profile")
+    if not isinstance(active, dict) or active.get("persistable") is not True:
+        return fail("QUICK_ACCESS_CPU_SERVICE: no verified active CPU profile is installable.", 52)
+    result = run([str(CPU_HELPER), "install-qam"], timeout=120)
+    if result.returncode != 0:
+        return fail(
+            result.stderr.strip() or result.stdout.strip() or "CPU service installation failed.",
+            result.returncode,
+        )
+    service = cpu_service_state()
+    if not service["cpu_service_installed"] or not service["cpu_service_enabled"]:
+        return fail("QUICK_ACCESS_CPU_SERVICE: service installation could not be verified.", 53)
+    print(json.dumps({
+        "ok": True,
+        "cpu_saved_profile": {
+            "frequency": active["frequency"],
+            "scale": active["scale"],
+            "temperature": active["temperature"],
+        },
+        "cpu_detected_profile": detected,
+        "cpu_active_profile": active,
+        "cpu_service_action": "installed",
+        "message": "CPU boot service installed and verified.",
+        **service,
+    }))
+    return 0
+
+
+def cpu_remove_service() -> int:
+    result = run([str(CPU_HELPER), "disable-boot"], timeout=60)
+    if result.returncode != 0:
+        return fail(
+            result.stderr.strip() or result.stdout.strip() or "CPU service removal failed.",
+            result.returncode,
+        )
+    if CPU_SERVICE_UNIT.exists():
+        if not trusted_file(CPU_SERVICE_UNIT):
+            return fail("QUICK_ACCESS_CPU_SERVICE: refusing to remove an untrusted service unit.", 54)
+        try:
+            unit_text = CPU_SERVICE_UNIT.read_text(encoding="utf-8", errors="strict")
+        except OSError as exc:
+            return fail(f"QUICK_ACCESS_CPU_SERVICE: could not verify service unit: {exc}", 54)
+        expected = f"ExecStart={CPU_HELPER} apply-config {CPU_CONFIG}"
+        if expected not in unit_text:
+            return fail("QUICK_ACCESS_CPU_SERVICE: service unit is not managed by BC250 Control Center.", 54)
+        try:
+            CPU_SERVICE_UNIT.unlink()
+        except OSError as exc:
+            return fail(f"QUICK_ACCESS_CPU_SERVICE: could not remove service unit: {exc}", 54)
+        run(["/usr/bin/systemctl", "daemon-reload"], timeout=15)
+    service = cpu_service_state()
+    if service["cpu_service_installed"] or service["cpu_service_enabled"]:
+        return fail("QUICK_ACCESS_CPU_SERVICE: service removal could not be verified.", 55)
+    print(json.dumps({
+        "ok": True,
+        "cpu_service_action": "removed",
+        "message": "CPU boot service removed; the validated profile was preserved.",
+        **service,
+    }))
+    return 0
+
+
+def cpu_apply_saved_profile() -> int:
+    profile = cpu_saved_profile()
+    if profile is None:
+        return fail("QUICK_ACCESS_CPU: no valid root-owned BC250 CPU profile is available. Configure and validate it in the full application first.", 50)
+    result = run([str(CPU_HELPER), "apply-config", str(CPU_CONFIG)], timeout=900)
+    if result.returncode != 0:
+        return fail(result.stderr.strip() or result.stdout.strip() or "Saved CPU profile failed.", result.returncode)
+    print(json.dumps({"ok": True, "cpu_profile": profile, "message": "Saved validated CPU profile applied live."}))
+    return 0
+
+
+def status() -> int:
+    cu_topology = cu_dashboard_topology()
+    cu_persistence = cu_service_state()
+    # Resolve hwmon once so the reported channel list and its preset describe
+    # the same sensor snapshot rather than two independently discovered paths.
+    fan_sensor = nct_sensor()
+    fan_channels = system_fan_channels(fan_sensor)
+    fan_preset, fan_duty = system_fan_preset_state(fan_sensor)
+    fan_channel_options = qam_fan_channel_state(fan_sensor)
+    governor = active_gpu_governor()
+    cyan_active = governor in {"cyan", "conflict"}
+    oberon_active = governor in {"oberon", "conflict"}
+    oberon = oberon_state() if governor == "oberon" else None
+    if governor == "cyan":
+        current_range = cyan_range()
+        allowed_range = cyan_allowed_range()
+        safe_points = list(cyan_safe_point_ceilings())
+    elif governor == "oberon" and oberon is not None:
+        current_range = [oberon["frequency_min"], oberon["frequency_max"]]
+        # Only the dedicated Oberon buttons are an in-game control.  Do
+        # not leak the broader YAML schema as a selectable Cyan-style ladder.
+        allowed_range = [1000, 1850]
+        safe_points = []
+    else:
+        current_range = None
+        allowed_range = None
+        safe_points = []
+    vram_usage = gpu_vram_usage_mib()
+    cpu_saved = cpu_saved_profile()
+    cpu_tuning = cpu_tuning_context()
+    cpu_service = cpu_service_state()
+    if (
+        cpu_tuning.get("cpu_active_profile") is None
+        and cpu_saved is not None
+        and cpu_service.get("cpu_service_enabled") is True
+    ):
+        cpu_tuning["cpu_active_profile"] = {
+            "mode": "boot",
+            "frequency": cpu_saved["frequency"],
+            "scale": cpu_saved["scale"],
+            "temperature": cpu_saved["temperature"],
+            "estimated_vid": cpu_estimated_vid(cpu_saved["frequency"], cpu_saved["scale"]),
+            "reference_scale": cpu_saved["scale"],
+            "persistable": False,
+        }
+    result: dict[str, object] = {
+        "ok": True,
+        "protocol": HELPER_PROTOCOL,
+        "steamos": is_steamos(),
+        "bazzite": is_bazzite(),
+        "cachyos": is_cachyos(),
+        "bc250": bc250_present(),
+        "cyan_active": cyan_active,
+        "oberon_active": oberon_active,
+        "gpu_governor": governor,
+        "gpu_governor_label": {
+            "cyan": "Cyan Skillfish",
+            "oberon": "Oberon",
+            "conflict": "Governor conflict",
+            "none": "No active governor",
+        }[governor],
+        "gpu_governor_active": governor in {"cyan", "oberon"},
+        "gpu_range": current_range,
+        "gpu_performance_enabled": cyan_performance_enabled() if governor == "cyan" else None,
+        "gpu_allowed_range": allowed_range,
+        "gpu_safe_point_ceilings": safe_points,
+        "gpu_core_mhz": gpu_core_mhz(),
+        "gpu_voltage_mv": gpu_voltage_mv(),
+        "gpu_memory_clock_mhz": gpu_memory_clock_mhz(),
+        "gpu_busy_percent": gpu_busy_percent(),
+        "gpu_vram_used_mib": vram_usage[0] if vram_usage else None,
+        "gpu_vram_total_mib": vram_usage[1] if vram_usage else None,
+        "gpu_temperature_c": gpu_temperature_c(),
+        "cpu_frequency_mhz": cpu_frequency_mhz(),
+        "cpu_temperature_c": cpu_temperature_c(),
+        "cu_backend_ready": cu_backend_ready(),
+        "cu_active_cus": cu_topology["active_cus"] if cu_topology else None,
+        "cu_total_cus": cu_topology["total_cus"] if cu_topology else None,
+        "cu_masks": list(cu_topology["masks"]) if cu_topology else None,
+        "cu_driver_masks": list(cu_topology["driver_masks"]) if cu_topology else None,
+        "cu_tokens": cu_topology["tokens"] if cu_topology else None,
+        **cu_persistence,
+        "cpu_saved_profile": cpu_saved,
+        **cpu_tuning,
+        **cpu_service,
+        "system_fan_channels": fan_channels,
+        "system_fan_preset": fan_preset,
+        "system_fan_duty": fan_duty,
+        "fan_channel_options": fan_channel_options,
+        "fan_default_channel": 2,
+        "fan_manual_percent_range": [QAM_FAN_MIN_PERCENT, QAM_FAN_MAX_PERCENT],
+        **memory_runtime_state(),
+        "live_only": False,
+    }
+    if cu_topology is not None:
+        attach_cu_live_state(result, cu_topology)
+    else:
+        result["cu_snapshot_published"] = False
+    print(json.dumps(result))
+    return 0
+
+
+def main(argv: Sequence[str]) -> int:
+    error = require_runtime()
+    if error:
+        return fail(error, 10)
+    valid_arity = (
+        len(argv) == 2
+        or (len(argv) == 3 and argv[1] in {"gpu-profile", "gpu-safe-point", "cu-mode", "cu-service", "fan-auto", "fan-system", "cpu-service"})
+        or (len(argv) == 4 and argv[1] in {"fan-channel", "cpu-detect", "cpu-scale"})
+        or (len(argv) == 6 and argv[1] in {"cu-table", "cu-save"})
+    )
+    if not valid_arity:
+        return fail("Usage: status | cpu-telemetry | gpu-profile <name> | gpu-safe-point <toml-mhz> | cu-mode <name> | cu-table <m0> <m1> <m2> <m3> | cu-save <m0> <m1> <m2> <m3> | cu-service <install|remove> | fan-auto <channel> | fan-system <preset> | fan-channel <2-5> <automatic|20-100> | cpu-apply-saved | cpu-detect <frequency> <vid> | cpu-scale <frequency> <scale> | cpu-service <install|remove>", 2)
+    action = argv[1]
+    if action == "status" and len(argv) == 2:
+        return status()
+    if action == "cpu-telemetry" and len(argv) == 2:
+        return cpu_telemetry()
+    if action == "gpu-profile" and len(argv) == 3:
+        return gpu_profile(argv[2])
+    if action == "gpu-safe-point" and len(argv) == 3:
+        return gpu_safe_point(argv[2])
+    if action == "cu-mode" and len(argv) == 3:
+        return cu_mode(argv[2])
+    if action == "cu-table" and len(argv) == 6:
+        return cu_table(argv[2:6])
+    if action == "cu-save" and len(argv) == 6:
+        return cu_save(argv[2:6])
+    if action == "cu-service" and len(argv) == 3:
+        if argv[2] == "install":
+            return cu_install_service()
+        if argv[2] == "remove":
+            return cu_remove_service()
+        return fail("QUICK_ACCESS_CU_SERVICE: action must be install or remove.", 2)
+    if action == "fan-auto" and len(argv) == 3:
+        return fan_auto(argv[2])
+    if action == "fan-system" and len(argv) == 3:
+        return fan_system_preset(argv[2])
+    if action == "fan-channel" and len(argv) == 4:
+        return fan_channel_control(argv[2], argv[3])
+    if action == "cpu-apply-saved" and len(argv) == 2:
+        return cpu_apply_saved_profile()
+    if action == "cpu-detect" and len(argv) == 4:
+        return cpu_detect_tuning(argv[2], argv[3])
+    if action == "cpu-scale" and len(argv) == 4:
+        return cpu_apply_manual_scale(argv[2], argv[3])
+    if action == "cpu-service":
+        if len(argv) == 3 and argv[2] == "install":
+            return cpu_install_service()
+        if len(argv) == 3 and argv[2] == "remove":
+            return cpu_remove_service()
+        return fail("QUICK_ACCESS_CPU_SERVICE: action must be install or remove.", 2)
+    return fail("Invalid Quick Access action.", 2)
+
+
+def guarded_main(argv: Sequence[str]) -> int:
+    """Keep Decky's user-facing protocol free of Python tracebacks.
+
+    A missing or corrupt root-owned companion helper used to escape this
+    boundary as an uncaught ``OSError``. Decky then rendered the complete
+    traceback in the QAM, which is neither actionable nor safe to expose as
+    normal UI copy. Preserve a concise diagnostic code for the details view
+    and point the user to the one recovery action instead.
+    """
+    try:
+        return main(argv)
+    except (FileNotFoundError, PermissionError, OSError) as error:
+        return fail(
+            "QUICK_ACCESS_COMPONENT_MISSING: a protected BC250 component is "
+            "missing, corrupt, or cannot execute. Reinstall or repair BC250 "
+            "Control Center from Desktop Mode, then reload Decky. "
+            f"({type(error).__name__})",
+            70,
+        )
+    except (RuntimeError, ValueError) as error:
+        return fail(
+            "QUICK_ACCESS_OPERATION_FAILED: "
+            f"{str(error).strip() or type(error).__name__}",
+            71,
+        )
+    except Exception as error:  # pragma: no cover - final protocol boundary
+        return fail(
+            "QUICK_ACCESS_INTERNAL: the action stopped unexpectedly. Reload "
+            "Decky and retry once; if it repeats, share the technical details. "
+            f"({type(error).__name__})",
+            72,
+        )
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(guarded_main(sys.argv))
+    except subprocess.TimeoutExpired:
+        raise SystemExit(fail("QUICK_ACCESS_TIMEOUT: operation timed out.", 124))

@@ -1,0 +1,52 @@
+name: Deploy screenshot gallery
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - README.md
+      - assets/gallery/**
+      - assets/screenshots/**
+      - .github/workflows/deploy-gallery.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+        with:
+          # Create the Pages site on its first deployment instead of assuming
+          # it already exists in repository settings.
+          enablement: true
+      - name: Build gallery artifact
+        run: |
+          mkdir -p _site/gallery _site/assets/screenshots
+          cp assets/gallery/index.html _site/gallery/index.html
+          cp assets/screenshots/dashboard-overview.png _site/assets/screenshots/
+          cp assets/screenshots/decky-quick-access.png _site/assets/screenshots/
+          cp assets/screenshots/cpu-tuning.png _site/assets/screenshots/
+          cp assets/screenshots/gpu-governor.png _site/assets/screenshots/
+          cp assets/screenshots/compute-units.png _site/assets/screenshots/
+          cp assets/screenshots/fan-control.png _site/assets/screenshots/
+          cp assets/screenshots/compute-units-monitor.png _site/assets/screenshots/
+          cp assets/screenshots/dependency-preparation.png _site/assets/screenshots/
+          touch _site/.nojekyll
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,171 @@
+#!/usr/bin/python3
+from __future__ import annotations
+
+import importlib.util
+import os
+from pathlib import Path
+import sys
+
+
+IMPLEMENTATION_PATH = Path(
+    '/usr/libexec/bc250-control-center/lib/governor_toml.py'
+)
+BC250_GOVERNOR_CONFIG_PROTOCOL = 5
+
+
+def _load_editor_module():
+    try:
+        metadata = IMPLEMENTATION_PATH.stat(follow_symlinks=False)
+    except OSError as error:
+        raise RuntimeError(
+            'The root-owned governor TOML editor is not installed.'
+        ) from error
+    if IMPLEMENTATION_PATH.is_symlink() or not IMPLEMENTATION_PATH.is_file():
+        raise RuntimeError('The governor TOML editor is not a regular file.')
+    if metadata.st_uid != 0 or metadata.st_mode & 0o022:
+        raise RuntimeError(
+            'The governor TOML editor must be owned by root and not writable by group or others.'
+        )
+    spec = importlib.util.spec_from_file_location(
+        'bc250_privileged_governor_toml',
+        IMPLEMENTATION_PATH,
+    )
+    if spec is None or spec.loader is None:
+        raise RuntimeError('The governor TOML editor could not be loaded.')
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def main(argv):
+    if os.geteuid() != 0:
+        raise RuntimeError('This helper must be launched through pkexec.')
+    if len(argv) < 2:
+        raise RuntimeError('Expected a governor configuration action and validated values.')
+    action = argv[1]
+    if action not in {
+        'clear-frequency-range', 'set-frequency-range', 'set-frequency-floor',
+        'enable-high-points', 'disable-high-points',
+        'migrate-legacy-frequency-range',
+        'set-oberon-operating-points',
+        'ensure-cyan-telemetry',
+        'set-cyan-metrics-fix',
+        'set-cyan-compatibility',
+        'set-cyan-voltage-level', 'set-cyan-custom-voltages',
+    }:
+        raise RuntimeError('Unsupported governor configuration action.')
+    module = _load_editor_module()
+    if action == 'set-oberon-operating-points':
+        if len(argv) != 6:
+            raise RuntimeError(
+                'set-oberon-operating-points expects min/max MHz and min/max mV.'
+            )
+        try:
+            values = tuple(int(value) for value in argv[2:6])
+        except ValueError as error:
+            raise RuntimeError('Oberon operating-point values must be integers.') from error
+        editor = module.OberonYamlEditor('/etc/oberon-config.yaml')
+        result = editor.set_operating_points(*values)
+        print(
+            'Governor configuration updated and validated.'
+            if result.changed
+            else 'Governor configuration already matched the requested state.'
+        )
+        return 0
+    else:
+        editor = module.GovernorTomlEditor('/etc/cyan-skillfish-governor-smu/config.toml')
+    if action == 'ensure-cyan-telemetry':
+        if len(argv) != 3 or argv[2] not in {'0', '1'}:
+            raise RuntimeError('ensure-cyan-telemetry expects a 0/1 fix-frequency flag.')
+        result = editor.ensure_gpu_telemetry(fix_frequency=argv[2] == '1')
+    elif action == 'set-cyan-metrics-fix':
+        if len(argv) != 3 or argv[2] not in {'0', '1'}:
+            raise RuntimeError('set-cyan-metrics-fix expects a 0/1 flag.')
+        result = editor.set_gpu_metrics_fix(argv[2] == '1')
+    elif action == 'set-cyan-compatibility':
+        if (
+            len(argv) != 6
+            or argv[2] not in {'smu', 'kernel'}
+            or argv[3] not in {'busy-flag', 'process', 'kernel'}
+            or argv[4] not in {'0', '1'}
+            or argv[5] not in {'0', '1'}
+        ):
+            raise RuntimeError(
+                'set-cyan-compatibility expects smu/kernel, a GPU usage method '
+                'and two 0/1 flags.'
+            )
+        result = editor.set_cyan_compatibility(
+            set_method=argv[2],
+            usage_method=argv[3],
+            fix_metrics=argv[4] == '1',
+            fix_frequency=argv[5] == '1',
+        )
+    elif action == 'set-cyan-voltage-level':
+        if len(argv) != 3:
+            raise RuntimeError('set-cyan-voltage-level expects one level.')
+        try:
+            level = int(argv[2])
+        except ValueError as error:
+            raise RuntimeError('GPU voltage level must be an integer.') from error
+        if level not in {0, 3, 6}:
+            raise RuntimeError('Only GPU voltage levels 0, 3 and 6 are supported.')
+        result = editor.set_voltage_profile(level)
+    elif action == 'set-cyan-custom-voltages':
+        if len(argv) < 3:
+            raise RuntimeError('set-cyan-custom-voltages expects frequency=millivolts pairs.')
+        values = {}
+        for pair in argv[2:]:
+            if '=' not in pair:
+                raise RuntimeError('Custom GPU voltage pair is malformed.')
+            raw_frequency, raw_voltage = pair.split('=', 1)
+            try:
+                frequency, voltage = int(raw_frequency), int(raw_voltage)
+            except ValueError as error:
+                raise RuntimeError('Custom GPU voltage values must be integers.') from error
+            if frequency <= 0 or not 600 <= voltage <= 1210:
+                raise RuntimeError('Custom GPU voltage value is outside the safe editor range.')
+            if frequency in values and values[frequency] != voltage:
+                raise RuntimeError('A GPU frequency cannot have conflicting voltage values.')
+            values[frequency] = voltage
+        result = editor.set_custom_voltages(values)
+    elif action == 'migrate-legacy-frequency-range':
+        if len(argv) != 2:
+            raise RuntimeError('migrate-legacy-frequency-range does not accept bounds.')
+        result = editor.migrate_legacy_frequency_range()
+    elif action == 'clear-frequency-range':
+        if len(argv) != 2:
+            raise RuntimeError('clear-frequency-range does not accept bounds.')
+        result = editor.clear_frequency_range()
+    elif action == 'set-frequency-range':
+        if len(argv) != 4:
+            raise RuntimeError('set-frequency-range expects minimum and maximum MHz.')
+        try:
+            minimum, maximum = int(argv[2]), int(argv[3])
+        except ValueError as error:
+            raise RuntimeError('Frequency range bounds must be integers.') from error
+        result = editor.set_frequency_range(minimum, maximum)
+    elif action == 'set-frequency-floor':
+        if len(argv) != 3:
+            raise RuntimeError('set-frequency-floor expects minimum MHz.')
+        try:
+            minimum = int(argv[2])
+        except ValueError as error:
+            raise RuntimeError('Frequency floor must be an integer.') from error
+        if minimum < 0:
+            raise RuntimeError('Frequency floor cannot be negative.')
+        result = editor.set_frequency_floor(minimum)
+    else:
+        if len(argv) != 2:
+            raise RuntimeError(f'{action} does not accept bounds.')
+        result = editor.set_high_frequency_points(action == 'enable-high-points')
+    print('Governor configuration updated and validated.' if result.changed else 'Governor configuration already matched the requested state.')
+    return 0
+
+
+if __name__ == '__main__':
+    try:
+        raise SystemExit(main(sys.argv))
+    except Exception as error:
+        print(f'ERROR: {error}', file=sys.stderr)
+        raise SystemExit(1)

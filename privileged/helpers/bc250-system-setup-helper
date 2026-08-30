@@ -1,0 +1,88 @@
+#!/usr/bin/python3 -I
+"""Finite memory/ACPI transactions. No arbitrary command, path or root CLI."""
+import argparse
+import fcntl
+import json
+import os
+import sys
+from pathlib import Path
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("action", choices=("status", "memory-plan", "memory-apply", "memory-boot",
+                                           "acpi-install", "acpi-uninstall", "acpi-check", "uninstall-check"))
+    parser.add_argument("--policy", choices=("preserve", "restore", "swap-16", "swap-32", "zram", "zswap-16", "zswap-32"), default="preserve")
+    parser.add_argument("--ttm", type=int, choices=(-1, 0, 8, 10, 12), default=0)
+    args = parser.parse_args()
+    readonly = args.action in {"status", "memory-plan", "uninstall-check"}
+    if not readonly and os.geteuid() != 0:
+        parser.error("Administrator authorization is required")
+    here = Path(__file__).resolve().parent
+    lib = here / "lib" if (here / "lib").is_dir() else here.parent / "lib"
+    if os.geteuid() == 0:
+        for path in [lib, *lib.parents, *lib.glob("system_setup_*.py"), lib / "acpi_payload.py"]:
+            info = path.stat()
+            if path.is_symlink() or info.st_uid != 0 or info.st_mode & 0o022:
+                parser.error(f"Untrusted helper dependency: {path}")
+    sys.path.insert(0, str(lib))
+    import system_setup_acpi as acpi
+    import system_setup_memory as memory
+    from system_setup_common import STATE, Host, SetupError
+
+    host = Host()
+    try:
+        if args.action == "uninstall-check":
+            if any(host.path(path).exists() for path in (
+                STATE + "/acpi.json", memory.SERVICE_PATH, memory.SWAP, memory.ZRAM, memory.UNIT_PATH,
+            )):
+                raise SetupError("Restore BC250 swap, TTM and ACPI settings in Control Center before removing this package")
+            return 0
+        if readonly:
+            result = {"memory": memory.status(host), "acpi": acpi.status(host), "protocol": 1}
+            if args.action == "memory-plan":
+                result["request"] = {"policy": args.policy, "ttm_gib": args.ttm}
+            print(json.dumps(result))
+            return 0
+        directory = host.safe(STATE)
+        directory.mkdir(parents=True, exist_ok=True, mode=0o755)
+        lock = host.safe(STATE + "/setup.lock")
+        fd = os.open(lock, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            if args.action == "memory-apply":
+                result = memory.apply(host, args.policy, args.ttm)
+            elif args.action == "memory-boot":
+                result = memory.boot(host)
+            elif args.action == "acpi-install":
+                result = acpi.install(host)
+            elif args.action == "acpi-check":
+                result = acpi.check(host)
+            else:
+                result = acpi.uninstall(host)
+        finally:
+            os.close(fd)
+        if args.action == "acpi-check":
+            # The complete structured result is persisted in the bounded
+            # root-owned probe cache. Keep the interactive terminal focused
+            # on actionable guidance for people rather than dumping JSON.
+            print(acpi.requirements_report(result))
+        else:
+            print(json.dumps(result))
+        if result.get("restore_pending"):
+            print("Restore deferred: the BC250 swapfile is still active and was preserved. Reboot, then check status.")
+        print("BC250_RESULT status=ok component=system_setup code=0")
+        if args.action == "acpi-check":
+            availability = "available" if result.get("available") else "blocked by the reported compatibility reason"
+            print(f"Inspection only: no setting was changed. ACPI installation is {availability}.")
+        else:
+            print("Review the reported state. Reboot is required for ACPI and ZRAM changes; no automatic reboot was requested.")
+        return 0
+    except (SetupError, OSError, ValueError, KeyError) as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        print("Setup was not confirmed. Existing user swap and original boot entries were not intentionally removed. Review status before retrying.", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

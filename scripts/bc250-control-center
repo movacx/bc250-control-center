@@ -4,13 +4,15 @@ XDG_DATA_BASE="${XDG_DATA_HOME:-$HOME/.local/share}"
 for APP_DIR in \
   "${BC250_CONTROL_CENTER_DIR:-}" \
   "${MODO_JUEGO_RAM_DIR:-}" \
+  "$(CDPATH= cd -- "$(dirname -- "$0")/../share/bc250-control-center" 2>/dev/null && pwd || true)" \
+  "$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)" \
   "$XDG_DATA_BASE/bc250-control-center" \
   /usr/share/bc250-control-center \
-  /usr/local/share/bc250-control-center \
-  "$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"; do
-  if [ -n "$APP_DIR" ] && [ -f "$APP_DIR/mvc/main.py" ]; then
+  /usr/local/share/bc250-control-center; do
+  if [ -n "$APP_DIR" ] && [ -f "$APP_DIR/frontends/desktop/main.py" ]; then
     cd "$APP_DIR"
-    exec python3 -m mvc.main "$@"
+    export PYTHONPATH="$APP_DIR/src${PYTHONPATH:+:$PYTHONPATH}"
+    exec python3 -m frontends.desktop.main "$@"
   fi
 done
 echo "No se encontro la instalacion de BC250 Control Center" >&2

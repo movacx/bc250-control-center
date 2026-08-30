@@ -1,0 +1,2 @@
+[bc250-amdgpu] 6.18-test: not installed
+[bc250-amdgpu] state: missing
