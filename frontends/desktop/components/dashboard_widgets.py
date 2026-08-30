@@ -1641,8 +1641,8 @@ class PreparationSidebar(QFrame):
         self.steamos_graphics_state.hide()
         layout.addWidget(self.gfx_card)
         self.cachyos_stack_card = PreparationInfoCard(
-            "Arch / CachyOS BC-250 graphics stack",
-            "MastaG's kernel and patched Mesa can be installed separately or together. The current kernel stays as a boot fallback.",
+            "Arch / CachyOS BC-250 graphics stack · includes GFX1013 fix",
+            "MastaG's matched kernel and Mesa/RADV include the GFX1013 async-compute fix. They can be installed separately or together; the current kernel stays as a boot fallback.",
             scope_text="Arch Linux · CachyOS",
             status_text="Checking",
         )
@@ -2359,7 +2359,7 @@ class PreparationSidebar(QFrame):
             "steamos-dedicated-backend": "SteamOS · Dedicated toolkit",
             "fedora-upstream-managed": "Fedora · Official upstream main",
             "arch-family-manual-untested": (
-                "Arch / CachyOS · Packaged below"
+                "Arch / CachyOS · Included in MastaG stack"
                 if masta_supported
                 else "Arch family · Manual only"
             ),
@@ -2521,7 +2521,9 @@ class PreparationSidebar(QFrame):
                     )
             self.gfx_card.update_action(
                 self.gfx_primary_button,
-                text="Open upstream manual path",
+                text="View original GFX1013 project"
+                if masta_supported
+                else "Open upstream manual path",
                 payload={"action": "gfx1013_upstream", "governor": ""},
             )
 

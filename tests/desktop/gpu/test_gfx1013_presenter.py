@@ -42,7 +42,7 @@ from frontends.desktop.core.gfx1013_presenter import present_gfx1013
                 "reason_key": "arch-family-manual-untested",
                 "masta_async_compute_ready": True,
             },
-            "Async compute detected", "green", "MastaG's matched BC-250 kernel",
+            "Installed via MastaG", "green", "No separate DryhoppedIPA installation",
         ),
         (
             {"reason_key": "bazzite-not-supported-upstream"},

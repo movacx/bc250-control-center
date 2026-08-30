@@ -31,7 +31,7 @@ def _status(reason: str, **state: bool) -> tuple[str, str]:
     if state["external_installed"]:
         return "External install", "blue"
     if state["masta_async_compute_ready"]:
-        return "Async compute detected", "green"
+        return "Installed via MastaG", "green"
     if reason == "steamos-dedicated-backend":
         if kernel and state["external_fsr4_current"]:
             return "Async compute detected", "green"
@@ -65,7 +65,7 @@ def _detail(reason: str, **state: bool) -> tuple[str, ...]:
     if state["external_installed"]:
         return ("An external DryhoppedIPA installation was detected, but this boot is not using its patched entry. Boot selection and rollback remain managed by the upstream installer.",)
     if state["masta_async_compute_ready"]:
-        return ("MastaG's matched BC-250 kernel and patched Mesa/RADV packages are active. Its Arch/CachyOS repository enables the GFX1013 async-compute path by default. Continue to test stability per game; async compute can increase GPU load and voltage requirements.",)
+        return ("The GFX1013 async-compute fix is already installed and active through MastaG's matched BC-250 kernel and Mesa/RADV packages. No separate DryhoppedIPA installation is required. Continue to test stability per game; async compute can increase GPU load and voltage requirements.",)
     if reason == "steamos-dedicated-backend":
         detail = ["SteamOS uses the reviewed BC-250 toolkit in two ordered stages: matching AMDGPU first, then the matching async-compute Mesa/RADV runtime. The unsafe legacy mesh/task series is never installed."]
         if kernel and safe_radv:

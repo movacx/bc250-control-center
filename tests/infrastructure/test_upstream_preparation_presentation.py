@@ -130,6 +130,10 @@ def test_installed_stack_changes_badges_and_buttons_to_repair_actions():
         "kernel_active": True,
         "mesa_installed": True,
     }
+    state.preparation_tools["gfx1013_compute"] = {
+        "reason_key": "arch-family-manual-untested",
+        "masta_async_compute_ready": True,
+    }
     sidebar.set_state(state)
 
     assert sidebar.cachyos_stack_card.status.text() == "Full stack installed"
@@ -137,6 +141,9 @@ def test_installed_stack_changes_badges_and_buttons_to_repair_actions():
     assert sidebar.cachyos_mesa_status.text() == "Patched installed"
     assert "repair kernel" in sidebar.cachyos_kernel_button.text()
     assert "repair Mesa" in sidebar.cachyos_mesa_button.text()
+    assert sidebar.gfx_card.status.text() == "Installed via MastaG"
+    assert "No separate DryhoppedIPA installation" in sidebar.gfx_card.detail.text()
+    assert sidebar.gfx_primary_button.text() == "View original GFX1013 project"
     assert sidebar.fsr4_remove_button.isVisibleTo(sidebar.fsr4_card)
 
 
