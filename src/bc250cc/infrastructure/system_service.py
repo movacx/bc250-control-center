@@ -399,6 +399,9 @@ class SistemaService:
     def gestionar_gfx1013_fedora(self, action):
         return self.repo.gestionar_gfx1013_fedora(action)
 
+    def gestionar_gfx1013_bazzite(self, action):
+        return self.repo.gestionar_gfx1013_bazzite(action)
+
     def actualizar_aplicacion_local(self):
         return self.repo.actualizar_aplicacion_local()
 

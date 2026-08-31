@@ -1,6 +1,6 @@
 # Third-party notices
 
-BC250 Control Center is MIT-licensed and does not claim ownership of any project listed here. This notice mirrors the **Official repositories** panel in the desktop application: 32 entries in total, consisting of this project and the 31 external sources below.
+BC250 Control Center is MIT-licensed and does not claim ownership of any project listed here. This notice mirrors the **Official repositories** panel in the desktop application: 33 entries in total, consisting of this project and the 32 external sources below.
 
 Every canonical URL was checked on 29 August 2026 and returned HTTP 200. A link or reference does not mean that its code is packaged, executed or endorsed by BC250 Control Center.
 
@@ -24,6 +24,7 @@ Every canonical URL was checked on 29 August 2026 and returned HTTP 200. A link 
 | [bc250-core-unlock](https://github.com/rw-r-r-0644/bc250-core-unlock) | Experimental CPU core unlock | Integrated explicit workflow; MIT upstream |
 | [bc250-steamos](https://github.com/keyboardspecialist/bc250-steamos) | SteamOS AMDGPU and RADV compatibility | Integrated explicit workflow |
 | [bc250-gfx1013-fix](https://github.com/DryhoppedIPA/bc250-gfx1013-fix) | GFX1013 compute queue, kernel and Mesa/RADV stack | External install; Control Center updates official `main` and invokes its workflow unchanged after local safety gates |
+| [bc250-async-compute-bazzite](https://github.com/tri3gubki-ops/bc250-async-compute-bazzite) | Separate GFX1013 async-compute RADV for Bazzite 44 | Integrated explicit release workflow; v0.2.4 archive and SHA-256 are pinned, Bazzite/BC-250/OGC-kernel gates are enforced, and system Mesa is not replaced; MIT upstream |
 | [bc250-steamos-real-toolkit](https://github.com/rpf16rj/bc250-steamos-real-toolkit) | SteamOS ASIC fallback research | Reference only |
 | [bc250-toolkit](https://github.com/redbeard1083/bc250-toolkit) | Community toolkit research | Reference only |
 | [Latest Bazzite AMD BC-250 Patched Images](https://github.com/62fixolab/Latest-Bazzite-AMD-BC-250-Patched-Images) | Bazzite image reference | Reference only |

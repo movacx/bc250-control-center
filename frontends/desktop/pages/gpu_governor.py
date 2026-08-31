@@ -1061,6 +1061,40 @@ class DependencyPreparationDialog(QDialog):
                     lambda: self._choose("gfx1013_fedora_uninstall", "")
                 )
                 actions.addWidget(uninstall, 1)
+        if presentation.bazzite_actions:
+            if not bool(state.get("bazzite_async_installed")):
+                install = QPushButton(tr("Install / update"))
+                install.setProperty("dependencyGfxAction", True)
+                install.setProperty("dependencyGfxPrimary", True)
+                install.setEnabled(bool(state.get("direct_installer_allowed")))
+                if not install.isEnabled():
+                    install.setToolTip(complete_detail)
+                install.clicked.connect(
+                    lambda: self._choose("gfx1013_bazzite_install", "")
+                )
+                actions.addWidget(install, 1)
+            else:
+                repair = QPushButton(tr("Repair / update"))
+                repair.setProperty("dependencyGfxAction", True)
+                repair.setProperty("dependencyGfxPrimary", True)
+                repair.setEnabled(bool(state.get("direct_installer_allowed")))
+                repair.clicked.connect(
+                    lambda: self._choose("gfx1013_bazzite_install", "")
+                )
+                actions.addWidget(repair, 1)
+                uninstall = QPushButton(tr("Uninstall"))
+                uninstall.setProperty("dangerAction", True)
+                uninstall.setProperty("dependencyGfxAction", True)
+                uninstall.clicked.connect(
+                    lambda: self._choose("gfx1013_bazzite_uninstall", "")
+                )
+                actions.addWidget(uninstall, 1)
+                status_action = QPushButton(tr("Check status"))
+                status_action.setProperty("dependencyGfxAction", True)
+                status_action.clicked.connect(
+                    lambda: self._choose("gfx1013_bazzite_status", "")
+                )
+                actions.addWidget(status_action, 1)
         upstream = QPushButton(tr("Open upstream project"))
         upstream.setProperty("dependencyGfxAction", True)
         upstream.clicked.connect(self._open_gfx1013_upstream)
@@ -3638,6 +3672,12 @@ class GpuGovernorPage(QWidget):
                 dialog_parent=dialog_parent,
             )
             return
+        if action.startswith("gfx1013_bazzite_"):
+            self._manage_gfx1013_bazzite(
+                action.removeprefix("gfx1013_bazzite_"),
+                dialog_parent=dialog_parent,
+            )
+            return
         plan = build_gpu_dependency_plan(
             tools,
             current_governor=self.current_state.get("governor_backend"),
@@ -3924,9 +3964,16 @@ class GpuGovernorPage(QWidget):
     def _open_compatibility_upstream(
         self, action: str, *, dialog_parent: QWidget | None
     ) -> None:
+        gfx_state = _dict(
+            _dict(self.current_state.get("tools")).get("gfx1013_compute")
+        )
+        gfx_url = str(
+            gfx_state.get("upstream_url")
+            or "https://github.com/DryhoppedIPA/bc250-gfx1013-fix"
+        )
         urls = {
             "acpi_upstream": "https://github.com/e-tho/bc250-acpi-fix",
-            "gfx1013_upstream": "https://github.com/DryhoppedIPA/bc250-gfx1013-fix",
+            "gfx1013_upstream": gfx_url,
             "bazzite_image_upstream": "https://github.com/62fixolab/Latest-Bazzite-AMD-BC-250-Patched-Images",
         }
         opened, message = open_external_url(urls[action])
@@ -3993,6 +4040,59 @@ class GpuGovernorPage(QWidget):
                 self,
                 tr("GFX1013 async compute"),
                 detail,
+            ),
+            tr("Failed"),
+            controls=(),
+            error_parent=dialog_parent,
+        )
+
+    def _manage_gfx1013_bazzite(
+        self,
+        action: str,
+        *,
+        dialog_parent: QWidget | None,
+    ) -> None:
+        tools = _dict(self.current_state.get("tools"))
+        state = _dict(tools.get("gfx1013_compute"))
+        presentation = present_gfx1013(state)
+        detail = " ".join(tr(part) for part in presentation.detail)
+        if action == "status":
+            self._run_backend_action(
+                lambda: self.controller.gestionar_gfx1013_bazzite("status"),
+                lambda _result: GpuGovernorPage._record_preparation_result(
+                    self, tr("GFX1013 async compute"), detail
+                ),
+                tr("Failed"),
+                controls=(),
+                error_parent=dialog_parent,
+            )
+            return
+        install = action == "install"
+        confirmation = ConfirmDialog(
+            tr("GFX1013 async compute"),
+            detail,
+            summary=(
+                (tr("System"), "Bazzite 44"),
+                (tr("Running kernel"), str(state.get("kernel") or tr("Unknown"))),
+                (tr("Source"), "tri3gubki-ops/bc250-async-compute-bazzite v0.2.4"),
+                (tr("System Mesa"), tr("Not modified")),
+                (tr("Activation"), tr("Log out and back in")),
+                (tr("Recovery"), "Ctrl+Alt+F3 · remove 95-bc250-async-compute.conf"),
+            ),
+            confirm_text=tr("Install / update" if install else "Uninstall"),
+            tone="orange" if install else "red",
+            parent=dialog_parent or self,
+        )
+        if confirmation.exec() != QDialog.DialogCode.Accepted:
+            return
+        self._run_backend_action(
+            lambda: self.controller.gestionar_gfx1013_bazzite(action),
+            lambda _result: GpuGovernorPage._record_preparation_result(
+                self,
+                tr("GFX1013 async compute"),
+                tr(
+                    "The Bazzite async-compute workflow finished. Log out and back in so the selected RADV driver takes effect."
+                ),
             ),
             tr("Failed"),
             controls=(),

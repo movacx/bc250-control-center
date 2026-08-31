@@ -13,6 +13,7 @@ class Gfx1013Presentation:
     detail: tuple[str, ...]
     steamos_actions: bool
     fedora_actions: bool
+    bazzite_actions: bool
     compatibility_action: str
 
 
@@ -26,6 +27,14 @@ def _status(reason: str, **state: bool) -> tuple[str, str]:
         or (reason == "steamos-dedicated-backend" and state["external_runtime_current"] and not kernel)
     ):
         return "Review required", "orange"
+    if state["bazzite_invalid"]:
+        return "Repair required", "orange"
+    if state["bazzite_session_active"]:
+        return "Async compute detected", "green"
+    if state["bazzite_current"] and state["bazzite_enabled"]:
+        return "Log out required", "blue"
+    if state["bazzite_current"]:
+        return "Installed", "green"
     if state["external_boot_active"]:
         return "Patched boot active", "green"
     if state["external_installed"]:
@@ -44,7 +53,9 @@ def _status(reason: str, **state: bool) -> tuple[str, str]:
         return "SteamOS backend", "blue"
     if reason == "fedora-upstream-managed":
         return "Official upstream workflow", "blue"
-    if reason == "bazzite-not-supported-upstream":
+    if reason == "bazzite-release-managed":
+        return "Bazzite release available", "blue"
+    if reason.startswith("bazzite-release-"):
         return "Blocked", "orange"
     return "Manual only", "gray"
 
@@ -54,6 +65,14 @@ def _detail(reason: str, **state: bool) -> tuple[str, ...]:
     safe_radv = state["safe_radv"]
     if state["legacy_radv"]:
         return ("A legacy SteamOS alternate RADV installation was detected. That older path can include mesh/task patches that current upstream disabled after unrecoverable GPU hangs. Control Center will not run or update it.",)
+    if state["bazzite_invalid"]:
+        return ("The Bazzite async-compute installation is incomplete or is not the reviewed version. Repair it before enabling the patched RADV driver.",)
+    if state["bazzite_session_active"]:
+        return ("The reviewed Bazzite 44 async-compute RADV driver is installed and active in this session. System Mesa remains unchanged.",)
+    if state["bazzite_current"] and state["bazzite_enabled"]:
+        return ("The reviewed Bazzite async-compute driver is installed and enabled. Log out and back in before games and the desktop use it.",)
+    if state["bazzite_current"]:
+        return ("The reviewed Bazzite async-compute driver is installed but not enabled system-wide. System Mesa remains unchanged.",)
     if reason == "steamos-dedicated-backend" and state["external_runtime_invalid"]:
         return ("The SteamOS RADV/FSR4 runtime is incomplete or has changed. Use the reviewed repair or remove action before enabling it for games.",)
     if reason == "steamos-dedicated-backend" and state["external_runtime_current"] and not kernel:
@@ -80,8 +99,15 @@ def _detail(reason: str, **state: bool) -> tuple[str, ...]:
     details = {
         "fedora-upstream-managed": "Control Center updates DryhoppedIPA's official main branch and invokes its combined kernel + Mesa/RADV workflow unchanged. Upstream performs the Fedora/kernel compatibility checks and keeps the stock boot entry as the recovery path.",
         "arch-family-manual-untested": "Upstream documents this Arch-family path as manual and untested. Control Center does not automate kernel/Mesa changes here.",
-        "bazzite-not-supported-upstream": "Upstream currently says Bazzite is not supported. Control Center blocks the direct installer on immutable systems.",
+        "bazzite-release-managed": "The reviewed v0.2.4 release installs a separate RADV driver under /usr/local for Bazzite 44. It does not replace system Mesa or patch the kernel; activation takes effect after logging out and back in.",
+        "bazzite-release-kernel-unsupported": "This Bazzite 44 system is detected, but the reviewed release requires kernel 7.2.0-ogc4.1 or newer. Installation stays blocked until a compatible OGC kernel is running.",
+        "bazzite-release-version-unsupported": "The reviewed async-compute release supports Bazzite 44 only. Installation stays blocked on this Bazzite version.",
     }
+    if reason == "bazzite-release-managed":
+        return (
+            details[reason],
+            "Upstream enables this driver system-wide by default, including the desktop compositor. If the desktop does not return, use Ctrl+Alt+F3 to remove /etc/environment.d/95-bc250-async-compute.conf and reboot.",
+        )
     return (details.get(reason, "Upstream provides manual patch guidance only for this distribution. Control Center does not automate the kernel/Mesa stack."),)
 
 
@@ -98,6 +124,11 @@ def present_gfx1013(state: Mapping[str, object]) -> Gfx1013Presentation:
         "external_installed": bool(state.get("dryhopped_installed")),
         "external_boot_active": bool(state.get("dryhopped_boot_active")),
         "masta_async_compute_ready": bool(state.get("masta_async_compute_ready")),
+        "bazzite_current": bool(state.get("bazzite_async_current")),
+        "bazzite_enabled": bool(state.get("bazzite_async_enabled")),
+        "bazzite_session_active": bool(state.get("bazzite_async_session_active")),
+        "bazzite_invalid": bool(state.get("bazzite_async_installed"))
+        and not bool(state.get("bazzite_async_current")),
     }
     status, tone = _status(reason, **values)
     return Gfx1013Presentation(
@@ -106,5 +137,6 @@ def present_gfx1013(state: Mapping[str, object]) -> Gfx1013Presentation:
         detail=_detail(reason, **values),
         steamos_actions=reason == "steamos-dedicated-backend",
         fedora_actions=reason == "fedora-upstream-managed",
+        bazzite_actions=reason.startswith("bazzite-release-"),
         compatibility_action=("Update / repair SteamOS kernel" if values["kernel_ready"] else "1 · Install SteamOS kernel"),
     )

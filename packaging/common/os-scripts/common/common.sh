@@ -393,6 +393,7 @@ print_credits() {
   echo "- SteamOS CU backend (explicit workflow; upstream license under review): https://github.com/F5GO/bc250-cu-live-manager-SteamOS"
   echo "- bc250-core-unlock (official repository cloned and launched by the GUI): https://github.com/rw-r-r-0644/bc250-core-unlock"
   echo "- GFX1013 kernel/Mesa stack (official upstream workflow): https://github.com/DryhoppedIPA/bc250-gfx1013-fix"
+  echo "- GFX1013 async compute for Bazzite: https://github.com/tri3gubki-ops/bc250-async-compute-bazzite"
   echo "- BC250 FSR4 V3 (per-user/per-game Arch/CachyOS workflow): https://github.com/dmorazasanchez/bc250-fsr4"
   echo "- SteamOS AMDGPU/RADV workflow: https://github.com/keyboardspecialist/bc250-steamos"
   echo "- BC250 ACPI compatibility workflow: https://github.com/e-tho/bc250-acpi-fix"

@@ -254,13 +254,42 @@ def test_gfx1013_card_exposes_combined_official_upstream_install_on_fedora(qtbot
     assert dialog.action == "gfx1013_fedora_install"
 
 
-def test_gfx1013_card_keeps_bazzite_blocked_without_install_action(qtbot):
+def test_gfx1013_card_keeps_bazzite_install_disabled_on_old_kernel(qtbot):
     tools = _tools()
-    tools["gfx1013_compute"] = {"reason_key": "bazzite-not-supported-upstream"}
+    tools["gfx1013_compute"] = {
+        "reason_key": "bazzite-release-kernel-unsupported",
+        "direct_installer_allowed": False,
+    }
     dialog = DependencyPreparationDialog(tools, "cyan-skillfish-governor-smu")
     qtbot.addWidget(dialog)
 
-    assert present_gfx_install_buttons(dialog) == 2  # Cyan and Oberon only.
+    gfx_install = [
+        button for button in dialog.findChildren(QPushButton)
+        if button.text() == "Install / update"
+        and bool(button.property("dependencyGfxPrimary"))
+    ]
+    assert len(gfx_install) == 1
+    assert not gfx_install[0].isEnabled()
+
+
+def test_gfx1013_card_routes_reviewed_bazzite_release(qtbot):
+    tools = _tools()
+    tools["gfx1013_compute"] = {
+        "reason_key": "bazzite-release-managed",
+        "direct_installer_allowed": True,
+        "bazzite_async_installed": False,
+    }
+    dialog = DependencyPreparationDialog(tools, "cyan-skillfish-governor-smu")
+    qtbot.addWidget(dialog)
+
+    install = next(
+        button for button in dialog.findChildren(QPushButton)
+        if button.text() == "Install / update"
+        and bool(button.property("dependencyGfxPrimary"))
+    )
+    assert install.isEnabled()
+    install.click()
+    assert dialog.action == "gfx1013_bazzite_install"
 
 
 def present_gfx_install_buttons(dialog):

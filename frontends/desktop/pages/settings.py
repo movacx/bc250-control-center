@@ -83,6 +83,7 @@ OFFICIAL_REPOSITORIES = (
     ("bc250-core-unlock (cloned upstream tool)", "rw-r-r-0644/bc250-core-unlock", "https://github.com/rw-r-r-0644/bc250-core-unlock"),
     ("bc250-steamos AMDGPU/RADV workflow", "keyboardspecialist/bc250-steamos", "https://github.com/keyboardspecialist/bc250-steamos"),
     ("GFX1013 fix (official upstream workflow)", "DryhoppedIPA/bc250-gfx1013-fix", "https://github.com/DryhoppedIPA/bc250-gfx1013-fix"),
+    ("GFX1013 async compute for Bazzite", "tri3gubki-ops/bc250-async-compute-bazzite", "https://github.com/tri3gubki-ops/bc250-async-compute-bazzite"),
     ("SteamOS real toolkit reference", "rpf16rj/bc250-steamos-real-toolkit", "https://github.com/rpf16rj/bc250-steamos-real-toolkit"),
     ("BC250 toolkit reference", "redbeard1083/bc250-toolkit", "https://github.com/redbeard1083/bc250-toolkit"),
     ("BC250 patched Bazzite image reference", "62fixolab/Latest-Bazzite-AMD-BC-250-Patched-Images", "https://github.com/62fixolab/Latest-Bazzite-AMD-BC-250-Patched-Images"),

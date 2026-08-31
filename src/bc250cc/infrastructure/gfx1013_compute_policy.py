@@ -2,6 +2,13 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
+from .bazzite_async_compute import (
+    BAZZITE_ASYNC_COMPUTE_COMMIT,
+    BAZZITE_ASYNC_COMPUTE_REPOSITORY,
+    BAZZITE_ASYNC_COMPUTE_TESTED_KERNEL,
+    BAZZITE_ASYNC_COMPUTE_VERSION,
+    bazzite_async_kernel_supported,
+)
 from .external_tools.catalog import EXTERNAL_TOOLS
 
 GFX1013_UPSTREAM = EXTERNAL_TOOLS["gfx1013_direct"].upstream
@@ -67,14 +74,40 @@ def classify_gfx1013_support(
             reason_key="steamos-dedicated-backend",
         ).to_dict()
 
-    if family == "bazzite" or immutable:
+    if family == "bazzite" or distro_id == "bazzite":
+        version_supported = version_id == "44"
+        kernel_supported = bazzite_async_kernel_supported(kernel)
+        installer_allowed = version_supported and kernel_supported
+        reason = (
+            "bazzite-release-managed"
+            if installer_allowed
+            else "bazzite-release-kernel-unsupported"
+            if version_supported
+            else "bazzite-release-version-unsupported"
+        )
+        return Gfx1013Compatibility(
+            mode="bazzite-release",
+            status="available" if installer_allowed else "blocked",
+            direct_installer_allowed=installer_allowed,
+            automatic_install_allowed=False,
+            exact_upstream_validated_host=installer_allowed,
+            reason_key=reason,
+            upstream=BAZZITE_ASYNC_COMPUTE_REPOSITORY,
+            upstream_branch=f"v{BAZZITE_ASYNC_COMPUTE_VERSION}",
+            upstream_managed=False,
+            reviewed_commit=BAZZITE_ASYNC_COMPUTE_COMMIT,
+            reviewed_version=BAZZITE_ASYNC_COMPUTE_VERSION,
+            tested_kernel=BAZZITE_ASYNC_COMPUTE_TESTED_KERNEL,
+        ).to_dict()
+
+    if immutable:
         return Gfx1013Compatibility(
             mode="blocked-immutable",
             status="blocked",
             direct_installer_allowed=False,
             automatic_install_allowed=False,
             exact_upstream_validated_host=False,
-            reason_key="bazzite-not-supported-upstream",
+            reason_key="immutable-not-supported-upstream",
         ).to_dict()
 
     if family == "fedora" and distro_id == GFX1013_TESTED_DISTRO_ID:

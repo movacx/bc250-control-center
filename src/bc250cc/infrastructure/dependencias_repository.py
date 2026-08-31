@@ -13,6 +13,10 @@ from bc250cc.application.preparation.component_engine import (
     normalize_components,
     unavailable_components,
 )
+from bc250cc.infrastructure.bazzite_async_compute import (
+    build_bazzite_async_compute_command,
+    probe_bazzite_async_compute,
+)
 from bc250cc.infrastructure.bazzite_memory_tuning import (
     build_bazzite_memory_tuning_command,
 )
@@ -404,6 +408,26 @@ class DependenciasRepository:
             'GFX1013 Fedora kernel + Mesa',
         )
 
+    def gestionar_gfx1013_bazzite(self, action: str) -> object:
+        """Run the checksum-pinned Bazzite 44 async-compute release."""
+        os_repository = self._os_repository()
+        state = self._gfx1013_compute_state(os_repository)
+        action = str(action or '').strip().lower()
+        if os_repository.info.family != 'bazzite':
+            raise RuntimeError('The Bazzite async-compute workflow is available only on Bazzite.')
+        if action == 'install' and not state.get('direct_installer_allowed'):
+            raise RuntimeError(
+                'This host does not meet the Bazzite 44 and OGC kernel requirements '
+                'of the reviewed async-compute release.'
+            )
+        if action not in {'install', 'status', 'uninstall'}:
+            raise ValueError('Unsupported Bazzite GFX1013 action.')
+        self.estado_herramientas_cache = None
+        return self._abrir_terminal(
+            build_bazzite_async_compute_command(action),
+            'GFX1013 async compute for Bazzite',
+        )
+
 
     def _gfx1013_compute_state(self, os_repository) -> dict:
         """Describe GFX1013 support without performing a kernel/Mesa write.
@@ -527,16 +551,22 @@ class DependenciasRepository:
             'steamos_safe_radv_reference': STEAMOS_GFX1013_SAFE_RADV_REFERENCE,
             'steamos_safe_radv_reference_commit': STEAMOS_GFX1013_SAFE_RADV_REVIEWED_COMMIT,
             'steamos_safe_radv_reference_version': STEAMOS_GFX1013_SAFE_RADV_VERSION,
-            'upstream_url': GFX1013_UPSTREAM,
-            'upstream_branch': 'main',
-            'upstream_managed': True,
-            'reviewed_commit': GFX1013_REVIEWED_COMMIT,
-            'reviewed_version': GFX1013_REVIEWED_VERSION,
+            'upstream_url': str(policy.get('upstream') or GFX1013_UPSTREAM),
+            'upstream_branch': str(policy.get('upstream_branch') or 'main'),
+            'upstream_managed': bool(policy.get('upstream_managed', True)),
+            'reviewed_commit': str(
+                policy.get('reviewed_commit') or GFX1013_REVIEWED_COMMIT
+            ),
+            'reviewed_version': str(
+                policy.get('reviewed_version') or GFX1013_REVIEWED_VERSION
+            ),
             'masta_bc250_supported': bool(masta_stack.get('supported')),
             'masta_bc250_kernel_active': bool(masta_stack.get('kernel_active')),
             'masta_bc250_mesa_installed': bool(masta_stack.get('mesa_installed')),
             'masta_async_compute_ready': masta_async_compute_ready,
         })
+        if os_repository.info.family == 'bazzite':
+            policy.update(probe_bazzite_async_compute())
         return policy
 
     def estado_herramientas_bc250(self):

@@ -50,11 +50,26 @@ def test_arch_family_is_manual_and_unverified(family, distro):
     assert state['reason_key'] == 'arch-family-manual-untested'
 
 
-def test_bazzite_and_atomic_are_blocked():
+def test_unsupported_bazzite_release_is_blocked():
     state = classify('bazzite', 'bazzite', '43', '6.17.9', immutable=True)
     assert state['status'] == 'blocked'
     assert state['direct_installer_allowed'] is False
-    assert state['reason_key'] == 'bazzite-not-supported-upstream'
+    assert state['reason_key'] == 'bazzite-release-version-unsupported'
+
+
+def test_bazzite_44_requires_the_reviewed_ogc_kernel_baseline():
+    old = classify('bazzite', 'bazzite', '44', '6.19.14-ogc5.1.fc44.x86_64', immutable=True)
+    ready = classify('bazzite', 'bazzite', '44', '7.2.0-ogc4.1.fc44.x86_64', immutable=True)
+
+    assert old['reason_key'] == 'bazzite-release-kernel-unsupported'
+    assert old['direct_installer_allowed'] is False
+    assert ready['reason_key'] == 'bazzite-release-managed'
+    assert ready['direct_installer_allowed'] is True
+    assert ready['automatic_install_allowed'] is False
+    assert ready['reviewed_version'] == '0.2.4'
+    assert ready['reviewed_commit'] == 'aca67e88542d81334fb0161803039d8a0f2945f6'
+    assert ready['tested_kernel'] == '7.2.0-ogc4.1'
+    assert ready['upstream'].endswith('tri3gubki-ops/bc250-async-compute-bazzite')
 
 
 def test_steamos_uses_dedicated_backend_not_fedora_installer():

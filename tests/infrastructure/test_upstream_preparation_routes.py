@@ -20,7 +20,11 @@ def _repository_for(
 
         def _os_repository(self):
             info = type(
-                "Info", (), {"family": family, "distro_id": distro_id or family}
+                "Info", (), {
+                    "family": family,
+                    "distro_id": distro_id or family,
+                    "immutable": family == "bazzite",
+                }
             )()
             return type("OSRepository", (), {"info": info})()
 
@@ -105,6 +109,35 @@ def test_fsr4_bazzite_route_uses_only_the_official_podman_source_build():
     assert 'test "${ID:-}" = "bazzite"' in command
     assert "install-v3.sh" not in command
     assert "FSR4 V3" in terminal_title
+
+
+def test_bazzite_async_compute_route_uses_only_the_pinned_release(monkeypatch):
+    calls: list[tuple[str, str]] = []
+    repository = _repository_for("bazzite", calls)
+    monkeypatch.setattr(
+        repository,
+        "_gfx1013_compute_state",
+        lambda _os_repository: {"direct_installer_allowed": True},
+    )
+
+    assert repository.gestionar_gfx1013_bazzite("install") == "terminal"
+
+    command, title = calls[0]
+    assert "bc250-async-compute-0.2.4.tar.zst" in command
+    assert "fabece2f0735fd4f096bb253894f53d342e1eb4ec18c761eaca1ac9d20330711" in command
+    assert "7.2.0-ogc4.1 or newer" in command
+    assert "GFX1013 async compute for Bazzite" == title
+
+
+def test_bazzite_async_compute_route_never_opens_on_other_distros(monkeypatch):
+    repository = _repository_for("fedora", [])
+    monkeypatch.setattr(
+        repository,
+        "_gfx1013_compute_state",
+        lambda _os_repository: {"direct_installer_allowed": True},
+    )
+    with pytest.raises(RuntimeError, match="only on Bazzite"):
+        repository.gestionar_gfx1013_bazzite("install")
 
 
 @pytest.mark.parametrize("family", ("ubuntu", "fedora", "steamos"))

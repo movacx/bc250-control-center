@@ -2421,12 +2421,14 @@ class PreparationSidebar(QFrame):
                 if masta_supported
                 else "Arch family · Manual only"
             ),
-            "bazzite-not-supported-upstream": "Bazzite · Image route only",
+            "bazzite-release-managed": "Bazzite 44 · Reviewed v0.2.4 release",
+            "bazzite-release-kernel-unsupported": "Bazzite 44 · Compatible kernel required",
+            "bazzite-release-version-unsupported": "Bazzite · Version not supported",
         }.get(reason_key, "Ubuntu / Debian / other · Manual only")
         self.gfx_card.set_scope(
             gfx_scope,
             "blue"
-            if reason_key in {"steamos-dedicated-backend", "fedora-upstream-managed"}
+            if reason_key in {"steamos-dedicated-backend", "fedora-upstream-managed", "bazzite-release-managed"}
             or masta_supported
             else "gray",
         )
@@ -2557,16 +2559,40 @@ class PreparationSidebar(QFrame):
                 text="Open upstream project",
                 payload={"action": "gfx1013_upstream", "governor": ""},
             )
-        elif reason_key == "bazzite-not-supported-upstream":
+        elif reason_key.startswith("bazzite-release-"):
+            installed = bool(gfx_state.get("bazzite_async_installed"))
+            installer_allowed = bool(gfx_state.get("direct_installer_allowed"))
             self.gfx_card.update_action(
                 self.gfx_primary_button,
-                text="Open BC-250 Bazzite images",
-                payload={"action": "bazzite_image_upstream", "governor": ""},
+                text="Repair / update" if installed else "Install / update",
+                payload={"action": "gfx1013_bazzite_install", "governor": ""},
+                enabled=installer_allowed,
+                tooltip="" if installer_allowed else "Requires Bazzite 44 with kernel 7.2.0-ogc4.1 or newer.",
             )
             self.gfx_card.update_action(
                 self.gfx_secondary_button,
-                text="Open GFX1013 upstream",
+                text="Uninstall",
+                payload={"action": "gfx1013_bazzite_uninstall", "governor": ""},
+                visible=installed,
+            )
+            status_button = (
+                self.gfx_tertiary_button if installed else self.gfx_secondary_button
+            )
+            self.gfx_card.update_action(
+                status_button,
+                text="Check status" if installed else "Open upstream project",
+                payload={
+                    "action": "gfx1013_bazzite_status"
+                    if installed
+                    else "gfx1013_upstream",
+                    "governor": "",
+                },
+            )
+            self.gfx_card.update_action(
+                self.gfx_quaternary_button,
+                text="Open upstream project",
                 payload={"action": "gfx1013_upstream", "governor": ""},
+                visible=installed,
             )
         else:
             if masta_supported:

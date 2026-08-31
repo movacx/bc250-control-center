@@ -45,8 +45,12 @@ from frontends.desktop.core.gfx1013_presenter import present_gfx1013
             "Installed via MastaG", "green", "No separate DryhoppedIPA installation",
         ),
         (
-            {"reason_key": "bazzite-not-supported-upstream"},
-            "Blocked", "orange", "Bazzite is not supported",
+            {"reason_key": "bazzite-release-kernel-unsupported"},
+            "Blocked", "orange", "7.2.0-ogc4.1",
+        ),
+        (
+            {"reason_key": "bazzite-release-managed"},
+            "Bazzite release available", "blue", "separate RADV driver",
         ),
         (
             {"reason_key": "manual-patches-only"},

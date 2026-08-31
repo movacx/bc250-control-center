@@ -101,6 +101,46 @@ def test_bazzite_exposes_verified_source_build_but_blocks_arch_stack():
     assert not sidebar.fsr4_upstream_button.isHidden()
 
 
+def test_bazzite_async_compute_card_explains_old_kernel_gate():
+    sidebar = _sidebar()
+    state = _state(
+        "bazzite",
+        {"source_build_supported": True, "installer_available": True},
+    )
+    state.preparation_tools["gfx1013_compute"] = {
+        "reason_key": "bazzite-release-kernel-unsupported",
+        "direct_installer_allowed": False,
+        "kernel": "6.19.14-ogc5.1.fc44.x86_64",
+    }
+    sidebar.set_state(state)
+
+    assert sidebar.gfx_card.scope.text() == "Bazzite 44 · Compatible kernel required"
+    assert sidebar.gfx_card.status.text() == "Blocked"
+    assert "7.2.0-ogc4.1" in sidebar.gfx_card.detail.text()
+    assert sidebar.gfx_primary_button.text() == "Install / update"
+    assert not sidebar.gfx_primary_button.isEnabled()
+    assert sidebar.gfx_secondary_button.text() == "Open upstream project"
+
+
+def test_bazzite_async_compute_card_exposes_reviewed_release_action():
+    sidebar = _sidebar()
+    state = _state(
+        "bazzite",
+        {"source_build_supported": True, "installer_available": True},
+    )
+    state.preparation_tools["gfx1013_compute"] = {
+        "reason_key": "bazzite-release-managed",
+        "direct_installer_allowed": True,
+        "bazzite_async_installed": False,
+    }
+    sidebar.set_state(state)
+
+    assert sidebar.gfx_card.scope.text() == "Bazzite 44 · Reviewed v0.2.4 release"
+    assert sidebar.gfx_card.status.text() == "Bazzite release available"
+    assert sidebar.gfx_primary_button.isEnabled()
+    assert sidebar.gfx_primary_button.request_payload["action"] == "gfx1013_bazzite_install"
+
+
 def test_manjaro_exposes_only_the_explicit_abi_gated_fsr4_candidate():
     sidebar = _sidebar()
     sidebar.set_state(
