@@ -49,12 +49,15 @@ class TerminalRepository:
         script_path = directory / f"manual-{run_id}.sh"
         log_path = directory / f"workflow-{run_id}.log"
         inner = shlex.quote(str(comando or '').strip())
+        pipeline = shlex.quote(
+            f"bash -lc {inner} 2>&1 | tee {shlex.quote(str(log_path))}"
+        )
         script_path.write_text(
             "#!/usr/bin/env bash\n"
             "set -o pipefail\n"
             f"printf '%s\\n' {shlex.quote('== ' + titulo + ' ==')}\n"
-            f"bash -lc {inner} 2>&1 | tee {shlex.quote(str(log_path))}\n"
-            "status=${PIPESTATUS[0]}\n"
+            f"bash -o pipefail -c {pipeline}\n"
+            "status=$?\n"
             "{ printf '\\n== Process finished with exit code %s ==\\n' \"$status\"; "
             f"printf '%s\\n' {shlex.quote('Full log saved to: ' + str(log_path))}; "
             f"}} 2>&1 | tee -a {shlex.quote(str(log_path))}\n"
@@ -88,8 +91,18 @@ class TerminalRepository:
         status_path = state_dir / f"status-{run_id}.txt"
         log_path = state_dir / f"workflow-{run_id}.log"
         wrapped = workflow_wrapper(comando, status_path, log_path)
+        launch_path = state_dir / f"launch-{run_id}.sh"
+        launch_path.write_text(
+            "#!/usr/bin/env bash\n" + wrapped + "\n",
+            encoding="utf-8",
+        )
+        launch_path.chmod(0o700)
+        # Some terminal launchers inspect and expand command-line environment
+        # references before Bash receives them. Keep the complex reviewed
+        # workflow in a private script and pass the terminal a simple path.
+        launch_command = f"exec bash {shlex.quote(str(launch_path))}"
         candidates = terminal_candidates(
-            wrapped,
+            launch_command,
             titulo,
             terminal_env=os.environ.get("TERMINAL", ""),
             home=Path.home(),
@@ -104,10 +117,9 @@ class TerminalRepository:
                 log_file=str(log_path),
             )
 
-        manual_script = self._manual_terminal_script(str(comando), titulo)
         detail = f" Attempts: {'; '.join(launch_errors)}" if launch_errors else ""
         raise RuntimeError(
             "No supported graphical terminal could be opened. "
-            f"The workflow was saved to {manual_script}. "
-            f"Run it manually with: bash {manual_script}.{detail}"
+            f"The workflow was saved to {launch_path}. "
+            f"Run it manually with: bash {launch_path}.{detail}"
         )

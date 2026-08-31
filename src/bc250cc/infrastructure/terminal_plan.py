@@ -13,10 +13,10 @@ def workflow_wrapper(command: object, status_path: Path, log_path: Path) -> str:
     inner = shlex.quote(requested)
     status = shlex.quote(str(status_path))
     log = shlex.quote(str(log_path))
+    pipeline = shlex.quote(f"bash -lc {inner} 2>&1 | tee {log}")
     return (
-        "set -o pipefail; "
-        f"bash -lc {inner} 2>&1 | tee {log}; "
-        "status=${PIPESTATUS[0]}; "
+        f"bash -o pipefail -c {pipeline}; "
+        "status=$?; "
         f"printf '%s\\n' \"$status\" > {status}; "
         "{ echo; echo \"== Process finished with exit code $status ==\"; "
         f"echo \"Full log saved to: {log_path!s}\"; "

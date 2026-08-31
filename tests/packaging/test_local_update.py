@@ -39,6 +39,23 @@ def test_local_installer_stages_and_rolls_back_application_code():
     assert '"/etc/cyan-skillfish-governor-smu/config.toml"' in installer
 
 
+def test_local_installer_matches_modern_debian_ubuntu_runtime_dependencies():
+    installer = (ROOT / "scripts" / "install-local.sh").read_text(encoding="utf-8")
+
+    assert "apt-get install -y python3 python3-pyqt6 libqt6svg6 python3-psutil" in installer
+    assert 'debian_polkit_package="pkexec"' in installer
+    assert 'debian_polkit_package="policykit-1"' in installer
+    assert '"$debian_polkit_package" jq' in installer
+    assert "python-is-python3" not in installer
+
+
+def test_local_installer_normalizes_privileged_directory_trust_boundary():
+    installer = (ROOT / "scripts" / "install-local.sh").read_text(encoding="utf-8")
+
+    assert "install -d -m0755 /usr/libexec/bc250-control-center /usr/libexec/bc250-control-center/lib" in installer
+    assert "privileged directory must be root-owned mode 0755" in installer
+
+
 def test_repository_launches_updater_as_an_argv_safe_shell_path(monkeypatch, tmp_path):
     updater = tmp_path / "update-local.sh"
     updater.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")

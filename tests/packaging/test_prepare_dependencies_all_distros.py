@@ -483,6 +483,57 @@ def test_cachyos_installed_umr_still_repairs_a_missing_protected_backend(tmp_pat
     assert _bash_syntax(command).returncode == 0
 
 
+def test_steamos_install_umr_repairs_and_probes_protected_f5go_backend(tmp_path):
+    host = FakeHost(
+        {"ID": "steamos", "ID_LIKE": "arch", "PRETTY_NAME": "SteamOS"},
+        tmp_path,
+        False,
+    )
+    repository = DependenciasRepository()
+    repository._os_repository = lambda: create_os_repository(host)
+    repository._tool_dir = host._tool_dir
+    repository._command_path = lambda name: "/usr/bin/umr" if name == "umr" else ""
+    repository.estado_herramientas_bc250 = lambda: {
+        "cu_privileged_backend_ready": False,
+    }
+    repository._abrir_terminal = lambda command, _title: command
+
+    command = repository.instalar_umr()
+
+    protected = "/usr/libexec/bc250-control-center/bc250-cu-live-manager"
+    assert "F5GO/bc250-cu-live-manager-SteamOS" in command
+    assert "Staging protected SteamOS CU backend" in command
+    assert f"sudo chmod 0755 {protected}" in command
+    assert f"{protected} status" in command
+    assert _bash_syntax(command).returncode == 0
+
+
+def test_steamos_existing_checkout_does_not_hide_unready_protected_backend(tmp_path):
+    host = FakeHost(
+        {"ID": "steamos", "ID_LIKE": "arch", "PRETTY_NAME": "SteamOS"},
+        tmp_path,
+        False,
+    )
+    repository = DependenciasRepository()
+    repository._os_repository = lambda: create_os_repository(host)
+    repository._tool_dir = host._tool_dir
+    spec = repository._cu_manager_spec()
+    spec["script"].parent.mkdir(parents=True, exist_ok=True)
+    spec["script"].write_text("#!/bin/bash\n", encoding="utf-8")
+    spec["script"].chmod(0o755)
+    repository.estado_herramientas_bc250 = lambda: {
+        "cu_privileged_backend_ready": False,
+    }
+    repository._abrir_terminal = lambda command, _title: command
+
+    command = repository.instalar_cu_manager()
+
+    assert isinstance(command, str)
+    assert "Staging protected SteamOS CU backend" in command
+    assert "/usr/libexec/bc250-control-center/bc250-cu-live-manager status" in command
+    assert _bash_syntax(command).returncode == 0
+
+
 def test_all_distribution_shell_scripts_are_valid_bash():
     scripts = sorted(Path("packaging/common/os-scripts").rglob("*.sh"))
     assert scripts

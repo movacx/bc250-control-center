@@ -101,6 +101,67 @@ def test_bazzite_exposes_verified_source_build_but_blocks_arch_stack():
     assert not sidebar.fsr4_upstream_button.isHidden()
 
 
+def test_ubuntu_exposes_verified_source_build_with_apt_guidance():
+    sidebar = _sidebar()
+    sidebar.set_state(
+        _state(
+            "ubuntu",
+            {
+                "precompiled_supported": False,
+                "source_build_supported": True,
+                "installer_available": True,
+                "installed": False,
+                "current": False,
+                "state": "not-installed",
+                "source_build_required": True,
+                "build_mode": "debian-podman-source",
+            },
+        )
+    )
+
+    assert not sidebar.fsr4_install_button.isHidden()
+    assert sidebar.fsr4_install_button.isEnabled()
+    assert sidebar.fsr4_install_button.text() == "Build and install FSR4"
+    assert sidebar.fsr4_card.status.text() == "Source build available"
+    assert sidebar.fsr4_card.scope.text() == "Debian/Ubuntu · Official Podman source build"
+    assert "installed with APT" in sidebar.fsr4_card.detail.text()
+    assert "private per-game user runtime" in sidebar.fsr4_card.detail.text()
+    assert sidebar.fsr4_launch_row.isHidden()
+
+
+def test_ready_fsr4_runtime_exposes_round_universal_copy_button():
+    sidebar = _sidebar()
+    option = (
+        'LD_LIBRARY_PATH="$HOME/.local/share/bc250-fsr4/v3/lib'
+        '${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" '
+        'VK_DRIVER_FILES="$HOME/.local/share/bc250-fsr4/v3/radv-bc250-fsr4-v3.json" %command%'
+    )
+    sidebar.set_state(
+        _state(
+            "ubuntu",
+            {
+                "precompiled_supported": False,
+                "source_build_supported": True,
+                "installer_available": True,
+                "installed": True,
+                "current": True,
+                "state": "ready",
+                "source_build_required": True,
+                "build_mode": "debian-podman-source",
+                "steam_launch_option": option,
+            },
+        )
+    )
+
+    assert not sidebar.fsr4_launch_row.isHidden()
+    assert sidebar.fsr4_copy_button.width() == 30
+    assert sidebar.fsr4_copy_button.height() == 30
+    sidebar.fsr4_copy_button.click()
+    assert QApplication.clipboard().text() == option
+    assert "$HOME" in QApplication.clipboard().text()
+    assert "/home/fabianbeita" not in QApplication.clipboard().text()
+
+
 def test_bazzite_async_compute_card_explains_old_kernel_gate():
     sidebar = _sidebar()
     state = _state(

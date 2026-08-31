@@ -86,8 +86,9 @@ if missing:
     raise SystemExit(f"installed CLI system report is incomplete: {', '.join(missing)}")
 PY
 
-PREFIX="$SMOKE_PREFIX" bash \
-  "$SMOKE_PREFIX/share/bc250-control-center/scripts/uninstall-local.sh" \
+# Exercise the installed script's prefix inference instead of handing it the
+# answer.  This is the same path users can run after losing the source tree.
+bash "$SMOKE_PREFIX/share/bc250-control-center/scripts/uninstall-local.sh" \
   --yes --keep-privileged
 
 leftover="$(find "$SMOKE_PREFIX" -type f -print -quit 2>/dev/null || true)"

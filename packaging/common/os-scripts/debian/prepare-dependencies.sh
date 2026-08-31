@@ -8,19 +8,31 @@ runtime_core_packages=(
   libdrm2 libdrm-amdgpu1 curl ca-certificates dbus dbus-user-session kmod jq
 )
 runtime_optional_diagnostics=(mesa-utils vulkan-tools)
-runtime_optional_build=(build-essential dkms dh-dkms)
+GOVERNOR_DEB_PATH=""
+
+normalize_governor_deb_control() {
+  local source="$1" repaired_root="$2" repaired_deb="$3"
+  GOVERNOR_DEB_PATH="$source"
+  if [[ -n "$(dpkg-deb --field "$source" Maintainer 2>/dev/null || true)" ]]; then
+    return 0
+  fi
+  warn "The upstream Cyan package is missing its required Maintainer field; repairing local package metadata."
+  dpkg-deb --raw-extract "$source" "$repaired_root" >/dev/null
+  sed -i \
+    '/^Architecture:/a Maintainer: BC250 Control Center contributors <noreply@example.invalid>' \
+    "$repaired_root/DEBIAN/control"
+  dpkg-deb --root-owner-group --build "$repaired_root" "$repaired_deb" >/dev/null
+  GOVERNOR_DEB_PATH="$repaired_deb"
+}
 
 install_runtime() {
   bold "${BC250_OS_LABEL:-Debian family}: installing BC250 runtime dependencies"
   as_root apt-get update
   as_root apt-get install -y "${runtime_core_packages[@]}"
-  as_root apt-get install -y python-is-python3 || warn "python-is-python3 is optional; the application uses python3 directly"
   as_root apt-get install -y "${runtime_optional_diagnostics[@]}" || warn "Optional Mesa/Vulkan diagnostics are unavailable"
-  as_root apt-get install -y policykit-1 || as_root apt-get install -y polkitd pkexec
-  as_root apt-get install -y "${runtime_optional_build[@]}" || warn "DKMS build tools are unavailable; PWM support will remain disabled"
-  if ! as_root apt-get install -y "linux-headers-$(uname -r)"; then
-    warn "Matching kernel headers are unavailable. Monitoring will work, but DKMS/PWM features remain disabled until headers are installed."
-  fi
+  # Current Debian/Ubuntu releases split PolicyKit into polkitd and pkexec.
+  # Keep the legacy package as a fallback for older derivatives.
+  as_root apt-get install -y polkitd pkexec || as_root apt-get install -y policykit-1
 }
 
 install_governor() (
@@ -61,11 +73,13 @@ install_governor() (
   if (( package_current == 1 && installation_complete == 1 )); then
     info "cyan-skillfish-governor-smu $version is already current"
   elif run curl --fail --location --retry 3 --output "$workdir/$deb" "$base_url/$deb"; then
+    normalize_governor_deb_control \
+      "$workdir/$deb" "$workdir/repaired-root" "$workdir/repaired-$deb"
     if (( package_current == 1 )); then
       warn "The Cyan package database is current, but its binary or systemd unit is missing; repairing the package"
-      as_root apt-get install --reinstall -y "$workdir/$deb"
+      as_root apt-get install --reinstall -y "$GOVERNOR_DEB_PATH"
     else
-      as_root apt-get install -y "$workdir/$deb"
+      as_root apt-get install -y "$GOVERNOR_DEB_PATH"
     fi
   elif run curl --fail --location --retry 3 --output "$workdir/$archive" "$base_url/$archive"; then
     run tar -xf "$workdir/$archive" -C "$workdir"
@@ -86,8 +100,15 @@ install_sensors() { as_root apt-get update; as_root apt-get install -y lm-sensor
 install_umr() {
   if have umr; then info "UMR already installed"; return 0; fi
   as_root apt-get update
-  as_root apt-get install -y umr || true
+  if apt-cache show umr >/dev/null 2>&1; then
+    as_root apt-get install -y umr || true
+  else
+    warn "UMR is not packaged by this Debian/Ubuntu release."
+  fi
   if ! have umr && [[ -n "${BC250_CU_MANAGER_SCRIPT:-}" && -x "${BC250_CU_MANAGER_SCRIPT}" ]]; then
+    bold "Building UMR from source"
+    warn "This optional step installs a large compiler toolchain (including LLVM) and can take several minutes."
+    info "APT and the compiler will keep printing progress below; leave this terminal open."
     as_root "${BC250_CU_MANAGER_SCRIPT}" install-umr
   fi
   hash -r
@@ -99,7 +120,7 @@ check_governor() { verify_command cyan-skillfish-governor-smu; }
 check_stress() { verify_command stress; }
 check_sensors() { verify_command sensors; }
 check_umr() { verify_command umr; }
-plan_runtime() { plan_packages runtime apt "${runtime_core_packages[@]}" policykit-1 python-is-python3 "${runtime_optional_diagnostics[@]}" "${runtime_optional_build[@]}" "linux-headers-$(uname -r)"; }
+plan_runtime() { plan_packages runtime apt "${runtime_core_packages[@]}" "${runtime_optional_diagnostics[@]}" pkexec polkitd policykit-1; }
 plan_governor() { plan_packages governor upstream-release cyan-skillfish-governor-smu; }
 plan_stress() { plan_packages stress apt stress; }
 plan_sensors() { plan_packages sensors apt lm-sensors; }

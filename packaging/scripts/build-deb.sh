@@ -35,7 +35,7 @@ Section: utils
 Priority: optional
 Architecture: all
 Maintainer: BC250 Control Center contributors <noreply@example.invalid>
-Depends: python3, python3-pyqt6, python3-psutil, libqt6svg6, policykit-1, jq
+Depends: python3, python3-pyqt6, python3-psutil, libqt6svg6, pkexec | policykit-1, jq
 Suggests: git, lm-sensors, pciutils, stress, vulkan-tools
 Description: BC-250 monitoring, tuning and recovery control center
  Desktop and headless management for AMD BC-250 systems.
@@ -48,6 +48,12 @@ EOF
 cat > "$work/root/DEBIAN/postinst" <<'EOF'
 #!/bin/sh
 set -e
+# dpkg preserves the mode of some already-existing directories during a
+# reinstall/upgrade. Repair this privileged trust boundary explicitly so an
+# old 0775 directory cannot make the CU helpers reject one another.
+install -d -o 0 -g 0 -m 0755 \
+  /usr/libexec/bc250-control-center \
+  /usr/libexec/bc250-control-center/lib
 /usr/libexec/bc250-control-center/bc250-package-maintenance post-install
 EOF
 cat > "$work/root/DEBIAN/prerm" <<'EOF'

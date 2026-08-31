@@ -22,6 +22,7 @@ from bc250cc.infrastructure.bazzite_memory_tuning import (
 )
 from bc250cc.infrastructure.bc250_fsr4 import (
     build_fsr4_v3_bazzite_install_command,
+    build_fsr4_v3_debian_install_command,
     build_fsr4_v3_install_command,
     build_fsr4_v3_uninstall_command,
     fsr4_runtime_state,
@@ -373,14 +374,16 @@ class DependenciasRepository:
             raise RuntimeError(
                 'The official upstream FSR4 V3 runtime is available only on Arch/CachyOS. '
                 'Manjaro is experimental and accepted only through mandatory ABI/Vulkan checks; '
-                'Bazzite uses the verified Podman source-build path.'
+                'Bazzite and Debian/Ubuntu use verified Podman source-build paths.'
             )
         if action not in {'install', 'uninstall'}:
             raise ValueError('Unsupported BC-250 FSR4 action.')
         if action == 'uninstall':
             command_builder = build_fsr4_v3_uninstall_command
-        elif state.get('source_build_supported'):
+        elif state.get('build_mode') == 'bazzite-podman-source':
             command_builder = build_fsr4_v3_bazzite_install_command
+        elif state.get('build_mode') == 'debian-podman-source':
+            command_builder = build_fsr4_v3_debian_install_command
         else:
             command_builder = build_fsr4_v3_install_command
         self.estado_herramientas_cache = None
@@ -1161,8 +1164,12 @@ class DependenciasRepository:
 
 
     def _steamos_cu_status_probe_command(self, script):
+        # Validate the exact protected executable used by the desktop Polkit
+        # helper.  Probing the user-owned F5GO checkout can succeed while a
+        # stale /usr/libexec copy still makes every GUI action fail.
+        _ = script
         return status_probe_command(
-            script,
+            STEAMOS_CU_BACKEND,
             environment_shell=self._steamos_cu_env_shell(),
             check_database_command=self._steamos_umr_database_repair_command(check_only=True),
         )
@@ -1617,7 +1624,11 @@ class DependenciasRepository:
         tools = self.estado_herramientas_bc250()
         os_repository = self._os_repository()
         spec = self._cu_manager_spec(os_repository)
-        if spec['is_steamos'] and Path(spec['script']).exists():
+        if (
+            spec['is_steamos']
+            and Path(spec['script']).exists()
+            and tools.get('cu_privileged_backend_ready')
+        ):
             return True
         if not spec['is_steamos'] and tools['cu_manager_exists']:
             return True
@@ -1655,8 +1666,23 @@ class DependenciasRepository:
         commands.extend([
             f'chmod 0755 {shlex.quote(str(script))}',
             f'test -x {shlex.quote(str(script))} || {{ echo "ERROR: BC250 SteamOS CU runtime backend was not generated"; exit 1; }}',
-            f'echo "OK: 40CU manager is ready at {shlex.quote(str(script))}"',
         ])
+        if spec['is_steamos']:
+            commands.extend([
+                self._steamos_umr_database_repair_command(),
+                wrap_steamos_writable_command(
+                    self._steamos_cu_privileged_backend_stage_command(script),
+                    family='steamos',
+                ),
+                wrap_steamos_writable_command(
+                    self._steamos_cu_service_backend_update_command(script),
+                    family='steamos',
+                ),
+                self._steamos_cu_status_probe_command(script),
+            ])
+        commands.append(
+            f'echo "OK: 40CU manager is ready at {shlex.quote(str(script))}"'
+        )
         self.estado_herramientas_cache = None
         return self._abrir_terminal(self._join_shell_commands(commands), 'Preparar bc250-cu-live-manager')
 
@@ -1818,6 +1844,10 @@ class DependenciasRepository:
             ])
             if os_repository.info.family == 'steamos':
                 commands.append(self._steamos_umr_database_repair_command())
+                commands.append(wrap_steamos_writable_command(
+                    self._steamos_cu_privileged_backend_stage_command(script),
+                    family='steamos',
+                ))
                 commands.append(self._steamos_cu_service_backend_update_command(script))
                 commands.append(self._steamos_cu_status_probe_command(script))
             else:

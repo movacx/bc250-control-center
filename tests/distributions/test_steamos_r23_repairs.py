@@ -129,7 +129,8 @@ def test_terminal_workflows_are_automatically_tee_logged():
     assert 'workflow-{run_id}.log' in repository
     assert 'workflow_wrapper(comando, status_path, log_path)' in repository
     assert '2>&1 | tee {log}' in planner
-    assert 'status=${PIPESTATUS[0]}' in planner
+    assert 'status=$?' in planner
+    assert 'PIPESTATUS' not in planner
     assert 'Full log saved to:' in planner
     assert 'log_file=str(log_path)' in repository
     assert 'tee -a {log}' in planner

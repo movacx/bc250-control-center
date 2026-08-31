@@ -118,9 +118,10 @@ missing_python_deps=0
 missing_python_deps_command=()
 missing_python_deps_command_text=""
 missing_python_deps_reboot_notice=0
+python_gui_deps_missing=0
 if ! command -v python3 >/dev/null 2>&1; then
   echo "Warning: python3 is not installed or is not in PATH." >&2
-  missing_python_deps=1
+  python_gui_deps_missing=1
 elif ! python3 - <<'PY' >/dev/null 2>&1
 from PyQt6.QtGui import QImageReader
 from PyQt6.QtWidgets import QApplication
@@ -130,6 +131,27 @@ assert "svg" in formats, "Qt SVG image plugin is missing"
 PY
 then
   echo "Warning: Python GUI dependencies are missing or Qt SVG support is unavailable. The app will install, but icons or the GUI may fail until they are installed." >&2
+  python_gui_deps_missing=1
+fi
+
+# A source install on Debian/Ubuntu must cover the same runtime boundary as
+# the .deb.  Check the non-Python tools independently: a host may already have
+# PyQt6 while still lacking jq or the pkexec authentication frontend.
+if command -v apt-get >/dev/null 2>&1 && {
+  [[ "$python_gui_deps_missing" -eq 1 ]] ||
+  ! command -v jq >/dev/null 2>&1 ||
+  ! command -v pkexec >/dev/null 2>&1
+}; then
+  debian_polkit_package="pkexec"
+  if command -v apt-cache >/dev/null 2>&1 && ! apt-cache show pkexec >/dev/null 2>&1; then
+    debian_polkit_package="policykit-1"
+  fi
+  missing_python_deps_command=(
+    apt-get install -y python3 python3-pyqt6 libqt6svg6 python3-psutil
+    "$debian_polkit_package" jq
+  )
+  missing_python_deps=1
+elif [[ "$python_gui_deps_missing" -eq 1 ]]; then
   if [[ -e /run/ostree-booted ]] && command -v rpm-ostree >/dev/null 2>&1; then
     missing_python_deps_command=(rpm-ostree install --idempotent python3-pyqt6 qt6-qtsvg python3-psutil)
     missing_python_deps_reboot_notice=1
@@ -137,14 +159,14 @@ then
     missing_python_deps_command=(dnf install -y python3-pyqt6 qt6-qtsvg python3-psutil)
   elif command -v pacman >/dev/null 2>&1; then
     missing_python_deps_command=(pacman -S --needed python-pyqt6 qt6-svg python-psutil)
-  elif command -v apt >/dev/null 2>&1; then
-    missing_python_deps_command=(apt install -y python3 python-is-python3 python3-pyqt6 libqt6svg6 python3-psutil)
   fi
+  missing_python_deps=1
+fi
+if [[ "$missing_python_deps" -eq 1 ]]; then
   if [[ ${#missing_python_deps_command[@]} -gt 0 ]]; then
     printf -v missing_python_deps_command_text '%q ' "${missing_python_deps_command[@]}"
     echo "Install command: sudo ${missing_python_deps_command_text% }" >&2
   fi
-  missing_python_deps=1
 fi
 
 if [[ ${#missing_python_deps_command[@]} -gt 0 && "${BC250_SKIP_DEPENDENCY_INSTALL:-0}" != "1" ]]; then
@@ -377,6 +399,10 @@ install_privileged_pwm_components() {
   set +e
   (
     set -e
+    # Normalize parent directories as well as helper files.  An older package
+    # built under a permissive umask could leave this trust boundary writable
+    # by the group, causing every hardened helper to reject its own imports.
+    "${elevate[@]}" install -d -m0755 /usr/libexec/bc250-control-center /usr/libexec/bc250-control-center/lib
     "${elevate[@]}" install -Dm755 "$ROOT_DIR/privileged/helpers/bc250-system-setup-helper" /usr/libexec/bc250-control-center/bc250-system-setup-helper
     for setup_module in system_setup_common.py system_setup_memory.py system_setup_acpi.py acpi_payload.py; do
       "${elevate[@]}" install -Dm644 "$ROOT_DIR/privileged/lib/$setup_module" "/usr/libexec/bc250-control-center/lib/$setup_module"
@@ -448,6 +474,13 @@ install_privileged_pwm_components() {
       implementation_metadata="$("${elevate[@]}" stat -c '%u:%a' "$implementation_installed_path")"
       if [[ "$implementation_metadata" != "0:644" ]]; then
         echo "ERROR: privileged implementation must be root-owned mode 0644: $implementation_installed_path" >&2
+        exit 1
+      fi
+    done
+    for trusted_directory in /usr/libexec/bc250-control-center /usr/libexec/bc250-control-center/lib; do
+      trusted_directory_metadata="$("${elevate[@]}" stat -c '%u:%a' "$trusted_directory")"
+      if [[ "$trusted_directory_metadata" != "0:755" ]]; then
+        echo "ERROR: privileged directory must be root-owned mode 0755: $trusted_directory" >&2
         exit 1
       fi
     done

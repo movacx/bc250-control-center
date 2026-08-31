@@ -24,6 +24,7 @@ install -d -m755 \
   "$DESTDIR/usr/share/doc/bc250-control-center" \
   "$DESTDIR/usr/bin" \
   "$DESTDIR/usr/lib/systemd/user" \
+  "$DESTDIR/usr/libexec/bc250-control-center" \
   "$DESTDIR/usr/libexec/bc250-control-center/lib" \
   "$DESTDIR/usr/share/applications" \
   "$DESTDIR/usr/share/metainfo" \
@@ -117,6 +118,13 @@ install -m644 \
 install -m644 \
   "$ROOT_DIR/privileged/lib/governor_toml.py" \
   "$DESTDIR/usr/libexec/bc250-control-center/lib/governor_toml.py"
+# These directories contain root-executed helpers and imported Python modules.
+# Set their modes explicitly: when they are created only as intermediate
+# install(1) components, a desktop umask such as 0002 can otherwise leave them
+# group-writable and the helpers correctly refuse to trust their own payload.
+chmod 0755 \
+  "$DESTDIR/usr/libexec/bc250-control-center" \
+  "$DESTDIR/usr/libexec/bc250-control-center/lib"
 
 for source in "$ROOT_DIR"/assets/icons/bc250-control-center-*.png; do
   size="${source##*-}"

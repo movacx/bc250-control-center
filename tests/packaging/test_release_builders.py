@@ -48,6 +48,16 @@ def test_package_license_metadata_matches_project_license():
     assert f'<release version="{VERSION}"' in appstream
 
 
+def test_package_post_install_repairs_legacy_privileged_directory_modes():
+    deb_builder = (ROOT / "packaging/scripts/build-deb.sh").read_text(encoding="utf-8")
+    maintenance = (ROOT / "packaging/common/bc250-package-maintenance").read_text(encoding="utf-8")
+
+    assert "install -d -o 0 -g 0 -m 0755" in deb_builder
+    assert "/usr/libexec/bc250-control-center/lib" in deb_builder
+    assert "old 0775 directory" in deb_builder
+    assert "install -d -o 0 -g 0 -m0755" not in maintenance
+
+
 def test_package_staging_contains_runtime_and_no_generated_or_retired_code(tmp_path):
     stage = tmp_path / "root"
 
@@ -56,6 +66,10 @@ def test_package_staging_contains_runtime_and_no_generated_or_retired_code(tmp_p
     assert (stage / "usr/bin/bc250-control-center-cli").stat().st_mode & 0o111
     assert (stage / "usr/libexec/bc250-control-center/bc250-cpu-smu-helper").stat().st_mode & 0o111
     assert (stage / "usr/libexec/bc250-control-center/bc250-package-maintenance").stat().st_mode & 0o111
+    privileged_root = stage / "usr/libexec/bc250-control-center"
+    privileged_lib = privileged_root / "lib"
+    assert privileged_root.stat().st_mode & 0o022 == 0
+    assert privileged_lib.stat().st_mode & 0o022 == 0
     assert (stage / "usr/share/polkit-1/actions/io.github.movacx.bc250-control-center.policy").is_file()
     assert (stage / "usr/share/bc250-control-center/VERSION").read_text(encoding="utf-8").strip() == VERSION
     assert (stage / "usr/share/bc250-control-center/src/bc250cc/__init__.py").is_file()
@@ -65,6 +79,18 @@ def test_package_staging_contains_runtime_and_no_generated_or_retired_code(tmp_p
     assert not (stage / "usr/share/bc250-control-center/src/bc250cc/infrastructure/core_unlock.py").exists()
     assert not list(stage.rglob("__pycache__"))
     assert not list(stage.rglob("*.pyc"))
+
+
+def test_deb_dependencies_support_split_and_legacy_polkit_packages(tmp_path):
+    output = tmp_path / "dist"
+
+    _run("bash", ROOT / "packaging/scripts/build-deb.sh", output)
+    package = output / f"bc250-control-center_{VERSION}-1_all.deb"
+    depends = _run("dpkg-deb", "--field", package, "Depends").stdout.strip()
+
+    assert "python3-pyqt6" in depends
+    assert "libqt6svg6" in depends
+    assert "pkexec | policykit-1" in depends
 
 
 def test_source_tarball_is_reproducible_and_excludes_qa_payload(tmp_path):

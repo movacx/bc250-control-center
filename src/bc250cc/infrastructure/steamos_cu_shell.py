@@ -38,6 +38,18 @@ def _verified_root_stage_command(
     qroot = shlex.quote(str(root))
     target = shlex.quote(str(root / "bc250-cu-live-manager"))
     temporary = shlex.quote(str(root / ".bc250-cu-live-manager.new"))
+    steamos_normalization = ""
+    if root == STEAMOS_CU_BACKEND_ROOT:
+        steamos_normalization = (
+            # Normalize again after promotion.  This repairs a stale SteamOS
+            # runtime from an older Control Center even when the user checkout
+            # is already present and no fresh clone is needed.
+            f'sudo chown root:root {target}; '
+            f'sudo chmod 0755 {target}; '
+            f'sudo test ! -L {target}; '
+            f'test "$(sudo stat -c %u {target})" = 0; '
+            f'test "$(sudo stat -c %a {target})" = 755; '
+        )
     return (
         f'echo "== Staging protected {label} CU backend =="; '
         f'sudo install -d -o root -g root -m 0755 {qroot}; '
@@ -46,6 +58,7 @@ def _verified_root_stage_command(
         f'sudo sha256sum {temporary} | awk "{{print \\$1}}" | grep -Fx {shlex.quote(expected_sha256)} '
         f'|| {{ sudo rm -f -- {temporary}; echo "ERROR: reviewed CU backend digest mismatch; refusing root staging."; exit 37; }}; '
         f'sudo mv -f -- {temporary} {target}; '
+        f'{steamos_normalization}'
         f'echo "[OK] Protected CU backend staged at {root}"'
     )
 

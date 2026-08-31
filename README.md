@@ -67,6 +67,11 @@ systemctl reboot
 sudo apt install ./bc250-control-center_*.deb
 ```
 
+Use `apt install` for the local Debian package so APT can download its runtime
+dependencies. A direct `dpkg -i` does not resolve dependencies; if it was used
+already and left the package unconfigured, repair the installation with
+`sudo apt --fix-broken install`.
+
 ## First start
 
 1. Open `bc250-control-center`.
@@ -110,7 +115,7 @@ BC250 Control Center is based on community work and does not claim ownership of 
 - [bc250-core-unlock](https://github.com/rw-r-r-0644/bc250-core-unlock) — experimental CPU core unlock workflow.
 - [bc250-steamos](https://github.com/keyboardspecialist/bc250-steamos) and [bc250-gfx1013-fix](https://github.com/DryhoppedIPA/bc250-gfx1013-fix) — explicit compatibility workflows; the Fedora path updates and invokes DryhoppedIPA's official `main` installer.
 - [bc250-async-compute-bazzite](https://github.com/tri3gubki-ops/bc250-async-compute-bazzite) — checksum-pinned v0.2.4 async-compute RADV workflow for Bazzite 44, gated to the documented OGC kernel baseline without replacing system Mesa.
-- [bc250-fsr4](https://github.com/dmorazasanchez/bc250-fsr4) — official `v3` per-user FSR4 workflow: prebuilt on Arch/CachyOS, ABI-gated experimental on Manjaro, and reproducibly source-built in the official Fedora 44 container with rootless Podman on Bazzite.
+- [bc250-fsr4](https://github.com/dmorazasanchez/bc250-fsr4) — official `v3` per-user FSR4 workflow: prebuilt on Arch/CachyOS, ABI-gated experimental on Manjaro, and reproducibly source-built in the official Fedora 44 container with rootless Podman on Bazzite and Debian/Ubuntu derivatives. A compact card button copies the correct username-independent Steam launch option for the installed runtime.
 - [nct6687d](https://github.com/Fred78290/nct6687d) — NCT sensor and PWM driver support.
 - [linux-cachyos-bc250](https://github.com/MastaG/linux-cachyos-bc250) — matched external kernel and Mesa/RADV packages for Arch/CachyOS, including the GFX1013 async-compute fixes.
 

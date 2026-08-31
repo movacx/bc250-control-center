@@ -39,10 +39,14 @@ def test_dependency_dialog_exposes_automatic_and_both_governors(qtbot):
         "cyan-skillfish-governor-smu",
         "oberon-governor",
     }
-    assert _button(dialog, "Prepare selected (7)").isEnabled()
+    assert _button(dialog, "Prepare selected (2)").isEnabled()
     assert len(dialog.component_switches) == 7
     assert dialog.component_switches["runtime"].isChecked()
     assert not dialog.component_switches["runtime"].isEnabled()
+    assert dialog.component_switches["governor"].isChecked()
+    assert not dialog.component_switches["umr"].isChecked()
+    assert not dialog.component_switches["cu_manager"].isChecked()
+    assert "large LLVM toolchain" in dialog.component_switches["umr"].toolTip()
     uninstall_buttons = [
         button for button in dialog.findChildren(QPushButton)
         if button.text() == "Uninstall"
@@ -68,9 +72,8 @@ def test_dependency_dialog_returns_only_selected_components(qtbot):
     dialog = DependencyPreparationDialog(_tools(), "cyan-skillfish-governor-smu")
     qtbot.addWidget(dialog)
 
-    dialog.component_switches["core_unlock"].setChecked(False)
-    dialog.component_switches["cu_manager"].setChecked(False)
-    dialog.component_switches["fan_pwm"].setChecked(False)
+    dialog.component_switches["cpu_oc"].setChecked(True)
+    dialog.component_switches["umr"].setChecked(True)
     _button(dialog, "Prepare selected (4)").click()
 
     assert dialog.action == "prepare"

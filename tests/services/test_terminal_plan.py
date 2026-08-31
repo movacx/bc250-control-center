@@ -20,6 +20,8 @@ def test_wrapper_preserves_command_exit_status_and_logs_quoted_text(tmp_path):
         status,
         log,
     )
+    assert "PIPESTATUS" not in wrapped
+    assert "status=$?" in wrapped
     result = subprocess.run(
         ["/usr/bin/bash", "-c", wrapped],
         check=False,
@@ -87,6 +89,9 @@ def test_repository_launches_first_available_healthy_candidate(tmp_path, monkeyp
     assert result.terminal == "kitty"
     assert result.pid == 1234
     assert calls[0][1] == {"start_new_session": True}
+    launched = " ".join(calls[0][0])
+    assert "launch-" in launched
+    assert "PIPESTATUS" not in launched
 
 
 def test_no_terminal_creates_private_manual_script(tmp_path, monkeypatch):

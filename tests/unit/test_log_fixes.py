@@ -48,3 +48,22 @@ def test_debian_governor_keeps_openrc_away_from_systemd_for_busctl():
     assert "apt-get install -y elogind" in source
     assert "apt-get install -y systemd" in source
     assert "verify_command busctl" in source
+
+
+def test_debian_prefers_split_polkit_and_warns_before_umr_source_build():
+    source = (ROOT / "packaging/common/os-scripts/debian/prepare-dependencies.sh").read_text()
+
+    assert source.index("apt-get install -y polkitd pkexec") < source.index(
+        "apt-get install -y policykit-1"
+    )
+    assert "UMR is not packaged by this Debian/Ubuntu release" in source
+    assert "large compiler toolchain (including LLVM)" in source
+
+
+def test_debian_repairs_missing_cyan_maintainer_metadata_before_install():
+    source = (ROOT / "packaging/common/os-scripts/debian/prepare-dependencies.sh").read_text()
+
+    assert "normalize_governor_deb_control" in source
+    assert 'dpkg-deb --field "$source" Maintainer' in source
+    assert "Maintainer: BC250 Control Center contributors" in source
+    assert 'apt-get install -y "$GOVERNOR_DEB_PATH"' in source

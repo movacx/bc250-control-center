@@ -41,6 +41,10 @@ def test_runtime_plan_does_not_pull_optional_components(script):
     assert "lm-sensors" not in plan
     assert "stress" not in plan
     assert "umr" not in plan
+    if "debian/prepare-dependencies.sh" in str(script):
+        assert "build-essential" not in plan
+        assert "dkms" not in plan
+        assert "linux-headers" not in plan
 
 
 def test_unknown_mode_and_component_fail_before_an_operation():

@@ -42,6 +42,11 @@ systemctl reboot
 sudo apt install ./bc250-control-center_*.deb
 ```
 
+Usa `apt install` para el paquete Debian local, de modo que APT pueda descargar
+sus dependencias de ejecución. Un `dpkg -i` directo no resuelve dependencias;
+si ya lo ejecutaste y el paquete quedó sin configurar, repara la instalación
+con `sudo apt --fix-broken install`.
+
 ## Primer inicio
 
 1. Abre `bc250-control-center`.
@@ -84,7 +89,7 @@ BC250 Control Center se basa en trabajo comunitario y no reclama propiedad sobre
 - [bc250-cu-live-manager](https://github.com/WinnieLV/bc250-cu-live-manager) y [su backend SteamOS](https://github.com/F5GO/bc250-cu-live-manager-SteamOS) — fuentes de investigación e integración de Compute Units.
 - [bc250-core-unlock](https://github.com/rw-r-r-0644/bc250-core-unlock) — flujo experimental de desbloqueo de núcleos CPU.
 - [bc250-steamos](https://github.com/keyboardspecialist/bc250-steamos) y [bc250-gfx1013-fix](https://github.com/DryhoppedIPA/bc250-gfx1013-fix) — flujos explícitos de compatibilidad; en Fedora se actualiza `main` y se invoca el instalador oficial de DryhoppedIPA.
-- [bc250-fsr4](https://github.com/dmorazasanchez/bc250-fsr4) — flujo oficial `v3` aislado por usuario para Arch/CachyOS; Manjaro es experimental y debe superar las pruebas ABI y Vulkan de upstream.
+- [bc250-fsr4](https://github.com/dmorazasanchez/bc250-fsr4) — flujo oficial `v3` aislado por usuario: binario para Arch/CachyOS, Manjaro experimental con pruebas ABI/Vulkan y compilación reproducible en el contenedor Fedora 44 oficial con Podman rootless para Bazzite y derivados Debian/Ubuntu. Un botón compacto en la tarjeta copia la opción correcta de Steam, independiente del nombre de usuario, para el runtime instalado.
 - [nct6687d](https://github.com/Fred78290/nct6687d) — soporte de controlador de sensores NCT y PWM.
 - [linux-cachyos-bc250](https://github.com/MastaG/linux-cachyos-bc250) — paquetes externos emparejados de kernel y Mesa/RADV para Arch/CachyOS, incluidas las correcciones de cómputo asíncrono GFX1013.
 

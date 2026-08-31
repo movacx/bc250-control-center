@@ -405,15 +405,24 @@ class DependencyPreparationDialog(QDialog):
         automatic_copy.setSpacing(2)
         automatic_title = QLabel(tr("Automatic setup"))
         automatic_title.setProperty("sectionTitle", True)
-        if str(self.tools.get("os_family") or "") == "steamos":
+        detected_family = str(self.tools.get("os_family") or "")
+        if detected_family == "steamos":
             automatic_text = tr(
                 "Install or update the SteamOS user-space/runtime components, Cyan, UMR and BC-250 tools. The high-impact amdgpu/initramfs compatibility repair stays a separate explicit action."
+            )
+        elif detected_family in {"debian", "ubuntu"}:
+            automatic_text = tr(
+                "Prepare the Debian/Ubuntu runtime and selected GPU governor. Optional UMR, 40CU, CPU and PWM tools remain explicit selections below."
             )
         else:
             automatic_text = tr(
                 "Install or update all required BC250 components. With Cyan selected, its configuration and frequency-reporting fix are prepared now. Prepare does not start the governor: use Enable service afterward to start it now and at every boot."
             )
-        automatic_detail = QLabel("GPU · CPU · 40CU · PWM")
+        automatic_detail = QLabel(
+            "Runtime · GPU"
+            if detected_family in {"debian", "ubuntu"}
+            else "GPU · CPU · 40CU · PWM"
+        )
         automatic_detail.setProperty("sectionSubtitle", True)
         automatic_detail.setWordWrap(False)
         automatic_detail.setToolTip(automatic_text)
@@ -588,6 +597,8 @@ class DependencyPreparationDialog(QDialog):
             ("cu_manager", "40CU manager", True, True),
             ("fan_pwm", "NCT sensors and PWM", True, True),
         )
+        family = str(self.tools.get("os_family") or "")
+        debian_family = family in {"debian", "ubuntu"}
         for index, (key, label, checked, enabled) in enumerate(components):
             capability = _dict(self.component_capabilities.get(key))
             available = bool(capability.get("available", True))
@@ -597,7 +608,13 @@ class DependencyPreparationDialog(QDialog):
             switch = QCheckBox(switch_label)
             switch.setProperty("componentSwitch", True)
             switch.setProperty("componentInstalled", bool(capability.get("installed")))
-            switch.setChecked(checked and available)
+            # UMR is not packaged by every Debian/Ubuntu release. Its fallback
+            # installs LLVM and builds from source, so optional hardware tools
+            # must be an explicit selection instead of a surprising default.
+            default_checked = checked and (
+                not debian_family or key in {"runtime", "governor"}
+            )
+            switch.setChecked(default_checked and available)
             switch.setEnabled(enabled and available)
             detail_text = tr(str(capability.get("detail") or ""))
             if capability.get("reboot"):
@@ -610,6 +627,14 @@ class DependencyPreparationDialog(QDialog):
                     + " "
                     + tr(
                         "Already prepared; selecting it checks for updates and repairs missing files."
+                    )
+                ).strip()
+            if debian_family and key in {"umr", "cu_manager"}:
+                detail_text = (
+                    detail_text
+                    + " "
+                    + tr(
+                        "On Debian/Ubuntu, UMR may need a large LLVM toolchain and a source build. Select it only when preparing Compute Units."
                     )
                 ).strip()
             if not available:
@@ -3909,15 +3934,15 @@ class GpuGovernorPage(QWidget):
         self, action: str, *, dialog_parent: QWidget | None
     ) -> None:
         install = action == "install"
-        bazzite_source = (
-            str(_dict(self.current_state.get("tools")).get("os_family") or "")
-            == "bazzite"
+        fsr4_state = _dict(
+            _dict(self.current_state.get("tools")).get("fsr4")
         )
+        source_build = bool(fsr4_state.get("source_build_supported"))
         confirmation = ConfirmDialog(
             "Install BC-250 FSR4 V3" if install else "Remove BC-250 FSR4 V3",
             tr(
                 "This builds the official FSR4 V3 source in its Fedora 44 container with rootless Podman, validates it on this BC-250, and installs only a per-game Vulkan driver in your user folder. The first build can take several minutes and use substantial disk space. System Mesa is not modified."
-                if install and bazzite_source
+                if install and source_build
                 else "This optional per-game RADV runtime is experimental. It is installed only in your user data directory and does not replace system Mesa. Games can still hang, crash or reset the GPU."
                 if install
                 else "This removes only the per-user FSR4 V3 runtime. Remove its VK_DRIVER_FILES Steam launch option to return each game to system RADV."

@@ -18,6 +18,13 @@ def test_isolated_install_cli_and_uninstall_layout_cycle():
     assert "installed CLI execution and uninstall layout passed" in completed.stdout
 
 
+def test_layout_smoke_exercises_installed_uninstaller_prefix_inference():
+    source = (ROOT / "scripts" / "qa" / "smoke-install-layout.sh").read_text(encoding="utf-8")
+
+    uninstall_call = source.split('share/bc250-control-center/scripts/uninstall-local.sh', 1)[0].splitlines()[-1]
+    assert 'PREFIX="$SMOKE_PREFIX"' not in uninstall_call
+
+
 def test_launchers_prefer_their_sibling_payload_before_stale_xdg_fallback():
     for name in (
         "bc250-control-center",

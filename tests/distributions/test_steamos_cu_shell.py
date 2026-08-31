@@ -38,3 +38,38 @@ def test_status_probe_uses_private_unique_temporary_file(tmp_path):
     assert "chmod 0600" in command
     assert "/tmp/bc250-cu-steamos-status.last" not in command
     assert 'rm -f "$bc250_cu_status_file"' in command
+
+
+def test_status_probe_validates_the_protected_backend_not_user_checkout(tmp_path):
+    repository = DependenciasRepository()
+    repository._tool_dir = lambda: tmp_path / "tools"
+    user_checkout = tmp_path / "bc250-cu-live-manager-bc250.sh"
+
+    command = repository._steamos_cu_status_probe_command(user_checkout)
+
+    assert "/usr/libexec/bc250-control-center/bc250-cu-live-manager status" in command
+    assert str(user_checkout) not in command
+
+
+def test_protected_stage_normalizes_and_verifies_promoted_executable(tmp_path):
+    repository = DependenciasRepository()
+    repository._tool_dir = lambda: tmp_path / "tools"
+    command = repository._steamos_cu_privileged_backend_stage_command(
+        tmp_path / "bc250-cu-live-manager-bc250.sh"
+    )
+
+    target = "/usr/libexec/bc250-control-center/bc250-cu-live-manager"
+    assert f"sudo chown root:root {target}" in command
+    assert f"sudo chmod 0755 {target}" in command
+    assert f"sudo stat -c %u {target}" in command
+    assert f"sudo stat -c %a {target}" in command
+
+
+def test_strict_uid_zero_repair_is_not_added_to_generic_bazzite_stage(tmp_path):
+    repository = DependenciasRepository()
+    command = repository._generic_cu_privileged_backend_stage_command(
+        tmp_path / "bc250-cu-live-manager.sh"
+    )
+
+    assert "sudo stat -c %u" not in command
+    assert "sudo chown root:root" not in command

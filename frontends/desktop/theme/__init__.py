@@ -668,6 +668,29 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         border-color: {c['blue_border']};
         color: {c['blue']};
     }}
+    QFrame[fsr4LaunchOption='true'] {{
+        background: {c['panel']};
+        border: 1px solid {c['border_soft']};
+        border-radius: 9px;
+    }}
+    QPushButton[fsr4LaunchCopy='true'] {{
+        min-width: 30px;
+        max-width: 30px;
+        min-height: 30px;
+        max-height: 30px;
+        padding: 0;
+        background: {c['purple_soft']};
+        border: 1px solid {c['purple_border']};
+        border-radius: 15px;
+        color: {c['purple']};
+        font-size: 15px;
+        font-weight: 800;
+    }}
+    QPushButton[fsr4LaunchCopy='true']:hover,
+    QPushButton[fsr4LaunchCopy='true']:focus {{
+        background: {c['control_hover']};
+        border-color: {c['purple']};
+    }}
     QWidget[dashboardPreparationTabs='true'] {{
         background: transparent;
         border-top: 1px solid {c['border_soft']};

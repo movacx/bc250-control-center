@@ -16,6 +16,7 @@ from PyQt6.QtCore import (
 )
 from PyQt6.QtGui import QIcon, QPixmap
 from PyQt6.QtWidgets import (
+    QApplication,
     QBoxLayout,
     QComboBox,
     QDialog,
@@ -1747,6 +1748,27 @@ class PreparationSidebar(QFrame):
             scope_text="Prebuilt: Arch/CachyOS · Source build: other distros",
             status_text="Checking",
         )
+        self.fsr4_launch_row = QFrame()
+        self.fsr4_launch_row.setProperty("fsr4LaunchOption", True)
+        fsr4_launch_layout = QHBoxLayout(self.fsr4_launch_row)
+        fsr4_launch_layout.setContentsMargins(8, 5, 6, 5)
+        fsr4_launch_layout.setSpacing(7)
+        self.fsr4_launch_label = _label(
+            "Steam launch option", "dashboardCompatibilityLabel", wrap=False
+        )
+        fsr4_launch_layout.addWidget(self.fsr4_launch_label)
+        fsr4_launch_layout.addStretch(1)
+        self.fsr4_copy_button = IconButton("⧉")
+        self.fsr4_copy_button.setProperty("fsr4LaunchCopy", True)
+        self.fsr4_copy_button.setFixedSize(30, 30)
+        self.fsr4_copy_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.fsr4_copy_button.setAccessibleName(tr("Copy Steam launch option"))
+        self.fsr4_copy_button.setToolTip(tr("Copy Steam launch option"))
+        self.fsr4_copy_button.clicked.connect(self._copy_fsr4_launch_option)
+        fsr4_launch_layout.addWidget(self.fsr4_copy_button)
+        self.fsr4_card.layout().insertWidget(2, self.fsr4_launch_row)
+        self.fsr4_launch_row.hide()
+        self._fsr4_launch_option = ""
         self.fsr4_install_button = self.fsr4_card.add_action(
             "Install per-game FSR4", {"action": "fsr4_install", "governor": ""}
         )
@@ -2102,6 +2124,20 @@ class PreparationSidebar(QFrame):
         values = dict(payload) if isinstance(payload, Mapping) else {}
         values.setdefault("selected_components", self.selected_components)
         self.dependency_action_requested.emit(values)
+
+    def _copy_fsr4_launch_option(self) -> None:
+        if not self._fsr4_launch_option:
+            return
+        clipboard = QApplication.clipboard()
+        if clipboard is not None:
+            clipboard.setText(self._fsr4_launch_option)
+        self.fsr4_copy_button.setText("✓")
+        self.fsr4_copy_button.setToolTip(tr("Copied"))
+        QTimer.singleShot(1600, self._restore_fsr4_copy_button)
+
+    def _restore_fsr4_copy_button(self) -> None:
+        self.fsr4_copy_button.setText("⧉")
+        self.fsr4_copy_button.setToolTip(tr("Copy Steam launch option"))
 
     @staticmethod
     def _distribution_group(family: str) -> str:
@@ -2615,16 +2651,25 @@ class PreparationSidebar(QFrame):
         fsr4_supported = bool(fsr4.get("precompiled_supported"))
         fsr4_experimental = bool(fsr4.get("experimental_precompiled"))
         fsr4_source_supported = bool(fsr4.get("source_build_supported"))
+        fsr4_build_mode = str(fsr4.get("build_mode") or "")
         fsr4_available = bool(
             fsr4.get("installer_available", fsr4_supported or fsr4_experimental)
         )
         fsr4_installed = bool(fsr4.get("installed"))
         fsr4_current = bool(fsr4.get("current"))
         fsr4_state = str(fsr4.get("state") or "not-installed")
+        self._fsr4_launch_option = str(fsr4.get("steam_launch_option") or "")
+        self.fsr4_launch_row.setVisible(
+            fsr4_current and bool(self._fsr4_launch_option)
+        )
+        self.fsr4_copy_button.setToolTip(tr("Copy Steam launch option"))
+        self.fsr4_copy_button.setAccessibleName(tr("Copy Steam launch option"))
         source_required = bool(fsr4.get("source_build_required"))
         self.fsr4_card.set_scope(
             "Bazzite · Official Podman source build"
-            if fsr4_source_supported
+            if fsr4_build_mode == "bazzite-podman-source"
+            else "Debian/Ubuntu · Official Podman source build"
+            if fsr4_build_mode == "debian-podman-source"
             else "Prebuilt: Arch/CachyOS · Source build: other distros",
             "purple" if fsr4_source_supported else "gray",
         )
@@ -2642,15 +2687,29 @@ class PreparationSidebar(QFrame):
         )
         version = str(fsr4.get("version") or "V3")
         self.fsr4_card.detail.setText(
-            tr(
-                f"Official upstream {version} per-game RADV runtime. It stays isolated from system Mesa."
-                if fsr4_supported
-                else f"Official upstream {version} Arch-style runtime. Manjaro is not claimed upstream; installation proceeds only after strict ABI and Vulkan checks."
-                if fsr4_experimental
-                else f"Official upstream {version} is compiled in its Fedora 44 container with rootless Podman, then Vulkan-tested on this BC-250. System Mesa is never modified."
-                if fsr4_source_supported
-                else "This distribution needs the official reproducible Docker source build; no unverified binary is offered."
+            tr_format(
+                "Official upstream {version} per-game RADV runtime. It stays isolated from system Mesa.",
+                version=version,
             )
+                if fsr4_supported
+                else tr_format(
+                    "Official upstream {version} Arch-style runtime. Manjaro is not claimed upstream; installation proceeds only after strict ABI and Vulkan checks.",
+                    version=version,
+                )
+                if fsr4_experimental
+                else tr_format(
+                    "Official upstream {version} is compiled in its Fedora 44 container with rootless Podman, then Vulkan-tested on this BC-250. System Mesa is never modified.",
+                    version=version,
+                )
+                if fsr4_build_mode == "bazzite-podman-source"
+                else tr_format(
+                    "Official upstream {version} is compiled in its Fedora 44 container with rootless Podman. Debian/Ubuntu build tools are installed with APT when missing; only a private per-game user runtime is installed.",
+                    version=version,
+                )
+                if fsr4_build_mode == "debian-podman-source"
+                else tr(
+                    "This distribution needs the official reproducible Docker source build; no unverified binary is offered."
+                )
         )
         self.fsr4_card.update_action(
             self.fsr4_install_button,
