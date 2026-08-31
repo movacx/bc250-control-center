@@ -295,6 +295,9 @@ class DashboardPage(QWidget):
         )
         self.gpu_card.governor_metric.set_detail(status if state.governor_backend else "")
         self.gpu_card.load_metric.set_value(utilization)
+        self.gpu_card.cpu_voltage_metric.set_value(
+            self._format_voltage(state.cpu_voltage_mv)
+        )
         self.gpu_card.thermal_strip.set_temperatures(
             (
                 temperature,

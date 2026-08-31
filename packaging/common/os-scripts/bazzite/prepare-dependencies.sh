@@ -4,6 +4,23 @@ source "$SCRIPT_DIR/../common/common.sh"
 parse_component "$@"
 REBOOT_REQUIRED=0
 
+print_reboot_notice() {
+  echo
+  echo "=========================================================================="
+  echo "= REBOOT REQUIRED / REINICIO REQUERIDO / ТРЕБУЕТСЯ ПЕРЕЗАГРУЗКА"
+  echo "="
+  echo "= EN: Restart the computer once to activate the new Bazzite deployment."
+  echo "=     After reboot, run ONLY 'NCT sensors and PWM' to finish setup."
+  echo "="
+  echo "= ES: Reinicia la computadora una vez para activar el nuevo deployment de Bazzite."
+  echo "=     Después del reinicio, ejecuta ÚNICAMENTE 'NCT sensors and PWM' para finalizar."
+  echo "="
+  echo "= RU: Перезагрузите компьютер один раз, чтобы активировать новое развёртывание Bazzite."
+  echo "=     После перезагрузки запустите ТОЛЬКО 'NCT sensors and PWM', чтобы завершить настройку."
+  echo "=========================================================================="
+  echo
+}
+
 package_is_active() {
   rpm -q "$1" >/dev/null 2>&1
 }
@@ -127,7 +144,7 @@ fi
 
 if [[ "$BC250_MODE" == "apply" && "$REBOOT_REQUIRED" == "1" ]]; then
   bold "Bazzite deployment prepared"
-  warn "A new rpm-ostree deployment is ready. Reboot once to activate it. Re-run Prepare dependencies after reboot only if a deferred hardware stage, such as fan PWM/DKMS, is reported below."
+  print_reboot_notice
   echo "BC250_REBOOT_REQUIRED=1"
   exit 20
 fi

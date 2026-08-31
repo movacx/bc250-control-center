@@ -32,6 +32,16 @@ def test_dependency_scripts_declare_decky_and_dbus_runtime_requirements():
         assert "verify_command jq" in source, family
 
 
+def test_bazzite_reboot_notice_is_explicit_and_trilingual():
+    source = (
+        ROOT / "packaging/common/os-scripts/bazzite/prepare-dependencies.sh"
+    ).read_text(encoding="utf-8")
+    assert "REBOOT REQUIRED / REINICIO REQUERIDO / ТРЕБУЕТСЯ ПЕРЕЗАГРУЗКА" in source
+    assert "run ONLY 'NCT sensors and PWM'" in source
+    assert "ejecuta ÚNICAMENTE 'NCT sensors and PWM'" in source
+    assert "запустите ТОЛЬКО 'NCT sensors and PWM'" in source
+
+
 def test_debian_governor_keeps_openrc_away_from_systemd_for_busctl():
     source = (ROOT / "packaging/common/os-scripts/debian/prepare-dependencies.sh").read_text()
     assert "if bc250_openrc_active" in source

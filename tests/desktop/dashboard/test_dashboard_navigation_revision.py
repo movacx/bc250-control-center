@@ -5,6 +5,7 @@ from PyQt6.QtWidgets import QHBoxLayout, QWidget
 
 from frontends.desktop.app import ControlCenterWindow
 from frontends.desktop.components.sidebar import Sidebar
+from frontends.desktop.core.state import DashboardState
 from frontends.desktop.i18n import (
     SUPPORTED_LANGUAGES,
     localize_widget_tree,
@@ -35,6 +36,20 @@ def test_dashboard_buttons_emit_navigation_not_hardware_operations(qtbot):
     assert page.readiness.status.isHidden()
     assert page.gpu_card.governor_metric.parent() is page.gpu_card.evidence
     assert page.gpu_card.load_metric.parent() is page.gpu_card.evidence
+    assert page.gpu_card.cpu_voltage_metric.parent() is page.gpu_card.evidence
+
+
+def test_gpu_configuration_shows_the_existing_cpu_voltage_sensor(qtbot):
+    page = DashboardPage(object())
+    qtbot.addWidget(page)
+    page.apply_state(DashboardState(cpu_voltage_mv=912))
+    page.resize(1180, 900)
+    page.show()
+    qtbot.wait(50)
+    assert page.gpu_card.cpu_voltage_metric.label.text() == tr("CPU voltage")
+    assert page.gpu_card.cpu_voltage_metric.value.text() == "0.912 V"
+    assert page.gpu_card.cpu_voltage_metric.y() == page.gpu_card.load_metric.y()
+    assert page.gpu_card.cpu_voltage_metric.x() > page.gpu_card.load_metric.x()
 
 
 def test_shortcuts_select_the_requested_tab_even_after_visiting_the_other(qtbot):

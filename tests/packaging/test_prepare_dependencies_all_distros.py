@@ -414,6 +414,10 @@ def test_bazzite_defers_pwm_module_build_until_the_layered_dkms_deployment_is_bo
 
     assert "fan PWM preparation will run after the Bazzite reboot activates dkms" in command
     assert 'if [ "$BC250_REBOOT_REQUIRED" = "1" ]' in command
+    assert "REBOOT REQUIRED / REINICIO REQUERIDO / ТРЕБУЕТСЯ ПЕРЕЗАГРУЗКА" in command
+    assert "run ONLY" in command
+    assert "ejecuta ÚNICAMENTE" in command
+    assert "запустите ТОЛЬКО" in command
     assert _bash_syntax(command).returncode == 0
 
 

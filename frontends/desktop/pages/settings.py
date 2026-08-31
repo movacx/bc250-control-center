@@ -119,6 +119,9 @@ def settings_stylesheet() -> str:
     switch_border = c["border_strong"]
     table_selection = c["blue_soft"]
     return scale_stylesheet(f"""
+    QDialog[settingsPage='true'] {{
+        background:{c['panel']}; color:{c['text']};
+    }}
     QWidget[settingsPage='true'] QFrame[settingsShell='true'] {{
         background:{c['panel']}; border:1px solid {c['border']}; border-radius:16px;
     }}

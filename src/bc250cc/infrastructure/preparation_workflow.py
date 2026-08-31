@@ -21,6 +21,21 @@ from bc250cc.infrastructure.governor_conflicts import (
 )
 from bc250cc.infrastructure.steamos_shell import wrap_steamos_writable_command
 
+BAZZITE_REBOOT_NOTICE_LINES = (
+    "==========================================================================",
+    "= REBOOT REQUIRED / REINICIO REQUERIDO / ТРЕБУЕТСЯ ПЕРЕЗАГРУЗКА",
+    "=",
+    "= EN: Restart the computer once to activate the new Bazzite deployment.",
+    "=     After reboot, run ONLY 'NCT sensors and PWM' to finish setup.",
+    "=",
+    "= ES: Reinicia la computadora una vez para activar el nuevo deployment de Bazzite.",
+    "=     Después del reinicio, ejecuta ÚNICAMENTE 'NCT sensors and PWM' para finalizar.",
+    "=",
+    "= RU: Перезагрузите компьютер один раз, чтобы активировать новое развёртывание Bazzite.",
+    "=     После перезагрузки запустите ТОЛЬКО 'NCT sensors and PWM', чтобы завершить настройку.",
+    "==========================================================================",
+)
+
 
 @dataclass(frozen=True)
 class PreparationContext:
@@ -369,7 +384,18 @@ def build_preparation_command(context: PreparationContext) -> str:
             f"printf '%s\\n' "
             f"{shlex.quote(f'SteamOS fixes repo: {context.tool_dir / context.steamos_fix_directory}') }"
         )
-    commands.append(
-        'if [ "$BC250_REBOOT_REQUIRED" = "1" ]; then echo "== Finished: reboot required =="; else echo "== Finished successfully =="; fi'
-    )
+    if os_repo.info.family == 'bazzite':
+        reboot_notice = "printf '%s\\n' " + " ".join(
+            shlex.quote(line) for line in BAZZITE_REBOOT_NOTICE_LINES
+        )
+        commands.append(
+            'if [ "$BC250_REBOOT_REQUIRED" = "1" ]; then '
+            + reboot_notice
+            + '; '
+            'else echo "== Finished successfully =="; fi'
+        )
+    else:
+        commands.append(
+            'if [ "$BC250_REBOOT_REQUIRED" = "1" ]; then echo "== Finished: reboot required =="; else echo "== Finished successfully =="; fi'
+        )
     return repo._join_shell_commands(commands)
