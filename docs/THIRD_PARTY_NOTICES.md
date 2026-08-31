@@ -28,7 +28,7 @@ Every canonical URL was checked on 29 August 2026 and returned HTTP 200. A link 
 | [bc250-toolkit](https://github.com/redbeard1083/bc250-toolkit) | Community toolkit research | Reference only |
 | [Latest Bazzite AMD BC-250 Patched Images](https://github.com/62fixolab/Latest-Bazzite-AMD-BC-250-Patched-Images) | Bazzite image reference | Reference only |
 | [linux-cachyos-bc250](https://github.com/MastaG/linux-cachyos-bc250) | Matched Arch/CachyOS BC-250 kernel and Mesa/RADV with GFX1013 async-compute fixes | Integrated explicit opt-in repository; GPL-2.0 upstream; Manjaro is not enabled |
-| [bc250-fsr4](https://github.com/dmorazasanchez/bc250-fsr4) | FSR4 V3 per-game RADV runtime | Integrated per-user workflow using official branch `v3` and its install/uninstall scripts; Manjaro is ABI-gated experimental |
+| [bc250-fsr4](https://github.com/dmorazasanchez/bc250-fsr4) | FSR4 V3 per-game RADV runtime | Integrated per-user workflow using official branch `v3`; Bazzite builds it reproducibly in the upstream Fedora 44 container with rootless Podman, while Manjaro remains ABI-gated experimental |
 | [BC250-Telemetry](https://github.com/onlinermm/BC250-Telemetry) | Live telemetry research | Reference only |
 | [bc250-batocera-tools](https://github.com/tmghd272/bc250-batocera-tools) | Batocera compatibility research | Reference only |
 | [bc250-acpi-fix](https://github.com/e-tho/bc250-acpi-fix) | ACPI compatibility fix | Integrated explicit compatibility workflow; MIT upstream |

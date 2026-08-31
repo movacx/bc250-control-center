@@ -721,7 +721,57 @@ class DashboardThermalStrip(QFrame):
     def _reflow(self, width: int) -> None:
         # Keep the five sensors in one clear scan line when the hero has room;
         # progressively fold them into balanced rows on narrow windows.
-        columns = 5 if width >= 600 else 3 if width >= 430 else 2
+        columns = 5 if width >= 450 else 3 if width >= 360 else 2
+        if columns == self._columns:
+            return
+        self._columns = columns
+        for widget in (*self.labels, *self.values):
+            self.grid.removeWidget(widget)
+        for index, (label, value) in enumerate(
+            zip(self.labels, self.values, strict=True)
+        ):
+            group_row, column = divmod(index, columns)
+            row = group_row * 2
+            self.grid.addWidget(label, row, column)
+            self.grid.addWidget(value, row + 1, column)
+        for column in range(5):
+            self.grid.setColumnStretch(column, 1 if column < columns else 0)
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        super().resizeEvent(event)
+        self._reflow(event.size().width())
+
+
+class DashboardTechnicalStrip(QFrame):
+    """Five compact live diagnostics aligned with the thermal sensor strip."""
+
+    LABELS = ("GPU power", "MCLK", "Hotspot", "GTT", "DPM mode")
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.setProperty("dashboardMetricTile", True)
+        self.setMinimumWidth(0)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        self.grid = QGridLayout(self)
+        self.grid.setContentsMargins(12, 7, 12, 7)
+        self.grid.setHorizontalSpacing(10)
+        self.grid.setVerticalSpacing(2)
+        self.labels: list[QLabel] = []
+        self.values: list[QLabel] = []
+        for text in self.LABELS:
+            label = _label(text, "dashboardMetricLabel", wrap=False)
+            value = _label("Not detected", "dashboardMetricValue", wrap=False)
+            self.labels.append(label)
+            self.values.append(value)
+        self._columns = 0
+        self._reflow(1000)
+
+    def set_values(self, values: Iterable[str]) -> None:
+        for label, value in zip(self.values, values, strict=True):
+            label.setText(tr(value))
+
+    def _reflow(self, width: int) -> None:
+        columns = 5 if width >= 450 else 3 if width >= 330 else 2
         if columns == self._columns:
             return
         self._columns = columns
@@ -828,7 +878,9 @@ class DashboardGpuHero(QFrame):
         self.governor_metric = DashboardMetricTile("Governor", "Not detected")
         self.load_metric = DashboardMetricTile("GPU load", "Not detected")
         self.thermal_strip = DashboardThermalStrip()
+        self.technical_strip = DashboardTechnicalStrip()
         metrics_grid.addWidget(self.thermal_strip, 0, 0, 1, 2)
+        metrics_grid.addWidget(self.technical_strip, 1, 0, 1, 2)
         metrics_grid.setColumnStretch(0, 1)
         metrics_grid.setColumnStretch(1, 1)
         self.readout_grid.addWidget(self.metrics_host, 0, 1)
@@ -862,12 +914,12 @@ class DashboardGpuHero(QFrame):
         evidence_layout.setSpacing(6)
         evidence_layout.addWidget(_label("GPU configuration", "dashboardCardTitle"))
         evidence_layout.addWidget(self.governor_metric)
-        self.cpu_voltage_metric = DashboardMetricTile("CPU voltage", "Not detected")
+        self.gpu_voltage_metric = DashboardMetricTile("GPU voltage", "Not detected")
         live_metrics = QHBoxLayout()
         live_metrics.setContentsMargins(0, 0, 0, 0)
         live_metrics.setSpacing(6)
         live_metrics.addWidget(self.load_metric, 1)
-        live_metrics.addWidget(self.cpu_voltage_metric, 1)
+        live_metrics.addWidget(self.gpu_voltage_metric, 1)
         evidence_layout.addLayout(live_metrics)
         self.range_row = DashboardEvidenceRow("Requested range")
         self.accepted_row = DashboardEvidenceRow("Accepted maximum")
@@ -2536,6 +2588,7 @@ class PreparationSidebar(QFrame):
         fsr4 = _mapping(tools.get("fsr4"))
         fsr4_supported = bool(fsr4.get("precompiled_supported"))
         fsr4_experimental = bool(fsr4.get("experimental_precompiled"))
+        fsr4_source_supported = bool(fsr4.get("source_build_supported"))
         fsr4_available = bool(
             fsr4.get("installer_available", fsr4_supported or fsr4_experimental)
         )
@@ -2543,6 +2596,12 @@ class PreparationSidebar(QFrame):
         fsr4_current = bool(fsr4.get("current"))
         fsr4_state = str(fsr4.get("state") or "not-installed")
         source_required = bool(fsr4.get("source_build_required"))
+        self.fsr4_card.set_scope(
+            "Bazzite · Official Podman source build"
+            if fsr4_source_supported
+            else "Prebuilt: Arch/CachyOS · Source build: other distros",
+            "purple" if fsr4_source_supported else "gray",
+        )
         self.fsr4_card.set_status(
             "Ready"
             if fsr4_current
@@ -2562,12 +2621,14 @@ class PreparationSidebar(QFrame):
                 if fsr4_supported
                 else f"Official upstream {version} Arch-style runtime. Manjaro is not claimed upstream; installation proceeds only after strict ABI and Vulkan checks."
                 if fsr4_experimental
+                else f"Official upstream {version} is compiled in its Fedora 44 container with rootless Podman, then Vulkan-tested on this BC-250. System Mesa is never modified."
+                if fsr4_source_supported
                 else "This distribution needs the official reproducible Docker source build; no unverified binary is offered."
             )
         )
         self.fsr4_card.update_action(
             self.fsr4_install_button,
-            text="Repair per-game FSR4" if fsr4_state == "invalid" else "Update per-game FSR4" if fsr4_current else "Install per-game FSR4",
+            text="Repair per-game FSR4" if fsr4_state == "invalid" else "Update per-game FSR4" if fsr4_current else "Build and install FSR4" if fsr4_source_supported else "Install per-game FSR4",
             enabled=fsr4_available,
             visible=fsr4_available,
         )

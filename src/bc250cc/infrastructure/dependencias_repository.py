@@ -17,6 +17,7 @@ from bc250cc.infrastructure.bazzite_memory_tuning import (
     build_bazzite_memory_tuning_command,
 )
 from bc250cc.infrastructure.bc250_fsr4 import (
+    build_fsr4_v3_bazzite_install_command,
     build_fsr4_v3_install_command,
     build_fsr4_v3_uninstall_command,
     fsr4_runtime_state,
@@ -368,18 +369,20 @@ class DependenciasRepository:
             raise RuntimeError(
                 'The official upstream FSR4 V3 runtime is available only on Arch/CachyOS. '
                 'Manjaro is experimental and accepted only through mandatory ABI/Vulkan checks; '
-                'other distributions require the upstream Docker source-build path.'
+                'Bazzite uses the verified Podman source-build path.'
             )
-        commands = {
-            'install': build_fsr4_v3_install_command,
-            'uninstall': build_fsr4_v3_uninstall_command,
-        }
-        if action not in commands:
+        if action not in {'install', 'uninstall'}:
             raise ValueError('Unsupported BC-250 FSR4 action.')
+        if action == 'uninstall':
+            command_builder = build_fsr4_v3_uninstall_command
+        elif state.get('source_build_supported'):
+            command_builder = build_fsr4_v3_bazzite_install_command
+        else:
+            command_builder = build_fsr4_v3_install_command
         self.estado_herramientas_cache = None
         destination = self._tool_dir() / 'bc250-fsr4'
         return self._abrir_terminal(
-            commands[action](destination),
+            command_builder(destination),
             'BC-250 FSR4 V3 (per-game RADV)',
         )
 

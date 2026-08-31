@@ -66,12 +66,20 @@ def test_cachyos_exposes_kernel_mesa_and_full_routes_but_not_fsr4_source_build()
     assert not sidebar.fsr4_upstream_button.isHidden()
 
 
-def test_untested_abi_keeps_masta_actions_visible_but_safely_blocked():
+def test_bazzite_exposes_verified_source_build_but_blocks_arch_stack():
     sidebar = _sidebar()
     sidebar.set_state(
         _state(
             "bazzite",
-            {"precompiled_supported": False, "installed": False, "source_build_required": True},
+            {
+                "precompiled_supported": False,
+                "source_build_supported": True,
+                "installer_available": True,
+                "installed": False,
+                "current": False,
+                "state": "not-installed",
+                "source_build_required": True,
+            },
         )
     )
     sidebar.compatibility_filter.setCurrentIndex(
@@ -84,7 +92,11 @@ def test_untested_abi_keeps_masta_actions_visible_but_safely_blocked():
         sidebar.cachyos_mesa_button,
         sidebar.cachyos_full_button,
     ))
-    assert sidebar.fsr4_install_button.isHidden()
+    assert not sidebar.fsr4_install_button.isHidden()
+    assert sidebar.fsr4_install_button.isEnabled()
+    assert sidebar.fsr4_install_button.text() == "Build and install FSR4"
+    assert sidebar.fsr4_card.status.text() == "Source build available"
+    assert "rootless Podman" in sidebar.fsr4_card.detail.text()
     assert sidebar.fsr4_remove_button.isHidden()
     assert not sidebar.fsr4_upstream_button.isHidden()
 

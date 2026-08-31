@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 
 from bc250cc.infrastructure import bc250_fsr4
 
@@ -42,6 +43,17 @@ def test_fsr4_manjaro_is_explicitly_experimental_and_abi_gated():
     assert state["source_build_required"] is False
 
 
+def test_fsr4_bazzite_offers_only_the_verified_podman_source_build():
+    state = bc250_fsr4.fsr4_runtime_state("bazzite", "bazzite")
+
+    assert state["precompiled_supported"] is False
+    assert state["experimental_precompiled"] is False
+    assert state["source_build_supported"] is True
+    assert state["source_build_required"] is True
+    assert state["installer_available"] is True
+    assert state["build_mode"] == "bazzite-podman-source"
+
+
 def test_fsr4_install_command_invokes_official_v3_and_never_mutates_system_mesa(tmp_path):
     destination = tmp_path / "bc250-fsr4"
     command = bc250_fsr4.build_fsr4_v3_install_command(destination)
@@ -61,6 +73,40 @@ def test_fsr4_install_command_invokes_official_v3_and_never_mutates_system_mesa(
     assert "/etc/pacman.conf" not in command
     assert "/etc/vulkan" not in command
     assert "curl |" not in command
+
+
+def test_fsr4_bazzite_command_builds_official_source_and_rolls_back(tmp_path):
+    destination = tmp_path / "bc250-fsr4"
+    command = bc250_fsr4.build_fsr4_v3_bazzite_install_command(destination)
+
+    assert bc250_fsr4.BC250_FSR4_REPOSITORY in command
+    assert "--branch v3" in command
+    assert 'test "${ID:-}" = "bazzite"' in command
+    assert "1002:13fe" in command
+    assert "podman info" in command
+    assert "podman build" in command
+    assert "podman run --rm" in command
+    assert "Dockerfile" in command
+    assert "build-bc250.sh" in command
+    assert "bc250-fsr4-v3.patch" in command
+    assert "mesa-commit.txt" in command
+    assert "Fedora 44" in command
+    assert 'VK_DRIVER_FILES="$bc250_icd" vulkaninfo --summary' in command
+    assert "bazzite-podman-source" in command
+    assert "previous per-user runtime was restored" in command
+    assert "sudo" not in command
+    assert "rpm-ostree" not in command
+    assert "/etc/vulkan" not in command
+    assert "command -v docker" not in command
+
+    result = subprocess.run(
+        ["bash", "-n"],
+        input=command,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
 
 
 def test_fsr4_uninstall_invokes_the_official_v3_script(tmp_path):

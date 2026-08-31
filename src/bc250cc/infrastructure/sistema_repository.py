@@ -278,9 +278,10 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
     def temperaturas_auxiliares(self, *, max_age=10.0):
         """Return independent NVMe, board and VRM temperatures from hwmon.
 
-        Only the standard NVMe Composite channel and explicitly labelled NCT
-        channels are accepted.  Raw Nuvoton channel numbers, unlabelled inputs
-        and disconnected 0 °C channels are deliberately not guessed.
+        NVMe Composite remains the primary drive temperature.  The hottest
+        additional NVMe sensor is exposed separately for the compact hotspot
+        readout. Explicitly labelled NCT board/VRM channels are accepted; raw
+        Nuvoton channel numbers and disconnected 0 °C inputs are not guessed.
         """
         now = time.monotonic()
         cached = dict(getattr(self, '_aux_temperature_cache', {}) or {})
@@ -290,6 +291,7 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
 
         self._buscar_sensores()
         nvme = []
+        nvme_hotspot = []
         board = []
         vrm = []
         for name, directory in self.hwmons:
@@ -299,6 +301,15 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
                 value = None if raw is None else raw / 1000.0
                 if self._temperatura_valida(value):
                     nvme.append(value)
+                for sensor_path in sorted(directory.glob('temp*_input')):
+                    if sensor_path.name == 'temp1_input':
+                        continue
+                    raw_sensor = self._leer_entero(sensor_path)
+                    sensor_value = (
+                        None if raw_sensor is None else raw_sensor / 1000.0
+                    )
+                    if self._temperatura_valida(sensor_value):
+                        nvme_hotspot.append(sensor_value)
                 continue
             if 'nct' not in lowered_name:
                 continue
@@ -318,6 +329,9 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
 
         result = {
             'nvme_temperature_c': max(nvme) if nvme else None,
+            'nvme_hotspot_temperature_c': (
+                max(nvme_hotspot) if nvme_hotspot else None
+            ),
             'board_temperature_c': max(board) if board else None,
             'vrm_temperature_c': max(vrm) if vrm else None,
         }
@@ -665,11 +679,13 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
         gpu = self._gpu_device_path()
         gpu_busy = self._gpu_busy_percent(gpu) if gpu else self._gpu_busy_percent(None)
         potencia = self.lectura_potencia()
+        gpu_technical = self._gpu_technical_metrics(gpu)
         return {
             'cpu': psutil.cpu_percent(interval=None),
             'hilos': psutil.cpu_percent(interval=None, percpu=True),
             'cpu_freq': cpu_freq.current if cpu_freq else None,
             'cpu_voltage': self.voltaje_chip('amdgpu', 'vddnb'),
+            'gpu_voltage': self.voltaje_chip('amdgpu', 'vddgfx'),
             'gpu_busy': gpu_busy,
             'memoria_porcentaje': memoria.percent,
             'memoria_disponible': memoria.available,
@@ -691,7 +707,8 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
             'power_source': potencia.get('source'),
             'power_is_total': bool(potencia.get('is_total')),
             'fan_rpm': self.ventilador_principal(),
-            'board_temps': self.temperaturas_board()
+            'board_temps': self.temperaturas_board(),
+            **gpu_technical,
         }
 
     def _interfaz_red_predeterminada(self):
@@ -867,14 +884,17 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
         vram_total = self._leer_entero(gpu / 'mem_info_vram_total') if gpu else None
         vram_used = self._leer_entero(gpu / 'mem_info_vram_used') if gpu else None
         potencia = self.lectura_potencia()
+        technical = self._gpu_technical_metrics(gpu)
         return (
             {
                 'usage_percent': None if gpu_busy is None else bounded_percent(gpu_busy),
                 'frequency_mhz': gpu_sclk,
                 'temperature_c': self.temperatura_chip('amdgpu', 'edge'),
+                'voltage_mv': self.voltaje_chip('amdgpu', 'vddgfx'),
                 'power_w': potencia.get('gpu_w'),
                 'vram_used': vram_used,
                 'vram_total': vram_total,
+                **technical,
             },
             {
                 'value_w': potencia.get('value_w'),
@@ -885,6 +905,28 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
                 'is_total': bool(potencia.get('is_total')),
             },
         )
+
+    def _gpu_technical_metrics(self, gpu):
+        """Read compact, passive GPU diagnostics from the selected DRM device."""
+        if not gpu:
+            return {
+                'memory_frequency_mhz': None,
+                'gtt_used': None,
+                'gtt_total': None,
+                'dpm_force_level': '',
+                'dpm_state': '',
+            }
+        return {
+            'memory_frequency_mhz': self._parse_dpm_actual(
+                self._leer_texto(gpu / 'pp_dpm_mclk')
+            ),
+            'gtt_used': self._leer_entero(gpu / 'mem_info_gtt_used'),
+            'gtt_total': self._leer_entero(gpu / 'mem_info_gtt_total'),
+            'dpm_force_level': self._leer_texto(
+                gpu / 'power_dpm_force_performance_level'
+            ) or '',
+            'dpm_state': self._leer_texto(gpu / 'power_dpm_state') or '',
+        }
 
     def obtener_metricas_tiempo_real(self):
         """Return one passive Linux performance sample for the live monitor.

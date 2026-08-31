@@ -143,6 +143,46 @@ def test_dashboard_cpu_frequency_uses_ghz():
     assert DashboardPage._format_ghz(3487) == "3.49 GHz"
 
 
+def test_dashboard_keeps_cpu_and_gpu_voltage_channels_separate():
+    class Cache:
+        def performance(self):
+            return {
+                "cpu_voltage": 1206,
+                "gpu_voltage": 799,
+                "memory_frequency_mhz": 450,
+                "gtt_used": 249_376_768,
+                "gtt_total": 5_587_288_064,
+                "dpm_force_level": "auto",
+                "dpm_state": "performance",
+            }
+
+        def gpu(self):
+            return {}
+
+        def fans(self):
+            return {}
+
+        def cu_cache(self):
+            return {}
+
+        def events(self, _limit):
+            return []
+
+        def pump_fan_fallback(self):
+            return 0, "Not detected"
+
+        def tools(self):
+            return {}
+
+    state = DashboardState.from_controller(object(), cache=Cache())
+
+    assert state.cpu_voltage_mv == 1206
+    assert state.gpu_voltage_mv == 799
+    assert state.gpu_memory_frequency_mhz == 450
+    assert state.gtt_summary == "238 MB / 5.2 GB"
+    assert state.dpm_summary == "auto"
+
+
 def test_dashboard_does_not_present_the_default_install_target_as_detected():
     class Cache:
         def performance(self):

@@ -295,8 +295,8 @@ class DashboardPage(QWidget):
         )
         self.gpu_card.governor_metric.set_detail(status if state.governor_backend else "")
         self.gpu_card.load_metric.set_value(utilization)
-        self.gpu_card.cpu_voltage_metric.set_value(
-            self._format_voltage(state.cpu_voltage_mv)
+        self.gpu_card.gpu_voltage_metric.set_value(
+            self._format_voltage(state.gpu_voltage_mv)
         )
         self.gpu_card.thermal_strip.set_temperatures(
             (
@@ -306,6 +306,20 @@ class DashboardPage(QWidget):
                 self._format_temperature(state.board_temperature_c),
                 self._format_temperature(state.vrm_temperature_c),
             )
+        )
+        self.gpu_card.technical_strip.set_values(
+            (
+                self._format_power(state.gpu_power_w),
+                self._format_mhz(state.gpu_memory_frequency_mhz),
+                self._format_temperature(state.nvme_hotspot_temperature_c),
+                state.gtt_summary,
+                state.dpm_summary,
+            )
+        )
+        self.gpu_card.technical_strip.values[4].setToolTip(
+            f"Power state: {state.gpu_dpm_state}"
+            if state.gpu_dpm_state
+            else ""
         )
         self.gpu_card.range_row.set_value(target_range)
         self.gpu_card.accepted_row.set_value(

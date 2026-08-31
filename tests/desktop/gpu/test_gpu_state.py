@@ -175,6 +175,22 @@ def test_repository_prefers_live_amdgpu_hwmon_sclk_and_vddgfx(tmp_path):
     assert repository._gpu_hwmon_live_metrics(tmp_path) == (500, 699)
 
 
+def test_system_voltage_reader_keeps_vddgfx_separate_from_vddnb(tmp_path):
+    repository = SistemaRepository.__new__(SistemaRepository)
+    hwmon = tmp_path / "hwmon0"
+    hwmon.mkdir()
+    (hwmon / "in0_label").write_text("vddgfx\n", encoding="utf-8")
+    (hwmon / "in0_input").write_text("799\n", encoding="utf-8")
+    (hwmon / "in1_label").write_text("vddnb\n", encoding="utf-8")
+    (hwmon / "in1_input").write_text("1206\n", encoding="utf-8")
+    repository.hwmons = [("amdgpu", hwmon)]
+    repository._leer_texto = lambda path: Path(path).read_text(encoding="utf-8")
+    repository._leer_entero = lambda path: int(Path(path).read_text(encoding="utf-8"))
+
+    assert repository.voltaje_chip("amdgpu", "vddgfx") == 799
+    assert repository.voltaje_chip("amdgpu", "vddnb") == 1206
+
+
 def test_gpu_busy_rejects_impossible_sysfs_metric_and_uses_fdinfo(tmp_path):
     repository = SistemaRepository.__new__(SistemaRepository)
     repository.gpu_busy_cache = 17

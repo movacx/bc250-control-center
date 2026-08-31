@@ -36,20 +36,62 @@ def test_dashboard_buttons_emit_navigation_not_hardware_operations(qtbot):
     assert page.readiness.status.isHidden()
     assert page.gpu_card.governor_metric.parent() is page.gpu_card.evidence
     assert page.gpu_card.load_metric.parent() is page.gpu_card.evidence
-    assert page.gpu_card.cpu_voltage_metric.parent() is page.gpu_card.evidence
+    assert page.gpu_card.gpu_voltage_metric.parent() is page.gpu_card.evidence
+    assert page.gpu_card.thermal_strip.parent() is page.gpu_card.metrics_host
+    assert page.gpu_card.technical_strip.parent() is page.gpu_card.metrics_host
 
 
-def test_gpu_configuration_shows_the_existing_cpu_voltage_sensor(qtbot):
+def test_gpu_configuration_shows_the_live_gpu_voltage_sensor(qtbot):
     page = DashboardPage(object())
     qtbot.addWidget(page)
-    page.apply_state(DashboardState(cpu_voltage_mv=912))
+    page.apply_state(DashboardState(cpu_voltage_mv=1206, gpu_voltage_mv=799))
     page.resize(1180, 900)
     page.show()
     qtbot.wait(50)
-    assert page.gpu_card.cpu_voltage_metric.label.text() == tr("CPU voltage")
-    assert page.gpu_card.cpu_voltage_metric.value.text() == "0.912 V"
-    assert page.gpu_card.cpu_voltage_metric.y() == page.gpu_card.load_metric.y()
-    assert page.gpu_card.cpu_voltage_metric.x() > page.gpu_card.load_metric.x()
+    assert page.gpu_card.gpu_voltage_metric.label.text() == tr("GPU voltage")
+    assert page.gpu_card.gpu_voltage_metric.value.text() == "0.799 V"
+    assert page.gpu_card.gpu_voltage_metric.y() == page.gpu_card.load_metric.y()
+    assert page.gpu_card.gpu_voltage_metric.x() > page.gpu_card.load_metric.x()
+
+
+def test_gpu_technical_strip_sits_below_temperatures_without_expanding_evidence(qtbot):
+    page = DashboardPage(object())
+    qtbot.addWidget(page)
+    page.apply_state(
+        DashboardState(
+            gpu_power_w=41.2,
+            gpu_memory_frequency_mhz=450,
+            gpu_gtt_used_bytes=249_376_768,
+            gpu_gtt_total_bytes=5_587_288_064,
+            gpu_dpm_force_level="auto",
+            gpu_dpm_state="performance",
+            nvme_temperature_c=43.85,
+            nvme_hotspot_temperature_c=68.85,
+        )
+    )
+    page.resize(1180, 900)
+    page.show()
+    qtbot.wait(50)
+
+    assert page.gpu_card.thermal_strip.y() < page.gpu_card.technical_strip.y()
+    assert [label.text() for label in page.gpu_card.technical_strip.labels] == [
+        tr("GPU power"),
+        tr("MCLK"),
+        tr("Hotspot"),
+        tr("GTT"),
+        tr("DPM mode"),
+    ]
+    assert [value.text() for value in page.gpu_card.technical_strip.values] == [
+        "41 W",
+        "450 MHz",
+        "68.8 °C",
+        "238 MB / 5.2 GB",
+        "auto",
+    ]
+    assert page.gpu_card.technical_strip.values[4].toolTip() == (
+        "Power state: performance"
+    )
+    assert page.gpu_card.thermal_strip.values[2].text() == "43.9 °C"
 
 
 def test_shortcuts_select_the_requested_tab_even_after_visiting_the_other(qtbot):

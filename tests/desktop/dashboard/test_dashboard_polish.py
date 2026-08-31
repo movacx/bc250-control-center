@@ -77,9 +77,18 @@ def test_dashboard_displays_physical_clock_and_core_counts_without_duplicate_row
         (
             time.monotonic(),
             {
-                "gpu": {"temperature_c": 57},
+                "gpu": {
+                    "temperature_c": 57,
+                    "memory_frequency_mhz": 450,
+                    "gtt_used": 249_376_768,
+                    "gtt_total": 5_587_288_064,
+                    "dpm_force_level": "auto",
+                    "dpm_state": "performance",
+                },
+                "power": {"gpu_w": 41.2},
                 "sensors": {
                     "nvme_temperature_c": 46.85,
+                    "nvme_hotspot_temperature_c": 68.85,
                     "board_temperature_c": 48,
                     "vrm_temperature_c": 49,
                 },
@@ -99,6 +108,13 @@ def test_dashboard_displays_physical_clock_and_core_counts_without_duplicate_row
         "46.9 °C",
         "48.0 °C",
         "49.0 °C",
+    ]
+    assert [item.text() for item in hero.technical_strip.values] == [
+        "41 W",
+        "450 MHz",
+        "68.8 °C",
+        "238 MB / 5.2 GB",
+        "auto",
     ]
     assert hero.cores_summary.core_labels[0].text() == "N1"
     assert hero.cores_summary.core_frequency_labels[0].text() == "3.47 GHz"

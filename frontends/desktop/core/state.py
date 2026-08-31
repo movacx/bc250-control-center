@@ -100,6 +100,15 @@ def _integer(value: Any, default: int = 0) -> int:
         return default
 
 
+def _voltage_millivolts(value: Any) -> int:
+    reading = _number(value, 0.0)
+    if reading > 10_000:
+        return round(reading / 1000)
+    if 0 < reading < 10:
+        return round(reading * 1000)
+    return max(0, round(reading))
+
+
 def _format_binary_bytes(value: int) -> str:
     value = max(0, int(value or 0))
     if value <= 0:
@@ -354,6 +363,12 @@ class DashboardState:
     governor_max_mhz: int = 0
     gpu_temperature_c: float = 0.0
     gpu_utilization_percent: int = 0
+    gpu_voltage_mv: int = 0
+    gpu_memory_frequency_mhz: int = 0
+    gpu_gtt_used_bytes: int = 0
+    gpu_gtt_total_bytes: int = 0
+    gpu_dpm_force_level: str = ""
+    gpu_dpm_state: str = ""
 
     active_cus: int = 0
     total_cus: int = 40
@@ -388,6 +403,7 @@ class DashboardState:
     vram_used_bytes: int = 0
     vram_total_bytes: int = 0
     nvme_temperature_c: float = 0.0
+    nvme_hotspot_temperature_c: float = 0.0
     board_temperature_c: float = 0.0
     vrm_temperature_c: float = 0.0
 
@@ -422,6 +438,12 @@ class DashboardState:
                 "frequency_mhz": self.governor_frequency_mhz,
                 "temperature_c": self.gpu_temperature_c,
                 "usage_percent": self.gpu_utilization_percent,
+                "voltage_mv": self.gpu_voltage_mv,
+                "memory_frequency_mhz": self.gpu_memory_frequency_mhz,
+                "gtt_used": self.gpu_gtt_used_bytes,
+                "gtt_total": self.gpu_gtt_total_bytes,
+                "dpm_force_level": self.gpu_dpm_force_level,
+                "dpm_state": self.gpu_dpm_state,
                 "vram_used": self.vram_used_bytes,
                 "vram_total": self.vram_total_bytes,
                 **gpu,
@@ -437,6 +459,7 @@ class DashboardState:
             }
             sensors = {
                 "nvme_temperature_c": self.nvme_temperature_c,
+                "nvme_hotspot_temperature_c": self.nvme_hotspot_temperature_c,
                 "board_temperature_c": self.board_temperature_c,
                 "vrm_temperature_c": self.vrm_temperature_c,
                 **sensors,
@@ -461,6 +484,14 @@ class DashboardState:
             governor_frequency_mhz=max(0, _integer(gpu.get("frequency_mhz"))),
             gpu_temperature_c=_number(gpu.get("temperature_c")),
             gpu_utilization_percent=max(-1, min(100, _integer(gpu.get("usage_percent"), -1))),
+            gpu_voltage_mv=_voltage_millivolts(gpu.get("voltage_mv")),
+            gpu_memory_frequency_mhz=max(
+                0, _integer(gpu.get("memory_frequency_mhz"))
+            ),
+            gpu_gtt_used_bytes=max(0, _integer(gpu.get("gtt_used"))),
+            gpu_gtt_total_bytes=max(0, _integer(gpu.get("gtt_total"))),
+            gpu_dpm_force_level=str(gpu.get("dpm_force_level") or ""),
+            gpu_dpm_state=str(gpu.get("dpm_state") or ""),
             vram_used_bytes=max(0, _integer(gpu.get("vram_used"))),
             vram_total_bytes=max(0, _integer(gpu.get("vram_total"))),
             power_w=_number(power.get("value_w")),
@@ -470,6 +501,9 @@ class DashboardState:
             power_source=str(power.get("source") or ""),
             power_is_total=bool(power.get("is_total")),
             nvme_temperature_c=_number(sensors.get("nvme_temperature_c")),
+            nvme_hotspot_temperature_c=_number(
+                sensors.get("nvme_hotspot_temperature_c")
+            ),
             board_temperature_c=_number(sensors.get("board_temperature_c")),
             vrm_temperature_c=_number(sensors.get("vrm_temperature_c")),
             performance_available=bool(cpu or gpu or power),
@@ -493,6 +527,19 @@ class DashboardState:
         if self.vram_used_bytes > 0 and self.vram_total_bytes > 0:
             return f"{_format_binary_bytes(self.vram_used_bytes)} / {total}"
         return total
+
+    @property
+    def gtt_summary(self) -> str:
+        total = _format_binary_bytes(self.gpu_gtt_total_bytes)
+        if self.gpu_gtt_used_bytes > 0 and self.gpu_gtt_total_bytes > 0:
+            return f"{_format_binary_bytes(self.gpu_gtt_used_bytes)} / {total}"
+        return total
+
+    @property
+    def dpm_summary(self) -> str:
+        force = self.gpu_dpm_force_level.strip()
+        state = self.gpu_dpm_state.strip()
+        return force or state or "Not detected"
 
     @property
     def power_tooltip(self) -> str:
@@ -545,9 +592,8 @@ class DashboardState:
         fan_state_available = fan_view.available
         activity_items = tuple(ActivityItem(*item) for item in present_activities(events))
         cpu_freq = _integer(perf.get("cpu_freq"), 0)
-        cpu_voltage = _integer(perf.get("cpu_voltage"), 0)
-        if cpu_voltage and cpu_voltage < 10:
-            cpu_voltage = round(cpu_voltage * 1000)
+        cpu_voltage = _voltage_millivolts(perf.get("cpu_voltage"))
+        gpu_voltage = _voltage_millivolts(perf.get("gpu_voltage"))
         raw_cpu_utilization = perf.get("cpu")
         cpu_utilization = (
             max(0, min(100, int(round(_number(raw_cpu_utilization, 0.0)))))
@@ -577,6 +623,22 @@ class DashboardState:
             gpu_temperature_c=_number(perf.get("gpu_temp"), 0.0),
             gpu_utilization_percent=_integer(
                 gpu.get("gpu_busy") if gpu.get("gpu_busy") is not None else perf.get("gpu_busy"), -1
+            ),
+            gpu_voltage_mv=gpu_voltage,
+            gpu_memory_frequency_mhz=max(
+                0,
+                _integer(
+                    perf.get("memory_frequency_mhz"),
+                    _integer(gpu.get("mclk_actual"), 0),
+                ),
+            ),
+            gpu_gtt_used_bytes=max(0, _integer(perf.get("gtt_used"), 0)),
+            gpu_gtt_total_bytes=max(0, _integer(perf.get("gtt_total"), 0)),
+            gpu_dpm_force_level=str(
+                perf.get("dpm_force_level") or gpu.get("power_level") or ""
+            ),
+            gpu_dpm_state=str(
+                perf.get("dpm_state") or gpu.get("power_state") or ""
             ),
             active_cus=active_cus,
             total_cus=40,

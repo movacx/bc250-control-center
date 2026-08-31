@@ -66,6 +66,7 @@ def test_realtime_sampler_builds_one_coherent_passive_snapshot(monkeypatch):
     }
     repo.temperatura_cpu = lambda: 55
     repo.temperatura_chip = lambda _chip, _label: 60
+    repo.voltaje_chip = lambda _chip, label: 799 if label == 'vddgfx' else 1206
     repo.temperaturas_auxiliares = lambda: {
         'nvme_temperature_c': 42.5,
         'board_temperature_c': 47.0,
@@ -108,6 +109,7 @@ def test_auxiliary_temperature_prefers_nvme_and_ignores_disconnected_inputs(tmp_
     nvme.mkdir()
     (nvme / "name").write_text("nvme\n", encoding="utf-8")
     (nvme / "temp1_input").write_text("46850\n", encoding="utf-8")
+    (nvme / "temp3_input").write_text("68850\n", encoding="utf-8")
     nct = tmp_path / "hwmon1"
     nct.mkdir()
     (nct / "name").write_text("nct6686\n", encoding="utf-8")
@@ -118,6 +120,7 @@ def test_auxiliary_temperature_prefers_nvme_and_ignores_disconnected_inputs(tmp_
 
     assert repo.temperaturas_auxiliares() == {
         "nvme_temperature_c": 46.85,
+        "nvme_hotspot_temperature_c": 68.85,
         "board_temperature_c": 49.0,
         "vrm_temperature_c": None,
     }
@@ -142,6 +145,7 @@ def test_auxiliary_temperatures_keep_labelled_board_and_vrm_independent(tmp_path
 
     assert repo.temperaturas_auxiliares() == {
         "nvme_temperature_c": None,
+        "nvme_hotspot_temperature_c": None,
         "board_temperature_c": 48.5,
         "vrm_temperature_c": 51.0,
     }

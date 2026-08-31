@@ -14,6 +14,11 @@ def _entry(en: str, es: str, pt: str, ru: str, uk: str, de: str) -> tuple[str, d
 # hardware identifiers intentionally remain unchanged rather than being partly
 # translated and becoming misleading.
 EXTRA_TRANSLATIONS = dict([
+    _entry("GPU power", "Potencia GPU", "Potência da GPU", "Мощность GPU", "Потужність GPU", "GPU-Leistung"),
+    _entry("MCLK", "MCLK", "MCLK", "MCLK", "MCLK", "MCLK"),
+    _entry("GTT", "GTT", "GTT", "GTT", "GTT", "GTT"),
+    _entry("Hotspot", "Punto caliente", "Hotspot", "Хотспот", "Хотспот", "Hotspot"),
+    _entry("DPM mode", "Modo DPM", "Modo DPM", "Режим DPM", "Режим DPM", "DPM-Modus"),
     _entry("Not sampled at idle", "No muestreada en reposo", "Não amostrada em repouso", "Не измерено в простое", "Не виміряно в простої", "Im Leerlauf nicht erfasst"),
     _entry("Not exposed at idle", "No expuesto en reposo", "Não exposto em repouso", "Не предоставляется в простое", "Не надається в простої", "Im Leerlauf nicht verfügbar"),
     _entry("AMDGPU did not expose a current SCLK sample.", "AMDGPU no expuso una muestra SCLK actual.", "AMDGPU não expôs uma amostra SCLK atual.", "AMDGPU не предоставил текущее значение SCLK.", "AMDGPU не надав поточного значення SCLK.", "AMDGPU hat keinen aktuellen SCLK-Wert bereitgestellt."),

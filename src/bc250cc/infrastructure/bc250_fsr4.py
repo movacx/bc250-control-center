@@ -1,9 +1,9 @@
 """Official-upstream BC-250 FSR4 V3 lifecycle.
 
-Control Center does not reproduce the FSR4 patches or installer. It updates the
-official ``v3`` branch and invokes its installer/uninstaller unchanged. The
-local wrapper only enforces platform/hardware scope and restores the previous
-per-user runtime if upstream installation fails.
+Arch-family hosts use the upstream installer unchanged. Bazzite builds the
+same official ``v3`` branch in its Fedora container with rootless Podman, then
+installs only the verified per-user Vulkan ICD. Both paths restore the previous
+per-user runtime if installation or Vulkan validation fails.
 """
 
 from __future__ import annotations
@@ -20,6 +20,7 @@ BC250_FSR4_PREFIX = Path.home() / ".local/share/bc250-fsr4/v3"
 BC250_FSR4_ICD = BC250_FSR4_PREFIX / "radv-bc250-fsr4-v3.json"
 BC250_FSR4_SUPPORTED_FAMILIES = frozenset({"arch", "cachyos"})
 BC250_FSR4_EXPERIMENTAL_IDS = frozenset({"manjaro"})
+BC250_FSR4_SOURCE_BUILD_IDS = frozenset({"bazzite"})
 
 
 def _fsr4_platform_mode(*, family: str, distro_id: str) -> tuple[bool, bool]:
@@ -33,6 +34,15 @@ def _fsr4_platform_mode(*, family: str, distro_id: str) -> tuple[bool, bool]:
     }
     experimental = normalized_id in BC250_FSR4_EXPERIMENTAL_IDS
     return documented, experimental
+
+
+def _fsr4_bazzite_source_supported(*, family: str, distro_id: str) -> bool:
+    normalized_family = str(family or "").strip().lower()
+    normalized_id = str(distro_id or "").strip().lower()
+    return (
+        normalized_family in BC250_FSR4_SOURCE_BUILD_IDS
+        or normalized_id in BC250_FSR4_SOURCE_BUILD_IDS
+    )
 
 
 def fsr4_runtime_state(family: str, distro_id: str = "") -> dict:
@@ -68,6 +78,10 @@ def fsr4_runtime_state(family: str, distro_id: str = "") -> dict:
         family=family,
         distro_id=distro_id,
     )
+    bazzite_source = _fsr4_bazzite_source_supported(
+        family=family,
+        distro_id=distro_id,
+    )
     return {
         "repository": BC250_FSR4_REPOSITORY,
         "branch": BC250_FSR4_BRANCH,
@@ -81,8 +95,10 @@ def fsr4_runtime_state(family: str, distro_id: str = "") -> dict:
         "state": "ready" if current else "invalid" if artifacts_present else "not-installed",
         "precompiled_supported": documented,
         "experimental_precompiled": experimental,
-        "installer_available": documented or experimental,
-        "source_build_required": not (documented or experimental),
+        "source_build_supported": bazzite_source,
+        "build_mode": "bazzite-podman-source" if bazzite_source else "precompiled",
+        "installer_available": documented or experimental or bazzite_source,
+        "source_build_required": bazzite_source or not (documented or experimental),
     }
 
 
@@ -134,6 +150,119 @@ else
 fi
 git -C {qdest} rev-parse HEAD > "$bc250_prefix/.bc250-upstream-revision"
 echo "OK: official upstream FSR4 V3 installed per-user at revision $(cat "$bc250_prefix/.bc250-upstream-revision")."'''
+
+
+def build_fsr4_v3_bazzite_install_command(destination: str | Path) -> str:
+    """Build official V3 with rootless Podman and install it per-user on Bazzite."""
+
+    destination = Path(destination)
+    checkout = clone_or_update_branch(
+        BC250_FSR4_REPOSITORY,
+        destination,
+        BC250_FSR4_BRANCH,
+    )
+    qdest = shlex.quote(str(destination))
+    return f'''set -euo pipefail
+echo "== BC-250 FSR4 official V3 source build for Bazzite =="
+test -r /etc/os-release || {{ echo "ERROR: /etc/os-release is unavailable."; exit 64; }}
+. /etc/os-release
+test "${{ID:-}}" = "bazzite" || {{ echo "ERROR: This source-build workflow is available only on Bazzite."; exit 64; }}
+test "$(uname -m)" = "x86_64" || {{ echo "ERROR: The official Fedora 44 build container targets x86_64."; exit 64; }}
+for bc250_command in git lspci podman python3 ldd vulkaninfo; do
+  command -v "$bc250_command" >/dev/null 2>&1 || {{ echo "ERROR: $bc250_command is required for the Bazzite FSR4 source build."; exit 69; }}
+done
+lspci -Dn | grep -qiE '1002:13fe' || {{ echo "ERROR: AMD BC-250 PCI ID 1002:13FE was not detected."; exit 64; }}
+podman info >/dev/null || {{ echo "ERROR: rootless Podman is not ready for the current user."; exit 69; }}
+{checkout}
+for bc250_file in Dockerfile build-bc250.sh bc250-fsr4-v3.patch mesa-commit.txt; do
+  test -f {qdest}/"$bc250_file" || {{ echo "ERROR: official upstream $bc250_file is missing."; exit 29; }}
+done
+bc250_revision="$(git -C {qdest} rev-parse HEAD)"
+case "$bc250_revision" in
+  *[!0-9a-f]*|'') echo "ERROR: invalid upstream Git revision."; exit 29 ;;
+esac
+bc250_mesa_commit="$(head -n 1 {qdest}/mesa-commit.txt | tr -d '[:space:]')"
+case "$bc250_mesa_commit" in
+  *[!A-Za-z0-9._/-]*|'') echo "ERROR: invalid Mesa revision in official mesa-commit.txt."; exit 29 ;;
+esac
+bc250_cache_root="$HOME/.cache/bc250-fsr4"
+bc250_build="$bc250_cache_root/v3-build"
+bc250_build_revision="$bc250_cache_root/v3-build.revision"
+mkdir -p "$bc250_cache_root"
+if ! test -d "$bc250_build" || ! test -f "$bc250_build_revision" || test "$(cat "$bc250_build_revision" 2>/dev/null || true)" != "$bc250_revision"; then
+  rm -rf -- "$bc250_build"
+  rm -f -- "$bc250_build_revision"
+  mkdir -p "$bc250_build"
+fi
+bc250_image="localhost/bc250-fsr4:bazzite-v3"
+echo "Building the official Fedora 44 image with Podman. The first build can take several minutes."
+podman build --tag "$bc250_image" --build-arg "MESA_COMMIT=$bc250_mesa_commit" {qdest}
+echo "Compiling the official FSR4 V3 RADV runtime..."
+podman run --rm \
+  --env VARIANT=patch \
+  --volume {qdest}:/workspace:ro,Z \
+  --volume "$bc250_build":/build:Z \
+  "$bc250_image"
+test -s "$bc250_build/libvulkan_radeon.so" || {{ echo "ERROR: the official source build did not produce libvulkan_radeon.so."; exit 29; }}
+printf '%s\n' "$bc250_revision" > "$bc250_build_revision"
+if ldd "$bc250_build/libvulkan_radeon.so" | grep -q 'not found'; then
+  echo "ERROR: the source-built driver has unresolved Bazzite runtime dependencies."
+  ldd "$bc250_build/libvulkan_radeon.so" | grep 'not found' || true
+  exit 29
+fi
+bc250_parent="$HOME/.local/share/bc250-fsr4"
+bc250_prefix="$bc250_parent/v3"
+bc250_library="$bc250_prefix/libvulkan_radeon.so"
+bc250_icd="$bc250_prefix/radv-bc250-fsr4-v3.json"
+bc250_backup=''
+mkdir -p "$bc250_parent"
+bc250_stage="$(mktemp -d "$bc250_parent/.v3.stage.XXXXXX")"
+cp -- "$bc250_build/libvulkan_radeon.so" "$bc250_stage/libvulkan_radeon.so"
+printf '%s\n' "$bc250_revision" > "$bc250_stage/.bc250-upstream-revision"
+printf '%s\n' 'bazzite-podman-source' > "$bc250_stage/.bc250-build-kind"
+BC250_FSR4_LIBRARY="$bc250_library" BC250_FSR4_ICD="$bc250_stage/radv-bc250-fsr4-v3.json" python3 - <<'PY'
+import json
+import os
+from pathlib import Path
+
+manifest = {{
+    "file_format_version": "1.0.0",
+    "ICD": {{
+        "library_path": os.environ["BC250_FSR4_LIBRARY"],
+        "api_version": "1.4.0",
+    }},
+}}
+Path(os.environ["BC250_FSR4_ICD"]).write_text(
+    json.dumps(manifest, indent=2) + "\\n",
+    encoding="utf-8",
+)
+PY
+python3 -m json.tool "$bc250_stage/radv-bc250-fsr4-v3.json" >/dev/null
+if test -L "$bc250_prefix"; then
+  rm -rf -- "$bc250_stage"
+  echo "ERROR: refusing to replace a symlink at $bc250_prefix."
+  exit 29
+fi
+if test -e "$bc250_prefix"; then
+  bc250_backup="$(mktemp -d "$bc250_parent/.v3.backup.XXXXXX")"
+  rmdir "$bc250_backup"
+  mv -- "$bc250_prefix" "$bc250_backup"
+fi
+mv -- "$bc250_stage" "$bc250_prefix"
+if VK_DRIVER_FILES="$bc250_icd" vulkaninfo --summary; then
+  test -z "$bc250_backup" || rm -rf -- "$bc250_backup"
+else
+  bc250_result=$?
+  rm -rf -- "$bc250_prefix"
+  if test -n "$bc250_backup" && test -e "$bc250_backup"; then
+    mv -- "$bc250_backup" "$bc250_prefix"
+  fi
+  echo "ERROR: Vulkan rejected the source-built driver; the previous per-user runtime was restored."
+  exit "$bc250_result"
+fi
+echo "OK: official upstream FSR4 V3 was source-built and installed per-user at revision $bc250_revision."
+echo "Steam launch option:"
+printf 'VK_DRIVER_FILES="%s" %%command%%\n' "$bc250_icd"'''
 
 
 def build_fsr4_v3_uninstall_command(destination: str | Path) -> str:

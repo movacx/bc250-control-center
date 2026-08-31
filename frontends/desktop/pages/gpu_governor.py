@@ -3869,10 +3869,16 @@ class GpuGovernorPage(QWidget):
         self, action: str, *, dialog_parent: QWidget | None
     ) -> None:
         install = action == "install"
+        bazzite_source = (
+            str(_dict(self.current_state.get("tools")).get("os_family") or "")
+            == "bazzite"
+        )
         confirmation = ConfirmDialog(
             "Install BC-250 FSR4 V3" if install else "Remove BC-250 FSR4 V3",
             tr(
-                "This optional per-game RADV runtime is experimental. It is installed only in your user data directory and does not replace system Mesa. Games can still hang, crash or reset the GPU."
+                "This builds the official FSR4 V3 source in its Fedora 44 container with rootless Podman, validates it on this BC-250, and installs only a per-game Vulkan driver in your user folder. The first build can take several minutes and use substantial disk space. System Mesa is not modified."
+                if install and bazzite_source
+                else "This optional per-game RADV runtime is experimental. It is installed only in your user data directory and does not replace system Mesa. Games can still hang, crash or reset the GPU."
                 if install
                 else "This removes only the per-user FSR4 V3 runtime. Remove its VK_DRIVER_FILES Steam launch option to return each game to system RADV."
             ),

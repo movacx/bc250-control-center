@@ -93,9 +93,23 @@ def test_fsr4_manjaro_route_is_available_but_self_identifies_as_experimental():
     assert "does not name Manjaro" in calls[0][0]
 
 
-@pytest.mark.parametrize("family", ("ubuntu", "fedora", "bazzite", "steamos"))
+def test_fsr4_bazzite_route_uses_only_the_official_podman_source_build():
+    calls: list[tuple[str, str]] = []
+
+    assert _repository_for("bazzite", calls).gestionar_fsr4_bc250("install") == "terminal"
+
+    command, terminal_title = calls[0]
+    assert "official V3 source build for Bazzite" in command
+    assert "podman build" in command
+    assert "podman run --rm" in command
+    assert 'test "${ID:-}" = "bazzite"' in command
+    assert "install-v3.sh" not in command
+    assert "FSR4 V3" in terminal_title
+
+
+@pytest.mark.parametrize("family", ("ubuntu", "fedora", "steamos"))
 def test_fsr4_precompiled_route_rejects_untested_distribution_abis(family):
-    with pytest.raises(RuntimeError, match="Docker source-build"):
+    with pytest.raises(RuntimeError, match="Bazzite uses the verified Podman"):
         _repository_for(family, []).gestionar_fsr4_bc250("install")
 
 
