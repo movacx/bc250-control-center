@@ -12,7 +12,9 @@ GOVERNOR_DEFAULT_SAFE_POINTS = (
     (2350, 1130), (2400, 1150),
 )
 GOVERNOR_DEFAULT_VOLTAGES = dict(GOVERNOR_DEFAULT_SAFE_POINTS)
-SUPPORTED_VOLTAGE_LEVELS = (0, 3, 6)
+# Keep the legacy restore/default and +60 mV profiles available while exposing
+# the compact +10..+50 mV laboratory ladder in the desktop drawer.
+SUPPORTED_VOLTAGE_LEVELS = (0, 1, 2, 3, 4, 5, 6)
 VOLTAGE_BOOST_START_MHZ = 2000
 CUSTOM_VOLTAGE_MIN_MV = 600
 CUSTOM_VOLTAGE_MAX_MV = 1210

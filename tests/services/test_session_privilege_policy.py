@@ -116,7 +116,7 @@ def test_gui_requires_the_protocol_exported_by_the_staged_game_mode_helper():
 
 def test_newer_trusted_game_mode_helper_remains_compatible_with_an_older_gui(tmp_path):
     helper = tmp_path / "game-helper"
-    helper.write_text("BC250_HELPER_PROTOCOL=21\n", encoding="utf-8")
+    helper.write_text("BC250_HELPER_PROTOCOL=22\n", encoding="utf-8")
     repository = PrivilegeRepository()
     repository._steamos_game_helper_path = lambda: str(helper)
     repository._command_path = lambda name: "/usr/bin/pkexec" if name == "pkexec" else ""

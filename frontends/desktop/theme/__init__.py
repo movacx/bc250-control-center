@@ -1447,6 +1447,190 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         border-color: {c['disabled_bg']};
         color: {c['on_accent']};
     }}
+    QWidget#VoltageLabDrawerOverlay {{
+        background: rgba(0, 0, 0, 145);
+    }}
+    QFrame#VoltageLabDrawer {{
+        background: {c['panel']};
+        border: 1px solid {c['border']};
+        border-radius: 18px;
+    }}
+    QScrollArea#VoltageLabDrawerScroll,
+    QScrollArea#VoltageLabDrawerScroll > QWidget > QWidget,
+    QWidget#VoltageLabDrawerBody {{
+        background: transparent;
+        border: none;
+    }}
+    QPushButton[voltageDrawerClose='true'] {{
+        background: {c['panel_alt']};
+        border: 1px solid {c['border_soft']};
+        border-radius: 10px;
+        color: {c['text']};
+        padding: 0px;
+        font-size: 22px;
+        font-weight: 800;
+    }}
+    QPushButton[voltageDrawerClose='true']:hover {{
+        background: {c['panel_raised']};
+        border-color: {c['border_strong']};
+        color: {c['text']};
+    }}
+    QLabel[voltageDrawerTitle='true'] {{
+        color: {c['text']};
+        font-size: 16px;
+        font-weight: 850;
+    }}
+    QLabel[voltageDrawerSubtitle='true'] {{
+        color: {c['muted']};
+        font-size: 10px;
+        font-weight: 650;
+    }}
+    QFrame[voltageDrawerCard='true'] {{
+        background: {c['panel']};
+        border: 1px solid {c['border']};
+        border-radius: 13px;
+    }}
+    QLabel[voltageDrawerSectionTitle='true'] {{
+        color: {c['text']};
+        font-size: 12px;
+        font-weight: 840;
+    }}
+    QFrame[voltageDrawerNotice='true'] {{
+        background: {c['orange_soft']};
+        border: 1px solid {c['orange_border']};
+        border-radius: 12px;
+    }}
+    QLabel[voltageDrawerNoticeText='true'] {{
+        color: {c['text']};
+        font-size: 10px;
+        font-weight: 650;
+    }}
+    QFrame[voltageDrawerCompatibility='true'] {{
+        background: {c['panel_alt']};
+        border: 1px solid {c['border_strong']};
+        border-radius: 10px;
+    }}
+    QLabel[voltageDrawerCompatibilityTitle='true'] {{
+        color: {c['text']};
+        font-size: 11px;
+        font-weight: 820;
+    }}
+    QLabel[voltageDrawerCompatibilityText='true'] {{
+        color: {c['muted']};
+        font-size: 9px;
+        font-weight: 630;
+    }}
+    QPushButton[voltageDrawerProfile='true'] {{
+        min-height: 38px;
+        max-height: 54px;
+        padding: 6px 11px;
+        background: {c['panel_alt']};
+        border: 1px solid {c['border_soft']};
+        border-radius: 13px;
+        color: {c['text']};
+        text-align: left;
+        font-size: 11px;
+        font-weight: 760;
+    }}
+    QPushButton[voltageDrawerProfile='true']:hover {{
+        background: {c['panel_raised']};
+        border-color: {c['border_strong']};
+    }}
+    QPushButton[voltageDrawerProfile='true']:checked {{
+        background: {c['panel_raised']};
+        border: 2px solid {c['border_strong']};
+        color: {c['text']};
+    }}
+    QLabel[voltageDrawerDetail='true'] {{
+        color: {c['muted']};
+        background: transparent;
+        border: none;
+        border-radius: 8px;
+        padding: 4px 1px 1px 1px;
+        font-size: 10px;
+        font-weight: 630;
+    }}
+    QLabel[voltageDrawerColumn='true'] {{
+        color: {c['subtle']};
+        font-size: 8px;
+        font-weight: 760;
+    }}
+    QFrame[voltageDrawerCurveRow='true'] {{
+        background: {c['panel_alt']};
+        border: 1px solid {c['border_soft']};
+        border-radius: 9px;
+    }}
+    QLabel[voltageDrawerFrequency='true'] {{
+        color: {c['blue']};
+        font-size: 10px;
+        font-weight: 830;
+    }}
+    QLabel[voltageDrawerCurrent='true'] {{
+        color: {c['muted']};
+        font-size: 10px;
+        font-weight: 700;
+    }}
+    QLabel[voltageDrawerTarget='true'] {{
+        color: {c['text']};
+        font-size: 11px;
+        font-weight: 840;
+    }}
+    QLabel[voltageDrawerDelta='true'] {{
+        color: {c['muted']};
+        font-size: 8px;
+        font-weight: 760;
+    }}
+    QLabel[voltageDrawerDelta='true'][deltaTone='raised'] {{ color: {c['orange']}; }}
+    QLabel[voltageDrawerDelta='true'][deltaTone='lowered'] {{ color: {c['cyan']}; }}
+    QLabel[voltageDrawerDelta='true'][deltaTone='default'] {{ color: {c['green']}; }}
+    QSpinBox[voltageDrawerEditor='true'] {{
+        min-width: 104px;
+        padding: 5px 7px;
+        background: {c['panel_alt']};
+        border: 1px solid {c['border_strong']};
+        border-radius: 10px;
+        color: {c['text']};
+        font-size: 10px;
+        font-weight: 820;
+    }}
+    QFrame[voltageDrawerFooter='true'] {{
+        background: {c['panel']};
+        border: 1px solid {c['border']};
+        border-radius: 12px;
+    }}
+    QPushButton[voltageDrawerSecondary='true'] {{
+        min-height: 38px;
+        background: {c['panel_alt']};
+        border: 1px solid {c['border_soft']};
+        border-radius: 12px;
+        color: {c['text']};
+        font-size: 10px;
+        font-weight: 750;
+    }}
+    QPushButton[voltageDrawerApply='true'] {{
+        min-height: 38px;
+        background: {c['blue']};
+        border: 1px solid {c['blue']};
+        border-radius: 12px;
+        color: {c['on_accent']};
+        font-size: 11px;
+        font-weight: 850;
+    }}
+    QPushButton[voltageDrawerApply='true']:hover {{
+        background: {c['blue_hover']};
+        border-color: {c['blue_hover']};
+    }}
+    QPushButton[voltageLabLauncher='true'] {{
+        background: {c['blue_soft']};
+        border: 1px solid {c['blue_border']};
+        color: {c['blue']};
+        font-weight: 820;
+    }}
+    QPushButton[voltageLabLauncher='true']:hover {{
+        background: {c['blue']};
+        border-color: {c['blue']};
+        color: {c['on_accent']};
+    }}
     QFrame[voltageLabToolbar='true'] {{
         background: {c['panel']};
         border: 1px solid {c['border']};

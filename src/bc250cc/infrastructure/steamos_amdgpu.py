@@ -344,6 +344,7 @@ def build_steamos_compatibility_command(
     checkout_command: str,
     install: bool,
     telemetry_oc_overlay_command: str = "",
+    module_install_command: str = "",
     cmdline_path: Path = Path("/proc/cmdline"),
     module_root: Path = Path("/usr/lib/modules"),
     backend_guard: str = "",
@@ -355,11 +356,13 @@ def build_steamos_compatibility_command(
     qmodule_root = shlex.quote(str(module_root))
     backend_ready = str(backend_guard or f"test -f {qscript} && test -f {qboot}").strip()
     overlay = str(telemetry_oc_overlay_command or "").strip().rstrip(";")
-    install_module_command = "; ".join(part for part in (
-        overlay,
-        "export BC250_CONTROL_CENTER_OC_TELEMETRY=1",
-        f"/usr/bin/bash {qscript}",
-    ) if part)
+    install_module_command = str(module_install_command or "").strip().rstrip(";")
+    if not install_module_command:
+        install_module_command = "; ".join(part for part in (
+            overlay,
+            "export BC250_CONTROL_CENTER_OC_TELEMETRY=1",
+            f"/usr/bin/bash {qscript}",
+        ) if part)
     module_verified_only = _module_verified_guard('"$status_file"')
     policy_active_only = _policy_active_guard('"$status_file"')
     policy_reboot_only = _policy_reboot_guard('"$status_file"')

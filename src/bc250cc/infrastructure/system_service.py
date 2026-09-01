@@ -342,6 +342,9 @@ class SistemaService:
     def aplicar_rango_bc250(self, minimo, maximo):
         return self.repo.aplicar_rango_bc250(minimo, maximo)
 
+    def guardar_rango_gpu_arranque(self):
+        return self.repo.guardar_rango_gpu_arranque()
+
     def fijar_frecuencia_bc250(self, frecuencia):
         return self.repo.fijar_frecuencia_bc250(frecuencia)
 

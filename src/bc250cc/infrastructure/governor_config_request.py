@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-GOVERNOR_CONFIG_HELPER_PROTOCOL = 5
+GOVERNOR_CONFIG_HELPER_PROTOCOL = 6
 _PROTOCOL_PATTERN = re.compile(r"^BC250_GOVERNOR_CONFIG_PROTOCOL\s*=\s*(\d+)\s*$", re.MULTILINE)
 
 
@@ -156,8 +156,8 @@ def plan_governor_config_request(
             arity_message="GPU voltage level needs one value.",
             type_message="GPU voltage level must be an integer.",
         )
-        if int(request.arguments[0]) not in {0, 3, 6}:
-            raise ValueError("Invalid lab level. Use 0, 3 or 6.")
+        if int(request.arguments[0]) not in {0, 1, 2, 3, 4, 5, 6}:
+            raise ValueError("Invalid lab level. Use an integer from 0 through 6.")
         return request
     if action == "set-cyan-custom-voltages":
         return GovernorConfigRequest(action, _custom_voltage_arguments(arguments))

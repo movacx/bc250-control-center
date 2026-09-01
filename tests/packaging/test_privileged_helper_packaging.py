@@ -52,7 +52,7 @@ def test_governor_helper_and_editor_are_deployed_together_with_current_protocol(
     installer = _text(ROOT / "scripts" / "install-local.sh")
     helper = _text(PRIVILEGED / "bc250-governor-config-helper")
 
-    assert "BC250_GOVERNOR_CONFIG_PROTOCOL = 5" in helper
+    assert "BC250_GOVERNOR_CONFIG_PROTOCOL = 6" in helper
     assert "'set-cyan-metrics-fix'" in helper
     assert "'set-cyan-voltage-level', 'set-cyan-custom-voltages'" in helper
     assert 'install -Dm755 "$governor_helper_source" "$SYSTEM_GOVERNOR_CONFIG_HELPER"' in installer

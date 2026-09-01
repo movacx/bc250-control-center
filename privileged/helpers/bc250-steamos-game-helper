@@ -31,12 +31,13 @@ STEAMOS_CU_STAGED_DATABASE = pathlib.Path('/usr/libexec/bc250-control-center/bc2
 GENERIC_CU_STAGED_BACKEND = pathlib.Path('/var/lib/bc250-control-center/bc250-cu-live-manager')
 CU_SERVICE_UNIT = pathlib.Path('/etc/systemd/system/bc250-cu-live-manager.service')
 CU_SERVICE_CONFIG = pathlib.Path('/etc/bc250-cu-live-manager.conf')
+# Protocol 21 adds the reviewed GPU voltage ladder levels 1 through 5.
 # Protocol 20 adds gpu-usage.method to the bounded Cyan compatibility action.
 # Protocol 19 adds the bounded CPU boot-service action. Protocol 18 hardened
 # fan-pwm against NCT6687's asynchronous automatic ->
 # manual transition.  Do not silently accept protocol 16: it acknowledged a
 # duty write that PWM4 could still ignore while its mode register settled.
-BC250_HELPER_PROTOCOL=20
+BC250_HELPER_PROTOCOL=21
 PWM_MODE_VERIFY_ATTEMPTS = 10
 PWM_MODE_VERIFY_INTERVAL_SECONDS = 0.05
 PWM_MODE_SETTLE_SECONDS = 0.15
@@ -745,8 +746,8 @@ def action_gpu_voltage(args: Sequence[str]) -> int:
             level = int(args[1])
         except ValueError:
             return fail('Voltage level must be an integer.', 34)
-        if level not in (0, 3, 6):
-            return fail('Only supported voltage levels 0, 3 and 6 are allowed.', 35)
+        if level not in (0, 1, 2, 3, 4, 5, 6):
+            return fail('Only supported voltage levels 0 through 6 are allowed.', 35)
         command = [str(gpu_script), 'apply', str(level)]
     elif mode == 'apply-custom':
         if len(args) < 2:

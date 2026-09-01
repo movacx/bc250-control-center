@@ -12,6 +12,7 @@ def _reviewed_build_script() -> str:
     return (
         "#!/bin/bash\n"
         "GFXCLK_SOURCE_SHA=572014e03cff22fb57f21121e8e8722f11d3d99822ee86e60fbfe50ed6e76f30\n"
+        "        SCLK_SOURCE_SHA=fdb9c3fff8a9ff813cdc37907dace041f89f6db15158c56a4bd8f238352b6e42\n"
         'step "apply GFX1013 compute-queue lifecycle patches"\n'
     )
 
@@ -111,3 +112,17 @@ def test_explicit_install_path_stages_overlay_but_read_only_path_does_not():
     )
     assert "stage-telemetry-overlay" not in readonly
     assert "BC250_CONTROL_CENTER_OC_TELEMETRY=1" not in readonly
+
+
+def test_overlay_accepts_only_the_reviewed_steamos_24_5_composition():
+    namespace = runpy.run_path(str(OVERLAY))
+
+    assert namespace["STEAMOS_24_5_KERNEL_COMMIT"] == (
+        "b2f7cfe85e45b7e1ddb04ca8b280aca19add1100"
+    )
+    assert namespace["STEAMOS_24_5_SCLK_SOURCE_SHA"] == (
+        "16578119d29855f47bec42b772d2ad03b8f3d690aa3df1106ad1411a04ca7d94"
+    )
+    assert namespace["STEAMOS_24_5_OVERLAY_RESULT_SHA"] == (
+        "32b553a07f073881521c508ad9f40f7b86a91d7f8cbea032b084b3c998a62f19"
+    )

@@ -17,6 +17,9 @@ def helper_module():
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
+    # Most fixtures exercise the generic backend contract. Individual SteamOS
+    # tests opt in explicitly so results never depend on the developer host.
+    module.is_steamos = lambda: False
     return module
 
 
@@ -826,6 +829,44 @@ def test_cu_dashboard_uses_staged_database_environment(helper_module, monkeypatc
             },
         )
     ]
+
+
+def test_steamos_cu_dashboard_uses_only_the_protected_usr_backend(
+    helper_module, monkeypatch
+):
+    calls = []
+    monkeypatch.setattr(helper_module, "is_steamos", lambda: True)
+    monkeypatch.setattr(helper_module, "cu_backend_ready", lambda: True)
+
+    def fake_run(command, **kwargs):
+        calls.append((command, kwargs))
+        return type("Result", (), {
+            "returncode": 0,
+            "stdout": cu_dashboard((0x07,) * 4),
+            "stderr": "",
+        })()
+
+    monkeypatch.setattr(helper_module, "run", fake_run)
+
+    assert helper_module.cu_dashboard_state() == (24, 40)
+    assert calls == [
+        (
+            [str(helper_module.STEAMOS_CU_BACKEND), "status"],
+            {
+                "timeout": 45,
+                "extra_env": {
+                    "UMR_DATABASE_PATH": str(helper_module.STEAMOS_CU_DATABASE),
+                },
+            },
+        )
+    ]
+
+
+def test_non_steamos_cu_backend_selection_is_unchanged(helper_module, monkeypatch):
+    monkeypatch.setattr(helper_module, "is_steamos", lambda: False)
+
+    assert helper_module.cu_backend_path() == helper_module.CU_BACKEND
+    assert helper_module.trusted_cu_environment() == {}
 
 
 def test_cu_mode_applies_a_complete_table_and_verifies_all_four_masks(

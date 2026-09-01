@@ -584,9 +584,11 @@ def test_steamos_fixes_are_installed_only_when_running_kernel_is_not_ready(tmp_p
     assert 'awk -v release="$running_release"' in command
     assert 'installed, metrics and compute aware' in command
     assert "--cg" not in command
-    assert "patch-driver.sh;" in command
+    assert "/build.sh;" in command
+    assert "/install.sh;" in command
+    assert f"sudo /usr/bin/bash {tmp_path}" not in command
     assert "BC250_REBOOT_REQUIRED=1" in command
-    assert command.index("patch-driver.sh status") < command.index("patch-driver.sh;")
+    assert command.index("patch-driver.sh status") < command.index("/build.sh;")
 
 
 def test_changed_40cu_output_format_produces_clear_error():

@@ -83,4 +83,4 @@ def test_voltage_table_empty_and_invalid_level_fail_safely():
     assert empty.active_frequencies == ()
     assert empty.detail_template.startswith("No active voltage")
     with pytest.raises(ValueError, match="Unsupported GPU voltage level"):
-        _plan(4)
+        _plan(7)

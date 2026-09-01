@@ -112,15 +112,17 @@ def test_steamos_compatibility_repairs_good_module_without_rebuild(tmp_path):
     assert parsed.returncode == 0, parsed.stderr
 
 
-def test_full_steamos_install_reapplies_boot_policy_after_patch_driver(tmp_path):
+def test_full_steamos_install_reapplies_boot_policy_after_protected_install(tmp_path):
     repository = DependenciasRepository()
     repository._tool_dir = lambda: tmp_path
     command = repository._steamos_compatibility_stage_command(install=True)
 
-    patch_call = command.rindex('patch-driver.sh;')
+    build_call = command.rindex('/build.sh;')
+    install_call = command.rindex('/install.sh;')
     boot_repair = command.rindex('boot-config.sh install')
     final_status = command.rindex('patch-driver.sh status')
-    assert patch_call < boot_repair < final_status
+    assert build_call < install_call < boot_repair < final_status
+    assert f'sudo /usr/bin/bash {tmp_path}' not in command
 
 
 def test_terminal_workflows_are_automatically_tee_logged():

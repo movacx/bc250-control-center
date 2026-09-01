@@ -585,10 +585,20 @@ class ControlCenterWindow(QMainWindow):
 
     def gamepad_focus_scope(self) -> QWidget:
         """Return the active page as the preferred first-focus area."""
-        return self.stack.currentWidget() or self
+        page = self.stack.currentWidget()
+        provider = getattr(page, "gamepad_focus_scope", None)
+        if callable(provider):
+            scope = provider()
+            if isinstance(scope, QWidget):
+                return scope
+        return page or self
 
     def gamepad_back(self) -> None:
         """Steam-style B behavior: visit history, then fall back to Dashboard."""
+        page = self.stack.currentWidget()
+        handler = getattr(page, "gamepad_back", None)
+        if callable(handler) and bool(handler()):
+            return
         target = self._gamepad_navigation_history.pop() if self._gamepad_navigation_history else "dashboard"
         if target == self.current_page_key:
             target = "dashboard"

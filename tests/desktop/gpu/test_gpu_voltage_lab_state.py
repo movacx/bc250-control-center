@@ -32,7 +32,7 @@ def test_voltage_lab_normalizes_sorts_and_uses_last_duplicate():
 
 
 def test_voltage_lab_detects_each_packaged_profile_level():
-    for level in (0, 3, 6):
+    for level in range(7):
         curve = voltage_profile(level)
         state = build_voltage_lab_state({"safe_points_with_voltage": _points(curve.items())})
         assert state.detected_level == level

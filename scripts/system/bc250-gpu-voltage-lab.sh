@@ -10,19 +10,18 @@ usage() {
   cat <<'EOF'
 BC250 GPU Voltage Lab
 
-Uso:
+Usage:
   bc250-gpu-voltage-lab.sh status
   bc250-gpu-voltage-lab.sh preview <nivel>
   bc250-gpu-voltage-lab.sh apply <nivel>
   bc250-gpu-voltage-lab.sh apply-custom 500=700 1850=970 2000=1000 ...
   bc250-gpu-voltage-lab.sh menu
 
-Niveles:
-  0 = valores default del governor
-  3 = default +30 mV en cada punto desde 2000 MHz
-  6 = default +60 mV en cada punto desde 2000 MHz
+Levels:
+  0 = governor default values
+  1..6 = default +10..60 mV at every point from 2000 MHz
 
-El nivel 0 restaura los 17 voltajes originales, incluidos los puntos comentados.
+Level 0 restores all 17 original voltages, including commented points.
 EOF
 }
 
@@ -51,23 +50,23 @@ capture_current_range() {
 
 require_current_range() {
   if ! systemctl is-active --quiet "$SERVICE"; then
-    echo "ERROR: el governor debe estar activo antes de cambiar la curva de voltaje." >&2
+    echo "ERROR: the governor must be active before changing the voltage curve." >&2
     return 1
   fi
   capture_current_range
   if [[ -z "${RANGE_MIN:-}" || -z "${RANGE_MAX:-}" ]]; then
-    echo "ERROR: no se pudo leer el rango D-Bus actual; no se modificó la curva." >&2
+    echo "ERROR: the current D-Bus range could not be read; the curve was not changed." >&2
     return 1
   fi
-  echo "Rango protegido antes del cambio: ${RANGE_MIN}-${RANGE_MAX} MHz"
+  echo "Protected range before the change: ${RANGE_MIN}-${RANGE_MAX} MHz"
 }
 
 restore_current_range() {
   if [[ -z "${RANGE_MIN:-}" || -z "${RANGE_MAX:-}" ]]; then
-    echo "ERROR: rango anterior no disponible; no se puede confirmar una restauración segura." >&2
+    echo "ERROR: the previous range is unavailable; safe restoration cannot be verified." >&2
     return 1
   fi
-  echo "Restaurando rango D-Bus anterior: ${RANGE_MIN}-${RANGE_MAX} MHz"
+  echo "Restoring the previous D-Bus range: ${RANGE_MIN}-${RANGE_MAX} MHz"
   for _ in $(seq 1 60); do
     local allowed_min allowed_max target_min target_max
     allowed_min="$(busctl_uint /com/cyanskillfish/Governor/Range/Allowed Min || true)"
@@ -90,15 +89,15 @@ restore_current_range() {
       current_max="$(busctl_uint /com/cyanskillfish/Governor/Range/Current Max || true)"
       if [[ "$current_min" == "$target_min" && "$current_max" == "$target_max" ]]; then
         if [[ "$target_min" != "$RANGE_MIN" || "$target_max" != "$RANGE_MAX" ]]; then
-          echo "AVISO: el rango anterior excede los puntos activos; se limito de forma segura."
+          echo "WARNING: the previous range exceeds the active points and was limited safely."
         fi
-        echo "OK: rango restaurado y verificado en ${target_min}-${target_max} MHz"
+        echo "OK: range restored and verified at ${target_min}-${target_max} MHz"
         return 0
       fi
     fi
     sleep 0.5
   done
-  echo "ERROR: no se pudo restaurar el rango D-Bus anterior. No inicies una carga GPU." >&2
+  echo "ERROR: the previous D-Bus range could not be restored. Do not start a GPU workload." >&2
   return 1
 }
 
@@ -121,7 +120,7 @@ wait_for_governor_dbus() {
     fi
     sleep 0.5
   done
-  echo "ERROR: Cyan no publicó su interfaz D-Bus después de reiniciar." >&2
+  echo "ERROR: Cyan did not publish its D-Bus interface after restarting." >&2
   systemctl status "$SERVICE" --no-pager || true
   return 1
 }
@@ -132,7 +131,7 @@ restart_governor_preserving_range() {
   # start.  ``systemctl restart`` previously raced that target and made a
   # valid voltage-curve edit look like a D-Bus failure.
   if ! systemctl stop "$SERVICE"; then
-    echo "ERROR: no se pudo detener Cyan de forma controlada." >&2
+    echo "ERROR: Cyan could not be stopped cleanly." >&2
     return 1
   fi
   for _ in $(seq 1 20); do
@@ -144,7 +143,7 @@ restart_governor_preserving_range() {
   sleep 1
   systemctl reset-failed "$SERVICE" || true
   if ! systemctl start "$SERVICE"; then
-    echo "ERROR: no se pudo iniciar Cyan después de actualizar la curva." >&2
+    echo "ERROR: Cyan could not be started after updating the curve." >&2
     return 1
   fi
   if ! wait_for_governor_dbus; then
@@ -158,37 +157,37 @@ restart_governor_preserving_range() {
 
 rollback_curve_after_failed_restart() {
   local backup="$1"
-  echo "ERROR: Cyan no recuperó el rango D-Bus; restaurando la curva anterior." >&2
+  echo "ERROR: Cyan did not recover its D-Bus range; restoring the previous curve." >&2
   cp -af "$backup" "$CONFIG"
   # Use the exact same stop/start path as the forward transaction.  A raw
   # restart can race the SteamOS hwmon link and make rollback less reliable
   # than the operation it is meant to recover.
   if restart_governor_preserving_range; then
-    echo "OK: se restauró la curva anterior después del fallo." >&2
+    echo "OK: the previous curve was restored after the failure." >&2
   else
-    echo "ERROR: tampoco se pudo verificar Cyan después de restaurar la curva. No inicies una carga GPU." >&2
+    echo "ERROR: Cyan could not be verified after restoring the curve. Do not start a GPU workload." >&2
   fi
 }
 
 apply_level() {
   local level="$1"
-  if [[ "$level" != "0" && "$level" != "3" && "$level" != "6" ]]; then
-    echo "ERROR: nivel invalido. Usa 0, 3 o 6." >&2
+  if [[ ! "$level" =~ ^[0-6]$ ]]; then
+    echo "ERROR: invalid level. Use an integer from 0 through 6." >&2
     exit 1
   fi
   if [[ $EUID -ne 0 ]]; then
     exec sudo "$0" apply "$level"
   fi
   if [[ ! -f "$CONFIG" ]]; then
-    echo "ERROR: no existe $CONFIG" >&2
+    echo "ERROR: $CONFIG does not exist" >&2
     exit 1
   fi
   require_current_range
   local backup="${CONFIG}.backup.bcc-voltage-lab-$(date +%Y%m%d-%H%M%S)"
   cp -a "$CONFIG" "$backup"
-  echo "Backup creado: $backup"
+  echo "Backup created: $backup"
   if ! python3 "$CURVE_EDITOR" apply-voltage-level "$CONFIG" "$level"; then
-    echo "ERROR: la curva no se modificó." >&2
+    echo "ERROR: the curve was not changed." >&2
     return 1
   fi
   if ! restart_governor_preserving_range; then
@@ -196,28 +195,28 @@ apply_level() {
     return 1
   fi
   echo
-  echo "Sugerencia de prueba: no saltes directo a 2200. Prueba por frecuencia y carga corta."
+  echo "Test guidance: do not jump directly to 2200 MHz. Test one frequency at a time with a short workload."
 }
 
 
 apply_custom() {
   if [[ $# -lt 1 ]]; then
-    echo "ERROR: especifica valores tipo 500=700 1850=970 2000=1000" >&2
+    echo "ERROR: provide values such as 500=700 1850=970 2000=1000" >&2
     exit 1
   fi
   if [[ $EUID -ne 0 ]]; then
     exec sudo "$0" apply-custom "$@"
   fi
   if [[ ! -f "$CONFIG" ]]; then
-    echo "ERROR: no existe $CONFIG" >&2
+    echo "ERROR: $CONFIG does not exist" >&2
     exit 1
   fi
   require_current_range
   local backup="${CONFIG}.backup.bcc-voltage-custom-$(date +%Y%m%d-%H%M%S)"
   cp -a "$CONFIG" "$backup"
-  echo "Backup creado: $backup"
+  echo "Backup created: $backup"
   if ! python3 "$CURVE_EDITOR" apply-custom-voltage "$CONFIG" "$@"; then
-    echo "ERROR: la curva no se modificó." >&2
+    echo "ERROR: the curve was not changed." >&2
     return 1
   fi
   if ! restart_governor_preserving_range; then
@@ -225,7 +224,7 @@ apply_custom() {
     return 1
   fi
   echo
-  echo "Personalizado aplicado. Limite del editor: 600-1210 mV."
+  echo "Custom curve applied. Editor limit: 600-1210 mV."
 }
 
 menu() {
@@ -235,29 +234,28 @@ menu() {
     echo
     python_status || true
     echo
-    echo "Elige nivel a aplicar:"
-    echo "  0) restaurar curva original completa"
-    echo "  3) +30 mV sobre default"
-    echo "  6) +60 mV sobre default"
-    echo "  p) previsualizar nivel"
-    echo "  q) salir"
+    echo "Choose a level to apply:"
+    echo "  0) restore the complete original curve"
+    echo "  1-6) add +10 through +60 mV over defaults"
+    echo "  p) preview a level"
+    echo "  q) quit"
     echo
-    read -r -p "Opcion: " opt
+    read -r -p "Option: " opt
     case "$opt" in
-      0|3|6)
+      0|1|2|3|4|5|6)
         echo
         python_preview "$opt"
         echo
-        read -r -p "Aplicar nivel $opt y reiniciar governor? escribe SI: " ok
-        if [[ "$ok" == "SI" ]]; then
+        read -r -p "Apply level $opt and restart the governor? Type YES: " ok
+        if [[ "$ok" == "YES" || "$ok" == "SI" ]]; then
           "$0" apply "$opt"
-          read -r -p "Enter para continuar..." _
+          read -r -p "Press Enter to continue..." _
         fi
         ;;
       p|P)
-        read -r -p "Nivel 0, 3 o 6: " lvl
+        read -r -p "Level 0 through 6: " lvl
         python_preview "$lvl" || true
-        read -r -p "Enter para continuar..." _
+        read -r -p "Press Enter to continue..." _
         ;;
       q|Q) exit 0 ;;
     esac

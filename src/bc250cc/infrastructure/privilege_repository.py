@@ -20,10 +20,11 @@ class PrivilegeRepository:
     # Protocol 18 adds bounded NCT PWM duty re-writes after the automatic ->
     # manual transition.  Accepting protocol 16 would silently acknowledge a
     # PWM4 value which the controller can still discard during that settle.
+    # Protocol 21 adds the reviewed GPU voltage ladder levels 1 through 5.
     # Protocol 20 adds gpu-usage.method to the finite Cyan compatibility action.
     # Protocol 19 adds the no-TTY CPU boot-service operation used when the
     # desktop application is launched as a Steam non-Steam game.
-    _STEAMOS_GAME_HELPER_PROTOCOL = 20
+    _STEAMOS_GAME_HELPER_PROTOCOL = 21
 
     def _game_platform_supported(self):
         try:

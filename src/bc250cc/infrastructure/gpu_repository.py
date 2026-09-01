@@ -960,6 +960,49 @@ class GPURepository:
         self._ensure_cyan_frequency_range_loaded(minimo, maximo)
         return self._apply_cyan_runtime_range(minimo, maximo)
 
+    def guardar_rango_gpu_arranque(self):
+        """Persist Cyan's authoritative live range for its next startup.
+
+        The live D-Bus values are read again at the backend boundary so a
+        stale desktop snapshot can never be written into the managed TOML.
+        This intentionally does not restart Cyan or alter the running range.
+        """
+
+        if self._selected_gpu_governor() != CYAN_GOVERNOR:
+            raise RuntimeError(
+                "Startup range persistence is available only for the Cyan governor."
+            )
+        self._require_cyan_runtime_for_live_control()
+        current = self._leer_rango_governor("Current")
+        if current is None or len(current) != 2:
+            raise RuntimeError(
+                "Cyan's active D-Bus range could not be read. Nothing was written."
+            )
+        minimum, maximum = (int(current[0]), int(current[1]))
+        if minimum <= 0 or maximum <= 0 or minimum > maximum:
+            raise RuntimeError(
+                "Cyan returned an invalid active range. Nothing was written."
+            )
+
+        result = self._editar_governor_toml(
+            "set-frequency-range", minimum, maximum
+        )
+        persisted = self._frequency_range_state()
+        if (
+            not persisted.get("valid")
+            or not persisted.get("enabled")
+            or int(persisted.get("min") or 0) != minimum
+            or int(persisted.get("max") or 0) != maximum
+        ):
+            raise RuntimeError(
+                "The Cyan TOML did not verify the requested startup range after writing."
+            )
+        self.estado_bc250_cache = None
+        return (
+            f"{result} Saved active range {minimum}-{maximum} MHz for Cyan startup. "
+            "The current runtime range was not changed."
+        ).strip()
+
     def _ensure_cyan_frequency_range_loaded(self, minimo: int, maximo: int) -> None:
         """Ensure the running Cyan process has loaded a requested high point.
 
@@ -1319,7 +1362,7 @@ class GPURepository:
     def aplicar_laboratorio_voltaje_gpu(self, nivel):
         nivel = int(nivel)
         if nivel not in SUPPORTED_VOLTAGE_LEVELS:
-            raise ValueError("Invalid lab level. Use 0, 3 or 6.")
+            raise ValueError("Invalid lab level. Use an integer from 0 through 6.")
         if self._selected_gpu_governor() == OBERON_GOVERNOR:
             raise RuntimeError(
                 "Oberon voltage editing is unavailable. Its two OPP endpoints do not "

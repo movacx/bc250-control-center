@@ -34,7 +34,10 @@ def _packaged_config() -> str:
     )
 
 
-@pytest.mark.parametrize("level,addition", ((0, 0), (3, 30), (6, 60)))
+@pytest.mark.parametrize(
+    "level,addition",
+    tuple((level, level * 10) for level in range(7)),
+)
 def test_profiles_modify_every_point_from_2000_mhz(level, addition):
     profile = voltage_profile(level)
 

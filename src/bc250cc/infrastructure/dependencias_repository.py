@@ -94,6 +94,7 @@ from bc250cc.infrastructure.steamos_amdgpu import (
     build_steamos_compatibility_command,
 )
 from bc250cc.infrastructure.steamos_amdgpu_backend import (
+    STEAMOS_AMDGPU_AUDIO_FIX_ROOT,
     STEAMOS_AMDGPU_BACKEND,
     STEAMOS_AMDGPU_BACKEND_ROOT,
     STEAMOS_AMDGPU_BOOT_CONFIG,
@@ -1248,6 +1249,38 @@ class DependenciasRepository:
             f'sudo /usr/bin/python3 {shlex.quote(str(installed_overlay))} '
             f'{shlex.quote(str(STEAMOS_AMDGPU_BACKEND_ROOT))}'
         )
+        # Upstream's patch-driver is intentionally a normal-user build
+        # workflow: it creates its lock, dependency cache and kernel tree next
+        # to the script.  The protected /usr/libexec stage must therefore be
+        # used only for root-facing validation/install scripts.  Build in the
+        # pinned ResourceTools checkout, then copy only the two attested build
+        # products into the protected stage before invoking its root-owned
+        # installer.
+        user_audio_root = destination / STEAMOS_FIX_SUBDIRECTORY
+        q_user_audio = shlex.quote(str(user_audio_root))
+        q_protected_audio = shlex.quote(str(STEAMOS_AMDGPU_AUDIO_FIX_ROOT))
+        build_install_command = '; '.join((
+            overlay_command,
+            f'/usr/bin/install -m 0755 {q_protected_audio}/build.sh {q_user_audio}/build.sh',
+            'export BC250_CONTROL_CENTER_OC_TELEMETRY=1',
+            f'sudo /usr/bin/bash {q_protected_audio}/ensure-build-prereqs.sh',
+            'echo; echo "== Downloading exact Valve kernel sources and build dependencies =="; '
+            'echo "[INFO] This step can remain quiet for several minutes while Git is working. Do not close this window; the process is still running."',
+            f'/usr/bin/bash {q_user_audio}/fetch-sources.sh',
+            'echo "[OK] Kernel sources and build dependencies are ready."; echo; '
+            'echo "== Building the BC250 AMDGPU module =="; '
+            'echo "[INFO] Configuration and compilation can take a while. Do not close this window; compiler output will appear as work progresses."',
+            f'/usr/bin/bash {q_user_audio}/build.sh',
+            f'for artifact in amdgpu.ko.zst amdgpu.gfx1013.attestation; do '
+            f'source_artifact={q_user_audio}/$artifact; '
+            'test -f "$source_artifact" && test ! -L "$source_artifact" && '
+            '[ "$(stat -c %u "$source_artifact")" = "$(id -u)" ] && '
+            '! find "$source_artifact" -prune -perm /022 -print -quit | grep -q . || '
+            '{ echo "ERROR: SteamOS build produced an unsafe artifact: $source_artifact"; exit 38; }; '
+            f'sudo install -o root -g root -m 0644 "$source_artifact" {q_protected_audio}/$artifact; '
+            'done',
+            f'sudo /usr/bin/bash {q_protected_audio}/install.sh',
+        ))
         if install:
             checkout_command = self._clone_or_update_commit_command(
                 STEAMOS_FIX_REPOSITORY, destination, STEAMOS_FIX_REVIEWED_COMMIT
@@ -1269,6 +1302,7 @@ class DependenciasRepository:
             checkout_command=checkout_command,
             install=install,
             telemetry_oc_overlay_command=overlay_command if install else '',
+            module_install_command=build_install_command if install else '',
             backend_guard=protected_backend_guard(
                 reviewed_revision=STEAMOS_FIX_REVIEWED_COMMIT
             ),

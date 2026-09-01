@@ -19,7 +19,7 @@ def test_voltage_apply_reports_unavailable_without_profile_points():
     assert plan.violation is None
 
 
-@pytest.mark.parametrize("level", (0, 3, 6))
+@pytest.mark.parametrize("level", tuple(range(7)))
 def test_voltage_apply_builds_complete_packaged_profile(level):
     frequencies = (1000, 2000, 2400)
     plan = plan_voltage_apply(
@@ -87,7 +87,7 @@ def test_oberon_profile_uses_the_safe_voltage_floor():
 def test_voltage_plan_rejects_unreachable_profile_levels():
     with pytest.raises(ValueError, match="Unsupported GPU voltage level"):
         plan_voltage_apply(
-            level=4,
+            level=7,
             editable_frequencies=(1000,),
             profile_frequencies=(1000,),
             current_voltages={1000: 800},

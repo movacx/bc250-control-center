@@ -34,6 +34,7 @@ from frontends.desktop.i18n import SUPPORTED_LANGUAGES, tr
             ("kernel", "kernel", "0", "0"),
         ),
         ("set-cyan-voltage-level", (3,), ("3",)),
+        ("set-cyan-voltage-level", (5,), ("5",)),
         (
             "set-cyan-custom-voltages",
             ("1850=950", "1000=820"),
@@ -51,8 +52,8 @@ def test_request_planner_normalizes_supported_actions(action, arguments, normali
 
 
 def test_governor_helper_protocol_is_explicit_and_fails_closed_when_absent():
-    assert GOVERNOR_CONFIG_HELPER_PROTOCOL == 5
-    assert governor_config_helper_protocol("BC250_GOVERNOR_CONFIG_PROTOCOL = 5\n") == 5
+    assert GOVERNOR_CONFIG_HELPER_PROTOCOL == 6
+    assert governor_config_helper_protocol("BC250_GOVERNOR_CONFIG_PROTOCOL = 6\n") == 6
     assert governor_config_helper_protocol("BC250_GOVERNOR_CONFIG_PROTOCOL = 1\n") == 1
     assert governor_config_helper_protocol("# no protocol\n") is None
     assert governor_config_helper_protocol("BC250_GOVERNOR_CONFIG_PROTOCOL = invalid\n") is None
@@ -80,7 +81,7 @@ def test_governor_helper_protocol_is_explicit_and_fails_closed_when_absent():
         ("set-cyan-compatibility", ("invalid", "busy-flag", False, False), "smu or kernel"),
         ("set-cyan-compatibility", ("smu", "invalid", False, False), "busy-flag"),
         ("set-cyan-compatibility", ("smu", "busy-flag", 0, False), "must be boolean"),
-        ("set-cyan-voltage-level", (4,), "0, 3 or 6"),
+        ("set-cyan-voltage-level", (7,), "0 through 6"),
         ("set-cyan-custom-voltages", (), "No custom values"),
         ("set-cyan-custom-voltages", ("1850=950", "1850=960"), "conflicting"),
         ("set-cyan-custom-voltages", ("1850=1300",), "safe editor range"),

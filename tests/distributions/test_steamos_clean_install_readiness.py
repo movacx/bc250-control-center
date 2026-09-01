@@ -108,7 +108,12 @@ def test_explicit_steamos_compatibility_action_is_separate_and_pinned(tmp_path, 
     # upstream build runs afterwards from the protected copy, not directly
     # from ResourceTools.
     assert "with-steamos-writable-root.sh" in command
-    assert "sudo /usr/bin/bash /usr/libexec/bc250-control-center/steamos-amdgpu-backend/bc250-audio-fix/patch-driver.sh" in command
+    assert "sudo /usr/bin/bash /usr/libexec/bc250-control-center/steamos-amdgpu-backend/bc250-audio-fix/install.sh" in command
+    assert f"/usr/bin/bash {tmp_path}/ResourceTools/bc250-steamos/bc250-audio-fix/fetch-sources.sh" in command
+    assert f"/usr/bin/bash {tmp_path}/ResourceTools/bc250-steamos/bc250-audio-fix/build.sh" in command
+    assert f"sudo /usr/bin/bash {tmp_path}/ResourceTools" not in command
+    assert "Do not close this window; the process is still running." in command
+    assert "Configuration and compilation can take a while." in command
     assert f"sudo /usr/bin/bash {tmp_path}/ResourceTools/bc250-steamos" not in command
     assert "bc250-mesh-shader.sh" in command
     assert "/usr/libexec/bc250-control-center/steamos-amdgpu-backend/bc250-mesh-shader.sh" in command

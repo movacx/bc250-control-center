@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -100,6 +101,7 @@ from ..components.system_setup_controls import (
     is_bazzite_host,
     update_memory_controls,
 )
+from ..components.voltage_lab_drawer import VoltageLabDrawer
 from ..components.widgets import IconBadge, InfoDialog, PillLabel, apply_shadow, icon
 from ..core.action_session import ActionSession
 from ..core.external_links import open_external_url, open_local_file
@@ -1929,6 +1931,23 @@ class GpuGovernorPage(QWidget):
         self.voltage_lab_page = self._build_voltage_lab_page()
         self.page_stack.addWidget(self.voltage_lab_page)
 
+        # The complete legacy workspace is intentionally retained above for
+        # future reuse. The normal GPU action opens this compact overlay and
+        # delegates every write to the same validated apply path.
+        self.voltage_lab_drawer = VoltageLabDrawer(self)
+        self.voltage_lab_drawer.profile_requested.connect(
+            self._select_drawer_voltage_profile
+        )
+        self.voltage_lab_drawer.custom_voltage_changed.connect(
+            self._drawer_custom_voltage_changed
+        )
+        self.voltage_lab_drawer.apply_requested.connect(
+            self._request_apply_voltage_curve_from_drawer
+        )
+        self.voltage_lab_drawer.restore_requested.connect(
+            self._request_restore_voltage_defaults
+        )
+
         self._reflow(1400)
         self.timer = QTimer(self)
         self.timer.setInterval(3000)
@@ -2091,7 +2110,7 @@ class GpuGovernorPage(QWidget):
         apply_row.setSpacing(8)
         self.range_actions_grid = apply_row
         self._range_action_mode = ""
-        self.use_active_button = QPushButton(tr("Use active range"))
+        self.use_active_button = QPushButton(tr("Save active range for startup"))
         self.use_active_button.setProperty("compactAction", True)
         self.use_active_button.clicked.connect(self._use_active_range)
         apply_row.addWidget(self.use_active_button, 0, 0)
@@ -2490,7 +2509,11 @@ class GpuGovernorPage(QWidget):
 
         self.voltage_level_combo = QComboBox()
         self.voltage_level_combo.addItem("Level 0 · governor defaults", 0)
+        self.voltage_level_combo.addItem("Level 1 · default +10 mV", 1)
+        self.voltage_level_combo.addItem("Level 2 · default +20 mV", 2)
         self.voltage_level_combo.addItem("Level 3 · default +30 mV", 3)
+        self.voltage_level_combo.addItem("Level 4 · default +40 mV", 4)
+        self.voltage_level_combo.addItem("Level 5 · default +50 mV", 5)
         self.voltage_level_combo.addItem("Level 6 · default +60 mV", 6)
         self.voltage_level_combo.addItem("Custom · all active safe-points", -1)
         self.voltage_level_combo.currentIndexChanged.connect(
@@ -2682,8 +2705,13 @@ class GpuGovernorPage(QWidget):
         self.status_button.setProperty("compactAction", True)
         self.status_button.clicked.connect(self.read_service_status)
 
-        self.voltage_lab_button = QPushButton(tr("Open voltage lab"))
-        self.voltage_lab_button.setProperty("dangerAction", True)
+        self.voltage_lab_button = QPushButton(tr("Open voltage laboratory"))
+        self.voltage_lab_button.setProperty("compactAction", True)
+        self.voltage_lab_button.setProperty("voltageLabLauncher", True)
+        self.voltage_lab_button.setIcon(icon("bolt_blue"))
+        self.voltage_lab_button.setToolTip(
+            tr("Open the compact voltage curve laboratory without leaving GPU control.")
+        )
         self.voltage_lab_button.clicked.connect(self.open_voltage_lab)
 
         self.runtime_action_buttons = [
@@ -2822,6 +2850,10 @@ class GpuGovernorPage(QWidget):
             else self.overview_scroll
         )
         self._reflow(effective_viewport_width(self, active_scroll))
+        if getattr(self, "voltage_lab_drawer", None) is not None:
+            self.voltage_lab_drawer.setGeometry(self.rect())
+            if self.voltage_lab_drawer.is_open():
+                self.voltage_lab_drawer.raise_()
 
     def _reflow(self, width: int) -> None:
         self._reflow_presets(width)
@@ -3112,11 +3144,52 @@ class GpuGovernorPage(QWidget):
             self.preset_group.setExclusive(True)
 
     def _use_active_range(self) -> None:
-        self._range_user_dirty = False
-        self._stage_range(
-            self.active_min,
-            self.active_max,
-            preset=self._profile_name(self.active_min, self.active_max),
+        self._save_active_range_for_startup()
+
+    def _save_active_range_for_startup(self) -> None:
+        minimum = _integer(self.current_state.get("current_min"), 0)
+        maximum = _integer(self.current_state.get("current_max"), 0)
+        if minimum <= 0 or maximum <= 0 or minimum > maximum:
+            self._show_info(
+                "Active range unavailable",
+                "Refresh GPU status before saving a startup range.",
+                tone="orange",
+            )
+            return
+        dialog = ConfirmDialog(
+            "Save active range for startup",
+            "This writes the currently active Cyan D-Bus range to the managed "
+            "TOML. Cyan will use it at the next startup. The running GPU range "
+            "and governor service will not be changed.",
+            summary=(
+                ("Minimum", f"{minimum} MHz"),
+                ("Maximum", f"{maximum} MHz"),
+                ("TOML section", "[frequency-range]"),
+                ("Service", "No restart"),
+            ),
+            confirm_text="Save startup range",
+            tone="orange",
+            parent=self,
+        )
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        def success(result: object) -> None:
+            self._last_operation_summary = str(result or tr_format(
+                "Saved {minimum}-{maximum} MHz for Cyan startup.",
+                minimum=minimum,
+                maximum=maximum,
+            ))
+            self.last_operation_line.set_values(
+                "Save startup range", self._last_operation_summary
+            )
+            self._append_console(self._last_operation_summary)
+
+        self._run_backend_action(
+            self.controller.guardar_rango_gpu_arranque,
+            success,
+            "Could not save the startup range",
+            controls=(self.use_active_button,),
         )
 
     def _clear_profile_checks(self) -> None:
@@ -3257,7 +3330,11 @@ class GpuGovernorPage(QWidget):
             refresh_enabled=refresh,
             after_success=(
                 lambda: (
-                    self.page_stack.setCurrentWidget(self.voltage_lab_page)
+                    self.voltage_lab_drawer.raise_()
+                    if keep_voltage_lab
+                    and getattr(self, "voltage_lab_drawer", None) is not None
+                    and self.voltage_lab_drawer.is_open()
+                    else self.page_stack.setCurrentWidget(self.voltage_lab_page)
                     if keep_voltage_lab
                     else None
                 )
@@ -4432,7 +4509,9 @@ class GpuGovernorPage(QWidget):
 
     def open_voltage_lab(self) -> None:
         self._sync_voltage_lab(self.current_state)
-        self.page_stack.setCurrentWidget(self.voltage_lab_page)
+        self.page_stack.setCurrentWidget(self.overview_page)
+        self._sync_voltage_drawer()
+        self.voltage_lab_drawer.show_animated()
 
     def _close_voltage_lab(self) -> None:
         self.page_stack.setCurrentWidget(self.overview_page)
@@ -4440,6 +4519,20 @@ class GpuGovernorPage(QWidget):
     def _refresh_voltage_lab(self) -> None:
         self.refresh()
         self.page_stack.setCurrentWidget(self.voltage_lab_page)
+
+    def gamepad_focus_scope(self) -> QWidget:
+        if self.voltage_lab_drawer.is_open():
+            return self.voltage_lab_drawer.drawer
+        return self.page_stack.currentWidget() or self
+
+    def gamepad_back(self) -> bool:
+        if self.voltage_lab_drawer.is_open():
+            self.voltage_lab_drawer.close_animated()
+            return True
+        if self.page_stack.currentWidget() is self.voltage_lab_page:
+            self._close_voltage_lab()
+            return True
+        return False
 
     def _voltage_for_level(self, frequency: int, level: int) -> int | None:
         return voltage_for_level(
@@ -4449,8 +4542,13 @@ class GpuGovernorPage(QWidget):
         )
 
     def _voltage_keypad_edit_active(self) -> bool:
+        drawer = getattr(self, "voltage_lab_drawer", None)
+        drawer_editors = drawer.editors() if drawer is not None else ()
         return voltage_keypad_edit_active(
-            getattr(self, "_voltage_spinboxes", {}).values(),
+            (
+                *getattr(self, "_voltage_spinboxes", {}).values(),
+                *drawer_editors,
+            ),
             application=QApplication.instance(),
         )
 
@@ -4537,6 +4635,97 @@ class GpuGovernorPage(QWidget):
             self.voltage_workflow_status.set_tone(presentation.workflow_tone)
         # Curve validity remains visible in the summary strip and is rechecked before every apply.
         self._populate_voltage_table()
+        self._sync_voltage_drawer()
+
+    def _sync_voltage_drawer(self) -> None:
+        drawer = getattr(self, "voltage_lab_drawer", None)
+        if drawer is None or not hasattr(self, "_voltage_points"):
+            return
+        selected_level = int(drawer.selected_level())
+        plan = build_voltage_table_plan(
+            points=list(self._voltage_points),
+            selected_level=selected_level,
+            editable_frequencies=self._voltage_editable_frequencies,
+            profile_frequencies=self._voltage_profile_frequencies,
+            custom_values=self._voltage_custom_values,
+            packaged_voltages=self.VOLTAGE_LAB_BASE,
+            detected_level=self._voltage_detected_level,
+            is_oberon=bool(getattr(self, "_is_oberon_backend", False)),
+        )
+        is_oberon = bool(getattr(self, "_is_oberon_backend", False))
+        drawer.set_oberon_mode(is_oberon)
+        rows = plan.rows
+        if is_oberon:
+            rows = tuple(
+                replace(
+                    row,
+                    original=None,
+                    proposed=row.current or None,
+                    added=None,
+                    custom_available=False,
+                    editor_value=row.current,
+                )
+                for row in plan.rows
+            )
+            detail = tr(
+                "Oberon uses two YAML endpoints. They are shown below for reference; "
+                "curve editing is unavailable for this governor."
+            )
+        elif plan.custom_mode:
+            detail = tr(
+                "Adjust the safe points currently active in the governor configuration."
+            )
+        else:
+            detail = tr_format(
+                "+{added} mV is added only to the high-frequency curve from "
+                "{start} MHz. Lower-frequency values return to governor defaults.",
+                added=selected_level * 10,
+                start=VOLTAGE_BOOST_START_MHZ,
+            )
+        drawer.set_curve(
+            rows,
+            custom_mode=plan.custom_mode and not is_oberon,
+            detail=detail,
+            apply_enabled=bool(plan.active_frequencies) and not is_oberon,
+            read_only=is_oberon,
+        )
+
+    def _select_drawer_voltage_profile(self, level: int) -> None:
+        self._clear_stale_voltage_keypad_state()
+        self.voltage_lab_drawer.set_profile(int(level))
+        index = self.voltage_level_combo.findData(int(level))
+        if index >= 0:
+            self.voltage_level_combo.setCurrentIndex(index)
+        self._sync_voltage_drawer()
+
+    def _drawer_custom_voltage_changed(self, frequency: int, value: int) -> None:
+        frequency = int(frequency)
+        value = int(value)
+        self._voltage_custom_values[frequency] = value
+        spin = self._voltage_spinboxes.get(frequency)
+        if spin is not None and spin.value() != value:
+            previous = spin.blockSignals(True)
+            spin.setValue(value)
+            spin.blockSignals(previous)
+        base = self.VOLTAGE_LAB_BASE.get(frequency)
+        self.voltage_curve_grid.update_point(
+            frequency,
+            None if base is None else value - int(base),
+        )
+
+    def _request_apply_voltage_curve_from_drawer(self) -> None:
+        self._request_apply_voltage_curve(
+            level_override=self.voltage_lab_drawer.selected_level(),
+            custom_values_override=self.voltage_lab_drawer.custom_values(),
+            source_controls=(self.voltage_lab_drawer.apply_button,),
+        )
+
+    def _request_restore_voltage_defaults(self) -> None:
+        self._request_apply_voltage_curve(
+            level_override=0,
+            custom_values_override={},
+            source_controls=(self.voltage_lab_drawer.restore_button,),
+        )
 
     @staticmethod
     def _render_voltage_lab_text(value: VoltageLabText) -> str:
@@ -4563,6 +4752,7 @@ class GpuGovernorPage(QWidget):
             _integer(self.voltage_level_combo.currentData(), 0)
         )
         self._populate_voltage_table()
+        self._sync_voltage_drawer()
 
     def _populate_voltage_table(self) -> None:
         if not hasattr(self, "voltage_curve_grid"):
@@ -4655,7 +4845,13 @@ class GpuGovernorPage(QWidget):
         added = None if base is None else value - int(base)
         self.voltage_curve_grid.update_point(frequency, added)
 
-    def _request_apply_voltage_curve(self) -> None:
+    def _request_apply_voltage_curve(
+        self,
+        *,
+        level_override: int | None = None,
+        custom_values_override: dict[int, int] | None = None,
+        source_controls: tuple[QWidget, ...] = (),
+    ) -> None:
         if bool(getattr(self, "_is_oberon_backend", False)):
             self._show_info(
                 "Oberon voltage changes are unavailable",
@@ -4663,9 +4859,15 @@ class GpuGovernorPage(QWidget):
                 tone="orange",
             )
             return
-        level = _integer(self.voltage_level_combo.currentData(), 0)
+        level = (
+            _integer(level_override, 0)
+            if level_override is not None
+            else _integer(self.voltage_level_combo.currentData(), 0)
+        )
         custom_values = (
-            {
+            dict(custom_values_override)
+            if custom_values_override is not None
+            else {
                 frequency: int(self._voltage_spinboxes[frequency].value())
                 for frequency in sorted(self._voltage_editable_frequencies)
                 if frequency in self._voltage_spinboxes
@@ -4773,7 +4975,7 @@ class GpuGovernorPage(QWidget):
             operation,
             success,
             "Voltage curve failed",
-            controls=(self.voltage_apply_button,),
+            controls=(self.voltage_apply_button, *source_controls),
             keep_voltage_lab=True,
         )
 
@@ -5170,6 +5372,12 @@ class GpuGovernorPage(QWidget):
             gpu.get("governor_backend") or "cyan-skillfish-governor-smu"
         )
         is_oberon = governor_backend == "oberon-governor"
+        self.use_active_button.setText(tr("Save active range for startup"))
+        self.use_active_button.setToolTip(
+            tr(
+                "Write the live Cyan range to [frequency-range] for the next startup."
+            )
+        )
         self._set_backend_profile_mode(is_oberon)
         self._sync_cyan_compatibility(gpu, is_oberon=is_oberon)
         frequency, mclk, minimum, maximum = self._sync_range_state(gpu)

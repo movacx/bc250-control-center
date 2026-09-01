@@ -4,9 +4,15 @@ import os
 import subprocess
 from pathlib import Path
 
+from bc250cc.infrastructure.steamos_shell import steamos_writable_root_wrapper
+
 WRAPPER = Path(
     "packaging/common/os-scripts/common/with-steamos-writable-root.sh"
 ).resolve()
+
+
+def test_runtime_resolves_the_packaged_steamos_guard():
+    assert steamos_writable_root_wrapper().resolve() == WRAPPER
 
 
 def _fake_environment(tmp_path: Path, state: str):

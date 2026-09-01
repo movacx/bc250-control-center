@@ -24,6 +24,9 @@ class CyanRepository(GPURepository):
     def _selected_gpu_governor(self):
         return "cyan-skillfish-governor-smu"
 
+    def _require_cyan_runtime_for_live_control(self):
+        return {}
+
     def _usar_steamos_game_helper(self):
         return False
 
@@ -45,6 +48,18 @@ class CyanRepository(GPURepository):
         self.calls.append(("edit", action, arguments))
         return "updated"
 
+    def _frequency_range_state(self):
+        edits = [call for call in self.calls if call[0] == "edit"]
+        if not edits:
+            return {"valid": True, "enabled": False}
+        _kind, _action, arguments = edits[-1]
+        return {
+            "valid": True,
+            "enabled": True,
+            "min": arguments[0],
+            "max": arguments[1],
+        }
+
     def _restart_governor_if_active(self, service):
         self.calls.append(("restart", service))
         return True
@@ -63,6 +78,26 @@ def test_cyan_voltage_level_uses_protected_helper_boundary_and_restores_range():
     assert ("restart", "cyan-skillfish-governor-smu.service") in repo.calls
     assert ("restore", (1000, 1850)) in repo.calls
     assert "1000-1850 MHz" in result
+
+
+def test_active_cyan_range_is_persisted_without_restarting_or_changing_runtime():
+    repo = CyanRepository()
+
+    result = repo.guardar_rango_gpu_arranque()
+
+    assert ("edit", "set-frequency-range", (1000, 1850)) in repo.calls
+    assert not any(call[0] in {"restart", "restore"} for call in repo.calls)
+    assert "1000-1850 MHz" in result
+    assert "runtime range was not changed" in result
+
+
+def test_compact_voltage_ladder_uses_the_same_protected_helper_boundary():
+    repo = CyanRepository()
+
+    repo.aplicar_laboratorio_voltaje_gpu(5)
+
+    assert ("edit", "set-cyan-voltage-level", (5,)) in repo.calls
+    assert ("restart", "cyan-skillfish-governor-smu.service") in repo.calls
 
 
 def test_custom_voltage_request_is_sorted_and_does_not_execute_writable_script():

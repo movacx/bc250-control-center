@@ -33,6 +33,12 @@ CYAN_PERFORMANCE_INTERFACE = "com.cyanskillfish.Governor.PerformanceMode"
 # below /usr.  The desktop workflow stages this reviewed root-owned backend in
 # persistent /var/lib; SteamOS uses its separate game helper and /usr payload.
 CU_BACKEND = pathlib.Path("/var/lib/bc250-control-center/bc250-cu-live-manager")
+STEAMOS_CU_BACKEND = pathlib.Path(
+    "/usr/libexec/bc250-control-center/bc250-cu-live-manager"
+)
+STEAMOS_CU_DATABASE = pathlib.Path(
+    "/usr/libexec/bc250-control-center/bc250-cu-umr-database"
+)
 CPU_HELPER = pathlib.Path("/usr/libexec/bc250-control-center/bc250-cpu-smu-helper")
 CPU_CONFIG = pathlib.Path("/etc/bc250-smu-oc.conf")
 CPU_SERVICE_NAME = "bc250-smu-oc.service"
@@ -141,12 +147,15 @@ def fail(message: str, code: int = 1) -> int:
 def trusted_cu_environment() -> dict[str, str]:
     """Use the distribution UMR database selected by the generic backend.
 
-    The SteamOS-specific static database is handled by its separate Game Mode
-    helper.  Passing that nonexistent /usr payload on Bazzite overrides the
-    working rpm-ostree UMR installation and makes every Quick Access CU action
-    fail.
+    SteamOS uses the reviewed static database staged below /usr/libexec.
+    Passing that path on Bazzite would override its working rpm-ostree UMR
+    installation, so the override is deliberately distribution-specific.
     """
-    return {}
+    return (
+        {"UMR_DATABASE_PATH": str(STEAMOS_CU_DATABASE)}
+        if is_steamos()
+        else {}
+    )
 
 
 def run(
@@ -555,10 +564,21 @@ def trusted_generic_immutable_cu_path(
 
 
 def cu_backend_ready() -> bool:
+    if is_steamos():
+        return (
+            trusted_directory(STEAMOS_CU_BACKEND.parent)
+            and trusted_file(STEAMOS_CU_BACKEND, executable=True)
+            and trusted_directory(STEAMOS_CU_DATABASE)
+        )
     return (
         trusted_generic_immutable_cu_path(CU_BACKEND.parent)
         and trusted_generic_immutable_cu_path(CU_BACKEND, executable=True)
     )
+
+
+def cu_backend_path() -> pathlib.Path:
+    """Select SteamOS' protected backend without changing other hosts."""
+    return STEAMOS_CU_BACKEND if is_steamos() else CU_BACKEND
 
 
 def parse_cu_dashboard_count(payload: str) -> tuple[int, int] | None:
@@ -950,7 +970,7 @@ def cu_dashboard_topology() -> dict[str, object] | None:
     if not cu_backend_ready():
         return None
     result = run(
-        [str(CU_BACKEND), "status"],
+        [str(cu_backend_path()), "status"],
         timeout=45,
         extra_env=trusted_cu_environment(),
     )
@@ -1362,7 +1382,8 @@ def cu_table(masks: Sequence[object], *, save_boot: bool = False) -> int:
     if not cu_backend_ready():
         return fail("QUICK_ACCESS_CU_BACKEND: trusted staged CU backend is missing. Prepare dependencies from Desktop Mode.", 31)
     cu_environment = trusted_cu_environment()
-    before = run([str(CU_BACKEND), "status"], timeout=45, extra_env=cu_environment)
+    backend = cu_backend_path()
+    before = run([str(backend), "status"], timeout=45, extra_env=cu_environment)
     before_topology = parse_cu_topology(before.stdout) if before.returncode == 0 else None
     if before_topology is not None:
         before_topology["raw_dashboard"] = before.stdout
@@ -1393,7 +1414,7 @@ def cu_table(masks: Sequence[object], *, save_boot: bool = False) -> int:
 
     if disabled:
         remove = run(
-            [str(CU_BACKEND), "--yes", "disable-wgp", *disabled],
+            [str(backend), "--yes", "disable-wgp", *disabled],
             timeout=180,
             extra_env=cu_environment,
         )
@@ -1401,14 +1422,14 @@ def cu_table(masks: Sequence[object], *, save_boot: bool = False) -> int:
             return fail(remove.stderr.strip() or remove.stdout.strip() or "CU WGP removal failed.", remove.returncode)
     if enabled:
         add = run(
-            [str(CU_BACKEND), "--yes", "enable-wgp", *enabled],
+            [str(backend), "--yes", "enable-wgp", *enabled],
             timeout=180,
             extra_env=cu_environment,
         )
         if add.returncode != 0:
             return fail(add.stderr.strip() or add.stdout.strip() or "CU WGP routing failed.", add.returncode)
     verify = run(
-        [str(CU_BACKEND), "status"],
+        [str(backend), "status"],
         timeout=45,
         extra_env=cu_environment,
     )
@@ -1431,7 +1452,7 @@ def cu_table(masks: Sequence[object], *, save_boot: bool = False) -> int:
         )
     if save_boot:
         save = run(
-            [str(CU_BACKEND), "--yes", "write-service-table"],
+            [str(backend), "--yes", "write-service-table"],
             timeout=180,
             extra_env=cu_environment,
         )
@@ -1475,7 +1496,7 @@ def cu_install_service() -> int:
             31,
         )
     result = run(
-        [str(CU_BACKEND), "--yes", "install-service"],
+        [str(cu_backend_path()), "--yes", "install-service"],
         timeout=180,
         extra_env=trusted_cu_environment(),
     )
@@ -1520,7 +1541,7 @@ def cu_remove_service() -> int:
             31,
         )
     remove = run(
-        [str(CU_BACKEND), "--yes", "uninstall-service"],
+        [str(cu_backend_path()), "--yes", "uninstall-service"],
         timeout=180,
         extra_env=trusted_cu_environment(),
     )

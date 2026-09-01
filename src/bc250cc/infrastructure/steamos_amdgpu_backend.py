@@ -44,6 +44,7 @@ BACKEND_REQUIRED_EXECUTABLES = (
     "bc250-audio-fix/ensure-build-prereqs.sh",
     "bc250-audio-fix/fetch-sources.sh",
     "bc250-audio-fix/build.sh",
+    "bc250-audio-fix/check-module.sh",
     "bc250-audio-fix/install.sh",
     "bc250-audio-fix/rollback.sh",
     "bc250-audio-fix/cleanup-other-slot.sh",
