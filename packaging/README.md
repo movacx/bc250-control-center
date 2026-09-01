@@ -20,12 +20,13 @@ new payload is installed. Package removal never deletes files from user home
 directories; use the local uninstaller's explicit `--purge-user-data` option
 when that cleanup is wanted.
 
-The optional FSR4 V3 action is not a package dependency. On Debian, Ubuntu and
-their derivatives, Control Center installs missing source-build tools with APT
-only after the user requests that action, builds the official upstream `v3`
-branch in its Fedora 44 container with rootless Podman, and installs only a
-per-user Vulkan ICD for explicitly selected games. The matching small libdrm
-runtime is kept inside that private directory so older distribution libdrm
+The optional FSR4 V3 action is not a package dependency. On Fedora 44, Debian,
+Ubuntu and their derivatives, Control Center installs missing source-build
+tools with DNF or APT only after the user requests that action, builds the
+official upstream `v3` branch in its Fedora 44 container with rootless Podman,
+and installs only a per-user Vulkan ICD for explicitly selected games. Fedora
+requires the repaired GFX1013 boot to be active first. The matching small
+libdrm runtime is kept inside that private directory so distribution libdrm
 versions are not replaced. It never replaces system Mesa or libdrm.
 
 Once the runtime is validated, the FSR4 card exposes a compact copy button for

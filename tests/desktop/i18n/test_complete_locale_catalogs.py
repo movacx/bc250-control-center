@@ -14,7 +14,10 @@ from frontends.desktop.i18n import (
 from frontends.desktop.i18n.locale_catalog import COMPLETE_LOCALES, LOCALE_DIRECTORY
 
 PLACEHOLDER_RE = re.compile(r"\{[^{}]+\}")
-CORRUPTED_SENTINEL_RE = re.compile(r"QAZ|ZXQ|QXZ|XZZ|</?code\b|spantranslate", re.I)
+CORRUPTED_SENTINEL_RE = re.compile(
+    r"QAZ|ZXQ|QXZ|XZZ|</?code\b|<[^>]*\bid=[\"']bc\d+[\"'][^>]*>|spantranslate",
+    re.I,
+)
 COMMAND_LINE_RE = re.compile(
     r"(?m:^(?:sudo\s+)?(?:"
     r"systemctl(?:\s+--\S+)*\s+(?:enable|disable|start|stop|restart|status|daemon-reload)"
@@ -23,10 +26,10 @@ COMMAND_LINE_RE = re.compile(
     r"|VK_DRIVER_FILES=)[^\n]*$)"
 )
 PROTECTED_NAMES = (
-    "BC250", "BC-250", "SMU", "UMR", "TTM", "ZRAM", "ZSWAP", "WGP",
+    "BC250", "BC-250", "FSR4", "SMU", "UMR", "TTM", "ZRAM", "ZSWAP", "WGP",
     "PWM", "Cyan", "Oberon", "Decky", "OpenRC", "systemd", "runit",
     "s6-rc", "dinit", "SysVinit", "SteamOS", "Bazzite", "CachyOS",
-    "Arch", "Manjaro", "Fedora", "Ubuntu", "Debian", "NVMe", "M.2",
+    "Arch", "Manjaro", "Fedora", "Ubuntu", "Debian", "Podman", "NVMe", "M.2",
 )
 VISIBLE_CALL_ARGS = {
     "tr": (0,), "tr_format": (0,), "QLabel": (0,), "QPushButton": (0,),
@@ -85,6 +88,13 @@ def test_placeholders_technical_names_and_translation_sentinels_are_intact():
             ]
             assert len(long_english_fallbacks) <= 5, (code, long_english_fallbacks)
     assert english["Settings"] == "Settings"
+
+
+def test_platform_scope_label_keeps_product_names_untranslated():
+    scopes = ("BC-250 FSR4 V3", "Fedora 44 · GFX1013 · Podman")
+    for code in COMPLETE_LOCALES:
+        for scope in scopes:
+            assert _catalog(code)[scope] == scope, (code, scope)
 
 
 def test_copyable_shell_commands_are_never_translated():

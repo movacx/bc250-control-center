@@ -14,6 +14,7 @@ def _repository_for(
     calls: list[tuple[str, str]],
     *,
     distro_id: str | None = None,
+    version_id: str = "",
 ) -> DependenciasRepository:
     class Repository(DependenciasRepository):
         estado_herramientas_cache = None
@@ -23,6 +24,7 @@ def _repository_for(
                 "Info", (), {
                     "family": family,
                     "distro_id": distro_id or family,
+                    "version_id": version_id,
                     "immutable": family == "bazzite",
                 }
             )()
@@ -111,6 +113,35 @@ def test_fsr4_bazzite_route_uses_only_the_official_podman_source_build():
     assert "FSR4 V3" in terminal_title
 
 
+def test_fsr4_fedora44_route_requires_active_gfx1013_boot(monkeypatch):
+    calls: list[tuple[str, str]] = []
+    repository = _repository_for("fedora", calls, version_id="44")
+    monkeypatch.setattr(
+        repository,
+        "_gfx1013_compute_state",
+        lambda _os_repository: {"dryhopped_ready": True},
+    )
+
+    assert repository.gestionar_fsr4_bc250("install") == "terminal"
+    command, terminal_title = calls[0]
+    assert "official V3 source build for Fedora 44" in command
+    assert "bc250.gfx1013_v33=1" in command
+    assert "podman build" in command
+    assert "FSR4 V3" in terminal_title
+
+
+def test_fsr4_fedora44_route_stays_blocked_before_repaired_boot(monkeypatch):
+    repository = _repository_for("fedora", [], version_id="44")
+    monkeypatch.setattr(
+        repository,
+        "_gfx1013_compute_state",
+        lambda _os_repository: {"dryhopped_ready": False},
+    )
+
+    with pytest.raises(RuntimeError, match="requires the repaired GFX1013 boot"):
+        repository.gestionar_fsr4_bc250("install")
+
+
 def test_bazzite_async_compute_route_uses_only_the_pinned_release(monkeypatch):
     calls: list[tuple[str, str]] = []
     repository = _repository_for("bazzite", calls)
@@ -140,9 +171,9 @@ def test_bazzite_async_compute_route_never_opens_on_other_distros(monkeypatch):
         repository.gestionar_gfx1013_bazzite("install")
 
 
-@pytest.mark.parametrize("family", ("ubuntu", "fedora", "steamos"))
+@pytest.mark.parametrize("family", ("steamos",))
 def test_fsr4_precompiled_route_rejects_untested_distribution_abis(family):
-    with pytest.raises(RuntimeError, match="Bazzite uses the verified Podman"):
+    with pytest.raises(RuntimeError, match="use verified Podman source-build paths"):
         _repository_for(family, []).gestionar_fsr4_bc250("install")
 
 

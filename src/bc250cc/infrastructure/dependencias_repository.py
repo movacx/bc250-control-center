@@ -23,6 +23,7 @@ from bc250cc.infrastructure.bazzite_memory_tuning import (
 from bc250cc.infrastructure.bc250_fsr4 import (
     build_fsr4_v3_bazzite_install_command,
     build_fsr4_v3_debian_install_command,
+    build_fsr4_v3_fedora44_install_command,
     build_fsr4_v3_install_command,
     build_fsr4_v3_uninstall_command,
     fsr4_runtime_state,
@@ -367,14 +368,30 @@ class DependenciasRepository:
 
     def gestionar_fsr4_bc250(self, action: str) -> object:
         """Run the official upstream FSR4 lifecycle on supported or gated hosts."""
-        os_info = self._os_repository().info
-        state = fsr4_runtime_state(os_info.family, os_info.distro_id)
+        os_repository = self._os_repository()
+        os_info = os_repository.info
+        version_id = str(
+            getattr(os_info, 'version_id', '')
+            or read_os_release().get('VERSION_ID', '')
+        ).strip()
+        compute_state = (
+            self._gfx1013_compute_state(os_repository)
+            if os_info.family == 'fedora'
+            else {}
+        )
+        state = fsr4_runtime_state(
+            os_info.family,
+            os_info.distro_id,
+            version_id,
+            compute_kernel_ready=bool(compute_state.get('dryhopped_ready')),
+        )
         action = str(action or '').strip().lower()
         if action == 'install' and not state.get('installer_available'):
             raise RuntimeError(
                 'The official upstream FSR4 V3 runtime is available only on Arch/CachyOS. '
                 'Manjaro is experimental and accepted only through mandatory ABI/Vulkan checks; '
-                'Bazzite and Debian/Ubuntu use verified Podman source-build paths.'
+                'Fedora 44, Bazzite and Debian/Ubuntu use verified Podman source-build paths. '
+                'Fedora also requires the repaired GFX1013 boot to be active.'
             )
         if action not in {'install', 'uninstall'}:
             raise ValueError('Unsupported BC-250 FSR4 action.')
@@ -384,6 +401,8 @@ class DependenciasRepository:
             command_builder = build_fsr4_v3_bazzite_install_command
         elif state.get('build_mode') == 'debian-podman-source':
             command_builder = build_fsr4_v3_debian_install_command
+        elif state.get('build_mode') == 'fedora44-podman-source':
+            command_builder = build_fsr4_v3_fedora44_install_command
         else:
             command_builder = build_fsr4_v3_install_command
         self.estado_herramientas_cache = None
@@ -536,6 +555,9 @@ class DependenciasRepository:
             'kernel': kernel,
             'dryhopped_installed': dryhopped_installed,
             'dryhopped_boot_active': dryhopped_boot_active,
+            'dryhopped_ready': bool(
+                dryhopped_installed and dryhopped_boot_active
+            ),
             'steamos_kernel_ready': steamos_kernel_ready,
             'steamos_kernel_installed': steamos_kernel_installed,
             'steamos_kernel_reboot_pending': bool(
@@ -909,6 +931,26 @@ class DependenciasRepository:
         core_script = core / CORE_UNLOCK_SCRIPT
         steamos = tools / STEAMOS_FIX_DIRECTORY
         steamos_script = steamos / STEAMOS_FIX_SUBDIRECTORY / STEAMOS_FIX_SCRIPT
+        gfx1013_compute = safe(
+            lambda: self._gfx1013_compute_state(os_repository),
+            {'supported': False, 'state': 'probe-failed'},
+        )
+        os_info = getattr(os_repository, 'info', None)
+        version_id = str(
+            getattr(os_info, 'version_id', '')
+            or read_os_release().get('VERSION_ID', '')
+        ).strip()
+        fsr4 = safe(
+            lambda: fsr4_runtime_state(
+                getattr(os_info, 'family', ''),
+                getattr(os_info, 'distro_id', ''),
+                version_id,
+                compute_kernel_ready=bool(
+                    gfx1013_compute.get('dryhopped_ready')
+                ),
+            ),
+            {'installed': False, 'precompiled_supported': False},
+        )
         return {
             'smu_path': smu_path,
             'smu_exists': bool(smu_path and safe(lambda: Path(smu_path).exists(), False)),
@@ -922,17 +964,8 @@ class DependenciasRepository:
                 safe(lambda: (steamos / '.git').is_dir(), False)
                 and safe(steamos_script.is_file, False)
             ),
-            'gfx1013_compute': safe(
-                lambda: self._gfx1013_compute_state(os_repository),
-                {'supported': False, 'state': 'probe-failed'},
-            ),
-            'fsr4': safe(
-                lambda: fsr4_runtime_state(
-                    getattr(getattr(os_repository, 'info', None), 'family', ''),
-                    getattr(getattr(os_repository, 'info', None), 'distro_id', ''),
-                ),
-                {'installed': False, 'precompiled_supported': False},
-            ),
+            'gfx1013_compute': gfx1013_compute,
+            'fsr4': fsr4,
         }
 
     def _probe_platform_inventory(self, *, is_steamos, expected_steamos_repo):

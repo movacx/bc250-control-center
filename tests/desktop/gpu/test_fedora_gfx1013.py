@@ -21,6 +21,13 @@ def test_fedora_workflow_tracks_official_main_and_installs_both_required_halves(
     assert "install.sh install" in command
     assert "patches/mesa/series" in command
     assert "0002" in command and "0003" in command
+    assert "Fedora 44 source-RPM compatibility" in command
+    assert "./linux-*.tar.xz" in command
+    assert "Fedora external-module trace compatibility" in command
+    assert "#define TRACE_INCLUDE_PATH ." in command
+    assert "local bc250_trace_header=" in command
+    assert "unsupported amdgpu trace include layout" in command
+    assert "refusing an unreviewed automatic edit" in command
     assert "selected for the next boot only" in command
 
 

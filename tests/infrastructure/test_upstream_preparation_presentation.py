@@ -129,6 +129,57 @@ def test_ubuntu_exposes_verified_source_build_with_apt_guidance():
     assert sidebar.fsr4_launch_row.isHidden()
 
 
+def test_fedora44_fsr4_waits_for_repaired_gfx1013_boot():
+    sidebar = _sidebar()
+    sidebar.set_state(
+        _state(
+            "fedora",
+            {
+                "precompiled_supported": False,
+                "source_build_supported": True,
+                "installer_available": False,
+                "installed": False,
+                "current": False,
+                "state": "not-installed",
+                "source_build_required": True,
+                "build_mode": "fedora44-podman-source",
+                "compute_kernel_required": True,
+                "compute_kernel_ready": False,
+            },
+        )
+    )
+
+    assert sidebar.fsr4_card.scope.text() == "Fedora 44 · GFX1013 · Podman"
+    assert sidebar.fsr4_card.status.text() == "Kernel repair required"
+    assert "repaired GFX1013 boot must be active first" in sidebar.fsr4_card.detail.text()
+    assert sidebar.fsr4_install_button.isHidden()
+
+
+def test_fedora44_fsr4_exposes_source_build_after_repaired_boot():
+    sidebar = _sidebar()
+    sidebar.set_state(
+        _state(
+            "fedora",
+            {
+                "precompiled_supported": False,
+                "source_build_supported": True,
+                "installer_available": True,
+                "installed": False,
+                "current": False,
+                "state": "not-installed",
+                "source_build_required": True,
+                "build_mode": "fedora44-podman-source",
+                "compute_kernel_required": True,
+                "compute_kernel_ready": True,
+            },
+        )
+    )
+
+    assert sidebar.fsr4_card.status.text() == "Source build available"
+    assert sidebar.fsr4_install_button.isEnabled()
+    assert sidebar.fsr4_install_button.text() == "Build and install FSR4"
+
+
 def test_ready_fsr4_runtime_exposes_round_universal_copy_button():
     sidebar = _sidebar()
     option = (

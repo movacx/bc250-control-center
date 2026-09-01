@@ -1,6 +1,6 @@
 """Official-upstream BC-250 FSR4 V3 lifecycle.
 
-Arch-family hosts use the upstream installer unchanged. Bazzite and
+Arch-family hosts use the upstream installer unchanged. Fedora 44, Bazzite and
 Debian/Ubuntu build the same official ``v3`` branch in its Fedora container
 with rootless Podman, then install only the verified per-user Vulkan ICD. Every
 path restores the previous per-user runtime if installation or Vulkan
@@ -23,6 +23,7 @@ BC250_FSR4_SUPPORTED_FAMILIES = frozenset({"arch", "cachyos"})
 BC250_FSR4_EXPERIMENTAL_IDS = frozenset({"manjaro"})
 BC250_FSR4_SOURCE_BUILD_IDS = frozenset({"bazzite"})
 BC250_FSR4_DEBIAN_SOURCE_FAMILIES = frozenset({"debian", "ubuntu"})
+BC250_FSR4_FEDORA_SOURCE_IDS = frozenset({"fedora"})
 
 
 def fsr4_steam_launch_option(build_kind: str = "") -> str:
@@ -52,9 +53,12 @@ def _fsr4_platform_mode(*, family: str, distro_id: str) -> tuple[bool, bool]:
     return documented, experimental
 
 
-def _fsr4_source_build_mode(*, family: str, distro_id: str) -> str:
+def _fsr4_source_build_mode(
+    *, family: str, distro_id: str, version_id: str = ""
+) -> str:
     normalized_family = str(family or "").strip().lower()
     normalized_id = str(distro_id or "").strip().lower()
+    normalized_version = str(version_id or "").strip()
     if (
         normalized_family in BC250_FSR4_SOURCE_BUILD_IDS
         or normalized_id in BC250_FSR4_SOURCE_BUILD_IDS
@@ -62,10 +66,22 @@ def _fsr4_source_build_mode(*, family: str, distro_id: str) -> str:
         return "bazzite-podman-source"
     if normalized_family in BC250_FSR4_DEBIAN_SOURCE_FAMILIES:
         return "debian-podman-source"
+    if (
+        normalized_family in BC250_FSR4_FEDORA_SOURCE_IDS
+        and normalized_id in BC250_FSR4_FEDORA_SOURCE_IDS
+        and normalized_version == "44"
+    ):
+        return "fedora44-podman-source"
     return ""
 
 
-def fsr4_runtime_state(family: str, distro_id: str = "") -> dict:
+def fsr4_runtime_state(
+    family: str,
+    distro_id: str = "",
+    version_id: str = "",
+    *,
+    compute_kernel_ready: bool | None = None,
+) -> dict:
     """Validate the shape of the upstream-managed per-user runtime."""
 
     library = BC250_FSR4_PREFIX / "libvulkan_radeon.so"
@@ -109,7 +125,7 @@ def fsr4_runtime_state(family: str, distro_id: str = "") -> dict:
             and matching_amdgpu.is_file()
             and not matching_amdgpu.is_symlink()
         )
-    current = bool(valid_icd)
+    runtime_current = bool(valid_icd)
     documented, experimental = _fsr4_platform_mode(
         family=family,
         distro_id=distro_id,
@@ -117,8 +133,12 @@ def fsr4_runtime_state(family: str, distro_id: str = "") -> dict:
     source_build_mode = _fsr4_source_build_mode(
         family=family,
         distro_id=distro_id,
+        version_id=version_id,
     )
     source_build_supported = bool(source_build_mode)
+    compute_kernel_required = source_build_mode == "fedora44-podman-source"
+    kernel_ready = bool(compute_kernel_ready) if compute_kernel_required else True
+    current = bool(runtime_current and kernel_ready)
     return {
         "repository": BC250_FSR4_REPOSITORY,
         "branch": BC250_FSR4_BRANCH,
@@ -130,14 +150,29 @@ def fsr4_runtime_state(family: str, distro_id: str = "") -> dict:
         "prefix": str(BC250_FSR4_PREFIX),
         "icd": str(BC250_FSR4_ICD),
         "installed": artifacts_present,
+        "runtime_current": runtime_current,
         "current": current,
-        "state": "ready" if current else "invalid" if artifacts_present else "not-installed",
+        "state": (
+            "ready"
+            if current
+            else "kernel-required"
+            if runtime_current and compute_kernel_required
+            else "invalid"
+            if artifacts_present
+            else "not-installed"
+        ),
         "precompiled_supported": documented,
         "experimental_precompiled": experimental,
         "source_build_supported": source_build_supported,
         "build_mode": source_build_mode or "precompiled",
-        "installer_available": documented or experimental or source_build_supported,
+        "installer_available": bool(
+            documented
+            or experimental
+            or (source_build_supported and kernel_ready)
+        ),
         "source_build_required": source_build_supported or not (documented or experimental),
+        "compute_kernel_required": compute_kernel_required,
+        "compute_kernel_ready": kernel_ready,
     }
 
 
@@ -233,6 +268,27 @@ if [ "${#bc250_apt_packages[@]}" -gt 0 ]; then
   sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y "${bc250_apt_packages[@]}"
 fi'''
         build_kind = "debian-podman-source"
+    elif platform_mode == "fedora44":
+        platform_label = "Fedora 44"
+        platform_gate = '''test "${ID:-}" = "fedora" || { echo "ERROR: This source-build workflow is available only on Fedora."; exit 64; }
+test "${VERSION_ID:-}" = "44" || { echo "ERROR: The reviewed FSR4 source build supports Fedora 44 only."; exit 64; }
+command -v rpm-ostree >/dev/null 2>&1 && { echo "ERROR: Fedora Atomic must use its immutable-system workflow, not this Fedora Workstation route."; exit 64; }
+command -v dnf >/dev/null 2>&1 || { echo "ERROR: dnf is required for Fedora 44 preparation."; exit 69; }
+command -v sudo >/dev/null 2>&1 || { echo "ERROR: sudo is required to prepare missing Fedora build tools."; exit 69; }
+grep -qw 'bc250.gfx1013_v33=1' /proc/cmdline || { echo "ERROR: Boot the repaired GFX1013 kernel entry before building or using its FSR4 RADV runtime."; exit 64; }
+test -f /var/lib/bc250-gfx1013/active.env || { echo "ERROR: The reviewed GFX1013 kernel/Mesa installation is not complete."; exit 64; }'''
+        dependency_prepare = '''bc250_dnf_packages=()
+command -v git >/dev/null 2>&1 || bc250_dnf_packages+=(git)
+command -v lspci >/dev/null 2>&1 || bc250_dnf_packages+=(pciutils)
+command -v podman >/dev/null 2>&1 || bc250_dnf_packages+=(podman)
+command -v python3 >/dev/null 2>&1 || bc250_dnf_packages+=(python3)
+command -v ldd >/dev/null 2>&1 || bc250_dnf_packages+=(glibc)
+command -v vulkaninfo >/dev/null 2>&1 || bc250_dnf_packages+=(vulkan-tools)
+if [ "${#bc250_dnf_packages[@]}" -gt 0 ]; then
+  echo "Installing the Fedora 44 tools required by the isolated FSR4 source build..."
+  sudo dnf install -y "${bc250_dnf_packages[@]}"
+fi'''
+        build_kind = "fedora44-podman-source"
     else:
         raise ValueError(f"Unsupported FSR4 Podman source-build platform: {platform_mode}")
 
@@ -386,6 +442,14 @@ def build_fsr4_v3_debian_install_command(destination: str | Path) -> str:
 
     return _build_fsr4_v3_podman_install_command(
         destination, platform_mode="debian"
+    )
+
+
+def build_fsr4_v3_fedora44_install_command(destination: str | Path) -> str:
+    """Build official V3 per-user after the Fedora GFX1013 kernel repair."""
+
+    return _build_fsr4_v3_podman_install_command(
+        destination, platform_mode="fedora44"
     )
 
 

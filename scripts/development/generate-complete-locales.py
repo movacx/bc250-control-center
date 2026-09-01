@@ -33,19 +33,22 @@ COMPLETE_LOCALES = (
 REVIEWED_BASES = {"en", "es", "pt", "ru", "pl", "de", "uk"}
 REGIONAL_BASE = {"es-419": "es", "pt-BR": "pt"}
 INTENTIONAL_ENGLISH_VALUES = {
+    "BC-250 FSR4 V3",
     "Cyan Skillfish Governor (SMU)",
+    "Fedora 44 · GFX1013 · Podman",
     "PWM 2 · Pump Fan / J4003 Fan 1",
     "ZRAM {zram} · ZSWAP {zswap}",
 }
 GOOGLE_LANGUAGE = {"zh-CN": "zh-CN", "zh-TW": "zh-TW"}
 PROTECTED_TERMS = (
     "BC250", "BC-250", "SMU", "UMR", "TTM", "ZRAM", "ZSWAP", "WGP",
-    "PWM", "Cyan", "Oberon", "Decky", "AMDGPU", "AMD", "GFX1013",
+    "PWM", "Cyan", "Oberon", "Decky", "AMDGPU", "AMD", "GFX1013", "FSR4",
     "NCT", "nct6687d", "nct6683", "hwmon", "D-Bus", "TOML", "YAML",
     "JSONL", "RPM", "VID", "SCLK", "CU", "CPU", "GPU", "VRAM", "NVMe", "M.2",
     "SteamOS", "Bazzite", "CachyOS", "OpenRC", "systemd", "runit",
     "s6-rc", "s6", "dinit", "SysVinit", "Linux", "Mesa", "RADV", "Polkit",
     "Arch", "Manjaro", "Fedora", "Ubuntu", "Debian", "Gentoo", "Artix", "Void",
+    "Podman",
     "fix-metrics", "fix-freq", "set-method", "gpu-usage", "config.toml",
     "rpm-ostree", "systemctl", "systemctl --user",
 )
@@ -80,7 +83,10 @@ COMMAND_LINE_RE = re.compile(COMMAND_LINE_PATTERN)
 TECHNICAL_RE = re.compile(
     r"(?<!\w)(" + "|".join(re.escape(term) for term in sorted(PROTECTED_TERMS, key=len, reverse=True)) + r")(?!\w)"
 )
-TOKEN_RE = re.compile(r"</?code\b", re.IGNORECASE)
+TOKEN_RE = re.compile(
+    r"</?code\b|<[^>]*\bid=[\"']bc\d+[\"'][^>]*>",
+    re.IGNORECASE,
+)
 FORMAT_RE = re.compile(r"\{[^{}]+\}")
 PROTECT_RE = re.compile(
     COMMAND_LINE_PATTERN + r"|\{[^{}]+\}|https?://[^\s)]+|`[^`]+`|"
@@ -110,6 +116,8 @@ def canonical_sources() -> list[str]:
 
 
 def is_technical_only(source: str) -> bool:
+    if source in INTENTIONAL_ENGLISH_VALUES:
+        return True
     lines = [line.strip() for line in source.splitlines() if line.strip()]
     return bool(lines) and all(i18n._looks_technical_line(line) for line in lines)
 
@@ -131,8 +139,11 @@ def restore(value: str, replacements: dict[str, str]) -> str:
         key = match.group(1).lower()
         return replacements.get(key, match.group(0))
 
+    # Translation services may localize the HTML-like tag name itself (for
+    # example, ``code`` -> ``código``). Match by our private id instead of by
+    # tag name so those markers can never leak into the UI.
     value = re.sub(
-        r'<code\s+id=["\'](bc\d+)["\'][^>]*>.*?</code>',
+        r'<[^>]*\bid=["\'](bc\d+)["\'][^>]*>.*?</[^>]+>',
         replace,
         value,
         flags=re.IGNORECASE | re.DOTALL,
@@ -332,7 +343,11 @@ def repair_existing_catalog(language: str, sources: list[str]) -> int:
             or not protected_terms_preserved(source, translated)
         )
         if damaged:
-            catalog[source] = source if language == "en" else translate_segmented(source, language)
+            catalog[source] = (
+                source
+                if language == "en" or is_technical_only(source)
+                else translate_segmented(source, language)
+            )
             repaired += 1
     validate_catalog(language, sources, catalog)
     write_catalog(language, catalog)

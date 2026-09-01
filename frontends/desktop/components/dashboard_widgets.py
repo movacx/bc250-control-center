@@ -2652,12 +2652,20 @@ class PreparationSidebar(QFrame):
         fsr4_experimental = bool(fsr4.get("experimental_precompiled"))
         fsr4_source_supported = bool(fsr4.get("source_build_supported"))
         fsr4_build_mode = str(fsr4.get("build_mode") or "")
+        if not fsr4_build_mode and fsr4_source_supported:
+            fsr4_build_mode = {
+                "bazzite": "bazzite-podman-source",
+                "ubuntu": "debian-podman-source",
+                "debian": "debian-podman-source",
+            }.get(str(tools.get("os_family") or ""), "")
         fsr4_available = bool(
             fsr4.get("installer_available", fsr4_supported or fsr4_experimental)
         )
         fsr4_installed = bool(fsr4.get("installed"))
         fsr4_current = bool(fsr4.get("current"))
         fsr4_state = str(fsr4.get("state") or "not-installed")
+        fsr4_kernel_required = bool(fsr4.get("compute_kernel_required"))
+        fsr4_kernel_ready = bool(fsr4.get("compute_kernel_ready"))
         self._fsr4_launch_option = str(fsr4.get("steam_launch_option") or "")
         self.fsr4_launch_row.setVisible(
             fsr4_current and bool(self._fsr4_launch_option)
@@ -2670,6 +2678,8 @@ class PreparationSidebar(QFrame):
             if fsr4_build_mode == "bazzite-podman-source"
             else "Debian/Ubuntu · Official Podman source build"
             if fsr4_build_mode == "debian-podman-source"
+            else "Fedora 44 · GFX1013 · Podman"
+            if fsr4_build_mode == "fedora44-podman-source"
             else "Prebuilt: Arch/CachyOS · Source build: other distros",
             "purple" if fsr4_source_supported else "gray",
         )
@@ -2680,10 +2690,20 @@ class PreparationSidebar(QFrame):
             if fsr4_state == "invalid"
             else "Experimental ABI check"
             if fsr4_experimental
+            else "Kernel repair required"
+            if fsr4_kernel_required and not fsr4_kernel_ready
             else "Source build available"
             if source_required
             else "Available",
-            "green" if fsr4_current else "orange" if fsr4_state == "invalid" or fsr4_experimental else "blue",
+            "green"
+            if fsr4_current
+            else "orange"
+            if (
+                fsr4_state in {"invalid", "kernel-required"}
+                or fsr4_experimental
+                or (fsr4_kernel_required and not fsr4_kernel_ready)
+            )
+            else "blue",
         )
         version = str(fsr4.get("version") or "V3")
         self.fsr4_card.detail.setText(
@@ -2707,6 +2727,11 @@ class PreparationSidebar(QFrame):
                     version=version,
                 )
                 if fsr4_build_mode == "debian-podman-source"
+                else tr_format(
+                    "Official upstream {version} is compiled in its Fedora 44 container with rootless Podman and installed as a private per-game runtime. The repaired GFX1013 boot must be active first.",
+                    version=version,
+                )
+                if fsr4_build_mode == "fedora44-podman-source"
                 else tr(
                     "This distribution needs the official reproducible Docker source build; no unverified binary is offered."
                 )

@@ -1,9 +1,10 @@
 """Official-upstream Fedora workflow for DryhoppedIPA's GFX1013 stack.
 
 The reviewed upstream installer intentionally treats its kernel and Mesa/RADV
-patches as one compatibility unit.  This adapter does not fork that lifecycle:
-it verifies the supported host, updates the official main branch, and runs the
-upstream dependency/build/install stages in order.
+patches as one compatibility unit. This adapter keeps that lifecycle intact:
+it verifies the supported host, updates the official main branch, applies only
+narrowly-scoped host compatibility repairs, and runs the upstream stages in
+order.
 """
 
 from __future__ import annotations
@@ -53,6 +54,55 @@ test -f {qdest}/patches/mesa/series || {{ echo "ERROR: official upstream Mesa pa
     commands.append(source_gate)
     if action == "install":
         commands.extend((
+            'echo "== Fedora 44 source-RPM compatibility =="',
+            f'''bc250_upstream_installer={qdest}/install.sh
+bc250_cpio_old="cpio -id --quiet 'linux-*.tar.xz'"
+bc250_cpio_fixed="cpio -id --quiet './linux-*.tar.xz' 'linux-*.tar.xz'"
+if grep -Fq "$bc250_cpio_fixed" "$bc250_upstream_installer"; then
+  echo "[INFO] Upstream already supports RPM 6 source paths."
+elif grep -Fq "$bc250_cpio_old" "$bc250_upstream_installer"; then
+  sed -i "s|cpio -id --quiet 'linux-\\*\\.tar\\.xz'|cpio -id --quiet './linux-*.tar.xz' 'linux-*.tar.xz'|" "$bc250_upstream_installer"
+  grep -Fq "$bc250_cpio_fixed" "$bc250_upstream_installer" || {{ echo "ERROR: Fedora 44 source-RPM compatibility repair did not apply."; exit 29; }}
+  echo "[INFO] Added the optional ./ prefix accepted by Fedora 44 rpm2cpio output."
+else
+  echo "ERROR: upstream kernel source extraction changed; refusing an unreviewed automatic edit."
+  exit 29
+fi''',
+            r'''echo "== Fedora external-module trace compatibility =="
+bc250_trace_marker='local bc250_trace_header='
+if grep -Fq "$bc250_trace_marker" "$bc250_upstream_installer"; then
+  echo "[INFO] Upstream installer already repairs the external trace include path."
+elif grep -Eq "^[[:space:]]+printf .*kernel module: building" "$bc250_upstream_installer"; then
+  bc250_installer_new="${bc250_upstream_installer}.bc250cc-new"
+  awk '
+/^    printf .*kernel module: building/ && !bc250_inserted {
+    print "    local bc250_trace_header=\"${linux_root}/drivers/gpu/drm/amd/amdgpu/amdgpu_trace.h\""
+    print "    if grep -Fqx \"#define TRACE_INCLUDE_PATH ../../drivers/gpu/drm/amd/amdgpu\" \"${bc250_trace_header}\"; then"
+    print "        sed -i \"s|^#define TRACE_INCLUDE_PATH ../../drivers/gpu/drm/amd/amdgpu$|#define TRACE_INCLUDE_PATH .|\" \"${bc250_trace_header}\""
+    print "    elif ! grep -Fqx \"#define TRACE_INCLUDE_PATH .\" \"${bc250_trace_header}\"; then"
+    print "        die \"unsupported amdgpu trace include layout: ${bc250_trace_header}\""
+    print "    fi"
+    print ""
+    bc250_inserted = 1
+}
+{ print }
+END { if (!bc250_inserted) exit 29 }
+' "$bc250_upstream_installer" >"$bc250_installer_new" || {
+    rm -f "$bc250_installer_new"
+    echo "ERROR: upstream kernel build layout changed; refusing an unreviewed automatic edit."
+    exit 29
+  }
+  chmod --reference="$bc250_upstream_installer" "$bc250_installer_new"
+  mv -f "$bc250_installer_new" "$bc250_upstream_installer"
+  grep -Fq "$bc250_trace_marker" "$bc250_upstream_installer" || {
+    echo "ERROR: Fedora external trace compatibility repair did not apply."
+    exit 29
+  }
+  echo "[INFO] External amdgpu trace headers will resolve from the extracted source tree."
+else
+  echo "ERROR: upstream kernel build layout changed; refusing an unreviewed automatic edit."
+  exit 29
+fi''',
             'echo "== GFX1013 complete kernel + Mesa/RADV stack =="',
             'echo "[INFO] Kernel-only and Mesa-only installation are intentionally not offered: upstream requires both halves together."',
             'echo "[INFO] Mesh/task patches 0002 and 0003 remain disabled because upstream reports unrecoverable GPU hangs."',
