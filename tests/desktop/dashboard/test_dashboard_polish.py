@@ -5,6 +5,7 @@ from PyQt6.QtCore import QPoint, QPointF, Qt
 from PyQt6.QtGui import QWheelEvent
 from PyQt6.QtWidgets import QApplication, QLabel
 
+from frontends.desktop.components.dashboard_widgets import DashboardCoreSummary
 from frontends.desktop.components.sidebar import Sidebar
 from frontends.desktop.core.state import DashboardState
 from frontends.desktop.i18n import (
@@ -12,6 +13,7 @@ from frontends.desktop.i18n import (
     localize_widget_tree,
     set_language,
     tr,
+    tr_format,
 )
 from frontends.desktop.pages.dashboard import DashboardPage
 from frontends.desktop.theme import application_stylesheet
@@ -69,7 +71,7 @@ def test_dashboard_displays_physical_clock_and_core_counts_without_duplicate_row
     assert len(hero.evidence_rows) == 2
     assert not hasattr(hero, "power_summary")
     assert hero.cores_summary.value.text() == "6 cores / 12 threads"
-    assert hero.cores_summary.detail.text() == tr("Detected by the OS")
+    assert hero.cores_summary.detail.isHidden()
     assert len(page.cu_card.metric_rows) == 2  # Mode is already in the CU badge.
     assert page.cpu_card.status.isHidden()
     assert not hasattr(hero, "uptime_metric")
@@ -129,6 +131,39 @@ def test_dashboard_displays_physical_clock_and_core_counts_without_duplicate_row
     assert hero.cores_summary.detail.isHidden()
 
 
+def test_dashboard_shows_only_registered_boot_cpu_oc_and_scale(qtbot):
+    page = DashboardPage(object())
+    qtbot.addWidget(page)
+
+    page.apply_state(
+        DashboardState(
+            cpu_physical_cores=6,
+            cpu_logical_cores=12,
+            cpu_oc_active=True,
+            cpu_oc_frequency_mhz=3500,
+            cpu_oc_scale=-20,
+            cpu_oc_source="boot",
+        )
+    )
+
+    assert page.gpu_card.cores_summary.value.text() == "6 cores / 12 threads"
+    assert page.gpu_card.cores_summary.detail.text() == (
+        "Registered OC: 3500 MHz · Scale -20"
+    )
+
+    page.apply_state(
+        DashboardState(
+            cpu_physical_cores=6,
+            cpu_logical_cores=12,
+            cpu_oc_active=False,
+            cpu_oc_frequency_mhz=3850,
+            cpu_oc_scale=-35,
+            cpu_oc_source="live",
+        )
+    )
+    assert page.gpu_card.cores_summary.detail.isHidden()
+
+
 def test_medium_dashboard_width_gives_the_core_grid_the_full_hero_width(qtbot):
     page = DashboardPage(object())
     qtbot.addWidget(page)
@@ -160,6 +195,29 @@ def test_wide_core_strip_keeps_all_eight_cells_the_same_width(qtbot):
     assert max(widths) - min(widths) <= 1
 
 
+@pytest.mark.parametrize("scale", (100, 150))
+def test_compact_core_strip_grows_to_keep_every_reading_visible(qtbot, scale):
+    tile = DashboardCoreSummary()
+    qtbot.addWidget(tile)
+    tile.setStyleSheet(application_stylesheet("dark", scale=scale))
+    tile.set_value("6 cores / 12 threads")
+    tile.set_detail("Registered OC: 3850 MHz · Scale -35")
+    tile.set_core_metrics(
+        [3190, 1400, 2300, 3190, 1390, 1400],
+        [7, 9, 5, 3, 4, 9],
+    )
+    tile.setFixedWidth(560)
+    tile.show()
+    tile.adjustSize()
+    qtbot.wait(20)
+
+    assert tile._columns == 2
+    assert tile.height() >= tile.minimumSizeHint().height()
+    for label in tile.core_labels + tile.core_frequency_labels:
+        if not label.isHidden():
+            assert label.height() >= label.fontMetrics().height()
+
+
 @pytest.mark.parametrize(
     "cpu",
     (
@@ -187,11 +245,30 @@ def test_core_tile_translates_without_losing_live_counts(qtbot, language):
         page.apply_state(DashboardState(cpu_physical_cores=8, cpu_logical_cores=16))
         tile = page.gpu_card.cores_summary
         assert tile.label.text() == tr("Available CPU cores")
-        assert tile.detail.text() == tr("Detected by the OS")
+        assert tile.detail.isHidden()
         assert "8" in tile.value.text() and "16" in tile.value.text()
         if language != "en":
             assert tile.label.text() != "Available CPU cores"
-            assert tile.detail.text() != "Detected by the OS"
+
+        page.apply_state(
+            DashboardState(
+                cpu_physical_cores=8,
+                cpu_logical_cores=16,
+                cpu_oc_active=True,
+                cpu_oc_frequency_mhz=3850,
+                cpu_oc_scale=-35,
+                cpu_oc_source="boot",
+            )
+        )
+        expected = tr_format(
+            "Registered OC: {frequency} MHz · Scale {scale}",
+            frequency=3850,
+            scale=-35,
+        )
+        assert tile.detail.text() == expected
+        assert not tile.detail.isHidden()
+        if language != "en":
+            assert tile.detail.text() != "Registered OC: 3850 MHz · Scale -35"
     finally:
         set_language("en")
 

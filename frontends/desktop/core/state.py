@@ -50,6 +50,7 @@ def _dashboard_sources(cache: "ControllerStateCache") -> tuple[
     dict[str, Any],
     dict[str, Any],
     dict[str, Any],
+    dict[str, Any],
     list[dict[str, Any]],
 ]:
     payload, errors = collect_named_sources(
@@ -59,6 +60,7 @@ def _dashboard_sources(cache: "ControllerStateCache") -> tuple[
             ("tools", cache.tools),
             ("fans", cache.fans),
             ("cu_cache", cache.cu_cache),
+            ("cpu_tuning", cache.cpu_boot_tuning),
             ("events", lambda: cache.events(8)),
         )
     )
@@ -77,6 +79,7 @@ def _dashboard_sources(cache: "ControllerStateCache") -> tuple[
         mapping("tools"),
         mapping("fans"),
         mapping("cu_cache"),
+        mapping("cpu_tuning"),
         events,
     )
 
@@ -275,6 +278,28 @@ class ControllerStateCache:
     def cpu_persistence(self) -> dict[str, Any]:
         return dict(self.get("cpu_persistence", lambda: dict(self.controller.estado_cpu_oc_persistente() or {}), 6.0) or {})
 
+    def cpu_boot_tuning(self) -> dict[str, Any]:
+        """Return only a profile verified as applied by boot persistence.
+
+        A temporary Desktop or Quick Access test is intentionally excluded:
+        the Dashboard label describes the registered startup OC, not every
+        transient CPU setting used during the current session.
+        """
+
+        def load() -> dict[str, Any]:
+            persistent = self.cpu_persistence()
+            config = persistent.get("config")
+            config = dict(config) if isinstance(config, dict) else {}
+            if not (persistent.get("applied_this_boot") and config.get("valid")):
+                return {}
+            return {
+                "source": "boot",
+                "frequency": config.get("frequency"),
+                "scale": config.get("scale"),
+            }
+
+        return dict(self.get("cpu_boot_tuning", load, 2.0) or {})
+
     def core_unlock(self) -> dict[str, Any]:
         """Return the unlock eligibility snapshot without repeatedly probing services.
 
@@ -354,6 +379,10 @@ class DashboardState:
     cpu_profile: str = "Not detected"
     cpu_physical_cores: int = 0
     cpu_logical_cores: int = 0
+    cpu_oc_active: bool = False
+    cpu_oc_frequency_mhz: int = 0
+    cpu_oc_scale: int | None = None
+    cpu_oc_source: str = ""
     cpu_per_core_percent: tuple[float, ...] = field(default_factory=tuple)
     cpu_per_core_frequency_mhz: tuple[float, ...] = field(default_factory=tuple)
 
@@ -569,7 +598,7 @@ class DashboardState:
         cls, controller: Any, cache: ControllerStateCache
     ) -> DashboardState:
         """Internal implementation executed inside the passive probe budget."""
-        perf, gpu, tools, fan, cu_state, events = _dashboard_sources(cache)
+        perf, gpu, tools, fan, cu_state, cpu_tuning, events = _dashboard_sources(cache)
 
         performance_available = bool(perf)
         gpu_state_available = bool(gpu)
@@ -600,6 +629,14 @@ class DashboardState:
             if raw_cpu_utilization is not None
             else -1
         )
+        cpu_oc_frequency = _integer(cpu_tuning.get("frequency"), 0)
+        cpu_oc_scale = _integer(cpu_tuning.get("scale"), 999)
+        cpu_oc_source = str(cpu_tuning.get("source") or "")
+        cpu_oc_active = bool(
+            cpu_oc_source
+            and cpu_oc_frequency > 0
+            and -50 <= cpu_oc_scale <= 0
+        )
 
         gpu_driver = str(gpu.get("driver") or "")
         gpu_name = str(gpu.get("device") or gpu.get("device_name") or "BC250")
@@ -616,6 +653,10 @@ class DashboardState:
             power_source=str(perf.get("power_source") or ""),
             power_is_total=bool(perf.get("power_is_total")),
             cpu_profile="current" if performance_available else "Not detected",
+            cpu_oc_active=cpu_oc_active,
+            cpu_oc_frequency_mhz=cpu_oc_frequency if cpu_oc_active else 0,
+            cpu_oc_scale=cpu_oc_scale if cpu_oc_active else None,
+            cpu_oc_source=cpu_oc_source if cpu_oc_active else "",
             governor_running=governor_running,
             governor_frequency_mhz=current_freq,
             governor_min_mhz=current_min,

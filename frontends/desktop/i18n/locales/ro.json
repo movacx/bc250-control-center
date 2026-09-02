@@ -2042,6 +2042,8 @@
   "Register access backend": "Înregistrați backend de acces",
   "Register diagnostics": "Înregistrați diagnostice",
   "Register inspection backend required by live CU routing.": "Înregistrați backend-ul de inspecție necesar pentru rutarea live CU.",
+  "Registered OC: Not active": "OC înregistrat: inactiv",
+  "Registered OC: {frequency} MHz · Scale {scale}": "OC înregistrat: {frequency} MHz · Scala {scale}",
   "Registered maximum:": "Maxim înregistrat:",
   "Reinstall BC250 Control Center to install the helper.": "Reinstalați BC250 Centrul de control pentru a instala ajutorul.",
   "Reinstall the local application package to install the privileged helper.": "Reinstalați pachetul de aplicații locale pentru a instala ajutorul privilegiat.",

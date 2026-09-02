@@ -2042,6 +2042,8 @@
   "Register access backend": "登録アクセスバックエンド",
   "Register diagnostics": "診断を登録する",
   "Register inspection backend required by live CU routing.": "ライブ CU ルーティングで必要な検査バックエンドを登録します。",
+  "Registered OC: Not active": "登録済み OC: アクティブではありません",
+  "Registered OC: {frequency} MHz · Scale {scale}": "登録された OC: {frequency} MHz · スケール {scale}",
   "Registered maximum:": "登録最大値:",
   "Reinstall BC250 Control Center to install the helper.": "BC250 コントロール センターを再インストールして、ヘルパーをインストールします。",
   "Reinstall the local application package to install the privileged helper.": "ローカル アプリケーション パッケージを再インストールして、特権ヘルパーをインストールします。",

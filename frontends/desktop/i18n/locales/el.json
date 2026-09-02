@@ -2042,6 +2042,8 @@
   "Register access backend": "Εγγραφή πρόσβασης υποστήριξης",
   "Register diagnostics": "Εγγραφή διαγνωστικών",
   "Register inspection backend required by live CU routing.": "Καταχωρίστε το backend επιθεώρησης που απαιτείται από τη ζωντανή δρομολόγηση CU.",
+  "Registered OC: Not active": "Εγγεγραμμένο OC: Μη ενεργό",
+  "Registered OC: {frequency} MHz · Scale {scale}": "Εγγεγραμμένο OC: {frequency} MHz · Κλίμακα {scale}",
   "Registered maximum:": "Εγγεγραμμένο μέγιστο:",
   "Reinstall BC250 Control Center to install the helper.": "Επανεγκαταστήστε το BC250 Κέντρο ελέγχου για να εγκαταστήσετε το βοηθητικό πρόγραμμα.",
   "Reinstall the local application package to install the privileged helper.": "Εγκαταστήστε ξανά το πακέτο τοπικής εφαρμογής για να εγκαταστήσετε τον προνομιακό βοηθό.",

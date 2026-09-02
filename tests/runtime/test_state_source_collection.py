@@ -46,6 +46,32 @@ def test_core_unlock_status_is_short_lived_cached_between_cpu_refreshes():
     assert controller.calls == 1
 
 
+def test_cpu_boot_tuning_exposes_only_verified_boot_persistence():
+    class Controller:
+        def estado_cpu_oc_persistente(self):
+            return {
+                "applied_this_boot": True,
+                "config": {"valid": True, "frequency": 3900, "scale": -30},
+            }
+
+    active = ControllerStateCache(Controller()).cpu_boot_tuning()
+
+    assert active["source"] == "boot"
+    assert active["frequency"] == 3900
+    assert active["scale"] == -30
+
+
+def test_cpu_boot_tuning_hides_a_profile_not_applied_this_boot():
+    class Controller:
+        def estado_cpu_oc_persistente(self):
+            return {
+                "applied_this_boot": False,
+                "config": {"valid": True, "frequency": 3850, "scale": -35},
+            }
+
+    assert ControllerStateCache(Controller()).cpu_boot_tuning() == {}
+
+
 def test_dashboard_source_adapter_keeps_other_sources_when_events_fail():
     cache = type(
         "Cache",
@@ -56,15 +82,17 @@ def test_dashboard_source_adapter_keeps_other_sources_when_events_fail():
             "tools": lambda _self: {},
             "fans": lambda _self: {},
             "cu_cache": lambda _self: {"active_cus": 36},
+            "cpu_boot_tuning": lambda _self: {"source": "boot", "frequency": 3700, "scale": -20},
             "events": lambda _self, _limit: (_ for _ in ()).throw(RuntimeError("history unavailable")),
         },
     )()
 
-    performance, gpu, tools, fans, cu, events = _dashboard_sources(cache)
+    performance, gpu, tools, fans, cu, cpu_tuning, events = _dashboard_sources(cache)
 
     assert performance == {"cpu_freq": 3700}
     assert gpu == {"device": "BC250"}
     assert cu == {"active_cus": 36}
+    assert cpu_tuning == {"source": "boot", "frequency": 3700, "scale": -20}
     assert tools == fans == {}
     assert events == []
 
@@ -79,11 +107,12 @@ def test_dashboard_source_adapter_rejects_wrong_result_shapes():
             "tools": lambda _self: [],
             "fans": lambda _self: 1,
             "cu_cache": lambda _self: object(),
+            "cpu_boot_tuning": lambda _self: None,
             "events": lambda _self, _limit: [None, {"title": "valid"}],
         },
     )()
 
     *states, events = _dashboard_sources(cache)
 
-    assert states == [{}, {}, {}, {}, {}]
+    assert states == [{}, {}, {}, {}, {}, {}]
     assert events == [{"title": "valid"}]

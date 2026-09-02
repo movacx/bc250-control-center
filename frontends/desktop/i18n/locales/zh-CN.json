@@ -2042,6 +2042,8 @@
   "Register access backend": "注册访问后台",
   "Register diagnostics": "注册诊断",
   "Register inspection backend required by live CU routing.": "注册实时 CU 路由所需的检查后端。",
+  "Registered OC: Not active": "已注册 OC：未激活",
+  "Registered OC: {frequency} MHz · Scale {scale}": "注册的 OC：{frequency} MHz · 比例 {scale}",
   "Registered maximum:": "注册最大值：",
   "Reinstall BC250 Control Center to install the helper.": "重新安装 BC250 控制中心以安装帮助程序。",
   "Reinstall the local application package to install the privileged helper.": "重新安装本地应用程序包以安装特权助手。",

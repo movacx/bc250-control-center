@@ -2042,6 +2042,8 @@
   "Register access backend": "Daftarkan akses backend",
   "Register diagnostics": "Daftarkan diagnostik",
   "Register inspection backend required by live CU routing.": "Daftarkan backend inspeksi yang diperlukan oleh perutean CU langsung.",
+  "Registered OC: Not active": "OC Terdaftar: Tidak aktif",
+  "Registered OC: {frequency} MHz · Scale {scale}": "OC Terdaftar: {frequency} MHz · Skala {scale}",
   "Registered maximum:": "Maksimum terdaftar:",
   "Reinstall BC250 Control Center to install the helper.": "Instal ulang Pusat Kontrol BC250 untuk menginstal helper.",
   "Reinstall the local application package to install the privileged helper.": "Instal ulang paket aplikasi lokal untuk menginstal pembantu yang memiliki hak istimewa.",

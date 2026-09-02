@@ -2042,6 +2042,8 @@
   "Register access backend": "Regisztráljon hozzáférési háttérrendszert",
   "Register diagnostics": "Regisztrálja a diagnosztikát",
   "Register inspection backend required by live CU routing.": "Az élő CU útválasztáshoz szükséges ellenőrző háttérrendszer regisztrálása.",
+  "Registered OC: Not active": "Regisztrált OC: Nem aktív",
+  "Registered OC: {frequency} MHz · Scale {scale}": "Regisztrált OC: {frequency} MHz · Skála {scale}",
   "Registered maximum:": "Regisztrált maximum:",
   "Reinstall BC250 Control Center to install the helper.": "Telepítse újra a BC250 Vezérlőközpontot a segédprogram telepítéséhez.",
   "Reinstall the local application package to install the privileged helper.": "Telepítse újra a helyi alkalmazáscsomagot a kiemelt segédprogram telepítéséhez.",

@@ -545,17 +545,21 @@ class DashboardCoreSummary(QFrame):
         self.root = layout
         layout.setContentsMargins(12, 9, 12, 9)
         layout.setSpacing(7)
-        header = QHBoxLayout()
-        header.setSpacing(8)
-        self.label = _label("Available CPU cores", "dashboardMetricLabel", wrap=True)
-        self.value = _label("Not detected", "dashboardMetricValue", wrap=False)
-        self.detail = _label("Detected by the OS", "dashboardMetricDetail", wrap=False)
-        header.addWidget(self.label)
-        header.addWidget(self.value)
-        header.addStretch(1)
-        self.detail.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        header.addWidget(self.detail)
-        layout.addLayout(header)
+        self.header = QGridLayout()
+        self.header.setContentsMargins(0, 0, 0, 0)
+        self.header.setHorizontalSpacing(10)
+        self.header.setVerticalSpacing(3)
+        self.label = _label(
+            "Available CPU cores", "dashboardCoreSummaryLabel", wrap=False
+        )
+        self.value = _label(
+            "Not detected", "dashboardCoreSummaryValue", wrap=False
+        )
+        self.detail = _label(
+            "Detected by the OS", "dashboardCoreSummaryDetail", wrap=False
+        )
+        self.detail.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        layout.addLayout(self.header)
         self.core_grid = QGridLayout()
         self.core_grid.setContentsMargins(0, 0, 0, 0)
         self.core_grid.setHorizontalSpacing(6)
@@ -596,6 +600,8 @@ class DashboardCoreSummary(QFrame):
         self._visible_core_count = 8
         self._rendered_core_count = 0
         self._columns = 0
+        self._compact_header: bool | None = None
+        self._layout_header(1000)
         self._reflow(1000)
 
     def set_core_count(self, count: int) -> None:
@@ -603,6 +609,7 @@ class DashboardCoreSummary(QFrame):
         self._reflow(self.width())
 
     def _reflow(self, width: int) -> None:
+        self._layout_header(width)
         available = self._visible_core_count
         columns = min(available, 8 if width >= 1100 else 4 if width >= 640 else 2)
         if (
@@ -626,8 +633,27 @@ class DashboardCoreSummary(QFrame):
         # those two cells and breaks the visual rhythm of the strip.
         for column in range(8):
             self.core_grid.setColumnStretch(column, 1 if column < columns else 0)
-        rows = (available + columns - 1) // columns
-        self.setFixedHeight(91 if rows == 1 else 135 if rows == 2 else 179)
+        self.updateGeometry()
+
+    def _layout_header(self, width: int) -> None:
+        compact = width < 700
+        if compact == self._compact_header and self.header.count():
+            return
+        self._compact_header = compact
+        for widget in (self.label, self.value, self.detail):
+            self.header.removeWidget(widget)
+        for column in range(4):
+            self.header.setColumnStretch(column, 0)
+        self.label.setWordWrap(compact)
+        self.header.addWidget(self.label, 0, 0)
+        self.header.addWidget(self.value, 0, 1)
+        if compact:
+            self.header.addWidget(self.detail, 1, 0, 1, 3)
+            self.header.setColumnStretch(2, 1)
+        else:
+            self.header.addWidget(self.detail, 0, 2)
+            self.header.setColumnStretch(3, 1)
+        self.updateGeometry()
 
     def resizeEvent(self, event) -> None:  # noqa: N802
         super().resizeEvent(event)
@@ -639,6 +665,7 @@ class DashboardCoreSummary(QFrame):
     def set_detail(self, detail: str) -> None:
         self.detail.setText(tr(detail))
         self.detail.setVisible(bool(detail))
+        self.updateGeometry()
 
     def set_core_metrics(
         self, frequencies_mhz: Iterable[object], usages: Iterable[object]

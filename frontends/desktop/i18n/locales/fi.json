@@ -2042,6 +2042,8 @@
   "Register access backend": "Rekisteröi pääsyn taustaohjelma",
   "Register diagnostics": "Rekisteröi diagnostiikka",
   "Register inspection backend required by live CU routing.": "Rekisteröity tarkastustaustajärjestelmä, jota vaaditaan live-CU-reititys.",
+  "Registered OC: Not active": "Rekisteröity OC: Ei aktiivinen",
+  "Registered OC: {frequency} MHz · Scale {scale}": "Rekisteröity OC: {frequency} MHz · Skaalaus {scale}",
   "Registered maximum:": "Rekisteröity maksimi:",
   "Reinstall BC250 Control Center to install the helper.": "Asenna apuohjelma uudelleen asentamalla BC250 Control Center.",
   "Reinstall the local application package to install the privileged helper.": "Asenna paikallinen sovelluspaketti uudelleen asentaaksesi etuoikeutetun apuohjelman.",

@@ -2042,6 +2042,8 @@
   "Register access backend": "Đăng ký truy cập phụ trợ",
   "Register diagnostics": "Đăng ký chẩn đoán",
   "Register inspection backend required by live CU routing.": "Đăng ký chương trình phụ trợ kiểm tra được yêu cầu bởi định tuyến CU trực tiếp.",
+  "Registered OC: Not active": "OC đã đăng ký: Không hoạt động",
+  "Registered OC: {frequency} MHz · Scale {scale}": "OC đã đăng ký: {frequency} MHz · Tỷ lệ {scale}",
   "Registered maximum:": "Đăng ký tối đa:",
   "Reinstall BC250 Control Center to install the helper.": "Cài đặt lại Trung tâm điều khiển BC250 để cài đặt trình trợ giúp.",
   "Reinstall the local application package to install the privileged helper.": "Cài đặt lại gói ứng dụng cục bộ để cài đặt trình trợ giúp đặc quyền.",

@@ -2042,6 +2042,8 @@
   "Register access backend": "Zarejestruj dostęp do backendu",
   "Register diagnostics": "Zarejestruj diagnostykę",
   "Register inspection backend required by live CU routing.": "Backend inspekcji rejestrów wymagany do routingu CU na żywo.",
+  "Registered OC: Not active": "Zarejestrowany OC: Nieaktywny",
+  "Registered OC: {frequency} MHz · Scale {scale}": "Zarejestrowane OC: {frequency} MHz · Skala {scale}",
   "Registered maximum:": "Zarejestrowane maksimum:",
   "Reinstall BC250 Control Center to install the helper.": "Zainstaluj ponownie Centrum sterowania BC250, aby zainstalować pomocnika.",
   "Reinstall the local application package to install the privileged helper.": "Zainstaluj ponownie lokalny pakiet aplikacji, aby zainstalować uprzywilejowany pomocnik.",

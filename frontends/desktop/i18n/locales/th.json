@@ -2042,6 +2042,8 @@
   "Register access backend": "ลงทะเบียนการเข้าถึงแบ็กเอนด์",
   "Register diagnostics": "ลงทะเบียนการวินิจฉัย",
   "Register inspection backend required by live CU routing.": "ลงทะเบียนแบ็กเอนด์การตรวจสอบที่จำเป็นสำหรับการกำหนดเส้นทาง CU แบบสด",
+  "Registered OC: Not active": "OC ที่ลงทะเบียนแล้ว: ไม่ใช้งาน",
+  "Registered OC: {frequency} MHz · Scale {scale}": "OC ที่ลงทะเบียนแล้ว: {frequency} MHz · สเกล {scale}",
   "Registered maximum:": "สูงสุดที่ลงทะเบียน:",
   "Reinstall BC250 Control Center to install the helper.": "ติดตั้งศูนย์ควบคุม BC250 อีกครั้งเพื่อติดตั้งตัวช่วย",
   "Reinstall the local application package to install the privileged helper.": "ติดตั้งแพ็คเกจแอปพลิเคชันในเครื่องอีกครั้งเพื่อติดตั้งตัวช่วยที่มีสิทธิพิเศษ",

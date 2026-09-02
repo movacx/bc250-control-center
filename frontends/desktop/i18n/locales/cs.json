@@ -2042,6 +2042,8 @@
   "Register access backend": "Zaregistrujte přístupový backend",
   "Register diagnostics": "Registrovat diagnostiku",
   "Register inspection backend required by live CU routing.": "Zaregistrujte inspekční backend vyžadovaný živým směrováním CU.",
+  "Registered OC: Not active": "Registrovaný OC: Neaktivní",
+  "Registered OC: {frequency} MHz · Scale {scale}": "Registrovaný OC: {frequency} MHz · Měřítko {scale}",
   "Registered maximum:": "Registrované maximum:",
   "Reinstall BC250 Control Center to install the helper.": "Přeinstalujte ovládací centrum BC250 a nainstalujte pomocníka.",
   "Reinstall the local application package to install the privileged helper.": "Chcete-li nainstalovat privilegovaného pomocníka, znovu nainstalujte balíček místní aplikace.",

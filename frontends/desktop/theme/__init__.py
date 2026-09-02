@@ -575,6 +575,21 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         color: {c['muted']};
         font-size: 9px;
     }}
+    QLabel[dashboardCoreSummaryLabel='true'] {{
+        color: {c['muted']};
+        font-size: 10px;
+        font-weight: 700;
+    }}
+    QLabel[dashboardCoreSummaryValue='true'] {{
+        color: {c['text']};
+        font-size: 15px;
+        font-weight: 780;
+    }}
+    QLabel[dashboardCoreSummaryDetail='true'] {{
+        color: {c['muted']};
+        font-size: 10px;
+        font-weight: 600;
+    }}
     QLabel[dashboardCoreUsage='true'] {{
         color: {c['text']};
         font-size: 11px;
@@ -584,15 +599,16 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         background: {c['panel']};
         border: 1px solid {c['border_soft']};
         border-radius: 7px;
+        min-height: 40px;
     }}
     QLabel[dashboardCoreName='true'] {{
         color: {c['muted']};
-        font-size: 9px;
+        font-size: 10px;
         font-weight: 750;
     }}
     QLabel[dashboardCoreFrequency='true'] {{
         color: {c['text']};
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 700;
     }}
     QLabel[dashboardCoreSeparator='true'] {{

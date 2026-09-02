@@ -2042,6 +2042,8 @@
   "Register access backend": "액세스 백엔드 등록",
   "Register diagnostics": "진단 등록",
   "Register inspection backend required by live CU routing.": "라이브 CU 라우팅에 필요한 검사 백엔드를 등록하세요.",
+  "Registered OC: Not active": "등록된 OC: 활동하지 않음",
+  "Registered OC: {frequency} MHz · Scale {scale}": "등록된 OC: {frequency} MHz · 규모 {scale}",
   "Registered maximum:": "등록된 최대값:",
   "Reinstall BC250 Control Center to install the helper.": "도우미를 설치하려면 BC250 제어 센터를 다시 설치하십시오.",
   "Reinstall the local application package to install the privileged helper.": "권한 있는 도우미를 설치하려면 로컬 애플리케이션 패키지를 다시 설치하세요.",

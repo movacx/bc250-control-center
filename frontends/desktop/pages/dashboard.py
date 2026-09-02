@@ -332,7 +332,15 @@ class DashboardPage(QWidget):
             tr_format("{cores} cores / {threads} threads", cores=state.cpu_physical_cores, threads=state.cpu_logical_cores)
             if cores_known else tr("Not detected")
         )
-        self.gpu_card.cores_summary.set_detail("Detected by the OS" if cores_known else "")
+        if cores_known and state.cpu_oc_active and state.cpu_oc_scale is not None:
+            cpu_oc_detail = tr_format(
+                "Registered OC: {frequency} MHz · Scale {scale}",
+                frequency=state.cpu_oc_frequency_mhz,
+                scale=state.cpu_oc_scale,
+            )
+        else:
+            cpu_oc_detail = ""
+        self.gpu_card.cores_summary.set_detail(cpu_oc_detail)
         # Every BC-250 has eight physical core positions.  A stock firmware
         # exposes six to Linux; retain all eight slots so the two hidden cores
         # are visible instead of silently disappearing from the dashboard.

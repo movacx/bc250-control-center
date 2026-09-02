@@ -2042,6 +2042,8 @@
   "Register access backend": "Бекенд доступу до регістрів",
   "Register diagnostics": "Діагностика регістрів",
   "Register inspection backend required by live CU routing.": "Backend перевірки регістрів для маршрутизації CU наживо.",
+  "Registered OC: Not active": "Зареєстрований розгін: не активний",
+  "Registered OC: {frequency} MHz · Scale {scale}": "Зареєстрований розгін: {frequency} МГц · Масштаб {scale}",
   "Registered maximum:": "Зареєстрований максимум:",
   "Reinstall BC250 Control Center to install the helper.": "Перевстановіть BC250 Control Center, щоб установити helper.",
   "Reinstall the local application package to install the privileged helper.": "Перевстановіть локальний пакет програми для встановлення привілейованого helper.",

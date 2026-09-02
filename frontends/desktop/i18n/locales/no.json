@@ -2042,6 +2042,8 @@
   "Register access backend": "Registrer tilgang backend",
   "Register diagnostics": "Registrer diagnostikk",
   "Register inspection backend required by live CU routing.": "Registrer inspeksjonsbackend som kreves av live CU-ruting.",
+  "Registered OC: Not active": "Registrert OC: Ikke aktiv",
+  "Registered OC: {frequency} MHz · Scale {scale}": "Registrert OC: {frequency} MHz · Skala {scale}",
   "Registered maximum:": "Registrert maksimum:",
   "Reinstall BC250 Control Center to install the helper.": "Installer BC250 kontrollsenter på nytt for å installere hjelperen.",
   "Reinstall the local application package to install the privileged helper.": "Installer den lokale applikasjonspakken på nytt for å installere den privilegerte hjelperen.",

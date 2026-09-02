@@ -2042,6 +2042,8 @@
   "Register access backend": "Erişim arka ucunu kaydedin",
   "Register diagnostics": "Teşhisleri kaydedin",
   "Register inspection backend required by live CU routing.": "Canlı CU yönlendirmenin gerektirdiği inceleme arka ucunu kaydedin.",
+  "Registered OC: Not active": "Kayıtlı OK: Aktif değil",
+  "Registered OC: {frequency} MHz · Scale {scale}": "Kayıtlı OC: {frequency} MHz · Ölçek {scale}",
   "Registered maximum:": "Maksimum kayıtlı:",
   "Reinstall BC250 Control Center to install the helper.": "Yardımcıyı yüklemek için BC250 Kontrol Merkezi'ni yeniden yükleyin.",
   "Reinstall the local application package to install the privileged helper.": "Ayrıcalıklı yardımcıyı yüklemek için yerel uygulama paketini yeniden yükleyin.",
