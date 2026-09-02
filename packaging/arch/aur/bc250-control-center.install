@@ -1,0 +1,11 @@
+post_install() {
+  /usr/libexec/bc250-control-center/bc250-package-maintenance post-install
+}
+
+post_upgrade() {
+  /usr/libexec/bc250-control-center/bc250-package-maintenance post-install
+}
+
+pre_remove() {
+  /usr/libexec/bc250-control-center/bc250-package-maintenance pre-remove
+}
