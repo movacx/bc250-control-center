@@ -380,6 +380,17 @@ def test_acpi_separate_entry_and_exact_restore(sandbox, backend):
         assert acpi.efi_string(host, "LoaderEntryDefault") == "arch.conf"
 
 
+def test_acpi_accepts_tab_separated_grub_commands(sandbox):
+    sandbox.grub()
+    grub = sandbox.grub_original.replace(" linux ", " linux\t").replace(" initrd ", " initrd\t")
+    sandbox.put(acpi.GRUB_OUTPUT, grub)
+
+    result = acpi.status(sandbox.host)
+
+    assert result["available"]
+    assert result["backend"] == "grub"
+
+
 @pytest.mark.parametrize("obstacle", ["secureboot", "lockdown", "uki", "foreign", "kernel", "fedora", "unknown"])
 def test_acpi_rejects_unqualified_hosts_without_writes(sandbox, obstacle):
     sandbox.systemd_boot()

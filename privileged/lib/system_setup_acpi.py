@@ -134,10 +134,10 @@ def boot_plan(host: Host) -> dict:
         stripped = line.strip()
         if stripped.startswith("menuentry "):
             linux = None
-        if stripped.startswith("linux "):
+        if re.match(r"^linux\s+", stripped):
             parts = shlex.split(stripped)
             linux = parts if parts[1].rsplit("/", 1)[-1] == basename else None
-        if linux and stripped.startswith("initrd "):
+        if linux and re.match(r"^initrd\s+", stripped):
             initrd = shlex.split(stripped)[1:]
             tokens = linux[1:] + initrd
             if any(not re.fullmatch(r"[A-Za-z0-9_/@.,:=+%-]+", token) for token in tokens):
