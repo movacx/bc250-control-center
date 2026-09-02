@@ -1,4 +1,5 @@
 import os
+import shutil
 import subprocess
 import tarfile
 from pathlib import Path
@@ -114,6 +115,23 @@ def test_source_tarball_is_reproducible_and_excludes_qa_payload(tmp_path):
     assert any(name.endswith("/privileged/helpers/README.md") for name in names)
     assert not any("/tests/" in name or "/archive/" in name for name in names)
     assert not any("__pycache__" in name or name.endswith(".pyc") for name in names)
+
+
+def test_arch_package_has_canonical_metadata_and_is_accepted_by_pacman(tmp_path):
+    if shutil.which("zstd") is None or shutil.which("pacman") is None:
+        return
+
+    output = tmp_path / "dist"
+    _run("bash", ROOT / "packaging/scripts/build-local-pkg.sh", output)
+    package = output / f"bc250-control-center-{VERSION}-1-any.pkg.tar.zst"
+
+    query = _run("pacman", "-Qip", package).stdout
+    assert "Name            : bc250-control-center" in query
+    assert f"Version         : {VERSION}-1" in query
+
+    archive_names = _run("bsdtar", "-tf", package).stdout.splitlines()
+    assert ".PKGINFO" in archive_names
+    assert "./.PKGINFO" not in archive_names
 
 
 def test_release_builder_rejects_a_conflicting_version_override(tmp_path):

@@ -14,8 +14,55 @@ DECKY_OFFICIAL_INSTALLER_URL = (
     "https://github.com/SteamDeckHomebrew/decky-installer/releases/latest/"
     "download/install_release.sh"
 )
+DECKY_OFFICIAL_PRERELEASE_INSTALLER_URL = (
+    "https://github.com/SteamDeckHomebrew/decky-installer/releases/latest/"
+    "download/install_prerelease.sh"
+)
+STEAM_RENAMED_INIT_API_BUILD = 1784934043
+
+
 def _quoted(path: str | Path) -> str:
     return shlex.quote(str(path))
+
+
+def _frontend_compatibility_repair_lines(*, indent: str = "") -> tuple[str, ...]:
+    """Update Decky only when the installed stable build cannot inject Steam UI.
+
+    Steam renamed its stage-one initialization API at build 1784934043. Decky
+    3.2.8 is the first upstream release line containing the compatibility fix.
+    Keep the stable installer as the default; use the official prerelease only
+    while stable is older than that minimum on an affected Steam client.
+    """
+    prerelease_url = shlex.quote(DECKY_OFFICIAL_PRERELEASE_INSTALLER_URL)
+    lines = (
+        "steam_build=0",
+        "for steam_manifest in \"$HOME\"/.local/share/Steam/package/steam_client*.manifest \"$HOME\"/.steam/steam/package/steam_client*.manifest; do",
+        "  test -r \"$steam_manifest\" || continue",
+        "  candidate=\"$(sed -n 's/^[[:space:]]*\"version\"[[:space:]]*\"\\([0-9][0-9]*\\)\".*/\\1/p' \"$steam_manifest\")\"",
+        "  case \"$candidate\" in ''|*[!0-9]*) continue;; esac",
+        "  if (( candidate > steam_build )); then steam_build=$candidate; fi",
+        "done",
+        "decky_supports_renamed_init_api() {",
+        "  local value=\"${1#v}\"",
+        "  [[ \"$value\" =~ ^([0-9]+)\\.([0-9]+)\\.([0-9]+) ]] || return 1",
+        "  local major=${BASH_REMATCH[1]} minor=${BASH_REMATCH[2]} patch=${BASH_REMATCH[3]}",
+        "  (( major > 3 || (major == 3 && (minor > 2 || (minor == 2 && patch >= 8))) ))",
+        "}",
+        "loader_version=\"$(tr -d '[:space:]' < \"$HOME/homebrew/services/.loader.version\" 2>/dev/null || true)\"",
+        f"if (( steam_build >= {STEAM_RENAMED_INIT_API_BUILD} )) && ! decky_supports_renamed_init_api \"$loader_version\"; then",
+        "  echo 'Detected a newer Steam initialization API that Decky stable does not support.'",
+        "  echo 'Installing the official Decky prerelease compatibility fix.'",
+        f"  curl --fail --location --proto '=https' --tlsv1.2 --retry 2 --output \"$workspace/decky-prerelease-install.sh\" {prerelease_url}",
+        "  test -s \"$workspace/decky-prerelease-install.sh\" || { echo 'ERROR: official Decky prerelease installer download is empty'; exit 67; }",
+        "  chmod 0700 \"$workspace/decky-prerelease-install.sh\"",
+        "  echo 'Downloaded prerelease installer SHA-256:'",
+        "  sha256sum \"$workspace/decky-prerelease-install.sh\"",
+        "  decky_user=\"$(id -un)\"; sudo env UID=0 SUDO_USER=\"$decky_user\" /usr/bin/bash \"$workspace/decky-prerelease-install.sh\"",
+        "  loader_version=\"$(tr -d '[:space:]' < \"$HOME/homebrew/services/.loader.version\" 2>/dev/null || true)\"",
+        "  decky_supports_renamed_init_api \"$loader_version\" || { echo 'ERROR: Decky compatibility update did not install version 3.2.8 or newer'; exit 67; }",
+        "fi",
+    )
+    return tuple(f"{indent}{line}" for line in lines)
 
 
 def build_plugin_install_command(installer: str | Path) -> str:
@@ -86,6 +133,7 @@ def build_decky_bootstrap_command(installer: str | Path) -> str:
         # desktop account explicitly; this keeps the official payload intact
         # while making the workflow portable across Debian-family shells.
         "decky_user=\"$(id -un)\"; sudo env UID=0 SUDO_USER=\"$decky_user\" /usr/bin/bash \"$workspace/decky-install.sh\"",
+        *_frontend_compatibility_repair_lines(),
         "test -d \"$HOME/homebrew/plugins\" || { echo 'ERROR: Decky did not create its plugin directory; BC250 plugin was not installed'; exit 65; }",
         "echo '== Installing BC250 Quick Access into the detected Decky runtime =='",
         f"/usr/bin/bash {_quoted(install_path)}",
@@ -120,6 +168,8 @@ def build_bazzite_decky_bootstrap_command(installer: str | Path) -> str:
         "fi",
         "command -v jq >/dev/null 2>&1 || { echo 'ERROR: jq requires the updated deployment. Reboot and retry Decky installation.'; exit 66; }",
         "echo '== Game Mode Quick Access Beta: Bazzite native Decky setup =='",
+        "workspace=$(mktemp -d \"${XDG_RUNTIME_DIR:-/tmp}/bc250-decky-beta.XXXXXX\")",
+        "trap 'rm -rf -- \"$workspace\"' EXIT",
         "if command -v ujust >/dev/null 2>&1 && ujust setup-decky status >/dev/null 2>&1; then",
         "  echo 'Using Bazzite native setup-decky recipe.'",
         # The no-argument recipe opens a chooser. The explicit action works in
@@ -128,8 +178,6 @@ def build_bazzite_decky_bootstrap_command(installer: str | Path) -> str:
         "  test \"$(ujust setup-decky status 2>/dev/null)\" = install || { echo 'ERROR: Bazzite did not report Decky as installed'; exit 65; }",
         "else",
         "  echo 'Bazzite setup-decky recipe is unavailable; using the official stable Decky installer.'",
-        "  workspace=$(mktemp -d \"${XDG_RUNTIME_DIR:-/tmp}/bc250-decky-beta.XXXXXX\")",
-        "  trap 'rm -rf -- \"$workspace\"' EXIT",
         f"  curl --fail --location --proto '=https' --tlsv1.2 --retry 2 --output \"$workspace/decky-install.sh\" {url}",
         "  test -s \"$workspace/decky-install.sh\" || { echo 'ERROR: official Decky installer download is empty'; exit 63; }",
         "  chmod 0700 \"$workspace/decky-install.sh\"",
@@ -137,6 +185,7 @@ def build_bazzite_decky_bootstrap_command(installer: str | Path) -> str:
         "  sha256sum \"$workspace/decky-install.sh\"",
         "  decky_user=\"$(id -un)\"; sudo env UID=0 SUDO_USER=\"$decky_user\" /usr/bin/bash \"$workspace/decky-install.sh\"",
         "fi",
+        *_frontend_compatibility_repair_lines(),
         "for _attempt in {1..20}; do test -d \"$HOME/homebrew/plugins\" && break; sleep 0.25; done",
         "test -d \"$HOME/homebrew/plugins\" || { echo 'ERROR: Bazzite did not create the Decky plugin directory; BC250 plugin was not installed'; exit 65; }",
         "test -x \"$HOME/homebrew/services/PluginLoader\" || { echo 'ERROR: Decky PluginLoader is missing after installation'; exit 65; }",

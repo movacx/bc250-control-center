@@ -1565,6 +1565,10 @@ class PreparationSidebar(QFrame):
         self.compatibility_filter = _ClickOnlyComboBox()
         self.compatibility_filter.setProperty("dashboardMemoryCombo", True)
         self.compatibility_filter.setProperty("gamepadEntry", True)
+        self.compatibility_filter.setMinimumWidth(0)
+        self.compatibility_filter.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+        )
         self.compatibility_filter.setAccessibleName(
             tr("Compatibility distribution filter")
         )
@@ -1595,8 +1599,6 @@ class PreparationSidebar(QFrame):
             self._compatibility_filter_changed
         )
         filter_layout.addWidget(self.compatibility_filter, 1)
-        self.compatibility_detected_badge = PillLabel("Detecting distribution", "gray")
-        filter_layout.addWidget(self.compatibility_detected_badge)
         layout.addWidget(self.compatibility_filter_panel)
         self.acpi_card = PreparationInfoCard(
             "CPU power management · ACPI",
@@ -1698,6 +1700,30 @@ class PreparationSidebar(QFrame):
         steamos_state_layout.addStretch(1)
         self.gfx_card.layout().insertWidget(2, self.steamos_graphics_state)
         self.steamos_graphics_state.hide()
+        self.steamos_fsr4_launch_row = QFrame()
+        self.steamos_fsr4_launch_row.setProperty("fsr4LaunchOption", True)
+        steamos_fsr4_launch_layout = QHBoxLayout(self.steamos_fsr4_launch_row)
+        steamos_fsr4_launch_layout.setContentsMargins(8, 5, 6, 5)
+        steamos_fsr4_launch_layout.setSpacing(7)
+        steamos_fsr4_launch_layout.addWidget(
+            _label("Steam launch option", "dashboardCompatibilityLabel", wrap=False)
+        )
+        steamos_fsr4_launch_layout.addStretch(1)
+        self.steamos_fsr4_copy_button = IconButton("⧉")
+        self.steamos_fsr4_copy_button.setProperty("fsr4LaunchCopy", True)
+        self.steamos_fsr4_copy_button.setFixedSize(30, 30)
+        self.steamos_fsr4_copy_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.steamos_fsr4_copy_button.setAccessibleName(
+            tr("Copy Steam launch option")
+        )
+        self.steamos_fsr4_copy_button.setToolTip(tr("Copy Steam launch option"))
+        self.steamos_fsr4_copy_button.clicked.connect(
+            self._copy_steamos_fsr4_launch_option
+        )
+        steamos_fsr4_launch_layout.addWidget(self.steamos_fsr4_copy_button)
+        self.gfx_card.layout().insertWidget(3, self.steamos_fsr4_launch_row)
+        self.steamos_fsr4_launch_row.hide()
+        self._steamos_fsr4_launch_option = ""
         layout.addWidget(self.gfx_card)
         self.cachyos_stack_card = PreparationInfoCard(
             "Arch / CachyOS BC-250 graphics stack · includes GFX1013 fix",
@@ -2139,6 +2165,20 @@ class PreparationSidebar(QFrame):
         self.fsr4_copy_button.setText("⧉")
         self.fsr4_copy_button.setToolTip(tr("Copy Steam launch option"))
 
+    def _copy_steamos_fsr4_launch_option(self) -> None:
+        if not self._steamos_fsr4_launch_option:
+            return
+        clipboard = QApplication.clipboard()
+        if clipboard is not None:
+            clipboard.setText(self._steamos_fsr4_launch_option)
+        self.steamos_fsr4_copy_button.setText("✓")
+        self.steamos_fsr4_copy_button.setToolTip(tr("Copied"))
+        QTimer.singleShot(1600, self._restore_steamos_fsr4_copy_button)
+
+    def _restore_steamos_fsr4_copy_button(self) -> None:
+        self.steamos_fsr4_copy_button.setText("⧉")
+        self.steamos_fsr4_copy_button.setToolTip(tr("Copy Steam launch option"))
+
     @staticmethod
     def _distribution_group(family: str) -> str:
         family = str(family or "").strip().lower()
@@ -2183,14 +2223,6 @@ class PreparationSidebar(QFrame):
             "debian": "Ubuntu / Debian",
             "other": "Other distributions",
         }
-        actual_label = str(
-            self._tools.get("os_label") or labels.get(actual) or tr("Not detected")
-        )
-        self.compatibility_detected_badge.setText(
-            tr_format("Detected: {distribution}", distribution=actual_label)
-        )
-        self.compatibility_detected_badge.set_tone("blue" if preview else "green")
-
         self.acpi_card.setVisible(show_all or selected == "arch")
         self.cyan_card.setVisible(True)
         self.oberon_card.setVisible(True)
@@ -2215,6 +2247,7 @@ class PreparationSidebar(QFrame):
         }
         self.gfx_card.detail.setText(tr(preview_copy[selected]))
         self.steamos_graphics_state.setVisible(selected == "steamos")
+        self.steamos_fsr4_launch_row.hide()
         if selected == "steamos":
             for pill in (
                 self.steamos_kernel_status,
@@ -2481,6 +2514,8 @@ class PreparationSidebar(QFrame):
         self.steamos_graphics_state.setVisible(
             reason_key == "steamos-dedicated-backend"
         )
+        self._steamos_fsr4_launch_option = ""
+        self.steamos_fsr4_launch_row.hide()
         if reason_key == "steamos-dedicated-backend":
             kernel_ready = bool(gfx_state.get("steamos_kernel_ready"))
             kernel_installed = bool(gfx_state.get("steamos_kernel_installed"))
@@ -2492,6 +2527,16 @@ class PreparationSidebar(QFrame):
                 gfx_state.get("steamos_external_fsr4_state") or "not-installed"
             )
             fsr4_current = bool(gfx_state.get("steamos_external_fsr4_current"))
+            self._steamos_fsr4_launch_option = str(
+                gfx_state.get("steamos_external_fsr4_launch_option") or ""
+            )
+            self.steamos_fsr4_launch_row.setVisible(
+                fsr4_current and bool(self._steamos_fsr4_launch_option)
+            )
+            self.steamos_fsr4_copy_button.setText("⧉")
+            self.steamos_fsr4_copy_button.setToolTip(
+                tr("Copy Steam launch option")
+            )
             self.steamos_kernel_status.setText(
                 tr("Active")
                 if kernel_ready
@@ -2753,10 +2798,15 @@ class PreparationSidebar(QFrame):
         if quick:
             ready = bool(quick.get("ready"))
             decky_detected = bool(quick.get("decky_detected"))
+            decky_frontend_compatible = bool(
+                quick.get("decky_frontend_compatible", True)
+            )
             self.decky_card.detail.setText(
                 tr(
                     "Quick Access is ready. Restart Game Mode or reload Decky if the panel is not visible yet."
                     if ready
+                    else "Decky must be updated because this Steam client uses the renamed initialization API."
+                    if decky_detected and not decky_frontend_compatible
                     else "Decky is detected, but the BC250 Quick Access plugin or its protected helper needs installation or repair."
                     if decky_detected
                     else "Decky is optional. It is never installed by generic dependency preparation."

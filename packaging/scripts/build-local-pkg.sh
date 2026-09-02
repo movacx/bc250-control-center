@@ -52,9 +52,27 @@ optdepend = vulkan-tools: Vulkan capability diagnostics
 EOF
 target="$OUTPUT_DIR/bc250-control-center-$VERSION-$PKG_RELEASE-any.pkg.tar.zst"
 temporary="$target.tmp.$$"
+# Pacman looks up .PKGINFO by its exact archive-root name. Archiving `.` would
+# prefix every member with `./` (including `./.PKGINFO`), which libalpm treats
+# as missing metadata and reports as an invalid or corrupted package. List the
+# package metadata and payload explicitly so their archive paths are canonical.
 tar --create --file - --sort=name --mtime="@$SOURCE_DATE_EPOCH" \
-  --owner=0 --group=0 --numeric-owner -C "$work/root" . \
+  --owner=0 --group=0 --numeric-owner -C "$work/root" \
+  .PKGINFO .INSTALL usr \
   | zstd -q -19 -T0 -o "$temporary"
+
+# Never publish an artifact whose compression stream or mandatory Arch
+# metadata cannot be read. The portable checks run on every build host;
+# libalpm performs an additional authoritative query on Arch-family systems.
+zstd -q --test "$temporary"
+if ! zstd -q -d -c "$temporary" | tar -tf - .PKGINFO >/dev/null; then
+  echo "Generated package is missing readable .PKGINFO metadata." >&2
+  exit 70
+fi
+if command -v pacman >/dev/null && ! pacman -Qip "$temporary" >/dev/null; then
+  echo "Pacman rejected the generated package as invalid or corrupted." >&2
+  exit 70
+fi
 mv -- "$temporary" "$target"
 sha256sum "$target" > "$target.sha256"
 echo "$target"

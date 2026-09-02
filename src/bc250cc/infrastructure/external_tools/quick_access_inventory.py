@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import ast
 import os
+import re
 import stat
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass
@@ -12,7 +13,9 @@ from bc250cc.platform.init.services import detect_init_manager
 
 PLUGIN_NAME = "bc250-quick-access"
 HELPER_PATH = Path("/usr/libexec/bc250-control-center/bc250-quick-access-helper")
-EXPECTED_HELPER_PROTOCOL = 12
+EXPECTED_HELPER_PROTOCOL = 13
+STEAM_RENAMED_INIT_API_BUILD = 1784934043
+DECKY_RENAMED_INIT_API_MIN_VERSION = (3, 2, 8)
 
 
 @dataclass(frozen=True)
@@ -22,6 +25,9 @@ class QuickAccessInventory:
     init_system: str
     decky_plugin_root: str
     decky_detected: bool
+    decky_loader_version: str
+    steam_client_build: int | None
+    decky_frontend_compatible: bool
     decky_plugin_root_safe: bool
     plugin_path: str
     plugin_present: bool
@@ -113,6 +119,50 @@ def _declared_protocol(path: Path) -> int | None:
     return None
 
 
+def _decky_loader_version(home: Path) -> str:
+    version_file = home / "homebrew" / "services" / ".loader.version"
+    try:
+        value = version_file.read_text(encoding="ascii").strip()
+    except (OSError, UnicodeError):
+        return ""
+    return value if len(value) <= 64 else ""
+
+
+def _semantic_version(value: str) -> tuple[int, int, int] | None:
+    match = re.fullmatch(
+        r"v?([0-9]+)\.([0-9]+)\.([0-9]+)(?:[-+].*)?", str(value).strip()
+    )
+    if match is None:
+        return None
+    return tuple(int(part) for part in match.groups())
+
+
+def _steam_client_build(home: Path) -> int | None:
+    builds: list[int] = []
+    package_roots = (
+        home / ".local" / "share" / "Steam" / "package",
+        home / ".steam" / "steam" / "package",
+    )
+    for package_root in package_roots:
+        try:
+            manifests = tuple(package_root.glob("steam_client*.manifest"))
+        except OSError:
+            continue
+        for manifest in manifests:
+            try:
+                with manifest.open("r", encoding="utf-8", errors="replace") as handle:
+                    for _index, line in zip(range(16), handle):
+                        if '"version"' not in line:
+                            continue
+                        values = re.findall(r'"([0-9]+)"', line)
+                        if values:
+                            builds.append(int(values[-1]))
+                        break
+            except OSError:
+                continue
+    return max(builds) if builds else None
+
+
 def quick_access_inventory(
     *,
     os_family: str,
@@ -131,6 +181,17 @@ def quick_access_inventory(
     bundle = plugin_path / "dist" / "index.js"
     policy_runtime = plugin_path / "bc250cc/domain/gpu/profiles.py"
     decky_detected = plugin_root.is_dir()
+    decky_loader_version = _decky_loader_version(home)
+    steam_client_build = _steam_client_build(home)
+    parsed_decky_version = _semantic_version(decky_loader_version)
+    decky_frontend_compatible = bool(
+        steam_client_build is None
+        or steam_client_build < STEAM_RENAMED_INIT_API_BUILD
+        or (
+            parsed_decky_version is not None
+            and parsed_decky_version >= DECKY_RENAMED_INIT_API_MIN_VERSION
+        )
+    )
     decky_plugin_root_safe = _decky_plugin_directory(plugin_root)
     # A Decky plugin can be root-managed. Treat an unreadable payload as not
     # present/verified rather than allowing pathlib's permission error to
@@ -171,6 +232,7 @@ def quick_access_inventory(
     controls_supported = bool(known_game_mode_family or init_system == "systemd")
     ready = bool(
         supported and controls_supported and decky_detected
+        and decky_frontend_compatible
         and plugin_present and plugin_safe and helper_protected and protocol_compatible
     )
     if not supported:
@@ -180,6 +242,11 @@ def quick_access_inventory(
         )
     elif not decky_detected:
         next_action = "Install Decky + Quick Access (Beta)"
+    elif not decky_frontend_compatible:
+        next_action = (
+            "Update Decky Loader for this Steam client, then reinstall BC250 "
+            "Quick Access. The installed Decky frontend uses the retired Steam initialization API."
+        )
     elif not controls_supported:
         next_action = (
             f"Decky is present, but Quick Access hardware controls are not "
@@ -199,6 +266,9 @@ def quick_access_inventory(
         init_system=init_system,
         decky_plugin_root=str(plugin_root),
         decky_detected=decky_detected,
+        decky_loader_version=decky_loader_version,
+        steam_client_build=steam_client_build,
+        decky_frontend_compatible=decky_frontend_compatible,
         decky_plugin_root_safe=decky_plugin_root_safe,
         plugin_path=str(plugin_path),
         plugin_present=plugin_present,

@@ -5,6 +5,8 @@ import pytest
 
 from bc250cc.infrastructure.decky_quick_access import (
     DECKY_OFFICIAL_INSTALLER_URL,
+    DECKY_OFFICIAL_PRERELEASE_INSTALLER_URL,
+    STEAM_RENAMED_INIT_API_BUILD,
     build_bazzite_decky_bootstrap_command,
     build_decky_bootstrap_command,
     build_plugin_install_command,
@@ -17,6 +19,9 @@ def test_decky_bootstrap_is_reviewable_after_gui_confirmation(tmp_path):
     command = build_decky_bootstrap_command(installer)
 
     assert DECKY_OFFICIAL_INSTALLER_URL in command
+    assert DECKY_OFFICIAL_PRERELEASE_INSTALLER_URL in command
+    assert str(STEAM_RENAMED_INIT_API_BUILD) in command
+    assert "decky_supports_renamed_init_api" in command
     assert "curl --fail --location --proto '=https' --tlsv1.2" in command
     assert "chmod 0700 \"$workspace/decky-install.sh\"" in command
     assert "sha256sum \"$workspace/decky-install.sh\"" in command
@@ -97,7 +102,7 @@ def test_repository_routes_missing_decky_to_explicit_bootstrap(monkeypatch, tmp_
     assert repository.estado_herramientas_cache is None
 
 
-def test_repository_repairs_existing_decky_without_redownloading_it(monkeypatch, tmp_path):
+def test_repository_explicit_decky_action_updates_an_existing_loader(monkeypatch, tmp_path):
     installer = tmp_path / "install-decky-quick-access.sh"
     installer.touch(mode=0o755)
     monkeypatch.setattr(
@@ -113,8 +118,9 @@ def test_repository_repairs_existing_decky_without_redownloading_it(monkeypatch,
 
     repository.preparar_quick_access_steamos(install_decky=True)
     command, _title = repository.opened[0]
-    assert "Installing / repairing BC250 Quick Access" in command
-    assert "curl" not in command
+    assert "Game Mode Quick Access Beta" in command
+    assert DECKY_OFFICIAL_INSTALLER_URL in command
+    assert DECKY_OFFICIAL_PRERELEASE_INSTALLER_URL in command
 
 
 def test_repository_accepts_bazzite_when_decky_capability_is_present(monkeypatch, tmp_path):

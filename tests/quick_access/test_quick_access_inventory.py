@@ -8,7 +8,7 @@ from bc250cc.platform.init.services import InitManagerState
 
 def _root_owned(path: Path, *, executable: bool = False):
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("HELPER_PROTOCOL = 12\n", encoding="utf-8")
+    path.write_text("HELPER_PROTOCOL = 13\n", encoding="utf-8")
     path.chmod(0o755 if executable else 0o644)
 
 
@@ -129,11 +129,54 @@ def test_protocol_inventory_does_not_execute_plugin_and_rejects_dynamic_values(t
     )
 
     source = tmp_path / "main.py"
-    source.write_text("raise RuntimeError('must never execute')\nHELPER_PROTOCOL = 12\n")
-    assert _declared_protocol(source) == 12
-    for declaration in ("int('12')", "True", "None"):
+    source.write_text("raise RuntimeError('must never execute')\nHELPER_PROTOCOL = 13\n")
+    assert _declared_protocol(source) == 13
+    for declaration in ("int('13')", "True", "None"):
         source.write_text(f"HELPER_PROTOCOL = {declaration}\n")
         assert _declared_protocol(source) is None
+
+
+def test_inventory_requires_new_decky_for_the_renamed_steam_init_api(
+    tmp_path, monkeypatch
+):
+    home = tmp_path / "home"
+    plugin = home / "homebrew" / "plugins" / "bc250-quick-access"
+    for path in (
+        plugin / "plugin.json",
+        plugin / "package.json",
+        plugin / "main.py",
+        plugin / "dist" / "index.js",
+        plugin / "bc250cc/domain/gpu/profiles.py",
+    ):
+        _root_owned(path)
+    services = home / "homebrew" / "services"
+    services.mkdir(parents=True)
+    (services / ".loader.version").write_text("v3.2.6\n", encoding="ascii")
+    package = home / ".local/share/Steam/package"
+    package.mkdir(parents=True)
+    (package / "steam_client_test.manifest").write_text(
+        '{\n\t"version"\t\t"1788291500"\n}\n', encoding="ascii"
+    )
+    helper = tmp_path / "libexec" / "helper"
+    _root_owned(helper, executable=True)
+    import bc250cc.infrastructure.external_tools.quick_access_inventory as module
+    monkeypatch.setattr(module, "_protected_regular", lambda path, **_kwargs: path.is_file())
+
+    incompatible = quick_access_inventory(
+        os_family="steamos", home=home, environ={}, helper_path=helper
+    )
+    assert incompatible.decky_loader_version == "v3.2.6"
+    assert incompatible.steam_client_build == 1788291500
+    assert incompatible.decky_frontend_compatible is False
+    assert incompatible.ready is False
+    assert "Update Decky Loader" in incompatible.next_action
+
+    (services / ".loader.version").write_text("v3.2.8-pre1\n", encoding="ascii")
+    compatible = quick_access_inventory(
+        os_family="steamos", home=home, environ={}, helper_path=helper
+    )
+    assert compatible.decky_frontend_compatible is True
+    assert compatible.ready is True
 
 
 def test_quick_access_inventory_requires_package_metadata_for_modern_decky_loader(tmp_path, monkeypatch):

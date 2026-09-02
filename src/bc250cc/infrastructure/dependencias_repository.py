@@ -329,7 +329,10 @@ class DependenciasRepository:
                 'BC250 Control Center can install Decky explicitly on systemd; '
                 'other init systems require an existing, independently managed Decky runtime.'
             )
-        if bool(install_decky and not inventory.decky_detected):
+        # The explicit Decky action means install *or update* Decky. Do not
+        # silently downgrade it to a BC250-only repair merely because an
+        # incompatible loader directory already exists.
+        if bool(install_decky):
             command = (
                 build_bazzite_decky_bootstrap_command(installer)
                 if os_repository.info.family == 'bazzite'
@@ -573,6 +576,9 @@ class DependenciasRepository:
             'steamos_external_radv_current': bool(external_radv.get('current')),
             'steamos_external_fsr4_state': str(external_fsr4.get('state') or 'not-installed'),
             'steamos_external_fsr4_current': bool(external_fsr4.get('current')),
+            'steamos_external_fsr4_launch_option': str(
+                external_fsr4.get('steam_launch_option') or ''
+            ),
             'steamos_safe_radv_detected': steamos_safe_radv_detected,
             'steamos_safe_radv_reference': STEAMOS_GFX1013_SAFE_RADV_REFERENCE,
             'steamos_safe_radv_reference_commit': STEAMOS_GFX1013_SAFE_RADV_REVIEWED_COMMIT,

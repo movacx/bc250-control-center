@@ -100,8 +100,8 @@ def test_voltage_drawer_stacks_controls_in_a_narrow_window(qtbot):
 
     assert drawer._profile_columns == 1
     assert drawer._footer_horizontal is False
-    assert drawer.drawer.geometry().left() == 3
-    assert drawer.drawer.geometry().right() == host.width() - 4
+    assert drawer.drawer.geometry().left() == 5
+    assert drawer.drawer.geometry().right() == host.width() - 2
     assert drawer.drawer.geometry().bottom() == host.height() - 1
 
 

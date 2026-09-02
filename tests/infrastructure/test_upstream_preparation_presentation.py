@@ -5,7 +5,7 @@ from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 
 from PyQt6.QtCore import QSettings
-from PyQt6.QtWidgets import QApplication
+from PyQt6.QtWidgets import QApplication, QSizePolicy
 
 from frontends.desktop.components.dashboard_widgets import PreparationSidebar
 
@@ -213,6 +213,50 @@ def test_ready_fsr4_runtime_exposes_round_universal_copy_button():
     assert "/home/fabianbeita" not in QApplication.clipboard().text()
 
 
+def test_steamos_ready_fsr4_exposes_its_attested_runner_copy_button():
+    sidebar = _sidebar()
+    option = (
+        '"$HOME/.local/share/bc250-mesh-shader/fsr4/bc250-fsr4-run" %command%'
+    )
+    state = _state("steamos", {})
+    state.preparation_tools["gfx1013_compute"] = {
+        "reason_key": "steamos-dedicated-backend",
+        "steamos_kernel_ready": True,
+        "steamos_external_radv_state": "ready",
+        "steamos_external_radv_current": True,
+        "steamos_external_fsr4_state": "ready",
+        "steamos_external_fsr4_current": True,
+        "steamos_external_fsr4_launch_option": option,
+    }
+
+    sidebar.set_state(state)
+
+    assert not sidebar.steamos_fsr4_launch_row.isHidden()
+    assert sidebar.steamos_fsr4_copy_button.width() == 30
+    assert sidebar.steamos_fsr4_copy_button.height() == 30
+    sidebar.steamos_fsr4_copy_button.click()
+    assert QApplication.clipboard().text() == option
+    assert "$HOME" in QApplication.clipboard().text()
+
+
+def test_steamos_fsr4_copy_stays_hidden_until_the_profile_is_current():
+    sidebar = _sidebar()
+    state = _state("steamos", {})
+    state.preparation_tools["gfx1013_compute"] = {
+        "reason_key": "steamos-dedicated-backend",
+        "steamos_kernel_ready": True,
+        "steamos_external_radv_state": "ready",
+        "steamos_external_radv_current": True,
+        "steamos_external_fsr4_state": "invalid",
+        "steamos_external_fsr4_current": False,
+        "steamos_external_fsr4_launch_option": "",
+    }
+
+    sidebar.set_state(state)
+
+    assert sidebar.steamos_fsr4_launch_row.isHidden()
+
+
 def test_bazzite_async_compute_card_explains_old_kernel_gate():
     sidebar = _sidebar()
     state = _state(
@@ -319,6 +363,10 @@ def test_distribution_filter_defaults_to_detected_and_persists_last_choice():
     )
     first = PreparationSidebar(settings=settings)
     assert first.compatibility_filter.currentData() == "detected"
+    assert not hasattr(first, "compatibility_detected_badge")
+    assert first.compatibility_filter.sizePolicy().horizontalPolicy() == (
+        QSizePolicy.Policy.Expanding
+    )
     first.compatibility_filter.setCurrentIndex(
         first.compatibility_filter.findData("steamos")
     )

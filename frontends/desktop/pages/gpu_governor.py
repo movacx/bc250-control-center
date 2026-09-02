@@ -932,6 +932,9 @@ class DependencyPreparationDialog(QDialog):
         inventory = _dict(self.tools.get("quick_access"))
         ready = bool(inventory.get("ready"))
         decky_detected = bool(inventory.get("decky_detected"))
+        decky_frontend_compatible = bool(
+            inventory.get("decky_frontend_compatible", True)
+        )
         page = QWidget()
         layout = QVBoxLayout(page)
         layout.setContentsMargins(0, 0, 6, 0)
@@ -972,6 +975,8 @@ class DependencyPreparationDialog(QDialog):
             detail_text = "Quick Access is ready. Restart Game Mode or reload Decky if the panel is not visible yet."
         elif not decky_detected:
             detail_text = "Decky is optional. It is never installed by generic dependency preparation."
+        elif not decky_frontend_compatible:
+            detail_text = "Decky must be updated because this Steam client uses the renamed initialization API."
         elif not bool(inventory.get("decky_plugin_root_safe", True)):
             detail_text = "Decky uses a symbolic-link plugin directory. Choose a real plugin directory before installing BC250 Quick Access."
         else:
@@ -986,20 +991,20 @@ class DependencyPreparationDialog(QDialog):
         install = QPushButton(
             tr(
                 "Install / repair BC250 Quick Access"
-                if decky_detected
+                if decky_detected and decky_frontend_compatible
                 else "Install Decky + Quick Access (Beta)"
             )
         )
         install.setObjectName("PrimaryAction")
         install.setToolTip(
             tr(
-                "Beta boundary: after your explicit confirmation in this dialog, this workflow downloads the official Decky stable installer, displays its SHA-256 in the terminal, then installs the local BC250 panel. It never changes GPU voltage, custom clocks, services, boot settings or hardware state."
+                "Beta boundary: after your explicit confirmation in this dialog, this workflow downloads the official Decky stable installer and displays its SHA-256. On Steam clients that require the renamed initialization API, it may then use the official Decky prerelease compatibility installer. It finally installs the local BC250 panel and never changes GPU voltage, custom clocks, boot settings or hardware state."
             )
         )
         install.clicked.connect(
             lambda: self._choose(
                 "quick_access_plugin"
-                if decky_detected
+                if decky_detected and decky_frontend_compatible
                 else "quick_access_install_decky",
                 "",
             )
@@ -3904,6 +3909,12 @@ class GpuGovernorPage(QWidget):
                 (
                     tr("BC250 plugin"),
                     tr("Installed only after Decky creates its plugin directory"),
+                ),
+                (
+                    tr("Compatibility fallback"),
+                    tr(
+                        "Official Decky prerelease only when the installed stable version cannot support the current Steam initialization API"
+                    ),
                 ),
                 (tr("Hardware"), tr("No GPU, CPU, CU or fan action is requested")),
                 (tr("Game Mode"), tr("Restart or reload Decky after success")),

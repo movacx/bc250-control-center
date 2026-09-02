@@ -413,19 +413,21 @@ def test_cyan_recovery_profile_was_removed(helper_module, monkeypatch, capsys):
     assert "unknown profile" in capsys.readouterr().err
 
 
-def test_cyan_high_ceilings_require_active_level_three_curve(helper_module, tmp_path, monkeypatch):
+def test_cyan_high_ceilings_accept_each_active_custom_curve_point(
+    helper_module, tmp_path, monkeypatch
+):
     config = tmp_path / "config.toml"
     config.write_text(
         """
 [[safe-points]]
 frequency = 2000
-voltage = 990
+voltage = 980
 [[safe-points]]
 frequency = 2050
-voltage = 1010
+voltage = 1000
 [[safe-points]]
 frequency = 2100
-voltage = 1029
+voltage = 1020
 # [[safe-points]]
 # frequency = 2400
 # voltage = 1210
@@ -436,7 +438,35 @@ voltage = 1029
     monkeypatch.setattr(helper_module, "trusted_file", lambda path, **_kwargs: path == config)
 
     assert helper_module.cyan_safe_point_ceilings(config) == (
-        {"frequency": 2050, "voltage": 1010},
+        {"frequency": 2050, "voltage": 1000},
+        {"frequency": 2100, "voltage": 1020},
+    )
+
+
+def test_cyan_high_ceilings_do_not_require_intermediate_points(
+    helper_module, tmp_path, monkeypatch
+):
+    config = tmp_path / "config.toml"
+    config.write_text(
+        """
+[[safe-points]]
+frequency = 2000
+voltage = 960
+[[safe-points]]
+frequency = 2230
+voltage = 1085
+[[safe-points]]
+frequency = 2400
+voltage = 1160
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(helper_module, "trusted_directory", lambda path: path == tmp_path)
+    monkeypatch.setattr(helper_module, "trusted_file", lambda path, **_kwargs: path == config)
+
+    assert helper_module.cyan_safe_point_ceilings(config) == (
+        {"frequency": 2230, "voltage": 1085},
+        {"frequency": 2400, "voltage": 1160},
     )
 
 

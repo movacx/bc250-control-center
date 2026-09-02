@@ -89,22 +89,6 @@ OBERON_QAM_PROFILES = {
     "oberon-1850": (1000, 1850),
     "oberon-2000": (1000, 2000),
 }
-# Desktop Mode's high-range guard requires at least the packaged Level 3
-# curve (upstream voltage +30 mV from 2000 MHz onward).  Keep the Quick Access
-# reader at the same boundary: a high TOML point is shown only when every
-# packaged point leading to it is active and meets this floor.
-GPU_HIGH_POINT_MINIMUM_VOLTAGES = {
-    2000: 990,
-    2050: 1010,
-    2100: 1030,
-    2125: 1050,
-    2150: 1065,
-    2200: 1080,
-    2230: 1115,
-    2300: 1140,
-    2350: 1160,
-    2400: 1180,
-}
 # Root config receives voltages from this closed mapping rather than from the
 # Decky client.  These are Oberon's upstream reference endpoints, not values
 # interpolated from Cyan's unrelated TOML curve.  Game Mode intentionally owns
@@ -1072,16 +1056,17 @@ def cyan_safe_point_ceilings(config: pathlib.Path = CYAN_CONFIG) -> tuple[dict[s
             return ()
         points[frequency] = voltage
 
-    eligible: list[dict[str, int]] = []
-    for frequency in sorted(value for value in points if value > 2000):
-        required = {
-            point: minimum
-            for point, minimum in GPU_HIGH_POINT_MINIMUM_VOLTAGES.items()
-            if point <= frequency
-        }
-        if all(points.get(point, 0) >= minimum for point, minimum in required.items()):
-            eligible.append({"frequency": frequency, "voltage": points[frequency]})
-    return tuple(eligible)
+    # The root-owned governor configuration is the source of truth. BC-250
+    # boards do not share one universal voltage curve: some require the
+    # packaged Level 3 values while others are stable at lower voltages. An
+    # active TOML point must therefore not be hidden merely because it differs
+    # from a packaged recommendation or because an intermediate point is
+    # commented out. Keep the structural and absolute bounds above, then
+    # advertise every explicitly active high point for the finite QAM action.
+    return tuple(
+        {"frequency": frequency, "voltage": points[frequency]}
+        for frequency in sorted(value for value in points if value > 2000)
+    )
 
 
 def wait_for_cyan_range(requested: tuple[int, int], *, timeout: float = 6.0) -> tuple[int, int] | None:
@@ -1359,7 +1344,7 @@ def gpu_safe_point(frequency_raw: str) -> int:
         int(point["frequency"]): int(point["voltage"])
         for point in cyan_safe_point_ceilings()
     }
-    source = "active, Level-3-compatible safe-point in the root-owned Cyan TOML"
+    source = "active safe-point in the root-owned Cyan TOML"
     if frequency not in available:
         return fail(
             f"QUICK_ACCESS_GPU_SAFE_POINT: {frequency} MHz is not available in the {source}.",

@@ -159,6 +159,29 @@ def test_dependency_dialog_offers_explicit_decky_install_on_generic_systemd(qtbo
     assert dialog.action == "quick_access_install_decky"
 
 
+def test_dependency_dialog_updates_decky_when_the_detected_frontend_is_incompatible(
+    qtbot,
+):
+    tools = _tools()
+    tools.update({
+        "os_family": "steamos",
+        "os_label": "SteamOS",
+        "quick_access": {
+            "supported": True,
+            "decky_detected": True,
+            "decky_frontend_compatible": False,
+            "ready": False,
+        },
+    })
+    dialog = DependencyPreparationDialog(tools, "cyan-skillfish-governor-smu")
+    qtbot.addWidget(dialog)
+
+    _button(dialog, "Decky Loader").click()
+    _button(dialog, "Install Decky + Quick Access (Beta)").click()
+
+    assert dialog.action == "quick_access_install_decky"
+
+
 def test_dependency_dialog_exposes_cachyos_kernel_as_an_explicit_action(qtbot):
     tools = _tools()
     tools.update({

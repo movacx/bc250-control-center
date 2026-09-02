@@ -20,6 +20,9 @@ LEGACY_UPSTREAM_COMMIT = "b66203e012594204e5e3049856b28a2681112985"
 CURRENT_FSR4_PATCH_SHA256 = (
     "7fde37fad572b4ba4dcac6052792d10d8d3df65982b01236c63a3eff0a25d225"
 )
+STEAMOS_FSR4_LAUNCH_OPTION = (
+    '"$HOME/.local/share/bc250-mesh-shader/fsr4/bc250-fsr4-run" %command%'
+)
 CURRENT_MESA_TAG = "mesa-26.2.0"
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _MESA_TAG = re.compile(r"^mesa-[0-9][0-9A-Za-z._-]*$")
@@ -391,6 +394,8 @@ def _fsr4_runtime_state(*, state_dir: Path) -> dict[str, object]:
             "ready": False,
             "current": False,
             "mesa_tag": "",
+            "runner_path": "",
+            "steam_launch_option": "",
         }
     driver_sha, icd_sha, runner_sha, mesa_tag, patch_sha = values
     manifest_valid = bool(
@@ -420,6 +425,8 @@ def _fsr4_runtime_state(*, state_dir: Path) -> dict[str, object]:
         "ready": intact,
         "current": current,
         "mesa_tag": mesa_tag if manifest_valid else "",
+        "runner_path": str(runner) if current else "",
+        "steam_launch_option": STEAMOS_FSR4_LAUNCH_OPTION if current else "",
     }
 
 

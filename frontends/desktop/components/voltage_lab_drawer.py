@@ -441,8 +441,10 @@ class VoltageLabDrawer(QWidget):
             width = available
         else:
             width = min(760, max(580, round(self.width() * 0.53)))
+        right_offset = 2
         return QRect(
-            max(horizontal_margin, self.width() - horizontal_margin - width),
+            max(horizontal_margin, self.width() - horizontal_margin - width)
+            + right_offset,
             top_margin,
             width,
             max(0, self.height() - top_margin - bottom_margin),

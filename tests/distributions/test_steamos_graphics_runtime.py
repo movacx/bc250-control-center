@@ -8,6 +8,7 @@ from bc250cc.infrastructure.steamos_graphics_runtime import (
     CURRENT_MESA_TAG,
     CURRENT_UPSTREAM_COMMIT,
     LEGACY_UPSTREAM_COMMIT,
+    STEAMOS_FSR4_LAUNCH_OPTION,
     probe_steamos_graphics_runtime,
 )
 
@@ -72,6 +73,8 @@ def test_probe_verifies_current_radv_and_per_game_fsr4_profile(tmp_path):
     }
     assert state["fsr4"]["state"] == "ready"
     assert state["fsr4"]["current"] is True
+    assert state["fsr4"]["runner_path"].endswith("/fsr4/bc250-fsr4-run")
+    assert state["fsr4"]["steam_launch_option"] == STEAMOS_FSR4_LAUNCH_OPTION
     assert state["incomplete"] is False
 
 
