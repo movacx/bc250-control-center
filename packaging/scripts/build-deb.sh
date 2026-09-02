@@ -70,5 +70,9 @@ temporary="$target.tmp.$$"
 SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-$(stat -c %Y "$ROOT_DIR/packaging/common/io.github.movacx.bc250-control-center.metainfo.xml")}" \
   dpkg-deb --root-owner-group --build "$work/root" "$temporary"
 mv -- "$temporary" "$target"
-sha256sum "$target" > "$target.sha256"
+target_name="${target##*/}"
+(
+  cd -- "$OUTPUT_DIR"
+  sha256sum "$target_name" > "$target_name.sha256"
+)
 echo "$target"

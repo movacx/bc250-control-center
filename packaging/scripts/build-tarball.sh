@@ -29,5 +29,9 @@ tar --create --file - \
   | gzip -n -9 > "$temporary"
 mv -- "$temporary" "$target"
 trap - EXIT
-sha256sum "$target" > "$target.sha256"
+target_name="${target##*/}"
+(
+  cd -- "$OUTPUT_DIR"
+  sha256sum "$target_name" > "$target_name.sha256"
+)
 echo "$target"

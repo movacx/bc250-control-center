@@ -91,5 +91,11 @@ SOURCE_DATE_EPOCH="$SOURCE_DATE_EPOCH" rpmbuild -bb \
   --define "use_source_date_epoch_as_buildtime 1" \
   "$work/top/SPECS/bc250-control-center.spec"
 find "$work/top/RPMS" -type f -name '*.rpm' -exec cp -f -- {} "$OUTPUT_DIR/" \;
-for rpm in "$OUTPUT_DIR"/*.rpm; do sha256sum "$rpm" > "$rpm.sha256"; done
+for rpm in "$OUTPUT_DIR"/*.rpm; do
+  rpm_name="${rpm##*/}"
+  (
+    cd -- "$OUTPUT_DIR"
+    sha256sum "$rpm_name" > "$rpm_name.sha256"
+  )
+done
 printf '%s\n' "$OUTPUT_DIR"/*.rpm

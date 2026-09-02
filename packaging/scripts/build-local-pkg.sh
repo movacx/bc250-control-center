@@ -74,5 +74,9 @@ if command -v pacman >/dev/null && ! pacman -Qip "$temporary" >/dev/null; then
   exit 70
 fi
 mv -- "$temporary" "$target"
-sha256sum "$target" > "$target.sha256"
+target_name="${target##*/}"
+(
+  cd -- "$OUTPUT_DIR"
+  sha256sum "$target_name" > "$target_name.sha256"
+)
 echo "$target"
