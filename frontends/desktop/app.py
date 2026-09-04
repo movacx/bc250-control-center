@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import Qt, QThread, QTimer
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import (
     QApplication,
@@ -648,7 +648,24 @@ class ControlCenterWindow(QMainWindow):
         gamepad = getattr(self, "gamepad", None)
         if gamepad is not None:
             gamepad.stop()
+
+        running = [thread for thread in self.findChildren(QThread) if thread.isRunning()]
+        if running:
+            event.ignore()
+            if not getattr(self, "_close_pending", False):
+                self._close_pending = True
+                logger.info("Waiting for %d background task(s) before closing", len(running))
+                QTimer.singleShot(50, self._close_when_idle)
+            return
+
+        self._close_pending = False
         super().closeEvent(event)
+
+    def _close_when_idle(self) -> None:
+        if any(thread.isRunning() for thread in self.findChildren(QThread)):
+            QTimer.singleShot(50, self._close_when_idle)
+            return
+        self.close()
 
     def _dashboard_action(self, action: str) -> None:
         if action in {"cpu_configuration", "cpu_overview"}:
