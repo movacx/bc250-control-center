@@ -47,6 +47,7 @@ def test_cyan_activation_repairs_dbus_before_start_and_requires_bus_name(tmp_pat
 
     command = Repository().controlar_governor('activar')
     assert 'org.freedesktop.DBus ReloadConfig' in command
+    assert '/usr/share/dbus-1/system.d/com.cyanskillfish.Governor.conf' in command
     assert 'sudo systemctl restart cyan-skillfish-governor-smu.service' in command
     assert 'busctl --system status com.cyanskillfish.Governor' in command
     assert 'Cyan service and D-Bus interface are active' in command

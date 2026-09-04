@@ -81,6 +81,7 @@ from bc250cc.infrastructure.memory_runtime import read_memory_runtime_state
 from bc250cc.infrastructure.preparation_workflow import (
     PreparationContext,
     build_preparation_command,
+    secure_cpu_checkout_command,
 )
 from bc250cc.infrastructure.source_checkout import (
     clone_or_update,
@@ -1623,7 +1624,7 @@ class DependenciasRepository:
         if tools['smu_oc_exists']:
             path = shlex.quote(tools['smu_oc_path'])
             cmd = (
-                f'chmod -R u+rwX,go+rX,go-w {path}; '
+                f'{secure_cpu_checkout_command(Path(tools["smu_oc_path"]))}; '
                 f'echo "OK: bc250_smu_oc repository found at {path}"; '
                 'echo "The app runs bc250_detect.py directly to avoid PEP 668 conflicts."'
             )
@@ -1652,11 +1653,7 @@ class DependenciasRepository:
                 EXTERNAL_TOOLS['cpu_smu_oc'].upstream, destination, os_repository
             ))
         commands.extend([
-            # A permissive desktop umask (for example 0002 on Mint) makes a
-            # freshly cloned checkout group-writable.  The privileged CPU
-            # helper deliberately rejects that boundary, so normalize the
-            # user-owned tree before it can be used for detection.
-            f'chmod -R u+rwX,go+rX,go-w {shlex.quote(str(destination))}',
+            secure_cpu_checkout_command(destination),
             f'test -f {shlex.quote(str(destination / "bc250_detect.py"))} || {{ echo "ERROR: bc250_detect.py was not found"; exit 1; }}',
             f'echo "OK: bc250_smu_oc is ready at {shlex.quote(str(destination))}"',
         ])

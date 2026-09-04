@@ -553,6 +553,9 @@ class GPURepository:
             except (OSError, RuntimeError, TypeError, ValueError):
                 source = None
         qpolicy = shlex.quote(str(policy))
+        vendor_policy = shlex.quote(
+            "/usr/share/dbus-1/system.d/com.cyanskillfish.Governor.conf"
+        )
         policy_marker = shlex.quote('<allow own="com.cyanskillfish.Governor"/>')
         commands = [
             (
@@ -563,7 +566,8 @@ class GPURepository:
         if source is not None:
             qsource = shlex.quote(str(source))
             commands.append(
-                f"if ! grep -Fq {policy_marker} {qpolicy} 2>/dev/null; then "
+                f"if ! grep -Fq {policy_marker} {qpolicy} 2>/dev/null && "
+                f"! grep -Fq {policy_marker} {vendor_policy} 2>/dev/null; then "
                 f"test -f {qsource} || "
                 '{ echo "ERROR: reviewed Cyan D-Bus policy source is missing; run Prepare dependencies"; exit 62; }; '
                 f"sudo install -D -m 0644 {qsource} {qpolicy}; fi"
@@ -571,6 +575,7 @@ class GPURepository:
         else:
             commands.append(
                 f"grep -Fq {policy_marker} {qpolicy} 2>/dev/null || "
+                f"grep -Fq {policy_marker} {vendor_policy} 2>/dev/null || "
                 '{ echo "ERROR: Cyan D-Bus policy is missing; run Prepare dependencies"; exit 62; }'
             )
         commands.append(
