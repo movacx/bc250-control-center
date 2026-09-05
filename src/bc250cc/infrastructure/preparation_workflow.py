@@ -60,6 +60,27 @@ class PreparationContext:
     steamos_fix_directory: str
 
 
+def secure_cpu_checkout_command(destination: Path) -> str:
+    qdestination = shlex.quote(str(destination))
+    return (
+        f'chmod u+rwx,go+rx,go-w {qdestination}; '
+        f'if [ -d {qdestination}/.git ]; then '
+        'while IFS= read -r -d "" bc250_cpu_file; do '
+        f'  bc250_cpu_path={qdestination}/$bc250_cpu_file; '
+        '  [ -e "$bc250_cpu_path" ] || continue; '
+        '  [ ! -L "$bc250_cpu_path" ] || '
+        '  { echo "ERROR: reviewed bc250_smu_oc file is a symbolic link: $bc250_cpu_file"; exit 30; }; '
+        '  [ -O "$bc250_cpu_path" ] || '
+        '  { echo "ERROR: reviewed bc250_smu_oc file is not owned by the desktop user: $bc250_cpu_file"; exit 30; }; '
+        '  chmod u+rwX,go+rX,go-w "$bc250_cpu_path"; '
+        f'done < <(git -C {qdestination} ls-files -z); '
+        'else '
+        f'find {qdestination} -xdev -user "$(id -u)" '
+        '-exec chmod u+rwX,go+rX,go-w {} +; '
+        'fi'
+    )
+
+
 def _immutable_commands(context: PreparationContext) -> list[str]:
     repo = context.repository
     os_repo = context.os_repository
@@ -76,7 +97,7 @@ def _immutable_commands(context: PreparationContext) -> list[str]:
                 context.cpu_destination,
                 context.cpu_reviewed_revision,
             ),
-            f'chmod -R u+rwX,go+rX,go-w {shlex.quote(str(context.cpu_destination))}',
+            secure_cpu_checkout_command(context.cpu_destination),
             f'test -f {shlex.quote(str(context.cpu_destination / "bc250_detect.py"))} || '
             '{ echo "ERROR: bc250_detect.py is missing"; exit 30; }',
         ])
@@ -136,12 +157,12 @@ def _immutable_commands(context: PreparationContext) -> list[str]:
 def _mutable_commands(context: PreparationContext) -> list[str]:
     os_repo = context.os_repository
     selected = context.selected_components
-    commands = [os_repo.prepare_dependencies_command('runtime')]
-    commands.extend(_mutable_governor_commands(context))
-    commands.append(
+    commands = [
+        os_repo.prepare_dependencies_command('runtime'),
         'command -v git >/dev/null 2>&1 || '
-        '{ echo "ERROR: git is unavailable after dependency preparation"; exit 29; }'
-    )
+        '{ echo "ERROR: git is unavailable after dependency preparation"; exit 29; }',
+    ]
+    commands.extend(_mutable_governor_commands(context))
     commands.extend(_mutable_source_commands(context))
     commands.extend(_mutable_umr_commands(context))
     commands.extend(_steamos_user_space_commands(context))
@@ -166,7 +187,13 @@ def _mutable_governor_commands(context: PreparationContext) -> list[str]:
         if context.selected_governor == OBERON_GOVERNOR
         else os_repo.prepare_dependencies_command('governor')
     )
-    return [command]
+    commands = [command]
+    if context.selected_governor == CYAN_GOVERNOR:
+        commands.extend([
+            repo._cyan_upstream_runtime_command(os_repo),
+            repo._cyan_runtime_verification_command(),
+        ])
+    return commands
 
 
 def _mutable_source_commands(context: PreparationContext) -> list[str]:
@@ -184,11 +211,10 @@ def _mutable_source_commands(context: PreparationContext) -> list[str]:
             repo._hardware_source_checkout_command(
                 context.cpu_repository, context.cpu_destination, os_repo
             ),
-            # Mint commonly uses umask 0002, which leaves the checkout
-            # group-writable and causes the privileged detector to reject it.
-            # Keep the checkout user-owned while tightening only its write
-            # boundary for the subsequent authenticated read.
-            f'chmod -R u+rwX,go+rX,go-w {shlex.quote(str(context.cpu_destination))}',
+            # Runtime detector artifacts are untracked and may have been
+            # created by an older privileged workflow. Secure the reviewed
+            # Git files without trying to chmod those unrelated artifacts.
+            secure_cpu_checkout_command(context.cpu_destination),
             f'test -f {shlex.quote(str(context.cpu_destination / "bc250_detect.py"))} || '
             '{ echo "ERROR: bc250_detect.py is missing"; exit 30; }',
         ])
@@ -320,7 +346,11 @@ def build_preparation_command(context: PreparationContext) -> str:
         if os_repo.info.family == 'bazzite'
         else _mutable_commands(context)
     )
-    if context.selected_governor == CYAN_GOVERNOR and 'governor' in selected:
+    if (
+        os_repo.info.family == 'bazzite'
+        and context.selected_governor == CYAN_GOVERNOR
+        and 'governor' in selected
+    ):
         commands.append(repo._cyan_upstream_runtime_command(os_repo))
         binary = str(GOVERNOR_SPECS[context.selected_governor]['binary'])
         managed = f'/usr/local/bin/{binary}'

@@ -10,6 +10,7 @@ from bc250cc.infrastructure.dependencias_repository import (
     DependenciasRepository,
 )
 from bc250cc.infrastructure.governor_conflicts import CYAN_GOVERNOR, OBERON_GOVERNOR
+from bc250cc.infrastructure.preparation_workflow import secure_cpu_checkout_command
 from bc250cc.platform.packages.strategies.factory import create_os_repository
 
 DISTROS = (
@@ -164,7 +165,8 @@ def test_steamos_prepare_honors_selected_user_space_components(tmp_path, monkeyp
     )
 
     assert "Preparing bc250_smu_oc source" in command
-    assert "chmod -R u+rwX,go+rX,go-w" in command
+    assert "ls-files -z" in command
+    assert "chmod u+rwX,go+rX,go-w" in command
     assert "Preparing official bc250-core-unlock source" not in command
     assert "Preparing 40CU live manager" not in command
     assert "Preparing official Cyan SMU" not in command
@@ -174,6 +176,63 @@ def test_steamos_prepare_honors_selected_user_space_components(tmp_path, monkeyp
     assert "--component stress" in command
     result = _bash_syntax(command)
     assert result.returncode == 0, result.stderr
+
+
+def test_cpu_checkout_security_ignores_untracked_runtime_artifacts(tmp_path):
+    checkout = tmp_path / "bc250_smu_oc"
+    checkout.mkdir()
+    subprocess.run(["git", "init", "-q", str(checkout)], check=True)
+    tracked = checkout / "bc250_detect.py"
+    tracked.write_text("pass\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(checkout), "add", tracked.name], check=True)
+    tracked.chmod(0o664)
+    runtime = checkout / "overclock.conf"
+    runtime.write_text("runtime\n", encoding="utf-8")
+    runtime.chmod(0o444)
+
+    result = subprocess.run(
+        ["bash", "-c", "set -Eeuo pipefail; " + secure_cpu_checkout_command(checkout)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert tracked.stat().st_mode & 0o777 == 0o644
+    assert runtime.stat().st_mode & 0o777 == 0o444
+
+
+def test_cpu_checkout_security_supports_immutable_archive_fallback(tmp_path):
+    checkout = tmp_path / "bc250_smu_oc"
+    checkout.mkdir()
+    source = checkout / "bc250_detect.py"
+    source.write_text("pass\n", encoding="utf-8")
+    source.chmod(0o664)
+
+    result = subprocess.run(
+        ["bash", "-c", "set -Eeuo pipefail; " + secure_cpu_checkout_command(checkout)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert source.stat().st_mode & 0o777 == 0o644
+
+
+def test_mutable_cyan_runtime_is_prepared_before_cpu_source(tmp_path, monkeypatch):
+    command = _build_prepare_command(
+        tmp_path,
+        {"ID": "cachyos", "ID_LIKE": "arch", "PRETTY_NAME": "CachyOS"},
+        False,
+        CYAN_GOVERNOR,
+        monkeypatch,
+        components={"runtime", "governor", "cpu_oc"},
+    )
+
+    assert command.index("Preparing official Cyan SMU") < command.index(
+        "Preparing bc250_smu_oc source"
+    )
 
 
 def test_runtime_only_does_not_prepare_stress(tmp_path, monkeypatch):
