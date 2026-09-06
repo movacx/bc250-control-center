@@ -45,7 +45,7 @@ To remove a local installation, run `./uninstall-local.sh` from the same directo
 A normal uninstall keeps your settings, downloaded tools and history; add
 `--purge-user-data` only when you want to remove those too.
 
-### Arch, CachyOS and Manjaro
+### Arch, CachyOS and SteamOs (AUR)
 
 ```bash
 yay -S bc250-control-center-git
