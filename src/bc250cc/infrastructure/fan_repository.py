@@ -12,6 +12,7 @@ from bc250cc.infrastructure.fan_transport import (
     select_pwm_transport,
     validate_pwm_request,
 )
+from bc250cc.infrastructure.polkit_session import normalize_polkit_error, pkexec_argv
 from bc250cc.infrastructure.steamos_shell import wrap_steamos_writable_command
 from bc250cc.platform.init.services import detect_init_manager
 
@@ -72,7 +73,51 @@ class FanRepository:
         self.estado_herramientas_cache = None
         return self._abrir_terminal(comando, 'BC250 fan sensors')
 
+    def _nct_service_commands(self) -> dict[str, str]:
+        """The service commands for the init manager that is actually running.
+
+        These were five separate copies of the same
+        ``[ -f /run/openrc/softlevel ] && ... ; else systemctl ...`` written
+        inline in generated bash, in a file that already imports
+        ``detect_init_manager`` and uses it twice. Each copy could drift on its
+        own, none of them handled runit/s6/dinit, and the detection they
+        performed had already been performed in Python moments earlier.
+        """
+        openrc = detect_init_manager().kind == "openrc"
+        helper_path = "/usr/libexec/bc250-control-center/bc250-openrc-service-helper"
+        if openrc:
+            return {
+                "restart": (
+                    "sudo rc-service nct6687-load restart 2>/dev/null "
+                    "|| sudo rc-service nct6687-load start 2>/dev/null || true"
+                ),
+                "status": "rc-service nct6687-load status 2>/dev/null || true",
+                "logs": "rc-service nct6687-load status 2>/dev/null || true",
+                "remove": (
+                    f"sudo {helper_path} remove nct6687-load 2>/dev/null || true"
+                ),
+                "reload": "true",
+            }
+        return {
+            "restart": (
+                "sudo systemctl reset-failed nct6687-load.service 2>/dev/null || true; "
+                "sudo systemctl restart nct6687-load.service 2>/dev/null "
+                "|| sudo systemctl start nct6687-load.service 2>/dev/null || true"
+            ),
+            "status": "systemctl status nct6687-load.service --no-pager 2>/dev/null || true",
+            "logs": (
+                "journalctl -u nct6687-load.service -b --no-pager | tail -120 "
+                "2>/dev/null || true"
+            ),
+            "remove": (
+                "sudo systemctl disable --now nct6687-load.service 2>/dev/null || true; "
+                "sudo rm -f /etc/systemd/system/nct6687-load.service"
+            ),
+            "reload": "sudo systemctl daemon-reload 2>/dev/null || true",
+        }
+
     def _comando_preparar_nct6687_control_pwm(self):
+        servicios = self._nct_service_commands()
         os_repository = self._os_repository()
         comando_instalar = os_repository.install_fan_pwm_command(
             str(self._tool_dir() / 'nct6687d')
@@ -121,14 +166,16 @@ class FanRepository:
             'sudo modprobe -r nct6683 2>/dev/null || true',
             'sudo modprobe nct6687 force=true 2>/dev/null || sudo modprobe nct6687 2>/dev/null || true',
             comando_servicio,
-            'if [ -f /run/openrc/softlevel ] && command -v rc-service >/dev/null 2>&1; then sudo rc-service nct6687-load restart 2>/dev/null || sudo rc-service nct6687-load start 2>/dev/null || true; else sudo systemctl reset-failed nct6687-load.service 2>/dev/null || true; sudo systemctl restart nct6687-load.service 2>/dev/null || sudo systemctl start nct6687-load.service 2>/dev/null || true; fi',
+            servicios['restart'],
             'echo "== Verification =="',
-            'if [ -f /run/openrc/softlevel ] && command -v rc-service >/dev/null 2>&1; then rc-service nct6687-load status 2>/dev/null || true; else systemctl status nct6687-load.service --no-pager 2>/dev/null || true; fi',
+            servicios['status'],
             'lsmod | grep -E "nct6683|nct6687" || true',
             'sensors | sed -n "/nct668/,+45p" || true',
             'echo',
             '''bc250_nct6687_ready() { for n in /sys/class/hwmon/hwmon*/name; do [ -r "$n" ] || continue; name="$(cat "$n" 2>/dev/null || true)"; case "$name" in nct668*|nct67*|nct*) dir="${n%/name}"; ls "$dir"/fan*_input "$dir"/pwm* >/dev/null 2>&1 && return 0 ;; esac; done; sensors 2>/dev/null | awk '/nct6686-isa/{seen=1} seen && /(Fan|fan|pwm)[ #0-9]*:/ {ok=1} END{exit ok?0:1}'; }''',
-            'if bc250_nct6687_ready; then echo "OK: nct6687 is loaded and the NCT fan/PWM hwmon is ready."; else echo "ERROR: nct6687 is not exposing the NCT fan/PWM hwmon yet."; if [ -f /run/openrc/softlevel ]; then rc-service nct6687-load status 2>/dev/null || true; else journalctl -u nct6687-load.service -b --no-pager | tail -120 2>/dev/null || true; fi; exit 1; fi',
+            'if bc250_nct6687_ready; then echo "OK: nct6687 is loaded and the NCT fan/PWM hwmon is ready."; '
+            'else echo "ERROR: nct6687 is not exposing the NCT fan/PWM hwmon yet."; '
+            f"{servicios['logs']}; exit 1; fi",
             'echo "If PWM files remain read-only after a successful check, reboot once and verify the loaded module."',
         ])
         return '; '.join(comandos)
@@ -156,14 +203,15 @@ class FanRepository:
                 f'NCT6687 service removal is not supported on {init_manager.display_name}; '
                 'no system service or module preference was changed.'
             )
+        servicios = self._nct_service_commands()
         comando = '; '.join([
             'set +e',
             'echo "== BC250 fan control: disable nct6687 PWM setup =="',
             'echo "This disables the automatic nct6687 preference and returns to read-only nct6683 monitoring."',
             'echo "The nct6687d package is not removed; only boot/module preference files are changed."',
-            'if [ -f /run/openrc/softlevel ] && command -v rc-service >/dev/null 2>&1; then sudo /usr/libexec/bc250-control-center/bc250-openrc-service-helper remove nct6687-load 2>/dev/null || true; else sudo systemctl disable --now nct6687-load.service 2>/dev/null || true; sudo rm -f /etc/systemd/system/nct6687-load.service; fi',
+            servicios['remove'],
             "sudo rm -f /usr/local/sbin/bc250-load-nct6687",
-            'if [ ! -f /run/openrc/softlevel ]; then sudo systemctl daemon-reload 2>/dev/null || true; fi',
+            servicios['reload'],
             "sudo rm -f /etc/modules-load.d/nct6687.conf",
             "sudo rm -f /etc/modules-load.d/99-sensors.conf",
             "sudo rm -f /etc/modprobe.d/nct6687.conf",
@@ -697,7 +745,7 @@ for line in sys.stdin:
             helper_path = self._guardar_fan_pwm_helper(helper_code)
         try:
             proceso = subprocess.Popen(
-                ['pkexec', str(helper_path)],
+                pkexec_argv('pkexec', str(helper_path)),
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -710,7 +758,7 @@ for line in sys.stdin:
         if not linea:
             error = self._leer_stderr_helper(proceso)
             self._fan_pwm_helper = None
-            raise RuntimeError(error or 'PWM helper did not start.')
+            raise RuntimeError(normalize_polkit_error(['pkexec'], error) or 'PWM helper did not start.')
         if linea != 'READY':
             error = self._leer_stderr_helper(proceso)
             self._fan_pwm_helper = None
@@ -975,7 +1023,11 @@ for line in sys.stdin:
     def _ejecutar(self, comando, timeout=2):
         try:
             r = subprocess.run(comando, text=True, capture_output=True, timeout=timeout, check=False)
-            return r.returncode, (r.stdout or '').strip(), (r.stderr or '').strip()
+            return (
+                r.returncode,
+                (r.stdout or '').strip(),
+                normalize_polkit_error(comando, (r.stderr or '').strip()),
+            )
         except Exception as error:
             return 1, '', str(error)
 

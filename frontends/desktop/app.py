@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import logging
 import os
+import shlex
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from PyQt6.QtCore import Qt, QThread, QTimer
+from PyQt6.QtCore import Qt, QThread, QThreadPool, QTimer
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import (
     QApplication,
@@ -18,9 +19,10 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from .components.async_tools import BackgroundExecutor
+from .components.async_tools import BackgroundExecutor, pending_background_tasks
 from .components.sidebar import Sidebar
 from .components.widgets import InfoDialog
+from .console import ConsoleHost, ConsolePanel
 from .core.alerts import SmartAlertMonitor
 from .core.gamepad import GamepadNavigationController
 from .core.preferences import UiPreferences
@@ -30,6 +32,8 @@ from .i18n import (
     localize_widget_tree,
     normalize_language,
     set_language,
+    tr,
+    tr_format,
 )
 from .theme import application_stylesheet, configure_theme
 
@@ -63,6 +67,13 @@ def _is_steamos_gamemode_session() -> bool:
 
 class ControlCenterWindow(QMainWindow):
     """Definitive BC250 interface backed by the application controller."""
+
+    # How long a close request will wait for work it did not start itself, and
+    # how long the final drain blocks once the window has decided to go.  Both
+    # are generous next to a normal refresh (tens of milliseconds) and short
+    # enough that a wedged backend cannot hold the window open.
+    BACKGROUND_WAIT_MS = 4000
+    BACKGROUND_DRAIN_MS = 3000
 
     def __init__(self, controller, *, settings_service=None, activity_service=None):
         super().__init__()
@@ -111,7 +122,17 @@ class ControlCenterWindow(QMainWindow):
         else:
             layout.setContentsMargins(16, 16, 16, 16)
             layout.setSpacing(16)
-        self.setCentralWidget(root)
+
+        # The shell stacks the pages over the console, so the console spans the
+        # full width the way a docked terminal does and the pages give up only
+        # the height it actually occupies.
+        shell = QWidget()
+        shell.setObjectName("ApplicationShell")
+        shell_layout = QVBoxLayout(shell)
+        shell_layout.setContentsMargins(0, 0, 0, 0)
+        shell_layout.setSpacing(0)
+        shell_layout.addWidget(root, 1)
+        self.setCentralWidget(shell)
 
         # Every page uses an 8 px top inset before its first visible card.
         # The sidebar and page cards share the same top alignment.
@@ -191,7 +212,10 @@ class ControlCenterWindow(QMainWindow):
             self.stack.addWidget(page)
         layout.addWidget(self.stack, 1)
 
+        self._build_console(shell_layout)
+
         self.gamepad = GamepadNavigationController(self)
+        self._follow_controller_into_the_console()
         self.alert_monitor = SmartAlertMonitor(
             controller,
             self.settings,
@@ -208,6 +232,94 @@ class ControlCenterWindow(QMainWindow):
         self._restore_start_page()
         self._migrate_backend_preferences_async()
         self._set_gamepad_navigation_enabled(self._gamepad_navigation_enabled)
+
+    def _build_console(self, shell_layout) -> None:
+        """Attach the in-application terminal and offer it to the repositories.
+
+        Every workflow keeps writing the same log and status files, so nothing
+        that waits on a terminal result changes. When the console declines a
+        workflow — because one is already running, or because the user turned
+        it off — the repositories fall back to the desktop terminal emulators
+        exactly as before.
+        """
+        self.console: ConsolePanel | None = None
+        self.console_host: ConsoleHost | None = None
+        try:
+            panel = ConsolePanel(self)
+        except Exception:
+            logger.exception("The embedded console could not be created")
+            return
+        shell_layout.addWidget(panel)
+        # Game Mode runs on a handheld panel where 280 px is a third of the
+        # screen; the console still has to leave the page it covers usable.
+        default_height = 200 if self._gamemode_session else 280
+        panel.set_panel_height(self.preferences.int_value("console/height", default_height))
+        panel.set_auto_hide(self.preferences.bool_value("settings/console_auto_hide", True))
+        panel.external_terminal_requested.connect(self._open_workflow_in_terminal)
+        panel.visibility_changed.connect(self._console_visibility_changed)
+        self.console = panel
+        host = ConsoleHost(panel, self)
+        host.set_enabled(self.preferences.bool_value("settings/embedded_terminal", True))
+        host.install()
+        self.console_host = host
+
+    def _follow_controller_into_the_console(self) -> None:
+        """Tell the console whether a controller is driving.
+
+        The console is built before the navigation controller, because the
+        pages it serves are built before both. So the connection is made here,
+        after the controller exists, and primed with the current answer — a
+        controller that was already plugged in when the window opened emits
+        nothing to announce itself.
+        """
+        console = getattr(self, "console", None)
+        if console is None:
+            return
+        self.gamepad.connection_changed.connect(
+            lambda connected, _name: console.set_gamepad_present(connected)
+        )
+        console.set_gamepad_present(self.gamepad.connected)
+
+    def _console_visibility_changed(self, visible: bool) -> None:
+        if not visible and self.console is not None:
+            self.preferences.settings.setValue("console/height", self.console.panel_height())
+
+    def set_embedded_terminal_enabled(self, enabled: bool) -> None:
+        """Live switch between the docked console and a terminal window."""
+        self.preferences.settings.setValue("settings/embedded_terminal", bool(enabled))
+        if self.console_host is not None:
+            self.console_host.set_enabled(bool(enabled))
+        if not enabled and self.console is not None and not self.console.busy:
+            self.console.slide_out()
+
+    def set_console_auto_hide(self, enabled: bool) -> None:
+        self.preferences.settings.setValue("settings/console_auto_hide", bool(enabled))
+        if self.console is not None:
+            self.console.set_auto_hide(bool(enabled))
+
+    def _open_workflow_in_terminal(self, launch_path: str) -> None:
+        """Re-open the running workflow's script in a real terminal window."""
+        from bc250cc.infrastructure.terminal_plan import terminal_candidates
+        from bc250cc.infrastructure.terminal_repository import TerminalRepository
+
+        if not launch_path:
+            return
+        candidates = terminal_candidates(
+            f"exec bash {shlex.quote(launch_path)}",
+            "BC250 Control Center",
+            terminal_env=os.environ.get("TERMINAL", ""),
+            home=Path.home(),
+        )
+        terminal, _pid, _errors = TerminalRepository._launch_terminal_candidates(candidates)
+        if not terminal:
+            self._show_safety_alert(
+                tr("Open terminal"),
+                tr_format(
+                    "No graphical terminal was found. Run it manually with: bash {path}",
+                    path=launch_path,
+                ),
+                "warning",
+            )
 
     def showEvent(self, event) -> None:  # noqa: N802 - Qt API name
         """Synchronize the active page after the window manager places it.
@@ -400,6 +512,11 @@ class ControlCenterWindow(QMainWindow):
             refresh = getattr(widget, "_refresh_palette", None)
             if callable(refresh):
                 refresh()
+        console = getattr(self, "console", None)
+        if console is not None:
+            # The terminal paints its own grid, so it reads the palette
+            # directly instead of through the stylesheet.
+            console.apply_theme()
 
     def _retranslate_interface(self) -> None:
         if hasattr(self, "sidebar"):
@@ -419,6 +536,9 @@ class ControlCenterWindow(QMainWindow):
         gamepad = getattr(self, "gamepad", None)
         if gamepad is not None:
             gamepad.retranslate()
+        console = getattr(self, "console", None)
+        if console is not None:
+            console.retranslate()
 
     def _restore_start_page(self) -> None:
         start = str(self.settings.value("settings/start_page", "dashboard"))
@@ -476,6 +596,10 @@ class ControlCenterWindow(QMainWindow):
         if callable(setter):
             setter(bool(active))
 
+    def _remember_current_module(self) -> None:
+        """Persist the open module for the next launch, off the click path."""
+        self.settings.setValue("settings/last_module", self.current_page_key)
+
     def navigate(self, key: str) -> None:
         started = time.perf_counter()
         if key in self.pages:
@@ -499,7 +623,10 @@ class ControlCenterWindow(QMainWindow):
             self._set_page_updates(previous, False)
             self.stack.setCurrentWidget(page)
             self.current_page_key = key
-            self.settings.setValue("settings/last_module", key)
+            # Remembering the module is for the *next* launch, so it has no
+            # business inside the frame that has to paint the page the user
+            # just clicked. Write it once the transition is on screen.
+            QTimer.singleShot(0, self._remember_current_module)
             self._set_page_updates(page, True)
             # Hidden QStackedWidget pages may retain the geometry from their
             # construction pass.  Reflow only after the selected page owns the
@@ -573,6 +700,8 @@ class ControlCenterWindow(QMainWindow):
             dialog.gamepad_navigation_changed.connect(self._set_gamepad_navigation_enabled)
             dialog.gamepad_keypad_changed.connect(self.gamepad.set_onscreen_keypad_enabled)
             dialog.gamepad_keypad_auto_show_changed.connect(self.gamepad.set_onscreen_keypad_auto_show)
+            dialog.embedded_terminal_changed.connect(self.set_embedded_terminal_enabled)
+            dialog.console_auto_hide_changed.connect(self.set_console_auto_hide)
             self.settings_dialog = dialog
         dialog = self.settings_dialog
         dialog.select_section(section)
@@ -583,8 +712,31 @@ class ControlCenterWindow(QMainWindow):
             self.stack.setCurrentWidget(previous_page)
             self._set_page_updates(previous_page, True)
 
+    def gamepad_bottom_inset(self) -> int:
+        """Height the controller legend must stay clear of at the bottom.
+
+        The legend floats over the window at a fixed offset from its bottom
+        edge. The console docks there too, so with a workflow running the
+        legend sat on top of the answer row and covered the Send button — the
+        one control a person needs at exactly that moment.
+        """
+        console = getattr(self, "console", None)
+        if console is None or not console.is_open:
+            return 0
+        try:
+            return max(0, console.height())
+        except RuntimeError:
+            return 0
+
     def gamepad_focus_scope(self) -> QWidget:
         """Return the active page as the preferred first-focus area."""
+        console = getattr(self, "console", None)
+        if console is not None and console.is_open:
+            # A workflow on screen is the thing being waited on; entering the
+            # page behind it would leave its prompt unreachable.
+            scope = console.gamepad_focus_scope()
+            if isinstance(scope, QWidget):
+                return scope
         page = self.stack.currentWidget()
         provider = getattr(page, "gamepad_focus_scope", None)
         if callable(provider):
@@ -595,6 +747,16 @@ class ControlCenterWindow(QMainWindow):
 
     def gamepad_back(self) -> None:
         """Steam-style B behavior: visit history, then fall back to Dashboard."""
+        console = getattr(self, "console", None)
+        if console is not None and console.is_open and not console.busy:
+            # In Game Mode there is no pointer, and the console's header
+            # buttons are deliberately unfocusable so that typing reaches the
+            # workflow instead of them. Without this, a workflow that failed —
+            # which is exactly the one that stays on screen — could not be
+            # dismissed with a controller at all. A workflow still running is
+            # left alone: the panel is where it reports.
+            console.slide_out()
+            return
         page = self.stack.currentWidget()
         handler = getattr(page, "gamepad_back", None)
         if callable(handler) and bool(handler()):
@@ -649,20 +811,82 @@ class ControlCenterWindow(QMainWindow):
         if gamepad is not None:
             gamepad.stop()
 
-        running = [thread for thread in self.findChildren(QThread) if thread.isRunning()]
-        if running:
+        console = getattr(self, "console", None)
+        if console is not None and console.busy and not getattr(self, "_close_pending", False):
+            # A privileged workflow is mid-flight. Closing the window would
+            # kill it between two system changes, which is the worst moment.
+            if not self._confirm_closing_a_running_workflow():
+                event.ignore()
+                return
+
+        outstanding = self._outstanding_background_work()
+        if outstanding and not self._waited_long_enough_to_close():
             event.ignore()
             if not getattr(self, "_close_pending", False):
                 self._close_pending = True
-                logger.info("Waiting for %d background task(s) before closing", len(running))
+                logger.info("Waiting for %s before closing", outstanding)
                 QTimer.singleShot(50, self._close_when_idle)
             return
 
         self._close_pending = False
+        host = getattr(self, "console_host", None)
+        if host is not None:
+            host.uninstall()
+        if console is not None:
+            console.shutdown()
+        # Last chance to let a pool worker leave ``operation()`` while Python is
+        # still alive.  Past this point the interpreter starts finalizing, and a
+        # worker that calls back into it aborts the whole process.
+        QThreadPool.globalInstance().waitForDone(self.BACKGROUND_DRAIN_MS)
         super().closeEvent(event)
 
+    def _confirm_closing_a_running_workflow(self) -> bool:
+        from PyQt6.QtWidgets import QMessageBox
+
+        answer = QMessageBox.question(
+            self,
+            tr("Terminal"),
+            tr("A workflow is still running in the terminal. Closing now stops it."),
+            QMessageBox.StandardButton.Cancel | QMessageBox.StandardButton.Close,
+            QMessageBox.StandardButton.Cancel,
+        )
+        return answer == QMessageBox.StandardButton.Close
+
+    def _outstanding_background_work(self) -> str:
+        """Describe what is still running, or return an empty string.
+
+        Two different mechanisms do work off the GUI thread and only one of
+        them is reachable from the widget tree.  The gamepad monitor is a
+        ``QThread`` child, so ``findChildren`` finds it; every page refresh is a
+        ``QRunnable`` on the global pool, whose worker threads are owned by Qt
+        and parented to nothing.  Looking only at ``QThread`` children — which
+        is what this did — meant the window never waited for a single backend
+        read, and closing during one aborted the process on the way out.
+        """
+        threads = [thread for thread in self.findChildren(QThread) if thread.isRunning()]
+        reads = pending_background_tasks()
+        parts = []
+        if threads:
+            parts.append(f"{len(threads)} monitor thread(s)")
+        if reads:
+            parts.append(f"{reads} backend read(s)")
+        return " and ".join(parts)
+
+    def _waited_long_enough_to_close(self) -> bool:
+        """A wait with no deadline is a window that will not close.
+
+        A backend read can block on hardware that never answers.  After this
+        long the close proceeds and the bounded drain below absorbs whatever is
+        left.
+        """
+        started = getattr(self, "_close_requested_at", None)
+        if started is None:
+            self._close_requested_at = time.monotonic()
+            return False
+        return (time.monotonic() - started) * 1000.0 >= self.BACKGROUND_WAIT_MS
+
     def _close_when_idle(self) -> None:
-        if any(thread.isRunning() for thread in self.findChildren(QThread)):
+        if self._outstanding_background_work() and not self._waited_long_enough_to_close():
             QTimer.singleShot(50, self._close_when_idle)
             return
         self.close()

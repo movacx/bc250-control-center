@@ -4,6 +4,7 @@ from pathlib import Path
 
 from bc250cc.infrastructure.dependencias_repository import DependenciasRepository
 from bc250cc.infrastructure.gpu_repository import GPURepository
+from bc250cc.infrastructure.terminal_plan import workflow_wrapper
 from bc250cc.infrastructure.terminal_repository import TerminalRepository
 
 
@@ -130,13 +131,56 @@ def test_terminal_workflows_are_automatically_tee_logged():
     repository = Path('src/bc250cc/infrastructure/terminal_repository.py').read_text(encoding='utf-8')
     planner = Path('src/bc250cc/infrastructure/terminal_plan.py').read_text(encoding='utf-8')
     assert 'workflow-{run_id}.log' in repository
-    assert 'workflow_wrapper(comando, status_path, log_path)' in repository
+    assert 'workflow_wrapper(comando, status_path, log_path, hold=hold)' in repository
     assert '2>&1 | tee {log}' in planner
     assert 'status=$?' in planner
     assert 'PIPESTATUS' not in planner
-    assert 'Full log saved to:' in planner
+    # The log line is now composed through the translator, so assert the
+    # generated script rather than a literal in the source.
+    assert 'Full log saved to' in workflow_wrapper('true', Path('/tmp/s'), Path('/tmp/l'))
     assert 'log_file=str(log_path)' in repository
     assert 'tee -a {log}' in planner
+
+
+def test_both_terminal_paths_are_logged_through_the_same_wrapper():
+    """A workflow shown in the console must leave the same evidence as before.
+
+    There are now two ways to run a workflow — a terminal emulator, or the
+    console docked in the window — and support depends on the .log file either
+    way. One writer keeps them from drifting: if a second call to
+    ``workflow_wrapper`` ever appears, one of the two paths is logging on its
+    own terms and this fails.
+    """
+    repository = Path('src/bc250cc/infrastructure/terminal_repository.py').read_text(encoding='utf-8')
+    assert repository.count('workflow_wrapper(') == 1
+    assert repository.count('_write_launch_script(') == 3  # one writer, two callers
+    embedded = repository.index('embedded = self._try_embedded_terminal')
+    external = repository.index('candidates = terminal_candidates(')
+    assert embedded < external, 'the console must be offered before a terminal window'
+
+
+def test_the_console_declining_still_opens_a_terminal_window():
+    """The console is an addition, never a single point of failure."""
+    repository = Path('src/bc250cc/infrastructure/terminal_repository.py').read_text(encoding='utf-8')
+    assert 'if embedded is not None:\n            return embedded' in repository
+    # An exception inside the host is swallowed on purpose, so a broken panel
+    # costs the user a nicer window and not the workflow itself.
+    assert 'except Exception:' in repository
+    assert 'The embedded terminal could not run the workflow' in repository
+
+
+def test_a_workflow_shown_in_the_console_does_not_wait_for_a_key_press():
+    """The prompt exists so a terminal window does not vanish; a panel stays."""
+    from bc250cc.infrastructure.terminal_plan import workflow_wrapper
+
+    held = workflow_wrapper('echo hi', Path('/tmp/s'), Path('/tmp/l'), hold=True)
+    docked = workflow_wrapper('echo hi', Path('/tmp/s'), Path('/tmp/l'), hold=False)
+    assert 'Enter to close' in held
+    assert 'Enter to close' not in docked
+    for wrapper in (held, docked):
+        assert 'tee' in wrapper
+        assert '> /tmp/s' in wrapper
+        assert wrapper.rstrip().endswith('exit "$status"')
 
 
 def test_manual_terminal_log_is_complete_and_preserves_failure(tmp_path, monkeypatch):

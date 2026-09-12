@@ -6,8 +6,7 @@ from pathlib import Path
 
 from bc250cc.platform.init.services import (
     detect_init_manager,
-    parse_openrc_runlevel,
-    parse_openrc_status,
+    inspect_service,
     service_key,
 )
 
@@ -107,31 +106,6 @@ class GovernorConflictError(RuntimeError):
 KNOWN_INCOMPATIBLE_GOVERNORS = (GOVERNOR_SPECS[OBERON_GOVERNOR],)
 
 
-def _systemctl_state(repository, action: str, service: str) -> bool:
-    init_manager = detect_init_manager()
-    if init_manager.kind == 'openrc':
-        key = service_key(service)
-        if action == 'is-active':
-            code, stdout, stderr = repository._ejecutar(['rc-service', key, 'status'], timeout=3)
-            return parse_openrc_status(code, stdout or stderr) == 'active'
-        _code, stdout, _stderr = repository._ejecutar(['rc-update', 'show', 'default'], timeout=3)
-        return parse_openrc_runlevel(stdout, key)
-    if init_manager.kind != 'systemd':
-        return False
-    code, stdout, _stderr = repository._ejecutar(
-        ["systemctl", action, service],
-        timeout=3,
-    )
-    if code != 0:
-        return False
-    state = (stdout or "").strip().lower()
-    if action == "is-active":
-        return state == "active"
-    # systemd may report enabled-runtime or static. Only enabled states imply
-    # that the service will be started automatically on a future boot.
-    return state in {"enabled", "enabled-runtime"}
-
-
 def _package_installed(repository, package: str) -> bool:
     checks = (
         (["rpm", "-q", package], None),
@@ -182,11 +156,18 @@ def detect_supported_governors(repository) -> dict[str, dict[str, object]]:
     detected: dict[str, dict[str, object]] = {}
     for identifier in SUPPORTED_GPU_GOVERNORS:
         spec = GOVERNOR_SPECS[identifier]
+        service = str(spec["service"])
+        service_state = inspect_service(
+            repository._ejecutar,
+            service,
+            manager=detect_init_manager(),
+            timeout=3,
+        )
         item = GovernorInstallation(
             identifier=identifier,
-            service=str(spec["service"]),
-            active=_systemctl_state(repository, "is-active", str(spec["service"])),
-            enabled=_systemctl_state(repository, "is-enabled", str(spec["service"])),
+            service=service,
+            active=service_state.active == "active",
+            enabled=service_state.enabled in {"enabled", "enabled-runtime"},
             package_installed=_package_installed(repository, str(spec["package"])),
             binary_path=_binary_path(repository, str(spec["binary"])),
             unit_path=_find_unit(str(spec["service"])),

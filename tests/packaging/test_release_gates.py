@@ -18,8 +18,10 @@ def test_release_report_never_converts_static_tests_into_public_readiness():
 def test_release_report_exposes_legal_and_physical_gates_separately():
     report = build_release_gate_report()
     assert report["redistribution_blockers"] == {}
+    # fsr4_runtime joins these because upstream publishes no LICENSE file, so
+    # it must stay runtime-fetch-only and its payload must never be bundled.
     assert set(report["redistribution_constraints"]) == {
-        "cu_manager_standard", "cu_manager_steamos"
+        "cu_manager_standard", "cu_manager_steamos", "fsr4_runtime"
     }
     assert "core_unlock" in report["hardware_validation_blockers"]
     assert "nct6687" in report["hardware_validation_blockers"]

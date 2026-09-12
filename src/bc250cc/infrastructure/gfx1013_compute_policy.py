@@ -33,7 +33,7 @@ class Gfx1013Compatibility:
     exact_upstream_validated_host: bool
     reason_key: str
     upstream: str = GFX1013_UPSTREAM
-    upstream_branch: str = "main"
+    upstream_branch: str = "reviewed-commit"
     upstream_managed: bool = True
     reviewed_commit: str = GFX1013_REVIEWED_COMMIT
     reviewed_version: str = GFX1013_REVIEWED_VERSION
@@ -54,7 +54,7 @@ def classify_gfx1013_support(
 ) -> dict:
     """Return the conservative Control Center support policy for GFX1013.
 
-    The direct Fedora action always updates and invokes the official upstream
+    The direct Fedora action invokes an exact reviewed upstream revision.
     workflow. ``automatic_install_allowed`` remains false because this is a
     boot/kernel/initramfs/Mesa change that must require an explicit user action.
     """

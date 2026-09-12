@@ -245,10 +245,14 @@ class BC250ControlCenterDaemon:
             fan_pwm=target.pwm, fan_percent=target.percent, fan_raw=target.raw,
             fan_sensor_path=self.ultimo_fan_sensor_path,
             fan_temperature=target.temperature, fan_source=target.source,
+            fan_temperature_sensor=target.temperature_sensor,
+            fan_raw_temperature=target.raw_temperature,
             fan_error=verification_error,
         )
+        sensor_label = str(target.temperature_sensor or 'thermal').upper()
         detail = (
-            f'GPU {float(target.temperature):.1f} C -> PWM {target.pwm} {target.percent}%'
+            f'{sensor_label} {float(target.temperature):.1f} C -> '
+            f'PWM {target.pwm} {target.percent}%'
             if target.curve_enabled and target.temperature is not None
             else f'PWM {target.pwm} {target.percent}% ({target.source})'
         )
@@ -256,7 +260,10 @@ class BC250ControlCenterDaemon:
             'fan', 'info', 'Persistent fan setting applied', detail,
             {
                 'pwm': target.pwm, 'percent': target.percent, 'raw': target.raw,
-                'gpu_temp': target.temperature, 'source': target.source,
+                'temperature': target.temperature,
+                'raw_temperature': target.raw_temperature,
+                'temperature_sensor': target.temperature_sensor,
+                'source': target.source,
             },
         )
 

@@ -25,6 +25,42 @@ CACHYOS_BC250_ACTIONS = {"kernel", "mesa", "full"}
 MASTA_BC250_SUPPORTED_IDS = frozenset({"arch", "cachyos", "cachy"})
 
 
+def _resolved_repository_valid(anchor: str) -> bool:
+    """Accept an existing upstream entry only when pacman resolves it exactly."""
+    try:
+        def query(*arguments: str) -> subprocess.CompletedProcess[str]:
+            return subprocess.run(
+                ("pacman-conf", *arguments),
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=2,
+                env={**os.environ, "LANG": "C", "LC_ALL": "C"},
+            )
+
+        repositories = query("--repo-list")
+        names = repositories.stdout.splitlines()
+        if repositories.returncode != 0:
+            return False
+        repository_index = names.index(CACHYOS_BC250_PACMAN_REPOSITORY)
+        anchor_index = names.index(anchor)
+        server = query("-r", CACHYOS_BC250_PACMAN_REPOSITORY, "Server")
+        signature = query("-r", CACHYOS_BC250_PACMAN_REPOSITORY, "SigLevel")
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return False
+    expected_signature = {
+        "PackageOptional", "PackageTrustAll", "DatabaseOptional", "DatabaseTrustAll",
+    }
+    return bool(
+        repository_index < anchor_index
+        and server.returncode == 0
+        and server.stdout.strip()
+        == "https://github.com/MastaG/linux-cachyos-bc250/releases/download/repo"
+        and signature.returncode == 0
+        and expected_signature.issubset(signature.stdout.splitlines())
+    )
+
+
 def masta_bc250_stack_supported(*, distro_id: str, family: str) -> bool:
     """Return whether upstream documents this exact pacman layout.
 
@@ -49,7 +85,11 @@ def masta_bc250_stack_state(*, distro_id: str, family: str) -> dict:
         distro_id=distro_id,
         family=family,
     )
-    repository_configured = Path(CACHYOS_BC250_INCLUDE).is_file()
+    anchor = "core" if str(distro_id).strip().lower() == "arch" else "cachyos-v3"
+    repository_configured = bool(
+        Path(CACHYOS_BC250_INCLUDE).is_file()
+        or (supported and _resolved_repository_valid(anchor))
+    )
 
     def installed(package: str) -> bool:
         try:
@@ -156,7 +196,12 @@ echo "[INFO] Log out/restart games after Mesa changes; reboot is recommended whe
     )
     return f'''set -euo pipefail
 export LANG=C LC_ALL=C
-echo "== Arch/CachyOS BC-250 {action} workflow (external upstream) =="
+echo
+echo "=========================================================================="
+echo "  BC-250 kernel and Mesa - Arch/CachyOS"
+echo "  {action} workflow - external upstream repository"
+echo "=========================================================================="
+echo 
 test -r /etc/os-release || {{ echo "ERROR: /etc/os-release is unavailable."; exit 64; }}
 . /etc/os-release
 case "${{ID:-}}" in
@@ -181,11 +226,30 @@ trap 'rm -f -- "$bc250_repo_file" "$bc250_pacman_conf"' EXIT
 bc250_pacman_conf="$(mktemp)"
 awk '$0 != "Include = {include}"' /etc/pacman.conf > "$bc250_pacman_conf"
 grep -Eq "^[[:space:]]*\\[$bc250_anchor\\][[:space:]]*$" "$bc250_pacman_conf" || {{ echo "ERROR: [$bc250_anchor] was not found; refusing to guess repository priority."; exit 65; }}
-# An independently configured copy must be reconciled by the operator, not
-# duplicated or removed by this application.
+bc250_manage_repo=1
 if pacman-conf --repo-list | grep -Fxq '{repository}' && ! grep -Fqx 'Include = {include}' /etc/pacman.conf; then
-  echo "ERROR: The BC-250 repository is already configured outside Control Center. Review pacman.conf before continuing."; exit 65
+  bc250_expected_server='https://github.com/MastaG/linux-cachyos-bc250/releases/download/repo'
+  bc250_server="$(pacman-conf -r '{repository}' Server 2>/dev/null || true)"
+  bc250_siglevel="$(pacman-conf -r '{repository}' SigLevel 2>/dev/null || true)"
+  bc250_repo_order="$(pacman-conf --repo-list)"
+  bc250_priority_ok="$(printf '%s\n' "$bc250_repo_order" | awk -v repo='{repository}' -v anchor="$bc250_anchor" '
+    $0 == repo && !repo_position {{ repo_position=NR }}
+    $0 == anchor && !anchor_position {{ anchor_position=NR }}
+    END {{ print(repo_position && anchor_position && repo_position < anchor_position ? 1 : 0) }}
+  ')"
+  if [ "$bc250_server" = "$bc250_expected_server" ] \
+    && printf '%s\n' "$bc250_siglevel" | grep -Fxq PackageOptional \
+    && printf '%s\n' "$bc250_siglevel" | grep -Fxq PackageTrustAll \
+    && printf '%s\n' "$bc250_siglevel" | grep -Fxq DatabaseOptional \
+    && printf '%s\n' "$bc250_siglevel" | grep -Fxq DatabaseTrustAll \
+    && [ "$bc250_priority_ok" = 1 ]; then
+    bc250_manage_repo=0
+    echo "[INFO] Reusing the existing verified MastaG BC-250 repository configuration."
+  else
+    echo "ERROR: The existing BC-250 repository has an unexpected server, signature policy, or priority. Review pacman.conf before continuing."; exit 65
+  fi
 fi
+if [ "$bc250_manage_repo" = 1 ]; then
 if ! awk -v anchor="$bc250_anchor" -v include_line='Include = {include}' '
   {{
     normalized=$0
@@ -207,6 +271,7 @@ echo "[INFO] Original pacman configuration preserved in $bc250_backup"
 printf '%s\\n' '[{repository}]' 'SigLevel = Optional TrustAll' 'Server = https://github.com/MastaG/linux-cachyos-bc250/releases/download/repo' > "$bc250_repo_file"
 sudo install -D -m 0644 "$bc250_repo_file" "{include}"
 sudo install -m 0644 "$bc250_pacman_conf" /etc/pacman.conf
+fi
 echo "== Installing selected BC-250 packages in one system-upgrade transaction =="
 sudo pacman -Syu "${{bc250_scope_guard[@]}}" "${{bc250_packages[@]}}"
 for bc250_target in "${{bc250_packages[@]}}"; do

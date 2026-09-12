@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python3 -I
 """Narrow root boundary for BC250 OpenRC service scripts.
 
 Only fixed BC250 service names and root-owned runtime paths are accepted.  It
@@ -18,7 +18,9 @@ import tempfile
 
 HELPER_PATH = pathlib.Path('/usr/libexec/bc250-control-center/bc250-openrc-service-helper')
 INIT_DIR = pathlib.Path('/etc/init.d')
-CONFIG_DIR = pathlib.Path('/etc/conf.d')
+PREFLIGHT_PATH = pathlib.Path(
+    '/usr/libexec/bc250-control-center/bc250-cyan-overlay-preflight'
+)
 MARKER = '# Managed by BC250 Control Center (OpenRC)'
 CU_BACKEND = pathlib.Path('/var/lib/bc250-control-center/bc250-cu-live-manager')
 CU_DATABASE = pathlib.Path('/usr/libexec/bc250-control-center/bc250-cu-umr-database')
@@ -191,6 +193,18 @@ def _governor_script(name: str) -> str:
     # The reviewed Cyan release takes its TOML path positionally, exactly as
     # the existing systemd ExecStart does.  Do not invent a --config flag.
     args = str(config)
+    # Cyan leaves a bind mount over its own hwmon node below the BC-250 PCI
+    # device. A stale one races the next start, and clearing it is what the
+    # preflight does. systemd runs it through an ExecStartPre drop-in; OpenRC
+    # had no counterpart at all, so on every OpenRC host the helper was
+    # installed and never called, and the failure it prevents kept happening.
+    preflight = ''
+    if name.startswith('cyan-') and _safe_regular(PREFLIGHT_PATH, executable=True):
+        preflight = f'''
+start_pre() {{
+    "{PREFLIGHT_PATH}" || return 0
+}}
+'''
     return f'''#!/sbin/openrc-run
 {MARKER}
 description="BC-250 GPU governor: {name}"
@@ -203,7 +217,7 @@ depend() {{
     need dbus
     after localmount
 }}
-'''
+{preflight}'''
 
 
 def _service_text(name: str) -> str:

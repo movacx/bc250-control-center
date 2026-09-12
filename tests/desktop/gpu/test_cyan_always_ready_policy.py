@@ -1,4 +1,45 @@
 from bc250cc.infrastructure.gpu_repository import GPURepository
+from bc250cc.platform.init.services import InitManagerState
+
+
+def test_cyan_service_state_uses_runtime_state_instead_of_enablement(monkeypatch):
+    repo = object.__new__(GPURepository)
+    commands = []
+
+    def execute(command, timeout=5):
+        commands.append((command, timeout))
+        if "is-active" in command:
+            return 3, "inactive\n", ""
+        return 0, "enabled\n", ""
+
+    repo._ejecutar = execute
+    monkeypatch.setattr(
+        "bc250cc.infrastructure.gpu_repository.detect_init_manager",
+        lambda: InitManagerState("systemd", True, "test"),
+    )
+
+    assert repo._service_is_active("cyan-skillfish-governor-smu.service") is False
+    assert [command for command, _timeout in commands] == [
+        ["systemctl", "is-active", "cyan-skillfish-governor-smu.service"],
+        ["systemctl", "is-enabled", "cyan-skillfish-governor-smu.service"],
+    ]
+
+
+def test_cyan_service_state_reports_running_disabled_unit_as_active(monkeypatch):
+    repo = object.__new__(GPURepository)
+
+    def execute(command, timeout=5):
+        if "is-active" in command:
+            return 0, "active\n", ""
+        return 1, "disabled\n", ""
+
+    repo._ejecutar = execute
+    monkeypatch.setattr(
+        "bc250cc.infrastructure.gpu_repository.detect_init_manager",
+        lambda: InitManagerState("systemd", True, "test"),
+    )
+
+    assert repo._service_is_active("cyan-skillfish-governor-smu.service") is True
 
 
 def _repository_for_telemetry_test(*, fix_frequency=False):
@@ -135,7 +176,7 @@ def test_six_core_cyan_health_is_healthy_when_fix_freq_is_already_enabled(tmp_pa
     assert result["data"]["telemetry"]["method"] == "kernel"
 
 
-def test_cyan_compatibility_never_silently_disables_requested_fix_metrics():
+def test_inactive_cyan_saves_requested_fix_metrics_for_a_later_boot():
     repo = object.__new__(GPURepository)
     edits = []
     repo._current_cyan_compatibility = lambda: ("smu", "busy-flag", True, False)
@@ -144,16 +185,14 @@ def test_cyan_compatibility_never_silently_disables_requested_fix_metrics():
     repo._service_is_active = lambda _service: False
     repo._editar_governor_toml = lambda *args: edits.append(args) or "updated"
 
-    try:
-        repo.configurar_compatibilidad_gpu_cyan("smu", "busy-flag", True, False)
-    except RuntimeError as error:
-        message = str(error)
-        assert "fix-metrics was requested" in message
-        assert "Nothing was changed" in message
-    else:
-        raise AssertionError("known-incompatible fix-metrics was silently rewritten")
+    result = repo.configurar_compatibilidad_gpu_cyan(
+        "smu", "busy-flag", True, False
+    )
 
-    assert edits == []
+    assert edits == [
+        ("set-cyan-compatibility", "smu", "busy-flag", True, False)
+    ]
+    assert "inactive" in result
 
 
 def test_cyan_compatibility_applies_four_explicit_switches_without_policy_override():
@@ -188,7 +227,7 @@ def test_cyan_compatibility_applies_four_explicit_switches_without_policy_overri
     assert repo.estado_bc250_cache is None
 
 
-def test_cyan_kernel_usage_method_requires_a_working_kernel_interface():
+def test_inactive_cyan_saves_kernel_usage_method_for_a_later_boot():
     repo = object.__new__(GPURepository)
     edits = []
     repo._current_cyan_compatibility = lambda: ("smu", "busy-flag", True, False)
@@ -196,6 +235,46 @@ def test_cyan_kernel_usage_method_requires_a_working_kernel_interface():
     repo._cyan_kernel_usage_available = lambda: False
     repo._cyan_kernel_set_method_available = lambda: True
     repo._service_is_active = lambda _service: False
+    repo._editar_governor_toml = lambda *args: edits.append(args) or "updated"
+
+    result = repo.configurar_compatibilidad_gpu_cyan(
+        "kernel", "kernel", False, False
+    )
+
+    assert edits == [
+        ("set-cyan-compatibility", "kernel", "kernel", False, False)
+    ]
+    assert "inactive" in result
+
+
+def test_inactive_cyan_saves_kernel_set_method_for_a_later_boot():
+    repo = object.__new__(GPURepository)
+    edits = []
+    repo._current_cyan_compatibility = lambda: ("smu", "busy-flag", True, False)
+    repo._cyan_metrics_overlay_available = lambda: True
+    repo._cyan_kernel_usage_available = lambda: True
+    repo._cyan_kernel_set_method_available = lambda: False
+    repo._service_is_active = lambda _service: False
+    repo._editar_governor_toml = lambda *args: edits.append(args) or "updated"
+
+    result = repo.configurar_compatibilidad_gpu_cyan(
+        "kernel", "busy-flag", False, False
+    )
+
+    assert edits == [
+        ("set-cyan-compatibility", "kernel", "busy-flag", False, False)
+    ]
+    assert "inactive" in result
+
+
+def test_active_cyan_rejects_a_missing_kernel_usage_interface():
+    repo = object.__new__(GPURepository)
+    edits = []
+    repo._current_cyan_compatibility = lambda: ("smu", "busy-flag", True, False)
+    repo._service_is_active = lambda _service: True
+    repo._cyan_metrics_overlay_available = lambda: True
+    repo._cyan_kernel_usage_available = lambda: False
+    repo._cyan_kernel_set_method_available = lambda: True
     repo._editar_governor_toml = lambda *args: edits.append(args)
 
     try:
@@ -206,19 +285,40 @@ def test_cyan_kernel_usage_method_requires_a_working_kernel_interface():
         assert "gpu_busy_percent" in str(error)
         assert "Nothing was changed" in str(error)
     else:
-        raise AssertionError("missing kernel load interface was accepted")
+        raise AssertionError("an active governor accepted an unavailable load source")
 
     assert edits == []
 
 
-def test_cyan_kernel_set_method_requires_frequency_sysfs_interfaces():
+def test_active_cyan_rejects_an_unavailable_metrics_overlay():
+    repo = object.__new__(GPURepository)
+    edits = []
+    repo._current_cyan_compatibility = lambda: ("smu", "busy-flag", False, False)
+    repo._service_is_active = lambda _service: True
+    repo._cyan_metrics_overlay_available = lambda: False
+    repo._editar_governor_toml = lambda *args: edits.append(args)
+
+    try:
+        repo.configurar_compatibilidad_gpu_cyan(
+            "smu", "busy-flag", True, False
+        )
+    except RuntimeError as error:
+        assert "fix-metrics was requested" in str(error)
+        assert "Nothing was changed" in str(error)
+    else:
+        raise AssertionError("an active governor accepted an unavailable overlay")
+
+    assert edits == []
+
+
+def test_active_cyan_rejects_missing_kernel_frequency_interfaces():
     repo = object.__new__(GPURepository)
     edits = []
     repo._current_cyan_compatibility = lambda: ("smu", "busy-flag", True, False)
+    repo._service_is_active = lambda _service: True
     repo._cyan_metrics_overlay_available = lambda: True
     repo._cyan_kernel_usage_available = lambda: True
     repo._cyan_kernel_set_method_available = lambda: False
-    repo._service_is_active = lambda _service: False
     repo._editar_governor_toml = lambda *args: edits.append(args)
 
     try:
@@ -230,12 +330,14 @@ def test_cyan_kernel_set_method_requires_frequency_sysfs_interfaces():
         assert "pp_dpm_sclk" in str(error)
         assert "Nothing was changed" in str(error)
     else:
-        raise AssertionError("missing kernel frequency interfaces were accepted")
+        raise AssertionError(
+            "an active governor accepted unavailable frequency interfaces"
+        )
 
     assert edits == []
 
 
-def test_cyan_kernel_set_method_probe_requires_the_default_cyan_range(tmp_path):
+def test_cyan_kernel_set_method_probe_accepts_the_kernel_reported_range(tmp_path):
     repo = object.__new__(GPURepository)
     repo._gpu_device_path = lambda: tmp_path
     voltage = tmp_path / "pp_od_clk_voltage"
@@ -246,13 +348,26 @@ def test_cyan_kernel_set_method_probe_requires_the_default_cyan_range(tmp_path):
         "SCLK:    1000Mhz       2000Mhz\nVDDC: 700mV 1129mV\n",
         encoding="ascii",
     )
-    assert repo._cyan_kernel_set_method_available() is False
+    assert repo._cyan_kernel_set_method_available() is True
 
     voltage.write_text(
         "SCLK:     350Mhz       2230Mhz\nVDDC: 700mV 1129mV\n",
         encoding="ascii",
     )
     assert repo._cyan_kernel_set_method_available() is True
+
+
+def test_cyan_kernel_set_method_probe_requires_an_active_dpm_clock(tmp_path):
+    repo = object.__new__(GPURepository)
+    repo._gpu_device_path = lambda: tmp_path
+    (tmp_path / "pp_od_clk_voltage").write_text("OD_SCLK:\n", encoding="ascii")
+    clocks = tmp_path / "pp_dpm_sclk"
+
+    clocks.write_text("0: 1000Mhz\n", encoding="ascii")
+    assert repo._cyan_kernel_set_method_available() is False
+
+    clocks.write_text("0: unavailable *\n", encoding="ascii")
+    assert repo._cyan_kernel_set_method_available() is False
 
 
 def test_failed_cyan_compatibility_restart_restores_previous_settings_and_range():

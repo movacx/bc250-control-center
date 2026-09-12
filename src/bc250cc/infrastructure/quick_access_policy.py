@@ -28,7 +28,7 @@ CU_MODES = tuple(range(24, 41, 2))
 # action. Parameterized QAM CPU requests are independently constrained in the
 # Decky backend and both privileged helpers; this token is not a command line.
 CPU_SAVED_PROFILE_ACTION = "apply-saved-profile"
-CPU_QAM_FREQUENCIES = tuple(range(3500, 4201, 50))
+CPU_QAM_FREQUENCIES = tuple(range(3100, 4201, 50))
 CPU_QAM_SCALES = tuple(range(-50, 1))
 CPU_QAM_MAX_ESTIMATED_VID_MV = 1325
 

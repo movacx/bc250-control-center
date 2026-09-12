@@ -157,7 +157,7 @@ def test_steamos_game_mode_helper_remains_a_separate_packaged_protocol():
     helper = _text(PRIVILEGED / "bc250-steamos-game-helper")
     installer = _text(ROOT / "scripts" / "install-local.sh")
     policy = _text(policy_path)
-    assert "BC250_HELPER_PROTOCOL=20" in helper
+    assert "BC250_HELPER_PROTOCOL=21" in helper
     assert "BC250_HELPER_PROTOCOL=7" not in installer
     assert "expected_game_helper_protocol" in installer
     assert "bc250-steamos-game-helper" in installer
@@ -333,9 +333,14 @@ def test_game_mode_logging_drops_root_authority_and_rejects_log_symlink():
 
 def test_game_mode_authorization_ignores_caller_forwarded_environment(monkeypatch):
     namespace = runpy.run_path(str(PRIVILEGED / "bc250-steamos-game-helper"))
-    monkeypatch.setitem(namespace, "read_proc_environ", lambda _pid: {})
-    monkeypatch.setitem(namespace, "process_tree", lambda _pid: [])
-    monkeypatch.setitem(namespace, "global_process_names", lambda: set())
+    # ``run_path`` returns a copy of the namespace; the functions inside keep
+    # their own globals. Patching the copy left the helper reading the real
+    # /proc of whatever pid 1234 happened to be, so this test used to pass
+    # without exercising anything.
+    globals_ = namespace["detect_game_mode"].__globals__
+    monkeypatch.setitem(globals_, "read_proc_environ", lambda _pid: {})
+    monkeypatch.setitem(globals_, "process_tree", lambda _pid: [])
+    monkeypatch.setitem(globals_, "global_process_names", lambda: set())
 
     allowed, reasons, negatives = namespace["detect_game_mode"](
         1234,
@@ -430,10 +435,21 @@ def test_cyan_frequency_overlay_preflight_is_staged_before_service_start():
     package_stage = _text(ROOT / "packaging" / "scripts" / "stage-package-root.sh")
     preflight = _text(PRIVILEGED / "bc250-cyan-overlay-preflight")
 
+    dropin = _text(ROOT / "packaging" / "common"
+                   / "91-bc250-control-center-overlay-preflight.conf")
+
     assert "SYSTEM_CYAN_OVERLAY_PREFLIGHT=" in installer
     assert "SYSTEM_CYAN_OVERLAY_DROPIN=" in installer
-    assert "ExecStartPre=$SYSTEM_CYAN_OVERLAY_PREFLIGHT" in installer
+    # The ExecStartPre line lives in one file both installers copy. It used to
+    # be written inline here and nowhere else, which is how packaged installs
+    # ended up shipping the helper with nothing that ran it.
+    assert "ExecStartPre=/usr/libexec/bc250-control-center/bc250-cyan-overlay-preflight" in dropin
+    assert "91-bc250-control-center-overlay-preflight.conf" in installer
     assert "bc250-cyan-overlay-preflight" in package_stage
+    assert "91-bc250-control-center-overlay-preflight.conf" in package_stage, (
+        "a packaged install stages the helper but never asks systemd to run it"
+    )
+    assert "cyan-skillfish-governor-smu.service.d" in package_stage
     assert "patched_freq_metrics" in preflight
     assert '"/usr/bin/umount", "-l"' in preflight
     assert '"/usr/bin/mount", "--bind"' in preflight
@@ -640,7 +656,7 @@ def test_cpu_smu_helper_uses_root_owned_audited_vendor_payload():
     helper = _text(helper_path)
     assert "bc250_smu_oc_vendor.zip" in helper
     assert "EXPECTED_VENDOR_COMMIT = '43d6b4c6e38c57bc9ec8908c44675ce7d5fd3d2f'" in helper
-    assert "EXPECTED_VENDOR_SHA256 = 'c9b0c9d18058e1ef20b88db098c975449eaea8fa940c1c23e39888723e128afd'" in helper
+    assert "EXPECTED_VENDOR_SHA256 = '741f85266b6d2c5d52c9bcacaca0042c8732dc0ebae586f902e835cc79bc81ea'" in helper
     assert "hashlib.sha256(VENDOR_ZIP.read_bytes()).hexdigest()" in helper
     assert "apply-live" in helper
     assert "install-boot" in helper
@@ -656,6 +672,11 @@ def test_cpu_smu_helper_uses_root_owned_audited_vendor_payload():
         assert "bc250_detect.py" in names
         assert "bc250_apply.py" in names
         assert "bc250_smu/api_q3.py" in names
+        assert "BC250CC_PATCHES" in names
+        transport = archive.read("bc250_smu/transport.py").decode()
+        assert "_write_config32_unlocked(0xB8, reg)" in transport
+        assert "_read_config32_unlocked(0xBC)" in transport
+        assert "_write_config32_unlocked(0xBC, value)" in transport
         assert not any(".git/" in name or "__pycache__" in name for name in names)
 
 

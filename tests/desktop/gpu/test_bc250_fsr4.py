@@ -4,6 +4,8 @@ import json
 import subprocess
 from types import SimpleNamespace
 
+import pytest
+
 from bc250cc.infrastructure import bc250_fsr4
 from bc250cc.infrastructure.dependencias_repository import DependenciasRepository
 
@@ -26,7 +28,9 @@ def test_fsr4_state_reports_a_reversible_user_runtime(tmp_path, monkeypatch):
     monkeypatch.setattr(bc250_fsr4, "BC250_FSR4_PREFIX", prefix)
     monkeypatch.setattr(bc250_fsr4, "BC250_FSR4_ICD", icd)
 
-    state = bc250_fsr4.fsr4_runtime_state("cachyos", "cachyos")
+    state = bc250_fsr4.fsr4_runtime_state(
+        "cachyos", "cachyos", compute_kernel_ready=True
+    )
 
     assert state["precompiled_supported"] is True
     assert state["source_build_required"] is False
@@ -38,20 +42,25 @@ def test_fsr4_state_reports_a_reversible_user_runtime(tmp_path, monkeypatch):
     assert state["prefix"] == str(prefix)
     (prefix / "libvulkan_radeon.so").parent.mkdir(parents=True)
     (prefix / "libvulkan_radeon.so").touch()
+    (prefix / ".bc250-upstream-revision").write_text(
+        bc250_fsr4.BC250_FSR4_REVIEWED_COMMIT, encoding="utf-8"
+    )
     icd.write_text(json.dumps({
         "file_format_version": "1.0.0",
         "ICD": {"library_path": str(prefix / "libvulkan_radeon.so"), "api_version": "1.4.0"},
     }))
-    installed = bc250_fsr4.fsr4_runtime_state("ubuntu", "ubuntu")
+    installed = bc250_fsr4.fsr4_runtime_state(
+        "ubuntu", "ubuntu", compute_kernel_ready=False
+    )
     assert installed["installed"] is True
-    assert installed["current"] is True
+    assert installed["runtime_current"] is True
+    assert installed["current"] is False
     assert installed["source_build_required"] is True
-    assert installed["source_build_supported"] is True
-    assert installed["installer_available"] is True
-    assert installed["build_mode"] == "debian-podman-source"
+    assert installed["source_build_supported"] is False
+    assert installed["installer_available"] is False
 
 
-def test_fsr4_debian_and_ubuntu_offer_only_the_podman_source_build():
+def test_fsr4_debian_and_ubuntu_wait_for_a_matched_kernel_workflow():
     for family, distro_id in (
         ("debian", "debian"),
         ("ubuntu", "ubuntu"),
@@ -61,23 +70,27 @@ def test_fsr4_debian_and_ubuntu_offer_only_the_podman_source_build():
 
         assert state["precompiled_supported"] is False
         assert state["experimental_precompiled"] is False
-        assert state["source_build_supported"] is True
+        assert state["source_build_supported"] is False
         assert state["source_build_required"] is True
-        assert state["installer_available"] is True
-        assert state["build_mode"] == "debian-podman-source"
+        assert state["installer_available"] is False
 
 
-def test_fsr4_manjaro_is_explicitly_experimental_and_abi_gated():
-    state = bc250_fsr4.fsr4_runtime_state("manjaro", "manjaro")
+def test_fsr4_manjaro_is_unavailable_even_with_a_compute_kernel():
+    state = bc250_fsr4.fsr4_runtime_state(
+        "manjaro", "manjaro", compute_kernel_ready=True
+    )
 
     assert state["precompiled_supported"] is False
-    assert state["experimental_precompiled"] is True
-    assert state["installer_available"] is True
-    assert state["source_build_required"] is False
+    assert state["experimental_precompiled"] is False
+    assert state["installer_available"] is False
+    assert state["source_build_required"] is True
 
 
-def test_fsr4_bazzite_offers_only_the_verified_podman_source_build():
-    state = bc250_fsr4.fsr4_runtime_state("bazzite", "bazzite")
+def test_fsr4_bazzite_requires_the_reviewed_ogc_kernel():
+    blocked = bc250_fsr4.fsr4_runtime_state("bazzite", "bazzite")
+    state = bc250_fsr4.fsr4_runtime_state(
+        "bazzite", "bazzite", compute_kernel_ready=True
+    )
 
     assert state["precompiled_supported"] is False
     assert state["experimental_precompiled"] is False
@@ -85,6 +98,7 @@ def test_fsr4_bazzite_offers_only_the_verified_podman_source_build():
     assert state["source_build_required"] is True
     assert state["installer_available"] is True
     assert state["build_mode"] == "bazzite-podman-source"
+    assert blocked["installer_available"] is False
 
 
 def test_fsr4_fedora44_requires_the_repaired_gfx1013_boot():
@@ -120,6 +134,9 @@ def test_fsr4_fedora44_never_marks_private_runtime_ready_on_stock_boot(
     (prefix / ".bc250-build-kind").write_text(
         "fedora44-podman-source\n", encoding="utf-8"
     )
+    (prefix / ".bc250-upstream-revision").write_text(
+        bc250_fsr4.BC250_FSR4_REVIEWED_COMMIT, encoding="utf-8"
+    )
     runtime_libs = prefix / "lib"
     runtime_libs.mkdir()
     (runtime_libs / "libdrm.so.2").touch()
@@ -152,15 +169,16 @@ def test_fsr4_install_command_invokes_official_v3_and_never_mutates_system_mesa(
     command = bc250_fsr4.build_fsr4_v3_install_command(destination)
 
     assert bc250_fsr4.BC250_FSR4_REPOSITORY in command
-    assert "--branch v3" in command
+    assert bc250_fsr4.BC250_FSR4_REVIEWED_COMMIT in command
     assert "remote set-url origin" in command
-    assert "checkout -B v3 FETCH_HEAD" in command
+    assert "checkout --detach --force FETCH_HEAD" in command
     assert f"bash {destination}/install-v3.sh" in command
     assert "bc250-fsr4-v3.patch" in command
     assert "1002:13fe" in command
     assert "previous per-user runtime was restored" in command
     assert ".v3.backup." in command
-    assert "manjaro)" in command
+    assert "manjaro)" not in command
+    assert 'case "$(uname -r)"' in command
     assert "sudo" not in command
     assert "pacman" not in command
     assert "/etc/pacman.conf" not in command
@@ -174,7 +192,7 @@ def test_fsr4_bazzite_command_builds_official_source_and_rolls_back(tmp_path):
     command = bc250_fsr4.build_fsr4_v3_bazzite_install_command(destination)
 
     assert bc250_fsr4.BC250_FSR4_REPOSITORY in command
-    assert "--branch v3" in command
+    assert bc250_fsr4.BC250_FSR4_REVIEWED_COMMIT in command
     assert 'test "${ID:-}" = "bazzite"' in command
     assert "1002:13fe" in command
     assert "podman info" in command
@@ -203,47 +221,11 @@ def test_fsr4_bazzite_command_builds_official_source_and_rolls_back(tmp_path):
     assert result.returncode == 0, result.stderr
 
 
-def test_fsr4_debian_command_bootstraps_apt_and_keeps_mesa_per_user(tmp_path):
-    destination = tmp_path / "bc250-fsr4"
-    command = bc250_fsr4.build_fsr4_v3_debian_install_command(destination)
-
-    assert bc250_fsr4.BC250_FSR4_REPOSITORY in command
-    assert "debian/Ubuntu" not in command
-    assert 'bc250_os_family=" ${ID:-} ${ID_LIKE:-} "' in command
-    assert '*" debian "*|*" ubuntu "*' in command
-    assert "sudo apt-get update" in command
-    assert "apt-cache show libllvm22" in command
-    assert "bc250_apt_packages+=(libllvm22)" in command
-    assert "apt-get install -y \"${bc250_apt_packages[@]}\"" in command
-    assert "podman build" in command
-    assert "podman run --rm" in command
-    assert "Dockerfile" in command
-    assert "bc250-fsr4-v3.patch" in command
-    assert "mesa-commit.txt" in command
-    assert 'VK_DRIVER_FILES="$bc250_icd" vulkaninfo --summary' in command
-    assert "debian-podman-source" in command
-    assert "previous per-user runtime was restored" in command
-    assert "Reusing the verified FSR4 build cached" in command
-    assert "/usr/lib64/libdrm.so.2" in command
-    assert "/usr/lib64/libdrm_amdgpu.so.1" in command
-    assert 'cp -- "$bc250_runtime_libs/libdrm.so.2" "$bc250_stage/lib/libdrm.so.2"' in command
-    assert 'LD_LIBRARY_PATH="$bc250_prefix/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"' in command
-    assert "Steam launch option:" in command
-    assert 'LD_LIBRARY_PATH="$HOME/.local/share/bc250-fsr4/v3/lib' in command
-    assert 'bc250_parent="$HOME/.local/share/bc250-fsr4"' in command
-    assert 'bc250_prefix="$bc250_parent/v3"' in command
-    assert "/usr/lib/x86_64-linux-gnu" not in command
-    assert "/etc/vulkan" not in command
-    assert "install-v3.sh" not in command
-
-    result = subprocess.run(
-        ["bash", "-n"],
-        input=command,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    assert result.returncode == 0, result.stderr
+def test_fsr4_debian_command_refuses_without_a_matched_kernel(tmp_path):
+    with pytest.raises(RuntimeError, match="matching repaired GFX1013 kernel"):
+        bc250_fsr4.build_fsr4_v3_debian_install_command(
+            tmp_path / "bc250-fsr4"
+        )
 
 
 def test_fsr4_fedora44_command_bootstraps_dnf_and_requires_patched_boot(tmp_path):
@@ -272,7 +254,7 @@ def test_fsr4_fedora44_command_bootstraps_dnf_and_requires_patched_boot(tmp_path
     assert result.returncode == 0, result.stderr
 
 
-def test_repository_routes_ubuntu_to_source_build_instead_of_arch_binary(tmp_path):
+def test_repository_blocks_ubuntu_until_a_matched_kernel_exists(tmp_path):
     repository = DependenciasRepository()
     repository._os_repository = lambda: SimpleNamespace(
         info=SimpleNamespace(family="ubuntu", distro_id="ubuntu")
@@ -280,12 +262,8 @@ def test_repository_routes_ubuntu_to_source_build_instead_of_arch_binary(tmp_pat
     repository._tool_dir = lambda: tmp_path
     repository._abrir_terminal = lambda command, _title: command
 
-    command = repository.gestionar_fsr4_bc250("install")
-
-    assert "official V3 source build for Debian/Ubuntu" in command
-    assert "sudo apt-get update" in command
-    assert "podman build" in command
-    assert "install-v3.sh" not in command
+    with pytest.raises(RuntimeError, match="verified matching GFX1013 kernel"):
+        repository.gestionar_fsr4_bc250("install")
 
 
 def test_repository_routes_ready_fedora44_to_gated_source_build(tmp_path):

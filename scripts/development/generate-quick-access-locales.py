@@ -23,7 +23,7 @@ spec.loader.exec_module(generator)
 
 SOURCE = ROOT / "integrations" / "decky" / "bc250-quick-access" / "src" / "index.tsx"
 OUTPUT = ROOT / "integrations" / "decky" / "bc250-quick-access" / "locales"
-LOCALES = ("en", "es", "pt", "ru", "pl", "de", "uk")
+LOCALES = ("en", "es", "es-419", "pt", "ru", "pl", "de", "uk")
 
 EXTRA_ENGLISH = {
     "profileRecovery": "Recovery",
@@ -53,6 +53,39 @@ EXTRA_ENGLISH = {
     "cuOperationFailed": "The CU operation failed.",
     "fanOperationFailed": "The fan operation failed.",
     "cpuOperationFailed": "The CPU operation failed.",
+    "likelyCause": "Likely cause",
+    "diagnosticCode": "Diagnostic code",
+    "protocolFailed": "Quick Access and its helper are different versions.",
+    "protocolCause": "Only part of BC250 Control Center was updated, or Decky kept an older plugin process running.",
+    "protocolAction": "Repair Quick Access in Desktop Mode, then restart Decky Loader.",
+    "helperFailed": "The protected BC250 helper is missing or unsafe.",
+    "helperCause": "The helper is absent, has incorrect root ownership, or can be modified by another user.",
+    "helperAction": "Reinstall BC250 Control Center from Desktop Mode and repair Quick Access.",
+    "busyFailed": "Another BC250 operation is still running.",
+    "busyCause": "A previous press, Desktop workflow, or external toolkit still holds the hardware lock.",
+    "busyAction": "Wait for the current operation to finish, refresh, and retry once.",
+    "timeoutFailed": "The operation exceeded its safety time limit.",
+    "timeoutCause": "A helper, service, hardware read-back, or external toolkit stopped responding.",
+    "timeoutAction": "Check Desktop Mode for a running process or service error before retrying.",
+    "gpuDbusFailed": "The GPU governor controls are not ready.",
+    "gpuDbusCause": "Cyan is stopped, still starting, misconfigured, or conflicting with Oberon.",
+    "gpuDbusAction": "In Desktop Mode, keep one governor active and wait for D-Bus to show Connected.",
+    "gpuBusyCause": "The GPU is not at the idle state required for this Oberon change.",
+    "gpuRangeFailed": "The selected GPU range is not supported now.",
+    "gpuRangeCause": "The requested point is outside the safe table reported by the active governor.",
+    "gpuRangeAction": "Refresh and choose one of the GPU profiles or safe points currently displayed.",
+    "gpuCause": "The active governor or live hardware state did not verify the requested change.",
+    "gpuAction": "Refresh GPU status and verify the active governor in Desktop Mode.",
+    "cuBackendFailed": "The Compute Units backend is not ready.",
+    "cuBackendCause": "UMR, its GPU database, or the live manager does not match the running stack.",
+    "cuBackendAction": "Prepare UMR in Desktop Mode, then sync the live CU map again.",
+    "cuCause": "The requested WGP map and the live AMDGPU topology did not agree.",
+    "fanCause": "The NCT driver, hwmon route, PWM channel, or write read-back is unavailable.",
+    "cpuVerifyFailed": "The CPU result could not be verified.",
+    "cpuVerifyCause": "The same-boot detector evidence is missing or does not match the requested frequency and scale.",
+    "cpuVerifyAction": "Run automatic detection for this exact frequency in the current boot before saving it.",
+    "cpuCause": "The detector, stress dependency, SMU helper, or selected profile did not complete safely.",
+    "unknownCause": "Quick Access received a failure that does not match a known component yet.",
 }
 
 EXTRA_SPANISH = {
@@ -78,6 +111,38 @@ EXTRA_SPANISH = {
     "snapshotWarning": "No se pudo actualizar la instantánea CU compartida. Actualiza antes de realizar otro cambio CU.",
     "gpuOperationFailed": "Falló la operación de GPU.", "cuOperationFailed": "Falló la operación de CU.",
     "fanOperationFailed": "Falló la operación del ventilador.", "cpuOperationFailed": "Falló la operación de CPU.",
+    "likelyCause": "Causa probable", "diagnosticCode": "Código de diagnóstico",
+    "protocolFailed": "Quick Access y su helper tienen versiones diferentes.",
+    "protocolCause": "Solo se actualizó una parte de BC250 Control Center o Decky mantuvo un proceso antiguo del plugin.",
+    "protocolAction": "Repara Quick Access en Modo Escritorio y reinicia Decky Loader.",
+    "helperFailed": "El helper protegido de BC250 falta o no es seguro.",
+    "helperCause": "El helper no existe, no pertenece a root o puede ser modificado por otro usuario.",
+    "helperAction": "Reinstala BC250 Control Center desde Modo Escritorio y repara Quick Access.",
+    "busyFailed": "Todavía hay otra operación de BC250 en ejecución.",
+    "busyCause": "Una acción anterior, un flujo de Escritorio o un toolkit externo mantiene ocupado el hardware.",
+    "busyAction": "Espera a que termine la operación, actualiza y vuelve a intentarlo una vez.",
+    "timeoutFailed": "La operación superó su límite de tiempo seguro.",
+    "timeoutCause": "Un helper, servicio, lectura del hardware o toolkit externo dejó de responder.",
+    "timeoutAction": "Revisa en Modo Escritorio si sigue un proceso activo o existe un error de servicio.",
+    "gpuDbusFailed": "Los controles del governor de GPU todavía no están listos.",
+    "gpuDbusCause": "Cyan está detenido, iniciando, mal configurado o en conflicto con Oberon.",
+    "gpuDbusAction": "En Modo Escritorio deja un solo governor activo y espera a que D-Bus indique Conectado.",
+    "gpuBusyCause": "La GPU no está en el estado de reposo requerido para este cambio de Oberon.",
+    "gpuRangeFailed": "El rango de GPU seleccionado no es compatible ahora.",
+    "gpuRangeCause": "El punto solicitado queda fuera de la tabla segura informada por el governor activo.",
+    "gpuRangeAction": "Actualiza y elige uno de los perfiles o puntos seguros de GPU mostrados.",
+    "gpuCause": "El governor activo o el estado vivo del hardware no verificó el cambio solicitado.",
+    "gpuAction": "Actualiza el estado de GPU y verifica el governor activo en Modo Escritorio.",
+    "cuBackendFailed": "El backend de Unidades de Cómputo no está listo.",
+    "cuBackendCause": "UMR, su base de datos GPU o el live manager no coinciden con el stack en ejecución.",
+    "cuBackendAction": "Prepara UMR en Modo Escritorio y vuelve a sincronizar el mapa CU vivo.",
+    "cuCause": "El mapa WGP solicitado y la topología AMDGPU en vivo no coincidieron.",
+    "fanCause": "El driver NCT, la ruta hwmon, el canal PWM o la verificación de escritura no están disponibles.",
+    "cpuVerifyFailed": "No se pudo verificar el resultado de CPU.",
+    "cpuVerifyCause": "Falta la evidencia del detector de este arranque o no coincide con la frecuencia y escala solicitadas.",
+    "cpuVerifyAction": "Ejecuta la detección automática para esta frecuencia exacta durante el arranque actual antes de guardarla.",
+    "cpuCause": "El detector, la dependencia stress, el helper SMU o el perfil elegido no terminaron de forma segura.",
+    "unknownCause": "Quick Access recibió un fallo que todavía no coincide con un componente conocido.",
 }
 
 
@@ -128,7 +193,7 @@ def main() -> int:
         for key, source in english.items():
             if language == "en":
                 catalog[key] = source
-            elif language == "es" and key in spanish:
+            elif language in {"es", "es-419"} and key in spanish:
                 catalog[key] = spanish[key]
             elif source in desktop and desktop[source] != source:
                 catalog[key] = desktop[source]

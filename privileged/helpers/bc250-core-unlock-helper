@@ -1,12 +1,14 @@
-#!/usr/bin/python3
+#!/usr/bin/python3 -I
 """Narrow privileged launcher for the official bc250-core-unlock tool."""
 from __future__ import annotations
 
 import hashlib
 import os
 from pathlib import Path
+import pathlib
 import pwd
 import shutil
+import stat
 import subprocess
 import sys
 
@@ -248,9 +250,45 @@ def _reboot_after_core_unlock() -> None:
     _run(command, timeout=30)
 
 
+def _trusted_self() -> bool:
+    """Refuse to run from a copy the system does not own.
+
+    Every other helper in this directory checks this; these two did not. The
+    check is about the *installed* path: if this file, or any directory above
+    it, is a symbolic link or is writable by anyone but root, then whatever is
+    executing here is not necessarily what the package installed — and it is
+    executing as root.
+
+    A run straight from a source checkout is normal during development, so a
+    file outside the installed prefixes is left alone; the guard applies where
+    the packaged helper lives.
+    """
+    path = pathlib.Path(__file__).resolve()
+    prefixes = ('/usr/libexec/', '/usr/local/libexec/', '/usr/lib/')
+    if not str(path).startswith(prefixes):
+        return True
+    for part in (path, *path.parents):
+        try:
+            info = part.lstat()
+        except OSError:
+            return False
+        if stat.S_ISLNK(info.st_mode):
+            return False
+        if info.st_uid != 0 or info.st_mode & 0o022:
+            return False
+        if str(part) == path.anchor:
+            break
+    return True
+
+
 def main(argv: list[str]) -> int:
     if os.geteuid() != 0:
         raise RuntimeError("This helper must be launched through pkexec.")
+    if not _trusted_self():
+        raise RuntimeError(
+            "HELPER_UNTRUSTED: this helper is not a root-owned, non-writable "
+            "installed payload. Reinstall BC250 Control Center."
+        )
     if len(argv) != 4 or argv[1] != "--repo" or argv[3] != "--reboot":
         raise RuntimeError("Expected exactly: --repo PATH --reboot")
     if not _bc250_identity_present():

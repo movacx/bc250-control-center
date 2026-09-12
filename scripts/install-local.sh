@@ -55,6 +55,14 @@ SYSTEM_GOVERNOR_CONFIG_HELPER="/usr/libexec/bc250-control-center/bc250-governor-
 SYSTEM_CORE_UNLOCK_HELPER="/usr/libexec/bc250-control-center/bc250-core-unlock-helper"
 SYSTEM_CPU_SMU_HELPER="/usr/libexec/bc250-control-center/bc250-cpu-smu-helper"
 SYSTEM_OPENRC_SERVICE_HELPER="/usr/libexec/bc250-control-center/bc250-openrc-service-helper"
+SYSTEM_SERVICE_HELPER="/usr/libexec/bc250-control-center/bc250-service-helper"
+SYSTEM_MAINTENANCE_HELPER="/usr/libexec/bc250-control-center/bc250-maintenance-helper"
+# Installed here, not only by the Decky installer: uninstall-local.sh has
+# always removed it, so a local install followed by a local uninstall used
+# to delete a root helper this script never placed. The package
+# (stage-package-root.sh) already ships it, so this makes the two
+# installation paths agree.
+SYSTEM_QUICK_ACCESS_HELPER="/usr/libexec/bc250-control-center/bc250-quick-access-helper"
 SYSTEM_GPU_LAB_SCRIPT="/usr/libexec/bc250-control-center/bc250-gpu-voltage-lab.sh"
 SYSTEM_STEAMOS_AMDGPU_OVERLAY="/usr/libexec/bc250-control-center/bc250-steamos-amdgpu-overlay"
 SYSTEM_CYAN_OVERLAY_PREFLIGHT="/usr/libexec/bc250-control-center/bc250-cyan-overlay-preflight"
@@ -308,11 +316,15 @@ install -Dm644 "$ROOT_DIR/LICENSE" "$DOC_DIR/LICENSE"
 install -Dm644 "$ROOT_DIR/docs/THIRD_PARTY_NOTICES.md" "$DOC_DIR/THIRD_PARTY_NOTICES.md"
 install_privileged_pwm_components() {
   local helper_source="$ROOT_DIR/privileged/helpers/bc250-fan-pwm-helper"
+  local system_setup_helper_source="$ROOT_DIR/privileged/helpers/bc250-system-setup-helper"
   local steamos_helper_source="$ROOT_DIR/privileged/helpers/bc250-steamos-game-helper"
   local governor_helper_source="$ROOT_DIR/privileged/helpers/bc250-governor-config-helper"
   local core_unlock_helper_source="$ROOT_DIR/privileged/helpers/bc250-core-unlock-helper"
   local cpu_smu_helper_source="$ROOT_DIR/privileged/helpers/bc250-cpu-smu-helper"
   local openrc_service_helper_source="$ROOT_DIR/privileged/helpers/bc250-openrc-service-helper"
+  local service_helper_source="$ROOT_DIR/privileged/helpers/bc250-service-helper"
+  local maintenance_helper_source="$ROOT_DIR/privileged/helpers/bc250-maintenance-helper"
+  local quick_access_helper_source="$ROOT_DIR/privileged/helpers/bc250-quick-access-helper"
   local cu_helper_source="$ROOT_DIR/privileged/helpers/bc250-cu-helper"
   local cu_helper_target="/usr/libexec/bc250-control-center/bc250-cu-helper"
   local gpu_lab_source="$ROOT_DIR/scripts/system/bc250-gpu-voltage-lab.sh"
@@ -358,14 +370,19 @@ install_privileged_pwm_components() {
     "/usr/libexec/bc250-control-center/lib/system_setup_common.py"
     "/usr/libexec/bc250-control-center/lib/system_setup_memory.py"
     "/usr/libexec/bc250-control-center/lib/system_setup_acpi.py"
+    "/usr/libexec/bc250-control-center/lib/system_setup_telemetry.py"
     "/usr/libexec/bc250-control-center/lib/acpi_payload.py"
+    "/usr/libexec/bc250-control-center/lib/bc250_contract.py"
     "$cu_helper_target"
     "$SYSTEM_PRIV_HELPER"
     "$SYSTEM_STEAMOS_GAME_HELPER"
+    "$SYSTEM_QUICK_ACCESS_HELPER"
     "$SYSTEM_GOVERNOR_CONFIG_HELPER"
     "$SYSTEM_CORE_UNLOCK_HELPER"
     "$SYSTEM_CPU_SMU_HELPER"
     "$SYSTEM_OPENRC_SERVICE_HELPER"
+    "$SYSTEM_SERVICE_HELPER"
+    "$SYSTEM_MAINTENANCE_HELPER"
     "$SYSTEM_GPU_LAB_SCRIPT"
     "$SYSTEM_STEAMOS_AMDGPU_OVERLAY"
     "$SYSTEM_CYAN_OVERLAY_PREFLIGHT"
@@ -403,25 +420,27 @@ install_privileged_pwm_components() {
     # built under a permissive umask could leave this trust boundary writable
     # by the group, causing every hardened helper to reject its own imports.
     "${elevate[@]}" install -d -m0755 /usr/libexec/bc250-control-center /usr/libexec/bc250-control-center/lib
-    "${elevate[@]}" install -Dm755 "$ROOT_DIR/privileged/helpers/bc250-system-setup-helper" /usr/libexec/bc250-control-center/bc250-system-setup-helper
-    for setup_module in system_setup_common.py system_setup_memory.py system_setup_acpi.py acpi_payload.py; do
+    "${elevate[@]}" install -Dm755 "$system_setup_helper_source" /usr/libexec/bc250-control-center/bc250-system-setup-helper
+    for setup_module in system_setup_common.py system_setup_memory.py system_setup_acpi.py system_setup_telemetry.py acpi_payload.py bc250_contract.py; do
       "${elevate[@]}" install -Dm644 "$ROOT_DIR/privileged/lib/$setup_module" "/usr/libexec/bc250-control-center/lib/$setup_module"
     done
     "${elevate[@]}" install -Dm755 "$helper_source" "$SYSTEM_PRIV_HELPER"
     "${elevate[@]}" install -Dm755 "$cu_helper_source" "$cu_helper_target"
     "${elevate[@]}" install -Dm755 "$steamos_helper_source" "$SYSTEM_STEAMOS_GAME_HELPER"
+    "${elevate[@]}" install -Dm755 "$quick_access_helper_source" "$SYSTEM_QUICK_ACCESS_HELPER"
     "${elevate[@]}" install -Dm755 "$governor_helper_source" "$SYSTEM_GOVERNOR_CONFIG_HELPER"
     "${elevate[@]}" install -Dm755 "$core_unlock_helper_source" "$SYSTEM_CORE_UNLOCK_HELPER"
     "${elevate[@]}" install -Dm755 "$cpu_smu_helper_source" "$SYSTEM_CPU_SMU_HELPER"
     "${elevate[@]}" install -Dm755 "$openrc_service_helper_source" "$SYSTEM_OPENRC_SERVICE_HELPER"
+    "${elevate[@]}" install -Dm755 "$service_helper_source" "$SYSTEM_SERVICE_HELPER"
+    "${elevate[@]}" install -Dm755 "$maintenance_helper_source" "$SYSTEM_MAINTENANCE_HELPER"
     "${elevate[@]}" install -Dm755 "$gpu_lab_source" "$SYSTEM_GPU_LAB_SCRIPT"
     "${elevate[@]}" install -Dm755 "$steamos_amdgpu_overlay_source" "$SYSTEM_STEAMOS_AMDGPU_OVERLAY"
     "${elevate[@]}" install -Dm755 "$cyan_overlay_preflight_source" "$SYSTEM_CYAN_OVERLAY_PREFLIGHT"
-    printf '%s\n' \
-      '# Managed by BC250 Control Center: prevent a stale Cyan fix-freq hwmon bind from racing service restart.' \
-      '[Service]' \
-      "ExecStartPre=$SYSTEM_CYAN_OVERLAY_PREFLIGHT" | \
-      "${elevate[@]}" install -Dm644 /dev/stdin "$SYSTEM_CYAN_OVERLAY_DROPIN"
+    # Same file the packages ship, so the two installation paths cannot drift.
+    "${elevate[@]}" install -Dm644 \
+      "$ROOT_DIR/packaging/common/91-bc250-control-center-overlay-preflight.conf" \
+      "$SYSTEM_CYAN_OVERLAY_DROPIN"
     "${elevate[@]}" install -Dm644 "$cpu_smu_vendor_source" "$SYSTEM_CPU_SMU_VENDOR"
     # The boot OC config contains only frequency, scale and temperature.  Keep
     # it root-owned but world-readable so the unprivileged GUI can validate
@@ -440,6 +459,7 @@ install_privileged_pwm_components() {
     "${elevate[@]}" rm -f -- "$LEGACY_CORE_UNLOCK_IMPLEMENTATION"
     "${elevate[@]}" install -Dm644 "$policy_source" "$SYSTEM_POLKIT_ACTION"
     for helper_pair in \
+      "$system_setup_helper_source:/usr/libexec/bc250-control-center/bc250-system-setup-helper" \
       "$cu_helper_source:$cu_helper_target" \
       "$helper_source:$SYSTEM_PRIV_HELPER" \
       "$steamos_helper_source:$SYSTEM_STEAMOS_GAME_HELPER" \
@@ -447,6 +467,8 @@ install_privileged_pwm_components() {
       "$core_unlock_helper_source:$SYSTEM_CORE_UNLOCK_HELPER" \
       "$cpu_smu_helper_source:$SYSTEM_CPU_SMU_HELPER" \
       "$openrc_service_helper_source:$SYSTEM_OPENRC_SERVICE_HELPER" \
+      "$service_helper_source:$SYSTEM_SERVICE_HELPER" \
+      "$maintenance_helper_source:$SYSTEM_MAINTENANCE_HELPER" \
       "$gpu_lab_source:$SYSTEM_GPU_LAB_SCRIPT" \
       "$steamos_amdgpu_overlay_source:$SYSTEM_STEAMOS_AMDGPU_OVERLAY" \
       "$cyan_overlay_preflight_source:$SYSTEM_CYAN_OVERLAY_PREFLIGHT"; do
@@ -544,13 +566,57 @@ install -Dm755 "$ROOT_DIR/scripts/entrypoints/bc250-control-center" "$BIN_DIR/bc
 install -Dm755 "$ROOT_DIR/scripts/entrypoints/bc250-control-center-cli" "$BIN_DIR/bc250-control-center-cli"
 install -Dm755 "$ROOT_DIR/scripts/entrypoints/bc250-control-centerd" "$BIN_DIR/bc250-control-centerd"
 rm -f "$ICON_DIR/scalable/apps/bc250-control-center.svg"
-for size in 32 48 64 128 256 512 1024; do
+# 16 and 24 matter: the window manager and the task switcher ask for them,
+# and without an exact match they downscale 32 and lose the outline.
+for size in 16 24 32 48 64 128 256 512 1024; do
   install -Dm644 "$ROOT_DIR/assets/icons/bc250-control-center-${size}.png" "$ICON_DIR/${size}x${size}/apps/bc250-control-center.png"
 done
 desktop_file="$DESKTOP_DIR/io.github.movacx.bc250-control-center.desktop"
 install -Dm644 "$ROOT_DIR/packaging/common/io.github.movacx.bc250-control-center.desktop" "$desktop_file"
 sed -i "s|^Exec=.*|Exec=$BIN_DIR/bc250-control-center|" "$desktop_file"
 install -Dm644 "$ROOT_DIR/packaging/common/io.github.movacx.bc250-control-center.metainfo.xml" "$METAINFO_DIR/io.github.movacx.bc250-control-center.metainfo.xml"
+
+# Tell the desktop that the icon changed.
+#
+# The uninstaller has always refreshed these caches and the installer never
+# did, which made a reinstall the one case that went wrong: uninstalling
+# rebuilt the icon cache *after* deleting the icons, then installing wrote new
+# ones without telling anyone. Launchers kept reading a cache that described
+# the previous icon, so the files on disk were right and the desktop still
+# showed the old artwork.
+#
+# ``-t`` because a per-user hicolor directory has no index.theme of its own;
+# without it gtk-update-icon-cache refuses and the stale cache survives. Every
+# one of these is optional and advisory, so none of them may fail the install.
+#
+# Only for a prefix a desktop actually reads, matching the uninstaller. Writing
+# an icon cache into a staging root would leave a file behind that nothing
+# created on purpose and nothing removes.
+install_runtime_prefix=0
+case "$PREFIX" in
+  /usr|/usr/local|"$HOME/.local") install_runtime_prefix=1 ;;
+esac
+if [[ "$install_runtime_prefix" -eq 1 ]]; then
+if command -v update-desktop-database >/dev/null 2>&1; then
+  update-desktop-database "$DESKTOP_DIR" >/dev/null 2>&1 || true
+fi
+for icon_cache_tool in gtk-update-icon-cache gtk4-update-icon-cache; do
+  if command -v "$icon_cache_tool" >/dev/null 2>&1; then
+    "$icon_cache_tool" -q -f -t "$ICON_DIR" >/dev/null 2>&1 || true
+  fi
+done
+# Plasma keeps its own icon and service caches and only notices through these.
+rm -f "${XDG_CACHE_HOME:-$HOME/.cache}/icon-cache.kcache" 2>/dev/null || true
+for sycoca_tool in kbuildsycoca6 kbuildsycoca5; do
+  if command -v "$sycoca_tool" >/dev/null 2>&1; then
+    "$sycoca_tool" --noincremental >/dev/null 2>&1 || true
+    break
+  fi
+done
+if command -v xdg-desktop-menu >/dev/null 2>&1; then
+  xdg-desktop-menu forceupdate >/dev/null 2>&1 || true
+fi
+fi
 expected_user_systemd_dir="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
 daemon_reload_attempted=0
 if [[ -d /run/systemd/system ]]; then

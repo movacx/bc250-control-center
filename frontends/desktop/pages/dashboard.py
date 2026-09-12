@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import logging
 import time
+from typing import NamedTuple
 
 from PyQt6.QtCore import QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
@@ -10,22 +12,54 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from ..components.async_tools import AsyncRefresh
+from bc250cc.infrastructure.install_source import (
+    UpdateChannel,
+    detect_install_source,
+)
+from bc250cc.infrastructure.release_check import (
+    RELEASES_PAGE_URL,
+    check_for_update,
+)
+
+from ..components.async_tools import AsyncRefresh, BackgroundExecutor
 from ..components.dashboard_widgets import (
     DashboardFooter,
     DashboardGpuHero,
     DashboardModuleCard,
     DashboardScrollArea,
     PreparationSidebar,
+    UpdateCallout,
 )
 from ..components.responsive import (
     clear_grid,
     configure_responsive_scroll_area,
 )
 from ..components.widgets import InfoDialog
-from ..core.external_links import open_external_url
+from ..core.external_links import open_external_url, update_checks_enabled
 from ..core.state import DashboardState, state_cache_for
 from ..i18n import tr, tr_format
+
+logger = logging.getLogger(__name__)
+
+
+class _UpdateLookup(NamedTuple):
+    """What one background pass found: a version, and what to do about it."""
+
+    status: object
+    source: object
+
+
+def _look_for_update() -> _UpdateLookup:
+    """Both questions in one worker, off the interface thread.
+
+    Asking the package manager who owns this file means running a subprocess,
+    which has no business on the thread that paints. It is only asked once an
+    update actually exists, so the ordinary case — nothing new — costs a cached
+    string comparison and no processes at all.
+    """
+    status = check_for_update()
+    source = detect_install_source() if status.update_available else None
+    return _UpdateLookup(status=status, source=source)
 
 CONTACT_URL = "https://discord.com/channels/1315924807128449065/1526169299490836510"
 SUPPORT_URL = "https://ko-fi.com/movacx"
@@ -87,6 +121,7 @@ class DashboardPage(QWidget):
 
         self.gpu_card = DashboardGpuHero()
         self.gpu_card.activated.connect(self.module_requested)
+        self.gpu_card.telemetry_repair_requested.connect(self._request_telemetry_repair)
         self.main_layout.addWidget(self.gpu_card)
 
         self.modules_host = QWidget()
@@ -148,9 +183,28 @@ class DashboardPage(QWidget):
         )
         self.footer.contact_clicked.connect(self._open_contact)
         self.footer.support_clicked.connect(self._open_support)
+        self.footer.update_clicked.connect(self._badge_clicked)
         self.readiness.set_header_actions(self.footer)
         self.contact_button = self.footer.contact_button
         self.support_button = self.footer.support_button
+        self.update_button = self.footer.update_button
+        # The only place this application reaches the network itself, so it is
+        # kept off the UI thread and never reports a failure. See
+        # bc250cc.infrastructure.release_check for the rules it follows.
+        self._release_executor = BackgroundExecutor(self)
+        # The bubble opens on its own every time this screen is reached while
+        # an update is available, and again whenever the badge is clicked -
+        # it is meant to nag gently rather than be seen once and forgotten.
+        self.update_callout = UpdateCallout(self)
+        self.update_callout.action_clicked.connect(self._follow_update_advice)
+        self.update_callout.dismissed.connect(self._callout_dismissed)
+        self._install_source = None
+        # Parented to this page, so a pending retry dies with it rather than
+        # firing into a destroyed widget once this page is gone.
+        self._callout_retries = 0
+        self._callout_retry_timer = QTimer(self)
+        self._callout_retry_timer.setSingleShot(True)
+        self._callout_retry_timer.timeout.connect(self._place_callout)
         self.layout.addStretch(1)
         self.scroll.viewport_width_changed.connect(self._reflow)
 
@@ -190,6 +244,7 @@ class DashboardPage(QWidget):
     def set_updates_active(self, active: bool) -> None:
         self._updates_active = bool(active)
         if self._updates_active:
+            self._check_for_update()
             if not self.timer.isActive():
                 self.timer.start()
             self._refresher.activate(fresh_for=2.5)
@@ -226,6 +281,120 @@ class DashboardPage(QWidget):
     def _refresh_failed(self, message: str) -> None:
         self.setToolTip(message)
 
+    def _check_for_update(self) -> None:
+        """Ask once per session, in the background, and stay quiet on failure.
+
+        The published version is cached for hours by the layer below, so this
+        reaches the network at most once even across several launches. A host
+        with no internet, a proxy in the way or the preference switched off
+        simply never shows the badge; nothing is logged at the user.
+        """
+        if not update_checks_enabled():
+            return
+        # Asked on every arrival at this screen, as intended. It is cheap:
+        # the layer below keeps the published version for
+        # ``release_check.CACHE_SECONDS``, so most arrivals are a local string
+        # comparison and the network is touched at most once per window.
+        # ``BackgroundExecutor.start`` refuses a duplicate key, so a fast
+        # double navigation cannot stack two reads either.
+        self._release_executor.start(
+            "release-check",
+            _look_for_update,
+            self._apply_update_status,
+            lambda _message: None,
+        )
+
+    def _apply_update_status(self, result: object) -> None:
+        status = getattr(result, "status", None)
+        source = getattr(result, "source", None)
+        published = str(getattr(status, "published", "") or "")
+        available = bool(getattr(status, "update_available", False))
+        self._install_source = source
+        self.footer.announce_update(published if available else "")
+        if not available:
+            self.update_callout.hide()
+            return
+        self._describe_update(published, source)
+        self._show_callout()
+
+    def _describe_update(self, published: str, source: object) -> None:
+        """Say what to do, which depends entirely on how this copy was installed."""
+        channel = getattr(source, "channel", None)
+        command = str(getattr(source, "command", "") or "")
+        if channel is UpdateChannel.AUR and command:
+            detail = tr_format(
+                "Version {version} is available. Update it with your AUR helper.",
+                version=published,
+            )
+            action = command
+        else:
+            detail = tr_format("Version {version} is available", version=published)
+            action = tr("Open the latest release")
+        self.update_callout.set_message(version=published, detail=detail, action=action)
+
+    def _show_callout(self) -> None:
+        # Deferred: on the first arrival this page may not be inside a shown
+        # window yet, and a bubble cannot be placed against a widget that has
+        # no position.
+        self._callout_retries = 0
+        self._callout_retry_timer.start(0)
+
+    def _place_callout(self) -> None:
+        window = self.footer.update_button.window()
+        if window is None or not window.isVisible():
+            # A cached release check can resolve before the main window is
+            # actually shown - the common case on a cold start straight into
+            # the dashboard, where the answer is often already in cache. Keep
+            # trying briefly instead of dropping the bubble silently; give up
+            # quietly after a few seconds rather than retry forever.
+            self._callout_retries += 1
+            if self._callout_retries <= 40:
+                self._callout_retry_timer.start(75)
+            return
+        self.update_callout.point_at(self.footer.update_button)
+
+    def _callout_dismissed(self) -> None:
+        """Closing the bubble leaves the badge pulsing; nothing is lost."""
+        return
+
+    def _follow_update_advice(self) -> None:
+        source = self._install_source
+        if getattr(source, "channel", None) is UpdateChannel.AUR and source.command:
+            InfoDialog(
+                tr("New update available"),
+                tr_format(
+                    "This copy was installed from the AUR. Update it from a terminal:"
+                    "\n\n{command}",
+                    command=source.command,
+                ),
+                icon_name="download_blue",
+                parent=self,
+            ).exec()
+            return
+        self._open_releases()
+
+    def _badge_clicked(self) -> None:
+        """Re-open the bubble. Nothing else.
+
+        The badge is a notification, not a command. Pressing it explains what
+        is available and how to get it; the bubble's own button is the only
+        thing that acts. An earlier version fell through to opening a browser
+        when the bubble could not be placed, which made one click mean two
+        different things depending on window state.
+        """
+        self._place_callout()
+
+    def _open_releases(self) -> None:
+        opened, message = open_external_url(RELEASES_PAGE_URL)
+        if opened:
+            return
+        InfoDialog(
+            tr("Official repositories"),
+            message,
+            icon_name="warning_orange",
+            parent=self,
+        ).exec()
+
     def _open_contact(self) -> None:
         opened, message = open_external_url(CONTACT_URL)
         if opened:
@@ -254,6 +423,12 @@ class DashboardPage(QWidget):
             tone="orange",
         ).exec()
 
+    def _request_telemetry_repair(self) -> None:
+        try:
+            self.controller.reparar_telemetria_8core()
+        except Exception:
+            logger.exception("Eight-core GPU telemetry repair could not be started")
+
     def apply_state(self, state: DashboardState) -> None:
         if self._live_sample is not None:
             metrics = self._live_sample if time.monotonic() - self._live_sample_at <= 3.0 else {}
@@ -274,8 +449,11 @@ class DashboardPage(QWidget):
         self.gpu_card.status.setText(status)
         self.gpu_card.status.set_tone(tone)
 
-        temperature = self._format_temperature(
-            state.gpu_temperature_c, decimals=0
+        invalid_telemetry = state.gpu_telemetry_invalid
+        temperature = (
+            tr("Invalid")
+            if invalid_telemetry and state.gpu_temperature_c <= 0
+            else self._format_temperature(state.gpu_temperature_c, decimals=0)
         )
         utilization = (
             self._format_percent(state.gpu_utilization_percent)
@@ -296,7 +474,9 @@ class DashboardPage(QWidget):
         self.gpu_card.governor_metric.set_detail(status if state.governor_backend else "")
         self.gpu_card.load_metric.set_value(utilization)
         self.gpu_card.gpu_voltage_metric.set_value(
-            self._format_voltage(state.gpu_voltage_mv)
+            tr("Invalid")
+            if invalid_telemetry and state.gpu_voltage_mv <= 0
+            else self._format_voltage(state.gpu_voltage_mv)
         )
         self.gpu_card.thermal_strip.set_temperatures(
             (
@@ -310,7 +490,9 @@ class DashboardPage(QWidget):
         self.gpu_card.technical_strip.set_values(
             (
                 self._format_power(state.gpu_power_w),
-                self._format_mhz(state.gpu_memory_frequency_mhz),
+                tr("Invalid")
+                if invalid_telemetry and state.gpu_memory_frequency_mhz <= 0
+                else self._format_mhz(state.gpu_memory_frequency_mhz),
                 self._format_temperature(state.nvme_hotspot_temperature_c),
                 state.gtt_summary,
                 state.dpm_summary,
@@ -321,9 +503,29 @@ class DashboardPage(QWidget):
             if state.gpu_dpm_state
             else ""
         )
+        diagnostic_hint = (
+            tr("Advanced GPU diagnostics")
+            if invalid_telemetry else ""
+        )
+        self.gpu_card.thermal_strip.values[0].setToolTip(diagnostic_hint)
+        self.gpu_card.gpu_voltage_metric.setToolTip(diagnostic_hint)
+        self.gpu_card.technical_strip.values[1].setToolTip(diagnostic_hint)
         self.gpu_card.range_row.set_value(target_range)
         self.gpu_card.accepted_row.set_value(
             self._format_mhz(state.governor_max_mhz)
+        )
+        repair_pending = state.gpu_telemetry_repair_pending
+        repair_needed = state.gpu_metrics_layout_mismatch or repair_pending
+        self.gpu_card.telemetry_repair_button.setVisible(repair_needed)
+        self.gpu_card.telemetry_repair_button.setEnabled(
+            state.gpu_metrics_layout_mismatch
+            and state.gpu_telemetry_repair_available
+            and not repair_pending
+        )
+        self.gpu_card.telemetry_repair_button.setText(
+            tr("Restart to finish telemetry repair")
+            if repair_pending
+            else tr("Repair BC250 telemetry")
         )
         self.gpu_card.gpu_summary.set_value(state.gpu_summary)
         self.gpu_card.vram_summary.set_value(state.vram_summary)

@@ -1,20 +1,16 @@
-from bc250cc.platform.distro import DistroIdentity, read_os_release
 from bc250cc.platform.immutable import is_immutable_root
 from bc250cc.platform.init import InitSystem, detect_init_system
 from bc250cc.platform.packages import PackageManagers
 
-
-def test_distro_family_is_metadata_only(tmp_path):
-    release = tmp_path / "os-release"
-    release.write_text('ID=cachyos\nID_LIKE="arch"\nPRETTY_NAME="CachyOS"\n')
-    identity = read_os_release(release)
-    assert identity.family == "arch"
-    assert identity.pretty_name == "CachyOS"
-
-
-def test_artix_id_like_arch_still_selects_openrc_installation_family():
-    identity = DistroIdentity("artix", ("arch",), "Artix Linux")
-    assert identity.family == "openrc"
+# ``bc250cc.platform.distro`` used to live here: a second distribution
+# classifier that returned family "openrc" for alpine, artix, devuan, gentoo
+# and funtoo — a value no repository factory, capability map or limitation
+# table recognised, because it named an *init system* where every other part
+# of the project names a *package family*. Nothing in production imported it;
+# only this file did. The live classifier is
+# ``bc250cc.platform.packages.strategies.detector``, and
+# ``tests/platform/test_os_distribution_support.py`` covers it. Init detection
+# is a separate question, answered by ``detect_init_system`` below.
 
 
 def test_init_detection_prefers_openrc_runtime_marker(tmp_path):

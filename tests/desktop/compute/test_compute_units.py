@@ -5,11 +5,13 @@ import time
 from types import SimpleNamespace
 
 import pytest
-from PyQt6.QtWidgets import QPushButton
 
 import bc250cc.infrastructure.cu_repository as cu_repository_module
 import frontends.desktop.pages.compute_units as compute_units_module
-from bc250cc.infrastructure.cu_repository import CURepository
+from bc250cc.infrastructure.cu_repository import (
+    QUICK_ACCESS_CU_RUNTIME_HELPER_PROTOCOL,
+    CURepository,
+)
 from frontends.desktop.i18n import SUPPORTED_LANGUAGES, set_language, tr
 from frontends.desktop.pages.compute_units import ComputeUnitsPage
 
@@ -120,7 +122,10 @@ def _quick_access_runtime_snapshot(raw, *, observed_at=1_000):
     return {
         "schema": 1,
         "producer": "bc250-quick-access-helper",
-        "helper_protocol": 9,
+        # Never a literal: this and the helper disagreed at 9 against 13
+        # for three protocol bumps, and each side's tests agreed with
+        # its own copy while Game Mode changes were silently discarded.
+        "helper_protocol": QUICK_ACCESS_CU_RUNTIME_HELPER_PROTOCOL,
         "boot_id": "01234567-89ab-cdef-0123-456789abcdef",
         "observed_at_unix_ms": observed_at,
         "raw_dashboard": raw,
@@ -296,7 +301,9 @@ def test_compute_units_exposes_live_refresh_and_passive_updates_preserve_wgp_edi
     assert page.current_state["active_cus"] == 40
     assert page.topology_table.current_masks() == [0x0F, 0x07, 0x07, 0x07]
     assert not hasattr(page, "status_card")
-    assert any(button.text() == "Raw status" for button in page.activity_card.findChildren(QPushButton))
+    # "Raw status" moved into the side column when the activity card was
+    # merged away; the button is reachable, not buried in a hidden card.
+    assert any(button.text() == "Raw status" for button in page.persistence_action_buttons)
 
 
 def test_compute_units_validated_state_keeps_writes_locked_without_trusted_backend(qtbot):
@@ -648,3 +655,30 @@ def test_dutch_missing_manager_error_offers_copyable_recovery_command(qtbot, mon
     assert "Bestand of map bestaat niet" not in captured["message"]
     assert "stopped before changing the hardware" in captured["message"]
     assert "Restore factory" in captured["notice"]
+
+
+def test_cu_validation_guide_explains_what_furmark_can_and_cannot_validate(
+    qtbot, monkeypatch
+):
+    captured = {}
+
+    class Dialog:
+        def __init__(self, title, message, *args, **kwargs):
+            captured.update(title=title, message=message, **kwargs)
+
+        def exec(self):
+            return 0
+
+    monkeypatch.setattr(compute_units_module, "InfoDialog", Dialog)
+    page = ComputeUnitsPage(object())
+    qtbot.addWidget(page)
+
+    assert page.validation_guide_button.text() == tr("Validate CUs")
+    assert page.validation_guide_button.isHidden()
+    page._show_cu_validation_guide()
+
+    assert captured["title"] == "CU stability validation"
+    assert "one additional WGP pair (2 CUs) at a time" in captured["message"]
+    assert "FurMark FPS does not prove" in captured["message"]
+    assert "graphics and compute queues concurrently" in captured["message"]
+    assert captured["notice"] == "Opening this guide does not change the live WGP table."

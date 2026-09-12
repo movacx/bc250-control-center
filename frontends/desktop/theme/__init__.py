@@ -48,7 +48,7 @@ LIGHT_COLORS = {
     "red_soft": "#FDEDEC",
 }
 
-# Neutral graphite palette modeled after ChatGPT/Codex desktop surfaces.  The
+# Neutral graphite palette used by the desktop interface. The
 # hierarchy comes from small luminance steps instead of bright borders, so the
 # interface remains readable without looking like a light theme with black paint.
 DARK_COLORS = {
@@ -125,11 +125,38 @@ def _blend(base: str, overlay: str, amount: float) -> str:
     return "#" + "".join(f"{channel:02X}" for channel in mixed)
 
 
+def _relative_luminance(color: str) -> float:
+    """WCAG relative luminance for a ``#RRGGBB`` color."""
+    try:
+        channels = [int(color[index:index + 2], 16) / 255.0 for index in (1, 3, 5)]
+    except (TypeError, ValueError):
+        return 0.0
+    linear = [
+        channel / 12.92 if channel <= 0.04045 else ((channel + 0.055) / 1.055) ** 2.4
+        for channel in channels
+    ]
+    return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
+
+
+def _ink_for(background: str) -> str:
+    """Readable text color for a solid accent fill.
+
+    Dark-mode accents are light enough that white text washes out on them.  The
+    mockup spells this out for the primary action: a ``#63D8E8`` fill carries
+    ``#052227`` ink, not white.  Deriving the ink keeps every accent — and every
+    user-selected accent color — consistent instead of hardcoding one pair.
+    """
+    if _relative_luminance(background) > 0.45:
+        return _blend(background, "#000000", 0.86)
+    return "#FFFFFF"
+
+
 def _finish_palette(palette: dict[str, str], mode: str) -> dict[str, str]:
     for tone in ("blue", "purple", "orange", "cyan", "green", "red"):
         palette[f"{tone}_border"] = _blend(
             palette[tone], palette["panel"], 0.58 if mode == "dark" else 0.72
         )
+        palette[f"on_{tone}"] = _ink_for(palette[tone])
     palette["blue_hover"] = _blend(
         palette["blue"], "#FFFFFF" if mode == "dark" else "#000000", 0.10
     )
@@ -328,6 +355,31 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QPushButton[nav='true']:checked {{
         background: {c['blue_soft']};
         color: {c['blue']};
+        border-left: 3px solid {c['blue']};
+        padding-left: 7px;
+    }}
+    QPushButton[nav='true'][navTone='purple']:checked {{
+        background: {c['purple_soft']};
+        color: {c['purple']};
+        border-left-color: {c['purple']};
+    }}
+    QPushButton[nav='true'][navTone='orange']:checked {{
+        background: {c['orange_soft']};
+        color: {c['orange']};
+        border-left-color: {c['orange']};
+    }}
+    QPushButton[nav='true'][navTone='cyan']:checked {{
+        background: {c['cyan_soft']};
+        color: {c['cyan']};
+        border-left-color: {c['cyan']};
+    }}
+    QPushButton[nav='true'][navTone='green']:checked {{
+        background: {c['green_soft']};
+        color: {c['green']};
+        border-left-color: {c['green']};
+    }}
+    QPushButton[nav='true'][collapsed='true']:checked {{
+        padding-left: 0px;
     }}
     QPushButton[nav='true'][collapsed='true'] {{
         padding: 0px;
@@ -650,7 +702,7 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         background: {c['blue']};
         border: 1px solid {c['blue']};
         border-radius: 9px;
-        color: {c['on_accent']};
+        color: {c['on_blue']};
         font-weight: 790;
     }}
     QPushButton[dashboardPrimaryAction='true']:hover {{
@@ -683,6 +735,25 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         background: {c['control_hover']};
         border-color: {c['blue_border']};
         color: {c['blue']};
+    }}
+    QPushButton[dashboardTelemetryAction='true'] {{
+        min-height: 26px;
+        padding: 8px 12px;
+        background: {c['red']};
+        border: 1px solid {c['red']};
+        border-radius: 9px;
+        color: {c['on_red']};
+        font-size: 12px;
+        font-weight: 780;
+    }}
+    QPushButton[dashboardTelemetryAction='true']:hover {{
+        background: {c['red_hover']};
+        border-color: {c['red_hover']};
+    }}
+    QPushButton[dashboardTelemetryAction='true']:disabled {{
+        background: {c['disabled_bg']};
+        border-color: {c['disabled_bg']};
+        color: {c['disabled_text']};
     }}
     QFrame[fsr4LaunchOption='true'] {{
         background: {c['panel']};
@@ -857,6 +928,57 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         background: {c['control_hover']};
         border-color: {c['border_strong']};
     }}
+    /* The update badge keeps the accent even at rest: it is only on screen
+       when there is something to act on, so it should not look like the
+       neutral links beside it. Tinted with the active accent color rather
+       than a fixed hue, so it always matches what the user picked. */
+    QPushButton[dashboardFooterAction='true'][updateAvailable='true'] {{
+        background: {c['blue_soft']};
+        border-color: {c['blue_border']};
+        color: {c['blue']};
+    }}
+    QPushButton[dashboardFooterAction='true'][updateAvailable='true']:hover,
+    QPushButton[dashboardFooterAction='true'][updateAvailable='true']:focus {{
+        background: {c['blue']};
+        color: {c['on_blue']};
+        border-color: {c['blue']};
+    }}
+    /* The callout draws its own body and tail, so the frame itself must stay
+       transparent; only the text and the two buttons are styled here. */
+    QFrame#updateCallout {{ background: transparent; border: none; }}
+    QFrame#updateCallout QLabel[updateCalloutTitle='true'] {{
+        color: {c['text']};
+        font-size: 12px;
+        font-weight: 800;
+        background: transparent;
+    }}
+    QFrame#updateCallout QLabel[updateCalloutDetail='true'] {{
+        color: {c['muted']};
+        font-size: 11px;
+        font-weight: 550;
+        background: transparent;
+    }}
+    QPushButton#updateCalloutAction {{
+        margin-top: 6px;
+        min-height: 28px;
+        padding: 0 12px;
+        background: {c['blue']};
+        border: 1px solid {c['blue']};
+        border-radius: 8px;
+        color: {c['on_blue']};
+        font-size: 11px;
+        font-weight: 750;
+    }}
+    QPushButton#updateCalloutAction:hover,
+    QPushButton#updateCalloutAction:focus {{
+        background: {c['blue_soft']};
+        color: {c['blue']};
+    }}
+    QPushButton#updateCalloutClose {{
+        background: transparent;
+        border: none;
+        padding: 0;
+    }}
     QPushButton[dashboardFooterAction='true']:pressed {{
         background: {c['control_pressed']};
     }}
@@ -922,7 +1044,7 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     }}
     QPushButton#DialogPrimary {{
         background: {c['blue']};
-        color: {c['on_accent']};
+        color: {c['on_blue']};
         border: 1px solid {c['blue']};
         border-radius: 9px;
         padding: 10px 18px;
@@ -938,7 +1060,7 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     }}
     QPushButton#DialogDanger {{
         background: {c['orange']};
-        color: {c['on_accent']};
+        color: {c['on_orange']};
         border: 1px solid {c['orange']};
         border-radius: 9px;
         padding: 10px 18px;
@@ -950,7 +1072,7 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     }}
     QPushButton#PrimaryAction, QPushButton[primaryAction='true'] {{
         background: {c['blue']};
-        color: {c['on_accent']};
+        color: {c['on_blue']};
         border: 1px solid {c['blue']};
         border-radius: 11px;
         padding: 10px 16px;
@@ -963,11 +1085,12 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QPushButton#PrimaryAction:disabled, QPushButton[primaryAction='true']:disabled {{
         background: {c['disabled_bg']};
         border-color: {c['disabled_bg']};
-        color: {c['on_accent']};
+        color: {c['disabled_text']};
     }}
     QPushButton#PrimaryAction[cuApplyAction='true'] {{
         background: {c['cyan']};
         border-color: {c['cyan']};
+        color: {c['on_cyan']};
     }}
     QPushButton#PrimaryAction[cuApplyAction='true']:hover {{
         background: {c['cyan_hover']};
@@ -976,7 +1099,7 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QPushButton#PrimaryAction[cuApplyAction='true']:disabled {{
         background: {c['disabled_bg']};
         border-color: {c['disabled_bg']};
-        color: {c['on_accent']};
+        color: {c['disabled_text']};
     }}
     QPushButton[dangerAction='true'] {{
         background: {c['red_soft']};
@@ -989,6 +1112,18 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QPushButton[dangerAction='true']:hover {{
         background: {c['red_soft']};
         border-color: {c['red_border']};
+    }}
+    QPushButton[successAction='true'] {{
+        background: {c['green_soft']};
+        color: {c['green']};
+        border: 1px solid {c['green_border']};
+        border-radius: 10px;
+        padding: 8px 13px;
+        font-weight: 760;
+    }}
+    QPushButton[successAction='true']:hover {{
+        background: {c['green_soft']};
+        border-color: {c['green']};
     }}
     QFrame[pageCard='true'] {{
         background: {c['panel']};
@@ -1049,6 +1184,22 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         color: {c['subtle']};
         font-size: 9px;
     }}
+    QLabel[workflowStepNumber='true'] {{
+        color: {c['blue']};
+        background: transparent;
+        border: none;
+        font-size: 15px;
+        font-weight: 850;
+    }}
+    QLabel[workflowStepTitle='true'] {{
+        color: {c['text']};
+        font-size: 12px;
+        font-weight: 800;
+    }}
+    QLabel[workflowStepDetail='true'] {{
+        color: {c['muted']};
+        font-size: 10px;
+    }}
     QSpinBox, QComboBox, QLineEdit {{
         background: {c['control']};
         border: 1px solid {c['border']};
@@ -1071,6 +1222,143 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         font-size: 10px;
         selection-background-color: {c['selection']};
     }}
+    /* The docked terminal. It slides up from the foot of the window, so it
+       carries a top border rather than a card outline and reaches both
+       edges the way a docked panel does. */
+    QFrame#consolePanel {{
+        background: {c['console_bg']};
+        border: none;
+        border-top: 1px solid {c['border_strong']};
+    }}
+    QWidget#consoleHeader {{
+        background: {c['panel_alt']};
+        border-bottom: 1px solid {c['console_border']};
+    }}
+    /* The left half reads as the active tab of a docked panel: the rule under
+       it carries the workflow state, so the colour is visible even when the
+       header is too narrow to show the words. */
+    QWidget#consoleTab {{
+        border-bottom: 2px solid {c['border_strong']};
+    }}
+    QWidget#consoleTab[tone='running'] {{ border-bottom-color: {c['blue']}; }}
+    QWidget#consoleTab[tone='ok'] {{ border-bottom-color: {c['green']}; }}
+    QWidget#consoleTab[tone='failed'] {{ border-bottom-color: {c['red']}; }}
+    QWidget#consoleTab[tone='warning'] {{ border-bottom-color: {c['orange']}; }}
+    QLabel#consoleTitle {{
+        color: {c['text']};
+        font-weight: 760;
+        font-size: 12px;
+    }}
+    QLabel#consoleState {{
+        color: {c['muted']};
+        font-size: 12px;
+    }}
+    QLabel#consoleState[tone='running'] {{ color: {c['blue']}; font-weight: 700; }}
+    QLabel#consoleState[tone='ok'] {{ color: {c['green']}; font-weight: 700; }}
+    QLabel#consoleState[tone='failed'] {{ color: {c['red']}; font-weight: 700; }}
+    QLabel#consoleState[tone='warning'] {{ color: {c['orange']}; font-weight: 700; }}
+    QPushButton#consoleHeaderButton {{
+        background: transparent;
+        color: {c['muted']};
+        border: 1px solid transparent;
+        border-radius: 7px;
+        padding: 3px 10px;
+        font-size: 12px;
+        font-weight: 640;
+    }}
+    QPushButton#consoleHeaderButton:hover {{
+        background: {c['control_hover']};
+        color: {c['text']};
+        border-color: {c['border_soft']};
+    }}
+    QPushButton#consoleHeaderButton:pressed {{
+        background: {c['control_pressed']};
+    }}
+    QPushButton#consoleHeaderButton:disabled {{
+        color: {c['disabled_text']};
+        background: transparent;
+        border-color: transparent;
+    }}
+    /* The answer row. It sits on the console's own ground so it reads as part
+       of the terminal, and turns amber while a prompt is hiding what is typed
+       — the one moment where an empty-looking field is correct rather than
+       broken. */
+    QWidget#consoleInputRow {{
+        background: {c['console_bg']};
+        border-top: 1px solid {c['console_border']};
+    }}
+    QLabel#consoleInputLabel {{
+        color: {c['muted']};
+        font-size: 12px;
+        font-weight: 700;
+    }}
+    QWidget#consoleInputRow[mode='secret'] QLabel#consoleInputLabel {{
+        color: {c['orange']};
+    }}
+    QLineEdit#consoleInput {{
+        background: {c['console_border']};
+        color: {c['console_text']};
+        border: 1px solid {c['console_border']};
+        border-radius: 8px;
+        padding: 5px 10px;
+        font-family: 'JetBrains Mono', 'DejaVu Sans Mono', 'Noto Sans Mono', monospace;
+        font-size: 12px;
+        selection-background-color: {c['blue']};
+    }}
+    QLineEdit#consoleInput:focus {{
+        border-color: {c['blue']};
+    }}
+    QWidget#consoleInputRow[mode='secret'] QLineEdit#consoleInput:focus {{
+        border-color: {c['orange']};
+    }}
+    QPushButton#consoleSendButton {{
+        background: {c['blue']};
+        color: {c['on_accent']};
+        border: none;
+        border-radius: 8px;
+        padding: 5px 16px;
+        font-size: 12px;
+        font-weight: 700;
+    }}
+    QPushButton#consoleSendButton:hover {{ background: {c['blue']}; }}
+    QPushButton#consoleSendButton:disabled {{
+        background: {c['disabled_bg']};
+        color: {c['disabled_text']};
+    }}
+    QAbstractScrollArea#embeddedTerminalView {{
+        background: {c['console_bg']};
+        border: none;
+    }}
+    QAbstractScrollArea#embeddedTerminalView QWidget {{
+        background: {c['console_bg']};
+    }}
+    /* A thin overlay rail rather than a full scrollbar: the output is what the
+       panel is for, and a chunky bar beside it competes for the eye. */
+    QAbstractScrollArea#embeddedTerminalView QScrollBar:vertical {{
+        background: transparent;
+        width: 10px;
+        margin: 0px;
+        border: none;
+    }}
+    QAbstractScrollArea#embeddedTerminalView QScrollBar::handle:vertical {{
+        background: {c['console_border']};
+        border-radius: 5px;
+        min-height: 28px;
+        margin: 2px;
+    }}
+    QAbstractScrollArea#embeddedTerminalView QScrollBar::handle:vertical:hover {{
+        background: {c['border_strong']};
+    }}
+    QAbstractScrollArea#embeddedTerminalView QScrollBar::add-line:vertical,
+    QAbstractScrollArea#embeddedTerminalView QScrollBar::sub-line:vertical {{
+        height: 0px;
+        border: none;
+        background: transparent;
+    }}
+    QAbstractScrollArea#embeddedTerminalView QScrollBar::add-page:vertical,
+    QAbstractScrollArea#embeddedTerminalView QScrollBar::sub-page:vertical {{
+        background: transparent;
+    }}
     QFrame[safetyNotice='orange'] {{
         background: {c['orange_soft']};
         border: 1px solid {c['orange_border']};
@@ -1085,6 +1373,17 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         background: {c['red_soft']};
         border: 1px solid {c['red']};
         border-radius: 11px;
+    }}
+    QFrame[safetyNotice='cyan'] {{
+        background: {c['cyan_soft']};
+        border: 1px solid {c['cyan_border']};
+        border-radius: 11px;
+    }}
+    QFrame[safetyNotice='cyan'] QLabel[noticeTitle='true'] {{
+        color: {c['cyan']};
+    }}
+    QFrame[safetyNotice='cyan'] QLabel[noticeBody='true'] {{
+        color: {c['muted']};
     }}
     QLabel[noticeTitle='true'] {{
         color: {c['orange']};
@@ -1103,6 +1402,9 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     }}
     QFrame[safetyNotice='red'] QLabel[noticeTitle='true'] {{
         color: {c['red']};
+    }}
+    QFrame[safetyNotice='red'] QLabel[noticeBody='true'] {{
+        color: {c['muted']};
     }}
     QFrame[confirmSummary='true'] {{
         background: {c['panel_alt']};
@@ -1207,7 +1509,7 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QLabel[gpuSummaryLabel='true'] {{
         color: {c['muted']};
         font-size: 8px;
-        font-weight: 760;
+        font-weight: 640;
     }}
     QLabel[gpuSummaryValue='true'] {{
         color: {c['text']};
@@ -1392,6 +1694,210 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         font-size: 13px;
         font-weight: 820;
     }}
+    /* Redesigned Cyan GPU view (gpu_governor_view.py). Every control the view
+       builds carries one of these properties, so nothing falls back to the
+       unstyled platform button. */
+    QWidget[gpuGovernorPage='true'] QFrame[subPanel='true'] {{
+        background: transparent;
+        border: 1px solid {c['border_soft']};
+        border-radius: 12px;
+    }}
+    QWidget[gpuGovernorPage='true'] QFrame[subPanel='true'][riskPanel='true'] {{
+        background: {c['red_soft']};
+        border: 1px solid {c['red_border']};
+    }}
+    QWidget[gpuGovernorPage='true'] QLabel[cardTitle='true'] {{
+        color: {c['text']};
+        font-size: 13px;
+        font-weight: 780;
+    }}
+    QWidget[gpuGovernorPage='true'] QPushButton[ghostButton='true'] {{
+        background: {c['panel_alt']};
+        border: 1px solid {c['border']};
+        border-radius: 10px;
+        padding: 9px 14px;
+        font-size: 12px;
+        font-weight: 720;
+        color: {c['text']};
+    }}
+    QWidget[gpuGovernorPage='true'] QPushButton[ghostButton='true']:hover {{
+        background: {c['control_hover']};
+        border-color: {c['border_strong']};
+    }}
+    QWidget[gpuGovernorPage='true'] QPushButton[ghostButton='true']:disabled {{
+        background: {c['disabled_bg']};
+        border-color: {c['border_soft']};
+        color: {c['disabled_text']};
+    }}
+    QWidget[gpuGovernorPage='true'] QPushButton[linkButton='true'] {{
+        background: transparent;
+        border: none;
+        padding: 4px 6px;
+        font-size: 12px;
+        font-weight: 720;
+        color: {c['blue']};
+    }}
+    QWidget[gpuGovernorPage='true'] QPushButton[linkButton='true']:hover {{
+        color: {c['blue_hover']};
+    }}
+    QWidget[gpuGovernorPage='true'] QPushButton[linkButton='true'][quiet='true'] {{
+        color: {c['muted']};
+    }}
+    QWidget[gpuGovernorPage='true'] QPushButton[linkButton='true'][quiet='true']:hover {{
+        color: {c['text']};
+    }}
+    QWidget[gpuGovernorPage='true'] QPushButton[iconOnlyButton='true'] {{
+        background: {c['panel_raised']};
+        border: 1px solid {c['border_soft']};
+        border-radius: 7px;
+        padding: 0px;
+    }}
+    QWidget[gpuGovernorPage='true'] QPushButton[iconOnlyButton='true']:hover {{
+        background: {c['control_hover']};
+        border-color: {c['blue_border']};
+    }}
+    QWidget[gpuGovernorPage='true'] QPushButton[toggleChip='true'] {{
+        background: {c['panel_alt']};
+        border: 1px solid {c['border']};
+        border-radius: 9px;
+        padding: 8px 13px;
+        font-size: 12px;
+        font-weight: 700;
+        color: {c['muted']};
+    }}
+    QWidget[gpuGovernorPage='true'] QPushButton[toggleChip='true']:hover {{
+        border-color: {c['border_strong']};
+        color: {c['text']};
+    }}
+    QWidget[gpuGovernorPage='true'] QPushButton[toggleChip='true']:checked {{
+        background: {c['blue_soft']};
+        border-color: {c['blue_border']};
+        color: {c['blue']};
+    }}
+    QWidget[gpuGovernorPage='true'] QPushButton[accentAction='true'] {{
+        background: {c['blue_soft']};
+        border: 1px solid {c['blue_border']};
+        border-radius: 10px;
+        padding: 9px 14px;
+        font-size: 12px;
+        font-weight: 740;
+        color: {c['blue']};
+    }}
+    QWidget[gpuGovernorPage='true'] QPushButton[accentAction='true']:hover {{
+        border-color: {c['blue']};
+        color: {c['blue_hover']};
+    }}
+    QWidget[gpuGovernorPage='true'] QPushButton[accentAction='true']:disabled {{
+        background: {c['disabled_bg']};
+        border-color: {c['border_soft']};
+        color: {c['disabled_text']};
+    }}
+    QWidget[gpuGovernorPage='true'] QPushButton#PrimaryAction {{
+        background: {c['blue']};
+        border-color: {c['blue']};
+        color: {c['on_blue']};
+        min-height: 22px;
+    }}
+    QWidget[gpuGovernorPage='true'] QPushButton#PrimaryAction:hover {{
+        background: {c['blue_hover']};
+        border-color: {c['blue_hover']};
+    }}
+    QWidget[gpuGovernorPage='true'] QPushButton#PrimaryAction:disabled {{
+        background: {c['disabled_bg']};
+        border-color: {c['disabled_bg']};
+        color: {c['disabled_text']};
+    }}
+    QWidget[gpuGovernorPage='true'] QFrame[profileCard='true'][selectedProfile='true'] {{
+        background: {c['blue_soft']};
+        border: 1px solid {c['blue_border']};
+    }}
+    QWidget[gpuGovernorPage='true'] QFrame[profileCard='true'][blockedProfile='true'] {{
+        border: 1px solid {c['red_border']};
+    }}
+    QWidget[gpuGovernorPage='true'] QLabel[eyebrow='true'] {{
+        color: {c['blue']};
+        font-size: 10px;
+        font-weight: 800;
+        background: transparent;
+    }}
+    QWidget[gpuGovernorPage='true'] QLabel[eyebrow='true'][danger='true'] {{
+        color: {c['red']};
+    }}
+    QWidget[gpuGovernorPage='true'] QLabel[railLegend='true'] {{
+        color: {c['red']};
+        font-size: 10px;
+        font-weight: 800;
+        background: transparent;
+    }}
+    QWidget[gpuGovernorPage='true'] QLabel[bigReadout='true'] {{
+        color: {c['text']};
+        font-size: 21px;
+        font-weight: 830;
+        background: transparent;
+    }}
+    QWidget[gpuGovernorPage='true'] QLabel[panelHeadline='true'] {{
+        color: {c['text']};
+        font-size: 15px;
+        font-weight: 800;
+        background: transparent;
+    }}
+    QWidget[gpuGovernorPage='true'] QLabel[rangeReadout='true'] {{
+        color: {c['text']};
+        font-size: 16px;
+        font-weight: 820;
+        background: transparent;
+    }}
+    QWidget[gpuGovernorPage='true'] QLabel[rangeReadout='true'][danger='true'] {{
+        color: {c['red']};
+    }}
+    QWidget[gpuGovernorPage='true'] QFrame[frequencyField='true'] {{
+        background: transparent;
+        border: none;
+    }}
+    QWidget[gpuGovernorPage='true'] QLabel[frequencyFieldLabel='true'] {{
+        color: {c['text']};
+        font-size: 12px;
+        font-weight: 700;
+        background: transparent;
+    }}
+    QWidget[gpuGovernorPage='true'] QLabel[frequencyChip='true'] {{
+        background: {c['window']};
+        border: 1px solid {c['border']};
+        border-radius: 9px;
+        padding: 7px 11px;
+        color: {c['text']};
+        font-size: 14px;
+        font-weight: 800;
+        min-width: 60px;
+    }}
+    QWidget[gpuGovernorPage='true'] QLabel[frequencyChip='true'][chipAccent='true'] {{
+        border-color: {c['blue_border']};
+        color: {c['blue']};
+    }}
+    QWidget[gpuGovernorPage='true'] QLabel[frequencyUnit='true'] {{
+        color: {c['muted']};
+        font-size: 11px;
+        background: transparent;
+    }}
+    QWidget[gpuGovernorPage='true'] QFrame[pickerRow='true'] {{
+        background: {c['window']};
+        border: 1px solid {c['border']};
+        border-radius: 9px;
+    }}
+    QWidget[gpuGovernorPage='true'] QFrame[pickerRow='true']:hover {{
+        border-color: {c['border_strong']};
+    }}
+    QWidget[gpuGovernorPage='true'] QLabel[pickerCaption='true'] {{
+        color: {c['muted']};
+        font-size: 12px;
+        background: transparent;
+    }}
+    QWidget[gpuGovernorPage='true'] QLabel[pickerValue='true'] {{
+        color: {c['text']};
+        font-size: 12px;
+        font-weight: 700;
+        background: transparent;
+    }}
     QFrame[dependencyActionTile='true'] {{
         background: {c['panel_alt']};
         border: 1px solid {c['border_soft']};
@@ -1436,19 +1942,19 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QPushButton[dependencyGfxAction='true'][dependencyGfxPrimary='true'] {{
         background: {c['blue']};
         border-color: {c['blue']};
-        color: {c['on_accent']};
+        color: {c['on_blue']};
     }}
     QPushButton[dependencyGfxAction='true'][dependencyGfxPrimary='true']:hover {{
         background: {c['blue_hover']};
         border-color: {c['blue_hover']};
-        color: {c['on_accent']};
+        color: {c['on_blue']};
     }}
     QPushButton[dependencyPrepareButton='true'] {{
         min-height: 26px;
         padding: 7px 14px;
         border-radius: 9px;
         background: {c['blue']};
-        color: {c['on_accent']};
+        color: {c['on_blue']};
         border: 1px solid {c['blue']};
         font-size: 12px;
         font-weight: 800;
@@ -1461,7 +1967,7 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QPushButton[dependencyPrepareButton='true']:disabled {{
         background: {c['disabled_bg']};
         border-color: {c['disabled_bg']};
-        color: {c['on_accent']};
+        color: {c['disabled_text']};
     }}
     QWidget#VoltageLabDrawerOverlay {{
         background: rgba(0, 0, 0, 145);
@@ -1477,14 +1983,18 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         background: transparent;
         border: none;
     }}
+    QFrame[voltageDrawerSeparator='true'] {{
+        background: {c['border_soft']};
+        border: none;
+        max-height: 1px;
+        min-height: 1px;
+    }}
     QPushButton[voltageDrawerClose='true'] {{
         background: {c['panel_alt']};
         border: 1px solid {c['border_soft']};
-        border-radius: 10px;
-        color: {c['text']};
+        border-radius: 9px;
+        color: {c['muted']};
         padding: 0px;
-        font-size: 22px;
-        font-weight: 800;
     }}
     QPushButton[voltageDrawerClose='true']:hover {{
         background: {c['panel_raised']};
@@ -1493,43 +2003,33 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     }}
     QLabel[voltageDrawerTitle='true'] {{
         color: {c['text']};
-        font-size: 16px;
-        font-weight: 850;
+        font-size: 15px;
+        font-weight: 800;
     }}
     QLabel[voltageDrawerSubtitle='true'] {{
-        color: {c['muted']};
+        color: {c['subtle']};
         font-size: 10px;
-        font-weight: 650;
-    }}
-    QFrame[voltageDrawerCard='true'] {{
-        background: {c['panel']};
-        border: 1px solid {c['border']};
-        border-radius: 13px;
+        font-weight: 600;
     }}
     QLabel[voltageDrawerSectionTitle='true'] {{
-        color: {c['text']};
-        font-size: 12px;
-        font-weight: 840;
-    }}
-    QFrame[voltageDrawerNotice='true'] {{
-        background: {c['orange_soft']};
-        border: 1px solid {c['orange_border']};
-        border-radius: 12px;
-    }}
-    QLabel[voltageDrawerNoticeText='true'] {{
-        color: {c['text']};
+        color: {c['muted']};
         font-size: 10px;
-        font-weight: 650;
+        font-weight: 700;
+    }}
+    QLabel[voltageDrawerLegend='true'] {{
+        color: {c['subtle']};
+        font-size: 9px;
+        font-weight: 640;
     }}
     QFrame[voltageDrawerCompatibility='true'] {{
         background: {c['panel_alt']};
-        border: 1px solid {c['border_strong']};
-        border-radius: 10px;
+        border: none;
+        border-bottom: 1px solid {c['border_soft']};
     }}
     QLabel[voltageDrawerCompatibilityTitle='true'] {{
         color: {c['text']};
         font-size: 11px;
-        font-weight: 820;
+        font-weight: 800;
     }}
     QLabel[voltageDrawerCompatibilityText='true'] {{
         color: {c['muted']};
@@ -1537,104 +2037,133 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         font-weight: 630;
     }}
     QPushButton[voltageDrawerProfile='true'] {{
-        min-height: 38px;
-        max-height: 54px;
-        padding: 6px 11px;
+        min-height: 40px;
+        max-height: 46px;
+        padding: 8px 11px;
         background: {c['panel_alt']};
         border: 1px solid {c['border_soft']};
-        border-radius: 13px;
+        border-radius: 8px;
         color: {c['text']};
         text-align: left;
         font-size: 11px;
-        font-weight: 760;
+        font-weight: 700;
     }}
     QPushButton[voltageDrawerProfile='true']:hover {{
         background: {c['panel_raised']};
         border-color: {c['border_strong']};
     }}
     QPushButton[voltageDrawerProfile='true']:checked {{
-        background: {c['panel_raised']};
-        border: 2px solid {c['border_strong']};
+        background: {c['blue_soft']};
+        border: 1px solid {c['blue']};
         color: {c['text']};
+    }}
+    QPushButton[voltageDrawerProfile='true']:disabled {{
+        color: {c['disabled_text']};
+        border-color: {c['border_soft']};
     }}
     QLabel[voltageDrawerDetail='true'] {{
         color: {c['muted']};
         background: transparent;
         border: none;
-        border-radius: 8px;
-        padding: 4px 1px 1px 1px;
+        padding: 0px;
         font-size: 10px;
-        font-weight: 630;
+        font-weight: 600;
     }}
     QLabel[voltageDrawerColumn='true'] {{
         color: {c['subtle']};
-        font-size: 8px;
-        font-weight: 760;
+        font-size: 9px;
+        font-weight: 650;
     }}
     QFrame[voltageDrawerCurveRow='true'] {{
+        background: transparent;
+        border: none;
+        border-top: 1px solid {c['border_soft']};
+        border-radius: 0px;
+    }}
+    QFrame[voltageDrawerCurveRow='true'][rowFirst='true'] {{
+        border-top: none;
+    }}
+    QFrame[voltageDrawerCurveRow='true']:hover {{
         background: {c['panel_alt']};
-        border: 1px solid {c['border_soft']};
-        border-radius: 9px;
     }}
     QLabel[voltageDrawerFrequency='true'] {{
-        color: {c['blue']};
-        font-size: 10px;
-        font-weight: 830;
+        color: {c['text']};
+        font-size: 11px;
+        font-weight: 700;
+        font-family: 'JetBrains Mono', 'Noto Sans Mono', monospace;
     }}
     QLabel[voltageDrawerCurrent='true'] {{
         color: {c['muted']};
-        font-size: 10px;
-        font-weight: 700;
+        font-size: 11px;
+        font-weight: 600;
+        font-family: 'JetBrains Mono', 'Noto Sans Mono', monospace;
     }}
     QLabel[voltageDrawerTarget='true'] {{
         color: {c['text']};
         font-size: 11px;
-        font-weight: 840;
+        font-weight: 700;
+        font-family: 'JetBrains Mono', 'Noto Sans Mono', monospace;
     }}
     QLabel[voltageDrawerDelta='true'] {{
-        color: {c['muted']};
-        font-size: 8px;
-        font-weight: 760;
+        color: {c['subtle']};
+        font-size: 10px;
+        font-weight: 700;
+        font-family: 'JetBrains Mono', 'Noto Sans Mono', monospace;
     }}
     QLabel[voltageDrawerDelta='true'][deltaTone='raised'] {{ color: {c['orange']}; }}
     QLabel[voltageDrawerDelta='true'][deltaTone='lowered'] {{ color: {c['cyan']}; }}
-    QLabel[voltageDrawerDelta='true'][deltaTone='default'] {{ color: {c['green']}; }}
+    QLabel[voltageDrawerDelta='true'][deltaTone='default'] {{ color: {c['subtle']}; }}
     QSpinBox[voltageDrawerEditor='true'] {{
-        min-width: 104px;
-        padding: 5px 7px;
+        padding: 4px 6px;
         background: {c['panel_alt']};
-        border: 1px solid {c['border_strong']};
-        border-radius: 10px;
-        color: {c['text']};
-        font-size: 10px;
-        font-weight: 820;
-    }}
-    QFrame[voltageDrawerFooter='true'] {{
-        background: {c['panel']};
         border: 1px solid {c['border']};
-        border-radius: 12px;
+        border-radius: 7px;
+        color: {c['text']};
+        font-size: 11px;
+        font-weight: 700;
+        font-family: 'JetBrains Mono', 'Noto Sans Mono', monospace;
+    }}
+    QSpinBox[voltageDrawerEditor='true']:focus {{
+        border-color: {c['blue']};
+    }}
+    QLabel[voltageDrawerSummary='true'] {{
+        color: {c['subtle']};
+        font-size: 10px;
+        font-weight: 620;
+        font-family: 'JetBrains Mono', 'Noto Sans Mono', monospace;
     }}
     QPushButton[voltageDrawerSecondary='true'] {{
         min-height: 38px;
+        padding: 0px 15px;
         background: {c['panel_alt']};
         border: 1px solid {c['border_soft']};
-        border-radius: 12px;
+        border-radius: 10px;
         color: {c['text']};
         font-size: 10px;
-        font-weight: 750;
+        font-weight: 700;
+    }}
+    QPushButton[voltageDrawerSecondary='true']:hover {{
+        background: {c['panel_raised']};
+        border-color: {c['border_strong']};
     }}
     QPushButton[voltageDrawerApply='true'] {{
         min-height: 38px;
+        padding: 0px 20px;
         background: {c['blue']};
         border: 1px solid {c['blue']};
-        border-radius: 12px;
-        color: {c['on_accent']};
+        border-radius: 10px;
+        color: {c['on_blue']};
         font-size: 11px;
-        font-weight: 850;
+        font-weight: 800;
     }}
     QPushButton[voltageDrawerApply='true']:hover {{
         background: {c['blue_hover']};
         border-color: {c['blue_hover']};
+    }}
+    QPushButton[voltageDrawerApply='true']:disabled {{
+        background: {c['disabled_bg']};
+        border-color: {c['disabled_bg']};
+        color: {c['disabled_text']};
     }}
     QPushButton[voltageLabLauncher='true'] {{
         background: {c['blue_soft']};
@@ -1645,7 +2174,7 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QPushButton[voltageLabLauncher='true']:hover {{
         background: {c['blue']};
         border-color: {c['blue']};
-        color: {c['on_accent']};
+        color: {c['on_blue']};
     }}
     QFrame[voltageLabToolbar='true'] {{
         background: {c['panel']};
@@ -1988,9 +2517,9 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         border: none;
     }}
     QLabel[cuLegendToken='true'] {{
-        border-radius: 6px;
-        padding: 3px 5px;
-        font-size: 8px;
+        border-radius: 7px;
+        padding: 4px 7px;
+        font-size: 10px;
         font-weight: 850;
     }}
     QLabel[cuLegendToken='true'][routeState='driver_on'] {{
@@ -2015,12 +2544,15 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     }}
     QLabel[cuLegendText='true'] {{
         color: {c['muted']};
-        font-size: 8px;
+        font-size: 10px;
         font-weight: 690;
     }}
     QPushButton[registerToggle='true'] {{
-        min-height: 28px;
-        padding: 5px 9px;
+        min-height: 20px;
+        max-height: 30px;
+        padding: 2px 9px;
+        border-radius: 8px;
+        font-size: 10px;
     }}
     QFrame[cuAdvancedRegisters='true'] {{
         background: {c['panel_alt']};

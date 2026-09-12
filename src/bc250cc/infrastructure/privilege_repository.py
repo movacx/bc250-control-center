@@ -5,12 +5,14 @@ import re
 import stat
 from pathlib import Path
 
+from bc250cc.infrastructure.polkit_session import pkexec_argv
 from bc250cc.infrastructure.session_privilege_policy import (
     SteamSessionSignals,
     classify_steamos_game_mode,
     has_desktop_shell,
     trusted_helper_metadata,
 )
+from bc250cc.shared.failure_text import describe_failure
 
 
 class PrivilegeRepository:
@@ -191,14 +193,15 @@ class PrivilegeRepository:
             value = os.environ.get(name)
             if value:
                 forwarded.extend(['--origin-env', f'{name}={value}'])
-        return ['pkexec', helper, *forwarded, '--', *[str(arg) for arg in args]]
+        return pkexec_argv(
+            'pkexec', helper, *forwarded, '--', *args, prepare_agent=False
+        )
 
     def _ejecutar_steamos_game_helper(self, *args, timeout=240):
         comando = self._comando_steamos_game_helper(*args)
         rc, out, err = self._ejecutar(comando, timeout=timeout)
         if rc != 0:
-            detalle = err or out or f'exit code {rc}'
-            raise RuntimeError(detalle)
+            raise RuntimeError(describe_failure(rc, out, err))
         return (out or '').strip()
 
     def _ejecutar_steamos_fan_daemon_helper(self, pwm, value, timeout=120):
@@ -207,5 +210,5 @@ class PrivilegeRepository:
         comando = self._comando_steamos_game_helper('fan-daemon-pwm', int(pwm), int(value))
         rc, out, err = self._ejecutar(comando, timeout=timeout)
         if rc != 0:
-            raise RuntimeError(err or out or f'exit code {rc}')
+            raise RuntimeError(describe_failure(rc, out, err))
         return (out or '').strip()

@@ -48,6 +48,61 @@
     <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/bc250-control-center/bc250-governor-config-helper</annotate>
   </action>
 
+  <action id="io.github.movacx.bc250-control-center.cpu-smu">
+    <description>Apply validated BC250 CPU and SMU settings</description>
+    <message>Authentication is required to change BC250 CPU and SMU settings</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/bc250-control-center/bc250-cpu-smu-helper</annotate>
+  </action>
+
+  <action id="io.github.movacx.bc250-control-center.system-setup">
+    <description>Apply validated BC250 memory and ACPI settings</description>
+    <message>Authentication is required to change BC250 memory or ACPI settings</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/bc250-control-center/bc250-system-setup-helper</annotate>
+  </action>
+
+  <action id="io.github.movacx.bc250-control-center.openrc-service">
+    <description>Install validated BC250 OpenRC services</description>
+    <message>Authentication is required to manage BC250 OpenRC services</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/bc250-control-center/bc250-openrc-service-helper</annotate>
+  </action>
+
+  <action id="io.github.movacx.bc250-control-center.service-control">
+    <description>Restart an approved BC250 governor service</description>
+    <message>Authentication is required to restart the selected BC250 governor</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/bc250-control-center/bc250-service-helper</annotate>
+  </action>
+
+  <action id="io.github.movacx.bc250-control-center.maintenance">
+    <description>Run a bounded BC250 system maintenance action</description>
+    <message>Authentication is required to release filesystem caches</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/bc250-control-center/bc250-maintenance-helper</annotate>
+  </action>
+
   <action id="io.github.movacx.bc250-control-center.core-unlock">
     <description>Unlock the two additional BC250 CPU cores</description>
     <message>Authentication is required to unlock CPU cores and reboot the BC250</message>

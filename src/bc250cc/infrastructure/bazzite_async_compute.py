@@ -14,6 +14,13 @@ BAZZITE_ASYNC_COMPUTE_VERSION = "0.2.4"
 BAZZITE_ASYNC_COMPUTE_TAG = f"v{BAZZITE_ASYNC_COMPUTE_VERSION}"
 BAZZITE_ASYNC_COMPUTE_COMMIT = "aca67e88542d81334fb0161803039d8a0f2945f6"
 BAZZITE_ASYNC_COMPUTE_TESTED_KERNEL = "7.2.0-ogc4.1"
+# Upstream publishes no checksum of its own, so this one was computed here from
+# the v0.2.4 release asset and is what pins the install. It is deliberately not
+# derived from anything fetched at run time: if the upstream asset is ever
+# re-cut under the same tag, the install stops with exit 29 instead of silently
+# picking up different bytes. Recompute and update this line only together with
+# BAZZITE_ASYNC_COMPUTE_VERSION, BAZZITE_ASYNC_COMPUTE_COMMIT and the kernel
+# baseline below, after reviewing the new release.
 BAZZITE_ASYNC_COMPUTE_ARCHIVE_SHA256 = (
     "fabece2f0735fd4f096bb253894f53d342e1eb4ec18c761eaca1ac9d20330711"
 )
@@ -122,7 +129,7 @@ def build_bazzite_async_compute_command(action: str) -> str:
     commands = [
         "set -Eeuo pipefail",
         "export LC_ALL=C LANG=C",
-        'echo "== BC-250 async compute v0.2.4 for Bazzite 44 =="',
+        'echo; echo "=========================================================================="; echo "  BC-250 async compute - Bazzite 44"; echo "  pinned release v0.2.4"; echo "=========================================================================="; echo',
         'test -r /etc/os-release || { echo "ERROR: /etc/os-release is unavailable."; exit 64; }',
         ". /etc/os-release",
         'test "${ID:-}" = bazzite || { echo "ERROR: This workflow is available only on Bazzite."; exit 64; }',
@@ -179,10 +186,11 @@ def build_bazzite_async_compute_command(action: str) -> str:
     if action == "install":
         commands.extend((
             'test -s "$bc250_source/payload/lib64/libvulkan_radeon.so" || { echo "ERROR: reviewed RADV payload is missing."; exit 29; }',
-            'sudo "$bc250_source/install.sh" --yes',
+            'sudo "$bc250_source/install.sh" --yes --per-game',
             f'test "$(cat {BAZZITE_ASYNC_COMPUTE_SHARE}/VERSION 2>/dev/null)" = {BAZZITE_ASYNC_COMPUTE_VERSION} || {{ echo "ERROR: installed version validation failed."; exit 29; }}',
-            'echo "OK: async compute v0.2.4 installed. Log out and back in to activate the patched RADV driver."',
-            'echo "RECOVERY: Ctrl+Alt+F3, then sudo rm /etc/environment.d/95-bc250-async-compute.conf and reboot."',
+            'test ! -e /etc/environment.d/95-bc250-async-compute.conf || { echo "ERROR: per-game install unexpectedly enabled the driver system-wide."; exit 29; }',
+            'echo "OK: async compute v0.2.4 installed as an optional per-game RADV driver."',
+            f'''printf '%s\n' 'Steam launch option: VK_DRIVER_FILES={BAZZITE_ASYNC_COMPUTE_ICD} %command%' ''',
         ))
     else:
         commands.extend((

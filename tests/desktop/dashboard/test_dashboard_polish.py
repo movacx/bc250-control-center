@@ -432,3 +432,12 @@ def test_decky_screenshot_preview_opens_without_losing_component_selection(qtbot
     qtbot.wait(100)
     assert preparation.selected_components == selected
     assert abs(preparation.height() - components_height) <= 1
+
+    dialog.deleteLater()
+    qtbot.waitUntil(lambda: preparation._decky_screenshot_dialog is None)
+    preparation.select_tab(2)
+    preparation.decky_preview_button.click()
+    replacement = preparation._decky_screenshot_dialog
+    assert replacement is not dialog
+    assert replacement.isVisible()
+    replacement.close()

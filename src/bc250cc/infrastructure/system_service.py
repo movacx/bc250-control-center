@@ -1,7 +1,9 @@
 import logging
 import os
 import signal
+import stat
 import subprocess
+from pathlib import Path
 
 import psutil
 
@@ -11,6 +13,8 @@ from bc250cc.application.system.process_termination_policy import (
 )
 from bc250cc.domain.common.proceso import Proceso
 from bc250cc.domain.common.rendimiento import Rendimiento
+from bc250cc.infrastructure.polkit_session import normalize_polkit_error, pkexec_argv
+from bc250cc.shared.failure_text import describe_failure
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +28,7 @@ CRITICOS = [
     'xdg-desktop', 'xdg-document-portal', 'xdg-permission-store', 'portal',
     'polkit', 'pipewire', 'wireplumber', 'pulseaudio', 'loginctl',
     'konsole', 'ptyxis', 'kgx', 'gnome-terminal', 'bash', 'zsh', 'fish', 'python',
-    'codex', 'bc250-control-center'
+    'bc250-control-center'
 ]
 
 OCULTOS = CRITICOS + [
@@ -180,9 +184,25 @@ class SistemaService:
 
     def limpiar_cache(self):
         """Run the fixed privileged cache workflow and report its real result."""
+        helper = Path("/usr/libexec/bc250-control-center/bc250-maintenance-helper")
+        try:
+            metadata = helper.stat(follow_symlinks=False)
+        except OSError as error:
+            raise RuntimeError(
+                "The protected maintenance helper is missing. Reinstall Control Center."
+            ) from error
+        if (
+            helper.is_symlink()
+            or not stat.S_ISREG(metadata.st_mode)
+            or metadata.st_uid != 0
+            or metadata.st_mode & 0o022
+            or not metadata.st_mode & stat.S_IXUSR
+        ):
+            raise RuntimeError("The protected maintenance helper has unsafe permissions.")
+        command = pkexec_argv("pkexec", str(helper), "drop-caches")
         try:
             result = subprocess.run(
-                ['pkexec', 'sh', '-c', 'sync; echo 3 > /proc/sys/vm/drop_caches'],
+                command,
                 text=True,
                 capture_output=True,
                 timeout=120,
@@ -192,9 +212,9 @@ class SistemaService:
             raise RuntimeError('pkexec is not available on this system.') from error
         except subprocess.TimeoutExpired as error:
             raise RuntimeError('The privileged cache operation timed out.') from error
-        output = (result.stdout or result.stderr or '').strip()
+        output = (result.stdout or normalize_polkit_error(command, result.stderr) or '').strip()
         if result.returncode != 0:
-            raise RuntimeError(output or f'pkexec exited with code {result.returncode}.')
+            raise RuntimeError(describe_failure(result.returncode, output, ''))
         return {'returncode': result.returncode, 'output': output}
 
     def detectar_juego_activo(self):
@@ -369,8 +389,14 @@ class SistemaService:
     def preparar_memoria(self, policy: str, ttm_gib: int):
         return self.repo.preparar_memoria(policy, ttm_gib)
 
+    def gestionar_mitigaciones_bazzite(self, action: str):
+        return self.repo.gestionar_mitigaciones_bazzite(action)
+
     def gestionar_acpi(self, action: str):
         return self.repo.gestionar_acpi(action)
+
+    def reparar_telemetria_8core(self, action: str = "telemetry-fix"):
+        return self.repo.reparar_telemetria_8core(action)
 
     def preparar_compatibilidad_steamos(self):
         return self.repo.preparar_compatibilidad_steamos()

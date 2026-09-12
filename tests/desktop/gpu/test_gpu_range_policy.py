@@ -129,7 +129,14 @@ def test_undervolt_and_high_frequency_warnings_accumulate(evidence):
     assert "undervolt" in decision.warnings[0].message
 
 
-def test_oberon_accepts_only_the_two_conservative_desktop_profiles(evidence):
+def test_oberon_accepts_the_three_offered_profiles_and_nothing_else(evidence):
+    """Benchmark is (1000, 2000), and used to be rejected here.
+
+    Quick Access wrote (1000, 2000) into /etc/oberon-config.yaml while this
+    validator only knew (2000, 2000), so applying Benchmark in Game Mode left
+    the desktop GPU page demanding Oberon recovery for a configuration the
+    project had written itself. The written shape is the one that stays.
+    """
     oberon = replace(
         evidence,
         backend="oberon-governor",
@@ -139,16 +146,27 @@ def test_oberon_accepts_only_the_two_conservative_desktop_profiles(evidence):
 
     balanced = validate_gpu_range(1000, 1500, oberon)
     gaming = validate_gpu_range(1000, 1850, oberon)
-    maximum = validate_gpu_range(1000, 2000, oberon)
+    benchmark = validate_gpu_range(1000, 2000, oberon)
     recovery = validate_gpu_range(500, 1000, oberon)
     custom = validate_gpu_range(1000, 2200, oberon)
 
     assert balanced.valid is True
     assert gaming.valid is True
-    assert maximum.valid is False
+    assert benchmark.valid is True
     assert recovery.valid is False
     assert custom.valid is False
     assert custom.notice.title == "Unsupported Oberon profile"
+
+
+def test_a_desktop_that_already_applied_the_old_benchmark_is_not_stranded(evidence):
+    """(2000, 2000) is no longer offered, but it is still on disk somewhere."""
+    oberon = replace(
+        evidence,
+        backend="oberon-governor",
+        safe_frequencies=(),
+        safe_voltages={},
+    )
+    assert validate_gpu_range(2000, 2000, oberon).valid is True
 
 
 def test_new_curve_rejections_are_translated_in_every_supported_language():

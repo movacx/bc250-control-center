@@ -125,7 +125,7 @@ def test_newer_trusted_game_mode_helper_remains_compatible_with_an_older_gui(tmp
         "governor-restart", "cyan-skillfish-governor-smu.service"
     )
 
-    assert command[:2] == ["pkexec", str(helper)]
+    assert command[:3] == ["pkexec", "--disable-internal-agent", str(helper)]
 
 
 def test_game_mode_helper_older_than_the_minimum_is_rejected(tmp_path):

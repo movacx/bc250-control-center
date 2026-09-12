@@ -127,12 +127,13 @@ def test_voltage_apply_qt_adapter_dispatches_the_planned_profile(qtbot, monkeypa
             for frequency, voltage in voltage_profile(0).items()
         ]
     })
-    page.voltage_level_combo.setCurrentIndex(page.voltage_level_combo.findData(3))
+    # The drawer is the only voltage surface; it carries the selected profile.
+    page.voltage_lab_drawer.set_profile(3)
     captured = []
     page._run_backend_action = lambda operation, *_args, **_kwargs: captured.append(operation)
     monkeypatch.setattr(gpu_page_module, "ConfirmDialog", _AcceptedDialog)
 
-    page._request_apply_voltage_curve()
+    page._request_apply_voltage_curve_from_drawer()
 
     assert dict(_AcceptedDialog.last_summary)["Curve points"] == str(len(voltage_profile(0)))
     assert len(captured) == 1
@@ -150,14 +151,15 @@ def test_voltage_apply_qt_adapter_blocks_invalid_custom_curve(qtbot, monkeypatch
             {"frequency": 1850, "voltage": 930},
         ]
     })
-    page.voltage_level_combo.setCurrentIndex(page.voltage_level_combo.findData(-1))
-    page._voltage_spinboxes[1850].setValue(880)
+    # Custom mode, then the same edit a person makes in the drawer's editor.
+    page._select_drawer_voltage_profile(-1)
+    page.voltage_lab_drawer._editors[1850].setValue(880)
     notices = []
     page._show_info = lambda *args, **kwargs: notices.append((args, kwargs))
     page._run_backend_action = lambda *_args, **_kwargs: pytest.fail("invalid curve dispatched")
     monkeypatch.setattr(gpu_page_module, "ConfirmDialog", _AcceptedDialog)
 
-    page._request_apply_voltage_curve()
+    page._request_apply_voltage_curve_from_drawer()
 
     assert notices[0][0][0] == "Invalid voltage curve"
     assert notices[0][1]["tone"] == "red"

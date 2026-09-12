@@ -117,3 +117,17 @@ def _launch_default_text_editor(path: Path) -> tuple[bool, str]:
     except OSError as error:
         return False, f"The default text editor could not be launched: {error}"
     return True, ""
+
+
+def update_checks_enabled() -> bool:
+    """Whether the application may ask GitHub about newer releases.
+
+    Beside the other outward-facing helpers rather than inside the dashboard, so
+    a second update surface would read the same switch instead of inventing one.
+
+    Imported here rather than at module scope because ``preferences`` reaches
+    back into this package, and a top-level import would close the loop.
+    """
+    from .preferences import UiPreferences
+
+    return UiPreferences().bool_value("settings/update_check", True)

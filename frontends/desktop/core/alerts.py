@@ -44,10 +44,6 @@ class SmartAlertMonitor(QObject):
         self._sample_busy = False
         self.set_enabled(False)
 
-    def _setting_bool(self, key: str, default: bool) -> bool:
-        value = self.settings.value(key, "true" if default else "false")
-        return str(value).strip().lower() in {"1", "true", "yes", "on"}
-
     def set_enabled(self, enabled: bool) -> None:
         del enabled
         self.settings.setValue("settings/smart_alerts", "false")

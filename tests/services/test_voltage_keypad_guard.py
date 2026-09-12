@@ -66,10 +66,10 @@ def test_real_voltage_lab_passive_refresh_preserves_active_keypad_edit(qtbot):
             {"frequency": 1850, "voltage": 930},
         ]
     })
-    page.voltage_level_combo.setCurrentIndex(
-        page.voltage_level_combo.findData(-1)
-    )
-    spin = page._voltage_spinboxes[1000]
+    # Custom mode is what puts editable spin boxes on screen, and the drawer
+    # is the only surface that has them now.
+    page._select_drawer_voltage_profile(-1)
+    spin = page.voltage_lab_drawer._editors[1000]
     spin.setValue(825)
     keypad = QFrame(page)
     keypad.setProperty("gamepadKeypad", True)
@@ -84,5 +84,5 @@ def test_real_voltage_lab_passive_refresh_preserves_active_keypad_edit(qtbot):
     })
 
     assert page._voltage_points == [(1000, 800), (1850, 930)]
-    assert page._voltage_spinboxes[1000] is spin
+    assert page.voltage_lab_drawer._editors[1000] is spin
     assert spin.value() == 825

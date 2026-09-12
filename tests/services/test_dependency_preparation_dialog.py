@@ -3,7 +3,11 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QFrame, QPushButton, QScrollArea
 
 from frontends.desktop.i18n import tr
-from frontends.desktop.pages.gpu_governor import DependencyPreparationDialog
+from frontends.desktop.pages import gpu_governor as gpu_governor_module
+from frontends.desktop.pages.gpu_governor import (
+    DependencyPreparationDialog,
+    GpuGovernorPage,
+)
 
 
 def _tools():
@@ -124,6 +128,82 @@ def test_dependency_dialog_places_memory_policy_in_components_and_ttm_in_gpu(qtb
     assert dialog.action == ""
 
 
+def test_dependency_dialog_exposes_owned_bazzite_mitigation_restore(qtbot):
+    tools = _tools()
+    tools.update({
+        "os_id": "bazzite",
+        "os_family": "bazzite",
+        "os_label": "Bazzite",
+        "bazzite_mitigations": {
+            "available": True,
+            "active": False,
+            "configured": True,
+            "managed": True,
+            "reboot_required": True,
+        },
+    })
+    dialog = DependencyPreparationDialog(tools, "cyan-skillfish-governor-smu")
+    qtbot.addWidget(dialog)
+
+    assert dialog.mitigations_status.text() == tr("Reboot required")
+    dialog.mitigations_apply_button.click()
+
+    assert dialog.action == "bazzite_mitigations_restore"
+
+
+def test_dependency_dialog_omits_cpu_mitigations_outside_bazzite(qtbot):
+    tools = _tools()
+    tools.update({
+        "os_id": "cachyos",
+        "os_family": "cachyos",
+        "os_label": "CachyOS",
+    })
+    dialog = DependencyPreparationDialog(tools, "cyan-skillfish-governor-smu")
+    qtbot.addWidget(dialog)
+
+    assert not hasattr(dialog, "mitigations_card")
+    assert not hasattr(dialog, "mitigations_apply_button")
+
+
+def test_dependency_dialog_allows_inert_bazzite_preview_on_cachyos(
+    qtbot, monkeypatch
+):
+    monkeypatch.setenv("BC250_BAZZITE_UI_PREVIEW", "1")
+    tools = _tools()
+    tools.update({
+        "os_id": "cachyos",
+        "os_family": "cachyos",
+        "os_label": "CachyOS",
+    })
+    dialog = DependencyPreparationDialog(tools, "cyan-skillfish-governor-smu")
+    qtbot.addWidget(dialog)
+
+    assert dialog.mitigations_status.isHidden()
+    assert not dialog.mitigations_apply_button.isEnabled()
+
+
+def test_dependency_dialog_does_not_claim_external_mitigations_off(qtbot):
+    tools = _tools()
+    tools.update({
+        "os_id": "bazzite",
+        "os_family": "bazzite",
+        "os_label": "Bazzite",
+        "bazzite_mitigations": {
+            "available": True,
+            "active": True,
+            "configured": True,
+            "managed": False,
+            "reboot_required": False,
+        },
+    })
+    dialog = DependencyPreparationDialog(tools, "cyan-skillfish-governor-smu")
+    qtbot.addWidget(dialog)
+
+    assert dialog.mitigations_apply_button.text() == tr("Managed externally")
+    assert not dialog.mitigations_apply_button.isEnabled()
+    assert "mitigations=off" in dialog.mitigations_apply_button.toolTip()
+
+
 @pytest.mark.parametrize("family,label", [("steamos", "SteamOS"), ("bazzite", "Bazzite"), ("cachyos", "CachyOS")])
 def test_dependency_dialog_shows_optional_quick_access_on_game_mode_families(qtbot, family, label):
     tools = _tools()
@@ -197,6 +277,22 @@ def test_dependency_dialog_exposes_cachyos_kernel_as_an_explicit_action(qtbot):
     _button(dialog, "Install BC-250 kernel").click()
 
     assert dialog.action == "cachyos_bc250_kernel"
+    assert dialog.gfx1013_card.isHidden()
+
+
+def test_dependency_dialog_keeps_gfx1013_visible_without_the_mastag_stack(qtbot):
+    tools = _tools()
+    tools.update({
+        "os_id": "bazzite",
+        "os_family": "bazzite",
+        "os_label": "Bazzite",
+        "masta_bc250_stack_supported": False,
+        "gfx1013_compute": {"reason_key": "bazzite-release-managed"},
+    })
+    dialog = DependencyPreparationDialog(tools, "cyan-skillfish-governor-smu")
+    qtbot.addWidget(dialog)
+
+    assert not dialog.gfx1013_card.isHidden()
 
 
 @pytest.mark.parametrize(
@@ -241,6 +337,7 @@ def test_gfx1013_card_routes_only_explicit_steamos_actions(qtbot):
     dialog = DependencyPreparationDialog(tools, "cyan-skillfish-governor-smu")
     qtbot.addWidget(dialog)
 
+    assert not dialog.gfx1013_card.isHidden()
     _button(dialog, "1 · Install SteamOS kernel").click()
 
     assert dialog.action == "steamos_compat"
@@ -280,6 +377,28 @@ def test_gfx1013_card_exposes_combined_official_upstream_install_on_fedora(qtbot
     assert dialog.action == "gfx1013_fedora_install"
 
 
+@pytest.mark.parametrize("version_id", ("43", "44"))
+def test_gfx1013_card_is_visible_on_supported_fedora_releases(
+    qtbot, version_id
+):
+    tools = _tools()
+    tools.update({
+        "os_id": "fedora",
+        "os_family": "fedora",
+        "os_label": f"Fedora {version_id}",
+        "version_id": version_id,
+        "masta_bc250_stack_supported": False,
+        "gfx1013_compute": {
+            "reason_key": "fedora-upstream-managed",
+            "version_id": version_id,
+        },
+    })
+    dialog = DependencyPreparationDialog(tools, "cyan-skillfish-governor-smu")
+    qtbot.addWidget(dialog)
+
+    assert not dialog.gfx1013_card.isHidden()
+
+
 def test_gfx1013_card_keeps_bazzite_install_disabled_on_old_kernel(qtbot):
     tools = _tools()
     tools["gfx1013_compute"] = {
@@ -316,6 +435,46 @@ def test_gfx1013_card_routes_reviewed_bazzite_release(qtbot):
     assert install.isEnabled()
     install.click()
     assert dialog.action == "gfx1013_bazzite_install"
+
+
+def test_bazzite_upstream_button_opens_the_bazzite_async_compute_project(
+    qtbot, monkeypatch
+):
+    tools = _tools()
+    tools["gfx1013_compute"] = {
+        "reason_key": "bazzite-release-managed",
+        "direct_installer_allowed": True,
+        "bazzite_async_installed": False,
+    }
+    dialog = DependencyPreparationDialog(tools, "cyan-skillfish-governor-smu")
+    qtbot.addWidget(dialog)
+
+    opened = []
+    monkeypatch.setattr(
+        gpu_governor_module,
+        "open_external_url",
+        lambda url: (opened.append(url) or True, ""),
+    )
+    upstream = next(
+        button
+        for button in dialog.findChildren(QPushButton)
+        if button.text() == "Open upstream project" and not button.isHidden()
+    )
+    upstream.click()
+    assert opened == [
+        "https://github.com/tri3gubki-ops/bc250-async-compute-bazzite"
+    ]
+
+    opened.clear()
+    receiver = type("Receiver", (), {"current_state": {}})()
+    GpuGovernorPage._open_compatibility_upstream(
+        receiver,
+        "bazzite_async_upstream",
+        dialog_parent=None,
+    )
+    assert opened == [
+        "https://github.com/tri3gubki-ops/bc250-async-compute-bazzite"
+    ]
 
 
 def present_gfx_install_buttons(dialog):

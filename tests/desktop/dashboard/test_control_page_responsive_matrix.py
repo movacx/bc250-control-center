@@ -147,22 +147,3 @@ def test_remaining_primary_pages_follow_viewport_and_keep_copy_visible(
         set_language("en")
 
 
-@pytest.mark.parametrize("language", ("en", "es", "de", "pl"))
-@pytest.mark.parametrize("width", (360, 720, 1024))
-def test_voltage_lab_contains_dense_grid_overflow_locally(qtbot, language, width):
-    try:
-        set_language(language)
-        page = GpuGovernorPage(object())
-        qtbot.addWidget(page)
-        page.page_stack.setCurrentWidget(page.voltage_lab_page)
-        page.resize(width, 800)
-        page.show()
-        qtbot.wait(5)
-
-        assert page.voltage_scroll.horizontalScrollBar().maximum() == 0
-        assert page.voltage_content.width() == page.voltage_scroll.viewport().width()
-        assert _clipped_copy(page.voltage_lab_page, ignored_parent=page.voltage_curve_grid) == ([], [])
-        if width == 360:
-            assert page.voltage_curve_scroll.horizontalScrollBar().maximum() > 0
-    finally:
-        set_language("en")

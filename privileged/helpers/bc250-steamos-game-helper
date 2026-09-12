@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python3 -I
 """Limited privileged helper for BC250 Control Center on gaming distributions.
 
 This helper is intentionally narrow. It exists because SteamOS Game Mode runs
@@ -9,6 +9,7 @@ contexts; the helper independently validates the caller, hardware and session.
 from __future__ import annotations
 
 import datetime
+import fcntl
 import json
 import os
 import pathlib
@@ -19,6 +20,7 @@ import subprocess
 import sys
 import time
 from collections.abc import Sequence
+from contextlib import contextmanager
 
 GPU_LAB_SCRIPT = pathlib.Path('/usr/libexec/bc250-control-center/bc250-gpu-voltage-lab.sh')
 GOVERNOR_TOML_EDITOR = pathlib.Path('/usr/libexec/bc250-control-center/lib/governor_toml.py')
@@ -43,6 +45,36 @@ PWM_MODE_VERIFY_INTERVAL_SECONDS = 0.05
 PWM_MODE_SETTLE_SECONDS = 0.15
 PWM_DUTY_VERIFY_ATTEMPTS = 16
 PWM_DUTY_VERIFY_INTERVAL_SECONDS = 0.10
+FAN_OPERATION_LOCK = pathlib.Path('/run/bc250-control-center-fan.lock')
+CU_OPERATION_LOCK = pathlib.Path('/run/bc250-control-center-cu.lock')
+OPERATION_LOCK_TIMEOUT_SECONDS = 3.0
+
+
+@contextmanager
+def operation_lock(path: pathlib.Path, label: str):
+    flags = os.O_CREAT | os.O_RDWR | getattr(os, 'O_CLOEXEC', 0)
+    flags |= getattr(os, 'O_NOFOLLOW', 0)
+    descriptor = os.open(path, flags, 0o600)
+    try:
+        metadata = os.fstat(descriptor)
+        if (
+            not stat.S_ISREG(metadata.st_mode)
+            or metadata.st_uid != 0
+            or metadata.st_mode & 0o077
+        ):
+            raise RuntimeError(f'Unsafe {label} operation lock.')
+        deadline = time.monotonic() + OPERATION_LOCK_TIMEOUT_SECONDS
+        while True:
+            try:
+                fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except BlockingIOError:
+                if time.monotonic() >= deadline:
+                    raise RuntimeError(f'Another {label} operation is still in progress.')
+                time.sleep(0.025)
+        yield
+    finally:
+        os.close(descriptor)
 
 
 def fail(message: str, code: int = 1) -> int:
@@ -163,9 +195,21 @@ def detect_game_mode(origin_pid: int | None, forwarded_env: dict[str, str]) -> t
     if desktop:
         negatives.append('origin desktop shell detected')
 
+    # A "direct marker" is allowed to override the desktop-shell veto below,
+    # so it has to be something only the gamescope session sets.
+    #
+    # ``SteamClientLaunch`` is not that: the Steam client exports it into every
+    # game it launches, including from Desktop Mode. With it here, starting any
+    # Steam game on a desktop session and pointing ``--origin-pid`` at it
+    # cleared the veto and scored 6 — unauthenticated root for fan-pwm,
+    # gpu-voltage, governor-config, governor-restart and cpu-oc. It stays out.
+    #
+    # ``SteamDeck`` is likewise set on a Steam Deck in both modes; it says
+    # which hardware this is, not which session. It still contributes to the
+    # score through the Steam launch ids below, but it cannot clear the veto.
     direct_markers = (
         'GAMESCOPE_WAYLAND_DISPLAY', 'SteamGamepadUI', 'STEAM_GAMEPADUI',
-        'SteamTenfoot', 'SteamDeck', 'SteamClientLaunch',
+        'SteamTenfoot',
     )
     present_direct = [name for name in direct_markers if env.get(name)]
     if present_direct:
@@ -350,6 +394,50 @@ def staged_cu_runtime() -> tuple[pathlib.Path, pathlib.Path | None]:
     return GENERIC_CU_STAGED_BACKEND, None
 
 
+# Actions whose effect outlives the session: they rewrite a configuration file
+# under /etc, restart a system service, install a boot unit, or move the GPU
+# voltage ladder. From the desktop each of these already has its own helper
+# behind ``auth_admin_keep``; this helper exists so Game Mode can reach them
+# without a Polkit dialog that gamescope frequently cannot display.
+#
+# Polkit keys an action to a *binary path*, so one helper cannot carry two
+# authorization levels. The split therefore lives here: everything reversible
+# (fan duty, live CU routing) passes on the ordinary checks, while the actions
+# below additionally demand direct evidence of a gamescope session rather than
+# the weighted score, which is a heuristic and was bypassable.
+PERSISTENT_ACTIONS = frozenset({
+    'gpu-voltage', 'governor-config', 'governor-restart', 'cpu-oc-service',
+})
+
+
+def gamescope_session_proven(origin_pid: int | None) -> bool:
+    """Direct evidence, not a score: is this process inside gamescope?
+
+    Only two things count. The compositor's own socket variable, which
+    gamescope sets in the environment of everything it launches, and
+    gamescope itself in the caller's ancestry. Both are read from the kernel
+    for the inspected process; neither can be supplied by the caller.
+    """
+    if origin_pid is None or origin_pid <= 1:
+        return False
+    env = read_proc_environ(origin_pid)
+    if env.get('GAMESCOPE_WAYLAND_DISPLAY'):
+        return True
+    names = {name.lower() for _pid, name in process_tree(origin_pid)}
+    return 'gamescope' in names
+
+
+def require_persistent_action(origin_pid: int | None) -> int:
+    if gamescope_session_proven(origin_pid):
+        return 0
+    return fail(
+        'GAME_MODE_CONTEXT: This action changes configuration that outlives the '
+        'session, so it needs a verified gamescope session. Run it from the '
+        'desktop application instead, where it is authorized through Polkit.',
+        13,
+    )
+
+
 def require_runtime(
     origin_pid: int | None = None,
     claimed_uid: int | None = None,
@@ -357,7 +445,6 @@ def require_runtime(
 ) -> int:
     if os.geteuid() != 0:
         return fail('HELPER_PRIVILEGE: This helper must be launched through pkexec as root.', 11)
-    os_release = read_os_release()
     if not supported_game_platform():
         return fail('GAME_MODE_CONTEXT: The privileged Game Mode helper is only valid on SteamOS, Bazzite or CachyOS.', 12)
     if not bc250_identity_present():
@@ -427,7 +514,6 @@ def validate_fan_daemon_identity(
 def require_fan_daemon_runtime(origin_pid: int | None, claimed_uid: int | None) -> int:
     if os.geteuid() != 0:
         return fail('HELPER_PRIVILEGE: This helper must be launched through pkexec as root.', 11)
-    os_release = read_os_release()
     if not supported_game_platform():
         return fail('DAEMON_CONTEXT: The fan-daemon helper path is only valid on SteamOS, Bazzite or CachyOS.', 14)
     if not bc250_identity_present():
@@ -633,7 +719,7 @@ def action_fan_pwm(args: Sequence[str]) -> int:
         pwm = int(args[0])
         value = int(args[1])
     except ValueError:
-        return fail('fan-pwm arguments must be integers.', 22)
+        return fail('HELPER_USAGE: fan-pwm arguments must be integers.', 22)
     if pwm < 1 or pwm > 12:
         return fail('PWM channel must be between 1 and 12.', 23)
     if value < 0 or value > 255:
@@ -696,7 +782,7 @@ def action_fan_pwm_auto(args: Sequence[str]) -> int:
     try:
         pwm = int(args[0])
     except ValueError:
-        return fail('fan-pwm-auto argument must be an integer.', 29)
+        return fail('HELPER_USAGE: fan-pwm-auto argument must be an integer.', 29)
     if pwm < 1 or pwm > 12:
         return fail('PWM channel must be between 1 and 12.', 23)
     sensor = find_nct_sensor()
@@ -730,14 +816,14 @@ def action_gpu_voltage(args: Sequence[str]) -> int:
     if not gpu_script.exists():
         return fail(f'GPU voltage lab script is missing at {GPU_LAB_SCRIPT}', 31)
     if not trusted_installed_payload(gpu_script, executable=True):
-        return fail('GPU voltage lab script is not a root-owned, non-writable installed payload.', 31)
+        return fail('HELPER_UNTRUSTED: GPU voltage lab script is not a root-owned, non-writable installed payload.', 31)
     editor = GOVERNOR_TOML_EDITOR
     if not editor.exists():
         return fail(f'Root-owned governor TOML editor is missing at {GOVERNOR_TOML_EDITOR}', 31)
     if not trusted_installed_payload(editor):
-        return fail('Governor TOML editor is not a root-owned, non-writable installed payload.', 31)
+        return fail('HELPER_UNTRUSTED: Governor TOML editor is not a root-owned, non-writable installed payload.', 31)
     if not args:
-        return fail('gpu-voltage expects apply/apply-custom.', 32)
+        return fail('HELPER_USAGE: gpu-voltage expects apply/apply-custom.', 32)
     mode = args[0]
     if mode == 'apply':
         if len(args) != 2:
@@ -767,7 +853,7 @@ def action_gpu_voltage(args: Sequence[str]) -> int:
             pairs.append(f'{frequency}={millivolts}')
         command = [str(gpu_script), 'apply-custom', *pairs]
     else:
-        return fail('Invalid gpu-voltage action.', 40)
+        return fail('HELPER_USAGE: Invalid gpu-voltage action.', 40)
     # A voltage transaction may legitimately need one Cyan hwmon retry cycle
     # and, on failure, one controlled rollback restart.  Its staged script
     # verifies D-Bus after each step; keep the outer Game Mode boundary long
@@ -790,7 +876,7 @@ def action_governor_config(args: Sequence[str]) -> int:
     the governor helper's finite, non-shell action protocol.
     """
     if not args:
-        return fail('governor-config expects an action.', 91)
+        return fail('HELPER_USAGE: governor-config expects an action.', 91)
     action, values = args[0], list(args[1:])
     no_arguments = {
         'clear-frequency-range', 'enable-high-points', 'disable-high-points',
@@ -829,12 +915,12 @@ def action_governor_config(args: Sequence[str]) -> int:
     else:
         valid = False
     if not valid:
-        return fail('Invalid governor-config request.', 92)
+        return fail('HELPER_USAGE: Invalid governor-config request.', 92)
     helper = GOVERNOR_CONFIG_HELPER
     if not helper.exists():
-        return fail('Governor configuration helper is missing. Reinstall from Desktop Mode.', 93)
+        return fail('HELPER_UNTRUSTED: Governor configuration helper is missing. Reinstall from Desktop Mode.', 93)
     if not trusted_installed_payload(helper, executable=True):
-        return fail('Governor configuration helper is not a trusted installed payload.', 93)
+        return fail('HELPER_UNTRUSTED: Governor configuration helper is not a trusted installed payload.', 93)
     return run_checked(
         [str(helper), action, *values], timeout=120,
         env={'PATH': '/usr/sbin:/usr/bin:/sbin:/bin', 'LANG': 'C.UTF-8'},
@@ -847,7 +933,7 @@ def action_governor_restart(args: Sequence[str]) -> int:
         'oberon-governor.service',
     }
     if len(args) != 1 or args[0] not in allowed:
-        return fail('Invalid governor service restart request.', 94)
+        return fail('HELPER_USAGE: Invalid governor service restart request.', 94)
     env = {'PATH': '/usr/sbin:/usr/bin:/sbin:/bin', 'LANG': 'C.UTF-8'}
     # SteamOS can briefly renumber amdgpu hwmon on a Cyan restart.  The
     # systemd preflight installed by Control Center runs between stop/start;
@@ -868,9 +954,9 @@ def action_cpu_oc(args: Sequence[str]) -> int:
         vid = int(args[1])
         temp = int(args[2])
     except ValueError:
-        return fail('CPU OC arguments must be integers.', 42)
-    if frequency < 3500 or frequency > 4200:
-        return fail('Frequency must be between 3500 and 4200 MHz.', 43)
+        return fail('HELPER_USAGE: CPU OC arguments must be integers.', 42)
+    if frequency < 3100 or frequency > 4200:
+        return fail('Frequency must be between 3100 and 4200 MHz.', 43)
     if vid < 950 or vid > 1325:
         return fail('VID must be between 950 and 1325 mV.', 44)
     if temp < 70 or temp > 90:
@@ -926,7 +1012,7 @@ def action_cpu_service(args: Sequence[str]) -> int:
     operation = args[0]
     if operation == 'remove':
         if len(args) != 1:
-            return fail('cpu-oc-service remove does not accept values.', 49)
+            return fail('HELPER_USAGE: cpu-oc-service remove does not accept values.', 49)
         command = [str(helper), 'disable-boot']
     else:
         if len(args) != 4:
@@ -935,7 +1021,7 @@ def action_cpu_service(args: Sequence[str]) -> int:
             frequency, scale, temperature = map(int, args[1:])
             # Keep this boundary identical to bc250-cpu-smu-helper.  The
             # helper below repeats it before writing /etc or a service unit.
-            if frequency < 3500 or frequency > 4200:
+            if frequency < 3100 or frequency > 4200:
                 raise ValueError
             if scale < -50 or scale > 0:
                 raise ValueError
@@ -944,7 +1030,7 @@ def action_cpu_service(args: Sequence[str]) -> int:
             if estimated_vid(frequency, scale) > 1325:
                 raise ValueError
         except (TypeError, ValueError):
-            return fail('CPU boot-service values are outside the validated limits.', 49)
+            return fail('HELPER_RANGE: CPU boot-service values are outside the validated limits.', 49)
         command = [str(helper), 'install-boot', str(frequency), str(scale), str(temperature)]
 
     return run_checked(
@@ -1461,11 +1547,17 @@ def main(argv: Sequence[str]) -> int:
         return runtime_error
     if not action:
         return fail('Missing helper action.', 2)
+    if action in PERSISTENT_ACTIONS:
+        persistent_error = require_persistent_action(origin_pid)
+        if persistent_error:
+            return persistent_error
     try:
         if action in {'fan-pwm', 'fan-daemon-pwm'}:
-            return action_fan_pwm(args)
+            with operation_lock(FAN_OPERATION_LOCK, 'fan'):
+                return action_fan_pwm(args)
         if action == 'fan-pwm-auto':
-            return action_fan_pwm_auto(args)
+            with operation_lock(FAN_OPERATION_LOCK, 'fan'):
+                return action_fan_pwm_auto(args)
         if action == 'gpu-voltage':
             return action_gpu_voltage(args)
         if action == 'governor-config':
@@ -1477,7 +1569,8 @@ def main(argv: Sequence[str]) -> int:
         if action == 'cpu-oc-service':
             return action_cpu_service(args)
         if action in {'cu', 'cu-batch'}:
-            return action_cu(args if action == 'cu' else ['batch', *args])
+            with operation_lock(CU_OPERATION_LOCK, 'CU'):
+                return action_cu(args if action == 'cu' else ['batch', *args])
         return fail('Unknown helper action.', 3)
     except subprocess.TimeoutExpired:
         return fail('The privileged helper action timed out.', 124)

@@ -11,7 +11,7 @@ from bc250cc.infrastructure.gpu.governor_toml import (
     main,
     voltage_profile,
 )
-from frontends.desktop.pages.gpu_governor import GpuGovernorPage, VoltageCurveGrid
+from frontends.desktop.pages.gpu_governor import GpuGovernorPage
 
 
 def _packaged_config() -> str:
@@ -91,12 +91,16 @@ def test_missing_packaged_point_aborts_without_partial_write(tmp_path):
     assert path.read_text(encoding="utf-8") == original
 
 
-def test_voltage_ui_uses_original_column_and_shared_profile_rules(qtbot):
+def test_the_voltage_levels_follow_the_shared_profile_rules(qtbot):
+    """The "Original"/"Proposed" column headers this test used to pin belonged
+    to ``VoltageCurveGrid``, the table of the deleted voltage-lab page.  The
+    drawer that replaced it shows one editable value per row and no such
+    columns, so there is nothing left to assert about them.  What does still
+    matter — which voltage each profile level maps a frequency to — is below.
+    """
     page = GpuGovernorPage(object())
     qtbot.addWidget(page)
 
-    assert VoltageCurveGrid.HEADERS[2] == ("Original", "governor default")
-    assert all(title != "Proposed" for title, _detail in VoltageCurveGrid.HEADERS)
     assert page._voltage_for_level(2200, 3) == 1080
     assert page._voltage_for_level(2230, 3) == 1115
     assert page._voltage_for_level(2400, 6) == 1210

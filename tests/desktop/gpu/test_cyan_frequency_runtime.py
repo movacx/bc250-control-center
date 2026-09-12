@@ -186,7 +186,7 @@ def test_debian_governor_repairs_stale_package_registration():
     assert "package_current=0 installation_complete=0" in script
     assert "install ok installed ${version}-" in script
     assert "systemctl cat cyan-skillfish-governor-smu.service" in script
-    assert 'apt-get install --reinstall -y "$workdir/$deb"' in script
+    assert 'apt-get install --reinstall -y "$GOVERNOR_DEB_PATH"' in script
 
 
 def test_cyan_uninstall_only_removes_app_managed_fallback_unit():

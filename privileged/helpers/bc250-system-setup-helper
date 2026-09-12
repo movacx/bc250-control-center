@@ -11,7 +11,8 @@ from pathlib import Path
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("action", choices=("status", "memory-plan", "memory-apply", "memory-boot",
-                                           "acpi-install", "acpi-uninstall", "acpi-check", "uninstall-check"))
+                                           "acpi-install", "acpi-uninstall", "acpi-check",
+                                           "telemetry-fix", "telemetry-restore", "uninstall-check"))
     parser.add_argument("--policy", choices=("preserve", "restore", "swap-16", "swap-32", "zram", "zswap-16", "zswap-32"), default="preserve")
     parser.add_argument("--ttm", type=int, choices=(-1, 0, 8, 10, 12), default=0)
     args = parser.parse_args()
@@ -28,18 +29,25 @@ def main():
     sys.path.insert(0, str(lib))
     import system_setup_acpi as acpi
     import system_setup_memory as memory
+    import system_setup_telemetry as telemetry
     from system_setup_common import STATE, Host, SetupError
 
     host = Host()
     try:
         if args.action == "uninstall-check":
             if any(host.path(path).exists() for path in (
-                STATE + "/acpi.json", memory.SERVICE_PATH, memory.SWAP, memory.ZRAM, memory.UNIT_PATH,
+                STATE + "/acpi.json", STATE + "/telemetry.json",
+                memory.SERVICE_PATH, memory.SWAP, memory.ZRAM, memory.UNIT_PATH,
             )):
                 raise SetupError("Restore BC250 swap, TTM and ACPI settings in Control Center before removing this package")
             return 0
         if readonly:
-            result = {"memory": memory.status(host), "acpi": acpi.status(host), "protocol": 1}
+            result = {
+                "memory": memory.status(host),
+                "acpi": acpi.status(host),
+                "telemetry": telemetry.status(host),
+                "protocol": 2,
+            }
             if args.action == "memory-plan":
                 result["request"] = {"policy": args.policy, "ttm_gib": args.ttm}
             print(json.dumps(result))
@@ -58,6 +66,10 @@ def main():
                 result = acpi.install(host)
             elif args.action == "acpi-check":
                 result = acpi.check(host)
+            elif args.action == "telemetry-fix":
+                result = telemetry.apply(host)
+            elif args.action == "telemetry-restore":
+                result = telemetry.restore(host)
             else:
                 result = acpi.uninstall(host)
         finally:

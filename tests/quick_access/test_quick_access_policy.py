@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+from bc250cc.domain.cpu import FREQUENCY_RANGE
 from bc250cc.infrastructure.quick_access_policy import (
     CPU_QAM_FREQUENCIES,
     CPU_QAM_MAX_ESTIMATED_VID_MV,
@@ -67,7 +68,7 @@ def test_quick_access_manual_fan_percentage_is_thermally_bounded():
 
 def test_quick_access_cpu_domain_is_finite_and_fans_are_named_presets():
     assert CPU_SAVED_PROFILE_ACTION == "apply-saved-profile"
-    assert CPU_QAM_FREQUENCIES == tuple(range(3500, 4201, 50))
+    assert CPU_QAM_FREQUENCIES == tuple(range(FREQUENCY_RANGE[0], FREQUENCY_RANGE[1] + 1, 50))
     assert CPU_QAM_SCALES == tuple(range(-50, 1))
     assert CPU_QAM_MAX_ESTIMATED_VID_MV == 1325
     assert FAN_SYSTEM_PRESETS == {
@@ -152,7 +153,10 @@ def test_decky_plugin_and_helper_keep_a_finite_root_protocol():
     assert 'gpu_voltage_mv' in frontend
     assert 'gpu_temperature_c' in frontend
     assert 'gpu_allowed_range' in frontend
-    assert 'activeGpuProfiles.filter' in frontend
+    # The filter that used to be here excluded a "recovery" profile no
+    # generator ever emitted and the helper rejected outright. Both sides
+    # dropped it; what matters is that the profiles come from the payload.
+    assert 'activeGpuProfiles' in frontend
     assert 'gpu_safe_point_ceilings' in frontend
     assert 'gpu_cooldown_seconds' not in frontend
     assert 'fan_channel_options' in frontend
@@ -272,11 +276,15 @@ def test_qam_cpu_sliders_use_real_detector_inputs_and_native_gamepad_steps():
     assert "function CompactSlider" in frontend
     assert 'showValue={false}' in frontend
     assert 'validValues="steps"' in frontend
-    assert 'step={50}' in frontend
-    assert 'step={5}' in frontend
+    # The steps and bounds are no longer written here. They arrive with the
+    # state, because the panel's own copy said the CPU floor was 3500 MHz
+    # against a real 3100 — and then clamped a saved 3200 profile up to 3500
+    # and re-applied it. See test_the_panel_has_no_bounds_of_its_own.py.
+    assert 'step={cpuStep}' in frontend
+    assert 'step={vidStep}' in frontend
     assert 'step={1}' in frontend
-    assert 'min={950}' in frontend and 'max={1325}' in frontend
-    assert 'min={-50}' in frontend and 'max={0}' in frontend
+    assert 'min={vidMin}' in frontend and 'max={vidMax}' in frontend
+    assert 'min={scaleMin}' in frontend and 'max={scaleMax}' in frontend
     assert "estimatedVid" not in frontend
     assert "nearestScale" not in frontend
     assert "ToggleField" in frontend

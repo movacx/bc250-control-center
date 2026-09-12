@@ -11,6 +11,8 @@ from bc250cc.domain.gpu.oberon import (
     oberon_reference_endpoints,
     require_oberon_safe_profile,
 )
+from bc250cc.domain.telemetry import voltage_mv
+from bc250cc.infrastructure.apu_telemetry import collect_apu_telemetry
 from bc250cc.infrastructure.cyan_governor_runtime import (
     detect_cyan_frequency_fix_runtime,
     detect_cyan_metrics_fix_runtime,
@@ -46,15 +48,18 @@ from bc250cc.infrastructure.gpu_state import (
     GpuGovernorEvidence,
     build_gpu_state_snapshot,
 )
+from bc250cc.infrastructure.polkit_session import pkexec_argv
 from bc250cc.infrastructure.telemetry_policy import (
     daemon_governor_probe_budget,
     run_daemon_governor_probe,
 )
 from bc250cc.platform.init.services import (
     detect_init_manager,
+    inspect_service,
     parse_openrc_status,
     service_key,
 )
+from bc250cc.shared.failure_text import describe_failure
 
 
 class GPURepository:
@@ -67,18 +72,13 @@ class GPURepository:
         return Path("/usr/libexec/bc250-control-center/bc250-openrc-service-helper")
 
     def _service_is_active(self, service):
-        init_manager = detect_init_manager()
-        if init_manager.kind == "openrc":
-            code, out, err = self._ejecutar(
-                ["rc-service", service_key(service), "status"], timeout=5
-            )
-            return parse_openrc_status(code, out or err) == "active"
-        if init_manager.kind != "systemd":
-            return False
-        code, _out, _err = self._ejecutar(
-            ["systemctl", "is-active", "--quiet", service], timeout=5
+        state = inspect_service(
+            self._ejecutar,
+            service,
+            manager=detect_init_manager(),
+            timeout=5,
         )
-        return code == 0
+        return state.active == "active"
 
     def _gpu_governor_preference(self):
         try:
@@ -302,11 +302,16 @@ class GPURepository:
         if game_helper():
             self._ejecutar_steamos_game_helper("governor-restart", service, timeout=45)
             return
-        command = (
-            ["pkexec", "rc-service", service_key(service), "restart"]
-            if detect_init_manager().kind == "openrc"
-            else ["pkexec", "systemctl", "restart", service]
-        )
+        helper = Path("/usr/libexec/bc250-control-center/bc250-service-helper")
+        try:
+            metadata = helper.stat(follow_symlinks=False)
+        except OSError as error:
+            raise RuntimeError(
+                "The protected BC250 service helper is missing. Reinstall Control Center."
+            ) from error
+        if helper.is_symlink() or metadata.st_uid != 0 or metadata.st_mode & 0o022:
+            raise RuntimeError("The protected BC250 service helper has unsafe permissions.")
+        command = pkexec_argv("pkexec", str(helper), "restart", service_key(service))
         rc, out, err = self._ejecutar(command, timeout=30)
         if rc != 0:
             raise RuntimeError(err or out or f"{service} could not be restarted.")
@@ -378,7 +383,10 @@ class GPURepository:
         # A visible sysfs node is insufficient proof: some kernels expose the
         # path but reject Cyan's bind/move-mount operation.  A recent observed
         # runtime failure is authoritative and must win over the path probe.
-        runtime = detect_cyan_metrics_fix_runtime(self, lookback_seconds=60)
+        # Same window the startup guard uses (this boot, last 120 lines). A
+        # narrower one here made the interface accept fix-metrics while the
+        # guard still refused to start the service.
+        runtime = detect_cyan_metrics_fix_runtime(self, whole_boot=True)
         if runtime.get("metrics_fix_runtime_error"):
             return False
         gpu = self._gpu_device_path()
@@ -404,7 +412,7 @@ class GPURepository:
             return False
 
     def _cyan_kernel_set_method_available(self):
-        """Return whether Cyan's kernel backend covers its default 500-2000 range."""
+        """Return whether Cyan can use the kernel frequency sysfs backend."""
         gpu = self._gpu_device_path()
         if gpu is None:
             return None
@@ -413,18 +421,13 @@ class GPURepository:
             clocks = Path(gpu) / "pp_dpm_sclk"
             if not voltage.is_file() or not clocks.is_file():
                 return False
-            voltage_text = voltage.read_text(
-                encoding="ascii", errors="strict"
-            )
+            voltage.read_text(encoding="ascii", errors="strict")
             clock_text = clocks.read_text(encoding="ascii", errors="strict")
-            limits = re.search(
-                r"(?m)^\s*SCLK:\s*(\d+)Mhz\s+(\d+)Mhz\s*$",
-                voltage_text,
+            active = next(
+                (line for line in clock_text.splitlines() if "*" in line),
+                "",
             )
-            if limits is None or "*" not in clock_text:
-                return False
-            minimum, maximum = (int(value) for value in limits.groups())
-            return minimum <= 500 and maximum >= 2000
+            return re.search(r"(?:^|\s)\d+Mhz(?:\s|$)", active) is not None
         except (OSError, TypeError, UnicodeError, ValueError):
             return False
 
@@ -450,13 +453,19 @@ class GPURepository:
         """Apply Cyan's four compatibility switches without overriding user intent.
 
         ``set-method``, GPU usage ``method``, ``fix-metrics`` and ``fix-freq``
-        are independent upstream controls. Control Center may reject a combination
-        that is known to make the active runtime fail, but it must never silently
-        rewrite one of the four switches to a different value.
+        are independent upstream controls. When Cyan is running, Control Center
+        rejects combinations that the active runtime cannot support. When Cyan is
+        stopped, it stages the requested values for validation on the next start.
+        It never silently rewrites one of the four switches to a different value.
         """
         service = str(GOVERNOR_SPECS[CYAN_GOVERNOR]["service"])
         previous_settings = self._current_cyan_compatibility()
-        if bool(fix_metrics) and self._cyan_metrics_overlay_available() is False:
+        was_active = self._service_is_active(service)
+        if (
+            was_active
+            and bool(fix_metrics)
+            and self._cyan_metrics_overlay_available() is False
+        ):
             raise RuntimeError(
                 "fix-metrics was requested, but the active BC-250 kernel/runtime "
                 "is known not to support Cyan's gpu_metrics overlay. Nothing was "
@@ -464,7 +473,8 @@ class GPURepository:
                 "provides the required metrics target."
             )
         if (
-            str(usage_method).strip().lower() == "kernel"
+            was_active
+            and str(usage_method).strip().lower() == "kernel"
             and self._cyan_kernel_usage_available() is False
         ):
             raise RuntimeError(
@@ -474,27 +484,25 @@ class GPURepository:
                 "patched kernel."
             )
         if (
-            str(set_method).strip().lower() == "kernel"
+            was_active
+            and str(set_method).strip().lower() == "kernel"
             and self._cyan_kernel_set_method_available() is False
         ):
             raise RuntimeError(
                 "gpu.set-method=kernel was requested, but the active BC-250 "
-                "kernel does not expose readable pp_od_clk_voltage and "
-                "pp_dpm_sclk interfaces covering Cyan's default 500-2000 MHz "
-                "range. Nothing was changed. Select smu or boot a compatible "
-                "patched kernel."
+                "kernel does not expose usable pp_od_clk_voltage and "
+                "pp_dpm_sclk interfaces. Nothing was changed. Select smu or "
+                "use a kernel that provides AMDGPU overdrive sysfs controls."
             )
-
-        was_active = self._service_is_active(service)
-        previous_range = None
-        if was_active:
-            previous_range = self._leer_rango_governor("Current")
-            if previous_range is None:
-                raise RuntimeError(
-                    "The active Cyan range could not be read through D-Bus. "
-                    "Compatibility settings were not changed because restarting "
-                    "could reset the current GPU range."
-                )
+        # Reading the live range is what lets the restart put it back
+        # afterwards. Refusing to continue without it used to be a trap:
+        # gpu-usage.method = "process" pins a core and starves Cyan's D-Bus
+        # thread, so the read that protects the range is exactly what the user
+        # has to get past in order to switch the method back. The change is
+        # allowed to proceed; only the restore is given up, and the caller is
+        # told so. Cyan comes back on the TOML's own [frequency-range], which
+        # is a value this application wrote.
+        previous_range = self._leer_rango_governor("Current") if was_active else None
         result = self._editar_governor_toml(
             "set-cyan-compatibility",
             set_method,
@@ -505,17 +513,24 @@ class GPURepository:
         if not was_active:
             self.estado_bc250_cache = None
             return result + " Cyan is inactive; settings apply on its next start."
+        # Only a governor that will not come back up counts as a rejection of
+        # the settings. Restoring the previous runtime range afterwards is a
+        # separate, best-effort step: it talks to Cyan over D-Bus, and Cyan can
+        # be alive and configured correctly while its bus is unresponsive --
+        # gpu-usage.method = "process" pins a core and starves the D-Bus
+        # thread, so every read times out. Rolling the user's choice back
+        # because of that would discard a change that actually applied.
         try:
             if not self._restart_governor_if_active(service):
                 raise RuntimeError("The active Cyan governor could not be restarted.")
-            restored = self._restaurar_rango_governor(previous_range)
         except Exception as apply_error:
             try:
                 self._editar_governor_toml(
                     "set-cyan-compatibility", *previous_settings
                 )
                 self._restart_governor(service)
-                self._restaurar_rango_governor(previous_range)
+                if previous_range is not None:
+                    self._restaurar_rango_governor(previous_range)
             except Exception as rollback_error:
                 raise RuntimeError(
                     "Cyan rejected the requested compatibility settings and the "
@@ -525,6 +540,22 @@ class GPURepository:
                 "Cyan rejected the requested compatibility settings. The previous "
                 f"configuration and runtime range were restored: {apply_error}"
             ) from apply_error
+
+        if previous_range is None:
+            self.estado_bc250_cache = None
+            return (
+                f"{result} The compatibility settings are active. Cyan's D-Bus "
+                "did not answer, so the previous runtime range could not be "
+                "saved or put back; apply a range from the GPU page."
+            )
+        try:
+            restored = self._restaurar_rango_governor(previous_range)
+        except Exception as range_error:
+            self.estado_bc250_cache = None
+            return (
+                f"{result} The compatibility settings are active. The previous "
+                f"runtime range could not be put back: {range_error}"
+            )
         self.estado_bc250_cache = None
         return (
             f"{result} Runtime range preserved at "
@@ -613,8 +644,17 @@ class GPURepository:
             'grep -Eq "patched_gpu_metrics.*failed|GPU usage metrics fix write failed"; then '
             'bc250_cyan_metrics_runtime_failed=1; '
             'fi; '
-            'if [ "$bc250_cyan_metrics_target" -eq 0 ] || [ "$bc250_cyan_metrics_runtime_failed" -eq 1 ]; then '
-            'echo "ERROR: fix-metrics is enabled, but this kernel/runtime cannot provide Cyan gpu_metrics safely. Nothing was changed. Disable fix-metrics explicitly in GPU compatibility settings or use a compatible kernel."; '
+            # Two very different situations used to share one message. A
+            # missing target really is a kernel that cannot host the overlay.
+            # A recorded failure usually means the previous run left its bind
+            # mount behind, and the fix is to clear that mount -- telling the
+            # user to change kernel there sends them down the wrong path.
+            'if [ "$bc250_cyan_metrics_target" -eq 0 ]; then '
+            'echo "ERROR: fix-metrics is enabled, but this kernel does not expose the gpu_metrics file Cyan needs. Nothing was changed. Disable fix-metrics explicitly in GPU compatibility settings or use a kernel that provides it."; '
+            'exit 62; '
+            'fi; '
+            'if [ "$bc250_cyan_metrics_runtime_failed" -eq 1 ]; then '
+            'echo "ERROR: fix-metrics is enabled, and an earlier run of this boot already failed to place its patched gpu_metrics file. A left-over mount on that path blocks the next start. Nothing was changed. Clear the stale mount on the gpu_metrics path, or disable fix-metrics explicitly in GPU compatibility settings."; '
             'exit 62; '
             'fi; '
             'fi;'
@@ -919,9 +959,7 @@ class GPURepository:
             )
         rc, out, err = self._ejecutar(request.argv(helper), timeout=120)
         if rc != 0:
-            raise RuntimeError(
-                err or out or f"Governor configuration helper exited with code {rc}."
-            )
+            raise RuntimeError(describe_failure(rc, out, err))
         self.estado_bc250_cache = None
         return (out or "").strip()
 
@@ -1696,9 +1734,7 @@ class GPURepository:
                 else self._parse_dpm_actual(sclk_text)
             ),
             mclk_actual=self._parse_dpm_actual(mclk_text),
-            voltage_actual=(
-                hwmon_vddgfx if hwmon_vddgfx is not None else od.get("vddc")
-            ),
+            voltage_actual=hwmon_vddgfx,
             od_sclk_min=od.get("range_sclk_min"),
             od_sclk_max=od.get("range_sclk_max"),
             busy=self._gpu_busy_percent(gpu),
@@ -1713,8 +1749,8 @@ class GPURepository:
 
         The kernel hwmon ABI reports ``freq*_input`` in Hz and ``in*_input``
         in mV.  Labels, rather than fixed indexes, keep this correct across
-        board layouts.  Invalid or partial sensors are ignored so callers can
-        retain their DPM/OD fallback.
+        board layouts. Invalid voltages stay unavailable; clocks may fall
+        back to a validated active DPM entry.
         """
         sclk = read_hwmon_clock_mhz(gpu)
         vddgfx = None
@@ -1732,11 +1768,7 @@ class GPURepository:
                 if label == "sclk" and 100_000_000 <= value <= 5_000_000_000:
                     sclk = round(value / 1_000_000)
                 elif label == "vddgfx":
-                    # hwmon voltage inputs are mV. Accept microvolt-form
-                    # values too for compatible non-SteamOS kernels.
-                    millivolts = value // 1000 if value > 10_000 else value
-                    if 400 <= millivolts <= 1_500:
-                        vddgfx = millivolts
+                    vddgfx = voltage_mv(value)
         return sclk, vddgfx
 
     def estado_bc250(self):
@@ -1773,6 +1805,7 @@ class GPURepository:
             tools=tools,
         )
         resultado = build_gpu_state_snapshot(device_evidence, governor_evidence)
+        resultado["apu_telemetry"] = collect_apu_telemetry(gpu)
         self.estado_bc250_cache = resultado
         self.estado_bc250_cache_time = ahora
         return dict(resultado)

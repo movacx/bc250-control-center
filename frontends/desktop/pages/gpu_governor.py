@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import json
 import re
+import time
 from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QIntValidator
 from PyQt6.QtWidgets import (
     QAbstractItemView,
@@ -23,7 +25,6 @@ from PyQt6.QtWidgets import (
     QPlainTextEdit,
     QScrollArea,
     QSizePolicy,
-    QSpinBox,
     QStackedWidget,
     QTableWidget,
     QTableWidgetItem,
@@ -33,7 +34,6 @@ from PyQt6.QtWidgets import (
 
 from bc250cc.application.gpu.diagnostics import (
     DiagnosticText,
-    compact_diagnostic_path,
     present_gpu_diagnostics,
 )
 from bc250cc.application.gpu.range_policy import (
@@ -52,10 +52,6 @@ from bc250cc.application.gpu.telemetry import (
     present_gpu_telemetry,
 )
 from bc250cc.application.gpu.voltage_apply import plan_voltage_apply
-from bc250cc.application.gpu.voltage_lab_presentation import (
-    VoltageLabText,
-    present_voltage_lab,
-)
 from bc250cc.application.gpu.voltage_lab_state import (
     build_voltage_lab_state,
     voltage_for_level,
@@ -66,16 +62,16 @@ from bc250cc.application.preparation.gpu_dependency_plan import (
     GpuDependencyPlan,
     build_gpu_dependency_plan,
 )
-from bc250cc.domain.gpu.oberon import OBERON_SAFE_PROFILES
+from bc250cc.domain.gpu.oberon import OBERON_DESKTOP_PROFILES, OBERON_SAFE_PROFILES
 from bc250cc.domain.gpu.profiles import (
     default_cyan_profiles,
     profiles_for_allowed_range,
 )
+from bc250cc.infrastructure.bazzite_async_compute import (
+    BAZZITE_ASYNC_COMPUTE_REPOSITORY,
+)
 from bc250cc.infrastructure.gpu.governor_toml import (
-    CUSTOM_VOLTAGE_MAX_MV,
-    CUSTOM_VOLTAGE_MIN_MV,
     GOVERNOR_DEFAULT_VOLTAGES,
-    OBERON_SAFE_VOLTAGE_MIN_MV,
     SUPPORTED_VOLTAGE_LEVELS,
     VOLTAGE_BOOST_START_MHZ,
 )
@@ -98,6 +94,7 @@ from ..components.responsive import (
 )
 from ..components.system_setup_controls import (
     MEMORY_OPTIONS,
+    bazzite_ui_preview_enabled,
     is_bazzite_host,
     update_memory_controls,
 )
@@ -105,14 +102,20 @@ from ..components.voltage_lab_drawer import VoltageLabDrawer
 from ..components.widgets import IconBadge, InfoDialog, PillLabel, apply_shadow, icon
 from ..core.action_session import ActionSession
 from ..core.external_links import open_external_url, open_local_file
+from ..core.feature_visibility import (
+    FSR4_UI_ENABLED,
+    GPU_REFERENCE_PANELS_ENABLED,
+    mastag_stack_replaces_gfx1013_card,
+)
 from ..core.gfx1013_presenter import present_gfx1013
 from ..core.operation_gate import OperationGate
+from ..core.preferences import application_settings
 from ..core.state import state_cache_for
 from ..core.voltage_keypad_guard import (
     clear_voltage_keypad_state,
     voltage_keypad_edit_active,
 )
-from ..i18n import count_label, tr, tr_format
+from ..i18n import tr, tr_format
 from ..theme import COLORS, application_stylesheet
 
 
@@ -141,6 +144,47 @@ def _integer(value, default=0):
 
 def _format_bytes(value) -> str:
     return format_bytes(value)
+
+
+# Custom Cyan operating profiles (name + reference safe-point + range) are
+# small enough to live directly in the shared UI settings file rather than a
+# dedicated store. Three fixed slots mirror the three preset buttons.
+_CUSTOM_PROFILE_SLOTS = 3
+
+
+def _load_custom_gpu_profile(settings, index: int) -> dict | None:
+    prefix = f"gpu/cyan_profile_{index}/"
+    if not settings.contains(prefix + "name"):
+        return None
+    name = str(settings.value(prefix + "name", "")).strip()
+    if not name:
+        return None
+    try:
+        minimum = int(settings.value(prefix + "min", 0))
+        maximum = int(settings.value(prefix + "max", 0))
+        frequency = int(settings.value(prefix + "frequency", 0))
+        voltage = int(settings.value(prefix + "voltage", 0))
+    except (TypeError, ValueError):
+        return None
+    if minimum <= 0 or maximum <= 0 or minimum > maximum:
+        return None
+    return {
+        "name": name,
+        "min": minimum,
+        "max": maximum,
+        "frequency": frequency,
+        "voltage": voltage,
+    }
+
+
+def _save_custom_gpu_profile(settings, index: int, profile: dict) -> None:
+    prefix = f"gpu/cyan_profile_{index}/"
+    settings.setValue(prefix + "name", profile["name"])
+    settings.setValue(prefix + "min", int(profile["min"]))
+    settings.setValue(prefix + "max", int(profile["max"]))
+    settings.setValue(prefix + "frequency", int(profile["frequency"]))
+    settings.setValue(prefix + "voltage", int(profile["voltage"]))
+    settings.sync()
 
 
 class GpuSummaryItem(QFrame):
@@ -441,6 +485,8 @@ class DependencyPreparationDialog(QDialog):
 
         self.component_panel = self._component_selector()
         components_layout.addWidget(self.component_panel)
+        if is_bazzite_host(self.tools) or bazzite_ui_preview_enabled():
+            components_layout.addWidget(self._bazzite_mitigations_card())
         components_layout.addWidget(self._memory_component_card())
         self.section_stack.addWidget(components_page)
 
@@ -448,7 +494,11 @@ class DependencyPreparationDialog(QDialog):
         advanced_layout = QVBoxLayout(advanced_content)
         advanced_layout.setContentsMargins(0, 0, 6, 0)
         advanced_layout.setSpacing(10)
-        advanced_layout.addWidget(self._gfx1013_card())
+        self.gfx1013_card = self._gfx1013_card()
+        self.gfx1013_card.setVisible(
+            not mastag_stack_replaces_gfx1013_card(self.tools)
+        )
+        advanced_layout.addWidget(self.gfx1013_card)
         advanced_layout.addWidget(
             self._cachyos_kernel_card(
                 supported=bool(self.tools.get("masta_bc250_stack_supported"))
@@ -786,6 +836,7 @@ class DependencyPreparationDialog(QDialog):
             lambda: self._choose("memory_ttm", "")
         )
         controls.addWidget(self.memory_ttm_apply_button, 1, 2)
+
         controls.setColumnStretch(1, 1)
         layout.addLayout(controls)
 
@@ -796,6 +847,90 @@ class DependencyPreparationDialog(QDialog):
             self._update_memory_apply_availability
         )
         self._update_memory_apply_availability()
+        return card
+
+    def _bazzite_mitigations_card(self) -> QFrame:
+        actionable = is_bazzite_host(self.tools)
+        mitigations = _dict(self.tools.get("bazzite_mitigations"))
+        configured = bool(mitigations.get("configured"))
+        managed = bool(mitigations.get("managed"))
+        available = bool(mitigations.get("available"))
+        mitigation_action = "restore" if managed else "disable"
+
+        card = QFrame()
+        self.mitigations_card = card
+        card.setProperty("dependencyActionTile", True)
+        layout = QHBoxLayout(card)
+        layout.setContentsMargins(14, 11, 14, 11)
+        layout.setSpacing(10)
+
+        layout.addWidget(IconBadge("cpu_blue", COLORS["blue_soft"], 30, radius=8))
+        copy = QVBoxLayout()
+        copy.setSpacing(2)
+        title = QLabel(tr("CPU security mitigations"))
+        title.setProperty("sectionTitle", True)
+        copy.addWidget(title)
+        detail = QLabel(
+            tr(
+                "Disabling CPU security mitigations can improve some workloads but exposes the system to additional CPU vulnerabilities."
+            )
+        )
+        detail.setProperty("sectionSubtitle", True)
+        detail.setWordWrap(True)
+        copy.addWidget(detail)
+        layout.addLayout(copy, 1)
+
+        mitigation_status = (
+            tr("Unavailable")
+            if not actionable
+            else tr("Reboot required")
+            if mitigations.get("reboot_required")
+            else tr("Disabled")
+            if configured
+            else tr("Enabled")
+            if available
+            else tr("Not detected")
+        )
+        self.mitigations_status = PillLabel(
+            mitigation_status,
+            "gray"
+            if not actionable
+            else "orange"
+            if configured or mitigations.get("reboot_required")
+            else "green",
+        )
+        self.mitigations_status.setVisible(actionable)
+        layout.addWidget(self.mitigations_status)
+
+        self.mitigations_apply_button = QPushButton(
+            tr(
+                "Managed externally"
+                if configured and not managed
+                else "Restore mitigations"
+                if mitigation_action == "restore"
+                else "Disable mitigations"
+            )
+        )
+        self.mitigations_apply_button.setProperty(
+            "dangerAction", mitigation_action == "disable"
+        )
+        self.mitigations_apply_button.clicked.connect(
+            lambda: self._choose(f"bazzite_mitigations_{mitigation_action}", "")
+        )
+        self.mitigations_apply_button.setEnabled(
+            actionable and available and (not configured or managed)
+        )
+        if configured and not managed:
+            self.mitigations_apply_button.setToolTip(
+                tr(
+                    "mitigations=off was configured outside Control Center and is preserved."
+                )
+            )
+        elif not actionable:
+            self.mitigations_apply_button.setToolTip(
+                tr("This workflow is available only on Bazzite.")
+            )
+        layout.addWidget(self.mitigations_apply_button)
         return card
 
     def _update_memory_apply_availability(self) -> None:
@@ -1023,7 +1158,9 @@ class DependencyPreparationDialog(QDialog):
 
     def _gfx1013_card(self) -> QFrame:
         state = _dict(self.tools.get("gfx1013_compute"))
-        presentation = present_gfx1013(state)
+        presentation = present_gfx1013(
+            state, include_fsr4=FSR4_UI_ENABLED
+        )
 
         card = QFrame()
         card.setProperty("dependencyActionTile", True)
@@ -1193,9 +1330,13 @@ class DependencyPreparationDialog(QDialog):
 
     def _open_gfx1013_upstream(self) -> None:
         state = _dict(self.tools.get("gfx1013_compute"))
-        url = str(
-            state.get("upstream_url")
-            or "https://github.com/DryhoppedIPA/bc250-gfx1013-fix"
+        url = (
+            BAZZITE_ASYNC_COMPUTE_REPOSITORY
+            if str(state.get("reason_key") or "").startswith("bazzite-release-")
+            else str(
+                state.get("upstream_url")
+                or "https://github.com/DryhoppedIPA/bc250-gfx1013-fix"
+            )
         )
         opened, _error = open_external_url(url)
         if opened:
@@ -1283,367 +1424,6 @@ class DependencyPreparationDialog(QDialog):
                 if switch.isChecked()
             }
         self.accept()
-
-
-class VoltageLabToolbar(QFrame):
-    """Compact laboratory toolbar that stacks controls before they can clip."""
-
-    refresh_requested = pyqtSignal()
-    back_requested = pyqtSignal()
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setProperty("voltageLabToolbar", True)
-        self.setMinimumWidth(0)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        self._layout_mode = ""
-
-        self.grid = QGridLayout(self)
-        self.grid.setContentsMargins(11, 8, 11, 8)
-        self.grid.setHorizontalSpacing(8)
-        self.grid.setVerticalSpacing(7)
-        self.icon_badge = IconBadge("bolt_blue", COLORS["orange_soft"], 32, radius=9)
-
-        self.copy_host = QWidget()
-        self.copy_host.setMinimumWidth(0)
-        copy = QVBoxLayout(self.copy_host)
-        copy.setContentsMargins(0, 0, 0, 0)
-        copy.setSpacing(0)
-        title = QLabel(tr("Voltage laboratory"))
-        title.setWordWrap(True)
-        title.setProperty("voltageToolbarTitle", True)
-        copy.addWidget(title)
-
-        self.status = PillLabel("LIVE HARDWARE", "orange")
-
-        refresh = QPushButton(tr("Refresh"))
-        refresh.setProperty("compactAction", True)
-        refresh.setProperty("voltageToolbarButton", True)
-        refresh.setFixedHeight(36)
-        refresh.setMinimumWidth(108)
-        refresh.setIcon(icon("refresh_gray"))
-        refresh.setCursor(Qt.CursorShape.PointingHandCursor)
-        refresh.clicked.connect(self.refresh_requested)
-        self.refresh_button = refresh
-
-        back = QPushButton(tr("Return to GPU control"))
-        back.setObjectName("PrimaryAction")
-        back.setProperty("voltageToolbarButton", True)
-        back.setFixedHeight(36)
-        back.setMinimumWidth(176)
-        back.setIcon(icon("collapse_gray"))
-        back.setCursor(Qt.CursorShape.PointingHandCursor)
-        back.clicked.connect(self.back_requested)
-        self.back_button = back
-        self._reflow(force=True)
-
-    def _reflow(self, *, force: bool = False) -> None:
-        width = self.width()
-        mode = "narrow" if 0 < width < 420 else "compact" if 0 < width < 680 else "wide"
-        if mode == self._layout_mode and not force:
-            return
-        for widget in (
-            self.icon_badge,
-            self.copy_host,
-            self.status,
-            self.refresh_button,
-            self.back_button,
-        ):
-            self.grid.removeWidget(widget)
-        if mode in {"compact", "narrow"}:
-            self.grid.addWidget(self.icon_badge, 0, 0, Qt.AlignmentFlag.AlignTop)
-            self.grid.addWidget(self.copy_host, 0, 1)
-            self.grid.addWidget(self.status, 1, 0, 1, 2, Qt.AlignmentFlag.AlignLeft)
-            if mode == "narrow":
-                self.grid.addWidget(self.refresh_button, 2, 0, 1, 2)
-                self.grid.addWidget(self.back_button, 3, 0, 1, 2)
-            else:
-                self.grid.addWidget(self.refresh_button, 2, 0)
-                self.grid.addWidget(self.back_button, 2, 1)
-            self.refresh_button.setMinimumWidth(0)
-            self.back_button.setMinimumWidth(0)
-            self.refresh_button.setSizePolicy(
-                QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-            )
-            self.back_button.setSizePolicy(
-                QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-            )
-            self.grid.setColumnStretch(0, 1)
-            self.grid.setColumnStretch(1, 1)
-        else:
-            self.grid.addWidget(self.icon_badge, 0, 0)
-            self.grid.addWidget(self.copy_host, 0, 1)
-            self.grid.addWidget(self.status, 0, 2)
-            self.grid.addWidget(self.refresh_button, 0, 3)
-            self.grid.addWidget(self.back_button, 0, 4)
-            self.refresh_button.setMinimumWidth(108)
-            self.back_button.setMinimumWidth(176)
-            self.refresh_button.setSizePolicy(
-                QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed
-            )
-            self.back_button.setSizePolicy(
-                QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed
-            )
-            self.grid.setColumnStretch(0, 0)
-            self.grid.setColumnStretch(1, 1)
-            for column in range(2, 5):
-                self.grid.setColumnStretch(column, 0)
-        self._layout_mode = mode
-        self.updateGeometry()
-
-    def resizeEvent(self, event) -> None:
-        super().resizeEvent(event)
-        self._reflow()
-
-
-class VoltageSummaryStrip(QFrame):
-    """Compute-Units-inspired overview for the voltage workspace."""
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setProperty("gpuSummaryStrip", True)
-        self.setProperty("voltageSummaryStrip", True)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        apply_shadow(self, blur=16, y=3, alpha=10)
-        self.grid = QGridLayout(self)
-        self.grid.setContentsMargins(6, 6, 6, 6)
-        self.grid.setHorizontalSpacing(6)
-        self.grid.setVerticalSpacing(6)
-        self.items = [
-            GpuSummaryItem(
-                "Safe-points",
-                "--",
-                "active TOML entries",
-                "compute_blue",
-                COLORS["blue_soft"],
-                compact=True,
-            ),
-            GpuSummaryItem(
-                "Active profile",
-                "--",
-                "closest defined curve",
-                "gpu_purple",
-                COLORS["purple_soft"],
-                compact=True,
-            ),
-            GpuSummaryItem(
-                "Maximum voltage",
-                "-- mV",
-                "advanced voltage editor range",
-                "bolt_blue",
-                COLORS["orange_soft"],
-                compact=True,
-            ),
-            GpuSummaryItem(
-                "Runtime range",
-                "--",
-                "restored after restart",
-                "settings_blue",
-                COLORS["blue_soft"],
-                compact=True,
-            ),
-            GpuSummaryItem(
-                "Safety state",
-                "Checking",
-                "monotonic validation",
-                "shield_green",
-                COLORS["green_soft"],
-                compact=True,
-            ),
-        ]
-        self.columns = 0
-        self.set_columns(5)
-
-    def set_columns(self, columns: int) -> None:
-        columns = max(1, int(columns))
-        if columns == self.columns and self.grid.count():
-            return
-        self.columns = columns
-        while self.grid.count():
-            item = self.grid.takeAt(0)
-            if item.widget() is not None:
-                item.widget().setParent(None)
-        for index, widget in enumerate(self.items):
-            self.grid.addWidget(widget, index // columns, index % columns)
-        for column in range(columns):
-            self.grid.setColumnStretch(column, 1)
-
-
-class VoltageProfileButton(QPushButton):
-    def __init__(
-        self, level: int, title: str, detail: str, tone: str = "blue", parent=None
-    ):
-        super().__init__(parent)
-        self.level = int(level)
-        self.setCheckable(True)
-        self.setProperty("voltageProfileButton", True)
-        self.setProperty("profileTone", tone)
-        self.setText(f"{tr(title)}\n{tr(detail)}")
-        self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setFixedHeight(58)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-
-
-class VoltageGridHeaderCell(QFrame):
-    def __init__(self, title: str, detail: str, parent=None):
-        super().__init__(parent)
-        self.setProperty("voltageGridHeader", True)
-        self.setFixedHeight(46)
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(7, 5, 7, 5)
-        layout.setSpacing(0)
-        title_label = QLabel(tr(title))
-        title_label.setProperty("voltageGridHeaderTitle", True)
-        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        detail_label = QLabel(tr(detail))
-        detail_label.setProperty("voltageGridHeaderDetail", True)
-        detail_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(title_label)
-        layout.addWidget(detail_label)
-
-
-class VoltageGridCell(QFrame):
-    def __init__(
-        self, value: str, detail: str = "", *, role: str = "neutral", parent=None
-    ):
-        super().__init__(parent)
-        self.setProperty("voltageGridCell", True)
-        self.setProperty("cellRole", role)
-        self.setFixedHeight(52)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(8, 5, 8, 5)
-        layout.setSpacing(0)
-        self.value = QLabel(tr(value))
-        self.value.setProperty("voltageGridValue", True)
-        self.value.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.detail = QLabel(tr(detail))
-        self.detail.setProperty("voltageGridDetail", True)
-        self.detail.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.detail.setWordWrap(True)
-        layout.addWidget(self.value)
-        if detail:
-            layout.addWidget(self.detail)
-
-    def set_values(
-        self, value: str, detail: str | None = None, *, role: str | None = None
-    ) -> None:
-        self.value.setText(tr(value))
-        if detail is not None:
-            self.detail.setText(tr(detail))
-            self.detail.setVisible(bool(detail))
-        if role is not None and role != self.property("cellRole"):
-            self.setProperty("cellRole", role)
-            self.style().unpolish(self)
-            self.style().polish(self)
-            self.update()
-
-
-class VoltageCurveGrid(QFrame):
-    """A readable safe-point matrix modelled after the Compute Units topology grid."""
-
-    HEADERS = (
-        ("Frequency", "safe-point"),
-        ("Current", "active TOML"),
-        ("Original", "governor default"),
-        ("Added voltage", "vs governor default"),
-        ("Custom control", "all active points"),
-    )
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setProperty("voltageCurveGrid", True)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        self.grid = QGridLayout(self)
-        self.grid.setContentsMargins(7, 7, 7, 7)
-        self.grid.setHorizontalSpacing(5)
-        self.grid.setVerticalSpacing(5)
-        self.added_cells: dict[int, VoltageGridCell] = {}
-        self._reset_headers()
-
-    def _reset_headers(self) -> None:
-        for column, (title, detail) in enumerate(self.HEADERS):
-            self.grid.addWidget(VoltageGridHeaderCell(title, detail), 0, column)
-        stretches = (3, 3, 3, 3, 4)
-        for column, stretch in enumerate(stretches):
-            self.grid.setColumnStretch(column, stretch)
-
-    def clear_points(self) -> None:
-        while self.grid.count():
-            item = self.grid.takeAt(0)
-            if item.widget() is not None:
-                item.widget().deleteLater()
-        self.added_cells = {}
-        self._reset_headers()
-
-    @staticmethod
-    def _added_voltage_copy(added: int | None) -> tuple[str, str, str]:
-        if added is None:
-            return "n/a", "no governor base", "muted"
-        if added > 0:
-            return f"+{added} mV", "above default", "positive"
-        if added < 0:
-            return f"{added} mV", "below default", "warning"
-        return "0 mV", "governor default", "safe"
-
-    def add_point(
-        self,
-        row: int,
-        *,
-        frequency: int,
-        current: int,
-        original: int | None,
-        added: int | None,
-        editor: QWidget | None,
-        custom_available: bool,
-    ) -> None:
-        visual_row = int(row) + 1
-        frequency_cell = VoltageGridCell(
-            f"{frequency} MHz",
-            "custom editable" if custom_available else "read only",
-            role="frequency",
-        )
-        current_cell = VoltageGridCell(
-            f"{current} mV" if current else "Not set", "current curve", role="neutral"
-        )
-        original_cell = VoltageGridCell(
-            f"{original} mV" if original is not None else "Not available",
-            "packaged default" if original is not None else "unknown safe-point",
-            role="safe" if original is not None else "muted",
-        )
-        added_value, added_detail, added_role = self._added_voltage_copy(added)
-        added_cell = VoltageGridCell(added_value, added_detail, role=added_role)
-        self.grid.addWidget(frequency_cell, visual_row, 0)
-        self.grid.addWidget(current_cell, visual_row, 1)
-        self.grid.addWidget(original_cell, visual_row, 2)
-        self.grid.addWidget(added_cell, visual_row, 3)
-
-        editor_cell = QFrame()
-        editor_cell.setProperty("voltageGridCell", True)
-        editor_cell.setProperty("cellRole", "custom" if custom_available else "muted")
-        editor_cell.setFixedHeight(52)
-        editor_layout = QHBoxLayout(editor_cell)
-        editor_layout.setContentsMargins(8, 5, 8, 5)
-        editor_layout.setSpacing(0)
-        if editor is not None:
-            editor.setProperty("voltageEditor", True)
-            editor.setFixedHeight(34)
-            editor.setMinimumWidth(116)
-            editor_layout.addWidget(editor, 0, Qt.AlignmentFlag.AlignCenter)
-        else:
-            locked = QLabel(tr("Locked"))
-            locked.setProperty("voltageGridDetail", True)
-            locked.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            editor_layout.addWidget(locked, 1)
-        self.grid.addWidget(editor_cell, visual_row, 4)
-
-        self.added_cells[int(frequency)] = added_cell
-
-    def update_point(self, frequency: int, added: int | None) -> None:
-        added_cell = self.added_cells.get(int(frequency))
-        if added_cell is not None:
-            added_value, added_detail, added_role = self._added_voltage_copy(added)
-            added_cell.set_values(added_value, added_detail, role=added_role)
 
 
 class FrequencyField(QFrame):
@@ -1802,6 +1582,148 @@ class DynamicSafetyNotice(QFrame):
         self.update()
 
 
+class GpuProfileEditDialog(QDialog):
+    """Rename a Cyan operating profile and pick its safe-point-based range.
+
+    The voltage always comes from the same validated safe-point list the
+    rest of this page uses (never a free-typed value), matching the
+    conservative "Safe mode" this page advertises everywhere else.
+    """
+
+    def __init__(
+        self,
+        *,
+        name: str,
+        minimum_mhz: int,
+        maximum_mhz: int,
+        reference_frequency: int,
+        safe_points: list[tuple[int, int]],
+        allowed_min: int,
+        allowed_max: int,
+        parent: QWidget | None = None,
+    ):
+        super().__init__(parent)
+        self.setObjectName("InfoDialog")
+        self.setModal(True)
+        self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.setStyleSheet(application_stylesheet())
+        self.setWindowTitle(tr("Edit profile"))
+        enable_adaptive_dialog(
+            self, preferred_width=460, preferred_height=440,
+            minimum_width=360, minimum_height=380,
+        )
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(18, 18, 18, 18)
+        panel = QFrame()
+        panel.setObjectName("ControlDialogCard")
+        apply_shadow(panel, blur=34, y=10, alpha=55)
+        outer.addWidget(panel)
+
+        root = QVBoxLayout(panel)
+        root.setContentsMargins(22, 18, 22, 16)
+        root.setSpacing(12)
+
+        heading = QHBoxLayout()
+        heading.setSpacing(12)
+        heading.addWidget(IconBadge("settings_blue", COLORS["blue_soft"], 40, radius=11))
+        heading_copy = QVBoxLayout()
+        heading_copy.setSpacing(3)
+        title = QLabel(tr("Edit profile"))
+        title.setProperty("dialogTitle", True)
+        subtitle = QLabel(
+            tr("Pick a validated safe-point and set the range this profile applies.")
+        )
+        subtitle.setProperty("dialogBody", True)
+        subtitle.setWordWrap(True)
+        heading_copy.addWidget(title)
+        heading_copy.addWidget(subtitle)
+        heading.addLayout(heading_copy, 1)
+        close = QPushButton()
+        close.setObjectName("DialogClose")
+        close.setIcon(icon("close_gray"))
+        close.setFixedSize(34, 34)
+        close.setToolTip(tr("Close"))
+        close.clicked.connect(self.reject)
+        heading.addWidget(close, 0, Qt.AlignmentFlag.AlignTop)
+        root.addLayout(heading)
+
+        divider = QFrame()
+        divider.setObjectName("CardDivider")
+        divider.setFixedHeight(1)
+        root.addWidget(divider)
+
+        name_label = QLabel(tr("Profile name"))
+        name_label.setProperty("fieldLabel", True)
+        root.addWidget(name_label)
+        self.name_input = QLineEdit(name)
+        self.name_input.setMaxLength(30)
+        root.addWidget(self.name_input)
+
+        point_label = QLabel(tr("Reference safe-point (frequency and voltage)"))
+        point_label.setProperty("fieldLabel", True)
+        root.addWidget(point_label)
+        self.point_combo = QComboBox()
+        for frequency, voltage in safe_points:
+            self.point_combo.addItem(
+                f"{frequency} MHz · {voltage} mV" if voltage else f"{frequency} MHz",
+                (frequency, voltage),
+            )
+        preselect = self.point_combo.findData(
+            next((pair for pair in safe_points if pair[0] == reference_frequency), None)
+        )
+        if preselect < 0 and self.point_combo.count():
+            preselect = 0
+        if preselect >= 0:
+            self.point_combo.setCurrentIndex(preselect)
+        root.addWidget(self.point_combo)
+
+        self.minimum_field = FrequencyField(
+            "Minimum frequency", "Governor floor for this profile.", minimum_mhz
+        )
+        self.minimum_field.set_limits(allowed_min, allowed_max)
+        self.maximum_field = FrequencyField(
+            "Maximum frequency", "Governor ceiling for this profile.", maximum_mhz
+        )
+        self.maximum_field.set_limits(allowed_min, allowed_max)
+        root.addWidget(self.minimum_field)
+        root.addWidget(self.maximum_field)
+
+        footer = QHBoxLayout()
+        footer.addStretch(1)
+        cancel = QPushButton(tr("Cancel"))
+        cancel.setProperty("compactAction", True)
+        cancel.clicked.connect(self.reject)
+        save = QPushButton(tr("Save profile"))
+        save.setObjectName("DialogPrimary")
+        save.setDefault(True)
+        save.clicked.connect(self._validate_and_accept)
+        footer.addWidget(cancel)
+        footer.addWidget(save)
+        root.addLayout(footer)
+
+    def _validate_and_accept(self) -> None:
+        minimum = self.minimum_field.value()
+        maximum = self.maximum_field.value()
+        if minimum > maximum:
+            minimum, maximum = maximum, minimum
+            self.minimum_field.setValue(minimum)
+            self.maximum_field.setValue(maximum)
+        self.accept()
+
+    def result_profile(self) -> dict:
+        frequency, voltage = self.point_combo.currentData() or (0, 0)
+        name = self.name_input.text().strip() or tr("Custom")
+        return {
+            "name": name,
+            "min": self.minimum_field.value(),
+            "max": self.maximum_field.value(),
+            "frequency": int(frequency),
+            "voltage": int(voltage),
+        }
+
+
 class GpuGovernorPage(QWidget):
     """Complete GPU control studio using the validated cyan-skillfish governor backend."""
 
@@ -1814,9 +1736,9 @@ class GpuGovernorPage(QWidget):
         for profile in default_cyan_profiles()
     )
     OBERON_PROFILE_VALUES = (
-        ("Balanced", "1000–1500 MHz", OBERON_SAFE_PROFILES[0]),
-        ("Gaming", "1000–1850 MHz", OBERON_SAFE_PROFILES[1]),
-        ("Benchmark", "2000 MHz", OBERON_SAFE_PROFILES[2]),
+        ("Balanced", "1000–1500 MHz", OBERON_DESKTOP_PROFILES[0]),
+        ("Gaming", "1000–1850 MHz", OBERON_DESKTOP_PROFILES[1]),
+        ("Benchmark", "1000–2000 MHz", OBERON_DESKTOP_PROFILES[2]),
     )
     PROFILE_VALUES = CYAN_PROFILE_VALUES
     VOLTAGE_PROFILE_LEVELS = SUPPORTED_VOLTAGE_LEVELS
@@ -1860,7 +1782,6 @@ class GpuGovernorPage(QWidget):
         self._voltage_workspace_columns = 0
         self._voltage_profile_columns = 0
         self._voltage_custom_values: dict[int, int] = {}
-        self._voltage_spinboxes: dict[int, QSpinBox] = {}
         self._voltage_editable_frequencies: set[int] = set()
         self._voltage_profile_frequencies: set[int] = set()
         self._voltage_detected_level = 0
@@ -1868,6 +1789,12 @@ class GpuGovernorPage(QWidget):
         self._detailed_diagnostics = False
         self._profile_backend = ""
         self._cyan_compatibility_dirty = False
+        self._custom_profile_overrides: dict[int, dict] = {}
+        settings = application_settings()
+        for slot in range(_CUSTOM_PROFILE_SLOTS):
+            saved_profile = _load_custom_gpu_profile(settings, slot)
+            if saved_profile is not None:
+                self._custom_profile_overrides[slot] = saved_profile
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -1909,6 +1836,7 @@ class GpuGovernorPage(QWidget):
         self.summary = GpuSummaryStrip(self.content)
         self.summary.hide()
 
+
         self.workspace = QGridLayout()
         self.workspace.setContentsMargins(0, 0, 0, 0)
         self.workspace.setHorizontalSpacing(14)
@@ -1916,6 +1844,12 @@ class GpuGovernorPage(QWidget):
         layout.addLayout(self.workspace)
 
         self.configuration_card = self._build_configuration_card()
+        # Restore any saved profile names/ranges over the just-built default
+        # button text, so a returning user sees their own profiles immediately
+        # rather than the stock Balanced/Gaming/Benchmark labels.
+        self._apply_profile_overrides()
+        # Keep the existing guide available for a future Help surface without
+        # occupying the compact GPU configuration header.
         self.metrics_card = self._build_metrics_card()
         self.configuration_card.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred
@@ -1933,8 +1867,6 @@ class GpuGovernorPage(QWidget):
         layout.addWidget(self.advanced_card)
         layout.addStretch(1)
 
-        self.voltage_lab_page = self._build_voltage_lab_page()
-        self.page_stack.addWidget(self.voltage_lab_page)
 
         # The complete legacy workspace is intentionally retained above for
         # future reuse. The normal GPU action opens this compact overlay and
@@ -1965,13 +1897,20 @@ class GpuGovernorPage(QWidget):
             self._refresh_failed,
         )
 
+        # Redesigned Cyan GPU view (Claude Design). Mounts inside
+        # overview_page and hides overview_scroll only while the detected
+        # backend is Cyan; Oberon keeps this original screen untouched.
+        # Delete these two lines to roll back to the legacy layout.
+        from .gpu_governor_integration import install_redesigned_gpu_view
+        install_redesigned_gpu_view(self)
+
     def _build_configuration_card(self) -> SectionCard:
         card = SectionCard(
             "GPU configuration",
             "Select a validated profile or stage an explicit D-Bus range. Every hardware change is reviewed before execution.",
             icon_name="settings_blue",
             icon_background=COLORS["blue_soft"],
-            status=("Safe mode", "green"),
+            status=None,
         )
         self.configuration_status = card.status
 
@@ -2040,6 +1979,53 @@ class GpuGovernorPage(QWidget):
         compatibility_layout.setColumnStretch(1, 1)
         card.body.addWidget(self.cyan_compatibility_panel)
 
+        # Quick access to the same validated safe-point list the advanced
+        # TOML laboratory uses, without leaving the main configuration card.
+        # Selecting a point here and in the advanced panel stays in sync
+        # (see _sync_paired_safe_point_combo), and "Apply selected range"
+        # reuses the exact same validated apply path.
+        self.quick_range_panel = QFrame()
+        self.quick_range_panel.setProperty("compactPanel", True)
+        quick_range_layout = QVBoxLayout(self.quick_range_panel)
+        quick_range_layout.setContentsMargins(12, 10, 12, 10)
+        quick_range_layout.setSpacing(8)
+        quick_range_title = QLabel(tr("Validated frequency points"))
+        quick_range_title.setProperty("fieldLabel", True)
+        quick_range_title.setWordWrap(True)
+        quick_range_hint = QLabel(
+            tr("Pick an already-tested frequency and voltage point. No manual typing needed.")
+        )
+        quick_range_hint.setProperty("fieldHint", True)
+        quick_range_hint.setWordWrap(True)
+        quick_range_layout.addWidget(quick_range_title)
+        quick_range_layout.addWidget(quick_range_hint)
+        self.quick_safe_point_combo = QComboBox()
+        self.quick_safe_point_combo.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+        )
+        self.quick_safe_point_combo.currentIndexChanged.connect(
+            self._quick_safe_point_changed
+        )
+        quick_range_layout.addWidget(self.quick_safe_point_combo)
+        quick_range_actions = QGridLayout()
+        quick_range_actions.setHorizontalSpacing(8)
+        quick_range_actions.setVerticalSpacing(8)
+        quick_range_actions.setColumnStretch(0, 1)
+        quick_range_actions.setColumnStretch(1, 1)
+        self.quick_apply_button = QPushButton(tr("Apply active range · select a ceiling"))
+        self.quick_apply_button.setObjectName("PrimaryAction")
+        self.quick_apply_button.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self.quick_apply_button.setProperty("gamepadEntry", True)
+        self.quick_apply_button.setEnabled(False)
+        self.quick_apply_button.clicked.connect(self._request_selected_safe_point_range)
+        self.quick_save_button = QPushButton(tr("Save active range for startup"))
+        self.quick_save_button.setProperty("compactAction", True)
+        self.quick_save_button.clicked.connect(self._use_active_range)
+        quick_range_actions.addWidget(self.quick_apply_button, 0, 0)
+        quick_range_actions.addWidget(self.quick_save_button, 0, 1)
+        quick_range_layout.addLayout(quick_range_actions)
+        card.body.addWidget(self.quick_range_panel)
+
         profile_panel = QFrame()
         profile_panel.setProperty("compactPanel", True)
         profile_panel.setSizePolicy(
@@ -2059,7 +2045,9 @@ class GpuGovernorPage(QWidget):
         self.preset_group = QButtonGroup(self)
         self.preset_group.setExclusive(True)
         self.preset_buttons: list[PresetButton] = []
-        for title, summary, payload in self.PROFILE_VALUES:
+        self.preset_tiles: list[QFrame] = []
+        self.preset_edit_buttons: list[QPushButton] = []
+        for slot_index, (title, summary, payload) in enumerate(self.PROFILE_VALUES):
             button = PresetButton(title, summary, payload)
             button.setProperty("gpuFrequencyPreset", True)
             button.setMinimumHeight(56)
@@ -2068,6 +2056,23 @@ class GpuGovernorPage(QWidget):
             )
             self.preset_group.addButton(button)
             self.preset_buttons.append(button)
+
+            tile = QFrame()
+            tile_layout = QHBoxLayout(tile)
+            tile_layout.setContentsMargins(0, 0, 0, 0)
+            tile_layout.setSpacing(4)
+            tile_layout.addWidget(button, 1)
+            edit_button = QPushButton()
+            edit_button.setIcon(icon("edit_gray"))
+            edit_button.setFixedSize(28, 28)
+            edit_button.setProperty("compactAction", True)
+            edit_button.setToolTip(tr("Rename this profile and change its range"))
+            edit_button.clicked.connect(
+                lambda _checked=False, i=slot_index: self._edit_profile(i)
+            )
+            tile_layout.addWidget(edit_button, 0, Qt.AlignmentFlag.AlignTop)
+            self.preset_edit_buttons.append(edit_button)
+            self.preset_tiles.append(tile)
         self._reflow_presets(1400)
         profile_layout.addLayout(self.preset_grid)
         card.body.addWidget(profile_panel)
@@ -2348,7 +2353,29 @@ class GpuGovernorPage(QWidget):
             icon_background="neutral_soft",
             compact=True,
         )
-        self.metric_tiles = [
+        # Cyan exposes a validated D-Bus range API that Oberon does not, so
+        # these two live in the same tile slots the core clock and VRAM
+        # tiles use for Oberon, instead of adding a 7th/8th slot -- they
+        # carry the same information the runtime status row below used to
+        # show as small text pills (see runtime_stats_panel), just promoted
+        # into the main telemetry grid where it is easier to notice.
+        self.dbus_metric = MetricTile(
+            "D-Bus API",
+            "--",
+            "",
+            icon_name="app_blue",
+            icon_background=COLORS["blue_soft"],
+            compact=True,
+        )
+        self.active_range_metric = MetricTile(
+            "Active range",
+            "--",
+            "",
+            icon_name="compute_blue",
+            icon_background=COLORS["blue_soft"],
+            compact=True,
+        )
+        self.metric_tiles_oberon = [
             self.sclk_metric,
             self.voltage_metric,
             self.temperature_metric,
@@ -2356,13 +2383,31 @@ class GpuGovernorPage(QWidget):
             self.mclk_metric,
             self.vram_metric,
         ]
-        for tile in self.metric_tiles:
+        self.metric_tiles_cyan = [
+            self.dbus_metric,
+            self.voltage_metric,
+            self.temperature_metric,
+            self.utilization_metric,
+            self.mclk_metric,
+            self.active_range_metric,
+        ]
+        # Oberon is the historical default here; _set_backend_profile_mode
+        # corrects this to whichever backend is actually detected as soon as
+        # the first refresh completes.
+        self.metric_tiles = self.metric_tiles_oberon
+        self.dbus_metric.hide()
+        self.active_range_metric.hide()
+        for tile in (*self.metric_tiles_oberon, *self.metric_tiles_cyan):
             tile.setSizePolicy(
                 QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
             )
             tile.setMinimumHeight(58)
         self._reflow_metric_tiles(1400)
         card.body.addLayout(self.metrics_grid)
+        self.memory_clocks_line = QLabel()
+        self.memory_clocks_line.setWordWrap(True)
+        self.memory_clocks_line.setProperty("fieldHint", True)
+        card.body.addWidget(self.memory_clocks_line)
 
         note = QLabel(tr("Passive readings · hardware changes require confirmation."))
         note.setProperty("fieldHint", True)
@@ -2394,236 +2439,6 @@ class GpuGovernorPage(QWidget):
         target.addWidget(panel)
         panel.show()
 
-    def _build_voltage_lab_page(self) -> QWidget:
-        page = QWidget()
-        page.setProperty("voltageLabPage", True)
-        page_layout = QVBoxLayout(page)
-        page_layout.setContentsMargins(0, 0, 0, 0)
-
-        scroll = QScrollArea()
-        self.voltage_scroll = scroll
-        content = QWidget()
-        self.voltage_content = content
-        configure_responsive_scroll_area(scroll, content)
-        content.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
-        layout = QVBoxLayout(content)
-        layout.setContentsMargins(12, 6, 12, 14)
-        layout.setSpacing(8)
-        scroll.setWidget(content)
-        page_layout.addWidget(scroll)
-
-        self.voltage_header = VoltageLabToolbar()
-        self.voltage_header.refresh_requested.connect(self._refresh_voltage_lab)
-        self.voltage_header.back_requested.connect(self._close_voltage_lab)
-        layout.addWidget(self.voltage_header)
-
-        self.voltage_notice = DynamicSafetyNotice(
-            "Stop every 3D workload before applying",
-            "A timestamped backup is created, the governor restarts, and the previous D-Bus range is restored only after confirmation.",
-            tone="orange",
-            compact=True,
-        )
-        layout.addWidget(self.voltage_notice)
-
-        self.voltage_summary = VoltageSummaryStrip()
-        self.voltage_summary_items = self.voltage_summary.items
-        layout.addWidget(self.voltage_summary)
-
-        self.voltage_workspace_host = QWidget()
-        self.voltage_workspace = QGridLayout(self.voltage_workspace_host)
-        self.voltage_workspace.setContentsMargins(0, 0, 0, 0)
-        self.voltage_workspace.setHorizontalSpacing(8)
-        self.voltage_workspace.setVerticalSpacing(8)
-        layout.addWidget(self.voltage_workspace_host)
-
-        oberon_card = SectionCard(
-            "Oberon endpoint diagnostics",
-            "Oberon uses exactly two YAML operating points. Their values are shown for diagnosis only.",
-            icon_name="shield_green",
-            icon_background=COLORS["blue_soft"],
-            status=("Read-only", "blue"),
-            compact=True,
-        )
-        self.oberon_voltage_card = oberon_card
-        self.oberon_voltage_minimum = StatusLine(
-            "Minimum OPP", "--", "YAML endpoint", compact=True
-        )
-        self.oberon_voltage_maximum = StatusLine(
-            "Maximum OPP", "--", "YAML endpoint", compact=True
-        )
-        self.oberon_voltage_guidance = QLabel(
-            tr(
-                "These endpoints affect the active Oberon profile. Selecting a different profile restores Oberon's upstream 1000 mV baseline; this page does not offer an unvalidated cross-board voltage curve."
-            )
-        )
-        self.oberon_voltage_guidance.setProperty("fieldHint", True)
-        self.oberon_voltage_guidance.setWordWrap(True)
-        oberon_card.body.addWidget(self.oberon_voltage_minimum)
-        oberon_card.body.addWidget(self.oberon_voltage_maximum)
-        oberon_card.body.addWidget(self.oberon_voltage_guidance)
-        oberon_card.hide()
-        layout.addWidget(oberon_card)
-
-        curve_card = SectionCard(
-            "Voltage map",
-            "All active TOML safe-points with current, original, added voltage, and custom values.",
-            icon_name="compute_blue",
-            icon_background=COLORS["blue_soft"],
-            status=("Waiting", "gray"),
-        )
-        curve_card.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred
-        )
-        self.voltage_curve_card = curve_card
-        self.voltage_table_status = curve_card.status
-        self.voltage_curve_grid = VoltageCurveGrid()
-        # Only the five-column voltage matrix is intrinsically wide. Keep its
-        # overflow local so the toolbar, safety copy and apply workflow remain
-        # visible on compact and translated layouts.
-        self.voltage_curve_scroll = QScrollArea()
-        self.voltage_curve_scroll.setObjectName("VoltageCurveScroll")
-        self.voltage_curve_scroll.setFrameShape(QFrame.Shape.NoFrame)
-        self.voltage_curve_scroll.setWidgetResizable(True)
-        self.voltage_curve_scroll.setHorizontalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAsNeeded
-        )
-        self.voltage_curve_scroll.setVerticalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
-        )
-        self.voltage_curve_scroll.setMinimumWidth(0)
-        self.voltage_curve_scroll.setSizePolicy(
-            QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed
-        )
-        self.voltage_curve_scroll.setWidget(self.voltage_curve_grid)
-        self._sync_voltage_curve_scroll_height()
-        curve_card.body.addWidget(self.voltage_curve_scroll)
-
-        profiles_card = SectionCard(
-            "Voltage profiles",
-            "Choose one of three defined voltage levels or unlock every active safe-point for custom editing.",
-            icon_name="gpu_purple",
-            icon_background=COLORS["purple_soft"],
-            status=("Ready", "orange"),
-            compact=True,
-        )
-        profiles_card.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred
-        )
-        self.voltage_controls_card = profiles_card
-        self.voltage_controls_status = profiles_card.status
-
-        self.voltage_level_combo = QComboBox()
-        self.voltage_level_combo.addItem("Level 0 · governor defaults", 0)
-        self.voltage_level_combo.addItem("Level 1 · default +10 mV", 1)
-        self.voltage_level_combo.addItem("Level 2 · default +20 mV", 2)
-        self.voltage_level_combo.addItem("Level 3 · default +30 mV", 3)
-        self.voltage_level_combo.addItem("Level 4 · default +40 mV", 4)
-        self.voltage_level_combo.addItem("Level 5 · default +50 mV", 5)
-        self.voltage_level_combo.addItem("Level 6 · default +60 mV", 6)
-        self.voltage_level_combo.addItem("Custom · all active safe-points", -1)
-        self.voltage_level_combo.currentIndexChanged.connect(
-            self._voltage_level_changed
-        )
-        self.voltage_level_combo.hide()
-
-        self.voltage_profile_grid = QGridLayout()
-        self.voltage_profile_grid.setContentsMargins(0, 0, 0, 0)
-        self.voltage_profile_grid.setHorizontalSpacing(5)
-        self.voltage_profile_grid.setVerticalSpacing(5)
-        self.voltage_profile_group = QButtonGroup(self)
-        self.voltage_profile_group.setExclusive(True)
-        profile_specs = [
-            (0, "Level 0", "Governor defaults", "green"),
-            (3, "Level 3", "+30 mV", "blue"),
-            (6, "Level 6", "+60 mV", "orange"),
-            (-1, "Custom", "Edit every safe-point", "purple"),
-        ]
-        self.voltage_profile_buttons: list[VoltageProfileButton] = []
-        for level, title, detail, tone in profile_specs:
-            button = VoltageProfileButton(level, title, detail, tone)
-            button.clicked.connect(
-                lambda checked, value=level: (
-                    self._select_voltage_profile(value) if checked else None
-                )
-            )
-            self.voltage_profile_group.addButton(button)
-            self.voltage_profile_buttons.append(button)
-        self._reflow_voltage_profiles(1400)
-        profiles_card.body.addLayout(self.voltage_profile_grid)
-
-        self.voltage_level_detail = QLabel(
-            "Refresh to compare the selected curve against the active TOML and packaged original voltages."
-        )
-        self.voltage_level_detail.setProperty("voltageProfileDetail", True)
-        self.voltage_level_detail.setWordWrap(True)
-        profiles_card.body.addWidget(self.voltage_level_detail)
-
-        workflow_card = SectionCard(
-            "Review and apply",
-            "Review the selected curve and apply it through the existing validated backend.",
-            icon_name="shield_green",
-            icon_background=COLORS["green_soft"],
-            status=("Armed", "orange"),
-            compact=True,
-        )
-        workflow_card.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred
-        )
-        self.voltage_workflow_card = workflow_card
-        self.voltage_workflow_status = workflow_card.status
-
-        workflow_panel = QFrame()
-        workflow_panel.setProperty("voltageWorkflowPanel", True)
-        workflow_layout = QVBoxLayout(workflow_panel)
-        workflow_layout.setContentsMargins(8, 7, 8, 7)
-        workflow_layout.setSpacing(6)
-        checks = (
-            ("1", "Stop games and stress tests"),
-            ("2", "Check original voltage and exact added amount"),
-            ("3", "Confirm the preserved runtime range"),
-        )
-        checks_grid = QGridLayout()
-        checks_grid.setContentsMargins(0, 0, 0, 0)
-        checks_grid.setHorizontalSpacing(5)
-        checks_grid.setVerticalSpacing(5)
-        for column, (token, copy) in enumerate(checks):
-            check_item = QFrame()
-            check_item.setProperty("voltageStepItem", True)
-            check_item.setFixedHeight(40)
-            check_row = QHBoxLayout(check_item)
-            check_row.setContentsMargins(6, 5, 6, 5)
-            check_row.setSpacing(5)
-            badge = QLabel(token)
-            badge.setProperty("voltageStepBadge", True)
-            badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            badge.setFixedSize(22, 22)
-            check_label = QLabel(tr(copy))
-            check_label.setProperty("voltageStepText", True)
-            check_label.setWordWrap(True)
-            check_row.addWidget(badge)
-            check_row.addWidget(check_label, 1)
-            checks_grid.addWidget(check_item, 0, column)
-            checks_grid.setColumnStretch(column, 1)
-        workflow_layout.addLayout(checks_grid)
-
-        self.voltage_apply_button = QPushButton(tr("Review and apply voltage curve"))
-        self.voltage_apply_button.setProperty("dangerAction", True)
-        self.voltage_apply_button.setProperty("voltageApplyButton", True)
-        self.voltage_apply_button.setProperty("gamepadEntry", True)
-        self.voltage_apply_button.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        self.voltage_apply_button.setFixedHeight(40)
-        self.voltage_apply_button.setIcon(icon("bolt_blue"))
-        self.voltage_apply_button.setEnabled(True)
-        self.voltage_apply_button.clicked.connect(self._request_apply_voltage_curve)
-        workflow_layout.addWidget(self.voltage_apply_button)
-        workflow_card.body.addWidget(workflow_panel)
-
-        # Voltage profiles now occupy the former validation-panel position at the bottom.
-        layout.addWidget(profiles_card)
-
-        self._reflow_voltage_workspace(1400)
-        layout.addStretch(1)
-        return page
 
     def _build_runtime_card(self) -> SectionCard:
         card = SectionCard(
@@ -2744,6 +2559,7 @@ class GpuGovernorPage(QWidget):
             icon_background="neutral_soft",
         )
         card.add_header_button("Clear console", self._clear_console)
+        card.add_header_button("Copy diagnostics", self._copy_apu_diagnostics)
 
         self.advanced_grid = QGridLayout()
         self.advanced_grid.setContentsMargins(0, 0, 0, 0)
@@ -2825,8 +2641,14 @@ class GpuGovernorPage(QWidget):
         ):
             diagnostics_layout.addWidget(line)
 
+        self.safe_points_panel.setVisible(GPU_REFERENCE_PANELS_ENABLED)
+        self.diagnostics_panel.setVisible(GPU_REFERENCE_PANELS_ENABLED)
+
         self.console_panel = QFrame()
         self.console_panel.setProperty("compactPanel", True)
+        self.console_panel.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
         console_layout = QVBoxLayout(self.console_panel)
         console_layout.setContentsMargins(12, 12, 12, 12)
         console_layout.setSpacing(8)
@@ -2836,7 +2658,10 @@ class GpuGovernorPage(QWidget):
         self.console = QPlainTextEdit()
         self.console.setObjectName("OperationConsole")
         self.console.setReadOnly(True)
-        self.console.setMinimumHeight(230)
+        self.console.setMinimumHeight(330)
+        self.console.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+        )
         self.console.setPlainText(
             tr("GPU Governor console ready. No hardware command has been executed.")
         )
@@ -2849,12 +2674,7 @@ class GpuGovernorPage(QWidget):
 
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
-        active_scroll = (
-            self.voltage_scroll
-            if self.page_stack.currentWidget() is self.voltage_lab_page
-            else self.overview_scroll
-        )
-        self._reflow(effective_viewport_width(self, active_scroll))
+        self._reflow(effective_viewport_width(self, self.overview_scroll))
         if getattr(self, "voltage_lab_drawer", None) is not None:
             self.voltage_lab_drawer.setGeometry(self.rect())
             if self.voltage_lab_drawer.is_open():
@@ -2868,8 +2688,6 @@ class GpuGovernorPage(QWidget):
         self._reflow_runtime_stats(width)
         self._reflow_runtime_actions(width)
         self._reflow_advanced(width)
-        self._reflow_voltage_summary(width)
-        self._reflow_voltage_workspace(width)
 
         columns = 2 if width >= 1080 else 1
         if columns == self._workspace_columns and self.workspace.count():
@@ -2923,11 +2741,13 @@ class GpuGovernorPage(QWidget):
             return
         self._preset_columns = columns
         self._clear_grid(self.preset_grid)
-        visible_buttons = [
-            button for button in self.preset_buttons if not button.isHidden()
+        visible_tiles = [
+            tile
+            for tile, button in zip(self.preset_tiles, self.preset_buttons, strict=True)
+            if not button.isHidden()
         ]
-        for index, button in enumerate(visible_buttons):
-            self.preset_grid.addWidget(button, index // columns, index % columns)
+        for index, tile in enumerate(visible_tiles):
+            self.preset_grid.addWidget(tile, index // columns, index % columns)
         for column in range(columns):
             self.preset_grid.setColumnStretch(column, 1)
 
@@ -2990,60 +2810,8 @@ class GpuGovernorPage(QWidget):
         for row in range(rows):
             self.metrics_grid.setRowStretch(row, 1)
 
-    def _reflow_voltage_summary(self, width: int) -> None:
-        if not hasattr(self, "voltage_summary"):
-            return
-        columns = (
-            5 if width >= 1040 else 3 if width >= 680 else 2 if width >= 420 else 1
-        )
-        if columns == self._voltage_summary_columns:
-            return
-        self._voltage_summary_columns = columns
-        self.voltage_summary.set_columns(columns)
 
-    def _reflow_voltage_profiles(self, width: int) -> None:
-        if not hasattr(self, "voltage_profile_grid") or not hasattr(
-            self, "voltage_profile_buttons"
-        ):
-            return
-        columns = 4 if width >= 850 else 2 if width >= 480 else 1
-        if (
-            columns == self._voltage_profile_columns
-            and self.voltage_profile_grid.count()
-        ):
-            return
-        self._voltage_profile_columns = columns
-        self._clear_grid(self.voltage_profile_grid)
-        for index, button in enumerate(self.voltage_profile_buttons):
-            self.voltage_profile_grid.addWidget(
-                button, index // columns, index % columns
-            )
-        for column in range(columns):
-            self.voltage_profile_grid.setColumnStretch(column, 1)
 
-    def _reflow_voltage_workspace(self, width: int) -> None:
-        if not hasattr(self, "voltage_workspace") or not hasattr(
-            self, "voltage_curve_card"
-        ):
-            return
-        self._reflow_voltage_profiles(width)
-        columns = 1
-        if (
-            columns == self._voltage_workspace_columns
-            and self.voltage_workspace.count()
-        ):
-            return
-        self._voltage_workspace_columns = columns
-        self._clear_grid(self.voltage_workspace)
-        self.voltage_workspace.setHorizontalSpacing(0)
-        self.voltage_workspace.setVerticalSpacing(8)
-        self.voltage_workspace.addWidget(
-            self.voltage_curve_card, 0, 0, Qt.AlignmentFlag.AlignTop
-        )
-        self.voltage_workspace.addWidget(
-            self.voltage_workflow_card, 1, 0, Qt.AlignmentFlag.AlignTop
-        )
-        self.voltage_workspace.setColumnStretch(0, 1)
 
     def _reflow_runtime_stats(self, width: int) -> None:
         columns = (
@@ -3089,16 +2857,24 @@ class GpuGovernorPage(QWidget):
         self._clear_grid(self.advanced_grid)
         if columns == 2:
             self.advanced_grid.addWidget(self.fixed_safe_point_panel, 0, 0, 1, 2)
-            self.advanced_grid.addWidget(self.safe_points_panel, 1, 0)
-            self.advanced_grid.addWidget(self.diagnostics_panel, 1, 1)
-            self.advanced_grid.addWidget(self.console_panel, 2, 0, 1, 2)
+            next_row = 1
+            if GPU_REFERENCE_PANELS_ENABLED:
+                self.advanced_grid.addWidget(self.safe_points_panel, next_row, 0)
+                self.advanced_grid.addWidget(self.diagnostics_panel, next_row, 1)
+                next_row += 1
+            self.advanced_grid.addWidget(self.console_panel, next_row, 0, 1, 2)
+            self.advanced_grid.setRowStretch(next_row, 1)
             self.advanced_grid.setColumnStretch(0, 7)
             self.advanced_grid.setColumnStretch(1, 5)
         else:
             self.advanced_grid.addWidget(self.fixed_safe_point_panel, 0, 0)
-            self.advanced_grid.addWidget(self.safe_points_panel, 1, 0)
-            self.advanced_grid.addWidget(self.diagnostics_panel, 2, 0)
-            self.advanced_grid.addWidget(self.console_panel, 3, 0)
+            next_row = 1
+            if GPU_REFERENCE_PANELS_ENABLED:
+                self.advanced_grid.addWidget(self.safe_points_panel, next_row, 0)
+                self.advanced_grid.addWidget(self.diagnostics_panel, next_row + 1, 0)
+                next_row += 2
+            self.advanced_grid.addWidget(self.console_panel, next_row, 0)
+            self.advanced_grid.setRowStretch(next_row, 1)
             self.advanced_grid.setColumnStretch(0, 1)
 
     @staticmethod
@@ -3219,8 +2995,12 @@ class GpuGovernorPage(QWidget):
                 button.payload = payload
                 button.setText(f"{tr(title)}\n{tr(summary)}")
                 button.show()
+                self.preset_tiles[index].show()
+                self.preset_edit_buttons[index].setVisible(not is_oberon)
             else:
                 button.hide()
+                self.preset_tiles[index].hide()
+        self._apply_profile_overrides()
         for field in self.range_fields:
             field.setVisible(not is_oberon)
         self.use_active_button.setVisible(not is_oberon)
@@ -3231,6 +3011,21 @@ class GpuGovernorPage(QWidget):
                 else "Review and apply range"
             )
         )
+        # The quick frequency picker and its buttons duplicate part of the
+        # advanced TOML laboratory; Oberon does not use TOML safe-points at
+        # all, so this panel (and the now-empty runtime status row it frees
+        # up space from) only makes sense for Cyan. Oberon keeps its original
+        # five-pill runtime status row exactly as before.
+        self.quick_range_panel.setVisible(not is_oberon)
+        self.runtime_stats_panel.setVisible(is_oberon)
+        self.metric_tiles = (
+            self.metric_tiles_oberon if is_oberon else self.metric_tiles_cyan
+        )
+        for tile in self.metric_tiles_oberon:
+            tile.setVisible(is_oberon)
+        for tile in self.metric_tiles_cyan:
+            tile.setVisible(not is_oberon)
+        self._metric_columns = 0
         self._preset_columns = 0
         self._range_action_mode = ""
         self._workspace_columns = 0
@@ -3339,8 +3134,6 @@ class GpuGovernorPage(QWidget):
                     if keep_voltage_lab
                     and getattr(self, "voltage_lab_drawer", None) is not None
                     and self.voltage_lab_drawer.is_open()
-                    else self.page_stack.setCurrentWidget(self.voltage_lab_page)
-                    if keep_voltage_lab
                     else None
                 )
             ),
@@ -3728,6 +3521,12 @@ class GpuGovernorPage(QWidget):
                 dialog_parent=dialog_parent,
             )
             return
+        if action.startswith("bazzite_mitigations_"):
+            self._prepare_bazzite_mitigations(
+                action.removeprefix("bazzite_mitigations_"),
+                dialog_parent=dialog_parent,
+            )
+            return
         if action in {"quick_access_install_decky", "quick_access_plugin"}:
             self._prepare_steamos_quick_access(
                 install_decky=action == "quick_access_install_decky",
@@ -3751,7 +3550,12 @@ class GpuGovernorPage(QWidget):
         if action == "fsr4_upstream":
             self._open_fsr4_upstream(dialog_parent=dialog_parent)
             return
-        if action in {"acpi_upstream", "gfx1013_upstream", "bazzite_image_upstream"}:
+        if action in {
+            "acpi_upstream",
+            "gfx1013_upstream",
+            "bazzite_async_upstream",
+            "bazzite_image_upstream",
+        }:
             self._open_compatibility_upstream(action, dialog_parent=dialog_parent)
             return
         if action == "steamos_graphics_upstream":
@@ -3854,6 +3658,43 @@ class GpuGovernorPage(QWidget):
                 tr("Workflow opened. Check the terminal result before rebooting."),
             ),
             tr("Could not prepare memory setup"),
+            controls=(),
+            error_parent=dialog_parent,
+        )
+
+    def _prepare_bazzite_mitigations(
+        self, action: str, *, dialog_parent: QWidget | None
+    ) -> None:
+        action = str(action or "").strip().lower()
+        if action not in {"disable", "restore"}:
+            raise ValueError("Unsupported Bazzite CPU-mitigation action.")
+        disabling = action == "disable"
+        confirmation = ConfirmDialog(
+            tr("Disable CPU security mitigations" if disabling else "Restore CPU security mitigations"),
+            tr(
+                "This disables optional kernel protections against multiple CPU vulnerabilities. It may improve performance in some workloads. The change applies after reboot and can be restored from Control Center."
+                if disabling
+                else "This restores the exact CPU mitigation arguments that existed before Control Center disabled them. The change applies after reboot."
+            ),
+            summary=(
+                (tr("Platform"), "Bazzite"),
+                (tr("Kernel argument"), "mitigations=off"),
+                (tr("Reboot"), tr("Required to activate the selected configuration")),
+            ),
+            confirm_text=tr("Disable mitigations" if disabling else "Restore mitigations"),
+            tone="red" if disabling else "orange",
+            parent=dialog_parent or self,
+        )
+        if confirmation.exec() != QDialog.DialogCode.Accepted:
+            return
+        self._run_backend_action(
+            lambda: self.controller.gestionar_mitigaciones_bazzite(action),
+            lambda _result: GpuGovernorPage._record_preparation_result(
+                self,
+                tr("CPU security mitigations"),
+                tr("The CPU mitigation change was staged. Reboot after the terminal reports success."),
+            ),
+            tr("Could not update CPU security mitigations"),
             controls=(),
             error_parent=dialog_parent,
         )
@@ -4012,12 +3853,6 @@ class GpuGovernorPage(QWidget):
             error_parent=dialog_parent,
         )
 
-    def _prepare_cachyos_bc250_kernel(
-        self, *, dialog_parent: QWidget | None
-    ) -> None:
-        """Compatibility alias for callers that still request kernel only."""
-        self._prepare_cachyos_bc250("kernel", dialog_parent=dialog_parent)
-
     def _manage_fsr4_bc250(
         self, action: str, *, dialog_parent: QWidget | None
     ) -> None:
@@ -4087,6 +3922,7 @@ class GpuGovernorPage(QWidget):
         urls = {
             "acpi_upstream": "https://github.com/e-tho/bc250-acpi-fix",
             "gfx1013_upstream": gfx_url,
+            "bazzite_async_upstream": BAZZITE_ASYNC_COMPUTE_REPOSITORY,
             "bazzite_image_upstream": "https://github.com/62fixolab/Latest-Bazzite-AMD-BC-250-Patched-Images",
         }
         opened, message = open_external_url(urls[action])
@@ -4129,11 +3965,13 @@ class GpuGovernorPage(QWidget):
         state = _dict(tools.get("gfx1013_compute"))
         presentation = present_gfx1013(state)
         detail = " ".join(tr(part) for part in presentation.detail)
+        version_id = str(state.get("version_id") or "").strip()
+        system_label = f"Fedora {version_id}" if version_id else "Fedora"
         confirmation = ConfirmDialog(
             tr("GFX1013 async compute"),
             detail,
             summary=(
-                (tr("System"), "Fedora 43"),
+                (tr("System"), system_label),
                 (tr("Running kernel"), str(state.get("kernel") or tr("Unknown"))),
                 (tr("Source"), "DryhoppedIPA/bc250-gfx1013-fix"),
                 (tr("Recovery"), tr("Stock boot remains the default")),
@@ -4524,13 +4362,6 @@ class GpuGovernorPage(QWidget):
         self._sync_voltage_drawer()
         self.voltage_lab_drawer.show_animated()
 
-    def _close_voltage_lab(self) -> None:
-        self.page_stack.setCurrentWidget(self.overview_page)
-
-    def _refresh_voltage_lab(self) -> None:
-        self.refresh()
-        self.page_stack.setCurrentWidget(self.voltage_lab_page)
-
     def gamepad_focus_scope(self) -> QWidget:
         if self.voltage_lab_drawer.is_open():
             return self.voltage_lab_drawer.drawer
@@ -4539,9 +4370,6 @@ class GpuGovernorPage(QWidget):
     def gamepad_back(self) -> bool:
         if self.voltage_lab_drawer.is_open():
             self.voltage_lab_drawer.close_animated()
-            return True
-        if self.page_stack.currentWidget() is self.voltage_lab_page:
-            self._close_voltage_lab()
             return True
         return False
 
@@ -4556,15 +4384,14 @@ class GpuGovernorPage(QWidget):
         drawer = getattr(self, "voltage_lab_drawer", None)
         drawer_editors = drawer.editors() if drawer is not None else ()
         return voltage_keypad_edit_active(
-            (
-                *getattr(self, "_voltage_spinboxes", {}).values(),
-                *drawer_editors,
-            ),
-            application=QApplication.instance(),
+            drawer_editors, application=QApplication.instance()
         )
 
     def _sync_voltage_lab(self, gpu: dict) -> None:
-        if not hasattr(self, "voltage_curve_grid"):
+        # The guard used to ask whether the page's curve grid had been built.
+        # The drawer is the surface now, and an in-progress keypad edit still
+        # owns the values: refreshing over it would discard what is being typed.
+        if getattr(self, "voltage_lab_drawer", None) is None:
             return
         if self._voltage_keypad_edit_active():
             return
@@ -4582,70 +4409,13 @@ class GpuGovernorPage(QWidget):
         self._voltage_profile_frequencies = set(state.profile_frequencies)
         self._voltage_detected_level = state.detected_level
 
-        self.voltage_summary.setVisible(not state.is_oberon)
-        self.voltage_workspace_host.setVisible(not state.is_oberon)
-        self.voltage_controls_card.setVisible(not state.is_oberon)
-        self.oberon_voltage_card.setVisible(state.is_oberon)
-        if state.is_oberon:
-            endpoint_map = dict(state.current_voltages)
-            self.voltage_notice.set_notice(
-                "Oberon voltage changes are unavailable",
-                "Oberon has two YAML endpoints, not Cyan's multipoint curve. The active profile uses the displayed endpoints; supported profile changes restore the upstream 1000 mV baseline instead of deriving a voltage from Cyan.",
-                tone="blue",
-            )
-            self.oberon_voltage_minimum.set_values(
-                f"{state.active_min} MHz · {endpoint_map.get(state.active_min, '--')} mV",
-                tr("Configured minimum YAML endpoint"),
-            )
-            self.oberon_voltage_maximum.set_values(
-                f"{state.active_max} MHz · {endpoint_map.get(state.active_max, '--')} mV",
-                tr("Configured maximum YAML endpoint"),
-            )
-        else:
-            self.voltage_notice.set_notice(
-                "Stop every 3D workload before applying",
-                "A timestamped backup is created, the governor restarts, and the previous D-Bus range is restored only after confirmation.",
-                tone="orange",
-            )
-
-        if not getattr(self, "_voltage_lab_initialized", False):
-            index = self.voltage_level_combo.findData(self._voltage_detected_level)
-            if index >= 0:
-                self.voltage_level_combo.blockSignals(True)
-                self.voltage_level_combo.setCurrentIndex(index)
-                self.voltage_level_combo.blockSignals(False)
-            self._voltage_lab_initialized = True
-
         for frequency, voltage in state.custom_defaults:
             self._voltage_custom_values.setdefault(frequency, voltage)
+        self._voltage_lab_initialized = True
 
-        presentation = present_voltage_lab(
-            state,
-            custom_voltage_maximum=CUSTOM_VOLTAGE_MAX_MV,
-        )
-        for widget, summary in zip(
-            self.voltage_summary_items,
-            presentation.summaries,
-            strict=True,
-        ):
-            widget.set_values(
-                self._render_voltage_lab_text(summary.value),
-                self._render_voltage_lab_text(summary.detail),
-            )
-
-        if self.voltage_table_status is not None:
-            self.voltage_table_status.setText(
-                count_label(presentation.table_count, "point")
-            )
-            self.voltage_table_status.set_tone(presentation.table_tone)
-        if self.voltage_controls_status is not None:
-            self.voltage_controls_status.setText(tr(presentation.controls_status))
-            self.voltage_controls_status.set_tone(presentation.controls_tone)
-        if getattr(self, "voltage_workflow_status", None) is not None:
-            self.voltage_workflow_status.setText(tr(presentation.workflow_status))
-            self.voltage_workflow_status.set_tone(presentation.workflow_tone)
-        # Curve validity remains visible in the summary strip and is rechecked before every apply.
-        self._populate_voltage_table()
+        # The drawer is the only voltage surface. The page this method used to
+        # feed as well was never reachable: ``open_voltage_lab`` returns the
+        # stack to the overview and opens the drawer instead.
         self._sync_voltage_drawer()
 
     def _sync_voltage_drawer(self) -> None:
@@ -4704,25 +4474,16 @@ class GpuGovernorPage(QWidget):
     def _select_drawer_voltage_profile(self, level: int) -> None:
         self._clear_stale_voltage_keypad_state()
         self.voltage_lab_drawer.set_profile(int(level))
-        index = self.voltage_level_combo.findData(int(level))
-        if index >= 0:
-            self.voltage_level_combo.setCurrentIndex(index)
         self._sync_voltage_drawer()
 
     def _drawer_custom_voltage_changed(self, frequency: int, value: int) -> None:
-        frequency = int(frequency)
-        value = int(value)
-        self._voltage_custom_values[frequency] = value
-        spin = self._voltage_spinboxes.get(frequency)
-        if spin is not None and spin.value() != value:
-            previous = spin.blockSignals(True)
-            spin.setValue(value)
-            spin.blockSignals(previous)
-        base = self.VOLTAGE_LAB_BASE.get(frequency)
-        self.voltage_curve_grid.update_point(
-            frequency,
-            None if base is None else value - int(base),
-        )
+        """Record what was typed. Do not redraw the row it was typed into.
+
+        ``set_curve`` rebuilds the row widgets whenever the values change, so
+        syncing the drawer from its own editor destroys the spin box under the
+        user's fingers mid-edit — and takes the keypad's target with it.
+        """
+        self._voltage_custom_values[int(frequency)] = int(value)
 
     def _request_apply_voltage_curve_from_drawer(self) -> None:
         self._request_apply_voltage_curve(
@@ -4738,123 +4499,10 @@ class GpuGovernorPage(QWidget):
             source_controls=(self.voltage_lab_drawer.restore_button,),
         )
 
-    @staticmethod
-    def _render_voltage_lab_text(value: VoltageLabText) -> str:
-        if value.literal:
-            return value.template
-        return tr_format(value.template, **dict(value.values))
-
     def _clear_stale_voltage_keypad_state(self) -> None:
-        clear_voltage_keypad_state(getattr(self, "_voltage_spinboxes", {}).values())
+        drawer = getattr(self, "voltage_lab_drawer", None)
+        clear_voltage_keypad_state(drawer.editors() if drawer is not None else ())
 
-    def _select_voltage_profile(self, level: int) -> None:
-        self._clear_stale_voltage_keypad_state()
-        index = self.voltage_level_combo.findData(int(level))
-        if index >= 0:
-            self.voltage_level_combo.setCurrentIndex(index)
-            self._populate_voltage_table()
-
-    def _sync_voltage_profile_buttons(self, level: int) -> None:
-        for button in getattr(self, "voltage_profile_buttons", []):
-            button.setChecked(button.level == int(level))
-
-    def _voltage_level_changed(self, _index: int = 0) -> None:
-        self._sync_voltage_profile_buttons(
-            _integer(self.voltage_level_combo.currentData(), 0)
-        )
-        self._populate_voltage_table()
-        self._sync_voltage_drawer()
-
-    def _populate_voltage_table(self) -> None:
-        if not hasattr(self, "voltage_curve_grid"):
-            return
-        if self._voltage_keypad_edit_active():
-            return
-        points = list(getattr(self, "_voltage_points", []))
-        selected_level = _integer(self.voltage_level_combo.currentData(), 0)
-        self._sync_voltage_profile_buttons(selected_level)
-        plan = build_voltage_table_plan(
-            points=points,
-            selected_level=selected_level,
-            editable_frequencies=self._voltage_editable_frequencies,
-            profile_frequencies=self._voltage_profile_frequencies,
-            custom_values=self._voltage_custom_values,
-            packaged_voltages=self.VOLTAGE_LAB_BASE,
-            detected_level=self._voltage_detected_level,
-            is_oberon=bool(getattr(self, "_is_oberon_backend", False)),
-        )
-        self.voltage_apply_button.setEnabled(bool(plan.active_frequencies))
-        # Rebuilding this grid destroys and recreates every editor widget. A
-        # telemetry refresh arrives frequently, so compare only inputs that
-        # change the rendered structure.  Custom spin-box edits update their
-        # own row in-place and must not make the curve blink on the next poll.
-        signature = (
-            tuple(self._voltage_points),
-            selected_level,
-            tuple(sorted(self._voltage_editable_frequencies)),
-            tuple(sorted(self._voltage_profile_frequencies)),
-            self._voltage_detected_level,
-            bool(getattr(self, "_is_oberon_backend", False)),
-        )
-        if signature == getattr(self, "_voltage_table_signature", None):
-            return
-        self._voltage_table_signature = signature
-        self.voltage_curve_grid.clear_points()
-        self._voltage_spinboxes = {}
-
-        for row, item in enumerate(plan.rows):
-            spin = None
-            if item.custom_available:
-                spin = QSpinBox()
-                spin.setRange(
-                    OBERON_SAFE_VOLTAGE_MIN_MV
-                    if getattr(self, "_is_oberon_backend", False)
-                    else CUSTOM_VOLTAGE_MIN_MV,
-                    CUSTOM_VOLTAGE_MAX_MV,
-                )
-                spin.setSingleStep(5)
-                spin.setSuffix(" mV")
-                spin.setValue(item.editor_value)
-                spin.setEnabled(plan.custom_mode)
-                spin.valueChanged.connect(
-                    lambda value, freq=item.frequency: self._voltage_custom_changed(
-                        freq, value
-                    )
-                )
-                self._voltage_spinboxes[item.frequency] = spin
-
-            self.voltage_curve_grid.add_point(
-                row,
-                frequency=item.frequency,
-                current=item.current,
-                original=item.original,
-                added=item.added,
-                editor=spin,
-                custom_available=item.custom_available,
-            )
-        self._sync_voltage_curve_scroll_height()
-        QTimer.singleShot(0, self._sync_voltage_curve_scroll_height)
-        self.voltage_level_detail.setText(
-            tr_format(plan.detail_template, **dict(plan.detail_values))
-        )
-
-    def _sync_voltage_curve_scroll_height(self) -> None:
-        if not hasattr(self, "voltage_curve_scroll"):
-            return
-        self.voltage_curve_grid.grid.activate()
-        content_height = max(72, self.voltage_curve_grid.minimumSizeHint().height())
-        scrollbar_height = (
-            self.voltage_curve_scroll.horizontalScrollBar().sizeHint().height()
-        )
-        self.voltage_curve_scroll.setFixedHeight(content_height + scrollbar_height + 2)
-
-    def _voltage_custom_changed(self, frequency: int, value: int) -> None:
-        frequency = int(frequency)
-        value = int(value)
-        self._voltage_custom_values[frequency] = value
-        base = self.VOLTAGE_LAB_BASE.get(frequency)
-        added = None if base is None else value - int(base)
-        self.voltage_curve_grid.update_point(frequency, added)
 
     def _request_apply_voltage_curve(
         self,
@@ -4870,18 +4518,20 @@ class GpuGovernorPage(QWidget):
                 tone="orange",
             )
             return
+        # Every caller passes the drawer's own selection; the detected level
+        # is the fallback now that no combo box exists to read.
         level = (
             _integer(level_override, 0)
             if level_override is not None
-            else _integer(self.voltage_level_combo.currentData(), 0)
+            else _integer(getattr(self, "_voltage_detected_level", 0), 0)
         )
         custom_values = (
             dict(custom_values_override)
             if custom_values_override is not None
             else {
-                frequency: int(self._voltage_spinboxes[frequency].value())
+                frequency: int(self._voltage_custom_values[frequency])
                 for frequency in sorted(self._voltage_editable_frequencies)
-                if frequency in self._voltage_spinboxes
+                if frequency in self._voltage_custom_values
             }
             if level == -1
             else {}
@@ -4986,7 +4636,7 @@ class GpuGovernorPage(QWidget):
             operation,
             success,
             "Voltage curve failed",
-            controls=(self.voltage_apply_button, *source_controls),
+            controls=tuple(source_controls),
             keep_voltage_lab=True,
         )
 
@@ -5171,7 +4821,7 @@ class GpuGovernorPage(QWidget):
             else tr("Current SCLK state"),
         )
         self.voltage_metric.set_values(
-            str(telemetry["voltage_text"]), tr("OD / SMU telemetry")
+            str(telemetry["voltage_text"]), tr("AMDGPU hwmon sensor")
         )
         self.temperature_metric.set_values(
             str(telemetry["temperature_text"]), self._temperature_status(temperature)
@@ -5185,9 +4835,34 @@ class GpuGovernorPage(QWidget):
         self.vram_metric.set_values(
             str(telemetry["vram_value"]), str(telemetry["vram_detail"])
         )
+        diagnostic = _dict(self.current_state.get("apu_telemetry"))
+        readings = _dict(diagnostic.get("metrics"))
+        sampled_at = _number(diagnostic.get("sampled_at_monotonic"), 0)
+        age = time.monotonic() - sampled_at
+        stale = bool(diagnostic) and (sampled_at <= 0 or age < 0 or age > 6)
+        clock_parts = []
+        for name in ("mclk", "fclk", "uclk"):
+            item = _dict(readings.get(name))
+            value = item.get("value") if item.get("status") == "valid" and not stale else None
+            clock_parts.append(
+                f"{name.upper()}: {value} MHz" if value is not None
+                else f"{name.upper()}: {tr('Not available')}"
+            )
+        self.memory_clocks_line.setText(" · ".join(clock_parts))
+        self.memory_clocks_line.setToolTip(tr("Independent memory clocks require a verified source."))
+        for name, widget in (
+            ("sclk", self.sclk_metric), ("voltage", self.voltage_metric),
+            ("temperature", self.temperature_metric), ("mclk", self.mclk_metric),
+        ):
+            item = _dict(readings.get(name))
+            if stale or item.get("status") == "invalid":
+                widget.set_values(tr("Stale" if stale else "Invalid"), tr("Advanced GPU diagnostics"))
+            widget.setToolTip(str(item.get("source") or ""))
         if self.metrics_status is not None:
-            self.metrics_status.setText(tr("Live"))
-            self.metrics_status.set_tone("green")
+            degraded = stale or diagnostic.get("status") in {"invalid", "unavailable"}
+            self.metrics_status.setText(tr("Warning" if degraded else "Live"))
+            self.metrics_status.set_tone("orange" if degraded else "green")
+            self.metrics_status.setToolTip(tr("Advanced GPU diagnostics") if diagnostic.get("layout_mismatch_suspected") else "")
 
     @staticmethod
     def _persistent_range_copy(frequency_range: dict) -> str:
@@ -5251,6 +4926,18 @@ class GpuGovernorPage(QWidget):
                 self._render_runtime_text(line.value),
                 self._render_runtime_text(line.detail),
             )
+        # Cyan shows this same D-Bus/active-range information promoted into
+        # the main telemetry grid instead of the pill row above (see
+        # metric_tiles_cyan); keep both tiles fed regardless of backend since
+        # they simply stay hidden and unused for Oberon.
+        self.dbus_metric.set_values(
+            self._render_runtime_text(presentation.lines[2].value),
+            self._render_runtime_text(presentation.lines[2].detail),
+        )
+        self.active_range_metric.set_values(
+            self._render_runtime_text(presentation.lines[3].value),
+            self._render_runtime_text(presentation.lines[3].detail),
+        )
         if self.runtime_card.status is not None:
             self.runtime_card.status.setText(
                 self._render_runtime_text(presentation.card_status)
@@ -5473,6 +5160,9 @@ class GpuGovernorPage(QWidget):
 
     def retranslate_dynamic_copy(self) -> None:
         self._retranslate_cyan_compatibility_labels()
+        redesigned = getattr(self, "_redesigned_gpu_view", None)
+        if redesigned is not None:
+            redesigned.retranslate_dynamic_copy()
 
     def _populate_points(self, points: list, current: int) -> None:
         plan = build_safe_point_plan(
@@ -5528,28 +5218,32 @@ class GpuGovernorPage(QWidget):
         if signature == self._safe_point_combo_signature:
             return
         selectable = [frequency for frequency, _voltage in cleaned]
-        previous = _integer(self.oc_frequency.currentData(), 0)
-        self.oc_frequency.blockSignals(True)
-        self.oc_frequency.clear()
-        for frequency, voltage in cleaned:
-            self.oc_frequency.addItem(
-                f"{frequency} MHz · {voltage} mV" if voltage else f"{frequency} MHz",
-                frequency,
+        combos = [self.oc_frequency]
+        if hasattr(self, "quick_safe_point_combo"):
+            combos.append(self.quick_safe_point_combo)
+        for combo in combos:
+            previous = _integer(combo.currentData(), 0)
+            combo.blockSignals(True)
+            combo.clear()
+            for frequency, voltage in cleaned:
+                combo.addItem(
+                    f"{frequency} MHz · {voltage} mV" if voltage else f"{frequency} MHz",
+                    frequency,
+                )
+            desired = (
+                previous
+                if previous in selectable
+                else current
+                if current in selectable
+                else selectable[0]
+                if selectable
+                else None
             )
-        desired = (
-            previous
-            if previous in selectable
-            else current
-            if current in selectable
-            else selectable[0]
-            if selectable
-            else None
-        )
-        if desired is not None:
-            index = self.oc_frequency.findData(desired)
-            if index >= 0:
-                self.oc_frequency.setCurrentIndex(index)
-        self.oc_frequency.blockSignals(False)
+            if desired is not None:
+                index = combo.findData(desired)
+                if index >= 0:
+                    combo.setCurrentIndex(index)
+            combo.blockSignals(False)
         self._safe_point_combo_signature = signature
 
     def _safe_point_popup_visible(self) -> bool:
@@ -5584,6 +5278,7 @@ class GpuGovernorPage(QWidget):
             and not conflicts
         )
         self.apply_selected_range_button.setEnabled(can_apply)
+        self._sync_quick_safe_point_selection(frequency, can_apply)
         if frequency <= 0:
             self.safe_point_detail.setText(tr("No selectable safe-point is available."))
             return
@@ -5609,6 +5304,96 @@ class GpuGovernorPage(QWidget):
             )
         self.safe_point_detail.setText(status)
 
+    def _sync_quick_safe_point_selection(self, frequency: int, can_apply: bool) -> None:
+        """Mirror the advanced safe-point pick into the quick range panel."""
+        if not hasattr(self, "quick_safe_point_combo"):
+            return
+        index = self.quick_safe_point_combo.findData(frequency) if frequency > 0 else -1
+        if index >= 0 and self.quick_safe_point_combo.currentIndex() != index:
+            self.quick_safe_point_combo.blockSignals(True)
+            self.quick_safe_point_combo.setCurrentIndex(index)
+            self.quick_safe_point_combo.blockSignals(False)
+        self.quick_apply_button.setText(self.apply_selected_range_button.text())
+        self.quick_apply_button.setEnabled(can_apply)
+
+    def _quick_safe_point_changed(self, _index: int = 0) -> None:
+        frequency = _integer(self.quick_safe_point_combo.currentData(), 0)
+        if frequency <= 0:
+            return
+        index = self.oc_frequency.findData(frequency)
+        if index >= 0 and index != self.oc_frequency.currentIndex():
+            # This naturally re-runs _update_selected_safe_point through the
+            # existing oc_frequency signal, which also calls back into
+            # _sync_quick_safe_point_selection above to keep both panels
+            # showing the same pick.
+            self.oc_frequency.setCurrentIndex(index)
+        else:
+            self._update_selected_safe_point()
+
+    def _current_safe_points(self) -> list[tuple[int, int]]:
+        return [
+            (frequency, self.safe_voltage_map.get(frequency, 0))
+            for frequency in self.safe_frequencies
+        ]
+
+    def _apply_profile_overrides(self) -> None:
+        """Re-apply saved custom names/ranges on top of the default specs.
+
+        _set_backend_profile_mode always resets the three preset buttons to
+        their default title/range first (Cyan defaults or Oberon's fixed
+        pair), so this runs right after it to restore whatever the user
+        renamed/edited, without touching Oberon (which is never editable).
+        """
+        if self._profile_backend == "oberon":
+            return
+        for index, button in enumerate(self.preset_buttons):
+            override = self._custom_profile_overrides.get(index)
+            if override is None:
+                continue
+            button.payload = (override["min"], override["max"])
+            reference = (
+                f"{override['frequency']} MHz · {override['voltage']} mV\n"
+                if override.get("frequency")
+                else ""
+            )
+            button.setText(
+                f"{override['name']}\n{reference}{override['min']}–{override['max']} MHz"
+            )
+
+    def _edit_profile(self, index: int) -> None:
+        if index < 0 or index >= len(self.preset_buttons):
+            return
+        button = self.preset_buttons[index]
+        override = self._custom_profile_overrides.get(index)
+        minimum, maximum = button.payload
+        name = override["name"] if override else button.text().splitlines()[0]
+        reference_frequency = override["frequency"] if override else maximum
+        safe_points = self._current_safe_points()
+        if not safe_points:
+            self._show_info(
+                "No validated safe-points yet",
+                "Refresh GPU status at least once before editing a profile.",
+                tone="orange",
+            )
+            return
+        dialog = GpuProfileEditDialog(
+            name=name,
+            minimum_mhz=minimum,
+            maximum_mhz=maximum,
+            reference_frequency=reference_frequency,
+            safe_points=safe_points,
+            allowed_min=self.allowed_min,
+            allowed_max=self.allowed_max,
+            parent=self,
+        )
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        profile = dialog.result_profile()
+        self._custom_profile_overrides[index] = profile
+        _save_custom_gpu_profile(application_settings(), index, profile)
+        self._apply_profile_overrides()
+        self._update_profile_availability()
+
     def _update_profile_availability(self) -> None:
         safe = set(self.safe_frequencies)
         is_oberon = (
@@ -5623,9 +5408,16 @@ class GpuGovernorPage(QWidget):
                 )
             }
         for index, button in enumerate(self.preset_buttons):
+            override = None if is_oberon else self._custom_profile_overrides.get(index)
             if is_oberon:
                 preset_minimum, preset_maximum = button.payload
                 available = tuple(button.payload) in OBERON_SAFE_PROFILES
+            elif override is not None:
+                # A renamed/edited profile keeps the range the user picked in
+                # the editor instead of the dynamically computed Balanced /
+                # Gaming / Benchmark defaults below.
+                preset_minimum, preset_maximum = button.payload
+                available = not safe or preset_maximum in safe
             else:
                 profile_key = ("balanced", "gaming", "benchmark")[index]
                 profile = dynamic_profiles.get(profile_key)
@@ -5664,14 +5456,18 @@ class GpuGovernorPage(QWidget):
             return message.template
         return tr_format(message.template, **dict(message.values))
 
-    @staticmethod
-    def _compact_path(value: str) -> str:
-        return compact_diagnostic_path(value)
-
     def set_detailed_diagnostics(self, enabled: bool) -> None:
         self._detailed_diagnostics = bool(enabled)
         if self.current_state:
             self._update_diagnostics(self.current_state)
+
+    def _copy_apu_diagnostics(self) -> None:
+        payload = dict(self.current_state.get("apu_telemetry") or {})
+        payload["cyan_compatibility"] = {
+            key: _dict(self.current_state.get("cyan_telemetry")).get(key)
+            for key in ("set_method", "method", "fix_metrics", "fix_frequency")
+        }
+        QApplication.clipboard().setText(json.dumps(payload, indent=2, ensure_ascii=False))
 
     def _update_diagnostics(self, gpu: dict) -> None:
         presentation = present_gpu_diagnostics(

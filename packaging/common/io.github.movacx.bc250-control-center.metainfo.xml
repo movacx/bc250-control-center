@@ -37,36 +37,6 @@
         <p>Rediseña el backend GPU de Cyan: separa rango solicitado, límite térmico y frecuencia observada; corrige el runtime SMU de Bazzite, conserva SMU/Kernel y fix-metrics/fix-freq como controles independientes, y habilita los safe-points experimentales superiores a 2000 MHz sin imponer un límite artificial.</p>
       </description>
     </release>
-    <release version="1.19.6" date="2026-08-22">
-      <description>
-        <p>Corrige la instalación nativa de Decky en Bazzite, protege 2000 MHz detrás del backend del kernel y mueve Controladores al diálogo de preparación.</p>
-      </description>
-    </release>
-    <release version="1.19.5" date="2026-08-21">
-      <description>
-        <p>Clarify and translate the Bazzite Memory and Swap card, including its confirmation flow.</p>
-      </description>
-    </release>
-    <release version="1.19.4" date="2026-08-21">
-      <description>
-        <p>Fix Bazzite zswap activation by generating the required systemd path-based swap unit name, and migrate the invalid unit created by earlier releases.</p>
-      </description>
-    </release>
-    <release version="1.19.3" date="2026-08-21">
-      <description>
-        <p>Corrige la reutilización del swapfile y la unidad systemd de memoria en Bazzite; simplifica las opciones de memoria y TTM.</p>
-      </description>
-    </release>
-    <release version="1.19.2" date="2026-08-21">
-      <description>
-        <p>Añade la instalación explícita del kernel BC-250 externo para CachyOS y habilita Quick Access con Decky en CachyOS y CachyOS Handheld.</p>
-      </description>
-    </release>
-    <release version="1.19.1" date="2026-08-21">
-      <description>
-        <p>Corrige Quick Access en Bazzite: habilita el runtime validado y el backend seguro de Compute Units persistente, sin cambiar el flujo de SteamOS.</p>
-      </description>
-    </release>
     <release version="1.18.2" date="2026-07-30">
       <description>
         <p>Corrige la curva de voltaje del governor, restaura los valores originales del paquete y bloquea rangos de OC alto con perfiles incompletos.</p>

@@ -13,10 +13,13 @@ from bc250cc.infrastructure.cu_operations import (
     plan_cu_mask_operations,
     validate_cu_masks,
 )
+from bc250cc.infrastructure.polkit_session import pkexec_argv
 from bc250cc.platform.init.services import (
     detect_init_manager,
     parse_openrc_runlevel,
 )
+from bc250cc.shared import contract
+from bc250cc.shared.failure_text import describe_failure
 
 logger = logging.getLogger(__name__)
 
@@ -26,8 +29,13 @@ logger = logging.getLogger(__name__)
 # instead.  This file is intentionally not a second persistent CU profile:
 # /run is cleared at boot and the desktop cache remains the fallback.
 QUICK_ACCESS_CU_RUNTIME_STATE = Path('/run/bc250-control-center/cu-live-state.json')
-QUICK_ACCESS_CU_RUNTIME_SCHEMA = 1
-QUICK_ACCESS_CU_RUNTIME_HELPER_PROTOCOL = 9
+# Both numbers come from the shared contract now. This one was pinned at 9
+# while the helper published 13, so every snapshot was rejected and
+# ``obtener_estado_cu_cache`` fell through to the stale on-disk cache without
+# a log line — the Compute Units page has been showing old data since the
+# protocol moved to 10.
+QUICK_ACCESS_CU_RUNTIME_SCHEMA = contract.QUICK_ACCESS_CU_RUNTIME_SCHEMA
+QUICK_ACCESS_CU_RUNTIME_HELPER_PROTOCOL = contract.QUICK_ACCESS_PROTOCOL
 QUICK_ACCESS_CU_RUNTIME_MAX_BYTES = 128 * 1024
 DESKTOP_CU_HELPER = Path('/usr/libexec/bc250-control-center/bc250-cu-helper')
 
@@ -68,8 +76,7 @@ class CURepository:
             raise RuntimeError(f'cu_map.sh does not exist at {ruta}')
         rc, out, err = self._ejecutar(['bash', str(ruta), '--no-health'], timeout=10)
         if rc != 0:
-            detalle = err or out or f'exit code {rc}'
-            raise RuntimeError(detalle)
+            raise RuntimeError(describe_failure(rc, out, err))
         lineas = []
         for linea in out.splitlines():
             texto = linea.strip()
@@ -240,13 +247,25 @@ class CURepository:
             or payload.get('schema') != QUICK_ACCESS_CU_RUNTIME_SCHEMA
             or payload.get('producer') != 'bc250-quick-access-helper'
             or type(payload.get('helper_protocol')) is not int
-            or payload.get('helper_protocol') != QUICK_ACCESS_CU_RUNTIME_HELPER_PROTOCOL
             or payload.get('boot_id') != boot_id
             or type(payload.get('observed_at_unix_ms')) is not int
             or payload['observed_at_unix_ms'] < 0
             or payload['observed_at_unix_ms'] > time.time_ns() // 1_000_000 + 60_000
             or not isinstance(payload.get('raw_dashboard'), str)
         ):
+            return None
+        if payload.get('helper_protocol') != QUICK_ACCESS_CU_RUNTIME_HELPER_PROTOCOL:
+            # Separated from the shape checks above so it can say something.
+            # This branch returned a bare None for three protocol bumps while
+            # the caller fell through to a stale cache, so the Compute Units
+            # page quietly showed old data and nothing anywhere said why.
+            logger.warning(
+                'Ignoring the Quick Access CU snapshot: it declares helper '
+                'protocol %r and this build expects %r. The Desktop and Decky '
+                'components are from different installs.',
+                payload.get('helper_protocol'),
+                QUICK_ACCESS_CU_RUNTIME_HELPER_PROTOCOL,
+            )
             return None
         live_masks = self._runtime_masks(payload.get('cu_masks'), live=True)
         driver_masks = self._runtime_masks(payload.get('cu_driver_masks'))
@@ -504,10 +523,10 @@ class CURepository:
             raise RuntimeError('CU_HELPER_MISSING: Reinstall Control Center to enable single-prompt CU actions.') from exc
         if not stat.S_ISREG(metadata.st_mode) or metadata.st_uid != 0 or metadata.st_mode & 0o022 or not metadata.st_mode & 0o111:
             raise RuntimeError('CU_BACKEND_UNTRUSTED: the desktop CU helper is not protected.')
-        command = [pkexec, str(DESKTOP_CU_HELPER), *[str(item) for item in args]]
+        command = pkexec_argv(pkexec, str(DESKTOP_CU_HELPER), *args)
         rc, out, err = self._ejecutar(command, timeout=240)
         if rc != 0:
-            detail = err or out or f'exit code {rc}'
+            detail = describe_failure(rc, out, err)
             if self._autorizacion_cancelada(detail):
                 raise RuntimeError('CU_AUTHORIZATION_CANCELLED')
             raise RuntimeError(detail)
@@ -535,7 +554,7 @@ class CURepository:
         if not pkexec:
             raise RuntimeError('polkit/pkexec was not found. Install polkit to manage the OpenRC CU service.')
         rc, out, err = self._ejecutar(
-            [pkexec, str(helper), action, 'bc250-cu-live-manager'], timeout=120
+            pkexec_argv(pkexec, str(helper), action, 'bc250-cu-live-manager'), timeout=120
         )
         if rc != 0:
             raise RuntimeError(err or out or 'OpenRC CU service action failed.')

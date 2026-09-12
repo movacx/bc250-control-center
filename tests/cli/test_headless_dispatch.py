@@ -28,7 +28,7 @@ class Host:
 def test_safe_dispatch_registry_is_complete_and_immutable():
     assert set(SAFE_HANDLERS) == {
         "system", "components", "integrations", "quick-access", "parse-log",
-        "recovery", "profiles", "metrics", "release-gates", "qualification",
+        "recovery", "profiles", "metrics", "release-gates", "qualification", "telemetry",
     }
     with pytest.raises(TypeError):
         SAFE_HANDLERS["hardware-write"] = lambda *_args: None
@@ -37,6 +37,17 @@ def test_safe_dispatch_registry_is_complete_and_immutable():
 def test_unknown_command_is_left_for_the_dependency_boundary():
     result = dispatch_safe(Namespace(command="dependencies"), object())
     assert result is None
+
+
+def test_telemetry_command_emits_passive_diagnostics(monkeypatch, capsys):
+    import json
+
+    from bc250cc.infrastructure import apu_telemetry
+
+    report = {"schema_version": 1, "metrics": {}, "status": "unavailable"}
+    monkeypatch.setattr(apu_telemetry, "collect_apu_telemetry", lambda: report)
+    assert main(["--json", "telemetry"], host=Host()) == 0
+    assert json.loads(capsys.readouterr().out) == report
 
 
 def test_system_handler_returns_typed_result_without_side_effects():

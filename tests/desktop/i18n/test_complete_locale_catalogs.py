@@ -41,7 +41,7 @@ VISIBLE_CALL_ARGS = {
     "CpuSummaryItem": (0, 1, 2), "add_header_button": (0,), "set_values": (0, 1),
 }
 TECHNICAL_VISIBLE_EXEMPT = {
-    "-- MHz", "-- RPM", "-- °C | -- MHz", "3500–4200 MHz", "Bazzite", "CPU",
+    "-- MHz", "-- RPM", "-- °C | -- MHz", "3100–4200 MHz", "Bazzite", "CPU",
     "GPU -- °C", "GPU · CPU · 40CU · PWM", "GPU · CU · PWM · CPU", "PWM --",
     "PWM -- %", "PWM 2", "bc250-detect --keep", "cyan-skillfish-governor-smu.service",
     "systemd UnitFileState", "{path}: {error}", "{url}: {error}",

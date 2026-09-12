@@ -47,7 +47,7 @@ def test_request_planner_normalizes_supported_actions(action, arguments, normali
 
     assert request == GovernorConfigRequest(action, normalized)
     assert request.argv("/trusted/helper") == [
-        "pkexec", "/trusted/helper", action, *normalized
+        "pkexec", "--disable-internal-agent", "/trusted/helper", action, *normalized
     ]
 
 
@@ -123,7 +123,7 @@ def test_repository_invokes_only_the_planned_argv_and_invalidates_cache():
         "set-frequency-range", "500", 1850
     ) == "updated"
     assert calls == [
-        (["pkexec", "/trusted/helper", "set-frequency-range", "500", "1850"], 120)
+        (["pkexec", "--disable-internal-agent", "/trusted/helper", "set-frequency-range", "500", "1850"], 120)
     ]
     assert repository.estado_bc250_cache is None
 

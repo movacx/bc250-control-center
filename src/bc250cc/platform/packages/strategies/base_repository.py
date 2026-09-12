@@ -27,10 +27,23 @@ class BaseOSRepository:
 
     @property
     def scripts_root(self) -> Path:
-        configured_root = Path(os.environ.get("BC250_CONTROL_CENTER_DIR", ""))
+        """Where the generated workflows find their shell scripts.
+
+        Always absolute. ``Path("")`` is ``Path(".")`` and its string form is
+        truthy, so an unset ``BC250_CONTROL_CENTER_DIR`` used to produce the
+        candidate ``packaging/common/os-scripts`` relative to whatever
+        directory the application happened to be started from. It worked only
+        because a terminal emulator inherited that directory; run the same
+        workflow from anywhere else and bash reported "No such file or
+        directory" for a script that was present all along.
+        """
+        configured = os.environ.get("BC250_CONTROL_CENTER_DIR", "").strip()
         candidates = []
-        if str(configured_root):
-            candidates.append(configured_root / "packaging" / "common" / "os-scripts")
+        if configured:
+            candidates.append(
+                Path(configured).expanduser().resolve()
+                / "packaging" / "common" / "os-scripts"
+            )
         candidates.append(
             Path(__file__).resolve().parents[5]
             / "packaging" / "common" / "os-scripts"

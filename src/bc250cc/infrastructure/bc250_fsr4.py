@@ -1,7 +1,7 @@
 """Official-upstream BC-250 FSR4 V3 lifecycle.
 
-Arch-family hosts use the upstream installer unchanged. Fedora 44, Bazzite and
-Debian/Ubuntu build the same official ``v3`` branch in its Fedora container
+Arch and CachyOS use the upstream installer unchanged. Fedora 44 and Bazzite
+build the same official ``v3`` branch in its Fedora container
 with rootless Podman, then install only the verified per-user Vulkan ICD. Every
 path restores the previous per-user runtime if installation or Vulkan
 validation fails.
@@ -13,16 +13,15 @@ import json
 import shlex
 from pathlib import Path
 
-from .source_checkout import clone_or_update_branch
+from .source_checkout import clone_or_update_commit
 
 BC250_FSR4_REPOSITORY = "https://github.com/dmorazasanchez/bc250-fsr4"
 BC250_FSR4_BRANCH = "v3"
+BC250_FSR4_REVIEWED_COMMIT = "6173651fa3a5a557cba2c2ff802e2d6f49881bc1"
 BC250_FSR4_PREFIX = Path.home() / ".local/share/bc250-fsr4/v3"
 BC250_FSR4_ICD = BC250_FSR4_PREFIX / "radv-bc250-fsr4-v3.json"
 BC250_FSR4_SUPPORTED_FAMILIES = frozenset({"arch", "cachyos"})
-BC250_FSR4_EXPERIMENTAL_IDS = frozenset({"manjaro"})
 BC250_FSR4_SOURCE_BUILD_IDS = frozenset({"bazzite"})
-BC250_FSR4_DEBIAN_SOURCE_FAMILIES = frozenset({"debian", "ubuntu"})
 BC250_FSR4_FEDORA_SOURCE_IDS = frozenset({"fedora"})
 
 
@@ -49,8 +48,7 @@ def _fsr4_platform_mode(*, family: str, distro_id: str) -> tuple[bool, bool]:
         "cachyos",
         "cachy",
     }
-    experimental = normalized_id in BC250_FSR4_EXPERIMENTAL_IDS
-    return documented, experimental
+    return documented, False
 
 
 def _fsr4_source_build_mode(
@@ -64,8 +62,6 @@ def _fsr4_source_build_mode(
         or normalized_id in BC250_FSR4_SOURCE_BUILD_IDS
     ):
         return "bazzite-podman-source"
-    if normalized_family in BC250_FSR4_DEBIAN_SOURCE_FAMILIES:
-        return "debian-podman-source"
     if (
         normalized_family in BC250_FSR4_FEDORA_SOURCE_IDS
         and normalized_id in BC250_FSR4_FEDORA_SOURCE_IDS
@@ -125,7 +121,9 @@ def fsr4_runtime_state(
             and matching_amdgpu.is_file()
             and not matching_amdgpu.is_symlink()
         )
-    runtime_current = bool(valid_icd)
+    runtime_current = bool(
+        valid_icd and revision == BC250_FSR4_REVIEWED_COMMIT
+    )
     documented, experimental = _fsr4_platform_mode(
         family=family,
         distro_id=distro_id,
@@ -136,9 +134,10 @@ def fsr4_runtime_state(
         version_id=version_id,
     )
     source_build_supported = bool(source_build_mode)
-    compute_kernel_required = source_build_mode == "fedora44-podman-source"
+    supported_platform = bool(documented or experimental or source_build_supported)
+    compute_kernel_required = supported_platform
     kernel_ready = bool(compute_kernel_ready) if compute_kernel_required else True
-    current = bool(runtime_current and kernel_ready)
+    current = bool(runtime_current and supported_platform and kernel_ready)
     return {
         "repository": BC250_FSR4_REPOSITORY,
         "branch": BC250_FSR4_BRANCH,
@@ -165,11 +164,7 @@ def fsr4_runtime_state(
         "experimental_precompiled": experimental,
         "source_build_supported": source_build_supported,
         "build_mode": source_build_mode or "precompiled",
-        "installer_available": bool(
-            documented
-            or experimental
-            or (source_build_supported and kernel_ready)
-        ),
+        "installer_available": bool(supported_platform and kernel_ready),
         "source_build_required": source_build_supported or not (documented or experimental),
         "compute_kernel_required": compute_kernel_required,
         "compute_kernel_ready": kernel_ready,
@@ -180,20 +175,23 @@ def build_fsr4_v3_install_command(destination: str | Path) -> str:
     """Update the official V3 branch and run its installer unchanged."""
 
     destination = Path(destination)
-    checkout = clone_or_update_branch(
+    checkout = clone_or_update_commit(
         BC250_FSR4_REPOSITORY,
         destination,
-        BC250_FSR4_BRANCH,
+        BC250_FSR4_REVIEWED_COMMIT,
     )
     qdest = shlex.quote(str(destination))
     return f'''set -euo pipefail
-echo "== BC-250 FSR4 official upstream V3 workflow =="
+echo; echo "=========================================================================="; echo "  BC-250 FSR4 - per-game RADV runtime"; echo "  official upstream branch v3"; echo "=========================================================================="; echo
 test -r /etc/os-release || {{ echo "ERROR: /etc/os-release is unavailable."; exit 64; }}
 . /etc/os-release
 case "${{ID:-}}" in
   arch|cachyos|cachy) ;;
-  manjaro) echo "[WARN] Upstream describes an Arch-style userspace but does not name Manjaro. Its own ABI and Vulkan checks must pass." ;;
-  *) echo "ERROR: The upstream precompiled V3 runtime targets CachyOS/Arch-style userspace; other systems must use its source-build path."; exit 64 ;;
+  *) echo "ERROR: The reviewed precompiled V3 runtime requires Arch or CachyOS with the matched BC-250 kernel."; exit 64 ;;
+esac
+case "$(uname -r)" in
+  *bc250*) ;;
+  *) echo "ERROR: Boot the matched BC-250 kernel before installing or using the FSR4 RADV runtime."; exit 64 ;;
 esac
 command -v git >/dev/null 2>&1 || {{ echo "ERROR: git is required to update the official FSR4 source."; exit 69; }}
 command -v lspci >/dev/null 2>&1 || {{ echo "ERROR: lspci (pciutils) is required to verify BC-250 hardware."; exit 69; }}
@@ -293,10 +291,10 @@ fi'''
         raise ValueError(f"Unsupported FSR4 Podman source-build platform: {platform_mode}")
 
     destination = Path(destination)
-    checkout = clone_or_update_branch(
+    checkout = clone_or_update_commit(
         BC250_FSR4_REPOSITORY,
         destination,
-        BC250_FSR4_BRANCH,
+        BC250_FSR4_REVIEWED_COMMIT,
     )
     qdest = shlex.quote(str(destination))
     return f'''set -euo pipefail
@@ -438,10 +436,12 @@ def build_fsr4_v3_bazzite_install_command(destination: str | Path) -> str:
 
 
 def build_fsr4_v3_debian_install_command(destination: str | Path) -> str:
-    """Build official V3 in a rootless container on Debian/Ubuntu derivatives."""
+    """Refuse FSR4 until Debian/Ubuntu has a matched kernel lifecycle."""
 
-    return _build_fsr4_v3_podman_install_command(
-        destination, platform_mode="debian"
+    del destination
+    raise RuntimeError(
+        "FSR4 is unavailable on Debian/Ubuntu until a matching repaired "
+        "GFX1013 kernel can be installed and verified."
     )
 
 
@@ -457,10 +457,10 @@ def build_fsr4_v3_uninstall_command(destination: str | Path) -> str:
     """Update upstream and invoke its official uninstall script."""
 
     destination = Path(destination)
-    checkout = clone_or_update_branch(
+    checkout = clone_or_update_commit(
         BC250_FSR4_REPOSITORY,
         destination,
-        BC250_FSR4_BRANCH,
+        BC250_FSR4_REVIEWED_COMMIT,
     )
     qdest = shlex.quote(str(destination))
     return f'''set -euo pipefail

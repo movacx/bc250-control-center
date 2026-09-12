@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import re
+import stat
 import sys
 import tempfile
 import tomllib
@@ -293,6 +294,31 @@ def _validate_voltage_targets(
         )
 
 
+def _require_root_owned(path: Path, what: str) -> None:
+    """Refuse to read or rewrite a file the system does not own.
+
+    These editors run as root and write into /etc. They already refused a
+    symbolic link and a non-regular file, but never checked *who owns* the
+    file or the directory holding it — so a world-writable parent left behind
+    by another toolkit was enough to have this process rewrite a file an
+    ordinary user controls.
+
+    ``system_setup_common.Host.safe`` in this same directory has always done
+    this. There is no reason for two standards inside one ``lib``.
+    """
+    for part in (path, *path.parents):
+        try:
+            info = part.lstat()
+        except OSError:
+            continue
+        if stat.S_ISLNK(info.st_mode):
+            raise GovernorTomlError(f"{what} is behind a symbolic link: {part}")
+        if info.st_uid != 0 or info.st_mode & 0o022:
+            raise GovernorTomlError(f"{what} is not protected by root: {part}")
+        if part == Path(part.anchor):
+            break
+
+
 class GovernorTomlEditor:
     """Transactional, format-preserving edits for the governor TOML.
 
@@ -315,6 +341,7 @@ class GovernorTomlEditor:
             raise GovernorTomlError(
                 "Governor configuration must be a regular, non-symlink file."
             )
+        _require_root_owned(self.path, "Governor configuration")
         if metadata.st_size > 2 * 1024 * 1024:
             raise GovernorTomlError("Governor configuration is unexpectedly large.")
         try:
@@ -1303,6 +1330,10 @@ class OberonYamlEditor:
             raise OberonYamlError(
                 "Oberon configuration must be a regular, non-symlink file."
             )
+        try:
+            _require_root_owned(self.path, "Oberon configuration")
+        except GovernorTomlError as error:
+            raise OberonYamlError(str(error)) from error
         if metadata.st_size > 1024 * 1024:
             raise OberonYamlError("Oberon configuration is unexpectedly large.")
         try:

@@ -1,16 +1,17 @@
 import de from "../locales/de.json";
 import en from "../locales/en.json";
 import es from "../locales/es.json";
+import es419 from "../locales/es-419.json";
 import pl from "../locales/pl.json";
 import pt from "../locales/pt.json";
 import ru from "../locales/ru.json";
 import uk from "../locales/uk.json";
 
-export type QuickAccessLocale = "en" | "es" | "pt" | "ru" | "pl" | "de" | "uk";
+export type QuickAccessLocale = "en" | "es" | "es-419" | "pt" | "ru" | "pl" | "de" | "uk";
 export type QuickAccessTextKey = keyof typeof en;
 
 const catalogs: Record<QuickAccessLocale, Record<QuickAccessTextKey, string>> = {
-  en, es, pt, ru, pl, de, uk,
+  en, es, "es-419": es419, pt, ru, pl, de, uk,
 };
 
 export function normalizeQuickAccessLanguage(value: unknown): QuickAccessLocale {
@@ -21,7 +22,7 @@ export function normalizeQuickAccessLanguage(value: unknown): QuickAccessLocale 
     russian: "ru", polish: "pl", german: "de", ukrainian: "uk",
   };
   const exact = aliases[raw] ?? raw;
-  const supported = new Set<QuickAccessLocale>(["en", "es", "pt", "ru", "pl", "de", "uk"]);
+  const supported = new Set<QuickAccessLocale>(["en", "es", "es-419", "pt", "ru", "pl", "de", "uk"]);
   if (supported.has(exact as QuickAccessLocale)) return exact as QuickAccessLocale;
   const base = String(exact).split("-", 1)[0];
   return base === "es" || base === "pt" || base === "ru" || base === "pl" || base === "de" || base === "uk" ? base : "en";

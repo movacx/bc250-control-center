@@ -61,6 +61,8 @@ GOVERNOR_HELPER_SOURCE="$ROOT_DIR/privileged/helpers/bc250-governor-config-helpe
 GOVERNOR_HELPER_DEST="/usr/libexec/bc250-control-center/bc250-governor-config-helper"
 GOVERNOR_EDITOR_SOURCE="$ROOT_DIR/privileged/lib/governor_toml.py"
 GOVERNOR_EDITOR_DEST="/usr/libexec/bc250-control-center/lib/governor_toml.py"
+CONTRACT_SOURCE="$ROOT_DIR/privileged/lib/bc250_contract.py"
+CONTRACT_DEST="/usr/libexec/bc250-control-center/lib/bc250_contract.py"
 if [[ ! -x "$HELPER_SOURCE" || ! -x "$CPU_HELPER_SOURCE" || ! -f "$CPU_VENDOR_SOURCE" || \
       ! -x "$GOVERNOR_HELPER_SOURCE" || ! -f "$GOVERNOR_EDITOR_SOURCE" ]]; then
   echo "Error: Quick Access CPU/helper payload is missing or not executable." >&2
@@ -105,12 +107,13 @@ if [[ "${1:-}" == "--preflight-immutable-host" ]]; then
      [[ "$(sudo stat -c '%u:%a' "$CPU_VENDOR_PARENT")" != "0:755" ]] || \
      ! sudo test -f "$HELPER_DEST" || ! sudo test -f "$CPU_HELPER_DEST" || \
      ! sudo test -f "$CPU_VENDOR_DEST" || ! sudo test -f "$GOVERNOR_HELPER_DEST" || \
-     ! sudo test -f "$GOVERNOR_EDITOR_DEST" || \
+     ! sudo test -f "$GOVERNOR_EDITOR_DEST" || ! sudo test -f "$CONTRACT_DEST" || \
      ! sudo cmp -s "$HELPER_SOURCE" "$HELPER_DEST" || \
      ! sudo cmp -s "$CPU_HELPER_SOURCE" "$CPU_HELPER_DEST" || \
      ! sudo cmp -s "$CPU_VENDOR_SOURCE" "$CPU_VENDOR_DEST" || \
      ! sudo cmp -s "$GOVERNOR_HELPER_SOURCE" "$GOVERNOR_HELPER_DEST" || \
-     ! sudo cmp -s "$GOVERNOR_EDITOR_SOURCE" "$GOVERNOR_EDITOR_DEST"; then
+     ! sudo cmp -s "$GOVERNOR_EDITOR_SOURCE" "$GOVERNOR_EDITOR_DEST" || \
+     ! sudo cmp -s "$CONTRACT_SOURCE" "$CONTRACT_DEST"; then
     echo "ERROR: this immutable deployment is missing the exact protected helpers for this BC250 build." >&2
     echo "Install/update the matching BC250 Control Center RPM with rpm-ostree, reboot, then retry Quick Access." >&2
     immutable_helper_guidance
@@ -305,12 +308,13 @@ if [[ "$IMMUTABLE_OSTREE" -eq 1 ]]; then
   # application build and install only the plugin below Decky's /home tree.
   if ! sudo test -f "$HELPER_DEST" || ! sudo test -f "$CPU_HELPER_DEST" || \
      ! sudo test -f "$CPU_VENDOR_DEST" || ! sudo test -f "$GOVERNOR_HELPER_DEST" || \
-     ! sudo test -f "$GOVERNOR_EDITOR_DEST" || \
+     ! sudo test -f "$GOVERNOR_EDITOR_DEST" || ! sudo test -f "$CONTRACT_DEST" || \
      ! sudo cmp -s "$HELPER_SOURCE" "$HELPER_DEST" || \
      ! sudo cmp -s "$CPU_HELPER_SOURCE" "$CPU_HELPER_DEST" || \
      ! sudo cmp -s "$CPU_VENDOR_SOURCE" "$CPU_VENDOR_DEST" || \
      ! sudo cmp -s "$GOVERNOR_HELPER_SOURCE" "$GOVERNOR_HELPER_DEST" || \
-     ! sudo cmp -s "$GOVERNOR_EDITOR_SOURCE" "$GOVERNOR_EDITOR_DEST"; then
+     ! sudo cmp -s "$GOVERNOR_EDITOR_SOURCE" "$GOVERNOR_EDITOR_DEST" || \
+     ! sudo cmp -s "$CONTRACT_SOURCE" "$CONTRACT_DEST"; then
     echo "Error: the immutable Bazzite deployment does not contain the protected helpers from this BC250 build." >&2
     echo "Install or update the BC250 Control Center RPM deployment, reboot, then retry Quick Access." >&2
     immutable_helper_guidance

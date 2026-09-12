@@ -238,45 +238,86 @@ class ProcessTask(QThread):
 
 
 class ApplicationCell(QWidget):
-    def __init__(self, entry: ProcessEntry, parent=None):
+    """Icon, name and command line for one row.
+
+    Built once and re-pointed at whichever entry the row now holds. The table
+    re-renders on every search keystroke, and a rebuilt cell meant four fresh
+    widgets and an icon-theme lookup each time.
+    """
+
+    def __init__(self, entry: ProcessEntry | None = None, parent=None):
         super().__init__(parent)
         layout = QHBoxLayout(self)
         layout.setContentsMargins(10, 5, 10, 5)
         layout.setSpacing(10)
-        icon_label = QLabel()
-        icon_label.setFixedSize(28, 28)
-        icon_label.setPixmap(icono_app(entry.name, entry.command).pixmap(22, 22))
-        icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(icon_label)
+        self.icon_label = QLabel()
+        self.icon_label.setFixedSize(28, 28)
+        self.icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.icon_label)
         copy = QVBoxLayout()
         copy.setContentsMargins(0, 0, 0, 0)
         copy.setSpacing(1)
-        name = QLabel(entry.name)
-        name.setProperty("appName", True)
-        command = QLabel(entry.command)
-        command.setProperty("appCommand", True)
-        command.setToolTip(entry.command)
-        copy.addWidget(name)
-        copy.addWidget(command)
+        self.name = QLabel()
+        self.name.setProperty("appName", True)
+        self.command = QLabel()
+        self.command.setProperty("appCommand", True)
+        copy.addWidget(self.name)
+        copy.addWidget(self.command)
         layout.addLayout(copy, 1)
+        self._signature: tuple[str, str] | None = None
+        if entry is not None:
+            self.set_entry(entry)
+
+    def set_entry(self, entry: ProcessEntry) -> None:
+        signature = (entry.name, entry.command)
+        if signature == self._signature:
+            return
+        self._signature = signature
+        self.icon_label.setPixmap(icono_app(entry.name, entry.command).pixmap(22, 22))
+        self.name.setText(entry.name)
+        self.command.setText(entry.command)
+        self.command.setToolTip(entry.command)
 
 
 class MemoryCell(QWidget):
-    def __init__(self, memory: int, maximum: int, parent=None):
+    def __init__(self, memory: int = 0, maximum: int = 1, parent=None):
         super().__init__(parent)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(10, 9, 10, 9)
         layout.setSpacing(6)
-        value = QLabel(formato_bytes(memory))
-        value.setProperty("memoryValue", True)
-        bar = QProgressBar()
-        bar.setProperty("processMemory", True)
-        bar.setRange(0, 1000)
+        self.value = QLabel()
+        self.value.setProperty("memoryValue", True)
+        self.bar = QProgressBar()
+        self.bar.setProperty("processMemory", True)
+        self.bar.setRange(0, 1000)
+        self.bar.setTextVisible(False)
+        layout.addWidget(self.value)
+        layout.addWidget(self.bar)
+        self.set_values(memory, maximum)
+
+    def set_values(self, memory: int, maximum: int) -> None:
+        self.value.setText(formato_bytes(memory))
         ratio = 0 if maximum <= 0 else max(0, min(1000, round(memory / maximum * 1000)))
-        bar.setValue(ratio)
-        bar.setTextVisible(False)
-        layout.addWidget(value)
-        layout.addWidget(bar)
+        self.bar.setValue(ratio)
+
+
+class PillCell(QWidget):
+    """A centred pill in a table cell, updated rather than replaced."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(5, 0, 5, 0)
+        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.pill = PillLabel("", "gray")
+        layout.addWidget(self.pill)
+
+    def set_values(self, text: str, tone: str, tooltip: str = "") -> None:
+        self.pill.setText(text)
+        # ``set_tone`` already returns early when the tone has not moved, so
+        # the stylesheet is only re-applied when the colour really changes.
+        self.pill.set_tone(tone)
+        self.pill.setToolTip(tooltip)
 
 
 class ProcessTable(QTableWidget):
@@ -811,6 +852,36 @@ class ProcessesPage(QWidget):
         if item is not None:
             self.table.scrollToItem(item, QAbstractItemView.ScrollHint.EnsureVisible)
 
+    def _row_checkbox(self, row: int) -> QCheckBox:
+        """The selection box for a row, built once and reused afterwards."""
+        wrap = self.table.cellWidget(row, 0)
+        if wrap is not None:
+            existing = wrap.findChild(QCheckBox)
+            if existing is not None:
+                return existing
+        checkbox = QCheckBox()
+        checkbox.setProperty("gamepadSkip", True)
+        checkbox.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        checkbox.stateChanged.connect(
+            lambda state, box=checkbox: self._checkbox_changed(
+                str(box.property("entryKey") or ""), state
+            )
+        )
+        wrap = QWidget()
+        layout = QHBoxLayout(wrap)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(checkbox)
+        self.table.setCellWidget(row, 0, wrap)
+        return checkbox
+
+    def _pill_cell(self, row: int, column: int) -> PillCell:
+        cell = self.table.cellWidget(row, column)
+        if not isinstance(cell, PillCell):
+            cell = PillCell()
+            self.table.setCellWidget(row, column, cell)
+        return cell
+
     def _render_table(self) -> None:
         previous_key = self._current_table_key()
         entries = self._filtered_entries()
@@ -823,50 +894,48 @@ class ProcessesPage(QWidget):
         try:
             self.table.setRowCount(len(entries))
             for row, entry in enumerate(entries):
-                checkbox = QCheckBox()
+                checkbox = self._row_checkbox(row)
+                # The key travels on the widget, so the one connection made
+                # when the checkbox was built keeps pointing at whatever
+                # entry the row holds now.
                 checkbox.setProperty("entryKey", entry.key)
-                checkbox.setProperty("gamepadSkip", True)
-                checkbox.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+                checkbox.blockSignals(True)
                 checkbox.setEnabled(bool(entry.closable))
                 checkbox.setChecked(entry.key in self._selected_keys and bool(entry.closable))
-                checkbox.stateChanged.connect(lambda state, key=entry.key: self._checkbox_changed(key, state))
-                checkbox_wrap = QWidget()
-                checkbox_layout = QHBoxLayout(checkbox_wrap)
-                checkbox_layout.setContentsMargins(0, 0, 0, 0)
-                checkbox_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                checkbox_layout.addWidget(checkbox)
-                self.table.setCellWidget(row, 0, checkbox_wrap)
+                checkbox.blockSignals(False)
 
-                self.table.setCellWidget(row, 1, ApplicationCell(entry))
-                pid_item = QTableWidgetItem(entry.pid_text)
-                pid_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                application = self.table.cellWidget(row, 1)
+                if not isinstance(application, ApplicationCell):
+                    application = ApplicationCell()
+                    self.table.setCellWidget(row, 1, application)
+                application.set_entry(entry)
+
+                pid_item = self.table.item(row, 2)
+                if pid_item is None:
+                    pid_item = QTableWidgetItem()
+                    pid_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                    self.table.setItem(row, 2, pid_item)
+                pid_item.setText(entry.pid_text)
                 pid_item.setToolTip("\n".join(str(getattr(process, "pid", "")) for process in entry.processes[:20]))
-                self.table.setItem(row, 2, pid_item)
-                self.table.setCellWidget(row, 3, MemoryCell(entry.memory, max_memory))
+                # A reused row may have been protected a moment ago.
+                pid_item.setForeground(
+                    QColor(COLORS["subtle"]) if entry.fully_protected else QColor(COLORS["text"])
+                )
+
+                memory = self.table.cellWidget(row, 3)
+                if not isinstance(memory, MemoryCell):
+                    memory = MemoryCell()
+                    self.table.setCellWidget(row, 3, memory)
+                memory.set_values(entry.memory, max_memory)
 
                 impact_tone = "red" if entry.impact_text == "High" else "orange" if entry.impact_text == "Medium" else "gray"
-                impact_wrap = QWidget()
-                impact_layout = QHBoxLayout(impact_wrap)
-                impact_layout.setContentsMargins(5, 0, 5, 0)
-                impact_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                impact_layout.addWidget(PillLabel(tr(entry.impact_text), impact_tone))
-                self.table.setCellWidget(row, 4, impact_wrap)
+                self._pill_cell(row, 4).set_values(tr(entry.impact_text), impact_tone)
 
                 safety_tone = "gray" if entry.fully_protected else "orange" if entry.protected_count else "green"
                 safety_text = "Protected" if entry.fully_protected else "Partial" if entry.protected_count else "Safe"
-                safety_wrap = QWidget()
-                safety_layout = QHBoxLayout(safety_wrap)
-                safety_layout.setContentsMargins(5, 0, 5, 0)
-                safety_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                pill = PillLabel(tr(safety_text), safety_tone)
-                pill.setToolTip(entry.protection_text)
-                safety_layout.addWidget(pill)
-                self.table.setCellWidget(row, 5, safety_wrap)
-
-                if entry.fully_protected:
-                    item = self.table.item(row, 2)
-                    if item is not None:
-                        item.setForeground(QColor(COLORS["subtle"]))
+                self._pill_cell(row, 5).set_values(
+                    tr(safety_text), safety_tone, entry.protection_text
+                )
         finally:
             self.table.setUpdatesEnabled(True)
             self.table.blockSignals(False)

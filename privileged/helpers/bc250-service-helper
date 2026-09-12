@@ -1,0 +1,109 @@
+#!/usr/bin/python3 -I
+"""Restart one approved BC250 service through the active init system."""
+
+from __future__ import annotations
+
+import os
+import pathlib
+import stat
+import subprocess
+import sys
+
+HELPER_PATH = pathlib.Path("/usr/libexec/bc250-control-center/bc250-service-helper")
+SERVICES = frozenset({
+    "cyan-skillfish-governor-smu",
+    "oberon-governor",
+})
+
+
+def _trusted_self(path: pathlib.Path = HELPER_PATH) -> bool:
+    try:
+        info = path.stat(follow_symlinks=False)
+    except OSError:
+        return False
+    trusted = bool(
+        not path.is_symlink()
+        and stat.S_ISREG(info.st_mode)
+        and info.st_uid == 0
+        and not info.st_mode & 0o022
+        and info.st_mode & stat.S_IXUSR
+    )
+    if not trusted:
+        return False
+    for parent in path.parents:
+        try:
+            parent_info = parent.stat(follow_symlinks=False)
+        except OSError:
+            return False
+        if parent.is_symlink() or not stat.S_ISDIR(parent_info.st_mode):
+            return False
+        if parent_info.st_uid != 0 or parent_info.st_mode & 0o022:
+            return False
+    return True
+
+
+def _first_executable(paths: tuple[pathlib.Path, ...]) -> str:
+    for path in paths:
+        try:
+            info = path.stat(follow_symlinks=False)
+        except OSError:
+            continue
+        if (
+            not path.is_symlink()
+            and stat.S_ISREG(info.st_mode)
+            and info.st_uid == 0
+            and not info.st_mode & 0o022
+            and os.access(path, os.X_OK)
+        ):
+            return str(path)
+    raise RuntimeError("The active init system command is unavailable")
+
+
+def _restart_command(service: str) -> list[str]:
+    if service not in SERVICES:
+        raise ValueError("Unsupported BC250 service")
+    if pathlib.Path("/run/openrc/softlevel").exists():
+        executable = _first_executable((
+            pathlib.Path("/sbin/rc-service"),
+            pathlib.Path("/usr/sbin/rc-service"),
+            pathlib.Path("/usr/bin/rc-service"),
+        ))
+        return [executable, service, "restart"]
+    if pathlib.Path("/run/systemd/system").exists():
+        executable = _first_executable((
+            pathlib.Path("/usr/bin/systemctl"), pathlib.Path("/bin/systemctl")
+        ))
+        return [executable, "restart", f"{service}.service"]
+    raise RuntimeError("Neither systemd nor OpenRC is the active init system")
+
+
+def main(argv: list[str] | None = None) -> int:
+    arguments = list(sys.argv[1:] if argv is None else argv)
+    try:
+        if os.geteuid() != 0:
+            raise RuntimeError("Administrator authorization is required")
+        if not _trusted_self():
+            raise RuntimeError("The service helper is not a protected root-owned executable")
+        if len(arguments) != 2 or arguments[0] != "restart":
+            raise ValueError("usage: restart <approved BC250 governor>")
+        command = _restart_command(arguments[1])
+        result = subprocess.run(
+            command,
+            text=True,
+            capture_output=True,
+            timeout=45,
+            check=False,
+            env={"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "LANG": "C.UTF-8", "LC_ALL": "C.UTF-8"},
+        )
+        if result.returncode != 0:
+            print((result.stderr or result.stdout or "Service restart failed").strip(), file=sys.stderr)
+            return result.returncode or 1
+        print(f"Restarted {arguments[1]}")
+        return 0
+    except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
+        print(f"ERR {error}", file=sys.stderr)
+        return 70
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -44,6 +44,7 @@ from PyQt6.QtWidgets import (
 from bc250cc.infrastructure import SystemdUserService
 from bc250cc.infrastructure.governor_conflicts import normalize_governor_preference
 from bc250cc.platform.init.services import detect_init_manager
+from bc250cc.shared.failure_text import describe_failure
 from bc250cc.shared.version import __version__
 
 from ..components.buttons import WrappingButton as QPushButton
@@ -648,6 +649,8 @@ class SettingsPage(QWidget):
     gamepad_navigation_changed = pyqtSignal(bool)
     gamepad_keypad_changed = pyqtSignal(bool)
     gamepad_keypad_auto_show_changed = pyqtSignal(bool)
+    embedded_terminal_changed = pyqtSignal(bool)
+    console_auto_hide_changed = pyqtSignal(bool)
 
     def __init__(self, controller, *, settings_service, activity_service, app_settings: QSettings | None = None, parent: QWidget | None = None):
         super().__init__(parent)
@@ -1027,6 +1030,20 @@ class SettingsPage(QWidget):
                 "settings/gamepad_onscreen_keypad",
                 True,
                 self._unified_gamepad_keypad_changed,
+            ),
+        ))
+        group.add_row(SettingRow(
+            "Terminal inside the window",
+            "Run workflows in a panel at the bottom of the window instead of opening a separate terminal window.",
+            self._switch(
+                "settings/embedded_terminal", True, self.embedded_terminal_changed.emit
+            ),
+        ))
+        group.add_row(SettingRow(
+            "Hide the terminal when a workflow finishes without errors",
+            "A workflow that fails keeps the terminal open so its output can be read.",
+            self._switch(
+                "settings/console_auto_hide", True, self.console_auto_hide_changed.emit
             ),
         ))
         layout.addWidget(group)
@@ -1666,7 +1683,7 @@ class SettingsPage(QWidget):
             result = self._daemon_command(*arguments, timeout=25)
             output = (result.stdout or result.stderr or "").strip()
             if result.returncode != 0:
-                raise RuntimeError(output or f"systemctl exited with code {result.returncode}")
+                raise RuntimeError(describe_failure(result.returncode, output, ""))
             return output
 
         def success(payload: object) -> None:
@@ -2579,6 +2596,8 @@ class SettingsDialog(QDialog):
     gamepad_navigation_changed = pyqtSignal(bool)
     gamepad_keypad_changed = pyqtSignal(bool)
     gamepad_keypad_auto_show_changed = pyqtSignal(bool)
+    embedded_terminal_changed = pyqtSignal(bool)
+    console_auto_hide_changed = pyqtSignal(bool)
 
     def __init__(self, controller, *, settings_service, activity_service, app_settings: QSettings | None = None, parent: QWidget | None = None):
         super().__init__(parent)
@@ -2620,6 +2639,8 @@ class SettingsDialog(QDialog):
         self.page.gamepad_navigation_changed.connect(self.gamepad_navigation_changed.emit)
         self.page.gamepad_keypad_changed.connect(self.gamepad_keypad_changed.emit)
         self.page.gamepad_keypad_auto_show_changed.connect(self.gamepad_keypad_auto_show_changed.emit)
+        self.page.embedded_terminal_changed.connect(self.embedded_terminal_changed.emit)
+        self.page.console_auto_hide_changed.connect(self.console_auto_hide_changed.emit)
         outer.addWidget(self.page, 1)
 
         # Frameless dialogs still need an obvious exit.  Keep it inside the

@@ -6,6 +6,8 @@ import math
 from dataclasses import dataclass
 from typing import Mapping
 
+from bc250cc.domain.telemetry import valid_number, voltage_mv
+
 
 @dataclass(frozen=True)
 class TelemetryText:
@@ -32,14 +34,14 @@ def _number(value: object) -> float:
     try:
         result = float(value)
         return result if math.isfinite(result) else 0.0
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return 0.0
 
 
 def _integer(value: object) -> int:
     try:
         return int(float(value))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return 0
 
 
@@ -91,12 +93,13 @@ def _power_texts(perf: Mapping[str, object]) -> tuple[TelemetryText, TelemetryTe
 def present_gpu_telemetry(
     gpu: Mapping[str, object], perf: Mapping[str, object],
 ) -> GpuTelemetryPresentation:
-    temperature = _number(perf.get("gpu_temp"))
+    temperature = valid_number(perf.get("gpu_temp"), 0.1, 130) or 0.0
     raw_utilization = gpu.get("gpu_busy")
     if raw_utilization is None:
         raw_utilization = perf.get("gpu_busy")
-    utilization = None if raw_utilization is None else _integer(raw_utilization)
-    voltage = _integer(gpu.get("voltaje_actual"))
+    valid_utilization = valid_number(raw_utilization, 0, 100)
+    utilization = None if valid_utilization is None else round(valid_utilization)
+    voltage = voltage_mv(gpu.get("voltaje_actual")) or 0
     raw_busy = gpu.get("gpu_busy")
     if raw_busy is None:
         raw_busy = perf.get("gpu_busy")

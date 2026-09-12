@@ -46,6 +46,15 @@ class WrappingButton(QPushButton):
 
     def setText(self, text):
         super().setText(text)
+        # sizeHint() reports the current width once the button is narrower than
+        # its natural size, so a longer label (a live language change) would
+        # stay clamped to the old width and paint clipped. Release the clamp so
+        # the next layout pass can measure the new text; the layout still
+        # shrinks the button again when the row has no room for it.
+        native = QPushButton.sizeHint(self)
+        if self.width() < native.width():
+            self.resize(native.width(), self.height())
+        self.updateGeometry()
         if self.isVisible():
             self._sync_height()
 

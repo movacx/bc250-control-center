@@ -52,6 +52,43 @@ def test_masta_stack_support_is_exact_not_arch_family_wide():
     assert not masta_bc250_stack_supported(distro_id="fedora", family="fedora")
 
 
+def test_masta_stack_state_recognizes_an_exact_external_repository(monkeypatch, tmp_path):
+    import bc250cc.infrastructure.cachyos_bc250_kernel as module
+
+    monkeypatch.setattr(module, "CACHYOS_BC250_INCLUDE", str(tmp_path / "absent"))
+
+    class Result:
+        returncode = 0
+
+        def __init__(self, stdout):
+            self.stdout = stdout
+
+    def run(args, **_kwargs):
+        if args[0] == "pacman-conf":
+            if args[1] == "--repo-list":
+                return Result("bc250-cachyos\ncachyos-v3\ncore\n")
+            if args[-1] == "Server":
+                return Result(
+                    "https://github.com/MastaG/linux-cachyos-bc250/releases/download/repo\n"
+                )
+            return Result(
+                "PackageOptional\nPackageTrustAll\n"
+                "DatabaseOptional\nDatabaseTrustAll\n"
+            )
+        if args[1] == "-Qq":
+            return Result(args[2] + "\n")
+        return Result(
+            "bc250-cachyos mesa 26.2.0 [installed]\n"
+            "bc250-cachyos vulkan-radeon 26.2.0 [installed]\n"
+        )
+
+    monkeypatch.setattr(module.subprocess, "run", run)
+    state = masta_bc250_stack_state(distro_id="cachyos", family="cachyos")
+
+    assert state["repository_configured"] is True
+    assert state["mesa_installed"] is True
+
+
 def test_cachyos_kernel_workflow_has_a_fixed_reviewable_target():
     command = build_cachyos_bc250_kernel_command()
 
@@ -95,7 +132,10 @@ def test_cachyos_configuration_is_checked_and_backed_up_before_replacement():
     assert command.index("[$bc250_anchor] was not found") < command.index("sudo install -D")
     assert command.index("DNS cannot resolve github.com") < command.index("sudo install -D")
     assert command.index('sudo cp -a /etc/pacman.conf') < command.index('sudo install -m 0644')
-    assert "already configured outside Control Center" in command
+    assert "Reusing the existing verified MastaG BC-250 repository" in command
+    assert "unexpected server, signature policy, or priority" in command
+    assert "pacman-conf -r 'bc250-cachyos' Server" in command
+    assert "pacman-conf -r 'bc250-cachyos' SigLevel" in command
     assert "full system upgrade" in command
 
 
@@ -161,6 +201,47 @@ sudo() { echo PRIVILEGE_BOUNDARY; return 99; }
         assert result.returncode == 99, result.stderr
         assert result.stdout.count("PRIVILEGE_BOUNDARY") == 1
         assert not include.exists()
+
+
+def test_cachyos_reuses_an_exact_existing_upstream_repository(tmp_path):
+    import subprocess
+
+    release = tmp_path / "os-release"
+    pacman_conf = tmp_path / "pacman.conf"
+    include = tmp_path / "managed.conf"
+    release.write_text("ID=cachyos\n", encoding="utf-8")
+    pacman_conf.write_text(
+        "[options]\n"
+        "[bc250-cachyos]\n"
+        "SigLevel = Optional TrustAll\n"
+        "Server = https://github.com/MastaG/linux-cachyos-bc250/releases/download/repo\n"
+        "[cachyos-v3]\n",
+        encoding="utf-8",
+    )
+    command = build_cachyos_bc250_kernel_command("kernel")
+    command = command.replace("/etc/os-release", str(release))
+    command = command.replace("/etc/pacman.conf", str(pacman_conf))
+    command = command.replace(CACHYOS_BC250_INCLUDE, str(include))
+    command = r'''
+pacman() { return 1; }
+pacman-conf() {
+  if test "$1" = --repo-list; then printf '%s\n' bc250-cachyos cachyos-v3; return; fi
+  if test "$3" = Server; then printf '%s\n' 'https://github.com/MastaG/linux-cachyos-bc250/releases/download/repo'; return; fi
+  printf '%s\n' PackageOptional PackageTrustAll DatabaseOptional DatabaseTrustAll
+}
+getent() { return 0; }
+sudo() { printf 'SUDO %s\n' "$*"; return 91; }
+''' + command
+
+    result = subprocess.run(
+        ["bash", "-c", command], capture_output=True, text=True
+    )
+
+    assert result.returncode == 91
+    assert "Reusing the existing verified MastaG BC-250 repository" in result.stdout
+    assert "SUDO pacman -Syu" in result.stdout
+    assert "SUDO install" not in result.stdout
+    assert not include.exists()
 
 
 def test_cachyos_workflow_rejects_unknown_actions():

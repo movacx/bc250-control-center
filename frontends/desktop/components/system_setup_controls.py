@@ -1,5 +1,13 @@
 """Shared option/capability mapping for embedded and legacy preparation UI."""
-from ..i18n import tr
+
+import os
+
+from bc250cc.infrastructure.memory_runtime import (
+    TTM_GIB_PRESETS,
+    supported_ttm_gib_presets,
+)
+
+from ..i18n import tr, tr_format
 
 MEMORY_OPTIONS = (
     ("Keep current configuration", "preserve"),
@@ -27,7 +35,18 @@ def is_bazzite_host(tools) -> bool:
     )
 
 
-def _restore_bazzite_memory_options(owner) -> None:
+def bazzite_ui_preview_enabled(environ=None) -> bool:
+    """Allow an inert Bazzite card preview on a development workstation."""
+    source = os.environ if environ is None else environ
+    return str(source.get("BC250_BAZZITE_UI_PREVIEW") or "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
+def _restore_bazzite_memory_options(owner, tools) -> None:
     combo = owner.memory_policy_combo
     expected = [value for _label, value in BAZZITE_MEMORY_OPTIONS]
     if [combo.itemData(index) for index in range(combo.count())] != expected:
@@ -38,9 +57,40 @@ def _restore_bazzite_memory_options(owner) -> None:
             combo.addItem(tr(label), value)
         combo.setCurrentIndex(max(0, combo.findData(previous)))
         combo.blockSignals(False)
-    owner.ttm_limit_combo.setItemText(
-        1, tr("Kernel default (remove BC250 TTM limit)")
+    ttm_combo = owner.ttm_limit_combo
+    state = tools.get("memory_runtime") or {}
+    physical = state.get("physical_ram_bytes")
+    supported = (
+        supported_ttm_gib_presets(physical)
+        if type(physical) is int and physical > 0
+        else TTM_GIB_PRESETS
     )
+    expected_ttm = [0, -1, *supported]
+    if [ttm_combo.itemData(index) for index in range(ttm_combo.count())] != expected_ttm:
+        previous = ttm_combo.currentData()
+        ttm_combo.blockSignals(True)
+        ttm_combo.clear()
+        ttm_combo.addItem(tr("Keep current TTM limit"), 0)
+        ttm_combo.addItem(tr("Kernel default (remove BC250 TTM limit)"), -1)
+        for target in supported:
+            ttm_combo.addItem(
+                tr_format("Limit GPU allocations to {size} GiB", size=target),
+                target,
+            )
+        selected = ttm_combo.findData(previous)
+        ttm_combo.setCurrentIndex(selected if selected >= 0 else 0)
+        ttm_combo.blockSignals(False)
+    else:
+        ttm_combo.setItemText(1, tr("Kernel default (remove BC250 TTM limit)"))
+
+    if type(physical) is int and physical > 0:
+        visible_gib = physical / (1024 ** 3)
+        ttm_combo.setToolTip(
+            tr(
+                "TTM limits managed GPU pages; it is not a guaranteed VRAM reservation."
+            )
+            + f"\nMemTotal: {visible_gib:.1f} GiB"
+        )
 
 
 def update_memory_controls(owner, tools):
@@ -50,7 +100,7 @@ def update_memory_controls(owner, tools):
     # this Bazzite-only workflow, then restore its choices if an earlier
     # partial refresh had replaced them with the disabled generic list.
     if is_bazzite_host(tools):
-        _restore_bazzite_memory_options(owner)
+        _restore_bazzite_memory_options(owner, tools)
         return False
     setup = tools.get("system_setup") or {}
     memory = setup.get("memory") or {}

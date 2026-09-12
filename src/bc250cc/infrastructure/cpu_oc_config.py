@@ -37,7 +37,7 @@ def parse_cpu_oc_config(text: str, *, path: str = "") -> dict[str, object]:
         return result
     if not FREQUENCY_RANGE[0] <= frequency <= FREQUENCY_RANGE[1]:
         result.update(
-            error=f"CPU OC frequency is outside 3500-4200 MHz: {frequency}",
+            error=f"CPU OC frequency is outside 3100-4200 MHz: {frequency}",
             error_kind="range",
         )
         return result

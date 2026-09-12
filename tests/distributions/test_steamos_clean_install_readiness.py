@@ -283,9 +283,10 @@ def test_clean_steamos_cyan_is_staged_before_binary_guard(tmp_path, monkeypatch)
     command = repository.instalar_dependencias_bc250(include_pwm=True)
 
     stage = command.index("== Preparing official Cyan SMU frequency-reporting fix ==")
-    guard = command.index("test -x /usr/local/bin/cyan-skillfish-governor-smu")
-    assert stage < guard
-    assert "unavailable after the verified Cyan runtime installation" in command
+    binary = command.index("bc250_cyan_binary=/usr/local/bin/cyan-skillfish-governor-smu")
+    guard = command.index('test -x "$bc250_cyan_binary"')
+    assert stage < binary < guard
+    assert "Cyan frequency-fix binary is missing" in command
     assert "command -v cyan-skillfish-governor-smu" not in command[stage:guard]
 
 

@@ -111,6 +111,7 @@ def test_embedded_detection_explicitly_writes_to_repository_config(tmp_path):
     expected_config = str(tmp_path / "overclock.conf")
     assert argv == [
         "pkexec",
+        "--disable-internal-agent",
         "/usr/libexec/bc250-control-center/bc250-cpu-smu-helper",
         "detect", "3850", "1275", "90", expected_config,
     ]
@@ -163,10 +164,10 @@ def test_temporary_cpu_oc_limits_match_upstream_bc250_smu_oc(tmp_path):
         "smu_oc_path": str(tmp_path),
     }
 
-    with pytest.raises(ValueError, match="3500-4200"):
-        repo.comando_cpu_oc_temporal_embebido(3499, 1200, 90)
+    with pytest.raises(ValueError, match="3100-4200"):
+        repo.comando_cpu_oc_temporal_embebido(3099, 1200, 90)
     with pytest.raises(ValueError, match="950-1325"):
-        repo.comando_cpu_oc_temporal_embebido(3500, 1326, 90)
+        repo.comando_cpu_oc_temporal_embebido(3100, 1326, 90)
 
 
 def test_steamos_helper_binds_detection_to_same_repository_config():
@@ -179,7 +180,7 @@ def test_steamos_helper_binds_detection_to_same_repository_config():
         / "privileged" / "helpers" / "bc250-cpu-smu-helper"
     ).read_text(encoding="utf-8")
 
-    assert "Frequency must be between 3500 and 4200 MHz." in game_helper
+    assert "Frequency must be between 3100 and 4200 MHz." in game_helper
     assert "VID must be between 950 and 1325 mV." in game_helper
     assert "CPU_SMU_HELPER" in game_helper
     assert "def user_detection_config_fd" in cpu_helper

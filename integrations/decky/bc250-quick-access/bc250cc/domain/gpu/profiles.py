@@ -1,4 +1,12 @@
-"""Canonical GPU profile policy bundled for the root Decky plugin runtime."""
+"""Canonical GPU profile policy shared by Desktop and Quick Access.
+
+The Decky plugin cannot import this package — it only receives the files its
+installer stages — so it carries a copy at
+``integrations/decky/bc250-quick-access/bc250cc/domain/gpu/profiles.py``.
+That copy is byte-identical and a test says so; it drifted once, gaining an
+Oberon profile this file did not have, and the desktop rejected what Game Mode
+then wrote.
+"""
 
 from __future__ import annotations
 
@@ -37,7 +45,7 @@ def profiles_for_allowed_range(
     *,
     governor: str = "cyan",
 ) -> tuple[GpuProfile, ...]:
-    """Calculate conservative profiles from the helper's allowed range."""
+    """Calculate conservative profiles from the backend's real allowed range."""
 
     if type(minimum_mhz) is not int or type(maximum_mhz) is not int:
         raise TypeError("GPU allowed range boundaries must be integers")
@@ -46,6 +54,14 @@ def profiles_for_allowed_range(
     if minimum > maximum:
         raise ValueError("GPU allowed minimum cannot exceed maximum")
     if governor == "oberon":
+        # Benchmark lived only in the Decky-side copy of this file, in a shape
+        # the desktop's Oberon validator then rejected. It ships, so it belongs
+        # here too.
+        #
+        # Written out rather than derived from ``contract.OBERON_DESKTOP_PROFILES``
+        # because this module is copied verbatim into the Decky plugin, which
+        # receives four files and cannot import the contract. A test asserts
+        # the two agree, so they cannot drift apart again in silence.
         candidates = (
             ("oberon-1500", "Balanced", 1000, 1500),
             ("oberon-1850", "Gaming", 1000, 1850),
@@ -59,6 +75,16 @@ def profiles_for_allowed_range(
         )
     profiles: list[GpuProfile] = []
     for key, label, profile_min, profile_max in candidates:
+        if governor == "oberon":
+            # Oberon's profiles are fixed YAML endpoints, not a ladder to clamp
+            # to whatever the backend allows. Clamping produced the duplicate
+            # the panel showed: "Gaming 1000-1850" and "Benchmark 1000-1850",
+            # both marked current, the second applying 1000-2000. A profile
+            # that does not fit is not offered.
+            if profile_min < minimum or profile_max > maximum:
+                continue
+            profiles.append(GpuProfile(key, label, profile_min, profile_max))
+            continue
         bounded_min = max(minimum, profile_min)
         bounded_max = min(maximum, profile_max)
         if bounded_min <= bounded_max:
@@ -66,15 +92,9 @@ def profiles_for_allowed_range(
     return tuple(profiles)
 
 
-def profiles_payload(
-    minimum_mhz: int,
-    maximum_mhz: int,
-    *,
-    governor: str = "cyan",
-) -> list[dict[str, object]]:
-    return [
-        profile.payload()
-        for profile in profiles_for_allowed_range(
-            minimum_mhz, maximum_mhz, governor=governor
-        )
-    ]
+def profiles_payload(minimum_mhz: int, maximum_mhz: int, *, governor: str = "cyan"):
+    return [profile.payload() for profile in profiles_for_allowed_range(minimum_mhz, maximum_mhz, governor=governor)]
+
+
+def default_cyan_profiles() -> tuple[GpuProfile, ...]:
+    return profiles_for_allowed_range(500, 2400)

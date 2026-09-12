@@ -8,6 +8,9 @@ from pathlib import Path
 
 import psutil
 
+from bc250cc.infrastructure.core_unlock_persistence import (
+    detect_core_unlock_persistence,
+)
 from bc250cc.infrastructure.core_unlock_trust import (
     REVIEWED_REVISION as CORE_UNLOCK_REVIEWED_REVISION,
 )
@@ -32,6 +35,7 @@ from bc250cc.infrastructure.cpu_runtime_snapshot import read_cpu_runtime_snapsho
 from bc250cc.infrastructure.cpu_telemetry import build_cpu_telemetry
 from bc250cc.infrastructure.external_tools.catalog import EXTERNAL_TOOLS
 from bc250cc.infrastructure.hardware_identity import is_bc250_platform
+from bc250cc.infrastructure.polkit_session import pkexec_argv, pkexec_prefix
 from bc250cc.platform.init.services import (
     detect_init_manager,
     parse_openrc_runlevel,
@@ -116,8 +120,8 @@ class CPURepository:
             requested_scale = int(requested_scale)
         except (TypeError, ValueError) as error:
             raise ValueError('CPU scale values must be integers') from error
-        if not 3500 <= frequency <= 4200:
-            raise ValueError('CPU frequency must be between 3500 and 4200 MHz')
+        if not 3100 <= frequency <= 4200:
+            raise ValueError('CPU frequency must be between 3100 and 4200 MHz')
         if not -50 <= reference_scale <= 0 or not -50 <= requested_scale <= 0:
             raise ValueError('CPU scale override must be between -50 and 0')
 
@@ -703,6 +707,13 @@ class CPURepository:
             'active_gpu_governors': active_governors,
             'enabled_gpu_governors': enabled_governors,
             'init_manager': init_manager.kind,
+            # An active unlock says nothing about whether it will still be
+            # there after a full power off; report that explicitly.
+            'persistence': detect_core_unlock_persistence(
+                physical_cores=int(physical),
+                logical_cpus=int(logical),
+                run_command=getattr(self, '_ejecutar', None),
+            ),
         }
 
     def comando_desbloquear_nucleos_cpu(self):
@@ -745,7 +756,7 @@ class CPURepository:
             metadata = script.stat(follow_symlinks=False)
         if metadata.st_mode & 0o022:
             raise RuntimeError('The upstream CPU core unlock script permissions could not be secured.')
-        return ['pkexec', helper, '--repo', str(repository), '--reboot']
+        return pkexec_argv('pkexec', helper, '--repo', str(repository), '--reboot')
 
     def ejecutar_cpu_oc_temporal(self, frecuencia, vid, temp=90):
         """Launch the same protected detector path used by the embedded UI.
@@ -816,7 +827,7 @@ class CPURepository:
         if not helper:
             raise RuntimeError(self._missing_cpu_smu_helper_message())
         config_path = Path(tools['smu_oc_path']) / 'overclock.conf'
-        return build_detect_command('pkexec', helper, target, config_path)
+        return build_detect_command(pkexec_prefix('pkexec'), helper, target, config_path)
 
 
     def comando_cpu_scale_live_embebido(
@@ -884,7 +895,7 @@ class CPURepository:
         target = validate_scale_target(
             candidate['frequency'], candidate['scale'], candidate['max_temperature']
         )
-        return build_scale_command('pkexec', helper, 'apply-live', target)
+        return build_scale_command(pkexec_prefix('pkexec'), helper, 'apply-live', target)
 
     def comando_cpu_oc_manual_embebido(
         self, frequency, scale, temperature=90, confirm_manual=False,
@@ -912,7 +923,7 @@ class CPURepository:
         target = validate_scale_target(
             analysis['frequency'], analysis['scale'], analysis['temperature']
         )
-        return build_scale_command('pkexec', helper, 'apply-live', target)
+        return build_scale_command(pkexec_prefix('pkexec'), helper, 'apply-live', target)
 
     def registrar_aplicacion_manual_cpu(self, frequency, scale, temperature=90):
         """Record a successful direct live apply and bind safe detector evidence.
@@ -1028,7 +1039,7 @@ class CPURepository:
                 'cpu-oc-service', 'install',
                 target.frequency, target.scale, target.temperature,
             )
-        return build_scale_command('pkexec', helper, 'install-boot', target)
+        return build_scale_command(pkexec_prefix('pkexec'), helper, 'install-boot', target)
 
 
     def estado_cpu_oc_persistente(self):
@@ -1169,7 +1180,7 @@ class CPURepository:
         helper = self._cpu_smu_helper_path()
         if not helper:
             raise RuntimeError(self._missing_cpu_smu_helper_message())
-        return build_disable_command('pkexec', helper)
+        return build_disable_command(pkexec_prefix('pkexec'), helper)
 
 
     def _systemctl_valor(self, argumentos):

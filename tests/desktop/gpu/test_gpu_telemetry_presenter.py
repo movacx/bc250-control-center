@@ -1,4 +1,7 @@
 import math
+import time
+
+from PyQt6.QtWidgets import QApplication
 
 from bc250cc.application.gpu.telemetry import format_bytes, present_gpu_telemetry
 from frontends.desktop.i18n import SUPPORTED_LANGUAGES, tr
@@ -81,3 +84,48 @@ def test_new_safe_point_roles_are_translated_in_every_supported_language():
     )
     for language in SUPPORTED_LANGUAGES - {"en"}:
         assert all(tr(role, language) != role for role in roles), language
+
+
+def test_corrupt_and_stale_diagnostics_override_live_tiles(qtbot):
+    import json
+
+    page = GpuGovernorPage(object())
+    qtbot.addWidget(page)
+    page.current_state = {
+        "apu_telemetry": {
+            "sampled_at_monotonic": time.monotonic(),
+            "status": "invalid",
+            "metrics": {
+                "voltage": {"value": None, "raw": "40058", "status": "invalid"},
+                "mclk": {"value": None, "status": "invalid"},
+                "fclk": {"value": None, "status": "unverified"},
+            },
+        },
+        "cyan_telemetry": None,
+    }
+
+    def refresh():
+        page._update_metric_widgets(
+            page._telemetry_copy({"voltaje_actual": 40058}, {}),
+            frequency=1000, mclk=2, minimum=1000, maximum=1850,
+            running=True, active="active", enabled="enabled",
+        )
+
+    refresh()
+    assert page.voltage_metric.value.text() == tr("Invalid")
+    assert page.mclk_metric.value.text() == tr("Invalid")
+    assert page.metrics_status.text() == tr("Warning")
+    assert "FCLK: " + tr("Not available") in page.memory_clocks_line.text()
+    page._copy_apu_diagnostics()
+    copied = json.loads(QApplication.clipboard().text())
+    assert copied["metrics"]["voltage"]["raw"] == "40058"
+    page.current_state["apu_telemetry"]["sampled_at_monotonic"] -= 10
+    refresh()
+    assert page.voltage_metric.value.text() == tr("Stale")
+    assert page.sclk_metric.value.text() == tr("Stale")
+
+
+def test_diagnostic_actions_are_translated_in_every_supported_language():
+    for language in SUPPORTED_LANGUAGES - {"en"}:
+        for source in ("Copy diagnostics", "Independent memory clocks require a verified source."):
+            assert tr(source, language) != source, language

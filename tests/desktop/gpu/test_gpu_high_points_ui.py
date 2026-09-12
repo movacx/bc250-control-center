@@ -75,16 +75,28 @@ def test_high_oc_points_are_visible_without_a_separate_show_button(qtbot):
     assert "Review fixed safe-point" not in button_texts
 
 
+def test_reference_panels_are_hidden_and_console_uses_their_row(qtbot):
+    page = _page(qtbot)
+
+    assert page.safe_points_panel.isHidden()
+    assert page.diagnostics_panel.isHidden()
+    index = page.advanced_grid.indexOf(page.console_panel)
+    assert page.advanced_grid.getItemPosition(index) == (1, 0, 1, 2)
+    assert page.console.minimumHeight() == 330
+
+
 def test_oberon_desktop_mode_replaces_cyan_profiles_with_its_fixed_profiles(qtbot):
     page = _page(qtbot)
 
     page._set_backend_profile_mode(True)
 
     visible = [button for button in page.preset_buttons if not button.isHidden()]
+    # Benchmark is (1000, 2000): the shape Quick Access has always written,
+    # and the one the desktop validator used to reject.
     assert [button.payload for button in visible] == [
         (1000, 1500),
         (1000, 1850),
-        (2000, 2000),
+        (1000, 2000),
     ]
     assert [button.text().splitlines()[0] for button in visible] == [
         "Balanced", "Gaming",
@@ -166,7 +178,7 @@ def test_confirmed_enable_updates_high_oc_warning_immediately(qtbot, monkeypatch
     assert page.high_points_button.text() == "Disable +2000 MHz TOML points"
     assert page.safety_notice.title.text() == "High OC laboratory mode"
     assert "above 2000 MHz are visible by default" in page.safety_notice.body.text()
-    assert page.configuration_status.text() == "Lab mode"
+    assert page.configuration_status is None
 
 
 def test_confirmed_disable_restores_safe_notice_without_waiting_for_refresh(qtbot):

@@ -54,6 +54,81 @@ def test_gpu_configuration_shows_the_live_gpu_voltage_sensor(qtbot):
     assert page.gpu_card.gpu_voltage_metric.x() > page.gpu_card.load_metric.x()
 
 
+def test_dashboard_labels_corrupt_eight_core_telemetry_as_invalid(qtbot):
+    page = DashboardPage(object())
+    qtbot.addWidget(page)
+    page.apply_state(
+        DashboardState(
+            gpu_state_available=True,
+            governor_running=True,
+            governor_frequency_mhz=1000,
+            gpu_telemetry_invalid=True,
+            gpu_metrics_layout_mismatch=True,
+        )
+    )
+
+    assert page.gpu_card.thermal_strip.values[0].text() == tr("Invalid")
+    assert page.gpu_card.gpu_voltage_metric.value.text() == tr("Invalid")
+    assert page.gpu_card.technical_strip.values[1].text() == tr("Invalid")
+    assert page.gpu_card.status.text() == "running"
+    assert page.gpu_card.gpu_voltage_metric.toolTip() == tr(
+        "Advanced GPU diagnostics"
+    )
+
+
+def test_eight_core_layout_mismatch_exposes_the_boot_repair(qtbot):
+    page = DashboardPage(object())
+    qtbot.addWidget(page)
+    page.apply_state(
+        DashboardState(
+            gpu_state_available=True,
+            governor_running=True,
+            gpu_metrics_layout_mismatch=True,
+            gpu_telemetry_repair_available=True,
+            gpu_telemetry_repair_pending=False,
+        )
+    )
+
+    assert not page.gpu_card.telemetry_repair_button.isHidden()
+    assert page.gpu_card.telemetry_repair_button.isEnabled()
+    assert page.gpu_card.telemetry_repair_button.text() == tr("Repair BC250 telemetry")
+
+
+def test_eight_core_telemetry_repair_pending_reboot_disables_the_button(qtbot):
+    page = DashboardPage(object())
+    qtbot.addWidget(page)
+    page.apply_state(
+        DashboardState(
+            gpu_state_available=True,
+            governor_running=True,
+            gpu_metrics_layout_mismatch=False,
+            gpu_telemetry_repair_pending=True,
+        )
+    )
+
+    assert not page.gpu_card.telemetry_repair_button.isHidden()
+    assert not page.gpu_card.telemetry_repair_button.isEnabled()
+    assert page.gpu_card.telemetry_repair_button.text() == tr(
+        "Restart to finish telemetry repair"
+    )
+
+
+def test_eight_core_telemetry_button_click_requests_repair_without_a_dialog(qtbot):
+    # A bare object() cannot take attributes, so the double needs a __dict__.
+    class _Controller:
+        pass
+
+    page = DashboardPage(_Controller())
+    qtbot.addWidget(page)
+    page.apply_state(DashboardState(gpu_metrics_layout_mismatch=True))
+    calls = []
+    page.controller.reparar_telemetria_8core = lambda: calls.append(True)
+
+    page.gpu_card.telemetry_repair_button.click()
+
+    assert calls == [True]
+
+
 def test_gpu_technical_strip_sits_below_temperatures_without_expanding_evidence(qtbot):
     page = DashboardPage(object())
     qtbot.addWidget(page)

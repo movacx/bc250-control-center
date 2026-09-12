@@ -1327,6 +1327,11 @@ class GamepadNavigationController(QObject):
         self._pending_normalize = False
         self._pending_visuals = False
         self._pending_focus = False
+        # Which subtrees still need their focus policies promoted. A widget
+        # appearing anywhere used to mean walking every widget in the
+        # application; the parent that received the child is enough.
+        self._pending_normalize_roots: list[QWidget] = []
+        self._pending_normalize_all = False
         self._maintenance_timer = QTimer(self)
         self._maintenance_timer.setSingleShot(True)
         self._maintenance_timer.setInterval(0)
@@ -1358,6 +1363,8 @@ class GamepadNavigationController(QObject):
         self._pending_normalize = False
         self._pending_visuals = False
         self._pending_focus = False
+        self._pending_normalize_all = False
+        self._pending_normalize_roots = []
         self._disable_ui_hooks()
         self._restore_focus_policies()
         self._hide_visuals()
@@ -1408,6 +1415,8 @@ class GamepadNavigationController(QObject):
             self._pending_normalize = False
             self._pending_visuals = False
             self._pending_focus = False
+            self._pending_normalize_all = False
+            self._pending_normalize_roots = []
             self._disable_ui_hooks()
             self._restore_focus_policies()
             self._hide_visuals()
@@ -1487,6 +1496,11 @@ class GamepadNavigationController(QObject):
                 normalize=True,
                 visuals=True,
                 focus=event_type == QEvent.Type.Show and self._safe_is_window(watched),
+                # A page rebuilding its rows raises one ChildAdded per widget.
+                # Walking the whole application for each of those turned every
+                # refresh into a tree-wide sweep; the receiving parent already
+                # contains everything that is new.
+                root=watched if event_type == QEvent.Type.ChildAdded else None,
             )
         elif event_type in {
             QEvent.Type.Resize,
@@ -1504,12 +1518,22 @@ class GamepadNavigationController(QObject):
         return False
 
     def _queue_maintenance(
-        self, *, normalize: bool = False, visuals: bool = False, focus: bool = False
+        self,
+        *,
+        normalize: bool = False,
+        visuals: bool = False,
+        focus: bool = False,
+        root: QWidget | None = None,
     ) -> None:
         if not self.connected:
             return
         if normalize or focus:
             self._invalidate_focus_cache()
+        if normalize:
+            if root is None:
+                self._pending_normalize_all = True
+            elif not any(existing is root for existing in self._pending_normalize_roots):
+                self._pending_normalize_roots.append(root)
         self._pending_normalize = self._pending_normalize or normalize
         self._pending_visuals = self._pending_visuals or visuals
         self._pending_focus = self._pending_focus or focus
@@ -1524,13 +1548,22 @@ class GamepadNavigationController(QObject):
         normalize = self._pending_normalize
         visuals = self._pending_visuals
         focus = self._pending_focus
+        normalize_all = self._pending_normalize_all
+        roots = self._pending_normalize_roots
         self._pending_normalize = False
         self._pending_visuals = False
         self._pending_focus = False
+        self._pending_normalize_all = False
+        self._pending_normalize_roots = []
         if not self.connected or not _qobject_alive(self.host):
             return
         if normalize:
-            self._normalize_all_top_levels()
+            if normalize_all:
+                self._normalize_all_top_levels()
+            else:
+                for root in roots:
+                    if _qobject_alive(root) and not self._is_overlay_widget(root):
+                        self._normalize_focusables(root)
         if focus:
             self.focus_current_scope()
         if visuals:
@@ -2513,8 +2546,17 @@ class GamepadNavigationController(QObject):
             )
             bar.set_available_width(top.width())
             bar.adjustSize()
+            # A window may have something docked along its bottom edge. Ask it,
+            # rather than assuming the bottom of the window is free.
+            inset = 0
+            reserve = getattr(top, "gamepad_bottom_inset", None)
+            if callable(reserve):
+                try:
+                    inset = max(0, int(reserve()))
+                except (RuntimeError, TypeError, ValueError):
+                    inset = 0
             x = max(8, top.width() - bar.width() - 18)
-            y = max(8, top.height() - bar.height() - 18)
+            y = max(8, top.height() - bar.height() - 18 - inset)
             if bar.pos() != QPoint(x, y):
                 bar.move(x, y)
             bar.show()

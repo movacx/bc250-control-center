@@ -19,6 +19,7 @@ LIB = Path(__file__).resolve().parents[3] / "privileged/lib"
 sys.path.insert(0, str(LIB))
 import system_setup_acpi as acpi  # noqa: E402
 import system_setup_memory as memory  # noqa: E402
+import system_setup_telemetry as telemetry  # noqa: E402
 from acpi_payload import SHA256, archive  # noqa: E402
 from system_setup_common import MARKER, STATE, Host, SetupError  # noqa: E402
 
@@ -28,6 +29,7 @@ class Sandbox:
         self.calls = []
         self.fail = None
         self.fs = "ext4"
+        self.kargs = "quiet splash"
         self.host = Host(root, runner=self.run)
         self.put("/etc/os-release", 'ID="arch"\n')
         self.host.path("/run/systemd/system").mkdir(parents=True)
@@ -77,6 +79,18 @@ class Sandbox:
                 stream.truncate(int(args[-2]))
         if args[0] == "bootctl":
             self.efi("LoaderEntryDefault", args[-1])
+        if args[0] == "rpm-ostree":
+            for value in args[2:]:
+                if value.startswith("--append-if-missing="):
+                    argument = value.split("=", 1)[1]
+                    if argument not in self.kargs.split():
+                        self.kargs += " " + argument
+                elif value.startswith("--delete-if-present="):
+                    argument = value.split("=", 1)[1]
+                    self.kargs = " ".join(
+                        item for item in self.kargs.split() if item != argument
+                    )
+            return self.kargs
         if args[0] == "grub-mkconfig":
             self.put(acpi.GRUB_OUTPUT, self.grub_original + "\n" + self.host.read(acpi.GRUB_SCRIPT))
         return ""
@@ -100,6 +114,19 @@ class Sandbox:
         self.put("/proc/cmdline", "BOOT_IMAGE=/boot/vmlinuz-linux root=UUID=aaa-bbb rw")
         for image in ("vmlinuz-linux", "amd-ucode.img", "initramfs-linux.img"):
             self.put("/boot/" + image, b"original")
+
+    def eight_cores(self):
+        for cpu in range(16):
+            self.put(
+                f"/sys/devices/system/cpu/cpu{cpu}/topology/core_id",
+                str(cpu // 2),
+            )
+            self.put(
+                f"/sys/devices/system/cpu/cpu{cpu}/topology/physical_package_id",
+                "0",
+            )
+        self.put(telemetry.PARAMETER, "N")
+        self.put(telemetry.CMDLINE, "quiet splash")
 
 
 @pytest.fixture
@@ -500,3 +527,72 @@ def test_bridge_rejects_arbitrary_arguments_and_uses_one_finite_helper():
     for action, policy, ttm in (("sh", "preserve", 0), ("memory-apply", "$(id)", 0), ("memory-apply", "preserve", True)):
         with pytest.raises(ValueError):
             command(action, policy, ttm)
+
+
+def test_eight_core_telemetry_repair_is_persistent_and_reversible_on_limine(
+    sandbox,
+):
+    sandbox.eight_cores()
+    original = 'KERNEL_CMDLINE[default]+="quiet splash"\n'
+    sandbox.put(telemetry.LIMINE_CONFIG, original)
+
+    before = telemetry.status(sandbox.host)
+    assert before["required"] and before["available"]
+    assert before["backend"] == "limine"
+
+    applied = telemetry.apply(sandbox.host)
+    assert applied["status"] == "pending-reboot"
+    assert telemetry.ARGUMENT in sandbox.host.read(telemetry.LIMINE_CONFIG)
+    assert ("limine-mkinitcpio",) in sandbox.calls
+
+    # A user may edit another Limine setting before deciding to undo the
+    # repair.  Restore must remove only this application's managed block.
+    sandbox.put(
+        telemetry.LIMINE_CONFIG,
+        sandbox.host.read(telemetry.LIMINE_CONFIG) + 'TIMEOUT=5\n',
+    )
+    restored = telemetry.restore(sandbox.host)
+    assert restored["status"] == "removed-pending-reboot"
+    assert sandbox.host.read(telemetry.LIMINE_CONFIG) == original.rstrip() + "\nTIMEOUT=5"
+    assert not sandbox.host.path(f"{STATE}/telemetry.json").exists()
+
+
+def test_eight_core_telemetry_repair_uses_a_managed_grub_dropin(sandbox):
+    sandbox.eight_cores()
+    sandbox.grub()
+
+    applied = telemetry.apply(sandbox.host)
+    assert applied["backend"] == "grub"
+    dropin = sandbox.host.read(telemetry.GRUB_DROPIN)
+    assert dropin.startswith(MARKER.strip())
+    assert telemetry.ARGUMENT in dropin
+
+    telemetry.restore(sandbox.host)
+    assert not sandbox.host.path(telemetry.GRUB_DROPIN).exists()
+    assert "GRUB_DEFAULT=0" in sandbox.host.read(telemetry.GRUB_CONFIG)
+
+
+def test_eight_core_repair_refuses_other_core_topologies(sandbox):
+    sandbox.eight_cores()
+    for cpu in range(8, 16):
+        sandbox.put(
+            f"/sys/devices/system/cpu/cpu{cpu}/topology/core_id",
+            str((cpu - 8) // 2),
+        )
+    sandbox.put(telemetry.LIMINE_CONFIG, 'KERNEL_CMDLINE[default]+="quiet"\n')
+
+    with pytest.raises(SetupError, match="Eight physical"):
+        telemetry.apply(sandbox.host)
+
+
+def test_eight_core_telemetry_repair_uses_rpm_ostree_kargs(sandbox):
+    sandbox.eight_cores()
+    sandbox.put("/etc/os-release", "ID=bazzite\nID_LIKE=fedora\n")
+    sandbox.put("/run/ostree-booted", "")
+
+    applied = telemetry.apply(sandbox.host)
+    assert applied["backend"] == "rpm-ostree"
+    assert telemetry.ARGUMENT in sandbox.kargs.split()
+
+    telemetry.restore(sandbox.host)
+    assert telemetry.ARGUMENT not in sandbox.kargs.split()

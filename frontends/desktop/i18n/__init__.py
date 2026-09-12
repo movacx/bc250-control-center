@@ -6,6 +6,7 @@ import re
 from functools import lru_cache
 from typing import Iterable
 
+from ..core.error_diagnostics import DIAGNOSTIC_SOURCES
 from .backend_catalog import BASE_TRANSLATIONS
 from .catalog import EXTRA_TRANSLATIONS
 from .cpu_catalog import CPU_TRANSLATIONS
@@ -725,116 +726,12 @@ systemctl --user status bc250-control-centerd.service --no-pager
 
 Po przygotowaniu obsługi PWM demon może również stosować zapisaną krzywą wentylatora przy zamkniętym GUI. Nigdy nie stosuje automatycznie overclockingu CPU ani GPU."""
 
-# Ordered phrase replacements make dynamic status sentences and technical cards
-# understandable even when their exact runtime value was not known at build time.
-_PHRASES = {
-    "es": {
-        "No hardware changes will be made.": "No se realizarán cambios de hardware.",
-        "No hardware command was executed.": "No se ejecutó ningún comando de hardware.",
-        "No additional command will be attempted automatically.": "No se intentará ningún comando adicional automáticamente.",
-        "Start the application with": "Inicia la aplicación con", "to": "para", "and": "y", "or": "o",
-        "Current": "Actual", "current": "actual", "Active": "Activo", "active": "activo", "Default": "Predeterminado", "default": "predeterminado",
-        "Service": "Servicio", "service": "servicio", "Status": "Estado", "status": "estado", "Range": "Rango", "range": "rango",
-        "Frequency": "Frecuencia", "frequency": "frecuencia", "Voltage": "Voltaje", "voltage": "voltaje", "Temperature": "Temperatura", "temperature": "temperatura",
-        "Profile": "Perfil", "profile": "perfil", "Selected": "Seleccionado", "selected": "seleccionado", "Safe": "Seguro", "safe": "seguro",
-        "Apply": "Aplicar", "Review": "Revisar", "Prepare": "Preparar", "Enable": "Activar", "Disable": "Desactivar", "Restart": "Reiniciar",
-        "Open": "Abrir", "Close": "Cerrar", "Refresh": "Actualizar", "Read": "Leer", "Write": "Escribir", "Save": "Guardar", "Clear": "Limpiar",
-        "Warning": "Advertencia", "Error": "Error", "Available": "Disponible", "Unavailable": "No disponible", "Waiting": "Esperando",
-        "Live": "En vivo", "Custom": "Personalizado", "Automatic": "Automático", "Manual": "Manual",
-        "Memory": "Memoria", "Power": "Consumo", "Load": "Carga", "Core": "Núcleo", "Board": "Placa", "History": "Historial",
-        "Details": "Detalles", "Tools": "Herramientas", "Dependencies": "Dependencias", "Diagnostics": "Diagnósticos", "Console": "Consola",
-    },
-    "pt": {
-        "No hardware changes will be made.": "Nenhuma alteração de hardware será feita.",
-        "No hardware command was executed.": "Nenhum comando de hardware foi executado.",
-        "No additional command will be attempted automatically.": "Nenhum comando adicional será tentado automaticamente.",
-        "Current": "Atual", "current": "atual", "Active": "Ativo", "active": "ativo", "Default": "Padrão", "default": "padrão",
-        "Service": "Serviço", "service": "serviço", "Status": "Status", "status": "status", "Range": "Faixa", "range": "faixa",
-        "Frequency": "Frequência", "frequency": "frequência", "Voltage": "Voltagem", "voltage": "voltagem", "Temperature": "Temperatura", "temperature": "temperatura",
-        "Profile": "Perfil", "profile": "perfil", "Selected": "Selecionado", "selected": "selecionado", "Safe": "Seguro", "safe": "seguro",
-        "Apply": "Aplicar", "Review": "Revisar", "Prepare": "Preparar", "Enable": "Ativar", "Disable": "Desativar", "Restart": "Reiniciar",
-        "Open": "Abrir", "Close": "Fechar", "Refresh": "Atualizar", "Read": "Ler", "Write": "Gravar", "Save": "Salvar", "Clear": "Limpar",
-        "Warning": "Aviso", "Error": "Erro", "Available": "Disponível", "Unavailable": "Indisponível", "Waiting": "Aguardando",
-        "Live": "Ao vivo", "Custom": "Personalizado", "Automatic": "Automático", "Manual": "Manual",
-        "Memory": "Memória", "Power": "Consumo", "Load": "Carga", "Core": "Núcleo", "Board": "Placa", "History": "Histórico",
-        "Details": "Detalhes", "Tools": "Ferramentas", "Dependencies": "Dependências", "Diagnostics": "Diagnósticos", "Console": "Console",
-    },
-    "ru": {
-        "No hardware changes will be made.": "Изменения оборудования не выполняются.",
-        "No hardware command was executed.": "Команды оборудования не выполнялись.",
-        "No additional command will be attempted automatically.": "Дополнительные команды автоматически выполняться не будут.",
-        "Current": "Текущий", "current": "текущий", "Active": "Активный", "active": "активный", "Default": "По умолчанию", "default": "по умолчанию",
-        "Service": "Служба", "service": "служба", "Status": "Состояние", "status": "состояние", "Range": "Диапазон", "range": "диапазон",
-        "Frequency": "Частота", "frequency": "частота", "Voltage": "Напряжение", "voltage": "напряжение", "Temperature": "Температура", "temperature": "температура",
-        "Profile": "Профиль", "profile": "профиль", "Selected": "Выбрано", "selected": "выбрано", "Safe": "Безопасный", "safe": "безопасный",
-        "Apply": "Применить", "Review": "Проверить", "Prepare": "Подготовить", "Enable": "Включить", "Disable": "Отключить", "Restart": "Перезапустить",
-        "Open": "Открыть", "Close": "Закрыть", "Refresh": "Обновить", "Read": "Прочитать", "Write": "Записать", "Save": "Сохранить", "Clear": "Очистить",
-        "Warning": "Предупреждение", "Error": "Ошибка", "Available": "Доступно", "Unavailable": "Недоступно", "Waiting": "Ожидание",
-        "Live": "В реальном времени", "Custom": "Пользовательский", "Automatic": "Автоматический", "Manual": "Ручной",
-        "Memory": "Память", "Power": "Мощность", "Load": "Нагрузка", "Core": "Ядро", "Board": "Плата", "History": "История",
-        "Details": "Подробности", "Tools": "Инструменты", "Dependencies": "Зависимости", "Diagnostics": "Диагностика", "Console": "Консоль",
-    },
-    "uk": {
-        "No hardware changes will be made.": "Зміни обладнання не виконуються.",
-        "No hardware command was executed.": "Команди обладнання не виконувалися.",
-        "No additional command will be attempted automatically.": "Додаткові команди автоматично не виконуватимуться.",
-        "Current": "Поточний", "current": "поточний", "Active": "Активний", "active": "активний", "Default": "За замовчуванням", "default": "за замовчуванням",
-        "Service": "Служба", "service": "служба", "Status": "Стан", "status": "стан", "Range": "Діапазон", "range": "діапазон",
-        "Frequency": "Частота", "frequency": "частота", "Voltage": "Напруга", "voltage": "напруга", "Temperature": "Температура", "temperature": "температура",
-        "Profile": "Профіль", "profile": "профіль", "Selected": "Вибрано", "selected": "вибрано", "Safe": "Безпечний", "safe": "безпечний",
-        "Apply": "Застосувати", "Review": "Перевірити", "Prepare": "Підготувати", "Enable": "Увімкнути", "Disable": "Вимкнути", "Restart": "Перезапустити",
-        "Open": "Відкрити", "Close": "Закрити", "Refresh": "Оновити", "Read": "Прочитати", "Write": "Записати", "Save": "Зберегти", "Clear": "Очистити",
-        "Warning": "Попередження", "Error": "Помилка", "Available": "Доступно", "Unavailable": "Недоступно", "Waiting": "Очікування",
-        "Live": "Наживо", "Custom": "Користувацький", "Automatic": "Автоматичний", "Manual": "Ручний",
-        "Memory": "Пам'ять", "Power": "Потужність", "Load": "Навантаження", "Core": "Ядро", "Board": "Плата", "History": "Історія",
-        "Details": "Подробиці", "Tools": "Інструменти", "Dependencies": "Залежності", "Diagnostics": "Діагностика", "Console": "Консоль",
-    },
-    "de": {
-        "No hardware changes will be made.": "Es werden keine Hardwareänderungen vorgenommen.",
-        "No hardware command was executed.": "Es wurde kein Hardwarebefehl ausgeführt.",
-        "No additional command will be attempted automatically.": "Es wird kein weiterer Befehl automatisch versucht.",
-        "Current": "Aktuell", "current": "aktuell", "Active": "Aktiv", "active": "aktiv", "Default": "Standard", "default": "Standard",
-        "Service": "Dienst", "service": "Dienst", "Status": "Status", "status": "Status", "Range": "Bereich", "range": "Bereich",
-        "Frequency": "Frequenz", "frequency": "Frequenz", "Voltage": "Spannung", "voltage": "Spannung", "Temperature": "Temperatur", "temperature": "Temperatur",
-        "Profile": "Profil", "profile": "Profil", "Selected": "Ausgewählt", "selected": "ausgewählt", "Safe": "Sicher", "safe": "sicher",
-        "Apply": "Anwenden", "Review": "Prüfen", "Prepare": "Vorbereiten", "Enable": "Aktivieren", "Disable": "Deaktivieren", "Restart": "Neustarten",
-        "Open": "Öffnen", "Close": "Schließen", "Refresh": "Aktualisieren", "Read": "Lesen", "Write": "Schreiben", "Save": "Speichern", "Clear": "Löschen",
-        "Warning": "Warnung", "Error": "Fehler", "Available": "Verfügbar", "Unavailable": "Nicht verfügbar", "Waiting": "Warten",
-        "Live": "Live", "Custom": "Benutzerdefiniert", "Automatic": "Automatisch", "Manual": "Manuell",
-        "Memory": "Speicher", "Power": "Leistung", "Load": "Last", "Core": "Kern", "Board": "Board", "History": "Verlauf",
-        "Details": "Details", "Tools": "Werkzeuge", "Dependencies": "Abhängigkeiten", "Diagnostics": "Diagnose", "Console": "Konsole",
-    },
-}
-
-
-def _looks_technical_line(line: str) -> bool:
-    stripped = line.strip()
-    if not stripped:
-        return False
-    return bool(
-        stripped.startswith(("/", "~/", "systemctl ", "journalctl ", "sudo ", "pkexec ", "cat ", "ls ", "modinfo ", "rpm-ostree ", "pacman ", "dpkg "))
-        or re.match(r"^[A-Z0-9_./:+-]{2,}$", stripped)
-    )
-
-
-def _phrase_translate(text: str, language: str) -> str:
-    phrases = _PHRASES.get(language, {})
-    if not phrases:
-        return text
-    output_lines: list[str] = []
-    ordered = sorted(phrases.items(), key=lambda item: len(item[0]), reverse=True)
-    for line in text.splitlines():
-        if _looks_technical_line(line):
-            output_lines.append(line)
-            continue
-        result = line
-        for source, target in ordered:
-            if source in result:
-                result = result.replace(source, target)
-        output_lines.append(result)
-    return "\n".join(output_lines)
-
-
+# A substring-replacement translator used to live here: an ordered table of
+# word-for-word swaps for four languages, applied to any sentence whose exact
+# runtime value was unknown at build time. The complete per-locale catalogues
+# replaced it, and nothing had called it since — so every status sentence was
+# already being translated as a whole phrase, which is the only way that
+# produces correct grammar.
 def _legacy_exact(source: str, language: str) -> str:
     """Resolve legacy catalog entries exactly; never translate substrings."""
     target_catalog = BASE_TRANSLATIONS.get(language, {})
@@ -994,6 +891,7 @@ HISTORY_DYNAMIC_SOURCES = tuple(dict.fromkeys(
 # the canonical source inventory prevents labels outside custom dialogs from
 # silently falling through when a new locale is added.
 ADDITIONAL_VISIBLE_SOURCES = (
+    *DIAGNOSTIC_SOURCES,
     "A live GPU fan curve with 3 to 8 temperature points. The saved profile is shared with the optional user daemon.",
     "Apply Cyan compatibility settings",
     "Apply compatibility",
@@ -1029,6 +927,42 @@ ADDITIONAL_VISIBLE_SOURCES = (
     "systemctl is not available on this system.",
     "{healthy} healthy · {warnings} warnings · {errors} errors · {distribution} · kernel {kernel}",
     "· invalid: {message}",
+    "5 simple steps",
+    "Usage guide",
+    "Close guide",
+    "How to set up the GPU",
+    "Follow these steps in order. Test first and save last.",
+    "Get it ready",
+    "If the page shows something missing, return to the Dashboard and prepare the GPU tools.",
+    "Turn it on",
+    "Press Enable service. With Cyan, wait until the D-Bus API says Connected.",
+    "Pick a speed",
+    "Choose a profile or enter minimum and maximum values. Press Review and apply range.",
+    "Try it",
+    "Play a demanding game or run a 3D test. Lower the range if you see artifacts, freezes, or resets.",
+    "Keep it",
+    "If everything works, press Save active range for startup.",
+    "How to set up the CPU",
+    "Make one change at a time. Test first and save last.",
+    "Press Prepare CPU tools the first time, or if the page says a tool is missing.",
+    "Pick a target",
+    "Choose a preset or enter the frequency, VID limit, and temperature limit.",
+    "Try it now",
+    "Leave manual scale off and press Apply configuration + automatic scale.",
+    "Check it",
+    "Run a long CPU and memory test, then use your usual games or programs.",
+    "If there are no errors, freezes, or restarts, press Save for boot.",
+    "How to enable more CUs",
+    "Add only one WGP pair at a time. Test first and save last.",
+    "Read the board",
+    "Prepare the CU tools if needed, then press Unlock / Sync.",
+    "Add 2 CUs",
+    "Start with Factory 24 CUs and enable only one extra WGP pair.",
+    "Try the change",
+    "Press Apply now. Do not save the selection yet.",
+    "Test it",
+    "Run a demanding game or 3D test. Remove the last pair if you see artifacts, freezes, or resets.",
+    "When it is stable, press Save selection and then Install service.",
 )
 
 

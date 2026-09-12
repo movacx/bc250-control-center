@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from bc250cc.infrastructure.polkit_session import pkexec_argv
+
 GOVERNOR_CONFIG_HELPER_PROTOCOL = 6
 _PROTOCOL_PATTERN = re.compile(r"^BC250_GOVERNOR_CONFIG_PROTOCOL\s*=\s*(\d+)\s*$", re.MULTILINE)
 
@@ -28,7 +30,7 @@ class GovernorConfigRequest:
     arguments: tuple[str, ...]
 
     def argv(self, helper: str) -> list[str]:
-        return ["pkexec", helper, self.action, *self.arguments]
+        return pkexec_argv("pkexec", helper, self.action, *self.arguments)
 
 
 def _integers(

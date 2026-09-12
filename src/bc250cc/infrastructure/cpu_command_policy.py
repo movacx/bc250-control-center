@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -36,8 +37,8 @@ def validate_detection_target(frequency, vid, temperature) -> CPUDetectionTarget
         _integer(vid, "CPU VID must be an integer"),
         _integer(temperature, "CPU temperature must be an integer"),
     )
-    if not 3500 <= target.frequency <= 4200:
-        raise ValueError("The UI limits temporary CPU OC to 3500-4200 MHz")
+    if not 3100 <= target.frequency <= 4200:
+        raise ValueError("The UI limits temporary CPU OC to 3100-4200 MHz")
     if not 950 <= target.vid <= 1325:
         raise ValueError("The UI limits VID to 950-1325 mV")
     if not 70 <= target.temperature <= 90:
@@ -49,8 +50,8 @@ def validate_scale_target(frequency, scale, temperature) -> CPUScaleTarget:
     frequency = _integer(frequency, "CPU frequency must be an integer")
     scale = _integer(scale, "CPU scale must be an integer")
     temperature = _integer(temperature, "CPU temperature must be an integer")
-    if not 3500 <= frequency <= 4200:
-        raise ValueError("CPU frequency must be between 3500 and 4200 MHz")
+    if not 3100 <= frequency <= 4200:
+        raise ValueError("CPU frequency must be between 3100 and 4200 MHz")
     if not -50 <= scale <= 0:
         raise ValueError("CPU scale must be between -50 and 0")
     if not 70 <= temperature <= 90:
@@ -65,12 +66,16 @@ def validate_scale_target(frequency, scale, temperature) -> CPUScaleTarget:
 
 
 def _boundary(executor, helper) -> list[str]:
-    executor, helper = str(executor or ""), str(helper or "")
-    if not executor or "\x00" in executor:
+    if isinstance(executor, Sequence) and not isinstance(executor, (str, bytes)):
+        prefix = [str(item) for item in executor]
+    else:
+        prefix = [str(executor or "")]
+    helper = str(helper or "")
+    if not prefix or any(not item or "\x00" in item for item in prefix):
         raise ValueError("The privileged command executor is invalid")
     if not helper or "\x00" in helper:
         raise ValueError("The CPU/SMU helper path is invalid")
-    return [executor, helper]
+    return [*prefix, helper]
 
 
 def build_detect_command(executor, helper, target: CPUDetectionTarget, config_path) -> list[str]:

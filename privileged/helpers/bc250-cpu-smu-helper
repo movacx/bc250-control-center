@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python3 -I
 """Root-owned CPU/SMU execution boundary for BC250 Control Center.
 
 The desktop GUI may prepare/request values, but this helper is the only code
@@ -40,7 +40,7 @@ QAM_MANUAL_EVIDENCE_SCHEMA = 1
 QAM_PUBLIC_STATE_SCHEMA = 1
 QAM_HELPER_PROTOCOL = 8
 EXPECTED_VENDOR_COMMIT = '43d6b4c6e38c57bc9ec8908c44675ce7d5fd3d2f'
-EXPECTED_VENDOR_SHA256 = 'c9b0c9d18058e1ef20b88db098c975449eaea8fa940c1c23e39888723e128afd'
+EXPECTED_VENDOR_SHA256 = '741f85266b6d2c5d52c9bcacaca0042c8732dc0ebae586f902e835cc79bc81ea'
 
 
 def fail(message: str, code: int = 1) -> int:
@@ -115,8 +115,8 @@ def estimated_vid(frequency: int, scale: int) -> int:
 def validate_values(frequency: int, scale: int, temperature: int) -> tuple[int, int, int]:
     if any(type(value) is not int for value in (frequency, scale, temperature)):
         raise ValueError('Frequency, scale and temperature must be integers.')
-    if not 3500 <= frequency <= 4200:
-        raise ValueError('Frequency must be between 3500 and 4200 MHz.')
+    if not 3100 <= frequency <= 4200:
+        raise ValueError('Frequency must be between 3100 and 4200 MHz.')
     if not -50 <= scale <= 0:
         raise ValueError('Scale must be between -50 and 0.')
     if not 70 <= temperature <= 90:
@@ -210,8 +210,8 @@ def action_detect(argv: Sequence[str]) -> int:
         frequency, vid, temperature = map(int, argv[:3])
     except ValueError:
         return fail('Detection arguments must be integers.', 21)
-    if not 3500 <= frequency <= 4200:
-        return fail('Frequency must be between 3500 and 4200 MHz.', 22)
+    if not 3100 <= frequency <= 4200:
+        return fail('Frequency must be between 3100 and 4200 MHz.', 22)
     if not 950 <= vid <= 1325:
         return fail('VID must be between 950 and 1325 mV.', 23)
     if not 70 <= temperature <= 90:
@@ -543,7 +543,7 @@ def _validated_qam_evidence() -> dict[str, object]:
         frequency, scale, temperature = read_config(QAM_CONFIG)
     except (KeyError, TypeError, ValueError, configparser.Error) as exc:
         raise RuntimeError(f'QAM CPU detector evidence contains invalid values: {exc}') from exc
-    if not 3500 <= requested_frequency <= 4200 or requested_frequency % 50:
+    if not 3100 <= requested_frequency <= 4200 or requested_frequency % 50:
         raise RuntimeError('QAM CPU detector target frequency is invalid.')
     if not 950 <= requested_vid <= 1325 or requested_vid % 5:
         raise RuntimeError('QAM CPU detector target VID is invalid.')
@@ -726,8 +726,8 @@ def action_detect_qam(argv: Sequence[str]) -> int:
         frequency, vid, temperature = map(int, argv)
     except ValueError:
         return fail('QAM CPU detector arguments must be integers.', 82)
-    if not 3500 <= frequency <= 4200 or frequency % 50:
-        return fail('QAM CPU frequency must be 3500-4200 MHz in 50 MHz steps.', 83)
+    if not 3100 <= frequency <= 4200 or frequency % 50:
+        return fail('QAM CPU frequency must be 3100-4200 MHz in 50 MHz steps.', 83)
     if not 950 <= vid <= 1325 or vid % 5:
         return fail('QAM CPU VID must be 950-1325 mV in 5 mV steps.', 84)
     if temperature != 90:

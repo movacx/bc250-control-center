@@ -20,9 +20,12 @@ from bc250cc.infrastructure.bazzite_async_compute import (
 from bc250cc.infrastructure.bazzite_memory_tuning import (
     build_bazzite_memory_tuning_command,
 )
+from bc250cc.infrastructure.bazzite_mitigations import (
+    build_bazzite_mitigations_command,
+    probe_bazzite_mitigations,
+)
 from bc250cc.infrastructure.bc250_fsr4 import (
     build_fsr4_v3_bazzite_install_command,
-    build_fsr4_v3_debian_install_command,
     build_fsr4_v3_fedora44_install_command,
     build_fsr4_v3_install_command,
     build_fsr4_v3_uninstall_command,
@@ -195,8 +198,24 @@ class DependenciasRepository:
             return self.preparar_memoria_bazzite(policy, ttm_gib)
         return self._abrir_terminal(system_setup_command('memory-apply', policy, ttm_gib), 'BC250 Memory & Swap')
 
+    def gestionar_mitigaciones_bazzite(self, action: str):
+        if self._os_repository().family != 'bazzite':
+            raise RuntimeError('CPU mitigation management is available only on Bazzite.')
+        return self._abrir_terminal(
+            build_bazzite_mitigations_command(action),
+            'Configurar mitigaciones de CPU en Bazzite',
+        )
+
     def gestionar_acpi(self, action: str):
         return self._abrir_terminal(system_setup_command(action), 'BC250 ACPI')
+
+    def reparar_telemetria_8core(self, action: str = "telemetry-fix"):
+        if action not in {"telemetry-fix", "telemetry-restore"}:
+            raise ValueError("Unsupported eight-core telemetry action")
+        return self._abrir_terminal(
+            system_setup_command(action),
+            'BC250 8-core GPU telemetry',
+        )
 
     def _hardware_source_checkout_command(self, repository_url, destination, os_repository=None):
         """Require an immutable manifest revision before root-adjacent use."""
@@ -379,24 +398,27 @@ class DependenciasRepository:
             getattr(os_info, 'version_id', '')
             or read_os_release().get('VERSION_ID', '')
         ).strip()
-        compute_state = (
-            self._gfx1013_compute_state(os_repository)
-            if os_info.family == 'fedora'
-            else {}
+        compute_state = self._gfx1013_compute_state(os_repository)
+        compute_kernel_ready = bool(
+            compute_state.get('dryhopped_ready')
+            or compute_state.get('masta_async_compute_ready')
+            or (
+                os_info.family == 'bazzite'
+                and compute_state.get('exact_upstream_validated_host')
+            )
         )
         state = fsr4_runtime_state(
             os_info.family,
             os_info.distro_id,
             version_id,
-            compute_kernel_ready=bool(compute_state.get('dryhopped_ready')),
+            compute_kernel_ready=compute_kernel_ready,
         )
         action = str(action or '').strip().lower()
         if action == 'install' and not state.get('installer_available'):
             raise RuntimeError(
-                'The official upstream FSR4 V3 runtime is available only on Arch/CachyOS. '
-                'Manjaro is experimental and accepted only through mandatory ABI/Vulkan checks; '
-                'Fedora 44, Bazzite and Debian/Ubuntu use verified Podman source-build paths. '
-                'Fedora also requires the repaired GFX1013 boot to be active.'
+                'FSR4 requires a verified matching GFX1013 kernel. Use the paired '
+                'MastaG kernel on Arch/CachyOS, the reviewed OGC kernel on Bazzite, '
+                'or the repaired GFX1013 boot on Fedora 44.'
             )
         if action not in {'install', 'uninstall'}:
             raise ValueError('Unsupported BC-250 FSR4 action.')
@@ -404,8 +426,6 @@ class DependenciasRepository:
             command_builder = build_fsr4_v3_uninstall_command
         elif state.get('build_mode') == 'bazzite-podman-source':
             command_builder = build_fsr4_v3_bazzite_install_command
-        elif state.get('build_mode') == 'debian-podman-source':
-            command_builder = build_fsr4_v3_debian_install_command
         elif state.get('build_mode') == 'fedora44-podman-source':
             command_builder = build_fsr4_v3_fedora44_install_command
         else:
@@ -472,7 +492,7 @@ class DependenciasRepository:
             distro_id=os_repository.info.distro_id,
             version_id=version_id,
             kernel=kernel,
-            immutable=os_repository.info.immutable,
+            immutable=bool(getattr(os_repository.info, 'immutable', False)),
         )
         masta_stack = masta_bc250_stack_state(
             distro_id=os_repository.info.distro_id,
@@ -643,6 +663,16 @@ class DependenciasRepository:
         optional_dependencies = self._optional_dependency_status(runtime_probe)
         quick_access = quick_access_inventory(os_family=os_info.family).to_dict()
         memory_runtime = read_memory_runtime_state()
+        bazzite_mitigations = (
+            self._optional_inventory_probe(
+                probe_bazzite_mitigations,
+                {'available': False, 'active': False, 'configured': False,
+                 'managed': False, 'reboot_required': False, 'state': 'unavailable'},
+            )
+            if os_info.family == 'bazzite'
+            else {'available': False, 'active': False, 'configured': False,
+                  'managed': False, 'reboot_required': False, 'state': 'unsupported'}
+        )
         system_setup = system_setup_inventory()
         init_manager = detect_init_manager()
         init_preflight = (
@@ -765,6 +795,7 @@ class DependenciasRepository:
             'prepare_components': component_capabilities,
             'quick_access': quick_access,
             'memory_runtime': memory_runtime,
+            'bazzite_mitigations': bazzite_mitigations,
             'system_setup': system_setup,
             'external_integrations': external_integrations,
             'missing_optional_features': [
@@ -955,6 +986,11 @@ class DependenciasRepository:
                 version_id,
                 compute_kernel_ready=bool(
                     gfx1013_compute.get('dryhopped_ready')
+                    or gfx1013_compute.get('masta_async_compute_ready')
+                    or (
+                        getattr(os_info, 'family', '') == 'bazzite'
+                        and gfx1013_compute.get('exact_upstream_validated_host')
+                    )
                 ),
             ),
             {'installed': False, 'precompiled_supported': False},

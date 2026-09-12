@@ -74,7 +74,7 @@ def _detail(reason: str, **state: bool) -> tuple[str, ...]:
     if state["bazzite_current"]:
         return ("The reviewed Bazzite async-compute driver is installed but not enabled system-wide. System Mesa remains unchanged.",)
     if reason == "steamos-dedicated-backend" and state["external_runtime_invalid"]:
-        return ("The SteamOS RADV/FSR4 runtime is incomplete or has changed. Use the reviewed repair or remove action before enabling it for games.",)
+        return ("The SteamOS graphics runtime is incomplete or has changed. Use the reviewed repair or remove action before enabling it for games.",)
     if reason == "steamos-dedicated-backend" and state["external_runtime_current"] and not kernel:
         return ("An external SteamOS RADV runtime is present but the matching kernel repair is not active. Do not use it until the kernel half is active; an unmatched Mesa/RADV runtime can hang the GPU.",)
     if reason == "steamos-dedicated-backend" and safe_radv and not kernel:
@@ -111,16 +111,24 @@ def _detail(reason: str, **state: bool) -> tuple[str, ...]:
     return (details.get(reason, "Upstream provides manual patch guidance only for this distribution. Control Center does not automate the kernel/Mesa stack."),)
 
 
-def present_gfx1013(state: Mapping[str, object]) -> Gfx1013Presentation:
+def present_gfx1013(
+    state: Mapping[str, object], *, include_fsr4: bool = True
+) -> Gfx1013Presentation:
     reason = str(state.get("reason_key") or "manual-patches-only")
     values = {
         "kernel_ready": bool(state.get("steamos_kernel_ready")),
         "safe_radv": bool(state.get("steamos_safe_radv_detected")),
         "legacy_radv": bool(state.get("legacy_steamos_radv_detected")),
-        "external_runtime_invalid": str(state.get("steamos_external_radv_state") or "") == "invalid"
-        or str(state.get("steamos_external_fsr4_state") or "") == "invalid",
+        "external_runtime_invalid": (
+            str(state.get("steamos_external_radv_state") or "") == "invalid"
+            or (
+                include_fsr4
+                and str(state.get("steamos_external_fsr4_state") or "") == "invalid"
+            )
+        ),
         "external_runtime_current": bool(state.get("steamos_external_radv_current")),
-        "external_fsr4_current": bool(state.get("steamos_external_fsr4_current")),
+        "external_fsr4_current": include_fsr4
+        and bool(state.get("steamos_external_fsr4_current")),
         "external_installed": bool(state.get("dryhopped_installed")),
         "external_boot_active": bool(state.get("dryhopped_boot_active")),
         "masta_async_compute_ready": bool(state.get("masta_async_compute_ready")),

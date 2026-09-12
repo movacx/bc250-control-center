@@ -11,7 +11,7 @@ POLICIES = {"preserve", "restore", "swap-16", "swap-32", "zram", "zswap-16", "zs
 
 def inventory() -> dict:
     if not HELPER.is_file():
-        return {"helper_available": False, "memory": {}, "acpi": {},
+        return {"helper_available": False, "memory": {}, "acpi": {}, "telemetry": {},
                 "reason": "Install or update Control Center's system setup helper first"}
     try:
         info = HELPER.stat()
@@ -20,15 +20,18 @@ def inventory() -> dict:
         result = subprocess.run(["/usr/bin/python3", "-I", str(HELPER), "status"],
                                 capture_output=True, text=True, timeout=8, check=True)
         data = json.loads(result.stdout)
-        if data.get("protocol") != 1:
+        if data.get("protocol") != 2:
             raise ValueError("Unsupported system setup protocol")
         return {**data, "helper_available": True}
     except (OSError, ValueError, subprocess.SubprocessError) as exc:
-        return {"helper_available": False, "memory": {}, "acpi": {}, "reason": str(exc)}
+        return {"helper_available": False, "memory": {}, "acpi": {}, "telemetry": {}, "reason": str(exc)}
 
 
 def command(action: str, policy: str = "preserve", ttm_gib: int = 0) -> str:
-    if action not in {"memory-apply", "acpi-install", "acpi-uninstall", "acpi-check"}:
+    if action not in {
+        "memory-apply", "acpi-install", "acpi-uninstall", "acpi-check",
+        "telemetry-fix", "telemetry-restore",
+    }:
         raise ValueError("Unsupported system setup action")
     if policy not in POLICIES or type(ttm_gib) is not int or ttm_gib not in {-1, 0, 8, 10, 12}:
         raise ValueError("Invalid memory setup request")

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import time
 from datetime import datetime
 
@@ -21,6 +22,9 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
+from bc250cc.domain.cpu import FREQUENCY_RANGE
+from bc250cc.shared.failure_text import describe_failure
 
 from ..components.async_tools import AsyncRefresh, BackgroundExecutor
 from ..components.buttons import WrappingButton as QPushButton
@@ -52,10 +56,13 @@ from ..core.cpu_refresh_presenter import (
     present_cpu_telemetry,
     present_cpu_tuning,
 )
+from ..core.error_diagnostics import diagnose_error
 from ..core.external_links import open_external_url
 from ..core.state import collect_named_sources, state_cache_for
 from ..i18n import tr, tr_format
 from ..theme import COLORS
+
+logger = logging.getLogger(__name__)
 
 
 def _dict(value):
@@ -74,7 +81,9 @@ def _number(value, default=0.0):
         return float(default)
 
 
-CPU_FREQUENCY_RANGE = (3500, 4200)
+# One source of truth: the domain owns the bound, this page does not keep
+# its own copy that can silently drift from the validators and the helpers.
+CPU_FREQUENCY_RANGE = FREQUENCY_RANGE
 CPU_VID_RANGE = (950, 1325)
 CPU_TEMPERATURE_RANGE = (70, 90)
 PASSIVE_TELEMETRY_TILE_HEIGHT = 76
@@ -299,6 +308,7 @@ class CpuSmuPage(QWidget):
         self._background = BackgroundExecutor(self)
         self.current_state: dict = {}
         self._operation = ""
+        self._last_stderr = ""
         self._last_operation_summary = "No hardware command has been executed."
         self._last_applied_frequency: int | None = None
         self._summary_columns = 5
@@ -363,6 +373,11 @@ class CpuSmuPage(QWidget):
         # telemetry rail is intentionally not part of the visible layout.
         self.summary_strip = CpuSummaryStrip(self.content)
         self.summary_strip.hide()
+
+        self.prepare_tools_button = QPushButton(tr("Prepare CPU tools"))
+        self.prepare_tools_button.setProperty("compactAction", True)
+        self.prepare_tools_button.setIcon(icon("download_blue"))
+        self.prepare_tools_button.clicked.connect(self.prepare_tools)
 
         self.configuration_card = self._build_configuration_card()
         self.scale_actions_card = self._build_scale_actions_card()
@@ -770,7 +785,7 @@ class CpuSmuPage(QWidget):
         )
         self.limits_line = StatusLine(
             "UI limits",
-            "3500–4200 MHz",
+            "3100–4200 MHz",
             "950–1325 mV · up to 90 °C",
             compact=True,
         )
@@ -789,11 +804,6 @@ class CpuSmuPage(QWidget):
         self.runtime_actions_grid.setContentsMargins(0, 0, 0, 0)
         self.runtime_actions_grid.setHorizontalSpacing(8)
         self.runtime_actions_grid.setVerticalSpacing(8)
-        self.prepare_tools_button = QPushButton(tr("Prepare CPU tools"))
-        self.prepare_tools_button.setProperty("compactAction", True)
-        self.prepare_tools_button.setIcon(icon("download_blue"))
-        self.prepare_tools_button.clicked.connect(self.prepare_tools)
-
         self.persistence_status_button = QPushButton(tr("Review persistence"))
         self.persistence_status_button.setProperty("compactAction", True)
         self.persistence_status_button.clicked.connect(self.show_persistence_status)
@@ -816,6 +826,8 @@ class CpuSmuPage(QWidget):
         self.advanced_toggle.clicked.connect(self._toggle_advanced)
 
         self.runtime_action_buttons = [
+            # Takes the slot the usage-guide toggle occupied; the guide it
+            # opened has been removed and this was the action it carried.
             self.prepare_tools_button,
             self.persistence_status_button,
             self.enable_persistence_button,
@@ -864,7 +876,7 @@ class CpuSmuPage(QWidget):
         self.cpu_quick_guide_button.setProperty("compactAction", True)
         self.cpu_quick_guide_button.setIcon(icon("info_blue"))
         self.cpu_quick_guide_button.clicked.connect(self._show_cpu_quick_guide)
-        scale_header.addWidget(self.cpu_quick_guide_button)
+        self.cpu_quick_guide_button.hide()
         scale_layout.addLayout(scale_header)
 
         self.apply_button = QPushButton(tr("Apply configuration + automatic scale"))
@@ -975,7 +987,7 @@ class CpuSmuPage(QWidget):
         )
         self.limits_line = StatusLine(
             "UI limits",
-            "3500–4200 MHz",
+            "3100–4200 MHz",
             "950–1325 mV · up to 90 °C",
             compact=True,
         )
@@ -1812,7 +1824,7 @@ class CpuSmuPage(QWidget):
     def _show_cpu_quick_guide(self) -> None:
         InfoDialog(
             "CPU / SMU quick guide",
-            "1. Prepare dependencies only once, or when a required tool is missing.\n\n2. Choose a preset or enter frequency, VID limit, and temperature cap.\n\n3. Leave Use manual scale disabled to run automatic detection. The tool will search for a compatible scale for this BC-250.\n\n4. Enable Use manual scale to apply the entered frequency, temperature, and exact scale immediately for this session. VID is ignored in this mode.\n\n5. A direct manual configuration is temporary and cannot be saved for boot. Run automatic detection first if you want a validated boot reference.\n\n6. Use the system normally or stress-test it. Only save to boot after you are sure the automatically detected configuration is stable.\n\n7. Save for boot installs the exact validated configuration. Remove from boot disables automatic application at startup.",
+            "1. Prepare dependencies only once, or when a required tool is missing.\n\n2. Choose a preset or enter frequency, VID limit, and temperature cap.\n\n3. Leave Use manual scale disabled to run automatic detection. The official detector uses 12 CPU workers and about 10 seconds per frequency step to find a candidate and catch immediate throttling.\n\n4. Treat the detected result as a starting candidate, not proof of long-term stability. The detector may choose a lower frequency than the requested target.\n\n5. Enable Use manual scale only to compare an exact scale live in the current session. VID is ignored in this mode, and the change is not saved for boot.\n\n6. Validate the exact candidate with variable CPU and memory load, a sustained CPU test, and your real games or workloads. Watch temperature, clock drops, calculation errors, freezes, and restarts.\n\n7. Save for boot only after those checks pass. Remove from boot disables automatic application at startup.",
             "info_blue",
             self,
             eyebrow="CPU / SMU",
@@ -1867,6 +1879,7 @@ class CpuSmuPage(QWidget):
             self._show_info("Invalid command", "The R64 controller returned an empty command.", tone="red")
             return
         self.process = QProcess(self)
+        self._last_stderr = ""
         self._operation = operation
         self.process.setProcessChannelMode(QProcess.ProcessChannelMode.SeparateChannels)
         self.process.readyReadStandardOutput.connect(self._read_stdout)
@@ -1896,11 +1909,28 @@ class CpuSmuPage(QWidget):
             return
         data = bytes(self.process.readAllStandardError()).decode("utf-8", errors="replace")
         if data:
+            # Keep the tail as evidence for the diagnosis built on exit.
+            self._last_stderr = (self._last_stderr + data)[-4000:]
             self._append_console(data.rstrip())
 
     def _process_finished(self, exit_code: int, _status) -> None:
-        self._append_console(tr_format("[{time}] Finished with exit code {code}.", time=datetime.now().strftime("%H:%M:%S"), code=exit_code))
-        self._last_operation_summary = tr_format("Finished with exit code {code} at {time}", code=exit_code, time=datetime.now().strftime("%H:%M:%S"))
+        stamp = datetime.now().strftime("%H:%M:%S")
+        if exit_code == 0:
+            # A successful run is not a diagnosis; reporting a number here was
+            # what made a good result read like a fault ("finished with code 0").
+            self._append_console(f"[{stamp}] " + tr("Completed"))
+            self._last_operation_summary = tr("Completed")
+        else:
+            diagnosis = diagnose_error(
+                describe_failure(exit_code, "", self._last_stderr),
+                context="CPU SMU",
+            )
+            # Composed from already-catalogued phrases so a diagnosis never
+            # introduces a new translation key per message shape.
+            self._append_console(f"[{stamp}] " + tr(diagnosis.summary))
+            self._append_console(tr("How to fix it") + ": " + tr(diagnosis.action))
+            self._append_console(tr("Diagnostic code") + ": " + diagnosis.code)
+            self._last_operation_summary = f"{tr(diagnosis.summary)} [{diagnosis.code}]"
         self._set_running(False, success=exit_code == 0)
         if exit_code == 0:
             operation_name = self._operation
@@ -1923,7 +1953,13 @@ class CpuSmuPage(QWidget):
                         raise RuntimeError("CpuSmuPage requires a settings service to save preferences")
                     self.settings_service.save_local_config({"cpu_oc_last_applied_frequency": frequency})
                 except Exception:
-                    pass
+                    # The hardware change already succeeded; failing to
+                    # remember the number must not interrupt the user. It must
+                    # still leave a trace, or preferences can stop saving and
+                    # nothing ever says so.
+                    logger.debug(
+                        "The last applied CPU frequency could not be saved", exc_info=True
+                    )
 
             if applied_frequency is not None:
                 remember_applied_frequency(applied_frequency)

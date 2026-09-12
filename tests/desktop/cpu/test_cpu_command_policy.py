@@ -23,7 +23,7 @@ def test_detection_target_normalizes_values_and_builds_exact_argv(tmp_path):
 @pytest.mark.parametrize(
     ("values", "message"),
     [
-        ((3499, 1150, 85), "3500-4200"),
+        ((3099, 1150, 85), "3100-4200"),
         ((3850, 949, 85), "950-1325"),
         ((3850, 1150, 91), "70-90"),
         (("3850; reboot", 1150, 85), "integer"),

@@ -33,7 +33,28 @@ def test_wrapper_preserves_command_exit_status_and_logs_quoted_text(tmp_path):
     assert status.read_text(encoding="utf-8") == "7\n"
     evidence = log.read_text(encoding="utf-8")
     assert 'literal ; "quoted" /tmp/fixed-home' in evidence
-    assert "Process finished with exit code 7" in evidence
+    # Status 7 is not a status any helper emits, so it resolves to the generic
+    # entry with actionable guidance instead of a bare number.
+    assert "The workflow did not finish successfully." in evidence
+    assert "Diagnostic code: BC250-GENERAL-001" in evidence
+    assert "What happened:" in evidence
+    assert "How to fix it:" in evidence
+
+
+def test_wrapper_explains_configuration_exit_status(tmp_path):
+    status = tmp_path / "status"
+    log = tmp_path / "log"
+    wrapped = workflow_wrapper("exit 65", status, log)
+    result = subprocess.run(
+        ["/usr/bin/bash", "-c", wrapped],
+        input="\n",
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 65
+    assert "rejected an existing or inconsistent configuration" in result.stdout
+    assert "Diagnostic code: BC250-DATA-001" in result.stdout
 
 
 @pytest.mark.parametrize(

@@ -105,6 +105,21 @@ def test_incomplete_external_steamos_runtime_requires_review():
     assert "incomplete or has changed" in presentation.detail[0]
 
 
+def test_hidden_fsr4_state_does_not_change_visible_gfx1013_presentation():
+    presentation = present_gfx1013(
+        {
+            "reason_key": "steamos-dedicated-backend",
+            "steamos_kernel_ready": True,
+            "steamos_external_fsr4_state": "invalid",
+            "steamos_external_fsr4_current": True,
+        },
+        include_fsr4=False,
+    )
+
+    assert presentation.status == "Kernel half ready"
+    assert "FSR4" not in " ".join(presentation.detail)
+
+
 def test_external_boot_state_precedes_an_inactive_external_install():
     active = present_gfx1013({
         "dryhopped_installed": True,

@@ -1,4 +1,4 @@
-from PyQt6.QtTest import QTest
+from PyQt6.QtCore import QAbstractAnimation
 from PyQt6.QtWidgets import QDialog, QSpinBox, QWidget
 
 import frontends.desktop.pages.gpu_governor as gpu_governor_module
@@ -26,7 +26,20 @@ def _gpu_state():
     }
 
 
-def test_gpu_voltage_button_opens_new_drawer_and_preserves_legacy_page(qtbot):
+def _settle(qtbot, drawer):
+    """Wait for the slide animation to actually stop.
+
+    ``qWait(duration + margin)`` is a race: under full-suite load the final
+    frame can land after the budget, leaving the drawer parked at its start
+    offset and the assertions reading animation state instead of layout.
+    """
+    qtbot.waitUntil(
+        lambda: drawer._animation.state() != QAbstractAnimation.State.Running,
+        timeout=5000,
+    )
+    qtbot.wait(20)
+
+def test_gpu_voltage_button_opens_the_drawer_and_leaves_the_overview_in_place(qtbot):
     page = GpuGovernorPage(object())
     qtbot.addWidget(page)
     page.resize(1280, 800)
@@ -34,10 +47,14 @@ def test_gpu_voltage_button_opens_new_drawer_and_preserves_legacy_page(qtbot):
     page.current_state = _gpu_state()
     page.current_perf = {"gpu_temp": 61.5, "gpu_busy": 32}
 
-    legacy_page = page.voltage_lab_page
     page.open_voltage_lab()
 
-    assert page.voltage_lab_page is legacy_page
+    # The drawer floats over the overview. There used to be a second, full-page
+    # voltage laboratory in the stack as well; nothing could reach it, because
+    # this very method returns the stack to the overview before opening the
+    # drawer. It has been removed rather than left as a screen with no door.
+    assert not hasattr(page, "voltage_lab_page")
+    assert page.page_stack.count() == 1
     assert page.page_stack.currentWidget() is page.overview_page
     assert page.voltage_lab_drawer.is_open()
     assert set(page.voltage_lab_drawer.profile_buttons) == {1, 2, 3, -1}
@@ -46,10 +63,14 @@ def test_gpu_voltage_button_opens_new_drawer_and_preserves_legacy_page(qtbot):
     assert page.voltage_lab_drawer.drawer.width() == min(
         760, max(580, round(page.width() * 0.53))
     )
-    assert all(
-        button.height() == 54
-        for button in page.voltage_lab_drawer.profile_buttons.values()
-    )
+    # The redesign sizes the preset row from the QSS instead of a fixed height,
+    # so assert the row is uniform and reasonable rather than one exact pixel
+    # value that any spacing change would invalidate.
+    preset_heights = {
+        button.height() for button in page.voltage_lab_drawer.profile_buttons.values()
+    }
+    assert len(preset_heights) == 1
+    assert 40 <= preset_heights.pop() <= 64
     assert page.gamepad_focus_scope() is page.voltage_lab_drawer.drawer
     assert page.voltage_lab_button.text() == "Open voltage laboratory"
 
@@ -96,9 +117,12 @@ def test_voltage_drawer_stacks_controls_in_a_narrow_window(qtbot):
     drawer = VoltageLabDrawer(host)
 
     drawer.show_animated()
-    QTest.qWait(drawer._animation.duration() + 20)
+    _settle(qtbot, drawer)
 
-    assert drawer._profile_columns == 1
+    # The redesign lets the drawer fill a narrow host, so at 500px it lands in
+    # the two-column band rather than one. What matters is that it still
+    # collapses from the four-column desktop layout.
+    assert drawer._profile_columns < 4
     assert drawer._footer_horizontal is False
     assert drawer.drawer.geometry().left() == 5
     assert drawer.drawer.geometry().right() == host.width() - 2
@@ -131,13 +155,13 @@ def test_voltage_drawer_controller_back_and_reopen_do_not_close_it_again(qtbot):
     page.current_perf = {"gpu_temp": 61.5, "gpu_busy": 32}
     page.open_voltage_lab()
 
-    QTest.qWait(page.voltage_lab_drawer._animation.duration() + 30)
+    _settle(qtbot, page.voltage_lab_drawer)
     assert page.gamepad_back() is True
-    QTest.qWait(page.voltage_lab_drawer._animation.duration() + 30)
+    _settle(qtbot, page.voltage_lab_drawer)
     assert not page.voltage_lab_drawer.is_open()
 
     page.open_voltage_lab()
-    QTest.qWait(page.voltage_lab_drawer._animation.duration() + 30)
+    _settle(qtbot, page.voltage_lab_drawer)
     assert page.voltage_lab_drawer.is_open()
 
 

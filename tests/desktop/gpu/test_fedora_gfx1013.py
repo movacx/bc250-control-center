@@ -3,15 +3,19 @@ from pathlib import Path
 import pytest
 
 from bc250cc.infrastructure.fedora_gfx1013 import build_fedora_gfx1013_command
-from bc250cc.infrastructure.gfx1013_compute_policy import GFX1013_UPSTREAM
+from bc250cc.infrastructure.gfx1013_compute_policy import (
+    GFX1013_REVIEWED_COMMIT,
+    GFX1013_UPSTREAM,
+)
 
 
-def test_fedora_workflow_tracks_official_main_and_installs_both_required_halves(tmp_path):
+def test_fedora_workflow_uses_reviewed_commit_and_installs_both_required_halves(tmp_path):
     command = build_fedora_gfx1013_command("install", tmp_path / "gfx")
 
     assert GFX1013_UPSTREAM in command
-    assert "fetch --depth 1 origin main" in command
-    assert "checkout -B main FETCH_HEAD" in command
+    assert GFX1013_REVIEWED_COMMIT in command
+    assert f"fetch --depth 1 origin {GFX1013_REVIEWED_COMMIT}" in command
+    assert "checkout --detach --force FETCH_HEAD" in command
     assert 'test "${ID:-}" = fedora' in command
     assert 'test "${VERSION_ID:-}" = 43' not in command
     assert "rpm-ostree" in command

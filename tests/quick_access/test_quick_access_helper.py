@@ -1,8 +1,10 @@
 import importlib.util
 import json
 import subprocess
+from contextlib import nullcontext
 from importlib.machinery import SourceFileLoader
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -20,7 +22,36 @@ def helper_module():
     # Most fixtures exercise the generic backend contract. Individual SteamOS
     # tests opt in explicitly so results never depend on the developer host.
     module.is_steamos = lambda: False
+    # The helper audits the installed shared contract before acting, and reads
+    # it again to publish the bounds the panel draws its controls from. A test
+    # run has no /usr/libexec, so point it at the copy in the tree — the real
+    # loader's root-ownership checks are covered by
+    # tests/packaging/test_one_contract_for_every_process.py.
+    contract_source = Path(__file__).resolve().parents[2] / "privileged" / "lib" / "bc250_contract.py"
+    contract_loader = SourceFileLoader("bc250_contract_test", str(contract_source))
+    contract_spec = importlib.util.spec_from_loader(contract_loader.name, contract_loader)
+    assert contract_spec and contract_spec.loader
+    contract = importlib.util.module_from_spec(contract_spec)
+    contract_spec.loader.exec_module(contract)
+    module._CONTRACT = contract
     return module
+
+
+def test_operation_lock_rejects_a_concurrent_hardware_action(
+    helper_module, tmp_path, monkeypatch
+):
+    lock_path = tmp_path / "hardware.lock"
+    monkeypatch.setattr(
+        helper_module.os,
+        "fstat",
+        lambda _descriptor: SimpleNamespace(st_mode=0o100600, st_uid=0),
+    )
+    monkeypatch.setattr(helper_module, "OPERATION_LOCK_TIMEOUT_SECONDS", 0.0)
+
+    with helper_module.operation_lock(lock_path, "test"):
+        with pytest.raises(RuntimeError, match="still in progress"):
+            with helper_module.operation_lock(lock_path, "test"):
+                pass
 
 
 def test_saved_cpu_profile_requires_validated_root_payload(helper_module, tmp_path, monkeypatch):
@@ -1173,10 +1204,14 @@ def test_gpu_voltage_reads_only_the_labelled_amd_vddgfx_sensor(helper_module, tm
     sensor.mkdir(parents=True)
     (device / "vendor").write_text("0x1002\n", encoding="ascii")
     (sensor / "in0_label").write_text("vddgfx\n", encoding="ascii")
-    (sensor / "in0_input").write_text("960000\n", encoding="ascii")
+    (sensor / "in0_input").write_text("960\n", encoding="ascii")
     (sensor / "in1_label").write_text("vddnb\n", encoding="ascii")
     (sensor / "in1_input").write_text("1100\n", encoding="ascii")
     assert helper_module.gpu_voltage_mv(tmp_path) == 960
+
+    for corrupt in (40058, 45344, 4063234, 960000):
+        (sensor / "in0_input").write_text(f"{corrupt}\n", encoding="ascii")
+        assert helper_module.gpu_voltage_mv(tmp_path) is None
 
 
 def test_gpu_temperature_reads_only_amd_hwmon_edge_temperature(helper_module, tmp_path):
@@ -1372,6 +1407,10 @@ def test_qam_pwm_writer_completes_a_partial_sysfs_write(helper_module, monkeypat
 def test_main_accepts_only_closed_cpu_operations(helper_module, monkeypatch):
     calls = []
     monkeypatch.setattr(helper_module, "require_runtime", lambda: "")
+    # ``main`` audits the installed shared contract before dispatching.
+    # These tests are about argv arity, and the contract lives in
+    # /usr/libexec, which a test run has no business reading.
+    monkeypatch.setattr(helper_module, "load_contract", lambda: None)
     monkeypatch.setattr(helper_module, "cpu_apply_saved_profile", lambda: calls.append(("saved",)) or 0)
     monkeypatch.setattr(helper_module, "cpu_detect_tuning", lambda frequency, vid: calls.append(("detect", frequency, vid)) or 0)
     monkeypatch.setattr(helper_module, "cpu_apply_manual_scale", lambda frequency, scale: calls.append(("scale", frequency, scale)) or 0)
@@ -1595,6 +1634,11 @@ def test_cpu_manual_scale_invokes_only_audited_helper_and_verifies_active_eviden
 def test_main_accepts_only_exact_fan_channel_arity(helper_module, monkeypatch):
     calls = []
     monkeypatch.setattr(helper_module, "require_runtime", lambda: "")
+    # ``main`` audits the installed shared contract before dispatching.
+    # These tests are about argv arity, and the contract lives in
+    # /usr/libexec, which a test run has no business reading.
+    monkeypatch.setattr(helper_module, "load_contract", lambda: None)
+    monkeypatch.setattr(helper_module, "operation_lock", lambda *_args: nullcontext())
     monkeypatch.setattr(
         helper_module,
         "fan_channel_control",
@@ -1610,6 +1654,11 @@ def test_main_accepts_only_exact_fan_channel_arity(helper_module, monkeypatch):
 def test_main_accepts_only_four_bounded_cu_table_masks(helper_module, monkeypatch):
     observed = []
     monkeypatch.setattr(helper_module, "require_runtime", lambda: "")
+    # ``main`` audits the installed shared contract before dispatching.
+    # These tests are about argv arity, and the contract lives in
+    # /usr/libexec, which a test run has no business reading.
+    monkeypatch.setattr(helper_module, "load_contract", lambda: None)
+    monkeypatch.setattr(helper_module, "operation_lock", lambda *_args: nullcontext())
     monkeypatch.setattr(
         helper_module,
         "cu_table",
@@ -1625,6 +1674,11 @@ def test_main_accepts_only_four_bounded_cu_table_masks(helper_module, monkeypatc
 def test_main_accepts_only_closed_cu_persistence_actions(helper_module, monkeypatch):
     calls = []
     monkeypatch.setattr(helper_module, "require_runtime", lambda: "")
+    # ``main`` audits the installed shared contract before dispatching.
+    # These tests are about argv arity, and the contract lives in
+    # /usr/libexec, which a test run has no business reading.
+    monkeypatch.setattr(helper_module, "load_contract", lambda: None)
+    monkeypatch.setattr(helper_module, "operation_lock", lambda *_args: nullcontext())
     monkeypatch.setattr(
         helper_module,
         "cu_save",

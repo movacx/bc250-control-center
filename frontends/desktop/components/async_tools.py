@@ -2,16 +2,71 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
 import time
 from collections.abc import Callable
 from typing import Any
 
 from PyQt6.QtCore import QObject, QRunnable, QThreadPool, QTimer, pyqtSignal, pyqtSlot
 
+try:  # pragma: no cover - sip is present in every supported PyQt6 build
+    from PyQt6 import sip
+except ImportError:  # pragma: no cover - fall back to the Qt call below
+    sip = None
+
 logger = logging.getLogger(__name__)
 
 
 _PERF_TRACE = os.environ.get("BC250_UI_PERF", "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+# Every backend read this module starts runs on the *global* thread pool, whose
+# workers belong to Qt and are nobody's children.  Shutdown therefore cannot
+# find them by walking the widget tree, and a worker that is still inside
+# ``operation()`` when the interpreter finalizes calls back into a dead Python
+# and aborts the process.  Counting submissions here is what lets the window
+# wait for work it cannot see.
+_in_flight = 0
+_in_flight_lock = threading.Lock()
+
+
+def pending_background_tasks() -> int:
+    """How many backend reads are queued or running right now."""
+    with _in_flight_lock:
+        return _in_flight
+
+
+def _submit(pool: QThreadPool, task: "_FunctionTask") -> None:
+    global _in_flight
+    with _in_flight_lock:
+        _in_flight += 1
+    pool.start(task)
+
+
+def _submission_finished() -> None:
+    global _in_flight
+    with _in_flight_lock:
+        _in_flight = max(0, _in_flight - 1)
+
+
+def _alive(obj: QObject | None) -> bool:
+    """False once Qt has destroyed the C++ object behind a Python wrapper.
+
+    A task keeps running after the widget that started it is gone — a page
+    closed mid-refresh, a window shut during a read — and its ``finished``
+    signal then arrives at an executor Qt has already deleted. Touching it
+    raises from inside the event loop, which PyQt reports against whichever
+    unrelated work happens to be running at that moment.
+    """
+    if obj is None:
+        return False
+    try:
+        if sip is not None and sip.isdeleted(obj):
+            return False
+        obj.objectName()
+        return True
+    except (RuntimeError, AttributeError, TypeError):
+        return False
 
 
 class _TaskSignals(QObject):
@@ -38,6 +93,7 @@ class _FunctionTask(QRunnable):
         else:
             self.signals.succeeded.emit(result)
         finally:
+            _submission_finished()
             elapsed_ms = (time.perf_counter() - started) * 1000.0
             if _PERF_TRACE:
                 logger.info("UI task %s completed in %.1f ms", self.name, elapsed_ms)
@@ -156,9 +212,14 @@ class AsyncRefresh(QObject):
         )
         task.signals.failed.connect(self._error_ready)
         task.signals.finished.connect(self._finished)
-        self._pool.start(task)
+        _submit(self._pool, task)
 
     def _result_ready(self, result: Any, source_generation: int | None = None) -> None:
+        # Reached through a plain closure, and Qt only auto-disconnects a
+        # receiver it knows is a QObject. A lambda is not one, so this can be
+        # called after the page that owns this refresher is destroyed.
+        if not _alive(self):
+            return
         if source_generation is not None and source_generation != self._source_generation:
             return
         self._latest = result
@@ -241,6 +302,10 @@ class BackgroundExecutor(QObject):
             task.signals.failed.connect(lambda message, task_key=key: logger.error("Background task %s failed: %s", task_key, message))
 
         def finished() -> None:
+            # The executor may be gone by now; a task outlives the widget that
+            # started it. Everything below touches ``self``, so ask first.
+            if not _alive(self):
+                return
             self._running.pop(key, None)
             if on_finished is not None:
                 on_finished()
@@ -248,5 +313,5 @@ class BackgroundExecutor(QObject):
                 self.busy_changed.emit(False)
 
         task.signals.finished.connect(finished)
-        self._pool.start(task)
+        _submit(self._pool, task)
         return True

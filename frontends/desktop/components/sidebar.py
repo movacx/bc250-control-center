@@ -58,6 +58,9 @@ class SidebarButton(QPushButton):
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self._icon_name = icon_name
         self._icon_background_key = icon_background_key
+        # The mockup tints the selected row with its own accent (purple for the
+        # GPU module, orange for compute units...) instead of one shared blue.
+        self.setProperty("navTone", icon_background_key.removesuffix("_soft"))
         self.setIcon(_nav_icon(icon_name, COLORS[icon_background_key]))
         self.setIconSize(QSize(24, 24))
         self.setToolTip(self.full_text)
@@ -141,14 +144,11 @@ class Sidebar(QFrame):
             button.clicked.connect(lambda checked=False, item=key: self.navigation_requested.emit(item))
             self.group.addButton(button)
             self.buttons[key] = button
+            if key == "settings":
+                # Settings closes the rail from the bottom, as in the mockup.
+                layout.addStretch(1)
             layout.addWidget(button)
         self.buttons["dashboard"].setChecked(True)
-        layout.addStretch(1)
-
-    def set_auxiliary_actions(self, actions: QWidget) -> None:
-        """Use the space below navigation, never the page's scroll viewport."""
-        self.root_layout.addWidget(actions, 0, Qt.AlignmentFlag.AlignHCenter)
-        actions.show()
 
     def retranslate(self) -> None:
         self.brand_subtitle.setText(tr("Task Manager"))

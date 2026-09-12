@@ -78,12 +78,17 @@ def test_oberon_voltage_lab_is_diagnostic_only_in_the_qt_page(qtbot):
         "current_max": 1850,
     })
 
-    assert page.oberon_voltage_card.isVisible() is False  # parent page is not shown yet
-    assert page.voltage_summary.isHidden()
-    assert page.voltage_workspace_host.isHidden()
-    assert page.voltage_controls_card.isHidden()
-    assert page.oberon_voltage_minimum.value.text() == "1000 MHz · 920 mV"
-    assert page.oberon_voltage_maximum.value.text() == "1850 MHz · 930 mV"
+    # Oberon has two YAML endpoints, not a curve, so the drawer shows them and
+    # offers nothing to change: no profiles, no apply footer, no editors.
+    drawer = page.voltage_lab_drawer
+    # isHidden, not isVisible: the drawer itself has not been shown in this
+    # test, and every child of an unshown parent reports isVisible() False.
+    assert drawer.profiles_card.isHidden() is True
+    assert drawer.footer.isHidden() is True
+    assert drawer.compatibility_note.isHidden() is False
+    assert drawer.editors() == ()
+    assert page._voltage_points == [(1000, 920), (1850, 930)]
+    assert page._is_oberon_backend is True
 
 
 def test_voltage_lab_prefers_voltage_aware_points_and_preserves_defaults():
@@ -113,11 +118,13 @@ def test_voltage_lab_qt_adapter_preserves_user_edits_and_applies_pure_state(qtbo
     assert page._voltage_custom_values[1000] == 825
     assert page._voltage_custom_values[1850] == 930
     assert page._voltage_editable_frequencies == {1000, 1850}
-    assert page.voltage_summary_items[3].value.text() == "1000–1850 MHz"
-    assert set(page.voltage_curve_grid.added_cells) == {1000, 1850}
-    assert set(page._voltage_spinboxes) == {1000, 1850}
-    assert all(not spin.isEnabled() for spin in page._voltage_spinboxes.values())
+    # A named profile renders the curve read-only; custom mode is the only
+    # state in which the points can be typed into.
+    drawer = page.voltage_lab_drawer
+    assert set(drawer._editors) <= {1000, 1850}
+    assert all(not editor.isEnabled() for editor in drawer.editors())
 
-    page.voltage_level_combo.setCurrentIndex(page.voltage_level_combo.findData(-1))
-    assert all(spin.isEnabled() for spin in page._voltage_spinboxes.values())
-    assert "all 2 active safe-points" in page.voltage_level_detail.text()
+    page._select_drawer_voltage_profile(-1)
+    assert set(drawer._editors) == {1000, 1850}
+    assert all(editor.isEnabled() for editor in drawer.editors())
+    assert "safe points" in drawer.profile_detail.text()

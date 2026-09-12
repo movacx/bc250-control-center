@@ -17,12 +17,15 @@ required=(
   frontends/desktop/main.py
   src/bc250cc/__init__.py
   frontends/desktop/features/gpu/presenter.py
-  frontends/quick_access/backend/mapper.py
+  frontends/desktop/console/__init__.py
+  frontends/desktop/console/pty_session.py
+  frontends/desktop/console/terminal_screen.py
   privileged/helpers/README.md
   privileged/helpers/bc250-system-setup-helper
   privileged/lib/system_setup_common.py
   privileged/lib/system_setup_memory.py
   privileged/lib/system_setup_acpi.py
+  privileged/lib/system_setup_telemetry.py
   privileged/lib/acpi_payload.py
   privileged/lib/governor_toml.py
   privileged/lib/bc250_smu_oc_vendor.zip
@@ -37,6 +40,8 @@ required=(
   privileged/helpers/bc250-governor-config-helper
   privileged/helpers/bc250-openrc-service-helper
   privileged/helpers/bc250-quick-access-helper
+  privileged/helpers/bc250-service-helper
+  privileged/helpers/bc250-maintenance-helper
   privileged/helpers/bc250-steamos-game-helper
   privileged/helpers/bc250-cu-helper
   scripts/system/bc250-gpu-voltage-lab.sh
@@ -89,6 +94,7 @@ for relative in \
   privileged/lib/system_setup_common.py \
   privileged/lib/system_setup_memory.py \
   privileged/lib/system_setup_acpi.py \
+  privileged/lib/system_setup_telemetry.py \
   privileged/lib/acpi_payload.py \
   privileged/helpers/bc250-core-unlock-helper \
   privileged/helpers/bc250-cpu-smu-helper \
@@ -97,6 +103,8 @@ for relative in \
   privileged/helpers/bc250-governor-config-helper \
   privileged/helpers/bc250-openrc-service-helper \
   privileged/helpers/bc250-quick-access-helper \
+  privileged/helpers/bc250-service-helper \
+  privileged/helpers/bc250-maintenance-helper \
   privileged/helpers/bc250-steamos-game-helper \
   privileged/helpers/bc250-cu-helper \
   packaging/common/bc250-package-maintenance \

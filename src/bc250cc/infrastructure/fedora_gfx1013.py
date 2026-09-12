@@ -2,7 +2,7 @@
 
 The reviewed upstream installer intentionally treats its kernel and Mesa/RADV
 patches as one compatibility unit. This adapter keeps that lifecycle intact:
-it verifies the supported host, updates the official main branch, applies only
+it verifies the supported host, checks out the reviewed revision, applies only
 narrowly-scoped host compatibility repairs, and runs the upstream stages in
 order.
 """
@@ -13,9 +13,10 @@ import shlex
 from pathlib import Path
 
 from .gfx1013_compute_policy import (
+    GFX1013_REVIEWED_COMMIT,
     GFX1013_UPSTREAM,
 )
-from .source_checkout import clone_or_update_branch
+from .source_checkout import clone_or_update_commit
 
 _ACTIONS = frozenset({"install", "status", "uninstall"})
 
@@ -27,7 +28,9 @@ def build_fedora_gfx1013_command(action: str, destination: str | Path) -> str:
     if action not in _ACTIONS:
         raise ValueError(f"Unsupported Fedora GFX1013 action: {action or '--'}")
     destination = Path(destination)
-    checkout = clone_or_update_branch(GFX1013_UPSTREAM, destination, "main")
+    checkout = clone_or_update_commit(
+        GFX1013_UPSTREAM, destination, GFX1013_REVIEWED_COMMIT
+    )
     qdest = shlex.quote(str(destination))
     fedora_gate = '''test -r /etc/os-release || { echo "ERROR: /etc/os-release is unavailable."; exit 64; }
 . /etc/os-release
@@ -40,6 +43,7 @@ for device in /sys/bus/pci/devices/*; do
 done
 test "$bc250_found" = 1 || { echo "ERROR: AMD BC-250 PCI device 1002:13fe was not found."; exit 64; }'''
     source_gate = f'''{checkout}
+test "$(git -C {qdest} rev-parse HEAD)" = {GFX1013_REVIEWED_COMMIT} || {{ echo "ERROR: reviewed upstream revision was not checked out."; exit 29; }}
 test -x {qdest}/install.sh || {{ echo "ERROR: official upstream install.sh is missing."; exit 29; }}
 test -f {qdest}/LICENSE -a -f {qdest}/LICENSES.md || {{ echo "ERROR: upstream component licenses are missing."; exit 29; }}
 test -f {qdest}/patches/mesa/series || {{ echo "ERROR: official upstream Mesa patch series is missing."; exit 29; }}'''
@@ -103,7 +107,7 @@ else
   echo "ERROR: upstream kernel build layout changed; refusing an unreviewed automatic edit."
   exit 29
 fi''',
-            'echo "== GFX1013 complete kernel + Mesa/RADV stack =="',
+            'echo; echo "=========================================================================="; echo "  BC-250 GFX1013 - kernel and Mesa/RADV stack"; echo "  complete upstream lifecycle"; echo "=========================================================================="; echo',
             'echo "[INFO] Kernel-only and Mesa-only installation are intentionally not offered: upstream requires both halves together."',
             'echo "[INFO] Mesh/task patches 0002 and 0003 remain disabled because upstream reports unrecoverable GPU hangs."',
             f"sudo {qdest}/install.sh deps",

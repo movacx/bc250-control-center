@@ -59,6 +59,11 @@ class _QuickAccessPreparationDialog(_AutomaticPreparationDialog):
     governor = ""
 
 
+class _MitigationsPreparationDialog(_AutomaticPreparationDialog):
+    action = "bazzite_mitigations_disable"
+    governor = ""
+
+
 def _window_stub():
     gpu = _ActionTarget()
     fans = _ActionTarget()
@@ -157,12 +162,20 @@ def test_dashboard_keeps_cpu_and_gpu_voltage_channels_separate():
             }
 
         def gpu(self):
-            return {}
+            return {
+                "apu_telemetry": {
+                    "status": "invalid",
+                    "layout_mismatch_suspected": True,
+                }
+            }
 
         def fans(self):
             return {}
 
         def cu_cache(self):
+            return {}
+
+        def cpu_boot_tuning(self):
             return {}
 
         def events(self, _limit):
@@ -181,6 +194,8 @@ def test_dashboard_keeps_cpu_and_gpu_voltage_channels_separate():
     assert state.gpu_memory_frequency_mhz == 450
     assert state.gtt_summary == "238 MB / 5.2 GB"
     assert state.dpm_summary == "auto"
+    assert state.gpu_telemetry_invalid is True
+    assert state.gpu_metrics_layout_mismatch is True
 
 
 def test_dashboard_does_not_present_the_default_install_target_as_detected():
@@ -195,6 +210,9 @@ def test_dashboard_does_not_present_the_default_install_target_as_detected():
             return {}
 
         def cu_cache(self):
+            return {}
+
+        def cpu_boot_tuning(self):
             return {}
 
         def events(self, _limit):
@@ -317,7 +335,10 @@ def test_dashboard_preparation_keeps_the_bazzite_swap_and_ttm_controls(qtbot):
         DashboardState(
             preparation_tools={
                 "os_family": "bazzite",
-                "memory_runtime": {"ttm_limit_bytes": 8 * 1024**3},
+                "memory_runtime": {
+                    "ttm_limit_bytes": 8 * 1024**3,
+                    "physical_ram_bytes": 9_884_384 * 1024,
+                },
             }
         )
     )
@@ -326,6 +347,10 @@ def test_dashboard_preparation_keeps_the_bazzite_swap_and_ttm_controls(qtbot):
 
     assert page.readiness.memory_policy_combo.isEnabled()
     assert page.readiness.ttm_limit_combo.currentData() == 8
+    assert [
+        page.readiness.ttm_limit_combo.itemData(index)
+        for index in range(page.readiness.ttm_limit_combo.count())
+    ] == [0, -1, 8]
     page.readiness.memory_ttm_apply_button.click()
 
     assert requests[-1] == {
@@ -343,6 +368,126 @@ def test_dashboard_preparation_keeps_the_bazzite_swap_and_ttm_controls(qtbot):
         "memory_policy": "preserve",
         "memory_ttm_gib": 8,
     }
+
+
+def test_dashboard_stages_and_restores_bazzite_cpu_mitigations(qtbot):
+    set_language("en")
+    page = DashboardPage(object())
+    qtbot.addWidget(page)
+    requests = []
+    page.dependency_action_requested.connect(requests.append)
+
+    page.apply_state(
+        DashboardState(
+            preparation_tools={
+                "os_family": "bazzite",
+                "bazzite_mitigations": {
+                    "available": True,
+                    "active": False,
+                    "configured": False,
+                    "managed": False,
+                    "reboot_required": False,
+                },
+            }
+        )
+    )
+
+    assert page.readiness.mitigations_status.text() == "Enabled"
+    assert not page.readiness.mitigations_panel.isHidden()
+    components_layout = page.readiness.mitigations_panel.parentWidget().layout()
+    assert components_layout.indexOf(page.readiness.mitigations_panel) < (
+        components_layout.indexOf(page.readiness.components_host)
+    )
+    assert page.readiness.memory_controls.indexOf(
+        page.readiness.mitigations_apply_button
+    ) == -1
+    assert page.readiness.mitigations_apply_button.text() == "Disable mitigations"
+    assert page.readiness.mitigations_apply_button.isEnabled()
+    page.readiness.mitigations_apply_button.click()
+    assert requests[-1]["action"] == "bazzite_mitigations_disable"
+
+    page.apply_state(
+        DashboardState(
+            preparation_tools={
+                "os_family": "bazzite",
+                "bazzite_mitigations": {
+                    "available": True,
+                    "active": False,
+                    "configured": True,
+                    "managed": True,
+                    "reboot_required": True,
+                },
+            }
+        )
+    )
+
+    assert page.readiness.mitigations_status.text() == "Reboot required"
+    assert page.readiness.mitigations_apply_button.text() == "Restore mitigations"
+    page.readiness.mitigations_apply_button.click()
+    assert requests[-1]["action"] == "bazzite_mitigations_restore"
+
+
+def test_dashboard_preserves_externally_configured_mitigations_off(qtbot):
+    set_language("en")
+    page = DashboardPage(object())
+    qtbot.addWidget(page)
+    page.apply_state(
+        DashboardState(
+            preparation_tools={
+                "os_family": "bazzite",
+                "bazzite_mitigations": {
+                    "available": True,
+                    "active": True,
+                    "configured": True,
+                    "managed": False,
+                    "reboot_required": False,
+                },
+            }
+        )
+    )
+
+    assert page.readiness.mitigations_status.text() == "Disabled"
+    assert page.readiness.mitigations_apply_button.text() == "Managed externally"
+    assert not page.readiness.mitigations_apply_button.isEnabled()
+    assert "configured outside" in page.readiness.mitigations_apply_button.toolTip()
+
+
+def test_dashboard_hides_cpu_mitigations_outside_bazzite(qtbot):
+    page = DashboardPage(object())
+    qtbot.addWidget(page)
+    page.apply_state(
+        DashboardState(
+            preparation_tools={
+                "os_family": "cachyos",
+                "os_label": "CachyOS",
+            }
+        )
+    )
+
+    assert page.readiness.mitigations_panel.isHidden()
+
+
+def test_dashboard_can_preview_bazzite_mitigations_inertly_on_cachyos(
+    qtbot, monkeypatch
+):
+    monkeypatch.setenv("BC250_BAZZITE_UI_PREVIEW", "1")
+    page = DashboardPage(object())
+    qtbot.addWidget(page)
+    page.apply_state(
+        DashboardState(
+            preparation_tools={
+                "os_family": "cachyos",
+                "os_label": "CachyOS",
+            }
+        )
+    )
+
+    assert not page.readiness.mitigations_panel.isHidden()
+    assert page.readiness.mitigations_status.isHidden()
+    # The "Bazzite" pill that used to sit beside the button is gone: the panel
+    # is only shown on a host that can act, so the badge repeated itself.
+    assert not hasattr(page.readiness, "mitigations_scope")
+    assert not page.readiness.mitigations_apply_button.isEnabled()
 
 
 def test_dashboard_preparation_sidebar_reflects_each_readiness_probe(qtbot):
@@ -695,6 +840,36 @@ def test_dependency_quick_access_route_never_uses_generic_preparation(monkeypatc
     assert not any(call[0] == "config" for call in calls if isinstance(call, tuple))
     dispatch = next(call for call in calls if isinstance(call, tuple) and call[0] == "dispatch")
     assert dispatch[1] == "Could not prepare Game Mode Quick Access"
+
+
+def test_dependency_mitigations_route_uses_the_explicit_bazzite_transaction(monkeypatch):
+    monkeypatch.setattr(
+        "frontends.desktop.pages.gpu_governor.DependencyPreparationDialog",
+        _MitigationsPreparationDialog,
+    )
+    monkeypatch.setattr(
+        "frontends.desktop.pages.gpu_governor.ConfirmDialog", _AcceptedDialog
+    )
+    calls = []
+    page = _dependency_route_page(
+        calls,
+        gestionar_mitigaciones_bazzite=lambda _self, action: calls.append(
+            ("mitigations", action)
+        ) or "terminal",
+    )
+    page._prepare_bazzite_mitigations = lambda action, dialog_parent=None: (  # noqa: SLF001
+        GpuGovernorPage._prepare_bazzite_mitigations(
+            page, action, dialog_parent=dialog_parent
+        )
+    )
+
+    GpuGovernorPage.prepare_dependencies(page)
+
+    assert ("mitigations", "disable") in calls
+    dispatch = next(
+        call for call in calls if isinstance(call, tuple) and call[0] == "dispatch"
+    )
+    assert dispatch[1] == "Could not update CPU security mitigations"
 
 
 def test_dependency_removal_persists_auto_only_after_confirmation(monkeypatch):

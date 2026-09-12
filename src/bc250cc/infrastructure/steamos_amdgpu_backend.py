@@ -48,6 +48,8 @@ BACKEND_REQUIRED_EXECUTABLES = (
     "bc250-audio-fix/install.sh",
     "bc250-audio-fix/rollback.sh",
     "bc250-audio-fix/cleanup-other-slot.sh",
+    # install.sh and rollback.sh call this for the Valve 7.2 mkinitcpio hook.
+    "bc250-audio-fix/mkinitcpio-compat.sh",
     "bc250-update-persistence.sh",
     "bc250-storage.sh",
 )

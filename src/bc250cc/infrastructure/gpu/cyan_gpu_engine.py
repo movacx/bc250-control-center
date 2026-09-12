@@ -13,6 +13,8 @@ import time
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
 
+from bc250cc.shared.failure_text import describe_failure
+
 CYAN_DBUS_SERVICE = "com.cyanskillfish.Governor"
 CYAN_DBUS_OBJECT = "/com/cyanskillfish/Governor"
 CYAN_PERFORMANCE_INTERFACE = "com.cyanskillfish.Governor.PerformanceMode"
@@ -156,9 +158,9 @@ class CyanGpuEngine:
         ]
         code, stdout, stderr = self.repository._ejecutar(command, timeout=5)
         if code != 0:
-            raise CyanGpuRuntimeError(
-                stderr or stdout or f"Cyan D-Bus {method} failed with code {code}."
-            )
+            # A silent D-Bus failure used to surface as a bare number; the
+            # catalog maps it to the governor diagnosis instead.
+            raise CyanGpuRuntimeError(describe_failure(code, stdout, stderr))
 
     def _wait_range(
         self,

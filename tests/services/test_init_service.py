@@ -3,7 +3,9 @@ from pathlib import Path
 import pytest
 
 from bc250cc.platform.init.services import (
+    InitManagerState,
     detect_init_manager,
+    inspect_service,
     openrc_enable_argv,
     openrc_start_argv,
     openrc_status_argv,
@@ -105,6 +107,73 @@ def test_openrc_argv_and_parsers_are_strict():
     assert parse_openrc_status(1, ' * status: crashed') == 'failed'
     assert parse_openrc_runlevel(' bc250-smu-oc | default\n', 'bc250-smu-oc') is True
     assert parse_openrc_runlevel('nct6687-load | default\n', 'bc250-smu-oc') is False
+
+
+def test_shared_service_inspection_normalizes_systemd_state(tmp_path):
+    calls = []
+
+    def runner(command, timeout):
+        calls.append((command, timeout))
+        if 'is-active' in command:
+            return 0, 'active\n', ''
+        return 0, 'enabled-runtime\n', ''
+
+    state = inspect_service(
+        runner,
+        'bc250-smu-oc.service',
+        manager=InitManagerState('systemd', True, 'ready'),
+        init_script_root=tmp_path,
+    )
+    assert state.active == 'active'
+    assert state.enabled == 'enabled-runtime'
+    assert state.exists is True
+    assert calls == [
+        (['systemctl', 'is-active', 'bc250-smu-oc.service'], 4),
+        (['systemctl', 'is-enabled', 'bc250-smu-oc.service'], 4),
+    ]
+
+
+def test_shared_service_inspection_uses_openrc_runlevel(tmp_path):
+    script = tmp_path / 'bc250-smu-oc'
+    script.write_text('#!/sbin/openrc-run\n', encoding='utf-8')
+
+    def runner(command, timeout):
+        del timeout
+        if command[0] == 'rc-service':
+            return 0, ' * status: started\n', ''
+        return 0, ' bc250-smu-oc | default\n', ''
+
+    state = inspect_service(
+        runner,
+        'bc250-smu-oc.service',
+        manager=InitManagerState('openrc', True, 'ready'),
+        init_script_root=tmp_path,
+    )
+    assert state.active == 'active'
+    assert state.enabled == 'enabled'
+    assert state.exists is True
+
+
+@pytest.mark.parametrize('output', ['', ' \n', 'Failed to connect to bus'])
+def test_service_query_errors_never_become_states(output):
+    state = inspect_service(
+        lambda *args, **kwargs: (1, output, 'Permission denied'),
+        'bc250-smu-oc.service',
+        manager=InitManagerState('systemd', True, 'ready'),
+    )
+    assert state.active == 'unknown'
+    assert state.enabled == 'unknown'
+    assert state.exists is False
+
+
+def test_openrc_runlevel_query_failure_is_not_disabled(tmp_path):
+    state = inspect_service(
+        lambda *args, **kwargs: (1, '', 'Permission denied'),
+        'bc250-smu-oc',
+        manager=InitManagerState('openrc', True, 'ready'),
+        init_script_root=tmp_path,
+    )
+    assert state.enabled == 'unknown'
 
 
 def test_openrc_cu_script_waits_for_any_render_node_not_a_fixed_minor():

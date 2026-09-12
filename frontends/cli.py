@@ -13,6 +13,7 @@ import shutil
 
 # The argv is fixed; generated commands come only from repository strategies.
 import subprocess  # nosec B404
+import sys
 from pathlib import Path
 
 from bc250cc.application.headless_dispatch import dispatch_safe
@@ -22,6 +23,7 @@ from bc250cc.platform.packages.strategies.detector import (
     read_os_release,
 )
 from bc250cc.platform.packages.strategies.factory import create_os_repository
+from bc250cc.shared.failure_text import describe_failure
 from bc250cc.shared.version import __version__
 
 
@@ -72,6 +74,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON")
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("system", help="Show detected Linux strategy")
+    commands.add_parser("telemetry", help="Read APU sensor validity, clocks and firmware diagnostics")
     commands.add_parser("components", help="Show preparation component capabilities")
     integrations = commands.add_parser("integrations", help="Audit external-tool contracts and checkouts")
     integrations.add_argument(
@@ -160,7 +163,16 @@ def _run_dependencies(args, host, runner) -> int:
         _emit({"mode": args.mode, "command": command}, as_json=args.json)
         return 0
     completed = runner(["bash", "-lc", command], check=False)
-    return int(completed.returncode)
+    status = int(completed.returncode)
+    if status != 0:
+        # Returning the bare status left the terminal with a number and no
+        # explanation. Keep the status as the process exit code, but say what
+        # it means and give the identifier support can search for.
+        print(
+            describe_failure(status, getattr(completed, "stdout", ""), getattr(completed, "stderr", "")),
+            file=sys.stderr,
+        )
+    return status
 
 
 def main(argv: list[str] | None = None, *, host=None, runner=subprocess.run) -> int:

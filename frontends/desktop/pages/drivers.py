@@ -132,9 +132,23 @@ class DriversPage(QWidget):
         self.auto_refresh_timer.timeout.connect(self.refresh)
 
     @staticmethod
-    def _clear(layout: QVBoxLayout) -> None:
-        while layout.count():
-            item = layout.takeAt(0)
+    def _fill(layout: QVBoxLayout, rows: list[tuple[str, str, str, str]]) -> None:
+        """Update the rows in place; only build one when there is no row to use.
+
+        This inventory is re-read every two seconds and almost never changes.
+        Tearing every row down and building it again cost four widgets and a
+        stylesheet application each time, and threw away the selection anyone
+        had made in a label that is deliberately selectable.
+        """
+        for index, (title, detail, status, tone) in enumerate(rows):
+            item = layout.itemAt(index)
+            row = item.widget() if item is not None else None
+            if isinstance(row, DeviceRow):
+                row.set_data(title, detail, status, tone)
+            else:
+                layout.insertWidget(index, DeviceRow(title, detail, status, tone))
+        while layout.count() > len(rows):
+            item = layout.takeAt(layout.count() - 1)
             if item.widget() is not None:
                 item.widget().deleteLater()
 
@@ -213,7 +227,10 @@ class DriversPage(QWidget):
     def set_updates_active(self, active: bool) -> None:
         self._updates_active = bool(active)
         if active:
-            self._refresh.activate(fresh_for=0.0, refresh_delay_ms=0)
+            # A device inventory that changes while you switch pages is not
+            # a thing that happens. Show what was read a moment ago and read
+            # again shortly after, like every other page.
+            self._refresh.activate(fresh_for=1.5)
             self.auto_refresh_timer.start()
         else:
             self.auto_refresh_timer.stop()
@@ -226,15 +243,15 @@ class DriversPage(QWidget):
         init = str(snapshot.get("init_manager", "unknown"))
         supported = set(snapshot.get("supported_components", ()))
 
-        self._clear(self.network_rows)
         network = list(snapshot.get("network", ()))
+        network_rows: list[tuple[str, str, str, str]] = []
         for item in network:
             kind = tr("Wi-Fi") if item.get("kind") == "wifi" else tr("Ethernet")
             driver = str(item.get("driver") or tr("No kernel driver"))
             detail = tr_format("{kind} · driver: {driver}", kind=kind, driver=driver)
             state = str(item.get("state") or "unknown")
-            self.network_rows.addWidget(
-                DeviceRow(
+            network_rows.append(
+                (
                     str(item.get("name", "--")),
                     detail,
                     state,
@@ -243,8 +260,8 @@ class DriversPage(QWidget):
             )
         bluetooth = list(snapshot.get("bluetooth_controllers", ()))
         bt_detail = ", ".join(bluetooth) if bluetooth else tr("No controller detected")
-        self.network_rows.addWidget(
-            DeviceRow(
+        network_rows.append(
+            (
                 tr("Bluetooth"),
                 bt_detail,
                 tr("Detected") if bluetooth else tr("Not detected"),
@@ -252,17 +269,17 @@ class DriversPage(QWidget):
             )
         )
         if not network:
-            self.network_rows.addWidget(
-                DeviceRow(
+            network_rows.append(
+                (
                     tr("Network"),
                     tr("No interface detected"),
                     tr("Not detected"),
                     "gray",
                 )
             )
+        self._fill(self.network_rows, network_rows)
         self.connectivity_button.setEnabled("connectivity" in supported)
 
-        self._clear(self.printing_rows)
         printing = (
             snapshot.get("printing", {})
             if isinstance(snapshot.get("printing"), dict)
@@ -275,35 +292,34 @@ class DriversPage(QWidget):
             services.append("CUPS")
         if printing.get("ipp_usb"):
             services.append("IPP-over-USB")
-        self.printing_rows.addWidget(
-            DeviceRow(
-                tr("Printing stack"),
-                ", ".join(services) or tr("Printing packages not detected"),
-                tr("Ready") if services else tr("Unavailable"),
-                "green" if services else "gray",
-            )
-        )
         queue_detail = ", ".join(queues) if queues else tr("No configured queues")
-        self.printing_rows.addWidget(
-            DeviceRow(
-                tr("Printer queues"),
-                queue_detail,
-                str(len(queues)),
-                "blue" if queues else "gray",
-            )
-        )
         usb_detail = (
             ", ".join(str(item.get("name", "USB")) for item in printers)
             if printers
             else tr("No USB printer detected")
         )
-        self.printing_rows.addWidget(
-            DeviceRow(
-                tr("USB printers"),
-                usb_detail,
-                tr("Detected") if printers else tr("Not detected"),
-                "green" if printers else "gray",
-            )
+        self._fill(
+            self.printing_rows,
+            [
+                (
+                    tr("Printing stack"),
+                    ", ".join(services) or tr("Printing packages not detected"),
+                    tr("Ready") if services else tr("Unavailable"),
+                    "green" if services else "gray",
+                ),
+                (
+                    tr("Printer queues"),
+                    queue_detail,
+                    str(len(queues)),
+                    "blue" if queues else "gray",
+                ),
+                (
+                    tr("USB printers"),
+                    usb_detail,
+                    tr("Detected") if printers else tr("Not detected"),
+                    "green" if printers else "gray",
+                ),
+            ],
         )
         self.printing_button.setEnabled("printing" in supported)
         self.printer_settings_button.setEnabled(bool(printing.get("gui")))

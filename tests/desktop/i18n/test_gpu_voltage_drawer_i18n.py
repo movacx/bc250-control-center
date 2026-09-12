@@ -1,12 +1,16 @@
 from frontends.desktop.i18n import tr
 from frontends.desktop.i18n.locale_catalog import COMPLETE_LOCALES, load_locale_catalog
 
-
 GPU_VOLTAGE_WORKFLOW_SOURCES = (
     "GPU voltage curve",
-    "Choose a safe preset or edit the active points",
+    "Choose a safe preset or drag the active points",
     "Close GPU voltage curve",
-    "Stop games and 3D workloads. A backup is created before the governor restarts.",
+    "V/F curve",
+    "proposed",
+    "1 point changed",
+    "{count} points changed",
+    "peak {value} mV",
+    "max {value} mV",
     "Curve boost",
     "Gentle",
     "Moderate",

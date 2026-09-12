@@ -7,23 +7,38 @@ must never derive Oberon voltages from Cyan's unrelated multipoint TOML.
 
 from __future__ import annotations
 
-OBERON_REFERENCE_VOLTAGE_MV = 1000
-
-# The first two profiles are the conservative choices also exposed in Quick
-# Access.  Fixed 2000 MHz is the upstream sample shape and remains a Desktop
-# Mode benchmark option behind the existing explicit high-risk confirmation.
-OBERON_CONSERVATIVE_PROFILES: tuple[tuple[int, int], ...] = (
-    (1000, 1500),
-    (1000, 1850),
-)
-OBERON_BENCHMARK_PROFILE = (2000, 2000)
-OBERON_DESKTOP_PROFILES: tuple[tuple[int, int], ...] = (
-    *OBERON_CONSERVATIVE_PROFILES,
+from bc250cc.shared.contract import (
+    OBERON_ACCEPTED_PROFILES,
     OBERON_BENCHMARK_PROFILE,
+    OBERON_CONSERVATIVE_PROFILES,
+    OBERON_DESKTOP_PROFILES,
+    OBERON_LEGACY_BENCHMARK_PROFILE,
+    OBERON_REFERENCE_VOLTAGE_MV,
 )
 
-# Compatibility name retained for Desktop callers.
-OBERON_SAFE_PROFILES = OBERON_DESKTOP_PROFILES
+# Benchmark is (1000, 2000), not a fixed 2000 MHz lock.
+#
+# The two sides disagreed: the desktop declared (2000, 2000) while the Quick
+# Access helper wrote (1000, 2000) into /etc/oberon-config.yaml, so tapping
+# Benchmark in Game Mode produced a configuration the desktop's own validator
+# rejected and the GPU page then demanded Oberon recovery. The written shape
+# is the one that wins; it also lets the GPU clock down at idle.
+#
+# ``OBERON_SAFE_PROFILES`` stays the acceptance set and still contains the old
+# fixed-2000 shape, so a desktop that already applied it is not suddenly told
+# its configuration is invalid. It is not offered any more — see
+# ``OBERON_DESKTOP_PROFILES`` for what the interface presents.
+OBERON_SAFE_PROFILES = OBERON_ACCEPTED_PROFILES
+
+__all__ = [
+    "OBERON_ACCEPTED_PROFILES",
+    "OBERON_BENCHMARK_PROFILE",
+    "OBERON_CONSERVATIVE_PROFILES",
+    "OBERON_DESKTOP_PROFILES",
+    "OBERON_LEGACY_BENCHMARK_PROFILE",
+    "OBERON_REFERENCE_VOLTAGE_MV",
+    "OBERON_SAFE_PROFILES",
+]
 
 OBERON_IDLE_MAX_BUSY_PERCENT = 5
 # The benchmark profile holds the idle clock at 2000 MHz. A zero-load

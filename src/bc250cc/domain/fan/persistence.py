@@ -13,6 +13,18 @@ FAN_PRESET_VALUES = {
 FAN_CURVE_MIN_POINTS = 3
 FAN_CURVE_MAX_POINTS = 8
 DEFAULT_FAN_CURVE_POINTS = ((50, 70), (65, 100), (70, 100))
+FAN_TEMPERATURE_SENSORS = (
+    ("gpu_temp", "gpu"),
+    ("cpu_temp", "cpu"),
+    ("vrm_temp", "vrm"),
+    ("board_temp", "board"),
+)
+DEFAULT_CRITICAL_TEMPERATURES_C = {
+    "gpu": 95.0,
+    "cpu": 95.0,
+    "vrm": 105.0,
+    "board": 90.0,
+}
 
 
 @dataclass(frozen=True)
@@ -33,6 +45,8 @@ class FanTarget:
     source: str
     temperature: object
     curve_enabled: bool
+    temperature_sensor: str | None = None
+    raw_temperature: float | None = None
 
     @property
     def identity(self) -> tuple[int, int, str]:
@@ -213,6 +227,78 @@ def fan_curve_percent_for_temp(temp: object, curve: object) -> int | None:
     return max(0, min(100, target))
 
 
+def _temperature_readings(
+    metric: object, config: object = None, *, now: float | None = None,
+) -> list[tuple[float, float, str]]:
+    """Return fresh ``(effective, raw, sensor)`` thermal readings.
+
+    The curve operates on an effective temperature so installations can
+    compensate for a known sensor offset without changing every curve point.
+    Safety thresholds always use the unmodified hardware reading.
+    """
+    sample = metric if isinstance(metric, dict) else {}
+    settings = config if isinstance(config, dict) else {}
+    offsets = settings.get("fan_daemon_sensor_offsets_c")
+    offsets = offsets if isinstance(offsets, dict) else {}
+    timestamps = sample.get("temperature_sensor_times")
+    has_timestamps = isinstance(timestamps, dict)
+    timestamps = timestamps if has_timestamps else {}
+    maximum_age = bounded_float(
+        settings.get("fan_daemon_sensor_max_age_seconds"), 6, 1, 60
+    )
+    readings: list[tuple[float, float, str]] = []
+    for key, sensor in FAN_TEMPERATURE_SENSORS:
+        try:
+            raw = float(sample.get(key))
+        except (TypeError, ValueError, OverflowError):
+            continue
+        if not math.isfinite(raw) or not 0 < raw <= 130:
+            continue
+        if now is not None and has_timestamps:
+            try:
+                age = float(now) - float(timestamps.get(sensor))
+            except (TypeError, ValueError, OverflowError):
+                continue
+            if not math.isfinite(age) or age < 0 or age > maximum_age:
+                continue
+        offset = bounded_float(offsets.get(sensor), 0, -30, 30)
+        readings.append((raw + offset, raw, sensor))
+    return readings
+
+
+def select_fan_control_temperature(
+    metric: object, config: object = None, *, now: float | None = None,
+) -> tuple[float | None, str | None]:
+    """Select the hottest fresh APU, VRM or board reading for the fan curve."""
+    readings = _temperature_readings(metric, config, now=now)
+    if not readings:
+        return None, None
+    effective, _raw, sensor = max(readings, key=lambda item: item[0])
+    return effective, sensor
+
+
+def _critical_temperature(
+    metric: object, config: object, *, now: float,
+) -> tuple[float, str] | None:
+    settings = config if isinstance(config, dict) else {}
+    configured = settings.get("fan_daemon_critical_temperatures_c")
+    configured = configured if isinstance(configured, dict) else {}
+    critical = []
+    for _effective, raw, sensor in _temperature_readings(
+        metric, settings, now=now
+    ):
+        threshold = bounded_float(
+            configured.get(sensor), DEFAULT_CRITICAL_TEMPERATURES_C[sensor],
+            50, 125,
+        )
+        if raw >= threshold:
+            critical.append((raw - threshold, raw, sensor))
+    if not critical:
+        return None
+    _excess, raw, sensor = max(critical, key=lambda item: (item[0], item[1]))
+    return raw, sensor
+
+
 def _smoothed_percent(
     percent: int, temperature: object, config: dict, memory: FanControlMemory,
     *, pwm: int, source: str,
@@ -249,15 +335,36 @@ def plan_persistent_fan(
     if not curve_enabled and not preset_enabled:
         return FanControlDecision("disabled")
 
-    temperature = sample.get("gpu_temp")
+    temperature, temperature_sensor = select_fan_control_temperature(
+        sample, settings, now=now
+    )
+    raw_temperature = next(
+        (
+            raw for _effective, raw, sensor in _temperature_readings(
+                sample, settings, now=now
+            )
+            if sensor == temperature_sensor
+        ),
+        None,
+    )
     missing_since = memory.missing_since
+    critical = _critical_temperature(sample, settings, now=now)
     if curve_enabled:
-        percent = fan_curve_percent_for_temp(temperature, curve)
-        if percent is None:
+        if critical is not None:
+            raw_temperature, temperature_sensor = critical
+            temperature = raw_temperature
+            missing_since = None
+            percent = bounded_int(
+                settings.get("fan_daemon_failsafe_percent"), 100, 40, 100
+            )
+            source = "curve:critical"
+        else:
+            percent = fan_curve_percent_for_temp(temperature, curve)
+        if critical is None and percent is None:
             if missing_since is None:
                 return FanControlDecision(
                     "sensor-missing", missing_since=now,
-                    reason="GPU temperature sensor unavailable",
+                    reason="CPU and GPU temperature sensors unavailable",
                 )
             timeout = bounded_float(
                 settings.get("fan_daemon_sensor_timeout_seconds"), 15, 3, 300
@@ -268,7 +375,7 @@ def plan_persistent_fan(
                 settings.get("fan_daemon_failsafe_percent"), 100, 40, 100
             )
             source = "curve:failsafe"
-        else:
+        elif critical is None:
             missing_since = None
             source = "curve"
         pwm = bounded_int(curve.get("pwm"), 2, 1, 12)
@@ -277,7 +384,7 @@ def plan_persistent_fan(
         pwm = bounded_int(preset.get("pwm"), 2, 1, 12)
         source = f"preset:{preset.get('preset') or 'unknown'}"
 
-    if now - memory.last_apply < 5:
+    if source != "curve:critical" and now - memory.last_apply < 5:
         return FanControlDecision("rate-limited", missing_since=missing_since)
     percent = _smoothed_percent(
         percent, temperature, settings, memory, pwm=pwm, source=source
@@ -285,6 +392,8 @@ def plan_persistent_fan(
     target = FanTarget(
         pwm=pwm, percent=percent, raw=round(percent * 255 / 100), source=source,
         temperature=temperature, curve_enabled=curve_enabled,
+        temperature_sensor=temperature_sensor,
+        raw_temperature=raw_temperature,
     )
     verify_seconds = bounded_float(
         settings.get("fan_daemon_verify_seconds"), 30, 5, 600

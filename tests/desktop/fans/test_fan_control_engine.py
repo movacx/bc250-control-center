@@ -7,6 +7,7 @@ from bc250cc.domain.fan.persistence import (
     normalize_fan_curve,
     normalize_fan_preset,
     plan_persistent_fan,
+    select_fan_control_temperature,
 )
 
 
@@ -49,6 +50,69 @@ def test_sensor_loss_transitions_wait_then_failsafe():
     assert failsafe.target.source == "curve:failsafe"
     assert failsafe.target.percent == 100
     assert failsafe.target.raw == 255
+
+
+def test_curve_uses_the_hottest_available_apu_temperature():
+    decision = plan_persistent_fan(
+        {"gpu_temp": 55, "cpu_temp": 80},
+        curve_config(),
+        FanControlMemory(),
+        now=10,
+    )
+
+    assert decision.target.temperature == 80
+    assert decision.target.temperature_sensor == "cpu"
+    assert decision.target.percent == 100
+
+
+def test_curve_falls_back_to_either_valid_temperature_sensor():
+    assert select_fan_control_temperature(
+        {"gpu_temp": None, "cpu_temp": 62}
+    ) == (62.0, "cpu")
+    assert select_fan_control_temperature(
+        {"gpu_temp": 64, "cpu_temp": math.nan}
+    ) == (64.0, "gpu")
+
+
+def test_curve_includes_vrm_and_board_sensors_with_offsets():
+    metric = {
+        "gpu_temp": 70,
+        "cpu_temp": 72,
+        "vrm_temp": 78,
+        "board_temp": 60,
+    }
+    assert select_fan_control_temperature(metric) == (78.0, "vrm")
+    assert select_fan_control_temperature(
+        metric, {"fan_daemon_sensor_offsets_c": {"cpu": 10}}
+    ) == (82.0, "cpu")
+
+
+def test_stale_sensor_is_excluded_from_fan_control():
+    metric = {
+        "gpu_temp": 70,
+        "vrm_temp": 100,
+        "temperature_sensor_times": {"gpu": 99, "vrm": 80},
+    }
+    assert select_fan_control_temperature(metric, now=100) == (70.0, "gpu")
+
+    del metric["temperature_sensor_times"]["vrm"]
+    assert select_fan_control_temperature(metric, now=100) == (70.0, "gpu")
+    metric["temperature_sensor_times"].clear()
+    assert select_fan_control_temperature(metric, now=100) == (None, None)
+
+
+def test_critical_sensor_forces_immediate_failsafe():
+    decision = plan_persistent_fan(
+        {"gpu_temp": 70, "vrm_temp": 108},
+        curve_config(),
+        FanControlMemory(last_apply=9, last_percent=40),
+        now=10,
+    )
+    assert decision.action == "apply"
+    assert decision.target.source == "curve:critical"
+    assert decision.target.temperature_sensor == "vrm"
+    assert decision.target.raw_temperature == 108
+    assert decision.target.percent == 100
 
 
 @pytest.mark.parametrize("temperature", (None, math.nan, math.inf, "invalid"))

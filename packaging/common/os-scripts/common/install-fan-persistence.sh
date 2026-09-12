@@ -144,6 +144,16 @@ if [ -f /run/openrc/softlevel ] \
   [ -x "$OPENRC_HELPER" ] || { echo "ERROR: protected BC250 OpenRC service helper is missing; reinstall Control Center." >&2; exit 1; }
   sudo "$OPENRC_HELPER" install nct6687-load
   sudo rc-service nct6687-load restart 2>/dev/null || sudo rc-service nct6687-load start 2>/dev/null || true
+elif [ ! -d /run/systemd/system ] || ! command -v systemctl >/dev/null 2>&1; then
+  # runit, s6, dinit and sysvinit reach here. Writing a systemd unit for them
+  # leaves a file in /etc/systemd/system that nothing will ever read, and then
+  # fails at systemctl. Say what did and did not happen instead: the module
+  # itself is already built and installed above, so fan control works for this
+  # session; only loading it automatically at boot is missing.
+  echo "== This system does not run systemd or OpenRC ==";
+  echo "The nct6687 module is installed and fan control works now.";
+  echo "Automatic loading at boot is not configured: add 'nct6687' to your";
+  echo "init system's module list, or run bc250-load-nct6687 at startup.";
 else
 sudo tee /etc/systemd/system/nct6687-load.service >/dev/null <<'EOF'
 [Unit]
@@ -166,8 +176,8 @@ RestartSec=10
 [Install]
 WantedBy=multi-user.target
 EOF
-sudo systemctl daemon-reload;
-sudo systemctl enable nct6687-load.service;
+sudo systemctl daemon-reload || true;
+sudo systemctl enable nct6687-load.service || true;
 sudo systemctl reset-failed nct6687-load.service 2>/dev/null || true;
 sudo systemctl restart nct6687-load.service 2>/dev/null || sudo systemctl start nct6687-load.service 2>/dev/null || true
 fi

@@ -26,7 +26,6 @@ required=(
   share/bc250-control-center/frontends/cli.py
   share/bc250-control-center/src/bc250cc/__init__.py
   share/bc250-control-center/frontends/desktop/features/gpu/presenter.py
-  share/bc250-control-center/frontends/quick_access/backend/mapper.py
   share/bc250-control-center/privileged/helpers/README.md
   share/bc250-control-center/VERSION
   share/bc250-control-center/scripts/uninstall-local.sh

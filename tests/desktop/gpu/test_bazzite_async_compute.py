@@ -32,7 +32,9 @@ def test_bazzite_release_commands_are_closed_and_shell_valid(action, tmp_path):
         assert "sha256sum --check --status" in command
     if action == "install":
         assert "7.2.0-ogc4.1 or newer" in command
-        assert 'install.sh\" --yes' in command
+        assert 'install.sh\" --yes --per-game' in command
+        assert "optional per-game RADV driver" in command
+        assert str(module.BAZZITE_ASYNC_COMPUTE_ICD) in command
     if action == "uninstall":
         assert "bc250_found=0" not in command
         assert "uninstall.sh" in command

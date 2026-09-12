@@ -127,7 +127,7 @@ def read_cpu_runtime_snapshot(
     reference_scale = profile["reference_scale"]
     if (
         mode not in {"automatic", "manual"}
-        or not 3500 <= frequency <= 4200
+        or not 3100 <= frequency <= 4200
         or not -50 <= scale <= 0
         or temperature != 90
         or not -50 <= reference_scale <= 0

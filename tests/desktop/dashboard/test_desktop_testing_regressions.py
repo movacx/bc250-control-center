@@ -94,7 +94,9 @@ def test_desktop_cu_uses_one_fixed_polkit_entrypoint(monkeypatch):
     repository._ejecutar = lambda argv, **kw: calls.append(argv) or (0, "", "")
     payload = json.dumps([["--yes", "disable-wgp", "0.0.4"], ["--yes", "write-service-table"]])
     repository._ejecutar_cu_accion_pkexec(["batch", payload])
-    assert calls == [["/usr/bin/pkexec", str(helper), "batch", payload]]
+    assert calls == [[
+        "/usr/bin/pkexec", "--disable-internal-agent", str(helper), "batch", payload
+    ]]
 
 
 @pytest.mark.parametrize("payload", ([None], ["status"], [["status"], ["bash", "-c", "id"]]))

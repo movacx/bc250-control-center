@@ -11,6 +11,7 @@ from pathlib import Path
 import psutil
 
 from bc250cc.application.recovery.service import RecoveryRepository
+from bc250cc.domain.telemetry import clock_mhz, voltage_mv
 from bc250cc.infrastructure.cpu_repository import CPURepository
 from bc250cc.infrastructure.cu_repository import CURepository
 from bc250cc.infrastructure.dependencias_repository import DependenciasRepository
@@ -22,6 +23,7 @@ from bc250cc.infrastructure.memory_runtime import read_memory_runtime_state
 from bc250cc.infrastructure.persistence.activity_journal import activity_journal_path
 from bc250cc.infrastructure.persistence.configuracion_local import ConfiguracionLocal
 from bc250cc.infrastructure.persistence.profile_bundle import ProfileBundleRepository
+from bc250cc.infrastructure.polkit_session import normalize_polkit_error
 from bc250cc.infrastructure.privilege_repository import PrivilegeRepository
 from bc250cc.infrastructure.realtime_metrics_policy import (
     bounded_percent,
@@ -251,7 +253,7 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
                 if etiqueta.lower() in texto.lower():
                     entrada = carpeta / label.name.replace('_label', '_input')
                     valor = self._leer_entero(entrada)
-                    return None if valor is None else valor
+                    return voltage_mv(valor)
         return None
 
     def ventilador_principal(self):
@@ -354,7 +356,9 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
     def _ejecutar(self, comando, timeout=2):
         try:
             r = subprocess.run(comando, text=True, capture_output=True, timeout=timeout, check=False)
-            return r.returncode, (r.stdout or '').strip(), (r.stderr or '').strip()
+            stdout = (r.stdout or '').strip()
+            stderr = normalize_polkit_error(comando, (r.stderr or '').strip())
+            return r.returncode, stdout, stderr
         except Exception as error:
             return 1, '', str(error)
 
@@ -437,13 +441,8 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
     def _parse_dpm_actual(self, texto):
         if not texto:
             return None
-        for linea in texto.splitlines():
-            if '*' not in linea:
-                continue
-            m = re.search(r'(\d+)\s*Mhz', linea, re.IGNORECASE)
-            if m:
-                return int(m.group(1))
-        return None
+        matches = re.findall(r'(?im)^\s*\d+:\s*(\d+)\s*MHz\s*\*\s*$', texto)
+        return clock_mhz(matches[0]) if len(matches) == 1 else None
 
     def _parse_od(self, texto):
         datos = {'sclk': None, 'vddc': None, 'range_sclk_min': None, 'range_sclk_max': None}
@@ -680,6 +679,12 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
         gpu_busy = self._gpu_busy_percent(gpu) if gpu else self._gpu_busy_percent(None)
         potencia = self.lectura_potencia()
         gpu_technical = self._gpu_technical_metrics(gpu)
+        auxiliary_temperatures = self.temperaturas_auxiliares(max_age=0.0)
+        sample_time = time.monotonic()
+        cpu_temperature = self.temperatura_cpu()
+        gpu_temperature = self.temperatura_chip('amdgpu', 'edge')
+        vrm_temperature = auxiliary_temperatures.get('vrm_temperature_c')
+        board_temperature = auxiliary_temperatures.get('board_temperature_c')
         return {
             'cpu': psutil.cpu_percent(interval=None),
             'hilos': psutil.cpu_percent(interval=None, percpu=True),
@@ -698,8 +703,20 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
             'disco_total': raiz.total,
             'disco_lectura': lectura,
             'disco_escritura': escritura,
-            'cpu_temp': self.temperatura_cpu(),
-            'gpu_temp': self.temperatura_chip('amdgpu', 'edge'),
+            'cpu_temp': cpu_temperature,
+            'gpu_temp': gpu_temperature,
+            'vrm_temp': vrm_temperature,
+            'board_temp': board_temperature,
+            'temperature_sensor_times': {
+                sensor: sample_time
+                for sensor, value in (
+                    ('cpu', cpu_temperature),
+                    ('gpu', gpu_temperature),
+                    ('vrm', vrm_temperature),
+                    ('board', board_temperature),
+                )
+                if value is not None
+            },
             'gpu_power': potencia.get('gpu_w'),
             'power_w': potencia.get('value_w'),
             'power_scope': potencia.get('scope'),

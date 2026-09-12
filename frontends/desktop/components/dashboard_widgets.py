@@ -8,13 +8,17 @@ from pathlib import Path
 from PyQt6.QtCore import (
     QEasingCurve,
     QEvent,
+    QPoint,
+    QPointF,
     QPropertyAnimation,
     QSize,
     Qt,
     QTimer,
+    QVariantAnimation,
     pyqtSignal,
+    pyqtSlot,
 )
-from PyQt6.QtGui import QIcon, QPixmap
+from PyQt6.QtGui import QColor, QIcon, QPainter, QPainterPath, QPixmap, QPolygonF
 from PyQt6.QtWidgets import (
     QApplication,
     QBoxLayout,
@@ -26,19 +30,23 @@ from PyQt6.QtWidgets import (
     QLabel,
     QScrollArea,
     QSizePolicy,
-    QSlider,
     QVBoxLayout,
     QWidget,
 )
 from PyQt6.QtWidgets import QPushButton as IconButton
 
 from .. import theme
+from ..core.feature_visibility import FSR4_UI_ENABLED
 from ..core.gfx1013_presenter import present_gfx1013
 from ..core.preferences import application_settings
 from ..i18n import tr, tr_format
 from .buttons import WrappingButton as QPushButton
 from .responsive import clear_grid
-from .system_setup_controls import is_bazzite_host, update_memory_controls
+from .system_setup_controls import (
+    bazzite_ui_preview_enabled,
+    is_bazzite_host,
+    update_memory_controls,
+)
 from .widgets import ICON_DIR, PillLabel, apply_shadow, icon
 
 
@@ -69,343 +77,6 @@ class _ClickOnlyComboBox(QComboBox):
         # Let the parent scroll area receive the wheel event when the pointer
         # merely crosses this control.  Selecting remains an explicit click.
         event.ignore()
-
-
-class _DeckyPreviewOverlay(QWidget):
-    """Animated, hardware-inert replica of the BC250 Decky side panel."""
-
-    closed = pyqtSignal()
-
-    def __init__(self, parent: QWidget) -> None:
-        super().__init__(parent)
-        self.setObjectName("DeckyPreviewOverlay")
-        self.setProperty("gamepadOverlay", False)
-        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        # This preview deliberately owns every colour token.  It mirrors the
-        # real Decky plugin rather than inheriting the Control Center's chosen
-        # desktop accent/theme.
-        self.setStyleSheet("background: rgba(0, 0, 0, 150);")
-        self.drawer = QFrame(self)
-        self.drawer.setObjectName("DeckyPreviewDrawer")
-        self.drawer.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        self.drawer.setStyleSheet("""
-            QFrame#DeckyPreviewDrawer { background: #0f0f0f; border-left: 1px solid #343434; }
-            QWidget#DeckyPreviewBody, QScrollArea#DeckyPreviewScroll, QScrollArea#DeckyPreviewScroll > QWidget > QWidget { background: #0f0f0f; }
-            QFrame[deckyPluginSurface='true'] { background: #171717; border: 1px solid #343434; border-radius: 12px; }
-            QFrame[deckySection='true'] { background: transparent; border: none; }
-            QFrame[deckyMetric='true'], QFrame[deckyCuMatrix='true'] { background: #1f1f1f; border: 1px solid #343434; border-radius: 6px; }
-            QLabel[deckyTitle='true'] { background: transparent; color: #f2f2f2; font-size: 18px; font-weight: 750; }
-            QLabel[deckySectionTitle='true'] { background: transparent; color: #b4b4b4; font-size: 10px; font-weight: 700; }
-            QLabel[deckyValue='true'] { background: transparent; color: #f2f2f2; font-size: 13px; font-weight: 700; }
-            QLabel[deckyMuted='true'] { background: transparent; color: #8e8e8e; font-size: 9px; }
-            QPushButton { background: #242424; border: 1px solid #343434; border-radius: 6px; color: #f2f2f2; }
-            QPushButton:hover { background: #2c2c2c; }
-            QPushButton:pressed { background: #333333; }
-            QPushButton[deckyControl='true'] { min-height: 34px; padding: 5px; font-size: 10px; }
-            QPushButton[deckyControl='true']:focus, QPushButton[deckyCu='true']:focus { border: 2px solid #6e9fff; }
-            QPushButton[deckySelected='true'] { background: #38291d; border: 1px solid #f0a45d; color: #f0a45d; }
-            QPushButton[deckyPrimary='true'] { background: #f0a45d; border: 1px solid #f0a45d; color: #38291d; font-weight: 700; }
-            QPushButton[deckyDanger='true'] { background: #3a2020; border: 1px solid #3a2020; color: #ff6b64; }
-            QPushButton[deckyCu='true'] { background: #1b3224; border: 1px solid #3d784c; border-radius: 5px; color: #5cbf78; min-height: 27px; font-size: 8px; }
-            QSlider { background: transparent; min-height: 18px; }
-            QSlider::groove:horizontal { height: 4px; background: #424242; border-radius: 2px; }
-            /* SliderField is native Decky UI, not a theme.ts token.  Match
-               the blue native track visible in the real Quick Access panel. */
-            QSlider::sub-page:horizontal { background: #35a8e8; border-radius: 2px; }
-            QSlider::handle:horizontal { background: #f2f2f2; width: 16px; margin: -6px 0; border-radius: 8px; }
-            QScrollBar:vertical { background: #171717; width: 7px; margin: 2px; }
-            QScrollBar::handle:vertical { background: #424242; border-radius: 3px; min-height: 24px; }
-            QScrollBar::handle:vertical:hover { background: #5a5a5a; }
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
-        """)
-        root = QVBoxLayout(self.drawer)
-        root.setContentsMargins(12, 12, 12, 10)
-        root.setSpacing(8)
-        header = QHBoxLayout()
-        close = IconButton("‹")
-        close.setFixedSize(34, 34)
-        close.setProperty("deckyControl", True)
-        close.setProperty("gamepadEntry", True)
-        close.setAccessibleName(tr("Close preview"))
-        close.clicked.connect(self.close_animated)
-        header.addWidget(close)
-        title = _label("BC250 Quick Access", "deckyTitle", wrap=True)
-        header.addWidget(title, 1)
-        root.addLayout(header)
-
-        scroll = QScrollArea()
-        scroll.setObjectName("DeckyPreviewScroll")
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setWidgetResizable(True)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        body = QWidget()
-        body.setObjectName("DeckyPreviewBody")
-        body.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        body_layout = QVBoxLayout(body)
-        body_layout.setContentsMargins(0, 2, 2, 4)
-        surface = QFrame()
-        surface.setProperty("deckyPluginSurface", True)
-        content = QVBoxLayout(surface)
-        content.setContentsMargins(12, 12, 12, 16)
-        content.setSpacing(8)
-        content.addWidget(self._gpu_section())
-        content.addWidget(self._cu_section())
-        content.addWidget(self._cpu_section())
-        content.addWidget(self._fan_section())
-        content.addWidget(self._memory_section())
-        note = _label(
-            "Interactive preview only · no hardware action is executed.",
-            "deckyMuted",
-        )
-        note.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        content.addWidget(note)
-        content.addStretch(1)
-        body_layout.addWidget(surface)
-        scroll.setWidget(body)
-        root.addWidget(scroll, 1)
-        self._animation = QPropertyAnimation(self.drawer, b"geometry", self)
-        self._animation.setDuration(240)
-        self._animation.setEasingCurve(QEasingCurve.Type.OutCubic)
-
-    @staticmethod
-    def _section(title: str) -> tuple[QFrame, QVBoxLayout]:
-        frame = QFrame()
-        frame.setProperty("deckySection", True)
-        layout = QVBoxLayout(frame)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(6)
-        label = _label(title, "deckySectionTitle", wrap=False)
-        layout.addWidget(label)
-        return frame, layout
-
-    @staticmethod
-    def _preview_button(
-        text: str,
-        *,
-        selected: bool = False,
-        primary: bool = False,
-    ) -> IconButton:
-        button = IconButton("\n".join(tr(line) for line in text.splitlines()))
-        button.setProperty("deckyControl", True)
-        button.setProperty("deckySelected", selected)
-        button.setProperty("deckyPrimary", primary)
-        button.setToolTip(tr("Preview only · this control does not change hardware."))
-        return button
-
-    def _gpu_section(self) -> QFrame:
-        frame, layout = self._section(
-            f"▣  {tr('GPU')}                                      Cyan"
-        )
-        profiles = QGridLayout()
-        profiles.setSpacing(5)
-        live = QFrame()
-        live.setProperty("deckyMetric", True)
-        live_layout = QVBoxLayout(live)
-        live_layout.setContentsMargins(7, 5, 7, 5)
-        live_layout.setSpacing(0)
-        live_layout.addWidget(_label("GPU live", "deckyMuted", wrap=False))
-        live_layout.addWidget(_label("1000 MHz", "deckyValue", wrap=False))
-        live_layout.addWidget(_label("Voltage · 899 mV", "deckyMuted", wrap=False))
-        profiles.addWidget(live, 0, 0)
-        for index, text in enumerate(
-            (
-                "Balanced\n500–1500 MHz",
-                "Gaming\n1000–1850 MHz",
-                "Benchmark\n1000–2000 MHz",
-            )
-        ):
-            profiles.addWidget(
-                self._preview_button(text, selected=index == 1),
-                (index + 1) // 2,
-                (index + 1) % 2,
-            )
-        layout.addLayout(profiles)
-        return frame
-
-    def _cu_section(self) -> QFrame:
-        frame, layout = self._section(
-            f"▦  {tr('Compute Units').upper()}                         40/40 CU"
-        )
-        matrix = QFrame()
-        matrix.setProperty("deckyCuMatrix", True)
-        grid = QGridLayout(matrix)
-        grid.setContentsMargins(7, 7, 7, 7)
-        grid.setSpacing(4)
-        for row in range(4):
-            for column in range(5):
-                button = IconButton(f"{row}.{column}\nD+")
-                button.setProperty("deckyCu", True)
-                button.setToolTip(
-                    tr("Preview only · this control does not change hardware.")
-                )
-                grid.addWidget(button, row, column)
-        layout.addWidget(matrix)
-        actions = QHBoxLayout()
-        actions.addWidget(self._preview_button("Apply changes", primary=True), 1)
-        actions.addWidget(self._preview_button("Save selection"), 1)
-        layout.addLayout(actions)
-        service_actions = QHBoxLayout()
-        service_actions.addWidget(self._preview_button("Install service"), 1)
-        remove = self._preview_button("Remove service")
-        remove.setProperty("deckyDanger", True)
-        service_actions.addWidget(remove, 1)
-        layout.addLayout(service_actions)
-        return frame
-
-    def _cpu_section(self) -> QFrame:
-        frame, layout = self._section(f"ϟ  {tr('CPU')}")
-        grid = QGridLayout()
-        grid.setSpacing(4)
-        for index, (label, value) in enumerate(
-            (
-                ("CLOCK", "3184 MHz"),
-                ("TCTL", "58.5 °C"),
-                ("VID EST.", "1172 mV"),
-                ("SCALE", "-34"),
-            )
-        ):
-            tile = QFrame()
-            tile.setProperty("deckyMetric", True)
-            tile_layout = QVBoxLayout(tile)
-            tile_layout.setContentsMargins(7, 5, 7, 5)
-            tile_layout.setSpacing(1)
-            tile_layout.addWidget(_label(label, "deckyMuted", wrap=False))
-            tile_layout.addWidget(_label(value, "deckyValue", wrap=False))
-            grid.addWidget(tile, index // 2, index % 2)
-        layout.addLayout(grid)
-        layout.addWidget(
-            _label(
-                "SMU detector · thermal limit 90°C · calibrates under load",
-                "deckyMuted",
-            )
-        )
-        for label, value, minimum, maximum in (
-            ("Target frequency · 3850 MHz", 3850, 3500, 4200),
-            ("Maximum VID · 1150 mV", 1150, 950, 1325),
-        ):
-            layout.addWidget(_label(label, "deckyMuted", wrap=False))
-            slider = QSlider(Qt.Orientation.Horizontal)
-            slider.setRange(minimum, maximum)
-            slider.setValue(value)
-            slider.setToolTip(
-                tr("Preview only · this control does not change hardware.")
-            )
-            layout.addWidget(slider)
-        manual = self._preview_button("Manual live scale · Off")
-        manual.setStyleSheet("text-align: left; padding-left: 9px;")
-        layout.addWidget(manual)
-        layout.addWidget(_label("Manual scale · -34", "deckyMuted", wrap=False))
-        scale = QSlider(Qt.Orientation.Horizontal)
-        scale.setRange(-50, 0)
-        scale.setValue(-34)
-        scale.setToolTip(tr("Preview only · this control does not change hardware."))
-        layout.addWidget(scale)
-        layout.addWidget(self._preview_button("Apply automatic profile", primary=True))
-        service_actions = QHBoxLayout()
-        service_actions.addWidget(self._preview_button("Install service"), 1)
-        remove = self._preview_button("Remove service")
-        remove.setProperty("deckyDanger", True)
-        service_actions.addWidget(remove, 1)
-        layout.addLayout(service_actions)
-        return frame
-
-    def _fan_section(self) -> QFrame:
-        frame, layout = self._section(f"◉  {tr('SYSTEM FANS')}")
-        layout.addWidget(
-            self._preview_button(
-                f"PWM 2 · Pump Fan · {tr('Detected')}                  ▾"
-            )
-        )
-        layout.addWidget(_label("Observed speed · 1840 RPM", "deckyMuted", wrap=False))
-        speed = QSlider(Qt.Orientation.Horizontal)
-        speed.setRange(20, 100)
-        speed.setValue(60)
-        speed.setToolTip(tr("Preview only · this control does not change hardware."))
-        layout.addWidget(speed)
-        actions = QHBoxLayout()
-        actions.addWidget(self._preview_button("Apply", primary=True), 1)
-        actions.addWidget(self._preview_button("Automatic"), 1)
-        layout.addLayout(actions)
-        return frame
-
-    def _memory_section(self) -> QFrame:
-        frame, layout = self._section(
-            f"▣  {tr('MEMORY')}                              {tr('READ ONLY')}"
-        )
-        layout.addWidget(
-            self._preview_button(
-                f"ZRAM 8 GiB · ZSWAP {tr('Disabled')}                  ▾"
-            )
-        )
-        return frame
-
-    def show_animated(self) -> None:
-        parent = self.parentWidget()
-        if parent is None:
-            return
-        # ``finished`` is connected to the hide callback only while animating
-        # out.  Remove that one-shot connection before an entrance animation;
-        # otherwise reopening immediately hides the overlay when the entrance
-        # reaches its final geometry.
-        try:
-            self._animation.finished.disconnect(self._finish_close)
-        except TypeError:
-            pass
-        self.setGeometry(parent.rect())
-        self.show()
-        self.raise_()
-        width = min(410, max(330, round(parent.width() * 0.32)))
-        end = self.rect().adjusted(self.width() - width, 0, 0, 0)
-        start = end.translated(width, 0)
-        self._animation.stop()
-        self._animation.setStartValue(start)
-        self._animation.setEndValue(end)
-        self._animation.start()
-        QTimer.singleShot(
-            250,
-            lambda: self.drawer.findChild(IconButton).setFocus(
-                Qt.FocusReason.OtherFocusReason
-            ),
-        )
-
-    def close_animated(self) -> None:
-        if not self.isVisible():
-            return
-        start = self.drawer.geometry()
-        end = start.translated(start.width(), 0)
-        self._animation.stop()
-        self._animation.setStartValue(start)
-        self._animation.setEndValue(end)
-        try:
-            self._animation.finished.disconnect()
-        except TypeError:
-            pass
-        self._animation.finished.connect(self._finish_close)
-        self._animation.start()
-
-    def _finish_close(self) -> None:
-        self.hide()
-        self.closed.emit()
-
-    def resizeEvent(self, event) -> None:  # noqa: N802
-        super().resizeEvent(event)
-        if not self._animation.state() == QPropertyAnimation.State.Running:
-            width = min(410, max(330, round(self.width() * 0.32)))
-            self.drawer.setGeometry(self.width() - width, 0, width, self.height())
-
-    def mousePressEvent(self, event) -> None:  # noqa: N802
-        if not self.drawer.geometry().contains(event.position().toPoint()):
-            self.close_animated()
-            event.accept()
-            return
-        super().mousePressEvent(event)
-
-    def keyPressEvent(self, event) -> None:  # noqa: N802
-        if event.key() in {Qt.Key.Key_Escape, Qt.Key.Key_Back}:
-            self.close_animated()
-            event.accept()
-            return
-        super().keyPressEvent(event)
 
 
 class _DeckyScreenshotDialog(QDialog):
@@ -846,6 +517,7 @@ class DashboardGpuHero(QFrame):
     """Large physical-clock readout and independent governor evidence."""
 
     activated = pyqtSignal(str)
+    telemetry_repair_requested = pyqtSignal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -957,6 +629,13 @@ class DashboardGpuHero(QFrame):
         )
         for item in self.evidence_rows:
             evidence_layout.addWidget(item)
+
+        self.telemetry_repair_button = QPushButton(tr("Repair BC250 telemetry"))
+        self.telemetry_repair_button.setProperty("dashboardTelemetryAction", True)
+        self.telemetry_repair_button.clicked.connect(self.telemetry_repair_requested.emit)
+        self.telemetry_repair_button.hide()
+        evidence_layout.addWidget(self.telemetry_repair_button)
+
         evidence_layout.addStretch(1)
         self.button = QPushButton(tr("Configure Governor"))
         self.button.setProperty("dashboardCardAction", True)
@@ -1126,10 +805,6 @@ class DashboardModuleCard(QFrame):
         if 0 <= index < len(self.metric_rows):
             self.metric_rows[index].set_value(value)
 
-    def set_metric_label(self, index: int, label: str) -> None:
-        if 0 <= index < len(self.metric_rows):
-            self.metric_rows[index].label.setText(tr(label))
-
     def _reflow_actions(self, width: int) -> None:
         # The persistent support rail also needs room on narrow windows. Put
         # translated status badges below the heading instead of clipping them.
@@ -1217,8 +892,10 @@ class PreparationComponentCard(QFrame):
         if detail:
             self.detail.setText(tr(detail))
             self.setToolTip(tr(detail))
-        self.style().unpolish(self)
-        self.style().polish(self)
+        # No restyle here. ``installed`` and ``available`` are recorded as data
+        # — nothing in the stylesheet selects on either, so the unpolish/polish
+        # this used to run recomputed the style of the whole card, seven cards
+        # over, on every five-second dashboard tick, and changed nothing.
 
 
 class PreparationInfoCard(QFrame):
@@ -1516,6 +1193,7 @@ class PreparationSidebar(QFrame):
             card = PreparationComponentCard(key, title, detail)
             card.checkbox.toggled.connect(self._sync_components)
             self.component_cards[key] = card
+        layout.addWidget(self._bazzite_mitigations_panel())
         layout.addWidget(self.components_host)
 
         self.memory_panel = QFrame()
@@ -1572,6 +1250,52 @@ class PreparationSidebar(QFrame):
         layout.addWidget(self.memory_panel)
         layout.addStretch(1)
         return page
+
+    def _bazzite_mitigations_panel(self) -> QFrame:
+        panel = QFrame()
+        self.mitigations_panel = panel
+        panel.setProperty("dashboardMemoryPanel", True)
+        panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+
+        root = QBoxLayout(QBoxLayout.Direction.LeftToRight, panel)
+        self.mitigations_layout = root
+        root.setContentsMargins(12, 10, 12, 10)
+        root.setSpacing(10)
+
+        copy = QVBoxLayout()
+        copy.setSpacing(4)
+        header = QHBoxLayout()
+        header.setSpacing(8)
+        self.mitigations_label = _label(
+            "CPU security mitigations", "dashboardComponentTitle"
+        )
+        header.addWidget(self.mitigations_label)
+        self.mitigations_status = PillLabel("Not detected", "gray")
+        header.addWidget(self.mitigations_status)
+        header.addStretch(1)
+        # No distribution badge here. The whole panel is already hidden unless
+        # this host can act on mitigations, so a pill saying "Bazzite" beside
+        # the button only repeated what showing the panel at all had said.
+        copy.addLayout(header)
+        self.mitigations_detail = _label(
+            "Disabling CPU security mitigations can improve some workloads but exposes the system to additional CPU vulnerabilities.",
+            "dashboardMemoryDetail",
+        )
+        self.mitigations_detail.setWordWrap(True)
+        copy.addWidget(self.mitigations_detail)
+        root.addLayout(copy, 1)
+
+        self.mitigations_apply_button = QPushButton(tr("Disable mitigations"))
+        self.mitigations_apply_button.setProperty("dashboardCardAction", True)
+        self.mitigations_apply_button.setProperty("dangerAction", True)
+        self.mitigations_apply_button.setSizePolicy(
+            QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed
+        )
+        self.mitigations_apply_button.clicked.connect(self._request_mitigations)
+        self._mitigations_action = "disable"
+        root.addWidget(self.mitigations_apply_button)
+        panel.hide()
+        return panel
 
     def _compatibility_page(self) -> QWidget:
         page = QWidget()
@@ -1702,6 +1426,7 @@ class PreparationSidebar(QFrame):
         )
         self.gfx_secondary_button.hide()
         self.gfx_tertiary_button.hide()
+        self.gfx_tertiary_button.setEnabled(FSR4_UI_ENABLED)
         self.gfx_quaternary_button.hide()
         self.gfx_quinary_button.hide()
         self.gfx_card.primary_button = self.gfx_primary_button
@@ -1715,11 +1440,15 @@ class PreparationSidebar(QFrame):
         self.steamos_kernel_status = PillLabel("Not installed", "gray")
         self.steamos_radv_status = PillLabel("Not installed", "gray")
         self.steamos_fsr4_status = PillLabel("Not installed", "gray")
-        for label, pill in (
+        steamos_graphics_rows = [
             ("Kernel / AMDGPU", self.steamos_kernel_status),
             ("Mesa / RADV", self.steamos_radv_status),
-            ("FSR4 per game", self.steamos_fsr4_status),
-        ):
+        ]
+        if FSR4_UI_ENABLED:
+            steamos_graphics_rows.append(
+                ("FSR4 per game", self.steamos_fsr4_status)
+            )
+        for label, pill in steamos_graphics_rows:
             steamos_state_layout.addWidget(
                 _label(label, "dashboardCompatibilityLabel", wrap=False)
             )
@@ -1748,7 +1477,8 @@ class PreparationSidebar(QFrame):
             self._copy_steamos_fsr4_launch_option
         )
         steamos_fsr4_launch_layout.addWidget(self.steamos_fsr4_copy_button)
-        self.gfx_card.layout().insertWidget(3, self.steamos_fsr4_launch_row)
+        if FSR4_UI_ENABLED:
+            self.gfx_card.layout().insertWidget(3, self.steamos_fsr4_launch_row)
         self.steamos_fsr4_launch_row.hide()
         self._steamos_fsr4_launch_option = ""
         layout.addWidget(self.gfx_card)
@@ -1834,6 +1564,7 @@ class PreparationSidebar(QFrame):
             "Open upstream project", {"action": "fsr4_upstream", "governor": ""}
         )
         self.fsr4_card.action_requested.connect(self._forward_dependency_action)
+        self.fsr4_card.setEnabled(FSR4_UI_ENABLED)
         self.fsr4_install_card = self.fsr4_card
         self.fsr4_remove_card = self.fsr4_card
         self.fsr4_source_card = self.fsr4_card
@@ -1880,13 +1611,16 @@ class PreparationSidebar(QFrame):
         dialog = getattr(self, "_decky_screenshot_dialog", None)
         if dialog is None or dialog.parentWidget() is not host:
             dialog = _DeckyScreenshotDialog(host)
-            dialog.destroyed.connect(
-                lambda: setattr(self, "_decky_screenshot_dialog", None)
-            )
+            dialog.destroyed.connect(self._clear_decky_screenshot_dialog)
             self._decky_screenshot_dialog = dialog
         dialog.show()
         dialog.raise_()
         dialog.activateWindow()
+
+    @pyqtSlot()
+    def _clear_decky_screenshot_dialog(self) -> None:
+        # Qt disconnects this receiver during destruction of its parent page.
+        self._decky_screenshot_dialog = None
 
     def _drivers_page(self) -> QWidget:
         page = QWidget()
@@ -1943,7 +1677,11 @@ class PreparationSidebar(QFrame):
         self.prepare_button.setMinimumWidth(
             min(max(0, width - 34), IconButton.sizeHint(self.prepare_button).width())
         )
-        for button in (self.memory_swap_apply_button, self.memory_ttm_apply_button):
+        for button in (
+            self.memory_swap_apply_button,
+            self.memory_ttm_apply_button,
+            self.mitigations_apply_button,
+        ):
             button.setMinimumWidth(
                 min(max(0, (width - 64) // 3), IconButton.sizeHint(button).width())
             )
@@ -1953,6 +1691,18 @@ class PreparationSidebar(QFrame):
             else QBoxLayout.Direction.LeftToRight
         )
         self.memory_header.setAlignment(self.memory_scope, Qt.AlignmentFlag.AlignLeft)
+        compact_mitigations = width < 660
+        self.mitigations_layout.setDirection(
+            QBoxLayout.Direction.TopToBottom
+            if compact_mitigations
+            else QBoxLayout.Direction.LeftToRight
+        )
+        self.mitigations_layout.setAlignment(
+            self.mitigations_apply_button,
+            Qt.AlignmentFlag.AlignLeft
+            if compact_mitigations
+            else Qt.AlignmentFlag.AlignVCenter,
+        )
         component_columns = (
             4 if width >= 1280 else 3 if width >= 980 else 2 if width >= 650 else 1
         )
@@ -2121,8 +1871,73 @@ class PreparationSidebar(QFrame):
             }
         )
 
+    def _request_mitigations(self) -> None:
+        self.dependency_action_requested.emit(
+            {
+                "action": f"bazzite_mitigations_{self._mitigations_action}",
+                "governor": "",
+                "selected_components": self.selected_components,
+            }
+        )
+
+    def _update_mitigation_control(
+        self, tools: Mapping[str, object], *, actionable: bool
+    ) -> None:
+        state = _mapping(tools.get("bazzite_mitigations"))
+        configured = bool(state.get("configured"))
+        managed = bool(state.get("managed"))
+        available = bool(state.get("available"))
+        preview = not actionable and bazzite_ui_preview_enabled()
+        self.mitigations_panel.setVisible(actionable or preview)
+        self.mitigations_status.setVisible(actionable)
+        if not actionable:
+            status = tr("Unavailable")
+            tone = "gray"
+        elif state.get("reboot_required"):
+            status = tr("Reboot required")
+            tone = "orange"
+        elif configured:
+            status = tr("Disabled")
+            tone = "orange"
+        else:
+            status = tr("Enabled") if available else tr("Not detected")
+            tone = "green" if available else "gray"
+        self.mitigations_status.setText(status)
+        self.mitigations_status.set_tone(tone)
+
+        self._mitigations_action = "restore" if managed else "disable"
+        self.mitigations_apply_button.setText(
+            tr(
+                "Managed externally"
+                if configured and not managed
+                else "Restore mitigations"
+                if self._mitigations_action == "restore"
+                else "Disable mitigations"
+            )
+        )
+        self.mitigations_apply_button.setProperty(
+            "dangerAction", self._mitigations_action == "disable"
+        )
+        self.mitigations_apply_button.style().unpolish(self.mitigations_apply_button)
+        self.mitigations_apply_button.style().polish(self.mitigations_apply_button)
+        self.mitigations_apply_button.setEnabled(
+            actionable and available and (not configured or managed)
+        )
+        if configured and not managed:
+            tooltip = tr(
+                "mitigations=off was configured outside Control Center and is preserved."
+            )
+        elif not actionable:
+            tooltip = tr("This workflow is available only on Bazzite.")
+        else:
+            tooltip = tr(
+                "Disabling CPU security mitigations can improve some workloads but exposes the system to additional CPU vulnerabilities."
+            )
+        self.mitigations_apply_button.setToolTip(tooltip)
+
     def _update_memory_controls(self, tools: Mapping[str, object]) -> None:
         actionable = is_bazzite_host(tools)
+        self._update_mitigation_control(tools, actionable=actionable)
         runtime = _mapping(tools.get("memory_runtime"))
         zram = runtime.get("zram_total_bytes")
         zram_label = (
@@ -2253,11 +2068,9 @@ class PreparationSidebar(QFrame):
         self.acpi_card.setVisible(show_all or selected == "arch")
         self.cyan_card.setVisible(True)
         self.oberon_card.setVisible(True)
-        self.gfx_card.setVisible(True)
+        self.gfx_card.setVisible(show_all or selected != "arch")
         self.cachyos_stack_card.setVisible(show_all or selected == "arch")
-        # SteamOS exposes the same upstream FSR4 profile in the matched stack
-        # card, avoiding two independent buttons for one runtime.
-        self.fsr4_card.setVisible(show_all or selected != "steamos")
+        self.fsr4_card.setVisible(FSR4_UI_ENABLED)
 
         if not preview:
             return
@@ -2265,9 +2078,9 @@ class PreparationSidebar(QFrame):
         self.gfx_card.set_scope(labels.get(selected, "Compatibility preview"), "blue")
         self.gfx_card.set_status("Preview only", "blue")
         preview_copy = {
-            "steamos": "SteamOS 3.8/3.9 provides a reviewed two-stage path: install the matching AMDGPU module, reboot, then install the matched Mesa/RADV runtime. FSR4 remains optional per game.",
+            "steamos": "SteamOS 3.8/3.9 provides a reviewed two-stage path: install the matching AMDGPU module, reboot, then install the matched Mesa/RADV runtime.",
             "bazzite": "Bazzite is immutable. Direct kernel/Mesa patching is blocked; use a BC-250 image or a matching rpm-ostree package instead.",
-            "arch": "Plain Arch and CachyOS can use the matched MastaG kernel/Mesa stack. Manjaro is limited to the experimental ABI-gated FSR4 runtime.",
+            "arch": "Available only on plain Arch Linux or CachyOS",
             "fedora": "Fedora uses DryhoppedIPA's official current GFX1013 workflow. Control Center adds local safety gates, then leaves kernel and Mesa compatibility checks to upstream.",
             "debian": "Ubuntu and Debian currently expose governor and userspace tools; the GFX1013 kernel/Mesa patch remains a manual upstream path.",
             "other": "This distribution can use common governors when its packages are available. Kernel/Mesa compatibility stays manual until a reviewed path exists.",
@@ -2276,11 +2089,13 @@ class PreparationSidebar(QFrame):
         self.steamos_graphics_state.setVisible(selected == "steamos")
         self.steamos_fsr4_launch_row.hide()
         if selected == "steamos":
-            for pill in (
+            pills = [
                 self.steamos_kernel_status,
                 self.steamos_radv_status,
-                self.steamos_fsr4_status,
-            ):
+            ]
+            if FSR4_UI_ENABLED:
+                pills.append(self.steamos_fsr4_status)
+            for pill in pills:
                 pill.setText(tr("Available on SteamOS"))
                 pill.set_tone("blue")
             self.gfx_card.update_action(
@@ -2295,12 +2110,16 @@ class PreparationSidebar(QFrame):
                 payload={"action": "steamos_graphics_install", "governor": ""},
                 enabled=False,
             )
-            self.gfx_card.update_action(
-                self.gfx_tertiary_button,
-                text="3 · Install per-game FSR4",
-                payload={"action": "steamos_graphics_fsr4_install", "governor": ""},
-                enabled=False,
-            )
+            if FSR4_UI_ENABLED:
+                self.gfx_card.update_action(
+                    self.gfx_tertiary_button,
+                    text="3 · Install per-game FSR4",
+                    payload={
+                        "action": "steamos_graphics_fsr4_install",
+                        "governor": "",
+                    },
+                    enabled=False,
+                )
             self.gfx_card.update_action(
                 self.gfx_quaternary_button,
                 text="Open upstream project",
@@ -2507,7 +2326,7 @@ class PreparationSidebar(QFrame):
         )
 
         gfx_state = _mapping(tools.get("gfx1013_compute"))
-        gfx = present_gfx1013(gfx_state)
+        gfx = present_gfx1013(gfx_state, include_fsr4=FSR4_UI_ENABLED)
         reason_key = str(gfx_state.get("reason_key") or "manual-patches-only")
         gfx_scope = {
             "steamos-dedicated-backend": "SteamOS · Dedicated toolkit",
@@ -2558,7 +2377,9 @@ class PreparationSidebar(QFrame):
                 gfx_state.get("steamos_external_fsr4_launch_option") or ""
             )
             self.steamos_fsr4_launch_row.setVisible(
-                fsr4_current and bool(self._steamos_fsr4_launch_option)
+                FSR4_UI_ENABLED
+                and fsr4_current
+                and bool(self._steamos_fsr4_launch_option)
             )
             self.steamos_fsr4_copy_button.setText("⧉")
             self.steamos_fsr4_copy_button.setToolTip(
@@ -2618,17 +2439,21 @@ class PreparationSidebar(QFrame):
                 if not kernel_ready
                 else "",
             )
-            self.gfx_card.update_action(
-                self.gfx_tertiary_button,
-                text="Update per-game FSR4"
-                if fsr4_current
-                else "3 · Install per-game FSR4",
-                payload={"action": "steamos_graphics_fsr4_install", "governor": ""},
-                enabled=kernel_ready and radv_current,
-                tooltip="Install and activate the matched Mesa/RADV stage first."
-                if not (kernel_ready and radv_current)
-                else "",
-            )
+            if FSR4_UI_ENABLED:
+                self.gfx_card.update_action(
+                    self.gfx_tertiary_button,
+                    text="Update per-game FSR4"
+                    if fsr4_current
+                    else "3 · Install per-game FSR4",
+                    payload={
+                        "action": "steamos_graphics_fsr4_install",
+                        "governor": "",
+                    },
+                    enabled=kernel_ready and radv_current,
+                    tooltip="Install and activate the matched Mesa/RADV stage first."
+                    if not (kernel_ready and radv_current)
+                    else "",
+                )
             self.gfx_card.update_action(
                 self.gfx_quaternary_button,
                 text="Check full stack",
@@ -2636,17 +2461,20 @@ class PreparationSidebar(QFrame):
             )
             self.gfx_card.update_action(
                 self.gfx_quinary_button,
-                text="Remove FSR4"
-                if fsr4_state != "not-installed"
-                else "Remove Mesa RADV",
+                text=(
+                    "Remove FSR4"
+                    if FSR4_UI_ENABLED and fsr4_state != "not-installed"
+                    else "Remove Mesa RADV"
+                ),
                 payload={
                     "action": "steamos_graphics_fsr4_uninstall"
-                    if fsr4_state != "not-installed"
+                    if FSR4_UI_ENABLED and fsr4_state != "not-installed"
                     else "steamos_graphics_uninstall",
                     "governor": "",
                 },
                 visible=(
-                    fsr4_state != "not-installed" or radv_state != "not-installed"
+                    (FSR4_UI_ENABLED and fsr4_state != "not-installed")
+                    or radv_state != "not-installed"
                 ),
             )
         elif reason_key == "fedora-upstream-managed":
@@ -2692,14 +2520,14 @@ class PreparationSidebar(QFrame):
                 payload={
                     "action": "gfx1013_bazzite_status"
                     if installed
-                    else "gfx1013_upstream",
+                    else "bazzite_async_upstream",
                     "governor": "",
                 },
             )
             self.gfx_card.update_action(
                 self.gfx_quaternary_button,
                 text="Open upstream project",
-                payload={"action": "gfx1013_upstream", "governor": ""},
+                payload={"action": "bazzite_async_upstream", "governor": ""},
                 visible=installed,
             )
         else:
@@ -2740,7 +2568,9 @@ class PreparationSidebar(QFrame):
         fsr4_kernel_ready = bool(fsr4.get("compute_kernel_ready"))
         self._fsr4_launch_option = str(fsr4.get("steam_launch_option") or "")
         self.fsr4_launch_row.setVisible(
-            fsr4_current and bool(self._fsr4_launch_option)
+            FSR4_UI_ENABLED
+            and fsr4_current
+            and bool(self._fsr4_launch_option)
         )
         self.fsr4_copy_button.setToolTip(tr("Copy Steam launch option"))
         self.fsr4_copy_button.setAccessibleName(tr("Copy Steam launch option"))
@@ -2897,12 +2727,298 @@ class _FooterActionButton(IconButton):
         super().hideEvent(event)
 
 
+class _UpdateBadgeButton(_FooterActionButton):
+    """Appears only when a newer release exists, and breathes so it is noticed.
+
+    The other three footer buttons are always there, so a fourth appearing in
+    the same row is easy to miss on a glance. A slow pulse on a coloured glow
+    reads as "new" without a dialog interrupting anything — and it costs
+    nothing while hidden, because the animation is stopped with the widget.
+    """
+
+    #: Blur radius the glow travels between, in logical pixels.
+    GLOW_MIN = 4.0
+    GLOW_MAX = 16.0
+    #: Alpha the glow travels between, so it brightens and grows together
+    #: instead of just swelling at a constant intensity.
+    ALPHA_MIN = 70
+    ALPHA_MAX = 210
+    PULSE_MS = 1900
+
+    def __init__(self) -> None:
+        super().__init__("A newer version is available")
+        self.setProperty("updateAvailable", True)
+        self.setIcon(QIcon(str(ICON_DIR / "update_badge.png")))
+        self._glow_base = QColor(theme.COLORS["blue"])
+        # A single QVariantAnimation drives blur and alpha together, so the
+        # glow brightens as it grows and dims as it shrinks - one breath,
+        # not a shadow that swells at a constant, flat intensity.
+        self._pulse = QVariantAnimation(self)
+        self._pulse.setDuration(self.PULSE_MS)
+        self._pulse.setEasingCurve(QEasingCurve.Type.InOutSine)
+        self._pulse.setStartValue(0.0)
+        self._pulse.setKeyValueAt(0.5, 1.0)
+        self._pulse.setEndValue(0.0)
+        self._pulse.setLoopCount(-1)
+        self._pulse.valueChanged.connect(self._apply_pulse)
+        self._published = ""
+        self.hide()
+        self._tint_glow()
+
+    def _tint_glow(self) -> None:
+        """A black drop shadow is a shadow; a coloured one is an aura.
+
+        Tinted with the active accent color, so the badge matches whatever
+        the user picked in preferences instead of a fixed hue.
+        """
+        effect = self.graphicsEffect()
+        if effect is None:
+            return
+        effect.setOffset(0, 0)
+        self._glow_base = QColor(theme.COLORS["blue"])
+        self._apply_pulse(self._pulse.currentValue() or 0.0)
+
+    def _apply_pulse(self, value: object) -> None:
+        effect = self.graphicsEffect()
+        if effect is None:
+            return
+        position = float(value or 0.0)
+        effect.setBlurRadius(self.GLOW_MIN + (self.GLOW_MAX - self.GLOW_MIN) * position)
+        glow = QColor(self._glow_base)
+        glow.setAlpha(round(self.ALPHA_MIN + (self.ALPHA_MAX - self.ALPHA_MIN) * position))
+        effect.setColor(glow)
+
+    def announce(self, published: str) -> None:
+        """Show the badge for a specific version, or hide it for none."""
+        published = str(published or "")
+        self._published = published
+        if not published:
+            self.setVisible(False)
+            return
+        detail = tr_format("Version {version} is available", version=published)
+        self.setToolTip(detail)
+        self.setAccessibleName(detail)
+        # The translated text is built here, so the generic retranslation pass
+        # must not overwrite it with the untranslated source string.
+        self.setProperty("i18nSourceToolTip", None)
+        self.setProperty("i18nSourceAccessibleName", None)
+        self.setVisible(True)
+
+    @property
+    def published_version(self) -> str:
+        return self._published
+
+    def _refresh_palette(self) -> None:
+        super()._refresh_palette()
+        self._tint_glow()
+
+    def showEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        super().showEvent(event)
+        self._pulse.start()
+
+    def hideEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        # ``_FooterActionButton.hideEvent`` resets the blur; stop pulsing first
+        # or the animation would immediately overwrite that and keep running
+        # against a widget nobody can see.
+        self._pulse.stop()
+        super().hideEvent(event)
+
+    def _animate_lift(self, active: bool) -> None:
+        # Hover lift and the pulse drive the same property. While the badge is
+        # breathing, the pulse owns it.
+        if self._pulse.state() == QVariantAnimation.State.Running:
+            return
+        super()._animate_lift(active)
+
+
+class UpdateCallout(QFrame):
+    """A speech bubble that points at the update badge and says what to do.
+
+    A pulsing icon says "look here" and nothing else. This says the rest: that
+    a newer version exists, which one, and — the part that actually matters —
+    the right way to get it for *this* install. Telling someone who installed
+    from the AUR to download a tarball would walk around their package manager.
+
+    It floats as a child of the window rather than sitting in a layout, so it
+    can overlap the content beneath it without reserving space or shifting
+    anything, and it is drawn rather than styled because a tail pointing at a
+    specific widget is not something a stylesheet can express.
+
+    Shown once per session, and again whenever the badge is clicked. The badge
+    keeps pulsing either way, so dismissing this is not the same as forgetting.
+    """
+
+    #: Height of the triangular tail, in logical pixels.
+    TAIL = 8
+    #: Half-width of its base.
+    TAIL_HALF_WIDTH = 9
+    RADIUS = 10
+
+    action_clicked = pyqtSignal()
+    dismissed = pyqtSignal()
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setObjectName("updateCallout")
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        self._tail_x = 0
+
+        self._tail_below = False
+        self._root = QVBoxLayout(self)
+        # Room for the tail on whichever edge it will be drawn on.
+        self._root.setContentsMargins(13, 11 + self.TAIL, 11, 11)
+        self._root.setSpacing(3)
+        root = self._root
+
+        head = QHBoxLayout()
+        head.setSpacing(8)
+        self.title = QLabel(tr("New update available"))
+        self.title.setProperty("updateCalloutTitle", True)
+        head.addWidget(self.title, 1)
+        self.close_button = QPushButton("")
+        self.close_button.setObjectName("updateCalloutClose")
+        self.close_button.setIcon(icon("close_gray"))
+        self.close_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.close_button.setFixedSize(18, 18)
+        self.close_button.setToolTip(tr("Close"))
+        self.close_button.setProperty("i18nSourceToolTip", "Close")
+        self.close_button.clicked.connect(self._dismiss)
+        head.addWidget(self.close_button, 0, Qt.AlignmentFlag.AlignTop)
+        root.addLayout(head)
+
+        self.detail = QLabel("")
+        self.detail.setProperty("updateCalloutDetail", True)
+        self.detail.setWordWrap(True)
+        root.addWidget(self.detail)
+
+        self.action_button = QPushButton("")
+        self.action_button.setObjectName("updateCalloutAction")
+        self.action_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.action_button.clicked.connect(self.action_clicked)
+        root.addWidget(self.action_button)
+        self.hide()
+
+    # ------------------------------------------------------------- contents
+
+    def set_message(self, *, version: str, detail: str, action: str) -> None:
+        self.detail.setText(detail)
+        self.action_button.setText(action)
+        # Built from a version number, so the generic retranslation pass must
+        # not overwrite either with an untranslated source string.
+        self.setProperty("updateVersion", version)
+        self.detail.setProperty("i18nSourceText", None)
+        self.action_button.setProperty("i18nSourceText", None)
+        self.adjustSize()
+
+    def retranslate(self) -> None:
+        self.title.setText(tr("New update available"))
+        self.close_button.setToolTip(tr("Close"))
+
+    # ------------------------------------------------------------ placement
+
+    def _set_tail_side(self, *, below: bool) -> None:
+        """Reserve the tail's room on the edge it will be drawn on.
+
+        Margins change the size hint, so this has to settle before the bubble
+        is measured and placed.
+        """
+        if below == self._tail_below and self._root.contentsMargins().top() > 0:
+            return
+        self._tail_below = below
+        top = 11 if below else 11 + self.TAIL
+        bottom = 11 + self.TAIL if below else 11
+        self._root.setContentsMargins(13, top, 11, bottom)
+
+    def point_at(self, anchor: QWidget) -> bool:
+        """Hang off ``anchor`` with the tail pointing at it.
+
+        Below it when there is room, above it when there is not — a bubble that
+        clamps itself to the bottom of the window ends up covering the very
+        thing its tail is pointing at.
+
+        Returns False when there is no window to float in yet, which happens
+        while the dashboard is still being built.
+        """
+        window = anchor.window()
+        if window is None or window is anchor:
+            return False
+        if self.parentWidget() is not window:
+            self.setParent(window)
+
+        top_left = anchor.mapTo(window, QPoint(0, 0))
+        centre_x = top_left.x() + anchor.width() // 2
+        below_y = top_left.y() + anchor.height() + 4
+
+        self._set_tail_side(below=False)
+        self.adjustSize()
+        if below_y + self.height() > window.height() - 8:
+            # No room underneath: flip over the anchor and turn the tail round.
+            self._set_tail_side(below=True)
+            self.adjustSize()
+            y = max(8, top_left.y() - self.height() - 4)
+        else:
+            y = below_y
+
+        # Keep the whole bubble on screen; the tail then slides within it rather
+        # than the bubble hanging off the edge.
+        x = max(8, min(centre_x - self.width() // 2, window.width() - self.width() - 8))
+        self.move(x, y)
+        self._tail_x = max(
+            self.RADIUS + self.TAIL_HALF_WIDTH,
+            min(centre_x - x, self.width() - self.RADIUS - self.TAIL_HALF_WIDTH),
+        )
+        self.show()
+        self.raise_()
+        return True
+
+    # --------------------------------------------------------------- drawing
+
+    def paintEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        del event
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+
+        if self._tail_below:
+            body = self.rect().adjusted(0, 0, -1, -self.TAIL - 1)
+            edge, tip = float(body.bottom()), float(self.rect().bottom())
+        else:
+            body = self.rect().adjusted(0, self.TAIL, -1, -1)
+            edge, tip = float(body.top()), 0.0
+        shape = QPainterPath()
+        shape.addRoundedRect(float(body.x()), float(body.y()), float(body.width()),
+                             float(body.height()), self.RADIUS, self.RADIUS)
+        # QPointF, not QPoint: QPolygonF refuses the integer type, and the
+        # refusal happens inside paintEvent — a reimplemented C++ virtual,
+        # where PyQt6 turns an unhandled exception into qFatal and aborts the
+        # whole process rather than logging it.
+        tail = QPolygonF([
+            QPointF(float(self._tail_x - self.TAIL_HALF_WIDTH), edge),
+            QPointF(float(self._tail_x), tip),
+            QPointF(float(self._tail_x + self.TAIL_HALF_WIDTH), edge),
+        ])
+        shape.addPolygon(tail)
+        shape = shape.simplified()
+
+        painter.setBrush(QColor(theme.COLORS["panel_raised"]))
+        border = QColor(theme.COLORS["blue"])
+        painter.setPen(border)
+        painter.drawPath(shape)
+
+    # --------------------------------------------------------------- closing
+
+    def _dismiss(self) -> None:
+        self.hide()
+        self.dismissed.emit()
+
+
 class DashboardFooter(QWidget):
     """Compact external links embedded in the preparation header."""
 
     contact_clicked = pyqtSignal()
     support_clicked = pyqtSignal()
     repositories_clicked = pyqtSignal()
+    update_clicked = pyqtSignal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -2911,6 +3027,11 @@ class DashboardFooter(QWidget):
         self.layout = QHBoxLayout(self)
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.layout.setSpacing(5)
+        # First in the row, ahead of the always-present links: it only exists
+        # at all when there is something to act on, so it earns the lead spot.
+        self.update_button = _UpdateBadgeButton()
+        self.update_button.clicked.connect(self.update_clicked)
+        self.layout.addWidget(self.update_button)
         self.repositories_button = _FooterActionButton("Official repositories")
         self.repositories_button.setIcon(icon("github"))
         self.repositories_button.clicked.connect(self.repositories_clicked)
@@ -2925,3 +3046,7 @@ class DashboardFooter(QWidget):
         self.support_button.setIcon(QIcon(str(ICON_DIR / "kofi_cup.png")))
         self.support_button.clicked.connect(self.support_clicked)
         self.layout.addWidget(self.support_button)
+
+    def announce_update(self, published: str) -> None:
+        """Show or hide the update badge. Empty string means nothing to show."""
+        self.update_button.announce(published)

@@ -42,7 +42,7 @@ def test_pure_parser_returns_typed_upstream_values():
         ("", "parse"),
         ("[overclock]\nfrequency=3850\nfrequency=3900\nscale=-30\nmax_temperature=90", "parse"),
         (config(frequency="nan"), "parse"),
-        (config(frequency="3499"), "range"),
+        (config(frequency="3099"), "range"),
         (config(frequency="4201"), "range"),
         (config(scale="-51"), "range"),
         (config(scale="1"), "range"),

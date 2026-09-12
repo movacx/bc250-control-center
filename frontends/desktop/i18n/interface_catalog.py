@@ -475,6 +475,70 @@ INTERFACE_TRANSLATIONS = dict([
     _e("Graphical WGP routing for the AMD BC250. Each table button controls one WGP pair, equivalent to two compute units.", "Enrutamiento gráfico de WGP para la AMD BC250. Cada botón de la tabla controla un par WGP, equivalente a dos unidades de cómputo.", "Roteamento gráfico de WGP para a AMD BC250. Cada botão da tabela controla um par WGP, equivalente a duas unidades de computação.", "Графическая маршрутизация WGP для AMD BC250. Каждая кнопка таблицы управляет одной парой WGP, то есть двумя вычислительными блоками.", "Графічна маршрутизація WGP для AMD BC250. Кожна кнопка таблиці керує однією парою WGP, тобто двома обчислювальними блоками.", "Grafisches WGP-Routing für die AMD BC250. Jede Tabellenschaltfläche steuert ein WGP-Paar, entsprechend zwei Compute Units."),
     _e("WGP / CU topology", "Topología WGP / CU", "Topologia WGP / CU", "Топология WGP / CU", "Топологія WGP / CU", "WGP-/CU-Topologie"),
     _e("Select the WGP pairs to route on each shader-engine row. The table mirrors the official terminal editor while keeping the target visible before applying.", "Selecciona los pares WGP que se enrutarán en cada fila del motor de sombreado. La tabla reproduce el editor oficial de terminal y mantiene visible el objetivo antes de aplicarlo.", "Selecione os pares WGP que serão roteados em cada linha do mecanismo de shaders. A tabela reproduz o editor oficial do terminal e mantém o alvo visível antes da aplicação.", "Выберите пары WGP для каждой строки шейдерного движка. Таблица повторяет официальный редактор терминала и показывает целевое состояние до применения.", "Виберіть пари WGP для кожного рядка шейдерного рушія. Таблиця відтворює офіційний редактор термінала й показує цільовий стан до застосування.", "Die WGP-Paare auswählen, die in jeder Shader-Engine-Zeile geroutet werden sollen. Die Tabelle bildet den offiziellen Terminaleditor nach und zeigt das Ziel vor dem Anwenden."),
+    _e("Validate CUs", "Validar CUs", "Validar CUs", "Проверить CUs", "Перевірити CUs", "CUs prüfen"),
+    _e("CU stability validation", "Validación de estabilidad de CUs", "Validação de estabilidade das CUs", "Проверка стабильности CUs", "Перевірка стабільності CUs", "CU-Stabilitätsprüfung"),
+    _e("Opening this guide does not change the live WGP table.", "Abrir esta guía no cambia la tabla WGP activa.", "Abrir este guia não altera a tabela WGP ativa.", "Открытие этого руководства не изменяет активную таблицу WGP.", "Відкриття цього посібника не змінює активну таблицю WGP.", "Das Öffnen dieser Anleitung ändert die aktive WGP-Tabelle nicht."),
+    _e("""1. Save open work, then press Unlock / Sync to read the live WGP table.
+
+2. Start from the factory layout and enable only one additional WGP pair (2 CUs) at a time. Apply it live; do not save it for boot yet.
+
+3. Run FurMark or another heavy 3D workload for an initial 15-minute pass. Watch for artifacts, freezes, black screens, application crashes, or an amdgpu reset.
+
+4. If the test fails, disable the most recently added WGP pair and repeat. The faulty pair can differ from one BC-250 to another.
+
+5. FurMark FPS does not prove that GFX1013 async compute works. FurMark is useful here to expose unstable CUs; async compute must be checked with a game or workload that actually uses graphics and compute queues concurrently.
+
+6. After the initial pass, test real games and workloads for longer. Only then use Save selection and Install service.""", """1. Guarda el trabajo abierto y pulsa Desbloquear / Sincronizar para leer la tabla WGP activa.
+
+2. Comienza con el diseño de fábrica y activa solo un par WGP adicional (2 CUs) cada vez. Aplícalo en vivo; todavía no lo guardes para el arranque.
+
+3. Ejecuta FurMark u otra carga 3D intensa durante una prueba inicial de 15 minutos. Busca artefactos, congelamientos, pantallas negras, cierres de aplicaciones o reinicios de amdgpu.
+
+4. Si la prueba falla, desactiva el último par WGP agregado y repite. El par defectuoso puede variar entre placas BC-250.
+
+5. Los FPS de FurMark no demuestran que el cómputo asíncrono GFX1013 funcione. FurMark sirve aquí para revelar CUs inestables; el cómputo asíncrono debe comprobarse con un juego o carga que use simultáneamente colas gráficas y de cómputo.
+
+6. Después de la prueba inicial, prueba juegos y cargas reales durante más tiempo. Solo entonces usa Guardar selección e Instalar servicio.""", """1. Salve o trabalho aberto e pressione Desbloquear / Sincronizar para ler a tabela WGP ativa.
+
+2. Comece pelo layout de fábrica e ative apenas um par WGP adicional (2 CUs) por vez. Aplique ao vivo; ainda não salve para a inicialização.
+
+3. Execute FurMark ou outra carga 3D intensa por uma passagem inicial de 15 minutos. Observe artefatos, travamentos, telas pretas, falhas de aplicativos ou reinicializações do amdgpu.
+
+4. Se o teste falhar, desative o par WGP adicionado por último e repita. O par defeituoso pode variar de uma BC-250 para outra.
+
+5. Os FPS do FurMark não provam que a computação assíncrona GFX1013 funciona. O FurMark é útil aqui para revelar CUs instáveis; a computação assíncrona deve ser verificada com um jogo ou carga que realmente use filas gráficas e de computação ao mesmo tempo.
+
+6. Após a passagem inicial, teste jogos e cargas reais por mais tempo. Só então use Salvar seleção e Instalar serviço.""", """1. Сохраните открытую работу, затем нажмите Разблокировать / Синхронизировать, чтобы прочитать активную таблицу WGP.
+
+2. Начните с заводской схемы и включайте только одну дополнительную пару WGP (2 CUs) за раз. Примените её вживую, но пока не сохраняйте для загрузки.
+
+3. Запустите FurMark или другую тяжёлую 3D-нагрузку для начальной 15-минутной проверки. Следите за артефактами, зависаниями, чёрным экраном, сбоями приложений и перезапусками amdgpu.
+
+4. Если тест завершился неудачно, отключите последнюю добавленную пару WGP и повторите. Неисправная пара может отличаться у разных BC-250.
+
+5. FPS в FurMark не доказывает работу асинхронных вычислений GFX1013. Здесь FurMark помогает выявить нестабильные CUs; асинхронные вычисления нужно проверять игрой или нагрузкой, которая действительно одновременно использует графические и вычислительные очереди.
+
+6. После начальной проверки дольше тестируйте реальные игры и нагрузки. Только затем используйте Сохранить выбор и Установить службу.""", """1. Збережіть відкриту роботу, потім натисніть Розблокувати / Синхронізувати, щоб прочитати активну таблицю WGP.
+
+2. Почніть із заводської схеми та вмикайте лише одну додаткову пару WGP (2 CUs) за раз. Застосуйте її наживо, але поки не зберігайте для завантаження.
+
+3. Запустіть FurMark або інше важке 3D-навантаження для початкової 15-хвилинної перевірки. Стежте за артефактами, зависаннями, чорним екраном, збоями програм і перезапусками amdgpu.
+
+4. Якщо тест невдалий, вимкніть останню додану пару WGP і повторіть. Несправна пара може відрізнятися на різних BC-250.
+
+5. FPS у FurMark не доводить роботу асинхронних обчислень GFX1013. Тут FurMark допомагає виявити нестабільні CUs; асинхронні обчислення треба перевіряти грою або навантаженням, яке справді одночасно використовує графічні й обчислювальні черги.
+
+6. Після початкової перевірки довше тестуйте реальні ігри та навантаження. Лише тоді використовуйте Зберегти вибір та Встановити службу.""", """1. Speichere offene Arbeit und drücke dann Entsperren / Synchronisieren, um die aktive WGP-Tabelle zu lesen.
+
+2. Beginne mit der Werkseinstellung und aktiviere jeweils nur ein zusätzliches WGP-Paar (2 CUs). Wende es live an, speichere es aber noch nicht für den Systemstart.
+
+3. Führe FurMark oder eine andere starke 3D-Last für einen ersten 15-Minuten-Durchlauf aus. Achte auf Artefakte, Einfrieren, schwarze Bildschirme, Programmabstürze oder einen amdgpu-Reset.
+
+4. Schlägt der Test fehl, deaktiviere das zuletzt hinzugefügte WGP-Paar und wiederhole ihn. Das fehlerhafte Paar kann sich von einer BC-250 zur anderen unterscheiden.
+
+5. Die FPS in FurMark beweisen nicht, dass GFX1013 Async Compute funktioniert. FurMark hilft hier, instabile CUs aufzudecken; Async Compute muss mit einem Spiel oder einer Last geprüft werden, die Grafik- und Compute-Warteschlangen tatsächlich gleichzeitig nutzt.
+
+6. Teste nach dem ersten Durchlauf reale Spiele und Lasten länger. Verwende erst danach Auswahl speichern und Dienst installieren."""),
     _e("Quick layouts", "Diseños rápidos", "Configurações rápidas", "Быстрые схемы", "Швидкі схеми", "Schnellkonfigurationen"),
     _e("Load a safe starting table, inspect every row, then apply it live from the topology panel.", "Carga una tabla inicial segura, revisa cada fila y aplícala en vivo desde el panel de topología.", "Carregue uma tabela inicial segura, revise cada linha e aplique-a ao vivo pelo painel de topologia.", "Загрузите безопасную исходную таблицу, проверьте каждую строку и примените её из панели топологии.", "Завантажте безпечну початкову таблицю, перевірте кожен рядок і застосуйте її з панелі топології.", "Eine sichere Ausgangstabelle laden, jede Zeile prüfen und anschließend im Topologiebereich live anwenden."),
     _e("Factory 24 CUs", "Configuración de fábrica: 24 CU", "Configuração de fábrica: 24 CUs", "Заводская схема: 24 CU", "Заводська схема: 24 CU", "Werkseinstellung: 24 CUs"),
@@ -1402,7 +1466,7 @@ INTERFACE_TRANSLATIONS = dict([
     _e("Step 1: run automatic detection. Step 2: optionally test another scale live. Step 3: only then save it for boot.", "Paso 1: ejecuta la detección automática. Paso 2: opcionalmente prueba otra escala en vivo. Paso 3: solo entonces guárdala para el arranque.", "Passo 1: execute a detecção automática. Passo 2: opcionalmente teste outra escala ao vivo. Passo 3: só então salve para a inicialização.", "Шаг 1: запустите автоматическое определение. Шаг 2: при желании проверьте другую шкалу вживую. Шаг 3: только после этого сохраняйте для загрузки.", "Крок 1: запустіть автоматичне визначення. Крок 2: за бажанням перевірте іншу шкалу наживо. Крок 3: лише після цього зберігайте для завантаження.", "Schritt 1: automatische Erkennung ausführen. Schritt 2: optional eine andere Skala live testen. Schritt 3: erst dann für den Start speichern."),
     _e("Test selected scale", "Probar escala seleccionada", "Testar escala selecionada", "Проверить выбранную шкалу", "Перевірити вибрану шкалу", "Ausgewählte Skala testen"),
     _e("Apply the selected scale for the current session only. This does not save anything for boot.", "Aplica la escala seleccionada solo a la sesión actual. No guarda nada para el arranque.", "Aplica a escala selecionada apenas à sessão atual. Nada é salvo para a inicialização.", "Применяет выбранную шкалу только к текущему сеансу. Для загрузки ничего не сохраняется.", "Застосовує вибрану шкалу лише до поточного сеансу. Для завантаження нічого не зберігається.", "Wendet die ausgewählte Skala nur auf die aktuelle Sitzung an. Für den Systemstart wird nichts gespeichert."),
-    _e("Valid UI range: 3500–4200 MHz · 950–1325 mV · temperature cap up to 90 °C.", "Rango válido de la interfaz: 3500–4200 MHz · 950–1325 mV · límite de temperatura hasta 90 °C.", "Faixa válida da interface: 3500–4200 MHz · 950–1325 mV · limite de temperatura até 90 °C.", "Допустимый диапазон интерфейса: 3500–4200 МГц · 950–1325 мВ · предел температуры до 90 °C.", "Допустимий діапазон інтерфейсу: 3500–4200 МГц · 950–1325 мВ · межа температури до 90 °C.", "Gültiger UI-Bereich: 3500–4200 MHz · 950–1325 mV · Temperaturgrenze bis 90 °C."),
+    _e("Valid UI range: 3100–4200 MHz · 950–1325 mV · temperature cap up to 90 °C.", "Rango válido de la interfaz: 3100–4200 MHz · 950–1325 mV · límite de temperatura hasta 90 °C.", "Faixa válida da interface: 3100–4200 MHz · 950–1325 mV · limite de temperatura até 90 °C.", "Допустимый диапазон интерфейса: 3100–4200 МГц · 950–1325 мВ · предел температуры до 90 °C.", "Допустимий діапазон інтерфейсу: 3100–4200 МГц · 950–1325 мВ · межа температури до 90 °C.", "Gültiger UI-Bereich: 3100–4200 MHz · 950–1325 mV · Temperaturgrenze bis 90 °C."),
     _e("Automatic detection finds the first compatible scale. Frequency, VID, and temperature belong to detection; manual scale is a separate live test.", "La detección automática encuentra la primera escala compatible. La frecuencia, el VID y la temperatura pertenecen a la detección; la escala manual es una prueba en vivo independiente.", "A detecção automática encontra a primeira escala compatível. Frequência, VID e temperatura pertencem à detecção; a escala manual é um teste ao vivo separado.", "Автоматическое определение находит первую совместимую шкалу. Частота, VID и температура относятся к определению; ручная шкала — отдельный живой тест.", "Автоматичне визначення знаходить першу сумісну шкалу. Частота, VID і температура належать визначенню; ручна шкала — окремий живий тест.", "Die automatische Erkennung findet die erste kompatible Skala. Frequenz, VID und Temperatur gehören zur Erkennung; die manuelle Skala ist ein separater Live-Test."),
     _e("Detect scale automatically", "Detectar escala automáticamente", "Detectar escala automaticamente", "Определить шкалу автоматически", "Визначити шкалу автоматично", "Skala automatisch erkennen"),
     _e("What will be used for this session and what will happen at the next boot.", "Qué se usará en esta sesión y qué ocurrirá en el próximo arranque.", "O que será usado nesta sessão e o que acontecerá na próxima inicialização.", "Что будет использовано в этом сеансе и что произойдёт при следующей загрузке.", "Що буде використано в цьому сеансі та що станеться під час наступного завантаження.", "Was in dieser Sitzung verwendet wird und was beim nächsten Start passiert."),
@@ -1534,6 +1598,80 @@ INTERFACE_TRANSLATIONS = dict([
 
 7. Für den Systemstart wird die exakte validierte Konfiguration installiert. Das Entfernen deaktiviert die automatische Anwendung beim Start."""),
 
+    _e("""1. Prepare dependencies only once, or when a required tool is missing.
+
+2. Choose a preset or enter frequency, VID limit, and temperature cap.
+
+3. Leave Use manual scale disabled to run automatic detection. The official detector uses 12 CPU workers and about 10 seconds per frequency step to find a candidate and catch immediate throttling.
+
+4. Treat the detected result as a starting candidate, not proof of long-term stability. The detector may choose a lower frequency than the requested target.
+
+5. Enable Use manual scale only to compare an exact scale live in the current session. VID is ignored in this mode, and the change is not saved for boot.
+
+6. Validate the exact candidate with variable CPU and memory load, a sustained CPU test, and your real games or workloads. Watch temperature, clock drops, calculation errors, freezes, and restarts.
+
+7. Save for boot only after those checks pass. Remove from boot disables automatic application at startup.""", """1. Prepara las dependencias solo una vez o cuando falte una herramienta necesaria.
+
+2. Elige un perfil o introduce la frecuencia, el límite VID y el límite de temperatura.
+
+3. Deja desactivado Usar escala manual para ejecutar la detección automática. El detector oficial usa 12 procesos de CPU y unos 10 segundos por escalón de frecuencia para buscar un candidato y detectar throttling inmediato.
+
+4. Considera el resultado detectado como un candidato inicial, no como prueba de estabilidad prolongada. El detector puede elegir una frecuencia inferior al objetivo solicitado.
+
+5. Activa Usar escala manual únicamente para comparar una escala exacta en vivo durante la sesión actual. El VID se ignora en este modo y el cambio no se guarda para el arranque.
+
+6. Valida el candidato exacto con carga variable de CPU y memoria, una prueba sostenida de CPU y tus juegos o cargas reales. Vigila la temperatura, caídas de frecuencia, errores de cálculo, congelamientos y reinicios.
+
+7. Guarda para el arranque solo después de superar esas comprobaciones. Quitar del arranque desactiva la aplicación automática al iniciar.""", """1. Prepare as dependências apenas uma vez ou quando faltar uma ferramenta necessária.
+
+2. Escolha um perfil ou informe a frequência, o limite VID e o limite de temperatura.
+
+3. Deixe Usar escala manual desativado para executar a detecção automática. O detector oficial usa 12 processos de CPU e cerca de 10 segundos por etapa de frequência para encontrar um candidato e detectar throttling imediato.
+
+4. Trate o resultado detectado como um candidato inicial, não como prova de estabilidade prolongada. O detector pode escolher uma frequência inferior ao alvo solicitado.
+
+5. Ative Usar escala manual apenas para comparar uma escala exata ao vivo na sessão atual. O VID é ignorado neste modo e a alteração não é salva para a inicialização.
+
+6. Valide o candidato exato com carga variável de CPU e memória, um teste sustentado de CPU e seus jogos ou cargas reais. Observe temperatura, quedas de frequência, erros de cálculo, travamentos e reinicializações.
+
+7. Salve para a inicialização somente depois que essas verificações passarem. Remover da inicialização desativa a aplicação automática ao iniciar.""", """1. Подготавливайте зависимости только один раз или когда отсутствует необходимый инструмент.
+
+2. Выберите профиль или введите частоту, предел VID и предел температуры.
+
+3. Оставьте Использовать ручную шкалу выключенным для автоматического определения. Официальный детектор использует 12 процессов CPU и около 10 секунд на каждую ступень частоты, чтобы найти кандидата и выявить немедленный троттлинг.
+
+4. Считайте найденный результат исходным кандидатом, а не доказательством длительной стабильности. Детектор может выбрать частоту ниже запрошенной.
+
+5. Включайте Использовать ручную шкалу только для сравнения точной шкалы в текущем сеансе. VID в этом режиме игнорируется, а изменение не сохраняется для загрузки.
+
+6. Проверьте точного кандидата переменной нагрузкой CPU и памяти, длительным тестом CPU и реальными играми или задачами. Следите за температурой, падениями частоты, ошибками вычислений, зависаниями и перезапусками.
+
+7. Сохраняйте для загрузки только после успешного прохождения этих проверок. Удаление из загрузки отключает автоматическое применение при запуске.""", """1. Готуйте залежності лише один раз або коли бракує потрібного інструмента.
+
+2. Виберіть профіль або введіть частоту, межу VID і межу температури.
+
+3. Залиште Використовувати ручну шкалу вимкненим для автоматичного визначення. Офіційний детектор використовує 12 процесів CPU і приблизно 10 секунд на кожен крок частоти, щоб знайти кандидата та виявити негайний тротлінг.
+
+4. Вважайте знайдений результат початковим кандидатом, а не доказом тривалої стабільності. Детектор може вибрати частоту нижчу за запитану.
+
+5. Вмикайте Використовувати ручну шкалу лише для порівняння точної шкали в поточному сеансі. VID у цьому режимі ігнорується, а зміна не зберігається для завантаження.
+
+6. Перевірте точного кандидата змінним навантаженням CPU і пам’яті, тривалим тестом CPU та реальними іграми або задачами. Стежте за температурою, падінням частоти, помилками обчислень, зависаннями й перезапусками.
+
+7. Зберігайте для завантаження лише після успішного проходження цих перевірок. Видалення із завантаження вимикає автоматичне застосування під час запуску.""", """1. Bereite Abhängigkeiten nur einmal oder bei einem fehlenden Werkzeug vor.
+
+2. Wähle ein Profil oder gib Frequenz, VID-Grenze und Temperaturgrenze ein.
+
+3. Lass Manuelle Skala verwenden deaktiviert, um die automatische Erkennung auszuführen. Der offizielle Detektor nutzt 12 CPU-Prozesse und etwa 10 Sekunden pro Frequenzstufe, um einen Kandidaten zu finden und unmittelbares Throttling zu erkennen.
+
+4. Behandle das erkannte Ergebnis als Ausgangskandidaten und nicht als Nachweis langfristiger Stabilität. Der Detektor kann eine niedrigere Frequenz als das angeforderte Ziel wählen.
+
+5. Aktiviere Manuelle Skala verwenden nur, um eine exakte Skala in der aktuellen Sitzung live zu vergleichen. VID wird in diesem Modus ignoriert und die Änderung nicht für den Systemstart gespeichert.
+
+6. Prüfe den exakten Kandidaten mit wechselnder CPU- und Speicherlast, einem längeren CPU-Test und realen Spielen oder Lasten. Achte auf Temperatur, Taktabfälle, Rechenfehler, Einfrieren und Neustarts.
+
+7. Speichere erst nach bestandenen Prüfungen für den Systemstart. Entfernen aus dem Systemstart deaktiviert die automatische Anwendung beim Start."""),
+
     # CPU / SMU R4 helper guide and compact runtime telemetry.
     _e("Step-by-step guide", "Guía paso a paso", "Guia passo a passo", "Пошаговое руководство", "Покрокова інструкція", "Schritt-für-Schritt-Anleitung"),
     _e("CPU / SMU quick guide", "Guía rápida de CPU / SMU", "Guia rápida de CPU / SMU", "Краткое руководство по CPU / SMU", "Швидкий посібник з CPU / SMU", "CPU / SMU-Kurzanleitung"),
@@ -1621,9 +1759,9 @@ INTERFACE_TRANSLATIONS = dict([
 
     # CPU / SMU R6 compact layout wording.
     _e("Detect a scale automatically first. Then, only if you want, compare another manual scale live.", "Primero detecta una escala automáticamente. Luego, solo si quieres, compara otra escala manual en vivo.", "Primeiro detecte uma escala automaticamente. Depois, somente se quiser, compare outra escala manual ao vivo.", "Сначала автоматически определите шкалу. Затем, только если хотите, сравните другую ручную шкалу вживую.", "Спочатку автоматично визначте шкалу. Потім, лише за бажання, порівняйте іншу ручну шкалу наживо.", "Zuerst automatisch eine Skala erkennen. Danach nur bei Bedarf eine andere manuelle Skala live vergleichen."),
-    _e("Valid range: 3500–4200 MHz · 950–1325 mV · temperature cap up to 90 °C.", "Rango válido: 3500–4200 MHz · 950–1325 mV · límite de temperatura hasta 90 °C.", "Faixa válida: 3500–4200 MHz · 950–1325 mV · limite de temperatura até 90 °C.", "Допустимый диапазон: 3500–4200 МГц · 950–1325 мВ · предел температуры до 90 °C.", "Допустимий діапазон: 3500–4200 МГц · 950–1325 мВ · межа температури до 90 °C.", "Gültiger Bereich: 3500–4200 MHz · 950–1325 mV · Temperaturgrenze bis 90 °C."),
+    _e("Valid range: 3100–4200 MHz · 950–1325 mV · temperature cap up to 90 °C.", "Rango válido: 3100–4200 MHz · 950–1325 mV · límite de temperatura hasta 90 °C.", "Faixa válida: 3100–4200 MHz · 950–1325 mV · limite de temperatura até 90 °C.", "Допустимый диапазон: 3100–4200 МГц · 950–1325 мВ · предел температуры до 90 °C.", "Допустимий діапазон: 3100–4200 МГц · 950–1325 мВ · межа температури до 90 °C.", "Gültiger Bereich: 3100–4200 MHz · 950–1325 mV · Temperaturgrenze bis 90 °C."),
     _e("""1) Detect an automatic scale with frequency, VID, and temperature. 2) If needed, test another scale live. 3) Save to boot only after stability testing.""", """1) Detecta una escala automática con frecuencia, VID y temperatura. 2) Si hace falta, prueba otra escala en vivo. 3) Guarda al arranque solo después de comprobar estabilidad.""", """1) Detecte uma escala automática com frequência, VID e temperatura. 2) Se necessário, teste outra escala ao vivo. 3) Salve na inicialização somente após validar a estabilidade.""", """1) Определите автоматическую шкалу с частотой, VID и температурой. 2) При необходимости проверьте другую шкалу вживую. 3) Сохраняйте в загрузку только после проверки стабильности.""", """1) Визначте автоматичну шкалу з частотою, VID і температурою. 2) За потреби перевірте іншу шкалу наживо. 3) Зберігайте для завантаження лише після перевірки стабільності.""", """1) Automatische Skala mit Frequenz, VID und Temperatur erkennen. 2) Bei Bedarf eine andere Skala live testen. 3) Erst nach Stabilitätsprüfung für den Start speichern."""),
-    _e("""Validated UI range: 3500–4200 MHz · 950–1325 mV · temperature cap up to 90 °C.""", """Rango validado de la interfaz: 3500–4200 MHz · 950–1325 mV · límite de temperatura hasta 90 °C.""", """Faixa validada da interface: 3500–4200 MHz · 950–1325 mV · limite de temperatura até 90 °C.""", """Проверенный диапазон интерфейса: 3500–4200 МГц · 950–1325 мВ · предел температуры до 90 °C.""", """Перевірений діапазон інтерфейсу: 3500–4200 МГц · 950–1325 мВ · межа температури до 90 °C.""", """Validierter UI-Bereich: 3500–4200 MHz · 950–1325 mV · Temperaturgrenze bis 90 °C."""),
+    _e("""Validated UI range: 3100–4200 MHz · 950–1325 mV · temperature cap up to 90 °C.""", """Rango validado de la interfaz: 3100–4200 MHz · 950–1325 mV · límite de temperatura hasta 90 °C.""", """Faixa validada da interface: 3100–4200 MHz · 950–1325 mV · limite de temperatura até 90 °C.""", """Проверенный диапазон интерфейса: 3100–4200 МГц · 950–1325 мВ · предел температуры до 90 °C.""", """Перевірений діапазон інтерфейсу: 3100–4200 МГц · 950–1325 мВ · межа температури до 90 °C.""", """Validierter UI-Bereich: 3100–4200 MHz · 950–1325 mV · Temperaturgrenze bis 90 °C."""),
     _e("""Use Save for boot only after validating a stable temporary profile""", """Usa Guardar para el arranque solo después de validar un perfil temporal estable""", """Use Salvar na inicialização somente após validar um perfil temporário estável""", """Используйте Сохранить для загрузки только после проверки стабильного временного профиля""", """Використовуйте Зберегти для завантаження лише після перевірки стабільного тимчасового профілю""", """Verwende Für den Start speichern erst nach der Prüfung eines stabilen temporären Profils"""),
 
     # CPU / SMU R9 compact technical context.
@@ -2275,6 +2413,18 @@ INTERFACE_TRANSLATIONS.update(dict([
     _e('{name} · {value}%', '{name} · {value}%', '{name} · {value}%', '{name} · {value}%', '{name} · {value}%', '{name} · {value}%'),
 ]))
 
+INTERFACE_TRANSLATIONS.update(dict([
+    _e('Eight-core telemetry needs a boot repair. Apply it once, reboot, and check the readings again.', 'La telemetría de ocho núcleos necesita reparar el arranque. Aplícala una vez, reinicia y vuelve a comprobar las lecturas.', 'A telemetria de oito núcleos precisa de um reparo de inicialização. Aplique uma vez, reinicie e verifique as leituras novamente.', 'Телеметрии с восемью ядрами требуется исправление загрузки. Примените его один раз, перезагрузитесь и снова проверьте показания.', 'Телеметрії з вісьмома ядрами потрібне виправлення завантаження. Застосуйте його один раз, перезавантажтесь і знову перевірте показання.', 'Die Achtkern-Telemetrie benötigt eine Startreparatur. Wenden Sie sie einmal an, starten Sie neu und prüfen Sie die Werte erneut.'),
+    _e('Repair BC250 telemetry', 'Reparar telemetría de BC250', 'Reparar telemetria da BC250', 'Исправить телеметрию BC250', 'Виправити телеметрію BC250', 'BC250-Telemetrie reparieren'),
+    _e('Restart to finish telemetry repair', 'Reinicia para terminar la reparación de telemetría', 'Reinicie para concluir o reparo da telemetria', 'Перезагрузитесь, чтобы завершить исправление телеметрии', 'Перезавантажтесь, щоб завершити виправлення телеметрії', 'Neustarten, um die Telemetriereparatur abzuschließen'),
+    _e('Repair 8-core GPU telemetry', 'Reparar telemetría GPU de 8 núcleos', 'Reparar telemetria da GPU de 8 núcleos', 'Исправить телеметрию GPU с 8 ядрами', 'Виправити телеметрію GPU з 8 ядрами', 'Achtkern-GPU-Telemetrie reparieren'),
+    _e('This adds amdgpu.cs_legacy_8core_metrics=1 to the detected boot configuration. It does not change clocks or voltage. Reboot is required, and Control Center records enough information to restore its change.', 'Esto agrega amdgpu.cs_legacy_8core_metrics=1 a la configuración de arranque detectada. No cambia frecuencias ni voltaje. Se requiere reiniciar y Control Center conserva información suficiente para restaurar su cambio.', 'Isto adiciona amdgpu.cs_legacy_8core_metrics=1 à configuração de inicialização detectada. Não altera clocks nem voltagem. É necessário reiniciar e o Control Center guarda informações suficientes para restaurar a alteração.', 'Это добавляет amdgpu.cs_legacy_8core_metrics=1 в обнаруженную конфигурацию загрузки. Частоты и напряжение не изменяются. Требуется перезагрузка, а Control Center сохраняет данные для отмены изменения.', 'Це додає amdgpu.cs_legacy_8core_metrics=1 до виявленої конфігурації завантаження. Частоти й напруга не змінюються. Потрібне перезавантаження, а Control Center зберігає дані для скасування зміни.', 'Dies fügt amdgpu.cs_legacy_8core_metrics=1 zur erkannten Startkonfiguration hinzu. Takte und Spannung werden nicht verändert. Ein Neustart ist erforderlich; Control Center speichert genügend Informationen für die Wiederherstellung.'),
+    _e('Apply telemetry repair', 'Aplicar reparación de telemetría', 'Aplicar reparo de telemetria', 'Применить исправление телеметрии', 'Застосувати виправлення телеметрії', 'Telemetriereparatur anwenden'),
+    _e('Eight-core GPU telemetry', 'Telemetría GPU de ocho núcleos', 'Telemetria da GPU de oito núcleos', 'Телеметрия GPU с восемью ядрами', 'Телеметрія GPU з вісьмома ядрами', 'Achtkern-GPU-Telemetrie'),
+    _e('The boot repair was staged. Reboot after the terminal reports success.', 'La reparación de arranque quedó preparada. Reinicia después de que la terminal informe éxito.', 'O reparo de inicialização foi preparado. Reinicie depois que o terminal informar sucesso.', 'Исправление загрузки подготовлено. Перезагрузитесь после сообщения об успехе в терминале.', 'Виправлення завантаження підготовлено. Перезавантажтесь після повідомлення про успіх у терміналі.', 'Die Startreparatur wurde vorbereitet. Starten Sie neu, nachdem das Terminal Erfolg meldet.'),
+    _e('Could not repair eight-core GPU telemetry', 'No se pudo reparar la telemetría GPU de ocho núcleos', 'Não foi possível reparar a telemetria da GPU de oito núcleos', 'Не удалось исправить телеметрию GPU с восемью ядрами', 'Не вдалося виправити телеметрію GPU з вісьмома ядрами', 'Achtkern-GPU-Telemetrie konnte nicht repariert werden'),
+]))
+
 # Compact GPU voltage drawer and persistent active-range workflow.
 INTERFACE_TRANSLATIONS.update(dict([
     _e('GPU voltage curve', 'Curva de voltaje de la GPU', 'Curva de tensão da GPU', 'Кривая напряжения GPU', 'Крива напруги GPU', 'GPU-Spannungskurve'),
@@ -2441,4 +2591,11 @@ INTERFACE_TRANSLATIONS.update(dict([
     _e('Remove FSR4 V3', 'Eliminar FSR4 V3', 'Remover FSR4 V3', 'Удалить FSR4 V3', 'Видалити FSR4 V3', 'FSR4 V3 entfernen'),
     _e('Opened the per-game FSR4 V3 workflow. Use the emitted VK_DRIVER_FILES option only for games you want to test.', 'Se abrió el flujo FSR4 V3 por juego. Usa la opción VK_DRIVER_FILES resultante solo en los juegos que quieras probar.', 'O fluxo FSR4 V3 por jogo foi aberto. Use a opção VK_DRIVER_FILES emitida apenas nos jogos que deseja testar.', 'Открыт процесс FSR4 V3 для отдельных игр. Используйте выданный параметр VK_DRIVER_FILES только для тестируемых игр.', 'Відкрито процес FSR4 V3 для окремих ігор. Використовуйте наданий параметр VK_DRIVER_FILES лише для тестових ігор.', 'Der FSR4-V3-Ablauf pro Spiel wurde geöffnet. Verwenden Sie die ausgegebene VK_DRIVER_FILES-Option nur für Spiele, die Sie testen möchten.'),
     _e('Could not manage BC-250 FSR4 V3', 'No se pudo gestionar BC-250 FSR4 V3', 'Não foi possível gerenciar o BC-250 FSR4 V3', 'Не удалось управлять BC-250 FSR4 V3', 'Не вдалося керувати BC-250 FSR4 V3', 'BC-250 FSR4 V3 konnte nicht verwaltet werden'),
+]))
+
+INTERFACE_TRANSLATIONS.update(dict([
+    _e('The hottest available CPU/GPU temperature will be evaluated against the saved curve and one PWM value will be written immediately.', 'La temperatura más alta disponible de CPU/GPU se evaluará con la curva guardada y se escribirá inmediatamente un valor PWM.', 'A temperatura mais alta disponível de CPU/GPU será avaliada com a curva salva e um valor PWM será gravado imediatamente.', 'Максимальная доступная температура CPU/GPU будет сопоставлена с сохранённой кривой, после чего сразу будет записано одно значение PWM.', 'Найвища доступна температура CPU/GPU буде зіставлена зі збереженою кривою, після чого одразу буде записано одне значення PWM.', 'Die höchste verfügbare CPU/GPU-Temperatur wird anhand der gespeicherten Kurve ausgewertet und ein PWM-Wert sofort geschrieben.'),
+    _e('Compatibility fallback', 'Alternativa de compatibilidad', 'Alternativa de compatibilidade', 'Резервный вариант совместимости', 'Резервний варіант сумісності', 'Kompatibilitätsalternative'),
+    _e('Official Decky prerelease only when the installed stable version cannot support the current Steam initialization API', 'Versión preliminar oficial de Decky solo cuando la versión estable instalada no admite la API actual de inicialización de Steam', 'Pré-lançamento oficial do Decky somente quando a versão estável instalada não oferece suporte à API atual de inicialização do Steam', 'Официальная предварительная версия Decky используется только тогда, когда установленная стабильная версия не поддерживает текущий API инициализации Steam', 'Офіційна попередня версія Decky використовується лише тоді, коли встановлена стабільна версія не підтримує поточний API ініціалізації Steam', 'Offizielle Decky-Vorabversion nur, wenn die installierte stabile Version die aktuelle Steam-Initialisierungs-API nicht unterstützt'),
+    _e('Beta boundary: after your explicit confirmation in this dialog, this workflow downloads the official Decky stable installer and displays its SHA-256. On Steam clients that require the renamed initialization API, it may then use the official Decky prerelease compatibility installer. It finally installs the local BC250 panel and never changes GPU voltage, custom clocks, boot settings or hardware state.', 'Límite Beta: después de tu confirmación explícita, este flujo descarga el instalador estable oficial de Decky y muestra su SHA-256. En clientes de Steam que requieren la API de inicialización renombrada, puede usar después el instalador preliminar oficial de compatibilidad de Decky. Finalmente instala el panel local BC250 y nunca cambia el voltaje GPU, las frecuencias personalizadas, el arranque ni el hardware.', 'Limite Beta: após sua confirmação explícita, este fluxo baixa o instalador estável oficial do Decky e mostra seu SHA-256. Em clientes Steam que exigem a API de inicialização renomeada, ele pode usar depois o instalador oficial de pré-lançamento compatível do Decky. Por fim, instala o painel local BC250 e nunca altera tensão da GPU, clocks personalizados, inicialização ou hardware.', 'Граница бета-версии: после явного подтверждения процесс загружает официальный стабильный установщик Decky и показывает SHA-256. Для клиентов Steam с переименованным API инициализации затем может использоваться официальный предварительный установщик совместимости Decky. После этого устанавливается локальная панель BC250 без изменения напряжения GPU, частот, загрузки или оборудования.', 'Межа бета-версії: після явного підтвердження процес завантажує офіційний стабільний інсталятор Decky і показує SHA-256. Для клієнтів Steam із перейменованим API ініціалізації потім може використовуватися офіційний попередній інсталятор сумісності Decky. Після цього встановлюється локальна панель BC250 без зміни напруги GPU, частот, завантаження чи обладнання.', 'Beta-Grenze: Nach ausdrücklicher Bestätigung lädt der Ablauf den offiziellen stabilen Decky-Installer und zeigt dessen SHA-256. Bei Steam-Clients mit umbenannter Initialisierungs-API kann anschließend der offizielle Decky-Kompatibilitätsinstaller als Vorabversion verwendet werden. Danach wird das lokale BC250-Panel installiert, ohne GPU-Spannung, Takte, Boot-Einstellungen oder Hardwarezustand zu ändern.'),
 ]))

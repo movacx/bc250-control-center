@@ -129,6 +129,14 @@ class UiPreferences:
         value = self.settings.value(key, "true" if default else "false")
         return str(value).strip().lower() in {"1", "true", "yes", "on"}
 
+    def int_value(self, key: str, default: int, *, minimum: int = 0, maximum: int = 10_000) -> int:
+        """Read a stored integer, tolerating the strings QSettings hands back."""
+        try:
+            value = int(self.settings.value(key, default))
+        except (TypeError, ValueError):
+            value = default
+        return max(minimum, min(maximum, value))
+
     def scale(self) -> int:
         try:
             value = int(self.settings.value("settings/scale", 100))
@@ -186,6 +194,12 @@ class UiPreferences:
         if not self.settings.contains("settings/detailed_diagnostics"):
             discreet = str(legacy.value("modo_discreto", "true")).strip().lower() in {"1", "true", "yes", "on"}
             self.settings.setValue("settings/detailed_diagnostics", "false" if discreet else "true")
+        if not self.settings.contains("settings/update_check"):
+            # On by default, because a release nobody hears about helps nobody.
+            # Off is a real choice: it is the one thing in this application that
+            # contacts the internet on its own, and a metered or air-gapped
+            # machine has every reason to decline.
+            self.settings.setValue("settings/update_check", "true")
         if not self.settings.contains("settings/gamepad_navigation"):
             self.settings.setValue("settings/gamepad_navigation", "true")
         if not self.settings.contains("settings/gamepad_onscreen_keypad"):

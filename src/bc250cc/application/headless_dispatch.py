@@ -49,6 +49,12 @@ class DispatchResult:
     exit_code: int = 0
 
 
+def telemetry_result(_args, _os_info):
+    from bc250cc.infrastructure.apu_telemetry import collect_apu_telemetry
+
+    return DispatchResult(collect_apu_telemetry())
+
+
 def system_result(_args, os_info) -> DispatchResult:
     return DispatchResult(asdict(os_info))
 
@@ -207,6 +213,7 @@ def metrics_result(args, _os_info) -> DispatchResult:
 
 SAFE_HANDLERS = MappingProxyType({
     "system": system_result,
+    "telemetry": telemetry_result,
     "components": components_result,
     "integrations": integrations_result,
     "quick-access": quick_access_result,

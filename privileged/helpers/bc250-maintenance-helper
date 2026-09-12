@@ -1,0 +1,62 @@
+#!/usr/bin/python3 -I
+"""Finite root boundary for the optional memory-cache action."""
+
+from __future__ import annotations
+
+import os
+import pathlib
+import stat
+import sys
+
+HELPER_PATH = pathlib.Path("/usr/libexec/bc250-control-center/bc250-maintenance-helper")
+DROP_CACHES = pathlib.Path("/proc/sys/vm/drop_caches")
+
+
+def _trusted_self(path: pathlib.Path = HELPER_PATH) -> bool:
+    try:
+        info = path.stat(follow_symlinks=False)
+    except OSError:
+        return False
+    trusted = bool(
+        not path.is_symlink()
+        and stat.S_ISREG(info.st_mode)
+        and info.st_uid == 0
+        and not info.st_mode & 0o022
+        and info.st_mode & stat.S_IXUSR
+    )
+    if not trusted:
+        return False
+    for parent in path.parents:
+        try:
+            parent_info = parent.stat(follow_symlinks=False)
+        except OSError:
+            return False
+        if parent.is_symlink() or not stat.S_ISDIR(parent_info.st_mode):
+            return False
+        if parent_info.st_uid != 0 or parent_info.st_mode & 0o022:
+            return False
+    return True
+
+
+def main(argv: list[str] | None = None) -> int:
+    arguments = list(sys.argv[1:] if argv is None else argv)
+    try:
+        if os.geteuid() != 0:
+            raise RuntimeError("Administrator authorization is required")
+        if not _trusted_self():
+            raise RuntimeError("The maintenance helper is not a protected root-owned executable")
+        if arguments != ["drop-caches"]:
+            raise ValueError("usage: drop-caches")
+        os.sync()
+        with DROP_CACHES.open("w", encoding="ascii") as stream:
+            stream.write("3\n")
+            stream.flush()
+        print("Filesystem caches released")
+        return 0
+    except (OSError, ValueError, RuntimeError) as error:
+        print(f"ERR {error}", file=sys.stderr)
+        return 70
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

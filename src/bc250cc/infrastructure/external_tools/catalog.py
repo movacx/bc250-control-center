@@ -196,11 +196,29 @@ EXTERNAL_TOOLS: dict[str, ExternalToolSpec] = {
         key="steamos_amdgpu",
         upstream="https://github.com/keyboardspecialist/bc250-steamos",
         license="mixed-per-subproject",
-        reviewed_revision="b8b293ca578114e770fffea4f9a1657b529c373a",
+        # v0.21.2. Earlier revisions had no patch variant for the Valve 7.2
+        # kernel, so build.sh aborted on SteamOS 7.2 before this bump.
+        reviewed_revision="1f4f3266d7f0e3dc0e8c760592bd63871d2c53c3",
         privilege_class="boot-kernel-initramfs",
         hardware_writes=False,
         automated=True,
         rollback="Upstream AMDGPU and RADV transactions provide independent uninstall/rollback paths; physical boot recovery is still required.",
+        validation_level="code-reviewed-field-tested-single-host",
+    ),
+    # Per-user FSR4 runtime. Registered here so the shared manifest validator
+    # and checkout inventory can see it; it was previously pinned only inside
+    # bc250_fsr4.py and was therefore invisible to both.
+    "fsr4_runtime": ExternalToolSpec(
+        key="fsr4_runtime",
+        upstream="https://github.com/dmorazasanchez/bc250-fsr4",
+        # Upstream publishes no LICENSE file, so redistribution stays gated and
+        # the integration remains runtime-fetch only.
+        license="not-declared-upstream",
+        reviewed_revision="6173651fa3a5a557cba2c2ff802e2d6f49881bc1",
+        privilege_class="userspace",
+        hardware_writes=False,
+        automated=True,
+        rollback="Remove the per-user prefix under ~/.local/share/bc250-fsr4 and drop the Steam launch option.",
         validation_level="code-reviewed-field-tested-single-host",
     ),
     "nct6687": ExternalToolSpec(
@@ -234,9 +252,9 @@ EXTERNAL_TOOLS: dict[str, ExternalToolSpec] = {
         hardware_writes=False,
         automated=True,
         rollback="Use the official upstream uninstall action; the stock Fedora boot entry remains the recovery path.",
-        validation_level="official-upstream-main-with-local-host-and-hardware-gates",
-        update_strategy="upstream-branch",
-        payload_distribution="runtime-fetch-upstream-main",
+        validation_level="reviewed-upstream-commit-with-local-host-and-hardware-gates",
+        update_strategy="reviewed-commit",
+        payload_distribution="runtime-fetch-reviewed-revision",
     ),
 }
 
@@ -278,6 +296,13 @@ EXTERNAL_TOOL_LIFECYCLES: dict[str, ExternalToolLifecycle] = {
         "Disable persistent CPU tuning and remove only Control Center-owned state.",
         vocabulary="CPU frequency, scale and temperature limit",
         actions=(LifecycleAction.CHECK, LifecycleAction.INSTALL, LifecycleAction.APPLY, LifecycleAction.ROLLBACK, LifecycleAction.UNINSTALL),
+    ),
+    "fsr4_runtime": _lifecycle(
+        "Build or stage the pinned per-user FSR4 RADV runtime under the user prefix.",
+        "Verify the checked-out revision and that the ICD manifest matches the reviewed build.",
+        "Remove the per-user prefix and stop offering the Steam launch option.",
+        vocabulary="per-game FSR4 RADV runtime",
+        actions=(LifecycleAction.CHECK, LifecycleAction.INSTALL, LifecycleAction.UNINSTALL),
     ),
     "core_unlock": _lifecycle(
         "Prepare the exact reviewed revision and SHA-256 payload for descriptor-bound execution.",
@@ -442,6 +467,7 @@ EXTERNAL_TOOL_DIRECTORIES = {
     "cu_manager_steamos": "bc250-cu-live-manager-steamos",
     "steamos_amdgpu": "bc250-steamos",
     "nct6687": "nct6687d",
+    "fsr4_runtime": "bc250-fsr4",
     "oberon_governor": "oberon-governor",
     "gfx1013_direct": "bc250-gfx1013-fix",
 }

@@ -309,15 +309,22 @@ def detect_cyan_frequency_fix_runtime(repository) -> dict[str, object]:
 
 
 def detect_cyan_metrics_fix_runtime(
-    repository, *, lookback_seconds: int = 5
+    repository, *, lookback_seconds: int = 5, whole_boot: bool = False
 ) -> dict[str, object]:
-    """Report a *recent* runtime failure from Cyan's optional metrics overlay.
+    """Report a runtime failure from Cyan's optional metrics overlay.
 
     The configuration flag alone cannot prove that the bind-mounted
     ``gpu_metrics`` overlay is usable on a given kernel.  Cyan emits one
     stable error when its update path fails.  Restricting the journal window
     prevents a repaired service from being reported as broken because of an
     older boot-time record.
+
+    ``whole_boot`` widens the window to the current boot, which is the same
+    evidence the startup guard generated in ``gpu_repository`` uses. The two
+    must agree: a narrower window here let the interface accept
+    ``fix-metrics = true`` while the guard, still seeing the failure, refused
+    to start the service — the request was written to config.toml, the restart
+    was refused, and the rollback churned the governor.
     """
 
     try:
@@ -339,12 +346,11 @@ def detect_cyan_metrics_fix_runtime(
     if not callable(runner):
         return result
     try:
+        window = (
+            ["-n", "120"] if whole_boot else ["--since", f"{seconds} seconds ago"]
+        )
         code, stdout, stderr = runner(
-            [
-                "journalctl", "-b", "-u", CYAN_SERVICE,
-                "--since", f"{seconds} seconds ago",
-                "--no-pager", "-o", "cat",
-            ],
+            ["journalctl", "-b", "-u", CYAN_SERVICE, *window, "--no-pager", "-o", "cat"],
             timeout=4,
         )
     except (OSError, RuntimeError, TypeError, ValueError):

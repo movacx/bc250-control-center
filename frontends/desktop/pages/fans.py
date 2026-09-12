@@ -41,6 +41,7 @@ from PyQt6.QtWidgets import (
 
 from bc250cc.domain.fan.persistence import (
     normalize_fan_curve,
+    select_fan_control_temperature,
     validate_fan_curve_points,
 )
 from bc250cc.platform.init.services import detect_init_manager
@@ -56,7 +57,6 @@ from ..components.page_widgets import (
     ConfirmDialog,
     ControlPageHeader,
     PresetButton,
-    SectionCard,
     SliderControl,
     StatusLine,
 )
@@ -540,37 +540,6 @@ class DutyGauge(QWidget):
         value_font.setWeight(800)
         painter.setFont(value_font)
         painter.drawText(rect.adjusted(0, 8, 0, -12), Qt.AlignmentFlag.AlignCenter, f"{round(self._display_value)}%")
-
-
-class TelemetryReadout(QFrame):
-    def __init__(self, label: str, value: str, detail: str, icon_name: str, background: str, parent=None):
-        super().__init__(parent)
-        self.setProperty("fanTelemetryReadout", True)
-        self.setMinimumHeight(104)
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(13, 12, 13, 12)
-        layout.setSpacing(5)
-        top = QHBoxLayout()
-        top.setSpacing(8)
-        top.addWidget(IconBadge(icon_name, background, 30, radius=8))
-        title = QLabel(tr(label))
-        title.setProperty("fanTelemetryLabel", True)
-        top.addWidget(title)
-        top.addStretch(1)
-        layout.addLayout(top)
-        self.value = QLabel(tr(value))
-        self.value.setProperty("fanTelemetryValue", True)
-        self.value.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        self.detail = QLabel(tr(detail))
-        self.detail.setProperty("fanTelemetryDetail", True)
-        self.detail.setWordWrap(True)
-        layout.addWidget(self.value)
-        layout.addWidget(self.detail)
-
-    def set_values(self, value: str, detail: str | None = None) -> None:
-        self.value.setText(tr(value))
-        if detail is not None:
-            self.detail.setText(tr(detail))
 
 
 class CoolingStat(QFrame):
@@ -1422,11 +1391,8 @@ class FansPage(QWidget):
         self._worker: FanTask | None = None
         self._busy = False
         self._summary_columns = 5
-        self._workspace_columns = 0
-        self._bottom_columns = 0
         self._metric_columns = 0
         self._curve_columns = 0
-        self._curve_workspace_columns = 0
         self._driver_action_columns = 0
         self._manual_workspace_columns = 0
         self._curve_loading = False
@@ -1819,7 +1785,6 @@ class FansPage(QWidget):
         self.manual_footer_grid.setContentsMargins(0, 0, 0, 0)
         self.manual_footer_grid.setHorizontalSpacing(7)
         self.manual_footer_grid.setVerticalSpacing(7)
-        self._manual_footer_mode = ""
         self.use_live_button = QPushButton(tr("Use current duty"))
         self.use_live_button.setProperty("compactAction", True)
         self.use_live_button.setIcon(icon("activity_purple"))
@@ -2097,448 +2062,10 @@ class FansPage(QWidget):
         self.driver_details.hide()
         return card
 
-    def _build_manual_card(self) -> SectionCard:
-        card = SectionCard(
-            "Manual fan control",
-            "Select one detected channel, stage a duty, then apply it explicitly.",
-            icon_name="fan_cyan",
-            icon_background=COLORS["cyan_soft"],
-        )
-        self.channel_combo = QComboBox()
-        self.channel_combo.setToolTip(tr("Selecting a channel only stages the target; it does not write hardware."))
-        self.channel_combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self.channel_combo.setMaxVisibleItems(8)
-        channel_popup = QListView(self.channel_combo)
-        channel_popup.setUniformItemSizes(True)
-        channel_popup.setVerticalScrollMode(QListView.ScrollMode.ScrollPerPixel)
-        channel_popup.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        channel_popup.setAutoFillBackground(True)
-        channel_popup.viewport().setAutoFillBackground(True)
-        popup_palette = channel_popup.palette()
-        popup_palette.setColor(QPalette.ColorRole.Base, QColor(COLORS["panel"]))
-        popup_palette.setColor(QPalette.ColorRole.Window, QColor(COLORS["panel"]))
-        popup_palette.setColor(QPalette.ColorRole.Text, QColor(COLORS["text"]))
-        popup_palette.setColor(QPalette.ColorRole.WindowText, QColor(COLORS["text"]))
-        popup_palette.setColor(QPalette.ColorRole.Highlight, QColor(COLORS["selection"]))
-        popup_palette.setColor(QPalette.ColorRole.HighlightedText, QColor(COLORS["text"]))
-        channel_popup.setPalette(popup_palette)
-        channel_popup.viewport().setPalette(popup_palette)
-        self.channel_combo.setPalette(popup_palette)
-        self.channel_combo.setStyleSheet(scale_stylesheet(f"""
-            QComboBox {{
-                background: {COLORS['control']}; color: {COLORS['text']};
-                border: 1px solid {COLORS['border']}; border-radius: 10px;
-                padding: 6px 10px; min-height: 28px;
-            }}
-            QComboBox:focus {{ border-color: {COLORS['focus']}; }}
-            QComboBox QAbstractItemView, QListView {{
-                background: {COLORS['panel']}; color: {COLORS['text']};
-                border: 1px solid {COLORS['border']}; border-radius: 10px;
-                padding: 4px; outline: none;
-            }}
-            QComboBox QAbstractItemView::item, QListView::item {{
-                background: {COLORS['panel']}; color: {COLORS['text']};
-                min-height: 30px; padding: 5px 9px; border-radius: 6px;
-            }}
-            QComboBox QAbstractItemView::item:selected, QListView::item:selected {{
-                background: {COLORS['selection']}; color: {COLORS['text']};
-            }}
-            QComboBox QAbstractItemView::item:hover, QListView::item:hover {{
-                background: {COLORS['control_hover']}; color: {COLORS['text']};
-            }}
-        """))
-        self.channel_combo.setView(channel_popup)
-        self.channel_combo.currentIndexChanged.connect(self._selected_channel_changed)
-
-        console = QFrame()
-        console.setProperty("fanDutyConsole", True)
-        console_layout = QHBoxLayout(console)
-        console_layout.setContentsMargins(14, 13, 14, 13)
-        console_layout.setSpacing(10)
-        # The old radial dial duplicated the slider value while consuming the
-        # most valuable area in the control surface.  Keep its instance for
-        # the existing refresh contract, but do not render it.
-        self.duty_gauge = DutyGauge()
-        self.duty_gauge.hide()
-        controls = QVBoxLayout()
-        controls.setSpacing(10)
-        self.selected_channel_meta = QLabel(tr("Select a detected PWM channel for BC250 cooling control."))
-        self.selected_channel_meta.hide()
-        self.channel_selector_host = QFrame()
-        self.channel_selector_host.setProperty("fanDutyStage", True)
-        channel_selector = QHBoxLayout(self.channel_selector_host)
-        channel_selector.setContentsMargins(10, 7, 10, 7)
-        channel_selector.setSpacing(8)
-        channel_label = QLabel(tr("PWM channel"))
-        channel_label.setProperty("fieldLabel", True)
-        channel_label.setWordWrap(True)
-        channel_selector.addWidget(channel_label)
-        channel_selector.addWidget(self.channel_combo, 1)
-        controls.addWidget(self.channel_selector_host)
-        live_row = QHBoxLayout()
-        live_row.setSpacing(16)
-        self.selected_live_rpm = QLabel("-- RPM")
-        self.selected_live_rpm.setProperty("fanConsoleTitle", True)
-        self.selected_access = QLabel("Access unavailable")
-        self.selected_access.setProperty("fanConsoleMeta", True)
-        self.selected_access.setWordWrap(True)
-        live_row.addWidget(self.selected_live_rpm)
-        live_row.addWidget(self.selected_access)
-        live_row.addStretch(1)
-        controls.addLayout(live_row)
-        self.speed_control = SliderControl(
-            "Requested fan speed",
-            0,
-            100,
-            70,
-            suffix=" %",
-            step=1,
-            hint="This value is staged only. Hardware changes only after confirmation.",
-        )
-        self.speed_control.value_changed.connect(self._manual_value_changed)
-        controls.addWidget(self.speed_control)
-        self.manual_presets_grid = QGridLayout()
-        self.manual_presets_grid.setContentsMargins(0, 0, 0, 0)
-        self.manual_presets_grid.setHorizontalSpacing(8)
-        self.manual_presets_grid.setVerticalSpacing(8)
-        self.manual_preset_group = QButtonGroup(self)
-        self.manual_preset_group.setExclusive(True)
-        self.manual_preset_buttons: list[PresetButton] = []
-        for preset_key, preset_title, summary, value in (
-            ("quiet", "Quiet", "45% duty", 45),
-            ("balanced", "Balanced", "60% duty", 60),
-            ("cooling", "Cooling", "70% duty", 70),
-            ("maximum", "Maximum", "100% duty", 100),
-        ):
-            button = PresetButton(preset_title, summary, value)
-            button.setProperty("fanPreset", preset_key)
-            button.clicked.connect(lambda checked, b=button: self._select_manual_preset(b) if checked else None)
-            self.manual_preset_group.addButton(button)
-            self.manual_preset_buttons.append(button)
-        controls.addLayout(self.manual_presets_grid)
-        console_layout.addLayout(controls, 1)
-        card.body.addWidget(console, 1)
-
-        footer = QGridLayout()
-        footer.setSpacing(8)
-        self.manual_footer_grid = footer
-        self._manual_footer_mode = ""
-        self.manual_note = QLabel(
-            "Manual PWM is temporary. Use the automatic curve when you want a saved cooling response."
-        )
-        self.manual_note.setProperty("sectionSubtitle", True)
-        self.manual_note.setWordWrap(True)
-        self._manual_value_changed(self._staged_pwm_percent)
-        footer.addWidget(self.manual_note, 0, 0)
-        self.use_live_button = QPushButton("Use current duty")
-        self.use_live_button.setProperty("compactAction", True)
-        self.use_live_button.clicked.connect(self._use_live_duty)
-        footer.addWidget(self.use_live_button, 0, 1)
-        self.restore_auto_button = QPushButton("Restore automatic mode")
-        self.restore_auto_button.setProperty("compactAction", True)
-        self.restore_auto_button.clicked.connect(self.restore_automatic_pwm)
-        footer.addWidget(self.restore_auto_button, 0, 2)
-        self.apply_pwm_button = QPushButton("Apply staged PWM")
-        self.apply_pwm_button.setObjectName("PrimaryAction")
-        self.apply_pwm_button.clicked.connect(self.apply_manual_pwm)
-        footer.addWidget(self.apply_pwm_button, 0, 3)
-        card.body.addLayout(footer)
-        return card
-
-    def _build_telemetry_card(self) -> SectionCard:
-        card = SectionCard(
-            "Thermal telemetry",
-            "Live read-only cooling signals kept visible while PWM changes are staged and applied.",
-            icon_name="activity_purple",
-            icon_background=COLORS["purple_soft"],
-            status=("Passive", "green"),
-        )
-        self.metrics_grid = QGridLayout()
-        self.metrics_grid.setContentsMargins(0, 0, 0, 0)
-        self.metrics_grid.setHorizontalSpacing(10)
-        self.metrics_grid.setVerticalSpacing(10)
-        self.rpm_metric = TelemetryReadout("Main fan", "-- RPM", "Highest reporting visible channel", "fan_cyan", COLORS["cyan_soft"])
-        self.duty_metric = TelemetryReadout("Selected duty", "-- %", "Current PWM value", "fans_blue", COLORS["blue_soft"])
-        self.gpu_temp_metric = TelemetryReadout("GPU temperature", "-- °C", "Automatic curve input", "warning_orange", COLORS["orange_soft"])
-        self.cpu_temp_metric = TelemetryReadout("CPU temperature", "-- °C", "Package sensor", "cpu_blue", COLORS["blue_soft"])
-        self.metric_tiles = [self.rpm_metric, self.duty_metric, self.gpu_temp_metric, self.cpu_temp_metric]
-        card.body.addLayout(self.metrics_grid)
-        source_panel = QFrame()
-        source_panel.setProperty("fanDutyStage", True)
-        source_layout = QVBoxLayout(source_panel)
-        source_layout.setContentsMargins(10, 9, 10, 9)
-        source_layout.setSpacing(7)
-        self.telemetry_source = StatusLine("Sensor source", "Not detected", "Waiting for an NCT hwmon device")
-        self.telemetry_refresh = StatusLine("Last refresh", "--:--:--", "Passive read")
-        source_layout.addWidget(self.telemetry_source)
-        source_layout.addWidget(self.telemetry_refresh)
-        card.body.addWidget(source_panel)
-        return card
-
-    def _build_curve_card(self) -> SectionCard:
-        card = SectionCard(
-            "Temperature response",
-            "A live GPU fan curve with 3 to 8 temperature points. The saved profile is shared with the optional user daemon.",
-            icon_name="activity_purple",
-            icon_background=COLORS["purple_soft"],
-            status=("Disabled", "gray"),
-        )
-        self.curve_workspace = QGridLayout()
-        self.curve_workspace.setContentsMargins(0, 0, 0, 0)
-        self.curve_workspace.setHorizontalSpacing(12)
-        self.curve_workspace.setVerticalSpacing(12)
-
-        self.curve_plot_panel = QFrame()
-        self.curve_plot_panel.setProperty("curveStage", True)
-        plot_layout = QVBoxLayout(self.curve_plot_panel)
-        plot_layout.setContentsMargins(14, 12, 14, 12)
-        plot_layout.setSpacing(6)
-        plot_head = QHBoxLayout()
-        plot_copy = QVBoxLayout()
-        plot_copy.setSpacing(1)
-        plot_title = QLabel("LIVE RESPONSE MAP")
-        plot_title.setProperty("fanConsoleKicker", True)
-        self.curve_live_value = QLabel("Waiting for GPU temperature")
-        self.curve_live_value.setProperty("fanConsoleTitle", True)
-        self.curve_live_value.setWordWrap(True)
-        plot_copy.addWidget(plot_title)
-        plot_copy.addWidget(self.curve_live_value)
-        plot_head.addLayout(plot_copy, 1)
-        self.curve_live_target = QLabel("Target -- %")
-        self.curve_live_target.setProperty("fanConsoleMeta", True)
-        plot_head.addWidget(self.curve_live_target, 0, Qt.AlignmentFlag.AlignTop)
-        plot_layout.addLayout(plot_head)
-        self.curve_plot = FanCurvePlot()
-        plot_layout.addWidget(self.curve_plot, 1)
-
-        self.curve_controls_panel = QFrame()
-        self.curve_controls_panel.setProperty("curveControlPanel", True)
-        controls_layout = QVBoxLayout(self.curve_controls_panel)
-        controls_layout.setContentsMargins(13, 12, 13, 12)
-        controls_layout.setSpacing(10)
-        mode_row = QHBoxLayout()
-        self.curve_enabled = QCheckBox("Enable automatic curve")
-        self.curve_enabled.toggled.connect(self._curve_toggle_changed)
-        mode_row.addWidget(self.curve_enabled)
-        mode_row.addStretch(1)
-        controls_layout.addLayout(mode_row)
-        presets = QGridLayout()
-        presets.setSpacing(7)
-        self.curve_presets_grid = presets
-        self._curve_preset_columns = 0
-        self.curve_preset_group = QButtonGroup(self)
-        self.curve_preset_group.setExclusive(True)
-        self.curve_preset_buttons: list[QPushButton] = []
-        for title, key in (("Silent", "silent"), ("Balanced", "balanced"), ("Aggressive", "aggressive")):
-            button = QPushButton(title)
-            button.setCheckable(True)
-            button.setProperty("compactAction", True)
-            button.setProperty("curvePreset", key)
-            button.clicked.connect(lambda checked, k=key: self._apply_curve_preset(k) if checked else None)
-            self.curve_preset_group.addButton(button)
-            self.curve_preset_buttons.append(button)
-            presets.addWidget(button, 0, len(self.curve_preset_buttons) - 1)
-        controls_layout.addLayout(presets)
-        point_actions = QHBoxLayout()
-        point_actions.setSpacing(7)
-        self.add_curve_point_button = QPushButton(tr("Add point"))
-        self.add_curve_point_button.setProperty("compactAction", True)
-        self.add_curve_point_button.clicked.connect(self._add_curve_point)
-        point_actions.addWidget(self.add_curve_point_button)
-        self.remove_curve_point_button = QPushButton(tr("Remove point"))
-        self.remove_curve_point_button.setProperty("compactAction", True)
-        self.remove_curve_point_button.setToolTip(tr("Removes the highest-temperature custom point."))
-        self.remove_curve_point_button.clicked.connect(self._remove_curve_point)
-        point_actions.addWidget(self.remove_curve_point_button)
-        point_actions.addStretch(1)
-        controls_layout.addLayout(point_actions)
-        self.curve_points_grid = QGridLayout()
-        self.curve_points_grid.setContentsMargins(0, 0, 0, 0)
-        self.curve_points_grid.setHorizontalSpacing(8)
-        self.curve_points_grid.setVerticalSpacing(8)
-        self.curve_points = [
-            CurvePoint("Point 1", 50, 70),
-            CurvePoint("Point 2", 65, 100),
-            CurvePoint("Point 3", 70, 100),
-        ]
-        for point in self.curve_points:
-            point.changed.connect(self._curve_values_changed)
-        controls_layout.addLayout(self.curve_points_grid)
-        self.curve_summary = QLabel("Curve not loaded")
-        self.curve_summary.setProperty("fieldLabel", True)
-        self.curve_summary.setWordWrap(True)
-        self.curve_detail = QLabel(
-            "Save and enable the curve, then enable the optional daemon in Settings to restore it after login. "
-            "The manual slider does not persist by itself."
-        )
-        self.curve_detail.setProperty("fieldHint", True)
-        self.curve_detail.setWordWrap(True)
-        controls_layout.addWidget(self.curve_summary)
-        controls_layout.addWidget(self.curve_detail)
-        action_row = QHBoxLayout()
-        action_row.addStretch(1)
-        self.save_curve_button = QPushButton("Save curve")
-        self.save_curve_button.setProperty("compactAction", True)
-        self.save_curve_button.clicked.connect(self.save_curve)
-        action_row.addWidget(self.save_curve_button)
-        self.apply_curve_button = QPushButton("Apply curve now")
-        self.apply_curve_button.setObjectName("PrimaryAction")
-        self.apply_curve_button.clicked.connect(self.apply_curve_now)
-        action_row.addWidget(self.apply_curve_button)
-        controls_layout.addLayout(action_row)
-
-        card.body.addLayout(self.curve_workspace)
-        return card
-
-    def _build_driver_card(self) -> SectionCard:
-        card = SectionCard(
-            "Controller stack",
-            "NCT discovery, kernel module state, authenticated PWM access, and distribution-aware setup routes.",
-            icon_name="settings_blue",
-            icon_background=COLORS["blue_soft"],
-            status=("Checking", "gray"),
-        )
-        banner = QFrame()
-        banner.setProperty("driverModeBanner", True)
-        banner_layout = QHBoxLayout(banner)
-        banner_layout.setContentsMargins(12, 10, 12, 10)
-        banner_layout.setSpacing(10)
-        banner_layout.addWidget(IconBadge("shield_green", COLORS["green_soft"], 34, radius=9))
-        copy = QVBoxLayout()
-        copy.setSpacing(1)
-        self.driver_mode_value = QLabel("Detecting controller")
-        self.driver_mode_value.setProperty("driverModeValue", True)
-        self.driver_mode_detail = QLabel("No NCT hwmon route has been authorized yet.")
-        self.driver_mode_detail.setProperty("driverModeDetail", True)
-        self.driver_mode_detail.setWordWrap(True)
-        copy.addWidget(self.driver_mode_value)
-        copy.addWidget(self.driver_mode_detail)
-        banner_layout.addLayout(copy, 1)
-        card.body.addWidget(banner)
-        self.chip_status = StatusLine("NCT chip", "Not detected", "hwmon discovery")
-        self.module_status = StatusLine("Kernel module", "--", "nct6683 read-only · nct6687 PWM")
-        self.control_status = StatusLine("PWM access", "Unavailable", "Polkit helper and hwmon permissions")
-        self.path_status = StatusLine("Hwmon path", "--", "Live Linux route")
-        for line in (self.chip_status, self.module_status, self.control_status, self.path_status):
-            card.body.addWidget(line)
-        self.driver_actions_grid = QGridLayout()
-        self.driver_actions_grid.setContentsMargins(0, 0, 0, 0)
-        self.driver_actions_grid.setHorizontalSpacing(8)
-        self.driver_actions_grid.setVerticalSpacing(8)
-        self.prepare_button = QPushButton("Prepare PWM driver")
-        self.prepare_button.setObjectName("PrimaryAction")
-        self.prepare_button.setIcon(icon("download_blue"))
-        self.prepare_button.clicked.connect(self.prepare_pwm_driver)
-        self.read_only_button = QPushButton("Use read-only monitoring")
-        self.read_only_button.setProperty("compactAction", True)
-        self.read_only_button.clicked.connect(self.enable_read_only)
-        self.disable_button = QPushButton("Disable PWM setup")
-        self.disable_button.setProperty("dangerAction", True)
-        self.disable_button.clicked.connect(self.disable_pwm_setup)
-        self.paths_button = QPushButton("PWM paths by OS")
-        self.paths_button.setProperty("compactAction", True)
-        self.paths_button.setIcon(icon("info_blue"))
-        self.paths_button.clicked.connect(self.show_pwm_paths)
-        self.raw_status_button = QPushButton("Raw chip status")
-        self.raw_status_button.setProperty("compactAction", True)
-        self.raw_status_button.clicked.connect(self.show_raw_status)
-        self.driver_action_buttons = [self.prepare_button, self.read_only_button, self.disable_button, self.paths_button, self.raw_status_button]
-        card.body.addLayout(self.driver_actions_grid)
-        return card
-
-    def _build_channels_card(self) -> SectionCard:
-        card = SectionCard(
-            "Cooling channels",
-            "Legacy multi-channel diagnostics preserved for compatibility; the redesigned workspace targets PWM 2 only.",
-            icon_name="fans_blue",
-            icon_background=COLORS["blue_soft"],
-            status=("Hidden", "gray"),
-        )
-        header = QHBoxLayout()
-        header.setContentsMargins(45, 0, 11, 0)
-        for title, stretch, minimum in (("CHANNEL", 1, 0), ("RPM", 0, 88), ("DUTY", 0, 58), ("ACCESS", 0, 96)):
-            label = QLabel(tr(title))
-            label.setProperty("fanColumnLabel", True)
-            if minimum:
-                label.setMinimumWidth(minimum)
-                label.setAlignment(Qt.AlignmentFlag.AlignRight if title != "ACCESS" else Qt.AlignmentFlag.AlignCenter)
-            header.addWidget(label, stretch)
-        card.body.addLayout(header)
-        self.channel_rows = [FanChannelRow(), FanChannelRow(), FanChannelRow()]
-        for row in self.channel_rows:
-            card.body.addWidget(row)
-        self.channels_note = QLabel("PWM splitters and hubs normally share one control signal and expose only one tach/RPM signal.")
-        self.channels_note.setProperty("fieldHint", True)
-        self.channels_note.setWordWrap(True)
-        card.body.addWidget(self.channels_note)
-        card.body.addStretch(1)
-        return card
-
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
         self._reflow(effective_viewport_width(self, self.scroll))
         self._queue_command_deck_sync()
-
-    def _reflow(self, width: int) -> None:
-        workspace_columns = 2 if width >= 1040 else 1
-        if workspace_columns != self._workspace_columns:
-            self._workspace_columns = workspace_columns
-            self._clear_grid(self.workspace)
-            if workspace_columns == 2:
-                self.workspace.addWidget(self.manual_card, 0, 0)
-                self.workspace.addWidget(self.telemetry_card, 0, 1)
-                self.workspace.setColumnStretch(0, 3)
-                self.workspace.setColumnStretch(1, 2)
-            else:
-                self.workspace.addWidget(self.manual_card, 0, 0)
-                self.workspace.addWidget(self.telemetry_card, 1, 0)
-                self.workspace.setColumnStretch(0, 1)
-
-        bottom_columns = 2 if width >= 1040 else 1
-        if bottom_columns != self._bottom_columns:
-            self._bottom_columns = bottom_columns
-            self._clear_grid(self.bottom_grid)
-            # legacy layout reference kept for contract compatibility:
-            # self.bottom_grid.addWidget(self.channels_card, 0, 1)
-            if bottom_columns == 2:
-                self.bottom_grid.addWidget(self.driver_card, 0, 0, 1, 2)
-                self.bottom_grid.setColumnStretch(0, 1)
-                self.bottom_grid.setColumnStretch(1, 1)
-            else:
-                self.bottom_grid.addWidget(self.driver_card, 0, 0)
-                self.bottom_grid.setColumnStretch(0, 1)
-
-        curve_workspace_columns = 2 if width >= 1000 else 1
-        if curve_workspace_columns != self._curve_workspace_columns:
-            self._curve_workspace_columns = curve_workspace_columns
-            self._clear_grid(self.curve_workspace)
-            if curve_workspace_columns == 2:
-                self.curve_workspace.addWidget(self.curve_plot_panel, 0, 0)
-                self.curve_workspace.addWidget(self.curve_controls_panel, 0, 1)
-                self.curve_workspace.setColumnStretch(0, 3)
-                self.curve_workspace.setColumnStretch(1, 2)
-            else:
-                self.curve_workspace.addWidget(self.curve_plot_panel, 0, 0)
-                self.curve_workspace.addWidget(self.curve_controls_panel, 1, 0)
-                self.curve_workspace.setColumnStretch(0, 1)
-
-        self._reflow_metric_tiles(width)
-        self._reflow_curve_points(width)
-        self._reflow_curve_presets(width)
-        self._reflow_driver_actions(width)
-        self._reflow_manual_presets(width)
-        self._reflow_manual_footer(width)
-
-    def _reflow_metric_tiles(self, width: int) -> None:
-        columns = 2 if width >= 700 else 1
-        if columns == self._metric_columns:
-            return
-        self._metric_columns = columns
-        self._clear_grid(self.metrics_grid)
-        for index, tile in enumerate(self.metric_tiles):
-            self.metrics_grid.addWidget(tile, index // columns, index % columns)
-        for column in range(columns):
-            self.metrics_grid.setColumnStretch(column, 1)
 
     def _reflow_curve_points(self, width: int) -> None:
         # Three cards fit only while the curve editor owns the full page width.
@@ -2553,66 +2080,6 @@ class FansPage(QWidget):
             self.curve_points_grid.addWidget(point, index // columns, index % columns)
         for column in range(columns):
             self.curve_points_grid.setColumnStretch(column, 1)
-
-    def _reflow_curve_presets(self, width: int) -> None:
-        columns = 3 if width >= 440 else 1
-        if columns == self._curve_preset_columns and self.curve_presets_grid.count():
-            return
-        self._curve_preset_columns = columns
-        self._clear_grid(self.curve_presets_grid)
-        for index, button in enumerate(self.curve_preset_buttons):
-            self.curve_presets_grid.addWidget(button, index // columns, index % columns)
-        for column in range(columns):
-            self.curve_presets_grid.setColumnStretch(column, 1)
-
-    def _reflow_driver_actions(self, width: int) -> None:
-        columns = 3 if width >= 1180 else 2 if width >= 700 else 1
-        if columns == self._driver_action_columns:
-            return
-        self._driver_action_columns = columns
-        self._clear_grid(self.driver_actions_grid)
-        for index, button in enumerate(self.driver_action_buttons):
-            self.driver_actions_grid.addWidget(button, index // columns, index % columns)
-        for column in range(columns):
-            self.driver_actions_grid.setColumnStretch(column, 1)
-
-    def _reflow_manual_presets(self, width: int) -> None:
-        columns = 4 if width >= 980 else 2 if width >= 620 else 1
-        current = self.manual_presets_grid.property("columns")
-        if current == columns:
-            return
-        self.manual_presets_grid.setProperty("columns", columns)
-        self._clear_grid(self.manual_presets_grid)
-        for index, button in enumerate(self.manual_preset_buttons):
-            self.manual_presets_grid.addWidget(button, index // columns, index % columns)
-        for column in range(columns):
-            self.manual_presets_grid.setColumnStretch(column, 1)
-
-    def _reflow_manual_footer(self, width: int) -> None:
-        mode = "wide" if width >= 620 else "split" if width >= 420 else "stack"
-        if mode == self._manual_footer_mode and self.manual_footer_grid.count():
-            return
-        self._manual_footer_mode = mode
-        self._clear_grid(self.manual_footer_grid)
-        if mode == "wide":
-            self.manual_footer_grid.addWidget(self.manual_note, 0, 0)
-            self.manual_footer_grid.addWidget(self.use_live_button, 0, 1)
-            self.manual_footer_grid.addWidget(self.restore_auto_button, 0, 2)
-            self.manual_footer_grid.addWidget(self.apply_pwm_button, 0, 3)
-            self.manual_footer_grid.setColumnStretch(0, 1)
-        elif mode == "split":
-            self.manual_footer_grid.addWidget(self.manual_note, 0, 0, 1, 2)
-            self.manual_footer_grid.addWidget(self.use_live_button, 1, 0)
-            self.manual_footer_grid.addWidget(self.restore_auto_button, 1, 1)
-            self.manual_footer_grid.addWidget(self.apply_pwm_button, 2, 0, 1, 2)
-            self.manual_footer_grid.setColumnStretch(0, 1)
-            self.manual_footer_grid.setColumnStretch(1, 1)
-        else:
-            self.manual_footer_grid.addWidget(self.manual_note, 0, 0)
-            self.manual_footer_grid.addWidget(self.use_live_button, 1, 0)
-            self.manual_footer_grid.addWidget(self.restore_auto_button, 2, 0)
-            self.manual_footer_grid.addWidget(self.apply_pwm_button, 3, 0)
-            self.manual_footer_grid.setColumnStretch(0, 1)
 
     @staticmethod
     def _clear_grid(layout: QGridLayout) -> None:
@@ -3209,10 +2676,14 @@ class FansPage(QWidget):
         ))
         self.curve_plot.set_curve(points)
         self.curve_plot.set_enabled(self.curve_enabled.isChecked())
-        temperature = self._gpu_temperature()
+        temperature, sensor = self._curve_temperature()
         duty = self._curve_percent_for_temp(temperature) if temperature is not None else None
         self.curve_plot.set_live(temperature, duty)
-        self.curve_live_value.setText(f"GPU {temperature:.1f} °C" if temperature is not None else tr("Waiting for GPU temperature"))
+        self.curve_live_value.setText(
+            f"{str(sensor).upper()} {temperature:.1f} °C"
+            if temperature is not None
+            else f"{tr('CPU temperature')} / {tr('GPU temperature')}: --"
+        )
         self.curve_live_target.setText(tr_format("Target {value}%", value=duty) if duty is not None else tr("Target -- %"))
 
     def _select_manual_preset(self, button: PresetButton) -> None:
@@ -3441,9 +2912,13 @@ class FansPage(QWidget):
         if not self._fan_control_available():
             self._show_info("PWM control is not ready", "Prepare nct6687 before applying the curve.", tone="orange")
             return
-        temperature = self._gpu_temperature()
+        temperature, sensor = self._curve_temperature()
         if temperature is None:
-            self._show_info("GPU temperature unavailable", "The curve cannot be evaluated until the GPU temperature sensor reports a value.", tone="orange")
+            self._show_info(
+                "Fan curve",
+                f"{tr('CPU temperature')} / {tr('GPU temperature')}: --",
+                tone="orange",
+            )
             return
         pwm = _integer(self._curve_target_pwm, self._preferred_pwm)
         if not any(_integer(fan.get("index"), -1) == pwm for fan in self._visible_fans()):
@@ -3463,10 +2938,10 @@ class FansPage(QWidget):
         percent = self._curve_percent_for_temp(temperature)
         raw = _percent_to_pwm(percent)
         dialog = ConfirmDialog(
-            "Apply GPU temperature curve now",
-            "The current GPU temperature will be evaluated against the saved curve and one PWM value will be written immediately.",
+            "Fan curve",
+            "The hottest available CPU/GPU temperature will be evaluated against the saved curve and one PWM value will be written immediately.",
             summary=(
-                ("GPU temperature", f"{temperature:.1f} °C"),
+                (f"{str(sensor).upper()} temperature", f"{temperature:.1f} °C"),
                 ("Target channel", f"PWM {pwm}"),
                 ("Calculated duty", f"{percent}% · {raw}/255"),
                 ("Automatic mode", "Enabled" if self.curve_enabled.isChecked() else "One-time apply"),
@@ -3834,11 +3309,24 @@ class FansPage(QWidget):
 
     def _sync_fan_channels(self, presentation: FanStatePresentation) -> None:
         fans = list(presentation.fans)
-        self.channel_combo.blockSignals(True)
-        self.channel_combo.clear()
+        entries: list[tuple[str, int]] = []
         for fan in fans:
             index = _integer(fan.get("index"), 0)
-            self.channel_combo.addItem(f"PWM {index} · {fan.get('label') or f'Fan {index}'}", index)
+            label = fan.get("label") or f"Fan {index}"
+            entries.append((f"PWM {index} · {label}", index))
+        self.channel_combo.blockSignals(True)
+        # The channel list is hardware; it does not change between ticks. Only
+        # rebuild the model when it actually differs, because clearing a
+        # QComboBox throws away its item model and invalidates the popup's
+        # geometry — every three seconds, for a list that never moved.
+        current = [
+            (self.channel_combo.itemText(row), self.channel_combo.itemData(row))
+            for row in range(self.channel_combo.count())
+        ]
+        if current != entries:
+            self.channel_combo.clear()
+            for text, index in entries:
+                self.channel_combo.addItem(text, index)
         target = presentation.selected_index
         selected_index = self.channel_combo.findData(target)
         if selected_index < 0 and self.channel_combo.count() > 0:
@@ -3910,7 +3398,15 @@ class FansPage(QWidget):
     ) -> None:
         main_fan = presentation.main_fan
         gpu_temp = presentation.gpu_temperature
-        live_target = self._curve_percent_for_temp(gpu_temp) if gpu_temp is not None else None
+        curve_temp, curve_sensor = select_fan_control_temperature({
+            "gpu_temp": gpu_temp,
+            "cpu_temp": presentation.cpu_temperature,
+        })
+        live_target = (
+            self._curve_percent_for_temp(curve_temp)
+            if curve_temp is not None
+            else None
+        )
 
         self.rpm_metric.set_values(
             _rpm_text(main_fan.get("rpm")),
@@ -3939,9 +3435,11 @@ class FansPage(QWidget):
                 datetime.now().strftime("%H:%M:%S"),
                 tr("Passive refresh"),
             )
-        self.curve_plot.set_live(gpu_temp, live_target)
+        self.curve_plot.set_live(curve_temp, live_target)
         self.curve_live_value.setText(
-            f"GPU {gpu_temp:.1f} °C" if gpu_temp is not None else tr("Waiting for GPU temperature")
+            f"{str(curve_sensor).upper()} {curve_temp:.1f} °C"
+            if curve_temp is not None
+            else f"{tr('CPU temperature')} / {tr('GPU temperature')}: --"
         )
         self.curve_live_target.setText(
             tr_format("Target {value}%", value=live_target)
@@ -4090,8 +3588,14 @@ class FansPage(QWidget):
             preferred_index=self._preferred_pwm,
         ).cpu_temperature
 
+    def _curve_temperature(self) -> tuple[float | None, str | None]:
+        return select_fan_control_temperature({
+            "gpu_temp": self._gpu_temperature(),
+            "cpu_temp": self._cpu_temperature(),
+        })
+
     def _maybe_apply_curve(self) -> None:
-        temperature = self._gpu_temperature()
+        temperature, _sensor = self._curve_temperature()
         now = time.monotonic()
         validation_error = self._curve_validation_error()
         percent = (

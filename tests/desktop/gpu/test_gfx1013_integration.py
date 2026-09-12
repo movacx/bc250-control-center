@@ -26,7 +26,7 @@ def test_exact_upstream_fedora_host_is_recognized_but_not_auto_installed():
     assert state['direct_installer_allowed'] is True
     assert state['automatic_install_allowed'] is False
     assert state['reason_key'] == 'fedora-upstream-managed'
-    assert state['upstream_branch'] == 'main'
+    assert state['upstream_branch'] == 'reviewed-commit'
     assert state['upstream_managed'] is True
 
 

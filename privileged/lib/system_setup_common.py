@@ -169,8 +169,33 @@ class Host:
         return False
 
     def require_host(self) -> None:
-        if not self.mutable_systemd() or not self.bc250():
-            raise SetupError("This operation requires a BC250 on a supported mutable systemd distribution")
+        """Refuse with the reason, not with the list of requirements.
+
+        Four different situations produced one sentence naming all four, which
+        on Gentoo or Alpine — both first-class elsewhere in this project — read
+        as "your distribution is wrong" when the real answer is that this
+        subsystem writes systemd units and those hosts run OpenRC.
+        """
+        if not self.bc250():
+            raise SetupError(
+                "HARDWARE_CONTEXT: AMD BC-250 hardware identity was not detected."
+            )
+        if self.immutable_image():
+            raise SetupError(
+                "This operation writes to /etc and /usr, which are read-only on an "
+                "image-based system. Layer the change with rpm-ostree instead."
+            )
+        if not self.path("/run/systemd/system").is_dir():
+            raise SetupError(
+                "Swap, zram, TTM and ACPI persistence are installed as systemd units, "
+                "and this host does not run systemd. Live tuning is unaffected; only "
+                "applying it at boot is unavailable."
+            )
+        if self.distro_family() == "unsupported":
+            raise SetupError(
+                "This operation uses distribution-specific package and boot layouts, "
+                "and only the Arch, Debian and Fedora families have a reviewed one."
+            )
 
     def writable_parameter(self, name: str) -> bool:
         try:

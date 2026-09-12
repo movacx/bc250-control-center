@@ -55,6 +55,23 @@ class InitManagerState:
         )
 
 
+@dataclass(frozen=True)
+class ServiceRuntimeState:
+    manager: str
+    service: str
+    active: str
+    enabled: str
+    exists: bool
+    active_returncode: int | None = None
+    enabled_returncode: int | None = None
+    active_output: str = ""
+    enabled_output: str = ""
+
+    @property
+    def persistence_supported(self) -> bool:
+        return self.manager in {"systemd", "openrc"}
+
+
 def _read_pid1_comm(path: Path) -> str:
     try:
         return path.read_text(encoding="ascii", errors="replace").strip().lower()
@@ -164,6 +181,89 @@ def parse_openrc_status(returncode: int, output: str) -> str:
 def parse_openrc_runlevel(output: str, service: str) -> bool:
     key = service_key(service)
     return any(line.split()[0] == key for line in str(output or "").splitlines() if line.split())
+
+
+def inspect_service(
+    runner: Callable[..., tuple[int, str, str]],
+    service: str,
+    *,
+    manager: InitManagerState | None = None,
+    timeout: int = 4,
+    user: bool = False,
+    init_script_root: Path = Path("/etc/init.d"),
+) -> ServiceRuntimeState:
+    """Read service state through the active init manager without side effects."""
+    selected = manager or detect_init_manager()
+    name = str(service or "").strip()
+    if selected.kind == "openrc" and not user:
+        key = service_key(name)
+        active_rc, active_out, active_err = runner(
+            list(openrc_status_argv(key)), timeout=timeout
+        )
+        enabled_rc, enabled_out, enabled_err = runner(
+            ["rc-update", "show", "default"], timeout=timeout
+        )
+        active_output = active_out or active_err or ""
+        enabled_output = enabled_out or enabled_err or ""
+        return ServiceRuntimeState(
+            manager="openrc",
+            service=key,
+            active=parse_openrc_status(active_rc, active_output),
+            enabled=(
+                "unknown" if enabled_rc != 0
+                else "enabled" if parse_openrc_runlevel(enabled_out, key)
+                else "disabled"
+            ),
+            exists=(init_script_root / key).is_file(),
+            active_returncode=active_rc,
+            enabled_returncode=enabled_rc,
+            active_output=active_output,
+            enabled_output=enabled_output,
+        )
+    if selected.kind == "systemd":
+        prefix = ["systemctl"] + (["--user"] if user else [])
+        active_rc, active_out, active_err = runner(
+            prefix + ["is-active", name], timeout=timeout
+        )
+        enabled_rc, enabled_out, enabled_err = runner(
+            prefix + ["is-enabled", name], timeout=timeout
+        )
+        # stderr describes failures; it is never a machine-readable state.
+        active = str(active_out or "").strip().casefold()
+        enabled = str(enabled_out or "").strip().casefold()
+        if active not in {
+            "active", "reloading", "inactive", "failed", "activating",
+            "deactivating", "maintenance", "refreshing", "unknown",
+        }:
+            active = "unknown"
+        if enabled not in {
+            "enabled", "enabled-runtime", "linked", "linked-runtime", "alias",
+            "masked", "masked-runtime", "static", "disabled", "indirect",
+            "generated", "transient", "not-found", "bad",
+        }:
+            enabled = "unknown"
+        exists = enabled not in {"not-found", "unknown"} or active in {
+            "active", "reloading", "failed", "activating", "deactivating",
+            "maintenance", "refreshing",
+        }
+        return ServiceRuntimeState(
+            manager="systemd",
+            service=name,
+            active=active,
+            enabled=enabled,
+            exists=exists,
+            active_returncode=active_rc,
+            enabled_returncode=enabled_rc,
+            active_output=active_out or active_err or "",
+            enabled_output=enabled_out or enabled_err or "",
+        )
+    return ServiceRuntimeState(
+        manager=selected.kind,
+        service=name,
+        active="unknown",
+        enabled="unsupported",
+        exists=False,
+    )
 
 
 def openrc_preflight(*, commands: Sequence[str], has_polkit: bool, has_dbus: bool) -> dict[str, object]:

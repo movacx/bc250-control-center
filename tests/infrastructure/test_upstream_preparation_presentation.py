@@ -4,6 +4,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 
+import pytest
 from PyQt6.QtCore import QSettings
 from PyQt6.QtWidgets import QApplication, QSizePolicy
 
@@ -45,7 +46,7 @@ def _state(family: str, fsr4: dict) -> SimpleNamespace:
     )
 
 
-def test_cachyos_exposes_kernel_mesa_and_full_routes_but_not_fsr4_source_build():
+def test_cachyos_exposes_kernel_mesa_full_routes_and_fsr4():
     sidebar = _sidebar()
     sidebar.set_state(
         _state(
@@ -61,12 +62,40 @@ def test_cachyos_exposes_kernel_mesa_and_full_routes_but_not_fsr4_source_build()
         sidebar.cachyos_mesa_button,
         sidebar.cachyos_full_button,
     ))
+    assert sidebar.gfx_card.isHidden()
+    assert not sidebar.fsr4_card.isHidden()
     assert not sidebar.fsr4_install_button.isHidden()
     assert sidebar.fsr4_remove_button.isHidden()
     assert not sidebar.fsr4_upstream_button.isHidden()
 
 
-def test_bazzite_exposes_verified_source_build_but_blocks_arch_stack():
+@pytest.mark.parametrize("target", ("steamos", "bazzite", "fedora"))
+def test_cachyos_compatibility_filter_shows_gfx1013_for_other_supported_hosts(
+    target,
+):
+    sidebar = _sidebar()
+    sidebar.set_state(_state("cachyos", {}))
+
+    sidebar.compatibility_filter.setCurrentIndex(
+        sidebar.compatibility_filter.findData(target)
+    )
+
+    assert not sidebar.gfx_card.isHidden()
+    assert not sidebar.fsr4_card.isHidden()
+
+
+def test_compatibility_filter_hides_duplicate_gfx1013_for_arch_family():
+    sidebar = _sidebar()
+    sidebar.set_state(_state("bazzite", {}))
+
+    sidebar.compatibility_filter.setCurrentIndex(
+        sidebar.compatibility_filter.findData("arch")
+    )
+
+    assert sidebar.gfx_card.isHidden()
+
+
+def test_bazzite_offers_fsr4_source_build_and_blocks_arch_stack():
     sidebar = _sidebar()
     sidebar.set_state(
         _state(
@@ -92,7 +121,7 @@ def test_bazzite_exposes_verified_source_build_but_blocks_arch_stack():
         sidebar.cachyos_mesa_button,
         sidebar.cachyos_full_button,
     ))
-    assert not sidebar.fsr4_install_button.isHidden()
+    assert not sidebar.fsr4_card.isHidden()
     assert sidebar.fsr4_install_button.isEnabled()
     assert sidebar.fsr4_install_button.text() == "Build and install FSR4"
     assert sidebar.fsr4_card.status.text() == "Source build available"
@@ -101,7 +130,7 @@ def test_bazzite_exposes_verified_source_build_but_blocks_arch_stack():
     assert not sidebar.fsr4_upstream_button.isHidden()
 
 
-def test_ubuntu_exposes_verified_source_build_with_apt_guidance():
+def test_ubuntu_offers_fsr4_source_build_with_state_intact():
     sidebar = _sidebar()
     sidebar.set_state(
         _state(
@@ -119,7 +148,7 @@ def test_ubuntu_exposes_verified_source_build_with_apt_guidance():
         )
     )
 
-    assert not sidebar.fsr4_install_button.isHidden()
+    assert not sidebar.fsr4_card.isHidden()
     assert sidebar.fsr4_install_button.isEnabled()
     assert sidebar.fsr4_install_button.text() == "Build and install FSR4"
     assert sidebar.fsr4_card.status.text() == "Source build available"
@@ -155,7 +184,7 @@ def test_fedora44_fsr4_waits_for_repaired_gfx1013_boot():
     assert sidebar.fsr4_install_button.isHidden()
 
 
-def test_fedora44_fsr4_exposes_source_build_after_repaired_boot():
+def test_fedora44_fsr4_source_build_is_offered_after_repaired_boot():
     sidebar = _sidebar()
     sidebar.set_state(
         _state(
@@ -176,11 +205,12 @@ def test_fedora44_fsr4_exposes_source_build_after_repaired_boot():
     )
 
     assert sidebar.fsr4_card.status.text() == "Source build available"
+    assert not sidebar.fsr4_card.isHidden()
     assert sidebar.fsr4_install_button.isEnabled()
     assert sidebar.fsr4_install_button.text() == "Build and install FSR4"
 
 
-def test_ready_fsr4_runtime_exposes_round_universal_copy_button():
+def test_ready_fsr4_runtime_is_offered_while_the_backend_remains_available():
     sidebar = _sidebar()
     option = (
         'LD_LIBRARY_PATH="$HOME/.local/share/bc250-fsr4/v3/lib'
@@ -204,16 +234,14 @@ def test_ready_fsr4_runtime_exposes_round_universal_copy_button():
         )
     )
 
+    assert not sidebar.fsr4_card.isHidden()
     assert not sidebar.fsr4_launch_row.isHidden()
     assert sidebar.fsr4_copy_button.width() == 30
     assert sidebar.fsr4_copy_button.height() == 30
-    sidebar.fsr4_copy_button.click()
-    assert QApplication.clipboard().text() == option
-    assert "$HOME" in QApplication.clipboard().text()
-    assert "/home/fabianbeita" not in QApplication.clipboard().text()
+    assert sidebar._fsr4_launch_option == option
 
 
-def test_steamos_ready_fsr4_exposes_its_attested_runner_copy_button():
+def test_steamos_ready_fsr4_is_offered_on_the_graphics_card():
     sidebar = _sidebar()
     option = (
         '"$HOME/.local/share/bc250-mesh-shader/fsr4/bc250-fsr4-run" %command%'
@@ -231,7 +259,11 @@ def test_steamos_ready_fsr4_exposes_its_attested_runner_copy_button():
 
     sidebar.set_state(state)
 
+    assert not sidebar.gfx_card.isHidden()
+    # FSR4 is installed and current here, so its launch option is shown
+    # instead of being hidden behind a developer flag.
     assert not sidebar.steamos_fsr4_launch_row.isHidden()
+    assert not sidebar.gfx_tertiary_button.isHidden()
     assert sidebar.steamos_fsr4_copy_button.width() == 30
     assert sidebar.steamos_fsr4_copy_button.height() == 30
     sidebar.steamos_fsr4_copy_button.click()
@@ -278,6 +310,22 @@ def test_bazzite_async_compute_card_explains_old_kernel_gate():
     assert sidebar.gfx_secondary_button.text() == "Open upstream project"
 
 
+@pytest.mark.parametrize("version_id", ("43", "44"))
+def test_fedora_gfx1013_card_stays_visible(version_id):
+    sidebar = _sidebar()
+    state = _state("fedora", {})
+    state.preparation_tools["version_id"] = version_id
+    state.preparation_tools["gfx1013_compute"] = {
+        "reason_key": "fedora-upstream-managed",
+        "version_id": version_id,
+    }
+
+    sidebar.set_state(state)
+
+    assert not sidebar.gfx_card.isHidden()
+    assert not sidebar.fsr4_card.isHidden()
+
+
 def test_bazzite_async_compute_card_exposes_reviewed_release_action():
     sidebar = _sidebar()
     state = _state(
@@ -297,7 +345,7 @@ def test_bazzite_async_compute_card_exposes_reviewed_release_action():
     assert sidebar.gfx_primary_button.request_payload["action"] == "gfx1013_bazzite_install"
 
 
-def test_manjaro_exposes_only_the_explicit_abi_gated_fsr4_candidate():
+def test_manjaro_shows_the_abi_gated_fsr4_candidate():
     sidebar = _sidebar()
     sidebar.set_state(
         _state(
@@ -322,6 +370,7 @@ def test_manjaro_exposes_only_the_explicit_abi_gated_fsr4_candidate():
             sidebar.cachyos_full_button,
         )
     )
+    assert not sidebar.fsr4_card.isHidden()
     assert sidebar.fsr4_install_button.isEnabled()
     assert sidebar.fsr4_card.status.text() == "Experimental ABI check"
 

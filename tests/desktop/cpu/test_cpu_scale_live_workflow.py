@@ -84,6 +84,7 @@ def test_live_scale_candidate_does_not_mutate_detector_evidence(tmp_path):
 
     assert argv == [
         "pkexec",
+        "--disable-internal-agent",
         "/usr/libexec/bc250-control-center/bc250-cpu-smu-helper",
         "apply-live", "3850", "-30", "90",
     ]
@@ -112,6 +113,7 @@ def test_live_candidate_can_use_selected_frequency_instead_of_detected_frequency
     )
     assert argv == [
         "pkexec",
+        "--disable-internal-agent",
         "/usr/libexec/bc250-control-center/bc250-cpu-smu-helper",
         "apply-live", "3700", "-30", "85",
     ]
@@ -131,6 +133,7 @@ def test_live_candidate_can_use_selected_frequency_instead_of_detected_frequency
     )
     assert persistent == [
         "pkexec",
+        "--disable-internal-agent",
         "/usr/libexec/bc250-control-center/bc250-cpu-smu-helper",
         "install-boot", "3700", "-30", "85",
     ]
@@ -151,6 +154,7 @@ def test_persistence_rejects_manual_scale_until_same_scale_was_applied_live(tmp_
     assert candidate["scale"] == -30
     assert argv == [
         "pkexec",
+        "--disable-internal-agent",
         "/usr/libexec/bc250-control-center/bc250-cpu-smu-helper",
         "install-boot", "3850", "-30", "90",
     ]
@@ -249,6 +253,7 @@ def test_direct_manual_apply_does_not_require_detector_evidence(tmp_path):
 
     assert argv == [
         "pkexec",
+        "--disable-internal-agent",
         "/usr/libexec/bc250-control-center/bc250-cpu-smu-helper",
         "apply-live", "3700", "-34", "85",
     ]
@@ -304,6 +309,7 @@ def test_direct_manual_record_reuses_pristine_detection_for_persistence(tmp_path
         temperature_override=85,
     ) == [
         "pkexec",
+        "--disable-internal-agent",
         "/usr/libexec/bc250-control-center/bc250-cpu-smu-helper",
         "install-boot", "3700", "-34", "85",
     ]

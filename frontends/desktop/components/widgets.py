@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Iterable
 
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor, QIcon
 from PyQt6.QtWidgets import (
     QAbstractScrollArea,
@@ -14,7 +13,6 @@ from PyQt6.QtWidgets import (
     QGridLayout,
     QHBoxLayout,
     QLabel,
-    QProgressBar,
     QScrollArea,
     QSizePolicy,
     QVBoxLayout,
@@ -22,6 +20,7 @@ from PyQt6.QtWidgets import (
 )
 
 from .. import theme as theme_module
+from ..core.error_diagnostics import format_error_for_user
 from ..i18n import localize_widget_tree, tr
 from ..theme import COLORS, application_stylesheet, palette_color, semantic_color_key
 from .buttons import WrappingButton as QPushButton
@@ -108,7 +107,7 @@ class PillLabel(QLabel):
         self._refresh_palette()
 
     def _refresh_palette(self) -> None:
-        tone = self._tone if self._tone in {"green", "blue", "purple", "orange", "red"} else "gray"
+        tone = self._tone if self._tone in {"green", "blue", "purple", "orange", "red", "cyan"} else "gray"
         if tone == "gray":
             foreground, background, border = COLORS["muted"], COLORS["neutral_soft"], COLORS["neutral_border"]
         else:
@@ -116,437 +115,6 @@ class PillLabel(QLabel):
             background = COLORS[f"{tone}_soft"]
             border = COLORS[f"{tone}_border"]
         self.setStyleSheet(f"color:{foreground}; background:{background}; border:1px solid {border};")
-
-
-class MetricCell(QWidget):
-    def __init__(self, label: str, value: str, parent: QWidget | None = None):
-        super().__init__(parent)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(7)
-        self.label = QLabel(tr(label))
-        self.label.setProperty("metricLabel", True)
-        self.label.setWordWrap(True)
-        self.label.setMinimumWidth(0)
-        self.value = QLabel(tr(value))
-        self.value.setProperty("metricValue", True)
-        self.value.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        layout.addWidget(self.label)
-        layout.addWidget(self.value)
-
-    def set_value(self, value: str) -> None:
-        self.value.setText(tr(value))
-
-    def set_label(self, label: str) -> None:
-        self.label.setText(tr(label))
-
-
-class ModuleCard(QFrame):
-    activated = pyqtSignal(str)
-
-    def __init__(
-        self,
-        key: str,
-        title: str,
-        icon_name: str,
-        icon_background: str,
-        status: str,
-        status_tone: str,
-        metrics: Iterable[tuple[str, str]],
-        button_text: str,
-        parent: QWidget | None = None,
-    ):
-        super().__init__(parent)
-        self.key = key
-        self.setProperty("card", True)
-        self.setProperty("moduleCard", True)
-        self.setMinimumHeight(292)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        apply_shadow(self, blur=22, y=4, alpha=18)
-
-        outer = QVBoxLayout(self)
-        outer.setContentsMargins(0, 0, 0, 0)
-        outer.setSpacing(0)
-
-        body = QWidget()
-        root = QVBoxLayout(body)
-        root.setContentsMargins(22, 20, 22, 19)
-        root.setSpacing(16)
-        outer.addWidget(body, 1)
-
-        header = QHBoxLayout()
-        header.setSpacing(12)
-        header.addWidget(IconBadge(icon_name, icon_background, 42, radius=12))
-        title_label = QLabel(tr(title))
-        title_label.setProperty("cardTitle", True)
-        title_label.setWordWrap(True)
-        title_label.setMinimumWidth(0)
-        header.addWidget(title_label)
-        header.addStretch(1)
-        self.status = PillLabel(tr(status), status_tone)
-        header.addWidget(self.status)
-        root.addLayout(header)
-
-        divider = QFrame()
-        divider.setObjectName("CardDivider")
-        divider.setFixedHeight(1)
-        root.addWidget(divider)
-
-        self.metrics_layout = QGridLayout()
-        self.metrics_layout.setContentsMargins(0, 3, 0, 0)
-        self.metrics_layout.setHorizontalSpacing(26)
-        self.metrics_layout.setVerticalSpacing(18)
-        self.metric_cells: list[MetricCell] = []
-        for index, (label, value) in enumerate(metrics):
-            cell = MetricCell(label, value)
-            self.metric_cells.append(cell)
-            self.metrics_layout.addWidget(cell, index // 2, index % 2)
-        self.metrics_layout.setColumnStretch(0, 1)
-        self.metrics_layout.setColumnStretch(1, 1)
-        root.addLayout(self.metrics_layout)
-        root.addStretch(1)
-
-        self._progress_color_source: str | None = None
-        self.progress = QProgressBar()
-        self.progress.setTextVisible(False)
-        self.progress.hide()
-        root.addWidget(self.progress)
-
-        self.button = QPushButton(tr(button_text))
-        self.button.setProperty("cardAction", True)
-        self.button.setMinimumHeight(38)
-        self.button.setIcon(icon("chevron_right_gray"))
-        self.button.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
-        self.button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.button.clicked.connect(lambda: self.activated.emit(self.key))
-        root.addWidget(self.button)
-
-    def set_progress(self, value: int, color: str | None = None) -> None:
-        self.progress.show()
-        self.progress.setValue(max(0, min(100, value)))
-        if color is not None:
-            self._progress_color_source = color
-        self._refresh_palette()
-
-    def _refresh_palette(self) -> None:
-        if self._progress_color_source:
-            color = palette_color(self._progress_color_source, "blue")
-            self.progress.setStyleSheet(
-                f"QProgressBar{{background:{COLORS['progress_track']};border:none;border-radius:4px;min-height:7px;max-height:7px;}}"
-                f"QProgressBar::chunk{{background:{color};border-radius:4px;}}"
-            )
-
-    def set_metric(self, index: int, value: str) -> None:
-        if 0 <= index < len(self.metric_cells):
-            self.metric_cells[index].set_value(value)
-
-    def set_metric_label(self, index: int, label: str) -> None:
-        if 0 <= index < len(self.metric_cells):
-            self.metric_cells[index].set_label(label)
-
-
-class ReadinessRow(QWidget):
-    def __init__(self, text: str, ready: bool, parent: QWidget | None = None):
-        super().__init__(parent)
-        self.text = text
-        self._ready = bool(ready)
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(0, 5, 0, 5)
-        layout.setSpacing(8)
-        marker_wrap = QFrame()
-        marker_wrap.setObjectName("ReadinessMarker")
-        marker_wrap.setFixedSize(26, 26)
-        marker_layout = QHBoxLayout(marker_wrap)
-        marker_layout.setContentsMargins(5, 5, 5, 5)
-        self.marker = QLabel()
-        self.marker.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        marker_layout.addWidget(self.marker)
-        self.label = QLabel(tr(text))
-        self.label.setProperty("rowLabel", True)
-        self.label.setWordWrap(True)
-        self.label.setMinimumWidth(0)
-        self.state = QLabel()
-        self.state.setProperty("readinessState", True)
-        layout.addWidget(marker_wrap)
-        layout.addWidget(self.label)
-        layout.addStretch(1)
-        layout.addWidget(self.state)
-        self.set_ready(ready)
-
-    def set_ready(self, ready: bool) -> None:
-        self._ready = bool(ready)
-        self.marker.setPixmap(icon("check_green" if self._ready else "warning_orange").pixmap(15, 15))
-        self.state.setText(tr("Operational" if self._ready else "Attention"))
-        self._refresh_palette()
-
-    def _refresh_palette(self) -> None:
-        self.state.setStyleSheet(
-            f"color:{COLORS['green'] if self._ready else COLORS['orange']}; font-weight:750;"
-        )
-
-
-class ReadinessCard(QFrame):
-    prepare_clicked = pyqtSignal()
-
-    def __init__(self, rows: Iterable[tuple[str, bool]], parent: QWidget | None = None):
-        super().__init__(parent)
-        self.setProperty("sectionCard", True)
-        self.setMinimumHeight(274)
-        apply_shadow(self, blur=20, y=4, alpha=16)
-        self.layout = QVBoxLayout(self)
-        self.layout.setContentsMargins(22, 20, 22, 18)
-        self.layout.setSpacing(8)
-
-        header = QHBoxLayout()
-        header.setSpacing(12)
-        header.addWidget(IconBadge("shield_green", COLORS["green_soft"], 42, radius=12))
-        text_box = QVBoxLayout()
-        text_box.setSpacing(2)
-        title = QLabel(tr("System Readiness"))
-        title.setProperty("cardTitle", True)
-        self.subtitle = QLabel()
-        self.subtitle.setObjectName("ReadinessSubtitle")
-        self.subtitle.setWordWrap(True)
-        self.subtitle.setMinimumWidth(0)
-        text_box.addWidget(title)
-        text_box.addWidget(self.subtitle)
-        header.addLayout(text_box)
-        header.addStretch(1)
-        self.layout.addLayout(header)
-
-        self.rows_host = QWidget()
-        self.rows_layout = QVBoxLayout(self.rows_host)
-        self.rows_layout.setContentsMargins(0, 3, 0, 2)
-        self.rows_layout.setSpacing(0)
-        self.layout.addWidget(self.rows_host)
-        self.rows: list[ReadinessRow] = []
-        self._all_ready = False
-
-        self.layout.addStretch(1)
-        button = QPushButton(tr("Prepare Dependencies"))
-        button.setProperty("cardAction", True)
-        button.setIcon(icon("download_blue"))
-        button.setCursor(Qt.CursorShape.PointingHandCursor)
-        button.clicked.connect(self.prepare_clicked)
-        self.layout.addWidget(button)
-        self.set_rows(rows)
-
-    def set_rows(self, rows: Iterable[tuple[str, bool]]) -> None:
-        values = list(rows)
-        while self.rows_layout.count():
-            item = self.rows_layout.takeAt(0)
-            if item.widget() is not None:
-                item.widget().deleteLater()
-        self.rows.clear()
-        self._all_ready = all(ready for _, ready in values)
-        self.subtitle.setText(tr("All critical services operational" if self._all_ready else "Review required components"))
-        self._refresh_palette()
-        for index, (text, ready) in enumerate(values):
-            row = ReadinessRow(text, ready)
-            self.rows.append(row)
-            self.rows_layout.addWidget(row)
-            if index < len(values) - 1:
-                divider = QFrame()
-                divider.setObjectName("ListDivider")
-                divider.setFixedHeight(1)
-                self.rows_layout.addWidget(divider)
-
-    def _refresh_palette(self) -> None:
-        self.subtitle.setStyleSheet(
-            f"color:{COLORS['green'] if self._all_ready else COLORS['orange']}; font-weight:700;"
-        )
-
-
-
-class QuickActionButton(QFrame):
-    clicked = pyqtSignal()
-
-    def __init__(self, title: str, subtitle: str, icon_name: str, tone: str, parent: QWidget | None = None):
-        super().__init__(parent)
-        self.setProperty("quickActionRow", True)
-        self.setProperty("hovered", False)
-        self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setMinimumHeight(58)
-        row = QHBoxLayout(self)
-        row.setContentsMargins(12, 9, 12, 9)
-        row.setSpacing(11)
-        soft = {
-            "blue": COLORS["blue_soft"],
-            "orange": COLORS["orange_soft"],
-            "gray": "neutral_soft",
-        }.get(tone, COLORS["blue_soft"])
-        row.addWidget(IconBadge(icon_name, soft, 36, radius=10))
-        text_box = QVBoxLayout()
-        text_box.setSpacing(1)
-        title_label = QLabel(tr(title))
-        title_label.setProperty("actionTitle", True)
-        title_label.setWordWrap(True)
-        title_label.setMinimumWidth(0)
-        subtitle_label = QLabel(tr(subtitle))
-        subtitle_label.setProperty("actionSubtitle", True)
-        subtitle_label.setWordWrap(True)
-        subtitle_label.setMinimumWidth(0)
-        text_box.addWidget(title_label)
-        text_box.addWidget(subtitle_label)
-        row.addLayout(text_box, 1)
-        arrow = QLabel()
-        arrow.setPixmap(icon("chevron_right_gray").pixmap(16, 16))
-        row.addWidget(arrow)
-
-    def enterEvent(self, event) -> None:  # noqa: N802 - Qt API name
-        self.setProperty("hovered", True)
-        self.style().unpolish(self)
-        self.style().polish(self)
-        super().enterEvent(event)
-
-    def leaveEvent(self, event) -> None:  # noqa: N802 - Qt API name
-        self.setProperty("hovered", False)
-        self.style().unpolish(self)
-        self.style().polish(self)
-        super().leaveEvent(event)
-
-    def gamepad_activate(self) -> None:
-        self.clicked.emit()
-
-    def mouseReleaseEvent(self, event) -> None:  # noqa: N802 - Qt API name
-        if event.button() == Qt.MouseButton.LeftButton and self.rect().contains(event.position().toPoint()):
-            self.clicked.emit()
-        super().mouseReleaseEvent(event)
-
-
-class QuickActionsCard(QFrame):
-    action_clicked = pyqtSignal(str)
-
-    def __init__(self, parent: QWidget | None = None):
-        super().__init__(parent)
-        self.setProperty("sectionCard", True)
-        self.setMinimumHeight(274)
-        apply_shadow(self, blur=20, y=4, alpha=16)
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(22, 20, 22, 18)
-        layout.setSpacing(9)
-
-        header = QHBoxLayout()
-        header.setSpacing(12)
-        header.addWidget(IconBadge("bolt_blue", COLORS["blue_soft"], 42, radius=12))
-        heading = QVBoxLayout()
-        heading.setSpacing(2)
-        title = QLabel(tr("Quick Actions"))
-        title.setProperty("cardTitle", True)
-        subtitle = QLabel(tr("Common controls and diagnostics"))
-        subtitle.setProperty("sectionSubtitle", True)
-        subtitle.setWordWrap(True)
-        subtitle.setMinimumWidth(0)
-        heading.addWidget(title)
-        heading.addWidget(subtitle)
-        header.addLayout(heading)
-        header.addStretch(1)
-        layout.addLayout(header)
-
-        actions = [
-            ("apply_profile", "Apply CPU Profile", "Activate the current safe tuning profile", "rocket_blue", "blue"),
-            ("prepare_pwm", "Prepare Fan PWM", "Initialize Pump Fan J4003 control", "fan_orange", "orange"),
-            ("open_logs", "Open Logs", "Review events and system diagnostics", "logs_gray", "gray"),
-        ]
-        for key, title_text, subtitle_text, icon_name, tone in actions:
-            button = QuickActionButton(title_text, subtitle_text, icon_name, tone)
-            button.clicked.connect(lambda action=key: self.action_clicked.emit(action))
-            layout.addWidget(button)
-        layout.addStretch(1)
-
-
-class ActivityRow(QWidget):
-    def __init__(self, activity, parent: QWidget | None = None):
-        super().__init__(parent)
-        row = QHBoxLayout(self)
-        row.setContentsMargins(0, 7, 0, 7)
-        row.setSpacing(10)
-        self.dot = QFrame()
-        self.dot.setFixedSize(9, 9)
-        self._tone = "green" if activity.level not in {"warning", "error", "critical"} else "orange"
-        self._refresh_palette()
-        text = QLabel(tr(activity.title))
-        text.setProperty("activityText", True)
-        text.setWordWrap(True)
-        text.setMinimumWidth(0)
-        when = QLabel(tr(activity.when))
-        when.setProperty("activityTime", True)
-        row.addWidget(self.dot)
-        row.addWidget(text, 1)
-        row.addWidget(when)
-
-    def _refresh_palette(self) -> None:
-        self.dot.setStyleSheet(f"background:{COLORS[self._tone]}; border:none; border-radius:4px;")
-
-
-
-class ActivityCard(QFrame):
-    view_all_clicked = pyqtSignal()
-
-    def __init__(self, activities, parent: QWidget | None = None):
-        super().__init__(parent)
-        self.setProperty("sectionCard", True)
-        self.setMinimumHeight(274)
-        apply_shadow(self, blur=20, y=4, alpha=16)
-        self.root = QVBoxLayout(self)
-        self.root.setContentsMargins(22, 20, 22, 18)
-        self.root.setSpacing(8)
-
-        header = QHBoxLayout()
-        header.setSpacing(12)
-        header.addWidget(IconBadge("activity_purple", COLORS["purple_soft"], 42, radius=12))
-        heading = QVBoxLayout()
-        heading.setSpacing(2)
-        title = QLabel(tr("Recent Activity"))
-        title.setProperty("cardTitle", True)
-        title.setWordWrap(True)
-        title.setMinimumWidth(0)
-        subtitle = QLabel(tr("Latest hardware and service events"))
-        subtitle.setProperty("sectionSubtitle", True)
-        subtitle.setWordWrap(True)
-        subtitle.setMinimumWidth(0)
-        heading.addWidget(title)
-        heading.addWidget(subtitle)
-        header.addLayout(heading)
-        header.addStretch(1)
-        view_all = QPushButton(tr("View All"))
-        view_all.setProperty("compactAction", True)
-        view_all.setIcon(icon("chevron_right_gray"))
-        view_all.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
-        view_all.setCursor(Qt.CursorShape.PointingHandCursor)
-        view_all.clicked.connect(self.view_all_clicked)
-        header.addWidget(view_all)
-        self.root.addLayout(header)
-
-        self.activities_host = QWidget()
-        self.activities_layout = QVBoxLayout(self.activities_host)
-        self.activities_layout.setContentsMargins(0, 2, 0, 0)
-        self.activities_layout.setSpacing(0)
-        self.root.addWidget(self.activities_host)
-        self.root.addStretch(1)
-        self.set_activities(activities)
-
-    def set_activities(self, activities) -> None:
-        while self.activities_layout.count():
-            item = self.activities_layout.takeAt(0)
-            if item.widget() is not None:
-                item.widget().deleteLater()
-        values = list(activities)[:5]
-        if not values:
-            empty = QLabel(tr("No recent activity"))
-            empty.setProperty("sectionSubtitle", True)
-            empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            empty.setWordWrap(True)
-            self.activities_layout.addWidget(empty)
-            return
-        for index, activity in enumerate(values):
-            self.activities_layout.addWidget(ActivityRow(activity))
-            if index < len(values) - 1:
-                divider = QFrame()
-                divider.setObjectName("ListDivider")
-                divider.setFixedHeight(1)
-                self.activities_layout.addWidget(divider)
 
 
 class SummaryMetric(QWidget):
@@ -663,6 +231,14 @@ class InfoDialog(QDialog):
         copy_text: str = "",
         copy_button_text: str = "Copy command",
     ):
+        raw_title = str(title)
+        raw_eyebrow = str(eyebrow)
+        if tone == "red":
+            message = format_error_for_user(
+                message,
+                context=f"{raw_eyebrow} {raw_title}",
+                translate=tr,
+            )
         title = tr(title)
         message = tr(message)
         eyebrow = tr(eyebrow)

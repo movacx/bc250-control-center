@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python3 -I
 """Closed privileged protocol for the optional Decky Quick Access plugin.
 
 The Decky frontend is not trusted to form a command line.  This installed,
@@ -9,6 +9,8 @@ protocol values which are checked again immediately before execution.
 from __future__ import annotations
 
 import configparser
+import fcntl
+import importlib.util
 import json
 import os
 import pathlib
@@ -18,11 +20,20 @@ import subprocess
 import sys
 import tempfile
 import time
-from collections.abc import Mapping, Sequence
-
 import tomllib
+from collections.abc import Mapping, Sequence
+from contextlib import contextmanager
 
+# The wire protocol, and the revision of the shared contract this helper was
+# built against. Both stay integer literals on purpose: the desktop reads
+# HELPER_PROTOCOL out of the *installed* file with an AST parse, without
+# importing it, to detect a half-finished upgrade where the helper and the
+# plugin came from different builds.
 HELPER_PROTOCOL = 13
+REQUIRED_CONTRACT_REVISION = 1
+CONTRACT_PATH = pathlib.Path(
+    "/usr/libexec/bc250-control-center/lib/bc250_contract.py"
+)
 CYAN_SERVICE = "cyan-skillfish-governor-smu.service"
 CYAN_BUS = "com.cyanskillfish.Governor"
 CYAN_RANGE_PATH = "/com/cyanskillfish/Governor/Range/Current"
@@ -121,6 +132,36 @@ PWM_MODE_VERIFY_INTERVAL_SECONDS = 0.05
 PWM_DUTY_VERIFY_ATTEMPTS = 16
 PWM_DUTY_VERIFY_INTERVAL_SECONDS = 0.10
 PWM_MODE_SETTLE_SECONDS = 0.15
+FAN_OPERATION_LOCK = pathlib.Path('/run/bc250-control-center-fan.lock')
+CU_OPERATION_LOCK = pathlib.Path('/run/bc250-control-center-cu.lock')
+OPERATION_LOCK_TIMEOUT_SECONDS = 3.0
+
+
+@contextmanager
+def operation_lock(path: pathlib.Path, label: str):
+    flags = os.O_CREAT | os.O_RDWR | getattr(os, 'O_CLOEXEC', 0)
+    flags |= getattr(os, 'O_NOFOLLOW', 0)
+    descriptor = os.open(path, flags, 0o600)
+    try:
+        metadata = os.fstat(descriptor)
+        if (
+            not stat.S_ISREG(metadata.st_mode)
+            or metadata.st_uid != 0
+            or metadata.st_mode & 0o077
+        ):
+            raise RuntimeError(f'Unsafe {label} operation lock.')
+        deadline = time.monotonic() + OPERATION_LOCK_TIMEOUT_SECONDS
+        while True:
+            try:
+                fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except BlockingIOError:
+                if time.monotonic() >= deadline:
+                    raise RuntimeError(f'Another {label} operation is still in progress.')
+                time.sleep(0.025)
+        yield
+    finally:
+        os.close(descriptor)
 
 
 def fail(message: str, code: int = 1) -> int:
@@ -272,7 +313,7 @@ def gpu_core_mhz(drm_root: pathlib.Path = pathlib.Path("/sys/class/drm")) -> int
             continue
         for line in payload.splitlines():
             match = re.search(r"\b(\d+)\s*(?:mhz|mhs)\b.*\*", line, re.IGNORECASE)
-            if match:
+            if match and 100 <= int(match.group(1)) <= 5000:
                 return int(match.group(1))
     return None
 
@@ -293,7 +334,7 @@ def gpu_memory_clock_mhz(drm_root: pathlib.Path = pathlib.Path("/sys/class/drm")
             continue
         for line in payload.splitlines():
             match = re.search(r"\b(\d+)\s*(?:mhz|mhs)\b.*\*", line, re.IGNORECASE)
-            if match:
+            if match and 100 <= int(match.group(1)) <= 5000:
                 return int(match.group(1))
     return None
 
@@ -302,8 +343,8 @@ def gpu_voltage_mv(drm_root: pathlib.Path = pathlib.Path("/sys/class/drm")) -> i
     """Read a labelled live VDDGFX value without assuming a hwmon index.
 
     A voltage input without the ``vddgfx`` label may belong to another rail,
-    so it is intentionally ignored.  Kernels may report millivolts or
-    microvolts; normalize both forms before publishing the passive metric.
+    so it is intentionally ignored.  The hwmon ABI reports millivolts; reject invalid readings without
+    guessing a different unit from their magnitude.
     """
     try:
         devices = sorted(drm_root.glob("card*/device"))
@@ -334,8 +375,11 @@ def gpu_voltage_mv(drm_root: pathlib.Path = pathlib.Path("/sys/class/drm")) -> i
                     continue
                 if label != "vddgfx":
                     continue
-                millivolts = raw // 1000 if raw > 10_000 else raw
-                if 400 <= millivolts <= 1_500:
+                millivolts = raw
+                # Same board-specific ceiling as the desktop reader: a kernel
+                # without the BC-250 sensor patches can report a value that is
+                # inside the generic hwmon range but still wrong (issue #7).
+                if 400 <= millivolts <= 1_400:
                     return millivolts
     return None
 
@@ -1404,7 +1448,9 @@ def cu_table(masks: Sequence[object], *, save_boot: bool = False) -> int:
             extra_env=cu_environment,
         )
         if remove.returncode != 0:
-            return fail(remove.stderr.strip() or remove.stdout.strip() or "CU WGP removal failed.", remove.returncode)
+            # Report the CU code, not the backend's own exit status: an
+            # unmapped number reaches the user as a bare "code N".
+            return fail("QUICK_ACCESS_CU_TABLE: " + (remove.stderr.strip() or remove.stdout.strip() or "CU WGP removal failed."), 30)
     if enabled:
         add = run(
             [str(backend), "--yes", "enable-wgp", *enabled],
@@ -1412,14 +1458,14 @@ def cu_table(masks: Sequence[object], *, save_boot: bool = False) -> int:
             extra_env=cu_environment,
         )
         if add.returncode != 0:
-            return fail(add.stderr.strip() or add.stdout.strip() or "CU WGP routing failed.", add.returncode)
+            return fail("QUICK_ACCESS_CU_TABLE: " + (add.stderr.strip() or add.stdout.strip() or "CU WGP routing failed."), 30)
     verify = run(
         [str(backend), "status"],
         timeout=45,
         extra_env=cu_environment,
     )
     if verify.returncode != 0:
-        return fail(verify.stderr.strip() or verify.stdout.strip() or "CU verification failed.", verify.returncode)
+        return fail("QUICK_ACCESS_CU_TABLE: " + (verify.stderr.strip() or verify.stdout.strip() or "CU verification failed."), 30)
     topology = parse_cu_topology(verify.stdout)
     if topology is None:
         return fail(
@@ -2012,7 +2058,7 @@ def cpu_saved_profile() -> dict[str, int] | None:
         temperature = parser.getint("overclock", "max_temperature")
     except (OSError, ValueError, configparser.Error):
         return None
-    if not (3500 <= frequency <= 4200 and -50 <= scale <= 0 and 70 <= temperature <= 90):
+    if not (3100 <= frequency <= 4200 and -50 <= scale <= 0 and 70 <= temperature <= 90):
         return None
     return {"frequency": frequency, "scale": scale, "temperature": temperature}
 
@@ -2087,8 +2133,8 @@ def cpu_detection_candidate(frequency_raw: str, vid_raw: str) -> dict[str, int]:
         raise ValueError("CPU VID must be an integer.")
     frequency = int(frequency_raw)
     vid = int(vid_raw)
-    if not 3500 <= frequency <= 4200 or frequency % 50:
-        raise ValueError("CPU frequency must be 3500–4200 MHz in 50 MHz steps.")
+    if not 3100 <= frequency <= 4200 or frequency % 50:
+        raise ValueError("CPU frequency must be 3100–4200 MHz in 50 MHz steps.")
     if not 950 <= vid <= 1325 or vid % 5:
         raise ValueError("CPU VID must be 950–1325 mV in 5 mV steps.")
     context = cpu_tuning_context()
@@ -2109,8 +2155,8 @@ def cpu_scale_candidate(frequency_raw: str, scale_raw: str) -> dict[str, int]:
         raise ValueError("CPU scale must be an integer.")
     frequency = int(frequency_raw)
     scale = int(scale_raw)
-    if not 3500 <= frequency <= 4200 or frequency % 50:
-        raise ValueError("CPU frequency must be 3500–4200 MHz in 50 MHz steps.")
+    if not 3100 <= frequency <= 4200 or frequency % 50:
+        raise ValueError("CPU frequency must be 3100–4200 MHz in 50 MHz steps.")
     if not -50 <= scale <= 0:
         raise ValueError("CPU scale must be between -50 and 0.")
     detected = cpu_qam_detection_state()
@@ -2304,9 +2350,46 @@ def cpu_apply_saved_profile() -> int:
         return fail("QUICK_ACCESS_CPU: no valid root-owned BC250 CPU profile is available. Configure and validate it in the full application first.", 50)
     result = run([str(CPU_HELPER), "apply-config", str(CPU_CONFIG)], timeout=900)
     if result.returncode != 0:
-        return fail(result.stderr.strip() or result.stdout.strip() or "Saved CPU profile failed.", result.returncode)
+        return fail("QUICK_ACCESS_CPU: " + (result.stderr.strip() or result.stdout.strip() or "Saved CPU profile failed."), 50)
     print(json.dumps({"ok": True, "cpu_profile": profile, "message": "Saved validated CPU profile applied live."}))
     return 0
+
+
+_CONTRACT = None
+
+
+def shared_contract():
+    """The loaded contract, loading it on first use.
+
+    Never at module scope: a failure there would be an import error, and for
+    the Decky backend that means a panel that simply never appears.
+    """
+    global _CONTRACT
+    if _CONTRACT is None:
+        _CONTRACT = load_contract()
+    return _CONTRACT
+
+
+def _contract_payload() -> dict:
+    """What the panel needs to draw a control, so it keeps no bounds of its own."""
+    shared = shared_contract()
+    return {
+        "revision": REQUIRED_CONTRACT_REVISION,
+        "cpu": {
+            "frequency_range": list(shared.CPU_FREQUENCY_RANGE),
+            "frequency_step": shared.CPU_FREQUENCY_STEP_MHZ,
+            "vid_range": list(shared.CPU_VID_RANGE),
+            "vid_step": shared.CPU_VID_STEP_MV,
+            "scale_range": list(shared.CPU_SCALE_RANGE),
+            "vid_model": dict(shared.CPU_VID_MODEL),
+        },
+        "cu": {"targets": list(shared.cu_targets())},
+        "fan": {
+            "channels": list(shared.QUICK_ACCESS_FAN_CHANNELS),
+            "percent_range": list(shared.QUICK_ACCESS_FAN_PERCENT_RANGE),
+            "percent_step": shared.QUICK_ACCESS_FAN_PERCENT_STEP,
+        },
+    }
 
 
 def status() -> int:
@@ -2330,7 +2413,16 @@ def status() -> int:
         current_range = [oberon["frequency_min"], oberon["frequency_max"]]
         # Only the dedicated Oberon buttons are an in-game control.  Do
         # not leak the broader YAML schema as a selectable Cyan-style ladder.
-        allowed_range = [1000, 1850]
+        #
+        # The ceiling is derived from the profiles actually on offer, not
+        # typed. Hardcoding 1850 while offering a 2000 MHz profile made the
+        # panel clamp Benchmark down to the Gaming range: two buttons reading
+        # "1000-1850 MHz", both highlighted as current, and the second one
+        # applying 1000-2000 MHz — a range the panel never displayed.
+        allowed_range = [
+            min(low for low, _high in OBERON_QAM_PROFILES.values()),
+            max(high for _low, high in OBERON_QAM_PROFILES.values()),
+        ]
         safe_points = []
     else:
         current_range = None
@@ -2400,6 +2492,11 @@ def status() -> int:
         "fan_channel_options": fan_channel_options,
         "fan_default_channel": 2,
         "fan_manual_percent_range": [QAM_FAN_MIN_PERCENT, QAM_FAN_MAX_PERCENT],
+        # Bounds travel with the state, so the panel has none of its own.
+        # Its CPU slider used to start at 3500 against a real floor of 3100,
+        # and it carried its own copy of the VID coefficients and the CU
+        # ladder. Anything it needs to draw a control belongs here.
+        "contract": _contract_payload(),
         **memory_runtime_state(),
         "live_only": False,
     }
@@ -2411,10 +2508,93 @@ def status() -> int:
     return 0
 
 
+def load_contract():
+    """Read the shared contract and refuse to act on a different one.
+
+    Loaded from inside ``main`` rather than at import time, and deliberately:
+    a failure here has to land inside ``guarded_main``'s try/except so the
+    caller receives one diagnostic line. Raised at module scope it would be an
+    import error, which for the Decky backend means the BC250 panel simply
+    never appears, with nothing on screen to explain why.
+
+    Verification, not supply. The constants below stay literals in this file —
+    the desktop AST-reads one of them out of the installed copy — so what the
+    contract does is *audit* them. Drift then cannot ship: either the numbers
+    agree, or this helper refuses before touching hardware.
+    """
+    try:
+        metadata = CONTRACT_PATH.stat(follow_symlinks=False)
+    except OSError as error:
+        raise RuntimeError(
+            "QUICK_ACCESS_COMPONENT_MISSING: the shared BC250 contract is not "
+            "installed. Reinstall BC250 Control Center from Desktop Mode."
+        ) from error
+    if CONTRACT_PATH.is_symlink() or not stat.S_ISREG(metadata.st_mode):
+        raise RuntimeError(
+            "QUICK_ACCESS_COMPONENT_MISSING: the shared BC250 contract is not a "
+            "regular file."
+        )
+    if metadata.st_uid != 0 or metadata.st_mode & 0o022:
+        raise RuntimeError(
+            "QUICK_ACCESS_COMPONENT_MISSING: the shared BC250 contract must be "
+            "owned by root and not writable by group or others."
+        )
+    # ``-I`` does not imply ``-B``; without this the loader leaves a
+    # root-owned __pycache__ inside /usr/libexec on every mutable host.
+    sys.dont_write_bytecode = True
+    spec = importlib.util.spec_from_file_location("bc250_contract", CONTRACT_PATH)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(
+            "QUICK_ACCESS_COMPONENT_MISSING: the shared BC250 contract could not "
+            "be loaded."
+        )
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+
+    if module.CONTRACT_REVISION != REQUIRED_CONTRACT_REVISION:
+        raise RuntimeError(
+            "QUICK_ACCESS_COMPONENT_MISSING: this helper was built against "
+            f"contract revision {REQUIRED_CONTRACT_REVISION} and the installed "
+            f"one is {module.CONTRACT_REVISION}. Reinstall BC250 Control Center."
+        )
+    disagreements = [
+        name
+        for name, mine, theirs in (
+            ("wire protocol", HELPER_PROTOCOL, module.QUICK_ACCESS_PROTOCOL),
+            ("CU targets", CU_TARGETS, module.cu_targets()),
+            ("fan presets", FAN_SYSTEM_PRESETS, module.QUICK_ACCESS_FAN_PRESET_DUTY),
+            ("fan channels", QAM_FAN_CHANNELS, module.QUICK_ACCESS_FAN_CHANNELS),
+            (
+                "fan duty range",
+                (QAM_FAN_MIN_PERCENT, QAM_FAN_MAX_PERCENT),
+                module.QUICK_ACCESS_FAN_PERCENT_RANGE,
+            ),
+            (
+                "Oberon profiles",
+                tuple(sorted(OBERON_QAM_PROFILES.values())),
+                tuple(sorted(module.OBERON_DESKTOP_PROFILES)),
+            ),
+        )
+        if mine != theirs
+    ]
+    if disagreements:
+        raise RuntimeError(
+            "QUICK_ACCESS_COMPONENT_MISSING: this helper disagrees with the "
+            f"installed BC250 contract about {', '.join(disagreements)}. "
+            "Reinstall BC250 Control Center from Desktop Mode."
+        )
+    global _CONTRACT
+    _CONTRACT = module
+    return module
+
+
 def main(argv: Sequence[str]) -> int:
     error = require_runtime()
     if error:
         return fail(error, 10)
+    # Before anything touches hardware: agree with canon or refuse.
+    load_contract()
     valid_arity = (
         len(argv) == 2
         or (len(argv) == 3 and argv[1] in {"gpu-profile", "gpu-safe-point", "cu-mode", "cu-service", "fan-auto", "fan-system", "cpu-service"})
@@ -2433,23 +2613,31 @@ def main(argv: Sequence[str]) -> int:
     if action == "gpu-safe-point" and len(argv) == 3:
         return gpu_safe_point(argv[2])
     if action == "cu-mode" and len(argv) == 3:
-        return cu_mode(argv[2])
+        with operation_lock(CU_OPERATION_LOCK, "CU"):
+            return cu_mode(argv[2])
     if action == "cu-table" and len(argv) == 6:
-        return cu_table(argv[2:6])
+        with operation_lock(CU_OPERATION_LOCK, "CU"):
+            return cu_table(argv[2:6])
     if action == "cu-save" and len(argv) == 6:
-        return cu_save(argv[2:6])
+        with operation_lock(CU_OPERATION_LOCK, "CU"):
+            return cu_save(argv[2:6])
     if action == "cu-service" and len(argv) == 3:
         if argv[2] == "install":
-            return cu_install_service()
+            with operation_lock(CU_OPERATION_LOCK, "CU"):
+                return cu_install_service()
         if argv[2] == "remove":
-            return cu_remove_service()
+            with operation_lock(CU_OPERATION_LOCK, "CU"):
+                return cu_remove_service()
         return fail("QUICK_ACCESS_CU_SERVICE: action must be install or remove.", 2)
     if action == "fan-auto" and len(argv) == 3:
-        return fan_auto(argv[2])
+        with operation_lock(FAN_OPERATION_LOCK, "fan"):
+            return fan_auto(argv[2])
     if action == "fan-system" and len(argv) == 3:
-        return fan_system_preset(argv[2])
+        with operation_lock(FAN_OPERATION_LOCK, "fan"):
+            return fan_system_preset(argv[2])
     if action == "fan-channel" and len(argv) == 4:
-        return fan_channel_control(argv[2], argv[3])
+        with operation_lock(FAN_OPERATION_LOCK, "fan"):
+            return fan_channel_control(argv[2], argv[3])
     if action == "cpu-apply-saved" and len(argv) == 2:
         return cpu_apply_saved_profile()
     if action == "cpu-detect" and len(argv) == 4:

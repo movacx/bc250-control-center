@@ -73,6 +73,24 @@ def parse_proc_swaps(payload: str) -> dict[str, int | bool]:
     }
 
 
+def parse_memtotal_bytes(payload: str) -> int | None:
+    """Read Linux ``MemTotal`` without confusing swap with physical RAM."""
+    match = re.search(r"(?m)^MemTotal:\s*([0-9]+)\s+kB\s*$", str(payload or ""))
+    if not match:
+        return None
+    value = int(match.group(1), 10) * 1024
+    return value if value > 0 else None
+
+
+def supported_ttm_gib_presets(physical_ram_bytes: object) -> tuple[int, ...]:
+    """Return reviewed TTM ceilings that fit in visible physical memory."""
+    if type(physical_ram_bytes) is not int or physical_ram_bytes <= 0:
+        return ()
+    return tuple(
+        target for target in TTM_GIB_PRESETS if target * GIB <= physical_ram_bytes
+    )
+
+
 def kernel_argument(command_line: str, name: str) -> str:
     pattern = re.compile(rf"(?:^|\s){re.escape(name)}=([^\s]+)")
     matches = pattern.findall(str(command_line or ""))
@@ -83,6 +101,7 @@ def read_memory_runtime_state(
     *,
     proc_swaps: Path = Path("/proc/swaps"),
     proc_cmdline: Path = Path("/proc/cmdline"),
+    proc_meminfo: Path = Path("/proc/meminfo"),
     zswap_enabled: Path = Path("/sys/module/zswap/parameters/enabled"),
     zswap_pool_percent: Path = Path("/sys/module/zswap/parameters/max_pool_percent"),
     ttm_pages_limit: Path = Path("/sys/module/ttm/parameters/pages_limit"),
@@ -94,6 +113,7 @@ def read_memory_runtime_state(
     pages = _integer(ttm_pages_limit)
     runtime_bytes = pages * page_size if pages is not None and pages >= 0 else None
     boot_raw = kernel_argument(_read_text(proc_cmdline), "ttm.pages_limit")
+    physical_ram_bytes = parse_memtotal_bytes(_read_text(proc_meminfo))
     try:
         boot_pages = int(boot_raw, 10) if boot_raw else None
     except ValueError:
@@ -109,6 +129,9 @@ def read_memory_runtime_state(
         "ttm_runtime_differs_from_boot": bool(
             pages is not None and boot_pages is not None and pages != boot_pages
         ),
+        "physical_ram_bytes": physical_ram_bytes,
+        "supported_ttm_gib_presets": supported_ttm_gib_presets(
+            physical_ram_bytes
+        ),
         "page_size": page_size,
     }
-

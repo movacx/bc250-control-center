@@ -38,6 +38,8 @@ SYSTEM_GOVERNOR_CONFIG_HELPER="/usr/libexec/bc250-control-center/bc250-governor-
 SYSTEM_CORE_UNLOCK_HELPER="/usr/libexec/bc250-control-center/bc250-core-unlock-helper"
 SYSTEM_CPU_SMU_HELPER="/usr/libexec/bc250-control-center/bc250-cpu-smu-helper"
 SYSTEM_OPENRC_SERVICE_HELPER="/usr/libexec/bc250-control-center/bc250-openrc-service-helper"
+SYSTEM_SERVICE_HELPER="/usr/libexec/bc250-control-center/bc250-service-helper"
+SYSTEM_MAINTENANCE_HELPER="/usr/libexec/bc250-control-center/bc250-maintenance-helper"
 SYSTEM_QUICK_ACCESS_HELPER="/usr/libexec/bc250-control-center/bc250-quick-access-helper"
 SYSTEM_GPU_LAB_SCRIPT="/usr/libexec/bc250-control-center/bc250-gpu-voltage-lab.sh"
 SYSTEM_STEAMOS_AMDGPU_OVERLAY="/usr/libexec/bc250-control-center/bc250-steamos-amdgpu-overlay"
@@ -295,11 +297,11 @@ remove_path "$DESKTOP_DIR/io.github.movacx.bc250-control-center.desktop"
 remove_path "$METAINFO_DIR/io.github.movacx.bc250-control-center.metainfo.xml"
 remove_path "$SYSTEMD_USER_DIR/bc250-control-centerd.service"
 if [[ "$KEEP_PRIVILEGED" -eq 0 ]]; then
-if [[ -e /var/lib/bc250-control-center/system-setup/acpi.json || -e /etc/systemd/system/bc250-memory-setup.service || -e /var/lib/bc250-control-center-swap/swapfile || -e /etc/systemd/zram-generator.conf.d/90-bc250.conf ]]; then
+if [[ -e /var/lib/bc250-control-center/system-setup/acpi.json || -e /var/lib/bc250-control-center/system-setup/telemetry.json || -e /etc/systemd/system/bc250-memory-setup.service || -e /var/lib/bc250-control-center-swap/swapfile || -e /etc/systemd/zram-generator.conf.d/90-bc250.conf ]]; then
   echo "Keeping the optional memory/ACPI helper for restoration. Restore these settings in Control Center before removing that helper."
 else
   remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-system-setup-helper" "/usr/libexec/bc250-control-center/bc250-system-setup-helper"
-  for setup_module in system_setup_common.py system_setup_memory.py system_setup_acpi.py acpi_payload.py; do
+  for setup_module in system_setup_common.py system_setup_memory.py system_setup_acpi.py system_setup_telemetry.py acpi_payload.py; do
     remove_managed_privileged_file "$APP_DIR/privileged/lib/$setup_module" "/usr/libexec/bc250-control-center/lib/$setup_module"
   done
 fi
@@ -310,6 +312,8 @@ remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-governor-confi
 remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-core-unlock-helper" "$SYSTEM_CORE_UNLOCK_HELPER"
 remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-cpu-smu-helper" "$SYSTEM_CPU_SMU_HELPER"
 remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-openrc-service-helper" "$SYSTEM_OPENRC_SERVICE_HELPER"
+remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-service-helper" "$SYSTEM_SERVICE_HELPER"
+remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-maintenance-helper" "$SYSTEM_MAINTENANCE_HELPER"
 remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-quick-access-helper" "$SYSTEM_QUICK_ACCESS_HELPER"
 gpu_lab_source="$APP_DIR/scripts/system/bc250-gpu-voltage-lab.sh"
 telemetry_overlay_source="$APP_DIR/scripts/system/prepare-steamos-telemetry-oc-overlay.py"
@@ -350,7 +354,7 @@ else
   remove_path "$APP_DIR"
 fi
 
-for size in 32 48 64 128 256 512 1024; do
+for size in 16 24 32 48 64 128 256 512 1024; do
   remove_path "$ICON_DIR/${size}x${size}/apps/bc250-control-center.png"
   remove_empty_dir "$ICON_DIR/${size}x${size}/apps"
   remove_empty_dir "$ICON_DIR/${size}x${size}"

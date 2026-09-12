@@ -14,6 +14,7 @@ from bc250cc.application.preparation.component_engine import (
     preparation_plan,
     verification_shell,
 )
+from bc250cc.infrastructure import script_presentation
 from bc250cc.infrastructure.governor_conflicts import (
     CYAN_GOVERNOR,
     GOVERNOR_SPECS,
@@ -322,10 +323,25 @@ def build_preparation_command(context: PreparationContext) -> str:
         'if command -v flock >/dev/null 2>&1; then exec 9>"${XDG_RUNTIME_DIR:-/tmp}/bc250-control-center-$(id -u).lock"; flock -n 9 || { echo "ERROR: another BC250 system preparation is already running"; exit 40; }; fi',
         'BC250_REBOOT_REQUIRED=0',
         f'mkdir -p {shlex.quote(str(context.tool_dir))}',
-        'echo "== Preparing BC250 dependencies =="',
-        f"printf '%s\\n' {shlex.quote(f'Detected strategy: {os_repo.info.family} ({os_repo.info.label})')}",
-        f"printf '%s\\n' {shlex.quote('Selected components: ' + ', '.join(sorted(selected)))}",
-        f"printf '%s\\n' {shlex.quote('Preparation plan: ' + ', '.join(item['component'] for item in preparation_plan(selected, os_repo.info.family)))}",
+        # A framed header with the detected system and the plan, so the user
+        # can see what is about to happen instead of watching raw tool output
+        # scroll past with no context.
+        script_presentation.banner(
+            'BC-250 Control Center - Prepare dependencies',
+            f'{os_repo.info.label} - {os_repo.info.family}',
+        ),
+        script_presentation.note(
+            'Components: ' + ', '.join(sorted(selected))
+        ),
+        script_presentation.note(
+            'Plan: ' + ', '.join(
+                item['component']
+                for item in preparation_plan(selected, os_repo.info.family)
+            )
+        ),
+        script_presentation.progress_note(
+            'Downloads and builds can take several minutes; this is normal.'
+        ),
     ]
     if context.disable_conflicts and context.conflicts:
         commands.append(repo._comando_desactivar_gobernadores_incompatibles(

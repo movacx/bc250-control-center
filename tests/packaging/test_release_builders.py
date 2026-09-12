@@ -66,6 +66,8 @@ def test_package_staging_contains_runtime_and_no_generated_or_retired_code(tmp_p
 
     assert (stage / "usr/bin/bc250-control-center-cli").stat().st_mode & 0o111
     assert (stage / "usr/libexec/bc250-control-center/bc250-cpu-smu-helper").stat().st_mode & 0o111
+    assert (stage / "usr/libexec/bc250-control-center/bc250-service-helper").stat().st_mode & 0o111
+    assert (stage / "usr/libexec/bc250-control-center/bc250-maintenance-helper").stat().st_mode & 0o111
     assert (stage / "usr/libexec/bc250-control-center/bc250-package-maintenance").stat().st_mode & 0o111
     privileged_root = stage / "usr/libexec/bc250-control-center"
     privileged_lib = privileged_root / "lib"
@@ -83,6 +85,8 @@ def test_package_staging_contains_runtime_and_no_generated_or_retired_code(tmp_p
 
 
 def test_deb_dependencies_support_split_and_legacy_polkit_packages(tmp_path):
+    if shutil.which("dpkg-deb") is None:
+        return
     output = tmp_path / "dist"
 
     _run("bash", ROOT / "packaging/scripts/build-deb.sh", output)

@@ -7,6 +7,7 @@ BC250 helper using a named, finite operation.
 from __future__ import annotations
 
 import asyncio
+import importlib.util
 import json
 import pathlib
 import stat
@@ -27,11 +28,20 @@ if str(PLUGIN_ROOT) not in sys.path:
 from bc250cc.domain.gpu.profiles import profiles_payload  # noqa: E402
 
 HELPER = pathlib.Path("/usr/libexec/bc250-control-center/bc250-quick-access-helper")
+CONTRACT_PATH = pathlib.Path(
+    "/usr/libexec/bc250-control-center/lib/bc250_contract.py"
+)
 # Protocol 13 adds the Oberon 2000 MHz Benchmark profile and the conservative
 # 1000 MHz clock-only idle fallback used when Fedora omits gpu_busy_percent.
+#
+# Kept as integer literals: the desktop AST-reads HELPER_PROTOCOL out of this
+# installed file, without importing it, to notice when the plugin and the root
+# helper came from different builds. REQUIRED_CONTRACT_REVISION says which
+# shape of the shared contract this file was written against.
 HELPER_PROTOCOL = 13
+REQUIRED_CONTRACT_REVISION = 1
 GPU_PROFILES = (
-    "recovery", "balanced", "gaming", "benchmark",
+    "balanced", "gaming", "benchmark",
     "oberon-1500", "oberon-1850", "oberon-2000",
 )
 CU_MODES = tuple(str(value) for value in range(24, 41, 2))
@@ -39,7 +49,11 @@ FAN_PRESETS = ("quiet", "balanced", "boost", "automatic")
 FAN_CHANNELS = (2, 3, 4, 5)
 FAN_MIN_PERCENT = 20
 FAN_MAX_PERCENT = 100
-CPU_FREQUENCIES = tuple(range(3500, 4201, 50))
+# 3100 MHz, the same floor as canon, the desktop and the root helper — not the
+# 3500 this used to declare. With that floor, 3100-3450 MHz was unreachable in
+# Game Mode, and a profile the user had saved at 3200 on the desktop was
+# rounded *up* to 3500 before being re-applied: an overclock nobody asked for.
+CPU_FREQUENCIES = tuple(range(3100, 4201, 50))
 CPU_VIDS = tuple(range(950, 1326, 5))
 CPU_SCALES = tuple(range(-50, 1))
 MAX_RECENT_ACTIONS = 10
@@ -98,9 +112,64 @@ class Plugin:
             and bool(metadata.st_mode & stat.S_IXUSR)
         )
 
+    @staticmethod
+    def _contract_disagreement() -> str:
+        """Read the shared contract and check this file was built against it.
+
+        Called from ``_run``, not at import time, and that matters: Decky
+        Loader imports this module, so an exception here at module scope means
+        the BC250 panel never appears at all, with nothing on screen to say
+        why. From inside ``_run`` the same problem reaches the panel as one
+        sentence with one recovery action.
+
+        Returns an empty string when everything agrees.
+        """
+        try:
+            metadata = CONTRACT_PATH.lstat()
+        except OSError:
+            return ("BC250 shared contract is not installed. "
+                    "Reinstall BC250 Control Center from Desktop Mode.")
+        if (
+            not stat.S_ISREG(metadata.st_mode)
+            or stat.S_ISLNK(metadata.st_mode)
+            or metadata.st_uid != 0
+            or metadata.st_mode & 0o022
+        ):
+            return ("BC250 shared contract is not a protected root-owned file. "
+                    "Reinstall BC250 Control Center from Desktop Mode.")
+        try:
+            # ``-B`` is not implied here; avoid leaving a root-owned cache in
+            # /usr/libexec.
+            sys.dont_write_bytecode = True
+            spec = importlib.util.spec_from_file_location("bc250_contract", CONTRACT_PATH)
+            if spec is None or spec.loader is None:
+                raise ImportError(CONTRACT_PATH)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+        except (OSError, ImportError, SyntaxError, ValueError):
+            return ("BC250 shared contract could not be read. "
+                    "Reinstall BC250 Control Center from Desktop Mode.")
+        if module.CONTRACT_REVISION != REQUIRED_CONTRACT_REVISION:
+            return (f"BC250 Quick Access was built for contract revision "
+                    f"{REQUIRED_CONTRACT_REVISION} and this system has "
+                    f"{module.CONTRACT_REVISION}. Reinstall both from Desktop Mode.")
+        if module.QUICK_ACCESS_PROTOCOL != HELPER_PROTOCOL:
+            return ("BC250 Quick Access and the installed helper are different "
+                    "versions. Reinstall both from Desktop Mode.")
+        if tuple(CPU_FREQUENCIES) != module.cpu_frequency_ladder():
+            return ("BC250 Quick Access disagrees with this system about the CPU "
+                    "frequency range. Reinstall both from Desktop Mode.")
+        if tuple(CU_MODES) != tuple(str(value) for value in module.cu_targets()):
+            return ("BC250 Quick Access disagrees with this system about the "
+                    "Compute Units range. Reinstall both from Desktop Mode.")
+        return ""
+
     def _run(self, *args: str, timeout: int = 190) -> dict:
         if not self._trusted_helper():
             return {"ok": False, "error": "BC250 helper is missing or not protected. Reinstall BC250 Quick Access from Desktop Mode."}
+        disagreement = self._contract_disagreement()
+        if disagreement:
+            return {"ok": False, "error": disagreement}
         try:
             result = subprocess.run(
                 [str(HELPER), *args], text=True, capture_output=True,

@@ -14,6 +14,7 @@ from bc250cc.domain.fan.persistence import (
     normalize_fan_curve,
     validate_fan_curve_points,
 )
+from bc250cc.infrastructure.cpu_scaling_state import detect_cpu_scaling
 from bc250cc.infrastructure.cyan_governor_runtime import (
     detect_cyan_frequency_fix_runtime,
     detect_cyan_metrics_fix_runtime,
@@ -53,6 +54,10 @@ from bc250cc.infrastructure.steamos_amdgpu_backend import (
     STEAMOS_AMDGPU_BACKEND,
     protected_backend_status_ready,
 )
+from bc250cc.infrastructure.toolkit_conflicts import (
+    describe_toolkit_conflict,
+    detect_foreign_toolkits,
+)
 from bc250cc.platform.init.services import (
     detect_init_manager,
     parse_openrc_runlevel,
@@ -72,6 +77,8 @@ class HealthRepository:
         Path('/usr/libexec/bc250-control-center/bc250-core-unlock-helper'),
         Path('/usr/libexec/bc250-control-center/bc250-cpu-smu-helper'),
         Path('/usr/libexec/bc250-control-center/bc250-openrc-service-helper'),
+        Path('/usr/libexec/bc250-control-center/bc250-service-helper'),
+        Path('/usr/libexec/bc250-control-center/bc250-maintenance-helper'),
     )
     _PROTECTED_PAYLOADS = (
         Path('/usr/libexec/bc250-control-center/lib/bc250_smu_oc_vendor.zip'),
@@ -849,6 +856,90 @@ class HealthRepository:
             detail_values={'governors': ', '.join(item.get('identifier', '?') for item in conflicts)} if conflicts else {},
         )
 
+    def _cpu_scaling_health(self):
+        """Report a board with no CPU frequency scaling at all.
+
+        Without the ACPI performance tables the kernel registers no cpufreq
+        driver, so every core stays pinned near its base clock even at idle.
+        Nothing else in the interface surfaced this.
+        """
+        state = detect_cpu_scaling()
+        missing = not state.get("scaling_available")
+        override = bool(state.get("acpi_override_active"))
+        if not missing:
+            detail = 'CPU frequency scaling is active.'
+            guidance = ''
+        elif override:
+            # The tables are loaded yet no driver bound: a different fault
+            # (wrong kernel, blacklisted module) rather than a missing fix.
+            detail = (
+                'CPU frequency scaling is not available even though the ACPI '
+                'tables are loaded, so the processor stays near its base clock.'
+            )
+            guidance = 'Restart into the BC250 kernel and run System Health again.'
+        else:
+            detail = (
+                'CPU frequency scaling is not available: the kernel registered '
+                'no cpufreq driver, so the processor stays near its base clock.'
+            )
+            guidance = 'Apply the reviewed ACPI setup, then restart.'
+        return self._health_item(
+            'cpu:frequency-scaling', 'CPU power management \u00b7 ACPI',
+            'warning' if missing else 'healthy',
+            detail, guidance,
+            {'scaling': state, 'repair_action': 'acpi-install' if missing and not override else ''},
+        )
+
+    def _core_unlock_persistence_health(self):
+        """Warn when the active core unlock will not survive a power off.
+
+        Upstream states the SMU mask write survives warm reboots only, so a
+        board can run with 8 cores today and be back to 6 tomorrow with
+        nothing having reported it.
+        """
+        # SistemaRepository mixes CPURepository in alongside this class, so the
+        # CPU state is reachable directly. Stay defensive: a health check must
+        # never be the thing that raises.
+        reader = getattr(self, "estado_desbloqueo_nucleos_cpu", None)
+        try:
+            state = reader() if callable(reader) else {}
+        except (OSError, RuntimeError, ValueError):
+            # An unreadable CPU state is reported as "no unlock detected"
+            # rather than breaking the whole health report.
+            state = {}
+        persistence = state.get("persistence") if isinstance(state, dict) else {}
+        persistence = persistence if isinstance(persistence, dict) else {}
+        volatile = (
+            bool(persistence.get("unlocked"))
+            and not persistence.get("survives_power_off", True)
+        )
+        return self._health_item(
+            'cpu:core-unlock-persistence', 'CPU core unlock persistence',
+            'warning' if volatile else 'healthy',
+            'The active CPU core unlock is temporary only — not saved for boot. '
+            'A full power off restores the factory core count.'
+            if volatile else 'No temporary CPU core unlock was detected.',
+            'Run the unlock again after each full power off.' if volatile else '',
+            {'persistence': persistence},
+        )
+
+    def _toolkit_conflict_health(self):
+        """Report other community toolkits that own the same files.
+
+        This is a warning, not an error: running another toolkit is allowed.
+        The risk is silent, though — both write the same units and configs, so
+        a change applied here can be replaced at the next boot.
+        """
+        detections = detect_foreign_toolkits()
+        return self._health_item(
+            'toolkit:conflicts', 'Other BC-250 toolkits',
+            'warning' if detections else 'healthy',
+            describe_toolkit_conflict(detections) if detections
+            else 'No other BC-250 toolkit was detected.',
+            'Keep only one tool responsible for each area.' if detections else '',
+            {'toolkits': list(detections)},
+        )
+
     def _service_and_config_health(self):
         selected = str(self._health_governor_context()['selected'])
         selected_service = str(GOVERNOR_SPECS[selected]['service'])
@@ -1134,6 +1225,9 @@ class HealthRepository:
         checks.extend(self._relevant_launcher_health())
         checks.extend(self._repository_health_checks(os_info.family))
         checks.append(self._governor_conflict_health())
+        checks.append(self._toolkit_conflict_health())
+        checks.append(self._core_unlock_persistence_health())
+        checks.append(self._cpu_scaling_health())
         checks.extend(self._service_and_config_health())
         if os_info.family == 'steamos':
             checks.append(self._steamos_patch_health())

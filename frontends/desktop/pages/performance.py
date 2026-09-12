@@ -269,50 +269,6 @@ class MetricHistory:
         return _nice_ceiling(peak * 1.15) if peak > 0 else 1024.0
 
 
-class Sparkline(QWidget):
-    HISTORY_POINTS = 120
-
-    def __init__(self, history: MetricHistory, parent: QWidget | None = None):
-        super().__init__(parent)
-        self.history = history
-        self.setMinimumHeight(28)
-        self.setMaximumHeight(34)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-
-    def paintEvent(self, event) -> None:  # pragma: no cover - visual rendering
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        bounds = QRectF(self.rect()).adjusted(1, 3, -1, -2)
-        maximum = self.history.maximum()
-        painter.setPen(QPen(QColor(COLORS["chart_grid"]), 1))
-        painter.drawLine(int(bounds.left()), int(bounds.bottom()), int(bounds.right()), int(bounds.bottom()))
-        for name, color_text in self.history.definition.series:
-            values = list(self.history.values[name])
-            if not values:
-                continue
-            padded = [0.0] * max(0, self.HISTORY_POINTS - len(values)) + values
-            line = QPainterPath()
-            area = QPainterPath()
-            for index, value in enumerate(padded):
-                x = bounds.left() + bounds.width() * index / max(1, len(padded) - 1)
-                y = bounds.bottom() - bounds.height() * min(maximum, value) / maximum
-                if index == 0:
-                    line.moveTo(x, y)
-                    area.moveTo(x, bounds.bottom())
-                    area.lineTo(x, y)
-                else:
-                    line.lineTo(x, y)
-                    area.lineTo(x, y)
-            area.lineTo(bounds.right(), bounds.bottom())
-            area.closeSubpath()
-            color = QColor(palette_color(color_text))
-            fill = QColor(color)
-            fill.setAlpha(20)
-            painter.fillPath(area, fill)
-            painter.setPen(QPen(color, 1.7, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
-            painter.drawPath(line)
-
-
 class ResourceTile(QFrame):
     activated = pyqtSignal(str)
 

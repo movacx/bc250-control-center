@@ -10,6 +10,7 @@ import weakref
 from dataclasses import dataclass, field, replace
 from typing import Any
 
+from bc250cc.domain.telemetry import voltage_mv
 from bc250cc.infrastructure.telemetry_policy import (
     passive_probe_budget,
     run_passive_probe,
@@ -104,12 +105,7 @@ def _integer(value: Any, default: int = 0) -> int:
 
 
 def _voltage_millivolts(value: Any) -> int:
-    reading = _number(value, 0.0)
-    if reading > 10_000:
-        return round(reading / 1000)
-    if 0 < reading < 10:
-        return round(reading * 1000)
-    return max(0, round(reading))
+    return voltage_mv(value) or 0
 
 
 def _format_binary_bytes(value: int) -> str:
@@ -398,6 +394,10 @@ class DashboardState:
     gpu_gtt_total_bytes: int = 0
     gpu_dpm_force_level: str = ""
     gpu_dpm_state: str = ""
+    gpu_telemetry_invalid: bool = False
+    gpu_metrics_layout_mismatch: bool = False
+    gpu_telemetry_repair_pending: bool = False
+    gpu_telemetry_repair_available: bool = True
 
     active_cus: int = 0
     total_cus: int = 40
@@ -539,12 +539,6 @@ class DashboardState:
         )
 
     @property
-    def cu_percent(self) -> int:
-        if self.total_cus <= 0:
-            return 0
-        return max(0, min(100, round(self.active_cus * 100 / self.total_cus)))
-
-    @property
     def gpu_summary(self) -> str:
         name = (self.gpu_name or "BC250").strip()
         driver = (self.gpu_driver or "").strip()
@@ -640,6 +634,12 @@ class DashboardState:
 
         gpu_driver = str(gpu.get("driver") or "")
         gpu_name = str(gpu.get("device") or gpu.get("device_name") or "BC250")
+        apu_telemetry = gpu.get("apu_telemetry")
+        apu_telemetry = apu_telemetry if isinstance(apu_telemetry, dict) else {}
+        system_setup_tools = tools.get("system_setup")
+        system_setup_tools = system_setup_tools if isinstance(system_setup_tools, dict) else {}
+        telemetry_repair = system_setup_tools.get("telemetry")
+        telemetry_repair = telemetry_repair if isinstance(telemetry_repair, dict) else {}
 
         return cls(
             cpu_frequency_mhz=cpu_freq,
@@ -680,6 +680,17 @@ class DashboardState:
             ),
             gpu_dpm_state=str(
                 perf.get("dpm_state") or gpu.get("power_state") or ""
+            ),
+            gpu_telemetry_invalid=apu_telemetry.get("status") == "invalid",
+            gpu_metrics_layout_mismatch=bool(
+                apu_telemetry.get("layout_mismatch_suspected")
+            ),
+            gpu_telemetry_repair_pending=bool(
+                telemetry_repair.get("reboot_required")
+                and not telemetry_repair.get("active")
+            ),
+            gpu_telemetry_repair_available=bool(
+                telemetry_repair.get("available", True)
             ),
             active_cus=active_cus,
             total_cus=40,
