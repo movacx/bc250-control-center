@@ -62,3 +62,7 @@ htmlcov/
 .tox/
 *.swp
 *~
+
+# Carpetas de trabajo local / scratch (no deben subirse)
+carpeta temporal*/
+Claude outputs/

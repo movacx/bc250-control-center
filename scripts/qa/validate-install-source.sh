@@ -35,6 +35,7 @@ required=(
   packaging/common/bc250-control-centerd.service
   privileged/helpers/bc250-core-unlock-helper
   privileged/helpers/bc250-cpu-smu-helper
+  privileged/helpers/bc250-gddr6-temp-helper
   privileged/helpers/bc250-cyan-overlay-preflight
   privileged/helpers/bc250-fan-pwm-helper
   privileged/helpers/bc250-governor-config-helper
@@ -98,6 +99,7 @@ for relative in \
   privileged/lib/acpi_payload.py \
   privileged/helpers/bc250-core-unlock-helper \
   privileged/helpers/bc250-cpu-smu-helper \
+  privileged/helpers/bc250-gddr6-temp-helper \
   privileged/helpers/bc250-cyan-overlay-preflight \
   privileged/helpers/bc250-fan-pwm-helper \
   privileged/helpers/bc250-governor-config-helper \

@@ -55,8 +55,9 @@ def test_release_report_covers_every_automated_hardware_writer_without_self_cert
     assert required <= covered
     assert set(matrix) == {
         "cpu_smu", "gpu_governors", "compute_units", "fan_pwm",
-        "quick_access_decky", "core_unlock_and_boot",
+        "quick_access_decky", "core_unlock_and_boot", "memory_thermal",
     }
+    assert "gddr6_memory_temp" in matrix["memory_thermal"]["tools"]
     assert all(
         section["status"] == "pending-external-evidence"
         and section["mock_results_can_qualify"] is False

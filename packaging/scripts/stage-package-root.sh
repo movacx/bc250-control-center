@@ -104,6 +104,7 @@ for helper in \
   bc250-quick-access-helper \
   bc250-core-unlock-helper \
   bc250-cpu-smu-helper \
+  bc250-gddr6-temp-helper \
   bc250-openrc-service-helper \
   bc250-service-helper \
   bc250-maintenance-helper; do

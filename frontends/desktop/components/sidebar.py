@@ -134,6 +134,7 @@ class Sidebar(QFrame):
             ("performance", "Performance", "activity_purple", "purple_soft"),
             ("fans", "Fans", "fan_cyan", "cyan_soft"),
             ("processes", "Processes", "processes_blue", "blue_soft"),
+            ("gddr6_memory_temp", "GDDR6 Temp (Beta)", "memory_green", "orange_soft"),
             ("settings", "Settings", "settings_blue", "blue_soft"),
         ]
         self.group = QButtonGroup(self)

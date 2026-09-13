@@ -17,6 +17,9 @@ from bc250cc.infrastructure.cu_repository import CURepository
 from bc250cc.infrastructure.dependencias_repository import DependenciasRepository
 from bc250cc.infrastructure.drivers_repository import DriversRepository
 from bc250cc.infrastructure.fan_repository import FanRepository
+from bc250cc.infrastructure.gddr6_memory_temp_repository import (
+    Gddr6MemoryTempRepository,
+)
 from bc250cc.infrastructure.gpu_repository import GPURepository
 from bc250cc.infrastructure.health_repository import HealthRepository
 from bc250cc.infrastructure.memory_runtime import read_memory_runtime_state
@@ -31,6 +34,7 @@ from bc250cc.infrastructure.realtime_metrics_policy import (
     network_rates,
 )
 from bc250cc.infrastructure.terminal_repository import TerminalRepository
+from bc250cc.infrastructure.vrm_telemetry_reader import leer_telemetria_vrm
 from bc250cc.platform.init.services import (
     detect_init_manager,
     parse_openrc_runlevel,
@@ -41,7 +45,7 @@ from bc250cc.platform.init.services import (
 logger = logging.getLogger(__name__)
 
 
-class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRepository, DriversRepository, GPURepository, CPURepository, CURepository, FanRepository, HealthRepository, RecoveryRepository):
+class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRepository, DriversRepository, GPURepository, CPURepository, CURepository, FanRepository, HealthRepository, RecoveryRepository, Gddr6MemoryTempRepository):
     def __init__(self):
         self.configuracion = ConfiguracionLocal()
         self.hwmons = []
@@ -329,13 +333,28 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
                 elif 'vrm' in normalized:
                     vrm.append(value)
 
+        vrm_externo = leer_telemetria_vrm()
+        vrm_externo_valores = [
+            valor
+            for valor in (
+                vrm_externo.get('vrm_cpu_temperature_c'),
+                vrm_externo.get('vrm_gpu_temperature_c'),
+            )
+            if valor is not None
+        ]
+        vrm_temperature = (
+            max(vrm_externo_valores)
+            if vrm_externo_valores
+            else (max(vrm) if vrm else None)
+        )
+
         result = {
             'nvme_temperature_c': max(nvme) if nvme else None,
             'nvme_hotspot_temperature_c': (
                 max(nvme_hotspot) if nvme_hotspot else None
             ),
             'board_temperature_c': max(board) if board else None,
-            'vrm_temperature_c': max(vrm) if vrm else None,
+            'vrm_temperature_c': vrm_temperature,
         }
         self._aux_temperature_cache = dict(result)
         self._aux_temperature_cache_time = now

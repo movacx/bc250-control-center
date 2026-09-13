@@ -72,6 +72,14 @@ _HARDWARE_QUALIFICATION_MATRIX = {
             "rollback rehearsal before success classification",
         ),
     },
+    "memory_thermal": {
+        "tools": ("gddr6_memory_temp",),
+        "requirements": (
+            "confirm the runtime SMU patch does not corrupt GDDR6 traffic under sustained load",
+            "cross-check chip-by-chip readings against an independent thermal reference",
+            "power-cycle recovery verification after the patch is applied",
+        ),
+    },
 }
 
 

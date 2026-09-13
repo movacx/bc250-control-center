@@ -572,6 +572,21 @@ class SistemaService:
     def comando_desbloquear_nucleos_cpu(self):
         return self.repo.comando_desbloquear_nucleos_cpu()
 
+    def estado_gddr6_memory_temp(self):
+        return self.repo.estado_gddr6_memory_temp()
+
+    def comando_preparar_gddr6_memory_temp(self):
+        return self.repo.comando_preparar_gddr6_memory_temp()
+
+    def comando_verificar_gddr6_memory_temp(self):
+        return self.repo.comando_verificar_gddr6_memory_temp()
+
+    def comando_leer_temperatura_vram(self):
+        return self.repo.comando_leer_temperatura_vram()
+
+    def comando_aplicar_parche_vram(self):
+        return self.repo.comando_aplicar_parche_vram()
+
     def obtener_mapa_cu(self):
         return self.repo.obtener_mapa_cu()
 

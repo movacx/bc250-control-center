@@ -256,6 +256,21 @@ EXTERNAL_TOOLS: dict[str, ExternalToolSpec] = {
         update_strategy="reviewed-commit",
         payload_distribution="runtime-fetch-reviewed-revision",
     ),
+    "gddr6_memory_temp": ExternalToolSpec(
+        key="gddr6_memory_temp",
+        upstream="https://github.com/pan-Rijovich/bc250-memory-temperature",
+        license="MIT",
+        reviewed_revision="b7e6bffcb5d592fc03edde375b7598ddc79aa846",
+        privilege_class="live-hardware-firmware",
+        hardware_writes=True,
+        automated=True,
+        rollback=(
+            "The SMU patch lives in volatile SMU RAM only; a full power cycle "
+            "restores the factory Queue 3 / Message 5 handler. No persistent "
+            "or flash state is written."
+        ),
+        validation_level="reverse-engineered-community-reported-hardware-gate-pending",
+    ),
 }
 
 
@@ -359,6 +374,22 @@ EXTERNAL_TOOL_LIFECYCLES: dict[str, ExternalToolLifecycle] = {
         vocabulary="GFX1013 async-compute compatibility",
         actions=(LifecycleAction.CHECK, LifecycleAction.INSTALL, LifecycleAction.ROLLBACK, LifecycleAction.UNINSTALL),
         maintainer="DryhoppedIPA maintains the installer and patch series; Control Center only maintains safety gates and invocation.",
+    ),
+    "gddr6_memory_temp": _lifecycle(
+        "Prepare the pinned upstream checkout (SMU payload + read/patch scripts); privileged execution stays in the packaged helper.",
+        "Verify exact source revision and read the last per-chip average/hotspot sample, best-effort and read-only.",
+        "Power-cycle the board to discard the runtime SMU patch; Control Center holds no persistent state for this integration.",
+        vocabulary="GDDR6 per-chip memory temperature (average and hotspot)",
+        actions=(LifecycleAction.CHECK, LifecycleAction.INSTALL, LifecycleAction.APPLY, LifecycleAction.UNINSTALL),
+        maintainer=(
+            "pan-Rijovich (bc250-collective) maintains the SMU/UMC reverse "
+            "engineering; Control Center only maintains safety gates and "
+            "invocation. Author's own note: the implementation is reverse-"
+            "engineered and not fully verified — incorrect SMU/UMC state, DQ "
+            "mapping, timing or firmware addresses could interfere with "
+            "normal GDDR6 traffic and cause memory corruption, instability or "
+            "crashes. Use at your own risk."
+        ),
     ),
 }
 
@@ -470,6 +501,7 @@ EXTERNAL_TOOL_DIRECTORIES = {
     "fsr4_runtime": "bc250-fsr4",
     "oberon_governor": "oberon-governor",
     "gfx1013_direct": "bc250-gfx1013-fix",
+    "gddr6_memory_temp": "bc250-memory-temperature",
 }
 
 

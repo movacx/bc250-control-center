@@ -113,4 +113,15 @@
     </defaults>
     <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/bc250-control-center/bc250-core-unlock-helper</annotate>
   </action>
+
+  <action id="io.github.movacx.bc250-control-center.gddr6-memory-temp">
+    <description>Read or patch the BC250 GDDR6 memory-temperature SMU interface</description>
+    <message>Authentication is required to run the reviewed GDDR6 memory-temperature tool</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/bc250-control-center/bc250-gddr6-temp-helper</annotate>
+  </action>
 </policyconfig>

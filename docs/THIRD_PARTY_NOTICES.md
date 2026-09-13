@@ -1,6 +1,6 @@
 # Third-party notices
 
-BC250 Control Center is MIT-licensed and does not claim ownership of any project listed here. This notice mirrors the **Official repositories** panel in the desktop application: 33 entries in total, consisting of this project and the 32 external sources below.
+BC250 Control Center is MIT-licensed and does not claim ownership of any project listed here. This notice mirrors the **Official repositories** panel in the desktop application: 34 entries in total, consisting of this project and the 33 external sources below.
 
 Every canonical URL was checked on 29 August 2026 and returned HTTP 200. A link or reference does not mean that its code is packaged, executed or endorsed by BC250 Control Center.
 
@@ -30,7 +30,8 @@ Every canonical URL was checked on 29 August 2026 and returned HTTP 200. A link 
 | [Latest Bazzite AMD BC-250 Patched Images](https://github.com/62fixolab/Latest-Bazzite-AMD-BC-250-Patched-Images) | Bazzite image reference | Reference only |
 | [linux-cachyos-bc250](https://github.com/MastaG/linux-cachyos-bc250) | Matched Arch/CachyOS BC-250 kernel and Mesa/RADV with GFX1013 async-compute fixes | Integrated explicit opt-in repository; GPL-2.0 upstream; Manjaro is not enabled |
 | [bc250-fsr4](https://github.com/dmorazasanchez/bc250-fsr4) | FSR4 V3 per-game RADV runtime; registered in the shared external-tool manifest, and redistribution stays gated because upstream declares no license | Integrated per-user workflow using official branch `v3`; Fedora 44, Bazzite and Debian/Ubuntu build it reproducibly in the upstream Fedora 44 container with rootless Podman, Fedora requires the repaired GFX1013 boot, and Manjaro remains ABI-gated experimental |
-| [BC250-Telemetry](https://github.com/onlinermm/BC250-Telemetry) | Live telemetry research | Reference only |
+| [BC250-Telemetry](https://github.com/onlinermm/BC250-Telemetry) | CPU/GPU VRM temperature source | Integrated passive read; Control Center never installs or drives this daemon, it only reads its public `/run/apu_telemetry.json` snapshot when present; MIT upstream |
+| [bc250-memory-temperature](https://github.com/pan-Rijovich/bc250-memory-temperature) | GDDR6 per-chip memory (VRAM) temperature via SMU/UMC | Integrated explicit workflow behind an inspection window with mandatory confirmation; reverse-engineered and not fully verified by its own author — see the in-app warning; MIT upstream |
 | [bc250-batocera-tools](https://github.com/tmghd272/bc250-batocera-tools) | Batocera compatibility research | Reference only |
 | [bc250-acpi-fix](https://github.com/e-tho/bc250-acpi-fix) | ACPI compatibility fix | Integrated explicit compatibility workflow; MIT upstream |
 | [bc250-acpi-fix-updated-8c](https://github.com/mendesrr/bc250-acpi-fix-updated-8c) | 8-core ACPI research | Reference only |
