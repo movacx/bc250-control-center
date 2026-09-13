@@ -33,17 +33,6 @@ Linux control center for the AMD BC-250. It brings system monitoring, GPU contro
 
 ## Install
 
-### From source
-
-```bash
-git clone https://github.com/movacx/bc250-control-center.git
-cd bc250-control-center/scripts
-./install-local.sh
-```
-
-To remove a local installation, run `./uninstall-local.sh` from the same directory.
-A normal uninstall keeps your settings, downloaded tools and history; add
-`--purge-user-data` only when you want to remove those too.
 
 ### Arch, CachyOS and SteamOs (AUR)
 
