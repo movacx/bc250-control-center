@@ -652,6 +652,7 @@ class SettingsPage(QWidget):
     gamepad_keypad_auto_show_changed = pyqtSignal(bool)
     embedded_terminal_changed = pyqtSignal(bool)
     console_auto_hide_changed = pyqtSignal(bool)
+    tour_requested = pyqtSignal()
 
     def __init__(self, controller, *, settings_service, activity_service, app_settings: QSettings | None = None, parent: QWidget | None = None):
         super().__init__(parent)
@@ -1018,6 +1019,11 @@ class SettingsPage(QWidget):
             "Collapsed sidebar at launch",
             "Open the main navigation in compact mode.",
             self._switch("sidebar_collapsed", False, self.sidebar_collapsed_changed.emit),
+        ))
+        group.add_row(SettingRow(
+            "Guided tour",
+            "Walk through the modules again, with each stop pointing at the control it describes.",
+            self._button("Start the tour", self.tour_requested.emit),
         ))
         group.add_row(SettingRow(
             "Gamepad navigation",
@@ -2599,6 +2605,7 @@ class SettingsDialog(QDialog):
     gamepad_keypad_auto_show_changed = pyqtSignal(bool)
     embedded_terminal_changed = pyqtSignal(bool)
     console_auto_hide_changed = pyqtSignal(bool)
+    tour_requested = pyqtSignal()
 
     def __init__(self, controller, *, settings_service, activity_service, app_settings: QSettings | None = None, parent: QWidget | None = None):
         super().__init__(parent)
@@ -2637,6 +2644,7 @@ class SettingsDialog(QDialog):
         self.page.desktop_notifications_changed.connect(self.desktop_notifications_changed.emit)
         self.page.diagnostics_changed.connect(self.diagnostics_changed.emit)
         self.page.sidebar_collapsed_changed.connect(self.sidebar_collapsed_changed.emit)
+        self.page.tour_requested.connect(self.tour_requested.emit)
         self.page.gamepad_navigation_changed.connect(self.gamepad_navigation_changed.emit)
         self.page.gamepad_keypad_changed.connect(self.gamepad_keypad_changed.emit)
         self.page.gamepad_keypad_auto_show_changed.connect(self.gamepad_keypad_auto_show_changed.emit)
