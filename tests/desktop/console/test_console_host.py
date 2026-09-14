@@ -83,9 +83,33 @@ def test_a_disabled_console_declines_so_a_terminal_window_opens(host):
     assert host.launch(request()) is None
 
 
-def test_a_busy_console_declines_rather_than_queueing(qtbot, host):
+def test_a_second_workflow_gets_a_tab_instead_of_a_terminal_window(qtbot, host):
+    """This is what the tabs are for.
+
+    Preparing dependencies and then opening something else used to put a
+    terminal emulator of the desktop on top of the application, because the
+    one embedded terminal was taken. Both workflows belong inside the window.
+    """
     assert host.launch(request(argv=("/bin/sleep", "300"))) is not None
-    assert host.launch(request(title="segunda")) is None
+    assert host.launch(request(argv=("/bin/sleep", "300"), title="segunda")) is not None
+    assert host._panel.tab_count() == 2
+    assert host._panel.running_count() == 2
+
+
+def test_the_console_still_declines_once_every_tab_is_taken(qtbot, host):
+    """The terminal-window fallback is the floor, not the first answer.
+
+    Each tab holds a pseudo-terminal of its own, so the strip has a ceiling.
+    Past it the request is declined exactly as the whole console used to be,
+    and the caller opens a window rather than losing the workflow.
+    """
+    from frontends.desktop.console.console_panel import MAXIMUM_TABS
+
+    for index in range(MAXIMUM_TABS):
+        assert host.launch(
+            request(argv=("/bin/sleep", "300"), title=f"w{index}")
+        ) is not None
+    assert host.launch(request(argv=("/bin/sleep", "300"), title="extra")) is None
 
 
 def test_a_panel_that_raises_declines_instead_of_losing_the_workflow(host):

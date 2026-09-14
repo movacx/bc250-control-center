@@ -1244,11 +1244,41 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         background: {c['panel_alt']};
         border-bottom: 1px solid {c['console_border']};
     }}
-    /* The left half reads as the active tab of a docked panel: the rule under
-       it carries the workflow state, so the colour is visible even when the
-       header is too narrow to show the words. */
+    /* The left half reads as the tab strip of a docked panel: the rule under
+       each tab carries its workflow state, so the colour is visible even when
+       the header is too narrow to show the words. With a single workflow the
+       strip is one tab and looks exactly as the header always has; a second
+       concurrent workflow simply adds one beside it. */
     QWidget#consoleTab {{
         border-bottom: 2px solid {c['border_strong']};
+        border-radius: 0px;
+    }}
+    /* Only once there is a choice to make does a tab need to look selectable:
+       the one on screen carries the terminal's own ground up into the header,
+       and the others step back so the eye finds the live one first. */
+    QWidget#consoleTabStrip[several='true'] QWidget#consoleTab[active='true'] {{
+        background: {c['console_bg']};
+        border-top-left-radius: 7px;
+        border-top-right-radius: 7px;
+    }}
+    QWidget#consoleTabStrip[several='true'] QWidget#consoleTab[active='false'] {{
+        background: transparent;
+        border-bottom-color: {c['border_soft']};
+    }}
+    QLabel#consoleTitle[dim='true'] {{
+        color: {c['muted']};
+        font-weight: 620;
+    }}
+    QPushButton#consoleTabClose {{
+        background: transparent;
+        border: none;
+        border-radius: 9px;
+    }}
+    QPushButton#consoleTabClose:hover {{
+        background: {c['control_hover']};
+    }}
+    QPushButton#consoleTabClose:pressed {{
+        background: {c['control_pressed']};
     }}
     QWidget#consoleTab[tone='running'] {{ border-bottom-color: {c['blue']}; }}
     QWidget#consoleTab[tone='ok'] {{ border-bottom-color: {c['green']}; }}

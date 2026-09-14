@@ -22,7 +22,7 @@ from PyQt6.QtWidgets import (
 from .components.async_tools import BackgroundExecutor, pending_background_tasks
 from .components.sidebar import Sidebar
 from .components.widgets import InfoDialog
-from .console import ConsoleHost, ConsolePanel
+from .console import ConsoleBeacon, ConsoleHost, ConsolePanel
 from .core.alerts import SmartAlertMonitor
 from .core.gamepad import GamepadNavigationController
 from .core.preferences import UiPreferences
@@ -258,6 +258,18 @@ class ControlCenterWindow(QMainWindow):
         panel.external_terminal_requested.connect(self._open_workflow_in_terminal)
         panel.visibility_changed.connect(self._console_visibility_changed)
         self.console = panel
+
+        # The way back to a console the user hid mid-workflow. It floats over
+        # every page rather than living in one, so hiding the panel is no
+        # longer a one-way door.
+        self.console_beacon = ConsoleBeacon(self)
+        self.console_beacon.clicked.connect(self._show_running_console)
+        self._console_open = False
+        panel.visibility_changed.connect(self._on_console_visibility)
+        panel.workflow_finished.connect(lambda _code: self._sync_console_beacon())
+        panel.workflow_started.connect(self._sync_console_beacon)
+        panel.running_count_changed.connect(self.console_beacon.set_count)
+
         host = ConsoleHost(panel, self)
         host.set_enabled(self.preferences.bool_value("settings/embedded_terminal", True))
         host.install()
@@ -279,6 +291,35 @@ class ControlCenterWindow(QMainWindow):
             lambda connected, _name: console.set_gamepad_present(connected)
         )
         console.set_gamepad_present(self.gamepad.connected)
+
+    def _on_console_visibility(self, visible: bool) -> None:
+        """Track the panel's intent, not its current animated height.
+
+        ``is_open`` reads the widget's live height, and the slide is an
+        animation: asking it the moment the signal fires still returns the
+        height it is travelling away from, which had the beacon showing while
+        the console was open and hiding the moment it closed.
+        """
+        self._console_open = bool(visible)
+        self._sync_console_beacon()
+
+    def _show_running_console(self) -> None:
+        """Bring the hidden workflow back on screen."""
+        if self.console is not None:
+            self.console.slide_in()
+        self._sync_console_beacon()
+
+    def _sync_console_beacon(self) -> None:
+        """Visible only while there is something to come back to."""
+        beacon = getattr(self, "console_beacon", None)
+        console = getattr(self, "console", None)
+        if beacon is None:
+            return
+        if console is None:
+            beacon.set_active(False)
+            return
+        beacon.set_active(bool(console.busy) and not self._console_open)
+        beacon.set_count(console.running_count())
 
     def _console_visibility_changed(self, visible: bool) -> None:
         if not visible and self.console is not None:
@@ -568,6 +609,15 @@ class ControlCenterWindow(QMainWindow):
 
     def resizeEvent(self, event) -> None:  # noqa: N802 - Qt API name
         super().resizeEvent(event)
+        beacon = getattr(self, "console_beacon", None)
+        if beacon is not None:
+            beacon.reposition()
+        welcome = getattr(self, "welcome", None)
+        if welcome is not None:
+            welcome.setGeometry(self.rect())
+        tour = getattr(self, "tour", None)
+        if tour is not None:
+            tour.reposition()
         if not hasattr(self, "sidebar") or not hasattr(self, "root_layout"):
             return
         width = event.size().width()

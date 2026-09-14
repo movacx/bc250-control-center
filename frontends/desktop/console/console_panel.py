@@ -6,6 +6,12 @@ The panel keeps the workflow inside the application: it appears when a workflow
 starts, shows exactly what the shell is printing, takes the password ``sudo``
 asks for, and withdraws on its own once the workflow succeeded. A failure keeps
 it open, because a failure is the case where the output has to be read.
+
+It holds a strip of tabs rather than a single terminal. Preparing dependencies
+and then opening something else used to end with a terminal window of the
+desktop appearing over the application, because the one terminal was taken;
+now the second workflow gets a tab beside the first and both stay inside the
+window.
 """
 
 from __future__ import annotations
@@ -14,13 +20,13 @@ import logging
 
 from PyQt6.QtCore import (
     QEasingCurve,
-    QPointF,
     QPropertyAnimation,
+    QSize,
     Qt,
     QTimer,
     pyqtSignal,
 )
-from PyQt6.QtGui import QColor, QGuiApplication, QPainter, QPen, QPolygonF
+from PyQt6.QtGui import QGuiApplication
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -28,44 +34,16 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QPushButton,
     QSizePolicy,
+    QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
 
-from ..i18n import tr, tr_format
-from .pty_session import PtySession
-from .terminal_view import TerminalView
+from ..components.widgets import icon
+from ..i18n import tr
+from .console_tab import ConsoleTab
 
 logger = logging.getLogger(__name__)
-
-
-class _PromptGlyph(QWidget):
-    """A small ``>_`` drawn rather than shipped as an asset.
-
-    The icon set has no terminal mark, and a panel that only says a workflow
-    name reads like any other card. One glyph is enough to say what this strip
-    is before a word of it is read.
-    """
-
-    def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-        self.setFixedSize(16, 16)
-        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
-
-    def paintEvent(self, event) -> None:  # noqa: N802 - Qt API name
-        from ..theme import COLORS
-
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        pen = QPen(QColor(COLORS["blue"]))
-        pen.setWidthF(1.6)
-        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
-        painter.setPen(pen)
-        # The chevron of a prompt, then the underscore of its cursor.
-        painter.drawPolyline(QPolygonF([QPointF(4, 4), QPointF(8, 8), QPointF(4, 12)]))
-        painter.drawLine(QPointF(9.5, 12), QPointF(13, 12))
-        painter.end()
 
 DEFAULT_HEIGHT = 280
 MINIMUM_HEIGHT = 140
@@ -77,14 +55,22 @@ MAXIMUM_HEIGHT_FALLBACK = 400
 ANIMATION_MS = 210
 # Long enough to read "finished", short enough not to sit in the way.
 AUTO_HIDE_DELAY_MS = 2200
+# Past this the strip stops reading as a set of tabs and starts reading as a
+# list, and each one still holds a pseudo-terminal of its own. A workflow that
+# arrives with every tab taken falls back to a terminal window, exactly as the
+# whole console did before tabs existed.
+MAXIMUM_TABS = 5
 
 
 class ConsolePanel(QFrame):
     """A dockable pseudo-terminal pinned to the bottom of the main window."""
 
+    workflow_started = pyqtSignal()
     workflow_finished = pyqtSignal(int)
     visibility_changed = pyqtSignal(bool)
     external_terminal_requested = pyqtSignal(str)
+    #: How many workflows are running right now, whenever that number moves.
+    running_count_changed = pyqtSignal(int)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -92,14 +78,13 @@ class ConsolePanel(QFrame):
         self.setFrameShape(QFrame.Shape.NoFrame)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
-        self._session: PtySession | None = None
-        self._title = ""
-        self._launch_path = ""
-        self._log_file = ""
+        self._tabs: list[ConsoleTab] = []
+        self._active: ConsoleTab | None = None
         self._panel_height = DEFAULT_HEIGHT
         self._drag_origin: int | None = None
         self._drag_height = 0
         self._auto_hide = True
+        self._running_count = 0
         # A controller cannot type into the grid, so it needs a field. A
         # keyboard can, and putting a field in front of it turns a terminal
         # into a form. Set from the navigation controller; see
@@ -116,38 +101,39 @@ class ConsolePanel(QFrame):
         self.header.setObjectName("consoleHeader")
         self.header.setCursor(Qt.CursorShape.SizeVerCursor)
         header_layout = QHBoxLayout(self.header)
-        header_layout.setContentsMargins(14, 7, 8, 7)
+        header_layout.setContentsMargins(8, 7, 8, 7)
         header_layout.setSpacing(8)
 
-        # The left half behaves like the active tab of a docked panel: a mark,
-        # the workflow's name, and a rule underneath that carries its state.
-        self.tab = QWidget(self.header)
-        self.tab.setObjectName("consoleTab")
-        tab_layout = QHBoxLayout(self.tab)
-        tab_layout.setContentsMargins(0, 2, 10, 4)
-        tab_layout.setSpacing(8)
-        self.glyph = _PromptGlyph(self.tab)
-        self.title_label = QLabel(tr("Terminal"), self.tab)
-        self.title_label.setObjectName("consoleTitle")
-        self.state_label = QLabel("", self.tab)
-        self.state_label.setObjectName("consoleState")
-        tab_layout.addWidget(self.glyph)
-        tab_layout.addWidget(self.title_label)
-        tab_layout.addWidget(self.state_label)
-        header_layout.addWidget(self.tab)
+        # The tab strip, the way an editor puts its terminals in one corner.
+        self.tab_strip = QWidget(self.header)
+        self.tab_strip.setObjectName("consoleTabStrip")
+        self._strip_layout = QHBoxLayout(self.tab_strip)
+        self._strip_layout.setContentsMargins(0, 0, 0, 0)
+        self._strip_layout.setSpacing(4)
+        header_layout.addWidget(self.tab_strip)
         header_layout.addStretch(1)
 
-        self.stop_button = self._header_button(tr("Stop"), header_layout)
+        self.stop_button = self._header_button(
+            tr("Stop"), header_layout, icon_name="stop_red"
+        )
         self.stop_button.clicked.connect(self._stop_workflow)
-        self.copy_button = self._header_button(tr("Copy"), header_layout)
+        self.copy_button = self._header_button(
+            tr("Copy"), header_layout, icon_name="copy_gray", icon_only=True
+        )
         self.copy_button.clicked.connect(self._copy_everything)
-        self.external_button = self._header_button(tr("Open terminal"), header_layout)
+        self.external_button = self._header_button(
+            tr("Open terminal"), header_layout,
+            icon_name="external_gray", icon_only=True,
+        )
         self.external_button.clicked.connect(self._open_external_terminal)
-        self.hide_button = self._header_button(tr("Hide"), header_layout)
+        self.hide_button = self._header_button(
+            tr("Hide"), header_layout,
+            icon_name="chevron_down_gray", icon_only=True,
+        )
         self.hide_button.clicked.connect(self.slide_out)
 
-        self.view = TerminalView(self)
-        self.view.input_ready.connect(self._send_input)
+        self.stack = QStackedWidget(self)
+        self.stack.setObjectName("consoleStack")
 
         # A place to answer from *for a controller*. The grid already takes
         # every keystroke a terminal understands, so with a keyboard this row
@@ -176,7 +162,7 @@ class ConsolePanel(QFrame):
         self.input_row.setVisible(False)
 
         layout.addWidget(self.header)
-        layout.addWidget(self.view, 1)
+        layout.addWidget(self.stack, 1)
         layout.addWidget(self.input_row)
 
         self._animation = QPropertyAnimation(self, b"maximumHeight", self)
@@ -188,27 +174,159 @@ class ConsolePanel(QFrame):
         self._auto_hide_timer.setSingleShot(True)
         self._auto_hide_timer.timeout.connect(self.slide_out)
 
+        # One tab from the start, so the panel looks and behaves exactly as it
+        # did while nothing concurrent is happening.
+        self._activate(self._new_tab())
+
         self.setMaximumHeight(0)
         self.setMinimumHeight(0)
         super().setVisible(False)
 
     @staticmethod
-    def _header_button(text: str, layout: QHBoxLayout) -> QPushButton:
-        button = QPushButton(text)
+    def _header_button(
+        text: str,
+        layout: QHBoxLayout,
+        *,
+        icon_name: str = "",
+        icon_only: bool = False,
+    ) -> QPushButton:
+        """A header action, as an icon with a tooltip or an icon beside a label.
+
+        The secondary actions are icon-only: they are the shapes every terminal
+        uses, they keep the header from crowding the workflow title, and the
+        tooltip still names them. Stop keeps its word — it ends a running
+        privileged workflow, and that is not a thing to leave to a glyph.
+        """
+        button = QPushButton("" if icon_only else text)
         button.setObjectName("consoleHeaderButton")
+        button.setProperty("iconOnly", bool(icon_only))
         button.setCursor(Qt.CursorShape.PointingHandCursor)
         button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        button.setToolTip(text)
+        if icon_name:
+            button.setIcon(icon(icon_name))
+            button.setIconSize(QSize(16, 16))
         layout.addWidget(button)
         return button
+
+    # ------------------------------------------------------------------ tabs
+
+    def _new_tab(self) -> ConsoleTab:
+        tab = ConsoleTab(self.tab_strip)
+        tab.activated.connect(lambda t=tab: self._activate(t))
+        tab.close_requested.connect(lambda t=tab: self.close_tab(t))
+        tab.finished.connect(lambda code, t=tab: self._on_finished(t, code))
+        tab.failed.connect(lambda _message, t=tab: self._on_failed_tab(t))
+        tab.input_mode_changed.connect(
+            lambda masked, t=tab: self._on_input_mode_changed(t, masked)
+        )
+        self._strip_layout.addWidget(tab)
+        self._tabs.append(tab)
+        self.stack.addWidget(tab.view)
+        self._sync_strip()
+        return tab
+
+    def _activate(self, tab: ConsoleTab) -> None:
+        if tab not in self._tabs:
+            return
+        self._active = tab
+        for other in self._tabs:
+            other.set_active(other is tab)
+        self.stack.setCurrentWidget(tab.view)
+        self.stop_button.setEnabled(tab.running)
+        self._masked = tab.input_is_masked()
+        self._set_input_masked(self._masked)
+        self._apply_input_surface()
+
+    def close_tab(self, tab: ConsoleTab) -> None:
+        """Dismiss a finished workflow's tab. The last one is only emptied.
+
+        Closing every tab would leave the panel with no grid at all, and the
+        next workflow would have to build one before it could print its first
+        line. The last tab is reset instead, which is the state the panel
+        starts in.
+        """
+        if tab.running:
+            return
+        if len(self._tabs) <= 1:
+            tab.show_text("", title="")
+            return
+        self._tabs.remove(tab)
+        self.stack.removeWidget(tab.view)
+        self._strip_layout.removeWidget(tab)
+        tab.shutdown()
+        tab.view.deleteLater()
+        tab.deleteLater()
+        if self._active is tab:
+            self._activate(self._tabs[-1])
+        self._sync_strip()
+
+    def _sync_strip(self) -> None:
+        """Only wear the look of a tab strip when there is more than one."""
+        several = len(self._tabs) > 1
+        self.tab_strip.setProperty("several", several)
+        # Repolishing a container leaves its children with the style they were
+        # given under the old property, so the second tab would arrive with
+        # the first still wearing the single-tab look.
+        style = self.tab_strip.style()
+        if style is not None:
+            style.unpolish(self.tab_strip)
+            style.polish(self.tab_strip)
+        for tab in self._tabs:
+            tab.set_among_others(several)
+
+    def _tab_for_next_workflow(self) -> ConsoleTab | None:
+        """Where the next workflow goes: a spare tab, a new one, or nowhere."""
+        for tab in self._tabs:
+            if tab.is_reusable():
+                return tab
+        if len(self._tabs) < MAXIMUM_TABS:
+            return self._new_tab()
+        # Every tab is either running or holding a failure nobody has read
+        # yet. Declining here is what puts the workflow in a terminal window
+        # rather than losing it.
+        for tab in self._tabs:
+            if not tab.running:
+                return tab
+        return None
+
+    def tab_count(self) -> int:
+        return len(self._tabs)
+
+    def running_count(self) -> int:
+        return sum(1 for tab in self._tabs if tab.running)
+
+    def _announce_running_count(self) -> None:
+        count = self.running_count()
+        if count == self._running_count:
+            return
+        self._running_count = count
+        self.running_count_changed.emit(count)
 
     # ------------------------------------------------------------------ state
 
     @property
+    def active_tab(self) -> ConsoleTab:
+        return self._active if self._active is not None else self._tabs[0]
+
+    @property
+    def view(self):
+        return self.active_tab.view
+
+    @property
+    def title_label(self) -> QLabel:
+        return self.active_tab.title_label
+
+    @property
+    def state_label(self) -> QLabel:
+        return self.active_tab.state_label
+
+    @property
     def busy(self) -> bool:
-        return self._session is not None and self._session.running
+        return any(tab.running for tab in self._tabs)
 
     def session_pid(self) -> int | None:
-        return self._session.pid if self._session is not None else None
+        return self.active_tab.session_pid()
 
     @property
     def is_open(self) -> bool:
@@ -245,13 +363,15 @@ class ConsolePanel(QFrame):
 
     def _apply_input_surface(self) -> None:
         """Put the answer row, the grid size and the focus in agreement."""
-        show_row = self._gamepad_present
+        show_row = self._gamepad_present and self.active_tab.running
         self.input_row.setVisible(show_row)
         # The grid is measured against the chrome above and below it. Changing
         # which chrome exists without re-measuring hides the last line behind
         # the row, or leaves a band of dead pixels where it used to be.
-        self.view.set_expected_height(self._grid_height(with_input=show_row))
-        self.view.set_input_elsewhere(show_row)
+        height = self._grid_height(with_input=show_row)
+        for tab in self._tabs:
+            tab.view.set_expected_height(height)
+            tab.view.set_input_elsewhere(show_row)
         if not show_row:
             self.input_field.clear()
         self._announce_masked_state()
@@ -312,7 +432,8 @@ class ConsolePanel(QFrame):
         # The panel has its real geometry now, so the estimate that carried the
         # grid through the animation has done its job. Dropping it here means a
         # wrong estimate can never outlive the slide.
-        self.view.set_expected_height(0)
+        for tab in self._tabs:
+            tab.view.set_expected_height(0)
         self.gamepad_focus_scope().setFocus(Qt.FocusReason.OtherFocusReason)
         self.view.scroll_to_bottom()
 
@@ -384,61 +505,25 @@ class ConsolePanel(QFrame):
         log_file: str = "",
         launch_path: str = "",
     ) -> bool:
-        """Start a workflow in the panel. Returns False when it cannot be shown."""
-        if self.busy:
+        """Start a workflow in a tab. Returns False when it cannot be shown."""
+        tab = self._tab_for_next_workflow()
+        if tab is None:
             return False
-        self._release_previous_session()
-        self._title = str(title or tr("Terminal"))
-        self._log_file = str(log_file or "")
-        self._launch_path = str(launch_path or "")
-        self.title_label.setText(self._title)
-        # Size the grid for the open panel, not for the closed one it still is.
-        self.view.set_expected_height(self._grid_height(with_input=self._gamepad_present))
-        self.view.clear()
-        self._set_state(tr("Running"), "running")
-        self.stop_button.setEnabled(True)
-        self.slide_in()
-
-        session = PtySession(self)
-        session.output.connect(self.view.feed)
-        session.finished.connect(self._on_finished)
-        session.failed.connect(self._on_failed)
-        session.input_mode_changed.connect(self._set_input_masked)
-        started = session.start(
-            argv,
-            columns=self.view.columns,
-            rows=self.view.rows,
-            # No directory of our own. A terminal emulator inherited the
-            # application's, and some generated workflows still name their
-            # scripts relative to it; moving the child to the home directory
-            # made those workflows fail to find a file that was there.
-            cwd=None,
+        started = tab.run(
+            list(argv),
+            title=title,
+            log_file=log_file,
+            launch_path=launch_path,
+            grid_height=self._grid_height(with_input=self._gamepad_present),
         )
         if not started:
-            session.deleteLater()
             return False
-        self._session = session
-        self.view.size_changed.connect(self._resize_session)
-        self._set_input_masked(False)
-        self._apply_input_surface()
+        self._activate(tab)
+        self.stop_button.setEnabled(True)
+        self.slide_in()
+        self._announce_running_count()
+        self.workflow_started.emit()
         return True
-
-    def _release_previous_session(self) -> None:
-        """Let go of the finished session before starting another one.
-
-        Each workflow gets its own session object parented to the panel. Left
-        alone they accumulate for the life of the window, one per workflow,
-        each still holding its timers.
-        """
-        previous, self._session = self._session, None
-        if previous is None:
-            return
-        try:
-            self.view.size_changed.disconnect(self._resize_session)
-        except TypeError:
-            pass
-        previous.shutdown()
-        previous.deleteLater()
 
     def show_text(self, text: str, *, title: str = "") -> bool:
         """Display captured output without running anything.
@@ -450,46 +535,30 @@ class ConsolePanel(QFrame):
         same way. This is the same panel, with nothing listening: the answer
         row stays hidden because there is no process to answer.
         """
-        if self.busy:
+        tab = self._tab_for_next_workflow()
+        if tab is None:
             return False
-        self._release_previous_session()
-        self._title = str(title or tr("Terminal"))
-        self.title_label.setText(self._title)
-        self._log_file = ""
-        self._launch_path = ""
-        self.view.set_expected_height(self._grid_height(with_input=False))
-        self.view.clear()
-        self.input_row.setVisible(False)
-        self.view.set_input_elsewhere(False)
+        tab.show_text(text, title=title, grid_height=self._grid_height(with_input=False))
+        self._activate(tab)
         self.stop_button.setEnabled(False)
-        # No state word: the title already says what this is, and every state
-        # this panel has means something about a running workflow.
-        self._set_state("", "plain")
         self.slide_in()
-        # A captured log has its own line endings; a terminal needs both halves.
-        self.view.feed(str(text).replace("\r\n", "\n").replace("\n", "\r\n").encode())
-        # Nothing is listening, so nothing should look like it is waiting for
-        # a keystroke.
-        self.view.screen.cursor_visible = False
-        self.view.viewport().update()
         return True
-
-    def _resize_session(self, columns: int, rows: int) -> None:
-        if self._session is not None:
-            self._session.resize(columns, rows)
-
-    def _send_input(self, payload: bytes) -> None:
-        if self._session is not None:
-            self._session.write(payload)
 
     def _send_typed_input(self) -> None:
         """Send what the field holds, exactly as if it had been typed."""
-        if self._session is None or not self._session.running:
+        tab = self.active_tab
+        if not tab.running:
             return
         text = self.input_field.text()
         self.input_field.clear()
-        self._session.write(text.encode("utf-8") + b"\r")
+        tab.send_input(text.encode("utf-8") + b"\r")
         self.view.scroll_to_bottom()
+
+    def _on_input_mode_changed(self, tab: ConsoleTab, masked: bool) -> None:
+        """Only the tab on screen may move the one answer row there is."""
+        if tab is not self._active:
+            return
+        self._set_input_masked(masked)
 
     def _set_input_masked(self, masked: bool) -> None:
         """Follow the workflow: a prompt that hides its input gets a hidden field."""
@@ -525,11 +594,12 @@ class ConsolePanel(QFrame):
         keyboard the row is gone, so the state beside the title carries it
         instead, and the grid keeps the caret so there is somewhere to type.
         """
-        if not self.busy:
+        tab = self.active_tab
+        if not tab.running:
             return
         if self._masked and not self.input_row.isVisible():
             self._prompt_owns_state = True
-            self._set_state(tr("Administrator password"), "warning")
+            tab.set_state(tr("Administrator password"), "warning")
             if self.is_open:
                 self.view.setFocus(Qt.FocusReason.OtherFocusReason)
         elif self._prompt_owns_state:
@@ -538,50 +608,38 @@ class ConsolePanel(QFrame):
             # echo watcher polls every 120 ms — without this guard it would
             # quietly relabel a stopping workflow as a running one.
             self._prompt_owns_state = False
-            self._set_state(tr("Running"), "running")
+            tab.set_state(tr("Running"), "running")
 
     def _stop_workflow(self) -> None:
-        if self._session is None or not self._session.running:
+        tab = self.active_tab
+        if not tab.running:
             return
-        self._set_state(tr("Stop"), "warning")
         self.stop_button.setEnabled(False)
-        self._session.terminate()
+        tab.stop()
 
-    def _on_failed(self, message: str) -> None:
-        self.view.feed(f"\r\n{message}\r\n".encode())
-        self._set_state(tr("Failed"), "failed")
-        self.stop_button.setEnabled(False)
+    def _on_failed_tab(self, tab: ConsoleTab) -> None:
+        if tab is self._active:
+            self.stop_button.setEnabled(False)
 
-    def _on_finished(self, code: int) -> None:
-        self.stop_button.setEnabled(False)
-        # Nothing is listening any more; leaving the field would invite typing
-        # into a process that has already gone.
-        self.input_row.setVisible(False)
-        self.input_field.clear()
-        self.view.set_input_elsewhere(False)
-        try:
-            self.view.size_changed.disconnect(self._resize_session)
-        except TypeError:
-            pass
-        if code == 0:
-            self._set_state(tr("Completed"), "ok")
-            self.view.feed(b"\r\n")
-            if self._auto_hide:
-                self._auto_hide_timer.start(AUTO_HIDE_DELAY_MS)
-        else:
-            # A failed workflow is exactly the one whose output matters, so the
-            # panel stays open and says what the exit code was.
-            self._set_state(tr_format("Exit code {code}", code=code), "failed")
+    def _on_finished(self, tab: ConsoleTab, code: int) -> None:
+        if tab is self._active:
+            self.stop_button.setEnabled(False)
+            # Nothing is listening any more; leaving the field would invite
+            # typing into a process that has already gone.
+            self.input_row.setVisible(False)
+            self.input_field.clear()
+            self.view.set_input_elsewhere(False)
+        if code == 0 and self._auto_hide and not self.busy:
+            # Only when the last one is done: withdrawing the panel over a
+            # workflow that is still printing would hide the running one.
+            self._auto_hide_timer.start(AUTO_HIDE_DELAY_MS)
+        # A failure in a tab the user is not watching stays where it is. Its
+        # chip turns red and says the exit code, which is the whole reason the
+        # state lives on the tab rather than in one shared header — pulling
+        # the screen out from under whatever they are reading would not make
+        # it any easier to find.
+        self._announce_running_count()
         self.workflow_finished.emit(code)
-
-    def _set_state(self, text: str, tone: str) -> None:
-        self.state_label.setText(f"· {text}" if text else "")
-        for widget in (self.state_label, self.tab):
-            widget.setProperty("tone", tone)
-            style = widget.style()
-            if style is not None:
-                style.unpolish(widget)
-                style.polish(widget)
 
     # --------------------------------------------------------------- actions
 
@@ -589,33 +647,37 @@ class ConsolePanel(QFrame):
         if self.view.copy_everything():
             return
         clipboard = QGuiApplication.clipboard()
-        if clipboard is not None and self._log_file:
-            clipboard.setText(self._log_file)
+        if clipboard is not None and self.active_tab.log_file:
+            clipboard.setText(self.active_tab.log_file)
 
     def _open_external_terminal(self) -> None:
-        if self._launch_path:
-            self.external_terminal_requested.emit(self._launch_path)
+        if self.active_tab.launch_path:
+            self.external_terminal_requested.emit(self.active_tab.launch_path)
 
     def retranslate(self) -> None:
-        self._set_input_masked(
-            self._session.input_is_masked if self._session is not None else False
-        )
+        self._set_input_masked(self.active_tab.input_is_masked())
         self.send_button.setText(tr("Send"))
         self.stop_button.setText(tr("Stop"))
-        self.copy_button.setText(tr("Copy"))
-        self.external_button.setText(tr("Open terminal"))
-        self.hide_button.setText(tr("Hide"))
-        if not self._title:
-            self.title_label.setText(tr("Terminal"))
+        self.stop_button.setToolTip(tr("Stop"))
+        for button, label in (
+            (self.copy_button, "Copy"),
+            (self.external_button, "Open terminal"),
+            (self.hide_button, "Hide"),
+        ):
+            # Icon-only: the word lives in the tooltip, so that is what a
+            # language change has to rewrite.
+            button.setToolTip(tr(label))
+        for tab in self._tabs:
+            tab.retranslate()
 
     def apply_theme(self) -> None:
-        self.view.apply_theme()
+        for tab in self._tabs:
+            tab.view.apply_theme()
 
     def shutdown(self) -> None:
         """Stop everything, for application close."""
         self._auto_hide_timer.stop()
         self._animation.stop()
-        self.view.shutdown()
-        if self._session is not None:
-            self._session.shutdown()
-            self._session = None
+        for tab in self._tabs:
+            tab.shutdown()
+        self._announce_running_count()

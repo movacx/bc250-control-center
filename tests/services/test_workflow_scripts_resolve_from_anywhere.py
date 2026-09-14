@@ -131,10 +131,13 @@ def test_the_console_does_not_move_the_workflow_to_another_directory():
     Forcing the child into the home directory is what surfaced the relative
     path above; the two fixes are independent, and both belong here.
     """
-    source = Path("frontends/desktop/console/console_panel.py").read_text(encoding="utf-8")
-    assert "cwd=None" in source
-    assert not re.search(r"cwd\s*=\s*os\.path\.expanduser", source)
-    assert "expanduser" not in source
+    # The tab owns the pseudo-terminal now; the panel only decides which one.
+    console = REPOSITORY_ROOT / "frontends" / "desktop" / "console"
+    assert "cwd=None" in (console / "console_tab.py").read_text(encoding="utf-8")
+    for name in ("console_tab.py", "console_panel.py"):
+        text = (console / name).read_text(encoding="utf-8")
+        assert not re.search(r"cwd\s*=\s*os\.path\.expanduser", text)
+        assert "expanduser" not in text
 
 
 def test_a_workflow_started_from_anywhere_finds_its_script(elsewhere):
