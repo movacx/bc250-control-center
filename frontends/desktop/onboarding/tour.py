@@ -338,6 +338,24 @@ class TourCallout(QFrame):
         self._side = side
         self._apply_margins()
 
+    def _fit(self) -> None:
+        """Resize to the height this text really needs at this width.
+
+        ``adjustSize()`` asks the layout for its size hint, and a wrapped
+        QLabel reports that hint for the width *it* would have picked, not for
+        the one it is given. The bubble is a fixed width, so the only honest
+        question is "how tall at this width" — and the answer comes back a
+        line taller the moment a translation runs longer than the English,
+        which is why the last line was being cut off in some languages.
+        """
+        layout = self._root
+        layout.activate()
+        width = self.width()
+        self.resize(
+            width,
+            max(layout.totalHeightForWidth(width), layout.totalMinimumSize().height()),
+        )
+
     def point_at(self, hole: QRect) -> None:
         """Sit beside ``hole`` and point at it, in whatever room there is.
 
@@ -361,7 +379,7 @@ class TourCallout(QFrame):
         sizes = {}
         for side in ("bottom", "top", "right", "left"):
             self._set_side(self._tail_for(side))
-            self.adjustSize()
+            self._fit()
             sizes[side] = (self.width(), self.height())
 
         bands = {
@@ -377,7 +395,7 @@ class TourCallout(QFrame):
             if bands[side] >= needed:
                 self._tailless = False
                 self._set_side(self._tail_for(side))
-                self.adjustSize()
+                self._fit()
                 self._place(self._corner_for(side, hole, window), hole, window)
                 return
 
@@ -388,7 +406,7 @@ class TourCallout(QFrame):
         # bubble is already sitting on top of reads as a drawing error.
         self._tailless = True
         self._set_side("top")
-        self.adjustSize()
+        self._fit()
         self._place(
             QPoint(
                 hole.center().x() - self.width() // 2,

@@ -400,3 +400,47 @@ def test_a_widget_outside_any_scroll_area_is_left_alone(qtbot):
     qtbot.addWidget(window)
 
     assert reveal_in_scroll_area(window.first) is False
+
+
+def test_the_bubble_is_tall_enough_for_its_text_in_every_language(qtbot):
+    """No translation may have its last line cut off.
+
+    The bubble is a fixed width, so its height is entirely a function of how
+    many lines the text wraps into — and every language wraps into a different
+    number. Sizing it from the layout's size hint measured each wrapped label
+    at the width it would have chosen for itself rather than at the 340 pixels
+    it actually gets, which is one line short as soon as a translation runs
+    longer than the English. Checked here for all of them at once, because the
+    one that overflows is never the one being edited.
+    """
+    from frontends.desktop import i18n, theme
+    from frontends.desktop.onboarding.script import tour_stops
+    from frontends.desktop.onboarding.tour import TourCallout
+
+    window = FakeWindow()
+    qtbot.addWidget(window)
+    window.show()
+    qtbot.waitExposed(window)
+    # The fonts come from the stylesheet; measuring without it measures a
+    # bubble nobody ever sees.
+    window.setStyleSheet(theme.application_stylesheet("dark", "green"))
+    original = i18n.current_language()
+    callout = TourCallout(window)
+    try:
+        for language in sorted(i18n.SUPPORTED_LANGUAGES):
+            i18n.set_language(language)
+            for index, stop in enumerate(tour_stops()):
+                callout.set_stop(
+                    title=stop.title,
+                    body=stop.body,
+                    index=index + 1,
+                    total=13,
+                    last=False,
+                )
+                callout.point_at(QRect(600, 400, 120, 40))
+                needed = callout._root.totalHeightForWidth(callout.width())
+                assert callout.height() >= needed, (
+                    f"{language} stop {index + 1} is {needed - callout.height()}px short"
+                )
+    finally:
+        i18n.set_language(original)

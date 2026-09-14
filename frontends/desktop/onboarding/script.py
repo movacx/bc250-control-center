@@ -165,10 +165,10 @@ def tour_stops() -> tuple[TourStop, ...]:
             arrange=_open_preparation_tab(0),
             title=tr("Components: install what is missing"),
             body=tr(
-                "A BC250 needs a few tools before the rest of this application "
-                "can do anything. Tick the ones you want, press Prepare "
-                "selected, and they are downloaded and installed for you. A "
-                "green tick means it is already there."
+                "This tab installs the system tools the other modules need. "
+                "Tick the ones you want, press Prepare selected, and the "
+                "application downloads and installs them for you. A green "
+                "tick means that one is already installed."
             ),
         ),
         TourStop(
@@ -237,10 +237,10 @@ def tour_stops() -> tuple[TourStop, ...]:
             anchor=_attribute("gpu_page", "_redesigned_gpu_view", "service_toggle"),
             title=tr("GPU: turn the service on first"),
             body=tr(
-                "The governor is what actually moves the graphics clock. "
-                "Nothing else on this page does anything until it is running, "
-                "so this button is step one. After that, pick a profile or set "
-                "the range by hand — every change is checked before it runs."
+                "The governor is what actually moves the graphics clock, so "
+                "start it here: the rest of this page only takes effect while "
+                "it is running. After that, pick a profile or set the range by "
+                "hand — every change is checked before it runs."
             ),
         ),
         # ------------------------------------------------------------- rest

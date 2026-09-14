@@ -184,3 +184,57 @@ def test_every_literal_visible_in_the_desktop_widget_tree_is_catalogued():
                 ):
                     missing.add(source)
     assert missing == set()
+
+
+#: The frequency governor, rendered as the political office. Machine
+#: translation reaches for the civil servant in almost every language, and it
+#: does not stop at the noun: the Chinese catalogue has a governor standing for
+#: election and Thai mangles the word into fragments. Fixing all of it is a
+#: translation pass, not a code change, so this is a ratchet on how much is
+#: left rather than an assertion that none of it is. The budget only ever goes
+#: down; a new string may not add to it.
+POLITICAL_GOVERNOR_PATTERNS = {
+    "bg": "губернатор", "cs": "guvern[ée]r", "da": "guvernør", "el": "υβερνήτ",
+    "fi": "uvernöör", "hu": "kormányzó", "id": "ubernur", "ja": "知事",
+    "ko": "주지사", "ms": "abenor", "no": "guvernør", "pl": "ubernator",
+    "ru": "убернатор", "sv": "guvernör", "th": "ผู้ว่า", "tr": "Vali",
+    "uk": "убернатор", "vi": "hống đốc", "zh-CN": "州长", "zh-TW": "州長",
+}
+POLITICAL_GOVERNOR_BUDGET = {
+    "bg": 14, "cs": 43, "da": 56, "el": 85, "fi": 31, "hu": 82, "id": 141,
+    "ja": 8, "ko": 47, "ms": 158, "no": 80, "pl": 23, "ru": 6, "sv": 50,
+    "th": 64, "tr": 43, "uk": 4, "vi": 56, "zh-CN": 15, "zh-TW": 15,
+}
+
+
+def test_the_frequency_governor_is_not_the_political_one_where_it_matters_most():
+    """The strings a first-time user meets are held to the real rule.
+
+    The guided tour and the dashboard's own governor tile are where somebody
+    who has never seen a BC-250 reads this word, so those are clean. The rest
+    of the GPU module is counted, not asserted — see the budget above.
+    """
+    from frontends.desktop.onboarding.script import tour_stops
+
+    guarded = {"Governor", "GPU governor"}
+    for stop in tour_stops():
+        guarded.add(stop.title)
+        guarded.add(stop.body)
+    for code in COMPLETE_LOCALES:
+        catalog = _catalog(code)
+        pattern = POLITICAL_GOVERNOR_PATTERNS.get(code)
+        if pattern is None:
+            continue
+        for source in guarded:
+            if source not in catalog:
+                continue
+            assert not re.search(pattern, catalog[source]), (code, source, catalog[source])
+
+
+def test_the_political_governor_never_spreads_further():
+    for code, pattern in POLITICAL_GOVERNOR_PATTERNS.items():
+        found = [
+            source for source, translated in _catalog(code).items()
+            if re.search(pattern, translated)
+        ]
+        assert len(found) <= POLITICAL_GOVERNOR_BUDGET[code], (code, len(found))
