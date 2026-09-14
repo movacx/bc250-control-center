@@ -59,6 +59,8 @@ class PreparationContext:
     cpu_reviewed_revision: str
     cyan_directory: str
     steamos_fix_directory: str
+    gddr6_repository: str = ''
+    gddr6_destination: Path | None = None
 
 
 def secure_cpu_checkout_command(destination: Path) -> str:
@@ -230,6 +232,21 @@ def _mutable_source_commands(context: PreparationContext) -> list[str]:
             f'test -f {shlex.quote(str(context.core_script))} || '
             '{ echo "ERROR: bc250-unlock-cores.py is missing"; exit 36; }',
             f'chmod 0755 {shlex.quote(str(context.core_script))}',
+        ])
+    if 'gddr6_temp' in selected and context.gddr6_destination is not None:
+        commands.extend([
+            'echo "== Preparing reviewed GDDR6 memory-temperature source =="',
+            repo._hardware_source_checkout_command(
+                context.gddr6_repository, context.gddr6_destination, os_repo
+            ),
+            f'test -d {shlex.quote(str(context.gddr6_destination / ".git"))} || '
+            '{ echo "ERROR: bc250-memory-temperature is not a Git clone"; exit 37; }',
+            # The privileged reader imports this package directly, and refuses
+            # it unless every file belongs to the desktop user.
+            f'test -d {shlex.quote(str(context.gddr6_destination / "bc250_smu"))} || '
+            '{ echo "ERROR: the reviewed bc250_smu package is missing"; exit 37; }',
+            f'test -f {shlex.quote(str(context.gddr6_destination / "SMUPayload.bin"))} || '
+            '{ echo "ERROR: SMUPayload.bin is missing"; exit 37; }',
         ])
     if 'cu_manager' in selected:
         commands.extend([

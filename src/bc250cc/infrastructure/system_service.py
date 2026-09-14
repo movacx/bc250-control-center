@@ -578,11 +578,22 @@ class SistemaService:
     def comando_preparar_gddr6_memory_temp(self):
         return self.repo.comando_preparar_gddr6_memory_temp()
 
-    def comando_verificar_gddr6_memory_temp(self):
-        return self.repo.comando_verificar_gddr6_memory_temp()
+    def comando_estado_smu_vram(self):
+        return self.repo.comando_estado_smu_vram()
 
     def comando_leer_temperatura_vram(self):
         return self.repo.comando_leer_temperatura_vram()
+
+    def leer_temperatura_vram(self, *, chips=True):
+        return self.repo.leer_temperatura_vram(chips=chips)
+
+    def ultima_temperatura_vram(self):
+        return self.repo.ultima_temperatura_vram()
+
+    def comando_monitorizar_vram(self, seconds=None):
+        if seconds is None:
+            return self.repo.comando_monitorizar_vram()
+        return self.repo.comando_monitorizar_vram(seconds)
 
     def comando_aplicar_parche_vram(self):
         return self.repo.comando_aplicar_parche_vram()

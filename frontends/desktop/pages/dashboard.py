@@ -25,6 +25,7 @@ from ..components.async_tools import AsyncRefresh, BackgroundExecutor
 from ..components.dashboard_widgets import (
     DashboardFooter,
     DashboardGpuHero,
+    DashboardMemorySummary,
     DashboardModuleCard,
     DashboardScrollArea,
     PreparationSidebar,
@@ -36,10 +37,25 @@ from ..components.responsive import (
 )
 from ..components.widgets import InfoDialog
 from ..core.external_links import open_external_url, update_checks_enabled
+from ..core.gddr6_monitor import gddr6_monitor_for
 from ..core.state import DashboardState, state_cache_for
 from ..i18n import tr, tr_format
 
 logger = logging.getLogger(__name__)
+
+
+def _dict(value) -> dict:
+    try:
+        return dict(value or {})
+    except Exception:
+        return {}
+
+
+def _number(value, default: float = 0.0) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return float(default)
 
 
 class _UpdateLookup(NamedTuple):
@@ -123,6 +139,15 @@ class DashboardPage(QWidget):
         self.gpu_card.activated.connect(self.module_requested)
         self.gpu_card.telemetry_repair_requested.connect(self._request_telemetry_repair)
         self.main_layout.addWidget(self.gpu_card)
+
+        # Its own block directly under the hero's core strip, rather than
+        # inside the hero: that card carries a height ratchet, and eight more
+        # cells would push it past the compact size the dashboard fixes.
+        self.memory_summary = DashboardMemorySummary(live_action=True)
+        self.memory_monitor = gddr6_monitor_for(controller)
+        self.memory_summary.live_toggled.connect(self.memory_monitor.set_live)
+        self.memory_monitor.changed.connect(self._apply_memory_reading)
+        self.main_layout.addWidget(self.memory_summary)
 
         self.modules_host = QWidget()
         self.modules_grid = QGridLayout(self.modules_host)
@@ -551,6 +576,40 @@ class DashboardPage(QWidget):
             self.state.cpu_per_core_frequency_mhz,
             self.state.cpu_per_core_percent,
         )
+        self._apply_memory_summary()
+
+    def _apply_memory_summary(self) -> None:
+        """Mirror the shared monitor; a page refresh never samples by itself.
+
+        A dashboard refresh runs every few seconds and a real read costs a
+        Polkit check, so sampling from here would prompt for a password on a
+        loop. Only the live button asks for readings.
+        """
+        self.memory_monitor.refresh_status()
+        self._apply_memory_reading(self.memory_monitor.reading)
+
+    def _apply_memory_reading(self, reading) -> None:
+        summary = self.memory_summary
+        summary.set_live(bool(getattr(reading, "live", False)))
+        chips = [
+            (chip.index, chip.code, chip.temperature_c) for chip in reading.chips
+        ]
+        summary.set_chips(chips)
+        summary.live_button.setEnabled(reading.can_monitor or reading.live)
+        if chips:
+            summary.set_value(self._format_temperature(_number(reading.average_c)))
+            summary.set_detail(
+                tr_format(
+                    "Hotspot {value}",
+                    value=self._format_temperature(_number(reading.hotspot_c)),
+                )
+            )
+        else:
+            summary.set_value("Waiting for sample")
+            # No instruction here any more: the CPU module's GDDR6 card is
+            # gone, and the only way to get a reading is the button sitting on
+            # this very row, which says so itself.
+            summary.set_detail("")
 
     def _apply_cpu_card(self, state: DashboardState) -> None:
         self.cpu_card.status.setText(state.cpu_profile)

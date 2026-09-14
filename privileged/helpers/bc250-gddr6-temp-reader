@@ -1,0 +1,354 @@
+#!/usr/bin/python3 -I
+"""Read-only GDDR6 memory-temperature reader for the reviewed upstream tool.
+
+Split out of ``bc250-gddr6-temp-helper`` on purpose. This binary can only
+*read*: it never calls ``unlock()``, never writes an SMU word, and contains
+no code path that could. That is what lets its Polkit action use
+``auth_admin_keep`` so live monitoring does not prompt on every sample,
+while the patching binary keeps an uncached ``auth_admin``.
+
+Two reads are offered, both through the reviewed ``bc250_smu`` package:
+
+``status``
+    ``smu_read(0x748C)`` is an ungated transfer-engine read. Comparing it
+    with the payload's ``umc_read_temp_per_chip`` address tells whether the
+    runtime SMU patch is currently active, without touching anything.
+
+``read``
+    The same ``send_message(3, 0x5, [chip])`` primitive ``read_temp.py``
+    uses. It is refused unless ``status`` says the patch is active:
+    ``umc_read_temp_per_chip`` lives in the *payload*, not in the factory
+    firmware, so on an unpatched board Queue 3 / Message 5 reaches an
+    unknown stock handler. Output is JSON so the desktop can draw a real
+    table instead of parsing console text.
+"""
+from __future__ import annotations
+
+import contextlib
+import fcntl
+import json
+import os
+import pathlib
+import pwd
+import stat
+import struct
+import subprocess
+import sys
+import time
+
+REPOSITORY_NAME = "bc250-memory-temperature"
+
+#: Every SMU client on this board drives one shared indirect transaction
+#: through the root complex's PCI config space: register 0xB8 selects the SMN
+#: address, 0xBC carries the data. The pair is not atomic, so a second client
+#: that redirects 0xB8 in between makes the first one read or write the wrong
+#: register. The packaged CPU OC tool (bc250_smu_oc) already guards against
+#: that with an advisory lock on this exact file; the reviewed upstream
+#: bc250_smu package does not take it, so this helper holds it around every
+#: SMU access on its behalf. Advisory locking only works if every participant
+#: asks, which is why this is not optional.
+SMN_WINDOW_PATH = "/sys/bus/pci/devices/0000:00:00.0/config"
+SMN_LOCK_TIMEOUT_SECONDS = 8.0
+OFFICIAL_ORIGINS = frozenset({
+    "https://github.com/pan-Rijovich/bc250-memory-temperature",
+    "https://github.com/pan-Rijovich/bc250-memory-temperature.git",
+})
+REVIEWED_REVISION = "b7e6bffcb5d592fc03edde375b7598ddc79aa846"
+
+#: ``patch_smu.py``: the register Queue 3 / Message 5 dispatches through, and
+#: the payload address it is redirected to. Reading the register back is how
+#: an active patch is recognised.
+QUEUE_3_MSG_5_HANDLER_REG = 0x0000748C
+QUEUE_3_MSG_5_HANDLER = 0x0003AAC4
+
+#: The payload is built for one board firmware; see the upstream README.
+SUPPORTED_BIOS_VERSIONS = frozenset({"p3.0", "p3.00"})
+
+CHIP_COUNT = 8
+
+
+def _run(command: list[str], *, timeout: int = 30, uid: int, gid: int) -> str:
+    result = subprocess.run(
+        command,
+        text=True,
+        capture_output=True,
+        check=False,
+        timeout=timeout,
+        user=uid,
+        group=gid,
+        env={
+            "PATH": "/usr/bin:/bin",
+            "LANG": "C",
+            "LC_ALL": "C",
+            "GIT_CONFIG_GLOBAL": "/dev/null",
+            "GIT_CONFIG_NOSYSTEM": "1",
+        },
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            result.stderr.strip() or result.stdout.strip() or f"Command failed: {command[0]}"
+        )
+    return result.stdout.strip()
+
+
+def _invoking_user() -> tuple[int, int, pathlib.Path]:
+    value = os.environ.get("PKEXEC_UID", "")
+    if not value.isdecimal():
+        raise RuntimeError("The invoking desktop user could not be identified through Polkit.")
+    uid = int(value)
+    if uid <= 0:
+        raise RuntimeError("This action must be requested by a non-root desktop user.")
+    account = pwd.getpwuid(uid)
+    return uid, account.pw_gid, pathlib.Path(account.pw_dir).resolve()
+
+
+def _bc250_identity_present() -> bool:
+    for path in (
+        pathlib.Path("/proc/cpuinfo"),
+        pathlib.Path("/sys/class/dmi/id/board_name"),
+        pathlib.Path("/sys/class/dmi/id/product_name"),
+    ):
+        try:
+            if "bc-250" in path.read_text(encoding="utf-8", errors="ignore").lower():
+                return True
+        except OSError:
+            continue
+    return False
+
+
+def bios_version() -> str:
+    try:
+        return pathlib.Path("/sys/class/dmi/id/bios_version").read_text(
+            encoding="utf-8", errors="ignore"
+        ).strip()
+    except OSError:
+        return ""
+
+
+def firmware_supported() -> bool:
+    return bios_version().strip().lower() in SUPPORTED_BIOS_VERSIONS
+
+
+def _validate_repository(raw_path: str, uid: int, gid: int, home: pathlib.Path) -> pathlib.Path:
+    """Require an exact, clean, reviewed checkout owned by the invoking user."""
+    requested = pathlib.Path(raw_path)
+    if not requested.is_absolute():
+        raise RuntimeError("The upstream repository path must be absolute.")
+    try:
+        repository = requested.resolve(strict=True)
+        repository.relative_to(home)
+    except (OSError, ValueError) as error:
+        raise RuntimeError(
+            "The upstream repository must be inside the invoking user's home."
+        ) from error
+    if repository.name != REPOSITORY_NAME or requested.is_symlink():
+        raise RuntimeError("The selected path is not the expected bc250-memory-temperature clone.")
+
+    git_dir = repository / ".git"
+    if not git_dir.is_dir() or git_dir.is_symlink():
+        raise RuntimeError("The bc250-memory-temperature directory is not a Git clone.")
+
+    git = [
+        "/usr/bin/git",
+        "-c", f"safe.directory={repository}",
+        "-c", "core.hooksPath=/dev/null",
+        "-C", str(repository),
+    ]
+    origin = _run(git + ["remote", "get-url", "origin"], uid=uid, gid=gid)
+    if origin not in OFFICIAL_ORIGINS:
+        raise RuntimeError(f"Unexpected bc250-memory-temperature origin: {origin}")
+    if _run(git + ["status", "--porcelain", "--untracked-files=all"], uid=uid, gid=gid):
+        raise RuntimeError(
+            "The bc250-memory-temperature clone has local modifications; update or restore it first."
+        )
+    head = _run(git + ["rev-parse", "HEAD"], uid=uid, gid=gid)
+    if head != REVIEWED_REVISION:
+        raise RuntimeError(
+            "The bc250-memory-temperature clone is not at the reviewed immutable revision."
+        )
+    return repository
+
+
+def _verify_package_ownership(repository: pathlib.Path, uid: int) -> None:
+    """Require the reviewed bc250_smu package to be owned by the desktop user.
+
+    The git origin/revision/clean-tree check already pins every tracked file's
+    exact content; this adds the same per-file ownership guard the other
+    helpers use before loading anything outside the standard library.
+    """
+    package_dir = repository / "bc250_smu"
+    if package_dir.is_symlink() or not package_dir.is_dir():
+        raise RuntimeError("The bc250_smu package was not found in the reviewed checkout.")
+    for path in (package_dir, *package_dir.rglob("*.py")):
+        if path.is_symlink():
+            raise RuntimeError("bc250_smu must not contain symbolic links.")
+        metadata = path.stat(follow_symlinks=False)
+        if metadata.st_uid != uid or metadata.st_mode & 0o022:
+            raise RuntimeError(
+                "bc250_smu package files must belong to the desktop user and not be "
+                "writable by group or others."
+            )
+
+
+def _trusted_self() -> bool:
+    """Refuse to run from a copy the system does not own (see the other helpers)."""
+    path = pathlib.Path(__file__).resolve()
+    prefixes = ("/usr/libexec/", "/usr/local/libexec/", "/usr/lib/")
+    if not str(path).startswith(prefixes):
+        return True
+    for part in (path, *path.parents):
+        try:
+            info = part.lstat()
+        except OSError:
+            return False
+        if stat.S_ISLNK(info.st_mode):
+            return False
+        if info.st_uid != 0 or info.st_mode & 0o022:
+            return False
+        if str(part) == path.anchor:
+            break
+    return True
+
+
+@contextlib.contextmanager
+def smn_window_lock(timeout: float = SMN_LOCK_TIMEOUT_SECONDS):
+    """Hold the advisory lock the other SMU clients on this board honour.
+
+    Non-blocking with a deadline rather than a blocking ``flock``: the CPU OC
+    tool can hold this for the length of a detection run, and a helper that
+    waits forever would leave a Polkit-launched process hanging with no way
+    for the desktop to explain why.
+    """
+    fd = os.open(SMN_WINDOW_PATH, os.O_RDONLY | os.O_CLOEXEC)
+    deadline = time.monotonic() + max(0.0, float(timeout))
+    try:
+        while True:
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except OSError:
+                if time.monotonic() >= deadline:
+                    raise RuntimeError(
+                        "SMU_BUSY: another BC-250 tool is holding the SMU interface "
+                        "(CPU overclocking or the GPU governor). Wait for it to "
+                        "finish and try again."
+                    ) from None
+                time.sleep(0.05)
+        try:
+            yield
+        finally:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+    finally:
+        os.close(fd)
+
+
+def _open_smu(repository: pathlib.Path, uid: int):
+    _verify_package_ownership(repository, uid)
+    sys.path.insert(0, str(repository))
+    try:
+        from bc250_smu import Bc250Smu  # noqa: PLC0415
+    except Exception as error:
+        raise RuntimeError(f"Could not import the reviewed bc250_smu package: {error}") from error
+    return Bc250Smu()
+
+
+def _patch_active(smu) -> bool:
+    """Read the Queue 3 / Message 5 dispatch register without writing anything.
+
+    ``smu_read`` goes through the transfer engine (Queue 2), which is not part
+    of the gated cluster ``unlock.py`` opens, so this stays a pure read.
+    """
+    word = smu.smu_read(QUEUE_3_MSG_5_HANDLER_REG, 1)
+    return struct.unpack("<I", word[:4])[0] == QUEUE_3_MSG_5_HANDLER
+
+
+def _do_read(repository: pathlib.Path, uid: int, *, chips_wanted: bool) -> int:
+    """Emit board/patch status and, when the patch is active, the chip table.
+
+    One round trip on purpose. Every sample costs a Polkit check, so asking
+    "is the patch active?" and "what are the temperatures?" separately would
+    double the prompts for no gain. An inactive patch is a *state*, not a
+    failure: it exits 0 with an empty chip list and a named reason, so the
+    desktop can offer the patch button instead of reporting an error.
+
+    read_temp.py additionally requires the third-party ``tabulate`` package
+    purely to draw its ASCII table; that is not something a root-owned helper
+    should depend on being installed system-wide. This calls the exact same
+    reviewed primitive read_temp.py calls and emits JSON instead.
+    """
+    payload: dict = {
+        "bios_version": bios_version(),
+        "firmware_supported": firmware_supported(),
+        "reviewed_revision": REVIEWED_REVISION,
+        "patch_active": False,
+        "blocked_reason": "",
+        "chips": [],
+    }
+    # One lock for the whole sample, not one per message: eight consecutive
+    # mailbox round trips interleaved with another client's transactions is
+    # exactly the failure the lock exists to prevent.
+    with smn_window_lock():
+        smu = _open_smu(repository, uid)
+        try:
+            payload["patch_active"] = _patch_active(smu)
+            if not payload["patch_active"]:
+                # umc_read_temp_per_chip is provided by the runtime SMU payload,
+                # not by the factory firmware: on an unpatched board Queue 3 /
+                # Message 5 would reach an unknown stock handler.
+                payload["blocked_reason"] = "GDDR6_PATCH_INACTIVE"
+            elif chips_wanted:
+                chips = []
+                for chip in range(CHIP_COUNT):
+                    raw = smu.send_message(3, 0x5, [chip])[1]
+                    code = raw & 0xFF
+                    chips.append({
+                        "chip": chip,
+                        "raw": raw,
+                        "code": code,
+                        "temperature_c": (code * 2) - 40,
+                    })
+                temperatures = [entry["temperature_c"] for entry in chips]
+                hotspot = max(temperatures)
+                payload.update({
+                    "chips": chips,
+                    "average_c": sum(temperatures) / len(temperatures),
+                    "hotspot_c": hotspot,
+                    "hotspot_chip": temperatures.index(hotspot),
+                })
+        finally:
+            smu.close()
+
+    print(json.dumps(payload))
+    return 0
+
+
+def main(argv: list[str]) -> int:
+    if os.geteuid() != 0:
+        raise RuntimeError("This helper must be launched through pkexec.")
+    if not _trusted_self():
+        raise RuntimeError(
+            "HELPER_UNTRUSTED: this helper is not a root-owned, non-writable "
+            "installed payload. Reinstall BC250 Control Center."
+        )
+    if len(argv) != 5 or argv[1] != "--repo" or argv[3] != "--action":
+        raise RuntimeError("Expected exactly: --repo PATH --action {status,read}")
+    action = argv[4]
+    if action not in {"status", "read"}:
+        raise RuntimeError(f"Unsupported action: {action}")
+    if not _bc250_identity_present():
+        raise RuntimeError("AMD BC-250 hardware identity was not detected.")
+    if not pathlib.Path("/usr/bin/git").is_file():
+        raise RuntimeError("git is required to validate the official upstream clone.")
+
+    uid, gid, home = _invoking_user()
+    repository = _validate_repository(argv[2], uid, gid, home)
+
+    return _do_read(repository, uid, chips_wanted=action == "read")
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main(sys.argv))
+    except Exception as error:
+        print(f"ERROR: {error}", file=sys.stderr)
+        raise SystemExit(1)

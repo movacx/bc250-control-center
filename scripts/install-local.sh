@@ -55,6 +55,7 @@ SYSTEM_GOVERNOR_CONFIG_HELPER="/usr/libexec/bc250-control-center/bc250-governor-
 SYSTEM_CORE_UNLOCK_HELPER="/usr/libexec/bc250-control-center/bc250-core-unlock-helper"
 SYSTEM_CPU_SMU_HELPER="/usr/libexec/bc250-control-center/bc250-cpu-smu-helper"
 SYSTEM_GDDR6_TEMP_HELPER="/usr/libexec/bc250-control-center/bc250-gddr6-temp-helper"
+SYSTEM_GDDR6_TEMP_READER="/usr/libexec/bc250-control-center/bc250-gddr6-temp-reader"
 SYSTEM_OPENRC_SERVICE_HELPER="/usr/libexec/bc250-control-center/bc250-openrc-service-helper"
 SYSTEM_SERVICE_HELPER="/usr/libexec/bc250-control-center/bc250-service-helper"
 SYSTEM_MAINTENANCE_HELPER="/usr/libexec/bc250-control-center/bc250-maintenance-helper"
@@ -323,6 +324,7 @@ install_privileged_pwm_components() {
   local core_unlock_helper_source="$ROOT_DIR/privileged/helpers/bc250-core-unlock-helper"
   local cpu_smu_helper_source="$ROOT_DIR/privileged/helpers/bc250-cpu-smu-helper"
   local gddr6_temp_helper_source="$ROOT_DIR/privileged/helpers/bc250-gddr6-temp-helper"
+  local gddr6_temp_reader_source="$ROOT_DIR/privileged/helpers/bc250-gddr6-temp-reader"
   local openrc_service_helper_source="$ROOT_DIR/privileged/helpers/bc250-openrc-service-helper"
   local service_helper_source="$ROOT_DIR/privileged/helpers/bc250-service-helper"
   local maintenance_helper_source="$ROOT_DIR/privileged/helpers/bc250-maintenance-helper"
@@ -383,6 +385,7 @@ install_privileged_pwm_components() {
     "$SYSTEM_CORE_UNLOCK_HELPER"
     "$SYSTEM_CPU_SMU_HELPER"
     "$SYSTEM_GDDR6_TEMP_HELPER"
+    "$SYSTEM_GDDR6_TEMP_READER"
     "$SYSTEM_OPENRC_SERVICE_HELPER"
     "$SYSTEM_SERVICE_HELPER"
     "$SYSTEM_MAINTENANCE_HELPER"
@@ -435,6 +438,7 @@ install_privileged_pwm_components() {
     "${elevate[@]}" install -Dm755 "$core_unlock_helper_source" "$SYSTEM_CORE_UNLOCK_HELPER"
     "${elevate[@]}" install -Dm755 "$cpu_smu_helper_source" "$SYSTEM_CPU_SMU_HELPER"
     "${elevate[@]}" install -Dm755 "$gddr6_temp_helper_source" "$SYSTEM_GDDR6_TEMP_HELPER"
+    "${elevate[@]}" install -Dm755 "$gddr6_temp_reader_source" "$SYSTEM_GDDR6_TEMP_READER"
     "${elevate[@]}" install -Dm755 "$openrc_service_helper_source" "$SYSTEM_OPENRC_SERVICE_HELPER"
     "${elevate[@]}" install -Dm755 "$service_helper_source" "$SYSTEM_SERVICE_HELPER"
     "${elevate[@]}" install -Dm755 "$maintenance_helper_source" "$SYSTEM_MAINTENANCE_HELPER"
@@ -471,6 +475,7 @@ install_privileged_pwm_components() {
       "$core_unlock_helper_source:$SYSTEM_CORE_UNLOCK_HELPER" \
       "$cpu_smu_helper_source:$SYSTEM_CPU_SMU_HELPER" \
       "$gddr6_temp_helper_source:$SYSTEM_GDDR6_TEMP_HELPER" \
+      "$gddr6_temp_reader_source:$SYSTEM_GDDR6_TEMP_READER" \
       "$openrc_service_helper_source:$SYSTEM_OPENRC_SERVICE_HELPER" \
       "$service_helper_source:$SYSTEM_SERVICE_HELPER" \
       "$maintenance_helper_source:$SYSTEM_MAINTENANCE_HELPER" \

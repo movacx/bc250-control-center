@@ -736,6 +736,16 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         border-color: {c['blue_border']};
         color: {c['blue']};
     }}
+    /* A metric tile is already painted in panel_alt, so a card action sitting
+       inside one would be the exact same colour as its own background and read
+       as a flat outline. Lift it to the control surface, one step up. */
+    QFrame[dashboardMetricTile='true'] QPushButton[dashboardCardAction='true'] {{
+        background: {c['control']};
+    }}
+    QFrame[dashboardMetricTile='true'] QPushButton[dashboardCardAction='true']:hover,
+    QFrame[dashboardMetricTile='true'] QPushButton[dashboardCardAction='true']:focus {{
+        background: {c['control_hover']};
+    }}
     QPushButton[dashboardTelemetryAction='true'] {{
         min-height: 26px;
         padding: 8px 12px;

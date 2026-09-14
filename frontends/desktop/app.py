@@ -161,7 +161,6 @@ class ControlCenterWindow(QMainWindow):
         from .pages.cpu_smu import CpuSmuPage
         from .pages.dashboard import DashboardPage
         from .pages.fans import FansPage
-        from .pages.gddr6_memory_temp import Gddr6MemoryTempPage
         from .pages.gpu_governor import GpuGovernorPage
         from .pages.performance import PerformancePage
         from .pages.processes import ProcessesPage
@@ -188,7 +187,6 @@ class ControlCenterWindow(QMainWindow):
             activity_service=activity_service,
         )
         self.performance_page = PerformancePage(controller)
-        self.gddr6_memory_temp_page = Gddr6MemoryTempPage(controller)
         self.settings_dialog: SettingsDialog | None = None
         self.current_page_key = "dashboard"
         self._gamepad_navigation_history: list[str] = []
@@ -201,7 +199,6 @@ class ControlCenterWindow(QMainWindow):
             "performance": self.performance_page,
             "fans": self.fans_page,
             "processes": self.processes_page,
-            "gddr6_memory_temp": self.gddr6_memory_temp_page,
         }
         self.dashboard.module_requested.connect(self.navigate)
         self.dashboard.action_requested.connect(self._dashboard_action)
