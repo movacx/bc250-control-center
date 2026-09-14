@@ -27,6 +27,37 @@ from .dialogs import center_dialog, enable_adaptive_dialog
 from .widgets import IconBadge, PillLabel, apply_shadow, icon
 
 
+def caption(text: str = "") -> QLabel:
+    """Small muted explanatory line used inside panels."""
+    label = QLabel(tr(text))
+    label.setProperty("fieldHint", True)
+    label.setWordWrap(True)
+    label.setMinimumWidth(0)
+    return label
+
+
+def subpanel(title: str = "", subtitle: str = "") -> tuple[QFrame, QVBoxLayout]:
+    """Sub-panel with a title and a hairline border.
+
+    The building block of the redesigned module language: cards hold panels,
+    panels hold rows. Shared so the CPU and GPU modules cannot drift apart.
+    """
+    frame = QFrame()
+    frame.setProperty("subPanel", True)
+    frame.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+    box = QVBoxLayout(frame)
+    box.setContentsMargins(14, 12, 14, 13)
+    box.setSpacing(9)
+    if title:
+        heading = QLabel(tr(title))
+        heading.setProperty("cardTitle", True)
+        heading.setWordWrap(True)
+        box.addWidget(heading)
+    if subtitle:
+        box.addWidget(caption(subtitle))
+    return frame, box
+
+
 class MetricTile(QFrame):
     def __init__(
         self,
