@@ -45,11 +45,15 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from bc250cc.domain.gpu.oberon import OBERON_REFERENCE_VOLTAGE_MV
+
 from ..components.buttons import WrappingButton as QPushButton
 from ..components.page_widgets import (
     ConfirmDialog,
     MetricTile,
     SectionCard,
+    caption,
+    subpanel,
 )
 from ..components.widgets import PillLabel, icon
 from ..i18n import governor_fix_label, tr, tr_format
@@ -108,6 +112,16 @@ def voltage_for(frequency: int) -> int:
     return VOLTAGE_MAP[nearest]
 
 
+def backend_voltage_for(frequency: int, *, is_oberon: bool = False) -> int:
+    """Oberon's endpoints are flat; only Cyan has a per-frequency curve.
+
+    Deriving an Oberon voltage from Cyan's multipoint TOML would print a
+    number this board never uses — the exact mistake ``domain/gpu/oberon.py``
+    exists to prevent.
+    """
+    return OBERON_REFERENCE_VOLTAGE_MV if is_oberon else voltage_for(frequency)
+
+
 def snap_to_point(frequency: int, *, unlocked: bool = False) -> int:
     pool = offered_points(unlocked=unlocked)
     return min(pool, key=lambda point: abs(point - frequency))
@@ -139,8 +153,13 @@ class GpuProfile:
     minimum: int
     maximum: int
 
+    #: Set for Oberon profiles, whose endpoints share one flat voltage.
+    fixed_voltage: int | None = None
+
     @property
     def voltage(self) -> int:
+        if self.fixed_voltage is not None:
+            return int(self.fixed_voltage)
         return voltage_for(self.maximum)
 
     def is_risky(self) -> bool:
@@ -171,30 +190,10 @@ def _qcolor(key: str, alpha: int = 255) -> QColor:
     return color
 
 
-def _caption(text: str = "") -> QLabel:
-    label = QLabel(tr(text))
-    label.setProperty("fieldHint", True)
-    label.setWordWrap(True)
-    label.setMinimumWidth(0)
-    return label
-
-
-def _subpanel(title: str = "", subtitle: str = "") -> tuple[QFrame, QVBoxLayout]:
-    """Sub-panel with a title and a hairline border."""
-    frame = QFrame()
-    frame.setProperty("subPanel", True)
-    frame.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-    box = QVBoxLayout(frame)
-    box.setContentsMargins(14, 12, 14, 13)
-    box.setSpacing(9)
-    if title:
-        heading = QLabel(tr(title))
-        heading.setProperty("cardTitle", True)
-        heading.setWordWrap(True)
-        box.addWidget(heading)
-    if subtitle:
-        box.addWidget(_caption(subtitle))
-    return frame, box
+#: Both redesigned modules draw the same panels, so the primitives live in
+#: ``components.page_widgets``. These aliases keep this file's call sites.
+_caption = caption
+_subpanel = subpanel
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -613,6 +612,10 @@ class ProfileCardEditable(QFrame):
     @property
     def profile(self) -> GpuProfile:
         return self._profile
+
+    def set_editable(self, editable: bool) -> None:
+        """Oberon's three profiles come from the contract and are not editable."""
+        self._edit_button.setVisible(bool(editable))
 
     def set_profile(self, profile: GpuProfile) -> None:
         """Loads a profile already saved by the user (settings override)."""
@@ -1404,6 +1407,9 @@ class GpuGovernorView(QWidget):
         self._selected_maximum = 1850
         self._selected_profile = "gaming"
         self._compatibility_dirty = False
+        #: Cyan unless told otherwise, so its behaviour is untouched by the
+        #: Oberon adaptation below.
+        self._oberon_mode = False
         # Telemetry refreshes must not yank a range the user is staging; the
         # selection re-syncs with the hardware when the screen is entered
         # again, not on every poll.
@@ -1473,6 +1479,7 @@ class GpuGovernorView(QWidget):
         card.body.addWidget(profiles_panel)
 
         range_panel, range_box = _subpanel("Frequency range")
+        self._range_panel = range_panel
         header = QHBoxLayout()
         self._range_subtitle = _caption("")
         header.addWidget(self._range_subtitle, 1)
@@ -1506,6 +1513,7 @@ class GpuGovernorView(QWidget):
             "Cyan kernel compatibility",
             "Only touch this if the readings above look wrong.",
         )
+        self._compat_panel = compat_panel
         # The legacy screen is hidden while this view is mounted, so the two
         # method selectors have to live here or they become unreachable.
         methods = QHBoxLayout()
@@ -1634,7 +1642,7 @@ class GpuGovernorView(QWidget):
         lab_panel, lab_box = _subpanel("")
         lab_head = QHBoxLayout()
         lab_head.setSpacing(10)
-        lab_title = QLabel(tr("Voltage laboratory"))
+        self._lab_title = lab_title = QLabel(tr("Voltage laboratory"))
         lab_title.setProperty("cardTitle", True)
         lab_head.addWidget(lab_title, 1)
         self._lab_point = QLabel("")
@@ -1651,7 +1659,7 @@ class GpuGovernorView(QWidget):
         open_lab.setCursor(Qt.CursorShape.PointingHandCursor)
         open_lab.clicked.connect(self.voltage_lab_requested)
         lab_actions.addWidget(open_lab, 1)
-        open_config = QPushButton(tr("Open config.toml"))
+        self._open_config_button = open_config = QPushButton(tr("Open config.toml"))
         open_config.setProperty("ghostButton", True)
         open_config.setCursor(Qt.CursorShape.PointingHandCursor)
         open_config.clicked.connect(self.config_open_requested)
@@ -1660,6 +1668,7 @@ class GpuGovernorView(QWidget):
         card.body.addWidget(lab_panel)
 
         risk_panel, risk_box = _subpanel("")
+        self._risk_panel = risk_panel
         risk_panel.setProperty("riskPanel", True)
         risk_head = QHBoxLayout()
         risk_head.setSpacing(7)
@@ -1918,7 +1927,7 @@ class GpuGovernorView(QWidget):
             message,
             summary=(
                 ("Profile", self._selected_profile_name()),
-                ("Voltage", f"{voltage_for(maximum)} mV"),
+                ("Voltage", f"{backend_voltage_for(maximum, is_oberon=self._oberon_mode)} mV"),
                 # Named explicitly: this is the TOML's ceiling, not the range
                 # being applied, and reading it as the latter is confusing.
                 ("TOML ceiling", f"{ceiling_for(unlocked=self._state.unlocked)} MHz"),
@@ -1937,6 +1946,47 @@ class GpuGovernorView(QWidget):
         for profile_card, profile in zip(self._profile_cards, profiles):
             profile_card.set_profile(profile)
         self._sync_selection()
+
+    def set_oberon_mode(self, is_oberon: bool) -> None:
+        """Dress this same screen for the Oberon backend.
+
+        Oberon is not a reduced Cyan: it has two YAML endpoints instead of a
+        multi-point TOML curve, no kernel compatibility switches, and no
+        commented-out points to uncomment. So the panels that only describe
+        Cyan's model are hidden rather than shown empty or, worse, shown with
+        Cyan's numbers over an Oberon board.
+
+        Everything the two backends genuinely share — profiles, telemetry, the
+        service controls, the voltage laboratory — keeps the same layout and
+        the same button positions, which is the point of reusing this view.
+        """
+        is_oberon = bool(is_oberon)
+        if is_oberon == self._oberon_mode:
+            return
+        self._oberon_mode = is_oberon
+
+        # Cyan's frequency model, in three panels that Oberon has no analogue for.
+        self._range_panel.setVisible(not is_oberon)
+        self._compat_panel.setVisible(not is_oberon)
+        self._risk_panel.setVisible(not is_oberon)
+
+        for profile_card in self._profile_cards:
+            profile_card.set_editable(not is_oberon)
+
+        # The backend refuses startup persistence for Oberon outright
+        # (``guardar_rango_gpu_arranque`` raises), so offering it would be a
+        # button whose only outcome is an error.
+        self.startup_button.setVisible(not is_oberon)
+        self.apply_button.setText(
+            tr("Review and apply Oberon profile") if is_oberon
+            else tr("Review and apply range")
+        )
+        self._lab_title.setText(
+            tr("YAML endpoint laboratory") if is_oberon else tr("Voltage laboratory")
+        )
+        self._open_config_button.setText(
+            tr("Open oberon-config.yaml") if is_oberon else tr("Open config.toml")
+        )
 
     def profiles(self) -> tuple[GpuProfile, ...]:
         return tuple(profile_card.profile for profile_card in self._profile_cards)
@@ -2021,7 +2071,8 @@ class GpuGovernorView(QWidget):
             tr_format("Current ceiling {ceiling} MHz per config.toml.", ceiling=ceiling),
         )
         self._lab_point.setText(
-            f"{self._selected_maximum} MHz · {voltage_for(self._selected_maximum)} mV"
+            f"{self._selected_maximum} MHz · "
+            f"{backend_voltage_for(self._selected_maximum, is_oberon=self._oberon_mode)} mV"
         )
 
         for profile_card in self._profile_cards:
