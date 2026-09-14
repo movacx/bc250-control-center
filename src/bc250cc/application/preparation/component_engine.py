@@ -60,6 +60,11 @@ COMPONENT_SPECS: Mapping[str, ComponentSpec] = {
         "core_unlock", False, "high",
         "Stages the official source only; unlocking remains a separate action.",
     ),
+    "gddr6_temp": ComponentSpec(
+        "gddr6_temp", False, "high",
+        "Stages the reviewed GDDR6 memory-temperature source; the runtime SMU "
+        "patch remains a separate action.",
+    ),
     "umr": ComponentSpec(
         "umr", False, "medium",
         "Register inspection backend required by live CU routing.",

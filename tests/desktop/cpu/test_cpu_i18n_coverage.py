@@ -10,7 +10,13 @@ CPU_PAGE = Path("frontends/desktop/pages/cpu_smu.py")
 # else visible in the CPU page must resolve through the translation system.
 TECHNICAL_EXEMPT = {
     "MHz", "mV", "°C", "scale", "--", "-- °C | -- MHz",
-    "3500–4200 MHz", "950–1325 mV · up to 90 °C", "3550 MHz / 1050 mV",
+    # The Game Mode floor moved 3500 -> 3100; the old value was exempt and the
+    # new one was not, which only stayed invisible because translation_coverage
+    # checked a single string per call before that was fixed.
+    "3100–4200 MHz", "950–1325 mV · up to 90 °C", "3550 MHz / 1050 mV",
+    # Pure format, no prose: both placeholders are filled with already
+    # translated text by the caller.
+    "{url}: {error}",
     "k10temp Tctl", "CPU / SMU",
     "{frequency} MHz | scale {scale} | {temperature} °C",
     "{frequency} MHz · scale {scale} · {temperature} °C",

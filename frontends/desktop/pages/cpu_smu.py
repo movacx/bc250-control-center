@@ -520,6 +520,10 @@ class CpuSmuPage(QWidget):
             self._refresh_failed,
         )
 
+        from .cpu_overview_integration import install_redesigned_cpu_overview
+
+        install_redesigned_cpu_overview(self)
+
     def _select_workspace(self, name: str) -> None:
         key = "configuration" if name == "configuration" else "overview"
         index = 1 if key == "configuration" else 0

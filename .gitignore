@@ -66,3 +66,6 @@ htmlcov/
 # Carpetas de trabajo local / scratch (no deben subirse)
 carpeta temporal*/
 Claude outputs/
+
+# Working notes, not part of the shipped project
+docs/CONTEXTO.md

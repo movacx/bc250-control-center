@@ -4,7 +4,7 @@ import logging
 import time
 from typing import NamedTuple
 
-from PyQt6.QtCore import QTimer, pyqtSignal
+from PyQt6.QtCore import QPoint, QRect, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QGridLayout,
     QSizePolicy,
@@ -25,6 +25,7 @@ from ..components.async_tools import AsyncRefresh, BackgroundExecutor
 from ..components.dashboard_widgets import (
     DashboardFooter,
     DashboardGpuHero,
+    DashboardMemorySummary,
     DashboardModuleCard,
     DashboardScrollArea,
     PreparationSidebar,
@@ -36,10 +37,25 @@ from ..components.responsive import (
 )
 from ..components.widgets import InfoDialog
 from ..core.external_links import open_external_url, update_checks_enabled
+from ..core.gddr6_monitor import gddr6_monitor_for
 from ..core.state import DashboardState, state_cache_for
 from ..i18n import tr, tr_format
 
 logger = logging.getLogger(__name__)
+
+
+def _dict(value) -> dict:
+    try:
+        return dict(value or {})
+    except Exception:
+        return {}
+
+
+def _number(value, default: float = 0.0) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return float(default)
 
 
 class _UpdateLookup(NamedTuple):
@@ -124,6 +140,16 @@ class DashboardPage(QWidget):
         self.gpu_card.telemetry_repair_requested.connect(self._request_telemetry_repair)
         self.main_layout.addWidget(self.gpu_card)
 
+        # Its own block directly under the hero's core strip, rather than
+        # inside the hero: that card carries a height ratchet, and eight more
+        # cells would push it past the compact size the dashboard fixes.
+        self.memory_summary = DashboardMemorySummary(live_action=True)
+        self.memory_monitor = gddr6_monitor_for(controller)
+        self.memory_summary.live_toggled.connect(self.memory_monitor.set_live)
+        self.memory_summary.prepare_requested.connect(self._prepare_memory_readings)
+        self.memory_monitor.changed.connect(self._apply_memory_reading)
+        self.main_layout.addWidget(self.memory_summary)
+
         self.modules_host = QWidget()
         self.modules_grid = QGridLayout(self.modules_host)
         self.modules_grid.setContentsMargins(0, 0, 0, 0)
@@ -199,14 +225,33 @@ class DashboardPage(QWidget):
         self.update_callout.action_clicked.connect(self._follow_update_advice)
         self.update_callout.dismissed.connect(self._callout_dismissed)
         self._install_source = None
+        # Whether there is an update to announce at all. The bubble is taken
+        # off screen for all sorts of reasons — another page, a scroll, a
+        # panel covering the shell — and every one of them needs to know
+        # whether bringing it back is still the right thing to do.
+        self._update_pending = False
         # Parented to this page, so a pending retry dies with it rather than
         # firing into a destroyed widget once this page is gone.
         self._callout_retries = 0
         self._callout_retry_timer = QTimer(self)
         self._callout_retry_timer.setSingleShot(True)
         self._callout_retry_timer.timeout.connect(self._place_callout)
+        # Scrolling is not the only thing that moves the badge: a refresh can
+        # relayout the page under it, and the window can be resized. Neither
+        # emits a scroll, so the bubble asks where the badge is rather than
+        # waiting to be told.
+        self._callout_anchored_at = QRect()
+        self._callout_follow_timer = QTimer(self)
+        self._callout_follow_timer.setInterval(250)
+        self._callout_follow_timer.timeout.connect(self._follow_callout)
         self.layout.addStretch(1)
         self.scroll.viewport_width_changed.connect(self._reflow)
+        # The badge scrolls with the page but the bubble is a child of the
+        # window, so without this it stays where it was first drawn and ends
+        # up pointing at whatever has scrolled into that spot.
+        scrollbar = self.scroll.verticalScrollBar()
+        if scrollbar is not None:
+            scrollbar.valueChanged.connect(self._follow_callout)
 
         self._reflow(1400)
         self.apply_state(self.state)
@@ -310,6 +355,7 @@ class DashboardPage(QWidget):
         published = str(getattr(status, "published", "") or "")
         available = bool(getattr(status, "update_available", False))
         self._install_source = source
+        self._update_pending = available
         self.footer.announce_update(published if available else "")
         if not available:
             self.update_callout.hide()
@@ -341,6 +387,15 @@ class DashboardPage(QWidget):
 
     def _place_callout(self) -> None:
         window = self.footer.update_button.window()
+        if window is not None and getattr(window, "is_presenting_overlay", bool)():
+            # The first-run panel, or the guided tour. Both are meant to be the
+            # only thing on screen, and this bubble is a sibling that would
+            # otherwise be drawn over them. Wait without spending the retries:
+            # the user may well take a minute over those, and the bubble is
+            # still wanted afterwards.
+            self.update_callout.hide()
+            self._callout_retry_timer.start(400)
+            return
         if window is None or not window.isVisible():
             # A cached release check can resolve before the main window is
             # actually shown - the common case on a cold start straight into
@@ -351,7 +406,93 @@ class DashboardPage(QWidget):
             if self._callout_retries <= 40:
                 self._callout_retry_timer.start(75)
             return
+        if not self._update_pending or not self.isVisible():
+            # This bubble belongs to this page. Reparenting it to the window is
+            # what lets it hang outside the scroll area, and it is also what
+            # stops it noticing that the user has gone to another module — so
+            # the page says so itself.
+            self.update_callout.hide()
+            self._callout_follow_timer.stop()
+            return
+        # From here the bubble is wanted, whether or not it can be drawn this
+        # instant. Watching starts now rather than after a successful
+        # placement: the badge may be below the fold, or the page may not have
+        # been laid out yet, and both of those resolve themselves a moment
+        # later with nothing to announce them.
+        self._callout_follow_timer.start()
+        if not self._badge_is_on_screen():
+            # Scrolled past. A bubble whose tail points off the top of the
+            # viewport is worse than no bubble: it labels whatever happens to
+            # be under it now.
+            self.update_callout.hide()
+            return
         self.update_callout.point_at(self.footer.update_button)
+        self._callout_anchored_at = self._badge_rect()
+
+    def _badge_rect(self) -> QRect:
+        """Where the badge sits in the window right now."""
+        badge = self.footer.update_button
+        return QRect(badge.mapTo(self, QPoint(0, 0)), badge.size())
+
+    def _badge_is_on_screen(self) -> bool:
+        """Whether the update badge is actually inside the scrolled viewport."""
+        badge = self.footer.update_button
+        if badge.isHidden() or badge.width() <= 0:
+            return False
+        viewport = self.scroll.viewport()
+        if viewport is None:
+            return True
+        top_left = badge.mapTo(viewport, QPoint(0, 0))
+        return viewport.rect().intersects(QRect(top_left, badge.size()))
+
+    def _follow_callout(self) -> None:
+        """Re-decide where the bubble goes, or whether it goes at all.
+
+        Cheap enough to run on every scroll step: it does nothing at all
+        unless there is an update to announce.
+        """
+        if not self._update_pending:
+            self._callout_follow_timer.stop()
+            return
+        if (
+            not self.update_callout.isHidden()
+            and self._badge_rect() == self._callout_anchored_at
+        ):
+            # Nothing moved. Re-placing anyway would fight the user for the
+            # scroll position of a bubble they are reading.
+            return
+        self._place_callout()
+
+    def dismiss_floating_callout(self) -> None:
+        """Step aside while a full-window panel owns the screen.
+
+        The bubble is a child of the window, not of this page, so a panel that
+        opens after it has been placed does not cover it. It is taken off and
+        asked to place itself again, which it will only manage once the window
+        says nothing is covering the shell any more.
+        """
+        if self.update_callout.isHidden():
+            return
+        self.update_callout.hide()
+        self._callout_retries = 0
+        self._callout_retry_timer.start(400)
+
+    def showEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        """Coming back to the dashboard brings the bubble back with it."""
+        super().showEvent(event)
+        if self._update_pending:
+            self._show_callout()
+
+    def hideEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        """Leaving the dashboard takes it away.
+
+        It announces an update from this page's own badge; on the fans page it
+        would be a bubble with a tail pointing at nothing.
+        """
+        super().hideEvent(event)
+        self.update_callout.hide()
+        self._callout_retry_timer.stop()
+        self._callout_follow_timer.stop()
 
     def _callout_dismissed(self) -> None:
         """Closing the bubble leaves the badge pulsing; nothing is lost."""
@@ -551,6 +692,49 @@ class DashboardPage(QWidget):
             self.state.cpu_per_core_frequency_mhz,
             self.state.cpu_per_core_percent,
         )
+        self._apply_memory_summary()
+
+    def _apply_memory_summary(self) -> None:
+        """Mirror the shared monitor; a page refresh never samples by itself.
+
+        A dashboard refresh runs every few seconds and a real read costs a
+        Polkit check, so sampling from here would prompt for a password on a
+        loop. Only the live button asks for readings.
+        """
+        self.memory_monitor.refresh_status()
+        self._apply_memory_reading(self.memory_monitor.reading)
+
+    def _prepare_memory_readings(self) -> None:
+        """Fetch the reviewed checkout the readings need, in the terminal."""
+        self.memory_monitor.prepare()
+
+    def _apply_memory_reading(self, reading) -> None:
+        summary = self.memory_summary
+        summary.set_live(bool(getattr(reading, "live", False)))
+        chips = [
+            (chip.index, chip.code, chip.temperature_c) for chip in reading.chips
+        ]
+        summary.set_chips(chips)
+        # The checkout is the one blocker the user can clear from here, so it
+        # is the one that swaps the button rather than greying it out. The
+        # others — no board, no helpers, wrong firmware — are stated instead:
+        # nothing on this row would fix them.
+        summary.set_ready(reading.repository_ready or reading.live)
+        summary.live_button.setEnabled(reading.can_monitor or reading.live)
+        if chips:
+            summary.set_value(self._format_temperature(_number(reading.average_c)))
+            summary.set_detail(
+                tr_format(
+                    "Hotspot {value}",
+                    value=self._format_temperature(_number(reading.hotspot_c)),
+                )
+            )
+        else:
+            summary.set_value("Waiting for sample")
+            summary.set_detail("")
+            # Why the button is off, when it is. Saying nothing is what made
+            # this look broken: a disabled control and an empty line beside it.
+            summary.set_blocker("" if reading.can_monitor else reading.blocker())
 
     def _apply_cpu_card(self, state: DashboardState) -> None:
         self.cpu_card.status.setText(state.cpu_profile)

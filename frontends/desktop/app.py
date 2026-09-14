@@ -22,7 +22,7 @@ from PyQt6.QtWidgets import (
 from .components.async_tools import BackgroundExecutor, pending_background_tasks
 from .components.sidebar import Sidebar
 from .components.widgets import InfoDialog
-from .console import ConsoleHost, ConsolePanel
+from .console import ConsoleBeacon, ConsoleHost, ConsolePanel
 from .core.alerts import SmartAlertMonitor
 from .core.gamepad import GamepadNavigationController
 from .core.preferences import UiPreferences
@@ -34,6 +34,13 @@ from .i18n import (
     set_language,
     tr,
     tr_format,
+)
+from .onboarding import (
+    TourGuide,
+    WelcomeOverlay,
+    first_run_pending,
+    mark_first_run_done,
+    tour_stops,
 )
 from .theme import application_stylesheet, configure_theme
 
@@ -161,7 +168,6 @@ class ControlCenterWindow(QMainWindow):
         from .pages.cpu_smu import CpuSmuPage
         from .pages.dashboard import DashboardPage
         from .pages.fans import FansPage
-        from .pages.gddr6_memory_temp import Gddr6MemoryTempPage
         from .pages.gpu_governor import GpuGovernorPage
         from .pages.performance import PerformancePage
         from .pages.processes import ProcessesPage
@@ -188,7 +194,6 @@ class ControlCenterWindow(QMainWindow):
             activity_service=activity_service,
         )
         self.performance_page = PerformancePage(controller)
-        self.gddr6_memory_temp_page = Gddr6MemoryTempPage(controller)
         self.settings_dialog: SettingsDialog | None = None
         self.current_page_key = "dashboard"
         self._gamepad_navigation_history: list[str] = []
@@ -201,7 +206,6 @@ class ControlCenterWindow(QMainWindow):
             "performance": self.performance_page,
             "fans": self.fans_page,
             "processes": self.processes_page,
-            "gddr6_memory_temp": self.gddr6_memory_temp_page,
         }
         self.dashboard.module_requested.connect(self.navigate)
         self.dashboard.action_requested.connect(self._dashboard_action)
@@ -235,6 +239,9 @@ class ControlCenterWindow(QMainWindow):
         self._restore_start_page()
         self._migrate_backend_preferences_async()
         self._set_gamepad_navigation_enabled(self._gamepad_navigation_enabled)
+        self.welcome: WelcomeOverlay | None = None
+        self.tour: TourGuide | None = None
+        self._first_run_pending = first_run_pending(self.settings)
 
     def _build_console(self, shell_layout) -> None:
         """Attach the in-application terminal and offer it to the repositories.
@@ -261,6 +268,18 @@ class ControlCenterWindow(QMainWindow):
         panel.external_terminal_requested.connect(self._open_workflow_in_terminal)
         panel.visibility_changed.connect(self._console_visibility_changed)
         self.console = panel
+
+        # The way back to a console the user hid mid-workflow. It floats over
+        # every page rather than living in one, so hiding the panel is no
+        # longer a one-way door.
+        self.console_beacon = ConsoleBeacon(self)
+        self.console_beacon.clicked.connect(self._show_running_console)
+        self._console_open = False
+        panel.visibility_changed.connect(self._on_console_visibility)
+        panel.workflow_finished.connect(lambda _code: self._sync_console_beacon())
+        panel.workflow_started.connect(self._sync_console_beacon)
+        panel.running_count_changed.connect(self.console_beacon.set_count)
+
         host = ConsoleHost(panel, self)
         host.set_enabled(self.preferences.bool_value("settings/embedded_terminal", True))
         host.install()
@@ -282,6 +301,35 @@ class ControlCenterWindow(QMainWindow):
             lambda connected, _name: console.set_gamepad_present(connected)
         )
         console.set_gamepad_present(self.gamepad.connected)
+
+    def _on_console_visibility(self, visible: bool) -> None:
+        """Track the panel's intent, not its current animated height.
+
+        ``is_open`` reads the widget's live height, and the slide is an
+        animation: asking it the moment the signal fires still returns the
+        height it is travelling away from, which had the beacon showing while
+        the console was open and hiding the moment it closed.
+        """
+        self._console_open = bool(visible)
+        self._sync_console_beacon()
+
+    def _show_running_console(self) -> None:
+        """Bring the hidden workflow back on screen."""
+        if self.console is not None:
+            self.console.slide_in()
+        self._sync_console_beacon()
+
+    def _sync_console_beacon(self) -> None:
+        """Visible only while there is something to come back to."""
+        beacon = getattr(self, "console_beacon", None)
+        console = getattr(self, "console", None)
+        if beacon is None:
+            return
+        if console is None:
+            beacon.set_active(False)
+            return
+        beacon.set_active(bool(console.busy) and not self._console_open)
+        beacon.set_count(console.running_count())
 
     def _console_visibility_changed(self, visible: bool) -> None:
         if not visible and self.console is not None:
@@ -340,6 +388,16 @@ class ControlCenterWindow(QMainWindow):
             QTimer.singleShot(0, self._apply_gamemode_window_mode)
         QTimer.singleShot(0, self._sync_current_page_layout)
         QTimer.singleShot(80, self._sync_current_page_layout)
+        # getattr, because a window can be shown before this constructor has
+        # run — a bare subclass in a test, or a shutdown path that only needs
+        # the shell — and a missing attribute here would be an exception
+        # raised inside a Qt event handler.
+        if getattr(self, "_first_run_pending", False):
+            # After the layout passes above, not before: the welcome screen is
+            # a portrait of the window behind it, and a window that has not
+            # been laid out yet has nothing to photograph.
+            self._first_run_pending = False
+            QTimer.singleShot(140, self.open_welcome)
 
     def _apply_gamemode_window_mode(self) -> None:
         if not self._gamemode_session:
@@ -424,6 +482,203 @@ class ControlCenterWindow(QMainWindow):
             return "dark" if app.palette().window().color().lightness() < 128 else "light"
         except Exception:
             return "light"
+
+    # ------------------------------------------------------- first run
+
+    def is_presenting_overlay(self) -> bool:
+        """Whether something is covering the shell and must stay on top.
+
+        Widgets that float themselves against a control — the update bubble —
+        are children of this window too, and nothing in Qt stops them being
+        drawn over a panel that is meant to be the only thing on screen. They
+        ask this and wait.
+        """
+        welcome = getattr(self, "welcome", None)
+        if welcome is not None and welcome.isVisible():
+            return True
+        tour = getattr(self, "tour", None)
+        return tour is not None and tour.running
+
+
+    def open_welcome(self) -> None:
+        """Raise the first-run panel over the shell it is configuring."""
+        if self.welcome is not None and self.welcome.isVisible():
+            return
+        shell = self.centralWidget()
+        overlay = WelcomeOverlay(
+            self,
+            language=str(self.settings.value("settings/language", "auto")),
+            mode=str(self.settings.value("settings/appearance", "system")),
+            accent=str(self.settings.value("settings/accent", "blue")),
+            density=str(self.settings.value("settings/density", "comfortable")),
+            collapsed=self.sidebar.collapsed,
+            system_mode=self._system_theme(),
+        )
+        overlay.language_chosen.connect(self._welcome_language)
+        overlay.appearance_chosen.connect(self._welcome_appearance)
+        overlay.sidebar_chosen.connect(self._welcome_sidebar)
+        overlay.prepare_requested.connect(self._welcome_prepare)
+        overlay.dependencies_reached.connect(self._welcome_tools_probe)
+        overlay.finished.connect(self._welcome_finished)
+        overlay.setGeometry(self.rect())
+        overlay.set_backdrop_source(shell)
+        self._clear_floating_widgets()
+        self.welcome = overlay
+        # The shell keeps its pixels — the glass is a photograph of it — but
+        # stops taking input, so a keyboard cannot tab behind the panel into
+        # controls that write to the hardware.
+        if shell is not None:
+            shell.setEnabled(False)
+        overlay.reveal()
+
+    def _clear_floating_widgets(self) -> None:
+        """Take down anything already floating over the shell.
+
+        The update bubble places itself against a control and stays there. It
+        asks before appearing while a panel is up, but one that was already on
+        screen when the panel opened has to be told.
+        """
+        for page in getattr(self, "pages", {}).values():
+            dismiss = getattr(page, "dismiss_floating_callout", None)
+            if callable(dismiss):
+                dismiss()
+
+    def _welcome_language(self, language: str) -> None:
+        self._apply_language(language)
+        if self.welcome is not None:
+            self.welcome.retranslate()
+            self.welcome.refresh_backdrop()
+
+    def _welcome_appearance(self, mode: str, accent: str, density: str) -> None:
+        self._apply_appearance(mode, accent, density)
+        if self.welcome is not None:
+            # The whole point of applying it live: the glass shows the choice.
+            self.welcome.refresh_backdrop()
+
+    def _welcome_sidebar(self, collapsed: bool) -> None:
+        self.sidebar.set_collapsed(bool(collapsed))
+        if self.welcome is not None:
+            self.welcome.refresh_backdrop()
+
+    def _welcome_prepare(self) -> None:
+        """Install the chosen components in the panel's own terminal.
+
+        The work goes through the same call the dashboard uses; only the
+        console it lands in changes. Pointing a host at the panel's terminal
+        is the whole trick — there is no second way to start privileged work,
+        and so no second place where the rules could drift.
+        """
+        overlay = self.welcome
+        if overlay is None or overlay.preparing:
+            return
+        components = set(overlay.selected_components())
+        if not components:
+            return
+        host = ConsoleHost(overlay.console, self)
+        host.install()
+
+        def restore() -> None:
+            host.uninstall()
+            if self.console_host is not None:
+                self.console_host.install()
+
+        def prepare() -> None:
+            self.controller.instalar_dependencias_bc250(
+                governor_preference=str(
+                    self.settings.value("settings/gpu_governor", "auto")
+                ),
+                include_pwm="fan_pwm" in components,
+                components=components,
+            )
+
+        def finished(_result) -> None:
+            restore()
+            if overlay is self.welcome and not overlay.preparing:
+                # The call returned without a terminal ever opening. Say so
+                # where the output would have been, rather than leaving a
+                # button that looks like it did nothing.
+                overlay.preparation_failed(tr("No workflow was started."))
+
+        def failed(message: str) -> None:
+            # A governor already running is the common one: the backend
+            # refuses rather than stopping it behind the user's back, and
+            # that decision belongs on the dashboard where it is explained.
+            restore()
+            if overlay is self.welcome:
+                overlay.preparation_failed(str(message))
+
+        overlay.preparation_starting()
+        self._background.start(
+            "first-run-dependencies", prepare, on_success=finished, on_error=failed
+        )
+
+    def _welcome_tools_probe(self) -> None:
+        """Ask what is already installed, so the panel stops offering it."""
+        overlay = self.welcome
+        if overlay is None:
+            return
+
+        def read():
+            return self.controller.estado_herramientas_bc250()
+
+        def apply(result) -> None:
+            if overlay is not self.welcome:
+                return
+            state = dict(result or {}) if isinstance(result, dict) else {}
+            installed = {
+                key for key, value in state.items()
+                if isinstance(value, dict) and value.get("installed")
+            }
+            overlay.mark_installed_components(installed)
+
+        self._background.start("first-run-tools", read, on_success=apply)
+
+    def _welcome_finished(self, wants_tour: bool) -> None:
+        overlay, self.welcome = self.welcome, None
+        shell = self.centralWidget()
+        if shell is not None:
+            shell.setEnabled(True)
+        if overlay is not None:
+            if overlay.preparing and self.console is not None:
+                # A package manager halfway through outlives the panel that
+                # started it: the docked console adopts the session and the
+                # floating button appears for it like any other workflow.
+                transcript = overlay.console.view.screen.full_text()
+                self.console.adopt_session(
+                    overlay.console.release_session(),
+                    title=tr("Prepare BC250 system"),
+                    transcript=transcript,
+                )
+            overlay.deleteLater()
+        mark_first_run_done(self.settings)
+        if wants_tour:
+            self.start_tour()
+
+    # ------------------------------------------------------------ the tour
+
+    def start_tour(self) -> None:
+        """Walk the modules, pointing at the controls rather than describing them."""
+        if self.tour is not None and self.tour.running:
+            return
+        if self.tour is not None:
+            self.tour.deleteLater()
+        self._clear_floating_widgets()
+        guide = TourGuide(self, tour_stops(), parent=self)
+        guide.finished.connect(self._tour_finished)
+        self.tour = guide
+        guide.start()
+
+    def _tour_requested_from_settings(self) -> None:
+        """Close the dialog first: the tour points at the window behind it."""
+        dialog = getattr(self, "settings_dialog", None)
+        if dialog is not None:
+            dialog.close()
+        QTimer.singleShot(0, self.start_tour)
+
+    def _tour_finished(self) -> None:
+        # The pages are live again the moment the spotlight is gone; nothing
+        # was disabled for the tour, because the tour only ever navigated.
+        self._sync_current_page_layout()
 
     def _apply_language(self, language: str, *, persist: bool = True) -> None:
         requested = normalize_language(language)
@@ -571,6 +826,15 @@ class ControlCenterWindow(QMainWindow):
 
     def resizeEvent(self, event) -> None:  # noqa: N802 - Qt API name
         super().resizeEvent(event)
+        beacon = getattr(self, "console_beacon", None)
+        if beacon is not None:
+            beacon.reposition()
+        welcome = getattr(self, "welcome", None)
+        if welcome is not None:
+            welcome.setGeometry(self.rect())
+        tour = getattr(self, "tour", None)
+        if tour is not None:
+            tour.reposition()
         if not hasattr(self, "sidebar") or not hasattr(self, "root_layout"):
             return
         width = event.size().width()
@@ -705,6 +969,7 @@ class ControlCenterWindow(QMainWindow):
             dialog.gamepad_keypad_auto_show_changed.connect(self.gamepad.set_onscreen_keypad_auto_show)
             dialog.embedded_terminal_changed.connect(self.set_embedded_terminal_enabled)
             dialog.console_auto_hide_changed.connect(self.set_console_auto_hide)
+            dialog.tour_requested.connect(self._tour_requested_from_settings)
             self.settings_dialog = dialog
         dialog = self.settings_dialog
         dialog.select_section(section)

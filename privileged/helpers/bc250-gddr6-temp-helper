@@ -1,10 +1,14 @@
 #!/usr/bin/python3 -I
-"""Narrow privileged launcher for the official bc250-memory-temperature tool.
+"""Narrow privileged launcher for the official bc250-memory-temperature patch.
 
 This helper never re-implements the upstream SMU/UMC protocol. It only
 validates that a reviewed, unmodified checkout is present and then executes
-the exact upstream script (read_temp.py for a read-only chip-temperature
-sample, patch_smu.py for the runtime SMU patch) with root privileges.
+the exact upstream ``patch_smu.py`` with root privileges.
+
+Reading is deliberately *not* here: it lives in ``bc250-gddr6-temp-reader``,
+a binary with no write path at all, so the read action can use a cached
+Polkit grant while this one — which unlocks the SMU debug gate and writes
+into SMU memory — keeps an uncached ``auth_admin``.
 
 The upstream implementation is reverse-engineered and, by its own author's
 account, not fully verified: an incorrect SMU/UMC state, DQ mapping, timing
@@ -14,16 +18,41 @@ helper only decides *whether* and *by whom* the reviewed code may run.
 """
 from __future__ import annotations
 
+import contextlib
+import fcntl
 import hashlib
+import json
 import os
 import pathlib
 import pwd
 import stat
 import subprocess
 import sys
-
+import time
 
 REPOSITORY_NAME = "bc250-memory-temperature"
+
+#: Every SMU client on this board drives one shared indirect transaction
+#: through the root complex's PCI config space: register 0xB8 selects the SMN
+#: address, 0xBC carries the data. The pair is not atomic, so a second client
+#: that redirects 0xB8 in between makes the first one read or write the wrong
+#: register. The packaged CPU OC tool already guards this exact file with an
+#: advisory lock; the reviewed upstream patch_smu.py does not, so this helper
+#: holds it for the whole run on its behalf. That matters far more here than
+#: for a read: this writes a payload word by word into SMU memory.
+SMN_WINDOW_PATH = "/sys/bus/pci/devices/0000:00:00.0/config"
+SMN_LOCK_TIMEOUT_SECONDS = 8.0
+
+#: A monitoring session is bounded on purpose. One Polkit prompt buys this
+#: much live sampling and no more: an authenticated root process that samples
+#: for as long as a window is left open is a far bigger commitment than the
+#: user agreed to, and the SMU is shared with the GPU governor and the CPU
+#: overclocking tool. When it expires the user presses the button again.
+MONITOR_SECONDS = 600.0
+MONITOR_SECONDS_MAX = 1800.0
+MONITOR_INTERVAL_SECONDS = 5.0
+
+
 OFFICIAL_ORIGINS = frozenset({
     "https://github.com/pan-Rijovich/bc250-memory-temperature",
     "https://github.com/pan-Rijovich/bc250-memory-temperature.git",
@@ -35,7 +64,46 @@ REVIEWED_SCRIPT_SHA256 = {
     PATCH_SCRIPT: "c6c0b17f3f2dad415f7814035a1918331068ab1827269a97254df0ddb554ca6e",
 }
 
+#: The payload writes fixed SMU addresses that are only correct for the board
+#: firmware it was built against. The upstream README is explicit: "Do not use
+#: the SMU patch with a different firmware version unless the relevant
+#: addresses and payload have been verified."
+SUPPORTED_BIOS_VERSIONS = frozenset({"p3.0", "p3.00"})
 
+
+def bios_version() -> str:
+    try:
+        return pathlib.Path("/sys/class/dmi/id/bios_version").read_text(
+            encoding="utf-8", errors="ignore"
+        ).strip()
+    except OSError:
+        return ""
+
+
+@contextlib.contextmanager
+def smn_window_lock(timeout: float = SMN_LOCK_TIMEOUT_SECONDS):
+    """Hold the advisory lock the other SMU clients on this board honour."""
+    fd = os.open(SMN_WINDOW_PATH, os.O_RDONLY | os.O_CLOEXEC)
+    deadline = time.monotonic() + max(0.0, float(timeout))
+    try:
+        while True:
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except OSError:
+                if time.monotonic() >= deadline:
+                    raise RuntimeError(
+                        "SMU_BUSY: another BC-250 tool is holding the SMU interface "
+                        "(CPU overclocking or the GPU governor). Wait for it to "
+                        "finish and try again."
+                    ) from None
+                time.sleep(0.05)
+        try:
+            yield
+        finally:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+    finally:
+        os.close(fd)
 def _run(command: list[str], *, timeout: int = 30, uid: int, gid: int) -> str:
     result = subprocess.run(
         command,
@@ -188,76 +256,14 @@ def _trusted_self() -> bool:
     return True
 
 
-def _do_check(repository: pathlib.Path) -> int:
-    print("VERIFIED: bc250-memory-temperature is a clean, reviewed checkout.")
-    print(f"Reviewed revision: {REVIEWED_REVISION}")
-    return 0
-
-
-def _verify_package_ownership(repository: pathlib.Path, uid: int) -> pathlib.Path:
-    """Require the reviewed bc250_smu package to be owned by the desktop user.
-
-    The git origin/revision/clean-tree check already pins every tracked
-    file's exact content; this adds the same per-file ownership guard the
-    other helpers use before loading anything outside the standard library.
-    """
-    package_dir = repository / "bc250_smu"
-    if package_dir.is_symlink() or not package_dir.is_dir():
-        raise RuntimeError("The bc250_smu package was not found in the reviewed checkout.")
-    for path in (package_dir, *package_dir.rglob("*.py")):
-        if path.is_symlink():
-            raise RuntimeError("bc250_smu must not contain symbolic links.")
-        metadata = path.stat(follow_symlinks=False)
-        if metadata.st_uid != uid or metadata.st_mode & 0o022:
-            raise RuntimeError(
-                "bc250_smu package files must belong to the desktop user and not be "
-                "writable by group or others."
-            )
-    return package_dir
-
-
-def _do_read(repository: pathlib.Path, uid: int, gid: int) -> int:
-    """Read all 8 GDDR6 chip temperatures via the reviewed Bc250Smu class.
-
-    read_temp.py itself additionally requires the third-party ``tabulate``
-    package purely to draw its ASCII table; that is not something this
-    root-owned helper should depend on being installed system-wide. This
-    calls the exact same reviewed primitive read_temp.py calls
-    (``Bc250Smu.send_message(3, 0x5, [chip])``) and formats the result
-    itself, without altering the SMU protocol logic at all.
-    """
-    _verify_package_ownership(repository, uid)
-    sys.path.insert(0, str(repository))
-    try:
-        from bc250_smu import Bc250Smu  # noqa: PLC0415
-    except Exception as error:
-        raise RuntimeError(f"Could not import the reviewed bc250_smu package: {error}") from error
-
-    smu = Bc250Smu()
-    try:
-        rows = []
-        temperatures = []
-        for chip in range(8):
-            temp_readout = smu.send_message(3, 0x5, [chip])[1]
-            temp_c = ((temp_readout & 0xFF) * 2) - 40
-            temperatures.append(temp_c)
-            rows.append((chip, temp_readout, temp_readout & 0xFF, temp_c))
-    finally:
-        smu.close()
-
-    print(f"{'Chip':>4} | {'MR3 raw':<10} | {'Temp code':<9} | Temperature")
-    for chip, raw, code, temp_c in rows:
-        print(f"{chip:>4} | 0x{raw:08X} | 0x{code:02X}       | {temp_c:.1f} \u00b0C")
-    average = sum(temperatures) / len(temperatures)
-    hotspot = max(temperatures)
-    hotspot_chip = temperatures.index(hotspot)
-    print()
-    print(f"Average : {average:.1f} \u00b0C")
-    print(f"Hotspot : {hotspot:.1f} \u00b0C (Chip {hotspot_chip})")
-    return 0
-
-
 def _do_apply(repository: pathlib.Path, uid: int, gid: int) -> int:
+    detected = bios_version()
+    if detected.strip().lower() not in SUPPORTED_BIOS_VERSIONS:
+        raise RuntimeError(
+            "GDDR6_FIRMWARE_UNSUPPORTED: the reviewed SMU payload targets board "
+            f"firmware P3.0; this board reports {detected or 'an unknown version'}. "
+            "Writing it here could place the patch at the wrong addresses."
+        )
     payload = repository / PAYLOAD_FILE
     if payload.is_symlink() or not payload.is_file():
         raise RuntimeError(f"{PAYLOAD_FILE} was not found in the reviewed checkout.")
@@ -267,20 +273,24 @@ def _do_apply(repository: pathlib.Path, uid: int, gid: int) -> int:
 
     script_fd = _open_verified_script(repository, PATCH_SCRIPT, uid, gid)
     try:
-        result = subprocess.run(
-            ["/usr/bin/python3", f"/proc/self/fd/{script_fd}"],
-            text=True,
-            capture_output=True,
-            check=False,
-            timeout=30,
-            pass_fds=(script_fd,),
-            cwd=str(repository),
-            env={
-                "PATH": "/usr/sbin:/usr/bin:/sbin:/bin",
-                "LANG": "C", "LC_ALL": "C",
-                "PYTHONPATH": str(repository),
-            },
-        )
+        # Held across the whole patch run: the payload is written one 32-bit
+        # word at a time, and another SMU client redirecting the window
+        # mid-write would scatter it across the wrong addresses.
+        with smn_window_lock():
+            result = subprocess.run(
+                ["/usr/bin/python3", f"/proc/self/fd/{script_fd}"],
+                text=True,
+                capture_output=True,
+                check=False,
+                timeout=30,
+                pass_fds=(script_fd,),
+                cwd=str(repository),
+                env={
+                    "PATH": "/usr/sbin:/usr/bin:/sbin:/bin",
+                    "LANG": "C", "LC_ALL": "C",
+                    "PYTHONPATH": str(repository),
+                },
+            )
     finally:
         os.close(script_fd)
     if result.stdout:
@@ -294,6 +304,85 @@ def _do_apply(repository: pathlib.Path, uid: int, gid: int) -> int:
     return 0
 
 
+def _installed_reader() -> str:
+    """Locate the packaged read-only helper, refusing anything unowned."""
+    for candidate in (
+        pathlib.Path("/usr/libexec/bc250-control-center/bc250-gddr6-temp-reader"),
+        pathlib.Path("/usr/local/libexec/bc250-control-center/bc250-gddr6-temp-reader"),
+    ):
+        try:
+            metadata = candidate.stat(follow_symlinks=False)
+        except OSError:
+            continue
+        if candidate.is_symlink() or not candidate.is_file():
+            continue
+        if metadata.st_uid != 0 or metadata.st_mode & 0o022:
+            continue
+        if os.access(candidate, os.X_OK):
+            return str(candidate)
+    raise RuntimeError(
+        "The GDDR6 reader helper is not installed. Reinstall BC250 Control Center."
+    )
+
+
+def _read_once(reader: str, repository: pathlib.Path, uid: int, action: str) -> dict:
+    """Run the read-only helper as the already-authenticated root session.
+
+    Delegating rather than duplicating: the reader owns the reviewed import,
+    the ownership checks and the SMU window lock, and this process is already
+    root, so no second Polkit prompt is involved.
+    """
+    result = subprocess.run(
+        [reader, "--repo", str(repository), "--action", action],
+        text=True,
+        capture_output=True,
+        check=False,
+        timeout=60,
+        env={
+            "PATH": "/usr/sbin:/usr/bin:/sbin:/bin",
+            "LANG": "C", "LC_ALL": "C",
+            "PKEXEC_UID": str(uid),
+        },
+    )
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or "The GDDR6 reader failed.")
+    try:
+        return json.loads(result.stdout)
+    except ValueError as error:
+        raise RuntimeError("The GDDR6 reader returned invalid JSON.") from error
+
+
+def _do_monitor(
+    repository: pathlib.Path, uid: int, gid: int, seconds: float
+) -> int:
+    """One authenticated session: patch if needed, then sample until it ends.
+
+    This exists so live monitoring costs a single Polkit prompt instead of one
+    per sample. The session is deliberately bounded: it stops on its own when
+    the budget runs out rather than holding an authenticated root process open
+    for as long as a window happens to be left on screen.
+    """
+    reader = _installed_reader()
+    if not _read_once(reader, repository, uid, "status").get("patch_active"):
+        _do_apply(repository, uid, gid)
+
+    deadline = time.monotonic() + max(0.0, float(seconds))
+    while True:
+        sample = _read_once(reader, repository, uid, "read")
+        sample["session_remaining_s"] = max(0, round(deadline - time.monotonic()))
+        print(json.dumps(sample), flush=True)
+        if not sample.get("patch_active"):
+            # The patch went away underneath us; sampling cannot recover.
+            break
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
+        time.sleep(min(MONITOR_INTERVAL_SECONDS, remaining))
+
+    print(json.dumps({"session_ended": True}), flush=True)
+    return 0
+
+
 def main(argv: list[str]) -> int:
     if os.geteuid() != 0:
         raise RuntimeError("This helper must be launched through pkexec.")
@@ -302,11 +391,23 @@ def main(argv: list[str]) -> int:
             "HELPER_UNTRUSTED: this helper is not a root-owned, non-writable "
             "installed payload. Reinstall BC250 Control Center."
         )
-    if len(argv) != 5 or argv[1] != "--repo" or argv[3] != "--action":
-        raise RuntimeError("Expected exactly: --repo PATH --action {check,read,apply}")
+    if len(argv) < 5 or argv[1] != "--repo" or argv[3] != "--action":
+        raise RuntimeError("Expected: --repo PATH --action {apply,monitor} [--seconds N]")
     action = argv[4]
-    if action not in {"check", "read", "apply"}:
+    if action not in {"apply", "monitor"}:
         raise RuntimeError(f"Unsupported action: {action}")
+    seconds = MONITOR_SECONDS
+    if len(argv) > 5:
+        if len(argv) != 7 or argv[5] != "--seconds":
+            raise RuntimeError("Expected: --seconds N after the action.")
+        try:
+            seconds = float(argv[6])
+        except ValueError as error:
+            raise RuntimeError("--seconds must be a number.") from error
+        if not 0 < seconds <= MONITOR_SECONDS_MAX:
+            raise RuntimeError(
+                f"--seconds must be between 1 and {MONITOR_SECONDS_MAX}."
+            )
     if not _bc250_identity_present():
         raise RuntimeError("AMD BC-250 hardware identity was not detected.")
     if not pathlib.Path("/usr/bin/git").is_file():
@@ -315,10 +416,8 @@ def main(argv: list[str]) -> int:
     uid, gid, home = _invoking_user()
     repository = _validate_repository(argv[2], uid, gid, home)
 
-    if action == "check":
-        return _do_check(repository)
-    if action == "read":
-        return _do_read(repository, uid, gid)
+    if action == "monitor":
+        return _do_monitor(repository, uid, gid, seconds)
     return _do_apply(repository, uid, gid)
 
 

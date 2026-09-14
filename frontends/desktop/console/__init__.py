@@ -9,6 +9,7 @@ workflows this console exists to show, so the session below allocates a genuine
 pseudo-terminal and this package interprets what comes back from it.
 """
 
+from .beacon import ConsoleBeacon, ConsoleCounter
 from .console_host import ConsoleHost
 from .console_panel import ConsolePanel
 from .terminal_screen import Cell, CellStyle, TerminalScreen
@@ -33,6 +34,8 @@ def console_for(widget):
 __all__ = [
     "console_for",
     "Cell",
+    "ConsoleBeacon",
+    "ConsoleCounter",
     "CellStyle",
     "ConsoleHost",
     "ConsolePanel",

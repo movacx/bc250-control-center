@@ -230,11 +230,26 @@ def test_captured_text_keeps_its_line_breaks(panel):
     assert visible == ["a", "b", "c"]
 
 
-def test_captured_text_is_refused_while_a_workflow_runs(qtbot, panel):
-    """A running workflow owns the panel; its output must not be replaced."""
-    assert panel.run(["/bin/sleep", "300"], title="Prueba")
-    assert panel.show_text("otra cosa", title="Estado") is False
-    assert panel.title_label.text() == "Prueba"
+def test_captured_text_never_lands_on_a_running_workflow(qtbot, panel):
+    """A running workflow owns its grid; its output must not be replaced.
+
+    It used to be refused outright, because there was one terminal. With a
+    strip it gets a tab of its own instead, and the workflow keeps both its
+    output and its place.
+    """
+    assert panel.run(["/bin/sh", "-c", "echo del-flujo; sleep 300"], title="Prueba")
+    running = panel.active_tab
+    qtbot.waitUntil(
+        lambda: "del-flujo" in running.view.screen.full_text(), timeout=8000
+    )
+
+    assert panel.show_text("otra cosa", title="Estado")
+
+    assert panel.active_tab is not running
+    assert running.title == "Prueba"
+    assert "del-flujo" in running.view.screen.full_text()
+    assert "otra cosa" not in running.view.screen.full_text()
+    panel.shutdown()
 
 
 def test_a_workflow_after_captured_text_gets_its_cursor_back(qtbot, panel):

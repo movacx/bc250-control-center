@@ -43,6 +43,11 @@ from typing import Callable
 
 from PyQt6.QtWidgets import QApplication, QWidget
 
+from bc250cc.domain.gpu.oberon import (
+    OBERON_DESKTOP_PROFILES,
+    OBERON_REFERENCE_VOLTAGE_MV,
+)
+
 from ..i18n import tr, tr_format
 from .gpu_governor_view import (
     DEFAULT_PROFILES,
@@ -62,6 +67,30 @@ def _is_oberon(gpu: dict) -> bool:
 # ─────────────────────────────────────────────────────────────────────────────
 # Saved profiles — shares QSettings keys with the original page
 # ─────────────────────────────────────────────────────────────────────────────
+
+#: Oberon's three shapes come from the shared contract, not from Cyan's
+#: safe-point curve, and they are not user-editable.
+OBERON_PROFILES: tuple[GpuProfile, ...] = tuple(
+    GpuProfile(
+        key=key,
+        name=name,
+        minimum=low,
+        maximum=high,
+        # Both YAML endpoints sit at the same voltage; Cyan's per-frequency
+        # curve does not describe this board.
+        fixed_voltage=OBERON_REFERENCE_VOLTAGE_MV,
+    )
+    for key, name, (low, high) in zip(
+        ("balanced", "gaming", "benchmark"),
+        ("Balanced", "Gaming", "Benchmark"),
+        OBERON_DESKTOP_PROFILES,
+    )
+)
+
+
+def _profiles_for(page, *, is_oberon: bool) -> tuple[GpuProfile, ...]:
+    return OBERON_PROFILES if is_oberon else _load_profiles(page)
+
 
 def _load_profiles(page) -> tuple[GpuProfile, ...]:
     """Reads the profile overrides already saved by the original page."""
@@ -304,9 +333,10 @@ def _copy_diagnostics(view: GpuGovernorView) -> None:
 def _wrap_apply_state(page, view: GpuGovernorView) -> None:
     """After every refresh, translates the backend dict into the view.
 
-    Only shown for the Cyan backend: Oberon keeps its original screen
-    untouched (explicit project requirement), so an Oberon board never
-    mounts this view — it just keeps ``overview_scroll`` visible.
+    Both backends are shown here now. Oberon used to keep the original screen,
+    which meant two different layouts for the same job; it now wears this one
+    with the Cyan-only panels hidden, so the buttons sit in the same places on
+    either board. Cyan's own behaviour is unchanged.
     """
     original = page._apply_state
 
@@ -314,11 +344,11 @@ def _wrap_apply_state(page, view: GpuGovernorView) -> None:
         original(gpu, perf)
         is_oberon = _is_oberon(gpu)
         legacy_scroll = getattr(page, "overview_scroll", None)
-        view.setVisible(not is_oberon)
+        view.setVisible(True)
         if legacy_scroll is not None:
-            legacy_scroll.setVisible(is_oberon)
-        if is_oberon:
-            return
+            legacy_scroll.setVisible(False)
+        view.set_oberon_mode(is_oberon)
+        view.set_profiles(_profiles_for(page, is_oberon=is_oberon))
         try:
             telemetry = page._telemetry_copy(gpu, perf)
         except Exception:  # pragma: no cover - partial telemetry
@@ -359,14 +389,20 @@ def install_redesigned_gpu_view(page) -> GpuGovernorView:
     view = GpuGovernorView(page)
     setattr(page, _ATTRIBUTE, view)
 
-    # 1 · take over the overview page without touching page_stack. Default to
-    # the original screen until the first refresh confirms the backend, the
-    # same "safe until proven Cyan" convention _set_backend_profile_mode
-    # already uses elsewhere in this page.
-    view.hide()
+    # 1 · take over the overview page without touching page_stack. The swap
+    # happens here rather than on the first refresh: waiting meant the old
+    # screen was painted for the second or so before telemetry arrived, and
+    # since this view now serves both backends there is nothing left to wait
+    # for. Cyan is the starting mode because that is also what
+    # ``resolve_gpu_governor`` falls back to; an Oberon board corrects itself
+    # on the first refresh.
     layout = page.overview_page.layout()
     if layout is not None:
         layout.addWidget(view)
+    view.show()
+    legacy_scroll = getattr(page, "overview_scroll", None)
+    if legacy_scroll is not None:
+        legacy_scroll.hide()
 
     # 2 · saved profiles
     view.set_profiles(_load_profiles(page))
@@ -397,15 +433,15 @@ def install_redesigned_gpu_view(page) -> GpuGovernorView:
     # 5 · initial state if a refresh already happened
     current = getattr(page, "current_state", None)
     if current:
-        is_oberon = _is_oberon(current)
         legacy_scroll = getattr(page, "overview_scroll", None)
-        view.setVisible(not is_oberon)
+        view.setVisible(True)
         if legacy_scroll is not None:
-            legacy_scroll.setVisible(is_oberon)
-        if not is_oberon:
-            view.apply_state(
-                GpuViewState.from_backend(current, getattr(page, "current_perf", {}) or {})
-            )
+            legacy_scroll.setVisible(False)
+        view.set_oberon_mode(_is_oberon(current))
+        view.set_profiles(_profiles_for(page, is_oberon=_is_oberon(current)))
+        view.apply_state(
+            GpuViewState.from_backend(current, getattr(page, "current_perf", {}) or {})
+        )
     return view
 
 

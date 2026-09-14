@@ -129,7 +129,13 @@ def test_arch_package_has_canonical_metadata_and_is_accepted_by_pacman(tmp_path)
     _run("bash", ROOT / "packaging/scripts/build-local-pkg.sh", output)
     package = output / f"bc250-control-center-{VERSION}-1-any.pkg.tar.zst"
 
-    query = _run("pacman", "-Qip", package).stdout
+    # pacman translates its field labels, so the assertions below only hold
+    # under a C locale. Without this the test passed on an English developer
+    # machine and failed on, say, a Spanish one ("Nombre", "Versión").
+    query = _run(
+        "pacman", "-Qip", package,
+        env={**os.environ, "LANG": "C", "LC_ALL": "C"},
+    ).stdout
     assert "Name            : bc250-control-center" in query
     assert f"Version         : {VERSION}-1" in query
 

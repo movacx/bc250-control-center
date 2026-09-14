@@ -306,6 +306,21 @@ class DashboardCoreSummary(QFrame):
             self.core_grid.setColumnStretch(column, 1 if column < columns else 0)
         self.updateGeometry()
 
+    def _on_live_toggled(self, active: bool) -> None:
+        self.live_button.setText(tr("Stop monitoring") if active else tr("Monitor live"))
+        self.live_toggled.emit(bool(active))
+
+    def set_live(self, active: bool) -> None:
+        """Reflect the engine's state without re-emitting the intent."""
+        if self.live_button.isChecked() == bool(active):
+            return
+        blocked = self.live_button.blockSignals(True)
+        self.live_button.setChecked(bool(active))
+        self.live_button.blockSignals(blocked)
+        self.live_button.setText(
+            tr("Stop monitoring") if active else tr("Monitor live")
+        )
+
     def _layout_header(self, width: int) -> None:
         compact = width < 700
         if compact == self._compact_header and self.header.count():
@@ -381,6 +396,259 @@ class DashboardCoreSummary(QFrame):
 
     def set_label(self, label: str) -> None:
         self.label.setText(tr(label))
+
+
+#: Bands for the JEDEC MR3 junction temperature. GDDR6 runs hotter than the
+#: CPU package, so the package bands would cry wolf: these follow the device
+#: rating instead.
+GDDR6_WARM_C = 80.0
+GDDR6_HOT_C = 95.0
+
+#: The BC-250 carries eight GDDR6 devices, so the strip is a fixed size and
+#: its cells can be built once and refreshed in place.
+GDDR6_CHIP_COUNT = 8
+
+
+def gddr6_tone(temperature: float | None) -> str:
+    if temperature is None:
+        return "gray"
+    if temperature >= GDDR6_HOT_C:
+        return "red"
+    if temperature >= GDDR6_WARM_C:
+        return "orange"
+    return "green"
+
+
+class _MemoryChipCell(QFrame):
+    """One GDDR6 device, drawn exactly as a CPU core cell is drawn.
+
+    The board has eight cores and eight memory devices sitting next to each
+    other in the same view; reading them in two different shapes made one
+    module look like two.
+    """
+
+    def __init__(self, index: int, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setProperty("dashboardCoreCell", True)
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        box = QVBoxLayout(self)
+        box.setContentsMargins(8, 5, 8, 5)
+        box.setSpacing(1)
+        self.name = _label(
+            tr_format("Chip {index}", index=index), "dashboardCoreName", wrap=False
+        )
+        self.temperature = _label("--", "dashboardCoreFrequency", wrap=False)
+        self.separator = _label("·", "dashboardCoreSeparator", wrap=False)
+        self.code = _label("--", "dashboardCoreUsage", wrap=False)
+        reading = QHBoxLayout()
+        reading.setContentsMargins(0, 0, 0, 0)
+        reading.setSpacing(4)
+        box.addWidget(self.name)
+        reading.addWidget(self.temperature)
+        reading.addWidget(self.separator)
+        reading.addWidget(self.code)
+        reading.addStretch(1)
+        box.addLayout(reading)
+
+    def set_chip(self, temperature: float | None, code: int | None) -> None:
+        """Fill the cell using the theme's own core-cell styling.
+
+        No per-reading colour and no highlight: the strip is read alongside
+        the CPU core strip, and those cells do not recolour themselves
+        either. Which device is hottest is stated in words by the summary
+        tile instead of being implied by a glow.
+        """
+        if temperature is None:
+            # A dash, not a sentence: eight cells each demanding the width of
+            # "Waiting for sample" push the whole strip's minimum width up and
+            # squeeze the core strip beside it. The header already says it.
+            self.temperature.setText("--")
+            self.code.setText("")
+            self.separator.setVisible(False)
+            return
+        self.temperature.setText(f"{temperature:.1f} °C")
+        # The only other per-device value MR3 gives back. The memory clock is
+        # not one: all eight chips share a single MCLK, which the hero already
+        # reports once.
+        self.code.setText("" if code is None else f"MR3 0x{int(code):02X}")
+        self.separator.setVisible(code is not None)
+
+
+class DashboardMemorySummary(QFrame):
+    """The eight GDDR6 devices, laid out like the CPU core strip.
+
+    Presentation only: it is *shown* readings and never fetches one. The one
+    button it owns emits an intent; whoever wired it decides what that costs.
+    """
+
+    MINIMUM_CELL = 150
+
+    live_toggled = pyqtSignal(bool)
+    prepare_requested = pyqtSignal()
+
+    def __init__(
+        self,
+        *,
+        show_header: bool = True,
+        live_action: bool = False,
+        parent: QWidget | None = None,
+    ):
+        super().__init__(parent)
+        self.setProperty("dashboardMetricTile", True)
+        self.setMinimumWidth(0)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        root = QVBoxLayout(self)
+        root.setContentsMargins(12, 9, 12, 9)
+        root.setSpacing(7)
+
+        self.header = QGridLayout()
+        self.header.setContentsMargins(0, 0, 0, 0)
+        self.header.setHorizontalSpacing(10)
+        self.header.setVerticalSpacing(3)
+        self.label = _label(
+            "GDDR6 memory temperature", "dashboardCoreSummaryLabel", wrap=False
+        )
+        self.value = _label("Waiting for sample", "dashboardCoreSummaryValue", wrap=False)
+        self.detail = _label("", "dashboardCoreSummaryDetail", wrap=False)
+        self.detail.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        self._show_header = bool(show_header)
+        self._compact_header: bool | None = None
+        self.live_button = QPushButton(tr("Monitor live"))
+        self.live_button.setProperty("dashboardCardAction", True)
+        self.live_button.setCheckable(True)
+        self.live_button.toggled.connect(self._on_live_toggled)
+        self.live_button.setVisible(bool(live_action))
+        # Shown in the live button's place when the readings cannot be taken
+        # yet. One button that is grey forever explains nothing; this one says
+        # what is missing and fetches it.
+        self.prepare_button = QPushButton(tr("Prepare readings"))
+        self.prepare_button.setProperty("dashboardCardAction", True)
+        self.prepare_button.clicked.connect(self.prepare_requested)
+        self.prepare_button.setVisible(False)
+        self._live_action = bool(live_action)
+        if self._show_header:
+            root.addLayout(self.header)
+            self._layout_header(1000)
+        else:
+            root.setContentsMargins(0, 0, 0, 0)
+            for widget in (self.label, self.value, self.detail):
+                widget.hide()
+
+        self._columns = 0
+        self.cell_grid = QGridLayout()
+        self.cell_grid.setContentsMargins(0, 0, 0, 0)
+        self.cell_grid.setHorizontalSpacing(6)
+        self.cell_grid.setVerticalSpacing(6)
+        self.cells = [_MemoryChipCell(index, self) for index in range(GDDR6_CHIP_COUNT)]
+        root.addLayout(self.cell_grid)
+        # A sentence, so it gets its own wrapped line under the devices rather
+        # than a cell on the header row: sharing that row with the short values
+        # forced the whole card wider than the window at 1024 px.
+        self.blocker = _label("", "dashboardCoreSummaryDetail", wrap=True)
+        self.blocker.setVisible(False)
+        root.addWidget(self.blocker)
+        self._apply_columns(GDDR6_CHIP_COUNT)
+        self.set_chips(())
+
+    def _apply_columns(self, columns: int) -> None:
+        columns = max(1, min(GDDR6_CHIP_COUNT, int(columns)))
+        if columns == self._columns:
+            return
+        self._columns = columns
+        for cell in self.cells:
+            self.cell_grid.removeWidget(cell)
+        for index, cell in enumerate(self.cells):
+            self.cell_grid.addWidget(cell, index // columns, index % columns)
+        for column in range(GDDR6_CHIP_COUNT):
+            self.cell_grid.setColumnStretch(column, 1 if column < columns else 0)
+
+    def set_ready(self, ready: bool) -> None:
+        """Offer the readings, or offer to make them possible."""
+        if not self._live_action:
+            return
+        self.live_button.setVisible(bool(ready))
+        self.prepare_button.setVisible(not ready)
+
+    def set_blocker(self, message: str) -> None:
+        """Why there is nothing to show, when there is nothing to show."""
+        self.blocker.setText(tr(message) if message else "")
+        self.blocker.setVisible(bool(message))
+
+    def _on_live_toggled(self, active: bool) -> None:
+        self.live_button.setText(tr("Stop monitoring") if active else tr("Monitor live"))
+        self.live_toggled.emit(bool(active))
+
+    def set_live(self, active: bool) -> None:
+        """Reflect the engine's state without re-emitting the intent."""
+        if self.live_button.isChecked() == bool(active):
+            return
+        blocked = self.live_button.blockSignals(True)
+        self.live_button.setChecked(bool(active))
+        self.live_button.blockSignals(blocked)
+        self.live_button.setText(
+            tr("Stop monitoring") if active else tr("Monitor live")
+        )
+
+    def _layout_header(self, width: int) -> None:
+        """Wrap the caption onto its own row when the card gets narrow.
+
+        Same behaviour as the core strip above it: at 360 px the three header
+        labels do not fit on one line and would be clipped out of the card.
+        """
+        compact = width < 700
+        if compact == self._compact_header and self.header.count():
+            return
+        self._compact_header = compact
+        for widget in (self.label, self.value, self.detail):
+            self.header.removeWidget(widget)
+        for column in range(4):
+            self.header.setColumnStretch(column, 0)
+        self.label.setWordWrap(compact)
+        self.detail.setWordWrap(compact)
+        for button in (self.live_button, self.prepare_button):
+            self.header.removeWidget(button)
+        self.header.addWidget(self.label, 0, 0)
+        self.header.addWidget(self.value, 0, 1)
+        if compact:
+            self.header.addWidget(self.detail, 1, 0, 1, 3)
+            self.header.setColumnStretch(2, 1)
+            self.header.addWidget(self.live_button, 2, 0, 1, 4)
+            # The same cell: only ever one of the two is visible, and a layout
+            # ignores the hidden one, so this costs no width. Giving them a
+            # column each widened the header enough to clip the core strip's
+            # caption next to it at 1024 px in Spanish.
+            self.header.addWidget(self.prepare_button, 2, 0, 1, 4)
+        else:
+            self.header.addWidget(self.detail, 0, 2)
+            self.header.setColumnStretch(3, 1)
+            self.header.addWidget(self.live_button, 0, 4)
+            self.header.addWidget(self.prepare_button, 0, 4)
+        self.updateGeometry()
+
+    def resizeEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        super().resizeEvent(event)
+        if self._show_header:
+            self._layout_header(event.size().width())
+        spacing = self.cell_grid.horizontalSpacing()
+        self._apply_columns((self.width() + spacing) // (self.MINIMUM_CELL + spacing))
+
+    def set_value(self, value: str) -> None:
+        self.value.setText(tr(value))
+
+    def set_detail(self, detail: str) -> None:
+        self.detail.setText(tr(detail))
+        self.detail.setVisible(bool(detail))
+
+    def set_chips(
+        self, chips: Iterable[tuple[int, int | None, float | None]]
+    ) -> None:
+        """``chips`` is ``(index, MR3 code, temperature)`` per device."""
+        by_index = {
+            int(index): (code, temperature) for index, code, temperature in chips
+        }
+        for index, cell in enumerate(self.cells):
+            code, temperature = by_index.get(index, (None, None))
+            cell.set_chip(temperature, code)
 
 
 class DashboardThermalStrip(QFrame):
@@ -2950,18 +3218,30 @@ class UpdateCallout(QFrame):
         centre_x = top_left.x() + anchor.width() // 2
         below_y = top_left.y() + anchor.height() + 4
 
+        # Below if it fits, above if that fits instead, and otherwise not at
+        # all. The old rule flipped above whenever below was short and then
+        # clamped the result back on screen, which for a badge near the top of
+        # the viewport landed the bubble squarely on top of the badge — a
+        # label covering the very thing its tail points at.
         self._set_tail_side(below=False)
         self.adjustSize()
-        if below_y + self.height() > window.height() - 8:
-            # No room underneath: flip over the anchor and turn the tail round.
+        fits_below = below_y + self.height() <= window.height() - 8
+        if fits_below:
+            y = below_y
+        else:
             self._set_tail_side(below=True)
             self.adjustSize()
-            y = max(8, top_left.y() - self.height() - 4)
-        else:
-            y = below_y
+            above_y = top_left.y() - self.height() - 4
+            if above_y < 8:
+                # Neither side has room. The badge keeps pulsing on its own,
+                # and clicking it asks for the bubble again once there is
+                # somewhere to put it.
+                self.hide()
+                return False
+            y = above_y
 
-        # Keep the whole bubble on screen; the tail then slides within it rather
-        # than the bubble hanging off the edge.
+        # Keep the whole bubble on screen horizontally; the tail then slides
+        # within it rather than the bubble hanging off the edge.
         x = max(8, min(centre_x - self.width() // 2, window.width() - self.width() - 8))
         self.move(x, y)
         self._tail_x = max(

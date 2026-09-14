@@ -280,6 +280,18 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     if cached is not None:
         return cached
     c = COLORS
+    # Glass, for the first-run panel: the card has to be translucent for the
+    # frosted portrait behind it to mean anything, and Qt takes that as an
+    # rgba() rather than as a palette entry. Light glass on a light palette,
+    # dark glass on a dark one — a translucent white over a dark shell reads
+    # as fog rather than as a pane.
+    _glass_rgb = "255, 255, 255" if ACTIVE_MODE == "light" else "26, 30, 38"
+    glass_card = f"rgba({_glass_rgb}, 0.90)"
+    glass_rail = f"rgba({_glass_rgb}, 0.55)"
+    glass_edge = (
+        "rgba(255, 255, 255, 0.75)" if ACTIVE_MODE == "light"
+        else "rgba(255, 255, 255, 0.14)"
+    )
     base = f"""
     * {{
         font-family: Inter, 'Noto Sans', 'Segoe UI', sans-serif;
@@ -735,6 +747,16 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         background: {c['control_hover']};
         border-color: {c['blue_border']};
         color: {c['blue']};
+    }}
+    /* A metric tile is already painted in panel_alt, so a card action sitting
+       inside one would be the exact same colour as its own background and read
+       as a flat outline. Lift it to the control surface, one step up. */
+    QFrame[dashboardMetricTile='true'] QPushButton[dashboardCardAction='true'] {{
+        background: {c['control']};
+    }}
+    QFrame[dashboardMetricTile='true'] QPushButton[dashboardCardAction='true']:hover,
+    QFrame[dashboardMetricTile='true'] QPushButton[dashboardCardAction='true']:focus {{
+        background: {c['control_hover']};
     }}
     QPushButton[dashboardTelemetryAction='true'] {{
         min-height: 26px;
@@ -1222,6 +1244,266 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         font-size: 10px;
         selection-background-color: {c['selection']};
     }}
+    /* ------------------------------------------------------------------
+       The first-run panel. Glass: the card is translucent so the frosted
+       portrait of the application shows through it, and it carries a light
+       edge rather than a drawn border because that is what reads as a pane
+       of glass lit from above. Everything inside it is the application's own
+       vocabulary — the same radii, the same accent, the same type scale —
+       because this is the first thing anyone sees of it.
+       ------------------------------------------------------------------ */
+    QWidget#onboardingOverlay {{
+        background: transparent;
+    }}
+    QFrame#onboardingCard {{
+        background: {glass_card};
+        border: 1px solid {glass_edge};
+        border-radius: 18px;
+    }}
+    QWidget#onboardingRail {{
+        background: {glass_rail};
+        border-right: 1px solid {c['border_soft']};
+        border-top-left-radius: 18px;
+        border-bottom-left-radius: 18px;
+    }}
+    QWidget#onboardingContent {{ background: transparent; }}
+    QLabel#onboardingBrand {{
+        color: {c['text']};
+        font-size: 15px;
+        font-weight: 800;
+        letter-spacing: -0.2px;
+    }}
+    QLabel#onboardingBrandNote {{
+        color: {c['blue']};
+        font-size: 11px;
+        font-weight: 760;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+    }}
+    QPushButton#onboardingStepRow {{
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 9px;
+        padding: 9px 10px;
+        text-align: left;
+        color: {c['muted']};
+        font-size: 12px;
+        font-weight: 640;
+    }}
+    QPushButton#onboardingStepRow:hover {{
+        background: {c['control_hover']};
+        color: {c['text']};
+    }}
+    QPushButton#onboardingStepRow[done='true'] {{ color: {c['text']}; }}
+    QPushButton#onboardingStepRow:checked {{
+        background: {c['blue_soft']};
+        border-color: {c['blue']};
+        color: {c['blue']};
+        font-weight: 780;
+    }}
+    QLabel#onboardingTitle {{
+        color: {c['text']};
+        font-size: 25px;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+    }}
+    QLabel#onboardingSubtitle {{
+        color: {c['muted']};
+        font-size: 13px;
+    }}
+    QLabel#onboardingBody {{
+        color: {c['text']};
+        font-size: 13px;
+    }}
+    QLabel#onboardingSectionLabel {{
+        color: {c['muted']};
+        font-size: 11px;
+        font-weight: 760;
+        text-transform: uppercase;
+        letter-spacing: 0.7px;
+    }}
+    /* A quiet line of small print beside a control, not a heading for it. */
+    QLabel#onboardingHint {{
+        color: {c['muted']};
+        font-size: 12px;
+        font-weight: 480;
+    }}
+    QLabel#onboardingCaption {{
+        color: {c['text']};
+        font-size: 12px;
+        font-weight: 680;
+    }}
+    /* The language list's own scrollbar. The global rule leaves the track
+       pages unstyled, which the platform then paints solid — invisible over
+       a dark panel, a black bar down the side of a pane of glass. */
+    QScrollArea#onboardingScroll QScrollBar:vertical {{
+        background: transparent;
+        width: 8px;
+        margin: 2px 0px 2px 0px;
+        border: none;
+    }}
+    QScrollArea#onboardingScroll QScrollBar::handle:vertical {{
+        background: {c['border_strong']};
+        border-radius: 4px;
+        min-height: 36px;
+    }}
+    QScrollArea#onboardingScroll QScrollBar::handle:vertical:hover {{
+        background: {c['subtle']};
+    }}
+    QScrollArea#onboardingScroll QScrollBar::add-line:vertical,
+    QScrollArea#onboardingScroll QScrollBar::sub-line:vertical {{
+        height: 0px;
+        background: transparent;
+        border: none;
+    }}
+    /* The track above and below the handle. Separately, and without a height:
+       giving a vertical page rule a height of zero is what left the platform
+       painting it itself, solid black down the side of the glass. */
+    QScrollArea#onboardingScroll QScrollBar::add-page:vertical,
+    QScrollArea#onboardingScroll QScrollBar::sub-page:vertical {{
+        background: transparent;
+        border: none;
+    }}
+    QLabel#onboardingStopChip {{
+        color: {c['muted']};
+        background: {c['neutral_soft']};
+        border: 1px solid {c['border_soft']};
+        border-radius: 8px;
+        padding: 7px 11px;
+        font-size: 12px;
+        font-weight: 620;
+    }}
+    QLabel#onboardingProgress {{
+        color: {c['subtle']};
+        font-size: 12px;
+        font-weight: 680;
+    }}
+    QPushButton#onboardingChip {{
+        background: {c['control']};
+        border: 1px solid {c['border_soft']};
+        border-radius: 9px;
+        padding: 7px 12px;
+        color: {c['text']};
+        font-size: 12px;
+        font-weight: 620;
+    }}
+    QPushButton#onboardingChip:hover {{
+        border-color: {c['border_strong']};
+        background: {c['control_hover']};
+    }}
+    QPushButton#onboardingChip:checked {{
+        background: {c['blue_soft']};
+        border-color: {c['blue']};
+        color: {c['blue']};
+        font-weight: 760;
+    }}
+    QPushButton#onboardingPrimary {{
+        background: {c['blue']};
+        color: {c['on_accent']};
+        border: none;
+        border-radius: 10px;
+        padding: 10px 22px;
+        font-size: 13px;
+        font-weight: 760;
+    }}
+    QPushButton#onboardingPrimary:hover {{ background: {c['blue_hover']}; }}
+    QPushButton#onboardingSecondary {{
+        background: {c['control']};
+        color: {c['text']};
+        border: 1px solid {c['border']};
+        border-radius: 10px;
+        padding: 10px 18px;
+        font-size: 13px;
+        font-weight: 680;
+    }}
+    QPushButton#onboardingSecondary:hover {{ background: {c['control_hover']}; }}
+    QPushButton#onboardingGhost {{
+        background: transparent;
+        color: {c['muted']};
+        border: none;
+        border-radius: 8px;
+        padding: 8px 6px;
+        text-align: left;
+        font-size: 12px;
+        font-weight: 640;
+    }}
+    QPushButton#onboardingGhost:hover {{ color: {c['text']}; }}
+    /* The terminal inside the first-run panel. It sits on the console's own
+       ground rather than the card's, because it is a terminal and should look
+       like one wherever it appears. */
+    QFrame#onboardingConsole {{
+        background: {c['console_bg']};
+        border: 1px solid {c['console_border']};
+        border-radius: 10px;
+    }}
+    QWidget#onboardingConsoleHeader {{
+        background: {c['panel_alt']};
+        border-bottom: 1px solid {c['console_border']};
+        border-top-left-radius: 10px;
+        border-top-right-radius: 10px;
+    }}
+    QLabel#onboardingConsoleTitle {{
+        color: {c['text']};
+        font-size: 12px;
+        font-weight: 740;
+    }}
+    QLabel#onboardingConsoleState {{
+        color: {c['muted']};
+        font-size: 12px;
+        font-weight: 680;
+    }}
+    QLabel#onboardingConsoleState[tone='running'] {{ color: {c['blue']}; }}
+    QLabel#onboardingConsoleState[tone='ok'] {{ color: {c['green']}; }}
+    QLabel#onboardingConsoleState[tone='failed'] {{ color: {c['red']}; }}
+    /* The guided tour. The bubble is drawn, not styled — a tail that points
+       at one particular widget is not something a stylesheet can express — so
+       these rules dress its contents and leave the shell to paintEvent. */
+    QFrame#tourCallout {{ background: transparent; }}
+    QLabel#tourStep {{
+        color: {c['blue']};
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.6px;
+    }}
+    QLabel#tourTitle {{
+        color: {c['text']};
+        font-size: 15px;
+        font-weight: 800;
+        letter-spacing: -0.2px;
+    }}
+    QLabel#tourBody {{
+        color: {c['muted']};
+        font-size: 12px;
+    }}
+    QPushButton#tourPrimary {{
+        background: {c['blue']};
+        color: {c['on_accent']};
+        border: none;
+        border-radius: 8px;
+        padding: 7px 16px;
+        font-size: 12px;
+        font-weight: 760;
+    }}
+    QPushButton#tourPrimary:hover {{ background: {c['blue_hover']}; }}
+    QPushButton#tourSecondary {{
+        background: {c['control']};
+        color: {c['text']};
+        border: 1px solid {c['border']};
+        border-radius: 8px;
+        padding: 7px 14px;
+        font-size: 12px;
+        font-weight: 680;
+    }}
+    QPushButton#tourSecondary:hover {{ background: {c['control_hover']}; }}
+    QPushButton#tourGhost {{
+        background: transparent;
+        color: {c['subtle']};
+        border: none;
+        padding: 2px 4px;
+        font-size: 11px;
+        font-weight: 640;
+    }}
+    QPushButton#tourGhost:hover {{ color: {c['text']}; }}
     /* The docked terminal. It slides up from the foot of the window, so it
        carries a top border rather than a card outline and reaches both
        edges the way a docked panel does. */
@@ -1234,11 +1516,41 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         background: {c['panel_alt']};
         border-bottom: 1px solid {c['console_border']};
     }}
-    /* The left half reads as the active tab of a docked panel: the rule under
-       it carries the workflow state, so the colour is visible even when the
-       header is too narrow to show the words. */
+    /* The left half reads as the tab strip of a docked panel: the rule under
+       each tab carries its workflow state, so the colour is visible even when
+       the header is too narrow to show the words. With a single workflow the
+       strip is one tab and looks exactly as the header always has; a second
+       concurrent workflow simply adds one beside it. */
     QWidget#consoleTab {{
         border-bottom: 2px solid {c['border_strong']};
+        border-radius: 0px;
+    }}
+    /* Only once there is a choice to make does a tab need to look selectable:
+       the one on screen carries the terminal's own ground up into the header,
+       and the others step back so the eye finds the live one first. */
+    QWidget#consoleTabStrip[several='true'] QWidget#consoleTab[active='true'] {{
+        background: {c['console_bg']};
+        border-top-left-radius: 7px;
+        border-top-right-radius: 7px;
+    }}
+    QWidget#consoleTabStrip[several='true'] QWidget#consoleTab[active='false'] {{
+        background: transparent;
+        border-bottom-color: {c['border_soft']};
+    }}
+    QLabel#consoleTitle[dim='true'] {{
+        color: {c['muted']};
+        font-weight: 620;
+    }}
+    QPushButton#consoleTabClose {{
+        background: transparent;
+        border: none;
+        border-radius: 9px;
+    }}
+    QPushButton#consoleTabClose:hover {{
+        background: {c['control_hover']};
+    }}
+    QPushButton#consoleTabClose:pressed {{
+        background: {c['control_pressed']};
     }}
     QWidget#consoleTab[tone='running'] {{ border-bottom-color: {c['blue']}; }}
     QWidget#consoleTab[tone='ok'] {{ border-bottom-color: {c['green']}; }}

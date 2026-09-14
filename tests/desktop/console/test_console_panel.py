@@ -158,19 +158,159 @@ def test_stopping_a_workflow_ends_it(qtbot, panel):
 def test_a_command_that_cannot_start_is_reported_not_swallowed(qtbot, panel):
     panel.set_auto_hide(False)
     assert run_and_wait(qtbot, panel, "exit 0") == 0
-    panel._on_failed("A pseudo-terminal could not be opened: too many open files")
+    panel.active_tab._on_failed(
+        "A pseudo-terminal could not be opened: too many open files"
+    )
     assert "too many open files" in panel.view.screen.full_text()
     assert panel.state_label.property("tone") == "failed"
 
 
-# ----------------------------------------------------------------- one at a time
+# --------------------------------------------------------------- side by side
 
 
-def test_a_busy_panel_declines_so_the_caller_can_open_a_window(qtbot, panel):
+def test_a_second_workflow_opens_a_tab_beside_the_first(qtbot, panel):
     panel.set_auto_hide(False)
     assert panel.run(["/bin/sleep", "300"], title="primera")
-    assert panel.run(["/bin/sleep", "300"], title="segunda") is False
+    assert panel.run(["/bin/sleep", "300"], title="segunda")
+    assert panel.tab_count() == 2
+    assert panel.running_count() == 2
+    # The new one is the one on screen, and the first is still there.
+    assert panel.title_label.text() == "segunda"
+    assert [tab.title for tab in panel._tabs] == ["primera", "segunda"]
+    panel.shutdown()
+
+
+def test_a_spare_tab_is_taken_over_rather_than_a_new_one_opened(qtbot, panel):
+    """A workflow that succeeded has nothing left to read.
+
+    Opening a tab per workflow regardless would grow the strip for the life of
+    the window, each one still holding a pseudo-terminal.
+    """
+    panel.set_auto_hide(False)
+    run_and_wait(qtbot, panel, "echo de-la-primera", title="primera")
+    first = panel.active_tab
+
+    assert panel.run(["/bin/sleep", "300"], title="segunda")
+
+    assert panel.tab_count() == 1
+    assert panel.active_tab is first
+    assert "de-la-primera" not in panel.view.screen.full_text()
+    panel.shutdown()
+
+
+def test_concurrent_workflows_do_not_share_a_grid(qtbot, panel):
+    """Two workflows in one grid would be two workflows nobody can read."""
+    panel.set_auto_hide(False)
+    assert panel.run(["/bin/sh", "-c", "echo de-la-primera; sleep 300"], title="primera")
+    first = panel.active_tab
+    qtbot.waitUntil(
+        lambda: "de-la-primera" in first.view.screen.full_text(), timeout=8000
+    )
+    assert panel.run(["/bin/sh", "-c", "echo de-la-segunda; sleep 300"], title="segunda")
+    second = panel.active_tab
+    qtbot.waitUntil(
+        lambda: "de-la-segunda" in second.view.screen.full_text(), timeout=8000
+    )
+
+    assert second is not first
+    assert "de-la-segunda" not in first.view.screen.full_text()
+    assert "de-la-primera" not in second.view.screen.full_text()
+    panel.shutdown()
+
+
+def test_a_failed_tab_keeps_its_place_while_the_next_workflow_runs(qtbot, panel):
+    """The output of a failure is the only thing that explains it."""
+    panel.set_auto_hide(False)
+    run_and_wait(qtbot, panel, "echo se rompio; exit 23", title="primera")
+    assert panel.run(["/bin/sleep", "300"], title="segunda")
+    assert panel.tab_count() == 2
+    failed = panel._tabs[0]
+    assert failed.title == "primera"
+    assert "se rompio" in failed.view.screen.full_text()
+    panel.shutdown()
+
+
+def test_selecting_a_tab_puts_its_grid_on_screen(qtbot, panel):
+    panel.set_auto_hide(False)
+    run_and_wait(qtbot, panel, "echo se rompio; exit 23", title="primera")
+    assert panel.run(["/bin/sleep", "300"], title="segunda")
+    first = panel._tabs[0]
+
+    first.activated.emit()
+
+    assert panel.active_tab is first
+    assert panel.stack.currentWidget() is first.view
     assert panel.title_label.text() == "primera"
+    panel.shutdown()
+
+
+def test_a_finished_tab_can_be_dismissed(qtbot, panel):
+    panel.set_auto_hide(False)
+    run_and_wait(qtbot, panel, "exit 23", title="primera")
+    assert panel.run(["/bin/sleep", "300"], title="segunda")
+    assert panel.tab_count() == 2
+
+    panel._tabs[0].close_requested.emit()
+
+    assert panel.tab_count() == 1
+    assert panel.active_tab.title == "segunda"
+    panel.shutdown()
+
+
+def test_a_running_tab_offers_no_close_button(qtbot, panel):
+    """Ending a privileged workflow is what Stop says it does, not a ✕."""
+    panel.set_auto_hide(False)
+    assert panel.run(["/bin/sleep", "300"], title="primera")
+    assert panel.active_tab.close_button.isVisible() is False
+    panel.shutdown()
+
+
+def test_closing_the_only_tab_empties_it_rather_than_leaving_no_grid(qtbot, panel):
+    panel.set_auto_hide(False)
+    run_and_wait(qtbot, panel, "echo algo", title="primera")
+
+    panel.active_tab.close_requested.emit()
+
+    assert panel.tab_count() == 1
+    assert "algo" not in panel.view.screen.full_text()
+
+
+def test_the_panel_declines_once_every_tab_is_taken(qtbot, panel):
+    from frontends.desktop.console.console_panel import MAXIMUM_TABS
+
+    panel.set_auto_hide(False)
+    for index in range(MAXIMUM_TABS):
+        assert panel.run(["/bin/sleep", "300"], title=f"w{index}")
+    assert panel.run(["/bin/sleep", "300"], title="extra") is False
+    panel.shutdown()
+
+
+def test_auto_hide_waits_for_the_last_workflow(qtbot, panel):
+    """Withdrawing over a workflow that is still printing hides the live one."""
+    panel.set_auto_hide(True)
+    assert panel.run(["/bin/sleep", "300"], title="larga")
+    with qtbot.waitSignal(panel.workflow_finished, timeout=15000):
+        assert panel.run(["/bin/sh", "-c", "exit 0"], title="corta")
+    qtbot.wait(AUTO_HIDE_DELAY_MS + 400)
+    assert panel.isVisible()
+    panel.shutdown()
+
+
+def test_a_failure_in_a_background_tab_says_so_without_stealing_the_screen(qtbot, panel):
+    """The chip carries the failure, so nothing has to be yanked to the front."""
+    panel.set_auto_hide(False)
+    assert panel.run(["/bin/sh", "-c", "sleep 0.4; exit 9"], title="al fondo")
+    background = panel.active_tab
+    assert panel.run(["/bin/sleep", "300"], title="al frente")
+    foreground = panel.active_tab
+    assert foreground is not background
+
+    with qtbot.waitSignal(panel.workflow_finished, timeout=15000):
+        pass
+
+    assert panel.active_tab is foreground
+    assert background.property("tone") == "failed"
+    assert "9" in background.state_label.text()
     panel.shutdown()
 
 
@@ -222,9 +362,13 @@ def test_sliding_out_a_panel_that_was_never_shown_does_nothing(panel):
 
 
 def test_retranslating_relabels_the_header(panel):
+    """Stop keeps a word; the icon-only actions carry theirs in the tooltip."""
     panel.retranslate()
-    for button in (panel.stop_button, panel.copy_button, panel.hide_button):
-        assert button.text().strip()
+
+    assert panel.stop_button.text().strip()
+    for button in (panel.copy_button, panel.external_button, panel.hide_button):
+        assert button.toolTip().strip()
+        assert not button.icon().isNull()
 
 
 def test_applying_a_theme_does_not_disturb_a_running_workflow(qtbot, panel):
@@ -283,7 +427,7 @@ def test_the_resize_connection_is_not_stacked_across_workflows(qtbot, panel):
     for _ in range(3):
         run_and_wait(qtbot, panel, "exit 0")
     # A stacked connection would raise here on the second disconnect.
-    panel._release_previous_session()
+    panel.active_tab._release_session()
 
 
 def test_the_grid_is_sized_for_the_open_panel_not_the_closed_one(qtbot, panel):

@@ -1408,7 +1408,15 @@ def localize_top_levels(language: str | None = None) -> None:
 
 
 def translation_coverage(strings: Iterable[str], languages: Iterable[str] | None = None) -> dict[str, list[str]]:
-    languages = languages if languages is not None else (code for code in COMPLETE_LOCALES if code != "en")
+    # Materialized, not left as a generator: it is consumed once per source,
+    # so a lazy default checked the first string and then silently reported
+    # every later one as fully covered. Because callers pass a set, which
+    # string came first varied with the hash seed, and the resulting test was
+    # flaky rather than simply wrong.
+    languages = tuple(
+        languages if languages is not None
+        else (code for code in COMPLETE_LOCALES if code != "en")
+    )
     missing: dict[str, list[str]] = {}
     for source in strings:
         if not re.search(r"[A-Za-z]{3}", source):
@@ -1424,7 +1432,11 @@ def translation_coverage(strings: Iterable[str], languages: Iterable[str] | None
 
 def strict_translation_coverage(strings: Iterable[str], languages: Iterable[str] | None = None) -> dict[str, list[str]]:
     """Report sources without an exact interface or backend translation."""
-    languages = languages if languages is not None else (code for code in COMPLETE_LOCALES if code != "en")
+    # Materialized for the same reason as translation_coverage above.
+    languages = tuple(
+        languages if languages is not None
+        else (code for code in COMPLETE_LOCALES if code != "en")
+    )
     missing: dict[str, list[str]] = {}
     for source in strings:
         source = str(source)

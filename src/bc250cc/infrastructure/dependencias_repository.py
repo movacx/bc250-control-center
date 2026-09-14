@@ -48,6 +48,7 @@ from bc250cc.infrastructure.decky_quick_access import (
     build_plugin_install_command,
 )
 from bc250cc.infrastructure.external_tools.catalog import (
+    EXTERNAL_TOOL_DIRECTORIES,
     EXTERNAL_TOOLS,
     GitCheckoutReader,
     build_external_checkout_inventory,
@@ -1855,6 +1856,8 @@ class DependenciasRepository:
             cpu_reviewed_revision=STEAMOS_SMU_OC_REVIEWED_COMMIT,
             cyan_directory=CYAN_GOVERNOR_DIRECTORY,
             steamos_fix_directory=STEAMOS_FIX_DIRECTORY,
+            gddr6_repository=EXTERNAL_TOOLS['gddr6_memory_temp'].upstream,
+            gddr6_destination=self._tool_dir() / EXTERNAL_TOOL_DIRECTORIES['gddr6_memory_temp'],
         )
         command = build_preparation_command(context)
         self.estado_herramientas_cache = None

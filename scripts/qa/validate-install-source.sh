@@ -36,6 +36,7 @@ required=(
   privileged/helpers/bc250-core-unlock-helper
   privileged/helpers/bc250-cpu-smu-helper
   privileged/helpers/bc250-gddr6-temp-helper
+  privileged/helpers/bc250-gddr6-temp-reader
   privileged/helpers/bc250-cyan-overlay-preflight
   privileged/helpers/bc250-fan-pwm-helper
   privileged/helpers/bc250-governor-config-helper
@@ -100,6 +101,7 @@ for relative in \
   privileged/helpers/bc250-core-unlock-helper \
   privileged/helpers/bc250-cpu-smu-helper \
   privileged/helpers/bc250-gddr6-temp-helper \
+  privileged/helpers/bc250-gddr6-temp-reader \
   privileged/helpers/bc250-cyan-overlay-preflight \
   privileged/helpers/bc250-fan-pwm-helper \
   privileged/helpers/bc250-governor-config-helper \
