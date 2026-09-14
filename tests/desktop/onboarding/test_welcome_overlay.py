@@ -36,7 +36,7 @@ def overlay(qtbot):
 
 def test_it_opens_on_the_first_question(overlay):
     assert overlay.steps.currentIndex() == 0
-    assert overlay.progress.text() == "1 / 4"
+    assert overlay.progress.text() == f"1 / {overlay.STEP_COUNT}"
 
 
 def test_there_is_nowhere_back_from_the_first_step(overlay):
@@ -59,7 +59,7 @@ def test_the_rail_reaches_any_step_directly(overlay):
 def test_the_last_step_offers_the_tour_rather_than_more_steps(overlay):
     overlay._reach(overlay.STEP_COUNT - 1)
 
-    assert overlay.progress.text() == "4 / 4"
+    assert overlay.progress.text() == f"{overlay.STEP_COUNT} / {overlay.STEP_COUNT}"
     assert overlay.next_button.text().strip()
     seen = []
     overlay.finished.connect(seen.append)

@@ -258,6 +258,57 @@ class ConsoleTab(QWidget):
         self.view.viewport().update()
         self._sync_close_button()
 
+    def release_session(self) -> PtySession | None:
+        """Give up the running session without stopping it.
+
+        Used when a workflow has to outlive the widget it started in: the
+        first-run panel runs a dependency install in a terminal of its own,
+        and closing that panel must not kill a package manager halfway
+        through. The session is detached from this tab's grid and handed to
+        whoever adopts it next.
+        """
+        session, self._session = self._session, None
+        if session is None:
+            return None
+        for signal, slot in (
+            (session.output, self.view.feed),
+            (session.finished, self._on_finished),
+            (session.failed, self._on_failed),
+            (session.input_mode_changed, self.input_mode_changed),
+        ):
+            try:
+                signal.disconnect(slot)
+            except TypeError:
+                pass
+        self._sync_close_button()
+        return session
+
+    def adopt(self, session: PtySession, *, title: str = "", transcript: str = "") -> None:
+        """Take over a session someone else started, output and all.
+
+        The transcript is what the workflow had already printed in the
+        terminal it is leaving. Without it the adopted tab opens blank, and
+        the half of the install the user just watched is gone.
+        """
+        self._release_session()
+        self.set_title(title)
+        self.exit_code = None
+        self.view.clear()
+        if transcript:
+            self.view.feed(
+                transcript.replace("\r\n", "\n").replace("\n", "\r\n").encode()
+            )
+        session.setParent(self)
+        session.output.connect(self.view.feed)
+        session.finished.connect(self._on_finished)
+        session.failed.connect(self._on_failed)
+        session.input_mode_changed.connect(self.input_mode_changed)
+        self._session = session
+        self.set_state(tr("Running") if session.running else tr("Completed"),
+                       "running" if session.running else "ok")
+        self._sync_close_button()
+        self._resize_session(self.view.columns, self.view.rows)
+
     def stop(self) -> None:
         if self._session is None or not self._session.running:
             return

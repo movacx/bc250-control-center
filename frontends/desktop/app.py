@@ -517,6 +517,8 @@ class ControlCenterWindow(QMainWindow):
         overlay.language_chosen.connect(self._welcome_language)
         overlay.appearance_chosen.connect(self._welcome_appearance)
         overlay.sidebar_chosen.connect(self._welcome_sidebar)
+        overlay.prepare_requested.connect(self._welcome_prepare)
+        overlay.dependencies_reached.connect(self._welcome_tools_probe)
         overlay.finished.connect(self._welcome_finished)
         overlay.setGeometry(self.rect())
         overlay.set_backdrop_source(shell)
@@ -558,12 +560,95 @@ class ControlCenterWindow(QMainWindow):
         if self.welcome is not None:
             self.welcome.refresh_backdrop()
 
+    def _welcome_prepare(self) -> None:
+        """Install the chosen components in the panel's own terminal.
+
+        The work goes through the same call the dashboard uses; only the
+        console it lands in changes. Pointing a host at the panel's terminal
+        is the whole trick — there is no second way to start privileged work,
+        and so no second place where the rules could drift.
+        """
+        overlay = self.welcome
+        if overlay is None or overlay.preparing:
+            return
+        components = set(overlay.selected_components())
+        if not components:
+            return
+        host = ConsoleHost(overlay.console, self)
+        host.install()
+
+        def restore() -> None:
+            host.uninstall()
+            if self.console_host is not None:
+                self.console_host.install()
+
+        def prepare() -> None:
+            self.controller.instalar_dependencias_bc250(
+                governor_preference=str(
+                    self.settings.value("settings/gpu_governor", "auto")
+                ),
+                include_pwm="fan_pwm" in components,
+                components=components,
+            )
+
+        def finished(_result) -> None:
+            restore()
+            if overlay is self.welcome and not overlay.preparing:
+                # The call returned without a terminal ever opening. Say so
+                # where the output would have been, rather than leaving a
+                # button that looks like it did nothing.
+                overlay.preparation_failed(tr("No workflow was started."))
+
+        def failed(message: str) -> None:
+            # A governor already running is the common one: the backend
+            # refuses rather than stopping it behind the user's back, and
+            # that decision belongs on the dashboard where it is explained.
+            restore()
+            if overlay is self.welcome:
+                overlay.preparation_failed(str(message))
+
+        overlay.preparation_starting()
+        self._background.start(
+            "first-run-dependencies", prepare, on_success=finished, on_error=failed
+        )
+
+    def _welcome_tools_probe(self) -> None:
+        """Ask what is already installed, so the panel stops offering it."""
+        overlay = self.welcome
+        if overlay is None:
+            return
+
+        def read():
+            return self.controller.estado_herramientas_bc250()
+
+        def apply(result) -> None:
+            if overlay is not self.welcome:
+                return
+            state = dict(result or {}) if isinstance(result, dict) else {}
+            installed = {
+                key for key, value in state.items()
+                if isinstance(value, dict) and value.get("installed")
+            }
+            overlay.mark_installed_components(installed)
+
+        self._background.start("first-run-tools", read, on_success=apply)
+
     def _welcome_finished(self, wants_tour: bool) -> None:
         overlay, self.welcome = self.welcome, None
         shell = self.centralWidget()
         if shell is not None:
             shell.setEnabled(True)
         if overlay is not None:
+            if overlay.preparing and self.console is not None:
+                # A package manager halfway through outlives the panel that
+                # started it: the docked console adopts the session and the
+                # floating button appears for it like any other workflow.
+                transcript = overlay.console.view.screen.full_text()
+                self.console.adopt_session(
+                    overlay.console.release_session(),
+                    title=tr("Prepare BC250 system"),
+                    transcript=transcript,
+                )
             overlay.deleteLater()
         mark_first_run_done(self.settings)
         if wants_tour:

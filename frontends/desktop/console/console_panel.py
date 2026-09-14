@@ -525,6 +525,27 @@ class ConsolePanel(QFrame):
         self.workflow_started.emit()
         return True
 
+    def adopt_session(self, session, *, title: str = "", transcript: str = "") -> bool:
+        """Take over a workflow another console started, and show it.
+
+        The first-run panel runs the dependency install in a terminal of its
+        own, because the shell behind it — this panel included — is not
+        accepting input while it is up. Finishing the setup before that
+        install is done must not kill it, so it arrives here instead.
+        """
+        if session is None:
+            return False
+        tab = self._tab_for_next_workflow()
+        if tab is None:
+            return False
+        tab.adopt(session, title=title, transcript=transcript)
+        self._activate(tab)
+        self.stop_button.setEnabled(tab.running)
+        self.slide_in()
+        self._announce_running_count()
+        self.workflow_started.emit()
+        return True
+
     def show_text(self, text: str, *, title: str = "") -> bool:
         """Display captured output without running anything.
 

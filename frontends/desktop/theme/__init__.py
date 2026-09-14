@@ -1322,6 +1322,12 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         text-transform: uppercase;
         letter-spacing: 0.7px;
     }}
+    /* A quiet line of small print beside a control, not a heading for it. */
+    QLabel#onboardingHint {{
+        color: {c['muted']};
+        font-size: 12px;
+        font-weight: 480;
+    }}
     QLabel#onboardingCaption {{
         color: {c['text']};
         font-size: 12px;
@@ -1422,6 +1428,33 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         font-weight: 640;
     }}
     QPushButton#onboardingGhost:hover {{ color: {c['text']}; }}
+    /* The terminal inside the first-run panel. It sits on the console's own
+       ground rather than the card's, because it is a terminal and should look
+       like one wherever it appears. */
+    QFrame#onboardingConsole {{
+        background: {c['console_bg']};
+        border: 1px solid {c['console_border']};
+        border-radius: 10px;
+    }}
+    QWidget#onboardingConsoleHeader {{
+        background: {c['panel_alt']};
+        border-bottom: 1px solid {c['console_border']};
+        border-top-left-radius: 10px;
+        border-top-right-radius: 10px;
+    }}
+    QLabel#onboardingConsoleTitle {{
+        color: {c['text']};
+        font-size: 12px;
+        font-weight: 740;
+    }}
+    QLabel#onboardingConsoleState {{
+        color: {c['muted']};
+        font-size: 12px;
+        font-weight: 680;
+    }}
+    QLabel#onboardingConsoleState[tone='running'] {{ color: {c['blue']}; }}
+    QLabel#onboardingConsoleState[tone='ok'] {{ color: {c['green']}; }}
+    QLabel#onboardingConsoleState[tone='failed'] {{ color: {c['red']}; }}
     /* The guided tour. The bubble is drawn, not styled — a tail that points
        at one particular widget is not something a stylesheet can express — so
        these rules dress its contents and leave the shell to paintEvent. */
