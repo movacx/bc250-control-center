@@ -464,6 +464,26 @@ def shown_page(qtbot, monkeypatch, dashboard_page):
     return page
 
 
+def _reveal_badge(qtbot, page) -> None:
+    """Scroll until the badge is on screen, the way a user reaches it.
+
+    The badge lives in the header of *Prepare BC250 system*, which is some way
+    down a page taller than most windows. The bubble is glued to it and is
+    only drawn while it can be seen, so these tests have to bring it into view
+    first rather than assume it was there all along.
+    """
+    from PyQt6.QtCore import QPoint
+
+    qtbot.waitUntil(lambda: not page.footer.update_button.isHidden(), timeout=4000)
+    if page._badge_is_on_screen():
+        return
+    scrollbar = page.scroll.verticalScrollBar()
+    content = page.scroll.widget()
+    target = page.footer.update_button.mapTo(content, QPoint(0, 0)).y()
+    scrollbar.setValue(max(0, min(target - 80, scrollbar.maximum())))
+    qtbot.waitUntil(page._badge_is_on_screen, timeout=4000)
+
+
 def test_the_bubble_still_appears_when_the_answer_beats_the_window_on_screen(qtbot):
     """A cached answer can resolve before the main window is shown.
 
@@ -497,6 +517,7 @@ def test_the_bubble_still_appears_when_the_answer_beats_the_window_on_screen(qtb
 
         host.show()
         qtbot.waitExposed(host)
+        _reveal_badge(qtbot, page)
         qtbot.waitUntil(lambda: page.update_callout.isVisible(), timeout=4000)
     finally:
         page.set_updates_active(False)
@@ -506,6 +527,7 @@ def test_the_tail_points_at_the_badge(qtbot, shown_page):
     from PyQt6.QtCore import QPoint
 
     shown_page._apply_update_status(_lookup("1.20.0", True, _package_source()))
+    _reveal_badge(qtbot, shown_page)
     badge = shown_page.update_button
     callout = shown_page.update_callout
     qtbot.waitUntil(lambda: callout.isVisible(), timeout=4000)
@@ -526,6 +548,7 @@ def test_the_tail_points_at_the_badge(qtbot, shown_page):
 def test_the_bubble_flips_above_the_badge_when_there_is_no_room_below(qtbot, shown_page):
     """Clamping to the bottom edge would cover the very thing it points at."""
     shown_page._apply_update_status(_lookup("1.20.0", True, _package_source()))
+    _reveal_badge(qtbot, shown_page)
     callout = shown_page.update_callout
     qtbot.waitUntil(lambda: callout.isVisible(), timeout=4000)
     badge = shown_page.update_button
@@ -538,6 +561,7 @@ def test_the_bubble_flips_above_the_badge_when_there_is_no_room_below(qtbot, sho
 
 def test_the_bubble_stays_inside_the_window(qtbot, shown_page):
     shown_page._apply_update_status(_lookup("1.20.0", True, _package_source()))
+    _reveal_badge(qtbot, shown_page)
     callout = shown_page.update_callout
     qtbot.waitUntil(lambda: callout.isVisible(), timeout=4000)
     window = callout.parentWidget()
@@ -549,6 +573,7 @@ def test_the_bubble_stays_inside_the_window(qtbot, shown_page):
 def test_the_bubble_floats_over_the_window_and_not_in_a_layout(qtbot, shown_page):
     """It must not reserve space or shift the content underneath it."""
     shown_page._apply_update_status(_lookup("1.20.0", True, _package_source()))
+    _reveal_badge(qtbot, shown_page)
     callout = shown_page.update_callout
     qtbot.waitUntil(lambda: callout.isVisible(), timeout=4000)
     assert callout.parentWidget() is shown_page.window()
@@ -562,3 +587,138 @@ def test_the_bubble_has_room_for_its_tail(qtbot, shown_page):
     margins = callout._root.contentsMargins()
     edge = margins.bottom() if callout._tail_below else margins.top()
     assert edge > callout.TAIL
+
+
+# ------------------------------------------------- where the bubble may appear
+
+
+def test_the_bubble_belongs_to_the_dashboard_and_leaves_with_it(qtbot, shown_page):
+    """It points at a badge on this page; on another module it points at nothing.
+
+    The bubble reparents itself to the window so it can hang outside the
+    scroll area, and that is exactly why it does not notice on its own that
+    the user has gone somewhere else.
+    """
+    shown_page._apply_update_status(_lookup("1.20.0", True, _package_source()))
+    _reveal_badge(qtbot, shown_page)
+    qtbot.waitUntil(lambda: not shown_page.update_callout.isHidden(), timeout=4000)
+
+    shown_page.hide()
+
+    assert shown_page.update_callout.isHidden()
+
+
+def test_coming_back_to_the_dashboard_asks_for_it_again(qtbot, shown_page):
+    shown_page._apply_update_status(_lookup("1.20.0", True, _package_source()))
+    _reveal_badge(qtbot, shown_page)
+    qtbot.waitUntil(lambda: not shown_page.update_callout.isHidden(), timeout=4000)
+    shown_page.hide()
+    assert shown_page.update_callout.isHidden()
+
+    shown_page.show()
+
+    qtbot.waitUntil(lambda: not shown_page.update_callout.isHidden(), timeout=4000)
+
+
+def test_nothing_is_announced_again_when_there_is_no_update(qtbot, shown_page):
+    asked = []
+    shown_page._show_callout = lambda: asked.append(True)
+    shown_page._update_pending = False
+
+    shown_page.hide()
+    shown_page.show()
+
+    assert asked == []
+
+
+def test_a_badge_scrolled_out_of_the_viewport_takes_the_bubble_with_it(qtbot, shown_page):
+    """A tail pointing above the viewport labels whatever is under it now."""
+    shown_page._apply_update_status(_lookup("1.20.0", True, _package_source()))
+    _reveal_badge(qtbot, shown_page)
+    qtbot.waitUntil(lambda: not shown_page.update_callout.isHidden(), timeout=4000)
+
+    shown_page.scroll.verticalScrollBar().setValue(0)
+    qtbot.waitUntil(lambda: shown_page.update_callout.isHidden(), timeout=4000)
+
+    assert not shown_page._badge_is_on_screen()
+
+
+def test_scrolling_re_places_the_bubble_rather_than_leaving_it_behind(qtbot, page):
+    placed = []
+    page._place_callout = lambda: placed.append(True)
+    page._update_pending = True
+
+    scrollbar = page.scroll.verticalScrollBar()
+    scrollbar.setRange(0, 500)
+    scrollbar.setValue(120)
+
+    assert placed == [True]
+
+
+def test_a_scroll_with_nothing_to_announce_costs_nothing(qtbot, page):
+    placed = []
+    page._place_callout = lambda: placed.append(True)
+    page._update_pending = False
+
+    scrollbar = page.scroll.verticalScrollBar()
+    scrollbar.setRange(0, 500)
+    scrollbar.setValue(120)
+
+    assert placed == []
+
+
+def test_the_bubble_follows_a_badge_that_moved_without_a_scroll(qtbot, page):
+    """A refresh can relayout the page under it; no scroll is emitted for that."""
+    from PyQt6.QtCore import QRect
+
+    placed = []
+    page._place_callout = lambda: placed.append(True)
+    page._update_pending = True
+    page.update_callout.show()
+    page._callout_anchored_at = QRect(0, 0, 10, 10)
+    page._badge_rect = lambda: QRect(0, 400, 10, 10)
+
+    page._follow_callout()
+
+    assert placed == [True]
+
+
+def test_a_badge_that_has_not_moved_is_left_alone(qtbot, page):
+    """Re-placing on a timer would fight the user for a bubble they are reading."""
+    from PyQt6.QtCore import QRect
+
+    placed = []
+    page._place_callout = lambda: placed.append(True)
+    page._update_pending = True
+    page.update_callout.show()
+    here = QRect(20, 300, 36, 36)
+    page._callout_anchored_at = here
+    page._badge_rect = lambda: QRect(here)
+
+    page._follow_callout()
+
+    assert placed == []
+
+
+def test_the_bubble_never_covers_the_badge_it_points_at(qtbot):
+    """Neither below nor above: it steps off screen instead of onto the badge."""
+    from PyQt6.QtWidgets import QPushButton, QWidget
+
+    from frontends.desktop.components.dashboard_widgets import UpdateCallout
+
+    window = QWidget()
+    qtbot.addWidget(window)
+    window.resize(400, 150)
+    badge = QPushButton("x", window)
+    badge.setGeometry(180, 10, 36, 36)
+    callout = UpdateCallout(window)
+    callout.set_message(version="9.9.9", detail="d" * 200, action="a")
+    window.show()
+    qtbot.waitExposed(window)
+
+    placed = callout.point_at(badge)
+
+    if placed:
+        assert not callout.geometry().intersects(badge.geometry())
+    else:
+        assert callout.isHidden()

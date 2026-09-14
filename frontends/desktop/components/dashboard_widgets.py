@@ -3184,18 +3184,30 @@ class UpdateCallout(QFrame):
         centre_x = top_left.x() + anchor.width() // 2
         below_y = top_left.y() + anchor.height() + 4
 
+        # Below if it fits, above if that fits instead, and otherwise not at
+        # all. The old rule flipped above whenever below was short and then
+        # clamped the result back on screen, which for a badge near the top of
+        # the viewport landed the bubble squarely on top of the badge — a
+        # label covering the very thing its tail points at.
         self._set_tail_side(below=False)
         self.adjustSize()
-        if below_y + self.height() > window.height() - 8:
-            # No room underneath: flip over the anchor and turn the tail round.
+        fits_below = below_y + self.height() <= window.height() - 8
+        if fits_below:
+            y = below_y
+        else:
             self._set_tail_side(below=True)
             self.adjustSize()
-            y = max(8, top_left.y() - self.height() - 4)
-        else:
-            y = below_y
+            above_y = top_left.y() - self.height() - 4
+            if above_y < 8:
+                # Neither side has room. The badge keeps pulsing on its own,
+                # and clicking it asks for the bubble again once there is
+                # somewhere to put it.
+                self.hide()
+                return False
+            y = above_y
 
-        # Keep the whole bubble on screen; the tail then slides within it rather
-        # than the bubble hanging off the edge.
+        # Keep the whole bubble on screen horizontally; the tail then slides
+        # within it rather than the bubble hanging off the edge.
         x = max(8, min(centre_x - self.width() // 2, window.width() - self.width() - 8))
         self.move(x, y)
         self._tail_x = max(

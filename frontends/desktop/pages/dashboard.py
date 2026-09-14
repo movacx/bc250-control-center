@@ -4,7 +4,7 @@ import logging
 import time
 from typing import NamedTuple
 
-from PyQt6.QtCore import QTimer, pyqtSignal
+from PyQt6.QtCore import QPoint, QRect, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QGridLayout,
     QSizePolicy,
@@ -224,14 +224,33 @@ class DashboardPage(QWidget):
         self.update_callout.action_clicked.connect(self._follow_update_advice)
         self.update_callout.dismissed.connect(self._callout_dismissed)
         self._install_source = None
+        # Whether there is an update to announce at all. The bubble is taken
+        # off screen for all sorts of reasons — another page, a scroll, a
+        # panel covering the shell — and every one of them needs to know
+        # whether bringing it back is still the right thing to do.
+        self._update_pending = False
         # Parented to this page, so a pending retry dies with it rather than
         # firing into a destroyed widget once this page is gone.
         self._callout_retries = 0
         self._callout_retry_timer = QTimer(self)
         self._callout_retry_timer.setSingleShot(True)
         self._callout_retry_timer.timeout.connect(self._place_callout)
+        # Scrolling is not the only thing that moves the badge: a refresh can
+        # relayout the page under it, and the window can be resized. Neither
+        # emits a scroll, so the bubble asks where the badge is rather than
+        # waiting to be told.
+        self._callout_anchored_at = QRect()
+        self._callout_follow_timer = QTimer(self)
+        self._callout_follow_timer.setInterval(250)
+        self._callout_follow_timer.timeout.connect(self._follow_callout)
         self.layout.addStretch(1)
         self.scroll.viewport_width_changed.connect(self._reflow)
+        # The badge scrolls with the page but the bubble is a child of the
+        # window, so without this it stays where it was first drawn and ends
+        # up pointing at whatever has scrolled into that spot.
+        scrollbar = self.scroll.verticalScrollBar()
+        if scrollbar is not None:
+            scrollbar.valueChanged.connect(self._follow_callout)
 
         self._reflow(1400)
         self.apply_state(self.state)
@@ -335,6 +354,7 @@ class DashboardPage(QWidget):
         published = str(getattr(status, "published", "") or "")
         available = bool(getattr(status, "update_available", False))
         self._install_source = source
+        self._update_pending = available
         self.footer.announce_update(published if available else "")
         if not available:
             self.update_callout.hide()
@@ -366,6 +386,15 @@ class DashboardPage(QWidget):
 
     def _place_callout(self) -> None:
         window = self.footer.update_button.window()
+        if window is not None and getattr(window, "is_presenting_overlay", bool)():
+            # The first-run panel, or the guided tour. Both are meant to be the
+            # only thing on screen, and this bubble is a sibling that would
+            # otherwise be drawn over them. Wait without spending the retries:
+            # the user may well take a minute over those, and the bubble is
+            # still wanted afterwards.
+            self.update_callout.hide()
+            self._callout_retry_timer.start(400)
+            return
         if window is None or not window.isVisible():
             # A cached release check can resolve before the main window is
             # actually shown - the common case on a cold start straight into
@@ -376,7 +405,93 @@ class DashboardPage(QWidget):
             if self._callout_retries <= 40:
                 self._callout_retry_timer.start(75)
             return
+        if not self._update_pending or not self.isVisible():
+            # This bubble belongs to this page. Reparenting it to the window is
+            # what lets it hang outside the scroll area, and it is also what
+            # stops it noticing that the user has gone to another module — so
+            # the page says so itself.
+            self.update_callout.hide()
+            self._callout_follow_timer.stop()
+            return
+        # From here the bubble is wanted, whether or not it can be drawn this
+        # instant. Watching starts now rather than after a successful
+        # placement: the badge may be below the fold, or the page may not have
+        # been laid out yet, and both of those resolve themselves a moment
+        # later with nothing to announce them.
+        self._callout_follow_timer.start()
+        if not self._badge_is_on_screen():
+            # Scrolled past. A bubble whose tail points off the top of the
+            # viewport is worse than no bubble: it labels whatever happens to
+            # be under it now.
+            self.update_callout.hide()
+            return
         self.update_callout.point_at(self.footer.update_button)
+        self._callout_anchored_at = self._badge_rect()
+
+    def _badge_rect(self) -> QRect:
+        """Where the badge sits in the window right now."""
+        badge = self.footer.update_button
+        return QRect(badge.mapTo(self, QPoint(0, 0)), badge.size())
+
+    def _badge_is_on_screen(self) -> bool:
+        """Whether the update badge is actually inside the scrolled viewport."""
+        badge = self.footer.update_button
+        if badge.isHidden() or badge.width() <= 0:
+            return False
+        viewport = self.scroll.viewport()
+        if viewport is None:
+            return True
+        top_left = badge.mapTo(viewport, QPoint(0, 0))
+        return viewport.rect().intersects(QRect(top_left, badge.size()))
+
+    def _follow_callout(self) -> None:
+        """Re-decide where the bubble goes, or whether it goes at all.
+
+        Cheap enough to run on every scroll step: it does nothing at all
+        unless there is an update to announce.
+        """
+        if not self._update_pending:
+            self._callout_follow_timer.stop()
+            return
+        if (
+            not self.update_callout.isHidden()
+            and self._badge_rect() == self._callout_anchored_at
+        ):
+            # Nothing moved. Re-placing anyway would fight the user for the
+            # scroll position of a bubble they are reading.
+            return
+        self._place_callout()
+
+    def dismiss_floating_callout(self) -> None:
+        """Step aside while a full-window panel owns the screen.
+
+        The bubble is a child of the window, not of this page, so a panel that
+        opens after it has been placed does not cover it. It is taken off and
+        asked to place itself again, which it will only manage once the window
+        says nothing is covering the shell any more.
+        """
+        if self.update_callout.isHidden():
+            return
+        self.update_callout.hide()
+        self._callout_retries = 0
+        self._callout_retry_timer.start(400)
+
+    def showEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        """Coming back to the dashboard brings the bubble back with it."""
+        super().showEvent(event)
+        if self._update_pending:
+            self._show_callout()
+
+    def hideEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        """Leaving the dashboard takes it away.
+
+        It announces an update from this page's own badge; on the fans page it
+        would be a bubble with a tail pointing at nothing.
+        """
+        super().hideEvent(event)
+        self.update_callout.hide()
+        self._callout_retry_timer.stop()
+        self._callout_follow_timer.stop()
 
     def _callout_dismissed(self) -> None:
         """Closing the bubble leaves the badge pulsing; nothing is lost."""
