@@ -68,15 +68,55 @@ def test_the_strip_shows_the_monitor_reading_without_asking_for_one(qtbot):
     assert controller.reads == 0
 
 
-def test_the_strip_stays_empty_rather_than_pointing_somewhere_gone(qtbot):
-    """It used to say "read it from the CPU module"; that card was removed."""
+def test_the_strip_says_why_it_has_nothing_to_show(qtbot):
+    """It used to say "read it from the CPU module"; that card was removed.
+
+    Saying nothing at all was the next mistake: a greyed-out button with an
+    empty line beside it reads as a broken feature, which is exactly how it
+    was reported. It now states the one blocker that is worth stating.
+    """
     page = DashboardPage(PassiveController({}))
     qtbot.addWidget(page)
 
     page._apply_memory_summary()
 
-    assert not page.memory_summary.detail.text()
+    assert page.memory_summary.blocker.text()
+    assert "CPU" not in page.memory_summary.blocker.text()
     assert all(not cell.code.text() for cell in page.memory_summary.cells)
+
+
+def test_the_missing_checkout_is_offered_rather_than_only_reported(qtbot):
+    """The one blocker the user can clear from this row swaps the button.
+
+    Cloning the reviewed upstream tool is an ordinary download, and until now
+    the only interface that offered it was a page that no longer ships — so
+    the live button sat permanently disabled with no way to change that.
+    """
+    controller = PassiveController({})
+    page = DashboardPage(controller)
+    qtbot.addWidget(page)
+    summary = page.memory_summary
+
+    page._apply_memory_reading(
+        page.memory_monitor.reading.__class__(
+            hardware_detected=True, reader_ready=True, helper_ready=True
+        )
+    )
+    # isHidden() rather than isVisible(): the page is never shown here, so
+    # every descendant answers "not visible" regardless of its own flag.
+    assert not summary.prepare_button.isHidden()
+    assert summary.live_button.isHidden()
+
+    page._apply_memory_reading(
+        page.memory_monitor.reading.__class__(
+            hardware_detected=True,
+            reader_ready=True,
+            helper_ready=True,
+            repository_ready=True,
+        )
+    )
+    assert summary.prepare_button.isHidden()
+    assert not summary.live_button.isHidden()
 
 
 def test_a_controller_without_the_gddr6_backend_does_not_break_the_dashboard(qtbot):

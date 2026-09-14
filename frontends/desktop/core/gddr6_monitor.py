@@ -213,6 +213,27 @@ class Gddr6Monitor(QObject):
 
         self._background.start("gddr6-status", operation, success, failure)
 
+    # --------------------------------------------------------------- preparing
+
+    def prepare(self) -> bool:
+        """Fetch the reviewed upstream checkout, in the embedded terminal.
+
+        Nothing here reads the hardware or patches anything: it is a clone of
+        a reviewed revision, which is why it costs no Polkit prompt. It exists
+        because without the checkout every other action on this strip is
+        refused, and until now the only interface that offered it was a page
+        that no longer ships — leaving the live button permanently grey with
+        nothing on screen saying why.
+        """
+        operation = self._backend("comando_preparar_gddr6_memory_temp")
+        if operation is None:
+            return False
+        try:
+            return bool(operation())
+        except Exception as error:  # noqa: BLE001 - surfaced through the reading
+            self._session_error(str(error))
+            return False
+
     # -------------------------------------------------------------------- live
 
     def start_live(self) -> None:

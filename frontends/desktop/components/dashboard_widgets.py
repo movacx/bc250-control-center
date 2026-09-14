@@ -484,6 +484,7 @@ class DashboardMemorySummary(QFrame):
     MINIMUM_CELL = 150
 
     live_toggled = pyqtSignal(bool)
+    prepare_requested = pyqtSignal()
 
     def __init__(
         self,
@@ -517,6 +518,14 @@ class DashboardMemorySummary(QFrame):
         self.live_button.setCheckable(True)
         self.live_button.toggled.connect(self._on_live_toggled)
         self.live_button.setVisible(bool(live_action))
+        # Shown in the live button's place when the readings cannot be taken
+        # yet. One button that is grey forever explains nothing; this one says
+        # what is missing and fetches it.
+        self.prepare_button = QPushButton(tr("Prepare readings"))
+        self.prepare_button.setProperty("dashboardCardAction", True)
+        self.prepare_button.clicked.connect(self.prepare_requested)
+        self.prepare_button.setVisible(False)
+        self._live_action = bool(live_action)
         if self._show_header:
             root.addLayout(self.header)
             self._layout_header(1000)
@@ -532,6 +541,12 @@ class DashboardMemorySummary(QFrame):
         self.cell_grid.setVerticalSpacing(6)
         self.cells = [_MemoryChipCell(index, self) for index in range(GDDR6_CHIP_COUNT)]
         root.addLayout(self.cell_grid)
+        # A sentence, so it gets its own wrapped line under the devices rather
+        # than a cell on the header row: sharing that row with the short values
+        # forced the whole card wider than the window at 1024 px.
+        self.blocker = _label("", "dashboardCoreSummaryDetail", wrap=True)
+        self.blocker.setVisible(False)
+        root.addWidget(self.blocker)
         self._apply_columns(GDDR6_CHIP_COUNT)
         self.set_chips(())
 
@@ -546,6 +561,18 @@ class DashboardMemorySummary(QFrame):
             self.cell_grid.addWidget(cell, index // columns, index % columns)
         for column in range(GDDR6_CHIP_COUNT):
             self.cell_grid.setColumnStretch(column, 1 if column < columns else 0)
+
+    def set_ready(self, ready: bool) -> None:
+        """Offer the readings, or offer to make them possible."""
+        if not self._live_action:
+            return
+        self.live_button.setVisible(bool(ready))
+        self.prepare_button.setVisible(not ready)
+
+    def set_blocker(self, message: str) -> None:
+        """Why there is nothing to show, when there is nothing to show."""
+        self.blocker.setText(tr(message) if message else "")
+        self.blocker.setVisible(bool(message))
 
     def _on_live_toggled(self, active: bool) -> None:
         self.live_button.setText(tr("Stop monitoring") if active else tr("Monitor live"))
@@ -578,17 +605,24 @@ class DashboardMemorySummary(QFrame):
             self.header.setColumnStretch(column, 0)
         self.label.setWordWrap(compact)
         self.detail.setWordWrap(compact)
-        self.header.removeWidget(self.live_button)
+        for button in (self.live_button, self.prepare_button):
+            self.header.removeWidget(button)
         self.header.addWidget(self.label, 0, 0)
         self.header.addWidget(self.value, 0, 1)
         if compact:
             self.header.addWidget(self.detail, 1, 0, 1, 3)
             self.header.setColumnStretch(2, 1)
             self.header.addWidget(self.live_button, 2, 0, 1, 4)
+            # The same cell: only ever one of the two is visible, and a layout
+            # ignores the hidden one, so this costs no width. Giving them a
+            # column each widened the header enough to clip the core strip's
+            # caption next to it at 1024 px in Spanish.
+            self.header.addWidget(self.prepare_button, 2, 0, 1, 4)
         else:
             self.header.addWidget(self.detail, 0, 2)
             self.header.setColumnStretch(3, 1)
             self.header.addWidget(self.live_button, 0, 4)
+            self.header.addWidget(self.prepare_button, 0, 4)
         self.updateGeometry()
 
     def resizeEvent(self, event) -> None:  # noqa: N802 - Qt API name

@@ -146,6 +146,7 @@ class DashboardPage(QWidget):
         self.memory_summary = DashboardMemorySummary(live_action=True)
         self.memory_monitor = gddr6_monitor_for(controller)
         self.memory_summary.live_toggled.connect(self.memory_monitor.set_live)
+        self.memory_summary.prepare_requested.connect(self._prepare_memory_readings)
         self.memory_monitor.changed.connect(self._apply_memory_reading)
         self.main_layout.addWidget(self.memory_summary)
 
@@ -703,6 +704,10 @@ class DashboardPage(QWidget):
         self.memory_monitor.refresh_status()
         self._apply_memory_reading(self.memory_monitor.reading)
 
+    def _prepare_memory_readings(self) -> None:
+        """Fetch the reviewed checkout the readings need, in the terminal."""
+        self.memory_monitor.prepare()
+
     def _apply_memory_reading(self, reading) -> None:
         summary = self.memory_summary
         summary.set_live(bool(getattr(reading, "live", False)))
@@ -710,6 +715,11 @@ class DashboardPage(QWidget):
             (chip.index, chip.code, chip.temperature_c) for chip in reading.chips
         ]
         summary.set_chips(chips)
+        # The checkout is the one blocker the user can clear from here, so it
+        # is the one that swaps the button rather than greying it out. The
+        # others — no board, no helpers, wrong firmware — are stated instead:
+        # nothing on this row would fix them.
+        summary.set_ready(reading.repository_ready or reading.live)
         summary.live_button.setEnabled(reading.can_monitor or reading.live)
         if chips:
             summary.set_value(self._format_temperature(_number(reading.average_c)))
@@ -721,10 +731,10 @@ class DashboardPage(QWidget):
             )
         else:
             summary.set_value("Waiting for sample")
-            # No instruction here any more: the CPU module's GDDR6 card is
-            # gone, and the only way to get a reading is the button sitting on
-            # this very row, which says so itself.
             summary.set_detail("")
+            # Why the button is off, when it is. Saying nothing is what made
+            # this look broken: a disabled control and an empty line beside it.
+            summary.set_blocker("" if reading.can_monitor else reading.blocker())
 
     def _apply_cpu_card(self, state: DashboardState) -> None:
         self.cpu_card.status.setText(state.cpu_profile)
