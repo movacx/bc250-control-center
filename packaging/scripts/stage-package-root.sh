@@ -123,7 +123,7 @@ install -Dm644 \
   "$ROOT_DIR/packaging/common/91-bc250-control-center-overlay-preflight.conf" \
   "$DESTDIR/usr/lib/systemd/system/cyan-skillfish-governor-smu.service.d/91-bc250-control-center-overlay-preflight.conf"
 
-for setup_module in system_setup_common.py system_setup_memory.py system_setup_acpi.py system_setup_telemetry.py acpi_payload.py bc250_contract.py; do
+for setup_module in system_setup_common.py system_setup_memory.py system_setup_acpi.py system_setup_telemetry.py system_setup_vram.py acpi_payload.py bc250_contract.py; do
   install -m644 "$ROOT_DIR/privileged/lib/$setup_module" "$DESTDIR/usr/libexec/bc250-control-center/lib/$setup_module"
 done
 install -m644 \

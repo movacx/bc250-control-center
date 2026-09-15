@@ -94,9 +94,11 @@ from ..components.responsive import (
 )
 from ..components.system_setup_controls import (
     MEMORY_OPTIONS,
+    VRAM_SIZE_PRESETS_MB,
     bazzite_ui_preview_enabled,
     is_bazzite_host,
     update_memory_controls,
+    vram_size_label,
 )
 from ..components.voltage_lab_drawer import VoltageLabDrawer
 from ..components.widgets import IconBadge, InfoDialog, PillLabel, apply_shadow, icon
@@ -150,6 +152,7 @@ def _format_bytes(value) -> str:
 # small enough to live directly in the shared UI settings file rather than a
 # dedicated store. Three fixed slots mirror the three preset buttons.
 _CUSTOM_PROFILE_SLOTS = 3
+
 
 
 def _load_custom_gpu_profile(settings, index: int) -> dict | None:
@@ -330,6 +333,7 @@ class DependencyPreparationDialog(QDialog):
         self.selected_components: set[str] = set()
         self.memory_policy = "current"
         self.memory_ttm_gib = 0
+        self.vram_uma_size_mb = 0
         self.tools = _dict(tools)
         self.controller = controller
         self.component_capabilities = _dict(self.tools.get("prepare_components"))
@@ -837,6 +841,20 @@ class DependencyPreparationDialog(QDialog):
         )
         controls.addWidget(self.memory_ttm_apply_button, 1, 2)
 
+        vram_label = QLabel(tr("VRAM size (UMA_SIZE)"))
+        vram_label.setProperty("fieldLabel", True)
+        controls.addWidget(vram_label, 2, 0)
+        self.vram_size_combo = QComboBox()
+        self.vram_size_combo.setProperty("settingsCombo", True)
+        self.vram_size_combo.addItem(tr("Keep current VRAM size"), 0)
+        for target in VRAM_SIZE_PRESETS_MB:
+            self.vram_size_combo.addItem(vram_size_label(target), target)
+        controls.addWidget(self.vram_size_combo, 2, 1)
+        self.vram_apply_button = QPushButton(tr("Apply VRAM"))
+        self.vram_apply_button.setObjectName("PrimaryAction")
+        self.vram_apply_button.clicked.connect(lambda: self._choose("vram_apply", ""))
+        controls.addWidget(self.vram_apply_button, 2, 2)
+
         controls.setColumnStretch(1, 1)
         layout.addLayout(controls)
 
@@ -844,6 +862,9 @@ class DependencyPreparationDialog(QDialog):
             self._update_memory_apply_availability
         )
         self.ttm_limit_combo.currentIndexChanged.connect(
+            self._update_memory_apply_availability
+        )
+        self.vram_size_combo.currentIndexChanged.connect(
             self._update_memory_apply_availability
         )
         self._update_memory_apply_availability()
@@ -936,6 +957,7 @@ class DependencyPreparationDialog(QDialog):
     def _update_memory_apply_availability(self) -> None:
         if not hasattr(self, "memory_swap_apply_button"):
             return
+        self._update_vram_apply_availability()
         if update_memory_controls(self, self.tools):
             return
         actionable = str(self.tools.get("os_family") or "") == "bazzite"
@@ -953,6 +975,24 @@ class DependencyPreparationDialog(QDialog):
             tooltip = tr("This memory workflow is currently validated only on Bazzite.")
             self.memory_swap_apply_button.setToolTip(tooltip)
             self.memory_ttm_apply_button.setToolTip(tooltip)
+
+    def _update_vram_apply_availability(self) -> None:
+        """VRAM (UMA_SIZE) is written straight to CMOS; it needs no distro adapter."""
+        if not hasattr(self, "vram_apply_button"):
+            return
+        setup = _dict(self.tools.get("system_setup"))
+        vram = _dict(setup.get("vram"))
+        supported = bool(setup.get("helper_available") and vram.get("supported"))
+        selected = _integer(self.vram_size_combo.currentData(), 0) != 0
+        self.vram_apply_button.setEnabled(supported and selected)
+        reason = str(setup.get("reason") or vram.get("reason") or "")
+        tooltip = (
+            tr(reason)
+            if reason
+            else tr("Written to CMOS immediately; takes effect after the next reboot.")
+        )
+        self.vram_size_combo.setToolTip(tooltip)
+        self.vram_apply_button.setToolTip(tooltip)
 
     def _show_memory_policy_preview(self) -> None:
         selected = str(self.memory_policy_combo.currentData() or "current")
@@ -1417,6 +1457,8 @@ class DependencyPreparationDialog(QDialog):
         elif action == "memory_ttm":
             self.memory_policy = "preserve"
             self.memory_ttm_gib = _integer(self.ttm_limit_combo.currentData(), 0)
+        elif action == "vram_apply":
+            self.vram_uma_size_mb = _integer(self.vram_size_combo.currentData(), 0)
         if action == "prepare" and hasattr(self, "component_switches"):
             self.selected_components = {
                 key
@@ -3496,6 +3538,7 @@ class GpuGovernorPage(QWidget):
             dialog_parent=dialog_parent,
             memory_policy=getattr(dialog, "memory_policy", "current"),
             memory_ttm_gib=getattr(dialog, "memory_ttm_gib", 0),
+            vram_uma_size_mb=getattr(dialog, "vram_uma_size_mb", 0),
         )
 
     def execute_dependency_action(
@@ -3507,6 +3550,7 @@ class GpuGovernorPage(QWidget):
         dialog_parent: QWidget | None = None,
         memory_policy: str = "current",
         memory_ttm_gib: int = 0,
+        vram_uma_size_mb: int = 0,
     ) -> None:
         """Execute a dialog or dashboard preparation request through one route."""
         tools = _dict(self.current_state.get("tools"))
@@ -3520,6 +3564,9 @@ class GpuGovernorPage(QWidget):
                 scope="swap" if action == "memory_swap" else "ttm",
                 dialog_parent=dialog_parent,
             )
+            return
+        if action == "vram_apply":
+            self._prepare_vram(uma_size_mb=vram_uma_size_mb, dialog_parent=dialog_parent)
             return
         if action.startswith("bazzite_mitigations_"):
             self._prepare_bazzite_mitigations(
@@ -3658,6 +3705,47 @@ class GpuGovernorPage(QWidget):
                 tr("Workflow opened. Check the terminal result before rebooting."),
             ),
             tr("Could not prepare memory setup"),
+            controls=(),
+            error_parent=dialog_parent,
+        )
+
+    def _prepare_vram(self, *, uma_size_mb: int, dialog_parent: QWidget | None) -> None:
+        """Write UMA_SIZE (VRAM) straight to the battery-backed CMOS bank.
+
+        Every other CMOS byte -- clock speed and every memory timing strap --
+        is read back unmodified and rewritten as-is; only this one field
+        changes. See github.com/fanoush/bc250_memcfg for the reviewed layout.
+        """
+        uma_size_mb = int(uma_size_mb)
+        if uma_size_mb <= 0:
+            return
+        confirmation = ConfirmDialog(
+            tr("Apply VRAM size"),
+            tr(
+                "This writes directly to the BC250's battery-backed CMOS memory "
+                "configuration. Only the VRAM allocation is changed; clock speed "
+                "and memory timings are read back and rewritten unmodified. The "
+                "new size takes effect after the next reboot, and can only be "
+                "reverted from Control Center or by clearing CMOS."
+            ),
+            summary=(
+                (tr("VRAM size (UMA_SIZE)"), vram_size_label(uma_size_mb)),
+                (tr("Reboot"), tr("Required to activate the new VRAM size")),
+            ),
+            confirm_text=tr("Apply VRAM"),
+            tone="orange",
+            parent=dialog_parent or self,
+        )
+        if confirmation.exec() != QDialog.DialogCode.Accepted:
+            return
+        self._run_backend_action(
+            lambda: self.controller.preparar_vram(uma_size_mb),
+            lambda _result: GpuGovernorPage._record_preparation_result(
+                self,
+                tr("VRAM size"),
+                tr("Workflow opened. Check the terminal result before rebooting."),
+            ),
+            tr("Could not prepare VRAM setup"),
             controls=(),
             error_parent=dialog_parent,
         )

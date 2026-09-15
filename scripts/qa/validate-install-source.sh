@@ -26,6 +26,7 @@ required=(
   privileged/lib/system_setup_memory.py
   privileged/lib/system_setup_acpi.py
   privileged/lib/system_setup_telemetry.py
+  privileged/lib/system_setup_vram.py
   privileged/lib/acpi_payload.py
   privileged/lib/governor_toml.py
   privileged/lib/bc250_smu_oc_vendor.zip
@@ -97,6 +98,7 @@ for relative in \
   privileged/lib/system_setup_memory.py \
   privileged/lib/system_setup_acpi.py \
   privileged/lib/system_setup_telemetry.py \
+  privileged/lib/system_setup_vram.py \
   privileged/lib/acpi_payload.py \
   privileged/helpers/bc250-core-unlock-helper \
   privileged/helpers/bc250-cpu-smu-helper \

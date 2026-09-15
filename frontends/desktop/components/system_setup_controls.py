@@ -26,6 +26,17 @@ BAZZITE_MEMORY_OPTIONS = (
     ("Advanced heavy loads · ZSWAP + 32 GiB swapfile", "zswap-32"),
 )
 
+# UMA_SIZE (VRAM) presets, aligned to the 16 MiB CMOS granularity the
+# firmware itself enforces (github.com/fanoush/bc250_memcfg). Below 1 GiB the
+# label stays in MiB; every other preset here is an exact GiB multiple.
+VRAM_SIZE_PRESETS_MB = (256, 512, 1024, 2048, 3072, 4096, 5120, 6144, 7168, 8192, 12288)
+
+
+def vram_size_label(size_mb: int) -> str:
+    if size_mb < 1024:
+        return tr_format("{size} MiB", size=size_mb)
+    return tr_format("{size} GiB", size=size_mb // 1024)
+
 
 def is_bazzite_host(tools) -> bool:
     """Recognize Bazzite even when a partial inventory lacks its family key."""

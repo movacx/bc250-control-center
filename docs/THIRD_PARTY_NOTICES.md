@@ -36,7 +36,7 @@ Every canonical URL was checked on 29 August 2026 and returned HTTP 200. A link 
 | [bc250-acpi-fix](https://github.com/e-tho/bc250-acpi-fix) | ACPI compatibility fix | Integrated explicit compatibility workflow; MIT upstream |
 | [bc250-acpi-fix-updated-8c](https://github.com/mendesrr/bc250-acpi-fix-updated-8c) | 8-core ACPI research | Reference only |
 | [BC250-Native-Mesh-Shaders-](https://github.com/lonewolf0622/BC250-Native-Mesh-Shaders-) | Native mesh shader research | Reference only |
-| [bc250_memcfg](https://github.com/fanoush/bc250_memcfg) | Memory configuration research | Reference only |
+| [bc250_memcfg](https://github.com/fanoush/bc250_memcfg) | CMOS VRAM (UMA_SIZE) configuration | Integrated explicit workflow; CMOS offsets reimplemented in Python from the published layout, memory timing straps are read back unmodified and never exposed; MIT upstream |
 | [bc250-efi-core-unlock](https://github.com/Hexxeh/bc250-efi-core-unlock) | EFI core unlock research | Reference only |
 | [AMD BC-250 UEFI Firmware Menu Script](https://github.com/Forbidden-Darkness/AMD-BC-250-UEFI-v2.2-Firmware-Menu-Script) | UEFI menu reference | Reference only |
 | [nct6687d](https://github.com/Fred78290/nct6687d) | NCT sensor and PWM driver | Integrated explicit kernel-module workflow; GPL-2.0 upstream |

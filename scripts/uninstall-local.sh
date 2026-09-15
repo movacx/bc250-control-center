@@ -50,6 +50,7 @@ SYSTEM_CYAN_OVERLAY_DROPIN="/etc/systemd/system/cyan-skillfish-governor-smu.serv
 SYSTEM_STEAMOS_AMDGPU_BACKEND_DIR="/usr/libexec/bc250-control-center/steamos-amdgpu-backend"
 SYSTEM_CPU_SMU_VENDOR="/usr/libexec/bc250-control-center/lib/bc250_smu_oc_vendor.zip"
 SYSTEM_GOVERNOR_TOML_IMPLEMENTATION="/usr/libexec/bc250-control-center/lib/governor_toml.py"
+SYSTEM_CONTRACT_IMPLEMENTATION="/usr/libexec/bc250-control-center/lib/bc250_contract.py"
 LEGACY_CORE_UNLOCK_IMPLEMENTATION="/usr/libexec/bc250-control-center/lib/core_unlock.py"
 SYSTEM_POLKIT_ACTION="/usr/share/polkit-1/actions/io.github.movacx.bc250-control-center.policy"
 
@@ -303,7 +304,7 @@ if [[ -e /var/lib/bc250-control-center/system-setup/acpi.json || -e /var/lib/bc2
   echo "Keeping the optional memory/ACPI helper for restoration. Restore these settings in Control Center before removing that helper."
 else
   remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-system-setup-helper" "/usr/libexec/bc250-control-center/bc250-system-setup-helper"
-  for setup_module in system_setup_common.py system_setup_memory.py system_setup_acpi.py system_setup_telemetry.py acpi_payload.py; do
+  for setup_module in system_setup_common.py system_setup_memory.py system_setup_acpi.py system_setup_telemetry.py system_setup_vram.py acpi_payload.py; do
     remove_managed_privileged_file "$APP_DIR/privileged/lib/$setup_module" "/usr/libexec/bc250-control-center/lib/$setup_module"
   done
 fi
@@ -335,6 +336,12 @@ if [[ -e "$SYSTEM_STEAMOS_AMDGPU_BACKEND_DIR" || -L "$SYSTEM_STEAMOS_AMDGPU_BACK
 fi
 remove_managed_privileged_file "$APP_DIR/privileged/lib/bc250_smu_oc_vendor.zip" "$SYSTEM_CPU_SMU_VENDOR"
 remove_managed_privileged_file "$APP_DIR/privileged/lib/governor_toml.py" "$SYSTEM_GOVERNOR_TOML_IMPLEMENTATION"
+# Shared by the system-setup and quick-access helpers, so it is removed here
+# rather than with the system-setup modules above: that block is skipped
+# whenever the memory/ACPI helper has to be kept, which left this file behind
+# with no package owning it. Every later package install then refused with a
+# file conflict.
+remove_managed_privileged_file "$APP_DIR/privileged/lib/bc250_contract.py" "$SYSTEM_CONTRACT_IMPLEMENTATION"
 remove_managed_privileged_file "$APP_DIR/privileged/policies/io.github.movacx.bc250-control-center.policy" "$SYSTEM_POLKIT_ACTION"
 remove_empty_dir "/usr/libexec/bc250-control-center"
 reload_systemd_after_overlay_removal

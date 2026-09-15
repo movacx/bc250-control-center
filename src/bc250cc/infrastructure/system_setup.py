@@ -11,7 +11,7 @@ POLICIES = {"preserve", "restore", "swap-16", "swap-32", "zram", "zswap-16", "zs
 
 def inventory() -> dict:
     if not HELPER.is_file():
-        return {"helper_available": False, "memory": {}, "acpi": {}, "telemetry": {},
+        return {"helper_available": False, "memory": {}, "acpi": {}, "telemetry": {}, "vram": {},
                 "reason": "Install or update Control Center's system setup helper first"}
     try:
         info = HELPER.stat()
@@ -24,18 +24,25 @@ def inventory() -> dict:
             raise ValueError("Unsupported system setup protocol")
         return {**data, "helper_available": True}
     except (OSError, ValueError, subprocess.SubprocessError) as exc:
-        return {"helper_available": False, "memory": {}, "acpi": {}, "telemetry": {}, "reason": str(exc)}
+        return {"helper_available": False, "memory": {}, "acpi": {}, "telemetry": {}, "vram": {}, "reason": str(exc)}
 
 
-def command(action: str, policy: str = "preserve", ttm_gib: int = 0) -> str:
+def command(action: str, policy: str = "preserve", ttm_gib: int = 0, uma_size_mb: int = 0) -> str:
     if action not in {
         "memory-apply", "acpi-install", "acpi-uninstall", "acpi-check",
-        "telemetry-fix", "telemetry-restore",
+        "telemetry-fix", "telemetry-restore", "vram-read", "vram-apply",
     }:
         raise ValueError("Unsupported system setup action")
     if policy not in POLICIES or type(ttm_gib) is not int or ttm_gib not in {-1, 0, 8, 10, 12}:
         raise ValueError("Invalid memory setup request")
-    args = f" --policy {policy} --ttm {ttm_gib}" if action == "memory-apply" else ""
+    if action == "vram-apply" and (type(uma_size_mb) is not int or not (256 <= uma_size_mb < 16384)):
+        raise ValueError("Invalid VRAM setup request")
+    if action == "memory-apply":
+        args = f" --policy {policy} --ttm {ttm_gib}"
+    elif action == "vram-apply":
+        args = f" --uma-size {uma_size_mb}"
+    else:
+        args = ""
     return ("set -euo pipefail\n"
             "echo '== BC250 optional system setup (testing) =='\n"
             f"test -x {HELPER} || {{ echo 'Update/reinstall Control Center to install the protected system setup helper.'; exit 69; }}\n"

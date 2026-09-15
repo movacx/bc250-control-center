@@ -237,3 +237,25 @@ def test_the_icons_the_installer_names_exist():
         icon = ROOT / "assets" / "icons" / f"bc250-control-center-{size}.png"
         assert icon.is_file(), f"the installer asks for {icon.name} and it is not there"
         assert icon.read_bytes()[:8] == b"\x89PNG\r\n\x1a\n", f"{icon.name} is not a PNG"
+
+
+def test_every_libexec_file_the_local_install_writes_is_also_removed():
+    """A leftover here breaks every later package install, not just this one.
+
+    ``pacman`` refuses to overwrite a file no package owns, so one module the
+    uninstaller forgot is enough to block the AUR package from ever installing
+    again — which is exactly what ``lib/bc250_contract.py`` did. It is shared
+    by the system-setup and quick-access helpers, so it was not covered by the
+    loop that removes the system-setup modules, and nothing compared the two
+    lists.
+    """
+    installed = set(re.findall(r"/usr/libexec/bc250-control-center/lib/(\S+?\.(?:py|zip))", _text(INSTALL_LOCAL)))
+    installed |= {
+        f"{module}"
+        for line in _text(INSTALL_LOCAL).splitlines()
+        if "for setup_module in" in line
+        for module in re.findall(r"(\w+\.py)", line)
+    }
+    removed = _text(UNINSTALL_LOCAL)
+    missing = sorted(module for module in installed if module not in removed)
+    assert missing == [], missing

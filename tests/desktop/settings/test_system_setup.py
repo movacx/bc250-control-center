@@ -20,6 +20,7 @@ sys.path.insert(0, str(LIB))
 import system_setup_acpi as acpi  # noqa: E402
 import system_setup_memory as memory  # noqa: E402
 import system_setup_telemetry as telemetry  # noqa: E402
+import system_setup_vram as vram  # noqa: E402
 from acpi_payload import SHA256, archive  # noqa: E402
 from system_setup_common import MARKER, STATE, Host, SetupError  # noqa: E402
 
@@ -43,6 +44,7 @@ class Sandbox:
         self.host.path("/var/lib").mkdir(parents=True)
         self.put("/proc/config.gz", gzip.compress(b"CONFIG_ACPI_TABLE_UPGRADE=y\n"))
         self.put("/sys/firmware/acpi/tables/SSDT1", self.table())
+        self.put("/dev/port", b"")
 
     def table(self, name="AMD CPU", revision=1, oem="AMD"):
         header = bytearray(36)
@@ -596,3 +598,109 @@ def test_eight_core_telemetry_repair_uses_rpm_ostree_kargs(sandbox):
 
     telemetry.restore(sandbox.host)
     assert telemetry.ARGUMENT not in sandbox.kargs.split()
+
+
+class FakeCmosPort:
+    """Simulates /dev/port index/data seek+read/write semantics for CMOS."""
+
+    def __init__(self, bank: bytes):
+        self.memory = bytearray(256)
+        self.memory[vram.BANK_OFFSET:vram.BANK_OFFSET + len(bank)] = bank
+        self.position = None
+        self.index = None
+        self.closed = False
+
+    def seek(self, position):
+        self.position = position
+
+    def write(self, data):
+        if self.position == vram.INDEX_PORT:
+            self.index = data[0]
+        elif self.position == vram.DATA_PORT:
+            self.memory[self.index] = data[0]
+        else:
+            raise AssertionError(f"unexpected write to port {self.position}")
+
+    def read(self, size):
+        if self.position != vram.DATA_PORT:
+            raise AssertionError(f"unexpected read from port {self.position}")
+        return bytes((self.memory[self.index],))
+
+    def close(self):
+        self.closed = True
+
+    def bank(self) -> bytes:
+        return bytes(self.memory[vram.BANK_OFFSET:vram.BANK_OFFSET + vram.BANK_SIZE])
+
+
+def _stock_bank(uma_size_mb=512):
+    # Signature/checksum placeholders (ABL-written), realistic timing straps,
+    # and the UMA_SIZE word this suite overwrites.
+    bank = bytearray(vram.BANK_SIZE)
+    bank[0:4] = (0x4C424124).to_bytes(4, "little")  # ABL_SIGNATURE
+    bank[6] = 0xC2  # ClockSpeed low byte, left untouched by VRAM writes
+    bank[8:20] = bytes(range(8, 20))  # distinct timing bytes to prove they survive
+    bank[vram.UMA_SIZE_OFFSET:vram.UMA_SIZE_OFFSET + 2] = uma_size_mb.to_bytes(2, "little")
+    return bytes(bank)
+
+
+def test_vram_unsupported_without_bc250_or_devport(sandbox):
+    sandbox.host.path("/dev/port").unlink()
+    data = vram.status(sandbox.host)
+    assert not data["supported"]
+    assert "/dev/port" in data["reason"]
+
+    sandbox.put("/dev/port", b"")
+    sandbox.put("/sys/bus/pci/devices/0000:01:00.0/device", "0x1234")
+    data = vram.status(sandbox.host)
+    assert not data["supported"]
+    assert "BC-250" in data["reason"]
+
+
+def test_vram_read_reports_current_size_without_writing(sandbox):
+    port = FakeCmosPort(_stock_bank(uma_size_mb=640))
+    result = vram.read(sandbox.host, port_open=lambda: port)
+    assert result == {"supported": True, "uma_size_mb": 640}
+    assert port.bank() == _stock_bank(uma_size_mb=640)
+    assert port.closed
+
+
+def test_vram_apply_aligns_size_and_preserves_every_other_byte(sandbox):
+    original = _stock_bank(uma_size_mb=256)
+    port = FakeCmosPort(original)
+
+    result = vram.apply(sandbox.host, 517, port_open=lambda: port)
+
+    assert result == {"supported": True, "applied_uma_size_mb": 512}
+    written = port.bank()
+    assert written[vram.UMA_SIZE_OFFSET:vram.UMA_SIZE_OFFSET + 2] == (512).to_bytes(2, "little")
+    # Every timing/clock byte outside the touched header is byte-for-byte identical.
+    assert written[vram.CHECKSUM_FIELD_OFFSET:vram.UMA_SIZE_OFFSET] == original[vram.CHECKSUM_FIELD_OFFSET:vram.UMA_SIZE_OFFSET]
+    assert written[0:4] == vram.SIGNATURE.to_bytes(4, "little")
+    expected_checksum = sum(written[vram.CHECKSUM_FIELD_OFFSET:]) & 0xFFFF
+    assert written[4:6] == expected_checksum.to_bytes(2, "little")
+
+
+@pytest.mark.parametrize("uma_size_mb", [0, 255, 16384, 100000, "512"])
+def test_vram_apply_rejects_out_of_range_requests_without_opening_port(sandbox, uma_size_mb):
+    def fail_open():
+        raise AssertionError("must not touch hardware for an invalid request")
+
+    with pytest.raises(SetupError):
+        vram.apply(sandbox.host, uma_size_mb, port_open=fail_open)
+
+
+def test_vram_apply_refuses_when_unsupported(sandbox):
+    sandbox.host.path("/dev/port").unlink()
+    with pytest.raises(SetupError, match="/dev/port"):
+        vram.apply(sandbox.host, 512, port_open=lambda: FakeCmosPort(_stock_bank()))
+
+
+def test_bridge_rejects_vram_out_of_range_and_builds_the_uma_size_flag():
+    from bc250cc.infrastructure.system_setup import command
+    script = command("vram-apply", uma_size_mb=512)
+    assert "--uma-size 512" in script
+    assert script.count("sudo ") == 1
+    for uma_size_mb in (0, 255, 16384, "512"):
+        with pytest.raises(ValueError):
+            command("vram-apply", uma_size_mb=uma_size_mb)

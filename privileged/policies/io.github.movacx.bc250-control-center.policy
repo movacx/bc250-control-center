@@ -60,8 +60,8 @@
   </action>
 
   <action id="io.github.movacx.bc250-control-center.system-setup">
-    <description>Apply validated BC250 memory and ACPI settings</description>
-    <message>Authentication is required to change BC250 memory or ACPI settings</message>
+    <description>Apply validated BC250 memory, VRAM and ACPI settings</description>
+    <message>Authentication is required to change BC250 memory, VRAM or ACPI settings</message>
     <defaults>
       <allow_any>no</allow_any>
       <allow_inactive>auth_admin</allow_inactive>

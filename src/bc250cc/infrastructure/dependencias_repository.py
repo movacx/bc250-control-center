@@ -199,6 +199,12 @@ class DependenciasRepository:
             return self.preparar_memoria_bazzite(policy, ttm_gib)
         return self._abrir_terminal(system_setup_command('memory-apply', policy, ttm_gib), 'BC250 Memory & Swap')
 
+    def preparar_vram(self, uma_size_mb: int):
+        return self._abrir_terminal(
+            system_setup_command('vram-apply', uma_size_mb=int(uma_size_mb)),
+            'BC250 VRAM',
+        )
+
     def gestionar_mitigaciones_bazzite(self, action: str):
         if self._os_repository().family != 'bazzite':
             raise RuntimeError('CPU mitigation management is available only on Bazzite.')

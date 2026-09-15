@@ -1226,6 +1226,8 @@ class ControlCenterWindow(QMainWindow):
                 memory_policy=str(payload.get("memory_policy") or "current"),
                 memory_ttm_gib=int(payload.get("memory_ttm_gib") or 0),
             )
+        elif options["action"] == "vram_apply":
+            options.update(vram_uma_size_mb=int(payload.get("vram_uma_size_mb") or 0))
         self.gpu_page.execute_dependency_action(
             **options,
         )

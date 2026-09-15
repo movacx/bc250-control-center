@@ -43,9 +43,11 @@ from ..i18n import tr, tr_format
 from .buttons import WrappingButton as QPushButton
 from .responsive import clear_grid
 from .system_setup_controls import (
+    VRAM_SIZE_PRESETS_MB,
     bazzite_ui_preview_enabled,
     is_bazzite_host,
     update_memory_controls,
+    vram_size_label,
 )
 from .widgets import ICON_DIR, PillLabel, apply_shadow, icon
 
@@ -1513,6 +1515,19 @@ class PreparationSidebar(QFrame):
         self.memory_ttm_apply_button = QPushButton(tr("Apply TTM"))
         self.memory_ttm_apply_button.setProperty("dashboardCardAction", True)
         self.memory_ttm_apply_button.clicked.connect(self._request_memory_ttm)
+        self._tools_snapshot: Mapping[str, object] = {}
+        self.memory_vram_label = _label(
+            "VRAM size (UMA_SIZE)", "dashboardMemoryControlLabel"
+        )
+        self.vram_size_combo = QComboBox()
+        self.vram_size_combo.setProperty("dashboardMemoryCombo", True)
+        self.vram_size_combo.addItem(tr("Keep current VRAM size"), 0)
+        for target in VRAM_SIZE_PRESETS_MB:
+            self.vram_size_combo.addItem(vram_size_label(target), target)
+        self.vram_size_combo.currentIndexChanged.connect(self._update_vram_control)
+        self.vram_apply_button = QPushButton(tr("Apply VRAM"))
+        self.vram_apply_button.setProperty("dashboardCardAction", True)
+        self.vram_apply_button.clicked.connect(self._request_vram_apply)
         self.memory_controls = controls
         memory_layout.addLayout(controls)
         layout.addWidget(self.memory_panel)
@@ -2019,60 +2034,42 @@ class PreparationSidebar(QFrame):
         if mode == self._memory_controls_wide:
             return
         self._memory_controls_wide = mode
-        clear_grid(self.memory_controls, reset_columns=4, reset_rows=4)
+        clear_grid(self.memory_controls, reset_columns=4, reset_rows=6)
+        paired_rows = (
+            (
+                self.memory_swap_label,
+                self.memory_policy_combo,
+                self.memory_swap_apply_button,
+            ),
+            (
+                self.memory_ttm_label,
+                self.ttm_limit_combo,
+                self.memory_ttm_apply_button,
+            ),
+        )
+        vram_row = (
+            self.memory_vram_label,
+            self.vram_size_combo,
+            self.vram_apply_button,
+        )
         if mode == "paired":
-            for column, (label, combo, button) in enumerate(
-                (
-                    (
-                        self.memory_swap_label,
-                        self.memory_policy_combo,
-                        self.memory_swap_apply_button,
-                    ),
-                    (
-                        self.memory_ttm_label,
-                        self.ttm_limit_combo,
-                        self.memory_ttm_apply_button,
-                    ),
-                )
-            ):
+            for column, (label, combo, button) in enumerate(paired_rows):
                 self.memory_controls.addWidget(label, 0, column * 2, 1, 2)
                 self.memory_controls.addWidget(combo, 1, column * 2)
                 self.memory_controls.addWidget(button, 1, column * 2 + 1)
                 self.memory_controls.setColumnStretch(column * 2, 1)
+            label, combo, button = vram_row
+            self.memory_controls.addWidget(label, 2, 0, 1, 4)
+            self.memory_controls.addWidget(combo, 3, 0, 1, 3)
+            self.memory_controls.addWidget(button, 3, 3)
         elif mode == "rows":
-            for row, (label, combo, button) in enumerate(
-                (
-                    (
-                        self.memory_swap_label,
-                        self.memory_policy_combo,
-                        self.memory_swap_apply_button,
-                    ),
-                    (
-                        self.memory_ttm_label,
-                        self.ttm_limit_combo,
-                        self.memory_ttm_apply_button,
-                    ),
-                )
-            ):
+            for row, (label, combo, button) in enumerate((*paired_rows, vram_row)):
                 self.memory_controls.addWidget(label, row, 0)
                 self.memory_controls.addWidget(combo, row, 1)
                 self.memory_controls.addWidget(button, row, 2)
             self.memory_controls.setColumnStretch(1, 1)
         else:
-            for row, (label, combo, button) in enumerate(
-                (
-                    (
-                        self.memory_swap_label,
-                        self.memory_policy_combo,
-                        self.memory_swap_apply_button,
-                    ),
-                    (
-                        self.memory_ttm_label,
-                        self.ttm_limit_combo,
-                        self.memory_ttm_apply_button,
-                    ),
-                )
-            ):
+            for row, (label, combo, button) in enumerate((*paired_rows, vram_row)):
                 base_row = row * 2
                 self.memory_controls.addWidget(label, base_row, 0, 1, 2)
                 self.memory_controls.addWidget(combo, base_row + 1, 0)
@@ -2139,6 +2136,31 @@ class PreparationSidebar(QFrame):
             }
         )
 
+    def _request_vram_apply(self) -> None:
+        self.dependency_action_requested.emit(
+            {
+                "action": "vram_apply",
+                "governor": "",
+                "selected_components": self.selected_components,
+                "vram_uma_size_mb": int(self.vram_size_combo.currentData() or 0),
+            }
+        )
+
+    def _update_vram_control(self) -> None:
+        setup = _mapping(self._tools_snapshot.get("system_setup"))
+        vram = _mapping(setup.get("vram"))
+        supported = bool(setup.get("helper_available") and vram.get("supported"))
+        selected = int(self.vram_size_combo.currentData() or 0) != 0
+        self.vram_apply_button.setEnabled(supported and selected)
+        reason = str(setup.get("reason") or vram.get("reason") or "")
+        tooltip = (
+            tr(reason)
+            if reason
+            else tr("Written to CMOS immediately; takes effect after the next reboot.")
+        )
+        self.vram_size_combo.setToolTip(tooltip)
+        self.vram_apply_button.setToolTip(tooltip)
+
     def _request_mitigations(self) -> None:
         self.dependency_action_requested.emit(
             {
@@ -2204,6 +2226,8 @@ class PreparationSidebar(QFrame):
         self.mitigations_apply_button.setToolTip(tooltip)
 
     def _update_memory_controls(self, tools: Mapping[str, object]) -> None:
+        self._tools_snapshot = tools
+        self._update_vram_control()
         actionable = is_bazzite_host(tools)
         self._update_mitigation_control(tools, actionable=actionable)
         runtime = _mapping(tools.get("memory_runtime"))

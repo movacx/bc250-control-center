@@ -389,6 +389,9 @@ class SistemaService:
     def preparar_memoria(self, policy: str, ttm_gib: int):
         return self.repo.preparar_memoria(policy, ttm_gib)
 
+    def preparar_vram(self, uma_size_mb: int):
+        return self.repo.preparar_vram(uma_size_mb)
+
     def gestionar_mitigaciones_bazzite(self, action: str):
         return self.repo.gestionar_mitigaciones_bazzite(action)
 

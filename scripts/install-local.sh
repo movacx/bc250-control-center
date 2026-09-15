@@ -375,6 +375,7 @@ install_privileged_pwm_components() {
     "/usr/libexec/bc250-control-center/lib/system_setup_memory.py"
     "/usr/libexec/bc250-control-center/lib/system_setup_acpi.py"
     "/usr/libexec/bc250-control-center/lib/system_setup_telemetry.py"
+    "/usr/libexec/bc250-control-center/lib/system_setup_vram.py"
     "/usr/libexec/bc250-control-center/lib/acpi_payload.py"
     "/usr/libexec/bc250-control-center/lib/bc250_contract.py"
     "$cu_helper_target"
@@ -427,7 +428,7 @@ install_privileged_pwm_components() {
     # by the group, causing every hardened helper to reject its own imports.
     "${elevate[@]}" install -d -m0755 /usr/libexec/bc250-control-center /usr/libexec/bc250-control-center/lib
     "${elevate[@]}" install -Dm755 "$system_setup_helper_source" /usr/libexec/bc250-control-center/bc250-system-setup-helper
-    for setup_module in system_setup_common.py system_setup_memory.py system_setup_acpi.py system_setup_telemetry.py acpi_payload.py bc250_contract.py; do
+    for setup_module in system_setup_common.py system_setup_memory.py system_setup_acpi.py system_setup_telemetry.py system_setup_vram.py acpi_payload.py bc250_contract.py; do
       "${elevate[@]}" install -Dm644 "$ROOT_DIR/privileged/lib/$setup_module" "/usr/libexec/bc250-control-center/lib/$setup_module"
     done
     "${elevate[@]}" install -Dm755 "$helper_source" "$SYSTEM_PRIV_HELPER"

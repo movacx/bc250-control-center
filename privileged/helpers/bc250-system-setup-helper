@@ -1,5 +1,5 @@
 #!/usr/bin/python3 -I
-"""Finite memory/ACPI transactions. No arbitrary command, path or root CLI."""
+"""Finite memory/ACPI/VRAM transactions. No arbitrary command, path or root CLI."""
 import argparse
 import fcntl
 import json
@@ -12,9 +12,11 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("action", choices=("status", "memory-plan", "memory-apply", "memory-boot",
                                            "acpi-install", "acpi-uninstall", "acpi-check",
-                                           "telemetry-fix", "telemetry-restore", "uninstall-check"))
+                                           "telemetry-fix", "telemetry-restore",
+                                           "vram-read", "vram-apply", "uninstall-check"))
     parser.add_argument("--policy", choices=("preserve", "restore", "swap-16", "swap-32", "zram", "zswap-16", "zswap-32"), default="preserve")
     parser.add_argument("--ttm", type=int, choices=(-1, 0, 8, 10, 12), default=0)
+    parser.add_argument("--uma-size", type=int, default=0)
     args = parser.parse_args()
     readonly = args.action in {"status", "memory-plan", "uninstall-check"}
     if not readonly and os.geteuid() != 0:
@@ -30,6 +32,7 @@ def main():
     import system_setup_acpi as acpi
     import system_setup_memory as memory
     import system_setup_telemetry as telemetry
+    import system_setup_vram as vram
     from system_setup_common import STATE, Host, SetupError
 
     host = Host()
@@ -46,6 +49,7 @@ def main():
                 "memory": memory.status(host),
                 "acpi": acpi.status(host),
                 "telemetry": telemetry.status(host),
+                "vram": vram.status(host),
                 "protocol": 2,
             }
             if args.action == "memory-plan":
@@ -70,6 +74,10 @@ def main():
                 result = telemetry.apply(host)
             elif args.action == "telemetry-restore":
                 result = telemetry.restore(host)
+            elif args.action == "vram-read":
+                result = vram.read(host)
+            elif args.action == "vram-apply":
+                result = vram.apply(host, args.uma_size)
             else:
                 result = acpi.uninstall(host)
         finally:
@@ -87,6 +95,10 @@ def main():
         if args.action == "acpi-check":
             availability = "available" if result.get("available") else "blocked by the reported compatibility reason"
             print(f"Inspection only: no setting was changed. ACPI installation is {availability}.")
+        elif args.action == "vram-read":
+            print("Inspection only: no setting was changed.")
+        elif args.action == "vram-apply":
+            print("The new VRAM size is written to CMOS and takes effect on next reboot; it is not an automatic reboot.")
         else:
             print("Review the reported state. Reboot is required for ACPI and ZRAM changes; no automatic reboot was requested.")
         return 0
