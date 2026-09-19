@@ -1792,7 +1792,7 @@ class GpuGovernorPage(QWidget):
 
     def __init__(self, controller, parent: QWidget | None = None, *, settings_service=None):
         super().__init__(parent)
-        self.setProperty("gpuGovernorPage", True)
+        self.setProperty("redesignedModule", True)
         self.controller = controller
         self.settings_service = settings_service
         self.current_state: dict = {}

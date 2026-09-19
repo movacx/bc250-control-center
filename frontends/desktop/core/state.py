@@ -390,6 +390,10 @@ class DashboardState:
     gpu_utilization_percent: int = 0
     gpu_voltage_mv: int = 0
     gpu_memory_frequency_mhz: int = 0
+    gpu_soc_frequency_mhz: int = 0
+    gpu_fabric_frequency_mhz: int = 0
+    gpu_pcie_link: str = ""
+    gpu_vbios_version: str = ""
     gpu_gtt_used_bytes: int = 0
     gpu_gtt_total_bytes: int = 0
     gpu_dpm_force_level: str = ""
@@ -431,10 +435,38 @@ class DashboardState:
     gpu_driver: str = ""
     vram_used_bytes: int = 0
     vram_total_bytes: int = 0
+    #: Shared with the GPU: VRAM and GTT are carved out of this pool, so the
+    #: dashboard could report the pools without reporting what they come from.
+    memory_used_bytes: int = 0
+    memory_total_bytes: int = 0
+    memory_percent: float = 0.0
+    swap_used_bytes: int = 0
+    swap_total_bytes: int = 0
+    disk_used_bytes: int = 0
+    disk_total_bytes: int = 0
+    disk_percent: float = 0.0
+
     nvme_temperature_c: float = 0.0
     nvme_hotspot_temperature_c: float = 0.0
     board_temperature_c: float = 0.0
+    #: The hottest VRM reading, whatever its origin. ``vrm_source`` says what
+    #: it actually is: "pmbus" for a real rail measurement from the PMIC,
+    #: "nct" for the Nuvoton channel labelled VRM MOS, "" for nothing found.
     vrm_temperature_c: float = 0.0
+    vrm_source: str = ""
+    vrm_cpu_temperature_c: float = 0.0
+    vrm_gpu_temperature_c: float = 0.0
+    #: Electrical readings, PMBus only. Zero means "not reported".
+    vrm_input_voltage_v: float = 0.0
+    vrm_total_power_w: float = 0.0
+    vrm_cpu_voltage_v: float = 0.0
+    vrm_gpu_voltage_v: float = 0.0
+    vrm_cpu_current_a: float = 0.0
+    vrm_gpu_current_a: float = 0.0
+    vrm_cpu_power_w: float = 0.0
+    vrm_gpu_power_w: float = 0.0
+    #: Status bits the PMIC raised itself, e.g. ``("gpu_temp_warning",)``.
+    vrm_alerts: tuple[str, ...] = field(default_factory=tuple)
 
     activities: tuple[ActivityItem, ...] = field(default_factory=tuple)
 
@@ -448,6 +480,8 @@ class DashboardState:
         gpu = metrics.get("gpu") or {}
         power = metrics.get("power") or {}
         sensors = metrics.get("sensors") or {}
+        memory = metrics.get("memory") or {}
+        disk = metrics.get("disk") or {}
         # Real-time providers can return a partial sample (for example, a
         # sensor-only refresh after the CPU probe has already completed).
         # Preserve the last fresh value for omitted groups; an entirely empty
@@ -469,6 +503,10 @@ class DashboardState:
                 "usage_percent": self.gpu_utilization_percent,
                 "voltage_mv": self.gpu_voltage_mv,
                 "memory_frequency_mhz": self.gpu_memory_frequency_mhz,
+                "soc_frequency_mhz": self.gpu_soc_frequency_mhz,
+                "fabric_frequency_mhz": self.gpu_fabric_frequency_mhz,
+                "pcie_link": self.gpu_pcie_link,
+                "vbios_version": self.gpu_vbios_version,
                 "gtt_used": self.gpu_gtt_used_bytes,
                 "gtt_total": self.gpu_gtt_total_bytes,
                 "dpm_force_level": self.gpu_dpm_force_level,
@@ -491,6 +529,21 @@ class DashboardState:
                 "nvme_hotspot_temperature_c": self.nvme_hotspot_temperature_c,
                 "board_temperature_c": self.board_temperature_c,
                 "vrm_temperature_c": self.vrm_temperature_c,
+                # The VRM block travels together. Carrying the source forward
+                # without its rails left the screen claiming PMBus while every
+                # rail read "Not detected".
+                "vrm_source": self.vrm_source,
+                "vrm_cpu_temperature_c": self.vrm_cpu_temperature_c,
+                "vrm_gpu_temperature_c": self.vrm_gpu_temperature_c,
+                "vrm_input_voltage_v": self.vrm_input_voltage_v,
+                "vrm_total_power_w": self.vrm_total_power_w,
+                "vrm_cpu_voltage_v": self.vrm_cpu_voltage_v,
+                "vrm_gpu_voltage_v": self.vrm_gpu_voltage_v,
+                "vrm_cpu_current_a": self.vrm_cpu_current_a,
+                "vrm_gpu_current_a": self.vrm_gpu_current_a,
+                "vrm_cpu_power_w": self.vrm_cpu_power_w,
+                "vrm_gpu_power_w": self.vrm_gpu_power_w,
+                "vrm_alerts": self.vrm_alerts,
                 **sensors,
             }
         return replace(
@@ -517,6 +570,12 @@ class DashboardState:
             gpu_memory_frequency_mhz=max(
                 0, _integer(gpu.get("memory_frequency_mhz"))
             ),
+            gpu_pcie_link=str(gpu.get("pcie_link") or ""),
+            gpu_vbios_version=str(gpu.get("vbios_version") or ""),
+            gpu_soc_frequency_mhz=max(0, _integer(gpu.get("soc_frequency_mhz"))),
+            gpu_fabric_frequency_mhz=max(
+                0, _integer(gpu.get("fabric_frequency_mhz"))
+            ),
             gpu_gtt_used_bytes=max(0, _integer(gpu.get("gtt_used"))),
             gpu_gtt_total_bytes=max(0, _integer(gpu.get("gtt_total"))),
             gpu_dpm_force_level=str(gpu.get("dpm_force_level") or ""),
@@ -535,6 +594,30 @@ class DashboardState:
             ),
             board_temperature_c=_number(sensors.get("board_temperature_c")),
             vrm_temperature_c=_number(sensors.get("vrm_temperature_c")),
+            vrm_source=str(sensors.get("vrm_source") or ""),
+            vrm_cpu_temperature_c=_number(sensors.get("vrm_cpu_temperature_c")),
+            vrm_gpu_temperature_c=_number(sensors.get("vrm_gpu_temperature_c")),
+            vrm_input_voltage_v=_number(sensors.get("vrm_input_voltage_v")),
+            vrm_total_power_w=_number(sensors.get("vrm_total_power_w")),
+            vrm_cpu_voltage_v=_number(sensors.get("vrm_cpu_voltage_v")),
+            vrm_gpu_voltage_v=_number(sensors.get("vrm_gpu_voltage_v")),
+            vrm_cpu_current_a=_number(sensors.get("vrm_cpu_current_a")),
+            vrm_gpu_current_a=_number(sensors.get("vrm_gpu_current_a")),
+            vrm_cpu_power_w=_number(sensors.get("vrm_cpu_power_w")),
+            vrm_gpu_power_w=_number(sensors.get("vrm_gpu_power_w")),
+            vrm_alerts=tuple(str(alert) for alert in sensors.get("vrm_alerts") or ()),
+            memory_used_bytes=max(0, _integer(memory.get("used"), self.memory_used_bytes)),
+            memory_total_bytes=max(
+                0, _integer(memory.get("total"), self.memory_total_bytes)
+            ),
+            memory_percent=_number(memory.get("usage_percent"), self.memory_percent),
+            swap_used_bytes=max(0, _integer(memory.get("swap_used"), self.swap_used_bytes)),
+            swap_total_bytes=max(
+                0, _integer(memory.get("swap_total"), self.swap_total_bytes)
+            ),
+            disk_used_bytes=max(0, _integer(disk.get("used"), self.disk_used_bytes)),
+            disk_total_bytes=max(0, _integer(disk.get("total"), self.disk_total_bytes)),
+            disk_percent=_number(disk.get("usage_percent"), self.disk_percent),
             performance_available=bool(cpu or gpu or power),
         )
 
@@ -543,6 +626,24 @@ class DashboardState:
         name = (self.gpu_name or "BC250").strip()
         driver = (self.gpu_driver or "").strip()
         return f"{name} • {driver}" if driver else name
+
+    @property
+    def memory_summary(self) -> str:
+        return self._pool_summary(self.memory_used_bytes, self.memory_total_bytes)
+
+    @property
+    def swap_summary(self) -> str:
+        return self._pool_summary(self.swap_used_bytes, self.swap_total_bytes)
+
+    @property
+    def disk_summary(self) -> str:
+        return self._pool_summary(self.disk_used_bytes, self.disk_total_bytes)
+
+    @staticmethod
+    def _pool_summary(used: int, total: int) -> str:
+        if total <= 0:
+            return "Not detected"
+        return f"{_format_binary_bytes(used)} / {_format_binary_bytes(total)}"
 
     @property
     def vram_summary(self) -> str:
@@ -662,6 +763,20 @@ class DashboardState:
             governor_min_mhz=current_min,
             governor_max_mhz=current_max,
             gpu_temperature_c=_number(perf.get("gpu_temp"), 0.0),
+            vrm_temperature_c=_number(perf.get("vrm_temp"), 0.0),
+            vrm_source=str(perf.get("vrm_source") or ""),
+            vrm_cpu_temperature_c=_number(perf.get("vrm_temp_cpu"), 0.0),
+            vrm_gpu_temperature_c=_number(perf.get("vrm_temp_gpu"), 0.0),
+            vrm_input_voltage_v=_number(perf.get("vrm_input_voltage_v"), 0.0),
+            vrm_total_power_w=_number(perf.get("vrm_total_power_w"), 0.0),
+            vrm_cpu_voltage_v=_number(perf.get("vrm_cpu_voltage_v"), 0.0),
+            vrm_gpu_voltage_v=_number(perf.get("vrm_gpu_voltage_v"), 0.0),
+            vrm_cpu_current_a=_number(perf.get("vrm_cpu_current_a"), 0.0),
+            vrm_gpu_current_a=_number(perf.get("vrm_gpu_current_a"), 0.0),
+            vrm_cpu_power_w=_number(perf.get("vrm_cpu_power_w"), 0.0),
+            vrm_gpu_power_w=_number(perf.get("vrm_gpu_power_w"), 0.0),
+            vrm_alerts=tuple(str(alert) for alert in perf.get("vrm_alerts") or ()),
+            board_temperature_c=_number(perf.get("board_temp"), 0.0),
             gpu_utilization_percent=_integer(
                 gpu.get("gpu_busy") if gpu.get("gpu_busy") is not None else perf.get("gpu_busy"), -1
             ),
@@ -672,6 +787,12 @@ class DashboardState:
                     perf.get("memory_frequency_mhz"),
                     _integer(gpu.get("mclk_actual"), 0),
                 ),
+            ),
+            gpu_pcie_link=str(perf.get("pcie_link") or ""),
+            gpu_vbios_version=str(perf.get("vbios_version") or ""),
+            gpu_soc_frequency_mhz=max(0, _integer(perf.get("soc_frequency_mhz"), 0)),
+            gpu_fabric_frequency_mhz=max(
+                0, _integer(perf.get("fabric_frequency_mhz"), 0)
             ),
             gpu_gtt_used_bytes=max(0, _integer(perf.get("gtt_used"), 0)),
             gpu_gtt_total_bytes=max(0, _integer(perf.get("gtt_total"), 0)),

@@ -333,20 +333,27 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
                 elif 'vrm' in normalized:
                     vrm.append(value)
 
+        # Two physical VRMs, kept apart. Collapsing them into one maximum
+        # hid which rail was heating up, and when the PMBus daemon is absent
+        # the fallback is not a VRM reading at all: it is whatever channel the
+        # Nuvoton labels "VRM MOS", which on a BC-250 tracks the board sensor.
+        # The source travels with the value so nothing downstream has to guess
+        # what it is looking at.
         vrm_externo = leer_telemetria_vrm()
+        vrm_cpu = vrm_externo.get('vrm_cpu_temperature_c')
+        vrm_gpu = vrm_externo.get('vrm_gpu_temperature_c')
         vrm_externo_valores = [
-            valor
-            for valor in (
-                vrm_externo.get('vrm_cpu_temperature_c'),
-                vrm_externo.get('vrm_gpu_temperature_c'),
-            )
-            if valor is not None
+            valor for valor in (vrm_cpu, vrm_gpu) if valor is not None
         ]
-        vrm_temperature = (
-            max(vrm_externo_valores)
-            if vrm_externo_valores
-            else (max(vrm) if vrm else None)
-        )
+        if vrm_externo_valores:
+            vrm_temperature = max(vrm_externo_valores)
+            vrm_source = 'pmbus'
+        elif vrm:
+            vrm_temperature = max(vrm)
+            vrm_source = 'nct'
+        else:
+            vrm_temperature = None
+            vrm_source = ''
 
         result = {
             'nvme_temperature_c': max(nvme) if nvme else None,
@@ -355,6 +362,18 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
             ),
             'board_temperature_c': max(board) if board else None,
             'vrm_temperature_c': vrm_temperature,
+            'vrm_cpu_temperature_c': vrm_cpu,
+            'vrm_gpu_temperature_c': vrm_gpu,
+            'vrm_source': vrm_source,
+            'vrm_input_voltage_v': vrm_externo.get('vrm_input_voltage_v'),
+            'vrm_total_power_w': vrm_externo.get('vrm_total_power_w'),
+            'vrm_cpu_voltage_v': vrm_externo.get('vrm_cpu_voltage_v'),
+            'vrm_gpu_voltage_v': vrm_externo.get('vrm_gpu_voltage_v'),
+            'vrm_cpu_current_a': vrm_externo.get('vrm_cpu_current_a'),
+            'vrm_gpu_current_a': vrm_externo.get('vrm_gpu_current_a'),
+            'vrm_cpu_power_w': vrm_externo.get('vrm_cpu_power_w'),
+            'vrm_gpu_power_w': vrm_externo.get('vrm_gpu_power_w'),
+            'vrm_alerts': tuple(vrm_externo.get('vrm_alerts') or ()),
         }
         self._aux_temperature_cache = dict(result)
         self._aux_temperature_cache_time = now
@@ -725,6 +744,18 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
             'cpu_temp': cpu_temperature,
             'gpu_temp': gpu_temperature,
             'vrm_temp': vrm_temperature,
+            'vrm_temp_cpu': auxiliary_temperatures.get('vrm_cpu_temperature_c'),
+            'vrm_temp_gpu': auxiliary_temperatures.get('vrm_gpu_temperature_c'),
+            'vrm_source': auxiliary_temperatures.get('vrm_source', ''),
+            'vrm_input_voltage_v': auxiliary_temperatures.get('vrm_input_voltage_v'),
+            'vrm_total_power_w': auxiliary_temperatures.get('vrm_total_power_w'),
+            'vrm_cpu_voltage_v': auxiliary_temperatures.get('vrm_cpu_voltage_v'),
+            'vrm_gpu_voltage_v': auxiliary_temperatures.get('vrm_gpu_voltage_v'),
+            'vrm_cpu_current_a': auxiliary_temperatures.get('vrm_cpu_current_a'),
+            'vrm_gpu_current_a': auxiliary_temperatures.get('vrm_gpu_current_a'),
+            'vrm_cpu_power_w': auxiliary_temperatures.get('vrm_cpu_power_w'),
+            'vrm_gpu_power_w': auxiliary_temperatures.get('vrm_gpu_power_w'),
+            'vrm_alerts': tuple(auxiliary_temperatures.get('vrm_alerts') or ()),
             'board_temp': board_temperature,
             'temperature_sensor_times': {
                 sensor: sample_time
@@ -947,6 +978,10 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
         if not gpu:
             return {
                 'memory_frequency_mhz': None,
+                'soc_frequency_mhz': None,
+                'fabric_frequency_mhz': None,
+                'pcie_link': '',
+                'vbios_version': '',
                 'gtt_used': None,
                 'gtt_total': None,
                 'dpm_force_level': '',
@@ -956,6 +991,21 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
             'memory_frequency_mhz': self._parse_dpm_actual(
                 self._leer_texto(gpu / 'pp_dpm_mclk')
             ),
+            # The two clocks that decide how fast the GPU can reach memory on
+            # this APU. Both are already exposed by amdgpu and neither was
+            # read: a 450 MHz fabric clock explains a stall that core and
+            # memory clocks alone do not.
+            'soc_frequency_mhz': self._parse_dpm_actual(
+                self._leer_texto(gpu / 'pp_dpm_socclk')
+            ),
+            'fabric_frequency_mhz': self._parse_dpm_actual(
+                self._leer_texto(gpu / 'pp_dpm_fclk')
+            ),
+            # A BC-250 on a riser can negotiate a narrower or slower link than
+            # the slot allows, and nothing else on screen would show it.
+            'pcie_link': self._enlace_pcie(gpu),
+            # The first thing any support thread asks for.
+            'vbios_version': (self._leer_texto(gpu / 'vbios_version') or '').strip(),
             'gtt_used': self._leer_entero(gpu / 'mem_info_gtt_used'),
             'gtt_total': self._leer_entero(gpu / 'mem_info_gtt_total'),
             'dpm_force_level': self._leer_texto(
@@ -963,6 +1013,16 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
             ) or '',
             'dpm_state': self._leer_texto(gpu / 'power_dpm_state') or '',
         }
+
+    def _enlace_pcie(self, gpu):
+        """The negotiated link, as "16.0 GT/s x16", or empty when unknown."""
+        speed = (self._leer_texto(gpu / 'current_link_speed') or '').strip()
+        width = (self._leer_texto(gpu / 'current_link_width') or '').strip()
+        if not speed or not width:
+            return ''
+        # The driver writes "16.0 GT/s PCIe"; the bus name is already implied.
+        speed = speed.replace('PCIe', '').strip()
+        return f'{speed} x{width}'
 
     def obtener_metricas_tiempo_real(self):
         """Return one passive Linux performance sample for the live monitor.

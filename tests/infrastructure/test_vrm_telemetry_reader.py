@@ -70,3 +70,75 @@ def test_invalid_rail_reading_is_not_reported_as_a_real_temperature(tmp_path):
 
     assert result["vrm_cpu_temperature_c"] is None
     assert result["vrm_gpu_temperature_c"] == 48.0
+
+
+FULL_SNAPSHOT = {
+    "hardware": {
+        "cpu": {
+            "valid": True, "vin": 12.22, "vout": 0.78, "iout": 2.8,
+            "pout": 2.2, "temp": 45.0, "iout_warning": False,
+            "iout_fault": False, "temp_warning": False, "temp_fault": False,
+        },
+        "gpu": {
+            "valid": True, "vin": 12.20, "vout": 0.646, "iout": 12.0,
+            "pout": 7.8, "temp": 48.0, "iout_warning": True,
+            "iout_fault": False, "temp_warning": False, "temp_fault": True,
+        },
+        "total_power": 10.0,
+        "total_power_valid": True,
+    },
+}
+
+
+def test_the_whole_rail_is_read_not_only_its_temperature(tmp_path):
+    """The PMIC reports volts, amps and watts per rail; we used to drop them.
+
+    A VRM temperature on its own cannot tell the difference between a hot rail
+    and a rail pulling too much current, which is the failure this hardware
+    actually has.
+    """
+    snapshot = tmp_path / "apu_telemetry.json"
+    _write_snapshot(snapshot, FULL_SNAPSHOT)
+
+    result = leer_telemetria_vrm(snapshot)
+
+    assert result["vrm_available"] is True
+    assert result["vrm_input_voltage_v"] == 12.22
+    assert result["vrm_total_power_w"] == 10.0
+    assert result["vrm_cpu_voltage_v"] == 0.78
+    assert result["vrm_cpu_current_a"] == 2.8
+    assert result["vrm_cpu_power_w"] == 2.2
+    assert result["vrm_gpu_voltage_v"] == 0.646
+    assert result["vrm_gpu_current_a"] == 12.0
+    assert result["vrm_gpu_power_w"] == 7.8
+
+
+def test_the_status_bits_the_pmic_raises_are_carried_through(tmp_path):
+    snapshot = tmp_path / "apu_telemetry.json"
+    _write_snapshot(snapshot, FULL_SNAPSHOT)
+
+    result = leer_telemetria_vrm(snapshot)
+
+    assert result["vrm_alerts"] == ("gpu_iout_warning", "gpu_temp_fault")
+
+
+def test_a_rail_that_did_not_answer_reports_nothing_rather_than_minus_one(tmp_path):
+    """The daemon writes -1 for "no answer"; -1 °C is not a reading."""
+    snapshot = tmp_path / "apu_telemetry.json"
+    _write_snapshot(snapshot, {
+        "hardware": {
+            "cpu": {"valid": True, "vin": -1, "vout": -1, "iout": -1,
+                    "pout": -1, "temp": -1},
+            "gpu": {"valid": False, "temp": 48.0},
+            "total_power": -1, "total_power_valid": False,
+        },
+    })
+
+    result = leer_telemetria_vrm(snapshot)
+
+    assert result["vrm_cpu_temperature_c"] is None
+    assert result["vrm_input_voltage_v"] is None
+    assert result["vrm_total_power_w"] is None
+    # The GPU rail said it was invalid, so nothing of it is believed.
+    assert result["vrm_gpu_temperature_c"] is None
+    assert result["vrm_available"] is False

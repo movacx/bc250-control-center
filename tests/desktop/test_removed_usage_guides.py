@@ -68,11 +68,27 @@ def test_umr_is_still_installable_from_the_dependency_workflow():
     assert "install_umr()" in script.read_text(encoding="utf-8")
 
 
-def test_prepare_cpu_tools_took_the_slot_the_guide_toggle_had(qtbot):
+def test_the_cpu_page_no_longer_offers_to_prepare_its_tools(qtbot):
+    """The action left the page the same way "Install UMR" left its own.
+
+    ``bc250_smu_oc`` is vendored into the package and installed alongside the
+    privileged helpers, and the Dashboard's dependency workflow installs the
+    one external thing the CPU path needs. The button was a repair door for a
+    case the normal install already covers.
+    """
     page = CpuSmuPage(object())
     qtbot.addWidget(page)
-    assert page.prepare_tools_button in page.runtime_action_buttons
-    assert _in_a_layout(page.prepare_tools_button)
+    view = page._unified_cpu_control
+    assert not hasattr(view, "prepare_tools_button")
+
+
+def test_the_vendored_cpu_tool_still_ships_with_the_package():
+    """Removing a button must not remove the capability behind it."""
+    from pathlib import Path
+
+    assert Path("privileged/lib/bc250_smu_oc_vendor.zip").is_file()
+    script = Path("packaging/common/os-scripts/arch/prepare-dependencies.sh")
+    assert "install_stress()" in script.read_text(encoding="utf-8")
 
 
 @pytest.mark.parametrize("factory", (CpuSmuPage, GpuGovernorPage, ComputeUnitsPage))

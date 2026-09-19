@@ -22,11 +22,17 @@ from bc250cc.infrastructure.release_check import (
 )
 
 from ..components.async_tools import AsyncRefresh, BackgroundExecutor
+from ..components.buttons import WrappingButton as QPushButton
+from ..components.core_monitor import CoreReading
+from ..components.dashboard_instruments import (
+    BoardHeader,
+    CoreMonitor,
+    InstrumentBand,
+    InstrumentPanel,
+)
 from ..components.dashboard_widgets import (
     DashboardFooter,
-    DashboardGpuHero,
     DashboardMemorySummary,
-    DashboardModuleCard,
     DashboardScrollArea,
     PreparationSidebar,
     UpdateCallout,
@@ -84,6 +90,9 @@ SUPPORT_URL = "https://ko-fi.com/movacx"
 class DashboardPage(QWidget):
     """GPU-first system overview with one real preparation surface."""
 
+    #: Relative widths of the processor, graphics and cooling panels.
+    MODULE_WEIGHTS = (10, 13, 10)
+
     module_requested = pyqtSignal(str)
     action_requested = pyqtSignal(str)
     dependency_action_requested = pyqtSignal(object)
@@ -135,66 +144,115 @@ class DashboardPage(QWidget):
         self.main_layout.setContentsMargins(0, 0, 0, 0)
         self.main_layout.setSpacing(12)
 
-        self.gpu_card = DashboardGpuHero()
-        self.gpu_card.activated.connect(self.module_requested)
-        self.gpu_card.telemetry_repair_requested.connect(self._request_telemetry_repair)
-        self.main_layout.addWidget(self.gpu_card)
+        # ── one header, three instruments, and the optional bands ────────
+        self.board_header = BoardHeader()
+        self.main_layout.addWidget(self.board_header)
 
-        # Its own block directly under the hero's core strip, rather than
-        # inside the hero: that card carries a height ratchet, and eight more
-        # cells would push it past the compact size the dashboard fixes.
-        self.memory_summary = DashboardMemorySummary(live_action=True)
-        self.memory_monitor = gddr6_monitor_for(controller)
-        self.memory_summary.live_toggled.connect(self.memory_monitor.set_live)
-        self.memory_summary.prepare_requested.connect(self._prepare_memory_readings)
-        self.memory_monitor.changed.connect(self._apply_memory_reading)
-        self.main_layout.addWidget(self.memory_summary)
+        self.gpu_card = InstrumentPanel("gpu", "Graphics", columns=2)
+        self.gpu_card.headline.add("clock", "Frequency", "MHz")
+        self.gpu_card.headline.seal()
+        for key, label, group, column in (
+            ("temperature", "Temperature", "Thermal", 0),
+            ("rail", "VRM GPU", "Thermal", 0),
+            ("power", "GPU power", "Thermal", 0),
+            ("mclk", "MCLK", "Clocks", 0),
+            ("socclk", "SOCCLK", "Clocks", 0),
+            ("fclk", "FCLK", "Clocks", 0),
+            ("vram", "VRAM", "Memory", 1),
+            ("gtt", "GTT", "Memory", 1),
+            ("load", "GPU load", "Status", 1),
+            ("voltage", "GPU voltage", "Status", 1),
+            ("cu", "Compute Units", "Status", 1),
+            ("governor", "Governor", "Status", 1),
+            ("range", "Requested range", "Status", 1),
+            ("pcie", "PCIe link", "Status", 1),
+            ("vbios", "VBIOS", "Status", 1),
+        ):
+            self.gpu_card.details.add(key, label, group=group, column=column)
+        self.telemetry_repair_button = QPushButton(tr("Repair BC250 telemetry"))
+        self.telemetry_repair_button.setProperty("dashboardTelemetryAction", True)
+        self.telemetry_repair_button.clicked.connect(self._request_telemetry_repair)
+        self.telemetry_repair_button.hide()
+        self.gpu_card.extras.addWidget(self.telemetry_repair_button)
+        self.gpu_card.add_action("Configure Governor")
+        self.gpu_card.add_action("Configure CUs", module="cu")
 
+        self.cpu_card = InstrumentPanel("cpu", "Processor")
+        self.cpu_card.headline.add("clock", "Frequency", "GHz")
+        self.cpu_card.headline.seal()
+        for key, label, group in (
+            ("temperature", "Core temperature", "Thermal"),
+            ("rail", "VRM CPU", "Thermal"),
+            ("load", "CPU usage", "Activity"),
+            ("voltage", "Voltage sensor", "Activity"),
+            ("oc", "Registered OC", "Activity"),
+        ):
+            self.cpu_card.details.add(key, label, group=group)
+        self.cores_summary = CoreMonitor()
+        self.cpu_card.extras.addWidget(self.cores_summary)
+        # One button: the CPU module merged its monitoring and configuration
+        # into a single workspace, so "overview" is no longer a place to go.
+        self.cpu_card.add_action("Configure CPU")
+
+        self.fan_card = InstrumentPanel("fans", "Cooling")
+        self.fan_card.headline.add("rpm", "Fan speed", "RPM")
+        self.fan_card.headline.seal()
+        for key, label, group in (
+            ("duty", "PWM duty", "Fan"),
+            ("mode", "PWM mode", "Fan"),
+            ("controller", "Controller", "Fan"),
+            ("board", "Board", "Thermal environment"),
+            ("nvme", "M.2", "Thermal environment"),
+            ("hotspot", "M.2 hotspot", "Thermal environment"),
+            # The pool the GPU carves VRAM and GTT out of, and the drive whose
+            # temperature is two rows above: both were measured every second
+            # and shown nowhere.
+            ("ram", "System memory", "System"),
+            ("swap", "Swap", "System"),
+            ("storage", "Storage", "System"),
+        ):
+            self.fan_card.details.add(key, label, group=group)
+        self.fan_card.add_action("Fan Control")
+        self.fan_card.add_action("Automatic curve", action="fans_curve")
+
+        self.instruments = (self.cpu_card, self.gpu_card, self.fan_card)
         self.modules_host = QWidget()
         self.modules_grid = QGridLayout(self.modules_host)
         self.modules_grid.setContentsMargins(0, 0, 0, 0)
         self.modules_grid.setHorizontalSpacing(12)
         self.modules_grid.setVerticalSpacing(12)
         self.main_layout.addWidget(self.modules_host)
+        for panel in self.instruments:
+            panel.activated.connect(self._open_module)
+            panel.action_requested.connect(self.action_requested)
 
-        self.cpu_card = DashboardModuleCard(
-            "cpu",
-            "CPU / SMU",
-            "",
-            "cpu_blue",
-            "blue",
-            "GHz",
-            ("Voltage sensor", "Core temperature", "CPU usage"),
-            "Configure CPU",
-            secondary_action=("cpu_overview", "Unlock cores"),
-        )
-        self.cu_card = DashboardModuleCard(
-            "cu",
-            "Compute Units",
-            "",
-            "compute_orange",
-            "orange",
-            "/ 40",
-            ("Boot sync", "UMR"),
-            "Configure CUs",
-        )
-        self.fan_card = DashboardModuleCard(
-            "fans",
-            "Fans",
-            "",
-            "fan_cyan",
-            "cyan",
-            "RPM",
-            ("Controller", "PWM mode", "PWM duty"),
-            "Fan Control",
-            secondary_action=("fans_curve", "Automatic curve"),
-        )
-        self.module_cards = (self.cpu_card, self.cu_card, self.fan_card)
-        self.cpu_card.status.hide()
-        self.cu_card.status.hide()
-        for card in self.module_cards:
-            card.activated.connect(self._open_module)
-            card.action_requested.connect(self.action_requested)
+        # Subsystems that not every board has. Each one is a band under the
+        # instruments rather than a column of "Not detected" inside them.
+        self.memory_summary = DashboardMemorySummary(live_action=True)
+        # Same surface as the panels and the power band: one screen, one
+        # material. The widget keeps its own behaviour.
+        self.memory_summary.setProperty("instrumentPanel", True)
+        self.memory_monitor = gddr6_monitor_for(controller)
+        self.memory_summary.live_toggled.connect(self.memory_monitor.set_live)
+        self.memory_summary.prepare_requested.connect(self._prepare_memory_readings)
+        self.memory_monitor.changed.connect(self._apply_memory_reading)
+        self.main_layout.addWidget(self.memory_summary)
+
+        # Everything the PMIC reports, not only the two temperatures. A stock
+        # board has no I2C link to it, so the whole band stays away.
+        self.vrm_strip = InstrumentBand("Power delivery")
+        for key, label in (
+            ("input", "12V in"),
+            ("cpu_voltage", "VRM CPU"),
+            ("gpu_voltage", "VRM GPU"),
+            ("total", "VRM power"),
+            ("cpu_current", "CPU current"),
+            ("gpu_current", "GPU current"),
+            ("cpu_temperature", "VRM CPU"),
+            ("gpu_temperature", "VRM GPU"),
+        ):
+            self.vrm_strip.add(key, label)
+        self.main_layout.addWidget(self.vrm_strip)
 
         self.readiness = PreparationSidebar()
         self.readiness.prepare_requested.connect(self.dependency_action_requested)
@@ -314,6 +372,10 @@ class DashboardPage(QWidget):
         self.state = self.state.with_live_metrics(metrics)
         self._apply_gpu_card(self.state)
         self._apply_cpu_card(self.state)
+        # The board and drive temperatures moved to the cooling card, and this
+        # is the path that carries them: without it they would only change on
+        # a full refresh while every other sensor ticked.
+        self._apply_fan_card(self.state)
 
     def _live_failed(self, message: str) -> None:
         self._apply_live_sample((time.monotonic(), {}))
@@ -577,9 +639,54 @@ class DashboardPage(QWidget):
         self.state = state
         self._apply_gpu_card(state)
         self._apply_cpu_card(state)
-        self._apply_cu_card(state)
         self._apply_fan_card(state)
         self.readiness.set_state(state)
+
+    def _apply_board_header(self, state: DashboardState) -> None:
+        """What the machine is, and whether anything needs looking at."""
+        cores_known = 0 < state.cpu_physical_cores <= state.cpu_logical_cores
+        self.board_header.set_specification(
+            (
+                state.gpu_summary,
+                tr_format(
+                    "{cores} cores / {threads} threads",
+                    cores=state.cpu_physical_cores,
+                    threads=state.cpu_logical_cores,
+                )
+                if cores_known
+                else "",
+                f"{state.active_cus} / {state.total_cus} " + tr("Compute Units")
+                if state.cu_state_available
+                else "",
+                # Capacity, not usage: the header says what the board has,
+                # and the summary drops the "used /" half when nothing is.
+                self._capacity(state.vram_summary) + " " + tr("VRAM")
+                if state.vram_total_bytes
+                else "",
+            )
+        )
+        # One line for the whole board: the hottest thing decides it, because
+        # that is the only reading that turns into damage if ignored.
+        hottest = max(
+            state.cpu_temperature_c,
+            state.gpu_temperature_c,
+            state.vrm_temperature_c,
+        )
+        if hottest > 0:
+            self.board_header.set_hotspot(
+                self._format_temperature(hottest, decimals=0),
+                "red" if hottest >= 90 else "orange" if hottest >= 80 else "gray",
+            )
+        else:
+            self.board_header.set_hotspot("Not detected", "gray")
+        if state.vrm_alerts:
+            self.board_header.set_status("Attention", "orange")
+        elif hottest <= 0:
+            self.board_header.set_status("Not detected", "gray")
+        elif hottest >= 90:
+            self.board_header.set_status("Attention", "red")
+        else:
+            self.board_header.set_status("Running", "green")
 
     def _apply_gpu_card(self, state: DashboardState) -> None:
         if state.gpu_state_available:
@@ -587,8 +694,7 @@ class DashboardPage(QWidget):
             tone = "green" if state.governor_running else "orange"
         else:
             status, tone = "Not detected", "gray"
-        self.gpu_card.status.setText(status)
-        self.gpu_card.status.set_tone(tone)
+        self.gpu_card.set_status(status, tone)
 
         invalid_telemetry = state.gpu_telemetry_invalid
         temperature = (
@@ -601,97 +707,70 @@ class DashboardPage(QWidget):
             if state.gpu_state_available or state.performance_available
             else "Not detected"
         )
-        target_range = self._format_range(
-            state.governor_min_mhz, state.governor_max_mhz
-        )
-        self.gpu_card.frequency_value.setText(
+        self.gpu_card.headline.set_value(
+            "clock",
             str(state.governor_frequency_mhz)
             if state.governor_frequency_mhz > 0
-            else "--"
+            else "--",
         )
-        self.gpu_card.governor_metric.set_value(
-            state.governor_backend or status
-        )
-        self.gpu_card.governor_metric.set_detail(status if state.governor_backend else "")
-        self.gpu_card.load_metric.set_value(utilization)
-        self.gpu_card.gpu_voltage_metric.set_value(
+
+        details = self.gpu_card.details
+        details["temperature"].set_value(temperature)
+        details["load"].set_value(utilization)
+        details["voltage"].set_value(
             tr("Invalid")
             if invalid_telemetry and state.gpu_voltage_mv <= 0
             else self._format_voltage(state.gpu_voltage_mv)
         )
-        self.gpu_card.thermal_strip.set_temperatures(
-            (
-                temperature,
-                self._format_temperature(state.cpu_temperature_c),
-                self._format_temperature(state.nvme_temperature_c),
-                self._format_temperature(state.board_temperature_c),
-                self._format_temperature(state.vrm_temperature_c),
-            )
+        details["temperature"].set_tone(self._heat(state.gpu_temperature_c))
+        details["power"].set_value(self._format_power(state.gpu_power_w))
+        rail_label, rail_value = self._gpu_rail(state)
+        details["rail"].set_label(rail_label)
+        details["rail"].set_value(rail_value)
+        details["rail"].set_tone("warning" if state.vrm_alerts else "")
+        details["mclk"].set_value(
+            tr("Invalid")
+            if invalid_telemetry and state.gpu_memory_frequency_mhz <= 0
+            else self._format_mhz(state.gpu_memory_frequency_mhz)
         )
-        self.gpu_card.technical_strip.set_values(
-            (
-                self._format_power(state.gpu_power_w),
-                tr("Invalid")
-                if invalid_telemetry and state.gpu_memory_frequency_mhz <= 0
-                else self._format_mhz(state.gpu_memory_frequency_mhz),
-                self._format_temperature(state.nvme_hotspot_temperature_c),
-                state.gtt_summary,
-                state.dpm_summary,
-            )
+        details["socclk"].set_value(self._format_mhz(state.gpu_soc_frequency_mhz))
+        details["fclk"].set_value(self._format_mhz(state.gpu_fabric_frequency_mhz))
+        details["vram"].set_value(*self._split_pair(state.vram_summary))
+        details["gtt"].set_value(*self._split_pair(state.gtt_summary))
+        details["governor"].set_value(self._governor_name(state) or status)
+        details["range"].set_value(
+            self._format_range(state.governor_min_mhz, state.governor_max_mhz),
+            tr_format("Accepted {maximum} MHz", maximum=state.governor_max_mhz)
+            if state.governor_max_mhz > 0
+            else "",
         )
-        self.gpu_card.technical_strip.values[4].setToolTip(
-            f"Power state: {state.gpu_dpm_state}"
-            if state.gpu_dpm_state
-            else ""
+        details["pcie"].set_value(state.gpu_pcie_link or "Not detected")
+        details["vbios"].set_value(state.gpu_vbios_version or "Not detected")
+        details["cu"].set_value(
+            f"{state.active_cus} / {state.total_cus}"
+            if state.cu_state_available
+            else "Not detected",
+            state.cu_mode if state.cu_state_available else "",
         )
-        diagnostic_hint = (
-            tr("Advanced GPU diagnostics")
-            if invalid_telemetry else ""
-        )
-        self.gpu_card.thermal_strip.values[0].setToolTip(diagnostic_hint)
-        self.gpu_card.gpu_voltage_metric.setToolTip(diagnostic_hint)
-        self.gpu_card.technical_strip.values[1].setToolTip(diagnostic_hint)
-        self.gpu_card.range_row.set_value(target_range)
-        self.gpu_card.accepted_row.set_value(
-            self._format_mhz(state.governor_max_mhz)
-        )
+
         repair_pending = state.gpu_telemetry_repair_pending
         repair_needed = state.gpu_metrics_layout_mismatch or repair_pending
-        self.gpu_card.telemetry_repair_button.setVisible(repair_needed)
-        self.gpu_card.telemetry_repair_button.setEnabled(
+        self.telemetry_repair_button.setVisible(repair_needed)
+        self.telemetry_repair_button.setEnabled(
             state.gpu_metrics_layout_mismatch
             and state.gpu_telemetry_repair_available
             and not repair_pending
         )
-        self.gpu_card.telemetry_repair_button.setText(
+        self.telemetry_repair_button.setText(
             tr("Restart to finish telemetry repair")
             if repair_pending
             else tr("Repair BC250 telemetry")
         )
-        self.gpu_card.gpu_summary.set_value(state.gpu_summary)
-        self.gpu_card.vram_summary.set_value(state.vram_summary)
-        cores_known = 0 < state.cpu_physical_cores <= state.cpu_logical_cores
-        self.gpu_card.cores_summary.set_value(
-            tr_format("{cores} cores / {threads} threads", cores=state.cpu_physical_cores, threads=state.cpu_logical_cores)
-            if cores_known else tr("Not detected")
-        )
-        if cores_known and state.cpu_oc_active and state.cpu_oc_scale is not None:
-            cpu_oc_detail = tr_format(
-                "Registered OC: {frequency} MHz · Scale {scale}",
-                frequency=state.cpu_oc_frequency_mhz,
-                scale=state.cpu_oc_scale,
-            )
-        else:
-            cpu_oc_detail = ""
-        self.gpu_card.cores_summary.set_detail(cpu_oc_detail)
-        # Every BC-250 has eight physical core positions.  A stock firmware
-        # exposes six to Linux; retain all eight slots so the two hidden cores
-        # are visible instead of silently disappearing from the dashboard.
-        self.gpu_card.cores_summary.set_core_count(8)
-        self.gpu_card.cores_summary.set_core_metrics(
-            self.state.cpu_per_core_frequency_mhz,
-            self.state.cpu_per_core_percent,
-        )
+        diagnostic_hint = tr("Advanced GPU diagnostics") if invalid_telemetry else ""
+        details["voltage"].setToolTip(diagnostic_hint)
+        details["mclk"].setToolTip(diagnostic_hint)
+        self._update_vrm_strip(state)
+        self._apply_board_header(state)
         self._apply_memory_summary()
 
     def _apply_memory_summary(self) -> None:
@@ -737,74 +816,145 @@ class DashboardPage(QWidget):
             summary.set_blocker("" if reading.can_monitor else reading.blocker())
 
     def _apply_cpu_card(self, state: DashboardState) -> None:
-        self.cpu_card.status.setText(state.cpu_profile)
-        self.cpu_card.status.set_tone(
-            "green" if state.performance_available else "gray"
+        self.cpu_card.set_status(
+            state.cpu_profile,
+            "green" if state.performance_available else "gray",
         )
-        if state.cpu_frequency_mhz > 0:
-            self.cpu_card.set_headline(f"{state.cpu_frequency_mhz / 1000:.2f}")
-        else:
-            self.cpu_card.set_headline("--")
-        self.cpu_card.set_metric(0, self._format_voltage(state.cpu_voltage_mv))
-        self.cpu_card.set_metric(
-            1, self._format_temperature(state.cpu_temperature_c)
-        )
-        self.cpu_card.set_metric(
-            2, self._format_percent(state.cpu_utilization_percent)
+        self.cpu_card.headline.set_value(
+            "clock",
+            f"{state.cpu_frequency_mhz / 1000:.2f}"
+            if state.cpu_frequency_mhz > 0
+            else "--",
         )
 
-    def _apply_cu_card(self, state: DashboardState) -> None:
-        self.cu_card.status.setText(state.cu_mode)
-        if not state.cu_state_available:
-            tone = "gray"
-        elif state.active_cus >= 40:
-            tone = "green"
-        else:
-            tone = "orange"
-        self.cu_card.status.set_tone(tone)
-        self.cu_card.set_headline(
-            str(state.active_cus) if state.cu_state_available else "--",
-            f"/ {state.total_cus}",
+        details = self.cpu_card.details
+        details["temperature"].set_value(
+            self._format_temperature(state.cpu_temperature_c)
         )
-        self.cu_card.set_metric(0, state.cu_boot_sync)
-        self.cu_card.set_metric(
-            1,
-            "loaded"
-            if state.umr_ready
-            else "missing"
-            if state.tools_state_available
+        details["temperature"].set_tone(self._heat(state.cpu_temperature_c))
+        details["load"].set_value(
+            self._format_percent(state.cpu_utilization_percent)
+        )
+        details["voltage"].set_value(self._format_voltage(state.cpu_voltage_mv))
+        details["oc"].set_value(
+            tr_format("{frequency} MHz", frequency=state.cpu_oc_frequency_mhz)
+            if state.cpu_oc_active and state.cpu_oc_frequency_mhz > 0
             else "Not detected",
+            tr_format("Scale {scale}", scale=state.cpu_oc_scale)
+            if state.cpu_oc_active and state.cpu_oc_scale is not None
+            else "",
         )
+        rail_value, rail_detail = self._cpu_rail(state)
+        details["rail"].set_value(rail_value, rail_detail)
+        cores_known = 0 < state.cpu_physical_cores <= state.cpu_logical_cores
+        self.cores_summary.set_shape(
+            tr_format(
+                "{cores} cores / {threads} threads",
+                cores=state.cpu_physical_cores,
+                threads=state.cpu_logical_cores,
+            )
+            if cores_known
+            else tr("Not detected")
+        )
+        # Every BC-250 has eight physical core positions. A stock firmware
+        # exposes six to Linux; the monitor keeps all eight so the two it left
+        # switched off stay on screen saying what they are.
+        clocks = list(state.cpu_per_core_frequency_mhz)
+        loads = list(state.cpu_per_core_percent)
+        self.cores_summary.set_readings([
+            CoreReading(
+                index=index,
+                frequency_mhz=_number(clocks[index]) if index < len(clocks) else 0.0,
+                usage_percent=_number(loads[index]) if index < len(loads) else 0.0,
+                online=True,
+            )
+            for index in range(max(len(clocks), len(loads)))
+        ])
 
     def _apply_fan_card(self, state: DashboardState) -> None:
-        status = (
+        self.fan_card.set_status(
             "PWM ready"
             if state.pwm_ready
             else "read only"
             if state.fan_state_available
-            else "Not detected"
-        )
-        self.fan_card.status.setText(status)
-        self.fan_card.status.set_tone(
+            else "Not detected",
             "green"
             if state.pwm_ready
             else "orange"
             if state.fan_state_available
-            else "gray"
+            else "gray",
         )
-        self.fan_card.set_headline(
-            str(state.pump_fan_rpm) if state.pump_fan_rpm > 0 else "--"
+        self.fan_card.headline.set_value(
+            "rpm", str(state.pump_fan_rpm) if state.pump_fan_rpm > 0 else "--"
         )
-        self.fan_card.set_metric(
-            0, state.fan_controller_label or "Not detected"
-        )
-        self.fan_card.set_metric(1, state.fan_mode)
-        self.fan_card.set_metric(
-            2,
+
+        details = self.fan_card.details
+        details["duty"].set_value(
             self._format_percent(state.pump_fan_duty_percent)
             if state.fan_state_available
-            else "Not detected",
+            else "Not detected"
         )
+        details["board"].set_value(
+            self._format_temperature(state.board_temperature_c)
+        )
+        details["board"].set_tone(self._heat(state.board_temperature_c, warm=70))
+        details["mode"].set_value(state.fan_mode or "Not detected")
+        details["controller"].set_value(
+            state.fan_controller_label or "Not detected"
+        )
+        # Neither the board nor the drive is a processor or a graphics
+        # reading. They are the thermal environment this fan manages, and the
+        # board sensor is one of the four inputs of its automatic curve.
+        details["nvme"].set_value(
+            self._format_temperature(state.nvme_temperature_c)
+        )
+        details["nvme"].set_tone(self._heat(state.nvme_temperature_c, warm=70))
+        details["hotspot"].set_value(
+            self._format_temperature(state.nvme_hotspot_temperature_c)
+        )
+        details["hotspot"].set_tone(
+            self._heat(state.nvme_hotspot_temperature_c, warm=75, hot=82)
+        )
+        for key, summary, percent in (
+            ("ram", state.memory_summary, state.memory_percent),
+            ("swap", state.swap_summary, 0.0),
+            ("storage", state.disk_summary, state.disk_percent),
+        ):
+            used, total = self._split_pair(summary)
+            details[key].set_value(used, total)
+            details[key].set_tone("warning" if percent >= 90 else "")
+
+    @classmethod
+    def _capacity(cls, summary: str) -> str:
+        """The total half of "153 MB / 256 MB", or the whole of "256 MB"."""
+        total = cls._split_pair(summary)[1].removeprefix("/ ").strip()
+        return total or str(summary).strip()
+
+    #: The service identifiers are what systemd calls these, not what a
+    #: person calls them: "cyan-skillfish-governor-smu" did not fit its cell
+    #: and told the reader nothing the board name does not.
+    GOVERNOR_NAMES = {
+        "cyan-skillfish-governor-smu": "Cyan Skillfish",
+        "oberon-governor": "Oberon Governor",
+    }
+
+    @classmethod
+    def _governor_name(cls, state) -> str:
+        backend = str(state.governor_backend or "")
+        return cls.GOVERNOR_NAMES.get(backend, backend)
+
+    @staticmethod
+    def _heat(value_c: float, *, warm: float = 80, hot: float = 90) -> str:
+        """A reading the user should look at twice is not the same colour.
+
+        The thresholds are per sensor: 80 °C is unremarkable on this APU and
+        alarming on an NVMe drive, so each caller names its own.
+        """
+        if value_c <= 0:
+            return ""
+        if value_c >= hot:
+            return "danger"
+        return "warning" if value_c >= warm else ""
 
     @staticmethod
     def _format_ghz(value_mhz: int) -> str:
@@ -817,6 +967,82 @@ class DashboardPage(QWidget):
     @staticmethod
     def _format_voltage(value_mv: int) -> str:
         return f"{value_mv / 1000:.3f} V" if value_mv > 0 else "Not detected"
+
+    @staticmethod
+    def _split_pair(summary: str) -> tuple[str, str]:
+        """"238 MB / 5.2 GB" reads better as a number with its capacity under."""
+        used, separator, total = str(summary).partition(" / ")
+        if not separator:
+            return summary, ""
+        return used, f"/ {total}"
+
+    def _gpu_rail(self, state) -> tuple[str, str]:
+        """The graphics rail cell: its name depends on what is measuring it."""
+        if state.vrm_source == "pmbus":
+            return "VRM GPU", self._format_temperature(state.vrm_gpu_temperature_c)
+        if state.vrm_source == "nct":
+            return "VRM MOS", self._format_temperature(state.vrm_temperature_c)
+        return "VRM", self._format_temperature(state.vrm_temperature_c)
+
+    def _cpu_rail(self, state) -> tuple[str, str]:
+        """What the processor's own VRM reports, when anything does."""
+        if state.vrm_source != "pmbus":
+            return "Not detected", ""
+        detail = f"{state.vrm_cpu_power_w:.1f} W" if state.vrm_cpu_power_w > 0 else ""
+        return self._format_temperature(state.vrm_cpu_temperature_c), detail
+
+    def _update_vrm_strip(self, state) -> None:
+        """The rails, whether or not this board can measure them.
+
+        Reading them needs two wires soldered between ``I2C_HEADER1`` and
+        ``TPMS1``; a stock BC-250 has no link to its own PMIC. The band stays
+        on screen saying so, because "this board cannot report its rails" is
+        itself worth knowing — and it is the only sensor group on this page
+        that a user can go and add.
+        """
+        strip = self.vrm_strip
+        available = state.vrm_source == "pmbus"
+        strip.set_note("" if available else tr("Requires the I2C modification"))
+        if not available:
+            for key in strip.readings:
+                strip[key].set_value("Not detected")
+                strip[key].set_tone("")
+            return
+        strip["input"].set_value(self._format_volts(state.vrm_input_voltage_v))
+        strip["cpu_voltage"].set_value(self._format_volts(state.vrm_cpu_voltage_v))
+        strip["gpu_voltage"].set_value(self._format_volts(state.vrm_gpu_voltage_v))
+        strip["total"].set_value(self._format_watts(state.vrm_total_power_w))
+        strip["cpu_current"].set_value(self._format_amps(state.vrm_cpu_current_a))
+        strip["gpu_current"].set_value(self._format_amps(state.vrm_gpu_current_a))
+        strip["cpu_temperature"].set_value(
+            self._format_temperature(state.vrm_cpu_temperature_c),
+            self._format_watts(state.vrm_cpu_power_w)
+            if state.vrm_cpu_power_w > 0
+            else "",
+        )
+        strip["gpu_temperature"].set_value(
+            self._format_temperature(state.vrm_gpu_temperature_c),
+            self._format_watts(state.vrm_gpu_power_w)
+            if state.vrm_gpu_power_w > 0
+            else "",
+        )
+        # The PMIC raises these itself, before anything is damaged.
+        for key in ("cpu_temperature", "gpu_temperature"):
+            strip[key].set_tone("warning" if state.vrm_alerts else "")
+        # A note only when the PMIC has something to say.
+        strip.set_note(tr("Attention") if state.vrm_alerts else "")
+
+    @staticmethod
+    def _format_amps(value_a: float) -> str:
+        return f"{value_a:.1f} A" if value_a > 0 else "Not detected"
+
+    @staticmethod
+    def _format_volts(value_v: float) -> str:
+        return f"{value_v:.2f} V" if value_v > 0 else "Not detected"
+
+    @staticmethod
+    def _format_watts(value_w: float) -> str:
+        return f"{value_w:.1f} W" if value_w > 0 else "Not detected"
 
     @staticmethod
     def _format_temperature(value_c: float, *, decimals: int = 1) -> str:
@@ -842,7 +1068,16 @@ class DashboardPage(QWidget):
 
     def _reflow(self, width: int) -> None:
         body_mode = "vertical"
-        module_columns = 3 if width >= 900 else 1
+        # One column per card that exists. Compute Units moved into the GPU
+        # card, so a hard-coded three left an empty third and squeezed the
+        # processor's core grid into a four-row column.
+        # Three peers side by side when there is room; stacked when there is
+        # not. Never two columns with one panel orphaned on its own row.
+        module_columns = (
+            len(self.instruments)
+            if width >= 1180
+            else 1
+        )
 
         if body_mode != self._body_mode or self.body_grid.count() == 0:
             self._body_mode = body_mode
@@ -861,13 +1096,21 @@ class DashboardPage(QWidget):
         if module_columns != self._module_columns or self.modules_grid.count() == 0:
             self._module_columns = module_columns
             clear_grid(self.modules_grid)
-            for index, card in enumerate(self.module_cards):
+            for index, card in enumerate(self.instruments):
+                # The three now hold within about fifteen pixels of each
+                # other, because each reports a fixed set of readings whether
+                # or not the board answers them. At that distance sharing the
+                # row height costs nothing and the feet line up exactly.
                 self.modules_grid.addWidget(
                     card, index // module_columns, index % module_columns
                 )
-            for column in range(3):
+            # Width follows content: graphics reports fourteen readings in two
+            # inner columns, cooling nine in one. Three equal thirds squeezed
+            # the middle panel until its columns collapsed on a windowed
+            # screen, which is exactly where it has least room to spare.
+            for column, weight in enumerate(self.MODULE_WEIGHTS):
                 self.modules_grid.setColumnStretch(
-                    column, 1 if column < module_columns else 0
+                    column, weight if column < module_columns else 0
                 )
-            for row in range((len(self.module_cards) + module_columns - 1) // module_columns):
+            for row in range((len(self.instruments) + module_columns - 1) // module_columns):
                 self.modules_grid.setRowStretch(row, 1)

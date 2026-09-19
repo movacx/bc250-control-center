@@ -180,20 +180,43 @@ class SectionCard(QFrame):
         self.header_actions.setVerticalSpacing(5)
         self._header_buttons: list[QPushButton] = []
         self._header_compact = False
+        self._headerless = False
         self._layout_header(force=True)
         self.root.addLayout(self._header_grid, 0)
 
-        divider = QFrame()
-        divider.setObjectName("CardDivider")
-        divider.setFixedHeight(1)
-        self.root.addWidget(divider, 0)
+        self._divider = QFrame()
+        self._divider.setObjectName("CardDivider")
+        self._divider.setFixedHeight(1)
+        self.root.addWidget(self._divider, 0)
 
         self.body = QVBoxLayout()
         self.body.setContentsMargins(0, 0, 0, 0)
         self.body.setSpacing(8 if compact else 12)
         self.root.addLayout(self.body, 1)
 
+    def drop_header(self) -> PillLabel | None:
+        """Remove the title row, handing the status pill back to the caller.
+
+        A card whose title only repeats what the surrounding screen already
+        says spends a whole row and a divider saying nothing. The pill is the
+        one part worth keeping, so it is returned detached rather than
+        destroyed: the caller re-homes it beside the reading it qualifies.
+        """
+        status = self.status
+        if status is not None:
+            self._header_grid.removeWidget(status)
+            status.setParent(None)
+            self.status = None
+        self._headerless = True
+        self.root.removeItem(self._header_grid)
+        for widget in (self._header_icon, self._title_host, self._header_actions_host):
+            widget.setParent(None)
+        self._divider.setParent(None)
+        return status
+
     def _layout_header(self, *, force: bool = False) -> None:
+        if self._headerless:
+            return
         compact = 0 < self.width() < 560
         if compact == self._header_compact and not force:
             self._layout_header_buttons(compact)
@@ -515,6 +538,7 @@ class ConfirmDialog(QDialog):
         message: str,
         *,
         summary: Iterable[tuple[str, str]] = (),
+        notice: str = "",
         confirm_text: str = "Continue",
         eyebrow: str = "CONFIRM HARDWARE ACTION",
         tone: str = "blue",
@@ -524,6 +548,7 @@ class ConfirmDialog(QDialog):
         message = tr(message)
         confirm_text = tr(confirm_text)
         eyebrow = tr(eyebrow)
+        notice = tr(notice) if notice else ""
         summary = tuple((tr(label), tr(value)) for label, value in summary)
         super().__init__(parent)
         self.setObjectName("InfoDialog")
@@ -620,6 +645,29 @@ class ConfirmDialog(QDialog):
                 grid.addWidget(data, index, 1)
             grid.setColumnStretch(1, 1)
             content_layout.addWidget(summary_frame)
+
+        if notice:
+            # A caveat about the very numbers above it. Inside the body it read
+            # as more prose and was skipped; here it is a strip in the dialog's
+            # own tone, next to the table it qualifies.
+            notice_frame = QFrame()
+            notice_frame.setProperty("confirmNotice", True)
+            notice_frame.setStyleSheet(
+                f"QFrame[confirmNotice='true'] {{ background:{soft}; "
+                f"border:1px solid {accent}; border-radius:10px; }}"
+            )
+            notice_row = QHBoxLayout(notice_frame)
+            notice_row.setContentsMargins(12, 10, 12, 10)
+            notice_row.setSpacing(9)
+            glyph = QLabel()
+            glyph.setPixmap(icon("warning_orange").pixmap(16, 16))
+            glyph.setFixedSize(16, 18)
+            notice_row.addWidget(glyph, 0, Qt.AlignmentFlag.AlignTop)
+            notice_label = QLabel(notice)
+            notice_label.setWordWrap(True)
+            notice_label.setStyleSheet(f"color:{accent}; font-weight:600;")
+            notice_row.addWidget(notice_label, 1)
+            content_layout.addWidget(notice_frame)
 
         content_scroll.setWidget(content)
         layout.addWidget(content_scroll)

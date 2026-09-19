@@ -573,7 +573,7 @@ def test_dashboard_refresh_localizes_dynamic_status_values(qtbot):
         ))
 
         assert page.gpu_card.status.text() == tr("running")
-        assert page.cu_card.status.text() == tr("custom")
+        assert page.gpu_card.details["cu"].detail.text() == tr("custom")
         assert page.fan_card.status.text() == tr("read only")
     finally:
         set_language("en")
@@ -585,7 +585,9 @@ def test_dashboard_never_marks_partial_bc250_topology_as_full(qtbot):
 
     page.apply_state(DashboardState(cu_state_available=True, active_cus=36, total_cus=36))
 
-    assert page.cu_card.status._tone == "orange"
+    # 36 of 36 is a partial board reporting itself as complete; the readout
+    # states both numbers instead of a reassuring badge.
+    assert page.gpu_card.details["cu"].value.text() == "36 / 36"
 
 
 class _AcceptedDialog:

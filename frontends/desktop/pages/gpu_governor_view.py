@@ -1390,7 +1390,7 @@ class GpuGovernorView(QWidget):
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
-        self.setProperty("gpuGovernorPage", True)
+        self.setProperty("redesignedModule", True)
         self._state = GpuViewState(
             core_clock=1000,
             voltage=930,
@@ -2189,7 +2189,7 @@ def _demo() -> None:  # pragma: no cover
 
     view = GpuGovernorView()
     # The page property is what the GPU-specific stylesheet rules key off.
-    view.setProperty("gpuGovernorPage", True)
+    view.setProperty("redesignedModule", True)
     view.resize(1600, 980)
     # An f-string keeps this developer-only title out of the i18n catalogs.
     view.setWindowTitle(f"BC250 · GPU module ({mode} preview)")

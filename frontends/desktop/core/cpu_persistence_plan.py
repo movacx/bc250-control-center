@@ -30,6 +30,10 @@ class CpuPersistencePlan:
     boot_candidate: str
     validation_source: PlanText
     scale_summary: PlanText
+    #: What the processor is running right now, when it is known and is not
+    #: what would be installed. Empty otherwise.
+    active_scale: str = ""
+    live_notice: PlanText | None = None
 
 
 def _text(template: str, **values: object) -> PlanText:
@@ -133,6 +137,21 @@ def plan_cpu_persistence(
         command_frequency = None
         command_temperature = None
 
+    # A manual scale can be live and still be ineligible for boot: the rule is
+    # that only a value tested against the current detector run may be
+    # installed. Saying nothing in that case left the dialog promising the
+    # detected scale while the processor was running another one.
+    active_scale = ""
+    live_notice = None
+    if scale_override is None and live.get("active_in_current_session"):
+        live_scale = live_test.get("scale")
+        if live_scale is not None and str(live_scale) != str(exact_scale):
+            active_scale = f"{live_scale}"
+            live_notice = _text(
+                "Keep testing this temporary manual OC. Run automatic "
+                "detection before saving any CPU configuration for boot."
+            )
+
     return CpuPersistencePlan(
         scale_override=scale_override,
         confirm_scale_jump=bool(analysis.get("requires_extra_confirmation")),
@@ -143,4 +162,6 @@ def plan_cpu_persistence(
         boot_candidate=f"{boot_frequency} MHz | scale {exact_scale} | {boot_temperature} °C",
         validation_source=validation_source,
         scale_summary=scale_summary,
+        active_scale=active_scale,
+        live_notice=live_notice,
     )

@@ -29,16 +29,20 @@ def test_dashboard_buttons_emit_navigation_not_hardware_operations(qtbot):
         for button in card.action_buttons:
             button.click()
     page.footer.repositories_button.click()
-    page.cu_card.primary_button.click()
-    assert actions == ["cpu_configuration", "cpu_overview", "fans_manual", "fans_curve", "repositories"]
+    page.gpu_card.action_buttons[1].click()
+    # The CPU module is one workspace now, so it offers one way in.
+    assert actions == ["cpu_configuration", "fans_manual", "fans_curve", "repositories"]
     assert modules == ["cu"]
-    assert page.cu_card.status.isHidden()
+    # No panel wears a state badge: the readings underneath carry it, and the
+    # board's own state is in the header.
+    assert page.cpu_card.status.isHidden()
     assert page.readiness.status.isHidden()
-    assert page.gpu_card.governor_metric.parent() is page.gpu_card.evidence
-    assert page.gpu_card.load_metric.parent() is page.gpu_card.evidence
-    assert page.gpu_card.gpu_voltage_metric.parent() is page.gpu_card.evidence
-    assert page.gpu_card.thermal_strip.parent() is page.gpu_card.metrics_host
-    assert page.gpu_card.technical_strip.parent() is page.gpu_card.metrics_host
+    assert page.gpu_card.details["governor"].label.text() != ""
+    # Live readings belong to the sensor boards; the evidence panel keeps the
+    # configuration the user asked for.
+    # Every live reading is in the panel that owns the hardware.
+    assert page.gpu_card.isAncestorOf(page.gpu_card.details)
+    assert page.gpu_card.isAncestorOf(page.gpu_card.headline)
 
 
 def test_gpu_configuration_shows_the_live_gpu_voltage_sensor(qtbot):
@@ -48,10 +52,10 @@ def test_gpu_configuration_shows_the_live_gpu_voltage_sensor(qtbot):
     page.resize(1180, 900)
     page.show()
     qtbot.wait(50)
-    assert page.gpu_card.gpu_voltage_metric.label.text() == tr("GPU voltage")
-    assert page.gpu_card.gpu_voltage_metric.value.text() == "0.799 V"
-    assert page.gpu_card.gpu_voltage_metric.y() == page.gpu_card.load_metric.y()
-    assert page.gpu_card.gpu_voltage_metric.x() > page.gpu_card.load_metric.x()
+    voltage = page.gpu_card.details["voltage"]
+    assert voltage.label.text() == tr("GPU voltage")
+    assert voltage.value.text() == "0.799"
+    assert voltage.unit.text() == "V"
 
 
 def test_dashboard_labels_corrupt_eight_core_telemetry_as_invalid(qtbot):
@@ -67,11 +71,11 @@ def test_dashboard_labels_corrupt_eight_core_telemetry_as_invalid(qtbot):
         )
     )
 
-    assert page.gpu_card.thermal_strip.values[0].text() == tr("Invalid")
-    assert page.gpu_card.gpu_voltage_metric.value.text() == tr("Invalid")
-    assert page.gpu_card.technical_strip.values[1].text() == tr("Invalid")
+    assert page.gpu_card.details["temperature"].value.text() == tr("Invalid")
+    assert page.gpu_card.details["voltage"].value.text() == tr("Invalid")
+    assert page.gpu_card.details["mclk"].value.text() == tr("Invalid")
     assert page.gpu_card.status.text() == "running"
-    assert page.gpu_card.gpu_voltage_metric.toolTip() == tr(
+    assert page.gpu_card.details["voltage"].toolTip() == tr(
         "Advanced GPU diagnostics"
     )
 
@@ -89,9 +93,9 @@ def test_eight_core_layout_mismatch_exposes_the_boot_repair(qtbot):
         )
     )
 
-    assert not page.gpu_card.telemetry_repair_button.isHidden()
-    assert page.gpu_card.telemetry_repair_button.isEnabled()
-    assert page.gpu_card.telemetry_repair_button.text() == tr("Repair BC250 telemetry")
+    assert not page.telemetry_repair_button.isHidden()
+    assert page.telemetry_repair_button.isEnabled()
+    assert page.telemetry_repair_button.text() == tr("Repair BC250 telemetry")
 
 
 def test_eight_core_telemetry_repair_pending_reboot_disables_the_button(qtbot):
@@ -106,9 +110,9 @@ def test_eight_core_telemetry_repair_pending_reboot_disables_the_button(qtbot):
         )
     )
 
-    assert not page.gpu_card.telemetry_repair_button.isHidden()
-    assert not page.gpu_card.telemetry_repair_button.isEnabled()
-    assert page.gpu_card.telemetry_repair_button.text() == tr(
+    assert not page.telemetry_repair_button.isHidden()
+    assert not page.telemetry_repair_button.isEnabled()
+    assert page.telemetry_repair_button.text() == tr(
         "Restart to finish telemetry repair"
     )
 
@@ -124,12 +128,12 @@ def test_eight_core_telemetry_button_click_requests_repair_without_a_dialog(qtbo
     calls = []
     page.controller.reparar_telemetria_8core = lambda: calls.append(True)
 
-    page.gpu_card.telemetry_repair_button.click()
+    page.telemetry_repair_button.click()
 
     assert calls == [True]
 
 
-def test_gpu_technical_strip_sits_below_temperatures_without_expanding_evidence(qtbot):
+def test_the_graphics_panel_lists_its_clock_domains(qtbot):
     page = DashboardPage(object())
     qtbot.addWidget(page)
     page.apply_state(
@@ -138,8 +142,6 @@ def test_gpu_technical_strip_sits_below_temperatures_without_expanding_evidence(
             gpu_memory_frequency_mhz=450,
             gpu_gtt_used_bytes=249_376_768,
             gpu_gtt_total_bytes=5_587_288_064,
-            gpu_dpm_force_level="auto",
-            gpu_dpm_state="performance",
             nvme_temperature_c=43.85,
             nvme_hotspot_temperature_c=68.85,
         )
@@ -148,25 +150,20 @@ def test_gpu_technical_strip_sits_below_temperatures_without_expanding_evidence(
     page.show()
     qtbot.wait(50)
 
-    assert page.gpu_card.thermal_strip.y() < page.gpu_card.technical_strip.y()
-    assert [label.text() for label in page.gpu_card.technical_strip.labels] == [
-        tr("GPU power"),
-        tr("MCLK"),
-        tr("Hotspot"),
-        tr("GTT"),
-        tr("DPM mode"),
-    ]
-    assert [value.text() for value in page.gpu_card.technical_strip.values] == [
-        "41 W",
-        "450 MHz",
-        "68.8 °C",
-        "238 MB / 5.2 GB",
-        "auto",
-    ]
-    assert page.gpu_card.technical_strip.values[4].toolTip() == (
-        "Power state: performance"
-    )
-    assert page.gpu_card.thermal_strip.values[2].text() == "43.9 °C"
+    details = page.gpu_card.details
+    assert details["mclk"].value.text() == "450"
+    assert details["mclk"].unit.text() == "MHz"
+    # This payload carries neither of the other two clock domains.
+    assert details["socclk"].value.text() == tr("Not detected")
+    assert details["fclk"].value.text() == tr("Not detected")
+    assert details["gtt"].value.text() == "238"
+    assert details["gtt"].unit.text() == "MB"
+    assert details["gtt"].detail.text() == "/ 5.2 GB"
+    assert "dpm" not in details.readings
+    assert details["power"].value.text() == "41"
+    assert page.gpu_card.headline.y() < details.y()
+    # The drive is reported by the cooling card, not by the graphics row.
+    assert page.fan_card.details["nvme"].value.text() == "43.9"
 
 
 def test_shortcuts_select_the_requested_tab_even_after_visiting_the_other(qtbot):
@@ -189,7 +186,7 @@ def test_new_shortcuts_translate_when_language_changes(qtbot, language):
     try:
         set_language(language)
         localize_widget_tree(page, language)
-        for button, key in zip(page.cpu_card.action_buttons, ("Configure CPU", "Unlock cores"), strict=True):
+        for button, key in zip(page.cpu_card.action_buttons, ("Configure CPU",), strict=True):
             assert button.text() == tr(key)
             if language != "en":
                 assert button.text() != key

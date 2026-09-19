@@ -22,15 +22,18 @@ from PyQt6.QtCore import (
     QVariantAnimation,
     pyqtSignal,
 )
-from PyQt6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen
+from PyQt6.QtGui import QColor, QFont, QPainter, QPixmap
 from PyQt6.QtWidgets import QGraphicsDropShadowEffect, QWidget
 
+from ..components.widgets import ICON_DIR
 from ..i18n import tr
 from ..theme import COLORS
 
 #: Diameter of the button itself. The widget is taller so the bounce has room
 #: to travel without being clipped.
 DIAMETER = 54
+#: The terminal glyph inside the circle. Its corners have to clear the rim.
+GLYPH = 28
 BOUNCE_TRAVEL = 12
 MARGIN = 22
 
@@ -83,6 +86,8 @@ class ConsoleBeacon(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         self.setToolTip(tr("Show the running workflow"))
         self._offset = 0.0
+        self._glyph_cache: QPixmap | None = None
+        self._glyph_key: tuple[str, float] | None = None
         self._hovered = False
         self._pressed = False
         self.hide()
@@ -183,25 +188,39 @@ class ConsoleBeacon(QWidget):
         painter.setBrush(QColor(COLORS["blue"]))
         painter.drawEllipse(body)
 
-        # A prompt glyph rather than an icon file: it reads as a terminal at
-        # any size and follows the accent colour for free.
-        ink = QColor(COLORS["on_accent"])
-        pen = QPen(ink, 2.6)
-        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
-        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
-        painter.setPen(pen)
-        painter.setBrush(Qt.BrushStyle.NoBrush)
+        # The glyph is a solid terminal window with the prompt knocked out of
+        # it, so tinting it to the accent foreground leaves the caret and the
+        # command line showing the blue of the circle underneath.
+        glyph = self._glyph(COLORS["on_accent"])
+        side = glyph.width() / glyph.devicePixelRatio()
         centre = body.center()
-        chevron = QPainterPath()
-        chevron.moveTo(centre.x() - 9, centre.y() - 6)
-        chevron.lineTo(centre.x() - 3, centre.y())
-        chevron.lineTo(centre.x() - 9, centre.y() + 6)
-        painter.drawPath(chevron)
-        painter.drawLine(
-            QPointF(centre.x() + 1, centre.y() + 6),
-            QPointF(centre.x() + 9, centre.y() + 6),
+        painter.drawPixmap(
+            QPointF(centre.x() - side / 2, centre.y() - side / 2), glyph
         )
         painter.end()
+
+    def _glyph(self, ink: str) -> QPixmap:
+        """The terminal icon, tinted, at this screen's pixel density."""
+        ratio = self.devicePixelRatioF()
+        if self._glyph_cache is None or self._glyph_key != (ink, ratio):
+            source = QPixmap(str(ICON_DIR / "console_beacon.png")).scaled(
+                round(GLYPH * ratio),
+                round(GLYPH * ratio),
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+            tinted = QPixmap(source.size())
+            tinted.fill(Qt.GlobalColor.transparent)
+            brush = QPainter(tinted)
+            brush.drawPixmap(0, 0, source)
+            brush.setCompositionMode(
+                QPainter.CompositionMode.CompositionMode_SourceIn
+            )
+            brush.fillRect(tinted.rect(), QColor(ink))
+            brush.end()
+            tinted.setDevicePixelRatio(ratio)
+            self._glyph_cache, self._glyph_key = tinted, (ink, ratio)
+        return self._glyph_cache
 
     # ---------------------------------------------------------- interaction
 

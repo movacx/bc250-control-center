@@ -118,12 +118,14 @@ def test_auxiliary_temperature_prefers_nvme_and_ignores_disconnected_inputs(tmp_
     (nct / "temp7_label").write_text("M2_1\n", encoding="utf-8")
     (nct / "temp7_input").write_text("0\n", encoding="utf-8")
 
-    assert repo.temperaturas_auxiliares() == {
-        "nvme_temperature_c": 46.85,
-        "nvme_hotspot_temperature_c": 68.85,
-        "board_temperature_c": 49.0,
-        "vrm_temperature_c": None,
-    }
+    reading = repo.temperaturas_auxiliares()
+
+    assert reading["nvme_temperature_c"] == 46.85
+    assert reading["nvme_hotspot_temperature_c"] == 68.85
+    assert reading["board_temperature_c"] == 49.0
+    assert reading["vrm_temperature_c"] is None
+    # No PMBus daemon and no channel the Nuvoton calls VRM: no source to name.
+    assert reading["vrm_source"] == ""
 
 
 def test_auxiliary_temperatures_keep_labelled_board_and_vrm_independent(tmp_path, monkeypatch):
@@ -143,9 +145,14 @@ def test_auxiliary_temperatures_keep_labelled_board_and_vrm_independent(tmp_path
     (nct / "temp3_label").write_text("VRM MOS\n", encoding="utf-8")
     (nct / "temp3_input").write_text("51000\n", encoding="utf-8")
 
-    assert repo.temperaturas_auxiliares() == {
-        "nvme_temperature_c": None,
-        "nvme_hotspot_temperature_c": None,
-        "board_temperature_c": 48.5,
-        "vrm_temperature_c": 51.0,
-    }
+    reading = repo.temperaturas_auxiliares()
+
+    assert reading["nvme_temperature_c"] is None
+    assert reading["nvme_hotspot_temperature_c"] is None
+    assert reading["board_temperature_c"] == 48.5
+    assert reading["vrm_temperature_c"] == 51.0
+    # It came from the Nuvoton "VRM MOS" channel, not from the PMIC, and the
+    # reading says so rather than passing itself off as a rail measurement.
+    assert reading["vrm_source"] == "nct"
+    assert reading["vrm_cpu_temperature_c"] is None
+    assert reading["vrm_gpu_temperature_c"] is None

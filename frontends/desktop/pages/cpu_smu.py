@@ -347,7 +347,7 @@ class CpuSmuPage(QWidget):
         # they must not enlarge the complete vertically scrolling page.
         self.content.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         layout = QVBoxLayout(self.content)
-        layout.setContentsMargins(18, 8, 18, 24)
+        layout.setContentsMargins(16, 12, 16, 24)
         layout.setSpacing(14)
         scroll.setWidget(self.content)
         outer.addWidget(scroll)
@@ -520,9 +520,9 @@ class CpuSmuPage(QWidget):
             self._refresh_failed,
         )
 
-        from .cpu_overview_integration import install_redesigned_cpu_overview
+        from .cpu_control_integration import install_unified_cpu_control
 
-        install_redesigned_cpu_overview(self)
+        install_unified_cpu_control(self)
 
     def _select_workspace(self, name: str) -> None:
         key = "configuration" if name == "configuration" else "overview"
@@ -1608,17 +1608,21 @@ class CpuSmuPage(QWidget):
             result = str(state.get("result") or "unknown")
             config = tr("present" if state.get("config_exists") else "not installed")
             status_text = str(state.get("status_text") or "No systemctl status output was returned.").rstrip()
-            self._select_workspace("configuration")
-            if self.advanced_card.isHidden():
-                self._toggle_advanced()
-            self._append_console(f"\n[{datetime.now().strftime('%H:%M:%S')}] Persistence status")
-            self._append_console(tr_format("Service: {value}", value=service))
-            self._append_console(tr_format("Enabled: {value}", value=enabled))
-            self._append_console(tr_format("Active: {active} ({sub_state})", active=active, sub_state=sub_state))
-            self._append_console(tr_format("Result: {value}", value=result))
-            self._append_console(tr_format("Config: {value}", value=config))
-            self._append_console("\n--- systemctl status ---")
-            self._append_console(status_text)
+            # Composed once, delivered once. Assembling the report here rather
+            # than appending it line by line lets the embedded terminal show
+            # it as a single readable block instead of eight separate writes.
+            report = "\n".join((
+                f"[{datetime.now().strftime('%H:%M:%S')}] Persistence status",
+                tr_format("Service: {value}", value=service),
+                tr_format("Enabled: {value}", value=enabled),
+                tr_format("Active: {active} ({sub_state})", active=active, sub_state=sub_state),
+                tr_format("Result: {value}", value=result),
+                tr_format("Config: {value}", value=config),
+                "",
+                "--- systemctl status ---",
+                status_text,
+            ))
+            self._report_persistence(report)
             self._last_operation_summary = "Persistence status read without changing the service."
             self.refresh()
 
@@ -1674,6 +1678,14 @@ class CpuSmuPage(QWidget):
             except Exception as exc:
                 self._show_info("Unsafe CPU scale override", str(exc), tone="red")
                 return
+        else:
+            # Without this the dialog could only describe the detector result,
+            # even while the processor was running a manual scale the rules
+            # will not install. Read-only: it records nothing.
+            try:
+                live_state = _dict(self.controller.estado_prueba_escala_cpu())
+            except Exception:
+                live_state = {}
         plan = plan_cpu_persistence(
             detection_state,
             scale_override=scale_override,
@@ -1687,22 +1699,47 @@ class CpuSmuPage(QWidget):
             return
         self._confirm_cpu_persistence(plan)
 
+    def _report_persistence(self, report: str) -> None:
+        """Show a persistence report in the session console.
+
+        The console is part of the workspace now, so the report only has to be
+        written: there is no card left to unfold before the user can read it.
+        """
+        self._select_workspace("configuration")
+        self._append_console(f"\n{report}")
+
     def _show_persistence_blocker(self, blocker: PersistenceBlocker) -> None:
         self._show_info(blocker.title, blocker.message, tone=blocker.tone)
 
     def _confirm_cpu_persistence(self, plan: CpuPersistencePlan) -> None:
+        # Only rows that say something different. In automatic mode the
+        # detected result and the boot candidate are the same string, and the
+        # scale line repeats what both already end with; three rows of the
+        # same number teach the reader to skip the table.
+        summary = [("Detection source", self._render_cpu_text(plan.detection_source))]
+        if plan.detected_result != plan.boot_candidate:
+            summary.append(("Detected result", plan.detected_result))
+        summary.append(("Boot candidate", plan.boot_candidate))
+        if plan.active_scale:
+            # Right under the candidate: the two numbers being different is
+            # the whole reason this row exists.
+            summary.append(("Active scale", plan.active_scale))
+        summary.append(
+            ("Validation source", self._render_cpu_text(plan.validation_source))
+        )
+        if plan.scale_override is not None:
+            summary.append(("Scale", self._render_cpu_text(plan.scale_summary)))
+        summary.append(("Service", "bc250-smu-oc.service"))
         dialog = ConfirmDialog(
             "Enable persistent CPU overclock",
             "This enables the exact CPU configuration shown below at boot. "
             "The detector result remains unchanged; a manual scale is installed only when that exact value was previously applied live against the same detection run. "
             "A successful live apply does not prove long-term stability, so continue only after testing this exact configuration with your real workload.",
-            summary=(
-                ("Detection source", self._render_cpu_text(plan.detection_source)),
-                ("Detected result", plan.detected_result),
-                ("Boot candidate", plan.boot_candidate),
-                ("Validation source", self._render_cpu_text(plan.validation_source)),
-                ("Scale", self._render_cpu_text(plan.scale_summary)),
-                ("Service", "bc250-smu-oc.service"),
+            summary=summary,
+            notice=(
+                self._render_cpu_text(plan.live_notice)
+                if plan.live_notice is not None
+                else ""
             ),
             confirm_text="Install exact tested candidate",
             tone="red",

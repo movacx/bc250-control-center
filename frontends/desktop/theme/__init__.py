@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from copy import deepcopy
+from pathlib import Path
 
 LIGHT_COLORS = {
     "window": "#F4F6F8",
@@ -280,6 +281,10 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     if cached is not None:
         return cached
     c = COLORS
+    # Qt style sheets need a filesystem path for url(); QIcon's lookup
+    # is not reachable from QSS. Kept as POSIX separators, which Qt
+    # accepts on every platform it builds for.
+    icon_dir = (Path(__file__).resolve().parent / "icons").as_posix()
     # Glass, for the first-run panel: the card has to be translucent for the
     # frosted portrait behind it to mean anything, and Qt takes that as an
     # rgba() rather than as a palette entry. Light glass on a light palette,
@@ -639,15 +644,234 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         color: {c['muted']};
         font-size: 9px;
     }}
-    QLabel[dashboardCoreSummaryLabel='true'] {{
+    /* One shape for every reading on the dashboard: quiet name, the number,
+       its unit, and an optional word of context. */
+    QFrame[sensorCell='true'] {{
+        background: {c['panel_alt']};
+        border: 1px solid {c['border_soft']};
+        border-radius: 10px;
+    }}
+    QFrame[sensorCell='true'][tone='warning'] {{
+        background: {c['orange_soft']};
+        border-color: {c['orange_border']};
+    }}
+    QFrame[sensorCell='true'][tone='danger'] {{
+        background: {c['red_soft']};
+        border-color: {c['red_border']};
+    }}
+    QLabel[sensorCellLabel='true'] {{
+        color: {c['muted']};
+        font-size: 10px;
+        font-weight: 650;
+        letter-spacing: 0.3px;
+    }}
+    QLabel[sensorCellValue='true'] {{
+        color: {c['text']};
+        font-size: 17px;
+        font-weight: 760;
+    }}
+    QLabel[sensorCellUnit='true'] {{
+        color: {c['muted']};
+        font-size: 10px;
+        font-weight: 650;
+        padding-bottom: 2px;
+    }}
+    QLabel[sensorCellDetail='true'] {{
+        color: {c['muted']};
+        font-size: 9px;
+    }}
+    QLabel[sensorCellValue='true'][empty='true'] {{
+        color: {c['subtle']};
+        font-size: 13px;
+        font-weight: 650;
+    }}
+    QFrame[sensorCell='true'][tone='warning'] QLabel[sensorCellValue='true'] {{
+        color: {c['orange']};
+    }}
+    QFrame[sensorCell='true'][tone='danger'] QLabel[sensorCellValue='true'] {{
+        color: {c['red']};
+    }}
+    QFrame[dashboardBand='true'] {{
+        background: {c['panel']};
+        border: 1px solid {c['border_soft']};
+        border-radius: 14px;
+    }}
+    QLabel[sensorBoardTitle='true'] {{
+        color: {c['muted']};
+        font-size: 10px;
+        font-weight: 750;
+        letter-spacing: 0.6px;
+    }}
+    /* The dot that opens a group of readings, and the rule and chip that
+       frame the graphics card's groups. */
+    QLabel[sensorBoardDot='true'] {{
+        min-width: 6px;
+        max-width: 6px;
+        min-height: 6px;
+        max-height: 6px;
+        border-radius: 3px;
+        background: {c['subtle']};
+    }}
+    QLabel[sensorBoardDot='true'][accent='purple'] {{
+        background: {c['purple']};
+    }}
+    QLabel[sensorBoardDot='true'][accent='blue'] {{
+        background: {c['blue']};
+    }}
+    QLabel[sensorBoardDot='true'][accent='cyan'] {{
+        background: {c['cyan']};
+    }}
+    QLabel[sensorBoardDot='true'][accent='green'] {{
+        background: {c['green']};
+    }}
+    QLabel[sensorBoardDot='true'][accent='orange'] {{
+        background: {c['orange']};
+    }}
+    QLabel[sensorBoardDot='true'][accent='red'] {{
+        background: {c['red']};
+    }}
+    QFrame[dashboardMetricTile='true'][flat='true'] {{
+        background: transparent;
+        border: none;
+        border-radius: 0;
+    }}
+    QFrame[dashboardMetricTile='true'][flat='true'] QFrame[dashboardCoreCell='true'] {{
+        background: transparent;
+    }}
+    QFrame[dashboardDivider='true'] {{
+        background: {c['border_soft']};
+        border: none;
+    }}
+    QFrame[identityChip='true'] {{
+        background: {c['panel_alt']};
+        border: 1px solid {c['border_soft']};
+        border-radius: 9px;
+    }}
+    QLabel[identityChipLabel='true'] {{
         color: {c['muted']};
         font-size: 10px;
         font-weight: 700;
     }}
+    QLabel[identityChipValue='true'] {{
+        color: {c['text']};
+        font-size: 12px;
+        font-weight: 750;
+    }}
+    QLabel[identityChipDetail='true'] {{
+        color: {c['muted']};
+        font-size: 10px;
+    }}
+    /* Dashboard instruments (dashboard_instruments.py). Rows, not cells:
+       a column of right-aligned figures is read by running down it, and the
+       only colour is the domain accent and a reading the hardware flagged. */
+    QFrame[boardHeader='true'] {{
+        background: {c['panel']};
+        border: 1px solid {c['border_soft']};
+        border-radius: 16px;
+    }}
+    QLabel[boardMark='true'] {{
+        background: {c['panel_alt']};
+        border: 1px solid {c['border_soft']};
+        border-radius: 12px;
+    }}
+    QLabel[boardName='true'] {{
+        color: {c['text']};
+        font-size: 17px;
+        font-weight: 800;
+    }}
+    QLabel[boardSpec='true'] {{
+        color: {c['muted']};
+        font-size: 11px;
+        font-weight: 600;
+    }}
+    QFrame[instrumentPanel='true'] {{
+        background: {c['panel']};
+        border: 1px solid {c['border_soft']};
+        border-radius: 16px;
+    }}
+    QLabel[instrumentTitle='true'] {{
+        color: {c['text']};
+        font-size: 12px;
+        font-weight: 800;
+    }}
+    /* One accent, and it is the one chosen in Appearance: the palette swaps
+       what "blue" means, so a panel that picked its own colour ignored the
+       setting. Orange and red stay semantic — they mean a reading, not a
+       decoration. */
+    QFrame[instrumentAccent='true'] {{
+        background: {c['blue']};
+        border: none;
+    }}
+    QFrame[instrumentHairline='true'] {{
+        background: {c['border_soft']};
+        border: none;
+    }}
+    QLabel[groupTitle='true'] {{
+        color: {c['muted']};
+        font-size: 9px;
+        font-weight: 800;
+    }}
+    QLabel[bandNote='true'] {{
+        color: {c['muted']};
+        font-size: 10px;
+        font-weight: 600;
+    }}
+    QLabel[headlineValue='true'] {{
+        color: {c['text']};
+        font-size: 32px;
+        font-weight: 800;
+    }}
+    QLabel[headlineUnit='true'] {{
+        color: {c['muted']};
+        font-size: 11px;
+        font-weight: 700;
+        padding-bottom: 7px;
+    }}
+    QFrame[reading='true'] {{
+        background: transparent;
+        border: none;
+    }}
+    QFrame[reading='true'][banded='true'] {{
+        border-top: 1px solid {c['border_soft']};
+    }}
+    QLabel[readingLabel='true'] {{
+        color: {c['muted']};
+        font-size: 11px;
+        font-weight: 500;
+    }}
+    QLabel[readingValue='true'] {{
+        color: {c['text']};
+        font-size: 13px;
+        font-weight: 700;
+    }}
+    QLabel[readingUnit='true'] {{
+        color: {c['muted']};
+        font-size: 10px;
+        font-weight: 600;
+    }}
+    QLabel[readingDetail='true'] {{
+        color: {c['muted']};
+        font-size: 9px;
+    }}
+    QFrame[reading='true'][tone='warning'] QLabel[readingValue='true'] {{
+        color: {c['orange']};
+    }}
+    QFrame[reading='true'][tone='danger'] QLabel[readingValue='true'] {{
+        color: {c['red']};
+    }}
+    QPushButton[dashboardCardAction='true'][accented='true'] {{
+        color: {c['blue']};
+        border-color: {c['blue_border']};
+    }}
+    QLabel[dashboardCoreSummaryLabel='true'] {{
+        color: {c['muted']};
+        font-size: 9px;
+        font-weight: 800;
+    }}
     QLabel[dashboardCoreSummaryValue='true'] {{
         color: {c['text']};
-        font-size: 15px;
-        font-weight: 780;
+        font-size: 13px;
+        font-weight: 700;
     }}
     QLabel[dashboardCoreSummaryDetail='true'] {{
         color: {c['muted']};
@@ -655,15 +879,15 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         font-weight: 600;
     }}
     QLabel[dashboardCoreUsage='true'] {{
-        color: {c['text']};
+        color: {c['muted']};
         font-size: 11px;
         font-weight: 700;
     }}
     QFrame[dashboardCoreCell='true'] {{
-        background: {c['panel']};
-        border: 1px solid {c['border_soft']};
-        border-radius: 7px;
-        min-height: 40px;
+        background: transparent;
+        border: none;
+        border-top: 1px solid {c['border_soft']};
+        min-height: 26px;
     }}
     QLabel[dashboardCoreName='true'] {{
         color: {c['muted']};
@@ -1989,19 +2213,19 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QPushButton[cpuWorkspaceTab='true']:checked:hover {{
         border-color: {c['blue']};
     }}
-    QWidget[gpuGovernorPage='true'] QPushButton[gpuFrequencyPreset='true'] {{
+    QWidget[redesignedModule='true'] QPushButton[gpuFrequencyPreset='true'] {{
         min-height: 40px;
         padding: 11px 14px;
         font-size: 11px;
         font-weight: 740;
     }}
-    QWidget[gpuGovernorPage='true'] QPushButton[gpuFrequencyAction='true'] {{
+    QWidget[redesignedModule='true'] QPushButton[gpuFrequencyAction='true'] {{
         min-height: 20px;
         padding: 8px 12px;
         font-size: 12px;
         font-weight: 800;
     }}
-    QWidget[gpuGovernorPage='true'] QLineEdit[frequencyInput='true'] {{
+    QWidget[redesignedModule='true'] QLineEdit[frequencyInput='true'] {{
         min-height: 22px;
         font-size: 13px;
         font-weight: 820;
@@ -2009,21 +2233,82 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     /* Redesigned Cyan GPU view (gpu_governor_view.py). Every control the view
        builds carries one of these properties, so nothing falls back to the
        unstyled platform button. */
-    QWidget[gpuGovernorPage='true'] QFrame[subPanel='true'] {{
+    QWidget[redesignedModule='true'] QFrame[subPanel='true'] {{
         background: transparent;
         border: 1px solid {c['border_soft']};
         border-radius: 12px;
     }}
-    QWidget[gpuGovernorPage='true'] QFrame[subPanel='true'][riskPanel='true'] {{
+    QWidget[redesignedModule='true'] QFrame[subPanel='true'][riskPanel='true'] {{
         background: {c['red_soft']};
         border: 1px solid {c['red_border']};
     }}
-    QWidget[gpuGovernorPage='true'] QLabel[cardTitle='true'] {{
+    /* Qt draws a spin box's step buttons outside the rounded border by
+       default, which left a grey stub hanging off every numeric field in both
+       redesigned modules. Place them inside the frame and give them the same
+       chevrons the rest of the interface uses. */
+    QWidget[redesignedModule='true'] QSpinBox {{
+        padding-right: 24px;
+    }}
+    QWidget[redesignedModule='true'] QSpinBox::up-button,
+    QWidget[redesignedModule='true'] QSpinBox::down-button {{
+        subcontrol-origin: border;
+        subcontrol-position: top right;
+        width: 20px;
+        height: 14px;
+        margin: 3px 4px 0px 0px;
+        background: transparent;
+        border: none;
+        border-radius: 5px;
+    }}
+    QWidget[redesignedModule='true'] QSpinBox::down-button {{
+        subcontrol-position: bottom right;
+        margin: 0px 4px 3px 0px;
+    }}
+    QWidget[redesignedModule='true'] QSpinBox::up-button:hover,
+    QWidget[redesignedModule='true'] QSpinBox::down-button:hover {{
+        background: {c['panel_alt']};
+    }}
+    QWidget[redesignedModule='true'] QSpinBox::up-arrow {{
+        image: url({icon_dir}/chevron_up_gray.svg);
+        width: 11px;
+        height: 11px;
+    }}
+    QWidget[redesignedModule='true'] QSpinBox::down-arrow {{
+        image: url({icon_dir}/chevron_down_gray.svg);
+        width: 11px;
+        height: 11px;
+    }}
+    QWidget[redesignedModule='true'] QSpinBox::up-arrow:off,
+    QWidget[redesignedModule='true'] QSpinBox::down-arrow:off {{
+        image: none;
+    }}
+    /* A native check box beside a styled row reads as a stray control from
+       another application. Same radius and hairline as every other field. */
+    QWidget[redesignedModule='true'] QCheckBox::indicator {{
+        width: 18px;
+        height: 18px;
+        border: 1px solid {c['border']};
+        border-radius: 6px;
+        background: {c['panel_alt']};
+    }}
+    QWidget[redesignedModule='true'] QCheckBox::indicator:hover {{
+        border-color: {c['blue']};
+    }}
+    QWidget[redesignedModule='true'] QCheckBox::indicator:checked {{
+        background: {c['blue']};
+        border-color: {c['blue']};
+        image: url({icon_dir}/check_white.svg);
+    }}
+    QWidget[redesignedModule='true'] QCheckBox::indicator:disabled {{
+        background: transparent;
+        border-color: {c['border_soft']};
+    }}
+    QWidget[redesignedModule='true'] QLabel[cardTitle='true'] {{
         color: {c['text']};
         font-size: 13px;
         font-weight: 780;
     }}
-    QWidget[gpuGovernorPage='true'] QPushButton[ghostButton='true'] {{
+    QWidget[redesignedModule='true'] QPushButton[ghostButton='true'] {{
         background: {c['panel_alt']};
         border: 1px solid {c['border']};
         border-radius: 10px;
@@ -2032,16 +2317,16 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         font-weight: 720;
         color: {c['text']};
     }}
-    QWidget[gpuGovernorPage='true'] QPushButton[ghostButton='true']:hover {{
+    QWidget[redesignedModule='true'] QPushButton[ghostButton='true']:hover {{
         background: {c['control_hover']};
         border-color: {c['border_strong']};
     }}
-    QWidget[gpuGovernorPage='true'] QPushButton[ghostButton='true']:disabled {{
+    QWidget[redesignedModule='true'] QPushButton[ghostButton='true']:disabled {{
         background: {c['disabled_bg']};
         border-color: {c['border_soft']};
         color: {c['disabled_text']};
     }}
-    QWidget[gpuGovernorPage='true'] QPushButton[linkButton='true'] {{
+    QWidget[redesignedModule='true'] QPushButton[linkButton='true'] {{
         background: transparent;
         border: none;
         padding: 4px 6px;
@@ -2049,26 +2334,26 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         font-weight: 720;
         color: {c['blue']};
     }}
-    QWidget[gpuGovernorPage='true'] QPushButton[linkButton='true']:hover {{
+    QWidget[redesignedModule='true'] QPushButton[linkButton='true']:hover {{
         color: {c['blue_hover']};
     }}
-    QWidget[gpuGovernorPage='true'] QPushButton[linkButton='true'][quiet='true'] {{
+    QWidget[redesignedModule='true'] QPushButton[linkButton='true'][quiet='true'] {{
         color: {c['muted']};
     }}
-    QWidget[gpuGovernorPage='true'] QPushButton[linkButton='true'][quiet='true']:hover {{
+    QWidget[redesignedModule='true'] QPushButton[linkButton='true'][quiet='true']:hover {{
         color: {c['text']};
     }}
-    QWidget[gpuGovernorPage='true'] QPushButton[iconOnlyButton='true'] {{
+    QWidget[redesignedModule='true'] QPushButton[iconOnlyButton='true'] {{
         background: {c['panel_raised']};
         border: 1px solid {c['border_soft']};
         border-radius: 7px;
         padding: 0px;
     }}
-    QWidget[gpuGovernorPage='true'] QPushButton[iconOnlyButton='true']:hover {{
+    QWidget[redesignedModule='true'] QPushButton[iconOnlyButton='true']:hover {{
         background: {c['control_hover']};
         border-color: {c['blue_border']};
     }}
-    QWidget[gpuGovernorPage='true'] QPushButton[toggleChip='true'] {{
+    QWidget[redesignedModule='true'] QPushButton[toggleChip='true'] {{
         background: {c['panel_alt']};
         border: 1px solid {c['border']};
         border-radius: 9px;
@@ -2077,16 +2362,16 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         font-weight: 700;
         color: {c['muted']};
     }}
-    QWidget[gpuGovernorPage='true'] QPushButton[toggleChip='true']:hover {{
+    QWidget[redesignedModule='true'] QPushButton[toggleChip='true']:hover {{
         border-color: {c['border_strong']};
         color: {c['text']};
     }}
-    QWidget[gpuGovernorPage='true'] QPushButton[toggleChip='true']:checked {{
+    QWidget[redesignedModule='true'] QPushButton[toggleChip='true']:checked {{
         background: {c['blue_soft']};
         border-color: {c['blue_border']};
         color: {c['blue']};
     }}
-    QWidget[gpuGovernorPage='true'] QPushButton[accentAction='true'] {{
+    QWidget[redesignedModule='true'] QPushButton[accentAction='true'] {{
         background: {c['blue_soft']};
         border: 1px solid {c['blue_border']};
         border-radius: 10px;
@@ -2095,84 +2380,84 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         font-weight: 740;
         color: {c['blue']};
     }}
-    QWidget[gpuGovernorPage='true'] QPushButton[accentAction='true']:hover {{
+    QWidget[redesignedModule='true'] QPushButton[accentAction='true']:hover {{
         border-color: {c['blue']};
         color: {c['blue_hover']};
     }}
-    QWidget[gpuGovernorPage='true'] QPushButton[accentAction='true']:disabled {{
+    QWidget[redesignedModule='true'] QPushButton[accentAction='true']:disabled {{
         background: {c['disabled_bg']};
         border-color: {c['border_soft']};
         color: {c['disabled_text']};
     }}
-    QWidget[gpuGovernorPage='true'] QPushButton#PrimaryAction {{
+    QWidget[redesignedModule='true'] QPushButton#PrimaryAction {{
         background: {c['blue']};
         border-color: {c['blue']};
         color: {c['on_blue']};
         min-height: 22px;
     }}
-    QWidget[gpuGovernorPage='true'] QPushButton#PrimaryAction:hover {{
+    QWidget[redesignedModule='true'] QPushButton#PrimaryAction:hover {{
         background: {c['blue_hover']};
         border-color: {c['blue_hover']};
     }}
-    QWidget[gpuGovernorPage='true'] QPushButton#PrimaryAction:disabled {{
+    QWidget[redesignedModule='true'] QPushButton#PrimaryAction:disabled {{
         background: {c['disabled_bg']};
         border-color: {c['disabled_bg']};
         color: {c['disabled_text']};
     }}
-    QWidget[gpuGovernorPage='true'] QFrame[profileCard='true'][selectedProfile='true'] {{
+    QWidget[redesignedModule='true'] QFrame[profileCard='true'][selectedProfile='true'] {{
         background: {c['blue_soft']};
         border: 1px solid {c['blue_border']};
     }}
-    QWidget[gpuGovernorPage='true'] QFrame[profileCard='true'][blockedProfile='true'] {{
+    QWidget[redesignedModule='true'] QFrame[profileCard='true'][blockedProfile='true'] {{
         border: 1px solid {c['red_border']};
     }}
-    QWidget[gpuGovernorPage='true'] QLabel[eyebrow='true'] {{
+    QWidget[redesignedModule='true'] QLabel[eyebrow='true'] {{
         color: {c['blue']};
         font-size: 10px;
         font-weight: 800;
         background: transparent;
     }}
-    QWidget[gpuGovernorPage='true'] QLabel[eyebrow='true'][danger='true'] {{
+    QWidget[redesignedModule='true'] QLabel[eyebrow='true'][danger='true'] {{
         color: {c['red']};
     }}
-    QWidget[gpuGovernorPage='true'] QLabel[railLegend='true'] {{
+    QWidget[redesignedModule='true'] QLabel[railLegend='true'] {{
         color: {c['red']};
         font-size: 10px;
         font-weight: 800;
         background: transparent;
     }}
-    QWidget[gpuGovernorPage='true'] QLabel[bigReadout='true'] {{
+    QWidget[redesignedModule='true'] QLabel[bigReadout='true'] {{
         color: {c['text']};
         font-size: 21px;
         font-weight: 830;
         background: transparent;
     }}
-    QWidget[gpuGovernorPage='true'] QLabel[panelHeadline='true'] {{
+    QWidget[redesignedModule='true'] QLabel[panelHeadline='true'] {{
         color: {c['text']};
         font-size: 15px;
         font-weight: 800;
         background: transparent;
     }}
-    QWidget[gpuGovernorPage='true'] QLabel[rangeReadout='true'] {{
+    QWidget[redesignedModule='true'] QLabel[rangeReadout='true'] {{
         color: {c['text']};
         font-size: 16px;
         font-weight: 820;
         background: transparent;
     }}
-    QWidget[gpuGovernorPage='true'] QLabel[rangeReadout='true'][danger='true'] {{
+    QWidget[redesignedModule='true'] QLabel[rangeReadout='true'][danger='true'] {{
         color: {c['red']};
     }}
-    QWidget[gpuGovernorPage='true'] QFrame[frequencyField='true'] {{
+    QWidget[redesignedModule='true'] QFrame[frequencyField='true'] {{
         background: transparent;
         border: none;
     }}
-    QWidget[gpuGovernorPage='true'] QLabel[frequencyFieldLabel='true'] {{
+    QWidget[redesignedModule='true'] QLabel[frequencyFieldLabel='true'] {{
         color: {c['text']};
         font-size: 12px;
         font-weight: 700;
         background: transparent;
     }}
-    QWidget[gpuGovernorPage='true'] QLabel[frequencyChip='true'] {{
+    QWidget[redesignedModule='true'] QLabel[frequencyChip='true'] {{
         background: {c['window']};
         border: 1px solid {c['border']};
         border-radius: 9px;
@@ -2182,29 +2467,29 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         font-weight: 800;
         min-width: 60px;
     }}
-    QWidget[gpuGovernorPage='true'] QLabel[frequencyChip='true'][chipAccent='true'] {{
+    QWidget[redesignedModule='true'] QLabel[frequencyChip='true'][chipAccent='true'] {{
         border-color: {c['blue_border']};
         color: {c['blue']};
     }}
-    QWidget[gpuGovernorPage='true'] QLabel[frequencyUnit='true'] {{
+    QWidget[redesignedModule='true'] QLabel[frequencyUnit='true'] {{
         color: {c['muted']};
         font-size: 11px;
         background: transparent;
     }}
-    QWidget[gpuGovernorPage='true'] QFrame[pickerRow='true'] {{
+    QWidget[redesignedModule='true'] QFrame[pickerRow='true'] {{
         background: {c['window']};
         border: 1px solid {c['border']};
         border-radius: 9px;
     }}
-    QWidget[gpuGovernorPage='true'] QFrame[pickerRow='true']:hover {{
+    QWidget[redesignedModule='true'] QFrame[pickerRow='true']:hover {{
         border-color: {c['border_strong']};
     }}
-    QWidget[gpuGovernorPage='true'] QLabel[pickerCaption='true'] {{
+    QWidget[redesignedModule='true'] QLabel[pickerCaption='true'] {{
         color: {c['muted']};
         font-size: 12px;
         background: transparent;
     }}
-    QWidget[gpuGovernorPage='true'] QLabel[pickerValue='true'] {{
+    QWidget[redesignedModule='true'] QLabel[pickerValue='true'] {{
         color: {c['text']};
         font-size: 12px;
         font-weight: 700;

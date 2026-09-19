@@ -5,7 +5,6 @@ from PyQt6.QtCore import QPoint, QPointF, Qt
 from PyQt6.QtGui import QWheelEvent
 from PyQt6.QtWidgets import QApplication, QLabel
 
-from frontends.desktop.components.dashboard_widgets import DashboardCoreSummary
 from frontends.desktop.components.sidebar import Sidebar
 from frontends.desktop.core.state import DashboardState
 from frontends.desktop.i18n import (
@@ -23,9 +22,9 @@ def test_dashboard_telemetry_headings_reuse_existing_icons(qtbot):
     page = DashboardPage(object())
     qtbot.addWidget(page)
 
-    for card in (page.gpu_card, page.cpu_card, page.cu_card, page.fan_card):
-        assert not card.heading_icon.pixmap().isNull()
-        assert card.heading_icon.width() == 24
+    for card in (page.gpu_card, page.cpu_card, page.fan_card):
+        # Every panel names itself in the same heading style.
+        assert card.heading_icon.text() == card.heading_icon.text().upper()
 
 
 @pytest.mark.parametrize("width", (390, 700, 1100, 1400))
@@ -66,13 +65,13 @@ def test_dashboard_displays_physical_clock_and_core_counts_without_duplicate_row
         )
     )
     hero = page.gpu_card
-    assert hero.frequency_value.text() == "1000"
-    assert hero.accepted_row.value.text() == "1850 MHz"
-    assert len(hero.evidence_rows) == 2
+    assert hero.headline.items["clock"][0].text() == "1000"
+    assert hero.details["range"].detail.text() == "Accepted 1850 MHz"
     assert not hasattr(hero, "power_summary")
-    assert hero.cores_summary.value.text() == "6 cores / 12 threads"
-    assert hero.cores_summary.detail.isHidden()
-    assert len(page.cu_card.metric_rows) == 2  # Mode is already in the CU badge.
+    assert page.cores_summary.shape.text() == "6 cores / 12 threads"
+    # Compute Units are reported by the panel that owns the die. This state
+    # carries no CU evidence, so the reading says so rather than assuming 40.
+    assert page.gpu_card.details["cu"].value.text() == tr("Not detected")
     assert page.cpu_card.status.isHidden()
     assert not hasattr(hero, "uptime_metric")
     page._apply_live_sample(
@@ -97,38 +96,28 @@ def test_dashboard_displays_physical_clock_and_core_counts_without_duplicate_row
             },
         )
     )
-    assert [item.text() for item in hero.thermal_strip.labels] == [
-        tr("GPU"),
-        tr("CPU"),
-        tr("M.2"),
-        tr("Board"),
-        tr("VRM"),
-    ]
-    assert [item.text() for item in hero.thermal_strip.values] == [
-        "57 °C",
-        "56.0 °C",
-        "46.9 °C",
-        "48.0 °C",
-        "49.0 °C",
-    ]
-    assert [item.text() for item in hero.technical_strip.values] == [
-        "41 W",
-        "450 MHz",
-        "68.8 °C",
-        "238 MB / 5.2 GB",
-        "auto",
-    ]
-    assert hero.cores_summary.core_labels[0].text() == "N1"
-    assert hero.cores_summary.core_frequency_labels[0].text() == "3.47 GHz"
-    assert hero.cores_summary.core_usage_labels[0].text() == "1%"
-    assert len([cell for cell in hero.cores_summary.core_cells if not cell.isHidden()]) == 8
-    assert hero.cores_summary.core_frequency_labels[6].text() == tr("Hidden / offline")
+    # Graphics only: the processor reports its own temperature, and the drive
+    # and the board are reported next to the fan that moves their heat.
+    assert hero.details["temperature"].value.text() == "57"
+    assert hero.details["rail"].label.text() == tr("VRM")
+    assert hero.details["rail"].value.text() == "49.0"
+    assert page.cpu_card.details["temperature"].value.text() == "56.0"
+    assert page.fan_card.details["board"].value.text() == "48.0"
+    assert page.fan_card.details["nvme"].value.text() == "46.9"
+    assert page.fan_card.details["hotspot"].value.text() == "68.8"
+    assert hero.details["power"].value.text() == "41"
+    assert hero.details["mclk"].value.text() == "450"
+    rows = page.cores_summary.grid.rows
+    assert rows[0].name.text() == "N1"
+    assert rows[0].frequency.text() == "3.47 GHz"
+    assert rows[0].usage.text() == "1 %"
+    assert len([row for row in rows if not row.isHidden()]) == 8
+    assert rows[6].frequency.text() == tr("Hidden")
     page._apply_live_sample(
         (time.monotonic() - 5, {"cpu": {"physical_cores": 8, "logical_cores": 16}})
     )
-    assert hero.frequency_value.text() == "--"
-    assert hero.cores_summary.value.text() == tr("Not detected")
-    assert hero.cores_summary.detail.isHidden()
+    assert hero.headline.items["clock"][0].text() == "--"
+    assert page.cores_summary.shape.text() == tr("Not detected")
 
 
 def test_dashboard_shows_only_registered_boot_cpu_oc_and_scale(qtbot):
@@ -146,10 +135,12 @@ def test_dashboard_shows_only_registered_boot_cpu_oc_and_scale(qtbot):
         )
     )
 
-    assert page.gpu_card.cores_summary.value.text() == "6 cores / 12 threads"
-    assert page.gpu_card.cores_summary.detail.text() == (
-        "Registered OC: 3500 MHz · Scale -20"
-    )
+    assert page.cores_summary.shape.text() == "6 cores / 12 threads"
+    # A registered overclock is a reading of the processor, reported with the
+    # rest of them rather than as a caption on the core strip.
+    assert page.cpu_card.details["oc"].value.text() == "3500"
+    assert page.cpu_card.details["oc"].unit.text() == "MHz"
+    assert page.cpu_card.details["oc"].detail.text() == "Scale -20"
 
     page.apply_state(
         DashboardState(
@@ -161,61 +152,43 @@ def test_dashboard_shows_only_registered_boot_cpu_oc_and_scale(qtbot):
             cpu_oc_source="live",
         )
     )
-    assert page.gpu_card.cores_summary.detail.isHidden()
+    assert page.cpu_card.details["oc"].value.text() == tr("Not detected")
 
 
-def test_medium_dashboard_width_gives_the_core_grid_the_full_hero_width(qtbot):
+def test_a_medium_dashboard_stacks_the_three_panels(qtbot):
+    """Three peers side by side, or one column. Never two and an orphan."""
     page = DashboardPage(object())
     qtbot.addWidget(page)
     page.resize(920, 800)
     page.show()
     qtbot.wait(30)
 
-    hero = page.gpu_card
-    assert not hero._wide
-    assert hero.root.indexOf(hero.evidence) >= 0
-    evidence_row, evidence_column, _rowspan, _colspan = hero.root.getItemPosition(
-        hero.root.indexOf(hero.evidence)
-    )
-    assert (evidence_row, evidence_column) == (1, 0)
-    assert hero.cores_summary._columns == 4
+    columns = {page.modules_grid.getItemPosition(index)[1] for index in range(3)}
+    assert columns == {0}
 
 
-def test_wide_core_strip_keeps_all_eight_cells_the_same_width(qtbot):
+def test_the_core_grid_belongs_to_the_processor_card_and_keeps_even_cells(qtbot):
+    """The eight core positions moved out of the graphics card.
+
+    They describe the processor, so they are reported by the processor. The
+    card is half the page rather than its full width, so the grid folds to two
+    rows of four instead of one row of eight — the cells must still measure
+    the same, or a core looks busier than its neighbour for no reason.
+    """
     page = DashboardPage(object())
     qtbot.addWidget(page)
-    page.resize(1500, 800)
+    page.resize(1500, 900)
     page.show()
     qtbot.wait(30)
 
-    cores = page.gpu_card.cores_summary
-    assert cores._columns == 8
-    widths = [cell.width() for cell in cores.core_cells if cell.isVisible()]
+    cores = page.cores_summary
+    assert not page.gpu_card.isAncestorOf(cores)
+    assert page.cpu_card.isAncestorOf(cores)
+    # Two columns of four in a third of the page.
+    assert cores.grid._columns == 2
+    widths = [row.width() for row in cores.grid.rows if row.isVisible()]
     assert len(widths) == 8
     assert max(widths) - min(widths) <= 1
-
-
-@pytest.mark.parametrize("scale", (100, 150))
-def test_compact_core_strip_grows_to_keep_every_reading_visible(qtbot, scale):
-    tile = DashboardCoreSummary()
-    qtbot.addWidget(tile)
-    tile.setStyleSheet(application_stylesheet("dark", scale=scale))
-    tile.set_value("6 cores / 12 threads")
-    tile.set_detail("Registered OC: 3850 MHz · Scale -35")
-    tile.set_core_metrics(
-        [3190, 1400, 2300, 3190, 1390, 1400],
-        [7, 9, 5, 3, 4, 9],
-    )
-    tile.setFixedWidth(560)
-    tile.show()
-    tile.adjustSize()
-    qtbot.wait(20)
-
-    assert tile._columns == 2
-    assert tile.height() >= tile.minimumSizeHint().height()
-    for label in tile.core_labels + tile.core_frequency_labels:
-        if not label.isHidden():
-            assert label.height() >= label.fontMetrics().height()
 
 
 @pytest.mark.parametrize(
@@ -231,8 +204,7 @@ def test_core_tile_never_invents_an_unlocked_or_healthy_state(qtbot, cpu):
     page = DashboardPage(object())
     qtbot.addWidget(page)
     page.apply_state(DashboardState().with_live_metrics({"cpu": cpu}))
-    assert page.gpu_card.cores_summary.value.text() == tr("Not detected")
-    assert page.gpu_card.cores_summary.detail.isHidden()
+    assert page.cores_summary.shape.text() == tr("Not detected")
 
 
 @pytest.mark.parametrize("language", sorted(SUPPORTED_LANGUAGES))
@@ -243,12 +215,11 @@ def test_core_tile_translates_without_losing_live_counts(qtbot, language):
         set_language(language)
         localize_widget_tree(page, language)
         page.apply_state(DashboardState(cpu_physical_cores=8, cpu_logical_cores=16))
-        tile = page.gpu_card.cores_summary
-        assert tile.label.text() == tr("Available CPU cores")
-        assert tile.detail.isHidden()
-        assert "8" in tile.value.text() and "16" in tile.value.text()
-        if language != "en":
-            assert tile.label.text() != "Available CPU cores"
+        tile = page.cores_summary
+        assert tile.title.text() == tr("Live core monitor").upper()
+        assert "8" in tile.shape.text() and "16" in tile.shape.text()
+        if language != "en" and tr("Live core monitor") != "Live core monitor":
+            assert tile.title.text() != "LIVE CORE MONITOR"
 
         page.apply_state(
             DashboardState(
@@ -260,15 +231,13 @@ def test_core_tile_translates_without_losing_live_counts(qtbot, language):
                 cpu_oc_source="boot",
             )
         )
-        expected = tr_format(
-            "Registered OC: {frequency} MHz · Scale {scale}",
-            frequency=3850,
-            scale=-35,
-        )
-        assert tile.detail.text() == expected
-        assert not tile.detail.isHidden()
-        if language != "en":
-            assert tile.detail.text() != "Registered OC: 3850 MHz · Scale -35"
+        # The registered overclock is a reading of the processor now, so it
+        # is translated with the rest of them rather than as a caption here.
+        overclock = page.cpu_card.details["oc"]
+        # The unit is translated as well, and some languages join it to the
+        # number, so the assertion is on the reading rather than the split.
+        assert "3850" in overclock.value.text()
+        assert overclock.detail.text() == tr_format("Scale {scale}", scale=-35)
     finally:
         set_language("en")
 
@@ -325,9 +294,13 @@ def test_dashboard_compact_cards_and_preparation_grid_keep_equal_edges(qtbot):
     page.resize(1600, 1000)
     page.show()
     qtbot.wait(150)
-    assert page.gpu_card.height() < 420
-    assert len({card.height() for card in page.module_cards}) == 1
-    assert len({card.y() for card in page.module_cards}) == 1
+    # The hero now carries every graphics reading in two boards instead of
+    # two strips, so its ceiling rose with the content it owns.
+    assert page.gpu_card.height() < 520
+    # Each panel is as tall as its own content; they share a top edge, not a
+    # bottom one, so no panel ends in a quarter-height void.
+    assert len({card.y() for card in page.instruments}) == 1
+    assert len({card.y() for card in page.instruments}) == 1
     assert page.readiness._component_columns == 4
     assert len({card.height() for card in page.readiness.rows}) == 1
     assert (

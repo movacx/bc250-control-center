@@ -239,3 +239,91 @@ def test_manual_scale_unlocks_only_for_current_verified_detection(qtbot):
     assert page.scale_override_check.isEnabled() is False
     assert page.scale_control.isEnabled() is False
     assert "automatic live configuration" in page.scale_test_status.text()
+
+
+def live_manual(scale):
+    """A manual scale applied live this boot, which may never be persisted."""
+    return {
+        "active_in_current_session": True,
+        "direct_manual": True,
+        "valid_for_persistence": False,
+        "test": {"scale": scale, "frequency": 3550, "temperature": 90},
+    }
+
+
+def test_the_plan_names_the_scale_that_is_running_when_another_one_would_boot():
+    """The dialog promised -35 while the processor was running -26.
+
+    Manual scale unlocks only for the detection session that produced it, so
+    the check box can be switched off underneath the user while their manual
+    value stays live in hardware. The save dialog then described the detector
+    result and said nothing about the difference.
+    """
+    plan = plan_cpu_persistence(
+        detection(),
+        scale_override=None,
+        candidate_frequency=3850,
+        candidate_temperature=90,
+        live_state=live_manual(-26),
+    )
+
+    assert isinstance(plan, CpuPersistencePlan)
+    assert plan.active_scale == "-26"
+    assert plan.live_notice is not None
+    assert "automatic detection" in plan.live_notice.template
+
+
+def test_nothing_is_said_when_what_runs_is_what_boots():
+    matching = plan_cpu_persistence(
+        detection(),
+        scale_override=None,
+        candidate_frequency=3850,
+        candidate_temperature=90,
+        live_state=live_manual(-35),
+    )
+    unknown = plan_cpu_persistence(
+        detection(),
+        scale_override=None,
+        candidate_frequency=3850,
+        candidate_temperature=90,
+    )
+
+    assert matching.active_scale == "" and matching.live_notice is None
+    assert unknown.active_scale == "" and unknown.live_notice is None
+
+
+def test_the_confirmation_shows_the_active_scale_and_drops_repeated_rows(qtbot):
+    page = CpuSmuPage(object())
+    qtbot.addWidget(page)
+    plan = plan_cpu_persistence(
+        detection(),
+        scale_override=None,
+        candidate_frequency=3850,
+        candidate_temperature=90,
+        live_state=live_manual(-26),
+    )
+    shown = {}
+
+    class Dialog:
+        def __init__(self, *args, **kwargs):
+            shown.update(kwargs)
+
+        def exec(self):
+            return QDialog.DialogCode.Rejected
+
+    import frontends.desktop.pages.cpu_smu as module
+
+    original = module.ConfirmDialog
+    module.ConfirmDialog = Dialog
+    try:
+        page._confirm_cpu_persistence(plan)
+    finally:
+        module.ConfirmDialog = original
+
+    labels = [label for label, _value in shown["summary"]]
+    assert ("Active scale", "-26") in shown["summary"]
+    # The detected result equals the candidate here, and the scale line only
+    # repeats it, so neither earns a row.
+    assert "Detected result" not in labels
+    assert "Scale" not in labels
+    assert "automatic detection" in shown["notice"]

@@ -41,6 +41,7 @@ from ..core.gfx1013_presenter import present_gfx1013
 from ..core.preferences import application_settings
 from ..i18n import tr, tr_format
 from .buttons import WrappingButton as QPushButton
+from .dashboard_instruments import HeadingLabel
 from .responsive import clear_grid
 from .system_setup_controls import (
     VRAM_SIZE_PRESETS_MB,
@@ -176,230 +177,6 @@ class _PreparationStack(QWidget):
         self.updateGeometry()
 
 
-class DashboardMetricTile(QFrame):
-    def __init__(self, label: str, value: str = "Not detected", detail: str = ""):
-        super().__init__()
-        self.setProperty("dashboardMetricTile", True)
-        self.setMinimumWidth(0)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        self.setFixedHeight(80)
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(12, 8, 12, 8)
-        layout.setSpacing(2)
-        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        self.label = _label(label, "dashboardMetricLabel")
-        self.value = _label(value, "dashboardMetricValue")
-        self.detail = _label(detail, "dashboardMetricDetail")
-        self.detail.setVisible(bool(detail))
-        layout.addWidget(self.label)
-        layout.addWidget(self.value)
-        layout.addWidget(self.detail)
-
-    def set_value(self, value: str) -> None:
-        self.value.setText(tr(value))
-
-    def set_label(self, label: str) -> None:
-        self.label.setText(tr(label))
-
-    def set_detail(self, detail: str) -> None:
-        self.detail.setText(tr(detail))
-        self.detail.setVisible(bool(detail))
-
-
-class DashboardCoreSummary(QFrame):
-    """A responsive overview of the physical CPU-core samples."""
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.setProperty("dashboardMetricTile", True)
-        self.setMinimumWidth(0)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        layout = QVBoxLayout(self)
-        self.root = layout
-        layout.setContentsMargins(12, 9, 12, 9)
-        layout.setSpacing(7)
-        self.header = QGridLayout()
-        self.header.setContentsMargins(0, 0, 0, 0)
-        self.header.setHorizontalSpacing(10)
-        self.header.setVerticalSpacing(3)
-        self.label = _label(
-            "Available CPU cores", "dashboardCoreSummaryLabel", wrap=False
-        )
-        self.value = _label(
-            "Not detected", "dashboardCoreSummaryValue", wrap=False
-        )
-        self.detail = _label(
-            "Detected by the OS", "dashboardCoreSummaryDetail", wrap=False
-        )
-        self.detail.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-        layout.addLayout(self.header)
-        self.core_grid = QGridLayout()
-        self.core_grid.setContentsMargins(0, 0, 0, 0)
-        self.core_grid.setHorizontalSpacing(6)
-        self.core_grid.setVerticalSpacing(6)
-        self.core_labels: list[QLabel] = []
-        self.core_frequency_labels: list[QLabel] = []
-        self.core_usage_labels: list[QLabel] = []
-        self.core_separators: list[QLabel] = []
-        self.core_cells: list[QFrame] = []
-        for index in range(8):
-            cell = QFrame()
-            cell.setProperty("dashboardCoreCell", True)
-            cell_layout = QVBoxLayout(cell)
-            cell_layout.setContentsMargins(8, 5, 8, 5)
-            cell_layout.setSpacing(1)
-            name = _label(f"N{index + 1}", "dashboardCoreName", wrap=False)
-            metrics = QHBoxLayout()
-            metrics.setContentsMargins(0, 0, 0, 0)
-            metrics.setSpacing(4)
-            frequency = _label("-- GHz", "dashboardCoreFrequency", wrap=False)
-            separator = _label("·", "dashboardCoreSeparator", wrap=False)
-            usage = _label("--%", "dashboardCoreUsage", wrap=False)
-            usage.setToolTip(
-                tr_format("CPU core {core} usage: {usage}%", core=index + 1, usage="--")
-            )
-            metrics.addWidget(frequency)
-            metrics.addWidget(separator)
-            metrics.addWidget(usage)
-            metrics.addStretch(1)
-            cell_layout.addWidget(name)
-            cell_layout.addLayout(metrics)
-            self.core_cells.append(cell)
-            self.core_labels.append(name)
-            self.core_frequency_labels.append(frequency)
-            self.core_usage_labels.append(usage)
-            self.core_separators.append(separator)
-        layout.addLayout(self.core_grid)
-        self._visible_core_count = 8
-        self._rendered_core_count = 0
-        self._columns = 0
-        self._compact_header: bool | None = None
-        self._layout_header(1000)
-        self._reflow(1000)
-
-    def set_core_count(self, count: int) -> None:
-        self._visible_core_count = min(8, max(1, int(count or 8)))
-        self._reflow(self.width())
-
-    def _reflow(self, width: int) -> None:
-        self._layout_header(width)
-        available = self._visible_core_count
-        columns = min(available, 8 if width >= 1100 else 4 if width >= 640 else 2)
-        if (
-            columns == self._columns
-            and available == self._rendered_core_count
-            and self.core_grid.count()
-        ):
-            return
-        self._columns = columns
-        self._rendered_core_count = available
-        for cell in self.core_cells:
-            self.core_grid.removeWidget(cell)
-        for index, cell in enumerate(self.core_cells):
-            visible = index < available
-            cell.setVisible(visible)
-            if visible:
-                row, column = divmod(index, columns)
-                self.core_grid.addWidget(cell, row, column)
-        # Eight physical positions are always rendered.  Every one needs the
-        # same stretch factor; leaving N7/N8 at the layout default shrinks
-        # those two cells and breaks the visual rhythm of the strip.
-        for column in range(8):
-            self.core_grid.setColumnStretch(column, 1 if column < columns else 0)
-        self.updateGeometry()
-
-    def _on_live_toggled(self, active: bool) -> None:
-        self.live_button.setText(tr("Stop monitoring") if active else tr("Monitor live"))
-        self.live_toggled.emit(bool(active))
-
-    def set_live(self, active: bool) -> None:
-        """Reflect the engine's state without re-emitting the intent."""
-        if self.live_button.isChecked() == bool(active):
-            return
-        blocked = self.live_button.blockSignals(True)
-        self.live_button.setChecked(bool(active))
-        self.live_button.blockSignals(blocked)
-        self.live_button.setText(
-            tr("Stop monitoring") if active else tr("Monitor live")
-        )
-
-    def _layout_header(self, width: int) -> None:
-        compact = width < 700
-        if compact == self._compact_header and self.header.count():
-            return
-        self._compact_header = compact
-        for widget in (self.label, self.value, self.detail):
-            self.header.removeWidget(widget)
-        for column in range(4):
-            self.header.setColumnStretch(column, 0)
-        self.label.setWordWrap(compact)
-        self.header.addWidget(self.label, 0, 0)
-        self.header.addWidget(self.value, 0, 1)
-        if compact:
-            self.header.addWidget(self.detail, 1, 0, 1, 3)
-            self.header.setColumnStretch(2, 1)
-        else:
-            self.header.addWidget(self.detail, 0, 2)
-            self.header.setColumnStretch(3, 1)
-        self.updateGeometry()
-
-    def resizeEvent(self, event) -> None:  # noqa: N802
-        super().resizeEvent(event)
-        self._reflow(event.size().width())
-
-    def set_value(self, value: str) -> None:
-        self.value.setText(tr(value))
-
-    def set_detail(self, detail: str) -> None:
-        self.detail.setText(tr(detail))
-        self.detail.setVisible(bool(detail))
-        self.updateGeometry()
-
-    def set_core_metrics(
-        self, frequencies_mhz: Iterable[object], usages: Iterable[object]
-    ) -> None:
-        frequencies = list(frequencies_mhz)
-        samples = list(usages)
-        measured_count = max(len(frequencies), len(samples))
-        for index, (frequency_item, usage_item, separator) in enumerate(
-            zip(
-                self.core_frequency_labels,
-                self.core_usage_labels,
-                self.core_separators,
-                strict=True,
-            )
-        ):
-            try:
-                usage = max(0, min(100, round(float(samples[index]))))
-            except (IndexError, TypeError, ValueError):
-                usage = None
-            try:
-                frequency = max(0.0, float(frequencies[index])) / 1000
-            except (IndexError, TypeError, ValueError):
-                frequency = None
-            missing_slot = measured_count > 0 and index >= measured_count
-            frequency_item.setText(
-                f"{frequency:.2f} GHz"
-                if frequency
-                else tr("Hidden / offline")
-                if missing_slot
-                else "-- GHz"
-            )
-            separator.setVisible(not missing_slot)
-            usage_item.setVisible(not missing_slot)
-            usage_item.setText(f"{usage}%" if usage is not None else "--%")
-            usage_item.setToolTip(
-                tr_format(
-                    "CPU core {core} usage: {usage}%",
-                    core=index + 1,
-                    usage=usage if usage is not None else "--",
-                )
-            )
-
-    def set_label(self, label: str) -> None:
-        self.label.setText(tr(label))
-
-
 #: Bands for the JEDEC MR3 junction temperature. GDDR6 runs hotter than the
 #: CPU package, so the package bands would cry wolf: these follow the device
 #: rating instead.
@@ -507,9 +284,25 @@ class DashboardMemorySummary(QFrame):
         self.header.setContentsMargins(0, 0, 0, 0)
         self.header.setHorizontalSpacing(10)
         self.header.setVerticalSpacing(3)
-        self.label = _label(
-            "GDDR6 memory temperature", "dashboardCoreSummaryLabel", wrap=False
-        )
+        # The same heading style the instrument panels use, and it survives a
+        # language switch because the widget upper-cases whatever it is given.
+        self.label = HeadingLabel()
+        self.label.source_text = "GDDR6 memory temperature"
+        self.label.setText(tr("GDDR6 memory temperature"))
+        self.label.setProperty("dashboardCoreSummaryLabel", True)
+        self.label.setWordWrap(False)
+        # The caption keeps its own dot so the row reads as the fourth group of
+        # the card it now sits in, next to Thermal, Power and Memory.
+        self.title_box = QWidget()
+        title_row = QHBoxLayout(self.title_box)
+        title_row.setContentsMargins(1, 0, 0, 0)
+        title_row.setSpacing(7)
+        self.dot = QLabel()
+        self.dot.setProperty("sensorBoardDot", True)
+        self.dot.setProperty("accent", "muted")
+        title_row.addWidget(self.dot, alignment=Qt.AlignmentFlag.AlignVCenter)
+        title_row.addWidget(self.label)
+        self.dot.hide()
         self.value = _label("Waiting for sample", "dashboardCoreSummaryValue", wrap=False)
         self.detail = _label("", "dashboardCoreSummaryDetail", wrap=False)
         self.detail.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
@@ -533,16 +326,20 @@ class DashboardMemorySummary(QFrame):
             self._layout_header(1000)
         else:
             root.setContentsMargins(0, 0, 0, 0)
-            for widget in (self.label, self.value, self.detail):
+            for widget in (self.title_box, self.value, self.detail):
                 widget.hide()
 
         self._columns = 0
-        self.cell_grid = QGridLayout()
+        # The eight cells live in their own host so the whole strip can step
+        # aside while there is nothing to put in it: eight cells reading "--"
+        # said less than the one line above them and made the card look broken.
+        self.cell_host = QWidget()
+        self.cell_grid = QGridLayout(self.cell_host)
         self.cell_grid.setContentsMargins(0, 0, 0, 0)
         self.cell_grid.setHorizontalSpacing(6)
         self.cell_grid.setVerticalSpacing(6)
         self.cells = [_MemoryChipCell(index, self) for index in range(GDDR6_CHIP_COUNT)]
-        root.addLayout(self.cell_grid)
+        root.addWidget(self.cell_host)
         # A sentence, so it gets its own wrapped line under the devices rather
         # than a cell on the header row: sharing that row with the short values
         # forced the whole card wider than the window at 1024 px.
@@ -601,7 +398,7 @@ class DashboardMemorySummary(QFrame):
         if compact == self._compact_header and self.header.count():
             return
         self._compact_header = compact
-        for widget in (self.label, self.value, self.detail):
+        for widget in (self.title_box, self.value, self.detail):
             self.header.removeWidget(widget)
         for column in range(4):
             self.header.setColumnStretch(column, 0)
@@ -609,7 +406,7 @@ class DashboardMemorySummary(QFrame):
         self.detail.setWordWrap(compact)
         for button in (self.live_button, self.prepare_button):
             self.header.removeWidget(button)
-        self.header.addWidget(self.label, 0, 0)
+        self.header.addWidget(self.title_box, 0, 0)
         self.header.addWidget(self.value, 0, 1)
         if compact:
             self.header.addWidget(self.detail, 1, 0, 1, 3)
@@ -632,7 +429,26 @@ class DashboardMemorySummary(QFrame):
         if self._show_header:
             self._layout_header(event.size().width())
         spacing = self.cell_grid.horizontalSpacing()
-        self._apply_columns((self.width() + spacing) // (self.MINIMUM_CELL + spacing))
+        fit = (self.width() + spacing) // (self._cell_minimum() + spacing)
+        # Eight devices split evenly into 8, 4, 2 or 1 columns; five, six or
+        # seven would leave a row of orphans under a full one.
+        self._apply_columns(next(count for count in (8, 4, 2, 1) if count <= fit or count == 1))
+
+    def _cell_minimum(self) -> int:
+        """Narrowest a device cell can be and still show its whole reading.
+
+        The reading is a temperature and the MR3 code side by side, so the room
+        it needs follows the font: a user scale of 150 % needs far more than
+        the fixed floor, and clipping the code is what this prevents.
+        """
+        probe = self.cells[0]
+        needed = (
+            probe.temperature.fontMetrics().horizontalAdvance("88.8 °C")
+            + probe.separator.fontMetrics().horizontalAdvance(" · ")
+            + probe.code.fontMetrics().horizontalAdvance("MR3 0x33")
+            + 24
+        )
+        return max(self.MINIMUM_CELL, needed)
 
     def set_value(self, value: str) -> None:
         self.value.setText(tr(value))
@@ -651,455 +467,9 @@ class DashboardMemorySummary(QFrame):
         for index, cell in enumerate(self.cells):
             code, temperature = by_index.get(index, (None, None))
             cell.set_chip(temperature, code)
-
-
-class DashboardThermalStrip(QFrame):
-    """A responsive row of CPU, GPU, and board temperatures."""
-
-    LABELS = ("GPU", "CPU", "M.2", "Board", "VRM")
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.setProperty("dashboardMetricTile", True)
-        self.setMinimumWidth(0)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        self.grid = QGridLayout(self)
-        self.grid.setContentsMargins(12, 8, 12, 8)
-        self.grid.setHorizontalSpacing(10)
-        self.grid.setVerticalSpacing(2)
-        self.labels: list[QLabel] = []
-        self.values: list[QLabel] = []
-        for text in self.LABELS:
-            label = _label(text, "dashboardMetricLabel", wrap=False)
-            value = _label("Not detected", "dashboardMetricValue", wrap=False)
-            label.setAlignment(
-                Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
-            )
-            value.setAlignment(
-                Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
-            )
-            self.labels.append(label)
-            self.values.append(value)
-        self._columns = 0
-        self._reflow(1000)
-
-    def set_temperatures(self, values: Iterable[str]) -> None:
-        for label, value in zip(self.values, values, strict=True):
-            label.setText(tr(value))
-
-    def _reflow(self, width: int) -> None:
-        # Keep the five sensors in one clear scan line when the hero has room;
-        # progressively fold them into balanced rows on narrow windows.
-        columns = 5 if width >= 450 else 3 if width >= 360 else 2
-        if columns == self._columns:
-            return
-        self._columns = columns
-        for widget in (*self.labels, *self.values):
-            self.grid.removeWidget(widget)
-        for index, (label, value) in enumerate(
-            zip(self.labels, self.values, strict=True)
-        ):
-            group_row, column = divmod(index, columns)
-            row = group_row * 2
-            self.grid.addWidget(label, row, column)
-            self.grid.addWidget(value, row + 1, column)
-        for column in range(5):
-            self.grid.setColumnStretch(column, 1 if column < columns else 0)
-
-    def resizeEvent(self, event) -> None:  # noqa: N802
-        super().resizeEvent(event)
-        self._reflow(event.size().width())
-
-
-class DashboardTechnicalStrip(QFrame):
-    """Five compact live diagnostics aligned with the thermal sensor strip."""
-
-    LABELS = ("GPU power", "MCLK", "Hotspot", "GTT", "DPM mode")
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.setProperty("dashboardMetricTile", True)
-        self.setMinimumWidth(0)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        self.grid = QGridLayout(self)
-        self.grid.setContentsMargins(12, 7, 12, 7)
-        self.grid.setHorizontalSpacing(10)
-        self.grid.setVerticalSpacing(2)
-        self.labels: list[QLabel] = []
-        self.values: list[QLabel] = []
-        for text in self.LABELS:
-            label = _label(text, "dashboardMetricLabel", wrap=False)
-            value = _label("Not detected", "dashboardMetricValue", wrap=False)
-            self.labels.append(label)
-            self.values.append(value)
-        self._columns = 0
-        self._reflow(1000)
-
-    def set_values(self, values: Iterable[str]) -> None:
-        for label, value in zip(self.values, values, strict=True):
-            label.setText(tr(value))
-
-    def _reflow(self, width: int) -> None:
-        columns = 5 if width >= 450 else 3 if width >= 330 else 2
-        if columns == self._columns:
-            return
-        self._columns = columns
-        for widget in (*self.labels, *self.values):
-            self.grid.removeWidget(widget)
-        for index, (label, value) in enumerate(
-            zip(self.labels, self.values, strict=True)
-        ):
-            group_row, column = divmod(index, columns)
-            row = group_row * 2
-            self.grid.addWidget(label, row, column)
-            self.grid.addWidget(value, row + 1, column)
-        for column in range(5):
-            self.grid.setColumnStretch(column, 1 if column < columns else 0)
-
-    def resizeEvent(self, event) -> None:  # noqa: N802
-        super().resizeEvent(event)
-        self._reflow(event.size().width())
-
-
-class DashboardEvidenceRow(QWidget):
-    def __init__(
-        self, label: str, value: str = "Not detected", *, compact: bool = False
-    ) -> None:
-        super().__init__()
-        self.setProperty("dashboardEvidenceRow", True)
-        row = QHBoxLayout(self)
-        row.setContentsMargins(0, 4 if compact else 7, 0, 4 if compact else 7)
-        row.setSpacing(10)
-        self.label = _label(label, "dashboardEvidenceLabel")
-        self.value = _label(value, "dashboardEvidenceValue")
-        self.value.setAlignment(
-            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        self.cell_host.setVisible(
+            any(temperature is not None for _code, temperature in by_index.values())
         )
-        self.value.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        row.addWidget(self.label, 1)
-        row.addWidget(self.value)
-
-    def set_value(self, value: str) -> None:
-        self.value.setText(tr(value))
-
-
-class DashboardGpuHero(QFrame):
-    """Large physical-clock readout and independent governor evidence."""
-
-    activated = pyqtSignal(str)
-    telemetry_repair_requested = pyqtSignal()
-
-    def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-        self._settings = application_settings()
-        self.setProperty("dashboardHero", True)
-        self.setMinimumWidth(0)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        apply_shadow(self, blur=18, y=3, alpha=14)
-
-        self.root = QGridLayout(self)
-        self.root.setContentsMargins(0, 0, 0, 0)
-        self.root.setHorizontalSpacing(0)
-        self.root.setVerticalSpacing(0)
-
-        self.instrument = QWidget()
-        instrument_layout = QVBoxLayout(self.instrument)
-        instrument_layout.setContentsMargins(16, 14, 16, 14)
-        instrument_layout.setSpacing(8)
-        gpu_heading = QHBoxLayout()
-        self.heading_icon = QLabel()
-        self.heading_icon.setPixmap(icon("gpu_purple").pixmap(22, 22))
-        self.heading_icon.setFixedSize(24, 24)
-        gpu_heading.addWidget(self.heading_icon)
-        gpu_heading.addWidget(_label("GPU Governor", "dashboardCardTitle"), 1)
-        instrument_layout.addLayout(gpu_heading)
-
-        self.readout = QWidget()
-        self.readout_grid = QGridLayout(self.readout)
-        self.readout_grid.setContentsMargins(0, 7, 0, 4)
-        self.readout_grid.setHorizontalSpacing(16)
-        self.readout_grid.setVerticalSpacing(10)
-
-        frequency = QWidget()
-        frequency_layout = QVBoxLayout(frequency)
-        frequency_layout.setContentsMargins(0, 0, 0, 0)
-        frequency_layout.setSpacing(7)
-        frequency_layout.addWidget(
-            _label("Current hardware frequency", "dashboardFrequencyEyebrow")
-        )
-        frequency_row = QHBoxLayout()
-        frequency_row.setSpacing(10)
-        self.frequency_value = _label("--", "dashboardFrequencyValue", wrap=False)
-        self.frequency_unit = _label("MHz", "dashboardFrequencyUnit", wrap=False)
-        frequency_row.addWidget(self.frequency_value)
-        frequency_row.addWidget(
-            self.frequency_unit, alignment=Qt.AlignmentFlag.AlignBottom
-        )
-        frequency_row.addStretch(1)
-        frequency_layout.addLayout(frequency_row)
-        self.readout_grid.addWidget(frequency, 0, 0)
-
-        self.metrics_host = QWidget()
-        metrics_grid = QGridLayout(self.metrics_host)
-        metrics_grid.setContentsMargins(0, 0, 0, 0)
-        metrics_grid.setHorizontalSpacing(8)
-        metrics_grid.setVerticalSpacing(8)
-        metrics_grid.setAlignment(Qt.AlignmentFlag.AlignVCenter)
-        self.governor_metric = DashboardMetricTile("Governor", "Not detected")
-        self.load_metric = DashboardMetricTile("GPU load", "Not detected")
-        self.thermal_strip = DashboardThermalStrip()
-        self.technical_strip = DashboardTechnicalStrip()
-        metrics_grid.addWidget(self.thermal_strip, 0, 0, 1, 2)
-        metrics_grid.addWidget(self.technical_strip, 1, 0, 1, 2)
-        metrics_grid.setColumnStretch(0, 1)
-        metrics_grid.setColumnStretch(1, 1)
-        self.readout_grid.addWidget(self.metrics_host, 0, 1)
-        self.readout_grid.setColumnStretch(0, 5)
-        self.readout_grid.setColumnStretch(1, 7)
-        instrument_layout.addWidget(self.readout, 1)
-
-        self.summary_host = QWidget()
-        self.summary_host.setSizePolicy(
-            QSizePolicy.Policy.Expanding,
-            QSizePolicy.Policy.Preferred,
-        )
-        self.summary_grid = QGridLayout(self.summary_host)
-        self.summary_grid.setContentsMargins(0, 0, 0, 0)
-        self.summary_grid.setHorizontalSpacing(8)
-        self.summary_grid.setVerticalSpacing(8)
-        self.gpu_summary = DashboardMetricTile("GPU", "BC250")
-        self.vram_summary = DashboardMetricTile("VRAM", "Not detected")
-        self.cores_summary = DashboardCoreSummary()
-        for index, item in enumerate(
-            (self.gpu_summary, self.vram_summary, self.cores_summary)
-        ):
-            self.summary_grid.addWidget(item, 0, index)
-            self.summary_grid.setColumnStretch(index, 1)
-        instrument_layout.addWidget(self.summary_host)
-
-        self.evidence = QFrame()
-        self.evidence.setProperty("dashboardEvidence", True)
-        evidence_layout = QVBoxLayout(self.evidence)
-        evidence_layout.setContentsMargins(16, 14, 16, 14)
-        evidence_layout.setSpacing(6)
-        evidence_layout.addWidget(_label("GPU configuration", "dashboardCardTitle"))
-        evidence_layout.addWidget(self.governor_metric)
-        self.gpu_voltage_metric = DashboardMetricTile("GPU voltage", "Not detected")
-        live_metrics = QHBoxLayout()
-        live_metrics.setContentsMargins(0, 0, 0, 0)
-        live_metrics.setSpacing(6)
-        live_metrics.addWidget(self.load_metric, 1)
-        live_metrics.addWidget(self.gpu_voltage_metric, 1)
-        evidence_layout.addLayout(live_metrics)
-        self.range_row = DashboardEvidenceRow("Requested range")
-        self.accepted_row = DashboardEvidenceRow("Accepted maximum")
-        self.evidence_rows = (
-            self.range_row,
-            self.accepted_row,
-        )
-        for item in self.evidence_rows:
-            evidence_layout.addWidget(item)
-
-        self.telemetry_repair_button = QPushButton(tr("Repair BC250 telemetry"))
-        self.telemetry_repair_button.setProperty("dashboardTelemetryAction", True)
-        self.telemetry_repair_button.clicked.connect(self.telemetry_repair_requested.emit)
-        self.telemetry_repair_button.hide()
-        evidence_layout.addWidget(self.telemetry_repair_button)
-
-        evidence_layout.addStretch(1)
-        self.button = QPushButton(tr("Configure Governor"))
-        self.button.setProperty("dashboardCardAction", True)
-        self.button.clicked.connect(lambda: self.activated.emit("gpu"))
-        evidence_layout.addWidget(self.button)
-
-        self.status = PillLabel("Not detected", "gray")
-        self.status.hide()
-        self._wide = True
-        self._content_wide: bool | None = None
-        self._reflow(1100)
-
-    def _reflow(self, width: int) -> None:
-        # The evidence column has a 270 px minimum width.  Keeping it beside
-        # the instrument on a merely medium window leaves the eight-core grid
-        # with a narrow two-column layout and a large, visually wasted area in
-        # the evidence card.  Stack it below early enough for the core samples
-        # to retain a readable four-column grid.
-        wide = width >= 980
-        if wide == self._wide and self.root.count():
-            return
-        self._wide = wide
-        clear_grid(self.root)
-        if wide:
-            self.setMinimumHeight(0)
-            self.root.addWidget(self.instrument, 0, 0)
-            self.root.addWidget(self.evidence, 0, 1)
-            self.root.setColumnStretch(0, 1)
-            self.evidence.setMinimumWidth(270)
-            self.evidence.setMaximumWidth(285)
-        else:
-            self.setMinimumHeight(0)
-            self.evidence.setMinimumWidth(0)
-            self.evidence.setMaximumWidth(16_777_215)
-            self.root.addWidget(self.instrument, 0, 0)
-            self.root.addWidget(self.evidence, 1, 0)
-            self.root.setColumnStretch(0, 1)
-        self._reflow_content(width)
-
-    def _reflow_content(self, width: int) -> None:
-        # Width passed here belongs to the entire hero; reserve the evidence
-        # column before choosing the layout of its left-hand instrument.
-        content_wide = width >= (980 if self._wide else 620)
-        if content_wide == self._content_wide:
-            return
-        self._content_wide = content_wide
-        self.readout_grid.removeWidget(self.metrics_host)
-        if content_wide:
-            self.readout_grid.addWidget(self.metrics_host, 0, 1)
-            self.readout_grid.setColumnStretch(0, 5)
-            self.readout_grid.setColumnStretch(1, 7)
-        else:
-            self.readout_grid.addWidget(self.metrics_host, 1, 0)
-            self.readout_grid.setColumnStretch(0, 1)
-            self.readout_grid.setColumnStretch(1, 0)
-        # The constructor initially creates three summary tiles.  Reset all
-        # three columns before the two-column layout so no invisible stretch
-        # column can steal the right third of the available width.
-        clear_grid(self.summary_grid, reset_columns=3, reset_rows=3)
-        if content_wide:
-            self.summary_grid.addWidget(self.gpu_summary, 0, 0)
-            self.summary_grid.addWidget(self.vram_summary, 0, 1)
-            self.summary_grid.addWidget(self.cores_summary, 1, 0, 1, 2)
-        else:
-            for row, item in enumerate(
-                (self.gpu_summary, self.vram_summary, self.cores_summary)
-            ):
-                self.summary_grid.addWidget(item, row, 0)
-        for column in range(2 if content_wide else 1):
-            self.summary_grid.setColumnStretch(column, 1)
-
-    def resizeEvent(self, event) -> None:  # noqa: N802
-        super().resizeEvent(event)
-        self._reflow(event.size().width())
-        self._reflow_content(event.size().width())
-
-
-class DashboardModuleCard(QFrame):
-    activated = pyqtSignal(str)
-    action_requested = pyqtSignal(str)
-
-    def __init__(
-        self,
-        key: str,
-        title: str,
-        subtitle: str,
-        _icon_name: str,
-        tone: str,
-        headline_unit: str,
-        metrics: Iterable[str],
-        button_text: str,
-        *,
-        secondary_action: tuple[str, str] | None = None,
-        parent: QWidget | None = None,
-    ) -> None:
-        super().__init__(parent)
-        self.key = key
-        self.setProperty("dashboardModule", True)
-        self.setProperty("tone", tone)
-        self.setMinimumHeight(0)
-        self.setMinimumWidth(0)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        root = QVBoxLayout(self)
-        root.setContentsMargins(14, 11, 14, 11)
-        root.setSpacing(5)
-
-        heading = QHBoxLayout()
-        self.heading_layout = heading
-        self.heading_icon = QLabel()
-        self.heading_icon.setPixmap(icon(_icon_name).pixmap(22, 22))
-        self.heading_icon.setFixedSize(24, 24)
-        heading.addWidget(self.heading_icon, alignment=Qt.AlignmentFlag.AlignTop)
-        text_box = QVBoxLayout()
-        text_box.setSpacing(2)
-        text_box.addWidget(_label(title, "dashboardCardTitle"))
-        if subtitle:
-            text_box.addWidget(_label(subtitle, "dashboardCardSubtitle"))
-        heading.addLayout(text_box, 1)
-        self.status = PillLabel("Not detected", "gray")
-        heading.addWidget(self.status, alignment=Qt.AlignmentFlag.AlignTop)
-        root.addLayout(heading)
-
-        headline = QHBoxLayout()
-        headline.setSpacing(5)
-        self.headline = _label("--", "dashboardModuleHeadline", wrap=False)
-        self.headline_unit = _label(headline_unit, "dashboardModuleUnit", wrap=False)
-        headline.addWidget(self.headline)
-        headline.addWidget(self.headline_unit, alignment=Qt.AlignmentFlag.AlignBottom)
-        headline.addStretch(1)
-        root.addLayout(headline)
-
-        self.metric_rows: list[DashboardEvidenceRow] = []
-        for metric in metrics:
-            item = DashboardEvidenceRow(metric, compact=True)
-            self.metric_rows.append(item)
-            root.addWidget(item)
-        root.addStretch(1)
-
-        self.actions = QGridLayout()
-        self.actions.setContentsMargins(0, 2, 0, 0)
-        self.actions.setHorizontalSpacing(8)
-        self.actions.setVerticalSpacing(7)
-        self.primary_button = QPushButton(tr(button_text))
-        self.primary_button.setProperty("dashboardCardAction", True)
-        self.primary_button.clicked.connect(lambda: self.activated.emit(self.key))
-        self.action_buttons = [self.primary_button]
-        if secondary_action:
-            action_key, action_text = secondary_action
-            self.secondary_button = QPushButton(tr(action_text))
-            self.secondary_button.setProperty("dashboardCardAction", True)
-            self.secondary_button.clicked.connect(
-                lambda: self.action_requested.emit(action_key)
-            )
-            self.action_buttons.append(self.secondary_button)
-        else:
-            self.secondary_button = None
-        self._actions_wide: bool | None = None
-        self._reflow_actions(1000)
-        root.addLayout(self.actions)
-
-    def set_headline(self, value: str, unit: str | None = None) -> None:
-        self.headline.setText(tr(value))
-        if unit is not None:
-            self.headline_unit.setText(tr(unit))
-
-    def set_metric(self, index: int, value: str) -> None:
-        if 0 <= index < len(self.metric_rows):
-            self.metric_rows[index].set_value(value)
-
-    def _reflow_actions(self, width: int) -> None:
-        # The persistent support rail also needs room on narrow windows. Put
-        # translated status badges below the heading instead of clipping them.
-        self.heading_layout.setDirection(
-            QBoxLayout.Direction.TopToBottom
-            if width < 340
-            else QBoxLayout.Direction.LeftToRight
-        )
-        self.heading_layout.setAlignment(
-            self.status, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop
-        )
-        wide = len(self.action_buttons) == 1 or width >= 360
-        if wide == self._actions_wide and self.actions.count():
-            return
-        self._actions_wide = wide
-        clear_grid(self.actions, reset_columns=2, reset_rows=2)
-        for index, button in enumerate(self.action_buttons):
-            row, column = (0, index) if wide else (index, 0)
-            self.actions.addWidget(button, row, column)
-        for column in range(len(self.action_buttons) if wide else 1):
-            self.actions.setColumnStretch(column, 1)
-
-    def resizeEvent(self, event) -> None:  # noqa: N802
-        super().resizeEvent(event)
-        self._reflow_actions(event.size().width())
 
 
 class PreparationComponentCard(QFrame):

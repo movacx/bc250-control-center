@@ -32,6 +32,31 @@ rm -rf -- "$work/payload/usr/share/libalpm"
 tar --create --file - --sort=name --mtime="@$SOURCE_DATE_EPOCH" \
   --owner=0 --group=0 --numeric-owner -C "$work/payload" . \
   | gzip -n -9 > "$work/top/SOURCES/bc250-control-center-root.tar.gz"
+# The %files list used to be written by hand, and it had already drifted:
+# a systemd drop-in added to the payload failed the build with "installed
+# (but unpackaged) file(s) found". Derive it from what is actually staged so
+# a new file can never fail the build again.
+#
+# Only the directories that belong entirely to this package are listed as
+# directories; everything else goes in file by file, because owning
+# /usr/bin or /usr/lib/systemd/system would claim directories that belong to
+# other packages.
+owned_directories=(
+  /usr/libexec/bc250-control-center
+  /usr/share/bc250-control-center
+  /usr/share/doc/bc250-control-center
+)
+files_list="$work/files.list"
+: > "$files_list"
+for directory in "${owned_directories[@]}"; do
+  [[ -d "$work/payload$directory" ]] && printf '%s\n' "$directory" >> "$files_list"
+done
+owned_pattern="$(IFS='|'; printf '%s' "${owned_directories[*]}")"
+(cd "$work/payload" && find . \( -type f -o -type l \) -printf '/%P\n') \
+  | grep -vE "^($owned_pattern)/" \
+  | LC_ALL=C sort >> "$files_list"
+[[ -s "$files_list" ]] || { echo "The staged payload is empty." >&2; exit 70; }
+
 cat > "$work/top/SPECS/bc250-control-center.spec" <<EOF
 Name:           bc250-control-center
 Version:        $RPM_VERSION
@@ -56,19 +81,7 @@ mkdir -p %{buildroot}
 tar -xzf %{SOURCE0} -C %{buildroot}
 
 %files
-/usr/bin/bc250-control-center
-/usr/bin/bc250-control-center-cli
-/usr/bin/bc250-control-center-decky-install
-/usr/bin/bc250-control-centerd
-/usr/lib/systemd/user/bc250-control-centerd.service
-/usr/libexec/bc250-control-center
-/usr/share/applications/io.github.movacx.bc250-control-center.desktop
-/usr/share/bc250-control-center
-/usr/share/doc/bc250-control-center
-/usr/share/icons/hicolor/*/apps/bc250-control-center.png
-/usr/share/metainfo/io.github.movacx.bc250-control-center.metainfo.xml
-/usr/share/pixmaps/bc250-control-center.png
-/usr/share/polkit-1/actions/io.github.movacx.bc250-control-center.policy
+$(cat "$files_list")
 
 %preun
 if [ "\$1" -eq 0 ]; then

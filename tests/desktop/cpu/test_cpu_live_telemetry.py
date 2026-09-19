@@ -74,32 +74,21 @@ def test_cpuinfo_parser_and_core_aggregation(tmp_path):
     assert cores[1]["threads"] == (2,)
 
 
-def test_cpu_page_is_symmetric_and_advanced_details_start_visible(qtbot):
+def test_the_cpu_page_opens_on_the_unified_workspace(qtbot):
+    """One screen, and the legacy grids still built behind it.
+
+    The legacy cards keep being constructed and fed, because every tested
+    tuning, persistence and core-unlock method writes into them. What changed
+    is that none of them is what the user looks at.
+    """
     page = CpuSmuPage(object())
     qtbot.addWidget(page)
     page.resize(1400, 1000)
     page._reflow(1400)
 
-    assert not page.advanced_card.isHidden()
-    assert page.advanced_toggle.text() == "Hide advanced details"
-    assert page.workspace.columnStretch(0) == page.workspace.columnStretch(1) == 1
-    assert (
-        page.configuration_workspace.columnStretch(0)
-        == page.configuration_workspace.columnStretch(1)
-        == 1
-    )
+    assert page.workspace_stack.currentWidget() is page.unified_cpu_page
+    assert page.unified_cpu_page.isAncestorOf(page._unified_cpu_control)
     assert len(page.core_stats) == 8
-    assert page.workspace_stack.currentWidget() is page.configuration_page
-    assert page.workspace_tab_buttons["configuration"].isChecked()
-    tabs_layout = page.workspace_tabs.layout()
-    margins = tabs_layout.contentsMargins()
-    assert (margins.left(), margins.top(), margins.right(), margins.bottom()) == (
-        5,
-        5,
-        5,
-        5,
-    )
-    assert tabs_layout.spacing() == 5
 
     button_texts = {button.text() for button in page.findChildren(QPushButton)}
     assert "Upstream reference and credits" not in button_texts
@@ -164,29 +153,37 @@ def test_cpu_paired_cards_share_the_same_vertical_edges(qtbot):
     assert page.configuration_workspace.rowStretch(2) == 1
 
 
-def test_cpu_tabs_keep_monitoring_and_configuration_separate(qtbot):
+def test_monitoring_and_configuration_are_no_longer_two_places(qtbot):
+    """The tab bar is gone, and neither tab name can strand the user.
+
+    Reading a temperature and changing a frequency belong to the same moment,
+    so the split that used to separate them is the thing this guards against
+    coming back.
+    """
     page = CpuSmuPage(object())
     qtbot.addWidget(page)
     page.resize(1400, 1000)
     page._reflow(1400)
 
-    assert page.overview_page.isAncestorOf(page.processor_card)
-    assert page.overview_page.isAncestorOf(page.metrics_card)
-    assert page.overview_page.isAncestorOf(page.core_unlock_card)
-    assert page.overview_page.isAncestorOf(page.cores_card)
-    assert page.configuration_page.isAncestorOf(page.configuration_card)
-    assert page.configuration_page.isAncestorOf(page.runtime_card)
-    assert page.configuration_page.isAncestorOf(page.advanced_card)
+    assert page.workspace_tabs.isHidden()
+    for workspace in ("overview", "configuration"):
+        page._select_workspace(workspace)
+        assert page.workspace_stack.currentWidget() is page.unified_cpu_page
 
-    page._select_workspace("configuration")
-    assert page.workspace_stack.currentWidget() is page.configuration_page
-    assert page.workspace_tab_buttons["configuration"].isChecked()
-    assert not page.advanced_card.isHidden()
+    view = page._unified_cpu_control
+    # Both halves are reachable without switching anything: the controls that
+    # change the hardware and the readings that say what it is doing.
+    assert view._profile_cards[0].isVisibleTo(view)
+    assert view.apply_button.isVisibleTo(view)
+    assert view.runtime_cards["persistence"].isVisibleTo(view)
+    assert view.core_grid.isVisibleTo(view)
+    assert view.runtime_cards["live"].isVisibleTo(view)
+    assert view.unlock_button.isVisibleTo(view)
 
-    page._toggle_advanced()
-    assert page.workspace_stack.currentWidget() is page.configuration_page
-    assert page.advanced_card.isHidden()
-    assert page.advanced_toggle.text() == "Show advanced details"
+    # Advanced detail is one disclosure on the same screen, not a third place.
+    assert not view._advanced_body.isVisible()
+    view._advanced_toggle.setChecked(True)
+    assert view._advanced_body.isVisibleTo(view)
 
 
 def test_cpu_live_frequency_is_displayed_in_ghz(qtbot):

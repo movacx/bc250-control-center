@@ -472,15 +472,13 @@ def _reveal_badge(qtbot, page) -> None:
     only drawn while it can be seen, so these tests have to bring it into view
     first rather than assume it was there all along.
     """
-    from PyQt6.QtCore import QPoint
-
     qtbot.waitUntil(lambda: not page.footer.update_button.isHidden(), timeout=4000)
-    if page._badge_is_on_screen():
-        return
-    scrollbar = page.scroll.verticalScrollBar()
-    content = page.scroll.widget()
-    target = page.footer.update_button.mapTo(content, QPoint(0, 0)).y()
-    scrollbar.setValue(max(0, min(target - 80, scrollbar.maximum())))
+    # Let the page finish laying itself out first. Asked a frame too early it
+    # reports a badge that is still near the top, so the scroll worked out
+    # from that position is zero and the badge ends up just below the fold
+    # once the panels reach their real height.
+    qtbot.wait(150)
+    page.scroll.ensureWidgetVisible(page.footer.update_button, 0, 80)
     qtbot.waitUntil(page._badge_is_on_screen, timeout=4000)
 
 
