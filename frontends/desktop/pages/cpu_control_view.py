@@ -673,6 +673,7 @@ class CpuControlView(QWidget):
     persistence_requested = pyqtSignal(str)
     unlock_cores_requested = pyqtSignal()
     firmware_persistence_requested = pyqtSignal()
+    export_to_decky_requested = pyqtSignal()
 
     IDENTITY_ROWS = (
         ("model", "Processor"),
@@ -767,9 +768,28 @@ class CpuControlView(QWidget):
         # carried information, so it moves next to the runtime readings.
         self._configuration_status = card.drop_header()
 
-        profiles_panel, profiles_box = subpanel(
-            "Operating profile",
-            "One click sets the range. The pencil changes name and frequencies.",
+        profiles_panel, profiles_box = subpanel("")
+        title_row = QHBoxLayout()
+        title_row.setContentsMargins(0, 0, 0, 0)
+        title_row.setSpacing(8)
+        profiles_title = QLabel(tr("Operating profile"))
+        profiles_title.setProperty("cardTitle", True)
+        profiles_title.setWordWrap(True)
+        title_row.addWidget(profiles_title, 0)
+        title_row.addStretch(1)
+        self._export_decky_button = QPushButton(tr("Export to Decky"))
+        self._export_decky_button.setIcon(icon("gamepad_menu"))
+        self._export_decky_button.setProperty("compactAction", True)
+        self._export_decky_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._export_decky_button.setToolTip(
+            tr("Send these three profile cards to the Decky Quick Access panel.")
+        )
+        self._export_decky_button.clicked.connect(self.export_to_decky_requested.emit)
+        title_row.addWidget(self._export_decky_button, 0)
+        title_row.setAlignment(self._export_decky_button, Qt.AlignmentFlag.AlignBottom)
+        profiles_box.addLayout(title_row)
+        profiles_box.addWidget(
+            caption("One click sets the range. The pencil changes name and frequencies.")
         )
         self._profiles_grid = QGridLayout()
         self._profiles_grid.setContentsMargins(0, 0, 0, 0)

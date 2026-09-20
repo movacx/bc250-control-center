@@ -194,10 +194,14 @@ class DependenciasRepository:
         command = build_bazzite_memory_tuning_command(policy, int(ttm_gib))
         return self._abrir_terminal(command, 'Configurar memoria BC250 en Bazzite')
 
-    def preparar_memoria(self, policy: str, ttm_gib: int):
+    def preparar_memoria(self, policy: str, ttm_gib: int, *, takeover_zram: bool = False, target_mount: str = ''):
         if self._os_repository().family == 'bazzite':
             return self.preparar_memoria_bazzite(policy, ttm_gib)
-        return self._abrir_terminal(system_setup_command('memory-apply', policy, ttm_gib), 'BC250 Memory & Swap')
+        return self._abrir_terminal(
+            system_setup_command('memory-apply', policy, ttm_gib,
+                                  takeover_zram=takeover_zram, target_mount=target_mount),
+            'BC250 Memory & Swap',
+        )
 
     def preparar_vram(self, uma_size_mb: int):
         return self._abrir_terminal(

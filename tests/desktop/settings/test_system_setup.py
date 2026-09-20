@@ -45,6 +45,7 @@ class Sandbox:
         self.put("/proc/config.gz", gzip.compress(b"CONFIG_ACPI_TABLE_UPGRADE=y\n"))
         self.put("/sys/firmware/acpi/tables/SSDT1", self.table())
         self.put("/dev/port", b"")
+        self.extra_mounts = []
 
     def table(self, name="AMD CPU", revision=1, oem="AMD"):
         header = bytearray(36)
@@ -67,13 +68,17 @@ class Sandbox:
             raise SetupError("Simulated command failure")
         if args[0] == "findmnt":
             if "--json" in args:
-                return json.dumps({"filesystems": [{"target": "/", "fsroot": "/", "uuid": "aaa-bbb", "fstype": self.fs}]})
+                if "--target" in args:
+                    return json.dumps({"filesystems": [{"target": "/", "fsroot": "/", "uuid": "aaa-bbb", "fstype": self.fs}]})
+                return json.dumps({"filesystems": [
+                    {"target": "/var/lib", "fstype": self.fs}, *self.extra_mounts,
+                ]})
             return self.fs
         if args[0] == "swapon":
-            self.put("/proc/swaps", self.host.read("/proc/swaps") + f"\n{memory.SWAP} file 16777216 0 -2\n")
+            self.put("/proc/swaps", self.host.read("/proc/swaps") + f"\n{args[-1]} file 16777216 0 -2\n")
         if args[0] == "swapoff":
             self.put("/proc/swaps", "\n".join(line for line in self.host.read("/proc/swaps").splitlines()
-                                              if not line.startswith(memory.SWAP)) + "\n")
+                                              if not line.startswith(args[-1])) + "\n")
         if args[:3] == ("btrfs", "subvolume", "create"):
             self.host.path(args[3]).mkdir()
         if args[:3] == ("btrfs", "filesystem", "mkswapfile"):
@@ -360,6 +365,92 @@ def test_zram_install_requires_reboot_and_restore_leaves_active_device(sandbox):
     assert result["zram_restore_pending"]
     assert not host.path(memory.ZRAM).exists()
     assert not any(args[0] == "swapoff" for args in sandbox.calls)
+
+
+def _cachyos_default_zram(sandbox):
+    """A generator-managed ZRAM active as swap, the way CachyOS ships it."""
+    host = sandbox.host
+    sandbox.put("/usr/lib/systemd/system-generators/zram-generator", "generator")
+    sandbox.put("/usr/lib/systemd/zram-generator.conf", "[zram0]\n")
+    sandbox.put("/sys/block/zram0/size", "123")
+    sandbox.put("/proc/swaps", host.read("/proc/swaps") + "\n/dev/zram0 partition 2097152 0 100\n")
+
+
+def test_zswap_is_blocked_without_takeover_on_cachyos_style_zram(sandbox):
+    host = sandbox.host
+    _cachyos_default_zram(sandbox)
+    data = memory.status(host)
+    assert "zswap-16" not in data["policies"]
+    assert data["zram_takeover_available"]
+    assert "disable the existing ZRAM" in data["policy_reasons"]["zswap-16"]
+    with pytest.raises(SetupError, match="unavailable"):
+        memory.apply(host, "zswap-16")
+    with pytest.raises(SetupError, match="unavailable"):
+        memory.apply(host, "zswap-16", takeover_zram=False)
+
+
+def test_zswap_takeover_disables_foreign_zram_and_restores(sandbox):
+    host = sandbox.host
+    _cachyos_default_zram(sandbox)
+    dropin = "/etc/systemd/system/systemd-zram-setup@zram0.service.d/90-bc250-zswap.conf"
+
+    result = memory.apply(host, "zswap-16", takeover_zram=True)
+
+    assert "/dev/zram0" not in memory.swaps(host)
+    assert host.read(memory.FOREIGN_ZRAM_MARKER).startswith(MARKER.strip())
+    assert host.read(dropin).startswith(MARKER.strip())
+    assert f"ConditionPathExists=!{memory.FOREIGN_ZRAM_MARKER}" in host.read(dropin)
+    # The device itself is only gone after the reboot the drop-in waits for.
+    assert result["zswap_pending"]
+    assert host.read(memory.ZSWAP) == "N"
+
+    restored = memory.apply(host, "restore")
+    assert not restored["zswap_pending"]
+    assert host.read(memory.ZSWAP) == "N"
+    assert not host.path(dropin).exists()
+    assert not host.path(memory.FOREIGN_ZRAM_MARKER).exists()
+
+
+def test_legacy_zram_manager_never_offers_takeover(sandbox):
+    host = sandbox.host
+    _cachyos_default_zram(sandbox)
+    sandbox.put("/etc/default/zramswap", "foreign legacy manager")
+    data = memory.status(host)
+    assert not data["zram_takeover_available"]
+    with pytest.raises(SetupError, match="unavailable"):
+        memory.apply(host, "zswap-16", takeover_zram=True)
+
+
+def test_candidate_swap_targets_filters_by_space_and_filesystem(sandbox, monkeypatch):
+    host = sandbox.host
+    sandbox.extra_mounts = [
+        {"target": "/mnt/games", "fstype": "ext4"},
+        {"target": "/mnt/tight", "fstype": "ext4"},
+        {"target": "/mnt/other-fs", "fstype": "xfs"},
+    ]
+    free_by_path = {
+        "/var/lib": 64 * memory.GIB,
+        "/mnt/games": 64 * memory.GIB,
+        "/mnt/tight": 512,
+        "/mnt/other-fs": 64 * memory.GIB,
+    }
+    monkeypatch.setattr(
+        memory.shutil, "disk_usage",
+        lambda path: SimpleNamespace(free=free_by_path.get(str(path).replace(str(host.root), "") or "/", 0)),
+    )
+    targets = memory.candidate_swap_targets(host)
+    assert set(targets) == {"/var/lib", "/mnt/games"}
+    assert targets["/mnt/games"] == 64 * memory.GIB
+
+
+def test_create_swap_on_a_custom_target_mount(sandbox):
+    host = sandbox.host
+    sandbox.extra_mounts = [{"target": "/mnt/games", "fstype": "ext4"}]
+    result = memory.apply(host, "swap-16", target_mount="/mnt/games")
+    assert result["swap_active"]
+    assert host.path("/mnt/games/bc250-control-center-swap/swapfile").stat().st_size == 16 * memory.GIB
+    memory.apply(host, "restore")
+    assert not host.path("/mnt/games/bc250-control-center-swap/swapfile").exists()
 
 
 def test_payload_integrity_and_exact_postboot_table_verification(sandbox):

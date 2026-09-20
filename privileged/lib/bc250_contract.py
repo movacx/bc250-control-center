@@ -11,7 +11,7 @@ scope, and contains only data and pure functions.
 from __future__ import annotations
 
 CONTRACT_REVISION = 1
-QUICK_ACCESS_PROTOCOL = 13
+QUICK_ACCESS_PROTOCOL = 16
 CPU_SMU_HELPER_PROTOCOL = 8
 GOVERNOR_CONFIG_PROTOCOL = 6
 STEAMOS_GAME_HELPER_PROTOCOL = 21
@@ -38,6 +38,7 @@ QUICK_ACCESS_FAN_PRESET_DUTY = {'quiet': 102, 'balanced': 153, 'boost': 204, 'au
 QUICK_ACCESS_FAN_CHANNELS = (2, 3, 4, 5)
 QUICK_ACCESS_FAN_PERCENT_RANGE = (20, 100)
 QUICK_ACCESS_FAN_PERCENT_STEP = 5
+VRAM_SIZE_PRESETS_MB = (256, 512, 1024, 2048, 3072, 4096, 5120, 6144, 7168, 8192, 12288)
 
 
 def cpu_frequency_ladder() -> tuple[int, ...]:

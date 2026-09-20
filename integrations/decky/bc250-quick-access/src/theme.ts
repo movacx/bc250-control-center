@@ -21,9 +21,12 @@ export const tokens = {
     subtle: "#8E8E8E",
     disabled_bg: "#292929",
     disabled_text: "#707070",
-    // Controller focus ring only, same as the desktop theme.
-    focus: "#6E9FFF",
-    focus_soft: "rgba(110, 159, 255, 0.18)",
+    // Controller focus ring only. Deliberately fixed and not part of the
+    // accent setting: it is the "where am I" indicator, and it must read the
+    // same regardless of which accent color the player picked for the rest
+    // of the interface.
+    focus: "#FFFFFF",
+    focus_soft: "rgba(255, 255, 255, 0.18)",
     // Brand accent (selection / primary action). Mirrors DARK_COLORS.orange.
     selection: "#38291D",
     action: "#38291D",

@@ -1225,6 +1225,8 @@ class ControlCenterWindow(QMainWindow):
             options.update(
                 memory_policy=str(payload.get("memory_policy") or "current"),
                 memory_ttm_gib=int(payload.get("memory_ttm_gib") or 0),
+                memory_takeover_zram=bool(payload.get("memory_takeover_zram")),
+                memory_target_mount=str(payload.get("memory_target_mount") or ""),
             )
         elif options["action"] == "vram_apply":
             options.update(vram_uma_size_mb=int(payload.get("vram_uma_size_mb") or 0))

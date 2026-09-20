@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
 
@@ -55,6 +56,90 @@ def _exact_integer(value: object, message: str) -> int:
     if isinstance(value, str) and re.fullmatch(r"[+-]?\d+", value.strip()):
         return int(value.strip())
     raise ValueError(message)
+
+
+#: Mirrors FLOOR/ABSOLUTE_CEILING in gpu_governor_view.py: the widest range
+#: any Cyan profile editor already lets a user stage, before the live D-Bus
+#: envelope check (which still runs, on this exact data, inside the root
+#: helper) narrows it further.
+DECKY_PROFILE_MIN_MHZ = 500
+DECKY_PROFILE_MAX_MHZ = 2400
+DECKY_PROFILE_KEYS = ("balanced", "gaming", "benchmark")
+
+
+def _decky_gpu_profiles_argument(arguments: tuple[object, ...]) -> tuple[str, ...]:
+    if len(arguments) != 1:
+        raise ValueError("set-decky-gpu-profiles needs exactly one profile list.")
+    (profiles,) = arguments
+    if not isinstance(profiles, (list, tuple)) or not 1 <= len(profiles) <= len(DECKY_PROFILE_KEYS):
+        raise ValueError("Decky GPU profiles must be a list of one to three entries.")
+    seen_keys: set[str] = set()
+    normalized: list[dict[str, object]] = []
+    for entry in profiles:
+        if not isinstance(entry, dict):
+            raise ValueError("Each Decky GPU profile must be an object.")
+        key = entry.get("key")
+        if key not in DECKY_PROFILE_KEYS or key in seen_keys:
+            raise ValueError("Each Decky GPU profile needs a unique known key.")
+        seen_keys.add(key)
+        name = str(entry.get("name") or "").strip()
+        if not name or len(name) > 40:
+            raise ValueError("Decky GPU profile names must be 1-40 characters.")
+        minimum = _exact_integer(entry.get("min"), "Decky GPU profile bounds must be integers.")
+        maximum = _exact_integer(entry.get("max"), "Decky GPU profile bounds must be integers.")
+        if not DECKY_PROFILE_MIN_MHZ <= minimum < maximum <= DECKY_PROFILE_MAX_MHZ:
+            raise ValueError(
+                f"Decky GPU profile range must be within {DECKY_PROFILE_MIN_MHZ}-"
+                f"{DECKY_PROFILE_MAX_MHZ} MHz with minimum below maximum."
+            )
+        normalized.append({"key": key, "name": name, "min": minimum, "max": maximum})
+    return (json.dumps(normalized, separators=(",", ":"), sort_keys=True),)
+
+
+#: Mirrors the desktop's DEFAULT_CPU_PROFILES three slots
+#: (cpu_control_view.py) and the same 3100-4200 MHz / 950-1325 mV envelope
+#: Decky's own CPU_FREQUENCIES/CPU_VIDS ladders already enforce at apply
+#: time, so an exported preset can only ever be rejected there, never used
+#: to reach a value neither side already allows.
+DECKY_CPU_PROFILE_MIN_MHZ = 3100
+DECKY_CPU_PROFILE_MAX_MHZ = 4200
+DECKY_CPU_PROFILE_MIN_VID = 950
+DECKY_CPU_PROFILE_MAX_VID = 1325
+DECKY_CPU_PROFILE_KEYS = ("board_average", "mid_point", "safe_maximum")
+
+
+def _decky_cpu_profiles_argument(arguments: tuple[object, ...]) -> tuple[str, ...]:
+    if len(arguments) != 1:
+        raise ValueError("set-decky-cpu-profiles needs exactly one profile list.")
+    (profiles,) = arguments
+    if not isinstance(profiles, (list, tuple)) or not 1 <= len(profiles) <= len(DECKY_CPU_PROFILE_KEYS):
+        raise ValueError("Decky CPU profiles must be a list of one to three entries.")
+    seen_keys: set[str] = set()
+    normalized: list[dict[str, object]] = []
+    for entry in profiles:
+        if not isinstance(entry, dict):
+            raise ValueError("Each Decky CPU profile must be an object.")
+        key = entry.get("key")
+        if key not in DECKY_CPU_PROFILE_KEYS or key in seen_keys:
+            raise ValueError("Each Decky CPU profile needs a unique known key.")
+        seen_keys.add(key)
+        name = str(entry.get("name") or "").strip()
+        if not name or len(name) > 40:
+            raise ValueError("Decky CPU profile names must be 1-40 characters.")
+        frequency = _exact_integer(entry.get("frequency"), "Decky CPU profile values must be integers.")
+        vid = _exact_integer(entry.get("vid"), "Decky CPU profile values must be integers.")
+        if not DECKY_CPU_PROFILE_MIN_MHZ <= frequency <= DECKY_CPU_PROFILE_MAX_MHZ:
+            raise ValueError(
+                f"Decky CPU profile frequency must be within {DECKY_CPU_PROFILE_MIN_MHZ}-"
+                f"{DECKY_CPU_PROFILE_MAX_MHZ} MHz."
+            )
+        if not DECKY_CPU_PROFILE_MIN_VID <= vid <= DECKY_CPU_PROFILE_MAX_VID:
+            raise ValueError(
+                f"Decky CPU profile VID must be within {DECKY_CPU_PROFILE_MIN_VID}-"
+                f"{DECKY_CPU_PROFILE_MAX_VID} mV."
+            )
+        normalized.append({"key": key, "name": name, "frequency": frequency, "vid": vid})
+    return (json.dumps(normalized, separators=(",", ":"), sort_keys=True),)
 
 
 def _custom_voltage_arguments(arguments: tuple[object, ...]) -> tuple[str, ...]:
@@ -163,4 +248,8 @@ def plan_governor_config_request(
         return request
     if action == "set-cyan-custom-voltages":
         return GovernorConfigRequest(action, _custom_voltage_arguments(arguments))
+    if action == "set-decky-gpu-profiles":
+        return GovernorConfigRequest(action, _decky_gpu_profiles_argument(arguments))
+    if action == "set-decky-cpu-profiles":
+        return GovernorConfigRequest(action, _decky_cpu_profiles_argument(arguments))
     raise ValueError("Invalid governor TOML action.")

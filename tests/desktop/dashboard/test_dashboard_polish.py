@@ -303,14 +303,13 @@ def test_dashboard_compact_cards_and_preparation_grid_keep_equal_edges(qtbot):
     assert len({card.y() for card in page.instruments}) == 1
     assert page.readiness._component_columns == 4
     assert len({card.height() for card in page.readiness.rows}) == 1
-    assert (
-        page.readiness.memory_controls.itemAtPosition(1, 0).widget()
-        is page.readiness.memory_policy_combo
-    )
-    assert (
-        page.readiness.memory_controls.itemAtPosition(1, 2).widget()
-        is page.readiness.ttm_limit_combo
-    )
+    # The swap policy combo stays the tested source of truth; its on-screen
+    # presentation is one clickable row per combo item.
+    assert len(page.readiness.memory_option_rows) == page.readiness.memory_policy_combo.count()
+    # The TTM/VRAM combos stay the tested source of truth; their on-screen
+    # presentation is a single-line allocation timeline mirroring the combo.
+    assert page.readiness.memory_ttm_timeline._combo is page.readiness.ttm_limit_combo
+    assert page.readiness.memory_vram_timeline._combo is page.readiness.vram_size_combo
 
 
 def test_sidebar_no_longer_claims_system_protection(qtbot):
@@ -390,7 +389,7 @@ def test_decky_screenshot_preview_opens_without_losing_component_selection(qtbot
     components_height = preparation.height()
     preparation.component_cards["cpu_oc"].checkbox.setChecked(False)
     selected = preparation.selected_components
-    preparation.select_tab(2)
+    preparation.select_tab(3)
     qtbot.wait(100)
     assert preparation.decky_preview_button.isVisibleTo(preparation)
     assert not preparation.prepare_button.isVisible()
@@ -408,7 +407,7 @@ def test_decky_screenshot_preview_opens_without_losing_component_selection(qtbot
 
     dialog.deleteLater()
     qtbot.waitUntil(lambda: preparation._decky_screenshot_dialog is None)
-    preparation.select_tab(2)
+    preparation.select_tab(3)
     preparation.decky_preview_button.click()
     replacement = preparation._decky_screenshot_dialog
     assert replacement is not dialog

@@ -3550,6 +3550,8 @@ class GpuGovernorPage(QWidget):
         dialog_parent: QWidget | None = None,
         memory_policy: str = "current",
         memory_ttm_gib: int = 0,
+        memory_takeover_zram: bool = False,
+        memory_target_mount: str = "",
         vram_uma_size_mb: int = 0,
     ) -> None:
         """Execute a dialog or dashboard preparation request through one route."""
@@ -3562,6 +3564,8 @@ class GpuGovernorPage(QWidget):
                 policy=memory_policy,
                 ttm_gib=memory_ttm_gib,
                 scope="swap" if action == "memory_swap" else "ttm",
+                takeover_zram=memory_takeover_zram,
+                target_mount=memory_target_mount,
                 dialog_parent=dialog_parent,
             )
             return
@@ -3659,6 +3663,8 @@ class GpuGovernorPage(QWidget):
         ttm_gib: int,
         scope: str,
         dialog_parent: QWidget | None,
+        takeover_zram: bool = False,
+        target_mount: str = "",
     ) -> None:
         swap_label = {**{value: tr(label) for label, value in MEMORY_OPTIONS}, **{
             "current": tr("Keep Bazzite default (ZRAM)"),
@@ -3675,10 +3681,20 @@ class GpuGovernorPage(QWidget):
             if ttm_gib < 0
             else tr_format("{size} GiB TTM limit", size=ttm_gib)
         )
+        takeover_zram = bool(takeover_zram) and not bazzite and scope == "swap"
+        target_mount = str(target_mount or "").strip() if scope == "swap" else ""
         summary = (
             (
                 (tr("Swap mode"), swap_label),
-                (tr("Reboot"), tr("Required to activate the selected configuration" if bazzite else "A reboot may be required.")),
+                *((
+                    (tr("Swapfile location"), target_mount),
+                ) if target_mount else ()),
+                *((
+                    (tr("Existing ZRAM"), tr("Will be disabled to make room for ZSWAP")),
+                ) if takeover_zram else ()),
+                (tr("Reboot"), tr("Required to activate the selected configuration" if bazzite
+                                   else "Required to finish disabling the existing ZRAM" if takeover_zram
+                                   else "A reboot may be required.")),
             )
             if scope == "swap"
             else (
@@ -3688,7 +3704,11 @@ class GpuGovernorPage(QWidget):
         )
         confirmation = ConfirmDialog(
             tr("Apply Swap" if scope == "swap" else "Apply TTM limit"),
-            tr("A reboot may be required.") if bazzite else tr("Optional system setup. Disk swap uses up to 32 GiB of storage; existing user swap is preserved. TTM is applied live when supported. ZRAM and deferred restoration require a reboot. Hardware testing is still required."),
+            tr("This disables the ZRAM the distribution set up by default; ZSWAP takes over once you reboot. "
+               "Nothing else about that ZRAM configuration is touched, and it comes back if you restore this setting.")
+            if takeover_zram
+            else tr("A reboot may be required.") if bazzite
+            else tr("Optional system setup. Disk swap uses up to 32 GiB of storage; existing user swap is preserved. TTM is applied live when supported. ZRAM and deferred restoration require a reboot. Hardware testing is still required."),
             summary=summary,
             confirm_text=tr("Apply Swap" if scope == "swap" else "Apply TTM"),
             tone="orange",
@@ -3698,7 +3718,8 @@ class GpuGovernorPage(QWidget):
             return
         self._run_backend_action(
             lambda: (self.controller.preparar_memoria_bazzite(policy, ttm_gib) if bazzite
-                     else self.controller.preparar_memoria(policy, ttm_gib)),
+                     else self.controller.preparar_memoria(
+                         policy, ttm_gib, takeover_zram=takeover_zram, target_mount=target_mount)),
             lambda _result: GpuGovernorPage._record_preparation_result(
                 self,
                 tr("Memory & Swap"),

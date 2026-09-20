@@ -34,8 +34,14 @@ from bc250cc.infrastructure.cpu_persistence_state import (
 from bc250cc.infrastructure.cpu_runtime_snapshot import read_cpu_runtime_snapshot
 from bc250cc.infrastructure.cpu_telemetry import build_cpu_telemetry
 from bc250cc.infrastructure.external_tools.catalog import EXTERNAL_TOOLS
+from bc250cc.infrastructure.governor_config_request import (
+    GOVERNOR_CONFIG_HELPER_PROTOCOL,
+    governor_config_helper_protocol,
+    plan_governor_config_request,
+)
 from bc250cc.infrastructure.hardware_identity import is_bc250_platform
 from bc250cc.infrastructure.polkit_session import pkexec_argv, pkexec_prefix
+from bc250cc.shared.failure_text import describe_failure
 from bc250cc.platform.init.services import (
     detect_init_manager,
     parse_openrc_runlevel,
@@ -621,6 +627,63 @@ class CPURepository:
             if os.access(candidate, os.X_OK):
                 return str(candidate)
         return ''
+
+    def _governor_config_helper_path(self):
+        """Same small metadata-writer helper GPU export already uses.
+
+        Deliberately not the CPU/SMU QProcess boundary above (built for live
+        detection and boot persistence, not a quick metadata write) — this
+        mirrors GPURepository._governor_config_helper_path exactly, kept
+        as its own copy per this codebase's existing convention of each
+        repository resolving its own privileged helper paths.
+        """
+        candidates = (
+            Path("/usr/libexec/bc250-control-center/bc250-governor-config-helper"),
+            Path(
+                "/usr/local/libexec/bc250-control-center/bc250-governor-config-helper"
+            ),
+        )
+        for candidate in candidates:
+            try:
+                metadata = candidate.stat(follow_symlinks=False)
+            except OSError:
+                continue
+            if candidate.is_symlink() or not candidate.is_file():
+                continue
+            if metadata.st_uid != 0 or metadata.st_mode & 0o022:
+                continue
+            if not os.access(candidate, os.X_OK):
+                continue
+            try:
+                source = candidate.read_text(encoding="utf-8", errors="strict")
+            except (OSError, UnicodeError):
+                continue
+            if (
+                governor_config_helper_protocol(source)
+                != GOVERNOR_CONFIG_HELPER_PROTOCOL
+            ):
+                continue
+            return str(candidate)
+        return ""
+
+    def exportar_perfiles_cpu_decky(self, profiles):
+        """Publish the three named CPU profile cards for Decky Quick Access.
+
+        Read-only metadata, not a hardware operation: nothing here touches
+        the SMU, so it reuses the same small governor-config-helper writer
+        the GPU profile export uses instead of the CPU/SMU QProcess boundary.
+        """
+        request = plan_governor_config_request("set-decky-cpu-profiles", (list(profiles),))
+        helper = self._governor_config_helper_path()
+        if not helper:
+            raise RuntimeError(
+                "The privileged governor configuration helper is not installed. "
+                "Reinstall BC250 Control Center locally or from its package before exporting."
+            )
+        rc, out, err = self._ejecutar(request.argv(helper), timeout=120)
+        if rc != 0:
+            raise RuntimeError(describe_failure(rc, out, err))
+        return (out or "").strip()
 
     def _missing_cpu_smu_helper_message(self) -> str:
         if self._es_ostree():

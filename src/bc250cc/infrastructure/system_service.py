@@ -386,8 +386,8 @@ class SistemaService:
     def preparar_memoria_bazzite(self, policy: str, ttm_gib: int):
         return self.repo.preparar_memoria_bazzite(policy, ttm_gib)
 
-    def preparar_memoria(self, policy: str, ttm_gib: int):
-        return self.repo.preparar_memoria(policy, ttm_gib)
+    def preparar_memoria(self, policy: str, ttm_gib: int, *, takeover_zram: bool = False, target_mount: str = ''):
+        return self.repo.preparar_memoria(policy, ttm_gib, takeover_zram=takeover_zram, target_mount=target_mount)
 
     def preparar_vram(self, uma_size_mb: int):
         return self.repo.preparar_vram(uma_size_mb)
@@ -495,6 +495,9 @@ class SistemaService:
     def aplicar_perfil_gpu(self, minimo, maximo):
         return self.repo.aplicar_perfil_gpu(minimo, maximo)
 
+    def exportar_perfiles_gpu_decky(self, profiles):
+        return self.repo.exportar_perfiles_gpu_decky(profiles)
+
     def fijar_piso_gpu_persistente(self, minimo):
         return self.repo.fijar_piso_gpu_persistente(minimo)
 
@@ -522,6 +525,9 @@ class SistemaService:
 
     def comando_cpu_oc_temporal_embebido(self, frecuencia, vid, temp=90):
         return self.repo.comando_cpu_oc_temporal_embebido(frecuencia, vid, temp)
+
+    def exportar_perfiles_cpu_decky(self, profiles):
+        return self.repo.exportar_perfiles_cpu_decky(profiles)
 
     def registrar_resultado_deteccion_cpu(self, target=None):
         return self.repo.registrar_resultado_deteccion_cpu(target)

@@ -282,6 +282,7 @@ class CpuControlController:
         view.firmware_persistence_requested.connect(
             page._open_firmware_persistence_guide
         )
+        view.export_to_decky_requested.connect(self._export_profiles_to_decky)
 
     # ------------------------------------------------------------- intentions
 
@@ -308,6 +309,37 @@ class CpuControlController:
         page.temperature_control.setValue(int(request.temperature_c))
         if request.manual_scale:
             page.scale_control.setValue(int(request.scale))
+
+    def _export_profiles_to_decky(self) -> None:
+        """Publishes the three visible CPU profile cards for Decky to read.
+
+        Read-only metadata, not a hardware change: runs on the background
+        executor already used for quick backend calls (e.g. instalar_cpu_oc)
+        rather than the confirm-dialog + QProcess path _apply_custom uses,
+        since nothing here touches the SMU.
+        """
+        page = self.page
+        payload = [
+            {"key": profile.key, "name": profile.name, "frequency": profile.frequency_mhz, "vid": profile.vid_mv}
+            for profile in self.view.profiles()
+        ]
+
+        def success(_result: object) -> None:
+            page._show_info(
+                tr("Export to Decky"),
+                tr("Profiles exported to Decky Quick Access."),
+                tone="green",
+            )
+
+        def failure(message: str) -> None:
+            page._show_info(tr("Could not export profiles to Decky"), message, tone="red")
+
+        page._background.start(
+            "cpu-export-decky",
+            lambda: page.controller.exportar_perfiles_cpu_decky(payload),
+            success,
+            failure,
+        )
 
     def _persistence(self, action: str) -> None:
         page = self.page

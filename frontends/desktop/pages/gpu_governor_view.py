@@ -1381,6 +1381,7 @@ class GpuGovernorView(QWidget):
     range_apply_requested = pyqtSignal(int, int)
     range_startup_requested = pyqtSignal(int, int)
     profile_changed = pyqtSignal(object)
+    export_to_decky_requested = pyqtSignal()
     service_action_requested = pyqtSignal(str)
     compatibility_apply_requested = pyqtSignal(dict)
     high_points_toggle_requested = pyqtSignal(bool)
@@ -1458,9 +1459,28 @@ class GpuGovernorView(QWidget):
 
         self._safe_pill = card.status
 
-        profiles_panel, profiles_box = _subpanel(
-            "Operating profile",
-            "One click sets the range. The pencil changes name and frequencies.",
+        profiles_panel, profiles_box = _subpanel("")
+        title_row = QHBoxLayout()
+        title_row.setContentsMargins(0, 0, 0, 0)
+        title_row.setSpacing(8)
+        profiles_title = QLabel(tr("Operating profile"))
+        profiles_title.setProperty("cardTitle", True)
+        profiles_title.setWordWrap(True)
+        title_row.addWidget(profiles_title, 0)
+        title_row.addStretch(1)
+        self._export_decky_button = QPushButton(tr("Export to Decky"))
+        self._export_decky_button.setIcon(icon("gamepad_menu"))
+        self._export_decky_button.setProperty("compactAction", True)
+        self._export_decky_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._export_decky_button.setToolTip(
+            tr("Send these three profile cards to the Decky Quick Access panel.")
+        )
+        self._export_decky_button.clicked.connect(self.export_to_decky_requested.emit)
+        title_row.addWidget(self._export_decky_button, 0)
+        title_row.setAlignment(self._export_decky_button, Qt.AlignmentFlag.AlignBottom)
+        profiles_box.addLayout(title_row)
+        profiles_box.addWidget(
+            caption("One click sets the range. The pencil changes name and frequencies.")
         )
         self._profiles_grid = QGridLayout()
         self._profiles_grid.setContentsMargins(0, 0, 0, 0)
@@ -1972,6 +1992,10 @@ class GpuGovernorView(QWidget):
 
         for profile_card in self._profile_cards:
             profile_card.set_editable(not is_oberon)
+        # Oberon's three profiles are fixed by the shared contract and Decky
+        # already ships the matching oberon-1500/1850/2000 buttons; there is
+        # nothing user-edited here to export.
+        self._export_decky_button.setVisible(not is_oberon)
 
         # The backend refuses startup persistence for Oberon outright
         # (``guardar_rango_gpu_arranque`` raises), so offering it would be a

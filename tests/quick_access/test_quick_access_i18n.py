@@ -59,13 +59,29 @@ def test_built_decky_bundle_contains_every_quick_access_language():
 
 
 def test_quick_access_keeps_memory_tuning_out_of_the_game_mode_panel():
-    interface = (ROOT / "src/index.tsx").read_text(encoding="utf-8")
-    helper = Path("privileged/helpers/bc250-quick-access-helper").read_text(
-        encoding="utf-8"
-    )
+    """The Memory & Video tab may only ever *display* memory state.
 
-    assert 'kind="memory"' not in interface
+    An earlier Quick Access build shipped a live zram/zswap policy switch
+    here; changing swap policy needs a kernel-argument rewrite and a reboot,
+    which made it an unreachable, half-working control in Game Mode, and it
+    was swept out. The "Memory & Video" tab added later is read-only
+    telemetry (RAM/swap/VRAM/storage), not that control surface, so
+    ``kind="memory"``/``kind="storage"`` section headers are fine again —
+    but nothing in this plugin may ever call an RPC that writes swap, zram,
+    zswap or TTM policy, and no in-panel policy picker may return.
+    """
+    interface = (ROOT / "src/index.tsx").read_text(encoding="utf-8")
+    main = (ROOT / "main.py").read_text(encoding="utf-8")
+
     assert "memoryOpen" not in interface
-    # Keep the passive status keys during rolling upgrades so an older
-    # frontend and a newer protected helper remain protocol-compatible.
-    assert "memory_runtime_state" in helper
+    forbidden_controls = (
+        "swapPolicy", "zramPolicy", "zswapPolicy", "MemoryPolicyPicker",
+        "SwapPolicySelector",
+    )
+    assert not any(token in interface for token in forbidden_controls)
+    forbidden_writes = (
+        "apply_memory", "set_memory", "apply_swap", "set_swap",
+        "apply_zram", "set_zram", "apply_zswap", "set_zswap",
+        "apply_ttm", "set_ttm", "memory-policy", "swap-policy",
+    )
+    assert not any(token in main for token in forbidden_writes)

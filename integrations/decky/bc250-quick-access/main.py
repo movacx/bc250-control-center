@@ -33,12 +33,16 @@ CONTRACT_PATH = pathlib.Path(
 )
 # Protocol 13 adds the Oberon 2000 MHz Benchmark profile and the conservative
 # 1000 MHz clock-only idle fallback used when Fedora omits gpu_busy_percent.
+# Protocol 14 adds the read-only "gddr6-sensors" action.
+# Protocol 15 adds "gpu-high-points" (Cyan TOML safe-points above 2000 MHz).
+# Protocol 16 adds "vram-apply" (write the UMA_SIZE VRAM preset to CMOS; the
+# new size activates after the next reboot, exactly like the desktop control).
 #
 # Kept as integer literals: the desktop AST-reads HELPER_PROTOCOL out of this
 # installed file, without importing it, to notice when the plugin and the root
 # helper came from different builds. REQUIRED_CONTRACT_REVISION says which
 # shape of the shared contract this file was written against.
-HELPER_PROTOCOL = 13
+HELPER_PROTOCOL = 16
 REQUIRED_CONTRACT_REVISION = 1
 GPU_PROFILES = (
     "balanced", "gaming", "benchmark",
@@ -56,7 +60,233 @@ FAN_MAX_PERCENT = 100
 CPU_FREQUENCIES = tuple(range(3100, 4201, 50))
 CPU_VIDS = tuple(range(950, 1326, 5))
 CPU_SCALES = tuple(range(-50, 1))
+# Same fixed ladder the desktop's own VRAM control offers. Cross-checked
+# against the shared contract in _contract_disagreement() before it is ever
+# shown, so a stale plugin cannot offer a size the root helper would reject.
+VRAM_SIZE_PRESETS_MB = (256, 512, 1024, 2048, 3072, 4096, 5120, 6144, 7168, 8192, 12288)
 MAX_RECENT_ACTIONS = 10
+#: Passive read of the optional onlinermm/BC250-Telemetry daemon's snapshot —
+#: mirrors bc250cc.infrastructure.vrm_telemetry_reader.leer_telemetria_vrm()
+#: (not importable here: Decky only receives the files this plugin ships).
+#: Never starts, stops or configures that daemon; the file simply never
+#: appears without the physical I2C mod its project's hardware.md describes.
+VRM_TELEMETRY_PATH = pathlib.Path("/run/apu_telemetry.json")
+VRM_TELEMETRY_MAX_AGE_SECONDS = 5.0
+VRM_RAIL_MEASUREMENTS = (
+    ("temperature_c", "temp"), ("voltage_v", "vout"), ("current_a", "iout"), ("power_w", "pout"),
+)
+
+
+def _vrm_number(value: object) -> float | None:
+    try:
+        number = float(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+    return None if number != number or number < 0 else number
+
+
+def _read_vrm_telemetry(path: pathlib.Path = VRM_TELEMETRY_PATH) -> dict[str, object]:
+    empty: dict[str, object] = {"vrm_available": False, "vrm_input_voltage_v": None, "vrm_total_power_w": None}
+    for rail in ("cpu", "gpu"):
+        for field, _source in VRM_RAIL_MEASUREMENTS:
+            empty[f"vrm_{rail}_{field}"] = None
+    try:
+        mtime = path.stat().st_mtime
+        if time.time() - mtime > VRM_TELEMETRY_MAX_AGE_SECONDS:
+            return empty
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return empty
+    hardware = payload.get("hardware") if isinstance(payload, dict) else None
+    if not isinstance(hardware, dict):
+        return empty
+    result = dict(empty)
+    input_voltages: list[float] = []
+    for rail in ("cpu", "gpu"):
+        data = hardware.get(rail)
+        if not isinstance(data, dict) or not data.get("valid"):
+            continue
+        for field, source in VRM_RAIL_MEASUREMENTS:
+            result[f"vrm_{rail}_{field}"] = _vrm_number(data.get(source))
+        inbound = _vrm_number(data.get("vin"))
+        if inbound is not None:
+            input_voltages.append(inbound)
+    result["vrm_input_voltage_v"] = max(input_voltages) if input_voltages else None
+    if hardware.get("total_power_valid"):
+        result["vrm_total_power_w"] = _vrm_number(hardware.get("total_power"))
+    result["vrm_available"] = any(
+        result[f"vrm_{rail}_temperature_c"] is not None for rail in ("cpu", "gpu")
+    )
+    return result
+
+
+def _apply_custom_profile_names(
+    profiles: list[dict[str, object]],
+    custom: object,
+    allowed_min: int,
+    allowed_max: int,
+) -> list[dict[str, object]]:
+    """Overlay the Desktop's renamed/re-ranged profile cards onto the ladder.
+
+    ``custom`` is the helper's own already-validated ``gpu_custom_profiles``
+    (see ``_load_gpu_profile_overrides`` there); this only clamps display
+    values to the range the hardware reports as allowed right now, exactly
+    like ``profiles_for_allowed_range`` already does for the built-in ladder.
+    Applying a profile still goes through ``apply_gpu_profile`` -> the
+    root helper -> the live D-Bus envelope check, so a stale override can be
+    displayed here but never applied outside what is actually allowed.
+    """
+    if not isinstance(custom, list) or not custom:
+        return profiles
+    overrides: dict[str, dict[str, object]] = {}
+    for entry in custom:
+        if not isinstance(entry, dict):
+            continue
+        key = entry.get("key")
+        name, minimum, maximum = entry.get("name"), entry.get("min"), entry.get("max")
+        if (
+            not isinstance(key, str)
+            or not isinstance(name, str)
+            or isinstance(minimum, bool) or not isinstance(minimum, int)
+            or isinstance(maximum, bool) or not isinstance(maximum, int)
+        ):
+            continue
+        overrides[key] = {"name": name, "min": minimum, "max": maximum}
+    if not overrides:
+        return profiles
+    updated: list[dict[str, object]] = []
+    for profile in profiles:
+        override = overrides.get(profile.get("key"))
+        if override is None:
+            updated.append(profile)
+            continue
+        bounded_min = max(allowed_min, int(override["min"]))
+        bounded_max = min(allowed_max, int(override["max"]))
+        if bounded_min > bounded_max:
+            updated.append(profile)
+            continue
+        updated.append({
+            "key": profile["key"], "name": override["name"],
+            "min": bounded_min, "max": bounded_max,
+        })
+    return updated
+
+
+#: Per-core CPU usage needs two samples spaced in time. The privileged helper
+#: is a fresh process on every call and cannot hold that state, but this
+#: plugin's own Plugin object is long-lived across polls, so it keeps the
+#: previous /proc/stat snapshot itself and reports usage as a delta since the
+#: last status() call — the same 5 s cadence the panel already polls at.
+CPU_STAT_PATH = pathlib.Path("/proc/stat")
+CPUFREQ_ROOT = pathlib.Path("/sys/devices/system/cpu")
+
+
+def _read_cpu_times(path: pathlib.Path = CPU_STAT_PATH) -> dict[int, tuple[int, int]]:
+    times: dict[int, tuple[int, int]] = {}
+    try:
+        lines = path.read_text(encoding="ascii", errors="strict").splitlines()
+    except OSError:
+        return times
+    for line in lines:
+        if not line.startswith("cpu") or len(line) <= 3 or line[3] == " ":
+            continue
+        parts = line.split()
+        try:
+            index = int(parts[0][3:])
+            fields = [int(value) for value in parts[1:11]]
+        except (ValueError, IndexError):
+            continue
+        if len(fields) < 4:
+            continue
+        idle = fields[3] + (fields[4] if len(fields) > 4 else 0)
+        times[index] = (idle, sum(fields))
+    return times
+
+
+CPUINFO_PATH = pathlib.Path("/proc/cpuinfo")
+
+
+def _read_core_frequencies_from_cpuinfo(path: pathlib.Path = CPUINFO_PATH) -> dict[int, int]:
+    """Fallback used when the board has no cpufreq scaling directory at all.
+
+    A stock BC-250 runs without a cpufreq governor, so
+    /sys/devices/system/cpu/cpuN/cpufreq never exists — this is the same
+    /proc/cpuinfo "cpu MHz" fallback psutil.cpu_freq() uses on Linux when the
+    sysfs path is absent, kept dependency-free since Decky's embedded Python
+    is not guaranteed to ship psutil.
+    """
+    frequencies: dict[int, int] = {}
+    try:
+        text = path.read_text(encoding="ascii", errors="ignore")
+    except OSError:
+        return frequencies
+    index: int | None = None
+    for line in text.splitlines():
+        if ":" not in line:
+            continue
+        key, _, value = line.partition(":")
+        key = key.strip().lower()
+        value = value.strip()
+        if key == "processor":
+            try:
+                index = int(value)
+            except ValueError:
+                index = None
+        elif key == "cpu mhz" and index is not None:
+            try:
+                frequencies[index] = round(float(value))
+            except ValueError:
+                continue
+    return frequencies
+
+
+def _read_core_frequencies_mhz(root: pathlib.Path = CPUFREQ_ROOT) -> dict[int, int]:
+    frequencies: dict[int, int] = {}
+    try:
+        cpu_dirs = sorted(root.glob("cpu[0-9]*"))
+    except OSError:
+        cpu_dirs = []
+    for cpu_dir in cpu_dirs:
+        try:
+            index = int(cpu_dir.name[3:])
+            raw = (cpu_dir / "cpufreq" / "scaling_cur_freq").read_text(encoding="ascii").strip()
+            frequencies[index] = round(int(raw) / 1000)
+        except (OSError, ValueError):
+            continue
+    if not frequencies:
+        frequencies = _read_core_frequencies_from_cpuinfo()
+    return frequencies
+
+
+CPU_PROFILE_KEYS = ("board_average", "mid_point", "safe_maximum")
+
+
+def _validated_cpu_profiles(custom: object) -> list[dict[str, object]]:
+    """Defensively re-check the helper's own already-validated CPU presets.
+
+    Membership in CPU_FREQUENCIES/CPU_VIDS enforces the exact same ladder
+    apply_cpu_tuning() requires, so a preset built from this list can never
+    be rejected by that check — but it also means a stale export naming a
+    value outside the current ladder is silently dropped here rather than
+    shown as a button that would fail when pressed.
+    """
+    if not isinstance(custom, list):
+        return []
+    profiles: list[dict[str, object]] = []
+    for entry in custom:
+        if not isinstance(entry, dict):
+            continue
+        key, name = entry.get("key"), entry.get("name")
+        frequency, vid = entry.get("frequency"), entry.get("vid")
+        if (
+            key not in CPU_PROFILE_KEYS
+            or not isinstance(name, str) or not name
+            or isinstance(frequency, bool) or frequency not in CPU_FREQUENCIES
+            or isinstance(vid, bool) or vid not in CPU_VIDS
+        ):
+            continue
+        profiles.append({"key": key, "name": name, "frequency": frequency, "vid": vid})
+    return profiles
 
 
 class Plugin:
@@ -69,6 +299,36 @@ class Plugin:
         # Session-only feedback for the player.  It is intentionally bounded
         # and in-memory: QAM must not create a second persistent tuning store.
         self._recent_actions: list[dict[str, object]] = []
+        self._last_cpu_times: dict[int, tuple[int, int]] = {}
+
+    def _cpu_usage_snapshot(self) -> dict[str, object]:
+        times = _read_cpu_times()
+        previous = self._last_cpu_times
+        self._last_cpu_times = times
+        per_core_percent: dict[int, float] = {}
+        for index, (idle, total) in times.items():
+            before = previous.get(index)
+            if before is None:
+                continue
+            idle_delta = idle - before[0]
+            total_delta = total - before[1]
+            if total_delta <= 0:
+                continue
+            busy = max(0.0, min(100.0, 100.0 * (1 - idle_delta / total_delta)))
+            per_core_percent[index] = round(busy, 1)
+        frequencies = _read_core_frequencies_mhz()
+        cores = sorted(set(times) | set(frequencies))
+        aggregate = (
+            round(sum(per_core_percent.values()) / len(per_core_percent), 1)
+            if per_core_percent else None
+        )
+        return {
+            "cpu_usage_percent": aggregate,
+            "cpu_cores": [
+                {"core": index, "percent": per_core_percent.get(index), "frequency_mhz": frequencies.get(index)}
+                for index in cores
+            ],
+        }
 
     def _record_action(self, module: str, target: str, result: dict) -> dict:
         succeeded = result.get("ok") is not False
@@ -162,6 +422,9 @@ class Plugin:
         if tuple(CU_MODES) != tuple(str(value) for value in module.cu_targets()):
             return ("BC250 Quick Access disagrees with this system about the "
                     "Compute Units range. Reinstall both from Desktop Mode.")
+        if VRAM_SIZE_PRESETS_MB != tuple(module.VRAM_SIZE_PRESETS_MB):
+            return ("BC250 Quick Access disagrees with this system about the "
+                    "VRAM presets. Reinstall both from Desktop Mode.")
         return ""
 
     def _run(self, *args: str, timeout: int = 190) -> dict:
@@ -215,11 +478,17 @@ class Plugin:
             governor = result.get("gpu_governor", "cyan")
             if isinstance(allowed, (list, tuple)) and len(allowed) == 2:
                 try:
-                    result["gpu_profiles"] = profiles_payload(
+                    profiles = profiles_payload(
                         int(allowed[0]), int(allowed[1]), governor=governor,
+                    )
+                    result["gpu_profiles"] = _apply_custom_profile_names(
+                        profiles, result.get("gpu_custom_profiles"), int(allowed[0]), int(allowed[1]),
                     )
                 except (TypeError, ValueError, OverflowError):
                     result.pop("gpu_profiles", None)
+            result.pop("gpu_custom_profiles", None)
+            result["cpu_profiles"] = _validated_cpu_profiles(result.get("cpu_custom_profiles"))
+            result.pop("cpu_custom_profiles", None)
             result["recent_actions"] = list(reversed(self._recent_actions))
             result["helper_protected"] = True
         return result
@@ -240,6 +509,52 @@ class Plugin:
                 "ok": False,
                 "error": "BC250 CPU telemetry protocol is incompatible. Reinstall BC250 Control Center from Desktop Mode.",
             }
+        return result
+
+    async def gddr6_sensors(self) -> dict:
+        """Read the last per-chip GDDR6 sample, outside every write lock.
+
+        Same reasoning as cpu_telemetry(): this is a separate, independent
+        subprocess (its own advisory lock on the shared SMU/SMN interface),
+        never the SMU patch itself -- applying that patch stays desktop-only,
+        pkexec-gated. Polled on its own cadence since a cold read (git/stat
+        checks inside the reader) is slower than the other passive reads.
+        """
+        result = await asyncio.to_thread(self._run, "gddr6-sensors", timeout=20)
+        if result.get("ok") is False:
+            return result
+        if type(result.get("protocol")) is not int or result["protocol"] != HELPER_PROTOCOL:
+            return {
+                "ok": False,
+                "error": "BC250 GDDR6 sensor protocol is incompatible. Reinstall BC250 Control Center from Desktop Mode.",
+            }
+        return result
+
+    async def monitor_snapshot(self) -> dict:
+        """Read the passive GPU/board/fan/memory bundle without the write lock.
+
+        The Monitorización and Memoria y Video tabs poll this instead of
+        status(): a CU or GPU write can hold the helper lock for status()'s
+        own UMR/D-Bus pass for a long time (cpu-detect up to ~920s), and
+        before this endpoint existed those tabs simply froze on stale data
+        for the whole duration — this is the fix for that, mirroring the
+        same reasoning cpu_telemetry() already uses for CPU clocks.
+        """
+        result = await asyncio.to_thread(self._run, "qam-sensors", timeout=10)
+        if result.get("ok") is False:
+            return result
+        if type(result.get("protocol")) is not int or result["protocol"] != HELPER_PROTOCOL:
+            return {
+                "ok": False,
+                "error": "BC250 Quick Access sensor protocol is incompatible. Reinstall BC250 Control Center from Desktop Mode.",
+            }
+        # Both are plain /run and /proc reads with no helper subprocess at
+        # all, so they belong beside qam-sensors rather than inside status():
+        # a status() call cannot even acquire the helper lock while a write
+        # holds it, so anything computed after that lock was previously
+        # frozen for the same ~920s a cpu-detect can take.
+        result.update(await asyncio.to_thread(_read_vrm_telemetry))
+        result.update(await asyncio.to_thread(self._cpu_usage_snapshot))
         return result
 
     async def _run_single_operation(self, *args: str, timeout: int = 190) -> dict:
@@ -298,6 +613,25 @@ class Plugin:
                     self._run, "gpu-safe-point", str(normalized), timeout=30,
                 )
             return self._record_action("gpu", f"toml-{normalized}", result)
+
+    async def set_gpu_high_frequency_points(self, enabled: bool) -> dict:
+        """Comment/uncomment the Cyan TOML safe-points above 2000 MHz.
+
+        Mirrors the Desktop's "Enable/Disable +2000 MHz TOML points" button.
+        A persistent-file edit only: it never restarts Cyan or changes the
+        live GPU range, so it does not need cpu-detect's long timeout.
+        """
+        if self._operation_lock.locked():
+            return {
+                "ok": False,
+                "error": "A BC250 operation is still running. Wait for its verified result before changing the GPU TOML.",
+            }
+        async with self._operation_lock:
+            async with self._helper_lock:
+                result = await asyncio.to_thread(
+                    self._run, "gpu-high-points", "1" if enabled else "0", timeout=30,
+                )
+            return self._record_action("gpu", f"toml-high-points-{'on' if enabled else 'off'}", result)
 
     async def apply_cu_mode(self, mode: str) -> dict:
         aliases = {"stock": "24", "full": "40"}
@@ -430,3 +764,16 @@ class Plugin:
             "cpu-service", "remove", timeout=90,
         )
         return self._record_action("cpu", "service-remove", result)
+
+    async def apply_vram_size(self, size_mb: int) -> dict:
+        """Write one VRAM (UMA_SIZE) preset to CMOS. Activates on next reboot."""
+        if isinstance(size_mb, bool) or type(size_mb) not in {int, str}:
+            return {"ok": False, "error": "Unsupported VRAM size."}
+        try:
+            normalized = int(size_mb)
+        except (TypeError, ValueError, OverflowError):
+            return {"ok": False, "error": "Unsupported VRAM size."}
+        if str(normalized) != str(size_mb) or normalized not in VRAM_SIZE_PRESETS_MB:
+            return {"ok": False, "error": "Unsupported VRAM size."}
+        result = await self._run_single_operation("vram-apply", str(normalized), timeout=30)
+        return self._record_action("vram", str(normalized), result)

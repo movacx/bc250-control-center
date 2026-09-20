@@ -17,6 +17,10 @@ def main():
     parser.add_argument("--policy", choices=("preserve", "restore", "swap-16", "swap-32", "zram", "zswap-16", "zswap-32"), default="preserve")
     parser.add_argument("--ttm", type=int, choices=(-1, 0, 8, 10, 12), default=0)
     parser.add_argument("--uma-size", type=int, default=0)
+    parser.add_argument("--takeover-zram", action="store_true",
+                         help="Confirm disabling an existing, foreign ZRAM to switch to ZSWAP")
+    parser.add_argument("--target-mount", default=None,
+                         help="Mount point for the swapfile; one of memory-plan's reported swap_targets")
     args = parser.parse_args()
     readonly = args.action in {"status", "memory-plan", "uninstall-check"}
     if not readonly and os.geteuid() != 0:
@@ -38,15 +42,18 @@ def main():
     host = Host()
     try:
         if args.action == "uninstall-check":
+            _, swap_file, _, unit_path = memory.swap_paths(host, host.state("memory"))
             if any(host.path(path).exists() for path in (
                 STATE + "/acpi.json", STATE + "/telemetry.json",
-                memory.SERVICE_PATH, memory.SWAP, memory.ZRAM, memory.UNIT_PATH,
+                memory.SERVICE_PATH, swap_file, memory.ZRAM, unit_path,
             )):
                 raise SetupError("Restore BC250 swap, TTM and ACPI settings in Control Center before removing this package")
             return 0
         if readonly:
+            memory_status = memory.status(host)
+            memory_status["swap_targets"] = memory.candidate_swap_targets(host)
             result = {
-                "memory": memory.status(host),
+                "memory": memory_status,
                 "acpi": acpi.status(host),
                 "telemetry": telemetry.status(host),
                 "vram": vram.status(host),
@@ -63,7 +70,8 @@ def main():
         try:
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
             if args.action == "memory-apply":
-                result = memory.apply(host, args.policy, args.ttm)
+                result = memory.apply(host, args.policy, args.ttm,
+                                       takeover_zram=args.takeover_zram, target_mount=args.target_mount)
             elif args.action == "memory-boot":
                 result = memory.boot(host)
             elif args.action == "acpi-install":

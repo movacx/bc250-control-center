@@ -398,9 +398,9 @@ def test_dashboard_stages_and_restores_bazzite_cpu_mitigations(qtbot):
     assert components_layout.indexOf(page.readiness.mitigations_panel) < (
         components_layout.indexOf(page.readiness.components_host)
     )
-    assert page.readiness.memory_controls.indexOf(
+    assert not page.readiness.memory_panel.isAncestorOf(
         page.readiness.mitigations_apply_button
-    ) == -1
+    )
     assert page.readiness.mitigations_apply_button.text() == "Disable mitigations"
     assert page.readiness.mitigations_apply_button.isEnabled()
     page.readiness.mitigations_apply_button.click()
@@ -538,7 +538,7 @@ def test_dashboard_preparation_tabs_are_real_stacked_sections(qtbot):
         button.click()
         assert page.readiness.stack.currentIndex() == index
         assert [item.isChecked() for item in page.readiness.tab_buttons] == [
-            position == index for position in range(4)
+            position == index for position in range(len(page.readiness.tab_buttons))
         ]
 
 

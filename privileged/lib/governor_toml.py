@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import re
 import stat
@@ -317,6 +318,174 @@ def _require_root_owned(path: Path, what: str) -> None:
             raise GovernorTomlError(f"{what} is not protected by root: {part}")
         if part == Path(part.anchor):
             break
+
+
+#: Read by the Decky Quick Access helper (already root, no Polkit prompt of
+#: its own) so a name/range the player customised on the Desktop's three
+#: GPU profile cards shows up in Game Mode too. World-readable like
+#: /run/apu_telemetry.json: it carries no secret, only display metadata that
+#: the Decky helper re-validates against the live D-Bus envelope before ever
+#: applying it, so a stale or hand-edited copy can be rejected but never used
+#: to push a range the hardware has not already advertised as allowed.
+DECKY_GPU_PROFILES_PATH = Path("/etc/bc250-control-center/decky-gpu-profiles.json")
+DECKY_GPU_PROFILES_SCHEMA = 1
+
+
+def write_decky_gpu_profiles(
+    payload_json: str, path: str | Path = DECKY_GPU_PROFILES_PATH
+) -> TomlEditResult:
+    """Publish the Desktop's edited GPU profiles for Decky Quick Access.
+
+    ``payload_json`` was already validated (schema, known keys, bounds) by
+    ``governor_config_request.plan_governor_config_request`` on the
+    unprivileged side before this ever ran with root; parsing here is a
+    second, defensive check, not the only one.
+    """
+    try:
+        profiles = json.loads(payload_json)
+    except (TypeError, ValueError) as error:
+        raise GovernorTomlError(
+            f"Decky GPU profile payload is not valid JSON: {error}"
+        ) from error
+    if not isinstance(profiles, list):
+        raise GovernorTomlError("Decky GPU profile payload must be a JSON array.")
+    for entry in profiles:
+        if (
+            not isinstance(entry, dict)
+            or not isinstance(entry.get("key"), str)
+            or not isinstance(entry.get("name"), str)
+            or isinstance(entry.get("min"), bool)
+            or not isinstance(entry.get("min"), int)
+            or isinstance(entry.get("max"), bool)
+            or not isinstance(entry.get("max"), int)
+        ):
+            raise GovernorTomlError("Decky GPU profile payload has an invalid entry.")
+
+    target = Path(path)
+    if not target.parent.is_dir():
+        target.parent.mkdir(mode=0o755, parents=True, exist_ok=True)
+        with suppress(PermissionError):
+            os.chown(target.parent, 0, 0)
+    _require_root_owned(target, "Decky GPU profile file")
+
+    document = json.dumps(
+        {"schema": DECKY_GPU_PROFILES_SCHEMA, "profiles": profiles}, indent=2
+    ) + "\n"
+    try:
+        original = target.read_text(encoding="utf-8") if target.is_file() else ""
+    except (OSError, UnicodeError):
+        original = ""
+    if document == original:
+        return TomlEditResult(changed=False)
+
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{target.name}.", suffix=".tmp", dir=str(target.parent),
+    )
+    temporary = Path(temporary_name)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8", newline="") as handle:
+            handle.write(document)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.chmod(temporary, 0o644)
+        with suppress(PermissionError):
+            os.chown(temporary, 0, 0)
+        if target.is_symlink():
+            raise GovernorTomlError(
+                "Decky GPU profile file changed to a symlink during the edit."
+            )
+        os.replace(temporary, target)
+    except OSError as error:
+        with suppress(OSError):
+            temporary.unlink()
+        raise GovernorTomlError(
+            f"Decky GPU profile file could not be updated: {error}"
+        ) from error
+    return TomlEditResult(changed=True)
+
+
+#: Same convention as the GPU sibling above: read by the Decky Quick Access
+#: helper (already root, no Polkit prompt of its own) so a name/frequency/VID
+#: the player customised on the Desktop's three CPU profile cards shows up
+#: in Game Mode too. World-readable, no secret, and Decky's own
+#: CPU_FREQUENCIES/CPU_VIDS ladders re-validate every value before it is
+#: ever applied, so a stale or hand-edited copy can be rejected but never
+#: used to reach a value neither side already allows.
+DECKY_CPU_PROFILES_PATH = Path("/etc/bc250-control-center/decky-cpu-profiles.json")
+DECKY_CPU_PROFILES_SCHEMA = 1
+
+
+def write_decky_cpu_profiles(
+    payload_json: str, path: str | Path = DECKY_CPU_PROFILES_PATH
+) -> TomlEditResult:
+    """Publish the Desktop's edited CPU profiles for Decky Quick Access.
+
+    ``payload_json`` was already validated (schema, known keys, bounds) by
+    ``governor_config_request.plan_governor_config_request`` on the
+    unprivileged side before this ever ran with root; parsing here is a
+    second, defensive check, not the only one.
+    """
+    try:
+        profiles = json.loads(payload_json)
+    except (TypeError, ValueError) as error:
+        raise GovernorTomlError(
+            f"Decky CPU profile payload is not valid JSON: {error}"
+        ) from error
+    if not isinstance(profiles, list):
+        raise GovernorTomlError("Decky CPU profile payload must be a JSON array.")
+    for entry in profiles:
+        if (
+            not isinstance(entry, dict)
+            or not isinstance(entry.get("key"), str)
+            or not isinstance(entry.get("name"), str)
+            or isinstance(entry.get("frequency"), bool)
+            or not isinstance(entry.get("frequency"), int)
+            or isinstance(entry.get("vid"), bool)
+            or not isinstance(entry.get("vid"), int)
+        ):
+            raise GovernorTomlError("Decky CPU profile payload has an invalid entry.")
+
+    target = Path(path)
+    if not target.parent.is_dir():
+        target.parent.mkdir(mode=0o755, parents=True, exist_ok=True)
+        with suppress(PermissionError):
+            os.chown(target.parent, 0, 0)
+    _require_root_owned(target, "Decky CPU profile file")
+
+    document = json.dumps(
+        {"schema": DECKY_CPU_PROFILES_SCHEMA, "profiles": profiles}, indent=2
+    ) + "\n"
+    try:
+        original = target.read_text(encoding="utf-8") if target.is_file() else ""
+    except (OSError, UnicodeError):
+        original = ""
+    if document == original:
+        return TomlEditResult(changed=False)
+
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{target.name}.", suffix=".tmp", dir=str(target.parent),
+    )
+    temporary = Path(temporary_name)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8", newline="") as handle:
+            handle.write(document)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.chmod(temporary, 0o644)
+        with suppress(PermissionError):
+            os.chown(temporary, 0, 0)
+        if target.is_symlink():
+            raise GovernorTomlError(
+                "Decky CPU profile file changed to a symlink during the edit."
+            )
+        os.replace(temporary, target)
+    except OSError as error:
+        with suppress(OSError):
+            temporary.unlink()
+        raise GovernorTomlError(
+            f"Decky CPU profile file could not be updated: {error}"
+        ) from error
+    return TomlEditResult(changed=True)
 
 
 class GovernorTomlEditor:

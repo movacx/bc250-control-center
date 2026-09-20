@@ -127,6 +127,16 @@ _CODES: tuple[ErrorCode, ...] = (
             'Missing action.', 'Unknown action.', 'expects:',
             'does not accept arguments', 'accepts only', 'HELPER_USAGE',
             'QUICK_ACCESS_CU_SERVICE:', 'QUICK_ACCESS_CPU_SERVICE:',
+            # A fresh Decky build talking to a stale installed helper (or the
+            # reverse) after only one side of an update was applied. This is
+            # a routine, expected state right after replacing the helper --
+            # not a hardware fault -- so it must resolve to this calm,
+            # actionable code instead of the generic unknown-failure one.
+            'are different versions.', 'disagrees with this system about',
+            'was built for contract revision', 'protocol is incompatible',
+            'shared contract is not installed',
+            'shared contract is not a protected root-owned file',
+            'shared contract could not be read',
         ),
     ),
     ErrorCode(

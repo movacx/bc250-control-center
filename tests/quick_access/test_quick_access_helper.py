@@ -748,7 +748,7 @@ def test_cu_live_snapshot_is_atomic_schema_versioned_and_contains_verified_state
     assert snapshot == {
         "schema": 1,
         "producer": "bc250-quick-access-helper",
-            "helper_protocol": 13,
+            "helper_protocol": 15,
         "boot_id": "01234567-89ab-cdef-0123-456789abcdef",
         "observed_at_unix_ms": snapshot["observed_at_unix_ms"],
         "raw_dashboard": raw_dashboard,

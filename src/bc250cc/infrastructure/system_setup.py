@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import json
+import re
+import shlex
 import subprocess
 from pathlib import Path
 
@@ -27,7 +29,8 @@ def inventory() -> dict:
         return {"helper_available": False, "memory": {}, "acpi": {}, "telemetry": {}, "vram": {}, "reason": str(exc)}
 
 
-def command(action: str, policy: str = "preserve", ttm_gib: int = 0, uma_size_mb: int = 0) -> str:
+def command(action: str, policy: str = "preserve", ttm_gib: int = 0, uma_size_mb: int = 0,
+            takeover_zram: bool = False, target_mount: str = "") -> str:
     if action not in {
         "memory-apply", "acpi-install", "acpi-uninstall", "acpi-check",
         "telemetry-fix", "telemetry-restore", "vram-read", "vram-apply",
@@ -37,8 +40,15 @@ def command(action: str, policy: str = "preserve", ttm_gib: int = 0, uma_size_mb
         raise ValueError("Invalid memory setup request")
     if action == "vram-apply" and (type(uma_size_mb) is not int or not (256 <= uma_size_mb < 16384)):
         raise ValueError("Invalid VRAM setup request")
+    target_mount = str(target_mount or "")
+    if target_mount and not re.fullmatch(r"/[A-Za-z0-9_./-]*", target_mount):
+        raise ValueError("Invalid swap target mount")
     if action == "memory-apply":
         args = f" --policy {policy} --ttm {ttm_gib}"
+        if takeover_zram:
+            args += " --takeover-zram"
+        if target_mount:
+            args += f" --target-mount {shlex.quote(target_mount)}"
     elif action == "vram-apply":
         args = f" --uma-size {uma_size_mb}"
     else:

@@ -44,7 +44,21 @@ CONTRACT_REVISION = 1
 
 # Wire protocols, deliberately separate numbers. Merging them would force a
 # SteamOS helper bump every time a fan preset changed.
-QUICK_ACCESS_PROTOCOL = 13
+#
+# Protocol 14 adds the read-only "gddr6-sensors" action: it never applies the
+# SMU patch (that stays desktop-only, pkexec-gated), it only detects whether
+# an already-applied patch lets it read the eight per-chip temperatures.
+#
+# Protocol 15 adds "gpu-high-points": comment/uncomment the Cyan TOML
+# safe-points above 2000 MHz through the existing governor-config helper.
+# A pure persistent-file edit; it never restarts Cyan or touches the live
+# D-Bus range.
+#
+# Protocol 16 adds "vram-apply": write the UMA_SIZE (VRAM) preset directly
+# into the battery-backed CMOS bank, the same mechanism the desktop's own
+# VRAM control uses. Like that control, the new size only takes effect after
+# the next reboot; it never touches a live allocation.
+QUICK_ACCESS_PROTOCOL = 16
 CPU_SMU_HELPER_PROTOCOL = 8
 GOVERNOR_CONFIG_PROTOCOL = 6
 STEAMOS_GAME_HELPER_PROTOCOL = 21
@@ -165,3 +179,14 @@ QUICK_ACCESS_FAN_PRESET_DUTY = {
 QUICK_ACCESS_FAN_CHANNELS = (2, 3, 4, 5)
 QUICK_ACCESS_FAN_PERCENT_RANGE = (20, 100)
 QUICK_ACCESS_FAN_PERCENT_STEP = 5
+
+# ----------------------------------------------------------- VRAM (UMA_SIZE)
+
+# Fixed CMOS presets, aligned to the 16 MiB granularity the firmware itself
+# enforces (github.com/fanoush/bc250_memcfg). Below 1 GiB the desktop's label
+# stays in MiB; every other preset here is an exact GiB multiple. Kept as one
+# ladder so the desktop dropdown and the Quick Access dropdown can never
+# offer different sizes for the same preset.
+VRAM_SIZE_PRESETS_MB: tuple[int, ...] = (
+    256, 512, 1024, 2048, 3072, 4096, 5120, 6144, 7168, 8192, 12288,
+)

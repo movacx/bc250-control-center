@@ -15,6 +15,7 @@ import json
 import os
 import pathlib
 import re
+import shutil
 import stat
 import subprocess
 import sys
@@ -29,7 +30,12 @@ from contextlib import contextmanager
 # HELPER_PROTOCOL out of the *installed* file with an AST parse, without
 # importing it, to detect a half-finished upgrade where the helper and the
 # plugin came from different builds.
-HELPER_PROTOCOL = 13
+#
+# Protocol 14 adds the read-only "gddr6-sensors" action.
+# Protocol 15 adds "gpu-high-points" (Cyan TOML safe-points above 2000 MHz).
+# Protocol 16 adds "vram-apply" (write the UMA_SIZE VRAM preset to CMOS; the
+# new size activates after the next reboot, exactly like the desktop control).
+HELPER_PROTOCOL = 16
 REQUIRED_CONTRACT_REVISION = 1
 CONTRACT_PATH = pathlib.Path(
     "/usr/libexec/bc250-control-center/lib/bc250_contract.py"
@@ -90,6 +96,112 @@ GPU_PROFILES = {
     "gaming": (1000, 1850),
     "benchmark": (1000, 2000),
 }
+#: Written by the Desktop's governor-config helper when the player renames or
+#: re-ranges one of the three cards on the "Operating profile" panel; see
+#: write_decky_gpu_profiles() in governor_toml.py. Read here as one more
+#: untrusted input: every value is re-validated against the live D-Bus
+#: envelope by apply_gpu_range() before anything is applied, so a stale,
+#: hand-edited or otherwise wrong copy of this file can only be rejected, not
+#: used to reach a range the hardware has not already advertised as allowed.
+DECKY_GPU_PROFILES_PATH = pathlib.Path("/etc/bc250-control-center/decky-gpu-profiles.json")
+
+
+def _load_gpu_profile_overrides(
+    path: pathlib.Path = DECKY_GPU_PROFILES_PATH,
+) -> dict[str, dict[str, object]]:
+    try:
+        metadata = path.lstat()
+    except OSError:
+        return {}
+    if not stat.S_ISREG(metadata.st_mode) or stat.S_ISLNK(metadata.st_mode):
+        return {}
+    if metadata.st_uid != 0 or metadata.st_mode & 0o022:
+        return {}
+    if metadata.st_size > 16 * 1024:
+        return {}
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return {}
+    if not isinstance(document, dict) or document.get("schema") != 1:
+        return {}
+    entries = document.get("profiles")
+    if not isinstance(entries, list):
+        return {}
+    overrides: dict[str, dict[str, object]] = {}
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        key = entry.get("key")
+        name = entry.get("name")
+        minimum = entry.get("min")
+        maximum = entry.get("max")
+        if (
+            key not in GPU_PROFILES
+            or not isinstance(name, str) or not 1 <= len(name) <= 40
+            or isinstance(minimum, bool) or not isinstance(minimum, int)
+            or isinstance(maximum, bool) or not isinstance(maximum, int)
+            or not 100 <= minimum < maximum <= 3000
+        ):
+            continue
+        overrides[key] = {"name": name, "min": minimum, "max": maximum}
+    return overrides
+
+
+#: Written by the Desktop's governor-config helper when the player renames
+#: or re-tunes one of the three "Operating profile" CPU cards; see
+#: write_decky_cpu_profiles() in governor_toml.py. Read here as one more
+#: untrusted input: cpu_detection_candidate() still re-validates frequency
+#: and VID against the exact same ladder before anything is applied, so a
+#: stale or hand-edited copy of this file can only be rejected, never used
+#: to reach a value outside what cpu-detect already accepts.
+DECKY_CPU_PROFILES_PATH = pathlib.Path("/etc/bc250-control-center/decky-cpu-profiles.json")
+DECKY_CPU_PROFILE_KEYS = ("board_average", "mid_point", "safe_maximum")
+
+
+def _load_cpu_profile_overrides(
+    path: pathlib.Path = DECKY_CPU_PROFILES_PATH,
+) -> dict[str, dict[str, object]]:
+    try:
+        metadata = path.lstat()
+    except OSError:
+        return {}
+    if not stat.S_ISREG(metadata.st_mode) or stat.S_ISLNK(metadata.st_mode):
+        return {}
+    if metadata.st_uid != 0 or metadata.st_mode & 0o022:
+        return {}
+    if metadata.st_size > 16 * 1024:
+        return {}
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return {}
+    if not isinstance(document, dict) or document.get("schema") != 1:
+        return {}
+    entries = document.get("profiles")
+    if not isinstance(entries, list):
+        return {}
+    overrides: dict[str, dict[str, object]] = {}
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        key = entry.get("key")
+        name = entry.get("name")
+        frequency = entry.get("frequency")
+        vid = entry.get("vid")
+        if (
+            key not in DECKY_CPU_PROFILE_KEYS
+            or not isinstance(name, str) or not 1 <= len(name) <= 40
+            or isinstance(frequency, bool) or not isinstance(frequency, int)
+            or isinstance(vid, bool) or not isinstance(vid, int)
+            or not (3100 <= frequency <= 4200 and frequency % 50 == 0)
+            or not (950 <= vid <= 1325 and vid % 5 == 0)
+        ):
+            continue
+        overrides[key] = {"name": name, "frequency": frequency, "vid": vid}
+    return overrides
+
+
 # Oberon is deliberately a small, fixed Quick Access surface.  Unlike Cyan it
 # does not expose a runtime D-Bus range or TOML safe-point ladder, and showing
 # its full YAML-compatible curve invited players to select values their active
@@ -127,6 +239,9 @@ SYSTEM_FAN_CHANNELS = tuple(range(3, 9))
 QAM_FAN_CHANNELS = (2, 3, 4, 5)
 QAM_FAN_MIN_PERCENT = 20
 QAM_FAN_MAX_PERCENT = 100
+# Same fixed ladder the desktop's own VRAM control offers. Checked against
+# the shared contract in load_contract() before anything touches CMOS.
+VRAM_SIZE_PRESETS_MB = (256, 512, 1024, 2048, 3072, 4096, 5120, 6144, 7168, 8192, 12288)
 PWM_MODE_VERIFY_ATTEMPTS = 10
 PWM_MODE_VERIFY_INTERVAL_SECONDS = 0.05
 PWM_DUTY_VERIFY_ATTEMPTS = 16
@@ -252,6 +367,125 @@ def bc250_present() -> bool:
     return False
 
 
+# ----------------------------------------------------------- VRAM (UMA_SIZE)
+#
+# Writes the APU frame-buffer size into the same battery-backed CMOS bank the
+# ABL/BIOS firmware reads at boot (github.com/fanoush/bc250_memcfg), mirroring
+# privileged/lib/system_setup_vram.py, which the desktop's own VRAM control
+# uses. Kept as a second, self-contained copy rather than an import: this
+# helper is a closed, root-owned payload that accepts only named operations
+# and has no dependency on the desktop's privileged library tree (see the
+# module docstring). Only the UMA_SIZE field is ever changed; the rest of the
+# 28-byte bank is read back unmodified and rewritten byte-for-byte.
+VRAM_DEVICE = pathlib.Path("/dev/port")
+VRAM_INDEX_PORT = 0x72
+VRAM_DATA_PORT = 0x73
+VRAM_BANK_OFFSET = 0x90
+VRAM_BANK_SIZE = 28
+VRAM_UMA_SIZE_OFFSET = 26
+VRAM_CHECKSUM_FIELD_OFFSET = 6
+VRAM_SIGNATURE = 0x42435041
+
+
+def _vram_read_index_byte(port, offset: int) -> int:
+    port.seek(VRAM_INDEX_PORT)
+    port.write(bytes((offset,)))
+    port.seek(VRAM_DATA_PORT)
+    read = port.read(1)
+    if not read:
+        raise RuntimeError("Short read from BC250 CMOS I/O ports")
+    return read[0]
+
+
+def _vram_write_index_byte(port, offset: int, value: int) -> None:
+    port.seek(VRAM_INDEX_PORT)
+    port.write(bytes((offset,)))
+    port.seek(VRAM_DATA_PORT)
+    port.write(bytes((value & 0xFF,)))
+
+
+def _vram_read_bank(port) -> bytearray:
+    return bytearray(_vram_read_index_byte(port, VRAM_BANK_OFFSET + i) for i in range(VRAM_BANK_SIZE))
+
+
+def _vram_write_bank(port, bank: bytearray) -> None:
+    for i, value in enumerate(bank):
+        _vram_write_index_byte(port, VRAM_BANK_OFFSET + i, value)
+
+
+def vram_status(*, port_open=None) -> dict[str, object]:
+    """Read-only UMA_SIZE snapshot published with every ``status`` call.
+
+    ``boot_id`` rides along so the panel can tell "I wrote this value to CMOS"
+    apart from "the firmware has actually booted with it": comparing the two
+    across a real reboot is the same boot-identity trick
+    ``cu_live_state_boot_id`` already uses to expire stale /run state, reused
+    here so a pending-reboot notice can survive a Game Mode tab switch (this
+    plugin remounts its React tree per tab) without ever surviving an actual
+    reboot by mistake.
+    """
+    boot_id = cu_live_state_boot_id()
+    if not bc250_present():
+        return {"supported": False, "reason": "AMD BC-250 hardware identity was not detected", "uma_size_mb": None, "boot_id": boot_id}
+    if not VRAM_DEVICE.exists():
+        return {"supported": False, "reason": "/dev/port is not available on this kernel", "uma_size_mb": None, "boot_id": boot_id}
+    opener = port_open or (lambda: open(VRAM_DEVICE, "r+b", buffering=0))
+    try:
+        port = opener()
+    except OSError as error:
+        return {"supported": False, "reason": f"Cannot access BC250 CMOS I/O ports: {error}", "uma_size_mb": None, "boot_id": boot_id}
+    try:
+        bank = _vram_read_bank(port)
+    finally:
+        port.close()
+    uma_size_mb = bank[VRAM_UMA_SIZE_OFFSET] | (bank[VRAM_UMA_SIZE_OFFSET + 1] << 8)
+    return {"supported": True, "reason": "", "uma_size_mb": uma_size_mb, "boot_id": boot_id}
+
+
+def vram_apply(size_mb: int, *, port_open=None) -> dict[str, object]:
+    """Write one contracted VRAM preset to CMOS. Takes effect on next boot."""
+    current = vram_status(port_open=port_open)
+    if not current["supported"]:
+        raise RuntimeError(
+            "QUICK_ACCESS_VRAM: " + (current["reason"] or "BC250 VRAM configuration is unavailable.")
+        )
+    opener = port_open or (lambda: open(VRAM_DEVICE, "r+b", buffering=0))
+    try:
+        port = opener()
+    except OSError as error:
+        raise RuntimeError(f"QUICK_ACCESS_VRAM: Cannot access BC250 CMOS I/O ports: {error}") from error
+    try:
+        bank = _vram_read_bank(port)
+        bank[VRAM_UMA_SIZE_OFFSET] = size_mb & 0xFF
+        bank[VRAM_UMA_SIZE_OFFSET + 1] = (size_mb >> 8) & 0xFF
+        bank[0:4] = VRAM_SIGNATURE.to_bytes(4, "little")
+        checksum = sum(bank[VRAM_CHECKSUM_FIELD_OFFSET:]) & 0xFFFF
+        bank[4:6] = checksum.to_bytes(2, "little")
+        _vram_write_bank(port, bank)
+    finally:
+        port.close()
+    return {"applied_uma_size_mb": size_mb}
+
+
+def vram_apply_action(raw_size_mb: str) -> int:
+    try:
+        size_mb = int(raw_size_mb)
+    except ValueError:
+        return fail("QUICK_ACCESS_VRAM: Invalid VRAM size.", 2)
+    if size_mb not in VRAM_SIZE_PRESETS_MB:
+        return fail("QUICK_ACCESS_VRAM: Unsupported VRAM size.", 2)
+    try:
+        result = vram_apply(size_mb)
+    except RuntimeError as error:
+        return fail(str(error), 51)
+    print(json.dumps({
+        "ok": True,
+        **result,
+        "message": "VRAM size written to CMOS. Restart your console to activate it.",
+    }))
+    return 0
+
+
 def memory_runtime_state(
     proc_swaps: pathlib.Path = pathlib.Path("/proc/swaps"),
     zswap_enabled: pathlib.Path = pathlib.Path("/sys/module/zswap/parameters/enabled"),
@@ -293,6 +527,39 @@ def memory_runtime_state(
         "memory_zswap_enabled": True if zswap_value in {"1", "y", "yes", "true"} else False if zswap_value in {"0", "n", "no", "false"} else None,
         "memory_ttm_pages_limit": pages,
         "memory_ttm_limit_bytes": pages * page_size if pages is not None and pages >= 0 else None,
+    }
+
+
+def system_memory_state(
+    meminfo: pathlib.Path = pathlib.Path("/proc/meminfo"),
+    storage_root: str = "/",
+) -> dict[str, object]:
+    """Bounded read-only RAM/swap/storage snapshot for the Memory & Video tab."""
+    fields: dict[str, int] = {}
+    try:
+        for line in meminfo.read_text(encoding="ascii", errors="strict").splitlines():
+            key, _, rest = line.partition(":")
+            parts = rest.strip().split()
+            if not parts:
+                continue
+            try:
+                fields[key] = int(parts[0]) * 1024
+            except ValueError:
+                continue
+    except OSError:
+        fields = {}
+    try:
+        usage = shutil.disk_usage(storage_root)
+        storage_total, storage_used = usage.total, usage.used
+    except OSError:
+        storage_total = storage_used = None
+    return {
+        "memory_ram_total_bytes": fields.get("MemTotal"),
+        "memory_ram_available_bytes": fields.get("MemAvailable"),
+        "memory_swap_total_bytes": fields.get("SwapTotal"),
+        "memory_swap_free_bytes": fields.get("SwapFree"),
+        "storage_total_bytes": storage_total,
+        "storage_used_bytes": storage_used,
     }
 
 
@@ -447,6 +714,178 @@ def gpu_temperature_c(drm_root: pathlib.Path = pathlib.Path("/sys/class/drm")) -
     return None
 
 
+def _amdgpu_device(drm_root: pathlib.Path = pathlib.Path("/sys/class/drm")) -> pathlib.Path | None:
+    try:
+        devices = sorted(drm_root.glob("card*/device"))
+    except OSError:
+        return None
+    for device in devices:
+        try:
+            vendor = (device / "vendor").read_text(encoding="ascii", errors="ignore").strip().lower()
+        except OSError:
+            continue
+        if vendor == "0x1002":
+            return device
+    return None
+
+
+def _amdgpu_dpm_actual_mhz(filename: str, drm_root: pathlib.Path = pathlib.Path("/sys/class/drm")) -> int | None:
+    device = _amdgpu_device(drm_root)
+    if device is None:
+        return None
+    try:
+        payload = (device / filename).read_text(encoding="ascii", errors="ignore")
+    except OSError:
+        return None
+    for line in payload.splitlines():
+        match = re.search(r"\b(\d+)\s*(?:mhz|mhs)\b.*\*", line, re.IGNORECASE)
+        if match and 100 <= int(match.group(1)) <= 5000:
+            return int(match.group(1))
+    return None
+
+
+def gpu_soc_clock_mhz(drm_root: pathlib.Path = pathlib.Path("/sys/class/drm")) -> int | None:
+    """SOCCLK, the fabric-facing clock amdgpu exposes alongside sclk/mclk."""
+    return _amdgpu_dpm_actual_mhz("pp_dpm_socclk", drm_root)
+
+
+def gpu_fabric_clock_mhz(drm_root: pathlib.Path = pathlib.Path("/sys/class/drm")) -> int | None:
+    """FCLK, the data-fabric clock amdgpu exposes alongside sclk/mclk."""
+    return _amdgpu_dpm_actual_mhz("pp_dpm_fclk", drm_root)
+
+
+def cpu_voltage_sensor_mv(drm_root: pathlib.Path = pathlib.Path("/sys/class/drm")) -> int | None:
+    """Read the labelled VDDNB rail amdgpu reports, the closest a stock BC-250 has to a CPU voltage sensor."""
+    device = _amdgpu_device(drm_root)
+    if device is None:
+        return None
+    try:
+        sensors = sorted((device / "hwmon").glob("hwmon*"))
+    except OSError:
+        return None
+    for sensor in sensors:
+        try:
+            labels = sorted(sensor.glob("in*_label"))
+        except OSError:
+            continue
+        for label_path in labels:
+            try:
+                label = label_path.read_text(encoding="ascii", errors="ignore").strip().lower()
+                input_path = label_path.with_name(label_path.name.replace("_label", "_input"))
+                raw = int(input_path.read_text(encoding="ascii").strip())
+            except (OSError, ValueError):
+                continue
+            if label != "vddnb":
+                continue
+            if 400 <= raw <= 1_400:
+                return raw
+    return None
+
+
+def gpu_pcie_link(drm_root: pathlib.Path = pathlib.Path("/sys/class/drm")) -> str:
+    """The negotiated link, as "16.0 GT/s x16", or empty when unknown."""
+    device = _amdgpu_device(drm_root)
+    if device is None:
+        return ""
+    try:
+        speed = (device / "current_link_speed").read_text(encoding="ascii", errors="ignore").strip()
+        width = (device / "current_link_width").read_text(encoding="ascii", errors="ignore").strip()
+    except OSError:
+        return ""
+    speed = speed.replace("PCIe", "").strip()
+    if not speed or not width:
+        return ""
+    return f"{speed} x{width}"
+
+
+def gpu_vbios_version(drm_root: pathlib.Path = pathlib.Path("/sys/class/drm")) -> str:
+    device = _amdgpu_device(drm_root)
+    if device is None:
+        return ""
+    try:
+        return (device / "vbios_version").read_text(encoding="ascii", errors="ignore").strip()
+    except OSError:
+        return ""
+
+
+def gpu_gtt_usage_mib(drm_root: pathlib.Path = pathlib.Path("/sys/class/drm")) -> tuple[int, int] | None:
+    device = _amdgpu_device(drm_root)
+    if device is None:
+        return None
+    try:
+        used = int((device / "mem_info_gtt_used").read_text(encoding="ascii").strip())
+        total = int((device / "mem_info_gtt_total").read_text(encoding="ascii").strip())
+    except (OSError, ValueError):
+        return None
+    return used // (1024 * 1024), total // (1024 * 1024)
+
+
+def board_and_storage_temperatures(
+    hwmon_root: pathlib.Path = pathlib.Path("/sys/class/hwmon"),
+) -> dict[str, float | None]:
+    """Board, VRM-MOS (native NCT fallback) and NVMe temperatures.
+
+    Mirrors sistema_repository.temperaturas_auxiliares(): only explicitly
+    labelled NCT "system"/"board"/"motherboard" and "*vrm*" channels are
+    accepted, and the NVMe hotspot is any sensor beyond the first. This VRM
+    reading needs no I2C hardware mod — it is the native Nuvoton channel the
+    board already exposes.
+    """
+    board: list[float] = []
+    vrm_mos: list[float] = []
+    nvme: list[float] = []
+    nvme_hotspot: list[float] = []
+    try:
+        sensors = sorted(hwmon_root.glob("hwmon*"))
+    except OSError:
+        sensors = []
+    for sensor in sensors:
+        try:
+            name = (sensor / "name").read_text(encoding="ascii", errors="ignore").strip().lower()
+        except OSError:
+            continue
+        if name.startswith("nvme"):
+            try:
+                raw = int((sensor / "temp1_input").read_text(encoding="ascii").strip())
+            except (OSError, ValueError):
+                raw = None
+            if raw is not None and 0 < raw / 1000.0 <= 130:
+                nvme.append(raw / 1000.0)
+            for extra in sorted(sensor.glob("temp*_input")):
+                if extra.name == "temp1_input":
+                    continue
+                try:
+                    value = int(extra.read_text(encoding="ascii").strip()) / 1000.0
+                except (OSError, ValueError):
+                    continue
+                if 0 < value <= 130:
+                    nvme_hotspot.append(value)
+            continue
+        if "nct" not in name:
+            continue
+        for label_path in sorted(sensor.glob("temp*_label")):
+            try:
+                label = label_path.read_text(encoding="ascii", errors="ignore").strip().lower()
+                value = int(
+                    label_path.with_name(label_path.name.replace("_label", "_input"))
+                    .read_text(encoding="ascii").strip()
+                ) / 1000.0
+            except (OSError, ValueError):
+                continue
+            if not 0 < value <= 130:
+                continue
+            if label in {"system", "board", "motherboard"}:
+                board.append(value)
+            elif "vrm" in label:
+                vrm_mos.append(value)
+    return {
+        "board_temperature_c": max(board) if board else None,
+        "vrm_mos_temperature_c": max(vrm_mos) if vrm_mos else None,
+        "nvme_temperature_c": max(nvme) if nvme else None,
+        "nvme_hotspot_temperature_c": max(nvme_hotspot) if nvme_hotspot else None,
+    }
+
+
 def cpu_frequency_mhz(cpuinfo: pathlib.Path = pathlib.Path("/proc/cpuinfo")) -> int | None:
     try:
         payload = cpuinfo.read_text(encoding="ascii", errors="ignore")
@@ -501,6 +940,177 @@ def cpu_telemetry() -> int:
         "cpu_tuning_temperature": CPU_QAM_TEMPERATURE,
         "observed_at": int(time.time() * 1000),
     }))
+    return 0
+
+
+def qam_sensors() -> int:
+    """Publish the passive GPU/board/fan/memory bundle the Monitor and Memory
+    & Video tabs poll, deliberately outside the write path.
+
+    Mirrors cpu_telemetry(): no UMR (CU) query and no D-Bus (governor) call
+    here, so a long CU or GPU operation holding the helper lock for its own
+    status() pass never blocks these plain sysfs/hwmon/proc reads. Governor
+    name, active range and CU counts stay on the full status() path since
+    those genuinely come from the same D-Bus/UMR channels a write uses, and
+    briefly going stale while that specific surface is mid-operation is the
+    correct trade-off, not a bug.
+    """
+    fan_sensor = nct_sensor()
+    fan_channels = system_fan_channels(fan_sensor)
+    fan_preset, fan_duty = system_fan_preset_state(fan_sensor)
+    fan_channel_options = qam_fan_channel_state(fan_sensor)
+    vram_usage = gpu_vram_usage_mib()
+    gtt_usage = gpu_gtt_usage_mib()
+    print(json.dumps({
+        "ok": True,
+        "protocol": HELPER_PROTOCOL,
+        "gpu_core_mhz": gpu_core_mhz(),
+        "gpu_voltage_mv": gpu_voltage_mv(),
+        "gpu_memory_clock_mhz": gpu_memory_clock_mhz(),
+        "gpu_soc_clock_mhz": gpu_soc_clock_mhz(),
+        "gpu_fabric_clock_mhz": gpu_fabric_clock_mhz(),
+        "gpu_busy_percent": gpu_busy_percent(),
+        "gpu_vram_used_mib": vram_usage[0] if vram_usage else None,
+        "gpu_vram_total_mib": vram_usage[1] if vram_usage else None,
+        "gpu_gtt_used_mib": gtt_usage[0] if gtt_usage else None,
+        "gpu_gtt_total_mib": gtt_usage[1] if gtt_usage else None,
+        "gpu_temperature_c": gpu_temperature_c(),
+        "gpu_pcie_link": gpu_pcie_link(),
+        "gpu_vbios_version": gpu_vbios_version(),
+        "cpu_voltage_mv": cpu_voltage_sensor_mv(),
+        **board_and_storage_temperatures(),
+        "system_fan_channels": fan_channels,
+        "system_fan_preset": fan_preset,
+        "system_fan_duty": fan_duty,
+        "fan_channel_options": fan_channel_options,
+        **memory_runtime_state(),
+        **system_memory_state(),
+        "observed_at": int(time.time() * 1000),
+    }))
+    return 0
+
+
+#: The reviewed reader, installed by the same package as this helper. It is
+#: never invoked to patch anything -- only "--action read", which it refuses
+#: unless the desktop already applied the SMU patch through its own
+#: pkexec-gated bc250-gddr6-temp-helper. This helper's job stops at detecting
+#: that work was already done and relaying the eight chip temperatures.
+GDDR6_READER_NAME = "bc250-gddr6-temp-reader"
+GDDR6_READER_PATHS = (
+    pathlib.Path("/usr/libexec/bc250-control-center") / GDDR6_READER_NAME,
+    pathlib.Path("/usr/local/libexec/bc250-control-center") / GDDR6_READER_NAME,
+)
+#: Where the desktop's own _tool_dir() clones the reviewed upstream checkout:
+#: StandaloneHost._tool_dir() = Path.home() / '.local/share/bc250-control-center/ResourceTools'.
+GDDR6_REPOSITORY_RELATIVE = pathlib.Path(
+    ".local/share/bc250-control-center/ResourceTools/bc250-memory-temperature"
+)
+GDDR6_HOME_ROOTS = (pathlib.Path("/home"), pathlib.Path("/var/home"))
+GDDR6_MIN_DESKTOP_UID = 1000
+
+
+def _gddr6_reader_path() -> pathlib.Path | None:
+    for candidate in GDDR6_READER_PATHS:
+        if trusted_file(candidate, executable=True):
+            return candidate
+    return None
+
+
+def _gddr6_repository_candidates() -> list[tuple[pathlib.Path, int]]:
+    """Propose desktop-user checkouts; never decide whether one is trusted.
+
+    The reviewed bc250-gddr6-temp-reader re-validates the winning candidate on
+    its own terms (origin, pinned revision, clean tree, file ownership) before
+    it touches anything. A wrong guess here just fails that validation and the
+    next candidate (or "unavailable") is tried instead -- it can never grant
+    access the reader itself would refuse.
+    """
+    candidates: list[tuple[pathlib.Path, int]] = []
+    for root in GDDR6_HOME_ROOTS:
+        try:
+            entries = sorted(root.iterdir())
+        except OSError:
+            continue
+        for home in entries:
+            if home.is_symlink():
+                continue
+            try:
+                info = home.stat()
+            except OSError:
+                continue
+            if not stat.S_ISDIR(info.st_mode) or info.st_uid < GDDR6_MIN_DESKTOP_UID:
+                continue
+            repository = home / GDDR6_REPOSITORY_RELATIVE
+            if (repository / ".git").is_dir():
+                candidates.append((repository, info.st_uid))
+    return candidates
+
+
+def gddr6_sensors() -> int:
+    """Publish the last per-chip GDDR6 reading, read-only, best-effort.
+
+    Mirrors the desktop's own leer_temperatura_vram(): this never applies the
+    SMU patch and never raises. A missing reader, a missing/invalid checkout,
+    or a patch that was never applied this boot are all just "unavailable"
+    with a reason, exactly like a board without the VRM I2C modification
+    reports no VRM telemetry instead of an error.
+    """
+    empty = {
+        "ok": True,
+        "protocol": HELPER_PROTOCOL,
+        "gddr6_available": False,
+        "gddr6_reason": "READER_NOT_INSTALLED",
+        "gddr6_chips": [],
+        "gddr6_average_c": None,
+        "gddr6_hotspot_c": None,
+        "gddr6_hotspot_chip": None,
+        "gddr6_bios_version": "",
+        "gddr6_firmware_supported": False,
+    }
+    reader = _gddr6_reader_path()
+    if reader is None:
+        print(json.dumps(empty))
+        return 0
+    for repository, uid in _gddr6_repository_candidates():
+        try:
+            result = subprocess.run(
+                [str(reader), "--repo", str(repository), "--action", "read"],
+                text=True, capture_output=True, timeout=15, check=False,
+                env={
+                    "PATH": "/usr/sbin:/usr/bin:/sbin:/bin",
+                    "LANG": "C.UTF-8", "LC_ALL": "C.UTF-8",
+                    "PKEXEC_UID": str(uid),
+                },
+            )
+        except subprocess.TimeoutExpired:
+            continue
+        if result.returncode != 0:
+            continue
+        try:
+            payload = json.loads((result.stdout or "").strip())
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(payload, dict):
+            continue
+        chips = payload.get("chips") if isinstance(payload.get("chips"), list) else []
+        patch_active = bool(payload.get("patch_active"))
+        reason = "" if (patch_active and chips) else str(
+            payload.get("blocked_reason") or "GDDR6_PATCH_INACTIVE"
+        )
+        print(json.dumps({
+            "ok": True,
+            "protocol": HELPER_PROTOCOL,
+            "gddr6_available": patch_active and bool(chips),
+            "gddr6_reason": reason,
+            "gddr6_chips": chips,
+            "gddr6_average_c": payload.get("average_c"),
+            "gddr6_hotspot_c": payload.get("hotspot_c"),
+            "gddr6_hotspot_chip": payload.get("hotspot_chip"),
+            "gddr6_bios_version": payload.get("bios_version") or "",
+            "gddr6_firmware_supported": bool(payload.get("firmware_supported")),
+        }))
+        return 0
+    print(json.dumps({**empty, "gddr6_reason": "REPOSITORY_NOT_READY"}))
     return 0
 
 
@@ -1362,7 +1972,18 @@ def apply_gpu_range(requested: tuple[int, int]) -> int:
 
 def gpu_profile(profile: str) -> int:
     governor = active_gpu_governor()
-    profiles = OBERON_QAM_PROFILES if governor == "oberon" else GPU_PROFILES
+    if governor == "oberon":
+        profiles = OBERON_QAM_PROFILES
+    else:
+        overrides = _load_gpu_profile_overrides()
+        profiles = {
+            key: (
+                (override["min"], override["max"])
+                if (override := overrides.get(key)) is not None
+                else bounds
+            )
+            for key, bounds in GPU_PROFILES.items()
+        }
     requested = profiles.get(str(profile))
     if requested is None:
         detail = (
@@ -1395,6 +2016,46 @@ def gpu_safe_point(frequency_raw: str) -> int:
             20,
         )
     return apply_gpu_range((1000, frequency))
+
+
+def gpu_high_points(enabled_raw: str) -> int:
+    """Comment or uncomment every Cyan TOML safe-point above 2000 MHz.
+
+    Mirrors the Desktop's "Enable/Disable +2000 MHz TOML points" button,
+    through the same governor-config helper it uses (Decky is already root,
+    so this calls it directly instead of through pkexec). This is purely a
+    persistent-file edit -- it never restarts Cyan and never touches the live
+    D-Bus range. A newly enabled point appears in cyan_safe_point_ceilings()
+    (and therefore gpu-safe-point) immediately, but Cyan's own running
+    process will not route to it until the service reloads -- exactly the
+    same gap set_cyan_range() already has for any Allowed value it has not
+    seen yet, so no separate reload logic is added here.
+    """
+    if enabled_raw not in {"0", "1"}:
+        return fail("QUICK_ACCESS_GPU_HIGH_POINTS: expected 0 or 1.", 20)
+    if active_gpu_governor() == "oberon":
+        return fail(
+            "QUICK_ACCESS_GPU_HIGH_POINTS: Oberon does not use TOML safe-points above 2000 MHz.",
+            20,
+        )
+    if not trusted_file(GOVERNOR_CONFIG_HELPER, executable=True):
+        return fail(
+            "QUICK_ACCESS_GPU_HELPER: the protected governor configuration helper is unavailable. Reinstall BC250 Control Center.",
+            21,
+        )
+    action = "enable-high-points" if enabled_raw == "1" else "disable-high-points"
+    result = run([str(GOVERNOR_CONFIG_HELPER), action], timeout=20)
+    if result.returncode != 0:
+        return fail(result.stderr.strip() or result.stdout.strip() or "Governor configuration update failed.", 22)
+    print(json.dumps({
+        "ok": True,
+        "gpu_high_points_enabled": enabled_raw == "1",
+        "gpu_safe_point_ceilings": [
+            {"frequency": point["frequency"], "voltage": point["voltage"]}
+            for point in cyan_safe_point_ceilings()
+        ],
+    }))
+    return 0
 
 
 def cu_table(masks: Sequence[object], *, save_boot: bool = False) -> int:
@@ -2389,6 +3050,7 @@ def _contract_payload() -> dict:
             "percent_range": list(shared.QUICK_ACCESS_FAN_PERCENT_RANGE),
             "percent_step": shared.QUICK_ACCESS_FAN_PERCENT_STEP,
         },
+        "vram": {"presets": list(shared.VRAM_SIZE_PRESETS_MB)},
     }
 
 
@@ -2429,6 +3091,7 @@ def status() -> int:
         allowed_range = None
         safe_points = []
     vram_usage = gpu_vram_usage_mib()
+    gtt_usage = gpu_gtt_usage_mib()
     cpu_saved = cpu_saved_profile()
     cpu_tuning = cpu_tuning_context()
     cpu_service = cpu_service_state()
@@ -2467,15 +3130,30 @@ def status() -> int:
         "gpu_performance_enabled": cyan_performance_enabled() if governor == "cyan" else None,
         "gpu_allowed_range": allowed_range,
         "gpu_safe_point_ceilings": safe_points,
+        "gpu_custom_profiles": (
+            [{"key": key, **values} for key, values in _load_gpu_profile_overrides().items()]
+            if governor != "oberon" else []
+        ),
+        "cpu_custom_profiles": [
+            {"key": key, **values} for key, values in _load_cpu_profile_overrides().items()
+        ],
         "gpu_core_mhz": gpu_core_mhz(),
         "gpu_voltage_mv": gpu_voltage_mv(),
         "gpu_memory_clock_mhz": gpu_memory_clock_mhz(),
+        "gpu_soc_clock_mhz": gpu_soc_clock_mhz(),
+        "gpu_fabric_clock_mhz": gpu_fabric_clock_mhz(),
         "gpu_busy_percent": gpu_busy_percent(),
         "gpu_vram_used_mib": vram_usage[0] if vram_usage else None,
         "gpu_vram_total_mib": vram_usage[1] if vram_usage else None,
+        "gpu_gtt_used_mib": gtt_usage[0] if gtt_usage else None,
+        "gpu_gtt_total_mib": gtt_usage[1] if gtt_usage else None,
         "gpu_temperature_c": gpu_temperature_c(),
+        "gpu_pcie_link": gpu_pcie_link(),
+        "gpu_vbios_version": gpu_vbios_version(),
         "cpu_frequency_mhz": cpu_frequency_mhz(),
         "cpu_temperature_c": cpu_temperature_c(),
+        "cpu_voltage_mv": cpu_voltage_sensor_mv(),
+        **board_and_storage_temperatures(),
         "cu_backend_ready": cu_backend_ready(),
         "cu_active_cus": cu_topology["active_cus"] if cu_topology else None,
         "cu_total_cus": cu_topology["total_cus"] if cu_topology else None,
@@ -2497,7 +3175,9 @@ def status() -> int:
         # and it carried its own copy of the VID coefficients and the CU
         # ladder. Anything it needs to draw a control belongs here.
         "contract": _contract_payload(),
+        "vram": vram_status(),
         **memory_runtime_state(),
+        **system_memory_state(),
         "live_only": False,
     }
     if cu_topology is not None:
@@ -2575,6 +3255,7 @@ def load_contract():
                 tuple(sorted(OBERON_QAM_PROFILES.values())),
                 tuple(sorted(module.OBERON_DESKTOP_PROFILES)),
             ),
+            ("VRAM presets", VRAM_SIZE_PRESETS_MB, tuple(module.VRAM_SIZE_PRESETS_MB)),
         )
         if mine != theirs
     ]
@@ -2597,21 +3278,27 @@ def main(argv: Sequence[str]) -> int:
     load_contract()
     valid_arity = (
         len(argv) == 2
-        or (len(argv) == 3 and argv[1] in {"gpu-profile", "gpu-safe-point", "cu-mode", "cu-service", "fan-auto", "fan-system", "cpu-service"})
+        or (len(argv) == 3 and argv[1] in {"gpu-profile", "gpu-safe-point", "gpu-high-points", "cu-mode", "cu-service", "fan-auto", "fan-system", "cpu-service", "vram-apply"})
         or (len(argv) == 4 and argv[1] in {"fan-channel", "cpu-detect", "cpu-scale"})
         or (len(argv) == 6 and argv[1] in {"cu-table", "cu-save"})
     )
     if not valid_arity:
-        return fail("Usage: status | cpu-telemetry | gpu-profile <name> | gpu-safe-point <toml-mhz> | cu-mode <name> | cu-table <m0> <m1> <m2> <m3> | cu-save <m0> <m1> <m2> <m3> | cu-service <install|remove> | fan-auto <channel> | fan-system <preset> | fan-channel <2-5> <automatic|20-100> | cpu-apply-saved | cpu-detect <frequency> <vid> | cpu-scale <frequency> <scale> | cpu-service <install|remove>", 2)
+        return fail("Usage: status | cpu-telemetry | qam-sensors | gddr6-sensors | gpu-profile <name> | gpu-safe-point <toml-mhz> | gpu-high-points <0|1> | cu-mode <name> | cu-table <m0> <m1> <m2> <m3> | cu-save <m0> <m1> <m2> <m3> | cu-service <install|remove> | fan-auto <channel> | fan-system <preset> | fan-channel <2-5> <automatic|20-100> | cpu-apply-saved | cpu-detect <frequency> <vid> | cpu-scale <frequency> <scale> | cpu-service <install|remove> | vram-apply <mb>", 2)
     action = argv[1]
     if action == "status" and len(argv) == 2:
         return status()
     if action == "cpu-telemetry" and len(argv) == 2:
         return cpu_telemetry()
+    if action == "qam-sensors" and len(argv) == 2:
+        return qam_sensors()
+    if action == "gddr6-sensors" and len(argv) == 2:
+        return gddr6_sensors()
     if action == "gpu-profile" and len(argv) == 3:
         return gpu_profile(argv[2])
     if action == "gpu-safe-point" and len(argv) == 3:
         return gpu_safe_point(argv[2])
+    if action == "gpu-high-points" and len(argv) == 3:
+        return gpu_high_points(argv[2])
     if action == "cu-mode" and len(argv) == 3:
         with operation_lock(CU_OPERATION_LOCK, "CU"):
             return cu_mode(argv[2])
@@ -2650,6 +3337,8 @@ def main(argv: Sequence[str]) -> int:
         if len(argv) == 3 and argv[2] == "remove":
             return cpu_remove_service()
         return fail("QUICK_ACCESS_CPU_SERVICE: action must be install or remove.", 2)
+    if action == "vram-apply" and len(argv) == 3:
+        return vram_apply_action(argv[2])
     return fail("Invalid Quick Access action.", 2)
 
 

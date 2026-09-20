@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import shlex
+import textwrap
 from collections.abc import Iterable, Mapping
 from pathlib import Path
 
@@ -11,6 +13,7 @@ from PyQt6.QtCore import (
     QPoint,
     QPointF,
     QPropertyAnimation,
+    QRectF,
     QSize,
     Qt,
     QTimer,
@@ -18,8 +21,9 @@ from PyQt6.QtCore import (
     pyqtSignal,
     pyqtSlot,
 )
-from PyQt6.QtGui import QColor, QIcon, QPainter, QPainterPath, QPixmap, QPolygonF
+from PyQt6.QtGui import QColor, QIcon, QPainter, QPainterPath, QPen, QPixmap, QPolygonF
 from PyQt6.QtWidgets import (
+    QAbstractButton,
     QApplication,
     QBoxLayout,
     QComboBox,
@@ -28,12 +32,16 @@ from PyQt6.QtWidgets import (
     QGridLayout,
     QHBoxLayout,
     QLabel,
+    QProgressBar,
     QScrollArea,
     QSizePolicy,
+    QToolTip,
     QVBoxLayout,
     QWidget,
 )
 from PyQt6.QtWidgets import QPushButton as IconButton
+
+from bc250cc.infrastructure.terminal_repository import TerminalRepository
 
 from .. import theme
 from ..core.feature_visibility import FSR4_UI_ENABLED
@@ -50,7 +58,7 @@ from .system_setup_controls import (
     update_memory_controls,
     vram_size_label,
 )
-from .widgets import ICON_DIR, PillLabel, apply_shadow, icon
+from .widgets import ICON_DIR, IconBadge, InfoDialog, PillLabel, apply_shadow, icon
 
 
 def _label(text: str, property_name: str, *, wrap: bool = True) -> QLabel:
@@ -59,6 +67,190 @@ def _label(text: str, property_name: str, *, wrap: bool = True) -> QLabel:
     widget.setWordWrap(wrap)
     widget.setMinimumWidth(0)
     return widget
+
+
+# Plain-language detail shown under each swap-policy row. Keyed by the same
+# option values BAZZITE_MEMORY_OPTIONS/MEMORY_OPTIONS already use, so it stays
+# correct regardless of which option set the current host exposes.
+_MEMORY_POLICY_DETAILS = {
+    "current": "The current ZRAM, ZSWAP and backing-swap configuration would be preserved.",
+    "preserve": "The current ZRAM, ZSWAP and backing-swap configuration would be preserved.",
+    "zram": "ZRAM would remain the compressed in-memory swap device; no disk swapfile would be created.",
+    "zram-swap-16": "ZRAM remains primary and a verified 16 GiB disk swapfile is used only as an emergency fallback.",
+    "swap-16": "Creates or reuses a verified 16 GiB disk swapfile as backing swap.",
+    "swap-32": "Creates or reuses a verified 32 GiB disk swapfile as backing swap.",
+    "zswap-16": "A verified 16 GiB backing swapfile would be required before enabling ZSWAP and disabling ZRAM.",
+    "zswap-32": "A verified 32 GiB backing swapfile would be required before enabling ZSWAP and disabling ZRAM.",
+    "restore": "Reverts every BC250 memory change back to what it was before.",
+}
+
+
+class _MemoryOptionRow(QFrame):
+    """One clickable swap-policy choice: a radio dot plus title and detail.
+
+    A visual stand-in for a QComboBox row so every policy reads at a glance,
+    while the combo itself stays the single source of truth other code and
+    tests already rely on.
+    """
+
+    clicked = pyqtSignal()
+
+    def __init__(self, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.setProperty("dashboardMemoryOptionRow", True)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(14, 11, 14, 11)
+        layout.setSpacing(12)
+        self.indicator = QFrame()
+        self.indicator.setProperty("dashboardMemoryOptionIndicator", True)
+        self.indicator.setFixedSize(16, 16)
+        layout.addWidget(self.indicator, 0, Qt.AlignmentFlag.AlignTop)
+        copy = QVBoxLayout()
+        copy.setSpacing(2)
+        self.title_label = _label("", "actionTitle")
+        copy.addWidget(self.title_label)
+        self.detail_label = _label("", "actionSubtitle")
+        copy.addWidget(self.detail_label)
+        layout.addLayout(copy, 1)
+
+    def set_content(self, title: str, detail: str) -> None:
+        self.title_label.setText(title)
+        self.detail_label.setText(detail)
+        self.detail_label.setVisible(bool(detail))
+
+    def set_selected(self, selected: bool) -> None:
+        for widget in (self, self.indicator):
+            widget.setProperty("selected", selected)
+            widget.style().unpolish(widget)
+            widget.style().polish(widget)
+
+    def mousePressEvent(self, event) -> None:  # noqa: N802 - Qt override
+        if event.button() == Qt.MouseButton.LeftButton and self.isEnabled():
+            self.clicked.emit()
+        super().mousePressEvent(event)
+
+
+class _AllocationTimeline(QWidget):
+    """A single horizontal line of stops mirroring a combo box's items.
+
+    Clicking or dragging along the line jumps straight to the nearest
+    enabled stop. The combo box stays the tested source of truth; this is
+    only its on-screen presentation, same spirit as ``_MemoryOptionRow``.
+    """
+
+    MARGIN = 14.0
+    TRACK_Y = 17.0
+    DOT_RADIUS = 5.5
+    SELECTED_RADIUS = 8.0
+
+    def __init__(self, combo: QComboBox, parent: QWidget | None = None):
+        super().__init__(parent)
+        self._combo = combo
+        self._hover_index = -1
+        self.setMinimumHeight(34)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.setMouseTracking(True)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        combo.currentIndexChanged.connect(lambda _index: self.update())
+
+    def sizeHint(self) -> QSize:
+        return QSize(280, 34)
+
+    def refresh(self) -> None:
+        self.update()
+
+    def _stop_x(self, index: int) -> float:
+        count = self._combo.count()
+        usable = max(1.0, self.width() - 2 * self.MARGIN)
+        if count <= 1:
+            return self.MARGIN + usable / 2
+        return self.MARGIN + usable * index / (count - 1)
+
+    def _index_at(self, x: float) -> int:
+        best_index = 0
+        best_distance: float | None = None
+        for index in range(self._combo.count()):
+            distance = abs(self._stop_x(index) - x)
+            if best_distance is None or distance < best_distance:
+                best_distance = distance
+                best_index = index
+        return best_index
+
+    def _is_enabled(self, index: int) -> bool:
+        if not self.isEnabled() or not self._combo.isEnabled():
+            return False
+        model_item = self._combo.model().item(index)
+        return model_item is None or model_item.isEnabled()
+
+    def _select(self, x: float) -> None:
+        index = self._index_at(x)
+        if self._is_enabled(index):
+            self._combo.setCurrentIndex(index)
+
+    def mousePressEvent(self, event) -> None:  # noqa: N802 - Qt override
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._select(event.position().x())
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event) -> None:  # noqa: N802 - Qt override
+        if event.buttons() & Qt.MouseButton.LeftButton:
+            self._select(event.position().x())
+        index = self._index_at(event.position().x())
+        if index != self._hover_index:
+            self._hover_index = index
+            self.update()
+        if self._is_enabled(index):
+            QToolTip.showText(event.globalPosition().toPoint(), self._combo.itemText(index), self)
+        super().mouseMoveEvent(event)
+
+    def leaveEvent(self, event) -> None:  # noqa: N802 - Qt override
+        if self._hover_index != -1:
+            self._hover_index = -1
+            self.update()
+        super().leaveEvent(event)
+
+    def paintEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        del event
+        count = self._combo.count()
+        if count == 0:
+            return
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        width = self.width()
+        current_index = self._combo.currentIndex()
+        accent = QColor(theme.COLORS["blue"])
+        muted = QColor(theme.COLORS["border_strong"])
+        hover_color = QColor(theme.COLORS["muted"])
+        disabled = QColor(theme.COLORS["disabled_text"])
+
+        painter.setPen(QPen(QColor(theme.COLORS["border_soft"]), 3, cap=Qt.PenCapStyle.RoundCap))
+        painter.drawLine(
+            QPointF(self.MARGIN, self.TRACK_Y), QPointF(width - self.MARGIN, self.TRACK_Y)
+        )
+        if current_index > 0:
+            painter.setPen(QPen(accent, 3, cap=Qt.PenCapStyle.RoundCap))
+            painter.drawLine(
+                QPointF(self.MARGIN, self.TRACK_Y),
+                QPointF(self._stop_x(current_index), self.TRACK_Y),
+            )
+
+        for index in range(count):
+            x = self._stop_x(index)
+            enabled = self._is_enabled(index)
+            selected = index == current_index
+            hovered = index == self._hover_index and enabled and not selected
+            radius = self.SELECTED_RADIUS if selected else self.DOT_RADIUS + (1.0 if hovered else 0.0)
+            color = disabled if not enabled else accent if selected else (hover_color if hovered else muted)
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(color)
+            painter.drawEllipse(QPointF(x, self.TRACK_Y), radius, radius)
+            if selected:
+                painter.setBrush(QColor(theme.COLORS["panel"]))
+                painter.drawEllipse(QPointF(x, self.TRACK_Y), radius - 3.0, radius - 3.0)
+                painter.setBrush(accent)
+                painter.drawEllipse(QPointF(x, self.TRACK_Y), radius - 4.5, radius - 4.5)
+        painter.end()
 
 
 def _mapping(value: object) -> dict:
@@ -472,16 +664,81 @@ class DashboardMemorySummary(QFrame):
         )
 
 
+class _ComponentCheckbox(QAbstractButton):
+    """A small rounded checkbox painted by hand, not the platform style.
+
+    The old control was a plain ``QPushButton`` carrying only an icon, which
+    read as a stray green badge rather than a checkbox — its purpose was not
+    obvious at a glance. This borrows the same drawn tick used by
+    ``CheckRow`` on the GPU governor page (``pages/gpu_governor_view.py``)
+    so both read as the same control, and looks identical in light and dark
+    instead of the platform theme showing through.
+    """
+
+    BOX = 14.0
+
+    def sizeHint(self) -> QSize:
+        return QSize(int(self.BOX) + 2, int(self.BOX) + 2)
+
+    def paintEvent(self, _event) -> None:  # noqa: N802 - Qt API name
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        box = QRectF(
+            (self.width() - self.BOX) / 2.0, (self.height() - self.BOX) / 2.0,
+            self.BOX, self.BOX,
+        )
+
+        if not self.isEnabled():
+            painter.setPen(QPen(QColor(theme.COLORS["border_soft"]), 1.4))
+            painter.setBrush(QColor(theme.COLORS["disabled_bg"]))
+        elif self.isChecked():
+            painter.setPen(QPen(QColor(theme.COLORS["blue"]), 1.4))
+            painter.setBrush(QColor(theme.COLORS["blue"]))
+        else:
+            painter.setPen(QPen(QColor(theme.COLORS["border_strong"]), 1.4))
+            painter.setBrush(
+                QColor(theme.COLORS["control_hover"])
+                if self.underMouse() else QColor(theme.COLORS["control"])
+            )
+        painter.drawRoundedRect(box, 4, 4)
+
+        if self.isChecked():
+            tick = QPainterPath()
+            tick.moveTo(box.left() + box.width() * 0.26, box.top() + box.height() * 0.52)
+            tick.lineTo(box.left() + box.width() * 0.43, box.top() + box.height() * 0.70)
+            tick.lineTo(box.left() + box.width() * 0.76, box.top() + box.height() * 0.32)
+            pen = QPen(
+                QColor(theme.COLORS["on_accent"] if self.isEnabled() else theme.COLORS["disabled_text"]),
+                1.6,
+            )
+            pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+            pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+            painter.setPen(pen)
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawPath(tick)
+        painter.end()
+
+    def enterEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        super().enterEvent(event)
+        self.update()
+
+    def leaveEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        super().leaveEvent(event)
+        self.update()
+
+
 class PreparationComponentCard(QFrame):
     def __init__(self, key: str, title: str, detail: str) -> None:
         super().__init__()
         self.key = key
         self.setProperty("dashboardComponentCard", True)
         self.setMinimumWidth(0)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
         row = QHBoxLayout(self)
-        row.setContentsMargins(10, 6, 10, 6)
-        row.setSpacing(10)
-        self.setMinimumHeight(42)
+        row.setContentsMargins(10, 4, 10, 4)
+        row.setSpacing(8)
+        self.setMinimumHeight(34)
+        self.setMaximumHeight(34)
         copy = QVBoxLayout()
         copy.setSpacing(2)
         self.title = _label(title, "dashboardComponentTitle")
@@ -492,19 +749,13 @@ class PreparationComponentCard(QFrame):
         self.detail.hide()
         self.setToolTip(tr(detail))
         row.addLayout(copy, 1)
-        self.checkbox = QPushButton()
-        self.checkbox.setProperty("dashboardComponentCheck", True)
+        self.checkbox = _ComponentCheckbox()
+        self.checkbox.setCursor(Qt.CursorShape.PointingHandCursor)
         self.checkbox.setCheckable(True)
-        self.checkbox.setFixedSize(26, 26)
         self.checkbox.setAccessibleName(tr(title))
         self.checkbox.setChecked(True)
-        self.checkbox.setIconSize(QSize(16, 16))
-        self.checkbox.toggled.connect(self._update_check_icon)
-        self._update_check_icon(True)
+        self.checkbox.setToolTip(tr("Include this component when preparing"))
         row.addWidget(self.checkbox, alignment=Qt.AlignmentFlag.AlignVCenter)
-
-    def _update_check_icon(self, checked: bool) -> None:
-        self.checkbox.setIcon(icon("check_green") if checked else QIcon())
 
     def mouseReleaseEvent(self, event) -> None:
         if event.button() == Qt.MouseButton.LeftButton and self.checkbox.isEnabled():
@@ -596,6 +847,17 @@ class PreparationInfoCard(QFrame):
         layout.addWidget(self.actions_panel)
         if not (self.primary_button or self.secondary_button):
             self.actions_panel.hide()
+        self._refresh_action_styles()
+
+    #: Source strings (pre-``tr()``) that open an external page rather than
+    #: run a workflow. These read as plain links, not boxed buttons, and
+    #: never get the "primary action" accent — a URL is never the recommended
+    #: choice among a card's actions.
+    _LINK_ACTION_TEXTS = frozenset({"Open upstream project"})
+
+    @classmethod
+    def _is_link_action(cls, text: str) -> bool:
+        return text in cls._LINK_ACTION_TEXTS
 
     def _action_button(
         self,
@@ -609,6 +871,7 @@ class PreparationInfoCard(QFrame):
         button.setProperty("dashboardCardAction", True)
         button.setProperty("i18nSourceText", text)
         button.setProperty("i18nSourceTextLanguage", "en")
+        button.setProperty("linkAction", self._is_link_action(text))
         if danger:
             button.setProperty("dangerAction", True)
         button.setSizePolicy(
@@ -621,6 +884,35 @@ class PreparationInfoCard(QFrame):
         )
         return button
 
+    def _refresh_action_styles(self) -> None:
+        """Accent the first action only when the row ends in a plain link.
+
+        A row of parallel, equally valid choices (e.g. install the kernel,
+        Mesa, or both) must not have one arbitrarily highlighted as "the"
+        answer. But a row shaped like primary action + a link out to the
+        upstream project (the common case) reads better with that primary
+        action picked out, so the eye lands on it instead of every button in
+        the row looking equally weighted. Recomputed on every change instead
+        of decided once, since the same button swaps between an action and a
+        link as install state changes (see the "Check status" / "Open
+        upstream project" toggle above).
+        """
+        buttons = [
+            self.actions.itemAt(index).widget()
+            for index in range(self.actions.count())
+        ]
+        buttons = [button for button in buttons if button is not None and button.isVisibleTo(self)]
+        primary_gets_accent = (
+            len(buttons) >= 2
+            and bool(buttons[-1].property("linkAction"))
+            and not buttons[0].property("linkAction")
+            and not buttons[0].property("dangerAction")
+        )
+        for index, button in enumerate(buttons):
+            button.setProperty("accented", index == 0 and primary_gets_accent)
+            button.style().unpolish(button)
+            button.style().polish(button)
+
     def add_action(
         self,
         text: str,
@@ -631,10 +923,11 @@ class PreparationInfoCard(QFrame):
         button = self._action_button(text, payload, danger=danger)
         self.actions.addWidget(button, 1)
         self.actions_panel.show()
+        self._refresh_action_styles()
         return button
 
-    @staticmethod
     def update_action(
+        self,
         button: QPushButton,
         *,
         text: str,
@@ -646,11 +939,13 @@ class PreparationInfoCard(QFrame):
         button.setText(tr(text))
         button.source_text = text
         button.setProperty("i18nSourceText", text)
+        button.setProperty("linkAction", self._is_link_action(text))
         if payload is not None:
             button.request_payload = dict(payload)
         button.setEnabled(enabled)
         button.setVisible(visible)
         button.setToolTip(tr(tooltip) if tooltip else "")
+        self._refresh_action_styles()
 
     def set_status(self, text: str, tone: str) -> None:
         self.status.setText(tr(text))
@@ -718,7 +1013,7 @@ class PreparationSidebar(QFrame):
         self.tabs_grid.setVerticalSpacing(8)
         self.tab_buttons: list[QPushButton] = []
         for index, text in enumerate(
-            ("Components", "Compatibility", "Decky", "Drivers")
+            ("Components", "Compatibility", "Memory & Swap", "Decky", "Drivers")
         ):
             button = QPushButton(tr(text))
             button.setCheckable(True)
@@ -738,6 +1033,7 @@ class PreparationSidebar(QFrame):
         )
         self.stack.addWidget(self._components_page())
         self.stack.addWidget(self._compatibility_page())
+        self.stack.addWidget(self._memory_page())
         self.stack.addWidget(self._decky_page())
         self.stack.addWidget(self._drivers_page())
         root.addWidget(self.stack, 1)
@@ -767,7 +1063,6 @@ class PreparationSidebar(QFrame):
         )
         self._tab_columns = 0
         self._component_columns = 0
-        self._memory_controls_wide: str | None = None
         self._reflow(390)
         self.select_tab(0)
         self._sync_components()
@@ -835,30 +1130,142 @@ class PreparationSidebar(QFrame):
             self.component_cards[key] = card
         layout.addWidget(self._bazzite_mitigations_panel())
         layout.addWidget(self.components_host)
+        layout.addStretch(1)
+        return page
 
+    def _memory_page(self) -> QWidget:
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(14, 12, 14, 10)
+        layout.setSpacing(8)
+        layout.addWidget(self._build_memory_panel())
+        layout.addStretch(1)
+        return page
+
+    def _memory_summary_tile(self, label: str, value: str) -> QFrame:
+        tile = QFrame()
+        tile.setProperty("metricTile", True)
+        layout = QVBoxLayout(tile)
+        layout.setContentsMargins(12, 10, 12, 10)
+        layout.setSpacing(4)
+        layout.addWidget(_label(label, "metricTileLabel", wrap=False))
+        value_label = _label(value, "metricTileValue", wrap=False)
+        layout.addWidget(value_label)
+        tile.value_label = value_label
+        return tile
+
+    def _memory_card(
+        self, icon_name: str, background: str, title: str
+    ) -> tuple[QFrame, QVBoxLayout, QHBoxLayout]:
+        card = QFrame()
+        card.setProperty("dashboardMemoryCard", True)
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(18, 16, 18, 16)
+        layout.setSpacing(12)
+        header = QHBoxLayout()
+        header.setSpacing(10)
+        header.addWidget(IconBadge(icon_name, background, 34, radius=9))
+        header.addWidget(_label(title, "cardTitle"), 1)
+        layout.addLayout(header)
+        return card, layout, header
+
+    def _build_memory_panel(self) -> QFrame:
         self.memory_panel = QFrame()
-        self.memory_panel.setProperty("dashboardMemoryPanel", True)
         memory_layout = QVBoxLayout(self.memory_panel)
-        memory_layout.setContentsMargins(12, 10, 12, 10)
-        memory_layout.setSpacing(8)
-        memory_header = QHBoxLayout()
-        self.memory_header = memory_header
-        memory_header.addWidget(_label("Memory & Swap", "dashboardComponentTitle"))
-        self.memory_detail = _label("Not detected", "dashboardMemoryDetail")
-        self.memory_detail.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        memory_header.addStretch(1)
-        self.memory_scope = PillLabel("Bazzite only", "gray")
-        memory_header.addWidget(self.memory_scope)
-        memory_layout.addLayout(memory_header)
-        memory_layout.addWidget(self.memory_detail)
+        memory_layout.setContentsMargins(0, 0, 0, 0)
+        memory_layout.setSpacing(16)
 
-        controls = QGridLayout()
-        controls.setContentsMargins(0, 0, 0, 0)
-        controls.setHorizontalSpacing(8)
-        controls.setVerticalSpacing(10)
-        self.memory_swap_label = _label(
-            "Swap and compression", "dashboardMemoryControlLabel"
+        panel_header = QHBoxLayout()
+        panel_header.setSpacing(10)
+        header_copy = QVBoxLayout()
+        header_copy.setSpacing(3)
+        header_copy.addWidget(_label("Memory & Swap", "dashboardCardTitle"))
+        self.memory_detail = _label("Not detected", "dashboardCardSubtitle")
+        header_copy.addWidget(self.memory_detail)
+        panel_header.addLayout(header_copy, 1)
+        self.memory_status_button = QPushButton(tr("View detailed status"))
+        self.memory_status_button.setProperty("dashboardCardAction", True)
+        self.memory_status_button.setIcon(icon("terminal_blue"))
+        self.memory_status_button.setToolTip(
+            tr("Opens a full technical report of the current memory and swap state in the built-in terminal.")
         )
+        self.memory_status_button.clicked.connect(self._show_memory_status_report)
+        panel_header.addWidget(self.memory_status_button, 0, Qt.AlignmentFlag.AlignTop)
+        memory_layout.addLayout(panel_header)
+
+        summary = QGridLayout()
+        summary.setContentsMargins(0, 0, 0, 0)
+        summary.setHorizontalSpacing(10)
+        summary.setVerticalSpacing(10)
+        self.memory_ram_tile = self._memory_summary_tile("Physical RAM", "—")
+        self.memory_zram_tile = self._memory_summary_tile("ZRAM", "—")
+        self.memory_backing_tile = self._memory_summary_tile("Disk swap", "—")
+        self.memory_zswap_tile = self._memory_summary_tile("ZSWAP", "—")
+        for column, tile in enumerate(
+            (
+                self.memory_ram_tile,
+                self.memory_zram_tile,
+                self.memory_backing_tile,
+                self.memory_zswap_tile,
+            )
+        ):
+            summary.addWidget(tile, 0, column)
+            summary.setColumnStretch(column, 1)
+        memory_layout.addLayout(summary)
+
+        # ---- Swap and compression ----
+        swap_card, swap_layout, swap_header = self._memory_card(
+            "memory_green", "green_soft", "Swap and compression"
+        )
+        self.memory_scope = PillLabel("Bazzite only", "gray")
+        swap_header.addWidget(self.memory_scope)
+
+        self.memory_option_rows_host = QWidget()
+        self.memory_option_rows_layout = QVBoxLayout(self.memory_option_rows_host)
+        self.memory_option_rows_layout.setContentsMargins(0, 0, 0, 0)
+        self.memory_option_rows_layout.setSpacing(8)
+        self.memory_option_rows: list[_MemoryOptionRow] = []
+        swap_layout.addWidget(self.memory_option_rows_host)
+
+        self.memory_swap_target_label = _label(
+            "Swapfile location", "dashboardMemoryControlLabel"
+        )
+        self.memory_swap_target_combo = QComboBox()
+        self.memory_swap_target_combo.setProperty("dashboardMemoryCombo", True)
+        self.memory_swap_target_combo.addItem(tr("Default (/var/lib)"), "")
+        swap_layout.addWidget(self.memory_swap_target_label)
+        swap_layout.addWidget(self.memory_swap_target_combo)
+        self.memory_swap_target_label.hide()
+        self.memory_swap_target_combo.hide()
+
+        self.memory_zram_warning_frame = QFrame()
+        self.memory_zram_warning_frame.setProperty("dashboardMemoryNote", True)
+        self.memory_zram_warning_frame.setProperty("tone", "orange")
+        warning_row = QHBoxLayout(self.memory_zram_warning_frame)
+        warning_row.setContentsMargins(10, 8, 10, 8)
+        warning_row.setSpacing(8)
+        warning_row.addWidget(IconBadge("warning_orange", "orange_soft", 32))
+        self.memory_zram_warning = _label("", "dashboardMemoryWarning")
+        self.memory_zram_warning.setWordWrap(True)
+        warning_row.addWidget(self.memory_zram_warning, 1)
+        self.memory_zram_warning_frame.hide()
+        swap_layout.addWidget(self.memory_zram_warning_frame)
+
+        usage_row = QHBoxLayout()
+        usage_row.setSpacing(8)
+        self.memory_swap_usage_bar = QProgressBar()
+        self.memory_swap_usage_bar.setProperty("dashboardMemoryUsage", True)
+        self.memory_swap_usage_bar.setTextVisible(False)
+        self.memory_swap_usage_bar.setRange(0, 100)
+        self.memory_swap_usage_bar.setFixedHeight(6)
+        usage_row.addWidget(self.memory_swap_usage_bar, 1)
+        self.memory_swap_usage_label = _label("", "dashboardMemoryDetail", wrap=False)
+        usage_row.addWidget(self.memory_swap_usage_label)
+        self.memory_usage_row = usage_row
+        self.memory_swap_usage_bar.hide()
+        self.memory_swap_usage_label.hide()
+        swap_layout.addLayout(usage_row)
+
         self.memory_policy_combo = QComboBox()
         self.memory_policy_combo.setProperty("dashboardMemoryCombo", True)
         for label, value in (
@@ -868,12 +1275,30 @@ class PreparationSidebar(QFrame):
             ("Advanced heavy loads · ZSWAP + 32 GiB swapfile", "zswap-32"),
         ):
             self.memory_policy_combo.addItem(tr(label), value)
+        # The combo stays the real, tested source of truth for the selected
+        # policy; _MemoryOptionRow is only its on-screen presentation.
+        self.memory_policy_combo.hide()
+        swap_actions = QHBoxLayout()
+        swap_actions.addStretch(1)
         self.memory_swap_apply_button = QPushButton(tr("Apply Swap"))
         self.memory_swap_apply_button.setProperty("dashboardCardAction", True)
         self.memory_swap_apply_button.clicked.connect(self._request_memory_swap)
-        self.memory_ttm_label = _label(
-            "Dynamic GPU Memory Limit (TTM)", "dashboardMemoryControlLabel"
+        swap_actions.addWidget(self.memory_swap_apply_button)
+        swap_layout.addLayout(swap_actions)
+        memory_layout.addWidget(swap_card)
+
+        # ---- TTM + VRAM ----
+        gpu_row = QGridLayout()
+        gpu_row.setHorizontalSpacing(16)
+        gpu_row.setVerticalSpacing(16)
+        gpu_row.setColumnStretch(0, 1)
+        gpu_row.setColumnStretch(1, 1)
+
+        ttm_card, ttm_layout, _ttm_header = self._memory_card(
+            "gpu_purple", "purple_soft", "Dynamic GPU Memory Limit (TTM)"
         )
+        self.memory_ttm_readout = _label("—", "metricTileValue", wrap=False)
+        ttm_layout.addWidget(self.memory_ttm_readout)
         self.ttm_limit_combo = QComboBox()
         self.ttm_limit_combo.setProperty("dashboardMemoryCombo", True)
         self.ttm_limit_combo.addItem(tr("Keep current TTM limit"), 0)
@@ -882,27 +1307,271 @@ class PreparationSidebar(QFrame):
             self.ttm_limit_combo.addItem(
                 tr_format("Limit GPU allocations to {size} GiB", size=target), target
             )
+        self.ttm_limit_combo.hide()
+        self.ttm_limit_combo.currentIndexChanged.connect(self._update_ttm_readout)
+        self.memory_ttm_timeline = _AllocationTimeline(self.ttm_limit_combo)
+        ttm_layout.addWidget(self.memory_ttm_timeline)
+        ttm_layout.addWidget(
+            _label(
+                "TTM limits managed GPU pages; it is not a guaranteed VRAM reservation.",
+                "dashboardMemoryDetail",
+            )
+        )
         self.memory_ttm_apply_button = QPushButton(tr("Apply TTM"))
         self.memory_ttm_apply_button.setProperty("dashboardCardAction", True)
         self.memory_ttm_apply_button.clicked.connect(self._request_memory_ttm)
-        self._tools_snapshot: Mapping[str, object] = {}
-        self.memory_vram_label = _label(
-            "VRAM size (UMA_SIZE)", "dashboardMemoryControlLabel"
+        ttm_layout.addWidget(self.memory_ttm_apply_button)
+        gpu_row.addWidget(ttm_card, 0, 0)
+
+        vram_card, vram_layout, _vram_header = self._memory_card(
+            "vram_gray", "cyan_soft", "VRAM size (UMA_SIZE)"
         )
+        self.memory_vram_readout = _label("—", "metricTileValue", wrap=False)
+        vram_layout.addWidget(self.memory_vram_readout)
+        self._tools_snapshot: Mapping[str, object] = {}
         self.vram_size_combo = QComboBox()
         self.vram_size_combo.setProperty("dashboardMemoryCombo", True)
         self.vram_size_combo.addItem(tr("Keep current VRAM size"), 0)
         for target in VRAM_SIZE_PRESETS_MB:
             self.vram_size_combo.addItem(vram_size_label(target), target)
+        self.vram_size_combo.hide()
         self.vram_size_combo.currentIndexChanged.connect(self._update_vram_control)
+        self.memory_vram_timeline = _AllocationTimeline(self.vram_size_combo)
+        vram_layout.addWidget(self.memory_vram_timeline)
         self.vram_apply_button = QPushButton(tr("Apply VRAM"))
         self.vram_apply_button.setProperty("dashboardCardAction", True)
         self.vram_apply_button.clicked.connect(self._request_vram_apply)
-        self.memory_controls = controls
-        memory_layout.addLayout(controls)
-        layout.addWidget(self.memory_panel)
-        layout.addStretch(1)
-        return page
+        vram_layout.addWidget(self.vram_apply_button)
+        gpu_row.addWidget(vram_card, 0, 1)
+        memory_layout.addLayout(gpu_row)
+
+        self._sync_memory_option_rows()
+        self._update_ttm_readout()
+        self._update_vram_readout()
+        return self.memory_panel
+
+    def _sync_memory_option_rows(self) -> None:
+        combo = self.memory_policy_combo
+        while len(self.memory_option_rows) < combo.count():
+            row = _MemoryOptionRow()
+            index = len(self.memory_option_rows)
+            row.clicked.connect(lambda i=index: self.memory_policy_combo.setCurrentIndex(i))
+            self.memory_option_rows.append(row)
+            self.memory_option_rows_layout.addWidget(row)
+        while len(self.memory_option_rows) > combo.count():
+            row = self.memory_option_rows.pop()
+            self.memory_option_rows_layout.removeWidget(row)
+            row.setParent(None)
+            row.deleteLater()
+        for index, row in enumerate(self.memory_option_rows):
+            value = str(combo.itemData(index) or "")
+            row.set_content(combo.itemText(index), tr(_MEMORY_POLICY_DETAILS.get(value, "")))
+            row.set_selected(index == combo.currentIndex())
+            model_item = combo.model().item(index)
+            enabled = combo.isEnabled() and (model_item is None or model_item.isEnabled())
+            row.setEnabled(enabled)
+            tooltip = model_item.toolTip() if model_item is not None else ""
+            row.setToolTip(tooltip)
+
+    def _update_ttm_readout(self) -> None:
+        self.memory_ttm_readout.setText(self.ttm_limit_combo.currentText())
+        self.memory_ttm_timeline.refresh()
+
+    def _update_vram_readout(self) -> None:
+        self.memory_vram_readout.setText(self.vram_size_combo.currentText())
+        self.memory_vram_timeline.refresh()
+
+    def _update_memory_summary_tiles(self, runtime: Mapping[str, object]) -> None:
+        physical = runtime.get("physical_ram_bytes")
+        self.memory_ram_tile.value_label.setText(
+            f"{round(int(physical) / (1024 ** 3), 1)} GiB"
+            if isinstance(physical, (int, float)) and physical
+            else "—"
+        )
+        zram = runtime.get("zram_total_bytes")
+        self.memory_zram_tile.value_label.setText(
+            f"{round(int(zram) / (1024 ** 3), 1)} GiB"
+            if runtime.get("zram_active") and isinstance(zram, (int, float))
+            else tr("Disabled")
+        )
+        self.memory_backing_tile.value_label.setText(
+            tr("Active") if runtime.get("backing_swap_active") else tr("None")
+        )
+        self.memory_zswap_tile.value_label.setText(
+            tr("Active") if runtime.get("zswap_enabled") is True else tr("Disabled")
+        )
+
+    # ---------------------------------------------------------- status report
+
+    @staticmethod
+    def _report_gib(value: object, *, default: str) -> str:
+        try:
+            if value is None:
+                return default
+            return f"{round(int(value) / (1024 ** 3), 1)} GiB"
+        except (TypeError, ValueError):
+            return default
+
+    #: Column budget for the report body. Chosen to fit an 80-column terminal
+    #: with a little breathing room either side.
+    REPORT_WIDTH = 76
+
+    @classmethod
+    def _report_banner(cls, title: str) -> list[str]:
+        """The single top/bottom framed banner. Everything else is plain text.
+
+        Boxing every subsection used to fight word-wrap: a label plus a long
+        translated value routinely overflowed the inner width, and the ``|``
+        borders turned that overflow into a visibly broken frame. One banner
+        at each end reads as "this is a report", without re-fighting wrap on
+        every paragraph inside it.
+        """
+        border = "+" * cls.REPORT_WIDTH
+        return [border, f"  {title}", border]
+
+    @classmethod
+    def _report_heading(cls, title: str) -> list[str]:
+        return ["", title.upper(), "-" * cls.REPORT_WIDTH]
+
+    @classmethod
+    def _report_field(cls, label: str, value: str) -> str:
+        """One ``label ..... value`` line, wrapping the value below when it
+
+        cannot fit next to its label instead of overflowing the column.
+        """
+        label = str(label)
+        value = str(value)
+        gap = cls.REPORT_WIDTH - len(label) - len(value) - 2
+        if gap >= 3:
+            return f"{label} {'.' * gap} {value}"
+        return f"{label}:\n      {value}"
+
+    @classmethod
+    def _report_paragraph(cls, text: str, *, indent: str = "") -> list[str]:
+        return textwrap.wrap(
+            text, width=cls.REPORT_WIDTH - len(indent),
+            initial_indent=indent, subsequent_indent=indent,
+        ) or [""]
+
+    def _build_memory_status_report(self) -> str:
+        """Compose the human-readable report shown in the embedded terminal.
+
+        Pulled entirely from the state already cached for the on-screen
+        tiles/combos, so opening it never waits on the privileged helper or
+        touches the system — it is read-only by construction.
+        """
+        tools = _mapping(self._tools_snapshot) or _mapping(self._tools)
+        setup = _mapping(tools.get("system_setup"))
+        memory = _mapping(setup.get("memory"))
+        runtime = _mapping(tools.get("memory_runtime"))
+        host_label = "Bazzite" if is_bazzite_host(tools) else tr("Generic Linux host")
+
+        physical = self._report_gib(runtime.get("physical_ram_bytes"), default=tr("unknown"))
+        zram_active = bool(runtime.get("zram_active"))
+        zram_line = (
+            self._report_gib(runtime.get("zram_total_bytes"), default=tr("unknown"))
+            if zram_active else tr("Disabled")
+        )
+        backing_line = tr("Active") if runtime.get("backing_swap_active") else tr("None")
+        zswap_line = tr("Active") if runtime.get("zswap_enabled") is True else tr("Disabled")
+        ttm_bytes = runtime.get("ttm_limit_bytes")
+        ttm_line = (
+            self._report_gib(ttm_bytes, default=tr("unknown"))
+            if isinstance(ttm_bytes, (int, float)) and ttm_bytes
+            else tr("Kernel default (no BC250 limit set)")
+        )
+
+        used_bytes = memory.get("swap_used_bytes")
+        swap_active = bool(memory.get("swap_active"))
+        usage_line = (
+            tr_format(
+                "{used} in use",
+                used=self._report_gib(used_bytes, default=tr("unknown")),
+            )
+            if swap_active and isinstance(used_bytes, (int, float))
+            else tr("Not in use right now")
+        )
+        configured_policy = str(memory.get("configured_policy") or "") or tr("none applied yet")
+        reboot_pending = any(
+            memory.get(key)
+            for key in ("restore_pending", "zram_pending", "zram_restore_pending", "zswap_pending")
+        )
+
+        selected_policy = self.memory_policy_combo.currentText()
+        selected_ttm = self.ttm_limit_combo.currentText()
+        selected_vram = self.vram_size_combo.currentText()
+
+        lines: list[str] = []
+        lines += self._report_banner(tr("BC250 CONTROL CENTER - MEMORY & SWAP STATUS"))
+
+        lines += self._report_heading(tr("Current state"))
+        lines.append(self._report_field(tr("Detected system"), host_label))
+        lines.append(self._report_field(tr("Physical RAM"), physical))
+        lines.append("")
+        lines.append(self._report_field(tr("ZRAM (compressed RAM swap)"), zram_line))
+        lines.append(self._report_field(tr("Disk swap (swapfile on disk)"), backing_line))
+        lines.append(self._report_field(tr("ZSWAP (compressed cache before swap)"), zswap_line))
+        lines.append(self._report_field(tr("Swap usage right now"), usage_line))
+        lines.append("")
+        lines.append(self._report_field(tr("Active swap policy"), tr(configured_policy)))
+        lines.append(self._report_field(tr("GPU memory limit (TTM) applied"), ttm_line))
+        if reboot_pending:
+            lines.append("")
+            lines += self._report_paragraph(
+                tr("[!] A change is saved but needs a REBOOT before it takes full effect.")
+            )
+
+        lines += self._report_heading(tr("Selected in the UI (not applied yet)"))
+        lines.append(self._report_field(tr("Swap option"), selected_policy))
+        lines.append(self._report_field(tr("TTM limit"), selected_ttm))
+        lines.append(self._report_field(tr("VRAM size"), selected_vram))
+        lines.append("")
+        lines += self._report_paragraph(
+            tr(
+                "Nothing above changes anything by itself: press \"Apply Swap\", "
+                "\"Apply TTM\" or \"Apply VRAM\" in the dashboard to actually apply it."
+            )
+        )
+        return "\n".join(lines)
+
+    def _show_memory_status_report(self) -> None:
+        report = self._build_memory_status_report()
+        heredoc_marker = "BC250_MEMORY_STATUS_REPORT"
+        width = self.REPORT_WIDTH
+        rule = "-" * width
+        banner = "+" * width
+        tech_heading = tr("Live technical detail (read-only)")
+        close_hint = tr("Press Enter to close this report")
+        script = (
+            f"cat <<'{heredoc_marker}'\n{report}\n{heredoc_marker}\n"
+            "echo\n"
+            f"printf '%s\\n' {shlex.quote(rule)}\n"
+            f"printf '%s\\n' {shlex.quote(tech_heading)}\n"
+            f"printf '%s\\n' {shlex.quote(rule)}\n"
+            "{ free -h 2>/dev/null || echo '(free: unavailable)'; } | sed 's/^/  /'\n"
+            "echo\n"
+            "{ swapon --show 2>/dev/null || echo '(no active swap devices)'; } | sed 's/^/  /'\n"
+            "echo\n"
+            "{ zramctl 2>/dev/null || echo '(zramctl: unavailable)'; } | sed 's/^/  /'\n"
+            "echo\n"
+            f"printf '%s\\n' {shlex.quote(banner)}\n"
+            "echo\n"
+            f"read -r -p {shlex.quote(close_hint + '... ')} _ || true\n"
+        )
+        try:
+            TerminalRepository()._abrir_terminal(
+                script, tr("BC250 memory and swap status")
+            )
+        except RuntimeError as error:
+            InfoDialog(
+                "Could not open the status report",
+                str(error),
+                icon_name="warning_orange",
+                parent=self.window(),
+                eyebrow="Memory & Swap",
+                notice="No changes were made.",
+                tone="orange",
+            ).open()
 
     def _bazzite_mitigations_panel(self) -> QFrame:
         panel = QFrame()
@@ -1004,6 +1673,11 @@ class PreparationSidebar(QFrame):
         )
         filter_layout.addWidget(self.compatibility_filter, 1)
         layout.addWidget(self.compatibility_filter_panel)
+        # The distribution filter stays wired (settings, tests, and the
+        # "detected" default all still go through it) but is not shown: it
+        # sat above every card fighting for attention, and "detected" is
+        # already the right choice for the one system this window is on.
+        self.compatibility_filter_panel.hide()
         self.acpi_card = PreparationInfoCard(
             "CPU power management · ACPI",
             "Upstream CPU idle and frequency tables. The original boot entry remains available for recovery.",
@@ -1318,7 +1992,7 @@ class PreparationSidebar(QFrame):
             button.style().polish(button)
 
     def _reflow(self, width: int) -> None:
-        tab_columns = 4 if width >= 560 else 2
+        tab_columns = 5 if width >= 620 else 3 if width >= 420 else 2
         self.system_layout.setDirection(
             QBoxLayout.Direction.TopToBottom
             if width < 480
@@ -1338,12 +2012,6 @@ class PreparationSidebar(QFrame):
             button.setMinimumWidth(
                 min(max(0, (width - 64) // 3), IconButton.sizeHint(button).width())
             )
-        self.memory_header.setDirection(
-            QBoxLayout.Direction.TopToBottom
-            if width < 440
-            else QBoxLayout.Direction.LeftToRight
-        )
-        self.memory_header.setAlignment(self.memory_scope, Qt.AlignmentFlag.AlignLeft)
         compact_mitigations = width < 660
         self.mitigations_layout.setDirection(
             QBoxLayout.Direction.TopToBottom
@@ -1361,7 +2029,7 @@ class PreparationSidebar(QFrame):
         )
         if tab_columns != self._tab_columns:
             self._tab_columns = tab_columns
-            clear_grid(self.tabs_grid, reset_columns=4, reset_rows=2)
+            clear_grid(self.tabs_grid, reset_columns=5, reset_rows=3)
             for index, button in enumerate(self.tab_buttons):
                 self.tabs_grid.addWidget(
                     button, index // tab_columns, index % tab_columns
@@ -1397,54 +2065,6 @@ class PreparationSidebar(QFrame):
                         self.components_grid.addWidget(card, row, column)
             for column in range(component_columns):
                 self.components_grid.setColumnStretch(column, 1)
-        self._reflow_memory_controls(width)
-
-    def _reflow_memory_controls(self, width: int) -> None:
-        mode = "paired" if width >= 1100 else "rows" if width >= 660 else "stacked"
-        if mode == self._memory_controls_wide:
-            return
-        self._memory_controls_wide = mode
-        clear_grid(self.memory_controls, reset_columns=4, reset_rows=6)
-        paired_rows = (
-            (
-                self.memory_swap_label,
-                self.memory_policy_combo,
-                self.memory_swap_apply_button,
-            ),
-            (
-                self.memory_ttm_label,
-                self.ttm_limit_combo,
-                self.memory_ttm_apply_button,
-            ),
-        )
-        vram_row = (
-            self.memory_vram_label,
-            self.vram_size_combo,
-            self.vram_apply_button,
-        )
-        if mode == "paired":
-            for column, (label, combo, button) in enumerate(paired_rows):
-                self.memory_controls.addWidget(label, 0, column * 2, 1, 2)
-                self.memory_controls.addWidget(combo, 1, column * 2)
-                self.memory_controls.addWidget(button, 1, column * 2 + 1)
-                self.memory_controls.setColumnStretch(column * 2, 1)
-            label, combo, button = vram_row
-            self.memory_controls.addWidget(label, 2, 0, 1, 4)
-            self.memory_controls.addWidget(combo, 3, 0, 1, 3)
-            self.memory_controls.addWidget(button, 3, 3)
-        elif mode == "rows":
-            for row, (label, combo, button) in enumerate((*paired_rows, vram_row)):
-                self.memory_controls.addWidget(label, row, 0)
-                self.memory_controls.addWidget(combo, row, 1)
-                self.memory_controls.addWidget(button, row, 2)
-            self.memory_controls.setColumnStretch(1, 1)
-        else:
-            for row, (label, combo, button) in enumerate((*paired_rows, vram_row)):
-                base_row = row * 2
-                self.memory_controls.addWidget(label, base_row, 0, 1, 2)
-                self.memory_controls.addWidget(combo, base_row + 1, 0)
-                self.memory_controls.addWidget(button, base_row + 1, 1)
-            self.memory_controls.setColumnStretch(0, 1)
 
     def resizeEvent(self, event) -> None:  # noqa: N802
         super().resizeEvent(event)
@@ -1492,6 +2112,10 @@ class PreparationSidebar(QFrame):
                     self.memory_policy_combo.currentData() or "current"
                 ),
                 "memory_ttm_gib": 0,
+                "memory_takeover_zram": self.memory_zram_warning.isVisible(),
+                "memory_target_mount": str(
+                    self.memory_swap_target_combo.currentData() or ""
+                ) if hasattr(self, "memory_swap_target_combo") else "",
             }
         )
 
@@ -1530,6 +2154,8 @@ class PreparationSidebar(QFrame):
         )
         self.vram_size_combo.setToolTip(tooltip)
         self.vram_apply_button.setToolTip(tooltip)
+        if hasattr(self, "memory_vram_timeline"):
+            self._update_vram_readout()
 
     def _request_mitigations(self) -> None:
         self.dependency_action_requested.emit(
@@ -1619,36 +2245,39 @@ class PreparationSidebar(QFrame):
             if runtime
             else tr("Not detected")
         )
-        if update_memory_controls(self, tools):
-            return
-        self.memory_scope.setText("Bazzite" if actionable else "Bazzite only")
-        self.memory_scope.set_tone("green" if actionable else "gray")
-        current_bytes = runtime.get("ttm_limit_bytes")
-        current_gib = (
-            round(int(current_bytes) / (1024**3))
-            if isinstance(current_bytes, (int, float))
-            else 0
-        )
-        if current_gib in {8, 10, 12} and self.ttm_limit_combo.currentData() == 0:
-            self.ttm_limit_combo.setCurrentIndex((8, 10, 12).index(current_gib) + 2)
-        policy = str(self.memory_policy_combo.currentData() or "current")
-        swap_selected = policy != "current" or bool(
-            runtime.get("backing_swap_active") or runtime.get("zswap_enabled") is True
-        )
-        ttm_selected = int(self.ttm_limit_combo.currentData() or 0) != 0
-        self.memory_policy_combo.setEnabled(actionable)
-        self.ttm_limit_combo.setEnabled(actionable)
-        self.memory_swap_apply_button.setEnabled(actionable and swap_selected)
-        self.memory_ttm_apply_button.setEnabled(actionable and ttm_selected)
-        if not actionable:
-            tooltip = tr("This memory workflow is currently validated only on Bazzite.")
-            for control in (
-                self.memory_policy_combo,
-                self.ttm_limit_combo,
-                self.memory_swap_apply_button,
-                self.memory_ttm_apply_button,
-            ):
-                control.setToolTip(tooltip)
+        self._update_memory_summary_tiles(runtime)
+        if not update_memory_controls(self, tools):
+            self.memory_scope.setText("Bazzite" if actionable else "Bazzite only")
+            self.memory_scope.set_tone("green" if actionable else "gray")
+            current_bytes = runtime.get("ttm_limit_bytes")
+            current_gib = (
+                round(int(current_bytes) / (1024**3))
+                if isinstance(current_bytes, (int, float))
+                else 0
+            )
+            if current_gib in {8, 10, 12} and self.ttm_limit_combo.currentData() == 0:
+                self.ttm_limit_combo.setCurrentIndex((8, 10, 12).index(current_gib) + 2)
+            policy = str(self.memory_policy_combo.currentData() or "current")
+            swap_selected = policy != "current" or bool(
+                runtime.get("backing_swap_active") or runtime.get("zswap_enabled") is True
+            )
+            ttm_selected = int(self.ttm_limit_combo.currentData() or 0) != 0
+            self.memory_policy_combo.setEnabled(actionable)
+            self.ttm_limit_combo.setEnabled(actionable)
+            self.memory_swap_apply_button.setEnabled(actionable and swap_selected)
+            self.memory_ttm_apply_button.setEnabled(actionable and ttm_selected)
+            if not actionable:
+                tooltip = tr("This memory workflow is currently validated only on Bazzite.")
+                for control in (
+                    self.memory_policy_combo,
+                    self.ttm_limit_combo,
+                    self.memory_swap_apply_button,
+                    self.memory_ttm_apply_button,
+                ):
+                    control.setToolTip(tooltip)
+        self._sync_memory_option_rows()
+        self._update_ttm_readout()
+        self._update_vram_readout()
 
     def _forward_dependency_action(self, payload: object) -> None:
         values = dict(payload) if isinstance(payload, Mapping) else {}

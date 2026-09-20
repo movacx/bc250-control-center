@@ -138,8 +138,8 @@ def test_decky_plugin_and_helper_keep_a_finite_root_protocol():
     assert 'SYSTEM_FAN_CHANNELS = tuple(range(3, 9))' in helper
     assert 'QAM_FAN_CHANNELS = (2, 3, 4, 5)' in helper
     assert '"ok": True' in helper
-    assert 'HELPER_PROTOCOL = 13' in helper
-    assert 'HELPER_PROTOCOL = 13' in backend
+    assert 'HELPER_PROTOCOL = 15' in helper
+    assert 'HELPER_PROTOCOL = 15' in backend
     assert 'save_cu_table' in backend
     assert 'install_cu_service' in backend
     assert 'remove_cu_service' in backend
@@ -343,8 +343,10 @@ def test_decky_theme_preserves_the_current_desktop_dark_orange_visual_concept():
     theme = (ROOT / "integrations/decky/bc250-quick-access/src/theme.ts").read_text(encoding="utf-8")
 
     # The accepted visual concept uses Desktop graphite, orange for deliberate
-    # selections/actions, amber for pending attention, and blue only for focus.
-    for color in ("#0F0F0F", "#171717", "#242424", "#F2F2F2", "#F0A45D", "#6E9FFF"):
+    # selections/actions, amber for pending attention, and white only for
+    # focus -- fixed regardless of the player's chosen accent, so the
+    # controller focus ring always means the same thing.
+    for color in ("#0F0F0F", "#171717", "#242424", "#F2F2F2", "#F0A45D", "#FFFFFF"):
         assert color in theme
     assert "var(--gp" not in theme
     assert 'selection: "#38291D"' in theme

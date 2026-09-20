@@ -982,6 +982,49 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QFrame[dashboardMetricTile='true'] QPushButton[dashboardCardAction='true']:focus {{
         background: {c['control_hover']};
     }}
+    /* Same problem as the metric tile above: a compatibility card is also
+       painted in panel_alt, so its action buttons need lifting a step too —
+       otherwise they read as barely-visible outlines against the card. */
+    QFrame[dashboardPreparationInfo='true'] QPushButton[dashboardCardAction='true'] {{
+        background: {c['control']};
+        border-color: {c['border_strong']};
+    }}
+    QFrame[dashboardPreparationInfo='true'] QPushButton[dashboardCardAction='true']:hover,
+    QFrame[dashboardPreparationInfo='true'] QPushButton[dashboardCardAction='true']:focus {{
+        background: {c['control_hover']};
+    }}
+    /* The recommended action in a row that ends in a plain link (see
+       PreparationInfoCard._refresh_action_styles) gets a light accent fill
+       on top of the existing blue text/border, so it reads as "the" button
+       instead of just another box the same weight as its neighbours. */
+    QFrame[dashboardPreparationInfo='true'] QPushButton[dashboardCardAction='true'][accented='true'] {{
+        background: {c['blue_soft']};
+    }}
+    QFrame[dashboardPreparationInfo='true'] QPushButton[dashboardCardAction='true'][accented='true']:hover,
+    QFrame[dashboardPreparationInfo='true'] QPushButton[dashboardCardAction='true'][accented='true']:focus {{
+        background: {c['blue_soft']};
+        border-color: {c['blue']};
+    }}
+    /* A link action opens a browser tab, not a workflow — it should read as
+       the lightest-weight choice in the row: no box, just coloured text.
+       Repeated with the dashboardPreparationInfo ancestor so it outranks the
+       "lift the button a step above panel_alt" rule above on specificity —
+       without this scoped copy, that rule's background/border quietly won
+       and every link kept its box. */
+    QPushButton[dashboardCardAction='true'][linkAction='true'],
+    QFrame[dashboardPreparationInfo='true'] QPushButton[dashboardCardAction='true'][linkAction='true'] {{
+        background: transparent;
+        border-color: transparent;
+        color: {c['muted']};
+    }}
+    QPushButton[dashboardCardAction='true'][linkAction='true']:hover,
+    QPushButton[dashboardCardAction='true'][linkAction='true']:focus,
+    QFrame[dashboardPreparationInfo='true'] QPushButton[dashboardCardAction='true'][linkAction='true']:hover,
+    QFrame[dashboardPreparationInfo='true'] QPushButton[dashboardCardAction='true'][linkAction='true']:focus {{
+        background: transparent;
+        border-color: transparent;
+        color: {c['blue']};
+    }}
     QPushButton[dashboardTelemetryAction='true'] {{
         min-height: 26px;
         padding: 8px 12px;
@@ -1062,6 +1105,15 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QFrame[dashboardPreparationInfo='true']:hover {{
         border-color: {c['border_strong']};
     }}
+    /* The component checklist row is a checkbox and a one-line label — it
+       does not need the same footprint as a full compatibility card, so it
+       gets a tighter radius to read as a smaller, denser control. */
+    QFrame[dashboardComponentCard='true'] {{
+        border-radius: 8px;
+    }}
+    QFrame[dashboardComponentCard='true']:hover {{
+        border-color: {c['border_strong']};
+    }}
     QFrame[dashboardCompatibilityFilter='true'] {{
         background: {c['blue_soft']};
         border: 1px solid {c['blue_border']};
@@ -1120,14 +1172,35 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         border: 1px solid {c['border_soft']};
         border-radius: 8px;
     }}
+    QFrame[dashboardMemoryNote='true'][tone='orange'] {{
+        background: {c['orange_soft']};
+        border: 1px solid {c['orange_border']};
+        border-radius: 8px;
+    }}
     QLabel[dashboardMemoryDetail='true'] {{
         color: {c['muted']};
         font-size: 10px;
+    }}
+    QLabel[dashboardMemoryWarning='true'] {{
+        color: {c['orange']};
+        font-size: 10px;
+        font-weight: 650;
     }}
     QLabel[dashboardMemoryControlLabel='true'] {{
         color: {c['muted']};
         font-size: 10px;
         font-weight: 720;
+        letter-spacing: 0.3px;
+        text-transform: uppercase;
+    }}
+    QProgressBar[dashboardMemoryUsage='true'] {{
+        background: {c['panel_raised']};
+        border: 1px solid {c['border_soft']};
+        border-radius: 3px;
+    }}
+    QProgressBar[dashboardMemoryUsage='true']::chunk {{
+        background: {c['blue']};
+        border-radius: 3px;
     }}
     QComboBox[dashboardMemoryCombo='true'] {{
         min-height: 28px;
@@ -1142,6 +1215,59 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QComboBox[dashboardMemoryCombo='true']:disabled {{
         color: {c['subtle']};
         background: {c['panel_alt']};
+    }}
+    QFrame[dashboardMemoryCard='true'] {{
+        background: {c['panel']};
+        border: 1px solid {c['border']};
+        border-radius: 16px;
+    }}
+    QFrame[dashboardMemoryOptionRow='true'] {{
+        background: {c['panel_alt']};
+        border: 1px solid {c['border_soft']};
+        border-radius: 10px;
+    }}
+    QFrame[dashboardMemoryOptionRow='true']:hover {{
+        border-color: {c['border_strong']};
+    }}
+    QFrame[dashboardMemoryOptionRow='true'][selected='true'] {{
+        background: {c['blue_soft']};
+        border: 1.5px solid {c['blue']};
+    }}
+    QFrame[dashboardMemoryOptionRow='true']:disabled {{
+        background: {c['panel_alt']};
+        border-color: {c['border_soft']};
+    }}
+    QFrame[dashboardMemoryOptionIndicator='true'] {{
+        border-radius: 8px;
+        border: 1.5px solid {c['border_strong']};
+        background: {c['panel']};
+    }}
+    QFrame[dashboardMemoryOptionIndicator='true'][selected='true'] {{
+        border: 5px solid {c['blue']};
+        background: {c['panel_alt']};
+    }}
+    QPushButton[dashboardMemoryChip='true'] {{
+        background: {c['window']};
+        border: 1px solid {c['border']};
+        border-radius: 9px;
+        padding: 7px 12px;
+        color: {c['muted']};
+        font-size: 12px;
+        font-weight: 700;
+    }}
+    QPushButton[dashboardMemoryChip='true']:hover {{
+        border-color: {c['border_strong']};
+    }}
+    QPushButton[dashboardMemoryChip='true']:checked {{
+        background: {c['blue_soft']};
+        border: 1.5px solid {c['blue']};
+        color: {c['blue']};
+        font-weight: 800;
+    }}
+    QPushButton[dashboardMemoryChip='true']:disabled {{
+        color: {c['disabled_text']};
+        background: {c['disabled_bg']};
+        border-color: {c['border_soft']};
     }}
     QWidget[dashboardPreparationFooter='true'] {{
         border-top: 1px solid {c['border_soft']};

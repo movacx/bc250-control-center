@@ -89,6 +89,7 @@ DATA_NAMES = (
     "QUICK_ACCESS_FAN_CHANNELS",
     "QUICK_ACCESS_FAN_PERCENT_RANGE",
     "QUICK_ACCESS_FAN_PERCENT_STEP",
+    "VRAM_SIZE_PRESETS_MB",
 )
 
 # Functions copied verbatim, so the arithmetic has exactly one definition.

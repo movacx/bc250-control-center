@@ -198,6 +198,28 @@ def _save_for_startup(page, view: GpuGovernorView, minimum: int, maximum: int) -
     )
 
 
+def _export_profiles_to_decky(page, view: GpuGovernorView) -> None:
+    """Publishes the three visible profile cards for the Decky panel to read.
+
+    Read-only metadata, not a hardware change, so it reuses ``_run`` (which
+    already routes through the concurrency gate, background execution and
+    console) without touching ``_run_backend_action``'s cache-invalidation
+    path meant for GPU state changes.
+    """
+    payload = [
+        {"key": profile.key, "name": profile.name, "min": profile.minimum, "max": profile.maximum}
+        for profile in view.profiles()
+    ]
+    _run(
+        page,
+        view,
+        lambda: page.controller.exportar_perfiles_gpu_decky(payload),
+        tr("Profiles exported to Decky Quick Access."),
+        "Could not export profiles to Decky",
+        controls=(view._export_decky_button,),
+    )
+
+
 def _toggle_high_points(page, view: GpuGovernorView, enable: bool) -> None:
     """The view already showed the red confirmation dialog."""
 
@@ -422,6 +444,7 @@ def install_redesigned_gpu_view(page) -> GpuGovernorView:
     )
     view.service_action_requested.connect(lambda action: _service_action(page, action))
     view.profile_changed.connect(lambda profile: _persist_profile(page, profile))
+    view.export_to_decky_requested.connect(lambda: _export_profiles_to_decky(page, view))
     view.voltage_lab_requested.connect(page.open_voltage_lab)
     view.config_open_requested.connect(page._open_governor_config)
     view.diagnostics_copy_requested.connect(lambda: _copy_diagnostics(view))

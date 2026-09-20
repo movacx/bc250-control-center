@@ -939,7 +939,7 @@ class GPURepository:
 
     def _editar_governor_toml(self, action, *arguments):
         request = plan_governor_config_request(action, arguments)
-        if action != "set-oberon-operating-points":
+        if action not in {"set-oberon-operating-points", "set-decky-gpu-profiles"}:
             self._cyan_runtime_config_path(require_managed=True)
         game_helper = getattr(self, "_usar_steamos_game_helper", lambda: False)
         if game_helper():
@@ -1045,6 +1045,18 @@ class GPURepository:
             f"{result} Saved active range {minimum}-{maximum} MHz for Cyan startup. "
             "The current runtime range was not changed."
         ).strip()
+
+    def exportar_perfiles_gpu_decky(self, profiles):
+        """Publish the three named GPU profile cards for Decky Quick Access.
+
+        Read-only metadata, not a hardware operation: no D-Bus range is
+        touched here, and the exported names/ranges are only ever a display
+        hint plus a request Decky's own root helper re-validates against the
+        live governor envelope before applying, so this never needs the Cyan
+        runtime checks a live frequency change requires.
+        """
+        result = self._editar_governor_toml("set-decky-gpu-profiles", list(profiles))
+        return result
 
     def _ensure_cyan_frequency_range_loaded(self, minimo: int, maximo: int) -> None:
         """Ensure the running Cyan process has loaded a requested high point.

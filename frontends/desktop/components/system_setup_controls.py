@@ -6,6 +6,7 @@ from bc250cc.infrastructure.memory_runtime import (
     TTM_GIB_PRESETS,
     supported_ttm_gib_presets,
 )
+from bc250cc.shared.contract import VRAM_SIZE_PRESETS_MB
 
 from ..i18n import tr, tr_format
 
@@ -25,12 +26,6 @@ BAZZITE_MEMORY_OPTIONS = (
     ("Advanced · ZSWAP + 16 GiB swapfile", "zswap-16"),
     ("Advanced heavy loads · ZSWAP + 32 GiB swapfile", "zswap-32"),
 )
-
-# UMA_SIZE (VRAM) presets, aligned to the 16 MiB CMOS granularity the
-# firmware itself enforces (github.com/fanoush/bc250_memcfg). Below 1 GiB the
-# label stays in MiB; every other preset here is an exact GiB multiple.
-VRAM_SIZE_PRESETS_MB = (256, 512, 1024, 2048, 3072, 4096, 5120, 6144, 7168, 8192, 12288)
-
 
 def vram_size_label(size_mb: int) -> str:
     if size_mb < 1024:
@@ -128,16 +123,63 @@ def update_memory_controls(owner, tools):
     enabled = bool(setup.get("helper_available") and memory.get("supported"))
     policies = memory.get("policies") or []
     policy_reasons = memory.get("policy_reasons") or {}
+    takeover_available = bool(memory.get("zram_takeover_available"))
+    # A ZSWAP option blocked only by a foreign ZRAM stays selectable: picking
+    # it is how the user confirms disabling that ZRAM, same as Bazzite
+    # already lets every option through.
+    selectable = set(policies) | ({"zswap-16", "zswap-32"} if takeover_available else set())
     for i in range(combo.count()):
         item = combo.model().item(i)
         value = combo.itemData(i)
-        item.setEnabled(value in policies)
+        item.setEnabled(value in selectable)
         item.setToolTip(tr(str(policy_reasons.get(value) or "")))
     combo.setEnabled(enabled)
     owner.ttm_limit_combo.setItemText(1, tr("Restore previous TTM limit"))
     owner.ttm_limit_combo.setEnabled(enabled and bool(memory.get("ttm_available")))
     owner.ttm_limit_combo.model().item(1).setEnabled(bool(memory.get("ttm_restore_available")))
-    owner.memory_swap_apply_button.setEnabled(enabled and combo.currentData() in policies and combo.currentData() != "preserve")
+    selected_policy = combo.currentData()
+    needs_takeover = takeover_available and selected_policy in {"zswap-16", "zswap-32"} and selected_policy not in policies
+    owner.memory_swap_apply_button.setEnabled(enabled and selected_policy in selectable and selected_policy != "preserve")
+    if hasattr(owner, "memory_zram_warning_frame"):
+        owner.memory_zram_warning.setText(
+            tr("Applying this will disable the existing ZRAM to make room for ZSWAP. "
+               "Takes effect after the next reboot.")
+            if needs_takeover else ""
+        )
+        owner.memory_zram_warning_frame.setVisible(needs_takeover)
+    if hasattr(owner, "memory_swap_usage_bar"):
+        used = int(memory.get("swap_used_bytes") or 0)
+        gib_suffix = str(memory.get("configured_policy") or "").rsplit("-", 1)
+        total_gib = int(gib_suffix[-1]) if len(gib_suffix) == 2 and gib_suffix[-1].isdigit() else 0
+        total = total_gib * (1024 ** 3)
+        active = bool(memory.get("swap_active")) and total > 0
+        owner.memory_swap_usage_bar.setVisible(active)
+        owner.memory_swap_usage_label.setVisible(active)
+        if active:
+            percent = min(100, round(used / total * 100))
+            owner.memory_swap_usage_bar.setValue(percent)
+            owner.memory_swap_usage_label.setText(
+                tr_format("{used} / {total} GiB used", used=round(used / (1024 ** 3), 1), total=total_gib)
+            )
+    if hasattr(owner, "memory_swap_target_combo"):
+        target_combo = owner.memory_swap_target_combo
+        targets = memory.get("swap_targets") or {}
+        expected = ["", *sorted(target for target in targets if target)]
+        existing_targets = [target_combo.itemData(i) for i in range(target_combo.count())]
+        if existing_targets != expected:
+            previous_target = target_combo.currentData()
+            target_combo.blockSignals(True)
+            target_combo.clear()
+            target_combo.addItem(tr("Default (/var/lib)"), "")
+            for target in expected[1:]:
+                target_combo.addItem(target, target)
+            index = target_combo.findData(previous_target)
+            target_combo.setCurrentIndex(index if index >= 0 else 0)
+            target_combo.blockSignals(False)
+        creates_swapfile = selected_policy in {"swap-16", "swap-32", "zswap-16", "zswap-32"}
+        target_combo.setEnabled(enabled and creates_swapfile)
+        owner.memory_swap_target_label.setVisible(creates_swapfile)
+        target_combo.setVisible(creates_swapfile)
     ttm = owner.ttm_limit_combo.currentData()
     owner.memory_ttm_apply_button.setEnabled(enabled and bool(memory.get("ttm_available")) and ttm != 0
                                            and (ttm != -1 or bool(memory.get("ttm_restore_available"))))
@@ -148,7 +190,8 @@ def update_memory_controls(owner, tools):
         label = "Testing" if enabled else "Unavailable"
         if enabled and memory.get("phase") == "incomplete":
             label = "Incomplete"
-        elif enabled and any(memory.get(key) for key in ("restore_pending", "zram_pending", "zram_restore_pending")):
+        elif enabled and any(memory.get(key) for key in
+                              ("restore_pending", "zram_pending", "zram_restore_pending", "zswap_pending")):
             label = "Reboot required"
         owner.memory_scope.setText(label)
         owner.memory_scope.set_tone("gray")
