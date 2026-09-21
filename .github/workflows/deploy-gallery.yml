@@ -38,11 +38,13 @@ jobs:
           cp assets/gallery/index.html _site/gallery/index.html
           cp assets/screenshots/dashboard-overview.png _site/assets/screenshots/
           cp assets/screenshots/decky-quick-access.png _site/assets/screenshots/
+          cp assets/screenshots/decky-quick-access-monitoring.png _site/assets/screenshots/
           cp assets/screenshots/cpu-tuning.png _site/assets/screenshots/
           cp assets/screenshots/gpu-governor.png _site/assets/screenshots/
           cp assets/screenshots/compute-units.png _site/assets/screenshots/
           cp assets/screenshots/fan-control.png _site/assets/screenshots/
           cp assets/screenshots/compute-units-monitor.png _site/assets/screenshots/
+          cp assets/screenshots/memory-swap.png _site/assets/screenshots/
           cp assets/screenshots/dependency-preparation.png _site/assets/screenshots/
           touch _site/.nojekyll
       - uses: actions/upload-pages-artifact@v3
