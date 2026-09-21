@@ -338,6 +338,62 @@ def test_daemon_uses_failsafe_after_temperature_sensor_timeout(monkeypatch):
     assert applied == [(2, 255)]
 
 
+def test_disabling_pwm_setup_also_removes_the_boot_time_fan_restore(monkeypatch):
+    """GitHub issue: fan PWM asked to authenticate on every boot.
+
+    The fix restores the last PWM duty at boot through a root systemd unit
+    (no pkexec involved). "Disable PWM setup" must undo that too, or a
+    disabled setup would keep silently re-applying an old duty on reboot.
+    """
+    from bc250cc.platform.init.services import InitManagerState
+
+    captured = []
+
+    class Repository(FanRepository):
+        def _abrir_terminal(self, command, _title=""):
+            captured.append(command)
+            return None
+
+        def _os_repository(self):
+            return type("OS", (), {"info": type("Info", (), {"family": "arch"})()})()
+
+    monkeypatch.setattr(
+        "bc250cc.infrastructure.fan_repository.detect_init_manager",
+        lambda: InitManagerState("systemd", True, "systemd unit management is available."),
+    )
+
+    Repository().desactivar_nct6687_control_pwm()
+
+    assert len(captured) == 1
+    assert "bc250-fan-pwm-restore.service" in captured[0]
+    assert "systemctl disable --now bc250-fan-pwm-restore.service" in captured[0]
+    assert "/var/lib/bc250-control-center/fan-last-applied.json" in captured[0]
+
+
+def test_disabling_pwm_setup_removes_the_openrc_fan_restore_service(monkeypatch):
+    from bc250cc.platform.init.services import InitManagerState
+
+    captured = []
+
+    class Repository(FanRepository):
+        def _abrir_terminal(self, command, _title=""):
+            captured.append(command)
+            return None
+
+        def _os_repository(self):
+            return type("OS", (), {"info": type("Info", (), {"family": "arch"})()})()
+
+    monkeypatch.setattr(
+        "bc250cc.infrastructure.fan_repository.detect_init_manager",
+        lambda: InitManagerState("openrc", True, "OpenRC runlevel management is available."),
+    )
+
+    Repository().desactivar_nct6687_control_pwm()
+
+    assert len(captured) == 1
+    assert "bc250-openrc-service-helper remove bc250-fan-pwm-restore" in captured[0]
+
+
 def test_fan_repository_writable_pwm_path_needs_no_polkit(tmp_path):
     sensor = tmp_path / "hwmon8"
     sensor.mkdir()

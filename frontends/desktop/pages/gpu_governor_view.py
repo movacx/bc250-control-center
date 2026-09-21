@@ -1889,6 +1889,10 @@ class GpuGovernorView(QWidget):
         self._advanced_toggle.setText(tr("Hide") if checked else tr("Show"))
 
     def _on_profile_selected(self, profile: GpuProfile) -> None:
+        # Same staging protection as the rail: otherwise the next telemetry
+        # refresh calls sync_active_range() and snaps the card back to
+        # whatever the hardware still reports, before the user gets to Apply.
+        self._follow_hardware = False
         self._selected_profile = profile.key
         self._selected_minimum = profile.minimum
         self._selected_maximum = profile.maximum

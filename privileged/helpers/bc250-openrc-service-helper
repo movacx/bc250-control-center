@@ -28,8 +28,12 @@ CU_CONFIG = pathlib.Path('/etc/bc250-cu-live-manager.conf')
 CPU_HELPER = pathlib.Path('/usr/libexec/bc250-control-center/bc250-cpu-smu-helper')
 CPU_CONFIG = pathlib.Path('/etc/bc250-smu-oc.conf')
 FAN_LOADER = pathlib.Path('/usr/local/sbin/bc250-load-nct6687')
+FAN_PWM_HELPER = pathlib.Path('/usr/libexec/bc250-control-center/bc250-fan-pwm-helper')
 
-SERVICES = frozenset({'bc250-cu-live-manager', 'bc250-smu-oc', 'cyan-skillfish-governor-smu', 'oberon-governor', 'nct6687-load'})
+SERVICES = frozenset({
+    'bc250-cu-live-manager', 'bc250-smu-oc', 'cyan-skillfish-governor-smu',
+    'oberon-governor', 'nct6687-load', 'bc250-fan-pwm-restore',
+})
 
 
 def fail(message: str, code: int = 1) -> int:
@@ -183,6 +187,26 @@ start() {{
 '''
 
 
+def _fan_pwm_restore_script() -> str:
+    if not _safe_regular(FAN_PWM_HELPER, executable=True):
+        raise RuntimeError('The protected fan PWM helper is missing/unsafe.')
+    return f'''#!/sbin/openrc-run
+{MARKER}
+description="Restore the last BC-250 fan PWM duty at boot"
+
+depend() {{
+    need localmount
+    after nct6687-load
+}}
+
+start() {{
+    ebegin "Restoring BC-250 fan PWM duty"
+    {FAN_PWM_HELPER} --restore-boot
+    eend $?
+}}
+'''
+
+
 def _governor_script(name: str) -> str:
     binary = pathlib.Path('/usr/local/bin') / name
     if not _safe_regular(binary, executable=True):
@@ -227,6 +251,8 @@ def _service_text(name: str) -> str:
         return _cpu_script()
     if name == 'nct6687-load':
         return _fan_script()
+    if name == 'bc250-fan-pwm-restore':
+        return _fan_pwm_restore_script()
     if name in {'cyan-skillfish-governor-smu', 'oberon-governor'}:
         return _governor_script(name)
     raise RuntimeError('Unsupported OpenRC service.')

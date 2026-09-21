@@ -3150,8 +3150,9 @@ class FansPage(QWidget):
             summary=(
                 ("Purpose", "Writable NCT PWM channels"),
                 ("Kernel/header safety", "Exact match with uname -r required"),
-                ("Authentication", "Visible terminal and sudo"),
+                ("Authentication", "Visible terminal and sudo, once"),
                 ("Monitoring fallback", "nct6683 remains available as read-only mode"),
+                ("Boot behavior", "The last PWM duty is restored automatically, no password"),
             ),
             confirm_text="Open preparation workflow",
             tone="orange",

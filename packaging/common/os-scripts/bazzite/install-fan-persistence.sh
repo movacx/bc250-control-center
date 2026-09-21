@@ -236,3 +236,28 @@ as_root systemctl daemon-reload
 as_root systemctl enable nct6687-load.service
 as_root systemctl reset-failed nct6687-load.service || true
 as_root systemctl restart nct6687-load.service || warn "nct6687 service did not become ready immediately; final verification will show its journal"
+
+FAN_PWM_HELPER=/usr/libexec/bc250-control-center/bc250-fan-pwm-helper
+if [[ -x "$FAN_PWM_HELPER" ]]; then
+  bold "Bazzite: installing boot-time fan PWM restore (no password needed after this)"
+  as_root install -d -m 0755 "$STATE_DIR"
+  as_root tee /etc/systemd/system/bc250-fan-pwm-restore.service >/dev/null <<UNIT
+[Unit]
+Description=Restore the last BC250 fan PWM duty at boot
+After=nct6687-load.service
+Requires=nct6687-load.service
+ConditionPathExists=$STATE_DIR/fan-last-applied.json
+
+[Service]
+Type=oneshot
+ExecStart=$FAN_PWM_HELPER --restore-boot
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+  as_root systemctl daemon-reload
+  as_root systemctl enable bc250-fan-pwm-restore.service
+  as_root systemctl reset-failed bc250-fan-pwm-restore.service || true
+  as_root systemctl restart bc250-fan-pwm-restore.service || true
+fi

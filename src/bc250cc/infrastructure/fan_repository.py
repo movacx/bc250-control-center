@@ -204,12 +204,23 @@ class FanRepository:
                 'no system service or module preference was changed.'
             )
         servicios = self._nct_service_commands()
+        openrc = detect_init_manager().kind == 'openrc'
+        helper_path = '/usr/libexec/bc250-control-center/bc250-openrc-service-helper'
+        remove_restore = (
+            f'sudo {helper_path} remove bc250-fan-pwm-restore 2>/dev/null || true'
+            if openrc else (
+                'sudo systemctl disable --now bc250-fan-pwm-restore.service 2>/dev/null || true; '
+                'sudo rm -f /etc/systemd/system/bc250-fan-pwm-restore.service'
+            )
+        )
         comando = '; '.join([
             'set +e',
             'echo "== BC250 fan control: disable nct6687 PWM setup =="',
             'echo "This disables the automatic nct6687 preference and returns to read-only nct6683 monitoring."',
             'echo "The nct6687d package is not removed; only boot/module preference files are changed."',
             servicios['remove'],
+            remove_restore,
+            'sudo rm -f /var/lib/bc250-control-center/fan-last-applied.json',
             "sudo rm -f /usr/local/sbin/bc250-load-nct6687",
             servicios['reload'],
             "sudo rm -f /etc/modules-load.d/nct6687.conf",

@@ -249,6 +249,89 @@ def test_privileged_desktop_pwm_helper_restores_automatic_after_unsettled_duty(
     assert pwm.read_text(encoding="ascii").strip() == "127"
 
 
+def _fan_pwm_helper_with_state(tmp_path, monkeypatch):
+    """A desktop fan-pwm-helper module with sysfs, lock and state file sandboxed."""
+    from contextlib import contextmanager
+
+    desktop = runpy.run_path(str(PRIVILEGED / "bc250-fan-pwm-helper"))
+    globals_ = desktop["apply_pwm"].__globals__
+    monkeypatch.setattr(globals_["time"], "sleep", lambda _seconds: None)
+    state_dir = tmp_path / "state"
+    monkeypatch.setitem(globals_, "STATE_DIR", state_dir)
+    monkeypatch.setitem(globals_, "STATE_FILE", state_dir / "fan-last-applied.json")
+
+    @contextmanager
+    def noop_lock():
+        yield
+
+    monkeypatch.setitem(globals_, "fan_operation_lock", noop_lock)
+    return desktop, globals_
+
+
+def test_fan_pwm_helper_remembers_and_replays_the_last_applied_duty(tmp_path, monkeypatch):
+    """GitHub issue: fan PWM values needed re-authenticating on every boot.
+
+    A root systemd unit calls ``--restore-boot`` directly (no pkexec) and it
+    must replay exactly the last duty this helper already verified once.
+    """
+    sensor = tmp_path / "hwmon-test"
+    sensor.mkdir()
+    pwm = sensor / "pwm2"
+    enable = sensor / "pwm2_enable"
+    pwm.write_text("0\n", encoding="ascii")
+    enable.write_text("2\n", encoding="ascii")
+
+    desktop, globals_ = _fan_pwm_helper_with_state(tmp_path, monkeypatch)
+    monkeypatch.setitem(globals_, "find_sensor", lambda: sensor)
+
+    assert desktop["apply_pwm"](2, 178) == "OK PWM 2 178"
+    assert json.loads(globals_["STATE_FILE"].read_text()) == {"channels": {"2": 178}}
+
+    # A later boot starts with the sysfs register back at the driver default.
+    pwm.write_text("0\n", encoding="ascii")
+    enable.write_text("2\n", encoding="ascii")
+    monkeypatch.setitem(globals_, "bc250_identity_present", lambda: True)
+    monkeypatch.setattr(globals_["os"], "geteuid", lambda: 0)
+
+    assert desktop["restore_boot_state"]() == 0
+    assert pwm.read_text(encoding="ascii").strip() == "178"
+    assert enable.read_text(encoding="ascii").strip() == "1"
+
+
+def test_fan_pwm_helper_forgets_a_channel_restored_to_automatic(tmp_path, monkeypatch):
+    sensor = tmp_path / "hwmon-test"
+    sensor.mkdir()
+    pwm = sensor / "pwm2"
+    enable = sensor / "pwm2_enable"
+    pwm.write_text("0\n", encoding="ascii")
+    enable.write_text("2\n", encoding="ascii")
+
+    desktop, globals_ = _fan_pwm_helper_with_state(tmp_path, monkeypatch)
+    monkeypatch.setitem(globals_, "find_sensor", lambda: sensor)
+
+    desktop["apply_pwm"](2, 178)
+    enable.write_text("1\n", encoding="ascii")
+    assert desktop["restore_automatic"](2) == "OK PWM 2 AUTO"
+    assert json.loads(globals_["STATE_FILE"].read_text()) == {"channels": {}}
+
+    monkeypatch.setitem(globals_, "bc250_identity_present", lambda: True)
+    monkeypatch.setattr(globals_["os"], "geteuid", lambda: 0)
+    assert desktop["restore_boot_state"]() == 0  # nothing left to restore
+
+
+def test_fan_pwm_helper_restore_boot_refuses_without_root_or_bc250_identity(
+    tmp_path, monkeypatch
+):
+    desktop, globals_ = _fan_pwm_helper_with_state(tmp_path, monkeypatch)
+
+    monkeypatch.setattr(globals_["os"], "geteuid", lambda: 1000)
+    assert desktop["restore_boot_state"]() == 77
+
+    monkeypatch.setattr(globals_["os"], "geteuid", lambda: 0)
+    monkeypatch.setitem(globals_, "bc250_identity_present", lambda: False)
+    assert desktop["restore_boot_state"]() == 19
+
+
 def test_game_mode_pwm_helper_retries_only_the_same_validated_duty(monkeypatch):
     game = runpy.run_path(str(PRIVILEGED / "bc250-steamos-game-helper"))
     globals_ = game["wait_for_hwmon_value"].__globals__

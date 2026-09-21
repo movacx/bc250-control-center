@@ -4,11 +4,13 @@
 from __future__ import annotations
 
 import fcntl
+import json
 import os
 import stat
 import sys
+import tempfile
 import time
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from pathlib import Path
 
 PWM_MIN = 1
@@ -27,6 +29,12 @@ PWM_DUTY_VERIFY_ATTEMPTS = 16
 PWM_DUTY_VERIFY_INTERVAL_SECONDS = 0.10
 FAN_OPERATION_LOCK = Path('/run/bc250-control-center-fan.lock')
 FAN_OPERATION_LOCK_TIMEOUT_SECONDS = 3.0
+
+# Every duty this helper verifies is mirrored here so a root systemd unit can
+# replay it at boot without pkexec ever being involved (see --restore-boot
+# below).  /var/lib survives a reboot; /run does not.
+STATE_DIR = Path('/var/lib/bc250-control-center')
+STATE_FILE = STATE_DIR / 'fan-last-applied.json'
 
 
 @contextmanager
@@ -100,6 +108,53 @@ def find_sensor() -> Path | None:
         if name.startswith(('nct668', 'nct67', 'nct')):
             return hwmon
     return None
+
+
+def _load_state() -> dict:
+    try:
+        with STATE_FILE.open('r', encoding='utf-8') as stream:
+            data = json.load(stream)
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _save_state(state: dict) -> None:
+    """Best-effort persistence: a write failure here must never fail a fan write."""
+    try:
+        STATE_DIR.mkdir(mode=0o755, exist_ok=True)
+        fd, name = tempfile.mkstemp(prefix='.fan-last-applied-', dir=STATE_DIR)
+        temporary = Path(name)
+    except OSError:
+        return
+    try:
+        with os.fdopen(fd, 'w', encoding='utf-8') as stream:
+            json.dump(state, stream)
+        os.chmod(temporary, 0o644)
+        os.replace(temporary, STATE_FILE)
+    except OSError:
+        with suppress(FileNotFoundError):
+            os.unlink(temporary)
+
+
+def _remember_applied(channel: int, value: int) -> None:
+    state = _load_state()
+    channels = state.get('channels')
+    channels = dict(channels) if isinstance(channels, dict) else {}
+    channels[str(channel)] = value
+    state['channels'] = channels
+    _save_state(state)
+
+
+def _forget_applied(channel: int) -> None:
+    state = _load_state()
+    channels = state.get('channels')
+    if not isinstance(channels, dict) or str(channel) not in channels:
+        return
+    channels = dict(channels)
+    del channels[str(channel)]
+    state['channels'] = channels
+    _save_state(state)
 
 
 def write_sysfs(path: Path, value: int) -> None:
@@ -219,6 +274,7 @@ def apply_pwm(channel: int, value: int) -> str:
             f'ERR PWM {channel} duty read-back was {observed!r} after '
             f'{attempts} attempts/{elapsed_ms:.1f} ms.{rollback}'
         )
+    _remember_applied(channel, value)
     return f'OK PWM {channel} {value}'
 
 
@@ -246,6 +302,7 @@ def restore_automatic(channel: int) -> str:
             f'ERR PWM {channel} automatic-mode readback was {confirmed!r} after '
             f'{attempts} attempts/{elapsed_ms:.1f} ms, expected 2.'
         )
+    _forget_applied(channel)
     return f'OK PWM {channel} AUTO'
 
 
@@ -288,5 +345,45 @@ def session() -> int:
     return 0
 
 
+def restore_boot_state() -> int:
+    """Reapply the last verified PWM duty directly, with no pkexec involved.
+
+    A systemd unit runs this as root at boot, the same way nct6687-load.service
+    already brings the module back without any prompt.  It only ever replays a
+    (channel, value) pair this same helper already wrote and verified once
+    through the normal, authenticated session() path.
+    """
+    if os.geteuid() != 0:
+        print('ERR This helper must run as root.', flush=True)
+        return 77
+    if not bc250_identity_present():
+        print(
+            'ERR HARDWARE_CONTEXT: AMD BC-250 hardware identity was not detected.',
+            flush=True,
+        )
+        return 19
+    channels = _load_state().get('channels')
+    if not isinstance(channels, dict) or not channels:
+        print('OK nothing to restore', flush=True)
+        return 0
+    failures = 0
+    for channel_text, value in channels.items():
+        try:
+            channel = int(channel_text)
+            value = int(value)
+        except (TypeError, ValueError):
+            failures += 1
+            print(f'ERR invalid saved PWM entry {channel_text!r}={value!r}', flush=True)
+            continue
+        with fan_operation_lock():
+            result = apply_pwm(channel, value)
+        print(result, flush=True)
+        if not result.startswith('OK'):
+            failures += 1
+    return 1 if failures else 0
+
+
 if __name__ == '__main__':
+    if len(sys.argv) > 1 and sys.argv[1] == '--restore-boot':
+        raise SystemExit(restore_boot_state())
     raise SystemExit(session())

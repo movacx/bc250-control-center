@@ -136,6 +136,8 @@ if [ -f /var/lib/nct6687/nct6687.ko ]; then
   sudo chcon -t modules_object_t /var/lib/nct6687/nct6687.ko 2>/dev/null || true;
   sudo restorecon -v /var/lib/nct6687/nct6687.ko 2>/dev/null || true;
 fi;
+sudo install -d -m 0755 /var/lib/bc250-control-center;
+FAN_PWM_HELPER=/usr/libexec/bc250-control-center/bc250-fan-pwm-helper
 if [ -f /run/openrc/softlevel ] \
   && command -v openrc-run >/dev/null 2>&1 \
   && command -v rc-update >/dev/null 2>&1 \
@@ -144,6 +146,11 @@ if [ -f /run/openrc/softlevel ] \
   [ -x "$OPENRC_HELPER" ] || { echo "ERROR: protected BC250 OpenRC service helper is missing; reinstall Control Center." >&2; exit 1; }
   sudo "$OPENRC_HELPER" install nct6687-load
   sudo rc-service nct6687-load restart 2>/dev/null || sudo rc-service nct6687-load start 2>/dev/null || true
+  if [ -x "$FAN_PWM_HELPER" ]; then
+    echo "== Installing boot-time fan PWM restore (no password needed after this) ==";
+    sudo "$OPENRC_HELPER" install bc250-fan-pwm-restore
+    sudo rc-service bc250-fan-pwm-restore restart 2>/dev/null || sudo rc-service bc250-fan-pwm-restore start 2>/dev/null || true
+  fi
 elif [ ! -d /run/systemd/system ] || ! command -v systemctl >/dev/null 2>&1; then
   # runit, s6, dinit and sysvinit reach here. Writing a systemd unit for them
   # leaves a file in /etc/systemd/system that nothing will ever read, and then
@@ -180,4 +187,26 @@ sudo systemctl daemon-reload || true;
 sudo systemctl enable nct6687-load.service || true;
 sudo systemctl reset-failed nct6687-load.service 2>/dev/null || true;
 sudo systemctl restart nct6687-load.service 2>/dev/null || sudo systemctl start nct6687-load.service 2>/dev/null || true
+if [ -x "$FAN_PWM_HELPER" ]; then
+  echo "== Installing boot-time fan PWM restore (no password needed after this) ==";
+sudo tee /etc/systemd/system/bc250-fan-pwm-restore.service >/dev/null <<EOF
+[Unit]
+Description=Restore the last BC250 fan PWM duty at boot
+After=nct6687-load.service
+Requires=nct6687-load.service
+ConditionPathExists=/var/lib/bc250-control-center/fan-last-applied.json
+
+[Service]
+Type=oneshot
+ExecStart=$FAN_PWM_HELPER --restore-boot
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+  sudo systemctl daemon-reload || true;
+  sudo systemctl enable bc250-fan-pwm-restore.service || true;
+  sudo systemctl reset-failed bc250-fan-pwm-restore.service 2>/dev/null || true;
+  sudo systemctl restart bc250-fan-pwm-restore.service 2>/dev/null || sudo systemctl start bc250-fan-pwm-restore.service 2>/dev/null || true
+fi
 fi

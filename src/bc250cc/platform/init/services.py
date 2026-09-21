@@ -17,6 +17,7 @@ OPENRC_SERVICE_NAMES = frozenset({
     "cyan-skillfish-governor-smu",
     "oberon-governor",
     "nct6687-load",
+    "bc250-fan-pwm-restore",
 })
 
 
