@@ -14,6 +14,14 @@ class WrappingButton(QPushButton):
 
     def _text_geometry(self, width):
         native = super().sizeHint()
+        if width >= native.width():
+            # Plenty of room for one line: sizeHint()/paintEvent() already
+            # take this same shortcut. Without it, a button whose real style
+            # padding is under the chrome floor below (a slim link button,
+            # say) could measure less available text width than it actually
+            # has at its own native width, wrap to two lines that never
+            # render, and get stuck holding that wrapped height.
+            return native, native.height(), 0
         metrics = self.fontMetrics()
         text_width = max((metrics.horizontalAdvance(line) for line in self.text().splitlines()), default=0)
         chrome = max(20, native.width() - text_width)

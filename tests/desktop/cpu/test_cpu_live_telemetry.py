@@ -180,10 +180,9 @@ def test_monitoring_and_configuration_are_no_longer_two_places(qtbot):
     assert view.runtime_cards["live"].isVisibleTo(view)
     assert view.unlock_button.isVisibleTo(view)
 
-    # Advanced detail is one disclosure on the same screen, not a third place.
-    assert not view._advanced_body.isVisible()
-    view._advanced_toggle.setChecked(True)
-    assert view._advanced_body.isVisibleTo(view)
+    # Advanced detail sits on the same screen too, always shown under the
+    # console rather than behind a disclosure toggle.
+    assert view.identity_rows["model"].isVisibleTo(view)
 
 
 def test_cpu_live_frequency_is_displayed_in_ghz(qtbot):

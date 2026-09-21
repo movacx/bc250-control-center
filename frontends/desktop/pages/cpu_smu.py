@@ -286,6 +286,18 @@ class CpuValueField(QFrame):
         self.input.setValidator(QIntValidator(self.minimum, self.maximum, self.input))
 
 
+class _FixedScrollArea(QScrollArea):
+    """A scroll area whose viewport does not slide on the mouse wheel.
+
+    Hiding the scrollbar (``ScrollBarAlwaysOff``) only stops it from being
+    drawn; ``QScrollArea`` still scrolls on wheel input underneath. The CPU
+    workspace no longer needs either, so wheel input is dropped here instead.
+    """
+
+    def wheelEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        event.ignore()
+
+
 class CpuSmuPage(QWidget):
     """CPU / SMU control restyled to mirror the GPU governor studio layout."""
 
@@ -339,10 +351,13 @@ class CpuSmuPage(QWidget):
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
-        scroll = QScrollArea()
+        scroll = _FixedScrollArea()
         self.scroll = scroll
         self.content = QWidget()
         configure_responsive_scroll_area(scroll, self.content)
+        # The redesigned CPU workspace no longer scrolls at all; only this
+        # page opts out, not every page sharing the helper above.
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         # Long translated runtime labels must wrap inside the selected layout;
         # they must not enlarge the complete vertically scrolling page.
         self.content.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)

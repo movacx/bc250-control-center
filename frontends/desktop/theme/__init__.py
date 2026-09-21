@@ -2469,6 +2469,11 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QWidget[redesignedModule='true'] QPushButton[linkButton='true'][quiet='true']:hover {{
         color: {c['text']};
     }}
+    /* The button's own left padding otherwise offsets its text from the
+       plain QLabel rows above and below it, which have none. */
+    QWidget[redesignedModule='true'] QPushButton[linkButton='true'][flushLeft='true'] {{
+        padding-left: 0px;
+    }}
     QWidget[redesignedModule='true'] QPushButton[iconOnlyButton='true'] {{
         background: {c['panel_raised']};
         border: 1px solid {c['border_soft']};

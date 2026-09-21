@@ -15,8 +15,9 @@ workspace the redesigned Cyan GPU module already uses:
     └───────────────────────────┘ │ boot persistence + actions     │
                                   │ danger zone (hidden CPU cores) │
                                   └────────────────────────────────┘
-    ┌ Advanced details (collapsible) ─────────────────────────────┐
-    │ processor identity, CPU-Z style                             │
+    ┌ Session console ──────────────────────────────────────────────┐
+    │ command output                                                 │
+    │ processor identity, CPU-Z style (same card, always shown)     │
     └─────────────────────────────────────────────────────────────┘
 
 There is no separate parameter panel. The three profile cards *are* the
@@ -197,12 +198,13 @@ DEFAULT_CPU_PROFILES: tuple[CpuProfile, ...] = (
 class IdentityRow(QFrame):
     """One ``label ......... value`` line of an identity panel."""
 
-    def __init__(self, label: str, parent: QWidget | None = None):
+    def __init__(self, label: str, parent: QWidget | None = None, *, compact: bool = False):
         super().__init__(parent)
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self._first = False
         row = QHBoxLayout(self)
-        row.setContentsMargins(0, 7, 0, 7)
+        vertical = 5 if compact else 7
+        row.setContentsMargins(0, vertical, 0, vertical)
         row.setSpacing(12)
         self.label = QLabel(tr(label))
         self.label.setWordWrap(True)
@@ -336,75 +338,14 @@ class ResponsiveGrid(QWidget):
         self._apply_columns((self.width() + spacing) // (self._minimum + spacing))
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Value field — label + caption on the left, boxed spin on the right
-# ─────────────────────────────────────────────────────────────────────────────
-
-class ValueField(QFrame):
-    """One tuning input: what it is on the left, what it is set to on the right."""
-
-    valueChanged = pyqtSignal(int)  # noqa: N815 (mirrors the Qt spelling)
-
-    def __init__(
-        self,
-        label: str,
-        hint: str,
-        *,
-        minimum: int,
-        maximum: int,
-        step: int,
-        value: int,
-        suffix: str,
-        parent: QWidget | None = None,
-    ):
-        super().__init__(parent)
-        self.setProperty("subPanel", True)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        row = QHBoxLayout(self)
-        row.setContentsMargins(13, 10, 13, 10)
-        row.setSpacing(10)
-
-        text = QVBoxLayout()
-        text.setSpacing(2)
-        self._label = QLabel(tr(label))
-        self._label.setProperty("fieldLabel", True)
-        self._label.setWordWrap(True)
-        text.addWidget(self._label)
-        if hint:
-            text.addWidget(caption(hint))
-        row.addLayout(text, 1)
-
-        self.spin = QSpinBox()
-        self.spin.setRange(minimum, maximum)
-        self.spin.setSingleStep(step)
-        self.spin.setValue(value)
-        self.spin.setSuffix(f" {suffix}")
-        self.spin.setMinimumWidth(104)
-        self.spin.setAlignment(
-            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
-        )
-        self.spin.valueChanged.connect(self.valueChanged)
-        row.addWidget(self.spin, 0, Qt.AlignmentFlag.AlignVCenter)
-
-    def value(self) -> int:
-        return int(self.spin.value())
-
-    def set_value(self, value: int) -> None:
-        blocked = self.spin.blockSignals(True)
-        try:
-            self.spin.setValue(int(value))
-        finally:
-            self.spin.blockSignals(blocked)
-
-    def set_editable(self, editable: bool) -> None:
-        self.spin.setEnabled(bool(editable))
-
 
 class ToggleRow(QFrame):
-    """One switch: what it does on the left, the control on the right.
+    """One switch: the control on the left, what it does next to it.
 
     The same shape as :class:`ValueField`, so an option and a number read as
-    the same kind of row instead of a stray checkbox above a framed field.
+    the same kind of row instead of a stray checkbox above a framed field. An
+    optional trailing widget (e.g. a value field the switch unlocks) can sit
+    at the far right of the same row.
     """
 
     def __init__(
@@ -412,6 +353,7 @@ class ToggleRow(QFrame):
         label: str,
         hint: QLabel,
         control: QCheckBox,
+        trailing: QWidget | None = None,
         parent: QWidget | None = None,
     ):
         super().__init__(parent)
@@ -420,6 +362,8 @@ class ToggleRow(QFrame):
         row = QHBoxLayout(self)
         row.setContentsMargins(13, 10, 13, 10)
         row.setSpacing(10)
+
+        row.addWidget(control, 0, Qt.AlignmentFlag.AlignVCenter)
 
         text = QVBoxLayout()
         text.setSpacing(2)
@@ -429,7 +373,9 @@ class ToggleRow(QFrame):
         text.addWidget(title)
         text.addWidget(hint)
         row.addLayout(text, 1)
-        row.addWidget(control, 0, Qt.AlignmentFlag.AlignVCenter)
+
+        if trailing is not None:
+            row.addWidget(trailing, 0, Qt.AlignmentFlag.AlignVCenter)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -740,7 +686,6 @@ class CpuControlView(QWidget):
             0, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding
         )
         left.addItem(self._left_spacer)
-        left.addWidget(self._build_advanced_card(), 0)
         self._left_column_box = left
 
         self._workspace.addWidget(self._left_column, 0, 0)
@@ -814,6 +759,19 @@ class CpuControlView(QWidget):
         self.manual_scale_check.setCursor(Qt.CursorShape.PointingHandCursor)
         self.manual_scale_check.setEnabled(False)
         self.manual_scale_check.toggled.connect(self._on_manual_scale_toggled)
+
+        self.scale_field = QSpinBox()
+        self.scale_field.setRange(*CPU_SCALE_RANGE)
+        self.scale_field.setSingleStep(1)
+        self.scale_field.setValue(-34)
+        self.scale_field.setSuffix(" scale")
+        self.scale_field.setMinimumWidth(104)
+        self.scale_field.setAlignment(
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        )
+        self.scale_field.setEnabled(False)
+        self.scale_field.valueChanged.connect(self._on_scale_field_changed)
+
         mode_box.addWidget(
             ToggleRow(
                 "Use manual scale",
@@ -822,20 +780,9 @@ class CpuControlView(QWidget):
                     "want, compare another manual scale live."
                 ),
                 self.manual_scale_check,
+                trailing=self.scale_field,
             )
         )
-
-        self.scale_field = ValueField(
-            "Manual scale",
-            "Scale is not mV. More negative generally means less voltage.",
-            minimum=CPU_SCALE_RANGE[0],
-            maximum=CPU_SCALE_RANGE[1],
-            step=1,
-            value=-34,
-            suffix="scale",
-        )
-        self.scale_field.set_editable(False)
-        mode_box.addWidget(self.scale_field)
 
         # Shown only while the field is locked; once manual scale is available
         # the switch above already says what it is for.
@@ -892,13 +839,16 @@ class CpuControlView(QWidget):
         return persistence_panel
 
     def _build_console_card(self) -> SectionCard:
-        """Where the session writes what it did, filling the column as it goes.
+        """Session console, with processor identity underneath in the same card.
 
         The page has always had this console; the redesign left it behind in
         the hidden legacy screen. It is the same widget, adopted rather than
-        rebuilt, so every line the page already writes lands here.
+        rebuilt, so every line the page already writes lands here. Processor
+        identity used to sit in its own bordered box right below; now it
+        shares this one, so the column reads as a single block instead of
+        two stacked boxes.
         """
-        card = SectionCard("Session console")
+        card = SectionCard("Session console", compact=True)
         card.drop_header()
         card.root.setContentsMargins(14, 14, 14, 14)
         card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
@@ -906,6 +856,31 @@ class CpuControlView(QWidget):
         # The console draws its own frame, so no panel wraps it: three nested
         # borders around one text area is all border and no room.
         self._console_box = card.body
+
+        identity_heading = QLabel(tr("Processor overview"))
+        identity_heading.setProperty("cardTitle", True)
+        identity_heading.setWordWrap(True)
+        card.body.addSpacing(2)
+        card.body.addWidget(identity_heading)
+
+        # Two columns instead of one long list: with eight rows, a single
+        # column ran the panel far taller than the console above it needed.
+        identity_columns = 2
+        identity_grid = QGridLayout()
+        identity_grid.setContentsMargins(0, 0, 0, 0)
+        identity_grid.setHorizontalSpacing(16)
+        identity_grid.setVerticalSpacing(0)
+        for column in range(identity_columns):
+            identity_grid.setColumnStretch(column, 1)
+
+        self.identity_rows: dict[str, IdentityRow] = {}
+        for position, (key, label) in enumerate(self.IDENTITY_ROWS):
+            row = IdentityRow(label, card, compact=True)
+            row.set_first(position < identity_columns)
+            self.identity_rows[key] = row
+            identity_grid.addWidget(row, position // identity_columns, position % identity_columns)
+        card.body.addLayout(identity_grid)
+
         # Nothing to show until a host hands its console over: a standalone
         # view must not draw an empty black rectangle.
         card.setVisible(False)
@@ -914,9 +889,11 @@ class CpuControlView(QWidget):
     def mount_console(self, console: QWidget) -> None:
         """Adopt the host page's session console into this workspace."""
         console.setParent(None)
-        console.setMinimumHeight(170)
+        console.setMinimumHeight(120)
         console.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        self._console_box.addWidget(console, 1)
+        # Inserted ahead of the processor-identity rows already in this box,
+        # so the console stays on top of them.
+        self._console_box.insertWidget(0, console, 1)
         self._console_card.setVisible(True)
         # The console is what absorbs the leftover height now, so the spacer
         # that used to hold the two columns level steps aside.
@@ -991,6 +968,10 @@ class CpuControlView(QWidget):
         risk_panel, risk_box = subpanel("")
         self._risk_panel = risk_panel
         risk_panel.setProperty("riskPanel", True)
+        # Tighter than the default subpanel: this box was leaving visible air
+        # between its own text and buttons instead of using it as margin.
+        risk_box.setContentsMargins(14, 10, 14, 10)
+        risk_box.setSpacing(5)
         risk_head = QHBoxLayout()
         risk_head.setSpacing(7)
         risk_glyph = QLabel()
@@ -1001,8 +982,6 @@ class CpuControlView(QWidget):
         eyebrow.setProperty("eyebrow", True)
         eyebrow.setProperty("danger", True)
         risk_head.addWidget(eyebrow, 1)
-        self._unlock_state_label = caption("")
-        risk_head.addWidget(self._unlock_state_label, 0)
         risk_box.addLayout(risk_head)
 
         risk_title = QLabel(tr("Unlock hidden CPU cores"))
@@ -1019,12 +998,13 @@ class CpuControlView(QWidget):
         # repeated something already on screen: the core monitor above says
         # the shape, and the button's own state says whether the workflow can
         # run. Only the gate that decides that is kept.
-        self.unlock_support_row = IdentityRow("Unlock support", risk_panel)
+        self.unlock_support_row = IdentityRow("Unlock support", risk_panel, compact=True)
         self.unlock_support_row.set_first(True)
         risk_box.addWidget(self.unlock_support_row)
 
         self.firmware_button = QPushButton(tr("Firmware persistence guide"))
         self.firmware_button.setProperty("linkButton", True)
+        self.firmware_button.setProperty("flushLeft", True)
         self.firmware_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.firmware_button.clicked.connect(self.firmware_persistence_requested)
         risk_box.addWidget(self.firmware_button, 0, Qt.AlignmentFlag.AlignLeft)
@@ -1037,54 +1017,17 @@ class CpuControlView(QWidget):
         risk_box.addWidget(self.unlock_button)
 
         # The GPU module leaves more air above its danger zone than between the
-        # neutral panels, so it reads as a separate class of control. The slack
-        # goes there too, which pins the red panel to the card's lower edge:
-        # whichever column is taller, both feet finish on the same line.
+        # neutral panels, so it reads as a separate class of control. The
+        # stretch has to stay *after* the panel: without any stretch here,
+        # this card's leftover height (it matches the taller left column)
+        # spread into the widgets above instead, inflating the runtime tiles.
+        # Keeping the stretch below the panel absorbs that space where it is
+        # invisible, while the panel itself sits right after boot persistence
+        # with no gap in between.
         card.body.addSpacing(10)
-        card.body.addStretch(1)
         card.body.addWidget(risk_panel)
+        card.body.addStretch(1)
         return card
-
-    # ── Advanced details ───────────────────────────────────────────────────
-    def _build_advanced_card(self) -> SectionCard:
-        card = SectionCard(
-            "Advanced details",
-            "CPU-Z-style identification read directly from Linux kernel "
-            "interfaces, without changing hardware state.",
-            icon_name="logs_gray",
-            icon_background=COLORS["purple_soft"],
-        )
-        self._advanced_toggle = card.add_header_button("Show", lambda: None, width=104)
-        self._advanced_toggle.setCheckable(True)
-        self._advanced_toggle.setProperty("compactAction", False)
-        self._advanced_toggle.setProperty("linkButton", True)
-        self._advanced_toggle.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._advanced_toggle.setIcon(icon("chevron_right_gray"))
-        self._advanced_toggle.setIconSize(QSize(14, 14))
-        self._advanced_toggle.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
-        self._advanced_toggle.toggled.connect(self._toggle_advanced)
-
-        self._advanced_body = QWidget()
-        body = QVBoxLayout(self._advanced_body)
-        body.setContentsMargins(0, 0, 0, 0)
-        body.setSpacing(12)
-
-        identity_panel, identity_box = subpanel("Processor overview")
-        self.identity_rows: dict[str, IdentityRow] = {}
-        for position, (key, label) in enumerate(self.IDENTITY_ROWS):
-            row = IdentityRow(label, identity_panel)
-            row.set_first(position == 0)
-            self.identity_rows[key] = row
-            identity_box.addWidget(row)
-        body.addWidget(identity_panel)
-
-        self._advanced_body.setVisible(False)
-        card.root.addWidget(self._advanced_body)
-        return card
-
-    def _toggle_advanced(self, checked: bool) -> None:
-        self._advanced_body.setVisible(checked)
-        self._advanced_toggle.setText(tr("Hide") if checked else tr("Show"))
 
     # ── interaction ────────────────────────────────────────────────────────
     def _on_profile_selected(self, profile: CpuProfile) -> None:
@@ -1100,8 +1043,15 @@ class CpuControlView(QWidget):
         self._selected_profile_key = profile.key
         self._sync_selection()
 
+    def _on_scale_field_changed(self, _value: int) -> None:
+        # Only user input reaches here: the periodic hardware sync in
+        # _apply_tuning() wraps its own setValue() in blockSignals(). Without
+        # this, the next refresh tick (every few seconds) overwrote whatever
+        # scale the user had just picked, making the field feel unresponsive.
+        self._follow_hardware = False
+
     def _on_manual_scale_toggled(self, checked: bool) -> None:
-        self.scale_field.set_editable(bool(checked))
+        self.scale_field.setEnabled(bool(checked))
         if checked:
             self.apply_button.setText(tr("Apply temporary OC + manual scale"))
         else:
@@ -1200,7 +1150,11 @@ class CpuControlView(QWidget):
             self.runtime_cards[key].set_values(reading.value, reading.detail)
 
         if tuning.scale is not None and self._follow_hardware:
-            self.scale_field.set_value(tuning.scale)
+            blocked = self.scale_field.blockSignals(True)
+            try:
+                self.scale_field.setValue(int(tuning.scale))
+            finally:
+                self.scale_field.blockSignals(blocked)
         if self._follow_hardware and tuning.frequency_mhz:
             self._select_profile_matching(
                 tuning.frequency_mhz, tuning.vid_mv, tuning.temperature_c
@@ -1246,12 +1200,6 @@ class CpuControlView(QWidget):
             tr("Ready") if unlock.helper_ready else tr("Not installed")
         )
         self.unlock_button.setEnabled(bool(unlock.unlock_allowed))
-        if unlock.unlocked:
-            self._unlock_state_label.setText(tr("Unlocked"))
-        elif unlock.unlock_allowed:
-            self._unlock_state_label.setText(tr("Ready"))
-        else:
-            self._unlock_state_label.setText(tr("Not available"))
 
     def _select_profile_matching(
         self, frequency: int, vid: int, temperature: int
