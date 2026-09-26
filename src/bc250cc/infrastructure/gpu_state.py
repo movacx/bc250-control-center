@@ -84,6 +84,9 @@ def build_gpu_state_snapshot(
         "service_enabled": runtime.get("service_enabled", ""),
         "service_main_pid": runtime.get("service_main_pid", 0),
         "dbus_ok": is_cyan and current_min is not None,
+        # False when Cyan runs but its D-Bus stopped answering (timeouts), as
+        # opposed to None: not asked, or not Cyan.
+        "dbus_responsive": runtime.get("dbus_responsive"),
         "range_control_ok": current_min is not None and current_max is not None,
         "dbus_performance_enabled": runtime.get("dbus_performance"),
         "current_min": current_min,

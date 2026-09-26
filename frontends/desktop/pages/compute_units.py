@@ -43,8 +43,8 @@ from ..components.responsive import (
     configure_responsive_scroll_area,
     effective_viewport_width,
 )
+from ..components.toast import show_toast
 from ..components.widgets import (
-    IconBadge,
     InfoDialog,
     apply_shadow,
     icon,
@@ -55,7 +55,7 @@ from ..core.compute_units_presenter import (
     plan_cu_action_availability,
     present_compute_units_state,
 )
-from ..core.cpu_refresh_presenter import present_cpu_telemetry
+from ..core.cu_balance import balanced_masks, engine_balance
 from ..core.state import state_cache_for
 from ..i18n import count_label, localize_widget_tree, tr, tr_format
 from ..theme import COLORS, application_stylesheet
@@ -68,6 +68,9 @@ WGP_CU_PAIRS = ("0–1", "2–3", "4–5", "6–7", "8–9")
 FACTORY_MASKS = (0x07, 0x07, 0x07, 0x07)
 FULL_MASKS = (0x1F, 0x1F, 0x1F, 0x1F)
 UNKNOWN_MASKS = (0x00, 0x00, 0x00, 0x00)
+#: Height of a table row. The table spans the page, so its cells are made to
+#: be read and pressed, not squeezed beside a column of tiles.
+TABLE_ROW_HEIGHT = 72
 
 
 def _gpu_integer(value: object) -> int:
@@ -75,6 +78,15 @@ def _gpu_integer(value: object) -> int:
         return int(float(value))
     except (TypeError, ValueError, OverflowError):
         return 0
+
+
+def _reading(value: object) -> float | None:
+    """A positive sensor reading, or None when it is missing or zero."""
+    try:
+        number = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    return number if number > 0 else None
 
 
 def _render_telemetry_text(value: TelemetryText) -> str:
@@ -102,21 +114,21 @@ class CuSummaryItem(QFrame):
         label: str,
         value: str,
         detail: str,
-        icon_name: str,
-        background: str,
         *,
         progress: bool = False,
         parent: QWidget | None = None,
     ):
         super().__init__(parent)
         self.setProperty("gpuSummaryItem", True)
-        self.setMinimumHeight(88)
+        self.setMinimumHeight(76)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
 
+        # Text only. Nine tiles each wearing its own coloured badge read as
+        # noise inside one card; the label already names the reading, which
+        # is how the dashboard and the CPU workspace present theirs.
         row = QHBoxLayout(self)
-        row.setContentsMargins(12, 10, 12, 10)
-        row.setSpacing(10)
-        row.addWidget(IconBadge(icon_name, background, 32, radius=9), 0, Qt.AlignmentFlag.AlignTop)
+        row.setContentsMargins(14, 10, 14, 10)
+        row.setSpacing(0)
 
         text = QVBoxLayout()
         text.setSpacing(1)
@@ -159,45 +171,31 @@ class CuSummaryStrip(QFrame):
         self.grid.setContentsMargins(8, 8, 8, 8)
         self.grid.setHorizontalSpacing(8)
         self.grid.setVerticalSpacing(8)
-        # Active CU count, mode, and routed-WGP count are already visible in
-        # the topology card's own selection panel just to the left, so this
-        # strip only carries information not shown anywhere else: service and
-        # boot persistence health, plus live GPU/CPU telemetry that reflects
-        # the real impact of the current CU/WGP layout. Each device gets its
-        # own row (frequency, load, temperature), so GPU and CPU are easy to
-        # read top-to-bottom instead of hunting across mixed rows.
-        self.service_item = CuSummaryItem("Service", "Not verified", "optional boot restore", "shield_green", COLORS["green_soft"])
-        self.persistence_item = CuSummaryItem("Persistence", "Not verified", "live changes reset at boot", "app_blue", COLORS["cyan_soft"])
-        self.mclk_item = CuSummaryItem("Memory clock", "-- MHz", "Current MCLK state", "compute_blue", COLORS["blue_soft"])
-        self.gpu_freq_item = CuSummaryItem("GPU frequency", "-- MHz", "Current SCLK state", "gpu_purple", COLORS["purple_soft"])
-        self.gpu_load_item = CuSummaryItem("GPU load", "-- %", "amdgpu busy percentage", "activity_purple", COLORS["purple_soft"])
-        self.gpu_temp_item = CuSummaryItem("GPU temperature", "-- °C", "GPU edge sensor", "warning_orange", COLORS["orange_soft"])
-        self.cpu_freq_item = CuSummaryItem("CPU frequency", "-- MHz", "Kernel-reported average", "cpu_blue", COLORS["blue_soft"])
-        self.cpu_load_item = CuSummaryItem("Total CPU load", "-- %", "average across logical threads", "cpu_blue", COLORS["blue_soft"])
-        self.cpu_temp_item = CuSummaryItem("CPU temperature", "-- °C", "Package sensor", "cpu_blue", COLORS["blue_soft"])
-        self.items = [
-            self.service_item,
-            self.persistence_item,
-            self.mclk_item,
-            self.gpu_freq_item,
-            self.gpu_load_item,
-            self.gpu_temp_item,
-            self.cpu_freq_item,
-            self.cpu_load_item,
-            self.cpu_temp_item,
-        ]
-        # Each inner list is a row that always stays together: at columns=3
-        # this reads as a full 3x3 grid (GPU row, then CPU row, each going
-        # frequency -> load -> temperature); at columns=2 or 1 the groups
-        # still never interleave, so each device's three readings stay on
-        # their own row either way.
+        # What routing more or fewer CUs changes, and whether it lasts: the
+        # CU service and boot persistence, then the GPU's clock and load, the
+        # power it draws, and the heat at the chip, at its VRM and at the fan.
+        # Power and VRM heat come from the VRM's own PMBus rail over I2C when
+        # the board has that modification, and from amdgpu and the Nuvoton
+        # chip otherwise. CPU readings belong to the CPU page.
+        self.service_item = CuSummaryItem("Service", "Not verified", "optional boot restore")
+        self.persistence_item = CuSummaryItem("Persistence", "Not verified", "live changes reset at boot")
+        self.gpu_freq_item = CuSummaryItem("GPU frequency", "-- MHz", "Current SCLK state")
+        self.gpu_load_item = CuSummaryItem("GPU load", "-- %", "amdgpu busy percentage")
+        self.gpu_power_item = CuSummaryItem("GPU power", "-- W", "SoC package power")
+        self.gpu_temp_item = CuSummaryItem("GPU temperature", "-- °C", "GPU edge sensor")
+        self.vrm_temp_item = CuSummaryItem("VRM temperature", "-- °C", "VRM MOS")
+        self.fan_item = CuSummaryItem("Fan speed", "-- RPM", "RPM observed")
+        # Pairs that stay side by side: the routing's state, the GPU's work,
+        # its power and heat, and the cooling that follows.
         self.groups = [
-            [self.service_item, self.persistence_item, self.mclk_item],
-            [self.gpu_freq_item, self.gpu_load_item, self.gpu_temp_item],
-            [self.cpu_freq_item, self.cpu_load_item, self.cpu_temp_item],
+            [self.service_item, self.persistence_item],
+            [self.gpu_freq_item, self.gpu_load_item],
+            [self.gpu_power_item, self.gpu_temp_item],
+            [self.vrm_temp_item, self.fan_item],
         ]
+        self.items = [widget for group in self.groups for widget in group]
         self.columns = 0
-        self.set_columns(3)
+        self.set_columns(2)
 
     def set_columns(self, columns: int) -> None:
         columns = max(1, int(columns))
@@ -210,18 +208,16 @@ class CuSummaryStrip(QFrame):
                 item.widget().setParent(None)
         group_size = len(self.groups[0]) if self.groups else 0
         if group_size and columns >= group_size:
-            # Each group (one device's readings) fits in a single row, so
-            # every device gets its own clean row with nothing dangling.
-            row = 0
+            # Whole groups side by side. A group that does not fit in what is
+            # left of a row starts the next one, so a pair is never split.
+            row = col = 0
             for group in self.groups:
-                col = 0
+                if col + len(group) > columns:
+                    row += 1
+                    col = 0
                 for widget in group:
-                    if col >= columns:
-                        col = 0
-                        row += 1
                     self.grid.addWidget(widget, row, col)
                     col += 1
-                row += 1
         else:
             # Below the group size, forcing a new row after every group
             # leaves a half-empty "zigzag" row behind each device -- and at
@@ -251,7 +247,7 @@ class WgpToggleButton(QPushButton):
         self.setCheckable(True)
         self.setProperty("wgpToggle", True)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setMinimumSize(76, 58)
+        self.setMinimumSize(76, TABLE_ROW_HEIGHT)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.toggled.connect(self._refresh_visual)
         self._refresh_visual(False)
@@ -489,9 +485,9 @@ class CuTopologyTable(QFrame):
         self.cc_values = ["--"] * 4
 
         self.grid = QGridLayout(self)
-        self.grid.setContentsMargins(10, 10, 10, 10)
-        self.grid.setHorizontalSpacing(8)
-        self.grid.setVerticalSpacing(8)
+        self.grid.setContentsMargins(12, 12, 12, 12)
+        self.grid.setHorizontalSpacing(10)
+        self.grid.setVerticalSpacing(10)
 
         headers = (
             ("Shader row", "SE / SH"),
@@ -512,7 +508,7 @@ class CuTopologyTable(QFrame):
             row_label = QLabel(name)
             row_label.setProperty("cuTableRowLabel", True)
             row_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            row_label.setFixedHeight(58)
+            row_label.setFixedHeight(TABLE_ROW_HEIGHT)
             self.grid.addWidget(row_label, visual_row, 0)
 
             for wgp_index in range(5):
@@ -524,7 +520,7 @@ class CuTopologyTable(QFrame):
             count = QLabel("0 / 10")
             count.setProperty("cuCountValue", True)
             count.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            count.setFixedHeight(58)
+            count.setFixedHeight(TABLE_ROW_HEIGHT)
             self.count_labels.append(count)
             self.grid.addWidget(count, visual_row, 6)
 
@@ -663,6 +659,7 @@ class ComputeUnitsPage(QWidget):
         layout.addLayout(self.workspace)
 
         self.topology_card = self._build_topology_card()
+        self.controls_card = self._build_controls_card()
         self.side_column = self._build_side_column()
         self.bottom_grid = QGridLayout()
         self.bottom_grid.setContentsMargins(0, 0, 0, 0)
@@ -693,7 +690,9 @@ class ComputeUnitsPage(QWidget):
             icon_name="compute_orange",
             icon_background=COLORS["orange_soft"],
         )
-        self.topology_status = card.status
+        # The same composition as the CPU and GPU workspaces: no title row.
+        # The table spans the page; what acts on it sits underneath.
+        self.topology_status = card.drop_header()
 
         self.validation_guide_button = QPushButton(tr("Validate CUs"), card)
         self.validation_guide_button.clicked.connect(self._show_cu_validation_guide)
@@ -752,7 +751,16 @@ class ComputeUnitsPage(QWidget):
         )
         card.body.addWidget(self.register_panel)
 
+        return card
+
+    def _build_controls_card(self) -> SectionCard:
+        """Everything that acts on the table, under it: the target and the
+        live actions first, then what makes the routing last a reboot."""
+        card = SectionCard("Compute Units", icon_name="")
+        card.drop_header()
+
         selection_panel = QFrame()
+        self.selection_panel = selection_panel
         selection_panel.setProperty("cuSelectionPanel", True)
         selection_layout = QGridLayout(selection_panel)
         selection_layout.setContentsMargins(13, 10, 13, 10)
@@ -773,6 +781,14 @@ class ComputeUnitsPage(QWidget):
         self.selection_detail.setMinimumWidth(0)
         selection_copy.addWidget(self.selection_title)
         selection_copy.addWidget(self.selection_detail)
+        # Throughput follows the weaker shader engine: 20 + 18 CUs perform
+        # like 18 + 18. Say so where the target is chosen, before it is
+        # applied, instead of letting "38 CUs" read as more than 36.
+        self.balance_detail = QLabel("")
+        self.balance_detail.setProperty("cuSelectionDetail", True)
+        self.balance_detail.setWordWrap(True)
+        self.balance_detail.setMinimumWidth(0)
+        selection_copy.addWidget(self.balance_detail)
 
         self.live_refresh_button = QPushButton(tr("Unlock / Sync"))
         self.live_refresh_button.setProperty("compactAction", True)
@@ -789,15 +805,25 @@ class ComputeUnitsPage(QWidget):
         self.apply_live_button.setObjectName("PrimaryAction")
         self.apply_live_button.setProperty("cuApplyAction", True)
         self.apply_live_button.setMinimumHeight(38)
-        self.apply_live_button.setIcon(icon("rocket_blue"))
         self.apply_live_button.clicked.connect(self.apply_selected_table)
         selection_layout.addWidget(self.live_refresh_button, 1, 0)
         selection_layout.addWidget(self.apply_live_button, 1, 2)
         selection_layout.addWidget(self.selection_copy_widget, 0, 0, 1, 3)
+        self.balance_button = QPushButton(tr("Balance shader engines"))
+        self.balance_button.setProperty("compactAction", True)
+        self.balance_button.setMinimumHeight(34)
+        self.balance_button.setToolTip(tr(
+            "Switches off the extra WGPs on the stronger shader engine so both "
+            "engines match. It never switches a WGP on."
+        ))
+        self.balance_button.clicked.connect(self.balance_selection)
+        self.balance_button.hide()
+        selection_layout.addWidget(self.balance_button, 2, 0, 1, 3)
         for column in range(3):
             selection_layout.setColumnStretch(column, 1)
         self._action_buttons.extend([self.live_refresh_button, self.discard_button, self.apply_live_button])
         card.body.addWidget(selection_panel)
+        card.body.addWidget(self._build_persistence_panel())
 
         note = QLabel(tr(
             "Live routing is temporary until the current table is saved and the boot service is installed. One WGP always represents two CUs; individual CUs cannot be toggled separately."
@@ -857,17 +883,17 @@ class ComputeUnitsPage(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(14)
 
-        # A single merged card mirrors the GPU Governor pattern: live
-        # telemetry on top (what used to be the page-wide summary strip),
-        # quick actions grouped in subtle panels below.
+        # The readings that tell what the routing costs and whether it holds,
+        # beside the controls. No title row and no badges, as on the CPU page.
         telemetry = SectionCard(
             "Live CU telemetry",
             "Read-only routing status refreshed from amdgpu, the live manager, and the boot restore service.",
-            icon_name="activity_purple",
-            icon_background=COLORS["purple_soft"],
+            icon_name="",
         )
+        telemetry.drop_header()
         self.profiles_card = telemetry
         telemetry.body.addWidget(self.summary_strip)
+        telemetry.body.addStretch(1)
         # Kept alive (never shown) only so the existing state updates below
         # keep working without touching that logic.
         self.profile_note = QLabel(tr("Current selection: Not verified"))
@@ -877,19 +903,20 @@ class ComputeUnitsPage(QWidget):
 
         # "Boot persistence" keeps its own hidden SectionCard alive only so
         # existing state updates (self.persistence_status) keep working; its
-        # visible content moves into a compact panel inside the merged card,
-        # the same technique GPU Governor uses to merge its runtime card
-        # into live telemetry.
+        # visible content is the panel in the controls card.
         persistence = SectionCard(
             "Boot persistence",
             "Select the WGP pairs above, then use the buttons below in order — Apply now, Save selection, Install service — to make the change survive a reboot.",
-            icon_name="app_blue",
-            icon_background=COLORS["cyan_soft"],
+            icon_name="",
         )
         self.persistence_card = persistence
         self.persistence_status = persistence.status
         persistence.hide()
 
+        layout.addWidget(telemetry, 1)
+        return column
+
+    def _build_persistence_panel(self) -> QFrame:
         persistence_panel = QFrame()
         persistence_panel.setProperty("compactPanel", True)
         persistence_panel_layout = QVBoxLayout(persistence_panel)
@@ -914,12 +941,14 @@ class ComputeUnitsPage(QWidget):
         action_grid.setHorizontalSpacing(8)
         action_grid.setVerticalSpacing(8)
 
+        # Text only, like every other control on the page. The one arrow
+        # left is the register toggle's, which says it opens something.
         self.save_boot_button = self._action_button(
-            "Save selection", "app_blue", self.save_boot_layout,
+            "Save selection", "", self.save_boot_layout,
             tooltip="Apply the selected WGP table now and save it for boot.",
         )
         self.install_service_button = self._action_button(
-            "Install service", "download_blue", self.install_service,
+            "Install service", "", self.install_service,
             tooltip="Install and enable the boot restore service.",
         )
         # Kept alive (built exactly as before) only so its wiring and the
@@ -928,52 +957,41 @@ class ComputeUnitsPage(QWidget):
         # below: users found it too easy to confuse with "Apply now", since
         # both write a WGP table live, just from a different source.
         self.apply_saved_button = self._action_button(
-            "Apply saved", "rocket_blue", self.apply_saved_layout,
+            "Apply saved", "", self.apply_saved_layout,
             tooltip="Apply the WGP table already stored for boot; it ignores the current selection.",
         )
         self.apply_saved_button.hide()
         self.remove_service_button = self._action_button(
-            "Remove service", "power_gray", self.remove_service,
+            "Remove service", "", self.remove_service,
             danger=True, tooltip="Remove the boot restore service and its saved table.",
         )
         self.restore_factory_button = self._action_button(
-            "Restore factory", "refresh_gray", self.restore_factory_now,
+            "Restore factory", "", self.restore_factory_now,
             tooltip="Restore the amdgpu factory WGP table now.",
         )
-        # Moved here from the topology card's own header and the activity
-        # card's own header respectively, so every CU action lives in one
-        # place instead of being split across three different card headers.
-        # "Raw status" takes the grid slot "Apply saved" used to occupy.
         self.raw_status_button = self._action_button(
-            "Raw status", "logs_gray", self.show_raw_status,
+            "Raw status", "", self.show_raw_status,
             tooltip="Open the raw command output this page's status was parsed from.",
         )
         self.register_toggle = self._action_button(
             "Show registers", "expand_gray", self.toggle_register_diagnostics,
             tooltip="Read-only register values and the pending SPI target.",
         )
+        # In reading order: the boot service's life, save to remove, then
+        # the tools that only look or undo.
         buttons = [
             self.save_boot_button,
             self.install_service_button,
-            self.raw_status_button,
             self.remove_service_button,
             self.restore_factory_button,
+            self.raw_status_button,
             self.register_toggle,
         ]
         self.persistence_action_buttons = buttons
         for index, button in enumerate(buttons):
-            action_grid.addWidget(button, index // 2, index % 2)
-        action_grid.setColumnStretch(0, 1)
-        action_grid.setColumnStretch(1, 1)
+            action_grid.addWidget(button, index // 3, index % 3)
         persistence_panel_layout.addLayout(action_grid)
-
-        # Any extra height belongs inside this card, above its action footer.
-        # This keeps the right column flush with topology, including when the
-        # register diagnostics expand or translated copy wraps onto more lines.
-        telemetry.body.addStretch(1)
-        telemetry.body.addWidget(persistence_panel)
-        layout.addWidget(telemetry, 1)
-        return column
+        return persistence_panel
 
     def _action_button(
         self,
@@ -992,7 +1010,8 @@ class ComputeUnitsPage(QWidget):
         if tooltip:
             button.setToolTip(tr(tooltip))
         button.setProperty("dangerAction" if danger else "compactAction", True)
-        button.setIcon(icon(icon_name))
+        if icon_name:
+            button.setIcon(icon(icon_name))
         button.setCursor(Qt.CursorShape.PointingHandCursor)
         button.setMinimumHeight(39)
         button.clicked.connect(callback)
@@ -1005,35 +1024,40 @@ class ComputeUnitsPage(QWidget):
         self._reflow(effective_viewport_width(self, self.scroll))
 
     def _reflow(self, width: int) -> None:
-        # Never collapse to a single column here: a 3x3 tile grid shown as a
-        # one-tile-per-row list means a lot of scrolling in a compact window.
-        # Two columns keeps it a matrix (rows AND columns) all the way down;
-        # below the 3-tile group size, CuSummaryStrip.set_columns packs
-        # tiles densely instead of leaving a dangling half-empty row behind
-        # each device, so this stays a clean grid rather than a zigzag.
-        self.summary_strip.set_columns(3 if width >= 900 else 2)
-        self._reflow_topology_controls(width)
         columns = 2 if width >= 1080 else 1
+        # The telemetry tiles go two by two beside the controls, and four
+        # across once they have the page's width to themselves.
+        self.summary_strip.set_columns(2 if columns == 2 or width < 720 else 4)
+        self._reflow_topology_controls(width, controls_width=width if columns == 1 else width // 2)
         if columns != self._workspace_columns or not self.workspace.count():
             self._workspace_columns = columns
             self._clear_grid(self.workspace)
             if columns == 2:
-                # No alignment flag here on purpose: the grid stretches both
-                # cards to the row's full height (the taller of the two), and
-                # each card's own trailing addStretch() absorbs the extra
-                # space internally, so their bottoms line up instead of one
-                # card floating shorter than the other.
-                self.workspace.addWidget(self.topology_card, 0, 0)
-                self.workspace.addWidget(self.side_column, 0, 1)
-                self.workspace.setColumnStretch(0, 7)
-                self.workspace.setColumnStretch(1, 4)
+                # The table across the page, what acts on it and what it
+                # costs underneath. No alignment flag on the lower row: the
+                # grid stretches both cards to its height and each card's
+                # trailing stretch absorbs the rest, so they end together.
+                self.workspace.addWidget(self.topology_card, 0, 0, 1, 2)
+                self.workspace.addWidget(self.controls_card, 1, 0)
+                self.workspace.addWidget(self.side_column, 1, 1)
+                self.workspace.setColumnStretch(0, 1)
+                self.workspace.setColumnStretch(1, 1)
             else:
                 self.workspace.addWidget(self.topology_card, 0, 0, Qt.AlignmentFlag.AlignTop)
-                self.workspace.addWidget(self.side_column, 1, 0, Qt.AlignmentFlag.AlignTop)
+                self.workspace.addWidget(self.controls_card, 1, 0, Qt.AlignmentFlag.AlignTop)
+                self.workspace.addWidget(self.side_column, 2, 0, Qt.AlignmentFlag.AlignTop)
                 self.workspace.setColumnStretch(0, 1)
+                # The emptied second column keeps the stretch it had in the
+                # two-column form unless it is cleared, and an empty column
+                # with a stretch still claims its share of the width.
+                self.workspace.setColumnStretch(1, 0)
 
 
-    def _reflow_topology_controls(self, width: int) -> None:
+    def _reflow_topology_controls(self, width: int, *, controls_width: int | None = None) -> None:
+        """``width`` is the page's, which the legend over the table spans;
+        ``controls_width`` the controls card's, which the panels under it
+        are laid out in."""
+        controls_width = width if controls_width is None else controls_width
         if hasattr(self, "legend_grid"):
             columns = 4 if width >= 900 else 2 if width >= 500 else 1
             if getattr(self, "_legend_columns", 0) != columns:
@@ -1049,15 +1073,19 @@ class ComputeUnitsPage(QWidget):
                     self.legend_grid.setColumnStretch(column, 1 if column < columns else 0)
 
         if hasattr(self, "selection_layout"):
-            mode = "wide" if width >= 760 else "split" if width >= 500 else "stack"
+            mode = "wide" if controls_width >= 760 else "split" if controls_width >= 500 else "stack"
             if getattr(self, "_selection_mode", "") != mode:
                 self._selection_mode = mode
                 clear_grid(self.selection_layout)
+                # Every widget of the panel goes back in, the balance button
+                # included: left out of the grid it kept its parent, lost its
+                # place, and was painted as a dark block over the buttons.
                 if mode == "wide":
                     self.selection_layout.addWidget(self.selection_copy_widget, 0, 0, 1, 3)
                     self.selection_layout.addWidget(self.live_refresh_button, 1, 0)
                     self.selection_layout.addWidget(self.discard_button, 1, 1)
                     self.selection_layout.addWidget(self.apply_live_button, 1, 2)
+                    self.selection_layout.addWidget(self.balance_button, 2, 0, 1, 3)
                     for column in range(3):
                         self.selection_layout.setColumnStretch(column, 1)
                 elif mode == "split":
@@ -1065,6 +1093,7 @@ class ComputeUnitsPage(QWidget):
                     self.selection_layout.addWidget(self.live_refresh_button, 1, 0)
                     self.selection_layout.addWidget(self.discard_button, 1, 1)
                     self.selection_layout.addWidget(self.apply_live_button, 1, 2)
+                    self.selection_layout.addWidget(self.balance_button, 2, 0, 1, 3)
                     for column in range(3):
                         self.selection_layout.setColumnStretch(column, 1)
                 else:
@@ -1072,13 +1101,14 @@ class ComputeUnitsPage(QWidget):
                     self.selection_layout.addWidget(self.live_refresh_button, 1, 0)
                     self.selection_layout.addWidget(self.discard_button, 2, 0)
                     self.selection_layout.addWidget(self.apply_live_button, 3, 0)
+                    self.selection_layout.addWidget(self.balance_button, 4, 0)
                     # "wide"/"split" mode left columns 1-2 stretched; clear
                     # them too or they keep claiming width nothing occupies.
                     for column in range(self.selection_layout.columnCount()):
                         self.selection_layout.setColumnStretch(column, 1 if column == 0 else 0)
 
         if hasattr(self, "persistence_actions_grid"):
-            columns = 2 if width >= 540 else 1
+            columns = 3 if controls_width >= 600 else 2 if controls_width >= 400 else 1
             if getattr(self, "_persistence_action_columns", 0) != columns:
                 self._persistence_action_columns = columns
                 clear_grid(self.persistence_actions_grid)
@@ -1138,48 +1168,51 @@ class ComputeUnitsPage(QWidget):
         data = payload if isinstance(payload, dict) else {}
         gpu = data.get("gpu") if isinstance(data.get("gpu"), dict) else {}
         perf = data.get("performance") if isinstance(data.get("performance"), dict) else {}
+        strip = self.summary_strip
         gpu_presentation = present_gpu_telemetry(gpu, perf)
-        cpu_presentation = present_cpu_telemetry(perf)
-        self.summary_strip.gpu_temp_item.set_values(
-            _render_telemetry_text(gpu_presentation.temperature_text), tr("GPU edge sensor")
-        )
-        cpu_temperature = cpu_presentation.temperature_c
-        self.summary_strip.cpu_temp_item.set_values(
-            f"{cpu_temperature:.1f} °C" if cpu_temperature else tr("Not detected"),
-            tr("Package sensor"),
-        )
         sclk = _gpu_integer(gpu.get("sclk_actual"))
-        mclk = _gpu_integer(gpu.get("mclk_actual"))
-        self.summary_strip.gpu_freq_item.set_values(
+        strip.gpu_freq_item.set_values(
             f"{sclk} MHz" if sclk else tr("Not detected"),
             tr("Current SCLK state"),
         )
-        self.summary_strip.mclk_item.set_values(
-            f"{mclk} MHz" if mclk else tr("Not detected"),
-            tr("Current MCLK state"),
-        )
-        # cpu_freq is already in MHz (frequency_mhz); the presenter's own
-        # frequency_text formats it in GHz, which would break the point of
-        # putting it next to the GPU MHz reading, so it is formatted here
-        # to match instead.
-        cpu_frequency = cpu_presentation.frequency_mhz
-        self.summary_strip.cpu_freq_item.set_values(
-            f"{cpu_frequency:.0f} MHz" if cpu_frequency else tr("Not detected"),
-            tr("Kernel-reported average"),
-        )
-        self.summary_strip.gpu_load_item.set_values(
+        strip.gpu_load_item.set_values(
             _render_telemetry_text(gpu_presentation.utilization_text), tr("amdgpu busy percentage")
         )
-        cpu_load_raw = perf.get("cpu")
-        cpu_load = None
-        if cpu_load_raw is not None:
-            try:
-                cpu_load = max(0, min(100, round(float(cpu_load_raw))))
-            except (TypeError, ValueError):
-                cpu_load = None
-        self.summary_strip.cpu_load_item.set_values(
-            f"{cpu_load} %" if cpu_load is not None else tr("Not detected"),
-            tr("average across logical threads"),
+        strip.gpu_temp_item.set_values(
+            _render_telemetry_text(gpu_presentation.temperature_text), tr("GPU edge sensor")
+        )
+
+        # The GPU's own VRM rail, read over PMBus/I2C, measures what the
+        # routed CUs draw and how hot the stage feeding them runs. Without
+        # the I2C modification the SoC package power and the Nuvoton MOSFET
+        # sensor are the closest readings the board has.
+        pmbus = str(perf.get("vrm_source") or "") == "pmbus"
+        rail_power = _reading(perf.get("vrm_gpu_power_w")) if pmbus else None
+        rail_current = _reading(perf.get("vrm_gpu_current_a")) if pmbus else None
+        rail_temperature = _reading(perf.get("vrm_temp_gpu")) if pmbus else None
+        package_power = _reading(perf.get("gpu_power")) or _reading(perf.get("power_w"))
+        if rail_power is not None:
+            detail = f"{tr('VRM GPU')} · PMBus"
+            if rail_current is not None:
+                detail += f" · {rail_current:.1f} A"
+            strip.gpu_power_item.set_values(f"{rail_power:.1f} W", detail)
+        else:
+            strip.gpu_power_item.set_values(
+                f"{package_power:.1f} W" if package_power is not None else tr("Not detected"),
+                tr(str(perf.get("power_label") or "SoC package power")),
+            )
+        mosfet = _reading(perf.get("vrm_mos_temp"))
+        if rail_temperature is not None:
+            strip.vrm_temp_item.set_values(f"{rail_temperature:.1f} °C", f"{tr('VRM GPU')} · PMBus")
+        else:
+            strip.vrm_temp_item.set_values(
+                f"{mosfet:.1f} °C" if mosfet is not None else tr("Not detected"),
+                tr("VRM MOS"),
+            )
+        fan = _reading(perf.get("fan_rpm"))
+        strip.fan_item.set_values(
+            f"{fan:.0f} RPM" if fan is not None else tr("Not detected"),
+            tr("RPM observed"),
         )
 
     def _auto_initialize_live_state(self) -> None:
@@ -1319,6 +1352,7 @@ class ComputeUnitsPage(QWidget):
             self.selection_detail.setText(tr_format("{pairs} differ from the last authorized live table.", pairs=count_label(pending, "WGP pair")))
         else:
             self.selection_detail.setText(tr("No pending WGP changes."))
+        self._render_engine_balance(masks, verified=state_verified)
         if tuple(masks) == FULL_MASKS:
             self.profile_note.setText(tr("Current selection: Full 40 CUs"))
         elif tuple(masks) == tuple(self.topology_table.driver_masks):
@@ -1326,6 +1360,49 @@ class ComputeUnitsPage(QWidget):
         else:
             self.profile_note.setText(tr_format("Current selection: Custom {count} CUs", count=target))
         self._update_action_availability(pending_wgps=pending)
+
+    def _render_engine_balance(self, masks, *, verified: bool) -> None:
+        balance = engine_balance(masks)
+        if not verified:
+            self.balance_detail.setText("")
+            self.balance_detail.hide()
+            self.balance_button.hide()
+            return
+        self.balance_detail.show()
+        if balance.balanced:
+            self.balance_detail.setText(tr_format(
+                "SE0 {se0} · SE1 {se1} CUs — balanced: every active CU adds performance.",
+                se0=balance.se0, se1=balance.se1,
+            ))
+            self.balance_detail.setProperty("tone", "")
+            self.balance_button.hide()
+        else:
+            self.balance_detail.setText(tr_format(
+                "SE0 {se0} · SE1 {se1} CUs — unbalanced: performs like {effective} CUs; "
+                "{idle} CUs on the stronger engine only add heat.",
+                se0=balance.se0, se1=balance.se1,
+                effective=balance.effective, idle=balance.idle,
+            ))
+            self.balance_detail.setProperty("tone", "warning")
+            self.balance_button.show()
+        self.balance_detail.style().unpolish(self.balance_detail)
+        self.balance_detail.style().polish(self.balance_detail)
+
+    def balance_selection(self) -> None:
+        """Trim the stronger shader engine to match the weaker one."""
+        current = self.topology_table.current_masks()
+        target = balanced_masks(current, self.topology_table.driver_masks)
+        if target != current:
+            self.topology_table.set_masks(target)
+            balance = engine_balance(target)
+            self._record_action(
+                "Shader engines balanced",
+                tr_format(
+                    "Selection trimmed to SE0 {se0} · SE1 {se1} CUs. Apply it to use it.",
+                    se0=balance.se0, se1=balance.se1,
+                ),
+                "blue",
+            )
 
     def discard_selection(self, *, record: bool = True) -> None:
         self.topology_table.set_masks(self._live_masks())
@@ -1357,6 +1434,15 @@ class ComputeUnitsPage(QWidget):
             "The selected WGP pairs will be written through the official live manager. The application will verify the resulting SPI table before reporting success.",
             summary=(
                 ("Target", f"{target_cus} / 40 CUs"),
+                (
+                    "Shader engines",
+                    tr_format(
+                        "SE0 {se0} · SE1 {se1} → {effective} effective",
+                        se0=engine_balance(masks).se0,
+                        se1=engine_balance(masks).se1,
+                        effective=engine_balance(masks).effective,
+                    ),
+                ),
                 ("Changed WGP pairs", str(pending)),
                 ("Persistence", "Live only until saved"),
                 ("Masks", ", ".join(f"0x{mask:02x}" for mask in masks)),
@@ -1761,16 +1847,8 @@ class ComputeUnitsPage(QWidget):
         dialog.exec()
 
     def _show_info(self, title: str, message: str) -> None:
-        InfoDialog(
-            title,
-            message,
-            icon_name="info_blue",
-            parent=self,
-            eyebrow="COMPUTE UNITS",
-            button_text="Close",
-            notice="The current live table was not changed.",
-            tone="blue",
-        ).exec()
+        # "Nothing to apply"-style notes: a toast, not a window to close.
+        show_toast(self, title, message, tone="blue")
 
     def _show_error(self, title: str, message: str) -> None:
         normalized = str(message or "").lower()

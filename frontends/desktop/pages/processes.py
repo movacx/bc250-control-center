@@ -35,6 +35,7 @@ from ..components.responsive import (
     configure_responsive_scroll_area,
     effective_viewport_width,
 )
+from ..components.toast import show_toast
 from ..components.widgets import IconBadge, InfoDialog, PillLabel, icon
 from ..core.state import state_cache_for
 from ..i18n import count_label, tr, tr_format
@@ -697,16 +698,7 @@ class ProcessesPage(QWidget):
             self._record_event("process", "info", "Selected tasks ended", "SIGTERM followed by protected force-close fallback.")
         elif operation == "cache":
             self._record_event("memory", "success", "Page cache released", "The privileged sync/drop_caches workflow completed successfully.")
-            InfoDialog(
-                "Page cache released",
-                "The privileged cache-release workflow completed successfully.",
-                icon_name="shield_green",
-                parent=self,
-                eyebrow="ADVANCED MEMORY ACTION",
-                button_text="Close",
-                notice="Applications were not closed by this action.",
-                tone="green",
-            ).exec()
+            show_toast(self, "Page cache released", "Applications were not closed by this action.", tone="green")
             if self._updates_active:
                 self.refresh()
 
@@ -1049,15 +1041,12 @@ class ProcessesPage(QWidget):
         entries = self._selected_entries()
         real = self._real_closable(entries)
         if not entries or not real:
-            InfoDialog(
+            show_toast(
+                self,
                 "Nothing safe is selected",
                 "Select one or more unprotected application rows before ending tasks.",
-                parent=self,
-                eyebrow="TASK MANAGER",
-                button_text="Close",
-                notice="Protected rows are never sent to the close backend.",
                 tone="blue",
-            ).exec()
+            )
             return
         memory = sum(int(getattr(process, "memoria", 0) or 0) for process in real)
         names = ", ".join(entry.name for entry in entries[:4])
@@ -1081,21 +1070,8 @@ class ProcessesPage(QWidget):
         self._start_task("terminate", hide_system=self.hide_system.isChecked(), payload=real)
 
     def release_cache(self) -> None:
-        dialog = ConfirmDialog(
-            "Release Linux page cache",
-            "This starts the existing pkexec workflow: sync, then write 3 to /proc/sys/vm/drop_caches. It can make applications reload data from disk and is not a substitute for closing heavy workloads.",
-            summary=(
-                ("Authentication", "pkexec prompt"),
-                ("Applications", "Not closed"),
-                ("Dirty data", "sync requested first"),
-                ("Scope", "Page cache, dentries, inodes"),
-            ),
-            confirm_text="Request cache release",
-            tone="orange",
-            parent=self,
-        )
-        if dialog.exec() != QDialog.DialogCode.Accepted:
-            return
+        # sync, then drop_caches: nothing is closed and nothing is lost. The
+        # administrator prompt is the one question this needs.
         self._start_task("cache")
 
     def _update_pressure_status(self) -> None:

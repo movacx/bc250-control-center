@@ -167,24 +167,25 @@ def test_real_page_blocks_stale_detection_before_scale_queries(qtbot):
 
 
 def test_manual_mode_uses_one_apply_button_and_disables_unused_vid(qtbot):
+    """Manual scale is there from the start, without running a preset first.
+
+    It used to unlock only after an automatic detection had run this boot,
+    which a tester reported as "I cannot go manual until I run your preset".
+    The typed scale is now stress-tested in the detector's own steps instead.
+    """
     page = CpuSmuPage(type("Controller", (), {})())
     qtbot.addWidget(page)
 
     assert not hasattr(page, "test_scale_button")
     assert page.apply_button.text() == "Apply configuration + automatic scale"
     assert page.scale_override_check.isChecked() is False
-    assert page.scale_override_check.isEnabled() is False
+    assert page.scale_override_check.isEnabled() is True
     assert page.vid_control.isEnabled() is True
     assert page.scale_control.isEnabled() is False
 
     page.scale_override_check.setChecked(True)
 
-    assert page.scale_override_check.isChecked() is False
-    assert page.scale_control.isEnabled() is False
-
-    page._set_manual_scale_available(True)
-    page.scale_override_check.setChecked(True)
-
+    assert page.scale_override_check.isChecked() is True
     assert page.apply_button.text() == "Apply temporary OC + manual scale"
     assert page.vid_control.isEnabled() is False
     assert page.scale_control.isEnabled() is True
@@ -210,7 +211,7 @@ def test_manual_apply_dispatches_exact_frequency_scale_and_temperature(qtbot):
     assert calls == [(3700, -34, 85)]
 
 
-def test_manual_scale_unlocks_only_for_current_verified_detection(qtbot):
+def test_manual_scale_does_not_depend_on_a_detection_this_boot(qtbot):
     page = CpuSmuPage(object())
     qtbot.addWidget(page)
 
@@ -228,17 +229,18 @@ def test_manual_scale_unlocks_only_for_current_verified_detection(qtbot):
             ),
         })
 
-    apply_detection(same_boot=True)
+    apply_detection(same_boot=False)
     assert page.scale_override_check.isEnabled() is True
+    assert "stress-tested" in page.scale_test_status.text()
 
     page.scale_override_check.setChecked(True)
-    assert page.scale_override_check.isChecked() is True
-
+    # A refresh that finds no current detection leaves the manual choice alone.
     apply_detection(same_boot=False)
-    assert page.scale_override_check.isChecked() is False
-    assert page.scale_override_check.isEnabled() is False
-    assert page.scale_control.isEnabled() is False
-    assert "automatic live configuration" in page.scale_test_status.text()
+    assert page.scale_override_check.isChecked() is True
+    assert page.scale_control.isEnabled() is True
+
+    apply_detection(same_boot=True)
+    assert page.scale_override_check.isChecked() is True
 
 
 def live_manual(scale):

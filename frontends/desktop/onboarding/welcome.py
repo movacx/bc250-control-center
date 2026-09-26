@@ -104,12 +104,16 @@ class WelcomeOverlay(QWidget):
 
     language_chosen = pyqtSignal(str)
     appearance_chosen = pyqtSignal(str, str, str)
+    #: "standard" or "formal": the register, independent of the theme.
+    style_chosen = pyqtSignal(str)
     sidebar_chosen = pyqtSignal(bool)
     #: The user pressed the button that installs the chosen components.
     prepare_requested = pyqtSignal()
     #: The dependencies step has been opened; a good moment to ask the board
     #: what is already on it.
     dependencies_reached = pyqtSignal()
+    #: A preparation run ended: what is installed may have changed.
+    preparation_completed = pyqtSignal()
     #: True when the user asked for the guided tour on the way out.
     finished = pyqtSignal(bool)
 
@@ -125,8 +129,11 @@ class WelcomeOverlay(QWidget):
         density: str = "comfortable",
         collapsed: bool = False,
         system_mode: str = "light",
+        style: str = "standard",
     ) -> None:
         super().__init__(parent)
+        # Its own layout previews the density; the pass must not reshape it.
+        self.setProperty("densityLocked", True)
         self.setObjectName("onboardingOverlay")
         self.setAutoFillBackground(False)
         # Opaque to the mouse on purpose: the shell behind is frosted, and a
@@ -137,6 +144,7 @@ class WelcomeOverlay(QWidget):
         self._mode = str(mode)
         self._accent = str(accent)
         self._density = str(density)
+        self._style = str(style)
         self._collapsed = bool(collapsed)
         # What "System" resolves to on this desktop. Fixed for the life of the
         # panel: it describes the desktop, not the choice being made in here,
@@ -365,9 +373,16 @@ class WelcomeOverlay(QWidget):
         scoped to this scroll area did not reach the scrollbar at all.
         """
         sheet = self._scrollbar_sheet()
-        for bar in (self.language_scrollbar, getattr(self, "picker_scrollbar", None)):
+        for bar in (self.language_scrollbar,):
             if bar is not None:
                 bar.setStyleSheet(sheet)
+
+    @staticmethod
+    def _theme_names() -> tuple[tuple[str, str], ...]:
+        return (
+            ("system", tr("System")), ("light", tr("Light")), ("dark", tr("Dark")),
+            ("midnight", tr("Night blue")),
+        )
 
     @staticmethod
     def _automatic_label() -> str:
@@ -385,9 +400,10 @@ class WelcomeOverlay(QWidget):
         self.theme_cards: dict[str, ThemePreview] = {}
         for value, preview_mode in (
             ("system", self._system_mode), ("light", "light"), ("dark", "dark"),
+            ("midnight", "midnight"),
         ):
-            card = ThemePreview(value, preview_mode, self._accent, page)
-            card.setMinimumHeight(188)
+            card = ThemePreview(value, preview_mode, self._accent, page, style=self._style)
+            card.setMinimumHeight(170)
             card.chosen.connect(self._choose_mode)
             self.theme_cards[value] = card
             themes.addWidget(card, 1)
@@ -396,7 +412,7 @@ class WelcomeOverlay(QWidget):
         labels = QHBoxLayout()
         labels.setSpacing(10)
         self.theme_labels: dict[str, QLabel] = {}
-        for value, text in (("system", tr("System")), ("light", tr("Light")), ("dark", tr("Dark"))):
+        for value, text in self._theme_names():
             label = QLabel(text, page)
             label.setObjectName("onboardingCaption")
             label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
@@ -404,9 +420,10 @@ class WelcomeOverlay(QWidget):
             labels.addWidget(label, 1)
         layout.addLayout(labels)
 
-        # Accent and density sit side by side. Stacked, they left the lower
-        # half of the step empty, and an empty half reads as a step that is
-        # still loading.
+        # Accent on one side, style and density stacked on the other. Stacked
+        # all together, they left the lower half of the step empty, and an
+        # empty half reads as a step that is still loading; in one row the
+        # three did not fit a small window.
         below = QHBoxLayout()
         below.setSpacing(26)
 
@@ -425,10 +442,33 @@ class WelcomeOverlay(QWidget):
             accents.addWidget(dot)
         accents.addStretch(1)
         accent_column.addLayout(accents)
+        # The column beside it is two sections tall; this one keeps to the top.
+        accent_column.addStretch(1)
         below.addLayout(accent_column)
 
         density_column = QVBoxLayout()
         density_column.setSpacing(8)
+        self.style_heading = QLabel(tr("Style"), page)
+        self.style_heading.setObjectName("onboardingSectionLabel")
+        density_column.addWidget(self.style_heading)
+        styles = QHBoxLayout()
+        styles.setSpacing(8)
+        self.style_buttons: dict[str, QPushButton] = {}
+        self._style_group = QButtonGroup(page)
+        self._style_group.setExclusive(True)
+        for value, text in (("standard", tr("Standard")), ("formal", tr("Formal"))):
+            button = QPushButton(text, page)
+            button.setObjectName("onboardingChip")
+            button.setCheckable(True)
+            button.setCursor(Qt.CursorShape.PointingHandCursor)
+            button.setMinimumHeight(38)
+            button.clicked.connect(lambda _checked=False, item=value: self._choose_style(item))
+            self._style_group.addButton(button)
+            self.style_buttons[value] = button
+            styles.addWidget(button)
+        styles.addStretch(1)
+        density_column.addLayout(styles)
+        density_column.addSpacing(4)
         self.density_heading = QLabel(tr("Density"), page)
         self.density_heading.setObjectName("onboardingSectionLabel")
         density_column.addWidget(self.density_heading)
@@ -487,89 +527,60 @@ class WelcomeOverlay(QWidget):
         return page
 
     def _build_dependencies_step(self) -> QWidget:
-        """Two faces: what to install, then watching it install.
+        """The choice on top, the terminal under it once something runs.
 
-        A picker and a terminal cannot both fit in a panel this size, and they
-        are not wanted at the same moment anyway. The step shows one, then the
-        other.
+        The two used to take turns in the same space, so the list vanished the
+        moment the install started and the step read as a different screen.
+        Now the list stays where it was (locked while the install runs) and
+        the terminal opens beneath it, the way the docked console does.
         """
         page = QWidget()
         layout = QVBoxLayout(page)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(12)
+        layout.setSpacing(8)
 
-        self.dependency_faces = QStackedWidget(page)
-        self.dependency_faces.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred
-        )
-
-        picker_face = QWidget()
-        picker_layout = QVBoxLayout(picker_face)
-        picker_layout.setContentsMargins(0, 0, 0, 0)
-        picker_layout.setSpacing(0)
-        area = QScrollArea(picker_face)
-        area.setObjectName("onboardingScroll")
-        area.setWidgetResizable(True)
-        area.setFrameShape(QFrame.Shape.NoFrame)
-        area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        area.setMinimumHeight(300)
-        area.setMaximumHeight(350)
-        area.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         self.picker = ComponentPicker(component_specs())
         self.picker.selection_changed.connect(self._sync_prepare_button)
-        area.setWidget(self.picker)
-        picker_layout.addWidget(self.picker.header)
-        picker_layout.addSpacing(8)
-        self.picker_scrollbar = area.verticalScrollBar()
-        picker_layout.addWidget(area, 1)
-        self.dependency_faces.addWidget(picker_face)
-
-        console_face = QWidget()
-        console_layout = QVBoxLayout(console_face)
-        console_layout.setContentsMargins(0, 0, 0, 0)
-        console_layout.setSpacing(0)
-        self.console = MiniConsole(console_face)
-        self.console.setMinimumHeight(300)
-        self.console.workflow_started.connect(self._preparation_started)
-        self.console.workflow_finished.connect(self._preparation_finished)
-        console_layout.addWidget(self.console, 1)
-        self.dependency_faces.addWidget(console_face)
-        layout.addWidget(self.dependency_faces, 1)
-
-        row = QHBoxLayout()
-        row.setSpacing(10)
-        self.prepare_note = QLabel("", page)
-        self.prepare_note.setObjectName("onboardingHint")
-        self.prepare_note.setWordWrap(True)
-        row.addWidget(self.prepare_note, 1)
+        layout.addWidget(self.picker.header)
+        layout.addWidget(self.picker)
+        # The install button takes the free cell beside the last row; what it
+        # needs (internet, the password) is said once, under the title.
         self.prepare_button = QPushButton(tr("Install the basics"), page)
         self.prepare_button.setObjectName("onboardingPrimary")
         self.prepare_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.prepare_button.clicked.connect(self.prepare_requested)
-        row.addWidget(self.prepare_button)
-        layout.addLayout(row)
+        self.picker.place_action(self.prepare_button)
+
+        # Only for a run that never started: why, right above the terminal.
+        self.prepare_note = QLabel("", page)
+        self.prepare_note.setObjectName("onboardingHint")
+        self.prepare_note.setWordWrap(True)
+        self.prepare_note.hide()
+        layout.addWidget(self.prepare_note)
+
+        self.console = MiniConsole(page)
+        self.console.setMinimumHeight(140)
+        self.console.workflow_started.connect(self._preparation_started)
+        self.console.workflow_finished.connect(self._preparation_finished)
+        self.console.hide()
+        layout.addWidget(self.console, 1)
+        # Keeps the list at the top while the terminal is folded away; while it
+        # is open the terminal takes all the height the step has left.
+        self._dependencies_layout = layout
+        self._dependencies_spacer = layout.count()
+        layout.addStretch(1)
         return page
 
     def show_dependency_face(self, name: str) -> None:
-        """Swap between the picker and the terminal, with a short fade.
+        """Open the terminal under the list, or fold it away again."""
+        opening = name == "console"
+        self.picker.set_dense(opening)
+        self.console.setVisible(opening)
+        self._dependencies_layout.setStretch(self._dependencies_spacer, 0 if opening else 1)
 
-        Qt has no transition on a stack, and a hard cut between two panels
-        this size reads as a glitch rather than a change of view.
-        """
-        index = 1 if name == "console" else 0
-        if self.dependency_faces.currentIndex() == index:
-            return
-        face = self.dependency_faces.widget(index)
-        effect = QGraphicsOpacityEffect(face)
-        face.setGraphicsEffect(effect)
-        self.dependency_faces.setCurrentIndex(index)
-        self._face_fade = QPropertyAnimation(effect, b"opacity", self)
-        self._face_fade.setDuration(FADE_MS)
-        self._face_fade.setStartValue(0.0)
-        self._face_fade.setEndValue(1.0)
-        self._face_fade.setEasingCurve(QEasingCurve.Type.OutCubic)
-        self._face_fade.finished.connect(lambda: face.setGraphicsEffect(None))
-        self._face_fade.start()
+    @property
+    def terminal_open(self) -> bool:
+        return not self.console.isHidden()
 
     def selected_components(self) -> set[str]:
         return self.picker.selection()
@@ -599,25 +610,33 @@ class WelcomeOverlay(QWidget):
         self.prepare_button.setText(tr("Installing…"))
 
     def _preparation_started(self) -> None:
+        self.prepare_note.clear()
+        self.prepare_note.hide()
         self.show_dependency_face("console")
+        self.picker.setEnabled(False)
         self.prepare_button.setEnabled(False)
         self.prepare_button.setText(tr("Installing…"))
         self._sync_copy()
 
     def _preparation_finished(self, code: int) -> None:
+        # The terminal stays open with its output: success or failure, the
+        # last lines are what the user wants to read next. The list unlocks
+        # so a failed component can be tried again.
+        del code
+        self.picker.setEnabled(True)
         self.prepare_button.setEnabled(True)
-        if code:
-            # Something failed. Back to the picker so it can be tried again,
-            # with the terminal a keystroke away on the same step.
-            self.show_dependency_face("picker")
         self._sync_prepare_button()
         self._sync_copy()
+        # Ask again what is on the machine, so what the run installed is
+        # marked and no longer counted in the button.
+        self.preparation_completed.emit()
 
     def preparation_failed(self, message: str) -> None:
-        """Say why the install never started, where the terminal would have been."""
-        self.show_dependency_face("picker")
+        """Say why the install never started, where the note sits."""
+        self.picker.setEnabled(True)
         self._sync_prepare_button()
         self.prepare_note.setText(message)
+        self.prepare_note.setVisible(bool(message))
 
     @property
     def preparing(self) -> bool:
@@ -647,16 +666,54 @@ class WelcomeOverlay(QWidget):
         layout.addStretch(1)
         return page
 
+    #: The tour's pages, named the way the sidebar names them.
+    TOUR_SECTIONS = (
+        ("dashboard", "Dashboard"),
+        ("cpu", "CPU"),
+        ("gpu", "GPU"),
+        ("cu", "Compute units"),
+        ("performance", "Performance"),
+        ("fans", "Fans"),
+        ("firmware", "Firmware (BIOS)"),
+        ("settings", "Settings"),
+    )
+
     def _fill_stop_grid(self, page: QWidget) -> None:
+        """One line per module with its stops, rather than one per stop.
+
+        The tour grew to cover the profile cards, the voltage laboratory and
+        the memory settings; listing every stop would fill the card with a
+        column nobody reads. Each line names a module and what the tour shows
+        in it, and the full list of titles is its tooltip.
+        """
         for chip in self.stop_chips:
             self.stop_grid.removeWidget(chip)
             chip.deleteLater()
         self.stop_chips = []
-        for position, stop in enumerate(tour_stops()):
-            chip = QLabel(f"{position + 1}    {stop.title}", page)
+        stops = tour_stops()
+        dashboard_titles = [stop.title for stop in stops if stop.page == "dashboard"]
+        for key, name in self.TOUR_SECTIONS:
+            if key == "settings":
+                # The closing stop points at Settings from the dashboard.
+                titles = dashboard_titles[-1:]
+            else:
+                titles = [stop.title for stop in stops if stop.page == key]
+            if key == "dashboard":
+                titles = titles[:-1]
+            if not titles:
+                continue
+            text = (
+                tr_format("{module} · 1 stop", module=tr(name))
+                if len(titles) == 1
+                else tr_format("{module} · {count} stops", module=tr(name), count=len(titles))
+            )
+            chip = QLabel(text, page)
             chip.setObjectName("onboardingStopChip")
+            chip.setToolTip("\n".join(titles))
+            chip.setProperty("tourTitles", titles)
             self.stop_chips.append(chip)
-            self.stop_grid.addWidget(chip, position // 2, position % 2)
+            slot = len(self.stop_chips) - 1
+            self.stop_grid.addWidget(chip, slot // 2, slot % 2)
 
     # ------------------------------------------------------------- choosing
 
@@ -679,6 +736,11 @@ class WelcomeOverlay(QWidget):
         self._density = str(density)
         self._sync_appearance()
         self.appearance_chosen.emit(self._mode, self._accent, self._density)
+
+    def _choose_style(self, style: str) -> None:
+        self._style = str(style)
+        self._sync_appearance()
+        self.style_chosen.emit(self._style)
 
     def _choose_sidebar(self, value: str) -> None:
         self._collapsed = value == "collapsed"
@@ -735,9 +797,9 @@ class WelcomeOverlay(QWidget):
              tr("Every choice is applied to the application behind this panel as you make it.")),
             (tr("Choose the sidebar"),
              tr("Wide names every module. Narrow gives the width back to the page.")),
-            (tr("Install what the rest of it needs"),
-             tr("Most of this application cannot touch the board until a few "
-                "tools are in place. This installs them.")),
+            (tr("Prepare the board"),
+             f'{tr("Tools the other modules need. Anything already installed is marked.")} '
+             f'{tr("Needs internet and your password. Every command is shown in the terminal.")}'),
             (tr("Take the guided tour?"),
              tr("A short walk through the modules, pointing at the real controls.")),
         )
@@ -749,12 +811,6 @@ class WelcomeOverlay(QWidget):
                "the board. You can leave it at any point, and start it again from "
                "Settings whenever you like.")
         )
-        self.prepare_note.setText(
-            tr("Needs an internet connection and your password. It runs in a "
-               "terminal right here, so you can watch exactly what it does. "
-               "Kernel and graphics-stack replacements are not in this list; "
-               "those stay on the dashboard.")
-        )
 
     def _sync_language(self) -> None:
         for chip in self.language_chips.values():
@@ -764,9 +820,12 @@ class WelcomeOverlay(QWidget):
         for value, card in self.theme_cards.items():
             card.set_selected(value == self._mode)
             card.set_accent(self._accent)
+            card.set_style(self._style)
         for name, dot in self.accent_dots.items():
             dot.set_selected(name == self._accent)
             dot.update()
+        for value, button in self.style_buttons.items():
+            button.setChecked(value == self._style)
         for value, button in self.density_buttons.items():
             button.setChecked(value == self._density)
 
@@ -819,9 +878,12 @@ class WelcomeOverlay(QWidget):
         chip = self.language_chips.get("auto")
         if chip is not None:
             chip.setText(self._automatic_label())
-        for value, text in (("system", tr("System")), ("light", tr("Light")), ("dark", tr("Dark"))):
+        for value, text in self._theme_names():
             self.theme_labels[value].setText(text)
         self.accent_heading.setText(tr("Accent color"))
+        self.style_heading.setText(tr("Style"))
+        self.style_buttons["standard"].setText(tr("Standard"))
+        self.style_buttons["formal"].setText(tr("Formal"))
         self.density_heading.setText(tr("Density"))
         self.density_buttons["comfortable"].setText(tr("Comfortable"))
         self.density_buttons["compact"].setText(tr("Compact"))

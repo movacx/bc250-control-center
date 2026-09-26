@@ -26,11 +26,19 @@ OUTPUT = ROOT / "integrations" / "decky" / "bc250-quick-access" / "locales"
 LOCALES = ("en", "es", "es-419", "pt", "ru", "pl", "de", "uk")
 
 EXTRA_ENGLISH = {
+    "voltageLab": "Voltage laboratory",
+    "voltageGovernor": "Governor",
+    "voltageCustom": "Custom",
+    "voltageHint": "Adds voltage only to the points from 2000 MHz up. Below, adjust one point in 5 mV steps; the governor value is the floor.",
+    "voltageConfirm": "The Cyan governor restarts to read the new curve, then your current frequency range is restored. Test stability before relying on it.",
+    "voltageApplyPoints": "Apply points",
+    "voltageDiscard": "Discard",
+    "voltageNeedsCyan": "Start the Cyan governor to change its voltage curve.",
     "profileRecovery": "Recovery",
     "profileBalanced": "Balanced",
     "profileGaming": "Gaming",
     "profileBenchmark": "Benchmark",
-    "advanced": "advanced",
+    "advanced": "Advanced",
     "gpuBusyGuidance": "Wait for the GPU to return to 1000 MHz, then retry.",
     "oberonBusy": "Wait for the GPU to return to 1000 MHz",
     "cuGuidance": "Refresh and review CU diagnostics if it repeats.",
@@ -90,7 +98,7 @@ EXTRA_ENGLISH = {
 
 EXTRA_SPANISH = {
     "profileRecovery": "Recuperación", "profileBalanced": "Equilibrado",
-    "profileGaming": "Juegos", "profileBenchmark": "Benchmark", "advanced": "avanzado",
+    "profileGaming": "Juegos", "profileBenchmark": "Benchmark", "advanced": "Avanzado",
     "gpuBusyGuidance": "Espera a que la GPU vuelva a 1000 MHz y reintenta.",
     "oberonBusy": "Espera a que la GPU vuelva a 1000 MHz",
     "cuGuidance": "Actualiza el estado y revisa Diagnóstico CU si se repite.",

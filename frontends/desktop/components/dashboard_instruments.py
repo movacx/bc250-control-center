@@ -31,6 +31,7 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QSizePolicy,
+    QSpacerItem,
     QVBoxLayout,
     QWidget,
 )
@@ -39,7 +40,7 @@ from .. import theme as theme_module
 from ..i18n import tr
 from .buttons import WrappingButton as QPushButton
 from .core_monitor import CoreGrid
-from .widgets import ICON_DIR, PillLabel, apply_shadow, icon
+from .widgets import ICON_DIR, PillLabel, apply_shadow
 
 #: Width reserved for the unit, so every number in a column ends on the same
 #: pixel whether or not its own unit is short.
@@ -185,8 +186,13 @@ class Reading(QFrame):
         if self.property("tone") == tone:
             return
         self.setProperty("tone", tone)
-        self.style().unpolish(self)
-        self.style().polish(self)
+        # The colour is set on the number through a selector on this frame's
+        # property, and Qt re-evaluates a descendant selector only for the
+        # widget that is polished: repolishing the frame alone left every
+        # warm or hot reading painted in the ordinary colour.
+        for widget in (self, self.value, self.unit, self.detail):
+            widget.style().unpolish(widget)
+            widget.style().polish(widget)
 
 
 class ReadingGroup(QWidget):
@@ -235,6 +241,7 @@ class ReadingBook(QWidget):
         self.groups: dict[str, ReadingGroup] = {}
         self.readings: dict[str, Reading] = {}
         self._placement: list[tuple[ReadingGroup, int]] = []
+        self._group_titles: dict[str, str] = {}
         self._packed = self._wanted_columns
 
     def group(self, title: str, column: int = 0) -> ReadingGroup:
@@ -277,7 +284,12 @@ class ReadingBook(QWidget):
     def add(self, key: str, label: str, *, group: str, column: int = 0) -> Reading:
         reading = self.group(group, column).add(key, label)
         self.readings[key] = reading
+        self._group_titles[key] = group
         return reading
+
+    def group_of(self, key: str) -> str:
+        """The (untranslated) title of the group a reading was placed in."""
+        return self._group_titles.get(key, "")
 
     def __getitem__(self, key: str) -> Reading:
         return self.readings[key]
@@ -431,13 +443,15 @@ class InstrumentBand(QFrame):
         # running the width of the window pulls the eye away from the
         # readings under it. The memory band never had one either, and the
         # two sit one above the other.
-        root.addSpacing(9)
+        self._gap = QSpacerItem(0, 9, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+        root.addSpacerItem(self._gap)
 
         self.grid = QGridLayout()
         self.grid.setContentsMargins(0, 0, 0, 0)
         self.grid.setHorizontalSpacing(24)
         self.grid.setVerticalSpacing(0)
         root.addLayout(self.grid)
+        self.readings_visible = True
         self.readings: dict[str, Reading] = {}
         self._order: list[str] = []
         self._wanted_columns = max(1, columns)
@@ -462,6 +476,17 @@ class InstrumentBand(QFrame):
     def set_note(self, text: str) -> None:
         self.note.setText(tr(text))
         self.note.setVisible(bool(text))
+
+    def set_readings_visible(self, visible: bool) -> None:
+        """Fold the band to its title line, or open its readings again."""
+        visible = bool(visible)
+        if visible == self.readings_visible:
+            return
+        self.readings_visible = visible
+        for reading in self.readings.values():
+            reading.setVisible(visible)
+        self._gap.changeSize(0, 9 if visible else 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+        self.layout().invalidate()
 
     def _reflow(self, width: int) -> None:
         if not self._order:
@@ -502,6 +527,10 @@ class CoreMonitor(QWidget):
         head.setContentsMargins(0, 0, 0, 0)
         head.setSpacing(8)
         self.title = _heading("Live core monitor", "groupTitle")
+        # Wraps rather than clips: the heading shares the row with the
+        # topology reading, and upper case in a wide face ran out of room
+        # at phone width.
+        self.title.setWordWrap(True)
         head.addWidget(self.title, 1)
         self.shape = _text("--", "readingValue")
         head.addWidget(self.shape, 0, Qt.AlignmentFlag.AlignRight)
@@ -530,13 +559,14 @@ class BoardHeader(QFrame):
         row.setContentsMargins(20, 15, 20, 15)
         row.setSpacing(14)
 
-        # The board itself rather than its initials: the icon set ships a
-        # flat silhouette of a BC-250, which says what this screen is about
-        # without a caption.
+        # The board itself rather than its initials: an isometric drawing of
+        # the real BC-250 says what this screen is about without a caption.
+        # It is wider than it is tall, and so is its box; the header keeps
+        # its height.
         self.mark = QLabel()
-        self.mark.setProperty("boardMark", True)
-        self.mark.setFixedSize(42, 42)
+        self.mark.setFixedSize(64, 44)
         self.mark.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.mark.setStyleSheet("background: transparent; border: none;")
         self._refresh_palette()
         row.addWidget(self.mark, 0, Qt.AlignmentFlag.AlignTop)
 
@@ -557,25 +587,20 @@ class BoardHeader(QFrame):
             pill.hide()
 
     def _refresh_palette(self) -> None:
-        """Pick the silhouette that is legible against the current theme.
+        """Pick the board drawing made for the current theme.
 
-        The SVG is drawn in a pale grey for dark panels; on a light one it
-        nearly disappears. Light mode gets the dark-on-light raster instead,
-        which brings its own rounded tile, so the label's own tile steps out
-        of the way rather than framing a second one.
+        The light one has darker aluminium and a firmer shadow, so the
+        heatsink's top edge does not melt into a white panel.
         """
-        if theme_module.ACTIVE_MODE == "dark":
-            self.mark.setStyleSheet("")
-            self.mark.setPixmap(icon("bc250_board").pixmap(30, 30))
-            return
-        self.mark.setStyleSheet("background: transparent; border: none;")
-        self.mark.setPixmap(
-            QPixmap(str(ICON_DIR / "bc250_board_light.png")).scaled(
-                42, 42,
-                Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.SmoothTransformation,
-            )
+        name = "bc250_board_dark.png" if theme_module.ACTIVE_MODE == "dark" else "bc250_board_light.png"
+        ratio = max(2.0, self.mark.devicePixelRatioF())
+        board = QPixmap(str(ICON_DIR / name)).scaled(
+            int(self.mark.width() * ratio), int(self.mark.height() * ratio),
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
         )
+        board.setDevicePixelRatio(ratio)
+        self.mark.setPixmap(board)
 
     def set_specification(self, parts: Iterable[str]) -> None:
         self.spec.setText(" · ".join(part for part in parts if part))

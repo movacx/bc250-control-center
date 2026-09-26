@@ -19,6 +19,56 @@ _COMMENTED_TABLE_RE = re.compile(
 _ARRAY_TABLE_RE = re.compile(
     r"^(?P<indent>\s*)(?P<comment>#\s*)?\[\[safe-points\]\]\s*(?:#.*)?$"
 )
+#: Any plain ``key = value`` line, for the duplicate-key repair only.
+_ANY_KEY_RE = re.compile(
+    r"^(?P<indent>\s*)(?P<key>[A-Za-z0-9_-]+)\s*=\s*(?P<value>[^#\r\n]*?)\s*(?:#.*)?$"
+)
+_ANY_ARRAY_TABLE_RE = re.compile(r"^\s*\[\[([^\[\]]+)\]\]\s*(?:#.*)?$")
+
+
+def identical_duplicate_lines(lines: list[str]) -> list[int]:
+    """Indexes of repeated ``key = value`` lines whose value is identical.
+
+    Other BC-250 toolkits have edited this file with ``sed`` and left a key
+    written twice, sometimes indented (GitHub issue #1). TOML forbids that,
+    so the whole file became unreadable. When every copy says the same thing
+    the later copies carry no meaning and can go; when the copies disagree
+    there is no safe choice, and the caller is told which key and lines.
+    """
+    table = ""
+    first: dict[tuple[str, str], tuple[str, int]] = {}
+    drop: list[int] = []
+    for index, line in enumerate(lines):
+        body = line.rstrip("\r\n")
+        array = _ANY_ARRAY_TABLE_RE.match(body)
+        if array:
+            # Every [[array]] entry is a table of its own.
+            table = f"[[{array.group(1).strip()}]]#{index}"
+            continue
+        header = _TABLE_RE.match(body)
+        if header:
+            table = header.group(1).strip()
+            continue
+        match = _ANY_KEY_RE.match(body)
+        if match is None:
+            continue
+        slot = (table, match.group("key"))
+        value = match.group("value").strip()
+        if slot not in first:
+            first[slot] = (value, index)
+            continue
+        kept_value, kept_index = first[slot]
+        if kept_value != value:
+            where = f"[{table}] " if table else ""
+            raise GovernorTomlError(
+                f"The governor TOML sets {where}{match.group('key')} twice with different "
+                f"values (lines {kept_index + 1} and {index + 1}). Keep the line you want and "
+                "delete the other, then retry."
+            )
+        drop.append(index)
+    return drop
+
+
 _KEY_RE = re.compile(
     r"^(?P<indent>\s*)(?P<comment>#\s*)?(?P<key>min|max|frequency|voltage)"
     r"(?P<spacing>\s*=\s*)(?P<value>[0-9][0-9_]*)?(?P<tail>\s*(?:#.*)?)$"
@@ -485,6 +535,84 @@ def write_decky_cpu_profiles(
         raise GovernorTomlError(
             f"Decky CPU profile file could not be updated: {error}"
         ) from error
+    return TomlEditResult(changed=True)
+
+
+
+#: Same convention again, for the Desktop's three fan profiles: Decky's
+#: quiet/balanced/boost presets take the names and speeds the player gave
+#: them on the Fans page. The Decky helper bounds every speed to 20-100 %
+#: and still never touches the pump channel, so a stale or hand-edited copy
+#: can change a label or a duty inside that range and nothing else.
+DECKY_FAN_PROFILES_PATH = Path("/etc/bc250-control-center/decky-fan-profiles.json")
+DECKY_FAN_PROFILES_SCHEMA = 1
+
+
+def write_decky_fan_profiles(
+    payload_json: str, path: str | Path = DECKY_FAN_PROFILES_PATH
+) -> TomlEditResult:
+    """Publish the Desktop's fan profiles for Decky Quick Access.
+
+    Validated on the unprivileged side by ``plan_governor_config_request``
+    first; this parse is the second, defensive check.
+    """
+    try:
+        profiles = json.loads(payload_json)
+    except (TypeError, ValueError) as error:
+        raise GovernorTomlError(
+            f"Decky fan profile payload is not valid JSON: {error}"
+        ) from error
+    if not isinstance(profiles, list):
+        raise GovernorTomlError("Decky fan profile payload must be a JSON array.")
+    for entry in profiles:
+        if (
+            not isinstance(entry, dict)
+            or not isinstance(entry.get("key"), str)
+            or not isinstance(entry.get("name"), str)
+            or isinstance(entry.get("percent"), bool)
+            or not isinstance(entry.get("percent"), int)
+        ):
+            raise GovernorTomlError("Decky fan profile payload has an invalid entry.")
+    return _publish_decky_profiles(
+        Path(path), DECKY_FAN_PROFILES_SCHEMA, profiles, "Decky fan profile file",
+    )
+
+
+def _publish_decky_profiles(
+    target: Path, schema: int, profiles: list, label: str
+) -> TomlEditResult:
+    """Write one world-readable, root-owned profile document atomically."""
+    if not target.parent.is_dir():
+        target.parent.mkdir(mode=0o755, parents=True, exist_ok=True)
+        with suppress(PermissionError):
+            os.chown(target.parent, 0, 0)
+    _require_root_owned(target, label)
+    document = json.dumps({"schema": schema, "profiles": profiles}, indent=2) + "\n"
+    try:
+        original = target.read_text(encoding="utf-8") if target.is_file() else ""
+    except (OSError, UnicodeError):
+        original = ""
+    if document == original:
+        return TomlEditResult(changed=False)
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{target.name}.", suffix=".tmp", dir=str(target.parent),
+    )
+    temporary = Path(temporary_name)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8", newline="") as handle:
+            handle.write(document)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.chmod(temporary, 0o644)
+        with suppress(PermissionError):
+            os.chown(temporary, 0, 0)
+        if target.is_symlink():
+            raise GovernorTomlError(f"{label} changed to a symlink during the edit.")
+        os.replace(temporary, target)
+    except OSError as error:
+        with suppress(OSError):
+            temporary.unlink()
+        raise GovernorTomlError(f"{label} could not be updated: {error}") from error
     return TomlEditResult(changed=True)
 
 
@@ -1116,10 +1244,33 @@ class GovernorTomlEditor:
             "max": values["max"],
         }
 
+    def repair_identical_duplicate_keys(self) -> TomlEditResult:
+        """Remove repeated identical keys another tool left behind.
+
+        A no-op on a file TOML already accepts. On one it rejects, only exact
+        repeats are removed, and only if that alone makes the file valid;
+        anything else is reported with the parser's own message.
+        """
+        original = self._read()
+        try:
+            tomllib.loads(original)
+            return TomlEditResult(False)
+        except (tomllib.TOMLDecodeError, ValueError) as error:
+            failure = error
+        lines = original.splitlines(keepends=True)
+        drop = set(identical_duplicate_lines(lines))
+        if not drop:
+            raise GovernorTomlError(f"Governor TOML validation failed: {failure}")
+        repaired = "".join(line for index, line in enumerate(lines) if index not in drop)
+        return TomlEditResult(self._write(original, repaired))
+
     def migrate_legacy_frequency_range(self) -> TomlEditResult:
+        # Installation runs this on whatever file is there, including one a
+        # different toolkit broke; repair the one unambiguous defect first.
+        repaired = self.repair_identical_duplicate_keys()
         migration = self.legacy_frequency_range_migration()
         if not migration.get("needed"):
-            return TomlEditResult(False)
+            return TomlEditResult(repaired.changed)
         target_mode = str(migration["target_mode"])
         if target_mode == "profile":
             return self.clear_frequency_range()

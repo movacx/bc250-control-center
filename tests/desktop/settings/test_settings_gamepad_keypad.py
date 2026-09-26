@@ -33,7 +33,9 @@ def test_legacy_keypad_preferences_migrate_to_one_automatic_feature(tmp_path):
 def test_settings_show_only_one_gamepad_keypad_option(qtbot, tmp_path):
     page = SettingsPage(object(), settings_service=SettingsService(), activity_service=ActivityService(), app_settings=_settings(tmp_path))
     qtbot.addWidget(page)
-    page._ensure_section("general")
+    # The controller options live with the terminal now, one subject per
+    # section; General keeps only how the application starts.
+    page._ensure_section("console")
     labels = {label.text() for label in page.findChildren(QLabel)}
 
     assert "Automatic gamepad keypad" in labels

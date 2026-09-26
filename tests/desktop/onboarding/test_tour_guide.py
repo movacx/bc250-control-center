@@ -8,7 +8,7 @@ away — is skipped rather than pointed at from nowhere.
 
 import pytest
 from PyQt6.QtCore import QRect
-from PyQt6.QtWidgets import QPushButton, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QLabel, QPushButton, QVBoxLayout, QWidget
 
 from frontends.desktop.onboarding.tour import TourGuide, TourStop
 
@@ -436,6 +436,9 @@ def test_the_bubble_is_tall_enough_for_its_text_in_every_language(qtbot):
                     index=index + 1,
                     total=13,
                     last=False,
+                    points=stop.points,
+                    ordered=stop.ordered,
+                    footnote=stop.footnote,
                 )
                 callout.point_at(QRect(600, 400, 120, 40))
                 needed = callout._root.totalHeightForWidth(callout.width())
@@ -444,3 +447,27 @@ def test_the_bubble_is_tall_enough_for_its_text_in_every_language(qtbot):
                 )
     finally:
         i18n.set_language(original)
+
+
+def test_a_stop_with_a_list_widens_the_bubble_and_numbers_its_steps(qtbot):
+    """The firmware stops carry a list; the bubble grows for it and shrinks back."""
+    from frontends.desktop.onboarding.tour import TourCallout
+
+    window = FakeWindow()
+    qtbot.addWidget(window)
+    window.show()
+    callout = TourCallout(window)
+    callout.set_stop(
+        title="Pasos", body="cuerpo", index=1, total=2, last=False,
+        points=("uno", "dos"), ordered=True, footnote="nota",
+    )
+    callout.point_at(QRect(600, 400, 120, 40))
+    assert callout.width() == TourCallout.WIDE_WIDTH
+    assert callout.points.isVisibleTo(callout) and callout.footnote.isVisibleTo(callout)
+    markers = [label.text() for label in callout.points.findChildren(QLabel, "tourPointMarker")]
+    assert markers == ["1.", "2."]
+
+    callout.set_stop(title="Otra", body="cuerpo", index=2, total=2, last=True)
+    qtbot.waitUntil(lambda: not callout.points.findChildren(QLabel, "tourPointMarker"))
+    assert callout.width() == TourCallout.WIDTH
+    assert not callout.points.isVisibleTo(callout) and not callout.footnote.isVisibleTo(callout)

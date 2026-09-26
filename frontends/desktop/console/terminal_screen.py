@@ -891,13 +891,26 @@ class TerminalScreen:
             if cell.placeholder:
                 column += 1
                 continue
+            text = cell.text or " "
+            if character_width(text[0]) > 1:
+                # A wide glyph comes from whichever fallback face has it, and
+                # its advance is rarely exactly two cells. Drawn inside a
+                # longer run it would push everything after it off the grid,
+                # so it is drawn on its own, at its own column.
+                if buffer:
+                    yield start, "".join(buffer), current or DEFAULT_STYLE
+                    buffer = []
+                yield column, text, cell.style
+                current = None
+                column += 1
+                continue
             if current is None or cell.style != current:
                 if buffer:
                     yield start, "".join(buffer), current or DEFAULT_STYLE
                 buffer = []
                 start = column
                 current = cell.style
-            buffer.append(cell.text or " ")
+            buffer.append(text)
             column += 1
         if buffer:
             yield start, "".join(buffer), current or DEFAULT_STYLE

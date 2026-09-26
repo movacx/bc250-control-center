@@ -108,6 +108,43 @@ DECKY_CPU_PROFILE_MAX_VID = 1325
 DECKY_CPU_PROFILE_KEYS = ("board_average", "mid_point", "safe_maximum")
 
 
+
+#: Decky's own fan presets (quiet/balanced/boost), which the Desktop's three
+#: fan profiles are published as; the same 20-100 % the Decky helper and its
+#: fan slider allow.
+DECKY_FAN_PROFILE_KEYS = ("quiet", "balanced", "boost")
+DECKY_FAN_PROFILE_MIN_PERCENT = 20
+DECKY_FAN_PROFILE_MAX_PERCENT = 100
+
+
+def _decky_fan_profiles_argument(arguments: tuple[object, ...]) -> tuple[str, ...]:
+    if len(arguments) != 1:
+        raise ValueError("set-decky-fan-profiles needs exactly one profile list.")
+    (profiles,) = arguments
+    if not isinstance(profiles, (list, tuple)) or not 1 <= len(profiles) <= len(DECKY_FAN_PROFILE_KEYS):
+        raise ValueError("Decky fan profiles must be a list of one to three entries.")
+    seen_keys: set[str] = set()
+    normalized: list[dict[str, object]] = []
+    for entry in profiles:
+        if not isinstance(entry, dict):
+            raise ValueError("Each Decky fan profile must be an object.")
+        key = entry.get("key")
+        if key not in DECKY_FAN_PROFILE_KEYS or key in seen_keys:
+            raise ValueError("Each Decky fan profile needs a unique known key.")
+        seen_keys.add(key)
+        name = str(entry.get("name") or "").strip()
+        if not name or len(name) > 40:
+            raise ValueError("Decky fan profile names must be 1-40 characters.")
+        percent = _exact_integer(entry.get("percent"), "Decky fan profile speeds must be integers.")
+        if not DECKY_FAN_PROFILE_MIN_PERCENT <= percent <= DECKY_FAN_PROFILE_MAX_PERCENT:
+            raise ValueError(
+                f"Decky fan profile speeds must be {DECKY_FAN_PROFILE_MIN_PERCENT}-"
+                f"{DECKY_FAN_PROFILE_MAX_PERCENT} %."
+            )
+        normalized.append({"key": key, "name": name, "percent": percent})
+    return (json.dumps(normalized, separators=(",", ":"), sort_keys=True),)
+
+
 def _decky_cpu_profiles_argument(arguments: tuple[object, ...]) -> tuple[str, ...]:
     if len(arguments) != 1:
         raise ValueError("set-decky-cpu-profiles needs exactly one profile list.")
@@ -252,4 +289,6 @@ def plan_governor_config_request(
         return GovernorConfigRequest(action, _decky_gpu_profiles_argument(arguments))
     if action == "set-decky-cpu-profiles":
         return GovernorConfigRequest(action, _decky_cpu_profiles_argument(arguments))
+    if action == "set-decky-fan-profiles":
+        return GovernorConfigRequest(action, _decky_fan_profiles_argument(arguments))
     raise ValueError("Invalid governor TOML action.")

@@ -87,6 +87,12 @@ class TerminalView(QAbstractScrollArea):
         self._expected_height = 0
         self._input_elsewhere = False
         self._colors: dict[str, QColor] = {}
+        # The grid is measured and painted with this font, never with
+        # ``self.font()``: the application stylesheet gives every widget its
+        # interface face, and a proportional face painted over a monospace
+        # grid left the cursor columns past the end of the text it follows
+        # ("[sudo] password for …:" and then a gap before the caret).
+        self._grid_font = console_font(point_size)
 
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
@@ -135,6 +141,7 @@ class TerminalView(QAbstractScrollArea):
         )
         self.setFont(font)
         self.viewport().setFont(font)
+        self._grid_font = QFont(font)
         metrics = QFontMetricsF(font)
         glyph_height = metrics.height()
         self._cell_height = max(1.0, round(glyph_height * LINE_HEIGHT))
@@ -459,7 +466,7 @@ class TerminalView(QAbstractScrollArea):
 
     def paintEvent(self, event) -> None:  # noqa: N802 - Qt API name
         painter = QPainter(self.viewport())
-        painter.setFont(self.font())
+        painter.setFont(self._grid_font)
         painter.fillRect(event.rect(), self._colors["background"])
         # Everything below draws in grid coordinates; the inset is applied once.
         painter.translate(PADDING_X, PADDING_TOP)

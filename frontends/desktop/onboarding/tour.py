@@ -100,6 +100,20 @@ class TourStop:
     #: panel it is inside. A stop that points at a control on a tab nobody has
     #: opened would otherwise point at a hidden widget and be skipped.
     arrange: Callable[[object], None] | None = None
+    #: Run when the tour moves on from this stop, or ends on it: close the
+    #: drawer ``arrange`` opened, so the next stop starts from a clean page.
+    leave: Callable[[object], None] | None = None
+    #: A list under the sentence, for the few stops that have to compare
+    #: things or give steps in order: the firmware images, the flash on the
+    #: board. The bubble widens to hold it.
+    points: tuple[str, ...] = ()
+    #: Number the points: they are steps to follow, not items to compare.
+    ordered: bool = False
+    #: One last line in small type, under the list.
+    footnote: str = ""
+    #: Set on the stops that introduce a newer feature, so the people who
+    #: took the tour before it existed can be shown just those stops once.
+    feature: str = ""
 
 
 def reveal_in_scroll_area(anchor: QWidget) -> bool:
@@ -238,6 +252,9 @@ class TourCallout(QFrame):
     TAIL_HALF_WIDTH = 10
     RADIUS = 12.0
     WIDTH = 340
+    #: For a stop that carries a list: wide enough that a step reads as one
+    #: or two lines, narrow enough to sit beside the panel it describes.
+    WIDE_WIDTH = 520
 
     back_clicked = pyqtSignal()
     next_clicked = pyqtSignal()
@@ -245,6 +262,8 @@ class TourCallout(QFrame):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        # Measured to fit its text; Compact density leaves it alone.
+        self.setProperty("densityLocked", True)
         self.setObjectName("tourCallout")
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
@@ -293,6 +312,20 @@ class TourCallout(QFrame):
         self.body.setWordWrap(True)
         self._root.addWidget(self.body)
 
+        self.points = QFrame(self)
+        self.points.setObjectName("tourPoints")
+        self._points_box = QVBoxLayout(self.points)
+        self._points_box.setContentsMargins(0, 8, 0, 0)
+        self._points_box.setSpacing(6)
+        self._point_rows: list[QWidget] = []
+        self.points.hide()
+        self._root.addWidget(self.points)
+        self.footnote = QLabel("", self)
+        self.footnote.setObjectName("tourFootnote")
+        self.footnote.setWordWrap(True)
+        self.footnote.hide()
+        self._root.addWidget(self.footnote)
+
         actions = QHBoxLayout()
         actions.setSpacing(8)
         actions.addStretch(1)
@@ -312,12 +345,50 @@ class TourCallout(QFrame):
 
     # ------------------------------------------------------------- contents
 
-    def set_stop(self, *, title: str, body: str, index: int, total: int, last: bool) -> None:
+    def set_stop(
+        self,
+        *,
+        title: str,
+        body: str,
+        index: int,
+        total: int,
+        last: bool,
+        points: tuple[str, ...] = (),
+        ordered: bool = False,
+        footnote: str = "",
+    ) -> None:
         self.title.setText(title)
         self.body.setText(body)
         self.step_label.setText(f"{index} / {total}")
         self.back_button.setVisible(index > 1)
         self.next_button.setText(tr("Finish") if last else tr("Next"))
+        self.setFixedWidth(self.WIDE_WIDTH if points else self.WIDTH)
+        self._set_points(points, ordered)
+        self.footnote.setText(footnote)
+        self.footnote.setVisible(bool(footnote))
+
+    def _set_points(self, points: tuple[str, ...], ordered: bool) -> None:
+        for row in self._point_rows:
+            self._points_box.removeWidget(row)
+            row.deleteLater()
+        self._point_rows = []
+        for number, text in enumerate(points, start=1):
+            row = QWidget(self.points)
+            line = QHBoxLayout(row)
+            line.setContentsMargins(0, 0, 0, 0)
+            line.setSpacing(8)
+            marker = QLabel(f"{number}." if ordered else "\u2013", row)
+            marker.setObjectName("tourPointMarker")
+            marker.setFixedWidth(16)
+            marker.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop)
+            line.addWidget(marker, 0, Qt.AlignmentFlag.AlignTop)
+            label = QLabel(text, row)
+            label.setObjectName("tourPoint")
+            label.setWordWrap(True)
+            line.addWidget(label, 1)
+            self._points_box.addWidget(row)
+            self._point_rows.append(row)
+        self.points.setVisible(bool(points))
 
     def retranslate(self) -> None:
         self.end_button.setText(tr("End tour"))
@@ -541,6 +612,10 @@ class TourGuide(QObject):
         self._index = -1
         self._running = False
         self._placed_at = QRect()
+        #: +1 while moving forward, -1 after Back: a stop whose control is not
+        #: on this board is skipped in the direction the user was going,
+        #: instead of Back bouncing straight forward again.
+        self._direction = 1
         self.spotlight = Spotlight(window)
         self.callout = TourCallout(window)
         self.callout.next_clicked.connect(self.go_next)
@@ -580,19 +655,40 @@ class TourGuide(QObject):
         self.go_next()
 
     def go_next(self) -> None:
+        self._direction = 1
         if self._index + 1 >= len(self._stops):
             self.stop()
             return
         self._show(self._index + 1)
 
     def go_back(self) -> None:
+        self._direction = -1
         if self._index <= 0:
             return
         self._show(self._index - 1)
 
+    def _skip(self) -> None:
+        """Pass over a stop with nothing to point at, the way the user was going."""
+        if self._direction < 0 and self._index > 0:
+            self.go_back()
+        else:
+            self.go_next()
+
+    def _leave_current(self) -> None:
+        if not (0 <= self._index < len(self._stops)):
+            return
+        leave = self._stops[self._index].leave
+        if leave is None:
+            return
+        try:
+            leave(self._window)
+        except Exception:
+            logger.debug("A tour stop could not tidy up after itself", exc_info=True)
+
     def stop(self) -> None:
         if not self._running:
             return
+        self._leave_current()
         self._running = False
         self._follow.stop()
         self._placed_at = QRect()
@@ -608,6 +704,8 @@ class TourGuide(QObject):
         self._settle()
 
     def _show(self, index: int) -> None:
+        if index != self._index:
+            self._leave_current()
         self._index = index
         self._placed_at = QRect()
         stop = self._stops[index]
@@ -628,6 +726,9 @@ class TourGuide(QObject):
             index=index + 1,
             total=len(self._stops),
             last=index == len(self._stops) - 1,
+            points=stop.points,
+            ordered=stop.ordered,
+            footnote=stop.footnote,
         )
         # The page has just changed; its widgets have no geometry until Qt has
         # laid them out, and measuring now would point the tail at (0, 0).
@@ -640,7 +741,7 @@ class TourGuide(QObject):
         if not anchors:
             # A module that is not on this board, or a control the current
             # layout folded away. Skipping beats pointing at nothing.
-            QTimer.singleShot(0, self.go_next)
+            QTimer.singleShot(0, self._skip)
             return
         if reveal_in_scroll_area(anchors[0]):
             # The view moved, so every coordinate taken before it is stale.
@@ -694,7 +795,7 @@ class TourGuide(QObject):
     def _place_on(self, anchors: list[QWidget]) -> None:
         rect = self._anchor_rect(anchors)
         if rect.isEmpty():
-            QTimer.singleShot(0, self.go_next)
+            QTimer.singleShot(0, self._skip)
             return
         self._placed_at = QRect(rect)
         self.spotlight.setGeometry(self._window.rect())

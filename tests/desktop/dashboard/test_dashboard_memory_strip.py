@@ -192,3 +192,229 @@ def test_a_finished_session_switches_the_button_back_off(qtbot):
 
     assert not monitor.reading.live
     assert not page.memory_summary.live_button.isChecked()
+
+
+# ------------------------------------------------ BC250-Telemetry's collector
+#
+# BC250-Telemetry can run its own GDDR6 collector on the same SMU mailbox.
+# Two samplers on it hung the SMU on a Bazzite board, so while that collector
+# runs the dashboard shows what it publishes and never starts a session.
+
+EXTERNAL_ACTIVE = {
+    "state": "active",
+    "status": "ok",
+    "chips": [
+        {"chip": index, "raw": code, "code": code, "temperature_c": float(code * 2 - 40)}
+        for index, code in enumerate((38, 37, 42, 38, 38, 41, 41, 39))
+    ],
+    "average_c": 38.5,
+    "hotspot_c": 44.0,
+    "hotspot_chip": 2,
+}
+
+
+class SessionRecorder(PassiveController):
+    def __init__(self):
+        super().__init__({})
+        self.session_commands = 0
+
+    def comando_monitorizar_vram(self, seconds=600):  # pragma: no cover - must not run
+        self.session_commands += 1
+        raise AssertionError("no session may start while the collector owns the SMU")
+
+
+def _external_page(qtbot, external, controller=None):
+    page = DashboardPage(controller or SessionRecorder())
+    qtbot.addWidget(page)
+    monitor = page.memory_monitor
+    monitor._state.status = dict(READY_STATUS, external=dict(external))
+    monitor._rebuild()
+    return page
+
+
+def test_the_collectors_readings_are_shown_without_a_session_or_a_prompt(qtbot):
+    page = _external_page(qtbot, EXTERNAL_ACTIVE)
+    reading = page.memory_monitor.reading
+    summary = page.memory_summary
+
+    assert reading.source == "bc250-telemetry"
+    assert [cell.temperature.text() for cell in summary.cells][:3] == [
+        "36.0 °C",
+        "34.0 °C",
+        "44.0 °C",
+    ]
+    assert "BC250-Telemetry" in summary.detail.text()
+    # Nothing to start: the readings arrive by themselves.
+    assert summary.live_button.isHidden()
+    assert summary.prepare_button.isHidden()
+    assert not reading.can_monitor
+    assert not summary.blocker.text()
+    assert page.memory_monitor._backend("comando_monitorizar_vram") is not None
+
+
+def test_no_session_starts_while_the_collector_owns_the_smu(qtbot):
+    controller = SessionRecorder()
+    page = _external_page(qtbot, EXTERNAL_ACTIVE, controller)
+
+    page.memory_monitor.start_live()
+
+    assert controller.session_commands == 0
+    assert not page.memory_monitor.reading.live
+
+
+def test_a_collector_without_a_reading_yet_says_so_and_offers_nothing(qtbot):
+    page = _external_page(qtbot, {"state": "waiting", "status": "starting", "chips": []})
+    summary = page.memory_summary
+
+    assert "BC250-Telemetry" in summary.blocker.text()
+    assert summary.live_button.isHidden()
+    assert not page.memory_monitor.reading.can_monitor
+
+
+def test_a_stale_collector_keeps_control_center_off_the_smu(qtbot):
+    """Stale can mean it is stuck inside an SMU operation right now."""
+    page = _external_page(qtbot, {"state": "stale", "status": "stale", "chips": []})
+
+    assert not page.memory_monitor.reading.can_monitor
+    assert "SMU" in page.memory_summary.blocker.text()
+
+
+def test_a_session_that_found_an_interrupted_collector_says_to_power_off(qtbot):
+    page = DashboardPage(PassiveController({}))
+    qtbot.addWidget(page)
+    monitor = page.memory_monitor
+    monitor._state.status = dict(READY_STATUS)
+    monitor._state.sample = {
+        "patch_active": True,
+        "error": "ERROR: GDDR6_EXTERNAL_INTERRUPTED: BC250-Telemetry's memory collector stopped",
+    }
+    monitor._rebuild()
+
+    # Still offered (the next attempt may be after a power cycle), but the
+    # reason the last one ended is on screen instead of a silent reset.
+    assert monitor.reading.can_monitor
+    assert "Power the board off" in page.memory_summary.blocker.text()
+
+
+def test_a_busy_smu_is_explained_when_a_session_ends_on_it(qtbot):
+    page = DashboardPage(PassiveController({}))
+    qtbot.addWidget(page)
+    monitor = page.memory_monitor
+    monitor._state.status = dict(READY_STATUS)
+    monitor._state.sample = {"patch_active": False, "error": "ERROR: SMU_BUSY: another BC-250 tool"}
+    monitor._rebuild()
+
+    assert "Another BC-250 tool" in page.memory_summary.blocker.text()
+
+
+def test_the_buttons_come_back_when_the_collector_stops(qtbot):
+    page = _external_page(qtbot, EXTERNAL_ACTIVE)
+    monitor = page.memory_monitor
+
+    monitor._state.status = dict(READY_STATUS, external={"state": "", "chips": []})
+    monitor._rebuild()
+
+    assert not page.memory_summary.live_button.isHidden()
+    assert monitor.reading.can_monitor
+    assert monitor.reading.source == ""
+
+
+# ------------------------------------------------------------ the governor
+
+
+def test_a_restarting_governor_pauses_the_readings_and_names_the_likely_cause(qtbot):
+    page = DashboardPage(SessionRecorder())
+    qtbot.addWidget(page)
+    monitor = page.memory_monitor
+    monitor._state.status = dict(READY_STATUS, governor_state="restarting")
+    monitor._rebuild()
+
+    assert not monitor.reading.can_monitor
+    assert not page.memory_summary.live_button.isEnabled()
+    assert "Fix metrics" in page.memory_summary.blocker.text()
+    monitor.start_live()
+    assert not monitor.reading.live
+
+
+def test_a_deferred_sample_in_a_session_says_the_governor_is_starting(qtbot):
+    page = DashboardPage(PassiveController({}))
+    qtbot.addWidget(page)
+    monitor = page.memory_monitor
+    monitor._state.status = dict(READY_STATUS)
+    monitor._live = True
+    monitor._state.sample = {
+        "deferred": True,
+        "patch_active": False,
+        "blocked_reason": "GDDR6_GOVERNOR_UNSETTLED",
+        "governor_state": "starting",
+        "chips": [],
+    }
+    monitor._rebuild()
+
+    assert "GPU governor is starting" in page.memory_summary.blocker.text()
+
+
+def test_an_interrupted_collector_blocks_readings_until_a_power_cycle(qtbot):
+    page = _external_page(qtbot, {"state": "interrupted", "status": "stale", "chips": []})
+
+    assert not page.memory_monitor.reading.can_monitor
+    assert page.memory_summary.live_button.isHidden()
+    assert "Power the board off completely" in page.memory_summary.blocker.text()
+
+
+
+# ------------------------------------------------- the manual override (Settings)
+
+
+class OverrideRecorder(PassiveController):
+    def __init__(self):
+        super().__init__({})
+        self.requests = []
+
+    def comando_monitorizar_vram(self, seconds=600, *, ignore_governor=False):
+        self.requests.append(ignore_governor)
+        return ["/bin/sh", "-c", "exit 0"]
+
+
+def test_the_manual_override_lifts_only_the_smu_channel_check(qtbot):
+    controller = OverrideRecorder()
+    page = DashboardPage(controller)
+    qtbot.addWidget(page)
+    monitor = page.memory_monitor
+    monitor._state.status = dict(READY_STATUS, governor_state="restarting")
+    monitor._rebuild()
+    assert not monitor.reading.can_monitor
+
+    monitor.set_manual_override(True)
+    assert monitor.reading.can_monitor
+    assert page.memory_summary.live_button.isEnabled()
+    assert "Manual mode" in page.memory_summary.blocker.text()
+
+    monitor.start_live()
+    assert controller.requests == [True]
+    qtbot.waitUntil(lambda: not monitor.reading.live, timeout=5000)
+
+
+def test_the_manual_override_never_lifts_the_hard_guards(qtbot):
+    page = DashboardPage(OverrideRecorder())
+    qtbot.addWidget(page)
+    monitor = page.memory_monitor
+    monitor.set_manual_override(True)
+    monitor._state.status = dict(READY_STATUS, firmware_supported=False, governor_state="starting")
+    monitor._rebuild()
+    assert not monitor.reading.can_monitor
+    monitor._state.status = dict(
+        READY_STATUS, external={"state": "interrupted", "status": "stale", "chips": []}
+    )
+    monitor._rebuild()
+    assert not monitor.reading.can_monitor
+    assert page.memory_summary.live_button.isHidden()
+
+
+def test_an_idle_collector_keeps_the_button_on_the_row_under_the_override(qtbot):
+    page = _external_page(qtbot, {"state": "waiting", "status": "waiting", "chips": []}, OverrideRecorder())
+    monitor = page.memory_monitor
+    assert page.memory_summary.live_button.isHidden()
+    monitor.set_manual_override(True)
+    assert monitor.reading.can_monitor
+    assert not page.memory_summary.live_button.isHidden()

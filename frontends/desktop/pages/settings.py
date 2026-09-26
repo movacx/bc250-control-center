@@ -42,12 +42,18 @@ from PyQt6.QtWidgets import (
 )
 
 from bc250cc.infrastructure import SystemdUserService
+from bc250cc.infrastructure.gddr6_memory_temp_repository import (
+    board_bios_version,
+    gddr6_firmware_supported,
+)
 from bc250cc.infrastructure.governor_conflicts import normalize_governor_preference
+from bc250cc.infrastructure.vrm_telemetry_reader import sondear_telemetria_vrm
 from bc250cc.platform.init.services import detect_init_manager
 from bc250cc.shared.failure_text import describe_failure
 from bc250cc.shared.version import __version__
 
 from ..components.buttons import WrappingButton as QPushButton
+from ..components.density import apply_layout_density
 from ..components.dialogs import center_dialog, enable_adaptive_dialog
 from ..components.page_widgets import ConfirmDialog
 from ..components.responsive import (
@@ -55,6 +61,8 @@ from ..components.responsive import (
     clear_grid,
     configure_responsive_scroll_area,
 )
+from ..components.toast import show_toast
+from ..components.toggle_switch import ToggleSwitch
 from ..components.widgets import IconBadge, InfoDialog, PillLabel, apply_shadow, icon
 from ..core.external_links import open_external_url
 from ..core.preferences import application_settings
@@ -98,7 +106,10 @@ OFFICIAL_REPOSITORIES = (
     ("BC250 native mesh shaders reference", "lonewolf0622/BC250-Native-Mesh-Shaders-", "https://github.com/lonewolf0622/BC250-Native-Mesh-Shaders-"),
     ("BC250 memory configuration reference", "fanoush/bc250_memcfg", "https://github.com/fanoush/bc250_memcfg"),
     ("BC250 EFI core unlock reference", "Hexxeh/bc250-efi-core-unlock", "https://github.com/Hexxeh/bc250-efi-core-unlock"),
-    ("BC250 UEFI firmware menu reference", "Forbidden-Darkness/AMD-BC-250-UEFI-v2.2-Firmware-Menu-Script", "https://github.com/Forbidden-Darkness/AMD-BC-250-UEFI-v2.2-Firmware-Menu-Script"),
+    ("BC250 UEFI shell and MeiMeiDXE firmware", "Forbidden-Darkness/AMD-BC-250-UEFI-v2.2-Firmware-Menu-Script", "https://github.com/Forbidden-Darkness/AMD-BC-250-UEFI-v2.2-Firmware-Menu-Script"),
+    ("BC250 stock and Chipset Menu BIOS", "TuxThePenguin0/bc250-bios", "https://gitlab.com/TuxThePenguin0/bc250-bios"),
+    ("ASRock BIOS update kit mirror", "kenavru/BC-250", "https://github.com/kenavru/BC-250"),
+    ("BC250 custom boot logo reference", "tmghd272/bc250-custom-bios-logo", "https://github.com/tmghd272/bc250-custom-bios-logo"),
     ("nct6687d fan driver", "Fred78290/nct6687d", "https://github.com/Fred78290/nct6687d"),
     ("USB Wi-Fi compatibility reference", "morrownr/USB-WiFi", "https://github.com/morrownr/USB-WiFi"),
     ("CUPS printing reference", "OpenPrinting/cups", "https://github.com/OpenPrinting/cups"),
@@ -350,9 +361,7 @@ class ActionGrid(QWidget):
         self._reflow()
 
     def set_compact(self, compact: bool) -> None:
-        gap = 6 if compact else 8
-        self._grid.setHorizontalSpacing(gap)
-        self._grid.setVerticalSpacing(gap)
+        """Spacing follows the window-wide density pass (components/density.py)."""
 
     def _column_count(self) -> int:
         width = self.width()
@@ -401,6 +410,9 @@ class SettingRow(QFrame):
         self.description_label.setWordWrap(True)
         copy_layout.addWidget(self.title_label)
         copy_layout.addWidget(self.description_label)
+        # Any height the row has beyond its copy goes under the description,
+        # not between the title and the line that explains it.
+        copy_layout.addStretch(1)
         self.copy_widget = copy
 
         control.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
@@ -409,11 +421,10 @@ class SettingRow(QFrame):
         self._layout.setColumnStretch(0, 1)
 
     def set_compact(self, compact: bool) -> None:
+        # Margins and spacing follow the window-wide density pass
+        # (components/density.py); tightening them here as well shrank a
+        # compact row twice.
         self._compact = bool(compact)
-        vertical = 7 if compact else 10
-        self._layout.setContentsMargins(0, vertical, 0, vertical)
-        self._layout.setHorizontalSpacing(10 if compact else 14)
-        self._layout.setVerticalSpacing(4 if compact else 6)
 
     def _use_stacked_layout(self) -> bool:
         control_hint = max(80, self.control.sizeHint().width())
@@ -652,6 +663,8 @@ class SettingsPage(QWidget):
     gamepad_keypad_auto_show_changed = pyqtSignal(bool)
     embedded_terminal_changed = pyqtSignal(bool)
     console_auto_hide_changed = pyqtSignal(bool)
+    gddr6_manual_changed = pyqtSignal(bool)
+    vrm_manual_changed = pyqtSignal(bool)
     tour_requested = pyqtSignal()
 
     def __init__(self, controller, *, settings_service, activity_service, app_settings: QSettings | None = None, parent: QWidget | None = None):
@@ -726,13 +739,22 @@ class SettingsPage(QWidget):
         self.nav_buttons: dict[str, SettingsNavButton] = {}
         self.stack = QStackedWidget()
 
+        # One subject per section, in the order a user looks for them: how the
+        # application starts and looks, then the hardware backend, then the
+        # terminal and controller, then monitoring, privacy, records and the
+        # project itself. The keys of the sections that already existed are
+        # unchanged, so saved positions and links from other pages still land.
         sections = [
             ("general", "General", "settings_blue"),
-            ("appearance", "Appearance", "app_blue"),
+            ("appearance", "Appearance", "dashboard_blue"),
+            ("hardware", "Hardware", "gpu_blue"),
+            ("console", "Terminal and controls", "terminal_blue"),
             ("telemetry", "Telemetry", "metrics_blue"),
-            ("security", "Security", "shield_green"),
-            ("reports", "History & reports", "history_blue"),
-            ("about", "About", "app_blue"),
+            # "and", never "&": a push button reads "&" as a keyboard
+            # mnemonic, and "History & reports" rendered as "History _reports".
+            ("security", "Privacy and safety", "shield_green"),
+            ("reports", "History and reports", "history_blue"),
+            ("about", "About", "info_blue"),
         ]
         self.section_order = [key for key, _text, _icon in sections]
         for key, text, icon_name in sections:
@@ -805,6 +827,9 @@ class SettingsPage(QWidget):
             self.nav_layout.setColumnStretch(0, 1)
             self.nav_layout.setRowStretch(len(buttons), 1)
             self.content_layout.setContentsMargins(18, 16, 18, 16)
+        # The margins above are the comfortable ones; Compact tightens them
+        # again after every change of form, like any other layout.
+        apply_layout_density(self)
         self.updateGeometry()
 
     @staticmethod
@@ -848,7 +873,7 @@ class SettingsPage(QWidget):
         return combo
 
     def _switch(self, key: str, default: bool, callback=None) -> QCheckBox:
-        switch = QCheckBox()
+        switch = ToggleSwitch()
         switch.setProperty("settingsSwitch", True)
         switch.setChecked(self._bool_value(self.app_settings.value(key, default), default))
 
@@ -935,6 +960,8 @@ class SettingsPage(QWidget):
         self._page_builders = {
             "general": self._build_general_page,
             "appearance": self._build_appearance_page,
+            "hardware": self._build_hardware_page,
+            "console": self._build_console_page,
             "telemetry": self._build_telemetry_page,
             "security": self._build_security_page,
             "reports": self._build_reports_page,
@@ -960,10 +987,9 @@ class SettingsPage(QWidget):
         self.stack.insertWidget(index, page)
         self._built_sections.add(key)
         localize_widget_tree(page)
-        self._apply_density_to_page(
-            page,
-            str(self.app_settings.value("settings/density", "comfortable")).strip().lower() == "compact",
-        )
+        compact = str(self.app_settings.value("settings/density", "comfortable")).strip().lower() == "compact"
+        self._apply_density_to_page(page, compact)
+        apply_layout_density(page, compact)
         if key == "about" and self._paths_loaded:
             self.config_path_field.setText(str(Path(self._path_for("config")).expanduser().resolve().parent))
         if str(os.environ.get("BC250_UI_PERF", "")).strip().lower() in {"1", "true", "yes", "on"}:
@@ -979,8 +1005,8 @@ class SettingsPage(QWidget):
             "General",
             "Configure the default behavior of the control center and how the workspace resumes between sessions.",
         )
-        group = SettingsGroup("Workspace")
-        group.add_row(SettingRow(
+        startup = SettingsGroup("Startup")
+        startup.add_row(SettingRow(
             "Start page",
             "Choose the module to open by default.",
             self._coded_combo([
@@ -989,6 +1015,33 @@ class SettingsPage(QWidget):
                 ("Processes", "processes"), ("Settings", "settings"),
             ], "settings/start_page", "dashboard"),
         ))
+        startup.add_row(SettingRow(
+            "Reopen last module",
+            "Restore the last visited module when the application starts.",
+            self._switch("settings/reopen_last_module", True),
+        ))
+        startup.add_row(SettingRow(
+            "Collapsed sidebar at launch",
+            "Open the main navigation in compact mode.",
+            self._switch("sidebar_collapsed", False, self.sidebar_collapsed_changed.emit),
+        ))
+        layout.addWidget(startup)
+
+        help_group = SettingsGroup("Help")
+        help_group.add_row(SettingRow(
+            "Guided tour",
+            "Walk through the modules again, with each stop pointing at the control it describes.",
+            self._button("Start the tour", self.tour_requested.emit),
+        ))
+        layout.addWidget(help_group)
+        layout.addStretch(1)
+        return page
+
+    def _build_hardware_page(self) -> QWidget:
+        page, layout = self._build_page_frame(
+            "Hardware",
+            "Backends the hardware modules rely on. Frequencies, voltages and fan curves are set in each module.",
+        )
         try:
             governor_preference = str(
                 self.settings_service.read_local_config().get("gpu_governor", "auto")
@@ -996,6 +1049,7 @@ class SettingsPage(QWidget):
         except (AttributeError, OSError, RuntimeError, TypeError, ValueError):
             governor_preference = "auto"
         self.app_settings.setValue("settings/gpu_governor", governor_preference)
+        group = SettingsGroup("GPU governor")
         group.add_row(SettingRow(
             "GPU governor backend",
             "Only one GPU governor can be enabled at a time. Preparing another governor will ask before stopping the active one.",
@@ -1010,27 +1064,46 @@ class SettingsPage(QWidget):
                 self._gpu_governor_changed,
             ),
         ))
-        group.add_row(SettingRow(
-            "Reopen last module",
-            "Restore the last visited module when the application starts.",
-            self._switch("settings/reopen_last_module", True),
+        layout.addWidget(group)
+        layout.addStretch(1)
+        return page
+
+    def _build_console_page(self) -> QWidget:
+        page, layout = self._build_page_frame(
+            "Terminal and controls",
+            "The built-in terminal where workflows run, and how a game controller drives the interface.",
+        )
+        terminal = SettingsGroup("Built-in terminal")
+        terminal.add_row(SettingRow(
+            "Terminal inside the window",
+            "Run workflows in a panel at the bottom of the window instead of opening a separate terminal window.",
+            self._switch(
+                "settings/embedded_terminal", True, self.embedded_terminal_changed.emit
+            ),
         ))
-        group.add_row(SettingRow(
-            "Collapsed sidebar at launch",
-            "Open the main navigation in compact mode.",
-            self._switch("sidebar_collapsed", False, self.sidebar_collapsed_changed.emit),
+        terminal.add_row(SettingRow(
+            "Hide the terminal when a workflow finishes without errors",
+            "A workflow that fails keeps the terminal open so its output can be read.",
+            self._switch(
+                "settings/console_auto_hide", False, self.console_auto_hide_changed.emit
+            ),
         ))
-        group.add_row(SettingRow(
-            "Guided tour",
-            "Walk through the modules again, with each stop pointing at the control it describes.",
-            self._button("Start the tour", self.tour_requested.emit),
+        shortcut = PillLabel("F4", "gray")
+        shortcut.setProperty("keycap", True)
+        terminal.add_row(SettingRow(
+            "Show or hide the terminal",
+            "Press F4 anywhere in the window, as in Dolphin. An empty terminal opens your own shell, without administrator rights.",
+            shortcut,
         ))
-        group.add_row(SettingRow(
+        layout.addWidget(terminal)
+
+        controller = SettingsGroup("Game controller")
+        controller.add_row(SettingRow(
             "Gamepad navigation",
             "Detect controllers automatically and show controller hints while active.",
             self._switch("settings/gamepad_navigation", True, self.gamepad_navigation_changed.emit),
         ))
-        group.add_row(SettingRow(
+        controller.add_row(SettingRow(
             "Automatic gamepad keypad",
             "Show the on-screen keypad automatically when a gamepad focuses an editable field.",
             self._switch(
@@ -1039,21 +1112,7 @@ class SettingsPage(QWidget):
                 self._unified_gamepad_keypad_changed,
             ),
         ))
-        group.add_row(SettingRow(
-            "Terminal inside the window",
-            "Run workflows in a panel at the bottom of the window instead of opening a separate terminal window.",
-            self._switch(
-                "settings/embedded_terminal", True, self.embedded_terminal_changed.emit
-            ),
-        ))
-        group.add_row(SettingRow(
-            "Hide the terminal when a workflow finishes without errors",
-            "A workflow that fails keeps the terminal open so its output can be read.",
-            self._switch(
-                "settings/console_auto_hide", True, self.console_auto_hide_changed.emit
-            ),
-        ))
-        layout.addWidget(group)
+        layout.addWidget(controller)
         layout.addStretch(1)
         return page
 
@@ -1145,24 +1204,48 @@ class SettingsPage(QWidget):
             "Appearance",
             "Visual density, color, and language preferences for the interface.",
         )
-        group = SettingsGroup("Interface")
-        group.add_row(SettingRow(
+        colors = SettingsGroup("Theme and color")
+        colors.add_row(SettingRow(
             "Theme",
-            "Follow the system theme, use the light palette, or switch to the neutral graphite dark palette.",
+            "The colour of the surfaces: follow the system, or choose light, the neutral graphite dark, or the night blue of the application icon.",
             self._coded_combo(
-                [("System", "system"), ("Light", "light"), ("Dark", "dark")],
+                [("System", "system"), ("Light", "light"), ("Dark", "dark"), ("Night blue", "midnight")],
                 "settings/appearance", "system", self._appearance_control_changed,
             ),
         ))
-        group.add_row(SettingRow(
+        colors.add_row(SettingRow(
+            "Style",
+            "The register, in any theme. Standard keeps the rounded, lively look. Formal uses deeper, quieter colours, squarer corners and flat cards.",
+            self._coded_combo(
+                [("Standard", "standard"), ("Formal", "formal")],
+                "settings/style", "standard", self._appearance_control_changed,
+            ),
+        ))
+        colors.add_row(SettingRow(
+            "Accent color",
+            "Select the main interface accent used across modules.",
+            self._coded_combo(
+                [
+                    ("Blue", "blue"), ("Indigo", "indigo"), ("Violet", "violet"),
+                    ("Pink", "pink"), ("Orange", "orange"), ("Amber", "amber"),
+                    ("Green", "green"), ("Teal", "teal"), ("Cyan", "cyan"),
+                    ("Graphite", "graphite"),
+                ],
+                "settings/accent", "blue", self._appearance_control_changed,
+            ),
+        ))
+        layout.addWidget(colors)
+
+        sizing = SettingsGroup("Layout")
+        sizing.add_row(SettingRow(
             "Density",
-            "Adjust spacing and row compactness for technical panels.",
+            "Comfortable keeps generous spacing. Compact tightens margins, rows and buttons in every module so more fits on screen; text keeps its size.",
             self._coded_combo(
                 [("Comfortable", "comfortable"), ("Compact", "compact")],
                 "settings/density", "comfortable", self._appearance_control_changed,
             ),
         ))
-        group.add_row(SettingRow(
+        sizing.add_row(SettingRow(
             "Interface scale",
             "Scale fonts, controls, spacing, and technical panels from 70% to 150%.",
             self._coded_combo(
@@ -1170,20 +1253,15 @@ class SettingsPage(QWidget):
                 "settings/scale", 100, lambda value: self.scale_changed.emit(int(value)),
             ),
         ))
-        group.add_row(SettingRow(
-            "Accent color",
-            "Select the main interface accent used across modules.",
-            self._coded_combo(
-                [("Blue", "blue"), ("Violet", "violet"), ("Cyan", "cyan"), ("Green", "green"), ("Orange", "orange")],
-                "settings/accent", "blue", self._appearance_control_changed,
-            ),
-        ))
-        group.add_row(SettingRow(
+        layout.addWidget(sizing)
+
+        language = SettingsGroup("Language")
+        language.add_row(SettingRow(
             "Language",
             "Set the interface language. The change is applied immediately to the interface and its dialogs.",
             self._coded_combo([(name, code) for code, name in LANGUAGE_OPTIONS], "settings/language", "auto", self._language_control_changed),
         ))
-        layout.addWidget(group)
+        layout.addWidget(language)
         layout.addStretch(1)
         return page
 
@@ -1193,6 +1271,8 @@ class SettingsPage(QWidget):
             "Telemetry",
             "Sampling, refresh cadence, passive monitoring, and the optional user daemon.",
         )
+        layout.addWidget(self._build_gddr6_manual_group())
+        layout.addWidget(self._build_vrm_manual_group())
         daemon_group = SettingsGroup("Optional daemon")
         self.daemon_status_label = QLabel("Checking…")
         self.daemon_status_label.setProperty("daemonState", True)
@@ -1220,8 +1300,8 @@ class SettingsPage(QWidget):
         daemon_layout.setSpacing(8)
         daemon_text = QLabel(
             "The optional user daemon records JSONL metrics and restores the saved fan mode after login: "
-            "either an enabled automatic GPU-temperature curve or a named fixed-speed preset. "
-            "The manual fan slider does not persist by itself. It never applies CPU or GPU overclock automatically."
+            "an enabled automatic curve, a named preset or the last manual speed. "
+            "It never applies CPU or GPU overclock automatically."
         )
         daemon_text.setProperty("bannerText", True)
         daemon_text.setWordWrap(True)
@@ -1239,6 +1319,158 @@ class SettingsPage(QWidget):
         layout.addWidget(daemon_card)
         layout.addStretch(1)
         return page
+
+    #: The plain-language account shown under the switch, one idea a line.
+    GDDR6_MANUAL_EXPLANATION = (
+        (
+            "Why there is a check",
+            "Memory temperatures are asked of the SMU, a small chip on the board that "
+            "also takes orders from Cyan, the GPU frequency service, and from CPU "
+            "overclocking. "
+            "It has a single mailbox. If two programs write to it at the same moment, "
+            "the messages get mixed, the SMU stops answering and the board freezes "
+            "until it is switched off at the plug.",
+        ),
+        (
+            "When it makes you wait",
+            "While Cyan is starting or restarting, which is when it writes to that "
+            "mailbox, and while BC250-Telemetry's memory service holds it without "
+            "publishing readings. If Cyan keeps restarting (for example Fix metrics "
+            "on a kernel without gpu_metrics), the wait never ends.",
+        ),
+        (
+            "What manual mode changes",
+            "The Live button starts anyway. The locks between programs still apply, "
+            "a board whose firmware is not P3 is still refused, and so is a board "
+            "where BC250-Telemetry was interrupted halfway through a change.",
+        ),
+        (
+            "If the board freezes",
+            "Hold the power button, unplug it for ten seconds and start it again. The "
+            "runtime SMU patch is lost with the power, nothing is written to the BIOS.",
+        ),
+    )
+
+    def _build_gddr6_manual_group(self) -> QWidget:
+        """GDDR6 monitoring without the SMU channel check, for those who ask."""
+        group = SettingsGroup("GDDR6 memory temperature")
+        self.gddr6_manual_switch = self._switch(
+            "settings/gddr6_manual_override", False, self._gddr6_manual_toggled
+        )
+        group.add_row(SettingRow(
+            "Manual GDDR6 monitoring",
+            "Enable the memory temperature button even when the SMU channel check "
+            "says to wait. It can make the board unstable or freeze it.",
+            self.gddr6_manual_switch,
+        ))
+        # Manual mode lifts only the channel check. On a board that is not on
+        # P3.00 the button stays grey whatever this switch says, and the one
+        # place that was never said was right here, next to the switch.
+        version = board_bios_version()
+        self.gddr6_firmware_note = QLabel(
+            tr_format(
+                "This board runs BIOS {version}: live readings need P3.00 (stock, "
+                "Chipset Menu or MeiMeiDXE), so the button stays off even in manual mode.",
+                version=version,
+            )
+            if version
+            else ""
+        )
+        self.gddr6_firmware_note.setProperty("fieldHint", True)
+        self.gddr6_firmware_note.setWordWrap(True)
+        self.gddr6_firmware_note.setVisible(bool(version) and not gddr6_firmware_supported(version))
+        group.layout_root.addWidget(self.gddr6_firmware_note)
+        group.layout_root.addSpacing(6)
+        explanation = QFrame()
+        explanation.setProperty("banner", True)
+        explanation_layout = QVBoxLayout(explanation)
+        explanation_layout.setContentsMargins(14, 12, 14, 12)
+        explanation_layout.setSpacing(8)
+        for heading, text in self.GDDR6_MANUAL_EXPLANATION:
+            title = QLabel(tr(heading))
+            title.setProperty("bannerTitle", True)
+            body = QLabel(tr(text))
+            body.setProperty("bannerText", True)
+            body.setWordWrap(True)
+            explanation_layout.addWidget(title)
+            explanation_layout.addWidget(body)
+        group.layout_root.addWidget(explanation)
+        group.layout_root.addSpacing(10)
+        return group
+
+    def _build_vrm_manual_group(self) -> QWidget:
+        """Power delivery shown by hand, for a mod being wired or tested."""
+        group = SettingsGroup("Power delivery (I2C mod)")
+        self.vrm_manual_switch = self._switch(
+            "settings/vrm_manual", False, self.vrm_manual_changed.emit
+        )
+        group.add_row(SettingRow(
+            "Manual power delivery readings",
+            "Show the Power delivery band on the dashboard even when automatic detection "
+            "finds no I2C modification. It shows everything BC250-Telemetry reports, "
+            "invalid readings included and marked, which is what you need while testing "
+            "the wiring. Nothing is written to the board.",
+            self.vrm_manual_switch,
+        ))
+        self.vrm_detection_label = QLabel("")
+        self.vrm_detection_label.setProperty("daemonState", True)
+        self.vrm_detection_label.setWordWrap(True)
+        group.add_row(SettingRow(
+            "Automatic detection",
+            "What the dashboard finds right now in BC250-Telemetry's snapshot.",
+            self.vrm_detection_label,
+        ))
+        self.refresh_vrm_detection()
+        return group
+
+    @staticmethod
+    def describe_vrm_detection(probe: dict) -> str:
+        daemon = str(probe.get("daemon") or "missing")
+        rails = probe.get("rails") if isinstance(probe.get("rails"), dict) else {}
+        if daemon == "missing":
+            return tr("Not detected: BC250-Telemetry is not running")
+        if daemon == "unreadable":
+            return tr("Not detected: its snapshot could not be read")
+        if daemon == "stale":
+            return tr_format(
+                "Not detected: its snapshot is {age} s old",
+                age=f"{float(probe.get('age_s') or 0):.0f}",
+            )
+        if any(isinstance(rail, dict) and rail.get("valid") for rail in rails.values()):
+            return tr("Detected: the PMIC answers over I2C")
+        return tr("Not detected: BC250-Telemetry gets no answer from the PMIC")
+
+    def refresh_vrm_detection(self) -> None:
+        label = getattr(self, "vrm_detection_label", None)
+        if label is not None:
+            label.setText(self.describe_vrm_detection(sondear_telemetria_vrm()))
+
+    def _gddr6_manual_toggled(self, enabled: bool) -> None:
+        if enabled and not self._confirm_gddr6_manual():
+            switch = self.gddr6_manual_switch
+            blocked = switch.blockSignals(True)
+            switch.setChecked(False)
+            switch.blockSignals(blocked)
+            self.app_settings.setValue("settings/gddr6_manual_override", "false")
+            return
+        self.gddr6_manual_changed.emit(bool(enabled))
+
+    def _confirm_gddr6_manual(self) -> bool:
+        dialog = ConfirmDialog(
+            "Turn off the SMU channel check?",
+            "Memory temperature readings will start even while Cyan may be writing "
+            "to the same SMU mailbox. That is exactly how these readings used "
+            "to freeze boards. Use it only if you understand the risk.",
+            summary=(
+                ("Still enforced", "Locks between programs, P3 firmware, interrupted-operation guard"),
+                ("If it freezes", "Hold power, unplug for ten seconds"),
+            ),
+            confirm_text="Enable manual monitoring",
+            eyebrow="GDDR6 MEMORY TEMPERATURE",
+            tone="red",
+            parent=self,
+        )
+        return dialog.exec() == QDialog.DialogCode.Accepted
 
     def _build_notifications_page(self) -> QWidget:
         # Kept for a future feature branch, but deliberately unreachable from
@@ -1273,8 +1505,8 @@ class SettingsPage(QWidget):
         # Security policies remain mandatory. The page documents the behavior
         # without presenting controls that could falsely imply safety bypasses.
         page, layout = self._build_page_frame(
-            "Security",
-            "Confirmation policy for privileged or hardware-impacting actions.",
+            "Privacy and safety",
+            "What diagnostics may reveal, and the confirmations every privileged or hardware-impacting action requires.",
         )
         diagnostic_group = SettingsGroup("Diagnostic privacy")
         diagnostic_group.add_row(SettingRow(
@@ -1662,7 +1894,7 @@ class SettingsPage(QWidget):
     def _change_daemon(self, enable: bool) -> None:
         action_text = "Enable optional daemon" if enable else "Disable optional daemon"
         message = (
-            "This runs systemctl --user enable --now bc250-control-centerd.service. The daemon records telemetry and restores an enabled automatic fan curve or named fixed-speed preset after login. The manual slider is temporary and is not restored. It does not apply overclock automatically."
+            "This runs systemctl --user enable --now bc250-control-centerd.service. The daemon records telemetry and restores the saved fan mode after login: an enabled automatic curve, a named preset or the last manual speed. It does not apply overclock automatically."
             if enable else
             "This stops and disables bc250-control-centerd.service for the current user. Saved configuration and history files are preserved."
         )
@@ -1695,16 +1927,11 @@ class SettingsPage(QWidget):
 
         def success(payload: object) -> None:
             self.refresh_daemon_status()
-            output = str(payload or "")
-            InfoDialog(
-                "Command completed",
-                output or ("The optional daemon is enabled." if enable else "The optional daemon is disabled."),
-                icon_name="shield_green",
-                parent=self,
-                eyebrow="OPTIONAL DAEMON",
-                notice="No CPU or GPU overclock was applied.",
+            show_toast(
+                self,
+                "The optional daemon is enabled." if enable else "The optional daemon is disabled.",
                 tone="green",
-            ).exec()
+            )
 
         def failure(message_text: str) -> None:
             self.refresh_daemon_status()
@@ -1888,15 +2115,12 @@ class SettingsPage(QWidget):
             return
 
         def success(result: object) -> None:
-            InfoDialog(
+            show_toast(
+                self,
                 "Export completed",
                 tr_format("Portable settings and profiles were saved to {path}.", path=result),
-                icon_name="check_green",
-                parent=self,
-                eyebrow="DATA PORTABILITY",
-                notice="No hardware or system setting was changed.",
                 tone="green",
-            ).exec()
+            )
 
         def failure(message: str) -> None:
             InfoDialog(
@@ -1943,15 +2167,12 @@ class SettingsPage(QWidget):
                 return
 
             def imported(result: object) -> None:
-                InfoDialog(
+                show_toast(
+                    self,
                     "Import completed",
                     tr_format("Settings and profiles were imported. Backup: {path}", path=result),
-                    icon_name="check_green",
-                    parent=self,
-                    eyebrow="DATA PORTABILITY",
-                    notice="Reopen Settings to refresh visible preferences. No hardware value was applied.",
                     tone="green",
-                ).exec()
+                )
 
             self._start_task(
                 lambda: self.settings_service.import_profile_bundle(source),
@@ -1993,12 +2214,12 @@ class SettingsPage(QWidget):
         destination = str(destination_path)
 
         def success(result: object) -> None:
-            InfoDialog(
+            show_toast(
+                self,
                 "Metrics export completed",
                 tr_format("Recorded metrics were saved to {path}.", path=result),
-                icon_name="check_green", parent=self, eyebrow="REPORTS",
-                notice="The CSV contains recorded samples and can be opened in a spreadsheet.", tone="green",
-            ).exec()
+                tone="green",
+            )
 
         self._start_task(
             lambda: self.settings_service.export_runtime_metrics(destination, format_name),
@@ -2205,15 +2426,12 @@ class SettingsPage(QWidget):
         def success(payload: object) -> None:
             result = payload if isinstance(payload, dict) else {}
             self._apply_health_result(result.get("health") or {})
-            InfoDialog(
+            show_toast(
+                self,
                 "Repair result",
                 str(result.get("message") or "Repair workflow completed."),
-                icon_name="shield_green" if result.get("started") else "info_blue",
-                parent=self,
-                eyebrow="SYSTEM HEALTH",
-                notice="Run the health check again after any terminal workflow finishes.",
                 tone="green" if result.get("started") else "blue",
-            ).exec()
+            )
 
         def failure(message: str) -> None:
             InfoDialog(
@@ -2428,22 +2646,8 @@ class SettingsPage(QWidget):
         ).exec()
 
     def _update_application(self) -> None:
-        dialog = ConfirmDialog(
-            "Update BC250 Control Center",
-            "The official source will be updated in place. User settings, Compute Unit layouts, "
-            "fan curves, governor configuration, CPU settings, installed services, and community "
-            "tool repositories are preserved.",
-            summary=(
-                ("Source", "Official movacx/bc250-control-center repository"),
-                ("Existing checkout", "Reused with a fast-forward-only update"),
-                ("Hardware configuration", "Preserved"),
-            ),
-            confirm_text="Open updater",
-            tone="blue",
-            parent=self,
-        )
-        if dialog.exec() != QDialog.DialogCode.Accepted:
-            return
+        # The updater shows what it will do and has its own button to go
+        # ahead; a question before opening it was the same question twice.
         try:
             self.controller.actualizar_aplicacion_local()
         except Exception as error:
@@ -2479,6 +2683,7 @@ class SettingsPage(QWidget):
         elif key == "telemetry":
             self._load_daemon_config()
             self.refresh_daemon_status()
+            self.refresh_vrm_detection()
         self.section_requested.emit(key)
 
     @staticmethod
@@ -2498,12 +2703,6 @@ class SettingsPage(QWidget):
             return
         self._applied_density = normalized
         compact = normalized == "compact"
-        content_margin = 14 if compact else 18
-        top_margin = 12 if compact else 16
-        self.content_layout.setContentsMargins(content_margin, top_margin, content_margin, top_margin)
-        self.content_layout.setSpacing(7 if compact else 10)
-        for layout in self._page_layouts:
-            layout.setSpacing(7 if compact else 10)
         for key in self._built_sections:
             page = self.stack.widget(self.section_order.index(key))
             if page is not None:
@@ -2512,10 +2711,11 @@ class SettingsPage(QWidget):
             self.history_table.verticalHeader().setDefaultSectionSize(27 if compact else 32)
             self.history_table.setMinimumHeight(260 if compact else 330)
         for button in self.findChildren(SettingsNavButton):
-            button.setMinimumHeight(34 if compact else 40)
+            button.setMinimumHeight(32 if compact else 40)
         self.setProperty("compactDensity", compact)
         self.style().unpolish(self)
         self.style().polish(self)
+        apply_layout_density(self, compact)
         self.updateGeometry()
 
     def refresh_appearance(self) -> None:
@@ -2555,6 +2755,7 @@ class SettingsPage(QWidget):
             "settings/density": "comfortable",
             "settings/scale": 100,
             "settings/accent": "blue",
+            "settings/style": "standard",
             "settings/language": "auto",
             "settings/smart_alerts": "false",
             "settings/desktop_notifications": "false",
@@ -2581,18 +2782,18 @@ class SettingsPage(QWidget):
         self.gamepad_navigation_changed.emit(True)
         self.gamepad_keypad_changed.emit(True)
         self.gamepad_keypad_auto_show_changed.emit(True)
-        InfoDialog(
+        show_toast(
+            self,
             "Preferences restored",
             "Interface preferences were restored. Hardware profiles, limits, commands, and history were not changed.",
-            icon_name="shield_green",
-            parent=self,
-            eyebrow="SETTINGS",
-            notice="No hardware command was executed.",
             tone="green",
-        ).exec()
+        )
 
 
 class SettingsDialog(QDialog):
+    #: The controller's Menu button opens Settings and closes them again.
+    gamepad_closes_with_menu = True
+
     language_changed = pyqtSignal(str)
     appearance_changed = pyqtSignal(str, str, str)
     scale_changed = pyqtSignal(int)
@@ -2605,6 +2806,8 @@ class SettingsDialog(QDialog):
     gamepad_keypad_auto_show_changed = pyqtSignal(bool)
     embedded_terminal_changed = pyqtSignal(bool)
     console_auto_hide_changed = pyqtSignal(bool)
+    gddr6_manual_changed = pyqtSignal(bool)
+    vrm_manual_changed = pyqtSignal(bool)
     tour_requested = pyqtSignal()
 
     def __init__(self, controller, *, settings_service, activity_service, app_settings: QSettings | None = None, parent: QWidget | None = None):
@@ -2619,8 +2822,11 @@ class SettingsDialog(QDialog):
             # This is the exact content size the previous nested settings
             # shell occupied.  The dialog now ends at that shell instead of
             # wrapping it in a second, larger dark card.
-            preferred_width=920,
-            preferred_height=628,
+            # Wide enough for the side navigation at every scale up to 110 %:
+            # below 760 px the sections fold into a two-column grid above the
+            # content, which cost a third of the height before any setting.
+            preferred_width=1000,
+            preferred_height=680,
             minimum_width=620,
             minimum_height=460,
         )
@@ -2650,6 +2856,8 @@ class SettingsDialog(QDialog):
         self.page.gamepad_keypad_auto_show_changed.connect(self.gamepad_keypad_auto_show_changed.emit)
         self.page.embedded_terminal_changed.connect(self.embedded_terminal_changed.emit)
         self.page.console_auto_hide_changed.connect(self.console_auto_hide_changed.emit)
+        self.page.gddr6_manual_changed.connect(self.gddr6_manual_changed.emit)
+        self.page.vrm_manual_changed.connect(self.vrm_manual_changed.emit)
         outer.addWidget(self.page, 1)
 
         # Frameless dialogs still need an obvious exit.  Keep it inside the
@@ -2667,15 +2875,12 @@ class SettingsDialog(QDialog):
 
     def _request_close(self) -> None:
         if self.page.has_running_tasks():
-            InfoDialog(
+            show_toast(
+                self,
                 "Operation still running",
                 "Wait for the current settings operation to finish before closing this window.",
-                icon_name="info_blue",
-                parent=self,
-                eyebrow="SETTINGS",
-                notice="The operation has a bounded timeout and will return control automatically.",
                 tone="blue",
-            ).exec()
+            )
             return
         super().reject()
 

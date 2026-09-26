@@ -189,10 +189,16 @@ sudo systemctl reset-failed nct6687-load.service 2>/dev/null || true;
 sudo systemctl restart nct6687-load.service 2>/dev/null || sudo systemctl start nct6687-load.service 2>/dev/null || true
 if [ -x "$FAN_PWM_HELPER" ]; then
   echo "== Installing boot-time fan PWM restore (no password needed after this) ==";
+# nct6687-load.service runs after graphical.target so its 20 s wait never
+# delays the login screen. A unit that is WantedBy=multi-user.target and ordered
+# after it closes an ordering cycle (multi-user.target is implicitly ordered
+# after the units it wants), and systemd then silently drops this job at boot.
+# Ordering it after multi-user.target as well tells systemd not to add that
+# implicit edge.
 sudo tee /etc/systemd/system/bc250-fan-pwm-restore.service >/dev/null <<EOF
 [Unit]
 Description=Restore the last BC250 fan PWM duty at boot
-After=nct6687-load.service
+After=nct6687-load.service multi-user.target
 Requires=nct6687-load.service
 ConditionPathExists=/var/lib/bc250-control-center/fan-last-applied.json
 

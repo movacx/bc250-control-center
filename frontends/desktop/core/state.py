@@ -11,11 +11,17 @@ from dataclasses import dataclass, field, replace
 from typing import Any
 
 from bc250cc.domain.telemetry import voltage_mv
+from bc250cc.infrastructure.system_fan_control import (
+    read_system_fan_control,
+    system_fan_control_owns_fan,
+)
 from bc250cc.infrastructure.telemetry_policy import (
     passive_probe_budget,
     run_passive_probe,
 )
+from frontends.desktop.core.cu_balance import engine_balance
 from frontends.desktop.core.dashboard_presenter import (
+    dashboard_fan_owner,
     present_activities,
     present_cu_labels,
     present_dashboard_fan,
@@ -83,6 +89,20 @@ def _dashboard_sources(cache: "ControllerStateCache") -> tuple[
         mapping("cpu_tuning"),
         events,
     )
+
+
+def _fan_owner(fan: dict[str, Any], cache: "ControllerStateCache") -> str:
+    """Who drives the pump fan; any part that cannot be read counts as absent."""
+    try:
+        snapshot = read_system_fan_control()
+        system_owned = system_fan_control_owns_fan(snapshot) and snapshot.get("state") != "override"
+    except Exception:
+        system_owned = False
+    try:
+        config = cache.config()
+    except Exception:
+        config = {}
+    return dashboard_fan_owner(fan, system_owned=system_owned, config=config)
 
 
 def _number(value: Any, default: float = 0.0) -> float:
@@ -405,6 +425,9 @@ class DashboardState:
 
     active_cus: int = 0
     total_cus: int = 40
+    #: CUs that add throughput given the shader-engine balance; 0 when the
+    #: routing table is unknown (see core/cu_balance.py).
+    effective_cus: int = 0
     cu_mode: str = "Not verified"
     cu_boot_sync: str = "Not detected"
     umr_ready: bool = False
@@ -449,11 +472,20 @@ class DashboardState:
     nvme_temperature_c: float = 0.0
     nvme_hotspot_temperature_c: float = 0.0
     board_temperature_c: float = 0.0
+    #: The BIOS image as far as the evidence goes (see firmware/board.py):
+    #: DMI's version, the variant when it could be told, and how it was.
+    bios_version: str = ""
+    bios_variant: str = ""
+    bios_evidence: str = ""
     #: The hottest VRM reading, whatever its origin. ``vrm_source`` says what
     #: it actually is: "pmbus" for a real rail measurement from the PMIC,
     #: "nct" for the Nuvoton channel labelled VRM MOS, "" for nothing found.
     vrm_temperature_c: float = 0.0
     vrm_source: str = ""
+    #: The Nuvoton "VRM MOS" channel alone, next to any PMBus rails.
+    vrm_mos_temperature_c: float = 0.0
+    #: Who sets the fan duty: system, daemon, firmware or manual.
+    fan_owner: str = ""
     vrm_cpu_temperature_c: float = 0.0
     vrm_gpu_temperature_c: float = 0.0
     #: Electrical readings, PMBus only. Zero means "not reported".
@@ -467,6 +499,8 @@ class DashboardState:
     vrm_gpu_power_w: float = 0.0
     #: Status bits the PMIC raised itself, e.g. ``("gpu_temp_warning",)``.
     vrm_alerts: tuple[str, ...] = field(default_factory=tuple)
+    #: The daemon's rails unchecked, for the manual Power delivery mode.
+    vrm_probe: dict[str, Any] = field(default_factory=dict)
 
     activities: tuple[ActivityItem, ...] = field(default_factory=tuple)
 
@@ -529,6 +563,7 @@ class DashboardState:
                 "nvme_hotspot_temperature_c": self.nvme_hotspot_temperature_c,
                 "board_temperature_c": self.board_temperature_c,
                 "vrm_temperature_c": self.vrm_temperature_c,
+                "vrm_mos_temperature_c": self.vrm_mos_temperature_c,
                 # The VRM block travels together. Carrying the source forward
                 # without its rails left the screen claiming PMBus while every
                 # rail read "Not detected".
@@ -595,6 +630,7 @@ class DashboardState:
             board_temperature_c=_number(sensors.get("board_temperature_c")),
             vrm_temperature_c=_number(sensors.get("vrm_temperature_c")),
             vrm_source=str(sensors.get("vrm_source") or ""),
+            vrm_mos_temperature_c=_number(sensors.get("vrm_mos_temperature_c")),
             vrm_cpu_temperature_c=_number(sensors.get("vrm_cpu_temperature_c")),
             vrm_gpu_temperature_c=_number(sensors.get("vrm_gpu_temperature_c")),
             vrm_input_voltage_v=_number(sensors.get("vrm_input_voltage_v")),
@@ -708,6 +744,12 @@ class DashboardState:
         current_freq = _integer(gpu.get("sclk_actual"), 0)
 
         active_cus = _integer(cu_state.get("active_cus"), 0)
+        cu_masks = cu_state.get("masks")
+        effective_cus = (
+            engine_balance(cu_masks).effective
+            if isinstance(cu_masks, (list, tuple)) and len(cu_masks) == 4
+            else 0
+        )
         cu_mode, boot_sync = present_cu_labels(cu_state)
         fan_view = present_dashboard_fan(fan, performance_rpm=perf.get("fan_rpm"))
         if fan_view.needs_fallback:
@@ -765,6 +807,7 @@ class DashboardState:
             gpu_temperature_c=_number(perf.get("gpu_temp"), 0.0),
             vrm_temperature_c=_number(perf.get("vrm_temp"), 0.0),
             vrm_source=str(perf.get("vrm_source") or ""),
+            vrm_mos_temperature_c=_number(perf.get("vrm_mos_temp"), 0.0),
             vrm_cpu_temperature_c=_number(perf.get("vrm_temp_cpu"), 0.0),
             vrm_gpu_temperature_c=_number(perf.get("vrm_temp_gpu"), 0.0),
             vrm_input_voltage_v=_number(perf.get("vrm_input_voltage_v"), 0.0),
@@ -776,7 +819,11 @@ class DashboardState:
             vrm_cpu_power_w=_number(perf.get("vrm_cpu_power_w"), 0.0),
             vrm_gpu_power_w=_number(perf.get("vrm_gpu_power_w"), 0.0),
             vrm_alerts=tuple(str(alert) for alert in perf.get("vrm_alerts") or ()),
+            vrm_probe=dict(perf.get("vrm_probe") or {}) if isinstance(perf.get("vrm_probe"), dict) else {},
             board_temperature_c=_number(perf.get("board_temp"), 0.0),
+            bios_version=str(perf.get("bios_version") or ""),
+            bios_variant=str(perf.get("bios_variant") or ""),
+            bios_evidence=str(perf.get("bios_evidence") or ""),
             gpu_utilization_percent=_integer(
                 gpu.get("gpu_busy") if gpu.get("gpu_busy") is not None else perf.get("gpu_busy"), -1
             ),
@@ -814,6 +861,7 @@ class DashboardState:
                 telemetry_repair.get("available", True)
             ),
             active_cus=active_cus,
+            effective_cus=effective_cus,
             total_cus=40,
             cu_mode=cu_mode,
             cu_boot_sync=boot_sync,
@@ -822,6 +870,7 @@ class DashboardState:
             pump_fan_rpm=fan_view.rpm,
             pump_fan_duty_percent=fan_view.duty_percent,
             fan_mode=fan_view.mode,
+            fan_owner=_fan_owner(fan, cache) if fan else "",
             fan_controller_label=fan_view.label,
             dependencies_ready=all(
                 [

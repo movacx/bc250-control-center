@@ -76,6 +76,52 @@ def _pwm_percent(value: object, default: int = 0) -> int:
     return max(0, min(100, round(pwm * 100 / 255)))
 
 
+#: What a user reads for each owner of the fan's PWM.
+FAN_OWNER_LABELS = {
+    "system": "System service",
+    "daemon": "Desktop daemon",
+    "firmware": "Firmware (BIOS)",
+    "manual": "Manual value",
+}
+
+
+def fan_owner(
+    *,
+    system_owned: bool,
+    pwm_enable: object,
+    curve_enabled: bool,
+    preset_enabled: bool,
+) -> str:
+    """Who sets the fan's duty right now.
+
+    The root service when it holds the fan; the board firmware when the
+    channel is in automatic mode (pwm_enable 2); the desktop daemon when a
+    curve or preset is saved for it; otherwise a value someone wrote by hand.
+    """
+    if system_owned:
+        return "system"
+    if _integer(pwm_enable, -1) == 2:
+        return "firmware"
+    if curve_enabled or preset_enabled:
+        return "daemon"
+    return "manual"
+
+
+def dashboard_fan_owner(
+    fan: Mapping[str, object], *, system_owned: bool, config: Mapping[str, object]
+) -> str:
+    """``fan_owner`` for the dashboard's pump fan, from the saved settings."""
+    row = _pump_row(fan) if fan else {}
+    curve = config.get("fan_curve")
+    preset = config.get("fan_preset")
+    return fan_owner(
+        system_owned=system_owned,
+        pwm_enable=row.get("pwm_enable"),
+        curve_enabled=isinstance(curve, Mapping) and bool(curve.get("enabled")),
+        preset_enabled=isinstance(preset, Mapping) and bool(preset.get("enabled")),
+    )
+
+
 def present_dashboard_fan(
     fan: Mapping[str, object],
     *,

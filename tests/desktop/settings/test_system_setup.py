@@ -795,3 +795,233 @@ def test_bridge_rejects_vram_out_of_range_and_builds_the_uma_size_flag():
     for uma_size_mb in (0, 255, 16384, "512"):
         with pytest.raises(ValueError):
             command("vram-apply", uma_size_mb=uma_size_mb)
+
+
+# ------------------------------------------------ memory profiles, hardened
+
+
+def _zswap_knobs(sandbox, compressor="lzo", pool="20", zpool="zbud", shrinker="N"):
+    base = memory.ZSWAP_PARAMETERS
+    sandbox.put(f"{base}/compressor", compressor)
+    sandbox.put(f"{base}/max_pool_percent", pool)
+    sandbox.put(f"{base}/zpool", zpool)
+    sandbox.put(f"{base}/shrinker_enabled", shrinker)
+    for key, value in (("swappiness", "60"), ("page-cluster", "3"),
+                       ("watermark_boost_factor", "15000"), ("watermark_scale_factor", "10")):
+        sandbox.put(f"{memory.VM}/{key}", value)
+
+
+def test_zswap_is_tuned_before_it_is_enabled_and_restored_exactly(sandbox):
+    _zswap_knobs(sandbox)
+    memory.apply(sandbox.host, "zswap-16")
+
+    base = memory.ZSWAP_PARAMETERS
+    assert sandbox.host.read(f"{base}/compressor") == "lz4"
+    assert sandbox.host.read(f"{base}/max_pool_percent") == "25"
+    assert sandbox.host.read(f"{base}/zpool") == "zsmalloc"
+    assert sandbox.host.read(f"{base}/shrinker_enabled") == "Y"
+    assert sandbox.host.read(memory.ZSWAP) == "1"
+    assert sandbox.host.read(f"{memory.VM}/swappiness") == "100"
+    assert "vm.swappiness = 100" in sandbox.host.read(memory.SYSCTL)
+    status = memory.status(sandbox.host)
+    assert status["zswap_tuning"]["compressor"] == "lz4"
+    assert status["sysctl_profile"] == "zswap"
+
+    memory.apply(sandbox.host, "restore")
+
+    assert sandbox.host.read(f"{base}/compressor") == "lzo"
+    assert sandbox.host.read(f"{base}/max_pool_percent") == "20"
+    assert sandbox.host.read(f"{base}/zpool") == "zbud"
+    assert sandbox.host.read(f"{base}/shrinker_enabled") == "N"
+    assert sandbox.host.read(memory.ZSWAP) == "N"
+    assert sandbox.host.read(f"{memory.VM}/swappiness") == "60"
+    assert not sandbox.host.path(memory.SYSCTL).exists()
+
+
+def test_a_refused_compressor_falls_through_to_the_next_candidate(sandbox, monkeypatch):
+    _zswap_knobs(sandbox)
+    real = sandbox.host.parameter
+
+    def kernel(name, value):
+        if name.endswith("/compressor") and value == "lz4":
+            raise SetupError("Kernel did not accept compressor")
+        return real(name, value)
+
+    monkeypatch.setattr(sandbox.host, "parameter", kernel)
+    memory.apply(sandbox.host, "zswap-16")
+    assert sandbox.host.read(f"{memory.ZSWAP_PARAMETERS}/compressor") == "zstd"
+
+
+def test_boot_puts_the_zswap_tuning_back_after_the_module_reset(sandbox):
+    _zswap_knobs(sandbox)
+    memory.apply(sandbox.host, "zswap-16")
+    # A reboot resets module parameters to the kernel's defaults.
+    _zswap_knobs(sandbox)
+    sandbox.put(memory.ZSWAP, "N")
+
+    memory.boot(sandbox.host)
+
+    assert sandbox.host.read(f"{memory.ZSWAP_PARAMETERS}/compressor") == "lz4"
+    assert sandbox.host.read(f"{memory.ZSWAP_PARAMETERS}/max_pool_percent") == "25"
+    assert sandbox.host.read(memory.ZSWAP) == "1"
+
+
+def _reboot_after_zram_takeover(sandbox, initstate):
+    """The zram module still creates zram0 once the foreign setup stands down."""
+    _zswap_knobs(sandbox, compressor="zstd")
+    sandbox.put(memory.ZSWAP, "N")
+    sandbox.host.path("/sys/block/zram0/size").unlink()
+    sandbox.put("/sys/block/zram0/initstate", initstate)
+
+
+def test_boot_enables_zswap_beside_the_empty_zram0_the_module_leaves(sandbox):
+    """CachyOS BC-250, 2026-09: bc250-memory-setup failed on every boot."""
+    host = sandbox.host
+    _cachyos_default_zram(sandbox)
+    _zswap_knobs(sandbox)
+    assert memory.apply(host, "zswap-16", takeover_zram=True)["zswap_pending"]
+    _reboot_after_zram_takeover(sandbox, initstate="0")
+
+    result = memory.boot(host)
+
+    assert not result["zswap_pending"]
+    assert host.read(memory.ZSWAP) == "1"
+    assert host.read(f"{memory.ZSWAP_PARAMETERS}/compressor") == "lz4"
+    assert host.read(f"{memory.ZSWAP_PARAMETERS}/max_pool_percent") == "25"
+
+
+def test_boot_still_refuses_zswap_while_a_configured_zram_holds_a_disk(sandbox):
+    host = sandbox.host
+    _cachyos_default_zram(sandbox)
+    _zswap_knobs(sandbox)
+    memory.apply(host, "zswap-16", takeover_zram=True)
+    _reboot_after_zram_takeover(sandbox, initstate="1")
+
+    with pytest.raises(SetupError, match="ZRAM is active"):
+        memory.boot(host)
+    assert host.read(memory.ZSWAP) == "N"
+
+
+def test_zram_profile_names_its_algorithm_and_tunes_in_memory_swap(sandbox):
+    _zswap_knobs(sandbox)
+    sandbox.put("/usr/lib/systemd/system-generators/zram-generator", "#!/bin/sh\n")
+    sandbox.put("/proc/crypto", "name         : lzo-rle\n\nname         : zstd\n")
+    memory.apply(sandbox.host, "zram")
+
+    config = sandbox.host.read(memory.ZRAM)
+    assert "zram-size = min(ram / 2, 4096)" in config
+    assert "compression-algorithm = zstd" in config
+    assert "fs-type = swap" in config
+    assert sandbox.host.read(f"{memory.VM}/swappiness") == "180"
+    assert sandbox.host.read(f"{memory.VM}/page-cluster") == "0"
+
+    memory.apply(sandbox.host, "restore")
+    assert sandbox.host.read(f"{memory.VM}/swappiness") == "60"
+    assert sandbox.host.read(f"{memory.VM}/page-cluster") == "3"
+    assert not sandbox.host.path(memory.SYSCTL).exists()
+
+
+def test_zram_without_a_known_algorithm_keeps_the_kernel_default(sandbox):
+    sandbox.put("/usr/lib/systemd/system-generators/zram-generator", "#!/bin/sh\n")
+    memory.apply(sandbox.host, "zram")
+    assert "compression-algorithm" not in sandbox.host.read(memory.ZRAM)
+
+
+def test_swap_and_zswap_of_one_size_switch_directly_on_the_same_file(sandbox):
+    _zswap_knobs(sandbox)
+    memory.apply(sandbox.host, "swap-16")
+    swapfile = memory.swap_paths(sandbox.host, sandbox.host.state("memory"))[1]
+    assert memory.status(sandbox.host)["direct_switches"] == ["zswap-16"]
+    before = len([call for call in sandbox.calls if call[0] == "mkswap"])
+
+    memory.apply(sandbox.host, "zswap-16")
+    assert sandbox.host.read(memory.ZSWAP) == "1"
+    memory.apply(sandbox.host, "swap-16")
+    assert sandbox.host.read(memory.ZSWAP) == "N"
+    assert sandbox.host.read(f"{memory.VM}/swappiness") == "60"
+
+    # Neither switch created, formatted or deactivated a swapfile.
+    assert len([call for call in sandbox.calls if call[0] == "mkswap"]) == before
+    assert not any(call[0] == "swapoff" for call in sandbox.calls)
+    assert swapfile in memory.swaps(sandbox.host)
+    with pytest.raises(SetupError, match="Restore the current"):
+        memory.apply(sandbox.host, "swap-32")
+
+
+def test_a_swapfile_the_kernel_refuses_is_removed_again(sandbox):
+    sandbox.fail = lambda args: args[0] == "swapon"
+    with pytest.raises(SetupError):
+        memory.apply(sandbox.host, "swap-16")
+
+    state = sandbox.host.state("memory")
+    assert not state.get("owns_swap")
+    assert not sandbox.host.path(memory.SWAP).exists()
+    assert not sandbox.host.path(memory.SWAP_DIR).exists()
+    assert state.get("phase") == "incomplete"
+
+
+def test_btrfs_without_mkswapfile_uses_the_manual_nocow_sequence(sandbox):
+    sandbox.fs = "btrfs"
+    sandbox.fail = lambda args: args[:3] == ("btrfs", "filesystem", "mkswapfile")
+    memory.apply(sandbox.host, "swap-16")
+
+    commands = [call[0] if call[0] != "btrfs" else " ".join(call[:3]) for call in sandbox.calls]
+    assert "chattr" in commands
+    chattr = next(call for call in sandbox.calls if call[0] == "chattr")
+    assert chattr[1] == "+C"
+    assert commands.index("chattr") < commands.index("mkswap")
+    assert memory.SWAP in memory.swaps(sandbox.host)
+
+
+def test_a_swapfile_must_leave_a_proportional_reserve_free(sandbox, monkeypatch):
+    monkeypatch.setattr(
+        memory.shutil, "disk_usage",
+        lambda path: SimpleNamespace(free=20 * memory.GIB, total=400 * memory.GIB),
+    )
+    # 16 GiB plus 5 % of a 400 GiB disk (20 GiB) does not fit in 20 GiB free.
+    with pytest.raises(SetupError, match="must still leave 20 GiB free"):
+        memory.apply(sandbox.host, "swap-16")
+    assert not sandbox.host.path(memory.SWAP).exists()
+
+
+def test_status_reports_the_live_kernel_memory_state(sandbox):
+    _zswap_knobs(sandbox, compressor="zstd")
+    sandbox.put("/sys/block/zram0/mm_stat", "4096000 1024000 1200000 0 0 0 0 0 0\n")
+    sandbox.put("/sys/block/zram0/comp_algorithm", "lzo lzo-rle lz4 [zstd]\n")
+    live = memory.status(sandbox.host)["live"]
+
+    assert live["zswap"]["compressor"] == "zstd"
+    assert live["vm"]["swappiness"] == "60"
+    assert live["zram_devices"] == [{
+        "name": "zram0", "algorithm": "zstd",
+        "original_bytes": 4096000, "compressed_bytes": 1024000,
+    }]
+    assert live["swap_devices"][0]["path"] == "/dev/user-swap"
+
+
+def test_a_foreign_sysctl_dropin_is_never_overwritten(sandbox):
+    _zswap_knobs(sandbox)
+    sandbox.put(memory.SYSCTL, "vm.swappiness = 10\n")
+    with pytest.raises(SetupError, match="Foreign file preserved"):
+        memory.apply(sandbox.host, "zswap-16")
+    assert sandbox.host.read(memory.SYSCTL) == "vm.swappiness = 10"
+
+
+def test_package_removal_is_told_exactly_what_to_restore_and_how(sandbox):
+    """A bare "restore it first" left users stuck at pacman -R (2026-09)."""
+    import runpy
+
+    helper = runpy.run_path(str(LIB.parent / "helpers" / "bc250-system-setup-helper"))
+    host = sandbox.host
+    memory.apply(host, "swap-16", 8)
+
+    blockers, steps, commands = helper["uninstall_blockers"](host, memory, STATE)
+    text = helper["uninstall_guidance"](blockers, steps, commands)
+    assert any("16 GiB swapfile" in item and "(in use)" in item for item in blockers)
+    assert any("TTM) set to 8 GiB" in item for item in blockers)
+    assert "Memory & Swap > Restore > Apply" in text
+    assert "memory-apply --policy restore --ttm -1" in text
+    assert "acpi-uninstall" not in text  # only what is actually in place
+
+    memory.apply(host, "restore", -1)
+    assert helper["uninstall_blockers"](host, memory, STATE) == ([], [], [])

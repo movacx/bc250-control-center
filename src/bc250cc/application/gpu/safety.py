@@ -173,7 +173,7 @@ def _offline_notice(state: Mapping[str, object]) -> GpuSafetyPresentation | None
         suffixes.append(SafetyMessage("Missing voltage entries: {values}.", (("values", values),)))
     return _notice(
         "Governor D-Bus unavailable",
-        "The page can still show passive telemetry, but runtime ranges cannot be applied. Read the service status and inspect the TOML before continuing. The governor service may be disabled; enable it with the Enable service button.",
+        "The page can still show passive telemetry, but runtime ranges cannot be applied. Read the service status and inspect the TOML before continuing. The governor service may be stopped; start it with the Start governor button.",
         "orange", "Offline", suffixes=suffixes,
     )
 

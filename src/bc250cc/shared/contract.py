@@ -58,7 +58,11 @@ CONTRACT_REVISION = 1
 # into the battery-backed CMOS bank, the same mechanism the desktop's own
 # VRAM control uses. Like that control, the new size only takes effect after
 # the next reboot; it never touches a live allocation.
-QUICK_ACCESS_PROTOCOL = 16
+#
+# Protocol 19 adds the Desktop's fan profiles as the quiet/balanced/boost
+# presets ("fan_profiles" in the status), "fan-resume" and the
+# system_fan_* ownership fields that per-game profiles restore from.
+QUICK_ACCESS_PROTOCOL = 19
 CPU_SMU_HELPER_PROTOCOL = 8
 GOVERNOR_CONFIG_PROTOCOL = 6
 STEAMOS_GAME_HELPER_PROTOCOL = 21

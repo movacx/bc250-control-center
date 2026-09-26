@@ -26,6 +26,10 @@ from bc250cc.domain.fan.persistence import (
 from bc250cc.infrastructure.persistence.activity_journal import activity_journal
 from bc250cc.infrastructure.persistence.profile_bundle import ProfileBundleRepository
 from bc250cc.infrastructure.sistema_repository import SistemaRepository
+from bc250cc.infrastructure.system_fan_control import (
+    read_system_fan_control,
+    system_fan_control_owns_fan,
+)
 from bc250cc.infrastructure.system_service import SistemaService
 
 
@@ -194,19 +198,34 @@ class BC250ControlCenterDaemon:
         )
 
     def _fan_readback_matches(self, decision, target, ahora):
-        if decision.action != 'verify':
+        # A fresh daemon process (every boot/login) starts with no in-memory
+        # record of what it last applied, so plan_persistent_fan() always
+        # returns "apply" on its very first cycle -- even when a boot-time
+        # service already restored this exact duty. Read the (privilege-free)
+        # hwmon value first on that first cycle too, the same way "verify"
+        # already does on every later cycle, instead of writing unconditionally
+        # and opening an unnecessary polkit prompt right after login.
+        first_cycle = decision.action == 'apply' and getattr(self, 'ultimo_fan_target', None) is None
+        if decision.action != 'verify' and not first_cycle:
             return False, None
         reader = getattr(self.servicio, 'leer_pwm_fan', None)
         if not callable(reader):
             return False, None
         confirmed = reader(target.pwm)
-        self.ultimo_fan_verify = ahora
+        if decision.action == 'verify':
+            self.ultimo_fan_verify = ahora
         previous_path = getattr(self, 'ultimo_fan_sensor_path', '')
         same_value = int(confirmed.get('value', -1)) == target.raw
         same_path = not previous_path or confirmed.get('sensor_path') == previous_path
         if not (same_value and same_path):
             return False, confirmed
         self.ultimo_fan_curve_apply = ahora
+        if first_cycle:
+            self.ultimo_fan_curve_percent = target.percent
+            self.ultimo_fan_target = target.identity
+            self.ultimo_fan_verify = ahora
+            self.ultima_fan_temperature = target.temperature
+            self.ultimo_fan_sensor_path = confirmed.get('sensor_path', '')
         self._write_health(
             status='healthy', fan_pwm=target.pwm, fan_percent=target.percent,
             fan_raw=target.raw, fan_sensor_path=confirmed.get('sensor_path', ''),
@@ -293,7 +312,20 @@ class BC250ControlCenterDaemon:
         except Exception as error:
             self._record_fan_error(target, error, ahora)
 
+    def _system_fan_control_snapshot(self):
+        return read_system_fan_control()
+
     def aplicar_ventilador_persistente_si_corresponde(self, metrica, config):
+        # GitHub issue #15: when the root system service follows the saved
+        # policy from boot, this per-user loop must not write at all -- every
+        # write here goes through pkexec and could ask for a password.
+        snapshot = self._system_fan_control_snapshot()
+        if system_fan_control_owns_fan(snapshot):
+            self._write_health(
+                fan_owner='system', fan_system_state=snapshot.get('state', ''),
+                fan_error='',
+            )
+            return
         ahora = time.monotonic()
         decision = plan_persistent_fan(
             metrica, config, self._fan_control_memory(), now=ahora

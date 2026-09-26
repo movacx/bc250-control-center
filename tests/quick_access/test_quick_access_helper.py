@@ -22,6 +22,17 @@ def helper_module():
     # Most fixtures exercise the generic backend contract. Individual SteamOS
     # tests opt in explicitly so results never depend on the developer host.
     module.is_steamos = lambda: False
+    # Nor on profiles the developer exported to Decky from this machine: the
+    # loader reads a fixed /etc path, and a real export there changed which
+    # range "gaming" meant and failed an unrelated test on that host only.
+    # The same holds for every exported kind: a fan export changed what
+    # "quiet" wrote on this host once the helper learnt to read it.
+    for name in ("_load_gpu_profile_overrides", "_load_cpu_profile_overrides", "_load_fan_profile_overrides"):
+        real_loader = getattr(module, name)
+        setattr(
+            module, name,
+            lambda path=None, _real=real_loader: {} if path is None else _real(path),
+        )
     # The helper audits the installed shared contract before acting, and reads
     # it again to publish the bounds the panel draws its controls from. A test
     # run has no /usr/libexec, so point it at the copy in the tree — the real
@@ -748,7 +759,7 @@ def test_cu_live_snapshot_is_atomic_schema_versioned_and_contains_verified_state
     assert snapshot == {
         "schema": 1,
         "producer": "bc250-quick-access-helper",
-            "helper_protocol": 15,
+            "helper_protocol": helper_module.HELPER_PROTOCOL,
         "boot_id": "01234567-89ab-cdef-0123-456789abcdef",
         "observed_at_unix_ms": snapshot["observed_at_unix_ms"],
         "raw_dashboard": raw_dashboard,
@@ -1705,3 +1716,147 @@ def test_main_accepts_only_closed_cu_persistence_actions(helper_module, monkeypa
     ]
     assert helper_module.main(["helper", "cu-service", "restart"]) == 2
     assert helper_module.main(["helper", "cu-save", "15", "15", "7"]) == 2
+
+
+# ------------------------------------------------------ GPU governor service
+
+
+def _systemd(states):
+    """A fake ``systemctl`` answering ``show`` from ``states`` and recording the rest."""
+    calls = []
+
+    def run(command, **_kwargs):
+        calls.append(list(command))
+        verb = command[1]
+        if verb == "show":
+            unit = command[2]
+            state = states.get(unit, {})
+            stdout = (
+                f"LoadState={'loaded' if state.get('installed') else 'not-found'}\n"
+                f"UnitFileState={'enabled' if state.get('enabled') else 'disabled'}\n"
+                f"ActiveState={'active' if state.get('active') else 'inactive'}\n"
+            )
+            return subprocess.CompletedProcess(command, 0, stdout, "")
+        if verb == "is-active":
+            unit = command[-1]
+            return subprocess.CompletedProcess(command, 0 if states.get(unit, {}).get("active") else 3, "", "")
+        if verb in {"enable", "disable"}:
+            unit = command[-1]
+            state = states.setdefault(unit, {})
+            state["enabled"] = verb == "enable"
+            state["active"] = verb == "enable"
+            return subprocess.CompletedProcess(command, 0, "", "")
+        raise AssertionError(command)
+
+    return run, calls
+
+
+@pytest.fixture()
+def governor_memory(helper_module, tmp_path, monkeypatch):
+    """The remembered target, in a temporary directory the test owns."""
+    remembered = tmp_path / "quick-access-gpu-governor"
+    monkeypatch.setattr(helper_module, "trusted_file", lambda path, **_k: Path(path).is_file())
+    monkeypatch.setattr(helper_module, "trusted_directory", lambda path: Path(path).is_dir())
+    real_read = helper_module.last_governor_target
+    real_write = helper_module.remember_governor_target
+    monkeypatch.setattr(helper_module, "last_governor_target", lambda: real_read(remembered))
+    monkeypatch.setattr(
+        helper_module, "remember_governor_target", lambda name: real_write(name, remembered)
+    )
+    return remembered
+
+
+def test_gpu_service_enables_the_only_installed_governor_and_reads_it_back(
+    helper_module, monkeypatch, capsys, governor_memory
+):
+    cyan, oberon = helper_module.CYAN_SERVICE, helper_module.OBERON_SERVICE
+    states = {cyan: {"installed": True}, oberon: {}}
+    run, calls = _systemd(states)
+    monkeypatch.setattr(helper_module, "run", run)
+
+    assert helper_module.gpu_service_action("enable") == 0
+
+    assert ["/usr/bin/systemctl", "enable", "--now", cyan] in calls
+    assert not any(oberon in call and call[1] in {"enable", "disable"} for call in calls)
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["gpu_service_action"] == "enabled"
+    assert payload["gpu_service_active"] and payload["gpu_service_enabled"]
+
+
+def test_gpu_service_disables_the_running_governor_only(
+    helper_module, monkeypatch, capsys, governor_memory
+):
+    cyan, oberon = helper_module.CYAN_SERVICE, helper_module.OBERON_SERVICE
+    states = {
+        cyan: {"installed": True},
+        oberon: {"installed": True, "enabled": True, "active": True},
+    }
+    run, calls = _systemd(states)
+    monkeypatch.setattr(helper_module, "run", run)
+
+    assert helper_module.gpu_service_action("disable") == 0
+
+    assert ["/usr/bin/systemctl", "disable", "--now", oberon] in calls
+    assert not any(call[1] == "disable" and cyan in call for call in calls)
+    # Both are installed and neither runs now: the panel remembers which one
+    # it stopped, so "Enable" brings Oberon back rather than starting Cyan.
+    assert json.loads(capsys.readouterr().out)["gpu_service_target"] == "oberon"
+    assert governor_memory.read_text(encoding="ascii").strip() == "oberon"
+
+    assert helper_module.gpu_service_action("enable") == 0
+    assert ["/usr/bin/systemctl", "enable", "--now", oberon] in calls
+    assert not any(call[1] == "enable" and cyan in call for call in calls)
+
+
+def test_gpu_service_refuses_while_both_governors_run(helper_module, monkeypatch, capsys, governor_memory):
+    cyan, oberon = helper_module.CYAN_SERVICE, helper_module.OBERON_SERVICE
+    states = {
+        cyan: {"installed": True, "enabled": True, "active": True},
+        oberon: {"installed": True, "enabled": True, "active": True},
+    }
+    run, calls = _systemd(states)
+    monkeypatch.setattr(helper_module, "run", run)
+
+    for action in ("enable", "disable"):
+        assert helper_module.gpu_service_action(action) == 69
+    assert "QUICK_ACCESS_GPU_CONFLICT" in capsys.readouterr().err
+    assert not any(call[1] in {"enable", "disable"} for call in calls)
+
+
+def test_gpu_service_reports_a_missing_governor_instead_of_guessing(
+    helper_module, monkeypatch, capsys, governor_memory
+):
+    run, calls = _systemd({})
+    monkeypatch.setattr(helper_module, "run", run)
+
+    assert helper_module.gpu_service_action("enable") == 69
+    assert "QUICK_ACCESS_GPU_SERVICE" in capsys.readouterr().err
+    assert not any(call[1] == "enable" for call in calls)
+
+
+def test_gpu_service_rejects_anything_but_enable_or_disable(helper_module, monkeypatch, governor_memory):
+    run, calls = _systemd({})
+    monkeypatch.setattr(helper_module, "run", run)
+
+    assert helper_module.gpu_service_action("restart; rm -rf /") == 2
+    assert calls == []
+
+
+def test_gpu_service_reports_a_governor_that_dies_after_enable(
+    helper_module, monkeypatch, capsys, governor_memory
+):
+    cyan = helper_module.CYAN_SERVICE
+    states = {cyan: {"installed": True}}
+    run, _calls = _systemd(states)
+
+    def dying(command, **kwargs):
+        result = run(command, **kwargs)
+        if command[1] == "enable":
+            states[cyan]["active"] = False
+        return result
+
+    monkeypatch.setattr(helper_module, "run", dying)
+    monkeypatch.setattr(helper_module, "GOVERNOR_SERVICE_START_SECONDS", 0.0)
+
+    assert helper_module.gpu_service_action("enable") == 69
+    assert "did not stay running" in capsys.readouterr().err

@@ -54,6 +54,7 @@ def main(argv):
         'set-cyan-compatibility',
         'set-cyan-voltage-level', 'set-cyan-custom-voltages',
         'set-decky-gpu-profiles', 'set-decky-cpu-profiles',
+        'set-decky-fan-profiles',
     }:
         raise RuntimeError('Unsupported governor configuration action.')
     module = _load_editor_module()
@@ -75,6 +76,16 @@ def main(argv):
             'Decky CPU profiles published.'
             if result.changed
             else 'Decky CPU profiles already matched the requested state.'
+        )
+        return 0
+    if action == 'set-decky-fan-profiles':
+        if len(argv) != 3:
+            raise RuntimeError('set-decky-fan-profiles expects one JSON profile list.')
+        result = module.write_decky_fan_profiles(argv[2])
+        print(
+            'Decky fan profiles published.'
+            if result.changed
+            else 'Decky fan profiles already matched the requested state.'
         )
         return 0
     if action == 'set-oberon-operating-points':

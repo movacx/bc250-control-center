@@ -156,3 +156,51 @@ def test_auxiliary_temperatures_keep_labelled_board_and_vrm_independent(tmp_path
     assert reading["vrm_source"] == "nct"
     assert reading["vrm_cpu_temperature_c"] is None
     assert reading["vrm_gpu_temperature_c"] is None
+
+
+class _CpuTimes(tuple):
+    """psutil's scputimes: a tuple whose fields are also attributes."""
+
+    _fields = ("user", "nice", "system", "idle", "iowait", "irq", "softirq", "steal", "guest", "guest_nice")
+
+    def __new__(cls, user, idle, *, iowait=0.0, guest=0.0):
+        values = (user, 0.0, 0.0, idle, iowait, 0.0, 0.0, 0.0, guest, 0.0)
+        instance = super().__new__(cls, values)
+        for name, value in zip(cls._fields, values):
+            setattr(instance, name, value)
+        return instance
+
+
+def test_cpu_usage_is_measured_over_the_samplers_own_interval(monkeypatch):
+    """Another page calling psutil.cpu_percent must not bend this graph.
+
+    psutil measures since the last call made by anyone in the process. The
+    CPU page and the dashboard call it too, and one of them landing a few
+    milliseconds before the monitor left it an interval of almost nothing:
+    the line plunged to 0 %.
+    """
+    repo = SistemaRepository.__new__(SistemaRepository)
+    readings = iter(
+        [
+            [_CpuTimes(100.0, 900.0), _CpuTimes(100.0, 900.0)],
+            # One second later: CPU0 half busy, CPU1 fully busy, guest time
+            # inside user as on Linux (it must not be counted twice).
+            [_CpuTimes(100.5, 900.5), _CpuTimes(101.0, 900.0, guest=0.2)],
+        ]
+    )
+    monkeypatch.setattr(
+        "bc250cc.infrastructure.sistema_repository.psutil.cpu_times",
+        lambda percpu=False: next(readings),
+    )
+    monkeypatch.setattr(
+        "bc250cc.infrastructure.sistema_repository.psutil.cpu_percent",
+        lambda interval=None, percpu=False: [0.0, 0.0] if percpu else 0.0,
+    )
+
+    assert repo._uso_cpu_propio() is None  # nothing to compare with yet
+    total, threads = repo._uso_cpu_propio()
+
+    assert threads[0] == 50.0
+    assert threads[1] == 100.0
+    # 1.5 busy seconds out of 2: the guest 0.2 s is not a third CPU second.
+    assert total == 75.0

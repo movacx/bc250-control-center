@@ -14,6 +14,7 @@ required=(
   VERSION
   README.md
   LICENSE
+  docs/THIRD_PARTY_NOTICES.md
   frontends/desktop/main.py
   src/bc250cc/__init__.py
   frontends/desktop/features/gpu/presenter.py
@@ -75,8 +76,15 @@ expected_root_scripts=(
   install-local.sh
   uninstall-local.sh
 )
+# Plain Bash rather than GNU find -printf: BusyBox find (Alpine) has no
+# -printf, and this check runs before install-local.sh can install anything.
 mapfile -t actual_root_scripts < <(
-  find "$PROJECT_ROOT/scripts" -maxdepth 1 -type f -printf '%f\n' | sort
+  shopt -s dotglob nullglob
+  for entry in "$PROJECT_ROOT"/scripts/*; do
+    if [[ -f "$entry" && ! -L "$entry" ]]; then
+      printf '%s\n' "${entry##*/}"
+    fi
+  done | LC_ALL=C sort
 )
 if [[ "${actual_root_scripts[*]}" != "${expected_root_scripts[*]}" ]]; then
   echo "ERROR: scripts/ root must contain only the three public installers." >&2

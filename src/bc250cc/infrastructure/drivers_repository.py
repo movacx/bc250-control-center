@@ -24,10 +24,28 @@ _CONNECTIVITY_PACKAGES = {
     "fedora": ("linux-firmware", "usbutils", "iw", "bluez"),
     "bazzite": ("linux-firmware", "usbutils", "iw", "bluez"),
     "ubuntu": ("linux-firmware", "usbutils", "iw", "bluez", "rfkill"),
-    # Debian firmware availability depends on enabled non-free-firmware
-    # repositories.  Do not silently change repository policy.
-    "debian": ("usbutils", "iw", "bluez", "rfkill"),
+    # Debian's Wi-Fi and Bluetooth firmware lives in non-free-firmware (see
+    # _DEBIAN_FIRMWARE); only the free part is certain to be available.
+    "debian": ("firmware-linux-free", "usbutils", "iw", "bluez", "rfkill"),
 }
+
+#: The firmware USB Wi-Fi and Bluetooth adapters load, as Debian splits it.
+#: Every one lives in the non-free-firmware component. Debian 12 installs
+#: enable it by default, upgraded and minimal systems often do not, and a
+#: release that lacks one of these (firmware-mediatek before Debian 13) just
+#: skips it: the workflow installs only what the repositories offer.
+_DEBIAN_FIRMWARE = (
+    "firmware-misc-nonfree",
+    "firmware-realtek",
+    "firmware-iwlwifi",
+    "firmware-atheros",
+    "firmware-brcm80211",
+    "firmware-mediatek",
+    "firmware-libertas",
+)
+#: Only added, as its own file, after the user says yes in the terminal. The
+#: user's own sources are never edited, and removing the file undoes it.
+DEBIAN_FIRMWARE_SOURCE = "/etc/apt/sources.list.d/bc250-non-free-firmware.sources"
 
 _PRINTING_PACKAGES = {
     "arch": (
@@ -136,6 +154,87 @@ def supported_driver_components(family: str) -> tuple[str, ...]:
     )
 
 
+#: Keeps the names this release's repositories actually offer. A package
+#: that a given release lacks (ipp-usb before Debian 11, firmware-mediatek
+#: before 13) used to fail the whole apt-get install with "Unable to locate
+#: package"; it is now skipped and named. No pipe into grep: under pipefail
+#: an early grep exit would turn a SIGPIPE into a false "not available".
+_APT_RESOLVE = (
+    'bc250_resolve() { resolved=(); unavailable=(); local package policy; '
+    'for package in "$@"; do policy="$(apt-cache policy "$package" 2>/dev/null || true)"; '
+    'case "$policy" in *"Candidate: (none)"*|"") unavailable+=("$package") ;; '
+    '*Candidate:*) resolved+=("$package") ;; *) unavailable+=("$package") ;; esac; done; }'
+)
+
+
+def _apt_commands(package_args: str) -> tuple[str, ...]:
+    return (
+        "sudo apt-get update",
+        _APT_RESOLVE,
+        f"bc250_resolve {package_args}",
+        (
+            'if ((${#unavailable[@]})); then echo "[INFO] Not offered by this release, '
+            'skipped: ${unavailable[*]}"; fi'
+        ),
+        (
+            'if ((${#resolved[@]})); then sudo apt-get install --no-install-recommends "${resolved[@]}"; '
+            "else echo '[WARN] None of the reviewed packages is offered by the configured repositories.'; fi"
+        ),
+    )
+
+
+def _debian_firmware_commands() -> tuple[str, ...]:
+    """Wi-Fi and Bluetooth firmware from non-free-firmware, asked for once.
+
+    Installed when the component is already enabled. When it is not, the
+    terminal says so and asks; only on Debian itself and only on a yes is a
+    separate source file added for this release. Derivatives (Devuan, Kali,
+    Raspberry Pi OS...) have their own archives and only get the explanation.
+    """
+    firmware = " ".join(shlex.quote(package) for package in _DEBIAN_FIRMWARE)
+    offer = _DEBIAN_FIRMWARE_OFFER.replace("@COUNT@", str(len(_DEBIAN_FIRMWARE))).replace(
+        "@SOURCE@", DEBIAN_FIRMWARE_SOURCE
+    )
+    return (
+        f"bc250_resolve {firmware}",
+        offer,
+        f"bc250_resolve {firmware}",
+        (
+            'if ((${#resolved[@]})); then sudo apt-get install --no-install-recommends "${resolved[@]}"; '
+            'echo "[INFO] Unplug and replug USB adapters so they load the new firmware."; fi'
+        ),
+    )
+
+
+#: Runs when none of the firmware is offered, which means the component is
+#: off. @COUNT@ and @SOURCE@ are filled in; the rest is plain bash.
+_DEBIAN_FIRMWARE_OFFER = """\
+if ((${#unavailable[@]} == @COUNT@)); then
+  echo "[INFO] Wi-Fi and Bluetooth firmware (Intel, Realtek, MediaTek, Atheros, Broadcom) is in the Debian non-free-firmware component, which is not enabled here."
+  distro=""; codename=""
+  if test -r /etc/os-release; then
+    distro="$(. /etc/os-release; printf %s "${ID:-}")"
+    codename="$(. /etc/os-release; printf %s "${VERSION_CODENAME:-}")"
+  fi
+  if [ "$distro" = debian ] && [ -n "$codename" ] && [ -r /usr/share/keyrings/debian-archive-keyring.gpg ]; then
+    answer=""
+    read -r -p "Enable non-free-firmware for $codename in its own source file? [y/N] " answer || answer=""
+    case "$answer" in
+      [yY]*)
+        suites="$codename"
+        case "$codename" in sid|unstable) ;; *) suites="$codename $codename-updates" ;; esac
+        printf 'Types: deb\\nURIs: http://deb.debian.org/debian\\nSuites: %s\\nComponents: non-free-firmware\\nSigned-By: /usr/share/keyrings/debian-archive-keyring.gpg\\n' "$suites" | sudo tee @SOURCE@ >/dev/null
+        echo "[INFO] Added @SOURCE@. Delete it to undo."
+        sudo apt-get update
+        ;;
+      *) echo "[INFO] Left as it is. Enable non-free-firmware in the APT sources to add this firmware later." ;;
+    esac
+  else
+    echo "[INFO] Enable non-free-firmware in the APT sources of this system to add it."
+  fi
+fi"""
+
+
 def build_driver_support_command(component: str, family: str, init_kind: str) -> str:
     """Return an idempotent, reviewable distro-package workflow."""
 
@@ -165,12 +264,9 @@ def build_driver_support_command(component: str, family: str, init_kind: str) ->
     if family in {"arch", "manjaro", "cachyos"}:
         commands.append(f"sudo pacman -S --needed {package_args}")
     elif family in {"ubuntu", "debian"}:
-        commands.extend(
-            (
-                "sudo apt-get update",
-                f"sudo apt-get install --no-install-recommends {package_args}",
-            )
-        )
+        commands.extend(_apt_commands(package_args))
+        if component == "connectivity" and family == "debian":
+            commands.extend(_debian_firmware_commands())
     elif family == "fedora":
         commands.append(f"sudo dnf install -y {package_args}")
     elif family == "bazzite":

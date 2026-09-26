@@ -1,8 +1,14 @@
 import json
+import os
 import time
 from pathlib import Path
 
-from bc250cc.infrastructure.vrm_telemetry_reader import leer_telemetria_vrm
+import pytest
+
+from bc250cc.infrastructure.vrm_telemetry_reader import (
+    leer_memoria_telemetria,
+    leer_telemetria_vrm,
+)
 
 VALID_SNAPSHOT = {
     "hardware": {
@@ -142,3 +148,54 @@ def test_a_rail_that_did_not_answer_reports_nothing_rather_than_minus_one(tmp_pa
     # The GPU rail said it was invalid, so nothing of it is believed.
     assert result["vrm_gpu_temperature_c"] is None
     assert result["vrm_available"] is False
+
+
+# ------------------------------------------------------ the GDDR6 collector
+
+
+def _memory(**fields):
+    base = {
+        "valid": True,
+        "status": "ok",
+        "raw": [9766, 9509, 10794, 9766, 9766, 10537, 10537, 10023],
+    }
+    return {"memory": {**base, **fields}}
+
+
+def test_an_active_collector_yields_its_eight_readings(tmp_path):
+    path = tmp_path / "t.json"
+    path.write_text(json.dumps(_memory()))
+    state = leer_memoria_telemetria(path)
+    assert state["state"] == "active"
+    assert [chip["temperature_c"] for chip in state["chips"]] == [36, 34, 44, 36, 36, 42, 42, 38]
+    assert state["hotspot_chip"] == 2
+
+
+@pytest.mark.parametrize(
+    "fields, expected",
+    [
+        ({"valid": False, "status": "starting", "raw": []}, "waiting"),
+        ({"valid": False, "status": "invalid_reading"}, "waiting"),
+        ({"valid": False, "status": "stale", "raw": []}, "stale"),
+        ({"valid": False, "status": "stopped", "raw": []}, ""),
+        ({"valid": False, "status": "unavailable", "raw": []}, ""),
+        # One impossible code invalidates the sample, as it does upstream.
+        ({"raw": [9766] * 7 + [0x51]}, "waiting"),
+    ],
+)
+def test_the_collector_state_follows_what_it_published(tmp_path, fields, expected):
+    path = tmp_path / "t.json"
+    path.write_text(json.dumps(_memory(**fields)))
+    state = leer_memoria_telemetria(path)
+    assert state["state"] == expected
+    if expected != "active":
+        assert state["chips"] == []
+
+
+def test_a_file_the_daemon_stopped_writing_is_not_a_running_collector(tmp_path):
+    path = tmp_path / "t.json"
+    path.write_text(json.dumps(_memory()))
+    old = time.time() - 60
+    os.utime(path, (old, old))
+    assert leer_memoria_telemetria(path)["state"] == ""
+    assert leer_memoria_telemetria(tmp_path / "missing.json")["state"] == ""

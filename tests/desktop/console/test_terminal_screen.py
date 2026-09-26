@@ -571,3 +571,11 @@ def test_a_resize_during_the_alternate_screen_leaves_the_primary_whole():
     term.feed(b"\x1b[?1049l")
     restored = [line for line in term.visible_text().splitlines() if line]
     assert restored == ["historia", "b", "c"]
+
+
+def test_a_wide_character_is_its_own_run_so_what_follows_stays_on_the_grid():
+    term = TerminalScreen(40, 3)
+    term.feed("\x1b[31mrojo\x1b[0m 日本 ok".encode())
+    runs = [(start, text) for start, text, _ in TerminalScreen.runs(term.lines[0])]
+    assert runs[:4] == [(0, "rojo"), (4, " "), (5, "日"), (7, "本")]
+    assert runs[4][0] == 9 and runs[4][1].startswith(" ok")

@@ -136,7 +136,10 @@ def test_the_label_says_which_password_is_being_asked_for(qtbot, panel):
 def test_a_secret_reaches_the_process_unaltered(qtbot, panel):
     program = (
         "stty -echo; read -r secreto; stty echo; "
-        "printf 'largo:%s\\n' \"${#secreto}\"; printf 'valor:%s\\n' \"$secreto\""
+        # Bytes, not ${#secreto}: dash (Debian's /bin/sh) counts that in
+        # bytes and bash in characters, and the bytes are what must match.
+        "printf 'bytes:%s\\n' \"$(printf '%s' \"$secreto\" | wc -c | tr -d ' ')\"; "
+        "printf 'valor:%s\\n' \"$secreto\""
     )
     with qtbot.waitSignal(panel.workflow_finished, timeout=15000):
         assert panel.run(["/bin/sh", "-c", program], title="Prueba")
@@ -148,7 +151,7 @@ def test_a_secret_reaches_the_process_unaltered(qtbot, panel):
         panel.send_button.click()
     text = panel.view.screen.full_text()
     assert "valor:cláve-ñ-42" in text
-    assert "largo:10" in text
+    assert f"bytes:{len('cláve-ñ-42'.encode())}" in text
 
 
 def test_the_field_returns_to_plain_text_when_the_prompt_is_over(qtbot, panel):

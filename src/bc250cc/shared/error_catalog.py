@@ -94,6 +94,13 @@ _CODES: tuple[ErrorCode, ...] = (
         markers=('QUICK_ACCESS_GPU_SERVICE', 'QUICK_ACCESS_GPU_CONFLICT'),
     ),
     ErrorCode(
+        "BC250-VRAM-001",
+        "The VRAM size could not be changed.",
+        "The size is not one of the offered presets, the firmware memory layout was not recognised, or the CMOS ports could not be reached.",
+        "Choose one of the offered sizes. If it repeats, apply it from BC250 Control Center Desktop, which checks the firmware layout first.",
+        markers=('QUICK_ACCESS_VRAM',),
+    ),
+    ErrorCode(
         "BC250-STORAGE-001",
         "There is not enough writable storage.",
         "The target filesystem, temporary directory, boot partition, or user quota is full.",
@@ -153,7 +160,8 @@ _CODES: tuple[ErrorCode, ...] = (
         "The value does not match the active hardware table, available RAM, safe points, or the limits enforced by the selected backend.",
         "Choose a value currently offered by the application. Refresh first if another toolkit or a restart may have changed the live limits.",
         exit_statuses=(20, 21, 23, 24, 34, 35, 37, 38, 39, 41, 42, 43, 44, 45, 56, 92),
-        markers=('QUICK_ACCESS_GPU_PROFILE', 'QUICK_ACCESS_GPU_SAFE_POINT', 'QUICK_ACCESS_GPU_VERIFY', 'QUICK_ACCESS_CPU_SCALE', 'Frequency must be between', 'VID must be between', 'Temperature must be between', 'QAM CPU frequency must be', 'QAM CPU VID must be', 'QAM CPU detection uses a fixed', 'HELPER_RANGE'),
+        markers=('QUICK_ACCESS_GPU_PROFILE', 'QUICK_ACCESS_GPU_SAFE_POINT',
+                 'QUICK_ACCESS_GPU_HIGH_POINTS', 'QUICK_ACCESS_GPU_VOLTAGE', 'QUICK_ACCESS_GPU_VERIFY', 'QUICK_ACCESS_CPU_SCALE', 'Frequency must be between', 'VID must be between', 'Temperature must be between', 'QAM CPU frequency must be', 'QAM CPU VID must be', 'QAM CPU detection uses a fixed', 'HELPER_RANGE'),
     ),
     ErrorCode(
         "BC250-CU-001",

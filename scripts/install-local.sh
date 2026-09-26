@@ -129,6 +129,14 @@ missing_python_deps_command=()
 missing_python_deps_command_text=""
 missing_python_deps_reboot_notice=0
 python_gui_deps_missing=0
+# Installed privileged files are verified byte for byte with cmp. It belongs
+# to diffutils, which a minimal Arch, CachyOS or openSUSE install need not
+# carry, and its absence read as "does not match this build".
+if [[ "${BC250_SKIP_PRIVILEGED_HELPER:-0}" != "1" ]] && ! command -v cmp >/dev/null 2>&1; then
+  echo "Error: the cmp command (package diffutils) is required to verify the installed files." >&2
+  echo "Install diffutils with your package manager, then run this installer again." >&2
+  exit 2
+fi
 if ! command -v python3 >/dev/null 2>&1; then
   echo "Warning: python3 is not installed or is not in PATH." >&2
   python_gui_deps_missing=1
@@ -169,6 +177,10 @@ elif [[ "$python_gui_deps_missing" -eq 1 ]]; then
     missing_python_deps_command=(dnf install -y python3-pyqt6 qt6-qtsvg python3-psutil)
   elif command -v pacman >/dev/null 2>&1; then
     missing_python_deps_command=(pacman -S --needed python-pyqt6 qt6-svg python-psutil)
+  elif command -v apk >/dev/null 2>&1; then
+    # The same packages the Alpine dependency preparation installs
+    # (packaging/common/os-scripts/alpine/prepare-dependencies.sh).
+    missing_python_deps_command=(apk add --no-progress bash python3 py3-qt6 py3-psutil qt6-qtbase qt6-qtsvg jq polkit)
   fi
   missing_python_deps=1
 fi
@@ -288,6 +300,10 @@ install -m644 "$ROOT_DIR/VERSION" "$APP_STAGE/VERSION"
 PYTHONPYCACHEPREFIX="$APP_STAGE/pycache" python3 -m compileall -q \
   "$APP_STAGE/src" "$APP_STAGE/frontends" "$APP_STAGE/privileged"
 rm -rf -- "$APP_STAGE/pycache"
+# Same normalisation as stage-package-root.sh: one file left 0600 in the
+# source tree (editors create them) made a root install under /usr/local
+# unreadable to the desktop user, and the window failed to start.
+chmod -R a+rX "$APP_STAGE"
 for component in "${APP_COMPONENTS[@]}"; do
   if [[ -e "$APP_DIR/$component" ]]; then
     install -d -m700 "$APP_BACKUP"
@@ -527,8 +543,16 @@ install_privileged_pwm_components() {
     # Normalize only unambiguous legacy frequency-range layouts. This edit is
     # idempotent, preserves user values and every unrelated TOML byte, and is
     # deliberately performed while install/update already has root authority.
+    #
+    # The file belongs to the governor, and other toolkits edit it too. One of
+    # them leaving it unreadable (a key written twice, GitHub issue #1) used to
+    # fail this step and roll back the whole installation. Identical repeats
+    # are now repaired by the helper; anything else is reported and left alone.
     if [[ -f /etc/cyan-skillfish-governor-smu/config.toml ]]; then
-      "${elevate[@]}" "$SYSTEM_GOVERNOR_CONFIG_HELPER" migrate-legacy-frequency-range
+      if ! "${elevate[@]}" "$SYSTEM_GOVERNOR_CONFIG_HELPER" migrate-legacy-frequency-range; then
+        echo "WARNING: /etc/cyan-skillfish-governor-smu/config.toml could not be normalized and was left unchanged." >&2
+        echo "         Fix the line reported above, then apply the GPU range again from BC250 Control Center." >&2
+      fi
     fi
     if [[ -d /run/systemd/system ]] && command -v systemctl >/dev/null 2>&1; then
       "${elevate[@]}" systemctl daemon-reload

@@ -15,6 +15,7 @@ depends=(
   'qt6-svg'
   'polkit'
   'jq'
+  'diffutils'
   'git'
   'pciutils'
   'kmod'

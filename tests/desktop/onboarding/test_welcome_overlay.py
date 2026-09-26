@@ -137,6 +137,38 @@ def test_choosing_a_density_keeps_the_rest(overlay):
     assert seen == [("system", "blue", "compact")]
 
 
+def test_all_themes_styles_and_accents_are_offered(overlay):
+    """Everything Settings › Appearance offers can be chosen on the way in."""
+    assert list(overlay.theme_cards) == ["system", "light", "dark", "midnight"]
+    assert overlay.theme_labels["midnight"].text() == "Night blue"
+    assert list(overlay.style_buttons) == ["standard", "formal"]
+    assert set(overlay.accent_dots) == set(theme_module.ACCENTS)
+    assert list(overlay.density_buttons) == ["comfortable", "compact"]
+
+
+def test_choosing_night_blue_reports_it_as_the_theme(overlay):
+    seen = []
+    overlay.appearance_chosen.connect(lambda *args: seen.append(args))
+
+    overlay.theme_cards["midnight"].chosen.emit("midnight")
+
+    assert seen == [("midnight", "blue", "comfortable")]
+    assert overlay.theme_cards["midnight"].selected
+
+
+def test_choosing_a_style_is_its_own_answer_and_repaints_every_preview(overlay):
+    seen, appearance = [], []
+    overlay.style_chosen.connect(seen.append)
+    overlay.appearance_chosen.connect(lambda *args: appearance.append(args))
+
+    overlay.style_buttons["formal"].click()
+
+    assert seen == ["formal"] and appearance == []
+    assert overlay.style_buttons["formal"].isChecked()
+    assert not overlay.style_buttons["standard"].isChecked()
+    assert all(card._style == "formal" for card in overlay.theme_cards.values())
+
+
 def test_the_sidebar_answer_is_a_boolean_the_window_can_use(overlay):
     seen = []
     overlay.sidebar_chosen.connect(seen.append)
@@ -168,17 +200,23 @@ def test_a_preview_never_writes_to_the_live_palette(qapp):
     before = dict(theme_module.COLORS)
 
     palette_for("light", "orange")["blue"] = "#000000"
+    palette_for("midnight", "orange", "formal")["panel"] = "#000000"
 
     assert theme_module.COLORS == before
+    assert palette_for("midnight", "blue", "formal")["window"] == theme_module.MIDNIGHT_COLORS["window"]
+    assert palette_for("dark", "blue", "formal")["window"] == theme_module.DARK_COLORS["window"]
 
 
 def test_the_itinerary_names_the_stops_the_tour_will_make(overlay):
+    """One line per module; together the lines carry every stop's title."""
     from frontends.desktop.onboarding.script import tour_stops
 
     titles = [stop.title for stop in tour_stops()]
-    assert len(overlay.stop_chips) == len(titles)
-    for chip, title in zip(overlay.stop_chips, titles):
-        assert title in chip.text()
+    carried = [title for chip in overlay.stop_chips for title in chip.property("tourTitles")]
+    assert sorted(carried) == sorted(titles)
+    # One line per module, Settings included: the tour ends there.
+    assert len(overlay.stop_chips) <= 8
+    assert overlay.stop_chips[-1].property("tourTitles") == [tour_stops()[-1].title]
 
 
 # ------------------------------------------------------------------ the glass

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 
+from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QApplication
 
 from bc250cc.application import ApplicationContainer
@@ -10,6 +11,9 @@ from bc250cc.infrastructure.terminal_plan import set_translator
 from bc250cc.shared.logging_config import configure_logging
 from frontends.desktop import ControlCenterWindow
 from frontends.desktop.i18n import tr
+
+#: How long after the window first shows the performance recorder starts.
+PERFORMANCE_RECORDING_DELAY_MS = 2000
 
 
 def build_desktop_api():
@@ -43,6 +47,10 @@ def main() -> int:
         activity_service=container.activity_service,
     )
     window.show()
+    # The performance history records from launch, not from the first visit:
+    # opening Monitoring should show the last two minutes, not an empty graph.
+    # Deferred so the first sample does not compete with the first paint.
+    QTimer.singleShot(PERFORMANCE_RECORDING_DELAY_MS, window.performance_page.start_recording)
     return app.exec()
 
 

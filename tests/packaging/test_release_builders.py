@@ -1,4 +1,5 @@
 import os
+import re
 import shutil
 import subprocess
 import tarfile
@@ -57,6 +58,16 @@ def test_package_post_install_repairs_legacy_privileged_directory_modes():
     assert "/usr/libexec/bc250-control-center/lib" in deb_builder
     assert "old 0775 directory" in deb_builder
     assert "install -d -o 0 -g 0 -m0755" not in maintenance
+
+
+def test_package_removal_clears_bytecode_caches_root_left_behind():
+    maintenance = (ROOT / "packaging/common/bc250-package-maintenance").read_text(encoding="utf-8")
+    pre_remove = maintenance.split("pre-remove)", 1)[1].split(";;", 1)[0]
+
+    assert "for tree in /usr/libexec/bc250-control-center /usr/share/bc250-control-center" in pre_remove
+    assert "-name __pycache__ -prune -exec rm -rf" in pre_remove
+    # The removal gate still runs first and can still stop the removal.
+    assert pre_remove.index('"$helper" uninstall-check') < pre_remove.index("__pycache__")
 
 
 def test_package_staging_contains_runtime_and_no_generated_or_retired_code(tmp_path):
@@ -119,6 +130,36 @@ def test_source_tarball_is_reproducible_and_excludes_qa_payload(tmp_path):
     assert any(name.endswith("/privileged/helpers/README.md") for name in names)
     assert not any("/tests/" in name or "/archive/" in name for name in names)
     assert not any("__pycache__" in name or name.endswith(".pyc") for name in names)
+
+
+def test_source_tarball_carries_every_file_its_installers_copy(tmp_path):
+    """install-local.sh from the 1.19 tarball rolled back: docs/ was not in it."""
+    output = tmp_path / "dist"
+    _run("bash", ROOT / "packaging/scripts/build-tarball.sh", output)
+    archive = output / f"bc250-control-center-{VERSION}.tar.gz"
+    with tarfile.open(archive, "r:gz") as bundle:
+        unreadable = [member.name for member in bundle.getmembers() if not member.mode & 0o004]
+        bundle.extractall(tmp_path / "unpacked", filter="data")
+    unpacked = tmp_path / "unpacked" / f"bc250-control-center-{VERSION}"
+    # A 0600 file in the builder's tree broke root installs from the tarball.
+    assert not unreadable, unreadable
+
+    for installer in ("scripts/install-local.sh", "packaging/scripts/stage-package-root.sh"):
+        text = (ROOT / installer).read_text(encoding="utf-8")
+        referenced = set(re.findall(r'"\$ROOT_DIR/([^"$]+)"', text))
+        assert referenced, installer
+        missing = sorted(path for path in referenced if not (unpacked / path).exists())
+        assert not missing, f"{installer} copies files the tarball lacks: {missing}"
+    _run("bash", unpacked / "scripts/qa/validate-install-source.sh", unpacked, "--structure-only")
+
+
+def test_every_archive_builder_pins_the_gnu_tar_format():
+    """openSUSE's GNU tar defaults to pax, whose headers carry atime/ctime."""
+    for name in ("build-tarball.sh", "build-local-pkg.sh", "build-rpm.sh"):
+        script = (ROOT / "packaging/scripts" / name).read_text(encoding="utf-8")
+        for line in script.splitlines():
+            if line.startswith("tar --create"):
+                assert "--format=gnu" in line, (name, line)
 
 
 def test_arch_package_has_canonical_metadata_and_is_accepted_by_pacman(tmp_path):

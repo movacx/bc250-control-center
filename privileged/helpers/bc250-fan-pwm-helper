@@ -4,9 +4,14 @@
 from __future__ import annotations
 
 import fcntl
+import hashlib
 import json
+import math
 import os
+import shutil
+import signal
 import stat
+import subprocess
 import sys
 import tempfile
 import time
@@ -35,6 +40,30 @@ FAN_OPERATION_LOCK_TIMEOUT_SECONDS = 3.0
 # below).  /var/lib survives a reboot; /run does not.
 STATE_DIR = Path('/var/lib/bc250-control-center')
 STATE_FILE = STATE_DIR / 'fan-last-applied.json'
+
+# System fan control (GitHub issue #15). The saved curve or preset is copied
+# here by an authenticated session; a root service follows it from boot, so
+# nothing at login has to ask for a password. The status and override files
+# live on /run: they describe this boot only.
+POLICY_FILE = STATE_DIR / 'fan-policy.json'
+RUNTIME_DIR = Path('/run/bc250-control-center')
+STATUS_FILE = RUNTIME_DIR / 'fan-control.json'
+OVERRIDE_FILE = RUNTIME_DIR / 'fan-override.json'
+HWMON_BASE = Path('/sys/class/hwmon')
+CONTROL_UNIT_NAME = 'bc250-fan-control.service'
+CONTROL_UNIT_PATH = Path('/etc/systemd/system') / CONTROL_UNIT_NAME
+CONTROL_UNIT_WANTS = Path('/etc/systemd/system/multi-user.target.wants') / CONTROL_UNIT_NAME
+CONTROL_OPENRC_NAME = 'bc250-fan-control'
+LEGACY_RESTORE_UNIT = 'bc250-fan-pwm-restore.service'
+OPENRC_SERVICE_HELPER = Path('/usr/libexec/bc250-control-center/bc250-openrc-service-helper')
+CONTROL_MARKER = '# Managed by BC250 Control Center: system fan control'
+POLICY_SCHEMA = 1
+POLICY_MAX_BYTES = 4096
+CONTROL_INTERVAL_SECONDS = 2.0
+CONTROL_VERIFY_SECONDS = 30.0
+CONTROL_MIN_REWRITE_SECONDS = 5.0
+CONTROL_SENSORS = ('gpu', 'cpu', 'vrm', 'board')
+DEFAULT_CRITICAL_C = {'gpu': 95.0, 'cpu': 95.0, 'vrm': 105.0, 'board': 90.0}
 
 
 @contextmanager
@@ -306,6 +335,648 @@ def restore_automatic(channel: int) -> str:
     return f'OK PWM {channel} AUTO'
 
 
+# ---------------------------------------------------------------------------
+# System fan control: a root service that follows the saved curve from boot
+# ---------------------------------------------------------------------------
+#
+# GitHub issue #15. The fan curve used to be followed only by the per-user
+# daemon, which reaches this helper through pkexec: the first write of every
+# session could ask for a password, and after a reboot the NCT chip is back in
+# firmware mode, so that write almost always happened. Here the curve is
+# copied once, by an authenticated session, into a root-owned policy file, and
+# a root service follows it from boot. The math deliberately mirrors
+# bc250cc.domain.fan.persistence; a parity test keeps the two in step.
+
+_POLICY_KEYS = frozenset({
+    'schema', 'mode', 'pwm', 'points', 'percent', 'preset', 'failsafe_percent',
+    'hysteresis_c', 'deadband_percent', 'max_down_step_percent',
+    'sensor_timeout_seconds', 'critical_c', 'offsets_c',
+})
+_POLICY_PRESETS = frozenset({'quiet', 'balanced', 'cooling', 'maximum'})
+
+
+def _policy_int(data: dict, key: str, default: int | None, low: int, high: int) -> int:
+    value = data.get(key, default)
+    if isinstance(value, bool) or not isinstance(value, int) or not low <= value <= high:
+        raise ValueError(f'{key} must be an integer between {low} and {high}.')
+    return value
+
+
+def _policy_float(data: dict, key: str, default: float, low: float, high: float) -> float:
+    value = data.get(key, default)
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, (int, float))
+        or not math.isfinite(value)
+        or not low <= value <= high
+    ):
+        raise ValueError(f'{key} must be a number between {low} and {high}.')
+    return float(value)
+
+
+def _policy_sensor_map(data: dict, key: str, defaults: dict, low: float, high: float) -> dict:
+    raw = data.get(key, {})
+    if not isinstance(raw, dict) or not set(raw) <= set(CONTROL_SENSORS):
+        raise ValueError(f'{key} accepts only {", ".join(CONTROL_SENSORS)}.')
+    result = {}
+    for sensor in CONTROL_SENSORS:
+        result[sensor] = _policy_float({sensor: raw.get(sensor, defaults[sensor])}, sensor, defaults[sensor], low, high)
+    return result
+
+
+def validate_policy(data: object) -> dict:
+    """Return a complete, normalized policy or raise ValueError.
+
+    Unlike the desktop normalizer this one repairs nothing: a policy that is
+    not exactly well-formed is refused, because it will be followed as root.
+    """
+    if not isinstance(data, dict):
+        raise ValueError('The fan policy must be a JSON object.')
+    unknown = set(data) - _POLICY_KEYS
+    if unknown:
+        raise ValueError(f'Unknown fan policy keys: {", ".join(sorted(unknown))}.')
+    if data.get('schema') != POLICY_SCHEMA:
+        raise ValueError('Unsupported fan policy schema.')
+    mode = data.get('mode')
+    if mode not in {'curve', 'preset', 'fixed'}:
+        raise ValueError('The fan policy mode must be curve, preset or fixed.')
+    policy: dict = {
+        'schema': POLICY_SCHEMA,
+        'mode': mode,
+        'pwm': _policy_int(data, 'pwm', None, PWM_MIN, PWM_MAX),
+    }
+    if mode == 'curve':
+        points = data.get('points')
+        if not isinstance(points, list) or not 3 <= len(points) <= 8:
+            raise ValueError('A fan curve needs between 3 and 8 points.')
+        normalized = []
+        for point in points:
+            if not isinstance(point, list) or len(point) != 2:
+                raise ValueError('Each fan curve point is [temperature, speed].')
+            temperature = _policy_int({'t': point[0]}, 't', None, 0, 120)
+            speed = _policy_int({'s': point[1]}, 's', None, 0, 100)
+            if normalized and temperature <= normalized[-1][0]:
+                raise ValueError('Fan curve temperatures must be strictly increasing.')
+            normalized.append([temperature, speed])
+        policy['points'] = normalized
+    else:
+        policy['percent'] = _policy_int(data, 'percent', None, 0, 100)
+        preset = data.get('preset', '')
+        if mode == 'preset' and preset not in _POLICY_PRESETS:
+            raise ValueError('Unknown fan preset.')
+        policy['preset'] = preset if mode == 'preset' else ''
+    policy['failsafe_percent'] = _policy_int(data, 'failsafe_percent', 100, 40, 100)
+    policy['hysteresis_c'] = _policy_float(data, 'hysteresis_c', 1.0, 0.0, 10.0)
+    policy['deadband_percent'] = _policy_int(data, 'deadband_percent', 2, 0, 20)
+    policy['max_down_step_percent'] = _policy_int(data, 'max_down_step_percent', 10, 1, 100)
+    policy['sensor_timeout_seconds'] = _policy_float(data, 'sensor_timeout_seconds', 15.0, 3.0, 300.0)
+    policy['critical_c'] = _policy_sensor_map(data, 'critical_c', DEFAULT_CRITICAL_C, 50.0, 125.0)
+    policy['offsets_c'] = _policy_sensor_map(
+        data, 'offsets_c', {sensor: 0.0 for sensor in CONTROL_SENSORS}, -30.0, 30.0
+    )
+    return policy
+
+
+def policy_digest(policy: dict) -> str:
+    encoded = json.dumps(policy, sort_keys=True, separators=(',', ':')).encode('utf-8')
+    return hashlib.sha256(encoded).hexdigest()[:16]
+
+
+def _write_json_atomic(path: Path, payload: dict, *, mode: int = 0o644) -> None:
+    path.parent.mkdir(mode=0o755, parents=True, exist_ok=True)
+    fd, name = tempfile.mkstemp(prefix=f'.{path.name}-', dir=path.parent)
+    temporary = Path(name)
+    try:
+        with os.fdopen(fd, 'w', encoding='utf-8') as stream:
+            json.dump(payload, stream, sort_keys=True)
+            stream.write('\n')
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.chmod(temporary, mode)
+        os.replace(temporary, path)
+    finally:
+        with suppress(FileNotFoundError):
+            os.unlink(temporary)
+
+
+def save_policy(policy: dict) -> str:
+    _write_json_atomic(POLICY_FILE, policy)
+    with suppress(FileNotFoundError):
+        OVERRIDE_FILE.unlink()
+    return policy_digest(policy)
+
+
+def load_policy() -> dict | None:
+    try:
+        if POLICY_FILE.stat().st_size > POLICY_MAX_BYTES:
+            return None
+        with POLICY_FILE.open('r', encoding='utf-8') as stream:
+            return validate_policy(json.load(stream))
+    except (OSError, ValueError):
+        return None
+
+
+def curve_percent(points: list, temperature: float) -> int:
+    """Step curve: the speed of the last point at or below the temperature."""
+    target = int(points[0][1])
+    for point_temperature, speed in points:
+        if temperature >= point_temperature:
+            target = int(speed)
+    return max(0, min(100, target))
+
+
+def _read_temperature(path: Path) -> float | None:
+    try:
+        raw = int(path.read_text(encoding='ascii').strip())
+    except (OSError, ValueError):
+        return None
+    value = raw / 1000.0
+    return value if 0 < value <= 130 else None
+
+
+def read_temperatures(base: Path | None = None) -> dict:
+    """The same four thermal inputs the desktop daemon's curve uses.
+
+    GPU is amdgpu ``edge``; CPU prefers k10temp/zenpower Tctl/Tdie and falls
+    back to the Nuvoton channel labelled exactly ``CPU``; board and VRM come
+    only from explicitly labelled NCT channels. Disconnected 0 °C inputs are
+    rejected, never guessed.
+    """
+    base = HWMON_BASE if base is None else base
+    gpu = None
+    cpu: dict[int, float] = {}
+    board: list[float] = []
+    vrm: list[float] = []
+    try:
+        hwmons = sorted(base.glob('hwmon*'))
+    except OSError:
+        hwmons = []
+    for hwmon in hwmons:
+        try:
+            name = (hwmon / 'name').read_text(encoding='utf-8').strip().lower()
+        except OSError:
+            continue
+        labels: dict[str, float] = {}
+        for label_path in sorted(hwmon.glob('temp*_label')):
+            try:
+                label = label_path.read_text(encoding='utf-8').strip().casefold()
+            except OSError:
+                continue
+            value = _read_temperature(hwmon / label_path.name.replace('_label', '_input'))
+            if value is not None:
+                labels.setdefault(label, value)
+        if 'amdgpu' in name and gpu is None:
+            gpu = labels.get('edge') if 'edge' in labels else _read_temperature(hwmon / 'temp1_input')
+        for chip, label, rank in (
+            ('k10temp', 'tctl', 0), ('k10temp', 'tdie', 1),
+            ('zenpower', 'tctl', 2), ('zenpower', 'tdie', 3), ('nct', 'cpu', 4),
+        ):
+            if chip in name and label in labels:
+                cpu.setdefault(rank, labels[label])
+        if 'nct' in name:
+            for label, value in labels.items():
+                if label in {'system', 'board', 'motherboard'}:
+                    board.append(value)
+                elif 'vrm' in label:
+                    vrm.append(value)
+    readings = {}
+    if gpu is not None:
+        readings['gpu'] = gpu
+    if cpu:
+        readings['cpu'] = cpu[min(cpu)]
+    if vrm:
+        readings['vrm'] = max(vrm)
+    if board:
+        readings['board'] = max(board)
+    return readings
+
+
+def override_channels() -> set[int]:
+    """Channels another BC250 control (Quick Access, a manual write) owns now."""
+    try:
+        with OVERRIDE_FILE.open('r', encoding='utf-8') as stream:
+            data = json.load(stream)
+    except (OSError, ValueError):
+        return set()
+    channels = data.get('channels') if isinstance(data, dict) else None
+    if not isinstance(channels, list):
+        return set()
+    return {
+        channel for channel in channels
+        if isinstance(channel, int) and not isinstance(channel, bool)
+        and PWM_MIN <= channel <= PWM_MAX
+    }
+
+
+def mark_override(channel: int, source: str) -> None:
+    """Record that a user action took one channel over for the rest of this boot."""
+    policy = load_policy()
+    if policy is None or policy['pwm'] != channel or not control_service_enabled():
+        return
+    channels = sorted(override_channels() | {channel})
+    with suppress(OSError):
+        _write_json_atomic(
+            OVERRIDE_FILE,
+            {'channels': channels, 'source': source, 'at': int(time.time())},
+        )
+
+
+class FanController:
+    """One iteration at a time, so tests can drive it without a thread."""
+
+    def __init__(self, *, clock=time.monotonic):
+        self.clock = clock
+        self.policy: dict | None = None
+        self.digest = ''
+        self.policy_stamp: tuple | None = None
+        self.channel: int | None = None
+        self.reset_memory()
+        self.state = 'starting'
+        self.error = ''
+        self.snapshot: dict = {}
+
+    def reset_memory(self) -> None:
+        self.last_raw: int | None = None
+        self.last_percent: int | None = None
+        self.last_source = ''
+        self.last_temperature: float | None = None
+        self.last_write: float | None = None
+        self.last_verify = 0.0
+        self.missing_since: float | None = None
+
+    def reload_policy(self) -> None:
+        try:
+            info = POLICY_FILE.stat()
+            stamp = (info.st_mtime_ns, info.st_size, info.st_ino)
+        except OSError:
+            stamp = None
+        if stamp == self.policy_stamp:
+            return
+        self.policy_stamp = stamp
+        policy = load_policy() if stamp is not None else None
+        digest = policy_digest(policy) if policy is not None else ''
+        self.error = (
+            'The saved fan policy is invalid; the fan was left to firmware control.'
+            if stamp is not None and policy is None else ''
+        )
+        if digest == self.digest:
+            return
+        if self.channel is not None and (policy is None or policy['pwm'] != self.channel):
+            self.release()
+        self.policy = policy
+        self.digest = digest
+        self.reset_memory()
+
+    def plan(self, readings: dict, now: float):
+        """Return (percent, source, temperature, sensor), or None to hold."""
+        policy = self.policy
+        critical = [
+            (value - policy['critical_c'][sensor], value, sensor)
+            for sensor, value in readings.items()
+            if value >= policy['critical_c'][sensor]
+        ]
+        if critical:
+            _excess, value, sensor = max(critical)
+            self.missing_since = None
+            return policy['failsafe_percent'], 'critical', value, sensor
+        effective = {
+            sensor: value + policy['offsets_c'][sensor]
+            for sensor, value in readings.items()
+        }
+        hottest = max(effective.items(), key=lambda item: item[1]) if effective else (None, None)
+        if policy['mode'] != 'curve':
+            return policy['percent'], policy['mode'], hottest[1], hottest[0]
+        if not effective:
+            if self.missing_since is None:
+                self.missing_since = now
+            if now - self.missing_since < policy['sensor_timeout_seconds']:
+                return None
+            return policy['failsafe_percent'], 'failsafe', None, None
+        self.missing_since = None
+        sensor, temperature = hottest
+        percent = curve_percent(policy['points'], temperature)
+        previous = self.last_percent
+        if previous is not None and self.last_source == 'curve':
+            if (
+                self.last_temperature is not None
+                and abs(temperature - self.last_temperature) < policy['hysteresis_c']
+            ):
+                percent = previous
+            if abs(percent - previous) <= policy['deadband_percent']:
+                percent = previous
+            if percent < previous - policy['max_down_step_percent']:
+                percent = previous - policy['max_down_step_percent']
+        return percent, 'curve', temperature, sensor
+
+    def _read_back(self, channel: int) -> tuple[int | None, int | None]:
+        sensor = find_sensor()
+        if sensor is None:
+            return None, None
+        values = []
+        for path in (sensor / f'pwm{channel}', sensor / f'pwm{channel}_enable'):
+            try:
+                values.append(int(path.read_text(encoding='ascii').strip()))
+            except (OSError, ValueError):
+                values.append(None)
+        return values[0], values[1]
+
+    def _write(self, channel: int, raw: int, percent: int, source: str, temperature, now: float) -> None:
+        with fan_operation_lock():
+            result = apply_pwm(channel, raw)
+        self.last_write = now
+        self.last_verify = now
+        if not result.startswith('OK'):
+            self.error = result[4:] if result.startswith('ERR ') else result
+            self.state = 'error'
+            return
+        self.channel = channel
+        self.last_raw = raw
+        self.last_percent = percent
+        self.last_source = source
+        self.last_temperature = temperature
+        self.error = ''
+
+    def step(self) -> None:
+        now = self.clock()
+        self.reload_policy()
+        if self.policy is None:
+            if self.channel is not None:
+                self.release()
+            self.state = 'idle'
+            self.snapshot = {}
+            return
+        if find_sensor() is None:
+            self.state = 'waiting-driver'
+            return
+        readings = read_temperatures()
+        decision = self.plan(readings, now)
+        if decision is None:
+            self.state = 'waiting-sensor'
+            return
+        percent, source, temperature, sensor = decision
+        channel = self.policy['pwm']
+        raw = round(percent * 255 / 100)
+        emergency = source in {'critical', 'failsafe'}
+        self.snapshot = {
+            'percent': percent, 'raw': raw, 'source': source,
+            'temperature': None if temperature is None else round(temperature, 1),
+            'sensor': sensor or '', 'readings': {
+                name: round(value, 1) for name, value in sorted(readings.items())
+            },
+        }
+        if channel in override_channels():
+            if not emergency:
+                self.state = 'override'
+                return
+            # Safety outranks whoever took the fan over: a critical reading
+            # hands control back to the policy for the rest of this boot.
+            with suppress(FileNotFoundError):
+                OVERRIDE_FILE.unlink()
+        self.state = 'active'
+        if raw != self.last_raw:
+            recent = self.last_write is not None and now - self.last_write < CONTROL_MIN_REWRITE_SECONDS
+            if recent and not emergency:
+                return
+            self._write(channel, raw, percent, source, temperature, now)
+            return
+        if now - self.last_verify < CONTROL_VERIFY_SECONDS:
+            return
+        self.last_verify = now
+        value, enable = self._read_back(channel)
+        if value != raw or (enable is not None and enable != 1):
+            # Something outside BC250 Control Center (a driver reload, a
+            # firmware reset) moved the fan. Put the policy back.
+            self._write(channel, raw, percent, source, temperature, now)
+
+    def release(self) -> None:
+        """Hand a channel this service drove back to firmware automatic mode."""
+        channel, self.channel = self.channel, None
+        if channel is None:
+            return
+        with suppress(RuntimeError, OSError):
+            with fan_operation_lock():
+                restore_automatic(channel)
+
+    def status(self) -> dict:
+        return {
+            'schema': POLICY_SCHEMA,
+            'pid': os.getpid(),
+            'heartbeat': round(time.time(), 1),
+            'state': self.state,
+            'error': self.error,
+            'policy_digest': self.digest,
+            'mode': self.policy['mode'] if self.policy else '',
+            'pwm': self.policy['pwm'] if self.policy else None,
+            **self.snapshot,
+        }
+
+    def publish(self) -> None:
+        with suppress(OSError):
+            _write_json_atomic(STATUS_FILE, self.status())
+
+
+def run_control_loop() -> int:
+    if os.geteuid() != 0:
+        print('ERR This helper must run as root.', flush=True)
+        return 77
+    if not bc250_identity_present():
+        print('ERR HARDWARE_CONTEXT: AMD BC-250 hardware identity was not detected.', flush=True)
+        return 19
+    stop = {'requested': False}
+
+    def request_stop(_signal, _frame) -> None:
+        stop['requested'] = True
+
+    signal.signal(signal.SIGTERM, request_stop)
+    signal.signal(signal.SIGINT, request_stop)
+    controller = FanController()
+    print('READY system fan control', flush=True)
+    try:
+        while not stop['requested']:
+            try:
+                controller.step()
+            except Exception as exc:  # keep following the fan after one bad cycle
+                controller.state = 'error'
+                controller.error = str(exc)
+            controller.publish()
+            deadline = time.monotonic() + CONTROL_INTERVAL_SECONDS
+            while not stop['requested'] and time.monotonic() < deadline:
+                time.sleep(0.2)
+    finally:
+        controller.release()
+        with suppress(OSError):
+            STATUS_FILE.unlink()
+    return 0
+
+
+def _trusted_self() -> Path:
+    """The helper path a unit may point at: root-owned all the way up."""
+    path = Path(__file__).resolve()
+    for candidate in (path, *path.parents):
+        info = candidate.stat()
+        if info.st_uid != 0 or info.st_mode & 0o022:
+            raise RuntimeError(f'Refusing to start an untrusted helper path: {candidate}')
+    return path
+
+
+def control_unit_text(helper: Path) -> str:
+    # Wants= but deliberately not After= nct6687-load.service. That unit is
+    # ordered after graphical.target so its settle delay never holds up the
+    # login screen; a multi-user.target unit ordered after it closes an
+    # ordering cycle, and systemd resolves the cycle at boot by dropping this
+    # service's start job -- the one failure #15 cannot afford. The control
+    # loop does not need the ordering: it reports waiting-driver and takes the
+    # fan the moment the NCT hwmon appears.
+    return f'''{CONTROL_MARKER}
+[Unit]
+Description=BC250 Control Center system fan control
+Documentation=https://github.com/movacx/bc250-control-center/issues/15
+After=local-fs.target systemd-udev-settle.service
+Wants=nct6687-load.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStart={helper} --control-loop
+Restart=on-failure
+RestartSec=5
+RestartPreventExitStatus=19 77
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=full
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX
+RestrictRealtime=yes
+LockPersonality=yes
+
+[Install]
+WantedBy=multi-user.target
+'''
+
+
+def _init_system() -> str:
+    if Path('/run/systemd/system').is_dir() and shutil.which('systemctl'):
+        return 'systemd'
+    if Path('/run/openrc/softlevel').exists() and shutil.which('rc-service'):
+        return 'openrc'
+    return ''
+
+
+def control_service_enabled() -> bool:
+    if CONTROL_UNIT_WANTS.is_symlink() or CONTROL_UNIT_WANTS.exists():
+        return True
+    return Path('/etc/runlevels/default', CONTROL_OPENRC_NAME).exists()
+
+
+def _run(argv: list[str]) -> subprocess.CompletedProcess:
+    return subprocess.run(argv, check=False, capture_output=True, text=True, timeout=60)
+
+
+def _write_control_unit(helper: Path) -> None:
+    CONTROL_UNIT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    fd, name = tempfile.mkstemp(prefix=f'.{CONTROL_UNIT_NAME}-', dir=CONTROL_UNIT_PATH.parent)
+    temporary = Path(name)
+    try:
+        with os.fdopen(fd, 'w', encoding='utf-8') as stream:
+            stream.write(control_unit_text(helper))
+        os.chmod(temporary, 0o644)
+        os.replace(temporary, CONTROL_UNIT_PATH)
+    finally:
+        with suppress(FileNotFoundError):
+            os.unlink(temporary)
+
+
+def refresh_control_unit() -> bool:
+    """Bring an installed, managed unit up to the text this helper writes.
+
+    An update of Control Center replaces this helper but not the unit an older
+    version wrote. Saving a curve is the next authenticated moment, so the
+    unit is rewritten then -- only when it is ours and it differs.
+    """
+    if _init_system() != 'systemd' or not CONTROL_UNIT_PATH.is_file():
+        return False
+    try:
+        current = CONTROL_UNIT_PATH.read_text(encoding='utf-8', errors='replace')
+        helper = _trusted_self()
+    except (OSError, RuntimeError):
+        return False
+    if CONTROL_MARKER not in current or current == control_unit_text(helper):
+        return False
+    _write_control_unit(helper)
+    _run(['systemctl', 'daemon-reload'])
+    return True
+
+
+def enable_control_service() -> str:
+    if load_policy() is None:
+        return 'ERR Save a fan curve or preset before enabling system fan control.'
+    init = _init_system()
+    helper = _trusted_self()
+    if init == 'systemd':
+        if CONTROL_UNIT_PATH.exists():
+            current = CONTROL_UNIT_PATH.read_text(encoding='utf-8', errors='replace')
+            if CONTROL_MARKER not in current:
+                return f'ERR Refusing to replace {CONTROL_UNIT_PATH}: it is not managed by BC250 Control Center.'
+        _write_control_unit(helper)
+        _run(['systemctl', 'daemon-reload'])
+        result = _run(['systemctl', 'enable', '--now', CONTROL_UNIT_NAME])
+        if result.returncode != 0:
+            return f'ERR systemctl could not start {CONTROL_UNIT_NAME}: {(result.stderr or result.stdout).strip()}'
+        _run(['systemctl', 'restart', CONTROL_UNIT_NAME])
+        return f'OK CONTROL ENABLED {policy_digest(load_policy())}'
+    if init == 'openrc':
+        if not OPENRC_SERVICE_HELPER.is_file():
+            return 'ERR The protected OpenRC service helper is missing.'
+        result = _run([str(OPENRC_SERVICE_HELPER), 'install', CONTROL_OPENRC_NAME])
+        if result.returncode != 0:
+            return f'ERR {(result.stderr or result.stdout).strip()}'
+        _run(['rc-service', CONTROL_OPENRC_NAME, 'restart'])
+        return f'OK CONTROL ENABLED {policy_digest(load_policy())}'
+    return 'ERR System fan control needs systemd or OpenRC.'
+
+
+def disable_control_service() -> str:
+    init = _init_system()
+    if init == 'systemd':
+        if CONTROL_UNIT_PATH.exists():
+            current = CONTROL_UNIT_PATH.read_text(encoding='utf-8', errors='replace')
+            if CONTROL_MARKER not in current:
+                return f'ERR Refusing to remove {CONTROL_UNIT_PATH}: it is not managed by BC250 Control Center.'
+        _run(['systemctl', 'disable', '--now', CONTROL_UNIT_NAME])
+        with suppress(FileNotFoundError):
+            CONTROL_UNIT_PATH.unlink()
+        _run(['systemctl', 'daemon-reload'])
+    elif init == 'openrc' and OPENRC_SERVICE_HELPER.is_file():
+        result = _run([str(OPENRC_SERVICE_HELPER), 'remove', CONTROL_OPENRC_NAME])
+        if result.returncode != 0:
+            return f'ERR {(result.stderr or result.stdout).strip()}'
+    for path in (POLICY_FILE, OVERRIDE_FILE):
+        with suppress(FileNotFoundError):
+            path.unlink()
+    return 'OK CONTROL DISABLED'
+
+
+def session_policy_command(line: str) -> str:
+    if line == 'POLICY-CLEAR':
+        with suppress(FileNotFoundError):
+            POLICY_FILE.unlink()
+        with suppress(FileNotFoundError):
+            OVERRIDE_FILE.unlink()
+        return 'OK POLICY CLEARED'
+    payload = line[len('POLICY '):]
+    if len(payload.encode('utf-8')) > POLICY_MAX_BYTES:
+        return 'ERR The fan policy is too large.'
+    try:
+        policy = validate_policy(json.loads(payload))
+    except ValueError as exc:
+        return f'ERR {exc}'
+    digest = save_policy(policy)
+    refresh_control_unit()
+    return f'OK POLICY {digest}'
+
+
 def session() -> int:
     # Every other helper in this directory refuses before it does anything.
     # This one announced READY and opened its command session to any local
@@ -329,16 +1000,32 @@ def session() -> int:
             print('BYE', flush=True)
             return 0
         try:
+            if line == 'POLICY-CLEAR' or line.startswith('POLICY '):
+                print(session_policy_command(line), flush=True)
+                continue
+            if line == 'CONTROL ENABLE':
+                print(enable_control_service(), flush=True)
+                continue
+            if line == 'CONTROL DISABLE':
+                print(disable_control_service(), flush=True)
+                continue
             parts = line.split()
             if len(parts) == 2 and parts[0] == 'AUTO':
                 with fan_operation_lock():
                     result = restore_automatic(int(parts[1]))
+                if result.startswith('OK'):
+                    mark_override(int(parts[1]), 'session')
                 print(result, flush=True)
                 continue
             if len(parts) != 2:
                 raise ValueError('Expected PWM channel and value, or AUTO and channel.')
             with fan_operation_lock():
                 result = apply_pwm(int(parts[0]), int(parts[1]))
+            if result.startswith('OK'):
+                # While the system service follows a policy, a direct write
+                # from the desktop is a deliberate takeover of that channel;
+                # the next POLICY hands it back.
+                mark_override(int(parts[0]), 'session')
             print(result, flush=True)
         except (RuntimeError, ValueError, OSError) as exc:
             print(f'ERR {exc}', flush=True)
@@ -362,6 +1049,11 @@ def restore_boot_state() -> int:
             flush=True,
         )
         return 19
+    if control_service_enabled() and load_policy() is not None:
+        # The system fan control service follows the saved policy from boot;
+        # replaying an older one-off duty here would only race it.
+        print('OK system fan control owns the boot state', flush=True)
+        return 0
     channels = _load_state().get('channels')
     if not isinstance(channels, dict) or not channels:
         print('OK nothing to restore', flush=True)
@@ -386,4 +1078,6 @@ def restore_boot_state() -> int:
 if __name__ == '__main__':
     if len(sys.argv) > 1 and sys.argv[1] == '--restore-boot':
         raise SystemExit(restore_boot_state())
+    if len(sys.argv) > 1 and sys.argv[1] == '--control-loop':
+        raise SystemExit(run_control_loop())
     raise SystemExit(session())

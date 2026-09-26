@@ -1094,6 +1094,47 @@ def _translate_history_detail(detail: str, language: str) -> str:
     return tr(_HISTORY_DETAIL_CANONICAL.get(source, source), language)
 
 
+#: Titles the backend hands the terminal. Some are written in Spanish, the
+#: backend's own language, and reached English windows as they were; map them
+#: to the English catalogue key. English titles are catalogue keys already.
+_WORKFLOW_TITLES = {
+    "Reparar servicios BC250": "Repair BC250 services",
+    "Reparar helpers BC250": "Repair BC250 helpers",
+    "Reparar configuración del governor": "Repair governor configuration",
+    "Reparar configuración CPU BC250": "Repair BC250 CPU configuration",
+    "Preparar compatibilidad SteamOS BC250": "Prepare BC250 SteamOS compatibility",
+    "Diagnóstico SteamOS BC250": "BC250 SteamOS diagnostics",
+    "Configurar memoria BC250 en Bazzite": "Configure BC250 memory on Bazzite",
+    "Actualizar BC250 Control Center": "Update BC250 Control Center",
+    "BC250 fan PWM disable": "Disable BC250 fan PWM",
+}
+_WORKFLOW_TITLE_PATTERNS = (
+    (re.compile(r"^Activar (\S.*)$"), "Enable {name}"),
+    (re.compile(r"^Desactivar (\S.*)$"), "Disable {name}"),
+    (re.compile(r"^Reiniciar (\S.*)$"), "Restart {name}"),
+)
+
+
+def translate_workflow_title(title: object, language: str | None = None) -> str:
+    """The title of a terminal workflow in the interface language."""
+    raw = str(title or "").strip()
+    if not raw:
+        return tr("Terminal", language)
+    canonical = _WORKFLOW_TITLES.get(raw) or _HISTORY_TITLES.get(raw, raw)
+    lang = resolve_language(language or _CURRENT_LANGUAGE)
+    for pattern, template in _WORKFLOW_TITLE_PATTERNS:
+        match = pattern.match(canonical)
+        if match:
+            if lang != "en" and tr(template, lang) == template:
+                return raw
+            return tr_format(template, lang, name=match.group(1))
+    translated = tr(canonical, lang)
+    # A title with no catalogue entry yet keeps the words the backend wrote.
+    if lang != "en" and translated == canonical and canonical != raw:
+        return raw
+    return translated
+
+
 def translate_history_event(event: object, language: str | None = None) -> tuple[str, str]:
     data = event if isinstance(event, dict) else {"detalle": str(event)}
     lang = resolve_language(language or _CURRENT_LANGUAGE)

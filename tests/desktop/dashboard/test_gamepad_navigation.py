@@ -282,3 +282,121 @@ def test_unified_keypad_setting_opens_automatically_on_gamepad_focus(qtbot):
     assert keypad.isVisible()
     assert keypad._target is numeric
     navigation.stop()
+
+
+def test_a_game_in_front_does_not_drive_this_window(qtbot, monkeypatch):
+    """The controller is read from /dev/input and reaches a window in the back.
+
+    With Hogwarts Legacy in front, every stick push walked this window's
+    widgets and A pressed whatever button had the focus here.
+    """
+    _host, _combo, button, navigation = _navigation_host(qtbot)
+    pressed = []
+    button.clicked.connect(lambda: pressed.append(True))
+    button.setFocus()
+    QApplication.processEvents()
+    monkeypatch.setattr(GamepadNavigationController, "_application_active", staticmethod(lambda: False))
+    walked = []
+    monkeypatch.setattr(navigation, "_focusable_widgets", lambda *args: walked.append(args) or [])
+
+    navigation.dispatch_action(ACTION_ACCEPT)
+    navigation.dispatch_action(ACTION_DOWN)
+    QApplication.processEvents()
+
+    assert pressed == [] and walked == []
+    navigation.stop()
+
+
+def test_paint_and_style_events_cost_the_filter_nothing(qtbot, monkeypatch):
+    """A theme switch raises tens of thousands of these; none may walk parents."""
+    host, _combo, button, navigation = _navigation_host(qtbot)
+    walked = []
+    monkeypatch.setattr(
+        GamepadNavigationController, "_is_overlay_widget", staticmethod(lambda widget: walked.append(widget) or False)
+    )
+    for kind in (QEvent.Type.Paint, QEvent.Type.StyleChange, QEvent.Type.Polish, QEvent.Type.PaletteChange):
+        navigation.eventFilter(button, QEvent(kind))
+    assert walked == []
+    navigation.eventFilter(button, QEvent(QEvent.Type.EnabledChange))
+    assert walked == [button]
+    navigation.stop()
+
+
+def test_menu_opens_settings_and_view_folds_the_sidebar():
+    """Menu (☰) is where a game keeps its options; View (⧉) folds the rail."""
+    from frontends.desktop.core.gamepad import (
+        ACTION_OPEN_SETTINGS,
+        ACTION_TOGGLE_SIDEBAR,
+    )
+
+    ecodes = SimpleNamespace(
+        EV_KEY=1, EV_ABS=3, BTN_SOUTH=304, BTN_EAST=305, BTN_NORTH=307, BTN_WEST=308,
+        BTN_TL=310, BTN_TR=311, BTN_SELECT=314, BTN_START=315,
+        ABS_X=0, ABS_Y=1, ABS_RY=4, ABS_HAT0X=16, ABS_HAT0Y=17,
+    )
+    backend = EvdevGamepadBackend(SimpleNamespace(ecodes=ecodes))
+    assert [i.action for i in backend._map_event(SimpleNamespace(type=1, code=315, value=1))] == [ACTION_OPEN_SETTINGS]
+    assert [i.action for i in backend._map_event(SimpleNamespace(type=1, code=314, value=1))] == [ACTION_TOGGLE_SIDEBAR]
+    joystick = LinuxJoystickBackend()
+    assert [i.action for i in joystick._map_event(1, 7, 1)] == [ACTION_OPEN_SETTINGS]
+    assert [i.action for i in joystick._map_event(1, 6, 1)] == [ACTION_TOGGLE_SIDEBAR]
+
+
+def test_menu_pressed_inside_settings_closes_them(qtbot):
+    from PyQt6.QtWidgets import QDialog
+
+    from frontends.desktop.core.gamepad import ACTION_OPEN_SETTINGS
+
+    host, _combo, _button, navigation = _navigation_host(qtbot)
+    opened = []
+    host.gamepad_open_settings = lambda: opened.append(True)
+    navigation.dispatch_action(ACTION_OPEN_SETTINGS)
+    assert opened == [True]
+
+    class FakeSettings(QDialog):
+        gamepad_closes_with_menu = True
+
+    dialog = FakeSettings(host)
+    dialog.setModal(True)
+    dialog.show()
+    qtbot.waitUntil(lambda: QApplication.activeModalWidget() is dialog)
+    navigation.dispatch_action(ACTION_OPEN_SETTINGS)
+    qtbot.waitUntil(lambda: not dialog.isVisible())
+    assert opened == [True]
+    navigation.stop()
+
+
+def test_steam_hidden_controllers_are_not_read():
+    """Steam hides the physical pad from what it launches and feeds a virtual one."""
+    from frontends.desktop.core.gamepad import steam_allows_device
+
+    steam = {"SDL_GAMECONTROLLER_IGNORE_DEVICES": "0x045e/0x0b12,0x28DE/0x1205"}
+    assert not steam_allows_device(0x045E, 0x0B12, steam)
+    assert steam_allows_device(0x28DE, 0x11FF, steam)
+    assert steam_allows_device(0x045E, 0x0B12, {})
+    only = {"SDL_GAMECONTROLLER_IGNORE_DEVICES_EXCEPT": "0x28de/0x11ff", **steam}
+    assert steam_allows_device(0x28DE, 0x11FF, only)
+    assert not steam_allows_device(0x054C, 0x0CE6, only)
+    assert steam_allows_device(1, 2, {"SDL_GAMECONTROLLER_IGNORE_DEVICES": "junk,/,0xZZ/1"})
+
+
+def test_the_bumpers_walk_the_modules_and_never_open_settings():
+    """R1 past Firmware wraps to the Dashboard instead of opening a modal."""
+    from frontends.desktop.app import ControlCenterWindow
+
+    keys = ("dashboard", "cpu", "gpu", "firmware", "settings")
+    hidden = {"gpu"}
+    buttons = {key: SimpleNamespace(isHidden=lambda key=key: key in hidden) for key in keys}
+    visited = []
+    window = SimpleNamespace(
+        sidebar=SimpleNamespace(buttons=buttons),
+        pages={key: object() for key in keys if key != "settings"},
+        current_page_key="firmware",
+        navigate=visited.append,
+    )
+    ControlCenterWindow.gamepad_cycle_section(window, 1)
+    window.current_page_key = "dashboard"
+    ControlCenterWindow.gamepad_cycle_section(window, -1)
+    window.current_page_key = "cpu"
+    ControlCenterWindow.gamepad_cycle_section(window, 1)
+    assert visited == ["dashboard", "firmware", "firmware"]

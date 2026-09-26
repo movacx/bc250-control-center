@@ -92,6 +92,24 @@ def build_detect_command(executor, helper, target: CPUDetectionTarget, config_pa
     ]
 
 
+def build_verify_scale_command(executor, helper, target: CPUScaleTarget, config_path) -> list[str]:
+    """Stress-test a typed scale in steps, the way bc250-detect tests its own.
+
+    Writes into the same user-owned ``overclock.conf`` the detector does, so a
+    scale that held becomes this boot's tested result like a detected one.
+    """
+    raw_config = str(config_path or "")
+    if not raw_config or "\x00" in raw_config:
+        raise ValueError("The CPU detector configuration path is invalid")
+    return _boundary(executor, helper) + [
+        "verify-scale",
+        str(target.frequency),
+        str(target.scale),
+        str(target.temperature),
+        str(Path(raw_config)),
+    ]
+
+
 def build_scale_command(executor, helper, action: str, target: CPUScaleTarget) -> list[str]:
     if action not in {"apply-live", "install-boot"}:
         raise ValueError("Unsupported privileged CPU scale action")

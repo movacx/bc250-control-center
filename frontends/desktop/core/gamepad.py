@@ -24,7 +24,7 @@ import time
 import weakref
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Iterable, Protocol
+from typing import Callable, Iterable, Mapping, Protocol
 
 from PyQt6.QtCore import (
     QEasingCurve,
@@ -38,7 +38,7 @@ from PyQt6.QtCore import (
     QTimer,
     pyqtSignal,
 )
-from PyQt6.QtGui import QColor, QIcon, QKeyEvent, QPainter, QPen
+from PyQt6.QtGui import QColor, QGuiApplication, QIcon, QKeyEvent, QPainter, QPen
 from PyQt6.QtWidgets import (
     QAbstractButton,
     QAbstractItemView,
@@ -165,6 +165,53 @@ def infer_gamepad_profile(name: str) -> str:
     return "abxy"
 
 
+def _sdl_device_list(value: str) -> set[tuple[int, int]]:
+    """Parse SDL's ``0xVVVV/0xPPPP,...`` controller list."""
+    devices: set[tuple[int, int]] = set()
+    for entry in str(value or "").split(","):
+        vendor, _slash, product = entry.strip().partition("/")
+        try:
+            devices.add((int(vendor, 16), int(product, 16)))
+        except ValueError:
+            continue
+    return devices
+
+
+def steam_allows_device(
+    vendor: int, product: int, environ: Mapping[str, str] | None = None
+) -> bool:
+    """Whether a controller is one this process should read at all.
+
+    A game Steam launches is given a virtual pad per controller, and the
+    physical ones are named in ``SDL_GAMECONTROLLER_IGNORE_DEVICES`` so the
+    game does not see each press twice. Steam only feeds a virtual pad while
+    its game is the one in front: with the Steam menu or the Quick Access
+    panel open over it, the presses go to Steam alone. Reading the physical
+    pad instead meant this window, launched from Game Mode, kept acting on
+    every button pressed in the panel above it. Outside Steam neither list
+    exists and every controller is read.
+    """
+    environ = os.environ if environ is None else environ
+    only = _sdl_device_list(environ.get("SDL_GAMECONTROLLER_IGNORE_DEVICES_EXCEPT", ""))
+    if only:
+        return (int(vendor), int(product)) in only
+    return (int(vendor), int(product)) not in _sdl_device_list(
+        environ.get("SDL_GAMECONTROLLER_IGNORE_DEVICES", "")
+    )
+
+
+def _joystick_ids(path: str) -> tuple[int, int] | None:
+    """Vendor and product of a ``/dev/input/jsN`` node, from sysfs."""
+    base = Path("/sys/class/input") / Path(path).name / "device" / "id"
+    try:
+        return (
+            int((base / "vendor").read_text().strip(), 16),
+            int((base / "product").read_text().strip(), 16),
+        )
+    except (OSError, ValueError):
+        return None
+
+
 class GamepadBackend(Protocol):
     def refresh(self) -> GamepadDevice | None: ...
 
@@ -287,6 +334,12 @@ class EvdevGamepadBackend(_AxisStateMixin):
                 if not self._looks_like_gamepad(keys, axes, ecodes):
                     device.close()
                     continue
+                info = getattr(device, "info", None)
+                if info is not None and not steam_allows_device(
+                    getattr(info, "vendor", 0), getattr(info, "product", 0)
+                ):
+                    device.close()
+                    continue
                 self._device = device
                 name = device.name or "Linux gamepad"
                 self._device_info = GamepadDevice(
@@ -357,8 +410,10 @@ class EvdevGamepadBackend(_AxisStateMixin):
                 getattr(ecodes, "BTN_THUMBR", -18): ACTION_CONTEXT_X,
                 ecodes.BTN_TL: ACTION_PREVIOUS_SECTION,
                 ecodes.BTN_TR: ACTION_NEXT_SECTION,
-                getattr(ecodes, "BTN_SELECT", -19): ACTION_OPEN_SETTINGS,
-                getattr(ecodes, "BTN_START", -20): ACTION_TOGGLE_SIDEBAR,
+                # Menu (Start, ☰) opens Settings the way it opens a game's
+                # options; View (Select, ⧉) folds the sidebar.
+                getattr(ecodes, "BTN_SELECT", -19): ACTION_TOGGLE_SIDEBAR,
+                getattr(ecodes, "BTN_START", -20): ACTION_OPEN_SETTINGS,
                 getattr(ecodes, "BTN_MODE", -25): ACTION_GO_DASHBOARD,
                 getattr(ecodes, "BTN_DPAD_UP", -21): ACTION_UP,
                 getattr(ecodes, "BTN_DPAD_DOWN", -22): ACTION_DOWN,
@@ -448,6 +503,9 @@ class LinuxJoystickBackend(_AxisStateMixin):
             return None
         self._last_scan = now
         for path in sorted(glob.glob("/dev/input/js*")):
+            ids = _joystick_ids(path)
+            if ids is not None and not steam_allows_device(*ids):
+                continue
             try:
                 fd = os.open(path, os.O_RDONLY | os.O_NONBLOCK)
             except (OSError, PermissionError):
@@ -517,8 +575,8 @@ class LinuxJoystickBackend(_AxisStateMixin):
                 3: ACTION_CONTEXT_Y,
                 4: ACTION_PREVIOUS_SECTION,
                 5: ACTION_NEXT_SECTION,
-                6: ACTION_OPEN_SETTINGS,
-                7: ACTION_TOGGLE_SIDEBAR,
+                6: ACTION_TOGGLE_SIDEBAR,
+                7: ACTION_OPEN_SETTINGS,
                 8: ACTION_GO_DASHBOARD,
                 10: ACTION_CONTEXT_X,
                 16: ACTION_GO_DASHBOARD,
@@ -602,6 +660,19 @@ class AutoGamepadBackend:
             backend.close()
         self._active = None
 
+
+
+#: The only event types ``GamepadNavigationController.eventFilter`` acts on.
+_WATCHED_EVENT_TYPES = frozenset({
+    QEvent.Type.Show,
+    QEvent.Type.ChildAdded,
+    QEvent.Type.Resize,
+    QEvent.Type.Move,
+    QEvent.Type.LayoutRequest,
+    QEvent.Type.Hide,
+    QEvent.Type.EnabledChange,
+    QEvent.Type.ParentChange,
+})
 
 class GamepadMonitorThread(QThread):
     connection_changed = pyqtSignal(bool, str, str)
@@ -793,6 +864,8 @@ class GamepadKeypadOverlay(QFrame):
         super().__init__(parent)
         self.setObjectName("GamepadKeypadOverlay")
         self.setProperty("gamepadKeypad", True)
+        # Sized key by key for a thumb; Compact density leaves it alone.
+        self.setProperty("densityLocked", True)
         self.setWindowFlag(Qt.WindowType.SubWindow, True)
         self._target: QWidget | None = None
         self._buffer = ""
@@ -1131,12 +1204,12 @@ class GamepadHintBar(QFrame):
         layout.addWidget(self._keypad_text)
         self._keypad_widgets.append(self._keypad_text)
         self._refresh_text = self._add_hint(layout, "refresh", "Refresh")
-        self._settings_widgets.append(self._add_icon(layout, "view"))
+        self._settings_widgets.append(self._add_icon(layout, "menu"))
         self._settings_text = QLabel()
         self._settings_text.setProperty("gamepadHintText", True)
         layout.addWidget(self._settings_text)
         self._settings_widgets.append(self._settings_text)
-        self._menu_widgets.append(self._add_icon(layout, "menu"))
+        self._menu_widgets.append(self._add_icon(layout, "view"))
         self._menu_text = QLabel()
         self._menu_text.setProperty("gamepadHintText", True)
         layout.addWidget(self._menu_text)
@@ -1253,6 +1326,13 @@ class GamepadHintBar(QFrame):
             self._keypad_available and self._available_width >= 620
         )
         self.adjustSize()
+
+    def set_secondary_action(self, label: str) -> None:
+        """Name what X does on the focused control, or fall back to Keypad."""
+        text = tr(label) if label else tr("Keypad")
+        if self._keypad_text.text() != text:
+            self._keypad_text.setText(text)
+            self.adjustSize()
 
     def _set_sections_visible(self, visible: bool) -> None:
         for widget in self._section_widgets:
@@ -1481,11 +1561,18 @@ class GamepadNavigationController(QObject):
         self._queue_maintenance(normalize=True, visuals=True, focus=True)
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802 - Qt API
+        # This filter sees every event of the application. Paint, style and
+        # polish events are most of them -- a theme switch raises tens of
+        # thousands -- and none matter here, so the type is checked before
+        # anything else: walking each widget's parents for the overlay flag
+        # on every one of them made a switch take seconds.
+        event_type = event.type()
+        if event_type not in _WATCHED_EVENT_TYPES:
+            return False
         if not self.connected or not isinstance(watched, QWidget):
             return False
         if self._is_overlay_widget(watched):
             return False
-        event_type = event.type()
         if event_type == QEvent.Type.ChildAdded:
             child_getter = getattr(event, "child", None)
             child = child_getter() if callable(child_getter) else None
@@ -1572,6 +1659,13 @@ class GamepadNavigationController(QObject):
     def dispatch_action(self, action: str) -> None:
         if not self.connected:
             return
+        # The controller is read from /dev/input, not through the compositor,
+        # so its buttons arrive here even while a game has the focus. Acting
+        # on them moved the focus through every widget on each stick push
+        # of the game -- and A could press whatever button had the focus, a
+        # second A confirming its dialog. Only the active application listens.
+        if not self._application_active():
+            return
         if action in {ACTION_UP, ACTION_DOWN, ACTION_LEFT, ACTION_RIGHT}:
             keypad = self._active_keypad()
             if keypad is not None:
@@ -1604,7 +1698,8 @@ class GamepadNavigationController(QObject):
         elif action == ACTION_GO_DASHBOARD:
             self._go_dashboard()
         elif action == ACTION_CONTEXT_X:
-            self._toggle_keypad()
+            if not self._run_secondary_action():
+                self._toggle_keypad()
         elif action == ACTION_CONTEXT_Y:
             self._refresh_current_page()
 
@@ -1666,6 +1761,24 @@ class GamepadNavigationController(QObject):
                 isinstance(view, QWidget) and _qobject_alive(view) and view.isVisible()
             )
         except (RuntimeError, TypeError):
+            return False
+
+    @staticmethod
+    def _application_active() -> bool:
+        """This application holds the input focus of the desktop right now.
+
+        The application state alone can lag a window manager that hands the
+        focus to a fullscreen game, so a window of ours must also be the
+        focused one.
+        """
+        app = QApplication.instance()
+        if app is None:
+            return False
+        try:
+            if app.applicationState() != Qt.ApplicationState.ApplicationActive:
+                return False
+            return QGuiApplication.focusWindow() is not None
+        except RuntimeError:
             return False
 
     def _active_top_level(self) -> QWidget | None:
@@ -2088,6 +2201,16 @@ class GamepadNavigationController(QObject):
         self._queue_maintenance(visuals=True)
 
     def _handle_widget_direction(self, widget: QWidget, direction: str) -> bool:
+        # Controls drawn by hand -- a two-handle frequency rail, a row of
+        # allocation stops -- move their own value on the arrows and say so by
+        # returning True; at an end they return False and focus moves on.
+        custom = getattr(widget, "gamepad_direction", None)
+        if callable(custom):
+            try:
+                if custom(direction):
+                    return True
+            except (RuntimeError, TypeError):
+                return False
         if isinstance(widget, QAbstractItemView):
             try:
                 model = widget.model()
@@ -2265,7 +2388,16 @@ class GamepadNavigationController(QObject):
         if self._active_popup() is not None:
             return
         top = self._active_top_level()
-        if top is None or top is not self.host:
+        if top is None:
+            return
+        if top is not self.host:
+            # Menu is a toggle, as in a game: pressed again inside Settings it
+            # closes them. Any other dialog keeps its own question on screen.
+            if getattr(top, "gamepad_closes_with_menu", False):
+                try:
+                    top.reject()
+                except RuntimeError:
+                    return
             return
         callback = getattr(self.host, "gamepad_open_settings", None)
         if callable(callback):
@@ -2337,6 +2469,50 @@ class GamepadNavigationController(QObject):
         except (RuntimeError, TypeError):
             pass
         self._show_keypad_for(target, top, focus_keypad=True)
+
+    @staticmethod
+    def _secondary_owner(widget: QWidget | None) -> QWidget | None:
+        """The focused widget, if it offers a second action on X.
+
+        A card that selects on A and edits on X (the operating profiles) has
+        two actions and one cursor. Everything else keeps X for the keypad.
+        """
+        if not isinstance(widget, QWidget) or not _qobject_alive(widget):
+            return None
+        try:
+            action = getattr(widget, "gamepad_secondary", None)
+            available = getattr(widget, "gamepad_secondary_available", None)
+            if not callable(action):
+                return None
+            if callable(available) and not available():
+                return None
+            return widget
+        except (RuntimeError, TypeError):
+            return None
+
+    def _run_secondary_action(self) -> bool:
+        if self._active_popup() is not None or self._active_keypad() is not None:
+            return False
+        owner = self._secondary_owner(QApplication.focusWidget())
+        if owner is None:
+            return False
+        try:
+            owner.gamepad_secondary()
+        except (RuntimeError, TypeError):
+            return False
+        self._invalidate_focus_cache()
+        self._queue_maintenance(visuals=True)
+        return True
+
+    def _secondary_label(self) -> str:
+        owner = self._secondary_owner(QApplication.focusWidget())
+        if owner is None:
+            return ""
+        try:
+            label = getattr(owner, "gamepad_secondary_label", None)
+            return str(label() if callable(label) else "Edit")
+        except (RuntimeError, TypeError):
+            return ""
 
     def _focused_keypad(self) -> GamepadKeypadOverlay | None:
         for keypad in self._keypads.values():
@@ -2540,9 +2716,14 @@ class GamepadNavigationController(QObject):
                 top is self.host
                 and callable(getattr(self.host, "gamepad_open_settings", None))
             )
+            secondary = self._secondary_label()
+            bar.set_secondary_action(secondary)
             bar.set_keypad_available(
-                self._onscreen_keypad_enabled
-                and self._current_keypad_target() is not None
+                bool(secondary)
+                or (
+                    self._onscreen_keypad_enabled
+                    and self._current_keypad_target() is not None
+                )
             )
             bar.set_available_width(top.width())
             bar.adjustSize()

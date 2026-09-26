@@ -7,7 +7,9 @@ them together. What the kernel offers instead is a Nuvoton channel labelled
 
 Presenting that channel as "VRM" is the complaint these tests encode: the
 dashboard must name what it is actually showing, and must show the two rails
-apart when it really has them.
+apart when it really has them. The graphics card therefore keeps two fixed
+rows -- "VRM MOS", which every board has, and "VRM GPU" under it, which
+reads only with the I2C link.
 """
 
 from __future__ import annotations
@@ -48,9 +50,9 @@ def page(qtbot):
 def _sensors(page, sensors):
     page.apply_state(page.state.with_live_metrics({**BASE, "sensors": sensors}))
     hero = page.gpu_card
-    rail = hero.details["rail"]
+    rows = [hero.details["mos"], hero.details["rail"]]
     return (
-        [(rail.label.text(), f"{rail.value.text()} {rail.unit.text()}".strip())],
+        [(row.label.text(), f"{row.value.text()} {row.unit.text()}".strip()) for row in rows],
         page.vrm_strip,
     )
 
@@ -58,10 +60,12 @@ def _sensors(page, sensors):
 def test_a_stock_board_does_not_call_the_nuvoton_channel_a_vrm_rail(page):
     thermal, vrm_strip = _sensors(
         page,
-        {"board_temperature_c": 48, "vrm_temperature_c": 51, "vrm_source": "nct"},
+        {"board_temperature_c": 48, "vrm_temperature_c": 51, "vrm_source": "nct",
+         "vrm_mos_temperature_c": 51},
     )
 
     assert ("VRM MOS", "51.0 °C") in thermal
+    assert ("VRM GPU", "Not detected") in thermal
     # Nothing electrical is known, so the band says so instead of vanishing.
     assert vrm_strip["input"].value.text() == "Not detected"
 
@@ -80,16 +84,17 @@ def test_a_modded_board_shows_both_rails_and_their_electrical_readings(page):
     assert vrm_strip["gpu_current"].value.text() == "12.0"
 
 
-def test_the_row_grows_and_shrinks_with_the_sensors_the_board_has(page):
-    modded, _strip = _sensors(page, PMBUS)
+def test_the_mosfet_sensor_and_the_graphics_rail_are_two_rows(page):
+    modded, _strip = _sensors(page, {**PMBUS, "vrm_mos_temperature_c": 47})
     stock, _strip = _sensors(
         page,
-        {"board_temperature_c": 48, "vrm_temperature_c": 51, "vrm_source": "nct"},
+        {"board_temperature_c": 48, "vrm_temperature_c": 51, "vrm_source": "nct",
+         "vrm_mos_temperature_c": 51},
     )
 
-    # One rail cell, named for whatever is measuring it.
-    assert modded[0][0] == "VRM GPU"
-    assert stock[0][0] == "VRM MOS"
+    # The same two rows either way; the I2C link only fills the second.
+    assert modded == [("VRM MOS", "47.0 °C"), ("VRM GPU", "48.0 °C")]
+    assert stock == [("VRM MOS", "51.0 °C"), ("VRM GPU", "Not detected")]
 
 
 def test_a_raised_status_bit_marks_the_rail_row(page):
@@ -98,3 +103,25 @@ def test_a_raised_status_bit_marks_the_rail_row(page):
     )
 
     assert page.gpu_card.details["rail"].property("tone") == "warning"
+
+
+@pytest.mark.parametrize("system, pwm_enable, curve, preset, expected", [
+    (True, 1, True, False, "system"),
+    (False, 2, True, False, "firmware"),
+    (False, 1, True, False, "daemon"),
+    (False, 1, False, True, "daemon"),
+    (False, 1, False, False, "manual"),
+])
+def test_the_fan_row_says_who_drives_the_fan(system, pwm_enable, curve, preset, expected):
+    from frontends.desktop.core.dashboard_presenter import dashboard_fan_owner
+
+    fan = {"sensores": {"fans": [{"label": "Pump Fan / J4003 Fan 1", "pwm_enable": pwm_enable}]}}
+    config = {"fan_curve": {"enabled": curve}, "fan_preset": {"enabled": preset}}
+    assert dashboard_fan_owner(fan, system_owned=system, config=config) == expected
+
+
+def test_the_dashboard_shows_the_owner_instead_of_the_raw_mode(page):
+    from dataclasses import replace
+
+    page.apply_state(replace(page.state, fan_state_available=True, fan_mode="manual", fan_owner="system"))
+    assert page.fan_card.details["mode"].value.text() == "System service"

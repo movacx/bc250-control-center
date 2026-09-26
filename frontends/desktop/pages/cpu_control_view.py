@@ -72,7 +72,9 @@ from bc250cc.shared.contract import (
     CPU_VID_STEP_MV,
 )
 
+from ..components.busy_spinner import BusyBadge
 from ..components.buttons import WrappingButton as QPushButton
+from ..components.card_navigation import EditableCardNavigation
 from ..components.core_monitor import CoreGrid, CoreReading
 from ..components.page_widgets import SectionCard, caption, subpanel
 from ..components.widgets import PillLabel, icon
@@ -83,12 +85,25 @@ from ..theme import COLORS
 #: fixed-size and its rows can be built once. The GDDR6 rail has its own
 #: count in ``components.dashboard_widgets``, which owns that strip.
 
+#: What the manual-scale switch does, for its caption, tooltip and status.
+MANUAL_SCALE_HINT = (
+    "Enter the exact scale you want. It is stress-tested in 100 MHz steps "
+    "before it stays applied, the way automatic detection tests its own."
+)
+
 #: Width below which the two workspace columns stack. Same breakpoint the GPU
 #: module uses, so the two screens never reflow at different moments.
 STACK_WIDTH = 1180
 
 #: Width below which the three profile cards stack into one column.
 PROFILE_STACK_WIDTH = 700
+
+#: Controls lead, monitoring reports: the same 18:12 split the GPU workspace
+#: uses. Both the first layout and every reflow back from the stacked form
+#: read these, so a window that opens narrow and is then maximized by the
+#: window manager ends with the same proportions as one that opened wide.
+CONTROLS_STRETCH = 18
+TELEMETRY_STRETCH = 12
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -123,6 +138,9 @@ class CpuTuningState:
     scale: int | None = None
     manual_scale_available: bool = False
     applying: bool = False
+    #: Any other task of this page still running: reading the boot status,
+    #: preparing the CPU tool, exporting the profiles to Decky.
+    busy: bool = False
     persistence_enabled: bool = False
 
     #: The six runtime readings, keyed by ``CpuControlView.RUNTIME_ROWS``.
@@ -382,7 +400,7 @@ class ToggleRow(QFrame):
 # Profile card — click selects, pencil edits
 # ─────────────────────────────────────────────────────────────────────────────
 
-class CpuProfileCard(QFrame):
+class CpuProfileCard(EditableCardNavigation, QFrame):
     """A click selects the profile; the pencil edits its name and values."""
 
     selected = pyqtSignal(object)   # CpuProfile
@@ -424,6 +442,7 @@ class CpuProfileCard(QFrame):
         self._edit_button.clicked.connect(self.begin_edit)
         head.addWidget(self._edit_button, 0)
         view.addLayout(head)
+        self._install_card_navigation(self._edit_button)
 
         self._value_label = QLabel(profile.summary())
         self._value_label.setProperty("rangeReadout", True)
@@ -538,12 +557,14 @@ class CpuProfileCard(QFrame):
         self._refresh_hint()
         self._view.setVisible(False)
         self._editor.setVisible(True)
+        self._card_enter_edit()
         self._name_edit.setFocus()
         self._name_edit.selectAll()
 
     def cancel_edit(self) -> None:
         self._editor.setVisible(False)
         self._view.setVisible(True)
+        self._card_leave_edit()
 
     def retranslate(self) -> None:
         """Rebuilds the interpolated hint after a live language change."""
@@ -690,10 +711,8 @@ class CpuControlView(QWidget):
 
         self._workspace.addWidget(self._left_column, 0, 0)
         self._workspace.addWidget(self._telemetry, 0, 1)
-        # The same 18:12 split the GPU workspace uses, so the two hardware
-        # screens read as one family: controls lead, monitoring reports.
-        self._workspace.setColumnStretch(0, 18)
-        self._workspace.setColumnStretch(1, 12)
+        self._workspace.setColumnStretch(0, CONTROLS_STRETCH)
+        self._workspace.setColumnStretch(1, TELEMETRY_STRETCH)
 
         layout.addStretch(1)
         self.apply_state(self._state)
@@ -712,8 +731,13 @@ class CpuControlView(QWidget):
         # repeated the panel headings underneath. The pill is the part that
         # carried information, so it moves next to the runtime readings.
         self._configuration_status = card.drop_header()
+        # While an overclock is being applied, or any other task of this
+        # screen runs, a turning ring takes the pill's place: a static
+        # "Checking" was easy to miss while a privileged command was going.
+        self._busy_badge = BusyBadge()
 
         profiles_panel, profiles_box = subpanel("")
+        self.profiles_panel = profiles_panel
         title_row = QHBoxLayout()
         title_row.setContentsMargins(0, 0, 0, 0)
         title_row.setSpacing(8)
@@ -757,7 +781,7 @@ class CpuControlView(QWidget):
         mode_panel, mode_box = subpanel("Live scale test")
         self.manual_scale_check = QCheckBox()
         self.manual_scale_check.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.manual_scale_check.setEnabled(False)
+        self.manual_scale_check.setToolTip(tr(MANUAL_SCALE_HINT))
         self.manual_scale_check.toggled.connect(self._on_manual_scale_toggled)
 
         self.scale_field = QSpinBox()
@@ -772,24 +796,16 @@ class CpuControlView(QWidget):
         self.scale_field.setEnabled(False)
         self.scale_field.valueChanged.connect(self._on_scale_field_changed)
 
+        # Available from the start: the scale typed here is stress-tested in
+        # the detector's own steps, so it no longer waits for a preset to run.
         mode_box.addWidget(
             ToggleRow(
                 "Use manual scale",
-                caption(
-                    "Detect a scale automatically first. Then, only if you "
-                    "want, compare another manual scale live."
-                ),
+                caption(MANUAL_SCALE_HINT),
                 self.manual_scale_check,
                 trailing=self.scale_field,
             )
         )
-
-        # Shown only while the field is locked; once manual scale is available
-        # the switch above already says what it is for.
-        self._scale_lock = caption(
-            "Apply an automatic live configuration first to unlock manual scale."
-        )
-        mode_box.addWidget(self._scale_lock)
         card.body.addWidget(mode_panel)
 
         self.apply_button = QPushButton(tr("Apply configuration + automatic scale"))
@@ -935,6 +951,7 @@ class CpuControlView(QWidget):
             runtime_head.addWidget(
                 self._configuration_status, 0, Qt.AlignmentFlag.AlignVCenter
             )
+        runtime_head.addWidget(self._busy_badge, 0, Qt.AlignmentFlag.AlignVCenter)
         runtime_box.addLayout(runtime_head)
         runtime_box.addWidget(
             caption(
@@ -951,6 +968,7 @@ class CpuControlView(QWidget):
         card.body.addWidget(runtime_panel)
 
         cores_panel, cores_box = subpanel("Live core monitor")
+        self.cores_panel = cores_panel
         head = QHBoxLayout()
         head.setSpacing(8)
         head.addWidget(caption("Detected by the OS"), 1)
@@ -1160,31 +1178,18 @@ class CpuControlView(QWidget):
                 tuning.frequency_mhz, tuning.vid_mv, tuning.temperature_c
             )
 
-        available = bool(tuning.manual_scale_available)
-        self._scale_lock.setVisible(not available)
-        if self.manual_scale_check.isEnabled() != available:
-            self.manual_scale_check.setEnabled(available)
-        if not available and self.manual_scale_check.isChecked():
-            self.manual_scale_check.setChecked(False)
-        self.manual_scale_check.setToolTip(
-            tr(
-                "Automatic live configuration verified. You can now test an "
-                "exact manual scale for this session."
-            )
-            if available
-            else tr(
-                "Run a verified automatic live configuration first. Manual "
-                "scale unlocks only for that detection session."
-            )
-        )
-
+        self.manual_scale_check.setEnabled(not tuning.applying)
         self.apply_button.setEnabled(not tuning.applying)
         self.save_boot_button.setEnabled(not tuning.applying)
         self.review_persistence_button.setEnabled(not tuning.applying)
         self.remove_boot_button.setEnabled(
             bool(tuning.persistence_enabled) and not tuning.applying
         )
+        working = tuning.applying or tuning.busy
+        self._busy_badge.set_text("Checking" if tuning.applying else "Working")
+        self._busy_badge.set_running(working)
         if self._configuration_status is not None:
+            self._configuration_status.setVisible(not working)
             if tuning.applying:
                 self._configuration_status.setText(tr("Checking"))
                 self._configuration_status.set_tone("orange")
@@ -1225,6 +1230,7 @@ class CpuControlView(QWidget):
         for key, label in self.RUNTIME_ROWS:
             self.runtime_cards[key].set_label(label)
         self.unlock_support_row.set_label("Unlock support")
+        self._busy_badge.retranslate()
         for profile_card in self._profile_cards:
             profile_card.retranslate()
         self._apply_unlock(self._state.core_unlock)
@@ -1251,7 +1257,10 @@ class CpuControlView(QWidget):
         elif not stacked and telemetry_stacked:
             self._workspace.removeWidget(self._telemetry)
             self._workspace.addWidget(self._telemetry, 0, 1)
-            self._workspace.setColumnStretch(1, 1)
+            # Not 1: against the controls' 18 that squeezed the monitoring
+            # column to its minimum after every narrow-to-wide reflow — the
+            # "stretched" layout seen when the app reopened and was maximized.
+            self._workspace.setColumnStretch(1, TELEMETRY_STRETCH)
 
         columns = 1 if width < PROFILE_STACK_WIDTH else 3
         current = 1 if self._profiles_grid.itemAtPosition(1, 0) is not None else 3

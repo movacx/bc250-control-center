@@ -371,6 +371,32 @@ class SistemaService:
     def estado_herramientas_bc250(self):
         return self.repo.estado_herramientas_bc250()
 
+    def instalar_actualizacion(self, plan, package_path=None):
+        """Run the reviewed install command for ``plan`` in the terminal.
+
+        Only commands built by ``self_update.install_command`` are run, and a
+        package only from the application's own updates directory.
+        """
+        from bc250cc.infrastructure.self_update import (
+            UpdateError,
+            install_command,
+            updates_directory,
+        )
+
+        package = None
+        if package_path:
+            package = Path(package_path).resolve()
+            if package.parent != updates_directory().resolve() or not package.is_file():
+                raise UpdateError('The update package is not in the application updates folder.')
+        command = install_command(plan, package)
+        return self.repo._abrir_terminal(command, 'BC250 Control Center update')
+
+    def invalidar_estado_herramientas(self):
+        """Forget the cached tool inventory; the next read probes again."""
+        for attribute in ('estado_herramientas_cache', 'estado_bc250_cache'):
+            if hasattr(self.repo, attribute):
+                setattr(self.repo, attribute, None)
+
     def instalar_dependencias_bc250(
         self,
         confirmar_conflictos=False,
@@ -433,6 +459,12 @@ class SistemaService:
 
     def gestionar_gfx1013_bazzite(self, action):
         return self.repo.gestionar_gfx1013_bazzite(action)
+
+    def gestionar_gfx1013_source(self, action):
+        return self.repo.gestionar_gfx1013_source(action)
+
+    def gestionar_radv_async(self, action):
+        return self.repo.gestionar_radv_async(action)
 
     def actualizar_aplicacion_local(self):
         return self.repo.actualizar_aplicacion_local()
@@ -552,6 +584,11 @@ class SistemaService:
             frequency, scale, temperature, confirm_manual
         )
 
+    def comando_cpu_oc_manual_verificado_embebido(self, frequency, scale, temperature=90, confirm_manual=False):
+        return self.repo.comando_cpu_oc_manual_verificado_embebido(
+            frequency, scale, temperature, confirm_manual
+        )
+
     def registrar_aplicacion_manual_cpu(self, frequency, scale, temperature=90):
         return self.repo.registrar_aplicacion_manual_cpu(frequency, scale, temperature)
 
@@ -599,10 +636,11 @@ class SistemaService:
     def ultima_temperatura_vram(self):
         return self.repo.ultima_temperatura_vram()
 
-    def comando_monitorizar_vram(self, seconds=None):
+    def comando_monitorizar_vram(self, seconds=None, *, ignore_governor=False):
+        extra = {'ignore_governor': True} if ignore_governor else {}
         if seconds is None:
-            return self.repo.comando_monitorizar_vram()
-        return self.repo.comando_monitorizar_vram(seconds)
+            return self.repo.comando_monitorizar_vram(**extra)
+        return self.repo.comando_monitorizar_vram(seconds, **extra)
 
     def comando_aplicar_parche_vram(self):
         return self.repo.comando_aplicar_parche_vram()
@@ -636,6 +674,21 @@ class SistemaService:
 
     def leer_pwm_fan(self, pwm):
         return self.repo.leer_pwm_fan(pwm)
+
+    def estado_control_fan_sistema(self):
+        return self.repo.estado_control_fan_sistema()
+
+    def sincronizar_control_fan_sistema(self, politica):
+        return self.repo.sincronizar_control_fan_sistema(politica)
+
+    def activar_control_fan_sistema(self, politica):
+        return self.repo.activar_control_fan_sistema(politica)
+
+    def desactivar_control_fan_sistema(self):
+        return self.repo.desactivar_control_fan_sistema()
+
+    def exportar_perfiles_fan_decky(self, profiles):
+        return self.repo.exportar_perfiles_fan_decky(profiles)
 
     def obtener_estado_cu_cache(self):
         return self.repo.obtener_estado_cu_cache()

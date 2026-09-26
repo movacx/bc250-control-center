@@ -1,3 +1,4 @@
+import fnmatch
 import logging
 import os
 import re
@@ -17,8 +18,14 @@ from bc250cc.infrastructure.cu_repository import CURepository
 from bc250cc.infrastructure.dependencias_repository import DependenciasRepository
 from bc250cc.infrastructure.drivers_repository import DriversRepository
 from bc250cc.infrastructure.fan_repository import FanRepository
+from bc250cc.infrastructure.firmware.board import read_installed_bios
 from bc250cc.infrastructure.gddr6_memory_temp_repository import (
     Gddr6MemoryTempRepository,
+)
+from bc250cc.infrastructure.gpu_fdinfo import (
+    DrmFdinfoSampler,
+    busiest_client,
+    busy_percent,
 )
 from bc250cc.infrastructure.gpu_repository import GPURepository
 from bc250cc.infrastructure.health_repository import HealthRepository
@@ -34,7 +41,10 @@ from bc250cc.infrastructure.realtime_metrics_policy import (
     network_rates,
 )
 from bc250cc.infrastructure.terminal_repository import TerminalRepository
-from bc250cc.infrastructure.vrm_telemetry_reader import leer_telemetria_vrm
+from bc250cc.infrastructure.vrm_telemetry_reader import (
+    leer_telemetria_vrm,
+    sondear_telemetria_vrm,
+)
 from bc250cc.platform.init.services import (
     detect_init_manager,
     parse_openrc_runlevel,
@@ -43,6 +53,10 @@ from bc250cc.platform.init.services import (
 )
 
 logger = logging.getLogger(__name__)
+
+# One GPU load sample at a time per process, whichever thread asks.
+_GPU_BUSY_CACHE_LOCK = threading.Lock()
+_GPU_BUSY_LOCK = threading.Lock()
 
 
 class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRepository, DriversRepository, GPURepository, CPURepository, CURepository, FanRepository, HealthRepository, RecoveryRepository, Gddr6MemoryTempRepository):
@@ -56,6 +70,11 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
         self.escritura_disco = 0
         self.gpu_fdinfo_anterior = None
         self.tiempo_gpu_fdinfo = None
+        # The compute (ACE) queues on their own: whether async compute is
+        # really used, and by which process.
+        self.gpu_compute_anterior = None
+        self.gpu_compute_busy = None
+        self.gpu_compute_process = ''
         self.gpu_busy_cache = None
         self.gpu_busy_cache_time = 0
         self.estado_herramientas_cache = None
@@ -362,6 +381,9 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
             ),
             'board_temperature_c': max(board) if board else None,
             'vrm_temperature_c': vrm_temperature,
+            # The Nuvoton "VRM MOS" channel on its own: present on every
+            # board, shown beside the PMBus rails instead of replaced by them.
+            'vrm_mos_temperature_c': max(vrm) if vrm else None,
             'vrm_cpu_temperature_c': vrm_cpu,
             'vrm_gpu_temperature_c': vrm_gpu,
             'vrm_source': vrm_source,
@@ -374,6 +396,9 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
             'vrm_cpu_power_w': vrm_externo.get('vrm_cpu_power_w'),
             'vrm_gpu_power_w': vrm_externo.get('vrm_gpu_power_w'),
             'vrm_alerts': tuple(vrm_externo.get('vrm_alerts') or ()),
+            # Unchecked, for the manual Power delivery mode (Settings ›
+            # Telemetry): what the daemon reports even when it says invalid.
+            'vrm_probe': sondear_telemetria_vrm(),
         }
         self._aux_temperature_cache = dict(result)
         self._aux_temperature_cache_time = now
@@ -415,41 +440,60 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
         return None
 
 
+    def firmware_instalado(self):
+        """The BIOS image the board runs, identified once per process.
+
+        DMI, the EFI variable names and the VRAM carve-out only change across
+        a reboot, and this is asked on every performance sample.
+        """
+        cached = getattr(self, '_installed_bios_cache', None)
+        if cached is not None:
+            return cached
+        gpu = self._gpu_device_path()
+        try:
+            cores = int(psutil.cpu_count(logical=False) or 0)
+        except (TypeError, ValueError, OSError):
+            cores = 0
+        installed = read_installed_bios(
+            vram_total_bytes=int((self._leer_entero(gpu / 'mem_info_vram_total') if gpu else 0) or 0),
+            physical_cores=cores,
+        )
+        self._installed_bios_cache = {
+            'bios_version': installed.version,
+            'bios_variant': installed.variant,
+            'bios_family': installed.family,
+            'bios_evidence': installed.evidence,
+        }
+        return self._installed_bios_cache
+
+    def _gpu_fdinfo_sampler(self):
+        sampler = getattr(self, "_drm_fdinfo_sampler", None)
+        if sampler is None:
+            sampler = self._drm_fdinfo_sampler = DrmFdinfoSampler()
+        return sampler
+
     def _gpu_fdinfo_total_ns(self):
-        totales = {}
-        for archivo in Path('/proc').glob('[0-9]*/fdinfo/*'):
-            try:
-                texto = archivo.read_text(errors='ignore')
-            except Exception:
-                continue
-            if 'drm-driver:' not in texto or 'amdgpu' not in texto:
-                continue
-            pid = archivo.parent.parent.name
-            total = 0
-            for linea in texto.splitlines():
-                if not linea.startswith('drm-engine-'):
-                    continue
-                m = re.search(r':\s*(\d+)\s*ns', linea)
-                if m:
-                    total += int(m.group(1))
-            if total:
-                totales[pid] = max(totales.get(pid, 0), total)
-        return sum(totales.values())
+        return sum(self._gpu_fdinfo_sampler().sample().values())
 
     def _gpu_busy_fdinfo(self):
-        ahora = time.monotonic_ns()
-        total = self._gpu_fdinfo_total_ns()
-        if self.gpu_fdinfo_anterior is None or self.tiempo_gpu_fdinfo is None:
-            self.gpu_fdinfo_anterior = total
+        with _GPU_BUSY_LOCK:
+            sampler = self._gpu_fdinfo_sampler()
+            current = sampler.sample()
+            compute = sampler.compute_sample()
+            ahora = time.monotonic_ns()
+            previous = self.gpu_fdinfo_anterior
+            previous_compute = self.gpu_compute_anterior
+            since = self.tiempo_gpu_fdinfo
+            self.gpu_fdinfo_anterior = current
+            self.gpu_compute_anterior = compute
             self.tiempo_gpu_fdinfo = ahora
-            return None
-        delta = total - self.gpu_fdinfo_anterior
-        transcurrido = ahora - self.tiempo_gpu_fdinfo
-        self.gpu_fdinfo_anterior = total
-        self.tiempo_gpu_fdinfo = ahora
-        if delta <= 0 or transcurrido <= 0:
-            return 0
-        return int(max(0, min(100, round((delta / transcurrido) * 100))))
+            if not isinstance(previous, dict) or since is None:
+                return None
+            if isinstance(previous_compute, dict):
+                self.gpu_compute_busy = busy_percent(previous_compute, compute, ahora - since)
+                client = busiest_client(previous_compute, compute)
+                self.gpu_compute_process = sampler.process_name(client) if client else ''
+            return busy_percent(previous, current, ahora - since)
 
     def _gpu_busy_percent(self, gpu=None):
         sysfs_invalid = False
@@ -469,12 +513,19 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
                     "Ignoring out-of-range amdgpu gpu_busy_percent: %s", busy
                 )
                 sysfs_invalid = True
-        ahora = time.monotonic()
-        if not sysfs_invalid and ahora - self.gpu_busy_cache_time < 2:
+        if not sysfs_invalid and time.monotonic() - self.gpu_busy_cache_time < 2:
             return self.gpu_busy_cache
-        self.gpu_busy_cache = self._gpu_busy_fdinfo()
-        self.gpu_busy_cache_time = ahora
-        return self.gpu_busy_cache
+        # The dashboard, the performance graphs and the alerts ask at nearly
+        # the same moment from different threads. One samples; the others get
+        # its answer instead of taking a second reading a few ms later. The
+        # time is taken after the sample: taken before, a slow sample left
+        # the cache already expired and every caller sampled again.
+        with _GPU_BUSY_CACHE_LOCK:
+            if not sysfs_invalid and time.monotonic() - self.gpu_busy_cache_time < 2:
+                return self.gpu_busy_cache
+            self.gpu_busy_cache = self._gpu_busy_fdinfo()
+            self.gpu_busy_cache_time = time.monotonic()
+            return self.gpu_busy_cache
 
     def _parse_dpm_actual(self, texto):
         if not texto:
@@ -501,11 +552,21 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
                     datos['range_sclk_min'], datos['range_sclk_max'] = nums[0], nums[1]
         return datos
 
-    def _dbus_uint_property(self, objeto, interfaz, propiedad):
-        rc, out, _err = self._ejecutar([
+    def _dbus_property_text(self, objeto, interfaz, propiedad):
+        rc, out, err = self._ejecutar([
             'busctl', 'get-property', 'com.cyanskillfish.Governor', objeto, interfaz, propiedad
         ])
         if rc != 0:
+            # busctl's own timeout is 25 s, so a timeout here is always ours:
+            # Cyan is on the bus but its D-Bus thread is not getting a turn.
+            if 'timed out' in (err or '').lower():
+                self._cyan_dbus_last_timeout = time.monotonic()
+            return None
+        return out
+
+    def _dbus_uint_property(self, objeto, interfaz, propiedad):
+        out = self._dbus_property_text(objeto, interfaz, propiedad)
+        if out is None:
             return None
         match = re.fullmatch(r'\s*(?:u|t|q)\s+(\d+)\s*', out or '')
         if not match:
@@ -518,10 +579,8 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
         return value
 
     def _dbus_bool_property(self, objeto, interfaz, propiedad):
-        rc, out, _err = self._ejecutar([
-            'busctl', 'get-property', 'com.cyanskillfish.Governor', objeto, interfaz, propiedad
-        ])
-        if rc != 0:
+        out = self._dbus_property_text(objeto, interfaz, propiedad)
+        if out is None:
             return None
         match = re.fullmatch(r'\s*b\s+(true|false)\s*', out or '', re.IGNORECASE)
         if not match:
@@ -680,19 +739,48 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
                 salida.append(r)
         return salida
 
+    #: Directories a toolkit checkout never lives in. The installed app runs
+    #: from ~/.local/share/bc250-control-center, so the parent it searches is
+    #: ~/.local/share -- Steam's libraries and Proton prefixes included.
+    _BUSQUEDA_OMITIR = frozenset({
+        'Steam', 'steamapps', 'compatdata', 'shadercache', 'Trash', 'flatpak',
+        'node_modules', '__pycache__', 'site-packages',
+    })
+    _BUSQUEDA_TTL = 300.0
+
     def _buscar_archivo(self, patron, max_depth=5):
+        # The answer changes when a toolkit is cloned or removed, not between
+        # two refreshes; the walk behind it held the GIL for seconds.
+        cache = self.__dict__.setdefault('_busqueda_cache', {})
+        ahora = time.monotonic()
+        previo = cache.get((patron, max_depth))
+        if previo is not None and ahora - previo[0] < self._BUSQUEDA_TTL:
+            if not previo[1] or Path(previo[1]).exists():
+                return previo[1]
+        encontrado = self._buscar_archivo_en_disco(patron, max_depth)
+        cache[(patron, max_depth)] = (ahora, encontrado)
+        return encontrado
+
+    def _buscar_archivo_en_disco(self, patron, max_depth):
         for base in self._candidatos_busqueda():
             try:
-                directos = list(base.glob(patron))
+                directos = sorted(base.glob(patron))
                 if directos:
                     return str(directos[0])
-                for ruta in base.rglob(patron):
-                    try:
-                        rel = ruta.relative_to(base)
-                        if len(rel.parts) <= max_depth:
-                            return str(ruta)
-                    except Exception:
-                        return str(ruta)
+                # rglob walked the whole tree and only filtered the results by
+                # depth; this stops descending at the depth a match may have.
+                for raiz, carpetas, archivos in os.walk(base):
+                    profundidad = len(Path(raiz).relative_to(base).parts)
+                    for nombre in sorted(archivos):
+                        if fnmatch.fnmatch(nombre, patron):
+                            return str(Path(raiz) / nombre)
+                    if profundidad + 1 >= max_depth:
+                        carpetas[:] = []
+                        continue
+                    carpetas[:] = sorted(
+                        nombre for nombre in carpetas
+                        if not nombre.startswith('.') and nombre not in self._BUSQUEDA_OMITIR
+                    )
             except Exception:
                 continue
         return ''
@@ -744,6 +832,7 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
             'cpu_temp': cpu_temperature,
             'gpu_temp': gpu_temperature,
             'vrm_temp': vrm_temperature,
+            'vrm_mos_temp': auxiliary_temperatures.get('vrm_mos_temperature_c'),
             'vrm_temp_cpu': auxiliary_temperatures.get('vrm_cpu_temperature_c'),
             'vrm_temp_gpu': auxiliary_temperatures.get('vrm_gpu_temperature_c'),
             'vrm_source': auxiliary_temperatures.get('vrm_source', ''),
@@ -756,6 +845,7 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
             'vrm_cpu_power_w': auxiliary_temperatures.get('vrm_cpu_power_w'),
             'vrm_gpu_power_w': auxiliary_temperatures.get('vrm_gpu_power_w'),
             'vrm_alerts': tuple(auxiliary_temperatures.get('vrm_alerts') or ()),
+            'vrm_probe': auxiliary_temperatures.get('vrm_probe') or {},
             'board_temp': board_temperature,
             'temperature_sensor_times': {
                 sensor: sample_time
@@ -775,6 +865,7 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
             'power_is_total': bool(potencia.get('is_total')),
             'fan_rpm': self.ventilador_principal(),
             'board_temps': self.temperaturas_board(),
+            **self.firmware_instalado(),
             **gpu_technical,
         }
 
@@ -830,17 +921,84 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
             etiqueta = Path(dispositivo).name if dispositivo else 'all disks'
         return etiqueta or 'root disk', contador
 
+    #: How long the core counts are trusted. Topology only changes with CPU
+    #: hotplug, and re-reading it every second was a fifth of a sample's cost.
+    _TOPOLOGIA_CPU_TTL = 30.0
+
+    def _topologia_cpu(self):
+        """(physical, logical) core counts, re-read at most every 30 seconds."""
+        ahora = time.monotonic()
+        cache = getattr(self, '_topologia_cpu_cache', None)
+        if cache is None or ahora - cache[0] > self._TOPOLOGIA_CPU_TTL:
+            cache = (ahora, psutil.cpu_count(logical=False), psutil.cpu_count(logical=True))
+            self._topologia_cpu_cache = cache
+        return cache[1], cache[2]
+
+    @staticmethod
+    def _tiempo_cpu_ocupado(tiempos):
+        """(busy, total) seconds of one CPU, counted the way psutil counts them.
+
+        Guest time is already inside user and nice on Linux, so it is taken
+        out of the total rather than counted twice.
+        """
+        total = sum(tiempos)
+        total -= getattr(tiempos, 'guest', 0.0) + getattr(tiempos, 'guest_nice', 0.0)
+        return total - tiempos.idle - getattr(tiempos, 'iowait', 0.0), total
+
+    def _uso_cpu_propio(self):
+        """(total %, per-thread %) over this sampler's own interval, or None.
+
+        psutil.cpu_percent(interval=None) measures since the last call made by
+        anyone in the process, and the CPU page and the dashboard call it too.
+        One of them calling a few milliseconds earlier left this sample an
+        interval of almost nothing, and the monitor's graph plunged to 0 %.
+        """
+        actuales = psutil.cpu_times(percpu=True)
+        anteriores = getattr(self, '_metricas_rt_cpu_times', None)
+        self._metricas_rt_cpu_times = actuales
+        if not anteriores or len(anteriores) != len(actuales):
+            return None
+        ocupado_total = transcurrido_total = 0.0
+        hilos = []
+        for antes, ahora in zip(anteriores, actuales):
+            ocupado_antes, total_antes = self._tiempo_cpu_ocupado(antes)
+            ocupado_ahora, total_ahora = self._tiempo_cpu_ocupado(ahora)
+            ocupado = max(0.0, ocupado_ahora - ocupado_antes)
+            transcurrido = max(0.0, total_ahora - total_antes)
+            ocupado_total += ocupado
+            transcurrido_total += transcurrido
+            hilos.append(100.0 * ocupado / transcurrido if transcurrido > 0 else 0.0)
+        if transcurrido_total <= 0:
+            return None
+        return 100.0 * ocupado_total / transcurrido_total, hilos
+
     def _muestra_cpu_tiempo_real(self):
-        cpu_total = psutil.cpu_percent(interval=None)
-        cpu_hilos = psutil.cpu_percent(interval=None, percpu=True)
-        cpu_freq = psutil.cpu_freq()
+        propio = self._uso_cpu_propio()
+        if propio is None:
+            # The first sample has no interval of its own yet.
+            cpu_total = psutil.cpu_percent(interval=None)
+            cpu_hilos = psutil.cpu_percent(interval=None, percpu=True)
+        else:
+            cpu_total, cpu_hilos = propio
         try:
             cpu_frecuencias = psutil.cpu_freq(percpu=True) or []
         except TypeError:
             # Some psutil backends only expose the aggregate frequency.  The
             # per-core dashboard still reports load, without inventing clocks.
             cpu_frecuencias = []
-        physical_cores = psutil.cpu_count(logical=False)
+        actuales = [
+            float(frequency.current)
+            for frequency in cpu_frecuencias
+            if frequency and frequency.current is not None
+        ]
+        # psutil's aggregate is this same mean over the per-CPU readings;
+        # asking it separately read every scaling_cur_freq file twice.
+        cpu_freq_mhz = (
+            sum(actuales) / len(actuales)
+            if actuales
+            else getattr(psutil.cpu_freq(), 'current', None)
+        )
+        physical_cores, logical_cores = self._topologia_cpu()
         # Present physical-core usage in the UI.  On SMT systems psutil's
         # per-cpu values are logical threads; average each thread group so
         # the BC-250 summary reports its eight actual cores, not 1–8 threads.
@@ -879,9 +1037,9 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
             'usage_percent': bounded_percent(cpu_total),
             'per_core_percent': [bounded_percent(value) for value in per_core],
             'per_core_frequency_mhz': per_core_frequency,
-            'frequency_mhz': float(cpu_freq.current) if cpu_freq else None,
+            'frequency_mhz': float(cpu_freq_mhz) if cpu_freq_mhz is not None else None,
             'temperature_c': self.temperatura_cpu(),
-            'logical_cores': psutil.cpu_count(logical=True) or len(cpu_hilos),
+            'logical_cores': logical_cores or len(cpu_hilos),
             'physical_cores': physical_cores,
             'load_average': list(os.getloadavg()) if hasattr(os, 'getloadavg') else [],
         }
@@ -961,6 +1119,8 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
                 'power_w': potencia.get('gpu_w'),
                 'vram_used': vram_used,
                 'vram_total': vram_total,
+                'compute_busy_percent': getattr(self, 'gpu_compute_busy', None),
+                'compute_process': getattr(self, 'gpu_compute_process', ''),
                 **technical,
             },
             {

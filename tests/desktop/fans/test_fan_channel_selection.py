@@ -1,5 +1,6 @@
 import pytest
 from PyQt6.QtCore import QObject, Qt, pyqtSignal
+from PyQt6.QtWidgets import QLabel
 
 from frontends.desktop.i18n import current_language, localize_widget_tree, set_language
 from frontends.desktop.pages import fans as fans_module
@@ -211,7 +212,6 @@ def test_busy_state_locks_all_mutating_fan_controls(qtbot):
 
     assert page.channel_combo.isEnabled() is False
     assert page.speed_control.isEnabled() is False
-    assert page.use_live_button.isEnabled() is False
     assert page.apply_pwm_button.isEnabled() is False
     assert page.restore_auto_button.isEnabled() is False
     assert page.manual_mode_button.isEnabled() is False
@@ -360,10 +360,22 @@ def test_curve_response_map_matches_the_controller_step_ranges(qtbot):
     assert response_map.scale.live_temperature == 68.2
     assert response_map.scale.live_duty == 85
     assert response_map.scale.enabled is True
-    assert response_map.ranges_title.text() == "Thermal response scale"
-    assert "exact step response" in response_map.scale_caption.text()
-    assert response_map.live_temperature_label.text() == "GPU 68.2 °C"
-    assert response_map.live_duty_label.text() == "PWM 85 %"
+    # The chart carries its own reading; no caption rows around it.
+    assert response_map.live_text() == "68.2 °C → 85%"
+    assert response_map.findChildren(QLabel) == []
+    assert response_map.scale.minimumHeight() >= 300
+
+
+def test_curve_response_axis_follows_the_points_it_has_to_show(qtbot):
+    response_map = FanCurvePlot()
+    qtbot.addWidget(response_map)
+    response_map.set_curve([(30, 30), (40, 40), (50, 55), (60, 70), (70, 85), (80, 95), (90, 100), (100, 100)])
+    low, high = response_map.scale.temperature_range()
+    assert (low, high) == (25.0, 105.0)
+    response_map.set_curve([(50, 60), (65, 85), (72, 100)])
+    assert response_map.scale.temperature_range() == (30.0, 95.0)
+    response_map.set_live(61.4, 85, "cpu")
+    assert response_map.live_text() == "CPU 61.4 °C → 85%"
 
 
 def test_manual_workspace_uses_no_redundant_heading_or_rpm_caption(qtbot):
@@ -386,11 +398,13 @@ def test_manual_workspace_uses_no_redundant_heading_or_rpm_caption(qtbot):
     assert "Fan control" not in visible_copy
     assert "Stage one change, then confirm it." not in visible_copy
     assert "RPM observed" not in visible_copy
-    assert page.selected_live_rpm.isVisible()
+    # The speed is a row of the fan list, number and unit in their columns.
+    assert page.speed_reading.isVisible()
+    assert (page.speed_reading.value.text(), page.speed_reading.unit.text()) == ("1,200", "RPM")
     assert page.selected_live_rpm.text() == "1,200 RPM"
 
 
-def test_manual_dial_tracks_staged_pwm_and_reflows_without_changing_hardware(qtbot):
+def test_staged_duty_readout_and_card_reflow_never_touch_hardware(qtbot):
     controller = _Controller()
     page = FansPage(controller)
     qtbot.addWidget(page)
@@ -407,17 +421,88 @@ def test_manual_dial_tracks_staged_pwm_and_reflows_without_changing_hardware(qtb
     assert page.duty_raw_label.text() == "Raw PWM 153 / 255"
     assert controller.saved == []
 
-    page._reflow(1200)
-    wide_dial = page.manual_workspace.getItemPosition(page.manual_workspace.indexOf(page.duty_panel))
-    wide_controls = page.manual_workspace.getItemPosition(page.manual_workspace.indexOf(page.manual_controls_panel))
-    assert wide_dial[:2] == (0, 0)
-    assert wide_controls[:2] == (0, 1)
+    # The redesign drew the staged value once, beside the slider, and gave
+    # the controls the full width: the dial is a data seam now, not a panel.
+    page.show()
+    for width in (1400, 1200, 520):
+        page._reflow(width)
+        assert page.duty_panel.isHidden()
+        controls = page.manual_workspace.getItemPosition(
+            page.manual_workspace.indexOf(page.manual_controls_panel)
+        )
+        assert controls[:2] == (0, 0)
 
-    page._reflow(520)
-    narrow_dial = page.manual_workspace.getItemPosition(page.manual_workspace.indexOf(page.duty_panel))
-    narrow_controls = page.manual_workspace.getItemPosition(page.manual_workspace.indexOf(page.manual_controls_panel))
-    assert narrow_dial[:2] == (0, 0)
-    assert narrow_controls[:2] == (1, 0)
+    # Side by side above the shared GPU/CPU breakpoint, stacked below it.
+    page._reflow(1400)
+    assert page.workspace_grid.getItemPosition(
+        page.workspace_grid.indexOf(page.cooling_card)
+    )[:2] == (0, 1)
+    page._reflow(900)
+    assert page.workspace_grid.getItemPosition(
+        page.workspace_grid.indexOf(page.cooling_card)
+    )[:2] == (1, 0)
+    assert controller.saved == []
+
+
+def test_automatic_curve_does_not_write_when_hardware_already_matches(qtbot):
+    """GitHub issue: fan PWM asked to authenticate on every boot/page visit.
+
+    A fresh app launch has no memory of what it last applied, so before this
+    fix the very first refresh always compared its target against ``None``
+    and wrote unconditionally -- even right after a boot-time service had
+    already restored the exact same duty, opening an unnecessary polkit
+    prompt just from entering the Fans page. The observed (privilege-free)
+    hwmon readback must be used to seed that baseline instead.
+    """
+    controller = _Controller()
+    page = FansPage(controller, settings_service=controller)
+    qtbot.addWidget(page)
+
+    page.current_state = {
+        "driver_control": True,
+        # 178/255 rounds to 70%, matching what the default curve computes
+        # for a 52 C reading -- exactly as a boot-time restore would leave it.
+        "sensores": {"fans": [_fan(2, "Pump Fan", root_writable=True)]},
+        "modulos": {"nct6687": True},
+    }
+    page.current_state["sensores"]["fans"][0]["pwm"] = 178
+    page.performance_state = {"gpu_temp": 52.0}
+    page._curve_target_pwm = 2
+    page.curve_enabled.setChecked(True)
+
+    writes = []
+    page._run_pwm_write = lambda pwm, percent, **kwargs: writes.append((pwm, percent, kwargs))
+
+    assert page._last_curve_percent is None
+    page._maybe_apply_curve()
+
+    assert writes == [], f"unnecessary privileged write on page entry: {writes}"
+    assert page._last_curve_percent == 70
+
+
+def test_automatic_curve_still_applies_a_genuinely_different_target(qtbot):
+    controller = _Controller()
+    page = FansPage(controller, settings_service=controller)
+    qtbot.addWidget(page)
+
+    page.current_state = {
+        "driver_control": True,
+        "sensores": {"fans": [_fan(2, "Pump Fan", root_writable=True)]},
+        "modulos": {"nct6687": True},
+    }
+    page.current_state["sensores"]["fans"][0]["pwm"] = 102  # stale 40%
+    page.performance_state = {"gpu_temp": 75.0}  # curve now calls for 100%
+    page._curve_target_pwm = 2
+    page.curve_enabled.setChecked(True)
+
+    writes = []
+    page._run_pwm_write = lambda pwm, percent, **kwargs: writes.append((pwm, percent, kwargs))
+
+    page._maybe_apply_curve()
+
+    assert len(writes) == 1
+    assert writes[0][0] == 2
+    assert writes[0][1] == 100
 
 
 def test_dynamic_cooling_copy_retranslates_after_a_live_language_change(qtbot):
@@ -437,14 +522,14 @@ def test_dynamic_cooling_copy_retranslates_after_a_live_language_change(qtbot):
         localize_widget_tree(page, "es")
         page.retranslate_dynamic_copy()
 
-        assert page.manual_preset_buttons[0].text() == "Silencioso · 45%"
-        assert page.manual_preset_buttons[1].text() == "Equilibrado · 60%"
+        assert page.manual_preset_buttons[0]._name_label.text() == "Silencioso"
+        assert page.manual_preset_buttons[1]._name_label.text() == "Equilibrado"
+        assert page.manual_preset_buttons[1]._detail_label.text().startswith("PWM bruto ")
+        assert page.restore_auto_button.text() == "Volver al control de la BIOS"
         assert page.duty_eyebrow.text() == "Salida preparada"
         assert page.duty_raw_label.text().startswith("PWM bruto ")
         assert page.duty_metric.label.text() == "Ciclo actual"
         assert page.manual_note.text().startswith("Ciclo preparado:")
-        assert page.curve_plot.live_title.text() == "Vista previa de respuesta"
-        assert page.curve_plot.ranges_title.text() == "Escala de respuesta térmica"
-        assert "respuesta exacta por escalones" in page.curve_plot.scale_caption.text()
+        assert page.system_control_button.text() in {"Activar", "Desactivar"}
     finally:
         set_language(previous_language)

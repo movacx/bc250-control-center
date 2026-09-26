@@ -22,6 +22,7 @@ from PyQt6.QtWidgets import (
 
 from ..i18n import localize_widget_tree, tr
 from ..theme import COLORS, application_stylesheet
+from .busy_spinner import BusyBadge
 from .buttons import WrappingButton as QPushButton
 from .dialogs import center_dialog, enable_adaptive_dialog
 from .widgets import IconBadge, PillLabel, apply_shadow, icon
@@ -86,7 +87,10 @@ class MetricTile(QFrame):
             layout.setSpacing(11)
             icon_size = 36
             radius = 10
-        layout.addWidget(IconBadge(icon_name, icon_background, icon_size, radius=radius))
+        # No name, no badge: a tile can be read by its label alone, the way
+        # the CPU workspace shows its readings.
+        if icon_name:
+            layout.addWidget(IconBadge(icon_name, icon_background, icon_size, radius=radius))
 
         text = QVBoxLayout()
         text.setSpacing(1)
@@ -145,11 +149,16 @@ class SectionCard(QFrame):
         self._header_grid.setHorizontalSpacing(8 if compact else 11)
         self._header_grid.setVerticalSpacing(6)
         icon_size = 32 if compact else 40
-        self._header_icon = IconBadge(
-            icon_name,
-            icon_background or COLORS["blue_soft"],
-            icon_size,
-            radius=9 if compact else 11,
+        # An empty icon name leaves the title on its own.
+        self._header_icon: IconBadge | None = (
+            IconBadge(
+                icon_name,
+                icon_background or COLORS["blue_soft"],
+                icon_size,
+                radius=9 if compact else 11,
+            )
+            if icon_name
+            else None
         )
         self._title_host = QWidget()
         self._title_host.setMinimumWidth(0)
@@ -179,6 +188,7 @@ class SectionCard(QFrame):
         self.header_actions.setHorizontalSpacing(5 if compact else 7)
         self.header_actions.setVerticalSpacing(5)
         self._header_buttons: list[QPushButton] = []
+        self._busy_badge: BusyBadge | None = None
         self._header_compact = False
         self._headerless = False
         self._layout_header(force=True)
@@ -210,7 +220,8 @@ class SectionCard(QFrame):
         self._headerless = True
         self.root.removeItem(self._header_grid)
         for widget in (self._header_icon, self._title_host, self._header_actions_host):
-            widget.setParent(None)
+            if widget is not None:
+                widget.setParent(None)
         self._divider.setParent(None)
         return status
 
@@ -221,24 +232,33 @@ class SectionCard(QFrame):
         if compact == self._header_compact and not force:
             self._layout_header_buttons(compact)
             return
-        for widget in (self._header_icon, self._title_host, self.status, self._header_actions_host):
+        for widget in (
+            self._header_icon,
+            self._title_host,
+            self.status,
+            self._busy_badge,
+            self._header_actions_host,
+        ):
             if widget is not None:
                 self._header_grid.removeWidget(widget)
-        if compact:
+        # The busy badge shares the status pill's cell: it stands in for the
+        # pill while work is pending, and a hidden widget takes no room.
+        status_cells = [widget for widget in (self.status, self._busy_badge) if widget is not None]
+        if self._header_icon is not None:
             self._header_grid.addWidget(self._header_icon, 0, 0, Qt.AlignmentFlag.AlignTop)
+        if compact:
             self._header_grid.addWidget(self._title_host, 0, 1)
-            if self.status is not None:
-                self._header_grid.addWidget(self.status, 1, 0, 1, 2, Qt.AlignmentFlag.AlignLeft)
+            for widget in status_cells:
+                self._header_grid.addWidget(widget, 1, 0, 1, 2, Qt.AlignmentFlag.AlignLeft)
             if self._header_buttons:
-                row = 2 if self.status is not None else 1
+                row = 2 if status_cells else 1
                 self._header_grid.addWidget(self._header_actions_host, row, 0, 1, 2)
             self._header_grid.setColumnStretch(0, 0)
             self._header_grid.setColumnStretch(1, 1)
         else:
-            self._header_grid.addWidget(self._header_icon, 0, 0, Qt.AlignmentFlag.AlignTop)
             self._header_grid.addWidget(self._title_host, 0, 1)
-            if self.status is not None:
-                self._header_grid.addWidget(self.status, 0, 2, Qt.AlignmentFlag.AlignTop)
+            for widget in status_cells:
+                self._header_grid.addWidget(widget, 0, 2, Qt.AlignmentFlag.AlignTop)
             if self._header_buttons:
                 self._header_grid.addWidget(self._header_actions_host, 0, 3, Qt.AlignmentFlag.AlignTop)
             self._header_grid.setColumnStretch(0, 0)
@@ -264,6 +284,24 @@ class SectionCard(QFrame):
         for column in range(max(1, columns)):
             self.header_actions.setColumnStretch(column, 1 if compact else 0)
         self._header_actions_host.setVisible(bool(self._header_buttons))
+
+    def set_busy(self, active: bool, text: str = "") -> None:
+        """Show a small spinner in the status pill's place while work runs.
+
+        It only exists on screen while something is actually pending; the
+        pill comes back the moment the work ends.
+        """
+        if self._headerless:
+            return
+        if self._busy_badge is None:
+            if not active:
+                return
+            self._busy_badge = BusyBadge()
+            self._layout_header(force=True)
+        self._busy_badge.set_text(text)
+        self._busy_badge.set_running(active)
+        if self.status is not None:
+            self.status.setVisible(not active)
 
     def add_header_button(
         self,
@@ -584,7 +622,7 @@ class ConfirmDialog(QDialog):
         eyebrow_label = QLabel(eyebrow)
         eyebrow_label.setObjectName("DialogEyebrow")
         eyebrow_label.setWordWrap(True)
-        eyebrow_label.setStyleSheet(f"color:{accent};")
+        eyebrow_label.setStyleSheet(f".QLabel {{ color:{accent}; }}")
         title_label = QLabel(tr(title))
         title_label.setObjectName("DialogTitle")
         title_label.setWordWrap(True)
@@ -665,7 +703,7 @@ class ConfirmDialog(QDialog):
             notice_row.addWidget(glyph, 0, Qt.AlignmentFlag.AlignTop)
             notice_label = QLabel(notice)
             notice_label.setWordWrap(True)
-            notice_label.setStyleSheet(f"color:{accent}; font-weight:600;")
+            notice_label.setStyleSheet(f".QLabel {{ color:{accent}; font-weight:600; }}")
             notice_row.addWidget(notice_label, 1)
             content_layout.addWidget(notice_frame)
 

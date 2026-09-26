@@ -12,6 +12,13 @@ from bc250cc.infrastructure.memory_runtime import TTM_GIB_PRESETS
 ZSWAP_POLICIES = {"zswap-16": 16, "zswap-32": 32}
 ZRAM_SWAP_POLICIES = {"zram-swap-16": 16}
 TTM_DEFAULT = -1
+#: The zswap boot arguments this workflow owns. Captured before the first
+#: change, removed and restored as one family, so a restore puts back exactly
+#: the arguments the image had — the same tuning the mutable adapter applies
+#: through sysfs (see privileged/lib/system_setup_memory.py).
+ZSWAP_KARG_PATTERN = r"^zswap\.(enabled|compressor|max_pool_percent)="
+ZSWAP_KARG_VALID = r"^zswap\.(enabled=(0|1|Y|N|y|n)|compressor=[a-z0-9-]+|max_pool_percent=[0-9]+)$"
+ZSWAP_TUNING_KARGS = ("zswap.compressor=lz4", "zswap.max_pool_percent=25")
 
 
 def build_bazzite_memory_tuning_command(policy: str, ttm_gib: int) -> str:
@@ -100,14 +107,14 @@ def build_bazzite_memory_tuning_command(policy: str, ttm_gib: int) -> str:
         ))
         if policy in {**ZSWAP_POLICIES, **ZRAM_SWAP_POLICIES}:
             lines.extend((
-                "  mapfile -t bc250_original_zswap < <(rpm-ostree kargs | tr ' ' '\\n' | grep -E '^zswap\\.enabled=' || true)",
-                "  for bc250_arg in \"${bc250_original_zswap[@]}\"; do [[ \"$bc250_arg\" =~ ^zswap\\.enabled=(0|1|Y|N|y|n)$ ]] || { echo 'ERROR: refusing malformed pre-existing zswap arguments'; exit 74; }; done",
+                "  mapfile -t bc250_original_zswap < <(rpm-ostree kargs | tr ' ' '\\n' | grep -E '" + ZSWAP_KARG_PATTERN + "' || true)",
+                "  for bc250_arg in \"${bc250_original_zswap[@]}\"; do [[ \"$bc250_arg\" =~ " + ZSWAP_KARG_VALID + " ]] || { echo 'ERROR: refusing malformed pre-existing zswap arguments'; exit 74; }; done",
                 "  { printf '%s\\n' '# Managed by BC250 Control Center' \"${bc250_original_zswap[@]}\"; } | sudo tee \"$bc250_zswap_state\" >/dev/null",
                 "  sudo chmod 0600 \"$bc250_zswap_state\"",
             ))
         lines.extend((
             "fi",
-            "for bc250_arg in \"${bc250_original_zswap[@]}\"; do [[ \"$bc250_arg\" =~ ^zswap\\.enabled=(0|1|Y|N|y|n)$ ]] || { echo 'ERROR: invalid saved zswap argument'; exit 74; }; done",
+            "for bc250_arg in \"${bc250_original_zswap[@]}\"; do [[ \"$bc250_arg\" =~ " + ZSWAP_KARG_VALID + " ]] || { echo 'ERROR: invalid saved zswap argument'; exit 74; }; done",
         ))
     if policy in {**ZSWAP_POLICIES, **ZRAM_SWAP_POLICIES}:
         size_gib = {**ZSWAP_POLICIES, **ZRAM_SWAP_POLICIES}[policy]
@@ -119,8 +126,13 @@ def build_bazzite_memory_tuning_command(policy: str, ttm_gib: int) -> str:
             "swap_unit=$(systemd-escape --path --suffix=swap \"$swap_path\")",
             "swap_unit_path=\"/etc/systemd/system/$swap_unit\"",
             "available_bytes=$(df -B1 --output=avail /var | tail -n 1 | tr -d ' ')",
-            "required_bytes=$((swap_bytes + 1024 * 1024 * 1024))",
-            "test \"$available_bytes\" -ge \"$required_bytes\" || { echo 'ERROR: insufficient free space; at least 1 GiB must remain after creating swap'; exit 65; }",
+            "filesystem_bytes=$(df -B1 --output=size /var | tail -n 1 | tr -d ' ')",
+            # 2 GiB, or 5 % of the filesystem when that is more — the reserve
+            # the mutable adapter keeps too, so a large disk is never filled
+            # to the edge by a swapfile.
+            "reserve_bytes=$((filesystem_bytes / 20)); [ \"$reserve_bytes\" -ge 2147483648 ] || reserve_bytes=2147483648",
+            "required_bytes=$((swap_bytes + reserve_bytes))",
+            "test \"$available_bytes\" -ge \"$required_bytes\" || { echo \"ERROR: insufficient free space; $((reserve_bytes / 1073741824)) GiB must remain free after creating swap\"; exit 65; }",
             "if sudo test -e /var/swap; then",
             "  sudo test ! -L /var/swap && sudo test -d /var/swap || { echo 'ERROR: /var/swap is not a safe directory'; exit 65; }",
             "  test \"$(sudo stat -c %u /var/swap)\" -eq 0 || { echo 'ERROR: /var/swap is not root-owned'; exit 65; }",
@@ -233,21 +245,24 @@ def build_bazzite_memory_tuning_command(policy: str, ttm_gib: int) -> str:
         ))
     if policy in ZSWAP_POLICIES:
         lines.extend((
-            "mapfile -t bc250_old_zswap < <(rpm-ostree kargs | tr ' ' '\\n' | grep -E '^zswap\\.enabled=' || true)",
-            "for bc250_arg in \"${bc250_old_zswap[@]}\"; do [[ \"$bc250_arg\" =~ ^zswap\\.enabled=(0|1|Y|N|y|n)$ ]] || { echo 'ERROR: refusing malformed current zswap arguments'; exit 75; }; bc250_karg_args+=(\"--delete-if-present=$bc250_arg\"); done",
+            "mapfile -t bc250_old_zswap < <(rpm-ostree kargs | tr ' ' '\\n' | grep -E '" + ZSWAP_KARG_PATTERN + "' || true)",
+            "for bc250_arg in \"${bc250_old_zswap[@]}\"; do [[ \"$bc250_arg\" =~ " + ZSWAP_KARG_VALID + " ]] || { echo 'ERROR: refusing malformed current zswap arguments'; exit 75; }; bc250_karg_args+=(\"--delete-if-present=$bc250_arg\"); done",
         ))
         lines.append("bc250_karg_args+=(--append-if-missing=zswap.enabled=1)")
+        # The same pool the mutable adapter tunes through sysfs: lz4 and a
+        # quarter of RAM. A kernel without lz4 built in keeps its default.
+        lines.extend(f"bc250_karg_args+=(--append-if-missing={karg})" for karg in ZSWAP_TUNING_KARGS)
     elif policy in ZRAM_SWAP_POLICIES:
         lines.extend((
-            "mapfile -t bc250_old_zswap < <(rpm-ostree kargs | tr ' ' '\\n' | grep -E '^zswap\\.enabled=' || true)",
-            "for bc250_arg in \"${bc250_old_zswap[@]}\"; do [[ \"$bc250_arg\" =~ ^zswap\\.enabled=(0|1|Y|N|y|n)$ ]] || { echo 'ERROR: refusing malformed current zswap arguments'; exit 75; }; bc250_karg_args+=(\"--delete-if-present=$bc250_arg\"); done",
+            "mapfile -t bc250_old_zswap < <(rpm-ostree kargs | tr ' ' '\\n' | grep -E '" + ZSWAP_KARG_PATTERN + "' || true)",
+            "for bc250_arg in \"${bc250_old_zswap[@]}\"; do [[ \"$bc250_arg\" =~ " + ZSWAP_KARG_VALID + " ]] || { echo 'ERROR: refusing malformed current zswap arguments'; exit 75; }; bc250_karg_args+=(\"--delete-if-present=$bc250_arg\"); done",
             "bc250_karg_args+=(--append-if-missing=zswap.enabled=0)",
         ))
     elif policy == "current":
         lines.extend((
             "if sudo test -f \"$bc250_zswap_state\"; then",
-            "  mapfile -t bc250_old_zswap < <(rpm-ostree kargs | tr ' ' '\\n' | grep -E '^zswap\\.enabled=' || true)",
-            "  for bc250_arg in \"${bc250_old_zswap[@]}\"; do [[ \"$bc250_arg\" =~ ^zswap\\.enabled=(0|1|Y|N|y|n)$ ]] || { echo 'ERROR: refusing malformed current zswap arguments'; exit 75; }; bc250_karg_args+=(\"--delete-if-present=$bc250_arg\"); done",
+            "  mapfile -t bc250_old_zswap < <(rpm-ostree kargs | tr ' ' '\\n' | grep -E '" + ZSWAP_KARG_PATTERN + "' || true)",
+            "  for bc250_arg in \"${bc250_old_zswap[@]}\"; do [[ \"$bc250_arg\" =~ " + ZSWAP_KARG_VALID + " ]] || { echo 'ERROR: refusing malformed current zswap arguments'; exit 75; }; bc250_karg_args+=(\"--delete-if-present=$bc250_arg\"); done",
             "  for bc250_arg in \"${bc250_original_zswap[@]}\"; do bc250_karg_args+=(\"--append-if-missing=$bc250_arg\"); done",
             "  bc250_remove_zswap_state=1",
             "else",

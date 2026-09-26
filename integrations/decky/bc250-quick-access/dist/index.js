@@ -91,6 +91,8 @@ function FaTh (props) {
   return GenIcon({"attr":{"viewBox":"0 0 512 512"},"child":[{"tag":"path","attr":{"d":"M12.41 148.02l232.94 105.67c6.8 3.09 14.49 3.09 21.29 0l232.94-105.67c16.55-7.51 16.55-32.52 0-40.03L266.65 2.31a25.607 25.607 0 0 0-21.29 0L12.41 107.98c-16.55 7.51-16.55 32.53 0 40.04zm487.18 88.28l-58.09-26.33-161.64 73.27c-7.56 3.43-15.59 5.17-23.86 5.17s-16.29-1.74-23.86-5.17L70.51 209.97l-58.1 26.33c-16.55 7.5-16.55 32.5 0 40l232.94 105.59c6.8 3.08 14.49 3.08 21.29 0L499.59 276.3c16.55-7.5 16.55-32.5 0-40zm0 127.8l-57.87-26.23-161.86 73.37c-7.56 3.43-15.59 5.17-23.86 5.17s-16.29-1.74-23.86-5.17L70.29 337.87 12.41 364.1c-16.55 7.5-16.55 32.5 0 40l232.94 105.59c6.8 3.08 14.49 3.08 21.29 0L499.59 404.1c16.55-7.5 16.55-32.5 0-40z"},"child":[]}]})(props);
 }function FaHdd (props) {
   return GenIcon({"attr":{"viewBox":"0 0 576 512"},"child":[{"tag":"path","attr":{"d":"M576 304v96c0 26.51-21.49 48-48 48H48c-26.51 0-48-21.49-48-48v-96c0-26.51 21.49-48 48-48h480c26.51 0 48 21.49 48 48zm-48-80a79.557 79.557 0 0 1 30.777 6.165L462.25 85.374A48.003 48.003 0 0 0 422.311 64H153.689a48 48 0 0 0-39.938 21.374L17.223 230.165A79.557 79.557 0 0 1 48 224h480zm-48 96c-17.673 0-32 14.327-32 32s14.327 32 32 32 32-14.327 32-32-14.327-32-32-32zm-96 0c-17.673 0-32 14.327-32 32s14.327 32 32 32 32-14.327 32-32-14.327-32-32-32z"},"child":[]}]})(props);
+}function FaGamepad (props) {
+  return GenIcon({"attr":{"viewBox":"0 0 640 512"},"child":[{"tag":"path","attr":{"d":"M480.07 96H160a160 160 0 1 0 114.24 272h91.52A160 160 0 1 0 480.07 96zM248 268a12 12 0 0 1-12 12h-52v52a12 12 0 0 1-12 12h-24a12 12 0 0 1-12-12v-52H84a12 12 0 0 1-12-12v-24a12 12 0 0 1 12-12h52v-52a12 12 0 0 1 12-12h24a12 12 0 0 1 12 12v52h52a12 12 0 0 1 12 12zm216 76a40 40 0 1 1 40-40 40 40 0 0 1-40 40zm64-96a40 40 0 1 1 40-40 40 40 0 0 1-40 40z"},"child":[]}]})(props);
 }function FaFan (props) {
   return GenIcon({"attr":{"viewBox":"0 0 512 512"},"child":[{"tag":"path","attr":{"d":"M352.57 128c-28.09 0-54.09 4.52-77.06 12.86l12.41-123.11C289 7.31 279.81-1.18 269.33.13 189.63 10.13 128 77.64 128 159.43c0 28.09 4.52 54.09 12.86 77.06L17.75 224.08C7.31 223-1.18 232.19.13 242.67c10 79.7 77.51 141.33 159.3 141.33 28.09 0 54.09-4.52 77.06-12.86l-12.41 123.11c-1.05 10.43 8.11 18.93 18.59 17.62 79.7-10 141.33-77.51 141.33-159.3 0-28.09-4.52-54.09-12.86-77.06l123.11 12.41c10.44 1.05 18.93-8.11 17.62-18.59-10-79.7-77.51-141.33-159.3-141.33zM256 288a32 32 0 1 1 32-32 32 32 0 0 1-32 32z"},"child":[]}]})(props);
 }function FaExclamationTriangle (props) {
@@ -311,6 +313,15 @@ var codes = [
 		retryable: false
 	},
 	{
+		code: "BC250-VRAM-001",
+		markers: [
+			"QUICK_ACCESS_VRAM"
+		],
+		exit_statuses: [
+		],
+		retryable: false
+	},
+	{
 		code: "BC250-AUTH-002",
 		markers: [
 			"QUICK_ACCESS_AUTH"
@@ -415,6 +426,8 @@ var codes = [
 		markers: [
 			"QUICK_ACCESS_GPU_PROFILE",
 			"QUICK_ACCESS_GPU_SAFE_POINT",
+			"QUICK_ACCESS_GPU_HIGH_POINTS",
+			"QUICK_ACCESS_GPU_VOLTAGE",
 			"QUICK_ACCESS_GPU_VERIFY",
 			"QUICK_ACCESS_CPU_SCALE",
 			"Frequency must be between",
@@ -496,6 +509,7 @@ var markers_longest_first = [
 	"QUICK_ACCESS_CU_SERVICE_REMOVE",
 	"QUICK_ACCESS_CU_SERVICE_VERIFY",
 	"QUICK_ACCESS_CPU_SCALE_VERIFY",
+	"QUICK_ACCESS_GPU_HIGH_POINTS",
 	"QUICK_ACCESS_GPU_SAFE_POINT",
 	"Temperature must be between",
 	"QUICK_ACCESS_GPU_CONFLICT",
@@ -508,6 +522,7 @@ var markers_longest_first = [
 	"protocol is incompatible",
 	"QUICK_ACCESS_GPU_ALLOWED",
 	"QUICK_ACCESS_GPU_PROFILE",
+	"QUICK_ACCESS_GPU_VOLTAGE",
 	"QUICK_ACCESS_CPU_SERVICE",
 	"QUICK_ACCESS_GPU_CONFIG",
 	"are different versions.",
@@ -533,6 +548,7 @@ var markers_longest_first = [
 	"CPU_PAYLOAD_REFUSED",
 	"CPU_BACKEND_MISSING",
 	"returned error: 404",
+	"QUICK_ACCESS_VRAM",
 	"QUICK_ACCESS_AUTH",
 	"CU_HELPER_MISSING",
 	"QUICK_ACCESS_FAN",
@@ -560,10 +576,15 @@ var accentGreen$7 = "Grün";
 var accentOrange$7 = "Orange";
 var accentPurple$7 = "Lila";
 var accentWhite$7 = "Weiß";
-var advanced$7 = "fortgeschritten";
+var aceHint$7 = "Zeit auf den Compute-Warteschlangen laut amdgpu. Async Compute wird in der Desktop-App ein- oder ausgeschaltet: Dafür ist eine neue Sitzung nötig.";
+var aceInUse$7 = "Async compute (ACE) aktiv";
+var aceMeasuring$7 = "Wird gemessen…";
+var advanced$7 = "Erweitert";
 var allSensors$7 = "Alle";
 var apply$7 = "Anwenden";
+var applyAutomatically$7 = "Beim Spielstart anwenden";
 var applyChanges$7 = "Änderungen anwenden";
+var assignProfile$7 = "Profil zuweisen";
 var automatic$7 = "Automatisch";
 var automaticApplyWarning$7 = "bc250-detect testet die CPU unter Last, leitet die Skalierung ab und wendet nur das gefundene Ergebnis an. Überwachen Sie Temperaturen und Stabilität.";
 var board$7 = "Board";
@@ -571,6 +592,7 @@ var boardSetup$7 = "Board-Einrichtung";
 var busyAction$7 = "Warten Sie, bis der aktuelle Vorgang abgeschlossen ist, aktualisieren Sie ihn und versuchen Sie es einmal erneut.";
 var busyCause$7 = "Eine frühere Presse, ein Desktop-Workflow oder ein externes Toolkit hält die Hardware-Sperre weiterhin aufrecht.";
 var busyFailed$7 = "Ein weiterer BC250-Vorgang wird noch ausgeführt.";
+var cancel$7 = "Abbrechen";
 var channel$7 = "PWM-Kanal";
 var close$7 = "Entlassen";
 var compute$7 = "RECHENEINHEITEN";
@@ -610,24 +632,44 @@ var details$7 = "Technische Details";
 var detected$7 = "Steuerung bereit";
 var diagnosticCode$7 = "Diagnosecode";
 var disableHighPoints$7 = "Punkte >2000 MHz deaktivieren";
+var disableService$7 = "Dienst deaktivieren";
+var disableServiceHint$7 = "Stoppt den Governor {name} und entfernt ihn aus dem Bootvorgang. Die GPU behält die Takte des Treibers, bis wieder ein Governor läuft.";
 var disabled$7 = "Deaktiviert";
+var editProfile$7 = "Profil bearbeiten";
 var elapsed$7 = "Vergangen";
 var enableHighPoints$7 = "Punkte >2000 MHz aktivieren";
+var enableService$7 = "Dienst aktivieren";
+var enableServiceHint$7 = "Startet den Governor {name} jetzt und bei jedem Booten. Es kann immer nur ein GPU-Governor laufen.";
 var enabled$7 = "Aktiviert";
 var error$7 = "Die Änderung konnte nicht verifiziert werden";
 var estimated$7 = "geschätzt";
 var external$7 = "Topologie außerhalb des Schnellzugriffs geändert.";
 var fan$7 = "VENTILATOR";
+var fanBalanced$7 = "Ausgewogen";
+var fanBoost$7 = "Verstärkt";
 var fanCause$7 = "Der NCT-Treiber, die hwmon-Route, der PWM-Kanal oder das Schreib-Rücklesen sind nicht verfügbar.";
 var fanGuidance$7 = "Setzen Sie den Kanal wieder auf „Automatisch“ und versuchen Sie es erneut.";
 var fanOperationFailed$7 = "Der Lüfterbetrieb ist fehlgeschlagen.";
+var fanPresets$7 = "Voreinstellungen";
+var fanQuiet$7 = "Leise";
 var fanRpmObserved$7 = "RPMbeobachtet";
 var fanUnverified$7 = "Verkabelung nicht überprüft";
 var fanWiring$7 = "PWM 2 ist der Standardkanal; Überprüfen Sie die Pumpen-/Lüfterverkabelung, bevor Sie eine manuelle Geschwindigkeit anwenden.";
+var fans$7 = "Lüfter";
+var gameCpuNote$7 = "Die CPU behält ihre aktuelle Einstellung: Ihr Overclocking gilt erst nach einem Stresstest als verlässlich, der nicht bei jedem Spielstart laufen kann.";
+var gameNoProfile$7 = "Kein Profil: läuft mit den aktuellen Einstellungen";
+var gameNotRunning$7 = "Starte ein Spiel, um ihm ein eigenes GPU- und Lüfterprofil zuzuweisen.";
+var gameProfileActive$7 = "AKTIV";
+var gameProfileApplied$7 = "Spielprofil angewendet";
+var gameProfileNotApplied$7 = "Spielprofil nicht angewendet";
+var gameProfileRestored$7 = "Die vorherigen Einstellungen sind zurück";
+var gameProfileSave$7 = "Für dieses Spiel speichern";
+var gamesEmpty$7 = "Noch keine Spiele gespeichert.";
 var gddr6Unavailable$7 = "Nicht erkannt · wende zuerst den SMU-Patch im Desktop-Modus an.";
 var governor$7 = "Governor";
 var governorConflict$7 = "Cyan und Oberon sind beide aktiv. Stoppen Sie einen im Desktop-Modus.";
 var governorMissing$7 = "Aktivieren Sie Cyan oder Oberon im Desktop-Modus.";
+var governorService$7 = "Governor-Dienst";
 var gpuAction$7 = "Aktualisieren Sie den GPU-Status und überprüfen Sie den aktiven Gouverneur im Desktop-Modus.";
 var gpuBusyCause$7 = "Die GPU befindet sich nicht im Ruhezustand, der für diese Oberon-Änderung erforderlich ist.";
 var gpuBusyGuidance$7 = "Warten Sie, bis die GPU wieder auf 1000 MHz zurückkehrt, und versuchen Sie es dann erneut.";
@@ -666,11 +708,13 @@ var mode$7 = "Modus";
 var monitoring$7 = "Überwachung";
 var more$7 = "Mehr Frequenzen";
 var next$7 = "Nächster Schritt";
+var no$7 = "Nein";
 var oberonBusy$7 = "Warten Sie, bis die GPU wieder auf 1000 MHz zurückkehrt";
 var oberonIdle$7 = "Nur Leerlaufwechsel";
 var oberonReady$7 = "Bereit zur Veränderung";
 var operationInProgress$7 = "Ein Vorgang läuft; der GPU/CU-Status kehrt nach Abschluss zurück.";
 var pending$7 = "ausstehend";
+var perGameProfiles$7 = "Profile pro Spiel";
 var persistent$7 = "Dauerhaft";
 var personalization$7 = "Personalisierung";
 var power$7 = "STROM";
@@ -687,14 +731,21 @@ var readOnly$7 = "schreibgeschützt";
 var refreshInterval$7 = "Aktualisierungsintervall";
 var refreshIntervalHint$7 = "Legt fest, wie oft der Überwachungstab und die GDDR6-Sensoren aktualisiert werden. Die Geschwindigkeit beim Anwenden einer Änderung wird dadurch nicht beeinflusst.";
 var remove$7 = "Dienst entfernen";
+var removeGame$7 = "Entfernen";
 var restore$7 = "Live-Status wiederherstellen";
 var retryGuidance$7 = "Warten Sie einige Sekunden und versuchen Sie es erneut.";
 var runAutomaticFirst$7 = "Führen Sie zuerst die automatische Skalierung durch";
 var safeCuMinimum$7 = "Der Schnellzugriff hält mindestens 24 CU sicher.";
 var safeRange$7 = "validierter Bereich";
 var save$7 = "Auswahl speichern";
+var savedGames$7 = "Gespeicherte Spiele";
 var sensorLayout$7 = "Sensor-Layout";
+var serviceNotInstalled$7 = "Kein Governor-Dienst installiert. Richten Sie einen im Desktop-Modus ein.";
 var serviceRemovedBootProfile$7 = "Der Dienst wird entfernt; Das erkannte Profil bleibt während dieses Startvorgangs verfügbar.";
+var serviceRunningBoot$7 = "Läuft · startet beim Booten";
+var serviceRunningNoBoot$7 = "Läuft · beim Booten nicht aktiviert";
+var serviceStopped$7 = "Gestoppt · beim Booten deaktiviert";
+var serviceStoppedBoot$7 = "Gestoppt · beim Booten aktiviert";
 var settingsTab$7 = "Einstellungen";
 var snapshotWarning$7 = "Der freigegebene CU-Snapshot konnte nicht aktualisiert werden. Aktualisieren Sie, bevor Sie eine weitere CU-Änderung vornehmen.";
 var speed$7 = "PWM-Geschwindigkeit";
@@ -714,9 +765,17 @@ var topologyUnavailable$7 = "WGP-Topologie nicht verfügbar.";
 var totalPower$7 = "Gesamtleistung";
 var ttmLimit$7 = "TTM-Limit";
 var unavailable$7 = "nicht verfügbar";
+var unchanged$7 = "Unverändert";
 var unknownCause$7 = "Quick Access hat einen Fehler erhalten, der noch nicht mit einer bekannten Komponente übereinstimmt.";
 var usage$7 = "Auslastung";
-var voltageHint$7 = "echter bc250-detect-Eingang";
+var voltageApplyPoints$7 = "Punkte anwenden";
+var voltageConfirm$7 = "Der Cyan-Governor startet neu, um die neue Kurve zu lesen; danach wird dein aktueller Frequenzbereich wiederhergestellt. Prüfe die Stabilität, bevor du dich darauf verlässt.";
+var voltageCustom$7 = "Eigene";
+var voltageDiscard$7 = "Verwerfen";
+var voltageGovernor$7 = "Governor";
+var voltageHint$7 = "Erhöht die Spannung nur für die Punkte ab 2000 MHz. Darunter lässt sich ein Punkt in 5-mV-Schritten anpassen; der Governor-Wert ist die Untergrenze.";
+var voltageLab$7 = "Spannungslabor";
+var voltageNeedsCyan$7 = "Starte den Cyan-Governor, um seine Spannungskurve zu ändern.";
 var vramApply$7 = "VRAM anwenden";
 var vramApplyDescription$7 = "Schreibt die VRAM-Zuweisung direkt in den CMOS. Taktfrequenz und Speicher-Timings bleiben unverändert.";
 var vramCurrentSize$7 = "Aktuelle Größe";
@@ -725,6 +784,7 @@ var vramPending$7 = "Änderung ausstehend";
 var vramRebootRequired$7 = "Wird erst nach dem nächsten Neustart wirksam.";
 var vramUnavailable$7 = "VRAM-Aufteilung ist auf diesem System nicht verfügbar.";
 var vrmUnavailable$7 = "Nicht erkannt · erfordert die I2C-Hardwaremodifikation.";
+var yes$7 = "Ja";
 var de = {
 	accentBlue: accentBlue$7,
 	accentColor: accentColor$7,
@@ -733,10 +793,15 @@ var de = {
 	accentOrange: accentOrange$7,
 	accentPurple: accentPurple$7,
 	accentWhite: accentWhite$7,
+	aceHint: aceHint$7,
+	aceInUse: aceInUse$7,
+	aceMeasuring: aceMeasuring$7,
 	advanced: advanced$7,
 	allSensors: allSensors$7,
 	apply: apply$7,
+	applyAutomatically: applyAutomatically$7,
 	applyChanges: applyChanges$7,
+	assignProfile: assignProfile$7,
 	automatic: automatic$7,
 	automaticApplyWarning: automaticApplyWarning$7,
 	board: board$7,
@@ -744,6 +809,7 @@ var de = {
 	busyAction: busyAction$7,
 	busyCause: busyCause$7,
 	busyFailed: busyFailed$7,
+	cancel: cancel$7,
 	channel: channel$7,
 	close: close$7,
 	compute: compute$7,
@@ -783,24 +849,44 @@ var de = {
 	detected: detected$7,
 	diagnosticCode: diagnosticCode$7,
 	disableHighPoints: disableHighPoints$7,
+	disableService: disableService$7,
+	disableServiceHint: disableServiceHint$7,
 	disabled: disabled$7,
+	editProfile: editProfile$7,
 	elapsed: elapsed$7,
 	enableHighPoints: enableHighPoints$7,
+	enableService: enableService$7,
+	enableServiceHint: enableServiceHint$7,
 	enabled: enabled$7,
 	error: error$7,
 	estimated: estimated$7,
 	external: external$7,
 	fan: fan$7,
+	fanBalanced: fanBalanced$7,
+	fanBoost: fanBoost$7,
 	fanCause: fanCause$7,
 	fanGuidance: fanGuidance$7,
 	fanOperationFailed: fanOperationFailed$7,
+	fanPresets: fanPresets$7,
+	fanQuiet: fanQuiet$7,
 	fanRpmObserved: fanRpmObserved$7,
 	fanUnverified: fanUnverified$7,
 	fanWiring: fanWiring$7,
+	fans: fans$7,
+	gameCpuNote: gameCpuNote$7,
+	gameNoProfile: gameNoProfile$7,
+	gameNotRunning: gameNotRunning$7,
+	gameProfileActive: gameProfileActive$7,
+	gameProfileApplied: gameProfileApplied$7,
+	gameProfileNotApplied: gameProfileNotApplied$7,
+	gameProfileRestored: gameProfileRestored$7,
+	gameProfileSave: gameProfileSave$7,
+	gamesEmpty: gamesEmpty$7,
 	gddr6Unavailable: gddr6Unavailable$7,
 	governor: governor$7,
 	governorConflict: governorConflict$7,
 	governorMissing: governorMissing$7,
+	governorService: governorService$7,
 	gpuAction: gpuAction$7,
 	gpuBusyCause: gpuBusyCause$7,
 	gpuBusyGuidance: gpuBusyGuidance$7,
@@ -839,11 +925,13 @@ var de = {
 	monitoring: monitoring$7,
 	more: more$7,
 	next: next$7,
+	no: no$7,
 	oberonBusy: oberonBusy$7,
 	oberonIdle: oberonIdle$7,
 	oberonReady: oberonReady$7,
 	operationInProgress: operationInProgress$7,
 	pending: pending$7,
+	perGameProfiles: perGameProfiles$7,
 	persistent: persistent$7,
 	personalization: personalization$7,
 	power: power$7,
@@ -860,14 +948,21 @@ var de = {
 	refreshInterval: refreshInterval$7,
 	refreshIntervalHint: refreshIntervalHint$7,
 	remove: remove$7,
+	removeGame: removeGame$7,
 	restore: restore$7,
 	retryGuidance: retryGuidance$7,
 	runAutomaticFirst: runAutomaticFirst$7,
 	safeCuMinimum: safeCuMinimum$7,
 	safeRange: safeRange$7,
 	save: save$7,
+	savedGames: savedGames$7,
 	sensorLayout: sensorLayout$7,
+	serviceNotInstalled: serviceNotInstalled$7,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$7,
+	serviceRunningBoot: serviceRunningBoot$7,
+	serviceRunningNoBoot: serviceRunningNoBoot$7,
+	serviceStopped: serviceStopped$7,
+	serviceStoppedBoot: serviceStoppedBoot$7,
 	settingsTab: settingsTab$7,
 	snapshotWarning: snapshotWarning$7,
 	speed: speed$7,
@@ -887,9 +982,17 @@ var de = {
 	totalPower: totalPower$7,
 	ttmLimit: ttmLimit$7,
 	unavailable: unavailable$7,
+	unchanged: unchanged$7,
 	unknownCause: unknownCause$7,
 	usage: usage$7,
+	voltageApplyPoints: voltageApplyPoints$7,
+	voltageConfirm: voltageConfirm$7,
+	voltageCustom: voltageCustom$7,
+	voltageDiscard: voltageDiscard$7,
+	voltageGovernor: voltageGovernor$7,
 	voltageHint: voltageHint$7,
+	voltageLab: voltageLab$7,
+	voltageNeedsCyan: voltageNeedsCyan$7,
 	vramApply: vramApply$7,
 	vramApplyDescription: vramApplyDescription$7,
 	vramCurrentSize: vramCurrentSize$7,
@@ -897,7 +1000,8 @@ var de = {
 	vramPending: vramPending$7,
 	vramRebootRequired: vramRebootRequired$7,
 	vramUnavailable: vramUnavailable$7,
-	vrmUnavailable: vrmUnavailable$7
+	vrmUnavailable: vrmUnavailable$7,
+	yes: yes$7
 };
 
 var accentBlue$6 = "Blue";
@@ -907,10 +1011,15 @@ var accentGreen$6 = "Green";
 var accentOrange$6 = "Orange";
 var accentPurple$6 = "Purple";
 var accentWhite$6 = "White";
-var advanced$6 = "advanced";
+var aceHint$6 = "Time on the compute queues, from amdgpu. Async compute is turned on or off in the desktop app: it needs a new session.";
+var aceInUse$6 = "Async compute (ACE) in use";
+var aceMeasuring$6 = "Measuring…";
+var advanced$6 = "Advanced";
 var allSensors$6 = "All";
 var apply$6 = "Apply";
+var applyAutomatically$6 = "Apply when a game starts";
 var applyChanges$6 = "Apply changes";
+var assignProfile$6 = "Assign profile";
 var automatic$6 = "Automatic";
 var automaticApplyWarning$6 = "bc250-detect will test the CPU under load, derive the scale, and apply only the result it finds. Monitor temperatures and stability.";
 var board$6 = "Board";
@@ -918,6 +1027,7 @@ var boardSetup$6 = "Board setup";
 var busyAction$6 = "Wait for the current operation to finish, refresh, and retry once.";
 var busyCause$6 = "A previous press, Desktop workflow, or external toolkit still holds the hardware lock.";
 var busyFailed$6 = "Another BC250 operation is still running.";
+var cancel$6 = "Cancel";
 var channel$6 = "PWM channel";
 var close$6 = "Dismiss";
 var compute$6 = "COMPUTE UNITS";
@@ -957,24 +1067,44 @@ var details$6 = "Technical details";
 var detected$6 = "control ready";
 var diagnosticCode$6 = "Diagnostic code";
 var disableHighPoints$6 = "Disable >2000 MHz points";
+var disableService$6 = "Disable service";
+var disableServiceHint$6 = "Stops the {name} governor and removes it from boot. The GPU keeps the driver's own clocks until a governor runs again.";
 var disabled$6 = "Disabled";
+var editProfile$6 = "Edit profile";
 var elapsed$6 = "Elapsed";
 var enableHighPoints$6 = "Enable >2000 MHz points";
+var enableService$6 = "Enable service";
+var enableServiceHint$6 = "Starts the {name} governor now and at every boot. Only one GPU governor can run at a time.";
 var enabled$6 = "Enabled";
 var error$6 = "The change could not be verified";
 var estimated$6 = "estimated";
 var external$6 = "Topology changed outside Quick Access.";
 var fan$6 = "FAN";
+var fanBalanced$6 = "Balanced";
+var fanBoost$6 = "Boost";
 var fanCause$6 = "The NCT driver, hwmon route, PWM channel, or write read-back is unavailable.";
 var fanGuidance$6 = "Return the channel to Automatic and retry.";
 var fanOperationFailed$6 = "The fan operation failed.";
+var fanPresets$6 = "Presets";
+var fanQuiet$6 = "Quiet";
 var fanRpmObserved$6 = "RPM observed";
 var fanUnverified$6 = "wiring unverified";
 var fanWiring$6 = "PWM 2 is the default channel; confirm pump/fan wiring before applying a manual speed.";
+var fans$6 = "Fans";
+var gameCpuNote$6 = "The CPU keeps its current tuning: its overclock is only trusted after a stress test, which cannot run every time a game starts.";
+var gameNoProfile$6 = "No profile: it runs with your current settings";
+var gameNotRunning$6 = "Start a game to give it its own GPU profile and fan preset.";
+var gameProfileActive$6 = "ACTIVE";
+var gameProfileApplied$6 = "Game profile applied";
+var gameProfileNotApplied$6 = "Game profile not applied";
+var gameProfileRestored$6 = "Your previous settings are back";
+var gameProfileSave$6 = "Save for this game";
+var gamesEmpty$6 = "No games saved yet.";
 var gddr6Unavailable$6 = "Not detected · apply the SMU patch from Desktop Mode first.";
 var governor$6 = "Governor";
 var governorConflict$6 = "Cyan and Oberon are both active. Stop one in Desktop Mode.";
 var governorMissing$6 = "Enable Cyan or Oberon in Desktop Mode.";
+var governorService$6 = "Governor service";
 var gpuAction$6 = "Refresh GPU status and verify the active governor in Desktop Mode.";
 var gpuBusyCause$6 = "The GPU is not at the idle state required for this Oberon change.";
 var gpuBusyGuidance$6 = "Wait for the GPU to return to 1000 MHz, then retry.";
@@ -1013,11 +1143,13 @@ var mode$6 = "Mode";
 var monitoring$6 = "Monitoring";
 var more$6 = "More frequencies";
 var next$6 = "Next step";
+var no$6 = "No";
 var oberonBusy$6 = "Wait for the GPU to return to 1000 MHz";
 var oberonIdle$6 = "Idle changes only";
 var oberonReady$6 = "Ready to change";
 var operationInProgress$6 = "A hardware operation is running; GPU/CU status will resume once it finishes.";
 var pending$6 = "pending";
+var perGameProfiles$6 = "Per-game profiles";
 var persistent$6 = "Persistent";
 var personalization$6 = "Personalization";
 var power$6 = "POWER";
@@ -1034,14 +1166,21 @@ var readOnly$6 = "read only";
 var refreshInterval$6 = "Refresh interval";
 var refreshIntervalHint$6 = "Controls how often the Monitor tab and GDDR6 sensors refresh. It does not slow down applying a change.";
 var remove$6 = "Remove service";
+var removeGame$6 = "Remove";
 var restore$6 = "Restore live state";
 var retryGuidance$6 = "Wait a few seconds and retry.";
 var runAutomaticFirst$6 = "Run automatic scale first";
 var safeCuMinimum$6 = "Quick Access keeps a safe 24 CU minimum.";
 var safeRange$6 = "validated range";
 var save$6 = "Save selection";
+var savedGames$6 = "Saved games";
 var sensorLayout$6 = "Sensor layout";
+var serviceNotInstalled$6 = "No governor service is installed. Prepare one in Desktop Mode.";
 var serviceRemovedBootProfile$6 = "The service is removed; the detected profile remains available during this boot.";
+var serviceRunningBoot$6 = "Running · starts at boot";
+var serviceRunningNoBoot$6 = "Running · not enabled at boot";
+var serviceStopped$6 = "Stopped · off at boot";
+var serviceStoppedBoot$6 = "Stopped · enabled at boot";
 var settingsTab$6 = "Settings";
 var snapshotWarning$6 = "The shared CU snapshot could not be updated. Refresh before making another CU change.";
 var speed$6 = "PWM speed";
@@ -1061,9 +1200,17 @@ var topologyUnavailable$6 = "WGP topology unavailable.";
 var totalPower$6 = "Total power";
 var ttmLimit$6 = "TTM limit";
 var unavailable$6 = "unavailable";
+var unchanged$6 = "No change";
 var unknownCause$6 = "Quick Access received a failure that does not match a known component yet.";
 var usage$6 = "Usage";
-var voltageHint$6 = "real bc250-detect input";
+var voltageApplyPoints$6 = "Apply points";
+var voltageConfirm$6 = "The Cyan governor restarts to read the new curve, then your current frequency range is restored. Test stability before relying on it.";
+var voltageCustom$6 = "Custom";
+var voltageDiscard$6 = "Discard";
+var voltageGovernor$6 = "Governor";
+var voltageHint$6 = "Adds voltage only to the points from 2000 MHz up. Below, adjust one point in 5 mV steps; the governor value is the floor.";
+var voltageLab$6 = "Voltage laboratory";
+var voltageNeedsCyan$6 = "Start the Cyan governor to change its voltage curve.";
 var vramApply$6 = "Apply VRAM";
 var vramApplyDescription$6 = "Writes the VRAM allocation directly to CMOS. Clock speed and memory timings are left untouched.";
 var vramCurrentSize$6 = "Current size";
@@ -1072,6 +1219,7 @@ var vramPending$6 = "Change pending";
 var vramRebootRequired$6 = "Takes effect after your next reboot.";
 var vramUnavailable$6 = "VRAM partitioning is unavailable on this system.";
 var vrmUnavailable$6 = "Not detected · requires the I2C hardware mod.";
+var yes$6 = "Yes";
 var en = {
 	accentBlue: accentBlue$6,
 	accentColor: accentColor$6,
@@ -1080,10 +1228,15 @@ var en = {
 	accentOrange: accentOrange$6,
 	accentPurple: accentPurple$6,
 	accentWhite: accentWhite$6,
+	aceHint: aceHint$6,
+	aceInUse: aceInUse$6,
+	aceMeasuring: aceMeasuring$6,
 	advanced: advanced$6,
 	allSensors: allSensors$6,
 	apply: apply$6,
+	applyAutomatically: applyAutomatically$6,
 	applyChanges: applyChanges$6,
+	assignProfile: assignProfile$6,
 	automatic: automatic$6,
 	automaticApplyWarning: automaticApplyWarning$6,
 	board: board$6,
@@ -1091,6 +1244,7 @@ var en = {
 	busyAction: busyAction$6,
 	busyCause: busyCause$6,
 	busyFailed: busyFailed$6,
+	cancel: cancel$6,
 	channel: channel$6,
 	close: close$6,
 	compute: compute$6,
@@ -1130,24 +1284,44 @@ var en = {
 	detected: detected$6,
 	diagnosticCode: diagnosticCode$6,
 	disableHighPoints: disableHighPoints$6,
+	disableService: disableService$6,
+	disableServiceHint: disableServiceHint$6,
 	disabled: disabled$6,
+	editProfile: editProfile$6,
 	elapsed: elapsed$6,
 	enableHighPoints: enableHighPoints$6,
+	enableService: enableService$6,
+	enableServiceHint: enableServiceHint$6,
 	enabled: enabled$6,
 	error: error$6,
 	estimated: estimated$6,
 	external: external$6,
 	fan: fan$6,
+	fanBalanced: fanBalanced$6,
+	fanBoost: fanBoost$6,
 	fanCause: fanCause$6,
 	fanGuidance: fanGuidance$6,
 	fanOperationFailed: fanOperationFailed$6,
+	fanPresets: fanPresets$6,
+	fanQuiet: fanQuiet$6,
 	fanRpmObserved: fanRpmObserved$6,
 	fanUnverified: fanUnverified$6,
 	fanWiring: fanWiring$6,
+	fans: fans$6,
+	gameCpuNote: gameCpuNote$6,
+	gameNoProfile: gameNoProfile$6,
+	gameNotRunning: gameNotRunning$6,
+	gameProfileActive: gameProfileActive$6,
+	gameProfileApplied: gameProfileApplied$6,
+	gameProfileNotApplied: gameProfileNotApplied$6,
+	gameProfileRestored: gameProfileRestored$6,
+	gameProfileSave: gameProfileSave$6,
+	gamesEmpty: gamesEmpty$6,
 	gddr6Unavailable: gddr6Unavailable$6,
 	governor: governor$6,
 	governorConflict: governorConflict$6,
 	governorMissing: governorMissing$6,
+	governorService: governorService$6,
 	gpuAction: gpuAction$6,
 	gpuBusyCause: gpuBusyCause$6,
 	gpuBusyGuidance: gpuBusyGuidance$6,
@@ -1186,11 +1360,13 @@ var en = {
 	monitoring: monitoring$6,
 	more: more$6,
 	next: next$6,
+	no: no$6,
 	oberonBusy: oberonBusy$6,
 	oberonIdle: oberonIdle$6,
 	oberonReady: oberonReady$6,
 	operationInProgress: operationInProgress$6,
 	pending: pending$6,
+	perGameProfiles: perGameProfiles$6,
 	persistent: persistent$6,
 	personalization: personalization$6,
 	power: power$6,
@@ -1207,14 +1383,21 @@ var en = {
 	refreshInterval: refreshInterval$6,
 	refreshIntervalHint: refreshIntervalHint$6,
 	remove: remove$6,
+	removeGame: removeGame$6,
 	restore: restore$6,
 	retryGuidance: retryGuidance$6,
 	runAutomaticFirst: runAutomaticFirst$6,
 	safeCuMinimum: safeCuMinimum$6,
 	safeRange: safeRange$6,
 	save: save$6,
+	savedGames: savedGames$6,
 	sensorLayout: sensorLayout$6,
+	serviceNotInstalled: serviceNotInstalled$6,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$6,
+	serviceRunningBoot: serviceRunningBoot$6,
+	serviceRunningNoBoot: serviceRunningNoBoot$6,
+	serviceStopped: serviceStopped$6,
+	serviceStoppedBoot: serviceStoppedBoot$6,
 	settingsTab: settingsTab$6,
 	snapshotWarning: snapshotWarning$6,
 	speed: speed$6,
@@ -1234,9 +1417,17 @@ var en = {
 	totalPower: totalPower$6,
 	ttmLimit: ttmLimit$6,
 	unavailable: unavailable$6,
+	unchanged: unchanged$6,
 	unknownCause: unknownCause$6,
 	usage: usage$6,
+	voltageApplyPoints: voltageApplyPoints$6,
+	voltageConfirm: voltageConfirm$6,
+	voltageCustom: voltageCustom$6,
+	voltageDiscard: voltageDiscard$6,
+	voltageGovernor: voltageGovernor$6,
 	voltageHint: voltageHint$6,
+	voltageLab: voltageLab$6,
+	voltageNeedsCyan: voltageNeedsCyan$6,
 	vramApply: vramApply$6,
 	vramApplyDescription: vramApplyDescription$6,
 	vramCurrentSize: vramCurrentSize$6,
@@ -1244,7 +1435,8 @@ var en = {
 	vramPending: vramPending$6,
 	vramRebootRequired: vramRebootRequired$6,
 	vramUnavailable: vramUnavailable$6,
-	vrmUnavailable: vrmUnavailable$6
+	vrmUnavailable: vrmUnavailable$6,
+	yes: yes$6
 };
 
 var accentBlue$5 = "Azul";
@@ -1254,10 +1446,15 @@ var accentGreen$5 = "Verde";
 var accentOrange$5 = "Naranja";
 var accentPurple$5 = "Morado";
 var accentWhite$5 = "Blanco";
-var advanced$5 = "avanzado";
+var aceHint$5 = "Tiempo en las colas de cómputo, según amdgpu. El async compute se activa o desactiva desde la app de escritorio: requiere una sesión nueva.";
+var aceInUse$5 = "Async compute (ACE) en uso";
+var aceMeasuring$5 = "Midiendo…";
+var advanced$5 = "Avanzado";
 var allSensors$5 = "Todos";
 var apply$5 = "Aplicar";
+var applyAutomatically$5 = "Aplicar al abrir un juego";
 var applyChanges$5 = "Aplicar cambios";
+var assignProfile$5 = "Asignar perfil";
 var automatic$5 = "Automático";
 var automaticApplyWarning$5 = "bc250-detect probará la CPU bajo carga, derivará la escala y aplicará únicamente el resultado encontrado. Supervisa temperaturas y estabilidad.";
 var board$5 = "Placa";
@@ -1265,6 +1462,7 @@ var boardSetup$5 = "Configuración de placa";
 var busyAction$5 = "Espera a que termine la operación, actualiza y vuelve a intentarlo una vez.";
 var busyCause$5 = "Una acción anterior, un flujo de Escritorio o un toolkit externo mantiene ocupado el hardware.";
 var busyFailed$5 = "Todavía hay otra operación de BC250 en ejecución.";
+var cancel$5 = "Cancelar";
 var channel$5 = "Canal PWM";
 var close$5 = "Cerrar";
 var compute$5 = "COMPUTE UNITS";
@@ -1304,24 +1502,44 @@ var details$5 = "Detalles técnicos";
 var detected$5 = "control listo";
 var diagnosticCode$5 = "Código de diagnóstico";
 var disableHighPoints$5 = "Desactivar puntos >2000 MHz";
+var disableService$5 = "Desactivar servicio";
+var disableServiceHint$5 = "Detiene el gobernador {name} y lo quita del arranque. La GPU queda con las frecuencias del controlador hasta que vuelva a ejecutarse un gobernador.";
 var disabled$5 = "Inactivo";
+var editProfile$5 = "Editar perfil";
 var elapsed$5 = "Tiempo";
 var enableHighPoints$5 = "Activar puntos >2000 MHz";
+var enableService$5 = "Activar servicio";
+var enableServiceHint$5 = "Inicia el gobernador {name} ahora y en cada arranque. Solo puede ejecutarse un gobernador de GPU a la vez.";
 var enabled$5 = "Activo";
 var error$5 = "No se pudo verificar el cambio";
 var estimated$5 = "estimados";
 var external$5 = "La topología cambió fuera de Quick Access.";
 var fan$5 = "VENTILADOR";
+var fanBalanced$5 = "Equilibrado";
+var fanBoost$5 = "Intenso";
 var fanCause$5 = "El driver NCT, la ruta hwmon, el canal PWM o la verificación de escritura no están disponibles.";
 var fanGuidance$5 = "Devuelve el canal a Automático y vuelve a intentarlo.";
 var fanOperationFailed$5 = "Falló la operación del ventilador.";
+var fanPresets$5 = "Preajustes";
+var fanQuiet$5 = "Silencio";
 var fanRpmObserved$5 = "RPM observadas";
 var fanUnverified$5 = "cableado sin verificar";
 var fanWiring$5 = "PWM 2 es el canal predeterminado; confirma el cableado de bomba/ventilador antes de aplicar una velocidad manual.";
+var fans$5 = "Ventiladores";
+var gameCpuNote$5 = "La CPU mantiene su ajuste actual: su overclock solo es fiable tras una prueba de estrés, que no puede ejecutarse cada vez que abres un juego.";
+var gameNoProfile$5 = "Sin perfil: usa tu configuración actual";
+var gameNotRunning$5 = "Abre un juego para asignarle su propio perfil de GPU y ventiladores.";
+var gameProfileActive$5 = "ACTIVO";
+var gameProfileApplied$5 = "Perfil del juego aplicado";
+var gameProfileNotApplied$5 = "No se aplicó el perfil del juego";
+var gameProfileRestored$5 = "Se restauró tu configuración anterior";
+var gameProfileSave$5 = "Guardar para este juego";
+var gamesEmpty$5 = "Aún no hay juegos guardados.";
 var gddr6Unavailable$5 = "No detectado · aplica primero el parche SMU desde el modo Escritorio.";
 var governor$5 = "Gobernador";
 var governorConflict$5 = "Cyan y Oberon están activos. Detén uno desde Modo Escritorio.";
 var governorMissing$5 = "Activa Cyan u Oberon desde Modo Escritorio.";
+var governorService$5 = "Servicio del gobernador";
 var gpuAction$5 = "Actualiza el estado de GPU y verifica el governor activo en Modo Escritorio.";
 var gpuBusyCause$5 = "La GPU no está en el estado de reposo requerido para este cambio de Oberon.";
 var gpuBusyGuidance$5 = "Espera a que la GPU vuelva a 1000 MHz y reintenta.";
@@ -1360,11 +1578,13 @@ var mode$5 = "Modo";
 var monitoring$5 = "Monitorización";
 var more$5 = "Más frecuencias";
 var next$5 = "Siguiente paso";
+var no$5 = "No";
 var oberonBusy$5 = "Espera a que la GPU vuelva a 1000 MHz";
 var oberonIdle$5 = "Cambios solo en reposo";
 var oberonReady$5 = "Listo para cambiar";
 var operationInProgress$5 = "Hay una operación en curso; el estado de GPU/CU se retoma cuando termine.";
 var pending$5 = "pendiente";
+var perGameProfiles$5 = "Perfiles por juego";
 var persistent$5 = "Persistente";
 var personalization$5 = "Personalización";
 var power$5 = "ENERGÍA";
@@ -1381,14 +1601,21 @@ var readOnly$5 = "solo lectura";
 var refreshInterval$5 = "Intervalo de actualización";
 var refreshIntervalHint$5 = "Controla cada cuánto se actualizan la pestaña Monitorización y los sensores GDDR6. No afecta la velocidad al aplicar un cambio.";
 var remove$5 = "Eliminar servicio";
+var removeGame$5 = "Quitar";
 var restore$5 = "Restaurar estado vivo";
 var retryGuidance$5 = "Espera unos segundos y vuelve a intentarlo.";
 var runAutomaticFirst$5 = "Ejecuta primero la escala automática";
 var safeCuMinimum$5 = "Quick Access mantiene un mínimo seguro de 24 CU.";
 var safeRange$5 = "rango validado";
 var save$5 = "Guardar selección";
+var savedGames$5 = "Juegos guardados";
 var sensorLayout$5 = "Diseño de sensores";
+var serviceNotInstalled$5 = "No hay ningún servicio de gobernador instalado. Prepara uno desde Modo Escritorio.";
 var serviceRemovedBootProfile$5 = "Se elimina el servicio; el perfil detectado se conserva durante este arranque.";
+var serviceRunningBoot$5 = "En ejecución · inicia con el sistema";
+var serviceRunningNoBoot$5 = "En ejecución · no inicia con el sistema";
+var serviceStopped$5 = "Detenido · desactivado al iniciar";
+var serviceStoppedBoot$5 = "Detenido · activo al iniciar";
 var settingsTab$5 = "Configuración";
 var snapshotWarning$5 = "No se pudo actualizar la instantánea CU compartida. Actualiza antes de realizar otro cambio CU.";
 var speed$5 = "Velocidad PWM";
@@ -1408,9 +1635,17 @@ var topologyUnavailable$5 = "Topología WGP no disponible.";
 var totalPower$5 = "Potencia total";
 var ttmLimit$5 = "Límite TTM";
 var unavailable$5 = "no disponible";
+var unchanged$5 = "Sin cambios";
 var unknownCause$5 = "Quick Access recibió un fallo que todavía no coincide con un componente conocido.";
 var usage$5 = "Uso";
-var voltageHint$5 = "entrada real de bc250-detect";
+var voltageApplyPoints$5 = "Aplicar puntos";
+var voltageConfirm$5 = "El gobernador Cyan se reinicia para leer la nueva curva y luego se restaura tu rango de frecuencia actual. Prueba la estabilidad antes de confiar en ella.";
+var voltageCustom$5 = "Personalizado";
+var voltageDiscard$5 = "Descartar";
+var voltageGovernor$5 = "Gobernador";
+var voltageHint$5 = "Solo suma voltaje a los puntos desde 2000 MHz. Abajo puedes ajustar un punto en pasos de 5 mV; el valor del gobernador es el mínimo.";
+var voltageLab$5 = "Laboratorio de voltaje";
+var voltageNeedsCyan$5 = "Inicia el gobernador Cyan para cambiar su curva de voltaje.";
 var vramApply$5 = "Aplicar VRAM";
 var vramApplyDescription$5 = "Escribe la asignación de VRAM directamente en la CMOS. La velocidad de reloj y los tiempos de memoria no se modifican.";
 var vramCurrentSize$5 = "Tamaño actual";
@@ -1419,6 +1654,7 @@ var vramPending$5 = "Cambio pendiente";
 var vramRebootRequired$5 = "Se aplica tras el próximo reinicio.";
 var vramUnavailable$5 = "La partición de VRAM no está disponible en este sistema.";
 var vrmUnavailable$5 = "No detectado · requiere la modificación de hardware I2C.";
+var yes$5 = "Sí";
 var es = {
 	accentBlue: accentBlue$5,
 	accentColor: accentColor$5,
@@ -1427,10 +1663,15 @@ var es = {
 	accentOrange: accentOrange$5,
 	accentPurple: accentPurple$5,
 	accentWhite: accentWhite$5,
+	aceHint: aceHint$5,
+	aceInUse: aceInUse$5,
+	aceMeasuring: aceMeasuring$5,
 	advanced: advanced$5,
 	allSensors: allSensors$5,
 	apply: apply$5,
+	applyAutomatically: applyAutomatically$5,
 	applyChanges: applyChanges$5,
+	assignProfile: assignProfile$5,
 	automatic: automatic$5,
 	automaticApplyWarning: automaticApplyWarning$5,
 	board: board$5,
@@ -1438,6 +1679,7 @@ var es = {
 	busyAction: busyAction$5,
 	busyCause: busyCause$5,
 	busyFailed: busyFailed$5,
+	cancel: cancel$5,
 	channel: channel$5,
 	close: close$5,
 	compute: compute$5,
@@ -1477,24 +1719,44 @@ var es = {
 	detected: detected$5,
 	diagnosticCode: diagnosticCode$5,
 	disableHighPoints: disableHighPoints$5,
+	disableService: disableService$5,
+	disableServiceHint: disableServiceHint$5,
 	disabled: disabled$5,
+	editProfile: editProfile$5,
 	elapsed: elapsed$5,
 	enableHighPoints: enableHighPoints$5,
+	enableService: enableService$5,
+	enableServiceHint: enableServiceHint$5,
 	enabled: enabled$5,
 	error: error$5,
 	estimated: estimated$5,
 	external: external$5,
 	fan: fan$5,
+	fanBalanced: fanBalanced$5,
+	fanBoost: fanBoost$5,
 	fanCause: fanCause$5,
 	fanGuidance: fanGuidance$5,
 	fanOperationFailed: fanOperationFailed$5,
+	fanPresets: fanPresets$5,
+	fanQuiet: fanQuiet$5,
 	fanRpmObserved: fanRpmObserved$5,
 	fanUnverified: fanUnverified$5,
 	fanWiring: fanWiring$5,
+	fans: fans$5,
+	gameCpuNote: gameCpuNote$5,
+	gameNoProfile: gameNoProfile$5,
+	gameNotRunning: gameNotRunning$5,
+	gameProfileActive: gameProfileActive$5,
+	gameProfileApplied: gameProfileApplied$5,
+	gameProfileNotApplied: gameProfileNotApplied$5,
+	gameProfileRestored: gameProfileRestored$5,
+	gameProfileSave: gameProfileSave$5,
+	gamesEmpty: gamesEmpty$5,
 	gddr6Unavailable: gddr6Unavailable$5,
 	governor: governor$5,
 	governorConflict: governorConflict$5,
 	governorMissing: governorMissing$5,
+	governorService: governorService$5,
 	gpuAction: gpuAction$5,
 	gpuBusyCause: gpuBusyCause$5,
 	gpuBusyGuidance: gpuBusyGuidance$5,
@@ -1533,11 +1795,13 @@ var es = {
 	monitoring: monitoring$5,
 	more: more$5,
 	next: next$5,
+	no: no$5,
 	oberonBusy: oberonBusy$5,
 	oberonIdle: oberonIdle$5,
 	oberonReady: oberonReady$5,
 	operationInProgress: operationInProgress$5,
 	pending: pending$5,
+	perGameProfiles: perGameProfiles$5,
 	persistent: persistent$5,
 	personalization: personalization$5,
 	power: power$5,
@@ -1554,14 +1818,21 @@ var es = {
 	refreshInterval: refreshInterval$5,
 	refreshIntervalHint: refreshIntervalHint$5,
 	remove: remove$5,
+	removeGame: removeGame$5,
 	restore: restore$5,
 	retryGuidance: retryGuidance$5,
 	runAutomaticFirst: runAutomaticFirst$5,
 	safeCuMinimum: safeCuMinimum$5,
 	safeRange: safeRange$5,
 	save: save$5,
+	savedGames: savedGames$5,
 	sensorLayout: sensorLayout$5,
+	serviceNotInstalled: serviceNotInstalled$5,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$5,
+	serviceRunningBoot: serviceRunningBoot$5,
+	serviceRunningNoBoot: serviceRunningNoBoot$5,
+	serviceStopped: serviceStopped$5,
+	serviceStoppedBoot: serviceStoppedBoot$5,
 	settingsTab: settingsTab$5,
 	snapshotWarning: snapshotWarning$5,
 	speed: speed$5,
@@ -1581,9 +1852,17 @@ var es = {
 	totalPower: totalPower$5,
 	ttmLimit: ttmLimit$5,
 	unavailable: unavailable$5,
+	unchanged: unchanged$5,
 	unknownCause: unknownCause$5,
 	usage: usage$5,
+	voltageApplyPoints: voltageApplyPoints$5,
+	voltageConfirm: voltageConfirm$5,
+	voltageCustom: voltageCustom$5,
+	voltageDiscard: voltageDiscard$5,
+	voltageGovernor: voltageGovernor$5,
 	voltageHint: voltageHint$5,
+	voltageLab: voltageLab$5,
+	voltageNeedsCyan: voltageNeedsCyan$5,
 	vramApply: vramApply$5,
 	vramApplyDescription: vramApplyDescription$5,
 	vramCurrentSize: vramCurrentSize$5,
@@ -1591,7 +1870,8 @@ var es = {
 	vramPending: vramPending$5,
 	vramRebootRequired: vramRebootRequired$5,
 	vramUnavailable: vramUnavailable$5,
-	vrmUnavailable: vrmUnavailable$5
+	vrmUnavailable: vrmUnavailable$5,
+	yes: yes$5
 };
 
 var accentBlue$4 = "Azul";
@@ -1601,10 +1881,15 @@ var accentGreen$4 = "Verde";
 var accentOrange$4 = "Naranja";
 var accentPurple$4 = "Morado";
 var accentWhite$4 = "Blanco";
-var advanced$4 = "avanzado";
+var aceHint$4 = "Tiempo en las colas de cómputo, según amdgpu. El async compute se activa o desactiva desde la app de escritorio: requiere una sesión nueva.";
+var aceInUse$4 = "Async compute (ACE) en uso";
+var aceMeasuring$4 = "Midiendo…";
+var advanced$4 = "Avanzado";
 var allSensors$4 = "Todos";
 var apply$4 = "Aplicar";
+var applyAutomatically$4 = "Aplicar al abrir un juego";
 var applyChanges$4 = "Aplicar cambios";
+var assignProfile$4 = "Asignar perfil";
 var automatic$4 = "Automático";
 var automaticApplyWarning$4 = "bc250-detect probará la CPU bajo carga, derivará la escala y aplicará únicamente el resultado encontrado. Supervisa temperaturas y estabilidad.";
 var board$4 = "Placa";
@@ -1612,6 +1897,7 @@ var boardSetup$4 = "Configuración de placa";
 var busyAction$4 = "Espera a que termine la operación, actualiza y vuelve a intentarlo una vez.";
 var busyCause$4 = "Una acción anterior, un flujo de Escritorio o un toolkit externo mantiene ocupado el hardware.";
 var busyFailed$4 = "Todavía hay otra operación de BC250 en ejecución.";
+var cancel$4 = "Cancelar";
 var channel$4 = "Canal PWM";
 var close$4 = "Cerrar";
 var compute$4 = "COMPUTE UNITS";
@@ -1651,24 +1937,44 @@ var details$4 = "Detalles técnicos";
 var detected$4 = "control listo";
 var diagnosticCode$4 = "Código de diagnóstico";
 var disableHighPoints$4 = "Desactivar puntos >2000 MHz";
+var disableService$4 = "Desactivar servicio";
+var disableServiceHint$4 = "Detiene el gobernador {name} y lo quita del arranque. La GPU queda con las frecuencias del controlador hasta que vuelva a ejecutarse un gobernador.";
 var disabled$4 = "Inactivo";
+var editProfile$4 = "Editar perfil";
 var elapsed$4 = "Tiempo";
 var enableHighPoints$4 = "Activar puntos >2000 MHz";
+var enableService$4 = "Activar servicio";
+var enableServiceHint$4 = "Inicia el gobernador {name} ahora y en cada arranque. Solo puede ejecutarse un gobernador de GPU a la vez.";
 var enabled$4 = "Activo";
 var error$4 = "No se pudo verificar el cambio";
 var estimated$4 = "estimados";
 var external$4 = "La topología cambió fuera de Quick Access.";
 var fan$4 = "VENTILADOR";
+var fanBalanced$4 = "Equilibrado";
+var fanBoost$4 = "Intenso";
 var fanCause$4 = "El driver NCT, la ruta hwmon, el canal PWM o la verificación de escritura no están disponibles.";
 var fanGuidance$4 = "Devuelve el canal a Automático y vuelve a intentarlo.";
 var fanOperationFailed$4 = "Falló la operación del ventilador.";
+var fanPresets$4 = "Preajustes";
+var fanQuiet$4 = "Silencio";
 var fanRpmObserved$4 = "RPM observadas";
 var fanUnverified$4 = "cableado sin verificar";
 var fanWiring$4 = "PWM 2 es el canal predeterminado; confirma el cableado de bomba/ventilador antes de aplicar una velocidad manual.";
+var fans$4 = "Ventiladores";
+var gameCpuNote$4 = "La CPU mantiene su ajuste actual: su overclock solo es confiable tras una prueba de estrés, que no puede ejecutarse cada vez que abres un juego.";
+var gameNoProfile$4 = "Sin perfil: usa tu configuración actual";
+var gameNotRunning$4 = "Abre un juego para asignarle su propio perfil de GPU y ventiladores.";
+var gameProfileActive$4 = "ACTIVO";
+var gameProfileApplied$4 = "Perfil del juego aplicado";
+var gameProfileNotApplied$4 = "No se aplicó el perfil del juego";
+var gameProfileRestored$4 = "Se restauró tu configuración anterior";
+var gameProfileSave$4 = "Guardar para este juego";
+var gamesEmpty$4 = "Aún no hay juegos guardados.";
 var gddr6Unavailable$4 = "No detectado · aplica primero el parche SMU desde el modo Escritorio.";
 var governor$4 = "Gobernador";
 var governorConflict$4 = "Cyan y Oberon están activos. Detén uno desde Modo Escritorio.";
 var governorMissing$4 = "Activa Cyan u Oberon desde Modo Escritorio.";
+var governorService$4 = "Servicio del gobernador";
 var gpuAction$4 = "Actualiza el estado de GPU y verifica el governor activo en Modo Escritorio.";
 var gpuBusyCause$4 = "La GPU no está en el estado de reposo requerido para este cambio de Oberon.";
 var gpuBusyGuidance$4 = "Espera a que la GPU vuelva a 1000 MHz y reintenta.";
@@ -1707,11 +2013,13 @@ var mode$4 = "Modo";
 var monitoring$4 = "Monitorización";
 var more$4 = "Más frecuencias";
 var next$4 = "Siguiente paso";
+var no$4 = "No";
 var oberonBusy$4 = "Espera a que la GPU vuelva a 1000 MHz";
 var oberonIdle$4 = "Cambios solo en reposo";
 var oberonReady$4 = "Listo para cambiar";
 var operationInProgress$4 = "Hay una operación en curso; el estado de GPU/CU se retoma cuando termine.";
 var pending$4 = "pendiente";
+var perGameProfiles$4 = "Perfiles por juego";
 var persistent$4 = "Persistente";
 var personalization$4 = "Personalización";
 var power$4 = "ENERGÍA";
@@ -1728,14 +2036,21 @@ var readOnly$4 = "solo lectura";
 var refreshInterval$4 = "Intervalo de actualización";
 var refreshIntervalHint$4 = "Controla cada cuánto se actualizan la pestaña Monitorización y los sensores GDDR6. No afecta la velocidad al aplicar un cambio.";
 var remove$4 = "Eliminar servicio";
+var removeGame$4 = "Quitar";
 var restore$4 = "Restaurar estado vivo";
 var retryGuidance$4 = "Espera unos segundos y vuelve a intentarlo.";
 var runAutomaticFirst$4 = "Ejecuta primero la escala automática";
 var safeCuMinimum$4 = "Quick Access mantiene un mínimo seguro de 24 CU.";
 var safeRange$4 = "rango validado";
 var save$4 = "Guardar selección";
+var savedGames$4 = "Juegos guardados";
 var sensorLayout$4 = "Diseño de sensores";
+var serviceNotInstalled$4 = "No hay ningún servicio de gobernador instalado. Prepara uno desde Modo Escritorio.";
 var serviceRemovedBootProfile$4 = "Se elimina el servicio; el perfil detectado se conserva durante este arranque.";
+var serviceRunningBoot$4 = "En ejecución · inicia con el sistema";
+var serviceRunningNoBoot$4 = "En ejecución · no inicia con el sistema";
+var serviceStopped$4 = "Detenido · desactivado al iniciar";
+var serviceStoppedBoot$4 = "Detenido · activo al iniciar";
 var settingsTab$4 = "Configuración";
 var snapshotWarning$4 = "No se pudo actualizar la instantánea CU compartida. Actualiza antes de realizar otro cambio CU.";
 var speed$4 = "Velocidad PWM";
@@ -1755,9 +2070,17 @@ var topologyUnavailable$4 = "Topología WGP no disponible.";
 var totalPower$4 = "Potencia total";
 var ttmLimit$4 = "Límite TTM";
 var unavailable$4 = "no disponible";
+var unchanged$4 = "Sin cambios";
 var unknownCause$4 = "Quick Access recibió un fallo que todavía no coincide con un componente conocido.";
 var usage$4 = "Uso";
-var voltageHint$4 = "entrada real de bc250-detect";
+var voltageApplyPoints$4 = "Aplicar puntos";
+var voltageConfirm$4 = "El gobernador Cyan se reinicia para leer la nueva curva y luego se restaura tu rango de frecuencia actual. Prueba la estabilidad antes de confiar en ella.";
+var voltageCustom$4 = "Personalizado";
+var voltageDiscard$4 = "Descartar";
+var voltageGovernor$4 = "Gobernador";
+var voltageHint$4 = "Solo suma voltaje a los puntos desde 2000 MHz. Abajo puedes ajustar un punto en pasos de 5 mV; el valor del gobernador es el mínimo.";
+var voltageLab$4 = "Laboratorio de voltaje";
+var voltageNeedsCyan$4 = "Inicia el gobernador Cyan para cambiar su curva de voltaje.";
 var vramApply$4 = "Aplicar VRAM";
 var vramApplyDescription$4 = "Escribe la asignación de VRAM directamente en la CMOS. La velocidad de reloj y los tiempos de memoria no se modifican.";
 var vramCurrentSize$4 = "Tamaño actual";
@@ -1766,6 +2089,7 @@ var vramPending$4 = "Cambio pendiente";
 var vramRebootRequired$4 = "Se aplica tras el próximo reinicio.";
 var vramUnavailable$4 = "La partición de VRAM no está disponible en este sistema.";
 var vrmUnavailable$4 = "No detectado · requiere la modificación de hardware I2C.";
+var yes$4 = "Sí";
 var es419 = {
 	accentBlue: accentBlue$4,
 	accentColor: accentColor$4,
@@ -1774,10 +2098,15 @@ var es419 = {
 	accentOrange: accentOrange$4,
 	accentPurple: accentPurple$4,
 	accentWhite: accentWhite$4,
+	aceHint: aceHint$4,
+	aceInUse: aceInUse$4,
+	aceMeasuring: aceMeasuring$4,
 	advanced: advanced$4,
 	allSensors: allSensors$4,
 	apply: apply$4,
+	applyAutomatically: applyAutomatically$4,
 	applyChanges: applyChanges$4,
+	assignProfile: assignProfile$4,
 	automatic: automatic$4,
 	automaticApplyWarning: automaticApplyWarning$4,
 	board: board$4,
@@ -1785,6 +2114,7 @@ var es419 = {
 	busyAction: busyAction$4,
 	busyCause: busyCause$4,
 	busyFailed: busyFailed$4,
+	cancel: cancel$4,
 	channel: channel$4,
 	close: close$4,
 	compute: compute$4,
@@ -1824,24 +2154,44 @@ var es419 = {
 	detected: detected$4,
 	diagnosticCode: diagnosticCode$4,
 	disableHighPoints: disableHighPoints$4,
+	disableService: disableService$4,
+	disableServiceHint: disableServiceHint$4,
 	disabled: disabled$4,
+	editProfile: editProfile$4,
 	elapsed: elapsed$4,
 	enableHighPoints: enableHighPoints$4,
+	enableService: enableService$4,
+	enableServiceHint: enableServiceHint$4,
 	enabled: enabled$4,
 	error: error$4,
 	estimated: estimated$4,
 	external: external$4,
 	fan: fan$4,
+	fanBalanced: fanBalanced$4,
+	fanBoost: fanBoost$4,
 	fanCause: fanCause$4,
 	fanGuidance: fanGuidance$4,
 	fanOperationFailed: fanOperationFailed$4,
+	fanPresets: fanPresets$4,
+	fanQuiet: fanQuiet$4,
 	fanRpmObserved: fanRpmObserved$4,
 	fanUnverified: fanUnverified$4,
 	fanWiring: fanWiring$4,
+	fans: fans$4,
+	gameCpuNote: gameCpuNote$4,
+	gameNoProfile: gameNoProfile$4,
+	gameNotRunning: gameNotRunning$4,
+	gameProfileActive: gameProfileActive$4,
+	gameProfileApplied: gameProfileApplied$4,
+	gameProfileNotApplied: gameProfileNotApplied$4,
+	gameProfileRestored: gameProfileRestored$4,
+	gameProfileSave: gameProfileSave$4,
+	gamesEmpty: gamesEmpty$4,
 	gddr6Unavailable: gddr6Unavailable$4,
 	governor: governor$4,
 	governorConflict: governorConflict$4,
 	governorMissing: governorMissing$4,
+	governorService: governorService$4,
 	gpuAction: gpuAction$4,
 	gpuBusyCause: gpuBusyCause$4,
 	gpuBusyGuidance: gpuBusyGuidance$4,
@@ -1880,11 +2230,13 @@ var es419 = {
 	monitoring: monitoring$4,
 	more: more$4,
 	next: next$4,
+	no: no$4,
 	oberonBusy: oberonBusy$4,
 	oberonIdle: oberonIdle$4,
 	oberonReady: oberonReady$4,
 	operationInProgress: operationInProgress$4,
 	pending: pending$4,
+	perGameProfiles: perGameProfiles$4,
 	persistent: persistent$4,
 	personalization: personalization$4,
 	power: power$4,
@@ -1901,14 +2253,21 @@ var es419 = {
 	refreshInterval: refreshInterval$4,
 	refreshIntervalHint: refreshIntervalHint$4,
 	remove: remove$4,
+	removeGame: removeGame$4,
 	restore: restore$4,
 	retryGuidance: retryGuidance$4,
 	runAutomaticFirst: runAutomaticFirst$4,
 	safeCuMinimum: safeCuMinimum$4,
 	safeRange: safeRange$4,
 	save: save$4,
+	savedGames: savedGames$4,
 	sensorLayout: sensorLayout$4,
+	serviceNotInstalled: serviceNotInstalled$4,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$4,
+	serviceRunningBoot: serviceRunningBoot$4,
+	serviceRunningNoBoot: serviceRunningNoBoot$4,
+	serviceStopped: serviceStopped$4,
+	serviceStoppedBoot: serviceStoppedBoot$4,
 	settingsTab: settingsTab$4,
 	snapshotWarning: snapshotWarning$4,
 	speed: speed$4,
@@ -1928,9 +2287,17 @@ var es419 = {
 	totalPower: totalPower$4,
 	ttmLimit: ttmLimit$4,
 	unavailable: unavailable$4,
+	unchanged: unchanged$4,
 	unknownCause: unknownCause$4,
 	usage: usage$4,
+	voltageApplyPoints: voltageApplyPoints$4,
+	voltageConfirm: voltageConfirm$4,
+	voltageCustom: voltageCustom$4,
+	voltageDiscard: voltageDiscard$4,
+	voltageGovernor: voltageGovernor$4,
 	voltageHint: voltageHint$4,
+	voltageLab: voltageLab$4,
+	voltageNeedsCyan: voltageNeedsCyan$4,
 	vramApply: vramApply$4,
 	vramApplyDescription: vramApplyDescription$4,
 	vramCurrentSize: vramCurrentSize$4,
@@ -1938,7 +2305,8 @@ var es419 = {
 	vramPending: vramPending$4,
 	vramRebootRequired: vramRebootRequired$4,
 	vramUnavailable: vramUnavailable$4,
-	vrmUnavailable: vrmUnavailable$4
+	vrmUnavailable: vrmUnavailable$4,
+	yes: yes$4
 };
 
 var accentBlue$3 = "Niebieski";
@@ -1948,10 +2316,15 @@ var accentGreen$3 = "Zielony";
 var accentOrange$3 = "Pomarańczowy";
 var accentPurple$3 = "Fioletowy";
 var accentWhite$3 = "Biały";
-var advanced$3 = "zaawansowany";
+var aceHint$3 = "Czas pracy kolejek obliczeniowych według amdgpu. Async compute włącza się i wyłącza w aplikacji na pulpicie: wymaga nowej sesji.";
+var aceInUse$3 = "Async compute (ACE) w użyciu";
+var aceMeasuring$3 = "Pomiar…";
+var advanced$3 = "Zaawansowane";
 var allSensors$3 = "Wszystko";
 var apply$3 = "Zastosuj";
+var applyAutomatically$3 = "Stosuj po uruchomieniu gry";
 var applyChanges$3 = "Zastosuj zmiany";
+var assignProfile$3 = "Przypisz profil";
 var automatic$3 = "Automatyczny";
 var automaticApplyWarning$3 = "bc250-detect przetestuje CPU pod obciążeniem, obliczy skalę i zastosuje tylko znaleziony wynik. Monitoruj temperaturę i stabilność.";
 var board$3 = "Płyta";
@@ -1959,6 +2332,7 @@ var boardSetup$3 = "Konfiguracja płyty";
 var busyAction$3 = "Poczekaj na zakończenie bieżącej operacji, odśwież i spróbuj jeszcze raz.";
 var busyCause$3 = "Poprzednie naciśnięcie, przepływ pracy na komputerze stacjonarnym lub zewnętrzny zestaw narzędzi nadal powodują blokadę sprzętową.";
 var busyFailed$3 = "Inna operacja BC250 jest nadal wykonywana.";
+var cancel$3 = "Anuluj";
 var channel$3 = "Kanał PWM";
 var close$3 = "Odrzuć";
 var compute$3 = "JEDNOSTKI OBLICZENIOWE";
@@ -1998,24 +2372,44 @@ var details$3 = "Szczegóły techniczne";
 var detected$3 = "kontrola gotowa";
 var diagnosticCode$3 = "Kod diagnostyczny";
 var disableHighPoints$3 = "Wyłącz punkty >2000 MHz";
+var disableService$3 = "Wyłącz usługę";
+var disableServiceHint$3 = "Zatrzymuje regulator {name} i usuwa go z autostartu. GPU pracuje na zegarach sterownika, dopóki regulator znów nie zadziała.";
 var disabled$3 = "Niepełnosprawny";
+var editProfile$3 = "Edytuj profil";
 var elapsed$3 = "Upłynął";
 var enableHighPoints$3 = "Włącz punkty >2000 MHz";
+var enableService$3 = "Włącz usługę";
+var enableServiceHint$3 = "Uruchamia regulator {name} teraz i przy każdym starcie. Naraz może działać tylko jeden regulator GPU.";
 var enabled$3 = "Włączony";
 var error$3 = "Nie udało się zweryfikować zmiany";
 var estimated$3 = "szacunkowy";
 var external$3 = "Topologia zmieniona poza Szybkim dostępem.";
 var fan$3 = "FAN";
+var fanBalanced$3 = "Zrównoważony";
+var fanBoost$3 = "Wzmocniony";
 var fanCause$3 = "Sterownik NCT, trasa hwmon, kanał PWM lub funkcja odczytu zapisu są niedostępne.";
 var fanGuidance$3 = "Przywróć kanał do trybu automatycznego i spróbuj ponownie.";
 var fanOperationFailed$3 = "Działanie wentylatora nie powiodło się.";
+var fanPresets$3 = "Ustawienia wstępne";
+var fanQuiet$3 = "Cichy";
 var fanRpmObserved$3 = "RPMzauważony";
 var fanUnverified$3 = "okablowanie niezweryfikowane";
 var fanWiring$3 = "PWM 2 jest kanałem domyślnym; przed zastosowaniem ręcznej prędkości sprawdź okablowanie pompy/wentylatora.";
+var fans$3 = "Wentylatory";
+var gameCpuNote$3 = "CPU zachowuje bieżące ustawienia: jej podkręcenie jest wiarygodne dopiero po teście obciążeniowym, którego nie da się uruchamiać przy każdym starcie gry.";
+var gameNoProfile$3 = "Bez profilu: używa bieżących ustawień";
+var gameNotRunning$3 = "Uruchom grę, aby przypisać jej własny profil GPU i wentylatorów.";
+var gameProfileActive$3 = "AKTYWNY";
+var gameProfileApplied$3 = "Zastosowano profil gry";
+var gameProfileNotApplied$3 = "Nie zastosowano profilu gry";
+var gameProfileRestored$3 = "Przywrócono poprzednie ustawienia";
+var gameProfileSave$3 = "Zapisz dla tej gry";
+var gamesEmpty$3 = "Nie zapisano jeszcze żadnych gier.";
 var gddr6Unavailable$3 = "Nie wykryto · najpierw zastosuj łatkę SMU w trybie pulpitu.";
 var governor$3 = "Governor";
 var governorConflict$3 = "Zarówno Cyan, jak i Oberon są aktywne. Zatrzymaj jeden w trybie pulpitu.";
 var governorMissing$3 = "Włącz opcję Cyan lub Oberon w trybie pulpitu.";
+var governorService$3 = "Usługa regulatora";
 var gpuAction$3 = "Odśwież stan GPU i zweryfikuj aktywny zarządca w trybie pulpitu.";
 var gpuBusyCause$3 = "GPU nie znajduje się w stanie bezczynności wymaganym do tej zmiany Oberon.";
 var gpuBusyGuidance$3 = "Poczekaj, aż GPU powróci do 1000 MHz, a następnie spróbuj ponownie.";
@@ -2054,11 +2448,13 @@ var mode$3 = "Tryb";
 var monitoring$3 = "Monitorowanie";
 var more$3 = "Więcej częstotliwości";
 var next$3 = "Następny krok";
+var no$3 = "Nie";
 var oberonBusy$3 = "Poczekaj, aż GPU powróci do 1000 MHz";
 var oberonIdle$3 = "Tylko bezczynne zmiany";
 var oberonReady$3 = "Gotowy na zmianę";
 var operationInProgress$3 = "Trwa operacja; stan GPU/CU wróci po jej zakończeniu.";
 var pending$3 = "w toku";
+var perGameProfiles$3 = "Profile dla gier";
 var persistent$3 = "Trwałe";
 var personalization$3 = "Personalizacja";
 var power$3 = "ZASILANIE";
@@ -2075,14 +2471,21 @@ var readOnly$3 = "tylko czytać";
 var refreshInterval$3 = "Częstotliwość odświeżania";
 var refreshIntervalHint$3 = "Określa, jak często odświeżana jest karta Monitorowanie i czujniki GDDR6. Nie wpływa na szybkość zastosowania zmiany.";
 var remove$3 = "Usuń usługę";
+var removeGame$3 = "Usuń";
 var restore$3 = "Przywróć stan aktywny";
 var retryGuidance$3 = "Poczekaj kilka sekund i spróbuj ponownie.";
 var runAutomaticFirst$3 = "Najpierw uruchom automatyczne skalowanie";
 var safeCuMinimum$3 = "Szybki dostęp zapewnia bezpieczne minimum 24 CU.";
 var safeRange$3 = "zatwierdzony zakres";
 var save$3 = "Zapisz wybór";
+var savedGames$3 = "Zapisane gry";
 var sensorLayout$3 = "Układ czujników";
+var serviceNotInstalled$3 = "Nie zainstalowano usługi regulatora. Przygotuj ją w trybie pulpitu.";
 var serviceRemovedBootProfile$3 = "Usługa zostaje usunięta; wykryty profil pozostaje dostępny podczas tego rozruchu.";
+var serviceRunningBoot$3 = "Działa · uruchamia się przy starcie";
+var serviceRunningNoBoot$3 = "Działa · nie włączona przy starcie";
+var serviceStopped$3 = "Zatrzymana · wyłączona przy starcie";
+var serviceStoppedBoot$3 = "Zatrzymana · włączona przy starcie";
 var settingsTab$3 = "Ustawienia";
 var snapshotWarning$3 = "Nie można zaktualizować udostępnionej migawki CU. Odśwież przed wprowadzeniem kolejnej zmiany CU.";
 var speed$3 = "Prędkość PWM";
@@ -2102,9 +2505,17 @@ var topologyUnavailable$3 = "Topologia WGP jest niedostępna.";
 var totalPower$3 = "Moc całkowita";
 var ttmLimit$3 = "Limit TTM";
 var unavailable$3 = "niedostępne";
+var unchanged$3 = "Bez zmian";
 var unknownCause$3 = "Szybki dostęp otrzymał błąd, który nie pasuje jeszcze do znanego komponentu.";
 var usage$3 = "Obciążenie";
-var voltageHint$3 = "prawdziwe wejście wykrywające bc250";
+var voltageApplyPoints$3 = "Zastosuj punkty";
+var voltageConfirm$3 = "Governor Cyan uruchomi się ponownie, aby odczytać nową krzywą, a potem przywróci bieżący zakres częstotliwości. Sprawdź stabilność, zanim na niej polegniesz.";
+var voltageCustom$3 = "Własna";
+var voltageDiscard$3 = "Odrzuć";
+var voltageGovernor$3 = "Governor";
+var voltageHint$3 = "Dodaje napięcie tylko punktom od 2000 MHz. Poniżej zmienisz jeden punkt krokiem 5 mV; wartość governora jest minimum.";
+var voltageLab$3 = "Laboratorium napięcia";
+var voltageNeedsCyan$3 = "Uruchom governor Cyan, aby zmienić krzywą napięcia.";
 var vramApply$3 = "Zastosuj VRAM";
 var vramApplyDescription$3 = "Zapisuje przydział VRAM bezpośrednio do CMOS. Taktowanie i czasy pamięci pozostają bez zmian.";
 var vramCurrentSize$3 = "Bieżący rozmiar";
@@ -2113,6 +2524,7 @@ var vramPending$3 = "Zmiana oczekująca";
 var vramRebootRequired$3 = "Zaczyna działać po następnym restarcie.";
 var vramUnavailable$3 = "Podział VRAM jest niedostępny w tym systemie.";
 var vrmUnavailable$3 = "Nie wykryto · wymaga modyfikacji sprzętowej I2C.";
+var yes$3 = "Tak";
 var pl = {
 	accentBlue: accentBlue$3,
 	accentColor: accentColor$3,
@@ -2121,10 +2533,15 @@ var pl = {
 	accentOrange: accentOrange$3,
 	accentPurple: accentPurple$3,
 	accentWhite: accentWhite$3,
+	aceHint: aceHint$3,
+	aceInUse: aceInUse$3,
+	aceMeasuring: aceMeasuring$3,
 	advanced: advanced$3,
 	allSensors: allSensors$3,
 	apply: apply$3,
+	applyAutomatically: applyAutomatically$3,
 	applyChanges: applyChanges$3,
+	assignProfile: assignProfile$3,
 	automatic: automatic$3,
 	automaticApplyWarning: automaticApplyWarning$3,
 	board: board$3,
@@ -2132,6 +2549,7 @@ var pl = {
 	busyAction: busyAction$3,
 	busyCause: busyCause$3,
 	busyFailed: busyFailed$3,
+	cancel: cancel$3,
 	channel: channel$3,
 	close: close$3,
 	compute: compute$3,
@@ -2171,24 +2589,44 @@ var pl = {
 	detected: detected$3,
 	diagnosticCode: diagnosticCode$3,
 	disableHighPoints: disableHighPoints$3,
+	disableService: disableService$3,
+	disableServiceHint: disableServiceHint$3,
 	disabled: disabled$3,
+	editProfile: editProfile$3,
 	elapsed: elapsed$3,
 	enableHighPoints: enableHighPoints$3,
+	enableService: enableService$3,
+	enableServiceHint: enableServiceHint$3,
 	enabled: enabled$3,
 	error: error$3,
 	estimated: estimated$3,
 	external: external$3,
 	fan: fan$3,
+	fanBalanced: fanBalanced$3,
+	fanBoost: fanBoost$3,
 	fanCause: fanCause$3,
 	fanGuidance: fanGuidance$3,
 	fanOperationFailed: fanOperationFailed$3,
+	fanPresets: fanPresets$3,
+	fanQuiet: fanQuiet$3,
 	fanRpmObserved: fanRpmObserved$3,
 	fanUnverified: fanUnverified$3,
 	fanWiring: fanWiring$3,
+	fans: fans$3,
+	gameCpuNote: gameCpuNote$3,
+	gameNoProfile: gameNoProfile$3,
+	gameNotRunning: gameNotRunning$3,
+	gameProfileActive: gameProfileActive$3,
+	gameProfileApplied: gameProfileApplied$3,
+	gameProfileNotApplied: gameProfileNotApplied$3,
+	gameProfileRestored: gameProfileRestored$3,
+	gameProfileSave: gameProfileSave$3,
+	gamesEmpty: gamesEmpty$3,
 	gddr6Unavailable: gddr6Unavailable$3,
 	governor: governor$3,
 	governorConflict: governorConflict$3,
 	governorMissing: governorMissing$3,
+	governorService: governorService$3,
 	gpuAction: gpuAction$3,
 	gpuBusyCause: gpuBusyCause$3,
 	gpuBusyGuidance: gpuBusyGuidance$3,
@@ -2227,11 +2665,13 @@ var pl = {
 	monitoring: monitoring$3,
 	more: more$3,
 	next: next$3,
+	no: no$3,
 	oberonBusy: oberonBusy$3,
 	oberonIdle: oberonIdle$3,
 	oberonReady: oberonReady$3,
 	operationInProgress: operationInProgress$3,
 	pending: pending$3,
+	perGameProfiles: perGameProfiles$3,
 	persistent: persistent$3,
 	personalization: personalization$3,
 	power: power$3,
@@ -2248,14 +2688,21 @@ var pl = {
 	refreshInterval: refreshInterval$3,
 	refreshIntervalHint: refreshIntervalHint$3,
 	remove: remove$3,
+	removeGame: removeGame$3,
 	restore: restore$3,
 	retryGuidance: retryGuidance$3,
 	runAutomaticFirst: runAutomaticFirst$3,
 	safeCuMinimum: safeCuMinimum$3,
 	safeRange: safeRange$3,
 	save: save$3,
+	savedGames: savedGames$3,
 	sensorLayout: sensorLayout$3,
+	serviceNotInstalled: serviceNotInstalled$3,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$3,
+	serviceRunningBoot: serviceRunningBoot$3,
+	serviceRunningNoBoot: serviceRunningNoBoot$3,
+	serviceStopped: serviceStopped$3,
+	serviceStoppedBoot: serviceStoppedBoot$3,
 	settingsTab: settingsTab$3,
 	snapshotWarning: snapshotWarning$3,
 	speed: speed$3,
@@ -2275,9 +2722,17 @@ var pl = {
 	totalPower: totalPower$3,
 	ttmLimit: ttmLimit$3,
 	unavailable: unavailable$3,
+	unchanged: unchanged$3,
 	unknownCause: unknownCause$3,
 	usage: usage$3,
+	voltageApplyPoints: voltageApplyPoints$3,
+	voltageConfirm: voltageConfirm$3,
+	voltageCustom: voltageCustom$3,
+	voltageDiscard: voltageDiscard$3,
+	voltageGovernor: voltageGovernor$3,
 	voltageHint: voltageHint$3,
+	voltageLab: voltageLab$3,
+	voltageNeedsCyan: voltageNeedsCyan$3,
 	vramApply: vramApply$3,
 	vramApplyDescription: vramApplyDescription$3,
 	vramCurrentSize: vramCurrentSize$3,
@@ -2285,7 +2740,8 @@ var pl = {
 	vramPending: vramPending$3,
 	vramRebootRequired: vramRebootRequired$3,
 	vramUnavailable: vramUnavailable$3,
-	vrmUnavailable: vrmUnavailable$3
+	vrmUnavailable: vrmUnavailable$3,
+	yes: yes$3
 };
 
 var accentBlue$2 = "Azul";
@@ -2295,10 +2751,15 @@ var accentGreen$2 = "Verde";
 var accentOrange$2 = "Laranja";
 var accentPurple$2 = "Roxo";
 var accentWhite$2 = "Branco";
-var advanced$2 = "avançado";
+var aceHint$2 = "Tempo nas filas de computação, segundo o amdgpu. O async compute é ativado ou desativado no app de desktop: exige uma nova sessão.";
+var aceInUse$2 = "Async compute (ACE) em uso";
+var aceMeasuring$2 = "Medindo…";
+var advanced$2 = "Avançado";
 var allSensors$2 = "Todos";
 var apply$2 = "Aplicar";
+var applyAutomatically$2 = "Aplicar ao abrir um jogo";
 var applyChanges$2 = "Aplicar alterações";
+var assignProfile$2 = "Atribuir perfil";
 var automatic$2 = "Automático";
 var automaticApplyWarning$2 = "bc250-detect testará a CPU sob carga, derivará a escala e aplicará apenas o resultado encontrado. Monitore temperaturas e estabilidade.";
 var board$2 = "Placa";
@@ -2306,6 +2767,7 @@ var boardSetup$2 = "Configuração da placa";
 var busyAction$2 = "Aguarde a conclusão da operação atual, atualize e tente novamente uma vez.";
 var busyCause$2 = "Uma impressão anterior, fluxo de trabalho de desktop ou kit de ferramentas externo ainda mantém o bloqueio de hardware.";
 var busyFailed$2 = "Outra operação BC250 ainda está em execução.";
+var cancel$2 = "Cancelar";
 var channel$2 = "Canal PWM";
 var close$2 = "Dispensar";
 var compute$2 = "UNIDADES DE COMPUTAÇÃO";
@@ -2345,24 +2807,44 @@ var details$2 = "Detalhes técnicos";
 var detected$2 = "controle pronto";
 var diagnosticCode$2 = "Código de diagnóstico";
 var disableHighPoints$2 = "Desativar pontos >2000 MHz";
+var disableService$2 = "Desativar serviço";
+var disableServiceHint$2 = "Para o governador {name} e o remove da inicialização. A GPU mantém as frequências do driver até que um governador rode novamente.";
 var disabled$2 = "Desativado";
+var editProfile$2 = "Editar perfil";
 var elapsed$2 = "Decorrido";
 var enableHighPoints$2 = "Ativar pontos >2000 MHz";
+var enableService$2 = "Ativar serviço";
+var enableServiceHint$2 = "Inicia o governador {name} agora e a cada inicialização. Só um governador de GPU pode rodar por vez.";
 var enabled$2 = "Habilitado";
 var error$2 = "A alteração não pôde ser verificada";
 var estimated$2 = "estimado";
 var external$2 = "Topologia alterada fora do Acesso Rápido.";
 var fan$2 = "VENTILADOR";
+var fanBalanced$2 = "Equilibrado";
+var fanBoost$2 = "Intenso";
 var fanCause$2 = "O driver NCT, a rota hwmon, o canal PWM ou a leitura de gravação não estão disponíveis.";
 var fanGuidance$2 = "Retorne o canal para Automático e tente novamente.";
 var fanOperationFailed$2 = "A operação do ventilador falhou.";
+var fanPresets$2 = "Predefinições";
+var fanQuiet$2 = "Silencioso";
 var fanRpmObserved$2 = "RPM observadas";
 var fanUnverified$2 = "fiação não verificada";
 var fanWiring$2 = "PWM 2 é o canal padrão; confirme a fiação da bomba/ventilador antes de aplicar uma velocidade manual.";
+var fans$2 = "Ventiladores";
+var gameCpuNote$2 = "A CPU mantém o ajuste atual: o overclock só é confiável depois de um teste de estresse, que não pode rodar toda vez que um jogo abre.";
+var gameNoProfile$2 = "Sem perfil: usa as configurações atuais";
+var gameNotRunning$2 = "Abra um jogo para atribuir a ele um perfil próprio de GPU e ventiladores.";
+var gameProfileActive$2 = "ATIVO";
+var gameProfileApplied$2 = "Perfil do jogo aplicado";
+var gameProfileNotApplied$2 = "O perfil do jogo não foi aplicado";
+var gameProfileRestored$2 = "As configurações anteriores foram restauradas";
+var gameProfileSave$2 = "Salvar para este jogo";
+var gamesEmpty$2 = "Nenhum jogo salvo ainda.";
 var gddr6Unavailable$2 = "Não detectado · aplique primeiro o patch SMU no modo Desktop.";
 var governor$2 = "Governador";
 var governorConflict$2 = "Cyan e Oberon estão ambos ativos. Pare um no modo Desktop.";
 var governorMissing$2 = "Habilite Cyan ou Oberon no modo Desktop.";
+var governorService$2 = "Serviço do governador";
 var gpuAction$2 = "Atualize o status da GPU e verifique o governador ativo no modo Desktop.";
 var gpuBusyCause$2 = "A GPU não está no estado inativo necessário para esta alteração do Oberon.";
 var gpuBusyGuidance$2 = "Aguarde até que a GPU retorne a 1000 MHz e tente novamente.";
@@ -2401,11 +2883,13 @@ var mode$2 = "Modo";
 var monitoring$2 = "Monitoramento";
 var more$2 = "Mais frequências";
 var next$2 = "Próxima etapa";
+var no$2 = "Não";
 var oberonBusy$2 = "Aguarde até que a GPU retorne a 1000 MHz";
 var oberonIdle$2 = "Apenas alterações inativas";
 var oberonReady$2 = "Pronto para mudar";
 var operationInProgress$2 = "Uma operação está em andamento; o status de GPU/CU volta quando terminar.";
 var pending$2 = "pendente";
+var perGameProfiles$2 = "Perfis por jogo";
 var persistent$2 = "Persistente";
 var personalization$2 = "Personalização";
 var power$2 = "ENERGIA";
@@ -2422,14 +2906,21 @@ var readOnly$2 = "somente leitura";
 var refreshInterval$2 = "Intervalo de atualização";
 var refreshIntervalHint$2 = "Controla a frequência de atualização da aba Monitorização e dos sensores GDDR6. Não afeta a velocidade ao aplicar uma mudança.";
 var remove$2 = "Remover serviço";
+var removeGame$2 = "Remover";
 var restore$2 = "Restaurar estado ativo";
 var retryGuidance$2 = "Aguarde alguns segundos e tente novamente.";
 var runAutomaticFirst$2 = "Execute a escala automática primeiro";
 var safeCuMinimum$2 = "O Acesso Rápido mantém um mínimo seguro de 24 CU.";
 var safeRange$2 = "intervalo validado";
 var save$2 = "Salvar seleção";
+var savedGames$2 = "Jogos salvos";
 var sensorLayout$2 = "Layout dos sensores";
+var serviceNotInstalled$2 = "Nenhum serviço de governador está instalado. Prepare um no modo Desktop.";
 var serviceRemovedBootProfile$2 = "O serviço é removido; o perfil detectado permanece disponível durante esta inicialização.";
+var serviceRunningBoot$2 = "Em execução · inicia com o sistema";
+var serviceRunningNoBoot$2 = "Em execução · não inicia com o sistema";
+var serviceStopped$2 = "Parado · desativado na inicialização";
+var serviceStoppedBoot$2 = "Parado · ativo na inicialização";
 var settingsTab$2 = "Configurações";
 var snapshotWarning$2 = "O instantâneo CU compartilhado não pôde ser atualizado. Atualize antes de fazer outra alteração no CU.";
 var speed$2 = "Velocidade PWM";
@@ -2449,9 +2940,17 @@ var topologyUnavailable$2 = "Topologia WGP indisponível.";
 var totalPower$2 = "Potência total";
 var ttmLimit$2 = "Limite de TTM";
 var unavailable$2 = "indisponível";
+var unchanged$2 = "Sem alteração";
 var unknownCause$2 = "O Acesso Rápido recebeu uma falha que ainda não corresponde a um componente conhecido.";
 var usage$2 = "Uso";
-var voltageHint$2 = "entrada de detecção bc250 real";
+var voltageApplyPoints$2 = "Aplicar pontos";
+var voltageConfirm$2 = "O governador Cyan reinicia para ler a nova curva e depois o seu intervalo de frequência atual é restaurado. Teste a estabilidade antes de confiar nela.";
+var voltageCustom$2 = "Personalizado";
+var voltageDiscard$2 = "Descartar";
+var voltageGovernor$2 = "Governador";
+var voltageHint$2 = "Só acrescenta tensão aos pontos a partir de 2000 MHz. Abaixo, ajuste um ponto em passos de 5 mV; o valor do governador é o mínimo.";
+var voltageLab$2 = "Laboratório de tensão";
+var voltageNeedsCyan$2 = "Inicie o governador Cyan para alterar a curva de tensão.";
 var vramApply$2 = "Aplicar VRAM";
 var vramApplyDescription$2 = "Grava a alocação de VRAM diretamente na CMOS. A velocidade do clock e os tempos de memória não são alterados.";
 var vramCurrentSize$2 = "Tamanho atual";
@@ -2460,6 +2959,7 @@ var vramPending$2 = "Alteração pendente";
 var vramRebootRequired$2 = "Aplicado após a próxima reinicialização.";
 var vramUnavailable$2 = "O particionamento de VRAM não está disponível neste sistema.";
 var vrmUnavailable$2 = "Não detectado · requer a modificação de hardware I2C.";
+var yes$2 = "Sim";
 var pt = {
 	accentBlue: accentBlue$2,
 	accentColor: accentColor$2,
@@ -2468,10 +2968,15 @@ var pt = {
 	accentOrange: accentOrange$2,
 	accentPurple: accentPurple$2,
 	accentWhite: accentWhite$2,
+	aceHint: aceHint$2,
+	aceInUse: aceInUse$2,
+	aceMeasuring: aceMeasuring$2,
 	advanced: advanced$2,
 	allSensors: allSensors$2,
 	apply: apply$2,
+	applyAutomatically: applyAutomatically$2,
 	applyChanges: applyChanges$2,
+	assignProfile: assignProfile$2,
 	automatic: automatic$2,
 	automaticApplyWarning: automaticApplyWarning$2,
 	board: board$2,
@@ -2479,6 +2984,7 @@ var pt = {
 	busyAction: busyAction$2,
 	busyCause: busyCause$2,
 	busyFailed: busyFailed$2,
+	cancel: cancel$2,
 	channel: channel$2,
 	close: close$2,
 	compute: compute$2,
@@ -2518,24 +3024,44 @@ var pt = {
 	detected: detected$2,
 	diagnosticCode: diagnosticCode$2,
 	disableHighPoints: disableHighPoints$2,
+	disableService: disableService$2,
+	disableServiceHint: disableServiceHint$2,
 	disabled: disabled$2,
+	editProfile: editProfile$2,
 	elapsed: elapsed$2,
 	enableHighPoints: enableHighPoints$2,
+	enableService: enableService$2,
+	enableServiceHint: enableServiceHint$2,
 	enabled: enabled$2,
 	error: error$2,
 	estimated: estimated$2,
 	external: external$2,
 	fan: fan$2,
+	fanBalanced: fanBalanced$2,
+	fanBoost: fanBoost$2,
 	fanCause: fanCause$2,
 	fanGuidance: fanGuidance$2,
 	fanOperationFailed: fanOperationFailed$2,
+	fanPresets: fanPresets$2,
+	fanQuiet: fanQuiet$2,
 	fanRpmObserved: fanRpmObserved$2,
 	fanUnverified: fanUnverified$2,
 	fanWiring: fanWiring$2,
+	fans: fans$2,
+	gameCpuNote: gameCpuNote$2,
+	gameNoProfile: gameNoProfile$2,
+	gameNotRunning: gameNotRunning$2,
+	gameProfileActive: gameProfileActive$2,
+	gameProfileApplied: gameProfileApplied$2,
+	gameProfileNotApplied: gameProfileNotApplied$2,
+	gameProfileRestored: gameProfileRestored$2,
+	gameProfileSave: gameProfileSave$2,
+	gamesEmpty: gamesEmpty$2,
 	gddr6Unavailable: gddr6Unavailable$2,
 	governor: governor$2,
 	governorConflict: governorConflict$2,
 	governorMissing: governorMissing$2,
+	governorService: governorService$2,
 	gpuAction: gpuAction$2,
 	gpuBusyCause: gpuBusyCause$2,
 	gpuBusyGuidance: gpuBusyGuidance$2,
@@ -2574,11 +3100,13 @@ var pt = {
 	monitoring: monitoring$2,
 	more: more$2,
 	next: next$2,
+	no: no$2,
 	oberonBusy: oberonBusy$2,
 	oberonIdle: oberonIdle$2,
 	oberonReady: oberonReady$2,
 	operationInProgress: operationInProgress$2,
 	pending: pending$2,
+	perGameProfiles: perGameProfiles$2,
 	persistent: persistent$2,
 	personalization: personalization$2,
 	power: power$2,
@@ -2595,14 +3123,21 @@ var pt = {
 	refreshInterval: refreshInterval$2,
 	refreshIntervalHint: refreshIntervalHint$2,
 	remove: remove$2,
+	removeGame: removeGame$2,
 	restore: restore$2,
 	retryGuidance: retryGuidance$2,
 	runAutomaticFirst: runAutomaticFirst$2,
 	safeCuMinimum: safeCuMinimum$2,
 	safeRange: safeRange$2,
 	save: save$2,
+	savedGames: savedGames$2,
 	sensorLayout: sensorLayout$2,
+	serviceNotInstalled: serviceNotInstalled$2,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$2,
+	serviceRunningBoot: serviceRunningBoot$2,
+	serviceRunningNoBoot: serviceRunningNoBoot$2,
+	serviceStopped: serviceStopped$2,
+	serviceStoppedBoot: serviceStoppedBoot$2,
 	settingsTab: settingsTab$2,
 	snapshotWarning: snapshotWarning$2,
 	speed: speed$2,
@@ -2622,9 +3157,17 @@ var pt = {
 	totalPower: totalPower$2,
 	ttmLimit: ttmLimit$2,
 	unavailable: unavailable$2,
+	unchanged: unchanged$2,
 	unknownCause: unknownCause$2,
 	usage: usage$2,
+	voltageApplyPoints: voltageApplyPoints$2,
+	voltageConfirm: voltageConfirm$2,
+	voltageCustom: voltageCustom$2,
+	voltageDiscard: voltageDiscard$2,
+	voltageGovernor: voltageGovernor$2,
 	voltageHint: voltageHint$2,
+	voltageLab: voltageLab$2,
+	voltageNeedsCyan: voltageNeedsCyan$2,
 	vramApply: vramApply$2,
 	vramApplyDescription: vramApplyDescription$2,
 	vramCurrentSize: vramCurrentSize$2,
@@ -2632,7 +3175,8 @@ var pt = {
 	vramPending: vramPending$2,
 	vramRebootRequired: vramRebootRequired$2,
 	vramUnavailable: vramUnavailable$2,
-	vrmUnavailable: vrmUnavailable$2
+	vrmUnavailable: vrmUnavailable$2,
+	yes: yes$2
 };
 
 var accentBlue$1 = "Синий";
@@ -2642,10 +3186,15 @@ var accentGreen$1 = "Зелёный";
 var accentOrange$1 = "Оранжевый";
 var accentPurple$1 = "Фиолетовый";
 var accentWhite$1 = "Белый";
-var advanced$1 = "продвинутый";
+var aceHint$1 = "Время работы очередей вычислений по данным amdgpu. Async compute включается и выключается в настольном приложении: нужен новый сеанс.";
+var aceInUse$1 = "Async compute (ACE) используется";
+var aceMeasuring$1 = "Измерение…";
+var advanced$1 = "Дополнительно";
 var allSensors$1 = "Все";
 var apply$1 = "Применить";
+var applyAutomatically$1 = "Применять при запуске игры";
 var applyChanges$1 = "Применить изменения";
+var assignProfile$1 = "Назначить профиль";
 var automatic$1 = "Автоматический";
 var automaticApplyWarning$1 = "bc250-detect проверит CPU под нагрузкой, определит масштаб и применит только найденный результат. Следите за температурой и стабильностью.";
 var board$1 = "Плата";
@@ -2653,6 +3202,7 @@ var boardSetup$1 = "Настройка платы";
 var busyAction$1 = "Дождитесь завершения текущей операции, обновите ее и повторите попытку.";
 var busyCause$1 = "Предыдущая печатная машина, рабочий процесс рабочего стола или внешний набор инструментов по-прежнему сохраняют аппаратную блокировку.";
 var busyFailed$1 = "Другая операция BC250 все еще выполняется.";
+var cancel$1 = "Отмена";
 var channel$1 = "Канал PWM";
 var close$1 = "Уволить";
 var compute$1 = "ВЫЧИСЛИТЕЛЬНЫЕ БЛОКИ";
@@ -2692,24 +3242,44 @@ var details$1 = "Технические детали";
 var detected$1 = "управление готово";
 var diagnosticCode$1 = "Диагностический код";
 var disableHighPoints$1 = "Отключить точки >2000 МГц";
+var disableService$1 = "Отключить службу";
+var disableServiceHint$1 = "Останавливает регулятор {name} и убирает его из автозагрузки. GPU работает на частотах драйвера, пока регулятор снова не запустится.";
 var disabled$1 = "Отключено";
+var editProfile$1 = "Изменить профиль";
 var elapsed$1 = "Прошедшее";
 var enableHighPoints$1 = "Включить точки >2000 МГц";
+var enableService$1 = "Включить службу";
+var enableServiceHint$1 = "Запускает регулятор {name} сейчас и при каждой загрузке. Одновременно может работать только один регулятор GPU.";
 var enabled$1 = "Включён";
 var error$1 = "Изменение не удалось подтвердить.";
 var estimated$1 = "оцененный";
 var external$1 = "Топология изменена за пределами быстрого доступа.";
 var fan$1 = "ФАН";
+var fanBalanced$1 = "Сбалансированный";
+var fanBoost$1 = "Усиленный";
 var fanCause$1 = "Драйвер NCT, маршрут hwmon, канал PWM или обратная запись недоступны.";
 var fanGuidance$1 = "Верните канал в автоматический режим и повторите попытку.";
 var fanOperationFailed$1 = "Сбой в работе вентилятора.";
+var fanPresets$1 = "Пресеты";
+var fanQuiet$1 = "Тихий";
 var fanRpmObserved$1 = "RPMнаблюдал";
 var fanUnverified$1 = "проводка не проверена";
 var fanWiring$1 = "PWM 2 — канал по умолчанию; проверьте проводку насоса/вентилятора перед применением ручной скорости.";
+var fans$1 = "Вентиляторы";
+var gameCpuNote$1 = "CPU сохраняет текущую настройку: её разгон считается надёжным только после стресс-теста, который нельзя запускать при каждом старте игры.";
+var gameNoProfile$1 = "Без профиля: используются текущие настройки";
+var gameNotRunning$1 = "Запустите игру, чтобы назначить ей свой профиль GPU и вентиляторов.";
+var gameProfileActive$1 = "АКТИВЕН";
+var gameProfileApplied$1 = "Профиль игры применён";
+var gameProfileNotApplied$1 = "Профиль игры не применён";
+var gameProfileRestored$1 = "Прежние настройки восстановлены";
+var gameProfileSave$1 = "Сохранить для этой игры";
+var gamesEmpty$1 = "Сохранённых игр пока нет.";
 var gddr6Unavailable$1 = "Не обнаружено · сначала примените патч SMU в режиме рабочего стола.";
 var governor$1 = "Governor";
 var governorConflict$1 = "Cyan и Oberon активны. Остановите один в режиме рабочего стола.";
 var governorMissing$1 = "Включите Cyan или Oberon в режиме рабочего стола.";
+var governorService$1 = "Служба регулятора";
 var gpuAction$1 = "Обновите статус GPU и проверьте активный регулятор в режиме рабочего стола.";
 var gpuBusyCause$1 = "GPU не находится в состоянии ожидания, необходимом для этого изменения Oberon.";
 var gpuBusyGuidance$1 = "Подождите, пока GPU вернется к частоте 1000 МГц, затем повторите попытку.";
@@ -2748,11 +3318,13 @@ var mode$1 = "Режим";
 var monitoring$1 = "Мониторинг";
 var more$1 = "Больше частот";
 var next$1 = "Следующий шаг";
+var no$1 = "Нет";
 var oberonBusy$1 = "Подождите, пока GPU вернется к частоте 1000 МГц.";
 var oberonIdle$1 = "Изменения только на холостом ходу";
 var oberonReady$1 = "Готов измениться";
 var operationInProgress$1 = "Выполняется операция; состояние GPU/CU возобновится после её завершения.";
 var pending$1 = "в ожидании";
+var perGameProfiles$1 = "Профили для игр";
 var persistent$1 = "Постоянно";
 var personalization$1 = "Персонализация";
 var power$1 = "ПИТАНИЕ";
@@ -2769,14 +3341,21 @@ var readOnly$1 = "только чтение";
 var refreshInterval$1 = "Интервал обновления";
 var refreshIntervalHint$1 = "Определяет, как часто обновляются вкладка мониторинга и датчики GDDR6. Не влияет на скорость применения изменений.";
 var remove$1 = "Удалить службу";
+var removeGame$1 = "Удалить";
 var restore$1 = "Восстановить живое состояние";
 var retryGuidance$1 = "Подождите несколько секунд и повторите попытку.";
 var runAutomaticFirst$1 = "Сначала запустите автоматическое масштабирование";
 var safeCuMinimum$1 = "Быстрый доступ обеспечивает безопасный минимум 24 CU.";
 var safeRange$1 = "проверенный диапазон";
 var save$1 = "Сохранить выбор";
+var savedGames$1 = "Сохранённые игры";
 var sensorLayout$1 = "Вид датчиков";
+var serviceNotInstalled$1 = "Служба регулятора не установлена. Подготовьте её в режиме рабочего стола.";
 var serviceRemovedBootProfile$1 = "Услуга удалена; обнаруженный профиль остается доступным во время этой загрузки.";
+var serviceRunningBoot$1 = "Работает · запускается при загрузке";
+var serviceRunningNoBoot$1 = "Работает · не включена при загрузке";
+var serviceStopped$1 = "Остановлена · отключена при загрузке";
+var serviceStoppedBoot$1 = "Остановлена · включена при загрузке";
 var settingsTab$1 = "Настройки";
 var snapshotWarning$1 = "Не удалось обновить общий снимок CU. Обновите перед внесением еще одного изменения CU.";
 var speed$1 = "PWM скорость";
@@ -2796,9 +3375,17 @@ var topologyUnavailable$1 = "Топология WGP недоступна.";
 var totalPower$1 = "Общая мощность";
 var ttmLimit$1 = "Ограничение TTM";
 var unavailable$1 = "недоступен";
+var unchanged$1 = "Без изменений";
 var unknownCause$1 = "Быстрый доступ получил ошибку, которая еще не соответствует известному компоненту.";
 var usage$1 = "Загрузка";
-var voltageHint$1 = "настоящий ввод bc250-обнаружения";
+var voltageApplyPoints$1 = "Применить точки";
+var voltageConfirm$1 = "Губернатор Cyan перезапустится, чтобы прочитать новую кривую, затем текущий диапазон частот будет восстановлен. Проверьте стабильность, прежде чем полагаться на неё.";
+var voltageCustom$1 = "Своя";
+var voltageDiscard$1 = "Отменить";
+var voltageGovernor$1 = "Губернатор";
+var voltageHint$1 = "Повышает напряжение только для точек от 2000 МГц. Ниже можно менять одну точку шагом 5 мВ; значение губернатора — нижняя граница.";
+var voltageLab$1 = "Лаборатория напряжения";
+var voltageNeedsCyan$1 = "Запустите губернатор Cyan, чтобы изменить кривую напряжения.";
 var vramApply$1 = "Применить VRAM";
 var vramApplyDescription$1 = "Записывает объём VRAM напрямую в CMOS. Тактовая частота и тайминги памяти не изменяются.";
 var vramCurrentSize$1 = "Текущий размер";
@@ -2807,6 +3394,7 @@ var vramPending$1 = "Изменение ожидает";
 var vramRebootRequired$1 = "Применяется после следующей перезагрузки.";
 var vramUnavailable$1 = "Разбиение VRAM недоступно на этой системе.";
 var vrmUnavailable$1 = "Не обнаружено · требуется аппаратная модификация I2C.";
+var yes$1 = "Да";
 var ru = {
 	accentBlue: accentBlue$1,
 	accentColor: accentColor$1,
@@ -2815,10 +3403,15 @@ var ru = {
 	accentOrange: accentOrange$1,
 	accentPurple: accentPurple$1,
 	accentWhite: accentWhite$1,
+	aceHint: aceHint$1,
+	aceInUse: aceInUse$1,
+	aceMeasuring: aceMeasuring$1,
 	advanced: advanced$1,
 	allSensors: allSensors$1,
 	apply: apply$1,
+	applyAutomatically: applyAutomatically$1,
 	applyChanges: applyChanges$1,
+	assignProfile: assignProfile$1,
 	automatic: automatic$1,
 	automaticApplyWarning: automaticApplyWarning$1,
 	board: board$1,
@@ -2826,6 +3419,7 @@ var ru = {
 	busyAction: busyAction$1,
 	busyCause: busyCause$1,
 	busyFailed: busyFailed$1,
+	cancel: cancel$1,
 	channel: channel$1,
 	close: close$1,
 	compute: compute$1,
@@ -2865,24 +3459,44 @@ var ru = {
 	detected: detected$1,
 	diagnosticCode: diagnosticCode$1,
 	disableHighPoints: disableHighPoints$1,
+	disableService: disableService$1,
+	disableServiceHint: disableServiceHint$1,
 	disabled: disabled$1,
+	editProfile: editProfile$1,
 	elapsed: elapsed$1,
 	enableHighPoints: enableHighPoints$1,
+	enableService: enableService$1,
+	enableServiceHint: enableServiceHint$1,
 	enabled: enabled$1,
 	error: error$1,
 	estimated: estimated$1,
 	external: external$1,
 	fan: fan$1,
+	fanBalanced: fanBalanced$1,
+	fanBoost: fanBoost$1,
 	fanCause: fanCause$1,
 	fanGuidance: fanGuidance$1,
 	fanOperationFailed: fanOperationFailed$1,
+	fanPresets: fanPresets$1,
+	fanQuiet: fanQuiet$1,
 	fanRpmObserved: fanRpmObserved$1,
 	fanUnverified: fanUnverified$1,
 	fanWiring: fanWiring$1,
+	fans: fans$1,
+	gameCpuNote: gameCpuNote$1,
+	gameNoProfile: gameNoProfile$1,
+	gameNotRunning: gameNotRunning$1,
+	gameProfileActive: gameProfileActive$1,
+	gameProfileApplied: gameProfileApplied$1,
+	gameProfileNotApplied: gameProfileNotApplied$1,
+	gameProfileRestored: gameProfileRestored$1,
+	gameProfileSave: gameProfileSave$1,
+	gamesEmpty: gamesEmpty$1,
 	gddr6Unavailable: gddr6Unavailable$1,
 	governor: governor$1,
 	governorConflict: governorConflict$1,
 	governorMissing: governorMissing$1,
+	governorService: governorService$1,
 	gpuAction: gpuAction$1,
 	gpuBusyCause: gpuBusyCause$1,
 	gpuBusyGuidance: gpuBusyGuidance$1,
@@ -2921,11 +3535,13 @@ var ru = {
 	monitoring: monitoring$1,
 	more: more$1,
 	next: next$1,
+	no: no$1,
 	oberonBusy: oberonBusy$1,
 	oberonIdle: oberonIdle$1,
 	oberonReady: oberonReady$1,
 	operationInProgress: operationInProgress$1,
 	pending: pending$1,
+	perGameProfiles: perGameProfiles$1,
 	persistent: persistent$1,
 	personalization: personalization$1,
 	power: power$1,
@@ -2942,14 +3558,21 @@ var ru = {
 	refreshInterval: refreshInterval$1,
 	refreshIntervalHint: refreshIntervalHint$1,
 	remove: remove$1,
+	removeGame: removeGame$1,
 	restore: restore$1,
 	retryGuidance: retryGuidance$1,
 	runAutomaticFirst: runAutomaticFirst$1,
 	safeCuMinimum: safeCuMinimum$1,
 	safeRange: safeRange$1,
 	save: save$1,
+	savedGames: savedGames$1,
 	sensorLayout: sensorLayout$1,
+	serviceNotInstalled: serviceNotInstalled$1,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$1,
+	serviceRunningBoot: serviceRunningBoot$1,
+	serviceRunningNoBoot: serviceRunningNoBoot$1,
+	serviceStopped: serviceStopped$1,
+	serviceStoppedBoot: serviceStoppedBoot$1,
 	settingsTab: settingsTab$1,
 	snapshotWarning: snapshotWarning$1,
 	speed: speed$1,
@@ -2969,9 +3592,17 @@ var ru = {
 	totalPower: totalPower$1,
 	ttmLimit: ttmLimit$1,
 	unavailable: unavailable$1,
+	unchanged: unchanged$1,
 	unknownCause: unknownCause$1,
 	usage: usage$1,
+	voltageApplyPoints: voltageApplyPoints$1,
+	voltageConfirm: voltageConfirm$1,
+	voltageCustom: voltageCustom$1,
+	voltageDiscard: voltageDiscard$1,
+	voltageGovernor: voltageGovernor$1,
 	voltageHint: voltageHint$1,
+	voltageLab: voltageLab$1,
+	voltageNeedsCyan: voltageNeedsCyan$1,
 	vramApply: vramApply$1,
 	vramApplyDescription: vramApplyDescription$1,
 	vramCurrentSize: vramCurrentSize$1,
@@ -2979,7 +3610,8 @@ var ru = {
 	vramPending: vramPending$1,
 	vramRebootRequired: vramRebootRequired$1,
 	vramUnavailable: vramUnavailable$1,
-	vrmUnavailable: vrmUnavailable$1
+	vrmUnavailable: vrmUnavailable$1,
+	yes: yes$1
 };
 
 var accentBlue = "Синій";
@@ -2989,10 +3621,15 @@ var accentGreen = "Зелений";
 var accentOrange = "Помаранчевий";
 var accentPurple = "Фіолетовий";
 var accentWhite = "Білий";
-var advanced = "просунутий";
+var aceHint = "Час роботи черг обчислень за даними amdgpu. Async compute вмикається й вимикається в застосунку для робочого столу: потрібен новий сеанс.";
+var aceInUse = "Async compute (ACE) використовується";
+var aceMeasuring = "Вимірювання…";
+var advanced = "Додатково";
 var allSensors = "Усі";
 var apply = "Застосувати";
+var applyAutomatically = "Застосовувати під час запуску гри";
 var applyChanges = "Застосувати зміни";
+var assignProfile = "Призначити профіль";
 var automatic = "Автоматичний";
 var automaticApplyWarning = "bc250-detect перевірить CPU під навантаженням, виведе масштаб і застосує лише знайдений результат. Слідкуйте за температурою та стабільністю.";
 var board = "Плата";
@@ -3000,6 +3637,7 @@ var boardSetup = "Налаштування плати";
 var busyAction = "Дочекайтеся завершення поточної операції, оновіть і повторіть спробу.";
 var busyCause = "Попереднє натискання, робочий процес на робочому столі або зовнішній набір інструментів усе ще утримують апаратне блокування.";
 var busyFailed = "Інша операція BC250 все ще виконується.";
+var cancel = "Скасувати";
 var channel = "Канал PWM";
 var close = "Відхилити";
 var compute = "ОБЧИСЛЮВАЛЬНІ БЛОКИ";
@@ -3039,24 +3677,44 @@ var details = "Технічні деталі";
 var detected = "контроль готовий";
 var diagnosticCode = "Діагностичний код";
 var disableHighPoints = "Вимкнути точки >2000 МГц";
+var disableService = "Вимкнути службу";
+var disableServiceHint = "Зупиняє регулятор {name} і прибирає його з автозавантаження. GPU працює на частотах драйвера, доки регулятор знову не запуститься.";
 var disabled = "Вимкнено";
+var editProfile = "Змінити профіль";
 var elapsed = "Минув";
 var enableHighPoints = "Увімкнути точки >2000 МГц";
+var enableService = "Увімкнути службу";
+var enableServiceHint = "Запускає регулятор {name} зараз і під час кожного завантаження. Одночасно може працювати лише один регулятор GPU.";
 var enabled = "Увімкнено";
 var error = "Не вдалося перевірити зміну";
 var estimated = "оцінюється";
 var external = "Топологія змінена за межами швидкого доступу.";
 var fan = "ВЕНТИЛЯТОР";
+var fanBalanced = "Збалансований";
+var fanBoost = "Посилений";
 var fanCause = "Драйвер NCT, маршрут hwmon, канал PWM або зворотне записування недоступні.";
 var fanGuidance = "Поверніть канал до автоматичного режиму та повторіть спробу.";
 var fanOperationFailed = "Помилка роботи вентилятора.";
+var fanPresets = "Пресети";
+var fanQuiet = "Тихий";
 var fanRpmObserved = "RPMспостерігається";
 var fanUnverified = "проводка неперевірена";
 var fanWiring = "PWM 2 є каналом за замовчуванням; перевірте електропроводку насоса/вентилятора перед застосуванням ручної швидкості.";
+var fans = "Вентилятори";
+var gameCpuNote = "CPU зберігає поточне налаштування: її розгін вважається надійним лише після стрес-тесту, який не можна запускати під час кожного старту гри.";
+var gameNoProfile = "Без профілю: використовуються поточні налаштування";
+var gameNotRunning = "Запустіть гру, щоб призначити їй власний профіль GPU та вентиляторів.";
+var gameProfileActive = "АКТИВНИЙ";
+var gameProfileApplied = "Профіль гри застосовано";
+var gameProfileNotApplied = "Профіль гри не застосовано";
+var gameProfileRestored = "Попередні налаштування відновлено";
+var gameProfileSave = "Зберегти для цієї гри";
+var gamesEmpty = "Збережених ігор поки немає.";
 var gddr6Unavailable = "Не виявлено · спочатку застосуйте патч SMU в режимі робочого столу.";
 var governor = "Governor";
 var governorConflict = "Cyan і Oberon активні. Зупиніть один у режимі робочого столу.";
 var governorMissing = "Увімкніть Cyan або Oberon у режимі робочого столу.";
+var governorService = "Служба регулятора";
 var gpuAction = "Оновіть статус GPU та перевірте активний регулятор у режимі настільного комп’ютера.";
 var gpuBusyCause = "GPU не перебуває в стані очікування, необхідному для цієї зміни Oberon.";
 var gpuBusyGuidance = "Зачекайте, доки GPU повернеться до 1000 МГц, а потім повторіть спробу.";
@@ -3095,11 +3753,13 @@ var mode = "Режим";
 var monitoring = "Моніторинг";
 var more = "Більше частот";
 var next = "Наступний крок";
+var no = "Ні";
 var oberonBusy = "Зачекайте, поки GPU повернеться до 1000 МГц";
 var oberonIdle = "Зміни тільки в режимі холостого ходу";
 var oberonReady = "Готовий до змін";
 var operationInProgress = "Виконується операція; стан GPU/CU відновиться після завершення.";
 var pending = "в очікуванні";
+var perGameProfiles = "Профілі для ігор";
 var persistent = "Постійно";
 var personalization = "Персоналізація";
 var power = "ЖИВЛЕННЯ";
@@ -3116,14 +3776,21 @@ var readOnly = "лише читання";
 var refreshInterval = "Інтервал оновлення";
 var refreshIntervalHint = "Визначає, як часто оновлюються вкладка моніторингу та датчики GDDR6. Не впливає на швидкість застосування змін.";
 var remove = "Видалити службу";
+var removeGame = "Видалити";
 var restore = "Відновити поточний стан";
 var retryGuidance = "Зачекайте кілька секунд і повторіть спробу.";
 var runAutomaticFirst = "Спочатку запустіть автоматичне масштабування";
 var safeCuMinimum = "Швидкий доступ зберігає мінімум 24 CU.";
 var safeRange = "перевірений діапазон";
 var save = "Зберегти вибір";
+var savedGames = "Збережені ігри";
 var sensorLayout = "Вигляд датчиків";
+var serviceNotInstalled = "Службу регулятора не встановлено. Підготуйте її в режимі робочого столу.";
 var serviceRemovedBootProfile = "Сервіс видалено; виявлений профіль залишається доступним під час цього завантаження.";
+var serviceRunningBoot = "Працює · запускається під час завантаження";
+var serviceRunningNoBoot = "Працює · не ввімкнена під час завантаження";
+var serviceStopped = "Зупинена · вимкнена під час завантаження";
+var serviceStoppedBoot = "Зупинена · ввімкнена під час завантаження";
 var settingsTab = "Налаштування";
 var snapshotWarning = "Не вдалося оновити спільний знімок CU. Оновіть перед внесенням іншої зміни CU.";
 var speed = "Швидкість PWM";
@@ -3143,9 +3810,17 @@ var topologyUnavailable = "Топологія WGP недоступна.";
 var totalPower = "Загальна потужність";
 var ttmLimit = "Ліміт TTM";
 var unavailable = "недоступний";
+var unchanged = "Без змін";
 var unknownCause = "Швидкий доступ отримав помилку, яка ще не відповідає відомому компоненту.";
 var usage = "Завантаження";
-var voltageHint = "справжній вхід bc250-detect";
+var voltageApplyPoints = "Застосувати точки";
+var voltageConfirm = "Губернатор Cyan перезапуститься, щоб прочитати нову криву, потім поточний діапазон частот буде відновлено. Перевірте стабільність, перш ніж на неї покладатися.";
+var voltageCustom = "Власна";
+var voltageDiscard = "Скасувати";
+var voltageGovernor = "Губернатор";
+var voltageHint = "Підвищує напругу лише для точок від 2000 МГц. Нижче можна змінювати одну точку кроком 5 мВ; значення губернатора — нижня межа.";
+var voltageLab = "Лабораторія напруги";
+var voltageNeedsCyan = "Запустіть губернатор Cyan, щоб змінити криву напруги.";
 var vramApply = "Застосувати VRAM";
 var vramApplyDescription = "Записує обсяг VRAM безпосередньо в CMOS. Тактова частота та таймінги пам'яті не змінюються.";
 var vramCurrentSize = "Поточний розмір";
@@ -3154,6 +3829,7 @@ var vramPending = "Зміна очікує";
 var vramRebootRequired = "Набуває чинності після наступного перезавантаження.";
 var vramUnavailable = "Розбиття VRAM недоступне в цій системі.";
 var vrmUnavailable = "Не виявлено · потрібна апаратна модифікація I2C.";
+var yes = "Так";
 var uk = {
 	accentBlue: accentBlue,
 	accentColor: accentColor,
@@ -3162,10 +3838,15 @@ var uk = {
 	accentOrange: accentOrange,
 	accentPurple: accentPurple,
 	accentWhite: accentWhite,
+	aceHint: aceHint,
+	aceInUse: aceInUse,
+	aceMeasuring: aceMeasuring,
 	advanced: advanced,
 	allSensors: allSensors,
 	apply: apply,
+	applyAutomatically: applyAutomatically,
 	applyChanges: applyChanges,
+	assignProfile: assignProfile,
 	automatic: automatic,
 	automaticApplyWarning: automaticApplyWarning,
 	board: board,
@@ -3173,6 +3854,7 @@ var uk = {
 	busyAction: busyAction,
 	busyCause: busyCause,
 	busyFailed: busyFailed,
+	cancel: cancel,
 	channel: channel,
 	close: close,
 	compute: compute,
@@ -3212,24 +3894,44 @@ var uk = {
 	detected: detected,
 	diagnosticCode: diagnosticCode,
 	disableHighPoints: disableHighPoints,
+	disableService: disableService,
+	disableServiceHint: disableServiceHint,
 	disabled: disabled,
+	editProfile: editProfile,
 	elapsed: elapsed,
 	enableHighPoints: enableHighPoints,
+	enableService: enableService,
+	enableServiceHint: enableServiceHint,
 	enabled: enabled,
 	error: error,
 	estimated: estimated,
 	external: external,
 	fan: fan,
+	fanBalanced: fanBalanced,
+	fanBoost: fanBoost,
 	fanCause: fanCause,
 	fanGuidance: fanGuidance,
 	fanOperationFailed: fanOperationFailed,
+	fanPresets: fanPresets,
+	fanQuiet: fanQuiet,
 	fanRpmObserved: fanRpmObserved,
 	fanUnverified: fanUnverified,
 	fanWiring: fanWiring,
+	fans: fans,
+	gameCpuNote: gameCpuNote,
+	gameNoProfile: gameNoProfile,
+	gameNotRunning: gameNotRunning,
+	gameProfileActive: gameProfileActive,
+	gameProfileApplied: gameProfileApplied,
+	gameProfileNotApplied: gameProfileNotApplied,
+	gameProfileRestored: gameProfileRestored,
+	gameProfileSave: gameProfileSave,
+	gamesEmpty: gamesEmpty,
 	gddr6Unavailable: gddr6Unavailable,
 	governor: governor,
 	governorConflict: governorConflict,
 	governorMissing: governorMissing,
+	governorService: governorService,
 	gpuAction: gpuAction,
 	gpuBusyCause: gpuBusyCause,
 	gpuBusyGuidance: gpuBusyGuidance,
@@ -3268,11 +3970,13 @@ var uk = {
 	monitoring: monitoring,
 	more: more,
 	next: next,
+	no: no,
 	oberonBusy: oberonBusy,
 	oberonIdle: oberonIdle,
 	oberonReady: oberonReady,
 	operationInProgress: operationInProgress,
 	pending: pending,
+	perGameProfiles: perGameProfiles,
 	persistent: persistent,
 	personalization: personalization,
 	power: power,
@@ -3289,14 +3993,21 @@ var uk = {
 	refreshInterval: refreshInterval,
 	refreshIntervalHint: refreshIntervalHint,
 	remove: remove,
+	removeGame: removeGame,
 	restore: restore,
 	retryGuidance: retryGuidance,
 	runAutomaticFirst: runAutomaticFirst,
 	safeCuMinimum: safeCuMinimum,
 	safeRange: safeRange,
 	save: save,
+	savedGames: savedGames,
 	sensorLayout: sensorLayout,
+	serviceNotInstalled: serviceNotInstalled,
 	serviceRemovedBootProfile: serviceRemovedBootProfile,
+	serviceRunningBoot: serviceRunningBoot,
+	serviceRunningNoBoot: serviceRunningNoBoot,
+	serviceStopped: serviceStopped,
+	serviceStoppedBoot: serviceStoppedBoot,
 	settingsTab: settingsTab,
 	snapshotWarning: snapshotWarning,
 	speed: speed,
@@ -3316,9 +4027,17 @@ var uk = {
 	totalPower: totalPower,
 	ttmLimit: ttmLimit,
 	unavailable: unavailable,
+	unchanged: unchanged,
 	unknownCause: unknownCause,
 	usage: usage,
+	voltageApplyPoints: voltageApplyPoints,
+	voltageConfirm: voltageConfirm,
+	voltageCustom: voltageCustom,
+	voltageDiscard: voltageDiscard,
+	voltageGovernor: voltageGovernor,
 	voltageHint: voltageHint,
+	voltageLab: voltageLab,
+	voltageNeedsCyan: voltageNeedsCyan,
 	vramApply: vramApply,
 	vramApplyDescription: vramApplyDescription,
 	vramCurrentSize: vramCurrentSize,
@@ -3326,7 +4045,8 @@ var uk = {
 	vramPending: vramPending,
 	vramRebootRequired: vramRebootRequired,
 	vramUnavailable: vramUnavailable,
-	vrmUnavailable: vrmUnavailable
+	vrmUnavailable: vrmUnavailable,
+	yes: yes
 };
 
 const catalogs = {
@@ -3366,6 +4086,9 @@ const getGddr6Sensors = callable("gddr6_sensors");
 const applyGpuProfile = callable("apply_gpu_profile");
 const applyGpuSafePoint = callable("apply_gpu_safe_point");
 const setGpuHighFrequencyPoints = callable("set_gpu_high_frequency_points");
+const setGpuGovernorService = callable("set_gpu_governor_service");
+const applyGpuVoltageLevel = callable("apply_gpu_voltage_level");
+const applyGpuVoltagePoints = callable("apply_gpu_voltage_points");
 const applyCuTable = callable("apply_cu_table");
 const saveCuTable = callable("save_cu_table");
 const installCuService = callable("install_cu_service");
@@ -3376,6 +4099,13 @@ const applyCpuScale = callable("apply_cpu_scale");
 const installCpuService = callable("install_cpu_service");
 const removeCpuService = callable("remove_cpu_service");
 const applyVramSize = callable("apply_vram_size");
+const applySystemFanPreset = callable("apply_system_fan_preset");
+const getGameProfiles = callable("game_profiles");
+const saveGameProfile = callable("save_game_profile");
+const removeGameProfile = callable("remove_game_profile");
+const setGameProfilesEnabled = callable("set_game_profiles_enabled");
+const gameStarted = callable("game_started");
+const gameStopped = callable("game_stopped");
 const fanChannels = [2, 3, 4, 5];
 const cuRows = ["SE0.SH0", "SE0.SH1", "SE1.SH0", "SE1.SH1"];
 // Same ladder the desktop's own VRAM control offers; used only until the
@@ -3473,6 +4203,107 @@ function masksFromTarget(target, targets) {
             extra -= 1;
         }
     return masks;
+}
+let runningGame = null;
+const runningGameListeners = new Set();
+const gameStoreListeners = new Set();
+const runningInstances = new Map();
+function setRunningGame(game) {
+    runningGame = game;
+    runningGameListeners.forEach((listener) => listener(game));
+}
+function notifyGameStore() { gameStoreListeners.forEach((listener) => listener()); }
+function useRunningGame() {
+    const [game, setGame] = SP_REACT.useState(runningGame);
+    SP_REACT.useEffect(() => { runningGameListeners.add(setGame); return () => { runningGameListeners.delete(setGame); }; }, []);
+    return game;
+}
+function appName(appId) {
+    try {
+        const name = globalThis.appStore?.GetAppOverviewByAppID?.(appId)?.display_name;
+        if (name)
+            return String(name);
+    }
+    catch { /* the Steam store can be unavailable for a moment */ }
+    return `App ${appId}`;
+}
+function presetLabel(key, presets) {
+    if (!key)
+        return text.unchanged;
+    if (key === "automatic")
+        return text.automatic;
+    const exported = presets?.find((preset) => preset.key === key)?.name;
+    if (exported)
+        return exported;
+    return key === "quiet" ? text.fanQuiet : key === "balanced" ? text.fanBalanced : key === "boost" ? text.fanBoost : key;
+}
+function gpuLabel(key, profiles) {
+    if (!key)
+        return text.unchanged;
+    const named = profiles?.find((profile) => profile.key === key)?.name;
+    if (named)
+        return named;
+    if (key === "balanced")
+        return text.profileBalanced;
+    if (key === "gaming")
+        return text.profileGaming;
+    if (key === "benchmark")
+        return text.profileBenchmark;
+    return key.startsWith("oberon-") ? `${key.slice(7)} MHz` : key;
+}
+async function onGameStart(appId, name, refresh = false) {
+    setRunningGame({ appId, name });
+    try {
+        const result = await gameStarted(appId, name, refresh);
+        if (result.ok === false)
+            toaster.toast({ title: `BC250 · ${name}`, body: `${text.gameProfileNotApplied}: ${localizedErrorSummary(result.error ?? text.error)}` });
+        else if (result.applied)
+            toaster.toast({ title: `BC250 · ${name}`, body: `${text.gameProfileApplied}${result.gpu ? ` · GPU ${gpuLabel(result.gpu)}` : ""}${result.fan ? ` · ${text.fans} ${presetLabel(result.fan)}` : ""}` });
+    }
+    catch (error) {
+        toaster.toast({ title: `BC250 · ${name}`, body: `${text.gameProfileNotApplied}: ${localizedErrorSummary(failed(error).error ?? text.error)}` });
+    }
+    finally {
+        notifyGameStore();
+    }
+}
+async function onGameStop(appId) {
+    if (runningGame?.appId === appId)
+        setRunningGame(null);
+    try {
+        const result = await gameStopped(appId);
+        if (result.ok === false)
+            toaster.toast({ title: "BC250", body: localizedErrorSummary(result.error ?? text.error) });
+        else if (result.restored)
+            toaster.toast({ title: `BC250 · ${result.name || appName(Number(appId))}`, body: text.gameProfileRestored });
+    }
+    catch (error) {
+        toaster.toast({ title: "BC250", body: localizedErrorSummary(failed(error).error ?? text.error) });
+    }
+    finally {
+        notifyGameStore();
+    }
+}
+function onAppLifetime(update) {
+    const appId = String(update.unAppID ?? "");
+    if (!appId || appId === "0")
+        return;
+    // A launcher and its game can be two instances of one app: the profile
+    // stays on until the last of them ends.
+    const instances = runningInstances.get(appId) ?? new Set();
+    if (update.bRunning) {
+        const first = instances.size === 0;
+        instances.add(update.nInstanceID);
+        runningInstances.set(appId, instances);
+        if (first)
+            void onGameStart(appId, appName(update.unAppID));
+        return;
+    }
+    instances.delete(update.nInstanceID);
+    if (instances.size === 0) {
+        runningInstances.delete(appId);
+        void onGameStop(appId);
+    }
 }
 // The accent recolors every selected/active/primary-action surface in the
 // interface (active tab, selected profile, primary button, section icons
@@ -3578,6 +4409,7 @@ function SectionTitle({ kind, title, trailing }) {
         memory: [SP_JSX.jsx(FaMemory, {}), tokens.colors.green, tokens.colors.green_soft],
         storage: [SP_JSX.jsx(FaHdd, {}), tokens.colors.green, tokens.colors.green_soft],
         settings: [SP_JSX.jsx(FaCog, {}), accent.focus, accent.focus_soft],
+        game: [SP_JSX.jsx(FaGamepad, {}), accent.focus, accent.focus_soft],
     }[kind];
     return SP_JSX.jsxs("div", { style: { alignItems: "center", display: "flex", gap: 6, margin: "0 2px 6px" }, children: [SP_JSX.jsx("span", { style: { alignItems: "center", background: data[2], borderRadius: 4, color: data[1], display: "flex", fontSize: 10, height: 16, justifyContent: "center", width: 16 }, children: data[0] }), SP_JSX.jsx("span", { style: { color: tokens.colors.subtle, flex: 1, fontSize: 10, fontWeight: 650, letterSpacing: ".05em" }, children: title }), trailing] });
 }
@@ -3585,6 +4417,40 @@ function Notice({ value, dismiss }) {
     const [open, setOpen] = SP_REACT.useState(false);
     const diagnosis = diagnoseError(value);
     return SP_JSX.jsxs("div", { role: "alert", style: { background: tokens.colors.red_soft, border: `1px solid ${tokens.colors.red}`, borderRadius: 8, marginBottom: 10, padding: 9 }, children: [SP_JSX.jsxs("div", { style: { display: "flex", gap: 7 }, children: [SP_JSX.jsx(FaExclamationTriangle, { color: tokens.colors.red }), SP_JSX.jsxs("div", { children: [SP_JSX.jsx("b", { children: text.error }), SP_JSX.jsx("div", { style: { color: tokens.colors.red, fontSize: 11, marginTop: 3 }, children: diagnosis.summary }), SP_JSX.jsxs("div", { style: { color: tokens.colors.muted, fontSize: 10, marginTop: 4 }, children: [SP_JSX.jsxs("b", { children: [text.likelyCause, ":"] }), " ", diagnosis.cause] }), SP_JSX.jsxs("div", { style: { color: tokens.colors.muted, fontSize: 10, marginTop: 4 }, children: [SP_JSX.jsxs("b", { children: [text.next, ":"] }), " ", diagnosis.action] })] })] }), SP_JSX.jsxs("div", { style: { display: "flex", gap: 6, marginTop: 7 }, children: [SP_JSX.jsx(PadButton, { onActivate: () => setOpen(!open), style: { fontSize: 10, minHeight: 30, padding: "4px 8px" }, children: open ? text.hide : text.details }), SP_JSX.jsx(PadButton, { onActivate: dismiss, style: { fontSize: 10, minHeight: 30, padding: "4px 8px" }, children: text.close })] }), open ? SP_JSX.jsxs("pre", { style: { background: tokens.colors.console_bg, color: tokens.colors.red, fontSize: 9, margin: "7px 0 0", overflowWrap: "anywhere", padding: 6, whiteSpace: "pre-wrap" }, children: [text.diagnosticCode, ": ", diagnosis.code, "\n", value] }) : null] });
+}
+// The installed governor's service, under the frequency controls it serves.
+// Every change is confirmed first and read back by the root helper, which
+// picks the unit itself and refuses while both governors run.
+function GovernorServiceRow({ state, busy, execute }) {
+    const accent = ACCENT_SWATCHES[SP_REACT.useContext(SettingsContext).settings.accent];
+    const target = state.gpu_service_target ?? "";
+    const name = target === "oberon" ? "Oberon" : target === "cyan" ? "Cyan Skillfish" : "";
+    const installed = Boolean(state.gpu_service_installed && target);
+    const running = Boolean(state.gpu_service_active);
+    const atBoot = Boolean(state.gpu_service_enabled);
+    const conflict = Boolean(state.gpu_service_conflict);
+    const summary = conflict ? text.governorConflict
+        : !installed ? text.serviceNotInstalled
+            : running ? (atBoot ? text.serviceRunningBoot : text.serviceRunningNoBoot)
+                : (atBoot ? text.serviceStoppedBoot : text.serviceStopped);
+    const tone = conflict ? tokens.colors.red : !installed ? tokens.colors.amber : running ? accent.focus : tokens.colors.subtle;
+    const confirm = (enable) => DFL.showModal(SP_JSX.jsx(DFL.ConfirmModal, { strTitle: enable ? text.enableService : text.disableService, strDescription: (enable ? text.enableServiceHint : text.disableServiceHint).replace("{name}", name), strOKButtonText: enable ? text.enableService : text.disableService, bDestructiveWarning: !enable, onOK: () => void execute(`GPU · ${text.governorService}`, () => setGpuGovernorService(enable), "gpu") }));
+    return SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, marginTop: 6, padding: "7px 8px 8px" }, children: [SP_JSX.jsxs("div", { style: { alignItems: "baseline", display: "flex", gap: 6, justifyContent: "space-between", marginBottom: 6 }, children: [SP_JSX.jsxs("span", { style: { color: tokens.colors.text, fontSize: 10, fontWeight: 650 }, children: [text.governorService, name ? SP_JSX.jsxs("span", { style: { color: tokens.colors.subtle, fontWeight: 500 }, children: [" \u00B7 ", name] }) : null] }), SP_JSX.jsx("span", { style: { color: tone, fontSize: 9, fontWeight: 650, textAlign: "right" }, children: summary })] }), SP_JSX.jsxs(ActionRow, { children: [SP_JSX.jsx(Action, { label: text.enableService, primary: installed && !running, disabled: busy || !installed || conflict || (running && atBoot), onActivate: () => confirm(true) }), SP_JSX.jsx(Action, { label: text.disableService, danger: true, disabled: busy || !installed || conflict || (!running && !atBoot), onActivate: () => confirm(false) })] })] });
+}
+// Cyan's commented TOML points above 2000 MHz, as the switch it is. It lives
+// in Settings: it is a one-time decision about what the GPU tab offers, not
+// a control used while playing. It asks first, and a cancelled question puts
+// the switch back where the file is.
+function HighPointsSwitch({ state, busy, execute }) {
+    const cyanActive = state.gpu_governor === "cyan";
+    const enabled = (state.gpu_safe_point_ceilings ?? []).length > 0;
+    const [revision, setRevision] = SP_REACT.useState(0);
+    const request = (next) => {
+        if (next === enabled)
+            return;
+        DFL.showModal(SP_JSX.jsx(DFL.ConfirmModal, { strTitle: next ? text.enableHighPoints : text.disableHighPoints, strDescription: text.highFrequencyPointsHint, strOKButtonText: next ? text.enableHighPoints : text.disableHighPoints, bDestructiveWarning: next, onOK: () => void execute(text.highFrequencyPoints, () => setGpuHighFrequencyPoints(next), "gpu"), onCancel: () => setRevision((value) => value + 1) }));
+    };
+    return SP_JSX.jsx("div", { style: { background: tokens.colors.panel_alt, border: `1px solid ${enabled ? tokens.colors.red : tokens.colors.border_soft}`, borderRadius: 6, fontSize: 11, marginBottom: 6, overflow: "hidden" }, children: SP_JSX.jsx(DFL.ToggleField, { label: text.highFrequencyPoints, description: cyanActive ? undefined : text.highFrequencyCyanOnly, layout: "inline", bottomSeparator: "none", highlightOnFocus: true, checked: enabled, disabled: busy || !cyanActive, onChange: request }, `${revision}-${enabled}`) });
 }
 function Action({ label, disabled, primary, danger, onActivate }) {
     const accent = ACCENT_SWATCHES[SP_REACT.useContext(SettingsContext).settings.accent];
@@ -3669,6 +4535,64 @@ function Gddr6Panel({ state }) {
                                 { label: "HOTSPOT", value: state.gddr6_hotspot_c != null ? `${state.gddr6_hotspot_c.toFixed(1)} °C` : "—" },
                             ] }), SP_JSX.jsx("div", { style: { background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 6, display: "grid", gap: 1, gridTemplateColumns: "repeat(4,minmax(0,1fr))", overflow: "hidden" }, children: chips.map((chip) => SP_JSX.jsxs("div", { style: { background: chip.chip === state.gddr6_hotspot_chip ? accent.focus_soft : tokens.colors.panel_raised, padding: "6px 7px" }, children: [SP_JSX.jsxs("div", { style: { color: tokens.colors.subtle, fontSize: 8 }, children: ["CHIP ", chip.chip] }), SP_JSX.jsxs("div", { style: { fontSize: 10, fontWeight: 650 }, children: [chip.temperature_c.toFixed(1), " \u00B0C"] })] }, chip.chip)) })] })] });
 }
+// Read-only sensor tiles are plain divs, and a Quick Access panel scrolls only
+// to reveal the element the controller has focused: with nothing focusable
+// under the sub-tabs, "down" had nowhere to go and every sensor below the
+// fold was out of reach. Each block is a quiet focus stop -- outlined in the
+// accent while focused, so the player sees where they are -- and an invisible
+// stop at the very end carries the scroll to the bottom of the section.
+function ScrollStop({ children, end = false }) {
+    const accent = ACCENT_SWATCHES[SP_REACT.useContext(SettingsContext).settings.accent];
+    const [focused, setFocused] = SP_REACT.useState(false);
+    const focusEvents = {
+        onGamepadFocus: () => setFocused(true),
+        onGamepadBlur: () => setFocused(false),
+    };
+    return SP_JSX.jsx(DFL.Focusable, { noFocusRing: true, onActivate: () => undefined, ...focusEvents, style: end
+            ? { height: 16 }
+            : { borderRadius: 8, boxShadow: focused ? `0 0 0 1px ${accent.focus}` : "none", marginBottom: 2, padding: 1, transition: "box-shadow 90ms ease" }, children: children ?? SP_JSX.jsx("span", {}) });
+}
+const VOLTAGE_LEVELS = [0, 1, 2, 3];
+const VOLTAGE_STEP_MV = 5;
+const VOLTAGE_MAX_ABOVE_DEFAULT_MV = 60;
+// The desktop voltage drawer, cut down to what a controller can do safely:
+// the governor curve or +10/+20/+30 mV on the points from 2000 MHz up, and a
+// per-point nudge in 5 mV steps that can never go below the governor value
+// or more than 60 mV above it. The helper re-checks every bound.
+function VoltageLab({ state, busy, execute }) {
+    const accent = ACCENT_SWATCHES[SP_REACT.useContext(SettingsContext).settings.accent];
+    const [open, setOpen] = SP_REACT.useState(false);
+    const points = (state.gpu_voltage_points ?? []).filter((point) => point.frequency >= 2000);
+    const [draft, setDraft] = SP_REACT.useState({});
+    const signature = points.map((point) => `${point.frequency}:${point.voltage}`).join(",");
+    SP_REACT.useEffect(() => { setDraft({}); }, [signature]);
+    const cyanRunning = state.gpu_governor === "cyan" && Boolean(state.gpu_service_active ?? state.cyan_active);
+    const level = state.gpu_voltage_level;
+    const levelLabel = level == null ? text.voltageCustom : level === 0 ? text.voltageGovernor : `+${level * 10} mV`;
+    if (state.gpu_governor === "oberon")
+        return null;
+    const valueOf = (point) => draft[point.frequency] ?? point.voltage;
+    const floorOf = (point) => point.default || point.voltage;
+    const nudge = (point, delta) => {
+        const index = points.indexOf(point);
+        const below = index > 0 ? valueOf(points[index - 1]) : 0;
+        const above = index < points.length - 1 ? valueOf(points[index + 1]) : 1210;
+        const next = Math.max(floorOf(point), below, Math.min(floorOf(point) + VOLTAGE_MAX_ABOVE_DEFAULT_MV, above, valueOf(point) + delta));
+        setDraft({ ...draft, [point.frequency]: next });
+    };
+    const changed = points.filter((point) => valueOf(point) !== point.voltage);
+    const confirmLevel = (value) => DFL.showModal(SP_JSX.jsx(DFL.ConfirmModal, { strTitle: text.voltageLab, strDescription: text.voltageConfirm, strOKButtonText: value === 0 ? text.voltageGovernor : `+${value * 10} mV`, onOK: () => void execute(`GPU · ${text.voltageLab}`, () => applyGpuVoltageLevel(value), "gpu") }));
+    const confirmPoints = () => DFL.showModal(SP_JSX.jsx(DFL.ConfirmModal, { strTitle: text.voltageLab, strDescription: text.voltageConfirm, strOKButtonText: text.voltageApplyPoints, onOK: () => void execute(`GPU · ${text.voltageLab}`, () => applyGpuVoltagePoints(changed.map((point) => ({ frequency: point.frequency, voltage: valueOf(point) }))), "gpu") }));
+    return SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsxs(PadButton, { onActivate: () => setOpen(!open), disabled: !points.length, style: { alignItems: "center", display: "flex", fontSize: 11, height: 34, justifyContent: "space-between", marginBottom: 6, padding: "5px 9px", width: "100%" }, children: [SP_JSX.jsx("span", { children: text.voltageLab }), SP_JSX.jsxs("span", { style: { color: accent.focus }, children: [points.length ? levelLabel : text.unavailable, " ", open ? "▴" : "▾"] })] }), open ? SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 6, marginBottom: 6, padding: 6 }, children: [!cyanRunning ? SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 9, marginBottom: 6 }, children: text.voltageNeedsCyan }) : null, SP_JSX.jsx(DFL.Focusable, { "flow-children": "row", style: { display: "grid", gap: 5, gridTemplateColumns: "repeat(4,minmax(0,1fr))", marginBottom: 6 }, children: VOLTAGE_LEVELS.map((value) => {
+                            const current = level === value;
+                            return SP_JSX.jsx(PadButton, { preferredFocus: current || (level == null && value === 0), disabled: busy || !cyanRunning, onActivate: () => { if (!current)
+                                    confirmLevel(value); }, style: { background: current ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, color: current ? accent.focus : tokens.colors.text, fontSize: 10, fontWeight: 650, height: 32, padding: 2, textAlign: "center", width: "100%" }, children: value === 0 ? text.voltageGovernor : `+${value * 10} mV` }, value);
+                        }) }), SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, lineHeight: 1.35, margin: "0 2px 7px" }, children: text.voltageHint }), SP_JSX.jsx(DFL.Focusable, { "flow-children": "down", children: points.map((point) => {
+                            const value = valueOf(point);
+                            const moved = value !== point.voltage;
+                            return SP_JSX.jsxs(DFL.Focusable, { "flow-children": "row", style: { alignItems: "center", display: "grid", gap: 5, gridTemplateColumns: "1fr 30px 70px 30px", marginBottom: 4 }, children: [SP_JSX.jsxs("span", { style: { color: tokens.colors.subtle, fontSize: 10 }, children: [point.frequency, " MHz"] }), SP_JSX.jsx(PadButton, { label: "-5 mV", disabled: busy || !cyanRunning || value <= floorOf(point), onActivate: () => nudge(point, -VOLTAGE_STEP_MV), style: { fontSize: 12, height: 28, padding: 0, width: "100%" }, children: "\u2212" }), SP_JSX.jsxs("span", { style: { color: moved ? accent.focus : tokens.colors.text, fontSize: 11, fontWeight: 650, textAlign: "center" }, children: [value, " mV"] }), SP_JSX.jsx(PadButton, { label: "+5 mV", disabled: busy || !cyanRunning || value >= floorOf(point) + VOLTAGE_MAX_ABOVE_DEFAULT_MV, onActivate: () => nudge(point, VOLTAGE_STEP_MV), style: { fontSize: 12, height: 28, padding: 0, width: "100%" }, children: "+" })] }, point.frequency);
+                        }) }), SP_JSX.jsxs(ActionRow, { children: [SP_JSX.jsx(Action, { label: text.voltageApplyPoints, primary: true, disabled: busy || !cyanRunning || !changed.length, onActivate: confirmPoints }), SP_JSX.jsx(Action, { label: text.voltageDiscard, disabled: busy || !changed.length, onActivate: () => setDraft({}) })] })] }) : null] });
+}
 function MonitorTab({ state }) {
     const accent = ACCENT_SWATCHES[SP_REACT.useContext(SettingsContext).settings.accent];
     const [section, setSection] = SP_REACT.useState("cpu");
@@ -3751,7 +4675,7 @@ function MonitorTab({ state }) {
                     { key: "gpu", label: "GPU", icon: SP_JSX.jsx(FaMicrochip, {}), color: accent.focus, colorSoft: accent.focus_soft },
                     { key: "cooling", label: text.fan, icon: SP_JSX.jsx(FaFan, {}), color: accent.focus, colorSoft: accent.focus_soft },
                     { key: "all", label: text.allSensors, icon: SP_JSX.jsx(FaLayerGroup, {}), color: accent.focus, colorSoft: accent.focus_soft },
-                ] }), section === "cpu" ? SP_JSX.jsxs("section", { children: [SP_JSX.jsx(MetricGrid, { tiles: cpuTiles }), SP_JSX.jsxs("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "-3px 2px 8px" }, children: [text.cpuTrial, ": ", state.cpu_tuning_temperature ?? "—", "\u00B0C"] }), SP_JSX.jsx(CoreGrid, { cores: state.cpu_cores ?? [] }), vrmNotice, SP_JSX.jsx(MetricGrid, { tiles: cpuVrmTiles })] }) : null, section === "gpu" ? SP_JSX.jsxs("section", { children: [SP_JSX.jsx(MetricGrid, { tiles: gpuTiles }), SP_JSX.jsxs("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "-3px 2px 2px" }, children: ["VBIOS \u00B7 ", state.gpu_vbios_version || "—"] }), SP_JSX.jsxs("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 6px" }, children: [state.gpu_range ? `${state.gpu_range[0]}–${state.gpu_range[1]} MHz` : "—", state.gpu_allowed_range ? ` · ${text.safeRange} ${state.gpu_allowed_range[0]}–${state.gpu_allowed_range[1]} MHz` : ""] }), vrmNotice, SP_JSX.jsx(MetricGrid, { tiles: gpuVrmTiles }), SP_JSX.jsx(Gddr6Panel, { state: state })] }) : null, section === "cooling" ? SP_JSX.jsxs("section", { children: [fanChannelList, SP_JSX.jsx(MetricGrid, { tiles: fanControlTiles })] }) : null, section === "all" ? SP_JSX.jsx("section", { children: SP_JSX.jsxs(DFL.Focusable, { "flow-children": "down", children: [SP_JSX.jsxs(DFL.Focusable, { noFocusRing: true, children: [SP_JSX.jsx(SectionTitle, { kind: "cpu", title: "CPU" }), SP_JSX.jsx(MetricGrid, { tiles: cpuTiles })] }), SP_JSX.jsx(DFL.Focusable, { noFocusRing: true, children: SP_JSX.jsx(CoreGrid, { cores: state.cpu_cores ?? [] }) }), SP_JSX.jsx(DFL.Focusable, { noFocusRing: true, children: SP_JSX.jsx(MetricGrid, { tiles: cpuVrmTiles }) }), SP_JSX.jsxs(DFL.Focusable, { noFocusRing: true, children: [SP_JSX.jsx(SectionTitle, { kind: "gpu", title: "GPU" }), SP_JSX.jsx(MetricGrid, { tiles: gpuTiles })] }), SP_JSX.jsxs(DFL.Focusable, { noFocusRing: true, children: [SP_JSX.jsxs("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "-3px 2px 8px" }, children: ["VBIOS \u00B7 ", state.gpu_vbios_version || "—", " \u00B7 ", state.gpu_range ? `${state.gpu_range[0]}–${state.gpu_range[1]} MHz` : "—", state.gpu_allowed_range ? ` · ${text.safeRange} ${state.gpu_allowed_range[0]}–${state.gpu_allowed_range[1]} MHz` : ""] }), SP_JSX.jsx(MetricGrid, { tiles: gpuVrmTiles })] }), SP_JSX.jsx(DFL.Focusable, { noFocusRing: true, children: SP_JSX.jsx(Gddr6Panel, { state: state }) }), SP_JSX.jsxs(DFL.Focusable, { noFocusRing: true, children: [SP_JSX.jsx(SectionTitle, { kind: "fan", title: text.fan }), fanChannelList] }), SP_JSX.jsx(DFL.Focusable, { noFocusRing: true, children: SP_JSX.jsx(MetricGrid, { tiles: boardSensorTiles }) }), SP_JSX.jsx(DFL.Focusable, { noFocusRing: true, children: SP_JSX.jsx(MetricGrid, { tiles: fanControlTiles }) }), SP_JSX.jsxs(DFL.Focusable, { noFocusRing: true, children: [SP_JSX.jsx(SectionTitle, { kind: "power", title: text.power }), vrmNotice, SP_JSX.jsx(MetricGrid, { tiles: powerTiles })] })] }) }) : null] });
+                ] }), section === "cpu" ? SP_JSX.jsxs(DFL.Focusable, { "flow-children": "down", children: [SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(MetricGrid, { tiles: cpuTiles }), SP_JSX.jsxs("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "-3px 2px 8px" }, children: [text.cpuTrial, ": ", state.cpu_tuning_temperature ?? "—", "\u00B0C"] })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(CoreGrid, { cores: state.cpu_cores ?? [] }) }), SP_JSX.jsxs(ScrollStop, { children: [vrmNotice, SP_JSX.jsx(MetricGrid, { tiles: cpuVrmTiles })] }), SP_JSX.jsx(ScrollStop, { end: true })] }) : null, section === "gpu" ? SP_JSX.jsxs(DFL.Focusable, { "flow-children": "down", children: [SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(AceRow, { state: state }) }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(MetricGrid, { tiles: gpuTiles }), SP_JSX.jsxs("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "-3px 2px 2px" }, children: ["VBIOS \u00B7 ", state.gpu_vbios_version || "—"] }), SP_JSX.jsxs("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 6px" }, children: [state.gpu_range ? `${state.gpu_range[0]}–${state.gpu_range[1]} MHz` : "—", state.gpu_allowed_range ? ` · ${text.safeRange} ${state.gpu_allowed_range[0]}–${state.gpu_allowed_range[1]} MHz` : ""] })] }), SP_JSX.jsxs(ScrollStop, { children: [vrmNotice, SP_JSX.jsx(MetricGrid, { tiles: gpuVrmTiles })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(Gddr6Panel, { state: state }) }), SP_JSX.jsx(ScrollStop, { end: true })] }) : null, section === "cooling" ? SP_JSX.jsxs(DFL.Focusable, { "flow-children": "down", children: [SP_JSX.jsx(ScrollStop, { children: fanChannelList }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(MetricGrid, { tiles: fanControlTiles }) }), SP_JSX.jsx(ScrollStop, { end: true })] }) : null, section === "all" ? SP_JSX.jsx("section", { children: SP_JSX.jsxs(DFL.Focusable, { "flow-children": "down", children: [SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "cpu", title: "CPU" }), SP_JSX.jsx(MetricGrid, { tiles: cpuTiles })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(CoreGrid, { cores: state.cpu_cores ?? [] }) }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(MetricGrid, { tiles: cpuVrmTiles }) }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "gpu", title: "GPU" }), SP_JSX.jsx(AceRow, { state: state }), SP_JSX.jsx(MetricGrid, { tiles: gpuTiles })] }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsxs("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "-3px 2px 8px" }, children: ["VBIOS \u00B7 ", state.gpu_vbios_version || "—", " \u00B7 ", state.gpu_range ? `${state.gpu_range[0]}–${state.gpu_range[1]} MHz` : "—", state.gpu_allowed_range ? ` · ${text.safeRange} ${state.gpu_allowed_range[0]}–${state.gpu_allowed_range[1]} MHz` : ""] }), SP_JSX.jsx(MetricGrid, { tiles: gpuVrmTiles })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(Gddr6Panel, { state: state }) }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "fan", title: text.fan }), fanChannelList] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(MetricGrid, { tiles: boardSensorTiles }) }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(MetricGrid, { tiles: fanControlTiles }) }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "power", title: text.power }), vrmNotice, SP_JSX.jsx(MetricGrid, { tiles: powerTiles })] }), SP_JSX.jsx(ScrollStop, { end: true })] }) }) : null] });
 }
 function MemoryTab({ state, busy, execute }) {
     const vram = state.vram;
@@ -4150,31 +5074,138 @@ function Content() {
                     ].map(([tab, label, tabIcon]) => {
                         const active = activeTab === tab;
                         return SP_JSX.jsxs(PadButton, { onActivate: () => setActiveTab(tab), style: { alignItems: "center", background: active ? accent.focus_soft : "transparent", border: active ? `1px solid ${accent.focus}` : "1px solid transparent", color: active ? accent.focus : tokens.colors.subtle, display: "flex", flexDirection: "column", fontSize: 9, fontWeight: 650, gap: 3, height: 44, justifyContent: "center", padding: "4px 2px", textAlign: "center", width: "100%" }, children: [tabIcon, SP_JSX.jsx("span", { style: { lineHeight: 1.1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }, children: label })] }, tab);
-                    }) }), activeTab === "monitor" ? SP_JSX.jsx(MonitorTab, { state: state }) : null, activeTab === "memory" ? SP_JSX.jsx(MemoryTab, { state: state, busy: busy, execute: execute }) : null, activeTab === "settings" ? SP_JSX.jsx(SettingsTab, { settings: settings, setSettings: setSettings, state: state, busy: busy, execute: execute }) : null, activeTab === "board" ? SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(SubNav, { value: boardSection, onChange: setBoardSection, items: [
+                    }) }), activeTab === "monitor" ? SP_JSX.jsx(MonitorTab, { state: state }) : null, activeTab === "memory" ? SP_JSX.jsx(MemoryTab, { state: state, busy: busy, execute: execute }) : null, activeTab === "settings" ? SP_JSX.jsx(SettingsTab, { settings: settings, setSettings: setSettings, state: state, busy: busy, execute: execute }) : null, activeTab === "board" ? SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(GameProfileCard, { state: state, busy: busy }), SP_JSX.jsx(SubNav, { value: boardSection, onChange: setBoardSection, items: [
                                 { key: "gpu", label: "GPU", icon: SP_JSX.jsx(FaMicrochip, {}), color: accent.focus, colorSoft: accent.focus_soft },
                                 { key: "cu", label: text.compute, icon: SP_JSX.jsx(FaTh, {}), color: accent.focus, colorSoft: accent.focus_soft },
                                 { key: "cpu", label: "CPU", icon: SP_JSX.jsx(FaBolt, {}), color: accent.focus, colorSoft: accent.focus_soft },
                                 { key: "fan", label: text.fan, icon: SP_JSX.jsx(FaFan, {}), color: accent.focus, colorSoft: accent.focus_soft },
                             ] }), busy && boardSection !== "cpu" ? SP_JSX.jsxs("div", { style: { alignItems: "center", background: accent.focus_soft, border: `1px solid ${accent.focus}`, borderRadius: 7, color: accent.focus, display: "flex", fontSize: 10, gap: 6, marginBottom: 10, padding: "7px 9px" }, children: [SP_JSX.jsx(FaClock, {}), text.operationInProgress] }) : null, boardSection === "gpu" ? SP_JSX.jsxs("section", { style: { marginBottom: 12 }, children: [SP_JSX.jsx(SectionTitle, { kind: "gpu", title: "GPU", trailing: governorName ? SP_JSX.jsx("span", { style: { color: tokens.colors.subtle, fontSize: 9 }, children: governorName }) : undefined }), !loaded ? SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 10, marginBottom: 6 }, children: text.loadingGpu }) : SP_JSX.jsxs(SP_JSX.Fragment, { children: [!gpuReady ? SP_JSX.jsx("div", { style: { color: state.gpu_governor === "conflict" ? tokens.colors.red : tokens.colors.amber, fontSize: 9, marginBottom: 6 }, children: state.gpu_governor === "conflict" ? text.governorConflict : text.governorMissing }) : null, SP_JSX.jsx(DFL.Focusable, { "flow-children": "grid", navEntryPreferPosition: DFL.NavEntryPositionPreferences.PREFERRED_CHILD, style: { display: "grid", gap: 6, gridTemplateColumns: `repeat(${activeGpuProfiles.length || 1},minmax(0,1fr))`, marginBottom: 6 }, children: activeGpuProfiles.map((profile) => { const current = state.gpu_range?.[0] === profile.min && state.gpu_range?.[1] === profile.max && (state.gpu_governor !== "cyan" || state.gpu_performance_enabled === false); const allowed = Boolean(state.gpu_allowed_range && state.gpu_allowed_range[0] <= profile.min && profile.max <= state.gpu_allowed_range[1]); return SP_JSX.jsxs(PadButton, { disabled: busy || !gpuReady || !allowed, preferredFocus: profile.key === (state.gpu_governor === "oberon" ? "oberon-1850" : "balanced"), onActivate: () => { void execute(`GPU · ${profile.name}`, () => applyGpuProfile(profile.key), "gpu"); }, style: { alignItems: "center", background: current ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, display: "flex", flexDirection: "column", gap: 2, height: 60, justifyContent: "center", minWidth: 0, padding: "6px 6px", textAlign: "center", width: "100%" }, children: [SP_JSX.jsx("span", { style: { color: current ? accent.focus : tokens.colors.text, fontSize: 11, fontWeight: 650, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }, children: profile.name }), SP_JSX.jsxs("span", { style: { color: current ? accent.focus : tokens.colors.subtle, fontSize: 9, lineHeight: 1.3 }, children: [profile.min, "\u2013", profile.max, SP_JSX.jsx("br", {}), "MHz", current ? ` · ${text.current}` : ""] })] }, profile.key); }) }), points.length ? SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsxs(PadButton, { onActivate: () => setHighOpen(!highOpen), disabled: busy || !gpuReady, style: { alignItems: "center", display: "flex", fontSize: 11, height: 34, justifyContent: "space-between", marginBottom: 6, padding: "5px 9px", width: "100%" }, children: [SP_JSX.jsx("span", { children: text.more }), SP_JSX.jsx("span", { style: { color: accent.focus }, children: highOpen ? "▴" : "▾" })] }), highOpen ? SP_JSX.jsx(DFL.Focusable, { "flow-children": "grid", navEntryPreferPosition: DFL.NavEntryPositionPreferences.PREFERRED_CHILD, style: { background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 6, display: "grid", gap: 5, gridTemplateColumns: "1fr 1fr", padding: 6 }, children: points.map((point, index) => { const current = point.frequency === liveHighPoint?.frequency; const allowed = Boolean(state.gpu_allowed_range && point.frequency <= state.gpu_allowed_range[1]); return SP_JSX.jsxs(PadButton, { disabled: busy || !gpuReady || !allowed, preferredFocus: current || (!liveHighPoint && index === 0), onActivate: () => { if (!current)
-                                                            void execute(`GPU · ${governorName || text.advanced}`, () => applyGpuSafePoint(point.frequency), "gpu"); }, style: { background: current ? accent.focus_soft : tokens.colors.panel_alt, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, color: current ? accent.focus : tokens.colors.text, fontSize: 10, height: 34, padding: 4, textAlign: "center", width: "100%" }, children: [point.frequency, " MHz \u00B7 ", point.voltage, " mV", current ? ` · ${text.current}` : ""] }, point.frequency); }) }) : null] }) : null] })] }) : null, boardSection === "cu" ? SP_JSX.jsxs("section", { style: { marginBottom: 12 }, children: [SP_JSX.jsx(SectionTitle, { kind: "cu", title: text.compute, trailing: SP_JSX.jsxs("b", { style: { color: accent.focus, fontSize: 11 }, children: [draftCUs, "/40 ", text.target] }) }), state.cu_snapshot_warning ? SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 10, marginBottom: 6 }, children: text.snapshotWarning }) : null, cuConflict ? SP_JSX.jsxs("div", { style: { background: tokens.colors.amber_soft, border: `1px solid ${tokens.colors.amber}`, borderRadius: 6, color: tokens.colors.amber, fontSize: 10, marginBottom: 6, padding: 6 }, children: [text.external, SP_JSX.jsx("div", { style: { marginTop: 5 }, children: SP_JSX.jsxs(ActionRow, { children: [SP_JSX.jsx(Action, { label: text.restore, disabled: busy, onActivate: () => { dirty.current.cu = false; setCuConflict(false); setCuDraft(liveMasks); } }), SP_JSX.jsx(Action, { label: text.keep, disabled: busy, onActivate: () => setCuConflict(false) })] }) })] }) : null, topology ? SP_JSX.jsx(CuMatrix, { live: liveMasks, driver: driverMasks, draft: cuDraft, disabled: busy || !state.cu_backend_ready, change: (masks) => { dirty.current.cu = true; setCuConflict(false); setCuDraft(masks); }, minimum: () => setFeedback(text.safeCuMinimum) }) : SP_JSX.jsx("div", { style: { color: loaded ? tokens.colors.amber : tokens.colors.subtle, fontSize: 10, marginBottom: 6 }, children: loaded ? text.topologyUnavailable : text.loadingTopology }), SP_JSX.jsxs("div", { style: { minHeight: 78, width: "100%" }, children: [SP_JSX.jsxs(ActionRow, { marginBottom: 6, children: [SP_JSX.jsx(Action, { label: text.applyChanges, primary: true, disabled: busy || !topology || !state.cu_backend_ready || sameMasks(cuDraft, liveMasks), onActivate: () => void execute("BC250 CU", () => applyCuTable(cuDraft), "cu") }), SP_JSX.jsx(Action, { label: text.save, disabled: busy || !topology || !state.cu_backend_ready, onActivate: () => void execute("BC250 CU", () => saveCuTable(cuDraft), "cu") })] }), SP_JSX.jsxs(ActionRow, { children: [SP_JSX.jsx(Action, { label: text.install, disabled: busy || Boolean(state.cu_service_installed) || !validMasks(state.cu_saved_masks ?? undefined), onActivate: () => void execute("BC250 CU", installCuService, "cu") }), SP_JSX.jsx(Action, { label: text.remove, danger: true, disabled: busy || !state.cu_service_installed, onActivate: () => DFL.showModal(SP_JSX.jsx(DFL.ConfirmModal, { strTitle: text.remove, strDescription: text.liveRoutingUnchanged, strOKButtonText: text.remove, bDestructiveWarning: true, onOK: () => void execute("BC250 CU", removeCuService, "cu") })) })] })] })] }) : null, boardSection === "cpu" ? SP_JSX.jsxs("section", { style: { marginBottom: 12 }, children: [SP_JSX.jsx(SectionTitle, { kind: "cpu", title: "CPU" }), cpuError ? SP_JSX.jsx("div", { style: { background: tokens.colors.red_soft, border: `1px solid ${tokens.colors.red}`, borderRadius: 6, color: tokens.colors.red, fontSize: 9, lineHeight: 1.35, marginBottom: 7, overflowWrap: "anywhere", padding: "6px 8px" }, children: localizedErrorSummary(cpuError) }) : null, cpuOperation ? SP_JSX.jsxs("div", { role: "status", "aria-live": "polite", style: { background: accent.focus_soft, border: `1px solid ${accent.focus}`, borderRadius: 7, marginBottom: 7, padding: "8px 9px" }, children: [SP_JSX.jsxs("div", { style: { alignItems: "center", display: "flex", gap: 7 }, children: [SP_JSX.jsx("span", { style: { background: accent.focus, borderRadius: "50%", boxShadow: `0 0 0 3px ${accent.focus_soft}`, height: 7, width: 7 } }), SP_JSX.jsx("b", { style: { color: accent.focus, flex: 1, fontSize: 11 }, children: text.cpuApplying }), SP_JSX.jsxs("span", { style: { color: tokens.colors.subtle, fontSize: 9 }, children: [text.elapsed, ": ", cpuElapsed, "s"] })] }), SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "4px 0 7px 14px" }, children: text.cpuPleaseWait }), SP_JSX.jsxs("div", { style: { display: "grid", gap: 5, gridTemplateColumns: "1fr 1fr" }, children: [SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_alt, borderRadius: 5, padding: "5px 7px" }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.muted, display: "block", fontSize: 8 }, children: text.cpuLiveClock }), SP_JSX.jsxs("b", { style: { fontSize: 12 }, children: [state.cpu_frequency_mhz ?? "—", " MHz"] })] }), SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_alt, borderRadius: 5, padding: "5px 7px" }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.muted, display: "block", fontSize: 8 }, children: text.cpuTarget }), SP_JSX.jsxs("b", { style: { fontSize: 12 }, children: [cpuOperation.target, " MHz"] })] })] })] }) : null, !loaded ? SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 7px" }, children: text.loadingCpu })
+                                                            void execute(`GPU · ${governorName || text.advanced}`, () => applyGpuSafePoint(point.frequency), "gpu"); }, style: { background: current ? accent.focus_soft : tokens.colors.panel_alt, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, color: current ? accent.focus : tokens.colors.text, fontSize: 10, height: 34, padding: 4, textAlign: "center", width: "100%" }, children: [point.frequency, " MHz \u00B7 ", point.voltage, " mV", current ? ` · ${text.current}` : ""] }, point.frequency); }) }) : null] }) : null, SP_JSX.jsx(VoltageLab, { state: state, busy: busy, execute: execute }), SP_JSX.jsx(GovernorServiceRow, { state: state, busy: busy, execute: execute })] })] }) : null, boardSection === "cu" ? SP_JSX.jsxs("section", { style: { marginBottom: 12 }, children: [SP_JSX.jsx(SectionTitle, { kind: "cu", title: text.compute, trailing: SP_JSX.jsxs("b", { style: { color: accent.focus, fontSize: 11 }, children: [draftCUs, "/40 ", text.target] }) }), state.cu_snapshot_warning ? SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 10, marginBottom: 6 }, children: text.snapshotWarning }) : null, cuConflict ? SP_JSX.jsxs("div", { style: { background: tokens.colors.amber_soft, border: `1px solid ${tokens.colors.amber}`, borderRadius: 6, color: tokens.colors.amber, fontSize: 10, marginBottom: 6, padding: 6 }, children: [text.external, SP_JSX.jsx("div", { style: { marginTop: 5 }, children: SP_JSX.jsxs(ActionRow, { children: [SP_JSX.jsx(Action, { label: text.restore, disabled: busy, onActivate: () => { dirty.current.cu = false; setCuConflict(false); setCuDraft(liveMasks); } }), SP_JSX.jsx(Action, { label: text.keep, disabled: busy, onActivate: () => setCuConflict(false) })] }) })] }) : null, topology ? SP_JSX.jsx(CuMatrix, { live: liveMasks, driver: driverMasks, draft: cuDraft, disabled: busy || !state.cu_backend_ready, change: (masks) => { dirty.current.cu = true; setCuConflict(false); setCuDraft(masks); }, minimum: () => setFeedback(text.safeCuMinimum) }) : SP_JSX.jsx("div", { style: { color: loaded ? tokens.colors.amber : tokens.colors.subtle, fontSize: 10, marginBottom: 6 }, children: loaded ? text.topologyUnavailable : text.loadingTopology }), SP_JSX.jsxs("div", { style: { minHeight: 78, width: "100%" }, children: [SP_JSX.jsxs(ActionRow, { marginBottom: 6, children: [SP_JSX.jsx(Action, { label: text.applyChanges, primary: true, disabled: busy || !topology || !state.cu_backend_ready || sameMasks(cuDraft, liveMasks), onActivate: () => void execute("BC250 CU", () => applyCuTable(cuDraft), "cu") }), SP_JSX.jsx(Action, { label: text.save, disabled: busy || !topology || !state.cu_backend_ready, onActivate: () => void execute("BC250 CU", () => saveCuTable(cuDraft), "cu") })] }), SP_JSX.jsxs(ActionRow, { children: [SP_JSX.jsx(Action, { label: text.install, disabled: busy || Boolean(state.cu_service_installed) || !validMasks(state.cu_saved_masks ?? undefined), onActivate: () => void execute("BC250 CU", installCuService, "cu") }), SP_JSX.jsx(Action, { label: text.remove, danger: true, disabled: busy || !state.cu_service_installed, onActivate: () => DFL.showModal(SP_JSX.jsx(DFL.ConfirmModal, { strTitle: text.remove, strDescription: text.liveRoutingUnchanged, strOKButtonText: text.remove, bDestructiveWarning: true, onOK: () => void execute("BC250 CU", removeCuService, "cu") })) })] })] })] }) : null, boardSection === "cpu" ? SP_JSX.jsxs("section", { style: { marginBottom: 12 }, children: [SP_JSX.jsx(SectionTitle, { kind: "cpu", title: "CPU" }), cpuError ? SP_JSX.jsx("div", { style: { background: tokens.colors.red_soft, border: `1px solid ${tokens.colors.red}`, borderRadius: 6, color: tokens.colors.red, fontSize: 9, lineHeight: 1.35, marginBottom: 7, overflowWrap: "anywhere", padding: "6px 8px" }, children: localizedErrorSummary(cpuError) }) : null, cpuOperation ? SP_JSX.jsxs("div", { role: "status", "aria-live": "polite", style: { background: accent.focus_soft, border: `1px solid ${accent.focus}`, borderRadius: 7, marginBottom: 7, padding: "8px 9px" }, children: [SP_JSX.jsxs("div", { style: { alignItems: "center", display: "flex", gap: 7 }, children: [SP_JSX.jsx("span", { style: { background: accent.focus, borderRadius: "50%", boxShadow: `0 0 0 3px ${accent.focus_soft}`, height: 7, width: 7 } }), SP_JSX.jsx("b", { style: { color: accent.focus, flex: 1, fontSize: 11 }, children: text.cpuApplying }), SP_JSX.jsxs("span", { style: { color: tokens.colors.subtle, fontSize: 9 }, children: [text.elapsed, ": ", cpuElapsed, "s"] })] }), SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "4px 0 7px 14px" }, children: text.cpuPleaseWait }), SP_JSX.jsxs("div", { style: { display: "grid", gap: 5, gridTemplateColumns: "1fr 1fr" }, children: [SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_alt, borderRadius: 5, padding: "5px 7px" }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.muted, display: "block", fontSize: 8 }, children: text.cpuLiveClock }), SP_JSX.jsxs("b", { style: { fontSize: 12 }, children: [state.cpu_frequency_mhz ?? "—", " MHz"] })] }), SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_alt, borderRadius: 5, padding: "5px 7px" }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.muted, display: "block", fontSize: 8 }, children: text.cpuTarget }), SP_JSX.jsxs("b", { style: { fontSize: 12 }, children: [cpuOperation.target, " MHz"] })] })] })] }) : null, !loaded ? SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 7px" }, children: text.loadingCpu })
                                     : !cpuReady ? SP_JSX.jsx("div", { style: { color: state.cpu_tuning_source === "detector-required" ? tokens.colors.subtle : tokens.colors.red, fontSize: 9, margin: "0 2px 7px" }, children: state.cpu_tuning_source === "stress-unavailable" ? text.stressMissing : (state.cpu_tuning_source === "detector-required" ? text.cpuNeedsDetection : (state.cpu_tuning_source === "helper-unavailable" ? text.cpuHelperUnavailable : text.cpuStatusUnavailable)) })
                                         : null, loaded && !cpuReady && state.cpu_tuning_error && state.cpu_tuning_source !== "detector-required" ? SP_JSX.jsx("div", { style: { color: tokens.colors.muted, fontSize: 8, margin: "-3px 2px 7px", overflowWrap: "anywhere" }, children: localizedErrorSummary(state.cpu_tuning_error) }) : null, state.cpu_profiles?.length ? SP_JSX.jsx(DFL.Focusable, { "flow-children": "grid", navEntryPreferPosition: DFL.NavEntryPositionPreferences.PREFERRED_CHILD, style: { display: "grid", gap: 6, gridTemplateColumns: `repeat(${state.cpu_profiles.length},minmax(0,1fr))`, marginBottom: 7 }, children: state.cpu_profiles.map((preset) => {
                                         const current = !cpuManual && cpuFrequency === preset.frequency && cpuVid === preset.vid;
                                         return SP_JSX.jsxs(PadButton, { disabled: busy || !cpuReady, onActivate: () => { setCpuFrequency(preset.frequency); setCpuVid(preset.vid); setCpuManual(false); dirty.current.cpu = true; }, style: { alignItems: "center", background: current ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, display: "flex", flexDirection: "column", gap: 2, height: 52, justifyContent: "center", minWidth: 0, padding: "6px 6px", textAlign: "center", width: "100%" }, children: [SP_JSX.jsx("span", { style: { color: current ? accent.focus : tokens.colors.text, fontSize: 11, fontWeight: 650, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }, children: preset.name }), SP_JSX.jsxs("span", { style: { color: current ? accent.focus : tokens.colors.subtle, fontSize: 9 }, children: [preset.frequency, " MHz"] })] }, preset.key);
                                     }) }) : null, detectedCpu?.ready ? SP_JSX.jsxs("div", { style: { alignItems: "center", background: tokens.colors.green_soft, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, display: "flex", fontSize: 9, gap: 6, justifyContent: "space-between", marginBottom: 6, padding: "6px 8px" }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.subtle }, children: text.cpuDetected }), SP_JSX.jsx("b", { style: { color: tokens.colors.green }, children: detectedCpuSummary })] }) : null, SP_JSX.jsxs("div", { style: { borderTop: `1px solid ${tokens.colors.border_soft}`, paddingTop: 7 }, children: [SP_JSX.jsx(CompactSlider, { label: text.cpuFrequency, value: cpuFrequency, suffix: " MHz", min: cpuMin, max: cpuMax, step: cpuStep, disabled: busy || !cpuReady, onChange: (value) => { setCpuFrequency(Math.max(cpuMin, Math.min(cpuMax, Math.round(value / cpuStep) * cpuStep))); dirty.current.cpu = true; } }), SP_JSX.jsx(CompactSlider, { label: text.cpuVoltage, value: cpuVid, suffix: " mV", min: vidMin, max: vidMax, step: vidStep, disabled: busy || !cpuReady || cpuManual, onChange: (value) => { setCpuVid(Math.max(vidMin, Math.min(vidMax, Math.round(value / 5) * 5))); dirty.current.cpu = true; } }), !cpuManual && cpuVid >= vidMax - 25 ? SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 8, lineHeight: 1.3, margin: "-2px 2px 7px" }, children: text.cpuVidCeiling }) : null, SP_JSX.jsx("div", { title: manualScaleDescription, style: { background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, fontSize: 11, marginBottom: 4, overflow: "hidden" }, children: SP_JSX.jsx(DFL.ToggleField, { label: text.cpuManual, layout: "inline", bottomSeparator: "none", highlightOnFocus: true, checked: cpuManual, disabled: busy || !manualReady, onChange: (checked) => { setCpuManual(checked); if (checked && detectedCpu) {
                                                     setCpuScale(activeCpu?.frequency === detectedCpu.frequency ? (activeCpu.scale ?? detectedCpu.scale) : detectedCpu.scale);
-                                                } dirty.current.cpu = true; } }) }), cpuManual && detectedCpu && !manualFrequencyReady ? SP_JSX.jsxs("div", { style: { color: tokens.colors.amber, fontSize: 9, lineHeight: 1.3, margin: "-2px 2px 7px" }, children: [text.cpuManualHelp, " \u00B7 ", detectedCpu.frequency, " MHz"] }) : null, SP_JSX.jsx(CompactSlider, { label: text.cpuScale, value: cpuScale, suffix: "", min: scaleMin, max: scaleMax, step: 1, disabled: busy || !cpuManual || !manualFrequencyReady, onChange: (value) => { setCpuScale(Math.max(-50, Math.min(0, Math.round(value)))); dirty.current.cpu = true; } }), SP_JSX.jsxs("div", { style: { color: tokens.colors.disabled_text, display: "flex", fontSize: 9, justifyContent: "space-between", margin: "0 2px 7px" }, children: [SP_JSX.jsx("span", { children: cpuManual ? `${text.cpuScale}: ${scaleMin}…${scaleMax}` : `${text.voltageHint} · ${vidMin}–${vidMax} mV` }), SP_JSX.jsx("span", { children: cpuManual ? `~${selectedEstimatedVid ?? "—"} mV` : `${text.safeRange}: ${cpuMin}–${cpuMax} MHz` })] }), SP_JSX.jsx(ActionRow, { children: SP_JSX.jsx(Action, { label: cpuManual ? text.cpuApplyManual : text.cpuApplyAuto, primary: true, disabled: busy || !cpuReady || (cpuManual && (!manualFrequencyReady || (selectedEstimatedVid ?? 0) > vidMax)), onActivate: () => confirmCpu("detect") }) })] }), SP_JSX.jsx("div", { style: { marginTop: 6, minHeight: 36 }, children: SP_JSX.jsxs(ActionRow, { children: [SP_JSX.jsx(Action, { label: text.install, disabled: busy || !activeMatchesTarget || Boolean(state.cpu_service_enabled), onActivate: () => confirmCpu("install") }), SP_JSX.jsx(Action, { label: text.remove, danger: true, disabled: busy || (!state.cpu_service_installed && !state.cpu_service_enabled), onActivate: () => DFL.showModal(SP_JSX.jsx(DFL.ConfirmModal, { strTitle: text.remove, strDescription: text.serviceRemovedBootProfile, strOKButtonText: text.remove, bDestructiveWarning: true, onOK: () => void execute("BC250 CPU", removeCpuService, "cpu") })) })] }) })] }) : null, boardSection === "fan" ? SP_JSX.jsxs("section", { style: { marginBottom: 12 }, children: [SP_JSX.jsx(SectionTitle, { kind: "fan", title: text.fan }), SP_JSX.jsxs(PadButton, { disabled: busy, onActivate: () => setFanOpen(!fanOpen), style: { alignItems: "center", display: "flex", fontSize: 11, height: 34, justifyContent: "space-between", marginBottom: 6, padding: "5px 9px", width: "100%" }, children: [SP_JSX.jsxs("span", { children: [liveFan?.label ?? `PWM ${fanChannel}`, " \u00B7 ", fanDetected ? text.detected : text.unavailable] }), SP_JSX.jsx("span", { style: { color: accent.focus }, children: fanOpen ? "▴" : "▾" })] }), fanOpen ? SP_JSX.jsx(DFL.Focusable, { "flow-children": "grid", navEntryPreferPosition: DFL.NavEntryPositionPreferences.PREFERRED_CHILD, style: { display: "grid", gap: 5, gridTemplateColumns: "1fr 1fr", marginBottom: 7 }, children: fanChannels.map((channel) => { const option = state.fan_channel_options?.find((item) => item.channel === channel); const available = detectedFans.includes(channel); return SP_JSX.jsxs(PadButton, { disabled: busy || !available, preferredFocus: channel === fanChannel, onActivate: () => { selectionRef.current.fan = channel; setFanChannel(channel); setFanOpen(false); dirty.current.fan = false; const percent = option?.percent; if (percent != null)
+                                                } dirty.current.cpu = true; } }) }), cpuManual && detectedCpu && !manualFrequencyReady ? SP_JSX.jsxs("div", { style: { color: tokens.colors.amber, fontSize: 9, lineHeight: 1.3, margin: "-2px 2px 7px" }, children: [text.cpuManualHelp, " \u00B7 ", detectedCpu.frequency, " MHz"] }) : null, SP_JSX.jsx(CompactSlider, { label: text.cpuScale, value: cpuScale, suffix: "", min: scaleMin, max: scaleMax, step: 1, disabled: busy || !cpuManual || !manualFrequencyReady, onChange: (value) => { setCpuScale(Math.max(-50, Math.min(0, Math.round(value)))); dirty.current.cpu = true; } }), SP_JSX.jsxs("div", { style: { color: tokens.colors.disabled_text, display: "flex", fontSize: 9, justifyContent: "space-between", margin: "0 2px 7px" }, children: [SP_JSX.jsx("span", { children: cpuManual ? `${text.cpuScale}: ${scaleMin}…${scaleMax}` : `${text.voltageHint} · ${vidMin}–${vidMax} mV` }), SP_JSX.jsx("span", { children: cpuManual ? `~${selectedEstimatedVid ?? "—"} mV` : `${text.safeRange}: ${cpuMin}–${cpuMax} MHz` })] }), SP_JSX.jsx(ActionRow, { children: SP_JSX.jsx(Action, { label: cpuManual ? text.cpuApplyManual : text.cpuApplyAuto, primary: true, disabled: busy || !cpuReady || (cpuManual && (!manualFrequencyReady || (selectedEstimatedVid ?? 0) > vidMax)), onActivate: () => confirmCpu("detect") }) })] }), SP_JSX.jsx("div", { style: { marginTop: 6, minHeight: 36 }, children: SP_JSX.jsxs(ActionRow, { children: [SP_JSX.jsx(Action, { label: text.install, disabled: busy || !activeMatchesTarget || Boolean(state.cpu_service_enabled), onActivate: () => confirmCpu("install") }), SP_JSX.jsx(Action, { label: text.remove, danger: true, disabled: busy || (!state.cpu_service_installed && !state.cpu_service_enabled), onActivate: () => DFL.showModal(SP_JSX.jsx(DFL.ConfirmModal, { strTitle: text.remove, strDescription: text.serviceRemovedBootProfile, strOKButtonText: text.remove, bDestructiveWarning: true, onOK: () => void execute("BC250 CPU", removeCpuService, "cpu") })) })] }) })] }) : null, boardSection === "fan" ? SP_JSX.jsxs("section", { style: { marginBottom: 12 }, children: [SP_JSX.jsx(SectionTitle, { kind: "fan", title: text.fan }), SP_JSX.jsx(FanPresetRow, { state: state, busy: busy, execute: execute }), SP_JSX.jsxs(PadButton, { disabled: busy, onActivate: () => setFanOpen(!fanOpen), style: { alignItems: "center", display: "flex", fontSize: 11, height: 34, justifyContent: "space-between", marginBottom: 6, padding: "5px 9px", width: "100%" }, children: [SP_JSX.jsxs("span", { children: [liveFan?.label ?? `PWM ${fanChannel}`, " \u00B7 ", fanDetected ? text.detected : text.unavailable] }), SP_JSX.jsx("span", { style: { color: accent.focus }, children: fanOpen ? "▴" : "▾" })] }), fanOpen ? SP_JSX.jsx(DFL.Focusable, { "flow-children": "grid", navEntryPreferPosition: DFL.NavEntryPositionPreferences.PREFERRED_CHILD, style: { display: "grid", gap: 5, gridTemplateColumns: "1fr 1fr", marginBottom: 7 }, children: fanChannels.map((channel) => { const option = state.fan_channel_options?.find((item) => item.channel === channel); const available = detectedFans.includes(channel); return SP_JSX.jsxs(PadButton, { disabled: busy || !available, preferredFocus: channel === fanChannel, onActivate: () => { selectionRef.current.fan = channel; setFanChannel(channel); setFanOpen(false); dirty.current.fan = false; const percent = option?.percent; if (percent != null)
                                             setFanDuty(percent); }, style: { background: channel === fanChannel ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${channel === fanChannel ? accent.focus : tokens.colors.border}`, color: channel === fanChannel ? accent.focus : tokens.colors.text, fontSize: 10, height: 34, padding: 4, width: "100%" }, children: ["PWM ", channel, " \u00B7 ", available ? `${option?.percent ?? "—"}%` : text.unavailable] }, channel); }) }) : null, liveFan ? SP_JSX.jsx("div", { style: { color: liveFan.rpm_observed ? tokens.colors.subtle : tokens.colors.amber, fontSize: 9, lineHeight: 1.3, margin: "0 2px 6px" }, children: liveFan.rpm_observed ? `${text.fanRpmObserved}: ${liveFan.rpm} RPM` : `${text.fanUnverified}. ${fanChannel === 2 ? text.fanWiring : ""}` }) : null, SP_JSX.jsx(DFL.SliderField, { label: text.speed, value: fanDuty, min: fanMin, max: fanMax, step: fanStep, minimumDpadGranularity: fanStep, showValue: true, valueSuffix: "%", disabled: busy || !fanDetected, onChange: (value) => { dirty.current.fan = true; setFanDuty(Math.max(20, Math.min(100, Math.round(value / 5) * 5))); } }), SP_JSX.jsxs(DFL.Focusable, { "flow-children": "grid", style: { display: "grid", gap: 6, gridTemplateColumns: "1fr 1fr", marginTop: 6 }, children: [SP_JSX.jsx(Action, { label: text.apply, primary: true, disabled: busy || !fanDetected, onActivate: () => void execute(`PWM ${fanChannel}`, () => applyFanChannel(fanChannel, fanDuty), "fan") }), SP_JSX.jsx(Action, { label: text.automatic, disabled: busy || !fanDetected, onActivate: () => void execute(`PWM ${fanChannel}`, () => applyFanChannel(fanChannel, "automatic"), "fan") })] })] }) : null] }) : null] }) });
+}
+// Read-only: whether the running game really uses the compute (ACE) queues,
+// from the same amdgpu counter the desktop's Performance page reads. Turning
+// async compute on or off needs a new session, so that stays on the desktop.
+function AceRow({ state }) {
+    const game = useRunningGame();
+    const percent = state.ace_busy_percent;
+    const available = Boolean(state.ace_available);
+    const active = typeof percent === "number" && percent > 0;
+    const who = active ? (game?.name || state.ace_process || "") : "";
+    const value = !available ? "—"
+        : percent == null ? text.aceMeasuring
+            : active ? `${text.yes}, ${percent} %${who ? ` · ${who}` : ""}`
+                : text.no;
+    return SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_alt, border: `1px solid ${active ? tokens.colors.green : tokens.colors.border}`, borderRadius: 6, marginBottom: 8, overflow: "hidden" }, children: [SP_JSX.jsx(StatusRow, { label: text.aceInUse, value: value, active: available ? active : null }), SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, lineHeight: 1.35, padding: "0 9px 7px" }, children: text.aceHint })] });
+}
+// Decky's system-fan presets, named and tuned from the desktop's Fans page
+// when the player exported them there. They never touch the pump channel.
+function FanPresetRow({ state, busy, execute }) {
+    const accent = ACCENT_SWATCHES[SP_REACT.useContext(SettingsContext).settings.accent];
+    const presets = state.fan_profiles?.length ? state.fan_profiles : [
+        { key: "quiet", name: "", percent: 40 }, { key: "balanced", name: "", percent: 60 }, { key: "boost", name: "", percent: 80 },
+    ];
+    const available = (state.system_fan_channels ?? []).length > 0;
+    const options = [...presets.map((preset) => ({ key: preset.key, label: presetLabel(preset.key, presets), detail: `${preset.percent}%` })), { key: "automatic", label: text.automatic, detail: "BIOS" }];
+    return SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 4px" }, children: text.fanPresets }), SP_JSX.jsx(DFL.Focusable, { "flow-children": "grid", navEntryPreferPosition: DFL.NavEntryPositionPreferences.PREFERRED_CHILD, style: { display: "grid", gap: 5, gridTemplateColumns: "repeat(4,minmax(0,1fr))", marginBottom: 8 }, children: options.map((option) => {
+                    const current = state.system_fan_preset === option.key;
+                    return SP_JSX.jsxs(PadButton, { disabled: busy || !available, preferredFocus: current, onActivate: () => { if (!current)
+                            void execute(`${text.fans} · ${option.label}`, () => applySystemFanPreset(option.key), "fan"); }, style: { alignItems: "center", background: current ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, display: "flex", flexDirection: "column", gap: 1, height: 44, justifyContent: "center", minWidth: 0, padding: "4px 3px", width: "100%" }, children: [SP_JSX.jsx("span", { style: { color: current ? accent.focus : tokens.colors.text, fontSize: 10, fontWeight: 650, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }, children: option.label }), SP_JSX.jsx("span", { style: { color: current ? accent.focus : tokens.colors.subtle, fontSize: 9 }, children: option.detail })] }, option.key);
+                }) })] });
+}
+// The running game's own GPU profile and fan preset. Saved choices are names
+// the panel already offers; Decky applies them when the game starts and puts
+// the previous ones back when it ends, whether or not this panel is open.
+function GameProfileCard({ state, busy }) {
+    const accent = ACCENT_SWATCHES[SP_REACT.useContext(SettingsContext).settings.accent];
+    const game = useRunningGame();
+    const [store, setStore] = SP_REACT.useState({});
+    const [editing, setEditing] = SP_REACT.useState(false);
+    const [listOpen, setListOpen] = SP_REACT.useState(false);
+    const [working, setWorking] = SP_REACT.useState(false);
+    const [draftGpu, setDraftGpu] = SP_REACT.useState(null);
+    const [draftFan, setDraftFan] = SP_REACT.useState(null);
+    const load = SP_REACT.useCallback(async () => {
+        try {
+            const result = await getGameProfiles();
+            if (result.ok !== false)
+                setStore(result);
+        }
+        catch { /* retried on the next change */ }
+    }, []);
+    SP_REACT.useEffect(() => { void load(); gameStoreListeners.add(load); return () => { gameStoreListeners.delete(load); }; }, [load]);
+    SP_REACT.useEffect(() => { void load(); setEditing(false); }, [game?.appId, load]);
+    const games = store.games ?? [];
+    const saved = game ? games.find((entry) => entry.app_id === game.appId) : undefined;
+    const active = Boolean(game && store.session?.app_id === game.appId);
+    const enabled = store.enabled !== false;
+    const gpuProfiles = state.gpu_profiles ?? [];
+    const fanPresets = state.fan_profiles ?? [];
+    const summary = (entry) => `GPU ${gpuLabel(entry.gpu, gpuProfiles)} · ${text.fans} ${presetLabel(entry.fan, fanPresets)}`;
+    const run = async (operation) => {
+        if (working)
+            return;
+        setWorking(true);
+        try {
+            const result = await operation();
+            if (result.ok === false)
+                toaster.toast({ title: text.perGameProfiles, body: localizedErrorSummary(result.error ?? text.error) });
+        }
+        catch (error) {
+            toaster.toast({ title: text.perGameProfiles, body: localizedErrorSummary(failed(error).error ?? text.error) });
+        }
+        finally {
+            setWorking(false);
+            await load();
+        }
+    };
+    const beginEdit = () => { setDraftGpu(saved?.gpu ?? null); setDraftFan(saved?.fan ?? null); setEditing(true); };
+    const save = () => {
+        if (!game)
+            return;
+        void run(async () => {
+            const result = await saveGameProfile(game.appId, game.name, draftGpu, draftFan);
+            if (result.ok === false)
+                return result;
+            setEditing(false);
+            // Playing it right now: the new choice takes effect at once.
+            if (result.enabled !== false)
+                await onGameStart(game.appId, game.name, true);
+            return result;
+        });
+    };
+    const remove = (appId) => void run(async () => {
+        const result = await removeGameProfile(appId);
+        if (store.session?.app_id === appId)
+            await onGameStop(appId);
+        if (runningGame?.appId === appId)
+            setRunningGame(runningGame);
+        return result;
+    });
+    const toggle = (next) => void run(async () => {
+        const result = await setGameProfilesEnabled(next);
+        if (!next && store.session)
+            await gameStopped(store.session.app_id).then(notifyGameStore);
+        if (next && game)
+            await onGameStart(game.appId, game.name);
+        return result;
+    });
+    const choice = (value, current, label, pick, key) => {
+        const selected = value === current;
+        return SP_JSX.jsx(PadButton, { disabled: working, onActivate: pick, style: { background: selected ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${selected ? accent.focus : tokens.colors.border}`, color: selected ? accent.focus : tokens.colors.text, fontSize: 9, fontWeight: 650, height: 30, overflow: "hidden", padding: "2px 4px", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }, children: label }, key);
+    };
+    return SP_JSX.jsxs("section", { style: { background: tokens.colors.panel_alt, border: `1px solid ${active ? accent.focus : tokens.colors.border}`, borderRadius: 8, marginBottom: 10, padding: "8px 9px" }, children: [SP_JSX.jsx(SectionTitle, { kind: "game", title: text.perGameProfiles, trailing: active ? SP_JSX.jsx("span", { style: { color: accent.focus, fontSize: 9, fontWeight: 700 }, children: text.gameProfileActive }) : undefined }), SP_JSX.jsx("div", { style: { fontSize: 11, overflow: "hidden" }, children: SP_JSX.jsx(DFL.ToggleField, { label: text.applyAutomatically, layout: "inline", bottomSeparator: "none", highlightOnFocus: true, checked: enabled, disabled: working, onChange: toggle }) }), !game ? SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 10, lineHeight: 1.4, margin: "4px 2px 6px" }, children: text.gameNotRunning }) : SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsxs("div", { style: { margin: "4px 2px 6px" }, children: [SP_JSX.jsx("div", { style: { color: tokens.colors.text, fontSize: 12, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: game.name }), SP_JSX.jsx("div", { style: { color: saved ? tokens.colors.muted : tokens.colors.subtle, fontSize: 9, marginTop: 2 }, children: saved ? summary(saved) : text.gameNoProfile })] }), !editing ? SP_JSX.jsxs(ActionRow, { marginBottom: 6, children: [SP_JSX.jsx(Action, { label: saved ? text.editProfile : text.assignProfile, primary: !saved, disabled: working || busy, onActivate: beginEdit }), saved ? SP_JSX.jsx(Action, { label: text.removeGame, danger: true, disabled: working, onActivate: () => remove(saved.app_id) }) : null] }) : SP_JSX.jsxs("div", { style: { borderTop: `1px solid ${tokens.colors.border_soft}`, paddingTop: 6 }, children: [SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 4px" }, children: "GPU" }), SP_JSX.jsxs(DFL.Focusable, { "flow-children": "grid", style: { display: "grid", gap: 4, gridTemplateColumns: `repeat(${Math.min(4, gpuProfiles.length + 1)},minmax(0,1fr))`, marginBottom: 6 }, children: [choice(null, draftGpu, text.unchanged, () => setDraftGpu(null), "gpu-none"), gpuProfiles.map((profile) => choice(profile.key, draftGpu, profile.name, () => setDraftGpu(profile.key), `gpu-${profile.key}`))] }), SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 4px" }, children: text.fans }), SP_JSX.jsxs(DFL.Focusable, { "flow-children": "grid", style: { display: "grid", gap: 4, gridTemplateColumns: "repeat(3,minmax(0,1fr))", marginBottom: 6 }, children: [choice(null, draftFan, text.unchanged, () => setDraftFan(null), "fan-none"), ["quiet", "balanced", "boost", "automatic"].map((key) => choice(key, draftFan, presetLabel(key, fanPresets), () => setDraftFan(key), `fan-${key}`))] }), SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, lineHeight: 1.35, margin: "0 2px 6px" }, children: text.gameCpuNote }), SP_JSX.jsxs(ActionRow, { marginBottom: 6, children: [SP_JSX.jsx(Action, { label: text.gameProfileSave, primary: true, disabled: working || (!draftGpu && !draftFan), onActivate: save }), SP_JSX.jsx(Action, { label: text.cancel, disabled: working, onActivate: () => setEditing(false) })] })] })] }), SP_JSX.jsxs(PadButton, { onActivate: () => setListOpen(!listOpen), style: { alignItems: "center", display: "flex", fontSize: 10, height: 30, justifyContent: "space-between", padding: "4px 8px", width: "100%" }, children: [SP_JSX.jsxs("span", { children: [text.savedGames, " \u00B7 ", games.length] }), SP_JSX.jsx("span", { style: { color: accent.focus }, children: listOpen ? "▴" : "▾" })] }), listOpen ? SP_JSX.jsx(DFL.Focusable, { "flow-children": "down", style: { marginTop: 5 }, children: !games.length ? SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "2px 2px 0" }, children: text.gamesEmpty }) : games.map((entry) => SP_JSX.jsxs(DFL.Focusable, { "flow-children": "row", style: { alignItems: "center", borderTop: `1px solid ${tokens.colors.border_soft}`, display: "grid", gap: 6, gridTemplateColumns: "1fr 72px", padding: "5px 0" }, children: [SP_JSX.jsxs("div", { style: { minWidth: 0 }, children: [SP_JSX.jsx("div", { style: { fontSize: 10, fontWeight: 650, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: entry.name || appName(Number(entry.app_id)) }), SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 8, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: summary(entry) })] }), SP_JSX.jsx(Action, { label: text.removeGame, danger: true, disabled: working, onActivate: () => remove(entry.app_id) })] }, entry.app_id)) }) : null] });
 }
 function SettingsTab({ settings, setSettings, state, busy, execute }) {
     const accent = ACCENT_SWATCHES[settings.accent];
-    const cyanActive = state.gpu_governor === "cyan";
-    const highPointsEnabled = (state.gpu_safe_point_ceilings ?? []).length > 0;
-    const toggleHighPoints = () => {
-        const next = !highPointsEnabled;
-        DFL.showModal(SP_JSX.jsx(DFL.ConfirmModal, { strTitle: next ? text.enableHighPoints : text.disableHighPoints, strDescription: text.highFrequencyPointsHint, strOKButtonText: next ? text.enableHighPoints : text.disableHighPoints, bDestructiveWarning: next, onOK: () => void execute(text.highFrequencyPoints, () => setGpuHighFrequencyPoints(next), "gpu") }));
-    };
-    return SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsxs("section", { style: { marginBottom: 12 }, children: [SP_JSX.jsx(SectionTitle, { kind: "settings", title: text.accentColor }), SP_JSX.jsx(DFL.Focusable, { "flow-children": "grid", navEntryPreferPosition: DFL.NavEntryPositionPreferences.PREFERRED_CHILD, style: { display: "grid", gap: 6, gridTemplateColumns: "repeat(3,minmax(0,1fr))" }, children: ACCENT_KEYS.map((key) => {
+    return SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsxs("section", { style: { marginBottom: 12 }, children: [SP_JSX.jsx(SectionTitle, { kind: "gpu", title: "GPU" }), SP_JSX.jsx(HighPointsSwitch, { state: state, busy: busy, execute: execute })] }), SP_JSX.jsxs("section", { style: { marginBottom: 12 }, children: [SP_JSX.jsx(SectionTitle, { kind: "settings", title: text.accentColor }), SP_JSX.jsx(DFL.Focusable, { "flow-children": "grid", navEntryPreferPosition: DFL.NavEntryPositionPreferences.PREFERRED_CHILD, style: { display: "grid", gap: 6, gridTemplateColumns: "repeat(3,minmax(0,1fr))" }, children: ACCENT_KEYS.map((key) => {
                             const swatch = ACCENT_SWATCHES[key];
                             const active = settings.accent === key;
                             return SP_JSX.jsxs(PadButton, { preferredFocus: active, onActivate: () => setSettings({ ...settings, accent: key }), style: { alignItems: "center", background: active ? swatch.focus_soft : tokens.colors.panel_raised, border: `1px solid ${active ? swatch.focus : tokens.colors.border}`, display: "flex", flexDirection: "column", gap: 4, height: 48, justifyContent: "center", width: "100%" }, children: [SP_JSX.jsx("span", { style: { background: swatch.focus, border: `1px solid ${tokens.colors.border_strong}`, borderRadius: "50%", height: 14, width: 14 } }), SP_JSX.jsx("span", { style: { color: active ? swatch.focus : tokens.colors.subtle, fontSize: 9, fontWeight: 650 }, children: swatch.label })] }, key);
@@ -4184,15 +5215,26 @@ function SettingsTab({ settings, setSettings, state, busy, execute }) {
                         }) }), SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, lineHeight: 1.4, margin: "6px 2px 0" }, children: text.refreshIntervalHint })] }), SP_JSX.jsxs("section", { style: { marginBottom: 12 }, children: [SP_JSX.jsx(SectionTitle, { kind: "settings", title: text.sensorLayout }), SP_JSX.jsx(DFL.Focusable, { "flow-children": "grid", navEntryPreferPosition: DFL.NavEntryPositionPreferences.PREFERRED_CHILD, style: { display: "grid", gap: 6, gridTemplateColumns: "1fr 1fr" }, children: [["grid", text.layoutGrid], ["list", text.layoutList]].map(([layout, label]) => {
                             const active = settings.sensorLayout === layout;
                             return SP_JSX.jsx(PadButton, { preferredFocus: active, onActivate: () => setSettings({ ...settings, sensorLayout: layout }), style: { alignItems: "center", background: active ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${active ? accent.focus : tokens.colors.border}`, color: active ? accent.focus : tokens.colors.text, display: "flex", fontSize: 11, fontWeight: 650, height: 36, justifyContent: "center", width: "100%" }, children: label }, layout);
-                        }) })] }), SP_JSX.jsxs("section", { style: { marginBottom: 12 }, children: [SP_JSX.jsx(SectionTitle, { kind: "settings", title: text.advanced }), SP_JSX.jsxs(PadButton, { disabled: busy || !cyanActive, onActivate: toggleHighPoints, style: { alignItems: "center", background: highPointsEnabled ? tokens.colors.red_soft : tokens.colors.panel_raised, border: `1px solid ${highPointsEnabled ? tokens.colors.red : tokens.colors.border}`, display: "flex", fontSize: 10, height: 44, justifyContent: "space-between", padding: "6px 10px", width: "100%" }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.text }, children: text.highFrequencyPoints }), SP_JSX.jsx("b", { style: { color: highPointsEnabled ? tokens.colors.red : tokens.colors.subtle }, children: highPointsEnabled ? text.enabled : text.disabled })] }), SP_JSX.jsx("div", { style: { color: cyanActive ? tokens.colors.subtle : tokens.colors.amber, fontSize: 9, lineHeight: 1.4, margin: "6px 2px 0" }, children: cyanActive ? text.highFrequencyPointsHint : text.highFrequencyCyanOnly })] })] });
+                        }) })] })] });
 }
-var index = definePlugin(() => ({
-    name: "BC250 Quick Access",
-    titleView: SP_JSX.jsx("div", { className: DFL.staticClasses.Title, children: "BC250 Quick Access" }),
-    content: SP_JSX.jsx(Content, {}),
-    icon: SP_JSX.jsx(FaMicrochip, {}),
-    onDismount() { },
-}));
+var index = definePlugin(() => {
+    // Registered with the plugin, not the panel: per-game profiles follow
+    // games while the Quick Access menu is closed, which is nearly always.
+    const lifetime = globalThis.SteamClient?.GameSessions?.RegisterForAppLifetimeNotifications?.(onAppLifetime);
+    // A game already running when Decky (re)loaded the plugin.
+    const current = DFL.Router.MainRunningApp;
+    if (current?.appid) {
+        runningInstances.set(String(current.appid), new Set([0]));
+        void onGameStart(String(current.appid), current.display_name || appName(Number(current.appid)));
+    }
+    return {
+        name: "BC250 Quick Access",
+        titleView: SP_JSX.jsx("div", { className: DFL.staticClasses.Title, children: "BC250 Quick Access" }),
+        content: SP_JSX.jsx(Content, {}),
+        icon: SP_JSX.jsx(FaMicrochip, {}),
+        onDismount() { lifetime?.unregister?.(); },
+    };
+});
 
 export { index as default };
 //# sourceMappingURL=index.js.map

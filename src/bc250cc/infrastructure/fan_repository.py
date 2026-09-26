@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import shutil
@@ -12,9 +13,12 @@ from bc250cc.infrastructure.fan_transport import (
     select_pwm_transport,
     validate_pwm_request,
 )
+from bc250cc.infrastructure.governor_config_request import plan_governor_config_request
 from bc250cc.infrastructure.polkit_session import normalize_polkit_error, pkexec_argv
 from bc250cc.infrastructure.steamos_shell import wrap_steamos_writable_command
+from bc250cc.infrastructure.system_fan_control import read_system_fan_control
 from bc250cc.platform.init.services import detect_init_manager
+from bc250cc.shared.failure_text import describe_failure
 
 logger = logging.getLogger(__name__)
 
@@ -206,11 +210,17 @@ class FanRepository:
         servicios = self._nct_service_commands()
         openrc = detect_init_manager().kind == 'openrc'
         helper_path = '/usr/libexec/bc250-control-center/bc250-openrc-service-helper'
+        # The system fan control service (GitHub #15) drives the same PWM
+        # channels; without the driver it has nothing to follow, so it goes
+        # together with the boot restore and its policy.
         remove_restore = (
-            f'sudo {helper_path} remove bc250-fan-pwm-restore 2>/dev/null || true'
+            f'sudo {helper_path} remove bc250-fan-pwm-restore 2>/dev/null || true; '
+            f'sudo {helper_path} remove bc250-fan-control 2>/dev/null || true'
             if openrc else (
                 'sudo systemctl disable --now bc250-fan-pwm-restore.service 2>/dev/null || true; '
-                'sudo rm -f /etc/systemd/system/bc250-fan-pwm-restore.service'
+                'sudo rm -f /etc/systemd/system/bc250-fan-pwm-restore.service; '
+                'sudo systemctl disable --now bc250-fan-control.service 2>/dev/null || true; '
+                'sudo rm -f /etc/systemd/system/bc250-fan-control.service'
             )
         )
         comando = '; '.join([
@@ -221,6 +231,7 @@ class FanRepository:
             servicios['remove'],
             remove_restore,
             'sudo rm -f /var/lib/bc250-control-center/fan-last-applied.json',
+            'sudo rm -f /var/lib/bc250-control-center/fan-policy.json',
             "sudo rm -f /usr/local/sbin/bc250-load-nct6687",
             servicios['reload'],
             "sudo rm -f /etc/modules-load.d/nct6687.conf",
@@ -506,6 +517,95 @@ class FanRepository:
             return respuesta
         raise RuntimeError(respuesta)
 
+    def _comando_fan_helper(self, linea, *, timeout=60):
+        """Send one line to the persistent root helper session and return its reply."""
+        proceso = self._obtener_fan_pwm_helper()
+        try:
+            proceso.stdin.write(f'{linea}\n')
+            proceso.stdin.flush()
+        except Exception:
+            self.cerrar_fan_pwm_helper()
+            proceso = self._obtener_fan_pwm_helper()
+            proceso.stdin.write(f'{linea}\n')
+            proceso.stdin.flush()
+        respuesta = self._leer_linea_helper(proceso, timeout=timeout)
+        if not respuesta:
+            error = self._leer_stderr_helper(proceso)
+            self.cerrar_fan_pwm_helper()
+            raise RuntimeError(error or 'PWM helper did not respond.')
+        if respuesta.startswith('ERR '):
+            raise RuntimeError(respuesta[4:].strip())
+        if respuesta.startswith('OK'):
+            return respuesta
+        raise RuntimeError(respuesta)
+
+    def _requerir_helper_control_sistema(self):
+        if self._fan_pwm_packaged_helper_path() is None:
+            raise RuntimeError(
+                'System fan control needs the installed, root-owned BC250 fan helper. '
+                'Reinstall BC250 Control Center.'
+            )
+        # A development session may still hold the embedded helper, which
+        # knows nothing about policies; start the packaged one instead.
+        proceso = getattr(self, '_fan_pwm_helper', None)
+        if proceso is not None and getattr(self, '_fan_pwm_helper_embedded', False):
+            self.cerrar_fan_pwm_helper()
+
+    def estado_control_fan_sistema(self):
+        """Read-only: what the root fan service is doing, with no prompt."""
+        snapshot = read_system_fan_control()
+        snapshot['available'] = bool(
+            self._fan_pwm_packaged_helper_path() is not None
+            and detect_init_manager().kind in {'systemd', 'openrc'}
+        )
+        return snapshot
+
+    def sincronizar_control_fan_sistema(self, politica):
+        """Copy the desktop fan policy to the root service (or clear it)."""
+        self._requerir_helper_control_sistema()
+        if politica is None:
+            return {'salida': self._comando_fan_helper('POLICY-CLEAR')}
+        payload = json.dumps(politica, sort_keys=True, separators=(',', ':'))
+        salida = self._comando_fan_helper(f'POLICY {payload}')
+        return {'salida': salida, 'digest': salida.rsplit(' ', 1)[-1]}
+
+    def activar_control_fan_sistema(self, politica):
+        if politica is None:
+            raise RuntimeError('Save a fan curve or preset before enabling system fan control.')
+        resultado = self.sincronizar_control_fan_sistema(politica)
+        resultado['servicio'] = self._comando_fan_helper('CONTROL ENABLE', timeout=150)
+        return resultado
+
+    def desactivar_control_fan_sistema(self):
+        self._requerir_helper_control_sistema()
+        return {'servicio': self._comando_fan_helper('CONTROL DISABLE', timeout=150)}
+
+    def exportar_perfiles_fan_decky(self, profiles):
+        """Publish the three fan profiles for Decky Quick Access's presets.
+
+        Display names and speeds only, written by the same small root
+        metadata writer the GPU and CPU exports use; no fan is touched here,
+        and the Decky helper bounds every speed again before it applies one.
+        """
+        request = plan_governor_config_request("set-decky-fan-profiles", (list(profiles),))
+        helper = self._governor_config_helper_path()
+        if not helper:
+            raise RuntimeError(
+                "The privileged governor configuration helper is not installed. "
+                "Reinstall BC250 Control Center locally or from its package before exporting."
+            )
+        rc, out, err = self._ejecutar(request.argv(helper), timeout=120)
+        if rc != 0:
+            if "Unsupported governor configuration action" in f"{out}\n{err}":
+                # A helper installed by an older build: every other export
+                # still works, this one needs the matching helper.
+                raise RuntimeError(
+                    "The installed privileged helper is older than this application. "
+                    "Reinstall BC250 Control Center to export fan profiles to Decky."
+                )
+            raise RuntimeError(describe_failure(rc, out, err))
+        return (out or "").strip()
+
     def _escribir_pwm_auto_con_helper(self, pwm):
         proceso = self._obtener_fan_pwm_helper()
         try:
@@ -754,6 +854,9 @@ for line in sys.stdin:
             # Development/user-local fallback. This path exists for source testing;
             # packaged installations fail closed instead of running user-owned code.
             helper_path = self._guardar_fan_pwm_helper(helper_code)
+            embedded = True
+        else:
+            embedded = False
         try:
             proceso = subprocess.Popen(
                 pkexec_argv('pkexec', str(helper_path)),
@@ -775,6 +878,7 @@ for line in sys.stdin:
             self._fan_pwm_helper = None
             raise RuntimeError((linea + '\n' + error).strip())
         self._fan_pwm_helper = proceso
+        self._fan_pwm_helper_embedded = embedded
         return proceso
 
     def _leer_linea_helper(self, proceso, timeout=60):

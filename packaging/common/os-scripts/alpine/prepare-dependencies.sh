@@ -5,10 +5,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../common/common.sh"
 parse_component "$@"
 
+# No dkms: Alpine packages akms instead, and one unknown name makes apk
+# refuse the whole transaction, so git, lspci and jq never arrived either.
 runtime_packages=(
   bash python3 py3-qt6 py3-psutil qt6-qtbase qt6-qtsvg git pciutils
   libdrm mesa-dri-gallium vulkan-tools polkit kmod curl ca-certificates tar
-  zstd dbus dbus-openrc busctl jq build-base linux-headers dkms
+  zstd dbus dbus-openrc busctl jq build-base linux-headers
 )
 
 apk_install() { as_root apk add --no-progress "$@"; }

@@ -1,6 +1,7 @@
 import json
 import os
 import runpy
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -88,6 +89,76 @@ def test_local_installer_preflights_complete_source_before_copying_or_privilege(
     )
     assert completed.returncode == 0, completed.stderr
     assert "vendor checks" in completed.stdout
+
+
+def test_local_installer_makes_the_staged_application_world_readable():
+    """A 0600 source file made a root install unreadable to the desktop user."""
+    installer = _text(ROOT / "scripts" / "install-local.sh")
+
+    normalise = installer.index('chmod -R a+rX "$APP_STAGE"')
+    assert installer.index('cp -a "$ROOT_DIR/$component" "$APP_STAGE/"') < normalise
+    assert normalise < installer.index('mv -- "$APP_STAGE/$component" "$APP_DIR/$component"')
+
+
+def _run_cyan_dropin_removal(dropin: Path) -> subprocess.CompletedProcess:
+    uninstaller = _text(ROOT / "scripts" / "uninstall-local.sh")
+    function = uninstaller[uninstaller.index("remove_managed_cyan_dropin() {"):]
+    function = function[:function.index("\n}\n") + 3]
+    script = (
+        f'SYSTEM_CYAN_OVERLAY_DROPIN="{dropin}"\n'
+        'SYSTEM_CYAN_OVERLAY_PREFLIGHT="/usr/libexec/bc250-control-center/bc250-cyan-overlay-preflight"\n'
+        'remove_path() { rm -f -- "$1"; }\n'
+        "remove_empty_dir() { :; }\n"
+        f"{function}remove_managed_cyan_dropin\n"
+    )
+    return subprocess.run(["bash", "-c", script], text=True, capture_output=True, timeout=20, check=False)
+
+
+def test_local_uninstall_removes_the_cyan_dropin_it_installed(tmp_path):
+    """The wrapped marker never matched; Cyan then failed on a missing ExecStartPre."""
+    shipped = ROOT / "packaging" / "common" / "91-bc250-control-center-overlay-preflight.conf"
+    ours = tmp_path / "ours.conf"
+    ours.write_text(shipped.read_text(encoding="utf-8"), encoding="utf-8")
+    foreign = tmp_path / "foreign.conf"
+    foreign.write_text(
+        "# Written by hand\n[Service]\n"
+        "ExecStartPre=/usr/libexec/bc250-control-center/bc250-cyan-overlay-preflight\n",
+        encoding="utf-8",
+    )
+
+    removed = _run_cyan_dropin_removal(ours)
+    kept = _run_cyan_dropin_removal(foreign)
+
+    assert removed.returncode == 0 and not ours.exists(), removed.stderr
+    assert foreign.exists()
+    assert "keeping unverified Cyan systemd drop-in" in kept.stderr
+
+
+def test_install_source_preflight_runs_with_busybox_find(tmp_path):
+    """Alpine's BusyBox find has no -printf; install-local.sh stopped there."""
+    shims = tmp_path / "bin"
+    shims.mkdir()
+    real_find = shutil.which("find")
+    (shims / "find").write_text(
+        "#!/bin/sh\n"
+        'for argument in "$@"; do\n'
+        '  case "$argument" in -printf|-fprintf) echo "find: unrecognized: $argument" >&2; exit 1;; esac\n'
+        "done\n"
+        f'exec {real_find} "$@"\n',
+        encoding="utf-8",
+    )
+    (shims / "find").chmod(0o755)
+
+    completed = subprocess.run(
+        ["bash", str(ROOT / "scripts" / "qa" / "validate-install-source.sh"), str(ROOT), "--structure-only"],
+        text=True,
+        capture_output=True,
+        timeout=20,
+        check=False,
+        env={**os.environ, "PATH": f"{shims}:{os.environ['PATH']}"},
+    )
+
+    assert completed.returncode == 0, completed.stderr
 
 
 def test_local_install_and_uninstall_manage_headless_cli_and_isolated_prefixes():
@@ -259,6 +330,13 @@ def _fan_pwm_helper_with_state(tmp_path, monkeypatch):
     state_dir = tmp_path / "state"
     monkeypatch.setitem(globals_, "STATE_DIR", state_dir)
     monkeypatch.setitem(globals_, "STATE_FILE", state_dir / "fan-last-applied.json")
+    # Never the machine's own system fan service: with it switched on, the
+    # replay below correctly steps aside and the test would see no write.
+    monkeypatch.setitem(globals_, "POLICY_FILE", state_dir / "fan-policy.json")
+    monkeypatch.setitem(globals_, "OVERRIDE_FILE", tmp_path / "run" / "fan-override.json")
+    monkeypatch.setitem(globals_, "STATUS_FILE", tmp_path / "run" / "fan-control.json")
+    monkeypatch.setitem(globals_, "CONTROL_UNIT_PATH", tmp_path / "units" / "bc250-fan-control.service")
+    monkeypatch.setitem(globals_, "CONTROL_UNIT_WANTS", tmp_path / "units" / "wants" / "bc250-fan-control.service")
 
     @contextmanager
     def noop_lock():

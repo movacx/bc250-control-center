@@ -33,6 +33,7 @@ FAN_PWM_HELPER = pathlib.Path('/usr/libexec/bc250-control-center/bc250-fan-pwm-h
 SERVICES = frozenset({
     'bc250-cu-live-manager', 'bc250-smu-oc', 'cyan-skillfish-governor-smu',
     'oberon-governor', 'nct6687-load', 'bc250-fan-pwm-restore',
+    'bc250-fan-control',
 })
 
 
@@ -207,6 +208,24 @@ start() {{
 '''
 
 
+def _fan_control_script() -> str:
+    if not _safe_regular(FAN_PWM_HELPER, executable=True):
+        raise RuntimeError('The protected fan PWM helper is missing/unsafe.')
+    return f'''#!/sbin/openrc-run
+{MARKER}
+description="BC-250 system fan control"
+command="{FAN_PWM_HELPER}"
+command_args="--control-loop"
+supervisor="supervise-daemon"
+respawn_delay=5
+
+depend() {{
+    need localmount
+    after nct6687-load
+}}
+'''
+
+
 def _governor_script(name: str) -> str:
     binary = pathlib.Path('/usr/local/bin') / name
     if not _safe_regular(binary, executable=True):
@@ -253,6 +272,8 @@ def _service_text(name: str) -> str:
         return _fan_script()
     if name == 'bc250-fan-pwm-restore':
         return _fan_pwm_restore_script()
+    if name == 'bc250-fan-control':
+        return _fan_control_script()
     if name in {'cyan-skillfish-governor-smu', 'oberon-governor'}:
         return _governor_script(name)
     raise RuntimeError('Unsupported OpenRC service.')

@@ -67,6 +67,37 @@ def embedded_terminal_launcher():
     return _embedded_launcher
 
 
+_workflow_observers: list[Callable[[TerminalLaunchResult], None]] = []
+
+
+def add_workflow_observer(observer: Callable[[TerminalLaunchResult], None]) -> None:
+    """Be told about every workflow handed to a terminal, as it starts.
+
+    Installers run in a terminal and the call that launched them returns at
+    once, so whoever shows what is installed learns about the change only by
+    polling. An observer gets the launch result, status file included, and can
+    watch for the moment it is written instead. Observers are called from the
+    worker thread that launched the workflow.
+    """
+    if observer not in _workflow_observers:
+        _workflow_observers.append(observer)
+
+
+def remove_workflow_observer(observer: Callable[[TerminalLaunchResult], None]) -> None:
+    if observer in _workflow_observers:
+        _workflow_observers.remove(observer)
+
+
+def _announce_workflow(result: TerminalLaunchResult) -> TerminalLaunchResult:
+    for observer in tuple(_workflow_observers):
+        try:
+            observer(result)
+        except Exception:
+            # Watching a workflow is a courtesy; it must never cost the launch.
+            logger.exception("A workflow observer failed")
+    return result
+
+
 class TerminalRepository:
     @staticmethod
     def leer_resultado_terminal(log_file, exit_code=None):
@@ -173,7 +204,7 @@ class TerminalRepository:
             comando, titulo, state_dir, run_id, status_path, log_path
         )
         if embedded is not None:
-            return embedded
+            return _announce_workflow(embedded)
         launch_path = self._write_launch_script(
             state_dir / f"launch-{run_id}.sh", comando, status_path, log_path, hold=True
         )
@@ -189,13 +220,13 @@ class TerminalRepository:
         )
         terminal, pid, launch_errors = self._launch_terminal_candidates(candidates)
         if terminal:
-            return TerminalLaunchResult(
+            return _announce_workflow(TerminalLaunchResult(
                 terminal=terminal,
                 title=titulo,
                 pid=pid,
                 status_file=str(status_path),
                 log_file=str(log_path),
-            )
+            ))
 
         detail = f" Attempts: {'; '.join(launch_errors)}" if launch_errors else ""
         raise RuntimeError(

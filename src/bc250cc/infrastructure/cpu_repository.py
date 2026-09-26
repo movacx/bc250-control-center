@@ -21,6 +21,7 @@ from bc250cc.infrastructure.cpu_command_policy import (
     build_detect_command,
     build_disable_command,
     build_scale_command,
+    build_verify_scale_command,
     validate_detection_target,
     validate_scale_target,
 )
@@ -41,13 +42,13 @@ from bc250cc.infrastructure.governor_config_request import (
 )
 from bc250cc.infrastructure.hardware_identity import is_bc250_platform
 from bc250cc.infrastructure.polkit_session import pkexec_argv, pkexec_prefix
-from bc250cc.shared.failure_text import describe_failure
 from bc250cc.platform.init.services import (
     detect_init_manager,
     parse_openrc_runlevel,
     parse_openrc_status,
     service_key,
 )
+from bc250cc.shared.failure_text import describe_failure
 
 CORE_UNLOCK_REPOSITORY = EXTERNAL_TOOLS['core_unlock'].upstream
 CORE_UNLOCK_DIRECTORY = 'bc250-core-unlock'
@@ -987,6 +988,47 @@ class CPURepository:
             analysis['frequency'], analysis['scale'], analysis['temperature']
         )
         return build_scale_command(pkexec_prefix('pkexec'), helper, 'apply-live', target)
+
+    def comando_cpu_oc_manual_verificado_embebido(
+        self, frequency, scale, temperature=90, confirm_manual=False,
+    ):
+        """Stress-test a typed scale in 100 MHz steps, then keep what held.
+
+        No detection has to run first: the steps are the detector's own, so
+        the highest frequency that held is written to ``overclock.conf`` and
+        recorded like any detection result, including for boot persistence.
+        """
+        analysis = self.evaluar_aplicacion_manual_cpu(frequency, scale, temperature)
+        if not confirm_manual:
+            raise ValueError('A stress-tested manual CPU scale requires explicit confirmation')
+        if self._usar_steamos_game_helper():
+            raise RuntimeError(
+                'Manual CPU scale currently requires Desktop Mode. '
+                'The passwordless Game Mode helper does not accept arbitrary scale values.'
+            )
+        if not self._command_path('pkexec'):
+            raise RuntimeError(
+                'polkit/pkexec was not found. Install polkit to authenticate manual CPU tuning.'
+            )
+        tools = self.estado_herramientas_bc250()
+        if not tools.get('stress'):
+            raise RuntimeError(
+                'stress is missing. Press Prepare dependencies or install the stress package '
+                'before testing a manual CPU scale.'
+            )
+        if not tools.get('smu_oc_exists'):
+            raise RuntimeError(
+                'The local bc250_smu_oc repository was not found. Use Prepare dependencies first so '
+                'the tested result and persistence share the same ResourceTools/overclock.conf.'
+            )
+        helper = self._cpu_smu_helper_path()
+        if not helper:
+            raise RuntimeError(self._missing_cpu_smu_helper_message())
+        target = validate_scale_target(
+            analysis['frequency'], analysis['scale'], analysis['temperature']
+        )
+        config_path = Path(tools['smu_oc_path']) / 'overclock.conf'
+        return build_verify_scale_command(pkexec_prefix('pkexec'), helper, target, config_path)
 
     def registrar_aplicacion_manual_cpu(self, frequency, scale, temperature=90):
         """Record a successful direct live apply and bind safe detector evidence.

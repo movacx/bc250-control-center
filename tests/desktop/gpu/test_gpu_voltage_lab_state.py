@@ -105,7 +105,8 @@ def test_voltage_lab_prefers_voltage_aware_points_and_preserves_defaults():
 def test_voltage_lab_qt_adapter_preserves_user_edits_and_applies_pure_state(qtbot):
     page = GpuGovernorPage(object())
     qtbot.addWidget(page)
-    page._voltage_custom_values[1000] = 825
+    # The same call the drawer's editor makes when a value is typed.
+    page._drawer_custom_voltage_changed(1000, 825)
     page._sync_voltage_lab({
         "safe_points_with_voltage": [
             {"frequency": 1000, "voltage": 800},
@@ -128,3 +129,19 @@ def test_voltage_lab_qt_adapter_preserves_user_edits_and_applies_pure_state(qtbo
     assert set(drawer._editors) == {1000, 1850}
     assert all(editor.isEnabled() for editor in drawer.editors())
     assert "safe points" in drawer.profile_detail.text()
+
+
+def test_the_applied_level_is_an_exact_match_or_none():
+    """``detected_level`` is the nearest level; ``applied_level`` only an exact one."""
+    for level in range(7):
+        full = voltage_profile(level)
+        assert build_voltage_lab_state({"safe_points_with_voltage": _points(full.items())}).applied_level == level
+        # The +2000 MHz points switched off: still that level.
+        short = [(frequency, voltage) for frequency, voltage in full.items() if frequency <= 2000]
+        assert build_voltage_lab_state({"safe_points_with_voltage": _points(short)}).applied_level == level
+    edited = {**voltage_profile(3), 1850: 945}
+    state = build_voltage_lab_state({"safe_points_with_voltage": _points(edited.items())})
+    assert state.applied_level is None and state.detected_level == 3
+    extra = {**voltage_profile(0), 1300: 870}
+    assert build_voltage_lab_state({"safe_points_with_voltage": _points(extra.items())}).applied_level is None
+    assert build_voltage_lab_state({}).applied_level is None

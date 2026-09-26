@@ -963,6 +963,23 @@ class GPURepository:
         self.estado_bc250_cache = None
         return (out or "").strip()
 
+    def _cyan_dbus_unavailable_detail(self) -> str:
+        """Why Cyan's D-Bus did not answer, when this application can tell."""
+        try:
+            method = GovernorTomlEditor(
+                self._cyan_runtime_config_path()
+            ).gpu_telemetry_state().get("method")
+        except Exception:
+            return ""
+        if method != "process":
+            return ""
+        return (
+            " Cyan is set to gpu-usage.method = process, which reads every open "
+            "file of every program; with a Proton game open it does not get to "
+            "answer. Choose busy-flag in Cyan kernel compatibility, apply, and "
+            "try again."
+        )
+
     def _frequency_range_state(self):
         return GovernorTomlEditor(
             self._cyan_runtime_config_path()
@@ -1072,6 +1089,7 @@ class GPURepository:
             raise RuntimeError(
                 "Cyan D-Bus Allowed range is unavailable. Refresh the governor "
                 "status before applying a GPU frequency."
+                + self._cyan_dbus_unavailable_detail()
             )
         if int(allowed[0]) <= minimo <= maximo <= int(allowed[1]):
             return
@@ -1693,20 +1711,50 @@ class GPURepository:
         current_obj = "/com/cyanskillfish/Governor/Range/Current"
         allowed_obj = "/com/cyanskillfish/Governor/Range/Allowed"
         interface = self._GOVERNOR_RANGE_INTERFACE
-        state.update(
-            {
-                "current_min": self._dbus_uint_property(current_obj, interface, "Min"),
-                "current_max": self._dbus_uint_property(current_obj, interface, "Max"),
-                "allowed_min": self._dbus_uint_property(allowed_obj, interface, "Min"),
-                "allowed_max": self._dbus_uint_property(allowed_obj, interface, "Max"),
-                "dbus_performance": self._dbus_bool_property(
-                    "/com/cyanskillfish/Governor",
-                    "com.cyanskillfish.Governor.PerformanceMode",
-                    "Enabled",
-                ),
-            }
+        reads = (
+            ("current_min", lambda: self._dbus_uint_property(current_obj, interface, "Min")),
+            ("current_max", lambda: self._dbus_uint_property(current_obj, interface, "Max")),
+            ("allowed_min", lambda: self._dbus_uint_property(allowed_obj, interface, "Min")),
+            ("allowed_max", lambda: self._dbus_uint_property(allowed_obj, interface, "Max")),
+            ("dbus_performance", lambda: self._dbus_bool_property(
+                "/com/cyanskillfish/Governor",
+                "com.cyanskillfish.Governor.PerformanceMode",
+                "Enabled",
+            )),
         )
+        values = dict.fromkeys(key for key, _read in reads)
+        # Cyan can be running while its D-Bus thread never gets the governor
+        # lock (gpu-usage.method = "process" with a Proton game open). Each
+        # read then waits the full 2 s; five of them made every refresh ten
+        # seconds long and left the dashboard empty. The first timeout ends
+        # this refresh's reads, and the next refreshes leave the bus alone
+        # for a while -- unless Cyan was restarted in between.
+        main_pid = state["service_main_pid"]
+        responsive = not self._cyan_dbus_stalled(main_pid)
+        if responsive:
+            started = time.monotonic()
+            for key, read in reads:
+                values[key] = read()
+                if values[key] is None and getattr(self, "_cyan_dbus_last_timeout", 0.0) >= started:
+                    self._cyan_dbus_stall = (main_pid, time.monotonic())
+                    responsive = False
+                    break
+        state.update(values)
+        state["dbus_responsive"] = responsive
         return state
+
+    #: How long passive refreshes leave an unresponsive Cyan D-Bus alone.
+    _CYAN_DBUS_BACKOFF_SECONDS = 20.0
+
+    def _cyan_dbus_stalled(self, main_pid) -> bool:
+        stall = getattr(self, "_cyan_dbus_stall", None)
+        if not stall:
+            return False
+        stalled_pid, since = stall
+        if stalled_pid != main_pid or time.monotonic() - since > self._CYAN_DBUS_BACKOFF_SECONDS:
+            self._cyan_dbus_stall = None
+            return False
+        return True
 
     def _gpu_device_evidence(self, gpu):
         """Read one coherent sysfs sample without mixing governor decisions."""
@@ -1819,7 +1867,9 @@ class GPURepository:
         resultado = build_gpu_state_snapshot(device_evidence, governor_evidence)
         resultado["apu_telemetry"] = collect_apu_telemetry(gpu)
         self.estado_bc250_cache = resultado
-        self.estado_bc250_cache_time = ahora
+        # After the read: a slow read stamped with its start time was already
+        # expired when it was stored, and the next caller read everything again.
+        self.estado_bc250_cache_time = time.monotonic()
         return dict(resultado)
 
     def aplicar_rango_bc250(self, minimo, maximo):
@@ -1937,7 +1987,10 @@ class GPURepository:
         current = self._leer_rango_governor("Current")
         allowed = self._leer_rango_governor("Allowed")
         if allowed is None:
-            raise RuntimeError("Cyan D-Bus Allowed range is unavailable.")
+            raise RuntimeError(
+                "Cyan D-Bus Allowed range is unavailable."
+                + self._cyan_dbus_unavailable_detail()
+            )
         minimum = int(current[0]) if current is not None else int(allowed[0])
         minimum = min(minimum, frecuencia)
         self._ensure_cyan_frequency_range_loaded(minimum, frecuencia)

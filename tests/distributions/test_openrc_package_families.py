@@ -54,6 +54,19 @@ def test_openrc_package_scripts_preserve_cpu_detector_contract():
     assert "not stress-ng" in alpine
 
 
+def test_alpine_asks_apk_only_for_packages_alpine_ships():
+    """apk refuses the whole list over one unknown name; dkms broke runtime."""
+    root = Path(__file__).parents[2] / "packaging/common/os-scripts/alpine"
+    dependencies = (root / "prepare-dependencies.sh").read_text(encoding="utf-8")
+    fan_pwm = (root / "prepare-fan-pwm.sh").read_text(encoding="utf-8")
+
+    runtime = dependencies.split("runtime_packages=(", 1)[1].split(")", 1)[0].split()
+    assert "dkms" not in runtime
+    assert "apk add --no-progress build-base linux-headers" in fan_pwm
+    assert "dkms linux-headers" not in fan_pwm
+    assert "if ! have dkms; then" in fan_pwm
+
+
 def test_openrc_cyan_preparation_installs_the_dbus_client_and_service_integration():
     root = Path(__file__).parents[2] / "packaging/common/os-scripts"
     alpine = (root / "alpine/prepare-dependencies.sh").read_text(encoding="utf-8")

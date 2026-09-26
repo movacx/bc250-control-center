@@ -156,6 +156,14 @@
       "retryable": false
     },
     {
+      "code": "BC250-VRAM-001",
+      "markers": [
+        "QUICK_ACCESS_VRAM"
+      ],
+      "exit_statuses": [],
+      "retryable": false
+    },
+    {
       "code": "BC250-AUTH-002",
       "markers": [
         "QUICK_ACCESS_AUTH"
@@ -257,6 +265,8 @@
       "markers": [
         "QUICK_ACCESS_GPU_PROFILE",
         "QUICK_ACCESS_GPU_SAFE_POINT",
+        "QUICK_ACCESS_GPU_HIGH_POINTS",
+        "QUICK_ACCESS_GPU_VOLTAGE",
         "QUICK_ACCESS_GPU_VERIFY",
         "QUICK_ACCESS_CPU_SCALE",
         "Frequency must be between",
@@ -338,6 +348,7 @@
     "QUICK_ACCESS_CU_SERVICE_REMOVE",
     "QUICK_ACCESS_CU_SERVICE_VERIFY",
     "QUICK_ACCESS_CPU_SCALE_VERIFY",
+    "QUICK_ACCESS_GPU_HIGH_POINTS",
     "QUICK_ACCESS_GPU_SAFE_POINT",
     "Temperature must be between",
     "QUICK_ACCESS_GPU_CONFLICT",
@@ -350,6 +361,7 @@
     "protocol is incompatible",
     "QUICK_ACCESS_GPU_ALLOWED",
     "QUICK_ACCESS_GPU_PROFILE",
+    "QUICK_ACCESS_GPU_VOLTAGE",
     "QUICK_ACCESS_CPU_SERVICE",
     "QUICK_ACCESS_GPU_CONFIG",
     "are different versions.",
@@ -375,6 +387,7 @@
     "CPU_PAYLOAD_REFUSED",
     "CPU_BACKEND_MISSING",
     "returned error: 404",
+    "QUICK_ACCESS_VRAM",
     "QUICK_ACCESS_AUTH",
     "CU_HELPER_MISSING",
     "QUICK_ACCESS_FAN",

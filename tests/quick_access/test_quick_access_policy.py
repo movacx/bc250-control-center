@@ -95,7 +95,12 @@ def test_decky_plugin_and_helper_keep_a_finite_root_protocol():
     assert 'GPU_PROFILES = {' in helper
     assert 'CU_TARGETS = tuple(range(24, 41, 2))' in helper
     assert 'shell=True' not in helper
-    assert 'gpu-voltage' not in helper
+    # The voltage laboratory is a finite ladder plus bounded single-point
+    # nudges, never an arbitrary curve: levels 0-3 only, and each point stays
+    # between the governor value and 60 mV above it, in 5 mV steps.
+    assert 'QAM_VOLTAGE_LEVELS = ("0", "1", "2", "3")' in helper
+    assert 'QAM_VOLTAGE_MAX_ABOVE_DEFAULT_MV = 60' in helper
+    assert 'QAM_VOLTAGE_STEP_MV = 5' in helper
     assert 'apply-custom' not in helper
     assert '"cu-save"' in helper
     assert '"cu-service"' in helper
@@ -138,8 +143,14 @@ def test_decky_plugin_and_helper_keep_a_finite_root_protocol():
     assert 'SYSTEM_FAN_CHANNELS = tuple(range(3, 9))' in helper
     assert 'QAM_FAN_CHANNELS = (2, 3, 4, 5)' in helper
     assert '"ok": True' in helper
-    assert 'HELPER_PROTOCOL = 15' in helper
-    assert 'HELPER_PROTOCOL = 15' in backend
+    # Both ends of the wire speak the contract's protocol, whatever its
+    # number is today — a literal here went stale at every protocol bump.
+    from bc250cc.shared.contract import QUICK_ACCESS_PROTOCOL
+
+    assert f'HELPER_PROTOCOL = {QUICK_ACCESS_PROTOCOL}' in helper
+    assert f'HELPER_PROTOCOL = {QUICK_ACCESS_PROTOCOL}' in backend
+    assert 'gpu-service' in helper
+    assert 'set_gpu_governor_service' in backend
     assert 'save_cu_table' in backend
     assert 'install_cu_service' in backend
     assert 'remove_cu_service' in backend

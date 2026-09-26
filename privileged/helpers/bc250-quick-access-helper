@@ -35,7 +35,14 @@ from contextlib import contextmanager
 # Protocol 15 adds "gpu-high-points" (Cyan TOML safe-points above 2000 MHz).
 # Protocol 16 adds "vram-apply" (write the UMA_SIZE VRAM preset to CMOS; the
 # new size activates after the next reboot, exactly like the desktop control).
-HELPER_PROTOCOL = 16
+# Protocol 17 adds "gpu-service".
+# Protocol 18 adds the voltage laboratory: "gpu-voltage-level <0-3>" and
+# "gpu-voltage-custom <mhz=mv>...", and the gpu_voltage_* status fields.
+# Protocol 19 adds the Desktop's fan profiles as the quiet/balanced/boost
+# presets ("fan_profiles" in the status), "fan-resume" (hand the fans back to
+# the desktop's system fan service after a Decky takeover) and the
+# system_fan_* ownership fields per-game profiles restore from.
+HELPER_PROTOCOL = 19
 REQUIRED_CONTRACT_REVISION = 1
 CONTRACT_PATH = pathlib.Path(
     "/usr/libexec/bc250-control-center/lib/bc250_contract.py"
@@ -201,6 +208,77 @@ def _load_cpu_profile_overrides(
         overrides[key] = {"name": name, "frequency": frequency, "vid": vid}
     return overrides
 
+
+
+#: Written by the Desktop's governor-config helper when the player exports
+#: the Fans page's three profiles; see write_decky_fan_profiles() in
+#: governor_toml.py. Untrusted input like its siblings: each speed is bounded
+#: to the Quick Access fan range again here, the preset keys are the fixed
+#: ones below, and the pump channel stays out of reach whatever the file says.
+DECKY_FAN_PROFILES_PATH = pathlib.Path("/etc/bc250-control-center/decky-fan-profiles.json")
+DECKY_FAN_PROFILE_KEYS = ("quiet", "balanced", "boost")
+
+
+def _load_fan_profile_overrides(
+    path: pathlib.Path = DECKY_FAN_PROFILES_PATH,
+) -> dict[str, dict[str, object]]:
+    try:
+        metadata = path.lstat()
+    except OSError:
+        return {}
+    if not stat.S_ISREG(metadata.st_mode) or stat.S_ISLNK(metadata.st_mode):
+        return {}
+    if metadata.st_uid != 0 or metadata.st_mode & 0o022:
+        return {}
+    if metadata.st_size > 16 * 1024:
+        return {}
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return {}
+    if not isinstance(document, dict) or document.get("schema") != 1:
+        return {}
+    entries = document.get("profiles")
+    if not isinstance(entries, list):
+        return {}
+    overrides: dict[str, dict[str, object]] = {}
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        key = entry.get("key")
+        name = entry.get("name")
+        percent = entry.get("percent")
+        if (
+            key not in DECKY_FAN_PROFILE_KEYS
+            or not isinstance(name, str) or not 1 <= len(name) <= 40
+            or isinstance(percent, bool) or not isinstance(percent, int)
+            or not QAM_FAN_MIN_PERCENT <= percent <= QAM_FAN_MAX_PERCENT
+        ):
+            continue
+        overrides[key] = {"name": name, "percent": percent}
+    return overrides
+
+
+def effective_fan_presets() -> dict[str, int | None]:
+    """Preset key -> duty (0-255), with the Desktop's exported speeds applied."""
+    presets = dict(FAN_SYSTEM_PRESETS)
+    for key, values in _load_fan_profile_overrides().items():
+        presets[key] = round(int(values["percent"]) * 255 / 100)
+    return presets
+
+
+def fan_profiles_payload() -> list[dict[str, object]]:
+    """What the panel shows on its preset buttons: name (if exported) and speed."""
+    overrides = _load_fan_profile_overrides()
+    duties = effective_fan_presets()
+    return [
+        {
+            "key": key,
+            "name": str(overrides.get(key, {}).get("name") or ""),
+            "percent": round(int(duties[key]) * 100 / 255),
+        }
+        for key in DECKY_FAN_PROFILE_KEYS
+    ]
 
 # Oberon is deliberately a small, fixed Quick Access surface.  Unlike Cyan it
 # does not expose a runtime D-Bus range or TOML safe-point ladder, and showing
@@ -982,6 +1060,8 @@ def qam_sensors() -> int:
         "system_fan_channels": fan_channels,
         "system_fan_preset": fan_preset,
         "system_fan_duty": fan_duty,
+        "fan_profiles": fan_profiles_payload(),
+        **system_fan_ownership(),
         "fan_channel_options": fan_channel_options,
         **memory_runtime_state(),
         **system_memory_state(),
@@ -1151,6 +1231,185 @@ def service_active(service: str) -> bool:
     return run(
         ["/usr/bin/systemctl", "is-active", "--quiet", service], timeout=8
     ).returncode == 0
+
+
+#: The only two services this action may touch, keyed by the governor name
+#: the panel already reports. Never a caller-supplied unit.
+GOVERNOR_SERVICES = {"cyan": CYAN_SERVICE, "oberon": OBERON_SERVICE}
+GOVERNOR_SERVICE_START_SECONDS = 8.0
+#: Which governor the panel last enabled or disabled, so "Disable" followed
+#: by "Enable" brings back the same one on a board with both installed.
+GOVERNOR_LAST_TARGET = pathlib.Path("/var/lib/bc250-control-center/quick-access-gpu-governor")
+
+
+def last_governor_target(path: pathlib.Path = GOVERNOR_LAST_TARGET) -> str:
+    if not trusted_file(path):
+        return ""
+    try:
+        value = path.read_text(encoding="ascii", errors="strict").strip()
+    except (OSError, UnicodeError):
+        return ""
+    return value if value in GOVERNOR_SERVICES else ""
+
+
+def remember_governor_target(name: str, path: pathlib.Path = GOVERNOR_LAST_TARGET) -> None:
+    """Best effort: losing this only means falling back to the default order."""
+    if name not in GOVERNOR_SERVICES:
+        return
+    temporary: pathlib.Path | None = None
+    try:
+        path.parent.mkdir(mode=0o755, parents=True, exist_ok=True)
+        if not trusted_directory(path.parent):
+            return
+        if (path.exists() or path.is_symlink()) and not trusted_file(path):
+            return
+        descriptor, temporary_name = tempfile.mkstemp(prefix=".qa-governor-", dir=path.parent)
+        temporary = pathlib.Path(temporary_name)
+        with os.fdopen(descriptor, "w", encoding="ascii") as handle:
+            handle.write(name + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        temporary.chmod(0o644)
+        os.replace(temporary, path)
+        temporary = None
+    except OSError:
+        return
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+
+
+def governor_unit_state(service: str) -> dict[str, bool]:
+    """Installed / enabled / active for one fixed governor unit."""
+    result = run(
+        [
+            "/usr/bin/systemctl", "show", service,
+            "--property=LoadState,UnitFileState,ActiveState",
+        ],
+        timeout=8,
+    )
+    values: dict[str, str] = {}
+    if result.returncode == 0:
+        for line in result.stdout.splitlines():
+            key, _, value = line.partition("=")
+            values[key.strip()] = value.strip()
+    return {
+        "installed": values.get("LoadState") == "loaded",
+        "enabled": values.get("UnitFileState") in {"enabled", "enabled-runtime"},
+        "active": values.get("ActiveState") in {"active", "activating", "reloading"},
+    }
+
+
+def governor_service_state() -> dict[str, object]:
+    """Which governor the panel's service buttons act on, and its state.
+
+    The active governor if exactly one runs; otherwise the one enabled for
+    boot; otherwise the one this panel last managed, if still installed;
+    otherwise the only one installed; otherwise Cyan when both are installed
+    and nothing chose between them yet — the project's default governor.
+    Both running at once is reported as a conflict and never acted on.
+    """
+    states = {name: governor_unit_state(unit) for name, unit in GOVERNOR_SERVICES.items()}
+    active = [name for name, state in states.items() if state["active"]]
+    enabled = [name for name, state in states.items() if state["enabled"]]
+    installed = [name for name, state in states.items() if state["installed"]]
+    if len(active) == 1:
+        target = active[0]
+    elif len(enabled) == 1:
+        target = enabled[0]
+    elif (remembered := last_governor_target()) in installed:
+        target = remembered
+    elif len(installed) == 1:
+        target = installed[0]
+    elif "cyan" in installed:
+        target = "cyan"
+    else:
+        target = ""
+    target_state = states.get(target, {"installed": False, "enabled": False, "active": False})
+    return {
+        "gpu_service_target": target,
+        "gpu_service_installed": bool(target_state["installed"]),
+        "gpu_service_enabled": bool(target_state["enabled"]),
+        "gpu_service_active": bool(target_state["active"]),
+        "gpu_service_conflict": len(active) > 1,
+    }
+
+
+def gpu_service_action(action: str) -> int:
+    """Enable (and start) or disable (and stop) the installed GPU governor.
+
+    A finite action on one of two fixed unit names. Enabling never starts a
+    second governor next to a running one, and every result is read back
+    from systemd before it is reported as done.
+    """
+    if action not in {"enable", "disable"}:
+        return fail("QUICK_ACCESS_GPU_SERVICE: action must be enable or disable.", 2)
+    state = governor_service_state()
+    if state["gpu_service_conflict"]:
+        return fail(
+            "QUICK_ACCESS_GPU_CONFLICT: both GPU governors are running. Resolve the "
+            "conflict from BC250 Control Center Desktop before changing either service.",
+            69,
+        )
+    target = str(state["gpu_service_target"])
+    if not target or not state["gpu_service_installed"]:
+        return fail(
+            "QUICK_ACCESS_GPU_SERVICE: no GPU governor service is installed. Prepare "
+            "one from BC250 Control Center Desktop first.",
+            69,
+        )
+    service = GOVERNOR_SERVICES[target]
+    if action == "enable":
+        other = next(unit for name, unit in GOVERNOR_SERVICES.items() if name != target)
+        if governor_unit_state(other)["active"]:
+            return fail(
+                "QUICK_ACCESS_GPU_CONFLICT: the other GPU governor is running; only one "
+                "may be enabled at a time.",
+                69,
+            )
+        result = run(["/usr/bin/systemctl", "enable", "--now", service], timeout=45)
+        if result.returncode != 0:
+            return fail(
+                "QUICK_ACCESS_GPU_SERVICE: "
+                + (result.stderr.strip() or result.stdout.strip() or f"could not enable {service}."),
+                69,
+            )
+        deadline = time.monotonic() + GOVERNOR_SERVICE_START_SECONDS
+        while not service_active(service) and time.monotonic() < deadline:
+            time.sleep(0.4)
+        verified = governor_unit_state(service)
+        if not (verified["enabled"] and verified["active"]):
+            return fail(
+                f"QUICK_ACCESS_GPU_SERVICE: {service} was enabled but did not stay "
+                "running. Open its status from BC250 Control Center Desktop.",
+                69,
+            )
+        message = f"{service} is enabled and running."
+        remember_governor_target(target)
+    else:
+        result = run(["/usr/bin/systemctl", "disable", "--now", service], timeout=45)
+        if result.returncode != 0:
+            return fail(
+                "QUICK_ACCESS_GPU_SERVICE: "
+                + (result.stderr.strip() or result.stdout.strip() or f"could not disable {service}."),
+                69,
+            )
+        verified = governor_unit_state(service)
+        if verified["enabled"] or verified["active"]:
+            return fail(
+                f"QUICK_ACCESS_GPU_SERVICE: {service} is still enabled or running after "
+                "the disable request.",
+                69,
+            )
+        message = f"{service} is disabled and stopped."
+        remember_governor_target(target)
+    print(json.dumps({
+        "ok": True,
+        "gpu_service_action": "enabled" if action == "enable" else "disabled",
+        "message": message,
+        **governor_service_state(),
+    }))
+    return 0
 
 
 def active_gpu_governor() -> str:
@@ -2058,6 +2317,199 @@ def gpu_high_points(enabled_raw: str) -> int:
     return 0
 
 
+# -- voltage laboratory ------------------------------------------------------
+#
+# The desktop drawer's ladder, reachable from Game Mode: the governor's
+# reviewed curve (level 0) or +10/+20/+30 mV on the points from 2000 MHz up,
+# and single-point edits in 5 mV steps. The curve itself is written by the
+# same root-owned governor-config helper the desktop uses; this helper only
+# validates the request, restarts Cyan, and puts the live range back.
+
+#: Same reviewed curve as bc250cc.domain.gpu.voltage_profiles.
+GOVERNOR_DEFAULT_VOLTAGES = {
+    500: 700, 1000: 800, 1175: 850, 1500: 900, 1600: 910, 1700: 920,
+    1850: 930, 2000: 960, 2050: 980, 2100: 1000, 2125: 1020, 2150: 1035,
+    2200: 1050, 2230: 1085, 2300: 1110, 2350: 1130, 2400: 1150,
+}
+VOLTAGE_BOOST_START_MHZ = 2000
+QAM_VOLTAGE_LEVELS = ("0", "1", "2", "3")
+#: A Game Mode edit may lift a point at most this far above the governor's
+#: value, and never lower it: undervolting belongs to the desktop editor,
+#: where the table and its warnings are on screen.
+QAM_VOLTAGE_MAX_ABOVE_DEFAULT_MV = 60
+QAM_VOLTAGE_STEP_MV = 5
+
+
+def cyan_voltage_points(config: pathlib.Path = CYAN_CONFIG) -> tuple[dict[str, int], ...]:
+    """Every active TOML point with its voltage and the governor default."""
+    if not trusted_directory(config.parent) or not trusted_file(config):
+        return ()
+    try:
+        parsed = tomllib.loads(config.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, tomllib.TOMLDecodeError):
+        return ()
+    raw_points = parsed.get("safe-points")
+    if not isinstance(raw_points, list):
+        return ()
+    points: dict[int, int] = {}
+    for item in raw_points:
+        if not isinstance(item, dict):
+            return ()
+        frequency = item.get("frequency")
+        voltage = item.get("voltage")
+        if type(frequency) is not int or type(voltage) is not int:
+            return ()
+        if not 1 <= frequency <= 3000 or not 600 <= voltage <= 1210 or frequency in points:
+            return ()
+        points[frequency] = voltage
+    return tuple(
+        {
+            "frequency": frequency,
+            "voltage": points[frequency],
+            "default": GOVERNOR_DEFAULT_VOLTAGES.get(frequency, 0),
+        }
+        for frequency in sorted(points)
+    )
+
+
+def _voltage_status(governor: str) -> dict[str, object]:
+    points = cyan_voltage_points() if governor == "cyan" else ()
+    return {
+        "gpu_voltage_points": list(points),
+        "gpu_voltage_level": detected_voltage_level(points) if points else None,
+    }
+
+
+def detected_voltage_level(points) -> int | None:
+    """0-6 when the curve is exactly a ladder level, None for a custom curve.
+
+    The same rule as the desktop's voltage laboratory
+    (``voltage_lab_state._applied_level``): every point must be one the ladder
+    defines, so a curve with a frequency of its own is custom on both, and
+    the points above 2000 MHz may be absent (the +2000 MHz switch takes them
+    out of the file).
+    """
+    known = [point for point in points if point["default"]]
+    if not known or len(known) != len(points):
+        return None
+    for level in range(7):
+        if all(
+            point["voltage"] == point["default"] + (level * 10 if point["frequency"] >= VOLTAGE_BOOST_START_MHZ else 0)
+            for point in known
+        ):
+            return level
+    return None
+
+
+def _cyan_voltage_preconditions() -> str:
+    if active_gpu_governor() != "cyan" or not service_active(CYAN_SERVICE):
+        return "QUICK_ACCESS_GPU_VOLTAGE: the Cyan governor must be running to change its voltage curve."
+    if not trusted_file(GOVERNOR_CONFIG_HELPER, executable=True):
+        return "QUICK_ACCESS_GPU_HELPER: the protected governor configuration helper is unavailable. Reinstall BC250 Control Center."
+    return ""
+
+
+def _restart_cyan_keeping_range(previous: tuple[int, int]) -> str:
+    """Restart Cyan so it reads the new curve, then put the live range back."""
+    restarted = run(["/usr/bin/systemctl", "restart", CYAN_SERVICE], timeout=30)
+    if restarted.returncode != 0:
+        return (restarted.stderr.strip() or restarted.stdout.strip()
+                or "QUICK_ACCESS_GPU_VERIFY: Cyan did not restart.")
+    deadline = time.monotonic() + 15.0
+    while time.monotonic() < deadline and cyan_range() is None:
+        time.sleep(0.3)
+    if cyan_range() is None:
+        return "QUICK_ACCESS_GPU_VERIFY: Cyan restarted but its D-Bus range did not come back."
+    result = run([
+        "/usr/bin/busctl", "--system", "call", CYAN_BUS, CYAN_PERFORMANCE_PATH,
+        CYAN_PERFORMANCE_INTERFACE, "SetRange", "uu", str(previous[0]), str(previous[1]),
+    ], timeout=12)
+    if result.returncode != 0 or wait_for_cyan_range(previous) != previous:
+        return (
+            "QUICK_ACCESS_GPU_VERIFY: the new curve is active, but the previous "
+            f"{previous[0]}-{previous[1]} MHz range could not be restored."
+        )
+    return ""
+
+
+def _voltage_result(message: str) -> int:
+    points = cyan_voltage_points()
+    print(json.dumps({
+        "ok": True,
+        "message": message,
+        "gpu_voltage_points": list(points),
+        "gpu_voltage_level": detected_voltage_level(points),
+        "gpu_range": list(cyan_range() or ()),
+    }))
+    return 0
+
+
+def gpu_voltage_level(level_raw: str) -> int:
+    if level_raw not in QAM_VOLTAGE_LEVELS:
+        return fail("QUICK_ACCESS_GPU_VOLTAGE: level must be 0, 1, 2 or 3.", 20)
+    blocked = _cyan_voltage_preconditions()
+    if blocked:
+        return fail(blocked, 21)
+    previous = cyan_range()
+    if previous is None:
+        return fail("QUICK_ACCESS_GPU_DBUS: Cyan D-Bus is not ready; the voltage curve was not changed.", 22)
+    result = run([str(GOVERNOR_CONFIG_HELPER), "set-cyan-voltage-level", level_raw], timeout=20)
+    if result.returncode != 0:
+        return fail(result.stderr.strip() or result.stdout.strip() or "Governor configuration update failed.", 22)
+    error = _restart_cyan_keeping_range(previous)
+    if error:
+        return fail(error, 24)
+    return _voltage_result(f"Voltage level {level_raw} applied; range {previous[0]}-{previous[1]} MHz kept.")
+
+
+def gpu_voltage_custom(pairs: Sequence[str]) -> int:
+    """Set a few points, each within the Game Mode editor's bounds."""
+    blocked = _cyan_voltage_preconditions()
+    if blocked:
+        return fail(blocked, 21)
+    current = {point["frequency"]: point for point in cyan_voltage_points()}
+    if not current:
+        return fail("QUICK_ACCESS_GPU_VOLTAGE: the Cyan TOML curve could not be read.", 20)
+    requested: dict[int, int] = {}
+    for pair in pairs:
+        match = re.fullmatch(r"([1-9][0-9]{2,3})=([1-9][0-9]{2,3})", str(pair))
+        if match is None:
+            return fail("QUICK_ACCESS_GPU_VOLTAGE: points must be written as MHz=mV.", 20)
+        frequency, voltage = int(match.group(1)), int(match.group(2))
+        point = current.get(frequency)
+        if point is None:
+            return fail(f"QUICK_ACCESS_GPU_VOLTAGE: {frequency} MHz is not an active TOML point.", 20)
+        floor = point["default"] or point["voltage"]
+        ceiling = min(1210, floor + QAM_VOLTAGE_MAX_ABOVE_DEFAULT_MV)
+        if voltage % QAM_VOLTAGE_STEP_MV or not floor <= voltage <= ceiling:
+            return fail(
+                f"QUICK_ACCESS_GPU_VOLTAGE: {frequency} MHz accepts {floor}-{ceiling} mV "
+                f"in {QAM_VOLTAGE_STEP_MV} mV steps from Quick Access.",
+                20,
+            )
+        if requested.get(frequency, voltage) != voltage:
+            return fail("QUICK_ACCESS_GPU_VOLTAGE: one frequency was given two voltages.", 20)
+        requested[frequency] = voltage
+    if not requested or len(requested) > len(current):
+        return fail("QUICK_ACCESS_GPU_VOLTAGE: no points to change.", 20)
+    curve = {frequency: point["voltage"] for frequency, point in current.items()}
+    curve.update(requested)
+    ordered = [curve[frequency] for frequency in sorted(curve)]
+    if any(later < earlier for earlier, later in zip(ordered, ordered[1:])):
+        return fail("QUICK_ACCESS_GPU_VOLTAGE: a higher frequency cannot run at a lower voltage than the point below it.", 20)
+    previous = cyan_range()
+    if previous is None:
+        return fail("QUICK_ACCESS_GPU_DBUS: Cyan D-Bus is not ready; the voltage curve was not changed.", 22)
+    arguments = [f"{frequency}={voltage}" for frequency, voltage in sorted(requested.items())]
+    result = run([str(GOVERNOR_CONFIG_HELPER), "set-cyan-custom-voltages", *arguments], timeout=20)
+    if result.returncode != 0:
+        return fail(result.stderr.strip() or result.stdout.strip() or "Governor configuration update failed.", 22)
+    error = _restart_cyan_keeping_range(previous)
+    if error:
+        return fail(error, 24)
+    return _voltage_result(f"{len(requested)} voltage point(s) updated; range {previous[0]}-{previous[1]} MHz kept.")
+
+
 def cu_table(masks: Sequence[object], *, save_boot: bool = False) -> int:
     """Apply and verify one complete four-row table like Desktop Mode.
 
@@ -2318,6 +2770,80 @@ def nct_sensor(hwmon_root: pathlib.Path = pathlib.Path("/sys/class/hwmon")) -> p
     return max(candidates, key=_nct_sensor_score) if candidates else None
 
 
+#: Written by the desktop when "Control from boot" is on (GitHub #15); the
+#: system fan service follows it. A Quick Access fan change is a deliberate
+#: takeover for the rest of this boot, so it is recorded where that service
+#: looks, instead of being silently undone on its next verify.
+SYSTEM_FAN_POLICY = pathlib.Path("/var/lib/bc250-control-center/fan-policy.json")
+SYSTEM_FAN_OVERRIDE = pathlib.Path("/run/bc250-control-center/fan-override.json")
+
+
+def note_fan_takeover(channels: Sequence[object]) -> None:
+    if not SYSTEM_FAN_POLICY.is_file():
+        return
+    wanted: set[int] = set()
+    for channel in channels:
+        try:
+            value = int(channel)
+        except (TypeError, ValueError):
+            continue
+        if 1 <= value <= 12:
+            wanted.add(value)
+    if not wanted:
+        return
+    try:
+        current = json.loads(SYSTEM_FAN_OVERRIDE.read_text(encoding="utf-8")).get("channels")
+        if isinstance(current, list):
+            wanted.update(v for v in current if type(v) is int and 1 <= v <= 12)
+    except (OSError, ValueError, AttributeError):
+        pass
+    try:
+        SYSTEM_FAN_OVERRIDE.parent.mkdir(mode=0o755, parents=True, exist_ok=True)
+        temporary = SYSTEM_FAN_OVERRIDE.with_name(f".{SYSTEM_FAN_OVERRIDE.name}.{os.getpid()}")
+        temporary.write_text(
+            json.dumps({"channels": sorted(wanted), "source": "decky", "at": int(time.time())}) + "\n",
+            encoding="utf-8",
+        )
+        os.chmod(temporary, 0o644)
+        os.replace(temporary, SYSTEM_FAN_OVERRIDE)
+    except OSError:
+        return
+
+
+def system_fan_ownership() -> dict[str, bool]:
+    """Whether the desktop's root fan service holds a policy, and whether a
+    Decky takeover is pausing it right now."""
+    policy = SYSTEM_FAN_POLICY.is_file()
+    override = False
+    try:
+        document = json.loads(SYSTEM_FAN_OVERRIDE.read_text(encoding="utf-8"))
+        override = isinstance(document, dict) and bool(document.get("channels"))
+    except (OSError, ValueError):
+        override = False
+    return {"system_fan_policy": policy, "system_fan_override": override}
+
+
+def fan_resume() -> int:
+    """Let the desktop's fan service follow its curve or preset again.
+
+    Only a takeover this panel recorded is released: a change made by hand
+    on the Desktop keeps pausing the service until the Desktop resumes it.
+    """
+    resumed = False
+    try:
+        document = json.loads(SYSTEM_FAN_OVERRIDE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        document = None
+    if isinstance(document, dict) and document.get("source") == "decky":
+        try:
+            SYSTEM_FAN_OVERRIDE.unlink()
+            resumed = True
+        except OSError as exc:
+            return fail(f"QUICK_ACCESS_FAN: could not resume the fan service: {exc}.", 49)
+    print(json.dumps({"ok": True, "resumed": resumed, **system_fan_ownership()}))
+    return 0
+
+
 def fan_auto(channel_raw: str) -> int:
     """Backward-compatible alias for the per-channel automatic action."""
     return fan_channel_control(channel_raw, "automatic")
@@ -2376,7 +2902,7 @@ def system_fan_preset_state(sensor: pathlib.Path | None = None) -> tuple[str | N
         return "automatic", None
     if all(mode == "1" for mode in modes) and len(set(duties)) == 1:
         duty = duties[0]
-        for preset, expected_duty in FAN_SYSTEM_PRESETS.items():
+        for preset, expected_duty in effective_fan_presets().items():
             if expected_duty == duty:
                 return preset, duty
         return None, duty
@@ -2611,7 +3137,7 @@ def fan_channel_control(channel_raw: str, target_raw: str) -> int:
 
 
 def fan_system_preset(preset: str) -> int:
-    duty = FAN_SYSTEM_PRESETS.get(str(preset), "invalid")
+    duty = effective_fan_presets().get(str(preset), "invalid")
     if duty == "invalid":
         return fail("QUICK_ACCESS_FAN: unknown system-fan preset.", 46)
     sensor = nct_sensor()
@@ -3126,10 +3652,12 @@ def status() -> int:
             "none": "No active governor",
         }[governor],
         "gpu_governor_active": governor in {"cyan", "oberon"},
+        **governor_service_state(),
         "gpu_range": current_range,
         "gpu_performance_enabled": cyan_performance_enabled() if governor == "cyan" else None,
         "gpu_allowed_range": allowed_range,
         "gpu_safe_point_ceilings": safe_points,
+        **_voltage_status(governor),
         "gpu_custom_profiles": (
             [{"key": key, **values} for key, values in _load_gpu_profile_overrides().items()]
             if governor != "oberon" else []
@@ -3278,12 +3806,13 @@ def main(argv: Sequence[str]) -> int:
     load_contract()
     valid_arity = (
         len(argv) == 2
-        or (len(argv) == 3 and argv[1] in {"gpu-profile", "gpu-safe-point", "gpu-high-points", "cu-mode", "cu-service", "fan-auto", "fan-system", "cpu-service", "vram-apply"})
+        or (len(argv) == 3 and argv[1] in {"gpu-profile", "gpu-safe-point", "gpu-high-points", "gpu-service", "gpu-voltage-level", "cu-mode", "cu-service", "fan-auto", "fan-system", "cpu-service", "vram-apply"})
+        or (3 <= len(argv) <= 20 and argv[1] == "gpu-voltage-custom")
         or (len(argv) == 4 and argv[1] in {"fan-channel", "cpu-detect", "cpu-scale"})
         or (len(argv) == 6 and argv[1] in {"cu-table", "cu-save"})
     )
     if not valid_arity:
-        return fail("Usage: status | cpu-telemetry | qam-sensors | gddr6-sensors | gpu-profile <name> | gpu-safe-point <toml-mhz> | gpu-high-points <0|1> | cu-mode <name> | cu-table <m0> <m1> <m2> <m3> | cu-save <m0> <m1> <m2> <m3> | cu-service <install|remove> | fan-auto <channel> | fan-system <preset> | fan-channel <2-5> <automatic|20-100> | cpu-apply-saved | cpu-detect <frequency> <vid> | cpu-scale <frequency> <scale> | cpu-service <install|remove> | vram-apply <mb>", 2)
+        return fail("Usage: status | cpu-telemetry | qam-sensors | gddr6-sensors | gpu-profile <name> | gpu-safe-point <toml-mhz> | gpu-high-points <0|1> | gpu-service <enable|disable> | gpu-voltage-level <0-3> | gpu-voltage-custom <mhz=mv>... | cu-mode <name> | cu-table <m0> <m1> <m2> <m3> | cu-save <m0> <m1> <m2> <m3> | cu-service <install|remove> | fan-auto <channel> | fan-system <preset> | fan-resume | fan-channel <2-5> <automatic|20-100> | cpu-apply-saved | cpu-detect <frequency> <vid> | cpu-scale <frequency> <scale> | cpu-service <install|remove> | vram-apply <mb>", 2)
     action = argv[1]
     if action == "status" and len(argv) == 2:
         return status()
@@ -3299,6 +3828,12 @@ def main(argv: Sequence[str]) -> int:
         return gpu_safe_point(argv[2])
     if action == "gpu-high-points" and len(argv) == 3:
         return gpu_high_points(argv[2])
+    if action == "gpu-service" and len(argv) == 3:
+        return gpu_service_action(argv[2])
+    if action == "gpu-voltage-level" and len(argv) == 3:
+        return gpu_voltage_level(argv[2])
+    if action == "gpu-voltage-custom":
+        return gpu_voltage_custom(argv[2:])
     if action == "cu-mode" and len(argv) == 3:
         with operation_lock(CU_OPERATION_LOCK, "CU"):
             return cu_mode(argv[2])
@@ -3318,13 +3853,25 @@ def main(argv: Sequence[str]) -> int:
         return fail("QUICK_ACCESS_CU_SERVICE: action must be install or remove.", 2)
     if action == "fan-auto" and len(argv) == 3:
         with operation_lock(FAN_OPERATION_LOCK, "fan"):
-            return fan_auto(argv[2])
+            code = fan_auto(argv[2])
+        if code == 0:
+            note_fan_takeover([argv[2]])
+        return code
     if action == "fan-system" and len(argv) == 3:
         with operation_lock(FAN_OPERATION_LOCK, "fan"):
-            return fan_system_preset(argv[2])
+            code = fan_system_preset(argv[2])
+        if code == 0:
+            note_fan_takeover(system_fan_channels(nct_sensor()))
+        return code
+    if action == "fan-resume" and len(argv) == 2:
+        with operation_lock(FAN_OPERATION_LOCK, "fan"):
+            return fan_resume()
     if action == "fan-channel" and len(argv) == 4:
         with operation_lock(FAN_OPERATION_LOCK, "fan"):
-            return fan_channel_control(argv[2], argv[3])
+            code = fan_channel_control(argv[2], argv[3])
+        if code == 0:
+            note_fan_takeover([argv[2]])
+        return code
     if action == "cpu-apply-saved" and len(argv) == 2:
         return cpu_apply_saved_profile()
     if action == "cpu-detect" and len(argv) == 4:

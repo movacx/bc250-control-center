@@ -4,49 +4,72 @@ import re
 from copy import deepcopy
 from pathlib import Path
 
+# Light palette tuned for separation rather than whiteness. White cards sit on
+# a visibly cooler canvas, nested surfaces are one clear step darker than the
+# card that holds them, and every text and tone color reaches WCAG AA (4.5:1)
+# on a white card: the previous "subtle" grey measured 2.6:1 and the orange,
+# cyan and green tones about 3.3:1, which is why captions, eyebrows and badges
+# washed out in light mode. AA holds on the nested surfaces too — the grey
+# inset, the canvas and each tone's own soft fill — which is where a rendered
+# audit still found captions at 4.2:1 and orange/cyan chips at 4.0:1.
 LIGHT_COLORS = {
-    "window": "#F4F6F8",
+    "window": "#EDF0F4",
     "panel": "#FFFFFF",
-    "panel_alt": "#F7F8FA",
+    "panel_alt": "#F3F5F8",
     "panel_raised": "#FFFFFF",
     "control": "#FFFFFF",
-    "control_hover": "#F0F3F6",
-    "control_pressed": "#E7EBF0",
-    "border": "#D4DBE4",
-    "border_soft": "#E7EBF0",
-    "border_strong": "#B8C2CF",
-    "text": "#111827",
-    "muted": "#667085",
-    "subtle": "#98A2B3",
-    "disabled_bg": "#E9EDF2",
-    "disabled_text": "#98A2B3",
-    "focus": "#8DB4FF",
-    "selection": "#E7F0FF",
-    "scrollbar": "#C4CCD7",
-    "scrollbar_hover": "#A7B2C1",
-    "progress_track": "#E9EDF2",
-    "chart_surface": "#FCFDFE",
-    "chart_grid": "#E8EDF3",
-    "chart_axis": "#C8D1DC",
-    "neutral_soft": "#EFF2F5",
-    "neutral_border": "#DCE2E9",
+    "control_hover": "#EEF1F5",
+    "control_pressed": "#E2E7ED",
+    "border": "#CBD3DD",
+    "border_soft": "#DDE3EA",
+    "border_strong": "#AEB8C6",
+    "text": "#101828",
+    "muted": "#4B5565",
+    "subtle": "#616A7B",
+    "disabled_bg": "#E6EAF0",
+    "disabled_text": "#8A94A6",
+    "focus": "#7AA7FF",
+    "selection": "#E3EDFF",
+    "scrollbar": "#B9C2CE",
+    "scrollbar_hover": "#97A3B4",
+    "progress_track": "#E3E8EE",
+    "chart_surface": "#FAFBFD",
+    "chart_grid": "#E1E7EE",
+    "chart_axis": "#B8C2CF",
+    "neutral_soft": "#EDF0F4",
+    "neutral_border": "#D3DAE3",
     "icon_border": "#FFFFFF",
     "on_accent": "#FFFFFF",
     "console_bg": "#0E1728",
     "console_text": "#DCE6F6",
     "console_border": "#26344A",
+    "tooltip_bg": "#1F2937",
+    "tooltip_text": "#F9FAFB",
+    "tooltip_border": "#111827",
+    "scrim": "#0B1220",
     "blue": "#2563EB",
     "blue_soft": "#EAF2FF",
-    "purple": "#7657E8",
+    "purple": "#6B4BDB",
     "purple_soft": "#F1EDFF",
-    "orange": "#E96912",
+    "orange": "#B14F0B",
     "orange_soft": "#FFF1E8",
-    "cyan": "#0799B3",
-    "cyan_soft": "#E7F8FB",
-    "green": "#079669",
-    "green_soft": "#E8F8F2",
-    "red": "#D92D20",
+    "cyan": "#06748F",
+    "cyan_soft": "#E6F6FA",
+    "green": "#067A57",
+    "green_soft": "#E6F6EF",
+    "red": "#C8281C",
     "red_soft": "#FDEDEC",
+    # Categorical order for charts with several series, validated for colour
+    # blindness in this fixed order (adjacent CVD ΔE >= 8.4, normal >= 19).
+    # A series keeps its slot; there is no ninth.
+    "series_1": "#2A78D6",
+    "series_2": "#EB6834",
+    "series_3": "#1BAF7A",
+    "series_4": "#EDA100",
+    "series_5": "#E87BA4",
+    "series_6": "#008300",
+    "series_7": "#4A3AA7",
+    "series_8": "#E34948",
 }
 
 # Neutral graphite palette used by the desktop interface. The
@@ -83,6 +106,10 @@ DARK_COLORS = {
     "console_bg": "#0A0A0A",
     "console_text": "#E6E6E6",
     "console_border": "#333333",
+    "tooltip_bg": "#2B2B2B",
+    "tooltip_text": "#F2F2F2",
+    "tooltip_border": "#4A4A4A",
+    "scrim": "#000000",
     "blue": "#5B8DEF",
     "blue_soft": "#1D2A3D",
     "purple": "#B39DFF",
@@ -95,23 +122,159 @@ DARK_COLORS = {
     "green_soft": "#1B3224",
     "red": "#FF6B64",
     "red_soft": "#3A2020",
+    "series_1": "#3987E5",
+    "series_2": "#D95926",
+    "series_3": "#199E70",
+    "series_4": "#C98500",
+    "series_5": "#D55181",
+    "series_6": "#008300",
+    "series_7": "#9085E9",
+    "series_8": "#E66767",
 }
 
 
+# Two independent choices shape the look. The *theme* is the colour of the
+# surfaces: light, the graphite dark, or the night blue of the application
+# icon. The *style* is the register, in any theme: "formal" keeps the
+# theme's surfaces but uses deeper, less saturated tones, a greyed accent,
+# squarer corners and flat cards. Each (theme, style) pair has its palette;
+# every text and tone colour reaches WCAG AA on its card (checked by the
+# contrast tests for all six).
+FORMAL_LIGHT_COLORS = {
+    **LIGHT_COLORS,
+    "window": "#EEF0F3",
+    "panel": "#FFFFFF",
+    "panel_alt": "#F4F5F7",
+    "panel_raised": "#FFFFFF",
+    "control": "#FFFFFF",
+    "control_hover": "#EEF0F3",
+    "control_pressed": "#E2E5EA",
+    "border": "#C6CBD3",
+    "border_soft": "#DCE0E6",
+    "border_strong": "#A6ADB8",
+    "text": "#0E1116",
+    "muted": "#3D4552",
+    "subtle": "#596170",
+    "disabled_bg": "#E8EAEE",
+    "disabled_text": "#8A919C",
+    "focus": "#4A6A99",
+    "selection": "#E2E8F1",
+    "scrollbar": "#B8BEC8",
+    "scrollbar_hover": "#99A0AB",
+    "progress_track": "#E3E6EA",
+    "chart_surface": "#FAFBFC",
+    "chart_grid": "#E2E5E9",
+    "chart_axis": "#B6BCC5",
+    "neutral_soft": "#EDEFF2",
+    "neutral_border": "#D3D7DE",
+    "console_bg": "#11161D",
+    "console_text": "#DDE3EA",
+    "console_border": "#2A323D",
+    "tooltip_bg": "#1C2229",
+    "tooltip_text": "#F5F7F9",
+    "tooltip_border": "#0E1116",
+    "scrim": "#0B0F14",
+    "blue": "#2A4A75",
+    "blue_soft": "#E5EBF3",
+    "purple": "#574A87",
+    "purple_soft": "#EEEBF5",
+    "orange": "#9A4B10",
+    "orange_soft": "#F7EDE4",
+    "cyan": "#1B6572",
+    "cyan_soft": "#E3EFF1",
+    "green": "#2C6449",
+    "green_soft": "#E4EFE9",
+    "red": "#A12E27",
+    "red_soft": "#F6E7E5",
+}
+
+#: The night-blue theme in the formal style: the palette the formal dark
+#: mode used to be, before theme and style were separate choices.
+MIDNIGHT_COLORS = {
+    **DARK_COLORS,
+    "window": "#0B0F16",
+    "panel": "#111722",
+    "panel_alt": "#161D2A",
+    "panel_raised": "#1B2331",
+    "control": "#1B2331",
+    "control_hover": "#222B3B",
+    "control_pressed": "#2A3445",
+    "border": "#2A3445",
+    "border_soft": "#202938",
+    "border_strong": "#3B4759",
+    "text": "#E9EDF3",
+    "muted": "#AEB7C4",
+    "subtle": "#99A3B1",
+    "disabled_bg": "#202938",
+    "disabled_text": "#6C7686",
+    "focus": "#86A8DA",
+    "selection": "#22324A",
+    "scrollbar": "#334052",
+    "scrollbar_hover": "#445267",
+    "progress_track": "#212A39",
+    "chart_surface": "#0F1520",
+    "chart_grid": "#222C3B",
+    "chart_axis": "#3B4759",
+    "neutral_soft": "#1B2331",
+    "neutral_border": "#2E394A",
+    "icon_border": "#2E394A",
+    "console_bg": "#080B11",
+    "console_text": "#E1E6EE",
+    "console_border": "#283243",
+    "tooltip_bg": "#1E2736",
+    "tooltip_text": "#EEF1F6",
+    "tooltip_border": "#3B4759",
+    "blue": "#86A8DA",
+    "blue_soft": "#1B2A40",
+    "purple": "#AC9FE2",
+    "purple_soft": "#272440",
+    "orange": "#E3A673",
+    "orange_soft": "#33271C",
+    "cyan": "#72C4CE",
+    "cyan_soft": "#16303A",
+    "green": "#80C198",
+    "green_soft": "#19302A",
+    "red": "#F0827B",
+    "red_soft": "#3A2124",
+}
+
+THEMES = ("light", "dark", "midnight")
+STYLES = ("standard", "formal")
+_TONES = ("blue", "purple", "orange", "cyan", "green", "red")
+#: What the formal style mixes into a chosen accent: a slate that darkens the
+#: light value (white text stays AA) and greys the dark one.
+FORMAL_ACCENT_SLATE = {"light": ("#1B2536", 0.40), "dark": ("#8C98AA", 0.28)}
+#: Corners in the formal style are this share of the standard radius.
+FORMAL_RADIUS_FACTOR = 0.5
+
+
+#: (light value, light soft, dark value, dark soft) for every accent. Each
+#: light value carries white text at WCAG AA; each dark value reads on the
+#: graphite panels. Red is left out on purpose: it is the colour of danger
+#: here, and an accent would make every ordinary button look like one.
 ACCENTS = {
     "blue": ("#2563EB", "#EAF2FF", "#5B8DEF", "#1D2A3D"),
-    "violet": ("#7657E8", "#F1EDFF", "#B39DFF", "#2B2440"),
-    "cyan": ("#0799B3", "#E7F8FB", "#56C7D4", "#183137"),
-    "green": ("#079669", "#E8F8F2", "#5CBF78", "#1B3224"),
-    "orange": ("#E96912", "#FFF1E8", "#F0A45D", "#38291D"),
+    "indigo": ("#4338CA", "#EEEDFE", "#8B93FF", "#24253F"),
+    "violet": ("#6B4BDB", "#F1EDFF", "#B39DFF", "#2B2440"),
+    "pink": ("#BE185D", "#FDEAF3", "#F47FB5", "#3A1F2D"),
+    "orange": ("#B14F0B", "#FFF1E8", "#F0A45D", "#38291D"),
+    "amber": ("#A15C07", "#FEF4DF", "#EDB84E", "#35291A"),
+    "green": ("#067A57", "#E6F6EF", "#5CBF78", "#1B3224"),
+    "teal": ("#0F766E", "#E3F5F2", "#4FCFC0", "#16302D"),
+    "cyan": ("#06748F", "#E6F6FA", "#56C7D4", "#183137"),
+    "graphite": ("#475569", "#E9EDF2", "#C3CAD5", "#2A2D32"),
 }
 
 ACTIVE_MODE = "light"
+#: "light", "dark" or "midnight". ACTIVE_MODE stays light/dark: everything
+#: that picks an icon or a shade by brightness keeps asking that.
+ACTIVE_THEME = "light"
 ACTIVE_ACCENT = "blue"
 ACTIVE_DENSITY = "comfortable"
 ACTIVE_SCALE = 100
+ACTIVE_STYLE = "standard"
 COLORS = deepcopy(LIGHT_COLORS)
-_STYLESHEET_CACHE: dict[tuple[str, str, str, int], str] = {}
+_STYLESHEET_CACHE: dict[tuple[str, str, str, str, int, str], str] = {}
 
 
 def _blend(base: str, overlay: str, amount: float) -> str:
@@ -124,6 +287,19 @@ def _blend(base: str, overlay: str, amount: float) -> str:
         return str(base)
     mixed = tuple(round(a * (1.0 - amount) + b * amount) for a, b in zip(left, right))
     return "#" + "".join(f"{channel:02X}" for channel in mixed)
+
+
+def _with_tones(neutrals: dict[str, str], tones: dict[str, str], amount: float) -> dict[str, str]:
+    """One theme's surfaces carrying another palette's tones.
+
+    Each soft fill is recomputed over these surfaces: a fill mixed for
+    graphite turns muddy on navy, and the other way round.
+    """
+    palette = dict(neutrals)
+    for tone in _TONES:
+        palette[tone] = tones[tone]
+        palette[f"{tone}_soft"] = _blend(neutrals["panel"], tones[tone], amount)
+    return palette
 
 
 def _relative_luminance(color: str) -> float:
@@ -189,7 +365,10 @@ def semantic_color_key(value: object, preferred: str | None = None) -> str | Non
         return text
     normalized = text.upper()
     candidates: list[str] = []
-    palettes = (COLORS, LIGHT_COLORS, DARK_COLORS)
+    palettes = (
+        COLORS, LIGHT_COLORS, DARK_COLORS, FORMAL_LIGHT_COLORS, FORMAL_DARK_COLORS,
+        MIDNIGHT_COLORS, MIDNIGHT_STANDARD_COLORS,
+    )
     for palette in palettes:
         for key, color in palette.items():
             if str(color).upper() == normalized and key not in candidates:
@@ -219,15 +398,82 @@ def palette_color(value: object, preferred: str | None = None) -> str:
     return COLORS.get(key, str(value or COLORS["neutral_soft"]))
 
 
+#: Graphite in the formal style: the dark theme's surfaces with the quieter
+#: tones of the formal register. Its greys are a step lighter than the
+#: standard ones so every caption clears AA on the graphite cards.
+FORMAL_DARK_COLORS = _with_tones(
+    {
+        **DARK_COLORS,
+        "muted": "#B9B9B9",
+        "subtle": "#9D9D9D",
+        "focus": "#86A8DA",
+        "selection": "#262F3C",
+    },
+    MIDNIGHT_COLORS,
+    0.14,
+)
+#: Night blue in the standard style: the navy surfaces with the standard,
+#: livelier tones.
+MIDNIGHT_STANDARD_COLORS = _with_tones(MIDNIGHT_COLORS, DARK_COLORS, 0.14)
+
 COLORS.clear()
 COLORS.update(_finish_palette(deepcopy(LIGHT_COLORS), "light"))
 
 
-def configure_theme(mode: str = "light", accent: str = "blue", density: str = "comfortable", scale: int = 100) -> dict[str, str]:
-    global ACTIVE_MODE, ACTIVE_ACCENT, ACTIVE_DENSITY, ACTIVE_SCALE
-    mode = str(mode or "light").lower()
-    if mode not in {"light", "dark"}:
-        mode = "light"
+def mode_of(theme: str) -> str:
+    """Light or dark: what a theme is as far as brightness goes."""
+    return "dark" if str(theme) in {"dark", "midnight"} else "light"
+
+
+def palette_for(theme: str, style: str) -> dict[str, str]:
+    """The base palette of one theme in one style, before the accent."""
+    formal = style == "formal"
+    if theme == "midnight":
+        return MIDNIGHT_COLORS if formal else MIDNIGHT_STANDARD_COLORS
+    if theme == "dark":
+        return FORMAL_DARK_COLORS if formal else DARK_COLORS
+    return FORMAL_LIGHT_COLORS if formal else LIGHT_COLORS
+
+
+def formal_accent(value: str, mode: str) -> str:
+    slate, amount = FORMAL_ACCENT_SLATE[mode_of(mode)]
+    return _blend(value, slate, amount)
+
+
+def theme_palette(theme: str, accent: str, style: str = "standard") -> dict[str, str]:
+    """The finished palette a choice would install, without installing it."""
+    theme = theme if theme in THEMES else "light"
+    mode = mode_of(theme)
+    palette = deepcopy(palette_for(theme, style))
+    light_value, light_soft, dark_value, dark_soft = ACCENTS.get(accent, ACCENTS["blue"])
+    palette["blue"] = dark_value if mode == "dark" else light_value
+    palette["blue_soft"] = dark_soft if mode == "dark" else light_soft
+    if theme == "midnight" and style != "formal":
+        # The accents' soft fills were mixed for graphite; on navy the blue
+        # one left accent text at 4.48:1. Mixed over these surfaces instead.
+        palette["blue_soft"] = _blend(palette["panel"], palette["blue"], 0.12)
+    if style == "formal":
+        palette["blue"] = formal_accent(palette["blue"], mode)
+        palette["blue_soft"] = _blend(palette["blue_soft"], palette["panel"], 0.25)
+    return _finish_palette(palette, mode)
+
+
+def configure_theme(
+    mode: str = "light",
+    accent: str = "blue",
+    density: str = "comfortable",
+    scale: int = 100,
+    style: str | None = None,
+) -> dict[str, str]:
+    global ACTIVE_MODE, ACTIVE_THEME, ACTIVE_ACCENT, ACTIVE_DENSITY, ACTIVE_SCALE, ACTIVE_STYLE
+    style = str(style if style is not None else ACTIVE_STYLE).lower()
+    if style not in STYLES:
+        style = "standard"
+    # ``mode`` takes a theme: "midnight" is a dark mode with its own surfaces.
+    theme = str(mode or "light").lower()
+    if theme not in THEMES:
+        theme = "light"
+    mode = mode_of(theme)
     accent = str(accent or "blue").lower()
     if accent not in ACCENTS:
         accent = "blue"
@@ -239,23 +485,97 @@ def configure_theme(mode: str = "light", accent: str = "blue", density: str = "c
     except (TypeError, ValueError, OverflowError):
         scale = 100
     scale = max(70, min(150, scale))
-    if (mode, accent, density, scale) == (ACTIVE_MODE, ACTIVE_ACCENT, ACTIVE_DENSITY, ACTIVE_SCALE):
+    if (theme, accent, density, scale, style) == (
+        ACTIVE_THEME, ACTIVE_ACCENT, ACTIVE_DENSITY, ACTIVE_SCALE, ACTIVE_STYLE
+    ):
         return COLORS
-    palette = deepcopy(DARK_COLORS if mode == "dark" else LIGHT_COLORS)
-    light_value, light_soft, dark_value, dark_soft = ACCENTS[accent]
-    palette["blue"] = dark_value if mode == "dark" else light_value
-    palette["blue_soft"] = dark_soft if mode == "dark" else light_soft
-    _finish_palette(palette, mode)
+    palette = theme_palette(theme, accent, style)
     COLORS.clear()
     COLORS.update(palette)
     ACTIVE_MODE = mode
+    ACTIVE_THEME = theme
     ACTIVE_ACCENT = accent
     ACTIVE_DENSITY = density
     ACTIVE_SCALE = scale
+    ACTIVE_STYLE = style
     return COLORS
 
 
+def apply_tooltip_palette() -> None:
+    """Give tooltips outside the stylesheet the same readable pair.
+
+    The stylesheet styles every tooltip raised from a widget inside the
+    window. A few are drawn by Qt from the application palette instead — a
+    combo box popup's items, a parentless helper window — and those used the
+    desktop theme's colours, which need not match the palette in use here.
+    """
+    try:
+        from PyQt6.QtGui import QColor, QPalette
+        from PyQt6.QtWidgets import QToolTip
+    except ImportError:  # pragma: no cover - PyQt6 is a runtime dependency.
+        return
+    palette = QToolTip.palette()
+    for group in (QPalette.ColorGroup.Active, QPalette.ColorGroup.Inactive):
+        palette.setColor(group, QPalette.ColorRole.ToolTipBase, QColor(COLORS["tooltip_bg"]))
+        palette.setColor(group, QPalette.ColorRole.ToolTipText, QColor(COLORS["tooltip_text"]))
+    QToolTip.setPalette(palette)
+
+
+#: Compact density tightens box geometry, never type: paddings and margins
+#: shrink by 30 %, minimum heights by 16 %. Fonts keep their size, which is
+#: what separates "Compact" from simply choosing a smaller interface scale.
+COMPACT_PADDING_FACTOR = 0.70
+COMPACT_MIN_HEIGHT_FACTOR = 0.84
+_COMPACT_PROPERTY_RE = re.compile(
+    r"(?P<name>(?<![\w-])(?:padding(?:-top|-bottom|-left|-right)?|"
+    r"margin(?:-top|-bottom|-left|-right)?|spacing|min-height))"
+    r"(?P<sep>\s*:\s*)(?P<value>[^;{}]+)"
+)
+_PIXELS_RE = re.compile(r"(?<![A-Za-z0-9_#.-])(\d+(?:\.\d+)?)px")
+
+
+def compact_stylesheet(stylesheet: str) -> str:
+    """Tighten paddings, margins and minimum heights for Compact density."""
+
+    def shrink(match: re.Match[str]) -> str:
+        name = match.group("name")
+        factor = COMPACT_MIN_HEIGHT_FACTOR if name == "min-height" else COMPACT_PADDING_FACTOR
+
+        def pixels(value: re.Match[str]) -> str:
+            number = float(value.group(1))
+            if number <= 0:
+                return value.group(0)
+            return f"{max(1, round(number * factor))}px"
+
+        return name + match.group("sep") + _PIXELS_RE.sub(pixels, match.group("value"))
+
+    return _COMPACT_PROPERTY_RE.sub(shrink, stylesheet)
+
+
+_RADIUS_RE = re.compile(
+    r"(?P<name>border(?:-top|-bottom)?(?:-left|-right)?-radius\s*:\s*)(?P<value>\d+(?:\.\d+)?)px"
+)
+
+
+def formal_stylesheet(stylesheet: str) -> str:
+    """Squarer corners for the formal style; a pill stays a pill."""
+
+    def square(match: re.Match[str]) -> str:
+        value = float(match.group("value"))
+        if value >= 99:
+            return match.group(0)
+        return f"{match.group('name')}{max(2, round(value * FORMAL_RADIUS_FACTOR))}px"
+
+    return _RADIUS_RE.sub(square, stylesheet)
+
+
 def scale_stylesheet(stylesheet: str, scale: int | None = None) -> str:
+    # Every stylesheet in the interface passes through here, so this is where
+    # the formal style squares its corners — once, for all of them.
+    if ACTIVE_STYLE == "formal":
+        stylesheet = formal_stylesheet(stylesheet)
+    if ACTIVE_DENSITY == "compact":
+        stylesheet = compact_stylesheet(stylesheet)
     factor = (ACTIVE_SCALE if scale is None else max(70, min(150, int(scale)))) / 100.0
 
     def replace(match: re.Match[str]) -> str:
@@ -275,8 +595,8 @@ def scale_stylesheet(stylesheet: str, scale: int | None = None) -> str:
 
 def application_stylesheet(mode: str | None = None, accent: str | None = None, density: str | None = None, scale: int | None = None) -> str:
     if mode is not None or accent is not None or density is not None or scale is not None:
-        configure_theme(mode or ACTIVE_MODE, accent or ACTIVE_ACCENT, density or ACTIVE_DENSITY, ACTIVE_SCALE if scale is None else scale)
-    cache_key = (ACTIVE_MODE, ACTIVE_ACCENT, ACTIVE_DENSITY, ACTIVE_SCALE)
+        configure_theme(mode or ACTIVE_THEME, accent or ACTIVE_ACCENT, density or ACTIVE_DENSITY, ACTIVE_SCALE if scale is None else scale)
+    cache_key = (ACTIVE_MODE, ACTIVE_THEME, ACTIVE_ACCENT, ACTIVE_DENSITY, ACTIVE_SCALE, ACTIVE_STYLE)
     cached = _STYLESHEET_CACHE.get(cache_key)
     if cached is not None:
         return cached
@@ -301,6 +621,19 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     * {{
         font-family: Inter, 'Noto Sans', 'Segoe UI', sans-serif;
         color: {c['text']};
+    }}
+    /* A tooltip is a child window of the widget it describes, so the rule
+       above reached it and painted the page's text color over the desktop
+       theme's tooltip background: dark on dark in light mode, light on light
+       in dark mode. It carries its own complete, high-contrast pair now. */
+    QToolTip {{
+        background-color: {c['tooltip_bg']};
+        color: {c['tooltip_text']};
+        border: 1px solid {c['tooltip_border']};
+        border-radius: 6px;
+        padding: 6px 9px;
+        font-size: 11px;
+        font-weight: 560;
     }}
     QMainWindow, QWidget#ApplicationRoot {{
         background: {c['window']};
@@ -331,14 +664,21 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         border-radius: 16px;
     }}
     QLabel#BrandTitle {{
-        font-size: 18px;
-        font-weight: 820;
+        font-size: 15px;
+        font-weight: 860;
         color: {c['text']};
     }}
     QLabel#BrandSubtitle {{
-        font-size: 11px;
-        font-weight: 600;
+        font-size: 10px;
+        font-weight: 620;
         color: {c['muted']};
+    }}
+    QLabel#SidebarSection {{
+        color: {c['subtle']};
+        font-size: 9px;
+        font-weight: 820;
+        letter-spacing: 0.9px;
+        padding-left: 8px;
     }}
     QFrame#SidebarDivider, QFrame#CardDivider, QFrame#ListDivider {{
         background: {c['border_soft']};
@@ -348,10 +688,7 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         background: transparent;
         border: 0px;
         border-radius: 8px;
-        padding: 8px;
-        color: {c['text']};
-        font-size: 18px;
-        font-weight: 760;
+        padding: 0px;
     }}
     QPushButton#SidebarToggle:hover {{
         background: {c['panel_alt']};
@@ -359,44 +696,21 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QPushButton[nav='true'] {{
         background: transparent;
         border: 0px;
-        border-radius: 10px;
-        padding: 9px 10px;
+        border-radius: 9px;
+        padding: 0px 8px;
         text-align: left;
         font-size: 12px;
-        font-weight: 700;
-        color: {c['text']};
+        font-weight: 640;
+        color: {c['muted']};
     }}
     QPushButton[nav='true']:hover {{
         background: {c['panel_alt']};
+        color: {c['text']};
     }}
     QPushButton[nav='true']:checked {{
         background: {c['blue_soft']};
-        color: {c['blue']};
-        border-left: 3px solid {c['blue']};
-        padding-left: 7px;
-    }}
-    QPushButton[nav='true'][navTone='purple']:checked {{
-        background: {c['purple_soft']};
-        color: {c['purple']};
-        border-left-color: {c['purple']};
-    }}
-    QPushButton[nav='true'][navTone='orange']:checked {{
-        background: {c['orange_soft']};
-        color: {c['orange']};
-        border-left-color: {c['orange']};
-    }}
-    QPushButton[nav='true'][navTone='cyan']:checked {{
-        background: {c['cyan_soft']};
-        color: {c['cyan']};
-        border-left-color: {c['cyan']};
-    }}
-    QPushButton[nav='true'][navTone='green']:checked {{
-        background: {c['green_soft']};
-        color: {c['green']};
-        border-left-color: {c['green']};
-    }}
-    QPushButton[nav='true'][collapsed='true']:checked {{
-        padding-left: 0px;
+        color: {c['text']};
+        font-weight: 760;
     }}
     QPushButton[nav='true'][collapsed='true'] {{
         padding: 0px;
@@ -503,6 +817,16 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QPushButton[compactAction='true']:hover {{
         background: {c['control_hover']};
         border-color: {c['border']};
+    }}
+    QPushButton[compactAction='true'][powerTone='on'] {{
+        background: {c['green_soft']};
+        border-color: {c['green']};
+        color: {c['green']};
+    }}
+    QPushButton[compactAction='true'][powerTone='off'] {{
+        background: {c['red_soft']};
+        border-color: {c['red']};
+        color: {c['red']};
     }}
     QPushButton[dependencySectionTab='true'] {{
         min-height: 26px;
@@ -768,11 +1092,6 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         background: {c['panel']};
         border: 1px solid {c['border_soft']};
         border-radius: 16px;
-    }}
-    QLabel[boardMark='true'] {{
-        background: {c['panel_alt']};
-        border: 1px solid {c['border_soft']};
-        border-radius: 12px;
     }}
     QLabel[boardName='true'] {{
         color: {c['text']};
@@ -1186,6 +1505,11 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         font-size: 10px;
         font-weight: 650;
     }}
+    QLabel[gpuBusNotice='true'] {{
+        color: {c['orange']};
+        font-size: 11px;
+        font-weight: 650;
+    }}
     QLabel[dashboardMemoryControlLabel='true'] {{
         color: {c['muted']};
         font-size: 10px;
@@ -1228,6 +1552,9 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     }}
     QFrame[dashboardMemoryOptionRow='true']:hover {{
         border-color: {c['border_strong']};
+    }}
+    QFrame[dashboardMemoryOptionRow='true']:focus {{
+        border-color: {c['blue']};
     }}
     QFrame[dashboardMemoryOptionRow='true'][selected='true'] {{
         background: {c['blue_soft']};
@@ -1372,6 +1699,37 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     }}
     QDialog#InfoDialog {{
         background: transparent;
+    }}
+    /* The outcome of an action, from the window's corner: raised one step
+       above the page so it reads as a notice, not as part of a card. */
+    QFrame#AppToast {{
+        background: {c['panel_raised'] if ACTIVE_MODE == 'dark' else c['panel']};
+        border: 1px solid {c['border_strong']};
+        border-radius: 10px;
+    }}
+    QLabel#AppToastTitle {{
+        color: {c['text']};
+        font-size: 13px;
+        font-weight: 700;
+        background: transparent;
+    }}
+    QLabel#AppToastMessage {{
+        color: {c['muted']};
+        font-size: 12px;
+        background: transparent;
+    }}
+    QPushButton#AppToastClose {{
+        background: transparent;
+        border: none;
+        border-radius: 6px;
+        color: {c['subtle']};
+        font-size: 11px;
+        min-height: 0px;
+        padding: 0px;
+    }}
+    QPushButton#AppToastClose:hover {{
+        background: {c['control_hover']};
+        color: {c['text']};
     }}
     QFrame#ControlDialogCard {{
         background: {c['panel']};
@@ -1530,6 +1888,9 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         background: {c['panel']};
         border-color: {c['border_strong']};
     }}
+    QFrame[profileCard='true']:focus {{
+        border: 1px solid {c['blue']};
+    }}
     QLabel[profileTitle='true'] {{
         color: {c['text']};
         font-size: 13px;
@@ -1553,7 +1914,9 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         font-weight: 760;
     }}
     QLabel[fieldHint='true'] {{
-        color: {c['subtle']};
+        /* 9 px text never reaches its full colour through antialiasing; on
+           light surfaces it takes the firmer grey to stay above 4.5:1. */
+        color: {c['muted'] if ACTIVE_MODE == 'light' else c['subtle']};
         font-size: 9px;
     }}
     QLabel[workflowStepNumber='true'] {{
@@ -1824,6 +2187,26 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QLabel#tourBody {{
         color: {c['muted']};
         font-size: 12px;
+    }}
+    /* A stop with more to say than a sentence: a list inside the bubble, set
+       off by a hairline, its markers in the accent so they read as a list. */
+    QFrame#tourPoints {{
+        background: transparent;
+        border: none;
+        border-top: 1px solid {c['border_soft']};
+    }}
+    QLabel#tourPointMarker {{
+        color: {c['blue']};
+        font-size: 12px;
+        font-weight: 800;
+    }}
+    QLabel#tourPoint {{
+        color: {c['text']};
+        font-size: 12px;
+    }}
+    QLabel#tourFootnote {{
+        color: {c['muted']};
+        font-size: 11px;
     }}
     QPushButton#tourPrimary {{
         background: {c['blue']};
@@ -2179,7 +2562,7 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         font-weight: 830;
     }}
     QLabel[gpuSummaryDetail='true'] {{
-        color: {c['subtle']};
+        color: {c['muted'] if ACTIVE_MODE == 'light' else c['subtle']};
         font-size: 8px;
     }}
     QFrame[compactVoltageSummaryItem='true'] QLabel[gpuSummaryLabel='true'] {{
@@ -2473,6 +2856,108 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
        plain QLabel rows above and below it, which have none. */
     QWidget[redesignedModule='true'] QPushButton[linkButton='true'][flushLeft='true'] {{
         padding-left: 0px;
+    }}
+    /* Firmware (BIOS): notes carry their tone, and the result of a
+       preparation sits in a box of the same tone. */
+    QWidget[redesignedModule='true'] QLabel[firmwareNote='caution'] {{
+        color: {c['orange']};
+        font-size: 11px;
+    }}
+    QWidget[redesignedModule='true'] QLabel[firmwareNote='danger'] {{
+        color: {c['red']};
+        font-size: 11px;
+    }}
+    /* A firmware card compares images on four facts: a small upper-case name
+       over a value. What an image lacks is muted rather than struck out, and
+       the one fact that needs doing after the flash is in the caution tone. */
+    QWidget[redesignedModule='true'] QLabel[firmwareCategory='true'] {{
+        color: {c['muted']};
+        font-size: 10px;
+        font-weight: 800;
+        padding-top: 2px;
+    }}
+    QWidget[redesignedModule='true'] QLabel[firmwareFactLabel='true'] {{
+        color: {c['subtle']};
+        font-size: 9px;
+        font-weight: 800;
+    }}
+    QWidget[redesignedModule='true'] QLabel[firmwareFactValue='true'] {{
+        color: {c['text']};
+        font-size: 12px;
+        font-weight: 720;
+    }}
+    QWidget[redesignedModule='true'] QLabel[firmwareFactValue='true'][tone='muted'] {{
+        color: {c['muted']};
+        font-weight: 600;
+    }}
+    QWidget[redesignedModule='true'] QLabel[firmwareFactValue='true'][tone='caution'] {{
+        color: {c['orange']};
+    }}
+    /* What an image offers, under its description: short lines, each behind
+       an accent bullet in the same font so the two stay on one baseline. */
+    QWidget[redesignedModule='true'] QLabel[firmwareHighlight='true'] {{
+        color: {c['text']};
+        font-size: 11px;
+    }}
+    QWidget[redesignedModule='true'] QLabel[firmwareHighlightMark='true'] {{
+        color: {c['blue']};
+        font-size: 11px;
+        font-weight: 800;
+    }}
+    /* The same bullets for the notes under "Before you start", in the
+       quieter tone of a caption. */
+    QWidget[redesignedModule='true'] QLabel[firmwareHighlight='muted'] {{
+        color: {c['muted']};
+        font-size: 11px;
+    }}
+    /* The warning read before anything else on the page: its own box, in the
+       caution tone of the note it holds. */
+    QWidget[redesignedModule='true'] QFrame[firmwareCallout='caution'] {{
+        background: {c['orange_soft']};
+        border: 1px solid {c['orange_border']};
+        border-radius: 10px;
+    }}
+    QWidget[redesignedModule='true'] QLabel[firmwareStepTitle='pending'] {{
+        color: {c['muted']};
+    }}
+    QWidget[redesignedModule='true'] QLabel[firmwareStepTitle='active'] {{
+        color: {c['text']};
+        font-weight: 760;
+    }}
+    QWidget[redesignedModule='true'] QLabel[firmwareStepTitle='done'] {{
+        color: {c['text']};
+    }}
+    QWidget[redesignedModule='true'] QLabel[firmwareStepTitle='failed'] {{
+        color: {c['red']};
+        font-weight: 760;
+    }}
+    QWidget[redesignedModule='true'] QFrame[firmwareResult='success'] {{
+        background: {c['green_soft']};
+        border: 1px solid {c['green_border']};
+        border-radius: 10px;
+    }}
+    QWidget[redesignedModule='true'] QFrame[firmwareResult='danger'] {{
+        background: {c['red_soft']};
+        border: 1px solid {c['red_border']};
+        border-radius: 10px;
+    }}
+    QWidget[redesignedModule='true'] QFrame[firmwareResult='neutral'] {{
+        background: {c['panel_alt']};
+        border: 1px solid {c['border_soft']};
+        border-radius: 10px;
+    }}
+    /* The logo's size slider does nothing until there is a picture, and
+       looks it. */
+    QWidget[redesignedModule='true'] QSlider[logoScale='true']::sub-page:horizontal:disabled {{
+        background: {c['border']};
+    }}
+    QWidget[redesignedModule='true'] QSlider[logoScale='true']::handle:horizontal:disabled {{
+        border-color: {c['border']};
+        background: {c['panel_alt']};
+    }}
+    QWidget[redesignedModule='true'] QProgressBar[firmwareProgress='true']::chunk {{
+        background: {c['blue']};
+        border-radius: 4px;
     }}
     QWidget[redesignedModule='true'] QPushButton[iconOnlyButton='true'] {{
         background: {c['panel_raised']};
@@ -2816,40 +3301,35 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     }}
     QLabel[voltageDrawerFrequency='true'] {{
         color: {c['text']};
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 700;
-        font-family: 'JetBrains Mono', 'Noto Sans Mono', monospace;
     }}
     QLabel[voltageDrawerCurrent='true'] {{
         color: {c['muted']};
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 600;
-        font-family: 'JetBrains Mono', 'Noto Sans Mono', monospace;
     }}
     QLabel[voltageDrawerTarget='true'] {{
         color: {c['text']};
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 700;
-        font-family: 'JetBrains Mono', 'Noto Sans Mono', monospace;
     }}
     QLabel[voltageDrawerDelta='true'] {{
         color: {c['subtle']};
-        font-size: 10px;
+        font-size: 11px;
         font-weight: 700;
-        font-family: 'JetBrains Mono', 'Noto Sans Mono', monospace;
     }}
     QLabel[voltageDrawerDelta='true'][deltaTone='raised'] {{ color: {c['orange']}; }}
     QLabel[voltageDrawerDelta='true'][deltaTone='lowered'] {{ color: {c['cyan']}; }}
     QLabel[voltageDrawerDelta='true'][deltaTone='default'] {{ color: {c['subtle']}; }}
     QSpinBox[voltageDrawerEditor='true'] {{
-        padding: 4px 6px;
+        padding: 3px 6px;
         background: {c['panel_alt']};
         border: 1px solid {c['border']};
         border-radius: 7px;
         color: {c['text']};
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 700;
-        font-family: 'JetBrains Mono', 'Noto Sans Mono', monospace;
     }}
     QSpinBox[voltageDrawerEditor='true']:focus {{
         border-color: {c['blue']};
@@ -2858,7 +3338,16 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         color: {c['subtle']};
         font-size: 10px;
         font-weight: 620;
-        font-family: 'JetBrains Mono', 'Noto Sans Mono', monospace;
+    }}
+    QLabel[voltageDrawerStatCaption='true'] {{
+        color: {c['muted']};
+        font-size: 10px;
+        font-weight: 600;
+    }}
+    QLabel[voltageDrawerStatValue='true'] {{
+        color: {c['text']};
+        font-size: 16px;
+        font-weight: 800;
     }}
     QPushButton[voltageDrawerSecondary='true'] {{
         min-height: 38px;
@@ -3157,14 +3646,14 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         color: {c['text']};
         background: transparent;
         border: none;
-        font-size: 9px;
+        font-size: 11px;
         font-weight: 830;
     }}
     QLabel[cuTableHeaderDetail='true'] {{
         color: {c['subtle']};
         background: transparent;
         border: none;
-        font-size: 8px;
+        font-size: 9px;
         font-weight: 680;
     }}
     QLabel[cuTableRowLabel='true'] {{
@@ -3173,7 +3662,7 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         border: 1px solid {c['border_soft']};
         border-radius: 10px;
         padding: 0 8px;
-        font-size: 10px;
+        font-size: 12px;
         font-weight: 830;
     }}
     QPushButton[wgpToggle='true'] {{
@@ -3182,7 +3671,7 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         border: 1px solid {c['border']};
         border-radius: 10px;
         padding: 6px 5px;
-        font-size: 9px;
+        font-size: 11px;
         font-weight: 830;
     }}
     QPushButton[wgpToggle='true']:hover {{
@@ -3232,7 +3721,7 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         border: 1px solid {c['blue_border']};
         border-radius: 10px;
         padding: 0 7px;
-        font-size: 10px;
+        font-size: 12px;
         font-weight: 850;
     }}
     QFrame[cuLegendBar='true'] {{
@@ -3342,6 +3831,9 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QLabel[cuSelectionDetail='true'] {{
         color: {c['muted']};
         font-size: 9px;
+    }}
+    QLabel[cuSelectionDetail='true'][tone='warning'] {{
+        color: {c['orange']};
     }}
     QLabel[cuProfileNote='true'] {{
         color: {c['muted']};
@@ -3521,7 +4013,6 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     """
     if ACTIVE_DENSITY == "compact":
         base += """
-        QPushButton[nav='true'] { padding-top:7px; padding-bottom:7px; }
         QFrame[pageCard='true'] { border-radius:16px; }
         QTableWidget::item { padding-top:2px; padding-bottom:2px; }
         """

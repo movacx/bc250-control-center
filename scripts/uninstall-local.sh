@@ -138,6 +138,35 @@ disable_managed_cpu_service() {
   fi
 }
 
+disable_managed_fan_service() {
+  # GitHub #15: the system fan control service runs the fan helper from boot.
+  # Removing the helper under it would leave a unit that fails every boot, so
+  # the helper itself stops the service, hands the fan back to firmware and
+  # drops its policy first. It refuses to touch a unit it did not write.
+  local unit="/etc/systemd/system/bc250-fan-control.service"
+  local openrc_unit="/etc/init.d/bc250-fan-control"
+  [[ -f "$unit" || -f "$openrc_unit" ]] || return 0
+  [[ -x "$SYSTEM_PRIV_HELPER" ]] || return 0
+  echo "Disabling BC250 system fan control because it depends on the helper being uninstalled."
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    return 0
+  fi
+  local -a elevate=()
+  if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
+    command -v sudo >/dev/null 2>&1 || {
+      echo "Error: turn off control from boot in the Fans page before uninstalling." >&2
+      return 1
+    }
+    elevate=(sudo)
+  fi
+  local reply
+  reply="$(printf 'CONTROL DISABLE\nEXIT\n' | "${elevate[@]}" "$SYSTEM_PRIV_HELPER" | sed -n '2p')"
+  case "$reply" in
+    OK*) ;;
+    *) echo "Warning: the fan helper reported: ${reply:-no answer}" >&2 ;;
+  esac
+}
+
 remove_path() {
   local path="$1"
   if [[ -e "$path" || -L "$path" ]]; then
@@ -176,7 +205,12 @@ remove_managed_cyan_dropin() {
   local target="$SYSTEM_CYAN_OVERLAY_DROPIN"
   [[ -e "$target" || -L "$target" ]] || return 0
   local expected_preflight="ExecStartPre=$SYSTEM_CYAN_OVERLAY_PREFLIGHT"
-  if [[ -L "$target" ]] || ! grep -Fqx '# Managed by BC250 Control Center: prevent a stale Cyan fix-freq hwmon bind from racing service restart.' "$target" 2>/dev/null || ! grep -Fqx "$expected_preflight" "$target" 2>/dev/null; then
+  # The shipped drop-in wraps its marker comment over two lines, so the
+  # whole-line match of the one-line form never matched it: the drop-in was
+  # kept, still pointing ExecStartPre at the helper removed above, and Cyan's
+  # service then failed to start. Accept both forms of the marker.
+  local marker='^# Managed by BC250 Control Center: prevent a stale Cyan fix-freq hwmon bind( from racing service restart\.)?$'
+  if [[ -L "$target" ]] || ! grep -Eq "$marker" "$target" 2>/dev/null || ! grep -Fqx "$expected_preflight" "$target" 2>/dev/null; then
     echo "Warning: keeping unverified Cyan systemd drop-in: $target" >&2
     return 0
   fi
@@ -291,6 +325,7 @@ fi
 try_disable_user_daemon
 if [[ "$KEEP_PRIVILEGED" -eq 0 ]]; then
   disable_managed_cpu_service
+  disable_managed_fan_service
 fi
 
 remove_path "$BIN_DIR/bc250-control-center"
@@ -300,7 +335,7 @@ remove_path "$DESKTOP_DIR/io.github.movacx.bc250-control-center.desktop"
 remove_path "$METAINFO_DIR/io.github.movacx.bc250-control-center.metainfo.xml"
 remove_path "$SYSTEMD_USER_DIR/bc250-control-centerd.service"
 if [[ "$KEEP_PRIVILEGED" -eq 0 ]]; then
-if [[ -e /var/lib/bc250-control-center/system-setup/acpi.json || -e /var/lib/bc250-control-center/system-setup/telemetry.json || -e /etc/systemd/system/bc250-memory-setup.service || -e /var/lib/bc250-control-center-swap/swapfile || -e /etc/systemd/zram-generator.conf.d/90-bc250.conf ]]; then
+if [[ -e /var/lib/bc250-control-center/system-setup/acpi.json || -e /var/lib/bc250-control-center/system-setup/telemetry.json || -e /etc/systemd/system/bc250-memory-setup.service || -e /var/lib/bc250-control-center-swap/swapfile || -e /etc/systemd/zram-generator.conf.d/90-bc250.conf || -e /etc/sysctl.d/90-bc250-memory.conf ]]; then
   echo "Keeping the optional memory/ACPI helper for restoration. Restore these settings in Control Center before removing that helper."
 else
   remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-system-setup-helper" "/usr/libexec/bc250-control-center/bc250-system-setup-helper"
@@ -343,6 +378,13 @@ remove_managed_privileged_file "$APP_DIR/privileged/lib/governor_toml.py" "$SYST
 # file conflict.
 remove_managed_privileged_file "$APP_DIR/privileged/lib/bc250_contract.py" "$SYSTEM_CONTRACT_IMPLEMENTATION"
 remove_managed_privileged_file "$APP_DIR/privileged/policies/io.github.movacx.bc250-control-center.policy" "$SYSTEM_POLKIT_ACTION"
+# Root runs these helpers, so Python leaves bytecode beside their modules and
+# the directory outlived the uninstall. Only once no module is left: a kept
+# memory/ACPI helper keeps its cache too.
+if ! compgen -G "/usr/libexec/bc250-control-center/lib/*.py" >/dev/null; then
+  remove_path "/usr/libexec/bc250-control-center/lib/__pycache__"
+fi
+remove_empty_dir "/usr/libexec/bc250-control-center/lib"
 remove_empty_dir "/usr/libexec/bc250-control-center"
 reload_systemd_after_overlay_removal
 fi

@@ -150,8 +150,13 @@ def _persist_profile(page, profile: GpuProfile) -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _run(page, view: GpuGovernorView, operation: Callable, summary: str,
-         error_title: str, *, controls: tuple[QWidget, ...] = ()) -> None:
-    """Runs a controller operation with the page's own plumbing."""
+         error_title: str, *, controls: tuple[QWidget, ...] = (),
+         toast_title: str = "") -> None:
+    """Runs a controller operation with the page's own plumbing.
+
+    ``toast_title`` also reports the outcome in a toast, for an action whose
+    result is not visible anywhere on the page (an export, for instance).
+    """
 
     def success(result: object) -> None:
         message = str(result) if isinstance(result, str) and result else summary
@@ -162,6 +167,8 @@ def _run(page, view: GpuGovernorView, operation: Callable, summary: str,
         if last_line is not None:
             last_line.set_values(tr("Last operation"), message)
         page._append_console(message)
+        if toast_title:
+            page._show_info(toast_title, summary, tone="green")
 
     page._run_backend_action(operation, success, error_title, controls=controls)
 
@@ -217,6 +224,9 @@ def _export_profiles_to_decky(page, view: GpuGovernorView) -> None:
         tr("Profiles exported to Decky Quick Access."),
         "Could not export profiles to Decky",
         controls=(view._export_decky_button,),
+        # Nothing on the page changes after an export, so without this the
+        # click looked ignored; the CPU and Fans pages already said so.
+        toast_title=tr("Export to Decky"),
     )
 
 

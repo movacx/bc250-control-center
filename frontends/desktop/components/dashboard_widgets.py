@@ -85,6 +85,23 @@ _MEMORY_POLICY_DETAILS = {
 }
 
 
+class _PreparationTabButton(QPushButton):
+    """A preparation tab whose label is drawn literally.
+
+    A push button reads "&" as a keyboard mnemonic, so "Memory & Swap" showed
+    as "Memory _Swap". The label keeps its catalogue source and escapes the
+    ampersand on every write, including the live language change.
+    """
+
+    def __init__(self, source_text: str, parent: QWidget | None = None):
+        super().__init__(parent)
+        self.source_text = source_text
+        self.setText(tr(source_text))
+
+    def setText(self, text: str) -> None:  # noqa: N802 - Qt API name
+        super().setText(str(text).replace("&&", "&").replace("&", "&&"))
+
+
 class _MemoryOptionRow(QFrame):
     """One clickable swap-policy choice: a radio dot plus title and detail.
 
@@ -99,6 +116,7 @@ class _MemoryOptionRow(QFrame):
         super().__init__(parent)
         self.setProperty("dashboardMemoryOptionRow", True)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         layout = QHBoxLayout(self)
         layout.setContentsMargins(14, 11, 14, 11)
         layout.setSpacing(12)
@@ -130,6 +148,18 @@ class _MemoryOptionRow(QFrame):
             self.clicked.emit()
         super().mousePressEvent(event)
 
+    def gamepad_activate(self) -> None:
+        """A chooses this policy, exactly like a click."""
+        if self.isEnabled():
+            self.clicked.emit()
+
+    def keyPressEvent(self, event) -> None:  # noqa: N802 - Qt override
+        if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter, Qt.Key.Key_Space):
+            self.gamepad_activate()
+            event.accept()
+            return
+        super().keyPressEvent(event)
+
 
 class _AllocationTimeline(QWidget):
     """A single horizontal line of stops mirroring a combo box's items.
@@ -153,9 +183,43 @@ class _AllocationTimeline(QWidget):
         self.setMouseTracking(True)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         combo.currentIndexChanged.connect(lambda _index: self.update())
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
     def sizeHint(self) -> QSize:
         return QSize(280, 34)
+
+    def _step(self, delta: int) -> bool:
+        """Move to the next enabled stop in that direction, if there is one."""
+        index = self._combo.currentIndex() + delta
+        while 0 <= index < self._combo.count():
+            if self._is_enabled(index):
+                self._combo.setCurrentIndex(index)
+                return True
+            index += delta
+        return False
+
+    def gamepad_direction(self, direction: str) -> bool:
+        """Left/right walk the stops; at either end focus moves on."""
+        if direction == "left":
+            return self._step(-1)
+        if direction == "right":
+            return self._step(1)
+        return False
+
+    def gamepad_activate(self) -> None:
+        """A steps forward and wraps, so the line is usable with one button."""
+        if not self._step(1):
+            for index in range(self._combo.count()):
+                if self._is_enabled(index):
+                    self._combo.setCurrentIndex(index)
+                    break
+
+    def keyPressEvent(self, event) -> None:  # noqa: N802 - Qt override
+        if event.key() in (Qt.Key.Key_Left, Qt.Key.Key_Right):
+            self._step(-1 if event.key() == Qt.Key.Key_Left else 1)
+            event.accept()
+            return
+        super().keyPressEvent(event)
 
     def refresh(self) -> None:
         self.update()
@@ -513,6 +577,8 @@ class DashboardMemorySummary(QFrame):
         self.prepare_button.clicked.connect(self.prepare_requested)
         self.prepare_button.setVisible(False)
         self._live_action = bool(live_action)
+        self._ready = True
+        self._external = False
         if self._show_header:
             root.addLayout(self.header)
             self._layout_header(1000)
@@ -555,10 +621,20 @@ class DashboardMemorySummary(QFrame):
 
     def set_ready(self, ready: bool) -> None:
         """Offer the readings, or offer to make them possible."""
+        self._ready = bool(ready)
+        self._sync_actions()
+
+    def set_external(self, external: bool) -> None:
+        """Another program is taking these readings; offer neither action."""
+        self._external = bool(external)
+        self._sync_actions()
+
+    def _sync_actions(self) -> None:
         if not self._live_action:
             return
-        self.live_button.setVisible(bool(ready))
-        self.prepare_button.setVisible(not ready)
+        offered = not self._external
+        self.live_button.setVisible(offered and self._ready)
+        self.prepare_button.setVisible(offered and not self._ready)
 
     def set_blocker(self, message: str) -> None:
         """Why there is nothing to show, when there is nothing to show."""
@@ -1015,7 +1091,7 @@ class PreparationSidebar(QFrame):
         for index, text in enumerate(
             ("Components", "Compatibility", "Memory & Swap", "Decky", "Drivers")
         ):
-            button = QPushButton(tr(text))
+            button = _PreparationTabButton(text)
             button.setCheckable(True)
             button.setProperty("dashboardPreparationTab", True)
             button.setProperty("gamepadHorizontalGroup", "preparation-tabs")
@@ -1217,6 +1293,7 @@ class PreparationSidebar(QFrame):
         swap_card, swap_layout, swap_header = self._memory_card(
             "memory_green", "green_soft", "Swap and compression"
         )
+        self.memory_swap_card = swap_card
         self.memory_scope = PillLabel("Bazzite only", "gray")
         swap_header.addWidget(self.memory_scope)
 
@@ -1297,6 +1374,7 @@ class PreparationSidebar(QFrame):
         ttm_card, ttm_layout, _ttm_header = self._memory_card(
             "gpu_purple", "purple_soft", "Dynamic GPU Memory Limit (TTM)"
         )
+        self.memory_ttm_card = ttm_card
         self.memory_ttm_readout = _label("—", "metricTileValue", wrap=False)
         ttm_layout.addWidget(self.memory_ttm_readout)
         self.ttm_limit_combo = QComboBox()
@@ -1326,6 +1404,7 @@ class PreparationSidebar(QFrame):
         vram_card, vram_layout, _vram_header = self._memory_card(
             "vram_gray", "cyan_soft", "VRAM size (UMA_SIZE)"
         )
+        self.memory_vram_card = vram_card
         self.memory_vram_readout = _label("—", "metricTileValue", wrap=False)
         vram_layout.addWidget(self.memory_vram_readout)
         self._tools_snapshot: Mapping[str, object] = {}
@@ -1553,6 +1632,12 @@ class PreparationSidebar(QFrame):
             "{ swapon --show 2>/dev/null || echo '(no active swap devices)'; } | sed 's/^/  /'\n"
             "echo\n"
             "{ zramctl 2>/dev/null || echo '(zramctl: unavailable)'; } | sed 's/^/  /'\n"
+            "echo\n"
+            "{ sysctl vm.swappiness vm.page-cluster 2>/dev/null || true; } | sed 's/^/  /'\n"
+            "for bc250_knob in enabled compressor zpool max_pool_percent shrinker_enabled; do "
+            "bc250_file=/sys/module/zswap/parameters/$bc250_knob; "
+            "[ -r \"$bc250_file\" ] && printf '  zswap.%s = %s\\n' \"$bc250_knob\" \"$(cat \"$bc250_file\")\"; "
+            "done\n"
             "echo\n"
             f"printf '%s\\n' {shlex.quote(banner)}\n"
             "echo\n"
@@ -1852,10 +1937,14 @@ class PreparationSidebar(QFrame):
         self.cachyos_mesa_card = self.cachyos_stack_card
         self.cachyos_full_card = self.cachyos_stack_card
 
+        # FSR4 INT8 through the BC250 build of OptiScaler Client
+        # (daniel-h-0/bc250-fsr4-fork). It patches games with OptiScaler and
+        # the optimised DLL, keeps its own backups, and needs no kernel, Mesa
+        # or root -- so one workflow serves every distribution.
         self.fsr4_card = PreparationInfoCard(
-            "BC-250 FSR4 V3 (experimental)",
-            "Official upstream per-game RADV runtime. It is isolated in your user folder and never replaces system Mesa.",
-            scope_text="Prebuilt: Arch/CachyOS · Source build: other distros",
+            "FSR4 INT8 · OptiScaler Client",
+            "Installs OptiScaler and the BC250 FSR4 DLL into the games you choose, with a backup of every file it replaces. Your driver and Proton stay as they are.",
+            scope_text="All distributions · per game · no root",
             status_text="Checking",
         )
         self.fsr4_launch_row = QFrame()
@@ -1879,16 +1968,35 @@ class PreparationSidebar(QFrame):
         self.fsr4_card.layout().insertWidget(2, self.fsr4_launch_row)
         self.fsr4_launch_row.hide()
         self._fsr4_launch_option = ""
+        # One line per game from the client's list: what is still missing
+        # before OptiScaler opens with Insert, and the fix when it is ours.
+        self.fsr4_games = QFrame()
+        self.fsr4_games.setProperty("fsr4Games", True)
+        self.fsr4_games_layout = QVBoxLayout(self.fsr4_games)
+        self.fsr4_games_layout.setContentsMargins(0, 0, 0, 0)
+        self.fsr4_games_layout.setSpacing(6)
+        self.fsr4_card.layout().insertWidget(3, self.fsr4_games)
+        self.fsr4_games.hide()
+        self._fsr4_games_signature: tuple = ()
+        self.fsr4_game_rows: dict[str, QFrame] = {}
         self.fsr4_install_button = self.fsr4_card.add_action(
-            "Install per-game FSR4", {"action": "fsr4_install", "governor": ""}
+            "Install FSR4", {"action": "fsr4_install", "governor": ""}
+        )
+        self.fsr4_launch_button = self.fsr4_card.add_action(
+            "Open OptiScaler Client", {"action": "fsr4_launch", "governor": ""}
         )
         self.fsr4_remove_button = self.fsr4_card.add_action(
-            "Remove per-game FSR4",
+            "Remove client",
             {"action": "fsr4_uninstall", "governor": ""},
             danger=True,
         )
+        self.fsr4_legacy_button = self.fsr4_card.add_action(
+            "Remove old FSR4 V3 runtime",
+            {"action": "fsr4_legacy_uninstall", "governor": ""},
+            danger=True,
+        )
         self.fsr4_upstream_button = self.fsr4_card.add_action(
-            "Open upstream project", {"action": "fsr4_upstream", "governor": ""}
+            "Step-by-step guide", {"action": "fsr4_upstream", "governor": ""}
         )
         self.fsr4_card.action_requested.connect(self._forward_dependency_action)
         self.fsr4_card.setEnabled(FSR4_UI_ENABLED)
@@ -1918,14 +2026,6 @@ class PreparationSidebar(QFrame):
         )
         self.decky_card.action_requested.connect(self._handle_decky_action)
         layout.addWidget(self.decky_card)
-        explanation = PreparationInfoCard(
-            "Console interface preview",
-            "Open the current BC250 panel screenshot in a separate preview window. It never contacts the privileged helper or changes hardware.",
-            scope_text="Safe preview",
-            status_text="No hardware actions",
-            status_tone="green",
-        )
-        layout.addWidget(explanation)
         layout.addStretch(1)
         return page
 
@@ -1982,6 +2082,14 @@ class PreparationSidebar(QFrame):
         )
         layout.addStretch(1)
         return page
+
+    #: Stable names for the tabs, in order. The guided tour used to address
+    #: them by position and pointed at the wrong one after "Memory & Swap"
+    #: was inserted in the middle.
+    TAB_KEYS = ("components", "compatibility", "memory", "decky", "drivers")
+
+    def tab_index(self, key: str) -> int:
+        return self.TAB_KEYS.index(key) if key in self.TAB_KEYS else -1
 
     def select_tab(self, index: int) -> None:
         self.stack.setCurrentIndex(index)
@@ -2284,6 +2392,231 @@ class PreparationSidebar(QFrame):
         values.setdefault("selected_components", self.selected_components)
         self.dependency_action_requested.emit(values)
 
+    def _render_gfx1013_source(self, source: Mapping[str, object], masta_supported: bool) -> None:
+        """Status and actions of the independent GFX1013 source build."""
+        state = str(source.get("state") or "not-installed")
+        kernel = str(source.get("kernel") or "")
+        installed = bool(source.get("installed"))
+        enabled = bool(source.get("enabled"))
+        self.gfx_card.set_scope("Built for this kernel · independent of MastaG", "blue")
+        copy = {
+            "not-installed": (
+                "Source build available", "blue",
+                tr_format(
+                    "Builds DryhoppedIPA's V33 amdgpu patches for kernel {kernel} and RADV with the "
+                    "compute-queue patch, and installs them beside the stock driver. If a boot with "
+                    "the fix fails, the next boot uses the stock driver and switches the fix off by "
+                    "itself. Building takes 15-30 minutes.",
+                    kernel=kernel,
+                ),
+            ),
+            "active": (
+                "Active", "green",
+                tr("The patched amdgpu and RADV are in use on this boot. Test stability game by game: async compute raises GPU load."),
+            ),
+            "reboot-required": (
+                "Restart required", "blue",
+                tr("Installed and switched on. Restart to load the patched driver."),
+            ),
+            "rebuild-needed": (
+                "Rebuild needed", "orange",
+                tr_format(
+                    "Kernel {kernel} has no patched module yet, so the stock driver is in use. "
+                    "Rebuilding only the module takes a few minutes.",
+                    kernel=kernel,
+                ),
+            ),
+            "switched-off": (
+                "Switched off", "gray",
+                tr("Installed but switched off: the stock amdgpu and system Mesa are in use."),
+            ),
+            "fell-back": (
+                "Switched off after a failed boot", "orange",
+                tr("A boot with the fix did not finish, so the stock driver took over and the fix was switched off. Switch it on again only after checking what failed."),
+            ),
+            "blocked-early-load": (
+                "Loaded too early", "orange",
+                tr("amdgpu was loaded from the initramfs before the boot service could choose it. Remove amdgpu from MODULES in the initramfs configuration and rebuild the initramfs."),
+            ),
+        }.get(state)
+        if copy is None:
+            copy = ("Checking", "gray", "")
+        status, tone, detail = copy
+        if masta_supported and state == "not-installed":
+            detail = f"{detail} {tr('Use either this or the MastaG kernel below, not both.')}"
+        self.gfx_card.set_status(status, tone)
+        self.gfx_card.detail.setText(detail)
+        if not installed:
+            primary = ("Build and install the fix", "gfx1013_source_install")
+        elif state == "rebuild-needed":
+            primary = ("Rebuild for this kernel", "gfx1013_source_rebuild")
+        elif enabled:
+            primary = ("Switch off", "gfx1013_source_disable")
+        else:
+            primary = ("Switch on", "gfx1013_source_enable")
+        self.gfx_card.update_action(
+            self.gfx_primary_button,
+            text=primary[0],
+            payload={"action": primary[1], "governor": ""},
+        )
+        self.gfx_card.update_action(
+            self.gfx_secondary_button,
+            text="Remove the fix",
+            payload={"action": "gfx1013_source_uninstall", "governor": ""},
+            visible=installed,
+        )
+        self.gfx_card.update_action(
+            self.gfx_tertiary_button if installed else self.gfx_secondary_button,
+            text="Open upstream project",
+            payload={"action": "gfx1013_upstream", "governor": ""},
+        )
+
+    def _render_radv_async(self, radv: Mapping[str, object], source: Mapping[str, object]) -> None:
+        """Async compute from the patched RADV alone, on an Arch-family kernel 7.2+."""
+        state = str(radv.get("state") or "not-installed")
+        kernel = str(radv.get("kernel") or "")
+        version = str(radv.get("expected_version") or radv.get("version") or "")
+        installed = bool(radv.get("installed"))
+        enabled = bool(radv.get("enabled"))
+        self.gfx_card.set_scope("Arch family · linux 7.2+ · no kernel module", "blue")
+        copy = {
+            "not-installed": (
+                "Available", "blue",
+                tr_format(
+                    "Builds RADV {version} with the GFX1013 compute-queue patch and installs it beside "
+                    "the system Mesa. Kernel {kernel} needs no patched amdgpu: its amdgpu is the same "
+                    "one Bazzite's async-compute release runs on. Building takes 10-20 minutes.",
+                    version=version, kernel=kernel,
+                ),
+            ),
+            "active": (
+                "Active", "green",
+                tr("This session uses the patched RADV: games get the compute (ACE) queue with no launch options. Performance › GPU › Async compute shows when a game really uses it."),
+            ),
+            "relogin-required": (
+                "Log out to apply", "blue",
+                tr("Installed and switched on. Log out and back in; sessions started after that use the patched RADV."),
+            ),
+            "switched-off": (
+                "Switched off", "gray",
+                tr("Installed but switched off: sessions use the system driver. One game can still use it with the launch option bc250cc-async-compute run %command%."),
+            ),
+            "deferred": (
+                "Kernel-side fix in use", "orange",
+                tr("The GFX1013 kernel-side fix is loaded on this boot and brings its own RADV. On this kernel it is not needed: remove it to use this one."),
+            ),
+            "invalid": (
+                "Repair needed", "orange",
+                tr("Some files of the patched RADV are missing. Build and install it again."),
+            ),
+        }.get(state, ("Checking", "gray", ""))
+        status, tone, detail = copy
+        if radv.get("outdated"):
+            detail = f"{detail} {tr_format('A newer build (RADV {version}) is available: build and install again to update.', version=version)}"
+        if source.get("installed"):
+            detail = f"{detail} {tr('The GFX1013 kernel-side fix is installed too; on kernel 7.2 or newer it is not needed, and one route is enough.')}"
+        self.gfx_card.set_status(status, tone)
+        self.gfx_card.detail.setText(detail)
+        if not installed or state == "invalid" or radv.get("outdated"):
+            self.gfx_card.update_action(
+                self.gfx_primary_button,
+                text="Build and install",
+                payload={"action": "radv_async_install", "governor": ""},
+            )
+        else:
+            self.gfx_card.update_action(
+                self.gfx_primary_button,
+                text="Switch off" if enabled else "Switch on",
+                payload={"action": "radv_async_disable" if enabled else "radv_async_enable", "governor": ""},
+            )
+        self.gfx_card.update_action(
+            self.gfx_secondary_button,
+            text="Test async compute",
+            payload={"action": "radv_async_test", "governor": ""},
+            visible=installed and state != "invalid",
+        )
+        self.gfx_card.update_action(
+            self.gfx_tertiary_button,
+            text="Remove",
+            payload={"action": "radv_async_uninstall", "governor": ""},
+            visible=installed,
+        )
+        self.gfx_card.update_action(
+            self.gfx_quaternary_button,
+            text="Remove the kernel-side fix",
+            payload={"action": "gfx1013_source_uninstall", "governor": ""},
+            visible=bool(source.get("installed")),
+        )
+        self.gfx_card.update_action(
+            self.gfx_quinary_button,
+            text="Open upstream project",
+            payload={"action": "bazzite_async_upstream", "governor": ""},
+        )
+
+    _FSR4_GAME_COPY = {
+        "ready": ("Ready", "green",
+                  "In the game choose DLSS, FSR or XeSS, then press Insert to open OptiScaler."),
+        "needs-launch-option": ("Launch option missing", "orange",
+                                "OptiScaler is installed, but Steam does not load it yet. Close Steam, then add the launch option."),
+        "not-installed": ("Not installed", "gray",
+                          "In the client, select this game and press Install / update selected."),
+        "other-launcher": ("Launcher setting needed", "blue",
+                           "Add WINEDLLOVERRIDES with {dll}=n,b in the launcher that runs this game; the guide shows where."),
+        "unknown-adapter": ("Check the adapter", "orange",
+                            "OptiScaler is in this game under a file name this panel does not recognise; see the guide."),
+    }
+
+    def _render_fsr4_games(self, games: list[dict]) -> None:
+        """One compact row per game; rebuilt only when something changed."""
+        signature = tuple(
+            (g.get("appid"), g.get("name"), g.get("state"), g.get("adapter"),
+             g.get("suggested_executable"), g.get("location"))
+            for g in games[:8]
+        )
+        if signature == self._fsr4_games_signature:
+            return
+        self._fsr4_games_signature = signature
+        while self.fsr4_games_layout.count():
+            item = self.fsr4_games_layout.takeAt(0)
+            if item.widget() is not None:
+                item.widget().deleteLater()
+        self.fsr4_game_rows = {}
+        for game in games[:8]:
+            self.fsr4_games_layout.addWidget(self._fsr4_game_row(game))
+        self.fsr4_games.setVisible(bool(games))
+
+    def _fsr4_game_row(self, game: dict) -> QFrame:
+        state = str(game.get("state") or "not-installed")
+        chip, tone, detail = self._FSR4_GAME_COPY.get(state, self._FSR4_GAME_COPY["not-installed"])
+        row = QFrame()
+        row.setProperty("fsr4GameRow", True)
+        layout = QGridLayout(row)
+        layout.setContentsMargins(10, 7, 8, 7)
+        layout.setHorizontalSpacing(10)
+        layout.setVerticalSpacing(2)
+        name = _label(str(game.get("name") or ""), "dashboardCompatibilityLabel", wrap=False)
+        status = PillLabel(chip, tone)
+        text = tr_format(detail, dll=str(game.get("adapter") or "dxgi.dll").removesuffix(".dll"))
+        executable = str(game.get("suggested_executable") or "")
+        if state == "not-installed" and executable:
+            text = f"{text} {tr_format('If it asks for the executable, choose {path}.', path=executable)}"
+        note = _label(text, "dashboardCardSubtitle")
+        layout.addWidget(name, 0, 0)
+        layout.addWidget(status, 0, 1, Qt.AlignmentFlag.AlignLeft)
+        layout.addWidget(note, 1, 0, 1, 3)
+        layout.setColumnStretch(2, 1)
+        if state == "needs-launch-option" and game.get("steam"):
+            button = QPushButton(tr("Add to Steam"))
+            button.setProperty("compactAction", True)
+            button.clicked.connect(
+                lambda _checked=False, appid=str(game.get("appid")): self._forward_dependency_action(
+                    {"action": f"fsr4_steam_option:{appid}", "governor": ""}
+                )
+            )
+            layout.addWidget(button, 0, 3, 2, 1, Qt.AlignmentFlag.AlignVCenter)
+        self.fsr4_game_rows[str(game.get("appid") or game.get("name"))] = row
+        return row
+
     def _copy_fsr4_launch_option(self) -> None:
         if not self._fsr4_launch_option:
             return
@@ -2359,7 +2692,10 @@ class PreparationSidebar(QFrame):
         self.acpi_card.setVisible(show_all or selected == "arch")
         self.cyan_card.setVisible(True)
         self.oberon_card.setVisible(True)
-        self.gfx_card.setVisible(show_all or selected != "arch")
+        self.gfx_card.setVisible(
+            show_all or selected != "arch"
+            or (selected == actual and bool(getattr(self, "_gfx_source_offered", False)))
+        )
         self.cachyos_stack_card.setVisible(show_all or selected == "arch")
         self.fsr4_card.setVisible(FSR4_UI_ENABLED)
 
@@ -2373,7 +2709,7 @@ class PreparationSidebar(QFrame):
             "bazzite": "Bazzite is immutable. Direct kernel/Mesa patching is blocked; use a BC-250 image or a matching rpm-ostree package instead.",
             "arch": "Available only on plain Arch Linux or CachyOS",
             "fedora": "Fedora uses DryhoppedIPA's official current GFX1013 workflow. Control Center adds local safety gates, then leaves kernel and Mesa compatibility checks to upstream.",
-            "debian": "Ubuntu and Debian currently expose governor and userspace tools; the GFX1013 kernel/Mesa patch remains a manual upstream path.",
+            "debian": "Ubuntu and Debian can build the GFX1013 fix from source when the running kernel is 6.14 or newer (Ubuntu 25.04 and later, 24.04 with the HWE kernel, Debian with a backports kernel). Older kernels keep the manual upstream path.",
             "other": "This distribution can use common governors when its packages are available. Kernel/Mesa compatibility stays manual until a reviewed path exists.",
         }
         self.gfx_card.detail.setText(tr(preview_copy[selected]))
@@ -2617,6 +2953,10 @@ class PreparationSidebar(QFrame):
         )
 
         gfx_state = _mapping(tools.get("gfx1013_compute"))
+        # On the Arch family this card normally steps aside for MastaG's
+        # stack card. The independent source build is rendered into it, so
+        # the card has to stay visible whenever that build is on offer.
+        self._gfx_source_offered = False
         gfx = present_gfx1013(gfx_state, include_fsr4=FSR4_UI_ENABLED)
         reason_key = str(gfx_state.get("reason_key") or "manual-patches-only")
         gfx_scope = {
@@ -2821,6 +3161,24 @@ class PreparationSidebar(QFrame):
                 payload={"action": "bazzite_async_upstream", "governor": ""},
                 visible=installed,
             )
+        elif (
+            _mapping(gfx_state.get("radv_async")).get("supported")
+            and not bool(gfx_state.get("masta_async_compute_ready"))
+        ):
+            # Linux 7.2 or newer on the Arch family: the patched RADV alone,
+            # on the stock amdgpu that Bazzite's async-compute release uses.
+            self._gfx_source_offered = True
+            self._render_radv_async(
+                _mapping(gfx_state.get("radv_async")), _mapping(gfx_state.get("source"))
+            )
+        elif (
+            _mapping(gfx_state.get("source")).get("supported")
+            and not bool(gfx_state.get("masta_async_compute_ready"))
+        ):
+            # The independent source build: DryhoppedIPA's V33 patches for the
+            # running kernel plus the patched RADV, beside the stock driver.
+            self._gfx_source_offered = True
+            self._render_gfx1013_source(_mapping(gfx_state.get("source")), masta_supported)
         else:
             if masta_supported:
                 if not bool(gfx_state.get("masta_async_compute_ready")):
@@ -2839,108 +3197,71 @@ class PreparationSidebar(QFrame):
             )
 
         fsr4 = _mapping(tools.get("fsr4"))
-        fsr4_supported = bool(fsr4.get("precompiled_supported"))
-        fsr4_experimental = bool(fsr4.get("experimental_precompiled"))
-        fsr4_source_supported = bool(fsr4.get("source_build_supported"))
-        fsr4_build_mode = str(fsr4.get("build_mode") or "")
-        if not fsr4_build_mode and fsr4_source_supported:
-            fsr4_build_mode = {
-                "bazzite": "bazzite-podman-source",
-                "ubuntu": "debian-podman-source",
-                "debian": "debian-podman-source",
-            }.get(str(tools.get("os_family") or ""), "")
-        fsr4_available = bool(
-            fsr4.get("installer_available", fsr4_supported or fsr4_experimental)
-        )
+        fsr4_available = bool(fsr4.get("installer_available"))
         fsr4_installed = bool(fsr4.get("installed"))
         fsr4_current = bool(fsr4.get("current"))
         fsr4_state = str(fsr4.get("state") or "not-installed")
-        fsr4_kernel_required = bool(fsr4.get("compute_kernel_required"))
-        fsr4_kernel_ready = bool(fsr4.get("compute_kernel_ready"))
         self._fsr4_launch_option = str(fsr4.get("steam_launch_option") or "")
         self.fsr4_launch_row.setVisible(
-            FSR4_UI_ENABLED
-            and fsr4_current
-            and bool(self._fsr4_launch_option)
+            FSR4_UI_ENABLED and fsr4_current and bool(self._fsr4_launch_option)
         )
         self.fsr4_copy_button.setToolTip(tr("Copy Steam launch option"))
         self.fsr4_copy_button.setAccessibleName(tr("Copy Steam launch option"))
-        source_required = bool(fsr4.get("source_build_required"))
-        self.fsr4_card.set_scope(
-            "Bazzite · Official Podman source build"
-            if fsr4_build_mode == "bazzite-podman-source"
-            else "Debian/Ubuntu · Official Podman source build"
-            if fsr4_build_mode == "debian-podman-source"
-            else "Fedora 44 · GFX1013 · Podman"
-            if fsr4_build_mode == "fedora44-podman-source"
-            else "Prebuilt: Arch/CachyOS · Source build: other distros",
-            "purple" if fsr4_source_supported else "gray",
-        )
-        self.fsr4_card.set_status(
-            "Ready"
-            if fsr4_current
-            else "Repair required"
-            if fsr4_state == "invalid"
-            else "Experimental ABI check"
-            if fsr4_experimental
-            else "Kernel repair required"
-            if fsr4_kernel_required and not fsr4_kernel_ready
-            else "Source build available"
-            if source_required
-            else "Available",
-            "green"
-            if fsr4_current
-            else "orange"
-            if (
-                fsr4_state in {"invalid", "kernel-required"}
-                or fsr4_experimental
-                or (fsr4_kernel_required and not fsr4_kernel_ready)
+        self.fsr4_card.set_scope("All distributions · per game · no root", "purple")
+        if fsr4_current:
+            status, tone = ("Open" if fsr4.get("running") else "Ready"), "green"
+            detail = tr(
+                "Open the client, choose Scan Games, select games and press Install / update selected. "
+                "Then add the launch option below to each game in Steam. Restore / recover selected undoes it."
             )
-            else "blue",
-        )
-        version = str(fsr4.get("version") or "V3")
-        self.fsr4_card.detail.setText(
-            tr_format(
-                "Official upstream {version} per-game RADV runtime. It stays isolated from system Mesa.",
-                version=version,
+        elif fsr4_state == "invalid":
+            status, tone = "Repair required", "orange"
+            detail = tr("The client folder is incomplete or was changed. Reinstall it; your game backups are kept.")
+        elif fsr4_state == "update-available":
+            status, tone = "Update available", "blue"
+            detail = tr("A newer BC250 build of the client is available. Updating keeps your games and backups.")
+        elif not fsr4_available:
+            status, tone = "Unavailable", "gray"
+            detail = tr("The client is built for x86_64 Linux only.")
+        else:
+            status, tone = "Not installed", "gray"
+            detail = tr(
+                "Downloads the pinned BC250 release, checks every file, and installs it in your user folder. "
+                "Then open it and pick your games."
             )
-                if fsr4_supported
-                else tr_format(
-                    "Official upstream {version} Arch-style runtime. Manjaro is not claimed upstream; installation proceeds only after strict ABI and Vulkan checks.",
-                    version=version,
-                )
-                if fsr4_experimental
-                else tr_format(
-                    "Official upstream {version} is compiled in its Fedora 44 container with rootless Podman, then Vulkan-tested on this BC-250. System Mesa is never modified.",
-                    version=version,
-                )
-                if fsr4_build_mode == "bazzite-podman-source"
-                else tr_format(
-                    "Official upstream {version} is compiled in its Fedora 44 container with rootless Podman. Debian/Ubuntu build tools are installed with APT when missing; only a private per-game user runtime is installed.",
-                    version=version,
-                )
-                if fsr4_build_mode == "debian-podman-source"
-                else tr_format(
-                    "Official upstream {version} is compiled in its Fedora 44 container with rootless Podman and installed as a private per-game runtime. The repaired GFX1013 boot must be active first.",
-                    version=version,
-                )
-                if fsr4_build_mode == "fedora44-podman-source"
-                else tr(
-                    "This distribution needs the official reproducible Docker source build; no unverified binary is offered."
-                )
-        )
+        self.fsr4_card.set_status(status, tone)
+        self.fsr4_card.detail.setText(detail)
         self.fsr4_card.update_action(
             self.fsr4_install_button,
-            text="Repair per-game FSR4" if fsr4_state == "invalid" else "Update per-game FSR4" if fsr4_current else "Build and install FSR4" if fsr4_source_supported else "Install per-game FSR4",
+            text="Repair FSR4 client" if fsr4_state == "invalid"
+            else "Update FSR4 client" if fsr4_state == "update-available"
+            else "Reinstall FSR4 client" if fsr4_current
+            else "Install FSR4",
             enabled=fsr4_available,
             visible=fsr4_available,
         )
         self.fsr4_card.update_action(
-            self.fsr4_remove_button,
-            text="Remove per-game FSR4",
-            visible=fsr4_installed,
+            self.fsr4_launch_button,
+            text="Open OptiScaler Client",
+            visible=fsr4_current,
+            enabled=not fsr4.get("running"),
+        )
+        self.fsr4_card.update_action(
+            self.fsr4_remove_button, text="Remove client", visible=fsr4_installed,
+        )
+        self.fsr4_card.update_action(
+            self.fsr4_legacy_button,
+            text="Remove old FSR4 V3 runtime",
+            visible=bool(fsr4.get("legacy_v3_installed")),
         )
         self.fsr4_upstream_button.show()
+        games = [dict(game) for game in fsr4.get("games") or () if isinstance(game, Mapping)]
+        self._render_fsr4_games(games if FSR4_UI_ENABLED and fsr4_current else [])
+        if fsr4_current and games:
+            self.fsr4_card.detail.setText(tr(
+                "Open the client, choose Scan Games, select games and press Install / update selected. "
+                "Each game below says what is still missing before Insert opens OptiScaler."
+            ))
 
         quick = _mapping(tools.get("quick_access"))
         if quick:

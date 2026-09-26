@@ -12,10 +12,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from bc250cc.infrastructure.install_source import (
-    UpdateChannel,
-    detect_install_source,
-)
+from bc250cc.infrastructure.install_source import detect_install_source
 from bc250cc.infrastructure.release_check import (
     RELEASES_PAGE_URL,
     check_for_update,
@@ -42,8 +39,9 @@ from ..components.responsive import (
     configure_responsive_scroll_area,
 )
 from ..components.widgets import InfoDialog
+from ..core.dashboard_presenter import FAN_OWNER_LABELS
 from ..core.external_links import open_external_url, update_checks_enabled
-from ..core.gddr6_monitor import gddr6_monitor_for
+from ..core.gddr6_monitor import EXTERNAL_SOURCE, gddr6_monitor_for
 from ..core.state import DashboardState, state_cache_for
 from ..i18n import tr, tr_format
 
@@ -97,11 +95,16 @@ class DashboardPage(QWidget):
     action_requested = pyqtSignal(str)
     dependency_action_requested = pyqtSignal(object)
     driver_support_requested = pyqtSignal(str)
+    #: "See what's new" in the update bubble: the window opens the updater.
+    update_requested = pyqtSignal()
 
     def __init__(self, controller, parent: QWidget | None = None):
         super().__init__(parent)
         self.controller = controller
         self.state = DashboardState()
+        # Settings › Telemetry: show the Power delivery rails whatever the
+        # automatic detection decided, for a mod being wired or tested.
+        self._vrm_manual = False
         self._updates_active = False
         self._state_cache = state_cache_for(controller)
         self._body_mode = ""
@@ -151,17 +154,22 @@ class DashboardPage(QWidget):
         self.gpu_card = InstrumentPanel("gpu", "Graphics", columns=2)
         self.gpu_card.headline.add("clock", "Frequency", "MHz")
         self.gpu_card.headline.seal()
+        # Grouped by what a reading is: heat, power, clocks on the left;
+        # memory and state on the right. System memory sits with VRAM and
+        # GTT because on this board they are carved out of the same RAM.
         for key, label, group, column in (
             ("temperature", "Temperature", "Thermal", 0),
+            ("mos", "VRM MOS", "Thermal", 0),
             ("rail", "VRM GPU", "Thermal", 0),
-            ("power", "GPU power", "Thermal", 0),
+            ("power", "GPU power", "Power", 0),
+            ("voltage", "GPU voltage", "Power", 0),
             ("mclk", "MCLK", "Clocks", 0),
             ("socclk", "SOCCLK", "Clocks", 0),
             ("fclk", "FCLK", "Clocks", 0),
             ("vram", "VRAM", "Memory", 1),
             ("gtt", "GTT", "Memory", 1),
+            ("ram", "System memory", "Memory", 1),
             ("load", "GPU load", "Status", 1),
-            ("voltage", "GPU voltage", "Status", 1),
             ("cu", "Compute Units", "Status", 1),
             ("governor", "Governor", "Status", 1),
             ("range", "Requested range", "Status", 1),
@@ -184,7 +192,7 @@ class DashboardPage(QWidget):
             ("temperature", "Core temperature", "Thermal"),
             ("rail", "VRM CPU", "Thermal"),
             ("load", "CPU usage", "Activity"),
-            ("voltage", "Voltage sensor", "Activity"),
+            ("voltage", "Core voltage", "Activity"),
             ("oc", "Registered OC", "Activity"),
         ):
             self.cpu_card.details.add(key, label, group=group)
@@ -197,19 +205,19 @@ class DashboardPage(QWidget):
         self.fan_card = InstrumentPanel("fans", "Cooling")
         self.fan_card.headline.add("rpm", "Fan speed", "RPM")
         self.fan_card.headline.seal()
+        # The fan and the air it moves over the board, then the drive: its
+        # temperatures, how full it is, and the swap that lives on it. Last,
+        # the BIOS image: stock or modded decides what the board offers.
         for key, label, group in (
             ("duty", "PWM duty", "Fan"),
             ("mode", "PWM mode", "Fan"),
             ("controller", "Controller", "Fan"),
-            ("board", "Board", "Thermal environment"),
-            ("nvme", "M.2", "Thermal environment"),
-            ("hotspot", "M.2 hotspot", "Thermal environment"),
-            # The pool the GPU carves VRAM and GTT out of, and the drive whose
-            # temperature is two rows above: both were measured every second
-            # and shown nowhere.
-            ("ram", "System memory", "System"),
-            ("swap", "Swap", "System"),
-            ("storage", "Storage", "System"),
+            ("board", "Board temperature", "Fan"),
+            ("nvme", "Temperature", "M.2 drive"),
+            ("hotspot", "Hotspot", "M.2 drive"),
+            ("storage", "Used", "M.2 drive"),
+            ("swap", "Swap", "M.2 drive"),
+            ("bios", "Version", "BIOS"),
         ):
             self.fan_card.details.add(key, label, group=group)
         self.fan_card.add_action("Fan Control")
@@ -240,16 +248,19 @@ class DashboardPage(QWidget):
 
         # Everything the PMIC reports, not only the two temperatures. A stock
         # board has no I2C link to it, so the whole band stays away.
+        # Columns read as pairs: input and total, then each rail's voltage,
+        # current and temperature for CPU over GPU. Every label is unique;
+        # "VRM CPU" used to name both a voltage and a temperature.
         self.vrm_strip = InstrumentBand("Power delivery")
         for key, label in (
             ("input", "12V in"),
-            ("cpu_voltage", "VRM CPU"),
-            ("gpu_voltage", "VRM GPU"),
             ("total", "VRM power"),
+            ("cpu_voltage", "CPU rail voltage"),
+            ("gpu_voltage", "GPU rail voltage"),
             ("cpu_current", "CPU current"),
             ("gpu_current", "GPU current"),
-            ("cpu_temperature", "VRM CPU"),
-            ("gpu_temperature", "VRM GPU"),
+            ("cpu_temperature", "CPU rail temperature"),
+            ("gpu_temperature", "GPU rail temperature"),
         ):
             self.vrm_strip.add(key, label)
         self.main_layout.addWidget(self.vrm_strip)
@@ -385,6 +396,10 @@ class DashboardPage(QWidget):
         if self._updates_active:
             self._refresher.request()
 
+    def refresh_now(self) -> None:
+        """Something this page shows has just changed: read it again now."""
+        self._refresher.request_fresh()
+
     def _refresh_failed(self, message: str) -> None:
         self.setToolTip(message)
 
@@ -427,17 +442,11 @@ class DashboardPage(QWidget):
 
     def _describe_update(self, published: str, source: object) -> None:
         """Say what to do, which depends entirely on how this copy was installed."""
-        channel = getattr(source, "channel", None)
-        command = str(getattr(source, "command", "") or "")
-        if channel is UpdateChannel.AUR and command:
-            detail = tr_format(
-                "Version {version} is available. Update it with your AUR helper.",
-                version=published,
-            )
-            action = command
-        else:
-            detail = tr_format("Version {version} is available", version=published)
-            action = tr("Open the latest release")
+        del source
+        detail = tr_format("Version {version} is available", version=published)
+        # The updater reads the release notes and installs the package that
+        # matches this installation, whichever channel it came from.
+        action = tr("See what's new")
         self.update_callout.set_message(version=published, detail=detail, action=action)
 
     def _show_callout(self) -> None:
@@ -561,18 +570,9 @@ class DashboardPage(QWidget):
         return
 
     def _follow_update_advice(self) -> None:
-        source = self._install_source
-        if getattr(source, "channel", None) is UpdateChannel.AUR and source.command:
-            InfoDialog(
-                tr("New update available"),
-                tr_format(
-                    "This copy was installed from the AUR. Update it from a terminal:"
-                    "\n\n{command}",
-                    command=source.command,
-                ),
-                icon_name="download_blue",
-                parent=self,
-            ).exec()
+        if self.receivers(self.update_requested) > 0:
+            self.update_callout.hide()
+            self.update_requested.emit()
             return
         self._open_releases()
 
@@ -724,9 +724,15 @@ class DashboardPage(QWidget):
         )
         details["temperature"].set_tone(self._heat(state.gpu_temperature_c))
         details["power"].set_value(self._format_power(state.gpu_power_w))
-        rail_label, rail_value = self._gpu_rail(state)
-        details["rail"].set_label(rail_label)
-        details["rail"].set_value(rail_value)
+        # Two fixed rows: the board's own MOSFET sensor, which every BC-250
+        # has, and the PMBus graphics rail, which needs the I2C wires.
+        details["mos"].set_value(self._format_temperature(state.vrm_mos_temperature_c))
+        details["mos"].set_tone(self._heat(state.vrm_mos_temperature_c, warm=80))
+        details["rail"].set_value(
+            self._format_temperature(state.vrm_gpu_temperature_c)
+            if state.vrm_source == "pmbus"
+            else "Not detected"
+        )
         details["rail"].set_tone("warning" if state.vrm_alerts else "")
         details["mclk"].set_value(
             tr("Invalid")
@@ -746,12 +752,25 @@ class DashboardPage(QWidget):
         )
         details["pcie"].set_value(state.gpu_pcie_link or "Not detected")
         details["vbios"].set_value(state.gpu_vbios_version or "Not detected")
+        cu_detail = state.cu_mode if state.cu_state_available else ""
+        unbalanced = (
+            state.cu_state_available
+            and 0 < state.effective_cus < state.active_cus
+        )
+        if unbalanced:
+            # 20 + 18 CUs perform like 18 + 18: the headline number alone
+            # would promise performance the board does not deliver.
+            cu_detail = tr_format(
+                "{mode} · {effective} effective", mode=tr(state.cu_mode),
+                effective=state.effective_cus,
+            )
         details["cu"].set_value(
             f"{state.active_cus} / {state.total_cus}"
             if state.cu_state_available
             else "Not detected",
-            state.cu_mode if state.cu_state_available else "",
+            cu_detail,
         )
+        details["cu"].set_tone("warning" if unbalanced else "")
 
         repair_pending = state.gpu_telemetry_repair_pending
         repair_needed = state.gpu_metrics_layout_mismatch or repair_pending
@@ -800,20 +819,29 @@ class DashboardPage(QWidget):
         # nothing on this row would fix them.
         summary.set_ready(reading.repository_ready or reading.live)
         summary.live_button.setEnabled(reading.can_monitor or reading.live)
+        # BC250-Telemetry's collector owns the SMU mailbox while it runs. Its
+        # readings arrive on their own, so there is nothing for either button
+        # to start, and offering one would invite a second sampler.
+        # The manual override (Settings) lets a session start while that
+        # collector is idle, so the button has to stay on the row then.
+        overridden = reading.manual_override and reading.external_state in {"waiting", "stale"}
+        summary.set_external(reading.external_owns_smu and not overridden and not reading.live)
         if chips:
             summary.set_value(self._format_temperature(_number(reading.average_c)))
-            summary.set_detail(
-                tr_format(
-                    "Hotspot {value}",
-                    value=self._format_temperature(_number(reading.hotspot_c)),
-                )
+            hotspot = tr_format(
+                "Hotspot {value}",
+                value=self._format_temperature(_number(reading.hotspot_c)),
             )
+            if reading.source == EXTERNAL_SOURCE:
+                hotspot = f"{hotspot} · {tr('Read by BC250-Telemetry')}"
+            summary.set_detail(hotspot)
         else:
             summary.set_value("Waiting for sample")
             summary.set_detail("")
-            # Why the button is off, when it is. Saying nothing is what made
-            # this look broken: a disabled control and an empty line beside it.
-            summary.set_blocker("" if reading.can_monitor else reading.blocker())
+        # Why the button is off, when it is, or why the last session ended.
+        # Saying nothing is what made this look broken: a disabled control
+        # and an empty line beside it.
+        summary.set_blocker(reading.notice())
 
     def _apply_cpu_card(self, state: DashboardState) -> None:
         self.cpu_card.set_status(
@@ -898,7 +926,12 @@ class DashboardPage(QWidget):
             self._format_temperature(state.board_temperature_c)
         )
         details["board"].set_tone(self._heat(state.board_temperature_c, warm=70))
-        details["mode"].set_value(state.fan_mode or "Not detected")
+        # Who sets the duty says more than the raw pwm_enable value: the
+        # system service, the board firmware, the desktop daemon or a hand-set
+        # value. Before the owner is known, the channel mode still shows.
+        details["mode"].set_value(
+            FAN_OWNER_LABELS.get(state.fan_owner) or state.fan_mode or "Not detected"
+        )
         details["controller"].set_value(
             state.fan_controller_label or "Not detected"
         )
@@ -915,14 +948,35 @@ class DashboardPage(QWidget):
         details["hotspot"].set_tone(
             self._heat(state.nvme_hotspot_temperature_c, warm=75, hot=82)
         )
-        for key, summary, percent in (
-            ("ram", state.memory_summary, state.memory_percent),
-            ("swap", state.swap_summary, 0.0),
-            ("storage", state.disk_summary, state.disk_percent),
+        self._apply_bios_row(details["bios"], state)
+        for panel, key, summary, percent in (
+            (self.gpu_card, "ram", state.memory_summary, state.memory_percent),
+            (self.fan_card, "swap", state.swap_summary, 0.0),
+            (self.fan_card, "storage", state.disk_summary, state.disk_percent),
         ):
             used, total = self._split_pair(summary)
-            details[key].set_value(used, total)
-            details[key].set_tone("warning" if percent >= 90 else "")
+            panel.details[key].set_value(used, total)
+            panel.details[key].set_tone("warning" if percent >= 90 else "")
+
+    #: What each variant is called under the version. "" is DMI's version
+    #: shared by two images that nothing on the running system separates.
+    BIOS_VARIANT_LABELS = {
+        "ASRock": "ASRock stock",
+        "Chipset Menu": "Chipset Menu",
+        "MeiMeiDXE v3": "MeiMeiDXE v3",
+    }
+
+    def _apply_bios_row(self, reading, state) -> None:
+        """"P3.00" over "Chipset Menu"; the evidence one hover away."""
+        if not state.bios_version:
+            reading.set_value("Not detected")
+            reading.setToolTip(tr(state.bios_evidence) if state.bios_evidence else "")
+            return
+        variant = self.BIOS_VARIANT_LABELS.get(state.bios_variant, "")
+        if not variant and state.bios_version.upper().startswith("P3"):
+            variant = "Stock or Chipset Menu"
+        reading.set_value(state.bios_version, variant)
+        reading.setToolTip(tr(state.bios_evidence) if state.bios_evidence else "")
 
     @classmethod
     def _capacity(cls, summary: str) -> str:
@@ -976,14 +1030,6 @@ class DashboardPage(QWidget):
             return summary, ""
         return used, f"/ {total}"
 
-    def _gpu_rail(self, state) -> tuple[str, str]:
-        """The graphics rail cell: its name depends on what is measuring it."""
-        if state.vrm_source == "pmbus":
-            return "VRM GPU", self._format_temperature(state.vrm_gpu_temperature_c)
-        if state.vrm_source == "nct":
-            return "VRM MOS", self._format_temperature(state.vrm_temperature_c)
-        return "VRM", self._format_temperature(state.vrm_temperature_c)
-
     def _cpu_rail(self, state) -> tuple[str, str]:
         """What the processor's own VRM reports, when anything does."""
         if state.vrm_source != "pmbus":
@@ -1002,12 +1048,22 @@ class DashboardPage(QWidget):
         """
         strip = self.vrm_strip
         available = state.vrm_source == "pmbus"
+        if not available and self._vrm_manual:
+            self._show_vrm_probe(state.vrm_probe)
+            return
         strip.set_note("" if available else tr("Requires the I2C modification"))
+        # Without the link the band is one line that says so, not eight
+        # cells repeating "Not detected".
+        strip.set_readings_visible(available)
         if not available:
             for key in strip.readings:
                 strip[key].set_value("Not detected")
                 strip[key].set_tone("")
             return
+        strip.set_readings_visible(True)
+        # Manual mode may have marked cells; a real reading starts clean.
+        for key in strip.readings:
+            strip[key].set_tone("")
         strip["input"].set_value(self._format_volts(state.vrm_input_voltage_v))
         strip["cpu_voltage"].set_value(self._format_volts(state.vrm_cpu_voltage_v))
         strip["gpu_voltage"].set_value(self._format_volts(state.vrm_gpu_voltage_v))
@@ -1031,6 +1087,65 @@ class DashboardPage(QWidget):
             strip[key].set_tone("warning" if state.vrm_alerts else "")
         # A note only when the PMIC has something to say.
         strip.set_note(tr("Attention") if state.vrm_alerts else "")
+
+    def set_vrm_manual(self, enabled: bool) -> None:
+        """Settings › Telemetry: the rails on screen even when undetected."""
+        enabled = bool(enabled)
+        if enabled == self._vrm_manual:
+            return
+        self._vrm_manual = enabled
+        self._update_vrm_strip(self.state)
+
+    def _show_vrm_probe(self, probe: dict) -> None:
+        """Whatever BC250-Telemetry reports, with its own verdict beside it.
+
+        Manual mode exists for the moment automatic detection disagrees with
+        the person holding the soldering iron. So nothing is filtered: a zero
+        reads 0.00 V, a rail the daemon calls invalid is marked instead of
+        hidden, and the note says why the band would otherwise be folded.
+        """
+        strip = self.vrm_strip
+        strip.set_readings_visible(True)
+        probe = probe if isinstance(probe, dict) else {}
+        daemon = str(probe.get("daemon") or "missing")
+        rails = probe.get("rails") if isinstance(probe.get("rails"), dict) else {}
+        cpu = rails.get("cpu") if isinstance(rails.get("cpu"), dict) else {}
+        gpu = rails.get("gpu") if isinstance(rails.get("gpu"), dict) else {}
+
+        def raw(value, unit: str, decimals: int) -> str:
+            return f"{float(value):.{decimals}f} {unit}" if isinstance(value, (int, float)) else "Not detected"
+
+        inputs = [rail.get("vin") for rail in (cpu, gpu) if isinstance(rail.get("vin"), (int, float))]
+        strip["input"].set_value(raw(max(inputs) if inputs else None, "V", 2))
+        strip["total"].set_value(raw(probe.get("total_power_w"), "W", 1))
+        for name, rail in (("cpu", cpu), ("gpu", gpu)):
+            strip[f"{name}_voltage"].set_value(raw(rail.get("vout"), "V", 3))
+            strip[f"{name}_current"].set_value(raw(rail.get("iout"), "A", 1))
+            strip[f"{name}_temperature"].set_value(
+                raw(rail.get("temp"), "°C", 1),
+                raw(rail.get("pout"), "W", 1) if isinstance(rail.get("pout"), (int, float)) else "",
+            )
+            tone = "" if rail.get("valid") else "warning"
+            for key in (f"{name}_voltage", f"{name}_current", f"{name}_temperature"):
+                strip[key].set_tone(tone)
+        for key in ("input", "total"):
+            strip[key].set_tone("" if probe.get("total_power_valid") else "warning")
+        strip.set_note(self._vrm_probe_note(daemon, probe, (cpu, gpu)))
+
+    @staticmethod
+    def _vrm_probe_note(daemon: str, probe: dict, rails) -> str:
+        if daemon == "missing":
+            return tr("Manual mode · BC250-Telemetry is not publishing, so there is nothing to read")
+        if daemon == "unreadable":
+            return tr("Manual mode · BC250-Telemetry's snapshot could not be read")
+        if daemon == "stale":
+            return tr_format(
+                "Manual mode · BC250-Telemetry's last snapshot is {age} s old",
+                age=f"{float(probe.get('age_s') or 0):.0f}",
+            )
+        if not any(rail.get("valid") for rail in rails):
+            return tr("Manual mode · no valid answer from the PMIC; values as BC250-Telemetry reports them")
+        return tr("Manual mode")
 
     @staticmethod
     def _format_amps(value_a: float) -> str:

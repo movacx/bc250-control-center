@@ -2,12 +2,10 @@ from __future__ import annotations
 
 import json
 import subprocess
-from types import SimpleNamespace
 
 import pytest
 
 from bc250cc.infrastructure import bc250_fsr4
-from bc250cc.infrastructure.dependencias_repository import DependenciasRepository
 
 
 def test_fsr4_launch_options_are_username_independent():
@@ -252,43 +250,6 @@ def test_fsr4_fedora44_command_bootstraps_dnf_and_requires_patched_boot(tmp_path
         check=False,
     )
     assert result.returncode == 0, result.stderr
-
-
-def test_repository_blocks_ubuntu_until_a_matched_kernel_exists(tmp_path):
-    repository = DependenciasRepository()
-    repository._os_repository = lambda: SimpleNamespace(
-        info=SimpleNamespace(family="ubuntu", distro_id="ubuntu")
-    )
-    repository._tool_dir = lambda: tmp_path
-    repository._abrir_terminal = lambda command, _title: command
-
-    with pytest.raises(RuntimeError, match="verified matching GFX1013 kernel"):
-        repository.gestionar_fsr4_bc250("install")
-
-
-def test_repository_routes_ready_fedora44_to_gated_source_build(tmp_path):
-    repository = DependenciasRepository()
-    os_repository = SimpleNamespace(
-        info=SimpleNamespace(
-            family="fedora",
-            distro_id="fedora",
-            version_id="44",
-            immutable=False,
-        )
-    )
-    repository._os_repository = lambda: os_repository
-    repository._gfx1013_compute_state = lambda _os: {
-        "dryhopped_ready": True
-    }
-    repository._tool_dir = lambda: tmp_path
-    repository._abrir_terminal = lambda command, _title: command
-
-    command = repository.gestionar_fsr4_bc250("install")
-
-    assert "official V3 source build for Fedora 44" in command
-    assert "bc250.gfx1013_v33=1" in command
-    assert "sudo dnf install -y" in command
-    assert "install-v3.sh" not in command
 
 
 def test_fsr4_uninstall_invokes_the_official_v3_script(tmp_path):

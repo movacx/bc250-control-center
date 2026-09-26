@@ -18,6 +18,10 @@ So the engine lives here, once per controller (the same shape
 * When the session ends the button goes back to off. Resuming is a deliberate
   act, which is the point: the SMU is shared with the GPU governor and the CPU
   overclocking tool, so an unattended machine should not keep poking at it.
+* BC250-Telemetry can run its own GDDR6 collector on the same SMU mailbox.
+  While it does, this engine never starts a session: two samplers on that
+  mailbox is what hung the board. It shows what that collector publishes
+  instead, which costs no prompt and never touches the SMU.
 """
 
 from __future__ import annotations
@@ -32,11 +36,73 @@ from typing import Any
 from PyQt6.QtCore import QObject, QProcess, pyqtSignal
 
 from ..components.async_tools import BackgroundExecutor
+from ..i18n import tr, tr_format
 
 #: How long one authenticated live session lasts, in seconds. Enforced by the
 #: helper itself; this copy is only so the interface can say so. When it ends
 #: the user presses the button again — nothing stays authenticated.
 LIVE_SESSION_SECONDS = 600
+
+#: Where the readings came from when BC250-Telemetry's collector took them.
+EXTERNAL_SOURCE = "bc250-telemetry"
+
+_EXTERNAL_INTERRUPTED = (
+    "BC250-Telemetry's memory service stopped in the middle of an SMU "
+    "operation this boot. Power the board off completely before reading "
+    "memory temperature again."
+)
+_GOVERNOR_STARTING = (
+    "The GPU governor is starting, and while it starts it uses the same SMU "
+    "queue as these readings. They resume once it is running."
+)
+_GOVERNOR_RESTARTING = (
+    "The GPU governor keeps restarting, and every restart uses the same SMU "
+    "queue as these readings, so they are paused. This usually means “Fix "
+    "metrics” is on but this kernel has no gpu_metrics file: turn it off on "
+    "the GPU page."
+)
+
+#: Why a live session ended, for the failures a user can act on. Anything
+#: else keeps the base state's own explanation.
+_SESSION_ERRORS = (
+    ("GDDR6_EXTERNAL_INTERRUPTED", _EXTERNAL_INTERRUPTED),
+    (
+        "GDDR6_EXTERNAL_COLLECTOR",
+        "BC250-Telemetry's memory service is running. Its readings will appear here.",
+    ),
+    (
+        "GDDR6_GOVERNOR_UNSETTLED",
+        _GOVERNOR_STARTING,
+    ),
+    (
+        "SMU_BUSY",
+        "Another BC-250 tool is using the SMU right now. Wait for it to finish "
+        "and try again.",
+    ),
+)
+
+
+def firmware_blocker(bios_version: str) -> str:
+    """Why live readings are refused on this board's firmware, and the way out.
+
+    Deliberately not something the manual override lifts: the payload writes
+    fixed SMU addresses that upstream verified only on P3.00, and its own
+    README warns that another firmware can corrupt memory.
+    """
+    detected = str(bios_version or "").strip()
+    reason = (
+        tr_format(
+            "This board runs BIOS {version}. The SMU patch these readings need "
+            "was verified only on P3.00, so live monitoring stays off.",
+            version=detected,
+        )
+        if detected
+        else tr(
+            "This board did not report its BIOS version. The SMU patch these "
+            "readings need was verified only on P3.00, so live monitoring stays off."
+        )
+    )
+    return f"{reason} {tr('The P3.00, Chipset Menu and MeiMeiDXE images on the Firmware page all qualify.')}"
 
 
 def _dict(value: Any) -> dict:
@@ -82,6 +148,28 @@ class Gddr6Reading:
     error: str = ""
     busy: bool = False
     live: bool = False
+    #: Who took the readings on screen: "" for this application's own
+    #: session, EXTERNAL_SOURCE when BC250-Telemetry's collector did.
+    source: str = ""
+    #: BC250-Telemetry's collector: "" when it is not running, otherwise
+    #: "active", "waiting" (no valid reading yet), "stale", or "interrupted"
+    #: when it stopped in the middle of an SMU operation this boot.
+    external_state: str = ""
+    #: Cyan, the GPU governor: "" when settled, "starting" or "restarting"
+    #: while it may be using the SMU queue these readings go through.
+    governor_state: str = ""
+    #: Why the helper's last sample held back, when it did.
+    blocked_reason: str = ""
+    #: The user switched off the SMU channel check in Settings, knowing the
+    #: risk: sampling is then allowed while the GPU governor is starting or
+    #: BC250-Telemetry's collector is idle. Firmware and interrupted-operation
+    #: guards, and every lock, still apply.
+    manual_override: bool = False
+
+    @property
+    def external_owns_smu(self) -> bool:
+        """BC250-Telemetry's collector is running and owns the SMU mailbox."""
+        return self.external_state in {"active", "waiting", "stale", "interrupted"}
 
     @property
     def can_apply(self) -> bool:
@@ -106,12 +194,49 @@ class Gddr6Reading:
         )
 
     @property
+    def channel_blocked(self) -> bool:
+        """The SMU channel check holds sampling back right now."""
+        return bool(self.governor_state) or self.external_state in {"waiting", "stale"}
+
+    @property
     def can_monitor(self) -> bool:
-        """Live sampling needs the patch, and can install it on the way in."""
+        """Live sampling needs the patch, and can install it on the way in.
+
+        Never while BC250-Telemetry's collector is publishing (its readings
+        are already on screen) or after it was interrupted mid-operation, and
+        by default not while the SMU channel check holds back: a second
+        sampler on that mailbox is what hangs the SMU. The manual override
+        lifts only the channel check.
+        """
+        if self.external_state in {"active", "interrupted"}:
+            return False
+        if self.channel_blocked and not self.manual_override:
+            return False
         return bool(self.can_read and (self.patch_active or self.can_apply))
 
     def blocker(self) -> str:
-        """The single most useful thing to say about why this is not running."""
+        """The single most useful thing to say about why this is not running.
+
+        The manual override lifts the SMU channel check, so the reasons that
+        check gives are no longer what holds the button back. Repeating one
+        of them under a button that stays grey sent the user looking in the
+        wrong place: on a P2.00 board the answer is the firmware.
+        """
+        if self.external_state == "interrupted":
+            return _EXTERNAL_INTERRUPTED
+        if not self.manual_override:
+            if self.external_state == "waiting":
+                return "BC250-Telemetry's memory service is running. Its readings will appear here."
+            if self.external_state == "stale":
+                return (
+                    "BC250-Telemetry's memory service stopped updating its readings. "
+                    "Control Center leaves the SMU alone while that service may still "
+                    "be using it."
+                )
+            if self.governor_state == "restarting":
+                return _GOVERNOR_RESTARTING
+            if self.governor_state == "starting":
+                return _GOVERNOR_STARTING
         if not self.hardware_detected:
             return "No BC-250 hardware was detected on this machine."
         if not self.repository_ready:
@@ -119,16 +244,29 @@ class Gddr6Reading:
         if not (self.reader_ready and self.helper_ready):
             return "Reinstall BC250 Control Center to install the privileged helpers."
         if not self.firmware_supported:
-            return (
-                "The reviewed SMU payload targets board firmware P3.0; this board "
-                "reports a different version, so the patch is not offered."
-            )
+            return firmware_blocker(self.bios_version)
         if not self.patch_active:
             return (
                 "The runtime SMU patch is not active. It lives in volatile SMU RAM, "
                 "so it has to be applied again after every full power cycle."
             )
         return ""
+
+    def notice(self) -> str:
+        """The one sentence to show under the devices, or "" for none."""
+        if self.chips:
+            return ""
+        if self.manual_override and self.channel_blocked and self.can_monitor:
+            return (
+                "Manual mode: the SMU channel check is off. Readings can hang the "
+                "board while Cyan starts."
+            )
+        if self.blocked_reason == "GDDR6_GOVERNOR_UNSETTLED":
+            return _GOVERNOR_RESTARTING if self.governor_state == "restarting" else _GOVERNOR_STARTING
+        for code, message in _SESSION_ERRORS:
+            if code in self.error:
+                return message
+        return "" if self.can_monitor else self.blocker()
 
 
 @dataclass
@@ -153,6 +291,7 @@ class Gddr6Monitor(QObject):
         self._live = False
         self._session: QProcess | None = None
         self._session_buffer = ""
+        self._manual_override = False
 
     # ------------------------------------------------------------------ state
 
@@ -166,6 +305,14 @@ class Gddr6Monitor(QObject):
 
     def _rebuild(self) -> None:
         status, sample = self._state.status, self._state.sample
+        external = _dict(status.get("external"))
+        external_state = str(external.get("state") or "")
+        source = str(sample.get("source") or "")
+        # A session's own samples win while they arrive; between sessions the
+        # collector's published reading is what there is to show.
+        if not sample.get("chips") and not self._live and external_state == "active":
+            sample = external
+            source = EXTERNAL_SOURCE
         chips = tuple(
             Gddr6Chip(
                 index=int(_number(entry.get("chip"), -1)),
@@ -184,7 +331,7 @@ class Gddr6Monitor(QObject):
             payload_present=bool(status.get("payload_present")),
             firmware_supported=bool(status.get("firmware_supported")),
             bios_version=str(status.get("bios_version") or ""),
-            patch_active=bool(sample.get("patch_active")),
+            patch_active=bool(sample.get("patch_active") or external_state == "active"),
             chips=chips,
             average_c=_number(sample["average_c"]) if "average_c" in sample else None,
             hotspot_c=_number(sample["hotspot_c"]) if "hotspot_c" in sample else None,
@@ -193,8 +340,29 @@ class Gddr6Monitor(QObject):
             error=str(sample.get("error") or ""),
             busy=self._live,
             live=self._live,
+            source=source,
+            external_state=external_state,
+            governor_state=str(
+                sample.get("governor_state") or status.get("governor_state") or ""
+            ),
+            blocked_reason=str(sample.get("blocked_reason") or ""),
+            manual_override=self._manual_override,
         )
         self.changed.emit(self._reading)
+
+    # ---------------------------------------------------------------- override
+
+    @property
+    def manual_override(self) -> bool:
+        return self._manual_override
+
+    def set_manual_override(self, enabled: bool) -> None:
+        """The Settings switch: sample even when the SMU channel check says wait."""
+        enabled = bool(enabled)
+        if enabled == self._manual_override:
+            return
+        self._manual_override = enabled
+        self._rebuild()
 
     # --------------------------------------------------------------- readiness
 
@@ -246,11 +414,22 @@ class Gddr6Monitor(QObject):
         """
         if self._live or self._session is not None:
             return
+        reading = self._reading
+        if reading.external_state in {"active", "interrupted"} or (
+            reading.channel_blocked and not self._manual_override
+        ):
+            # BC250-Telemetry is sampling the same mailbox, or the GPU
+            # governor is starting on it: a session now would only race them.
+            self._rebuild()
+            return
         operation = self._backend("comando_monitorizar_vram")
         if operation is None:
             return
         try:
-            command = [str(item) for item in (operation() or [])]
+            if self._manual_override:
+                command = [str(item) for item in (operation(ignore_governor=True) or [])]
+            else:
+                command = [str(item) for item in (operation() or [])]
         except Exception as error:  # noqa: BLE001 - surfaced through the reading
             self._session_error(str(error))
             return

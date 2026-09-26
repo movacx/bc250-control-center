@@ -162,7 +162,10 @@ def test_both_terminal_paths_are_logged_through_the_same_wrapper():
 def test_the_console_declining_still_opens_a_terminal_window():
     """The console is an addition, never a single point of failure."""
     repository = Path('src/bc250cc/infrastructure/terminal_repository.py').read_text(encoding='utf-8')
-    assert 'if embedded is not None:\n            return embedded' in repository
+    # Only a console that took the workflow returns early (and tells the
+    # window's workflow watcher); a declined one falls through to the
+    # terminal emulators below.
+    assert 'if embedded is not None:\n            return _announce_workflow(embedded)' in repository
     # An exception inside the host is swallowed on purpose, so a broken panel
     # costs the user a nicer window and not the workflow itself.
     assert 'except Exception:' in repository

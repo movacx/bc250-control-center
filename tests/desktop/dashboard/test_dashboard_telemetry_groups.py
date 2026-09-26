@@ -9,6 +9,8 @@ else.
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 
 from frontends.desktop.core.state import DashboardState
@@ -132,3 +134,22 @@ def test_the_power_band_says_a_stock_board_cannot_report_its_rails(page):
     assert page.vrm_strip["input"].value.text() == "12.22"
     assert page.vrm_strip["cpu_current"].value.text() == "2.8"
     assert page.vrm_strip["cpu_temperature"].value.text() == "45.0"
+
+
+def test_each_panel_groups_readings_by_what_they_are(page):
+    """Power beside heat, memory with memory, the drive's rows together."""
+    gpu = page.gpu_card.details
+    assert gpu.group_of("power") == gpu.group_of("voltage") == "Power"
+    assert gpu.group_of("ram") == gpu.group_of("vram") == "Memory"
+    fans = page.fan_card.details
+    assert {fans.group_of(key) for key in ("nvme", "hotspot", "storage", "swap")} == {"M.2 drive"}
+    assert "ram" not in fans.readings
+
+
+def test_power_delivery_labels_are_unique_and_fold_without_the_link(page):
+    labels = [reading.label.text() for reading in page.vrm_strip.readings.values()]
+    assert len(labels) == len(set(labels))
+    page._update_vrm_strip(SimpleNamespace(vrm_source=""))
+    assert page.vrm_strip.readings_visible is False
+    assert all(reading.isHidden() for reading in page.vrm_strip.readings.values())
+    assert page.vrm_strip.note.text() != ""

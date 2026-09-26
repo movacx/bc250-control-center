@@ -60,11 +60,19 @@ def _code_lines(path: Path) -> list[str]:
 # ------------------------------------------------------------------- bounds
 
 
+def _index_slider(line: str) -> bool:
+    """A slider over a list the state delivered: 0 … len - 1 is its position,
+    not a hardware bound. The VRAM control walks the contract's presets this
+    way, and the values it applies are the list's, never the index."""
+    return bool(re.search(r"\bmin=\{0\}", line)) and ".length - 1}" in line
+
+
 def test_no_slider_declares_a_numeric_bound():
     offenders = [
         line.strip()[:90]
         for line in _code_lines(PANEL)
         if re.search(r"\bmin=\{-?\d+\}|\bmax=\{-?\d+\}", line)
+        and not _index_slider(line)
     ]
     assert offenders == [], offenders
 

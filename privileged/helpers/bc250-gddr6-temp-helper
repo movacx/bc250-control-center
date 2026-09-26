@@ -26,6 +26,7 @@ import os
 import pathlib
 import pwd
 import stat
+import struct
 import subprocess
 import sys
 import time
@@ -42,6 +43,56 @@ REPOSITORY_NAME = "bc250-memory-temperature"
 #: for a read: this writes a payload word by word into SMU memory.
 SMN_WINDOW_PATH = "/sys/bus/pci/devices/0000:00:00.0/config"
 SMN_LOCK_TIMEOUT_SECONDS = 8.0
+
+#: The window's index register. The CPU OC tool and the Cyan GPU governor take
+#: the lock above around each 32-bit access, not around the index/data pair,
+#: so one of them can have selected a register and be waiting for the lock to
+#: touch its data when this helper takes it. Left pointing at this helper's
+#: last register, 0xB8 would send that pending access there instead, so the
+#: lock saves the index on entry and puts it back on exit.
+SMN_INDEX_OFFSET = 0xB8
+#: Selecting a register is harmless on its own: nothing is read or written
+#: until the data register is touched. The lock selects this one (Queue 3's
+#: response register) and reads it back before trusting the index it saved.
+SMN_INDEX_PROBE = 0x03B10A80
+
+#: Cyan, the GPU governor, uses Queue 3 -- the mailbox these readings go
+#: through -- only while it starts: a test message, then the GPU temperature
+#: limit. It locks each 32-bit access rather than each message, so a sample
+#: taken in the middle of that start mixes the two messages' words: the
+#: payload gets Cyan's argument as a chip index and never returns, or Cyan's
+#: temperature limit becomes a chip number. With Fix metrics on a kernel
+#: that has no gpu_metrics file, Cyan fails and restarts every few seconds,
+#: which is exactly when memory temperatures started hanging boards.
+GOVERNOR_UNIT = "cyan-skillfish-governor-smu.service"
+#: How long after its process starts Cyan may still be sending those two.
+GOVERNOR_SETTLE_SECONDS = 5.0
+
+#: BC250-Telemetry (github.com/onlinermm/BC250-Telemetry) can install an
+#: optional root service, bc250-memory.service, that patches the SMU with this
+#: same payload at boot and then polls Queue 3 / Message 5 every three seconds.
+#: It serialises itself with its own lock file, never with SMN_WINDOW_PATH, so
+#: the two samplers used to run straight into each other: interleaved
+#: index/data writes land in the wrong registers, the payload is handed a chip
+#: index outside 0-7, derives a UMC address from it and waits forever for an
+#: answer that never comes. The SMU stops responding and the board goes down.
+#: That collector holds its lock for as long as it runs, so this helper takes
+#: the same lock while it patches, and when the collector already owns it,
+#: leaves the SMU alone: that collector has installed this same payload.
+EXTERNAL_COLLECTOR_RUNTIME = pathlib.Path("/run/bc250-memory")
+EXTERNAL_COLLECTOR_MARKERS = (
+    pathlib.Path("/etc/systemd/system/bc250-memory.service"),
+    pathlib.Path("/opt/bc250-memory/collector.py"),
+)
+#: The collector's own rule for its per-boot guard file: anything but a clean
+#: "ready" means an SMU operation was interrupted and its firmware side may
+#: still be running, so it leaves the SMU alone until a power cycle. This
+#: helper follows the same rule. The one exception is a rejection its later
+#: version migrates itself, raised before anything was written.
+EXTERNAL_GUARD_BENIGN = (
+    {"state": "ready"},
+    {"state": "failed", "error": "unexpected original Q3/5 handler: 0x00000000"},
+)
 
 #: A monitoring session is bounded on purpose. One Polkit prompt buys this
 #: much live sampling and no more: an authenticated root process that samples
@@ -80,10 +131,52 @@ def bios_version() -> str:
         return ""
 
 
+def _open_smn_window(path: str) -> tuple[int, bool]:
+    """Open the window writable when allowed, so its index can be restored."""
+    try:
+        return os.open(path, os.O_RDWR | os.O_CLOEXEC), True
+    except PermissionError:
+        return os.open(path, os.O_RDONLY | os.O_CLOEXEC), False
+
+
+def _read_smn_index(fd: int) -> int | None:
+    try:
+        data = os.pread(fd, 4, SMN_INDEX_OFFSET)
+    except OSError:
+        return None
+    return struct.unpack("<I", data)[0] if len(data) == 4 else None
+
+
+def _restore_smn_index(fd: int, saved: int | None) -> None:
+    """Put back the register another client selected before this one ran.
+
+    Only once the index is proven to read back what is written: restoring a
+    value the hardware never really reported would misdirect a pending
+    access just as badly as not restoring at all.
+    """
+    if saved is None:
+        return
+    try:
+        os.pwrite(fd, struct.pack("<I", SMN_INDEX_PROBE), SMN_INDEX_OFFSET)
+        if _read_smn_index(fd) != SMN_INDEX_PROBE:
+            return
+        os.pwrite(fd, struct.pack("<I", saved), SMN_INDEX_OFFSET)
+    except OSError:
+        return
+
+
 @contextlib.contextmanager
-def smn_window_lock(timeout: float = SMN_LOCK_TIMEOUT_SECONDS):
-    """Hold the advisory lock the other SMU clients on this board honour."""
-    fd = os.open(SMN_WINDOW_PATH, os.O_RDONLY | os.O_CLOEXEC)
+def smn_window_lock(
+    timeout: float = SMN_LOCK_TIMEOUT_SECONDS, path: str = SMN_WINDOW_PATH
+):
+    """Hold the advisory lock the other SMU clients on this board honour.
+
+    Non-blocking with a deadline rather than a blocking ``flock``: the CPU OC
+    tool can hold this for the length of a detection run, and a helper that
+    waits forever would leave a Polkit-launched process hanging with no way
+    for the desktop to explain why.
+    """
+    fd, writable = _open_smn_window(path)
     deadline = time.monotonic() + max(0.0, float(timeout))
     try:
         while True:
@@ -98,12 +191,149 @@ def smn_window_lock(timeout: float = SMN_LOCK_TIMEOUT_SECONDS):
                         "finish and try again."
                     ) from None
                 time.sleep(0.05)
+        saved = _read_smn_index(fd) if writable else None
         try:
             yield
+        finally:
+            if writable:
+                _restore_smn_index(fd, saved)
+            fcntl.flock(fd, fcntl.LOCK_UN)
+    finally:
+        os.close(fd)
+
+
+def _governor_state(properties: dict, now: float) -> str:
+    """"starting"/"restarting" while Cyan may be mid-message on Queue 3, else ""."""
+    if properties.get("LoadState") != "loaded":
+        return ""
+    restarts = str(properties.get("NRestarts") or "0")
+    label = "restarting" if restarts.isdecimal() and int(restarts) > 0 else "starting"
+    if properties.get("SubState") == "auto-restart" or properties.get("ActiveState") in {
+        "activating",
+        "deactivating",
+        "reloading",
+    }:
+        return label
+    if properties.get("ActiveState") != "active":
+        return ""
+    started = str(properties.get("ExecMainStartTimestampMonotonic") or "0")
+    if started.isdecimal() and int(started) and now - int(started) / 1e6 < GOVERNOR_SETTLE_SECONDS:
+        return label
+    return ""
+
+
+def governor_unsettled() -> str:
+    """Ask systemd whether Cyan is starting; "" when it is not (or not there)."""
+    systemctl = next(
+        (path for path in ("/usr/bin/systemctl", "/bin/systemctl") if os.path.exists(path)), ""
+    )
+    if not systemctl:
+        return ""
+    try:
+        result = subprocess.run(
+            [
+                systemctl,
+                "show",
+                GOVERNOR_UNIT,
+                "--property=LoadState,ActiveState,SubState,NRestarts,"
+                "ExecMainStartTimestampMonotonic",
+            ],
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=5,
+            env={"PATH": "/usr/bin:/bin", "LANG": "C", "LC_ALL": "C"},
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+    if result.returncode != 0:
+        return ""
+    properties = dict(
+        line.split("=", 1) for line in result.stdout.splitlines() if "=" in line
+    )
+    return _governor_state(properties, time.clock_gettime(time.CLOCK_MONOTONIC))
+
+
+class ExternalCollectorActive(RuntimeError):
+    """BC250-Telemetry's memory collector owns the SMU right now."""
+
+
+def _refuse_interrupted_collector(runtime: pathlib.Path) -> None:
+    guard = runtime / "patch-state.json"
+    try:
+        state = json.loads(guard.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return
+    except (OSError, ValueError):
+        state = {"state": "unreadable"}
+    if state in EXTERNAL_GUARD_BENIGN:
+        return
+    label = state.get("state") if isinstance(state, dict) else None
+    raise RuntimeError(
+        "GDDR6_EXTERNAL_INTERRUPTED: BC250-Telemetry's memory collector stopped "
+        f"in the middle of an SMU operation this boot (state: {label or 'unknown'}). "
+        "The firmware may still be running it, so the SMU is left alone until "
+        "the board is powered off completely."
+    )
+
+
+@contextlib.contextmanager
+def external_collector_lock(
+    runtime: pathlib.Path = EXTERNAL_COLLECTOR_RUNTIME,
+    markers: tuple[pathlib.Path, ...] = EXTERNAL_COLLECTOR_MARKERS,
+    *,
+    owner: int = 0,
+):
+    """Take BC250-Telemetry's collector lock for as long as the SMU is in use.
+
+    Yields ``False`` when that collector is not installed: there is nothing to
+    coordinate with. Raises ``ExternalCollectorActive`` when it is running,
+    because it keeps the lock for its whole life and the only safe move is
+    not to touch the SMU. Holding the lock also stops the collector from
+    starting in the middle of this helper's own sample; it then reports that
+    another collector owns the SMU and exits without touching anything.
+    """
+    if not runtime.exists() and not any(marker.exists() for marker in markers):
+        yield False
+        return
+    if not runtime.exists():
+        # The service is installed but has not run this boot. Its lock has to
+        # exist for the collector to find it taken, so create the directory
+        # exactly as systemd's RuntimeDirectory= would.
+        runtime.mkdir(mode=0o755)
+    info = runtime.lstat()
+    if not stat.S_ISDIR(info.st_mode) or info.st_uid != owner or info.st_mode & 0o022:
+        raise RuntimeError(
+            f"GDDR6_EXTERNAL_UNTRUSTED: {runtime} is not a directory only root can "
+            "write; refusing to coordinate through it."
+        )
+    fd = os.open(
+        runtime / "smu.lock",
+        os.O_RDWR | os.O_CREAT | os.O_CLOEXEC | os.O_NOFOLLOW,
+        0o644,
+    )
+    try:
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode) or info.st_uid != owner:
+            raise RuntimeError(
+                "GDDR6_EXTERNAL_UNTRUSTED: BC250-Telemetry's SMU lock is not a "
+                "root-owned file; refusing to coordinate through it."
+            )
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise ExternalCollectorActive(
+                "BC250-Telemetry's memory collector is sampling the SMU."
+            ) from None
+        try:
+            _refuse_interrupted_collector(runtime)
+            yield True
         finally:
             fcntl.flock(fd, fcntl.LOCK_UN)
     finally:
         os.close(fd)
+
+
 def _run(command: list[str], *, timeout: int = 30, uid: int, gid: int) -> str:
     result = subprocess.run(
         command,
@@ -256,7 +486,9 @@ def _trusted_self() -> bool:
     return True
 
 
-def _do_apply(repository: pathlib.Path, uid: int, gid: int) -> int:
+def _do_apply(
+    repository: pathlib.Path, uid: int, gid: int, *, ignore_governor: bool = False
+) -> int:
     detected = bios_version()
     if detected.strip().lower() not in SUPPORTED_BIOS_VERSIONS:
         raise RuntimeError(
@@ -276,7 +508,16 @@ def _do_apply(repository: pathlib.Path, uid: int, gid: int) -> int:
         # Held across the whole patch run: the payload is written one 32-bit
         # word at a time, and another SMU client redirecting the window
         # mid-write would scatter it across the wrong addresses.
-        with smn_window_lock():
+        with external_collector_lock(), smn_window_lock():
+            # The user's manual override (Settings) skips only this check;
+            # both locks above are still held for the whole patch run.
+            governor = "" if ignore_governor else governor_unsettled()
+            if governor:
+                raise RuntimeError(
+                    f"GDDR6_GOVERNOR_UNSETTLED: the GPU governor is {governor} and uses "
+                    "the SMU queue this patch goes through while it does. Try again "
+                    "once it is running."
+                )
             result = subprocess.run(
                 ["/usr/bin/python3", f"/proc/self/fd/{script_fd}"],
                 text=True,
@@ -291,6 +532,12 @@ def _do_apply(repository: pathlib.Path, uid: int, gid: int) -> int:
                     "PYTHONPATH": str(repository),
                 },
             )
+    except ExternalCollectorActive:
+        raise RuntimeError(
+            "GDDR6_EXTERNAL_COLLECTOR: BC250-Telemetry's memory collector already "
+            "patched the SMU and is reading these chips. Control Center shows its "
+            "readings instead of patching again."
+        ) from None
     finally:
         os.close(script_fd)
     if result.stdout:
@@ -325,15 +572,25 @@ def _installed_reader() -> str:
     )
 
 
-def _read_once(reader: str, repository: pathlib.Path, uid: int, action: str) -> dict:
+def _read_once(
+    reader: str,
+    repository: pathlib.Path,
+    uid: int,
+    action: str,
+    *,
+    ignore_governor: bool = False,
+) -> dict:
     """Run the read-only helper as the already-authenticated root session.
 
     Delegating rather than duplicating: the reader owns the reviewed import,
     the ownership checks and the SMU window lock, and this process is already
     root, so no second Polkit prompt is involved.
     """
+    arguments = [reader, "--repo", str(repository), "--action", action]
+    if ignore_governor:
+        arguments.append("--ignore-governor")
     result = subprocess.run(
-        [reader, "--repo", str(repository), "--action", action],
+        arguments,
         text=True,
         capture_output=True,
         check=False,
@@ -353,7 +610,12 @@ def _read_once(reader: str, repository: pathlib.Path, uid: int, action: str) -> 
 
 
 def _do_monitor(
-    repository: pathlib.Path, uid: int, gid: int, seconds: float
+    repository: pathlib.Path,
+    uid: int,
+    gid: int,
+    seconds: float,
+    *,
+    ignore_governor: bool = False,
 ) -> int:
     """One authenticated session: patch if needed, then sample until it ends.
 
@@ -363,15 +625,32 @@ def _do_monitor(
     for as long as a window happens to be left on screen.
     """
     reader = _installed_reader()
-    if not _read_once(reader, repository, uid, "status").get("patch_active"):
-        _do_apply(repository, uid, gid)
+    status = _read_once(
+        reader, repository, uid, "status", ignore_governor=ignore_governor
+    )
+    # An external collector owns the SMU and has its own patch in place: the
+    # reader relays its readings, and patching here would only race it.
+    # A deferred status could not look (the GPU governor was starting); the
+    # samples below find out, and patching now would only race the governor.
+    if (
+        not status.get("external_collector")
+        and not status.get("deferred")
+        and not status.get("patch_active")
+    ):
+        _do_apply(repository, uid, gid, ignore_governor=ignore_governor)
 
     deadline = time.monotonic() + max(0.0, float(seconds))
     while True:
-        sample = _read_once(reader, repository, uid, "read")
+        sample = _read_once(
+            reader, repository, uid, "read", ignore_governor=ignore_governor
+        )
         sample["session_remaining_s"] = max(0, round(deadline - time.monotonic()))
         print(json.dumps(sample), flush=True)
-        if not sample.get("patch_active"):
+        if not (
+            sample.get("patch_active")
+            or sample.get("external_collector")
+            or sample.get("deferred")
+        ):
             # The patch went away underneath us; sampling cannot recover.
             break
         remaining = deadline - time.monotonic()
@@ -396,6 +675,10 @@ def main(argv: list[str]) -> int:
     action = argv[4]
     if action not in {"apply", "monitor"}:
         raise RuntimeError(f"Unsupported action: {action}")
+    # The manual override from Settings, always last when present.
+    ignore_governor = argv[-1] == "--ignore-governor" and len(argv) > 5
+    if ignore_governor:
+        argv = argv[:-1]
     seconds = MONITOR_SECONDS
     if len(argv) > 5:
         if len(argv) != 7 or argv[5] != "--seconds":
@@ -417,8 +700,10 @@ def main(argv: list[str]) -> int:
     repository = _validate_repository(argv[2], uid, gid, home)
 
     if action == "monitor":
-        return _do_monitor(repository, uid, gid, seconds)
-    return _do_apply(repository, uid, gid)
+        return _do_monitor(
+            repository, uid, gid, seconds, ignore_governor=ignore_governor
+        )
+    return _do_apply(repository, uid, gid, ignore_governor=ignore_governor)
 
 
 if __name__ == "__main__":

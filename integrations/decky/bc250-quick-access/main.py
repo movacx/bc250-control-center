@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import importlib.util
 import json
+import os
 import pathlib
 import stat
 import subprocess
@@ -37,12 +38,19 @@ CONTRACT_PATH = pathlib.Path(
 # Protocol 15 adds "gpu-high-points" (Cyan TOML safe-points above 2000 MHz).
 # Protocol 16 adds "vram-apply" (write the UMA_SIZE VRAM preset to CMOS; the
 # new size activates after the next reboot, exactly like the desktop control).
+# Protocol 17 adds "gpu-service" (enable+start or disable+stop the installed
+# GPU governor service; never a caller-supplied unit) and the gpu_service_*
+# status fields the panel's service buttons read.
+# Protocol 18 adds the voltage laboratory ("gpu-voltage-level",
+# "gpu-voltage-custom") and the gpu_voltage_* status fields.
 #
 # Kept as integer literals: the desktop AST-reads HELPER_PROTOCOL out of this
 # installed file, without importing it, to notice when the plugin and the root
 # helper came from different builds. REQUIRED_CONTRACT_REVISION says which
 # shape of the shared contract this file was written against.
-HELPER_PROTOCOL = 16
+# Protocol 19 adds fan_profiles/system_fan_* to the status and "fan-resume",
+# which per-game profiles use to hand the fans back after a game.
+HELPER_PROTOCOL = 19
 REQUIRED_CONTRACT_REVISION = 1
 GPU_PROFILES = (
     "balanced", "gaming", "benchmark",
@@ -289,6 +297,287 @@ def _validated_cpu_profiles(custom: object) -> list[dict[str, object]]:
     return profiles
 
 
+
+# ---------------------------------------------------------------- per game
+#: The player's per-game choices: which GPU profile and which fan preset a
+#: game runs with. Only names that already exist on the panel are stored —
+#: never a frequency, a duty or a voltage — so the root helper validates each
+#: one again exactly as if the player had pressed the button. The CPU is not
+#: part of it on purpose: its overclock is only trusted after a stress test
+#: of up to fifteen minutes, which cannot run every time a game starts.
+GAME_PROFILES_FILENAME = "game-profiles.json"
+GAME_PROFILES_SCHEMA = 1
+MAX_GAME_PROFILES = 200
+MAX_GAME_NAME = 80
+GAME_FAN_PRESETS = FAN_PRESETS
+MAX_APP_ID = 2 ** 64 - 1
+
+
+def _app_id(value: object) -> str | None:
+    """A Steam app id (or a non-Steam shortcut's) as a canonical string."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        number = value
+    elif isinstance(value, str) and value.isdigit() and len(value) <= 20:
+        number = int(value)
+    else:
+        return None
+    return str(number) if 0 < number <= MAX_APP_ID else None
+
+
+def _game_name(value: object) -> str:
+    text = " ".join(str(value or "").split())
+    return text[:MAX_GAME_NAME]
+
+
+def _game_entry(value: object) -> dict[str, object] | None:
+    if not isinstance(value, dict):
+        return None
+    gpu = value.get("gpu")
+    fan = value.get("fan")
+    gpu = gpu if gpu in GPU_PROFILES else None
+    fan = fan if fan in GAME_FAN_PRESETS else None
+    if gpu is None and fan is None:
+        return None
+    return {"name": _game_name(value.get("name")), "gpu": gpu, "fan": fan}
+
+
+def _game_snapshot(value: object) -> dict[str, object]:
+    source = value if isinstance(value, dict) else {}
+    gpu = source.get("gpu")
+    safe_point = source.get("gpu_safe_point")
+    fan = source.get("fan")
+    return {
+        "gpu": gpu if gpu in GPU_PROFILES else None,
+        "gpu_safe_point": safe_point if type(safe_point) is int and 100 <= safe_point <= 3000 else None,
+        "fan": fan if fan in GAME_FAN_PRESETS else None,
+        "fan_service": source.get("fan_service") is True,
+    }
+
+
+def _empty_game_store() -> dict[str, object]:
+    return {"schema": GAME_PROFILES_SCHEMA, "enabled": True, "games": {}, "session": None}
+
+
+def _load_game_store(path: pathlib.Path) -> dict[str, object]:
+    """Everything on disk re-checked; a damaged file becomes an empty store."""
+    store = _empty_game_store()
+    try:
+        if path.stat().st_size > 256 * 1024:
+            return store
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, ValueError):
+        return store
+    if not isinstance(document, dict) or document.get("schema") != GAME_PROFILES_SCHEMA:
+        return store
+    store["enabled"] = document.get("enabled") is not False
+    games = document.get("games")
+    if isinstance(games, dict):
+        for raw_id, raw_entry in list(games.items())[:MAX_GAME_PROFILES]:
+            app_id = _app_id(raw_id)
+            entry = _game_entry(raw_entry)
+            if app_id and entry:
+                store["games"][app_id] = entry
+    session = document.get("session")
+    if isinstance(session, dict) and _app_id(session.get("app_id")):
+        applied = session.get("applied") if isinstance(session.get("applied"), dict) else {}
+        store["session"] = {
+            "app_id": _app_id(session.get("app_id")),
+            "name": _game_name(session.get("name")),
+            "snapshot": _game_snapshot(session.get("snapshot")),
+            "applied": {
+                "gpu": applied.get("gpu") if applied.get("gpu") in GPU_PROFILES else None,
+                "fan": applied.get("fan") if applied.get("fan") in GAME_FAN_PRESETS else None,
+            },
+        }
+    return store
+
+
+def _save_game_store(path: pathlib.Path, store: dict[str, object]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    temporary.write_text(json.dumps(store, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    os.chmod(temporary, 0o644)
+    os.replace(temporary, path)
+
+
+def _current_gpu_choice(status: dict) -> tuple[str | None, int | None]:
+    """The panel profile (or TOML safe point) the live GPU range matches."""
+    live = status.get("gpu_range")
+    if not isinstance(live, (list, tuple)) or len(live) != 2:
+        return None, None
+    for profile in status.get("gpu_profiles") or []:
+        if isinstance(profile, dict) and [profile.get("min"), profile.get("max")] == list(live):
+            key = profile.get("key")
+            if key in GPU_PROFILES:
+                return str(key), None
+    ceilings = {
+        point.get("frequency") for point in status.get("gpu_safe_point_ceilings") or []
+        if isinstance(point, dict)
+    }
+    if live[0] == 1000 and live[1] in ceilings and type(live[1]) is int:
+        return None, int(live[1])
+    return None, None
+
+
+# ---------------------------------------------------------------- ACE usage
+#: How often /proc is searched for processes that opened the GPU since, and
+#: how often everything is searched again. Between searches only the few
+#: DRM fdinfo files already found are read: a Proton game holds tens of
+#: thousands of descriptors, and walking them all every poll is the cost the
+#: desktop's Performance page learned to avoid.
+ACE_REDISCOVER_SECONDS = 15.0
+ACE_YOUNG_PROCESS_SECONDS = 120.0
+ACE_FULL_RESCAN_SECONDS = 300.0
+
+
+def _compute_counters(text: str) -> tuple[str | None, int] | None:
+    """(client id, compute-engine ns) from one amdgpu fdinfo, else None."""
+    client: str | None = None
+    amdgpu = False
+    compute = 0
+    for line in text.splitlines():
+        if line.startswith("drm-driver:"):
+            amdgpu = line.partition(":")[2].strip() == "amdgpu"
+        elif line.startswith("drm-client-id:"):
+            client = line.partition(":")[2].strip() or None
+        elif line.startswith("drm-engine-compute:"):
+            fields = line.partition(":")[2].split()
+            if len(fields) >= 2 and fields[1] == "ns" and fields[0].isdigit():
+                compute = int(fields[0])
+    return (client, compute) if amdgpu else None
+
+
+class AceSampler:
+    """How busy the compute (ACE) queues were between two polls, and for whom.
+
+    ``drm-engine-compute`` in amdgpu's per-client fdinfo only advances while
+    work runs on the compute rings: a game's client moving it is the proof it
+    really uses async compute, not merely that the driver exposes it.
+    """
+
+    def __init__(self, proc: str = "/proc", clock=time.monotonic) -> None:
+        self._proc = proc
+        self._clock = clock
+        self._paths: list[str] = []
+        self._by_pid: dict[str, tuple[float | None, list[str]]] = {}
+        self._discovered_at: float | None = None
+        self._full_scan_at: float | None = None
+        self._previous: tuple[float, dict[str, int]] | None = None
+        self._owners: dict[str, str] = {}
+
+    def _read(self, path: str) -> str | None:
+        try:
+            with open(path, encoding="utf-8", errors="replace") as handle:
+                return handle.read()
+        except OSError:
+            return None
+
+    def _uptime(self) -> float | None:
+        text = self._read(f"{self._proc}/uptime")
+        try:
+            return float(text.split()[0]) if text else None
+        except (IndexError, ValueError):
+            return None
+
+    def _started(self, pid: str) -> float | None:
+        text = self._read(f"{self._proc}/{pid}/stat")
+        fields = text.rpartition(")")[2].split() if text else []
+        try:
+            return int(fields[19]) / os.sysconf("SC_CLK_TCK")
+        except (IndexError, ValueError, OSError):
+            return None
+
+    def _scan_pid(self, pid: str) -> list[str]:
+        paths: list[str] = []
+        fd_dir = f"{self._proc}/{pid}/fd"
+        try:
+            descriptors = os.listdir(fd_dir)
+        except OSError:
+            return paths
+        for descriptor in descriptors:
+            try:
+                target = os.readlink(f"{fd_dir}/{descriptor}")
+            except OSError:
+                continue
+            if target.startswith("/dev/dri/"):
+                paths.append(f"{self._proc}/{pid}/fdinfo/{descriptor}")
+        return paths
+
+    def _discover(self, now: float) -> list[str]:
+        try:
+            pids = [name for name in os.listdir(self._proc) if name.isdigit()]
+        except OSError:
+            return []
+        if self._full_scan_at is None or now - self._full_scan_at >= ACE_FULL_RESCAN_SECONDS:
+            self._full_scan_at = now
+            self._by_pid = {}
+        uptime = self._uptime()
+        by_pid: dict[str, tuple[float | None, list[str]]] = {}
+        for pid in pids:
+            known = self._by_pid.get(pid)
+            if known is None:
+                by_pid[pid] = (self._started(pid), self._scan_pid(pid))
+                continue
+            started, paths = known
+            young = started is not None and uptime is not None and uptime - started < ACE_YOUNG_PROCESS_SECONDS
+            by_pid[pid] = (started, self._scan_pid(pid)) if not paths and young else known
+        self._by_pid = by_pid
+        return [path for _started, paths in by_pid.values() for path in paths]
+
+    def sample(self) -> dict[str, object]:
+        now = self._clock()
+        if self._discovered_at is None or now - self._discovered_at >= ACE_REDISCOVER_SECONDS:
+            self._paths = self._discover(now)
+            self._discovered_at = now
+        counters: dict[str, int] = {}
+        owners: dict[str, str] = {}
+        alive: list[str] = []
+        amdgpu_seen = False
+        for path in self._paths:
+            text = self._read(path)
+            if text is None:
+                continue
+            alive.append(path)
+            parsed = _compute_counters(text)
+            if parsed is None:
+                continue
+            amdgpu_seen = True
+            client, compute = parsed
+            key = client or path
+            if compute >= counters.get(key, 0):
+                counters[key] = compute
+                owners[key] = path[len(self._proc) + 1:].partition("/")[0]
+        self._paths = alive
+        result: dict[str, object] = {
+            "ace_available": amdgpu_seen,
+            "ace_busy_percent": None,
+            "ace_process": "",
+        }
+        previous = self._previous
+        self._previous = (now, counters)
+        if previous is None:
+            self._owners = owners
+            return result
+        elapsed_ns = (now - previous[0]) * 1_000_000_000
+        moved = {
+            client: counters[client] - before
+            for client, before in previous[1].items()
+            if client in counters and counters[client] > before
+        }
+        if elapsed_ns > 0:
+            busy = sum(moved.values()) / elapsed_ns * 100
+            result["ace_busy_percent"] = int(max(0, min(100, round(busy))))
+        if moved:
+            busiest = max(moved, key=moved.__getitem__)
+            pid = owners.get(busiest) or self._owners.get(busiest, "")
+            comm = self._read(f"{self._proc}/{pid}/comm") if pid.isdigit() else None
+            result["ace_process"] = (comm or "").strip()
+        self._owners = owners
+        return result
+
+
 class Plugin:
     def __init__(self) -> None:
         self._operation_lock = asyncio.Lock()
@@ -300,6 +589,16 @@ class Plugin:
         # and in-memory: QAM must not create a second persistent tuning store.
         self._recent_actions: list[dict[str, object]] = []
         self._last_cpu_times: dict[int, tuple[int, int]] = {}
+        self._ace = AceSampler()
+        # One game start or stop at a time; they may wait behind a running
+        # board operation, never interleave with each other.
+        self._game_lock = asyncio.Lock()
+        # Decky keeps each plugin's settings beside the plugins directory.
+        settings = getattr(decky, "DECKY_PLUGIN_SETTINGS_DIR", "") or ""
+        self._settings_dir = (
+            pathlib.Path(settings) if settings
+            else PLUGIN_ROOT.parent.parent / "settings" / PLUGIN_ROOT.name
+        )
 
     def _cpu_usage_snapshot(self) -> dict[str, object]:
         times = _read_cpu_times()
@@ -474,6 +773,15 @@ class Plugin:
         async with self._helper_lock:
             result = await asyncio.to_thread(self._verified_status)
         if result.get("ok") is not False:
+            self._decorate_status(result)
+            result["recent_actions"] = list(reversed(self._recent_actions))
+            result["helper_protected"] = True
+        return result
+
+    @staticmethod
+    def _decorate_status(result: dict) -> dict:
+        """The panel's profile ladders, from the helper's raw state."""
+        if result.get("ok") is not False:
             allowed = result.get("gpu_allowed_range")
             governor = result.get("gpu_governor", "cyan")
             if isinstance(allowed, (list, tuple)) and len(allowed) == 2:
@@ -489,8 +797,6 @@ class Plugin:
             result.pop("gpu_custom_profiles", None)
             result["cpu_profiles"] = _validated_cpu_profiles(result.get("cpu_custom_profiles"))
             result.pop("cpu_custom_profiles", None)
-            result["recent_actions"] = list(reversed(self._recent_actions))
-            result["helper_protected"] = True
         return result
 
     async def cpu_telemetry(self) -> dict:
@@ -555,6 +861,9 @@ class Plugin:
         # frozen for the same ~920s a cpu-detect can take.
         result.update(await asyncio.to_thread(_read_vrm_telemetry))
         result.update(await asyncio.to_thread(self._cpu_usage_snapshot))
+        # The same amdgpu counter the desktop's Performance › Async compute
+        # view reads: busy share of the compute queues since the last poll.
+        result.update(await asyncio.to_thread(self._ace.sample))
         return result
 
     async def _run_single_operation(self, *args: str, timeout: int = 190) -> dict:
@@ -632,6 +941,76 @@ class Plugin:
                     self._run, "gpu-high-points", "1" if enabled else "0", timeout=30,
                 )
             return self._record_action("gpu", f"toml-high-points-{'on' if enabled else 'off'}", result)
+
+    async def set_gpu_governor_service(self, enabled: bool) -> dict:
+        """Enable and start, or disable and stop, the installed GPU governor.
+
+        The helper chooses the unit itself — the running governor, else the
+        one enabled for boot, else the only one installed — refuses while both
+        governors run, and reads systemd back before it reports success.
+        """
+        if type(enabled) is not bool:
+            return {"ok": False, "error": "Unsupported GPU governor service request."}
+        if self._operation_lock.locked():
+            return {
+                "ok": False,
+                "error": "A BC250 operation is still running. Wait for its verified result before changing the GPU governor service.",
+            }
+        async with self._operation_lock:
+            async with self._helper_lock:
+                result = await asyncio.to_thread(
+                    self._run, "gpu-service", "enable" if enabled else "disable", timeout=60,
+                )
+            return self._record_action("gpu", f"service-{'on' if enabled else 'off'}", result)
+
+    async def apply_gpu_voltage_level(self, level: int) -> dict:
+        """Governor curve (0) or +10/+20/+30 mV above 2000 MHz (1-3).
+
+        The helper restarts Cyan so it reads the new curve and puts the live
+        range back afterwards, which is why the timeout is longer than a
+        plain range change.
+        """
+        if isinstance(level, bool) or type(level) is not int or level not in (0, 1, 2, 3):
+            return {"ok": False, "error": "Unsupported GPU voltage level."}
+        if self._operation_lock.locked():
+            return {
+                "ok": False,
+                "error": "A BC250 operation is still running. Wait for its verified result before changing the GPU voltage curve.",
+            }
+        async with self._operation_lock:
+            async with self._helper_lock:
+                result = await asyncio.to_thread(
+                    self._run, "gpu-voltage-level", str(level), timeout=90,
+                )
+            return self._record_action("gpu", f"voltage-level-{level}", result)
+
+    async def apply_gpu_voltage_points(self, points: list[dict]) -> dict:
+        """Set a few TOML points; the helper bounds each one again."""
+        if not isinstance(points, list) or not 1 <= len(points) <= 17:
+            return {"ok": False, "error": "Unsupported GPU voltage request."}
+        arguments: list[str] = []
+        for point in points:
+            if not isinstance(point, dict):
+                return {"ok": False, "error": "Unsupported GPU voltage request."}
+            frequency, voltage = point.get("frequency"), point.get("voltage")
+            if (
+                isinstance(frequency, bool) or isinstance(voltage, bool)
+                or type(frequency) is not int or type(voltage) is not int
+                or not 100 <= frequency <= 3000 or not 600 <= voltage <= 1210
+            ):
+                return {"ok": False, "error": "Unsupported GPU voltage request."}
+            arguments.append(f"{frequency}={voltage}")
+        if self._operation_lock.locked():
+            return {
+                "ok": False,
+                "error": "A BC250 operation is still running. Wait for its verified result before changing the GPU voltage curve.",
+            }
+        async with self._operation_lock:
+            async with self._helper_lock:
+                result = await asyncio.to_thread(
+                    self._run, "gpu-voltage-custom", *arguments, timeout=90,
+                )
+            return self._record_action("gpu", "voltage-custom", result)
 
     async def apply_cu_mode(self, mode: str) -> dict:
         aliases = {"stock": "24", "full": "40"}
@@ -777,3 +1156,196 @@ class Plugin:
             return {"ok": False, "error": "Unsupported VRAM size."}
         result = await self._run_single_operation("vram-apply", str(normalized), timeout=30)
         return self._record_action("vram", str(normalized), result)
+
+    # ------------------------------------------------------------ per game
+    def _game_store_path(self) -> pathlib.Path:
+        return self._settings_dir / GAME_PROFILES_FILENAME
+
+    def _public_games(self, store: dict) -> dict:
+        session = store.get("session")
+        games = sorted(
+            ({"app_id": app_id, **entry} for app_id, entry in store["games"].items()),
+            key=lambda entry: str(entry.get("name") or "").lower(),
+        )
+        return {
+            "ok": True,
+            "enabled": bool(store.get("enabled")),
+            "games": games,
+            "session": (
+                {"app_id": session["app_id"], "name": session["name"], "applied": session["applied"]}
+                if session else None
+            ),
+        }
+
+    async def game_profiles(self) -> dict:
+        store = await asyncio.to_thread(_load_game_store, self._game_store_path())
+        return self._public_games(store)
+
+    async def save_game_profile(self, app_id: int | str, name: str, gpu: str | None, fan: str | None) -> dict:
+        key = _app_id(app_id)
+        if key is None:
+            return {"ok": False, "error": "Unsupported game id."}
+        gpu = gpu or None
+        fan = fan or None
+        if gpu is not None and gpu not in GPU_PROFILES:
+            return {"ok": False, "error": "Unsupported GPU Quick Access profile."}
+        if fan is not None and fan not in GAME_FAN_PRESETS:
+            return {"ok": False, "error": "Unsupported system-fan preset."}
+        entry = _game_entry({"name": name, "gpu": gpu, "fan": fan})
+        if entry is None:
+            return {"ok": False, "error": "Choose a GPU profile or a fan preset for this game."}
+        async with self._game_lock:
+            path = self._game_store_path()
+            store = await asyncio.to_thread(_load_game_store, path)
+            if key not in store["games"] and len(store["games"]) >= MAX_GAME_PROFILES:
+                return {"ok": False, "error": "The per-game profile list is full. Remove a game first."}
+            store["games"][key] = entry
+            await asyncio.to_thread(_save_game_store, path, store)
+        decky.logger.info("BC250 game profile saved app=%s gpu=%s fan=%s", key, gpu, fan)
+        return self._public_games(store)
+
+    async def remove_game_profile(self, app_id: int | str) -> dict:
+        key = _app_id(app_id)
+        if key is None:
+            return {"ok": False, "error": "Unsupported game id."}
+        async with self._game_lock:
+            path = self._game_store_path()
+            store = await asyncio.to_thread(_load_game_store, path)
+            store["games"].pop(key, None)
+            await asyncio.to_thread(_save_game_store, path, store)
+        return self._public_games(store)
+
+    async def set_game_profiles_enabled(self, enabled: bool) -> dict:
+        if type(enabled) is not bool:
+            return {"ok": False, "error": "Unsupported per-game profile request."}
+        async with self._game_lock:
+            path = self._game_store_path()
+            store = await asyncio.to_thread(_load_game_store, path)
+            store["enabled"] = enabled
+            await asyncio.to_thread(_save_game_store, path, store)
+        return self._public_games(store)
+
+    async def game_started(self, app_id: int | str, name: str = "", refresh: bool = False) -> dict:
+        """Apply the game's saved GPU profile and fan preset, remembering what
+        they replaced so ``game_stopped`` can put it back.
+
+        ``refresh`` re-applies a profile the player just edited while that
+        game runs: the board goes back to what it was first, then takes the
+        new choice, so the remembered state stays the pre-game one.
+        """
+        key = _app_id(app_id)
+        if key is None or type(refresh) is not bool:
+            return {"ok": False, "applied": False, "error": "Unsupported game id."}
+        async with self._game_lock:
+            path = self._game_store_path()
+            store = await asyncio.to_thread(_load_game_store, path)
+            session = store.get("session")
+            if session and session["app_id"] == key and not refresh:
+                # Decky reloaded mid-game, or the notice came twice.
+                return {"ok": True, "applied": False, "reason": "already-applied"}
+            if session:
+                # The previous game never reported its end: put the board
+                # back before this one takes it.
+                await self._restore_game_session(store)
+            entry = store["games"].get(key)
+            if not store.get("enabled") or entry is None:
+                return {"ok": True, "applied": False, "reason": "no-profile"}
+            if self._operation_lock.locked():
+                return {
+                    "ok": False, "applied": False,
+                    "error": "A BC250 operation is still running; this game's profile was not applied.",
+                }
+            async with self._operation_lock, self._helper_lock:
+                result = await asyncio.to_thread(
+                    self._apply_game_profile, key, _game_name(name) or str(entry["name"]), entry,
+                )
+            store["session"] = result.pop("session")
+            await asyncio.to_thread(_save_game_store, path, store)
+            return result
+
+    async def game_stopped(self, app_id: int | str) -> dict:
+        key = _app_id(app_id)
+        if key is None:
+            return {"ok": False, "restored": False, "error": "Unsupported game id."}
+        async with self._game_lock:
+            store = await asyncio.to_thread(_load_game_store, self._game_store_path())
+            session = store.get("session")
+            if not session or session["app_id"] != key:
+                return {"ok": True, "restored": False}
+            return await self._restore_game_session(store)
+
+    async def _restore_game_session(self, store: dict) -> dict:
+        session = store["session"]
+        # Waits behind a board operation already running rather than skip:
+        # leaving the game's profile on after the game is the worse outcome.
+        async with self._operation_lock, self._helper_lock:
+            result = await asyncio.to_thread(self._restore_game_state, session)
+        store["session"] = None
+        await asyncio.to_thread(_save_game_store, self._game_store_path(), store)
+        return result
+
+    def _apply_game_profile(self, app_id: str, name: str, entry: dict) -> dict:
+        status = self._verified_status()
+        if status.get("ok") is False:
+            return {"ok": False, "applied": False, "error": status.get("error"), "session": None}
+        self._decorate_status(status)
+        gpu_key, safe_point = _current_gpu_choice(status)
+        live_fan = status.get("system_fan_preset")
+        snapshot = {
+            "gpu": gpu_key,
+            "gpu_safe_point": safe_point,
+            "fan": live_fan if live_fan in GAME_FAN_PRESETS else None,
+            "fan_service": status.get("system_fan_policy") is True,
+        }
+        applied: dict[str, str | None] = {"gpu": None, "fan": None}
+        errors: list[str] = []
+        if entry.get("gpu") and entry["gpu"] != gpu_key:
+            result = self._record_action("gpu", f"game-{entry['gpu']}", self._run("gpu-profile", str(entry["gpu"]), timeout=30))
+            if result.get("ok") is False:
+                errors.append(str(result.get("error") or "GPU profile failed."))
+            else:
+                applied["gpu"] = str(entry["gpu"])
+        if entry.get("fan") and entry["fan"] != snapshot["fan"]:
+            result = self._record_action("fan", f"game-{entry['fan']}", self._run("fan-system", str(entry["fan"]), timeout=30))
+            if result.get("ok") is False:
+                errors.append(str(result.get("error") or "Fan preset failed."))
+            else:
+                applied["fan"] = str(entry["fan"])
+        session = (
+            {"app_id": app_id, "name": name, "snapshot": snapshot, "applied": applied}
+            if applied["gpu"] or applied["fan"] else None
+        )
+        return {
+            "ok": not errors, "applied": session is not None, "name": name,
+            "gpu": applied["gpu"], "fan": applied["fan"],
+            "error": " ".join(errors), "session": session,
+        }
+
+    def _restore_game_state(self, session: dict) -> dict:
+        snapshot = _game_snapshot(session.get("snapshot"))
+        applied = session.get("applied") or {}
+        errors: list[str] = []
+        status = self._verified_status()
+        if status.get("ok") is False:
+            return {"ok": False, "restored": False, "name": session.get("name", ""), "error": status.get("error")}
+        operations: list[tuple[str, tuple[str, ...]]] = []
+        if applied.get("gpu"):
+            if snapshot["gpu"]:
+                operations.append(("gpu", ("gpu-profile", str(snapshot["gpu"]))))
+            elif snapshot["gpu_safe_point"]:
+                operations.append(("gpu", ("gpu-safe-point", str(snapshot["gpu_safe_point"]))))
+        if applied.get("fan"):
+            if snapshot["fan_service"]:
+                # The desktop's fan service follows its curve or preset again.
+                operations.append(("fan", ("fan-resume",)))
+            elif snapshot["fan"]:
+                operations.append(("fan", ("fan-system", str(snapshot["fan"]))))
+            else:
+                # The fans ran on a custom duty set elsewhere: the safe
+                # return is the board's own automatic control.
+                operations.append(("fan", ("fan-system", "automatic")))
+        for module, arguments in operations:
+            result = self._record_action(module, f"restore-{arguments[-1]}", self._run(*arguments, timeout=30))
+            if result.get("ok") is False:
+                errors.append(str(result.get("error") or "Restore failed."))
+        return {"ok": not errors, "restored": True, "name": session.get("name", ""), "error": " ".join(errors)}

@@ -80,81 +80,6 @@ def test_masta_route_rejects_unqualified_arch_derivatives(distro_id, family):
         _repository_for(family, [], distro_id=distro_id).preparar_cachyos_bc250("kernel")
 
 
-@pytest.mark.parametrize("action", ("install", "uninstall"))
-def test_fsr4_route_is_user_scoped_and_requires_the_matched_arch_kernel(
-    action, monkeypatch
-):
-    calls: list[tuple[str, str]] = []
-    repository = _repository_for("arch", calls)
-    monkeypatch.setattr(
-        repository,
-        "_gfx1013_compute_state",
-        lambda _os_repository: {"masta_async_compute_ready": True},
-    )
-
-    assert repository.gestionar_fsr4_bc250(action) == "terminal"
-
-    command, terminal_title = calls[0]
-    assert "bc250-fsr4/v3" in command
-    assert "github.com/dmorazasanchez/bc250-fsr4" in command
-    assert f"{action}-v3.sh" in command
-    assert "FSR4 V3" in terminal_title
-
-
-def test_fsr4_manjaro_route_rejects_the_unmatched_precompiled_abi():
-    with pytest.raises(RuntimeError, match="verified matching GFX1013 kernel"):
-        _repository_for("manjaro", []).gestionar_fsr4_bc250("install")
-
-
-def test_fsr4_bazzite_route_uses_only_the_official_podman_source_build(monkeypatch):
-    calls: list[tuple[str, str]] = []
-    repository = _repository_for("bazzite", calls)
-    monkeypatch.setattr(
-        repository,
-        "_gfx1013_compute_state",
-        lambda _os_repository: {"exact_upstream_validated_host": True},
-    )
-
-    assert repository.gestionar_fsr4_bc250("install") == "terminal"
-
-    command, terminal_title = calls[0]
-    assert "official V3 source build for Bazzite" in command
-    assert "podman build" in command
-    assert "podman run --rm" in command
-    assert 'test "${ID:-}" = "bazzite"' in command
-    assert "install-v3.sh" not in command
-    assert "FSR4 V3" in terminal_title
-
-
-def test_fsr4_fedora44_route_requires_active_gfx1013_boot(monkeypatch):
-    calls: list[tuple[str, str]] = []
-    repository = _repository_for("fedora", calls, version_id="44")
-    monkeypatch.setattr(
-        repository,
-        "_gfx1013_compute_state",
-        lambda _os_repository: {"dryhopped_ready": True},
-    )
-
-    assert repository.gestionar_fsr4_bc250("install") == "terminal"
-    command, terminal_title = calls[0]
-    assert "official V3 source build for Fedora 44" in command
-    assert "bc250.gfx1013_v33=1" in command
-    assert "podman build" in command
-    assert "FSR4 V3" in terminal_title
-
-
-def test_fsr4_fedora44_route_stays_blocked_before_repaired_boot(monkeypatch):
-    repository = _repository_for("fedora", [], version_id="44")
-    monkeypatch.setattr(
-        repository,
-        "_gfx1013_compute_state",
-        lambda _os_repository: {"dryhopped_ready": False},
-    )
-
-    with pytest.raises(RuntimeError, match="verified matching GFX1013 kernel"):
-        repository.gestionar_fsr4_bc250("install")
-
-
 def test_bazzite_async_compute_route_uses_only_the_pinned_release(monkeypatch):
     calls: list[tuple[str, str]] = []
     repository = _repository_for("bazzite", calls)
@@ -199,12 +124,6 @@ def test_bazzite_mitigations_route_opens_a_reversible_transaction():
 def test_bazzite_mitigations_route_is_blocked_on_other_distributions():
     with pytest.raises(RuntimeError, match="only on Bazzite"):
         _repository_for("cachyos", []).gestionar_mitigaciones_bazzite("disable")
-
-
-@pytest.mark.parametrize("family", ("steamos",))
-def test_fsr4_precompiled_route_rejects_untested_distribution_abis(family):
-    with pytest.raises(RuntimeError, match="verified matching GFX1013 kernel"):
-        _repository_for(family, []).gestionar_fsr4_bc250("install")
 
 
 def test_steamos_graphics_guide_action_opens_documentation_without_running_a_tool(

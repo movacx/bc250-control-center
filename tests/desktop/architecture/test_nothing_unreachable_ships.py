@@ -34,6 +34,7 @@ QT_OVERRIDES = frozenset({
     "contextMenuEvent", "moveEvent", "dragEnterEvent", "dragMoveEvent",
     "dragLeaveEvent", "dropEvent", "timerEvent", "heightForWidth",
     "hasHeightForWidth", "setVisible", "actionEvent", "tabletEvent",
+    "hitButton",
 })
 
 # Features that are fully written but have no control that invokes them.  Each

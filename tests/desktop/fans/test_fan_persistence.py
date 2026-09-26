@@ -136,6 +136,93 @@ def test_daemon_prefers_enabled_curve_and_curve_survives_restart(monkeypatch):
     assert applied == [(2, round(expected * 255 / 100))]
 
 
+def test_daemon_does_not_write_on_its_first_cycle_when_hardware_already_matches(
+    monkeypatch,
+):
+    """GitHub issue: fan PWM asked to authenticate on every boot.
+
+    ``ultimo_fan_target`` starts unset on every fresh daemon process (every
+    boot/login), so plan_persistent_fan() always answered "apply" on cycle
+    one -- even when a boot-time service had already restored this exact
+    duty. The daemon must read back (no privilege needed) before writing on
+    that first cycle, the same way it already does for "verify".
+    """
+    daemon = object.__new__(BC250ControlCenterDaemon)
+    daemon.ultimo_fan_curve_apply = 0
+    daemon.ultimo_fan_curve_percent = None
+    daemon.ultimo_fan_target = None
+    daemon.ultimo_fan_verify = 0
+    daemon.fan_temp_missing_since = None
+    daemon.ultima_fan_temperature = None
+    daemon.ultimo_fan_curve_error = 0
+    daemon.alerta_temp_estado = {}
+    daemon._health_enabled = False
+
+    writes = []
+
+    class Servicio:
+        def leer_pwm_fan(self, pwm):
+            return {"pwm": pwm, "value": 178, "percent": 70, "sensor_path": "/hwmon0"}
+
+        def aplicar_pwm_fan(self, pwm, value):
+            writes.append((pwm, value))
+            return {"verified": {"value": value, "sensor_path": "/hwmon0"}}
+
+    daemon.servicio = Servicio()
+    daemon.activity_service = type("A", (), {"record": staticmethod(lambda *a, **k: None)})()
+
+    curve = normalize_fan_curve({
+        "enabled": True, "pwm": 2,
+        "t1": 50, "s1": 70, "t2": 65, "s2": 100, "t3": 70, "s3": 100,
+    })
+    monkeypatch.setattr("bc250cc.infrastructure.daemon.time.monotonic", lambda: 10.0)
+
+    daemon.aplicar_ventilador_persistente_si_corresponde(
+        {"gpu_temp": 52.0}, {"fan_curve": curve},
+    )
+
+    assert writes == [], f"unnecessary privileged write on the daemon's first cycle: {writes}"
+    assert daemon.ultimo_fan_target is not None
+
+
+def test_daemon_still_applies_a_genuinely_different_target_on_first_cycle(monkeypatch):
+    daemon = object.__new__(BC250ControlCenterDaemon)
+    daemon.ultimo_fan_curve_apply = 0
+    daemon.ultimo_fan_curve_percent = None
+    daemon.ultimo_fan_target = None
+    daemon.ultimo_fan_verify = 0
+    daemon.fan_temp_missing_since = None
+    daemon.ultima_fan_temperature = None
+    daemon.ultimo_fan_curve_error = 0
+    daemon.alerta_temp_estado = {}
+    daemon._health_enabled = False
+
+    writes = []
+
+    class Servicio:
+        def leer_pwm_fan(self, pwm):
+            return {"pwm": pwm, "value": 102, "percent": 40, "sensor_path": "/hwmon0"}
+
+        def aplicar_pwm_fan(self, pwm, value):
+            writes.append((pwm, value))
+            return {"verified": {"value": value, "sensor_path": "/hwmon0"}}
+
+    daemon.servicio = Servicio()
+    daemon.activity_service = type("A", (), {"record": staticmethod(lambda *a, **k: None)})()
+
+    curve = normalize_fan_curve({
+        "enabled": True, "pwm": 2,
+        "t1": 50, "s1": 70, "t2": 65, "s2": 100, "t3": 70, "s3": 100,
+    })
+    monkeypatch.setattr("bc250cc.infrastructure.daemon.time.monotonic", lambda: 10.0)
+
+    daemon.aplicar_ventilador_persistente_si_corresponde(
+        {"gpu_temp": 75.0}, {"fan_curve": curve},
+    )
+
+    assert writes == [(2, 255)]
+
+
 def test_custom_slider_is_explicitly_non_persistent():
     preset = normalize_fan_preset({
         "enabled": False,

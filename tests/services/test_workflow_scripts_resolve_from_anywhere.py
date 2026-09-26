@@ -133,7 +133,13 @@ def test_the_console_does_not_move_the_workflow_to_another_directory():
     """
     # The tab owns the pseudo-terminal now; the panel only decides which one.
     console = REPOSITORY_ROOT / "frontends" / "desktop" / "console"
-    assert "cwd=None" in (console / "console_tab.py").read_text(encoding="utf-8")
+    tab = (console / "console_tab.py").read_text(encoding="utf-8")
+    assert re.search(r"cwd: str \| None = None", tab)
+    # A workflow never names a directory; only the user's own F4 shell does
+    # (its home), and that path does not go through ``run`` of the panel.
+    panel = (console / "console_panel.py").read_text(encoding="utf-8")
+    workflow_run = panel[panel.index("    def run("):panel.index("    def adopt_session(")]
+    assert "cwd=" not in workflow_run
     for name in ("console_tab.py", "console_panel.py"):
         text = (console / name).read_text(encoding="utf-8")
         assert not re.search(r"cwd\s*=\s*os\.path\.expanduser", text)

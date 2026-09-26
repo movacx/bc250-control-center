@@ -119,3 +119,46 @@ def test_the_runtime_readings_reach_the_cards_the_user_reads(qtbot):
     assert view.runtime_cards["live"].value.text() == "58 °C | 2130 MHz"
     # A reading the backend did not supply says so rather than showing stale text.
     assert view.runtime_cards["applied"].value.text() == "--"
+
+
+def test_a_turning_ring_replaces_the_pill_while_the_screen_works(qtbot):
+    """Applying an overclock, or any other task of the page, shows motion."""
+    from frontends.desktop.i18n import tr
+    from frontends.desktop.pages.cpu_control_view import CpuTuningState
+
+    view = _view(qtbot)
+    view.show()
+    pill, badge = view._configuration_status, view._busy_badge
+
+    view.apply_state(CpuControlState(tuning=CpuTuningState(applying=True)))
+    assert badge.isVisible() and badge.spinner.running
+    assert badge.label.text() == tr("Checking")
+    assert not pill.isVisible()
+
+    view.apply_state(CpuControlState(tuning=CpuTuningState(busy=True)))
+    assert badge.spinner.running
+    assert badge.label.text() == tr("Working")
+
+    view.apply_state(CpuControlState(tuning=CpuTuningState()))
+    assert not badge.isVisible() and not badge.spinner.running
+    assert pill.isVisible()
+    assert pill.text() == tr("Temporary")
+
+
+def test_the_page_executor_reaches_the_ring():
+    """Tasks on the page's executor never went through _set_running."""
+    from frontends.desktop.pages import cpu_control_integration as integration
+
+    class Background:
+        def __init__(self):
+            self.running = False
+
+        def is_running(self):
+            return self.running
+
+    class Page:
+        _background = Background()
+
+    assert integration._is_busy(Page()) is False
+    Page._background.running = True
+    assert integration._is_busy(Page()) is True

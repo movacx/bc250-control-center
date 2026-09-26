@@ -51,7 +51,7 @@ def test_cachyos_exposes_kernel_mesa_full_routes_and_fsr4():
     sidebar.set_state(
         _state(
             "cachyos",
-            {"precompiled_supported": True, "installed": False, "source_build_required": False},
+            {"installer_available": True, "installed": False, "state": "not-installed"},
         )
     )
 
@@ -95,22 +95,16 @@ def test_compatibility_filter_hides_duplicate_gfx1013_for_arch_family():
     assert sidebar.gfx_card.isHidden()
 
 
-def test_bazzite_offers_fsr4_source_build_and_blocks_arch_stack():
+def test_bazzite_offers_the_fsr4_client_and_blocks_arch_stack():
     sidebar = _sidebar()
-    sidebar.set_state(
-        _state(
-            "bazzite",
-            {
-                "precompiled_supported": False,
-                "source_build_supported": True,
+    sidebar.set_state(_state("bazzite", {
+                "provider": "opticlient",
                 "installer_available": True,
                 "installed": False,
                 "current": False,
                 "state": "not-installed",
-                "source_build_required": True,
-            },
-        )
-    )
+                "steam_launch_option": 'WINEDLLOVERRIDES="dxgi=n,b" %command%',
+            }))
     sidebar.compatibility_filter.setCurrentIndex(
         sidebar.compatibility_filter.findData("all")
     )
@@ -123,112 +117,74 @@ def test_bazzite_offers_fsr4_source_build_and_blocks_arch_stack():
     ))
     assert not sidebar.fsr4_card.isHidden()
     assert sidebar.fsr4_install_button.isEnabled()
-    assert sidebar.fsr4_install_button.text() == "Build and install FSR4"
-    assert sidebar.fsr4_card.status.text() == "Source build available"
-    assert "rootless Podman" in sidebar.fsr4_card.detail.text()
+    assert sidebar.fsr4_install_button.text() == "Install FSR4"
+    assert sidebar.fsr4_card.status.text() == "Not installed"
+    assert "pinned BC250 release" in sidebar.fsr4_card.detail.text()
     assert sidebar.fsr4_remove_button.isHidden()
+    assert sidebar.fsr4_launch_button.isHidden()
     assert not sidebar.fsr4_upstream_button.isHidden()
 
 
-def test_ubuntu_offers_fsr4_source_build_with_state_intact():
+@pytest.mark.parametrize("family", ("ubuntu", "fedora", "cachyos", "opensuse", "steamos"))
+def test_every_distribution_gets_the_same_fsr4_client_without_a_kernel_gate(family):
+    """OptiScaler Client patches games with a DLL: no kernel, Mesa or root."""
     sidebar = _sidebar()
-    sidebar.set_state(
-        _state(
-            "ubuntu",
-            {
-                "precompiled_supported": False,
-                "source_build_supported": True,
+    sidebar.set_state(_state(family, {
+                "provider": "opticlient",
                 "installer_available": True,
                 "installed": False,
                 "current": False,
                 "state": "not-installed",
-                "source_build_required": True,
-                "build_mode": "debian-podman-source",
-            },
-        )
-    )
+                "steam_launch_option": 'WINEDLLOVERRIDES="dxgi=n,b" %command%',
+            }))
 
-    assert not sidebar.fsr4_card.isHidden()
+    assert sidebar.fsr4_card.scope.text() == "All distributions · per game · no root"
     assert sidebar.fsr4_install_button.isEnabled()
-    assert sidebar.fsr4_install_button.text() == "Build and install FSR4"
-    assert sidebar.fsr4_card.status.text() == "Source build available"
-    assert sidebar.fsr4_card.scope.text() == "Debian/Ubuntu · Official Podman source build"
-    assert "installed with APT" in sidebar.fsr4_card.detail.text()
-    assert "private per-game user runtime" in sidebar.fsr4_card.detail.text()
+    assert not sidebar.fsr4_install_button.isHidden()
     assert sidebar.fsr4_launch_row.isHidden()
 
 
-def test_fedora44_fsr4_waits_for_repaired_gfx1013_boot():
+def test_a_ready_client_is_opened_from_the_card_with_its_launch_option():
     sidebar = _sidebar()
-    sidebar.set_state(
-        _state(
-            "fedora",
-            {
-                "precompiled_supported": False,
-                "source_build_supported": True,
-                "installer_available": False,
-                "installed": False,
-                "current": False,
-                "state": "not-installed",
-                "source_build_required": True,
-                "build_mode": "fedora44-podman-source",
-                "compute_kernel_required": True,
-                "compute_kernel_ready": False,
-            },
-        )
-    )
+    sidebar.set_state(_state("cachyos", {
+        "installer_available": True, "installed": True, "current": True,
+        "state": "ready", "steam_launch_option": 'WINEDLLOVERRIDES="dxgi=n,b" %command%',
+    }))
 
-    assert sidebar.fsr4_card.scope.text() == "Fedora 44 · GFX1013 · Podman"
-    assert sidebar.fsr4_card.status.text() == "Kernel repair required"
-    assert "repaired GFX1013 boot must be active first" in sidebar.fsr4_card.detail.text()
-    assert sidebar.fsr4_install_button.isHidden()
+    assert sidebar.fsr4_card.status.text() == "Ready"
+    assert not sidebar.fsr4_launch_button.isHidden()
+    assert sidebar.fsr4_launch_button.isEnabled()
+    assert not sidebar.fsr4_remove_button.isHidden()
+    assert sidebar.fsr4_install_button.text() == "Reinstall FSR4 client"
+    assert not sidebar.fsr4_launch_row.isHidden()
+    assert sidebar._fsr4_launch_option == 'WINEDLLOVERRIDES="dxgi=n,b" %command%'
 
 
-def test_fedora44_fsr4_source_build_is_offered_after_repaired_boot():
+def test_the_old_v3_runtime_gets_its_own_removal():
     sidebar = _sidebar()
-    sidebar.set_state(
-        _state(
-            "fedora",
-            {
-                "precompiled_supported": False,
-                "source_build_supported": True,
+    sidebar.set_state(_state("cachyos", {**{
+                "provider": "opticlient",
                 "installer_available": True,
                 "installed": False,
                 "current": False,
                 "state": "not-installed",
-                "source_build_required": True,
-                "build_mode": "fedora44-podman-source",
-                "compute_kernel_required": True,
-                "compute_kernel_ready": True,
-            },
-        )
-    )
+                "steam_launch_option": 'WINEDLLOVERRIDES="dxgi=n,b" %command%',
+            }, "legacy_v3_installed": True}))
 
-    assert sidebar.fsr4_card.status.text() == "Source build available"
-    assert not sidebar.fsr4_card.isHidden()
-    assert sidebar.fsr4_install_button.isEnabled()
-    assert sidebar.fsr4_install_button.text() == "Build and install FSR4"
+    assert not sidebar.fsr4_legacy_button.isHidden()
 
 
 def test_ready_fsr4_runtime_is_offered_while_the_backend_remains_available():
     sidebar = _sidebar()
-    option = (
-        'LD_LIBRARY_PATH="$HOME/.local/share/bc250-fsr4/v3/lib'
-        '${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" '
-        'VK_DRIVER_FILES="$HOME/.local/share/bc250-fsr4/v3/radv-bc250-fsr4-v3.json" %command%'
-    )
+    option = 'WINEDLLOVERRIDES="dxgi=n,b" %command%'
     sidebar.set_state(
         _state(
             "ubuntu",
             {
-                "precompiled_supported": False,
-                "source_build_supported": True,
                 "installer_available": True,
                 "installed": True,
                 "current": True,
                 "state": "ready",
-                "source_build_required": True,
-                "build_mode": "debian-podman-source",
                 "steam_launch_option": option,
             },
         )
@@ -345,19 +301,16 @@ def test_bazzite_async_compute_card_exposes_reviewed_release_action():
     assert sidebar.gfx_primary_button.request_payload["action"] == "gfx1013_bazzite_install"
 
 
-def test_manjaro_shows_the_abi_gated_fsr4_candidate():
+def test_manjaro_is_offered_the_client_update_when_an_older_copy_exists():
     sidebar = _sidebar()
     sidebar.set_state(
         _state(
             "manjaro",
             {
-                "precompiled_supported": False,
-                "experimental_precompiled": True,
                 "installer_available": True,
                 "installed": False,
                 "current": False,
-                "state": "not-installed",
-                "source_build_required": False,
+                "state": "update-available",
             },
         )
     )
@@ -372,7 +325,8 @@ def test_manjaro_shows_the_abi_gated_fsr4_candidate():
     )
     assert not sidebar.fsr4_card.isHidden()
     assert sidebar.fsr4_install_button.isEnabled()
-    assert sidebar.fsr4_card.status.text() == "Experimental ABI check"
+    assert sidebar.fsr4_install_button.text() == "Update FSR4 client"
+    assert sidebar.fsr4_card.status.text() == "Update available"
 
 
 def test_installed_stack_changes_badges_and_buttons_to_repair_actions():

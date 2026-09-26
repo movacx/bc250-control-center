@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from PyQt6.QtCore import Qt, QThread, QThreadPool, QTimer
-from PyQt6.QtGui import QIcon
+from PyQt6.QtGui import QIcon, QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
     QApplication,
     QHBoxLayout,
@@ -20,6 +20,8 @@ from PyQt6.QtWidgets import (
 )
 
 from .components.async_tools import BackgroundExecutor, pending_background_tasks
+from .components.density import MANAGED_PROPERTY, apply_layout_density
+from .components.modal_scrim import ModalScrim
 from .components.sidebar import Sidebar
 from .components.widgets import InfoDialog
 from .console import ConsoleBeacon, ConsoleHost, ConsolePanel
@@ -27,6 +29,7 @@ from .core.alerts import SmartAlertMonitor
 from .core.gamepad import GamepadNavigationController
 from .core.preferences import UiPreferences
 from .core.state import state_cache_for
+from .core.workflow_watch import WorkflowCompletionWatcher
 from .i18n import (
     localize_top_levels,
     localize_widget_tree,
@@ -36,13 +39,22 @@ from .i18n import (
     tr_format,
 )
 from .onboarding import (
+    PERFORMANCE_VIEWS_FEATURE,
     TourGuide,
     WelcomeOverlay,
+    feature_stops,
     first_run_pending,
+    introduced_features,
+    mark_features_introduced,
     mark_first_run_done,
     tour_stops,
 )
-from .theme import application_stylesheet, configure_theme
+from .theme import (
+    application_stylesheet,
+    apply_tooltip_palette,
+    configure_theme,
+    mode_of,
+)
 
 if TYPE_CHECKING:
     from .pages.settings import SettingsDialog
@@ -123,6 +135,8 @@ class ControlCenterWindow(QMainWindow):
         root.setObjectName("ApplicationRoot")
         layout = QHBoxLayout(root)
         self.root_layout = layout
+        # Its margins already follow the density (see resizeEvent).
+        layout.setProperty(MANAGED_PROPERTY, True)
         if self._gamemode_session:
             layout.setContentsMargins(8, 8, 8, 8)
             layout.setSpacing(10)
@@ -148,6 +162,7 @@ class ControlCenterWindow(QMainWindow):
         self.sidebar_host.setMinimumWidth(0)
         self.sidebar_host.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
         sidebar_layout = QVBoxLayout(self.sidebar_host)
+        sidebar_layout.setProperty(MANAGED_PROPERTY, True)
         sidebar_layout.setContentsMargins(0, 0 if self._gamemode_session else 8, 0, 0)
         sidebar_layout.setSpacing(0)
 
@@ -168,6 +183,7 @@ class ControlCenterWindow(QMainWindow):
         from .pages.cpu_smu import CpuSmuPage
         from .pages.dashboard import DashboardPage
         from .pages.fans import FansPage
+        from .pages.firmware import FirmwarePage
         from .pages.gpu_governor import GpuGovernorPage
         from .pages.performance import PerformancePage
         from .pages.processes import ProcessesPage
@@ -194,6 +210,7 @@ class ControlCenterWindow(QMainWindow):
             activity_service=activity_service,
         )
         self.performance_page = PerformancePage(controller)
+        self.firmware_page = FirmwarePage(controller)
         self.settings_dialog: SettingsDialog | None = None
         self.current_page_key = "dashboard"
         self._gamepad_navigation_history: list[str] = []
@@ -206,6 +223,7 @@ class ControlCenterWindow(QMainWindow):
             "performance": self.performance_page,
             "fans": self.fans_page,
             "processes": self.processes_page,
+            "firmware": self.firmware_page,
         }
         self.dashboard.module_requested.connect(self.navigate)
         self.dashboard.action_requested.connect(self._dashboard_action)
@@ -215,11 +233,27 @@ class ControlCenterWindow(QMainWindow):
         self.dashboard.driver_support_requested.connect(
             self._dashboard_driver_support
         )
+        self.dashboard.update_requested.connect(self.open_update_dialog)
         for page in self.pages.values():
             self.stack.addWidget(page)
         layout.addWidget(self.stack, 1)
 
         self._build_console(shell_layout)
+        # Installers and removals run in a terminal and return at once. Watch
+        # for the end of each one so what they changed shows up then, not on
+        # the next poll through two caches.
+        self.workflow_watch = WorkflowCompletionWatcher(self)
+        self.workflow_watch.finished.connect(self._workflow_finished)
+        self.workflow_watch.install()
+        if getattr(self, "console", None) is not None:
+            self.console.workflow_log_finished.connect(self.workflow_watch.embedded_finished)
+        # Dims the window behind every modal dialog, so a white dialog over
+        # white cards reads as the question it is (see modal_scrim.py).
+        self.modal_scrim = ModalScrim(self)
+        self._density_timer = QTimer(self)
+        self._density_timer.setSingleShot(True)
+        self._density_timer.setInterval(140)
+        self._density_timer.timeout.connect(self._sync_current_page_layout)
 
         self.gamepad = GamepadNavigationController(self)
         self._follow_controller_into_the_console()
@@ -235,6 +269,10 @@ class ControlCenterWindow(QMainWindow):
         self.gamepad.set_onscreen_keypad_enabled(keypad_enabled)
         self.gamepad.set_onscreen_keypad_auto_show(keypad_enabled)
         self._set_detailed_diagnostics(self.preferences.bool_value("settings/detailed_diagnostics", False))
+        self._set_gddr6_manual_override(
+            self.preferences.bool_value("settings/gddr6_manual_override", False)
+        )
+        self._set_vrm_manual(self.preferences.bool_value("settings/vrm_manual", False))
         self._retranslate_interface()
         self._restore_start_page()
         self._migrate_backend_preferences_async()
@@ -242,6 +280,9 @@ class ControlCenterWindow(QMainWindow):
         self.welcome: WelcomeOverlay | None = None
         self.tour: TourGuide | None = None
         self._first_run_pending = first_run_pending(self.settings)
+        # Everything built after the first appearance pass (the sidebar, the
+        # pages, the console) joins the chosen density here.
+        apply_layout_density(self)
 
     def _build_console(self, shell_layout) -> None:
         """Attach the in-application terminal and offer it to the repositories.
@@ -264,7 +305,8 @@ class ControlCenterWindow(QMainWindow):
         # screen; the console still has to leave the page it covers usable.
         default_height = 200 if self._gamemode_session else 280
         panel.set_panel_height(self.preferences.int_value("console/height", default_height))
-        panel.set_auto_hide(self.preferences.bool_value("settings/console_auto_hide", True))
+        # Off unless chosen: the output stays readable until the user closes it.
+        panel.set_auto_hide(self.preferences.bool_value("settings/console_auto_hide", False))
         panel.external_terminal_requested.connect(self._open_workflow_in_terminal)
         panel.visibility_changed.connect(self._console_visibility_changed)
         self.console = panel
@@ -284,6 +326,34 @@ class ControlCenterWindow(QMainWindow):
         host.set_enabled(self.preferences.bool_value("settings/embedded_terminal", True))
         host.install()
         self.console_host = host
+
+        # F4 shows and hides the console the way it does Dolphin's terminal
+        # panel. A window shortcut, so it works with the keyboard inside the
+        # terminal grid too: the grid does not claim F4 as a shortcut
+        # override, so Qt offers it to this shortcut before the key reaches
+        # the shell.
+        self.console_shortcut = QShortcut(QKeySequence(Qt.Key.Key_F4), self)
+        self.console_shortcut.setContext(Qt.ShortcutContext.WindowShortcut)
+        self.console_shortcut.activated.connect(self.toggle_console)
+
+    def toggle_console(self) -> None:
+        """F4: show or hide the embedded console."""
+        console = getattr(self, "console", None)
+        host = getattr(self, "console_host", None)
+        if console is None or (host is not None and not host.enabled):
+            return
+        # The first-run panel and the tour own the screen while they are up.
+        if self.is_presenting_overlay():
+            return
+        was_shown = console.shown
+        console.toggle()
+        if was_shown:
+            # The grid keeps keyboard focus while it slides away; hand it back
+            # to the page, the way Dolphin returns it to the file view.
+            page = self.stack.currentWidget() if hasattr(self, "stack") else None
+            if page is not None:
+                page.setFocus(Qt.FocusReason.ShortcutFocusReason)
+        self._sync_console_beacon()
 
     def _follow_controller_into_the_console(self) -> None:
         """Tell the console whether a controller is driving.
@@ -418,10 +488,12 @@ class ControlCenterWindow(QMainWindow):
         if page is None:
             return
         reflow = getattr(page, "_reflow", None)
-        if not callable(reflow):
-            return
-        width = max(1, page.contentsRect().width())
-        reflow(width)
+        if callable(reflow):
+            width = max(1, page.contentsRect().width())
+            reflow(width)
+        # A reflow may have set margins from code again; Compact re-tightens
+        # them. In Comfortable this only undoes an earlier compact pass.
+        apply_layout_density(page)
         page.updateGeometry()
 
     def _migrate_backend_preferences_async(self) -> None:
@@ -513,12 +585,15 @@ class ControlCenterWindow(QMainWindow):
             density=str(self.settings.value("settings/density", "comfortable")),
             collapsed=self.sidebar.collapsed,
             system_mode=self._system_theme(),
+            style=self.preferences.style(),
         )
         overlay.language_chosen.connect(self._welcome_language)
         overlay.appearance_chosen.connect(self._welcome_appearance)
+        overlay.style_chosen.connect(self._welcome_style)
         overlay.sidebar_chosen.connect(self._welcome_sidebar)
         overlay.prepare_requested.connect(self._welcome_prepare)
         overlay.dependencies_reached.connect(self._welcome_tools_probe)
+        overlay.preparation_completed.connect(self._welcome_tools_probe)
         overlay.finished.connect(self._welcome_finished)
         overlay.setGeometry(self.rect())
         overlay.set_backdrop_source(shell)
@@ -554,6 +629,21 @@ class ControlCenterWindow(QMainWindow):
         if self.welcome is not None:
             # The whole point of applying it live: the glass shows the choice.
             self.welcome.refresh_backdrop()
+
+    def _welcome_style(self, style: str) -> None:
+        self._apply_style(style)
+        if self.welcome is not None:
+            self.welcome.refresh_backdrop()
+
+    def _apply_style(self, style: str) -> None:
+        """Store the style and repaint with it, keeping theme and accent."""
+        self.settings.setValue("settings/style", self.preferences.normalize_style(style))
+        self._apply_appearance(
+            str(self.settings.value("settings/appearance", "system")),
+            str(self.settings.value("settings/accent", "blue")),
+            str(self.settings.value("settings/density", "comfortable")),
+            persist=False,
+        )
 
     def _welcome_sidebar(self, collapsed: bool) -> None:
         self.sidebar.set_collapsed(bool(collapsed))
@@ -658,15 +748,44 @@ class ControlCenterWindow(QMainWindow):
 
     def start_tour(self) -> None:
         """Walk the modules, pointing at the controls rather than describing them."""
+        stops = tour_stops()
+        # The whole route includes every feature's stops: none of them needs
+        # introducing again afterwards.
+        mark_features_introduced(self.settings, {stop.feature for stop in stops})
+        self._run_tour(stops)
+
+    def _run_tour(self, stops) -> None:
         if self.tour is not None and self.tour.running:
             return
         if self.tour is not None:
             self.tour.deleteLater()
         self._clear_floating_widgets()
-        guide = TourGuide(self, tour_stops(), parent=self)
+        guide = TourGuide(self, stops, parent=self)
         guide.finished.connect(self._tour_finished)
         self.tour = guide
         guide.start()
+
+    def _introduce_feature(self, feature: str, page_key: str) -> None:
+        """The stops of a feature newer than this user's tour, shown once.
+
+        Somebody who took the tour before the Performance page grew its
+        per-part views and its sensor list would otherwise never learn they
+        are there: nothing on the page says a tile opens a menu when pointed
+        at.
+        """
+        if self.current_page_key != page_key or not self.isVisible():
+            return
+        if (self.tour is not None and self.tour.running) or self.is_presenting_overlay():
+            return
+        if QApplication.activeModalWidget() is not None:
+            return
+        if feature in introduced_features(self.settings):
+            return
+        stops = feature_stops(feature)
+        if not stops:
+            return
+        mark_features_introduced(self.settings, {feature})
+        self._run_tour(stops)
 
     def _tour_requested_from_settings(self) -> None:
         """Close the dialog first: the tour points at the window behind it."""
@@ -689,13 +808,52 @@ class ControlCenterWindow(QMainWindow):
         if hasattr(self, "sidebar"):
             self._retranslate_interface()
 
+    def _queue_appearance(self, mode: str, accent: str, density: str) -> None:
+        """Let the chosen option paint first; of quick clicks, apply the last.
+
+        Restyling the window takes over a second (2 500 widgets, one large
+        style sheet), and doing it inside the click kept the option looking
+        unselected until it finished, once per click.
+        """
+        self._pending_appearance = (mode, accent, density)
+        timer = getattr(self, "_appearance_timer", None)
+        if timer is None:
+            timer = self._appearance_timer = QTimer(self)
+            timer.setSingleShot(True)
+            timer.setInterval(60)
+            timer.timeout.connect(self._apply_pending_appearance)
+        timer.start()
+
+    def _apply_pending_appearance(self) -> None:
+        pending = getattr(self, "_pending_appearance", None)
+        self._pending_appearance = None
+        if pending is not None:
+            self._apply_appearance(*pending)
+
+    def _persist_appearance(self, requested_mode: str, accent: str, density: str, resolved_mode: str) -> None:
+        self.settings.setValue("settings/appearance", requested_mode)
+        self.settings.setValue("settings/accent", accent)
+        self.settings.setValue("settings/density", density)
+        # The backend only knows light and dark; night blue is a dark theme.
+        self._save_backend_preference("tema", mode_of(resolved_mode))
+
     def _apply_appearance(self, mode: str, accent: str, density: str, *, persist: bool = True) -> None:
         requested_mode = self.preferences.normalize_theme(mode)
         accent = self.preferences.normalize_accent(accent)
         density = self.preferences.normalize_density(density)
         resolved_mode = self._system_theme() if requested_mode == "system" else requested_mode
         scale = self.preferences.scale()
-        configure_theme(resolved_mode, accent, density, scale)
+        style = self.preferences.style()
+        # "System" that resolves to the theme already shown, or the same
+        # choice picked again, changes nothing on screen: skip the restyle.
+        signature = (resolved_mode, accent, density, scale, style)
+        if signature == getattr(self, "_applied_appearance", None):
+            if persist:
+                self._persist_appearance(requested_mode, accent, density, resolved_mode)
+            return
+        self._applied_appearance = signature
+        configure_theme(resolved_mode, accent, density, scale, style)
+        apply_tooltip_palette()
         self.setStyleSheet(application_stylesheet())
         if hasattr(self, "root_layout"):
             margin = 12 if density == "compact" else 16
@@ -706,10 +864,7 @@ class ControlCenterWindow(QMainWindow):
             if sidebar_layout is not None:
                 sidebar_layout.setContentsMargins(0, 6 if density == "compact" else 8, 0, 0)
         if persist:
-            self.settings.setValue("settings/appearance", requested_mode)
-            self.settings.setValue("settings/accent", accent)
-            self.settings.setValue("settings/density", density)
-            self._save_backend_preference("tema", resolved_mode)
+            self._persist_appearance(requested_mode, accent, density, resolved_mode)
         if hasattr(self, "sidebar"):
             self.sidebar.apply_appearance()
         if hasattr(self, "pages"):
@@ -717,6 +872,9 @@ class ControlCenterWindow(QMainWindow):
                 apply = getattr(page, "apply_appearance", None)
                 if callable(apply):
                     apply()
+        # Every layout of the window, visible or not: a page reached later
+        # must already be in the density the user chose.
+        apply_layout_density(self, density == "compact")
         settings_dialog = getattr(self, "settings_dialog", None)
         if settings_dialog is not None:
             settings_dialog.refresh_appearance()
@@ -826,6 +984,11 @@ class ControlCenterWindow(QMainWindow):
 
     def resizeEvent(self, event) -> None:  # noqa: N802 - Qt API name
         super().resizeEvent(event)
+        density_timer = getattr(self, "_density_timer", None)
+        if density_timer is not None:
+            # Pages reflow during the resize; tighten what they set once the
+            # drag settles rather than on every intermediate size.
+            density_timer.start()
         beacon = getattr(self, "console_beacon", None)
         if beacon is not None:
             beacon.reposition()
@@ -895,6 +1058,10 @@ class ControlCenterWindow(QMainWindow):
             # just clicked. Write it once the transition is on screen.
             QTimer.singleShot(0, self._remember_current_module)
             self._set_page_updates(page, True)
+            if key == "performance" and not getattr(self, "_first_run_pending", False):
+                QTimer.singleShot(
+                    900, lambda: self._introduce_feature(PERFORMANCE_VIEWS_FEATURE, "performance")
+                )
             # Hidden QStackedWidget pages may retain the geometry from their
             # construction pass.  Reflow only after the selected page owns the
             # real stack area, preserving desktop layouts on wide windows.
@@ -959,7 +1126,7 @@ class ControlCenterWindow(QMainWindow):
                     (time.perf_counter() - build_started) * 1000.0,
                 )
             dialog.language_changed.connect(self._apply_language)
-            dialog.appearance_changed.connect(self._apply_appearance)
+            dialog.appearance_changed.connect(self._queue_appearance)
             dialog.scale_changed.connect(self._apply_scale)
             dialog.smart_alerts_changed.connect(self.alert_monitor.set_enabled)
             dialog.diagnostics_changed.connect(self._set_detailed_diagnostics)
@@ -969,6 +1136,8 @@ class ControlCenterWindow(QMainWindow):
             dialog.gamepad_keypad_auto_show_changed.connect(self.gamepad.set_onscreen_keypad_auto_show)
             dialog.embedded_terminal_changed.connect(self.set_embedded_terminal_enabled)
             dialog.console_auto_hide_changed.connect(self.set_console_auto_hide)
+            dialog.gddr6_manual_changed.connect(self._set_gddr6_manual_override)
+            dialog.vrm_manual_changed.connect(self._set_vrm_manual)
             dialog.tour_requested.connect(self._tour_requested_from_settings)
             self.settings_dialog = dialog
         dialog = self.settings_dialog
@@ -1039,8 +1208,17 @@ class ControlCenterWindow(QMainWindow):
             self._gamepad_suppress_history = False
 
     def gamepad_cycle_section(self, delta: int) -> None:
-        """Cycle the sidebar with LB/RB without replacing mouse navigation."""
-        order = [key for key in self.sidebar.buttons if key in self.pages or key == "settings"]
+        """Walk the sidebar's modules with LB/RB, wrapping at either end.
+
+        Only modules: Settings is a dialog with its own button (Menu), and a
+        bumper that opened it on the way from Firmware back round to the
+        Dashboard stopped the walk behind a modal. A module the sidebar is
+        not showing is not a stop either.
+        """
+        order = [
+            key for key, button in self.sidebar.buttons.items()
+            if key in self.pages and not button.isHidden()
+        ]
         if not order:
             return
         current = self.current_page_key if self.current_page_key in order else order[0]
@@ -1048,14 +1226,14 @@ class ControlCenterWindow(QMainWindow):
         self.navigate(target)
 
     def gamepad_toggle_sidebar(self) -> None:
-        """Toggle the sidebar from the controller Menu/Start button."""
+        """Toggle the sidebar from the controller View/Select button."""
         if not hasattr(self, "sidebar"):
             return
         self._sidebar_auto_collapsed = False
         self.sidebar.set_collapsed(not self.sidebar.collapsed)
 
     def gamepad_open_settings(self) -> None:
-        """Open layout/preferences from the controller View/Select button."""
+        """Open Settings from the controller Menu/Start button."""
         self._open_settings_dialog("general")
 
     def gamepad_go_dashboard(self) -> None:
@@ -1067,12 +1245,82 @@ class ControlCenterWindow(QMainWindow):
             if gamepad is not None:
                 gamepad.defer_focus_current_scope()
 
+    def open_update_dialog(self) -> None:
+        """What is new in the latest release, and the update to it."""
+        from .components.update_dialog import UpdateDialog
+
+        dialog = getattr(self, "update_dialog", None)
+        if dialog is not None and dialog.isVisible():
+            dialog.raise_()
+            dialog.activateWindow()
+            return
+        tools = dict(getattr(self.dashboard.state, "preparation_tools", {}) or {})
+        dialog = UpdateDialog(
+            self,
+            source=getattr(self.dashboard, "_install_source", None),
+            os_family=str(tools.get("os_family") or ""),
+        )
+        dialog.restart_requested.connect(self._restart_application)
+        self.update_dialog = dialog
+        dialog.show()
+
+    def _restart_application(self) -> None:
+        """Start the updated copy the way this one was started, then leave.
+
+        The launcher runs ``python3 -m frontends.desktop.main`` from the
+        installation folder, which is where the package manager has just put
+        the new files. The new process waits a moment so this window has
+        closed before the next one opens.
+        """
+        import sys
+
+        from PyQt6.QtCore import QProcess
+
+        arguments = list(getattr(sys, "orig_argv", [])[1:]) or list(sys.argv)
+        started = QProcess.startDetached(
+            "/bin/sh",
+            ["-c", 'sleep 1; exec "$@"', "bc250-control-center-restart", sys.executable, *arguments],
+            os.getcwd(),
+        )
+        if isinstance(started, tuple):
+            started = started[0]
+        if started:
+            self.close()
+
+    def _set_gddr6_manual_override(self, enabled: bool) -> None:
+        """Settings › Telemetry: sample GDDR6 without the SMU channel check."""
+        from .core.gddr6_monitor import gddr6_monitor_for
+
+        gddr6_monitor_for(self.controller).set_manual_override(bool(enabled))
+
+    def _set_vrm_manual(self, enabled: bool) -> None:
+        """Settings › Telemetry: Power delivery rails shown even undetected."""
+        dashboard = getattr(self, "pages", {}).get("dashboard")
+        setter = getattr(dashboard, "set_vrm_manual", None)
+        if callable(setter):
+            setter(bool(enabled))
+
     def _set_gamepad_navigation_enabled(self, enabled: bool) -> None:
         self._gamepad_navigation_enabled = bool(enabled)
         if self._gamepad_navigation_enabled:
             self.gamepad.start()
         else:
             self.gamepad.stop()
+
+    def _workflow_finished(self, _result: object, _code: int) -> None:
+        """A terminal workflow ended: whatever it installed or removed is real now."""
+        invalidate = getattr(self.controller, "invalidar_estado_herramientas", None)
+        if callable(invalidate):
+            try:
+                invalidate()
+            except Exception:
+                logger.debug("Could not reset the tool inventory cache", exc_info=True)
+        self._state_cache.invalidate()
+        self.dashboard.refresh_now()
+        page = self.stack.currentWidget()
+        refresh = getattr(page, "refresh", None)
+        if page is not self.dashboard and callable(refresh):
+            refresh()
 
     def closeEvent(self, event) -> None:  # noqa: N802 - Qt API name
         gamepad = getattr(self, "gamepad", None)
@@ -1087,6 +1335,25 @@ class ControlCenterWindow(QMainWindow):
                 event.ignore()
                 return
 
+        # A USB drive being erased or written must not be abandoned halfway:
+        # it would be neither what it was nor a working update kit.
+        firmware_page = getattr(self, "firmware_page", None)
+        if firmware_page is not None:
+            blocker = firmware_page.close_blocker()
+            if blocker:
+                from .pages.firmware import confirm_close_while_writing
+
+                confirm_close_while_writing(self, blocker)
+                event.ignore()
+                return
+            firmware_page.stop_for_close()
+
+        # Committed to closing: a recorder that keeps sampling would keep a
+        # backend read in flight and make the wait below run to its deadline.
+        performance_page = getattr(self, "performance_page", None)
+        if performance_page is not None:
+            performance_page.stop_recording()
+
         outstanding = self._outstanding_background_work()
         if outstanding and not self._waited_long_enough_to_close():
             event.ignore()
@@ -1100,6 +1367,9 @@ class ControlCenterWindow(QMainWindow):
         host = getattr(self, "console_host", None)
         if host is not None:
             host.uninstall()
+        watch = getattr(self, "workflow_watch", None)
+        if watch is not None:
+            watch.uninstall()
         if console is not None:
             console.shutdown()
         # Last chance to let a pool worker leave ``operation()`` while Python is

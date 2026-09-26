@@ -63,7 +63,8 @@ _RULES = (
     ),
     _Rule(
         "BC250-AUTH-002",
-        (r"not authorized", r"authentication.*(?:cancel|fail|dismiss)", r"authorization.*(?:cancel|fail|dismiss)"),
+        (r"not authorized", r"authentication.*(?:cancel|fail|dismiss)", r"authorization.*(?:cancel|fail|dismiss)",
+         r"sudo: .*(?:timed out reading password|a password is required|incorrect password)"),
         "Administrator authorization was not completed.",
         "The password dialog was cancelled, closed, timed out, or rejected the supplied password.",
         "Run the action again and finish the administrator password dialog. No hardware change was applied.",
@@ -91,7 +92,8 @@ _RULES = (
     ),
     _Rule(
         "BC250-PROTOCOL-001",
-        (r"protocol.*incompat", r"version mismatch", r"expected protocol", r"stale.*helper"),
+        (r"protocol.*incompat", r"version mismatch", r"expected protocol", r"stale.*helper",
+         r"helper is older than this application"),
         "The interface and protected helper are different versions.",
         "An older Desktop or Decky component is still running after an update, or only part of the application was replaced.",
         "Reinstall the current build and restart the application. Restart Decky Loader too when the Quick Access panel is affected.",
@@ -235,14 +237,19 @@ _RULES = (
     ),
     _Rule(
         "BC250-CONFIG-001",
-        (r"toml.*(?:invalid|parse|validation|error)", r"governor toml", r"\[gpu\]", r"\[frequency-range\]", r"\[[a-z-]+\] section", r"duplicate \[", r"safe-?point.*not present", r"missing mhz", r"voltage decreases", r"conflicting voltage", r"section is invalid", r"exactly one \[", r"changed during", r"yaml.*(?:invalid|parse|validation|error)", r"json.*(?:invalid|parse|decode)", r"configuration.*(?:invalid|malformed)", r"invalid .*(?:toml|action|value|entry|table|key)", r"must be boolean", r"must be smu or kernel", r"must use frequency=", r"needs set-method", r"compatibility values are invalid", r"must be unchanged, default, or one of"),
+        (r"toml.*(?:invalid|parse|validation|error)", r"governor toml", r"\[gpu\]", r"\[frequency-range\]", r"\[[a-z-]+\] section", r"duplicate \[", r"safe-?point.*not present", r"missing mhz", r"voltage decreases", r"conflicting voltage", r"section is invalid", r"exactly one \[", r"changed during", r"yaml.*(?:invalid|parse|validation|error)", r"json.*(?:invalid|parse|decode)", r"configuration.*(?:invalid|malformed)", r"invalid .*(?:toml|action|value|entry|table|key)", r"must be boolean", r"must be smu or kernel", r"must use frequency=", r"needs set-method", r"compatibility values are invalid", r"must be unchanged, default, or one of",
+         # An imported fan profile file that is not one, or not whole.
+         r"fan profile export", r"fan profile file", r"holds no fan profiles", r"fan profile in the file",
+         r"names a fan profile", r"fan curve in the file", r"fan profile (?:names|speeds) must"),
         "A configuration file is invalid or incomplete.",
         "A manual edit, older toolkit, interrupted write, or unsupported option left syntax or values the current component cannot read.",
         "Open the named file from the application, correct the first reported line or restore the module defaults, then apply the settings again.",
     ),
     _Rule(
         "BC250-RANGE-001",
-        (r"out of range", r"unsupported.*(?:profile|safe-point|mode|voltage level)", r"cannot exceed maximum", r"cannot be negative", r"requires positive", r"outside cyan's active", r"minimum cannot exceed", r"invalid lab level", r"must be (?:between|an? )", r"exceeds.*(?:limit|ceiling|ram)", r"invalid.*(?:frequency|voltage|target|mask)", r"the ui limits", r"outside the safe editor range", r"limits .* to \d", r"must not exceed", r"outside the supported", r"outside the reviewed"),
+        (r"out of range", r"unsupported.*(?:profile|safe-point|mode|voltage level)", r"cannot exceed maximum", r"cannot be negative", r"requires positive", r"outside cyan's active", r"minimum cannot exceed", r"invalid lab level", r"must be (?:between|an? )", r"exceeds.*(?:limit|ceiling|ram)", r"invalid.*(?:frequency|voltage|target|mask)", r"the ui limits", r"outside the safe editor range", r"limits .* to \d", r"must not exceed", r"outside the supported", r"outside the reviewed",
+         r"decky (?:gpu|fan|cpu) profile (?:names|speeds|range|values|bounds)", r"needs a unique known key",
+         r"needs exactly one profile list"),
         "The requested value is outside the supported range.",
         "The value does not match the active hardware table, available RAM, safe points, or the limits enforced by the selected backend.",
         "Choose a value currently offered by the application. Refresh first if another toolkit or a restart may have changed the live limits.",
@@ -342,6 +349,44 @@ _RULES = (
         "One part of BC250 Control Center passed a value that another part refuses. This is a defect in the application, not a problem with this machine or its hardware.",
         "Nothing on the hardware was changed. Copy this complete diagnostic and report it so the check can be fixed.",
     ),
+    # Firmware (BIOS) USB kits. Last on purpose: a full stick, a refused
+    # password or a lost connection keep the more precise rules above.
+    _Rule(
+        "BC250-FIRMWARE-001",
+        (r"does not match the reviewed file", r"larger than the reviewed file",
+         r"is missing from .*\.(?:zip|7z)", r"has an unexpected size", r"needs 7-zip",
+         r"could not unpack"),
+        "A firmware file could not be verified.",
+        "A file downloaded or unpacked for the USB is not byte for byte the one the catalog pins, or the tool that unpacks it is missing. Nothing was written to the USB.",
+        "Check the internet connection and prepare the USB again: the file is downloaded afresh. If the message asks for 7-Zip or bsdtar, install one of them first.",
+    ),
+    _Rule(
+        "BC250-FIRMWARE-002",
+        (r"custom boot logo", r"a logo can be added to", r"liblzma", r"\blogo\b", r"\bdxe\b",
+         r"compressed data", r"firmware format", r"flash region", r"picture this system can read",
+         r"picture file could not", r"jpeg the firmware reads", r"too much fine detail"),
+        "The boot logo could not be added.",
+        "The picture or the firmware did not pass the checks that make sure only the logo changes, so the USB was not touched.",
+        "Prepare the USB again, choose another picture, or remove the custom logo to prepare it with the firmware as published. The technical detail below says which check stopped it.",
+    ),
+    _Rule(
+        "BC250-USB-001",
+        (r"usb drive is no longer connected", r"different drive is now connected",
+         r"reports this drive as part of the system", r"not a kernel block device name",
+         r"unsafe kit path", r"uefi shell syntax character", r"unsafe file name for a uefi script",
+         r"preparation stamp"),
+        "The USB drive was not touched.",
+        "Right before erasing it, the drive no longer matched the one chosen, or it looked like part of the running system. Nothing on it was changed.",
+        "Plug the USB drive back in, choose it again on the Firmware (BIOS) page and prepare it again.",
+    ),
+    _Rule(
+        "BC250-USB-002",
+        (r"udisks2", r"formatted .*, not fat32", r"new fat32 partition did not appear",
+         r"could not write to the usb", r"could not read back", r"does not match what was written"),
+        "The USB drive could not be prepared.",
+        "Erasing, formatting or writing the USB drive stopped partway, so it is not a working update kit.",
+        "Close any window that shows the USB drive, unplug it, plug it back in and prepare it again. If it fails the same way, use another USB drive.",
+    ),
 )
 
 
@@ -350,6 +395,7 @@ _CONTEXT_FALLBACKS = (
     ("BC250-CPU-900", ("cpu", "smu"), "The CPU operation could not be completed.", "The CPU helper, detector, stress test, or live profile did not return a verified result.", "Refresh CPU status and repeat the guided detect, test, and save sequence."),
     ("BC250-CU-900", ("compute", "40cu", "wgp", "cu "), "The Compute Units operation could not be completed.", "The live topology, UMR backend, or persistence service did not return a verified result.", "Refresh the live CU map and repeat the guided sync, apply, test, and save sequence."),
     ("BC250-FAN-900", ("fan", "pwm"), "The fan operation could not be completed.", "The detected sensor, PWM channel, driver mode, or read-back did not accept the request.", "Refresh sensor detection and return the channel to Automatic before trying another manual value."),
+    ("BC250-USB-900", ("firmware usb",), "The USB drive could not be prepared.", "The download, the drive check or the writing did not finish.", "Plug the USB drive back in and prepare it again. The technical detail below says where it stopped."),
     ("BC250-DECKY-900", ("decky", "quick access"), "The Quick Access operation could not be completed.", "The Decky plugin, protected helper, or live Desktop configuration did not return a verified result.", "Open BC250 Control Center in Desktop Mode, repair Quick Access, then restart Decky Loader."),
 )
 

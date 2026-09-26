@@ -42,12 +42,10 @@ def main():
     host = Host()
     try:
         if args.action == "uninstall-check":
-            _, swap_file, _, unit_path = memory.swap_paths(host, host.state("memory"))
-            if any(host.path(path).exists() for path in (
-                STATE + "/acpi.json", STATE + "/telemetry.json",
-                memory.SERVICE_PATH, swap_file, memory.ZRAM, unit_path,
-            )):
-                raise SetupError("Restore BC250 swap, TTM and ACPI settings in Control Center before removing this package")
+            blockers, steps, commands = uninstall_blockers(host, memory, STATE)
+            if blockers:
+                print(uninstall_guidance(blockers, steps, commands), file=sys.stderr)
+                return 1
             return 0
         if readonly:
             memory_status = memory.status(host)
@@ -114,6 +112,73 @@ def main():
         print(f"ERROR: {exc}", file=sys.stderr)
         print("Setup was not confirmed. Existing user swap and original boot entries were not intentionally removed. Review status before retrying.", file=sys.stderr)
         return 1
+
+
+HELPER = "/usr/libexec/bc250-control-center/bc250-system-setup-helper"
+GIB = 1024 ** 3
+
+
+def uninstall_blockers(host, memory, state_dir):
+    """What this package still manages, and the command that puts each back.
+
+    Removing the package with any of these in place leaves a boot service
+    that calls a helper which no longer exists, or boot files nothing can
+    restore any more. The package manager is stopped, and told exactly what
+    to undo and how, instead of a bare "restore it first".
+    """
+    blockers, steps, commands = [], [], []
+    state = host.state("memory")
+    _, swap_file, _, unit_path = memory.swap_paths(host, state)
+    memory_files = (memory.SERVICE_PATH, swap_file, memory.ZRAM, unit_path, memory.SYSCTL)
+    if any(host.path(path).exists() for path in memory_files):
+        policy = str(state.get("policy") or "preserve")
+        if host.path(swap_file).exists():
+            size = host.path(swap_file).stat().st_size
+            in_use = swap_file in memory.swaps(host)
+            blockers.append(
+                f"Memory policy {policy} with a {round(size / GIB)} GiB swapfile at {swap_file}"
+                + (" (in use)" if in_use else "")
+            )
+        elif policy != "preserve":
+            blockers.append(f"Memory policy {policy}")
+        if state.get("ttm_pages") is not None:
+            ttm_gib = round(int(state["ttm_pages"]) * os.sysconf("SC_PAGE_SIZE") / GIB)
+            blockers.append(f"GPU memory limit (TTM) set to {ttm_gib} GiB")
+        if host.path(memory.SERVICE_PATH).exists():
+            blockers.append(f"Boot service {Path(memory.SERVICE_PATH).name}, which runs this helper")
+        ttm = "-1" if "ttm_original" in state else "0"
+        steps.append("Dashboard > Prepare BC250 system > Memory & Swap > Restore > Apply")
+        commands.append(f"sudo {HELPER} memory-apply --policy restore --ttm {ttm}")
+    if host.path(state_dir + "/acpi.json").exists():
+        blockers.append("CPU power management (ACPI) tables in the boot files")
+        steps.append("Dashboard > Prepare BC250 system > Compatibility > CPU power management > Uninstall")
+        commands.append(f"sudo {HELPER} acpi-uninstall")
+    if host.path(state_dir + "/telemetry.json").exists():
+        blockers.append("GPU telemetry correction")
+        commands.append(f"sudo {HELPER} telemetry-restore")
+    return blockers, steps, commands
+
+
+def uninstall_guidance(blockers, steps, commands):
+    lines = ["", "BC250 Control Center still manages these settings on this machine:"]
+    lines += [f"  - {item}" for item in blockers]
+    lines += [
+        "Removing the package now would leave them behind with nothing to undo them,",
+        "and a boot service that fails on every boot.",
+        "",
+        "Put them back first, then remove the package again.",
+    ]
+    if steps:
+        lines.append("  In Control Center:")
+        lines += [f"    {step}" for step in steps]
+    lines.append("  Or in a terminal:")
+    lines += [f"    {command}" for command in commands]
+    lines += [
+        "  If the swapfile was in use, the restore finishes on the next boot: restart,",
+        "  then run the removal again.",
+        "",
+    ]
+    return "\n".join(lines)
 
 
 if __name__ == "__main__":

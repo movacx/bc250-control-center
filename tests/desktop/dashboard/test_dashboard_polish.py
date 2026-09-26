@@ -92,6 +92,7 @@ def test_dashboard_displays_physical_clock_and_core_counts_without_duplicate_row
                     "nvme_hotspot_temperature_c": 68.85,
                     "board_temperature_c": 48,
                     "vrm_temperature_c": 49,
+                    "vrm_mos_temperature_c": 49,
                 },
             },
         )
@@ -99,8 +100,8 @@ def test_dashboard_displays_physical_clock_and_core_counts_without_duplicate_row
     # Graphics only: the processor reports its own temperature, and the drive
     # and the board are reported next to the fan that moves their heat.
     assert hero.details["temperature"].value.text() == "57"
-    assert hero.details["rail"].label.text() == tr("VRM")
-    assert hero.details["rail"].value.text() == "49.0"
+    assert hero.details["mos"].label.text() == tr("VRM MOS")
+    assert hero.details["mos"].value.text() == "49.0"
     assert page.cpu_card.details["temperature"].value.text() == "56.0"
     assert page.fan_card.details["board"].value.text() == "48.0"
     assert page.fan_card.details["nvme"].value.text() == "46.9"
@@ -323,7 +324,7 @@ def test_sidebar_no_longer_claims_system_protection(qtbot):
             label.text() in {tr("System protected"), tr("BC250 services ready")}
             for label in sidebar.findChildren(QLabel)
         )
-    assert len(sidebar.buttons) == 8
+    assert len(sidebar.buttons) == 9
 
 
 def test_compatibility_filter_ignores_incidental_mouse_wheel(qtbot):

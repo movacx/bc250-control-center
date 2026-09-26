@@ -4,11 +4,18 @@ import math
 from dataclasses import dataclass
 from itertools import pairwise
 
+#: The preset key of a manual slider value, kept like a named tier.
+CUSTOM_FAN_PRESET = "custom"
 FAN_PRESET_VALUES = {
     "quiet": 45,
     "balanced": 60,
     "cooling": 70,
     "maximum": 100,
+    # A speed set with the slider rather than a named tier. It is saved the
+    # same way, so the daemon restores it at login and the root service
+    # follows it from boot (as a "fixed" policy), until the fan is handed
+    # back to the BIOS.
+    CUSTOM_FAN_PRESET: 70,
 }
 FAN_CURVE_MIN_POINTS = 3
 FAN_CURVE_MAX_POINTS = 8

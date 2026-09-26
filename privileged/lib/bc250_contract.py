@@ -11,7 +11,7 @@ scope, and contains only data and pure functions.
 from __future__ import annotations
 
 CONTRACT_REVISION = 1
-QUICK_ACCESS_PROTOCOL = 16
+QUICK_ACCESS_PROTOCOL = 19
 CPU_SMU_HELPER_PROTOCOL = 8
 GOVERNOR_CONFIG_PROTOCOL = 6
 STEAMOS_GAME_HELPER_PROTOCOL = 21

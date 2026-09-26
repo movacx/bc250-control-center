@@ -44,6 +44,10 @@ class FakeRepository(Gddr6MemoryTempRepository):
     def _board_bios_version(self):
         return self._bios_version_value
 
+    def _external_memory_telemetry(self):
+        # The host's own /run/apu_telemetry.json must not leak into tests.
+        return getattr(self, "external_value", {"state": "", "chips": []})
+
     def _gddr6_temp_helper_path(self):
         return self._helper_path_value
 
@@ -254,3 +258,60 @@ def test_prepare_command_delegates_to_the_shared_checkout_orchestrator(tmp_path)
     assert GDDR6_MEMORY_TEMP_REPOSITORY in command
     assert GDDR6_MEMORY_TEMP_DIRECTORY in command
     assert title == "BC250 GDDR6 memory temperature"
+
+
+def test_status_carries_what_bc250_telemetrys_collector_published(tmp_path):
+    """No prompt and no SMU access: a world-readable file, read on every refresh."""
+    repo = FakeRepository(tmp_path)
+    repo.external_value = {"state": "active", "chips": [{"chip": 0}], "status": "ok"}
+
+    status = repo.estado_gddr6_memory_temp()
+
+    assert status["external"]["state"] == "active"
+
+
+def test_the_real_seam_reads_the_public_telemetry_file(tmp_path, monkeypatch):
+    import functools
+    import json
+
+    from bc250cc.infrastructure import gddr6_memory_temp_repository as module
+    from bc250cc.infrastructure.vrm_telemetry_reader import leer_memoria_telemetria
+
+    published = tmp_path / "apu_telemetry.json"
+    published.write_text(json.dumps({"memory": {"valid": False, "status": "starting"}}))
+    monkeypatch.setattr(
+        module, "leer_memoria_telemetria", functools.partial(leer_memoria_telemetria, published)
+    )
+
+    state = Gddr6MemoryTempRepository()._external_memory_telemetry()
+
+    assert state["state"] == "waiting"
+
+
+@pytest.mark.parametrize(
+    "published, guard, expected",
+    [
+        # This development board's own boot: the collector died on a wedged
+        # SMU and its daemon kept publishing an ever older, "stale" sample.
+        ("stale", {"state": "failed", "error": "queue 3 msg 0x05 timed out - SMU wedged, cold cycle"}, "interrupted"),
+        ("", {"state": "reading"}, "interrupted"),
+        ("stale", {"state": "ready"}, "stale"),
+        ("", None, ""),
+        # Running normally its guard flips to "reading" on every sample.
+        ("active", {"state": "reading"}, "active"),
+    ],
+)
+def test_a_collector_that_stopped_mid_operation_is_reported_as_interrupted(
+    tmp_path, monkeypatch, published, guard, expected
+):
+    import json
+
+    from bc250cc.infrastructure import gddr6_memory_temp_repository as module
+
+    guard_path = tmp_path / "patch-state.json"
+    if guard is not None:
+        guard_path.write_text(json.dumps(guard))
+    monkeypatch.setattr(module, "EXTERNAL_GUARD_PATH", guard_path)
+    monkeypatch.setattr(module, "leer_memoria_telemetria", lambda: {"state": published, "chips": []})
+
+    assert Gddr6MemoryTempRepository()._external_memory_telemetry()["state"] == expected

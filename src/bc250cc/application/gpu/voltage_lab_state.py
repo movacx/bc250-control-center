@@ -34,6 +34,9 @@ class VoltageLabState:
     maximum_voltage: int
     curve_error_count: int
     safety_valid: bool
+    #: The level whose curve the board runs point for point, or None for a
+    #: curve of its own. ``detected_level`` is only the nearest one.
+    applied_level: int | None = None
 
 
 def voltage_for_level(frequency: int, level: int, *, is_oberon: bool) -> int | None:
@@ -78,6 +81,28 @@ def _detected_level(
     return best_level
 
 
+def _applied_level(
+    current: Mapping[int, int], *, is_oberon: bool,
+    levels: Sequence[int], lab_frequencies: Sequence[int],
+) -> int | None:
+    """The level the curve is, exactly, or None.
+
+    Every point has to be one the levels define and carry that level's
+    voltage; the boost points above 2000 MHz may be missing, since the
+    +2000 MHz switch takes them out of the file.
+    """
+    known = {int(frequency) for frequency in lab_frequencies}
+    if not current or set(current) - known:
+        return None
+    for level in levels:
+        if all(
+            voltage_for_level(frequency, level, is_oberon=is_oberon) == int(voltage)
+            for frequency, voltage in current.items()
+        ):
+            return int(level)
+    return None
+
+
 def build_voltage_lab_state(
     state: Mapping[str, object], *, active_min_default: int = 500,
     active_max_default: int = 1500,
@@ -115,4 +140,7 @@ def build_voltage_lab_state(
         maximum_voltage=max(current.values(), default=0),
         curve_error_count=len(errors),
         safety_valid=bool(points) and not errors,
+        applied_level=_applied_level(
+            current, is_oberon=is_oberon, levels=levels, lab_frequencies=lab_frequencies
+        ),
     )

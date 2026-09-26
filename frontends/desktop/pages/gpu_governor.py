@@ -7,7 +7,7 @@ from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QIntValidator
 from PyQt6.QtWidgets import (
     QAbstractItemView,
@@ -100,6 +100,7 @@ from ..components.system_setup_controls import (
     update_memory_controls,
     vram_size_label,
 )
+from ..components.toast import show_toast
 from ..components.voltage_lab_drawer import VoltageLabDrawer
 from ..components.widgets import IconBadge, InfoDialog, PillLabel, apply_shadow, icon
 from ..core.action_session import ActionSession
@@ -466,7 +467,7 @@ class DependencyPreparationDialog(QDialog):
             )
         else:
             automatic_text = tr(
-                "Install or update all required BC250 components. With Cyan selected, its configuration and frequency-reporting fix are prepared now. Prepare does not start the governor: use Enable service afterward to start it now and at every boot."
+                "Install or update all required BC250 components. With Cyan selected, its configuration and frequency-reporting fix are prepared now. Prepare does not start the governor: use Start governor afterward to start it now and at every boot."
             )
         automatic_detail = QLabel(
             "Runtime · GPU"
@@ -1769,6 +1770,9 @@ class GpuProfileEditDialog(QDialog):
 class GpuGovernorPage(QWidget):
     """Complete GPU control studio using the validated cyan-skillfish governor backend."""
 
+    #: True while a hardware operation is in flight, False once it has ended.
+    operation_busy_changed = pyqtSignal(bool)
+
     GOVERNOR_CONFIG_PATH = Path("/etc/cyan-skillfish-governor-smu/config.toml")
     OBERON_CONFIG_PATH = Path("/etc/oberon-config.yaml")
     SELECTED_RANGE_FLOOR = 1000
@@ -1824,9 +1828,13 @@ class GpuGovernorPage(QWidget):
         self._voltage_workspace_columns = 0
         self._voltage_profile_columns = 0
         self._voltage_custom_values: dict[int, int] = {}
+        #: Points typed into the custom editor and not applied yet. The rest
+        #: of the custom values follow the curve on disk.
+        self._voltage_custom_edited: set[int] = set()
         self._voltage_editable_frequencies: set[int] = set()
         self._voltage_profile_frequencies: set[int] = set()
         self._voltage_detected_level = 0
+        self._voltage_applied_level: int | None = None
         self._last_operation_summary = "No hardware command has been executed."
         self._detailed_diagnostics = False
         self._profile_backend = ""
@@ -2549,12 +2557,12 @@ class GpuGovernorPage(QWidget):
         self.runtime_actions_grid.setHorizontalSpacing(8)
         self.runtime_actions_grid.setVerticalSpacing(8)
 
-        self.enable_button = QPushButton(tr("Enable service"))
+        self.enable_button = QPushButton(tr("Start governor"))
         self.enable_button.setProperty("compactAction", True)
         self.enable_button.setIcon(icon("rocket_blue"))
         self.enable_button.clicked.connect(lambda: self._service_action("activar"))
 
-        self.disable_button = QPushButton(tr("Disable service"))
+        self.disable_button = QPushButton(tr("Stop governor"))
         self.disable_button.setProperty("dangerAction", True)
         self.disable_button.clicked.connect(lambda: self._service_action("desactivar"))
 
@@ -3117,13 +3125,10 @@ class GpuGovernorPage(QWidget):
     ) -> bool:
         token = self._action_gate.begin()
         if token is None:
-            self._show_info(
-                "GPU operation in progress",
-                "Wait for the current GPU operation to finish.",
-                tone="orange",
-            )
+            self._show_operation_in_progress()
             return False
         self._action_busy = True
+        self._set_operation_busy(True)
         control_states = tuple((control, control.isEnabled()) for control in controls)
         for control in controls:
             control.setEnabled(False)
@@ -3185,6 +3190,7 @@ class GpuGovernorPage(QWidget):
             session.finished()
             if not self._action_gate.busy:
                 self._action_busy = False
+                self._set_operation_busy(False)
 
         start_error: Exception | None = None
         try:
@@ -3202,13 +3208,51 @@ class GpuGovernorPage(QWidget):
         if not started:
             session.abort()
             self._action_busy = False
+            self._set_operation_busy(False)
             if start_error is None:
-                self._show_info(
-                    "GPU operation in progress",
-                    "Wait for the current GPU operation to finish.",
-                    tone="orange",
-                )
+                self._show_operation_in_progress()
         return started
+
+    def _set_operation_busy(self, active: bool) -> None:
+        """Show the small progress ring only while an operation is pending."""
+        text = "GPU operation in progress"
+        self.configuration_card.set_busy(active, text)
+        view = getattr(self, "_redesigned_gpu_view", None)
+        if view is not None:
+            view.set_operation_busy(active, text)
+        self.operation_busy_changed.emit(bool(active))
+
+    def _show_operation_in_progress(self) -> None:
+        """Ask the user to wait, and stop asking the moment they can act.
+
+        The request that was refused is not queued: once the running
+        operation ends, the dialog closes by itself and the control is free
+        to be used again.
+        """
+        pending = self._action_gate.busy
+        dialog = InfoDialog(
+            "GPU operation in progress",
+            "Wait for the current GPU operation to finish.",
+            "warning_orange",
+            self,
+            eyebrow="GPU GOVERNOR",
+            notice="",
+            tone="orange",
+            busy=pending,
+        )
+        if not pending:
+            dialog.exec()
+            return
+
+        def close_when_idle(active: bool) -> None:
+            if not active:
+                dialog.accept()
+
+        self.operation_busy_changed.connect(close_when_idle)
+        try:
+            dialog.exec()
+        finally:
+            self.operation_busy_changed.disconnect(close_when_idle)
 
     def _request_custom_range(self) -> None:
         minimum = self.minimum_control.value()
@@ -3593,7 +3637,12 @@ class GpuGovernorPage(QWidget):
                 action.removeprefix("cachyos_bc250_"), dialog_parent=dialog_parent
             )
             return
-        if action in {"fsr4_install", "fsr4_uninstall"}:
+        if action.startswith("fsr4_steam_option:"):
+            self._add_fsr4_steam_option(
+                action.partition(":")[2], dialog_parent=dialog_parent
+            )
+            return
+        if action in {"fsr4_install", "fsr4_uninstall", "fsr4_legacy_uninstall", "fsr4_launch"}:
             self._manage_fsr4_bc250(
                 action.removeprefix("fsr4_"), dialog_parent=dialog_parent
             )
@@ -3624,6 +3673,16 @@ class GpuGovernorPage(QWidget):
                 raise ValueError("Unsupported SteamOS graphics action.")
             self._manage_steamos_graphics(
                 graphics_action, dialog_parent=dialog_parent
+            )
+            return
+        if action.startswith("gfx1013_source_"):
+            self._manage_gfx1013_source(
+                action.removeprefix("gfx1013_source_"), dialog_parent=dialog_parent
+            )
+            return
+        if action.startswith("radv_async_"):
+            self._manage_radv_async(
+                action.removeprefix("radv_async_"), dialog_parent=dialog_parent
             )
             return
         if action in {"gfx1013_fedora_install", "gfx1013_fedora_uninstall"}:
@@ -3965,27 +4024,53 @@ class GpuGovernorPage(QWidget):
     def _manage_fsr4_bc250(
         self, action: str, *, dialog_parent: QWidget | None
     ) -> None:
-        install = action == "install"
-        fsr4_state = _dict(
-            _dict(self.current_state.get("tools")).get("fsr4")
-        )
-        source_build = bool(fsr4_state.get("source_build_supported"))
+        """FSR4 INT8 through the BC250 build of OptiScaler Client."""
+        if action == "launch":
+            self._run_backend_action(
+                lambda: self.controller.gestionar_fsr4_bc250("launch"),
+                lambda _result: GpuGovernorPage._record_preparation_result(
+                    self,
+                    "FSR4 · OptiScaler Client",
+                    "OptiScaler Client opened. Choose Scan Games, select games and press Install / update selected.",
+                ),
+                "Could not open OptiScaler Client",
+                controls=(),
+                error_parent=dialog_parent,
+            )
+            return
+        copy = {
+            "install": (
+                "Install FSR4 (OptiScaler Client)",
+                "Downloads the pinned BC250 build of OptiScaler Client, checks the published SHA-256 and every file inside, and installs it in your user folder. No password is needed and nothing outside your home folder changes. Games are only patched later, by you, from the client.",
+                "Install",
+                "blue",
+            ),
+            "uninstall": (
+                "Remove OptiScaler Client",
+                "Removes the client program only. The backups of every game it patched stay in ~/.config/OptiscalerClient-BC250. To put games back as they were, use Restore / recover selected in the client before removing it.",
+                "Remove client",
+                "orange",
+            ),
+            "legacy_uninstall": (
+                "Remove the old FSR4 V3 runtime",
+                "Removes the older per-game RADV runtime (dmorazasanchez V3) that the OptiScaler Client replaces. Remove its VK_DRIVER_FILES launch option from any game that still uses it.",
+                "Remove V3 runtime",
+                "orange",
+            ),
+        }.get(action)
+        if copy is None:
+            raise ValueError("Unsupported FSR4 action.")
+        title, body, confirm, tone = copy
         confirmation = ConfirmDialog(
-            "Install BC-250 FSR4 V3" if install else "Remove BC-250 FSR4 V3",
-            tr(
-                "This builds the official FSR4 V3 source in its Fedora 44 container with rootless Podman, validates it on this BC-250, and installs only a per-game Vulkan driver in your user folder. The first build can take several minutes and use substantial disk space. System Mesa is not modified."
-                if install and source_build
-                else "This optional per-game RADV runtime is experimental. It is installed only in your user data directory and does not replace system Mesa. Games can still hang, crash or reset the GPU."
-                if install
-                else "This removes only the per-user FSR4 V3 runtime. Remove its VK_DRIVER_FILES Steam launch option to return each game to system RADV."
-            ),
+            title,
+            tr(body),
             summary=(
-                (tr("Source"), "github.com/dmorazasanchez/bc250-fsr4"),
-                (tr("Scope"), tr("Per-user, per-game Vulkan ICD")),
-                (tr("System Mesa"), tr("Not modified")),
+                (tr("Source"), "github.com/daniel-h-0/bc250-fsr4-fork"),
+                (tr("Release"), "opticlient-v1.0.7-bc250.3"),
+                (tr("Scope"), tr("Your user folder; games only when you choose them")),
             ),
-            confirm_text="Install FSR4 V3" if install else "Remove FSR4 V3",
-            tone="orange",
+            confirm_text=confirm,
+            tone=tone,
             parent=dialog_parent or self,
         )
         if confirmation.exec() != QDialog.DialogCode.Accepted:
@@ -3994,18 +4079,199 @@ class GpuGovernorPage(QWidget):
             lambda: self.controller.gestionar_fsr4_bc250(action),
             lambda _result: GpuGovernorPage._record_preparation_result(
                 self,
-                "BC-250 FSR4 V3",
-                "Opened the per-game FSR4 V3 workflow. Use the emitted VK_DRIVER_FILES option only for games you want to test.",
+                "FSR4 · OptiScaler Client",
+                "Opened the FSR4 workflow in the terminal.",
             ),
-            "Could not manage BC-250 FSR4 V3",
+            "Could not manage FSR4",
+            controls=(),
+            error_parent=dialog_parent,
+        )
+
+    def _add_fsr4_steam_option(self, appid: str, *, dialog_parent: QWidget | None) -> None:
+        """Write the launch option that makes Proton load OptiScaler, after a confirm."""
+        from bc250cc.infrastructure.steam_launch_options import merge_dll_override
+
+        fsr4 = _dict(_dict(self.current_state.get("tools")).get("fsr4"))
+        games = list(fsr4.get("games") or ())
+        if not games:
+            # This page may not hold the dashboard's latest tools read yet;
+            # the list is only a few small files away.
+            from bc250cc.infrastructure.bc250_opticlient import opticlient_games
+
+            games = opticlient_games()
+        game = next(
+            (dict(item) for item in games if str(item.get("appid")) == str(appid)),
+            None,
+        )
+        if game is None:
+            return
+        dll = str(game.get("adapter") or "dxgi.dll").removesuffix(".dll")
+        before = str(game.get("launch_options") or "")
+        after = merge_dll_override(before, dll)
+        confirmation = ConfirmDialog(
+            "Add the launch option to Steam",
+            tr(
+                "Steam will start this game with the option that makes Proton load OptiScaler. "
+                "What you already had stays. Close Steam completely first; the previous "
+                "Steam settings file is kept beside it as a backup."
+            ),
+            summary=(
+                (tr("Game"), str(game.get("name") or appid)),
+                (tr("Now"), before or tr("(empty)")),
+                (tr("After"), after),
+            ),
+            confirm_text="Add to Steam",
+            tone="blue",
+            parent=dialog_parent or self,
+        )
+        if confirmation.exec() != QDialog.DialogCode.Accepted:
+            return
+        self._run_backend_action(
+            lambda: self.controller.gestionar_fsr4_bc250(f"steam_option:{appid}"),
+            lambda _result: GpuGovernorPage._record_preparation_result(
+                self,
+                "FSR4 · OptiScaler Client",
+                tr_format(
+                    "Added to Steam for {game}. Start it from Steam, choose DLSS, FSR or XeSS in its settings and press Insert.",
+                    game=str(game.get("name") or appid),
+                ),
+            ),
+            "Could not change the Steam launch option",
+            controls=(),
+            error_parent=dialog_parent,
+        )
+
+    def _manage_gfx1013_source(
+        self, action: str, *, dialog_parent: QWidget | None
+    ) -> None:
+        """The independent GFX1013 source build: confirm, then run it in the terminal."""
+        copy = {
+            "install": (
+                "Build and install the GFX1013 fix",
+                "This builds DryhoppedIPA's V33 amdgpu patches for the running kernel and RADV with the compute-queue patch, then installs them beside the stock driver and Mesa, which stay untouched. amdgpu is then loaded by a small boot service: if a boot with the fix does not reach the desktop, the next boot uses the stock driver and switches the fix off by itself. To skip it for one boot, press e in the boot menu and add bc250.gfx1013=0. Building needs your password, an internet connection and 15-30 minutes.",
+                "Build and install",
+                "orange",
+            ),
+            "rebuild": (
+                "Rebuild for this kernel",
+                "The kernel was updated, so the patched module has to be built again for it. The private RADV stays as it is. This takes a few minutes and a restart.",
+                "Rebuild",
+                "blue",
+            ),
+            "enable": (
+                "Switch the GFX1013 fix on",
+                "The patched driver is used again from the next boot, with the same automatic fallback if that boot fails.",
+                "Switch on",
+                "blue",
+            ),
+            "disable": (
+                "Switch the GFX1013 fix off",
+                "The stock amdgpu and system Mesa are used from the next boot. The fix stays installed and can be switched on again.",
+                "Switch off",
+                "blue",
+            ),
+            "uninstall": (
+                "Remove the GFX1013 fix",
+                "Removes the patched module, the private RADV and the boot service, and rebuilds the initramfs. The stock driver is used from the next boot.",
+                "Remove",
+                "orange",
+            ),
+        }.get(action)
+        if copy is None:
+            raise ValueError("Unsupported GFX1013 source-build action.")
+        title, body, confirm, tone = copy
+        confirmation = ConfirmDialog(
+            title,
+            tr(body),
+            summary=(
+                (tr("Source"), "github.com/DryhoppedIPA/bc250-gfx1013-fix"),
+                (tr("Stock driver"), tr("Kept; used whenever the fix is off or fails")),
+                (tr("Restart"), tr("Required")),
+            ),
+            confirm_text=confirm,
+            tone=tone,
+            parent=dialog_parent or self,
+        )
+        if confirmation.exec() != QDialog.DialogCode.Accepted:
+            return
+        self._run_backend_action(
+            lambda: self.controller.gestionar_gfx1013_source(action),
+            lambda _result: GpuGovernorPage._record_preparation_result(
+                self,
+                "GFX1013 fix",
+                "Opened the GFX1013 source-build workflow in the terminal.",
+            ),
+            "Could not run the GFX1013 source build",
+            controls=(),
+            error_parent=dialog_parent,
+        )
+
+    def _manage_radv_async(
+        self, action: str, *, dialog_parent: QWidget | None
+    ) -> None:
+        """The RADV-only async compute: confirm what changes, then run it in the terminal."""
+        copy = {
+            "install": (
+                "Build and install async compute",
+                "This builds RADV with the GFX1013 compute-queue patch from tri3gubki-ops' Bazzite release and installs it as a second Vulkan driver beside the system Mesa, which stays untouched. Kernel 7.2 or newer needs no patched amdgpu for it: its amdgpu is the one that release runs on. New sessions use it: log out and back in, and games need no launch options. If the desktop does not come back, press e in the boot menu and add bc250.async=0. Building needs your password, an internet connection and 10-20 minutes.",
+                "Build and install",
+                "orange",
+            ),
+            "enable": (
+                "Switch async compute on",
+                "Sessions started from now on use the patched RADV. Log out and back in to apply.",
+                "Switch on",
+                "blue",
+            ),
+            "disable": (
+                "Switch async compute off",
+                "Sessions started from now on use the system driver. The patched RADV stays installed, and one game can still use it with the launch option bc250cc-async-compute run %command%.",
+                "Switch off",
+                "blue",
+            ),
+            "uninstall": (
+                "Remove async compute",
+                "Removes the patched RADV, its test tools and the session switch. The system driver is used from the next login.",
+                "Remove",
+                "orange",
+            ),
+        }.get(action)
+        if action in {"status", "test"}:
+            copy = None
+        elif copy is None:
+            raise ValueError("Unsupported async-compute action.")
+        if copy is not None:
+            title, body, confirm, tone = copy
+            confirmation = ConfirmDialog(
+                title,
+                tr(body),
+                summary=(
+                    (tr("Source"), "github.com/tri3gubki-ops/bc250-async-compute-bazzite"),
+                    (tr("System Mesa"), tr("Kept untouched; used whenever this is off")),
+                    (tr("Apply"), tr("Log out and back in")),
+                ),
+                confirm_text=confirm,
+                tone=tone,
+                parent=dialog_parent or self,
+            )
+            if confirmation.exec() != QDialog.DialogCode.Accepted:
+                return
+        self._run_backend_action(
+            lambda: self.controller.gestionar_radv_async(action),
+            lambda _result: GpuGovernorPage._record_preparation_result(
+                self,
+                "Async compute",
+                "Opened the async-compute workflow in the terminal.",
+            ),
+            "Could not run the async-compute workflow",
             controls=(),
             error_parent=dialog_parent,
         )
 
     def _open_fsr4_upstream(self, *, dialog_parent: QWidget | None) -> None:
-        """Open the upstream source/Docker guide without running an installer."""
+        """Open the fork's step-by-step guide without running anything."""
         opened, message = open_external_url(
-            "https://github.com/dmorazasanchez/bc250-fsr4"
+            "https://github.com/daniel-h-0/bc250-fsr4-fork/blob/v4/docs/optiscaler-client.md"
         )
         if opened:
             return
@@ -4468,8 +4734,30 @@ class GpuGovernorPage(QWidget):
     def open_voltage_lab(self) -> None:
         self._sync_voltage_lab(self.current_state)
         self.page_stack.setCurrentWidget(self.overview_page)
+        self.voltage_lab_drawer.set_profile(self._voltage_opening_level())
         self._sync_voltage_drawer()
         self.voltage_lab_drawer.show_animated()
+
+    def _voltage_opening_level(self) -> int:
+        """The level the laboratory opens on: what the board runs now.
+
+        It used to open on whatever was chosen last, +10 mV after a start,
+        so a +30 mV curve that had been saved looked as if it had not been,
+        and Review and apply would have taken it back down to +10.
+        """
+        if self._voltage_custom_edited:
+            # Values typed and not applied yet are shown, not dropped.
+            return -1
+        applied = self._voltage_applied_level
+        if applied in self.voltage_lab_drawer.profile_buttons:
+            return int(applied)
+        if applied == 0:
+            # The packaged curve: nothing is boosted, so the first level is
+            # offered as the proposal, as before.
+            return 1
+        # A curve of its own, or a level the drawer has no button for: the
+        # custom table shows it point by point.
+        return -1
 
     def gamepad_focus_scope(self) -> QWidget:
         if self.voltage_lab_drawer.is_open():
@@ -4517,9 +4805,23 @@ class GpuGovernorPage(QWidget):
         self._voltage_editable_frequencies = set(state.editable_frequencies)
         self._voltage_profile_frequencies = set(state.profile_frequencies)
         self._voltage_detected_level = state.detected_level
+        self._voltage_applied_level = state.applied_level
 
-        for frequency, voltage in state.custom_defaults:
-            self._voltage_custom_values.setdefault(frequency, voltage)
+        # The custom editor starts from the curve on disk and follows it: a
+        # value set once used to stay forever, so after another level was
+        # applied, Custom offered the old curve and applying it undid the
+        # level without saying so. Only points typed and not applied keep
+        # what was typed.
+        edited = {
+            frequency: voltage
+            for frequency, voltage in self._voltage_custom_values.items()
+            if frequency in self._voltage_custom_edited
+        }
+        self._voltage_custom_values = {
+            frequency: edited.get(frequency, voltage)
+            for frequency, voltage in state.custom_defaults
+        }
+        self._voltage_custom_edited &= set(self._voltage_custom_values)
         self._voltage_lab_initialized = True
 
         # The drawer is the only voltage surface. The page this method used to
@@ -4593,6 +4895,7 @@ class GpuGovernorPage(QWidget):
         user's fingers mid-edit — and takes the keypad's target with it.
         """
         self._voltage_custom_values[int(frequency)] = int(value)
+        self._voltage_custom_edited.add(int(frequency))
 
     def _request_apply_voltage_curve_from_drawer(self) -> None:
         self._request_apply_voltage_curve(
@@ -4728,6 +5031,8 @@ class GpuGovernorPage(QWidget):
             return self.controller.aplicar_laboratorio_voltaje_gpu(level)
 
         def success(output: object) -> None:
+            # What was typed is on disk now; the editor follows the file again.
+            self._voltage_custom_edited.clear()
             self._last_operation_summary = f"Applied GPU voltage {profile_label} from the integrated Voltage Curve Studio."
             self.last_operation_line.set_values(
                 "Voltage curve", self._last_operation_summary
@@ -5657,7 +5962,13 @@ class GpuGovernorPage(QWidget):
         *,
         tone: str = "blue",
         parent: QWidget | None = None,
+        modal: bool | None = None,
     ) -> None:
+        # Outcomes go to a toast; warnings and errors that ask for something
+        # before carrying on stay a dialog.
+        if not (tone in {"orange", "red"} if modal is None else modal):
+            show_toast(parent or self, title, message, tone=tone)
+            return
         icons = {
             "red": "warning_orange",
             "orange": "warning_orange",

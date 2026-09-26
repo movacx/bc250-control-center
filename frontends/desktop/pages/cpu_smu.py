@@ -41,6 +41,7 @@ from ..components.responsive import (
     configure_responsive_scroll_area,
     effective_viewport_width,
 )
+from ..components.toast import show_toast
 from ..components.widgets import IconBadge, InfoDialog, apply_shadow, icon
 from ..core.cpu_persistence_plan import (
     CpuPersistencePlan,
@@ -61,6 +62,7 @@ from ..core.external_links import open_external_url
 from ..core.state import collect_named_sources, state_cache_for
 from ..i18n import tr, tr_format
 from ..theme import COLORS
+from .cpu_control_view import MANUAL_SCALE_HINT
 
 logger = logging.getLogger(__name__)
 
@@ -286,18 +288,6 @@ class CpuValueField(QFrame):
         self.input.setValidator(QIntValidator(self.minimum, self.maximum, self.input))
 
 
-class _FixedScrollArea(QScrollArea):
-    """A scroll area whose viewport does not slide on the mouse wheel.
-
-    Hiding the scrollbar (``ScrollBarAlwaysOff``) only stops it from being
-    drawn; ``QScrollArea`` still scrolls on wheel input underneath. The CPU
-    workspace no longer needs either, so wheel input is dropped here instead.
-    """
-
-    def wheelEvent(self, event) -> None:  # noqa: N802 - Qt API name
-        event.ignore()
-
-
 class CpuSmuPage(QWidget):
     """CPU / SMU control restyled to mirror the GPU governor studio layout."""
 
@@ -351,13 +341,13 @@ class CpuSmuPage(QWidget):
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
-        scroll = _FixedScrollArea()
+        scroll = QScrollArea()
         self.scroll = scroll
         self.content = QWidget()
+        # A maximized window fits the whole workspace, so no scrollbar shows;
+        # a compact window keeps every card reachable with the wheel and the
+        # scrollbar, exactly like the GPU workspace.
         configure_responsive_scroll_area(scroll, self.content)
-        # The redesigned CPU workspace no longer scrolls at all; only this
-        # page opts out, not every page sharing the helper above.
-        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         # Long translated runtime labels must wrap inside the selected layout;
         # they must not enlarge the complete vertically scrolling page.
         self.content.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
@@ -881,12 +871,7 @@ class CpuSmuPage(QWidget):
         scale_header.setSpacing(8)
         self.scale_override_check = QCheckBox(tr("Use manual scale"))
         self.scale_override_check.setChecked(False)
-        self.scale_override_check.setEnabled(False)
-        self.scale_override_check.setToolTip(
-            tr(
-                "Run a verified automatic live configuration first. Manual scale unlocks only for that detection session."
-            )
-        )
+        self.scale_override_check.setToolTip(tr(MANUAL_SCALE_HINT))
         self.scale_override_check.toggled.connect(self._on_scale_override_toggled)
         self.scale_control.setEnabled(False)
         scale_header.addWidget(self.scale_override_check)
@@ -904,9 +889,7 @@ class CpuSmuPage(QWidget):
         self.apply_button.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         scale_layout.addWidget(self.apply_button)
 
-        self.scale_test_status = QLabel(tr(
-            "Apply an automatic live configuration first to unlock manual scale."
-        ))
+        self.scale_test_status = QLabel(tr(MANUAL_SCALE_HINT))
         self.scale_test_status.setProperty("fieldHint", True)
         self.scale_test_status.setWordWrap(True)
         scale_layout.addWidget(self.scale_test_status)
@@ -1262,17 +1245,6 @@ class CpuSmuPage(QWidget):
         self._update_staged_target()
 
     def _on_scale_override_toggled(self, checked: bool) -> None:
-        if checked and not self._manual_scale_available:
-            self.scale_override_check.blockSignals(True)
-            self.scale_override_check.setChecked(False)
-            self.scale_override_check.blockSignals(False)
-            self.scale_control.setEnabled(False)
-            self.vid_control.setEnabled(True)
-            self.apply_button.setText(tr("Apply configuration + automatic scale"))
-            self.scale_test_status.setText(tr(
-                "Apply an automatic live configuration first to unlock manual scale."
-            ))
-            return
         # Never shrink the validator around an old detection result. A dynamic
         # QIntValidator can silently leave/clamp stale text and was the source
         # of the confusing "typed -30, applied -33" behavior. Keep the real
@@ -1294,32 +1266,24 @@ class CpuSmuPage(QWidget):
             self._update_staged_target()
 
     def _set_manual_scale_available(self, available: bool) -> None:
-        """Expose manual scale only after a verified detector run this boot."""
+        """Record whether this boot has a tested result to compare against.
+
+        Manual scale no longer waits for one. It used to unlock only after
+        a preset had run, which is what a tester asked about: typing a scale
+        is the manual route, and it is now stress-tested in the detector's
+        own steps instead of needing a detection first.
+        """
         self._manual_scale_available = bool(available)
         running = self.process is not None and self.process.state() != QProcess.ProcessState.NotRunning
-        if not self._manual_scale_available:
-            if self.scale_override_check.isChecked():
-                self.scale_override_check.setChecked(False)
-            self.scale_override_check.setEnabled(False)
-            self.scale_control.setEnabled(False)
-            self.vid_control.setEnabled(not running)
-            self.scale_override_check.setToolTip(tr(
-                "Run a verified automatic live configuration first. Manual scale unlocks only for that detection session."
-            ))
-            self.scale_test_status.setText(tr(
-                "Apply an automatic live configuration first to unlock manual scale."
-            ))
-            return
-
         self.scale_override_check.setEnabled(not running)
-        self.scale_override_check.setToolTip(tr(
-            "Automatic live configuration verified. You can now test an exact manual scale for this session."
-        ))
+        self.scale_override_check.setToolTip(tr(MANUAL_SCALE_HINT))
         if not self.scale_override_check.isChecked():
             self.scale_control.setEnabled(False)
             self.vid_control.setEnabled(not running)
             self.scale_test_status.setText(tr(
                 "Automatic live configuration verified. Manual scale is now available."
+                if self._manual_scale_available
+                else MANUAL_SCALE_HINT
             ))
 
     def _profile_name_for_values(self, frequency: int, vid: int, temperature: int) -> str:
@@ -1431,14 +1395,14 @@ class CpuSmuPage(QWidget):
             self._pending_live_temperature = None
             self._pending_manual_direct = False
             self._set_running(False, success=False)
-            self._show_info("CPU operation in progress", "Wait for the current CPU operation to finish.", tone="orange")
+            self._show_info("CPU operation in progress", "Wait for the current CPU operation to finish.", tone="orange", modal=False)
 
     def _request_apply(self, frequency: int, vid: int, temperature: int) -> None:
         if self.process is not None and self.process.state() != QProcess.ProcessState.NotRunning:
             self._show_info(
                 "CPU operation in progress",
                 "Wait for the current process to finish before applying another profile.",
-                tone="orange",
+                tone="orange", modal=False,
             )
             return
         dialog = ConfirmDialog(
@@ -1474,7 +1438,7 @@ class CpuSmuPage(QWidget):
             self._show_info(
                 "CPU operation in progress",
                 "Wait for the current process to finish before applying another profile.",
-                tone="orange",
+                tone="orange", modal=False,
             )
             return
         try:
@@ -1489,14 +1453,17 @@ class CpuSmuPage(QWidget):
         estimated_vid = analysis.get("estimated_vid")
         dialog = ConfirmDialog(
             "Apply temporary CPU OC with manual scale",
-            "This bypasses automatic scale detection and applies the exact frequency and scale shown below. "
-            "An unstable value can freeze or reset the board. Save open work before continuing.",
+            "This stress-tests the exact scale below the way automatic detection does: "
+            "from 3500 MHz up to the frequency shown, 100 MHz at a time, ten seconds of "
+            "full load each, stopping at the first step that throttles. The highest step "
+            "that held stays applied. An unstable value can still freeze or reset the "
+            "board. Save open work before continuing.",
             summary=(
                 ("Frequency", f"{frequency} MHz"),
                 ("Manual scale", str(scale)),
                 ("Estimated VID", f"~{estimated_vid} mV" if estimated_vid is not None else "Not available"),
                 ("Temperature limit", f"{temperature} °C"),
-                ("Persistence", "Temporary now — boot saving requires valid detector evidence"),
+                ("Persistence", "Temporary now — the tested result can then be saved for boot"),
             ),
             confirm_text="Authenticate and apply manual OC",
             tone="red",
@@ -1504,13 +1471,19 @@ class CpuSmuPage(QWidget):
         )
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
-        self._pending_cpu_target = None
-        self._pending_live_scale = int(scale)
-        self._pending_live_frequency = int(frequency)
-        self._pending_live_temperature = int(temperature)
-        self._pending_manual_direct = True
+        # Recorded like a detection when it finishes: the steps are the
+        # detector's own, only the scale is held instead of searched.
+        self._pending_cpu_target = {
+            "frequency": int(frequency),
+            "temperature": int(temperature),
+            "manual_scale": int(scale),
+        }
+        self._pending_live_scale = None
+        self._pending_live_frequency = None
+        self._pending_live_temperature = None
+        self._pending_manual_direct = False
         self._build_and_start_process(
-            lambda: self.controller.comando_cpu_oc_manual_embebido(
+            lambda: self.controller.comando_cpu_oc_manual_verificado_embebido(
                 frequency, scale, temperature, True
             ),
             f"Manual CPU OC {frequency} MHz / scale {scale} / {temperature} °C",
@@ -1522,7 +1495,7 @@ class CpuSmuPage(QWidget):
             self._show_info(
                 "CPU operation in progress",
                 "Wait for the current process to finish before testing another CPU scale.",
-                tone="orange",
+                tone="orange", modal=False,
             )
             return
         if not self.scale_override_check.isChecked():
@@ -1655,7 +1628,7 @@ class CpuSmuPage(QWidget):
             self._show_info(
                 "CPU operation in progress",
                 "Wait for the current process to finish before changing CPU persistence.",
-                tone="orange",
+                tone="orange", modal=False,
             )
             return
         try:
@@ -1801,7 +1774,7 @@ class CpuSmuPage(QWidget):
             self._show_info(
                 "CPU operation in progress",
                 "Wait for the current CPU operation to finish before unlocking cores.",
-                tone="orange",
+                tone="orange", modal=False,
             )
             return
         if not self.current_state.get("core_unlock_repository_ready", False):
@@ -2028,12 +2001,21 @@ class CpuSmuPage(QWidget):
                     # measured result, never the request, as the applied OC.
                     remember_applied_frequency(detected_frequency)
                     detected_scale = int(snapshot.get("scale", self.scale_control.value()))
-                    self.scale_override_check.setChecked(False)
+                    manual_scale = cpu_target.get("manual_scale")
+                    if manual_scale is None:
+                        self.scale_override_check.setChecked(False)
                     self._set_manual_scale_available(True)
                     self.scale_control.setRange(-50, 0)
                     self.scale_control.setValue(detected_scale)
                     self.scale_test_status.setText(
                         tr_format(
+                            "Manual scale {scale} held its stress test up to {frequency} MHz (requested {requested} MHz). This tested result can now be saved for boot.",
+                            frequency=snapshot.get("frequency", "--"),
+                            scale=detected_scale,
+                            requested=cpu_target.get("frequency", "--"),
+                        )
+                        if manual_scale is not None
+                        else tr_format(
                             "Detected result {frequency} MHz · scale {scale}. Requested target was {requested} MHz; the detector may choose a lower safe frequency. This exact result is the boot reference; enable manual scale testing only if you want to compare another value live.",
                             frequency=snapshot.get("frequency", "--"),
                             scale=detected_scale,
@@ -2143,12 +2125,8 @@ class CpuSmuPage(QWidget):
 
     def _set_running(self, running: bool, success: bool | None = None) -> None:
         self.apply_button.setEnabled(not running)
-        self.scale_override_check.setEnabled(not running and self._manual_scale_available)
-        self.scale_control.setEnabled(
-            not running
-            and self._manual_scale_available
-            and self.scale_override_check.isChecked()
-        )
+        self.scale_override_check.setEnabled(not running)
+        self.scale_control.setEnabled(not running and self.scale_override_check.isChecked())
         self.vid_control.setEnabled(not running and not self.scale_override_check.isChecked())
         self.prepare_tools_button.setEnabled(not running)
         self.persistence_status_button.setEnabled(not running)
@@ -2622,7 +2600,14 @@ class CpuSmuPage(QWidget):
     def _clear_console(self) -> None:
         self.console.setPlainText("CPU / SMU session console cleared.")
 
-    def _show_info(self, title: str, message: str, *, tone: str = "blue") -> None:
+    def _show_info(
+        self, title: str, message: str, *, tone: str = "blue", modal: bool | None = None,
+    ) -> None:
+        # Outcomes go to a toast; warnings and errors that ask for something
+        # before carrying on stay a dialog.
+        if not (tone in {"orange", "red"} if modal is None else modal):
+            show_toast(self, title, message, tone=tone)
+            return
         InfoDialog(
             title,
             message,

@@ -41,3 +41,35 @@ def test_an_unmapped_name_would_have_raised():
     """Guards the assumption the mapping exists to satisfy."""
     with pytest.raises(ValueError):
         plan_gpu_service_action("restart", backend=BACKEND)
+
+
+def test_the_service_toggle_says_start_and_stop_not_enable_and_disable(qtbot):
+    """"Enable" is systemd's word for "start at boot".
+
+    A tester read "Enable service" as "save for start-up" and asked for the
+    button that starts the governor to say so. The button names what happens
+    now; the caption above it says what happens at boot.
+    """
+    view = GpuGovernorView()
+    qtbot.addWidget(view)
+
+    view._sync_service_toggle(running=False)
+    assert view.service_toggle.text() == "Start governor"
+    assert view._service_toggle_action == "enable"
+
+    view._sync_service_toggle(running=True)
+    assert view.service_toggle.text() == "Stop governor"
+    assert view._service_toggle_action == "disable"
+
+    captions = [label.text() for label in view.findChildren(type(view._bus_notice))]
+    assert any("saves it for startup (enables the service)" in text for text in captions)
+
+
+def test_a_stopped_governor_names_the_button_that_starts_it(qtbot):
+    from dataclasses import replace
+
+    view = GpuGovernorView()
+    qtbot.addWidget(view)
+    view.apply_state(replace(view._state, service_running=False))
+
+    assert view._safe_pill.text() == "Governor stopped — press Start governor"

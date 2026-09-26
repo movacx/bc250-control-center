@@ -22,6 +22,7 @@ from frontends.desktop.components.dashboard_widgets import (
     DashboardFooter,
     _UpdateBadgeButton,
 )
+from frontends.desktop.i18n import tr
 
 
 @pytest.fixture
@@ -284,30 +285,37 @@ def test_the_preference_off_means_no_request_at_all(monkeypatch, dashboard_page)
 # ------------------------------------------------------------ what it advises
 
 
-def test_an_aur_install_is_told_to_use_its_helper(page):
-    page._apply_update_status(_lookup("1.20.0", True, _aur_source(helper="paru")))
-    assert page.update_callout.action_button.text() == "paru -Syu bc250-control-center-git"
-    assert "AUR" in page.update_callout.detail.text()
-
-
-def test_the_helper_that_is_actually_installed_is_the_one_named(page):
-    page._apply_update_status(_lookup("1.20.0", True, _aur_source(helper="yay")))
-    assert page.update_callout.action_button.text().startswith("yay ")
-
-
-def test_a_packaged_install_is_sent_to_the_release(page):
-    page._apply_update_status(_lookup("1.20.0", True, _package_source("rpm")))
-    action = page.update_callout.action_button.text()
-    assert "-Syu" not in action
+@pytest.mark.parametrize(
+    "source", [None, "aur", "rpm", "dpkg"], ids=["unknown", "aur", "rpm", "deb"]
+)
+def test_every_install_is_offered_the_same_look_at_what_is_new(page, source):
+    """The updater picks the channel; the bubble only says there is news."""
+    built = {
+        None: None,
+        "aur": _aur_source(helper="paru"),
+        "rpm": _package_source("rpm"),
+        "dpkg": _package_source("dpkg"),
+    }[source]
+    page._apply_update_status(_lookup("1.20.0", True, built))
+    assert page.update_callout.action_button.text() == tr("See what's new")
     assert "1.20.0" in page.update_callout.detail.text()
 
 
-def test_an_unknown_install_is_also_sent_to_the_release(page):
-    page._apply_update_status(_lookup("1.20.0", True, None))
-    assert "-Syu" not in page.update_callout.action_button.text()
+def test_following_the_advice_opens_the_updater_not_a_browser(monkeypatch, page):
+    from frontends.desktop.pages import dashboard as dashboard_module
+
+    def explode(_url):  # pragma: no cover - must not be reached
+        raise AssertionError("the updater, not a download page")
+
+    monkeypatch.setattr(dashboard_module, "open_external_url", explode)
+    asked = []
+    page.update_requested.connect(lambda: asked.append(True))
+    page._apply_update_status(_lookup("1.20.0", True, _aur_source()))
+    page._follow_update_advice()
+    assert asked == [True]
 
 
-def test_following_the_advice_opens_the_release_for_a_package(monkeypatch, page):
+def test_with_no_window_to_update_it_the_release_page_opens(monkeypatch, page):
     from frontends.desktop.pages import dashboard as dashboard_module
 
     opened: list[str] = []
@@ -317,29 +325,6 @@ def test_following_the_advice_opens_the_release_for_a_package(monkeypatch, page)
     page._apply_update_status(_lookup("1.20.0", True, _package_source()))
     page._follow_update_advice()
     assert opened == [dashboard_module.RELEASES_PAGE_URL]
-
-
-def test_following_the_advice_never_opens_a_browser_for_an_aur_install(monkeypatch, page):
-    from frontends.desktop.pages import dashboard as dashboard_module
-
-    def explode(_url):  # pragma: no cover - must not be reached
-        raise AssertionError("an AUR install must not be sent to a download page")
-
-    monkeypatch.setattr(dashboard_module, "open_external_url", explode)
-    shown: list[tuple] = []
-    monkeypatch.setattr(
-        dashboard_module,
-        "InfoDialog",
-        lambda *args, **kwargs: shown.append(args) or _Dialog(),
-    )
-    page._apply_update_status(_lookup("1.20.0", True, _aur_source()))
-    page._follow_update_advice()
-    assert shown and "paru -Syu bc250-control-center-git" in shown[0][1]
-
-
-class _Dialog:
-    def exec(self):
-        return 0
 
 
 # ---------------------------------------------------------------- the bubble

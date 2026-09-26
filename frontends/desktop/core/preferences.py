@@ -105,9 +105,13 @@ def application_settings() -> QSettings:
 class UiPreferences:
     """Own local presentation preferences and one-time legacy normalization."""
 
-    THEME_VALUES = {"system", "light", "dark"}
-    ACCENT_VALUES = {"blue", "violet", "cyan", "green", "orange"}
+    THEME_VALUES = {"system", "light", "dark", "midnight"}
+    ACCENT_VALUES = {
+        "blue", "indigo", "violet", "pink", "orange",
+        "amber", "green", "teal", "cyan", "graphite",
+    }
     DENSITY_VALUES = {"comfortable", "compact"}
+    STYLE_VALUES = {"standard", "formal"}
 
     def __init__(self, settings: QSettings | None = None) -> None:
         self.settings = settings or application_settings()
@@ -137,6 +141,15 @@ class UiPreferences:
             value = default
         return max(minimum, min(maximum, value))
 
+    def style(self) -> str:
+        """The interface style: the standard look or the formal one."""
+        return self.normalize_style(self.settings.value("settings/style", "standard"))
+
+    @classmethod
+    def normalize_style(cls, value: object) -> str:
+        normalized = str(value or "").strip().lower()
+        return normalized if normalized in cls.STYLE_VALUES else "standard"
+
     def scale(self) -> int:
         try:
             value = int(self.settings.value("settings/scale", 100))
@@ -150,6 +163,7 @@ class UiPreferences:
             "sistema": "system", "système": "system",
             "claro": "light", "hell": "light", "светлая": "light", "світла": "light",
             "oscuro": "dark", "escuro": "dark", "dunkel": "dark", "тёмная": "dark", "темна": "dark",
+            "night blue": "midnight", "azul noche": "midnight",
         }
         normalized = aliases.get(str(value).strip().lower(), str(value).strip().lower())
         return normalized if normalized in cls.THEME_VALUES else "system"

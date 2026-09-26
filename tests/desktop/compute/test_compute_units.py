@@ -682,3 +682,25 @@ def test_cu_validation_guide_explains_what_furmark_can_and_cannot_validate(
     assert "FurMark FPS does not prove" in captured["message"]
     assert "graphics and compute queues concurrently" in captured["message"]
     assert captured["notice"] == "Opening this guide does not change the live WGP table."
+
+
+@pytest.mark.parametrize("width", (1280, 620, 420))
+def test_the_balance_button_stays_in_the_grid_through_every_reflow(qtbot, width):
+    """Left out of a reflow it was painted as a dark block over the buttons."""
+    page = ComputeUnitsPage(object())
+    qtbot.addWidget(page)
+    state = CURepository().parsear_dashboard_cu(FULL_40_CU_DASHBOARD)
+    state["privileged_backend_ready"] = True
+    page._apply_state(state)
+    page.resize(1600, 900)
+    page.show()
+    qtbot.wait(20)
+    page._selection_changed([0x0F, 0x0F, 0x0F, 0x07])  # SE0 16 · SE1 14
+    page.resize(width, 900)
+    qtbot.wait(20)
+
+    assert page.balance_button.isVisible()
+    assert page.selection_layout.indexOf(page.balance_button) >= 0
+    balance = page.balance_button.geometry()
+    for other in (page.live_refresh_button, page.discard_button, page.apply_live_button):
+        assert not balance.intersects(other.geometry()), other.text()

@@ -32,18 +32,40 @@ jobs:
           # Create the Pages site on its first deployment instead of assuming
           # it already exists in repository settings.
           enablement: true
+
+# drwxr-xr-x    - fabianbeita 21 sep 16:38  previous
+# .rw-r--r-- 149k fabianbeita 26 sep 11:26  compute-units.png - esta
+# .rw-r--r-- 208k fabianbeita 26 sep 11:26  cpu-tuning.png - esta
+# .rw-r--r-- 199k fabianbeita 26 sep 11:25  dashboard-overview.png - esta
+# .rw-r--r-- 407k fabianbeita 20 sep 19:10  decky-quick-access-monitoring.png - esta
+# .rw-r--r-- 286k fabianbeita 20 sep 19:10  decky-quick-access.png - esta
+# .rw-r--r-- 175k fabianbeita 26 sep 11:31  dependency-preparation.png - esta
+# .rw-r--r-- 125k fabianbeita 26 sep 11:28  fan-control.png - esta
+# .rw-r--r-- 252k fabianbeita 26 sep 11:29  firmware-bios.png
+# .rw-r--r-- 191k fabianbeita 26 sep 11:26  gpu-governor.png - esta
+# .rw-r--r-- 148k fabianbeita 26 sep 11:35  memory-swap.png - esta
+# .rw-r--r-- 166k fabianbeita 26 sep 11:26  monitor-1.png - esta
+# .rw-r--r-- 239k fabianbeita 26 sep 11:27  monitor-2.png - esta
+
       - name: Build gallery artifact
         run: |
           mkdir -p _site/gallery _site/assets/screenshots
           cp assets/gallery/index.html _site/gallery/index.html
           cp assets/screenshots/dashboard-overview.png _site/assets/screenshots/
-          cp assets/screenshots/decky-quick-access.png _site/assets/screenshots/
-          cp assets/screenshots/decky-quick-access-monitoring.png _site/assets/screenshots/
           cp assets/screenshots/cpu-tuning.png _site/assets/screenshots/
+
+          cp assets/screenshots/decky-quick-access.png _site/assets/screenshots/
           cp assets/screenshots/gpu-governor.png _site/assets/screenshots/
           cp assets/screenshots/compute-units.png _site/assets/screenshots/
+
+          cp assets/screenshots/decky-quick-access-monitoring.png _site/assets/screenshots/
+          
+          cp assets/screenshots/monitor-1.png _site/assets/screenshots/
+          cp assets/screenshots/monitor-2.png _site/assets/screenshots/
           cp assets/screenshots/fan-control.png _site/assets/screenshots/
-          cp assets/screenshots/compute-units-monitor.png _site/assets/screenshots/
+
+          cp assets/screenshots/firmware-bios.png _site/assets/screenshots/
+          
           cp assets/screenshots/memory-swap.png _site/assets/screenshots/
           cp assets/screenshots/dependency-preparation.png _site/assets/screenshots/
           touch _site/.nojekyll

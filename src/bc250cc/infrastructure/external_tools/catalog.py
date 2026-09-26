@@ -221,6 +221,20 @@ EXTERNAL_TOOLS: dict[str, ExternalToolSpec] = {
         rollback="Remove the per-user prefix under ~/.local/share/bc250-fsr4 and drop the Steam launch option.",
         validation_level="code-reviewed-field-tested-single-host",
     ),
+    # FSR4 INT8 through the BC250 build of OptiScaler Client. The pinned
+    # release archive is checked against its published SHA-256 and its own
+    # SHA256SUMS; the reviewed revision is the commit the release was cut from.
+    "fsr4_opticlient": ExternalToolSpec(
+        key="fsr4_opticlient",
+        upstream="https://github.com/daniel-h-0/bc250-fsr4-fork",
+        license="GPL-3.0-or-later (OptiScaler Client) · MIT (BC250 additions)",
+        reviewed_revision="b1c46717827815cab371504789149e703edd1e95",
+        privilege_class="userspace",
+        hardware_writes=False,
+        automated=True,
+        rollback="Restore / recover selected in the client puts each game back; removing the client keeps ~/.config/OptiscalerClient-BC250.",
+        validation_level="code-reviewed-field-tested-single-host",
+    ),
     "nct6687": ExternalToolSpec(
         key="nct6687",
         upstream="https://github.com/Fred78290/nct6687d",
@@ -317,6 +331,13 @@ EXTERNAL_TOOL_LIFECYCLES: dict[str, ExternalToolLifecycle] = {
         "Verify the checked-out revision and that the ICD manifest matches the reviewed build.",
         "Remove the per-user prefix and stop offering the Steam launch option.",
         vocabulary="per-game FSR4 RADV runtime",
+        actions=(LifecycleAction.CHECK, LifecycleAction.INSTALL, LifecycleAction.UNINSTALL),
+    ),
+    "fsr4_opticlient": _lifecycle(
+        "Download the pinned OptiScaler Client release, verify both checksums and install it in the user's data folder.",
+        "Verify the archive marker, the launcher and the binary of the installed copy.",
+        "Remove the client program and its desktop entry; the client's own game backups are kept.",
+        vocabulary="FSR4 INT8 per game (OptiScaler Client)",
         actions=(LifecycleAction.CHECK, LifecycleAction.INSTALL, LifecycleAction.UNINSTALL),
     ),
     "core_unlock": _lifecycle(
@@ -499,6 +520,8 @@ EXTERNAL_TOOL_DIRECTORIES = {
     "steamos_amdgpu": "bc250-steamos",
     "nct6687": "nct6687d",
     "fsr4_runtime": "bc250-fsr4",
+    # Not a git checkout: a verified release archive installed per user.
+    "fsr4_opticlient": "bc250-opticlient",
     "oberon_governor": "oberon-governor",
     "gfx1013_direct": "bc250-gfx1013-fix",
     "gddr6_memory_temp": "bc250-memory-temperature",

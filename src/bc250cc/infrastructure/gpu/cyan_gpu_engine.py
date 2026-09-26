@@ -82,6 +82,13 @@ class CyanGpuEngine:
         self._monotonic = monotonic
         self._sleep = sleep
 
+    def _unavailable_detail(self) -> str:
+        reader = getattr(self.repository, "_cyan_dbus_unavailable_detail", None)
+        try:
+            return str(reader() or "") if callable(reader) else ""
+        except Exception:
+            return ""
+
     def _read_range(self, kind: str) -> tuple[int, int] | None:
         value = self.repository._leer_rango_governor(kind)
         if value is None:
@@ -286,6 +293,11 @@ class CyanGpuEngine:
 
     def apply_range(self, minimum: int, maximum: int) -> CyanApplyResult:
         allowed = self._read_range("Allowed")
+        if allowed is None:
+            raise CyanGpuRuntimeError(
+                "Cyan D-Bus Allowed range is unavailable. The governor is not ready for a GPU request."
+                + self._unavailable_detail()
+            )
         minimum, maximum = self._require_bounds(minimum, maximum, allowed)
 
         # SetRange also exits PerformanceMode and TestMode. Equal bounds alone
@@ -329,7 +341,9 @@ class CyanGpuEngine:
         frequency = int(frequency)
         allowed = self._read_range("Allowed")
         if allowed is None:
-            raise CyanGpuRuntimeError("Cyan D-Bus Allowed range is unavailable.")
+            raise CyanGpuRuntimeError(
+                "Cyan D-Bus Allowed range is unavailable." + self._unavailable_detail()
+            )
         if not allowed[0] <= frequency <= allowed[1]:
             raise ValueError(
                 f"GPU frequency {frequency} MHz is outside Cyan's active "

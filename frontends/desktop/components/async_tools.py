@@ -229,6 +229,18 @@ class AsyncRefresh(QObject):
         if self._active:
             self._apply_on_ui(result, "render", self._latest_version)
 
+    def request_fresh(self) -> None:
+        """Read again now, and let no read that started earlier win.
+
+        For when the source is known to have changed (an installer has just
+        finished): a read already in flight began before the change, so its
+        result is dropped, and a page that is not showing reads again as soon
+        as it is shown instead of trusting its snapshot.
+        """
+        self._source_generation += 1
+        self._latest_at = 0.0
+        self.request()
+
     def adopt_authoritative(self, result: Any, *, already_rendered: bool = False) -> None:
         """Replace cached UI state and invalidate older reads still in flight."""
 

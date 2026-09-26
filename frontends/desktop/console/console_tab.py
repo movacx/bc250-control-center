@@ -19,7 +19,7 @@ from PyQt6.QtGui import QColor, QPainter, QPen, QPolygonF
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QWidget
 
 from ..components.widgets import icon
-from ..i18n import tr, tr_format
+from ..i18n import tr, tr_format, translate_workflow_title
 from .pty_session import PtySession
 from .terminal_view import TerminalView
 
@@ -63,6 +63,8 @@ class ConsoleTab(QWidget):
     finished = pyqtSignal(int)
     failed = pyqtSignal(str)
     input_mode_changed = pyqtSignal(bool)
+    #: The user's own shell ended (``exit`` or Ctrl+D). Not a workflow result.
+    shell_exited = pyqtSignal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -76,6 +78,11 @@ class ConsoleTab(QWidget):
         self.log_file = ""
         self.launch_path = ""
         self.exit_code: int | None = None
+        #: The user's own shell, opened with F4 the way Dolphin opens its
+        #: terminal panel. It is not a workflow: it never makes the panel
+        #: "busy", never holds the window open on close, and is never handed
+        #: a workflow of its own.
+        self.interactive = False
         self._session: PtySession | None = None
         self._active = False
         self._in_a_strip = False
@@ -126,13 +133,25 @@ class ConsoleTab(QWidget):
     def input_is_masked(self) -> bool:
         return bool(self._session is not None and self._session.input_is_masked)
 
+    @property
+    def running_workflow(self) -> bool:
+        """A workflow is running here — the user's own shell does not count."""
+        return self.running and not self.interactive
+
+    def is_empty(self) -> bool:
+        """Nothing has ever been shown here, so there is nothing to read."""
+        return not self.running and self.exit_code is None and not self.title
+
     def is_reusable(self) -> bool:
         """Whether the next workflow may take this tab over.
 
         A tab that never ran, or whose workflow succeeded, has nothing left to
         read. A failed one is exactly the tab whose output explains what
-        happened, so it keeps its place until it is closed.
+        happened, so it keeps its place until it is closed. A shell the user
+        is typing into is theirs, never taken over by a workflow.
         """
+        if self.interactive and self.running:
+            return False
         return not self.running and self.exit_code in (None, 0)
 
     def set_active(self, active: bool) -> None:
@@ -153,7 +172,7 @@ class ConsoleTab(QWidget):
         self.set_active(self._active)
 
     def set_title(self, title: str) -> None:
-        self.title = str(title or tr("Terminal"))
+        self.title = translate_workflow_title(title)
         self.title_label.setText(self.title)
 
     def set_state(self, text: str, tone: str) -> None:
@@ -186,7 +205,7 @@ class ConsoleTab(QWidget):
         tab close that silently killed a half-applied patch would be the same
         action wearing a much smaller glyph.
         """
-        self.close_button.setVisible(not self.running)
+        self.close_button.setVisible(not self.running_workflow)
 
     # -------------------------------------------------------------------- run
 
@@ -198,6 +217,9 @@ class ConsoleTab(QWidget):
         log_file: str = "",
         launch_path: str = "",
         grid_height: int = 0,
+        interactive: bool = False,
+        cwd: str | None = None,
+        environment: dict[str, str] | None = None,
     ) -> bool:
         if self.running:
             return False
@@ -206,12 +228,18 @@ class ConsoleTab(QWidget):
         self.log_file = str(log_file or "")
         self.launch_path = str(launch_path or "")
         self.exit_code = None
+        self.interactive = bool(interactive)
         if grid_height > 0:
             # Size the grid for the open panel, not for the closed one it
             # still is while the slide runs.
             self.view.set_expected_height(grid_height)
         self.view.clear()
-        self.set_state(tr("Running"), "running")
+        # A shell is not "running" in the sense a workflow is: it waits for
+        # the user, so its chip carries no state word at all.
+        if self.interactive:
+            self.set_state("", "plain")
+        else:
+            self.set_state(tr("Running"), "running")
 
         session = PtySession(self)
         session.output.connect(self.view.feed)
@@ -222,15 +250,18 @@ class ConsoleTab(QWidget):
             argv,
             columns=self.view.columns,
             rows=self.view.rows,
-            # No directory of our own. A terminal emulator inherited the
-            # application's, and some generated workflows still name their
-            # scripts relative to it; moving the child to the home directory
-            # made those workflows fail to find a file that was there.
-            cwd=None,
+            # Workflows get no directory of our own. A terminal emulator
+            # inherited the application's, and some generated workflows still
+            # name their scripts relative to it; moving the child to the home
+            # directory made those workflows fail to find a file that was
+            # there. Only the user's shell asks for one.
+            cwd=cwd,
+            environment=environment,
         )
         if not started:
             session.deleteLater()
             self.set_state("", "plain")
+            self.interactive = False
             return False
         self._session = session
         self._sync_close_button()
@@ -239,6 +270,7 @@ class ConsoleTab(QWidget):
     def show_text(self, text: str, *, title: str = "", grid_height: int = 0) -> None:
         """Display captured output with nothing listening behind it."""
         self._release_session()
+        self.interactive = False
         self.set_title(title)
         self.log_file = ""
         self.launch_path = ""
@@ -291,6 +323,7 @@ class ConsoleTab(QWidget):
         the half of the install the user just watched is gone.
         """
         self._release_session()
+        self.interactive = False
         self.set_title(title)
         self.exit_code = None
         self.view.clear()
@@ -334,6 +367,19 @@ class ConsoleTab(QWidget):
         self.failed.emit(message)
 
     def _on_finished(self, code: int) -> None:
+        if self.interactive:
+            # ``exit`` in the user's shell is a way of closing it, not a
+            # result anyone has to read: the tab goes back to the empty state
+            # it started in, ready for the next shell or workflow.
+            self.interactive = False
+            self.exit_code = None
+            self.title = ""
+            self.title_label.setText(tr("Terminal"))
+            self.view.clear()
+            self.set_state("", "plain")
+            self._sync_close_button()
+            self.shell_exited.emit()
+            return
         self.exit_code = int(code)
         if code == 0:
             self.set_state(tr("Completed"), "ok")

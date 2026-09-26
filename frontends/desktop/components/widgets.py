@@ -23,6 +23,7 @@ from .. import theme as theme_module
 from ..core.error_diagnostics import format_error_for_user
 from ..i18n import localize_widget_tree, tr
 from ..theme import COLORS, application_stylesheet, palette_color, semantic_color_key
+from .busy_spinner import BusySpinner
 from .buttons import WrappingButton as QPushButton
 from .dialogs import center_dialog, enable_adaptive_dialog
 
@@ -33,8 +34,23 @@ def icon(name: str) -> QIcon:
     return QIcon(str(ICON_DIR / f"{name}.svg"))
 
 
+def readable_text_on(color: QColor) -> QColor:
+    """Near-black or white, whichever reads better on ``color`` (a chart tag's fill)."""
+
+    def channel(value: int) -> float:
+        value /= 255.0
+        return value / 12.92 if value <= 0.04045 else ((value + 0.055) / 1.055) ** 2.4
+
+    luminance = 0.2126 * channel(color.red()) + 0.7152 * channel(color.green()) + 0.0722 * channel(color.blue())
+    return QColor("#111111") if luminance > 0.2 else QColor("#FFFFFF")
+
+
 def apply_shadow(widget: QWidget, *, blur: int = 26, y: int = 6, alpha: int = 18) -> None:
     """Apply one restrained enterprise-style elevation effect."""
+    if theme_module.ACTIVE_STYLE == "formal":
+        # The formal style lays cards flat on their hairline: a trace of
+        # depth, not a lift.
+        blur, y, alpha = max(6, blur // 3), min(y, 1), max(6, alpha // 2)
     shadow = QGraphicsDropShadowEffect(widget)
     shadow.setBlurRadius(blur)
     shadow.setOffset(0, y)
@@ -114,7 +130,11 @@ class PillLabel(QLabel):
             foreground = COLORS[tone]
             background = COLORS[f"{tone}_soft"]
             border = COLORS[f"{tone}_border"]
-        self.setStyleSheet(f"color:{foreground}; background:{background}; border:1px solid {border};")
+        # Selector-scoped: a bare declaration list also reaches child windows,
+        # and this pill's tooltip is one — it took on the pill's colours.
+        self.setStyleSheet(
+            f"PillLabel {{ color:{foreground}; background:{background}; border:1px solid {border}; }}"
+        )
 
 
 class SummaryMetric(QWidget):
@@ -230,6 +250,7 @@ class InfoDialog(QDialog):
         tone: str = "blue",
         copy_text: str = "",
         copy_button_text: str = "Copy command",
+        busy: bool = False,
     ):
         raw_title = str(title)
         raw_eyebrow = str(eyebrow)
@@ -289,7 +310,7 @@ class InfoDialog(QDialog):
         eyebrow_label = QLabel(eyebrow)
         eyebrow_label.setObjectName("DialogEyebrow")
         eyebrow_label.setWordWrap(True)
-        eyebrow_label.setStyleSheet(f"color:{accent};")
+        eyebrow_label.setStyleSheet(f".QLabel {{ color:{accent}; }}")
         title_label = QLabel(tr(title))
         title_label.setObjectName("DialogTitle")
         title_label.setWordWrap(True)
@@ -331,7 +352,20 @@ class InfoDialog(QDialog):
         body.setObjectName("DialogBody")
         body.setWordWrap(True)
         body.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        content_layout.addWidget(body)
+        self.spinner: BusySpinner | None = None
+        if busy:
+            # Something is still running: the ring says so, and whoever opened
+            # the dialog closes it the moment that work ends.
+            busy_row = QHBoxLayout()
+            busy_row.setContentsMargins(0, 0, 0, 0)
+            busy_row.setSpacing(10)
+            self.spinner = BusySpinner(18, "cyan" if tone != "red" else "red")
+            busy_row.addWidget(self.spinner, 0, Qt.AlignmentFlag.AlignVCenter)
+            busy_row.addWidget(body, 1)
+            content_layout.addLayout(busy_row)
+            self.spinner.start()
+        else:
+            content_layout.addWidget(body)
 
         if copy_text:
             copy_frame = QFrame()

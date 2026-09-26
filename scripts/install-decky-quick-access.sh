@@ -15,6 +15,16 @@ PLUGIN_SOURCE="$ROOT_DIR/integrations/decky/bc250-quick-access"
 PLUGIN_NAME="bc250-quick-access"
 PLUGIN_ROOT="${DECKY_PLUGIN_ROOT:-$HOME/homebrew/plugins}"
 PLUGIN_DEST="$PLUGIN_ROOT/$PLUGIN_NAME"
+
+# Every protected file is verified byte for byte with cmp after it is staged.
+# cmp belongs to diffutils, which a minimal Arch, CachyOS or openSUSE system
+# need not have; without it the checks below used to report a mismatch that
+# did not exist and roll the installation back.
+if ! command -v cmp >/dev/null 2>&1; then
+  echo "Error: the cmp command (package diffutils) is required to verify the installed files." >&2
+  echo "Install diffutils with your package manager, then run this installer again." >&2
+  exit 2
+fi
 IMMUTABLE_OSTREE=0
 if [[ -e /run/ostree-booted ]]; then
   IMMUTABLE_OSTREE=1

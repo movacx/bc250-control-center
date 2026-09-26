@@ -21,6 +21,7 @@ from bc250cc.infrastructure.external_tools.catalog import EXTERNAL_TOOLS
 from bc250cc.infrastructure.gddr6_memory_temp_trust import REVIEWED_REVISION
 from bc250cc.infrastructure.hardware_identity import is_bc250_platform
 from bc250cc.infrastructure.polkit_session import pkexec_argv
+from bc250cc.infrastructure.vrm_telemetry_reader import leer_memoria_telemetria
 
 GDDR6_MEMORY_TEMP_REPOSITORY = EXTERNAL_TOOLS["gddr6_memory_temp"].upstream
 GDDR6_MEMORY_TEMP_DIRECTORY = "bc250-memory-temperature"
@@ -37,6 +38,22 @@ GDDR6_SUPPORTED_BIOS_VERSIONS = frozenset({'p3.0', 'p3.00'})
 #: How long one authenticated live-monitoring session lasts. Kept in step with
 #: MONITOR_SECONDS in the helper, which is what actually enforces it.
 MONITOR_SESSION_SECONDS = 600
+
+#: Cyan uses the SMU queue these readings go through while it starts, so
+#: the helpers leave the SMU alone until it is running (see GOVERNOR_UNIT in
+#: bc250-gddr6-temp-reader). Asked here too, so the dashboard can say why
+#: instead of opening a prompt for a session that could only wait.
+CYAN_GOVERNOR_UNIT = 'cyan-skillfish-governor-smu.service'
+
+#: BC250-Telemetry's collector records every SMU operation in this per-boot
+#: guard, world-readable. Anything but a clean "ready" means one was cut
+#: short and the firmware may still be running it; the helpers refuse to
+#: touch the SMU until a power cycle (see EXTERNAL_GUARD_BENIGN there).
+EXTERNAL_GUARD_PATH = Path('/run/bc250-memory/patch-state.json')
+EXTERNAL_GUARD_BENIGN = (
+    {'state': 'ready'},
+    {'state': 'failed', 'error': 'unexpected original Q3/5 handler: 0x00000000'},
+)
 BIOS_VERSION_PATH = Path('/sys/class/dmi/id/bios_version')
 
 
@@ -77,6 +94,53 @@ class Gddr6MemoryTempRepository:
     def _board_bios_version(self):
         """Overridable seam: tests must not depend on the host's real DMI."""
         return board_bios_version()
+
+    def _gddr6_governor_state(self):
+        """"starting" or "restarting" while Cyan starts, otherwise ""."""
+        codigo, salida, _ = self._ejecutar(
+            [
+                'systemctl', 'show', CYAN_GOVERNOR_UNIT,
+                '--property=LoadState,ActiveState,SubState,NRestarts',
+            ],
+            timeout=3,
+        )
+        if codigo != 0:
+            return ''
+        properties = dict(
+            line.split('=', 1) for line in str(salida).splitlines() if '=' in line
+        )
+        if properties.get('LoadState') != 'loaded':
+            return ''
+        starting = properties.get('SubState') == 'auto-restart' or properties.get(
+            'ActiveState'
+        ) in {'activating', 'deactivating', 'reloading'}
+        if not starting:
+            return ''
+        restarts = str(properties.get('NRestarts') or '0')
+        return 'restarting' if restarts.isdecimal() and int(restarts) > 0 else 'starting'
+
+    def _external_memory_telemetry(self):
+        """BC250-Telemetry's own GDDR6 reading, when its collector is running.
+
+        World-readable files, so asking costs no Polkit prompt and never
+        touches the SMU. Overridable so tests do not read the host's /run.
+        """
+        external = leer_memoria_telemetria()
+        # While the collector runs, its guard flips between "reading" and
+        # "ready" on every sample; it only says something once it has stopped.
+        if external.get('state') in {'', 'stale'} and self._external_guard_blocks():
+            external['state'] = 'interrupted'
+        return external
+
+    def _external_guard_blocks(self, path=None):
+        path = EXTERNAL_GUARD_PATH if path is None else path
+        try:
+            state = json.loads(path.read_text(encoding='utf-8'))
+        except FileNotFoundError:
+            return False
+        except (OSError, ValueError):
+            return True
+        return state not in EXTERNAL_GUARD_BENIGN
 
     def _gddr6_temp_helper_path(self):
         """The patcher: unlocks the SMU debug gate and writes the payload."""
@@ -124,6 +188,8 @@ class Gddr6MemoryTempRepository:
             'firmware_supported': gddr6_firmware_supported(bios_version),
             'integration': 'official-upstream-clone',
             'volatile_after_power_off': True,
+            'external': self._external_memory_telemetry(),
+            'governor_state': self._gddr6_governor_state(),
         }
 
     def comando_preparar_gddr6_memory_temp(self):
@@ -198,12 +264,17 @@ class Gddr6MemoryTempRepository:
         """
         return dict(getattr(self, '_gddr6_last_sample', {}) or {})
 
-    def comando_monitorizar_vram(self, seconds=MONITOR_SESSION_SECONDS):
+    def comando_monitorizar_vram(self, seconds=MONITOR_SESSION_SECONDS, *, ignore_governor=False):
         """One authenticated session that patches if needed, then samples.
 
         Live monitoring used to cost a Polkit check per sample. This is a
         single privileged run that ends by itself, so one prompt buys a
         bounded window of readings and nothing stays authenticated after it.
+
+        ``ignore_governor`` is the user's manual override from Settings: the
+        helper then samples even while the GPU governor is starting on the
+        same SMU queue. Every lock is still taken, and the firmware check and
+        BC250-Telemetry's interrupted-operation guard still apply.
         """
         detected = self._board_bios_version()
         if not gddr6_firmware_supported(detected):
@@ -214,7 +285,10 @@ class Gddr6MemoryTempRepository:
         command = self._gddr6_temp_pkexec_command(
             'monitor', helper=self._gddr6_temp_helper_path()
         )
-        return [*command, '--seconds', str(int(seconds))]
+        command = [*command, '--seconds', str(int(seconds))]
+        if ignore_governor:
+            command.append('--ignore-governor')
+        return command
 
     def leer_temperatura_vram(self, *, chips=True):
         """Run the reader and return its parsed snapshot.

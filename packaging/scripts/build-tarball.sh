@@ -18,14 +18,20 @@ bash "$ROOT_DIR/scripts/qa/validate-install-source.sh" "$ROOT_DIR"
 target="$OUTPUT_DIR/bc250-control-center-$VERSION.tar.gz"
 temporary="$target.tmp.$$"
 trap 'rm -f -- "$temporary"' EXIT
-tar --create --file - \
+# --format=gnu: openSUSE builds GNU tar with posix (pax) as its default,
+# and pax headers record atime and ctime, so two builds of the same tree
+# differed byte for byte there and nowhere else. --mode: a file left 0600 in
+# the builder's tree must not ship unreadable to everyone but root.
+tar --create --file - --format=gnu \
   --sort=name --mtime="@$SOURCE_DATE_EPOCH" --owner=0 --group=0 --numeric-owner \
+  --mode='u+rwX,go+rX,go-w' \
   "${RELEASE_SOURCE_EXCLUDES[@]}" \
   --exclude '.git' --exclude '.pytest_cache' --exclude '__pycache__' \
   --exclude '*.pyc' --exclude '*.pyo' --exclude './dist' --exclude 'node_modules' \
   --transform "s,^,bc250-control-center-$VERSION/," \
   -C "$ROOT_DIR" \
-  VERSION README.md LICENSE SECURITY.md pyproject.toml run.sh assets integrations src frontends privileged scripts packaging \
+  VERSION README.md LICENSE SECURITY.md pyproject.toml run.sh docs/THIRD_PARTY_NOTICES.md \
+  assets integrations src frontends privileged scripts packaging \
   | gzip -n -9 > "$temporary"
 mv -- "$temporary" "$target"
 trap - EXIT

@@ -31,7 +31,15 @@ install_governor() {
 }
 
 install_stress() {
-  as_root pacman -S --needed --noconfirm stress
+  if ! as_root pacman -S --needed --noconfirm stress; then
+    # Artix mirrors only its own repositories and ships stress-ng, whose
+    # interface bc250_smu_oc cannot use; stress itself is in Arch's [extra].
+    if ! pacman -Si stress >/dev/null 2>&1; then
+      error "The stress package is not in any enabled pacman repository."
+      error "On Artix, install artix-archlinux-support, enable Arch's [extra] in /etc/pacman.conf, then retry."
+    fi
+    return 1
+  fi
   verify_command stress
 }
 

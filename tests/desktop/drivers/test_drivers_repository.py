@@ -137,3 +137,44 @@ def test_usb_printer_class_is_read_from_sibling_interface_directory(tmp_path: Pa
     inventory = DriversRepository._usb_inventory(tmp_path)
     assert inventory[0]["id"] == "1234:5678"
     assert inventory[0]["printer"] is True
+
+
+# ----------------------------------------------------- Debian and Ubuntu
+#
+# Asked to validate: both families had catalogs, but one package a release
+# lacked (ipp-usb before Debian 11, firmware-mediatek before 13) failed the
+# whole apt-get install, and Debian got no Wi-Fi or Bluetooth firmware at
+# all because it lives in non-free-firmware.
+
+
+@pytest.mark.parametrize("family", ("ubuntu", "debian"))
+@pytest.mark.parametrize("component", ("connectivity", "printing"))
+def test_apt_installs_only_what_the_release_offers(family, component):
+    command = build_driver_support_command(component, family, "systemd")
+    assert "apt-cache policy" in command
+    assert 'apt-get install --no-install-recommends "${resolved[@]}"' in command
+    assert "skipped:" in command
+    # Resolving comes after the index refresh it depends on.
+    assert command.index("apt-get update") < command.index("bc250_resolve ")
+
+
+def test_debian_connectivity_offers_the_non_free_firmware_and_asks_before_adding_a_source():
+    command = build_driver_support_command("connectivity", "debian", "systemd")
+    for package in ("firmware-realtek", "firmware-iwlwifi", "firmware-mediatek", "firmware-atheros"):
+        assert package in command
+    assert "read -r -p" in command
+    # The only write to APT's configuration is its own file, in the yes branch.
+    source = "/etc/apt/sources.list.d/bc250-non-free-firmware.sources"
+    assert command.count(f"tee {source}") == 1
+    yes_branch = command[command.index("[yY]*)"):command.index("*) echo")]
+    assert f"tee {source}" in yes_branch
+    assert "/etc/apt/sources.list " not in command and "sed -i" not in command
+    # Only on Debian itself; derivatives get the explanation alone.
+    assert '[ "$distro" = debian ]' in command
+
+
+def test_ubuntu_and_printing_never_touch_apt_sources():
+    for component, family in (("connectivity", "ubuntu"), ("printing", "debian"), ("printing", "ubuntu")):
+        command = build_driver_support_command(component, family, "systemd")
+        assert "sources.list" not in command
+        assert "read -r -p" not in command

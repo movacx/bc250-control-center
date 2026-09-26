@@ -106,8 +106,13 @@ def _page(qtbot, tmp_path, monkeypatch):
         except Exception as error:  # pragma: no cover - validates failure wiring
             failure(str(error))
 
+    def toast(_anchor, title, message="", **_kwargs):
+        # A finished export is a toast now, not a dialog to close.
+        notices.append((title, message, "toast"))
+
     monkeypatch.setattr(SettingsPage, "_start_task", immediate)
     monkeypatch.setattr(settings_module, "InfoDialog", Info)
+    monkeypatch.setattr(settings_module, "show_toast", toast)
     monkeypatch.setattr(settings_module, "ConfirmDialog", Confirm)
     controller = Controller()
     ui_settings = QSettings(str(tmp_path / "ui.ini"), QSettings.Format.IniFormat)

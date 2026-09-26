@@ -53,7 +53,7 @@ def test_a_panel_reports_its_answers_in_the_shape_the_window_applies_them(qtbot,
 
 def test_the_shipped_tour_visits_pages_the_window_actually_has(qtbot, window):
     """A stop naming a page that does not exist would navigate nowhere."""
-    known = {"dashboard", "cpu", "gpu", "cu", "performance", "fans", "processes"}
+    known = {"dashboard", "cpu", "gpu", "cu", "performance", "fans", "processes", "firmware"}
     for stop in tour_stops():
         assert stop.page in known, stop.page
 
@@ -65,28 +65,64 @@ def test_every_shipped_stop_says_something(qtbot, window):
 
 
 def test_the_route_runs_in_the_order_the_modules_are_used(qtbot, window):
-    """Dashboard first and whole, then each module, with fans last.
+    """Dashboard first and whole, then each module, with settings last.
 
     The order is a product decision rather than an accident of the file, so it
-    is pinned: the readings, the four halves of preparing the board, the CPU's
-    two tabs, the GPU, compute units, performance, and the two kinds of fan
-    control.
+    is pinned: the readings and every preparation tab (memory in three parts),
+    the CPU profiles, pencil, Decky export, cores and hidden cores, the GPU
+    service, profiles, export, range and voltage laboratory (opened), the
+    compute-unit editor's first button and its grid, performance with its
+    per-part views and sensor list, the three kinds of fan control, the firmware images, the boot logo, drive and flash,
+    and settings.
     """
     assert [stop.page for stop in tour_stops()] == [
         "dashboard", "dashboard", "dashboard", "dashboard", "dashboard",
-        "cpu", "cpu",
-        "gpu",
-        "cu",
-        "performance",
-        "fans", "fans",
+        "dashboard", "dashboard", "dashboard", "dashboard",
+        "cpu", "cpu", "cpu", "cpu", "cpu",
+        "gpu", "gpu", "gpu", "gpu", "gpu", "gpu",
+        "cu", "cu",
+        "performance", "performance", "performance",
+        "fans", "fans", "fans",
+        "firmware", "firmware", "firmware", "firmware",
         "dashboard",
     ]
 
 
 def test_the_stops_that_live_on_a_tab_open_it_first(qtbot, window):
-    """Four preparation tabs, two CPU tabs, two fan modes: eight in all."""
+    """Eight preparation stops, five CPU stops, the laboratory, the views
+    menu and the sensor list, two fan modes."""
     arranged = [stop for stop in tour_stops() if stop.arrange is not None]
-    assert len(arranged) == 8
+    assert len(arranged) == 18
+
+
+def test_the_stops_that_open_something_close_it_again(qtbot, window):
+    """The laboratory drawer, the pinned views menu and the sensor list."""
+    opened = [stop for stop in tour_stops() if stop.leave is not None]
+    assert [stop.page for stop in opened] == ["gpu", "performance", "performance"]
+
+
+def test_the_performance_views_are_introduced_on_their_own(qtbot, window):
+    """People who took the tour before these existed are shown just them."""
+    from frontends.desktop.onboarding import PERFORMANCE_VIEWS_FEATURE, feature_stops
+
+    stops = feature_stops(PERFORMANCE_VIEWS_FEATURE)
+    assert [stop.page for stop in stops] == ["performance", "performance"]
+    assert all(stop.arrange is not None and stop.leave is not None for stop in stops)
+
+
+def test_a_feature_is_introduced_once(tmp_path):
+    from PyQt6.QtCore import QSettings
+
+    from frontends.desktop.onboarding import (
+        introduced_features,
+        mark_features_introduced,
+    )
+
+    settings = QSettings(str(tmp_path / "settings.ini"), QSettings.Format.IniFormat)
+    assert introduced_features(settings) == set()
+    mark_features_introduced(settings, {"performance-views", ""})
+    mark_features_introduced(settings, {"other"})
+    assert introduced_features(settings) == {"performance-views", "other"}
 
 
 def test_a_guide_built_over_a_bare_window_does_not_raise(qtbot, window):
@@ -116,6 +152,9 @@ def test_a_bubble_already_on_screen_is_taken_down_for_the_panel(qtbot):
 def test_both_overlays_clear_the_screen_before_they_open():
     import inspect
 
-    for name in ("open_welcome", "start_tour"):
+    for name in ("open_welcome", "_run_tour"):
         body = inspect.getsource(getattr(ControlCenterWindow, name))
         assert "_clear_floating_widgets" in body, name
+    # The whole tour and the one-off introductions both go through _run_tour.
+    for name in ("start_tour", "_introduce_feature"):
+        assert "_run_tour" in inspect.getsource(getattr(ControlCenterWindow, name)), name

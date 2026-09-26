@@ -3,6 +3,7 @@ import {
   ConfirmModal,
   Focusable,
   NavEntryPositionPreferences,
+  Router,
   showModal,
   SliderField,
   staticClasses,
@@ -27,6 +28,7 @@ import {
   FaCog,
   FaExclamationTriangle,
   FaFan,
+  FaGamepad,
   FaHdd,
   FaLayerGroup,
   FaMemory,
@@ -106,6 +108,8 @@ type Result = {
   gpu_performance_enabled?: boolean;
   gpu_temperature_c?: number;
   gpu_safe_point_ceilings?: GpuPoint[];
+  gpu_voltage_points?: VoltagePoint[];
+  gpu_voltage_level?: number | null;
   cpu_frequency_mhz?: number;
   cpu_temperature_c?: number;
   observed_at?: number;
@@ -125,6 +129,11 @@ type Result = {
   gpu_governor?: "cyan" | "oberon" | "conflict" | "none";
   gpu_governor_label?: string;
   gpu_governor_active?: boolean;
+  gpu_service_target?: "cyan" | "oberon" | "";
+  gpu_service_installed?: boolean;
+  gpu_service_enabled?: boolean;
+  gpu_service_active?: boolean;
+  gpu_service_conflict?: boolean;
   cu_backend_ready?: boolean;
   cu_total_cus?: number;
   cu_masks?: number[];
@@ -191,8 +200,20 @@ type Result = {
   gddr6_bios_version?: string;
   gddr6_firmware_supported?: boolean;
   vram?: VramState;
+  fan_profiles?: FanPreset[];
+  system_fan_policy?: boolean;
+  system_fan_override?: boolean;
+  ace_available?: boolean;
+  ace_busy_percent?: number | null;
+  ace_process?: string;
 };
+type FanPreset = { key: string; name: string; percent: number };
+type GameProfile = { app_id: string; name: string; gpu: string | null; fan: string | null };
+type GameSession = { app_id: string; name: string; applied: { gpu: string | null; fan: string | null } };
+type GameStore = { ok?: boolean; error?: string; enabled?: boolean; games?: GameProfile[]; session?: GameSession | null };
+type GameEvent = { ok?: boolean; error?: string; applied?: boolean; restored?: boolean; name?: string; gpu?: string | null; fan?: string | null; reason?: string };
 type Status = Result;
+type VoltagePoint = { frequency: number; voltage: number; default: number };
 type DraftKind = "cu" | "fan" | "gpu" | "cpu" | "none";
 
 const getStatus = callable<[], Status>("status");
@@ -202,6 +223,9 @@ const getGddr6Sensors = callable<[], Result>("gddr6_sensors");
 const applyGpuProfile = callable<[profile: string], Result>("apply_gpu_profile");
 const applyGpuSafePoint = callable<[frequency: number], Result>("apply_gpu_safe_point");
 const setGpuHighFrequencyPoints = callable<[enabled: boolean], Result>("set_gpu_high_frequency_points");
+const setGpuGovernorService = callable<[enabled: boolean], Result>("set_gpu_governor_service");
+const applyGpuVoltageLevel = callable<[level: number], Result>("apply_gpu_voltage_level");
+const applyGpuVoltagePoints = callable<[points: { frequency: number; voltage: number }[]], Result>("apply_gpu_voltage_points");
 const applyCuTable = callable<[masks: number[]], Result>("apply_cu_table");
 const saveCuTable = callable<[masks: number[]], Result>("save_cu_table");
 const installCuService = callable<[], Result>("install_cu_service");
@@ -212,6 +236,13 @@ const applyCpuScale = callable<[frequency: number, scale: number], Result>("appl
 const installCpuService = callable<[], Result>("install_cpu_service");
 const removeCpuService = callable<[], Result>("remove_cpu_service");
 const applyVramSize = callable<[sizeMb: number], Result>("apply_vram_size");
+const applySystemFanPreset = callable<[preset: string], Result>("apply_system_fan_preset");
+const getGameProfiles = callable<[], GameStore>("game_profiles");
+const saveGameProfile = callable<[appId: string, name: string, gpu: string | null, fan: string | null], GameStore>("save_game_profile");
+const removeGameProfile = callable<[appId: string], GameStore>("remove_game_profile");
+const setGameProfilesEnabled = callable<[enabled: boolean], GameStore>("set_game_profiles_enabled");
+const gameStarted = callable<[appId: string, name: string, refresh: boolean], GameEvent>("game_started");
+const gameStopped = callable<[appId: string], GameEvent>("game_stopped");
 
 const fanChannels = [2, 3, 4, 5] as const;
 const cuRows = ["SE0.SH0", "SE0.SH1", "SE1.SH0", "SE1.SH1"] as const;
@@ -302,6 +333,88 @@ function masksFromTarget(target: number, targets?: number[]) {
   for (let wgp = 3; wgp < 5 && extra > 0; wgp += 1) for (let row = 0; row < 4 && extra > 0; row += 1) { masks[row] |= 1 << wgp; extra -= 1; }
   return masks;
 }
+// ---------------------------------------------------------------- per game
+// The game Steam says is running, shared by the lifetime listener registered
+// when the plugin loads and by the panel, which only exists while the Quick
+// Access menu is open. Applying and restoring a game's profile therefore
+// never depends on the player opening this panel.
+type RunningGame = { appId: string; name: string } | null;
+let runningGame: RunningGame = null;
+const runningGameListeners = new Set<(game: RunningGame) => void>();
+const gameStoreListeners = new Set<() => void>();
+const runningInstances = new Map<string, Set<number>>();
+
+function setRunningGame(game: RunningGame) {
+  runningGame = game;
+  runningGameListeners.forEach((listener) => listener(game));
+}
+function notifyGameStore() { gameStoreListeners.forEach((listener) => listener()); }
+function useRunningGame(): RunningGame {
+  const [game, setGame] = useState<RunningGame>(runningGame);
+  useEffect(() => { runningGameListeners.add(setGame); return () => { runningGameListeners.delete(setGame); }; }, []);
+  return game;
+}
+type AppStoreGlobals = typeof globalThis & { appStore?: { GetAppOverviewByAppID?: (appId: number) => { display_name?: string } | null } };
+function appName(appId: number): string {
+  try {
+    const name = (globalThis as AppStoreGlobals).appStore?.GetAppOverviewByAppID?.(appId)?.display_name;
+    if (name) return String(name);
+  } catch { /* the Steam store can be unavailable for a moment */ }
+  return `App ${appId}`;
+}
+function presetLabel(key: string | null | undefined, presets?: FanPreset[]): string {
+  if (!key) return text.unchanged;
+  if (key === "automatic") return text.automatic;
+  const exported = presets?.find((preset) => preset.key === key)?.name;
+  if (exported) return exported;
+  return key === "quiet" ? text.fanQuiet : key === "balanced" ? text.fanBalanced : key === "boost" ? text.fanBoost : key;
+}
+function gpuLabel(key: string | null | undefined, profiles?: GpuProfile[]): string {
+  if (!key) return text.unchanged;
+  const named = profiles?.find((profile) => profile.key === key)?.name;
+  if (named) return named;
+  if (key === "balanced") return text.profileBalanced;
+  if (key === "gaming") return text.profileGaming;
+  if (key === "benchmark") return text.profileBenchmark;
+  return key.startsWith("oberon-") ? `${key.slice(7)} MHz` : key;
+}
+async function onGameStart(appId: string, name: string, refresh = false) {
+  setRunningGame({ appId, name });
+  try {
+    const result = await gameStarted(appId, name, refresh);
+    if (result.ok === false) toaster.toast({ title: `BC250 · ${name}`, body: `${text.gameProfileNotApplied}: ${localizedErrorSummary(result.error ?? text.error)}` });
+    else if (result.applied) toaster.toast({ title: `BC250 · ${name}`, body: `${text.gameProfileApplied}${result.gpu ? ` · GPU ${gpuLabel(result.gpu)}` : ""}${result.fan ? ` · ${text.fans} ${presetLabel(result.fan)}` : ""}` });
+  } catch (error) {
+    toaster.toast({ title: `BC250 · ${name}`, body: `${text.gameProfileNotApplied}: ${localizedErrorSummary(failed(error).error ?? text.error)}` });
+  } finally { notifyGameStore(); }
+}
+async function onGameStop(appId: string) {
+  if (runningGame?.appId === appId) setRunningGame(null);
+  try {
+    const result = await gameStopped(appId);
+    if (result.ok === false) toaster.toast({ title: "BC250", body: localizedErrorSummary(result.error ?? text.error) });
+    else if (result.restored) toaster.toast({ title: `BC250 · ${result.name || appName(Number(appId))}`, body: text.gameProfileRestored });
+  } catch (error) {
+    toaster.toast({ title: "BC250", body: localizedErrorSummary(failed(error).error ?? text.error) });
+  } finally { notifyGameStore(); }
+}
+function onAppLifetime(update: { unAppID: number; nInstanceID: number; bRunning: boolean }) {
+  const appId = String(update.unAppID ?? "");
+  if (!appId || appId === "0") return;
+  // A launcher and its game can be two instances of one app: the profile
+  // stays on until the last of them ends.
+  const instances = runningInstances.get(appId) ?? new Set<number>();
+  if (update.bRunning) {
+    const first = instances.size === 0;
+    instances.add(update.nInstanceID);
+    runningInstances.set(appId, instances);
+    if (first) void onGameStart(appId, appName(update.unAppID));
+    return;
+  }
+  instances.delete(update.nInstanceID);
+  if (instances.size === 0) { runningInstances.delete(appId); void onGameStop(appId); }
+}
+
 // ---------------------------------------------------------------- settings
 // Purely cosmetic, per-device preferences (focus ring color, poll cadence,
 // sensor tile layout). None of this reaches the privileged helper or affects
@@ -414,7 +527,7 @@ function PadButton({ children, disabled = false, onActivate, style, preferredFoc
   );
 }
 
-function SectionTitle({ kind, title, trailing }: { kind: "gpu" | "cu" | "cpu" | "fan" | "power" | "memory" | "storage" | "settings"; title: string; trailing?: ReactNode }) {
+function SectionTitle({ kind, title, trailing }: { kind: "gpu" | "cu" | "cpu" | "fan" | "power" | "memory" | "storage" | "settings" | "game"; title: string; trailing?: ReactNode }) {
   const accent = ACCENT_SWATCHES[useContext(SettingsContext).settings.accent];
   const data = {
     gpu: [<FaMicrochip />, accent.focus, accent.focus_soft],
@@ -425,6 +538,7 @@ function SectionTitle({ kind, title, trailing }: { kind: "gpu" | "cu" | "cpu" | 
     memory: [<FaMemory />, tokens.colors.green, tokens.colors.green_soft],
     storage: [<FaHdd />, tokens.colors.green, tokens.colors.green_soft],
     settings: [<FaCog />, accent.focus, accent.focus_soft],
+    game: [<FaGamepad />, accent.focus, accent.focus_soft],
   }[kind] as [ReactNode, string, string];
   return <div style={{ alignItems: "center", display: "flex", gap: 6, margin: "0 2px 6px" }}>
     <span style={{ alignItems: "center", background: data[2], borderRadius: 4, color: data[1], display: "flex", fontSize: 10, height: 16, justifyContent: "center", width: 16 }}>{data[0]}</span>
@@ -440,6 +554,71 @@ function Notice({ value, dismiss }: { value: string; dismiss: () => void }) {
     <div style={{ display: "flex", gap: 7 }}><FaExclamationTriangle color={tokens.colors.red} /><div><b>{text.error}</b><div style={{ color: tokens.colors.red, fontSize: 11, marginTop: 3 }}>{diagnosis.summary}</div><div style={{ color: tokens.colors.muted, fontSize: 10, marginTop: 4 }}><b>{text.likelyCause}:</b> {diagnosis.cause}</div><div style={{ color: tokens.colors.muted, fontSize: 10, marginTop: 4 }}><b>{text.next}:</b> {diagnosis.action}</div></div></div>
     <div style={{ display: "flex", gap: 6, marginTop: 7 }}><PadButton onActivate={() => setOpen(!open)} style={{ fontSize: 10, minHeight: 30, padding: "4px 8px" }}>{open ? text.hide : text.details}</PadButton><PadButton onActivate={dismiss} style={{ fontSize: 10, minHeight: 30, padding: "4px 8px" }}>{text.close}</PadButton></div>
     {open ? <pre style={{ background: tokens.colors.console_bg, color: tokens.colors.red, fontSize: 9, margin: "7px 0 0", overflowWrap: "anywhere", padding: 6, whiteSpace: "pre-wrap" }}>{text.diagnosticCode}: {diagnosis.code}{"\n"}{value}</pre> : null}
+  </div>;
+}
+
+// The installed governor's service, under the frequency controls it serves.
+// Every change is confirmed first and read back by the root helper, which
+// picks the unit itself and refuses while both governors run.
+function GovernorServiceRow({ state, busy, execute }: {
+  state: Status; busy: boolean;
+  execute: (title: string, operation: () => Promise<Result>, kind?: DraftKind) => Promise<void>;
+}) {
+  const accent = ACCENT_SWATCHES[useContext(SettingsContext).settings.accent];
+  const target = state.gpu_service_target ?? "";
+  const name = target === "oberon" ? "Oberon" : target === "cyan" ? "Cyan Skillfish" : "";
+  const installed = Boolean(state.gpu_service_installed && target);
+  const running = Boolean(state.gpu_service_active);
+  const atBoot = Boolean(state.gpu_service_enabled);
+  const conflict = Boolean(state.gpu_service_conflict);
+  const summary = conflict ? text.governorConflict
+    : !installed ? text.serviceNotInstalled
+    : running ? (atBoot ? text.serviceRunningBoot : text.serviceRunningNoBoot)
+    : (atBoot ? text.serviceStoppedBoot : text.serviceStopped);
+  const tone = conflict ? tokens.colors.red : !installed ? tokens.colors.amber : running ? accent.focus : tokens.colors.subtle;
+  const confirm = (enable: boolean) => showModal(<ConfirmModal
+    strTitle={enable ? text.enableService : text.disableService}
+    strDescription={(enable ? text.enableServiceHint : text.disableServiceHint).replace("{name}", name)}
+    strOKButtonText={enable ? text.enableService : text.disableService}
+    bDestructiveWarning={!enable}
+    onOK={() => void execute(`GPU · ${text.governorService}`, () => setGpuGovernorService(enable), "gpu")}
+  />);
+  return <div style={{ background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, marginTop: 6, padding: "7px 8px 8px" }}>
+    <div style={{ alignItems: "baseline", display: "flex", gap: 6, justifyContent: "space-between", marginBottom: 6 }}>
+      <span style={{ color: tokens.colors.text, fontSize: 10, fontWeight: 650 }}>{text.governorService}{name ? <span style={{ color: tokens.colors.subtle, fontWeight: 500 }}> · {name}</span> : null}</span>
+      <span style={{ color: tone, fontSize: 9, fontWeight: 650, textAlign: "right" }}>{summary}</span>
+    </div>
+    <ActionRow>
+      <Action label={text.enableService} primary={installed && !running} disabled={busy || !installed || conflict || (running && atBoot)} onActivate={() => confirm(true)} />
+      <Action label={text.disableService} danger disabled={busy || !installed || conflict || (!running && !atBoot)} onActivate={() => confirm(false)} />
+    </ActionRow>
+  </div>;
+}
+
+// Cyan's commented TOML points above 2000 MHz, as the switch it is. It lives
+// in Settings: it is a one-time decision about what the GPU tab offers, not
+// a control used while playing. It asks first, and a cancelled question puts
+// the switch back where the file is.
+function HighPointsSwitch({ state, busy, execute }: {
+  state: Status; busy: boolean;
+  execute: (title: string, operation: () => Promise<Result>, kind?: DraftKind) => Promise<void>;
+}) {
+  const cyanActive = state.gpu_governor === "cyan";
+  const enabled = (state.gpu_safe_point_ceilings ?? []).length > 0;
+  const [revision, setRevision] = useState(0);
+  const request = (next: boolean) => {
+    if (next === enabled) return;
+    showModal(<ConfirmModal
+      strTitle={next ? text.enableHighPoints : text.disableHighPoints}
+      strDescription={text.highFrequencyPointsHint}
+      strOKButtonText={next ? text.enableHighPoints : text.disableHighPoints}
+      bDestructiveWarning={next}
+      onOK={() => void execute(text.highFrequencyPoints, () => setGpuHighFrequencyPoints(next), "gpu")}
+      onCancel={() => setRevision((value) => value + 1)}
+    />);
+  };
+  return <div style={{ background: tokens.colors.panel_alt, border: `1px solid ${enabled ? tokens.colors.red : tokens.colors.border_soft}`, borderRadius: 6, fontSize: 11, marginBottom: 6, overflow: "hidden" }}>
+    <ToggleField key={`${revision}-${enabled}`} label={text.highFrequencyPoints} description={cyanActive ? undefined : text.highFrequencyCyanOnly} layout="inline" bottomSeparator="none" highlightOnFocus checked={enabled} disabled={busy || !cyanActive} onChange={request} />
   </div>;
 }
 
@@ -588,6 +767,97 @@ function Gddr6Panel({ state }: { state: Status }) {
   </div>;
 }
 
+// Read-only sensor tiles are plain divs, and a Quick Access panel scrolls only
+// to reveal the element the controller has focused: with nothing focusable
+// under the sub-tabs, "down" had nowhere to go and every sensor below the
+// fold was out of reach. Each block is a quiet focus stop -- outlined in the
+// accent while focused, so the player sees where they are -- and an invisible
+// stop at the very end carries the scroll to the bottom of the section.
+function ScrollStop({ children, end = false }: { children?: ReactNode; end?: boolean }) {
+  const accent = ACCENT_SWATCHES[useContext(SettingsContext).settings.accent];
+  const [focused, setFocused] = useState(false);
+  const focusEvents = {
+    onGamepadFocus: () => setFocused(true),
+    onGamepadBlur: () => setFocused(false),
+  } as Record<string, unknown>;
+  return <Focusable noFocusRing onActivate={() => undefined} {...focusEvents}
+    style={end
+      ? { height: 16 }
+      : { borderRadius: 8, boxShadow: focused ? `0 0 0 1px ${accent.focus}` : "none", marginBottom: 2, padding: 1, transition: "box-shadow 90ms ease" }}>
+    {children ?? <span />}
+  </Focusable>;
+}
+
+const VOLTAGE_LEVELS = [0, 1, 2, 3] as const;
+const VOLTAGE_STEP_MV = 5;
+const VOLTAGE_MAX_ABOVE_DEFAULT_MV = 60;
+
+// The desktop voltage drawer, cut down to what a controller can do safely:
+// the governor curve or +10/+20/+30 mV on the points from 2000 MHz up, and a
+// per-point nudge in 5 mV steps that can never go below the governor value
+// or more than 60 mV above it. The helper re-checks every bound.
+function VoltageLab({ state, busy, execute }: { state: Status; busy: boolean; execute: (title: string, operation: () => Promise<Result>, kind?: DraftKind) => Promise<void> }) {
+  const accent = ACCENT_SWATCHES[useContext(SettingsContext).settings.accent];
+  const [open, setOpen] = useState(false);
+  const points = (state.gpu_voltage_points ?? []).filter((point) => point.frequency >= 2000);
+  const [draft, setDraft] = useState<Record<number, number>>({});
+  const signature = points.map((point) => `${point.frequency}:${point.voltage}`).join(",");
+  useEffect(() => { setDraft({}); }, [signature]);
+  const cyanRunning = state.gpu_governor === "cyan" && Boolean(state.gpu_service_active ?? state.cyan_active);
+  const level = state.gpu_voltage_level;
+  const levelLabel = level == null ? text.voltageCustom : level === 0 ? text.voltageGovernor : `+${level * 10} mV`;
+  if (state.gpu_governor === "oberon") return null;
+  const valueOf = (point: VoltagePoint) => draft[point.frequency] ?? point.voltage;
+  const floorOf = (point: VoltagePoint) => point.default || point.voltage;
+  const nudge = (point: VoltagePoint, delta: number) => {
+    const index = points.indexOf(point);
+    const below = index > 0 ? valueOf(points[index - 1]) : 0;
+    const above = index < points.length - 1 ? valueOf(points[index + 1]) : 1210;
+    const next = Math.max(floorOf(point), below, Math.min(floorOf(point) + VOLTAGE_MAX_ABOVE_DEFAULT_MV, above, valueOf(point) + delta));
+    setDraft({ ...draft, [point.frequency]: next });
+  };
+  const changed = points.filter((point) => valueOf(point) !== point.voltage);
+  const confirmLevel = (value: number) => showModal(<ConfirmModal
+    strTitle={text.voltageLab}
+    strDescription={text.voltageConfirm}
+    strOKButtonText={value === 0 ? text.voltageGovernor : `+${value * 10} mV`}
+    onOK={() => void execute(`GPU · ${text.voltageLab}`, () => applyGpuVoltageLevel(value), "gpu")} />);
+  const confirmPoints = () => showModal(<ConfirmModal
+    strTitle={text.voltageLab}
+    strDescription={text.voltageConfirm}
+    strOKButtonText={text.voltageApplyPoints}
+    onOK={() => void execute(`GPU · ${text.voltageLab}`, () => applyGpuVoltagePoints(changed.map((point) => ({ frequency: point.frequency, voltage: valueOf(point) }))), "gpu")} />);
+  return <>
+    <PadButton onActivate={() => setOpen(!open)} disabled={!points.length} style={{ alignItems: "center", display: "flex", fontSize: 11, height: 34, justifyContent: "space-between", marginBottom: 6, padding: "5px 9px", width: "100%" }}>
+      <span>{text.voltageLab}</span>
+      <span style={{ color: accent.focus }}>{points.length ? levelLabel : text.unavailable} {open ? "▴" : "▾"}</span>
+    </PadButton>
+    {open ? <div style={{ background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 6, marginBottom: 6, padding: 6 }}>
+      {!cyanRunning ? <div style={{ color: tokens.colors.amber, fontSize: 9, marginBottom: 6 }}>{text.voltageNeedsCyan}</div> : null}
+      <Focusable flow-children="row" style={{ display: "grid", gap: 5, gridTemplateColumns: "repeat(4,minmax(0,1fr))", marginBottom: 6 }}>
+        {VOLTAGE_LEVELS.map((value) => {
+          const current = level === value;
+          return <PadButton key={value} preferredFocus={current || (level == null && value === 0)} disabled={busy || !cyanRunning} onActivate={() => { if (!current) confirmLevel(value); }} style={{ background: current ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, color: current ? accent.focus : tokens.colors.text, fontSize: 10, fontWeight: 650, height: 32, padding: 2, textAlign: "center", width: "100%" }}>{value === 0 ? text.voltageGovernor : `+${value * 10} mV`}</PadButton>;
+        })}
+      </Focusable>
+      <div style={{ color: tokens.colors.subtle, fontSize: 9, lineHeight: 1.35, margin: "0 2px 7px" }}>{text.voltageHint}</div>
+      <Focusable flow-children="down">
+        {points.map((point) => {
+          const value = valueOf(point);
+          const moved = value !== point.voltage;
+          return <Focusable key={point.frequency} flow-children="row" style={{ alignItems: "center", display: "grid", gap: 5, gridTemplateColumns: "1fr 30px 70px 30px", marginBottom: 4 }}>
+            <span style={{ color: tokens.colors.subtle, fontSize: 10 }}>{point.frequency} MHz</span>
+            <PadButton label="-5 mV" disabled={busy || !cyanRunning || value <= floorOf(point)} onActivate={() => nudge(point, -VOLTAGE_STEP_MV)} style={{ fontSize: 12, height: 28, padding: 0, width: "100%" }}>−</PadButton>
+            <span style={{ color: moved ? accent.focus : tokens.colors.text, fontSize: 11, fontWeight: 650, textAlign: "center" }}>{value} mV</span>
+            <PadButton label="+5 mV" disabled={busy || !cyanRunning || value >= floorOf(point) + VOLTAGE_MAX_ABOVE_DEFAULT_MV} onActivate={() => nudge(point, VOLTAGE_STEP_MV)} style={{ fontSize: 12, height: 28, padding: 0, width: "100%" }}>+</PadButton>
+          </Focusable>;
+        })}
+      </Focusable>
+      <ActionRow><Action label={text.voltageApplyPoints} primary disabled={busy || !cyanRunning || !changed.length} onActivate={confirmPoints} /><Action label={text.voltageDiscard} disabled={busy || !changed.length} onActivate={() => setDraft({})} /></ActionRow>
+    </div> : null}
+  </>;
+}
+
 function MonitorTab({ state }: { state: Status }) {
   const accent = ACCENT_SWATCHES[useContext(SettingsContext).settings.accent];
   const [section, setSection] = useState<MonitorSection>("cpu");
@@ -680,53 +950,52 @@ function MonitorTab({ state }: { state: Status }) {
       { key: "all", label: text.allSensors, icon: <FaLayerGroup />, color: accent.focus, colorSoft: accent.focus_soft },
     ]} />
 
-    {section === "cpu" ? <section>
-      <MetricGrid tiles={cpuTiles} />
-      <div style={{ color: tokens.colors.subtle, fontSize: 9, margin: "-3px 2px 8px" }}>{text.cpuTrial}: {state.cpu_tuning_temperature ?? "—"}°C</div>
-      <CoreGrid cores={state.cpu_cores ?? []} />
-      {vrmNotice}
-      <MetricGrid tiles={cpuVrmTiles} />
-    </section> : null}
+    {section === "cpu" ? <Focusable flow-children="down">
+      <ScrollStop><MetricGrid tiles={cpuTiles} />
+        <div style={{ color: tokens.colors.subtle, fontSize: 9, margin: "-3px 2px 8px" }}>{text.cpuTrial}: {state.cpu_tuning_temperature ?? "—"}°C</div></ScrollStop>
+      <ScrollStop><CoreGrid cores={state.cpu_cores ?? []} /></ScrollStop>
+      <ScrollStop>{vrmNotice}<MetricGrid tiles={cpuVrmTiles} /></ScrollStop>
+      <ScrollStop end />
+    </Focusable> : null}
 
-    {section === "gpu" ? <section>
-      <MetricGrid tiles={gpuTiles} />
-      <div style={{ color: tokens.colors.subtle, fontSize: 9, margin: "-3px 2px 2px" }}>VBIOS · {state.gpu_vbios_version || "—"}</div>
-      <div style={{ color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 6px" }}>{state.gpu_range ? `${state.gpu_range[0]}–${state.gpu_range[1]} MHz` : "—"}{state.gpu_allowed_range ? ` · ${text.safeRange} ${state.gpu_allowed_range[0]}–${state.gpu_allowed_range[1]} MHz` : ""}</div>
-      {vrmNotice}
-      <MetricGrid tiles={gpuVrmTiles} />
-      <Gddr6Panel state={state} />
-    </section> : null}
+    {section === "gpu" ? <Focusable flow-children="down">
+      <ScrollStop><AceRow state={state} /></ScrollStop>
+      <ScrollStop><MetricGrid tiles={gpuTiles} />
+        <div style={{ color: tokens.colors.subtle, fontSize: 9, margin: "-3px 2px 2px" }}>VBIOS · {state.gpu_vbios_version || "—"}</div>
+        <div style={{ color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 6px" }}>{state.gpu_range ? `${state.gpu_range[0]}–${state.gpu_range[1]} MHz` : "—"}{state.gpu_allowed_range ? ` · ${text.safeRange} ${state.gpu_allowed_range[0]}–${state.gpu_allowed_range[1]} MHz` : ""}</div></ScrollStop>
+      <ScrollStop>{vrmNotice}<MetricGrid tiles={gpuVrmTiles} /></ScrollStop>
+      <ScrollStop><Gddr6Panel state={state} /></ScrollStop>
+      <ScrollStop end />
+    </Focusable> : null}
 
-    {section === "cooling" ? <section>
-      {fanChannelList}
-      <MetricGrid tiles={fanControlTiles} />
-    </section> : null}
+    {section === "cooling" ? <Focusable flow-children="down">
+      <ScrollStop>{fanChannelList}</ScrollStop>
+      <ScrollStop><MetricGrid tiles={fanControlTiles} /></ScrollStop>
+      <ScrollStop end />
+    </Focusable> : null}
 
     {section === "all" ? <section>
       {/* Every sensor from every module, stacked in one screen, purely so a
-          player can take a single screenshot instead of one per tab.
-          Plain divs (MetricGrid/CoreGrid tiles) are not gamepad nav stops on
-          their own, so with nothing focusable below the SubNav the D-pad had
-          nowhere to move and the QAM never auto-scrolled past the fold. Each
-          Focusable below is a stop purely so "down" has somewhere to land;
-          noFocusRing keeps read-only tiles from growing a button outline. */}
+          player can take a single screenshot instead of one per tab. Each
+          block is a ScrollStop so the D-pad can walk down to the last one. */}
       <Focusable flow-children="down">
-        <Focusable noFocusRing><SectionTitle kind="cpu" title="CPU" /><MetricGrid tiles={cpuTiles} /></Focusable>
-        <Focusable noFocusRing><CoreGrid cores={state.cpu_cores ?? []} /></Focusable>
-        <Focusable noFocusRing><MetricGrid tiles={cpuVrmTiles} /></Focusable>
+        <ScrollStop><SectionTitle kind="cpu" title="CPU" /><MetricGrid tiles={cpuTiles} /></ScrollStop>
+        <ScrollStop><CoreGrid cores={state.cpu_cores ?? []} /></ScrollStop>
+        <ScrollStop><MetricGrid tiles={cpuVrmTiles} /></ScrollStop>
 
-        <Focusable noFocusRing><SectionTitle kind="gpu" title="GPU" /><MetricGrid tiles={gpuTiles} /></Focusable>
-        <Focusable noFocusRing>
+        <ScrollStop><SectionTitle kind="gpu" title="GPU" /><AceRow state={state} /><MetricGrid tiles={gpuTiles} /></ScrollStop>
+        <ScrollStop>
           <div style={{ color: tokens.colors.subtle, fontSize: 9, margin: "-3px 2px 8px" }}>VBIOS · {state.gpu_vbios_version || "—"} · {state.gpu_range ? `${state.gpu_range[0]}–${state.gpu_range[1]} MHz` : "—"}{state.gpu_allowed_range ? ` · ${text.safeRange} ${state.gpu_allowed_range[0]}–${state.gpu_allowed_range[1]} MHz` : ""}</div>
           <MetricGrid tiles={gpuVrmTiles} />
-        </Focusable>
-        <Focusable noFocusRing><Gddr6Panel state={state} /></Focusable>
+        </ScrollStop>
+        <ScrollStop><Gddr6Panel state={state} /></ScrollStop>
 
-        <Focusable noFocusRing><SectionTitle kind="fan" title={text.fan} />{fanChannelList}</Focusable>
-        <Focusable noFocusRing><MetricGrid tiles={boardSensorTiles} /></Focusable>
-        <Focusable noFocusRing><MetricGrid tiles={fanControlTiles} /></Focusable>
+        <ScrollStop><SectionTitle kind="fan" title={text.fan} />{fanChannelList}</ScrollStop>
+        <ScrollStop><MetricGrid tiles={boardSensorTiles} /></ScrollStop>
+        <ScrollStop><MetricGrid tiles={fanControlTiles} /></ScrollStop>
 
-        <Focusable noFocusRing><SectionTitle kind="power" title={text.power} />{vrmNotice}<MetricGrid tiles={powerTiles} /></Focusable>
+        <ScrollStop><SectionTitle kind="power" title={text.power} />{vrmNotice}<MetricGrid tiles={powerTiles} /></ScrollStop>
+        <ScrollStop end />
       </Focusable>
     </section> : null}
   </>;
@@ -1089,6 +1358,7 @@ function Content() {
     {activeTab === "memory" ? <MemoryTab state={state} busy={busy} execute={execute} /> : null}
     {activeTab === "settings" ? <SettingsTab settings={settings} setSettings={setSettings} state={state} busy={busy} execute={execute} /> : null}
     {activeTab === "board" ? <>
+    <GameProfileCard state={state} busy={busy} />
     <SubNav<BoardSection> value={boardSection} onChange={setBoardSection} items={[
       { key: "gpu", label: "GPU", icon: <FaMicrochip />, color: accent.focus, colorSoft: accent.focus_soft },
       { key: "cu", label: text.compute, icon: <FaTh />, color: accent.focus, colorSoft: accent.focus_soft },
@@ -1105,6 +1375,8 @@ function Content() {
       {activeGpuProfiles.map((profile) => { const current = state.gpu_range?.[0] === profile.min && state.gpu_range?.[1] === profile.max && (state.gpu_governor !== "cyan" || state.gpu_performance_enabled === false); const allowed = Boolean(state.gpu_allowed_range && state.gpu_allowed_range[0] <= profile.min && profile.max <= state.gpu_allowed_range[1]); return <PadButton key={profile.key} disabled={busy || !gpuReady || !allowed} preferredFocus={profile.key === (state.gpu_governor === "oberon" ? "oberon-1850" : "balanced")} onActivate={() => { void execute(`GPU · ${profile.name}`, () => applyGpuProfile(profile.key), "gpu"); }} style={{ alignItems: "center", background: current ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, display: "flex", flexDirection: "column", gap: 2, height: 60, justifyContent: "center", minWidth: 0, padding: "6px 6px", textAlign: "center", width: "100%" }}><span style={{ color: current ? accent.focus : tokens.colors.text, fontSize: 11, fontWeight: 650, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }}>{profile.name}</span><span style={{ color: current ? accent.focus : tokens.colors.subtle, fontSize: 9, lineHeight: 1.3 }}>{profile.min}–{profile.max}<br />MHz{current ? ` · ${text.current}` : ""}</span></PadButton>; })}
     </Focusable>
     {points.length ? <><PadButton onActivate={() => setHighOpen(!highOpen)} disabled={busy || !gpuReady} style={{ alignItems: "center", display: "flex", fontSize: 11, height: 34, justifyContent: "space-between", marginBottom: 6, padding: "5px 9px", width: "100%" }}><span>{text.more}</span><span style={{ color: accent.focus }}>{highOpen ? "▴" : "▾"}</span></PadButton>{highOpen ? <Focusable flow-children="grid" navEntryPreferPosition={NavEntryPositionPreferences.PREFERRED_CHILD} style={{ background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 6, display: "grid", gap: 5, gridTemplateColumns: "1fr 1fr", padding: 6 }}>{points.map((point, index) => { const current = point.frequency === liveHighPoint?.frequency; const allowed = Boolean(state.gpu_allowed_range && point.frequency <= state.gpu_allowed_range[1]); return <PadButton key={point.frequency} disabled={busy || !gpuReady || !allowed} preferredFocus={current || (!liveHighPoint && index === 0)} onActivate={() => { if (!current) void execute(`GPU · ${governorName || text.advanced}`, () => applyGpuSafePoint(point.frequency), "gpu"); }} style={{ background: current ? accent.focus_soft : tokens.colors.panel_alt, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, color: current ? accent.focus : tokens.colors.text, fontSize: 10, height: 34, padding: 4, textAlign: "center", width: "100%" }}>{point.frequency} MHz · {point.voltage} mV{current ? ` · ${text.current}` : ""}</PadButton>; })}</Focusable> : null}</> : null}
+    <VoltageLab state={state} busy={busy} execute={execute} />
+    <GovernorServiceRow state={state} busy={busy} execute={execute} />
     </>}
     </section> : null}
 
@@ -1153,6 +1425,7 @@ function Content() {
     </section> : null}
 
     {boardSection === "fan" ? <section style={{ marginBottom: 12 }}><SectionTitle kind="fan" title={text.fan} />
+      <FanPresetRow state={state} busy={busy} execute={execute} />
       <PadButton disabled={busy} onActivate={() => setFanOpen(!fanOpen)} style={{ alignItems: "center", display: "flex", fontSize: 11, height: 34, justifyContent: "space-between", marginBottom: 6, padding: "5px 9px", width: "100%" }}><span>{liveFan?.label ?? `PWM ${fanChannel}`} · {fanDetected ? text.detected : text.unavailable}</span><span style={{ color: accent.focus }}>{fanOpen ? "▴" : "▾"}</span></PadButton>
       {fanOpen ? <Focusable flow-children="grid" navEntryPreferPosition={NavEntryPositionPreferences.PREFERRED_CHILD} style={{ display: "grid", gap: 5, gridTemplateColumns: "1fr 1fr", marginBottom: 7 }}>{fanChannels.map((channel) => { const option = state.fan_channel_options?.find((item) => item.channel === channel); const available = detectedFans.includes(channel); return <PadButton key={channel} disabled={busy || !available} preferredFocus={channel === fanChannel} onActivate={() => { selectionRef.current.fan = channel; setFanChannel(channel); setFanOpen(false); dirty.current.fan = false; const percent = option?.percent; if (percent != null) setFanDuty(percent); }} style={{ background: channel === fanChannel ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${channel === fanChannel ? accent.focus : tokens.colors.border}`, color: channel === fanChannel ? accent.focus : tokens.colors.text, fontSize: 10, height: 34, padding: 4, width: "100%" }}>PWM {channel} · {available ? `${option?.percent ?? "—"}%` : text.unavailable}</PadButton>; })}</Focusable> : null}
       {liveFan ? <div style={{ color: liveFan.rpm_observed ? tokens.colors.subtle : tokens.colors.amber, fontSize: 9, lineHeight: 1.3, margin: "0 2px 6px" }}>{liveFan.rpm_observed ? `${text.fanRpmObserved}: ${liveFan.rpm} RPM` : `${text.fanUnverified}. ${fanChannel === 2 ? text.fanWiring : ""}`}</div> : null}
@@ -1165,24 +1438,163 @@ function Content() {
   </Focusable>;
 }
 
+// Read-only: whether the running game really uses the compute (ACE) queues,
+// from the same amdgpu counter the desktop's Performance page reads. Turning
+// async compute on or off needs a new session, so that stays on the desktop.
+function AceRow({ state }: { state: Status }) {
+  const game = useRunningGame();
+  const percent = state.ace_busy_percent;
+  const available = Boolean(state.ace_available);
+  const active = typeof percent === "number" && percent > 0;
+  const who = active ? (game?.name || state.ace_process || "") : "";
+  const value = !available ? "—"
+    : percent == null ? text.aceMeasuring
+    : active ? `${text.yes}, ${percent} %${who ? ` · ${who}` : ""}`
+    : text.no;
+  return <div style={{ background: tokens.colors.panel_alt, border: `1px solid ${active ? tokens.colors.green : tokens.colors.border}`, borderRadius: 6, marginBottom: 8, overflow: "hidden" }}>
+    <StatusRow label={text.aceInUse} value={value} active={available ? active : null} />
+    <div style={{ color: tokens.colors.subtle, fontSize: 9, lineHeight: 1.35, padding: "0 9px 7px" }}>{text.aceHint}</div>
+  </div>;
+}
+
+// Decky's system-fan presets, named and tuned from the desktop's Fans page
+// when the player exported them there. They never touch the pump channel.
+function FanPresetRow({ state, busy, execute }: { state: Status; busy: boolean; execute: (title: string, operation: () => Promise<Result>, kind?: DraftKind) => Promise<void> }) {
+  const accent = ACCENT_SWATCHES[useContext(SettingsContext).settings.accent];
+  const presets = state.fan_profiles?.length ? state.fan_profiles : [
+    { key: "quiet", name: "", percent: 40 }, { key: "balanced", name: "", percent: 60 }, { key: "boost", name: "", percent: 80 },
+  ];
+  const available = (state.system_fan_channels ?? []).length > 0;
+  const options = [...presets.map((preset) => ({ key: preset.key, label: presetLabel(preset.key, presets), detail: `${preset.percent}%` })), { key: "automatic", label: text.automatic, detail: "BIOS" }];
+  return <>
+    <div style={{ color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 4px" }}>{text.fanPresets}</div>
+    <Focusable flow-children="grid" navEntryPreferPosition={NavEntryPositionPreferences.PREFERRED_CHILD} style={{ display: "grid", gap: 5, gridTemplateColumns: "repeat(4,minmax(0,1fr))", marginBottom: 8 }}>
+      {options.map((option) => {
+        const current = state.system_fan_preset === option.key;
+        return <PadButton key={option.key} disabled={busy || !available} preferredFocus={current} onActivate={() => { if (!current) void execute(`${text.fans} · ${option.label}`, () => applySystemFanPreset(option.key), "fan"); }}
+          style={{ alignItems: "center", background: current ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, display: "flex", flexDirection: "column", gap: 1, height: 44, justifyContent: "center", minWidth: 0, padding: "4px 3px", width: "100%" }}>
+          <span style={{ color: current ? accent.focus : tokens.colors.text, fontSize: 10, fontWeight: 650, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }}>{option.label}</span>
+          <span style={{ color: current ? accent.focus : tokens.colors.subtle, fontSize: 9 }}>{option.detail}</span>
+        </PadButton>;
+      })}
+    </Focusable>
+  </>;
+}
+
+// The running game's own GPU profile and fan preset. Saved choices are names
+// the panel already offers; Decky applies them when the game starts and puts
+// the previous ones back when it ends, whether or not this panel is open.
+function GameProfileCard({ state, busy }: { state: Status; busy: boolean }) {
+  const accent = ACCENT_SWATCHES[useContext(SettingsContext).settings.accent];
+  const game = useRunningGame();
+  const [store, setStore] = useState<GameStore>({});
+  const [editing, setEditing] = useState(false);
+  const [listOpen, setListOpen] = useState(false);
+  const [working, setWorking] = useState(false);
+  const [draftGpu, setDraftGpu] = useState<string | null>(null);
+  const [draftFan, setDraftFan] = useState<string | null>(null);
+  const load = useCallback(async () => {
+    try { const result = await getGameProfiles(); if (result.ok !== false) setStore(result); } catch { /* retried on the next change */ }
+  }, []);
+  useEffect(() => { void load(); gameStoreListeners.add(load); return () => { gameStoreListeners.delete(load); }; }, [load]);
+  useEffect(() => { void load(); setEditing(false); }, [game?.appId, load]);
+  const games = store.games ?? [];
+  const saved = game ? games.find((entry) => entry.app_id === game.appId) : undefined;
+  const active = Boolean(game && store.session?.app_id === game.appId);
+  const enabled = store.enabled !== false;
+  const gpuProfiles = state.gpu_profiles ?? [];
+  const fanPresets = state.fan_profiles ?? [];
+  const summary = (entry: { gpu: string | null; fan: string | null }) => `GPU ${gpuLabel(entry.gpu, gpuProfiles)} · ${text.fans} ${presetLabel(entry.fan, fanPresets)}`;
+  const run = async (operation: () => Promise<GameStore | GameEvent>) => {
+    if (working) return; setWorking(true);
+    try { const result = await operation(); if (result.ok === false) toaster.toast({ title: text.perGameProfiles, body: localizedErrorSummary(result.error ?? text.error) }); }
+    catch (error) { toaster.toast({ title: text.perGameProfiles, body: localizedErrorSummary(failed(error).error ?? text.error) }); }
+    finally { setWorking(false); await load(); }
+  };
+  const beginEdit = () => { setDraftGpu(saved?.gpu ?? null); setDraftFan(saved?.fan ?? null); setEditing(true); };
+  const save = () => {
+    if (!game) return;
+    void run(async () => {
+      const result = await saveGameProfile(game.appId, game.name, draftGpu, draftFan);
+      if (result.ok === false) return result;
+      setEditing(false);
+      // Playing it right now: the new choice takes effect at once.
+      if (result.enabled !== false) await onGameStart(game.appId, game.name, true);
+      return result;
+    });
+  };
+  const remove = (appId: string) => void run(async () => {
+    const result = await removeGameProfile(appId);
+    if (store.session?.app_id === appId) await onGameStop(appId);
+    if (runningGame?.appId === appId) setRunningGame(runningGame);
+    return result;
+  });
+  const toggle = (next: boolean) => void run(async () => {
+    const result = await setGameProfilesEnabled(next);
+    if (!next && store.session) await gameStopped(store.session.app_id).then(notifyGameStore);
+    if (next && game) await onGameStart(game.appId, game.name);
+    return result;
+  });
+  const choice = (value: string | null, current: string | null, label: string, pick: () => void, key: string) => {
+    const selected = value === current;
+    return <PadButton key={key} disabled={working} onActivate={pick} style={{ background: selected ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${selected ? accent.focus : tokens.colors.border}`, color: selected ? accent.focus : tokens.colors.text, fontSize: 9, fontWeight: 650, height: 30, overflow: "hidden", padding: "2px 4px", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }}>{label}</PadButton>;
+  };
+  return <section style={{ background: tokens.colors.panel_alt, border: `1px solid ${active ? accent.focus : tokens.colors.border}`, borderRadius: 8, marginBottom: 10, padding: "8px 9px" }}>
+    <SectionTitle kind="game" title={text.perGameProfiles} trailing={active ? <span style={{ color: accent.focus, fontSize: 9, fontWeight: 700 }}>{text.gameProfileActive}</span> : undefined} />
+    <div style={{ fontSize: 11, overflow: "hidden" }}><ToggleField label={text.applyAutomatically} layout="inline" bottomSeparator="none" highlightOnFocus checked={enabled} disabled={working} onChange={toggle} /></div>
+    {!game ? <div style={{ color: tokens.colors.subtle, fontSize: 10, lineHeight: 1.4, margin: "4px 2px 6px" }}>{text.gameNotRunning}</div> : <>
+      <div style={{ margin: "4px 2px 6px" }}>
+        <div style={{ color: tokens.colors.text, fontSize: 12, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{game.name}</div>
+        <div style={{ color: saved ? tokens.colors.muted : tokens.colors.subtle, fontSize: 9, marginTop: 2 }}>{saved ? summary(saved) : text.gameNoProfile}</div>
+      </div>
+      {!editing ? <ActionRow marginBottom={6}>
+        <Action label={saved ? text.editProfile : text.assignProfile} primary={!saved} disabled={working || busy} onActivate={beginEdit} />
+        {saved ? <Action label={text.removeGame} danger disabled={working} onActivate={() => remove(saved.app_id)} /> : null}
+      </ActionRow> : <div style={{ borderTop: `1px solid ${tokens.colors.border_soft}`, paddingTop: 6 }}>
+        <div style={{ color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 4px" }}>GPU</div>
+        <Focusable flow-children="grid" style={{ display: "grid", gap: 4, gridTemplateColumns: `repeat(${Math.min(4, gpuProfiles.length + 1)},minmax(0,1fr))`, marginBottom: 6 }}>
+          {choice(null, draftGpu, text.unchanged, () => setDraftGpu(null), "gpu-none")}
+          {gpuProfiles.map((profile) => choice(profile.key, draftGpu, profile.name, () => setDraftGpu(profile.key), `gpu-${profile.key}`))}
+        </Focusable>
+        <div style={{ color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 4px" }}>{text.fans}</div>
+        <Focusable flow-children="grid" style={{ display: "grid", gap: 4, gridTemplateColumns: "repeat(3,minmax(0,1fr))", marginBottom: 6 }}>
+          {choice(null, draftFan, text.unchanged, () => setDraftFan(null), "fan-none")}
+          {["quiet", "balanced", "boost", "automatic"].map((key) => choice(key, draftFan, presetLabel(key, fanPresets), () => setDraftFan(key), `fan-${key}`))}
+        </Focusable>
+        <div style={{ color: tokens.colors.subtle, fontSize: 9, lineHeight: 1.35, margin: "0 2px 6px" }}>{text.gameCpuNote}</div>
+        <ActionRow marginBottom={6}>
+          <Action label={text.gameProfileSave} primary disabled={working || (!draftGpu && !draftFan)} onActivate={save} />
+          <Action label={text.cancel} disabled={working} onActivate={() => setEditing(false)} />
+        </ActionRow>
+      </div>}
+    </>}
+    <PadButton onActivate={() => setListOpen(!listOpen)} style={{ alignItems: "center", display: "flex", fontSize: 10, height: 30, justifyContent: "space-between", padding: "4px 8px", width: "100%" }}>
+      <span>{text.savedGames} · {games.length}</span><span style={{ color: accent.focus }}>{listOpen ? "▴" : "▾"}</span>
+    </PadButton>
+    {listOpen ? <Focusable flow-children="down" style={{ marginTop: 5 }}>
+      {!games.length ? <div style={{ color: tokens.colors.subtle, fontSize: 9, margin: "2px 2px 0" }}>{text.gamesEmpty}</div> : games.map((entry) => <Focusable key={entry.app_id} flow-children="row" style={{ alignItems: "center", borderTop: `1px solid ${tokens.colors.border_soft}`, display: "grid", gap: 6, gridTemplateColumns: "1fr 72px", padding: "5px 0" }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 10, fontWeight: 650, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{entry.name || appName(Number(entry.app_id))}</div>
+          <div style={{ color: tokens.colors.subtle, fontSize: 8, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{summary(entry)}</div>
+        </div>
+        <Action label={text.removeGame} danger disabled={working} onActivate={() => remove(entry.app_id)} />
+      </Focusable>)}
+    </Focusable> : null}
+  </section>;
+}
+
 function SettingsTab({ settings, setSettings, state, busy, execute }: {
-  settings: QuickAccessSettings; setSettings: (next: QuickAccessSettings) => void; state: Status; busy: boolean;
+  settings: QuickAccessSettings; setSettings: (next: QuickAccessSettings) => void;
+  state: Status; busy: boolean;
   execute: (title: string, operation: () => Promise<Result>, kind?: DraftKind) => Promise<void>;
 }) {
   const accent = ACCENT_SWATCHES[settings.accent];
-  const cyanActive = state.gpu_governor === "cyan";
-  const highPointsEnabled = (state.gpu_safe_point_ceilings ?? []).length > 0;
-  const toggleHighPoints = () => {
-    const next = !highPointsEnabled;
-    showModal(<ConfirmModal
-      strTitle={next ? text.enableHighPoints : text.disableHighPoints}
-      strDescription={text.highFrequencyPointsHint}
-      strOKButtonText={next ? text.enableHighPoints : text.disableHighPoints}
-      bDestructiveWarning={next}
-      onOK={() => void execute(text.highFrequencyPoints, () => setGpuHighFrequencyPoints(next), "gpu")}
-    />);
-  };
   return <>
+    <section style={{ marginBottom: 12 }}>
+      <SectionTitle kind="gpu" title="GPU" />
+      <HighPointsSwitch state={state} busy={busy} execute={execute} />
+    </section>
+
     <section style={{ marginBottom: 12 }}>
       <SectionTitle kind="settings" title={text.accentColor} />
       <Focusable flow-children="grid" navEntryPreferPosition={NavEntryPositionPreferences.PREFERRED_CHILD} style={{ display: "grid", gap: 6, gridTemplateColumns: "repeat(3,minmax(0,1fr))" }}>
@@ -1222,21 +1634,28 @@ function SettingsTab({ settings, setSettings, state, busy, execute }: {
       </Focusable>
     </section>
 
-    <section style={{ marginBottom: 12 }}>
-      <SectionTitle kind="settings" title={text.advanced} />
-      <PadButton disabled={busy || !cyanActive} onActivate={toggleHighPoints} style={{ alignItems: "center", background: highPointsEnabled ? tokens.colors.red_soft : tokens.colors.panel_raised, border: `1px solid ${highPointsEnabled ? tokens.colors.red : tokens.colors.border}`, display: "flex", fontSize: 10, height: 44, justifyContent: "space-between", padding: "6px 10px", width: "100%" }}>
-        <span style={{ color: tokens.colors.text }}>{text.highFrequencyPoints}</span>
-        <b style={{ color: highPointsEnabled ? tokens.colors.red : tokens.colors.subtle }}>{highPointsEnabled ? text.enabled : text.disabled}</b>
-      </PadButton>
-      <div style={{ color: cyanActive ? tokens.colors.subtle : tokens.colors.amber, fontSize: 9, lineHeight: 1.4, margin: "6px 2px 0" }}>{cyanActive ? text.highFrequencyPointsHint : text.highFrequencyCyanOnly}</div>
-    </section>
   </>;
 }
 
-export default definePlugin(() => ({
-  name: "BC250 Quick Access",
-  titleView: <div className={staticClasses.Title}>BC250 Quick Access</div>,
-  content: <Content />,
-  icon: <FaMicrochip />,
-  onDismount() {},
-}));
+type SteamGlobals = typeof globalThis & {
+  SteamClient?: { GameSessions?: { RegisterForAppLifetimeNotifications?: (callback: (update: { unAppID: number; nInstanceID: number; bRunning: boolean }) => void) => { unregister?: () => void } } };
+};
+
+export default definePlugin(() => {
+  // Registered with the plugin, not the panel: per-game profiles follow
+  // games while the Quick Access menu is closed, which is nearly always.
+  const lifetime = (globalThis as SteamGlobals).SteamClient?.GameSessions?.RegisterForAppLifetimeNotifications?.(onAppLifetime);
+  // A game already running when Decky (re)loaded the plugin.
+  const current = Router.MainRunningApp;
+  if (current?.appid) {
+    runningInstances.set(String(current.appid), new Set([0]));
+    void onGameStart(String(current.appid), current.display_name || appName(Number(current.appid)));
+  }
+  return {
+    name: "BC250 Quick Access",
+    titleView: <div className={staticClasses.Title}>BC250 Quick Access</div>,
+    content: <Content />,
+    icon: <FaMicrochip />,
+    onDismount() { lifetime?.unregister?.(); },
+  };
+});

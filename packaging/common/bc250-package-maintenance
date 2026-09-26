@@ -22,6 +22,24 @@ case "${1:-}" in
     if [[ -x "$helper" ]]; then
       "$helper" uninstall-check
     fi
+    # The system fan control service (GitHub #15) runs the fan helper this
+    # package is about to remove. Stop it and give the fan back to firmware
+    # first, or the unit would fail on every boot afterwards.
+    fan_helper=/usr/libexec/bc250-control-center/bc250-fan-pwm-helper
+    if [[ -x "$fan_helper" ]] && {
+      [[ -f /etc/systemd/system/bc250-fan-control.service ]] || [[ -f /etc/init.d/bc250-fan-control ]]
+    }; then
+      printf 'CONTROL DISABLE\nEXIT\n' | "$fan_helper" >/dev/null 2>&1 || true
+    fi
+    # Python writes bytecode caches next to the modules whenever root runs a
+    # helper or the CLI (the uninstall-check above included). No package owns
+    # them, so without this the removal leaves both trees behind holding
+    # nothing but __pycache__ directories.
+    for tree in /usr/libexec/bc250-control-center /usr/share/bc250-control-center; do
+      if [[ -d "$tree" ]]; then
+        find "$tree" -xdev -type d -name __pycache__ -prune -exec rm -rf -- {} + 2>/dev/null || true
+      fi
+    done
     ;;
   *)
     echo "Usage: $0 {post-install|pre-remove}" >&2

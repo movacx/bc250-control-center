@@ -39,7 +39,7 @@ def test_the_step_sits_before_the_tour(overlay):
 
 def test_the_step_opens_on_the_choice_not_on_a_black_rectangle(overlay):
     """An empty terminal on a welcome screen reads as a fault, not a terminal."""
-    assert overlay.dependency_faces.currentIndex() == 0
+    assert overlay.terminal_open is False
 
 
 def test_pressing_the_button_only_reports_the_intent(overlay):
@@ -57,7 +57,9 @@ def test_a_running_install_takes_over_the_button(qtbot, overlay):
 
     assert overlay.console.run(["/bin/sleep", "300"], title="Preparar")
 
-    assert overlay.dependency_faces.currentIndex() == 1
+    # The terminal opens under the list; the list stays, locked.
+    assert overlay.terminal_open
+    assert overlay.picker.isEnabled() is False
     assert overlay.prepare_button.isEnabled() is False
     assert overlay.prepare_button.text() != before
     assert overlay.preparing
@@ -76,7 +78,9 @@ def test_a_failure_says_so_and_offers_another_go(qtbot, overlay):
         assert overlay.console.run(["/bin/sh", "-c", "exit 3"], title="Preparar")
 
     assert overlay.prepare_button.isEnabled()
+    assert overlay.picker.isEnabled()
     assert "3" in overlay.console.state.text()
+    assert overlay.terminal_open, "the output of a failure is what to read next"
 
 
 def test_an_install_that_never_started_is_reported_where_output_would_be(overlay):
@@ -301,13 +305,11 @@ def test_the_tiles_do_not_grade_the_components(overlay):
         assert not hasattr(tile, "risk")
 
 
-def test_the_tiles_arrive_when_the_step_does(qtbot, overlay):
-    """Built behind four other steps; the entrance belongs to the arrival."""
-    overlay._reach(overlay.DEPENDENCY_STEP)
-
-    tile = next(iter(overlay.picker.tiles.values()))
-    assert tile.entrance < 1.0
-    qtbot.waitUntil(lambda: tile.entrance == 1.0, timeout=4000)
+def test_the_rows_are_compact_and_need_no_scrolling(overlay):
+    """Seven one-line rows, not a scrolling grid of tall animated tiles."""
+    for tile in overlay.picker.tiles.values():
+        assert tile.height() <= 40 or tile.maximumHeight() <= 40
+        assert tile.toolTip(), "the description moved to the tooltip, not away"
 
 
 def test_reaching_the_step_asks_what_is_already_installed(overlay):

@@ -31,7 +31,7 @@ MINIMUM_MESSAGE_LENGTH = 15
 GENERIC_CODES = frozenset({"BC250-GENERAL-001"})
 
 # Ratchet. Current specific coverage of the raise corpus.
-MINIMUM_COVERAGE = 0.72
+MINIMUM_COVERAGE = 0.74
 
 
 # Literal text each rule must recognise, with where it comes from. Strings taken
@@ -50,6 +50,9 @@ EVIDENCE: dict[str, tuple[str, ...]] = {
     "BC250-AUTH-002": (
         "Error executing command as another user: Not authorized",
         "Authentication failed",
+        # sudo, when a prompt waits past a long build with nobody at the keyboard
+        "sudo: timed out reading password",
+        "sudo: a password is required",
     ),
     "BC250-AUTH-003": (
         "pkexec: command not found",

@@ -17,6 +17,7 @@ window.
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 from PyQt6.QtCore import (
     QEasingCurve,
@@ -42,6 +43,7 @@ from PyQt6.QtWidgets import (
 from ..components.widgets import icon
 from ..i18n import tr
 from .console_tab import ConsoleTab
+from .user_shell import shell_environment, user_shell
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +62,8 @@ AUTO_HIDE_DELAY_MS = 2200
 # arrives with every tab taken falls back to a terminal window, exactly as the
 # whole console did before tabs existed.
 MAXIMUM_TABS = 5
+# From this width the header actions show their word beside the icon.
+HEADER_LABELS_WIDTH = 900
 
 
 class ConsolePanel(QFrame):
@@ -67,6 +71,8 @@ class ConsolePanel(QFrame):
 
     workflow_started = pyqtSignal()
     workflow_finished = pyqtSignal(int)
+    #: The same moment, saying which workflow: its log file and exit code.
+    workflow_log_finished = pyqtSignal(str, int)
     visibility_changed = pyqtSignal(bool)
     external_terminal_requested = pyqtSignal(str)
     #: How many workflows are running right now, whenever that number moves.
@@ -83,7 +89,7 @@ class ConsolePanel(QFrame):
         self._panel_height = DEFAULT_HEIGHT
         self._drag_origin: int | None = None
         self._drag_height = 0
-        self._auto_hide = True
+        self._auto_hide = False
         self._running_count = 0
         # A controller cannot type into the grid, so it needs a field. A
         # keyboard can, and putting a field in front of it turns a terminal
@@ -111,6 +117,13 @@ class ConsolePanel(QFrame):
         self._strip_layout.setContentsMargins(0, 0, 0, 0)
         self._strip_layout.setSpacing(4)
         header_layout.addWidget(self.tab_strip)
+        # A clean shell of the user's own, in a tab of its own, the way every
+        # editor's terminal panel opens one beside the ones already there.
+        self.new_button = self._header_button(
+            tr("New terminal"), header_layout, icon_name="plus_gray", icon_only=True
+        )
+        self.new_button.setProperty("consoleNew", True)
+        self.new_button.clicked.connect(self.open_new_shell)
         header_layout.addStretch(1)
 
         self.stop_button = self._header_button(
@@ -123,7 +136,7 @@ class ConsolePanel(QFrame):
         self.copy_button.clicked.connect(self._copy_everything)
         self.external_button = self._header_button(
             tr("Open terminal"), header_layout,
-            icon_name="external_gray", icon_only=True,
+            icon_name="terminal_window_gray", icon_only=True,
         )
         self.external_button.clicked.connect(self._open_external_terminal)
         self.hide_button = self._header_button(
@@ -131,6 +144,15 @@ class ConsolePanel(QFrame):
             icon_name="chevron_down_gray", icon_only=True,
         )
         self.hide_button.clicked.connect(self.slide_out)
+        #: The actions that also carry their word once the header has room.
+        #: An icon alone asked people to hover each one to learn what it did.
+        self._labelled_actions = (
+            (self.copy_button, "Copy"),
+            (self.external_button, "Open terminal"),
+            (self.hide_button, "Hide"),
+        )
+        self._labels_shown = False
+        self.hide_button.setToolTip(f"{tr('Hide')} · F4")
 
         self.stack = QStackedWidget(self)
         self.stack.setObjectName("consoleStack")
@@ -200,6 +222,8 @@ class ConsolePanel(QFrame):
         button = QPushButton("" if icon_only else text)
         button.setObjectName("consoleHeaderButton")
         button.setProperty("iconOnly", bool(icon_only))
+        # The icon-only actions still stop at every keyboard shortcut reader.
+        button.setAccessibleName(text)
         button.setCursor(Qt.CursorShape.PointingHandCursor)
         button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         button.setToolTip(text)
@@ -217,6 +241,7 @@ class ConsolePanel(QFrame):
         tab.close_requested.connect(lambda t=tab: self.close_tab(t))
         tab.finished.connect(lambda code, t=tab: self._on_finished(t, code))
         tab.failed.connect(lambda _message, t=tab: self._on_failed_tab(t))
+        tab.shell_exited.connect(lambda t=tab: self._on_shell_exited(t))
         tab.input_mode_changed.connect(
             lambda masked, t=tab: self._on_input_mode_changed(t, masked)
         )
@@ -233,8 +258,11 @@ class ConsolePanel(QFrame):
         for other in self._tabs:
             other.set_active(other is tab)
         self.stack.setCurrentWidget(tab.view)
-        self.stop_button.setEnabled(tab.running)
-        self._masked = tab.input_is_masked()
+        # Stop ends a workflow; the user's shell is closed with ``exit`` or ✕.
+        self.stop_button.setEnabled(tab.running_workflow)
+        # Only a workflow has a script a desktop terminal can run again.
+        self.external_button.setEnabled(bool(tab.launch_path))
+        self._masked = tab.input_is_masked() and not tab.interactive
         self._set_input_masked(self._masked)
         self._apply_input_surface()
 
@@ -246,10 +274,14 @@ class ConsolePanel(QFrame):
         line. The last tab is reset instead, which is the state the panel
         starts in.
         """
-        if tab.running:
+        if tab.running_workflow:
             return
+        was_shell = tab.interactive
         if len(self._tabs) <= 1:
+            # Also ends a shell here: releasing the session is what stops it.
             tab.show_text("", title="")
+            if was_shell:
+                self.slide_out()
             return
         self._tabs.remove(tab)
         self.stack.removeWidget(tab.view)
@@ -263,6 +295,8 @@ class ConsolePanel(QFrame):
 
     def _sync_strip(self) -> None:
         """Only wear the look of a tab strip when there is more than one."""
+        if hasattr(self, "new_button"):
+            self._sync_new_button()
         several = len(self._tabs) > 1
         self.tab_strip.setProperty("several", several)
         # Repolishing a container leaves its children with the style they were
@@ -294,7 +328,7 @@ class ConsolePanel(QFrame):
         return len(self._tabs)
 
     def running_count(self) -> int:
-        return sum(1 for tab in self._tabs if tab.running)
+        return sum(1 for tab in self._tabs if tab.running_workflow)
 
     def _announce_running_count(self) -> None:
         count = self.running_count()
@@ -323,7 +357,8 @@ class ConsolePanel(QFrame):
 
     @property
     def busy(self) -> bool:
-        return any(tab.running for tab in self._tabs)
+        """A workflow is running. The user's F4 shell never makes it busy."""
+        return any(tab.running_workflow for tab in self._tabs)
 
     def session_pid(self) -> int | None:
         return self.active_tab.session_pid()
@@ -423,6 +458,101 @@ class ConsolePanel(QFrame):
         self._animation.start()
         self.visibility_changed.emit(False)
 
+    @property
+    def shown(self) -> bool:
+        """Where the panel is going, not where the slide currently has it.
+
+        ``is_open`` reads the live height, which lags the intent for the
+        length of the animation; two quick F4 presses would otherwise read
+        the panel as still open and close it twice.
+        """
+        return self.isVisible() and self._animation.endValue() != 0
+
+    def toggle(self) -> None:
+        """Show or hide the console, the way F4 does in Dolphin.
+
+        Opening an empty panel starts the user's own shell in it, so F4 never
+        uncovers a blank black box. A panel that already holds something — a
+        running workflow, the output of one that just finished, a shell the
+        user left — is shown exactly as it was left.
+        """
+        if self.shown:
+            self.slide_out()
+            return
+        shell_tab = next(
+            (tab for tab in self._tabs if tab.interactive and tab.running), None
+        )
+        if shell_tab is not None and not self.active_tab.running_workflow:
+            self._activate(shell_tab)
+        elif self.active_tab.is_empty():
+            self.open_shell()
+            return
+        self.slide_in()
+
+    def open_shell(self) -> bool:
+        """Start the user's login shell in a tab of its own and show it.
+
+        The shell runs as the user, in their home directory, with nothing the
+        application added to its environment. It is never given privileges:
+        anything that needs root still goes through Polkit, as it does in any
+        terminal.
+        """
+        tab = next((tab for tab in self._tabs if tab.is_empty()), None)
+        if tab is None:
+            if len(self._tabs) >= MAXIMUM_TABS:
+                return False
+            tab = self._new_tab()
+        shell = user_shell()
+        started = tab.run(
+            [shell],
+            title=tr("Terminal"),
+            grid_height=self._grid_height(with_input=self._gamepad_present),
+            interactive=True,
+            cwd=str(Path.home()),
+            environment=shell_environment(),
+        )
+        if not started:
+            return False
+        self._activate(tab)
+        self.stop_button.setEnabled(False)
+        self.slide_in()
+        return True
+
+    def open_new_shell(self) -> bool:
+        """The ``+``: a clean shell in a new tab, whatever the others hold."""
+        opened = self.open_shell()
+        self._sync_new_button()
+        return opened
+
+    def _sync_new_button(self) -> None:
+        room = len(self._tabs) < MAXIMUM_TABS or any(tab.is_empty() for tab in self._tabs)
+        self.new_button.setEnabled(room)
+        self.new_button.setToolTip(
+            tr("New terminal") if room else tr("Close a tab to open another terminal")
+        )
+
+    def _sync_header_labels(self) -> None:
+        """Words beside the icons once the header is wide enough for them."""
+        shown = self.width() >= HEADER_LABELS_WIDTH
+        if shown == self._labels_shown:
+            return
+        self._labels_shown = shown
+        for button, label in self._labelled_actions:
+            button.setText(tr(label) if shown else "")
+            button.setProperty("iconOnly", not shown)
+            style = button.style()
+            if style is not None:
+                style.unpolish(button)
+                style.polish(button)
+
+    def _on_shell_exited(self, tab: ConsoleTab) -> None:
+        """``exit`` closes the panel, as it does for Dolphin's terminal."""
+        if tab is self._active:
+            self.input_row.setVisible(False)
+            self.input_field.clear()
+        if tab is self._active and not self.busy:
+            self.slide_out()
+
     def _animation_finished(self) -> None:
         if self.maximumHeight() <= 0:
             super().setVisible(False)
@@ -488,9 +618,15 @@ class ConsolePanel(QFrame):
             return MAXIMUM_HEIGHT_FALLBACK
         return max(MINIMUM_HEIGHT, int(window.height() * MAXIMUM_HEIGHT_RATIO))
 
+    def showEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        # Hidden panels get no resize events; measure on the way in.
+        super().showEvent(event)
+        self._sync_header_labels()
+
     def resizeEvent(self, event) -> None:  # noqa: N802 - Qt API name
         """Shrink with the window instead of overflowing it."""
         super().resizeEvent(event)
+        self._sync_header_labels()
         ceiling = self._available_height()
         if self._panel_height > ceiling:
             self.set_panel_height(ceiling)
@@ -579,7 +715,7 @@ class ConsolePanel(QFrame):
         """Only the tab on screen may move the one answer row there is."""
         if tab is not self._active:
             return
-        self._set_input_masked(masked)
+        self._set_input_masked(masked and not tab.interactive)
 
     def _set_input_masked(self, masked: bool) -> None:
         """Follow the workflow: a prompt that hides its input gets a hidden field."""
@@ -616,7 +752,10 @@ class ConsolePanel(QFrame):
         instead, and the grid keeps the caret so there is somewhere to type.
         """
         tab = self.active_tab
-        if not tab.running:
+        # Interactive shells (zsh's ZLE, fish, bash's readline) switch echo
+        # off for as long as they are editing a line and draw it themselves,
+        # so a cleared ECHO flag says nothing about a password there.
+        if not tab.running or tab.interactive:
             return
         if self._masked and not self.input_row.isVisible():
             self._prompt_owns_state = True
@@ -661,6 +800,7 @@ class ConsolePanel(QFrame):
         # it any easier to find.
         self._announce_running_count()
         self.workflow_finished.emit(code)
+        self.workflow_log_finished.emit(str(tab.log_file or ""), int(code))
 
     # --------------------------------------------------------------- actions
 
@@ -680,14 +820,13 @@ class ConsolePanel(QFrame):
         self.send_button.setText(tr("Send"))
         self.stop_button.setText(tr("Stop"))
         self.stop_button.setToolTip(tr("Stop"))
-        for button, label in (
-            (self.copy_button, "Copy"),
-            (self.external_button, "Open terminal"),
-            (self.hide_button, "Hide"),
-        ):
-            # Icon-only: the word lives in the tooltip, so that is what a
-            # language change has to rewrite.
+        for button, label in self._labelled_actions:
             button.setToolTip(tr(label))
+            button.setAccessibleName(tr(label))
+            if self._labels_shown:
+                button.setText(tr(label))
+        self.hide_button.setToolTip(f"{tr('Hide')} · F4")
+        self._sync_new_button()
         for tab in self._tabs:
             tab.retranslate()
 

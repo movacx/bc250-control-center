@@ -10,17 +10,19 @@ from __future__ import annotations
 
 import configparser
 import hashlib
+import io
 import json
 import os
 import pathlib
 import pwd
 import shutil
+import signal
 import stat
 import subprocess
 import sys
 import tempfile
 import time
-from typing import Sequence
+from typing import Callable, Sequence
 
 HELPER_PATH = pathlib.Path('/usr/libexec/bc250-control-center/bc250-cpu-smu-helper')
 VENDOR_ZIP = pathlib.Path('/usr/libexec/bc250-control-center/lib/bc250_smu_oc_vendor.zip')
@@ -155,6 +157,11 @@ def run_vendor_module(module: str, args: Sequence[str], *, pass_fds: Sequence[in
         'PATH': '/usr/sbin:/usr/bin:/sbin:/bin',
         'PYTHONPATH': str(VENDOR_ZIP),
         'LANG': os.environ.get('LANG', 'C.UTF-8'),
+        # The desktop reads this through a pipe, not a terminal, and Python
+        # buffers a pipe in 8 KiB blocks: bc250-detect's "Stress Testing
+        # 3550 MHz @ 1137 mV" lines all arrived at once when it finished.
+        # Unbuffered, each step shows up as the detector prints it.
+        'PYTHONUNBUFFERED': '1',
     }
     result = subprocess.run(
         [sys.executable, '-m', module, *map(str, args)],
@@ -235,6 +242,197 @@ def action_detect(argv: Sequence[str]) -> int:
     finally:
         if fd >= 0:
             os.close(fd)
+
+
+# ------------------------------------------------------- manual scale stress
+#
+# bc250-detect searches for a scale: it steps the clock up 100 MHz at a time,
+# stress-tests every step for ten seconds and lowers the scale whenever the
+# measured voltage would pass the limit. A scale typed by hand skipped all of
+# that and went straight to bc250-apply. This runs the detector's own steps
+# with the scale held instead of searched: the same start, the same timings,
+# the same throttling rule, and every passing step written as the result, so
+# a failure keeps the highest frequency that held, exactly as the detector
+# does.
+VERIFY_START_MHZ = 3500
+VERIFY_STEP_MHZ = 100
+VERIFY_SETTLE_SECONDS = 0.25
+VERIFY_STRESS_SECONDS = 10.0
+VERIFY_CORE_PROBE_SECONDS = 1.0
+VERIFY_THROTTLE_MARGIN_MHZ = 50
+VERIFY_CORE_SLOTS = 8
+#: The upstream absolute limit (bc250_limits.vid_max): the detector never lets
+#: the measured voltage pass the user's own limit, and a typed scale has no
+#: limit of its own, so the absolute one stands in.
+VERIFY_VID_LIMIT_MV = 1325
+
+
+def _apply_clock_and_scale(smu, frequency: int, scale: int) -> None:
+    smu.q3_0x50_scale_f_vid_curve(scale)
+    smu.q3_0x8f_set_max_cpu_boost_clk(frequency)
+
+
+def _active_cores(smu, stress, sleep: Callable[[float], None]) -> list[bool]:
+    """The detector's own probe: a core whose clock the SMU raises is active."""
+    _apply_clock_and_scale(smu, VERIFY_START_MHZ, 0)
+    stress.start()
+    try:
+        sleep(VERIFY_CORE_PROBE_SECONDS)
+        cores = [smu.q3_0x43_get_core_freq(index) > 3000 for index in range(VERIFY_CORE_SLOTS)]
+    finally:
+        stress.stop()
+    shape = ''.join(str(index) if active else 'X' for index, active in enumerate(cores))
+    print(f'Detected Active Cores: {shape}', flush=True)
+    return cores
+
+
+def _throttling(smu, threshold: int, cores: Sequence[bool]) -> bool:
+    return any(
+        active and smu.q3_0x43_get_core_freq(index) < threshold
+        for index, active in enumerate(cores)
+    )
+
+
+def verify_scale_steps(
+    smu,
+    stress,
+    frequency: int,
+    scale: int,
+    temperature: int,
+    *,
+    write_result: Callable[[int, int, int], None],
+    sleep: Callable[[float], None] = time.sleep,
+) -> tuple[int, int]:
+    """Stress-test ``scale`` in 100 MHz steps up to ``frequency``.
+
+    Returns ``(highest passing MHz, voltage measured there)``; ``(0, 0)`` when
+    not even the first step held. The caller applies or reverts.
+    """
+    smu.q3_0x8b_set_cpu_max_temperature(temperature)
+    smu.q3_0x8c_set_gpu_max_temperature(temperature)
+    smu.disable_extra_cpu_gpu_voltage(True)
+    cores = _active_cores(smu, stress, sleep)
+    print(f'Testing scale {scale} up to {frequency} MHz, {temperature}\u00b0C', flush=True)
+    step = VERIFY_START_MHZ + (frequency % VERIFY_STEP_MHZ)
+    passed = passed_voltage = 0
+    while True:
+        _apply_clock_and_scale(smu, step, scale)
+        stress.start()
+        try:
+            sleep(VERIFY_SETTLE_SECONDS)
+            voltage = int(smu.q3_0x36_get_current_cpu_voltage())
+            if voltage > VERIFY_VID_LIMIT_MV:
+                print(
+                    f'Aborting: {voltage} mV at {step} MHz is above the '
+                    f'{VERIFY_VID_LIMIT_MV} mV limit',
+                    flush=True,
+                )
+                break
+            print(f'Stress Testing {step} MHz @ {voltage} mV', flush=True)
+            sleep(VERIFY_STRESS_SECONDS)
+            if _throttling(smu, step - VERIFY_THROTTLE_MARGIN_MHZ, cores):
+                print('Aborting because throttling was detected', flush=True)
+                break
+        finally:
+            stress.stop()
+        passed, passed_voltage = step, voltage
+        write_result(passed, scale, temperature)
+        if passed >= frequency:
+            break
+        step = min(step + VERIFY_STEP_MHZ, frequency)
+    return passed, passed_voltage
+
+
+def _revert_smu_defaults(smu) -> None:
+    """bc250-detect's own revert_defaults(), for a test that did not hold."""
+    smu.q3_0x8f_set_max_cpu_boost_clk(VERIFY_START_MHZ)
+    smu.q3_0x50_scale_f_vid_curve(0)
+    smu.disable_extra_cpu_gpu_voltage(False)
+    smu.q3_0x8b_set_cpu_max_temperature(100)
+    smu.q3_0x8c_set_gpu_max_temperature(100)
+    print('Restored Default Parameters', flush=True)
+
+
+def _config_text(frequency: int, scale: int, temperature: int) -> str:
+    parser = configparser.ConfigParser(interpolation=None)
+    parser['overclock'] = {
+        'frequency': str(frequency),
+        'scale': str(scale),
+        'max_temperature': str(temperature),
+    }
+    stream = io.StringIO()
+    parser.write(stream)
+    return stream.getvalue()
+
+
+class _VendorStress:
+    """The vendor's stress_helper behind two methods, so tests can stand in."""
+
+    def __init__(self, module) -> None:
+        self._module = module
+
+    def start(self) -> None:
+        self._module.stress_start()
+
+    def stop(self) -> None:
+        self._module.stress_stop()
+
+
+def _raise_system_exit(_signum, _frame) -> None:
+    # Cancelling from the desktop terminates the helper. Without this the
+    # default handler would kill it on the spot and leave stress running at
+    # an untested clock; as SystemExit the finally blocks still revert.
+    raise SystemExit(130)
+
+
+def action_verify_scale(argv: Sequence[str]) -> int:
+    if len(argv) != 4:
+        return fail('verify-scale expects: <frequency> <scale> <temperature> <config-path>', 40)
+    try:
+        frequency, scale, temperature = validate_values(*map(int, argv[:3]))
+    except (ValueError, TypeError) as exc:
+        return fail(str(exc), 41)
+    if not shutil.which('stress', path='/usr/sbin:/usr/bin:/sbin:/bin'):
+        return fail('stress is required to test a manual scale.', 42)
+    fd, path = user_detection_config_fd(argv[3])
+    signal.signal(signal.SIGTERM, _raise_system_exit)
+    signal.signal(signal.SIGHUP, _raise_system_exit)
+    try:
+        os.environ['PATH'] = '/usr/sbin:/usr/bin:/sbin:/bin'
+        sys.path.insert(0, str(VENDOR_ZIP))
+        import stress_helper  # noqa: PLC0415 - audited vendor zip
+        from bc250_smu import Bc250Smu  # noqa: PLC0415 - audited vendor zip
+
+        def write_result(passed: int, held_scale: int, limit: int) -> None:
+            data = _config_text(passed, held_scale, limit).encode('utf-8')
+            os.ftruncate(fd, 0)
+            os.pwrite(fd, data, 0)
+            os.fsync(fd)
+
+        print('== Manual BC250 CPU scale, stress-tested in steps ==', flush=True)
+        print(f'Frequency: {frequency} MHz | scale: {scale} | Temp: {temperature} C', flush=True)
+        smu = Bc250Smu(use_flock=True)
+        print('Probing SMU Communication...', end='', flush=True)
+        smu.check_test_message()
+        print(' Test Message OK', flush=True)
+        passed = voltage = 0
+        try:
+            passed, voltage = verify_scale_steps(
+                smu, _VendorStress(stress_helper), frequency, scale, temperature,
+                write_result=write_result,
+            )
+        finally:
+            if passed:
+                _apply_clock_and_scale(smu, passed, scale)
+            else:
+                _revert_smu_defaults(smu)
+        if not passed:
+            return fail(f'Scale {scale} did not hold even at the first step; defaults restored.', 43)
+        print(f'\nFinal Result: {passed} MHz @ {voltage} mV using scale {scale}', flush=True)
+        print(f'Done, config file was written to {path}', flush=True)
+        return 0
+    finally:
+        os.close(fd)
 
 
 def root_temp_config(frequency: int, scale: int, temperature: int) -> pathlib.Path:
@@ -920,6 +1118,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             return action_install_qam(args)
         if action == 'apply-live':
             return action_apply_live(args)
+        if action == 'verify-scale':
+            return action_verify_scale(args)
         if action == 'install-boot':
             return action_install_boot(args)
         if action == 'apply-config':

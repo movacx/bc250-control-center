@@ -6,7 +6,9 @@ from bc250cc.infrastructure.memory_runtime import (
     TTM_GIB_PRESETS,
     supported_ttm_gib_presets,
 )
-from bc250cc.shared.contract import VRAM_SIZE_PRESETS_MB
+from bc250cc.shared.contract import (
+    VRAM_SIZE_PRESETS_MB,  # noqa: F401 - re-exported to the dashboard
+)
 
 from ..i18n import tr, tr_format
 
@@ -88,6 +90,14 @@ def _restore_bazzite_memory_options(owner, tools) -> None:
         ttm_combo.blockSignals(False)
     else:
         ttm_combo.setItemText(1, tr("Kernel default (remove BC250 TTM limit)"))
+    # GitHub issue #14. The generic adapter greys this entry out until it has
+    # a TTM change of its own to undo, and a refresh that ran before the
+    # inventory had identified Bazzite left it greyed: the item list here is
+    # the same, so it was never rebuilt, and the option stayed unavailable
+    # until the application restarted. On Bazzite it is always selectable —
+    # the workflow restores only the argument it recorded and otherwise
+    # reports that nothing of its own exists.
+    ttm_combo.model().item(1).setEnabled(True)
 
     if type(physical) is int and physical > 0:
         visible_gib = physical / (1024 ** 3)
@@ -122,12 +132,22 @@ def update_memory_controls(owner, tools):
         combo.blockSignals(False)
     enabled = bool(setup.get("helper_available") and memory.get("supported"))
     policies = memory.get("policies") or []
-    policy_reasons = memory.get("policy_reasons") or {}
+    policy_reasons = dict(memory.get("policy_reasons") or {})
     takeover_available = bool(memory.get("zram_takeover_available"))
     # A ZSWAP option blocked only by a foreign ZRAM stays selectable: picking
     # it is how the user confirms disabling that ZRAM, same as Bazzite
     # already lets every option through.
     selectable = set(policies) | ({"zswap-16", "zswap-32"} if takeover_available else set())
+    # With a policy in place, only what the helper can reach from it is
+    # offered: restore, the same policy again, or the same swapfile with or
+    # without ZSWAP in front of it. Anything else used to be selectable and
+    # then refused at apply time.
+    configured = str(memory.get("configured_policy") or "preserve")
+    if configured not in {"preserve", "restore"} and memory.get("phase") == "configured":
+        reachable = {"preserve", "restore", configured, *(memory.get("direct_switches") or [])}
+        for value in selectable - reachable:
+            policy_reasons[value] = "Restore the current BC250 memory policy before choosing another"
+        selectable &= reachable
     for i in range(combo.count()):
         item = combo.model().item(i)
         value = combo.itemData(i)

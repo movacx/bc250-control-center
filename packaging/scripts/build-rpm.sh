@@ -29,7 +29,7 @@ bash "$SCRIPT_DIR/stage-package-root.sh" "$work/payload"
 # an inert Arch-specific file on Fedora/Bazzite and makes package ownership
 # needlessly broader.
 rm -rf -- "$work/payload/usr/share/libalpm"
-tar --create --file - --sort=name --mtime="@$SOURCE_DATE_EPOCH" \
+tar --create --file - --format=gnu --sort=name --mtime="@$SOURCE_DATE_EPOCH" \
   --owner=0 --group=0 --numeric-owner -C "$work/payload" . \
   | gzip -n -9 > "$work/top/SOURCES/bc250-control-center-root.tar.gz"
 # The %files list used to be written by hand, and it had already drifted:
@@ -66,7 +66,7 @@ License:        MIT
 URL:            https://github.com/movacx/bc250-control-center
 Source0:        bc250-control-center-root.tar.gz
 BuildArch:      noarch
-Requires:       python3, python3-psutil, python3-pyqt6, qt6-qtsvg, polkit, jq
+Requires:       python3, python3-psutil, python3-pyqt6, qt6-qtsvg, polkit, jq, diffutils
 Suggests:       git, lm_sensors, pciutils, stress, vulkan-tools
 
 %description

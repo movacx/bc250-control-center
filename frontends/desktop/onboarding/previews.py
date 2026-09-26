@@ -9,8 +9,6 @@ is an asset, so a palette that changes changes the preview with it.
 
 from __future__ import annotations
 
-from copy import deepcopy
-
 from PyQt6.QtCore import QRectF, QSize, Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QPainter, QPainterPath, QPen
 from PyQt6.QtWidgets import QSizePolicy, QWidget
@@ -18,23 +16,18 @@ from PyQt6.QtWidgets import QSizePolicy, QWidget
 from .. import theme as theme_module
 
 
-def palette_for(mode: str, accent: str) -> dict[str, str]:
+def palette_for(mode: str, accent: str, style: str | None = None) -> dict[str, str]:
     """The palette the theme module would install, without installing it.
 
     ``configure_theme`` writes into the module-level ``COLORS``, which is the
     live palette every open widget is painted from. A preview must never do
-    that, so it repeats the two steps that matter — pick the base, overwrite
-    the accent — on a copy of its own.
+    that, so it asks for the finished palette of a choice as a copy of its
+    own. ``mode`` is a theme ("light", "dark", "midnight"); the style
+    defaults to the one on screen.
     """
-    base = deepcopy(
-        theme_module.DARK_COLORS if mode == "dark" else theme_module.LIGHT_COLORS
+    return theme_module.theme_palette(
+        mode, accent, theme_module.ACTIVE_STYLE if style is None else style
     )
-    light_value, light_soft, dark_value, dark_soft = theme_module.ACCENTS.get(
-        accent, theme_module.ACCENTS["blue"]
-    )
-    base["blue"] = dark_value if mode == "dark" else light_value
-    base["blue_soft"] = dark_soft if mode == "dark" else light_soft
-    return base
 
 
 class _Card(QWidget):
@@ -117,16 +110,27 @@ class _Card(QWidget):
 class ThemePreview(_Card):
     """A miniature shell painted in the palette this card stands for."""
 
-    def __init__(self, value: str, mode: str, accent: str, parent: QWidget | None = None) -> None:
+    def __init__(
+        self, value: str, mode: str, accent: str, parent: QWidget | None = None,
+        *, style: str = "standard",
+    ) -> None:
         super().__init__(value, parent)
         self._mode = mode
         self._accent = accent
+        self._style = style
         self.setMinimumHeight(104)
 
     def set_accent(self, accent: str) -> None:
         if accent == self._accent:
             return
         self._accent = accent
+        self.update()
+
+    def set_style(self, style: str) -> None:
+        """Formal repaints the miniature too: quieter tones, squarer cards."""
+        if style == self._style:
+            return
+        self._style = style
         self.update()
 
     def sizeHint(self) -> QSize:  # noqa: N802 - Qt API name
@@ -137,15 +141,20 @@ class ThemePreview(_Card):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
         inner = self._frame(painter)
-        self._paint_shell(painter, inner, palette_for(self._mode, self._accent))
+        self._paint_shell(
+            painter, inner, palette_for(self._mode, self._accent, self._style),
+            corner=theme_module.FORMAL_RADIUS_FACTOR if self._style == "formal" else 1.0,
+        )
         painter.end()
 
     @staticmethod
-    def _paint_shell(painter: QPainter, area: QRectF, colors: dict[str, str]) -> None:
+    def _paint_shell(
+        painter: QPainter, area: QRectF, colors: dict[str, str], *, corner: float = 1.0
+    ) -> None:
         """The application in eight rectangles: rail, header, cards, accent."""
         painter.setPen(Qt.PenStyle.NoPen)
         canvas = QPainterPath()
-        canvas.addRoundedRect(area, 5.0, 5.0)
+        canvas.addRoundedRect(area, 5.0 * corner, 5.0 * corner)
         painter.fillPath(canvas, QColor(colors["window"]))
         painter.setClipPath(canvas)
 
@@ -180,7 +189,7 @@ class ThemePreview(_Card):
                 card_height,
             )
             face = QPainterPath()
-            face.addRoundedRect(card, 3.0, 3.0)
+            face.addRoundedRect(card, 3.0 * corner, 3.0 * corner)
             painter.fillPath(face, QColor(colors["panel"]))
             painter.setPen(QPen(QColor(colors["border_soft"]), 1.0))
             painter.drawPath(face)
@@ -270,7 +279,7 @@ class AccentDot(_Card):
         del event
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        colors = palette_for(theme_module.ACTIVE_MODE, self.value)
+        colors = palette_for(theme_module.ACTIVE_THEME, self.value)
         centre = QRectF(self.rect()).center()
         radius = self.DIAMETER / 2.0
         body = QRectF(centre.x() - radius, centre.y() - radius, self.DIAMETER, self.DIAMETER)

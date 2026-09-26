@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from typing import Sequence
 
 from PyQt6.QtCore import QRectF, Qt
-from PyQt6.QtGui import QColor, QPainter, QPainterPath
+from PyQt6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPainterPath
 from PyQt6.QtWidgets import (
     QFrame,
     QGridLayout,
@@ -41,6 +41,24 @@ class CoreReading:
 def _frequency_text(value: float) -> str:
     """Per-core clocks read better in GHz, the way the dashboard shows them."""
     return "--" if value <= 0 else f"{value / 1000:.2f} GHz"
+
+
+def _clock_width(base: QFont, floor: int) -> int:
+    """The clock column wide enough for a reading and for "Hidden".
+
+    A fixed 74 px fitted the fonts this was drawn with; a wider fallback
+    face (Bitstream Vera Sans on a bare openSUSE) and a longer word
+    ("Ausgeblendet") clipped both at the same width.
+    """
+    font = QFont(base)
+    font.setPixelSize(12)
+    font.setWeight(QFont.Weight.Bold)
+    metrics = QFontMetrics(font)
+    widest = max(
+        metrics.horizontalAdvance(text)
+        for text in ("8.88 GHz", tr("Hidden"))
+    )
+    return max(floor, widest + 4)
 
 
 class UsageBar(QWidget):
@@ -109,7 +127,7 @@ class CoreRow(QFrame):
         row.addWidget(self.name, 0)
 
         self.frequency = QLabel("--")
-        self.frequency.setFixedWidth(self.CLOCK_WIDTH)
+        self.frequency.setFixedWidth(_clock_width(self.font(), self.CLOCK_WIDTH))
         row.addWidget(self.frequency, 0)
 
         self.bar = UsageBar()
@@ -171,10 +189,14 @@ class CoreRow(QFrame):
     def set_offline(self) -> None:
         for label in (self.name, self.frequency, self.usage):
             label.setStyleSheet(
-                f"color:{COLORS['disabled_text']}; font-size:11px; font-weight:700;"
+                # Quiet but readable: a hidden core is information, not a
+                # disabled control (the disabled grey measured 3:1 in light).
+                f"color:{COLORS['subtle']}; font-size:11px; font-weight:700;"
                 " background:transparent; border:none;"
             )
         self.frequency.setText(tr("Hidden"))
+        # The word changes with the language; the column follows it.
+        self.frequency.setFixedWidth(_clock_width(self.font(), self.CLOCK_WIDTH))
         self.usage.setText("")
         self.bar.set_usage(0, active=False)
         self.setToolTip("")
@@ -235,4 +257,11 @@ class CoreGrid(QWidget):
     def resizeEvent(self, event) -> None:  # noqa: N802 (Qt)
         super().resizeEvent(event)
         spacing = self._grid.horizontalSpacing()
-        self._apply_columns((self.width() + spacing) // (self.MINIMUM_COLUMN + spacing))
+        self._apply_columns((self.width() + spacing) // (self._minimum_column() + spacing))
+
+    def _minimum_column(self) -> int:
+        """What a row needs with its bar hidden, never below the design floor."""
+        row = self.rows[0]
+        gaps = row.layout().spacing() * 2
+        needed = row.NAME_WIDTH + row.frequency.maximumWidth() + row.LOAD_WIDTH + gaps
+        return max(self.MINIMUM_COLUMN, needed)

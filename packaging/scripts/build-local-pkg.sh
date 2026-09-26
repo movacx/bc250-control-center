@@ -56,7 +56,7 @@ temporary="$target.tmp.$$"
 # prefix every member with `./` (including `./.PKGINFO`), which libalpm treats
 # as missing metadata and reports as an invalid or corrupted package. List the
 # package metadata and payload explicitly so their archive paths are canonical.
-tar --create --file - --sort=name --mtime="@$SOURCE_DATE_EPOCH" \
+tar --create --file - --format=gnu --sort=name --mtime="@$SOURCE_DATE_EPOCH" \
   --owner=0 --group=0 --numeric-owner -C "$work/root" \
   .PKGINFO .INSTALL usr \
   | zstd -q -19 -T0 -o "$temporary"

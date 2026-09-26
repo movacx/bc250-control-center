@@ -25,11 +25,14 @@ from bc250cc.infrastructure.bazzite_mitigations import (
     probe_bazzite_mitigations,
 )
 from bc250cc.infrastructure.bc250_fsr4 import (
-    build_fsr4_v3_bazzite_install_command,
-    build_fsr4_v3_fedora44_install_command,
-    build_fsr4_v3_install_command,
     build_fsr4_v3_uninstall_command,
-    fsr4_runtime_state,
+)
+from bc250cc.infrastructure.bc250_opticlient import (
+    build_opticlient_install_command,
+    build_opticlient_remove_command,
+    launch_opticlient,
+    opticlient_games,
+    opticlient_state,
 )
 from bc250cc.infrastructure.cachyos_bc250_kernel import (
     build_cachyos_bc250_kernel_command,
@@ -67,6 +70,11 @@ from bc250cc.infrastructure.gfx1013_compute_policy import (
     STEAMOS_REVIEWED_DRYHOPPED_COMMIT,
     classify_gfx1013_support,
 )
+from bc250cc.infrastructure.gfx1013_source import (
+    build_gfx1013_source_command,
+    gfx1013_source_state,
+    gfx1013_source_supported,
+)
 from bc250cc.infrastructure.governor_conflicts import (
     CYAN_GOVERNOR,
     GOVERNOR_SPECS,
@@ -87,6 +95,11 @@ from bc250cc.infrastructure.preparation_workflow import (
     build_preparation_command,
     secure_cpu_checkout_command,
 )
+from bc250cc.infrastructure.radv_async_compute import (
+    build_radv_async_command,
+    radv_async_state,
+    radv_async_supported,
+)
 from bc250cc.infrastructure.source_checkout import (
     clone_or_update,
     clone_or_update_branch,
@@ -94,6 +107,7 @@ from bc250cc.infrastructure.source_checkout import (
     clone_or_update_commit_with_archive,
     clone_or_update_with_archive,
 )
+from bc250cc.infrastructure.steam_launch_options import add_dll_override
 from bc250cc.infrastructure.steamos_amdgpu import (
     build_steamos_amdgpu_diagnostic_command,
     build_steamos_compatibility_command,
@@ -402,51 +416,43 @@ class DependenciasRepository:
         )
 
     def gestionar_fsr4_bc250(self, action: str) -> object:
-        """Run the official upstream FSR4 lifecycle on supported or gated hosts."""
-        os_repository = self._os_repository()
-        os_info = os_repository.info
-        version_id = str(
-            getattr(os_info, 'version_id', '')
-            or read_os_release().get('VERSION_ID', '')
-        ).strip()
-        compute_state = self._gfx1013_compute_state(os_repository)
-        compute_kernel_ready = bool(
-            compute_state.get('dryhopped_ready')
-            or compute_state.get('masta_async_compute_ready')
-            or (
-                os_info.family == 'bazzite'
-                and compute_state.get('exact_upstream_validated_host')
-            )
-        )
-        state = fsr4_runtime_state(
-            os_info.family,
-            os_info.distro_id,
-            version_id,
-            compute_kernel_ready=compute_kernel_ready,
-        )
+        """FSR4 INT8 through the pinned BC250 OptiScaler Client.
+
+        The client patches games with OptiScaler and the optimised DLL and
+        keeps its own backups; it needs no kernel, Mesa or root, so the same
+        workflow serves every distribution. ``legacy_uninstall`` removes the
+        older per-game RADV runtime (dmorazasanchez V3) that it replaces.
+        """
         action = str(action or '').strip().lower()
-        if action == 'install' and not state.get('installer_available'):
-            raise RuntimeError(
-                'FSR4 requires a verified matching GFX1013 kernel. Use the paired '
-                'MastaG kernel on Arch/CachyOS, the reviewed OGC kernel on Bazzite, '
-                'or the repaired GFX1013 boot on Fedora 44.'
-            )
-        if action not in {'install', 'uninstall'}:
-            raise ValueError('Unsupported BC-250 FSR4 action.')
-        if action == 'uninstall':
-            command_builder = build_fsr4_v3_uninstall_command
-        elif state.get('build_mode') == 'bazzite-podman-source':
-            command_builder = build_fsr4_v3_bazzite_install_command
-        elif state.get('build_mode') == 'fedora44-podman-source':
-            command_builder = build_fsr4_v3_fedora44_install_command
+        if action == 'launch':
+            return launch_opticlient()
+        if action.startswith('steam_option:'):
+            # The one step the client leaves to the user: the Steam launch
+            # option that makes Proton load OptiScaler. Written only while
+            # Steam is closed, merged with the options already there.
+            appid = action.partition(':')[2]
+            game = next((g for g in opticlient_games() if g.get('appid') == appid), None)
+            if game is None or not game.get('steam'):
+                raise RuntimeError('This game is not in the OptiScaler Client list as a Steam game.')
+            adapter = str(game.get('adapter') or '')
+            if not adapter or adapter == 'unknown':
+                raise RuntimeError('OptiScaler is not installed in this game yet.')
+            result = add_dll_override(appid, adapter.removesuffix('.dll'))
+            self.estado_herramientas_cache = None
+            return {**result, 'game': game.get('name', '')}
+        if action == 'install':
+            if not opticlient_state().get('installer_available'):
+                raise RuntimeError('OptiScaler Client is built for x86_64 Linux only.')
+            command, title = build_opticlient_install_command(), 'FSR4 · OptiScaler Client BC250'
+        elif action == 'uninstall':
+            command, title = build_opticlient_remove_command(), 'FSR4 · remove OptiScaler Client'
+        elif action == 'legacy_uninstall':
+            command = build_fsr4_v3_uninstall_command(self._tool_dir() / 'bc250-fsr4')
+            title = 'FSR4 · remove old V3 runtime'
         else:
-            command_builder = build_fsr4_v3_install_command
+            raise ValueError('Unsupported BC-250 FSR4 action.')
         self.estado_herramientas_cache = None
-        destination = self._tool_dir() / 'bc250-fsr4'
-        return self._abrir_terminal(
-            command_builder(destination),
-            'BC-250 FSR4 V3 (per-game RADV)',
-        )
+        return self._abrir_terminal(command, title)
 
     def gestionar_gfx1013_fedora(self, action: str) -> object:
         """Run the official upstream GFX1013 lifecycle on mutable Fedora."""
@@ -628,10 +634,84 @@ class DependenciasRepository:
             'masta_bc250_kernel_active': bool(masta_stack.get('kernel_active')),
             'masta_bc250_mesa_installed': bool(masta_stack.get('mesa_installed')),
             'masta_async_compute_ready': masta_async_compute_ready,
+            # The independent source build (arch/debian/suse families). Read
+            # only from files; the Bazzite, Fedora and SteamOS paths above are
+            # untouched and the source build refuses those hosts itself.
+            'source': gfx1013_source_state(
+                family=os_repository.info.family,
+                distro_id=os_repository.info.distro_id,
+                kernel=kernel,
+                immutable=bool(getattr(os_repository.info, 'immutable', False)),
+            ),
+            # The patched RADV alone, on Arch-family kernels 7.2 or newer,
+            # where the stock amdgpu is the one Bazzite's release runs on.
+            'radv_async': radv_async_state(
+                family=os_repository.info.family,
+                distro_id=os_repository.info.distro_id,
+                kernel=kernel,
+                immutable=bool(getattr(os_repository.info, 'immutable', False)),
+            ),
         })
         if os_repository.info.family == 'bazzite':
             policy.update(probe_bazzite_async_compute())
         return policy
+
+    def gestionar_gfx1013_source(self, action: str) -> object:
+        """Build, install, switch or remove the independent GFX1013 fix."""
+        os_repository = self._os_repository()
+        info = os_repository.info
+        action = str(action or '').strip().lower()
+        supported, reason = gfx1013_source_supported(
+            family=info.family,
+            distro_id=info.distro_id,
+            kernel=platform.release(),
+            immutable=bool(getattr(info, 'immutable', False)),
+        )
+        if action in {'install', 'rebuild', 'enable'} and not supported:
+            raise RuntimeError(reason or 'The GFX1013 source build is not available on this system.')
+        titles = {
+            'install': 'GFX1013 fix · build and install',
+            'rebuild': 'GFX1013 fix · rebuild for this kernel',
+            'enable': 'GFX1013 fix · switch on',
+            'disable': 'GFX1013 fix · switch off',
+            'uninstall': 'GFX1013 fix · remove',
+            'status': 'GFX1013 fix · status',
+        }
+        if action not in titles:
+            raise ValueError('Unsupported GFX1013 source-build action.')
+        self.estado_herramientas_cache = None
+        return self._abrir_terminal(
+            build_gfx1013_source_command(action, self._tool_dir() / 'bc250-gfx1013-fix'),
+            titles[action],
+        )
+
+    def gestionar_radv_async(self, action: str) -> object:
+        """Build, install, switch, test or remove the RADV-only async compute."""
+        info = self._os_repository().info
+        action = str(action or '').strip().lower()
+        supported, reason = radv_async_supported(
+            family=info.family,
+            distro_id=info.distro_id,
+            kernel=platform.release(),
+            immutable=bool(getattr(info, 'immutable', False)),
+        )
+        if action in {'install', 'enable'} and not supported:
+            raise RuntimeError(reason or 'Async compute is not available on this system.')
+        titles = {
+            'install': 'Async compute · build and install',
+            'enable': 'Async compute · switch on',
+            'disable': 'Async compute · switch off',
+            'uninstall': 'Async compute · remove',
+            'status': 'Async compute · status',
+            'test': 'Async compute · test',
+        }
+        if action not in titles:
+            raise ValueError('Unsupported async-compute action.')
+        self.estado_herramientas_cache = None
+        return self._abrir_terminal(
+            build_radv_async_command(action, self._tool_dir() / 'bc250-async-compute-bazzite'),
+            titles[action],
+        )
 
     def estado_herramientas_bc250(self):
         ahora = time.monotonic()
@@ -985,27 +1065,7 @@ class DependenciasRepository:
             lambda: self._gfx1013_compute_state(os_repository),
             {'supported': False, 'state': 'probe-failed'},
         )
-        os_info = getattr(os_repository, 'info', None)
-        version_id = str(
-            getattr(os_info, 'version_id', '')
-            or read_os_release().get('VERSION_ID', '')
-        ).strip()
-        fsr4 = safe(
-            lambda: fsr4_runtime_state(
-                getattr(os_info, 'family', ''),
-                getattr(os_info, 'distro_id', ''),
-                version_id,
-                compute_kernel_ready=bool(
-                    gfx1013_compute.get('dryhopped_ready')
-                    or gfx1013_compute.get('masta_async_compute_ready')
-                    or (
-                        getattr(os_info, 'family', '') == 'bazzite'
-                        and gfx1013_compute.get('exact_upstream_validated_host')
-                    )
-                ),
-            ),
-            {'installed': False, 'precompiled_supported': False},
-        )
+        fsr4 = safe(opticlient_state, {'installed': False, 'installer_available': False})
         return {
             'smu_path': smu_path,
             'smu_exists': bool(smu_path and safe(lambda: Path(smu_path).exists(), False)),

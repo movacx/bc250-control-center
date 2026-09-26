@@ -12,6 +12,7 @@ from __future__ import annotations
 import os
 import shutil
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -239,7 +240,14 @@ def _process_alive(pid: int) -> bool:
         return False
     except PermissionError:
         return True
-    return True
+    # A killed helper whose parent is gone is reparented to PID 1, and in a
+    # container that is often a plain ``sleep`` that never reaps it: dead,
+    # but still answering signal 0 as a zombie.
+    try:
+        stat = Path(f"/proc/{pid}/stat").read_text(encoding="ascii")
+    except OSError:
+        return True
+    return stat.rsplit(")", 1)[-1].split()[0] != "Z"
 
 
 def test_interrupt_reaches_the_foreground_process(qtbot):

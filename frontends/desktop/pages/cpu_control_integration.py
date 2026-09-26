@@ -204,6 +204,12 @@ def _is_running(page) -> bool:
     return bool(running or getattr(page, "_command_build_pending", False))
 
 
+def _is_busy(page) -> bool:
+    """A background task of the page is running (not the SMU command itself)."""
+    background = getattr(page, "_background", None)
+    return bool(background is not None and background.is_running())
+
+
 #: Where each runtime reading already lives on the legacy page. Reading the
 #: rendered widgets rather than recomputing the values keeps one source of
 #: truth: ``_apply_refresh_payload`` fills these, and this only mirrors them.
@@ -239,6 +245,7 @@ def _tuning_state(page) -> CpuTuningState:
         scale=int(page.scale_control.value()),
         manual_scale_available=bool(getattr(page, "_manual_scale_available", False)),
         applying=_is_running(page),
+        busy=_is_busy(page),
         persistence_enabled=bool(current.get("service_enabled")),
         runtime=_runtime_readings(page),
     )
@@ -439,6 +446,9 @@ def install_unified_cpu_control(page) -> CpuControlView:
         controller.refresh_runtime()
 
     page._set_running = _set_running
+    # Reading the boot status, preparing the CPU tool or exporting to Decky
+    # runs on the page's executor without touching _set_running.
+    page._background.busy_changed.connect(lambda _busy: controller.refresh_runtime())
 
 
     original_retranslate = getattr(page, "retranslate_dynamic_copy", None)

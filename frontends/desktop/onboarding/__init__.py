@@ -13,7 +13,7 @@ gate: the flag below records that the offer was made, not that it was taken.
 from __future__ import annotations
 
 from .glass import frosted, frosted_snapshot
-from .script import tour_stops
+from .script import PERFORMANCE_VIEWS_FEATURE, feature_stops, tour_stops
 from .tour import Spotlight, TourCallout, TourGuide, TourStop
 from .welcome import WelcomeOverlay
 
@@ -41,8 +41,29 @@ def mark_first_run_done(settings) -> None:
     settings.sync()
 
 
+#: Features added after someone took the tour are introduced to them once,
+#: with only the stops that describe them. Whoever took the whole tour since
+#: has already been shown them.
+FEATURES_KEY = "onboarding/introduced_features"
+
+
+def introduced_features(settings) -> set[str]:
+    stored = settings.value(FEATURES_KEY, "")
+    if isinstance(stored, (list, tuple)):
+        return {str(item) for item in stored if item}
+    return {item for item in str(stored or "").split(",") if item}
+
+
+def mark_features_introduced(settings, features) -> None:
+    known = introduced_features(settings) | {str(feature) for feature in features if feature}
+    settings.setValue(FEATURES_KEY, ",".join(sorted(known)))
+    settings.sync()
+
+
 __all__ = [
+    "FEATURES_KEY",
     "ONBOARDING_VERSION",
+    "PERFORMANCE_VIEWS_FEATURE",
     "SETTINGS_KEY",
     "Spotlight",
     "TourCallout",
@@ -50,9 +71,12 @@ __all__ = [
     "TourStop",
     "WelcomeOverlay",
     "completed_version",
+    "feature_stops",
     "first_run_pending",
     "frosted",
     "frosted_snapshot",
+    "introduced_features",
+    "mark_features_introduced",
     "mark_first_run_done",
     "tour_stops",
 ]

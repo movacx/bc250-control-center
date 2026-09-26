@@ -47,7 +47,9 @@ from PyQt6.QtWidgets import (
 
 from bc250cc.domain.gpu.oberon import OBERON_REFERENCE_VOLTAGE_MV
 
+from ..components.busy_spinner import BusyBadge
 from ..components.buttons import WrappingButton as QPushButton
+from ..components.card_navigation import EditableCardNavigation
 from ..components.page_widgets import (
     ConfirmDialog,
     MetricTile,
@@ -488,7 +490,7 @@ class FrequencyField(QFrame):
 # Operating profile card — compact: name, range, voltage, pencil
 # ─────────────────────────────────────────────────────────────────────────────
 
-class ProfileCardEditable(QFrame):
+class ProfileCardEditable(EditableCardNavigation, QFrame):
     """A click selects the profile; the pencil edits name and frequencies."""
 
     selected = pyqtSignal(object)   # GpuProfile
@@ -531,6 +533,7 @@ class ProfileCardEditable(QFrame):
         self._edit_button.clicked.connect(self.begin_edit)
         head.addWidget(self._edit_button, 0)
         view.addLayout(head)
+        self._install_card_navigation(self._edit_button)
 
         self._range_label = QLabel(profile.summary())
         self._range_label.setProperty("rangeReadout", True)
@@ -643,12 +646,14 @@ class ProfileCardEditable(QFrame):
         self._refresh_hint()
         self._view.setVisible(False)
         self._editor.setVisible(True)
+        self._card_enter_edit()
         self._name_edit.setFocus()
         self._name_edit.selectAll()
 
     def cancel_edit(self) -> None:
         self._editor.setVisible(False)
         self._view.setVisible(True)
+        self._card_leave_edit()
 
     def retranslate(self) -> None:
         """Rebuilds the interpolated hint after a live language change."""
@@ -704,6 +709,9 @@ class ProfileCardEditable(QFrame):
             if self.is_blocked()
             else ""
         )
+
+    def _card_selectable(self) -> bool:
+        return not self._card_editing() and not self.is_blocked()
 
     def mouseReleaseEvent(self, event) -> None:  # noqa: N802 (Qt)
         super().mouseReleaseEvent(event)
@@ -784,6 +792,20 @@ class SafePointRail(QWidget):
         button toggles which end is being edited.
         """
         self.set_active_handle("minimum" if self._active == "maximum" else "maximum")
+
+    def gamepad_direction(self, direction: str) -> bool:
+        """Left/right move the active handle; up/down leave the rail.
+
+        The rail already did this for the keyboard, but the controller never
+        sent it arrow keys: left/right jumped to the neighbouring control
+        instead of moving the frequency.
+        """
+        if direction not in {"left", "right"}:
+            return False
+        # Consumed even at an end of the range: a press that silently left
+        # the rail would be read as the rail having moved.
+        self.step_active_handle(-1 if direction == "left" else 1)
+        return True
 
     def step_active_handle(self, delta: int) -> None:
         """Move the active handle by whole safe-points, never between them."""
@@ -983,7 +1005,12 @@ class OperationsConsole(QFrame):
         root.setSpacing(0)
 
         head = QWidget()
-        head.setStyleSheet(f"border-bottom:1px solid {COLORS['border_soft']};")
+        # Scoped to the header itself: a bare declaration also underlined every
+        # label inside it and restyled their tooltips.
+        head.setObjectName("gpuPanelHead")
+        head.setStyleSheet(
+            f"QWidget#gpuPanelHead {{ border-bottom:1px solid {COLORS['border_soft']}; }}"
+        )
         head_row = QHBoxLayout(head)
         head_row.setContentsMargins(14, 11, 14, 11)
         head_row.setSpacing(10)
@@ -1129,7 +1156,12 @@ class SafePointTable(QFrame):
         root.setSpacing(0)
 
         head = QWidget()
-        head.setStyleSheet(f"border-bottom:1px solid {COLORS['border_soft']};")
+        # Scoped to the header itself: a bare declaration also underlined every
+        # label inside it and restyled their tooltips.
+        head.setObjectName("gpuPanelHead")
+        head.setStyleSheet(
+            f"QWidget#gpuPanelHead {{ border-bottom:1px solid {COLORS['border_soft']}; }}"
+        )
         head_row = QHBoxLayout(head)
         head_row.setContentsMargins(14, 11, 14, 11)
         title = QLabel(tr("Active TOML safe-points"))
@@ -1283,6 +1315,8 @@ class GpuViewState:
     service_running: bool = False
     service_persistent: bool = False
     dbus_connected: bool = False
+    # False: Cyan runs but its D-Bus timed out. None: not asked or not Cyan.
+    dbus_responsive: bool | None = None
     unlocked: bool = False
     backend: str = "cyan-skillfish-governor-smu"
     device: str = "AMD BC-250 · 0x1002 / 0x13fe"
@@ -1339,6 +1373,9 @@ class GpuViewState:
             service_running=str(gpu.get("service_active") or "").lower() == "active",
             service_persistent=bool(gpu.get("service_enabled", True)),
             dbus_connected=bool(gpu.get("dbus_connected", True)),
+            dbus_responsive=(
+                None if gpu.get("dbus_responsive") is None else bool(gpu.get("dbus_responsive"))
+            ),
             unlocked=bool(high_points.get("enabled")),
             backend=str(gpu.get("governor_backend") or "cyan-skillfish-governor-smu"),
             config_path=str(
@@ -1456,10 +1493,16 @@ class GpuGovernorView(QWidget):
             icon_background=_accent_soft(),
             status=("Safe mode", "green"),
         )
-
-        self._safe_pill = card.status
+        # The same composition as the CPU workspace: no title row, since the
+        # page already says where it is. The range state it carried moves to
+        # the Cyan compatibility heading below, with the ring that stands in
+        # for it while hardware work runs.
+        self._safe_pill = card.drop_header()
+        self._busy_badge = BusyBadge()
+        self._operation_busy = False
 
         profiles_panel, profiles_box = _subpanel("")
+        self.profiles_panel = profiles_panel
         title_row = QHBoxLayout()
         title_row.setContentsMargins(0, 0, 0, 0)
         title_row.setSpacing(8)
@@ -1468,6 +1511,7 @@ class GpuGovernorView(QWidget):
         profiles_title.setWordWrap(True)
         title_row.addWidget(profiles_title, 0)
         title_row.addStretch(1)
+        self._profiles_title_row = title_row
         self._export_decky_button = QPushButton(tr("Export to Decky"))
         self._export_decky_button.setIcon(icon("gamepad_menu"))
         self._export_decky_button.setProperty("compactAction", True)
@@ -1529,11 +1573,23 @@ class GpuGovernorView(QWidget):
         range_box.addLayout(fields)
         card.body.addWidget(range_panel)
 
-        compat_panel, compat_box = _subpanel(
-            "Cyan kernel compatibility",
-            "Only touch this if the readings above look wrong.",
-        )
+        compat_panel, compat_box = _subpanel()
         self._compat_panel = compat_panel
+        compat_title_row = QHBoxLayout()
+        compat_title_row.setContentsMargins(0, 0, 0, 0)
+        compat_title_row.setSpacing(8)
+        compat_title = QLabel(tr("Cyan kernel compatibility"))
+        compat_title.setProperty("cardTitle", True)
+        compat_title.setWordWrap(True)
+        compat_title_row.addWidget(compat_title, 1)
+        # What Cyan is running under (the safe or the extended range) and,
+        # while the governor is being changed, the ring that says so.
+        if self._safe_pill is not None:
+            compat_title_row.addWidget(self._safe_pill, 0, Qt.AlignmentFlag.AlignVCenter)
+        compat_title_row.addWidget(self._busy_badge, 0, Qt.AlignmentFlag.AlignVCenter)
+        compat_box.addLayout(compat_title_row)
+        self._compat_title_row = compat_title_row
+        compat_box.addWidget(caption("Only touch this if the readings above look wrong."))
         # The legacy screen is hidden while this view is mounted, so the two
         # method selectors have to live here or they become unreachable.
         methods = QHBoxLayout()
@@ -1548,6 +1604,20 @@ class GpuGovernorView(QWidget):
             picker.currentIndexChanged.connect(self._mark_compatibility_dirty)
             methods.addWidget(picker, 1)
         compat_box.addLayout(methods)
+        # "process" looks like one more option, and it is the one that stops
+        # Cyan from answering whenever a game is open.
+        self._process_method_warning = QLabel(
+            tr(
+                "The process reading goes through every open file of every program. With a "
+                "game open, Cyan stops answering: the range, the +2000 MHz points and the "
+                "voltage lab stop working until the game closes. busy-flag is the default."
+            )
+        )
+        self._process_method_warning.setWordWrap(True)
+        self._process_method_warning.setProperty("gpuBusNotice", True)
+        compat_box.addWidget(self._process_method_warning)
+        self.usage_method_combo.currentIndexChanged.connect(self._sync_process_method_warning)
+        self._sync_process_method_warning()
 
         toggles = QHBoxLayout()
         toggles.setSpacing(16)
@@ -1602,31 +1672,39 @@ class GpuGovernorView(QWidget):
             icon_background=_accent_soft(),
             status=("Live", "green"),
         )
+        # No title row and no "Live" pill, as on the CPU workspace; the tiles
+        # below are read by their labels, without a badge each.
+        card.drop_header()
 
         self._tiles: dict[str, MetricTile] = {
-            "core": MetricTile("Core clock", "--", "Current SCLK state",
-                               icon_name="gpu_purple", compact=True),
-            "voltage": MetricTile("GPU voltage", "--", "OD / SMU telemetry",
-                                  icon_name="bolt_blue", compact=True),
-            "temperature": MetricTile("Temperature", "--", "hwmon",
-                                      icon_name="fan_cyan", compact=True),
-            "load": MetricTile("GPU load", "--", "amdgpu activity",
-                               icon_name="activity_purple", compact=True),
-            "memory": MetricTile("Memory clock", "--", "Current MCLK state",
-                                 icon_name="memory_green", compact=True),
-            "range": MetricTile("Active range", "--", "Persisted on hardware",
-                                icon_name="vram_gray", compact=True),
+            "core": MetricTile("Core clock", "--", "Current SCLK state", icon_name="", compact=True),
+            "voltage": MetricTile("GPU voltage", "--", "OD / SMU telemetry", icon_name="", compact=True),
+            "temperature": MetricTile("Temperature", "--", "hwmon", icon_name="", compact=True),
+            "load": MetricTile("GPU load", "--", "amdgpu activity", icon_name="", compact=True),
+            "memory": MetricTile("Memory clock", "--", "Current MCLK state", icon_name="", compact=True),
+            "range": MetricTile("Active range", "--", "Persisted on hardware", icon_name="", compact=True),
         }
         card.body.addWidget(ResponsiveTileGrid(self._tiles.values()))
         card.body.addWidget(
             _caption("Passive readings · hardware changes require confirmation.")
         )
+        # Says why the range and the D-Bus actions fail while Cyan is running
+        # but not answering, instead of an error on every click.
+        self._bus_notice = QLabel()
+        self._bus_notice.setWordWrap(True)
+        self._bus_notice.setProperty("gpuBusNotice", True)
+        self._bus_notice.hide()
+        card.body.addWidget(self._bus_notice)
 
         service_panel, service_box = _subpanel("Governor service")
+        # "Enable" is systemd's word for "start at boot", so it named only half
+        # of what this button does; a tester read it as "save for startup".
+        # The button says what happens now, the caption what happens at boot.
         service_box.addWidget(
             _caption(
-                "Enabling starts it now and on every boot. Disabling stops it "
-                "and removes persistence."
+                "Start governor runs it now and saves it for startup (enables "
+                "the service). Stop governor stops it and removes it from "
+                "startup (disables the service)."
             )
         )
         service_actions = QHBoxLayout()
@@ -1660,6 +1738,7 @@ class GpuGovernorView(QWidget):
         card.body.addWidget(service_panel)
 
         lab_panel, lab_box = _subpanel("")
+        self.lab_panel = lab_panel
         lab_head = QHBoxLayout()
         lab_head.setSpacing(10)
         self._lab_title = lab_title = QLabel(tr("Voltage laboratory"))
@@ -1733,8 +1812,7 @@ class GpuGovernorView(QWidget):
             "Advanced GPU diagnostics",
             "TOML safe-point controls, voltage validation, hardware details, "
             "and operation output.",
-            icon_name="logs_gray",
-            icon_background=COLORS["purple_soft"],
+            icon_name="",
         )
         # add_header_button keeps SectionCard's own bookkeeping in sync; adding
         # the widget straight into header_actions leaves the host hidden.
@@ -1806,6 +1884,7 @@ class GpuGovernorView(QWidget):
         self.set_method_combo.retranslate()
         self.usage_method_combo.retranslate()
         self._refresh_risk_caption()
+        self._busy_badge.retranslate()
         self._advanced_toggle.setText(
             tr("Hide") if self._advanced_toggle.isChecked() else tr("Show")
         )
@@ -1817,7 +1896,7 @@ class GpuGovernorView(QWidget):
         """The toggle names the action it performs, and is coloured to match."""
         self._service_toggle_action = "disable" if running else "enable"
         self.service_toggle.setText(
-            tr("Disable service") if running else tr("Enable service")
+            tr("Stop governor") if running else tr("Start governor")
         )
         self.service_toggle.setProperty("dangerAction", running)
         self.service_toggle.setProperty("successAction", not running)
@@ -1835,7 +1914,7 @@ class GpuGovernorView(QWidget):
         """
         unlocked = state.unlocked
         if self._safe_pill is not None and not state.service_running:
-            self._safe_pill.setText("Governor stopped — press Enable service")
+            self._safe_pill.setText("Governor stopped — press Start governor")
             self._safe_pill.set_tone("orange")
             return
         if self._safe_pill is not None:
@@ -1843,6 +1922,11 @@ class GpuGovernorView(QWidget):
             self._safe_pill.set_tone("red" if unlocked else "green")
 
     # ── Cyan compatibility ─────────────────────────────────────────────────
+    def _sync_process_method_warning(self, *_args) -> None:
+        self._process_method_warning.setVisible(
+            self.usage_method_combo.currentData() == "process"
+        )
+
     def _mark_compatibility_dirty(self, *_args) -> None:
         """Stops refresh() from overwriting a choice the user just made.
 
@@ -1882,6 +1966,7 @@ class GpuGovernorView(QWidget):
         finally:
             for widget, previous in zip(widgets, blocked, strict=True):
                 widget.blockSignals(previous)
+        self._sync_process_method_warning()
 
     # ── interaction ────────────────────────────────────────────────────────
     def _toggle_advanced(self, checked: bool) -> None:
@@ -1993,6 +2078,9 @@ class GpuGovernorView(QWidget):
         self._range_panel.setVisible(not is_oberon)
         self._compat_panel.setVisible(not is_oberon)
         self._risk_panel.setVisible(not is_oberon)
+        # The range state and the busy ring live in the Cyan compatibility
+        # heading; with that panel gone they go up beside the profiles.
+        self._place_status(self._profiles_title_row if is_oberon else self._compat_title_row)
 
         for profile_card in self._profile_cards:
             profile_card.set_editable(not is_oberon)
@@ -2016,11 +2104,35 @@ class GpuGovernorView(QWidget):
             tr("Open oberon-config.yaml") if is_oberon else tr("Open config.toml")
         )
 
+    def _place_status(self, row: QHBoxLayout) -> None:
+        widgets = [w for w in (self._safe_pill, self._busy_badge) if w is not None]
+        for widget in widgets:
+            for layout in (self._profiles_title_row, self._compat_title_row):
+                layout.removeWidget(widget)
+        # After the heading and its stretch, ahead of any action on the row.
+        position = 2 if row is self._profiles_title_row else 1
+        for offset, widget in enumerate(widgets):
+            row.insertWidget(position + offset, widget, 0, Qt.AlignmentFlag.AlignVCenter)
+        # A widget handed to another parent comes back hidden; restore the
+        # one of the two that should be showing.
+        busy = self._operation_busy
+        self._busy_badge.setVisible(busy)
+        if self._safe_pill is not None:
+            self._safe_pill.setVisible(not busy)
+
     def profiles(self) -> tuple[GpuProfile, ...]:
         return tuple(profile_card.profile for profile_card in self._profile_cards)
 
     def selected_range(self) -> tuple[int, int]:
         return self._selected_minimum, self._selected_maximum
+
+    def set_operation_busy(self, active: bool, text: str) -> None:
+        """A small ring in the status pill's place while hardware work runs."""
+        self._operation_busy = bool(active)
+        self._busy_badge.set_text(text)
+        self._busy_badge.set_running(active)
+        if self._safe_pill is not None:
+            self._safe_pill.setVisible(not active)
 
     def apply_state(self, state: GpuViewState) -> None:
         self._state = state
@@ -2034,9 +2146,27 @@ class GpuGovernorView(QWidget):
         )
         self._tiles["load"].set_values(f"{state.load} %")
         self._tiles["memory"].set_values(f"{state.memory_clock} MHz")
+        range_known = state.active_minimum > 0 and state.active_maximum > 0
+        stalled = state.dbus_responsive is False
+        # 0–0 MHz read as a real range; it only ever meant "not read".
         self._tiles["range"].set_values(
-            f"{state.active_minimum}–{state.active_maximum} MHz"
+            f"{state.active_minimum}–{state.active_maximum} MHz" if range_known else "--",
+            "Cyan is not answering" if stalled and not range_known else "Persisted on hardware",
         )
+        if stalled:
+            self._bus_notice.setText(
+                tr(
+                    "Cyan is running but not answering. Its usage reading is set to process, "
+                    "which reads every open file of every program; a Proton game keeps tens of "
+                    "thousands open. Choose busy-flag in Cyan kernel compatibility and apply."
+                )
+                if state.usage_method == "process"
+                else tr(
+                    "Cyan is running but not answering on D-Bus, so its range cannot be read or "
+                    "changed right now. Restart the governor if it does not recover."
+                )
+            )
+        self._bus_notice.setVisible(stalled)
 
         self._sync_service_toggle(running=state.service_running)
 
