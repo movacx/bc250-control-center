@@ -99,8 +99,7 @@ def main():
             print("Restore deferred: the BC250 swapfile is still active and was preserved. Reboot, then check status.")
         print("BC250_RESULT status=ok component=system_setup code=0")
         if args.action == "acpi-check":
-            availability = "available" if result.get("available") else "blocked by the reported compatibility reason"
-            print(f"Inspection only: no setting was changed. ACPI installation is {availability}.")
+            print(f"Inspection only: no setting was changed. {acpi.installation_summary(result)[1]}")
         elif args.action == "vram-read":
             print("Inspection only: no setting was changed.")
         elif args.action == "vram-apply":

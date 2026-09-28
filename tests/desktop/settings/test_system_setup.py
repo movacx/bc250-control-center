@@ -8,6 +8,7 @@ import gzip
 import hashlib
 import json
 import os
+import runpy
 import struct
 import sys
 from pathlib import Path
@@ -55,6 +56,22 @@ class Sandbox:
         header[16:24] = name.ljust(8, "\0").encode()
         struct.pack_into("<I", header, 24, revision)
         return bytes(header)
+
+    def load_acpi_tables(self):
+        self.host.path("/sys/firmware/acpi/tables/SSDT1").unlink()
+        raw = archive()
+        offset, index = 0, 2
+        while offset + 110 <= len(raw):
+            header = raw[offset:offset + 110]
+            length, namesize = int(header[54:62], 16), int(header[94:102], 16)
+            if raw[offset + 110:offset + 110 + namesize - 1] == b"TRAILER!!!":
+                break
+            start = (offset + 110 + namesize + 3) & ~3
+            data = raw[start:start + length]
+            offset = (start + length + 3) & ~3
+            if length:
+                self.put(f"/sys/firmware/acpi/tables/SSDT{index}", data)
+                index += 1
 
     def put(self, name, data):
         path = self.host.path(name)
@@ -456,20 +473,9 @@ def test_create_swap_on_a_custom_target_mount(sandbox):
 def test_payload_integrity_and_exact_postboot_table_verification(sandbox):
     raw = archive()
     assert hashlib.sha256(raw).hexdigest() == SHA256
-    sandbox.host.path("/sys/firmware/acpi/tables/SSDT1").unlink()
-    offset, index = 0, 2
-    while offset + 110 <= len(raw):
-        header = raw[offset:offset + 110]
-        length, namesize = int(header[54:62], 16), int(header[94:102], 16)
-        if raw[offset + 110:offset + 110 + namesize - 1] == b"TRAILER!!!":
-            break
-        start = (offset + 110 + namesize + 3) & ~3
-        data = raw[start:start + length]
-        offset = (start + length + 3) & ~3
-        if length:
-            assert sum(data) % 256 == 0
-            sandbox.put(f"/sys/firmware/acpi/tables/SSDT{index}", data)
-            index += 1
+    sandbox.load_acpi_tables()
+    for path in sandbox.host.path("/sys/firmware/acpi/tables").glob("SSDT*"):
+        assert sum(path.read_bytes()) % 256 == 0
     assert acpi.table_status(sandbox.host)[0] == "active"
     sandbox.put("/sys/firmware/acpi/tables/SSDT2", sandbox.table(revision=2))
     assert acpi.table_status(sandbox.host)[0] == "foreign"
@@ -574,6 +580,7 @@ def test_acpi_requirement_report_explains_every_result_and_links_upstream(sandbo
     assert "BC250 ACPI FIX · COMPATIBILITY CHECK" in report
     assert "✓ Hardware and system:" in report
     assert "READY · 8/8 requirements passed" in report
+    assert "The ACPI fix is not installed. Installation is available." in report
     assert "Read-only inspection" in report
     assert acpi.UPSTREAM_URL in report
 
@@ -589,7 +596,84 @@ def test_acpi_requirement_report_gives_novice_fixes_for_blocked_host(sandbox):
     assert "✕ Boot layout:" in report
     assert "WHAT YOU NEED TO FIX" in report
     assert "Keep the current UKI as a recovery option" in report
-    assert "Install only when the result is READY" in report
+    assert "Resolve the compatibility issues before installing." in " ".join(report.replace("│", " ").split())
+
+
+@pytest.mark.parametrize("state,verdict,detail", [
+    ("active", "ACTIVE", "installed and active. No installation is needed."),
+    ("pending-reboot", "REBOOT REQUIRED", "Reboot to activate it"),
+    ("not-active", "NOT ACTIVE", "Boot the BC250 ACPI entry"),
+    ("incomplete", "INCOMPLETE", "uninstall before retrying"),
+])
+def test_acpi_report_distinguishes_installed_states(sandbox, state, verdict, detail):
+    sandbox.grub()
+    acpi.install(sandbox.host)
+    if state == "active":
+        sandbox.load_acpi_tables()
+    elif state == "not-active":
+        sandbox.put("/proc/sys/kernel/random/boot_id", "boot-two")
+    elif state == "incomplete":
+        sandbox.host.save("acpi", sandbox.host.state("acpi") | {"phase": "incomplete"})
+
+    result = acpi.check(sandbox.host)
+    report = acpi.requirements_report(result)
+
+    assert result["installed"] and result["status"] == state
+    assert f"{verdict} · 8/8 requirements passed" in report
+    assert detail in " ".join(report.replace("│", " ").split())
+    assert "READY" not in report
+    assert "Installation is available" not in report
+
+
+def test_acpi_report_keeps_active_state_when_compatibility_changes(sandbox):
+    sandbox.grub()
+    acpi.install(sandbox.host)
+    sandbox.load_acpi_tables()
+    sandbox.put("/proc/config.gz", gzip.compress(b"CONFIG_ACPI_TABLE_UPGRADE=n\n"))
+
+    result = acpi.check(sandbox.host)
+    report = acpi.requirements_report(result)
+
+    assert not result["available"]
+    assert "ACTIVE · 7/8 requirements passed" in report
+    assert "installed and active" in report
+    assert "✕ Kernel ACPI support:" in report
+
+
+def test_acpi_report_does_not_offer_installation_over_external_fix(sandbox):
+    sandbox.grub()
+    sandbox.load_acpi_tables()
+
+    result = acpi.check(sandbox.host)
+    report = acpi.requirements_report(result)
+
+    assert not result["installed"] and result["status"] == "managed-elsewhere"
+    assert "MANAGED EXTERNALLY" in report
+    assert "Do not install a second fix." in " ".join(report.replace("│", " ").split())
+    assert "The ACPI fix is not installed" not in report
+
+
+def test_acpi_check_terminal_ends_with_installed_state(sandbox, monkeypatch, capsys):
+    sandbox.grub()
+    acpi.install(sandbox.host)
+    sandbox.load_acpi_tables()
+    helper = runpy.run_path(str(LIB.parent / "helpers" / "bc250-system-setup-helper"))
+
+    class TrustedPath(type(LIB)):
+        def stat(self, **kwargs):
+            info = super().stat(**kwargs)
+            return SimpleNamespace(st_uid=0, st_mode=info.st_mode & ~0o022)
+
+    monkeypatch.setitem(helper["main"].__globals__, "Path", TrustedPath)
+    monkeypatch.setattr(os, "geteuid", lambda: 0)
+    monkeypatch.setattr(sys.modules["system_setup_common"], "Host", lambda: sandbox.host)
+    monkeypatch.setattr(sys, "argv", ["bc250-system-setup-helper", "acpi-check"])
+
+    assert helper["main"]() == 0
+    output = capsys.readouterr().out
+    assert "ACTIVE · 8/8 requirements passed" in output
+    assert output.rstrip().endswith("The ACPI fix is installed and active. No installation is needed.")
+    assert "ACPI installation is available" not in output
 
 
 def test_acpi_modified_payload_is_preserved(sandbox):

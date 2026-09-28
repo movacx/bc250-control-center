@@ -294,6 +294,23 @@ def compatibility_requirements(host: Host, state: dict, live: str) -> list[dict]
     return requirements
 
 
+def installation_summary(result: dict) -> tuple[str, str]:
+    summaries = {
+        "active": ("ACTIVE", "The ACPI fix is installed and active. No installation is needed."),
+        "pending-reboot": ("REBOOT REQUIRED", "The ACPI fix is installed. Reboot to activate it, then check status."),
+        "not-active": ("NOT ACTIVE", "The ACPI fix is installed but its tables are not active. Boot the BC250 ACPI entry, then check status."),
+        "incomplete": ("INCOMPLETE", "The ACPI installation is incomplete. Review its status and uninstall before retrying."),
+        "managed-elsewhere": ("MANAGED EXTERNALLY", "ACPI tables are supplied by firmware or another tool. Do not install a second fix."),
+    }
+    if result.get("status") == "not-installed" and not result.get("installed"):
+        if result.get("available"):
+            return "READY", "The ACPI fix is not installed. Installation is available."
+        return "BLOCKED", "The ACPI fix is not installed. Resolve the compatibility issues before installing."
+    return summaries.get(result.get("status"), (
+        "CHECK REQUIRED", "ACPI installation status is unconfirmed. Run Check status with administrator authorization.",
+    ))
+
+
 def requirements_report(result: dict, *, width: int = 78) -> str:
     """Render the privileged compatibility result as a novice-friendly box."""
     width = max(68, min(int(width), 96))
@@ -339,7 +356,7 @@ def requirements_report(result: dict, *, width: int = 78) -> str:
     lines.append("├" + "─" * inner + "┤")
     passed = sum(bool(item.get("passed")) for item in requirements)
     total = len(requirements)
-    verdict = "READY" if result.get("available") else "BLOCKED"
+    verdict, summary = installation_summary(result)
     row(f" {verdict} · {passed}/{total} requirements passed")
     if failed:
         row()
@@ -348,10 +365,10 @@ def requirements_report(result: dict, *, width: int = 78) -> str:
             wrapped(" Required: ", item.get("required", ""))
             wrapped(" Next step: ", item.get("resolution", "Review the detected state."))
     else:
-        row(" All installation requirements were detected successfully.")
+        row(" All compatibility requirements were detected successfully.")
     row()
     wrapped(" Documentation: ", UPSTREAM_URL)
-    row(" Check again after any change. Install only when the result is READY.")
+    wrapped(" ", summary)
     lines.append("└" + "─" * inner + "┘")
     return "\n".join(lines)
 
