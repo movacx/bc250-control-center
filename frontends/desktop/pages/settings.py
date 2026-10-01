@@ -1390,6 +1390,7 @@ class SettingsPage(QWidget):
         group.layout_root.addWidget(self.gddr6_firmware_note)
         group.layout_root.addSpacing(6)
         explanation = QFrame()
+        self.gddr6_help_panel = explanation
         explanation.setProperty("banner", True)
         explanation_layout = QVBoxLayout(explanation)
         explanation_layout.setContentsMargins(14, 12, 14, 12)
@@ -1402,6 +1403,31 @@ class SettingsPage(QWidget):
             body.setWordWrap(True)
             explanation_layout.addWidget(title)
             explanation_layout.addWidget(body)
+        # Four long paragraphs under a single switch buried the controls, so
+        # they fold away until asked for. The choice is remembered.
+        self.gddr6_help_toggle = QPushButton("")
+        self.gddr6_help_toggle.setProperty("ghostAction", True)
+        self.gddr6_help_toggle.setCheckable(True)
+        self.gddr6_help_toggle.setCursor(Qt.CursorShape.PointingHandCursor)
+
+        def show_help(opened: bool) -> None:
+            explanation.setVisible(opened)
+            self.gddr6_help_toggle.setText(("\u25be  " if opened else "\u25b8  ") + tr("Details"))
+
+        def help_toggled(opened: bool) -> None:
+            self.app_settings.setValue("settings/gddr6_help_open", "true" if opened else "false")
+            show_help(opened)
+
+        opened = self._bool_value(self.app_settings.value("settings/gddr6_help_open", False), False)
+        self.gddr6_help_toggle.setChecked(opened)
+        show_help(opened)
+        self.gddr6_help_toggle.toggled.connect(help_toggled)
+        toggle_row = QWidget()
+        toggle_layout = QHBoxLayout(toggle_row)
+        toggle_layout.setContentsMargins(0, 0, 0, 0)
+        toggle_layout.addWidget(self.gddr6_help_toggle)
+        toggle_layout.addStretch(1)
+        group.layout_root.addWidget(toggle_row)
         group.layout_root.addWidget(explanation)
         group.layout_root.addSpacing(10)
         return group

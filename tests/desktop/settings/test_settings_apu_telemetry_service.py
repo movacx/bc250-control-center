@@ -102,3 +102,28 @@ def test_where_it_is_not_offered_the_button_says_why(qtbot, tmp_path, monkeypatc
     })
     assert not page.apu_telemetry_button.isEnabled()
     assert "Bazzite" in page.apu_telemetry_button.toolTip()
+
+
+def test_the_long_gddr6_explanation_is_folded_until_asked_for(qtbot, tmp_path, monkeypatch):
+    page, _controller = _page(qtbot, tmp_path, monkeypatch, {"state": "not-installed", "supported": True})
+    page.show()
+    qtbot.waitExposed(page)
+    page.nav_buttons["telemetry"].click()
+
+    assert not page.gddr6_help_panel.isVisible()
+    assert page.gddr6_help_toggle.text().endswith("Details")
+
+    page.gddr6_help_toggle.click()
+    assert page.gddr6_help_panel.isVisible()
+    assert page.app_settings.value("settings/gddr6_help_open") == "true"
+
+    page.gddr6_help_toggle.click()
+    assert not page.gddr6_help_panel.isVisible()
+
+
+def test_an_opened_explanation_stays_open_next_time(qtbot, tmp_path, monkeypatch):
+    first, _controller = _page(qtbot, tmp_path, monkeypatch, {"state": "not-installed", "supported": True})
+    first.gddr6_help_toggle.click()
+
+    second, _controller = _page(qtbot, tmp_path, monkeypatch, {"state": "not-installed", "supported": True})
+    assert second.gddr6_help_toggle.isChecked()
