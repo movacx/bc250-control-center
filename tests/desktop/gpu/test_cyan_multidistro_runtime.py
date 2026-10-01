@@ -14,8 +14,8 @@ def test_runtime_identity_uses_the_shipped_patcher_not_the_removed_legacy_path()
     assert CYAN_BC250CC_PATCHER == INSTALLER.with_name("patch-cyan-bc250cc-runtime.py")
 
 
-@pytest.mark.parametrize("family,manager", (("arch", "pacman -Syu"), ("cachyos", "pacman -Syu"),
-    ("manjaro", "pacman -Syu"), ("steamos", "pacman -S"), ("debian", "apt-get install"),
+@pytest.mark.parametrize("family,manager", (("arch", "pacman -S"), ("cachyos", "pacman -S"),
+    ("manjaro", "pacman -S"), ("steamos", "pacman -S"), ("debian", "apt-get install"),
     ("ubuntu", "apt-get install"), ("fedora", "dnf install")))
 @pytest.mark.parametrize("toolchain_present", (True, False))
 def test_native_build_dependency_routes_without_executing_package_managers(family, manager, toolchain_present):
@@ -44,7 +44,9 @@ prepare_native_build_tools
             assert "cargo rustc" in result.stdout
         else:
             assert "rust" in result.stdout
-    if family == "steamos":
+    if family in {"arch", "cachyos", "manjaro", "steamos"}:
+        # A full system update can replace the running kernel; the stubbed
+        # package manager succeeds, so it must never be the first attempt.
         assert "-Syu" not in result.stdout
 
 
