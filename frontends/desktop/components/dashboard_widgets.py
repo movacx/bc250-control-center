@@ -929,7 +929,6 @@ class PreparationInfoCard(QFrame):
         self.scope = PillLabel(scope_text or "Compatibility", "gray")
         self.scope.setVisible(bool(scope_text))
         header.addWidget(self.scope)
-        self._raw_status_tone = status_tone
         self._body: QWidget | None = None
         self._toggle: QToolButton | None = None
         self._auto_expanded_for = ""
@@ -1065,7 +1064,6 @@ class PreparationInfoCard(QFrame):
         self.status.setText(tr(text))
         self.status.set_tone(self._status_tone(tone))
         self.status.show()
-        self._raw_status_tone = tone
         # A card that needs the reader opens itself, once per problem: a
         # reader who closes it again is not reopened on every refresh.
         if self._body is not None and tone in {"orange", "red"}:
@@ -1074,10 +1072,6 @@ class PreparationInfoCard(QFrame):
                 self.set_expanded(True)
         elif tone not in {"orange", "red"}:
             self._auto_expanded_for = ""
-
-    @property
-    def needs_attention(self) -> bool:
-        return self._raw_status_tone in {"orange", "red"}
 
     def make_collapsible(self) -> None:
         """Show only the title row; the description and actions open on demand.
