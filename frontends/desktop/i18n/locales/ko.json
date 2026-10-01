@@ -4540,5 +4540,10 @@
   "● LIVE GOVERNOR": "● 현직 주지사",
   "● LIVE SESSION": "● 라이브 세션",
   "● LIVE TELEMETRY": "● 실시간 원격 측정",
-  "Additional settings": "추가 설정"
+  "Additional settings": "추가 설정",
+  "Needs attention: {items}": "확인 필요: {items}",
+  "Show details": "세부 정보 표시",
+  "Hide details": "세부 정보 숨기기",
+  "Kernel and graphics": "커널 및 그래픽",
+  "Upscaling": "업스케일링"
 }

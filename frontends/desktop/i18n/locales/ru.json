@@ -4540,5 +4540,10 @@
   "● LIVE GOVERNOR": "● GOVERNOR В РЕАЛЬНОМ ВРЕМЕНИ",
   "● LIVE SESSION": "● СЕАНС В РЕАЛЬНОМ ВРЕМЕНИ",
   "● LIVE TELEMETRY": "● ТЕЛЕМЕТРИЯ В РЕАЛЬНОМ ВРЕМЕНИ",
-  "Additional settings": "Дополнительные настройки"
+  "Additional settings": "Дополнительные настройки",
+  "Needs attention: {items}": "Требует внимания: {items}",
+  "Show details": "Показать подробности",
+  "Hide details": "Скрыть подробности",
+  "Kernel and graphics": "Ядро и графика",
+  "Upscaling": "Апскейлинг"
 }

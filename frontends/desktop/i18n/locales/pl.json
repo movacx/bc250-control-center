@@ -4540,5 +4540,10 @@
   "● LIVE GOVERNOR": "● GOVERNOR NA ŻYWO",
   "● LIVE SESSION": "● SESJA NA ŻYWO",
   "● LIVE TELEMETRY": "● TELEMETRIA NA ŻYWO",
-  "Additional settings": "Ustawienia dodatkowe"
+  "Additional settings": "Ustawienia dodatkowe",
+  "Needs attention: {items}": "Wymaga uwagi: {items}",
+  "Show details": "Pokaż szczegóły",
+  "Hide details": "Ukryj szczegóły",
+  "Kernel and graphics": "Kernel i grafika",
+  "Upscaling": "Skalowanie obrazu"
 }

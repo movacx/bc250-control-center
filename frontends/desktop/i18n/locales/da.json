@@ -4540,5 +4540,10 @@
   "● LIVE GOVERNOR": "● LIVE GUVERNØR",
   "● LIVE SESSION": "● LIVE SESSION",
   "● LIVE TELEMETRY": "● LIVE TELEMETRI",
-  "Additional settings": "Yderligere indstillinger"
+  "Additional settings": "Yderligere indstillinger",
+  "Needs attention: {items}": "Kræver opmærksomhed: {items}",
+  "Show details": "Vis detaljer",
+  "Hide details": "Skjul detaljer",
+  "Kernel and graphics": "Kerne og grafik",
+  "Upscaling": "Opskalering"
 }

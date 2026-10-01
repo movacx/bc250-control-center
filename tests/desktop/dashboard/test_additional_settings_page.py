@@ -30,3 +30,55 @@ def test_the_page_forwards_dependency_and_driver_requests(qtbot):
     page.panel.dependency_action_requested.emit({"action": "memory_swap"})
     page.panel.driver_support_requested.emit("printing")
     assert seen == [{"action": "memory_swap"}, "printing"]
+
+
+def _compatibility(qtbot):
+    page = AdditionalSettingsPage()
+    qtbot.addWidget(page)
+    page.resize(1200, 900)
+    page.show()
+    panel = page.panel
+    panel._page = page  # the panel is a child of the page: keep both alive
+    return panel
+
+
+def test_compatibility_cards_start_as_a_title_row_and_open_on_demand(qtbot):
+    panel = _compatibility(qtbot)
+    for card in (panel.cyan_card, panel.oberon_card, panel.gfx_card, panel.fsr4_card):
+        assert not card.is_expanded()
+        assert card.detail.isHidden() or not card.detail.isVisible()
+    card = panel.cyan_card
+    card._toggle.click()
+    assert card.is_expanded()
+    assert card.detail.isVisible()
+    card._toggle.click()
+    assert not card.is_expanded()
+
+
+def test_a_card_that_needs_attention_opens_itself_once(qtbot):
+    panel = _compatibility(qtbot)
+    card = panel.cachyos_stack_card
+    card.set_status("Partially installed", "orange")
+    assert card.is_expanded()
+    card.set_expanded(False)
+    card.set_status("Partially installed", "orange")
+    assert not card.is_expanded()
+
+
+def test_the_summary_names_what_needs_attention_and_hides_otherwise(qtbot):
+    panel = _compatibility(qtbot)
+    panel.cachyos_stack_card.set_status("Partially installed", "orange")
+    panel._refresh_compatibility_summary()
+    assert panel.compatibility_attention.isVisible()
+    assert "graphics stack" in panel.compatibility_attention.text()
+    panel.cachyos_stack_card.set_status("Installed", "green")
+    panel._refresh_compatibility_summary()
+    assert not panel.compatibility_attention.isVisible()
+
+
+def test_the_dashboard_copy_keeps_full_cards(qtbot):
+    from frontends.desktop.components.dashboard_widgets import PreparationSidebar
+
+    panel = PreparationSidebar()
+    qtbot.addWidget(panel)
+    assert panel.cyan_card._body is None

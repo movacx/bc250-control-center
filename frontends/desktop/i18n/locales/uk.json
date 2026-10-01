@@ -4540,5 +4540,10 @@
   "● LIVE GOVERNOR": "● GOVERNOR НАЖИВО",
   "● LIVE SESSION": "● СЕАНС НАЖИВО",
   "● LIVE TELEMETRY": "● ТЕЛЕМЕТРІЯ НАЖИВО",
-  "Additional settings": "Додаткові налаштування"
+  "Additional settings": "Додаткові налаштування",
+  "Needs attention: {items}": "Потребує уваги: {items}",
+  "Show details": "Показати подробиці",
+  "Hide details": "Приховати подробиці",
+  "Kernel and graphics": "Ядро та графіка",
+  "Upscaling": "Апскейлінг"
 }

@@ -35,6 +35,7 @@ from PyQt6.QtWidgets import (
     QProgressBar,
     QScrollArea,
     QSizePolicy,
+    QToolButton,
     QToolTip,
     QVBoxLayout,
     QWidget,
@@ -926,6 +927,10 @@ class PreparationInfoCard(QFrame):
         self.scope = PillLabel(scope_text or "Compatibility", "gray")
         self.scope.setVisible(bool(scope_text))
         header.addWidget(self.scope)
+        self._raw_status_tone = status_tone
+        self._body: QWidget | None = None
+        self._toggle: QToolButton | None = None
+        self._auto_expanded_for = ""
         self.status = PillLabel(status_text or "Not detected", self._status_tone(status_tone))
         self.status.setVisible(bool(status_text))
         header.addWidget(self.status)
@@ -1058,6 +1063,74 @@ class PreparationInfoCard(QFrame):
         self.status.setText(tr(text))
         self.status.set_tone(self._status_tone(tone))
         self.status.show()
+        self._raw_status_tone = tone
+        # A card that needs the reader opens itself, once per problem: a
+        # reader who closes it again is not reopened on every refresh.
+        if self._body is not None and tone in {"orange", "red"}:
+            if self._auto_expanded_for != tone:
+                self._auto_expanded_for = tone
+                self.set_expanded(True)
+        elif tone not in {"orange", "red"}:
+            self._auto_expanded_for = ""
+
+    @property
+    def needs_attention(self) -> bool:
+        return self._raw_status_tone in {"orange", "red"}
+
+    def make_collapsible(self) -> None:
+        """Show only the title row; the description and actions open on demand.
+
+        Everything below the header moves into one body widget, so the code
+        that shows, hides and rewrites those widgets keeps working unchanged.
+        """
+        if self._body is not None:
+            return
+        layout = self.layout()
+        body = QWidget()
+        body_layout = QVBoxLayout(body)
+        body_layout.setContentsMargins(0, 0, 0, 0)
+        body_layout.setSpacing(layout.spacing())
+        while layout.count() > 1:
+            item = layout.takeAt(1)
+            if item.widget() is not None:
+                body_layout.addWidget(item.widget())
+            elif item.layout() is not None:
+                body_layout.addLayout(item.layout())
+        layout.addWidget(body)
+        toggle = QToolButton()
+        toggle.setProperty("dashboardDisclosure", True)
+        toggle.setCursor(Qt.CursorShape.PointingHandCursor)
+        toggle.setAutoRaise(True)
+        toggle.clicked.connect(lambda: self.set_expanded(not self.is_expanded()))
+        header = layout.itemAt(0).layout()
+        header.insertWidget(0, toggle)
+        self._body, self._toggle = body, toggle
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.set_expanded(False)
+
+    def is_expanded(self) -> bool:
+        return self._body is not None and not self._body.isHidden()
+
+    def set_expanded(self, expanded: bool) -> None:
+        if self._body is None or self._toggle is None:
+            return
+        self._body.setVisible(bool(expanded))
+        self._toggle.setText("⌄" if expanded else "›")
+        self._toggle.setAccessibleName(
+            tr("Hide details") if expanded else tr("Show details")
+        )
+
+    def mousePressEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        # The title row toggles; clicks inside the body belong to its buttons.
+        if (
+            self._body is not None
+            and event.button() == Qt.MouseButton.LeftButton
+            and event.position().y() <= self.layout().itemAt(0).geometry().bottom() + 6
+        ):
+            self.set_expanded(not self.is_expanded())
+            event.accept()
+            return
+        super().mousePressEvent(event)
 
     def set_scope(self, text: str, tone: str = "gray") -> None:
         # Where a card applies is a label, never a state: always neutral.
@@ -2244,7 +2317,48 @@ class PreparationSidebar(QFrame):
         for card in (*self.cachyos_cards, *self.fsr4_cards):
             layout.addWidget(card)
         layout.addStretch(1)
+        if self._standalone:
+            self._organise_compatibility(layout)
         return page
+
+    def _organise_compatibility(self, layout: QVBoxLayout) -> None:
+        """Additional settings: titles first, grouped by topic, details on demand."""
+        self.compatibility_groups = (
+            ("System", (self.acpi_card,)),
+            ("GPU governor", (self.cyan_card, self.oberon_card)),
+            ("Kernel and graphics", (self.gfx_card, *self.cachyos_cards)),
+            ("Upscaling", self.fsr4_cards),
+        )
+        self.compatibility_attention = QLabel()
+        self.compatibility_attention.setProperty("dashboardCompatibilityAttention", True)
+        self.compatibility_attention.setWordWrap(True)
+        self.compatibility_attention.hide()
+        layout.insertWidget(0, self.compatibility_attention)
+        self._compatibility_headings = []
+        for title, cards in self.compatibility_groups:
+            heading = _label(title, "dashboardCompatibilityGroup", wrap=False)
+            layout.insertWidget(layout.indexOf(cards[0]), heading)
+            self._compatibility_headings.append((heading, cards))
+            for card in cards:
+                card.make_collapsible()
+        self._refresh_compatibility_summary()
+
+    def _refresh_compatibility_summary(self) -> None:
+        if not self._standalone or not hasattr(self, "_compatibility_headings"):
+            return
+        needing = []
+        for heading, cards in self._compatibility_headings:
+            heading.setVisible(any(not card.isHidden() for card in cards))
+            needing += [
+                card.title.property("i18nSourceText") or card.title.text()
+                for card in cards
+                if not card.isHidden() and card.needs_attention
+            ]
+        self.compatibility_attention.setVisible(bool(needing))
+        if needing:
+            self.compatibility_attention.setText(
+                tr_format("Needs attention: {items}", items=" · ".join(tr(n) for n in needing))
+            )
 
     def _decky_page(self) -> QWidget:
         page = QWidget()
@@ -3101,6 +3215,7 @@ class PreparationSidebar(QFrame):
         )
         self.cachyos_stack_card.setVisible(show_all or selected == "arch")
         self.fsr4_card.setVisible(FSR4_UI_ENABLED)
+        self._refresh_compatibility_summary()
 
         if not preview:
             return

@@ -1467,6 +1467,34 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         border-radius: 9px;
         padding: 6px;
     }}
+    QLabel[dashboardCompatibilityGroup='true'] {{
+        color: {c['subtle']};
+        font-size: 9px;
+        font-weight: 820;
+        letter-spacing: 0.9px;
+        padding: 8px 2px 0px 2px;
+    }}
+    QLabel[dashboardCompatibilityAttention='true'] {{
+        color: {c['orange']};
+        background: {c['orange_soft']};
+        border: 1px solid {c['orange_border']};
+        border-radius: 9px;
+        padding: 8px 12px;
+        font-size: 11px;
+        font-weight: 650;
+    }}
+    QToolButton[dashboardDisclosure='true'] {{
+        background: transparent;
+        border: 0px;
+        color: {c['muted']};
+        font-size: 13px;
+        font-weight: 700;
+        padding: 0px 4px;
+    }}
+    QToolButton[dashboardDisclosure='true']:hover,
+    QToolButton[dashboardDisclosure='true']:focus {{
+        color: {c['text']};
+    }}
     QLabel[dashboardCompatibilityLabel='true'] {{
         color: {c['muted']};
         font-size: 10px;

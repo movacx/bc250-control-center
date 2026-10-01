@@ -4540,5 +4540,10 @@
   "● LIVE GOVERNOR": "● GUBERNUR LANGSUNG",
   "● LIVE SESSION": "● SESI LANGSUNG",
   "● LIVE TELEMETRY": "● TELEMETRI LANGSUNG",
-  "Additional settings": "Pengaturan tambahan"
+  "Additional settings": "Pengaturan tambahan",
+  "Needs attention: {items}": "Perlu perhatian: {items}",
+  "Show details": "Tampilkan detail",
+  "Hide details": "Sembunyikan detail",
+  "Kernel and graphics": "Kernel dan grafis",
+  "Upscaling": "Upscaling"
 }

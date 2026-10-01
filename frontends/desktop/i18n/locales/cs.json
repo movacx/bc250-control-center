@@ -4540,5 +4540,10 @@
   "● LIVE GOVERNOR": "● ŽIVĚ GUVERNÉR",
   "● LIVE SESSION": "● ŽIVÉ SEKCE",
   "● LIVE TELEMETRY": "● ŽIVÉ TELEMETRIE",
-  "Additional settings": "Další nastavení"
+  "Additional settings": "Další nastavení",
+  "Needs attention: {items}": "Vyžaduje pozornost: {items}",
+  "Show details": "Zobrazit podrobnosti",
+  "Hide details": "Skrýt podrobnosti",
+  "Kernel and graphics": "Jádro a grafika",
+  "Upscaling": "Upscaling"
 }
