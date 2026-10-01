@@ -10,10 +10,11 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtWidgets import QFrame, QVBoxLayout, QWidget
+from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtWidgets import QVBoxLayout, QWidget
 
 from ..components.dashboard_widgets import DashboardScrollArea, PreparationSidebar
+from ..components.responsive import configure_responsive_scroll_area
 
 
 class AdditionalSettingsPage(QWidget):
@@ -34,14 +35,13 @@ class AdditionalSettingsPage(QWidget):
         self.panel.driver_support_requested.connect(self.driver_support_requested)
 
         self.scroll = DashboardScrollArea()
-        self.scroll.setWidgetResizable(True)
-        self.scroll.setFrameShape(QFrame.Shape.NoFrame)
-        self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         # The panel keeps its own height. Handed the whole viewport, it spread
         # the header, the tab row and the cards apart.
         host = QWidget()
+        configure_responsive_scroll_area(self.scroll, host)
         host_layout = QVBoxLayout(host)
-        host_layout.setContentsMargins(0, 0, 0, 0)
+        # The page inset every workspace shares (Dashboard, CPU / SMU, ...).
+        host_layout.setContentsMargins(18, 8, 18, 24)
         host_layout.setSpacing(0)
         host_layout.addWidget(self.panel)
         host_layout.addStretch(1)
