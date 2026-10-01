@@ -2334,44 +2334,51 @@ class PreparationSidebar(QFrame):
         return page
 
     def _organise_compatibility(self, layout: QVBoxLayout) -> None:
-        """Additional settings: titles first, grouped by topic, details on demand."""
+        """Additional settings: one list per topic, a title row per tool.
+
+        Each group is a single surface with the tools as rows divided by thin
+        lines; the description and actions of a row open on demand.
+        """
         self.compatibility_groups = (
             ("System", (self.acpi_card,)),
             ("GPU governor", (self.cyan_card, self.oberon_card)),
             ("Kernel and graphics", (self.gfx_card, *self.cachyos_cards)),
             ("Upscaling", self.fsr4_cards),
         )
-        self.compatibility_attention = QLabel()
-        self.compatibility_attention.setProperty("dashboardCompatibilityAttention", True)
-        self.compatibility_attention.setWordWrap(True)
-        self.compatibility_attention.hide()
-        layout.insertWidget(0, self.compatibility_attention)
-        layout.setSpacing(5)
+        layout.setSpacing(0)
         self._compatibility_headings = []
         for title, cards in self.compatibility_groups:
-            heading = _label(title, "dashboardCompatibilityGroup", wrap=False)
-            layout.insertWidget(layout.indexOf(cards[0]), heading)
-            self._compatibility_headings.append((heading, cards))
+            index = layout.indexOf(cards[0])
+            box = QFrame()
+            box.setProperty("dashboardCompatibilityGroupBox", True)
+            box_layout = QVBoxLayout(box)
+            box_layout.setContentsMargins(0, 0, 0, 0)
+            box_layout.setSpacing(0)
             for card in cards:
+                layout.removeWidget(card)
+                card.setProperty("listRow", True)
                 card.make_collapsible()
+                box_layout.addWidget(card)
+            heading = _label(title, "dashboardCompatibilityGroup", wrap=False)
+            layout.insertWidget(index, heading)
+            layout.insertWidget(index + 1, box)
+            self._compatibility_headings.append((heading, box, cards))
         self._refresh_compatibility_summary()
 
     def _refresh_compatibility_summary(self) -> None:
+        """Hide a group whose tools are all hidden; keep one rule above each row but the first."""
         if not self._standalone or not hasattr(self, "_compatibility_headings"):
             return
-        needing = []
-        for heading, cards in self._compatibility_headings:
-            heading.setVisible(any(not card.isHidden() for card in cards))
-            needing += [
-                card.title.property("i18nSourceText") or card.title.text()
-                for card in cards
-                if not card.isHidden() and card.needs_attention
-            ]
-        self.compatibility_attention.setVisible(bool(needing))
-        if needing:
-            self.compatibility_attention.setText(
-                tr_format("Needs attention: {items}", items=" · ".join(tr(n) for n in needing))
-            )
+        for heading, box, cards in self._compatibility_headings:
+            shown = [card for card in cards if not card.isHidden()]
+            heading.setVisible(bool(shown))
+            box.setVisible(bool(shown))
+            for card in cards:
+                first = bool(shown) and card is shown[0]
+                if card.property("listFirst") != first:
+                    card.setProperty("listFirst", first)
+                    card.style().unpolish(card)
+                    card.style().polish(card)
 
     def _decky_page(self) -> QWidget:
         page = QWidget()

@@ -65,15 +65,15 @@ def test_a_card_that_needs_attention_opens_itself_once(qtbot):
     assert not card.is_expanded()
 
 
-def test_the_summary_names_what_needs_attention_and_hides_otherwise(qtbot):
+def test_each_group_is_one_list_without_a_banner(qtbot):
     panel = _compatibility(qtbot)
-    panel.cachyos_stack_card.set_status("Partially installed", "orange")
+    assert not hasattr(panel, "compatibility_attention")
+    for heading, box, cards in panel._compatibility_headings:
+        assert all(card.parentWidget() is box for card in cards)
+    panel.gfx_card.hide()
     panel._refresh_compatibility_summary()
-    assert panel.compatibility_attention.isVisible()
-    assert "graphics stack" in panel.compatibility_attention.text()
-    panel.cachyos_stack_card.set_status("Installed", "green")
-    panel._refresh_compatibility_summary()
-    assert not panel.compatibility_attention.isVisible()
+    assert panel.cachyos_stack_card.property("listFirst") is True
+    assert panel.gfx_card.property("listFirst") is False
 
 
 def test_the_dashboard_copy_keeps_full_cards(qtbot):

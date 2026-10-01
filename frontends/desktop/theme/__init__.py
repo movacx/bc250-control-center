@@ -1446,6 +1446,22 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QFrame[dashboardPreparationInfo='true']:hover {{
         border-color: {c['border_strong']};
     }}
+    QFrame[dashboardCompatibilityGroupBox='true'] {{
+        background: {c['panel_alt']};
+        border: 1px solid {c['border_soft']};
+        border-radius: 11px;
+    }}
+    QFrame[dashboardPreparationInfo='true'][listRow='true'],
+    QFrame[dashboardPreparationInfo='true'][listRow='true']:hover {{
+        background: transparent;
+        border: none;
+        border-top: 1px solid {c['border_soft']};
+        border-radius: 0px;
+    }}
+    QFrame[dashboardPreparationInfo='true'][listRow='true'][listFirst='true'],
+    QFrame[dashboardPreparationInfo='true'][listRow='true'][listFirst='true']:hover {{
+        border-top: none;
+    }}
     /* The component checklist row is a checkbox and a one-line label — it
        does not need the same footprint as a full compatibility card, so it
        gets a tighter radius to read as a smaller, denser control. */
@@ -1473,15 +1489,6 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         font-weight: 820;
         letter-spacing: 0.9px;
         padding: 14px 2px 2px 2px;
-    }}
-    QLabel[dashboardCompatibilityAttention='true'] {{
-        color: {c['orange']};
-        background: {c['orange_soft']};
-        border: 1px solid {c['orange_border']};
-        border-radius: 9px;
-        padding: 8px 12px;
-        font-size: 11px;
-        font-weight: 650;
     }}
     QToolButton[dashboardDisclosure='true'] {{
         background: transparent;
