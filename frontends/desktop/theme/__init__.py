@@ -1472,7 +1472,7 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         font-size: 9px;
         font-weight: 820;
         letter-spacing: 0.9px;
-        padding: 8px 2px 0px 2px;
+        padding: 14px 2px 2px 2px;
     }}
     QLabel[dashboardCompatibilityAttention='true'] {{
         color: {c['orange']};

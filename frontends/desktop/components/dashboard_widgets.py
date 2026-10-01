@@ -895,6 +895,8 @@ class PreparationInfoCard(QFrame):
     #: available, not installed, checking) is neutral, so a column of badges
     #: does not compete for attention.
     _STATUS_TONES = frozenset({"green", "orange", "red"})
+    _DISCLOSURE_WIDTH = 18
+    _STATUS_COLUMN_WIDTH = 124
 
     @classmethod
     def _status_tone(cls, tone: str) -> str:
@@ -1088,7 +1090,8 @@ class PreparationInfoCard(QFrame):
         layout = self.layout()
         body = QWidget()
         body_layout = QVBoxLayout(body)
-        body_layout.setContentsMargins(0, 0, 0, 0)
+        # Lined up under the title, not under the chevron.
+        body_layout.setContentsMargins(self._DISCLOSURE_WIDTH + 7, 0, 0, 0)
         body_layout.setSpacing(layout.spacing())
         while layout.count() > 1:
             item = layout.takeAt(1)
@@ -1101,9 +1104,18 @@ class PreparationInfoCard(QFrame):
         toggle.setProperty("dashboardDisclosure", True)
         toggle.setCursor(Qt.CursorShape.PointingHandCursor)
         toggle.setAutoRaise(True)
+        toggle.setFixedSize(self._DISCLOSURE_WIDTH, 24)
         toggle.clicked.connect(lambda: self.set_expanded(not self.is_expanded()))
         header = layout.itemAt(0).layout()
         header.insertWidget(0, toggle)
+        # One row shape for every card: where a card applies is quiet text,
+        # and the status sits in a column of one width, so the states line up
+        # down the page instead of following each scope's length.
+        self.scope.setStyleSheet(
+            f"PillLabel {{ color:{theme.COLORS['subtle']}; background:transparent; border:none; }}"
+        )
+        self.status.setMinimumWidth(self._STATUS_COLUMN_WIDTH)
+        layout.setContentsMargins(12, 8, 12, 8)
         self._body, self._toggle = body, toggle
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.set_expanded(False)
@@ -2334,6 +2346,7 @@ class PreparationSidebar(QFrame):
         self.compatibility_attention.setWordWrap(True)
         self.compatibility_attention.hide()
         layout.insertWidget(0, self.compatibility_attention)
+        layout.setSpacing(5)
         self._compatibility_headings = []
         for title, cards in self.compatibility_groups:
             heading = _label(title, "dashboardCompatibilityGroup", wrap=False)
