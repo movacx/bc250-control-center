@@ -54,6 +54,9 @@ REPOSITORY_NAME = "bc250-memory-temperature"
 #: SMU access on its behalf. Advisory locking only works if every participant
 #: asks, which is why this is not optional.
 SMN_WINDOW_PATH = "/sys/bus/pci/devices/0000:00:00.0/config"
+#: Taken exclusively by the CPU tuning helper for a whole run, shared and for
+#: one sample at a time here. See ``smu_run_share``.
+SMU_RUN_LOCK_PATH = "/run/bc250-smu-run.lock"
 SMN_LOCK_TIMEOUT_SECONDS = 8.0
 
 #: The window's index register. The CPU OC tool and the Cyan GPU governor take
@@ -309,6 +312,44 @@ def _restore_smn_index(fd: int, saved: int | None) -> None:
 
 
 @contextlib.contextmanager
+def smu_run_share(path: str | None = None):
+    """Stand aside while the CPU tuning helper is using the SMU.
+
+    A CPU detection or apply sends several multi-step messages on Queue 3, and
+    its payload locks each 32-bit access rather than each message. A sample
+    taken between two steps of one of those messages clears the response
+    register or overwrites its argument, and the tuning reads
+    ``smu returned status 0x00``. The helper therefore holds ``path``
+    exclusively for the whole run; each sample here takes it shared and gives
+    up at once when it is held, instead of waiting inside the run.
+    """
+    try:
+        fd = os.open(
+            path or SMU_RUN_LOCK_PATH,
+            os.O_RDWR | os.O_CREAT | os.O_CLOEXEC | os.O_NOFOLLOW,
+            0o644,
+        )
+    except OSError:
+        # Cannot coordinate (for example a read-only /run): behave as before.
+        yield
+        return
+    try:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_SH | fcntl.LOCK_NB)
+        except OSError:
+            raise RuntimeError(
+                "SMU_BUSY: CPU overclocking is using the SMU right now. Wait for "
+                "it to finish and try again."
+            ) from None
+        try:
+            yield
+        finally:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+    finally:
+        os.close(fd)
+
+
+@contextlib.contextmanager
 def smn_window_lock(
     timeout: float = SMN_LOCK_TIMEOUT_SECONDS, path: str = SMN_WINDOW_PATH
 ):
@@ -319,30 +360,31 @@ def smn_window_lock(
     waits forever would leave a Polkit-launched process hanging with no way
     for the desktop to explain why.
     """
-    fd, writable = _open_smn_window(path)
-    deadline = time.monotonic() + max(0.0, float(timeout))
-    try:
-        while True:
-            try:
-                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                break
-            except OSError:
-                if time.monotonic() >= deadline:
-                    raise RuntimeError(
-                        "SMU_BUSY: another BC-250 tool is holding the SMU interface "
-                        "(CPU overclocking or the GPU governor). Wait for it to "
-                        "finish and try again."
-                    ) from None
-                time.sleep(0.05)
-        saved = _read_smn_index(fd) if writable else None
+    with smu_run_share():
+        fd, writable = _open_smn_window(path)
+        deadline = time.monotonic() + max(0.0, float(timeout))
         try:
-            yield
+            while True:
+                try:
+                    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    break
+                except OSError:
+                    if time.monotonic() >= deadline:
+                        raise RuntimeError(
+                            "SMU_BUSY: another BC-250 tool is holding the SMU interface "
+                            "(CPU overclocking or the GPU governor). Wait for it to "
+                            "finish and try again."
+                        ) from None
+                    time.sleep(0.05)
+            saved = _read_smn_index(fd) if writable else None
+            try:
+                yield
+            finally:
+                if writable:
+                    _restore_smn_index(fd, saved)
+                fcntl.flock(fd, fcntl.LOCK_UN)
         finally:
-            if writable:
-                _restore_smn_index(fd, saved)
-            fcntl.flock(fd, fcntl.LOCK_UN)
-    finally:
-        os.close(fd)
+            os.close(fd)
 
 
 def _governor_state(properties: dict, now: float) -> str:

@@ -9,6 +9,8 @@ writable ResourceTools checkout.
 from __future__ import annotations
 
 import configparser
+import contextlib
+import fcntl
 import hashlib
 import io
 import json
@@ -43,11 +45,98 @@ QAM_PUBLIC_STATE_SCHEMA = 1
 QAM_HELPER_PROTOCOL = 8
 EXPECTED_VENDOR_COMMIT = '43d6b4c6e38c57bc9ec8908c44675ce7d5fd3d2f'
 EXPECTED_VENDOR_SHA256 = '741f85266b6d2c5d52c9bcacaca0042c8732dc0ebae586f902e835cc79bc81ea'
+#: BC250-Telemetry's optional memory collector keeps this lock for as long as
+#: it runs; the GDDR6 helpers already take it, and a CPU tuning run must not
+#: share the SMU mailbox with it either.
+COLLECTOR_SMU_LOCK = pathlib.Path('/run/bc250-memory/smu.lock')
+#: Held exclusively by a CPU tuning run for its whole length, and taken shared,
+#: for one sample at a time, by the GDDR6 helpers. See ``smu_exclusive_run``.
+SMU_RUN_LOCK = pathlib.Path('/run/bc250-smu-run.lock')
+#: How long a run waits for a sample that is already in flight to finish.
+SMU_RUN_WAIT_SECONDS = 15.0
+#: The actions that send messages to the SMU. Reading state, or writing the
+#: boot configuration, does not and is never held back by this.
+SMU_LIVE_ACTIONS = frozenset({
+    'detect', 'detect-qam', 'apply-qam-scale', 'apply-live', 'verify-scale',
+})
 
 
 def fail(message: str, code: int = 1) -> int:
     print(f'ERR {message}', file=sys.stderr, flush=True)
     return code
+
+
+class SmuInUse(RuntimeError):
+    """Another program is using the SMU mailbox; says what happened and what to do."""
+
+    def __init__(self, what: str, how: str) -> None:
+        super().__init__(what)
+        self.what = what
+        self.how = how
+
+
+@contextlib.contextmanager
+def smu_exclusive_run(
+    *,
+    collector_lock: pathlib.Path = COLLECTOR_SMU_LOCK,
+    run_lock: pathlib.Path = SMU_RUN_LOCK,
+    wait: float = SMU_RUN_WAIT_SECONDS,
+):
+    """Keep every other SMU sampler away for the whole length of a tuning run.
+
+    The SMU has one mailbox and each message is several register writes. The
+    vendor payload locks the PCI window around every 32-bit access, not around a
+    message, so a sample from another program can land between two steps of a
+    message: it clears the response register or overwrites the argument, and
+    the payload then polls a response that never comes. That is the
+    ``smu returned status 0x00`` failure: it hit a different message each time.
+
+    Two kinds of sampler are kept out. BC250-Telemetry's memory collector holds
+    its own lock for its whole life, so while it runs the tuning is refused
+    before anything reaches the SMU. The GDDR6 helpers take ``run_lock`` shared
+    for one sample at a time, so the run waits for a sample already in flight and
+    then holds it exclusively: they stand aside until it is released.
+    """
+    try:
+        probe = os.open(collector_lock, os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW)
+    except OSError:
+        probe = -1  # no collector has run this boot: nothing to coordinate with
+    if probe >= 0:
+        try:
+            if os.fstat(probe).st_uid == 0:
+                try:
+                    fcntl.flock(probe, fcntl.LOCK_SH | fcntl.LOCK_NB)
+                except OSError:
+                    raise SmuInUse(
+                        "BC250-Telemetry's memory service (bc250-memory.service) is using the SMU.",
+                        "Two programs on the SMU mailbox corrupt each other's messages. Stop it with "
+                        "'sudo systemctl disable --now bc250-memory.service' (this also keeps it off "
+                        "at boot; Control Center reads GDDR6 temperatures by itself) and try again.",
+                    ) from None
+                fcntl.flock(probe, fcntl.LOCK_UN)
+        finally:
+            os.close(probe)
+    fd = os.open(run_lock, os.O_RDWR | os.O_CREAT | os.O_CLOEXEC | os.O_NOFOLLOW, 0o644)
+    try:
+        deadline = time.monotonic() + max(0.0, float(wait))
+        while True:
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except OSError:
+                if time.monotonic() >= deadline:
+                    raise SmuInUse(
+                        "Another BC-250 tool kept the SMU busy, so CPU tuning did not start.",
+                        "Stop GDDR6 live monitoring on the dashboard, wait for any other CPU "
+                        "tuning run to finish, and try again.",
+                    ) from None
+                time.sleep(0.05)
+        try:
+            yield
+        finally:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+    finally:
+        os.close(fd)
 
 
 def bc250_identity_present() -> bool:
@@ -1122,6 +1211,30 @@ def action_disable_boot(argv: Sequence[str]) -> int:
     return 0
 
 
+def _dispatch(action: str, args: Sequence[str]) -> int:
+    if action == 'detect':
+        return action_detect(args)
+    if action == 'detect-qam':
+        return action_detect_qam(args)
+    if action == 'qam-status':
+        return action_qam_status(args)
+    if action == 'apply-qam-scale':
+        return action_apply_qam_scale(args)
+    if action == 'install-qam':
+        return action_install_qam(args)
+    if action == 'apply-live':
+        return action_apply_live(args)
+    if action == 'verify-scale':
+        return action_verify_scale(args)
+    if action == 'install-boot':
+        return action_install_boot(args)
+    if action == 'apply-config':
+        return action_apply_config(args)
+    if action == 'disable-boot':
+        return action_disable_boot(args)
+    return fail('Unknown action.', 3)
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     try:
@@ -1132,27 +1245,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         return fail('Missing action.', 2)
     action, args = argv[0], argv[1:]
     try:
-        if action == 'detect':
-            return action_detect(args)
-        if action == 'detect-qam':
-            return action_detect_qam(args)
-        if action == 'qam-status':
-            return action_qam_status(args)
-        if action == 'apply-qam-scale':
-            return action_apply_qam_scale(args)
-        if action == 'install-qam':
-            return action_install_qam(args)
-        if action == 'apply-live':
-            return action_apply_live(args)
-        if action == 'verify-scale':
-            return action_verify_scale(args)
-        if action == 'install-boot':
-            return action_install_boot(args)
-        if action == 'apply-config':
-            return action_apply_config(args)
-        if action == 'disable-boot':
-            return action_disable_boot(args)
-        return fail('Unknown action.', 3)
+        if action in SMU_LIVE_ACTIONS:
+            try:
+                with smu_exclusive_run():
+                    return _dispatch(action, args)
+            except SmuInUse as exc:
+                # The terminal shows the helper's own [ERROR] lines as the
+                # explanation, so say exactly what is in the way.
+                print(f'[ERROR] {exc.what}', flush=True)
+                print(f'[ERROR] {exc.how}', flush=True)
+                return fail(f'SMU_IN_USE: {exc.what}', 44)
+        return _dispatch(action, args)
     except Exception as exc:
         return fail(str(exc), 70)
 
