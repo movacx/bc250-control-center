@@ -9,6 +9,8 @@ from datetime import datetime
 from pathlib import Path
 
 from PyQt6.QtCore import (
+    QEvent,
+    QRect,
     QSettings,
     QSignalBlocker,
     Qt,
@@ -352,12 +354,74 @@ class ReadOnlyPathField(QLineEdit):
         self.setCursorPosition(0)
 
 
-class ActionGrid(QWidget):
-    """Responsive action container that avoids one-line button overflow."""
+class WrappedLabel(QLabel):
+    """A word-wrapped label whose height is exactly what its text needs.
 
-    def __init__(self, parent: QWidget | None = None, columns: int = 2):
+    ``QLabel.heightForWidth`` can answer one line too many for a paragraph that
+    wraps at the edge of its width: a two-line text then gets the height of
+    three and, centred in it, floats in a gap above and below. The height is
+    measured here with ``QFontMetrics``, the measurement the text is painted
+    with, and the text is anchored to the top.
+    """
+
+    def __init__(self, text: str = "", parent: QWidget | None = None):
+        super().__init__(text, parent)
+        self.setWordWrap(True)
+        self.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+    def _is_rich(self) -> bool:
+        mode = self.textFormat()
+        return mode == Qt.TextFormat.RichText or (
+            mode == Qt.TextFormat.AutoText and Qt.mightBeRichText(self.text())
+        )
+
+    def heightForWidth(self, width: int) -> int:  # noqa: N802 - Qt API name
+        if self._is_rich():
+            return super().heightForWidth(width)
+        margins = self.contentsMargins()
+        pad = 2 * self.margin()
+        inner = max(1, width - margins.left() - margins.right() - pad)
+        rect = self.fontMetrics().boundingRect(
+            QRect(0, 0, inner, 100000), int(Qt.TextFlag.TextWordWrap), self.text()
+        )
+        return rect.height() + margins.top() + margins.bottom() + pad
+
+    def _fit_height(self) -> None:
+        width = self.width()
+        if width <= 0:
+            return
+        height = self.heightForWidth(width)
+        if height > 0 and self.height() != height:
+            self.setFixedHeight(height)
+
+    def setText(self, text: str) -> None:  # noqa: N802 - Qt API name
+        super().setText(text)
+        self._fit_height()
+
+    def resizeEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        super().resizeEvent(event)
+        self._fit_height()
+
+    def changeEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        super().changeEvent(event)
+        if event.type() == QEvent.Type.FontChange:
+            self._fit_height()
+
+
+class ActionGrid(QWidget):
+    """Responsive action container that avoids one-line button overflow.
+
+    ``fit_content`` keeps every button on one row, each as wide as its own
+    label asks, when they all fit, and wraps into ``columns`` columns when
+    they do not, so one row stays one row in a language whose labels are short
+    and becomes a grid in one whose labels are long.
+    """
+
+    def __init__(self, parent: QWidget | None = None, columns: int = 2, *, fit_content: bool = False):
         super().__init__(parent)
         self._preferred_columns = max(1, int(columns))
+        self._fit_content = bool(fit_content)
         self._buttons: list[QWidget] = []
         self._grid = QGridLayout(self)
         self._grid.setContentsMargins(0, 0, 0, 0)
@@ -374,18 +438,28 @@ class ActionGrid(QWidget):
 
     def _column_count(self) -> int:
         width = self.width()
+        if self._fit_content and width > 0 and self._buttons and self._fits_one_row(width):
+            return len(self._buttons)
         if width > 0 and width < 520:
             return 1
         return self._preferred_columns
+
+    def _fits_one_row(self, width: int) -> bool:
+        spacing = self._grid.horizontalSpacing()
+        needed = sum(button.sizeHint().width() for button in self._buttons)
+        return needed + spacing * (len(self._buttons) - 1) <= width
 
     def _reflow(self) -> None:
         while self._grid.count():
             self._grid.takeAt(0)
         columns = self._column_count()
+        single_row = self._fit_content and columns == len(self._buttons) and columns > self._preferred_columns
         for index, widget in enumerate(self._buttons):
             self._grid.addWidget(widget, index // columns, index % columns)
         for column in range(columns):
-            self._grid.setColumnStretch(column, 1)
+            # A single row shares the spare width in proportion to each label.
+            weight = self._buttons[column].sizeHint().width() if single_row else 1
+            self._grid.setColumnStretch(column, max(1, weight))
 
     def resizeEvent(self, event) -> None:  # noqa: N802 - Qt API name
         super().resizeEvent(event)
@@ -411,12 +485,10 @@ class SettingRow(QFrame):
         copy_layout = QVBoxLayout(copy)
         copy_layout.setContentsMargins(0, 0, 0, 0)
         copy_layout.setSpacing(2)
-        self.title_label = QLabel(tr(title))
-        self.title_label.setWordWrap(True)
+        self.title_label = WrappedLabel(tr(title))
         self.title_label.setProperty("rowTitle", True)
-        self.description_label = QLabel(tr(description))
+        self.description_label = WrappedLabel(tr(description))
         self.description_label.setProperty("rowDescription", True)
-        self.description_label.setWordWrap(True)
         copy_layout.addWidget(self.title_label)
         copy_layout.addWidget(self.description_label)
         # Any height the row has beyond its copy goes under the description,
@@ -1314,17 +1386,16 @@ class SettingsPage(QWidget):
         ))
         # What the daemon does and its buttons belong to the daemon, so they sit
         # inside its group instead of in a second, unrelated card below.
-        daemon_text = QLabel(
+        daemon_text = WrappedLabel(
             "The optional user daemon records JSONL metrics and restores the saved fan mode after login: "
             "an enabled automatic curve, a named preset or the last manual speed. "
             "It never applies CPU or GPU overclock automatically."
         )
         daemon_text.setProperty("rowDescription", True)
-        daemon_text.setWordWrap(True)
-        daemon_group.layout_root.addSpacing(10)
+        daemon_group.layout_root.addSpacing(8)
         daemon_group.layout_root.addWidget(daemon_text)
-        daemon_group.layout_root.addSpacing(10)
-        daemon_actions = ActionGrid(columns=2)
+        daemon_group.layout_root.addSpacing(8)
+        daemon_actions = ActionGrid(columns=2, fit_content=True)
         self.daemon_refresh_button = self._button("Refresh status", self.refresh_daemon_status)
         self.daemon_enable_button = self._button("Enable daemon", lambda: self._change_daemon(True))
         self.daemon_disable_button = self._button("Disable daemon", lambda: self._change_daemon(False))
@@ -1333,7 +1404,7 @@ class SettingsPage(QWidget):
         daemon_actions.addWidget(self.daemon_disable_button)
         daemon_actions.addWidget(self._button("View daemon details", self._show_daemon_details))
         daemon_group.layout_root.addWidget(daemon_actions)
-        daemon_group.layout_root.addSpacing(10)
+        daemon_group.layout_root.addSpacing(8)
         self._action_grids.append(daemon_actions)
         # Everyday monitoring first; the readings that need hardware or carry
         # a warning come after it.
@@ -1408,15 +1479,17 @@ class SettingsPage(QWidget):
         self.gddr6_help_panel = explanation
         explanation.setProperty("banner", True)
         explanation_layout = QVBoxLayout(explanation)
-        explanation_layout.setContentsMargins(14, 12, 14, 12)
-        explanation_layout.setSpacing(8)
-        for heading, text in self.GDDR6_MANUAL_EXPLANATION:
-            title = QLabel(tr(heading))
+        explanation_layout.setContentsMargins(14, 12, 14, 14)
+        explanation_layout.setSpacing(0)
+        for index, (heading, text) in enumerate(self.GDDR6_MANUAL_EXPLANATION):
+            if index:
+                explanation_layout.addSpacing(14)
+            title = WrappedLabel(tr(heading))
             title.setProperty("bannerTitle", True)
-            body = QLabel(tr(text))
+            body = WrappedLabel(tr(text))
             body.setProperty("bannerText", True)
-            body.setWordWrap(True)
             explanation_layout.addWidget(title)
+            explanation_layout.addSpacing(4)
             explanation_layout.addWidget(body)
         # Four long paragraphs under a single switch buried the controls, so
         # they fold away until asked for. The choice is remembered.
@@ -1442,8 +1515,15 @@ class SettingsPage(QWidget):
         toggle_layout.setContentsMargins(0, 0, 0, 0)
         toggle_layout.addWidget(self.gddr6_help_toggle)
         toggle_layout.addStretch(1)
-        group.layout_root.addWidget(toggle_row)
-        group.layout_root.addWidget(explanation)
+        # One container, so the gap between the button and the panel exists
+        # only while the panel is open instead of lingering when it is folded.
+        help_block = QWidget()
+        help_layout = QVBoxLayout(help_block)
+        help_layout.setContentsMargins(0, 4, 0, 0)
+        help_layout.setSpacing(8)
+        help_layout.addWidget(toggle_row)
+        help_layout.addWidget(explanation)
+        group.layout_root.addWidget(help_block)
         group.layout_root.addSpacing(10)
         return group
 
