@@ -68,12 +68,22 @@ def collector_lock(tmp_path):
         holder.wait(timeout=5)
 
 
+# The helper only honours a collector lock that root owns, so that an unprivileged
+# user cannot plant one to block tuning. The stand-in lock below belongs to whoever
+# runs the tests, which is root only in a root sandbox.
+@pytest.mark.skipif(os.geteuid() != 0, reason="the collector lock is trusted only when root owns it")
 def test_a_running_memory_collector_refuses_the_tuning_before_the_smu_is_touched(cpu, tmp_path, collector_lock):
     with pytest.raises(cpu.SmuInUse) as caught:
         with cpu.smu_exclusive_run(collector_lock=collector_lock, run_lock=tmp_path / "run.lock", wait=0.1):
             pytest.fail("the tuning ran while the collector held the SMU")
     assert "bc250-memory.service" in caught.value.what
     assert "disable --now bc250-memory.service" in caught.value.how
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="as root the stand-in lock is root-owned and trusted")
+def test_a_collector_lock_that_root_does_not_own_is_ignored(cpu, tmp_path, collector_lock):
+    with cpu.smu_exclusive_run(collector_lock=collector_lock, run_lock=tmp_path / "run.lock", wait=0.1):
+        pass
 
 
 def test_a_collector_that_is_installed_but_not_running_is_no_obstacle(cpu, tmp_path):
