@@ -125,7 +125,11 @@ prepare_native_build_tools() {
   if ! have cc || ! have pkg-config || ! pkg-config --exists libdrm libdrm_amdgpu || ((${#rust_packages[@]})); then
     case "$target_family" in
       arch|cachyos|manjaro)
-        as_root pacman -Syu --needed --noconfirm base-devel libdrm "${rust_packages[@]}" ;;
+        # Never start with a full system update: on CachyOS it replaces the
+        # running kernel (see arch/prepare-dependencies.sh). Update only when
+        # the local database cannot provide the packages.
+        as_root pacman -S --needed --noconfirm base-devel libdrm "${rust_packages[@]}" ||
+          as_root pacman -Syu --needed --noconfirm base-devel libdrm "${rust_packages[@]}" ;;
       steamos)
         as_root pacman -S --needed --noconfirm base-devel libdrm "${rust_packages[@]}" ;;
       debian|ubuntu)
