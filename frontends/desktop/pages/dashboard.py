@@ -1250,7 +1250,10 @@ class DashboardPage(QWidget):
     @staticmethod
     def _vrm_probe_note(daemon: str, probe: dict, rails) -> str:
         if daemon == "missing":
-            return tr("Manual mode · BC250-Telemetry is not publishing, so there is nothing to read")
+            return tr(
+                "Manual mode · BC250-Telemetry is not publishing, so there is nothing to read. "
+                "Install its service in Settings › Telemetry."
+            )
         if daemon == "unreadable":
             return tr("Manual mode · BC250-Telemetry's snapshot could not be read")
         if daemon == "stale":

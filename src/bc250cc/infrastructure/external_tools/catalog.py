@@ -285,6 +285,20 @@ EXTERNAL_TOOLS: dict[str, ExternalToolSpec] = {
         ),
         validation_level="reverse-engineered-community-reported-hardware-gate-pending",
     ),
+    "apu_telemetry": ExternalToolSpec(
+        key="apu_telemetry",
+        upstream="https://github.com/onlinermm/BC250-Telemetry",
+        license="MIT",
+        reviewed_revision="71ad42184012367ab43eac177942a8d8d9ef73c4",
+        privilege_class="root-service",
+        # The daemon writes one register: the standard PMBus PAGE selector that
+        # picks the CPU or GPU rail before each read. It changes no regulator
+        # setting; everything else it does on the bus is a read.
+        hardware_writes=True,
+        automated=True,
+        rollback="Disable and remove the managed service and binary; no board state is kept.",
+        validation_level="code-reviewed-hardware-gate-pending",
+    ),
 }
 
 
@@ -412,6 +426,19 @@ EXTERNAL_TOOL_LIFECYCLES: dict[str, ExternalToolLifecycle] = {
             "crashes. Use at your own risk."
         ),
     ),
+    "apu_telemetry": _lifecycle(
+        "Build the pinned daemon on this machine and install only apu-telemetry.service; the web server, fan module and memory collector are not installed.",
+        "Verify the managed unit and binary, then that /run/apu_telemetry.json is being published.",
+        "Disable and remove the managed unit and binary; a service installed by upstream's own installer is never touched.",
+        conflicts=("apu-telemetry.service installed by upstream's install.sh",),
+        vocabulary="Power delivery readings (CPU and GPU rail voltage, current and temperature)",
+        actions=(LifecycleAction.CHECK, LifecycleAction.INSTALL, LifecycleAction.UNINSTALL),
+        maintainer=(
+            "onlinermm maintains the daemon; Control Center only builds the "
+            "pinned revision and installs its service. Readings need the "
+            "physical I2C modification described in the project's hardware.md."
+        ),
+    ),
 }
 
 
@@ -525,6 +552,7 @@ EXTERNAL_TOOL_DIRECTORIES = {
     "oberon_governor": "oberon-governor",
     "gfx1013_direct": "bc250-gfx1013-fix",
     "gddr6_memory_temp": "bc250-memory-temperature",
+    "apu_telemetry": "bc250-telemetry",
 }
 
 

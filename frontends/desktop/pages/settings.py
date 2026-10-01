@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import shutil
 import subprocess
 import time
 from datetime import datetime
@@ -49,7 +50,9 @@ from bc250cc.infrastructure.gddr6_memory_temp_repository import (
 )
 from bc250cc.infrastructure.governor_conflicts import normalize_governor_preference
 from bc250cc.infrastructure.system_snapshot import system_snapshot
+from bc250cc.infrastructure.apu_telemetry_service import apu_telemetry_state
 from bc250cc.infrastructure.vrm_telemetry_reader import sondear_telemetria_vrm
+from bc250cc.platform.packages.strategies.detector import detect_os_info
 from bc250cc.platform.init.services import detect_init_manager
 from bc250cc.shared.failure_text import describe_failure
 from bc250cc.shared.version import __version__
@@ -1425,8 +1428,102 @@ class SettingsPage(QWidget):
             "What the dashboard finds right now in BC250-Telemetry's snapshot.",
             self.vrm_detection_label,
         ))
+        self.apu_telemetry_button = QPushButton("")
+        self.apu_telemetry_button.setProperty("ghostAction", True)
+        self.apu_telemetry_button.clicked.connect(self._apu_telemetry_clicked)
+        group.add_row(SettingRow(
+            "BC250-Telemetry service",
+            "Installs the daemon that publishes the power delivery readings. Control "
+            "Center builds the reviewed version and installs only that service. It "
+            "needs the physical I2C modification on the board.",
+            self.apu_telemetry_button,
+        ))
         self.refresh_vrm_detection()
         return group
+
+    def _apu_telemetry_state(self) -> dict:
+        try:
+            info = detect_os_info(has_rpm_ostree=bool(shutil.which("rpm-ostree")))
+            return apu_telemetry_state(
+                family=info.family, distro_id=info.distro_id, immutable=info.immutable
+            )
+        except (OSError, RuntimeError, ValueError):
+            return {"state": "not-installed", "supported": False, "blocked_reason": ""}
+
+    def refresh_apu_telemetry_button(self) -> None:
+        button = getattr(self, "apu_telemetry_button", None)
+        if button is None:
+            return
+        state = self._apu_telemetry_state()
+        kind = state.get("state")
+        button.setToolTip("")
+        if kind == "external":
+            button.setText(tr("Installed separately"))
+            button.setEnabled(False)
+            button.setToolTip(tr(
+                "apu-telemetry.service was installed by BC250-Telemetry itself, so "
+                "Control Center leaves it alone."
+            ))
+        elif state.get("managed"):
+            button.setText(tr("Remove service"))
+            button.setEnabled(True)
+        else:
+            button.setText(tr("Install service"))
+            supported = bool(state.get("supported"))
+            button.setEnabled(supported)
+            if not supported and state.get("blocked_reason"):
+                button.setToolTip(str(state["blocked_reason"]))
+
+    def _apu_telemetry_clicked(self) -> None:
+        action = "uninstall" if self._apu_telemetry_state().get("managed") else "install"
+        if action == "install":
+            confirmation = ConfirmDialog(
+                "Install the BC250-Telemetry service?",
+                "Control Center builds the daemon from the reviewed upstream source and "
+                "installs it as a root service that reads the voltage regulators over "
+                "I2C. Without the physical I2C modification it finds nothing and only "
+                "keeps retrying. Building needs your password and an internet connection.",
+                summary=(
+                    ("Source", "github.com/onlinermm/BC250-Telemetry"),
+                    ("Installs", "apu-telemetry.service"),
+                    ("Not installed", "Web server, fan module and memory collector"),
+                    ("Writes to the board", "One PMBus page-select register; no regulator setting"),
+                ),
+                confirm_text="Build and install",
+                tone="orange",
+                parent=self,
+            )
+        else:
+            confirmation = ConfirmDialog(
+                "Remove the BC250-Telemetry service?",
+                "Stops and removes the service and its binary. The power delivery "
+                "readings stop until it is installed again.",
+                confirm_text="Remove",
+                tone="orange",
+                parent=self,
+            )
+        if confirmation.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        def success(_result: object) -> None:
+            self._state_cache.invalidate("tools")
+            self.refresh_apu_telemetry_button()
+
+        def failure(message: str) -> None:
+            InfoDialog(
+                "Could not run the BC250-Telemetry workflow",
+                message,
+                icon_name="warning_orange",
+                parent=self,
+                tone="red",
+            ).exec()
+
+        self._start_task(
+            lambda: self.controller.gestionar_apu_telemetry(action),
+            success,
+            failure,
+            controls=(self.apu_telemetry_button,),
+        )
 
     @staticmethod
     def describe_vrm_detection(probe: dict) -> str:
@@ -1449,6 +1546,7 @@ class SettingsPage(QWidget):
         label = getattr(self, "vrm_detection_label", None)
         if label is not None:
             label.setText(self.describe_vrm_detection(sondear_telemetria_vrm()))
+        self.refresh_apu_telemetry_button()
 
     def _gddr6_manual_toggled(self, enabled: bool) -> None:
         if enabled and not self._confirm_gddr6_manual():

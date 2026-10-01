@@ -98,6 +98,11 @@ from bc250cc.infrastructure.preparation_workflow import (
     secure_cpu_checkout_command,
 )
 from bc250cc.infrastructure.privileged_install_state import privileged_install_state
+from bc250cc.infrastructure.apu_telemetry_service import (
+    APU_TELEMETRY_DIRECTORY,
+    apu_telemetry_supported,
+    build_apu_telemetry_command,
+)
 from bc250cc.infrastructure.radv_async_compute import (
     build_radv_async_command,
     radv_async_state,
@@ -743,6 +748,29 @@ class DependenciasRepository:
         self.estado_herramientas_cache = None
         return self._abrir_terminal(
             build_radv_async_command(action, self._tool_dir() / 'bc250-async-compute-bazzite'),
+            titles[action],
+        )
+
+    def gestionar_apu_telemetry(self, action: str) -> object:
+        """Install, check or remove the BC250-Telemetry daemon behind the Power delivery band."""
+        info = self._os_repository().info
+        action = str(action or '').strip().lower()
+        supported, reason = apu_telemetry_supported(
+            family=info.family,
+            distro_id=info.distro_id,
+            immutable=bool(getattr(info, 'immutable', False)),
+        )
+        if action == 'install' and not supported:
+            raise RuntimeError(reason or 'BC250-Telemetry cannot be installed on this system.')
+        titles = {
+            'install': 'BC250-Telemetry · build and install',
+            'uninstall': 'BC250-Telemetry · remove',
+            'status': 'BC250-Telemetry · status',
+        }
+        if action not in titles:
+            raise ValueError('Unsupported BC250-Telemetry action.')
+        return self._abrir_terminal(
+            build_apu_telemetry_command(action, self._tool_dir() / APU_TELEMETRY_DIRECTORY),
             titles[action],
         )
 
