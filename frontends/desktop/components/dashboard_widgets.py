@@ -1227,8 +1227,14 @@ class PreparationSidebar(QFrame):
                 lambda _checked=False, value=index: self.select_tab(value)
             )
             self.tab_buttons.append(button)
-        if self._standalone:
-            self.tab_buttons[0].hide()
+        # The Dashboard keeps the tabs that act on the machine as a whole:
+        # Components and Decky. Compatibility, Memory & Swap and Drivers live
+        # on the Additional settings page, which shows a copy of this panel
+        # with those three tabs and without Components. The pages behind the
+        # hidden buttons stay built so the state they read keeps flowing.
+        self._hidden_tabs = frozenset({0}) if self._standalone else frozenset({1, 2, 4})
+        for hidden in self._hidden_tabs:
+            self.tab_buttons[hidden].hide()
         root.addWidget(self.tabs_host)
 
         self.stack = _PreparationStack()
@@ -1271,7 +1277,7 @@ class PreparationSidebar(QFrame):
         self._tab_columns = 0
         self._component_columns = 0
         self._reflow(390)
-        self.select_tab(1 if self._standalone else 0)
+        self.select_tab(min(set(range(len(self.tab_buttons))) - self._hidden_tabs))
         self._sync_components()
 
     def retranslate_dynamic_copy(self) -> None:
@@ -2579,7 +2585,7 @@ class PreparationSidebar(QFrame):
 
     def _reflow(self, width: int) -> None:
         tab_columns = (
-            len(self.tab_buttons) - (1 if self._standalone else 0)
+            len(self.tab_buttons) - len(self._hidden_tabs)
             if width >= 620
             else 3 if width >= 420 else 2
         )
@@ -2625,7 +2631,7 @@ class PreparationSidebar(QFrame):
         if tab_columns != self._tab_columns:
             self._tab_columns = tab_columns
             clear_grid(self.tabs_grid, reset_columns=5, reset_rows=3)
-            shown = self.tab_buttons[1:] if self._standalone else self.tab_buttons
+            shown = [b for i, b in enumerate(self.tab_buttons) if i not in self._hidden_tabs]
             for index, button in enumerate(shown):
                 self.tabs_grid.addWidget(
                     button, index // tab_columns, index % tab_columns

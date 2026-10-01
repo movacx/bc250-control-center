@@ -534,7 +534,11 @@ def test_dashboard_preparation_tabs_are_real_stacked_sections(qtbot):
     page = DashboardPage(object())
     qtbot.addWidget(page)
 
+    # Compatibility, Memory & Swap and Drivers moved to Additional settings.
+    assert [b.isHidden() for b in page.readiness.tab_buttons] == [False, True, True, False, True]
     for index, button in enumerate(page.readiness.tab_buttons):
+        if button.isHidden():
+            continue
         button.click()
         assert page.readiness.stack.currentIndex() == index
         assert [item.isChecked() for item in page.readiness.tab_buttons] == [

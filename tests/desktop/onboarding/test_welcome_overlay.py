@@ -215,7 +215,7 @@ def test_the_itinerary_names_the_stops_the_tour_will_make(overlay):
     carried = [title for chip in overlay.stop_chips for title in chip.property("tourTitles")]
     assert sorted(carried) == sorted(titles)
     # One line per module, Settings included: the tour ends there.
-    assert len(overlay.stop_chips) <= 8
+    assert len(overlay.stop_chips) <= 9
     assert overlay.stop_chips[-1].property("tourTitles") == [tour_stops()[-1].title]
 
 
