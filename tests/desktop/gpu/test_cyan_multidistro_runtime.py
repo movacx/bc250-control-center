@@ -87,3 +87,41 @@ printf 'selected=%s\\n' "$RUSTUP_TOOLCHAIN"
     assert "apt-get install -y rustup" in result.stdout
     assert "rustc 1.88.0" in result.stdout
     assert "selected=1.88.0" in result.stdout
+
+
+def test_cachyos_rustup_shim_without_default_toolchain_gets_pinned_user_rust():
+    source = INSTALLER.read_text()
+    function = source.split("prepare_native_build_tools() {", 1)[1].split(
+        "\nbuild_bc250cc_runtime()", 1
+    )[0]
+    script = f'''
+set -eu
+target_family=cachyos
+HOME=/tmp/bc250-rust-test
+modern=0
+have() {{ case "$1" in cargo|rustc|cc|pkg-config|rustup) return 0;; *) return 1;; esac; }}
+pkg-config() {{ return 0; }}
+as_root() {{ printf 'planned: %s\\n' "$*"; }}
+info() {{ printf 'info: %s\\n' "$*"; }}
+die() {{ echo "$*"; exit 61; }}
+rustc() {{
+  [ "$modern" = 1 ] || {{ echo "error: rustup could not choose a version of rustc" >&2; return 1; }}
+  printf 'rustc 1.88.0 (test)\\n'
+}}
+rustup() {{
+  [ "$1" = toolchain ] && [ "$2" = install ] && [ "$3" = 1.88.0 ] || return 1
+  modern=1
+}}
+cyan_rust_is_supported() {{
+  have rustc || return 1
+  local v; v="$(rustc --version 2>/dev/null)" || return 1
+  [ -n "$v" ]
+}}
+prepare_native_build_tools() {{{function}
+prepare_native_build_tools
+printf 'selected=%s\\n' "$RUSTUP_TOOLCHAIN"
+'''
+    result = subprocess.run(["bash", "-c", script], capture_output=True, text=True, check=False)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "apt-get" not in result.stdout
+    assert "selected=1.88.0" in result.stdout
