@@ -82,3 +82,21 @@ def test_the_dashboard_copy_keeps_full_cards(qtbot):
     panel = PreparationSidebar()
     qtbot.addWidget(panel)
     assert panel.cyan_card._body is None
+
+
+def test_buttons_of_a_collapsed_row_keep_their_width_and_accent_in_sync(qtbot):
+    """A collapsed body hides its buttons from isVisibleTo(card); the styling
+    must still follow the state, or they open stale (no stretch, no accent)."""
+    panel = _compatibility(qtbot)
+    card = panel.gfx_card
+    assert not card.is_expanded()
+    card.update_action(card.gfx_primary_button if hasattr(card, "gfx_primary_button") else panel.gfx_primary_button, text="Build and install", enabled=True)
+    primary = panel.gfx_primary_button
+    link = panel.gfx_secondary_button
+    card.update_action(link, text="Open upstream project", visible=True)
+    assert card.actions.stretch(card.actions.indexOf(primary)) == 1
+    assert card.actions.stretch(card.actions.indexOf(link)) == 0
+    # Swapping the link back into an action restores its width and alignment.
+    card.update_action(link, text="Install Mesa", visible=True)
+    assert card.actions.stretch(card.actions.indexOf(link)) == 1
+    assert int(card.actions.itemAt(card.actions.indexOf(link)).alignment().value) == 0

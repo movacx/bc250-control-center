@@ -1014,7 +1014,10 @@ class PreparationInfoCard(QFrame):
             self.actions.itemAt(index).widget()
             for index in range(self.actions.count())
         ]
-        buttons = [button for button in buttons if button is not None and button.isVisibleTo(self)]
+        # ``isHidden`` and not ``isVisibleTo(self)``: a collapsed row hides its
+        # whole body, which would make every button here look hidden and leave
+        # its accent and width stale until the row is opened.
+        buttons = [button for button in buttons if button is not None and not button.isHidden()]
         primary_gets_accent = (
             len(buttons) >= 2
             and bool(buttons[-1].property("linkAction"))
@@ -1026,8 +1029,11 @@ class PreparationInfoCard(QFrame):
             # centred in an empty half of the row.
             is_link = bool(button.property("linkAction"))
             self.actions.setStretchFactor(button, 0 if is_link else 1)
-            if is_link:
-                self.actions.setAlignment(button, Qt.AlignmentFlag.AlignLeft)
+            # The same button swaps between an action and a link as the state
+            # changes, so the alignment is set both ways, never left behind.
+            self.actions.setAlignment(
+                button, Qt.AlignmentFlag.AlignLeft if is_link else Qt.AlignmentFlag(0)
+            )
             button.setProperty("accented", index == 0 and primary_gets_accent)
             button.style().unpolish(button)
             button.style().polish(button)
@@ -3273,7 +3279,7 @@ class PreparationSidebar(QFrame):
                 pills.append(self.steamos_fsr4_status)
             for pill in pills:
                 pill.setText(tr("Available on SteamOS"))
-                pill.set_tone("blue")
+                pill.set_tone("gray")
             self.gfx_card.update_action(
                 self.gfx_primary_button,
                 text="1 · Install SteamOS kernel",
@@ -3473,7 +3479,7 @@ class PreparationSidebar(QFrame):
             else tr("Not installed")
         )
         self.cachyos_kernel_status.set_tone(
-            "green" if kernel_active else "blue" if kernel_installed else "gray"
+            "green" if kernel_active else "gray"
         )
         self.cachyos_mesa_status.setText(
             tr("Patched installed") if mesa_installed else tr("Not installed")
@@ -3603,7 +3609,7 @@ class PreparationSidebar(QFrame):
                 if fsr4_current
                 else "orange"
                 if fsr4_state == "invalid"
-                else "blue"
+                else "gray"
             )
             self.gfx_card.update_action(
                 self.gfx_primary_button,
