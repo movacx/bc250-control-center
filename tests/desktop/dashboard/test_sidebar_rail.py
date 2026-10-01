@@ -36,7 +36,7 @@ def test_the_modules_keep_their_order_under_two_captions(qtbot):
     shell = _shell(qtbot, sidebar)  # noqa: F841 - keeps the window alive
     # LB/RB cycle through this order; the captions only label it.
     assert list(sidebar.buttons) == [
-        "dashboard", "cpu", "gpu", "cu", "performance", "fans", "processes",
+        "dashboard", "cpu", "cu", "gpu", "performance", "fans", "processes",
         "firmware", "settings",
     ]
     hardware, monitoring = sidebar.sections
@@ -44,7 +44,7 @@ def test_the_modules_keep_their_order_under_two_captions(qtbot):
     assert monitoring.label.text() == tr("Monitoring").upper()
     buttons = sidebar.buttons
     assert buttons["dashboard"].y() < hardware.y() < buttons["cpu"].y()
-    assert buttons["cu"].y() < monitoring.y() < buttons["performance"].y()
+    assert buttons["gpu"].y() < monitoring.y() < buttons["performance"].y()
     assert sidebar.footer_rule.y() < buttons["settings"].y()
     # Firmware waits at the bottom, just above the rule: it is used once in a
     # board's life, not every day.
