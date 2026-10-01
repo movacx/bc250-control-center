@@ -36,7 +36,7 @@ def test_the_modules_keep_their_order_under_two_captions(qtbot):
     shell = _shell(qtbot, sidebar)  # noqa: F841 - keeps the window alive
     # LB/RB cycle through this order; the captions only label it.
     assert list(sidebar.buttons) == [
-        "dashboard", "cpu", "cu", "gpu", "performance", "fans", "processes",
+        "dashboard", "cpu", "cu", "gpu", "extras", "performance", "fans", "processes",
         "firmware", "settings",
     ]
     hardware, monitoring = sidebar.sections

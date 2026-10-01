@@ -1072,9 +1072,21 @@ class PreparationSidebar(QFrame):
         ("fan_pwm", "NCT sensors and PWM", "Fan control route."),
     )
 
-    def __init__(self, parent: QWidget | None = None, *, settings=None) -> None:
+    def __init__(
+        self,
+        parent: QWidget | None = None,
+        *,
+        settings=None,
+        standalone: bool = False,
+    ) -> None:
+        """``standalone`` is the copy on the Additional settings page.
+
+        It carries every tab except Components, whose dependency preparation
+        stays on the Dashboard, and opens on Compatibility.
+        """
         super().__init__(parent)
         self._settings = settings or application_settings()
+        self._standalone = bool(standalone)
         self.setProperty("dashboardPreparation", True)
         self.setMinimumWidth(0)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
@@ -1089,7 +1101,12 @@ class PreparationSidebar(QFrame):
         system_layout.setSpacing(8)
         heading_copy = QVBoxLayout()
         heading_copy.setSpacing(3)
-        heading_copy.addWidget(_label("Prepare BC250 system", "dashboardCardTitle"))
+        heading_copy.addWidget(
+            _label(
+                "Additional settings" if self._standalone else "Prepare BC250 system",
+                "dashboardCardTitle",
+            )
+        )
         self.system_label = _label(
             "Detected system: Not detected", "dashboardCardSubtitle"
         )
@@ -1121,6 +1138,8 @@ class PreparationSidebar(QFrame):
                 lambda _checked=False, value=index: self.select_tab(value)
             )
             self.tab_buttons.append(button)
+        if self._standalone:
+            self.tab_buttons[0].hide()
         root.addWidget(self.tabs_host)
 
         self.stack = _PreparationStack()
@@ -1163,7 +1182,7 @@ class PreparationSidebar(QFrame):
         self._tab_columns = 0
         self._component_columns = 0
         self._reflow(390)
-        self.select_tab(0)
+        self.select_tab(1 if self._standalone else 0)
         self._sync_components()
 
     def retranslate_dynamic_copy(self) -> None:
@@ -2421,7 +2440,11 @@ class PreparationSidebar(QFrame):
             button.style().polish(button)
 
     def _reflow(self, width: int) -> None:
-        tab_columns = 5 if width >= 620 else 3 if width >= 420 else 2
+        tab_columns = (
+            len(self.tab_buttons) - (1 if self._standalone else 0)
+            if width >= 620
+            else 3 if width >= 420 else 2
+        )
         self.system_layout.setDirection(
             QBoxLayout.Direction.TopToBottom
             if width < 480
@@ -2464,7 +2487,8 @@ class PreparationSidebar(QFrame):
         if tab_columns != self._tab_columns:
             self._tab_columns = tab_columns
             clear_grid(self.tabs_grid, reset_columns=5, reset_rows=3)
-            for index, button in enumerate(self.tab_buttons):
+            shown = self.tab_buttons[1:] if self._standalone else self.tab_buttons
+            for index, button in enumerate(shown):
                 self.tabs_grid.addWidget(
                     button, index // tab_columns, index % tab_columns
                 )

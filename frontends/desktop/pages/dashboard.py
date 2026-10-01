@@ -109,6 +109,9 @@ class DashboardPage(QWidget):
     action_requested = pyqtSignal(str)
     dependency_action_requested = pyqtSignal(object)
     driver_support_requested = pyqtSignal(str)
+    #: Every state the page applies, for the Additional settings copy of the
+    #: preparation tabs, which reads the same tools snapshot.
+    state_applied = pyqtSignal(object)
     #: "See what's new" in the update bubble: the window opens the updater.
     update_requested = pyqtSignal()
 
@@ -388,6 +391,20 @@ class DashboardPage(QWidget):
             self.timer.stop()
             self._live_refresher.set_active(False)
             self.live_timer.stop()
+
+    def feed_state(self, active: bool) -> None:
+        """Keep reading the tools snapshot for another page while hidden.
+
+        Only the five-second state read runs; the one-second live sample stays
+        off, since nothing outside the Dashboard shows it.
+        """
+        if active:
+            if not self.timer.isActive():
+                self.timer.start()
+            self._refresher.activate(fresh_for=2.5)
+        elif not self._updates_active:
+            self._refresher.set_active(False)
+            self.timer.stop()
 
     def retranslate_dynamic_copy(self) -> None:
         self.readiness.retranslate_dynamic_copy()
@@ -709,6 +726,7 @@ class DashboardPage(QWidget):
         self._apply_cpu_card(state)
         self._apply_fan_card(state)
         self.readiness.set_state(state)
+        self.state_applied.emit(state)
         self._announce_attention(state)
 
     def _announce_attention(self, state: DashboardState) -> None:
