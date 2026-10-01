@@ -184,6 +184,9 @@ def settings_stylesheet() -> str:
     QWidget[settingsPage='true'] QFrame[settingRow='true'] {{
         background:transparent; border:none; border-bottom:1px solid {c['border_soft']};
     }}
+    QWidget[settingsPage='true'] QFrame[settingRow='true'][lastRow='true'] {{
+        border-bottom:none;
+    }}
     QWidget[settingsPage='true'] QFrame[repositoryRow='true'] {{
         background:{c['panel_raised']}; border:1px solid {c['border_soft']}; border-radius:11px;
     }}
@@ -482,8 +485,20 @@ class SettingsGroup(QFrame):
         self.layout_root.addLayout(self.body)
 
     def add_row(self, row: SettingRow) -> None:
+        # Rows are separated by a line under each one; the last row of a group
+        # must not end in a stray line against the group's own border.
+        if self.rows:
+            self._mark_last(self.rows[-1], False)
         self.rows.append(row)
+        self._mark_last(row, True)
         self.body.addWidget(row)
+
+    @staticmethod
+    def _mark_last(row: SettingRow, last: bool) -> None:
+        row.setProperty("lastRow", last)
+        style = row.style()
+        style.unpolish(row)
+        style.polish(row)
 
     def set_compact(self, compact: bool) -> None:
         self.layout_root.setSpacing(0)
@@ -1279,8 +1294,6 @@ class SettingsPage(QWidget):
             "Telemetry",
             "Sampling, refresh cadence, passive monitoring, and the optional user daemon.",
         )
-        layout.addWidget(self._build_gddr6_manual_group())
-        layout.addWidget(self._build_vrm_manual_group())
         daemon_group = SettingsGroup("Optional daemon")
         self.daemon_status_label = QLabel("Checking…")
         self.daemon_status_label.setProperty("daemonState", True)
@@ -1299,21 +1312,18 @@ class SettingsPage(QWidget):
                 "settings/daemon_interval", daemon_interval, self._save_daemon_interval,
             ),
         ))
-        layout.addWidget(daemon_group)
-
-        daemon_card = QFrame()
-        daemon_card.setProperty("banner", True)
-        daemon_layout = QVBoxLayout(daemon_card)
-        daemon_layout.setContentsMargins(14, 12, 14, 12)
-        daemon_layout.setSpacing(8)
+        # What the daemon does and its buttons belong to the daemon, so they sit
+        # inside its group instead of in a second, unrelated card below.
         daemon_text = QLabel(
             "The optional user daemon records JSONL metrics and restores the saved fan mode after login: "
             "an enabled automatic curve, a named preset or the last manual speed. "
             "It never applies CPU or GPU overclock automatically."
         )
-        daemon_text.setProperty("bannerText", True)
+        daemon_text.setProperty("rowDescription", True)
         daemon_text.setWordWrap(True)
-        daemon_layout.addWidget(daemon_text)
+        daemon_group.layout_root.addSpacing(10)
+        daemon_group.layout_root.addWidget(daemon_text)
+        daemon_group.layout_root.addSpacing(10)
         daemon_actions = ActionGrid(columns=2)
         self.daemon_refresh_button = self._button("Refresh status", self.refresh_daemon_status)
         self.daemon_enable_button = self._button("Enable daemon", lambda: self._change_daemon(True))
@@ -1322,9 +1332,14 @@ class SettingsPage(QWidget):
         daemon_actions.addWidget(self.daemon_enable_button)
         daemon_actions.addWidget(self.daemon_disable_button)
         daemon_actions.addWidget(self._button("View daemon details", self._show_daemon_details))
-        daemon_layout.addWidget(daemon_actions)
+        daemon_group.layout_root.addWidget(daemon_actions)
+        daemon_group.layout_root.addSpacing(10)
         self._action_grids.append(daemon_actions)
-        layout.addWidget(daemon_card)
+        # Everyday monitoring first; the readings that need hardware or carry
+        # a warning come after it.
+        layout.addWidget(daemon_group)
+        layout.addWidget(self._build_vrm_manual_group())
+        layout.addWidget(self._build_gddr6_manual_group())
         layout.addStretch(1)
         return page
 
