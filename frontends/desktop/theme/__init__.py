@@ -1446,6 +1446,15 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QFrame[dashboardPreparationInfo='true']:hover {{
         border-color: {c['border_strong']};
     }}
+    /* In a list row the buttons sit straight on the row. A second bordered
+       box around them made three nested outlines (list, panel, button). */
+    QFrame[dashboardPreparationInfo='true'][listRow='true'] QFrame[dashboardCompatibilityActions='true'],
+    QFrame[dashboardPreparationInfo='true'][listRow='true'] QFrame[dashboardCompatibilityState='true'] {{
+        background: transparent;
+        border: none;
+        border-radius: 0px;
+        padding: 0px;
+    }}
     QFrame[dashboardCompatibilityGroupBox='true'] {{
         background: {c['panel_alt']};
         border: 1px solid {c['border_soft']};
