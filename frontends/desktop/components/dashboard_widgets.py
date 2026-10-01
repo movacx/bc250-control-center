@@ -889,6 +889,16 @@ class PreparationComponentCard(QFrame):
 class PreparationInfoCard(QFrame):
     action_requested = pyqtSignal(object)
 
+    #: Colour is kept for the three states that ask something of the reader:
+    #: working, needs attention, broken. Everything else (where a card applies,
+    #: available, not installed, checking) is neutral, so a column of badges
+    #: does not compete for attention.
+    _STATUS_TONES = frozenset({"green", "orange", "red"})
+
+    @classmethod
+    def _status_tone(cls, tone: str) -> str:
+        return tone if tone in cls._STATUS_TONES else "gray"
+
     def __init__(
         self,
         title: str,
@@ -916,7 +926,7 @@ class PreparationInfoCard(QFrame):
         self.scope = PillLabel(scope_text or "Compatibility", "gray")
         self.scope.setVisible(bool(scope_text))
         header.addWidget(self.scope)
-        self.status = PillLabel(status_text or "Not detected", status_tone)
+        self.status = PillLabel(status_text or "Not detected", self._status_tone(status_tone))
         self.status.setVisible(bool(status_text))
         header.addWidget(self.status)
         layout.addLayout(header)
@@ -1046,12 +1056,12 @@ class PreparationInfoCard(QFrame):
 
     def set_status(self, text: str, tone: str) -> None:
         self.status.setText(tr(text))
-        self.status.set_tone(tone)
+        self.status.set_tone(self._status_tone(tone))
         self.status.show()
 
     def set_scope(self, text: str, tone: str = "gray") -> None:
+        # Where a card applies is a label, never a state: always neutral.
         self.scope.setText(tr(text))
-        self.scope.set_tone(tone)
         self.scope.show()
 
 
