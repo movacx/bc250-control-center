@@ -1909,6 +1909,14 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         background: {c['red_soft']};
         border-color: {c['red_border']};
     }}
+    /* The generic danger button (8px 13px, radius 10) is declared after the
+       card action rule and won, so Uninstall / Remove came out taller than
+       the buttons beside them. In a card it keeps the card button's shape. */
+    QPushButton[dashboardCardAction='true'][dangerAction='true'] {{
+        padding: 6px 10px;
+        border-radius: 9px;
+        font-weight: 720;
+    }}
     QPushButton[successAction='true'] {{
         background: {c['green_soft']};
         color: {c['green']};

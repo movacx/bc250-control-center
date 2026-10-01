@@ -1022,6 +1022,12 @@ class PreparationInfoCard(QFrame):
             and not buttons[0].property("dangerAction")
         )
         for index, button in enumerate(buttons):
+            # A link takes the room it needs and no more, so it does not sit
+            # centred in an empty half of the row.
+            is_link = bool(button.property("linkAction"))
+            self.actions.setStretchFactor(button, 0 if is_link else 1)
+            if is_link:
+                self.actions.setAlignment(button, Qt.AlignmentFlag.AlignLeft)
             button.setProperty("accented", index == 0 and primary_gets_accent)
             button.style().unpolish(button)
             button.style().polish(button)
@@ -2358,6 +2364,11 @@ class PreparationSidebar(QFrame):
                 layout.removeWidget(card)
                 card.setProperty("listRow", True)
                 card.make_collapsible()
+                # State rows (Kernel / Mesa pills) line up with the title.
+                for frame in card.findChildren(QFrame):
+                    if frame.property("dashboardCompatibilityState") and frame.layout():
+                        margins = frame.layout().contentsMargins()
+                        frame.layout().setContentsMargins(0, margins.top(), 0, margins.bottom())
                 box_layout.addWidget(card)
             heading = _label(title, "dashboardCompatibilityGroup", wrap=False)
             layout.insertWidget(index, heading)
@@ -3344,7 +3355,7 @@ class PreparationSidebar(QFrame):
             "not-active": "Not active",
             "incomplete": "Incomplete",
             "managed-elsewhere": "Managed externally",
-            "needs-check": "Check status",
+            "needs-check": "Not verified",
         }.get(acpi.get("status"), "Not installed")
         acpi_tone = (
             "green"
