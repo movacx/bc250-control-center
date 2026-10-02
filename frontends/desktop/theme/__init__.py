@@ -1455,6 +1455,36 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         border-radius: 0px;
         padding: 0px;
     }}
+    /* Boot options (mitigations, SMT, read-only): the card action sits on a
+       panel painted in panel_alt, so it is lifted a step like the ones in the
+       compatibility rows, and every state of it keeps the same shape. */
+    QFrame[dashboardBootPanel='true'] QPushButton[dashboardCardAction='true'] {{
+        min-height: 20px;
+        padding: 6px 12px;
+        border-radius: 9px;
+        background: {c['control']};
+        border: 1px solid {c['border_strong']};
+        color: {c['text']};
+        font-size: 11px;
+        font-weight: 720;
+    }}
+    QFrame[dashboardBootPanel='true'] QPushButton[dashboardCardAction='true']:hover,
+    QFrame[dashboardBootPanel='true'] QPushButton[dashboardCardAction='true']:focus {{
+        background: {c['control_hover']};
+        border-color: {c['blue_border']};
+        color: {c['blue']};
+    }}
+    QFrame[dashboardBootPanel='true'] QPushButton[dashboardCardAction='true'][dangerAction='true'] {{
+        background: {c['red_soft']};
+        border-color: {c['red_border']};
+        color: {c['red']};
+    }}
+    QFrame[dashboardBootPanel='true'] QPushButton[dashboardCardAction='true'][dangerAction='true']:hover,
+    QFrame[dashboardBootPanel='true'] QPushButton[dashboardCardAction='true'][dangerAction='true']:focus {{
+        background: {c['red_soft']};
+        border-color: {c['red']};
+        color: {c['red']};
+    }}
     QFrame[dashboardCompatibilityGroupBox='true'] {{
         background: {c['panel_alt']};
         border: 1px solid {c['border_soft']};

@@ -1829,6 +1829,7 @@ class PreparationSidebar(QFrame):
         panel = QFrame()
         self.mitigations_panel = panel
         panel.setProperty("dashboardMemoryPanel", True)
+        panel.setProperty("dashboardBootPanel", True)
         panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
         root = QBoxLayout(QBoxLayout.Direction.LeftToRight, panel)
@@ -1876,6 +1877,7 @@ class PreparationSidebar(QFrame):
         panel = QFrame()
         self.readonly_panel = panel
         panel.setProperty("dashboardMemoryPanel", True)
+        panel.setProperty("dashboardBootPanel", True)
         panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         root = QBoxLayout(QBoxLayout.Direction.LeftToRight, panel)
         self.readonly_layout = root
@@ -1906,6 +1908,9 @@ class PreparationSidebar(QFrame):
         panel.hide()
         return panel
 
+    _KERNEL_STATE_WIDTH = 124
+    _KERNEL_ACTION_WIDTH = 176
+
     #: The two boot options, in the order the panel shows them.
     KERNEL_OPTION_ROWS = (
         ("mitigations=off", "CPU security mitigations", "Disable mitigations", "Restore mitigations"),
@@ -1922,6 +1927,7 @@ class PreparationSidebar(QFrame):
         panel = QFrame()
         self.kernel_options_panel = panel
         panel.setProperty("dashboardMemoryPanel", True)
+        panel.setProperty("dashboardBootPanel", True)
         panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         root = QVBoxLayout(panel)
         root.setContentsMargins(12, 10, 12, 10)
@@ -1934,23 +1940,34 @@ class PreparationSidebar(QFrame):
         detail.setWordWrap(True)
         root.addWidget(detail)
         self.kernel_option_controls: dict[str, tuple[QLabel, PillLabel, QPushButton]] = {}
-        # One grid, so the buttons share a column and a width whatever each
-        # row currently says ("Restore mitigations" is wider than "Disable SMT").
+        # Each option is one row: its name, then its state and its action side
+        # by side in two columns of fixed width, so the eye does not cross the
+        # whole panel to connect a state with the button that changes it.
         grid = QGridLayout()
+        grid.setContentsMargins(0, 2, 0, 0)
         grid.setHorizontalSpacing(8)
-        grid.setVerticalSpacing(8)
-        grid.setColumnStretch(2, 1)
+        grid.setVerticalSpacing(0)
+        grid.setColumnStretch(0, 1)
         root.addLayout(grid)
-        for row, (option, title, _disable, _restore) in enumerate(self.KERNEL_OPTION_ROWS):
-            name = _label(title, "dashboardCompatibilityLabel", wrap=False)
+        for index, (option, title, _disable, _restore) in enumerate(self.KERNEL_OPTION_ROWS):
+            row = index * 2
+            if index:
+                rule = QFrame()
+                rule.setObjectName("ListDivider")
+                rule.setFixedHeight(1)
+                grid.addWidget(rule, row - 1, 0, 1, 3)
+            name = _label(title, "dashboardComponentTitle", wrap=False)
             pill = PillLabel("Checking", "gray")
+            pill.setMinimumWidth(self._KERNEL_STATE_WIDTH)
             button = QPushButton(tr(_disable))
             button.setProperty("dashboardCardAction", True)
-            button.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+            button.setMinimumWidth(self._KERNEL_ACTION_WIDTH)
+            button.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
             button.clicked.connect(lambda _checked=False, value=option: self._request_kernel_option(value))
             grid.addWidget(name, row, 0, Qt.AlignmentFlag.AlignVCenter)
             grid.addWidget(pill, row, 1, Qt.AlignmentFlag.AlignVCenter)
-            grid.addWidget(button, row, 3)
+            grid.addWidget(button, row, 2, Qt.AlignmentFlag.AlignVCenter)
+            grid.setRowMinimumHeight(row, 46)
             self.kernel_option_controls[option] = (name, pill, button)
         self._kernel_options_state: dict[str, object] = {}
         panel.hide()
