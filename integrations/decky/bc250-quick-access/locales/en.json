@@ -30,7 +30,7 @@
   "compatFixFrequency": "Fix frequencies",
   "compatFixMetrics": "Fix metrics",
   "compatHint": "Only touch this if the readings above look wrong.",
-  "compatNeedsCyan": "The Cyan governor must be the active governor to change this.",
+  "compatNeedsCyan": "Install Cyan (or stop Oberon) from Desktop Mode to change this.",
   "compatProcessWarning": "The process reading goes through every open file of every program. With a game open, Cyan stops answering: the range, the +2000 MHz points and the voltage lab stop working until the game closes. busy-flag is the default.",
   "compatSetMethod": "Governor method",
   "compatTitle": "Cyan kernel compatibility",
@@ -141,7 +141,7 @@
   "loadingCpu": "Reading CPU helper and telemetry…",
   "loadingGpu": "Reading GPU status…",
   "loadingTopology": "Reading WGP topology…",
-  "manualApplyWarning": "It will be applied temporarily at the detector-validated frequency. Monitor temperature and stability before installing the service.",
+  "manualApplyWarning": "Stress-tested like on the desktop: 100 MHz steps up to the detected frequency with this scale held (about 1–2 min). If any step fails, the detected profile is restored. Watch temperature before installing the service.",
   "memory": "MEMORY",
   "memoryAndVideo": "Memory & video",
   "mode": "Mode",
@@ -224,5 +224,12 @@
   "vramRebootRequired": "Takes effect after your next reboot.",
   "vramUnavailable": "VRAM partitioning is unavailable on this system.",
   "vrmUnavailable": "Not detected · requires the I2C hardware mod.",
-  "yes": "Yes"
+  "yes": "Yes",
+  "serviceStarting": "Starting or failing to start · retrying",
+  "governorStopped": "The governor service is not running. Use Enable service below.",
+  "governorUnresponsive": "Cyan is not answering (the \"process\" usage reading blocks it while a game runs). Range controls will fail until it answers; switch Usage reading to busy-flag.",
+  "compatStaged": "Cyan is not running: the change is saved and Cyan is restarted with it (if it is enabled) or uses it on its next start.",
+  "cpuPresetBoardAverage": "Average board",
+  "cpuPresetMidPoint": "Mid point",
+  "cpuPresetSafeMaximum": "Safe maximum"
 }

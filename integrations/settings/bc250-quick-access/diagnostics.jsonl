@@ -1,0 +1,8 @@
+{"at": 1790914652.201, "module": "gpu", "target": "profile-1", "error": ""}
+{"at": 1790914652.202, "module": "gpu", "target": "profile-3", "error": ""}
+{"at": 1790914652.202, "module": "gpu", "target": "profile-5", "error": ""}
+{"at": 1790914652.202, "module": "gpu", "target": "profile-7", "error": ""}
+{"at": 1790914652.202, "module": "gpu", "target": "profile-9", "error": ""}
+{"at": 1790914652.203, "module": "gpu", "target": "profile-11", "error": ""}
+{"at": 1790914652.215, "module": "fan", "target": "balanced", "error": "BC250 Quick Access is already applying an operation. Wait for its verified result before choosing another control."}
+{"at": 1790914652.236, "module": "cpu", "target": "service-install-detected", "error": "same-boot detector evidence required"}

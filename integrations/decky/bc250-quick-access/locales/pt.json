@@ -30,7 +30,7 @@
   "compatFixFrequency": "Corrigir frequências",
   "compatFixMetrics": "Corrigir métricas",
   "compatHint": "Só toque nisto se as leituras acima parecerem erradas.",
-  "compatNeedsCyan": "O governor Cyan precisa ser o governor ativo para alterar isto.",
+  "compatNeedsCyan": "Instale o Cyan (ou pare o Oberon) no Modo Desktop para alterar isto.",
   "compatProcessWarning": "A leitura process percorre cada ficheiro aberto de cada programa. Com um jogo aberto, o Cyan deixa de responder: a gama, os pontos +2000 MHz e o laboratório de tensão deixam de funcionar até o jogo fechar. busy-flag é a predefinição.",
   "compatSetMethod": "Método do governor",
   "compatTitle": "Compatibilidade do kernel Cyan",
@@ -141,7 +141,7 @@
   "loadingCpu": "Lendo auxiliar de CPU e telemetria…",
   "loadingGpu": "Lendo status da GPU…",
   "loadingTopology": "Lendo a topologia WGP…",
-  "manualApplyWarning": "Será aplicado temporariamente na frequência validada pelo detector. Monitore a temperatura e a estabilidade antes de instalar o serviço.",
+  "manualApplyWarning": "Testado sob stress como no desktop: passos de 100 MHz até à frequência detetada com esta escala fixa (cerca de 1–2 min). Se um passo falhar, o perfil detetado é reposto. Vigie a temperatura antes de instalar o serviço.",
   "memory": "MEMÓRIA",
   "memoryAndVideo": "Memória e vídeo",
   "mode": "Modo",
@@ -224,5 +224,12 @@
   "vramRebootRequired": "Aplicado após a próxima reinicialização.",
   "vramUnavailable": "O particionamento de VRAM não está disponível neste sistema.",
   "vrmUnavailable": "Não detectado · requer a modificação de hardware I2C.",
-  "yes": "Sim"
+  "yes": "Sim",
+  "serviceStarting": "A iniciar ou a falhar ao iniciar · a tentar de novo",
+  "governorStopped": "O serviço do governor não está em execução. Use Ativar serviço abaixo.",
+  "governorUnresponsive": "O Cyan não responde (a leitura de uso \"process\" bloqueia-o com um jogo aberto). Os controlos de intervalo vão falhar até responder; mude a Leitura de uso para busy-flag.",
+  "compatStaged": "O Cyan não está em execução: a alteração é guardada e o Cyan reinicia com ela (se estiver ativado) ou usa-a no próximo arranque.",
+  "cpuPresetBoardAverage": "Placa média",
+  "cpuPresetMidPoint": "Ponto médio",
+  "cpuPresetSafeMaximum": "Máximo seguro"
 }

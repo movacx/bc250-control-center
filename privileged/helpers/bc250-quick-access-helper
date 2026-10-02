@@ -661,19 +661,35 @@ def system_memory_state(
 
 
 def gpu_core_mhz(drm_root: pathlib.Path = pathlib.Path("/sys/class/drm")) -> int | None:
-    """Read the current marked AMD DPM core clock without issuing a command."""
+    """Read the live GPU core clock without issuing a command.
+
+    amdgpu's hwmon freq1_input comes first: on the BC-250 the driver's own
+    current-level marks in pp_dpm_sclk (and gpu_metrics' current_gfxclk) are
+    noise under Cyan's SMU backend -- "14Mhz *", "100Mhz *" while the GPU
+    really runs at 1700 MHz -- and Cyan's fix-freq keeps freq1_input exact.
+    pp_dpm_sclk stays the fallback for hosts without that hwmon file.
+    """
     try:
         devices = sorted(drm_root.glob("card*/device"))
     except OSError:
         return None
     for device in devices:
-        dpm = device / "pp_dpm_sclk"
         try:
             vendor = (device / "vendor").read_text(encoding="ascii", errors="ignore").strip().lower()
-            payload = dpm.read_text(encoding="ascii", errors="ignore")
         except OSError:
             continue
         if vendor != "0x1002":
+            continue
+        for frequency_file in sorted(device.glob("hwmon/hwmon*/freq1_input")):
+            try:
+                hertz = int(frequency_file.read_text(encoding="ascii").strip())
+            except (OSError, ValueError):
+                continue
+            if 100 <= hertz // 1_000_000 <= 5000:
+                return hertz // 1_000_000
+        try:
+            payload = (device / "pp_dpm_sclk").read_text(encoding="ascii", errors="ignore")
+        except OSError:
             continue
         for line in payload.splitlines():
             match = re.search(r"\b(\d+)\s*(?:mhz|mhs)\b.*\*", line, re.IGNORECASE)
@@ -1255,7 +1271,8 @@ def service_active(service: str) -> bool:
 #: The only two services this action may touch, keyed by the governor name
 #: the panel already reports. Never a caller-supplied unit.
 GOVERNOR_SERVICES = {"cyan": CYAN_SERVICE, "oberon": OBERON_SERVICE}
-GOVERNOR_SERVICE_START_SECONDS = 8.0
+#: Cyan's ExecStartPre preflight alone may take up to ~10 s.
+GOVERNOR_SERVICE_START_SECONDS = 25.0
 #: Which governor the panel last enabled or disabled, so "Disable" followed
 #: by "Enable" brings back the same one on a board with both installed.
 GOVERNOR_LAST_TARGET = pathlib.Path("/var/lib/bc250-control-center/quick-access-gpu-governor")
@@ -1315,7 +1332,11 @@ def governor_unit_state(service: str) -> dict[str, bool]:
     return {
         "installed": values.get("LoadState") == "loaded",
         "enabled": values.get("UnitFileState") in {"enabled", "enabled-runtime"},
-        "active": values.get("ActiveState") in {"active", "activating", "reloading"},
+        # "activating" is not running: a governor stuck in a restart loop
+        # sits there forever, and counting it as active made the panel say
+        # "running" while every GPU control said no governor was active.
+        "active": values.get("ActiveState") in {"active", "reloading"},
+        "starting": values.get("ActiveState") == "activating",
     }
 
 
@@ -1344,14 +1365,37 @@ def governor_service_state() -> dict[str, object]:
         target = "cyan"
     else:
         target = ""
-    target_state = states.get(target, {"installed": False, "enabled": False, "active": False})
+    target_state = states.get(target, {"installed": False, "enabled": False, "active": False, "starting": False})
     return {
         "gpu_service_target": target,
         "gpu_service_installed": bool(target_state["installed"]),
         "gpu_service_enabled": bool(target_state["enabled"]),
         "gpu_service_active": bool(target_state["active"]),
+        "gpu_service_starting": bool(target_state.get("starting")),
         "gpu_service_conflict": len(active) > 1,
     }
+
+
+def governor_ready(target: str, service: str) -> bool:
+    if not service_active(service):
+        return False
+    # systemd reports Cyan "active" before it has bound its overlays; a Cyan
+    # that then fails exits a moment later.  Its D-Bus range is published
+    # only once it is really governing.
+    return target != "cyan" or cyan_range() is not None
+
+
+def wait_for_governor_ready(target: str, service: str) -> bool:
+    deadline = time.monotonic() + GOVERNOR_SERVICE_START_SECONDS
+    while True:
+        if governor_ready(target, service):
+            # Still up a moment later: not the start of a crash loop.
+            time.sleep(1.0)
+            if governor_ready(target, service):
+                return True
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(0.4)
 
 
 def gpu_service_action(action: str) -> int:
@@ -1387,20 +1431,23 @@ def gpu_service_action(action: str) -> int:
                 69,
             )
         result = run(["/usr/bin/systemctl", "enable", "--now", service], timeout=45)
+        if result.returncode == 0 and not service_active(service):
+            # A unit stuck in a restart loop ("activating") ignores
+            # enable --now; clear the failure counter and start it afresh.
+            run(["/usr/bin/systemctl", "reset-failed", service], timeout=15)
+            result = run(["/usr/bin/systemctl", "restart", "--no-block", service], timeout=45)
         if result.returncode != 0:
             return fail(
                 "QUICK_ACCESS_GPU_SERVICE: "
                 + (result.stderr.strip() or result.stdout.strip() or f"could not enable {service}."),
                 69,
             )
-        deadline = time.monotonic() + GOVERNOR_SERVICE_START_SECONDS
-        while not service_active(service) and time.monotonic() < deadline:
-            time.sleep(0.4)
-        verified = governor_unit_state(service)
-        if not (verified["enabled"] and verified["active"]):
+        if not wait_for_governor_ready(target, service):
             return fail(
                 f"QUICK_ACCESS_GPU_SERVICE: {service} was enabled but did not stay "
-                "running. Open its status from BC250 Control Center Desktop.",
+                "running. If Cyan kernel compatibility uses a kernel option this "
+                "kernel lacks, switch it back to SMU / busy-flag: it can be changed "
+                "while Cyan is stopped.",
                 69,
             )
         message = f"{service} is enabled and running."
@@ -1912,13 +1959,28 @@ def parse_uint(payload: str) -> int | None:
     return int(match.group(1)) if match else None
 
 
+#: Set by status() for its single pass.  Under the "process" usage reading
+#: Cyan stops answering D-Bus while a game runs; each of status()'s five
+#: reads then waited out its own 8 s timeout, so one panel refresh took ~40 s
+#: and every other control queued behind it.  Once one read times out, the
+#: rest of that pass reports "unknown" immediately.
+CYAN_DBUS_LATCH = {"enabled": False, "unresponsive": False}
+
+
+def cyan_get_property(path: str, interface: str, name: str) -> subprocess.CompletedProcess[str]:
+    command = ["/usr/bin/busctl", "--system", "get-property", CYAN_BUS, path, interface, name]
+    if CYAN_DBUS_LATCH["enabled"] and CYAN_DBUS_LATCH["unresponsive"]:
+        return subprocess.CompletedProcess(command, 124, "", "Cyan D-Bus is not answering.")
+    result = run(command, timeout=8)
+    if CYAN_DBUS_LATCH["enabled"] and result.returncode == 124:
+        CYAN_DBUS_LATCH["unresponsive"] = True
+    return result
+
+
 def cyan_range() -> tuple[int, int] | None:
     values: list[int] = []
     for property_name in ("Min", "Max"):
-        result = run([
-            "/usr/bin/busctl", "--system", "get-property", CYAN_BUS, CYAN_RANGE_PATH,
-            CYAN_RANGE_INTERFACE, property_name,
-        ], timeout=8)
+        result = cyan_get_property(CYAN_RANGE_PATH, CYAN_RANGE_INTERFACE, property_name)
         value = parse_uint(result.stdout) if result.returncode == 0 else None
         if value is None:
             return None
@@ -1930,11 +1992,9 @@ def cyan_allowed_range() -> tuple[int, int] | None:
     """Read Cyan's active safety envelope before a live range transition."""
     values: list[int] = []
     for property_name in ("Min", "Max"):
-        result = run([
-            "/usr/bin/busctl", "--system", "get-property", CYAN_BUS,
-            "/com/cyanskillfish/Governor/Range/Allowed", CYAN_RANGE_INTERFACE,
-            property_name,
-        ], timeout=8)
+        result = cyan_get_property(
+            "/com/cyanskillfish/Governor/Range/Allowed", CYAN_RANGE_INTERFACE, property_name,
+        )
         value = parse_uint(result.stdout) if result.returncode == 0 else None
         if value is None:
             return None
@@ -1991,13 +2051,70 @@ def cyan_compatibility(config: pathlib.Path = CYAN_CONFIG) -> dict[str, object] 
     }
 
 
-def gpu_compatibility(arguments: Sequence[str]) -> int:
-    """Apply Cyan's kernel compatibility, then restart it so it takes effect.
+def cyan_kernel_usage_supported(device: pathlib.Path | None = None) -> bool | None:
+    """Cyan's "kernel" usage reading needs a readable gpu_busy_percent."""
+    device = device if device is not None else _amdgpu_device()
+    if device is None:
+        return None
+    try:
+        value = int((device / "gpu_busy_percent").read_text(encoding="ascii").strip())
+    except (OSError, ValueError):
+        return False
+    return 0 <= value <= 100
 
-    The range is put back only when Cyan still answered before the change. When
-    it does not (the "process" usage reading stops it answering while a game is
-    open) a plain restart is the point: the new reading is what gets it
-    answering again.
+
+def cyan_kernel_set_supported(device: pathlib.Path | None = None) -> bool | None:
+    """Cyan's "kernel" set-method needs working overdrive clock controls.
+
+    An unpatched BC-250 kernel exposes pp_od_clk_voltage with a single
+    placeholder OD_SCLK level far below its own OD_RANGE (e.g. "0: 14Mhz"
+    against "SCLK: 1000Mhz 2000Mhz"); Cyan then exits with "Operation not
+    supported".  A usable table keeps every OD_SCLK level inside OD_RANGE.
+    """
+    device = device if device is not None else _amdgpu_device()
+    if device is None:
+        return None
+    try:
+        payload = (device / "pp_od_clk_voltage").read_text(encoding="ascii", errors="strict")
+    except (OSError, UnicodeError):
+        return False
+    bounds = re.search(r"^\s*SCLK:\s*(\d+)\s*Mhz\s+(\d+)\s*Mhz", payload, re.IGNORECASE | re.MULTILINE)
+    section = re.search(r"OD_SCLK:(.*?)(?:^[A-Z_]+:|\Z)", payload, re.DOTALL | re.MULTILINE)
+    if bounds is None or section is None:
+        return False
+    low, high = int(bounds.group(1)), int(bounds.group(2))
+    levels = [int(value) for value in re.findall(r"(\d+)\s*Mhz", section.group(1), re.IGNORECASE)]
+    return bool(levels) and all(low <= level <= high for level in levels)
+
+
+def _cyan_started_cleanly() -> bool:
+    """Running and still running a moment later, D-Bus or not.
+
+    D-Bus is not required here: under the "process" reading Cyan is healthy
+    while its bus does not answer.  A rejected setting makes it exit at once.
+    """
+    deadline = time.monotonic() + GOVERNOR_SERVICE_START_SECONDS
+    while True:
+        if service_active(CYAN_SERVICE):
+            time.sleep(2.0)
+            if service_active(CYAN_SERVICE):
+                return True
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(0.4)
+
+
+def gpu_compatibility(arguments: Sequence[str]) -> int:
+    """Apply Cyan's kernel compatibility the way the desktop does.
+
+    - Cyan stopped (or crash-looping on a bad setting): the TOML may still be
+      edited -- requiring a running Cyan made a bad "kernel" choice
+      impossible to undo from Game Mode, since that choice is what stops it.
+    - "kernel" choices this kernel cannot serve are refused before the TOML
+      is touched.
+    - When Cyan should run (active, enabled or restarting) it is restarted
+      with the new settings; if it does not stay up, the previous settings
+      are written back and Cyan restarted on them.
     """
     set_method, usage_method, fix_metrics, fix_frequency = arguments
     if (
@@ -2009,37 +2126,79 @@ def gpu_compatibility(arguments: Sequence[str]) -> int:
         return fail(
             "QUICK_ACCESS_GPU_CONFIG: expected smu|kernel, busy-flag|process|kernel and two 0/1 flags.", 20,
         )
-    if active_gpu_governor() != "cyan":
-        return fail("QUICK_ACCESS_GPU_SERVICE: the Cyan governor must be the active governor.", 21)
+    if service_active(OBERON_SERVICE):
+        return fail("QUICK_ACCESS_GPU_SERVICE: Oberon is the active governor; Cyan settings are not used.", 21)
+    unit = governor_unit_state(CYAN_SERVICE)
+    if not unit["installed"]:
+        return fail("QUICK_ACCESS_GPU_SERVICE: the Cyan governor is not installed.", 21)
     if not trusted_file(GOVERNOR_CONFIG_HELPER, executable=True):
         return fail(
             "QUICK_ACCESS_GPU_HELPER: the protected governor configuration helper is unavailable. "
             "Reinstall BC250 Control Center.", 21,
         )
-    previous = cyan_range()
-    result = run(
-        [str(GOVERNOR_CONFIG_HELPER), "set-cyan-compatibility",
-         set_method, usage_method, fix_metrics, fix_frequency],
-        timeout=20,
-    )
+    if usage_method == "kernel" and cyan_kernel_usage_supported() is False:
+        return fail(
+            "QUICK_ACCESS_GPU_CONFIG: this kernel does not expose a readable gpu_busy_percent, so "
+            "Cyan cannot use the kernel usage reading. Nothing was changed; choose busy-flag.", 20,
+        )
+    if set_method == "kernel" and cyan_kernel_set_supported() is False:
+        return fail(
+            "QUICK_ACCESS_GPU_CONFIG: this kernel has no usable overdrive clock controls, so Cyan "
+            "cannot use the kernel set-method. Nothing was changed; choose SMU.", 20,
+        )
+    previous_settings = cyan_compatibility()
+    should_run = bool(unit["active"] or unit["starting"] or unit["enabled"])
+    previous_range = cyan_range() if unit["active"] else None
+
+    def write(values: Sequence[str]) -> subprocess.CompletedProcess[str]:
+        return run([str(GOVERNOR_CONFIG_HELPER), "set-cyan-compatibility", *values], timeout=20)
+
+    result = write((set_method, usage_method, fix_metrics, fix_frequency))
     if result.returncode != 0:
         return fail(result.stderr.strip() or result.stdout.strip() or "Governor configuration update failed.", 22)
-    if previous is not None:
-        error = _restart_cyan_keeping_range(previous)
-    else:
-        restarted = run(["/usr/bin/systemctl", "restart", CYAN_SERVICE], timeout=30)
-        error = "" if restarted.returncode == 0 else (
-            restarted.stderr.strip() or restarted.stdout.strip()
-            or "QUICK_ACCESS_GPU_VERIFY: Cyan did not restart."
+    if not should_run:
+        print(json.dumps({
+            "ok": True,
+            "message": "Cyan is stopped; the compatibility settings apply on its next start.",
+            "gpu_compatibility": cyan_compatibility(),
+        }))
+        return 0
+
+    run(["/usr/bin/systemctl", "reset-failed", CYAN_SERVICE], timeout=15)
+    run(["/usr/bin/systemctl", "restart", "--no-block", CYAN_SERVICE], timeout=30)
+    if not _cyan_started_cleanly():
+        rollback = ""
+        if previous_settings is not None:
+            write((
+                str(previous_settings["set_method"]), str(previous_settings["usage_method"]),
+                "1" if previous_settings["fix_metrics"] else "0",
+                "1" if previous_settings["fix_frequency"] else "0",
+            ))
+            run(["/usr/bin/systemctl", "reset-failed", CYAN_SERVICE], timeout=15)
+            run(["/usr/bin/systemctl", "restart", "--no-block", CYAN_SERVICE], timeout=30)
+            rollback = (
+                " The previous settings were restored."
+                if _cyan_started_cleanly()
+                else " The previous settings were restored, but Cyan did not start on them either."
+            )
+        return fail(
+            "QUICK_ACCESS_GPU_VERIFY: Cyan did not stay running with the requested compatibility "
+            "settings." + rollback, 24,
         )
-    if error:
-        return fail(error, 24)
-    print(json.dumps({
-        "ok": True,
-        "message": "Cyan kernel compatibility applied.",
-        "gpu_compatibility": cyan_compatibility(),
-        "gpu_range": list(cyan_range() or ()),
-    }))
+    message = "Cyan kernel compatibility applied."
+    if previous_range is not None:
+        # Best effort, like the desktop: the settings already applied, and the
+        # "process" reading may keep D-Bus silent.
+        deadline = time.monotonic() + 10.0
+        while cyan_range() is None and time.monotonic() < deadline:
+            time.sleep(0.3)
+        restored = run([
+            "/usr/bin/busctl", "--system", "call", CYAN_BUS, CYAN_PERFORMANCE_PATH,
+            CYAN_PERFORMANCE_INTERFACE, "SetRange", "uu", str(previous_range[0]), str(previous_range[1]),
+        ], timeout=12)
+        if restored.returncode != 0:
+            message += " Cyan's D-Bus did not answer, so the previous range was not put back."
+    print(json.dumps({"ok": True, "message": message, "gpu_compatibility": cyan_compatibility()}))
     return 0
 
 
@@ -2274,10 +2433,7 @@ def set_oberon_range(requested: tuple[int, int]) -> int:
 
 
 def cyan_performance_enabled() -> bool | None:
-    result = run([
-        "/usr/bin/busctl", "--system", "get-property", CYAN_BUS,
-        CYAN_PERFORMANCE_PATH, CYAN_PERFORMANCE_INTERFACE, "Enabled",
-    ], timeout=8)
+    result = cyan_get_property(CYAN_PERFORMANCE_PATH, CYAN_PERFORMANCE_INTERFACE, "Enabled")
     if result.returncode == 0:
         if result.stdout.strip() == "b true":
             return True
@@ -2387,13 +2543,10 @@ def gpu_high_points(enabled_raw: str) -> int:
 
     Mirrors the Desktop's "Enable/Disable +2000 MHz TOML points" button,
     through the same governor-config helper it uses (Decky is already root,
-    so this calls it directly instead of through pkexec). This is purely a
-    persistent-file edit -- it never restarts Cyan and never touches the live
-    D-Bus range. A newly enabled point appears in cyan_safe_point_ceilings()
-    (and therefore gpu-safe-point) immediately, but Cyan's own running
-    process will not route to it until the service reloads -- exactly the
-    same gap set_cyan_range() already has for any Allowed value it has not
-    seen yet, so no separate reload logic is added here.
+    so this calls it directly instead of through pkexec). When Cyan is running it is then
+    restarted and the live range put back (clamped to 2000 MHz when the high
+    points are removed): Cyan reads its Allowed range only at start, so
+    without the restart the new points stayed unusable until the next one.
     """
     if enabled_raw not in {"0", "1"}:
         return fail("QUICK_ACCESS_GPU_HIGH_POINTS: expected 0 or 1.", 20)
@@ -2408,9 +2561,19 @@ def gpu_high_points(enabled_raw: str) -> int:
             21,
         )
     action = "enable-high-points" if enabled_raw == "1" else "disable-high-points"
+    previous = cyan_range() if active_gpu_governor() == "cyan" else None
     result = run([str(GOVERNOR_CONFIG_HELPER), action], timeout=20)
     if result.returncode != 0:
         return fail(result.stderr.strip() or result.stdout.strip() or "Governor configuration update failed.", 22)
+    if previous is not None:
+        # Cyan derives its Allowed range from the TOML only when it starts:
+        # without a restart the new points stayed greyed out (or the removed
+        # ones stayed reachable) until something else restarted it.
+        if enabled_raw == "0":
+            previous = (min(previous[0], 2000), min(previous[1], 2000))
+        error = _restart_cyan_keeping_range(previous)
+        if error:
+            return fail(error, 24)
     print(json.dumps({
         "ok": True,
         "gpu_high_points_enabled": enabled_raw == "1",
@@ -2520,7 +2683,7 @@ def _restart_cyan_keeping_range(previous: tuple[int, int]) -> str:
     if restarted.returncode != 0:
         return (restarted.stderr.strip() or restarted.stdout.strip()
                 or "QUICK_ACCESS_GPU_VERIFY: Cyan did not restart.")
-    deadline = time.monotonic() + 15.0
+    deadline = time.monotonic() + 30.0
     while time.monotonic() < deadline and cyan_range() is None:
         time.sleep(0.3)
     if cyan_range() is None:
@@ -2544,7 +2707,6 @@ def _voltage_result(message: str) -> int:
         "message": message,
         "gpu_voltage_points": list(points),
         "gpu_voltage_level": detected_voltage_level(points),
-        "gpu_range": list(cyan_range() or ()),
     }))
     return 0
 
@@ -3535,7 +3697,7 @@ def cpu_apply_manual_scale(frequency_raw: str, scale_raw: str) -> int:
             str(CPU_HELPER), "apply-qam-scale", str(candidate["frequency"]),
             str(candidate["scale"]), str(candidate["temperature"]),
         ],
-        timeout=180,
+        timeout=600,
     )
     if result.returncode != 0:
         return fail(
@@ -3686,6 +3848,7 @@ def _contract_payload() -> dict:
 
 
 def status() -> int:
+    CYAN_DBUS_LATCH["enabled"] = True
     cu_topology = cu_dashboard_topology()
     cu_persistence = cu_service_state()
     # Resolve hwmon once so the reported channel list and its preset describe
@@ -3759,6 +3922,7 @@ def status() -> int:
         "gpu_governor_active": governor in {"cyan", "oberon"},
         **governor_service_state(),
         "gpu_range": current_range,
+        "gpu_dbus_responsive": not CYAN_DBUS_LATCH["unresponsive"],
         "gpu_performance_enabled": cyan_performance_enabled() if governor == "cyan" else None,
         "gpu_allowed_range": allowed_range,
         "gpu_safe_point_ceilings": safe_points,

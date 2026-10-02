@@ -30,7 +30,7 @@
   "compatFixFrequency": "Napraw częstotliwości",
   "compatFixMetrics": "Napraw metryki",
   "compatHint": "Dotykaj tego tylko wtedy, gdy odczyty powyżej wyglądają źle.",
-  "compatNeedsCyan": "Aby to zmienić, Cyan musi być aktywnym governorem.",
+  "compatNeedsCyan": "Zainstaluj Cyan (lub zatrzymaj Oberon) w trybie pulpitu, aby to zmienić.",
   "compatProcessWarning": "Odczyt process przechodzi przez każdy otwarty plik każdego programu. Gdy gra jest otwarta, Cyan przestaje odpowiadać: zakres, punkty +2000 MHz i laboratorium napięcia nie działają, dopóki gra się nie zamknie. busy-flag jest ustawieniem domyślnym.",
   "compatSetMethod": "Metoda governora",
   "compatTitle": "Zgodność jądra Cyan",
@@ -141,7 +141,7 @@
   "loadingCpu": "Odczytywanie pomocnika CPU i danych telemetrycznych…",
   "loadingGpu": "Odczytywanie stanu GPU…",
   "loadingTopology": "Odczytywanie topologii WGP…",
-  "manualApplyWarning": "Zostanie ono zastosowane tymczasowo z częstotliwością zatwierdzoną przez detektor. Przed zainstalowaniem usługi monitoruj temperaturę i stabilność.",
+  "manualApplyWarning": "Testowane obciążeniem jak na pulpicie: kroki co 100 MHz do wykrytej częstotliwości z tą skalą (ok. 1–2 min). Jeśli krok się nie powiedzie, przywracany jest wykryty profil. Obserwuj temperaturę przed instalacją usługi.",
   "memory": "PAMIĘĆ",
   "memoryAndVideo": "Pamięć i wideo",
   "mode": "Tryb",
@@ -224,5 +224,12 @@
   "vramRebootRequired": "Zaczyna działać po następnym restarcie.",
   "vramUnavailable": "Podział VRAM jest niedostępny w tym systemie.",
   "vrmUnavailable": "Nie wykryto · wymaga modyfikacji sprzętowej I2C.",
-  "yes": "Tak"
+  "yes": "Tak",
+  "serviceStarting": "Uruchamianie lub błąd uruchamiania · ponawianie",
+  "governorStopped": "Usługa governora nie działa. Użyj poniżej „Włącz usługę”.",
+  "governorUnresponsive": "Cyan nie odpowiada (odczyt użycia \"process\" blokuje go przy uruchomionej grze). Sterowanie zakresem nie zadziała, dopóki nie odpowie; zmień odczyt użycia na busy-flag.",
+  "compatStaged": "Cyan nie działa: zmiana zostanie zapisana, a Cyan uruchomi się z nią ponownie (jeśli jest włączony) lub użyje jej przy następnym starcie.",
+  "cpuPresetBoardAverage": "Przeciętna płyta",
+  "cpuPresetMidPoint": "Punkt środkowy",
+  "cpuPresetSafeMaximum": "Bezpieczne maksimum"
 }

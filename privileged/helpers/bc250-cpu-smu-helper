@@ -1114,6 +1114,32 @@ def action_detect_qam(argv: Sequence[str]) -> int:
         detected.unlink(missing_ok=True)
 
 
+def _stress_test_held_scale(frequency: int, scale: int, temperature: int) -> int:
+    """verify-scale's steps for the QAM path; returns the highest MHz that held."""
+    signal.signal(signal.SIGTERM, _raise_system_exit)
+    signal.signal(signal.SIGHUP, _raise_system_exit)
+    os.environ['PATH'] = '/usr/sbin:/usr/bin:/sbin:/bin'
+    if str(VENDOR_ZIP) not in sys.path:
+        sys.path.insert(0, str(VENDOR_ZIP))
+    import stress_helper  # noqa: PLC0415 - audited vendor zip
+    from bc250_smu import Bc250Smu  # noqa: PLC0415 - audited vendor zip
+
+    smu = Bc250Smu(use_flock=True)
+    smu.check_test_message()
+    passed = 0
+    try:
+        passed, voltage = verify_scale_steps(
+            smu, _VendorStress(stress_helper), frequency, scale, temperature,
+            write_result=lambda *_values: None,
+        )
+    finally:
+        if not passed:
+            _revert_smu_defaults(smu)
+    if passed:
+        print(f'Held: {passed} MHz @ {voltage} mV using scale {scale}', flush=True)
+    return passed
+
+
 def action_apply_qam_scale(argv: Sequence[str]) -> int:
     """Apply one manual scale bound to this boot's protected detector result."""
     if len(argv) != 3:
@@ -1128,10 +1154,23 @@ def action_apply_qam_scale(argv: Sequence[str]) -> int:
     if temperature != int(detected['temperature']):
         return fail('Manual scale must reuse the detected thermal limit.', 94)
 
+    if not shutil.which('stress', path='/usr/sbin:/usr/bin:/sbin:/bin'):
+        return fail('stress is required by bc250-detect to test a manual scale.', 86)
+
     _clear_qam_manual_evidence()
+    # The desktop never applies a typed scale untested (verify-scale); Game
+    # Mode used to go straight to bc250-apply.  Run the same 100 MHz steps
+    # with the scale held.  Manual evidence is bound to the detected
+    # frequency, so anything short of it puts the detected profile back.
+    print('== BC250 QAM manual scale, stress-tested in steps ==', flush=True)
+    passed = _stress_test_held_scale(frequency, scale, temperature)
+    if passed < frequency:
+        restored = run_vendor_module('bc250_apply', ['--apply', str(QAM_CONFIG)])
+        held = f'held only up to {passed} MHz' if passed else 'did not hold even at the first step'
+        note = 'the detected profile was restored' if restored == 0 else 'restoring the detected profile also failed'
+        return fail(f'Manual scale {scale} {held} (target {frequency} MHz); {note}.', 57)
     config = root_temp_config(frequency, scale, temperature)
     try:
-        print('== BC250 QAM manual scale ==', flush=True)
         print(f'Applying {frequency} MHz | scale {scale} | temp {temperature} C', flush=True)
         result = run_vendor_module('bc250_apply', ['--apply', str(config)])
         if result != 0:

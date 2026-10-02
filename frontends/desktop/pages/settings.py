@@ -45,7 +45,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from bc250cc.infrastructure import SystemdUserService, diagnostic_journal
+from bc250cc.infrastructure import SystemdUserService
 from bc250cc.infrastructure.gddr6_memory_temp_repository import (
     board_bios_version,
     gddr6_firmware_supported,
@@ -71,7 +71,7 @@ from ..components.responsive import (
 from ..components.toast import show_toast
 from ..components.toggle_switch import ToggleSwitch
 from ..components.widgets import IconBadge, InfoDialog, PillLabel, apply_shadow, icon
-from ..core.diagnostic_history import current_wording, diagnostic_report
+from ..core.diagnostic_history import clear_history, current_wording, diagnostic_report, history_entries
 from ..core.external_links import open_external_url
 from ..core.preferences import application_settings
 from ..core.state import state_cache_for
@@ -2551,7 +2551,7 @@ class SettingsPage(QWidget):
         """Read the history now and the system facts in the background."""
         if not hasattr(self, "diagnostics_table"):
             return
-        self._apply_diagnostic_history(diagnostic_journal.read())
+        self._apply_diagnostic_history(history_entries())
 
         def success(rows: object) -> None:
             self._apply_system_rows(list(rows) if isinstance(rows, list) else [])
@@ -2586,7 +2586,7 @@ class SettingsPage(QWidget):
                 values = (
                     datetime.fromtimestamp(entry.at).strftime("%Y-%m-%d %H:%M:%S"),
                     entry.code,
-                    tr("Terminal") if entry.source == "terminal" else tr("Window"),
+                    {"terminal": tr("Terminal"), "decky": tr("Decky Quick Access")}.get(entry.source, tr("Window")),
                     tr(current_wording(entry).summary),
                     tr(current_wording(entry).cause),
                 )
@@ -2630,7 +2630,7 @@ class SettingsPage(QWidget):
         show_toast(self, "Copied", "Paste it into your problem report.", tone="green")
 
     def _clear_diagnostic_history(self) -> None:
-        diagnostic_journal.clear()
+        clear_history()
         self._apply_diagnostic_history([])
         show_toast(self, "Diagnostic history cleared", tone="blue")
 

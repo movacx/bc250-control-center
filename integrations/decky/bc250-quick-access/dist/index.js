@@ -622,7 +622,7 @@ var compatConfirm$7 = "Cyan wird neu gestartet, um dies zu übernehmen. Hat es g
 var compatFixFrequency$7 = "Frequenzen korrigieren";
 var compatFixMetrics$7 = "Metriken korrigieren";
 var compatHint$7 = "Ändern Sie dies nur, wenn die obigen Werte falsch aussehen.";
-var compatNeedsCyan$7 = "Cyan muss der aktive Governor sein, um dies zu ändern.";
+var compatNeedsCyan$7 = "Installiere Cyan (oder stoppe Oberon) im Desktop-Modus, um dies zu ändern.";
 var compatProcessWarning$7 = "Die Messung process geht jede offene Datei jedes Programms durch. Solange ein Spiel läuft, antwortet Cyan nicht mehr: Bereich, +2000-MHz-Punkte und Spannungslabor funktionieren erst wieder, wenn das Spiel beendet ist. busy-flag ist die Voreinstellung.";
 var compatSetMethod$7 = "Governor-Methode";
 var compatTitle$7 = "Cyan Kernel-Kompatibilität";
@@ -733,7 +733,7 @@ var liveRoutingUnchanged$7 = "Das Live-Routing ändert sich nicht.";
 var loadingCpu$7 = "CPU-Helfer und Telemetrie werden gelesen…";
 var loadingGpu$7 = "GPU-Status wird gelesen…";
 var loadingTopology$7 = "WGP-Topologie wird gelesen…";
-var manualApplyWarning$7 = "Es wird vorübergehend mit der vom Detektor validierten Frequenz angewendet. Überwachen Sie Temperatur und Stabilität, bevor Sie den Dienst installieren.";
+var manualApplyWarning$7 = "Wie am Desktop unter Last getestet: 100-MHz-Schritte bis zur erkannten Frequenz mit fester Skala (ca. 1–2 Min.). Scheitert ein Schritt, wird das erkannte Profil wiederhergestellt. Temperatur beobachten, bevor der Dienst installiert wird.";
 var memory$7 = "SPEICHER";
 var memoryAndVideo$7 = "Speicher & Video";
 var mode$7 = "Modus";
@@ -1002,6 +1002,13 @@ var de = {
 	serviceNotInstalled: serviceNotInstalled$7,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$7,
 	serviceRunningBoot: serviceRunningBoot$7,
+	cpuPresetBoardAverage: "Durchschnittsboard",
+	cpuPresetMidPoint: "Mittelwert",
+	cpuPresetSafeMaximum: "Sicheres Maximum",
+	compatStaged: "Cyan läuft nicht: Die Änderung wird gespeichert und Cyan damit neu gestartet (falls aktiviert) oder beim nächsten Start verwendet.",
+	governorUnresponsive: "Cyan antwortet nicht (die Auslastungsmessung \"process\" blockiert ihn bei laufendem Spiel). Bereichssteuerungen schlagen fehl, bis er antwortet; Auslastungsmessung auf busy-flag stellen.",
+	serviceStarting: "Startet oder scheitert beim Start · neuer Versuch",
+	governorStopped: "Der Governor-Dienst läuft nicht. Unten „Dienst aktivieren“ verwenden.",
 	serviceRunningNoBoot: serviceRunningNoBoot$7,
 	serviceStopped: serviceStopped$7,
 	serviceStoppedBoot: serviceStoppedBoot$7,
@@ -1077,7 +1084,7 @@ var compatConfirm$6 = "Cyan restarts to apply this. If it was answering, your cu
 var compatFixFrequency$6 = "Fix frequencies";
 var compatFixMetrics$6 = "Fix metrics";
 var compatHint$6 = "Only touch this if the readings above look wrong.";
-var compatNeedsCyan$6 = "The Cyan governor must be the active governor to change this.";
+var compatNeedsCyan$6 = "Install Cyan (or stop Oberon) from Desktop Mode to change this.";
 var compatProcessWarning$6 = "The process reading goes through every open file of every program. With a game open, Cyan stops answering: the range, the +2000 MHz points and the voltage lab stop working until the game closes. busy-flag is the default.";
 var compatSetMethod$6 = "Governor method";
 var compatTitle$6 = "Cyan kernel compatibility";
@@ -1188,7 +1195,7 @@ var liveRoutingUnchanged$6 = "Live routing will not change.";
 var loadingCpu$6 = "Reading CPU helper and telemetry…";
 var loadingGpu$6 = "Reading GPU status…";
 var loadingTopology$6 = "Reading WGP topology…";
-var manualApplyWarning$6 = "It will be applied temporarily at the detector-validated frequency. Monitor temperature and stability before installing the service.";
+var manualApplyWarning$6 = "Stress-tested like on the desktop: 100 MHz steps up to the detected frequency with this scale held (about 1–2 min). If any step fails, the detected profile is restored. Watch temperature before installing the service.";
 var memory$6 = "MEMORY";
 var memoryAndVideo$6 = "Memory & video";
 var mode$6 = "Mode";
@@ -1457,6 +1464,13 @@ var en = {
 	serviceNotInstalled: serviceNotInstalled$6,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$6,
 	serviceRunningBoot: serviceRunningBoot$6,
+	cpuPresetBoardAverage: "Average board",
+	cpuPresetMidPoint: "Mid point",
+	cpuPresetSafeMaximum: "Safe maximum",
+	compatStaged: "Cyan is not running: the change is saved and Cyan is restarted with it (if it is enabled) or uses it on its next start.",
+	governorUnresponsive: "Cyan is not answering (the \"process\" usage reading blocks it while a game runs). Range controls will fail until it answers; switch Usage reading to busy-flag.",
+	serviceStarting: "Starting or failing to start · retrying",
+	governorStopped: "The governor service is not running. Use Enable service below.",
 	serviceRunningNoBoot: serviceRunningNoBoot$6,
 	serviceStopped: serviceStopped$6,
 	serviceStoppedBoot: serviceStoppedBoot$6,
@@ -1532,7 +1546,7 @@ var compatConfirm$5 = "Cyan se reinicia para aplicarlo. Si respondía, se restau
 var compatFixFrequency$5 = "Corregir frecuencias";
 var compatFixMetrics$5 = "Corregir métricas";
 var compatHint$5 = "Tocalo sólo si las lecturas de arriba se ven mal.";
-var compatNeedsCyan$5 = "El governor Cyan debe ser el governor activo para cambiar esto.";
+var compatNeedsCyan$5 = "Instala Cyan (o detén Oberon) desde Modo Escritorio para cambiar esto.";
 var compatProcessWarning$5 = "La lectura process recorre cada archivo abierto de cada programa. Con un juego abierto, Cyan deja de responder: el rango, los puntos +2000 MHz y el laboratorio de voltaje no funcionan hasta que el juego se cierra. busy-flag es la opción predeterminada.";
 var compatSetMethod$5 = "Método del governor";
 var compatTitle$5 = "Compatibilidad del kernel Cyan";
@@ -1643,7 +1657,7 @@ var liveRoutingUnchanged$5 = "El ruteo vivo no cambiará.";
 var loadingCpu$5 = "Leyendo helper y telemetría de CPU…";
 var loadingGpu$5 = "Leyendo estado de la GPU…";
 var loadingTopology$5 = "Leyendo topología WGP…";
-var manualApplyWarning$5 = "Se aplicará temporalmente sobre la frecuencia validada por el detector. Supervisa temperatura y estabilidad antes de instalar el servicio.";
+var manualApplyWarning$5 = "Se prueba con estrés como en escritorio: pasos de 100 MHz hasta la frecuencia detectada con esta escala fija (1–2 min aprox.). Si un paso falla, se restaura el perfil detectado. Vigila la temperatura antes de instalar el servicio.";
 var memory$5 = "MEMORIA";
 var memoryAndVideo$5 = "Memoria y video";
 var mode$5 = "Modo";
@@ -1912,6 +1926,13 @@ var es = {
 	serviceNotInstalled: serviceNotInstalled$5,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$5,
 	serviceRunningBoot: serviceRunningBoot$5,
+	cpuPresetBoardAverage: "Placa promedio",
+	cpuPresetMidPoint: "Punto medio",
+	cpuPresetSafeMaximum: "Máximo seguro",
+	compatStaged: "Cyan no está en ejecución: el cambio se guarda y Cyan se reinicia con él (si está habilitado) o lo usará en su próximo arranque.",
+	governorUnresponsive: "Cyan no responde (la lectura de uso \"process\" lo bloquea con un juego abierto). Los controles de rango fallarán hasta que responda; cambia Lectura de uso a busy-flag.",
+	serviceStarting: "Arrancando o fallando al arrancar · reintentando",
+	governorStopped: "El servicio del governor no está en ejecución. Usa Activar servicio abajo.",
 	serviceRunningNoBoot: serviceRunningNoBoot$5,
 	serviceStopped: serviceStopped$5,
 	serviceStoppedBoot: serviceStoppedBoot$5,
@@ -1987,7 +2008,7 @@ var compatConfirm$4 = "Cyan se reinicia para aplicarlo. Si respondía, se restau
 var compatFixFrequency$4 = "Corregir frecuencias";
 var compatFixMetrics$4 = "Corregir métricas";
 var compatHint$4 = "Tocalo sólo si las lecturas de arriba se ven mal.";
-var compatNeedsCyan$4 = "El governor Cyan debe ser el governor activo para cambiar esto.";
+var compatNeedsCyan$4 = "Instala Cyan (o detén Oberon) desde Modo Escritorio para cambiar esto.";
 var compatProcessWarning$4 = "La lectura process recorre cada archivo abierto de cada programa. Con un juego abierto, Cyan deja de responder: el rango, los puntos +2000 MHz y el laboratorio de voltaje no funcionan hasta que el juego se cierra. busy-flag es la opción predeterminada.";
 var compatSetMethod$4 = "Método del governor";
 var compatTitle$4 = "Compatibilidad del kernel Cyan";
@@ -2098,7 +2119,7 @@ var liveRoutingUnchanged$4 = "El ruteo vivo no cambiará.";
 var loadingCpu$4 = "Leyendo helper y telemetría de CPU…";
 var loadingGpu$4 = "Leyendo estado de la GPU…";
 var loadingTopology$4 = "Leyendo topología WGP…";
-var manualApplyWarning$4 = "Se aplicará temporalmente sobre la frecuencia validada por el detector. Supervisa temperatura y estabilidad antes de instalar el servicio.";
+var manualApplyWarning$4 = "Se prueba con estrés como en escritorio: pasos de 100 MHz hasta la frecuencia detectada con esta escala fija (1–2 min aprox.). Si un paso falla, se restaura el perfil detectado. Vigila la temperatura antes de instalar el servicio.";
 var memory$4 = "MEMORIA";
 var memoryAndVideo$4 = "Memoria y video";
 var mode$4 = "Modo";
@@ -2367,6 +2388,13 @@ var es419 = {
 	serviceNotInstalled: serviceNotInstalled$4,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$4,
 	serviceRunningBoot: serviceRunningBoot$4,
+	cpuPresetBoardAverage: "Placa promedio",
+	cpuPresetMidPoint: "Punto medio",
+	cpuPresetSafeMaximum: "Máximo seguro",
+	compatStaged: "Cyan no está en ejecución: el cambio se guarda y Cyan se reinicia con él (si está habilitado) o lo usará en su próximo arranque.",
+	governorUnresponsive: "Cyan no responde (la lectura de uso \"process\" lo bloquea con un juego abierto). Los controles de rango fallarán hasta que responda; cambia Lectura de uso a busy-flag.",
+	serviceStarting: "Arrancando o fallando al arrancar · reintentando",
+	governorStopped: "El servicio del governor no está en ejecución. Usa Activar servicio abajo.",
 	serviceRunningNoBoot: serviceRunningNoBoot$4,
 	serviceStopped: serviceStopped$4,
 	serviceStoppedBoot: serviceStoppedBoot$4,
@@ -2442,7 +2470,7 @@ var compatConfirm$3 = "Cyan uruchomi się ponownie, aby to zastosować. Jeśli o
 var compatFixFrequency$3 = "Napraw częstotliwości";
 var compatFixMetrics$3 = "Napraw metryki";
 var compatHint$3 = "Dotykaj tego tylko wtedy, gdy odczyty powyżej wyglądają źle.";
-var compatNeedsCyan$3 = "Aby to zmienić, Cyan musi być aktywnym governorem.";
+var compatNeedsCyan$3 = "Zainstaluj Cyan (lub zatrzymaj Oberon) w trybie pulpitu, aby to zmienić.";
 var compatProcessWarning$3 = "Odczyt process przechodzi przez każdy otwarty plik każdego programu. Gdy gra jest otwarta, Cyan przestaje odpowiadać: zakres, punkty +2000 MHz i laboratorium napięcia nie działają, dopóki gra się nie zamknie. busy-flag jest ustawieniem domyślnym.";
 var compatSetMethod$3 = "Metoda governora";
 var compatTitle$3 = "Zgodność jądra Cyan";
@@ -2553,7 +2581,7 @@ var liveRoutingUnchanged$3 = "Trasowanie na żywo nie ulegnie zmianie.";
 var loadingCpu$3 = "Odczytywanie pomocnika CPU i danych telemetrycznych…";
 var loadingGpu$3 = "Odczytywanie stanu GPU…";
 var loadingTopology$3 = "Odczytywanie topologii WGP…";
-var manualApplyWarning$3 = "Zostanie ono zastosowane tymczasowo z częstotliwością zatwierdzoną przez detektor. Przed zainstalowaniem usługi monitoruj temperaturę i stabilność.";
+var manualApplyWarning$3 = "Testowane obciążeniem jak na pulpicie: kroki co 100 MHz do wykrytej częstotliwości z tą skalą (ok. 1–2 min). Jeśli krok się nie powiedzie, przywracany jest wykryty profil. Obserwuj temperaturę przed instalacją usługi.";
 var memory$3 = "PAMIĘĆ";
 var memoryAndVideo$3 = "Pamięć i wideo";
 var mode$3 = "Tryb";
@@ -2822,6 +2850,13 @@ var pl = {
 	serviceNotInstalled: serviceNotInstalled$3,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$3,
 	serviceRunningBoot: serviceRunningBoot$3,
+	cpuPresetBoardAverage: "Przeciętna płyta",
+	cpuPresetMidPoint: "Punkt środkowy",
+	cpuPresetSafeMaximum: "Bezpieczne maksimum",
+	compatStaged: "Cyan nie działa: zmiana zostanie zapisana, a Cyan uruchomi się z nią ponownie (jeśli jest włączony) lub użyje jej przy następnym starcie.",
+	governorUnresponsive: "Cyan nie odpowiada (odczyt użycia \"process\" blokuje go przy uruchomionej grze). Sterowanie zakresem nie zadziała, dopóki nie odpowie; zmień odczyt użycia na busy-flag.",
+	serviceStarting: "Uruchamianie lub błąd uruchamiania · ponawianie",
+	governorStopped: "Usługa governora nie działa. Użyj poniżej „Włącz usługę”.",
 	serviceRunningNoBoot: serviceRunningNoBoot$3,
 	serviceStopped: serviceStopped$3,
 	serviceStoppedBoot: serviceStoppedBoot$3,
@@ -2897,7 +2932,7 @@ var compatConfirm$2 = "O Cyan reinicia para aplicar isto. Se ele estava responde
 var compatFixFrequency$2 = "Corrigir frequências";
 var compatFixMetrics$2 = "Corrigir métricas";
 var compatHint$2 = "Só toque nisto se as leituras acima parecerem erradas.";
-var compatNeedsCyan$2 = "O governor Cyan precisa ser o governor ativo para alterar isto.";
+var compatNeedsCyan$2 = "Instale o Cyan (ou pare o Oberon) no Modo Desktop para alterar isto.";
 var compatProcessWarning$2 = "A leitura process percorre cada ficheiro aberto de cada programa. Com um jogo aberto, o Cyan deixa de responder: a gama, os pontos +2000 MHz e o laboratório de tensão deixam de funcionar até o jogo fechar. busy-flag é a predefinição.";
 var compatSetMethod$2 = "Método do governor";
 var compatTitle$2 = "Compatibilidade do kernel Cyan";
@@ -3008,7 +3043,7 @@ var liveRoutingUnchanged$2 = "O roteamento ao vivo não será alterado.";
 var loadingCpu$2 = "Lendo auxiliar de CPU e telemetria…";
 var loadingGpu$2 = "Lendo status da GPU…";
 var loadingTopology$2 = "Lendo a topologia WGP…";
-var manualApplyWarning$2 = "Será aplicado temporariamente na frequência validada pelo detector. Monitore a temperatura e a estabilidade antes de instalar o serviço.";
+var manualApplyWarning$2 = "Testado sob stress como no desktop: passos de 100 MHz até à frequência detetada com esta escala fixa (cerca de 1–2 min). Se um passo falhar, o perfil detetado é reposto. Vigie a temperatura antes de instalar o serviço.";
 var memory$2 = "MEMÓRIA";
 var memoryAndVideo$2 = "Memória e vídeo";
 var mode$2 = "Modo";
@@ -3277,6 +3312,13 @@ var pt = {
 	serviceNotInstalled: serviceNotInstalled$2,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$2,
 	serviceRunningBoot: serviceRunningBoot$2,
+	cpuPresetBoardAverage: "Placa média",
+	cpuPresetMidPoint: "Ponto médio",
+	cpuPresetSafeMaximum: "Máximo seguro",
+	compatStaged: "O Cyan não está em execução: a alteração é guardada e o Cyan reinicia com ela (se estiver ativado) ou usa-a no próximo arranque.",
+	governorUnresponsive: "O Cyan não responde (a leitura de uso \"process\" bloqueia-o com um jogo aberto). Os controlos de intervalo vão falhar até responder; mude a Leitura de uso para busy-flag.",
+	serviceStarting: "A iniciar ou a falhar ao iniciar · a tentar de novo",
+	governorStopped: "O serviço do governor não está em execução. Use Ativar serviço abaixo.",
 	serviceRunningNoBoot: serviceRunningNoBoot$2,
 	serviceStopped: serviceStopped$2,
 	serviceStoppedBoot: serviceStoppedBoot$2,
@@ -3352,7 +3394,7 @@ var compatConfirm$1 = "Cyan перезапустится, чтобы приме�
 var compatFixFrequency$1 = "Исправить частоты";
 var compatFixMetrics$1 = "Исправить метрики";
 var compatHint$1 = "Трогайте это только если показания выше выглядят неверно.";
-var compatNeedsCyan$1 = "Чтобы изменить это, Cyan должен быть активным governor.";
+var compatNeedsCyan$1 = "Установите Cyan (или остановите Oberon) в режиме рабочего стола, чтобы изменить это.";
 var compatProcessWarning$1 = "Чтение process перебирает каждый открытый файл каждой программы. Пока открыта игра, Cyan перестаёт отвечать: диапазон, точки +2000 МГц и лаборатория напряжения не работают, пока игра не закроется. busy-flag — значение по умолчанию.";
 var compatSetMethod$1 = "Метод governor";
 var compatTitle$1 = "Совместимость ядра Cyan";
@@ -3463,7 +3505,7 @@ var liveRoutingUnchanged$1 = "Живая маршрутизация не изм�
 var loadingCpu$1 = "Чтение помощника CPU и телеметрии…";
 var loadingGpu$1 = "Чтение состояния GPU…";
 var loadingTopology$1 = "Чтение топологии WGP…";
-var manualApplyWarning$1 = "Он будет временно применяться на частоте, подтвержденной детектором. Перед установкой сервиса следите за температурой и стабильностью.";
+var manualApplyWarning$1 = "Проверяется нагрузкой, как на рабочем столе: шаги по 100 МГц до найденной частоты с этой шкалой (около 1–2 мин). Если шаг не пройден, восстанавливается найденный профиль. Следите за температурой перед установкой службы.";
 var memory$1 = "ПАМЯТЬ";
 var memoryAndVideo$1 = "Память и видео";
 var mode$1 = "Режим";
@@ -3732,6 +3774,13 @@ var ru = {
 	serviceNotInstalled: serviceNotInstalled$1,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$1,
 	serviceRunningBoot: serviceRunningBoot$1,
+	cpuPresetBoardAverage: "Средняя плата",
+	cpuPresetMidPoint: "Середина",
+	cpuPresetSafeMaximum: "Безопасный максимум",
+	compatStaged: "Cyan не запущен: изменение сохраняется, и Cyan перезапускается с ним (если включён) или применит его при следующем запуске.",
+	governorUnresponsive: "Cyan не отвечает (чтение загрузки \"process\" блокирует его при запущенной игре). Управление диапазоном не сработает, пока он не ответит; переключите чтение загрузки на busy-flag.",
+	serviceStarting: "Запуск или сбой запуска · повтор",
+	governorStopped: "Служба governor не запущена. Используйте «Включить службу» ниже.",
 	serviceRunningNoBoot: serviceRunningNoBoot$1,
 	serviceStopped: serviceStopped$1,
 	serviceStoppedBoot: serviceStoppedBoot$1,
@@ -3807,7 +3856,7 @@ var compatConfirm = "Cyan перезапуститься, щоб застосу�
 var compatFixFrequency = "Виправити частоти";
 var compatFixMetrics = "Виправити метрики";
 var compatHint = "Торкайтеся цього лише якщо показники вище виглядають неправильно.";
-var compatNeedsCyan = "Щоб змінити це, Cyan має бути активним governor.";
+var compatNeedsCyan = "Встановіть Cyan (або зупиніть Oberon) у режимі робочого столу, щоб змінити це.";
 var compatProcessWarning = "Читання process перебирає кожен відкритий файл кожної програми. Поки відкрита гра, Cyan перестає відповідати: діапазон, точки +2000 МГц і лабораторія напруги не працюють, доки гра не закриється. busy-flag — типове значення.";
 var compatSetMethod = "Метод governor";
 var compatTitle = "Сумісність ядра Cyan";
@@ -3918,7 +3967,7 @@ var liveRoutingUnchanged = "Живий маршрут не зміниться.";
 var loadingCpu = "Читання помічника CPU та телеметрії…";
 var loadingGpu = "Читання стану GPU…";
 var loadingTopology = "Читання топології WGP…";
-var manualApplyWarning = "Він тимчасово застосовуватиметься на частоті, перевіреній детектором. Перевірте температуру та стабільність перед встановленням служби.";
+var manualApplyWarning = "Перевіряється навантаженням, як на робочому столі: кроки по 100 МГц до знайденої частоти з цією шкалою (близько 1–2 хв). Якщо крок не пройдено, відновлюється знайдений профіль. Стежте за температурою перед встановленням служби.";
 var memory = "ПАМ'ЯТЬ";
 var memoryAndVideo = "Пам'ять і відео";
 var mode = "Режим";
@@ -4187,6 +4236,13 @@ var uk = {
 	serviceNotInstalled: serviceNotInstalled,
 	serviceRemovedBootProfile: serviceRemovedBootProfile,
 	serviceRunningBoot: serviceRunningBoot,
+	cpuPresetBoardAverage: "Середня плата",
+	cpuPresetMidPoint: "Середина",
+	cpuPresetSafeMaximum: "Безпечний максимум",
+	compatStaged: "Cyan не запущено: зміну буде збережено, і Cyan перезапуститься з нею (якщо увімкнено) або застосує її під час наступного запуску.",
+	governorUnresponsive: "Cyan не відповідає (читання навантаження \"process\" блокує його під час гри). Керування діапазоном не працюватиме, доки він не відповість; перемкніть читання навантаження на busy-flag.",
+	serviceStarting: "Запуск або збій запуску · повтор",
+	governorStopped: "Служба governor не запущена. Скористайтеся «Увімкнути службу» нижче.",
 	serviceRunningNoBoot: serviceRunningNoBoot,
 	serviceStopped: serviceStopped,
 	serviceStoppedBoot: serviceStoppedBoot,
@@ -4615,8 +4671,9 @@ function GovernorServiceRow({ state, busy, execute }) {
     const summary = conflict ? text.governorConflict
         : !installed ? text.serviceNotInstalled
             : running ? (atBoot ? text.serviceRunningBoot : text.serviceRunningNoBoot)
+                : state.gpu_service_starting ? text.serviceStarting
                 : (atBoot ? text.serviceStoppedBoot : text.serviceStopped);
-    const tone = conflict ? tokens.colors.red : !installed ? tokens.colors.amber : running ? accent.focus : tokens.colors.subtle;
+    const tone = conflict ? tokens.colors.red : !installed || (!running && state.gpu_service_starting) ? tokens.colors.amber : running ? accent.focus : tokens.colors.subtle;
     const confirm = (enable) => DFL.showModal(SP_JSX.jsx(DFL.ConfirmModal, { strTitle: enable ? text.enableService : text.disableService, strDescription: (enable ? text.enableServiceHint : text.disableServiceHint).replace("{name}", name), strOKButtonText: enable ? text.enableService : text.disableService, bDestructiveWarning: !enable, onOK: () => void execute(`GPU · ${text.governorService}`, () => setGpuGovernorService(enable), "gpu") }));
     return SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, marginTop: 6, padding: "7px 8px 8px" }, children: [SP_JSX.jsxs("div", { style: { alignItems: "baseline", display: "flex", gap: 6, justifyContent: "space-between", marginBottom: 6 }, children: [SP_JSX.jsxs("span", { style: { color: tokens.colors.text, fontSize: 10, fontWeight: 650 }, children: [text.governorService, name ? SP_JSX.jsxs("span", { style: { color: tokens.colors.subtle, fontWeight: 500 }, children: [" \u00B7 ", name] }) : null] }), SP_JSX.jsx("span", { style: { color: tone, fontSize: 9, fontWeight: 650, textAlign: "right" }, children: summary })] }), SP_JSX.jsxs(ActionRow, { children: [SP_JSX.jsx(Action, { label: text.enableService, primary: installed && !running, disabled: busy || !installed || conflict || (running && atBoot), onActivate: () => confirm(true) }), SP_JSX.jsx(Action, { label: text.disableService, danger: true, disabled: busy || !installed || conflict || (!running && !atBoot), onActivate: () => confirm(false) })] })] });
 }
@@ -4758,12 +4815,13 @@ function CyanCompatibility({ state, busy, execute }) {
         return null;
     const value = draft ?? current;
     const changed = keyOf(value) !== signature;
-    const cyanActive = state.gpu_governor === "cyan";
+    const cyanActive = state.gpu_governor !== "conflict" && state.gpu_service_target === "cyan" && Boolean(state.gpu_service_installed);
+    const cyanRunningNow = state.gpu_governor === "cyan";
     const choose = (patch) => setDraft({ ...value, ...patch });
     const confirm = () => DFL.showModal(SP_JSX.jsx(DFL.ConfirmModal, { strTitle: text.compatTitle, strDescription: text.compatConfirm, strOKButtonText: text.compatApply, onOK: () => void execute(`GPU · ${text.compatTitle}`, () => applyGpuCompatibility(value.set_method, value.usage_method, value.fix_metrics, value.fix_frequency), "gpu") }));
     const choiceStyle = (selected) => ({ background: selected ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${selected ? accent.focus : tokens.colors.border}`, color: selected ? accent.focus : tokens.colors.text, fontSize: 10, fontWeight: 650, height: 30, padding: 2, textAlign: "center", width: "100%" });
     const labelStyle = { color: tokens.colors.subtle, fontSize: 10, margin: "2px 2px 4px" };
-    return SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsxs(PadButton, { onActivate: () => setOpen(!open), style: { alignItems: "center", display: "flex", fontSize: 11, height: 34, justifyContent: "space-between", marginBottom: 6, padding: "5px 9px", width: "100%" }, children: [SP_JSX.jsx("span", { children: text.compatTitle }), SP_JSX.jsxs("span", { style: { color: current.usage_method === "process" ? tokens.colors.amber : accent.focus }, children: [current.set_method === "smu" ? "SMU" : "Kernel", " \u00B7 ", current.usage_method, " ", open ? "▴" : "▾"] })] }), open ? SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 6, marginBottom: 6, padding: 6 }, children: [!cyanActive ? SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 9, marginBottom: 6 }, children: text.compatNeedsCyan }) : null, SP_JSX.jsx("div", { style: labelStyle, children: text.compatSetMethod }), SP_JSX.jsx(DFL.Focusable, { "flow-children": "row", style: { display: "grid", gap: 5, gridTemplateColumns: "repeat(2,minmax(0,1fr))", marginBottom: 6 }, children: COMPAT_SET_METHODS.map((method) => SP_JSX.jsx(PadButton, { preferredFocus: value.set_method === method, disabled: busy || !cyanActive, onActivate: () => choose({ set_method: method }), style: choiceStyle(value.set_method === method), children: method === "smu" ? "SMU" : "Kernel" }, method)) }), SP_JSX.jsx("div", { style: labelStyle, children: text.compatUsage }), SP_JSX.jsx(DFL.Focusable, { "flow-children": "row", style: { display: "grid", gap: 5, gridTemplateColumns: "repeat(3,minmax(0,1fr))", marginBottom: 6 }, children: COMPAT_USAGE_METHODS.map((method) => SP_JSX.jsx(PadButton, { disabled: busy || !cyanActive, onActivate: () => choose({ usage_method: method }), style: choiceStyle(value.usage_method === method), children: method }, method)) }), value.usage_method === "process" ? SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 9, lineHeight: 1.35, margin: "0 2px 7px" }, children: text.compatProcessWarning }) : null, SP_JSX.jsx("div", { style: { background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, fontSize: 11, marginBottom: 4, overflow: "hidden" }, children: SP_JSX.jsx(DFL.ToggleField, { label: text.compatFixMetrics, layout: "inline", bottomSeparator: "none", highlightOnFocus: true, checked: value.fix_metrics, disabled: busy || !cyanActive, onChange: (checked) => choose({ fix_metrics: checked }) }) }), SP_JSX.jsx("div", { style: { background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, fontSize: 11, marginBottom: 6, overflow: "hidden" }, children: SP_JSX.jsx(DFL.ToggleField, { label: text.compatFixFrequency, layout: "inline", bottomSeparator: "none", highlightOnFocus: true, checked: value.fix_frequency, disabled: busy || !cyanActive, onChange: (checked) => choose({ fix_frequency: checked }) }) }), SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, lineHeight: 1.35, margin: "0 2px 7px" }, children: text.compatHint }), SP_JSX.jsxs(ActionRow, { children: [SP_JSX.jsx(Action, { label: text.compatApply, primary: true, disabled: busy || !cyanActive || !changed, onActivate: confirm }), SP_JSX.jsx(Action, { label: text.voltageDiscard, disabled: busy || !changed, onActivate: () => setDraft(null) })] })] }) : null] });
+    return SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsxs(PadButton, { onActivate: () => setOpen(!open), style: { alignItems: "center", display: "flex", fontSize: 11, height: 34, justifyContent: "space-between", marginBottom: 6, padding: "5px 9px", width: "100%" }, children: [SP_JSX.jsx("span", { children: text.compatTitle }), SP_JSX.jsxs("span", { style: { color: current.usage_method === "process" ? tokens.colors.amber : accent.focus }, children: [current.set_method === "smu" ? "SMU" : "Kernel", " \u00B7 ", current.usage_method, " ", open ? "▴" : "▾"] })] }), open ? SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 6, marginBottom: 6, padding: 6 }, children: [!cyanActive ? SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 9, marginBottom: 6 }, children: text.compatNeedsCyan }) : null, cyanActive && !cyanRunningNow ? SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 9, marginBottom: 6 }, children: text.compatStaged }) : null, SP_JSX.jsx("div", { style: labelStyle, children: text.compatSetMethod }), SP_JSX.jsx(DFL.Focusable, { "flow-children": "row", style: { display: "grid", gap: 5, gridTemplateColumns: "repeat(2,minmax(0,1fr))", marginBottom: 6 }, children: COMPAT_SET_METHODS.map((method) => SP_JSX.jsx(PadButton, { preferredFocus: value.set_method === method, disabled: busy || !cyanActive, onActivate: () => choose({ set_method: method }), style: choiceStyle(value.set_method === method), children: method === "smu" ? "SMU" : "Kernel" }, method)) }), SP_JSX.jsx("div", { style: labelStyle, children: text.compatUsage }), SP_JSX.jsx(DFL.Focusable, { "flow-children": "row", style: { display: "grid", gap: 5, gridTemplateColumns: "repeat(3,minmax(0,1fr))", marginBottom: 6 }, children: COMPAT_USAGE_METHODS.map((method) => SP_JSX.jsx(PadButton, { disabled: busy || !cyanActive, onActivate: () => choose({ usage_method: method }), style: choiceStyle(value.usage_method === method), children: method }, method)) }), value.usage_method === "process" ? SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 9, lineHeight: 1.35, margin: "0 2px 7px" }, children: text.compatProcessWarning }) : null, SP_JSX.jsx("div", { style: { background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, fontSize: 11, marginBottom: 4, overflow: "hidden" }, children: SP_JSX.jsx(DFL.ToggleField, { label: text.compatFixMetrics, layout: "inline", bottomSeparator: "none", highlightOnFocus: true, checked: value.fix_metrics, disabled: busy || !cyanActive, onChange: (checked) => choose({ fix_metrics: checked }) }) }), SP_JSX.jsx("div", { style: { background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, fontSize: 11, marginBottom: 6, overflow: "hidden" }, children: SP_JSX.jsx(DFL.ToggleField, { label: text.compatFixFrequency, layout: "inline", bottomSeparator: "none", highlightOnFocus: true, checked: value.fix_frequency, disabled: busy || !cyanActive, onChange: (checked) => choose({ fix_frequency: checked }) }) }), SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, lineHeight: 1.35, margin: "0 2px 7px" }, children: text.compatHint }), SP_JSX.jsxs(ActionRow, { children: [SP_JSX.jsx(Action, { label: text.compatApply, primary: true, disabled: busy || !cyanActive || !changed, onActivate: confirm }), SP_JSX.jsx(Action, { label: text.voltageDiscard, disabled: busy || !changed, onActivate: () => setDraft(null) })] })] }) : null] });
 }
 // The desktop voltage drawer, cut down to what a controller can do safely:
 // the governor curve or +10/+20/+30 mV on the points from 2000 MHz up, and a
@@ -4803,6 +4861,7 @@ function VoltageLab({ state, busy, execute }) {
                             return SP_JSX.jsxs(DFL.Focusable, { "flow-children": "row", style: { alignItems: "center", display: "grid", gap: 5, gridTemplateColumns: "1fr 30px 70px 30px", marginBottom: 4 }, children: [SP_JSX.jsxs("span", { style: { color: tokens.colors.subtle, fontSize: 10 }, children: [point.frequency, " MHz"] }), SP_JSX.jsx(PadButton, { label: "-5 mV", disabled: busy || !cyanRunning || value <= floorOf(point), onActivate: () => nudge(point, -VOLTAGE_STEP_MV), style: { fontSize: 12, height: 28, padding: 0, width: "100%" }, children: "\u2212" }), SP_JSX.jsxs("span", { style: { color: moved ? accent.focus : tokens.colors.text, fontSize: 11, fontWeight: 650, textAlign: "center" }, children: [value, " mV"] }), SP_JSX.jsx(PadButton, { label: "+5 mV", disabled: busy || !cyanRunning || value >= floorOf(point) + VOLTAGE_MAX_ABOVE_DEFAULT_MV, onActivate: () => nudge(point, VOLTAGE_STEP_MV), style: { fontSize: 12, height: 28, padding: 0, width: "100%" }, children: "+" })] }, point.frequency);
                         }) }), SP_JSX.jsxs(ActionRow, { children: [SP_JSX.jsx(Action, { label: text.voltageApplyPoints, primary: true, disabled: busy || !cyanRunning || !changed.length, onActivate: confirmPoints }), SP_JSX.jsx(Action, { label: text.voltageDiscard, disabled: busy || !changed.length, onActivate: () => setDraft({}) })] })] }) : null] });
 }
+const cpuPresetName = (preset) => preset.default ? ({ board_average: text.cpuPresetBoardAverage, mid_point: text.cpuPresetMidPoint, safe_maximum: text.cpuPresetSafeMaximum }[preset.key] ?? preset.name) : preset.name;
 function MonitorTab({ state }) {
     const accent = ACCENT_SWATCHES[SP_REACT.useContext(SettingsContext).settings.accent];
     const [section, setSection] = SP_REACT.useState("cpu");
@@ -4955,15 +5014,21 @@ function MemoryTab({ state, busy, execute }) {
                                         { label: text.ttmLimit.toUpperCase(), value: state.memory_ttm_limit_bytes != null ? formatBytes(state.memory_ttm_limit_bytes) : "—" },
                                     ] })] })] })] });
 }
+let rememberedTab = "board";
+let rememberedSection = "gpu";
 function Content() {
     const [state, setState] = SP_REACT.useState({});
     const [settings, setSettingsState] = SP_REACT.useState(() => loadSettings());
     const setSettings = SP_REACT.useCallback((next) => { setSettingsState(next); saveSettings(next); }, []);
     const accent = ACCENT_SWATCHES[settings.accent];
-    const [activeTab, setActiveTab] = SP_REACT.useState("board");
-    const [boardSection, setBoardSection] = SP_REACT.useState("gpu");
+    const [activeTab, setActiveTabState] = SP_REACT.useState(() => rememberedTab);
+    const setActiveTab = SP_REACT.useCallback((tab) => { rememberedTab = tab; setActiveTabState(tab); }, []);
+    const topRef = SP_REACT.useRef(null);
+    const [boardSection, setBoardSectionState] = SP_REACT.useState(() => rememberedSection);
+    const setBoardSection = SP_REACT.useCallback((section) => { rememberedSection = section; setBoardSectionState(section); }, []);
     const [loaded, setLoaded] = SP_REACT.useState(false);
-    const [busy, setBusy] = SP_REACT.useState(false);
+    const [busyLocal, setBusy] = SP_REACT.useState(false);
+    const busy = busyLocal || Boolean(state.operation_in_progress);
     const [stale, setStale] = SP_REACT.useState(false);
     const [feedback, setFeedback] = SP_REACT.useState(null);
     const [highOpen, setHighOpen] = SP_REACT.useState(true);
@@ -4979,6 +5044,16 @@ function Content() {
     const [cpuManual, setCpuManual] = SP_REACT.useState(false);
     const [cpuError, setCpuError] = SP_REACT.useState(null);
     const [cpuOperation, setCpuOperation] = SP_REACT.useState(null);
+    const running = state.operation_in_progress;
+    SP_REACT.useEffect(() => {
+        if (busyRef.current)
+            return;
+        if (running && (running.action === "cpu-detect" || running.action === "cpu-scale")) {
+            setCpuOperation((current) => current ?? { target: Number(running.arguments?.[0]) || 0, manual: running.action === "cpu-scale", startedAt: running.started_at });
+        }
+        else
+            setCpuOperation(null);
+    }, [running?.action, running?.started_at]);
     const [cpuElapsed, setCpuElapsed] = SP_REACT.useState(0);
     const busyRef = SP_REACT.useRef(false);
     const refreshing = SP_REACT.useRef(false);
@@ -5181,15 +5256,14 @@ function Content() {
             }
             else {
                 setState((current) => ({ ...current, ...result }));
-                if (kind === "gpu" && Array.isArray(result.gpu_range) && result.gpu_range[0] === 1000 && result.gpu_range[1] > 2000)
-                    setHighSelection(result.gpu_range[1]);
-                else if (kind === "gpu")
-                    setHighSelection(0);
+                const rangeWrite = kind === "gpu" && Array.isArray(result.gpu_range);
+                if (rangeWrite)
+                    setHighSelection(result.gpu_range[0] === 1000 && result.gpu_range[1] > 2000 ? result.gpu_range[1] : 0);
                 setFeedback(null);
                 if (kind !== "none")
                     dirty.current[kind] = false;
                 toaster.toast({ title, body: text.success });
-                if (kind !== "gpu")
+                if (!rangeWrite)
                     await refresh("after");
             }
         }
@@ -5272,11 +5346,13 @@ function Content() {
             // happen instead of staring at a frozen GPU/CU screen (see
             // "operationInProgress" — this is the same tab that stays fed by
             // monitor_snapshot() regardless of how long the trial takes).
-            if (mode === "detect")
+            if (mode === "detect") {
                 setActiveTab("monitor");
+                globalThis.requestAnimationFrame(() => topRef.current?.scrollIntoView({ block: "start" }));
+            }
             void execute("BC250 CPU", mode === "detect" ? (cpuManual ? () => applyCpuScale(cpuFrequency, cpuScale) : () => applyCpuTuning(cpuFrequency, cpuVid)) : installCpuService, "cpu", mode === "detect" ? { target: cpuFrequency, manual: cpuManual } : undefined);
         } }));
-    return SP_JSX.jsx(DFL.Focusable, { "flow-children": "down", style: { background: tokens.colors.panel, border: `1px solid ${tokens.colors.border}`, borderRadius: 12, boxSizing: "border-box", color: tokens.colors.text, minHeight: "100vh", padding: "12px 14px 72px", width: "100%" }, children: SP_JSX.jsxs(SettingsContext.Provider, { value: { settings, setSettings }, children: [stale ? SP_JSX.jsxs("div", { style: { alignItems: "center", background: tokens.colors.amber_soft, border: `1px solid ${tokens.colors.amber}`, borderRadius: 6, color: tokens.colors.amber, display: "flex", fontSize: 10, gap: 6, marginBottom: 10, padding: "6px 9px" }, children: [SP_JSX.jsx(FaClock, {}), text.stale] }) : null, feedback ? SP_JSX.jsx(Notice, { value: feedback, dismiss: () => setFeedback(null) }) : null, SP_JSX.jsx(DFL.Focusable, { "flow-children": "row", style: { background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 8, display: "grid", gap: 4, gridTemplateColumns: "repeat(4,minmax(0,1fr))", marginBottom: 12, padding: 4 }, children: [
+    return SP_JSX.jsx(DFL.Focusable, { "flow-children": "down", style: { background: tokens.colors.panel, border: `1px solid ${tokens.colors.border}`, borderRadius: 12, boxSizing: "border-box", color: tokens.colors.text, minHeight: "100vh", padding: "12px 14px 72px", width: "100%" }, children: SP_JSX.jsxs(SettingsContext.Provider, { value: { settings, setSettings }, children: [SP_JSX.jsx("div", { ref: topRef }), stale ? SP_JSX.jsxs("div", { style: { alignItems: "center", background: tokens.colors.amber_soft, border: `1px solid ${tokens.colors.amber}`, borderRadius: 6, color: tokens.colors.amber, display: "flex", fontSize: 10, gap: 6, marginBottom: 10, padding: "6px 9px" }, children: [SP_JSX.jsx(FaClock, {}), text.stale] }) : null, feedback ? SP_JSX.jsx(Notice, { value: feedback, dismiss: () => setFeedback(null) }) : null, SP_JSX.jsx(DFL.Focusable, { "flow-children": "row", style: { background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 8, display: "grid", gap: 4, gridTemplateColumns: "repeat(4,minmax(0,1fr))", marginBottom: 12, padding: 4 }, children: [
                         ["board", text.boardSetup, SP_JSX.jsx(FaSlidersH, {})],
                         ["monitor", text.monitoring, SP_JSX.jsx(FaChartLine, {})],
                         ["memory", text.memoryAndVideo, SP_JSX.jsx(FaMemory, {})],
@@ -5289,12 +5365,12 @@ function Content() {
                                 { key: "cu", label: text.compute, icon: SP_JSX.jsx(FaTh, {}), color: accent.focus, colorSoft: accent.focus_soft },
                                 { key: "cpu", label: "CPU", icon: SP_JSX.jsx(FaBolt, {}), color: accent.focus, colorSoft: accent.focus_soft },
                                 { key: "fan", label: text.fan, icon: SP_JSX.jsx(FaFan, {}), color: accent.focus, colorSoft: accent.focus_soft },
-                            ] }), busy && boardSection !== "cpu" ? SP_JSX.jsxs("div", { style: { alignItems: "center", background: accent.focus_soft, border: `1px solid ${accent.focus}`, borderRadius: 7, color: accent.focus, display: "flex", fontSize: 10, gap: 6, marginBottom: 10, padding: "7px 9px" }, children: [SP_JSX.jsx(FaClock, {}), text.operationInProgress] }) : null, boardSection === "gpu" ? SP_JSX.jsxs("section", { style: { marginBottom: 12 }, children: [SP_JSX.jsx(SectionTitle, { kind: "gpu", title: "GPU", trailing: governorName ? SP_JSX.jsx("span", { style: { color: tokens.colors.subtle, fontSize: 9 }, children: governorName }) : undefined }), !loaded ? SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 10, marginBottom: 6 }, children: text.loadingGpu }) : SP_JSX.jsxs(SP_JSX.Fragment, { children: [!gpuReady ? SP_JSX.jsx("div", { style: { color: state.gpu_governor === "conflict" ? tokens.colors.red : tokens.colors.amber, fontSize: 9, marginBottom: 6 }, children: state.gpu_governor === "conflict" ? text.governorConflict : text.governorMissing }) : null, SP_JSX.jsx(DFL.Focusable, { "flow-children": "grid", navEntryPreferPosition: DFL.NavEntryPositionPreferences.PREFERRED_CHILD, style: { display: "grid", gap: 6, gridTemplateColumns: `repeat(${activeGpuProfiles.length || 1},minmax(0,1fr))`, marginBottom: 6 }, children: activeGpuProfiles.map((profile) => { const current = state.gpu_range?.[0] === profile.min && state.gpu_range?.[1] === profile.max && (state.gpu_governor !== "cyan" || state.gpu_performance_enabled === false); const allowed = Boolean(state.gpu_allowed_range && state.gpu_allowed_range[0] <= profile.min && profile.max <= state.gpu_allowed_range[1]); return SP_JSX.jsxs(PadButton, { disabled: busy || !gpuReady || !allowed, preferredFocus: profile.key === (state.gpu_governor === "oberon" ? "oberon-1850" : "balanced"), onActivate: () => { void execute(`GPU · ${profile.name}`, () => applyGpuProfile(profile.key), "gpu"); }, style: { alignItems: "center", background: current ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, display: "flex", flexDirection: "column", gap: 2, height: 60, justifyContent: "center", minWidth: 0, padding: "6px 6px", textAlign: "center", width: "100%" }, children: [SP_JSX.jsx("span", { style: { color: current ? accent.focus : tokens.colors.text, fontSize: 11, fontWeight: 650, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }, children: profile.name }), SP_JSX.jsxs("span", { style: { color: current ? accent.focus : tokens.colors.subtle, fontSize: 9, lineHeight: 1.3 }, children: [profile.min, "\u2013", profile.max, SP_JSX.jsx("br", {}), "MHz", current ? ` · ${text.current}` : ""] })] }, profile.key); }) }), points.length ? SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsxs(PadButton, { onActivate: () => setHighOpen(!highOpen), disabled: busy || !gpuReady, style: { alignItems: "center", display: "flex", fontSize: 11, height: 34, justifyContent: "space-between", marginBottom: 6, padding: "5px 9px", width: "100%" }, children: [SP_JSX.jsx("span", { children: text.more }), SP_JSX.jsx("span", { style: { color: accent.focus }, children: highOpen ? "▴" : "▾" })] }), highOpen ? SP_JSX.jsx(DFL.Focusable, { "flow-children": "grid", navEntryPreferPosition: DFL.NavEntryPositionPreferences.PREFERRED_CHILD, style: { background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 6, display: "grid", gap: 5, gridTemplateColumns: "1fr 1fr", padding: 6 }, children: points.map((point, index) => { const current = point.frequency === liveHighPoint?.frequency; const allowed = Boolean(state.gpu_allowed_range && point.frequency <= state.gpu_allowed_range[1]); return SP_JSX.jsxs(PadButton, { disabled: busy || !gpuReady || !allowed, preferredFocus: current || (!liveHighPoint && index === 0), onActivate: () => { if (!current)
+                            ] }), busy && boardSection !== "cpu" ? SP_JSX.jsxs("div", { style: { alignItems: "center", background: accent.focus_soft, border: `1px solid ${accent.focus}`, borderRadius: 7, color: accent.focus, display: "flex", fontSize: 10, gap: 6, marginBottom: 10, padding: "7px 9px" }, children: [SP_JSX.jsx(FaClock, {}), text.operationInProgress] }) : null, boardSection === "gpu" ? SP_JSX.jsxs("section", { style: { marginBottom: 12 }, children: [SP_JSX.jsx(SectionTitle, { kind: "gpu", title: "GPU", trailing: governorName ? SP_JSX.jsx("span", { style: { color: tokens.colors.subtle, fontSize: 9 }, children: governorName }) : undefined }), !loaded ? SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 10, marginBottom: 6 }, children: text.loadingGpu }) : SP_JSX.jsxs(SP_JSX.Fragment, { children: [gpuReady && state.gpu_dbus_responsive === false ? SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 9, marginBottom: 6 }, children: text.governorUnresponsive }) : null, !gpuReady ? SP_JSX.jsx("div", { style: { color: state.gpu_governor === "conflict" ? tokens.colors.red : tokens.colors.amber, fontSize: 9, marginBottom: 6 }, children: state.gpu_governor === "conflict" ? text.governorConflict : state.gpu_service_installed ? text.governorStopped : text.governorMissing }) : null, SP_JSX.jsx(DFL.Focusable, { "flow-children": "grid", navEntryPreferPosition: DFL.NavEntryPositionPreferences.PREFERRED_CHILD, style: { display: "grid", gap: 6, gridTemplateColumns: `repeat(${activeGpuProfiles.length || 1},minmax(0,1fr))`, marginBottom: 6 }, children: activeGpuProfiles.map((profile) => { const current = state.gpu_range?.[0] === profile.min && state.gpu_range?.[1] === profile.max && (state.gpu_governor !== "cyan" || state.gpu_performance_enabled === false); const allowed = Boolean(state.gpu_allowed_range && state.gpu_allowed_range[0] <= profile.min && profile.max <= state.gpu_allowed_range[1]); return SP_JSX.jsxs(PadButton, { disabled: busy || !gpuReady || !allowed, preferredFocus: profile.key === (state.gpu_governor === "oberon" ? "oberon-1850" : "balanced"), onActivate: () => { void execute(`GPU · ${profile.name}`, () => applyGpuProfile(profile.key), "gpu"); }, style: { alignItems: "center", background: current ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, display: "flex", flexDirection: "column", gap: 2, height: 60, justifyContent: "center", minWidth: 0, padding: "6px 6px", textAlign: "center", width: "100%" }, children: [SP_JSX.jsx("span", { style: { color: current ? accent.focus : tokens.colors.text, fontSize: 11, fontWeight: 650, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }, children: profile.name }), SP_JSX.jsxs("span", { style: { color: current ? accent.focus : tokens.colors.subtle, fontSize: 9, lineHeight: 1.3 }, children: [profile.min, "\u2013", profile.max, SP_JSX.jsx("br", {}), "MHz", current ? ` · ${text.current}` : ""] })] }, profile.key); }) }), points.length ? SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsxs(PadButton, { onActivate: () => setHighOpen(!highOpen), disabled: busy || !gpuReady, style: { alignItems: "center", display: "flex", fontSize: 11, height: 34, justifyContent: "space-between", marginBottom: 6, padding: "5px 9px", width: "100%" }, children: [SP_JSX.jsx("span", { children: text.more }), SP_JSX.jsx("span", { style: { color: accent.focus }, children: highOpen ? "▴" : "▾" })] }), highOpen ? SP_JSX.jsx(DFL.Focusable, { "flow-children": "grid", navEntryPreferPosition: DFL.NavEntryPositionPreferences.PREFERRED_CHILD, style: { background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 6, display: "grid", gap: 5, gridTemplateColumns: "1fr 1fr", padding: 6 }, children: points.map((point, index) => { const current = point.frequency === liveHighPoint?.frequency; const allowed = Boolean(state.gpu_allowed_range && point.frequency <= state.gpu_allowed_range[1]); return SP_JSX.jsxs(PadButton, { disabled: busy || !gpuReady || !allowed, preferredFocus: current || (!liveHighPoint && index === 0), onActivate: () => { if (!current)
                                                             void execute(`GPU · ${governorName || text.advanced}`, () => applyGpuSafePoint(point.frequency), "gpu"); }, style: { background: current ? accent.focus_soft : tokens.colors.panel_alt, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, color: current ? accent.focus : tokens.colors.text, fontSize: 10, height: 34, padding: 4, textAlign: "center", width: "100%" }, children: [point.frequency, " MHz \u00B7 ", point.voltage, " mV", current ? ` · ${text.current}` : ""] }, point.frequency); }) }) : null] }) : null, SP_JSX.jsx(VoltageLab, { state: state, busy: busy, execute: execute }), SP_JSX.jsx(CyanCompatibility, { state: state, busy: busy, execute: execute }), SP_JSX.jsx(GovernorServiceRow, { state: state, busy: busy, execute: execute })] })] }) : null, boardSection === "cu" ? SP_JSX.jsxs("section", { style: { marginBottom: 12 }, children: [SP_JSX.jsx(SectionTitle, { kind: "cu", title: text.compute, trailing: SP_JSX.jsxs("b", { style: { color: accent.focus, fontSize: 11 }, children: [draftCUs, "/40 ", text.target] }) }), state.cu_snapshot_warning ? SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 10, marginBottom: 6 }, children: text.snapshotWarning }) : null, cuConflict ? SP_JSX.jsxs("div", { style: { background: tokens.colors.amber_soft, border: `1px solid ${tokens.colors.amber}`, borderRadius: 6, color: tokens.colors.amber, fontSize: 10, marginBottom: 6, padding: 6 }, children: [text.external, SP_JSX.jsx("div", { style: { marginTop: 5 }, children: SP_JSX.jsxs(ActionRow, { children: [SP_JSX.jsx(Action, { label: text.restore, disabled: busy, onActivate: () => { dirty.current.cu = false; setCuConflict(false); setCuDraft(liveMasks); } }), SP_JSX.jsx(Action, { label: text.keep, disabled: busy, onActivate: () => setCuConflict(false) })] }) })] }) : null, topology ? SP_JSX.jsx(CuMatrix, { live: liveMasks, driver: driverMasks, draft: cuDraft, disabled: busy || !state.cu_backend_ready, change: (masks) => { dirty.current.cu = true; setCuConflict(false); setCuDraft(masks); }, minimum: () => setFeedback(text.safeCuMinimum) }) : SP_JSX.jsx("div", { style: { color: loaded ? tokens.colors.amber : tokens.colors.subtle, fontSize: 10, marginBottom: 6 }, children: loaded ? text.topologyUnavailable : text.loadingTopology }), SP_JSX.jsxs("div", { style: { minHeight: 78, width: "100%" }, children: [SP_JSX.jsxs(ActionRow, { marginBottom: 6, children: [SP_JSX.jsx(Action, { label: text.applyChanges, primary: true, disabled: busy || !topology || !state.cu_backend_ready || sameMasks(cuDraft, liveMasks), onActivate: () => void execute("BC250 CU", () => applyCuTable(cuDraft), "cu") }), SP_JSX.jsx(Action, { label: text.save, disabled: busy || !topology || !state.cu_backend_ready, onActivate: () => void execute("BC250 CU", () => saveCuTable(cuDraft), "cu") })] }), SP_JSX.jsxs(ActionRow, { children: [SP_JSX.jsx(Action, { label: text.install, disabled: busy || Boolean(state.cu_service_installed) || !validMasks(state.cu_saved_masks ?? undefined), onActivate: () => void execute("BC250 CU", installCuService, "cu") }), SP_JSX.jsx(Action, { label: text.remove, danger: true, disabled: busy || !state.cu_service_installed, onActivate: () => DFL.showModal(SP_JSX.jsx(DFL.ConfirmModal, { strTitle: text.remove, strDescription: text.liveRoutingUnchanged, strOKButtonText: text.remove, bDestructiveWarning: true, onOK: () => void execute("BC250 CU", removeCuService, "cu") })) })] })] })] }) : null, boardSection === "cpu" ? SP_JSX.jsxs("section", { style: { marginBottom: 12 }, children: [SP_JSX.jsx(SectionTitle, { kind: "cpu", title: "CPU" }), cpuError ? SP_JSX.jsx("div", { style: { background: tokens.colors.red_soft, border: `1px solid ${tokens.colors.red}`, borderRadius: 6, color: tokens.colors.red, fontSize: 9, lineHeight: 1.35, marginBottom: 7, overflowWrap: "anywhere", padding: "6px 8px" }, children: localizedErrorSummary(cpuError) }) : null, cpuOperation ? SP_JSX.jsxs("div", { role: "status", "aria-live": "polite", style: { background: accent.focus_soft, border: `1px solid ${accent.focus}`, borderRadius: 7, marginBottom: 7, padding: "8px 9px" }, children: [SP_JSX.jsxs("div", { style: { alignItems: "center", display: "flex", gap: 7 }, children: [SP_JSX.jsx("span", { style: { background: accent.focus, borderRadius: "50%", boxShadow: `0 0 0 3px ${accent.focus_soft}`, height: 7, width: 7 } }), SP_JSX.jsx("b", { style: { color: accent.focus, flex: 1, fontSize: 11 }, children: text.cpuApplying }), SP_JSX.jsxs("span", { style: { color: tokens.colors.subtle, fontSize: 9 }, children: [text.elapsed, ": ", cpuElapsed, "s"] })] }), SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "4px 0 7px 14px" }, children: text.cpuPleaseWait }), SP_JSX.jsxs("div", { style: { display: "grid", gap: 5, gridTemplateColumns: "1fr 1fr" }, children: [SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_alt, borderRadius: 5, padding: "5px 7px" }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.muted, display: "block", fontSize: 8 }, children: text.cpuLiveClock }), SP_JSX.jsxs("b", { style: { fontSize: 12 }, children: [state.cpu_frequency_mhz ?? "—", " MHz"] })] }), SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_alt, borderRadius: 5, padding: "5px 7px" }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.muted, display: "block", fontSize: 8 }, children: text.cpuTarget }), SP_JSX.jsxs("b", { style: { fontSize: 12 }, children: [cpuOperation.target, " MHz"] })] })] })] }) : null, !loaded ? SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 7px" }, children: text.loadingCpu })
                                     : !cpuReady ? SP_JSX.jsx("div", { style: { color: state.cpu_tuning_source === "detector-required" ? tokens.colors.subtle : tokens.colors.red, fontSize: 9, margin: "0 2px 7px" }, children: state.cpu_tuning_source === "stress-unavailable" ? text.stressMissing : (state.cpu_tuning_source === "detector-required" ? text.cpuNeedsDetection : (state.cpu_tuning_source === "helper-unavailable" ? text.cpuHelperUnavailable : text.cpuStatusUnavailable)) })
                                         : null, loaded && !cpuReady && state.cpu_tuning_error && state.cpu_tuning_source !== "detector-required" ? SP_JSX.jsx("div", { style: { color: tokens.colors.muted, fontSize: 8, margin: "-3px 2px 7px", overflowWrap: "anywhere" }, children: localizedErrorSummary(state.cpu_tuning_error) }) : null, state.cpu_profiles?.length ? SP_JSX.jsx(DFL.Focusable, { "flow-children": "grid", navEntryPreferPosition: DFL.NavEntryPositionPreferences.PREFERRED_CHILD, style: { display: "grid", gap: 6, gridTemplateColumns: `repeat(${state.cpu_profiles.length},minmax(0,1fr))`, marginBottom: 7 }, children: state.cpu_profiles.map((preset) => {
                                         const current = !cpuManual && cpuFrequency === preset.frequency && cpuVid === preset.vid;
-                                        return SP_JSX.jsxs(PadButton, { disabled: busy || !cpuReady, onActivate: () => { setCpuFrequency(preset.frequency); setCpuVid(preset.vid); setCpuManual(false); dirty.current.cpu = true; }, style: { alignItems: "center", background: current ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, display: "flex", flexDirection: "column", gap: 2, height: 52, justifyContent: "center", minWidth: 0, padding: "6px 6px", textAlign: "center", width: "100%" }, children: [SP_JSX.jsx("span", { style: { color: current ? accent.focus : tokens.colors.text, fontSize: 11, fontWeight: 650, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }, children: preset.name }), SP_JSX.jsxs("span", { style: { color: current ? accent.focus : tokens.colors.subtle, fontSize: 9 }, children: [preset.frequency, " MHz"] })] }, preset.key);
+                                        return SP_JSX.jsxs(PadButton, { disabled: busy || !cpuReady, onActivate: () => { setCpuFrequency(preset.frequency); setCpuVid(preset.vid); setCpuManual(false); dirty.current.cpu = true; }, style: { alignItems: "center", background: current ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, display: "flex", flexDirection: "column", gap: 2, height: 52, justifyContent: "center", minWidth: 0, padding: "6px 6px", textAlign: "center", width: "100%" }, children: [SP_JSX.jsx("span", { style: { color: current ? accent.focus : tokens.colors.text, fontSize: 11, fontWeight: 650, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }, children: cpuPresetName(preset) }), SP_JSX.jsxs("span", { style: { color: current ? accent.focus : tokens.colors.subtle, fontSize: 9 }, children: [preset.frequency, " MHz"] })] }, preset.key);
                                     }) }) : null, detectedCpu?.ready ? SP_JSX.jsxs("div", { style: { alignItems: "center", background: tokens.colors.green_soft, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, display: "flex", fontSize: 9, gap: 6, justifyContent: "space-between", marginBottom: 6, padding: "6px 8px" }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.subtle }, children: text.cpuDetected }), SP_JSX.jsx("b", { style: { color: tokens.colors.green }, children: detectedCpuSummary })] }) : null, SP_JSX.jsxs("div", { style: { borderTop: `1px solid ${tokens.colors.border_soft}`, paddingTop: 7 }, children: [SP_JSX.jsx(CompactSlider, { label: text.cpuFrequency, value: cpuFrequency, suffix: " MHz", min: cpuMin, max: cpuMax, step: cpuStep, disabled: busy || !cpuReady, onChange: (value) => { setCpuFrequency(Math.max(cpuMin, Math.min(cpuMax, Math.round(value / cpuStep) * cpuStep))); dirty.current.cpu = true; } }), SP_JSX.jsx(CompactSlider, { label: text.cpuVoltage, value: cpuVid, suffix: " mV", min: vidMin, max: vidMax, step: vidStep, disabled: busy || !cpuReady || cpuManual, onChange: (value) => { setCpuVid(Math.max(vidMin, Math.min(vidMax, Math.round(value / 5) * 5))); dirty.current.cpu = true; } }), !cpuManual && cpuVid >= vidMax - 25 ? SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 8, lineHeight: 1.3, margin: "-2px 2px 7px" }, children: text.cpuVidCeiling }) : null, SP_JSX.jsx("div", { title: manualScaleDescription, style: { background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, fontSize: 11, marginBottom: 4, overflow: "hidden" }, children: SP_JSX.jsx(DFL.ToggleField, { label: text.cpuManual, layout: "inline", bottomSeparator: "none", highlightOnFocus: true, checked: cpuManual, disabled: busy || !manualReady, onChange: (checked) => { setCpuManual(checked); if (checked && detectedCpu) {
                                                     setCpuScale(activeCpu?.frequency === detectedCpu.frequency ? (activeCpu.scale ?? detectedCpu.scale) : detectedCpu.scale);
                                                 } dirty.current.cpu = true; } }) }), cpuManual && detectedCpu && !manualFrequencyReady ? SP_JSX.jsxs("div", { style: { color: tokens.colors.amber, fontSize: 9, lineHeight: 1.3, margin: "-2px 2px 7px" }, children: [text.cpuManualHelp, " \u00B7 ", detectedCpu.frequency, " MHz"] }) : null, SP_JSX.jsx(CompactSlider, { label: text.cpuScale, value: cpuScale, suffix: "", min: scaleMin, max: scaleMax, step: 1, disabled: busy || !cpuManual || !manualFrequencyReady, onChange: (value) => { setCpuScale(Math.max(-50, Math.min(0, Math.round(value)))); dirty.current.cpu = true; } }), SP_JSX.jsxs("div", { style: { color: tokens.colors.disabled_text, display: "flex", fontSize: 9, justifyContent: "space-between", margin: "0 2px 7px" }, children: [SP_JSX.jsx("span", { children: cpuManual ? `${text.cpuScale}: ${scaleMin}…${scaleMax}` : `${text.voltageHint} · ${vidMin}–${vidMax} mV` }), SP_JSX.jsx("span", { children: cpuManual ? `~${selectedEstimatedVid ?? "—"} mV` : `${text.safeRange}: ${cpuMin}–${cpuMax} MHz` })] }), SP_JSX.jsx(ActionRow, { children: SP_JSX.jsx(Action, { label: cpuManual ? text.cpuApplyManual : text.cpuApplyAuto, primary: true, disabled: busy || !cpuReady || (cpuManual && (!manualFrequencyReady || (selectedEstimatedVid ?? 0) > vidMax)), onActivate: () => confirmCpu("detect") }) })] }), SP_JSX.jsx("div", { style: { marginTop: 6, minHeight: 36 }, children: SP_JSX.jsxs(ActionRow, { children: [SP_JSX.jsx(Action, { label: text.install, disabled: busy || !activeMatchesTarget || Boolean(state.cpu_service_enabled), onActivate: () => confirmCpu("install") }), SP_JSX.jsx(Action, { label: text.remove, danger: true, disabled: busy || (!state.cpu_service_installed && !state.cpu_service_enabled), onActivate: () => DFL.showModal(SP_JSX.jsx(DFL.ConfirmModal, { strTitle: text.remove, strDescription: text.serviceRemovedBootProfile, strOKButtonText: text.remove, bDestructiveWarning: true, onOK: () => void execute("BC250 CPU", removeCpuService, "cpu") })) })] }) })] }) : null, boardSection === "fan" ? SP_JSX.jsxs("section", { style: { marginBottom: 12 }, children: [SP_JSX.jsx(SectionTitle, { kind: "fan", title: text.fan }), SP_JSX.jsx(FanPresetRow, { state: state, busy: busy, execute: execute }), SP_JSX.jsxs(PadButton, { disabled: busy, onActivate: () => setFanOpen(!fanOpen), style: { alignItems: "center", display: "flex", fontSize: 11, height: 34, justifyContent: "space-between", marginBottom: 6, padding: "5px 9px", width: "100%" }, children: [SP_JSX.jsxs("span", { children: [liveFan?.label ?? `PWM ${fanChannel}`, " \u00B7 ", fanDetected ? text.detected : text.unavailable] }), SP_JSX.jsx("span", { style: { color: accent.focus }, children: fanOpen ? "▴" : "▾" })] }), fanOpen ? SP_JSX.jsx(DFL.Focusable, { "flow-children": "grid", navEntryPreferPosition: DFL.NavEntryPositionPreferences.PREFERRED_CHILD, style: { display: "grid", gap: 5, gridTemplateColumns: "1fr 1fr", marginBottom: 7 }, children: fanChannels.map((channel) => { const option = state.fan_channel_options?.find((item) => item.channel === channel); const available = detectedFans.includes(channel); return SP_JSX.jsxs(PadButton, { disabled: busy || !available, preferredFocus: channel === fanChannel, onActivate: () => { selectionRef.current.fan = channel; setFanChannel(channel); setFanOpen(false); dirty.current.fan = false; const percent = option?.percent; if (percent != null)

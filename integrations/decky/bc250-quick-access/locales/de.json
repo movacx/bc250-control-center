@@ -30,7 +30,7 @@
   "compatFixFrequency": "Frequenzen korrigieren",
   "compatFixMetrics": "Metriken korrigieren",
   "compatHint": "Ändern Sie dies nur, wenn die obigen Werte falsch aussehen.",
-  "compatNeedsCyan": "Cyan muss der aktive Governor sein, um dies zu ändern.",
+  "compatNeedsCyan": "Installiere Cyan (oder stoppe Oberon) im Desktop-Modus, um dies zu ändern.",
   "compatProcessWarning": "Die Messung process geht jede offene Datei jedes Programms durch. Solange ein Spiel läuft, antwortet Cyan nicht mehr: Bereich, +2000-MHz-Punkte und Spannungslabor funktionieren erst wieder, wenn das Spiel beendet ist. busy-flag ist die Voreinstellung.",
   "compatSetMethod": "Governor-Methode",
   "compatTitle": "Cyan Kernel-Kompatibilität",
@@ -141,7 +141,7 @@
   "loadingCpu": "CPU-Helfer und Telemetrie werden gelesen…",
   "loadingGpu": "GPU-Status wird gelesen…",
   "loadingTopology": "WGP-Topologie wird gelesen…",
-  "manualApplyWarning": "Es wird vorübergehend mit der vom Detektor validierten Frequenz angewendet. Überwachen Sie Temperatur und Stabilität, bevor Sie den Dienst installieren.",
+  "manualApplyWarning": "Wie am Desktop unter Last getestet: 100-MHz-Schritte bis zur erkannten Frequenz mit fester Skala (ca. 1–2 Min.). Scheitert ein Schritt, wird das erkannte Profil wiederhergestellt. Temperatur beobachten, bevor der Dienst installiert wird.",
   "memory": "SPEICHER",
   "memoryAndVideo": "Speicher & Video",
   "mode": "Modus",
@@ -224,5 +224,12 @@
   "vramRebootRequired": "Wird erst nach dem nächsten Neustart wirksam.",
   "vramUnavailable": "VRAM-Aufteilung ist auf diesem System nicht verfügbar.",
   "vrmUnavailable": "Nicht erkannt · erfordert die I2C-Hardwaremodifikation.",
-  "yes": "Ja"
+  "yes": "Ja",
+  "serviceStarting": "Startet oder scheitert beim Start · neuer Versuch",
+  "governorStopped": "Der Governor-Dienst läuft nicht. Unten „Dienst aktivieren“ verwenden.",
+  "governorUnresponsive": "Cyan antwortet nicht (die Auslastungsmessung \"process\" blockiert ihn bei laufendem Spiel). Bereichssteuerungen schlagen fehl, bis er antwortet; Auslastungsmessung auf busy-flag stellen.",
+  "compatStaged": "Cyan läuft nicht: Die Änderung wird gespeichert und Cyan damit neu gestartet (falls aktiviert) oder beim nächsten Start verwendet.",
+  "cpuPresetBoardAverage": "Durchschnittsboard",
+  "cpuPresetMidPoint": "Mittelwert",
+  "cpuPresetSafeMaximum": "Sicheres Maximum"
 }

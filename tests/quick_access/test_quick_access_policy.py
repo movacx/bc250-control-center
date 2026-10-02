@@ -239,7 +239,7 @@ def test_decky_frontend_uses_native_buttons_for_every_gamepad_selector_and_cu_ce
     # A high TOML button is not painted selected optimistically. It becomes
     # orange only when the helper has returned the verified live range.
     assert "setHighSelection(point.frequency)" not in frontend
-    assert "setHighSelection(result.gpu_range[1])" in frontend
+    assert "setHighSelection(result.gpu_range![0] === 1000 && result.gpu_range![1] > 2000 ? result.gpu_range![1] : 0)" in frontend
     assert 'flow-children="down"' in frontend
     assert "function SectionTitle" in frontend
 

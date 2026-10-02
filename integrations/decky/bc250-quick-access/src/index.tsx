@@ -62,7 +62,7 @@ type CpuActiveProfile = CpuProfile & {
 };
 type GpuPoint = { frequency: number; voltage: number };
 type GpuProfile = { key: string; name: string; min: number; max: number };
-type CpuPreset = { key: string; name: string; frequency: number; vid: number };
+type CpuPreset = { key: string; name: string; frequency: number; vid: number; default?: boolean };
 type FanOption = {
   channel: number;
   label?: string;
@@ -94,6 +94,7 @@ type ContractLimits = {
 type VramState = { supported: boolean; reason: string; uma_size_mb: number | null; boot_id: string | null };
 
 type Result = {
+  operation_in_progress?: { action: string; arguments?: string[]; started_at: number } | null;
   ok?: boolean;
   protocol?: number;
   error?: string;
@@ -134,6 +135,8 @@ type Result = {
   gpu_service_installed?: boolean;
   gpu_service_enabled?: boolean;
   gpu_service_active?: boolean;
+  gpu_service_starting?: boolean;
+  gpu_dbus_responsive?: boolean;
   gpu_service_conflict?: boolean;
   cu_backend_ready?: boolean;
   cu_total_cus?: number;
@@ -583,8 +586,9 @@ function GovernorServiceRow({ state, busy, execute }: {
   const summary = conflict ? text.governorConflict
     : !installed ? text.serviceNotInstalled
     : running ? (atBoot ? text.serviceRunningBoot : text.serviceRunningNoBoot)
+    : state.gpu_service_starting ? text.serviceStarting
     : (atBoot ? text.serviceStoppedBoot : text.serviceStopped);
-  const tone = conflict ? tokens.colors.red : !installed ? tokens.colors.amber : running ? accent.focus : tokens.colors.subtle;
+  const tone = conflict ? tokens.colors.red : !installed || (!running && state.gpu_service_starting) ? tokens.colors.amber : running ? accent.focus : tokens.colors.subtle;
   const confirm = (enable: boolean) => showModal(<ConfirmModal
     strTitle={enable ? text.enableService : text.disableService}
     strDescription={(enable ? text.enableServiceHint : text.disableServiceHint).replace("{name}", name)}
@@ -821,7 +825,11 @@ function CyanCompatibility({ state, busy, execute }: { state: Status; busy: bool
   if (state.gpu_governor === "oberon" || !current) return null;
   const value = draft ?? current;
   const changed = keyOf(value) !== signature;
-  const cyanActive = state.gpu_governor === "cyan";
+  // Editable while Cyan is stopped, as on the desktop: a "kernel" choice this
+  // kernel cannot serve is exactly what stops Cyan, so requiring it to run
+  // made that choice impossible to undo from Game Mode.
+  const cyanActive = state.gpu_governor !== "conflict" && state.gpu_service_target === "cyan" && Boolean(state.gpu_service_installed);
+  const cyanRunningNow = state.gpu_governor === "cyan";
   const choose = (patch: Partial<GpuCompatibility>) => setDraft({ ...value, ...patch });
   const confirm = () => showModal(<ConfirmModal
     strTitle={text.compatTitle}
@@ -837,6 +845,7 @@ function CyanCompatibility({ state, busy, execute }: { state: Status; busy: bool
     </PadButton>
     {open ? <div style={{ background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 6, marginBottom: 6, padding: 6 }}>
       {!cyanActive ? <div style={{ color: tokens.colors.amber, fontSize: 9, marginBottom: 6 }}>{text.compatNeedsCyan}</div> : null}
+      {cyanActive && !cyanRunningNow ? <div style={{ color: tokens.colors.amber, fontSize: 9, marginBottom: 6 }}>{text.compatStaged}</div> : null}
       <div style={labelStyle}>{text.compatSetMethod}</div>
       <Focusable flow-children="row" style={{ display: "grid", gap: 5, gridTemplateColumns: "repeat(2,minmax(0,1fr))", marginBottom: 6 }}>
         {COMPAT_SET_METHODS.map((method) => <PadButton key={method} preferredFocus={value.set_method === method} disabled={busy || !cyanActive} onActivate={() => choose({ set_method: method })} style={choiceStyle(value.set_method === method)}>{method === "smu" ? "SMU" : "Kernel"}</PadButton>)}
@@ -923,6 +932,9 @@ function VoltageLab({ state, busy, execute }: { state: Status; busy: boolean; ex
     </div> : null}
   </>;
 }
+
+// Desktop defaults arrive with an English name; show them in the panel's language.
+const cpuPresetName = (preset: CpuPreset) => preset.default ? ({ board_average: text.cpuPresetBoardAverage, mid_point: text.cpuPresetMidPoint, safe_maximum: text.cpuPresetSafeMaximum } as Record<string, string>)[preset.key] ?? preset.name : preset.name;
 
 function MonitorTab({ state }: { state: Status }) {
   const accent = ACCENT_SWATCHES[useContext(SettingsContext).settings.accent];
@@ -1158,15 +1170,27 @@ function MemoryTab({ state, busy, execute }: { state: Status; busy: boolean; exe
 type PanelTab = "board" | "monitor" | "memory" | "settings";
 type BoardSection = "gpu" | "cu" | "cpu" | "fan";
 
+// Decky unmounts this panel every time Quick Access closes -- a confirmation
+// modal is enough -- so which tab and board section the player was on lives
+// here, outside React, and survives the remount.
+let rememberedTab: PanelTab = "board";
+let rememberedSection: BoardSection = "gpu";
+
 function Content() {
   const [state, setState] = useState<Status>({});
   const [settings, setSettingsState] = useState<QuickAccessSettings>(() => loadSettings());
   const setSettings = useCallback((next: QuickAccessSettings) => { setSettingsState(next); saveSettings(next); }, []);
   const accent = ACCENT_SWATCHES[settings.accent];
-  const [activeTab, setActiveTab] = useState<PanelTab>("board");
-  const [boardSection, setBoardSection] = useState<BoardSection>("gpu");
+  const [activeTab, setActiveTabState] = useState<PanelTab>(() => rememberedTab);
+  const setActiveTab = useCallback((tab: PanelTab) => { rememberedTab = tab; setActiveTabState(tab); }, []);
+  const topRef = useRef<HTMLDivElement>(null);
+  const [boardSection, setBoardSectionState] = useState<BoardSection>(() => rememberedSection);
+  const setBoardSection = useCallback((section: BoardSection) => { rememberedSection = section; setBoardSectionState(section); }, []);
   const [loaded, setLoaded] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const [busyLocal, setBusy] = useState(false);
+  // An operation this mounted panel did not start (it began before a
+  // remount) still blocks every control until the backend reports it done.
+  const busy = busyLocal || Boolean(state.operation_in_progress);
   const [stale, setStale] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [highOpen, setHighOpen] = useState(true);
@@ -1182,6 +1206,14 @@ function Content() {
   const [cpuManual, setCpuManual] = useState(false);
   const [cpuError, setCpuError] = useState<string | null>(null);
   const [cpuOperation, setCpuOperation] = useState<{ target: number; manual: boolean; startedAt: number } | null>(null);
+  // A CPU run started before a remount: show its progress again.
+  const running = state.operation_in_progress;
+  useEffect(() => {
+    if (busyRef.current) return;
+    if (running && (running.action === "cpu-detect" || running.action === "cpu-scale")) {
+      setCpuOperation((current) => current ?? { target: Number(running.arguments?.[0]) || 0, manual: running.action === "cpu-scale", startedAt: running.started_at });
+    } else setCpuOperation(null);
+  }, [running?.action, running?.started_at]);
   const [cpuElapsed, setCpuElapsed] = useState(0);
   const busyRef = useRef(false); const refreshing = useRef(false);
   const cpuTelemetryRefreshing = useRef(false);
@@ -1327,7 +1359,7 @@ function Content() {
     if (busyRef.current) return; busyRef.current = true; setBusy(true);
     if (kind === "cpu") setCpuError(null);
     if (cpuProgress) setCpuOperation({ ...cpuProgress, startedAt: Date.now() });
-    try { const result = await operation(); if (result.ok === false) { const message = result.error ?? text.error; if (kind === "cpu") setCpuError(message); setFeedback(message); toaster.toast({ title, body: localizedErrorSummary(message) }); } else { setState((current) => ({ ...current, ...result })); if (kind === "gpu" && Array.isArray(result.gpu_range) && result.gpu_range[0] === 1000 && result.gpu_range[1] > 2000) setHighSelection(result.gpu_range[1]); else if (kind === "gpu") setHighSelection(0); setFeedback(null); if (kind !== "none") dirty.current[kind] = false; toaster.toast({ title, body: text.success }); if (kind !== "gpu") await refresh("after"); } }
+    try { const result = await operation(); if (result.ok === false) { const message = result.error ?? text.error; if (kind === "cpu") setCpuError(message); setFeedback(message); toaster.toast({ title, body: localizedErrorSummary(message) }); } else { setState((current) => ({ ...current, ...result })); const rangeWrite = kind === "gpu" && Array.isArray(result.gpu_range); if (rangeWrite) setHighSelection(result.gpu_range![0] === 1000 && result.gpu_range![1] > 2000 ? result.gpu_range![1] : 0); setFeedback(null); if (kind !== "none") dirty.current[kind] = false; toaster.toast({ title, body: text.success }); if (!rangeWrite) await refresh("after"); } }
     catch (error) { const result = failed(error); const message = result.error ?? text.error; if (kind === "cpu") setCpuError(message); setFeedback(message); toaster.toast({ title, body: localizedErrorSummary(message) }); }
     finally { void sampleCpuTelemetry(); busyRef.current = false; setBusy(false); setCpuOperation(null); }
   };
@@ -1396,13 +1428,16 @@ function Content() {
       // happen instead of staring at a frozen GPU/CU screen (see
       // "operationInProgress" — this is the same tab that stays fed by
       // monitor_snapshot() regardless of how long the trial takes).
-      if (mode === "detect") setActiveTab("monitor");
+      // The modal closes over the scrolled-down CPU card: bring the top of
+      // the panel (and its tab row) back into view with the CPU monitor.
+      if (mode === "detect") { setActiveTab("monitor"); globalThis.requestAnimationFrame(() => topRef.current?.scrollIntoView({ block: "start" })); }
       void execute("BC250 CPU", mode === "detect" ? (cpuManual ? () => applyCpuScale(cpuFrequency, cpuScale) : () => applyCpuTuning(cpuFrequency, cpuVid)) : installCpuService, "cpu", mode === "detect" ? { target: cpuFrequency, manual: cpuManual } : undefined);
     }}
   />);
 
   return <Focusable flow-children="down" style={{ background: tokens.colors.panel, border: `1px solid ${tokens.colors.border}`, borderRadius: 12, boxSizing: "border-box", color: tokens.colors.text, minHeight: "100vh", padding: "12px 14px 72px", width: "100%" }}>
   <SettingsContext.Provider value={{ settings, setSettings }}>
+    <div ref={topRef} />
     {stale ? <div style={{ alignItems: "center", background: tokens.colors.amber_soft, border: `1px solid ${tokens.colors.amber}`, borderRadius: 6, color: tokens.colors.amber, display: "flex", fontSize: 10, gap: 6, marginBottom: 10, padding: "6px 9px" }}><FaClock />{text.stale}</div> : null}
     {feedback ? <Notice value={feedback} dismiss={() => setFeedback(null)} /> : null}
 
@@ -1436,7 +1471,8 @@ function Content() {
 
     {boardSection === "gpu" ? <section style={{ marginBottom: 12 }}><SectionTitle kind="gpu" title="GPU" trailing={governorName ? <span style={{ color: tokens.colors.subtle, fontSize: 9 }}>{governorName}</span> : undefined} />
     {!loaded ? <div style={{ color: tokens.colors.subtle, fontSize: 10, marginBottom: 6 }}>{text.loadingGpu}</div> : <>
-    {!gpuReady ? <div style={{ color: state.gpu_governor === "conflict" ? tokens.colors.red : tokens.colors.amber, fontSize: 9, marginBottom: 6 }}>{state.gpu_governor === "conflict" ? text.governorConflict : text.governorMissing}</div> : null}
+    {gpuReady && state.gpu_dbus_responsive === false ? <div style={{ color: tokens.colors.amber, fontSize: 9, marginBottom: 6 }}>{text.governorUnresponsive}</div> : null}
+    {!gpuReady ? <div style={{ color: state.gpu_governor === "conflict" ? tokens.colors.red : tokens.colors.amber, fontSize: 9, marginBottom: 6 }}>{state.gpu_governor === "conflict" ? text.governorConflict : state.gpu_service_installed ? text.governorStopped : text.governorMissing}</div> : null}
     <Focusable flow-children="grid" navEntryPreferPosition={NavEntryPositionPreferences.PREFERRED_CHILD} style={{ display: "grid", gap: 6, gridTemplateColumns: `repeat(${activeGpuProfiles.length || 1},minmax(0,1fr))`, marginBottom: 6 }}>
       {activeGpuProfiles.map((profile) => { const current = state.gpu_range?.[0] === profile.min && state.gpu_range?.[1] === profile.max && (state.gpu_governor !== "cyan" || state.gpu_performance_enabled === false); const allowed = Boolean(state.gpu_allowed_range && state.gpu_allowed_range[0] <= profile.min && profile.max <= state.gpu_allowed_range[1]); return <PadButton key={profile.key} disabled={busy || !gpuReady || !allowed} preferredFocus={profile.key === (state.gpu_governor === "oberon" ? "oberon-1850" : "balanced")} onActivate={() => { void execute(`GPU · ${profile.name}`, () => applyGpuProfile(profile.key), "gpu"); }} style={{ alignItems: "center", background: current ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, display: "flex", flexDirection: "column", gap: 2, height: 60, justifyContent: "center", minWidth: 0, padding: "6px 6px", textAlign: "center", width: "100%" }}><span style={{ color: current ? accent.focus : tokens.colors.text, fontSize: 11, fontWeight: 650, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }}>{profile.name}</span><span style={{ color: current ? accent.focus : tokens.colors.subtle, fontSize: 9, lineHeight: 1.3 }}>{profile.min}–{profile.max}<br />MHz{current ? ` · ${text.current}` : ""}</span></PadButton>; })}
     </Focusable>
@@ -1472,7 +1508,7 @@ function Content() {
         {state.cpu_profiles.map((preset) => {
           const current = !cpuManual && cpuFrequency === preset.frequency && cpuVid === preset.vid;
           return <PadButton key={preset.key} disabled={busy || !cpuReady} onActivate={() => { setCpuFrequency(preset.frequency); setCpuVid(preset.vid); setCpuManual(false); dirty.current.cpu = true; }} style={{ alignItems: "center", background: current ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, display: "flex", flexDirection: "column", gap: 2, height: 52, justifyContent: "center", minWidth: 0, padding: "6px 6px", textAlign: "center", width: "100%" }}>
-            <span style={{ color: current ? accent.focus : tokens.colors.text, fontSize: 11, fontWeight: 650, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }}>{preset.name}</span>
+            <span style={{ color: current ? accent.focus : tokens.colors.text, fontSize: 11, fontWeight: 650, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }}>{cpuPresetName(preset)}</span>
             <span style={{ color: current ? accent.focus : tokens.colors.subtle, fontSize: 9 }}>{preset.frequency} MHz</span>
           </PadButton>;
         })}

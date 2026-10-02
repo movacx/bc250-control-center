@@ -269,6 +269,17 @@ def _read_core_frequencies_mhz(root: pathlib.Path = CPUFREQ_ROOT) -> dict[int, i
 CPU_PROFILE_KEYS = ("board_average", "mid_point", "safe_maximum")
 
 
+#: The desktop's DEFAULT_CPU_PROFILES (frontends/desktop/pages/cpu_control_view.py).
+#: Shown until the player exports their own from the desktop; an exported card
+#: replaces the default with the same key.  ``default`` lets the panel show the
+#: name in its own language.
+DEFAULT_CPU_PROFILES = (
+    {"key": "board_average", "name": "Average board", "frequency": 3550, "vid": 1050, "default": True},
+    {"key": "mid_point", "name": "Mid point", "frequency": 3850, "vid": 1150, "default": True},
+    {"key": "safe_maximum", "name": "Safe maximum", "frequency": 4000, "vid": 1275, "default": True},
+)
+
+
 def _validated_cpu_profiles(custom: object) -> list[dict[str, object]]:
     """Defensively re-check the helper's own already-validated CPU presets.
 
@@ -279,7 +290,7 @@ def _validated_cpu_profiles(custom: object) -> list[dict[str, object]]:
     shown as a button that would fail when pressed.
     """
     if not isinstance(custom, list):
-        return []
+        custom = []
     profiles: list[dict[str, object]] = []
     for entry in custom:
         if not isinstance(entry, dict):
@@ -294,7 +305,8 @@ def _validated_cpu_profiles(custom: object) -> list[dict[str, object]]:
         ):
             continue
         profiles.append({"key": key, "name": name, "frequency": frequency, "vid": vid})
-    return profiles
+    exported = {profile["key"]: profile for profile in profiles}
+    return [dict(exported.get(default["key"], default)) for default in DEFAULT_CPU_PROFILES]
 
 
 
@@ -305,6 +317,10 @@ def _validated_cpu_profiles(custom: object) -> list[dict[str, object]]:
 #: one again exactly as if the player had pressed the button. The CPU is not
 #: part of it on purpose: its overclock is only trusted after a stress test
 #: of up to fifteen minutes, which cannot run every time a game starts.
+#: Failed operations, read by the desktop's Settings › Diagnostics.
+DIAGNOSTICS_FILENAME = "diagnostics.jsonl"
+MAX_DIAGNOSTICS = 200
+MAX_DIAGNOSTIC_DETAIL = 1500
 GAME_PROFILES_FILENAME = "game-profiles.json"
 GAME_PROFILES_SCHEMA = 1
 MAX_GAME_PROFILES = 200
@@ -588,6 +604,19 @@ class Plugin:
         # Session-only feedback for the player.  It is intentionally bounded
         # and in-memory: QAM must not create a second persistent tuning store.
         self._recent_actions: list[dict[str, object]] = []
+        # GPU range writes are one Cyan/Oberon D-Bus call; they do not touch
+        # UMR or hwmon, so they skip the helper lock instead of waiting
+        # several seconds behind a passive status() scan.  A status scan that
+        # overlapped such a write may have read the old range, so the last
+        # verified write is overlaid on that scan's result.
+        self._gpu_write_seq = 0
+        # Decky unmounts the panel whenever Quick Access closes -- opening a
+        # confirmation modal does it -- and the remounted panel asks for
+        # status() while a CPU run may hold the helper lock for minutes.  It
+        # gets the last good scan plus what is running instead of waiting.
+        self._last_status: dict | None = None
+        self._running_operation: dict[str, object] | None = None
+        self._gpu_write_result: dict[str, object] = {}
         self._last_cpu_times: dict[int, tuple[int, int]] = {}
         self._ace = AceSampler()
         # One game start or stop at a time; they may wait behind a running
@@ -648,7 +677,42 @@ class Plugin:
             target,
             "verified" if succeeded else "failed",
         )
+        if not succeeded:
+            # The helper's own one-line diagnosis (never a register dump or a
+            # player string), so a failure can be explained after the toast.
+            error = " ".join(str(result.get("error") or "").split())[-300:]
+            decky.logger.info("BC250 operation module=%s error=%s", module, error)
+            self._record_diagnostic(module, target, str(result.get("error") or ""))
         return result
+
+    def _record_diagnostic(self, module: str, target: str, error: str) -> None:
+        """Append one failure for the desktop's Settings › Diagnostics.
+
+        A file of its own beside the plugin settings: the desktop journal lives
+        in the player's home and this process is root, so writing there would
+        leave it root-owned.  The desktop only reads this one.  Bounded, and
+        never raises: losing a history line must not break the failed action.
+        """
+        path = self._settings_dir / DIAGNOSTICS_FILENAME
+        entry = {
+            "at": round(time.time(), 3),
+            "module": module,
+            "target": target,
+            "error": error.strip()[-MAX_DIAGNOSTIC_DETAIL:],
+        }
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+            except FileNotFoundError:
+                lines = []
+            lines = (lines + [json.dumps(entry, ensure_ascii=False)])[-MAX_DIAGNOSTICS:]
+            temporary = path.with_suffix(".tmp")
+            temporary.write_text("\n".join(lines) + "\n", encoding="utf-8")
+            os.chmod(temporary, 0o644)
+            os.replace(temporary, path)
+        except OSError:
+            decky.logger.info("BC250 diagnostic history could not be written")
 
     async def _main(self):
         decky.logger.info("BC250 Quick Access plugin ready")
@@ -769,13 +833,41 @@ class Plugin:
             return status
         return self._run(*args, timeout=timeout)
 
+    def _note_gpu_write(self, result: dict) -> dict:
+        if result.get("ok") is not False and isinstance(result.get("gpu_range"), list):
+            self._gpu_write_seq += 1
+            self._gpu_write_result = {
+                key: result[key]
+                for key in ("gpu_range", "gpu_performance_enabled")
+                if key in result
+            }
+        return result
+
+    async def _run_gpu_range_write(self, *args: str) -> dict:
+        """Run a gpu-profile / gpu-safe-point without the helper lock."""
+        result = await asyncio.to_thread(self._run, *args, timeout=30)
+        return self._note_gpu_write(result)
+
     async def status(self) -> dict:
+        if self._helper_lock.locked() and self._running_operation and self._last_status:
+            cached = dict(self._last_status)
+            cached["recent_actions"] = list(reversed(self._recent_actions))
+            cached["operation_in_progress"] = dict(self._running_operation)
+            cached["status_cached"] = True
+            return cached
         async with self._helper_lock:
+            seq = self._gpu_write_seq
             result = await asyncio.to_thread(self._verified_status)
+            if result.get("ok") is not False and seq != self._gpu_write_seq:
+                result.update(self._gpu_write_result)
         if result.get("ok") is not False:
             self._decorate_status(result)
             result["recent_actions"] = list(reversed(self._recent_actions))
             result["helper_protected"] = True
+            result["operation_in_progress"] = (
+                dict(self._running_operation) if self._running_operation else None
+            )
+            self._last_status = dict(result)
         return result
 
     @staticmethod
@@ -873,8 +965,17 @@ class Plugin:
                 "ok": False,
                 "error": "BC250 Quick Access is already applying an operation. Wait for its verified result before choosing another control.",
             }
-        async with self._operation_lock, self._helper_lock:
-            return await asyncio.to_thread(self._run_verified, *args, timeout=timeout)
+        async with self._operation_lock:
+            self._running_operation = {
+                "action": args[0],
+                "arguments": [str(value) for value in args[1:3]],
+                "started_at": int(time.time() * 1000),
+            }
+            try:
+                async with self._helper_lock:
+                    return await asyncio.to_thread(self._run_verified, *args, timeout=timeout)
+            finally:
+                self._running_operation = None
 
     async def apply_gpu_profile(self, profile: str) -> dict:
         if profile not in GPU_PROFILES:
@@ -885,14 +986,12 @@ class Plugin:
                 "error": "A BC250 operation is still running. Wait for the verified result before changing the GPU range.",
             }
         async with self._operation_lock:
-            async with self._helper_lock:
-                # The root helper accepts only a named profile and performs
-                # its own active-governor validation and backend-specific
-                # read-back. Running a
-                # complete status scan before it added 5–10 seconds of CPU,
-                # CU and fan reads to every GPU press without improving this
-                # hardware boundary.
-                result = await asyncio.to_thread(self._run, "gpu-profile", profile, timeout=30)
+            # The root helper accepts only a named profile and performs its
+            # own active-governor validation and backend-specific read-back.
+            # Neither a status preflight nor the helper lock is taken: both
+            # made every GPU press wait 5-10 s behind CU/fan/CMOS reads that
+            # this D-Bus-only transition never touches.
+            result = await self._run_gpu_range_write("gpu-profile", profile)
             return self._record_action("gpu", profile, result)
 
     async def apply_gpu_safe_point(self, frequency: int) -> dict:
@@ -915,20 +1014,17 @@ class Plugin:
             return {
                 "ok": False,
                 "error": "A BC250 operation is still running. Wait for its verified result before changing the GPU range.",
-        }
+            }
         async with self._operation_lock:
-            async with self._helper_lock:
-                result = await asyncio.to_thread(
-                    self._run, "gpu-safe-point", str(normalized), timeout=30,
-                )
+            result = await self._run_gpu_range_write("gpu-safe-point", str(normalized))
             return self._record_action("gpu", f"toml-{normalized}", result)
 
     async def set_gpu_high_frequency_points(self, enabled: bool) -> dict:
         """Comment/uncomment the Cyan TOML safe-points above 2000 MHz.
 
         Mirrors the Desktop's "Enable/Disable +2000 MHz TOML points" button.
-        A persistent-file edit only: it never restarts Cyan or changes the
-        live GPU range, so it does not need cpu-detect's long timeout.
+        Cyan is restarted so it loads the new points, and the live range is
+        put back afterwards.
         """
         if self._operation_lock.locked():
             return {
@@ -938,7 +1034,7 @@ class Plugin:
         async with self._operation_lock:
             async with self._helper_lock:
                 result = await asyncio.to_thread(
-                    self._run, "gpu-high-points", "1" if enabled else "0", timeout=30,
+                    self._run, "gpu-high-points", "1" if enabled else "0", timeout=90,
                 )
             return self._record_action("gpu", f"toml-high-points-{'on' if enabled else 'off'}", result)
 
@@ -959,7 +1055,7 @@ class Plugin:
         async with self._operation_lock:
             async with self._helper_lock:
                 result = await asyncio.to_thread(
-                    self._run, "gpu-service", "enable" if enabled else "disable", timeout=60,
+                    self._run, "gpu-service", "enable" if enabled else "disable", timeout=120,
                 )
             return self._record_action("gpu", f"service-{'on' if enabled else 'off'}", result)
 
@@ -1010,7 +1106,7 @@ class Plugin:
                 result = await asyncio.to_thread(
                     self._run, "gpu-compat", set_method, usage_method,
                     "1" if fix_metrics else "0", "1" if fix_frequency else "0",
-                    timeout=90,
+                    timeout=150,
                 )
             return self._record_action("gpu", f"compat-{set_method}-{usage_method}", result)
 
@@ -1156,7 +1252,7 @@ class Plugin:
         except ValueError as exc:
             return {"ok": False, "error": str(exc)}
         result = await self._run_single_operation(
-            "cpu-scale", str(frequency), str(scale), timeout=200,
+            "cpu-scale", str(frequency), str(scale), timeout=620,
         )
         return self._record_action("cpu", f"manual-{frequency}:{scale}", result)
 
@@ -1330,7 +1426,7 @@ class Plugin:
         applied: dict[str, str | None] = {"gpu": None, "fan": None}
         errors: list[str] = []
         if entry.get("gpu") and entry["gpu"] != gpu_key:
-            result = self._record_action("gpu", f"game-{entry['gpu']}", self._run("gpu-profile", str(entry["gpu"]), timeout=30))
+            result = self._record_action("gpu", f"game-{entry['gpu']}", self._note_gpu_write(self._run("gpu-profile", str(entry["gpu"]), timeout=30)))
             if result.get("ok") is False:
                 errors.append(str(result.get("error") or "GPU profile failed."))
             else:
@@ -1375,7 +1471,10 @@ class Plugin:
                 # return is the board's own automatic control.
                 operations.append(("fan", ("fan-system", "automatic")))
         for module, arguments in operations:
-            result = self._record_action(module, f"restore-{arguments[-1]}", self._run(*arguments, timeout=30))
+            result = self._run(*arguments, timeout=30)
+            if module == "gpu":
+                self._note_gpu_write(result)
+            result = self._record_action(module, f"restore-{arguments[-1]}", result)
             if result.get("ok") is False:
                 errors.append(str(result.get("error") or "Restore failed."))
         return {"ok": not errors, "restored": True, "name": session.get("name", ""), "error": " ".join(errors)}
