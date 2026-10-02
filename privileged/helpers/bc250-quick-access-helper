@@ -2007,10 +2007,10 @@ def gpu_compatibility(arguments: Sequence[str]) -> int:
         or fix_frequency not in {"0", "1"}
     ):
         return fail(
-            "QUICK_ACCESS_GPU_COMPAT: expected smu|kernel, busy-flag|process|kernel and two 0/1 flags.", 20,
+            "QUICK_ACCESS_GPU_CONFIG: expected smu|kernel, busy-flag|process|kernel and two 0/1 flags.", 20,
         )
     if active_gpu_governor() != "cyan":
-        return fail("QUICK_ACCESS_GPU_COMPAT: the Cyan governor must be the active governor.", 21)
+        return fail("QUICK_ACCESS_GPU_SERVICE: the Cyan governor must be the active governor.", 21)
     if not trusted_file(GOVERNOR_CONFIG_HELPER, executable=True):
         return fail(
             "QUICK_ACCESS_GPU_HELPER: the protected governor configuration helper is unavailable. "

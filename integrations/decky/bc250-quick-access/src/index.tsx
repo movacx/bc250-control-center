@@ -110,6 +110,7 @@ type Result = {
   gpu_safe_point_ceilings?: GpuPoint[];
   gpu_voltage_points?: VoltagePoint[];
   gpu_voltage_level?: number | null;
+  gpu_compatibility?: GpuCompatibility | null;
   cpu_frequency_mhz?: number;
   cpu_temperature_c?: number;
   observed_at?: number;
@@ -212,6 +213,13 @@ type GameProfile = { app_id: string; name: string; gpu: string | null; fan: stri
 type GameSession = { app_id: string; name: string; applied: { gpu: string | null; fan: string | null } };
 type GameStore = { ok?: boolean; error?: string; enabled?: boolean; games?: GameProfile[]; session?: GameSession | null };
 type GameEvent = { ok?: boolean; error?: string; applied?: boolean; restored?: boolean; name?: string; gpu?: string | null; fan?: string | null; reason?: string };
+// Cyan's kernel compatibility, as the helper reads it from the protected TOML.
+type GpuCompatibility = {
+  set_method: "smu" | "kernel";
+  usage_method: "busy-flag" | "process" | "kernel";
+  fix_metrics: boolean;
+  fix_frequency: boolean;
+};
 type Status = Result;
 type VoltagePoint = { frequency: number; voltage: number; default: number };
 type DraftKind = "cu" | "fan" | "gpu" | "cpu" | "none";
@@ -226,6 +234,7 @@ const setGpuHighFrequencyPoints = callable<[enabled: boolean], Result>("set_gpu_
 const setGpuGovernorService = callable<[enabled: boolean], Result>("set_gpu_governor_service");
 const applyGpuVoltageLevel = callable<[level: number], Result>("apply_gpu_voltage_level");
 const applyGpuVoltagePoints = callable<[points: { frequency: number; voltage: number }[]], Result>("apply_gpu_voltage_points");
+const applyGpuCompatibility = callable<[setMethod: string, usageMethod: string, fixMetrics: boolean, fixFrequency: boolean], Result>("apply_gpu_compatibility");
 const applyCuTable = callable<[masks: number[]], Result>("apply_cu_table");
 const saveCuTable = callable<[masks: number[]], Result>("save_cu_table");
 const installCuService = callable<[], Result>("install_cu_service");
@@ -791,6 +800,63 @@ function ScrollStop({ children, end = false }: { children?: ReactNode; end?: boo
 const VOLTAGE_LEVELS = [0, 1, 2, 3] as const;
 const VOLTAGE_STEP_MV = 5;
 const VOLTAGE_MAX_ABOVE_DEFAULT_MV = 60;
+
+// The desktop's "Cyan kernel compatibility", for the same reason it is there:
+// on a kernel without the BC-250 patches the way Cyan reads GPU usage decides
+// whether it keeps answering. The "process" reading walks every open file of
+// every program, so with a game open Cyan stops answering and the range, the
+// high points and the voltage lab stop working with it. Switching to
+// busy-flag from here is how it recovers without leaving Game Mode.
+const COMPAT_SET_METHODS = ["smu", "kernel"] as const;
+const COMPAT_USAGE_METHODS = ["busy-flag", "process", "kernel"] as const;
+
+function CyanCompatibility({ state, busy, execute }: { state: Status; busy: boolean; execute: (title: string, operation: () => Promise<Result>, kind?: DraftKind) => Promise<void> }) {
+  const accent = ACCENT_SWATCHES[useContext(SettingsContext).settings.accent];
+  const current = state.gpu_compatibility ?? null;
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState<GpuCompatibility | null>(null);
+  const keyOf = (value: GpuCompatibility) => `${value.set_method}:${value.usage_method}:${value.fix_metrics}:${value.fix_frequency}`;
+  const signature = current ? keyOf(current) : "";
+  useEffect(() => { setDraft(null); }, [signature]);
+  if (state.gpu_governor === "oberon" || !current) return null;
+  const value = draft ?? current;
+  const changed = keyOf(value) !== signature;
+  const cyanActive = state.gpu_governor === "cyan";
+  const choose = (patch: Partial<GpuCompatibility>) => setDraft({ ...value, ...patch });
+  const confirm = () => showModal(<ConfirmModal
+    strTitle={text.compatTitle}
+    strDescription={text.compatConfirm}
+    strOKButtonText={text.compatApply}
+    onOK={() => void execute(`GPU · ${text.compatTitle}`, () => applyGpuCompatibility(value.set_method, value.usage_method, value.fix_metrics, value.fix_frequency), "gpu")} />);
+  const choiceStyle = (selected: boolean): CSSProperties => ({ background: selected ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${selected ? accent.focus : tokens.colors.border}`, color: selected ? accent.focus : tokens.colors.text, fontSize: 10, fontWeight: 650, height: 30, padding: 2, textAlign: "center", width: "100%" });
+  const labelStyle: CSSProperties = { color: tokens.colors.subtle, fontSize: 10, margin: "2px 2px 4px" };
+  return <>
+    <PadButton onActivate={() => setOpen(!open)} style={{ alignItems: "center", display: "flex", fontSize: 11, height: 34, justifyContent: "space-between", marginBottom: 6, padding: "5px 9px", width: "100%" }}>
+      <span>{text.compatTitle}</span>
+      <span style={{ color: current.usage_method === "process" ? tokens.colors.amber : accent.focus }}>{current.set_method === "smu" ? "SMU" : "Kernel"} · {current.usage_method} {open ? "▴" : "▾"}</span>
+    </PadButton>
+    {open ? <div style={{ background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 6, marginBottom: 6, padding: 6 }}>
+      {!cyanActive ? <div style={{ color: tokens.colors.amber, fontSize: 9, marginBottom: 6 }}>{text.compatNeedsCyan}</div> : null}
+      <div style={labelStyle}>{text.compatSetMethod}</div>
+      <Focusable flow-children="row" style={{ display: "grid", gap: 5, gridTemplateColumns: "repeat(2,minmax(0,1fr))", marginBottom: 6 }}>
+        {COMPAT_SET_METHODS.map((method) => <PadButton key={method} preferredFocus={value.set_method === method} disabled={busy || !cyanActive} onActivate={() => choose({ set_method: method })} style={choiceStyle(value.set_method === method)}>{method === "smu" ? "SMU" : "Kernel"}</PadButton>)}
+      </Focusable>
+      <div style={labelStyle}>{text.compatUsage}</div>
+      <Focusable flow-children="row" style={{ display: "grid", gap: 5, gridTemplateColumns: "repeat(3,minmax(0,1fr))", marginBottom: 6 }}>
+        {COMPAT_USAGE_METHODS.map((method) => <PadButton key={method} disabled={busy || !cyanActive} onActivate={() => choose({ usage_method: method })} style={choiceStyle(value.usage_method === method)}>{method}</PadButton>)}
+      </Focusable>
+      {value.usage_method === "process" ? <div style={{ color: tokens.colors.amber, fontSize: 9, lineHeight: 1.35, margin: "0 2px 7px" }}>{text.compatProcessWarning}</div> : null}
+      <div style={{ background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, fontSize: 11, marginBottom: 4, overflow: "hidden" }}>
+        <ToggleField label={text.compatFixMetrics} layout="inline" bottomSeparator="none" highlightOnFocus checked={value.fix_metrics} disabled={busy || !cyanActive} onChange={(checked: boolean) => choose({ fix_metrics: checked })} />
+      </div>
+      <div style={{ background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, fontSize: 11, marginBottom: 6, overflow: "hidden" }}>
+        <ToggleField label={text.compatFixFrequency} layout="inline" bottomSeparator="none" highlightOnFocus checked={value.fix_frequency} disabled={busy || !cyanActive} onChange={(checked: boolean) => choose({ fix_frequency: checked })} />
+      </div>
+      <div style={{ color: tokens.colors.subtle, fontSize: 9, lineHeight: 1.35, margin: "0 2px 7px" }}>{text.compatHint}</div>
+      <ActionRow><Action label={text.compatApply} primary disabled={busy || !cyanActive || !changed} onActivate={confirm} /><Action label={text.voltageDiscard} disabled={busy || !changed} onActivate={() => setDraft(null)} /></ActionRow>
+    </div> : null}
+  </>;
+}
 
 // The desktop voltage drawer, cut down to what a controller can do safely:
 // the governor curve or +10/+20/+30 mV on the points from 2000 MHz up, and a
@@ -1376,6 +1442,7 @@ function Content() {
     </Focusable>
     {points.length ? <><PadButton onActivate={() => setHighOpen(!highOpen)} disabled={busy || !gpuReady} style={{ alignItems: "center", display: "flex", fontSize: 11, height: 34, justifyContent: "space-between", marginBottom: 6, padding: "5px 9px", width: "100%" }}><span>{text.more}</span><span style={{ color: accent.focus }}>{highOpen ? "▴" : "▾"}</span></PadButton>{highOpen ? <Focusable flow-children="grid" navEntryPreferPosition={NavEntryPositionPreferences.PREFERRED_CHILD} style={{ background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 6, display: "grid", gap: 5, gridTemplateColumns: "1fr 1fr", padding: 6 }}>{points.map((point, index) => { const current = point.frequency === liveHighPoint?.frequency; const allowed = Boolean(state.gpu_allowed_range && point.frequency <= state.gpu_allowed_range[1]); return <PadButton key={point.frequency} disabled={busy || !gpuReady || !allowed} preferredFocus={current || (!liveHighPoint && index === 0)} onActivate={() => { if (!current) void execute(`GPU · ${governorName || text.advanced}`, () => applyGpuSafePoint(point.frequency), "gpu"); }} style={{ background: current ? accent.focus_soft : tokens.colors.panel_alt, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, color: current ? accent.focus : tokens.colors.text, fontSize: 10, height: 34, padding: 4, textAlign: "center", width: "100%" }}>{point.frequency} MHz · {point.voltage} mV{current ? ` · ${text.current}` : ""}</PadButton>; })}</Focusable> : null}</> : null}
     <VoltageLab state={state} busy={busy} execute={execute} />
+    <CyanCompatibility state={state} busy={busy} execute={execute} />
     <GovernorServiceRow state={state} busy={busy} execute={execute} />
     </>}
     </section> : null}
