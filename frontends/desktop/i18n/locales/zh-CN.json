@@ -4539,5 +4539,10 @@
   "· unsaved edits": "· 未保存的编辑",
   "● LIVE GOVERNOR": "● 现场调速器",
   "● LIVE SESSION": "● 现场会议",
-  "● LIVE TELEMETRY": "● 实时遥测"
+  "● LIVE TELEMETRY": "● 实时遥测",
+  "Additional settings": "其他设置",
+  "Show details": "显示详情",
+  "Hide details": "隐藏详情",
+  "Kernel and graphics": "内核与图形",
+  "Upscaling": "画面超分"
 }

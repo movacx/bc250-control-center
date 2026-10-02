@@ -4539,5 +4539,10 @@
   "· unsaved edits": "· Μη αποθηκευμένες επεξεργασίες",
   "● LIVE GOVERNOR": "● ΖΩΝΤΑΝΑ ΚΥΒΕΡΝΗΤΗ",
   "● LIVE SESSION": "● LIVE SESSION",
-  "● LIVE TELEMETRY": "● ΖΩΝΤΑΝΗ ΤΗΛΕΜΕΤΡΙΑ"
+  "● LIVE TELEMETRY": "● ΖΩΝΤΑΝΗ ΤΗΛΕΜΕΤΡΙΑ",
+  "Additional settings": "Πρόσθετες ρυθμίσεις",
+  "Show details": "Εμφάνιση λεπτομερειών",
+  "Hide details": "Απόκρυψη λεπτομερειών",
+  "Kernel and graphics": "Πυρήνας και γραφικά",
+  "Upscaling": "Upscaling"
 }

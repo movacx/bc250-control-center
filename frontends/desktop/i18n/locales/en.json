@@ -4539,5 +4539,10 @@
   "· unsaved edits": "· unsaved edits",
   "● LIVE GOVERNOR": "● LIVE GOVERNOR",
   "● LIVE SESSION": "● LIVE SESSION",
-  "● LIVE TELEMETRY": "● LIVE TELEMETRY"
+  "● LIVE TELEMETRY": "● LIVE TELEMETRY",
+  "Additional settings": "Additional settings",
+  "Show details": "Show details",
+  "Hide details": "Hide details",
+  "Kernel and graphics": "Kernel and graphics",
+  "Upscaling": "Upscaling"
 }

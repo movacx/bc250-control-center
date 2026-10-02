@@ -4539,5 +4539,10 @@
   "· unsaved edits": "· hasil edit yang belum disimpan",
   "● LIVE GOVERNOR": "● GUBERNUR LANGSUNG",
   "● LIVE SESSION": "● SESI LANGSUNG",
-  "● LIVE TELEMETRY": "● TELEMETRI LANGSUNG"
+  "● LIVE TELEMETRY": "● TELEMETRI LANGSUNG",
+  "Additional settings": "Pengaturan tambahan",
+  "Show details": "Tampilkan detail",
+  "Hide details": "Sembunyikan detail",
+  "Kernel and graphics": "Kernel dan grafis",
+  "Upscaling": "Upscaling"
 }

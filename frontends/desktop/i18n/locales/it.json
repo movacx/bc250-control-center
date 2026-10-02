@@ -4539,5 +4539,10 @@
   "· unsaved edits": "· modifiche non salvate",
   "● LIVE GOVERNOR": "● GOVERNATORE DAL VIVO",
   "● LIVE SESSION": "● SESSIONE DAL VIVO",
-  "● LIVE TELEMETRY": "● TELEMETRIA IN DIRETTA"
+  "● LIVE TELEMETRY": "● TELEMETRIA IN DIRETTA",
+  "Additional settings": "Impostazioni aggiuntive",
+  "Show details": "Mostra dettagli",
+  "Hide details": "Nascondi dettagli",
+  "Kernel and graphics": "Kernel e grafica",
+  "Upscaling": "Upscaling"
 }

@@ -4539,5 +4539,10 @@
   "· unsaved edits": "· osparade redigeringar",
   "● LIVE GOVERNOR": "● LEVANDE GUVERNÖR",
   "● LIVE SESSION": "● LIVESESSION",
-  "● LIVE TELEMETRY": "● LIVE TELEMETRI"
+  "● LIVE TELEMETRY": "● LIVE TELEMETRI",
+  "Additional settings": "Ytterligare inställningar",
+  "Show details": "Visa detaljer",
+  "Hide details": "Dölj detaljer",
+  "Kernel and graphics": "Kärna och grafik",
+  "Upscaling": "Uppskalning"
 }

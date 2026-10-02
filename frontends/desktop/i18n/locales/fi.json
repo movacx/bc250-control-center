@@ -4539,5 +4539,10 @@
   "· unsaved edits": "· tallentamattomat muokkaukset",
   "● LIVE GOVERNOR": "● LIVE KUVERNÖRI",
   "● LIVE SESSION": "● LIVE SESSION",
-  "● LIVE TELEMETRY": "● SUORAAN TELEMETRIAN"
+  "● LIVE TELEMETRY": "● SUORAAN TELEMETRIAN",
+  "Additional settings": "Lisäasetukset",
+  "Show details": "Näytä tiedot",
+  "Hide details": "Piilota tiedot",
+  "Kernel and graphics": "Ydin ja grafiikka",
+  "Upscaling": "Skaalaus"
 }

@@ -241,6 +241,15 @@ def write_config(path: pathlib.Path, frequency: int, scale: int, temperature: in
         tmp.unlink(missing_ok=True)
 
 
+#: bc250_smu reports "status 0x00" when its mailbox poll runs out before the
+#: SMU answers. It is transient (the amdgpu driver, the governor or a previous
+#: run can hold the SMU for a moment), it hits different messages on different
+#: tries, and upstream never retries, so the same request succeeds when repeated.
+SMU_TIMEOUT_MARKER = 'smu returned status 0x00'
+SMU_TIMEOUT_ATTEMPTS = 3
+SMU_TIMEOUT_RETRY_SECONDS = 2.0
+
+
 def run_vendor_module(module: str, args: Sequence[str], *, pass_fds: Sequence[int] = ()) -> int:
     env = {
         'PATH': '/usr/sbin:/usr/bin:/sbin:/bin',
@@ -252,14 +261,31 @@ def run_vendor_module(module: str, args: Sequence[str], *, pass_fds: Sequence[in
         # Unbuffered, each step shows up as the detector prints it.
         'PYTHONUNBUFFERED': '1',
     }
-    result = subprocess.run(
-        [sys.executable, '-m', module, *map(str, args)],
-        env=env,
-        cwd=str(HELPER_PATH.parent),
-        pass_fds=tuple(pass_fds),
-        check=False,
-    )
-    return int(result.returncode)
+    for attempt in range(1, SMU_TIMEOUT_ATTEMPTS + 1):
+        result = subprocess.run(
+            [sys.executable, '-m', module, *map(str, args)],
+            env=env,
+            cwd=str(HELPER_PATH.parent),
+            pass_fds=tuple(pass_fds),
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+        captured = getattr(result, 'stderr', None) or b''
+        text = captured.decode('utf-8', 'replace') if isinstance(captured, bytes) else str(captured)
+        transient = int(result.returncode) != 0 and SMU_TIMEOUT_MARKER in text
+        if transient and attempt < SMU_TIMEOUT_ATTEMPTS:
+            print(
+                f'The SMU did not answer in time (attempt {attempt} of {SMU_TIMEOUT_ATTEMPTS}); '
+                'retrying in a moment.',
+                flush=True,
+            )
+            time.sleep(SMU_TIMEOUT_RETRY_SECONDS)
+            continue
+        if text:
+            sys.stderr.write(text)
+            sys.stderr.flush()
+        return int(result.returncode)
+    return 1
 
 
 def user_detection_config_fd(requested_path: str) -> tuple[int, pathlib.Path]:

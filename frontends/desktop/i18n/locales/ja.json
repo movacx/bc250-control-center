@@ -4539,5 +4539,10 @@
   "· unsaved edits": "· 保存されていない編集内容",
   "● LIVE GOVERNOR": "● ライブガバナー",
   "● LIVE SESSION": "● ライブセッション",
-  "● LIVE TELEMETRY": "● ライブテレメトリ"
+  "● LIVE TELEMETRY": "● ライブテレメトリ",
+  "Additional settings": "追加設定",
+  "Show details": "詳細を表示",
+  "Hide details": "詳細を非表示",
+  "Kernel and graphics": "カーネルとグラフィックス",
+  "Upscaling": "アップスケーリング"
 }
