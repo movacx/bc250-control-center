@@ -4553,5 +4553,6 @@
   "● LIVE GOVERNOR": "● ŽIVĚ GUVERNÉR",
   "● LIVE SESSION": "● ŽIVÉ SEKCE",
   "● LIVE TELEMETRY": "● ŽIVÉ TELEMETRIE",
-  "Decky Quick Access": "Decky Quick Access"
+  "Decky Quick Access": "Decky Quick Access",
+  "The BC-250 kernel manages the compute units (amdgpu.bc250_cc_write_mode=3): it unlocked all of them at boot. This page is read-only while that boot option is set; umr and the live manager are not needed. To change the routing, turn the kernel CU unlock off in Additional settings and reboot.": "Jádro BC-250 spravuje výpočetní jednotky (amdgpu.bc250_cc_write_mode=3): při startu je všechny odemklo. Dokud je tato volba spouštění nastavená, je tato stránka jen pro čtení; umr ani živý správce nejsou potřeba. Chcete-li změnit směrování, vypněte odemčení CU jádrem v Dalších nastaveních a restartujte."
 }

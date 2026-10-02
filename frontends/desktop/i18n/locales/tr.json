@@ -4553,5 +4553,6 @@
   "● LIVE GOVERNOR": "● CANLI VALİ",
   "● LIVE SESSION": "● CANLI OTURUM",
   "● LIVE TELEMETRY": "● CANLI TELEMETRİ",
-  "Decky Quick Access": "Decky Quick Access"
+  "Decky Quick Access": "Decky Quick Access",
+  "The BC-250 kernel manages the compute units (amdgpu.bc250_cc_write_mode=3): it unlocked all of them at boot. This page is read-only while that boot option is set; umr and the live manager are not needed. To change the routing, turn the kernel CU unlock off in Additional settings and reboot.": "BC-250 çekirdeği hesaplama birimlerini yönetiyor (amdgpu.bc250_cc_write_mode=3): açılışta hepsinin kilidini açtı. Bu önyükleme seçeneği ayarlı olduğu sürece bu sayfa salt okunurdur; umr ve canlı yöneticiye gerek yoktur. Yönlendirmeyi değiştirmek için Ek ayarlar'dan çekirdek CU kilit açmayı kapatın ve yeniden başlatın."
 }

@@ -4553,5 +4553,6 @@
   "● LIVE GOVERNOR": "● GUVERNATOR VIE",
   "● LIVE SESSION": "● SESIUNE LIVE",
   "● LIVE TELEMETRY": "● TELEMETRIE LIVE",
-  "Decky Quick Access": "Decky Quick Access"
+  "Decky Quick Access": "Decky Quick Access",
+  "The BC-250 kernel manages the compute units (amdgpu.bc250_cc_write_mode=3): it unlocked all of them at boot. This page is read-only while that boot option is set; umr and the live manager are not needed. To change the routing, turn the kernel CU unlock off in Additional settings and reboot.": "Kernelul BC-250 gestionează unitățile de calcul (amdgpu.bc250_cc_write_mode=3): le-a deblocat pe toate la pornire. Această pagină este doar pentru citire cât timp opțiunea de pornire este setată; umr și managerul live nu sunt necesare. Pentru a schimba rutarea, dezactivează deblocarea CU prin kernel din Setări suplimentare și repornește."
 }

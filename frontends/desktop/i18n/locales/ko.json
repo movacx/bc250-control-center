@@ -4553,5 +4553,6 @@
   "● LIVE GOVERNOR": "● 현직 주지사",
   "● LIVE SESSION": "● 라이브 세션",
   "● LIVE TELEMETRY": "● 실시간 원격 측정",
-  "Decky Quick Access": "Decky Quick Access"
+  "Decky Quick Access": "Decky Quick Access",
+  "The BC-250 kernel manages the compute units (amdgpu.bc250_cc_write_mode=3): it unlocked all of them at boot. This page is read-only while that boot option is set; umr and the live manager are not needed. To change the routing, turn the kernel CU unlock off in Additional settings and reboot.": "BC-250 커널이 컴퓨트 유닛을 관리합니다 (amdgpu.bc250_cc_write_mode=3): 부팅 시 모두 잠금 해제했습니다. 이 부팅 옵션이 설정된 동안 이 페이지는 읽기 전용입니다. umr과 라이브 관리자는 필요하지 않습니다. 라우팅을 변경하려면 추가 설정에서 커널 CU 잠금 해제를 끄고 재부팅하세요."
 }

@@ -4553,5 +4553,6 @@
   "● LIVE GOVERNOR": "● LIVE KUVERNÖRI",
   "● LIVE SESSION": "● LIVE SESSION",
   "● LIVE TELEMETRY": "● SUORAAN TELEMETRIAN",
-  "Decky Quick Access": "Decky Quick Access"
+  "Decky Quick Access": "Decky Quick Access",
+  "The BC-250 kernel manages the compute units (amdgpu.bc250_cc_write_mode=3): it unlocked all of them at boot. This page is read-only while that boot option is set; umr and the live manager are not needed. To change the routing, turn the kernel CU unlock off in Additional settings and reboot.": "BC-250-ydin hallitsee laskentayksiköitä (amdgpu.bc250_cc_write_mode=3): se avasi ne kaikki käynnistyksessä. Tämä sivu on vain luku -tilassa niin kauan kuin käynnistysvalinta on asetettu; umr:ää ja live-hallintaa ei tarvita. Muuta reititystä poistamalla ytimen CU-avaus käytöstä Lisäasetuksista ja käynnistämällä uudelleen."
 }

@@ -4553,5 +4553,6 @@
   "● LIVE GOVERNOR": "● ผู้ว่าราชการสด",
   "● LIVE SESSION": "● เซสชันสด",
   "● LIVE TELEMETRY": "● โทรเลขสด",
-  "Decky Quick Access": "Decky Quick Access"
+  "Decky Quick Access": "Decky Quick Access",
+  "The BC-250 kernel manages the compute units (amdgpu.bc250_cc_write_mode=3): it unlocked all of them at boot. This page is read-only while that boot option is set; umr and the live manager are not needed. To change the routing, turn the kernel CU unlock off in Additional settings and reboot.": "เคอร์เนล BC-250 จัดการหน่วยประมวลผล (amdgpu.bc250_cc_write_mode=3): ปลดล็อกทั้งหมดตอนบูต หน้านี้เป็นแบบอ่านอย่างเดียวขณะที่ตั้งค่าตัวเลือกบูตนั้นไว้ ไม่ต้องใช้ umr และตัวจัดการแบบสด หากต้องการเปลี่ยนการกำหนดเส้นทาง ให้ปิดการปลดล็อก CU โดยเคอร์เนลในการตั้งค่าเพิ่มเติมแล้วรีบูต"
 }

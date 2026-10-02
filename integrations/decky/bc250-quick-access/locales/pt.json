@@ -231,5 +231,6 @@
   "compatStaged": "O Cyan não está em execução: a alteração é guardada e o Cyan reinicia com ela (se estiver ativado) ou usa-a no próximo arranque.",
   "cpuPresetBoardAverage": "Placa média",
   "cpuPresetMidPoint": "Ponto médio",
-  "cpuPresetSafeMaximum": "Máximo seguro"
+  "cpuPresetSafeMaximum": "Máximo seguro",
+  "cuKernelManaged": "O kernel BC-250 gere as Compute Units (bc250_cc_write_mode=3) e desbloqueou-as todas no arranque. Este separador é só de leitura; desative o desbloqueio pelo kernel no Modo Desktop para alterar o encaminhamento."
 }

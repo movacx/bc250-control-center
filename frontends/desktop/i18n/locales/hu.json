@@ -4553,5 +4553,6 @@
   "● LIVE GOVERNOR": "● ÉLŐ KORMÁNYZÓ",
   "● LIVE SESSION": "● ÉLŐ ÜZLET",
   "● LIVE TELEMETRY": "● ÉLŐ TELEMETRIA",
-  "Decky Quick Access": "Decky Quick Access"
+  "Decky Quick Access": "Decky Quick Access",
+  "The BC-250 kernel manages the compute units (amdgpu.bc250_cc_write_mode=3): it unlocked all of them at boot. This page is read-only while that boot option is set; umr and the live manager are not needed. To change the routing, turn the kernel CU unlock off in Additional settings and reboot.": "A BC-250 kernel kezeli a számítási egységeket (amdgpu.bc250_cc_write_mode=3): indításkor mindet feloldotta. Amíg ez a rendszerindítási beállítás aktív, ez az oldal csak olvasható; az umr és az élő kezelő nem szükséges. Az útválasztás módosításához kapcsold ki a kernel CU-feloldását a További beállításokban, majd indítsd újra."
 }

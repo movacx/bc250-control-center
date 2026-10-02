@@ -4553,5 +4553,6 @@
   "● LIVE GOVERNOR": "● LIVE GOUVERNEUR",
   "● LIVE SESSION": "● LIVE-SESSIE",
   "● LIVE TELEMETRY": "● LIVE-TELEMETRIE",
-  "Decky Quick Access": "Decky Quick Access"
+  "Decky Quick Access": "Decky Quick Access",
+  "The BC-250 kernel manages the compute units (amdgpu.bc250_cc_write_mode=3): it unlocked all of them at boot. This page is read-only while that boot option is set; umr and the live manager are not needed. To change the routing, turn the kernel CU unlock off in Additional settings and reboot.": "De BC-250-kernel beheert de rekeneenheden (amdgpu.bc250_cc_write_mode=3): hij heeft ze bij het opstarten allemaal ontgrendeld. Deze pagina is alleen-lezen zolang die opstartoptie is ingesteld; umr en de live-manager zijn niet nodig. Om de routering te wijzigen, schakel je de CU-ontgrendeling door de kernel uit in Aanvullende instellingen en start je opnieuw op."
 }

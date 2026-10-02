@@ -4553,5 +4553,6 @@
   "● LIVE GOVERNOR": "● 现场调速器",
   "● LIVE SESSION": "● 现场会议",
   "● LIVE TELEMETRY": "● 实时遥测",
-  "Decky Quick Access": "Decky Quick Access"
+  "Decky Quick Access": "Decky Quick Access",
+  "The BC-250 kernel manages the compute units (amdgpu.bc250_cc_write_mode=3): it unlocked all of them at boot. This page is read-only while that boot option is set; umr and the live manager are not needed. To change the routing, turn the kernel CU unlock off in Additional settings and reboot.": "BC-250 内核正在管理计算单元 (amdgpu.bc250_cc_write_mode=3)：它在启动时解锁了全部计算单元。只要设置了该启动选项，此页面即为只读；不需要 umr 和实时管理器。要更改路由，请在“附加设置”中关闭内核 CU 解锁并重启。"
 }

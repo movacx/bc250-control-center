@@ -231,5 +231,6 @@
   "compatStaged": "Cyan is not running: the change is saved and Cyan is restarted with it (if it is enabled) or uses it on its next start.",
   "cpuPresetBoardAverage": "Average board",
   "cpuPresetMidPoint": "Mid point",
-  "cpuPresetSafeMaximum": "Safe maximum"
+  "cpuPresetSafeMaximum": "Safe maximum",
+  "cuKernelManaged": "The BC-250 kernel manages the compute units (bc250_cc_write_mode=3) and unlocked all of them at boot. This tab is read-only; turn the kernel CU unlock off in Desktop Mode to change routing."
 }

@@ -185,7 +185,7 @@ _CODES: tuple[ErrorCode, ...] = (
         "Run Unlock/Sync again, check the displayed live map, prepare UMR if missing, and apply only after the requested and driver maps agree.",
         exit_statuses=(30, 62, 63),
         markers=(
-            'QUICK_ACCESS_CU_TABLE', 'QUICK_ACCESS_CU_MODE', 'QUICK_ACCESS_CU_BACKEND',
+            'QUICK_ACCESS_CU_TABLE', 'QUICK_ACCESS_CU_KERNEL', 'QUICK_ACCESS_CU_MODE', 'QUICK_ACCESS_CU_BACKEND',
             'QUICK_ACCESS_CU_SERVICE_REMOVE', 'QUICK_ACCESS_CU_STATE',
             'QUICK_ACCESS_CU_VERIFY', 'QUICK_ACCESS_CU_SERVICE_PROFILE',
             'QUICK_ACCESS_CU_SERVICE_VERIFY',

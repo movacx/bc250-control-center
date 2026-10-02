@@ -231,5 +231,6 @@
   "compatStaged": "Cyan läuft nicht: Die Änderung wird gespeichert und Cyan damit neu gestartet (falls aktiviert) oder beim nächsten Start verwendet.",
   "cpuPresetBoardAverage": "Durchschnittsboard",
   "cpuPresetMidPoint": "Mittelwert",
-  "cpuPresetSafeMaximum": "Sicheres Maximum"
+  "cpuPresetSafeMaximum": "Sicheres Maximum",
+  "cuKernelManaged": "Der BC-250-Kernel verwaltet die Compute Units (bc250_cc_write_mode=3) und hat beim Start alle freigeschaltet. Dieser Tab ist schreibgeschützt; schalte die Kernel-CU-Freischaltung im Desktop-Modus ab, um das Routing zu ändern."
 }

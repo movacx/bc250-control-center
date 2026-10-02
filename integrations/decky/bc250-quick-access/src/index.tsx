@@ -139,6 +139,7 @@ type Result = {
   gpu_dbus_responsive?: boolean;
   gpu_service_conflict?: boolean;
   cu_backend_ready?: boolean;
+  cu_kernel_managed?: boolean;
   cu_total_cus?: number;
   cu_masks?: number[];
   cu_driver_masks?: number[];
@@ -1484,12 +1485,14 @@ function Content() {
     </section> : null}
 
     {boardSection === "cu" ? <section style={{ marginBottom: 12 }}><SectionTitle kind="cu" title={text.compute} trailing={<b style={{ color: accent.focus, fontSize: 11 }}>{draftCUs}/40 {text.target}</b>} />
+      {/* linux-cachyos-bc250 owns CU routing (bc250_cc_write_mode=3): read-only. */}
+      {state.cu_kernel_managed ? <div style={{ color: tokens.colors.amber, fontSize: 10, marginBottom: 6 }}>{text.cuKernelManaged}</div> : null}
       {state.cu_snapshot_warning ? <div style={{ color: tokens.colors.amber, fontSize: 10, marginBottom: 6 }}>{text.snapshotWarning}</div> : null}
       {cuConflict ? <div style={{ background: tokens.colors.amber_soft, border: `1px solid ${tokens.colors.amber}`, borderRadius: 6, color: tokens.colors.amber, fontSize: 10, marginBottom: 6, padding: 6 }}>{text.external}<div style={{ marginTop: 5 }}><ActionRow><Action label={text.restore} disabled={busy} onActivate={() => { dirty.current.cu = false; setCuConflict(false); setCuDraft(liveMasks); }} /><Action label={text.keep} disabled={busy} onActivate={() => setCuConflict(false)} /></ActionRow></div></div> : null}
-      {topology ? <CuMatrix live={liveMasks} driver={driverMasks} draft={cuDraft} disabled={busy || !state.cu_backend_ready} change={(masks) => { dirty.current.cu = true; setCuConflict(false); setCuDraft(masks); }} minimum={() => setFeedback(text.safeCuMinimum)} /> : <div style={{ color: loaded ? tokens.colors.amber : tokens.colors.subtle, fontSize: 10, marginBottom: 6 }}>{loaded ? text.topologyUnavailable : text.loadingTopology}</div>}
+      {topology ? <CuMatrix live={liveMasks} driver={driverMasks} draft={cuDraft} disabled={busy || (!state.cu_backend_ready || Boolean(state.cu_kernel_managed))} change={(masks) => { dirty.current.cu = true; setCuConflict(false); setCuDraft(masks); }} minimum={() => setFeedback(text.safeCuMinimum)} /> : <div style={{ color: loaded ? tokens.colors.amber : tokens.colors.subtle, fontSize: 10, marginBottom: 6 }}>{loaded ? text.topologyUnavailable : text.loadingTopology}</div>}
       <div style={{ minHeight: 78, width: "100%" }}>
-        <ActionRow marginBottom={6}><Action label={text.applyChanges} primary disabled={busy || !topology || !state.cu_backend_ready || sameMasks(cuDraft, liveMasks)} onActivate={() => void execute("BC250 CU", () => applyCuTable(cuDraft), "cu")} /><Action label={text.save} disabled={busy || !topology || !state.cu_backend_ready} onActivate={() => void execute("BC250 CU", () => saveCuTable(cuDraft), "cu")} /></ActionRow>
-        <ActionRow><Action label={text.install} disabled={busy || Boolean(state.cu_service_installed) || !validMasks(state.cu_saved_masks ?? undefined)} onActivate={() => void execute("BC250 CU", installCuService, "cu")} /><Action label={text.remove} danger disabled={busy || !state.cu_service_installed} onActivate={() => showModal(<ConfirmModal strTitle={text.remove} strDescription={text.liveRoutingUnchanged} strOKButtonText={text.remove} bDestructiveWarning onOK={() => void execute("BC250 CU", removeCuService, "cu")} />)} /></ActionRow>
+        <ActionRow marginBottom={6}><Action label={text.applyChanges} primary disabled={busy || !topology || (!state.cu_backend_ready || Boolean(state.cu_kernel_managed)) || sameMasks(cuDraft, liveMasks)} onActivate={() => void execute("BC250 CU", () => applyCuTable(cuDraft), "cu")} /><Action label={text.save} disabled={busy || !topology || (!state.cu_backend_ready || Boolean(state.cu_kernel_managed))} onActivate={() => void execute("BC250 CU", () => saveCuTable(cuDraft), "cu")} /></ActionRow>
+        <ActionRow><Action label={text.install} disabled={busy || Boolean(state.cu_kernel_managed) || Boolean(state.cu_service_installed) || !validMasks(state.cu_saved_masks ?? undefined)} onActivate={() => void execute("BC250 CU", installCuService, "cu")} /><Action label={text.remove} danger disabled={busy || !state.cu_service_installed} onActivate={() => showModal(<ConfirmModal strTitle={text.remove} strDescription={text.liveRoutingUnchanged} strOKButtonText={text.remove} bDestructiveWarning onOK={() => void execute("BC250 CU", removeCuService, "cu")} />)} /></ActionRow>
       </div>
     </section> : null}
 

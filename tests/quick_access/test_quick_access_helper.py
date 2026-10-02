@@ -22,6 +22,9 @@ def helper_module():
     # Most fixtures exercise the generic backend contract. Individual SteamOS
     # tests opt in explicitly so results never depend on the developer host.
     module.is_steamos = lambda: False
+    # Nor on the host's own kernel CU unlock (a linux-cachyos-bc250 board
+    # running bc250_cc_write_mode=3 would refuse every CU write test).
+    module.CU_WRITE_MODE_PARAMETER = Path("/nonexistent/bc250_cc_write_mode")
     # Nor on profiles the developer exported to Decky from this machine: the
     # loader reads a fixed /etc path, and a real export there changed which
     # range "gaming" meant and failed an unrelated test on that host only.
@@ -2100,3 +2103,21 @@ def test_gpu_clock_prefers_hwmon_over_a_plausible_but_wrong_dpm_mark(helper_modu
     (device / "hwmon" / "hwmon1" / "freq1_input").write_text("1700000000\n")
 
     assert helper_module.gpu_core_mhz(tmp_path) == 1700
+
+
+def test_cu_writes_are_refused_while_the_kernel_owns_cu_routing(helper_module, tmp_path, capsys, monkeypatch):
+    parameter = tmp_path / "bc250_cc_write_mode"
+    parameter.write_text("3\n")
+    monkeypatch.setattr(helper_module, "CU_WRITE_MODE_PARAMETER", parameter)
+    monkeypatch.setattr(helper_module, "require_runtime", lambda: "")
+    monkeypatch.setattr(helper_module, "load_contract", lambda: None)
+    # Nothing past the guard may run.
+    monkeypatch.setattr(helper_module, "operation_lock", lambda *_args: (_ for _ in ()).throw(AssertionError("reached a CU write")))
+
+    for argv in (["h", "cu-mode", "40"], ["h", "cu-table", "31", "31", "31", "31"],
+                 ["h", "cu-save", "31", "31", "31", "31"], ["h", "cu-service", "install"]):
+        assert helper_module.main(argv) == 30
+    assert "QUICK_ACCESS_CU_KERNEL" in capsys.readouterr().err
+    assert helper_module.kernel_cu_unlock_active() is True
+    parameter.write_text("0\n")
+    assert helper_module.kernel_cu_unlock_active() is False

@@ -4553,5 +4553,6 @@
   "● LIVE GOVERNOR": "● ライブガバナー",
   "● LIVE SESSION": "● ライブセッション",
   "● LIVE TELEMETRY": "● ライブテレメトリ",
-  "Decky Quick Access": "Decky Quick Access"
+  "Decky Quick Access": "Decky Quick Access",
+  "The BC-250 kernel manages the compute units (amdgpu.bc250_cc_write_mode=3): it unlocked all of them at boot. This page is read-only while that boot option is set; umr and the live manager are not needed. To change the routing, turn the kernel CU unlock off in Additional settings and reboot.": "BC-250 カーネルがコンピュートユニットを管理しています (amdgpu.bc250_cc_write_mode=3)。起動時にすべてを解除しました。この起動オプションが設定されている間、このページは読み取り専用です。umr とライブマネージャーは不要です。ルーティングを変更するには、追加設定でカーネルによる CU 解除をオフにして再起動してください。"
 }

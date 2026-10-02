@@ -1526,6 +1526,17 @@ def trusted_generic_immutable_cu_path(
     )
 
 
+CU_WRITE_MODE_PARAMETER = pathlib.Path("/sys/module/amdgpu/parameters/bc250_cc_write_mode")
+
+
+def kernel_cu_unlock_active(parameter: pathlib.Path | None = None) -> bool:
+    """linux-cachyos-bc250 at clear-all-SAs: the driver owns CU routing."""
+    try:
+        return (parameter or CU_WRITE_MODE_PARAMETER).read_text(encoding="ascii", errors="strict").strip() == "3"
+    except (OSError, UnicodeError):
+        return False
+
+
 def cu_backend_ready() -> bool:
     if is_steamos():
         return (
@@ -3952,6 +3963,7 @@ def status() -> int:
         "cpu_voltage_mv": cpu_voltage_sensor_mv(),
         **board_and_storage_temperatures(),
         "cu_backend_ready": cu_backend_ready(),
+        "cu_kernel_managed": kernel_cu_unlock_active(),
         "cu_active_cus": cu_topology["active_cus"] if cu_topology else None,
         "cu_total_cus": cu_topology["total_cus"] if cu_topology else None,
         "cu_masks": list(cu_topology["masks"]) if cu_topology else None,
@@ -4107,6 +4119,14 @@ def main(argv: Sequence[str]) -> int:
         return gpu_voltage_custom(argv[2:])
     if action == "gpu-compat" and len(argv) == 6:
         return gpu_compatibility(argv[2:])
+    if action in {"cu-mode", "cu-table", "cu-save"} or (action == "cu-service" and argv[2:3] == ["install"]):
+        if kernel_cu_unlock_active():
+            return fail(
+                "QUICK_ACCESS_CU_KERNEL: the BC-250 kernel manages the compute units "
+                "(amdgpu.bc250_cc_write_mode=3) and unlocked all of them at boot; live and "
+                "boot CU writes are refused. Turn the kernel CU unlock off in Desktop Mode to change routing.",
+                30,
+            )
     if action == "cu-mode" and len(argv) == 3:
         with operation_lock(CU_OPERATION_LOCK, "CU"):
             return cu_mode(argv[2])

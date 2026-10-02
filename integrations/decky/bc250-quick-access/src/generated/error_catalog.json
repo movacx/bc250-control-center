@@ -111,6 +111,7 @@
       "code": "BC250-CU-001",
       "markers": [
         "QUICK_ACCESS_CU_TABLE",
+        "QUICK_ACCESS_CU_KERNEL",
         "QUICK_ACCESS_CU_MODE",
         "QUICK_ACCESS_CU_BACKEND",
         "QUICK_ACCESS_CU_SERVICE_REMOVE",
@@ -387,6 +388,7 @@
     "QUICK_ACCESS_GPU_HELPER",
     "QUICK_ACCESS_PRIVILEGE",
     "QUICK_ACCESS_CPU_SCALE",
+    "QUICK_ACCESS_CU_KERNEL",
     "QUICK_ACCESS_CU_VERIFY",
     "failed retrieving file",
     "QUICK_ACCESS_GPU_DBUS",

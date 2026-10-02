@@ -4553,5 +4553,6 @@
   "● LIVE GOVERNOR": "● THỐNG ĐỐC TRỰC TIẾP",
   "● LIVE SESSION": "● PHIÊN TRỰC TIẾP",
   "● LIVE TELEMETRY": "● ĐO LƯỜNG TRỰC TIẾP",
-  "Decky Quick Access": "Decky Quick Access"
+  "Decky Quick Access": "Decky Quick Access",
+  "The BC-250 kernel manages the compute units (amdgpu.bc250_cc_write_mode=3): it unlocked all of them at boot. This page is read-only while that boot option is set; umr and the live manager are not needed. To change the routing, turn the kernel CU unlock off in Additional settings and reboot.": "Nhân BC-250 quản lý các đơn vị tính toán (amdgpu.bc250_cc_write_mode=3): nó đã mở khóa tất cả khi khởi động. Trang này chỉ đọc khi tùy chọn khởi động đó được đặt; không cần umr và trình quản lý trực tiếp. Để thay đổi định tuyến, hãy tắt mở khóa CU bằng nhân trong Cài đặt bổ sung rồi khởi động lại."
 }

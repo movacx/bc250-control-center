@@ -4553,5 +4553,6 @@
   "● LIVE GOVERNOR": "● GABENOR HIDUP",
   "● LIVE SESSION": "● SESI LANGSUNG",
   "● LIVE TELEMETRY": "● TELEMETRI LANGSUNG",
-  "Decky Quick Access": "Decky Quick Access"
+  "Decky Quick Access": "Decky Quick Access",
+  "The BC-250 kernel manages the compute units (amdgpu.bc250_cc_write_mode=3): it unlocked all of them at boot. This page is read-only while that boot option is set; umr and the live manager are not needed. To change the routing, turn the kernel CU unlock off in Additional settings and reboot.": "Kernel BC-250 mengurus unit pengiraan (amdgpu.bc250_cc_write_mode=3): ia membuka kesemuanya semasa but. Halaman ini baca sahaja selagi pilihan but itu ditetapkan; umr dan pengurus langsung tidak diperlukan. Untuk menukar penghalaan, matikan buka kunci CU oleh kernel dalam Tetapan tambahan dan but semula."
 }

@@ -4553,5 +4553,6 @@
   "● LIVE GOVERNOR": "● ΖΩΝΤΑΝΑ ΚΥΒΕΡΝΗΤΗ",
   "● LIVE SESSION": "● LIVE SESSION",
   "● LIVE TELEMETRY": "● ΖΩΝΤΑΝΗ ΤΗΛΕΜΕΤΡΙΑ",
-  "Decky Quick Access": "Decky Quick Access"
+  "Decky Quick Access": "Decky Quick Access",
+  "The BC-250 kernel manages the compute units (amdgpu.bc250_cc_write_mode=3): it unlocked all of them at boot. This page is read-only while that boot option is set; umr and the live manager are not needed. To change the routing, turn the kernel CU unlock off in Additional settings and reboot.": "Ο πυρήνας BC-250 διαχειρίζεται τις υπολογιστικές μονάδες (amdgpu.bc250_cc_write_mode=3): τις ξεκλείδωσε όλες κατά την εκκίνηση. Αυτή η σελίδα είναι μόνο για ανάγνωση όσο είναι ενεργή αυτή η επιλογή εκκίνησης· το umr και ο διαχειριστής σε πραγματικό χρόνο δεν χρειάζονται. Για να αλλάξετε τη δρομολόγηση, απενεργοποιήστε το ξεκλείδωμα CU από τον πυρήνα στις Πρόσθετες ρυθμίσεις και επανεκκινήστε."
 }

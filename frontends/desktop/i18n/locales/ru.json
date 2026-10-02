@@ -4553,5 +4553,6 @@
   "● LIVE GOVERNOR": "● GOVERNOR В РЕАЛЬНОМ ВРЕМЕНИ",
   "● LIVE SESSION": "● СЕАНС В РЕАЛЬНОМ ВРЕМЕНИ",
   "● LIVE TELEMETRY": "● ТЕЛЕМЕТРИЯ В РЕАЛЬНОМ ВРЕМЕНИ",
-  "Decky Quick Access": "Decky Quick Access"
+  "Decky Quick Access": "Decky Quick Access",
+  "The BC-250 kernel manages the compute units (amdgpu.bc250_cc_write_mode=3): it unlocked all of them at boot. This page is read-only while that boot option is set; umr and the live manager are not needed. To change the routing, turn the kernel CU unlock off in Additional settings and reboot.": "Ядро BC-250 управляет вычислительными блоками (amdgpu.bc250_cc_write_mode=3): оно разблокировало их все при загрузке. Пока эта опция загрузки задана, страница доступна только для чтения; umr и живой менеджер не нужны. Чтобы изменить маршрутизацию, отключите разблокировку CU ядром в Дополнительных настройках и перезагрузитесь."
 }
