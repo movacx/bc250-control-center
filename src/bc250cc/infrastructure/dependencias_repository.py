@@ -863,7 +863,7 @@ class DependenciasRepository:
                 ),
                 'cpu_oc': repository_probe['smu_exists'],
                 'core_unlock': repository_probe['core_unlock_script_exists'],
-                'umr': bool(runtime_probe['umr']),
+                'umr': bool(runtime_probe['umr']) and not runtime_probe['umr_broken'],
                 'cu_manager': cu_selection.exists,
                 'fan_pwm': Path('/sys/module/nct6687').is_dir(),
             },
@@ -882,6 +882,7 @@ class DependenciasRepository:
             'paru': runtime_probe['paru'],
             'git': runtime_probe['git'],
             'umr': runtime_probe['umr'],
+            'umr_broken': runtime_probe['umr_broken'],
             'stress': runtime_probe['stress'],
             'bc250_detect': bc250_detect,
             'cu_manager': cu_selection.manager,
@@ -1112,6 +1113,13 @@ class DependenciasRepository:
         if callable(git_probe):
             commands['git'] = str(safe(git_probe, commands['git']) or commands['git'])
         commands['bc250_detect'] = commands.pop('bc250-detect')
+        # Finding umr is not the same as being able to run it: it links against
+        # LLVM, and a copy built before the distribution moved to a newer LLVM
+        # stays in PATH and fails on launch. Such a copy must not count as the
+        # UMR component being present, or Prepare would keep it as it is.
+        commands['umr_broken'] = bool(commands['umr']) and bool(safe(
+            lambda: self._has_unresolved_libraries(commands['umr']), False
+        ))
         # Finding the client binary is not evidence that an OpenRC host has a
         # usable system bus.  Cyan owns a name on that bus and every GPU range
         # change is read back through it, so its preflight must distinguish an
@@ -1121,6 +1129,30 @@ class DependenciasRepository:
             False,
         )
         return commands
+
+    @staticmethod
+    def _has_unresolved_libraries(path: object, *, runner=subprocess.run) -> bool:
+        """True when ``path`` is linked against a shared library that is gone.
+
+        Read-only and bounded. Anything that cannot be asked, including a missing
+        ``ldd`` and a static binary, answers False: only evidence of a missing
+        library may turn a working tool into one that is prepared again.
+        """
+        executable = str(path or '').strip()
+        ldd = shutil.which('ldd')
+        if not executable or not ldd:
+            return False
+        try:
+            result = runner(
+                [ldd, executable],
+                text=True,
+                capture_output=True,
+                timeout=3,
+                check=False,
+            )
+        except (OSError, subprocess.SubprocessError):
+            return False
+        return 'not found' in str(getattr(result, 'stdout', '') or '')
 
     @staticmethod
     def _system_dbus_ready(busctl_path: object, *, runner=subprocess.run) -> bool:
