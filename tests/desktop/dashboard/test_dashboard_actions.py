@@ -394,10 +394,10 @@ def test_dashboard_stages_and_restores_bazzite_cpu_mitigations(qtbot):
 
     assert page.readiness.mitigations_status.text() == "Enabled"
     assert not page.readiness.mitigations_panel.isHidden()
-    components_layout = page.readiness.mitigations_panel.parentWidget().layout()
-    assert components_layout.indexOf(page.readiness.mitigations_panel) < (
-        components_layout.indexOf(page.readiness.components_host)
-    )
+    # Boot options are not dependency preparation: the Dashboard keeps the panel
+    # built but in a holder that is never shown; Additional settings shows it.
+    assert page.readiness.mitigations_panel.parentWidget() is page.readiness._boot_holder
+    assert page.readiness._boot_holder.isHidden()
     assert not page.readiness.memory_panel.isAncestorOf(
         page.readiness.mitigations_apply_button
     )

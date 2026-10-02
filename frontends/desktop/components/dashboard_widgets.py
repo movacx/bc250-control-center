@@ -1354,9 +1354,24 @@ class PreparationSidebar(QFrame):
             card.setProperty("gamepadHorizontalIndex", index)
             card.checkbox.toggled.connect(self._sync_components)
             self.component_cards[key] = card
-        layout.addWidget(self._bazzite_mitigations_panel())
-        layout.addWidget(self._steamos_readonly_panel())
-        layout.addWidget(self._kernel_options_panel())
+        # Mitigations, read-only mode and kernel options are not dependency
+        # preparation. They live on Additional settings > Compatibility; the
+        # Dashboard keeps the panels built (their state is still written) but
+        # inside a holder that is never shown.
+        self._boot_panels = (
+            self._bazzite_mitigations_panel(),
+            self._steamos_readonly_panel(),
+            self._kernel_options_panel(),
+        )
+        self._boot_holder = QWidget()
+        holder_layout = QVBoxLayout(self._boot_holder)
+        holder_layout.setContentsMargins(0, 0, 0, 0)
+        holder_layout.setSpacing(8)
+        for boot_panel in self._boot_panels:
+            holder_layout.addWidget(boot_panel)
+        self._boot_holder.hide()
+        if not self._standalone:
+            layout.addWidget(self._boot_holder)
         layout.addWidget(self.components_host)
         layout.addStretch(1)
         return page
@@ -1919,20 +1934,23 @@ class PreparationSidebar(QFrame):
         detail.setWordWrap(True)
         root.addWidget(detail)
         self.kernel_option_controls: dict[str, tuple[QLabel, PillLabel, QPushButton]] = {}
-        for option, title, _disable, _restore in self.KERNEL_OPTION_ROWS:
-            row = QHBoxLayout()
-            row.setSpacing(8)
+        # One grid, so the buttons share a column and a width whatever each
+        # row currently says ("Restore mitigations" is wider than "Disable SMT").
+        grid = QGridLayout()
+        grid.setHorizontalSpacing(8)
+        grid.setVerticalSpacing(8)
+        grid.setColumnStretch(2, 1)
+        root.addLayout(grid)
+        for row, (option, title, _disable, _restore) in enumerate(self.KERNEL_OPTION_ROWS):
             name = _label(title, "dashboardCompatibilityLabel", wrap=False)
-            row.addWidget(name)
             pill = PillLabel("Checking", "gray")
-            row.addWidget(pill)
-            row.addStretch(1)
             button = QPushButton(tr(_disable))
             button.setProperty("dashboardCardAction", True)
-            button.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+            button.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
             button.clicked.connect(lambda _checked=False, value=option: self._request_kernel_option(value))
-            row.addWidget(button)
-            root.addLayout(row)
+            grid.addWidget(name, row, 0, Qt.AlignmentFlag.AlignVCenter)
+            grid.addWidget(pill, row, 1, Qt.AlignmentFlag.AlignVCenter)
+            grid.addWidget(button, row, 3)
             self.kernel_option_controls[option] = (name, pill, button)
         self._kernel_options_state: dict[str, object] = {}
         panel.hide()
@@ -2358,6 +2376,9 @@ class PreparationSidebar(QFrame):
             ("Upscaling", self.fsr4_cards),
         )
         layout.setSpacing(0)
+        # Boot options: the panels that used to sit above the component list.
+        layout.insertSpacing(layout.count() - 1, 12)
+        layout.insertWidget(layout.count() - 1, self._boot_holder)
         self._compatibility_headings = []
         for title, cards in self.compatibility_groups:
             index = layout.indexOf(cards[0])
@@ -2386,6 +2407,7 @@ class PreparationSidebar(QFrame):
         """Hide a group whose tools are all hidden; keep one rule above each row but the first."""
         if not self._standalone or not hasattr(self, "_compatibility_headings"):
             return
+        self._boot_holder.setVisible(any(not panel.isHidden() for panel in self._boot_panels))
         for heading, box, cards in self._compatibility_headings:
             shown = [card for card in cards if not card.isHidden()]
             heading.setVisible(bool(shown))

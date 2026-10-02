@@ -102,3 +102,25 @@ def test_buttons_of_a_collapsed_row_keep_their_width_and_accent_in_sync(qtbot):
     card.update_action(link, text="Install Mesa", visible=True)
     assert card.actions.stretch(card.actions.indexOf(link)) == 1
     assert int(card.actions.itemAt(card.actions.indexOf(link)).alignment().value) == 0
+
+
+def test_boot_options_show_on_additional_settings_and_not_on_the_dashboard(qtbot):
+    from frontends.desktop.components.dashboard_widgets import PreparationSidebar
+
+    dashboard = PreparationSidebar()
+    qtbot.addWidget(dashboard)
+    dashboard.show()
+    assert dashboard._boot_holder.isHidden()
+
+    page = AdditionalSettingsPage()
+    qtbot.addWidget(page)
+    page.resize(1200, 900)
+    page.show()
+    panel = page.panel
+    assert panel._boot_holder.parentWidget() is not None
+    assert panel._boot_holder.isAncestorOf(panel.kernel_options_panel)
+    # Nothing to show until the helper reports a manageable boot setup.
+    assert panel._boot_holder.isHidden()
+    panel.kernel_options_panel.setVisible(True)
+    panel._refresh_compatibility_summary()
+    assert not panel._boot_holder.isHidden()
