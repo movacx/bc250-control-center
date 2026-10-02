@@ -62,7 +62,10 @@ CONTRACT_REVISION = 1
 # Protocol 19 adds the Desktop's fan profiles as the quiet/balanced/boost
 # presets ("fan_profiles" in the status), "fan-resume" and the
 # system_fan_* ownership fields that per-game profiles restore from.
-QUICK_ACCESS_PROTOCOL = 19
+#
+# Protocol 20 adds "gpu-compat" (Cyan kernel compatibility: set method, usage
+# reading, Fix metrics, Fix frequencies) and the gpu_compatibility status field.
+QUICK_ACCESS_PROTOCOL = 20
 CPU_SMU_HELPER_PROTOCOL = 8
 GOVERNOR_CONFIG_PROTOCOL = 6
 STEAMOS_GAME_HELPER_PROTOCOL = 21

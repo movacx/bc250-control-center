@@ -42,7 +42,9 @@ from contextlib import contextmanager
 # presets ("fan_profiles" in the status), "fan-resume" (hand the fans back to
 # the desktop's system fan service after a Decky takeover) and the
 # system_fan_* ownership fields per-game profiles restore from.
-HELPER_PROTOCOL = 19
+# Protocol 20 adds "gpu-compat <smu|kernel> <busy-flag|process|kernel> <0|1> <0|1>"
+# (the desktop's Cyan kernel compatibility) and the gpu_compatibility status field.
+HELPER_PROTOCOL = 20
 REQUIRED_CONTRACT_REVISION = 1
 CONTRACT_PATH = pathlib.Path(
     "/usr/libexec/bc250-control-center/lib/bc250_contract.py"
@@ -1955,6 +1957,92 @@ def cyan_set_method(config: pathlib.Path = CYAN_CONFIG) -> str | None:
     return method if method in {"smu", "kernel"} else None
 
 
+CYAN_USAGE_METHODS = ("busy-flag", "process", "kernel")
+
+
+def cyan_compatibility(config: pathlib.Path = CYAN_CONFIG) -> dict[str, object] | None:
+    """The four Cyan kernel-compatibility settings, read from the protected TOML.
+
+    Defaults follow the governor's own: SMU writes, the busy-flag usage reading
+    (the only one that never walks every open file), Fix metrics on and Fix
+    frequencies off. None means there is no trustworthy Cyan configuration.
+    """
+    if not trusted_directory(config.parent) or not trusted_file(config):
+        return None
+    try:
+        parsed = tomllib.loads(config.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, tomllib.TOMLDecodeError):
+        return None
+    gpu = parsed.get("gpu") if isinstance(parsed.get("gpu"), dict) else {}
+    usage = parsed.get("gpu-usage")
+    if not isinstance(usage, dict):
+        usage = parsed.get("gpu_usage") if isinstance(parsed.get("gpu_usage"), dict) else {}
+    set_method = str(gpu.get("set-method") or "smu").strip().lower()
+    usage_method = str(usage.get("method") or "busy-flag").strip().lower()
+    if set_method not in {"smu", "kernel"} or usage_method not in CYAN_USAGE_METHODS:
+        return None
+    fix_metrics = usage.get("fix-metrics", True)
+    fix_frequency = usage.get("fix-freq", usage.get("fix_freq", False))
+    return {
+        "set_method": set_method,
+        "usage_method": usage_method,
+        "fix_metrics": bool(fix_metrics),
+        "fix_frequency": bool(fix_frequency),
+    }
+
+
+def gpu_compatibility(arguments: Sequence[str]) -> int:
+    """Apply Cyan's kernel compatibility, then restart it so it takes effect.
+
+    The range is put back only when Cyan still answered before the change. When
+    it does not (the "process" usage reading stops it answering while a game is
+    open) a plain restart is the point: the new reading is what gets it
+    answering again.
+    """
+    set_method, usage_method, fix_metrics, fix_frequency = arguments
+    if (
+        set_method not in {"smu", "kernel"}
+        or usage_method not in CYAN_USAGE_METHODS
+        or fix_metrics not in {"0", "1"}
+        or fix_frequency not in {"0", "1"}
+    ):
+        return fail(
+            "QUICK_ACCESS_GPU_COMPAT: expected smu|kernel, busy-flag|process|kernel and two 0/1 flags.", 20,
+        )
+    if active_gpu_governor() != "cyan":
+        return fail("QUICK_ACCESS_GPU_COMPAT: the Cyan governor must be the active governor.", 21)
+    if not trusted_file(GOVERNOR_CONFIG_HELPER, executable=True):
+        return fail(
+            "QUICK_ACCESS_GPU_HELPER: the protected governor configuration helper is unavailable. "
+            "Reinstall BC250 Control Center.", 21,
+        )
+    previous = cyan_range()
+    result = run(
+        [str(GOVERNOR_CONFIG_HELPER), "set-cyan-compatibility",
+         set_method, usage_method, fix_metrics, fix_frequency],
+        timeout=20,
+    )
+    if result.returncode != 0:
+        return fail(result.stderr.strip() or result.stdout.strip() or "Governor configuration update failed.", 22)
+    if previous is not None:
+        error = _restart_cyan_keeping_range(previous)
+    else:
+        restarted = run(["/usr/bin/systemctl", "restart", CYAN_SERVICE], timeout=30)
+        error = "" if restarted.returncode == 0 else (
+            restarted.stderr.strip() or restarted.stdout.strip()
+            or "QUICK_ACCESS_GPU_VERIFY: Cyan did not restart."
+        )
+    if error:
+        return fail(error, 24)
+    print(json.dumps({
+        "ok": True,
+        "message": "Cyan kernel compatibility applied.",
+        "gpu_compatibility": cyan_compatibility(),
+        "gpu_range": list(cyan_range() or ()),
+    }))
+    return 0
+
+
 def cyan_safe_point_ceilings(config: pathlib.Path = CYAN_CONFIG) -> tuple[dict[str, int], ...]:
     """Return only active, validated TOML ceilings above 2000 MHz.
 
@@ -3720,6 +3808,7 @@ def status() -> int:
         # and it carried its own copy of the VID coefficients and the CU
         # ladder. Anything it needs to draw a control belongs here.
         "contract": _contract_payload(),
+        "gpu_compatibility": cyan_compatibility(),
         "vram": vram_status(),
         **memory_runtime_state(),
         **system_memory_state(),
@@ -3825,11 +3914,12 @@ def main(argv: Sequence[str]) -> int:
         len(argv) == 2
         or (len(argv) == 3 and argv[1] in {"gpu-profile", "gpu-safe-point", "gpu-high-points", "gpu-service", "gpu-voltage-level", "cu-mode", "cu-service", "fan-auto", "fan-system", "cpu-service", "vram-apply"})
         or (3 <= len(argv) <= 20 and argv[1] == "gpu-voltage-custom")
+        or (len(argv) == 6 and argv[1] == "gpu-compat")
         or (len(argv) == 4 and argv[1] in {"fan-channel", "cpu-detect", "cpu-scale"})
         or (len(argv) == 6 and argv[1] in {"cu-table", "cu-save"})
     )
     if not valid_arity:
-        return fail("Usage: status | cpu-telemetry | qam-sensors | gddr6-sensors | gpu-profile <name> | gpu-safe-point <toml-mhz> | gpu-high-points <0|1> | gpu-service <enable|disable> | gpu-voltage-level <0-3> | gpu-voltage-custom <mhz=mv>... | cu-mode <name> | cu-table <m0> <m1> <m2> <m3> | cu-save <m0> <m1> <m2> <m3> | cu-service <install|remove> | fan-auto <channel> | fan-system <preset> | fan-resume | fan-channel <2-5> <automatic|20-100> | cpu-apply-saved | cpu-detect <frequency> <vid> | cpu-scale <frequency> <scale> | cpu-service <install|remove> | vram-apply <mb>", 2)
+        return fail("Usage: status | cpu-telemetry | qam-sensors | gddr6-sensors | gpu-profile <name> | gpu-safe-point <toml-mhz> | gpu-high-points <0|1> | gpu-service <enable|disable> | gpu-voltage-level <0-3> | gpu-voltage-custom <mhz=mv>... | gpu-compat <smu|kernel> <busy-flag|process|kernel> <0|1> <0|1> | cu-mode <name> | cu-table <m0> <m1> <m2> <m3> | cu-save <m0> <m1> <m2> <m3> | cu-service <install|remove> | fan-auto <channel> | fan-system <preset> | fan-resume | fan-channel <2-5> <automatic|20-100> | cpu-apply-saved | cpu-detect <frequency> <vid> | cpu-scale <frequency> <scale> | cpu-service <install|remove> | vram-apply <mb>", 2)
     action = argv[1]
     if action == "status" and len(argv) == 2:
         return status()
@@ -3851,6 +3941,8 @@ def main(argv: Sequence[str]) -> int:
         return gpu_voltage_level(argv[2])
     if action == "gpu-voltage-custom":
         return gpu_voltage_custom(argv[2:])
+    if action == "gpu-compat" and len(argv) == 6:
+        return gpu_compatibility(argv[2:])
     if action == "cu-mode" and len(argv) == 3:
         with operation_lock(CU_OPERATION_LOCK, "CU"):
             return cu_mode(argv[2])

@@ -1893,3 +1893,54 @@ def test_a_program_that_does_not_answer_fails_the_command_not_the_whole_action(
     # The readers built on it report 'unknown', never raise.
     assert helper_module.cyan_range() is None
     assert helper_module.cyan_allowed_range() is None
+
+
+def _write_cyan_config(path, body):
+    path.write_text(body, encoding="utf-8")
+
+
+def test_cyan_compatibility_reads_the_four_settings_with_the_governors_defaults(
+    helper_module, tmp_path, monkeypatch
+):
+    monkeypatch.setattr(helper_module, "trusted_directory", lambda _path: True)
+    monkeypatch.setattr(helper_module, "trusted_file", lambda _path, **_kw: True)
+    config = tmp_path / "config.toml"
+    _write_cyan_config(config, "[gpu]\n")
+    assert helper_module.cyan_compatibility(config) == {
+        "set_method": "smu", "usage_method": "busy-flag",
+        "fix_metrics": True, "fix_frequency": False,
+    }
+    _write_cyan_config(
+        config,
+        '[gpu]\nset-method = "kernel"\n[gpu-usage]\nmethod = "process"\nfix-metrics = false\nfix-freq = true\n',
+    )
+    assert helper_module.cyan_compatibility(config) == {
+        "set_method": "kernel", "usage_method": "process",
+        "fix_metrics": False, "fix_frequency": True,
+    }
+    _write_cyan_config(config, '[gpu-usage]\nmethod = "bogus"\n')
+    assert helper_module.cyan_compatibility(config) is None
+
+
+def test_gpu_compat_refuses_bad_values_and_restarts_cyan_even_when_it_does_not_answer(
+    helper_module, monkeypatch, capsys
+):
+    assert helper_module.gpu_compatibility(["smu", "bogus", "1", "0"]) == 20
+    assert helper_module.gpu_compatibility(["smu", "busy-flag", "yes", "0"]) == 20
+    capsys.readouterr()
+
+    calls = []
+    monkeypatch.setattr(helper_module, "active_gpu_governor", lambda: "cyan")
+    monkeypatch.setattr(helper_module, "trusted_file", lambda _path, **_kw: True)
+    monkeypatch.setattr(helper_module, "cyan_range", lambda: None)  # Cyan is hung
+    monkeypatch.setattr(helper_module, "cyan_compatibility", lambda *_a, **_k: {"usage_method": "busy-flag"})
+
+    def fake_run(command, **_kwargs):
+        calls.append(list(command))
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    monkeypatch.setattr(helper_module, "run", fake_run)
+    assert helper_module.gpu_compatibility(["smu", "busy-flag", "1", "0"]) == 0
+    assert calls[0][-5:] == ["set-cyan-compatibility", "smu", "busy-flag", "1", "0"]
+    assert calls[1][:3] == ["/usr/bin/systemctl", "restart", helper_module.CYAN_SERVICE]
+    assert json.loads(capsys.readouterr().out)["ok"] is True

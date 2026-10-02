@@ -50,7 +50,7 @@ CONTRACT_PATH = pathlib.Path(
 # shape of the shared contract this file was written against.
 # Protocol 19 adds fan_profiles/system_fan_* to the status and "fan-resume",
 # which per-game profiles use to hand the fans back after a game.
-HELPER_PROTOCOL = 19
+HELPER_PROTOCOL = 20
 REQUIRED_CONTRACT_REVISION = 1
 GPU_PROFILES = (
     "balanced", "gaming", "benchmark",
@@ -983,6 +983,36 @@ class Plugin:
                     self._run, "gpu-voltage-level", str(level), timeout=90,
                 )
             return self._record_action("gpu", f"voltage-level-{level}", result)
+
+    async def apply_gpu_compatibility(
+        self, set_method: str, usage_method: str, fix_metrics: bool, fix_frequency: bool,
+    ) -> dict:
+        """Cyan kernel compatibility: write the four settings, restart Cyan.
+
+        Reachable even while Cyan is not answering, on purpose: the "process"
+        usage reading stops it answering with a game open, and switching to
+        busy-flag is how it starts answering again. The helper validates every
+        value again and does the restart.
+        """
+        if (
+            set_method not in ("smu", "kernel")
+            or usage_method not in ("busy-flag", "process", "kernel")
+            or type(fix_metrics) is not bool or type(fix_frequency) is not bool
+        ):
+            return {"ok": False, "error": "Unsupported Cyan compatibility request."}
+        if self._operation_lock.locked():
+            return {
+                "ok": False,
+                "error": "A BC250 operation is still running. Wait for its verified result before changing the Cyan compatibility.",
+            }
+        async with self._operation_lock:
+            async with self._helper_lock:
+                result = await asyncio.to_thread(
+                    self._run, "gpu-compat", set_method, usage_method,
+                    "1" if fix_metrics else "0", "1" if fix_frequency else "0",
+                    timeout=90,
+                )
+            return self._record_action("gpu", f"compat-{set_method}-{usage_method}", result)
 
     async def apply_gpu_voltage_points(self, points: list[dict]) -> dict:
         """Set a few TOML points; the helper bounds each one again."""
