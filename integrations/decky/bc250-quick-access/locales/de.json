@@ -6,7 +6,7 @@
   "accentOrange": "Orange",
   "accentPurple": "Lila",
   "accentWhite": "Weiß",
-  "aceHint": "Zeit auf den Compute-Warteschlangen laut amdgpu. Async Compute wird in der Desktop-App ein- oder ausgeschaltet: Dafür ist eine neue Sitzung nötig.",
+  "aceHint": "Zeit auf den Compute-Queues, von amdgpu gelesen, mit jedem Treiber: MastaGs Mesa (Async Compute standardmäßig an) oder der GFX1013-Build der App. Steigt nur, wenn ein Spiel Async Compute wirklich nutzt.",
   "aceInUse": "Async compute (ACE) aktiv",
   "aceMeasuring": "Wird gemessen…",
   "advanced": "Erweitert",

@@ -1557,8 +1557,9 @@ function Content() {
 }
 
 // Read-only: whether the running game really uses the compute (ACE) queues,
-// from the same amdgpu counter the desktop's Performance page reads. Turning
-// async compute on or off needs a new session, so that stays on the desktop.
+// from the same amdgpu counter the desktop's Performance page reads. The
+// counter is the driver's, so it works with MastaG's Mesa (async compute on by
+// default) as well as with the app's own GFX1013 build.
 function AceRow({ state }: { state: Status }) {
   const game = useRunningGame();
   const percent = state.ace_busy_percent;

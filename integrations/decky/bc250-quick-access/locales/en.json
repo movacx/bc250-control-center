@@ -6,7 +6,7 @@
   "accentOrange": "Orange",
   "accentPurple": "Purple",
   "accentWhite": "White",
-  "aceHint": "Time on the compute queues, from amdgpu. Async compute is turned on or off in the desktop app: it needs a new session.",
+  "aceHint": "Time on the compute queues, read from amdgpu for any driver: MastaG's Mesa (async compute on by default) or the app's GFX1013 build. It only rises while a game really uses async compute.",
   "aceInUse": "Async compute (ACE) in use",
   "aceMeasuring": "Measuring…",
   "advanced": "Advanced",

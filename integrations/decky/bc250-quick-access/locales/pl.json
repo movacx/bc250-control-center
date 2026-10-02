@@ -6,7 +6,7 @@
   "accentOrange": "Pomarańczowy",
   "accentPurple": "Fioletowy",
   "accentWhite": "Biały",
-  "aceHint": "Czas pracy kolejek obliczeniowych według amdgpu. Async compute włącza się i wyłącza w aplikacji na pulpicie: wymaga nowej sesji.",
+  "aceHint": "Czas na kolejkach obliczeniowych, odczytany z amdgpu dla każdego sterownika: Mesa od MastaG (async compute domyślnie włączony) lub GFX1013 z aplikacji. Rośnie tylko, gdy gra naprawdę używa async compute.",
   "aceInUse": "Async compute (ACE) w użyciu",
   "aceMeasuring": "Pomiar…",
   "advanced": "Zaawansowane",

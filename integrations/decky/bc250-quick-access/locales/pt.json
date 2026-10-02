@@ -6,7 +6,7 @@
   "accentOrange": "Laranja",
   "accentPurple": "Roxo",
   "accentWhite": "Branco",
-  "aceHint": "Tempo nas filas de computação, segundo o amdgpu. O async compute é ativado ou desativado no app de desktop: exige uma nova sessão.",
+  "aceHint": "Tempo nas filas de computação, lido do amdgpu com qualquer driver: o Mesa do MastaG (async compute ativo por padrão) ou o GFX1013 da app. Só sobe quando um jogo usa mesmo o async compute.",
   "aceInUse": "Async compute (ACE) em uso",
   "aceMeasuring": "Medindo…",
   "advanced": "Avançado",
