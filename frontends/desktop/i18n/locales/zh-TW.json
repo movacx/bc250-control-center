@@ -3652,6 +3652,7 @@
   "The export used existing history and did not probe hardware.": "匯出使用現有歷史記錄並且不探測硬體。",
   "The external package repository is no longer published at its expected address.": "外部套件庫已不再發佈於預期位址。",
   "The external per-game FSR4 profile is also intact. Keep its launch option scoped to the games you are testing.": "外部每場比賽的 FSR4 配置文件也完好無損。使其啟動選項僅限於您正在測試的遊戲。",
+  "The extra CUs raise power draw by about 30 W, and at a 2 GHz GPU clock a board reached 96 °C in upstream tests: cap the GPU clock to about 1500 MHz with the governor.": "額外的 CU 會使功耗增加約 30 W，在 GPU 時脈為 2 GHz 時，上游測試中有主機板達到 96 °C：請透過 governor 將 GPU 時脈限制在約 1500 MHz。",
   "The factory/24CU dispatch will be restored live using bc250-cu-live-manager.": "工廠/24CU 排程將使用 bc250-cu-live-manager 實時恢復。",
   "The fan control path is unavailable or rejected the write.": "風扇控制路徑不可用或拒絕寫入。",
   "The fan curve in the file is not valid.": "檔案中的風扇曲線無效。",

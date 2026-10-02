@@ -3652,6 +3652,7 @@
   "The export used existing history and did not probe hardware.": "Export používal existující historii a nezkoumal hardware.",
   "The external package repository is no longer published at its expected address.": "Externí repozitář balíčků již není publikován na očekávané adrese.",
   "The external per-game FSR4 profile is also intact. Keep its launch option scoped to the games you are testing.": "Externí profil FSR4 pro jednotlivé hry je také nedotčen. Nechte jeho možnost spuštění v rozsahu pro hry, které testujete.",
+  "The extra CUs raise power draw by about 30 W, and at a 2 GHz GPU clock a board reached 96 °C in upstream tests: cap the GPU clock to about 1500 MHz with the governor.": "Další CU zvyšují odběr zhruba o 30 W a při taktu GPU 2 GHz dosáhla deska v testech upstreamu 96 °C: omezte takt GPU na zhruba 1500 MHz pomocí governoru.",
   "The factory/24CU dispatch will be restored live using bc250-cu-live-manager.": "Tovární odeslání/24CU bude obnoveno živě pomocí správce bc250-cu-live-manager.",
   "The fan control path is unavailable or rejected the write.": "Cesta řízení ventilátoru je nedostupná nebo byl zamítnut zápis.",
   "The fan curve in the file is not valid.": "Křivka ventilátoru v souboru je neplatná.",

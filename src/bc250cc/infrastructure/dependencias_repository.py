@@ -255,7 +255,7 @@ class DependenciasRepository:
         )
 
     def gestionar_opciones_kernel(self, options):
-        """Set which of mitigations=off / nosmt Control Center manages."""
+        """Set which kernel boot options Control Center manages (see KERNEL_OPTIONS)."""
         if self._os_repository().family in {'bazzite', 'steamos'}:
             raise RuntimeError('Kernel boot options are managed differently on this system.')
         return self._abrir_terminal(

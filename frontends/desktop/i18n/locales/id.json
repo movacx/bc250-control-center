@@ -3652,6 +3652,7 @@
   "The export used existing history and did not probe hardware.": "Ekspor menggunakan riwayat yang ada dan tidak menyelidiki perangkat keras.",
   "The external package repository is no longer published at its expected address.": "Repositori paket eksternal tidak lagi diterbitkan di alamat yang diharapkan.",
   "The external per-game FSR4 profile is also intact. Keep its launch option scoped to the games you are testing.": "Profil FSR4 eksternal per game juga masih utuh. Pertahankan opsi peluncurannya sesuai dengan game yang Anda uji.",
+  "The extra CUs raise power draw by about 30 W, and at a 2 GHz GPU clock a board reached 96 °C in upstream tests: cap the GPU clock to about 1500 MHz with the governor.": "CU tambahan menaikkan konsumsi daya sekitar 30 W, dan pada clock GPU 2 GHz sebuah papan mencapai 96 °C dalam pengujian upstream: batasi clock GPU sekitar 1500 MHz dengan governor.",
   "The factory/24CU dispatch will be restored live using bc250-cu-live-manager.": "Pengiriman pabrik/24CU akan dipulihkan secara langsung menggunakan bc250-cu-live-manager.",
   "The fan control path is unavailable or rejected the write.": "Jalur kontrol kipas tidak tersedia atau penulisan ditolak.",
   "The fan curve in the file is not valid.": "Kurva kipas di berkas tidak valid.",

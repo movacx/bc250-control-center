@@ -3652,6 +3652,7 @@
   "The export used existing history and did not probe hardware.": "Quá trình xuất sử dụng lịch sử hiện có và không thăm dò phần cứng.",
   "The external package repository is no longer published at its expected address.": "Kho gói bên ngoài không còn được phát hành tại địa chỉ dự kiến.",
   "The external per-game FSR4 profile is also intact. Keep its launch option scoped to the games you are testing.": "Cấu hình FSR4 bên ngoài mỗi trò chơi cũng được giữ nguyên. Giữ tùy chọn khởi chạy của nó trong phạm vi trò chơi bạn đang thử nghiệm.",
+  "The extra CUs raise power draw by about 30 W, and at a 2 GHz GPU clock a board reached 96 °C in upstream tests: cap the GPU clock to about 1500 MHz with the governor.": "Các CU bổ sung làm tăng mức tiêu thụ điện khoảng 30 W, và ở xung GPU 2 GHz một bo mạch đã đạt 96 °C trong thử nghiệm của upstream: hãy giới hạn xung GPU ở khoảng 1500 MHz bằng governor.",
   "The factory/24CU dispatch will be restored live using bc250-cu-live-manager.": "Công văn nhà máy/24CU sẽ được khôi phục trực tiếp bằng cách sử dụng bc250-cu-live-manager.",
   "The fan control path is unavailable or rejected the write.": "Đường dẫn điều khiển quạt không khả dụng hoặc bị từ chối ghi.",
   "The fan curve in the file is not valid.": "Đường cong quạt trong tệp không hợp lệ.",

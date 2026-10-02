@@ -67,7 +67,7 @@ from bc250cc.domain.gpu.profiles import (
     default_cyan_profiles,
     profiles_for_allowed_range,
 )
-from bc250cc.infrastructure.system_setup import CU_UNLOCK_OPTION
+from bc250cc.infrastructure.system_setup import CU_UNLOCK_OPTION, CU_UNLOCK_THERMAL_NOTE
 from bc250cc.infrastructure.bazzite_async_compute import (
     BAZZITE_ASYNC_COMPUTE_REPOSITORY,
 )
@@ -3909,6 +3909,7 @@ class GpuGovernorPage(QWidget):
                     "so only one of them sets the CUs. A board with a damaged CU pair cannot run all "
                     "40. The change applies after reboot and can be restored from Control Center."
                 )
+                body = tr(body) + "\n\n" + tr(CU_UNLOCK_THERMAL_NOTE)
                 confirm_text, tone = "Unlock 40 CUs", "orange"
             elif changed == "mitigations=off":
                 title = "Disable CPU security mitigations"
@@ -3928,7 +3929,9 @@ class GpuGovernorPage(QWidget):
                 confirm_text, tone = "Disable SMT", "orange"
             confirmation = ConfirmDialog(
                 tr(title),
-                tr(body),
+                # The unlock's body is already translated: it carries the
+                # thermal paragraph, which has its own catalog entry.
+                body if changed == CU_UNLOCK_OPTION else tr(body),
                 summary=(
                     (tr("Kernel argument"), changed),
                     (tr("Reboot"), tr("Required to activate the selected configuration")),

@@ -3652,6 +3652,7 @@
   "The export used existing history and did not probe hardware.": "Η εξαγωγή χρησιμοποίησε το υπάρχον ιστορικό και δεν εξέτασε το υλικό.",
   "The external package repository is no longer published at its expected address.": "Το εξωτερικό αποθετήριο πακέτων δεν δημοσιεύεται πλέον στην αναμενόμενη διεύθυνση.",
   "The external per-game FSR4 profile is also intact. Keep its launch option scoped to the games you are testing.": "Το εξωτερικό προφίλ FSR4 ανά παιχνίδι είναι επίσης άθικτο. Διατηρήστε την επιλογή εκκίνησης σε εύρος για τα παιχνίδια που δοκιμάζετε.",
+  "The extra CUs raise power draw by about 30 W, and at a 2 GHz GPU clock a board reached 96 °C in upstream tests: cap the GPU clock to about 1500 MHz with the governor.": "Οι επιπλέον CU αυξάνουν την κατανάλωση κατά περίπου 30 W και με ρολόι GPU 2 GHz μια πλακέτα έφτασε τους 96 °C στις δοκιμές του upstream: περιορίστε το ρολόι της GPU στα 1500 MHz περίπου με το governor.",
   "The factory/24CU dispatch will be restored live using bc250-cu-live-manager.": "Η αποστολή εργοστασιακής/24CU θα αποκατασταθεί ζωντανά χρησιμοποιώντας bc250-cu-live-manager.",
   "The fan control path is unavailable or rejected the write.": "Η διαδρομή ελέγχου ανεμιστήρα δεν είναι διαθέσιμη ή απορρίφθηκε η εγγραφή.",
   "The fan curve in the file is not valid.": "Η καμπύλη ανεμιστήρα στο αρχείο δεν είναι έγκυρη.",

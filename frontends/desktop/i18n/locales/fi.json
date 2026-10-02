@@ -3652,6 +3652,7 @@
   "The export used existing history and did not probe hardware.": "Vienti käytti olemassa olevaa historiaa eikä tutkinut laitteistoa.",
   "The external package repository is no longer published at its expected address.": "Ulkoista pakettivarastoa ei enää julkaista odotetussa osoitteessa.",
   "The external per-game FSR4 profile is also intact. Keep its launch option scoped to the games you are testing.": "Myös ulkoinen pelikohtainen FSR4-profiili on ehjä. Pidä sen käynnistysvaihtoehto kohdistettuna testaamiisi peleihin.",
+  "The extra CUs raise power draw by about 30 W, and at a 2 GHz GPU clock a board reached 96 °C in upstream tests: cap the GPU clock to about 1500 MHz with the governor.": "Lisä-CU:t lisäävät tehonkulutusta noin 30 W, ja 2 GHz:n GPU-kellolla levy nousi upstreamin testeissä 96 °C:een: rajoita GPU:n kello noin 1500 MHz:iin governorilla.",
   "The factory/24CU dispatch will be restored live using bc250-cu-live-manager.": "Tehdas/24CU-lähetys palautetaan livenä käyttämällä bc250-cu-live-manager-ohjelmaa.",
   "The fan control path is unavailable or rejected the write.": "Tuulettimen ohjauspolku ei ole käytettävissä tai kirjoitus hylättiin.",
   "The fan curve in the file is not valid.": "Tiedoston tuuletinkäyrä ei kelpaa.",

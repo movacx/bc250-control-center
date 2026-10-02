@@ -43,7 +43,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtWidgets import QPushButton as IconButton
 
 from bc250cc.infrastructure.bazzite_async_compute import BAZZITE_ASYNC_COMPUTE_ICD
-from bc250cc.infrastructure.system_setup import CU_UNLOCK_OPTION
+from bc250cc.infrastructure.system_setup import CU_UNLOCK_OPTION, CU_UNLOCK_THERMAL_NOTE
 from bc250cc.infrastructure.terminal_repository import TerminalRepository
 
 from .. import theme
@@ -1923,7 +1923,7 @@ class PreparationSidebar(QFrame):
     KERNEL_OPTION_NEUTRAL = frozenset({CU_UNLOCK_OPTION})
 
     def _kernel_options_panel(self) -> QFrame:
-        """mitigations=off and nosmt for mutable distributions.
+        """mitigations=off, nosmt and the kernel's CU unlock for mutable distributions.
 
         Bazzite keeps its own mitigations card and SteamOS rewrites its boot
         setup, so this panel only appears where the protected helper reports
@@ -1984,6 +1984,12 @@ class PreparationSidebar(QFrame):
         self.kernel_cu_note.setWordWrap(True)
         self.kernel_cu_note.hide()
         root.addWidget(self.kernel_cu_note)
+        # Power and heat are the real cost of the extra units, so they are said
+        # next to the unlock and not only when it is confirmed.
+        self.kernel_cu_heat = _label(CU_UNLOCK_THERMAL_NOTE, "dashboardMemoryDetail")
+        self.kernel_cu_heat.setWordWrap(True)
+        self.kernel_cu_heat.hide()
+        root.addWidget(self.kernel_cu_heat)
         self._kernel_options_state: dict[str, object] = {}
         panel.hide()
         return panel
@@ -2021,6 +2027,7 @@ class PreparationSidebar(QFrame):
             or cu_item.get("external")
         )
         self.kernel_cu_note.setVisible(cu_visible)
+        self.kernel_cu_heat.setVisible(cu_visible)
         for option, _title, disable_text, restore_text in self.KERNEL_OPTION_ROWS:
             name, pill, button = self.kernel_option_controls[option]
             item = _mapping(arguments.get(option))

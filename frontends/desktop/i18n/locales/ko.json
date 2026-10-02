@@ -3652,6 +3652,7 @@
   "The export used existing history and did not probe hardware.": "내보내기에서는 기존 기록을 사용했으며 하드웨어를 조사하지 않았습니다.",
   "The external package repository is no longer published at its expected address.": "외부 패키지 저장소가 예상 주소에 더 이상 게시되지 않습니다.",
   "The external per-game FSR4 profile is also intact. Keep its launch option scoped to the games you are testing.": "외부 게임별 FSR4 프로필도 그대로 유지됩니다. 테스트 중인 게임에 맞게 시작 옵션 범위를 유지하세요.",
+  "The extra CUs raise power draw by about 30 W, and at a 2 GHz GPU clock a board reached 96 °C in upstream tests: cap the GPU clock to about 1500 MHz with the governor.": "추가 CU는 소비 전력을 약 30 W 늘리며, GPU 클럭 2 GHz에서 upstream 테스트 중 보드가 96 °C에 도달했습니다. governor로 GPU 클럭을 약 1500 MHz로 제한하세요.",
   "The factory/24CU dispatch will be restored live using bc250-cu-live-manager.": "공장/24CU 파견은 bc250-cu-live-manager를 사용하여 실시간으로 복원됩니다.",
   "The fan control path is unavailable or rejected the write.": "팬 제어 경로를 사용할 수 없거나 쓰기가 거부되었습니다.",
   "The fan curve in the file is not valid.": "파일에 있는 팬 커브가 올바르지 않습니다.",

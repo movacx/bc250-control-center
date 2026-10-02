@@ -3652,6 +3652,7 @@
   "The export used existing history and did not probe hardware.": "エクスポートでは既存の履歴が使用され、ハードウェアは調査されませんでした。",
   "The external package repository is no longer published at its expected address.": "外部パッケージリポジトリは、想定されたアドレスでは公開されなくなりました。",
   "The external per-game FSR4 profile is also intact. Keep its launch option scoped to the games you are testing.": "ゲームごとの外部 FSR4 プロファイルもそのままです。起動オプションの範囲をテストしているゲームに限定してください。",
+  "The extra CUs raise power draw by about 30 W, and at a 2 GHz GPU clock a board reached 96 °C in upstream tests: cap the GPU clock to about 1500 MHz with the governor.": "追加の CU は消費電力を約 30 W 増やし、GPU クロック 2 GHz では upstream のテストでボードが 96 °C に達しました。governor で GPU クロックを約 1500 MHz に制限してください。",
   "The factory/24CU dispatch will be restored live using bc250-cu-live-manager.": "工場/24CU ディスパッチは、bc250-cu-live-manager を使用してライブで復元されます。",
   "The fan control path is unavailable or rejected the write.": "ファン制御パスが使用できないか、書き込みが拒否されました。",
   "The fan curve in the file is not valid.": "ファイル内のファンカーブが無効です。",

@@ -3652,6 +3652,7 @@
   "The export used existing history and did not probe hardware.": "Dışa aktarma mevcut geçmişi kullandı ve donanımı incelemedi.",
   "The external package repository is no longer published at its expected address.": "Harici paket deposu artık beklenen adreste yayınlanmıyor.",
   "The external per-game FSR4 profile is also intact. Keep its launch option scoped to the games you are testing.": "Oyun başına harici FSR4 profili de sağlamdır. Başlatma seçeneğini test ettiğiniz oyunlara uygun tutun.",
+  "The extra CUs raise power draw by about 30 W, and at a 2 GHz GPU clock a board reached 96 °C in upstream tests: cap the GPU clock to about 1500 MHz with the governor.": "Ek CU'lar güç tüketimini yaklaşık 30 W artırır ve 2 GHz GPU saatinde upstream testlerinde bir kart 96 °C'ye ulaştı: governor ile GPU saatini yaklaşık 1500 MHz ile sınırlayın.",
   "The factory/24CU dispatch will be restored live using bc250-cu-live-manager.": "Fabrika/24CU gönderimi, bc250-cu-live-manager kullanılarak canlı olarak geri yüklenecektir.",
   "The fan control path is unavailable or rejected the write.": "Fan kontrol yolu kullanılamıyor veya yazma işlemi reddedildi.",
   "The fan curve in the file is not valid.": "Dosyadaki fan eğrisi geçerli değil.",

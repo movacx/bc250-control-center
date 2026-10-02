@@ -3652,6 +3652,7 @@
   "The export used existing history and did not probe hardware.": "Eksport użył istniejącej historii i nie odpytywał sprzętu.",
   "The external package repository is no longer published at its expected address.": "Zewnętrzne repozytorium pakietów nie jest już publikowane pod oczekiwanym adresem.",
   "The external per-game FSR4 profile is also intact. Keep its launch option scoped to the games you are testing.": "Zewnętrzny profil FSR4 dla poszczególnych gier jest również nienaruszony. Ustaw opcję uruchamiania dostosowaną do testowanych gier.",
+  "The extra CUs raise power draw by about 30 W, and at a 2 GHz GPU clock a board reached 96 °C in upstream tests: cap the GPU clock to about 1500 MHz with the governor.": "Dodatkowe CU zwiększają pobór mocy o ok. 30 W, a przy zegarze GPU 2 GHz płyta osiągnęła w testach upstream 96 °C: ogranicz zegar GPU do ok. 1500 MHz za pomocą governora.",
   "The factory/24CU dispatch will be restored live using bc250-cu-live-manager.": "Wysyłka fabryczna/24CU zostanie przywrócona na żywo za pomocą menedżera bc250-cu-live-manager.",
   "The fan control path is unavailable or rejected the write.": "Ścieżka sterowania wentylatorem jest niedostępna lub zapis został odrzucony.",
   "The fan curve in the file is not valid.": "Krzywa wentylatora w pliku jest nieprawidłowa.",

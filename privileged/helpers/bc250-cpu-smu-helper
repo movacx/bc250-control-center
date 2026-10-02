@@ -54,6 +54,10 @@ COLLECTOR_SMU_LOCK = pathlib.Path('/run/bc250-memory/smu.lock')
 SMU_RUN_LOCK = pathlib.Path('/run/bc250-smu-run.lock')
 #: How long a run waits for a sample that is already in flight to finish.
 SMU_RUN_WAIT_SECONDS = 15.0
+#: The BC-250 kernel's GDDR6 temperature driver. It is off by default, and when
+#: it is loaded, anything that reads its temperatures talks to the SMU through
+#: the mailbox a tuning run is using, and the two cannot coordinate.
+KERNEL_MEMORY_MODULE = pathlib.Path('/sys/module/bc250_memory')
 #: The actions that send messages to the SMU. Reading state, or writing the
 #: boot configuration, does not and is never held back by this.
 SMU_LIVE_ACTIONS = frozenset({
@@ -1246,6 +1250,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     action, args = argv[0], argv[1:]
     try:
         if action in SMU_LIVE_ACTIONS:
+            if KERNEL_MEMORY_MODULE.is_dir():
+                print(
+                    '[WARN] The kernel driver bc250_memory is loaded. While this runs, close anything that '
+                    'reads GDDR6 temperatures (MangoHud, CoolerControl, sensors): it shares the SMU mailbox '
+                    'with this tuning and can make it fail.',
+                    flush=True,
+                )
             try:
                 with smu_exclusive_run():
                     return _dispatch(action, args)

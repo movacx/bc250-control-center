@@ -14,6 +14,11 @@ PAGE selector that picks the CPU or GPU rail before each read.
 
 A unit this module did not install, for example one from upstream's own
 installer, is never replaced or removed: only a unit carrying MARKER is ours.
+
+It is not offered on the BC-250 kernel (linux-cachyos-bc250): that kernel has
+its own driver for the same regulator, which claims the PMIC's address on every
+BC-250, so the daemon would be refused the bus. The dashboard reads the rails
+from that driver's hwmon device there (see ``vrm_telemetry_reader``).
 """
 
 from __future__ import annotations
@@ -22,6 +27,7 @@ import shlex
 from pathlib import Path
 
 from .source_checkout import clone_or_update_commit
+from .vrm_telemetry_reader import KERNEL_VRM_MODULE, kernel_vrm_driver_present
 
 APU_TELEMETRY_UPSTREAM = "https://github.com/onlinermm/BC250-Telemetry"
 #: Main at review time: the daemon reads sysfs and I2C, writes only the PMBus
@@ -52,7 +58,11 @@ def _read(path: Path) -> str:
 
 
 def apu_telemetry_supported(
-    *, family: str, distro_id: str = "", immutable: bool = False
+    *,
+    family: str,
+    distro_id: str = "",
+    immutable: bool = False,
+    kernel_module: Path = KERNEL_VRM_MODULE,
 ) -> tuple[bool, str]:
     """Whether this host may use the install workflow, and why not when not."""
     family = str(family or "").strip().lower()
@@ -62,6 +72,11 @@ def apu_telemetry_supported(
             return False, _BLOCKED_FAMILIES[name]
     if immutable:
         return False, "Image-based systems are not covered by this installer."
+    if kernel_vrm_driver_present(kernel_module):
+        return False, (
+            "This kernel already reads the VRM itself (bc250_vrm, see: sensors bc250_vrm-*), "
+            "and its driver keeps the service from opening the bus, so it is not needed."
+        )
     return True, ""
 
 
@@ -73,10 +88,11 @@ def apu_telemetry_state(
     unit: Path = UNIT_PATH,
     binary: Path = BINARY_PATH,
     snapshot: Path = SNAPSHOT_PATH,
+    kernel_module: Path = KERNEL_VRM_MODULE,
 ) -> dict:
     """Read-only: what the installed files say. Never raises."""
     supported, blocked_reason = apu_telemetry_supported(
-        family=family, distro_id=distro_id, immutable=immutable
+        family=family, distro_id=distro_id, immutable=immutable, kernel_module=kernel_module
     )
     unit_text = _read(unit)
     installed = bool(unit_text)

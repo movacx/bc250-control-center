@@ -3652,6 +3652,7 @@
   "The export used existing history and did not probe hardware.": "L'esportazione ha utilizzato la cronologia esistente e non ha analizzato l'hardware.",
   "The external package repository is no longer published at its expected address.": "Il repository di pacchetti esterno non è più pubblicato all'indirizzo previsto.",
   "The external per-game FSR4 profile is also intact. Keep its launch option scoped to the games you are testing.": "Anche il profilo FSR4 esterno per gioco è intatto. Mantieni l'opzione di avvio limitata ai giochi che stai testando.",
+  "The extra CUs raise power draw by about 30 W, and at a 2 GHz GPU clock a board reached 96 °C in upstream tests: cap the GPU clock to about 1500 MHz with the governor.": "Le CU extra aumentano il consumo di circa 30 W e, con la GPU a 2 GHz, una scheda ha raggiunto 96 °C nei test upstream: limita il clock della GPU a circa 1500 MHz con il governor.",
   "The factory/24CU dispatch will be restored live using bc250-cu-live-manager.": "L'invio fabbrica/24CU verrà ripristinato in tempo reale utilizzando bc250-cu-live-manager.",
   "The fan control path is unavailable or rejected the write.": "Il percorso di controllo della ventola non è disponibile o la scrittura è stata rifiutata.",
   "The fan curve in the file is not valid.": "La curva della ventola nel file non è valida.",
