@@ -2009,6 +2009,11 @@ class PreparationSidebar(QFrame):
                 status, tone = "Enabled", "green"
             pill.setText(tr(status))
             pill.set_tone(tone)
+            # Enabled / Disabled is already what the button says ("Disable SMT"
+            # means it is on, "Restore SMT" that it is off). The pill is kept
+            # only for what the button cannot say: a pending reboot, or an
+            # option set outside Control Center.
+            pill.setVisible(status not in {"Enabled", "Disabled"})
             managed = bool(item.get("managed"))
             button.setText(tr(restore_text if managed else disable_text))
             button.setProperty("dangerAction", not managed)

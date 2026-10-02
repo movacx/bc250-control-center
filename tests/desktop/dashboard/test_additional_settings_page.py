@@ -124,3 +124,27 @@ def test_boot_options_show_on_additional_settings_and_not_on_the_dashboard(qtbot
     panel.kernel_options_panel.setVisible(True)
     panel._refresh_compatibility_summary()
     assert not panel._boot_holder.isHidden()
+
+
+def test_kernel_options_hide_the_plain_enabled_disabled_pill(qtbot):
+    page = AdditionalSettingsPage()
+    qtbot.addWidget(page)
+    page.show()
+    panel = page.panel
+    tools = {"system_setup": {"helper_available": True, "kernel_options": {"available": True, "arguments": {
+        "mitigations=off": {"managed": True, "configured": True, "active": True},
+        "nosmt": {"managed": False, "configured": False, "active": False},
+    }}}}
+    panel._update_kernel_options_control(tools)
+    _, mitigations_pill, mitigations_button = panel.kernel_option_controls["mitigations=off"]
+    _, smt_pill, smt_button = panel.kernel_option_controls["nosmt"]
+    assert mitigations_pill.isHidden() and smt_pill.isHidden()
+    assert mitigations_button.text() == "Restore mitigations"
+    assert smt_button.text() == "Disable SMT"
+    # A pending reboot is not something the button can say, so it stays.
+    tools["system_setup"]["kernel_options"]["arguments"]["nosmt"] = {
+        "managed": True, "configured": True, "active": False,
+    }
+    panel._update_kernel_options_control(tools)
+    assert not smt_pill.isHidden()
+    assert smt_pill.text() == "Reboot required"
