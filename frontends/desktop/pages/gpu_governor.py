@@ -67,6 +67,7 @@ from bc250cc.domain.gpu.profiles import (
     default_cyan_profiles,
     profiles_for_allowed_range,
 )
+from bc250cc.infrastructure.system_setup import CU_UNLOCK_OPTION, CU_UNLOCK_THERMAL_NOTE
 from bc250cc.infrastructure.bazzite_async_compute import (
     BAZZITE_ASYNC_COMPUTE_REPOSITORY,
 )
@@ -3896,23 +3897,47 @@ class GpuGovernorPage(QWidget):
     def _manage_kernel_options(
         self, options: tuple[str, ...], *, changed: str, dialog_parent: QWidget | None
     ) -> None:
-        """Turn one of mitigations=off / nosmt on or off at the next boot."""
+        """Turn one of the managed kernel boot options on or off at the next boot."""
         if changed in options:
-            # Adding either one gives something up; restoring needs no question.
-            mitigations = changed == "mitigations=off"
+            # Adding any of them changes how the board runs, so it is asked
+            # first; restoring needs no question.
+            if changed == CU_UNLOCK_OPTION:
+                title = "Unlock all 40 compute units with the kernel"
+                body = (
+                    "The BC-250 kernel unlocks the compute units by itself when amdgpu starts, so umr "
+                    "and the CU live manager are not needed. Turn off the live manager's boot service "
+                    "so only one of them sets the CUs. A board with a damaged CU pair cannot run all "
+                    "40. The change applies after reboot and can be restored from Control Center."
+                )
+                body = tr(body) + "\n\n" + tr(CU_UNLOCK_THERMAL_NOTE)
+                confirm_text, tone = "Unlock 40 CUs", "orange"
+            elif changed == "mitigations=off":
+                title = "Disable CPU security mitigations"
+                body = (
+                    "This disables optional kernel protections against multiple CPU vulnerabilities. "
+                    "It may improve performance in some workloads. The change applies after reboot "
+                    "and can be restored from Control Center."
+                )
+                confirm_text, tone = "Disable mitigations", "red"
+            else:
+                title = "Disable simultaneous multithreading"
+                body = (
+                    "The CPU runs one thread per core: 6 or 8 threads instead of 12 or 16. Some games "
+                    "run smoother, others slower; measure yours. The change applies after reboot and "
+                    "can be restored from Control Center."
+                )
+                confirm_text, tone = "Disable SMT", "orange"
             confirmation = ConfirmDialog(
-                tr("Disable CPU security mitigations" if mitigations else "Disable simultaneous multithreading"),
-                tr(
-                    "This disables optional kernel protections against multiple CPU vulnerabilities. It may improve performance in some workloads. The change applies after reboot and can be restored from Control Center."
-                    if mitigations
-                    else "The CPU runs one thread per core: 6 or 8 threads instead of 12 or 16. Some games run smoother, others slower; measure yours. The change applies after reboot and can be restored from Control Center."
-                ),
+                tr(title),
+                # The unlock's body is already translated: it carries the
+                # thermal paragraph, which has its own catalog entry.
+                body if changed == CU_UNLOCK_OPTION else tr(body),
                 summary=(
                     (tr("Kernel argument"), changed),
                     (tr("Reboot"), tr("Required to activate the selected configuration")),
                 ),
-                confirm_text=tr("Disable mitigations" if mitigations else "Disable SMT"),
-                tone="red" if mitigations else "orange",
+                confirm_text=tr(confirm_text),
+                tone=tone,
                 parent=dialog_parent or self,
             )
             if confirmation.exec() != QDialog.DialogCode.Accepted:
@@ -4158,13 +4183,15 @@ class GpuGovernorPage(QWidget):
         }.get(action)
         if copy is None:
             raise ValueError("Unsupported FSR4 action.")
+        from bc250cc.infrastructure.bc250_opticlient import OPTICLIENT_TAG
+
         title, body, confirm, tone = copy
         confirmation = ConfirmDialog(
             title,
             tr(body),
             summary=(
                 (tr("Source"), "github.com/daniel-h-0/bc250-fsr4-fork"),
-                (tr("Release"), "opticlient-v1.0.7-bc250.3"),
+                (tr("Release"), OPTICLIENT_TAG),
                 (tr("Scope"), tr("Your user folder; games only when you choose them")),
             ),
             confirm_text=confirm,

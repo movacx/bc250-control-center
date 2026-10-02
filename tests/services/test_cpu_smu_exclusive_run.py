@@ -212,3 +212,31 @@ def test_an_obstacle_is_explained_in_the_helpers_own_words_and_nothing_runs(cpu,
     assert "[ERROR] what is in the way" in out.out
     assert "[ERROR] what to do about it" in out.out
     assert "SMU_IN_USE" in out.err
+
+
+def test_a_loaded_kernel_memory_driver_is_warned_about_but_does_not_stop_the_run(cpu, monkeypatch, tmp_path, capsys):
+    """bc250_memory shares the SMU mailbox with anything that reads its temperatures."""
+    module = tmp_path / "bc250_memory"
+    module.mkdir()
+    monkeypatch.setattr(cpu, "KERNEL_MEMORY_MODULE", module)
+    monkeypatch.setattr(cpu, "require_root_and_payload", lambda: None)
+
+    class Guard:
+        def __enter__(self):
+            return None
+
+        def __exit__(self, *exc):
+            return False
+
+    monkeypatch.setattr(cpu, "smu_exclusive_run", lambda: Guard())
+    ran = []
+    monkeypatch.setattr(cpu, "_dispatch", lambda action, args: ran.append(action) or 0)
+
+    assert cpu.main(["detect"]) == 0
+    assert ran == ["detect"]
+    out = capsys.readouterr().out
+    assert "[WARN]" in out and "bc250_memory" in out and "MangoHud" in out
+
+    module.rmdir()
+    assert cpu.main(["detect"]) == 0
+    assert "bc250_memory" not in capsys.readouterr().out

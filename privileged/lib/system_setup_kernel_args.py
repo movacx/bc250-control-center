@@ -1,9 +1,13 @@
-"""Two reviewed kernel boot options, ``mitigations=off`` and ``nosmt``.
+"""Three reviewed kernel boot options: ``mitigations=off``, ``nosmt`` and
+``amdgpu.bc250_cc_write_mode=3``.
 
 Bazzite has its own reversible ``mitigations=off`` card through rpm-ostree;
 this is the same choice for mutable distributions, plus ``nosmt``, which
-BC-250 owners asked for. Only these two arguments exist here: the caller names
-the set it wants managed, and anything else is refused.
+BC-250 owners asked for. The third, ``amdgpu.bc250_cc_write_mode=3``, makes the
+BC-250 amdgpu kernel driver unlock all 40 compute units itself, which replaces
+umr and the live CU manager; only a kernel that has that module parameter
+(linux-cachyos-bc250) is offered it. Only these arguments exist here: the
+caller names the set it wants managed, and anything else is refused.
 
 Each boot loader is changed the way the eight-core telemetry repair already
 does it:
@@ -26,7 +30,12 @@ import re
 
 from system_setup_common import Host, SetupError
 
-ARGUMENTS = ("mitigations=off", "nosmt")
+CU_UNLOCK = "amdgpu.bc250_cc_write_mode=3"
+#: The module parameter exists only on a kernel that carries the BC-250 patch;
+#: on any other kernel the argument would be ignored and never take effect.
+CU_UNLOCK_PARAMETER = "/sys/module/amdgpu/parameters/bc250_cc_write_mode"
+CU_UNLOCK_PREFIX = "amdgpu.bc250_cc_write_mode="
+ARGUMENTS = ("mitigations=off", "nosmt", CU_UNLOCK)
 CMDLINE = "/proc/cmdline"
 BOOT_ID = "/proc/sys/kernel/random/boot_id"
 LIMINE_CONFIG = "/etc/default/limine"
@@ -69,8 +78,8 @@ def _backend(host: Host) -> str:
     return "unsupported"
 
 
-def _configured(host: Host, backend: str) -> set[str]:
-    """Arguments the boot configuration asks for, whoever wrote them."""
+def _configured_tokens(host: Host, backend: str) -> set[str]:
+    """Every word the boot configuration puts on the command line."""
     if backend == "limine":
         text = host.read(LIMINE_CONFIG)
     elif backend == "grub":
@@ -79,7 +88,18 @@ def _configured(host: Host, backend: str) -> set[str]:
         text = host.run("grubby", "--info=DEFAULT", check=False)
     else:
         text = ""
-    return {argument for argument in ARGUMENTS if argument in _tokens(text)}
+    return _tokens(text)
+
+
+def _configured(host: Host, backend: str) -> set[str]:
+    """Arguments the boot configuration asks for, whoever wrote them."""
+    tokens = _configured_tokens(host, backend)
+    return {argument for argument in ARGUMENTS if argument in tokens}
+
+
+def _other_cu_mode(tokens: set[str]) -> bool:
+    """The write mode set to something other than 3, by somebody else."""
+    return any(token.startswith(CU_UNLOCK_PREFIX) and token != CU_UNLOCK for token in tokens)
 
 
 def status(host: Host) -> dict:
@@ -90,20 +110,33 @@ def status(host: Host) -> dict:
     # not somebody else's setting.
     removing = set(saved.get("removed") or ()) if saved.get("boot_id") == host.read(BOOT_ID) else set()
     active = _tokens(host.read(CMDLINE))
-    configured = _configured(host, backend)
+    configured_tokens = _configured_tokens(host, backend)
+    configured = {argument for argument in ARGUMENTS if argument in configured_tokens}
+    # A different write mode, set by hand, would fight this one on the same
+    # command line: it counts as somebody else's setting of the same option.
+    foreign_cu_mode = _other_cu_mode(configured_tokens) or _other_cu_mode(active)
     arguments = {}
     for argument in ARGUMENTS:
         mine = argument in managed or argument in removing
+        external = (argument in configured or argument in active) and not mine
+        if argument == CU_UNLOCK and foreign_cu_mode and not mine:
+            external = True
         arguments[argument] = {
             "active": argument in active,
             "managed": argument in managed,
             "configured": argument in managed or (argument in configured and not mine),
-            "external": (argument in configured or argument in active) and not mine,
+            "external": external,
         }
+    mode = host.read(CU_UNLOCK_PARAMETER).strip()
     return {
         "backend": backend,
         "available": backend != "unsupported" and host.bc250(),
         "arguments": arguments,
+        # Whether this kernel has the parameter at all, and what it is set to now.
+        "cu_unlock": {
+            "supported": host.path(CU_UNLOCK_PARAMETER).exists(),
+            "mode": mode,
+        },
         "reboot_required": any(
             item["configured"] != item["active"] for item in arguments.values()
         ),
@@ -125,7 +158,7 @@ def apply(host: Host, wanted: list[str] | tuple[str, ...]) -> dict:
     """Make exactly ``wanted`` the set of arguments this module manages."""
     wanted_set = set(wanted)
     if wanted_set - set(ARGUMENTS):
-        raise SetupError("Only mitigations=off and nosmt can be managed here")
+        raise SetupError("Only mitigations=off, nosmt and amdgpu.bc250_cc_write_mode=3 can be managed here")
     if not host.bc250():
         raise SetupError("AMD BC-250 PCI device 1002:13fe was not found")
     current = status(host)
@@ -138,6 +171,17 @@ def apply(host: Host, wanted: list[str] | tuple[str, ...]) -> dict:
     for argument in wanted_set:
         if current["arguments"][argument]["external"]:
             raise SetupError(f"{argument} is already set outside Control Center and is left as it is")
+    if (
+        CU_UNLOCK in wanted_set
+        and CU_UNLOCK not in set(saved.get("arguments") or ())
+        and not current["cu_unlock"]["supported"]
+    ):
+        # Without the parameter the kernel ignores the argument: it would be
+        # written, a reboot asked for, and nothing would change.
+        raise SetupError(
+            "This kernel has no amdgpu.bc250_cc_write_mode parameter, so the argument would do nothing. "
+            "It comes with the BC-250 kernel (linux-cachyos-bc250)."
+        )
     previous = set(saved.get("arguments") or ())
     wanted_list = [argument for argument in ARGUMENTS if argument in wanted_set]
     if set(wanted_list) == previous:

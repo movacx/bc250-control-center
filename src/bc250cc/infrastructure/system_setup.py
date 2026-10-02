@@ -9,8 +9,18 @@ from pathlib import Path
 
 HELPER = Path("/usr/libexec/bc250-control-center/bc250-system-setup-helper")
 POLICIES = {"preserve", "restore", "swap-16", "swap-32", "zram", "zswap-16", "zswap-32"}
+#: The BC-250 kernel unlocks all 40 compute units itself when amdgpu is given
+#: this write mode; it replaces umr and the live CU manager.
+CU_UNLOCK_OPTION = "amdgpu.bc250_cc_write_mode=3"
+#: What the extra compute units cost. From the linux-cachyos-bc250 notes: about
+#: +30 W at a held 1500 MHz, and a board at the governor's 2 GHz default drew
+#: around 181 W and reached 96 °C, which is not a sustainable operating point.
+CU_UNLOCK_THERMAL_NOTE = (
+    "The extra CUs raise power draw by about 30 W, and at a 2 GHz GPU clock a board reached "
+    "96 °C in upstream tests: cap the GPU clock to about 1500 MHz with the governor."
+)
 #: The only kernel boot options the helper manages.
-KERNEL_OPTIONS = ("mitigations=off", "nosmt")
+KERNEL_OPTIONS = ("mitigations=off", "nosmt", CU_UNLOCK_OPTION)
 
 
 def inventory() -> dict:
