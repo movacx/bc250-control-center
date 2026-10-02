@@ -261,6 +261,16 @@ class WgpToggleButton(QPushButton):
         self.toggled.connect(self._refresh_visual)
         self._refresh_visual(False)
 
+    def set_read_only(self, read_only: bool) -> None:
+        """Keep the route colours but take no clicks or keyboard focus.
+
+        A disabled QPushButton is painted grey, which hid the very routing a
+        read-only table is there to show.
+        """
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, read_only)
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus if read_only else Qt.FocusPolicy.StrongFocus)
+        self.setCursor(Qt.CursorShape.ArrowCursor if read_only else Qt.CursorShape.PointingHandCursor)
+
     def set_route(self, enabled: bool, driver_on: bool) -> None:
         self.driver_on = bool(driver_on)
         previous = self.blockSignals(True)
@@ -541,6 +551,10 @@ class CuTopologyTable(QFrame):
         self.grid.setColumnMinimumWidth(6, 76)
         self.grid.setColumnStretch(6, 2)
         self.set_state({"masks": list(UNKNOWN_MASKS), "driver_masks": list(UNKNOWN_MASKS), "rows": []})
+
+    def set_read_only(self, read_only: bool) -> None:
+        for button in self.buttons.values():
+            button.set_read_only(read_only)
 
     def set_state(self, state: dict) -> None:
         masks = self._normalize_masks(state.get("masks"), UNKNOWN_MASKS)
@@ -1801,7 +1815,7 @@ class ComputeUnitsPage(QWidget):
             # Unlock / Sync stays: it runs the backend's read-only "status",
             # which is how the table learns the kernel's live routing.
             self.balance_button.setEnabled(False)
-            self.topology_table.setEnabled(False)
+        self.topology_table.set_read_only(kernel_managed)
 
     def _kernel_managed(self) -> bool:
         return bool(self.current_state.get("kernel_managed"))

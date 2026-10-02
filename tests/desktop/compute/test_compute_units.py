@@ -720,4 +720,7 @@ def test_kernel_managed_page_is_read_only(qtbot):
         assert button.isEnabled() is False
     # Its read-only "status" is how the table syncs with the kernel's routing.
     assert page.live_refresh_button.isEnabled() is True
-    assert page.topology_table.isEnabled() is False
+    # Read-only but still in colour: a disabled table was painted all grey.
+    assert page.topology_table.isEnabled() is True
+    for button in page.topology_table.buttons.values():
+        assert button.testAttribute(compute_units_module.Qt.WidgetAttribute.WA_TransparentForMouseEvents)
