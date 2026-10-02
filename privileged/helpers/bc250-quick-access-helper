@@ -389,11 +389,28 @@ def run(
     }
     if extra_env:
         environment.update({str(key): str(value) for key, value in extra_env.items()})
-    return subprocess.run(
-        list(command), text=True, capture_output=True,
-        timeout=timeout, check=False,
-        env=environment,
-    )
+    try:
+        return subprocess.run(
+            list(command), text=True, capture_output=True,
+            timeout=timeout, check=False,
+            env=environment,
+        )
+    except subprocess.TimeoutExpired as expired:
+        # A program that does not answer in time is a failed command, not a
+        # crash of the whole action. Cyan stops answering D-Bus while its
+        # "process" usage reading walks every open file, and one slow busctl
+        # used to escape as TimeoutExpired and fail the entire status read:
+        # the panel then showed an error and stale data for as long as it did.
+        def _text(value: object) -> str:
+            if isinstance(value, bytes):
+                return value.decode("utf-8", "replace")
+            return str(value or "")
+
+        return subprocess.CompletedProcess(
+            list(command), 124,
+            stdout=_text(expired.stdout),
+            stderr=_text(expired.stderr) or f"timed out after {timeout}s: {command[0]}",
+        )
 
 
 def is_steamos() -> bool:
@@ -3908,6 +3925,8 @@ def guarded_main(argv: Sequence[str]) -> int:
             f"({type(error).__name__})",
             70,
         )
+    except subprocess.TimeoutExpired:
+        return fail("QUICK_ACCESS_TIMEOUT: operation timed out.", 124)
     except (RuntimeError, ValueError) as error:
         return fail(
             "QUICK_ACCESS_OPERATION_FAILED: "

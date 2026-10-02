@@ -1874,3 +1874,22 @@ def test_gpu_service_reports_a_governor_that_dies_after_enable(
 
     assert helper_module.gpu_service_action("enable") == 69
     assert "did not stay running" in capsys.readouterr().err
+
+
+def test_a_program_that_does_not_answer_fails_the_command_not_the_whole_action(
+    helper_module, monkeypatch
+):
+    """Cyan stops answering D-Bus under its 'process' usage reading; one slow
+    busctl used to escape as TimeoutExpired and fail the entire status read."""
+
+    def hang(command, **_kwargs):
+        raise subprocess.TimeoutExpired(command, 8, output="partial", stderr=None)
+
+    monkeypatch.setattr(helper_module.subprocess, "run", hang)
+    result = helper_module.run(["/usr/bin/busctl", "get-property"], timeout=8)
+    assert result.returncode == 124
+    assert result.stdout == "partial"
+    assert "timed out after 8s" in result.stderr
+    # The readers built on it report 'unknown', never raise.
+    assert helper_module.cyan_range() is None
+    assert helper_module.cyan_allowed_range() is None
