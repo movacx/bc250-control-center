@@ -43,6 +43,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtWidgets import QPushButton as IconButton
 
 from bc250cc.infrastructure.bazzite_async_compute import BAZZITE_ASYNC_COMPUTE_ICD
+from bc250cc.infrastructure.system_setup import CU_UNLOCK_OPTION
 from bc250cc.infrastructure.terminal_repository import TerminalRepository
 
 from .. import theme
@@ -1915,7 +1916,11 @@ class PreparationSidebar(QFrame):
     KERNEL_OPTION_ROWS = (
         ("mitigations=off", "CPU security mitigations", "Disable mitigations", "Restore mitigations"),
         ("nosmt", "Simultaneous multithreading (SMT)", "Disable SMT", "Restore SMT"),
+        (CU_UNLOCK_OPTION, "Compute Units unlock (kernel)", "Unlock all 40 CUs", "Restore CU lock"),
     )
+    #: Options that give something up, and so are drawn as a warning. Unlocking
+    #: compute units gives nothing up: it is the BC-250 kernel's own method.
+    KERNEL_OPTION_NEUTRAL = frozenset({CU_UNLOCK_OPTION})
 
     def _kernel_options_panel(self) -> QFrame:
         """mitigations=off and nosmt for mutable distributions.
@@ -1949,6 +1954,7 @@ class PreparationSidebar(QFrame):
         grid.setVerticalSpacing(0)
         grid.setColumnStretch(0, 1)
         root.addLayout(grid)
+        self.kernel_option_rules: dict[str, QFrame] = {}
         for index, (option, title, _disable, _restore) in enumerate(self.KERNEL_OPTION_ROWS):
             row = index * 2
             if index:
@@ -1956,6 +1962,7 @@ class PreparationSidebar(QFrame):
                 rule.setObjectName("ListDivider")
                 rule.setFixedHeight(1)
                 grid.addWidget(rule, row - 1, 0, 1, 3)
+                self.kernel_option_rules[option] = rule
             name = _label(title, "dashboardComponentTitle", wrap=False)
             pill = PillLabel("Checking", "gray")
             pill.setMinimumWidth(self._KERNEL_STATE_WIDTH)
@@ -1969,6 +1976,14 @@ class PreparationSidebar(QFrame):
             grid.addWidget(button, row, 2, Qt.AlignmentFlag.AlignVCenter)
             grid.setRowMinimumHeight(row, 46)
             self.kernel_option_controls[option] = (name, pill, button)
+        # Said once, under the rows, and only while the unlock row is shown.
+        self.kernel_cu_note = _label(
+            "The kernel unlocks the compute units itself, so umr and the CU live manager are not needed: turn the live manager's boot service off so only one of them sets the CUs. If your board has a damaged CU pair, not all 40 will work; mask the pair with amdgpu.disable_cu (see the linux-cachyos-bc250 README). Applies at the next boot.",
+            "dashboardMemoryDetail",
+        )
+        self.kernel_cu_note.setWordWrap(True)
+        self.kernel_cu_note.hide()
+        root.addWidget(self.kernel_cu_note)
         self._kernel_options_state: dict[str, object] = {}
         panel.hide()
         return panel
@@ -1996,9 +2011,23 @@ class PreparationSidebar(QFrame):
         if not available:
             return
         arguments = _mapping(state.get("arguments"))
+        cu_item = _mapping(arguments.get(CU_UNLOCK_OPTION))
+        # Only a kernel that has the parameter can use the unlock. A row that
+        # was staged, or set by hand, stays so that it can still be taken back.
+        cu_visible = bool(
+            _mapping(state.get("cu_unlock")).get("supported")
+            or cu_item.get("managed")
+            or cu_item.get("configured")
+            or cu_item.get("external")
+        )
+        self.kernel_cu_note.setVisible(cu_visible)
         for option, _title, disable_text, restore_text in self.KERNEL_OPTION_ROWS:
-            _name, pill, button = self.kernel_option_controls[option]
+            name, pill, button = self.kernel_option_controls[option]
             item = _mapping(arguments.get(option))
+            if option == CU_UNLOCK_OPTION:
+                for widget in (name, pill, button, self.kernel_option_rules.get(option)):
+                    if widget is not None:
+                        widget.setVisible(cu_visible and (widget is not pill))
             if item.get("external"):
                 status, tone = "Set outside Control Center", "blue"
             elif bool(item.get("configured")) != bool(item.get("active")):
@@ -2013,10 +2042,10 @@ class PreparationSidebar(QFrame):
             # means it is on, "Restore SMT" that it is off). The pill is kept
             # only for what the button cannot say: a pending reboot, or an
             # option set outside Control Center.
-            pill.setVisible(status not in {"Enabled", "Disabled"})
+            pill.setVisible(status not in {"Enabled", "Disabled"} and (option != CU_UNLOCK_OPTION or cu_visible))
             managed = bool(item.get("managed"))
             button.setText(tr(restore_text if managed else disable_text))
-            button.setProperty("dangerAction", not managed)
+            button.setProperty("dangerAction", not managed and option not in self.KERNEL_OPTION_NEUTRAL)
             button.style().unpolish(button)
             button.style().polish(button)
             button.setEnabled(not item.get("external"))

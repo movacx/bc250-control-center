@@ -9,8 +9,11 @@ from pathlib import Path
 
 HELPER = Path("/usr/libexec/bc250-control-center/bc250-system-setup-helper")
 POLICIES = {"preserve", "restore", "swap-16", "swap-32", "zram", "zswap-16", "zswap-32"}
+#: The BC-250 kernel unlocks all 40 compute units itself when amdgpu is given
+#: this write mode; it replaces umr and the live CU manager.
+CU_UNLOCK_OPTION = "amdgpu.bc250_cc_write_mode=3"
 #: The only kernel boot options the helper manages.
-KERNEL_OPTIONS = ("mitigations=off", "nosmt")
+KERNEL_OPTIONS = ("mitigations=off", "nosmt", CU_UNLOCK_OPTION)
 
 
 def inventory() -> dict:

@@ -18,7 +18,7 @@ def main():
     parser.add_argument("--ttm", type=int, choices=(-1, 0, 8, 10, 12), default=0)
     parser.add_argument("--uma-size", type=int, default=0)
     parser.add_argument("--kernel-options", default="",
-                        help="Comma-separated subset of mitigations=off,nosmt; empty restores both")
+                        help="Comma-separated subset of mitigations=off,nosmt,amdgpu.bc250_cc_write_mode=3; empty restores all")
     parser.add_argument("--takeover-zram", action="store_true",
                          help="Confirm disabling an existing, foreign ZRAM to switch to ZSWAP")
     parser.add_argument("--target-mount", default=None,

@@ -1241,10 +1241,108 @@ def test_bazzite_and_steamos_keep_their_own_boot_handling(sandbox, release):
         kernel_args.apply(sandbox.host, ["nosmt"])
 
 
-def test_only_the_two_reviewed_arguments_exist(sandbox):
+def test_only_the_reviewed_arguments_exist(sandbox):
     sandbox.grub()
-    with pytest.raises(SetupError, match="Only mitigations=off and nosmt"):
+    with pytest.raises(SetupError, match="Only mitigations=off, nosmt and amdgpu.bc250_cc_write_mode=3"):
         kernel_args.apply(sandbox.host, ["init=/bin/sh"])
+    with pytest.raises(SetupError, match="Only mitigations=off"):
+        kernel_args.apply(sandbox.host, ["amdgpu.bc250_cc_write_mode=2"])
+
+
+# ---------------------------------------------- the kernel's own CU unlock
+
+
+def _bc250_kernel(sandbox, mode="0"):
+    sandbox.put(kernel_args.CU_UNLOCK_PARAMETER, mode + "\n")
+
+
+def test_a_kernel_without_the_parameter_is_never_offered_the_unlock(sandbox):
+    sandbox.grub()
+    status = kernel_args.status(sandbox.host)
+    assert status["cu_unlock"] == {"supported": False, "mode": ""}
+    with pytest.raises(SetupError, match="no amdgpu.bc250_cc_write_mode parameter"):
+        kernel_args.apply(sandbox.host, [kernel_args.CU_UNLOCK])
+    # Nothing was written: an argument the kernel ignores is not staged.
+    assert not sandbox.host.path(kernel_args.GRUB_DROPIN).exists()
+    assert not sandbox.host.state("kernel-options")
+
+
+def test_the_bc250_kernel_is_offered_the_unlock_and_it_goes_in_the_boot_configuration(sandbox):
+    sandbox.grub()
+    _bc250_kernel(sandbox, "0")
+    status = kernel_args.status(sandbox.host)
+    assert status["cu_unlock"] == {"supported": True, "mode": "0"}
+    assert status["arguments"][kernel_args.CU_UNLOCK]["external"] is False
+
+    applied = kernel_args.apply(sandbox.host, [kernel_args.CU_UNLOCK])
+
+    assert "amdgpu.bc250_cc_write_mode=3" in sandbox.host.read(kernel_args.GRUB_DROPIN)
+    assert ("update-grub",) in sandbox.calls
+    assert applied["arguments"][kernel_args.CU_UNLOCK]["managed"] is True
+    assert applied["reboot_required"]
+    # Restoring takes it out again and leaves the owner's file alone.
+    kernel_args.apply(sandbox.host, [])
+    assert not sandbox.host.path(kernel_args.GRUB_DROPIN).exists()
+
+
+def test_the_unlock_goes_on_limine_as_part_of_the_one_removable_block(sandbox):
+    original = 'TIMEOUT=5\nKERNEL_CMDLINE[default]+="quiet splash"\n'
+    sandbox.put(kernel_args.LIMINE_CONFIG, original)
+    _bc250_kernel(sandbox)
+    kernel_args.apply(sandbox.host, ["nosmt", kernel_args.CU_UNLOCK])
+    text = sandbox.host.path(kernel_args.LIMINE_CONFIG).read_text()
+    assert 'KERNEL_CMDLINE[default]+=" nosmt amdgpu.bc250_cc_write_mode=3"' in text
+    assert ("limine-mkinitcpio",) in sandbox.calls
+    kernel_args.apply(sandbox.host, [])
+    assert sandbox.host.path(kernel_args.LIMINE_CONFIG).read_text() == original
+
+
+def test_the_unlock_on_fedora_uses_grubby_with_only_what_it_added(sandbox):
+    sandbox.put("/etc/os-release", "ID=fedora\n")
+    _bc250_kernel(sandbox)
+    kernel_args.apply(sandbox.host, [kernel_args.CU_UNLOCK])
+    kernel_args.apply(sandbox.host, [])
+    grubby = [call for call in sandbox.calls if call[0] == "grubby" and call[1] != "--info=DEFAULT"]
+    assert grubby == [
+        ("grubby", "--update-kernel=ALL", "--args=amdgpu.bc250_cc_write_mode=3"),
+        ("grubby", "--update-kernel=ALL", f"--remove-args={kernel_args.CU_UNLOCK}"),
+    ]
+
+
+def test_a_write_mode_the_owner_chose_is_never_overridden(sandbox):
+    sandbox.grub()
+    _bc250_kernel(sandbox)
+    sandbox.put(
+        kernel_args.GRUB_CONFIG,
+        "GRUB_DEFAULT=0\nGRUB_CMDLINE_LINUX_DEFAULT='quiet amdgpu.bc250_cc_write_mode=1'\n",
+    )
+    state = kernel_args.status(sandbox.host)["arguments"]
+    assert state[kernel_args.CU_UNLOCK]["external"] is True
+    with pytest.raises(SetupError, match="outside Control Center"):
+        kernel_args.apply(sandbox.host, [kernel_args.CU_UNLOCK])
+    assert not sandbox.host.path(kernel_args.GRUB_DROPIN).exists()
+
+
+def test_the_unlock_the_owner_already_set_is_reported_and_left_alone(sandbox):
+    sandbox.grub()
+    _bc250_kernel(sandbox, "3")
+    sandbox.put(
+        kernel_args.GRUB_CONFIG,
+        "GRUB_DEFAULT=0\nGRUB_CMDLINE_LINUX_DEFAULT='quiet amdgpu.bc250_cc_write_mode=3'\n",
+    )
+    assert kernel_args.status(sandbox.host)["arguments"][kernel_args.CU_UNLOCK]["external"] is True
+    with pytest.raises(SetupError, match="outside Control Center"):
+        kernel_args.apply(sandbox.host, [kernel_args.CU_UNLOCK])
+
+
+def test_taking_the_unlock_out_works_even_on_a_kernel_that_no_longer_has_the_parameter(sandbox):
+    sandbox.grub()
+    _bc250_kernel(sandbox)
+    kernel_args.apply(sandbox.host, [kernel_args.CU_UNLOCK])
+    sandbox.host.path(kernel_args.CU_UNLOCK_PARAMETER).unlink()  # booted an older kernel
+    assert kernel_args.status(sandbox.host)["cu_unlock"]["supported"] is False
+    kernel_args.apply(sandbox.host, [])  # removing is always allowed
+    assert not sandbox.host.path(kernel_args.GRUB_DROPIN).exists()
 
 
 def test_the_desktop_bridge_passes_only_the_reviewed_options():
@@ -1252,6 +1350,10 @@ def test_the_desktop_bridge_passes_only_the_reviewed_options():
 
     text = command("kernel-options-set", kernel_options=("nosmt", "mitigations=off"))
     assert "kernel-options-set --kernel-options mitigations=off,nosmt" in text
+    text = command("kernel-options-set", kernel_options=("amdgpu.bc250_cc_write_mode=3", "nosmt"))
+    assert "kernel-options-set --kernel-options nosmt,amdgpu.bc250_cc_write_mode=3" in text
+    with pytest.raises(ValueError):
+        command("kernel-options-set", kernel_options=("amdgpu.bc250_cc_write_mode=2",))
     assert "kernel-options-set --kernel-options ''" in command("kernel-options-set")
     with pytest.raises(ValueError):
         command("kernel-options-set", kernel_options=("init=/bin/sh",))
