@@ -617,6 +617,16 @@ var busyFailed$7 = "Ein weiterer BC250-Vorgang wird noch ausgeführt.";
 var cancel$7 = "Abbrechen";
 var channel$7 = "PWM-Kanal";
 var close$7 = "Entlassen";
+var compatApply$7 = "Kompatibilität anwenden";
+var compatConfirm$7 = "Cyan wird neu gestartet, um dies zu übernehmen. Hat es geantwortet, wird Ihr aktueller Frequenzbereich wiederhergestellt.";
+var compatFixFrequency$7 = "Frequenzen korrigieren";
+var compatFixMetrics$7 = "Metriken korrigieren";
+var compatHint$7 = "Ändern Sie dies nur, wenn die obigen Werte falsch aussehen.";
+var compatNeedsCyan$7 = "Cyan muss der aktive Governor sein, um dies zu ändern.";
+var compatProcessWarning$7 = "Die Messung process geht jede offene Datei jedes Programms durch. Solange ein Spiel läuft, antwortet Cyan nicht mehr: Bereich, +2000-MHz-Punkte und Spannungslabor funktionieren erst wieder, wenn das Spiel beendet ist. busy-flag ist die Voreinstellung.";
+var compatSetMethod$7 = "Governor-Methode";
+var compatTitle$7 = "Cyan Kernel-Kompatibilität";
+var compatUsage$7 = "Auslastungsmessung";
 var compute$7 = "RECHENEINHEITEN";
 var controller$7 = "Controller";
 var cpuApplyAuto$7 = "OC anwenden · automatische Skalierung";
@@ -834,6 +844,16 @@ var de = {
 	cancel: cancel$7,
 	channel: channel$7,
 	close: close$7,
+	compatApply: compatApply$7,
+	compatConfirm: compatConfirm$7,
+	compatFixFrequency: compatFixFrequency$7,
+	compatFixMetrics: compatFixMetrics$7,
+	compatHint: compatHint$7,
+	compatNeedsCyan: compatNeedsCyan$7,
+	compatProcessWarning: compatProcessWarning$7,
+	compatSetMethod: compatSetMethod$7,
+	compatTitle: compatTitle$7,
+	compatUsage: compatUsage$7,
 	compute: compute$7,
 	controller: controller$7,
 	cpuApplyAuto: cpuApplyAuto$7,
@@ -1052,6 +1072,16 @@ var busyFailed$6 = "Another BC250 operation is still running.";
 var cancel$6 = "Cancel";
 var channel$6 = "PWM channel";
 var close$6 = "Dismiss";
+var compatApply$6 = "Apply compatibility";
+var compatConfirm$6 = "Cyan restarts to apply this. If it was answering, your current frequency range is put back.";
+var compatFixFrequency$6 = "Fix frequencies";
+var compatFixMetrics$6 = "Fix metrics";
+var compatHint$6 = "Only touch this if the readings above look wrong.";
+var compatNeedsCyan$6 = "The Cyan governor must be the active governor to change this.";
+var compatProcessWarning$6 = "The process reading goes through every open file of every program. With a game open, Cyan stops answering: the range, the +2000 MHz points and the voltage lab stop working until the game closes. busy-flag is the default.";
+var compatSetMethod$6 = "Governor method";
+var compatTitle$6 = "Cyan kernel compatibility";
+var compatUsage$6 = "Usage reading";
 var compute$6 = "COMPUTE UNITS";
 var controller$6 = "Controller";
 var cpuApplyAuto$6 = "Apply OC · automatic scale";
@@ -1269,6 +1299,16 @@ var en = {
 	cancel: cancel$6,
 	channel: channel$6,
 	close: close$6,
+	compatApply: compatApply$6,
+	compatConfirm: compatConfirm$6,
+	compatFixFrequency: compatFixFrequency$6,
+	compatFixMetrics: compatFixMetrics$6,
+	compatHint: compatHint$6,
+	compatNeedsCyan: compatNeedsCyan$6,
+	compatProcessWarning: compatProcessWarning$6,
+	compatSetMethod: compatSetMethod$6,
+	compatTitle: compatTitle$6,
+	compatUsage: compatUsage$6,
 	compute: compute$6,
 	controller: controller$6,
 	cpuApplyAuto: cpuApplyAuto$6,
@@ -1487,6 +1527,16 @@ var busyFailed$5 = "Todavía hay otra operación de BC250 en ejecución.";
 var cancel$5 = "Cancelar";
 var channel$5 = "Canal PWM";
 var close$5 = "Cerrar";
+var compatApply$5 = "Aplicar compatibilidad";
+var compatConfirm$5 = "Cyan se reinicia para aplicarlo. Si respondía, se restaura tu rango de frecuencia actual.";
+var compatFixFrequency$5 = "Corregir frecuencias";
+var compatFixMetrics$5 = "Corregir métricas";
+var compatHint$5 = "Tocalo sólo si las lecturas de arriba se ven mal.";
+var compatNeedsCyan$5 = "El governor Cyan debe ser el governor activo para cambiar esto.";
+var compatProcessWarning$5 = "La lectura process recorre cada archivo abierto de cada programa. Con un juego abierto, Cyan deja de responder: el rango, los puntos +2000 MHz y el laboratorio de voltaje no funcionan hasta que el juego se cierra. busy-flag es la opción predeterminada.";
+var compatSetMethod$5 = "Método del governor";
+var compatTitle$5 = "Compatibilidad del kernel Cyan";
+var compatUsage$5 = "Lectura de uso";
 var compute$5 = "COMPUTE UNITS";
 var controller$5 = "Controlador";
 var cpuApplyAuto$5 = "Aplicar OC · escala automática";
@@ -1704,6 +1754,16 @@ var es = {
 	cancel: cancel$5,
 	channel: channel$5,
 	close: close$5,
+	compatApply: compatApply$5,
+	compatConfirm: compatConfirm$5,
+	compatFixFrequency: compatFixFrequency$5,
+	compatFixMetrics: compatFixMetrics$5,
+	compatHint: compatHint$5,
+	compatNeedsCyan: compatNeedsCyan$5,
+	compatProcessWarning: compatProcessWarning$5,
+	compatSetMethod: compatSetMethod$5,
+	compatTitle: compatTitle$5,
+	compatUsage: compatUsage$5,
 	compute: compute$5,
 	controller: controller$5,
 	cpuApplyAuto: cpuApplyAuto$5,
@@ -1922,6 +1982,16 @@ var busyFailed$4 = "Todavía hay otra operación de BC250 en ejecución.";
 var cancel$4 = "Cancelar";
 var channel$4 = "Canal PWM";
 var close$4 = "Cerrar";
+var compatApply$4 = "Aplicar compatibilidad";
+var compatConfirm$4 = "Cyan se reinicia para aplicarlo. Si respondía, se restaura tu rango de frecuencia actual.";
+var compatFixFrequency$4 = "Corregir frecuencias";
+var compatFixMetrics$4 = "Corregir métricas";
+var compatHint$4 = "Tocalo sólo si las lecturas de arriba se ven mal.";
+var compatNeedsCyan$4 = "El governor Cyan debe ser el governor activo para cambiar esto.";
+var compatProcessWarning$4 = "La lectura process recorre cada archivo abierto de cada programa. Con un juego abierto, Cyan deja de responder: el rango, los puntos +2000 MHz y el laboratorio de voltaje no funcionan hasta que el juego se cierra. busy-flag es la opción predeterminada.";
+var compatSetMethod$4 = "Método del governor";
+var compatTitle$4 = "Compatibilidad del kernel Cyan";
+var compatUsage$4 = "Lectura de uso";
 var compute$4 = "COMPUTE UNITS";
 var controller$4 = "Controlador";
 var cpuApplyAuto$4 = "Aplicar OC · escala automática";
@@ -2139,6 +2209,16 @@ var es419 = {
 	cancel: cancel$4,
 	channel: channel$4,
 	close: close$4,
+	compatApply: compatApply$4,
+	compatConfirm: compatConfirm$4,
+	compatFixFrequency: compatFixFrequency$4,
+	compatFixMetrics: compatFixMetrics$4,
+	compatHint: compatHint$4,
+	compatNeedsCyan: compatNeedsCyan$4,
+	compatProcessWarning: compatProcessWarning$4,
+	compatSetMethod: compatSetMethod$4,
+	compatTitle: compatTitle$4,
+	compatUsage: compatUsage$4,
 	compute: compute$4,
 	controller: controller$4,
 	cpuApplyAuto: cpuApplyAuto$4,
@@ -2357,6 +2437,16 @@ var busyFailed$3 = "Inna operacja BC250 jest nadal wykonywana.";
 var cancel$3 = "Anuluj";
 var channel$3 = "Kanał PWM";
 var close$3 = "Odrzuć";
+var compatApply$3 = "Zastosuj kompatybilność";
+var compatConfirm$3 = "Cyan uruchomi się ponownie, aby to zastosować. Jeśli odpowiadał, bieżący zakres częstotliwości zostanie przywrócony.";
+var compatFixFrequency$3 = "Napraw częstotliwości";
+var compatFixMetrics$3 = "Napraw metryki";
+var compatHint$3 = "Dotykaj tego tylko wtedy, gdy odczyty powyżej wyglądają źle.";
+var compatNeedsCyan$3 = "Aby to zmienić, Cyan musi być aktywnym governorem.";
+var compatProcessWarning$3 = "Odczyt process przechodzi przez każdy otwarty plik każdego programu. Gdy gra jest otwarta, Cyan przestaje odpowiadać: zakres, punkty +2000 MHz i laboratorium napięcia nie działają, dopóki gra się nie zamknie. busy-flag jest ustawieniem domyślnym.";
+var compatSetMethod$3 = "Metoda governora";
+var compatTitle$3 = "Zgodność jądra Cyan";
+var compatUsage$3 = "Odczyt użycia";
 var compute$3 = "JEDNOSTKI OBLICZENIOWE";
 var controller$3 = "Kontroler";
 var cpuApplyAuto$3 = "Zastosuj OC · automatyczna skala";
@@ -2574,6 +2664,16 @@ var pl = {
 	cancel: cancel$3,
 	channel: channel$3,
 	close: close$3,
+	compatApply: compatApply$3,
+	compatConfirm: compatConfirm$3,
+	compatFixFrequency: compatFixFrequency$3,
+	compatFixMetrics: compatFixMetrics$3,
+	compatHint: compatHint$3,
+	compatNeedsCyan: compatNeedsCyan$3,
+	compatProcessWarning: compatProcessWarning$3,
+	compatSetMethod: compatSetMethod$3,
+	compatTitle: compatTitle$3,
+	compatUsage: compatUsage$3,
 	compute: compute$3,
 	controller: controller$3,
 	cpuApplyAuto: cpuApplyAuto$3,
@@ -2792,6 +2892,16 @@ var busyFailed$2 = "Outra operação BC250 ainda está em execução.";
 var cancel$2 = "Cancelar";
 var channel$2 = "Canal PWM";
 var close$2 = "Dispensar";
+var compatApply$2 = "Aplicar compatibilidade";
+var compatConfirm$2 = "O Cyan reinicia para aplicar isto. Se ele estava respondendo, a sua faixa de frequência atual é restaurada.";
+var compatFixFrequency$2 = "Corrigir frequências";
+var compatFixMetrics$2 = "Corrigir métricas";
+var compatHint$2 = "Só toque nisto se as leituras acima parecerem erradas.";
+var compatNeedsCyan$2 = "O governor Cyan precisa ser o governor ativo para alterar isto.";
+var compatProcessWarning$2 = "A leitura process percorre cada ficheiro aberto de cada programa. Com um jogo aberto, o Cyan deixa de responder: a gama, os pontos +2000 MHz e o laboratório de tensão deixam de funcionar até o jogo fechar. busy-flag é a predefinição.";
+var compatSetMethod$2 = "Método do governor";
+var compatTitle$2 = "Compatibilidade do kernel Cyan";
+var compatUsage$2 = "Leitura de uso";
 var compute$2 = "UNIDADES DE COMPUTAÇÃO";
 var controller$2 = "Controlador";
 var cpuApplyAuto$2 = "Aplicar OC · escala automática";
@@ -3009,6 +3119,16 @@ var pt = {
 	cancel: cancel$2,
 	channel: channel$2,
 	close: close$2,
+	compatApply: compatApply$2,
+	compatConfirm: compatConfirm$2,
+	compatFixFrequency: compatFixFrequency$2,
+	compatFixMetrics: compatFixMetrics$2,
+	compatHint: compatHint$2,
+	compatNeedsCyan: compatNeedsCyan$2,
+	compatProcessWarning: compatProcessWarning$2,
+	compatSetMethod: compatSetMethod$2,
+	compatTitle: compatTitle$2,
+	compatUsage: compatUsage$2,
 	compute: compute$2,
 	controller: controller$2,
 	cpuApplyAuto: cpuApplyAuto$2,
@@ -3227,6 +3347,16 @@ var busyFailed$1 = "Другая операция BC250 все еще выпол
 var cancel$1 = "Отмена";
 var channel$1 = "Канал PWM";
 var close$1 = "Уволить";
+var compatApply$1 = "Применить совместимость";
+var compatConfirm$1 = "Cyan перезапустится, чтобы применить это. Если он отвечал, текущий диапазон частот будет восстановлен.";
+var compatFixFrequency$1 = "Исправить частоты";
+var compatFixMetrics$1 = "Исправить метрики";
+var compatHint$1 = "Трогайте это только если показания выше выглядят неверно.";
+var compatNeedsCyan$1 = "Чтобы изменить это, Cyan должен быть активным governor.";
+var compatProcessWarning$1 = "Чтение process перебирает каждый открытый файл каждой программы. Пока открыта игра, Cyan перестаёт отвечать: диапазон, точки +2000 МГц и лаборатория напряжения не работают, пока игра не закроется. busy-flag — значение по умолчанию.";
+var compatSetMethod$1 = "Метод governor";
+var compatTitle$1 = "Совместимость ядра Cyan";
+var compatUsage$1 = "Чтение загрузки";
 var compute$1 = "ВЫЧИСЛИТЕЛЬНЫЕ БЛОКИ";
 var controller$1 = "Контроллер";
 var cpuApplyAuto$1 = "Применить OC · автоматическое масштабирование";
@@ -3444,6 +3574,16 @@ var ru = {
 	cancel: cancel$1,
 	channel: channel$1,
 	close: close$1,
+	compatApply: compatApply$1,
+	compatConfirm: compatConfirm$1,
+	compatFixFrequency: compatFixFrequency$1,
+	compatFixMetrics: compatFixMetrics$1,
+	compatHint: compatHint$1,
+	compatNeedsCyan: compatNeedsCyan$1,
+	compatProcessWarning: compatProcessWarning$1,
+	compatSetMethod: compatSetMethod$1,
+	compatTitle: compatTitle$1,
+	compatUsage: compatUsage$1,
 	compute: compute$1,
 	controller: controller$1,
 	cpuApplyAuto: cpuApplyAuto$1,
@@ -3662,6 +3802,16 @@ var busyFailed = "Інша операція BC250 все ще виконуєть
 var cancel = "Скасувати";
 var channel = "Канал PWM";
 var close = "Відхилити";
+var compatApply = "Застосувати сумісність";
+var compatConfirm = "Cyan перезапуститься, щоб застосувати це. Якщо він відповідав, поточний діапазон частот буде відновлено.";
+var compatFixFrequency = "Виправити частоти";
+var compatFixMetrics = "Виправити метрики";
+var compatHint = "Торкайтеся цього лише якщо показники вище виглядають неправильно.";
+var compatNeedsCyan = "Щоб змінити це, Cyan має бути активним governor.";
+var compatProcessWarning = "Читання process перебирає кожен відкритий файл кожної програми. Поки відкрита гра, Cyan перестає відповідати: діапазон, точки +2000 МГц і лабораторія напруги не працюють, доки гра не закриється. busy-flag — типове значення.";
+var compatSetMethod = "Метод governor";
+var compatTitle = "Сумісність ядра Cyan";
+var compatUsage = "Зчитування навантаження";
 var compute = "ОБЧИСЛЮВАЛЬНІ БЛОКИ";
 var controller = "Контролер";
 var cpuApplyAuto = "Застосувати OC · автоматичний масштаб";
@@ -3879,6 +4029,16 @@ var uk = {
 	cancel: cancel,
 	channel: channel,
 	close: close,
+	compatApply: compatApply,
+	compatConfirm: compatConfirm,
+	compatFixFrequency: compatFixFrequency,
+	compatFixMetrics: compatFixMetrics,
+	compatHint: compatHint,
+	compatNeedsCyan: compatNeedsCyan,
+	compatProcessWarning: compatProcessWarning,
+	compatSetMethod: compatSetMethod,
+	compatTitle: compatTitle,
+	compatUsage: compatUsage,
 	compute: compute,
 	controller: controller,
 	cpuApplyAuto: cpuApplyAuto,
@@ -4111,6 +4271,7 @@ const setGpuHighFrequencyPoints = callable("set_gpu_high_frequency_points");
 const setGpuGovernorService = callable("set_gpu_governor_service");
 const applyGpuVoltageLevel = callable("apply_gpu_voltage_level");
 const applyGpuVoltagePoints = callable("apply_gpu_voltage_points");
+const applyGpuCompatibility = callable("apply_gpu_compatibility");
 const applyCuTable = callable("apply_cu_table");
 const saveCuTable = callable("save_cu_table");
 const installCuService = callable("install_cu_service");
@@ -4577,6 +4738,33 @@ function ScrollStop({ children, end = false }) {
 const VOLTAGE_LEVELS = [0, 1, 2, 3];
 const VOLTAGE_STEP_MV = 5;
 const VOLTAGE_MAX_ABOVE_DEFAULT_MV = 60;
+// The desktop's "Cyan kernel compatibility", for the same reason it is there:
+// on a kernel without the BC-250 patches the way Cyan reads GPU usage decides
+// whether it keeps answering. The "process" reading walks every open file of
+// every program, so with a game open Cyan stops answering and the range, the
+// high points and the voltage lab stop working with it. Switching to
+// busy-flag from here is how it recovers without leaving Game Mode.
+const COMPAT_SET_METHODS = ["smu", "kernel"];
+const COMPAT_USAGE_METHODS = ["busy-flag", "process", "kernel"];
+function CyanCompatibility({ state, busy, execute }) {
+    const accent = ACCENT_SWATCHES[SP_REACT.useContext(SettingsContext).settings.accent];
+    const current = state.gpu_compatibility ?? null;
+    const [open, setOpen] = SP_REACT.useState(false);
+    const [draft, setDraft] = SP_REACT.useState(null);
+    const keyOf = (value) => `${value.set_method}:${value.usage_method}:${value.fix_metrics}:${value.fix_frequency}`;
+    const signature = current ? keyOf(current) : "";
+    SP_REACT.useEffect(() => { setDraft(null); }, [signature]);
+    if (state.gpu_governor === "oberon" || !current)
+        return null;
+    const value = draft ?? current;
+    const changed = keyOf(value) !== signature;
+    const cyanActive = state.gpu_governor === "cyan";
+    const choose = (patch) => setDraft({ ...value, ...patch });
+    const confirm = () => DFL.showModal(SP_JSX.jsx(DFL.ConfirmModal, { strTitle: text.compatTitle, strDescription: text.compatConfirm, strOKButtonText: text.compatApply, onOK: () => void execute(`GPU · ${text.compatTitle}`, () => applyGpuCompatibility(value.set_method, value.usage_method, value.fix_metrics, value.fix_frequency), "gpu") }));
+    const choiceStyle = (selected) => ({ background: selected ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${selected ? accent.focus : tokens.colors.border}`, color: selected ? accent.focus : tokens.colors.text, fontSize: 10, fontWeight: 650, height: 30, padding: 2, textAlign: "center", width: "100%" });
+    const labelStyle = { color: tokens.colors.subtle, fontSize: 10, margin: "2px 2px 4px" };
+    return SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsxs(PadButton, { onActivate: () => setOpen(!open), style: { alignItems: "center", display: "flex", fontSize: 11, height: 34, justifyContent: "space-between", marginBottom: 6, padding: "5px 9px", width: "100%" }, children: [SP_JSX.jsx("span", { children: text.compatTitle }), SP_JSX.jsxs("span", { style: { color: current.usage_method === "process" ? tokens.colors.amber : accent.focus }, children: [current.set_method === "smu" ? "SMU" : "Kernel", " \u00B7 ", current.usage_method, " ", open ? "▴" : "▾"] })] }), open ? SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 6, marginBottom: 6, padding: 6 }, children: [!cyanActive ? SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 9, marginBottom: 6 }, children: text.compatNeedsCyan }) : null, SP_JSX.jsx("div", { style: labelStyle, children: text.compatSetMethod }), SP_JSX.jsx(DFL.Focusable, { "flow-children": "row", style: { display: "grid", gap: 5, gridTemplateColumns: "repeat(2,minmax(0,1fr))", marginBottom: 6 }, children: COMPAT_SET_METHODS.map((method) => SP_JSX.jsx(PadButton, { preferredFocus: value.set_method === method, disabled: busy || !cyanActive, onActivate: () => choose({ set_method: method }), style: choiceStyle(value.set_method === method), children: method === "smu" ? "SMU" : "Kernel" }, method)) }), SP_JSX.jsx("div", { style: labelStyle, children: text.compatUsage }), SP_JSX.jsx(DFL.Focusable, { "flow-children": "row", style: { display: "grid", gap: 5, gridTemplateColumns: "repeat(3,minmax(0,1fr))", marginBottom: 6 }, children: COMPAT_USAGE_METHODS.map((method) => SP_JSX.jsx(PadButton, { disabled: busy || !cyanActive, onActivate: () => choose({ usage_method: method }), style: choiceStyle(value.usage_method === method), children: method }, method)) }), value.usage_method === "process" ? SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 9, lineHeight: 1.35, margin: "0 2px 7px" }, children: text.compatProcessWarning }) : null, SP_JSX.jsx("div", { style: { background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, fontSize: 11, marginBottom: 4, overflow: "hidden" }, children: SP_JSX.jsx(DFL.ToggleField, { label: text.compatFixMetrics, layout: "inline", bottomSeparator: "none", highlightOnFocus: true, checked: value.fix_metrics, disabled: busy || !cyanActive, onChange: (checked) => choose({ fix_metrics: checked }) }) }), SP_JSX.jsx("div", { style: { background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, fontSize: 11, marginBottom: 6, overflow: "hidden" }, children: SP_JSX.jsx(DFL.ToggleField, { label: text.compatFixFrequency, layout: "inline", bottomSeparator: "none", highlightOnFocus: true, checked: value.fix_frequency, disabled: busy || !cyanActive, onChange: (checked) => choose({ fix_frequency: checked }) }) }), SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, lineHeight: 1.35, margin: "0 2px 7px" }, children: text.compatHint }), SP_JSX.jsxs(ActionRow, { children: [SP_JSX.jsx(Action, { label: text.compatApply, primary: true, disabled: busy || !cyanActive || !changed, onActivate: confirm }), SP_JSX.jsx(Action, { label: text.voltageDiscard, disabled: busy || !changed, onActivate: () => setDraft(null) })] })] }) : null] });
+}
 // The desktop voltage drawer, cut down to what a controller can do safely:
 // the governor curve or +10/+20/+30 mV on the points from 2000 MHz up, and a
 // per-point nudge in 5 mV steps that can never go below the governor value
@@ -5102,7 +5290,7 @@ function Content() {
                                 { key: "cpu", label: "CPU", icon: SP_JSX.jsx(FaBolt, {}), color: accent.focus, colorSoft: accent.focus_soft },
                                 { key: "fan", label: text.fan, icon: SP_JSX.jsx(FaFan, {}), color: accent.focus, colorSoft: accent.focus_soft },
                             ] }), busy && boardSection !== "cpu" ? SP_JSX.jsxs("div", { style: { alignItems: "center", background: accent.focus_soft, border: `1px solid ${accent.focus}`, borderRadius: 7, color: accent.focus, display: "flex", fontSize: 10, gap: 6, marginBottom: 10, padding: "7px 9px" }, children: [SP_JSX.jsx(FaClock, {}), text.operationInProgress] }) : null, boardSection === "gpu" ? SP_JSX.jsxs("section", { style: { marginBottom: 12 }, children: [SP_JSX.jsx(SectionTitle, { kind: "gpu", title: "GPU", trailing: governorName ? SP_JSX.jsx("span", { style: { color: tokens.colors.subtle, fontSize: 9 }, children: governorName }) : undefined }), !loaded ? SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 10, marginBottom: 6 }, children: text.loadingGpu }) : SP_JSX.jsxs(SP_JSX.Fragment, { children: [!gpuReady ? SP_JSX.jsx("div", { style: { color: state.gpu_governor === "conflict" ? tokens.colors.red : tokens.colors.amber, fontSize: 9, marginBottom: 6 }, children: state.gpu_governor === "conflict" ? text.governorConflict : text.governorMissing }) : null, SP_JSX.jsx(DFL.Focusable, { "flow-children": "grid", navEntryPreferPosition: DFL.NavEntryPositionPreferences.PREFERRED_CHILD, style: { display: "grid", gap: 6, gridTemplateColumns: `repeat(${activeGpuProfiles.length || 1},minmax(0,1fr))`, marginBottom: 6 }, children: activeGpuProfiles.map((profile) => { const current = state.gpu_range?.[0] === profile.min && state.gpu_range?.[1] === profile.max && (state.gpu_governor !== "cyan" || state.gpu_performance_enabled === false); const allowed = Boolean(state.gpu_allowed_range && state.gpu_allowed_range[0] <= profile.min && profile.max <= state.gpu_allowed_range[1]); return SP_JSX.jsxs(PadButton, { disabled: busy || !gpuReady || !allowed, preferredFocus: profile.key === (state.gpu_governor === "oberon" ? "oberon-1850" : "balanced"), onActivate: () => { void execute(`GPU · ${profile.name}`, () => applyGpuProfile(profile.key), "gpu"); }, style: { alignItems: "center", background: current ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, display: "flex", flexDirection: "column", gap: 2, height: 60, justifyContent: "center", minWidth: 0, padding: "6px 6px", textAlign: "center", width: "100%" }, children: [SP_JSX.jsx("span", { style: { color: current ? accent.focus : tokens.colors.text, fontSize: 11, fontWeight: 650, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }, children: profile.name }), SP_JSX.jsxs("span", { style: { color: current ? accent.focus : tokens.colors.subtle, fontSize: 9, lineHeight: 1.3 }, children: [profile.min, "\u2013", profile.max, SP_JSX.jsx("br", {}), "MHz", current ? ` · ${text.current}` : ""] })] }, profile.key); }) }), points.length ? SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsxs(PadButton, { onActivate: () => setHighOpen(!highOpen), disabled: busy || !gpuReady, style: { alignItems: "center", display: "flex", fontSize: 11, height: 34, justifyContent: "space-between", marginBottom: 6, padding: "5px 9px", width: "100%" }, children: [SP_JSX.jsx("span", { children: text.more }), SP_JSX.jsx("span", { style: { color: accent.focus }, children: highOpen ? "▴" : "▾" })] }), highOpen ? SP_JSX.jsx(DFL.Focusable, { "flow-children": "grid", navEntryPreferPosition: DFL.NavEntryPositionPreferences.PREFERRED_CHILD, style: { background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 6, display: "grid", gap: 5, gridTemplateColumns: "1fr 1fr", padding: 6 }, children: points.map((point, index) => { const current = point.frequency === liveHighPoint?.frequency; const allowed = Boolean(state.gpu_allowed_range && point.frequency <= state.gpu_allowed_range[1]); return SP_JSX.jsxs(PadButton, { disabled: busy || !gpuReady || !allowed, preferredFocus: current || (!liveHighPoint && index === 0), onActivate: () => { if (!current)
-                                                            void execute(`GPU · ${governorName || text.advanced}`, () => applyGpuSafePoint(point.frequency), "gpu"); }, style: { background: current ? accent.focus_soft : tokens.colors.panel_alt, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, color: current ? accent.focus : tokens.colors.text, fontSize: 10, height: 34, padding: 4, textAlign: "center", width: "100%" }, children: [point.frequency, " MHz \u00B7 ", point.voltage, " mV", current ? ` · ${text.current}` : ""] }, point.frequency); }) }) : null] }) : null, SP_JSX.jsx(VoltageLab, { state: state, busy: busy, execute: execute }), SP_JSX.jsx(GovernorServiceRow, { state: state, busy: busy, execute: execute })] })] }) : null, boardSection === "cu" ? SP_JSX.jsxs("section", { style: { marginBottom: 12 }, children: [SP_JSX.jsx(SectionTitle, { kind: "cu", title: text.compute, trailing: SP_JSX.jsxs("b", { style: { color: accent.focus, fontSize: 11 }, children: [draftCUs, "/40 ", text.target] }) }), state.cu_snapshot_warning ? SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 10, marginBottom: 6 }, children: text.snapshotWarning }) : null, cuConflict ? SP_JSX.jsxs("div", { style: { background: tokens.colors.amber_soft, border: `1px solid ${tokens.colors.amber}`, borderRadius: 6, color: tokens.colors.amber, fontSize: 10, marginBottom: 6, padding: 6 }, children: [text.external, SP_JSX.jsx("div", { style: { marginTop: 5 }, children: SP_JSX.jsxs(ActionRow, { children: [SP_JSX.jsx(Action, { label: text.restore, disabled: busy, onActivate: () => { dirty.current.cu = false; setCuConflict(false); setCuDraft(liveMasks); } }), SP_JSX.jsx(Action, { label: text.keep, disabled: busy, onActivate: () => setCuConflict(false) })] }) })] }) : null, topology ? SP_JSX.jsx(CuMatrix, { live: liveMasks, driver: driverMasks, draft: cuDraft, disabled: busy || !state.cu_backend_ready, change: (masks) => { dirty.current.cu = true; setCuConflict(false); setCuDraft(masks); }, minimum: () => setFeedback(text.safeCuMinimum) }) : SP_JSX.jsx("div", { style: { color: loaded ? tokens.colors.amber : tokens.colors.subtle, fontSize: 10, marginBottom: 6 }, children: loaded ? text.topologyUnavailable : text.loadingTopology }), SP_JSX.jsxs("div", { style: { minHeight: 78, width: "100%" }, children: [SP_JSX.jsxs(ActionRow, { marginBottom: 6, children: [SP_JSX.jsx(Action, { label: text.applyChanges, primary: true, disabled: busy || !topology || !state.cu_backend_ready || sameMasks(cuDraft, liveMasks), onActivate: () => void execute("BC250 CU", () => applyCuTable(cuDraft), "cu") }), SP_JSX.jsx(Action, { label: text.save, disabled: busy || !topology || !state.cu_backend_ready, onActivate: () => void execute("BC250 CU", () => saveCuTable(cuDraft), "cu") })] }), SP_JSX.jsxs(ActionRow, { children: [SP_JSX.jsx(Action, { label: text.install, disabled: busy || Boolean(state.cu_service_installed) || !validMasks(state.cu_saved_masks ?? undefined), onActivate: () => void execute("BC250 CU", installCuService, "cu") }), SP_JSX.jsx(Action, { label: text.remove, danger: true, disabled: busy || !state.cu_service_installed, onActivate: () => DFL.showModal(SP_JSX.jsx(DFL.ConfirmModal, { strTitle: text.remove, strDescription: text.liveRoutingUnchanged, strOKButtonText: text.remove, bDestructiveWarning: true, onOK: () => void execute("BC250 CU", removeCuService, "cu") })) })] })] })] }) : null, boardSection === "cpu" ? SP_JSX.jsxs("section", { style: { marginBottom: 12 }, children: [SP_JSX.jsx(SectionTitle, { kind: "cpu", title: "CPU" }), cpuError ? SP_JSX.jsx("div", { style: { background: tokens.colors.red_soft, border: `1px solid ${tokens.colors.red}`, borderRadius: 6, color: tokens.colors.red, fontSize: 9, lineHeight: 1.35, marginBottom: 7, overflowWrap: "anywhere", padding: "6px 8px" }, children: localizedErrorSummary(cpuError) }) : null, cpuOperation ? SP_JSX.jsxs("div", { role: "status", "aria-live": "polite", style: { background: accent.focus_soft, border: `1px solid ${accent.focus}`, borderRadius: 7, marginBottom: 7, padding: "8px 9px" }, children: [SP_JSX.jsxs("div", { style: { alignItems: "center", display: "flex", gap: 7 }, children: [SP_JSX.jsx("span", { style: { background: accent.focus, borderRadius: "50%", boxShadow: `0 0 0 3px ${accent.focus_soft}`, height: 7, width: 7 } }), SP_JSX.jsx("b", { style: { color: accent.focus, flex: 1, fontSize: 11 }, children: text.cpuApplying }), SP_JSX.jsxs("span", { style: { color: tokens.colors.subtle, fontSize: 9 }, children: [text.elapsed, ": ", cpuElapsed, "s"] })] }), SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "4px 0 7px 14px" }, children: text.cpuPleaseWait }), SP_JSX.jsxs("div", { style: { display: "grid", gap: 5, gridTemplateColumns: "1fr 1fr" }, children: [SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_alt, borderRadius: 5, padding: "5px 7px" }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.muted, display: "block", fontSize: 8 }, children: text.cpuLiveClock }), SP_JSX.jsxs("b", { style: { fontSize: 12 }, children: [state.cpu_frequency_mhz ?? "—", " MHz"] })] }), SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_alt, borderRadius: 5, padding: "5px 7px" }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.muted, display: "block", fontSize: 8 }, children: text.cpuTarget }), SP_JSX.jsxs("b", { style: { fontSize: 12 }, children: [cpuOperation.target, " MHz"] })] })] })] }) : null, !loaded ? SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 7px" }, children: text.loadingCpu })
+                                                            void execute(`GPU · ${governorName || text.advanced}`, () => applyGpuSafePoint(point.frequency), "gpu"); }, style: { background: current ? accent.focus_soft : tokens.colors.panel_alt, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, color: current ? accent.focus : tokens.colors.text, fontSize: 10, height: 34, padding: 4, textAlign: "center", width: "100%" }, children: [point.frequency, " MHz \u00B7 ", point.voltage, " mV", current ? ` · ${text.current}` : ""] }, point.frequency); }) }) : null] }) : null, SP_JSX.jsx(VoltageLab, { state: state, busy: busy, execute: execute }), SP_JSX.jsx(CyanCompatibility, { state: state, busy: busy, execute: execute }), SP_JSX.jsx(GovernorServiceRow, { state: state, busy: busy, execute: execute })] })] }) : null, boardSection === "cu" ? SP_JSX.jsxs("section", { style: { marginBottom: 12 }, children: [SP_JSX.jsx(SectionTitle, { kind: "cu", title: text.compute, trailing: SP_JSX.jsxs("b", { style: { color: accent.focus, fontSize: 11 }, children: [draftCUs, "/40 ", text.target] }) }), state.cu_snapshot_warning ? SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 10, marginBottom: 6 }, children: text.snapshotWarning }) : null, cuConflict ? SP_JSX.jsxs("div", { style: { background: tokens.colors.amber_soft, border: `1px solid ${tokens.colors.amber}`, borderRadius: 6, color: tokens.colors.amber, fontSize: 10, marginBottom: 6, padding: 6 }, children: [text.external, SP_JSX.jsx("div", { style: { marginTop: 5 }, children: SP_JSX.jsxs(ActionRow, { children: [SP_JSX.jsx(Action, { label: text.restore, disabled: busy, onActivate: () => { dirty.current.cu = false; setCuConflict(false); setCuDraft(liveMasks); } }), SP_JSX.jsx(Action, { label: text.keep, disabled: busy, onActivate: () => setCuConflict(false) })] }) })] }) : null, topology ? SP_JSX.jsx(CuMatrix, { live: liveMasks, driver: driverMasks, draft: cuDraft, disabled: busy || !state.cu_backend_ready, change: (masks) => { dirty.current.cu = true; setCuConflict(false); setCuDraft(masks); }, minimum: () => setFeedback(text.safeCuMinimum) }) : SP_JSX.jsx("div", { style: { color: loaded ? tokens.colors.amber : tokens.colors.subtle, fontSize: 10, marginBottom: 6 }, children: loaded ? text.topologyUnavailable : text.loadingTopology }), SP_JSX.jsxs("div", { style: { minHeight: 78, width: "100%" }, children: [SP_JSX.jsxs(ActionRow, { marginBottom: 6, children: [SP_JSX.jsx(Action, { label: text.applyChanges, primary: true, disabled: busy || !topology || !state.cu_backend_ready || sameMasks(cuDraft, liveMasks), onActivate: () => void execute("BC250 CU", () => applyCuTable(cuDraft), "cu") }), SP_JSX.jsx(Action, { label: text.save, disabled: busy || !topology || !state.cu_backend_ready, onActivate: () => void execute("BC250 CU", () => saveCuTable(cuDraft), "cu") })] }), SP_JSX.jsxs(ActionRow, { children: [SP_JSX.jsx(Action, { label: text.install, disabled: busy || Boolean(state.cu_service_installed) || !validMasks(state.cu_saved_masks ?? undefined), onActivate: () => void execute("BC250 CU", installCuService, "cu") }), SP_JSX.jsx(Action, { label: text.remove, danger: true, disabled: busy || !state.cu_service_installed, onActivate: () => DFL.showModal(SP_JSX.jsx(DFL.ConfirmModal, { strTitle: text.remove, strDescription: text.liveRoutingUnchanged, strOKButtonText: text.remove, bDestructiveWarning: true, onOK: () => void execute("BC250 CU", removeCuService, "cu") })) })] })] })] }) : null, boardSection === "cpu" ? SP_JSX.jsxs("section", { style: { marginBottom: 12 }, children: [SP_JSX.jsx(SectionTitle, { kind: "cpu", title: "CPU" }), cpuError ? SP_JSX.jsx("div", { style: { background: tokens.colors.red_soft, border: `1px solid ${tokens.colors.red}`, borderRadius: 6, color: tokens.colors.red, fontSize: 9, lineHeight: 1.35, marginBottom: 7, overflowWrap: "anywhere", padding: "6px 8px" }, children: localizedErrorSummary(cpuError) }) : null, cpuOperation ? SP_JSX.jsxs("div", { role: "status", "aria-live": "polite", style: { background: accent.focus_soft, border: `1px solid ${accent.focus}`, borderRadius: 7, marginBottom: 7, padding: "8px 9px" }, children: [SP_JSX.jsxs("div", { style: { alignItems: "center", display: "flex", gap: 7 }, children: [SP_JSX.jsx("span", { style: { background: accent.focus, borderRadius: "50%", boxShadow: `0 0 0 3px ${accent.focus_soft}`, height: 7, width: 7 } }), SP_JSX.jsx("b", { style: { color: accent.focus, flex: 1, fontSize: 11 }, children: text.cpuApplying }), SP_JSX.jsxs("span", { style: { color: tokens.colors.subtle, fontSize: 9 }, children: [text.elapsed, ": ", cpuElapsed, "s"] })] }), SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "4px 0 7px 14px" }, children: text.cpuPleaseWait }), SP_JSX.jsxs("div", { style: { display: "grid", gap: 5, gridTemplateColumns: "1fr 1fr" }, children: [SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_alt, borderRadius: 5, padding: "5px 7px" }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.muted, display: "block", fontSize: 8 }, children: text.cpuLiveClock }), SP_JSX.jsxs("b", { style: { fontSize: 12 }, children: [state.cpu_frequency_mhz ?? "—", " MHz"] })] }), SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_alt, borderRadius: 5, padding: "5px 7px" }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.muted, display: "block", fontSize: 8 }, children: text.cpuTarget }), SP_JSX.jsxs("b", { style: { fontSize: 12 }, children: [cpuOperation.target, " MHz"] })] })] })] }) : null, !loaded ? SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 7px" }, children: text.loadingCpu })
                                     : !cpuReady ? SP_JSX.jsx("div", { style: { color: state.cpu_tuning_source === "detector-required" ? tokens.colors.subtle : tokens.colors.red, fontSize: 9, margin: "0 2px 7px" }, children: state.cpu_tuning_source === "stress-unavailable" ? text.stressMissing : (state.cpu_tuning_source === "detector-required" ? text.cpuNeedsDetection : (state.cpu_tuning_source === "helper-unavailable" ? text.cpuHelperUnavailable : text.cpuStatusUnavailable)) })
                                         : null, loaded && !cpuReady && state.cpu_tuning_error && state.cpu_tuning_source !== "detector-required" ? SP_JSX.jsx("div", { style: { color: tokens.colors.muted, fontSize: 8, margin: "-3px 2px 7px", overflowWrap: "anywhere" }, children: localizedErrorSummary(state.cpu_tuning_error) }) : null, state.cpu_profiles?.length ? SP_JSX.jsx(DFL.Focusable, { "flow-children": "grid", navEntryPreferPosition: DFL.NavEntryPositionPreferences.PREFERRED_CHILD, style: { display: "grid", gap: 6, gridTemplateColumns: `repeat(${state.cpu_profiles.length},minmax(0,1fr))`, marginBottom: 7 }, children: state.cpu_profiles.map((preset) => {
                                         const current = !cpuManual && cpuFrequency === preset.frequency && cpuVid === preset.vid;
