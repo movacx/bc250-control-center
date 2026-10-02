@@ -4183,13 +4183,15 @@ class GpuGovernorPage(QWidget):
         }.get(action)
         if copy is None:
             raise ValueError("Unsupported FSR4 action.")
+        from bc250cc.infrastructure.bc250_opticlient import OPTICLIENT_TAG
+
         title, body, confirm, tone = copy
         confirmation = ConfirmDialog(
             title,
             tr(body),
             summary=(
                 (tr("Source"), "github.com/daniel-h-0/bc250-fsr4-fork"),
-                (tr("Release"), "opticlient-v1.0.7-bc250.3"),
+                (tr("Release"), OPTICLIENT_TAG),
                 (tr("Scope"), tr("Your user folder; games only when you choose them")),
             ),
             confirm_text=confirm,

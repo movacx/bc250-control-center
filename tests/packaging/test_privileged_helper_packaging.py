@@ -820,8 +820,8 @@ def test_cpu_smu_helper_uses_root_owned_audited_vendor_payload():
 
     helper = _text(helper_path)
     assert "bc250_smu_oc_vendor.zip" in helper
-    assert "EXPECTED_VENDOR_COMMIT = '43d6b4c6e38c57bc9ec8908c44675ce7d5fd3d2f'" in helper
-    assert "EXPECTED_VENDOR_SHA256 = '741f85266b6d2c5d52c9bcacaca0042c8732dc0ebae586f902e835cc79bc81ea'" in helper
+    assert "EXPECTED_VENDOR_COMMIT = '327014d6515d7108b1144adfa7203b4cc2eefd0b'" in helper
+    assert "EXPECTED_VENDOR_SHA256 = '74d80d6bf713b8f62f1ce7d325c5eb17c8a7d9dd2f7ccf5c4c7637f3a1de83ef'" in helper
     assert "hashlib.sha256(VENDOR_ZIP.read_bytes()).hexdigest()" in helper
     assert "apply-live" in helper
     assert "install-boot" in helper
@@ -832,7 +832,7 @@ def test_cpu_smu_helper_uses_root_owned_audited_vendor_payload():
 
     with zipfile.ZipFile(vendor_path) as archive:
         names = set(archive.namelist())
-        assert archive.read("UPSTREAM_COMMIT").decode().strip() == "43d6b4c6e38c57bc9ec8908c44675ce7d5fd3d2f"
+        assert archive.read("UPSTREAM_COMMIT").decode().strip() == "327014d6515d7108b1144adfa7203b4cc2eefd0b"
         assert "LICENSE" in names
         assert "bc250_detect.py" in names
         assert "bc250_apply.py" in names

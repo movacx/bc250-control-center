@@ -43,8 +43,8 @@ QAM_EVIDENCE_SCHEMA = 1
 QAM_MANUAL_EVIDENCE_SCHEMA = 1
 QAM_PUBLIC_STATE_SCHEMA = 1
 QAM_HELPER_PROTOCOL = 8
-EXPECTED_VENDOR_COMMIT = '43d6b4c6e38c57bc9ec8908c44675ce7d5fd3d2f'
-EXPECTED_VENDOR_SHA256 = '741f85266b6d2c5d52c9bcacaca0042c8732dc0ebae586f902e835cc79bc81ea'
+EXPECTED_VENDOR_COMMIT = '327014d6515d7108b1144adfa7203b4cc2eefd0b'
+EXPECTED_VENDOR_SHA256 = '74d80d6bf713b8f62f1ce7d325c5eb17c8a7d9dd2f7ccf5c4c7637f3a1de83ef'
 #: BC250-Telemetry's optional memory collector keeps this lock for as long as
 #: it runs; the GDDR6 helpers already take it, and a CPU tuning run must not
 #: share the SMU mailbox with it either.
