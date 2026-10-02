@@ -1176,6 +1176,10 @@ type BoardSection = "gpu" | "cu" | "cpu" | "fan";
 // here, outside React, and survives the remount.
 let rememberedTab: PanelTab = "board";
 let rememberedSection: BoardSection = "gpu";
+// One automatic jump to Monitoring › CPU per CPU run, however the panel learns
+// of the run (its own confirmation, or the backend after a remount), so a
+// player who goes back to another tab mid-run is not pulled away again.
+let cpuRunRedirected = false;
 
 function Content() {
   const [state, setState] = useState<Status>({});
@@ -1213,8 +1217,16 @@ function Content() {
     if (busyRef.current) return;
     if (running && (running.action === "cpu-detect" || running.action === "cpu-scale")) {
       setCpuOperation((current) => current ?? { target: Number(running.arguments?.[0]) || 0, manual: running.action === "cpu-scale", startedAt: running.started_at });
-    } else setCpuOperation(null);
+    } else { setCpuOperation(null); cpuRunRedirected = false; }
   }, [running?.action, running?.started_at]);
+  // The confirmation modal alone was not a reliable trigger in Game Mode
+  // (Quick Access closes and remounts this panel around it): follow the run.
+  useEffect(() => {
+    if (!cpuOperation || cpuRunRedirected) return;
+    cpuRunRedirected = true;
+    setActiveTab("monitor");
+    globalThis.requestAnimationFrame(() => topRef.current?.scrollIntoView({ block: "start" }));
+  }, [cpuOperation, setActiveTab]);
   const [cpuElapsed, setCpuElapsed] = useState(0);
   const busyRef = useRef(false); const refreshing = useRef(false);
   const cpuTelemetryRefreshing = useRef(false);
@@ -1362,7 +1374,7 @@ function Content() {
     if (cpuProgress) setCpuOperation({ ...cpuProgress, startedAt: Date.now() });
     try { const result = await operation(); if (result.ok === false) { const message = result.error ?? text.error; if (kind === "cpu") setCpuError(message); setFeedback(message); toaster.toast({ title, body: localizedErrorSummary(message) }); } else { setState((current) => ({ ...current, ...result })); const rangeWrite = kind === "gpu" && Array.isArray(result.gpu_range); if (rangeWrite) setHighSelection(result.gpu_range![0] === 1000 && result.gpu_range![1] > 2000 ? result.gpu_range![1] : 0); setFeedback(null); if (kind !== "none") dirty.current[kind] = false; toaster.toast({ title, body: text.success }); if (!rangeWrite) await refresh("after"); } }
     catch (error) { const result = failed(error); const message = result.error ?? text.error; if (kind === "cpu") setCpuError(message); setFeedback(message); toaster.toast({ title, body: localizedErrorSummary(message) }); }
-    finally { void sampleCpuTelemetry(); busyRef.current = false; setBusy(false); setCpuOperation(null); }
+    finally { void sampleCpuTelemetry(); busyRef.current = false; setBusy(false); setCpuOperation(null); cpuRunRedirected = false; }
   };
 
   const topology = validMasks(state.cu_masks); const liveMasks = useMemo(() => topology ? state.cu_masks!.slice() : [0,0,0,0], [topology, state.cu_masks]); const driverMasks = useMemo(() => validMasks(state.cu_driver_masks) ? state.cu_driver_masks!.slice() : [0,0,0,0], [state.cu_driver_masks]);

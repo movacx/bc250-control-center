@@ -5026,6 +5026,7 @@ function MemoryTab({ state, busy, execute }) {
 }
 let rememberedTab = "board";
 let rememberedSection = "gpu";
+let cpuRunRedirected = false;
 function Content() {
     const [state, setState] = SP_REACT.useState({});
     const [settings, setSettingsState] = SP_REACT.useState(() => loadSettings());
@@ -5061,9 +5062,18 @@ function Content() {
         if (running && (running.action === "cpu-detect" || running.action === "cpu-scale")) {
             setCpuOperation((current) => current ?? { target: Number(running.arguments?.[0]) || 0, manual: running.action === "cpu-scale", startedAt: running.started_at });
         }
-        else
+        else {
             setCpuOperation(null);
+            cpuRunRedirected = false;
+        }
     }, [running?.action, running?.started_at]);
+    SP_REACT.useEffect(() => {
+        if (!cpuOperation || cpuRunRedirected)
+            return;
+        cpuRunRedirected = true;
+        setActiveTab("monitor");
+        globalThis.requestAnimationFrame(() => topRef.current?.scrollIntoView({ block: "start" }));
+    }, [cpuOperation, setActiveTab]);
     const [cpuElapsed, setCpuElapsed] = SP_REACT.useState(0);
     const busyRef = SP_REACT.useRef(false);
     const refreshing = SP_REACT.useRef(false);
@@ -5290,6 +5300,7 @@ function Content() {
             busyRef.current = false;
             setBusy(false);
             setCpuOperation(null);
+            cpuRunRedirected = false;
         }
     };
     const topology = validMasks(state.cu_masks);
