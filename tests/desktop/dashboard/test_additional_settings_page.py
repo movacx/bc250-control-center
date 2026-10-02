@@ -3,15 +3,17 @@
 from frontends.desktop.pages.additional_settings import AdditionalSettingsPage
 
 
-def test_the_page_has_every_tab_but_components_and_opens_on_compatibility(qtbot):
+def test_the_page_has_only_compatibility_memory_and_drivers_and_opens_on_compatibility(qtbot):
     fed = []
     page = AdditionalSettingsPage(state_feed=fed.append)
     qtbot.addWidget(page)
     panel = page.panel
 
-    assert panel.tab_buttons[0].isHidden()
-    assert all(panel.tabs_grid.indexOf(b) >= 0 for b in panel.tab_buttons[1:])
-    assert panel.tabs_grid.indexOf(panel.tab_buttons[0]) < 0
+    # Components and Decky stay on the Dashboard.
+    visible = [panel.tab_buttons[i] for i in (1, 2, 4)]
+    assert all(panel.tab_buttons[i].isHidden() for i in (0, 3))
+    assert all(panel.tabs_grid.indexOf(b) >= 0 for b in visible)
+    assert all(panel.tabs_grid.indexOf(panel.tab_buttons[i]) < 0 for i in (0, 3))
     assert panel.stack.currentIndex() == 1
     assert panel.tab_buttons[1].isChecked()
     assert not panel.prepare_footer.isVisibleTo(panel)

@@ -1182,8 +1182,8 @@ class PreparationSidebar(QFrame):
     ) -> None:
         """``standalone`` is the copy on the Additional settings page.
 
-        It carries every tab except Components, whose dependency preparation
-        stays on the Dashboard, and opens on Compatibility.
+        It carries Compatibility, Memory & Swap and Drivers, and opens on
+        Compatibility. Components and Decky stay on the Dashboard.
         """
         super().__init__(parent)
         self._settings = settings or application_settings()
@@ -1242,9 +1242,9 @@ class PreparationSidebar(QFrame):
         # The Dashboard keeps the tabs that act on the machine as a whole:
         # Components and Decky. Compatibility, Memory & Swap and Drivers live
         # on the Additional settings page, which shows a copy of this panel
-        # with those three tabs and without Components. The pages behind the
+        # with those three tabs, without Components and without Decky. The pages behind the
         # hidden buttons stay built so the state they read keeps flowing.
-        self._hidden_tabs = frozenset({0}) if self._standalone else frozenset({1, 2, 4})
+        self._hidden_tabs = frozenset({0, 3}) if self._standalone else frozenset({1, 2, 4})
         for hidden in self._hidden_tabs:
             self.tab_buttons[hidden].hide()
         root.addWidget(self.tabs_host)
