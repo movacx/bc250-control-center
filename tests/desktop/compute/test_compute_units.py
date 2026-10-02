@@ -715,7 +715,9 @@ def test_kernel_managed_page_is_read_only(qtbot):
     page._update_action_availability()
 
     assert page.kernel_managed_notice.isHidden() is False
-    for button in (page.apply_live_button, page.live_refresh_button, page.restore_factory_button,
+    for button in (page.apply_live_button, page.restore_factory_button,
                    page.save_boot_button, page.install_service_button):
         assert button.isEnabled() is False
+    # Its read-only "status" is how the table syncs with the kernel's routing.
+    assert page.live_refresh_button.isEnabled() is True
     assert page.topology_table.isEnabled() is False

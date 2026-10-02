@@ -1262,8 +1262,6 @@ class ComputeUnitsPage(QWidget):
         self._refresher.request()
 
     def refresh_authorized(self) -> None:
-        if self._refuse_when_kernel_managed():
-            return
         if not self.current_state.get("privileged_backend_ready", False):
             reason = str(
                 self.current_state.get("privileged_backend_reason")
@@ -1800,7 +1798,8 @@ class ComputeUnitsPage(QWidget):
         self.kernel_managed_notice.setVisible(kernel_managed)
         if kernel_managed:
             # Read-only: the table shows the kernel's routing, nothing edits it.
-            self.live_refresh_button.setEnabled(False)
+            # Unlock / Sync stays: it runs the backend's read-only "status",
+            # which is how the table learns the kernel's live routing.
             self.balance_button.setEnabled(False)
             self.topology_table.setEnabled(False)
 
