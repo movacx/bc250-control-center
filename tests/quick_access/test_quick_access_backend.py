@@ -7,6 +7,7 @@ import importlib.util
 import json
 import sys
 import time
+import tempfile
 import types
 from pathlib import Path
 
@@ -17,6 +18,9 @@ BACKEND = ROOT / "integrations" / "decky" / "bc250-quick-access" / "main.py"
 def _backend_module(monkeypatch):
     decky = types.ModuleType("decky")
     decky.logger = types.SimpleNamespace(info=lambda *_args, **_kwargs: None)
+    # Decky always passes this; without it the backend falls back to a path
+    # next to the plugin, which in a checkout is inside the repository.
+    decky.DECKY_PLUGIN_SETTINGS_DIR = tempfile.mkdtemp(prefix="bc250-qam-settings-")
     monkeypatch.setitem(sys.modules, "decky", decky)
     spec = importlib.util.spec_from_file_location("bc250_quick_access_backend_test", BACKEND)
     assert spec and spec.loader
