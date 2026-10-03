@@ -1029,7 +1029,8 @@ function CpuOcCard({ state }: { state: Status }) {
     [text.mode, mode],
     ["OC", active ? `${active.frequency} MHz` : "—"],
     [active?.mode === "manual" ? text.cpuScale : text.cpuEstimatedVid, !active ? "—" : active.mode === "manual" ? String(active.scale) : `${active.estimated_vid} mV`],
-    [text.cpuOnBoot, active?.persistable || Boolean(state.cpu_service_enabled) ? text.enabled : text.disabled],
+    // "persistable" only means it may be installed; the boot service decides.
+    [text.cpuOnBoot, state.cpu_service_enabled === true ? text.enabled : text.disabled],
     [text.cpuThermalLimit, `${state.cpu_tuning_temperature ?? "—"} °C`],
   ];
   return <DetailCard title={text.cpuOcTitle} status={active ? text.enabled : text.disabled} statusOn={Boolean(active)} rows={rows} />;
