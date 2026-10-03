@@ -5857,8 +5857,8 @@ function VoltageLab({ state, busy, execute }) {
 }
 // Desktop defaults arrive with an English name; show them in the panel's language.
 const cpuPresetName = (preset) => preset.default ? { board_average: text.cpuPresetBoardAverage, mid_point: text.cpuPresetMidPoint, safe_maximum: text.cpuPresetSafeMaximum }[preset.key] ?? preset.name : preset.name;
-// Monitoring › CPU is where a CPU run sends the player (see cpuRunRedirected):
-// say what is happening there while it runs, then keep the result on top.
+// Monitoring › CPU: what a CPU run is doing while it runs, then the result on top.
+// The player is not moved here; the run's progress is also in the CPU settings.
 function cpuRunNotice(state, cpuRun) {
     const box = { alignItems: "center", background: tokens.colors.green_soft, border: `1px solid ${tokens.colors.green}`, borderRadius: 6, display: "flex", fontSize: 9, gap: 6, justifyContent: "space-between", marginBottom: 7, padding: "6px 8px" };
     if (cpuRun)
@@ -6165,10 +6165,6 @@ function MemoryTab({ state, busy, execute }) {
 // here, outside React, and survives the remount.
 let rememberedTab = "board";
 let rememberedSection = "gpu";
-// One automatic jump to Monitoring › CPU per CPU run, however the panel learns
-// of the run (its own confirmation, or the backend after a remount), so a
-// player who goes back to another tab mid-run is not pulled away again.
-let cpuRunRedirected = false;
 function Content() {
     const [state, setState] = SP_REACT.useState({});
     const [settings, setSettingsState] = SP_REACT.useState(() => loadSettings());
@@ -6209,18 +6205,8 @@ function Content() {
         }
         else {
             setCpuOperation(null);
-            cpuRunRedirected = false;
         }
     }, [running?.action, running?.started_at]);
-    // The confirmation modal alone was not a reliable trigger in Game Mode
-    // (Quick Access closes and remounts this panel around it): follow the run.
-    SP_REACT.useEffect(() => {
-        if (!cpuOperation || cpuRunRedirected)
-            return;
-        cpuRunRedirected = true;
-        setActiveTab("monitor");
-        globalThis.requestAnimationFrame(() => topRef.current?.scrollIntoView({ block: "start" }));
-    }, [cpuOperation, setActiveTab]);
     const [cpuElapsed, setCpuElapsed] = SP_REACT.useState(0);
     const busyRef = SP_REACT.useRef(false);
     const refreshing = SP_REACT.useRef(false);
@@ -6490,7 +6476,6 @@ function Content() {
             busyRef.current = false;
             setBusy(false);
             setCpuOperation(null);
-            cpuRunRedirected = false;
         }
     };
     const topology = validMasks(state.cu_masks);
@@ -6553,16 +6538,7 @@ function Content() {
                 ? `${cpuFrequency} MHz · ${text.cpuScale} ${cpuScale} · VID ${text.estimated} ${selectedEstimatedVid} mV · ${cpuLimit}°C. ${text.manualApplyWarning}`
                 : `${cpuFrequency} MHz · ${text.cpuVoltage} ${cpuVid} mV · ${cpuLimit}°C. ${text.automaticApplyWarning}`
             : `${activeCpu?.frequency ?? "—"} MHz · ${text.cpuScale} ${activeCpu?.scale ?? "—"} · ${activeCpu?.estimated_vid ?? "—"} mV ${text.estimated} · ${activeCpu?.temperature ?? cpuLimit}°C. ${text.installExactProfile}`, strOKButtonText: mode === "detect" ? (cpuManual ? text.cpuApplyManual : text.cpuApplyAuto) : text.install, onOK: () => {
-            // Jump straight to the live view so the player watches the trial
-            // happen instead of staring at a frozen GPU/CU screen (see
-            // "operationInProgress" — this is the same tab that stays fed by
-            // monitor_snapshot() regardless of how long the trial takes).
-            // The modal closes over the scrolled-down CPU card: bring the top of
-            // the panel (and its tab row) back into view with the CPU monitor.
-            if (mode === "detect") {
-                setActiveTab("monitor");
-                globalThis.requestAnimationFrame(() => topRef.current?.scrollIntoView({ block: "start" }));
-            }
+            // The player stays where they are: this tab shows the run's progress itself.
             void execute("BC250 CPU", mode === "detect" ? (cpuManual ? () => applyCpuScale(cpuFrequency, cpuScale) : () => applyCpuTuning(cpuFrequency, cpuVid)) : installCpuService, "cpu", mode === "detect" ? { target: cpuFrequency, manual: cpuManual } : undefined);
         } }));
     return SP_JSX.jsx(DFL.Focusable, { "flow-children": "down", style: { background: tokens.colors.panel, border: `1px solid ${tokens.colors.border}`, borderRadius: 12, boxSizing: "border-box", color: tokens.colors.text, minHeight: "100vh", padding: "12px 14px 72px", width: "100%" }, children: SP_JSX.jsxs(SettingsContext.Provider, { value: { settings, setSettings, gddr6: gddr6Session }, children: [SP_JSX.jsx("div", { ref: topRef }), stale ? SP_JSX.jsxs("div", { style: { alignItems: "center", background: tokens.colors.amber_soft, border: `1px solid ${tokens.colors.amber}`, borderRadius: 6, color: tokens.colors.amber, display: "flex", fontSize: 10, gap: 6, marginBottom: 10, padding: "6px 9px" }, children: [SP_JSX.jsx(FaClock, {}), text.stale] }) : null, feedback ? SP_JSX.jsx(Notice, { value: feedback, dismiss: () => setFeedback(null) }) : null, SP_JSX.jsx(DFL.Focusable, { "flow-children": "row", style: { background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 8, display: "grid", gap: 4, gridTemplateColumns: "repeat(4,minmax(0,1fr))", marginBottom: 12, padding: 4 }, children: [

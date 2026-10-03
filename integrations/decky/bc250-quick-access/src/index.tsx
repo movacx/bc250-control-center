@@ -1103,8 +1103,8 @@ function VoltageLab({ state, busy, execute }: { state: Status; busy: boolean; ex
 // Desktop defaults arrive with an English name; show them in the panel's language.
 const cpuPresetName = (preset: CpuPreset) => preset.default ? ({ board_average: text.cpuPresetBoardAverage, mid_point: text.cpuPresetMidPoint, safe_maximum: text.cpuPresetSafeMaximum } as Record<string, string>)[preset.key] ?? preset.name : preset.name;
 
-// Monitoring › CPU is where a CPU run sends the player (see cpuRunRedirected):
-// say what is happening there while it runs, then keep the result on top.
+// Monitoring › CPU: what a CPU run is doing while it runs, then the result on top.
+// The player is not moved here; the run's progress is also in the CPU settings.
 function cpuRunNotice(state: Status, cpuRun: { target: number; elapsed: number } | null | undefined) {
   const box: CSSProperties = { alignItems: "center", background: tokens.colors.green_soft, border: `1px solid ${tokens.colors.green}`, borderRadius: 6, display: "flex", fontSize: 9, gap: 6, justifyContent: "space-between", marginBottom: 7, padding: "6px 8px" };
   if (cpuRun) return <div role="status" aria-live="polite" style={box}><span style={{ color: tokens.colors.green, lineHeight: 1.35 }}>{text.cpuMonitorApplying.replace("{target}", String(cpuRun.target))}</span><b style={{ color: tokens.colors.green, whiteSpace: "nowrap" }}>{cpuRun.elapsed}s</b></div>;
@@ -1536,10 +1536,6 @@ type BoardSection = "gpu" | "cu" | "cpu" | "fan";
 // here, outside React, and survives the remount.
 let rememberedTab: PanelTab = "board";
 let rememberedSection: BoardSection = "gpu";
-// One automatic jump to Monitoring › CPU per CPU run, however the panel learns
-// of the run (its own confirmation, or the backend after a remount), so a
-// player who goes back to another tab mid-run is not pulled away again.
-let cpuRunRedirected = false;
 
 function Content() {
   const [state, setState] = useState<Status>({});
@@ -1577,16 +1573,8 @@ function Content() {
     if (busyRef.current) return;
     if (running && (running.action === "cpu-detect" || running.action === "cpu-scale")) {
       setCpuOperation((current) => current ?? { target: Number(running.arguments?.[0]) || 0, manual: running.action === "cpu-scale", startedAt: running.started_at });
-    } else { setCpuOperation(null); cpuRunRedirected = false; }
+    } else { setCpuOperation(null); }
   }, [running?.action, running?.started_at]);
-  // The confirmation modal alone was not a reliable trigger in Game Mode
-  // (Quick Access closes and remounts this panel around it): follow the run.
-  useEffect(() => {
-    if (!cpuOperation || cpuRunRedirected) return;
-    cpuRunRedirected = true;
-    setActiveTab("monitor");
-    globalThis.requestAnimationFrame(() => topRef.current?.scrollIntoView({ block: "start" }));
-  }, [cpuOperation, setActiveTab]);
   const [cpuElapsed, setCpuElapsed] = useState(0);
   const busyRef = useRef(false); const refreshing = useRef(false);
   const cpuTelemetryRefreshing = useRef(false);
@@ -1765,7 +1753,7 @@ function Content() {
     if (cpuProgress) setCpuOperation({ ...cpuProgress, startedAt: Date.now() });
     try { const result = await operation(); if (result.ok === false) { const message = result.error ?? text.error; if (kind === "cpu") setCpuError(message); setFeedback(message); toaster.toast({ title, body: localizedErrorSummary(message) }); } else { setState((current) => ({ ...current, ...result })); const rangeWrite = kind === "gpu" && Array.isArray(result.gpu_range); if (rangeWrite) setHighSelection(result.gpu_range![0] === 1000 && result.gpu_range![1] > 2000 ? result.gpu_range![1] : 0); setFeedback(null); if (kind !== "none") dirty.current[kind] = false; toaster.toast({ title, body: text.success }); if (!rangeWrite) await refresh("after"); } }
     catch (error) { const result = failed(error); const message = result.error ?? text.error; if (kind === "cpu") setCpuError(message); setFeedback(message); toaster.toast({ title, body: localizedErrorSummary(message) }); }
-    finally { void sampleCpuTelemetry(); busyRef.current = false; setBusy(false); setCpuOperation(null); cpuRunRedirected = false; }
+    finally { void sampleCpuTelemetry(); busyRef.current = false; setBusy(false); setCpuOperation(null); }
   };
 
   const topology = validMasks(state.cu_masks); const liveMasks = useMemo(() => topology ? state.cu_masks!.slice() : [0,0,0,0], [topology, state.cu_masks]); const driverMasks = useMemo(() => validMasks(state.cu_driver_masks) ? state.cu_driver_masks!.slice() : [0,0,0,0], [state.cu_driver_masks]);
@@ -1828,13 +1816,7 @@ function Content() {
       : `${activeCpu?.frequency ?? "—"} MHz · ${text.cpuScale} ${activeCpu?.scale ?? "—"} · ${activeCpu?.estimated_vid ?? "—"} mV ${text.estimated} · ${activeCpu?.temperature ?? cpuLimit}°C. ${text.installExactProfile}`}
     strOKButtonText={mode === "detect" ? (cpuManual ? text.cpuApplyManual : text.cpuApplyAuto) : text.install}
     onOK={() => {
-      // Jump straight to the live view so the player watches the trial
-      // happen instead of staring at a frozen GPU/CU screen (see
-      // "operationInProgress" — this is the same tab that stays fed by
-      // monitor_snapshot() regardless of how long the trial takes).
-      // The modal closes over the scrolled-down CPU card: bring the top of
-      // the panel (and its tab row) back into view with the CPU monitor.
-      if (mode === "detect") { setActiveTab("monitor"); globalThis.requestAnimationFrame(() => topRef.current?.scrollIntoView({ block: "start" })); }
+      // The player stays where they are: this tab shows the run's progress itself.
       void execute("BC250 CPU", mode === "detect" ? (cpuManual ? () => applyCpuScale(cpuFrequency, cpuScale) : () => applyCpuTuning(cpuFrequency, cpuVid)) : installCpuService, "cpu", mode === "detect" ? { target: cpuFrequency, manual: cpuManual } : undefined);
     }}
   />);
