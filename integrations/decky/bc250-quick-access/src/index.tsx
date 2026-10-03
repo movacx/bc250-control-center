@@ -930,6 +930,9 @@ function ProfileCard({ icon, title, detail, from, to, current, disabled, preferr
   </PadButton>;
 }
 
+// 500 -> "0.5", 1850 -> "1.85", 2000 -> "2": gigahertz without trailing zeros.
+const ghz = (mhz: number) => String(Number((mhz / 1000).toFixed(2)));
+
 const GPU_PROFILE_ICONS: Record<string, ReactElement> = {
   balanced: <LuScale />, "oberon-1500": <LuScale />, gaming: <LuGamepad2 />, "oberon-1850": <LuGamepad2 />, benchmark: <LuFlame />, "oberon-2000": <LuFlame />,
 };
@@ -1859,7 +1862,7 @@ function Content() {
         const allowed = Boolean(state.gpu_allowed_range && state.gpu_allowed_range[0] <= profile.min && profile.max <= state.gpu_allowed_range[1]);
         const [low, high] = state.gpu_allowed_range ?? [profile.min, profile.max];
         const span = Math.max(1, high - low);
-        return <ProfileCard key={profile.key} icon={GPU_PROFILE_ICONS[profile.key] ?? <LuGauge />} title={profile.name} detail={`${profile.min}–${profile.max} MHz`}
+        return <ProfileCard key={profile.key} icon={GPU_PROFILE_ICONS[profile.key] ?? <LuGauge />} title={profile.name} detail={`${ghz(profile.min)}–${ghz(profile.max)} GHz`}
           from={(profile.min - low) / span} to={(profile.max - low) / span} current={current} disabled={busy || !gpuReady || !allowed}
           preferredFocus={profile.key === (state.gpu_governor === "oberon" ? "oberon-1850" : "balanced")}
           onActivate={() => { void execute(`GPU · ${profile.name}`, () => applyGpuProfile(profile.key), "gpu"); }} />;
@@ -1898,7 +1901,7 @@ function Content() {
       {state.cpu_profiles?.length ? <Focusable flow-children="grid" navEntryPreferPosition={NavEntryPositionPreferences.PREFERRED_CHILD} style={{ display: "grid", gap: 6, gridTemplateColumns: `repeat(${state.cpu_profiles.length},minmax(0,1fr))`, marginBottom: 7 }}>
         {state.cpu_profiles.map((preset) => {
           const current = !cpuManual && cpuFrequency === preset.frequency && cpuVid === preset.vid;
-          return <ProfileCard key={preset.key} icon={CPU_PROFILE_ICONS[preset.key] ?? <LuCpu />} title={cpuPresetName(preset)} detail={`${preset.frequency} MHz · ${preset.vid} mV`}
+          return <ProfileCard key={preset.key} icon={CPU_PROFILE_ICONS[preset.key] ?? <LuCpu />} title={cpuPresetName(preset)} detail={`${ghz(preset.frequency)} GHz · ${preset.vid} mV`}
             from={0} to={(preset.frequency - cpuMin) / Math.max(1, cpuMax - cpuMin)} current={current} disabled={busy || !cpuReady}
             onActivate={() => { setCpuFrequency(preset.frequency); setCpuVid(preset.vid); setCpuManual(false); dirty.current.cpu = true; }} />;
         })}
