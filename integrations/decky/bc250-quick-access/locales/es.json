@@ -243,5 +243,11 @@
   "cpuEstimatedVid": "VID estimado",
   "cpuOnBoot": "Aplicado al arrancar",
   "cpuModeBoot": "Servicio de arranque",
-  "cpuThermalLimit": "Límite térmico"
+  "cpuThermalLimit": "Límite térmico",
+  "gpuDetails": "Detalles",
+  "gpuActiveRange": "Rango activo",
+  "gpuValidatedRange": "Rango validado",
+  "gpuMemoryClock": "Reloj de memoria",
+  "gpuSocClock": "Reloj del SoC",
+  "gpuFabricClock": "Reloj de fabric"
 }

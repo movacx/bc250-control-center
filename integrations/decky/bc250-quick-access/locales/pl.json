@@ -243,5 +243,11 @@
   "cpuEstimatedVid": "Szacowany VID",
   "cpuOnBoot": "Stosowane przy starcie",
   "cpuModeBoot": "Usługa startowa",
-  "cpuThermalLimit": "Limit temperatury"
+  "cpuThermalLimit": "Limit temperatury",
+  "gpuDetails": "Szczegóły",
+  "gpuActiveRange": "Aktywny zakres",
+  "gpuValidatedRange": "Zweryfikowany zakres",
+  "gpuMemoryClock": "Zegar pamięci",
+  "gpuSocClock": "Zegar SoC",
+  "gpuFabricClock": "Zegar fabric"
 }

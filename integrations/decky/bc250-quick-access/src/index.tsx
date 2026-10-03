@@ -995,16 +995,30 @@ function heatTone(celsius: number | null | undefined) {
   return celsius >= 85 ? tokens.colors.red : celsius >= 75 ? tokens.colors.amber : tokens.colors.green;
 }
 
-function CpuOverview({ state }: { state: Status }) {
-  const usage = state.cpu_usage_percent;
-  const ghz = state.cpu_frequency_mhz != null ? (state.cpu_frequency_mhz / 1000).toFixed(2) : "—";
+// Clock and temperature as headlines, a thin load bar, load and voltage under
+// it: shared by Monitoring › CPU and › GPU so the two read alike.
+function ChipOverview({ mhz, celsius, usage, millivolts }: { mhz: number | null | undefined; celsius: number | null | undefined; usage: number | null | undefined; millivolts: number | null | undefined }) {
+  const ghz = mhz != null ? (mhz / 1000).toFixed(2) : "—";
   return <div style={{ background: tokens.colors.panel_alt, borderRadius: 6, marginBottom: 8, padding: "8px 10px" }}>
     <div style={{ alignItems: "flex-end", display: "flex", justifyContent: "space-between" }}>
       <div><div style={{ color: tokens.colors.subtle, fontSize: 9 }}>{text.cpuNow}</div><div style={{ fontSize: 18, fontWeight: 700 }}>{ghz} <span style={{ color: tokens.colors.subtle, fontSize: 10, fontWeight: 500 }}>GHz</span></div></div>
-      <div style={{ textAlign: "right" }}><div style={{ color: tokens.colors.subtle, fontSize: 9 }}>{text.cpuTemperature}</div><div style={{ color: heatTone(state.cpu_temperature_c), fontSize: 18, fontWeight: 700 }}>{state.cpu_temperature_c != null ? state.cpu_temperature_c.toFixed(1) : "—"} <span style={{ color: tokens.colors.subtle, fontSize: 10, fontWeight: 500 }}>°C</span></div></div>
+      <div style={{ textAlign: "right" }}><div style={{ color: tokens.colors.subtle, fontSize: 9 }}>{text.cpuTemperature}</div><div style={{ color: heatTone(celsius), fontSize: 18, fontWeight: 700 }}>{celsius != null ? celsius.toFixed(1) : "—"} <span style={{ color: tokens.colors.subtle, fontSize: 10, fontWeight: 500 }}>°C</span></div></div>
     </div>
     <div style={{ background: tokens.colors.panel, borderRadius: 2, height: 3, margin: "7px 0 5px", overflow: "hidden" }}><div style={{ background: tokens.colors.green, height: "100%", transition: "width .4s ease", width: `${Math.max(1, Math.min(100, usage ?? 0))}%` }} /></div>
-    <div style={{ color: tokens.colors.subtle, display: "flex", fontSize: 9, justifyContent: "space-between" }}><span>{text.usage} <b style={{ color: tokens.colors.text }}>{usage != null ? `${usage}%` : "—"}</b></span><span>{text.gpuVoltage} <b style={{ color: tokens.colors.text }}>{state.cpu_voltage_mv != null ? `${state.cpu_voltage_mv} mV` : "—"}</b></span></div>
+    <div style={{ color: tokens.colors.subtle, display: "flex", fontSize: 9, justifyContent: "space-between" }}><span>{text.usage} <b style={{ color: tokens.colors.text }}>{usage != null ? `${usage}%` : "—"}</b></span><span>{text.gpuVoltage} <b style={{ color: tokens.colors.text }}>{millivolts != null ? `${millivolts} mV` : "—"}</b></span></div>
+  </div>;
+}
+
+function CpuOverview({ state }: { state: Status }) {
+  return <ChipOverview mhz={state.cpu_frequency_mhz} celsius={state.cpu_temperature_c} usage={state.cpu_usage_percent} millivolts={state.cpu_voltage_mv} />;
+}
+
+// Rows of name and value on one panel: the overclock and GPU detail cards.
+function DetailCard({ title, status, statusOn, rows, children }: { title: string; status?: string; statusOn?: boolean; rows: [string, string][]; children?: ReactNode }) {
+  return <div style={{ background: tokens.colors.panel_alt, borderRadius: 6, marginBottom: 8, padding: "6px 10px 4px" }}>
+    <div style={{ display: "flex", fontSize: 10, justifyContent: "space-between", padding: "2px 0 5px" }}><b>{title}</b>{status ? <span style={{ color: statusOn ? tokens.colors.green : tokens.colors.subtle, fontSize: 9 }}>{status}</span> : null}</div>
+    {rows.map(([name, value]) => <div key={name} style={{ borderTop: `1px solid ${tokens.colors.border}`, display: "flex", fontSize: 10, gap: 8, justifyContent: "space-between", padding: "4px 0" }}><span style={{ color: tokens.colors.subtle, whiteSpace: "nowrap" }}>{name}</span><span style={{ overflow: "hidden", textAlign: "right", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{value}</span></div>)}
+    {children}
   </div>;
 }
 
@@ -1018,17 +1032,55 @@ function CpuOcCard({ state }: { state: Status }) {
     [text.cpuOnBoot, active?.persistable || Boolean(state.cpu_service_enabled) ? text.enabled : text.disabled],
     [text.cpuThermalLimit, `${state.cpu_tuning_temperature ?? "—"} °C`],
   ];
-  return <div style={{ background: tokens.colors.panel_alt, borderRadius: 6, marginBottom: 8, padding: "6px 10px 4px" }}>
-    <div style={{ display: "flex", fontSize: 10, justifyContent: "space-between", padding: "2px 0 5px" }}><b>{text.cpuOcTitle}</b><span style={{ color: active ? tokens.colors.green : tokens.colors.subtle, fontSize: 9 }}>{active ? text.enabled : text.disabled}</span></div>
-    {rows.map(([name, value]) => <div key={name} style={{ borderTop: `1px solid ${tokens.colors.border}`, display: "flex", fontSize: 10, justifyContent: "space-between", padding: "4px 0" }}><span style={{ color: tokens.colors.subtle }}>{name}</span><span>{value}</span></div>)}
+  return <DetailCard title={text.cpuOcTitle} status={active ? text.enabled : text.disabled} statusOn={Boolean(active)} rows={rows} />;
+}
+
+// Without the I2C modification a rail has nothing to report: one line, not
+// four rows of dashes.
+function RailVrm({ state, label, tiles }: { state: Status; label: string; tiles: { label: string; value: string }[] }) {
+  if (state.vrm_available) return <MetricGrid tiles={tiles} />;
+  return <div style={{ alignItems: "center", border: `1px dashed ${tokens.colors.border}`, borderRadius: 6, color: tokens.colors.subtle, display: "flex", fontSize: 9, gap: 6, justifyContent: "space-between", marginBottom: 10, padding: "6px 8px" }}><b style={{ color: tokens.colors.text, fontSize: 9, whiteSpace: "nowrap" }}>{label}</b><span style={{ textAlign: "right" }}>{text.vrmUnavailable}</span></div>;
+}
+
+// Async compute as one slim meter: share of time on the compute queues.
+function AceMeter({ state }: { state: Status }) {
+  const game = useRunningGame();
+  const percent = state.ace_busy_percent;
+  const available = Boolean(state.ace_available);
+  const active = typeof percent === "number" && percent > 0;
+  const who = active ? (game?.name || state.ace_process || "") : "";
+  return <div title={who || undefined} style={{ alignItems: "center", background: tokens.colors.panel_alt, borderRadius: 6, display: "flex", fontSize: 9, gap: 8, marginBottom: 8, padding: "6px 10px" }}>
+    <span style={{ color: tokens.colors.subtle, whiteSpace: "nowrap" }}>Async compute</span>
+    <div style={{ background: tokens.colors.panel, borderRadius: 2, flex: 1, height: 3, overflow: "hidden" }}><div style={{ background: tokens.colors.green, height: "100%", transition: "width .4s ease", width: `${active ? Math.max(2, Math.min(100, percent ?? 0)) : 0}%` }} /></div>
+    <b style={{ color: active ? tokens.colors.green : tokens.colors.subtle, minWidth: 26, textAlign: "right" }}>{!available || percent == null ? "—" : `${percent}%`}</b>
   </div>;
 }
 
-// Without the I2C modification the CPU rail has nothing to report: one line,
-// not four rows of dashes.
-function CpuVrm({ state, tiles }: { state: Status; tiles: { label: string; value: string }[] }) {
-  if (state.vrm_available) return <MetricGrid tiles={tiles} />;
-  return <div style={{ alignItems: "center", border: `1px dashed ${tokens.colors.border}`, borderRadius: 6, color: tokens.colors.subtle, display: "flex", fontSize: 9, gap: 6, justifyContent: "space-between", marginBottom: 10, padding: "6px 8px" }}><b style={{ color: tokens.colors.text, fontSize: 9, whiteSpace: "nowrap" }}>VRM CPU</b><span style={{ textAlign: "right" }}>{text.vrmUnavailable}</span></div>;
+function GpuDetails({ state }: { state: Status }) {
+  const mhz = (value: number | null | undefined) => value != null ? `${value} MHz` : "—";
+  const range = (pair: [number, number] | null | undefined) => pair ? `${pair[0]}–${pair[1]} MHz` : "—";
+  const rows: [string, string][] = [
+    [text.governor, state.gpu_governor_label || "—"],
+    [text.gpuActiveRange, range(state.gpu_range)],
+    [text.gpuValidatedRange, range(state.gpu_allowed_range)],
+    ["CU", state.cu_active_cus != null && state.cu_total_cus != null ? `${state.cu_active_cus} / ${state.cu_total_cus}` : "—"],
+    [text.gpuMemoryClock, mhz(state.gpu_memory_clock_mhz)],
+    [text.gpuSocClock, mhz(state.gpu_soc_clock_mhz)],
+    [text.gpuFabricClock, mhz(state.gpu_fabric_clock_mhz)],
+    ["PCIe", state.gpu_pcie_link || "—"],
+    ["VBIOS", state.gpu_vbios_version || "—"],
+  ];
+  const mib = 1024 * 1024;
+  return <DetailCard title={text.gpuDetails} rows={rows}>
+    <div style={{ borderTop: `1px solid ${tokens.colors.border}`, paddingTop: 6 }}>
+      <UsageBar label="VRAM" used={state.gpu_vram_used_mib != null ? state.gpu_vram_used_mib * mib : null} total={state.gpu_vram_total_mib != null ? state.gpu_vram_total_mib * mib : null} color={tokens.colors.green} />
+      <UsageBar label="GTT" used={state.gpu_gtt_used_mib != null ? state.gpu_gtt_used_mib * mib : null} total={state.gpu_gtt_total_mib != null ? state.gpu_gtt_total_mib * mib : null} color={tokens.colors.cyan} />
+    </div>
+  </DetailCard>;
+}
+
+function GpuOverview({ state }: { state: Status }) {
+  return <ChipOverview mhz={state.gpu_core_mhz} celsius={state.gpu_temperature_c} usage={state.gpu_busy_percent} millivolts={state.gpu_voltage_mv} />;
 }
 
 function MonitorTab({ state, cpuRun }: { state: Status; cpuRun?: { target: number; elapsed: number } | null }) {
@@ -1048,20 +1100,6 @@ function MonitorTab({ state, cpuRun }: { state: Status; cpuRun?: { target: numbe
     { label: `VRM CPU · ${text.gpuVoltage.toUpperCase()}`, value: state.vrm_cpu_voltage_v != null ? `${state.vrm_cpu_voltage_v.toFixed(2)} V` : "—" },
     { label: "VRM CPU · A", value: state.vrm_cpu_current_a != null ? `${state.vrm_cpu_current_a.toFixed(2)} A` : "—" },
     { label: "VRM CPU · W", value: state.vrm_cpu_power_w != null ? `${state.vrm_cpu_power_w.toFixed(1)} W` : "—" },
-  ];
-  const gpuTiles = [
-    { label: text.gpuLive.toUpperCase(), value: `${state.gpu_core_mhz ?? "—"} MHz` },
-    { label: text.gpuVoltage.toUpperCase(), value: `${state.gpu_voltage_mv ?? "—"} mV` },
-    { label: "BUSY", value: state.gpu_busy_percent != null ? `${state.gpu_busy_percent}%` : "—" },
-    { label: "TEMP", value: state.gpu_temperature_c != null ? `${state.gpu_temperature_c.toFixed(1)} °C` : "—" },
-    { label: "MCLK", value: state.gpu_memory_clock_mhz != null ? `${state.gpu_memory_clock_mhz} MHz` : "—" },
-    { label: "SOCCLK", value: state.gpu_soc_clock_mhz != null ? `${state.gpu_soc_clock_mhz} MHz` : "—" },
-    { label: "FCLK", value: state.gpu_fabric_clock_mhz != null ? `${state.gpu_fabric_clock_mhz} MHz` : "—" },
-    { label: "VRAM", value: gpuVramKnown ? `${formatBytes((state.gpu_vram_used_mib ?? 0) * 1024 * 1024)} / ${formatBytes((state.gpu_vram_total_mib ?? 0) * 1024 * 1024)}` : "—" },
-    { label: "GTT", value: gpuGttKnown ? `${formatBytes((state.gpu_gtt_used_mib ?? 0) * 1024 * 1024)} / ${formatBytes((state.gpu_gtt_total_mib ?? 0) * 1024 * 1024)}` : "—" },
-    { label: "PCIE", value: state.gpu_pcie_link || "—" },
-    { label: text.governor.toUpperCase(), value: state.gpu_governor_label || "—" },
-    { label: "CU", value: state.cu_active_cus != null && state.cu_total_cus != null ? `${state.cu_active_cus} / ${state.cu_total_cus}` : "—" },
   ];
   const gpuVrmTiles = [
     { label: "VRM GPU · TEMP", value: vrmAvailable && state.vrm_gpu_temperature_c != null ? `${state.vrm_gpu_temperature_c.toFixed(1)} °C` : "—" },
@@ -1113,16 +1151,14 @@ function MonitorTab({ state, cpuRun }: { state: Status; cpuRun?: { target: numbe
       {cpuRunNotice(state, cpuRun)}
       <ScrollStop><CpuOverview state={state} /><CpuOcCard state={state} /></ScrollStop>
       <ScrollStop><CoreGrid cores={state.cpu_cores ?? []} slots={state.cpu_physical_slots} /></ScrollStop>
-      <ScrollStop><CpuVrm state={state} tiles={cpuVrmTiles} /></ScrollStop>
+      <ScrollStop><RailVrm state={state} label="VRM CPU" tiles={cpuVrmTiles} /></ScrollStop>
       <ScrollStop end />
     </Focusable> : null}
 
     {section === "gpu" ? <Focusable flow-children="down">
-      <ScrollStop><AceRow state={state} /></ScrollStop>
-      <ScrollStop><MetricGrid tiles={gpuTiles} />
-        <div style={{ color: tokens.colors.subtle, fontSize: 9, margin: "-3px 2px 2px" }}>VBIOS · {state.gpu_vbios_version || "—"}</div>
-        <div style={{ color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 6px" }}>{state.gpu_range ? `${state.gpu_range[0]}–${state.gpu_range[1]} MHz` : "—"}{state.gpu_allowed_range ? ` · ${text.safeRange} ${state.gpu_allowed_range[0]}–${state.gpu_allowed_range[1]} MHz` : ""}</div></ScrollStop>
-      <ScrollStop>{vrmNotice}<MetricGrid tiles={gpuVrmTiles} /></ScrollStop>
+      <ScrollStop><GpuOverview state={state} /><AceMeter state={state} /></ScrollStop>
+      <ScrollStop><GpuDetails state={state} /></ScrollStop>
+      <ScrollStop><RailVrm state={state} label="VRM GPU" tiles={gpuVrmTiles} /></ScrollStop>
       <ScrollStop><Gddr6Panel state={state} /></ScrollStop>
       <ScrollStop end />
     </Focusable> : null}
@@ -1140,13 +1176,11 @@ function MonitorTab({ state, cpuRun }: { state: Status; cpuRun?: { target: numbe
       <Focusable flow-children="down">
         <ScrollStop><SectionTitle kind="cpu" title="CPU" /><CpuOverview state={state} /><CpuOcCard state={state} /></ScrollStop>
         <ScrollStop><CoreGrid cores={state.cpu_cores ?? []} slots={state.cpu_physical_slots} /></ScrollStop>
-        <ScrollStop><CpuVrm state={state} tiles={cpuVrmTiles} /></ScrollStop>
+        <ScrollStop><RailVrm state={state} label="VRM CPU" tiles={cpuVrmTiles} /></ScrollStop>
 
-        <ScrollStop><SectionTitle kind="gpu" title="GPU" /><AceRow state={state} /><MetricGrid tiles={gpuTiles} /></ScrollStop>
-        <ScrollStop>
-          <div style={{ color: tokens.colors.subtle, fontSize: 9, margin: "-3px 2px 8px" }}>VBIOS · {state.gpu_vbios_version || "—"} · {state.gpu_range ? `${state.gpu_range[0]}–${state.gpu_range[1]} MHz` : "—"}{state.gpu_allowed_range ? ` · ${text.safeRange} ${state.gpu_allowed_range[0]}–${state.gpu_allowed_range[1]} MHz` : ""}</div>
-          <MetricGrid tiles={gpuVrmTiles} />
-        </ScrollStop>
+        <ScrollStop><SectionTitle kind="gpu" title="GPU" /><GpuOverview state={state} /><AceMeter state={state} /></ScrollStop>
+        <ScrollStop><GpuDetails state={state} /></ScrollStop>
+        <ScrollStop><RailVrm state={state} label="VRM GPU" tiles={gpuVrmTiles} /></ScrollStop>
         <ScrollStop><Gddr6Panel state={state} /></ScrollStop>
 
         <ScrollStop><SectionTitle kind="fan" title={text.fan} />{fanChannelList}</ScrollStop>

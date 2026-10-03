@@ -243,5 +243,11 @@
   "cpuEstimatedVid": "Розрахунковий VID",
   "cpuOnBoot": "Застосовується під час запуску",
   "cpuModeBoot": "Служба запуску",
-  "cpuThermalLimit": "Тепловий ліміт"
+  "cpuThermalLimit": "Тепловий ліміт",
+  "gpuDetails": "Подробиці",
+  "gpuActiveRange": "Активний діапазон",
+  "gpuValidatedRange": "Перевірений діапазон",
+  "gpuMemoryClock": "Частота пам'яті",
+  "gpuSocClock": "Частота SoC",
+  "gpuFabricClock": "Частота fabric"
 }

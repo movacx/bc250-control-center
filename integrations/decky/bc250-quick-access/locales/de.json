@@ -243,5 +243,11 @@
   "cpuEstimatedVid": "Geschätzte VID",
   "cpuOnBoot": "Beim Start angewendet",
   "cpuModeBoot": "Startdienst",
-  "cpuThermalLimit": "Temperaturgrenze"
+  "cpuThermalLimit": "Temperaturgrenze",
+  "gpuDetails": "Details",
+  "gpuActiveRange": "Aktiver Bereich",
+  "gpuValidatedRange": "Geprüfter Bereich",
+  "gpuMemoryClock": "Speichertakt",
+  "gpuSocClock": "SoC-Takt",
+  "gpuFabricClock": "Fabric-Takt"
 }

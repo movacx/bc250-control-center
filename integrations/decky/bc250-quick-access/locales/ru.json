@@ -243,5 +243,11 @@
   "cpuEstimatedVid": "Расчётный VID",
   "cpuOnBoot": "Применяется при загрузке",
   "cpuModeBoot": "Служба загрузки",
-  "cpuThermalLimit": "Тепловой предел"
+  "cpuThermalLimit": "Тепловой предел",
+  "gpuDetails": "Подробности",
+  "gpuActiveRange": "Активный диапазон",
+  "gpuValidatedRange": "Проверенный диапазон",
+  "gpuMemoryClock": "Частота памяти",
+  "gpuSocClock": "Частота SoC",
+  "gpuFabricClock": "Частота fabric"
 }

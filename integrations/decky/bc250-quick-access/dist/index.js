@@ -1004,6 +1004,12 @@ var de = {
 	serviceNotInstalled: serviceNotInstalled$7,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$7,
 	serviceRunningBoot: serviceRunningBoot$7,
+	gpuDetails: "Details",
+	gpuActiveRange: "Aktiver Bereich",
+	gpuValidatedRange: "Geprüfter Bereich",
+	gpuMemoryClock: "Speichertakt",
+	gpuSocClock: "SoC-Takt",
+	gpuFabricClock: "Fabric-Takt",
 	cpuNow: "Aktueller Takt",
 	cpuTemperature: "Temperatur",
 	cpuOcTitle: "Übertaktung",
@@ -1478,6 +1484,12 @@ var en = {
 	serviceNotInstalled: serviceNotInstalled$6,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$6,
 	serviceRunningBoot: serviceRunningBoot$6,
+	gpuDetails: "Details",
+	gpuActiveRange: "Active range",
+	gpuValidatedRange: "Validated range",
+	gpuMemoryClock: "Memory clock",
+	gpuSocClock: "SoC clock",
+	gpuFabricClock: "Fabric clock",
 	cpuNow: "Current clock",
 	cpuTemperature: "Temperature",
 	cpuOcTitle: "Overclock",
@@ -1952,6 +1964,12 @@ var es = {
 	serviceNotInstalled: serviceNotInstalled$5,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$5,
 	serviceRunningBoot: serviceRunningBoot$5,
+	gpuDetails: "Detalles",
+	gpuActiveRange: "Rango activo",
+	gpuValidatedRange: "Rango validado",
+	gpuMemoryClock: "Reloj de memoria",
+	gpuSocClock: "Reloj del SoC",
+	gpuFabricClock: "Reloj de fabric",
 	cpuNow: "Frecuencia actual",
 	cpuTemperature: "Temperatura",
 	cpuOcTitle: "Overclock",
@@ -2426,6 +2444,12 @@ var es419 = {
 	serviceNotInstalled: serviceNotInstalled$4,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$4,
 	serviceRunningBoot: serviceRunningBoot$4,
+	gpuDetails: "Detalles",
+	gpuActiveRange: "Rango activo",
+	gpuValidatedRange: "Rango validado",
+	gpuMemoryClock: "Reloj de memoria",
+	gpuSocClock: "Reloj del SoC",
+	gpuFabricClock: "Reloj de fabric",
 	cpuNow: "Frecuencia actual",
 	cpuTemperature: "Temperatura",
 	cpuOcTitle: "Overclock",
@@ -2900,6 +2924,12 @@ var pl = {
 	serviceNotInstalled: serviceNotInstalled$3,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$3,
 	serviceRunningBoot: serviceRunningBoot$3,
+	gpuDetails: "Szczegóły",
+	gpuActiveRange: "Aktywny zakres",
+	gpuValidatedRange: "Zweryfikowany zakres",
+	gpuMemoryClock: "Zegar pamięci",
+	gpuSocClock: "Zegar SoC",
+	gpuFabricClock: "Zegar fabric",
 	cpuNow: "Bieżące taktowanie",
 	cpuTemperature: "Temperatura",
 	cpuOcTitle: "Podkręcanie",
@@ -3374,6 +3404,12 @@ var pt = {
 	serviceNotInstalled: serviceNotInstalled$2,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$2,
 	serviceRunningBoot: serviceRunningBoot$2,
+	gpuDetails: "Detalhes",
+	gpuActiveRange: "Intervalo ativo",
+	gpuValidatedRange: "Intervalo validado",
+	gpuMemoryClock: "Relógio da memória",
+	gpuSocClock: "Relógio do SoC",
+	gpuFabricClock: "Relógio do fabric",
 	cpuNow: "Frequência atual",
 	cpuTemperature: "Temperatura",
 	cpuOcTitle: "Overclock",
@@ -3848,6 +3884,12 @@ var ru = {
 	serviceNotInstalled: serviceNotInstalled$1,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$1,
 	serviceRunningBoot: serviceRunningBoot$1,
+	gpuDetails: "Подробности",
+	gpuActiveRange: "Активный диапазон",
+	gpuValidatedRange: "Проверенный диапазон",
+	gpuMemoryClock: "Частота памяти",
+	gpuSocClock: "Частота SoC",
+	gpuFabricClock: "Частота fabric",
 	cpuNow: "Текущая частота",
 	cpuTemperature: "Температура",
 	cpuOcTitle: "Разгон",
@@ -4322,6 +4364,12 @@ var uk = {
 	serviceNotInstalled: serviceNotInstalled,
 	serviceRemovedBootProfile: serviceRemovedBootProfile,
 	serviceRunningBoot: serviceRunningBoot,
+	gpuDetails: "Подробиці",
+	gpuActiveRange: "Активний діапазон",
+	gpuValidatedRange: "Перевірений діапазон",
+	gpuMemoryClock: "Частота пам'яті",
+	gpuSocClock: "Частота SoC",
+	gpuFabricClock: "Частота fabric",
 	cpuNow: "Поточна частота",
 	cpuTemperature: "Температура",
 	cpuOcTitle: "Розгін",
@@ -5005,21 +5053,30 @@ function heatTone(celsius) {
         return tokens.colors.text;
     return celsius >= 85 ? tokens.colors.red : celsius >= 75 ? tokens.colors.amber : tokens.colors.green;
 }
-function CpuOverview({ state }) {
-    const usage = state.cpu_usage_percent;
-    const ghz = state.cpu_frequency_mhz != null ? (state.cpu_frequency_mhz / 1000).toFixed(2) : "—";
+function ChipOverview({ mhz, celsius, usage, millivolts }) {
+    const ghz = mhz != null ? (mhz / 1000).toFixed(2) : "—";
     const sub = { color: tokens.colors.subtle, fontSize: 9 };
     const unit = { color: tokens.colors.subtle, fontSize: 10, fontWeight: 500 };
     return SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_alt, borderRadius: 6, marginBottom: 8, padding: "8px 10px" }, children: [
             SP_JSX.jsxs("div", { style: { alignItems: "flex-end", display: "flex", justifyContent: "space-between" }, children: [
                     SP_JSX.jsxs("div", { children: [SP_JSX.jsx("div", { style: sub, children: text.cpuNow }), SP_JSX.jsxs("div", { style: { fontSize: 18, fontWeight: 700 }, children: [ghz, " ", SP_JSX.jsx("span", { style: unit, children: "GHz" })] })] }),
-                    SP_JSX.jsxs("div", { style: { textAlign: "right" }, children: [SP_JSX.jsx("div", { style: sub, children: text.cpuTemperature }), SP_JSX.jsxs("div", { style: { color: heatTone(state.cpu_temperature_c), fontSize: 18, fontWeight: 700 }, children: [state.cpu_temperature_c != null ? state.cpu_temperature_c.toFixed(1) : "—", " ", SP_JSX.jsx("span", { style: unit, children: "\u00B0C" })] })] })
+                    SP_JSX.jsxs("div", { style: { textAlign: "right" }, children: [SP_JSX.jsx("div", { style: sub, children: text.cpuTemperature }), SP_JSX.jsxs("div", { style: { color: heatTone(celsius), fontSize: 18, fontWeight: 700 }, children: [celsius != null ? celsius.toFixed(1) : "—", " ", SP_JSX.jsx("span", { style: unit, children: "\u00B0C" })] })] })
                 ] }),
             SP_JSX.jsx("div", { style: { background: tokens.colors.panel, borderRadius: 2, height: 3, margin: "7px 0 5px", overflow: "hidden" }, children: SP_JSX.jsx("div", { style: { background: tokens.colors.green, height: "100%", transition: "width .4s ease", width: `${Math.max(1, Math.min(100, usage ?? 0))}%` } }) }),
             SP_JSX.jsxs("div", { style: { color: tokens.colors.subtle, display: "flex", fontSize: 9, justifyContent: "space-between" }, children: [
                     SP_JSX.jsxs("span", { children: [text.usage, " ", SP_JSX.jsx("b", { style: { color: tokens.colors.text }, children: usage != null ? `${usage}%` : "—" })] }),
-                    SP_JSX.jsxs("span", { children: [text.gpuVoltage, " ", SP_JSX.jsx("b", { style: { color: tokens.colors.text }, children: state.cpu_voltage_mv != null ? `${state.cpu_voltage_mv} mV` : "—" })] })
+                    SP_JSX.jsxs("span", { children: [text.gpuVoltage, " ", SP_JSX.jsx("b", { style: { color: tokens.colors.text }, children: millivolts != null ? `${millivolts} mV` : "—" })] })
                 ] })
+        ] });
+}
+function CpuOverview({ state }) {
+    return SP_JSX.jsx(ChipOverview, { mhz: state.cpu_frequency_mhz, celsius: state.cpu_temperature_c, usage: state.cpu_usage_percent, millivolts: state.cpu_voltage_mv });
+}
+function DetailCard({ title, status, statusOn, rows, children }) {
+    return SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_alt, borderRadius: 6, marginBottom: 8, padding: "6px 10px 4px" }, children: [
+            SP_JSX.jsxs("div", { style: { display: "flex", fontSize: 10, justifyContent: "space-between", padding: "2px 0 5px" }, children: [SP_JSX.jsx("b", { children: title }), status ? SP_JSX.jsx("span", { style: { color: statusOn ? tokens.colors.green : tokens.colors.subtle, fontSize: 9 }, children: status }) : null] }),
+            rows.map(([name, value]) => SP_JSX.jsxs("div", { style: { borderTop: `1px solid ${tokens.colors.border}`, display: "flex", fontSize: 10, gap: 8, justifyContent: "space-between", padding: "4px 0" }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.subtle, whiteSpace: "nowrap" }, children: name }), SP_JSX.jsx("span", { style: { overflow: "hidden", textAlign: "right", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: value })] }, name)),
+            children
         ] });
 }
 function CpuOcCard({ state }) {
@@ -5032,15 +5089,47 @@ function CpuOcCard({ state }) {
         [text.cpuOnBoot, active?.persistable || Boolean(state.cpu_service_enabled) ? text.enabled : text.disabled],
         [text.cpuThermalLimit, `${state.cpu_tuning_temperature ?? "—"} \u00B0C`],
     ];
-    return SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_alt, borderRadius: 6, marginBottom: 8, padding: "6px 10px 4px" }, children: [
-            SP_JSX.jsxs("div", { style: { display: "flex", fontSize: 10, justifyContent: "space-between", padding: "2px 0 5px" }, children: [SP_JSX.jsx("b", { children: text.cpuOcTitle }), SP_JSX.jsx("span", { style: { color: active ? tokens.colors.green : tokens.colors.subtle, fontSize: 9 }, children: active ? text.enabled : text.disabled })] }),
-            rows.map(([name, value]) => SP_JSX.jsxs("div", { style: { borderTop: `1px solid ${tokens.colors.border}`, display: "flex", fontSize: 10, justifyContent: "space-between", padding: "4px 0" }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.subtle }, children: name }), SP_JSX.jsx("span", { children: value })] }, name))
-        ] });
+    return SP_JSX.jsx(DetailCard, { title: text.cpuOcTitle, status: active ? text.enabled : text.disabled, statusOn: Boolean(active), rows: rows });
 }
-function CpuVrm({ state, tiles }) {
+function RailVrm({ state, label, tiles }) {
     if (state.vrm_available)
         return SP_JSX.jsx(MetricGrid, { tiles: tiles });
-    return SP_JSX.jsxs("div", { style: { alignItems: "center", border: `1px dashed ${tokens.colors.border}`, borderRadius: 6, color: tokens.colors.subtle, display: "flex", fontSize: 9, gap: 6, justifyContent: "space-between", marginBottom: 10, padding: "6px 8px" }, children: [SP_JSX.jsx("b", { style: { color: tokens.colors.text, fontSize: 9, whiteSpace: "nowrap" }, children: "VRM CPU" }), SP_JSX.jsx("span", { style: { textAlign: "right" }, children: text.vrmUnavailable })] });
+    return SP_JSX.jsxs("div", { style: { alignItems: "center", border: `1px dashed ${tokens.colors.border}`, borderRadius: 6, color: tokens.colors.subtle, display: "flex", fontSize: 9, gap: 6, justifyContent: "space-between", marginBottom: 10, padding: "6px 8px" }, children: [SP_JSX.jsx("b", { style: { color: tokens.colors.text, fontSize: 9, whiteSpace: "nowrap" }, children: label }), SP_JSX.jsx("span", { style: { textAlign: "right" }, children: text.vrmUnavailable })] });
+}
+function AceMeter({ state }) {
+    const game = useRunningGame();
+    const percent = state.ace_busy_percent;
+    const available = Boolean(state.ace_available);
+    const active = typeof percent === "number" && percent > 0;
+    const who = active ? (game?.name || state.ace_process || "") : "";
+    return SP_JSX.jsxs("div", { title: who || undefined, style: { alignItems: "center", background: tokens.colors.panel_alt, borderRadius: 6, display: "flex", fontSize: 9, gap: 8, marginBottom: 8, padding: "6px 10px" }, children: [
+            SP_JSX.jsx("span", { style: { color: tokens.colors.subtle, whiteSpace: "nowrap" }, children: "Async compute" }),
+            SP_JSX.jsx("div", { style: { background: tokens.colors.panel, borderRadius: 2, flex: 1, height: 3, overflow: "hidden" }, children: SP_JSX.jsx("div", { style: { background: tokens.colors.green, height: "100%", transition: "width .4s ease", width: `${active ? Math.max(2, Math.min(100, percent ?? 0)) : 0}%` } }) }),
+            SP_JSX.jsx("b", { style: { color: active ? tokens.colors.green : tokens.colors.subtle, minWidth: 26, textAlign: "right" }, children: !available || percent == null ? "—" : `${percent}%` })
+        ] });
+}
+function GpuDetails({ state }) {
+    const mhz = (value) => value != null ? `${value} MHz` : "—";
+    const range = (pair) => pair ? `${pair[0]}–${pair[1]} MHz` : "—";
+    const rows = [
+        [text.governor, state.gpu_governor_label || "—"],
+        [text.gpuActiveRange, range(state.gpu_range)],
+        [text.gpuValidatedRange, range(state.gpu_allowed_range)],
+        ["CU", state.cu_active_cus != null && state.cu_total_cus != null ? `${state.cu_active_cus} / ${state.cu_total_cus}` : "—"],
+        [text.gpuMemoryClock, mhz(state.gpu_memory_clock_mhz)],
+        [text.gpuSocClock, mhz(state.gpu_soc_clock_mhz)],
+        [text.gpuFabricClock, mhz(state.gpu_fabric_clock_mhz)],
+        ["PCIe", state.gpu_pcie_link || "—"],
+        ["VBIOS", state.gpu_vbios_version || "—"],
+    ];
+    const mib = 1024 * 1024;
+    return SP_JSX.jsx(DetailCard, { title: text.gpuDetails, rows: rows, children: SP_JSX.jsxs("div", { style: { borderTop: `1px solid ${tokens.colors.border}`, paddingTop: 6 }, children: [
+                SP_JSX.jsx(UsageBar, { label: "VRAM", used: state.gpu_vram_used_mib != null ? state.gpu_vram_used_mib * mib : null, total: state.gpu_vram_total_mib != null ? state.gpu_vram_total_mib * mib : null, color: tokens.colors.green }),
+                SP_JSX.jsx(UsageBar, { label: "GTT", used: state.gpu_gtt_used_mib != null ? state.gpu_gtt_used_mib * mib : null, total: state.gpu_gtt_total_mib != null ? state.gpu_gtt_total_mib * mib : null, color: tokens.colors.cyan })
+            ] }) });
+}
+function GpuOverview({ state }) {
+    return SP_JSX.jsx(ChipOverview, { mhz: state.gpu_core_mhz, celsius: state.gpu_temperature_c, usage: state.gpu_busy_percent, millivolts: state.gpu_voltage_mv });
 }
 function MonitorTab({ state, cpuRun }) {
     const accent = ACCENT_SWATCHES[SP_REACT.useContext(SettingsContext).settings.accent];
@@ -5124,7 +5213,7 @@ function MonitorTab({ state, cpuRun }) {
                     { key: "gpu", label: "GPU", icon: SP_JSX.jsx(FaMicrochip, {}), color: accent.focus, colorSoft: accent.focus_soft },
                     { key: "cooling", label: text.fan, icon: SP_JSX.jsx(FaFan, {}), color: accent.focus, colorSoft: accent.focus_soft },
                     { key: "all", label: text.allSensors, icon: SP_JSX.jsx(FaLayerGroup, {}), color: accent.focus, colorSoft: accent.focus_soft },
-                ] }), section === "cpu" ? SP_JSX.jsxs(DFL.Focusable, { "flow-children": "down", children: [cpuRunNotice(state, cpuRun), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(CpuOverview, { state: state }), SP_JSX.jsx(CpuOcCard, { state: state })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(CoreGrid, { cores: state.cpu_cores ?? [], slots: state.cpu_physical_slots }) }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(CpuVrm, { state: state, tiles: cpuVrmTiles }) }), SP_JSX.jsx(ScrollStop, { end: true })] }) : null, section === "gpu" ? SP_JSX.jsxs(DFL.Focusable, { "flow-children": "down", children: [SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(AceRow, { state: state }) }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(MetricGrid, { tiles: gpuTiles }), SP_JSX.jsxs("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "-3px 2px 2px" }, children: ["VBIOS \u00B7 ", state.gpu_vbios_version || "—"] }), SP_JSX.jsxs("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 6px" }, children: [state.gpu_range ? `${state.gpu_range[0]}–${state.gpu_range[1]} MHz` : "—", state.gpu_allowed_range ? ` · ${text.safeRange} ${state.gpu_allowed_range[0]}–${state.gpu_allowed_range[1]} MHz` : ""] })] }), SP_JSX.jsxs(ScrollStop, { children: [vrmNotice, SP_JSX.jsx(MetricGrid, { tiles: gpuVrmTiles })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(Gddr6Panel, { state: state }) }), SP_JSX.jsx(ScrollStop, { end: true })] }) : null, section === "cooling" ? SP_JSX.jsxs(DFL.Focusable, { "flow-children": "down", children: [SP_JSX.jsx(ScrollStop, { children: fanChannelList }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(MetricGrid, { tiles: fanControlTiles }) }), SP_JSX.jsx(ScrollStop, { end: true })] }) : null, section === "all" ? SP_JSX.jsx("section", { children: SP_JSX.jsxs(DFL.Focusable, { "flow-children": "down", children: [SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "cpu", title: "CPU" }), SP_JSX.jsx(CpuOverview, { state: state }), SP_JSX.jsx(CpuOcCard, { state: state })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(CoreGrid, { cores: state.cpu_cores ?? [], slots: state.cpu_physical_slots }) }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(CpuVrm, { state: state, tiles: cpuVrmTiles }) }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "gpu", title: "GPU" }), SP_JSX.jsx(AceRow, { state: state }), SP_JSX.jsx(MetricGrid, { tiles: gpuTiles })] }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsxs("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "-3px 2px 8px" }, children: ["VBIOS \u00B7 ", state.gpu_vbios_version || "—", " \u00B7 ", state.gpu_range ? `${state.gpu_range[0]}–${state.gpu_range[1]} MHz` : "—", state.gpu_allowed_range ? ` · ${text.safeRange} ${state.gpu_allowed_range[0]}–${state.gpu_allowed_range[1]} MHz` : ""] }), SP_JSX.jsx(MetricGrid, { tiles: gpuVrmTiles })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(Gddr6Panel, { state: state }) }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "fan", title: text.fan }), fanChannelList] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(MetricGrid, { tiles: boardSensorTiles }) }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(MetricGrid, { tiles: fanControlTiles }) }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "power", title: text.power }), vrmNotice, SP_JSX.jsx(MetricGrid, { tiles: powerTiles })] }), SP_JSX.jsx(ScrollStop, { end: true })] }) }) : null] });
+                ] }), section === "cpu" ? SP_JSX.jsxs(DFL.Focusable, { "flow-children": "down", children: [cpuRunNotice(state, cpuRun), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(CpuOverview, { state: state }), SP_JSX.jsx(CpuOcCard, { state: state })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(CoreGrid, { cores: state.cpu_cores ?? [], slots: state.cpu_physical_slots }) }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(RailVrm, { state: state, label: "VRM CPU", tiles: cpuVrmTiles }) }), SP_JSX.jsx(ScrollStop, { end: true })] }) : null, section === "gpu" ? SP_JSX.jsxs(DFL.Focusable, { "flow-children": "down", children: [SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(GpuOverview, { state: state }), SP_JSX.jsx(AceMeter, { state: state })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(GpuDetails, { state: state }) }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(RailVrm, { state: state, label: "VRM GPU", tiles: gpuVrmTiles }) }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(Gddr6Panel, { state: state }) }), SP_JSX.jsx(ScrollStop, { end: true })] }) : null, section === "cooling" ? SP_JSX.jsxs(DFL.Focusable, { "flow-children": "down", children: [SP_JSX.jsx(ScrollStop, { children: fanChannelList }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(MetricGrid, { tiles: fanControlTiles }) }), SP_JSX.jsx(ScrollStop, { end: true })] }) : null, section === "all" ? SP_JSX.jsx("section", { children: SP_JSX.jsxs(DFL.Focusable, { "flow-children": "down", children: [SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "cpu", title: "CPU" }), SP_JSX.jsx(CpuOverview, { state: state }), SP_JSX.jsx(CpuOcCard, { state: state })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(CoreGrid, { cores: state.cpu_cores ?? [], slots: state.cpu_physical_slots }) }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(RailVrm, { state: state, label: "VRM CPU", tiles: cpuVrmTiles }) }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "gpu", title: "GPU" }), SP_JSX.jsx(GpuOverview, { state: state }), SP_JSX.jsx(AceMeter, { state: state })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(GpuDetails, { state: state }) }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(RailVrm, { state: state, label: "VRM GPU", tiles: gpuVrmTiles }) }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(Gddr6Panel, { state: state }) }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "fan", title: text.fan }), fanChannelList] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(MetricGrid, { tiles: boardSensorTiles }) }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(MetricGrid, { tiles: fanControlTiles }) }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "power", title: text.power }), vrmNotice, SP_JSX.jsx(MetricGrid, { tiles: powerTiles })] }), SP_JSX.jsx(ScrollStop, { end: true })] }) }) : null] });
 }
 function MemoryTab({ state, busy, execute }) {
     const vram = state.vram;
