@@ -462,6 +462,13 @@ const ACCENT_SWATCHES: Record<AccentKey, { focus: string; focus_soft: string; la
 };
 const REFRESH_INTERVAL_OPTIONS = [2000, 5000, 10000, 30000] as const;
 const DEFAULT_SETTINGS: QuickAccessSettings = { accent: "orange", refreshIntervalMs: 5000, sensorLayout: "grid" };
+// GDDR6 monitoring as on the desktop: nothing is read until the player asks,
+// and each live session ends itself after ten minutes. The SMU it reads
+// through is shared with the GPU governor and the CPU overclock, so it is not
+// a setting that stays on. Module scope: the panel remounts with Quick Access.
+const GDDR6_SESSION_MS = 10 * 60 * 1000;
+let gddr6LiveUntil = 0;
+type Gddr6Session = { live: boolean; minutesLeft: number; setLive: (on: boolean) => void };
 const SETTINGS_STORAGE_KEY = "bc250-quick-access:settings";
 
 function loadSettings(): QuickAccessSettings {
@@ -506,8 +513,9 @@ function saveVramPending(record: VramPendingRecord | null) {
   } catch { /* best-effort only */ }
 }
 
-const SettingsContext = createContext<{ settings: QuickAccessSettings; setSettings: (next: QuickAccessSettings) => void }>({
+const SettingsContext = createContext<{ settings: QuickAccessSettings; setSettings: (next: QuickAccessSettings) => void; gddr6: Gddr6Session }>({
   settings: DEFAULT_SETTINGS, setSettings: () => {},
+  gddr6: { live: false, minutesLeft: 0, setLive: () => {} },
 });
 
 function PadButton({ children, disabled = false, onActivate, style, preferredFocus = false, label }: {
@@ -794,12 +802,23 @@ function SubNav<T extends string>({ value, onChange, items }: { value: T; onChan
   </Focusable>;
 }
 
+function Gddr6LiveToggle() {
+  const { gddr6 } = useContext(SettingsContext);
+  return <PadButton onActivate={() => gddr6.setLive(!gddr6.live)} style={{ alignItems: "center", display: "flex", fontSize: 10, height: 30, justifyContent: "space-between", marginBottom: 6, padding: "4px 9px", width: "100%" }}>
+    <span>{text.gddr6LiveButton}</span>
+    <span style={{ color: gddr6.live ? tokens.colors.green : tokens.colors.subtle, fontSize: 9 }}>{gddr6.live ? text.gddr6LiveLeft.replace("{minutes}", String(gddr6.minutesLeft)) : text.gddr6Off}</span>
+  </PadButton>;
+}
+
 function Gddr6Panel({ state }: { state: Status }) {
-  const accent = ACCENT_SWATCHES[useContext(SettingsContext).settings.accent];
+  const panelContext = useContext(SettingsContext);
+  const accent = ACCENT_SWATCHES[panelContext.settings.accent];
+  if (!panelContext.gddr6.live) return <div style={{ margin: "2px 0 6px" }}><div style={{ color: tokens.colors.subtle, fontSize: 9, margin: "4px 2px 4px", textTransform: "uppercase" }}>GDDR6</div><Gddr6LiveToggle /></div>;
   const chips = state.gddr6_chips ?? [];
   const available = Boolean(state.gddr6_available) && chips.length > 0;
   return <div style={{ margin: "2px 0 6px" }}>
     <div style={{ color: tokens.colors.subtle, fontSize: 9, margin: "4px 2px 4px", textTransform: "uppercase" }}>GDDR6</div>
+    <Gddr6LiveToggle />
     {!available
       ? <div style={{ color: tokens.colors.amber, fontSize: 10, lineHeight: 1.4, margin: "0 2px 6px" }}>{text.gddr6Unavailable}</div>
       : <>
@@ -1461,6 +1480,17 @@ function Content() {
     return () => globalThis.clearInterval(timer);
   }, [sampleMonitorSensors, settings.refreshIntervalMs]);
 
+  const [gddr6Now, setGddr6Now] = useState(() => Date.now());
+  const gddr6Live = gddr6Now < gddr6LiveUntil;
+  // A CPU run holds the SMU: the session waits instead of queuing behind it.
+  const gddr6Paused = Boolean(cpuOperation) || Boolean(state.operation_in_progress && String(state.operation_in_progress.action).startsWith("cpu-"));
+  const setGddr6Live = useCallback((on: boolean) => { gddr6LiveUntil = on ? Date.now() + GDDR6_SESSION_MS : 0; setGddr6Now(Date.now()); }, []);
+  useEffect(() => {
+    if (!gddr6Live) return;
+    const timer = globalThis.setInterval(() => setGddr6Now(Date.now()), 15000);
+    return () => globalThis.clearInterval(timer);
+  }, [gddr6Live]);
+  const gddr6Session = useMemo<Gddr6Session>(() => ({ live: gddr6Live, minutesLeft: Math.max(1, Math.ceil((gddr6LiveUntil - gddr6Now) / 60000)), setLive: setGddr6Live }), [gddr6Live, gddr6Now, setGddr6Live]);
   const sampleGddr6 = useCallback(async () => {
     if (gddr6Refreshing.current) return;
     gddr6Refreshing.current = true;
@@ -1478,10 +1508,11 @@ function Content() {
   // so it costs more than the other passive reads for a value that changes
   // far more slowly than clocks or usage.
   useEffect(() => {
+    if (!gddr6Live || gddr6Paused) return;
     void sampleGddr6();
     const timer = globalThis.setInterval(() => void sampleGddr6(), settings.refreshIntervalMs * 2);
     return () => globalThis.clearInterval(timer);
-  }, [sampleGddr6, settings.refreshIntervalMs]);
+  }, [sampleGddr6, settings.refreshIntervalMs, gddr6Live, gddr6Paused]);
 
   const execute = async (title: string, operation: () => Promise<Result>, kind: DraftKind = "none", cpuProgress?: { target: number; manual: boolean }) => {
     if (busyRef.current) return; busyRef.current = true; setBusy(true);
@@ -1564,7 +1595,7 @@ function Content() {
   />);
 
   return <Focusable flow-children="down" style={{ background: tokens.colors.panel, border: `1px solid ${tokens.colors.border}`, borderRadius: 12, boxSizing: "border-box", color: tokens.colors.text, minHeight: "100vh", padding: "12px 14px 72px", width: "100%" }}>
-  <SettingsContext.Provider value={{ settings, setSettings }}>
+  <SettingsContext.Provider value={{ settings, setSettings, gddr6: gddr6Session }}>
     <div ref={topRef} />
     {stale ? <div style={{ alignItems: "center", background: tokens.colors.amber_soft, border: `1px solid ${tokens.colors.amber}`, borderRadius: 6, color: tokens.colors.amber, display: "flex", fontSize: 10, gap: 6, marginBottom: 10, padding: "6px 9px" }}><FaClock />{text.stale}</div> : null}
     {feedback ? <Notice value={feedback} dismiss={() => setFeedback(null)} /> : null}
@@ -1823,10 +1854,18 @@ function SettingsTab({ settings, setSettings, state, busy, execute }: {
   execute: (title: string, operation: () => Promise<Result>, kind?: DraftKind) => Promise<void>;
 }) {
   const accent = ACCENT_SWATCHES[settings.accent];
+  const { gddr6 } = useContext(SettingsContext);
   return <>
     <section style={{ marginBottom: 12 }}>
       <SectionTitle kind="gpu" title="GPU" />
       <HighPointsSwitch state={state} busy={busy} execute={execute} />
+    </section>
+
+    <section style={{ marginBottom: 12 }}>
+      <SectionTitle kind="settings" title="GDDR6" />
+      <div style={{ background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, fontSize: 11, overflow: "hidden" }}>
+        <ToggleField label={text.gddr6Monitoring} description={gddr6.live ? `${text.gddr6LiveLeft.replace("{minutes}", String(gddr6.minutesLeft))} · ${text.gddr6MonitoringHint}` : text.gddr6MonitoringHint} layout="inline" bottomSeparator="none" highlightOnFocus checked={gddr6.live} onChange={(checked: boolean) => gddr6.setLive(checked)} />
+      </div>
     </section>
 
     <section style={{ marginBottom: 12 }}>

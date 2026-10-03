@@ -249,5 +249,10 @@
   "gpuValidatedRange": "Intervalo validado",
   "gpuMemoryClock": "Relógio da memória",
   "gpuSocClock": "Relógio do SoC",
-  "gpuFabricClock": "Relógio do fabric"
+  "gpuFabricClock": "Relógio do fabric",
+  "gddr6Monitoring": "Monitorização da GDDR6",
+  "gddr6MonitoringHint": "Lê a temperatura de cada chip de memória através da SMU enquanto estiver ligada, 10 minutos no máximo; depois desliga-se sozinha, como na app de desktop. A SMU é partilhada com o governor da GPU e o overclock da CPU.",
+  "gddr6Off": "Monitorização desligada",
+  "gddr6LiveButton": "Monitorizar em direto",
+  "gddr6LiveLeft": "Em direto · faltam {minutes} min"
 }

@@ -249,5 +249,10 @@
   "gpuValidatedRange": "Перевірений діапазон",
   "gpuMemoryClock": "Частота пам'яті",
   "gpuSocClock": "Частота SoC",
-  "gpuFabricClock": "Частота fabric"
+  "gpuFabricClock": "Частота fabric",
+  "gddr6Monitoring": "Моніторинг GDDR6",
+  "gddr6MonitoringHint": "Читає через SMU температуру кожного чипа пам'яті, поки ввімкнений, не довше 10 хвилин; потім вимикається сам, як у застосунку для робочого столу. SMU ділять governor GPU і розгін CPU.",
+  "gddr6Off": "Моніторинг вимкнено",
+  "gddr6LiveButton": "Моніторинг наживо",
+  "gddr6LiveLeft": "Наживо · лишилося {minutes} хв"
 }

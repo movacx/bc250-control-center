@@ -249,5 +249,10 @@
   "gpuValidatedRange": "Geprüfter Bereich",
   "gpuMemoryClock": "Speichertakt",
   "gpuSocClock": "SoC-Takt",
-  "gpuFabricClock": "Fabric-Takt"
+  "gpuFabricClock": "Fabric-Takt",
+  "gddr6Monitoring": "GDDR6-Überwachung",
+  "gddr6MonitoringHint": "Liest über die SMU die Temperatur jedes Speicherchips, solange sie an ist, höchstens 10 Minuten; danach schaltet sie sich selbst ab, wie in der Desktop-App. Die SMU teilen sich GPU-Governor und CPU-Overclock.",
+  "gddr6Off": "Überwachung aus",
+  "gddr6LiveButton": "Live überwachen",
+  "gddr6LiveLeft": "Live · noch {minutes} Min"
 }

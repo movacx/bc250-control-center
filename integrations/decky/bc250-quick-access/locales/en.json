@@ -249,5 +249,10 @@
   "gpuValidatedRange": "Validated range",
   "gpuMemoryClock": "Memory clock",
   "gpuSocClock": "SoC clock",
-  "gpuFabricClock": "Fabric clock"
+  "gpuFabricClock": "Fabric clock",
+  "gddr6Monitoring": "GDDR6 monitoring",
+  "gddr6MonitoringHint": "Reads each memory chip's temperature through the SMU while it is on, for 10 minutes at most; then it turns itself off, as in the desktop app. The SMU is shared with the GPU governor and the CPU overclock.",
+  "gddr6Off": "Monitoring is off",
+  "gddr6LiveButton": "Monitor live",
+  "gddr6LiveLeft": "Live · {minutes} min left"
 }

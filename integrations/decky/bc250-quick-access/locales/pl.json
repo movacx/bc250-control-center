@@ -249,5 +249,10 @@
   "gpuValidatedRange": "Zweryfikowany zakres",
   "gpuMemoryClock": "Zegar pamięci",
   "gpuSocClock": "Zegar SoC",
-  "gpuFabricClock": "Zegar fabric"
+  "gpuFabricClock": "Zegar fabric",
+  "gddr6Monitoring": "Monitorowanie GDDR6",
+  "gddr6MonitoringHint": "Odczytuje przez SMU temperaturę każdego układu pamięci, dopóki jest włączone, maksymalnie 10 minut; potem wyłącza się samo, jak w aplikacji na pulpit. SMU dzielą governor GPU i podkręcanie CPU.",
+  "gddr6Off": "Monitorowanie wyłączone",
+  "gddr6LiveButton": "Monitoruj na żywo",
+  "gddr6LiveLeft": "Na żywo · zostało {minutes} min"
 }
