@@ -752,30 +752,29 @@ function CoreGrid({ cores, slots }: { cores: CoreEntry[]; slots?: number | null 
   const groups = physicalCores(cores, slots);
   const active = groups.filter((group) => group.threads.length > 0).length;
   // An idle thread reports the nominal clock, not a live one: a core shows
-  // the clock of its busier thread.
+  // the clock of its busier thread, or the lower one when both idle.
   const busiest = (threads: CoreEntry[]) => {
     const lead = threads.reduce((best, entry) => (entry.percent ?? -1) > (best?.percent ?? -1) ? entry : best, threads[0]);
     if ((lead?.percent ?? 0) >= 1) return lead;
-    // Both threads idle: the lower clock is the live one.
     return threads.reduce((low, entry) => (entry.frequency_mhz ?? Infinity) < (low?.frequency_mhz ?? Infinity) ? entry : low, threads[0]);
   };
-  return <div style={{ marginBottom: 10 }}>
-    <div style={{ color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 4px" }}>{text.cpuCoresSummary.replace("{active}", String(active)).replace("{total}", String(groups.length)).replace("{threads}", String(cores.length))}</div>
-    <div style={{ display: "grid", gap: 4, gridTemplateColumns: "repeat(4,minmax(0,1fr))" }}>
+  // One column per physical core: the bar's height is the core's load, its
+  // clock and number underneath. Locked cores keep their column, empty.
+  return <div style={{ background: tokens.colors.panel_alt, borderRadius: 6, marginBottom: 10, padding: "7px 8px 6px" }}>
+    <div style={{ color: tokens.colors.subtle, fontSize: 9, marginBottom: 6 }}>{text.cpuCoresSummary.replace("{active}", String(active)).replace("{total}", String(groups.length)).replace("{threads}", String(cores.length))}</div>
+    <div style={{ display: "grid", gap: 4, gridTemplateColumns: `repeat(${groups.length},minmax(0,1fr))` }}>
       {groups.map((group) => {
-        if (!group.threads.length) return <div key={group.id} style={{ background: tokens.colors.panel_alt, border: `1px dashed ${tokens.colors.border}`, borderRadius: 7, display: "flex", flexDirection: "column", gap: 4, justifyContent: "center", opacity: .5, padding: "6px 7px 7px" }}>
-          <div style={{ color: tokens.colors.subtle, fontSize: 9, fontWeight: 700 }}>{group.id + 1}</div>
-          <div style={{ color: tokens.colors.muted, fontSize: 9, fontWeight: 650, marginTop: 3 }}>{text.cpuCoreLocked}</div>
-        </div>;
-        const lead = busiest(group.threads);
+        const locked = !group.threads.length;
+        const lead = locked ? undefined : busiest(group.threads);
         const usage = group.threads.filter((entry) => entry.percent != null);
-        const average = usage.length ? Math.round(usage.reduce((sum, entry) => sum + (entry.percent ?? 0), 0) / usage.length) : null;
-        const load = average ?? 0;
+        const load = usage.length ? Math.round(usage.reduce((sum, entry) => sum + (entry.percent ?? 0), 0) / usage.length) : 0;
         const tone = load >= 85 ? tokens.colors.red : load >= 60 ? tokens.colors.amber : tokens.colors.green;
-        return <div key={group.id} style={{ background: tokens.colors.panel_raised, border: `1px solid ${tokens.colors.border}`, borderRadius: 7, display: "flex", flexDirection: "column", gap: 4, padding: "6px 7px 7px" }}>
-          <div style={{ alignItems: "baseline", display: "flex", justifyContent: "space-between" }}><span style={{ color: tokens.colors.text, fontSize: 9, fontWeight: 700, whiteSpace: "nowrap" }}>{group.id + 1}</span><span style={{ color: average != null ? tone : tokens.colors.subtle, fontSize: 8, fontWeight: 650 }}>{average != null ? `${average}%` : "—"}</span></div>
-          <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1 }}>{lead?.frequency_mhz != null ? <>{(lead.frequency_mhz / 1000).toFixed(2)}<span style={{ color: tokens.colors.subtle, fontSize: 8, fontWeight: 600, marginLeft: 2 }}>GHz</span></> : "—"}</div>
-          <div style={{ background: tokens.colors.panel_alt, borderRadius: 3, height: 4, overflow: "hidden" }}><div style={{ background: tone, borderRadius: 3, height: "100%", transition: "width .4s ease", width: `${Math.max(3, Math.min(100, load))}%` }} /></div>
+        return <div key={group.id} title={locked ? text.cpuCoreLocked : `${load}%`} style={{ alignItems: "center", display: "flex", flexDirection: "column", gap: 3, opacity: locked ? .4 : 1 }}>
+          <div style={{ alignItems: "flex-end", background: tokens.colors.panel, border: locked ? `1px dashed ${tokens.colors.border}` : "none", borderRadius: 3, display: "flex", height: 34, overflow: "hidden", width: "100%" }}>
+            {locked ? null : <div style={{ background: tone, height: `${Math.max(4, Math.min(100, load))}%`, transition: "height .4s ease", width: "100%" }} />}
+          </div>
+          <div style={{ fontSize: 9, fontWeight: 650, whiteSpace: "nowrap" }}>{lead?.frequency_mhz != null ? (lead.frequency_mhz / 1000).toFixed(1) : "—"}</div>
+          <div style={{ color: tokens.colors.subtle, fontSize: 8 }}>{group.id + 1}</div>
         </div>;
       })}
     </div>
@@ -999,26 +998,19 @@ function heatTone(celsius: number | null | undefined) {
 function CpuOverview({ state }: { state: Status }) {
   const usage = state.cpu_usage_percent;
   const ghz = state.cpu_frequency_mhz != null ? (state.cpu_frequency_mhz / 1000).toFixed(2) : "—";
-  const label: CSSProperties = { color: tokens.colors.subtle, fontSize: 8, letterSpacing: .4, textTransform: "uppercase" };
-  return <div style={{ background: tokens.colors.panel_raised, border: `1px solid ${tokens.colors.border}`, borderRadius: 8, marginBottom: 8, padding: "9px 10px" }}>
-    <div style={{ display: "grid", gap: 8, gridTemplateColumns: "1fr 1fr" }}>
-      <div><div style={label}>{text.cpuNow}</div><div style={{ fontSize: 22, fontWeight: 750, lineHeight: 1.1 }}>{ghz}<span style={{ color: tokens.colors.subtle, fontSize: 10, fontWeight: 600, marginLeft: 3 }}>GHz</span></div></div>
-      <div style={{ textAlign: "right" }}><div style={label}>{text.cpuTemperature}</div><div style={{ color: heatTone(state.cpu_temperature_c), fontSize: 22, fontWeight: 750, lineHeight: 1.1 }}>{state.cpu_temperature_c != null ? state.cpu_temperature_c.toFixed(1) : "—"}<span style={{ color: tokens.colors.subtle, fontSize: 10, fontWeight: 600, marginLeft: 2 }}>°C</span></div></div>
+  return <div style={{ background: tokens.colors.panel_alt, borderRadius: 6, marginBottom: 8, padding: "8px 10px" }}>
+    <div style={{ alignItems: "flex-end", display: "flex", justifyContent: "space-between" }}>
+      <div><div style={{ color: tokens.colors.subtle, fontSize: 9 }}>{text.cpuNow}</div><div style={{ fontSize: 18, fontWeight: 700 }}>{ghz} <span style={{ color: tokens.colors.subtle, fontSize: 10, fontWeight: 500 }}>GHz</span></div></div>
+      <div style={{ textAlign: "right" }}><div style={{ color: tokens.colors.subtle, fontSize: 9 }}>{text.cpuTemperature}</div><div style={{ color: heatTone(state.cpu_temperature_c), fontSize: 18, fontWeight: 700 }}>{state.cpu_temperature_c != null ? state.cpu_temperature_c.toFixed(1) : "—"} <span style={{ color: tokens.colors.subtle, fontSize: 10, fontWeight: 500 }}>°C</span></div></div>
     </div>
-    <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr auto", marginTop: 8 }}>
-      <div>
-        <div style={{ display: "flex", fontSize: 9, justifyContent: "space-between", marginBottom: 3 }}><span style={{ color: tokens.colors.subtle }}>{text.usage}</span><b>{usage != null ? `${usage}%` : "—"}</b></div>
-        <div style={{ background: tokens.colors.panel_alt, borderRadius: 3, height: 5, overflow: "hidden" }}><div style={{ background: tokens.colors.green, borderRadius: 3, height: "100%", transition: "width .4s ease", width: `${Math.max(2, Math.min(100, usage ?? 0))}%` }} /></div>
-      </div>
-      <div style={{ textAlign: "right" }}><div style={{ color: tokens.colors.subtle, fontSize: 9 }}>{text.gpuVoltage}</div><b style={{ fontSize: 11 }}>{state.cpu_voltage_mv != null ? `${state.cpu_voltage_mv} mV` : "—"}</b></div>
-    </div>
+    <div style={{ background: tokens.colors.panel, borderRadius: 2, height: 3, margin: "7px 0 5px", overflow: "hidden" }}><div style={{ background: tokens.colors.green, height: "100%", transition: "width .4s ease", width: `${Math.max(1, Math.min(100, usage ?? 0))}%` }} /></div>
+    <div style={{ color: tokens.colors.subtle, display: "flex", fontSize: 9, justifyContent: "space-between" }}><span>{text.usage} <b style={{ color: tokens.colors.text }}>{usage != null ? `${usage}%` : "—"}</b></span><span>{text.gpuVoltage} <b style={{ color: tokens.colors.text }}>{state.cpu_voltage_mv != null ? `${state.cpu_voltage_mv} mV` : "—"}</b></span></div>
   </div>;
 }
 
 function CpuOcCard({ state }: { state: Status }) {
   const active = state.cpu_active_profile ?? state.cpu_detected_profile?.active_profile;
   const mode = !active ? "—" : active.mode === "manual" ? text.cpuManual : active.mode === "boot" ? text.cpuModeBoot : text.automatic;
-  const tone = active ? tokens.colors.green : tokens.colors.subtle;
   const rows: [string, string][] = [
     [text.mode, mode],
     ["OC", active ? `${active.frequency} MHz` : "—"],
@@ -1026,12 +1018,9 @@ function CpuOcCard({ state }: { state: Status }) {
     [text.cpuOnBoot, active?.persistable || Boolean(state.cpu_service_enabled) ? text.enabled : text.disabled],
     [text.cpuThermalLimit, `${state.cpu_tuning_temperature ?? "—"} °C`],
   ];
-  return <div style={{ background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 8, marginBottom: 8, padding: "8px 10px" }}>
-    <div style={{ alignItems: "center", display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-      <b style={{ fontSize: 11 }}>{text.cpuOcTitle}</b>
-      <span style={{ background: active ? tokens.colors.green_soft : tokens.colors.panel_raised, border: `1px solid ${tone}`, borderRadius: 10, color: tone, fontSize: 8, fontWeight: 700, padding: "1px 7px" }}>{active ? text.enabled : text.disabled}</span>
-    </div>
-    {rows.map(([name, value]) => <div key={name} style={{ borderTop: `1px solid ${tokens.colors.border}`, display: "flex", fontSize: 10, justifyContent: "space-between", padding: "4px 0" }}><span style={{ color: tokens.colors.subtle }}>{name}</span><b>{value}</b></div>)}
+  return <div style={{ background: tokens.colors.panel_alt, borderRadius: 6, marginBottom: 8, padding: "6px 10px 4px" }}>
+    <div style={{ display: "flex", fontSize: 10, justifyContent: "space-between", padding: "2px 0 5px" }}><b>{text.cpuOcTitle}</b><span style={{ color: active ? tokens.colors.green : tokens.colors.subtle, fontSize: 9 }}>{active ? text.enabled : text.disabled}</span></div>
+    {rows.map(([name, value]) => <div key={name} style={{ borderTop: `1px solid ${tokens.colors.border}`, display: "flex", fontSize: 10, justifyContent: "space-between", padding: "4px 0" }}><span style={{ color: tokens.colors.subtle }}>{name}</span><span>{value}</span></div>)}
   </div>;
 }
 
@@ -1039,7 +1028,7 @@ function CpuOcCard({ state }: { state: Status }) {
 // not four rows of dashes.
 function CpuVrm({ state, tiles }: { state: Status; tiles: { label: string; value: string }[] }) {
   if (state.vrm_available) return <MetricGrid tiles={tiles} />;
-  return <div style={{ alignItems: "center", border: `1px dashed ${tokens.colors.border}`, borderRadius: 6, color: tokens.colors.subtle, display: "flex", fontSize: 9, gap: 6, justifyContent: "space-between", marginBottom: 10, padding: "6px 8px" }}><b style={{ color: tokens.colors.text, fontSize: 9 }}>VRM CPU</b><span style={{ textAlign: "right" }}>{text.vrmUnavailable}</span></div>;
+  return <div style={{ alignItems: "center", border: `1px dashed ${tokens.colors.border}`, borderRadius: 6, color: tokens.colors.subtle, display: "flex", fontSize: 9, gap: 6, justifyContent: "space-between", marginBottom: 10, padding: "6px 8px" }}><b style={{ color: tokens.colors.text, fontSize: 9, whiteSpace: "nowrap" }}>VRM CPU</b><span style={{ textAlign: "right" }}>{text.vrmUnavailable}</span></div>;
 }
 
 function MonitorTab({ state, cpuRun }: { state: Status; cpuRun?: { target: number; elapsed: number } | null }) {

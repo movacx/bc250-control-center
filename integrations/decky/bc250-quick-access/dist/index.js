@@ -4868,16 +4868,21 @@ function CoreGrid({ cores, slots }) {
             return lead;
         return threads.reduce((low, entry) => (entry.frequency_mhz ?? Infinity) < (low?.frequency_mhz ?? Infinity) ? entry : low, threads[0]);
     };
-    return SP_JSX.jsxs("div", { style: { marginBottom: 10 }, children: [SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 4px" }, children: text.cpuCoresSummary.replace("{active}", String(active)).replace("{total}", String(groups.length)).replace("{threads}", String(cores.length)) }), SP_JSX.jsx("div", { style: { display: "grid", gap: 4, gridTemplateColumns: "repeat(4,minmax(0,1fr))" }, children: groups.map((group) => {
-                if (!group.threads.length)
-                    return SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_alt, border: `1px dashed ${tokens.colors.border}`, borderRadius: 7, display: "flex", flexDirection: "column", gap: 4, justifyContent: "center", opacity: .5, padding: "6px 7px 7px" }, children: [SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, fontWeight: 700 }, children: group.id + 1 }), SP_JSX.jsx("div", { style: { color: tokens.colors.muted, fontSize: 9, fontWeight: 650, marginTop: 3 }, children: text.cpuCoreLocked })] }, group.id);
-                const lead = busiest(group.threads);
-                const usage = group.threads.filter((entry) => entry.percent != null);
-                const average = usage.length ? Math.round(usage.reduce((sum, entry) => sum + entry.percent, 0) / usage.length) : null;
-                const load = average ?? 0;
-                const tone = load >= 85 ? tokens.colors.red : load >= 60 ? tokens.colors.amber : tokens.colors.green;
-                return SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_raised, border: `1px solid ${tokens.colors.border}`, borderRadius: 7, display: "flex", flexDirection: "column", gap: 4, padding: "6px 7px 7px" }, children: [SP_JSX.jsxs("div", { style: { alignItems: "baseline", display: "flex", justifyContent: "space-between" }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.text, fontSize: 9, fontWeight: 700, whiteSpace: "nowrap" }, children: group.id + 1 }), SP_JSX.jsx("span", { style: { color: average != null ? tone : tokens.colors.subtle, fontSize: 8, fontWeight: 650 }, children: average != null ? `${average}%` : "—" })] }), SP_JSX.jsx("div", { style: { fontSize: 13, fontWeight: 700, lineHeight: 1 }, children: lead?.frequency_mhz != null ? SP_JSX.jsxs(SP_JSX.Fragment, { children: [(lead.frequency_mhz / 1000).toFixed(2), SP_JSX.jsx("span", { style: { color: tokens.colors.subtle, fontSize: 8, fontWeight: 600, marginLeft: 2 }, children: "GHz" })] }) : "—" }), SP_JSX.jsx("div", { style: { background: tokens.colors.panel_alt, borderRadius: 3, height: 4, overflow: "hidden" }, children: SP_JSX.jsx("div", { style: { background: tone, borderRadius: 3, height: "100%", transition: "width .4s ease", width: `${Math.max(3, Math.min(100, load))}%` } }) })] }, group.id);
-            }) })] });
+    return SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_alt, borderRadius: 6, marginBottom: 10, padding: "7px 8px 6px" }, children: [
+            SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, marginBottom: 6 }, children: text.cpuCoresSummary.replace("{active}", String(active)).replace("{total}", String(groups.length)).replace("{threads}", String(cores.length)) }),
+            SP_JSX.jsx("div", { style: { display: "grid", gap: 4, gridTemplateColumns: `repeat(${groups.length},minmax(0,1fr))` }, children: groups.map((group) => {
+                    const locked = !group.threads.length;
+                    const lead = locked ? undefined : busiest(group.threads);
+                    const usage = group.threads.filter((entry) => entry.percent != null);
+                    const load = usage.length ? Math.round(usage.reduce((sum, entry) => sum + entry.percent, 0) / usage.length) : 0;
+                    const tone = load >= 85 ? tokens.colors.red : load >= 60 ? tokens.colors.amber : tokens.colors.green;
+                    return SP_JSX.jsxs("div", { title: locked ? text.cpuCoreLocked : `${load}%`, style: { alignItems: "center", display: "flex", flexDirection: "column", gap: 3, opacity: locked ? .4 : 1 }, children: [
+                            SP_JSX.jsx("div", { style: { alignItems: "flex-end", background: tokens.colors.panel, border: locked ? `1px dashed ${tokens.colors.border}` : "none", borderRadius: 3, display: "flex", height: 34, overflow: "hidden", width: "100%" }, children: locked ? null : SP_JSX.jsx("div", { style: { background: tone, height: `${Math.max(4, Math.min(100, load))}%`, transition: "height .4s ease", width: "100%" } }) }),
+                            SP_JSX.jsx("div", { style: { fontSize: 9, fontWeight: 650, whiteSpace: "nowrap" }, children: lead?.frequency_mhz != null ? (lead.frequency_mhz / 1000).toFixed(1) : "—" }),
+                            SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 8 }, children: group.id + 1 })
+                        ] }, group.id);
+                }) })
+        ] });
 }
 function SubNav({ value, onChange, items }) {
     return SP_JSX.jsx(DFL.Focusable, { "flow-children": "row", style: { display: "grid", gap: 5, gridTemplateColumns: `repeat(${items.length},minmax(0,1fr))`, marginBottom: 10 }, children: items.map((item) => {
@@ -5003,25 +5008,23 @@ function heatTone(celsius) {
 function CpuOverview({ state }) {
     const usage = state.cpu_usage_percent;
     const ghz = state.cpu_frequency_mhz != null ? (state.cpu_frequency_mhz / 1000).toFixed(2) : "—";
-    const label = { color: tokens.colors.subtle, fontSize: 8, letterSpacing: .4, textTransform: "uppercase" };
-    return SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_raised, border: `1px solid ${tokens.colors.border}`, borderRadius: 8, marginBottom: 8, padding: "9px 10px" }, children: [
-            SP_JSX.jsxs("div", { style: { display: "grid", gap: 8, gridTemplateColumns: "1fr 1fr" }, children: [
-                    SP_JSX.jsxs("div", { children: [SP_JSX.jsx("div", { style: label, children: text.cpuNow }), SP_JSX.jsxs("div", { style: { fontSize: 22, fontWeight: 750, lineHeight: 1.1 }, children: [ghz, SP_JSX.jsx("span", { style: { color: tokens.colors.subtle, fontSize: 10, fontWeight: 600, marginLeft: 3 }, children: "GHz" })] })] }),
-                    SP_JSX.jsxs("div", { style: { textAlign: "right" }, children: [SP_JSX.jsx("div", { style: label, children: text.cpuTemperature }), SP_JSX.jsxs("div", { style: { color: heatTone(state.cpu_temperature_c), fontSize: 22, fontWeight: 750, lineHeight: 1.1 }, children: [state.cpu_temperature_c != null ? state.cpu_temperature_c.toFixed(1) : "—", SP_JSX.jsx("span", { style: { color: tokens.colors.subtle, fontSize: 10, fontWeight: 600, marginLeft: 2 }, children: "\u00B0C" })] })] })
+    const sub = { color: tokens.colors.subtle, fontSize: 9 };
+    const unit = { color: tokens.colors.subtle, fontSize: 10, fontWeight: 500 };
+    return SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_alt, borderRadius: 6, marginBottom: 8, padding: "8px 10px" }, children: [
+            SP_JSX.jsxs("div", { style: { alignItems: "flex-end", display: "flex", justifyContent: "space-between" }, children: [
+                    SP_JSX.jsxs("div", { children: [SP_JSX.jsx("div", { style: sub, children: text.cpuNow }), SP_JSX.jsxs("div", { style: { fontSize: 18, fontWeight: 700 }, children: [ghz, " ", SP_JSX.jsx("span", { style: unit, children: "GHz" })] })] }),
+                    SP_JSX.jsxs("div", { style: { textAlign: "right" }, children: [SP_JSX.jsx("div", { style: sub, children: text.cpuTemperature }), SP_JSX.jsxs("div", { style: { color: heatTone(state.cpu_temperature_c), fontSize: 18, fontWeight: 700 }, children: [state.cpu_temperature_c != null ? state.cpu_temperature_c.toFixed(1) : "—", " ", SP_JSX.jsx("span", { style: unit, children: "\u00B0C" })] })] })
                 ] }),
-            SP_JSX.jsxs("div", { style: { display: "grid", gap: 10, gridTemplateColumns: "1fr auto", marginTop: 8 }, children: [
-                    SP_JSX.jsxs("div", { children: [
-                            SP_JSX.jsxs("div", { style: { display: "flex", fontSize: 9, justifyContent: "space-between", marginBottom: 3 }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.subtle }, children: text.usage }), SP_JSX.jsx("b", { children: usage != null ? `${usage}%` : "—" })] }),
-                            SP_JSX.jsx("div", { style: { background: tokens.colors.panel_alt, borderRadius: 3, height: 5, overflow: "hidden" }, children: SP_JSX.jsx("div", { style: { background: tokens.colors.green, borderRadius: 3, height: "100%", transition: "width .4s ease", width: `${Math.max(2, Math.min(100, usage ?? 0))}%` } }) })
-                        ] }),
-                    SP_JSX.jsxs("div", { style: { textAlign: "right" }, children: [SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9 }, children: text.gpuVoltage }), SP_JSX.jsx("b", { style: { fontSize: 11 }, children: state.cpu_voltage_mv != null ? `${state.cpu_voltage_mv} mV` : "—" })] })
+            SP_JSX.jsx("div", { style: { background: tokens.colors.panel, borderRadius: 2, height: 3, margin: "7px 0 5px", overflow: "hidden" }, children: SP_JSX.jsx("div", { style: { background: tokens.colors.green, height: "100%", transition: "width .4s ease", width: `${Math.max(1, Math.min(100, usage ?? 0))}%` } }) }),
+            SP_JSX.jsxs("div", { style: { color: tokens.colors.subtle, display: "flex", fontSize: 9, justifyContent: "space-between" }, children: [
+                    SP_JSX.jsxs("span", { children: [text.usage, " ", SP_JSX.jsx("b", { style: { color: tokens.colors.text }, children: usage != null ? `${usage}%` : "—" })] }),
+                    SP_JSX.jsxs("span", { children: [text.gpuVoltage, " ", SP_JSX.jsx("b", { style: { color: tokens.colors.text }, children: state.cpu_voltage_mv != null ? `${state.cpu_voltage_mv} mV` : "—" })] })
                 ] })
         ] });
 }
 function CpuOcCard({ state }) {
     const active = state.cpu_active_profile ?? state.cpu_detected_profile?.active_profile;
     const mode = !active ? "—" : active.mode === "manual" ? text.cpuManual : active.mode === "boot" ? text.cpuModeBoot : text.automatic;
-    const tone = active ? tokens.colors.green : tokens.colors.subtle;
     const rows = [
         [text.mode, mode],
         ["OC", active ? `${active.frequency} MHz` : "—"],
@@ -5029,15 +5032,15 @@ function CpuOcCard({ state }) {
         [text.cpuOnBoot, active?.persistable || Boolean(state.cpu_service_enabled) ? text.enabled : text.disabled],
         [text.cpuThermalLimit, `${state.cpu_tuning_temperature ?? "—"} \u00B0C`],
     ];
-    return SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 8, marginBottom: 8, padding: "8px 10px" }, children: [
-            SP_JSX.jsxs("div", { style: { alignItems: "center", display: "flex", justifyContent: "space-between", marginBottom: 6 }, children: [SP_JSX.jsx("b", { style: { fontSize: 11 }, children: text.cpuOcTitle }), SP_JSX.jsx("span", { style: { background: active ? tokens.colors.green_soft : tokens.colors.panel_raised, border: `1px solid ${tone}`, borderRadius: 10, color: tone, fontSize: 8, fontWeight: 700, padding: "1px 7px" }, children: active ? text.enabled : text.disabled })] }),
-            rows.map(([name, value]) => SP_JSX.jsxs("div", { style: { borderTop: `1px solid ${tokens.colors.border}`, display: "flex", fontSize: 10, justifyContent: "space-between", padding: "4px 0" }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.subtle }, children: name }), SP_JSX.jsx("b", { children: value })] }, name))
+    return SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_alt, borderRadius: 6, marginBottom: 8, padding: "6px 10px 4px" }, children: [
+            SP_JSX.jsxs("div", { style: { display: "flex", fontSize: 10, justifyContent: "space-between", padding: "2px 0 5px" }, children: [SP_JSX.jsx("b", { children: text.cpuOcTitle }), SP_JSX.jsx("span", { style: { color: active ? tokens.colors.green : tokens.colors.subtle, fontSize: 9 }, children: active ? text.enabled : text.disabled })] }),
+            rows.map(([name, value]) => SP_JSX.jsxs("div", { style: { borderTop: `1px solid ${tokens.colors.border}`, display: "flex", fontSize: 10, justifyContent: "space-between", padding: "4px 0" }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.subtle }, children: name }), SP_JSX.jsx("span", { children: value })] }, name))
         ] });
 }
 function CpuVrm({ state, tiles }) {
     if (state.vrm_available)
         return SP_JSX.jsx(MetricGrid, { tiles: tiles });
-    return SP_JSX.jsxs("div", { style: { alignItems: "center", border: `1px dashed ${tokens.colors.border}`, borderRadius: 6, color: tokens.colors.subtle, display: "flex", fontSize: 9, gap: 6, justifyContent: "space-between", marginBottom: 10, padding: "6px 8px" }, children: [SP_JSX.jsx("b", { style: { color: tokens.colors.text, fontSize: 9 }, children: "VRM CPU" }), SP_JSX.jsx("span", { style: { textAlign: "right" }, children: text.vrmUnavailable })] });
+    return SP_JSX.jsxs("div", { style: { alignItems: "center", border: `1px dashed ${tokens.colors.border}`, borderRadius: 6, color: tokens.colors.subtle, display: "flex", fontSize: 9, gap: 6, justifyContent: "space-between", marginBottom: 10, padding: "6px 8px" }, children: [SP_JSX.jsx("b", { style: { color: tokens.colors.text, fontSize: 9, whiteSpace: "nowrap" }, children: "VRM CPU" }), SP_JSX.jsx("span", { style: { textAlign: "right" }, children: text.vrmUnavailable })] });
 }
 function MonitorTab({ state, cpuRun }) {
     const accent = ACCENT_SWATCHES[SP_REACT.useContext(SettingsContext).settings.accent];
