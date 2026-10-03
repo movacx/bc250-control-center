@@ -1112,6 +1112,42 @@ function GpuOverview({ state }: { state: Status }) {
   return <ChipOverview mhz={state.gpu_core_mhz} celsius={state.gpu_temperature_c} usage={state.gpu_busy_percent} millivolts={state.gpu_voltage_mv} />;
 }
 
+// Monitoring › All: the fans as one card, a slim duty bar per channel.
+function FanCard({ state }: { state: Status }) {
+  const options = state.fan_channel_options ?? [];
+  const lead = options.find((option) => option.channel === 2) ?? options[0];
+  const mode = typeof lead?.mode === "string" ? lead.mode : lead?.mode != null ? String(lead.mode) : "";
+  return <div style={{ background: tokens.colors.panel_alt, borderRadius: 6, marginBottom: 8, padding: "6px 10px 6px" }}>
+    <div style={{ display: "flex", fontSize: 10, justifyContent: "space-between", padding: "2px 0 5px" }}><b>{text.fans}</b>{mode ? <span style={{ color: tokens.colors.subtle, fontSize: 9 }}>{mode}</span> : null}</div>
+    {fanChannels.map((channel) => {
+      const option = options.find((item) => item.channel === channel);
+      const available = Boolean(option?.available);
+      const percent = available ? option?.percent ?? null : null;
+      return <div key={channel} style={{ borderTop: `1px solid ${tokens.colors.border}`, opacity: available ? 1 : .45, padding: "5px 0" }}>
+        <div style={{ display: "flex", fontSize: 10, justifyContent: "space-between", marginBottom: 3 }}>
+          <span style={{ color: tokens.colors.subtle }}>{option?.label ?? `PWM ${channel}`}</span>
+          <span>{!available ? text.unavailable : `${percent ?? "—"}%${option?.rpm_observed && option.rpm != null ? ` · ${option.rpm} RPM` : ""}`}</span>
+        </div>
+        <div style={{ background: tokens.colors.panel, borderRadius: 2, height: 3, overflow: "hidden" }}><div style={{ background: tokens.colors.cyan, height: "100%", transition: "width .4s ease", width: `${Math.max(0, Math.min(100, percent ?? 0))}%` }} /></div>
+      </div>;
+    })}
+  </div>;
+}
+
+// Board temperatures as rows, each coloured by heat like the CPU/GPU headlines.
+function BoardCard({ state }: { state: Status }) {
+  const rows: [string, number | null | undefined][] = [
+    [text.board, state.board_temperature_c],
+    ["M.2", state.nvme_temperature_c],
+    ["M.2 hotspot", state.nvme_hotspot_temperature_c],
+    ["VRM MOS", state.vrm_mos_temperature_c],
+  ];
+  return <div style={{ background: tokens.colors.panel_alt, borderRadius: 6, marginBottom: 8, padding: "6px 10px 4px" }}>
+    <div style={{ fontSize: 10, padding: "2px 0 5px" }}><b>{text.board}</b></div>
+    {rows.map(([name, celsius]) => <div key={name} style={{ borderTop: `1px solid ${tokens.colors.border}`, display: "flex", fontSize: 10, justifyContent: "space-between", padding: "4px 0" }}><span style={{ color: tokens.colors.subtle }}>{name}</span><span style={{ color: celsius != null ? heatTone(celsius) : tokens.colors.subtle }}>{celsius != null ? `${celsius.toFixed(1)} °C` : "—"}</span></div>)}
+  </div>;
+}
+
 function MonitorTab({ state, cpuRun }: { state: Status; cpuRun?: { target: number; elapsed: number } | null }) {
   const accent = ACCENT_SWATCHES[useContext(SettingsContext).settings.accent];
   const [section, setSection] = useState<MonitorSection>("cpu");
@@ -1139,40 +1175,17 @@ function MonitorTab({ state, cpuRun }: { state: Status; cpuRun?: { target: numbe
   // Board/M.2/VRM MOS: general system sensors, not fan controls. They live
   // only in the "All" tab now, alongside every other module's sensors, so a
   // single screenshot there covers the whole board instead of one per tab.
-  const boardSensorTiles = [
-    { label: text.board.toUpperCase(), value: state.board_temperature_c != null ? `${state.board_temperature_c.toFixed(1)} °C` : "—" },
-    { label: "M.2", value: state.nvme_temperature_c != null ? `${state.nvme_temperature_c.toFixed(1)} °C` : "—" },
-    { label: "M.2 HOTSPOT", value: state.nvme_hotspot_temperature_c != null ? `${state.nvme_hotspot_temperature_c.toFixed(1)} °C` : "—" },
-    { label: "VRM MOS", value: state.vrm_mos_temperature_c != null ? `${state.vrm_mos_temperature_c.toFixed(1)} °C` : "—" },
-  ];
-  const fanControlTiles = [
-    { label: `PWM ${text.mode.toUpperCase()}`, value: typeof defaultFan?.mode === "string" ? defaultFan.mode : defaultFan?.mode != null ? String(defaultFan.mode) : "—" },
-    { label: text.controller.toUpperCase(), value: defaultFan?.label ?? "—" },
-  ];
   const powerTiles = [
     { label: text.inputVoltage.toUpperCase(), value: state.vrm_input_voltage_v != null ? `${state.vrm_input_voltage_v.toFixed(2)} V` : "—" },
     { label: text.totalPower.toUpperCase(), value: state.vrm_total_power_w != null ? `${state.vrm_total_power_w.toFixed(1)} W` : "—" },
   ];
-  const fanChannelList = <div style={{ background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 6, marginBottom: 8, overflow: "hidden" }}>
-    {fanChannels.map((channel, index) => {
-      const option = fanOptions.find((item) => item.channel === channel);
-      const label = option?.label ?? `PWM ${channel}`;
-      const detail = option?.available
-        ? `${option?.percent ?? "—"}%${option?.rpm_observed ? ` · ${option.rpm} RPM` : ""}`
-        : text.unavailable;
-      return <div key={channel} style={{ alignItems: "center", borderTop: index > 0 ? `1px solid ${tokens.colors.border}` : "none", display: "flex", fontSize: 10, justifyContent: "space-between", padding: "6px 9px" }}>
-        <span style={{ color: tokens.colors.subtle }}>{label}</span>
-        <span style={{ color: option?.available ? tokens.colors.text : tokens.colors.disabled_text, fontWeight: 650 }}>{detail}</span>
-      </div>;
     })}
   </div>;
-  const vrmNotice = !vrmAvailable ? <div style={{ color: tokens.colors.amber, fontSize: 10, lineHeight: 1.4, margin: "0 2px 8px" }}>{text.vrmUnavailable}</div> : null;
 
   return <>
     <SubNav<MonitorSection> value={section} onChange={setSection} items={[
       { key: "cpu", label: "CPU", icon: <FaBolt />, color: accent.focus, colorSoft: accent.focus_soft },
       { key: "gpu", label: "GPU", icon: <FaMicrochip />, color: accent.focus, colorSoft: accent.focus_soft },
-      { key: "cooling", label: text.fan, icon: <FaFan />, color: accent.focus, colorSoft: accent.focus_soft },
       { key: "all", label: text.allSensors, icon: <FaLayerGroup />, color: accent.focus, colorSoft: accent.focus_soft },
     ]} />
 
@@ -1192,12 +1205,6 @@ function MonitorTab({ state, cpuRun }: { state: Status; cpuRun?: { target: numbe
       <ScrollStop end />
     </Focusable> : null}
 
-    {section === "cooling" ? <Focusable flow-children="down">
-      <ScrollStop>{fanChannelList}</ScrollStop>
-      <ScrollStop><MetricGrid tiles={fanControlTiles} /></ScrollStop>
-      <ScrollStop end />
-    </Focusable> : null}
-
     {section === "all" ? <section>
       {/* Every sensor from every module, stacked in one screen, purely so a
           player can take a single screenshot instead of one per tab. Each
@@ -1212,11 +1219,10 @@ function MonitorTab({ state, cpuRun }: { state: Status; cpuRun?: { target: numbe
         <ScrollStop><RailVrm state={state} label="VRM GPU" tiles={gpuVrmTiles} /></ScrollStop>
         <ScrollStop><Gddr6Panel state={state} /></ScrollStop>
 
-        <ScrollStop><SectionTitle kind="fan" title={text.fan} />{fanChannelList}</ScrollStop>
-        <ScrollStop><MetricGrid tiles={boardSensorTiles} /></ScrollStop>
-        <ScrollStop><MetricGrid tiles={fanControlTiles} /></ScrollStop>
+        <ScrollStop><SectionTitle kind="fan" title={text.fan} /><FanCard state={state} /></ScrollStop>
+        <ScrollStop><BoardCard state={state} /></ScrollStop>
 
-        <ScrollStop><SectionTitle kind="power" title={text.power} />{vrmNotice}<MetricGrid tiles={powerTiles} /></ScrollStop>
+        <ScrollStop><SectionTitle kind="power" title={text.power} /><RailVrm state={state} label="VRM" tiles={powerTiles} /></ScrollStop>
         <ScrollStop end />
       </Focusable>
     </section> : null}
