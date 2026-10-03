@@ -46,8 +46,10 @@ def helper(helper_module, monkeypatch):  # noqa: F811 - fixture
     calls = []
     monkeypatch.setattr(helper_module, "trusted_file", lambda path, executable=False: True)
 
-    def run(command, timeout=45, extra_env=None):
+    def run(command, timeout=45, extra_env=None, keep_running=False):
         calls.append((list(command), timeout))
+        if command[1] == "ttm-apply":
+            assert keep_running  # a late answer must never kill the change
         if command[1] == "ttm-status":
             return _completed(json.dumps(STATE) + "\n")
         if command[1:3] == ["ttm-apply", "--ttm"]:

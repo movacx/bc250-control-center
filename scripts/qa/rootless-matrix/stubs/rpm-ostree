@@ -1,0 +1,23 @@
+#!/bin/bash
+# Test double for `rpm-ostree kargs`: the pending deployment's arguments live
+# in one file. /run/rpm-ostree.busy simulates a transaction in progress.
+state=/var/lib/stub-rpm-ostree; mkdir -p "$state"; file=$state/kargs
+[ -f "$file" ] || sed 's/BOOT_IMAGE=[^ ]* //' /proc/cmdline > "$file"
+case "${1:-}" in
+  kargs)
+    shift
+    if [ $# -eq 0 ]; then cat "$file"; exit 0; fi
+    if [ -e /run/rpm-ostree.busy ]; then echo "error: Transaction in progress: upgrade" >&2; exit 1; fi
+    [ -n "${STUB_OSTREE_SLEEP:-}" ] && sleep "$STUB_OSTREE_SLEEP"
+    args=" $(cat "$file") "
+    for a in "$@"; do
+      case "$a" in
+        --delete-if-present=*) v=${a#*=}; args=${args// $v / };;
+        --append-if-missing=*) v=${a#*=}; [[ "$args" == *" $v "* ]] || args="$args$v ";;
+        *) echo "error: unsupported option $a" >&2; exit 1;;
+      esac
+    done
+    echo $args > "$file"; echo "stub: kargs staged" >&2;;
+  status) echo "State: idle";;
+  *) exit 2;;
+esac

@@ -178,6 +178,20 @@ def uninstall_blockers(host, memory, state_dir):
         ttm = "-1" if "ttm_original" in state else "0"
         steps.append("Dashboard > Prepare BC250 system > Memory & Swap > Restore > Apply")
         commands.append(f"sudo {HELPER} memory-apply --policy restore --ttm {ttm}")
+    # Kernel boot arguments (the GPU memory limit, mitigations, nosmt, CU
+    # unlock) live in the boot loader's own files, which nothing else cleans up.
+    try:
+        kernel = host.state("kernel-options")
+    except Exception:  # an unreadable state is still a reason to stop
+        kernel = {"arguments": ["unreadable state"]}
+    if kernel.get("arguments"):
+        blockers.append("Kernel boot options: " + ", ".join(str(item) for item in kernel["arguments"]))
+        steps.append("Dashboard > Prepare BC250 system > Kernel options > restore")
+        commands.append(f"sudo {HELPER} kernel-options-set --kernel-options ''")
+    if kernel.get("values") or host.path(memory.ttm.OSTREE_STATE).exists():
+        blockers.append("GPU memory limit (TTM) kernel argument")
+        steps.append("Dashboard > Prepare BC250 system > Memory & Swap > TTM > Restore, or BC250 Quick Access > Memory")
+        commands.append(f"sudo {HELPER} ttm-apply --ttm -1")
     if host.path(state_dir + "/acpi.json").exists():
         blockers.append("CPU power management (ACPI) tables in the boot files")
         steps.append("Dashboard > Prepare BC250 system > Compatibility > CPU power management > Uninstall")

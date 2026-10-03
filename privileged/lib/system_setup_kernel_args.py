@@ -15,8 +15,8 @@ does it:
 * Limine (CachyOS): a marked block at the end of ``/etc/default/limine``,
   then ``limine-mkinitcpio``. Removing it leaves the file as it was.
 * GRUB (Arch family, Debian, Ubuntu): a managed drop-in in
-  ``/etc/default/grub.d``, which their ``grub-mkconfig`` reads; the main
-  ``/etc/default/grub`` is never edited.
+  ``/etc/default/grub.d`` when this ``grub-mkconfig`` reads it, otherwise a
+  marked block in ``/etc/default/grub`` (see below).
 * grubby (Fedora, Nobara): ``grubby --update-kernel=ALL`` with only the
   arguments this module added, so arguments the owner set are left alone.
 
@@ -29,10 +29,13 @@ Besides those fixed switches the same block carries one argument with a value,
 It is set and removed on its own, never as part of the switches above, and a
 value somebody else put on the command line is reported, never replaced.
 
-Upstream GRUB only reads ``/etc/default/grub``; the ``/etc/default/grub.d``
-directory is a Debian/Ubuntu addition. Where ``grub-mkconfig`` does not read
-it, the options go in a marked block at the end of ``/etc/default/grub``
-instead, removed again without touching anything else in the file.
+Whether ``grub-mkconfig`` reads ``/etc/default/grub.d`` depends on the GRUB
+build, not on the distribution: Debian and Ubuntu have always patched it in,
+upstream GRUB gained it in its newest releases (Arch ships that today), and
+older upstream builds (Manjaro or CachyOS on an older GRUB, for example) read
+``/etc/default/grub`` only. The script itself is inspected; where it does not
+read the directory, the options go in a marked block at the end of
+``/etc/default/grub`` instead, taken out again byte for byte.
 """
 from __future__ import annotations
 
@@ -60,8 +63,11 @@ GRUB_MKCONFIG = (
 )
 LIMINE_BEGIN = "# BEGIN BC250 KERNEL OPTIONS"
 LIMINE_END = "# END BC250 KERNEL OPTIONS"
+#: The marked block, with the single line break that separates it from what
+#: came before. Taking it out removes exactly what putting it in added, so a
+#: file that ended in a newline (or in several) comes back byte for byte.
 _LIMINE_BLOCK = re.compile(
-    rf"\n\n{re.escape(LIMINE_BEGIN)}\n[^\n]*\n{re.escape(LIMINE_END)}\n"
+    rf"(?:^|\n){re.escape(LIMINE_BEGIN)}\n[^\n]*\n{re.escape(LIMINE_END)}\n"
 )
 #: The same marked block, at the end of /etc/default/grub.
 _GRUB_BLOCK = _LIMINE_BLOCK
@@ -166,6 +172,23 @@ def _value_of(tokens, name: str) -> str | None:
     return found
 
 
+def _stale(host: Host, backend: str, saved: dict, configured_tokens: set[str] | None = None) -> set[str]:
+    """Managed tokens the boot configuration does not actually carry.
+
+    Only for the file-based loaders, whose files can be read back: a drop-in
+    that an earlier release put where this GRUB never reads it, or a block the
+    owner deleted by hand, would otherwise count as set and never be redone.
+    """
+    if backend not in ("limine", "grub"):
+        return set()
+    managed = set(_managed_tokens(saved.get("arguments"), _values(saved)))
+    if not managed:
+        return set()
+    if configured_tokens is None:
+        configured_tokens = _configured_tokens(host, backend)
+    return managed - configured_tokens
+
+
 def status(host: Host) -> dict:
     backend = _backend(host)
     saved = host.state(_STATE_KEY)
@@ -178,6 +201,7 @@ def status(host: Host) -> dict:
     active = set(command_line)
     configured_tokens = _configured_tokens(host, backend)
     configured = {argument for argument in ARGUMENTS if argument in configured_tokens}
+    stale = _stale(host, backend, saved, configured_tokens)
     # A different write mode, set by hand, would fight this one on the same
     # command line: it counts as somebody else's setting of the same option.
     foreign_cu_mode = _other_cu_mode(configured_tokens) or _other_cu_mode(active)
@@ -190,7 +214,8 @@ def status(host: Host) -> dict:
         arguments[argument] = {
             "active": argument in active,
             "managed": argument in managed,
-            "configured": argument in managed or (argument in configured and not mine),
+            "configured": (argument in managed and argument not in stale)
+            or (argument in configured and not mine),
             "external": external,
         }
     value_items = {}
@@ -203,7 +228,7 @@ def status(host: Host) -> dict:
         value_items[name] = {
             "managed": values.get(name),
             # What the next boot asks for, whoever set it.
-            "configured": configured_value,
+            "configured": None if mine_token in stale else configured_value,
             # What this boot started with.
             "active": _value_of(command_line, name),
             "external": bool(foreign_configured or foreign_active),
@@ -240,20 +265,33 @@ def _regenerate_grub(host: Host) -> None:
 
 
 def _block(tokens: list[str], line: str) -> str:
-    return f"\n\n{LIMINE_BEGIN}\n{line}\n{LIMINE_END}\n" if tokens else ""
+    return f"\n{LIMINE_BEGIN}\n{line}\n{LIMINE_END}\n" if tokens else ""
+
+
+def _with_block(text: str, pattern, tokens: list[str], line: str) -> str:
+    """``text`` without any managed block, plus a fresh one when ``tokens`` is set.
+
+    A file that does not end in a newline gets one first (a block cannot start
+    mid-line); nothing else about the file is touched.
+    """
+    base = pattern.sub("", text)
+    if not tokens:
+        return base
+    if base and not base.endswith("\n"):
+        base += "\n"
+    return base + _block(tokens, line)
 
 
 def _write(host: Host, backend: str, tokens: list[str], previous: list[str]) -> None:
     """Put exactly ``tokens`` in the managed place, or put everything back."""
     if backend == "limine":
         original = _read_exact(host, LIMINE_CONFIG)
-        updated = _LIMINE_BLOCK.sub("", original).rstrip("\n") + "\n"
-        if tokens:
-            updated = updated.rstrip("\n") + _block(
-                tokens, f'KERNEL_CMDLINE[default]+=" {" ".join(tokens)}"'
-            )
+        updated = _with_block(
+            original, _LIMINE_BLOCK, tokens, f'KERNEL_CMDLINE[default]+=" {" ".join(tokens)}"'
+        )
         try:
-            host.write(LIMINE_CONFIG, updated)
+            if updated != original:
+                host.write(LIMINE_CONFIG, updated)
             host.run("limine-mkinitcpio")
         except Exception:
             host.write(LIMINE_CONFIG, original)
@@ -264,15 +302,15 @@ def _write(host: Host, backend: str, tokens: list[str], previous: list[str]) -> 
         main_before = _read_exact(host, GRUB_CONFIG)
         # Whichever place this GRUB does not read is emptied, so a block left
         # by an earlier release in the other place cannot linger.
-        main_after = _GRUB_BLOCK.sub("", main_before)
         use_dropin = grub_reads_dropins(host)
+        main_after = _with_block(
+            main_before, _GRUB_BLOCK, [] if use_dropin else tokens, line
+        )
         try:
             if tokens and use_dropin:
                 host.managed(GRUB_DROPIN, line + "\n")
             else:
                 host.remove_managed(GRUB_DROPIN)
-            if tokens and not use_dropin:
-                main_after = main_after.rstrip("\n") + _block(tokens, line)
             if main_after != main_before:
                 host.write(GRUB_CONFIG, main_after)
             _regenerate_grub(host)
@@ -287,10 +325,13 @@ def _write(host: Host, backend: str, tokens: list[str], previous: list[str]) -> 
     else:
         added = [token for token in tokens if token not in previous]
         removed = [token for token in previous if token not in tokens]
-        if added:
-            host.run("grubby", "--update-kernel=ALL", f"--args={' '.join(added)}")
+        # Remove first: grubby matches an argument by name, so adding the new
+        # value of ttm.pages_limit and then removing the old one could take the
+        # new one out again.
         if removed:
             host.run("grubby", "--update-kernel=ALL", f"--remove-args={' '.join(removed)}")
+        if added:
+            host.run("grubby", "--update-kernel=ALL", f"--args={' '.join(added)}")
 
 
 def _prepare(host: Host) -> tuple[dict, str, dict]:
@@ -309,7 +350,7 @@ def _prepare(host: Host) -> tuple[dict, str, dict]:
 def _commit(host: Host, backend: str, saved: dict, arguments: list[str], values: dict[str, str]) -> dict:
     previous = _managed_tokens(saved.get("arguments"), _values(saved))
     tokens = _managed_tokens(arguments, values)
-    if tokens == previous:
+    if tokens == previous and not _stale(host, backend, saved):
         return status(host)
     _write(host, backend, tokens, previous)
     boot_id = host.read(BOOT_ID)

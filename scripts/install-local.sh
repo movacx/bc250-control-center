@@ -241,6 +241,12 @@ elif [[ ${#missing_python_deps_command[@]} -gt 0 ]]; then
 fi
 
 bash "$ROOT_DIR/scripts/qa/validate-install-source.sh" "$ROOT_DIR"
+if command -v python3 >/dev/null 2>&1 && \
+   ! python3 -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 1)' >/dev/null 2>&1; then
+  echo "Error: BC250 Control Center needs Python 3.11 or newer; this system has $(python3 -V 2>&1)." >&2
+  echo "Ubuntu 22.04 and Linux Mint 21 ship Python 3.10. Use Ubuntu 24.04 / Linux Mint 22 or newer, or a newer Python." >&2
+  exit 2
+fi
 
 install -dm755 "$APP_DIR" "$BIN_DIR" "$DESKTOP_DIR" "$ICON_DIR" "$METAINFO_DIR" "$SYSTEMD_USER_DIR" "$DOC_DIR"
 

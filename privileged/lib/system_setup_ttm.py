@@ -142,9 +142,15 @@ def _forget_legacy(host: Host) -> None:
     memory.settle_service(host, state)
 
 
+#: A read of the arguments is quick; only changing them writes a deployment.
+#: Together they stay well inside the 240 s the Quick Access helper allows.
+OSTREE_READ_SECONDS = 25
+OSTREE_WRITE_SECONDS = 170
+
+
 def _ostree_tokens(host: Host) -> list[str]:
     """Arguments of the deployment the next boot uses."""
-    return host.run("rpm-ostree", "kargs").split()
+    return host.run("rpm-ostree", "kargs", timeout=OSTREE_READ_SECONDS).split()
 
 
 def _ostree_saved(host: Host) -> list[str] | None:
@@ -215,12 +221,13 @@ def summary(host: Host) -> dict:
     }
 
 
-def status(host: Host, *, next_boot_ram: int | None = None, probe: bool = True) -> dict:
+def status(host: Host, *, next_boot_ram: int | None = None, probe: bool = True,
+           ostree_tokens: list[str] | None = None) -> dict:
     """Everything a panel needs to show and offer the limit. Never raises.
 
     ``probe`` asks rpm-ostree for the next deployment's arguments; without it
     (the desktop's periodic, unprivileged inventory) the last recorded change
-    stands in for them.
+    stands in for them. ``ostree_tokens`` are arguments the caller just read.
     """
     kind, reason = backend(host)
     size = page_size()
@@ -256,8 +263,8 @@ def status(host: Host, *, next_boot_ram: int | None = None, probe: bool = True) 
         return result
     try:
         if kind == "rpm-ostree":
-            if probe:
-                tokens = _ostree_tokens(host)
+            if probe or ostree_tokens is not None:
+                tokens = ostree_tokens if ostree_tokens is not None else _ostree_tokens(host)
                 managed = _ostree_saved(host) is not None
                 configured = _value(tokens, NAME)
                 result["gtt_override"] = result["gtt_override"] or _value(tokens, GTT_OVERRIDE)
@@ -302,11 +309,13 @@ def apply(host: Host, gib: int, *, next_boot_ram: int | None = None) -> dict:
         raise SetupError("The GPU memory limit must be 8, 10 or 12 GiB, or the kernel default")
     if not host.bc250():
         raise SetupError("HARDWARE_CONTEXT: AMD BC-250 hardware identity was not detected.")
-    current = status(host, next_boot_ram=next_boot_ram)
+    # One read of rpm-ostree serves the status and the change that follows.
+    tokens = _ostree_tokens(host) if backend(host)[0] == "rpm-ostree" else None
+    current = status(host, next_boot_ram=next_boot_ram, ostree_tokens=tokens)
     if gib == DEFAULT and not current["managed"] and current["legacy_pages"] is not None:
         # Only the old boot-time write to undo, which needs no boot loader.
         _forget_legacy(host)
-        return status(host, next_boot_ram=next_boot_ram)
+        return status(host, next_boot_ram=next_boot_ram, ostree_tokens=tokens)
     if not current["supported"]:
         raise SetupError(current["reason"] or "This system cannot keep a GPU memory limit")
     kind = current["backend"]
@@ -325,30 +334,53 @@ def apply(host: Host, gib: int, *, next_boot_ram: int | None = None) -> dict:
     elif not current["managed"] and current["legacy_pages"] is None:
         raise SetupError("No GPU memory limit set by Control Center to restore")
     if kind == "rpm-ostree":
-        tokens = _ostree_tokens(host)
-        present = [token for token in tokens if token.startswith(NAME + "=")]
-        if any(not _KARG.fullmatch(token) for token in present):
-            raise SetupError("A malformed ttm.pages_limit argument is present; it was left as it is")
-        saved = _ostree_saved(host)
-        arguments = [f"--delete-if-present={token}" for token in present]
-        if gib != DEFAULT:
-            if saved is None:
-                host.write(OSTREE_STATE, "\n".join([OSTREE_MARKER, *present]) + "\n", mode=0o600)
-            arguments.append(f"--append-if-missing={NAME}={pages}")
-            if present != [f"{NAME}={pages}"]:
-                host.run("rpm-ostree", "kargs", *arguments)
-        elif saved is not None:
-            arguments += [f"--append-if-missing={token}" for token in saved]
-            if sorted(present) != sorted(saved):
-                host.run("rpm-ostree", "kargs", *arguments)
-            host.safe(OSTREE_STATE).unlink()
-        if host.command("restorecon"):
-            host.run("restorecon", "-F", os.path.dirname(OSTREE_STATE), check=False)
-        host.save("ttm", {"configured_pages": _value(_ostree_tokens(host), NAME)})
+        tokens = _apply_ostree(host, gib, tokens or [], pages if gib != DEFAULT else 0)
     else:
         if gib != DEFAULT:
             kernel_args.set_value(host, NAME, str(pages))
         elif current["managed"]:
             kernel_args.set_value(host, NAME, None)
-    _forget_legacy(host)
-    return status(host, next_boot_ram=next_boot_ram)
+    try:
+        _forget_legacy(host)
+    except SetupError:
+        # The boot argument is saved; the old boot-time write stays reported
+        # (legacy_pages) and is dropped by the next change.
+        pass
+    return status(host, next_boot_ram=next_boot_ram, ostree_tokens=tokens)
+
+
+def _apply_ostree(host: Host, gib: int, tokens: list[str], pages: int) -> list[str]:
+    """Change the limit through rpm-ostree and return the arguments that result."""
+    present = [token for token in tokens if token.startswith(NAME + "=")]
+    if any(not _KARG.fullmatch(token) for token in present):
+        raise SetupError("A malformed ttm.pages_limit argument is present; it was left as it is")
+    saved = _ostree_saved(host)
+    arguments = [f"--delete-if-present={token}" for token in present]
+    created = False
+    changed = False
+    if gib != DEFAULT:
+        if saved is None:
+            # Journal what was there before the first change; if rpm-ostree
+            # then refuses, the journal goes again, so nothing foreign is ever
+            # reported as ours.
+            host.write(OSTREE_STATE, "\n".join([OSTREE_MARKER, *present]) + "\n", mode=0o600)
+            created = True
+        arguments.append(f"--append-if-missing={NAME}={pages}")
+        changed = present != [f"{NAME}={pages}"]
+    elif saved is not None:
+        arguments += [f"--append-if-missing={token}" for token in saved]
+        changed = sorted(present) != sorted(saved)
+    try:
+        if changed:
+            host.run("rpm-ostree", "kargs", *arguments, timeout=OSTREE_WRITE_SECONDS)
+    except Exception:
+        if created:
+            host.safe(OSTREE_STATE).unlink(missing_ok=True)
+        raise
+    if gib == DEFAULT and saved is not None:
+        host.safe(OSTREE_STATE).unlink()
+    if host.command("restorecon"):
+        host.run("restorecon", "-RF", os.path.dirname(OSTREE_STATE), check=False)
+    result = _ostree_tokens(host) if changed else tokens
+    host.save("ttm", {"configured_pages": _value(result, NAME)})
+    return result

@@ -1411,8 +1411,9 @@ def test_fedora_replaces_its_own_value_through_grubby(sandbox):
     grubby = [call for call in sandbox.calls if call[0] == "grubby" and call[1] != "--info=DEFAULT"]
     assert grubby == [
         ("grubby", "--update-kernel=ALL", f"--args=ttm.pages_limit={PAGES_8}"),
-        ("grubby", "--update-kernel=ALL", f"--args=ttm.pages_limit={PAGES_10}"),
+        # grubby matches an argument by name: the old value goes first.
         ("grubby", "--update-kernel=ALL", f"--remove-args=ttm.pages_limit={PAGES_8}"),
+        ("grubby", "--update-kernel=ALL", f"--args=ttm.pages_limit={PAGES_10}"),
         ("grubby", "--update-kernel=ALL", f"--remove-args=ttm.pages_limit={PAGES_10}"),
     ]
 
@@ -1520,3 +1521,116 @@ def test_the_status_never_raises_on_a_damaged_state(sandbox):
     sandbox.put(f"{STATE}/kernel-options.json", "[not an object")
     state = ttm_setup.status(sandbox.host)
     assert state["supported"] is False and "Invalid" in state["reason"]
+
+
+# --- review fixes -----------------------------------------------------------
+
+UPSTREAM_MKCONFIG = ". /etc/default/grub\nfor x in /etc/grub.d/*; do :; done\n"
+
+
+@pytest.mark.parametrize("original", [
+    'GRUB_TIMEOUT=5\nGRUB_CMDLINE_LINUX_DEFAULT="quiet"\n',
+    'GRUB_CMDLINE_LINUX_DEFAULT="quiet"\n\n',
+    'GRUB_CMDLINE_LINUX_DEFAULT="quiet"\n\n\n',
+])
+def test_restoring_upstream_grub_returns_the_file_byte_for_byte(sandbox, original):
+    sandbox.grub()
+    sandbox.put("/usr/bin/grub-mkconfig", UPSTREAM_MKCONFIG)
+    sandbox.put(kernel_args.GRUB_CONFIG, original)
+    kernel_args.apply(sandbox.host, ["nosmt", "mitigations=off"])
+    ttm_setup.apply(sandbox.host, 8)
+    assert sandbox.host.path(kernel_args.GRUB_CONFIG).read_text() != original
+    kernel_args.apply(sandbox.host, [])
+    ttm_setup.apply(sandbox.host, ttm_setup.DEFAULT)
+    assert sandbox.host.path(kernel_args.GRUB_CONFIG).read_text() == original
+
+
+@pytest.mark.parametrize("original", [
+    'KERNEL_CMDLINE[default]="quiet"\n',
+    'KERNEL_CMDLINE[default]="quiet"\n\n',
+])
+def test_restoring_limine_returns_the_file_byte_for_byte(sandbox, original):
+    sandbox.put(kernel_args.LIMINE_CONFIG, original)
+    kernel_args.apply(sandbox.host, ["mitigations=off"])
+    ttm_setup.apply(sandbox.host, 10)
+    kernel_args.apply(sandbox.host, [])
+    ttm_setup.apply(sandbox.host, ttm_setup.DEFAULT)
+    assert sandbox.host.path(kernel_args.LIMINE_CONFIG).read_text() == original
+
+
+def test_a_block_that_lost_its_blank_line_is_still_replaced_not_duplicated(sandbox):
+    sandbox.put(kernel_args.LIMINE_CONFIG, 'KERNEL_CMDLINE[default]="quiet"\n')
+    kernel_args.apply(sandbox.host, ["nosmt"])
+    path = sandbox.host.path(kernel_args.LIMINE_CONFIG)
+    path.write_text(path.read_text().replace("\n\n" + kernel_args.LIMINE_BEGIN, "\n" + kernel_args.LIMINE_BEGIN))
+    kernel_args.apply(sandbox.host, ["nosmt", "mitigations=off"])
+    assert path.read_text().count(kernel_args.LIMINE_BEGIN) == 1
+
+
+def test_a_dropin_an_earlier_release_left_where_upstream_grub_never_reads_it_is_moved(sandbox):
+    sandbox.grub()
+    sandbox.put("/usr/bin/grub-mkconfig", UPSTREAM_MKCONFIG)
+    main = sandbox.host.path(kernel_args.GRUB_CONFIG).read_text()
+    sandbox.put(kernel_args.GRUB_DROPIN, "# Managed by BC250 Control Center\nGRUB_CMDLINE_LINUX_DEFAULT=\"${GRUB_CMDLINE_LINUX_DEFAULT} nosmt\"\n")
+    sandbox.put(f"{STATE}/kernel-options.json", json.dumps(
+        {"backend": "grub", "arguments": ["nosmt"], "removed": [], "boot_id": "older"}))
+    state = kernel_args.status(sandbox.host)["arguments"]["nosmt"]
+    assert state["managed"] and not state["configured"]  # not claimed as set
+    kernel_args.apply(sandbox.host, ["nosmt"])  # the same choice, pressed again
+    assert not sandbox.host.path(kernel_args.GRUB_DROPIN).exists()
+    assert kernel_args.LIMINE_BEGIN in sandbox.host.path(kernel_args.GRUB_CONFIG).read_text()
+    assert kernel_args.status(sandbox.host)["arguments"]["nosmt"]["configured"]
+    kernel_args.apply(sandbox.host, [])
+    assert sandbox.host.path(kernel_args.GRUB_CONFIG).read_text() == main
+
+
+def test_a_refused_rpm_ostree_change_never_leaves_a_foreign_limit_looking_ours(sandbox):
+    _bazzite(sandbox, kargs="rhgb quiet ttm.pages_limit=3000000")
+    state_file = sandbox.host.path(ttm_setup.OSTREE_STATE)
+    sandbox.fail = lambda args: args[:2] == ("rpm-ostree", "kargs") and len(args) > 2
+    with pytest.raises(SetupError):
+        ttm_setup.apply(sandbox.host, 8)
+    assert not state_file.exists()
+    state = ttm_setup.status(sandbox.host)
+    assert state["managed"] is False and state["external_pages"] == 3000000
+
+
+def test_the_setup_helper_blocks_removal_while_a_boot_argument_is_ours(sandbox):
+    import importlib.machinery
+    import importlib.util
+    loader = importlib.machinery.SourceFileLoader(
+        "setup_helper_under_test", str(Path(__file__).parents[3] / "privileged/helpers/bc250-system-setup-helper"))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    module = importlib.util.module_from_spec(spec)
+    loader.exec_module(module)
+    sandbox.put(kernel_args.LIMINE_CONFIG, 'KERNEL_CMDLINE[default]="quiet"\n')
+    assert module.uninstall_blockers(sandbox.host, memory, STATE)[0] == []
+    ttm_setup.apply(sandbox.host, 8)
+    blockers, _steps, commands = module.uninstall_blockers(sandbox.host, memory, STATE)
+    assert any("GPU memory limit" in item for item in blockers)
+    assert any("ttm-apply --ttm -1" in item for item in commands)
+    ttm_setup.apply(sandbox.host, ttm_setup.DEFAULT)
+    assert module.uninstall_blockers(sandbox.host, memory, STATE)[0] == []
+
+
+def test_an_injected_cmos_port_never_takes_the_system_wide_lock(sandbox, monkeypatch):
+    monkeypatch.setattr(vram, "CMOS_LOCK", "/nonexistent/dir/cmos.lock")
+    with vram.cmos_guard(lambda: None):
+        pass
+
+
+def test_two_processes_cannot_hold_the_cmos_index_pair_at_once(tmp_path, monkeypatch):
+    import stat as stat_module
+    lock = tmp_path / "cmos.lock"
+    monkeypatch.setattr(vram, "CMOS_LOCK", str(lock))
+    monkeypatch.setattr(vram, "CMOS_LOCK_TIMEOUT_SECONDS", 0.2)
+    real_fstat = os.fstat
+    # The lock must belong to root; in the test the file belongs to whoever runs it.
+    monkeypatch.setattr(vram.os, "fstat", lambda fd: SimpleNamespace(
+        st_mode=stat_module.S_IFREG | 0o600, st_uid=0, **{"st_size": real_fstat(fd).st_size}))
+    with vram.cmos_guard():
+        with pytest.raises(SetupError, match="still in progress"):
+            with vram.cmos_guard():
+                pass
+    with vram.cmos_guard():  # released again
+        pass

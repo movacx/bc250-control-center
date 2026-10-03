@@ -1265,18 +1265,17 @@ function GpuMemoryLimit({ ttm, error, busy, execute, onState }: {
     () => [...(restorable ? ["default"] : []), ...(ttm?.presets_gib ?? []).map(String)],
     [restorable, ttm?.presets_gib],
   );
-  const [index, setIndex] = useState(0);
-  const initialized = useRef(false);
-  useEffect(() => {
-    if (initialized.current || !ttm) return;
-    const at = managedChoice ? choices.indexOf(managedChoice) : -1;
-    if (at >= 0) setIndex(at);
-    initialized.current = true;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ttm]);
-  const choice = choices[Math.min(index, Math.max(0, choices.length - 1))] ?? null;
+  // The choice is kept by value, not by position: "Kernel default" appears and
+  // disappears from the front of the list as the limit is set and restored.
+  const [selected, setSelected] = useState<string | null>(null);
+  const choice = selected != null && choices.includes(selected)
+    ? selected
+    : managedChoice && choices.includes(managedChoice) ? managedChoice : choices[0] ?? null;
+  const choiceIndex = choice == null ? 0 : choices.indexOf(choice);
   const choiceLabel = (value: string | null) => value == null ? "—" : value === "default" ? text.ttmKernelDefault : `${value} GiB`;
-  const unchanged = choice == null
+  // amdgpu.gttsize would make a new limit do nothing: only taking ours off is allowed.
+  const blockedByGttsize = ttm?.gtt_override != null && choice !== "default";
+  const unchanged = choice == null || blockedByGttsize
     || (choice === "default" ? !restorable : choice === managedChoice && ttm?.legacy_pages == null);
   const note = (body: string, key: string) => <div key={key} style={{ color: tokens.colors.amber, fontSize: 9, lineHeight: 1.4, margin: "0 2px 6px" }}>{body}</div>;
   const confirm = () => {
@@ -1313,8 +1312,7 @@ function GpuMemoryLimit({ ttm, error, busy, execute, onState }: {
   if (ttm.legacy_pages != null) notes.push(note(text.ttmLegacy, "legacy"));
   if (ttm.next_boot_ram_bytes != null) notes.push(note(text.ttmVramPending.replace("{size}", formatBytes(ttm.next_boot_ram_bytes)), "vram"));
   // Somebody else's limit is reported, never replaced; amdgpu.gttsize would make a new one do nothing.
-  const canChoose = ttm.supported && choices.length > 0 && !(ttm.external && !ttm.managed)
-    && !(ttm.gtt_override != null && choice !== "default");
+  const canChoose = ttm.supported && choices.length > 0 && !(ttm.external && !ttm.managed);
   return <>
     <div style={{ color: tokens.colors.subtle, fontSize: 9, lineHeight: 1.4, margin: "0 2px 6px" }}>{text.ttmHelp}</div>
     <StatusRow label={text.ttmNow} active={null} value={formatBytes(ttm.gtt_total_bytes)} />
@@ -1322,8 +1320,8 @@ function GpuMemoryLimit({ ttm, error, busy, execute, onState }: {
     {ttm.reboot_required ? <div style={{ alignItems: "center", background: tokens.colors.amber_soft, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, display: "flex", fontSize: 9, gap: 6, justifyContent: "space-between", marginBottom: 6, padding: "6px 8px" }}><span style={{ color: tokens.colors.subtle }}>{text.vramPending}</span><b style={{ color: tokens.colors.amber }}>{text.vramRebootRequired}</b></div> : null}
     {notes}
     {canChoose ? <>
-      <CompactSlider label={text.ttmTitle} value={Math.min(index, choices.length - 1)} suffix="" min={0} max={choices.length - 1} step={1} disabled={busy || choices.length < 2}
-        onChange={setIndex} formatValue={() => choiceLabel(choice)} />
+      <CompactSlider label={text.ttmTitle} value={choiceIndex} suffix="" min={0} max={choices.length - 1} step={1} disabled={busy || choices.length < 2}
+        onChange={(at) => setSelected(choices[at] ?? null)} formatValue={() => choiceLabel(choice)} />
       <div style={{ marginTop: 6, marginBottom: 10 }}>
         <ActionRow><Action label={text.ttmApply} primary disabled={busy || unchanged} onActivate={confirm} /></ActionRow>
       </div>
@@ -1344,9 +1342,10 @@ function MemoryTab({ state, busy, execute }: { state: Status; busy: boolean; exe
       setTtmError(null); setTtm(reply.ttm);
     } catch (error) { setTtmError(localizedErrorSummary(failed(error).error ?? text.error)); }
   }, []);
-  useEffect(() => { void loadTtm(); }, [loadTtm]);
-  // A new VRAM size changes how much memory the next boot has left for TTM.
-  useEffect(() => { if (vram?.uma_size_mb != null) void loadTtm(); }, [vram?.uma_size_mb, loadTtm]);
+  // Once on mount, and again when the VRAM size changes: a new size changes how
+  // much memory the next boot has left for the limit. One read, not two.
+  const vramSizeKey = vram?.uma_size_mb ?? null;
+  useEffect(() => { void loadTtm(); }, [loadTtm, vramSizeKey]);
   const vramPresets = state.contract?.vram?.presets?.length ? state.contract.vram.presets : VRAM_PRESETS_FALLBACK;
   const vramSupported = Boolean(vram?.supported);
   // An index into vramPresets, not the megabyte value itself: this drives a

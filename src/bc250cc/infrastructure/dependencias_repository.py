@@ -220,7 +220,13 @@ class DependenciasRepository:
         os_repository = self._os_repository()
         if os_repository.family != 'bazzite':
             raise RuntimeError('Bazzite memory setup is only available on Bazzite.')
-        command = build_bazzite_memory_tuning_command(policy, int(ttm_gib))
+        ttm_gib = int(ttm_gib)
+        # The swap/zswap transaction never touches the GPU memory limit: that
+        # goes through the shared helper (system_setup_ttm.py) so the panel in
+        # Game Mode reads and restores exactly what was set here.
+        command = build_bazzite_memory_tuning_command(policy, 0)
+        if ttm_gib:
+            command += '\n' + system_setup_command('ttm-apply', ttm_gib=ttm_gib)
         return self._abrir_terminal(command, 'Configurar memoria BC250 en Bazzite')
 
     def preparar_memoria(self, policy: str, ttm_gib: int, *, takeover_zram: bool = False, target_mount: str = ''):

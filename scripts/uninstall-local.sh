@@ -379,7 +379,8 @@ remove_path "$DESKTOP_DIR/io.github.movacx.bc250-control-center.desktop"
 remove_path "$METAINFO_DIR/io.github.movacx.bc250-control-center.metainfo.xml"
 remove_path "$SYSTEMD_USER_DIR/bc250-control-centerd.service"
 if [[ "$KEEP_PRIVILEGED" -eq 0 ]]; then
-if [[ -e /var/lib/bc250-control-center/system-setup/acpi.json || -e /var/lib/bc250-control-center/system-setup/telemetry.json || -e /etc/systemd/system/bc250-memory-setup.service || -e /var/lib/bc250-control-center-swap/swapfile || -e /etc/systemd/zram-generator.conf.d/90-bc250.conf || -e /etc/sysctl.d/90-bc250-memory.conf ]]; then
+if [[ -e /var/lib/bc250-control-center/system-setup/acpi.json || -e /var/lib/bc250-control-center/system-setup/telemetry.json || -e /etc/bc250-control-center/ttm-kargs.original || -e /etc/systemd/system/bc250-memory-setup.service || -e /var/lib/bc250-control-center-swap/swapfile || -e /etc/systemd/zram-generator.conf.d/90-bc250.conf || -e /etc/sysctl.d/90-bc250-memory.conf ]] \
+   || grep -Eqs '"(arguments|values)": [[{]$' /var/lib/bc250-control-center/system-setup/kernel-options.json; then
   echo "Keeping the optional memory/ACPI helper for restoration. Restore these settings in Control Center before removing that helper."
 else
   remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-system-setup-helper" "/usr/libexec/bc250-control-center/bc250-system-setup-helper"

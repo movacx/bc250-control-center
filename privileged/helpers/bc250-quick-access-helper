@@ -21,7 +21,11 @@ import subprocess
 import sys
 import tempfile
 import time
-import tomllib
+try:
+    import tomllib
+except ModuleNotFoundError:  # Python 3.10: Ubuntu 22.04, Linux Mint 21
+    print("ERR QUICK_ACCESS_PYTHON: Python 3.11 or newer is required by this helper.", file=sys.stderr)
+    raise SystemExit(2)
 from collections.abc import Mapping, Sequence
 from contextlib import contextmanager
 
@@ -332,6 +336,11 @@ PWM_DUTY_VERIFY_INTERVAL_SECONDS = 0.10
 PWM_MODE_SETTLE_SECONDS = 0.15
 FAN_OPERATION_LOCK = pathlib.Path('/run/bc250-control-center-fan.lock')
 CU_OPERATION_LOCK = pathlib.Path('/run/bc250-control-center-cu.lock')
+#: The CMOS index/data pair (ports 0x72/0x73) is one shared latch: two
+#: processes interleaving "select index" and "access data" write a byte to the
+#: wrong CMOS offset. Every reader and writer, here and in the desktop's
+#: system-setup helper (system_setup_vram.py), takes this same lock.
+CMOS_OPERATION_LOCK = pathlib.Path('/run/bc250-control-center-cmos.lock')
 OPERATION_LOCK_TIMEOUT_SECONDS = 3.0
 
 
@@ -362,6 +371,19 @@ def operation_lock(path: pathlib.Path, label: str):
         os.close(descriptor)
 
 
+@contextmanager
+def cmos_guard(port_open=None):
+    """Serialise CMOS port access across processes; injected openers (tests) skip it."""
+    if port_open is not None:
+        yield
+        return
+    try:
+        with operation_lock(CMOS_OPERATION_LOCK, 'BC250 CMOS'):
+            yield
+    except OSError as error:
+        raise RuntimeError(f"QUICK_ACCESS_VRAM: Cannot lock the BC250 CMOS I/O ports: {error}") from error
+
+
 def fail(message: str, code: int = 1) -> int:
     print(f"ERR {message}", file=sys.stderr, flush=True)
     return code
@@ -386,6 +408,7 @@ def run(
     *,
     timeout: int = 45,
     extra_env: Mapping[str, str] | None = None,
+    keep_running: bool = False,
 ) -> subprocess.CompletedProcess[str]:
     environment = {
         "PATH": "/usr/sbin:/usr/bin:/sbin:/bin",
@@ -394,6 +417,21 @@ def run(
     }
     if extra_env:
         environment.update({str(key): str(value) for key, value in extra_env.items()})
+    if keep_running:
+        # Killing a program that is changing the system half way leaves the
+        # change and its journal out of step. On a timeout it is left running.
+        process = subprocess.Popen(
+            list(command), text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            env=environment, start_new_session=True,
+        )
+        try:
+            stdout, stderr = process.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            return subprocess.CompletedProcess(
+                list(command), 124, "",
+                "ERROR: The change is still running. Wait a minute and check the GPU memory limit again before retrying.",
+            )
+        return subprocess.CompletedProcess(list(command), process.returncode, stdout, stderr)
     try:
         return subprocess.run(
             list(command), text=True, capture_output=True,
@@ -531,13 +569,14 @@ def vram_status(*, port_open=None) -> dict[str, object]:
         return {"supported": False, "reason": "/dev/port is not available on this kernel", "uma_size_mb": None, "boot_id": boot_id}
     opener = port_open or (lambda: open(VRAM_DEVICE, "r+b", buffering=0))
     try:
-        port = opener()
-    except OSError as error:
+        with cmos_guard(port_open):
+            port = opener()
+            try:
+                bank = _vram_read_bank(port)
+            finally:
+                port.close()
+    except (OSError, RuntimeError) as error:
         return {"supported": False, "reason": f"Cannot access BC250 CMOS I/O ports: {error}", "uma_size_mb": None, "boot_id": boot_id}
-    try:
-        bank = _vram_read_bank(port)
-    finally:
-        port.close()
     uma_size_mb = bank[VRAM_UMA_SIZE_OFFSET] | (bank[VRAM_UMA_SIZE_OFFSET + 1] << 8)
     # What the firmware booted with, from amdgpu. CMOS holding another size
     # means a reboot is pending, whoever wrote it -- this panel or the
@@ -559,20 +598,21 @@ def vram_apply(size_mb: int, *, port_open=None) -> dict[str, object]:
             "QUICK_ACCESS_VRAM: " + (current["reason"] or "BC250 VRAM configuration is unavailable.")
         )
     opener = port_open or (lambda: open(VRAM_DEVICE, "r+b", buffering=0))
-    try:
-        port = opener()
-    except OSError as error:
-        raise RuntimeError(f"QUICK_ACCESS_VRAM: Cannot access BC250 CMOS I/O ports: {error}") from error
-    try:
-        bank = _vram_read_bank(port)
-        bank[VRAM_UMA_SIZE_OFFSET] = size_mb & 0xFF
-        bank[VRAM_UMA_SIZE_OFFSET + 1] = (size_mb >> 8) & 0xFF
-        bank[0:4] = VRAM_SIGNATURE.to_bytes(4, "little")
-        checksum = sum(bank[VRAM_CHECKSUM_FIELD_OFFSET:]) & 0xFFFF
-        bank[4:6] = checksum.to_bytes(2, "little")
-        _vram_write_bank(port, bank)
-    finally:
-        port.close()
+    with cmos_guard(port_open):
+        try:
+            port = opener()
+        except OSError as error:
+            raise RuntimeError(f"QUICK_ACCESS_VRAM: Cannot access BC250 CMOS I/O ports: {error}") from error
+        try:
+            bank = _vram_read_bank(port)
+            bank[VRAM_UMA_SIZE_OFFSET] = size_mb & 0xFF
+            bank[VRAM_UMA_SIZE_OFFSET + 1] = (size_mb >> 8) & 0xFF
+            bank[0:4] = VRAM_SIGNATURE.to_bytes(4, "little")
+            checksum = sum(bank[VRAM_CHECKSUM_FIELD_OFFSET:]) & 0xFFFF
+            bank[4:6] = checksum.to_bytes(2, "little")
+            _vram_write_bank(port, bank)
+        finally:
+            port.close()
     return {"applied_uma_size_mb": size_mb}
 
 
@@ -643,7 +683,10 @@ def _system_setup_json(arguments: Sequence[str], timeout: int) -> dict[str, obje
             "QUICK_ACCESS_TTM: the protected system setup helper is unavailable. "
             "Update or reinstall BC250 Control Center from Desktop Mode."
         )
-    result = run([str(SYSTEM_SETUP_HELPER), *arguments], timeout=timeout)
+    # A change is never killed half way: a late answer is reported and the
+    # helper, which holds the setup lock, is left to finish.
+    changing = bool(arguments) and arguments[0] == "ttm-apply"
+    result = run([str(SYSTEM_SETUP_HELPER), *arguments], timeout=timeout, keep_running=changing)
     line = next((item for item in result.stdout.splitlines() if item.startswith("{")), "")
     if result.returncode != 0 or not line:
         errors = [item.removeprefix("ERROR:").strip() for item in result.stderr.splitlines() if item.startswith("ERROR:")]

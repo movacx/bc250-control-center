@@ -44,7 +44,7 @@ class Host:
             return True
         return shutil.which(name, path=ENV["PATH"]) is not None
 
-    def run(self, *args: str, check: bool = True) -> str:
+    def run(self, *args: str, check: bool = True, timeout: int = 180) -> str:
         if self.runner is not None:
             return self.runner(*args, check=check)
         executable = shutil.which(args[0], path=ENV["PATH"])
@@ -52,7 +52,7 @@ class Host:
             raise SetupError(f"Required command is missing: {args[0]}")
         try:
             result = subprocess.run([executable, *args[1:]], env=ENV, cwd="/",
-                                    capture_output=True, text=True, timeout=180)
+                                    capture_output=True, text=True, timeout=timeout)
         except subprocess.TimeoutExpired as exc:
             raise SetupError(f"{args[0]} timed out; check status before retrying") from exc
         if check and result.returncode:
