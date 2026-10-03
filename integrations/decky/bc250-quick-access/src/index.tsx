@@ -649,12 +649,16 @@ function GovernorServiceRow({ state, busy, execute }: {
     bDestructiveWarning={!enable}
     onOK={() => void execute(`GPU · ${text.governorService}`, () => setGpuGovernorService(enable), "gpu")}
   />);
-  return <div style={{ background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, marginTop: 6, padding: "7px 8px 8px" }}>
-    <div style={{ alignItems: "baseline", display: "flex", gap: 6, justifyContent: "space-between", marginBottom: 6 }}>
-      <span style={{ color: tokens.colors.text, fontSize: 10, fontWeight: 650 }}>{text.governorService}{name ? <span style={{ color: tokens.colors.subtle, fontWeight: 500 }}> · {name}</span> : null}</span>
-      <span style={{ color: tone, fontSize: 9, fontWeight: 650, textAlign: "right" }}>{summary}</span>
+  return <div style={{ background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 8, marginTop: 6, padding: "9px 9px 9px" }}>
+    <div style={{ alignItems: "center", display: "flex", gap: 9 }}>
+      <span style={{ background: tone, borderRadius: "50%", boxShadow: running ? `0 0 0 3px ${tokens.colors.panel_raised}` : "none", flex: "0 0 auto", height: 8, width: 8 }} />
+      <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
+        <span style={{ color: tokens.colors.text, fontSize: 11, fontWeight: 650 }}>{text.governorService}</span>
+        {name ? <span style={{ color: tokens.colors.subtle, fontSize: 9 }}>{name}</span> : null}
+      </span>
     </div>
-    <ActionRow>
+    <div style={{ color: tone, fontSize: 9, fontWeight: 600, lineHeight: 1.35, margin: "7px 0 9px 17px" }}>{summary}</div>
+    <ActionRow height={32}>
       <Action label={text.enableService} primary={installed && !running} disabled={busy || !installed || conflict || (running && atBoot)} onActivate={() => confirm(true)} />
       <Action label={text.disableService} danger disabled={busy || !installed || conflict || (!running && !atBoot)} onActivate={() => confirm(false)} />
     </ActionRow>
@@ -691,12 +695,12 @@ function Action({ label, disabled, primary, danger, onActivate }: { label: strin
     background: danger ? tokens.colors.red_soft : primary ? accent.focus : tokens.colors.panel_raised,
     border: `1px solid ${danger ? tokens.colors.red_soft : primary ? accent.focus : tokens.colors.border}`,
     color: danger ? tokens.colors.red : primary ? tokens.colors.selection : tokens.colors.text,
-    alignItems: "center", boxSizing: "border-box", display: "flex", flex: 1, fontSize: 10, fontWeight: primary ? 700 : 600, height: 36, justifyContent: "center", lineHeight: 1.15, minWidth: 0, padding: "4px 7px", textAlign: "center", whiteSpace: "normal", width: "100%",
+    alignItems: "center", boxSizing: "border-box", display: "flex", flex: 1, fontSize: 10, fontWeight: primary ? 700 : 600, height: "100%", justifyContent: "center", lineHeight: 1.15, minWidth: 0, padding: "4px 7px", textAlign: "center", whiteSpace: "normal", width: "100%",
   }}>{label}</PadButton>;
 }
 
-function ActionRow({ children, marginBottom = 0 }: { children: ReactNode; marginBottom?: number }) {
-  return <Focusable flow-children="right" style={{ alignItems: "stretch", display: "flex", gap: 6, height: 36, marginBottom, minHeight: 36, width: "100%" }}>{children}</Focusable>;
+function ActionRow({ children, marginBottom = 0, height = 36 }: { children: ReactNode; marginBottom?: number; height?: number }) {
+  return <Focusable flow-children="right" style={{ alignItems: "stretch", display: "flex", gap: 6, height, marginBottom, minHeight: height, width: "100%" }}>{children}</Focusable>;
 }
 
 function CompactSlider({ label, value, suffix, min, max, step, disabled, onChange, formatValue }: {
