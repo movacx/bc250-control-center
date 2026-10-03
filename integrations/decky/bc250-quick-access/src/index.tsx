@@ -924,18 +924,13 @@ function ScrollStop({ children, end = false }: { children?: ReactNode; end?: boo
 }
 
 // A GPU or CPU profile as one card: its name and the figure it sets. The one in
-// force carries the accent and either the ACTUAL tag (`tagged`, GPU) or, in the
-// quieter form, a small dot (CPU).
-function ProfileCard({ title, detail, tagged = false, current, disabled, preferredFocus, onActivate }: { title: string; detail: string; tagged?: boolean; current: boolean; disabled: boolean; preferredFocus?: boolean; onActivate: () => void }) {
+// force carries the accent and a small dot in the corner.
+function ProfileCard({ title, detail, current, disabled, preferredFocus, onActivate }: { title: string; detail: string; current: boolean; disabled: boolean; preferredFocus?: boolean; onActivate: () => void }) {
   const accent = useAccent();
-  return <PadButton label={title} disabled={disabled} preferredFocus={preferredFocus} onActivate={onActivate} style={{ alignItems: "stretch", background: current ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, display: "flex", flexDirection: "column", gap: 3, height: tagged ? 60 : 54, justifyContent: tagged ? "flex-end" : "center", minWidth: 0, padding: "6px 8px 7px", position: "relative", textAlign: "left", width: "100%" }}>
-    {current
-      ? tagged
-        ? <span style={{ background: accent.focus, borderRadius: 7, color: tokens.colors.window, fontSize: 7, fontWeight: 800, letterSpacing: .4, padding: "1px 5px", position: "absolute", right: 6, top: 6 }}>{text.current}</span>
-        : <span style={{ background: accent.focus, borderRadius: "50%", height: 6, position: "absolute", right: 8, top: 8, width: 6 }} />
-      : null}
+  return <PadButton label={title} disabled={disabled} preferredFocus={preferredFocus} onActivate={onActivate} style={{ alignItems: "stretch", background: current ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, display: "flex", flexDirection: "column", gap: 3, height: 54, justifyContent: "center", minWidth: 0, padding: "7px 8px", position: "relative", textAlign: "left", width: "100%" }}>
+    {current ? <span style={{ background: accent.focus, borderRadius: "50%", height: 6, position: "absolute", right: 8, top: 8, width: 6 }} /> : null}
     <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
-      <span style={{ WebkitBoxOrient: "vertical", WebkitLineClamp: 2, color: current ? accent.focus : tokens.colors.text, display: "-webkit-box", fontSize: 10.5, fontWeight: 650, lineHeight: 1.15, overflow: "hidden", overflowWrap: "anywhere", paddingRight: current && !tagged ? 8 : 0 }}>{title}</span>
+      <span style={{ WebkitBoxOrient: "vertical", WebkitLineClamp: 2, color: current ? accent.focus : tokens.colors.text, display: "-webkit-box", fontSize: 10.5, fontWeight: 650, lineHeight: 1.15, overflow: "hidden", overflowWrap: "anywhere", paddingRight: current ? 8 : 0 }}>{title}</span>
       <span style={{ color: tokens.colors.subtle, fontSize: 8.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{detail}</span>
     </span>
   </PadButton>;
@@ -1887,7 +1882,7 @@ function Content() {
         const current = state.gpu_range?.[0] === profile.min && state.gpu_range?.[1] === profile.max && (state.gpu_governor !== "cyan" || state.gpu_performance_enabled === false);
         const allowed = Boolean(state.gpu_allowed_range && state.gpu_allowed_range[0] <= profile.min && profile.max <= state.gpu_allowed_range[1]);
         return <ProfileCard key={profile.key} title={gpuProfileName(profile)} detail={`${ghz(profile.min)}–${ghz(profile.max)} GHz`}
-          tagged current={current} disabled={busy || !gpuReady || !allowed}
+          current={current} disabled={busy || !gpuReady || !allowed}
           preferredFocus={profile.key === (state.gpu_governor === "oberon" ? "oberon-1850" : "balanced")}
           onActivate={() => { void execute(`GPU · ${profile.name}`, () => applyGpuProfile(profile.key), "gpu"); }} />;
       })}

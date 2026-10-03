@@ -101,10 +101,7 @@ def test_the_gpu_memory_limit_goes_through_the_desktops_helper():
 
 
 def test_card_names_and_tags_fit_a_profile_card_in_every_language():
-    """A GPU/CPU profile card is about 96 px wide: no unbroken word may outgrow it.
-
-    The tag must stay short too; a long one would cover the name in the corner.
-    """
+    """A GPU/CPU profile card is about 96 px wide: no unbroken word may outgrow it."""
     catalogs = {path.stem: json.loads(path.read_text(encoding="utf-8")) for path in LOCALE_ROOT.glob("*.json")}
     names = ("profileBalanced", "profileGaming", "profileBenchmark",
              "cpuPresetBoardAverage", "cpuPresetMidPoint", "cpuPresetSafeMaximum")
@@ -112,7 +109,6 @@ def test_card_names_and_tags_fit_a_profile_card_in_every_language():
         for key in names:
             for word in re.split(r"[\s\-]+", catalog[key]):
                 assert len(word) <= 12, (language, key, word)
-        assert len(catalog["current"]) <= 8, (language, catalog["current"])
 
 
 def test_every_language_keeps_the_same_placeholders():
