@@ -192,7 +192,7 @@ def test_decky_plugin_and_helper_keep_a_finite_root_protocol():
     assert 'cpu_frequency_mhz' in frontend
     assert 'function CuMatrix' in frontend
     assert 'wait_for_cyan_range' in helper
-    cu_editor = frontend.split('function CuMatrix', 1)[1].split('function Content', 1)[0]
+    cu_editor = frontend.split('function CuMatrix', 1)[1].split('\nfunction ', 1)[0]
     assert 'cuRows.flatMap' in cu_editor
     assert cu_editor.count('flow-children="grid"') == 1
     assert 'function OverviewItem' not in frontend
@@ -298,7 +298,8 @@ def test_qam_cpu_sliders_use_real_detector_inputs_and_native_gamepad_steps():
     assert 'min={scaleMin}' in frontend and 'max={scaleMax}' in frontend
     assert "estimatedVid" not in frontend
     assert "nearestScale" not in frontend
-    assert "ToggleField" in frontend
+    assert "SwitchRow" in frontend  # every switch shares one design; Steam's ToggleField is gone
+    assert "ToggleField" not in frontend.replace("Steam's own ToggleField", "")
     assert "cpuManual" in frontend
     assert "applyCpuScale(cpuFrequency, cpuScale)" in frontend
     assert "applySavedCpuProfile" not in frontend
@@ -324,7 +325,7 @@ def test_qam_cpu_sliders_use_real_detector_inputs_and_native_gamepad_steps():
     assert "actionDescription={copy.liveRefresh}" not in frontend
     assert "PanelSection" not in frontend
 
-    cu_editor = frontend.split("function CuMatrix", 1)[1].split("function Content", 1)[0]
+    cu_editor = frontend.split("function CuMatrix", 1)[1].split("\nfunction ", 1)[0]
     assert cu_editor.count('flow-children="grid"') == 1
     assert 'navEntryPreferPosition={NavEntryPositionPreferences.PREFERRED_CHILD}' in cu_editor
     assert "preferredFocus={row === 0 && wgp === 0}" in cu_editor

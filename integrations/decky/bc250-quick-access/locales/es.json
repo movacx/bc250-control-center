@@ -130,6 +130,7 @@
   "highFrequencyCyanOnly": "Disponible solo con el gobernador Cyan activo.",
   "highFrequencyPoints": "Puntos TOML por encima de 2000 MHz",
   "highFrequencyPointsHint": "Experimental. No garantiza estabilidad y puede colgar la pantalla o el sistema. Esto solo edita el archivo TOML; no cambia el rango de GPU en vivo.",
+  "unlockFrequencies": "Desbloquear frecuencias",
   "inputVoltage": "Entrada",
   "install": "Instalar servicio",
   "installExactProfile": "Se instalará exactamente el perfil aplicado y verificado en este arranque.",

@@ -130,6 +130,7 @@
   "highFrequencyCyanOnly": "Nur verfügbar, wenn der Cyan-Governor aktiv ist.",
   "highFrequencyPoints": "TOML-Safe-Points über 2000 MHz",
   "highFrequencyPointsHint": "Experimentell. Stabilität nicht garantiert, kann Bildschirm oder System zum Absturz bringen. Dies bearbeitet nur die TOML-Datei; der aktive GPU-Bereich wird nicht geändert.",
+  "unlockFrequencies": "Frequenzen freischalten",
   "inputVoltage": "Eingang",
   "install": "Dienst installieren",
   "installExactProfile": "Es wird nur das genaue Profil installiert, das während dieses Startvorgangs angewendet und überprüft wurde.",

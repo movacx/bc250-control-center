@@ -34,7 +34,7 @@ import {
   FaMicrochip,
   FaTh,
 } from "react-icons/fa";
-import { LuActivity, LuCpu, LuFan, LuFlame, LuGamepad2, LuGauge, LuGrid3X3, LuLayoutGrid, LuMemoryStick, LuMicrochip, LuScale, LuSettings, LuSlidersHorizontal, LuZap } from "react-icons/lu";
+import { LuActivity, LuCpu, LuFan, LuFlame, LuGamepad2, LuGauge, LuGrid3X3, LuLayoutGrid, LuMemoryStick, LuMicrochip, LuScale, LuSettings, LuSlidersHorizontal, LuTrash2, LuZap } from "react-icons/lu";
 import { tokens } from "./theme";
 // Generated from src/bc250cc/shared/error_catalog.py; rollup inlines it.
 import errorCatalog from "./generated/error_catalog.json";
@@ -652,10 +652,9 @@ function GovernorServiceRow({ state, busy, execute }: {
   </div>;
 }
 
-// Cyan's commented TOML points above 2000 MHz, as the switch it is. It lives
-// in Settings: it is a one-time decision about what the GPU tab offers, not
-// a control used while playing. It asks first, and a cancelled question puts
-// the switch back where the file is.
+// Cyan's commented TOML points above 2000 MHz, as the switch it is. It sits at
+// the top of "More frequencies", next to the points it unlocks. It asks first,
+// and a cancelled question puts the switch back where the file is.
 function HighPointsSwitch({ state, busy, execute }: {
   state: Status; busy: boolean;
   execute: (title: string, operation: () => Promise<Result>, kind?: DraftKind) => Promise<void>;
@@ -674,9 +673,7 @@ function HighPointsSwitch({ state, busy, execute }: {
       onCancel={() => setRevision((value) => value + 1)}
     />);
   };
-  return <div style={{ background: tokens.colors.panel_alt, border: `1px solid ${enabled ? tokens.colors.red : tokens.colors.border_soft}`, borderRadius: 6, fontSize: 11, marginBottom: 6, overflow: "hidden" }}>
-    <SwitchRow key={`${revision}-${enabled}`} label={text.highFrequencyPoints} description={cyanActive ? undefined : text.highFrequencyCyanOnly} checked={enabled} danger disabled={busy || !cyanActive} onChange={request} />
-  </div>;
+  return <SwitchRow key={`${revision}-${enabled}`} label={text.unlockFrequencies} description={cyanActive ? text.highFrequencyPoints : text.highFrequencyCyanOnly} checked={enabled} danger disabled={busy || !cyanActive} onChange={request} />;
 }
 
 function Action({ label, disabled, primary, danger, onActivate }: { label: string; disabled: boolean; primary?: boolean; danger?: boolean; onActivate: () => void }) {
@@ -948,6 +945,32 @@ const GPU_PROFILE_ICONS: Record<string, ReactElement> = {
 };
 const CPU_PROFILE_ICONS: Record<string, ReactElement> = { board_average: <LuScale />, mid_point: <LuGauge />, safe_maximum: <LuZap /> };
 
+// ---- the drawers of the settings tab -------------------------------------
+// One look for what opens under a DisclosureRow: a quiet panel, small spaced
+// labels, joined segmented choices instead of a row of separate buttons, and
+// hairline dividers between groups.
+function Drawer({ children }: { children: ReactNode }) {
+  return <div style={{ background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 8, marginBottom: 8, padding: "8px 8px 6px" }}>{children}</div>;
+}
+
+function DrawerLabel({ children }: { children: ReactNode }) {
+  return <div style={{ color: tokens.colors.subtle, fontSize: 8.5, fontWeight: 650, letterSpacing: ".08em", margin: "2px 2px 5px", textTransform: "uppercase" }}>{children}</div>;
+}
+
+function Divider() {
+  return <div style={{ background: tokens.colors.border_soft, height: 1, margin: "6px 0" }} />;
+}
+
+function Segmented({ options, value, onChange, disabled = false, columns }: { options: { key: string; label: string }[]; value: string | null; onChange: (key: string) => void; disabled?: boolean; columns?: number }) {
+  const accent = useAccent();
+  return <Focusable flow-children="grid" navEntryPreferPosition={NavEntryPositionPreferences.PREFERRED_CHILD} style={{ background: tokens.colors.panel, borderRadius: 8, display: "grid", gap: 2, gridTemplateColumns: `repeat(${columns ?? options.length},minmax(0,1fr))`, marginBottom: 8, padding: 2 }}>
+    {options.map((option) => {
+      const selected = option.key === value;
+      return <PadButton key={option.key} label={option.label} disabled={disabled} preferredFocus={selected} onActivate={() => onChange(option.key)} style={{ alignItems: "center", background: selected ? accent.focus_soft : "transparent", border: selected ? `1px solid ${accent.focus}` : "1px solid transparent", borderRadius: 6, color: selected ? accent.focus : tokens.colors.muted, display: "flex", fontSize: 10, fontWeight: 650, height: 28, justifyContent: "center", overflow: "hidden", padding: "0 4px", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }}>{option.label}</PadButton>;
+    })}
+  </Focusable>;
+}
+
 // One header for every drop-down row of the GPU settings (more frequencies,
 // voltage lab, kernel compatibility): the name on the left, which may shorten
 // but never collides, the current choice as a small pill and the chevron on
@@ -999,31 +1022,24 @@ function CyanCompatibility({ state, busy, execute }: { state: Status; busy: bool
     strDescription={text.compatConfirm}
     strOKButtonText={text.compatApply}
     onOK={() => void execute(`GPU · ${text.compatTitle}`, () => applyGpuCompatibility(value.set_method, value.usage_method, value.fix_metrics, value.fix_frequency), "gpu")} />);
-  const choiceStyle = (selected: boolean): CSSProperties => ({ background: selected ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${selected ? accent.focus : tokens.colors.border}`, color: selected ? accent.focus : tokens.colors.text, fontSize: 10, fontWeight: 650, height: 30, padding: 2, textAlign: "center", width: "100%" });
-  const labelStyle: CSSProperties = { color: tokens.colors.subtle, fontSize: 10, margin: "2px 2px 4px" };
   return <>
     <DisclosureRow label={text.compatTitle} value={`${current.set_method === "smu" ? "SMU" : "Kernel"} · ${current.usage_method}`} open={open} warn={current.usage_method === "process"} onActivate={() => setOpen(!open)} />
-    {open ? <div style={{ background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 6, marginBottom: 6, padding: 6 }}>
-      {!cyanActive ? <div style={{ color: tokens.colors.amber, fontSize: 9, marginBottom: 6 }}>{text.compatNeedsCyan}</div> : null}
-      {cyanActive && !cyanRunningNow ? <div style={{ color: tokens.colors.amber, fontSize: 9, marginBottom: 6 }}>{text.compatStaged}</div> : null}
-      <div style={labelStyle}>{text.compatSetMethod}</div>
-      <Focusable flow-children="row" style={{ display: "grid", gap: 5, gridTemplateColumns: "repeat(2,minmax(0,1fr))", marginBottom: 6 }}>
-        {COMPAT_SET_METHODS.map((method) => <PadButton key={method} preferredFocus={value.set_method === method} disabled={busy || !cyanActive} onActivate={() => choose({ set_method: method })} style={choiceStyle(value.set_method === method)}>{method === "smu" ? "SMU" : "Kernel"}</PadButton>)}
-      </Focusable>
-      <div style={labelStyle}>{text.compatUsage}</div>
-      <Focusable flow-children="row" style={{ display: "grid", gap: 5, gridTemplateColumns: "repeat(3,minmax(0,1fr))", marginBottom: 6 }}>
-        {COMPAT_USAGE_METHODS.map((method) => <PadButton key={method} disabled={busy || !cyanActive} onActivate={() => choose({ usage_method: method })} style={choiceStyle(value.usage_method === method)}>{method}</PadButton>)}
-      </Focusable>
-      {value.usage_method === "process" ? <div style={{ color: tokens.colors.amber, fontSize: 9, lineHeight: 1.35, margin: "0 2px 7px" }}>{text.compatProcessWarning}</div> : null}
-      <div style={{ background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, fontSize: 11, marginBottom: 4, overflow: "hidden" }}>
-        <SwitchRow label={text.compatFixMetrics} checked={value.fix_metrics} disabled={busy || !cyanActive} onChange={(checked) => choose({ fix_metrics: checked })} />
-      </div>
-      <div style={{ background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, fontSize: 11, marginBottom: 6, overflow: "hidden" }}>
-        <SwitchRow label={text.compatFixFrequency} checked={value.fix_frequency} disabled={busy || !cyanActive} onChange={(checked) => choose({ fix_frequency: checked })} />
-      </div>
-      <div style={{ color: tokens.colors.subtle, fontSize: 9, lineHeight: 1.35, margin: "0 2px 7px" }}>{text.compatHint}</div>
-      <ActionRow><Action label={text.compatApply} primary disabled={busy || !cyanActive || !changed} onActivate={confirm} /><Action label={text.voltageDiscard} disabled={busy || !changed} onActivate={() => setDraft(null)} /></ActionRow>
-    </div> : null}
+    {open ? <Drawer>
+      {!cyanActive ? <div style={{ color: tokens.colors.amber, fontSize: 9, margin: "0 2px 6px" }}>{text.compatNeedsCyan}</div> : null}
+      {cyanActive && !cyanRunningNow ? <div style={{ color: tokens.colors.amber, fontSize: 9, margin: "0 2px 6px" }}>{text.compatStaged}</div> : null}
+      <DrawerLabel>{text.compatSetMethod}</DrawerLabel>
+      <Segmented disabled={busy || !cyanActive} value={value.set_method} onChange={(method) => choose({ set_method: method as GpuCompatibility["set_method"] })}
+        options={COMPAT_SET_METHODS.map((method) => ({ key: method, label: method === "smu" ? "SMU" : "Kernel" }))} />
+      <DrawerLabel>{text.compatUsage}</DrawerLabel>
+      <Segmented disabled={busy || !cyanActive} value={value.usage_method} onChange={(method) => choose({ usage_method: method as GpuCompatibility["usage_method"] })}
+        options={COMPAT_USAGE_METHODS.map((method) => ({ key: method, label: method }))} />
+      {value.usage_method === "process" ? <div style={{ color: tokens.colors.amber, fontSize: 9, lineHeight: 1.35, margin: "-2px 2px 6px" }}>{text.compatProcessWarning}</div> : null}
+      <Divider />
+      <SwitchRow label={text.compatFixMetrics} checked={value.fix_metrics} disabled={busy || !cyanActive} onChange={(checked) => choose({ fix_metrics: checked })} />
+      <SwitchRow label={text.compatFixFrequency} checked={value.fix_frequency} disabled={busy || !cyanActive} onChange={(checked) => choose({ fix_frequency: checked })} />
+      <div style={{ color: tokens.colors.subtle, fontSize: 9, lineHeight: 1.35, margin: "2px 8px 8px" }}>{text.compatHint}</div>
+      <ActionRow marginBottom={2}><Action label={text.compatApply} primary disabled={busy || !cyanActive || !changed} onActivate={confirm} /><Action label={text.voltageDiscard} disabled={busy || !changed} onActivate={() => setDraft(null)} /></ActionRow>
+    </Drawer> : null}
   </>;
 }
 
@@ -1064,28 +1080,28 @@ function VoltageLab({ state, busy, execute }: { state: Status; busy: boolean; ex
     onOK={() => void execute(`GPU · ${text.voltageLab}`, () => applyGpuVoltagePoints(changed.map((point) => ({ frequency: point.frequency, voltage: valueOf(point) }))), "gpu")} />);
   return <>
     <DisclosureRow label={text.voltageLab} value={points.length ? levelLabel : text.unavailable} open={open} disabled={!points.length} onActivate={() => setOpen(!open)} />
-    {open ? <div style={{ background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 6, marginBottom: 6, padding: 6 }}>
-      {!cyanRunning ? <div style={{ color: tokens.colors.amber, fontSize: 9, marginBottom: 6 }}>{text.voltageNeedsCyan}</div> : null}
-      <Focusable flow-children="row" style={{ display: "grid", gap: 5, gridTemplateColumns: "repeat(4,minmax(0,1fr))", marginBottom: 6 }}>
-        {VOLTAGE_LEVELS.map((value) => {
-          const current = level === value;
-          return <PadButton key={value} preferredFocus={current || (level == null && value === 0)} disabled={busy || !cyanRunning} onActivate={() => { if (!current) confirmLevel(value); }} style={{ background: current ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, color: current ? accent.focus : tokens.colors.text, fontSize: 10, fontWeight: 650, height: 32, padding: 2, textAlign: "center", width: "100%" }}>{value === 0 ? text.voltageGovernor : `+${value * 10} mV`}</PadButton>;
-        })}
-      </Focusable>
-      <Focusable flow-children="down">
-        {points.map((point) => {
-          const value = valueOf(point);
-          const moved = value !== point.voltage;
-          return <Focusable key={point.frequency} flow-children="row" style={{ alignItems: "center", display: "grid", gap: 5, gridTemplateColumns: "1fr 30px 70px 30px", marginBottom: 4 }}>
-            <span style={{ color: tokens.colors.subtle, fontSize: 10 }}>{point.frequency} MHz</span>
-            <PadButton label="-5 mV" disabled={busy || !cyanRunning || value <= floorOf(point)} onActivate={() => nudge(point, -VOLTAGE_STEP_MV)} style={{ fontSize: 12, height: 28, padding: 0, width: "100%" }}>−</PadButton>
-            <span style={{ color: moved ? accent.focus : tokens.colors.text, fontSize: 11, fontWeight: 650, textAlign: "center" }}>{value} mV</span>
-            <PadButton label="+5 mV" disabled={busy || !cyanRunning || value >= floorOf(point) + VOLTAGE_MAX_ABOVE_DEFAULT_MV} onActivate={() => nudge(point, VOLTAGE_STEP_MV)} style={{ fontSize: 12, height: 28, padding: 0, width: "100%" }}>+</PadButton>
-          </Focusable>;
-        })}
-      </Focusable>
-      <ActionRow><Action label={text.voltageApplyPoints} primary disabled={busy || !cyanRunning || !changed.length} onActivate={confirmPoints} /><Action label={text.voltageDiscard} disabled={busy || !changed.length} onActivate={() => setDraft({})} /></ActionRow>
-    </div> : null}
+    {open ? <Drawer>
+      {!cyanRunning ? <div style={{ color: tokens.colors.amber, fontSize: 9, margin: "0 2px 6px" }}>{text.voltageNeedsCyan}</div> : null}
+      <DrawerLabel>{text.voltageLab}</DrawerLabel>
+      <Segmented disabled={busy || !cyanRunning} value={level == null ? null : String(level)} onChange={(key) => { if (Number(key) !== level) confirmLevel(Number(key)); }}
+        options={VOLTAGE_LEVELS.map((value) => ({ key: String(value), label: value === 0 ? text.voltageGovernor : `+${value * 10} mV` }))} />
+      <div style={{ background: tokens.colors.panel, borderRadius: 8, padding: "2px 8px" }}>
+        <Focusable flow-children="down">
+          {points.map((point, index) => {
+            const value = valueOf(point);
+            const moved = value !== point.voltage;
+            return <Focusable key={point.frequency} flow-children="row" style={{ alignItems: "center", borderTop: index ? `1px solid ${tokens.colors.border_soft}` : "none", display: "grid", gap: 6, gridTemplateColumns: "1fr 28px 64px 28px", padding: "5px 0" }}>
+              <span style={{ color: tokens.colors.muted, fontSize: 10, fontWeight: 650 }}>{ghz(point.frequency)} GHz</span>
+              <PadButton label="-5 mV" disabled={busy || !cyanRunning || value <= floorOf(point)} onActivate={() => nudge(point, -VOLTAGE_STEP_MV)} style={{ borderRadius: 14, fontSize: 13, height: 26, padding: 0, width: "100%" }}>−</PadButton>
+              <span style={{ color: moved ? accent.focus : tokens.colors.text, fontSize: 11, fontWeight: 650, textAlign: "center" }}>{value} mV</span>
+              <PadButton label="+5 mV" disabled={busy || !cyanRunning || value >= floorOf(point) + VOLTAGE_MAX_ABOVE_DEFAULT_MV} onActivate={() => nudge(point, VOLTAGE_STEP_MV)} style={{ borderRadius: 14, fontSize: 13, height: 26, padding: 0, width: "100%" }}>+</PadButton>
+            </Focusable>;
+          })}
+        </Focusable>
+      </div>
+      <div style={{ height: 8 }} />
+      <ActionRow marginBottom={2}><Action label={text.voltageApplyPoints} primary disabled={busy || !cyanRunning || !changed.length} onActivate={confirmPoints} /><Action label={text.voltageDiscard} disabled={busy || !changed.length} onActivate={() => setDraft({})} /></ActionRow>
+    </Drawer> : null}
   </>;
 }
 
@@ -1878,7 +1894,28 @@ function Content() {
           onActivate={() => { void execute(`GPU · ${profile.name}`, () => applyGpuProfile(profile.key), "gpu"); }} />;
       })}
     </Focusable>
-    {points.length ? <><DisclosureRow label={text.more} open={highOpen} disabled={busy || !gpuReady} onActivate={() => setHighOpen(!highOpen)} />{highOpen ? <Focusable flow-children="grid" navEntryPreferPosition={NavEntryPositionPreferences.PREFERRED_CHILD} style={{ background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 6, display: "grid", gap: 5, gridTemplateColumns: "1fr 1fr", padding: 6 }}>{points.map((point, index) => { const current = point.frequency === liveHighPoint?.frequency; const allowed = Boolean(state.gpu_allowed_range && point.frequency <= state.gpu_allowed_range[1]); return <PadButton key={point.frequency} disabled={busy || !gpuReady || !allowed} preferredFocus={current || (!liveHighPoint && index === 0)} onActivate={() => { if (!current) void execute(`GPU · ${governorName || text.advanced}`, () => applyGpuSafePoint(point.frequency), "gpu"); }} style={{ background: current ? accent.focus_soft : tokens.colors.panel_alt, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, color: current ? accent.focus : tokens.colors.text, fontSize: 10, height: 34, padding: 4, textAlign: "center", width: "100%" }}>{point.frequency} MHz · {point.voltage} mV{current ? ` · ${text.current}` : ""}</PadButton>; })}</Focusable> : null}</> : null}
+    {points.length || state.gpu_governor === "cyan" ? <>
+      <DisclosureRow label={text.more} value={points.length ? text.enabled : text.disabled} open={highOpen} disabled={busy || !gpuReady} onActivate={() => setHighOpen(!highOpen)} />
+      {highOpen ? <Drawer>
+        <HighPointsSwitch state={state} busy={busy} execute={execute} />
+        {points.length ? <>
+          <Divider />
+          <DrawerLabel>{text.advanced}</DrawerLabel>
+          <Focusable flow-children="grid" navEntryPreferPosition={NavEntryPositionPreferences.PREFERRED_CHILD} style={{ display: "grid", gap: 5, gridTemplateColumns: "repeat(3,minmax(0,1fr))", marginBottom: 4 }}>
+            {points.map((point, index) => {
+              const current = point.frequency === liveHighPoint?.frequency;
+              const allowed = Boolean(state.gpu_allowed_range && point.frequency <= state.gpu_allowed_range[1]);
+              return <PadButton key={point.frequency} label={`${ghz(point.frequency)} GHz`} disabled={busy || !gpuReady || !allowed} preferredFocus={current || (!liveHighPoint && index === 0)}
+                onActivate={() => { if (!current) void execute(`GPU · ${governorName || text.advanced}`, () => applyGpuSafePoint(point.frequency), "gpu"); }}
+                style={{ alignItems: "center", background: current ? accent.focus_soft : tokens.colors.panel, border: `1px solid ${current ? accent.focus : tokens.colors.border_soft}`, display: "flex", flexDirection: "column", gap: 1, height: 42, justifyContent: "center", padding: "3px 2px", width: "100%" }}>
+                <span style={{ color: current ? accent.focus : tokens.colors.text, fontSize: 11, fontWeight: 700 }}>{ghz(point.frequency)} GHz</span>
+                <span style={{ color: tokens.colors.subtle, fontSize: 8.5 }}>{point.voltage} mV</span>
+              </PadButton>;
+            })}
+          </Focusable>
+        </> : null}
+      </Drawer> : null}
+    </> : null}
     <VoltageLab state={state} busy={busy} execute={execute} />
     <CyanCompatibility state={state} busy={busy} execute={execute} />
     <GovernorServiceRow state={state} busy={busy} execute={execute} />
@@ -2042,51 +2079,52 @@ function GameProfileCard({ state, busy }: { state: Status; busy: boolean }) {
     if (next && game) await onGameStart(game.appId, game.name);
     return result;
   });
-  const choice = (value: string | null, current: string | null, label: string, pick: () => void, key: string) => {
-    const selected = value === current;
-    return <PadButton key={key} disabled={working} onActivate={pick} style={{ background: selected ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${selected ? accent.focus : tokens.colors.border}`, color: selected ? accent.focus : tokens.colors.text, fontSize: 9, fontWeight: 650, height: 30, overflow: "hidden", padding: "2px 4px", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }}>{label}</PadButton>;
-  };
-  return <section style={{ background: tokens.colors.panel_alt, border: `1px solid ${active ? accent.focus : tokens.colors.border}`, borderRadius: 8, marginBottom: 10, padding: "8px 9px" }}>
-    <SectionTitle kind="game" title={text.perGameProfiles} trailing={active ? <span style={{ color: accent.focus, fontSize: 9, fontWeight: 700 }}>{text.gameProfileActive}</span> : undefined} />
-    <div style={{ fontSize: 11, overflow: "hidden" }}><SwitchRow label={text.applyAutomatically} checked={enabled} disabled={working} onChange={toggle} /></div>
-    {!game ? <div style={{ color: tokens.colors.subtle, fontSize: 10, lineHeight: 1.4, margin: "4px 2px 6px" }}>{text.gameNotRunning}</div> : <>
-      <div style={{ margin: "4px 2px 6px" }}>
-        <div style={{ color: tokens.colors.text, fontSize: 12, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{game.name}</div>
-        <div style={{ color: saved ? tokens.colors.muted : tokens.colors.subtle, fontSize: 9, marginTop: 2 }}>{saved ? summary(saved) : text.gameNoProfile}</div>
+  const pill = (icon: ReactElement, label: string) => <span style={{ alignItems: "center", background: tokens.colors.panel_raised, borderRadius: 10, color: tokens.colors.muted, display: "inline-flex", fontSize: 9, gap: 4, maxWidth: "100%", padding: "2px 8px 2px 6px" }}>
+    {icon}<span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span></span>;
+  const profilePills = (entry: { gpu: string | null; fan: string | null }) => <span style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+    {pill(<LuMicrochip strokeWidth={1.75} />, gpuLabel(entry.gpu, gpuProfiles))}
+    {pill(<LuFan strokeWidth={1.75} />, presetLabel(entry.fan, fanPresets))}
+  </span>;
+  const gpuOptions = [{ key: "none", label: text.unchanged }, ...gpuProfiles.map((profile) => ({ key: profile.key, label: profile.name }))];
+  const fanOptions = [{ key: "none", label: text.unchanged }, ...["quiet", "balanced", "boost", "automatic"].map((key) => ({ key, label: presetLabel(key, fanPresets) }))];
+  return <section style={{ background: tokens.colors.panel_alt, border: `1px solid ${active ? accent.focus : tokens.colors.border}`, borderRadius: 10, marginBottom: 10, padding: "8px 8px 4px" }}>
+    <SectionTitle kind="game" title={text.perGameProfiles} trailing={active ? <span style={{ background: accent.focus_soft, borderRadius: 8, color: accent.focus, fontSize: 8, fontWeight: 800, letterSpacing: .4, padding: "1px 6px" }}>{text.gameProfileActive}</span> : undefined} />
+    <SwitchRow label={text.applyAutomatically} checked={enabled} disabled={working} onChange={toggle} />
+    {!game ? <div style={{ color: tokens.colors.subtle, fontSize: 9.5, lineHeight: 1.4, margin: "0 8px 8px" }}>{text.gameNotRunning}</div> : <>
+      <div style={{ background: tokens.colors.panel, borderRadius: 8, display: "flex", flexDirection: "column", gap: 5, margin: "2px 0 8px", padding: "8px 9px" }}>
+        <div style={{ alignItems: "center", display: "flex", gap: 6 }}>
+          <LuGamepad2 strokeWidth={1.5} color={active ? accent.focus : tokens.colors.subtle} />
+          <span style={{ color: tokens.colors.text, flex: 1, fontSize: 12, fontWeight: 700, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{game.name}</span>
+        </div>
+        {saved ? profilePills(saved) : <span style={{ color: tokens.colors.subtle, fontSize: 9 }}>{text.gameNoProfile}</span>}
       </div>
-      {!editing ? <ActionRow marginBottom={6}>
+      {!editing ? <ActionRow marginBottom={8}>
         <Action label={saved ? text.editProfile : text.assignProfile} primary={!saved} disabled={working || busy} onActivate={beginEdit} />
         {saved ? <Action label={text.removeGame} danger disabled={working} onActivate={() => remove(saved.app_id)} /> : null}
-      </ActionRow> : <div style={{ borderTop: `1px solid ${tokens.colors.border_soft}`, paddingTop: 6 }}>
-        <div style={{ color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 4px" }}>GPU</div>
-        <Focusable flow-children="grid" style={{ display: "grid", gap: 4, gridTemplateColumns: `repeat(${Math.min(4, gpuProfiles.length + 1)},minmax(0,1fr))`, marginBottom: 6 }}>
-          {choice(null, draftGpu, text.unchanged, () => setDraftGpu(null), "gpu-none")}
-          {gpuProfiles.map((profile) => choice(profile.key, draftGpu, profile.name, () => setDraftGpu(profile.key), `gpu-${profile.key}`))}
-        </Focusable>
-        <div style={{ color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 4px" }}>{text.fans}</div>
-        <Focusable flow-children="grid" style={{ display: "grid", gap: 4, gridTemplateColumns: "repeat(3,minmax(0,1fr))", marginBottom: 6 }}>
-          {choice(null, draftFan, text.unchanged, () => setDraftFan(null), "fan-none")}
-          {["quiet", "balanced", "boost", "automatic"].map((key) => choice(key, draftFan, presetLabel(key, fanPresets), () => setDraftFan(key), `fan-${key}`))}
-        </Focusable>
-        <div style={{ color: tokens.colors.subtle, fontSize: 9, lineHeight: 1.35, margin: "0 2px 6px" }}>{text.gameCpuNote}</div>
-        <ActionRow marginBottom={6}>
+      </ActionRow> : <Drawer>
+        <DrawerLabel>GPU</DrawerLabel>
+        <Segmented disabled={working} value={draftGpu ?? "none"} columns={Math.min(4, gpuOptions.length)} onChange={(key) => setDraftGpu(key === "none" ? null : key)} options={gpuOptions} />
+        <DrawerLabel>{text.fans}</DrawerLabel>
+        <Segmented disabled={working} value={draftFan ?? "none"} columns={3} onChange={(key) => setDraftFan(key === "none" ? null : key)} options={fanOptions} />
+        <div style={{ color: tokens.colors.subtle, fontSize: 9, lineHeight: 1.35, margin: "0 2px 8px" }}>{text.gameCpuNote}</div>
+        <ActionRow marginBottom={2}>
           <Action label={text.gameProfileSave} primary disabled={working || (!draftGpu && !draftFan)} onActivate={save} />
           <Action label={text.cancel} disabled={working} onActivate={() => setEditing(false)} />
         </ActionRow>
-      </div>}
+      </Drawer>}
     </>}
-    <PadButton onActivate={() => setListOpen(!listOpen)} style={{ alignItems: "center", display: "flex", fontSize: 10, height: 30, justifyContent: "space-between", padding: "4px 8px", width: "100%" }}>
-      <span>{text.savedGames} · {games.length}</span><span style={{ color: accent.focus }}>{listOpen ? "▴" : "▾"}</span>
-    </PadButton>
-    {listOpen ? <Focusable flow-children="down" style={{ marginTop: 5 }}>
-      {!games.length ? <div style={{ color: tokens.colors.subtle, fontSize: 9, margin: "2px 2px 0" }}>{text.gamesEmpty}</div> : games.map((entry) => <Focusable key={entry.app_id} flow-children="row" style={{ alignItems: "center", borderTop: `1px solid ${tokens.colors.border_soft}`, display: "grid", gap: 6, gridTemplateColumns: "1fr 72px", padding: "5px 0" }}>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 10, fontWeight: 650, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{entry.name || appName(Number(entry.app_id))}</div>
-          <div style={{ color: tokens.colors.subtle, fontSize: 8, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{summary(entry)}</div>
-        </div>
-        <Action label={text.removeGame} danger disabled={working} onActivate={() => remove(entry.app_id)} />
-      </Focusable>)}
-    </Focusable> : null}
+    <DisclosureRow label={text.savedGames} value={String(games.length)} open={listOpen} onActivate={() => setListOpen(!listOpen)} />
+    {listOpen ? <div style={{ background: tokens.colors.panel, borderRadius: 8, marginBottom: 6, padding: "2px 8px" }}>
+      <Focusable flow-children="down">
+        {!games.length ? <div style={{ color: tokens.colors.subtle, fontSize: 9, padding: "7px 0" }}>{text.gamesEmpty}</div> : games.map((entry, index) => <Focusable key={entry.app_id} flow-children="row" style={{ alignItems: "center", borderTop: index ? `1px solid ${tokens.colors.border_soft}` : "none", display: "grid", gap: 8, gridTemplateColumns: "1fr 30px", padding: "6px 0" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
+            <span style={{ fontSize: 10.5, fontWeight: 650, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{entry.name || appName(Number(entry.app_id))}</span>
+            {profilePills(entry)}
+          </div>
+          <PadButton label={text.removeGame} disabled={working} onActivate={() => remove(entry.app_id)} style={{ alignItems: "center", background: tokens.colors.red_soft, border: `1px solid ${tokens.colors.red_soft}`, color: tokens.colors.red, display: "flex", fontSize: 14, height: 30, justifyContent: "center", padding: 0, width: "100%" }}><LuTrash2 strokeWidth={1.75} /></PadButton>
+        </Focusable>)}
+      </Focusable>
+    </div> : null}
   </section>;
 }
 
@@ -2097,12 +2135,6 @@ function SettingsTab({ settings, setSettings, state, busy, execute }: {
 }) {
   const accent = ACCENT_SWATCHES[settings.accent];
   return <>
-    <section style={{ marginBottom: 12 }}>
-      <SectionTitle kind="gpu" title="GPU" />
-      <HighPointsSwitch state={state} busy={busy} execute={execute} />
-    </section>
-
-
     <section style={{ marginBottom: 12 }}>
       <SectionTitle kind="settings" title={text.accentColor} />
       <Focusable flow-children="grid" navEntryPreferPosition={NavEntryPositionPreferences.PREFERRED_CHILD} style={{ display: "grid", gap: 6, gridTemplateColumns: "repeat(3,minmax(0,1fr))" }}>
