@@ -3785,7 +3785,8 @@ class GpuGovernorPage(QWidget):
             if scope == "swap"
             else (
                 (tr("Dynamic GPU Memory Limit (TTM)"), ttm_label),
-                (tr("Reboot"), tr("Required to activate the selected configuration" if bazzite else "Not required")),
+                # amdgpu sizes GTT when it loads: a boot argument, on every system.
+                (tr("Reboot"), tr("Required to activate the selected configuration")),
             )
         )
         confirmation = ConfirmDialog(
@@ -3793,6 +3794,9 @@ class GpuGovernorPage(QWidget):
             tr("This disables the ZRAM the distribution set up by default; ZSWAP takes over once you reboot. "
                "Nothing else about that ZRAM configuration is touched, and it comes back if you restore this setting.")
             if takeover_zram
+            else tr("The limit is saved as a kernel boot argument, shared with BC250 Quick Access in Game Mode, "
+                    "and takes effect at the next reboot.")
+            if scope != "swap"
             else tr("A reboot may be required.") if bazzite
             else tr("Optional system setup. Disk swap uses up to 32 GiB of storage; existing user swap is preserved. TTM is applied live when supported. ZRAM and deferred restoration require a reboot. Hardware testing is still required."),
             summary=summary,
@@ -3803,7 +3807,7 @@ class GpuGovernorPage(QWidget):
         if confirmation.exec() != QDialog.DialogCode.Accepted:
             return
         self._run_backend_action(
-            lambda: (self.controller.preparar_memoria_bazzite(policy, ttm_gib) if bazzite
+            lambda: (self.controller.preparar_memoria_bazzite(policy, ttm_gib) if bazzite and scope == "swap"
                      else self.controller.preparar_memoria(
                          policy, ttm_gib, takeover_zram=takeover_zram, target_mount=target_mount)),
             lambda _result: GpuGovernorPage._record_preparation_result(

@@ -4563,5 +4563,10 @@
   "Open Telemetry settings": "Отваряне на настройките за телеметрия",
   "Detected: the kernel driver (bc250_vrm) reads the regulator": "Открито: драйверът на ядрото (bc250_vrm) чете регулатора",
   "Not detected: the kernel driver (bc250_vrm) gets no answer from the regulator": "Не е открито: драйверът на ядрото (bc250_vrm) не получава отговор от регулатора",
-  "This kernel reads the regulator itself (bc250_vrm), so the BC250-Telemetry service is not needed and cannot open the bus. Remove it here.": "Това ядро само чете регулатора (bc250_vrm), затова услугата BC250-Telemetry не е нужна и не може да отвори шината. Премахнете я оттук."
+  "This kernel reads the regulator itself (bc250_vrm), so the BC250-Telemetry service is not needed and cannot open the bus. Remove it here.": "Това ядро само чете регулатора (bc250_vrm), затова услугата BC250-Telemetry не е нужна и не може да отвори шината. Премахнете я оттук.",
+  "amdgpu.gttsize overrides this limit": "amdgpu.gttsize замества това ограничение",
+  "The limit is saved as a kernel boot argument, shared with BC250 Quick Access in Game Mode, and takes effect at the next reboot.": "Ограничението се записва като аргумент за зареждане на ядрото, общ с BC250 Quick Access в Game Mode, и влиза в сила при следващото рестартиране.",
+  "The GPU memory limit could not be changed.": "Ограничението на паметта на GPU не можа да бъде променено.",
+  "This system cannot keep a kernel boot argument the way Control Center manages it, another tool already set the limit, or the boot loader or rpm-ostree refused the change.": "Тази система не може да запази аргумент за зареждане на ядрото така, както го управлява Control Center, друг инструмент вече е задал ограничението, или програмата за начално зареждане или rpm-ostree отказа промяната.",
+  "Read the reason in the Memory section. On SteamOS, systemd-boot or rEFInd add the ttm.pages_limit argument yourself; elsewhere retry once the boot loader or rpm-ostree is idle.": "Прочетете причината в раздел „Памет“. В SteamOS, systemd-boot или rEFInd добавете аргумента ttm.pages_limit сами; другаде опитайте отново, когато програмата за начално зареждане или rpm-ostree е свободна."
 }

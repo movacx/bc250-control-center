@@ -47,7 +47,7 @@ def command(action: str, policy: str = "preserve", ttm_gib: int = 0, uma_size_mb
     if action not in {
         "memory-apply", "acpi-install", "acpi-uninstall", "acpi-check",
         "telemetry-fix", "telemetry-restore", "vram-read", "vram-apply",
-        "kernel-options-set",
+        "kernel-options-set", "ttm-apply",
     }:
         raise ValueError("Unsupported system setup action")
     kernel_options = tuple(kernel_options or ())
@@ -66,6 +66,10 @@ def command(action: str, policy: str = "preserve", ttm_gib: int = 0, uma_size_mb
             args += " --takeover-zram"
         if target_mount:
             args += f" --target-mount {shlex.quote(target_mount)}"
+    elif action == "ttm-apply":
+        if ttm_gib == 0:
+            raise ValueError("Choose a GPU memory limit or the kernel default")
+        args = f" --ttm {ttm_gib}"
     elif action == "vram-apply":
         args = f" --uma-size {uma_size_mb}"
     elif action == "kernel-options-set":

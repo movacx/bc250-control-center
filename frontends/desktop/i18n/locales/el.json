@@ -4563,5 +4563,10 @@
   "Open Telemetry settings": "Άνοιγμα ρυθμίσεων τηλεμετρίας",
   "Detected: the kernel driver (bc250_vrm) reads the regulator": "Εντοπίστηκε: ο οδηγός του πυρήνα (bc250_vrm) διαβάζει τον ρυθμιστή",
   "Not detected: the kernel driver (bc250_vrm) gets no answer from the regulator": "Δεν εντοπίστηκε: ο οδηγός του πυρήνα (bc250_vrm) δεν λαμβάνει απάντηση από τον ρυθμιστή",
-  "This kernel reads the regulator itself (bc250_vrm), so the BC250-Telemetry service is not needed and cannot open the bus. Remove it here.": "Αυτός ο πυρήνας διαβάζει μόνος του τον ρυθμιστή (bc250_vrm), οπότε η υπηρεσία BC250-Telemetry δεν χρειάζεται και δεν μπορεί να ανοίξει τον δίαυλο. Αφαιρέστε την εδώ."
+  "This kernel reads the regulator itself (bc250_vrm), so the BC250-Telemetry service is not needed and cannot open the bus. Remove it here.": "Αυτός ο πυρήνας διαβάζει μόνος του τον ρυθμιστή (bc250_vrm), οπότε η υπηρεσία BC250-Telemetry δεν χρειάζεται και δεν μπορεί να ανοίξει τον δίαυλο. Αφαιρέστε την εδώ.",
+  "amdgpu.gttsize overrides this limit": "το amdgpu.gttsize παρακάμπτει αυτό το όριο",
+  "The limit is saved as a kernel boot argument, shared with BC250 Quick Access in Game Mode, and takes effect at the next reboot.": "Το όριο αποθηκεύεται ως όρισμα εκκίνησης του πυρήνα, κοινό με το BC250 Quick Access στο Game Mode, και ισχύει από την επόμενη επανεκκίνηση.",
+  "The GPU memory limit could not be changed.": "Δεν ήταν δυνατή η αλλαγή του ορίου μνήμης της GPU.",
+  "This system cannot keep a kernel boot argument the way Control Center manages it, another tool already set the limit, or the boot loader or rpm-ostree refused the change.": "Αυτό το σύστημα δεν μπορεί να διατηρήσει ένα όρισμα εκκίνησης του πυρήνα όπως το διαχειρίζεται το Control Center, κάποιο άλλο εργαλείο έχει ήδη ορίσει το όριο, ή ο φορτωτής εκκίνησης ή το rpm-ostree απέρριψε την αλλαγή.",
+  "Read the reason in the Memory section. On SteamOS, systemd-boot or rEFInd add the ttm.pages_limit argument yourself; elsewhere retry once the boot loader or rpm-ostree is idle.": "Διαβάστε την αιτία στην ενότητα Μνήμη. Σε SteamOS, systemd-boot ή rEFInd προσθέστε μόνοι σας το όρισμα ttm.pages_limit· αλλού δοκιμάστε ξανά όταν ο φορτωτής εκκίνησης ή το rpm-ostree είναι ελεύθερος."
 }

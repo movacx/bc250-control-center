@@ -29,6 +29,54 @@ BAZZITE_MEMORY_OPTIONS = (
     ("Advanced heavy loads · ZSWAP + 32 GiB swapfile", "zswap-32"),
 )
 
+GIB = 1024 ** 3
+
+
+def ttm_state_text(ttm) -> str:
+    """One line for the TTM card, from the helper's shared ``ttm`` state.
+
+    The same state the Decky panel shows, so both say the same thing.
+    """
+    if not isinstance(ttm, dict) or not ttm:
+        return ""
+    if not ttm.get("supported"):
+        return tr(str(ttm.get("reason") or ""))
+    page = ttm.get("page_size") if type(ttm.get("page_size")) is int and ttm.get("page_size") > 0 else 4096
+    configured = ttm.get("configured_pages")
+    if type(configured) is int:
+        parts = [tr_format("Next boot: {value}", value=f"{round(configured * page / GIB, 1):g} GiB")]
+    else:
+        parts = [tr("Kernel default (no BC250 limit set)")]
+    if ttm.get("external"):
+        parts.append(tr("Set outside Control Center"))
+    if ttm.get("gtt_override") is not None:
+        parts.append(tr("amdgpu.gttsize overrides this limit"))
+    if ttm.get("reboot_required"):
+        parts.append(tr("Reboot required"))
+    return " · ".join(parts)
+
+
+def _apply_ttm_capability(owner, ttm, *, restore_always: bool) -> None:
+    """Offer only the limits the next boot has room for, and restore only ours.
+
+    ``restore_always`` leaves the restore entry to the caller (GitHub issue
+    #14 keeps it selectable on Bazzite).
+    """
+    if not isinstance(ttm, dict) or not ttm:
+        return
+    combo = owner.ttm_limit_combo
+    presets = ttm.get("presets_gib")
+    allowed = set(presets) if isinstance(presets, list) else None
+    for index in range(combo.count()):
+        value = combo.itemData(index)
+        if type(value) is int and value > 0 and allowed is not None:
+            combo.model().item(index).setEnabled(value in allowed)
+    if not restore_always:
+        combo.model().item(1).setEnabled(bool(ttm.get("managed") or ttm.get("legacy_pages") is not None))
+    if hasattr(owner, "memory_ttm_state"):
+        owner.memory_ttm_state.setText(ttm_state_text(ttm))
+
+
 def vram_size_label(size_mb: int) -> str:
     if size_mb < 1024:
         return tr_format("{size} MiB", size=size_mb)
@@ -98,6 +146,7 @@ def _restore_bazzite_memory_options(owner, tools) -> None:
     # the workflow restores only the argument it recorded and otherwise
     # reports that nothing of its own exists.
     ttm_combo.model().item(1).setEnabled(True)
+    _apply_ttm_capability(owner, (tools.get("system_setup") or {}).get("ttm"), restore_always=True)
 
     if type(physical) is int and physical > 0:
         visible_gib = physical / (1024 ** 3)
@@ -155,8 +204,16 @@ def update_memory_controls(owner, tools):
         item.setToolTip(tr(str(policy_reasons.get(value) or "")))
     combo.setEnabled(enabled)
     owner.ttm_limit_combo.setItemText(1, tr("Restore previous TTM limit"))
-    owner.ttm_limit_combo.setEnabled(enabled and bool(memory.get("ttm_available")))
-    owner.ttm_limit_combo.model().item(1).setEnabled(bool(memory.get("ttm_restore_available")))
+    # The limit is a boot argument kept by system_setup_ttm.py, shared with the
+    # Decky panel; an older helper only reports the memory module's fields.
+    ttm = setup.get("ttm") if isinstance(setup.get("ttm"), dict) else {}
+    ttm_enabled = bool(setup.get("helper_available")) and bool(
+        ttm.get("supported") if ttm else memory.get("ttm_available")
+    )
+    restorable = bool(memory.get("ttm_restore_available")) or bool(ttm.get("managed"))
+    owner.ttm_limit_combo.setEnabled(ttm_enabled)
+    _apply_ttm_capability(owner, ttm, restore_always=True)
+    owner.ttm_limit_combo.model().item(1).setEnabled(restorable)
     selected_policy = combo.currentData()
     needs_takeover = takeover_available and selected_policy in {"zswap-16", "zswap-32"} and selected_policy not in policies
     owner.memory_swap_apply_button.setEnabled(enabled and selected_policy in selectable and selected_policy != "preserve")
@@ -200,12 +257,18 @@ def update_memory_controls(owner, tools):
         target_combo.setEnabled(enabled and creates_swapfile)
         owner.memory_swap_target_label.setVisible(creates_swapfile)
         target_combo.setVisible(creates_swapfile)
-    ttm = owner.ttm_limit_combo.currentData()
-    owner.memory_ttm_apply_button.setEnabled(enabled and bool(memory.get("ttm_available")) and ttm != 0
-                                           and (ttm != -1 or bool(memory.get("ttm_restore_available"))))
+    selected_ttm = owner.ttm_limit_combo.currentData()
+    selected_item = owner.ttm_limit_combo.model().item(max(0, owner.ttm_limit_combo.currentIndex()))
+    owner.memory_ttm_apply_button.setEnabled(
+        ttm_enabled and selected_ttm != 0 and bool(selected_item and selected_item.isEnabled())
+        and (selected_ttm != -1 or restorable)
+    )
     reason = setup.get("reason") or memory.get("reason") or ""
-    for widget in (combo, owner.ttm_limit_combo, owner.memory_swap_apply_button, owner.memory_ttm_apply_button):
+    for widget in (combo, owner.memory_swap_apply_button):
         widget.setToolTip(tr(reason) if reason else tr("Optional system setup. Review changes before applying."))
+    ttm_reason = (ttm.get("reason") if ttm and not ttm.get("supported") else "") or setup.get("reason") or ""
+    for widget in (owner.ttm_limit_combo, owner.memory_ttm_apply_button):
+        widget.setToolTip(tr(ttm_reason) if ttm_reason else tr("Optional system setup. Review changes before applying."))
     if hasattr(owner, "memory_scope"):
         label = "Testing" if enabled else "Unavailable"
         if enabled and memory.get("phase") == "incomplete":

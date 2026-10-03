@@ -4563,5 +4563,10 @@
   "Open Telemetry settings": "Telemetri ayarlarını aç",
   "Detected: the kernel driver (bc250_vrm) reads the regulator": "Algılandı: çekirdek sürücüsü (bc250_vrm) regülatörü okuyor",
   "Not detected: the kernel driver (bc250_vrm) gets no answer from the regulator": "Algılanmadı: çekirdek sürücüsü (bc250_vrm) regülatörden yanıt alamıyor",
-  "This kernel reads the regulator itself (bc250_vrm), so the BC250-Telemetry service is not needed and cannot open the bus. Remove it here.": "Bu çekirdek regülatörü kendisi okuyor (bc250_vrm), bu yüzden BC250-Telemetry hizmeti gerekli değil ve veri yolunu açamaz. Buradan kaldırın."
+  "This kernel reads the regulator itself (bc250_vrm), so the BC250-Telemetry service is not needed and cannot open the bus. Remove it here.": "Bu çekirdek regülatörü kendisi okuyor (bc250_vrm), bu yüzden BC250-Telemetry hizmeti gerekli değil ve veri yolunu açamaz. Buradan kaldırın.",
+  "amdgpu.gttsize overrides this limit": "amdgpu.gttsize bu sınırı geçersiz kılar",
+  "The limit is saved as a kernel boot argument, shared with BC250 Quick Access in Game Mode, and takes effect at the next reboot.": "Sınır, Game Mode'daki BC250 Quick Access ile paylaşılan bir çekirdek önyükleme argümanı olarak kaydedilir ve bir sonraki yeniden başlatmada etkinleşir.",
+  "The GPU memory limit could not be changed.": "GPU bellek sınırı değiştirilemedi.",
+  "This system cannot keep a kernel boot argument the way Control Center manages it, another tool already set the limit, or the boot loader or rpm-ostree refused the change.": "Bu sistem çekirdek önyükleme argümanını Control Center'ın yönettiği şekilde tutamıyor, sınırı başka bir araç zaten ayarlamış ya da önyükleyici veya rpm-ostree değişikliği reddetti.",
+  "Read the reason in the Memory section. On SteamOS, systemd-boot or rEFInd add the ttm.pages_limit argument yourself; elsewhere retry once the boot loader or rpm-ostree is idle.": "Nedeni Bellek bölümünde okuyun. SteamOS, systemd-boot veya rEFInd'de ttm.pages_limit argümanını kendiniz ekleyin; diğerlerinde önyükleyici veya rpm-ostree boşta olduğunda yeniden deneyin."
 }

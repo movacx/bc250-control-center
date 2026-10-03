@@ -4563,5 +4563,10 @@
   "Open Telemetry settings": "Відкрити налаштування телеметрії",
   "Detected: the kernel driver (bc250_vrm) reads the regulator": "Виявлено: драйвер ядра (bc250_vrm) читає регулятор",
   "Not detected: the kernel driver (bc250_vrm) gets no answer from the regulator": "Не виявлено: драйвер ядра (bc250_vrm) не отримує відповіді від регулятора",
-  "This kernel reads the regulator itself (bc250_vrm), so the BC250-Telemetry service is not needed and cannot open the bus. Remove it here.": "Це ядро саме читає регулятор (bc250_vrm), тому служба BC250-Telemetry не потрібна й не може відкрити шину. Видаліть її тут."
+  "This kernel reads the regulator itself (bc250_vrm), so the BC250-Telemetry service is not needed and cannot open the bus. Remove it here.": "Це ядро саме читає регулятор (bc250_vrm), тому служба BC250-Telemetry не потрібна й не може відкрити шину. Видаліть її тут.",
+  "amdgpu.gttsize overrides this limit": "amdgpu.gttsize перекриває цей ліміт",
+  "The limit is saved as a kernel boot argument, shared with BC250 Quick Access in Game Mode, and takes effect at the next reboot.": "Ліміт зберігається як параметр завантаження ядра, спільний із BC250 Quick Access у Game Mode, і діє після наступного перезавантаження.",
+  "The GPU memory limit could not be changed.": "Не вдалося змінити ліміт пам'яті GPU.",
+  "This system cannot keep a kernel boot argument the way Control Center manages it, another tool already set the limit, or the boot loader or rpm-ostree refused the change.": "Ця система не може зберегти параметр завантаження ядра так, як ним керує Control Center, інший інструмент уже задав ліміт, або завантажувач чи rpm-ostree відхилили зміну.",
+  "Read the reason in the Memory section. On SteamOS, systemd-boot or rEFInd add the ttm.pages_limit argument yourself; elsewhere retry once the boot loader or rpm-ostree is idle.": "Прочитайте причину в розділі «Пам'ять». У SteamOS, systemd-boot або rEFInd додайте параметр ttm.pages_limit самостійно; в інших випадках повторіть, коли завантажувач або rpm-ostree звільняться."
 }

@@ -180,6 +180,14 @@
       "retryable": false
     },
     {
+      "code": "BC250-TTM-001",
+      "markers": [
+        "QUICK_ACCESS_TTM"
+      ],
+      "exit_statuses": [],
+      "retryable": false
+    },
+    {
       "code": "BC250-FAN-001",
       "markers": [
         "QUICK_ACCESS_FAN"
@@ -416,6 +424,7 @@
     "Cyan D-Bus policy",
     "QUICK_ACCESS_AUTH",
     "CU_HELPER_MISSING",
+    "QUICK_ACCESS_TTM",
     "QUICK_ACCESS_FAN",
     "QUICK_ACCESS_CPU",
     "HARDWARE_CONTEXT",

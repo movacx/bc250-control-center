@@ -101,6 +101,13 @@ _CODES: tuple[ErrorCode, ...] = (
         markers=('QUICK_ACCESS_VRAM',),
     ),
     ErrorCode(
+        "BC250-TTM-001",
+        "The GPU memory limit could not be changed.",
+        "This system cannot keep a kernel boot argument the way Control Center manages it, another tool already set the limit, or the boot loader or rpm-ostree refused the change.",
+        "Read the reason in the Memory section. On SteamOS, systemd-boot or rEFInd add the ttm.pages_limit argument yourself; elsewhere retry once the boot loader or rpm-ostree is idle.",
+        markers=('QUICK_ACCESS_TTM',),
+    ),
+    ErrorCode(
         "BC250-STORAGE-001",
         "There is not enough writable storage.",
         "The target filesystem, temporary directory, boot partition, or user quota is full.",

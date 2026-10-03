@@ -383,7 +383,7 @@ if [[ -e /var/lib/bc250-control-center/system-setup/acpi.json || -e /var/lib/bc2
   echo "Keeping the optional memory/ACPI helper for restoration. Restore these settings in Control Center before removing that helper."
 else
   remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-system-setup-helper" "/usr/libexec/bc250-control-center/bc250-system-setup-helper"
-  for setup_module in system_setup_common.py system_setup_memory.py system_setup_acpi.py system_setup_telemetry.py system_setup_kernel_args.py system_setup_vram.py acpi_payload.py; do
+  for setup_module in system_setup_common.py system_setup_memory.py system_setup_acpi.py system_setup_telemetry.py system_setup_kernel_args.py system_setup_ttm.py system_setup_vram.py acpi_payload.py; do
     remove_managed_privileged_file "$APP_DIR/privileged/lib/$setup_module" "/usr/libexec/bc250-control-center/lib/$setup_module"
   done
 fi

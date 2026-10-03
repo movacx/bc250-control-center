@@ -4563,5 +4563,10 @@
   "Open Telemetry settings": "Otevřít nastavení telemetrie",
   "Detected: the kernel driver (bc250_vrm) reads the regulator": "Zjištěno: ovladač jádra (bc250_vrm) čte regulátor",
   "Not detected: the kernel driver (bc250_vrm) gets no answer from the regulator": "Nezjištěno: ovladač jádra (bc250_vrm) nedostává od regulátoru odpověď",
-  "This kernel reads the regulator itself (bc250_vrm), so the BC250-Telemetry service is not needed and cannot open the bus. Remove it here.": "Toto jádro čte regulátor samo (bc250_vrm), takže služba BC250-Telemetry není potřeba a nemůže otevřít sběrnici. Odeberte ji zde."
+  "This kernel reads the regulator itself (bc250_vrm), so the BC250-Telemetry service is not needed and cannot open the bus. Remove it here.": "Toto jádro čte regulátor samo (bc250_vrm), takže služba BC250-Telemetry není potřeba a nemůže otevřít sběrnici. Odeberte ji zde.",
+  "amdgpu.gttsize overrides this limit": "amdgpu.gttsize přepisuje tento limit",
+  "The limit is saved as a kernel boot argument, shared with BC250 Quick Access in Game Mode, and takes effect at the next reboot.": "Limit se ukládá jako zaváděcí argument jádra, sdílený s BC250 Quick Access v Game Mode, a platí od příštího restartu.",
+  "The GPU memory limit could not be changed.": "Limit paměti GPU se nepodařilo změnit.",
+  "This system cannot keep a kernel boot argument the way Control Center manages it, another tool already set the limit, or the boot loader or rpm-ostree refused the change.": "Tento systém neumí zachovat zaváděcí argument jádra tak, jak ho spravuje Control Center, limit už nastavil jiný nástroj, nebo zavaděč či rpm-ostree změnu odmítl.",
+  "Read the reason in the Memory section. On SteamOS, systemd-boot or rEFInd add the ttm.pages_limit argument yourself; elsewhere retry once the boot loader or rpm-ostree is idle.": "Přečtěte si důvod v části Paměť. Na SteamOS, systemd-boot nebo rEFInd přidejte argument ttm.pages_limit sami; jinde to zkuste znovu, až bude zavaděč nebo rpm-ostree volný."
 }

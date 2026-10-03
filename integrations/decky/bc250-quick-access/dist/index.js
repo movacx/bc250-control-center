@@ -198,16 +198,6 @@ var codes = [
 		retryable: false
 	},
 	{
-		code: "BC250-WORKFLOW-001",
-		markers: [
-			"QUICK_ACCESS_GDDR6"
-		],
-		exit_statuses: [
-			66
-		],
-		retryable: false
-	},
-	{
 		code: "BC250-GENERAL-001",
 		markers: [
 		],
@@ -305,6 +295,16 @@ var codes = [
 		retryable: false
 	},
 	{
+		code: "BC250-WORKFLOW-001",
+		markers: [
+			"QUICK_ACCESS_GDDR6"
+		],
+		exit_statuses: [
+			66
+		],
+		retryable: false
+	},
+	{
 		code: "BC250-VRAM-001",
 		markers: [
 			"QUICK_ACCESS_VRAM"
@@ -331,6 +331,15 @@ var codes = [
 		code: "BC250-AUTH-002",
 		markers: [
 			"QUICK_ACCESS_AUTH"
+		],
+		exit_statuses: [
+		],
+		retryable: false
+	},
+	{
+		code: "BC250-TTM-001",
+		markers: [
+			"QUICK_ACCESS_TTM"
 		],
 		exit_statuses: [
 		],
@@ -576,6 +585,7 @@ var markers_longest_first = [
 	"Cyan D-Bus policy",
 	"QUICK_ACCESS_AUTH",
 	"CU_HELPER_MISSING",
+	"QUICK_ACCESS_TTM",
 	"QUICK_ACCESS_FAN",
 	"QUICK_ACCESS_CPU",
 	"HARDWARE_CONTEXT",
@@ -822,6 +832,61 @@ var vramRebootRequired$7 = "Wird erst nach dem nächsten Neustart wirksam.";
 var vramUnavailable$7 = "VRAM-Aufteilung ist auf diesem System nicht verfügbar.";
 var vrmUnavailable$7 = "Nicht erkannt · erfordert die I2C-Hardwaremodifikation.";
 var yes$7 = "Ja";
+var serviceStarting$7 = "Startet oder scheitert beim Start · neuer Versuch";
+var governorStopped$7 = "Der Governor-Dienst läuft nicht. Unten „Dienst aktivieren“ verwenden.";
+var governorUnresponsive$7 = "Cyan antwortet nicht (die Auslastungsmessung \"process\" blockiert ihn bei laufendem Spiel). Bereichssteuerungen schlagen fehl, bis er antwortet; Auslastungsmessung auf busy-flag stellen.";
+var compatStaged$7 = "Cyan läuft nicht: Die Änderung wird gespeichert und Cyan damit neu gestartet (falls aktiviert) oder beim nächsten Start verwendet.";
+var cpuPresetBoardAverage$7 = "Durchschnittsboard";
+var cpuPresetMidPoint$7 = "Mittelwert";
+var cpuPresetSafeMaximum$7 = "Sicheres Maximum";
+var cuKernelManaged$7 = "Der BC-250-Kernel verwaltet die Compute Units (bc250_cc_write_mode=3) und hat beim Start alle freigeschaltet. Dieser Tab ist schreibgeschützt; schalte die Kernel-CU-Freischaltung im Desktop-Modus ab, um das Routing zu ändern.";
+var cpuMonitorApplying$7 = "Bitte warten: Der CPU-Overclock auf {target} MHz wird angewendet und unter Last getestet. Behalte die Temperaturen im Blick.";
+var cpuCoreLabel$7 = "Kern";
+var cpuCoreLocked$7 = "Gesperrt";
+var cpuCoresSummary$7 = "{active}/{total} Kerne · {threads} Threads";
+var cpuNow$7 = "Aktueller Takt";
+var cpuTemperature$7 = "Temperatur";
+var cpuOcTitle$7 = "Übertaktung";
+var cpuEstimatedVid$7 = "Geschätzte VID";
+var cpuOnBoot$7 = "Beim Start angewendet";
+var cpuModeBoot$7 = "Startdienst";
+var cpuThermalLimit$7 = "Temperaturgrenze";
+var gpuDetails$7 = "Details";
+var gpuActiveRange$7 = "Aktiver Bereich";
+var gpuValidatedRange$7 = "Geprüfter Bereich";
+var gpuMemoryClock$7 = "Speichertakt";
+var gpuSocClock$7 = "SoC-Takt";
+var gpuFabricClock$7 = "Fabric-Takt";
+var gddr6Monitoring$7 = "GDDR6-Überwachung";
+var gddr6MonitoringHint$7 = "Liest über die SMU die Temperatur jedes Speicherchips, solange sie an ist, höchstens 10 Minuten; danach schaltet sie sich selbst ab, wie in der Desktop-App. Die SMU teilen sich GPU-Governor und CPU-Overclock.";
+var gddr6Off$7 = "Überwachung aus";
+var gddr6LiveButton$7 = "Live überwachen";
+var gddr6LiveLeft$7 = "Live · noch {minutes} Min";
+var gddr6PatchButton$7 = "GDDR6-Patch anwenden (dieser Start)";
+var gddr6PatchTitle$7 = "GDDR6-Temperaturpatch anwenden?";
+var gddr6PatchConfirm$7 = "Schreibt den geprüften bc250-memory-temperature-Patch in die SMU, damit die Speichertemperaturen bis zum nächsten Neustart lesbar sind. Er ist per Reverse Engineering entstanden und laut seinem Autor nicht vollständig verifiziert: ein falscher Zustand könnte den GDDR6-Verkehr stören und Instabilität oder einen Absturz verursachen. Nur für Firmware P3.0; wartet, wenn der GPU-Governor startet.";
+var gddr6PatchOk$7 = "Patch anwenden";
+var gddr6PatchInactive$7 = "Der GDDR6-Patch ist in diesem Start nicht angewendet.";
+var gddr6Patching$7 = "GDDR6-Patch wird angewendet…";
+var memoryMonitoring$7 = "Speicherüberwachung";
+var ttmTitle$7 = "GPU-SPEICHERLIMIT";
+var ttmHelp$7 = "Wie viel Systemspeicher die GPU zusätzlich zum VRAM nutzen darf (GTT). Spiele, denen der VRAM ausgeht, weichen dorthin aus.";
+var ttmNow$7 = "GTT jetzt";
+var ttmNextBoot$7 = "Nächster Start";
+var ttmKernelDefault$7 = "Kernel-Standard";
+var ttmSetElsewhereShort$7 = "anderswo gesetzt";
+var ttmSetElsewhere$7 = "Dieses Limit wurde außerhalb von Control Center gesetzt und bleibt unverändert.";
+var ttmReading$7 = "GPU-Speicherlimit wird gelesen…";
+var ttmUnavailable$7 = "Auf diesem System lässt sich das GPU-Speicherlimit nicht setzen.";
+var ttmApply$7 = "Limit anwenden";
+var ttmApplyDescription$7 = "Wird als Kernel-Bootargument gespeichert, dasselbe, das die Desktop-App nutzt. Unter Bazzite schreibt rpm-ostree ein neues Deployment, das kann eine Minute dauern.";
+var ttmGttOverride$7 = "amdgpu.gttsize={value} ist gesetzt und überschreibt dieses Limit; zuerst entfernen.";
+var ttmLegacy$7 = "Eine ältere Control-Center-Version setzt bei jedem Start ein Limit; einmal anwenden oder zurücksetzen, um es ins Bootargument zu übernehmen.";
+var ttmVramPending$7 = "Eine neue VRAM-Größe wartet: Beim nächsten Start bleiben {size} Systemspeicher, größere Limits werden daher nicht angeboten.";
+var vramTtmConflict$7 = "Das für den nächsten Start gesetzte GPU-Speicherlimit ({limit}) ist größer als die {size} Systemspeicher, die diese VRAM-Größe übrig lässt. Danach das Limit senken.";
+var ttmFailed$7 = "Das GPU-Speicherlimit konnte nicht geändert werden.";
+var ttmCause$7 = "Dieses System kann das Bootargument nicht behalten, ein anderes Werkzeug hat das Limit bereits gesetzt, oder der Bootloader bzw. rpm-ostree hat die Änderung abgelehnt.";
+var ttmAction$7 = "Den Grund unter GPU-Speicherlimit lesen und erneut versuchen, sobald Bootloader oder rpm-ostree frei sind.";
 var de = {
 	accentBlue: accentBlue$7,
 	accentColor: accentColor$7,
@@ -1007,43 +1072,6 @@ var de = {
 	serviceNotInstalled: serviceNotInstalled$7,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$7,
 	serviceRunningBoot: serviceRunningBoot$7,
-	memoryMonitoring: "Speicherüberwachung",
-	gddr6PatchButton: "GDDR6-Patch anwenden (dieser Start)",
-	gddr6PatchTitle: "GDDR6-Temperaturpatch anwenden?",
-	gddr6PatchConfirm: "Schreibt den geprüften bc250-memory-temperature-Patch in die SMU, damit die Speichertemperaturen bis zum nächsten Neustart lesbar sind. Er ist per Reverse Engineering entstanden und laut seinem Autor nicht vollständig verifiziert: ein falscher Zustand könnte den GDDR6-Verkehr stören und Instabilität oder einen Absturz verursachen. Nur für Firmware P3.0; wartet, wenn der GPU-Governor startet.",
-	gddr6PatchOk: "Patch anwenden",
-	gddr6PatchInactive: "Der GDDR6-Patch ist in diesem Start nicht angewendet.",
-	gddr6Patching: "GDDR6-Patch wird angewendet…",
-	gddr6Monitoring: "GDDR6-Überwachung",
-	gddr6MonitoringHint: "Liest über die SMU die Temperatur jedes Speicherchips, solange sie an ist, höchstens 10 Minuten; danach schaltet sie sich selbst ab, wie in der Desktop-App. Die SMU teilen sich GPU-Governor und CPU-Overclock.",
-	gddr6Off: "Überwachung aus",
-	gddr6LiveButton: "Live überwachen",
-	gddr6LiveLeft: "Live · noch {minutes} Min",
-	gpuDetails: "Details",
-	gpuActiveRange: "Aktiver Bereich",
-	gpuValidatedRange: "Geprüfter Bereich",
-	gpuMemoryClock: "Speichertakt",
-	gpuSocClock: "SoC-Takt",
-	gpuFabricClock: "Fabric-Takt",
-	cpuNow: "Aktueller Takt",
-	cpuTemperature: "Temperatur",
-	cpuOcTitle: "Übertaktung",
-	cpuEstimatedVid: "Geschätzte VID",
-	cpuOnBoot: "Beim Start angewendet",
-	cpuModeBoot: "Startdienst",
-	cpuThermalLimit: "Temperaturgrenze",
-	cpuCoreLabel: "Kern",
-	cpuCoreLocked: "Gesperrt",
-	cpuCoresSummary: "{active}/{total} Kerne · {threads} Threads",
-	cpuMonitorApplying: "Bitte warten: Der CPU-Overclock auf {target} MHz wird angewendet und unter Last getestet. Behalte die Temperaturen im Blick.",
-	cuKernelManaged: "Der BC-250-Kernel verwaltet die Compute Units (bc250_cc_write_mode=3) und hat beim Start alle freigeschaltet. Dieser Tab ist schreibgeschützt; schalte die Kernel-CU-Freischaltung im Desktop-Modus ab, um das Routing zu ändern.",
-	cpuPresetBoardAverage: "Durchschnittsboard",
-	cpuPresetMidPoint: "Mittelwert",
-	cpuPresetSafeMaximum: "Sicheres Maximum",
-	compatStaged: "Cyan läuft nicht: Die Änderung wird gespeichert und Cyan damit neu gestartet (falls aktiviert) oder beim nächsten Start verwendet.",
-	governorUnresponsive: "Cyan antwortet nicht (die Auslastungsmessung \"process\" blockiert ihn bei laufendem Spiel). Bereichssteuerungen schlagen fehl, bis er antwortet; Auslastungsmessung auf busy-flag stellen.",
-	serviceStarting: "Startet oder scheitert beim Start · neuer Versuch",
-	governorStopped: "Der Governor-Dienst läuft nicht. Unten „Dienst aktivieren“ verwenden.",
 	serviceRunningNoBoot: serviceRunningNoBoot$7,
 	serviceStopped: serviceStopped$7,
 	serviceStoppedBoot: serviceStoppedBoot$7,
@@ -1085,7 +1113,62 @@ var de = {
 	vramRebootRequired: vramRebootRequired$7,
 	vramUnavailable: vramUnavailable$7,
 	vrmUnavailable: vrmUnavailable$7,
-	yes: yes$7
+	yes: yes$7,
+	serviceStarting: serviceStarting$7,
+	governorStopped: governorStopped$7,
+	governorUnresponsive: governorUnresponsive$7,
+	compatStaged: compatStaged$7,
+	cpuPresetBoardAverage: cpuPresetBoardAverage$7,
+	cpuPresetMidPoint: cpuPresetMidPoint$7,
+	cpuPresetSafeMaximum: cpuPresetSafeMaximum$7,
+	cuKernelManaged: cuKernelManaged$7,
+	cpuMonitorApplying: cpuMonitorApplying$7,
+	cpuCoreLabel: cpuCoreLabel$7,
+	cpuCoreLocked: cpuCoreLocked$7,
+	cpuCoresSummary: cpuCoresSummary$7,
+	cpuNow: cpuNow$7,
+	cpuTemperature: cpuTemperature$7,
+	cpuOcTitle: cpuOcTitle$7,
+	cpuEstimatedVid: cpuEstimatedVid$7,
+	cpuOnBoot: cpuOnBoot$7,
+	cpuModeBoot: cpuModeBoot$7,
+	cpuThermalLimit: cpuThermalLimit$7,
+	gpuDetails: gpuDetails$7,
+	gpuActiveRange: gpuActiveRange$7,
+	gpuValidatedRange: gpuValidatedRange$7,
+	gpuMemoryClock: gpuMemoryClock$7,
+	gpuSocClock: gpuSocClock$7,
+	gpuFabricClock: gpuFabricClock$7,
+	gddr6Monitoring: gddr6Monitoring$7,
+	gddr6MonitoringHint: gddr6MonitoringHint$7,
+	gddr6Off: gddr6Off$7,
+	gddr6LiveButton: gddr6LiveButton$7,
+	gddr6LiveLeft: gddr6LiveLeft$7,
+	gddr6PatchButton: gddr6PatchButton$7,
+	gddr6PatchTitle: gddr6PatchTitle$7,
+	gddr6PatchConfirm: gddr6PatchConfirm$7,
+	gddr6PatchOk: gddr6PatchOk$7,
+	gddr6PatchInactive: gddr6PatchInactive$7,
+	gddr6Patching: gddr6Patching$7,
+	memoryMonitoring: memoryMonitoring$7,
+	ttmTitle: ttmTitle$7,
+	ttmHelp: ttmHelp$7,
+	ttmNow: ttmNow$7,
+	ttmNextBoot: ttmNextBoot$7,
+	ttmKernelDefault: ttmKernelDefault$7,
+	ttmSetElsewhereShort: ttmSetElsewhereShort$7,
+	ttmSetElsewhere: ttmSetElsewhere$7,
+	ttmReading: ttmReading$7,
+	ttmUnavailable: ttmUnavailable$7,
+	ttmApply: ttmApply$7,
+	ttmApplyDescription: ttmApplyDescription$7,
+	ttmGttOverride: ttmGttOverride$7,
+	ttmLegacy: ttmLegacy$7,
+	ttmVramPending: ttmVramPending$7,
+	vramTtmConflict: vramTtmConflict$7,
+	ttmFailed: ttmFailed$7,
+	ttmCause: ttmCause$7,
+	ttmAction: ttmAction$7
 };
 
 var accentBlue$6 = "Blue";
@@ -1314,6 +1397,61 @@ var vramRebootRequired$6 = "Takes effect after your next reboot.";
 var vramUnavailable$6 = "VRAM partitioning is unavailable on this system.";
 var vrmUnavailable$6 = "Not detected · requires the I2C hardware mod.";
 var yes$6 = "Yes";
+var serviceStarting$6 = "Starting or failing to start · retrying";
+var governorStopped$6 = "The governor service is not running. Use Enable service below.";
+var governorUnresponsive$6 = "Cyan is not answering (the \"process\" usage reading blocks it while a game runs). Range controls will fail until it answers; switch Usage reading to busy-flag.";
+var compatStaged$6 = "Cyan is not running: the change is saved and Cyan is restarted with it (if it is enabled) or uses it on its next start.";
+var cpuPresetBoardAverage$6 = "Average board";
+var cpuPresetMidPoint$6 = "Mid point";
+var cpuPresetSafeMaximum$6 = "Safe maximum";
+var cuKernelManaged$6 = "The BC-250 kernel manages the compute units (bc250_cc_write_mode=3) and unlocked all of them at boot. This tab is read-only; turn the kernel CU unlock off in Desktop Mode to change routing.";
+var cpuMonitorApplying$6 = "Please wait: the CPU overclock at {target} MHz is being applied and stress-tested. Watch the temperatures while it runs.";
+var cpuCoreLabel$6 = "Core";
+var cpuCoreLocked$6 = "Locked";
+var cpuCoresSummary$6 = "{active}/{total} cores · {threads} threads";
+var cpuNow$6 = "Current clock";
+var cpuTemperature$6 = "Temperature";
+var cpuOcTitle$6 = "Overclock";
+var cpuEstimatedVid$6 = "Estimated VID";
+var cpuOnBoot$6 = "Applied at boot";
+var cpuModeBoot$6 = "Boot service";
+var cpuThermalLimit$6 = "Thermal limit";
+var gpuDetails$6 = "Details";
+var gpuActiveRange$6 = "Active range";
+var gpuValidatedRange$6 = "Validated range";
+var gpuMemoryClock$6 = "Memory clock";
+var gpuSocClock$6 = "SoC clock";
+var gpuFabricClock$6 = "Fabric clock";
+var gddr6Monitoring$6 = "GDDR6 monitoring";
+var gddr6MonitoringHint$6 = "Reads each memory chip's temperature through the SMU while it is on, for 10 minutes at most; then it turns itself off, as in the desktop app. The SMU is shared with the GPU governor and the CPU overclock.";
+var gddr6Off$6 = "Monitoring is off";
+var gddr6LiveButton$6 = "Monitor live";
+var gddr6LiveLeft$6 = "Live · {minutes} min left";
+var gddr6PatchButton$6 = "Apply the GDDR6 patch (this boot)";
+var gddr6PatchTitle$6 = "Apply the GDDR6 temperature patch?";
+var gddr6PatchConfirm$6 = "Writes the reviewed bc250-memory-temperature patch into the SMU so the memory temperatures can be read, until the next reboot. It is reverse-engineered and, by its own author, not fully verified: a wrong state could disturb GDDR6 traffic and cause instability or a crash. Only for P3.0 firmware; it waits if the GPU governor is starting.";
+var gddr6PatchOk$6 = "Apply patch";
+var gddr6PatchInactive$6 = "The GDDR6 patch is not applied this boot.";
+var gddr6Patching$6 = "Applying the GDDR6 patch…";
+var memoryMonitoring$6 = "Memory monitoring";
+var ttmTitle$6 = "GPU MEMORY LIMIT";
+var ttmHelp$6 = "How much system memory the GPU may use on top of its VRAM (GTT). Games that run out of VRAM spill into it.";
+var ttmNow$6 = "GTT now";
+var ttmNextBoot$6 = "Next boot";
+var ttmKernelDefault$6 = "Kernel default";
+var ttmSetElsewhereShort$6 = "set elsewhere";
+var ttmSetElsewhere$6 = "This limit was set outside Control Center and is left as it is.";
+var ttmReading$6 = "Reading the GPU memory limit…";
+var ttmUnavailable$6 = "The GPU memory limit cannot be set on this system.";
+var ttmApply$6 = "Apply limit";
+var ttmApplyDescription$6 = "Saved as a kernel boot argument, the same one the desktop app uses. On Bazzite, rpm-ostree writes a new deployment, which can take a minute.";
+var ttmGttOverride$6 = "amdgpu.gttsize={value} is set and overrides this limit; remove it first.";
+var ttmLegacy$6 = "An older Control Center release re-applies a limit at every boot; apply or restore once to move it to the boot argument.";
+var ttmVramPending$6 = "A new VRAM size is waiting: the next boot has {size} of system memory, so larger limits are not offered.";
+var vramTtmConflict$6 = "The GPU memory limit set for the next boot ({limit}) is larger than the {size} of system memory this VRAM size leaves. Lower the limit afterwards.";
+var ttmFailed$6 = "The GPU memory limit could not be changed.";
+var ttmCause$6 = "This system cannot keep the boot argument, another tool already set the limit, or the boot loader or rpm-ostree refused the change.";
+var ttmAction$6 = "Read the reason under GPU memory limit, then retry once the boot loader or rpm-ostree is idle.";
 var en = {
 	accentBlue: accentBlue$6,
 	accentColor: accentColor$6,
@@ -1499,43 +1637,6 @@ var en = {
 	serviceNotInstalled: serviceNotInstalled$6,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$6,
 	serviceRunningBoot: serviceRunningBoot$6,
-	memoryMonitoring: "Memory monitoring",
-	gddr6PatchButton: "Apply the GDDR6 patch (this boot)",
-	gddr6PatchTitle: "Apply the GDDR6 temperature patch?",
-	gddr6PatchConfirm: "Writes the reviewed bc250-memory-temperature patch into the SMU so the memory temperatures can be read, until the next reboot. It is reverse-engineered and, by its own author, not fully verified: a wrong state could disturb GDDR6 traffic and cause instability or a crash. Only for P3.0 firmware; it waits if the GPU governor is starting.",
-	gddr6PatchOk: "Apply patch",
-	gddr6PatchInactive: "The GDDR6 patch is not applied this boot.",
-	gddr6Patching: "Applying the GDDR6 patch…",
-	gddr6Monitoring: "GDDR6 monitoring",
-	gddr6MonitoringHint: "Reads each memory chip's temperature through the SMU while it is on, for 10 minutes at most; then it turns itself off, as in the desktop app. The SMU is shared with the GPU governor and the CPU overclock.",
-	gddr6Off: "Monitoring is off",
-	gddr6LiveButton: "Monitor live",
-	gddr6LiveLeft: "Live · {minutes} min left",
-	gpuDetails: "Details",
-	gpuActiveRange: "Active range",
-	gpuValidatedRange: "Validated range",
-	gpuMemoryClock: "Memory clock",
-	gpuSocClock: "SoC clock",
-	gpuFabricClock: "Fabric clock",
-	cpuNow: "Current clock",
-	cpuTemperature: "Temperature",
-	cpuOcTitle: "Overclock",
-	cpuEstimatedVid: "Estimated VID",
-	cpuOnBoot: "Applied at boot",
-	cpuModeBoot: "Boot service",
-	cpuThermalLimit: "Thermal limit",
-	cpuCoreLabel: "Core",
-	cpuCoreLocked: "Locked",
-	cpuCoresSummary: "{active}/{total} cores · {threads} threads",
-	cpuMonitorApplying: "Please wait: the CPU overclock at {target} MHz is being applied and stress-tested. Watch the temperatures while it runs.",
-	cuKernelManaged: "The BC-250 kernel manages the compute units (bc250_cc_write_mode=3) and unlocked all of them at boot. This tab is read-only; turn the kernel CU unlock off in Desktop Mode to change routing.",
-	cpuPresetBoardAverage: "Average board",
-	cpuPresetMidPoint: "Mid point",
-	cpuPresetSafeMaximum: "Safe maximum",
-	compatStaged: "Cyan is not running: the change is saved and Cyan is restarted with it (if it is enabled) or uses it on its next start.",
-	governorUnresponsive: "Cyan is not answering (the \"process\" usage reading blocks it while a game runs). Range controls will fail until it answers; switch Usage reading to busy-flag.",
-	serviceStarting: "Starting or failing to start · retrying",
-	governorStopped: "The governor service is not running. Use Enable service below.",
 	serviceRunningNoBoot: serviceRunningNoBoot$6,
 	serviceStopped: serviceStopped$6,
 	serviceStoppedBoot: serviceStoppedBoot$6,
@@ -1577,7 +1678,62 @@ var en = {
 	vramRebootRequired: vramRebootRequired$6,
 	vramUnavailable: vramUnavailable$6,
 	vrmUnavailable: vrmUnavailable$6,
-	yes: yes$6
+	yes: yes$6,
+	serviceStarting: serviceStarting$6,
+	governorStopped: governorStopped$6,
+	governorUnresponsive: governorUnresponsive$6,
+	compatStaged: compatStaged$6,
+	cpuPresetBoardAverage: cpuPresetBoardAverage$6,
+	cpuPresetMidPoint: cpuPresetMidPoint$6,
+	cpuPresetSafeMaximum: cpuPresetSafeMaximum$6,
+	cuKernelManaged: cuKernelManaged$6,
+	cpuMonitorApplying: cpuMonitorApplying$6,
+	cpuCoreLabel: cpuCoreLabel$6,
+	cpuCoreLocked: cpuCoreLocked$6,
+	cpuCoresSummary: cpuCoresSummary$6,
+	cpuNow: cpuNow$6,
+	cpuTemperature: cpuTemperature$6,
+	cpuOcTitle: cpuOcTitle$6,
+	cpuEstimatedVid: cpuEstimatedVid$6,
+	cpuOnBoot: cpuOnBoot$6,
+	cpuModeBoot: cpuModeBoot$6,
+	cpuThermalLimit: cpuThermalLimit$6,
+	gpuDetails: gpuDetails$6,
+	gpuActiveRange: gpuActiveRange$6,
+	gpuValidatedRange: gpuValidatedRange$6,
+	gpuMemoryClock: gpuMemoryClock$6,
+	gpuSocClock: gpuSocClock$6,
+	gpuFabricClock: gpuFabricClock$6,
+	gddr6Monitoring: gddr6Monitoring$6,
+	gddr6MonitoringHint: gddr6MonitoringHint$6,
+	gddr6Off: gddr6Off$6,
+	gddr6LiveButton: gddr6LiveButton$6,
+	gddr6LiveLeft: gddr6LiveLeft$6,
+	gddr6PatchButton: gddr6PatchButton$6,
+	gddr6PatchTitle: gddr6PatchTitle$6,
+	gddr6PatchConfirm: gddr6PatchConfirm$6,
+	gddr6PatchOk: gddr6PatchOk$6,
+	gddr6PatchInactive: gddr6PatchInactive$6,
+	gddr6Patching: gddr6Patching$6,
+	memoryMonitoring: memoryMonitoring$6,
+	ttmTitle: ttmTitle$6,
+	ttmHelp: ttmHelp$6,
+	ttmNow: ttmNow$6,
+	ttmNextBoot: ttmNextBoot$6,
+	ttmKernelDefault: ttmKernelDefault$6,
+	ttmSetElsewhereShort: ttmSetElsewhereShort$6,
+	ttmSetElsewhere: ttmSetElsewhere$6,
+	ttmReading: ttmReading$6,
+	ttmUnavailable: ttmUnavailable$6,
+	ttmApply: ttmApply$6,
+	ttmApplyDescription: ttmApplyDescription$6,
+	ttmGttOverride: ttmGttOverride$6,
+	ttmLegacy: ttmLegacy$6,
+	ttmVramPending: ttmVramPending$6,
+	vramTtmConflict: vramTtmConflict$6,
+	ttmFailed: ttmFailed$6,
+	ttmCause: ttmCause$6,
+	ttmAction: ttmAction$6
 };
 
 var accentBlue$5 = "Azul";
@@ -1806,6 +1962,61 @@ var vramRebootRequired$5 = "Se aplica tras el próximo reinicio.";
 var vramUnavailable$5 = "La partición de VRAM no está disponible en este sistema.";
 var vrmUnavailable$5 = "No detectado · requiere la modificación de hardware I2C.";
 var yes$5 = "Sí";
+var serviceStarting$5 = "Arrancando o fallando al arrancar · reintentando";
+var governorStopped$5 = "El servicio del governor no está en ejecución. Usa Activar servicio abajo.";
+var governorUnresponsive$5 = "Cyan no responde (la lectura de uso \"process\" lo bloquea con un juego abierto). Los controles de rango fallarán hasta que responda; cambia Lectura de uso a busy-flag.";
+var compatStaged$5 = "Cyan no está en ejecución: el cambio se guarda y Cyan se reinicia con él (si está habilitado) o lo usará en su próximo arranque.";
+var cpuPresetBoardAverage$5 = "Placa promedio";
+var cpuPresetMidPoint$5 = "Punto medio";
+var cpuPresetSafeMaximum$5 = "Máximo seguro";
+var cuKernelManaged$5 = "El kernel BC-250 gestiona las Compute Units (bc250_cc_write_mode=3) y las desbloqueó todas al arrancar. Esta pestaña es de solo lectura; desactiva el desbloqueo por kernel en Modo Escritorio para cambiar el enrutado.";
+var cpuMonitorApplying$5 = "Espera un momento: se está aplicando y probando el OC de CPU a {target} MHz. Vigila las temperaturas mientras dura.";
+var cpuCoreLabel$5 = "Núcleo";
+var cpuCoreLocked$5 = "Bloqueado";
+var cpuCoresSummary$5 = "{active}/{total} núcleos · {threads} hilos";
+var cpuNow$5 = "Frecuencia actual";
+var cpuTemperature$5 = "Temperatura";
+var cpuOcTitle$5 = "Overclock";
+var cpuEstimatedVid$5 = "VID estimado";
+var cpuOnBoot$5 = "Aplicado al arrancar";
+var cpuModeBoot$5 = "Servicio de arranque";
+var cpuThermalLimit$5 = "Límite térmico";
+var gpuDetails$5 = "Detalles";
+var gpuActiveRange$5 = "Rango activo";
+var gpuValidatedRange$5 = "Rango validado";
+var gpuMemoryClock$5 = "Reloj de memoria";
+var gpuSocClock$5 = "Reloj del SoC";
+var gpuFabricClock$5 = "Reloj de fabric";
+var gddr6Monitoring$5 = "Monitoreo de GDDR6";
+var gddr6MonitoringHint$5 = "Lee la temperatura de cada chip de memoria a través de la SMU mientras esté encendido, 10 minutos como máximo; luego se apaga solo, como en la app de escritorio. La SMU la comparten el governor de GPU y el OC de CPU.";
+var gddr6Off$5 = "Monitoreo apagado";
+var gddr6LiveButton$5 = "Monitorizar en vivo";
+var gddr6LiveLeft$5 = "En vivo · quedan {minutes} min";
+var gddr6PatchButton$5 = "Aplicar parche GDDR6 (este arranque)";
+var gddr6PatchTitle$5 = "¿Aplicar el parche de temperatura GDDR6?";
+var gddr6PatchConfirm$5 = "Escribe en la SMU el parche revisado de bc250-memory-temperature para poder leer las temperaturas de la memoria, hasta el próximo reinicio. Es ingeniería inversa y, según su propio autor, no está totalmente verificado: un estado incorrecto podría alterar el tráfico de la GDDR6 y causar inestabilidad o un cuelgue. Solo para firmware P3.0; espera si el governor de GPU está arrancando.";
+var gddr6PatchOk$5 = "Aplicar parche";
+var gddr6PatchInactive$5 = "El parche GDDR6 no está aplicado en este arranque.";
+var gddr6Patching$5 = "Aplicando el parche GDDR6…";
+var memoryMonitoring$5 = "Monitoreo de memoria";
+var ttmTitle$5 = "LÍMITE DE MEMORIA GPU";
+var ttmHelp$5 = "Cuánta memoria del sistema puede usar la GPU además de su VRAM (GTT). Los juegos que se quedan sin VRAM la usan.";
+var ttmNow$5 = "GTT ahora";
+var ttmNextBoot$5 = "Próximo arranque";
+var ttmKernelDefault$5 = "Valor del kernel";
+var ttmSetElsewhereShort$5 = "fijado por otro";
+var ttmSetElsewhere$5 = "Este límite se fijó fuera de Control Center y se deja como está.";
+var ttmReading$5 = "Leyendo el límite de memoria GPU…";
+var ttmUnavailable$5 = "En este sistema no se puede fijar el límite de memoria GPU.";
+var ttmApply$5 = "Aplicar límite";
+var ttmApplyDescription$5 = "Se guarda como argumento de arranque del kernel, el mismo que usa la aplicación de escritorio. En Bazzite, rpm-ostree crea un nuevo despliegue y puede tardar un minuto.";
+var ttmGttOverride$5 = "amdgpu.gttsize={value} está fijado y anula este límite; quítalo primero.";
+var ttmLegacy$5 = "Una versión anterior de Control Center vuelve a aplicar un límite en cada arranque; aplica o restaura una vez para pasarlo al argumento de arranque.";
+var ttmVramPending$5 = "Hay un nuevo tamaño de VRAM pendiente: el próximo arranque tendrá {size} de memoria del sistema, así que no se ofrecen límites mayores.";
+var vramTtmConflict$5 = "El límite de memoria GPU fijado para el próximo arranque ({limit}) es mayor que los {size} de memoria del sistema que deja este tamaño de VRAM. Bájalo después.";
+var ttmFailed$5 = "No se pudo cambiar el límite de memoria GPU.";
+var ttmCause$5 = "Este sistema no puede conservar el argumento de arranque, otra herramienta ya fijó el límite, o el gestor de arranque o rpm-ostree rechazó el cambio.";
+var ttmAction$5 = "Lee el motivo bajo Límite de memoria GPU y reintenta cuando el gestor de arranque o rpm-ostree esté libre.";
 var es = {
 	accentBlue: accentBlue$5,
 	accentColor: accentColor$5,
@@ -1991,43 +2202,6 @@ var es = {
 	serviceNotInstalled: serviceNotInstalled$5,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$5,
 	serviceRunningBoot: serviceRunningBoot$5,
-	memoryMonitoring: "Monitoreo de memoria",
-	gddr6PatchButton: "Aplicar parche GDDR6 (este arranque)",
-	gddr6PatchTitle: "¿Aplicar el parche de temperatura GDDR6?",
-	gddr6PatchConfirm: "Escribe en la SMU el parche revisado de bc250-memory-temperature para poder leer las temperaturas de la memoria, hasta el próximo reinicio. Es ingeniería inversa y, según su propio autor, no está totalmente verificado: un estado incorrecto podría alterar el tráfico de la GDDR6 y causar inestabilidad o un cuelgue. Solo para firmware P3.0; espera si el governor de GPU está arrancando.",
-	gddr6PatchOk: "Aplicar parche",
-	gddr6PatchInactive: "El parche GDDR6 no está aplicado en este arranque.",
-	gddr6Patching: "Aplicando el parche GDDR6…",
-	gddr6Monitoring: "Monitoreo de GDDR6",
-	gddr6MonitoringHint: "Lee la temperatura de cada chip de memoria a través de la SMU mientras esté encendido, 10 minutos como máximo; luego se apaga solo, como en la app de escritorio. La SMU la comparten el governor de GPU y el OC de CPU.",
-	gddr6Off: "Monitoreo apagado",
-	gddr6LiveButton: "Monitorizar en vivo",
-	gddr6LiveLeft: "En vivo · quedan {minutes} min",
-	gpuDetails: "Detalles",
-	gpuActiveRange: "Rango activo",
-	gpuValidatedRange: "Rango validado",
-	gpuMemoryClock: "Reloj de memoria",
-	gpuSocClock: "Reloj del SoC",
-	gpuFabricClock: "Reloj de fabric",
-	cpuNow: "Frecuencia actual",
-	cpuTemperature: "Temperatura",
-	cpuOcTitle: "Overclock",
-	cpuEstimatedVid: "VID estimado",
-	cpuOnBoot: "Aplicado al arrancar",
-	cpuModeBoot: "Servicio de arranque",
-	cpuThermalLimit: "Límite térmico",
-	cpuCoreLabel: "Núcleo",
-	cpuCoreLocked: "Bloqueado",
-	cpuCoresSummary: "{active}/{total} núcleos · {threads} hilos",
-	cpuMonitorApplying: "Espera un momento: se está aplicando y probando el OC de CPU a {target} MHz. Vigila las temperaturas mientras dura.",
-	cuKernelManaged: "El kernel BC-250 gestiona las Compute Units (bc250_cc_write_mode=3) y las desbloqueó todas al arrancar. Esta pestaña es de solo lectura; desactiva el desbloqueo por kernel en Modo Escritorio para cambiar el enrutado.",
-	cpuPresetBoardAverage: "Placa promedio",
-	cpuPresetMidPoint: "Punto medio",
-	cpuPresetSafeMaximum: "Máximo seguro",
-	compatStaged: "Cyan no está en ejecución: el cambio se guarda y Cyan se reinicia con él (si está habilitado) o lo usará en su próximo arranque.",
-	governorUnresponsive: "Cyan no responde (la lectura de uso \"process\" lo bloquea con un juego abierto). Los controles de rango fallarán hasta que responda; cambia Lectura de uso a busy-flag.",
-	serviceStarting: "Arrancando o fallando al arrancar · reintentando",
-	governorStopped: "El servicio del governor no está en ejecución. Usa Activar servicio abajo.",
 	serviceRunningNoBoot: serviceRunningNoBoot$5,
 	serviceStopped: serviceStopped$5,
 	serviceStoppedBoot: serviceStoppedBoot$5,
@@ -2069,7 +2243,62 @@ var es = {
 	vramRebootRequired: vramRebootRequired$5,
 	vramUnavailable: vramUnavailable$5,
 	vrmUnavailable: vrmUnavailable$5,
-	yes: yes$5
+	yes: yes$5,
+	serviceStarting: serviceStarting$5,
+	governorStopped: governorStopped$5,
+	governorUnresponsive: governorUnresponsive$5,
+	compatStaged: compatStaged$5,
+	cpuPresetBoardAverage: cpuPresetBoardAverage$5,
+	cpuPresetMidPoint: cpuPresetMidPoint$5,
+	cpuPresetSafeMaximum: cpuPresetSafeMaximum$5,
+	cuKernelManaged: cuKernelManaged$5,
+	cpuMonitorApplying: cpuMonitorApplying$5,
+	cpuCoreLabel: cpuCoreLabel$5,
+	cpuCoreLocked: cpuCoreLocked$5,
+	cpuCoresSummary: cpuCoresSummary$5,
+	cpuNow: cpuNow$5,
+	cpuTemperature: cpuTemperature$5,
+	cpuOcTitle: cpuOcTitle$5,
+	cpuEstimatedVid: cpuEstimatedVid$5,
+	cpuOnBoot: cpuOnBoot$5,
+	cpuModeBoot: cpuModeBoot$5,
+	cpuThermalLimit: cpuThermalLimit$5,
+	gpuDetails: gpuDetails$5,
+	gpuActiveRange: gpuActiveRange$5,
+	gpuValidatedRange: gpuValidatedRange$5,
+	gpuMemoryClock: gpuMemoryClock$5,
+	gpuSocClock: gpuSocClock$5,
+	gpuFabricClock: gpuFabricClock$5,
+	gddr6Monitoring: gddr6Monitoring$5,
+	gddr6MonitoringHint: gddr6MonitoringHint$5,
+	gddr6Off: gddr6Off$5,
+	gddr6LiveButton: gddr6LiveButton$5,
+	gddr6LiveLeft: gddr6LiveLeft$5,
+	gddr6PatchButton: gddr6PatchButton$5,
+	gddr6PatchTitle: gddr6PatchTitle$5,
+	gddr6PatchConfirm: gddr6PatchConfirm$5,
+	gddr6PatchOk: gddr6PatchOk$5,
+	gddr6PatchInactive: gddr6PatchInactive$5,
+	gddr6Patching: gddr6Patching$5,
+	memoryMonitoring: memoryMonitoring$5,
+	ttmTitle: ttmTitle$5,
+	ttmHelp: ttmHelp$5,
+	ttmNow: ttmNow$5,
+	ttmNextBoot: ttmNextBoot$5,
+	ttmKernelDefault: ttmKernelDefault$5,
+	ttmSetElsewhereShort: ttmSetElsewhereShort$5,
+	ttmSetElsewhere: ttmSetElsewhere$5,
+	ttmReading: ttmReading$5,
+	ttmUnavailable: ttmUnavailable$5,
+	ttmApply: ttmApply$5,
+	ttmApplyDescription: ttmApplyDescription$5,
+	ttmGttOverride: ttmGttOverride$5,
+	ttmLegacy: ttmLegacy$5,
+	ttmVramPending: ttmVramPending$5,
+	vramTtmConflict: vramTtmConflict$5,
+	ttmFailed: ttmFailed$5,
+	ttmCause: ttmCause$5,
+	ttmAction: ttmAction$5
 };
 
 var accentBlue$4 = "Azul";
@@ -2298,6 +2527,61 @@ var vramRebootRequired$4 = "Se aplica tras el próximo reinicio.";
 var vramUnavailable$4 = "La partición de VRAM no está disponible en este sistema.";
 var vrmUnavailable$4 = "No detectado · requiere la modificación de hardware I2C.";
 var yes$4 = "Sí";
+var serviceStarting$4 = "Arrancando o fallando al arrancar · reintentando";
+var governorStopped$4 = "El servicio del governor no está en ejecución. Usa Activar servicio abajo.";
+var governorUnresponsive$4 = "Cyan no responde (la lectura de uso \"process\" lo bloquea con un juego abierto). Los controles de rango fallarán hasta que responda; cambia Lectura de uso a busy-flag.";
+var compatStaged$4 = "Cyan no está en ejecución: el cambio se guarda y Cyan se reinicia con él (si está habilitado) o lo usará en su próximo arranque.";
+var cpuPresetBoardAverage$4 = "Placa promedio";
+var cpuPresetMidPoint$4 = "Punto medio";
+var cpuPresetSafeMaximum$4 = "Máximo seguro";
+var cuKernelManaged$4 = "El kernel BC-250 gestiona las Compute Units (bc250_cc_write_mode=3) y las desbloqueó todas al arrancar. Esta pestaña es de solo lectura; desactiva el desbloqueo por kernel en Modo Escritorio para cambiar el enrutado.";
+var cpuMonitorApplying$4 = "Espera un momento: se está aplicando y probando el OC de CPU a {target} MHz. Vigila las temperaturas mientras dura.";
+var cpuCoreLabel$4 = "Núcleo";
+var cpuCoreLocked$4 = "Bloqueado";
+var cpuCoresSummary$4 = "{active}/{total} núcleos · {threads} hilos";
+var cpuNow$4 = "Frecuencia actual";
+var cpuTemperature$4 = "Temperatura";
+var cpuOcTitle$4 = "Overclock";
+var cpuEstimatedVid$4 = "VID estimado";
+var cpuOnBoot$4 = "Aplicado al arrancar";
+var cpuModeBoot$4 = "Servicio de arranque";
+var cpuThermalLimit$4 = "Límite térmico";
+var gpuDetails$4 = "Detalles";
+var gpuActiveRange$4 = "Rango activo";
+var gpuValidatedRange$4 = "Rango validado";
+var gpuMemoryClock$4 = "Reloj de memoria";
+var gpuSocClock$4 = "Reloj del SoC";
+var gpuFabricClock$4 = "Reloj de fabric";
+var gddr6Monitoring$4 = "Monitoreo de GDDR6";
+var gddr6MonitoringHint$4 = "Lee la temperatura de cada chip de memoria a través de la SMU mientras esté encendido, 10 minutos como máximo; luego se apaga solo, como en la app de escritorio. La SMU la comparten el governor de GPU y el OC de CPU.";
+var gddr6Off$4 = "Monitoreo apagado";
+var gddr6LiveButton$4 = "Monitorizar en vivo";
+var gddr6LiveLeft$4 = "En vivo · quedan {minutes} min";
+var gddr6PatchButton$4 = "Aplicar parche GDDR6 (este arranque)";
+var gddr6PatchTitle$4 = "¿Aplicar el parche de temperatura GDDR6?";
+var gddr6PatchConfirm$4 = "Escribe en la SMU el parche revisado de bc250-memory-temperature para poder leer las temperaturas de la memoria, hasta el próximo reinicio. Es ingeniería inversa y, según su propio autor, no está totalmente verificado: un estado incorrecto podría alterar el tráfico de la GDDR6 y causar inestabilidad o un cuelgue. Solo para firmware P3.0; espera si el governor de GPU está arrancando.";
+var gddr6PatchOk$4 = "Aplicar parche";
+var gddr6PatchInactive$4 = "El parche GDDR6 no está aplicado en este arranque.";
+var gddr6Patching$4 = "Aplicando el parche GDDR6…";
+var memoryMonitoring$4 = "Monitoreo de memoria";
+var ttmTitle$4 = "LÍMITE DE MEMORIA GPU";
+var ttmHelp$4 = "Cuánta memoria del sistema puede usar la GPU además de su VRAM (GTT). Los juegos que se quedan sin VRAM la usan.";
+var ttmNow$4 = "GTT ahora";
+var ttmNextBoot$4 = "Próximo arranque";
+var ttmKernelDefault$4 = "Valor del kernel";
+var ttmSetElsewhereShort$4 = "fijado por otro";
+var ttmSetElsewhere$4 = "Este límite se fijó fuera de Control Center y se deja como está.";
+var ttmReading$4 = "Leyendo el límite de memoria GPU…";
+var ttmUnavailable$4 = "En este sistema no se puede fijar el límite de memoria GPU.";
+var ttmApply$4 = "Aplicar límite";
+var ttmApplyDescription$4 = "Se guarda como argumento de arranque del kernel, el mismo que usa la aplicación de escritorio. En Bazzite, rpm-ostree crea un nuevo despliegue y puede tardar un minuto.";
+var ttmGttOverride$4 = "amdgpu.gttsize={value} está fijado y anula este límite; quítalo primero.";
+var ttmLegacy$4 = "Una versión anterior de Control Center vuelve a aplicar un límite en cada arranque; aplica o restaura una vez para pasarlo al argumento de arranque.";
+var ttmVramPending$4 = "Hay un nuevo tamaño de VRAM pendiente: el próximo arranque tendrá {size} de memoria del sistema, así que no se ofrecen límites mayores.";
+var vramTtmConflict$4 = "El límite de memoria GPU fijado para el próximo arranque ({limit}) es mayor que los {size} de memoria del sistema que deja este tamaño de VRAM. Bájalo después.";
+var ttmFailed$4 = "No se pudo cambiar el límite de memoria GPU.";
+var ttmCause$4 = "Este sistema no puede conservar el argumento de arranque, otra herramienta ya fijó el límite, o el gestor de arranque o rpm-ostree rechazó el cambio.";
+var ttmAction$4 = "Lee el motivo bajo Límite de memoria GPU y vuelve a intentar cuando el gestor de arranque o rpm-ostree esté libre.";
 var es419 = {
 	accentBlue: accentBlue$4,
 	accentColor: accentColor$4,
@@ -2483,43 +2767,6 @@ var es419 = {
 	serviceNotInstalled: serviceNotInstalled$4,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$4,
 	serviceRunningBoot: serviceRunningBoot$4,
-	memoryMonitoring: "Monitoreo de memoria",
-	gddr6PatchButton: "Aplicar parche GDDR6 (este arranque)",
-	gddr6PatchTitle: "¿Aplicar el parche de temperatura GDDR6?",
-	gddr6PatchConfirm: "Escribe en la SMU el parche revisado de bc250-memory-temperature para poder leer las temperaturas de la memoria, hasta el próximo reinicio. Es ingeniería inversa y, según su propio autor, no está totalmente verificado: un estado incorrecto podría alterar el tráfico de la GDDR6 y causar inestabilidad o un cuelgue. Solo para firmware P3.0; espera si el governor de GPU está arrancando.",
-	gddr6PatchOk: "Aplicar parche",
-	gddr6PatchInactive: "El parche GDDR6 no está aplicado en este arranque.",
-	gddr6Patching: "Aplicando el parche GDDR6…",
-	gddr6Monitoring: "Monitoreo de GDDR6",
-	gddr6MonitoringHint: "Lee la temperatura de cada chip de memoria a través de la SMU mientras esté encendido, 10 minutos como máximo; luego se apaga solo, como en la app de escritorio. La SMU la comparten el governor de GPU y el OC de CPU.",
-	gddr6Off: "Monitoreo apagado",
-	gddr6LiveButton: "Monitorizar en vivo",
-	gddr6LiveLeft: "En vivo · quedan {minutes} min",
-	gpuDetails: "Detalles",
-	gpuActiveRange: "Rango activo",
-	gpuValidatedRange: "Rango validado",
-	gpuMemoryClock: "Reloj de memoria",
-	gpuSocClock: "Reloj del SoC",
-	gpuFabricClock: "Reloj de fabric",
-	cpuNow: "Frecuencia actual",
-	cpuTemperature: "Temperatura",
-	cpuOcTitle: "Overclock",
-	cpuEstimatedVid: "VID estimado",
-	cpuOnBoot: "Aplicado al arrancar",
-	cpuModeBoot: "Servicio de arranque",
-	cpuThermalLimit: "Límite térmico",
-	cpuCoreLabel: "Núcleo",
-	cpuCoreLocked: "Bloqueado",
-	cpuCoresSummary: "{active}/{total} núcleos · {threads} hilos",
-	cpuMonitorApplying: "Espera un momento: se está aplicando y probando el OC de CPU a {target} MHz. Vigila las temperaturas mientras dura.",
-	cuKernelManaged: "El kernel BC-250 gestiona las Compute Units (bc250_cc_write_mode=3) y las desbloqueó todas al arrancar. Esta pestaña es de solo lectura; desactiva el desbloqueo por kernel en Modo Escritorio para cambiar el enrutado.",
-	cpuPresetBoardAverage: "Placa promedio",
-	cpuPresetMidPoint: "Punto medio",
-	cpuPresetSafeMaximum: "Máximo seguro",
-	compatStaged: "Cyan no está en ejecución: el cambio se guarda y Cyan se reinicia con él (si está habilitado) o lo usará en su próximo arranque.",
-	governorUnresponsive: "Cyan no responde (la lectura de uso \"process\" lo bloquea con un juego abierto). Los controles de rango fallarán hasta que responda; cambia Lectura de uso a busy-flag.",
-	serviceStarting: "Arrancando o fallando al arrancar · reintentando",
-	governorStopped: "El servicio del governor no está en ejecución. Usa Activar servicio abajo.",
 	serviceRunningNoBoot: serviceRunningNoBoot$4,
 	serviceStopped: serviceStopped$4,
 	serviceStoppedBoot: serviceStoppedBoot$4,
@@ -2561,7 +2808,62 @@ var es419 = {
 	vramRebootRequired: vramRebootRequired$4,
 	vramUnavailable: vramUnavailable$4,
 	vrmUnavailable: vrmUnavailable$4,
-	yes: yes$4
+	yes: yes$4,
+	serviceStarting: serviceStarting$4,
+	governorStopped: governorStopped$4,
+	governorUnresponsive: governorUnresponsive$4,
+	compatStaged: compatStaged$4,
+	cpuPresetBoardAverage: cpuPresetBoardAverage$4,
+	cpuPresetMidPoint: cpuPresetMidPoint$4,
+	cpuPresetSafeMaximum: cpuPresetSafeMaximum$4,
+	cuKernelManaged: cuKernelManaged$4,
+	cpuMonitorApplying: cpuMonitorApplying$4,
+	cpuCoreLabel: cpuCoreLabel$4,
+	cpuCoreLocked: cpuCoreLocked$4,
+	cpuCoresSummary: cpuCoresSummary$4,
+	cpuNow: cpuNow$4,
+	cpuTemperature: cpuTemperature$4,
+	cpuOcTitle: cpuOcTitle$4,
+	cpuEstimatedVid: cpuEstimatedVid$4,
+	cpuOnBoot: cpuOnBoot$4,
+	cpuModeBoot: cpuModeBoot$4,
+	cpuThermalLimit: cpuThermalLimit$4,
+	gpuDetails: gpuDetails$4,
+	gpuActiveRange: gpuActiveRange$4,
+	gpuValidatedRange: gpuValidatedRange$4,
+	gpuMemoryClock: gpuMemoryClock$4,
+	gpuSocClock: gpuSocClock$4,
+	gpuFabricClock: gpuFabricClock$4,
+	gddr6Monitoring: gddr6Monitoring$4,
+	gddr6MonitoringHint: gddr6MonitoringHint$4,
+	gddr6Off: gddr6Off$4,
+	gddr6LiveButton: gddr6LiveButton$4,
+	gddr6LiveLeft: gddr6LiveLeft$4,
+	gddr6PatchButton: gddr6PatchButton$4,
+	gddr6PatchTitle: gddr6PatchTitle$4,
+	gddr6PatchConfirm: gddr6PatchConfirm$4,
+	gddr6PatchOk: gddr6PatchOk$4,
+	gddr6PatchInactive: gddr6PatchInactive$4,
+	gddr6Patching: gddr6Patching$4,
+	memoryMonitoring: memoryMonitoring$4,
+	ttmTitle: ttmTitle$4,
+	ttmHelp: ttmHelp$4,
+	ttmNow: ttmNow$4,
+	ttmNextBoot: ttmNextBoot$4,
+	ttmKernelDefault: ttmKernelDefault$4,
+	ttmSetElsewhereShort: ttmSetElsewhereShort$4,
+	ttmSetElsewhere: ttmSetElsewhere$4,
+	ttmReading: ttmReading$4,
+	ttmUnavailable: ttmUnavailable$4,
+	ttmApply: ttmApply$4,
+	ttmApplyDescription: ttmApplyDescription$4,
+	ttmGttOverride: ttmGttOverride$4,
+	ttmLegacy: ttmLegacy$4,
+	ttmVramPending: ttmVramPending$4,
+	vramTtmConflict: vramTtmConflict$4,
+	ttmFailed: ttmFailed$4,
+	ttmCause: ttmCause$4,
+	ttmAction: ttmAction$4
 };
 
 var accentBlue$3 = "Niebieski";
@@ -2790,6 +3092,61 @@ var vramRebootRequired$3 = "Zaczyna działać po następnym restarcie.";
 var vramUnavailable$3 = "Podział VRAM jest niedostępny w tym systemie.";
 var vrmUnavailable$3 = "Nie wykryto · wymaga modyfikacji sprzętowej I2C.";
 var yes$3 = "Tak";
+var serviceStarting$3 = "Uruchamianie lub błąd uruchamiania · ponawianie";
+var governorStopped$3 = "Usługa governora nie działa. Użyj poniżej „Włącz usługę”.";
+var governorUnresponsive$3 = "Cyan nie odpowiada (odczyt użycia \"process\" blokuje go przy uruchomionej grze). Sterowanie zakresem nie zadziała, dopóki nie odpowie; zmień odczyt użycia na busy-flag.";
+var compatStaged$3 = "Cyan nie działa: zmiana zostanie zapisana, a Cyan uruchomi się z nią ponownie (jeśli jest włączony) lub użyje jej przy następnym starcie.";
+var cpuPresetBoardAverage$3 = "Przeciętna płyta";
+var cpuPresetMidPoint$3 = "Punkt środkowy";
+var cpuPresetSafeMaximum$3 = "Bezpieczne maksimum";
+var cuKernelManaged$3 = "Jądro BC-250 zarządza jednostkami obliczeniowymi (bc250_cc_write_mode=3) i odblokowało je wszystkie przy starcie. Ta karta jest tylko do odczytu; wyłącz odblokowanie CU przez jądro w trybie pulpitu, aby zmienić routing.";
+var cpuMonitorApplying$3 = "Chwileczkę: podkręcanie CPU do {target} MHz jest stosowane i testowane obciążeniem. Obserwuj temperatury w trakcie.";
+var cpuCoreLabel$3 = "Rdzeń";
+var cpuCoreLocked$3 = "Zablokowany";
+var cpuCoresSummary$3 = "{active}/{total} rdzeni · {threads} wątków";
+var cpuNow$3 = "Bieżące taktowanie";
+var cpuTemperature$3 = "Temperatura";
+var cpuOcTitle$3 = "Podkręcanie";
+var cpuEstimatedVid$3 = "Szacowany VID";
+var cpuOnBoot$3 = "Stosowane przy starcie";
+var cpuModeBoot$3 = "Usługa startowa";
+var cpuThermalLimit$3 = "Limit temperatury";
+var gpuDetails$3 = "Szczegóły";
+var gpuActiveRange$3 = "Aktywny zakres";
+var gpuValidatedRange$3 = "Zweryfikowany zakres";
+var gpuMemoryClock$3 = "Zegar pamięci";
+var gpuSocClock$3 = "Zegar SoC";
+var gpuFabricClock$3 = "Zegar fabric";
+var gddr6Monitoring$3 = "Monitorowanie GDDR6";
+var gddr6MonitoringHint$3 = "Odczytuje przez SMU temperaturę każdego układu pamięci, dopóki jest włączone, maksymalnie 10 minut; potem wyłącza się samo, jak w aplikacji na pulpit. SMU dzielą governor GPU i podkręcanie CPU.";
+var gddr6Off$3 = "Monitorowanie wyłączone";
+var gddr6LiveButton$3 = "Monitoruj na żywo";
+var gddr6LiveLeft$3 = "Na żywo · zostało {minutes} min";
+var gddr6PatchButton$3 = "Zastosuj łatkę GDDR6 (ten rozruch)";
+var gddr6PatchTitle$3 = "Zastosować łatkę temperatury GDDR6?";
+var gddr6PatchConfirm$3 = "Zapisuje w SMU sprawdzoną łatkę bc250-memory-temperature, aby do następnego restartu można było odczytywać temperatury pamięci. Powstała przez inżynierię wsteczną i według autora nie jest w pełni zweryfikowana: błędny stan może zakłócić ruch GDDR6 i spowodować niestabilność lub zawieszenie. Tylko dla firmware P3.0; czeka, jeśli governor GPU się uruchamia.";
+var gddr6PatchOk$3 = "Zastosuj łatkę";
+var gddr6PatchInactive$3 = "Łatka GDDR6 nie jest zastosowana w tym rozruchu.";
+var gddr6Patching$3 = "Stosowanie łatki GDDR6…";
+var memoryMonitoring$3 = "Monitorowanie pamięci";
+var ttmTitle$3 = "LIMIT PAMIĘCI GPU";
+var ttmHelp$3 = "Ile pamięci systemowej GPU może użyć ponad swoją VRAM (GTT). Gry, którym brakuje VRAM, korzystają z niej.";
+var ttmNow$3 = "GTT teraz";
+var ttmNextBoot$3 = "Następny rozruch";
+var ttmKernelDefault$3 = "Domyślne jądra";
+var ttmSetElsewhereShort$3 = "ustawione gdzie indziej";
+var ttmSetElsewhere$3 = "Ten limit ustawiono poza Control Center i pozostaje bez zmian.";
+var ttmReading$3 = "Odczyt limitu pamięci GPU…";
+var ttmUnavailable$3 = "W tym systemie nie można ustawić limitu pamięci GPU.";
+var ttmApply$3 = "Zastosuj limit";
+var ttmApplyDescription$3 = "Zapisywany jako argument rozruchu jądra, ten sam, którego używa aplikacja na pulpit. W Bazzite rpm-ostree tworzy nowe wdrożenie, co może potrwać minutę.";
+var ttmGttOverride$3 = "Ustawiono amdgpu.gttsize={value}, który zastępuje ten limit; najpierw go usuń.";
+var ttmLegacy$3 = "Starsza wersja Control Center ustawia limit przy każdym rozruchu; zastosuj lub przywróć raz, aby przenieść go do argumentu rozruchu.";
+var ttmVramPending$3 = "Czeka nowy rozmiar VRAM: po następnym rozruchu będzie {size} pamięci systemowej, więc większe limity nie są oferowane.";
+var vramTtmConflict$3 = "Limit pamięci GPU ustawiony na następny rozruch ({limit}) jest większy niż {size} pamięci systemowej, które zostawia ten rozmiar VRAM. Potem obniż limit.";
+var ttmFailed$3 = "Nie udało się zmienić limitu pamięci GPU.";
+var ttmCause$3 = "Ten system nie może zachować argumentu rozruchu, inne narzędzie już ustawiło limit albo program rozruchowy lub rpm-ostree odrzucił zmianę.";
+var ttmAction$3 = "Przeczytaj przyczynę w sekcji Limit pamięci GPU i spróbuj ponownie, gdy program rozruchowy lub rpm-ostree będzie wolny.";
 var pl = {
 	accentBlue: accentBlue$3,
 	accentColor: accentColor$3,
@@ -2975,43 +3332,6 @@ var pl = {
 	serviceNotInstalled: serviceNotInstalled$3,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$3,
 	serviceRunningBoot: serviceRunningBoot$3,
-	memoryMonitoring: "Monitorowanie pamięci",
-	gddr6PatchButton: "Zastosuj łatkę GDDR6 (ten rozruch)",
-	gddr6PatchTitle: "Zastosować łatkę temperatury GDDR6?",
-	gddr6PatchConfirm: "Zapisuje w SMU sprawdzoną łatkę bc250-memory-temperature, aby do następnego restartu można było odczytywać temperatury pamięci. Powstała przez inżynierię wsteczną i według autora nie jest w pełni zweryfikowana: błędny stan może zakłócić ruch GDDR6 i spowodować niestabilność lub zawieszenie. Tylko dla firmware P3.0; czeka, jeśli governor GPU się uruchamia.",
-	gddr6PatchOk: "Zastosuj łatkę",
-	gddr6PatchInactive: "Łatka GDDR6 nie jest zastosowana w tym rozruchu.",
-	gddr6Patching: "Stosowanie łatki GDDR6…",
-	gddr6Monitoring: "Monitorowanie GDDR6",
-	gddr6MonitoringHint: "Odczytuje przez SMU temperaturę każdego układu pamięci, dopóki jest włączone, maksymalnie 10 minut; potem wyłącza się samo, jak w aplikacji na pulpit. SMU dzielą governor GPU i podkręcanie CPU.",
-	gddr6Off: "Monitorowanie wyłączone",
-	gddr6LiveButton: "Monitoruj na żywo",
-	gddr6LiveLeft: "Na żywo · zostało {minutes} min",
-	gpuDetails: "Szczegóły",
-	gpuActiveRange: "Aktywny zakres",
-	gpuValidatedRange: "Zweryfikowany zakres",
-	gpuMemoryClock: "Zegar pamięci",
-	gpuSocClock: "Zegar SoC",
-	gpuFabricClock: "Zegar fabric",
-	cpuNow: "Bieżące taktowanie",
-	cpuTemperature: "Temperatura",
-	cpuOcTitle: "Podkręcanie",
-	cpuEstimatedVid: "Szacowany VID",
-	cpuOnBoot: "Stosowane przy starcie",
-	cpuModeBoot: "Usługa startowa",
-	cpuThermalLimit: "Limit temperatury",
-	cpuCoreLabel: "Rdzeń",
-	cpuCoreLocked: "Zablokowany",
-	cpuCoresSummary: "{active}/{total} rdzeni · {threads} wątków",
-	cpuMonitorApplying: "Chwileczkę: podkręcanie CPU do {target} MHz jest stosowane i testowane obciążeniem. Obserwuj temperatury w trakcie.",
-	cuKernelManaged: "Jądro BC-250 zarządza jednostkami obliczeniowymi (bc250_cc_write_mode=3) i odblokowało je wszystkie przy starcie. Ta karta jest tylko do odczytu; wyłącz odblokowanie CU przez jądro w trybie pulpitu, aby zmienić routing.",
-	cpuPresetBoardAverage: "Przeciętna płyta",
-	cpuPresetMidPoint: "Punkt środkowy",
-	cpuPresetSafeMaximum: "Bezpieczne maksimum",
-	compatStaged: "Cyan nie działa: zmiana zostanie zapisana, a Cyan uruchomi się z nią ponownie (jeśli jest włączony) lub użyje jej przy następnym starcie.",
-	governorUnresponsive: "Cyan nie odpowiada (odczyt użycia \"process\" blokuje go przy uruchomionej grze). Sterowanie zakresem nie zadziała, dopóki nie odpowie; zmień odczyt użycia na busy-flag.",
-	serviceStarting: "Uruchamianie lub błąd uruchamiania · ponawianie",
-	governorStopped: "Usługa governora nie działa. Użyj poniżej „Włącz usługę”.",
 	serviceRunningNoBoot: serviceRunningNoBoot$3,
 	serviceStopped: serviceStopped$3,
 	serviceStoppedBoot: serviceStoppedBoot$3,
@@ -3053,7 +3373,62 @@ var pl = {
 	vramRebootRequired: vramRebootRequired$3,
 	vramUnavailable: vramUnavailable$3,
 	vrmUnavailable: vrmUnavailable$3,
-	yes: yes$3
+	yes: yes$3,
+	serviceStarting: serviceStarting$3,
+	governorStopped: governorStopped$3,
+	governorUnresponsive: governorUnresponsive$3,
+	compatStaged: compatStaged$3,
+	cpuPresetBoardAverage: cpuPresetBoardAverage$3,
+	cpuPresetMidPoint: cpuPresetMidPoint$3,
+	cpuPresetSafeMaximum: cpuPresetSafeMaximum$3,
+	cuKernelManaged: cuKernelManaged$3,
+	cpuMonitorApplying: cpuMonitorApplying$3,
+	cpuCoreLabel: cpuCoreLabel$3,
+	cpuCoreLocked: cpuCoreLocked$3,
+	cpuCoresSummary: cpuCoresSummary$3,
+	cpuNow: cpuNow$3,
+	cpuTemperature: cpuTemperature$3,
+	cpuOcTitle: cpuOcTitle$3,
+	cpuEstimatedVid: cpuEstimatedVid$3,
+	cpuOnBoot: cpuOnBoot$3,
+	cpuModeBoot: cpuModeBoot$3,
+	cpuThermalLimit: cpuThermalLimit$3,
+	gpuDetails: gpuDetails$3,
+	gpuActiveRange: gpuActiveRange$3,
+	gpuValidatedRange: gpuValidatedRange$3,
+	gpuMemoryClock: gpuMemoryClock$3,
+	gpuSocClock: gpuSocClock$3,
+	gpuFabricClock: gpuFabricClock$3,
+	gddr6Monitoring: gddr6Monitoring$3,
+	gddr6MonitoringHint: gddr6MonitoringHint$3,
+	gddr6Off: gddr6Off$3,
+	gddr6LiveButton: gddr6LiveButton$3,
+	gddr6LiveLeft: gddr6LiveLeft$3,
+	gddr6PatchButton: gddr6PatchButton$3,
+	gddr6PatchTitle: gddr6PatchTitle$3,
+	gddr6PatchConfirm: gddr6PatchConfirm$3,
+	gddr6PatchOk: gddr6PatchOk$3,
+	gddr6PatchInactive: gddr6PatchInactive$3,
+	gddr6Patching: gddr6Patching$3,
+	memoryMonitoring: memoryMonitoring$3,
+	ttmTitle: ttmTitle$3,
+	ttmHelp: ttmHelp$3,
+	ttmNow: ttmNow$3,
+	ttmNextBoot: ttmNextBoot$3,
+	ttmKernelDefault: ttmKernelDefault$3,
+	ttmSetElsewhereShort: ttmSetElsewhereShort$3,
+	ttmSetElsewhere: ttmSetElsewhere$3,
+	ttmReading: ttmReading$3,
+	ttmUnavailable: ttmUnavailable$3,
+	ttmApply: ttmApply$3,
+	ttmApplyDescription: ttmApplyDescription$3,
+	ttmGttOverride: ttmGttOverride$3,
+	ttmLegacy: ttmLegacy$3,
+	ttmVramPending: ttmVramPending$3,
+	vramTtmConflict: vramTtmConflict$3,
+	ttmFailed: ttmFailed$3,
+	ttmCause: ttmCause$3,
+	ttmAction: ttmAction$3
 };
 
 var accentBlue$2 = "Azul";
@@ -3282,6 +3657,61 @@ var vramRebootRequired$2 = "Aplicado após a próxima reinicialização.";
 var vramUnavailable$2 = "O particionamento de VRAM não está disponível neste sistema.";
 var vrmUnavailable$2 = "Não detectado · requer a modificação de hardware I2C.";
 var yes$2 = "Sim";
+var serviceStarting$2 = "A iniciar ou a falhar ao iniciar · a tentar de novo";
+var governorStopped$2 = "O serviço do governor não está em execução. Use Ativar serviço abaixo.";
+var governorUnresponsive$2 = "O Cyan não responde (a leitura de uso \"process\" bloqueia-o com um jogo aberto). Os controlos de intervalo vão falhar até responder; mude a Leitura de uso para busy-flag.";
+var compatStaged$2 = "O Cyan não está em execução: a alteração é guardada e o Cyan reinicia com ela (se estiver ativado) ou usa-a no próximo arranque.";
+var cpuPresetBoardAverage$2 = "Placa média";
+var cpuPresetMidPoint$2 = "Ponto médio";
+var cpuPresetSafeMaximum$2 = "Máximo seguro";
+var cuKernelManaged$2 = "O kernel BC-250 gere as Compute Units (bc250_cc_write_mode=3) e desbloqueou-as todas no arranque. Este separador é só de leitura; desative o desbloqueio pelo kernel no Modo Desktop para alterar o encaminhamento.";
+var cpuMonitorApplying$2 = "Aguarde: o overclock da CPU a {target} MHz está a ser aplicado e testado. Vigie as temperaturas enquanto decorre.";
+var cpuCoreLabel$2 = "Núcleo";
+var cpuCoreLocked$2 = "Bloqueado";
+var cpuCoresSummary$2 = "{active}/{total} núcleos · {threads} threads";
+var cpuNow$2 = "Frequência atual";
+var cpuTemperature$2 = "Temperatura";
+var cpuOcTitle$2 = "Overclock";
+var cpuEstimatedVid$2 = "VID estimado";
+var cpuOnBoot$2 = "Aplicado no arranque";
+var cpuModeBoot$2 = "Serviço de arranque";
+var cpuThermalLimit$2 = "Limite térmico";
+var gpuDetails$2 = "Detalhes";
+var gpuActiveRange$2 = "Intervalo ativo";
+var gpuValidatedRange$2 = "Intervalo validado";
+var gpuMemoryClock$2 = "Relógio da memória";
+var gpuSocClock$2 = "Relógio do SoC";
+var gpuFabricClock$2 = "Relógio do fabric";
+var gddr6Monitoring$2 = "Monitorização da GDDR6";
+var gddr6MonitoringHint$2 = "Lê a temperatura de cada chip de memória através da SMU enquanto estiver ligada, 10 minutos no máximo; depois desliga-se sozinha, como na app de desktop. A SMU é partilhada com o governor da GPU e o overclock da CPU.";
+var gddr6Off$2 = "Monitorização desligada";
+var gddr6LiveButton$2 = "Monitorizar em direto";
+var gddr6LiveLeft$2 = "Em direto · faltam {minutes} min";
+var gddr6PatchButton$2 = "Aplicar patch GDDR6 (este arranque)";
+var gddr6PatchTitle$2 = "Aplicar o patch de temperatura GDDR6?";
+var gddr6PatchConfirm$2 = "Escreve na SMU o patch revisto do bc250-memory-temperature para ler as temperaturas da memória, até ao próximo reinício. É engenharia inversa e, segundo o próprio autor, não está totalmente verificado: um estado errado pode perturbar o tráfego da GDDR6 e causar instabilidade ou um bloqueio. Só para firmware P3.0; espera se o governor da GPU estiver a arrancar.";
+var gddr6PatchOk$2 = "Aplicar patch";
+var gddr6PatchInactive$2 = "O patch GDDR6 não está aplicado neste arranque.";
+var gddr6Patching$2 = "A aplicar o patch GDDR6…";
+var memoryMonitoring$2 = "Monitorização da memória";
+var ttmTitle$2 = "LIMITE DE MEMÓRIA DA GPU";
+var ttmHelp$2 = "Quanta memória do sistema a GPU pode usar além da VRAM (GTT). Jogos que esgotam a VRAM passam a usá-la.";
+var ttmNow$2 = "GTT agora";
+var ttmNextBoot$2 = "Próxima inicialização";
+var ttmKernelDefault$2 = "Padrão do kernel";
+var ttmSetElsewhereShort$2 = "definido por outro";
+var ttmSetElsewhere$2 = "Este limite foi definido fora do Control Center e fica como está.";
+var ttmReading$2 = "Lendo o limite de memória da GPU…";
+var ttmUnavailable$2 = "O limite de memória da GPU não pode ser definido neste sistema.";
+var ttmApply$2 = "Aplicar limite";
+var ttmApplyDescription$2 = "Salvo como argumento de inicialização do kernel, o mesmo que o aplicativo de desktop usa. No Bazzite, o rpm-ostree cria uma nova implantação, o que pode levar um minuto.";
+var ttmGttOverride$2 = "amdgpu.gttsize={value} está definido e substitui este limite; remova-o primeiro.";
+var ttmLegacy$2 = "Uma versão anterior do Control Center reaplica um limite a cada inicialização; aplique ou restaure uma vez para movê-lo para o argumento de inicialização.";
+var ttmVramPending$2 = "Há um novo tamanho de VRAM pendente: a próxima inicialização terá {size} de memória do sistema, então limites maiores não são oferecidos.";
+var vramTtmConflict$2 = "O limite de memória da GPU definido para a próxima inicialização ({limit}) é maior que os {size} de memória do sistema que este tamanho de VRAM deixa. Reduza o limite depois.";
+var ttmFailed$2 = "Não foi possível alterar o limite de memória da GPU.";
+var ttmCause$2 = "Este sistema não consegue manter o argumento de inicialização, outra ferramenta já definiu o limite, ou o carregador de inicialização ou o rpm-ostree recusou a alteração.";
+var ttmAction$2 = "Leia o motivo em Limite de memória da GPU e tente de novo quando o carregador de inicialização ou o rpm-ostree estiver livre.";
 var pt = {
 	accentBlue: accentBlue$2,
 	accentColor: accentColor$2,
@@ -3467,43 +3897,6 @@ var pt = {
 	serviceNotInstalled: serviceNotInstalled$2,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$2,
 	serviceRunningBoot: serviceRunningBoot$2,
-	memoryMonitoring: "Monitorização da memória",
-	gddr6PatchButton: "Aplicar patch GDDR6 (este arranque)",
-	gddr6PatchTitle: "Aplicar o patch de temperatura GDDR6?",
-	gddr6PatchConfirm: "Escreve na SMU o patch revisto do bc250-memory-temperature para ler as temperaturas da memória, até ao próximo reinício. É engenharia inversa e, segundo o próprio autor, não está totalmente verificado: um estado errado pode perturbar o tráfego da GDDR6 e causar instabilidade ou um bloqueio. Só para firmware P3.0; espera se o governor da GPU estiver a arrancar.",
-	gddr6PatchOk: "Aplicar patch",
-	gddr6PatchInactive: "O patch GDDR6 não está aplicado neste arranque.",
-	gddr6Patching: "A aplicar o patch GDDR6…",
-	gddr6Monitoring: "Monitorização da GDDR6",
-	gddr6MonitoringHint: "Lê a temperatura de cada chip de memória através da SMU enquanto estiver ligada, 10 minutos no máximo; depois desliga-se sozinha, como na app de desktop. A SMU é partilhada com o governor da GPU e o overclock da CPU.",
-	gddr6Off: "Monitorização desligada",
-	gddr6LiveButton: "Monitorizar em direto",
-	gddr6LiveLeft: "Em direto · faltam {minutes} min",
-	gpuDetails: "Detalhes",
-	gpuActiveRange: "Intervalo ativo",
-	gpuValidatedRange: "Intervalo validado",
-	gpuMemoryClock: "Relógio da memória",
-	gpuSocClock: "Relógio do SoC",
-	gpuFabricClock: "Relógio do fabric",
-	cpuNow: "Frequência atual",
-	cpuTemperature: "Temperatura",
-	cpuOcTitle: "Overclock",
-	cpuEstimatedVid: "VID estimado",
-	cpuOnBoot: "Aplicado no arranque",
-	cpuModeBoot: "Serviço de arranque",
-	cpuThermalLimit: "Limite térmico",
-	cpuCoreLabel: "Núcleo",
-	cpuCoreLocked: "Bloqueado",
-	cpuCoresSummary: "{active}/{total} núcleos · {threads} threads",
-	cpuMonitorApplying: "Aguarde: o overclock da CPU a {target} MHz está a ser aplicado e testado. Vigie as temperaturas enquanto decorre.",
-	cuKernelManaged: "O kernel BC-250 gere as Compute Units (bc250_cc_write_mode=3) e desbloqueou-as todas no arranque. Este separador é só de leitura; desative o desbloqueio pelo kernel no Modo Desktop para alterar o encaminhamento.",
-	cpuPresetBoardAverage: "Placa média",
-	cpuPresetMidPoint: "Ponto médio",
-	cpuPresetSafeMaximum: "Máximo seguro",
-	compatStaged: "O Cyan não está em execução: a alteração é guardada e o Cyan reinicia com ela (se estiver ativado) ou usa-a no próximo arranque.",
-	governorUnresponsive: "O Cyan não responde (a leitura de uso \"process\" bloqueia-o com um jogo aberto). Os controlos de intervalo vão falhar até responder; mude a Leitura de uso para busy-flag.",
-	serviceStarting: "A iniciar ou a falhar ao iniciar · a tentar de novo",
-	governorStopped: "O serviço do governor não está em execução. Use Ativar serviço abaixo.",
 	serviceRunningNoBoot: serviceRunningNoBoot$2,
 	serviceStopped: serviceStopped$2,
 	serviceStoppedBoot: serviceStoppedBoot$2,
@@ -3545,7 +3938,62 @@ var pt = {
 	vramRebootRequired: vramRebootRequired$2,
 	vramUnavailable: vramUnavailable$2,
 	vrmUnavailable: vrmUnavailable$2,
-	yes: yes$2
+	yes: yes$2,
+	serviceStarting: serviceStarting$2,
+	governorStopped: governorStopped$2,
+	governorUnresponsive: governorUnresponsive$2,
+	compatStaged: compatStaged$2,
+	cpuPresetBoardAverage: cpuPresetBoardAverage$2,
+	cpuPresetMidPoint: cpuPresetMidPoint$2,
+	cpuPresetSafeMaximum: cpuPresetSafeMaximum$2,
+	cuKernelManaged: cuKernelManaged$2,
+	cpuMonitorApplying: cpuMonitorApplying$2,
+	cpuCoreLabel: cpuCoreLabel$2,
+	cpuCoreLocked: cpuCoreLocked$2,
+	cpuCoresSummary: cpuCoresSummary$2,
+	cpuNow: cpuNow$2,
+	cpuTemperature: cpuTemperature$2,
+	cpuOcTitle: cpuOcTitle$2,
+	cpuEstimatedVid: cpuEstimatedVid$2,
+	cpuOnBoot: cpuOnBoot$2,
+	cpuModeBoot: cpuModeBoot$2,
+	cpuThermalLimit: cpuThermalLimit$2,
+	gpuDetails: gpuDetails$2,
+	gpuActiveRange: gpuActiveRange$2,
+	gpuValidatedRange: gpuValidatedRange$2,
+	gpuMemoryClock: gpuMemoryClock$2,
+	gpuSocClock: gpuSocClock$2,
+	gpuFabricClock: gpuFabricClock$2,
+	gddr6Monitoring: gddr6Monitoring$2,
+	gddr6MonitoringHint: gddr6MonitoringHint$2,
+	gddr6Off: gddr6Off$2,
+	gddr6LiveButton: gddr6LiveButton$2,
+	gddr6LiveLeft: gddr6LiveLeft$2,
+	gddr6PatchButton: gddr6PatchButton$2,
+	gddr6PatchTitle: gddr6PatchTitle$2,
+	gddr6PatchConfirm: gddr6PatchConfirm$2,
+	gddr6PatchOk: gddr6PatchOk$2,
+	gddr6PatchInactive: gddr6PatchInactive$2,
+	gddr6Patching: gddr6Patching$2,
+	memoryMonitoring: memoryMonitoring$2,
+	ttmTitle: ttmTitle$2,
+	ttmHelp: ttmHelp$2,
+	ttmNow: ttmNow$2,
+	ttmNextBoot: ttmNextBoot$2,
+	ttmKernelDefault: ttmKernelDefault$2,
+	ttmSetElsewhereShort: ttmSetElsewhereShort$2,
+	ttmSetElsewhere: ttmSetElsewhere$2,
+	ttmReading: ttmReading$2,
+	ttmUnavailable: ttmUnavailable$2,
+	ttmApply: ttmApply$2,
+	ttmApplyDescription: ttmApplyDescription$2,
+	ttmGttOverride: ttmGttOverride$2,
+	ttmLegacy: ttmLegacy$2,
+	ttmVramPending: ttmVramPending$2,
+	vramTtmConflict: vramTtmConflict$2,
+	ttmFailed: ttmFailed$2,
+	ttmCause: ttmCause$2,
+	ttmAction: ttmAction$2
 };
 
 var accentBlue$1 = "Синий";
@@ -3774,6 +4222,61 @@ var vramRebootRequired$1 = "Применяется после следующей
 var vramUnavailable$1 = "Разбиение VRAM недоступно на этой системе.";
 var vrmUnavailable$1 = "Не обнаружено · требуется аппаратная модификация I2C.";
 var yes$1 = "Да";
+var serviceStarting$1 = "Запуск или сбой запуска · повтор";
+var governorStopped$1 = "Служба governor не запущена. Используйте «Включить службу» ниже.";
+var governorUnresponsive$1 = "Cyan не отвечает (чтение загрузки \"process\" блокирует его при запущенной игре). Управление диапазоном не сработает, пока он не ответит; переключите чтение загрузки на busy-flag.";
+var compatStaged$1 = "Cyan не запущен: изменение сохраняется, и Cyan перезапускается с ним (если включён) или применит его при следующем запуске.";
+var cpuPresetBoardAverage$1 = "Средняя плата";
+var cpuPresetMidPoint$1 = "Середина";
+var cpuPresetSafeMaximum$1 = "Безопасный максимум";
+var cuKernelManaged$1 = "Ядро BC-250 управляет вычислительными блоками (bc250_cc_write_mode=3) и разблокировало их все при загрузке. Эта вкладка только для чтения; отключите разблокировку CU ядром в режиме рабочего стола, чтобы изменить маршрутизацию.";
+var cpuMonitorApplying$1 = "Подождите: разгон CPU до {target} МГц применяется и проверяется нагрузкой. Следите за температурами.";
+var cpuCoreLabel$1 = "Ядро";
+var cpuCoreLocked$1 = "Заблокировано";
+var cpuCoresSummary$1 = "{active}/{total} ядер · {threads} потоков";
+var cpuNow$1 = "Текущая частота";
+var cpuTemperature$1 = "Температура";
+var cpuOcTitle$1 = "Разгон";
+var cpuEstimatedVid$1 = "Расчётный VID";
+var cpuOnBoot$1 = "Применяется при загрузке";
+var cpuModeBoot$1 = "Служба загрузки";
+var cpuThermalLimit$1 = "Тепловой предел";
+var gpuDetails$1 = "Подробности";
+var gpuActiveRange$1 = "Активный диапазон";
+var gpuValidatedRange$1 = "Проверенный диапазон";
+var gpuMemoryClock$1 = "Частота памяти";
+var gpuSocClock$1 = "Частота SoC";
+var gpuFabricClock$1 = "Частота fabric";
+var gddr6Monitoring$1 = "Мониторинг GDDR6";
+var gddr6MonitoringHint$1 = "Читает через SMU температуру каждого чипа памяти, пока включён, не дольше 10 минут; затем выключается сам, как в приложении для рабочего стола. SMU делят governor GPU и разгон CPU.";
+var gddr6Off$1 = "Мониторинг выключен";
+var gddr6LiveButton$1 = "Мониторинг в реальном времени";
+var gddr6LiveLeft$1 = "В реальном времени · осталось {minutes} мин";
+var gddr6PatchButton$1 = "Применить патч GDDR6 (эта загрузка)";
+var gddr6PatchTitle$1 = "Применить патч температуры GDDR6?";
+var gddr6PatchConfirm$1 = "Записывает в SMU проверенный патч bc250-memory-temperature, чтобы до следующей перезагрузки можно было читать температуры памяти. Он получен обратной разработкой и, по словам автора, не полностью проверен: неверное состояние может нарушить работу GDDR6 и вызвать нестабильность или зависание. Только для прошивки P3.0; ждёт, если governor GPU запускается.";
+var gddr6PatchOk$1 = "Применить патч";
+var gddr6PatchInactive$1 = "Патч GDDR6 не применён в этой загрузке.";
+var gddr6Patching$1 = "Применяется патч GDDR6…";
+var memoryMonitoring$1 = "Мониторинг памяти";
+var ttmTitle$1 = "ЛИМИТ ПАМЯТИ GPU";
+var ttmHelp$1 = "Сколько системной памяти GPU может использовать сверх VRAM (GTT). Игры, которым не хватает VRAM, используют её.";
+var ttmNow$1 = "GTT сейчас";
+var ttmNextBoot$1 = "Следующая загрузка";
+var ttmKernelDefault$1 = "По умолчанию ядра";
+var ttmSetElsewhereShort$1 = "задано извне";
+var ttmSetElsewhere$1 = "Этот лимит задан вне Control Center и остаётся без изменений.";
+var ttmReading$1 = "Чтение лимита памяти GPU…";
+var ttmUnavailable$1 = "В этой системе нельзя задать лимит памяти GPU.";
+var ttmApply$1 = "Применить лимит";
+var ttmApplyDescription$1 = "Сохраняется как параметр загрузки ядра — тот же, что использует настольное приложение. В Bazzite rpm-ostree создаёт новое развёртывание, это может занять минуту.";
+var ttmGttOverride$1 = "Задан amdgpu.gttsize={value}, он перекрывает этот лимит; сначала удалите его.";
+var ttmLegacy$1 = "Старая версия Control Center заново задаёт лимит при каждой загрузке; примените или сбросьте его один раз, чтобы перенести в параметр загрузки.";
+var ttmVramPending$1 = "Ожидает новый размер VRAM: после следующей загрузки останется {size} системной памяти, поэтому большие лимиты не предлагаются.";
+var vramTtmConflict$1 = "Лимит памяти GPU для следующей загрузки ({limit}) больше, чем {size} системной памяти, которые оставляет этот размер VRAM. Затем уменьшите лимит.";
+var ttmFailed$1 = "Не удалось изменить лимит памяти GPU.";
+var ttmCause$1 = "Эта система не может сохранить параметр загрузки, лимит уже задан другим инструментом, или загрузчик либо rpm-ostree отклонили изменение.";
+var ttmAction$1 = "Прочитайте причину в разделе «Лимит памяти GPU» и повторите, когда загрузчик или rpm-ostree освободятся.";
 var ru = {
 	accentBlue: accentBlue$1,
 	accentColor: accentColor$1,
@@ -3959,43 +4462,6 @@ var ru = {
 	serviceNotInstalled: serviceNotInstalled$1,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$1,
 	serviceRunningBoot: serviceRunningBoot$1,
-	memoryMonitoring: "Мониторинг памяти",
-	gddr6PatchButton: "Применить патч GDDR6 (эта загрузка)",
-	gddr6PatchTitle: "Применить патч температуры GDDR6?",
-	gddr6PatchConfirm: "Записывает в SMU проверенный патч bc250-memory-temperature, чтобы до следующей перезагрузки можно было читать температуры памяти. Он получен обратной разработкой и, по словам автора, не полностью проверен: неверное состояние может нарушить работу GDDR6 и вызвать нестабильность или зависание. Только для прошивки P3.0; ждёт, если governor GPU запускается.",
-	gddr6PatchOk: "Применить патч",
-	gddr6PatchInactive: "Патч GDDR6 не применён в этой загрузке.",
-	gddr6Patching: "Применяется патч GDDR6…",
-	gddr6Monitoring: "Мониторинг GDDR6",
-	gddr6MonitoringHint: "Читает через SMU температуру каждого чипа памяти, пока включён, не дольше 10 минут; затем выключается сам, как в приложении для рабочего стола. SMU делят governor GPU и разгон CPU.",
-	gddr6Off: "Мониторинг выключен",
-	gddr6LiveButton: "Мониторинг в реальном времени",
-	gddr6LiveLeft: "В реальном времени · осталось {minutes} мин",
-	gpuDetails: "Подробности",
-	gpuActiveRange: "Активный диапазон",
-	gpuValidatedRange: "Проверенный диапазон",
-	gpuMemoryClock: "Частота памяти",
-	gpuSocClock: "Частота SoC",
-	gpuFabricClock: "Частота fabric",
-	cpuNow: "Текущая частота",
-	cpuTemperature: "Температура",
-	cpuOcTitle: "Разгон",
-	cpuEstimatedVid: "Расчётный VID",
-	cpuOnBoot: "Применяется при загрузке",
-	cpuModeBoot: "Служба загрузки",
-	cpuThermalLimit: "Тепловой предел",
-	cpuCoreLabel: "Ядро",
-	cpuCoreLocked: "Заблокировано",
-	cpuCoresSummary: "{active}/{total} ядер · {threads} потоков",
-	cpuMonitorApplying: "Подождите: разгон CPU до {target} МГц применяется и проверяется нагрузкой. Следите за температурами.",
-	cuKernelManaged: "Ядро BC-250 управляет вычислительными блоками (bc250_cc_write_mode=3) и разблокировало их все при загрузке. Эта вкладка только для чтения; отключите разблокировку CU ядром в режиме рабочего стола, чтобы изменить маршрутизацию.",
-	cpuPresetBoardAverage: "Средняя плата",
-	cpuPresetMidPoint: "Середина",
-	cpuPresetSafeMaximum: "Безопасный максимум",
-	compatStaged: "Cyan не запущен: изменение сохраняется, и Cyan перезапускается с ним (если включён) или применит его при следующем запуске.",
-	governorUnresponsive: "Cyan не отвечает (чтение загрузки \"process\" блокирует его при запущенной игре). Управление диапазоном не сработает, пока он не ответит; переключите чтение загрузки на busy-flag.",
-	serviceStarting: "Запуск или сбой запуска · повтор",
-	governorStopped: "Служба governor не запущена. Используйте «Включить службу» ниже.",
 	serviceRunningNoBoot: serviceRunningNoBoot$1,
 	serviceStopped: serviceStopped$1,
 	serviceStoppedBoot: serviceStoppedBoot$1,
@@ -4037,7 +4503,62 @@ var ru = {
 	vramRebootRequired: vramRebootRequired$1,
 	vramUnavailable: vramUnavailable$1,
 	vrmUnavailable: vrmUnavailable$1,
-	yes: yes$1
+	yes: yes$1,
+	serviceStarting: serviceStarting$1,
+	governorStopped: governorStopped$1,
+	governorUnresponsive: governorUnresponsive$1,
+	compatStaged: compatStaged$1,
+	cpuPresetBoardAverage: cpuPresetBoardAverage$1,
+	cpuPresetMidPoint: cpuPresetMidPoint$1,
+	cpuPresetSafeMaximum: cpuPresetSafeMaximum$1,
+	cuKernelManaged: cuKernelManaged$1,
+	cpuMonitorApplying: cpuMonitorApplying$1,
+	cpuCoreLabel: cpuCoreLabel$1,
+	cpuCoreLocked: cpuCoreLocked$1,
+	cpuCoresSummary: cpuCoresSummary$1,
+	cpuNow: cpuNow$1,
+	cpuTemperature: cpuTemperature$1,
+	cpuOcTitle: cpuOcTitle$1,
+	cpuEstimatedVid: cpuEstimatedVid$1,
+	cpuOnBoot: cpuOnBoot$1,
+	cpuModeBoot: cpuModeBoot$1,
+	cpuThermalLimit: cpuThermalLimit$1,
+	gpuDetails: gpuDetails$1,
+	gpuActiveRange: gpuActiveRange$1,
+	gpuValidatedRange: gpuValidatedRange$1,
+	gpuMemoryClock: gpuMemoryClock$1,
+	gpuSocClock: gpuSocClock$1,
+	gpuFabricClock: gpuFabricClock$1,
+	gddr6Monitoring: gddr6Monitoring$1,
+	gddr6MonitoringHint: gddr6MonitoringHint$1,
+	gddr6Off: gddr6Off$1,
+	gddr6LiveButton: gddr6LiveButton$1,
+	gddr6LiveLeft: gddr6LiveLeft$1,
+	gddr6PatchButton: gddr6PatchButton$1,
+	gddr6PatchTitle: gddr6PatchTitle$1,
+	gddr6PatchConfirm: gddr6PatchConfirm$1,
+	gddr6PatchOk: gddr6PatchOk$1,
+	gddr6PatchInactive: gddr6PatchInactive$1,
+	gddr6Patching: gddr6Patching$1,
+	memoryMonitoring: memoryMonitoring$1,
+	ttmTitle: ttmTitle$1,
+	ttmHelp: ttmHelp$1,
+	ttmNow: ttmNow$1,
+	ttmNextBoot: ttmNextBoot$1,
+	ttmKernelDefault: ttmKernelDefault$1,
+	ttmSetElsewhereShort: ttmSetElsewhereShort$1,
+	ttmSetElsewhere: ttmSetElsewhere$1,
+	ttmReading: ttmReading$1,
+	ttmUnavailable: ttmUnavailable$1,
+	ttmApply: ttmApply$1,
+	ttmApplyDescription: ttmApplyDescription$1,
+	ttmGttOverride: ttmGttOverride$1,
+	ttmLegacy: ttmLegacy$1,
+	ttmVramPending: ttmVramPending$1,
+	vramTtmConflict: vramTtmConflict$1,
+	ttmFailed: ttmFailed$1,
+	ttmCause: ttmCause$1,
+	ttmAction: ttmAction$1
 };
 
 var accentBlue = "Синій";
@@ -4266,6 +4787,61 @@ var vramRebootRequired = "Набуває чинності після насту�
 var vramUnavailable = "Розбиття VRAM недоступне в цій системі.";
 var vrmUnavailable = "Не виявлено · потрібна апаратна модифікація I2C.";
 var yes = "Так";
+var serviceStarting = "Запуск або збій запуску · повтор";
+var governorStopped = "Служба governor не запущена. Скористайтеся «Увімкнути службу» нижче.";
+var governorUnresponsive = "Cyan не відповідає (читання навантаження \"process\" блокує його під час гри). Керування діапазоном не працюватиме, доки він не відповість; перемкніть читання навантаження на busy-flag.";
+var compatStaged = "Cyan не запущено: зміну буде збережено, і Cyan перезапуститься з нею (якщо увімкнено) або застосує її під час наступного запуску.";
+var cpuPresetBoardAverage = "Середня плата";
+var cpuPresetMidPoint = "Середина";
+var cpuPresetSafeMaximum = "Безпечний максимум";
+var cuKernelManaged = "Ядро BC-250 керує обчислювальними блоками (bc250_cc_write_mode=3) і розблокувало їх усі під час завантаження. Ця вкладка лише для читання; вимкніть розблокування CU ядром у режимі робочого столу, щоб змінити маршрутизацію.";
+var cpuMonitorApplying = "Зачекайте: розгін CPU до {target} МГц застосовується й перевіряється навантаженням. Стежте за температурами.";
+var cpuCoreLabel = "Ядро";
+var cpuCoreLocked = "Заблоковано";
+var cpuCoresSummary = "{active}/{total} ядер · {threads} потоків";
+var cpuNow = "Поточна частота";
+var cpuTemperature = "Температура";
+var cpuOcTitle = "Розгін";
+var cpuEstimatedVid = "Розрахунковий VID";
+var cpuOnBoot = "Застосовується під час запуску";
+var cpuModeBoot = "Служба запуску";
+var cpuThermalLimit = "Тепловий ліміт";
+var gpuDetails = "Подробиці";
+var gpuActiveRange = "Активний діапазон";
+var gpuValidatedRange = "Перевірений діапазон";
+var gpuMemoryClock = "Частота пам'яті";
+var gpuSocClock = "Частота SoC";
+var gpuFabricClock = "Частота fabric";
+var gddr6Monitoring = "Моніторинг GDDR6";
+var gddr6MonitoringHint = "Читає через SMU температуру кожного чипа пам'яті, поки ввімкнений, не довше 10 хвилин; потім вимикається сам, як у застосунку для робочого столу. SMU ділять governor GPU і розгін CPU.";
+var gddr6Off = "Моніторинг вимкнено";
+var gddr6LiveButton = "Моніторинг наживо";
+var gddr6LiveLeft = "Наживо · лишилося {minutes} хв";
+var gddr6PatchButton = "Застосувати патч GDDR6 (цей запуск)";
+var gddr6PatchTitle = "Застосувати патч температури GDDR6?";
+var gddr6PatchConfirm = "Записує в SMU перевірений патч bc250-memory-temperature, щоб до наступного перезавантаження можна було читати температури пам'яті. Його отримано зворотною розробкою, і, за словами автора, він не повністю перевірений: неправильний стан може порушити роботу GDDR6 і спричинити нестабільність або зависання. Лише для прошивки P3.0; чекає, якщо governor GPU запускається.";
+var gddr6PatchOk = "Застосувати патч";
+var gddr6PatchInactive = "Патч GDDR6 не застосовано в цьому запуску.";
+var gddr6Patching = "Застосовується патч GDDR6…";
+var memoryMonitoring = "Моніторинг пам'яті";
+var ttmTitle = "ЛІМІТ ПАМ'ЯТІ GPU";
+var ttmHelp = "Скільки системної пам'яті GPU може використовувати понад VRAM (GTT). Ігри, яким бракує VRAM, використовують її.";
+var ttmNow = "GTT зараз";
+var ttmNextBoot = "Наступне завантаження";
+var ttmKernelDefault = "Типово ядра";
+var ttmSetElsewhereShort = "задано ззовні";
+var ttmSetElsewhere = "Цей ліміт задано поза Control Center, і він лишається без змін.";
+var ttmReading = "Читання ліміту пам'яті GPU…";
+var ttmUnavailable = "У цій системі не можна задати ліміт пам'яті GPU.";
+var ttmApply = "Застосувати ліміт";
+var ttmApplyDescription = "Зберігається як параметр завантаження ядра — той самий, що використовує застосунок для робочого столу. У Bazzite rpm-ostree створює нове розгортання, це може тривати хвилину.";
+var ttmGttOverride = "Задано amdgpu.gttsize={value}, він перекриває цей ліміт; спершу видаліть його.";
+var ttmLegacy = "Старіша версія Control Center знову задає ліміт під час кожного завантаження; застосуйте або скиньте його один раз, щоб перенести в параметр завантаження.";
+var ttmVramPending = "Очікує новий розмір VRAM: після наступного завантаження лишиться {size} системної пам'яті, тому більші ліміти не пропонуються.";
+var vramTtmConflict = "Ліміт пам'яті GPU на наступне завантаження ({limit}) більший за {size} системної пам'яті, які лишає цей розмір VRAM. Потім зменште ліміт.";
+var ttmFailed = "Не вдалося змінити ліміт пам'яті GPU.";
+var ttmCause = "Ця система не може зберегти параметр завантаження, інший інструмент уже задав ліміт, або завантажувач чи rpm-ostree відхилили зміну.";
+var ttmAction = "Прочитайте причину в розділі «Ліміт пам'яті GPU» і повторіть, коли завантажувач або rpm-ostree звільняться.";
 var uk = {
 	accentBlue: accentBlue,
 	accentColor: accentColor,
@@ -4451,43 +5027,6 @@ var uk = {
 	serviceNotInstalled: serviceNotInstalled,
 	serviceRemovedBootProfile: serviceRemovedBootProfile,
 	serviceRunningBoot: serviceRunningBoot,
-	memoryMonitoring: "Моніторинг пам'яті",
-	gddr6PatchButton: "Застосувати патч GDDR6 (цей запуск)",
-	gddr6PatchTitle: "Застосувати патч температури GDDR6?",
-	gddr6PatchConfirm: "Записує в SMU перевірений патч bc250-memory-temperature, щоб до наступного перезавантаження можна було читати температури пам'яті. Його отримано зворотною розробкою, і, за словами автора, він не повністю перевірений: неправильний стан може порушити роботу GDDR6 і спричинити нестабільність або зависання. Лише для прошивки P3.0; чекає, якщо governor GPU запускається.",
-	gddr6PatchOk: "Застосувати патч",
-	gddr6PatchInactive: "Патч GDDR6 не застосовано в цьому запуску.",
-	gddr6Patching: "Застосовується патч GDDR6…",
-	gddr6Monitoring: "Моніторинг GDDR6",
-	gddr6MonitoringHint: "Читає через SMU температуру кожного чипа пам'яті, поки ввімкнений, не довше 10 хвилин; потім вимикається сам, як у застосунку для робочого столу. SMU ділять governor GPU і розгін CPU.",
-	gddr6Off: "Моніторинг вимкнено",
-	gddr6LiveButton: "Моніторинг наживо",
-	gddr6LiveLeft: "Наживо · лишилося {minutes} хв",
-	gpuDetails: "Подробиці",
-	gpuActiveRange: "Активний діапазон",
-	gpuValidatedRange: "Перевірений діапазон",
-	gpuMemoryClock: "Частота пам'яті",
-	gpuSocClock: "Частота SoC",
-	gpuFabricClock: "Частота fabric",
-	cpuNow: "Поточна частота",
-	cpuTemperature: "Температура",
-	cpuOcTitle: "Розгін",
-	cpuEstimatedVid: "Розрахунковий VID",
-	cpuOnBoot: "Застосовується під час запуску",
-	cpuModeBoot: "Служба запуску",
-	cpuThermalLimit: "Тепловий ліміт",
-	cpuCoreLabel: "Ядро",
-	cpuCoreLocked: "Заблоковано",
-	cpuCoresSummary: "{active}/{total} ядер · {threads} потоків",
-	cpuMonitorApplying: "Зачекайте: розгін CPU до {target} МГц застосовується й перевіряється навантаженням. Стежте за температурами.",
-	cuKernelManaged: "Ядро BC-250 керує обчислювальними блоками (bc250_cc_write_mode=3) і розблокувало їх усі під час завантаження. Ця вкладка лише для читання; вимкніть розблокування CU ядром у режимі робочого столу, щоб змінити маршрутизацію.",
-	cpuPresetBoardAverage: "Середня плата",
-	cpuPresetMidPoint: "Середина",
-	cpuPresetSafeMaximum: "Безпечний максимум",
-	compatStaged: "Cyan не запущено: зміну буде збережено, і Cyan перезапуститься з нею (якщо увімкнено) або застосує її під час наступного запуску.",
-	governorUnresponsive: "Cyan не відповідає (читання навантаження \"process\" блокує його під час гри). Керування діапазоном не працюватиме, доки він не відповість; перемкніть читання навантаження на busy-flag.",
-	serviceStarting: "Запуск або збій запуску · повтор",
-	governorStopped: "Служба governor не запущена. Скористайтеся «Увімкнути службу» нижче.",
 	serviceRunningNoBoot: serviceRunningNoBoot,
 	serviceStopped: serviceStopped,
 	serviceStoppedBoot: serviceStoppedBoot,
@@ -4529,7 +5068,62 @@ var uk = {
 	vramRebootRequired: vramRebootRequired,
 	vramUnavailable: vramUnavailable,
 	vrmUnavailable: vrmUnavailable,
-	yes: yes
+	yes: yes,
+	serviceStarting: serviceStarting,
+	governorStopped: governorStopped,
+	governorUnresponsive: governorUnresponsive,
+	compatStaged: compatStaged,
+	cpuPresetBoardAverage: cpuPresetBoardAverage,
+	cpuPresetMidPoint: cpuPresetMidPoint,
+	cpuPresetSafeMaximum: cpuPresetSafeMaximum,
+	cuKernelManaged: cuKernelManaged,
+	cpuMonitorApplying: cpuMonitorApplying,
+	cpuCoreLabel: cpuCoreLabel,
+	cpuCoreLocked: cpuCoreLocked,
+	cpuCoresSummary: cpuCoresSummary,
+	cpuNow: cpuNow,
+	cpuTemperature: cpuTemperature,
+	cpuOcTitle: cpuOcTitle,
+	cpuEstimatedVid: cpuEstimatedVid,
+	cpuOnBoot: cpuOnBoot,
+	cpuModeBoot: cpuModeBoot,
+	cpuThermalLimit: cpuThermalLimit,
+	gpuDetails: gpuDetails,
+	gpuActiveRange: gpuActiveRange,
+	gpuValidatedRange: gpuValidatedRange,
+	gpuMemoryClock: gpuMemoryClock,
+	gpuSocClock: gpuSocClock,
+	gpuFabricClock: gpuFabricClock,
+	gddr6Monitoring: gddr6Monitoring,
+	gddr6MonitoringHint: gddr6MonitoringHint,
+	gddr6Off: gddr6Off,
+	gddr6LiveButton: gddr6LiveButton,
+	gddr6LiveLeft: gddr6LiveLeft,
+	gddr6PatchButton: gddr6PatchButton,
+	gddr6PatchTitle: gddr6PatchTitle,
+	gddr6PatchConfirm: gddr6PatchConfirm,
+	gddr6PatchOk: gddr6PatchOk,
+	gddr6PatchInactive: gddr6PatchInactive,
+	gddr6Patching: gddr6Patching,
+	memoryMonitoring: memoryMonitoring,
+	ttmTitle: ttmTitle,
+	ttmHelp: ttmHelp,
+	ttmNow: ttmNow,
+	ttmNextBoot: ttmNextBoot,
+	ttmKernelDefault: ttmKernelDefault,
+	ttmSetElsewhereShort: ttmSetElsewhereShort,
+	ttmSetElsewhere: ttmSetElsewhere,
+	ttmReading: ttmReading,
+	ttmUnavailable: ttmUnavailable,
+	ttmApply: ttmApply,
+	ttmApplyDescription: ttmApplyDescription,
+	ttmGttOverride: ttmGttOverride,
+	ttmLegacy: ttmLegacy,
+	ttmVramPending: ttmVramPending,
+	vramTtmConflict: vramTtmConflict,
+	ttmFailed: ttmFailed,
+	ttmCause: ttmCause,
+	ttmAction: ttmAction
 };
 
 const catalogs = {
@@ -4584,6 +5178,8 @@ const applyCpuScale = callable("apply_cpu_scale");
 const installCpuService = callable("install_cpu_service");
 const removeCpuService = callable("remove_cpu_service");
 const applyVramSize = callable("apply_vram_size");
+const getTtmState = callable("ttm_state");
+const applyTtmLimit = callable("apply_ttm_limit");
 const applySystemFanPreset = callable("apply_system_fan_preset");
 const getGameProfiles = callable("game_profiles");
 const saveGameProfile = callable("save_game_profile");
@@ -4598,7 +5194,12 @@ const cuRows = ["SE0.SH0", "SE0.SH1", "SE1.SH0", "SE1.SH1"];
 // never renders empty on first paint.
 const VRAM_PRESETS_FALLBACK = [256, 512, 1024, 2048, 3072, 4096, 5120, 6144, 7168, 8192, 12288];
 function vramSizeLabel(sizeMb) {
-    return sizeMb < 1024 ? `${sizeMb} MiB` : `${sizeMb / 1024} GiB`;
+    return sizeMb < 1024 ? `${sizeMb} MiB` : `${Math.round(sizeMb / 1024 * 10) / 10} GiB`;
+}
+const GIB = 1024 ** 3;
+// Whole GiB of a TTM page count, the unit the choices are offered in.
+function ttmGib(pages, pageSize) {
+    return pages != null && pageSize > 0 ? Math.round(pages * pageSize / GIB * 10) / 10 : null;
 }
 const wordingFor = {
     "BC250-PROTOCOL-001": () => ({ summary: text.protocolFailed, cause: text.protocolCause, action: text.protocolAction }),
@@ -4618,6 +5219,7 @@ const wordingFor = {
     "BC250-HW-001": () => ({ summary: text.error, cause: text.unknownCause, action: text.retryGuidance }),
     "BC250-PERM-001": () => ({ summary: text.helperFailed, cause: text.helperCause, action: text.helperAction }),
     "BC250-AUTH-002": () => ({ summary: text.helperFailed, cause: text.helperCause, action: text.helperAction }),
+    "BC250-TTM-001": () => ({ summary: text.ttmFailed, cause: text.ttmCause, action: text.ttmAction }),
 };
 const codeByMarker = new Map();
 for (const entry of errorCatalog.codes)
@@ -4811,6 +5413,10 @@ const ACCENT_SWATCHES = {
 };
 const REFRESH_INTERVAL_OPTIONS = [2000, 5000, 10000, 30000];
 const DEFAULT_SETTINGS = { accent: "orange", refreshIntervalMs: 5000, sensorLayout: "grid" };
+// GDDR6 monitoring as on the desktop: nothing is read until the player asks,
+// and each live session ends itself after ten minutes. The SMU it reads
+// through is shared with the GPU governor and the CPU overclock, so it is not
+// a setting that stays on. Module scope: the panel remounts with Quick Access.
 const GDDR6_SESSION_MS = 10 * 60 * 1000;
 let gddr6LiveUntil = 0;
 const SETTINGS_STORAGE_KEY = "bc250-quick-access:settings";
@@ -4921,7 +5527,7 @@ function GovernorServiceRow({ state, busy, execute }) {
         : !installed ? text.serviceNotInstalled
             : running ? (atBoot ? text.serviceRunningBoot : text.serviceRunningNoBoot)
                 : state.gpu_service_starting ? text.serviceStarting
-                : (atBoot ? text.serviceStoppedBoot : text.serviceStopped);
+                    : (atBoot ? text.serviceStoppedBoot : text.serviceStopped);
     const tone = conflict ? tokens.colors.red : !installed || (!running && state.gpu_service_starting) ? tokens.colors.amber : running ? accent.focus : tokens.colors.subtle;
     const confirm = (enable) => DFL.showModal(SP_JSX.jsx(DFL.ConfirmModal, { strTitle: enable ? text.enableService : text.disableService, strDescription: (enable ? text.enableServiceHint : text.disableServiceHint).replace("{name}", name), strOKButtonText: enable ? text.enableService : text.disableService, bDestructiveWarning: !enable, onOK: () => void execute(`GPU · ${text.governorService}`, () => setGpuGovernorService(enable), "gpu") }));
     return SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, marginTop: 6, padding: "7px 8px 8px" }, children: [SP_JSX.jsxs("div", { style: { alignItems: "baseline", display: "flex", gap: 6, justifyContent: "space-between", marginBottom: 6 }, children: [SP_JSX.jsxs("span", { style: { color: tokens.colors.text, fontSize: 10, fontWeight: 650 }, children: [text.governorService, name ? SP_JSX.jsxs("span", { style: { color: tokens.colors.subtle, fontWeight: 500 }, children: [" \u00B7 ", name] }) : null] }), SP_JSX.jsx("span", { style: { color: tone, fontSize: 9, fontWeight: 650, textAlign: "right" }, children: summary })] }), SP_JSX.jsxs(ActionRow, { children: [SP_JSX.jsx(Action, { label: text.enableService, primary: installed && !running, disabled: busy || !installed || conflict || (running && atBoot), onActivate: () => confirm(true) }), SP_JSX.jsx(Action, { label: text.disableService, danger: true, disabled: busy || !installed || conflict || (!running && !atBoot), onActivate: () => confirm(false) })] })] });
@@ -5001,6 +5607,10 @@ function StatusRow({ label, value, active }) {
     const color = active == null ? tokens.colors.subtle : active ? tokens.colors.green : tokens.colors.disabled_text;
     return SP_JSX.jsxs("div", { style: { alignItems: "center", display: "flex", fontSize: 10, justifyContent: "space-between", padding: "7px 9px" }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.subtle }, children: label }), SP_JSX.jsx("span", { style: { color, fontWeight: 650 }, children: value })] });
 }
+// Logical CPUs grouped by physical core. The panel used to draw every SMT
+// thread as its own "core" (12 tiles for 6 cores), and the die's two locked
+// cores not at all. A core's id is its die position, so a missing id is a
+// locked core.
 function physicalCores(cores, slots) {
     const known = cores.some((entry) => typeof entry.core_id === "number");
     if (!known)
@@ -5013,27 +5623,24 @@ function CoreGrid({ cores, slots }) {
         return null;
     const groups = physicalCores(cores, slots);
     const active = groups.filter((group) => group.threads.length > 0).length;
+    // An idle thread reports the nominal clock, not a live one: a core shows
+    // the clock of its busier thread, or the lower one when both idle.
     const busiest = (threads) => {
         const lead = threads.reduce((best, entry) => (entry.percent ?? -1) > (best?.percent ?? -1) ? entry : best, threads[0]);
         if ((lead?.percent ?? 0) >= 1)
             return lead;
         return threads.reduce((low, entry) => (entry.frequency_mhz ?? Infinity) < (low?.frequency_mhz ?? Infinity) ? entry : low, threads[0]);
     };
-    return SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_alt, borderRadius: 6, marginBottom: 10, padding: "7px 8px 6px" }, children: [
-            SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, marginBottom: 6 }, children: text.cpuCoresSummary.replace("{active}", String(active)).replace("{total}", String(groups.length)).replace("{threads}", String(cores.length)) }),
-            SP_JSX.jsx("div", { style: { display: "grid", gap: 4, gridTemplateColumns: `repeat(${groups.length},minmax(0,1fr))` }, children: groups.map((group) => {
+    // One column per physical core: the bar's height is the core's load, its
+    // clock and number underneath. Locked cores keep their column, empty.
+    return SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_alt, borderRadius: 6, marginBottom: 10, padding: "7px 8px 6px" }, children: [SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, marginBottom: 6 }, children: text.cpuCoresSummary.replace("{active}", String(active)).replace("{total}", String(groups.length)).replace("{threads}", String(cores.length)) }), SP_JSX.jsx("div", { style: { display: "grid", gap: 4, gridTemplateColumns: `repeat(${groups.length},minmax(0,1fr))` }, children: groups.map((group) => {
                     const locked = !group.threads.length;
                     const lead = locked ? undefined : busiest(group.threads);
                     const usage = group.threads.filter((entry) => entry.percent != null);
-                    const load = usage.length ? Math.round(usage.reduce((sum, entry) => sum + entry.percent, 0) / usage.length) : 0;
+                    const load = usage.length ? Math.round(usage.reduce((sum, entry) => sum + (entry.percent ?? 0), 0) / usage.length) : 0;
                     const tone = load >= 85 ? tokens.colors.red : load >= 60 ? tokens.colors.amber : tokens.colors.green;
-                    return SP_JSX.jsxs("div", { title: locked ? text.cpuCoreLocked : `${load}%`, style: { alignItems: "center", display: "flex", flexDirection: "column", gap: 3, opacity: locked ? .4 : 1 }, children: [
-                            SP_JSX.jsx("div", { style: { alignItems: "flex-end", background: tokens.colors.panel, border: locked ? `1px dashed ${tokens.colors.border}` : "none", borderRadius: 3, display: "flex", height: 34, overflow: "hidden", width: "100%" }, children: locked ? null : SP_JSX.jsx("div", { style: { background: tone, height: `${Math.max(4, Math.min(100, load))}%`, transition: "height .4s ease", width: "100%" } }) }),
-                            SP_JSX.jsx("div", { style: { fontSize: 9, fontWeight: 650, whiteSpace: "nowrap" }, children: lead?.frequency_mhz != null ? (lead.frequency_mhz / 1000).toFixed(1) : "—" }),
-                            SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 8 }, children: group.id + 1 })
-                        ] }, group.id);
-                }) })
-        ] });
+                    return SP_JSX.jsxs("div", { title: locked ? text.cpuCoreLocked : `${load}%`, style: { alignItems: "center", display: "flex", flexDirection: "column", gap: 3, opacity: locked ? .4 : 1 }, children: [SP_JSX.jsx("div", { style: { alignItems: "flex-end", background: tokens.colors.panel, border: locked ? `1px dashed ${tokens.colors.border}` : "none", borderRadius: 3, display: "flex", height: 34, overflow: "hidden", width: "100%" }, children: locked ? null : SP_JSX.jsx("div", { style: { background: tone, height: `${Math.max(4, Math.min(100, load))}%`, transition: "height .4s ease", width: "100%" } }) }), SP_JSX.jsx("div", { style: { fontSize: 9, fontWeight: 650, whiteSpace: "nowrap" }, children: lead?.frequency_mhz != null ? (lead.frequency_mhz / 1000).toFixed(1) : "—" }), SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 8 }, children: group.id + 1 })] }, group.id);
+                }) })] });
 }
 function SubNav({ value, onChange, items }) {
     return SP_JSX.jsx(DFL.Focusable, { "flow-children": "row", style: { display: "grid", gap: 5, gridTemplateColumns: `repeat(${items.length},minmax(0,1fr))`, marginBottom: 10 }, children: items.map((item) => {
@@ -5041,13 +5648,13 @@ function SubNav({ value, onChange, items }) {
             return SP_JSX.jsxs(PadButton, { onActivate: () => onChange(item.key), style: { alignItems: "center", background: active ? item.colorSoft : tokens.colors.panel_alt, border: `1px solid ${active ? item.color : tokens.colors.border}`, color: active ? item.color : tokens.colors.subtle, display: "flex", flexDirection: "column", fontSize: 9, fontWeight: 650, gap: 3, height: 40, justifyContent: "center", padding: "4px 2px" }, children: [item.icon, SP_JSX.jsx("span", { children: item.label })] }, item.key);
         }) });
 }
+// The GDDR6 panel's own switch, one slim row: on starts a live session (and,
+// quietly, this boot's SMU patch when it is missing); off stops every GDDR6
+// read, so nothing reaches the SMU for it until it is turned on again.
 function Gddr6Switch() {
     const { gddr6 } = SP_REACT.useContext(SettingsContext);
     const on = gddr6.live;
-    return SP_JSX.jsxs(PadButton, { label: text.memoryMonitoring, onActivate: () => gddr6.setLive(!on), style: { alignItems: "center", background: "transparent", border: "none", display: "flex", height: 30, justifyContent: "space-between", margin: "2px 0 6px", minHeight: 0, padding: "0 4px", width: "100%" }, children: [
-            SP_JSX.jsx("span", { style: { color: tokens.colors.text, fontSize: 10, fontWeight: 600 }, children: text.memoryMonitoring }),
-            SP_JSX.jsx("span", { style: { background: on ? tokens.colors.green : tokens.colors.panel_raised, border: `1px solid ${on ? tokens.colors.green : tokens.colors.border}`, borderRadius: 10, display: "inline-block", height: 18, position: "relative", transition: "background .2s ease", width: 34 }, children: SP_JSX.jsx("span", { style: { background: on ? "#FFFFFF" : tokens.colors.subtle, borderRadius: "50%", height: 14, left: on ? 17 : 2, position: "absolute", top: 1, transition: "left .2s ease", width: 14 } }) })
-        ] });
+    return SP_JSX.jsxs(PadButton, { label: text.memoryMonitoring, onActivate: () => gddr6.setLive(!on), style: { alignItems: "center", background: "transparent", border: "none", display: "flex", height: 30, justifyContent: "space-between", margin: "2px 0 6px", minHeight: 0, padding: "0 4px", width: "100%" }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.text, fontSize: 10, fontWeight: 600 }, children: text.memoryMonitoring }), SP_JSX.jsx("span", { style: { background: on ? tokens.colors.green : tokens.colors.panel_raised, border: `1px solid ${on ? tokens.colors.green : tokens.colors.border}`, borderRadius: 10, display: "inline-block", height: 18, position: "relative", transition: "background .2s ease", width: 34 }, children: SP_JSX.jsx("span", { style: { background: on ? "#FFFFFF" : tokens.colors.subtle, borderRadius: "50%", height: 14, left: on ? 17 : 2, position: "absolute", top: 1, transition: "left .2s ease", width: 14 } }) })] });
 }
 function Gddr6Panel({ state }) {
     const panelContext = SP_REACT.useContext(SettingsContext);
@@ -5061,10 +5668,16 @@ function Gddr6Panel({ state }) {
                     ? SP_JSX.jsx("div", { style: { color: tokens.colors.red, fontSize: 9, lineHeight: 1.35, margin: "0 2px 6px", overflowWrap: "anywhere" }, children: state.gddr6_patch_error.replace(/^QUICK_ACCESS_GDDR6:\s*/, "") })
                     : SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 6px" }, children: state.gddr6_reason === "GDDR6_PATCH_INACTIVE" ? text.gddr6Patching : text.gddr6Unavailable })
                 : SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(MetricGrid, { tiles: [
-                                { label: "AVG", value: state.gddr6_average_c != null ? `${state.gddr6_average_c.toFixed(1)} \u00B0C` : "—" },
-                                { label: "HOTSPOT", value: state.gddr6_hotspot_c != null ? `${state.gddr6_hotspot_c.toFixed(1)} \u00B0C` : "—" },
+                                { label: "AVG", value: state.gddr6_average_c != null ? `${state.gddr6_average_c.toFixed(1)} °C` : "—" },
+                                { label: "HOTSPOT", value: state.gddr6_hotspot_c != null ? `${state.gddr6_hotspot_c.toFixed(1)} °C` : "—" },
                             ] }), SP_JSX.jsx("div", { style: { background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 6, display: "grid", gap: 1, gridTemplateColumns: "repeat(4,minmax(0,1fr))", overflow: "hidden" }, children: chips.map((chip) => SP_JSX.jsxs("div", { style: { background: chip.chip === state.gddr6_hotspot_chip ? accent.focus_soft : tokens.colors.panel_raised, padding: "6px 7px" }, children: [SP_JSX.jsxs("div", { style: { color: tokens.colors.subtle, fontSize: 8 }, children: ["CHIP ", chip.chip] }), SP_JSX.jsxs("div", { style: { fontSize: 10, fontWeight: 650 }, children: [chip.temperature_c.toFixed(1), " \u00B0C"] })] }, chip.chip)) })] })] });
 }
+// Read-only sensor tiles are plain divs, and a Quick Access panel scrolls only
+// to reveal the element the controller has focused: with nothing focusable
+// under the sub-tabs, "down" had nowhere to go and every sensor below the
+// fold was out of reach. Each block is a quiet focus stop -- outlined in the
+// accent while focused, so the player sees where they are -- and an invisible
+// stop at the very end carries the scroll to the bottom of the section.
 function ScrollStop({ children, end = false }) {
     const accent = ACCENT_SWATCHES[SP_REACT.useContext(SettingsContext).settings.accent];
     const [focused, setFocused] = SP_REACT.useState(false);
@@ -5099,6 +5712,9 @@ function CyanCompatibility({ state, busy, execute }) {
         return null;
     const value = draft ?? current;
     const changed = keyOf(value) !== signature;
+    // Editable while Cyan is stopped, as on the desktop: a "kernel" choice this
+    // kernel cannot serve is exactly what stops Cyan, so requiring it to run
+    // made that choice impossible to undo from Game Mode.
     const cyanActive = state.gpu_governor !== "conflict" && state.gpu_service_target === "cyan" && Boolean(state.gpu_service_installed);
     const cyanRunningNow = state.gpu_governor === "cyan";
     const choose = (patch) => setDraft({ ...value, ...patch });
@@ -5145,7 +5761,10 @@ function VoltageLab({ state, busy, execute }) {
                             return SP_JSX.jsxs(DFL.Focusable, { "flow-children": "row", style: { alignItems: "center", display: "grid", gap: 5, gridTemplateColumns: "1fr 30px 70px 30px", marginBottom: 4 }, children: [SP_JSX.jsxs("span", { style: { color: tokens.colors.subtle, fontSize: 10 }, children: [point.frequency, " MHz"] }), SP_JSX.jsx(PadButton, { label: "-5 mV", disabled: busy || !cyanRunning || value <= floorOf(point), onActivate: () => nudge(point, -VOLTAGE_STEP_MV), style: { fontSize: 12, height: 28, padding: 0, width: "100%" }, children: "\u2212" }), SP_JSX.jsxs("span", { style: { color: moved ? accent.focus : tokens.colors.text, fontSize: 11, fontWeight: 650, textAlign: "center" }, children: [value, " mV"] }), SP_JSX.jsx(PadButton, { label: "+5 mV", disabled: busy || !cyanRunning || value >= floorOf(point) + VOLTAGE_MAX_ABOVE_DEFAULT_MV, onActivate: () => nudge(point, VOLTAGE_STEP_MV), style: { fontSize: 12, height: 28, padding: 0, width: "100%" }, children: "+" })] }, point.frequency);
                         }) }), SP_JSX.jsxs(ActionRow, { children: [SP_JSX.jsx(Action, { label: text.voltageApplyPoints, primary: true, disabled: busy || !cyanRunning || !changed.length, onActivate: confirmPoints }), SP_JSX.jsx(Action, { label: text.voltageDiscard, disabled: busy || !changed.length, onActivate: () => setDraft({}) })] })] }) : null] });
 }
-const cpuPresetName = (preset) => preset.default ? ({ board_average: text.cpuPresetBoardAverage, mid_point: text.cpuPresetMidPoint, safe_maximum: text.cpuPresetSafeMaximum }[preset.key] ?? preset.name) : preset.name;
+// Desktop defaults arrive with an English name; show them in the panel's language.
+const cpuPresetName = (preset) => preset.default ? { board_average: text.cpuPresetBoardAverage, mid_point: text.cpuPresetMidPoint, safe_maximum: text.cpuPresetSafeMaximum }[preset.key] ?? preset.name : preset.name;
+// Monitoring › CPU is where a CPU run sends the player (see cpuRunRedirected):
+// say what is happening there while it runs, then keep the result on top.
 function cpuRunNotice(state, cpuRun) {
     const box = { alignItems: "center", background: tokens.colors.green_soft, border: `1px solid ${tokens.colors.green}`, borderRadius: 6, display: "flex", fontSize: 9, gap: 6, justifyContent: "space-between", marginBottom: 7, padding: "6px 8px" };
     if (cpuRun)
@@ -5158,36 +5777,27 @@ function cpuRunNotice(state, cpuRun) {
     const scale = active?.scale ?? detected.scale;
     return SP_JSX.jsxs("div", { style: box, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.subtle }, children: text.cpuDetected }), SP_JSX.jsx("b", { style: { color: tokens.colors.green }, children: `${frequency} MHz · scale ${scale}` })] });
 }
+// Monitoring › CPU, as two cards instead of an eight-row list: what the CPU
+// is doing now (clock, temperature, load, voltage) and what overclock it runs.
+// The list mixed the sensor voltage and the overclock's estimated VID under
+// the same label, and called the live average a "target".
 function heatTone(celsius) {
     if (celsius == null)
         return tokens.colors.text;
     return celsius >= 85 ? tokens.colors.red : celsius >= 75 ? tokens.colors.amber : tokens.colors.green;
 }
+// Clock and temperature as headlines, a thin load bar, load and voltage under
+// it: shared by Monitoring › CPU and › GPU so the two read alike.
 function ChipOverview({ mhz, celsius, usage, millivolts }) {
     const ghz = mhz != null ? (mhz / 1000).toFixed(2) : "—";
-    const sub = { color: tokens.colors.subtle, fontSize: 9 };
-    const unit = { color: tokens.colors.subtle, fontSize: 10, fontWeight: 500 };
-    return SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_alt, borderRadius: 6, marginBottom: 8, padding: "8px 10px" }, children: [
-            SP_JSX.jsxs("div", { style: { alignItems: "flex-end", display: "flex", justifyContent: "space-between" }, children: [
-                    SP_JSX.jsxs("div", { children: [SP_JSX.jsx("div", { style: sub, children: text.cpuNow }), SP_JSX.jsxs("div", { style: { fontSize: 18, fontWeight: 700 }, children: [ghz, " ", SP_JSX.jsx("span", { style: unit, children: "GHz" })] })] }),
-                    SP_JSX.jsxs("div", { style: { textAlign: "right" }, children: [SP_JSX.jsx("div", { style: sub, children: text.cpuTemperature }), SP_JSX.jsxs("div", { style: { color: heatTone(celsius), fontSize: 18, fontWeight: 700 }, children: [celsius != null ? celsius.toFixed(1) : "—", " ", SP_JSX.jsx("span", { style: unit, children: "\u00B0C" })] })] })
-                ] }),
-            SP_JSX.jsx("div", { style: { background: tokens.colors.panel, borderRadius: 2, height: 3, margin: "7px 0 5px", overflow: "hidden" }, children: SP_JSX.jsx("div", { style: { background: tokens.colors.green, height: "100%", transition: "width .4s ease", width: `${Math.max(1, Math.min(100, usage ?? 0))}%` } }) }),
-            SP_JSX.jsxs("div", { style: { color: tokens.colors.subtle, display: "flex", fontSize: 9, justifyContent: "space-between" }, children: [
-                    SP_JSX.jsxs("span", { children: [text.usage, " ", SP_JSX.jsx("b", { style: { color: tokens.colors.text }, children: usage != null ? `${usage}%` : "—" })] }),
-                    SP_JSX.jsxs("span", { children: [text.gpuVoltage, " ", SP_JSX.jsx("b", { style: { color: tokens.colors.text }, children: millivolts != null ? `${millivolts} mV` : "—" })] })
-                ] })
-        ] });
+    return SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_alt, borderRadius: 6, marginBottom: 8, padding: "8px 10px" }, children: [SP_JSX.jsxs("div", { style: { alignItems: "flex-end", display: "flex", justifyContent: "space-between" }, children: [SP_JSX.jsxs("div", { children: [SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9 }, children: text.cpuNow }), SP_JSX.jsxs("div", { style: { fontSize: 18, fontWeight: 700 }, children: [ghz, " ", SP_JSX.jsx("span", { style: { color: tokens.colors.subtle, fontSize: 10, fontWeight: 500 }, children: "GHz" })] })] }), SP_JSX.jsxs("div", { style: { textAlign: "right" }, children: [SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9 }, children: text.cpuTemperature }), SP_JSX.jsxs("div", { style: { color: heatTone(celsius), fontSize: 18, fontWeight: 700 }, children: [celsius != null ? celsius.toFixed(1) : "—", " ", SP_JSX.jsx("span", { style: { color: tokens.colors.subtle, fontSize: 10, fontWeight: 500 }, children: "\u00B0C" })] })] })] }), SP_JSX.jsx("div", { style: { background: tokens.colors.panel, borderRadius: 2, height: 3, margin: "7px 0 5px", overflow: "hidden" }, children: SP_JSX.jsx("div", { style: { background: tokens.colors.green, height: "100%", transition: "width .4s ease", width: `${Math.max(1, Math.min(100, usage ?? 0))}%` } }) }), SP_JSX.jsxs("div", { style: { color: tokens.colors.subtle, display: "flex", fontSize: 9, justifyContent: "space-between" }, children: [SP_JSX.jsxs("span", { children: [text.usage, " ", SP_JSX.jsx("b", { style: { color: tokens.colors.text }, children: usage != null ? `${usage}%` : "—" })] }), SP_JSX.jsxs("span", { children: [text.gpuVoltage, " ", SP_JSX.jsx("b", { style: { color: tokens.colors.text }, children: millivolts != null ? `${millivolts} mV` : "—" })] })] })] });
 }
 function CpuOverview({ state }) {
     return SP_JSX.jsx(ChipOverview, { mhz: state.cpu_frequency_mhz, celsius: state.cpu_temperature_c, usage: state.cpu_usage_percent, millivolts: state.cpu_voltage_mv });
 }
+// Rows of name and value on one panel: the overclock and GPU detail cards.
 function DetailCard({ title, status, statusOn, rows, children }) {
-    return SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_alt, borderRadius: 6, marginBottom: 8, padding: "6px 10px 4px" }, children: [
-            SP_JSX.jsxs("div", { style: { display: "flex", fontSize: 10, justifyContent: "space-between", padding: "2px 0 5px" }, children: [SP_JSX.jsx("b", { children: title }), status ? SP_JSX.jsx("span", { style: { color: statusOn ? tokens.colors.green : tokens.colors.subtle, fontSize: 9 }, children: status }) : null] }),
-            rows.map(([name, value]) => SP_JSX.jsxs("div", { style: { borderTop: `1px solid ${tokens.colors.border}`, display: "flex", fontSize: 10, gap: 8, justifyContent: "space-between", padding: "4px 0" }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.subtle, whiteSpace: "nowrap" }, children: name }), SP_JSX.jsx("span", { style: { overflow: "hidden", textAlign: "right", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: value })] }, name)),
-            children
-        ] });
+    return SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_alt, borderRadius: 6, marginBottom: 8, padding: "6px 10px 4px" }, children: [SP_JSX.jsxs("div", { style: { display: "flex", fontSize: 10, justifyContent: "space-between", padding: "2px 0 5px" }, children: [SP_JSX.jsx("b", { children: title }), status ? SP_JSX.jsx("span", { style: { color: statusOn ? tokens.colors.green : tokens.colors.subtle, fontSize: 9 }, children: status }) : null] }), rows.map(([name, value]) => SP_JSX.jsxs("div", { style: { borderTop: `1px solid ${tokens.colors.border}`, display: "flex", fontSize: 10, gap: 8, justifyContent: "space-between", padding: "4px 0" }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.subtle, whiteSpace: "nowrap" }, children: name }), SP_JSX.jsx("span", { style: { overflow: "hidden", textAlign: "right", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: value })] }, name)), children] });
 }
 function CpuOcCard({ state }) {
     const active = state.cpu_active_profile ?? state.cpu_detected_profile?.active_profile;
@@ -5196,27 +5806,27 @@ function CpuOcCard({ state }) {
         [text.mode, mode],
         ["OC", active ? `${active.frequency} MHz` : "—"],
         [active?.mode === "manual" ? text.cpuScale : text.cpuEstimatedVid, !active ? "—" : active.mode === "manual" ? String(active.scale) : `${active.estimated_vid} mV`],
+        // "persistable" only means it may be installed; the boot service decides.
         [text.cpuOnBoot, state.cpu_service_enabled === true ? text.enabled : text.disabled],
-        [text.cpuThermalLimit, `${state.cpu_tuning_temperature ?? "—"} \u00B0C`],
+        [text.cpuThermalLimit, `${state.cpu_tuning_temperature ?? "—"} °C`],
     ];
     return SP_JSX.jsx(DetailCard, { title: text.cpuOcTitle, status: active ? text.enabled : text.disabled, statusOn: Boolean(active), rows: rows });
 }
+// Without the I2C modification a rail has nothing to report: one line, not
+// four rows of dashes.
 function RailVrm({ state, label, tiles }) {
     if (state.vrm_available)
         return SP_JSX.jsx(MetricGrid, { tiles: tiles });
     return SP_JSX.jsxs("div", { style: { alignItems: "center", border: `1px dashed ${tokens.colors.border}`, borderRadius: 6, color: tokens.colors.subtle, display: "flex", fontSize: 9, gap: 6, justifyContent: "space-between", marginBottom: 10, padding: "6px 8px" }, children: [SP_JSX.jsx("b", { style: { color: tokens.colors.text, fontSize: 9, whiteSpace: "nowrap" }, children: label }), SP_JSX.jsx("span", { style: { textAlign: "right" }, children: text.vrmUnavailable })] });
 }
+// Async compute as one slim meter: share of time on the compute queues.
 function AceMeter({ state }) {
     const game = useRunningGame();
     const percent = state.ace_busy_percent;
     const available = Boolean(state.ace_available);
     const active = typeof percent === "number" && percent > 0;
     const who = active ? (game?.name || state.ace_process || "") : "";
-    return SP_JSX.jsxs("div", { title: who || undefined, style: { alignItems: "center", background: tokens.colors.panel_alt, borderRadius: 6, display: "flex", fontSize: 9, gap: 8, marginBottom: 8, padding: "6px 10px" }, children: [
-            SP_JSX.jsx("span", { style: { color: tokens.colors.subtle, whiteSpace: "nowrap" }, children: "Async compute" }),
-            SP_JSX.jsx("div", { style: { background: tokens.colors.panel, borderRadius: 2, flex: 1, height: 3, overflow: "hidden" }, children: SP_JSX.jsx("div", { style: { background: tokens.colors.green, height: "100%", transition: "width .4s ease", width: `${active ? Math.max(2, Math.min(100, percent ?? 0)) : 0}%` } }) }),
-            SP_JSX.jsx("b", { style: { color: active ? tokens.colors.green : tokens.colors.subtle, minWidth: 26, textAlign: "right" }, children: !available || percent == null ? "—" : `${percent}%` })
-        ] });
+    return SP_JSX.jsxs("div", { title: who || undefined, style: { alignItems: "center", background: tokens.colors.panel_alt, borderRadius: 6, display: "flex", fontSize: 9, gap: 8, marginBottom: 8, padding: "6px 10px" }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.subtle, whiteSpace: "nowrap" }, children: "Async compute" }), SP_JSX.jsx("div", { style: { background: tokens.colors.panel, borderRadius: 2, flex: 1, height: 3, overflow: "hidden" }, children: SP_JSX.jsx("div", { style: { background: tokens.colors.green, height: "100%", transition: "width .4s ease", width: `${active ? Math.max(2, Math.min(100, percent ?? 0)) : 0}%` } }) }), SP_JSX.jsx("b", { style: { color: active ? tokens.colors.green : tokens.colors.subtle, minWidth: 26, textAlign: "right" }, children: !available || percent == null ? "—" : `${percent}%` })] });
 }
 function GpuDetails({ state }) {
     const mhz = (value) => value != null ? `${value} MHz` : "—";
@@ -5233,31 +5843,24 @@ function GpuDetails({ state }) {
         ["VBIOS", state.gpu_vbios_version || "—"],
     ];
     const mib = 1024 * 1024;
-    return SP_JSX.jsx(DetailCard, { title: text.gpuDetails, rows: rows, children: SP_JSX.jsxs("div", { style: { borderTop: `1px solid ${tokens.colors.border}`, paddingTop: 6 }, children: [
-                SP_JSX.jsx(UsageBar, { label: "VRAM", used: state.gpu_vram_used_mib != null ? state.gpu_vram_used_mib * mib : null, total: state.gpu_vram_total_mib != null ? state.gpu_vram_total_mib * mib : null, color: tokens.colors.green }),
-                SP_JSX.jsx(UsageBar, { label: "GTT", used: state.gpu_gtt_used_mib != null ? state.gpu_gtt_used_mib * mib : null, total: state.gpu_gtt_total_mib != null ? state.gpu_gtt_total_mib * mib : null, color: tokens.colors.cyan })
-            ] }) });
+    return SP_JSX.jsx(DetailCard, { title: text.gpuDetails, rows: rows, children: SP_JSX.jsxs("div", { style: { borderTop: `1px solid ${tokens.colors.border}`, paddingTop: 6 }, children: [SP_JSX.jsx(UsageBar, { label: "VRAM", used: state.gpu_vram_used_mib != null ? state.gpu_vram_used_mib * mib : null, total: state.gpu_vram_total_mib != null ? state.gpu_vram_total_mib * mib : null, color: tokens.colors.green }), SP_JSX.jsx(UsageBar, { label: "GTT", used: state.gpu_gtt_used_mib != null ? state.gpu_gtt_used_mib * mib : null, total: state.gpu_gtt_total_mib != null ? state.gpu_gtt_total_mib * mib : null, color: tokens.colors.cyan })] }) });
 }
 function GpuOverview({ state }) {
     return SP_JSX.jsx(ChipOverview, { mhz: state.gpu_core_mhz, celsius: state.gpu_temperature_c, usage: state.gpu_busy_percent, millivolts: state.gpu_voltage_mv });
 }
+// Monitoring › All: the fans as one card, a slim duty bar per channel.
 function FanCard({ state }) {
     const options = state.fan_channel_options ?? [];
     const lead = options.find((option) => option.channel === 2) ?? options[0];
     const mode = typeof lead?.mode === "string" ? lead.mode : lead?.mode != null ? String(lead.mode) : "";
-    return SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_alt, borderRadius: 6, marginBottom: 8, padding: "6px 10px 6px" }, children: [
-            SP_JSX.jsxs("div", { style: { display: "flex", fontSize: 10, justifyContent: "space-between", padding: "2px 0 5px" }, children: [SP_JSX.jsx("b", { children: text.fans }), mode ? SP_JSX.jsx("span", { style: { color: tokens.colors.subtle, fontSize: 9 }, children: mode }) : null] }),
-            fanChannels.map((channel) => {
+    return SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_alt, borderRadius: 6, marginBottom: 8, padding: "6px 10px 6px" }, children: [SP_JSX.jsxs("div", { style: { display: "flex", fontSize: 10, justifyContent: "space-between", padding: "2px 0 5px" }, children: [SP_JSX.jsx("b", { children: text.fans }), mode ? SP_JSX.jsx("span", { style: { color: tokens.colors.subtle, fontSize: 9 }, children: mode }) : null] }), fanChannels.map((channel) => {
                 const option = options.find((item) => item.channel === channel);
                 const available = Boolean(option?.available);
                 const percent = available ? option?.percent ?? null : null;
-                return SP_JSX.jsxs("div", { style: { borderTop: `1px solid ${tokens.colors.border}`, opacity: available ? 1 : .45, padding: "5px 0" }, children: [
-                        SP_JSX.jsxs("div", { style: { display: "flex", fontSize: 10, justifyContent: "space-between", marginBottom: 3 }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.subtle }, children: option?.label ?? `PWM ${channel}` }), SP_JSX.jsx("span", { children: !available ? text.unavailable : `${percent ?? "—"}%${option?.rpm_observed && option.rpm != null ? ` · ${option.rpm} RPM` : ""}` })] }),
-                        SP_JSX.jsx("div", { style: { background: tokens.colors.panel, borderRadius: 2, height: 3, overflow: "hidden" }, children: SP_JSX.jsx("div", { style: { background: tokens.colors.cyan, height: "100%", transition: "width .4s ease", width: `${Math.max(0, Math.min(100, percent ?? 0))}%` } }) })
-                    ] }, channel);
-            })
-        ] });
+                return SP_JSX.jsxs("div", { style: { borderTop: `1px solid ${tokens.colors.border}`, opacity: available ? 1 : .45, padding: "5px 0" }, children: [SP_JSX.jsxs("div", { style: { display: "flex", fontSize: 10, justifyContent: "space-between", marginBottom: 3 }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.subtle }, children: option?.label ?? `PWM ${channel}` }), SP_JSX.jsx("span", { children: !available ? text.unavailable : `${percent ?? "—"}%${option?.rpm_observed && option.rpm != null ? ` · ${option.rpm} RPM` : ""}` })] }), SP_JSX.jsx("div", { style: { background: tokens.colors.panel, borderRadius: 2, height: 3, overflow: "hidden" }, children: SP_JSX.jsx("div", { style: { background: tokens.colors.cyan, height: "100%", transition: "width .4s ease", width: `${Math.max(0, Math.min(100, percent ?? 0))}%` } }) })] }, channel);
+            })] });
 }
+// Board temperatures as rows, each coloured by heat like the CPU/GPU headlines.
 function BoardCard({ state }) {
     const rows = [
         [text.board, state.board_temperature_c],
@@ -5265,55 +5868,22 @@ function BoardCard({ state }) {
         ["M.2 hotspot", state.nvme_hotspot_temperature_c],
         ["VRM MOS", state.vrm_mos_temperature_c],
     ];
-    return SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_alt, borderRadius: 6, marginBottom: 8, padding: "6px 10px 4px" }, children: [
-            SP_JSX.jsx("div", { style: { fontSize: 10, padding: "2px 0 5px" }, children: SP_JSX.jsx("b", { children: text.board }) }),
-            rows.map(([name, celsius]) => SP_JSX.jsxs("div", { style: { borderTop: `1px solid ${tokens.colors.border}`, display: "flex", fontSize: 10, justifyContent: "space-between", padding: "4px 0" }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.subtle }, children: name }), SP_JSX.jsx("span", { style: { color: celsius != null ? heatTone(celsius) : tokens.colors.subtle }, children: celsius != null ? `${celsius.toFixed(1)} \u00B0C` : "—" })] }, name))
-        ] });
+    return SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_alt, borderRadius: 6, marginBottom: 8, padding: "6px 10px 4px" }, children: [SP_JSX.jsx("div", { style: { fontSize: 10, padding: "2px 0 5px" }, children: SP_JSX.jsx("b", { children: text.board }) }), rows.map(([name, celsius]) => SP_JSX.jsxs("div", { style: { borderTop: `1px solid ${tokens.colors.border}`, display: "flex", fontSize: 10, justifyContent: "space-between", padding: "4px 0" }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.subtle }, children: name }), SP_JSX.jsx("span", { style: { color: celsius != null ? heatTone(celsius) : tokens.colors.subtle }, children: celsius != null ? `${celsius.toFixed(1)} °C` : "—" })] }, name))] });
 }
 function MonitorTab({ state, cpuRun }) {
     const accent = ACCENT_SWATCHES[SP_REACT.useContext(SettingsContext).settings.accent];
     const [section, setSection] = SP_REACT.useState("cpu");
-    const gpuVramKnown = typeof state.gpu_vram_used_mib === "number" && typeof state.gpu_vram_total_mib === "number";
-    const gpuGttKnown = typeof state.gpu_gtt_used_mib === "number" && typeof state.gpu_gtt_total_mib === "number";
     const fanOptions = state.fan_channel_options ?? [];
     const vrmAvailable = Boolean(state.vrm_available);
-    const activeCpu = state.cpu_active_profile ?? state.cpu_detected_profile?.active_profile;
-    const ocModeLabel = !activeCpu ? "—" : activeCpu.mode === "manual" ? text.cpuManual : activeCpu.mode === "boot" ? text.install : text.automatic;
-    const ocDetailLabel = activeCpu?.mode === "manual" ? text.cpuScale.toUpperCase() : text.gpuVoltage.toUpperCase();
-    const ocDetail = !activeCpu ? text.disabled : activeCpu.mode === "manual" ? String(activeCpu.scale) : `${activeCpu.estimated_vid} mV`;
-    const defaultFan = fanOptions.find((option) => option.channel === 2) ?? fanOptions[0];
+    fanOptions.find((option) => option.channel === 2) ?? fanOptions[0];
     // Built once and reused by both each module's own tab and the "All" tab,
     // so the two views can never drift into showing different numbers for the
     // same sensor.
-    const cpuTiles = [
-        { label: text.cpuFrequency.toUpperCase(), value: `${state.cpu_frequency_mhz ?? "—"} MHz` },
-        { label: "TCTL", value: `${state.cpu_temperature_c?.toFixed(1) ?? "—"} °C` },
-        { label: text.gpuVoltage.toUpperCase(), value: state.cpu_voltage_mv != null ? `${state.cpu_voltage_mv} mV` : "—" },
-        { label: text.usage.toUpperCase(), value: state.cpu_usage_percent != null ? `${state.cpu_usage_percent}%` : "—" },
-        { label: "OC", value: activeCpu ? `${activeCpu.frequency} MHz` : text.disabled },
-        { label: text.mode.toUpperCase(), value: ocModeLabel },
-        { label: ocDetailLabel, value: ocDetail },
-        { label: text.persistent.toUpperCase(), value: activeCpu?.persistable ? text.enabled : text.disabled },
-    ];
     const cpuVrmTiles = [
         { label: "VRM CPU · TEMP", value: vrmAvailable && state.vrm_cpu_temperature_c != null ? `${state.vrm_cpu_temperature_c.toFixed(1)} °C` : "—" },
         { label: `VRM CPU · ${text.gpuVoltage.toUpperCase()}`, value: state.vrm_cpu_voltage_v != null ? `${state.vrm_cpu_voltage_v.toFixed(2)} V` : "—" },
         { label: "VRM CPU · A", value: state.vrm_cpu_current_a != null ? `${state.vrm_cpu_current_a.toFixed(2)} A` : "—" },
         { label: "VRM CPU · W", value: state.vrm_cpu_power_w != null ? `${state.vrm_cpu_power_w.toFixed(1)} W` : "—" },
-    ];
-    const gpuTiles = [
-        { label: text.gpuLive.toUpperCase(), value: `${state.gpu_core_mhz ?? "—"} MHz` },
-        { label: text.gpuVoltage.toUpperCase(), value: `${state.gpu_voltage_mv ?? "—"} mV` },
-        { label: "BUSY", value: state.gpu_busy_percent != null ? `${state.gpu_busy_percent}%` : "—" },
-        { label: "TEMP", value: state.gpu_temperature_c != null ? `${state.gpu_temperature_c.toFixed(1)} °C` : "—" },
-        { label: "MCLK", value: state.gpu_memory_clock_mhz != null ? `${state.gpu_memory_clock_mhz} MHz` : "—" },
-        { label: "SOCCLK", value: state.gpu_soc_clock_mhz != null ? `${state.gpu_soc_clock_mhz} MHz` : "—" },
-        { label: "FCLK", value: state.gpu_fabric_clock_mhz != null ? `${state.gpu_fabric_clock_mhz} MHz` : "—" },
-        { label: "VRAM", value: gpuVramKnown ? `${formatBytes((state.gpu_vram_used_mib ?? 0) * 1024 * 1024)} / ${formatBytes((state.gpu_vram_total_mib ?? 0) * 1024 * 1024)}` : "—" },
-        { label: "GTT", value: gpuGttKnown ? `${formatBytes((state.gpu_gtt_used_mib ?? 0) * 1024 * 1024)} / ${formatBytes((state.gpu_gtt_total_mib ?? 0) * 1024 * 1024)}` : "—" },
-        { label: "PCIE", value: state.gpu_pcie_link || "—" },
-        { label: text.governor.toUpperCase(), value: state.gpu_governor_label || "—" },
-        { label: "CU", value: state.cu_active_cus != null && state.cu_total_cus != null ? `${state.cu_active_cus} / ${state.cu_total_cus}` : "—" },
     ];
     const gpuVrmTiles = [
         { label: "VRM GPU · TEMP", value: vrmAvailable && state.vrm_gpu_temperature_c != null ? `${state.vrm_gpu_temperature_c.toFixed(1)} °C` : "—" },
@@ -5324,37 +5894,100 @@ function MonitorTab({ state, cpuRun }) {
     // Board/M.2/VRM MOS: general system sensors, not fan controls. They live
     // only in the "All" tab now, alongside every other module's sensors, so a
     // single screenshot there covers the whole board instead of one per tab.
-    const boardSensorTiles = [
-        { label: text.board.toUpperCase(), value: state.board_temperature_c != null ? `${state.board_temperature_c.toFixed(1)} °C` : "—" },
-        { label: "M.2", value: state.nvme_temperature_c != null ? `${state.nvme_temperature_c.toFixed(1)} °C` : "—" },
-        { label: "M.2 HOTSPOT", value: state.nvme_hotspot_temperature_c != null ? `${state.nvme_hotspot_temperature_c.toFixed(1)} °C` : "—" },
-        { label: "VRM MOS", value: state.vrm_mos_temperature_c != null ? `${state.vrm_mos_temperature_c.toFixed(1)} °C` : "—" },
-    ];
-    const fanControlTiles = [
-        { label: `PWM ${text.mode.toUpperCase()}`, value: typeof defaultFan?.mode === "string" ? defaultFan.mode : defaultFan?.mode != null ? String(defaultFan.mode) : "—" },
-        { label: text.controller.toUpperCase(), value: defaultFan?.label ?? "—" },
-    ];
     const powerTiles = [
         { label: text.inputVoltage.toUpperCase(), value: state.vrm_input_voltage_v != null ? `${state.vrm_input_voltage_v.toFixed(2)} V` : "—" },
         { label: text.totalPower.toUpperCase(), value: state.vrm_total_power_w != null ? `${state.vrm_total_power_w.toFixed(1)} W` : "—" },
     ];
-    const fanChannelList = SP_JSX.jsx("div", { style: { background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 6, marginBottom: 8, overflow: "hidden" }, children: fanChannels.map((channel, index) => {
-            const option = fanOptions.find((item) => item.channel === channel);
-            const label = option?.label ?? `PWM ${channel}`;
-            const detail = option?.available
-                ? `${option?.percent ?? "—"}%${option?.rpm_observed ? ` · ${option.rpm} RPM` : ""}`
-                : text.unavailable;
-            return SP_JSX.jsxs("div", { style: { alignItems: "center", borderTop: index > 0 ? `1px solid ${tokens.colors.border}` : "none", display: "flex", fontSize: 10, justifyContent: "space-between", padding: "6px 9px" }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.subtle }, children: label }), SP_JSX.jsx("span", { style: { color: option?.available ? tokens.colors.text : tokens.colors.disabled_text, fontWeight: 650 }, children: detail })] }, channel);
-        }) });
-    const vrmNotice = !vrmAvailable ? SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 10, lineHeight: 1.4, margin: "0 2px 8px" }, children: text.vrmUnavailable }) : null;
     return SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(SubNav, { value: section, onChange: setSection, items: [
                     { key: "cpu", label: "CPU", icon: SP_JSX.jsx(FaBolt, {}), color: accent.focus, colorSoft: accent.focus_soft },
                     { key: "gpu", label: "GPU", icon: SP_JSX.jsx(FaMicrochip, {}), color: accent.focus, colorSoft: accent.focus_soft },
                     { key: "all", label: text.allSensors, icon: SP_JSX.jsx(FaLayerGroup, {}), color: accent.focus, colorSoft: accent.focus_soft },
                 ] }), section === "cpu" ? SP_JSX.jsxs(DFL.Focusable, { "flow-children": "down", children: [cpuRunNotice(state, cpuRun), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(CpuOverview, { state: state }), SP_JSX.jsx(CpuOcCard, { state: state })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(CoreGrid, { cores: state.cpu_cores ?? [], slots: state.cpu_physical_slots }) }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(RailVrm, { state: state, label: "VRM CPU", tiles: cpuVrmTiles }) }), SP_JSX.jsx(ScrollStop, { end: true })] }) : null, section === "gpu" ? SP_JSX.jsxs(DFL.Focusable, { "flow-children": "down", children: [SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(GpuOverview, { state: state }), SP_JSX.jsx(AceMeter, { state: state })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(GpuDetails, { state: state }) }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(RailVrm, { state: state, label: "VRM GPU", tiles: gpuVrmTiles }) }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(Gddr6Panel, { state: state }) }), SP_JSX.jsx(ScrollStop, { end: true })] }) : null, section === "all" ? SP_JSX.jsx("section", { children: SP_JSX.jsxs(DFL.Focusable, { "flow-children": "down", children: [SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "cpu", title: "CPU" }), SP_JSX.jsx(CpuOverview, { state: state }), SP_JSX.jsx(CpuOcCard, { state: state })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(CoreGrid, { cores: state.cpu_cores ?? [], slots: state.cpu_physical_slots }) }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(RailVrm, { state: state, label: "VRM CPU", tiles: cpuVrmTiles }) }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "gpu", title: "GPU" }), SP_JSX.jsx(GpuOverview, { state: state }), SP_JSX.jsx(AceMeter, { state: state })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(GpuDetails, { state: state }) }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(RailVrm, { state: state, label: "VRM GPU", tiles: gpuVrmTiles }) }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(Gddr6Panel, { state: state }) }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "fan", title: text.fan }), SP_JSX.jsx(FanCard, { state: state })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(BoardCard, { state: state }) }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "power", title: text.power }), SP_JSX.jsx(RailVrm, { state: state, label: "VRM", tiles: powerTiles })] }), SP_JSX.jsx(ScrollStop, { end: true })] }) }) : null] });
 }
+function GpuMemoryLimit({ ttm, error, busy, execute, onState }) {
+    const pageSize = ttm?.page_size ?? 4096;
+    const managedChoice = ttm?.managed ? String(ttmGib(ttm.managed_pages, pageSize) ?? "") : null;
+    // "Kernel default" is only a choice when there is something of ours to take off.
+    const restorable = Boolean(ttm?.managed || ttm?.legacy_pages != null);
+    const choices = SP_REACT.useMemo(() => [...(restorable ? ["default"] : []), ...(ttm?.presets_gib ?? []).map(String)], [restorable, ttm?.presets_gib]);
+    const [index, setIndex] = SP_REACT.useState(0);
+    const initialized = SP_REACT.useRef(false);
+    SP_REACT.useEffect(() => {
+        if (initialized.current || !ttm)
+            return;
+        const at = managedChoice ? choices.indexOf(managedChoice) : -1;
+        if (at >= 0)
+            setIndex(at);
+        initialized.current = true;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [ttm]);
+    const choice = choices[Math.min(index, Math.max(0, choices.length - 1))] ?? null;
+    const choiceLabel = (value) => value == null ? "—" : value === "default" ? text.ttmKernelDefault : `${value} GiB`;
+    const unchanged = choice == null
+        || (choice === "default" ? !restorable : choice === managedChoice && ttm?.legacy_pages == null);
+    const note = (body, key) => SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 9, lineHeight: 1.4, margin: "0 2px 6px" }, children: body }, key);
+    const confirm = () => {
+        if (choice == null)
+            return;
+        DFL.showModal(SP_JSX.jsx(DFL.ConfirmModal, { strTitle: text.ttmApply, strDescription: `${choiceLabel(choice)}. ${text.ttmApplyDescription} ${text.vramRebootRequired}`, strOKButtonText: text.ttmApply, onOK: () => {
+                void execute(text.ttmTitle, async () => {
+                    const reply = await applyTtmLimit(choice);
+                    if (reply.ok !== false && reply.ttm)
+                        onState(reply.ttm);
+                    return reply;
+                });
+            } }));
+    };
+    if (!ttm)
+        return error ? note(error, "error") : SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 6px" }, children: text.ttmReading });
+    const nextBoot = ttm.configured_pages != null
+        ? `${formatBytes(ttm.configured_pages * pageSize)}${ttm.managed ? "" : ` · ${text.ttmSetElsewhereShort}`}`
+        : text.ttmKernelDefault;
+    const notes = [];
+    if (!ttm.supported) {
+        notes.push(note(ttm.reason || text.ttmUnavailable, "reason"));
+        const manual = Object.entries(ttm.manual_arguments ?? {});
+        if (manual.length && ttm.backend === "unsupported" && !/steamos/i.test(ttm.reason)) {
+            notes.push(SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontFamily: "monospace", fontSize: 9, lineHeight: 1.5, margin: "0 2px 6px" }, children: manual.map(([gib, argument]) => SP_JSX.jsxs("div", { children: [gib, " GiB \u00B7 ", argument] }, gib)) }, "manual"));
+        }
+    }
+    if (ttm.gtt_override != null)
+        notes.push(note(text.ttmGttOverride.replace("{value}", String(ttm.gtt_override)), "override"));
+    if (ttm.external)
+        notes.push(note(text.ttmSetElsewhere, "external"));
+    if (ttm.legacy_pages != null)
+        notes.push(note(text.ttmLegacy, "legacy"));
+    if (ttm.next_boot_ram_bytes != null)
+        notes.push(note(text.ttmVramPending.replace("{size}", formatBytes(ttm.next_boot_ram_bytes)), "vram"));
+    // Somebody else's limit is reported, never replaced; amdgpu.gttsize would make a new one do nothing.
+    const canChoose = ttm.supported && choices.length > 0 && !(ttm.external && !ttm.managed)
+        && !(ttm.gtt_override != null && choice !== "default");
+    return SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, lineHeight: 1.4, margin: "0 2px 6px" }, children: text.ttmHelp }), SP_JSX.jsx(StatusRow, { label: text.ttmNow, active: null, value: formatBytes(ttm.gtt_total_bytes) }), SP_JSX.jsx(StatusRow, { label: text.ttmNextBoot, active: null, value: nextBoot }), ttm.reboot_required ? SP_JSX.jsxs("div", { style: { alignItems: "center", background: tokens.colors.amber_soft, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, display: "flex", fontSize: 9, gap: 6, justifyContent: "space-between", marginBottom: 6, padding: "6px 8px" }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.subtle }, children: text.vramPending }), SP_JSX.jsx("b", { style: { color: tokens.colors.amber }, children: text.vramRebootRequired })] }) : null, notes, canChoose ? SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(CompactSlider, { label: text.ttmTitle, value: Math.min(index, choices.length - 1), suffix: "", min: 0, max: choices.length - 1, step: 1, disabled: busy || choices.length < 2, onChange: setIndex, formatValue: () => choiceLabel(choice) }), SP_JSX.jsx("div", { style: { marginTop: 6, marginBottom: 10 }, children: SP_JSX.jsx(ActionRow, { children: SP_JSX.jsx(Action, { label: text.ttmApply, primary: true, disabled: busy || unchanged, onActivate: confirm }) }) })] }) : null] });
+}
 function MemoryTab({ state, busy, execute }) {
     const vram = state.vram;
+    // Read when the tab opens and after every change: it can ask rpm-ostree,
+    // so it is not part of the regular status poll.
+    const [ttm, setTtm] = SP_REACT.useState(null);
+    const [ttmError, setTtmError] = SP_REACT.useState(null);
+    const loadTtm = SP_REACT.useCallback(async () => {
+        try {
+            const reply = await getTtmState();
+            if (reply.ok === false || !reply.ttm) {
+                setTtmError(localizedErrorSummary(reply.error ?? text.error));
+                return;
+            }
+            setTtmError(null);
+            setTtm(reply.ttm);
+        }
+        catch (error) {
+            setTtmError(localizedErrorSummary(failed(error).error ?? text.error));
+        }
+    }, []);
+    SP_REACT.useEffect(() => { void loadTtm(); }, [loadTtm]);
+    // A new VRAM size changes how much memory the next boot has left for TTM.
+    SP_REACT.useEffect(() => { if (vram?.uma_size_mb != null)
+        void loadTtm(); }, [vram?.uma_size_mb, loadTtm]);
     const vramPresets = state.contract?.vram?.presets?.length ? state.contract.vram.presets : VRAM_PRESETS_FALLBACK;
     const vramSupported = Boolean(vram?.supported);
     // An index into vramPresets, not the megabyte value itself: this drives a
@@ -5392,8 +6025,19 @@ function MemoryTab({ state, busy, execute }) {
             setVramPending(null);
         }
     }, [vramPending, vram?.boot_id]);
-    const vramRebootPending = Boolean(vramPending && vram?.boot_id === vramPending.bootId && vram?.uma_size_mb === vramPending.mb);
-    const confirmVram = () => DFL.showModal(SP_JSX.jsx(DFL.ConfirmModal, { strTitle: text.vramApply, strDescription: `${vramSizeLabel(vramTarget)}. ${text.vramApplyDescription} ${text.vramRebootRequired}`, strOKButtonText: text.vramApply, onOK: () => {
+    // The helper compares CMOS with what the firmware booted with, so a size
+    // written from the desktop shows up here too; the local record covers an
+    // older helper that does not report it.
+    const helperPending = Boolean(vram?.reboot_pending);
+    const vramRebootPending = helperPending || Boolean(vramPending && vram?.boot_id === vramPending.bootId && vram?.uma_size_mb === vramPending.mb);
+    const pendingSize = helperPending && vram?.uma_size_mb != null ? vram.uma_size_mb : vramPending?.mb ?? vramTarget;
+    // A limit already set for the next boot that this VRAM size would no longer leave room for.
+    const ttmBytes = ttm?.configured_pages != null ? ttm.configured_pages * (ttm.page_size ?? 4096) : null;
+    const activeVramBytes = vram?.active_mb != null ? vram.active_mb * 1024 * 1024 : null;
+    const ramAfterVram = ttm?.physical_ram_bytes != null && activeVramBytes != null
+        ? ttm.physical_ram_bytes + activeVramBytes - vramTarget * 1024 * 1024 : null;
+    const vramTtmConflict = ttmBytes != null && ramAfterVram != null && ttmBytes > ramAfterVram;
+    const confirmVram = () => DFL.showModal(SP_JSX.jsx(DFL.ConfirmModal, { strTitle: text.vramApply, strDescription: `${vramSizeLabel(vramTarget)}. ${text.vramApplyDescription} ${text.vramRebootRequired}${vramTtmConflict ? ` ${text.vramTtmConflict.replace("{limit}", formatBytes(ttmBytes)).replace("{size}", formatBytes(ramAfterVram))}` : ""}`, strOKButtonText: text.vramApply, onOK: () => {
             if (vram?.boot_id) {
                 const record = { mb: vramTarget, bootId: vram.boot_id };
                 saveVramPending(record);
@@ -5414,15 +6058,21 @@ function MemoryTab({ state, busy, execute }) {
     const gpuGttKnown = typeof state.gpu_gtt_used_mib === "number" && typeof state.gpu_gtt_total_mib === "number";
     return SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsxs("section", { style: { marginBottom: 12 }, children: [SP_JSX.jsx(SectionTitle, { kind: "memory", title: text.memory }), SP_JSX.jsx(UsageBar, { label: "RAM", used: ramUsed, total: ramTotal, color: tokens.colors.green }), SP_JSX.jsx(UsageBar, { label: "SWAP", used: swapActive ? swapUsed : 0, total: swapActive ? swapTotal : 0, color: tokens.colors.amber }), SP_JSX.jsx(UsageBar, { label: text.storage.toUpperCase(), used: storageUsed, total: storageTotal, color: tokens.colors.blue })] }), SP_JSX.jsxs("section", { style: { marginBottom: 12 }, children: [SP_JSX.jsx(SectionTitle, { kind: "memory", title: text.vramPartition }), !vramSupported
                         ? SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 10, lineHeight: 1.4, margin: "0 2px 6px" }, children: vram?.reason || text.vramUnavailable })
-                        : SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(StatusRow, { label: text.vramCurrentSize, active: null, value: vram?.uma_size_mb != null ? vramSizeLabel(vram.uma_size_mb) : "—" }), vramRebootPending ? SP_JSX.jsxs("div", { style: { alignItems: "center", background: tokens.colors.amber_soft, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, display: "flex", fontSize: 9, gap: 6, justifyContent: "space-between", marginBottom: 6, padding: "6px 8px" }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.subtle }, children: text.vramPending }), SP_JSX.jsxs("b", { style: { color: tokens.colors.amber }, children: [vramSizeLabel(vramPending?.mb ?? vramTarget), " \u00B7 ", text.vramRebootRequired] })] }) : null, SP_JSX.jsx(CompactSlider, { label: text.vramPartition, value: vramIndex, suffix: "", min: 0, max: vramPresets.length - 1, step: 1, disabled: busy, onChange: setVramIndex, formatValue: () => vramSizeLabel(vramTarget) }), SP_JSX.jsx("div", { style: { marginTop: 6, marginBottom: 10 }, children: SP_JSX.jsx(ActionRow, { children: SP_JSX.jsx(Action, { label: text.vramApply, primary: true, disabled: busy || vramUnchanged, onActivate: confirmVram }) }) }), SP_JSX.jsx(MetricGrid, { tiles: [
+                        : SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(StatusRow, { label: text.vramCurrentSize, active: null, value: vram?.active_mb != null ? vramSizeLabel(vram.active_mb) : vram?.uma_size_mb != null ? vramSizeLabel(vram.uma_size_mb) : "—" }), vramRebootPending ? SP_JSX.jsxs("div", { style: { alignItems: "center", background: tokens.colors.amber_soft, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, display: "flex", fontSize: 9, gap: 6, justifyContent: "space-between", marginBottom: 6, padding: "6px 8px" }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.subtle }, children: text.vramPending }), SP_JSX.jsxs("b", { style: { color: tokens.colors.amber }, children: [vramSizeLabel(pendingSize), " \u00B7 ", text.vramRebootRequired] })] }) : null, SP_JSX.jsx(CompactSlider, { label: text.vramPartition, value: vramIndex, suffix: "", min: 0, max: vramPresets.length - 1, step: 1, disabled: busy, onChange: setVramIndex, formatValue: () => vramSizeLabel(vramTarget) }), SP_JSX.jsx("div", { style: { marginTop: 6, marginBottom: 10 }, children: SP_JSX.jsx(ActionRow, { children: SP_JSX.jsx(Action, { label: text.vramApply, primary: true, disabled: busy || vramUnchanged, onActivate: confirmVram }) }) }), SP_JSX.jsx(MetricGrid, { tiles: [
                                         { label: "VRAM", value: gpuVramKnown ? `${formatBytes((state.gpu_vram_used_mib ?? 0) * 1024 * 1024)} / ${formatBytes((state.gpu_vram_total_mib ?? 0) * 1024 * 1024)}` : "—" },
                                         { label: "GTT", value: gpuGttKnown ? `${formatBytes((state.gpu_gtt_used_mib ?? 0) * 1024 * 1024)} / ${formatBytes((state.gpu_gtt_total_mib ?? 0) * 1024 * 1024)}` : "—" },
                                         { label: "MCLK", value: state.gpu_memory_clock_mhz != null ? `${state.gpu_memory_clock_mhz} MHz` : "—" },
                                         { label: text.ttmLimit.toUpperCase(), value: state.memory_ttm_limit_bytes != null ? formatBytes(state.memory_ttm_limit_bytes) : "—" },
-                                    ] })] })] })] });
+                                    ] })] })] }), SP_JSX.jsxs("section", { style: { marginBottom: 12 }, children: [SP_JSX.jsx(SectionTitle, { kind: "memory", title: text.ttmTitle }), SP_JSX.jsx(GpuMemoryLimit, { ttm: ttm, error: ttmError, busy: busy, execute: execute, onState: (next) => { setTtm(next); setTtmError(null); } })] })] });
 }
+// Decky unmounts this panel every time Quick Access closes -- a confirmation
+// modal is enough -- so which tab and board section the player was on lives
+// here, outside React, and survives the remount.
 let rememberedTab = "board";
 let rememberedSection = "gpu";
+// One automatic jump to Monitoring › CPU per CPU run, however the panel learns
+// of the run (its own confirmation, or the backend after a remount), so a
+// player who goes back to another tab mid-run is not pulled away again.
 let cpuRunRedirected = false;
 function Content() {
     const [state, setState] = SP_REACT.useState({});
@@ -5436,6 +6086,8 @@ function Content() {
     const setBoardSection = SP_REACT.useCallback((section) => { rememberedSection = section; setBoardSectionState(section); }, []);
     const [loaded, setLoaded] = SP_REACT.useState(false);
     const [busyLocal, setBusy] = SP_REACT.useState(false);
+    // An operation this mounted panel did not start (it began before a
+    // remount) still blocks every control until the backend reports it done.
     const busy = busyLocal || Boolean(state.operation_in_progress);
     const [stale, setStale] = SP_REACT.useState(false);
     const [feedback, setFeedback] = SP_REACT.useState(null);
@@ -5452,6 +6104,7 @@ function Content() {
     const [cpuManual, setCpuManual] = SP_REACT.useState(false);
     const [cpuError, setCpuError] = SP_REACT.useState(null);
     const [cpuOperation, setCpuOperation] = SP_REACT.useState(null);
+    // A CPU run started before a remount: show its progress again.
     const running = state.operation_in_progress;
     SP_REACT.useEffect(() => {
         if (busyRef.current)
@@ -5464,6 +6117,8 @@ function Content() {
             cpuRunRedirected = false;
         }
     }, [running?.action, running?.started_at]);
+    // The confirmation modal alone was not a reliable trigger in Game Mode
+    // (Quick Access closes and remounts this panel around it): follow the run.
     SP_REACT.useEffect(() => {
         if (!cpuOperation || cpuRunRedirected)
             return;
@@ -5630,6 +6285,7 @@ function Content() {
     }, [sampleMonitorSensors, settings.refreshIntervalMs]);
     const [gddr6Now, setGddr6Now] = SP_REACT.useState(() => Date.now());
     const gddr6Live = gddr6Now < gddr6LiveUntil;
+    // A CPU run holds the SMU: the session waits instead of queuing behind it.
     const gddr6Paused = Boolean(cpuOperation) || Boolean(state.operation_in_progress && String(state.operation_in_progress.action).startsWith("cpu-"));
     const setGddr6Live = SP_REACT.useCallback((on) => { gddr6LiveUntil = on ? Date.now() + GDDR6_SESSION_MS : 0; setGddr6Now(Date.now()); }, []);
     SP_REACT.useEffect(() => {
@@ -5666,6 +6322,8 @@ function Content() {
         const timer = globalThis.setInterval(() => void sampleGddr6(), settings.refreshIntervalMs * 2);
         return () => globalThis.clearInterval(timer);
     }, [sampleGddr6, settings.refreshIntervalMs, gddr6Live, gddr6Paused]);
+    // Turning GDDR6 on applies this boot's SMU patch when it is missing,
+    // quietly and once per session; a refusal shows in the panel.
     const gddr6PatchTried = SP_REACT.useRef(false);
     SP_REACT.useEffect(() => { if (!gddr6Live)
         gddr6PatchTried.current = false; }, [gddr6Live]);
@@ -5801,6 +6459,8 @@ function Content() {
             // happen instead of staring at a frozen GPU/CU screen (see
             // "operationInProgress" — this is the same tab that stays fed by
             // monitor_snapshot() regardless of how long the trial takes).
+            // The modal closes over the scrolled-down CPU card: bring the top of
+            // the panel (and its tab row) back into view with the CPU monitor.
             if (mode === "detect") {
                 setActiveTab("monitor");
                 globalThis.requestAnimationFrame(() => topRef.current?.scrollIntoView({ block: "start" }));
@@ -5830,21 +6490,6 @@ function Content() {
                                                     setCpuScale(activeCpu?.frequency === detectedCpu.frequency ? (activeCpu.scale ?? detectedCpu.scale) : detectedCpu.scale);
                                                 } dirty.current.cpu = true; } }) }), cpuManual && detectedCpu && !manualFrequencyReady ? SP_JSX.jsxs("div", { style: { color: tokens.colors.amber, fontSize: 9, lineHeight: 1.3, margin: "-2px 2px 7px" }, children: [text.cpuManualHelp, " \u00B7 ", detectedCpu.frequency, " MHz"] }) : null, SP_JSX.jsx(CompactSlider, { label: text.cpuScale, value: cpuScale, suffix: "", min: scaleMin, max: scaleMax, step: 1, disabled: busy || !cpuManual || !manualFrequencyReady, onChange: (value) => { setCpuScale(Math.max(-50, Math.min(0, Math.round(value)))); dirty.current.cpu = true; } }), SP_JSX.jsxs("div", { style: { color: tokens.colors.disabled_text, display: "flex", fontSize: 9, justifyContent: "space-between", margin: "0 2px 7px" }, children: [SP_JSX.jsx("span", { children: cpuManual ? `${text.cpuScale}: ${scaleMin}…${scaleMax}` : `${text.voltageHint} · ${vidMin}–${vidMax} mV` }), SP_JSX.jsx("span", { children: cpuManual ? `~${selectedEstimatedVid ?? "—"} mV` : `${text.safeRange}: ${cpuMin}–${cpuMax} MHz` })] }), SP_JSX.jsx(ActionRow, { children: SP_JSX.jsx(Action, { label: cpuManual ? text.cpuApplyManual : text.cpuApplyAuto, primary: true, disabled: busy || !cpuReady || (cpuManual && (!manualFrequencyReady || (selectedEstimatedVid ?? 0) > vidMax)), onActivate: () => confirmCpu("detect") }) })] }), SP_JSX.jsx("div", { style: { marginTop: 6, minHeight: 36 }, children: SP_JSX.jsxs(ActionRow, { children: [SP_JSX.jsx(Action, { label: text.install, disabled: busy || !activeMatchesTarget || Boolean(state.cpu_service_enabled), onActivate: () => confirmCpu("install") }), SP_JSX.jsx(Action, { label: text.remove, danger: true, disabled: busy || (!state.cpu_service_installed && !state.cpu_service_enabled), onActivate: () => DFL.showModal(SP_JSX.jsx(DFL.ConfirmModal, { strTitle: text.remove, strDescription: text.serviceRemovedBootProfile, strOKButtonText: text.remove, bDestructiveWarning: true, onOK: () => void execute("BC250 CPU", removeCpuService, "cpu") })) })] }) })] }) : null, boardSection === "fan" ? SP_JSX.jsxs("section", { style: { marginBottom: 12 }, children: [SP_JSX.jsx(SectionTitle, { kind: "fan", title: text.fan }), SP_JSX.jsx(FanPresetRow, { state: state, busy: busy, execute: execute }), SP_JSX.jsxs(PadButton, { disabled: busy, onActivate: () => setFanOpen(!fanOpen), style: { alignItems: "center", display: "flex", fontSize: 11, height: 34, justifyContent: "space-between", marginBottom: 6, padding: "5px 9px", width: "100%" }, children: [SP_JSX.jsxs("span", { children: [liveFan?.label ?? `PWM ${fanChannel}`, " \u00B7 ", fanDetected ? text.detected : text.unavailable] }), SP_JSX.jsx("span", { style: { color: accent.focus }, children: fanOpen ? "▴" : "▾" })] }), fanOpen ? SP_JSX.jsx(DFL.Focusable, { "flow-children": "grid", navEntryPreferPosition: DFL.NavEntryPositionPreferences.PREFERRED_CHILD, style: { display: "grid", gap: 5, gridTemplateColumns: "1fr 1fr", marginBottom: 7 }, children: fanChannels.map((channel) => { const option = state.fan_channel_options?.find((item) => item.channel === channel); const available = detectedFans.includes(channel); return SP_JSX.jsxs(PadButton, { disabled: busy || !available, preferredFocus: channel === fanChannel, onActivate: () => { selectionRef.current.fan = channel; setFanChannel(channel); setFanOpen(false); dirty.current.fan = false; const percent = option?.percent; if (percent != null)
                                             setFanDuty(percent); }, style: { background: channel === fanChannel ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${channel === fanChannel ? accent.focus : tokens.colors.border}`, color: channel === fanChannel ? accent.focus : tokens.colors.text, fontSize: 10, height: 34, padding: 4, width: "100%" }, children: ["PWM ", channel, " \u00B7 ", available ? `${option?.percent ?? "—"}%` : text.unavailable] }, channel); }) }) : null, liveFan ? SP_JSX.jsx("div", { style: { color: liveFan.rpm_observed ? tokens.colors.subtle : tokens.colors.amber, fontSize: 9, lineHeight: 1.3, margin: "0 2px 6px" }, children: liveFan.rpm_observed ? `${text.fanRpmObserved}: ${liveFan.rpm} RPM` : `${text.fanUnverified}. ${fanChannel === 2 ? text.fanWiring : ""}` }) : null, SP_JSX.jsx(DFL.SliderField, { label: text.speed, value: fanDuty, min: fanMin, max: fanMax, step: fanStep, minimumDpadGranularity: fanStep, showValue: true, valueSuffix: "%", disabled: busy || !fanDetected, onChange: (value) => { dirty.current.fan = true; setFanDuty(Math.max(20, Math.min(100, Math.round(value / 5) * 5))); } }), SP_JSX.jsxs(DFL.Focusable, { "flow-children": "grid", style: { display: "grid", gap: 6, gridTemplateColumns: "1fr 1fr", marginTop: 6 }, children: [SP_JSX.jsx(Action, { label: text.apply, primary: true, disabled: busy || !fanDetected, onActivate: () => void execute(`PWM ${fanChannel}`, () => applyFanChannel(fanChannel, fanDuty), "fan") }), SP_JSX.jsx(Action, { label: text.automatic, disabled: busy || !fanDetected, onActivate: () => void execute(`PWM ${fanChannel}`, () => applyFanChannel(fanChannel, "automatic"), "fan") })] })] }) : null] }) : null] }) });
-}
-// Read-only: whether the running game really uses the compute (ACE) queues,
-// from the same amdgpu counter the desktop's Performance page reads. Turning
-// async compute on or off needs a new session, so that stays on the desktop.
-function AceRow({ state }) {
-    const game = useRunningGame();
-    const percent = state.ace_busy_percent;
-    const available = Boolean(state.ace_available);
-    const active = typeof percent === "number" && percent > 0;
-    const who = active ? (game?.name || state.ace_process || "") : "";
-    const value = !available ? "—"
-        : percent == null ? text.aceMeasuring
-            : active ? `${text.yes}, ${percent} %${who ? ` · ${who}` : ""}`
-                : text.no;
-    return SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_alt, border: `1px solid ${active ? tokens.colors.green : tokens.colors.border}`, borderRadius: 6, marginBottom: 8, overflow: "hidden" }, children: [SP_JSX.jsx(StatusRow, { label: text.aceInUse, value: value, active: available ? active : null }), SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, lineHeight: 1.35, padding: "0 9px 7px" }, children: text.aceHint })] });
 }
 // Decky's system-fan presets, named and tuned from the desktop's Fans page
 // when the player exported them there. They never touch the pump channel.

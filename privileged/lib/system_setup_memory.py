@@ -13,6 +13,12 @@ Every policy is a complete, reversible profile rather than a single switch:
 * ``restore`` — every value this setup changed goes back to the value it
   found, live and at boot; nothing it did not create is removed.
 
+The GPU memory limit (``ttm_gib``) is not part of these profiles any more: it
+is a kernel boot argument, set and restored by system_setup_ttm.py, because
+amdgpu only reads it when the driver loads. A limit an earlier release
+re-applied through sysfs at boot (``ttm_pages`` in this state) keeps working
+until it is set or restored again.
+
 Each original value is journalled before it is changed, so an interrupted
 transaction is always restorable.
 """
@@ -24,6 +30,7 @@ import re
 import shutil
 from pathlib import Path
 
+import system_setup_ttm as ttm
 from system_setup_common import HELPER, STATE, Host, SetupError
 
 GIB = 1024 ** 3
@@ -464,6 +471,7 @@ def status(host: Host) -> dict:
     if supported and not restore_available:
         policy_reasons["restore"] = "No BC250 memory changes are recorded"
     _, current_swap, _, _ = swap_paths(host, state)
+    ttm_state = ttm.summary(host)
     family = host.distro_family()
     immutable = host.immutable_image()
     if immutable:
@@ -479,14 +487,18 @@ def status(host: Host) -> dict:
     return {"supported": supported, "policies": policies, "policy_reasons": policy_reasons,
             "distro_family": family, "immutable_image": immutable,
             "restore_available": restore_available,
-            "ttm_available": supported and host.writable_parameter(TTM) and pages.isdigit(),
+            # The limit is a boot argument now (system_setup_ttm.py); these keep
+            # their meaning for the panels that still read them from here.
+            "ttm_available": ttm_state["supported"],
             "ttm_current_pages": int(pages) if pages.isdigit() else None,
             "swap_active": current_swap in active, "swap_used_bytes": active.get(current_swap, 0),
             "swap_dir": state.get("swap_dir", SWAP_DIR),
             "configured_policy": state.get("policy", "preserve"),
             "phase": state.get("phase", "none"), "restore_pending": state.get("restore_pending", False),
-            "configured_ttm_pages": state.get("ttm_pages"),
-            "ttm_restore_available": "ttm_original" in state,
+            "configured_ttm_pages": (
+                ttm_state["managed_pages"] if ttm_state["managed"] else state.get("ttm_pages")
+            ),
+            "ttm_restore_available": ttm_state["managed"] or "ttm_original" in state,
             "zram_pending": state.get("zram_pending", False),
             "zram_restore_pending": state.get("zram_restore_pending", False),
             "zram_takeover_available": takeover_available,
@@ -746,6 +758,17 @@ def apply(host: Host, policy: str = "preserve", ttm_gib: int = 0,
           takeover_zram: bool = False, target_mount: str | None = None) -> dict:
     if policy not in POLICIES or type(ttm_gib) is not int or ttm_gib not in {-1, 0, 8, 10, 12}:
         raise SetupError("Invalid memory request")
+    if ttm_gib:
+        # A boot argument, with its own transaction (system_setup_ttm.py).
+        # The swap profile, if one was asked for too, goes first.
+        if policy != "preserve":
+            _apply_policy(host, policy, takeover_zram, target_mount)
+        ttm.apply(host, ttm_gib)
+        return status(host)
+    return _apply_policy(host, policy, takeover_zram, target_mount)
+
+
+def _apply_policy(host: Host, policy: str, takeover_zram: bool, target_mount: str | None) -> dict:
     host.require_host()
     host.safe(STATE)
     available = status(host)
@@ -761,17 +784,6 @@ def apply(host: Host, policy: str = "preserve", ttm_gib: int = 0,
     if (policy not in {"preserve", "restore", current} and current != "preserve"
             and policy not in direct_switches(current)):
         raise SetupError("Restore the current BC250 memory policy before choosing another")
-    if ttm_gib and not available["ttm_available"]:
-        raise SetupError("This kernel does not expose a writable TTM pages_limit parameter")
-    page_size = os.sysconf("SC_PAGE_SIZE")
-    if GIB % page_size:
-        raise SetupError("Unsupported page size")
-    if ttm_gib == -1 and "ttm_original" not in state:
-        raise SetupError("No BC250 TTM change to restore")
-    if ttm_gib > 0:
-        total = re.search(r"^MemTotal:\s+(\d+)", host.read("/proc/meminfo"), re.M)
-        if not total or ttm_gib * GIB > int(total[1]) * 1024:
-            raise SetupError("TTM target exceeds the RAM visible to the running kernel")
     # Preflight managed files before any hardware write.
     _, _, _, current_unit_path = swap_paths(host, state)
     for name in (SERVICE_PATH, current_unit_path, ZRAM, SYSCTL):
@@ -815,15 +827,6 @@ def apply(host: Host, policy: str = "preserve", ttm_gib: int = 0,
             apply_sysctl_profile(host, state, "zram")
             state["policy"] = policy
             state["zram_pending"] = True
-        if ttm_gib > 0:
-            state.setdefault("ttm_original", host.read(TTM))
-            state["ttm_pages"] = ttm_gib * GIB // page_size
-            host.save("memory", state)
-            host.parameter(TTM, str(state["ttm_pages"]))
-        elif ttm_gib == -1:
-            host.parameter(TTM, state["ttm_original"])
-            state.pop("ttm_original")
-            state.pop("ttm_pages", None)
         state["phase"] = "configured"
         host.save("memory", state)
         host.run("systemctl", "daemon-reload")

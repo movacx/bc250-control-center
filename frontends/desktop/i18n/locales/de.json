@@ -4563,5 +4563,10 @@
   "Open Telemetry settings": "Telemetrie-Einstellungen öffnen",
   "Detected: the kernel driver (bc250_vrm) reads the regulator": "Erkannt: Der Kerneltreiber (bc250_vrm) liest den Regler",
   "Not detected: the kernel driver (bc250_vrm) gets no answer from the regulator": "Nicht erkannt: Der Kerneltreiber (bc250_vrm) erhält keine Antwort vom Regler",
-  "This kernel reads the regulator itself (bc250_vrm), so the BC250-Telemetry service is not needed and cannot open the bus. Remove it here.": "Dieser Kernel liest den Regler selbst (bc250_vrm), daher wird der BC250-Telemetry-Dienst nicht gebraucht und kann den Bus nicht öffnen. Entferne ihn hier."
+  "This kernel reads the regulator itself (bc250_vrm), so the BC250-Telemetry service is not needed and cannot open the bus. Remove it here.": "Dieser Kernel liest den Regler selbst (bc250_vrm), daher wird der BC250-Telemetry-Dienst nicht gebraucht und kann den Bus nicht öffnen. Entferne ihn hier.",
+  "amdgpu.gttsize overrides this limit": "amdgpu.gttsize überschreibt dieses Limit",
+  "The limit is saved as a kernel boot argument, shared with BC250 Quick Access in Game Mode, and takes effect at the next reboot.": "Das Limit wird als Kernel-Bootargument gespeichert, gemeinsam mit BC250 Quick Access im Game Mode, und gilt ab dem nächsten Neustart.",
+  "The GPU memory limit could not be changed.": "Das GPU-Speicherlimit konnte nicht geändert werden.",
+  "This system cannot keep a kernel boot argument the way Control Center manages it, another tool already set the limit, or the boot loader or rpm-ostree refused the change.": "Dieses System kann ein Kernel-Bootargument nicht so behalten, wie Control Center es verwaltet, ein anderes Werkzeug hat das Limit bereits gesetzt, oder der Bootloader bzw. rpm-ostree hat die Änderung abgelehnt.",
+  "Read the reason in the Memory section. On SteamOS, systemd-boot or rEFInd add the ttm.pages_limit argument yourself; elsewhere retry once the boot loader or rpm-ostree is idle.": "Lesen Sie den Grund im Bereich Speicher. Unter SteamOS, systemd-boot oder rEFInd fügen Sie das Argument ttm.pages_limit selbst hinzu; sonst erneut versuchen, sobald Bootloader oder rpm-ostree frei sind."
 }

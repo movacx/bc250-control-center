@@ -4563,5 +4563,10 @@
   "Open Telemetry settings": "Otwórz ustawienia telemetrii",
   "Detected: the kernel driver (bc250_vrm) reads the regulator": "Wykryto: sterownik jądra (bc250_vrm) odczytuje regulator",
   "Not detected: the kernel driver (bc250_vrm) gets no answer from the regulator": "Nie wykryto: sterownik jądra (bc250_vrm) nie dostaje odpowiedzi od regulatora",
-  "This kernel reads the regulator itself (bc250_vrm), so the BC250-Telemetry service is not needed and cannot open the bus. Remove it here.": "To jądro samo odczytuje regulator (bc250_vrm), więc usługa BC250-Telemetry nie jest potrzebna i nie może otworzyć magistrali. Usuń ją tutaj."
+  "This kernel reads the regulator itself (bc250_vrm), so the BC250-Telemetry service is not needed and cannot open the bus. Remove it here.": "To jądro samo odczytuje regulator (bc250_vrm), więc usługa BC250-Telemetry nie jest potrzebna i nie może otworzyć magistrali. Usuń ją tutaj.",
+  "amdgpu.gttsize overrides this limit": "amdgpu.gttsize zastępuje ten limit",
+  "The limit is saved as a kernel boot argument, shared with BC250 Quick Access in Game Mode, and takes effect at the next reboot.": "Limit jest zapisywany jako argument rozruchu jądra, wspólny z BC250 Quick Access w Game Mode, i działa od następnego ponownego uruchomienia.",
+  "The GPU memory limit could not be changed.": "Nie udało się zmienić limitu pamięci GPU.",
+  "This system cannot keep a kernel boot argument the way Control Center manages it, another tool already set the limit, or the boot loader or rpm-ostree refused the change.": "Ten system nie może zachować argumentu rozruchu jądra w sposób, w jaki zarządza nim Control Center, inne narzędzie już ustawiło limit albo program rozruchowy lub rpm-ostree odrzucił zmianę.",
+  "Read the reason in the Memory section. On SteamOS, systemd-boot or rEFInd add the ttm.pages_limit argument yourself; elsewhere retry once the boot loader or rpm-ostree is idle.": "Przeczytaj przyczynę w sekcji Pamięć. W SteamOS, systemd-boot lub rEFInd dodaj argument ttm.pages_limit samodzielnie; w pozostałych przypadkach spróbuj ponownie, gdy program rozruchowy lub rpm-ostree będzie wolny."
 }

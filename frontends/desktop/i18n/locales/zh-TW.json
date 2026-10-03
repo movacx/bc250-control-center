@@ -4563,5 +4563,10 @@
   "Open Telemetry settings": "開啟遙測設定",
   "Detected: the kernel driver (bc250_vrm) reads the regulator": "已偵測到：核心驅動程式 (bc250_vrm) 正在讀取調節器",
   "Not detected: the kernel driver (bc250_vrm) gets no answer from the regulator": "未偵測到：核心驅動程式 (bc250_vrm) 未收到調節器的回應",
-  "This kernel reads the regulator itself (bc250_vrm), so the BC250-Telemetry service is not needed and cannot open the bus. Remove it here.": "此核心會自行讀取調節器 (bc250_vrm)，因此不需要 BC250-Telemetry 服務，它也無法開啟匯流排。請在此處移除。"
+  "This kernel reads the regulator itself (bc250_vrm), so the BC250-Telemetry service is not needed and cannot open the bus. Remove it here.": "此核心會自行讀取調節器 (bc250_vrm)，因此不需要 BC250-Telemetry 服務，它也無法開啟匯流排。請在此處移除。",
+  "amdgpu.gttsize overrides this limit": "amdgpu.gttsize 會覆寫此限制",
+  "The limit is saved as a kernel boot argument, shared with BC250 Quick Access in Game Mode, and takes effect at the next reboot.": "此限制會儲存為核心開機參數，與 Game Mode 中的 BC250 Quick Access 共用，並在下次重新開機後生效。",
+  "The GPU memory limit could not be changed.": "無法變更 GPU 記憶體限制。",
+  "This system cannot keep a kernel boot argument the way Control Center manages it, another tool already set the limit, or the boot loader or rpm-ostree refused the change.": "此系統無法依 Control Center 的方式保留核心開機參數，或其他工具已設定了此限制，或開機載入程式或 rpm-ostree 拒絕了變更。",
+  "Read the reason in the Memory section. On SteamOS, systemd-boot or rEFInd add the ttm.pages_limit argument yourself; elsewhere retry once the boot loader or rpm-ostree is idle.": "請在「記憶體」區段查看原因。在 SteamOS、systemd-boot 或 rEFInd 上，請自行加入 ttm.pages_limit 參數；其他情況請在開機載入程式或 rpm-ostree 閒置時重試。"
 }

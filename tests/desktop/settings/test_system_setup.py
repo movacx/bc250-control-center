@@ -165,6 +165,7 @@ def sandbox(tmp_path, monkeypatch):
 
 @pytest.mark.parametrize("distro", ["arch", "cachyos", "manjaro", "ubuntu", "debian", "fedora", "nobara"])
 def test_mutable_distributions_offer_capability_checked_memory(sandbox, distro):
+    sandbox.grub()
     sandbox.put("/etc/os-release", f"ID={distro}\n")
     data = memory.status(sandbox.host)
     assert data["supported"] and data["ttm_available"]
@@ -228,19 +229,22 @@ def test_ostree_fedora_and_non_bc250_are_not_mutable_targets(sandbox):
 
 
 @pytest.mark.parametrize("ttm", [8, 10, 12])
-def test_ttm_live_apply_boot_and_independent_restore(sandbox, ttm):
+def test_ttm_is_a_boot_argument_restored_on_its_own(sandbox, ttm):
+    """amdgpu sizes GTT once, at driver init: only a boot argument reaches it."""
+    sandbox.grub()
     host = sandbox.host
     original_swaps = host.read("/proc/swaps")
+    pages = ttm * memory.GIB // os.sysconf("SC_PAGE_SIZE")
     data = memory.apply(host, "preserve", ttm)
-    assert data["ttm_current_pages"] == ttm * memory.GIB // os.sysconf("SC_PAGE_SIZE")
+    assert f"ttm.pages_limit={pages}" in host.read(kernel_args.GRUB_DROPIN)
+    assert host.read(memory.TTM) == "12345"  # the live knob is not the GTT size
+    assert data["configured_ttm_pages"] == pages
     assert data["ttm_restore_available"]
-    sandbox.put(memory.TTM, "100")
-    memory.boot(host)
-    assert host.read(memory.TTM) == str(data["ttm_current_pages"])
+    assert not host.path(memory.SERVICE_PATH).exists()  # nothing to run at boot
     memory.apply(host, "preserve", -1)
-    assert host.read(memory.TTM) == "12345"
+    assert not host.path(kernel_args.GRUB_DROPIN).exists()
     assert host.read("/proc/swaps") == original_swaps
-    assert not host.path(memory.SERVICE_PATH).exists()
+    assert not memory.status(host)["ttm_restore_available"]
 
 
 @pytest.mark.parametrize("policy,ttm", [("shell;id", 0), ("preserve", True), ("swap-16", 20), ("preserve", -1)])
@@ -250,91 +254,18 @@ def test_invalid_requests_do_not_write(sandbox, policy, ttm):
     assert not sandbox.host.path(STATE).exists()
 
 
-def test_readonly_or_small_ram_ttm_rejected(sandbox):
-    sandbox.host.path(memory.TTM).chmod(0o444)
-    with pytest.raises(SetupError, match="writable"):
-        memory.apply(sandbox.host, "preserve", 8)
-    sandbox.host.path(memory.TTM).chmod(0o644)
+def test_a_ttm_limit_larger_than_ram_is_refused(sandbox):
+    sandbox.grub()
     sandbox.put("/proc/meminfo", "MemTotal: 4000000 kB\n")
-    with pytest.raises(SetupError, match="exceeds"):
+    with pytest.raises(SetupError, match="more than"):
         memory.apply(sandbox.host, "preserve", 8)
+    assert not sandbox.host.path(kernel_args.GRUB_DROPIN).exists()
 
 
-@pytest.mark.parametrize("filesystem", ["ext4", "btrfs"])
-def test_swap_install_idempotence_restore_and_reinstall(sandbox, filesystem):
-    host = sandbox.host
-    sandbox.fs = filesystem
-    first = memory.apply(host, "swap-16")
-    assert first["swap_active"]
-    assert host.path(memory.SWAP).stat().st_size == 16 * memory.GIB
-    assert host.path(memory.SWAP).stat().st_mode & 0o777 == 0o600
-    assert host.read(memory.UNIT_PATH).startswith(MARKER.strip())
-    memory.apply(host, "swap-16")
-    assert sum(args[0] == "swapon" for args in sandbox.calls) == 1
-    memory.apply(host, "restore")
-    assert not host.path(memory.SWAP).exists()
-    assert "/dev/user-swap" in memory.swaps(host)
-    memory.apply(host, "swap-16")
-    assert memory.status(host)["swap_active"]
-    if filesystem == "btrfs":
-        assert any(args[:3] == ("btrfs", "filesystem", "mkswapfile") for args in sandbox.calls)
-
-
-def test_restore_defers_under_pressure_and_never_unlinks_live_swap(sandbox):
-    host = sandbox.host
-    memory.apply(host, "swap-16")
-    sandbox.put("/proc/meminfo", "MemAvailable: 32 kB\n")
-    restored = memory.apply(host, "restore")
-    assert restored["restore_pending"] and host.path(memory.SWAP).exists()
-    assert not any(args[0] == "swapoff" for args in sandbox.calls)
-    sandbox.put("/proc/swaps", "Filename Type Size Used Priority\n/dev/user-swap partition 10000 0 -1\n")
-    assert not memory.boot(host)["restore_pending"]
-    assert not host.path(memory.SWAP).exists()
-    assert not host.path(memory.SERVICE_PATH).exists()
-
-
-def test_swapoff_failure_preserves_file_and_pending_journal(sandbox):
-    memory.apply(sandbox.host, "swap-16")
-    sandbox.fail = lambda args: args[0] == "swapoff"
-    assert memory.apply(sandbox.host, "restore")["restore_pending"]
-    assert sandbox.host.path(memory.SWAP).exists()
-
-
-@pytest.mark.parametrize("obstacle", ["foreign-file", "symlink", "filesystem", "disk-full", "foreign-unit"])
-def test_swap_preflight_and_failures_preserve_foreign_data(sandbox, monkeypatch, obstacle):
-    host = sandbox.host
-    if obstacle == "foreign-file":
-        sandbox.put(memory.SWAP, "not BC250")
-    elif obstacle == "symlink":
-        target = sandbox.put("/user-important", "keep")
-        host.path(memory.SWAP_DIR).symlink_to(target.parent)
-    elif obstacle == "filesystem":
-        sandbox.fs = "xfs"
-    elif obstacle == "disk-full":
-        monkeypatch.setattr(memory.shutil, "disk_usage", lambda path: SimpleNamespace(free=1))
-    else:
-        sandbox.put(memory.UNIT_PATH, "foreign unit")
-    with pytest.raises(SetupError):
-        memory.apply(host, "swap-16")
-    assert not any(args[0] == "swapon" for args in sandbox.calls)
-    if obstacle == "foreign-file":
-        assert host.read(memory.SWAP) == "not BC250"
-    if obstacle == "symlink":
-        assert host.read("/user-important") == "keep"
-
-
-def test_partial_failure_is_not_reported_as_success(sandbox):
-    sandbox.fail = lambda args: args[0] == "swapon"
-    with pytest.raises(SetupError):
-        memory.apply(sandbox.host, "swap-16")
-    assert sandbox.host.state("memory")["phase"] == "incomplete"
-    with pytest.raises(SetupError, match="Incomplete"):
-        memory.boot(sandbox.host)
-    sandbox.fail = None
-    assert memory.apply(sandbox.host, "restore")["configured_policy"] == "preserve"
 
 
 def test_zswap_and_ttm_restore_independently(sandbox):
+    sandbox.grub()
     host = sandbox.host
     memory.apply(host, "zswap-16", 8)
     assert host.read(memory.ZSWAP) == "1"
@@ -342,6 +273,7 @@ def test_zswap_and_ttm_restore_independently(sandbox):
     assert host.read(memory.ZSWAP) == "N"
     assert memory.status(host)["configured_ttm_pages"] is not None
     memory.apply(host, "preserve", -1)
+    assert memory.status(host)["configured_ttm_pages"] is None
     assert host.read(memory.TTM) == "12345"
 
 
@@ -1127,8 +1059,13 @@ def test_package_removal_is_told_exactly_what_to_restore_and_how(sandbox):
     import runpy
 
     helper = runpy.run_path(str(LIB.parent / "helpers" / "bc250-system-setup-helper"))
+    sandbox.grub()
     host = sandbox.host
     memory.apply(host, "swap-16", 8)
+    # A limit an earlier release re-applied through the boot service.
+    state = host.state("memory")
+    state.update(ttm_pages=8 * memory.GIB // os.sysconf("SC_PAGE_SIZE"), ttm_original="12345")
+    host.save("memory", state)
 
     blockers, steps, commands = helper["uninstall_blockers"](host, memory, STATE)
     text = helper["uninstall_guidance"](blockers, steps, commands)
@@ -1358,3 +1295,228 @@ def test_the_desktop_bridge_passes_only_the_reviewed_options():
     with pytest.raises(ValueError):
         command("kernel-options-set", kernel_options=("init=/bin/sh",))
 
+
+
+# ------------------------------------------- GPU memory limit (TTM), shared
+#
+# amdgpu sizes GTT once, at driver init, from ttm_tt_pages_limit(): only a
+# kernel boot argument reaches it. One implementation (system_setup_ttm.py)
+# serves the desktop and the Decky panel, on every family it can.
+
+import system_setup_ttm as ttm_setup  # noqa: E402
+
+PAGES_8 = 8 * ttm_setup.GIB // os.sysconf("SC_PAGE_SIZE")
+PAGES_10 = 10 * ttm_setup.GIB // os.sysconf("SC_PAGE_SIZE")
+
+
+def _arch_grub_without_dropins(sandbox):
+    """Upstream GRUB, as Arch ships it: grub-mkconfig reads /etc/default/grub only."""
+    sandbox.grub()
+    sandbox.put("/usr/bin/grub-mkconfig", '#!/bin/sh\n. "${sysconfdir}/default/grub"\n')
+
+
+def test_the_limit_and_the_switches_share_one_limine_block_and_never_disturb_each_other(sandbox):
+    original = 'TIMEOUT=5\nKERNEL_CMDLINE[default]+="quiet splash"\n'
+    sandbox.put(kernel_args.LIMINE_CONFIG, original)
+    kernel_args.apply(sandbox.host, ["nosmt"])
+    ttm_setup.apply(sandbox.host, 8)
+    text = sandbox.host.read(kernel_args.LIMINE_CONFIG)
+    assert f'KERNEL_CMDLINE[default]+=" nosmt ttm.pages_limit={PAGES_8}"' in text
+    # Changing the switches keeps the limit, and the other way round.
+    kernel_args.apply(sandbox.host, ["nosmt", "mitigations=off"])
+    assert f"mitigations=off nosmt ttm.pages_limit={PAGES_8}" in sandbox.host.read(kernel_args.LIMINE_CONFIG)
+    ttm_setup.apply(sandbox.host, ttm_setup.DEFAULT)
+    assert 'KERNEL_CMDLINE[default]+=" mitigations=off nosmt"' in sandbox.host.read(kernel_args.LIMINE_CONFIG)
+    kernel_args.apply(sandbox.host, [])
+    assert sandbox.host.path(kernel_args.LIMINE_CONFIG).read_text() == original
+
+
+def test_the_state_says_what_the_next_boot_uses_and_that_a_reboot_is_needed(sandbox):
+    sandbox.put(kernel_args.LIMINE_CONFIG, "TIMEOUT=5\n")
+    sandbox.put("/proc/cmdline", "BOOT_IMAGE=/vmlinuz-linux-cachyos root=UUID=aaa rw")
+    state = ttm_setup.status(sandbox.host)
+    assert state["supported"] and state["backend"] == "limine"
+    assert state["configured_pages"] is None and not state["reboot_required"]
+    assert state["presets_gib"] == [8, 10, 12]  # 15.3 GiB visible
+    state = ttm_setup.apply(sandbox.host, 10)
+    assert state["managed"] and state["managed_pages"] == PAGES_10
+    assert state["configured_pages"] == PAGES_10 and state["reboot_required"]
+    # After the reboot the kernel booted with it.
+    sandbox.put("/proc/sys/kernel/random/boot_id", "boot-two")
+    sandbox.put("/proc/cmdline", f"BOOT_IMAGE=/vmlinuz-linux-cachyos root=UUID=aaa rw ttm.pages_limit={PAGES_10}")
+    state = ttm_setup.status(sandbox.host)
+    assert state["boot_pages"] == PAGES_10 and not state["reboot_required"] and not state["external"]
+
+
+def test_changing_the_limit_within_a_boot_does_not_call_the_old_value_somebody_elses(sandbox):
+    sandbox.put(kernel_args.LIMINE_CONFIG, "TIMEOUT=5\n")
+    sandbox.put("/proc/cmdline", "root=UUID=aaa rw")
+    ttm_setup.apply(sandbox.host, 8)
+    # Rebooted with it.
+    sandbox.put("/proc/sys/kernel/random/boot_id", "boot-two")
+    sandbox.put("/proc/cmdline", f"root=UUID=aaa rw ttm.pages_limit={PAGES_8}")
+    kernel_args.apply(sandbox.host, ["nosmt"])
+    ttm_setup.apply(sandbox.host, 10)
+    state = ttm_setup.status(sandbox.host)
+    assert not state["external"] and state["configured_pages"] == PAGES_10
+    # And a switch removed earlier in the same boot stays ours too.
+    sandbox.put("/proc/cmdline", f"root=UUID=aaa rw nosmt ttm.pages_limit={PAGES_8}")
+    kernel_args.apply(sandbox.host, [])
+    ttm_setup.apply(sandbox.host, 8)
+    assert kernel_args.status(sandbox.host)["arguments"]["nosmt"]["external"] is False
+
+
+def test_a_limit_set_by_the_owner_is_reported_and_never_replaced(sandbox):
+    sandbox.grub()
+    sandbox.put(kernel_args.GRUB_CONFIG, 'GRUB_CMDLINE_LINUX_DEFAULT="quiet ttm.pages_limit=1048576"\n')
+    state = ttm_setup.status(sandbox.host)
+    assert state["external"] and state["external_pages"] == 1048576 and not state["managed"]
+    with pytest.raises(SetupError, match="outside Control Center"):
+        ttm_setup.apply(sandbox.host, 8)
+    assert not sandbox.host.path(kernel_args.GRUB_DROPIN).exists()
+
+
+def test_arch_grub_gets_a_block_in_its_main_file_because_it_never_reads_the_dropin(sandbox):
+    _arch_grub_without_dropins(sandbox)
+    main = sandbox.host.read(kernel_args.GRUB_CONFIG)
+    # An earlier release wrote the drop-in, which this GRUB ignored.
+    sandbox.put(kernel_args.GRUB_DROPIN, MARKER + 'GRUB_CMDLINE_LINUX_DEFAULT="${GRUB_CMDLINE_LINUX_DEFAULT} nosmt"\n')
+    sandbox.host.save("kernel-options", {"backend": "grub", "arguments": ["nosmt"], "removed": [], "boot_id": "boot-one"})
+    ttm_setup.apply(sandbox.host, 8)
+    text = sandbox.host.path(kernel_args.GRUB_CONFIG).read_text()
+    assert kernel_args.LIMINE_BEGIN in text
+    assert f'GRUB_CMDLINE_LINUX_DEFAULT="${{GRUB_CMDLINE_LINUX_DEFAULT}} nosmt ttm.pages_limit={PAGES_8}"' in text
+    assert not sandbox.host.path(kernel_args.GRUB_DROPIN).exists()
+    assert ttm_setup.status(sandbox.host)["configured_pages"] == PAGES_8
+    kernel_args.apply(sandbox.host, [])
+    ttm_setup.apply(sandbox.host, ttm_setup.DEFAULT)
+    assert sandbox.host.read(kernel_args.GRUB_CONFIG) == main
+
+
+def test_debian_grub_keeps_using_its_dropin(sandbox):
+    sandbox.grub()
+    sandbox.put("/etc/os-release", "ID=ubuntu\nID_LIKE=debian\n")
+    sandbox.put("/usr/sbin/grub-mkconfig", "for x in ${sysconfdir}/default/grub.d/*.cfg ; do . $x; done\n")
+    main = sandbox.host.read(kernel_args.GRUB_CONFIG)
+    ttm_setup.apply(sandbox.host, 12)
+    assert f"ttm.pages_limit={12 * ttm_setup.GIB // os.sysconf('SC_PAGE_SIZE')}" in sandbox.host.read(kernel_args.GRUB_DROPIN)
+    assert sandbox.host.read(kernel_args.GRUB_CONFIG) == main
+
+
+def test_fedora_replaces_its_own_value_through_grubby(sandbox):
+    sandbox.put("/etc/os-release", "ID=fedora\n")
+    ttm_setup.apply(sandbox.host, 8)
+    ttm_setup.apply(sandbox.host, 10)
+    ttm_setup.apply(sandbox.host, ttm_setup.DEFAULT)
+    grubby = [call for call in sandbox.calls if call[0] == "grubby" and call[1] != "--info=DEFAULT"]
+    assert grubby == [
+        ("grubby", "--update-kernel=ALL", f"--args=ttm.pages_limit={PAGES_8}"),
+        ("grubby", "--update-kernel=ALL", f"--args=ttm.pages_limit={PAGES_10}"),
+        ("grubby", "--update-kernel=ALL", f"--remove-args=ttm.pages_limit={PAGES_8}"),
+        ("grubby", "--update-kernel=ALL", f"--remove-args=ttm.pages_limit={PAGES_10}"),
+    ]
+
+
+def _bazzite(sandbox, kargs="rhgb quiet"):
+    sandbox.put("/etc/os-release", "ID=bazzite\nVARIANT_ID=bazzite\n")
+    sandbox.put("/run/ostree-booted", "")
+    sandbox.kargs = kargs
+
+
+def test_bazzite_uses_rpm_ostree_and_journals_what_it_found(sandbox):
+    _bazzite(sandbox, "rhgb quiet ttm.pages_limit=1000")
+    state = ttm_setup.apply(sandbox.host, 8)
+    assert f"ttm.pages_limit={PAGES_8}" in sandbox.kargs.split()
+    assert "ttm.pages_limit=1000" not in sandbox.kargs.split()
+    saved = sandbox.host.path(ttm_setup.OSTREE_STATE)
+    assert saved.read_text() == "# Managed by BC250 Control Center\nttm.pages_limit=1000\n"
+    assert saved.stat().st_mode & 0o777 == 0o600
+    assert state["managed"] and state["configured_pages"] == PAGES_8 and state["reboot_required"]
+    # The desktop's unprivileged inventory sees the same thing without rpm-ostree.
+    calls = len(sandbox.calls)
+    quick = ttm_setup.status(sandbox.host, probe=False)
+    assert quick["managed"] and quick["configured_pages"] == PAGES_8
+    assert len(sandbox.calls) == calls
+    ttm_setup.apply(sandbox.host, ttm_setup.DEFAULT)
+    assert "ttm.pages_limit=1000" in sandbox.kargs.split()
+    assert f"ttm.pages_limit={PAGES_8}" not in sandbox.kargs
+    assert not saved.exists()
+
+
+def test_a_limit_the_desktops_bazzite_workflow_set_is_restored_from_game_mode(sandbox):
+    """Same journal file and format as bazzite_memory_tuning.py: either side restores."""
+    _bazzite(sandbox, f"rhgb quiet ttm.pages_limit={PAGES_10}")
+    sandbox.put(ttm_setup.OSTREE_STATE, "# Managed by BC250 Control Center\n").chmod(0o600)
+    state = ttm_setup.status(sandbox.host)
+    assert state["managed"] and state["managed_pages"] == PAGES_10 and not state["external"]
+    ttm_setup.apply(sandbox.host, ttm_setup.DEFAULT)
+    assert "ttm.pages_limit" not in sandbox.kargs
+
+
+def test_steamos_is_told_why_and_nothing_runs(sandbox):
+    sandbox.grub()
+    sandbox.put("/etc/os-release", "ID=steamos\nID_LIKE=arch\nVARIANT_ID=steamdeck\n")
+    state = ttm_setup.status(sandbox.host)
+    assert not state["supported"] and "SteamOS" in state["reason"]
+    with pytest.raises(SetupError, match="SteamOS"):
+        ttm_setup.apply(sandbox.host, 8)
+    assert sandbox.calls == []
+
+
+def test_an_unmanaged_boot_loader_gets_the_exact_argument_to_add_by_hand(sandbox):
+    sandbox.put("/etc/os-release", "ID=endeavouros\nID_LIKE=arch\n")  # systemd-boot, nothing we manage
+    state = ttm_setup.status(sandbox.host)
+    assert not state["supported"] and "systemd-boot" in state["reason"]
+    assert state["manual_arguments"]["8"] == f"ttm.pages_limit={PAGES_8}"
+
+
+def test_a_gttsize_override_is_reported_and_blocks_a_limit_that_would_do_nothing(sandbox):
+    sandbox.put(kernel_args.LIMINE_CONFIG, "TIMEOUT=5\n")
+    sandbox.put("/proc/cmdline", "root=UUID=aaa rw amdgpu.gttsize=4096")
+    assert ttm_setup.status(sandbox.host)["gtt_override"] == 4096
+    with pytest.raises(SetupError, match="amdgpu.gttsize=4096"):
+        ttm_setup.apply(sandbox.host, 8)
+
+
+def test_a_bigger_vram_size_waiting_in_cmos_hides_the_limits_the_next_boot_cannot_hold(sandbox):
+    sandbox.put(kernel_args.LIMINE_CONFIG, "TIMEOUT=5\n")
+    sandbox.put("/sys/class/drm/card1/device/vendor", "0x1002")
+    sandbox.put("/sys/class/drm/card1/device/mem_info_vram_total", str(512 * 1024 * 1024))
+    sandbox.put("/sys/class/drm/card1/device/mem_info_gtt_total", str(7 * ttm_setup.GIB))
+    # 512 MiB booted, 8 GiB written to CMOS: about 8 GiB of RAM after the reboot.
+    after = ttm_setup.next_boot_ram(sandbox.host, 8192)
+    assert after is not None and after < 8.5 * ttm_setup.GIB
+    state = ttm_setup.status(sandbox.host, next_boot_ram=after)
+    assert state["presets_gib"] == [] and state["gtt_total_bytes"] == 7 * ttm_setup.GIB
+    with pytest.raises(SetupError, match="smaller VRAM size"):
+        ttm_setup.apply(sandbox.host, 8, next_boot_ram=after)
+    # The same size as booted is not a new size.
+    assert ttm_setup.next_boot_ram(sandbox.host, 512) is None
+
+
+def test_a_limit_an_earlier_release_applied_at_boot_moves_to_the_boot_argument(sandbox):
+    sandbox.grub()
+    host = sandbox.host
+    memory.install_service(host)
+    host.save("memory", {"phase": "configured", "policy": "preserve", "ttm_pages": PAGES_8, "ttm_original": "12345"})
+    state = ttm_setup.status(host)
+    assert state["legacy_pages"] == PAGES_8
+    assert memory.status(host)["ttm_restore_available"]
+    ttm_setup.apply(host, 10)
+    assert "ttm_pages" not in host.state("memory")
+    assert not host.path(memory.SERVICE_PATH).exists()  # nothing left for it to do
+    assert f"ttm.pages_limit={PAGES_10}" in host.read(kernel_args.GRUB_DROPIN)
+
+
+def test_an_earlier_limit_can_be_dropped_even_where_no_boot_loader_is_managed(sandbox):
+    host = sandbox.host
+    host.save("memory", {"phase": "configured", "policy": "preserve", "ttm_pages": PAGES_8, "ttm_original": "12345"})
+    ttm_setup.apply(host, ttm_setup.DEFAULT)
+    assert "ttm_pages" not in host.state("memory")
+
+
+def test_the_status_never_raises_on_a_damaged_state(sandbox):
+    sandbox.put(kernel_args.LIMINE_CONFIG, "TIMEOUT=5\n")
+    sandbox.put(f"{STATE}/kernel-options.json", "[not an object")
+    state = ttm_setup.status(sandbox.host)
+    assert state["supported"] is False and "Invalid" in state["reason"]

@@ -4563,5 +4563,10 @@
   "Open Telemetry settings": "テレメトリ設定を開く",
   "Detected: the kernel driver (bc250_vrm) reads the regulator": "検出: カーネルドライバー (bc250_vrm) がレギュレーターを読み取っています",
   "Not detected: the kernel driver (bc250_vrm) gets no answer from the regulator": "未検出: カーネルドライバー (bc250_vrm) にレギュレーターから応答がありません",
-  "This kernel reads the regulator itself (bc250_vrm), so the BC250-Telemetry service is not needed and cannot open the bus. Remove it here.": "このカーネルはレギュレーターを自分で読み取る (bc250_vrm) ため、BC250-Telemetry サービスは不要で、バスも開けません。ここで削除してください。"
+  "This kernel reads the regulator itself (bc250_vrm), so the BC250-Telemetry service is not needed and cannot open the bus. Remove it here.": "このカーネルはレギュレーターを自分で読み取る (bc250_vrm) ため、BC250-Telemetry サービスは不要で、バスも開けません。ここで削除してください。",
+  "amdgpu.gttsize overrides this limit": "amdgpu.gttsize がこの制限を上書きします",
+  "The limit is saved as a kernel boot argument, shared with BC250 Quick Access in Game Mode, and takes effect at the next reboot.": "制限はカーネルの起動引数として保存され、Game Mode の BC250 Quick Access と共有されます。次回の再起動後に有効になります。",
+  "The GPU memory limit could not be changed.": "GPU メモリ制限を変更できませんでした。",
+  "This system cannot keep a kernel boot argument the way Control Center manages it, another tool already set the limit, or the boot loader or rpm-ostree refused the change.": "このシステムでは Control Center が管理する方法でカーネル起動引数を保持できないか、別のツールが既に制限を設定しているか、ブートローダーまたは rpm-ostree が変更を拒否しました。",
+  "Read the reason in the Memory section. On SteamOS, systemd-boot or rEFInd add the ttm.pages_limit argument yourself; elsewhere retry once the boot loader or rpm-ostree is idle.": "「メモリ」セクションで理由を確認してください。SteamOS、systemd-boot、rEFInd では ttm.pages_limit 引数を手動で追加してください。それ以外では、ブートローダーまたは rpm-ostree が空いてから再試行してください。"
 }

@@ -4563,5 +4563,10 @@
   "Open Telemetry settings": "Mở cài đặt Đo từ xa",
   "Detected: the kernel driver (bc250_vrm) reads the regulator": "Đã phát hiện: trình điều khiển nhân (bc250_vrm) đọc bộ điều áp",
   "Not detected: the kernel driver (bc250_vrm) gets no answer from the regulator": "Không phát hiện: trình điều khiển nhân (bc250_vrm) không nhận được phản hồi từ bộ điều áp",
-  "This kernel reads the regulator itself (bc250_vrm), so the BC250-Telemetry service is not needed and cannot open the bus. Remove it here.": "Nhân này tự đọc bộ điều áp (bc250_vrm), nên dịch vụ BC250-Telemetry không cần thiết và không thể mở bus. Hãy gỡ nó tại đây."
+  "This kernel reads the regulator itself (bc250_vrm), so the BC250-Telemetry service is not needed and cannot open the bus. Remove it here.": "Nhân này tự đọc bộ điều áp (bc250_vrm), nên dịch vụ BC250-Telemetry không cần thiết và không thể mở bus. Hãy gỡ nó tại đây.",
+  "amdgpu.gttsize overrides this limit": "amdgpu.gttsize ghi đè giới hạn này",
+  "The limit is saved as a kernel boot argument, shared with BC250 Quick Access in Game Mode, and takes effect at the next reboot.": "Giới hạn được lưu dưới dạng tham số khởi động của kernel, dùng chung với BC250 Quick Access trong Game Mode, và có hiệu lực ở lần khởi động lại tiếp theo.",
+  "The GPU memory limit could not be changed.": "Không thể thay đổi giới hạn bộ nhớ GPU.",
+  "This system cannot keep a kernel boot argument the way Control Center manages it, another tool already set the limit, or the boot loader or rpm-ostree refused the change.": "Hệ thống này không thể giữ tham số khởi động của kernel theo cách Control Center quản lý, một công cụ khác đã đặt giới hạn, hoặc trình nạp khởi động hay rpm-ostree đã từ chối thay đổi.",
+  "Read the reason in the Memory section. On SteamOS, systemd-boot or rEFInd add the ttm.pages_limit argument yourself; elsewhere retry once the boot loader or rpm-ostree is idle.": "Đọc lý do trong mục Bộ nhớ. Trên SteamOS, systemd-boot hoặc rEFInd, hãy tự thêm tham số ttm.pages_limit; ở nơi khác, hãy thử lại khi trình nạp khởi động hoặc rpm-ostree rảnh."
 }

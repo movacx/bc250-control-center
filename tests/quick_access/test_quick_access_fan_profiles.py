@@ -66,6 +66,6 @@ def test_resume_releases_only_a_takeover_decky_recorded(helper, tmp_path, monkey
 def test_the_protocol_is_the_one_the_plugin_and_contract_expect(helper):
     contract = (ROOT / "privileged/lib/bc250_contract.py").read_text(encoding="utf-8")
     plugin = (ROOT / "integrations/decky/bc250-quick-access/main.py").read_text(encoding="utf-8")
-    assert helper.HELPER_PROTOCOL == 20
-    assert "QUICK_ACCESS_PROTOCOL = 20" in contract
-    assert "HELPER_PROTOCOL = 20" in plugin
+    assert helper.HELPER_PROTOCOL == 21
+    assert "QUICK_ACCESS_PROTOCOL = 21" in contract
+    assert "HELPER_PROTOCOL = 21" in plugin

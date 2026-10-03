@@ -4563,5 +4563,10 @@
   "Open Telemetry settings": "Deschide setările de telemetrie",
   "Detected: the kernel driver (bc250_vrm) reads the regulator": "Detectat: driverul kernelului (bc250_vrm) citește regulatorul",
   "Not detected: the kernel driver (bc250_vrm) gets no answer from the regulator": "Nedetectat: driverul kernelului (bc250_vrm) nu primește răspuns de la regulator",
-  "This kernel reads the regulator itself (bc250_vrm), so the BC250-Telemetry service is not needed and cannot open the bus. Remove it here.": "Acest kernel citește singur regulatorul (bc250_vrm), deci serviciul BC250-Telemetry nu este necesar și nu poate deschide magistrala. Elimină-l de aici."
+  "This kernel reads the regulator itself (bc250_vrm), so the BC250-Telemetry service is not needed and cannot open the bus. Remove it here.": "Acest kernel citește singur regulatorul (bc250_vrm), deci serviciul BC250-Telemetry nu este necesar și nu poate deschide magistrala. Elimină-l de aici.",
+  "amdgpu.gttsize overrides this limit": "amdgpu.gttsize înlocuiește această limită",
+  "The limit is saved as a kernel boot argument, shared with BC250 Quick Access in Game Mode, and takes effect at the next reboot.": "Limita este salvată ca argument de pornire al kernelului, comun cu BC250 Quick Access în Game Mode, și intră în vigoare la următoarea repornire.",
+  "The GPU memory limit could not be changed.": "Limita de memorie a GPU nu a putut fi modificată.",
+  "This system cannot keep a kernel boot argument the way Control Center manages it, another tool already set the limit, or the boot loader or rpm-ostree refused the change.": "Acest sistem nu poate păstra un argument de pornire al kernelului așa cum îl gestionează Control Center, alt instrument a setat deja limita, sau încărcătorul de pornire ori rpm-ostree a refuzat modificarea.",
+  "Read the reason in the Memory section. On SteamOS, systemd-boot or rEFInd add the ttm.pages_limit argument yourself; elsewhere retry once the boot loader or rpm-ostree is idle.": "Citiți motivul în secțiunea Memorie. Pe SteamOS, systemd-boot sau rEFInd adăugați singur argumentul ttm.pages_limit; în rest reîncercați când încărcătorul de pornire sau rpm-ostree este liber."
 }

@@ -91,7 +91,24 @@ type ContractLimits = {
   fan?: { channels?: number[]; percent_range?: [number, number]; percent_step?: number };
   vram?: { presets?: number[] };
 };
-type VramState = { supported: boolean; reason: string; uma_size_mb: number | null; boot_id: string | null };
+type VramState = {
+  supported: boolean; reason: string; uma_size_mb: number | null; boot_id: string | null;
+  // Protocol 21: what the firmware booted with, and whether CMOS now holds
+  // another size -- written here or by the desktop, it does not matter.
+  active_mb?: number | null; reboot_pending?: boolean;
+};
+// The GPU memory limit (TTM pages_limit) as the desktop's own system-setup
+// helper reports it. The panel keeps no copy of its own: desktop and panel
+// read and change this one state.
+type TtmState = {
+  supported: boolean; backend: string; reason: string; page_size: number | null;
+  presets_gib: number[]; manual_arguments: Record<string, string>;
+  physical_ram_bytes: number | null; next_boot_ram_bytes: number | null;
+  live_pages: number | null; boot_pages: number | null; configured_pages: number | null;
+  managed: boolean; managed_pages: number | null; external: boolean; external_pages: number | null;
+  gtt_total_bytes: number | null; gtt_override: number | null; legacy_pages: number | null;
+  reboot_required: boolean;
+};
 
 type Result = {
   operation_in_progress?: { action: string; arguments?: string[]; started_at: number } | null;
@@ -252,6 +269,8 @@ const applyCpuScale = callable<[frequency: number, scale: number], Result>("appl
 const installCpuService = callable<[], Result>("install_cpu_service");
 const removeCpuService = callable<[], Result>("remove_cpu_service");
 const applyVramSize = callable<[sizeMb: number], Result>("apply_vram_size");
+const getTtmState = callable<[], Result & { ttm?: TtmState }>("ttm_state");
+const applyTtmLimit = callable<[value: string], Result & { ttm?: TtmState }>("apply_ttm_limit");
 const applySystemFanPreset = callable<[preset: string], Result>("apply_system_fan_preset");
 const getGameProfiles = callable<[], GameStore>("game_profiles");
 const saveGameProfile = callable<[appId: string, name: string, gpu: string | null, fan: string | null], GameStore>("save_game_profile");
@@ -267,7 +286,12 @@ const cuRows = ["SE0.SH0", "SE0.SH1", "SE1.SH0", "SE1.SH1"] as const;
 // never renders empty on first paint.
 const VRAM_PRESETS_FALLBACK = [256, 512, 1024, 2048, 3072, 4096, 5120, 6144, 7168, 8192, 12288];
 function vramSizeLabel(sizeMb: number): string {
-  return sizeMb < 1024 ? `${sizeMb} MiB` : `${sizeMb / 1024} GiB`;
+  return sizeMb < 1024 ? `${sizeMb} MiB` : `${Math.round(sizeMb / 1024 * 10) / 10} GiB`;
+}
+const GIB = 1024 ** 3;
+// Whole GiB of a TTM page count, the unit the choices are offered in.
+function ttmGib(pages: number | null | undefined, pageSize: number): number | null {
+  return pages != null && pageSize > 0 ? Math.round(pages * pageSize / GIB * 10) / 10 : null;
 }
 
 // Which code a failure carries is decided by the generated catalogue, not
@@ -300,6 +324,7 @@ const wordingFor: Record<string, () => Omit<ErrorDiagnosis, "code">> = {
   "BC250-HW-001": () => ({ summary: text.error, cause: text.unknownCause, action: text.retryGuidance }),
   "BC250-PERM-001": () => ({ summary: text.helperFailed, cause: text.helperCause, action: text.helperAction }),
   "BC250-AUTH-002": () => ({ summary: text.helperFailed, cause: text.helperCause, action: text.helperAction }),
+  "BC250-TTM-001": () => ({ summary: text.ttmFailed, cause: text.ttmCause, action: text.ttmAction }),
 };
 
 const codeByMarker = new Map<string, string>();
@@ -1179,8 +1204,6 @@ function MonitorTab({ state, cpuRun }: { state: Status; cpuRun?: { target: numbe
     { label: text.inputVoltage.toUpperCase(), value: state.vrm_input_voltage_v != null ? `${state.vrm_input_voltage_v.toFixed(2)} V` : "—" },
     { label: text.totalPower.toUpperCase(), value: state.vrm_total_power_w != null ? `${state.vrm_total_power_w.toFixed(1)} W` : "—" },
   ];
-    })}
-  </div>;
 
   return <>
     <SubNav<MonitorSection> value={section} onChange={setSection} items={[
@@ -1229,8 +1252,101 @@ function MonitorTab({ state, cpuRun }: { state: Status; cpuRun?: { target: numbe
   </>;
 }
 
+function GpuMemoryLimit({ ttm, error, busy, execute, onState }: {
+  ttm: TtmState | null; error: string | null; busy: boolean;
+  execute: (title: string, operation: () => Promise<Result>, kind?: DraftKind) => Promise<void>;
+  onState: (next: TtmState) => void;
+}) {
+  const pageSize = ttm?.page_size ?? 4096;
+  const managedChoice = ttm?.managed ? String(ttmGib(ttm.managed_pages, pageSize) ?? "") : null;
+  // "Kernel default" is only a choice when there is something of ours to take off.
+  const restorable = Boolean(ttm?.managed || ttm?.legacy_pages != null);
+  const choices = useMemo(
+    () => [...(restorable ? ["default"] : []), ...(ttm?.presets_gib ?? []).map(String)],
+    [restorable, ttm?.presets_gib],
+  );
+  const [index, setIndex] = useState(0);
+  const initialized = useRef(false);
+  useEffect(() => {
+    if (initialized.current || !ttm) return;
+    const at = managedChoice ? choices.indexOf(managedChoice) : -1;
+    if (at >= 0) setIndex(at);
+    initialized.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ttm]);
+  const choice = choices[Math.min(index, Math.max(0, choices.length - 1))] ?? null;
+  const choiceLabel = (value: string | null) => value == null ? "—" : value === "default" ? text.ttmKernelDefault : `${value} GiB`;
+  const unchanged = choice == null
+    || (choice === "default" ? !restorable : choice === managedChoice && ttm?.legacy_pages == null);
+  const note = (body: string, key: string) => <div key={key} style={{ color: tokens.colors.amber, fontSize: 9, lineHeight: 1.4, margin: "0 2px 6px" }}>{body}</div>;
+  const confirm = () => {
+    if (choice == null) return;
+    showModal(<ConfirmModal
+      strTitle={text.ttmApply}
+      strDescription={`${choiceLabel(choice)}. ${text.ttmApplyDescription} ${text.vramRebootRequired}`}
+      strOKButtonText={text.ttmApply}
+      onOK={() => {
+        void execute(text.ttmTitle, async () => {
+          const reply = await applyTtmLimit(choice);
+          if (reply.ok !== false && reply.ttm) onState(reply.ttm);
+          return reply;
+        });
+      }}
+    />);
+  };
+  if (!ttm) return error ? note(error, "error") : <div style={{ color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 6px" }}>{text.ttmReading}</div>;
+  const nextBoot = ttm.configured_pages != null
+    ? `${formatBytes(ttm.configured_pages * pageSize)}${ttm.managed ? "" : ` · ${text.ttmSetElsewhereShort}`}`
+    : text.ttmKernelDefault;
+  const notes: ReactNode[] = [];
+  if (!ttm.supported) {
+    notes.push(note(ttm.reason || text.ttmUnavailable, "reason"));
+    const manual = Object.entries(ttm.manual_arguments ?? {});
+    if (manual.length && ttm.backend === "unsupported" && !/steamos/i.test(ttm.reason)) {
+      notes.push(<div key="manual" style={{ color: tokens.colors.subtle, fontFamily: "monospace", fontSize: 9, lineHeight: 1.5, margin: "0 2px 6px" }}>
+        {manual.map(([gib, argument]) => <div key={gib}>{gib} GiB · {argument}</div>)}
+      </div>);
+    }
+  }
+  if (ttm.gtt_override != null) notes.push(note(text.ttmGttOverride.replace("{value}", String(ttm.gtt_override)), "override"));
+  if (ttm.external) notes.push(note(text.ttmSetElsewhere, "external"));
+  if (ttm.legacy_pages != null) notes.push(note(text.ttmLegacy, "legacy"));
+  if (ttm.next_boot_ram_bytes != null) notes.push(note(text.ttmVramPending.replace("{size}", formatBytes(ttm.next_boot_ram_bytes)), "vram"));
+  // Somebody else's limit is reported, never replaced; amdgpu.gttsize would make a new one do nothing.
+  const canChoose = ttm.supported && choices.length > 0 && !(ttm.external && !ttm.managed)
+    && !(ttm.gtt_override != null && choice !== "default");
+  return <>
+    <div style={{ color: tokens.colors.subtle, fontSize: 9, lineHeight: 1.4, margin: "0 2px 6px" }}>{text.ttmHelp}</div>
+    <StatusRow label={text.ttmNow} active={null} value={formatBytes(ttm.gtt_total_bytes)} />
+    <StatusRow label={text.ttmNextBoot} active={null} value={nextBoot} />
+    {ttm.reboot_required ? <div style={{ alignItems: "center", background: tokens.colors.amber_soft, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, display: "flex", fontSize: 9, gap: 6, justifyContent: "space-between", marginBottom: 6, padding: "6px 8px" }}><span style={{ color: tokens.colors.subtle }}>{text.vramPending}</span><b style={{ color: tokens.colors.amber }}>{text.vramRebootRequired}</b></div> : null}
+    {notes}
+    {canChoose ? <>
+      <CompactSlider label={text.ttmTitle} value={Math.min(index, choices.length - 1)} suffix="" min={0} max={choices.length - 1} step={1} disabled={busy || choices.length < 2}
+        onChange={setIndex} formatValue={() => choiceLabel(choice)} />
+      <div style={{ marginTop: 6, marginBottom: 10 }}>
+        <ActionRow><Action label={text.ttmApply} primary disabled={busy || unchanged} onActivate={confirm} /></ActionRow>
+      </div>
+    </> : null}
+  </>;
+}
+
 function MemoryTab({ state, busy, execute }: { state: Status; busy: boolean; execute: (title: string, operation: () => Promise<Result>, kind?: DraftKind) => Promise<void> }) {
   const vram = state.vram;
+  // Read when the tab opens and after every change: it can ask rpm-ostree,
+  // so it is not part of the regular status poll.
+  const [ttm, setTtm] = useState<TtmState | null>(null);
+  const [ttmError, setTtmError] = useState<string | null>(null);
+  const loadTtm = useCallback(async () => {
+    try {
+      const reply = await getTtmState();
+      if (reply.ok === false || !reply.ttm) { setTtmError(localizedErrorSummary(reply.error ?? text.error)); return; }
+      setTtmError(null); setTtm(reply.ttm);
+    } catch (error) { setTtmError(localizedErrorSummary(failed(error).error ?? text.error)); }
+  }, []);
+  useEffect(() => { void loadTtm(); }, [loadTtm]);
+  // A new VRAM size changes how much memory the next boot has left for TTM.
+  useEffect(() => { if (vram?.uma_size_mb != null) void loadTtm(); }, [vram?.uma_size_mb, loadTtm]);
   const vramPresets = state.contract?.vram?.presets?.length ? state.contract.vram.presets : VRAM_PRESETS_FALLBACK;
   const vramSupported = Boolean(vram?.supported);
   // An index into vramPresets, not the megabyte value itself: this drives a
@@ -1262,12 +1378,23 @@ function MemoryTab({ state, busy, execute }: { state: Status; busy: boolean; exe
     if (!vramPending || !vram?.boot_id) return;
     if (vramPending.bootId !== vram.boot_id) { saveVramPending(null); setVramPending(null); }
   }, [vramPending, vram?.boot_id]);
-  const vramRebootPending = Boolean(
+  // The helper compares CMOS with what the firmware booted with, so a size
+  // written from the desktop shows up here too; the local record covers an
+  // older helper that does not report it.
+  const helperPending = Boolean(vram?.reboot_pending);
+  const vramRebootPending = helperPending || Boolean(
     vramPending && vram?.boot_id === vramPending.bootId && vram?.uma_size_mb === vramPending.mb,
   );
+  const pendingSize = helperPending && vram?.uma_size_mb != null ? vram.uma_size_mb : vramPending?.mb ?? vramTarget;
+  // A limit already set for the next boot that this VRAM size would no longer leave room for.
+  const ttmBytes = ttm?.configured_pages != null ? ttm.configured_pages * (ttm.page_size ?? 4096) : null;
+  const activeVramBytes = vram?.active_mb != null ? vram.active_mb * 1024 * 1024 : null;
+  const ramAfterVram = ttm?.physical_ram_bytes != null && activeVramBytes != null
+    ? ttm.physical_ram_bytes + activeVramBytes - vramTarget * 1024 * 1024 : null;
+  const vramTtmConflict = ttmBytes != null && ramAfterVram != null && ttmBytes > ramAfterVram;
   const confirmVram = () => showModal(<ConfirmModal
     strTitle={text.vramApply}
-    strDescription={`${vramSizeLabel(vramTarget)}. ${text.vramApplyDescription} ${text.vramRebootRequired}`}
+    strDescription={`${vramSizeLabel(vramTarget)}. ${text.vramApplyDescription} ${text.vramRebootRequired}${vramTtmConflict ? ` ${text.vramTtmConflict.replace("{limit}", formatBytes(ttmBytes)).replace("{size}", formatBytes(ramAfterVram))}` : ""}`}
     strOKButtonText={text.vramApply}
     onOK={() => {
       if (vram?.boot_id) { const record = { mb: vramTarget, bootId: vram.boot_id }; saveVramPending(record); setVramPending(record); }
@@ -1299,8 +1426,8 @@ function MemoryTab({ state, busy, execute }: { state: Status; busy: boolean; exe
       {!vramSupported
         ? <div style={{ color: tokens.colors.amber, fontSize: 10, lineHeight: 1.4, margin: "0 2px 6px" }}>{vram?.reason || text.vramUnavailable}</div>
         : <>
-          <StatusRow label={text.vramCurrentSize} active={null} value={vram?.uma_size_mb != null ? vramSizeLabel(vram.uma_size_mb) : "—"} />
-          {vramRebootPending ? <div style={{ alignItems: "center", background: tokens.colors.amber_soft, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, display: "flex", fontSize: 9, gap: 6, justifyContent: "space-between", marginBottom: 6, padding: "6px 8px" }}><span style={{ color: tokens.colors.subtle }}>{text.vramPending}</span><b style={{ color: tokens.colors.amber }}>{vramSizeLabel(vramPending?.mb ?? vramTarget)} · {text.vramRebootRequired}</b></div> : null}
+          <StatusRow label={text.vramCurrentSize} active={null} value={vram?.active_mb != null ? vramSizeLabel(vram.active_mb) : vram?.uma_size_mb != null ? vramSizeLabel(vram.uma_size_mb) : "—"} />
+          {vramRebootPending ? <div style={{ alignItems: "center", background: tokens.colors.amber_soft, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, display: "flex", fontSize: 9, gap: 6, justifyContent: "space-between", marginBottom: 6, padding: "6px 8px" }}><span style={{ color: tokens.colors.subtle }}>{text.vramPending}</span><b style={{ color: tokens.colors.amber }}>{vramSizeLabel(pendingSize)} · {text.vramRebootRequired}</b></div> : null}
           <CompactSlider label={text.vramPartition} value={vramIndex} suffix="" min={0} max={vramPresets.length - 1} step={1} disabled={busy}
             onChange={setVramIndex} formatValue={() => vramSizeLabel(vramTarget)} />
           <div style={{ marginTop: 6, marginBottom: 10 }}>
@@ -1313,6 +1440,9 @@ function MemoryTab({ state, busy, execute }: { state: Status; busy: boolean; exe
             { label: text.ttmLimit.toUpperCase(), value: state.memory_ttm_limit_bytes != null ? formatBytes(state.memory_ttm_limit_bytes) : "—" },
           ]} />
         </>}
+    </section>
+    <section style={{ marginBottom: 12 }}><SectionTitle kind="memory" title={text.ttmTitle} />
+      <GpuMemoryLimit ttm={ttm} error={ttmError} busy={busy} execute={execute} onState={(next) => { setTtm(next); setTtmError(null); }} />
     </section>
   </>;
 }

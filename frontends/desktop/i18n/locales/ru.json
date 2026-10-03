@@ -4563,5 +4563,10 @@
   "Open Telemetry settings": "Открыть настройки телеметрии",
   "Detected: the kernel driver (bc250_vrm) reads the regulator": "Обнаружено: драйвер ядра (bc250_vrm) читает регулятор",
   "Not detected: the kernel driver (bc250_vrm) gets no answer from the regulator": "Не обнаружено: драйвер ядра (bc250_vrm) не получает ответа от регулятора",
-  "This kernel reads the regulator itself (bc250_vrm), so the BC250-Telemetry service is not needed and cannot open the bus. Remove it here.": "Это ядро само читает регулятор (bc250_vrm), поэтому служба BC250-Telemetry не нужна и не может открыть шину. Удалите её здесь."
+  "This kernel reads the regulator itself (bc250_vrm), so the BC250-Telemetry service is not needed and cannot open the bus. Remove it here.": "Это ядро само читает регулятор (bc250_vrm), поэтому служба BC250-Telemetry не нужна и не может открыть шину. Удалите её здесь.",
+  "amdgpu.gttsize overrides this limit": "amdgpu.gttsize перекрывает этот лимит",
+  "The limit is saved as a kernel boot argument, shared with BC250 Quick Access in Game Mode, and takes effect at the next reboot.": "Лимит сохраняется как параметр загрузки ядра, общий с BC250 Quick Access в Game Mode, и вступает в силу после следующей перезагрузки.",
+  "The GPU memory limit could not be changed.": "Не удалось изменить лимит памяти GPU.",
+  "This system cannot keep a kernel boot argument the way Control Center manages it, another tool already set the limit, or the boot loader or rpm-ostree refused the change.": "Эта система не может сохранить параметр загрузки ядра так, как им управляет Control Center, лимит уже задан другим инструментом, или загрузчик либо rpm-ostree отклонили изменение.",
+  "Read the reason in the Memory section. On SteamOS, systemd-boot or rEFInd add the ttm.pages_limit argument yourself; elsewhere retry once the boot loader or rpm-ostree is idle.": "Прочитайте причину в разделе «Память». В SteamOS, systemd-boot или rEFInd добавьте параметр ttm.pages_limit сами; в остальных случаях повторите, когда загрузчик или rpm-ostree освободятся."
 }

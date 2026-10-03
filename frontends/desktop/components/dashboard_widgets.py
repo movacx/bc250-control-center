@@ -1545,6 +1545,9 @@ class PreparationSidebar(QFrame):
         self.memory_ttm_card = ttm_card
         self.memory_ttm_readout = _label("—", "metricTileValue", wrap=False)
         ttm_layout.addWidget(self.memory_ttm_readout)
+        # What the next boot will use, from the state Game Mode shares.
+        self.memory_ttm_state = _label("", "dashboardMemoryDetail")
+        ttm_layout.addWidget(self.memory_ttm_state)
         self.ttm_limit_combo = QComboBox()
         self.ttm_limit_combo.setProperty("dashboardMemoryCombo", True)
         self.ttm_limit_combo.addItem(tr("Keep current TTM limit"), 0)

@@ -13,7 +13,8 @@ def main():
     parser.add_argument("action", choices=("status", "memory-plan", "memory-apply", "memory-boot",
                                            "acpi-install", "acpi-uninstall", "acpi-check",
                                            "telemetry-fix", "telemetry-restore", "kernel-options-set",
-                                           "vram-read", "vram-apply", "uninstall-check"))
+                                           "vram-read", "vram-apply", "ttm-status", "ttm-apply",
+                                           "uninstall-check"))
     parser.add_argument("--policy", choices=("preserve", "restore", "swap-16", "swap-32", "zram", "zswap-16", "zswap-32"), default="preserve")
     parser.add_argument("--ttm", type=int, choices=(-1, 0, 8, 10, 12), default=0)
     parser.add_argument("--uma-size", type=int, default=0)
@@ -39,10 +40,19 @@ def main():
     import system_setup_kernel_args as kernel_args
     import system_setup_memory as memory
     import system_setup_telemetry as telemetry
+    import system_setup_ttm as ttm
     import system_setup_vram as vram
     from system_setup_common import STATE, Host, SetupError
 
     host = Host()
+
+    def next_boot_ram():
+        """System memory after a VRAM size still waiting in CMOS takes effect."""
+        try:
+            planned = vram.read(host)["uma_size_mb"]
+        except (SetupError, OSError):
+            return None
+        return ttm.next_boot_ram(host, planned)
     try:
         if args.action == "uninstall-check":
             blockers, steps, commands = uninstall_blockers(host, memory, STATE)
@@ -59,18 +69,27 @@ def main():
                 "telemetry": telemetry.status(host),
                 "kernel_options": kernel_args.status(host),
                 "vram": vram.status(host),
+                # Without root: no rpm-ostree probe and no CMOS read.
+                "ttm": ttm.status(host, probe=False),
                 "protocol": 2,
             }
             if args.action == "memory-plan":
                 result["request"] = {"policy": args.policy, "ttm_gib": args.ttm}
             print(json.dumps(result))
             return 0
+        if args.action == "ttm-status":
+            print(json.dumps(ttm.status(host, next_boot_ram=next_boot_ram())))
+            return 0
         directory = host.safe(STATE)
         directory.mkdir(parents=True, exist_ok=True, mode=0o755)
         lock = host.safe(STATE + "/setup.lock")
         fd = os.open(lock, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
         try:
-            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                # The desktop and the Decky panel share this helper.
+                raise SetupError("Another BC250 system setup change is running; try again when it finishes") from None
             if args.action == "memory-apply":
                 result = memory.apply(host, args.policy, args.ttm,
                                        takeover_zram=args.takeover_zram, target_mount=args.target_mount)
@@ -91,6 +110,8 @@ def main():
                 result = vram.read(host)
             elif args.action == "vram-apply":
                 result = vram.apply(host, args.uma_size)
+            elif args.action == "ttm-apply":
+                result = ttm.apply(host, args.ttm, next_boot_ram=next_boot_ram())
             else:
                 result = acpi.uninstall(host)
         finally:
@@ -111,6 +132,8 @@ def main():
             print("Inspection only: no setting was changed.")
         elif args.action == "vram-apply":
             print("The new VRAM size is written to CMOS and takes effect on next reboot; it is not an automatic reboot.")
+        elif args.action == "ttm-apply":
+            print("The GPU memory limit is a kernel boot argument: it takes effect at the next reboot.")
         else:
             print("Review the reported state. Reboot is required for ACPI and ZRAM changes; no automatic reboot was requested.")
         return 0

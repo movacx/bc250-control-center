@@ -50,7 +50,9 @@ CONTRACT_PATH = pathlib.Path(
 # shape of the shared contract this file was written against.
 # Protocol 19 adds fan_profiles/system_fan_* to the status and "fan-resume",
 # which per-game profiles use to hand the fans back after a game.
-HELPER_PROTOCOL = 20
+# Protocol 21 adds "ttm-status"/"ttm-apply" (the GPU memory limit, kept by the
+# desktop's own system-setup helper) and vram active_mb/reboot_pending.
+HELPER_PROTOCOL = 21
 REQUIRED_CONTRACT_REVISION = 1
 GPU_PROFILES = (
     "balanced", "gaming", "benchmark",
@@ -72,6 +74,9 @@ CPU_SCALES = tuple(range(-50, 1))
 # against the shared contract in _contract_disagreement() before it is ever
 # shown, so a stale plugin cannot offer a size the root helper would reject.
 VRAM_SIZE_PRESETS_MB = (256, 512, 1024, 2048, 3072, 4096, 5120, 6144, 7168, 8192, 12288)
+# GPU memory limit (TTM) choices: the helper validates them again, and the
+# desktop's system-setup helper a third time before anything is written.
+TTM_CHOICES = ("8", "10", "12", "default")
 MAX_RECENT_ACTIONS = 10
 #: Passive read of the optional onlinermm/BC250-Telemetry daemon's snapshot —
 #: mirrors bc250cc.infrastructure.vrm_telemetry_reader.leer_telemetria_vrm()
@@ -1324,6 +1329,27 @@ class Plugin:
             return {"ok": False, "error": "Unsupported VRAM size."}
         result = await self._run_single_operation("vram-apply", str(normalized), timeout=30)
         return self._record_action("vram", str(normalized), result)
+
+    async def ttm_state(self) -> dict:
+        """The GPU memory limit, as the desktop's system-setup helper reports it.
+
+        Read-only and outside both write locks, like gddr6_sensors(): on
+        Bazzite it asks rpm-ostree for the next deployment's arguments, which
+        takes a moment and must not hold up the status poll. Desktop and panel
+        read the same state, so a limit set from either shows up in both.
+        """
+        return await asyncio.to_thread(self._run, "ttm-status", timeout=70)
+
+    async def apply_ttm_limit(self, value: int | str) -> dict:
+        """Set the GPU memory limit for the next boot (8/10/12 GiB) or remove it."""
+        if isinstance(value, bool) or type(value) not in {int, str}:
+            return {"ok": False, "error": "Unsupported GPU memory limit."}
+        normalized = str(value).strip().lower()
+        if normalized not in TTM_CHOICES:
+            return {"ok": False, "error": "Unsupported GPU memory limit."}
+        # rpm-ostree writes a whole new deployment on Bazzite.
+        result = await self._run_single_operation("ttm-apply", normalized, timeout=260)
+        return self._record_action("ttm", normalized, result)
 
     # ------------------------------------------------------------ per game
     def _game_store_path(self) -> pathlib.Path:

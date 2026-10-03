@@ -65,7 +65,7 @@ CONTRACT_REVISION = 1
 #
 # Protocol 20 adds "gpu-compat" (Cyan kernel compatibility: set method, usage
 # reading, Fix metrics, Fix frequencies) and the gpu_compatibility status field.
-QUICK_ACCESS_PROTOCOL = 20
+QUICK_ACCESS_PROTOCOL = 21
 CPU_SMU_HELPER_PROTOCOL = 8
 GOVERNOR_CONFIG_PROTOCOL = 6
 STEAMOS_GAME_HELPER_PROTOCOL = 21

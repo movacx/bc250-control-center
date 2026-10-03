@@ -224,6 +224,14 @@ class DependenciasRepository:
         return self._abrir_terminal(command, 'Configurar memoria BC250 en Bazzite')
 
     def preparar_memoria(self, policy: str, ttm_gib: int, *, takeover_zram: bool = False, target_mount: str = ''):
+        if int(ttm_gib) and policy in {'preserve', 'current'}:
+            # The GPU memory limit alone: one implementation, the one the
+            # Decky panel uses too (system_setup_ttm.py), on every family
+            # including Bazzite, so both read and restore the same state.
+            return self._abrir_terminal(
+                system_setup_command('ttm-apply', ttm_gib=int(ttm_gib)),
+                'BC250 GPU memory limit',
+            )
         if self._os_repository().family == 'bazzite':
             return self.preparar_memoria_bazzite(policy, ttm_gib)
         return self._abrir_terminal(
