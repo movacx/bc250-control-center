@@ -764,7 +764,7 @@ function CoreGrid({ cores, slots }: { cores: CoreEntry[]; slots?: number | null 
     <div style={{ display: "grid", gap: 4, gridTemplateColumns: "repeat(4,minmax(0,1fr))" }}>
       {groups.map((group) => {
         if (!group.threads.length) return <div key={group.id} style={{ background: tokens.colors.panel_alt, border: `1px dashed ${tokens.colors.border}`, borderRadius: 7, display: "flex", flexDirection: "column", gap: 4, justifyContent: "center", opacity: .5, padding: "6px 7px 7px" }}>
-          <div style={{ color: tokens.colors.subtle, fontSize: 8 }}>{text.cpuCoreLabel} {group.id + 1}</div>
+          <div style={{ color: tokens.colors.subtle, fontSize: 9, fontWeight: 700 }}>{group.id + 1}</div>
           <div style={{ color: tokens.colors.muted, fontSize: 9, fontWeight: 650, marginTop: 3 }}>{text.cpuCoreLocked}</div>
         </div>;
         const lead = busiest(group.threads);
@@ -773,7 +773,7 @@ function CoreGrid({ cores, slots }: { cores: CoreEntry[]; slots?: number | null 
         const load = average ?? 0;
         const tone = load >= 85 ? tokens.colors.red : load >= 60 ? tokens.colors.amber : tokens.colors.green;
         return <div key={group.id} style={{ background: tokens.colors.panel_raised, border: `1px solid ${tokens.colors.border}`, borderRadius: 7, display: "flex", flexDirection: "column", gap: 4, padding: "6px 7px 7px" }}>
-          <div style={{ alignItems: "baseline", display: "flex", justifyContent: "space-between" }}><span style={{ color: tokens.colors.subtle, fontSize: 8, letterSpacing: .3 }}>{text.cpuCoreLabel} {group.id + 1}</span><span style={{ color: average != null ? tone : tokens.colors.subtle, fontSize: 8, fontWeight: 650 }}>{average != null ? `${average}%` : "—"}</span></div>
+          <div style={{ alignItems: "baseline", display: "flex", justifyContent: "space-between" }}><span style={{ color: tokens.colors.text, fontSize: 9, fontWeight: 700, whiteSpace: "nowrap" }}>{group.id + 1}</span><span style={{ color: average != null ? tone : tokens.colors.subtle, fontSize: 8, fontWeight: 650 }}>{average != null ? `${average}%` : "—"}</span></div>
           <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1 }}>{lead?.frequency_mhz != null ? <>{(lead.frequency_mhz / 1000).toFixed(2)}<span style={{ color: tokens.colors.subtle, fontSize: 8, fontWeight: 600, marginLeft: 2 }}>GHz</span></> : "—"}</div>
           <div style={{ background: tokens.colors.panel_alt, borderRadius: 3, height: 4, overflow: "hidden" }}><div style={{ background: tone, borderRadius: 3, height: "100%", transition: "width .4s ease", width: `${Math.max(3, Math.min(100, load))}%` }} /></div>
         </div>;
@@ -987,6 +987,61 @@ function cpuRunNotice(state: Status, cpuRun: { target: number; elapsed: number }
   return <div style={box}><span style={{ color: tokens.colors.subtle }}>{text.cpuDetected}</span><b style={{ color: tokens.colors.green }}>{`${frequency} MHz · scale ${scale}`}</b></div>;
 }
 
+// Monitoring › CPU, as two cards instead of an eight-row list: what the CPU
+// is doing now (clock, temperature, load, voltage) and what overclock it runs.
+// The list mixed the sensor voltage and the overclock's estimated VID under
+// the same label, and called the live average a "target".
+function heatTone(celsius: number | null | undefined) {
+  if (celsius == null) return tokens.colors.text;
+  return celsius >= 85 ? tokens.colors.red : celsius >= 75 ? tokens.colors.amber : tokens.colors.green;
+}
+
+function CpuOverview({ state }: { state: Status }) {
+  const usage = state.cpu_usage_percent;
+  const ghz = state.cpu_frequency_mhz != null ? (state.cpu_frequency_mhz / 1000).toFixed(2) : "—";
+  const label: CSSProperties = { color: tokens.colors.subtle, fontSize: 8, letterSpacing: .4, textTransform: "uppercase" };
+  return <div style={{ background: tokens.colors.panel_raised, border: `1px solid ${tokens.colors.border}`, borderRadius: 8, marginBottom: 8, padding: "9px 10px" }}>
+    <div style={{ display: "grid", gap: 8, gridTemplateColumns: "1fr 1fr" }}>
+      <div><div style={label}>{text.cpuNow}</div><div style={{ fontSize: 22, fontWeight: 750, lineHeight: 1.1 }}>{ghz}<span style={{ color: tokens.colors.subtle, fontSize: 10, fontWeight: 600, marginLeft: 3 }}>GHz</span></div></div>
+      <div style={{ textAlign: "right" }}><div style={label}>{text.cpuTemperature}</div><div style={{ color: heatTone(state.cpu_temperature_c), fontSize: 22, fontWeight: 750, lineHeight: 1.1 }}>{state.cpu_temperature_c != null ? state.cpu_temperature_c.toFixed(1) : "—"}<span style={{ color: tokens.colors.subtle, fontSize: 10, fontWeight: 600, marginLeft: 2 }}>°C</span></div></div>
+    </div>
+    <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr auto", marginTop: 8 }}>
+      <div>
+        <div style={{ display: "flex", fontSize: 9, justifyContent: "space-between", marginBottom: 3 }}><span style={{ color: tokens.colors.subtle }}>{text.usage}</span><b>{usage != null ? `${usage}%` : "—"}</b></div>
+        <div style={{ background: tokens.colors.panel_alt, borderRadius: 3, height: 5, overflow: "hidden" }}><div style={{ background: tokens.colors.green, borderRadius: 3, height: "100%", transition: "width .4s ease", width: `${Math.max(2, Math.min(100, usage ?? 0))}%` }} /></div>
+      </div>
+      <div style={{ textAlign: "right" }}><div style={{ color: tokens.colors.subtle, fontSize: 9 }}>{text.gpuVoltage}</div><b style={{ fontSize: 11 }}>{state.cpu_voltage_mv != null ? `${state.cpu_voltage_mv} mV` : "—"}</b></div>
+    </div>
+  </div>;
+}
+
+function CpuOcCard({ state }: { state: Status }) {
+  const active = state.cpu_active_profile ?? state.cpu_detected_profile?.active_profile;
+  const mode = !active ? "—" : active.mode === "manual" ? text.cpuManual : active.mode === "boot" ? text.cpuModeBoot : text.automatic;
+  const tone = active ? tokens.colors.green : tokens.colors.subtle;
+  const rows: [string, string][] = [
+    [text.mode, mode],
+    ["OC", active ? `${active.frequency} MHz` : "—"],
+    [active?.mode === "manual" ? text.cpuScale : text.cpuEstimatedVid, !active ? "—" : active.mode === "manual" ? String(active.scale) : `${active.estimated_vid} mV`],
+    [text.cpuOnBoot, active?.persistable || Boolean(state.cpu_service_enabled) ? text.enabled : text.disabled],
+    [text.cpuThermalLimit, `${state.cpu_tuning_temperature ?? "—"} °C`],
+  ];
+  return <div style={{ background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 8, marginBottom: 8, padding: "8px 10px" }}>
+    <div style={{ alignItems: "center", display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+      <b style={{ fontSize: 11 }}>{text.cpuOcTitle}</b>
+      <span style={{ background: active ? tokens.colors.green_soft : tokens.colors.panel_raised, border: `1px solid ${tone}`, borderRadius: 10, color: tone, fontSize: 8, fontWeight: 700, padding: "1px 7px" }}>{active ? text.enabled : text.disabled}</span>
+    </div>
+    {rows.map(([name, value]) => <div key={name} style={{ borderTop: `1px solid ${tokens.colors.border}`, display: "flex", fontSize: 10, justifyContent: "space-between", padding: "4px 0" }}><span style={{ color: tokens.colors.subtle }}>{name}</span><b>{value}</b></div>)}
+  </div>;
+}
+
+// Without the I2C modification the CPU rail has nothing to report: one line,
+// not four rows of dashes.
+function CpuVrm({ state, tiles }: { state: Status; tiles: { label: string; value: string }[] }) {
+  if (state.vrm_available) return <MetricGrid tiles={tiles} />;
+  return <div style={{ alignItems: "center", border: `1px dashed ${tokens.colors.border}`, borderRadius: 6, color: tokens.colors.subtle, display: "flex", fontSize: 9, gap: 6, justifyContent: "space-between", marginBottom: 10, padding: "6px 8px" }}><b style={{ color: tokens.colors.text, fontSize: 9 }}>VRM CPU</b><span style={{ textAlign: "right" }}>{text.vrmUnavailable}</span></div>;
+}
+
 function MonitorTab({ state, cpuRun }: { state: Status; cpuRun?: { target: number; elapsed: number } | null }) {
   const accent = ACCENT_SWATCHES[useContext(SettingsContext).settings.accent];
   const [section, setSection] = useState<MonitorSection>("cpu");
@@ -994,25 +1049,11 @@ function MonitorTab({ state, cpuRun }: { state: Status; cpuRun?: { target: numbe
   const gpuGttKnown = typeof state.gpu_gtt_used_mib === "number" && typeof state.gpu_gtt_total_mib === "number";
   const fanOptions = state.fan_channel_options ?? [];
   const vrmAvailable = Boolean(state.vrm_available);
-  const activeCpu = state.cpu_active_profile ?? state.cpu_detected_profile?.active_profile;
-  const ocModeLabel = !activeCpu ? "—" : activeCpu.mode === "manual" ? text.cpuManual : activeCpu.mode === "boot" ? text.install : text.automatic;
-  const ocDetailLabel = activeCpu?.mode === "manual" ? text.cpuScale.toUpperCase() : text.gpuVoltage.toUpperCase();
-  const ocDetail = !activeCpu ? text.disabled : activeCpu.mode === "manual" ? String(activeCpu.scale) : `${activeCpu.estimated_vid} mV`;
   const defaultFan = fanOptions.find((option) => option.channel === 2) ?? fanOptions[0];
 
   // Built once and reused by both each module's own tab and the "All" tab,
   // so the two views can never drift into showing different numbers for the
   // same sensor.
-  const cpuTiles = [
-    { label: text.cpuFrequency.toUpperCase(), value: `${state.cpu_frequency_mhz ?? "—"} MHz` },
-    { label: "TCTL", value: `${state.cpu_temperature_c?.toFixed(1) ?? "—"} °C` },
-    { label: text.gpuVoltage.toUpperCase(), value: state.cpu_voltage_mv != null ? `${state.cpu_voltage_mv} mV` : "—" },
-    { label: text.usage.toUpperCase(), value: state.cpu_usage_percent != null ? `${state.cpu_usage_percent}%` : "—" },
-    { label: "OC", value: activeCpu ? `${activeCpu.frequency} MHz` : text.disabled },
-    { label: text.mode.toUpperCase(), value: ocModeLabel },
-    { label: ocDetailLabel, value: ocDetail },
-    { label: text.persistent.toUpperCase(), value: activeCpu?.persistable ? text.enabled : text.disabled },
-  ];
   const cpuVrmTiles = [
     { label: "VRM CPU · TEMP", value: vrmAvailable && state.vrm_cpu_temperature_c != null ? `${state.vrm_cpu_temperature_c.toFixed(1)} °C` : "—" },
     { label: `VRM CPU · ${text.gpuVoltage.toUpperCase()}`, value: state.vrm_cpu_voltage_v != null ? `${state.vrm_cpu_voltage_v.toFixed(2)} V` : "—" },
@@ -1081,10 +1122,9 @@ function MonitorTab({ state, cpuRun }: { state: Status; cpuRun?: { target: numbe
 
     {section === "cpu" ? <Focusable flow-children="down">
       {cpuRunNotice(state, cpuRun)}
-      <ScrollStop><MetricGrid tiles={cpuTiles} />
-        <div style={{ color: tokens.colors.subtle, fontSize: 9, margin: "-3px 2px 8px" }}>{text.cpuTrial}: {state.cpu_tuning_temperature ?? "—"}°C</div></ScrollStop>
+      <ScrollStop><CpuOverview state={state} /><CpuOcCard state={state} /></ScrollStop>
       <ScrollStop><CoreGrid cores={state.cpu_cores ?? []} slots={state.cpu_physical_slots} /></ScrollStop>
-      <ScrollStop>{vrmNotice}<MetricGrid tiles={cpuVrmTiles} /></ScrollStop>
+      <ScrollStop><CpuVrm state={state} tiles={cpuVrmTiles} /></ScrollStop>
       <ScrollStop end />
     </Focusable> : null}
 
@@ -1109,9 +1149,9 @@ function MonitorTab({ state, cpuRun }: { state: Status; cpuRun?: { target: numbe
           player can take a single screenshot instead of one per tab. Each
           block is a ScrollStop so the D-pad can walk down to the last one. */}
       <Focusable flow-children="down">
-        <ScrollStop><SectionTitle kind="cpu" title="CPU" /><MetricGrid tiles={cpuTiles} /></ScrollStop>
+        <ScrollStop><SectionTitle kind="cpu" title="CPU" /><CpuOverview state={state} /><CpuOcCard state={state} /></ScrollStop>
         <ScrollStop><CoreGrid cores={state.cpu_cores ?? []} slots={state.cpu_physical_slots} /></ScrollStop>
-        <ScrollStop><MetricGrid tiles={cpuVrmTiles} /></ScrollStop>
+        <ScrollStop><CpuVrm state={state} tiles={cpuVrmTiles} /></ScrollStop>
 
         <ScrollStop><SectionTitle kind="gpu" title="GPU" /><AceRow state={state} /><MetricGrid tiles={gpuTiles} /></ScrollStop>
         <ScrollStop>

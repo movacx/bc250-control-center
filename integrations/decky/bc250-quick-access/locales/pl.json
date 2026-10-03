@@ -236,5 +236,12 @@
   "cpuMonitorApplying": "Chwileczkę: podkręcanie CPU do {target} MHz jest stosowane i testowane obciążeniem. Obserwuj temperatury w trakcie.",
   "cpuCoreLabel": "Rdzeń",
   "cpuCoreLocked": "Zablokowany",
-  "cpuCoresSummary": "{active}/{total} rdzeni · {threads} wątków"
+  "cpuCoresSummary": "{active}/{total} rdzeni · {threads} wątków",
+  "cpuNow": "Bieżące taktowanie",
+  "cpuTemperature": "Temperatura",
+  "cpuOcTitle": "Podkręcanie",
+  "cpuEstimatedVid": "Szacowany VID",
+  "cpuOnBoot": "Stosowane przy starcie",
+  "cpuModeBoot": "Usługa startowa",
+  "cpuThermalLimit": "Limit temperatury"
 }

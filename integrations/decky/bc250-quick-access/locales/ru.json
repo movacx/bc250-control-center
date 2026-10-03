@@ -236,5 +236,12 @@
   "cpuMonitorApplying": "Подождите: разгон CPU до {target} МГц применяется и проверяется нагрузкой. Следите за температурами.",
   "cpuCoreLabel": "Ядро",
   "cpuCoreLocked": "Заблокировано",
-  "cpuCoresSummary": "{active}/{total} ядер · {threads} потоков"
+  "cpuCoresSummary": "{active}/{total} ядер · {threads} потоков",
+  "cpuNow": "Текущая частота",
+  "cpuTemperature": "Температура",
+  "cpuOcTitle": "Разгон",
+  "cpuEstimatedVid": "Расчётный VID",
+  "cpuOnBoot": "Применяется при загрузке",
+  "cpuModeBoot": "Служба загрузки",
+  "cpuThermalLimit": "Тепловой предел"
 }

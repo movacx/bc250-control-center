@@ -236,5 +236,12 @@
   "cpuMonitorApplying": "Please wait: the CPU overclock at {target} MHz is being applied and stress-tested. Watch the temperatures while it runs.",
   "cpuCoreLabel": "Core",
   "cpuCoreLocked": "Locked",
-  "cpuCoresSummary": "{active}/{total} cores · {threads} threads"
+  "cpuCoresSummary": "{active}/{total} cores · {threads} threads",
+  "cpuNow": "Current clock",
+  "cpuTemperature": "Temperature",
+  "cpuOcTitle": "Overclock",
+  "cpuEstimatedVid": "Estimated VID",
+  "cpuOnBoot": "Applied at boot",
+  "cpuModeBoot": "Boot service",
+  "cpuThermalLimit": "Thermal limit"
 }

@@ -236,5 +236,12 @@
   "cpuMonitorApplying": "Зачекайте: розгін CPU до {target} МГц застосовується й перевіряється навантаженням. Стежте за температурами.",
   "cpuCoreLabel": "Ядро",
   "cpuCoreLocked": "Заблоковано",
-  "cpuCoresSummary": "{active}/{total} ядер · {threads} потоків"
+  "cpuCoresSummary": "{active}/{total} ядер · {threads} потоків",
+  "cpuNow": "Поточна частота",
+  "cpuTemperature": "Температура",
+  "cpuOcTitle": "Розгін",
+  "cpuEstimatedVid": "Розрахунковий VID",
+  "cpuOnBoot": "Застосовується під час запуску",
+  "cpuModeBoot": "Служба запуску",
+  "cpuThermalLimit": "Тепловий ліміт"
 }

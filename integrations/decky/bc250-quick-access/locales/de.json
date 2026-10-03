@@ -236,5 +236,12 @@
   "cpuMonitorApplying": "Bitte warten: Der CPU-Overclock auf {target} MHz wird angewendet und unter Last getestet. Behalte die Temperaturen im Blick.",
   "cpuCoreLabel": "Kern",
   "cpuCoreLocked": "Gesperrt",
-  "cpuCoresSummary": "{active}/{total} Kerne · {threads} Threads"
+  "cpuCoresSummary": "{active}/{total} Kerne · {threads} Threads",
+  "cpuNow": "Aktueller Takt",
+  "cpuTemperature": "Temperatur",
+  "cpuOcTitle": "Übertaktung",
+  "cpuEstimatedVid": "Geschätzte VID",
+  "cpuOnBoot": "Beim Start angewendet",
+  "cpuModeBoot": "Startdienst",
+  "cpuThermalLimit": "Temperaturgrenze"
 }

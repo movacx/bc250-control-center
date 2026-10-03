@@ -236,5 +236,12 @@
   "cpuMonitorApplying": "Espera un momento: se está aplicando y probando el OC de CPU a {target} MHz. Vigila las temperaturas mientras dura.",
   "cpuCoreLabel": "Núcleo",
   "cpuCoreLocked": "Bloqueado",
-  "cpuCoresSummary": "{active}/{total} núcleos · {threads} hilos"
+  "cpuCoresSummary": "{active}/{total} núcleos · {threads} hilos",
+  "cpuNow": "Frecuencia actual",
+  "cpuTemperature": "Temperatura",
+  "cpuOcTitle": "Overclock",
+  "cpuEstimatedVid": "VID estimado",
+  "cpuOnBoot": "Aplicado al arrancar",
+  "cpuModeBoot": "Servicio de arranque",
+  "cpuThermalLimit": "Límite térmico"
 }
