@@ -5036,9 +5036,9 @@ function SubNav({ value, onChange, items }) {
 function Gddr6Switch() {
     const { gddr6 } = SP_REACT.useContext(SettingsContext);
     const on = gddr6.live;
-    return SP_JSX.jsxs(PadButton, { label: "GDDR6", onActivate: () => gddr6.setLive(!on), style: { alignItems: "center", background: "transparent", border: "none", display: "flex", height: 22, justifyContent: "space-between", margin: "2px 0 4px", minHeight: 0, padding: "0 2px", width: "100%" }, children: [
-            SP_JSX.jsx("span", { style: { color: tokens.colors.subtle, fontSize: 9, textTransform: "uppercase" }, children: "GDDR6" }),
-            SP_JSX.jsx("span", { style: { background: on ? tokens.colors.green : tokens.colors.panel_raised, border: `1px solid ${on ? tokens.colors.green : tokens.colors.border}`, borderRadius: 8, display: "inline-block", height: 12, position: "relative", transition: "background .2s ease", width: 24 }, children: SP_JSX.jsx("span", { style: { background: on ? "#FFFFFF" : tokens.colors.subtle, borderRadius: "50%", height: 8, left: on ? 13 : 2, position: "absolute", top: 1, transition: "left .2s ease", width: 8 } }) })
+    return SP_JSX.jsxs(PadButton, { label: "GDDR6", onActivate: () => gddr6.setLive(!on), style: { alignItems: "center", background: "transparent", border: "none", display: "flex", height: 30, justifyContent: "space-between", margin: "2px 0 6px", minHeight: 0, padding: "0 4px", width: "100%" }, children: [
+            SP_JSX.jsx("span", { style: { color: tokens.colors.text, fontSize: 10, fontWeight: 600, textTransform: "uppercase" }, children: "GDDR6" }),
+            SP_JSX.jsx("span", { style: { background: on ? tokens.colors.green : tokens.colors.panel_raised, border: `1px solid ${on ? tokens.colors.green : tokens.colors.border}`, borderRadius: 10, display: "inline-block", height: 18, position: "relative", transition: "background .2s ease", width: 34 }, children: SP_JSX.jsx("span", { style: { background: on ? "#FFFFFF" : tokens.colors.subtle, borderRadius: "50%", height: 14, left: on ? 17 : 2, position: "absolute", top: 1, transition: "left .2s ease", width: 14 } }) })
         ] });
 }
 function Gddr6Panel({ state }) {
