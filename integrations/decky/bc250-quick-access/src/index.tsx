@@ -695,7 +695,7 @@ function Action({ label, disabled, primary, danger, onActivate }: { label: strin
     background: danger ? tokens.colors.red_soft : primary ? accent.focus : tokens.colors.panel_raised,
     border: `1px solid ${danger ? tokens.colors.red_soft : primary ? accent.focus : tokens.colors.border}`,
     color: danger ? tokens.colors.red : primary ? tokens.colors.selection : tokens.colors.text,
-    alignItems: "center", boxSizing: "border-box", display: "flex", flex: 1, fontSize: 10, fontWeight: primary ? 700 : 600, height: "100%", justifyContent: "center", lineHeight: 1.15, minWidth: 0, padding: "4px 7px", textAlign: "center", whiteSpace: "normal", width: "100%",
+    alignItems: "center", boxSizing: "border-box", display: "flex", flex: 1, fontSize: 10, fontWeight: primary ? 700 : 600, height: "100%", minHeight: 32, justifyContent: "center", lineHeight: 1.15, minWidth: 0, padding: "4px 7px", textAlign: "center", whiteSpace: "normal", width: "100%",
   }}>{label}</PadButton>;
 }
 
