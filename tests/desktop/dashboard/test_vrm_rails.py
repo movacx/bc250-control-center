@@ -125,3 +125,48 @@ def test_the_dashboard_shows_the_owner_instead_of_the_raw_mode(page):
 
     page.apply_state(replace(page.state, fan_state_available=True, fan_mode="manual", fan_owner="system"))
     assert page.fan_card.details["mode"].value.text() == "System service"
+
+
+# --------------------------------------------- where the readings are switched on
+
+
+@pytest.mark.parametrize(
+    ("kernel", "daemon", "expected"),
+    (
+        (False, "missing", "VRM_HELP_SERVICE"),
+        (False, "running", "VRM_HELP_NO_ANSWER"),
+        (True, "missing", "VRM_HELP_KERNEL"),
+        (True, "running", "VRM_HELP_KERNEL"),
+    ),
+)
+def test_an_empty_band_explains_how_to_enable_it(page, monkeypatch, kernel, daemon, expected):
+    import frontends.desktop.pages.dashboard as dashboard_module
+
+    _sensors(page, {"board_temperature_c": 48, "vrm_source": "nct"})
+    assert page.vrm_help_button.isHidden() is False
+
+    shown = {}
+
+    class Dialog:
+        def __init__(self, title, message, **kwargs):
+            shown.update(title=title, message=message, **kwargs)
+
+        def exec(self):
+            return dashboard_module.QDialog.DialogCode.Accepted
+
+    monkeypatch.setattr(dashboard_module, "ConfirmDialog", Dialog)
+    monkeypatch.setattr(dashboard_module, "kernel_vrm_driver_present", lambda: kernel)
+    monkeypatch.setattr(dashboard_module, "sondear_telemetria_vrm", lambda: {"daemon": daemon})
+    routed = []
+    page.action_requested.connect(routed.append)
+
+    page._show_vrm_help()
+
+    assert shown["message"] == getattr(dashboard_module, expected)
+    assert shown["confirm_text"] == "Open Telemetry settings"
+    assert routed == ["telemetry_settings"]
+
+
+def test_a_band_with_readings_has_no_help_button(page):
+    _sensors(page, PMBUS)
+    assert page.vrm_help_button.isHidden() is True

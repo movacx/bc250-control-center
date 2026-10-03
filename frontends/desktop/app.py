@@ -1517,6 +1517,9 @@ class ControlCenterWindow(QMainWindow):
         self.close()
 
     def _dashboard_action(self, action: str) -> None:
+        if action == "telemetry_settings":
+            self._open_settings_dialog("telemetry")
+            return
         if action in {"cpu_configuration", "cpu_overview"}:
             self.navigate("cpu")
             self.cpu_page._select_workspace(action.removeprefix("cpu_"))

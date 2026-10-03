@@ -53,7 +53,7 @@ from bc250cc.infrastructure.gddr6_memory_temp_repository import (
 from bc250cc.infrastructure.governor_conflicts import normalize_governor_preference
 from bc250cc.infrastructure.system_snapshot import system_snapshot
 from bc250cc.infrastructure.apu_telemetry_service import apu_telemetry_state
-from bc250cc.infrastructure.vrm_telemetry_reader import sondear_telemetria_vrm
+from bc250cc.infrastructure.vrm_telemetry_reader import kernel_vrm_driver_present, sondear_telemetria_vrm
 from bc250cc.platform.packages.strategies.detector import detect_os_info
 from bc250cc.platform.init.services import detect_init_manager
 from bc250cc.shared.failure_text import describe_failure
@@ -323,6 +323,14 @@ def settings_stylesheet() -> str:
     QWidget[settingsPage='true'][compactDensity='true'] QPlainTextEdit[aboutText='true'] {{ padding:8px; }}
     """)
 
+
+
+#: The BC-250 kernel reads the regulator itself; a service installed earlier
+#: can no longer open the bus.
+VRM_SERVICE_REDUNDANT = (
+    "This kernel reads the regulator itself (bc250_vrm), so the BC250-Telemetry service "
+    "is not needed and cannot open the bus. Remove it here."
+)
 
 class SettingsNavButton(QPushButton):
     def __init__(self, key: str, text: str, icon_name: str, parent: QWidget | None = None):
@@ -1588,6 +1596,11 @@ class SettingsPage(QWidget):
         elif state.get("managed"):
             button.setText(tr("Remove service"))
             button.setEnabled(True)
+            if kernel_vrm_driver_present():
+                # Installed before booting the BC-250 kernel: harmless (the
+                # driver refuses it the bus, so nothing is read twice) but
+                # useless, and it retries forever.
+                button.setToolTip(tr(VRM_SERVICE_REDUNDANT))
         else:
             button.setText(tr("Install service"))
             supported = bool(state.get("supported"))
@@ -1650,7 +1663,13 @@ class SettingsPage(QWidget):
     def describe_vrm_detection(probe: dict) -> str:
         daemon = str(probe.get("daemon") or "missing")
         rails = probe.get("rails") if isinstance(probe.get("rails"), dict) else {}
+        if daemon == "kernel":
+            if any(isinstance(rail, dict) and rail.get("valid") for rail in rails.values()):
+                return tr("Detected: the kernel driver (bc250_vrm) reads the regulator")
+            return tr("Not detected: the kernel driver (bc250_vrm) gets no answer from the regulator")
         if daemon == "missing":
+            if kernel_vrm_driver_present():
+                return tr("Not detected: the kernel driver (bc250_vrm) gets no answer from the regulator")
             return tr("Not detected: BC250-Telemetry is not running")
         if daemon == "unreadable":
             return tr("Not detected: its snapshot could not be read")
@@ -1666,7 +1685,10 @@ class SettingsPage(QWidget):
     def refresh_vrm_detection(self) -> None:
         label = getattr(self, "vrm_detection_label", None)
         if label is not None:
-            label.setText(self.describe_vrm_detection(sondear_telemetria_vrm()))
+            text = self.describe_vrm_detection(sondear_telemetria_vrm())
+            if kernel_vrm_driver_present() and self._apu_telemetry_state().get("managed"):
+                text = f"{text}\n{tr(VRM_SERVICE_REDUNDANT)}"
+            label.setText(text)
         self.refresh_apu_telemetry_button()
 
     def _gddr6_manual_toggled(self, enabled: bool) -> None:

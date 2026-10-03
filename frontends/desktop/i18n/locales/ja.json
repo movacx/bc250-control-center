@@ -4554,5 +4554,14 @@
   "● LIVE SESSION": "● ライブセッション",
   "● LIVE TELEMETRY": "● ライブテレメトリ",
   "Decky Quick Access": "Decky Quick Access",
-  "The BC-250 kernel manages the compute units (amdgpu.bc250_cc_write_mode=3): it unlocked all of them at boot. This page is read-only while that boot option is set; umr and the live manager are not needed. To change the routing, turn the kernel CU unlock off in Additional settings and reboot.": "BC-250 カーネルがコンピュートユニットを管理しています (amdgpu.bc250_cc_write_mode=3)。起動時にすべてを解除しました。この起動オプションが設定されている間、このページは読み取り専用です。umr とライブマネージャーは不要です。ルーティングを変更するには、追加設定でカーネルによる CU 解除をオフにして再起動してください。"
+  "The BC-250 kernel manages the compute units (amdgpu.bc250_cc_write_mode=3): it unlocked all of them at boot. This page is read-only while that boot option is set; umr and the live manager are not needed. To change the routing, turn the kernel CU unlock off in Additional settings and reboot.": "BC-250 カーネルがコンピュートユニットを管理しています (amdgpu.bc250_cc_write_mode=3)。起動時にすべてを解除しました。この起動オプションが設定されている間、このページは読み取り専用です。umr とライブマネージャーは不要です。ルーティングを変更するには、追加設定でカーネルによる CU 解除をオフにして再起動してください。",
+  "How to enable": "有効にする方法",
+  "Show the power delivery readings": "電源供給の値を表示",
+  "These readings come from the board's voltage regulator (PMIC) over I2C, which needs the physical I2C modification: two wires between I2C_HEADER1 and TPMS1. With the modification in place, open Settings › Telemetry and install the BC250-Telemetry service under Power delivery (I2C mod). The readings appear here a few seconds after it starts.": "これらの値はボードの電圧レギュレーター (PMIC) から I2C 経由で読み取ります。そのためには物理的な I2C 改造（I2C_HEADER1 と TPMS1 の間に 2 本の配線）が必要です。改造が済んだら 設定 › テレメトリ を開き、電源供給（I2C 改造） で BC250-Telemetry サービスをインストールしてください。起動から数秒で値がここに表示されます。",
+  "Your kernel reads the voltage regulator itself (bc250_vrm), so no service is needed: with the physical I2C modification wired, the readings appear here on their own. The BC250-Telemetry service cannot open the bus on this kernel; if it is installed, remove it in Settings › Telemetry.": "お使いのカーネルは電圧レギュレーターを自分で読み取ります (bc250_vrm)。そのためサービスは不要で、物理的な I2C 改造が配線されていれば値は自動的にここに表示されます。このカーネルでは BC250-Telemetry サービスはバスを開けません。インストール済みなら 設定 › テレメトリ で削除してください。",
+  "The BC250-Telemetry service is running, but the voltage regulator does not answer over I2C. Check the two wires of the I2C modification between I2C_HEADER1 and TPMS1, then look at Settings › Telemetry › Automatic detection.": "BC250-Telemetry サービスは動作していますが、電圧レギュレーターが I2C で応答しません。I2C_HEADER1 と TPMS1 の間の I2C 改造の 2 本の配線を確認し、設定 › テレメトリ › 自動検出 を見てください。",
+  "Open Telemetry settings": "テレメトリ設定を開く",
+  "Detected: the kernel driver (bc250_vrm) reads the regulator": "検出: カーネルドライバー (bc250_vrm) がレギュレーターを読み取っています",
+  "Not detected: the kernel driver (bc250_vrm) gets no answer from the regulator": "未検出: カーネルドライバー (bc250_vrm) にレギュレーターから応答がありません",
+  "This kernel reads the regulator itself (bc250_vrm), so the BC250-Telemetry service is not needed and cannot open the bus. Remove it here.": "このカーネルはレギュレーターを自分で読み取る (bc250_vrm) ため、BC250-Telemetry サービスは不要で、バスも開けません。ここで削除してください。"
 }

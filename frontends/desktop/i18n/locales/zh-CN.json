@@ -4554,5 +4554,14 @@
   "● LIVE SESSION": "● 现场会议",
   "● LIVE TELEMETRY": "● 实时遥测",
   "Decky Quick Access": "Decky Quick Access",
-  "The BC-250 kernel manages the compute units (amdgpu.bc250_cc_write_mode=3): it unlocked all of them at boot. This page is read-only while that boot option is set; umr and the live manager are not needed. To change the routing, turn the kernel CU unlock off in Additional settings and reboot.": "BC-250 内核正在管理计算单元 (amdgpu.bc250_cc_write_mode=3)：它在启动时解锁了全部计算单元。只要设置了该启动选项，此页面即为只读；不需要 umr 和实时管理器。要更改路由，请在“附加设置”中关闭内核 CU 解锁并重启。"
+  "The BC-250 kernel manages the compute units (amdgpu.bc250_cc_write_mode=3): it unlocked all of them at boot. This page is read-only while that boot option is set; umr and the live manager are not needed. To change the routing, turn the kernel CU unlock off in Additional settings and reboot.": "BC-250 内核正在管理计算单元 (amdgpu.bc250_cc_write_mode=3)：它在启动时解锁了全部计算单元。只要设置了该启动选项，此页面即为只读；不需要 umr 和实时管理器。要更改路由，请在“附加设置”中关闭内核 CU 解锁并重启。",
+  "How to enable": "如何启用",
+  "Show the power delivery readings": "显示供电读数",
+  "These readings come from the board's voltage regulator (PMIC) over I2C, which needs the physical I2C modification: two wires between I2C_HEADER1 and TPMS1. With the modification in place, open Settings › Telemetry and install the BC250-Telemetry service under Power delivery (I2C mod). The readings appear here a few seconds after it starts.": "这些读数通过 I2C 来自主板的电压调节器 (PMIC)，需要物理 I2C 改装：在 I2C_HEADER1 和 TPMS1 之间接两根线。完成改装后，打开 设置 › 遥测，在 供电（I2C 改装） 中安装 BC250-Telemetry 服务。服务启动几秒后，读数就会显示在这里。",
+  "Your kernel reads the voltage regulator itself (bc250_vrm), so no service is needed: with the physical I2C modification wired, the readings appear here on their own. The BC250-Telemetry service cannot open the bus on this kernel; if it is installed, remove it in Settings › Telemetry.": "你的内核会自行读取电压调节器 (bc250_vrm)，因此不需要任何服务：接好物理 I2C 改装后，读数会自动显示在这里。在此内核上 BC250-Telemetry 服务无法打开总线；如果已安装，请在 设置 › 遥测 中移除。",
+  "The BC250-Telemetry service is running, but the voltage regulator does not answer over I2C. Check the two wires of the I2C modification between I2C_HEADER1 and TPMS1, then look at Settings › Telemetry › Automatic detection.": "BC250-Telemetry 服务正在运行，但电压调节器没有通过 I2C 响应。请检查 I2C_HEADER1 与 TPMS1 之间 I2C 改装的两根线，然后查看 设置 › 遥测 › 自动检测。",
+  "Open Telemetry settings": "打开遥测设置",
+  "Detected: the kernel driver (bc250_vrm) reads the regulator": "已检测到：内核驱动 (bc250_vrm) 正在读取调节器",
+  "Not detected: the kernel driver (bc250_vrm) gets no answer from the regulator": "未检测到：内核驱动 (bc250_vrm) 未收到调节器的响应",
+  "This kernel reads the regulator itself (bc250_vrm), so the BC250-Telemetry service is not needed and cannot open the bus. Remove it here.": "此内核会自行读取调节器 (bc250_vrm)，因此不需要 BC250-Telemetry 服务，它也无法打开总线。请在此处移除。"
 }
