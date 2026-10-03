@@ -271,3 +271,26 @@ def test_a_finished_build_is_not_repeated_and_download_bars_stay_short():
     text = SCRIPT.read_text(encoding="utf-8")
     assert 'say "already built for $KVER: $stage"' in text
     assert "COLUMNS=60 curl" in text
+
+
+def test_mesa_is_configured_before_the_long_kernel_build():
+    """Ubuntu's libdrm was too old for Mesa and it only failed after the kernel build."""
+    text = SCRIPT.read_text(encoding="utf-8")
+    build = text[text.index("build() {"):]
+    assert build.index('meson setup "$mesa_work/mesa-build"') < build.index('say "building amdgpu')
+    # A distribution libdrm older than Mesa's requirement is built from
+    # Mesa's own hash-pinned wrap instead of stopping the build.
+    assert "-Dallow-fallback-for=libdrm --force-fallback-for=libdrm" in build
+    assert "-Dlibdrm:default_library=static" in build
+
+
+def test_mesa_is_never_built_under_a_gfx_numbered_path():
+    """The stage lives under .../gfx1013/..., which Mesa's generators read as the gfx version."""
+    text = SCRIPT.read_text(encoding="utf-8")
+    build = text[text.index("build() {"):]
+    assert '[[ $mesa_work =~ gfx[0-9] ]] && mesa_work=' in build
+    assert '[[ $mesa_work =~ gfx[0-9] ]] && die' in build
+    # Both the source tree and the build directory follow mesa_work.
+    assert '"$work/mesa-build"' not in build
+    assert 'local mesa_src="$mesa_work/mesa-$MESA_VERSION"' in build
+    assert 'meson setup "$mesa_work/mesa-build" "$mesa_src"' in build

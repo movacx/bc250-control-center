@@ -46,6 +46,7 @@ from ..components.widgets import IconBadge, InfoDialog, apply_shadow, icon
 from ..core.cpu_persistence_plan import (
     CpuPersistencePlan,
     PersistenceBlocker,
+    manual_scale_is_detector_result,
     plan_cpu_persistence,
     validate_detection_for_persistence,
 )
@@ -1651,6 +1652,15 @@ class CpuSmuPage(QWidget):
         live_state = {}
         candidate_frequency = self.frequency_control.value()
         candidate_temperature = self.temperature_control.value()
+        if scale_override is not None and manual_scale_is_detector_result(
+            detection_state,
+            scale=scale_override,
+            frequency=candidate_frequency,
+            temperature=candidate_temperature,
+        ):
+            # The stress-tested manual apply is recorded as the detector run
+            # itself; install it through the detector path.
+            scale_override = None
         if scale_override is not None:
             try:
                 scale_analysis = _dict(self.controller.evaluar_override_escala_cpu(

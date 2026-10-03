@@ -98,3 +98,14 @@ def test_pressing_the_button_asks_for_exactly_that_option(qtbot):
     assert seen and seen[0]["action"] == "kernel_options_set"
     assert seen[0]["kernel_options"] == [OPTION]
     assert seen[0]["kernel_option_changed"] == OPTION
+
+
+def test_a_hidden_unlock_row_leaves_no_empty_band_under_smt(qtbot):
+    """Ubuntu's kernel has no CU unlock; its hidden row still kept 46 px."""
+    panel = _panel(qtbot)
+    grid = panel.kernel_option_grid
+    row = panel.kernel_option_rows[OPTION]
+    panel._update_kernel_options_control(_tools(supported=False))
+    assert grid.rowMinimumHeight(row) == 0
+    panel._update_kernel_options_control(_tools(supported=True))
+    assert grid.rowMinimumHeight(row) == panel._KERNEL_ROW_HEIGHT

@@ -187,7 +187,7 @@ build() {
     [[ ${EUID} -ne 0 ]] || die "build as your own user, not as root."
     check_host
     [[ -f $source/patches/mesa/series && -d $source/patches/kernel/v33 ]] || die "upstream checkout is incomplete: $source"
-    local version base major headers work
+    local version base major headers work mesa_work=""
     version="$(tr -d '[:space:]' < "$source/VERSION")"
     [[ $version =~ ^[0-9A-Za-z._-]+$ ]] || die "invalid upstream version"
     # Debian names its kernels 6.16.12+deb13-amd64: the kernel.org release is
@@ -212,6 +212,45 @@ build() {
         return 0
     fi
     mkdir -p "$work"
+
+    # Mesa is fetched, patched and configured before the long kernel build:
+    # meson checks every build dependency in seconds, so a missing or too old
+    # library stops the run here instead of after minutes of compiling.
+    if [[ $kernel_only -eq 0 ]]; then
+        say "Mesa half: RADV $MESA_VERSION with the compute-queue patch"
+        local mesa_tar="$work/mesa-$MESA_VERSION.tar.xz"
+        fetch "$MESA_URL" "$mesa_tar"
+        printf '%s  %s\n' "$MESA_SHA256" "$mesa_tar" | sha256sum -c - >/dev/null || die "the Mesa tarball failed its checksum"
+        # Mesa's PM4 generators read the gfx version from the first "gfx<N>"
+        # in a file's full path, so a tree under .../gfx1013/... is taken for
+        # gfx1013 instead of gfx11/gfx12 and the build fails. Its source and
+        # build directories therefore live outside any such path.
+        mesa_work="$work"
+        [[ $mesa_work =~ gfx[0-9] ]] && mesa_work="${XDG_CACHE_HOME:-$HOME/.cache}/bc250-control-center/radv-build"
+        [[ $mesa_work =~ gfx[0-9] ]] && die "Mesa cannot be built under a path containing gfx<number>: $mesa_work"
+        mkdir -p "$mesa_work"
+        local mesa_src="$mesa_work/mesa-$MESA_VERSION"
+        rm -rf -- "$mesa_src" "$mesa_work/mesa-build"
+        tar -C "$mesa_work" -xf "$mesa_tar"
+        local name
+        while IFS= read -r name; do
+            [[ -z $name || $name == \#* ]] && continue
+            patch -p1 -s -d "$mesa_src" < "$source/patches/mesa/$name"
+            printf '   applied %s\n' "$name"
+        done < "$source/patches/mesa/series"
+        local prefix="$OPT_DIR/$version"
+        # Mesa release candidates require a libdrm newer than stable distributions
+        # ship (Ubuntu 26.04 has 2.4.131, mesa 26.2 needs 2.4.133). Mesa pins its
+        # own hash-checked libdrm wrap for this; link it statically so the private
+        # RADV never depends on, or replaces, the system libdrm.
+        meson setup "$mesa_work/mesa-build" "$mesa_src" \
+            -Dallow-fallback-for=libdrm --force-fallback-for=libdrm \
+            -Dlibdrm:default_library=static \
+            -Dvulkan-drivers=amd -Dgallium-drivers= -Dplatforms=x11,wayland \
+            -Dglx=disabled -Dllvm=disabled -Dvideo-codecs= \
+            -Dprefix="$prefix" -Dlibdir=lib -Dbuildtype=release \
+            > "$work/mesa-setup.log" 2>&1 || { tail -30 "$work/mesa-setup.log"; die "Mesa configuration failed; log: $work/mesa-setup.log"; }
+    fi
 
     say "kernel half: linux-$base amdgpu with V33 for $KVER"
     local tarball="$work/linux-$base.tar.xz" sums="$work/sha256sums-v$major.asc"
@@ -265,28 +304,10 @@ build() {
         return 0
     fi
 
-    say "Mesa half: RADV $MESA_VERSION with the compute-queue patch"
-    local mesa_tar="$work/mesa-$MESA_VERSION.tar.xz"
-    fetch "$MESA_URL" "$mesa_tar"
-    printf '%s  %s\n' "$MESA_SHA256" "$mesa_tar" | sha256sum -c - >/dev/null || die "the Mesa tarball failed its checksum"
-    local mesa_src="$work/mesa-$MESA_VERSION"
-    rm -rf -- "$mesa_src" "$work/mesa-build"
-    tar -C "$work" -xf "$mesa_tar"
-    local name
-    while IFS= read -r name; do
-        [[ -z $name || $name == \#* ]] && continue
-        patch -p1 -s -d "$mesa_src" < "$source/patches/mesa/$name"
-        printf '   applied %s\n' "$name"
-    done < "$source/patches/mesa/series"
-    local prefix="$OPT_DIR/$version"
-    meson setup "$work/mesa-build" "$mesa_src" \
-        -Dvulkan-drivers=amd -Dgallium-drivers= -Dplatforms=x11,wayland \
-        -Dglx=disabled -Dllvm=disabled -Dvideo-codecs= \
-        -Dprefix="$prefix" -Dlibdir=lib -Dbuildtype=release \
-        > "$work/mesa-setup.log" 2>&1 || { tail -30 "$work/mesa-setup.log"; die "Mesa configuration failed; log: $work/mesa-setup.log"; }
-    ninja -C "$work/mesa-build" > "$work/mesa-build.log" 2>&1 || { tail -40 "$work/mesa-build.log"; die "Mesa build failed; log: $work/mesa-build.log"; }
+    say "building RADV (several minutes)"
+    ninja -C "$mesa_work/mesa-build" > "$work/mesa-build.log" 2>&1 || { tail -40 "$work/mesa-build.log"; die "Mesa build failed; log: $work/mesa-build.log"; }
     rm -rf -- "$stage/mesa-root"
-    DESTDIR="$stage/mesa-root" ninja -C "$work/mesa-build" install >> "$work/mesa-build.log" 2>&1
+    DESTDIR="$stage/mesa-root" ninja -C "$mesa_work/mesa-build" install >> "$work/mesa-build.log" 2>&1
     [[ -f $stage/mesa-root$prefix/lib/libvulkan_radeon.so ]] || die "the Mesa install is missing libvulkan_radeon.so"
     printf 'VERSION=%s\nKVER=%s\n' "$version" "$KVER" > "$stage/build.env"
     say "build complete: $stage"

@@ -39,14 +39,6 @@
       "retryable": false
     },
     {
-      "code": "BC250-BUSY-001",
-      "markers": [],
-      "exit_statuses": [
-        75
-      ],
-      "retryable": false
-    },
-    {
       "code": "BC250-GENERAL-001",
       "markers": [],
       "exit_statuses": [],
@@ -60,6 +52,17 @@
       ],
       "exit_statuses": [
         69
+      ],
+      "retryable": false
+    },
+    {
+      "code": "BC250-BUSY-001",
+      "markers": [
+        "smu returned status 0x00",
+        "smu returned status 0xFC"
+      ],
+      "exit_statuses": [
+        75
       ],
       "retryable": false
     },
@@ -212,7 +215,8 @@
         "Run automatic detection at this exact frequency",
         "Manual scale must reuse the detected thermal limit",
         "bc250-detect returned values outside the requested",
-        "bc250-detect did not produce a valid configuration"
+        "bc250-detect did not produce a valid configuration",
+        "smu returned status 0x"
       ],
       "exit_statuses": [
         50,
@@ -386,6 +390,8 @@
     "Frequency must be between",
     "QAM CPU frequency must be",
     "QUICK_ACCESS_GPU_SERVICE",
+    "smu returned status 0x00",
+    "smu returned status 0xFC",
     "QUICK_ACCESS_CU_SERVICE:",
     "protocol is incompatible",
     "QUICK_ACCESS_GPU_ALLOWED",
@@ -402,6 +408,7 @@
     "QUICK_ACCESS_CPU_SCALE",
     "QUICK_ACCESS_CU_KERNEL",
     "QUICK_ACCESS_CU_VERIFY",
+    "smu returned status 0x",
     "failed retrieving file",
     "QUICK_ACCESS_GPU_DBUS",
     "QUICK_ACCESS_CU_TABLE",

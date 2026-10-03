@@ -163,7 +163,8 @@ _RULES = (
     ),
     _Rule(
         "BC250-BUSY-001",
-        (r"already.*(?:running|applying|in progress)", r"operation.*still.*(?:running|progress)", r"resource busy", r"device or resource busy"),
+        (r"already.*(?:running|applying|in progress)", r"operation.*still.*(?:running|progress)", r"resource busy", r"device or resource busy",
+         r"smu returned status 0x(?:00|fc)\b"),
         "Another operation is still using this component.",
         "A previous BC250 action, package manager, service restart, or external toolkit still holds the required lock.",
         "Wait for the current terminal or progress indicator to finish, refresh the page, and retry once. Close other BC250 toolkits if the lock remains.",
@@ -319,7 +320,7 @@ _RULES = (
     ),
     _Rule(
         "BC250-CU-001",
-        (r"\bumr\b", r"wgp", r"compute unit", r"cu_(?:table|backend|verify|service|mode)", r"0x77", r"0xff\b", r"shader_array_config", r"wgp mask", r"topolog", r"core presence mask", r"bc250_cc_write_mode", r"disable_cu"),
+        (r"\bumr\b", r"wgp", r"compute unit", r"cu_(?:table|backend|verify|service|mode)", r"0x77", r"(?<!status )0xff\b", r"shader_array_config", r"wgp mask", r"topolog", r"core presence mask", r"bc250_cc_write_mode", r"disable_cu"),
         "The Compute Units operation could not be verified.",
         "UMR, the GPU database, the live manager, the saved WGP map, or the AMDGPU topology may not match the running kernel and Mesa stack.",
         "Run Unlock/Sync again, check the displayed live map, prepare UMR if missing, and apply only after the requested and driver maps agree.",

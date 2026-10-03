@@ -8,6 +8,9 @@ runtime_core_packages=(
   libdrm2 libdrm-amdgpu1 curl ca-certificates dbus dbus-user-session kmod jq
 )
 runtime_optional_diagnostics=(mesa-utils vulkan-tools)
+# bsdtar unpacks the 7z BIOS images on the Firmware page. Optional: the rest of
+# the application works without it.
+runtime_optional_tools=(libarchive-tools)
 GOVERNOR_DEB_PATH=""
 
 normalize_governor_deb_control() {
@@ -30,6 +33,7 @@ install_runtime() {
   as_root apt-get update
   as_root apt-get install -y "${runtime_core_packages[@]}"
   as_root apt-get install -y "${runtime_optional_diagnostics[@]}" || warn "Optional Mesa/Vulkan diagnostics are unavailable"
+  as_root apt-get install -y "${runtime_optional_tools[@]}" || warn "Optional bsdtar (libarchive-tools) is unavailable; the Firmware page cannot unpack 7z BIOS images"
   # Current Debian/Ubuntu releases split PolicyKit into polkitd and pkexec.
   # Keep the legacy package as a fallback for older derivatives.
   as_root apt-get install -y polkitd pkexec || as_root apt-get install -y policykit-1
@@ -123,7 +127,7 @@ check_governor() { verify_command cyan-skillfish-governor-smu; }
 check_stress() { verify_command stress; }
 check_sensors() { verify_command sensors; }
 check_umr() { verify_command umr; }
-plan_runtime() { plan_packages runtime apt "${runtime_core_packages[@]}" "${runtime_optional_diagnostics[@]}" pkexec polkitd policykit-1; }
+plan_runtime() { plan_packages runtime apt "${runtime_core_packages[@]}" "${runtime_optional_diagnostics[@]}" "${runtime_optional_tools[@]}" pkexec polkitd policykit-1; }
 plan_governor() { plan_packages governor upstream-release cyan-skillfish-governor-smu; }
 plan_stress() { plan_packages stress apt stress; }
 plan_sensors() { plan_packages sensors apt lm-sensors; }

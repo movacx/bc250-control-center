@@ -121,7 +121,10 @@ _CODES: tuple[ErrorCode, ...] = (
         "A previous BC250 action, package manager, service restart, or external toolkit still holds the required lock.",
         "Wait for the current terminal or progress indicator to finish, refresh the page, and retry once. Close other BC250 toolkits if the lock remains.",
         exit_statuses=(75,),
-        markers=(),
+        # The SMU mailbox gave no answer in time (0x00) or said it was busy
+        # (0xFC). The CPU/SMU helper exits 70 for it, which alone reads as a
+        # helper version mismatch and sent users to reinstall.
+        markers=('smu returned status 0x00', 'smu returned status 0xFC'),
     ),
     ErrorCode(
         "BC250-CONFIG-001",
@@ -212,7 +215,10 @@ _CODES: tuple[ErrorCode, ...] = (
         "The stress dependency, SMU helper, same-boot detector evidence, temperature limit, or selected frequency and VID do not satisfy the validated workflow.",
         "Run automatic detection for this exact frequency first. Keep the terminal open, monitor temperature, and save the service only after the live result is verified.",
         exit_statuses=(50, 51, 52, 53, 54, 55, 57, 60, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 91, 93, 94),
-        markers=('QUICK_ACCESS_CPU', 'QUICK_ACCESS_CPU_VERIFY', 'QUICK_ACCESS_CPU_SERVICE', 'QUICK_ACCESS_CPU_SCALE_VERIFY', 'stress is required by bc250-detect', 'Run automatic detection at this exact frequency', 'Manual scale must reuse the detected thermal limit', 'bc250-detect returned values outside the requested', 'bc250-detect did not produce a valid configuration'),
+        markers=('QUICK_ACCESS_CPU', 'QUICK_ACCESS_CPU_VERIFY', 'QUICK_ACCESS_CPU_SERVICE', 'QUICK_ACCESS_CPU_SCALE_VERIFY', 'stress is required by bc250-detect', 'Run automatic detection at this exact frequency', 'Manual scale must reuse the detected thermal limit', 'bc250-detect returned values outside the requested', 'bc250-detect did not produce a valid configuration',
+                 # Any other SMU mailbox refusal; the shorter marker loses to
+                 # the no-answer and busy ones under BC250-BUSY-001.
+                 'smu returned status 0x'),
     ),
     ErrorCode(
         "BC250-AUTH-002",

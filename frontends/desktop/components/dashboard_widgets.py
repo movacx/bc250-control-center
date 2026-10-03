@@ -1914,6 +1914,7 @@ class PreparationSidebar(QFrame):
 
     _KERNEL_STATE_WIDTH = 124
     _KERNEL_ACTION_WIDTH = 176
+    _KERNEL_ROW_HEIGHT = 46
 
     #: The two boot options, in the order the panel shows them.
     KERNEL_OPTION_ROWS = (
@@ -1957,6 +1958,8 @@ class PreparationSidebar(QFrame):
         grid.setVerticalSpacing(0)
         grid.setColumnStretch(0, 1)
         root.addLayout(grid)
+        self.kernel_option_grid = grid
+        self.kernel_option_rows: dict[str, int] = {}
         self.kernel_option_rules: dict[str, QFrame] = {}
         for index, (option, title, _disable, _restore) in enumerate(self.KERNEL_OPTION_ROWS):
             row = index * 2
@@ -1977,7 +1980,8 @@ class PreparationSidebar(QFrame):
             grid.addWidget(name, row, 0, Qt.AlignmentFlag.AlignVCenter)
             grid.addWidget(pill, row, 1, Qt.AlignmentFlag.AlignVCenter)
             grid.addWidget(button, row, 2, Qt.AlignmentFlag.AlignVCenter)
-            grid.setRowMinimumHeight(row, 46)
+            grid.setRowMinimumHeight(row, self._KERNEL_ROW_HEIGHT)
+            self.kernel_option_rows[option] = row
             self.kernel_option_controls[option] = (name, pill, button)
         # Said once, under the rows, and only while the unlock row is shown.
         self.kernel_cu_note = _label(
@@ -2038,6 +2042,11 @@ class PreparationSidebar(QFrame):
                 for widget in (name, pill, button, self.kernel_option_rules.get(option)):
                     if widget is not None:
                         widget.setVisible(cu_visible and (widget is not pill))
+                # A hidden row still kept its minimum height and left an empty
+                # band under SMT wherever the kernel has no CU unlock.
+                self.kernel_option_grid.setRowMinimumHeight(
+                    self.kernel_option_rows[option], self._KERNEL_ROW_HEIGHT if cu_visible else 0
+                )
             if item.get("external"):
                 status, tone = "Set outside Control Center", "blue"
             elif bool(item.get("configured")) != bool(item.get("active")):
