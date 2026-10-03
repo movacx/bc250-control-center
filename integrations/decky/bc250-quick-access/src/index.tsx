@@ -7,7 +7,6 @@ import {
   showModal,
   SliderField,
   staticClasses,
-  ToggleField,
 } from "@decky/ui";
 import { callable, definePlugin, toaster } from "@decky/api";
 import {
@@ -676,7 +675,7 @@ function HighPointsSwitch({ state, busy, execute }: {
     />);
   };
   return <div style={{ background: tokens.colors.panel_alt, border: `1px solid ${enabled ? tokens.colors.red : tokens.colors.border_soft}`, borderRadius: 6, fontSize: 11, marginBottom: 6, overflow: "hidden" }}>
-    <ToggleField key={`${revision}-${enabled}`} label={text.highFrequencyPoints} description={cyanActive ? undefined : text.highFrequencyCyanOnly} layout="inline" bottomSeparator="none" highlightOnFocus checked={enabled} disabled={busy || !cyanActive} onChange={request} />
+    <SwitchRow key={`${revision}-${enabled}`} label={text.highFrequencyPoints} description={cyanActive ? undefined : text.highFrequencyCyanOnly} checked={enabled} danger disabled={busy || !cyanActive} onChange={request} />
   </div>;
 }
 
@@ -841,16 +840,27 @@ function SubNav<T extends string>({ value, onChange, items }: { value: T; onChan
 // The GDDR6 panel's own switch, one slim row: on starts a live session (and,
 // quietly, this boot's SMU patch when it is missing); off stops every GDDR6
 // read, so nothing reaches the SMU for it until it is turned on again.
-function Gddr6Switch() {
-  const { gddr6 } = useContext(SettingsContext);
+// The one switch design of the whole panel: the name on the left, an optional
+// quiet description under it, and a slim pill on the right -- off is dark with
+// a grey knob, on takes the accent (red for a dangerous setting). A single
+// controller stop that A toggles; Steam's own ToggleField is no longer used.
+function SwitchRow({ label, description, checked, disabled = false, danger = false, onChange }: { label: string; description?: string; checked: boolean; disabled?: boolean; danger?: boolean; onChange: (next: boolean) => void }) {
   const accent = useAccent();
-  const on = gddr6.live;
-  return <PadButton label={text.memoryMonitoring} onActivate={() => gddr6.setLive(!on)} style={{ alignItems: "center", background: "transparent", border: "none", display: "flex", height: 30, justifyContent: "space-between", margin: "2px 0 6px", minHeight: 0, padding: "0 4px", width: "100%" }}>
-    <span style={{ color: tokens.colors.text, fontSize: 10, fontWeight: 600 }}>{text.memoryMonitoring}</span>
-    <span style={{ background: on ? accent.focus : tokens.colors.panel_raised, border: `1px solid ${on ? accent.focus : tokens.colors.border}`, borderRadius: 10, display: "inline-block", height: 18, position: "relative", transition: "background .2s ease", width: 34 }}>
-      <span style={{ background: on ? "#FFFFFF" : tokens.colors.subtle, borderRadius: "50%", height: 14, left: on ? 17 : 2, position: "absolute", top: 1, transition: "left .2s ease", width: 14 }} />
+  const tone = danger ? tokens.colors.red : accent.focus;
+  return <PadButton label={label} disabled={disabled} onActivate={() => onChange(!checked)} style={{ alignItems: "center", background: "transparent", border: "none", display: "flex", gap: 10, justifyContent: "space-between", minHeight: 34, padding: "4px 8px", textAlign: "left", width: "100%" }}>
+    <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+      <span style={{ color: tokens.colors.text, fontSize: 11, fontWeight: 650 }}>{label}</span>
+      {description ? <span style={{ color: tokens.colors.subtle, fontSize: 9, fontWeight: 400, lineHeight: 1.3 }}>{description}</span> : null}
+    </span>
+    <span style={{ background: checked ? tone : tokens.colors.panel_raised, border: `1px solid ${checked ? tone : tokens.colors.border}`, borderRadius: 10, display: "inline-block", flex: "0 0 auto", height: 18, position: "relative", transition: "background .2s ease", width: 34 }}>
+      <span style={{ background: checked ? "#FFFFFF" : tokens.colors.subtle, borderRadius: "50%", height: 14, left: checked ? 17 : 2, position: "absolute", top: 1, transition: "left .2s ease", width: 14 }} />
     </span>
   </PadButton>;
+}
+
+function Gddr6Switch() {
+  const { gddr6 } = useContext(SettingsContext);
+  return <div style={{ margin: "2px 0 6px" }}><SwitchRow label={text.memoryMonitoring} checked={gddr6.live} onChange={gddr6.setLive} /></div>;
 }
 
 // The switch sits OUTSIDE any ScrollStop: a ScrollStop is a Focusable with a
@@ -1006,10 +1016,10 @@ function CyanCompatibility({ state, busy, execute }: { state: Status; busy: bool
       </Focusable>
       {value.usage_method === "process" ? <div style={{ color: tokens.colors.amber, fontSize: 9, lineHeight: 1.35, margin: "0 2px 7px" }}>{text.compatProcessWarning}</div> : null}
       <div style={{ background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, fontSize: 11, marginBottom: 4, overflow: "hidden" }}>
-        <ToggleField label={text.compatFixMetrics} layout="inline" bottomSeparator="none" highlightOnFocus checked={value.fix_metrics} disabled={busy || !cyanActive} onChange={(checked: boolean) => choose({ fix_metrics: checked })} />
+        <SwitchRow label={text.compatFixMetrics} checked={value.fix_metrics} disabled={busy || !cyanActive} onChange={(checked) => choose({ fix_metrics: checked })} />
       </div>
       <div style={{ background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, fontSize: 11, marginBottom: 6, overflow: "hidden" }}>
-        <ToggleField label={text.compatFixFrequency} layout="inline" bottomSeparator="none" highlightOnFocus checked={value.fix_frequency} disabled={busy || !cyanActive} onChange={(checked: boolean) => choose({ fix_frequency: checked })} />
+        <SwitchRow label={text.compatFixFrequency} checked={value.fix_frequency} disabled={busy || !cyanActive} onChange={(checked) => choose({ fix_frequency: checked })} />
       </div>
       <div style={{ color: tokens.colors.subtle, fontSize: 9, lineHeight: 1.35, margin: "0 2px 7px" }}>{text.compatHint}</div>
       <ActionRow><Action label={text.compatApply} primary disabled={busy || !cyanActive || !changed} onActivate={confirm} /><Action label={text.voltageDiscard} disabled={busy || !changed} onActivate={() => setDraft(null)} /></ActionRow>
@@ -1911,7 +1921,7 @@ function Content() {
         <CompactSlider label={text.cpuFrequency} value={cpuFrequency} suffix=" MHz" min={cpuMin} max={cpuMax} step={cpuStep} disabled={busy || !cpuReady} onChange={(value) => { setCpuFrequency(Math.max(cpuMin, Math.min(cpuMax, Math.round(value / cpuStep) * cpuStep))); dirty.current.cpu = true; }} />
         <CompactSlider label={text.cpuVoltage} value={cpuVid} suffix=" mV" min={vidMin} max={vidMax} step={vidStep} disabled={busy || !cpuReady || cpuManual} onChange={(value) => { setCpuVid(Math.max(vidMin, Math.min(vidMax, Math.round(value / 5) * 5))); dirty.current.cpu = true; }} />
         {!cpuManual && cpuVid >= vidMax - 25 ? <div style={{ color: tokens.colors.amber, fontSize: 8, lineHeight: 1.3, margin: "-2px 2px 7px" }}>{text.cpuVidCeiling}</div> : null}
-        <div title={manualScaleDescription} style={{ background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, fontSize: 11, marginBottom: 4, overflow: "hidden" }}><ToggleField label={text.cpuManual} layout="inline" bottomSeparator="none" highlightOnFocus checked={cpuManual} disabled={busy || !manualReady} onChange={(checked: boolean) => { setCpuManual(checked); if (checked && detectedCpu) { setCpuScale(activeCpu?.frequency === detectedCpu.frequency ? (activeCpu.scale ?? detectedCpu.scale) : detectedCpu.scale); } dirty.current.cpu = true; }} /></div>
+        <div title={manualScaleDescription} style={{ background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, fontSize: 11, marginBottom: 4, overflow: "hidden" }}><SwitchRow label={text.cpuManual} checked={cpuManual} disabled={busy || !manualReady} onChange={(checked) => { setCpuManual(checked); if (checked && detectedCpu) { setCpuScale(activeCpu?.frequency === detectedCpu.frequency ? (activeCpu.scale ?? detectedCpu.scale) : detectedCpu.scale); } dirty.current.cpu = true; }} /></div>
         {cpuManual && detectedCpu && !manualFrequencyReady ? <div style={{ color: tokens.colors.amber, fontSize: 9, lineHeight: 1.3, margin: "-2px 2px 7px" }}>{text.cpuManualHelp} · {detectedCpu.frequency} MHz</div> : null}
         <CompactSlider label={text.cpuScale} value={cpuScale} suffix="" min={scaleMin} max={scaleMax} step={1} disabled={busy || !cpuManual || !manualFrequencyReady} onChange={(value) => { setCpuScale(Math.max(-50, Math.min(0, Math.round(value)))); dirty.current.cpu = true; }} />
         {cpuManual ? <div style={{ color: tokens.colors.disabled_text, display: "flex", fontSize: 9, justifyContent: "space-between", margin: "0 2px 7px" }}><span>{`${text.cpuScale}: ${scaleMin}…${scaleMax}`}</span><span>{`~${selectedEstimatedVid ?? "—"} mV`}</span></div> : null}
@@ -2038,7 +2048,7 @@ function GameProfileCard({ state, busy }: { state: Status; busy: boolean }) {
   };
   return <section style={{ background: tokens.colors.panel_alt, border: `1px solid ${active ? accent.focus : tokens.colors.border}`, borderRadius: 8, marginBottom: 10, padding: "8px 9px" }}>
     <SectionTitle kind="game" title={text.perGameProfiles} trailing={active ? <span style={{ color: accent.focus, fontSize: 9, fontWeight: 700 }}>{text.gameProfileActive}</span> : undefined} />
-    <div style={{ fontSize: 11, overflow: "hidden" }}><ToggleField label={text.applyAutomatically} layout="inline" bottomSeparator="none" highlightOnFocus checked={enabled} disabled={working} onChange={toggle} /></div>
+    <div style={{ fontSize: 11, overflow: "hidden" }}><SwitchRow label={text.applyAutomatically} checked={enabled} disabled={working} onChange={toggle} /></div>
     {!game ? <div style={{ color: tokens.colors.subtle, fontSize: 10, lineHeight: 1.4, margin: "4px 2px 6px" }}>{text.gameNotRunning}</div> : <>
       <div style={{ margin: "4px 2px 6px" }}>
         <div style={{ color: tokens.colors.text, fontSize: 12, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{game.name}</div>
