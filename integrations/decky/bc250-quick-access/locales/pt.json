@@ -33,7 +33,7 @@
   "compatNeedsCyan": "Instale o Cyan (ou pare o Oberon) no Modo Desktop para alterar isto.",
   "compatProcessWarning": "A leitura process percorre cada ficheiro aberto de cada programa. Com um jogo aberto, o Cyan deixa de responder: a gama, os pontos +2000 MHz e o laboratório de tensão deixam de funcionar até o jogo fechar. busy-flag é a predefinição.",
   "compatSetMethod": "Método do governor",
-  "compatTitle": "Compatibilidade do kernel Cyan",
+  "compatTitle": "Compatibilidade",
   "compatUsage": "Leitura de uso",
   "compute": "UNIDADES DE COMPUTAÇÃO",
   "controller": "Controlador",

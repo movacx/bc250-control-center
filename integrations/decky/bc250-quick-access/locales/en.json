@@ -33,7 +33,7 @@
   "compatNeedsCyan": "Install Cyan (or stop Oberon) from Desktop Mode to change this.",
   "compatProcessWarning": "The process reading goes through every open file of every program. With a game open, Cyan stops answering: the range, the +2000 MHz points and the voltage lab stop working until the game closes. busy-flag is the default.",
   "compatSetMethod": "Governor method",
-  "compatTitle": "Cyan kernel compatibility",
+  "compatTitle": "Compatibility",
   "compatUsage": "Usage reading",
   "compute": "COMPUTE UNITS",
   "controller": "Controller",

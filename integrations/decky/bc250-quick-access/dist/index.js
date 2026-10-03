@@ -102,16 +102,12 @@ function FaTh (props) {
 }
 
 // THIS FILE IS AUTO GENERATED
-function LuZap (props) {
-  return GenIcon({"attr":{"viewBox":"0 0 24 24","fill":"none","stroke":"currentColor","strokeWidth":"2","strokeLinecap":"round","strokeLinejoin":"round"},"child":[{"tag":"path","attr":{"d":"M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"},"child":[]}]})(props);
-}function LuTrash2 (props) {
+function LuTrash2 (props) {
   return GenIcon({"attr":{"viewBox":"0 0 24 24","fill":"none","stroke":"currentColor","strokeWidth":"2","strokeLinecap":"round","strokeLinejoin":"round"},"child":[{"tag":"path","attr":{"d":"M3 6h18"},"child":[]},{"tag":"path","attr":{"d":"M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"},"child":[]},{"tag":"path","attr":{"d":"M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"},"child":[]},{"tag":"line","attr":{"x1":"10","x2":"10","y1":"11","y2":"17"},"child":[]},{"tag":"line","attr":{"x1":"14","x2":"14","y1":"11","y2":"17"},"child":[]}]})(props);
 }function LuSlidersHorizontal (props) {
   return GenIcon({"attr":{"viewBox":"0 0 24 24","fill":"none","stroke":"currentColor","strokeWidth":"2","strokeLinecap":"round","strokeLinejoin":"round"},"child":[{"tag":"line","attr":{"x1":"21","x2":"14","y1":"4","y2":"4"},"child":[]},{"tag":"line","attr":{"x1":"10","x2":"3","y1":"4","y2":"4"},"child":[]},{"tag":"line","attr":{"x1":"21","x2":"12","y1":"12","y2":"12"},"child":[]},{"tag":"line","attr":{"x1":"8","x2":"3","y1":"12","y2":"12"},"child":[]},{"tag":"line","attr":{"x1":"21","x2":"16","y1":"20","y2":"20"},"child":[]},{"tag":"line","attr":{"x1":"12","x2":"3","y1":"20","y2":"20"},"child":[]},{"tag":"line","attr":{"x1":"14","x2":"14","y1":"2","y2":"6"},"child":[]},{"tag":"line","attr":{"x1":"8","x2":"8","y1":"10","y2":"14"},"child":[]},{"tag":"line","attr":{"x1":"16","x2":"16","y1":"18","y2":"22"},"child":[]}]})(props);
 }function LuSettings (props) {
   return GenIcon({"attr":{"viewBox":"0 0 24 24","fill":"none","stroke":"currentColor","strokeWidth":"2","strokeLinecap":"round","strokeLinejoin":"round"},"child":[{"tag":"path","attr":{"d":"M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"},"child":[]},{"tag":"circle","attr":{"cx":"12","cy":"12","r":"3"},"child":[]}]})(props);
-}function LuScale (props) {
-  return GenIcon({"attr":{"viewBox":"0 0 24 24","fill":"none","stroke":"currentColor","strokeWidth":"2","strokeLinecap":"round","strokeLinejoin":"round"},"child":[{"tag":"path","attr":{"d":"m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"},"child":[]},{"tag":"path","attr":{"d":"m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"},"child":[]},{"tag":"path","attr":{"d":"M7 21h10"},"child":[]},{"tag":"path","attr":{"d":"M12 3v18"},"child":[]},{"tag":"path","attr":{"d":"M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"},"child":[]}]})(props);
 }function LuMicrochip (props) {
   return GenIcon({"attr":{"viewBox":"0 0 24 24","fill":"none","stroke":"currentColor","strokeWidth":"2","strokeLinecap":"round","strokeLinejoin":"round"},"child":[{"tag":"path","attr":{"d":"M18 12h2"},"child":[]},{"tag":"path","attr":{"d":"M18 16h2"},"child":[]},{"tag":"path","attr":{"d":"M18 20h2"},"child":[]},{"tag":"path","attr":{"d":"M18 4h2"},"child":[]},{"tag":"path","attr":{"d":"M18 8h2"},"child":[]},{"tag":"path","attr":{"d":"M4 12h2"},"child":[]},{"tag":"path","attr":{"d":"M4 16h2"},"child":[]},{"tag":"path","attr":{"d":"M4 20h2"},"child":[]},{"tag":"path","attr":{"d":"M4 4h2"},"child":[]},{"tag":"path","attr":{"d":"M4 8h2"},"child":[]},{"tag":"path","attr":{"d":"M8 2a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2h-1.5c-.276 0-.494.227-.562.495a2 2 0 0 1-3.876 0C9.994 2.227 9.776 2 9.5 2z"},"child":[]}]})(props);
 }function LuMemoryStick (props) {
@@ -120,12 +116,8 @@ function LuZap (props) {
   return GenIcon({"attr":{"viewBox":"0 0 24 24","fill":"none","stroke":"currentColor","strokeWidth":"2","strokeLinecap":"round","strokeLinejoin":"round"},"child":[{"tag":"rect","attr":{"width":"7","height":"7","x":"3","y":"3","rx":"1"},"child":[]},{"tag":"rect","attr":{"width":"7","height":"7","x":"14","y":"3","rx":"1"},"child":[]},{"tag":"rect","attr":{"width":"7","height":"7","x":"14","y":"14","rx":"1"},"child":[]},{"tag":"rect","attr":{"width":"7","height":"7","x":"3","y":"14","rx":"1"},"child":[]}]})(props);
 }function LuGrid3X3 (props) {
   return GenIcon({"attr":{"viewBox":"0 0 24 24","fill":"none","stroke":"currentColor","strokeWidth":"2","strokeLinecap":"round","strokeLinejoin":"round"},"child":[{"tag":"rect","attr":{"width":"18","height":"18","x":"3","y":"3","rx":"2"},"child":[]},{"tag":"path","attr":{"d":"M3 9h18"},"child":[]},{"tag":"path","attr":{"d":"M3 15h18"},"child":[]},{"tag":"path","attr":{"d":"M9 3v18"},"child":[]},{"tag":"path","attr":{"d":"M15 3v18"},"child":[]}]})(props);
-}function LuGauge (props) {
-  return GenIcon({"attr":{"viewBox":"0 0 24 24","fill":"none","stroke":"currentColor","strokeWidth":"2","strokeLinecap":"round","strokeLinejoin":"round"},"child":[{"tag":"path","attr":{"d":"m12 14 4-4"},"child":[]},{"tag":"path","attr":{"d":"M3.34 19a10 10 0 1 1 17.32 0"},"child":[]}]})(props);
 }function LuGamepad2 (props) {
   return GenIcon({"attr":{"viewBox":"0 0 24 24","fill":"none","stroke":"currentColor","strokeWidth":"2","strokeLinecap":"round","strokeLinejoin":"round"},"child":[{"tag":"line","attr":{"x1":"6","x2":"10","y1":"11","y2":"11"},"child":[]},{"tag":"line","attr":{"x1":"8","x2":"8","y1":"9","y2":"13"},"child":[]},{"tag":"line","attr":{"x1":"15","x2":"15.01","y1":"12","y2":"12"},"child":[]},{"tag":"line","attr":{"x1":"18","x2":"18.01","y1":"10","y2":"10"},"child":[]},{"tag":"path","attr":{"d":"M17.32 5H6.68a4 4 0 0 0-3.978 3.59c-.006.052-.01.101-.017.152C2.604 9.416 2 14.456 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.414-1.414A2 2 0 0 1 9.828 16h4.344a2 2 0 0 1 1.414.586L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.545-.604-6.584-.685-7.258-.007-.05-.011-.1-.017-.151A4 4 0 0 0 17.32 5z"},"child":[]}]})(props);
-}function LuFlame (props) {
-  return GenIcon({"attr":{"viewBox":"0 0 24 24","fill":"none","stroke":"currentColor","strokeWidth":"2","strokeLinecap":"round","strokeLinejoin":"round"},"child":[{"tag":"path","attr":{"d":"M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"},"child":[]}]})(props);
 }function LuFan (props) {
   return GenIcon({"attr":{"viewBox":"0 0 24 24","fill":"none","stroke":"currentColor","strokeWidth":"2","strokeLinecap":"round","strokeLinejoin":"round"},"child":[{"tag":"path","attr":{"d":"M10.827 16.379a6.082 6.082 0 0 1-8.618-7.002l5.412 1.45a6.082 6.082 0 0 1 7.002-8.618l-1.45 5.412a6.082 6.082 0 0 1 8.618 7.002l-5.412-1.45a6.082 6.082 0 0 1-7.002 8.618l1.45-5.412Z"},"child":[]},{"tag":"path","attr":{"d":"M12 12v.01"},"child":[]}]})(props);
 }function LuCpu (props) {
@@ -136,13 +128,6 @@ function LuZap (props) {
 
 const tokens = {
     colors: {
-        // Mirrors the Desktop application's dark palette (frontends/desktop/theme).
-        // Orange is the one brand accent, reused exactly as the desktop uses it
-        // for selection and primary actions. Amber is a second, deliberately
-        // different hue reserved only for "pending change" / "needs attention" —
-        // never for a selected/current state — so the two meanings never look
-        // the same on the same screen.
-        window: "#0F0F0F",
         panel: "#171717",
         panel_alt: "#1F1F1F",
         panel_raised: "#242424",
@@ -674,7 +659,7 @@ var compatHint$7 = "Ändern Sie dies nur, wenn die obigen Werte falsch aussehen.
 var compatNeedsCyan$7 = "Installiere Cyan (oder stoppe Oberon) im Desktop-Modus, um dies zu ändern.";
 var compatProcessWarning$7 = "Die Messung process geht jede offene Datei jedes Programms durch. Solange ein Spiel läuft, antwortet Cyan nicht mehr: Bereich, +2000-MHz-Punkte und Spannungslabor funktionieren erst wieder, wenn das Spiel beendet ist. busy-flag ist die Voreinstellung.";
 var compatSetMethod$7 = "Governor-Methode";
-var compatTitle$7 = "Cyan Kernel-Kompatibilität";
+var compatTitle$7 = "Kompatibilität";
 var compatUsage$7 = "Auslastungsmessung";
 var compute$7 = "RECHENEINHEITEN";
 var controller$7 = "Controller";
@@ -1241,7 +1226,7 @@ var compatHint$6 = "Only touch this if the readings above look wrong.";
 var compatNeedsCyan$6 = "Install Cyan (or stop Oberon) from Desktop Mode to change this.";
 var compatProcessWarning$6 = "The process reading goes through every open file of every program. With a game open, Cyan stops answering: the range, the +2000 MHz points and the voltage lab stop working until the game closes. busy-flag is the default.";
 var compatSetMethod$6 = "Governor method";
-var compatTitle$6 = "Cyan kernel compatibility";
+var compatTitle$6 = "Compatibility";
 var compatUsage$6 = "Usage reading";
 var compute$6 = "COMPUTE UNITS";
 var controller$6 = "Controller";
@@ -1808,7 +1793,7 @@ var compatHint$5 = "Tocalo sólo si las lecturas de arriba se ven mal.";
 var compatNeedsCyan$5 = "Instala Cyan (o detén Oberon) desde Modo Escritorio para cambiar esto.";
 var compatProcessWarning$5 = "La lectura process recorre cada archivo abierto de cada programa. Con un juego abierto, Cyan deja de responder: el rango, los puntos +2000 MHz y el laboratorio de voltaje no funcionan hasta que el juego se cierra. busy-flag es la opción predeterminada.";
 var compatSetMethod$5 = "Método del governor";
-var compatTitle$5 = "Compatibilidad del kernel Cyan";
+var compatTitle$5 = "Compatibilidad";
 var compatUsage$5 = "Lectura de uso";
 var compute$5 = "COMPUTE UNITS";
 var controller$5 = "Controlador";
@@ -2375,7 +2360,7 @@ var compatHint$4 = "Tocalo sólo si las lecturas de arriba se ven mal.";
 var compatNeedsCyan$4 = "Instala Cyan (o detén Oberon) desde Modo Escritorio para cambiar esto.";
 var compatProcessWarning$4 = "La lectura process recorre cada archivo abierto de cada programa. Con un juego abierto, Cyan deja de responder: el rango, los puntos +2000 MHz y el laboratorio de voltaje no funcionan hasta que el juego se cierra. busy-flag es la opción predeterminada.";
 var compatSetMethod$4 = "Método del governor";
-var compatTitle$4 = "Compatibilidad del kernel Cyan";
+var compatTitle$4 = "Compatibilidad";
 var compatUsage$4 = "Lectura de uso";
 var compute$4 = "COMPUTE UNITS";
 var controller$4 = "Controlador";
@@ -2942,7 +2927,7 @@ var compatHint$3 = "Dotykaj tego tylko wtedy, gdy odczyty powyżej wyglądają �
 var compatNeedsCyan$3 = "Zainstaluj Cyan (lub zatrzymaj Oberon) w trybie pulpitu, aby to zmienić.";
 var compatProcessWarning$3 = "Odczyt process przechodzi przez każdy otwarty plik każdego programu. Gdy gra jest otwarta, Cyan przestaje odpowiadać: zakres, punkty +2000 MHz i laboratorium napięcia nie działają, dopóki gra się nie zamknie. busy-flag jest ustawieniem domyślnym.";
 var compatSetMethod$3 = "Metoda governora";
-var compatTitle$3 = "Zgodność jądra Cyan";
+var compatTitle$3 = "Zgodność";
 var compatUsage$3 = "Odczyt użycia";
 var compute$3 = "JEDNOSTKI OBLICZENIOWE";
 var controller$3 = "Kontroler";
@@ -3509,7 +3494,7 @@ var compatHint$2 = "Só toque nisto se as leituras acima parecerem erradas.";
 var compatNeedsCyan$2 = "Instale o Cyan (ou pare o Oberon) no Modo Desktop para alterar isto.";
 var compatProcessWarning$2 = "A leitura process percorre cada ficheiro aberto de cada programa. Com um jogo aberto, o Cyan deixa de responder: a gama, os pontos +2000 MHz e o laboratório de tensão deixam de funcionar até o jogo fechar. busy-flag é a predefinição.";
 var compatSetMethod$2 = "Método do governor";
-var compatTitle$2 = "Compatibilidade do kernel Cyan";
+var compatTitle$2 = "Compatibilidade";
 var compatUsage$2 = "Leitura de uso";
 var compute$2 = "UNIDADES DE COMPUTAÇÃO";
 var controller$2 = "Controlador";
@@ -4076,7 +4061,7 @@ var compatHint$1 = "Трогайте это только если показан
 var compatNeedsCyan$1 = "Установите Cyan (или остановите Oberon) в режиме рабочего стола, чтобы изменить это.";
 var compatProcessWarning$1 = "Чтение process перебирает каждый открытый файл каждой программы. Пока открыта игра, Cyan перестаёт отвечать: диапазон, точки +2000 МГц и лаборатория напряжения не работают, пока игра не закроется. busy-flag — значение по умолчанию.";
 var compatSetMethod$1 = "Метод governor";
-var compatTitle$1 = "Совместимость ядра Cyan";
+var compatTitle$1 = "Совместимость";
 var compatUsage$1 = "Чтение загрузки";
 var compute$1 = "ВЫЧИСЛИТЕЛЬНЫЕ БЛОКИ";
 var controller$1 = "Контроллер";
@@ -4643,7 +4628,7 @@ var compatHint = "Торкайтеся цього лише якщо показн
 var compatNeedsCyan = "Встановіть Cyan (або зупиніть Oberon) у режимі робочого столу, щоб змінити це.";
 var compatProcessWarning = "Читання process перебирає кожен відкритий файл кожної програми. Поки відкрита гра, Cyan перестає відповідати: діапазон, точки +2000 МГц і лабораторія напруги не працюють, доки гра не закриється. busy-flag — типове значення.";
 var compatSetMethod = "Метод governor";
-var compatTitle = "Сумісність ядра Cyan";
+var compatTitle = "Сумісність";
 var compatUsage = "Зчитування навантаження";
 var compute = "ОБЧИСЛЮВАЛЬНІ БЛОКИ";
 var controller = "Контролер";
@@ -5757,26 +5742,18 @@ function ScrollStop({ children, end = false }) {
             ? { height: 16 }
             : { borderRadius: 8, boxShadow: focused ? `0 0 0 1px ${accent.focus}` : "none", marginBottom: 2, padding: 1, transition: "box-shadow 90ms ease" }, children: children ?? SP_JSX.jsx("span", {}) });
 }
-// A GPU or CPU profile as one card: its icon and name, the figures it sets, and
-// a thin bar showing where those figures sit inside what the hardware allows.
-// The profile in force carries the accent and an "ACTUAL" tag.
-// `compact` is the quieter form for long names: no tag (the accent and a dot say
-// it), the name may take two lines and the detail is one short figure.
-function ProfileCard({ icon, title, detail, from, to, current, disabled, preferredFocus, compact = false, onActivate }) {
+// A GPU or CPU profile as one card: its name and the figure it sets, with a
+// thin bar (GPU) placing the range inside what the hardware allows. The profile
+// in force carries the accent and a small dot.
+function ProfileCard({ title, detail, bar, current, disabled, preferredFocus, onActivate }) {
     const accent = useAccent();
     const clamp = (value) => Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0));
-    const start = clamp(from);
-    const width = Math.max(0.04, clamp(to) - start);
-    return SP_JSX.jsxs(PadButton, { label: title, disabled: disabled, preferredFocus: preferredFocus, onActivate: onActivate, style: { alignItems: "stretch", background: current ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, display: "flex", flexDirection: "column", gap: 4, height: compact ? 58 : 66, justifyContent: compact ? "center" : "space-between", minWidth: 0, padding: "7px 8px 8px", position: "relative", textAlign: "left", width: "100%" }, children: [compact ? (current ? SP_JSX.jsx("span", { style: { background: accent.focus, borderRadius: "50%", height: 6, position: "absolute", right: 8, top: 8, width: 6 } }) : null) : SP_JSX.jsxs("span", { style: { alignItems: "center", color: current ? accent.focus : tokens.colors.subtle, display: "flex", fontSize: 14, gap: 5, justifyContent: "space-between" }, children: [SP_REACT.cloneElement(icon, { strokeWidth: 1.5 }), current ? SP_JSX.jsx("span", { style: { background: accent.focus, borderRadius: 8, color: tokens.colors.window, fontSize: 7, fontWeight: 800, letterSpacing: .4, padding: "1px 5px" }, children: text.current }) : null] }), SP_JSX.jsxs("span", { style: { display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }, children: [SP_JSX.jsx("span", { style: compact
-                            ? { WebkitBoxOrient: "vertical", WebkitLineClamp: 2, color: current ? accent.focus : tokens.colors.text, display: "-webkit-box", fontSize: 10.5, fontWeight: 650, lineHeight: 1.15, overflow: "hidden" }
-                            : { color: current ? accent.focus : tokens.colors.text, fontSize: 11, fontWeight: 650, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: title }), SP_JSX.jsx("span", { style: { color: tokens.colors.subtle, fontSize: 8.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: detail })] }), compact ? null : SP_JSX.jsx("span", { style: { background: tokens.colors.progress_track, borderRadius: 2, display: "block", height: 2, position: "relative", width: "100%" }, children: SP_JSX.jsx("span", { style: { background: current ? accent.focus : tokens.colors.border_strong, borderRadius: 2, height: "100%", left: `${start * 100}%`, position: "absolute", width: `${width * 100}%` } }) })] });
+    const start = clamp(bar?.from ?? 0);
+    const width = Math.max(0.04, clamp(bar?.to ?? 0) - start);
+    return SP_JSX.jsxs(PadButton, { label: title, disabled: disabled, preferredFocus: preferredFocus, onActivate: onActivate, style: { alignItems: "stretch", background: current ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, display: "flex", flexDirection: "column", gap: 6, height: bar ? 64 : 58, justifyContent: "center", minWidth: 0, padding: "7px 8px 8px", position: "relative", textAlign: "left", width: "100%" }, children: [current ? SP_JSX.jsx("span", { style: { background: accent.focus, borderRadius: "50%", height: 6, position: "absolute", right: 8, top: 8, width: 6 } }) : null, SP_JSX.jsxs("span", { style: { display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }, children: [SP_JSX.jsx("span", { style: { WebkitBoxOrient: "vertical", WebkitLineClamp: 2, color: current ? accent.focus : tokens.colors.text, display: "-webkit-box", fontSize: 10.5, fontWeight: 650, lineHeight: 1.15, overflow: "hidden", paddingRight: current ? 8 : 0 }, children: title }), SP_JSX.jsx("span", { style: { color: tokens.colors.subtle, fontSize: 8.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: detail })] }), bar ? SP_JSX.jsx("span", { style: { background: tokens.colors.progress_track, borderRadius: 2, display: "block", height: 2, position: "relative", width: "100%" }, children: SP_JSX.jsx("span", { style: { background: current ? accent.focus : tokens.colors.border_strong, borderRadius: 2, height: "100%", left: `${start * 100}%`, position: "absolute", width: `${width * 100}%` } }) }) : null] });
 }
 // 500 -> "0.5", 1850 -> "1.85", 2000 -> "2": gigahertz without trailing zeros.
 const ghz = (mhz) => String(Number((mhz / 1000).toFixed(2)));
-const GPU_PROFILE_ICONS = {
-    balanced: SP_JSX.jsx(LuScale, {}), "oberon-1500": SP_JSX.jsx(LuScale, {}), gaming: SP_JSX.jsx(LuGamepad2, {}), "oberon-1850": SP_JSX.jsx(LuGamepad2, {}), benchmark: SP_JSX.jsx(LuFlame, {}), "oberon-2000": SP_JSX.jsx(LuFlame, {}),
-};
-const CPU_PROFILE_ICONS = { board_average: SP_JSX.jsx(LuScale, {}), mid_point: SP_JSX.jsx(LuGauge, {}), safe_maximum: SP_JSX.jsx(LuZap, {}) };
 // ---- the drawers of the settings tab -------------------------------------
 // One look for what opens under a DisclosureRow: a quiet panel, small spaced
 // labels, joined segmented choices instead of a row of separate buttons, and
@@ -6601,7 +6578,7 @@ function Content() {
                                                 const allowed = Boolean(state.gpu_allowed_range && state.gpu_allowed_range[0] <= profile.min && profile.max <= state.gpu_allowed_range[1]);
                                                 const [low, high] = state.gpu_allowed_range ?? [profile.min, profile.max];
                                                 const span = Math.max(1, high - low);
-                                                return SP_JSX.jsx(ProfileCard, { icon: GPU_PROFILE_ICONS[profile.key] ?? SP_JSX.jsx(LuGauge, {}), title: profile.name, detail: `${ghz(profile.min)}–${ghz(profile.max)} GHz`, from: (profile.min - low) / span, to: (profile.max - low) / span, current: current, disabled: busy || !gpuReady || !allowed, preferredFocus: profile.key === (state.gpu_governor === "oberon" ? "oberon-1850" : "balanced"), onActivate: () => { void execute(`GPU · ${profile.name}`, () => applyGpuProfile(profile.key), "gpu"); } }, profile.key);
+                                                return SP_JSX.jsx(ProfileCard, { title: profile.name, detail: `${ghz(profile.min)}–${ghz(profile.max)} GHz`, bar: { from: (profile.min - low) / span, to: (profile.max - low) / span }, current: current, disabled: busy || !gpuReady || !allowed, preferredFocus: profile.key === (state.gpu_governor === "oberon" ? "oberon-1850" : "balanced"), onActivate: () => { void execute(`GPU · ${profile.name}`, () => applyGpuProfile(profile.key), "gpu"); } }, profile.key);
                                             }) }), points.length || state.gpu_governor === "cyan" ? SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(DisclosureRow, { label: text.more, value: points.length ? text.enabled : text.disabled, open: highOpen, disabled: busy || !gpuReady, onActivate: () => setHighOpen(!highOpen) }), highOpen ? SP_JSX.jsxs(Drawer, { children: [SP_JSX.jsx(HighPointsSwitch, { state: state, busy: busy, execute: execute }), points.length ? SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(Divider, {}), SP_JSX.jsx(DrawerLabel, { children: text.advanced }), SP_JSX.jsx(DFL.Focusable, { "flow-children": "grid", navEntryPreferPosition: DFL.NavEntryPositionPreferences.PREFERRED_CHILD, style: { display: "grid", gap: 5, gridTemplateColumns: "repeat(3,minmax(0,1fr))", marginBottom: 4 }, children: points.map((point, index) => {
                                                                         const current = point.frequency === liveHighPoint?.frequency;
                                                                         const allowed = Boolean(state.gpu_allowed_range && point.frequency <= state.gpu_allowed_range[1]);
@@ -6611,7 +6588,7 @@ function Content() {
                                     : !cpuReady ? SP_JSX.jsx("div", { style: { color: state.cpu_tuning_source === "detector-required" ? tokens.colors.subtle : tokens.colors.red, fontSize: 9, margin: "0 2px 7px" }, children: state.cpu_tuning_source === "stress-unavailable" ? text.stressMissing : (state.cpu_tuning_source === "detector-required" ? text.cpuNeedsDetection : (state.cpu_tuning_source === "helper-unavailable" ? text.cpuHelperUnavailable : text.cpuStatusUnavailable)) })
                                         : null, loaded && !cpuReady && state.cpu_tuning_error && state.cpu_tuning_source !== "detector-required" ? SP_JSX.jsx("div", { style: { color: tokens.colors.muted, fontSize: 8, margin: "-3px 2px 7px", overflowWrap: "anywhere" }, children: localizedErrorSummary(state.cpu_tuning_error) }) : null, state.cpu_profiles?.length ? SP_JSX.jsx(DFL.Focusable, { "flow-children": "grid", navEntryPreferPosition: DFL.NavEntryPositionPreferences.PREFERRED_CHILD, style: { display: "grid", gap: 6, gridTemplateColumns: `repeat(${state.cpu_profiles.length},minmax(0,1fr))`, marginBottom: 7 }, children: state.cpu_profiles.map((preset) => {
                                         const current = !cpuManual && cpuFrequency === preset.frequency && cpuVid === preset.vid;
-                                        return SP_JSX.jsx(ProfileCard, { icon: CPU_PROFILE_ICONS[preset.key] ?? SP_JSX.jsx(LuCpu, {}), title: cpuPresetName(preset), detail: `${ghz(preset.frequency)} GHz`, compact: true, from: 0, to: (preset.frequency - cpuMin) / Math.max(1, cpuMax - cpuMin), current: current, disabled: busy || !cpuReady, onActivate: () => { setCpuFrequency(preset.frequency); setCpuVid(preset.vid); setCpuManual(false); dirty.current.cpu = true; } }, preset.key);
+                                        return SP_JSX.jsx(ProfileCard, { title: cpuPresetName(preset), detail: `${ghz(preset.frequency)} GHz`, current: current, disabled: busy || !cpuReady, onActivate: () => { setCpuFrequency(preset.frequency); setCpuVid(preset.vid); setCpuManual(false); dirty.current.cpu = true; } }, preset.key);
                                     }) }) : null, detectedCpu?.ready ? SP_JSX.jsxs("div", { style: { alignItems: "center", background: tokens.colors.green_soft, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, display: "flex", fontSize: 9, gap: 6, justifyContent: "space-between", marginBottom: 6, padding: "6px 8px" }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.subtle }, children: text.cpuDetected }), SP_JSX.jsx("b", { style: { color: tokens.colors.green }, children: detectedCpuSummary })] }) : null, SP_JSX.jsxs("div", { style: { borderTop: `1px solid ${tokens.colors.border_soft}`, paddingTop: 7 }, children: [SP_JSX.jsx(CompactSlider, { label: text.cpuFrequency, value: cpuFrequency, suffix: " MHz", min: cpuMin, max: cpuMax, step: cpuStep, disabled: busy || !cpuReady, onChange: (value) => { setCpuFrequency(Math.max(cpuMin, Math.min(cpuMax, Math.round(value / cpuStep) * cpuStep))); dirty.current.cpu = true; } }), SP_JSX.jsx(CompactSlider, { label: text.cpuVoltage, value: cpuVid, suffix: " mV", min: vidMin, max: vidMax, step: vidStep, disabled: busy || !cpuReady || cpuManual, onChange: (value) => { setCpuVid(Math.max(vidMin, Math.min(vidMax, Math.round(value / 5) * 5))); dirty.current.cpu = true; } }), !cpuManual && cpuVid >= vidMax - 25 ? SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 8, lineHeight: 1.3, margin: "-2px 2px 7px" }, children: text.cpuVidCeiling }) : null, SP_JSX.jsx("div", { title: manualScaleDescription, style: { background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, fontSize: 11, marginBottom: 4, overflow: "hidden" }, children: SP_JSX.jsx(SwitchRow, { label: text.cpuManual, checked: cpuManual, disabled: busy || !manualReady, onChange: (checked) => { setCpuManual(checked); if (checked && detectedCpu) {
                                                     setCpuScale(activeCpu?.frequency === detectedCpu.frequency ? (activeCpu.scale ?? detectedCpu.scale) : detectedCpu.scale);
                                                 } dirty.current.cpu = true; } }) }), cpuManual && detectedCpu && !manualFrequencyReady ? SP_JSX.jsxs("div", { style: { color: tokens.colors.amber, fontSize: 9, lineHeight: 1.3, margin: "-2px 2px 7px" }, children: [text.cpuManualHelp, " \u00B7 ", detectedCpu.frequency, " MHz"] }) : null, SP_JSX.jsx(CompactSlider, { label: text.cpuScale, value: cpuScale, suffix: "", min: scaleMin, max: scaleMax, step: 1, disabled: busy || !cpuManual || !manualFrequencyReady, onChange: (value) => { setCpuScale(Math.max(-50, Math.min(0, Math.round(value)))); dirty.current.cpu = true; } }), cpuManual ? SP_JSX.jsxs("div", { style: { color: tokens.colors.disabled_text, display: "flex", fontSize: 9, justifyContent: "space-between", margin: "0 2px 7px" }, children: [SP_JSX.jsx("span", { children: `${text.cpuScale}: ${scaleMin}…${scaleMax}` }), SP_JSX.jsx("span", { children: `~${selectedEstimatedVid ?? "—"} mV` })] }) : null, SP_JSX.jsx(ActionRow, { children: SP_JSX.jsx(Action, { label: cpuManual ? text.cpuApplyManual : text.cpuApplyAuto, primary: true, disabled: busy || !cpuReady || (cpuManual && (!manualFrequencyReady || (selectedEstimatedVid ?? 0) > vidMax)), onActivate: () => confirmCpu("detect") }) })] }), SP_JSX.jsx("div", { style: { marginTop: 6, minHeight: 36 }, children: SP_JSX.jsxs(ActionRow, { children: [SP_JSX.jsx(Action, { label: text.install, disabled: busy || !activeMatchesTarget || Boolean(state.cpu_service_enabled), onActivate: () => confirmCpu("install") }), SP_JSX.jsx(Action, { label: text.remove, danger: true, disabled: busy || (!state.cpu_service_installed && !state.cpu_service_enabled), onActivate: () => DFL.showModal(SP_JSX.jsx(DFL.ConfirmModal, { strTitle: text.remove, strDescription: text.serviceRemovedBootProfile, strOKButtonText: text.remove, bDestructiveWarning: true, onOK: () => void execute("BC250 CPU", removeCpuService, "cpu") })) })] }) })] }) : null, boardSection === "fan" ? SP_JSX.jsxs("section", { style: { marginBottom: 12 }, children: [SP_JSX.jsx(SectionTitle, { kind: "fan", title: text.fan }), SP_JSX.jsx(FanPresetRow, { state: state, busy: busy, execute: execute }), SP_JSX.jsxs(PadButton, { disabled: busy, onActivate: () => setFanOpen(!fanOpen), style: { alignItems: "center", display: "flex", fontSize: 11, height: 34, justifyContent: "space-between", marginBottom: 6, padding: "5px 9px", width: "100%" }, children: [SP_JSX.jsxs("span", { children: [liveFan?.label ?? `PWM ${fanChannel}`, " \u00B7 ", fanDetected ? text.detected : text.unavailable] }), SP_JSX.jsx("span", { style: { color: accent.focus }, children: fanOpen ? "▴" : "▾" })] }), fanOpen ? SP_JSX.jsx(DFL.Focusable, { "flow-children": "grid", navEntryPreferPosition: DFL.NavEntryPositionPreferences.PREFERRED_CHILD, style: { display: "grid", gap: 5, gridTemplateColumns: "1fr 1fr", marginBottom: 7 }, children: fanChannels.map((channel) => { const option = state.fan_channel_options?.find((item) => item.channel === channel); const available = detectedFans.includes(channel); return SP_JSX.jsxs(PadButton, { disabled: busy || !available, preferredFocus: channel === fanChannel, onActivate: () => { selectionRef.current.fan = channel; setFanChannel(channel); setFanOpen(false); dirty.current.fan = false; const percent = option?.percent; if (percent != null)

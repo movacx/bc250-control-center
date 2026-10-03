@@ -33,7 +33,7 @@
   "compatNeedsCyan": "Instala Cyan (o detén Oberon) desde Modo Escritorio para cambiar esto.",
   "compatProcessWarning": "La lectura process recorre cada archivo abierto de cada programa. Con un juego abierto, Cyan deja de responder: el rango, los puntos +2000 MHz y el laboratorio de voltaje no funcionan hasta que el juego se cierra. busy-flag es la opción predeterminada.",
   "compatSetMethod": "Método del governor",
-  "compatTitle": "Compatibilidad del kernel Cyan",
+  "compatTitle": "Compatibilidad",
   "compatUsage": "Lectura de uso",
   "compute": "COMPUTE UNITS",
   "controller": "Controlador",

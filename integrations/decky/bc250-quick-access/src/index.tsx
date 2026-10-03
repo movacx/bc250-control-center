@@ -34,7 +34,7 @@ import {
   FaMicrochip,
   FaTh,
 } from "react-icons/fa";
-import { LuActivity, LuCpu, LuFan, LuFlame, LuGamepad2, LuGauge, LuGrid3X3, LuLayoutGrid, LuMemoryStick, LuMicrochip, LuScale, LuSettings, LuSlidersHorizontal, LuTrash2, LuZap } from "react-icons/lu";
+import { LuActivity, LuCpu, LuFan, LuGamepad2, LuGrid3X3, LuLayoutGrid, LuMemoryStick, LuMicrochip, LuSettings, LuSlidersHorizontal, LuTrash2 } from "react-icons/lu";
 import { tokens } from "./theme";
 // Generated from src/bc250cc/shared/error_catalog.py; rollup inlines it.
 import errorCatalog from "./generated/error_catalog.json";
@@ -914,40 +914,29 @@ function ScrollStop({ children, end = false }: { children?: ReactNode; end?: boo
   </Focusable>;
 }
 
-// A GPU or CPU profile as one card: its icon and name, the figures it sets, and
-// a thin bar showing where those figures sit inside what the hardware allows.
-// The profile in force carries the accent and an "ACTUAL" tag.
-// `compact` is the quieter form for long names: no tag (the accent and a dot say
-// it), the name may take two lines and the detail is one short figure.
-function ProfileCard({ icon, title, detail, from, to, current, disabled, preferredFocus, compact = false, onActivate }: { icon: ReactElement; title: string; detail: string; from: number; to: number; current: boolean; disabled: boolean; preferredFocus?: boolean; compact?: boolean; onActivate: () => void }) {
+// A GPU or CPU profile as one card: its name and the figure it sets, with a
+// thin bar (GPU) placing the range inside what the hardware allows. The profile
+// in force carries the accent and a small dot.
+function ProfileCard({ title, detail, bar, current, disabled, preferredFocus, onActivate }: { title: string; detail: string; bar?: { from: number; to: number }; current: boolean; disabled: boolean; preferredFocus?: boolean; onActivate: () => void }) {
   const accent = useAccent();
   const clamp = (value: number) => Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0));
-  const start = clamp(from);
-  const width = Math.max(0.04, clamp(to) - start);
-  return <PadButton label={title} disabled={disabled} preferredFocus={preferredFocus} onActivate={onActivate} style={{ alignItems: "stretch", background: current ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, display: "flex", flexDirection: "column", gap: 4, height: compact ? 58 : 66, justifyContent: compact ? "center" : "space-between", minWidth: 0, padding: "7px 8px 8px", position: "relative", textAlign: "left", width: "100%" }}>
-    {compact ? (current ? <span style={{ background: accent.focus, borderRadius: "50%", height: 6, position: "absolute", right: 8, top: 8, width: 6 }} /> : null) : <span style={{ alignItems: "center", color: current ? accent.focus : tokens.colors.subtle, display: "flex", fontSize: 14, gap: 5, justifyContent: "space-between" }}>
-      {cloneElement(icon, { strokeWidth: 1.5 } as Record<string, unknown>)}
-      {current ? <span style={{ background: accent.focus, borderRadius: 8, color: tokens.colors.window, fontSize: 7, fontWeight: 800, letterSpacing: .4, padding: "1px 5px" }}>{text.current}</span> : null}
-    </span>}
+  const start = clamp(bar?.from ?? 0);
+  const width = Math.max(0.04, clamp(bar?.to ?? 0) - start);
+  return <PadButton label={title} disabled={disabled} preferredFocus={preferredFocus} onActivate={onActivate} style={{ alignItems: "stretch", background: current ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, display: "flex", flexDirection: "column", gap: 6, height: bar ? 64 : 58, justifyContent: "center", minWidth: 0, padding: "7px 8px 8px", position: "relative", textAlign: "left", width: "100%" }}>
+    {current ? <span style={{ background: accent.focus, borderRadius: "50%", height: 6, position: "absolute", right: 8, top: 8, width: 6 }} /> : null}
     <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
-      <span style={compact
-        ? { WebkitBoxOrient: "vertical", WebkitLineClamp: 2, color: current ? accent.focus : tokens.colors.text, display: "-webkit-box", fontSize: 10.5, fontWeight: 650, lineHeight: 1.15, overflow: "hidden" }
-        : { color: current ? accent.focus : tokens.colors.text, fontSize: 11, fontWeight: 650, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</span>
+      <span style={{ WebkitBoxOrient: "vertical", WebkitLineClamp: 2, color: current ? accent.focus : tokens.colors.text, display: "-webkit-box", fontSize: 10.5, fontWeight: 650, lineHeight: 1.15, overflow: "hidden", paddingRight: current ? 8 : 0 }}>{title}</span>
       <span style={{ color: tokens.colors.subtle, fontSize: 8.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{detail}</span>
     </span>
-    {compact ? null : <span style={{ background: tokens.colors.progress_track, borderRadius: 2, display: "block", height: 2, position: "relative", width: "100%" }}>
+    {bar ? <span style={{ background: tokens.colors.progress_track, borderRadius: 2, display: "block", height: 2, position: "relative", width: "100%" }}>
       <span style={{ background: current ? accent.focus : tokens.colors.border_strong, borderRadius: 2, height: "100%", left: `${start * 100}%`, position: "absolute", width: `${width * 100}%` }} />
-    </span>}
+    </span> : null}
   </PadButton>;
 }
 
 // 500 -> "0.5", 1850 -> "1.85", 2000 -> "2": gigahertz without trailing zeros.
 const ghz = (mhz: number) => String(Number((mhz / 1000).toFixed(2)));
 
-const GPU_PROFILE_ICONS: Record<string, ReactElement> = {
-  balanced: <LuScale />, "oberon-1500": <LuScale />, gaming: <LuGamepad2 />, "oberon-1850": <LuGamepad2 />, benchmark: <LuFlame />, "oberon-2000": <LuFlame />,
-};
-const CPU_PROFILE_ICONS: Record<string, ReactElement> = { board_average: <LuScale />, mid_point: <LuGauge />, safe_maximum: <LuZap /> };
 
 // ---- the drawers of the settings tab -------------------------------------
 // One look for what opens under a DisclosureRow: a quiet panel, small spaced
@@ -1892,8 +1881,8 @@ function Content() {
         const allowed = Boolean(state.gpu_allowed_range && state.gpu_allowed_range[0] <= profile.min && profile.max <= state.gpu_allowed_range[1]);
         const [low, high] = state.gpu_allowed_range ?? [profile.min, profile.max];
         const span = Math.max(1, high - low);
-        return <ProfileCard key={profile.key} icon={GPU_PROFILE_ICONS[profile.key] ?? <LuGauge />} title={profile.name} detail={`${ghz(profile.min)}–${ghz(profile.max)} GHz`}
-          from={(profile.min - low) / span} to={(profile.max - low) / span} current={current} disabled={busy || !gpuReady || !allowed}
+        return <ProfileCard key={profile.key} title={profile.name} detail={`${ghz(profile.min)}–${ghz(profile.max)} GHz`}
+          bar={{ from: (profile.min - low) / span, to: (profile.max - low) / span }} current={current} disabled={busy || !gpuReady || !allowed}
           preferredFocus={profile.key === (state.gpu_governor === "oberon" ? "oberon-1850" : "balanced")}
           onActivate={() => { void execute(`GPU · ${profile.name}`, () => applyGpuProfile(profile.key), "gpu"); }} />;
       })}
@@ -1952,8 +1941,7 @@ function Content() {
       {state.cpu_profiles?.length ? <Focusable flow-children="grid" navEntryPreferPosition={NavEntryPositionPreferences.PREFERRED_CHILD} style={{ display: "grid", gap: 6, gridTemplateColumns: `repeat(${state.cpu_profiles.length},minmax(0,1fr))`, marginBottom: 7 }}>
         {state.cpu_profiles.map((preset) => {
           const current = !cpuManual && cpuFrequency === preset.frequency && cpuVid === preset.vid;
-          return <ProfileCard key={preset.key} icon={CPU_PROFILE_ICONS[preset.key] ?? <LuCpu />} title={cpuPresetName(preset)} detail={`${ghz(preset.frequency)} GHz`} compact
-            from={0} to={(preset.frequency - cpuMin) / Math.max(1, cpuMax - cpuMin)} current={current} disabled={busy || !cpuReady}
+          return <ProfileCard key={preset.key} title={cpuPresetName(preset)} detail={`${ghz(preset.frequency)} GHz`} current={current} disabled={busy || !cpuReady}
             onActivate={() => { setCpuFrequency(preset.frequency); setCpuVid(preset.vid); setCpuManual(false); dirty.current.cpu = true; }} />;
         })}
       </Focusable> : null}

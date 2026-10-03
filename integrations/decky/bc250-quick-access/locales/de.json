@@ -33,7 +33,7 @@
   "compatNeedsCyan": "Installiere Cyan (oder stoppe Oberon) im Desktop-Modus, um dies zu ändern.",
   "compatProcessWarning": "Die Messung process geht jede offene Datei jedes Programms durch. Solange ein Spiel läuft, antwortet Cyan nicht mehr: Bereich, +2000-MHz-Punkte und Spannungslabor funktionieren erst wieder, wenn das Spiel beendet ist. busy-flag ist die Voreinstellung.",
   "compatSetMethod": "Governor-Methode",
-  "compatTitle": "Cyan Kernel-Kompatibilität",
+  "compatTitle": "Kompatibilität",
   "compatUsage": "Auslastungsmessung",
   "compute": "RECHENEINHEITEN",
   "controller": "Controller",

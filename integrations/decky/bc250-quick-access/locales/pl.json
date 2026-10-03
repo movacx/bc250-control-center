@@ -33,7 +33,7 @@
   "compatNeedsCyan": "Zainstaluj Cyan (lub zatrzymaj Oberon) w trybie pulpitu, aby to zmienić.",
   "compatProcessWarning": "Odczyt process przechodzi przez każdy otwarty plik każdego programu. Gdy gra jest otwarta, Cyan przestaje odpowiadać: zakres, punkty +2000 MHz i laboratorium napięcia nie działają, dopóki gra się nie zamknie. busy-flag jest ustawieniem domyślnym.",
   "compatSetMethod": "Metoda governora",
-  "compatTitle": "Zgodność jądra Cyan",
+  "compatTitle": "Zgodność",
   "compatUsage": "Odczyt użycia",
   "compute": "JEDNOSTKI OBLICZENIOWE",
   "controller": "Kontroler",
