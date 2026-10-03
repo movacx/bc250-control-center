@@ -220,11 +220,15 @@ def test_ace_usage_comes_from_the_compute_engine_counter(monkeypatch, tmp_path):
     sampler = module.AceSampler(str(_proc(tmp_path, 0)), clock=lambda: next(clock))
 
     first = sampler.sample()
-    assert first == {"ace_available": True, "ace_busy_percent": None, "ace_process": ""}
+    assert first == {
+        "ace_available": True, "ace_busy_percent": None, "gpu_busy_fdinfo_percent": None, "ace_process": "",
+    }
 
     _proc(tmp_path, 340_000_000)  # 0.34 s of compute work in one second
     second = sampler.sample()
     assert second["ace_busy_percent"] == 34
+    # No gpu_busy_percent on this kernel: the same counters give the GPU load.
+    assert second["gpu_busy_fdinfo_percent"] == 34
     assert second["ace_process"] == "Cyberpunk2077.e"
 
 
@@ -235,3 +239,32 @@ def test_no_amdgpu_client_means_ace_unavailable(monkeypatch, tmp_path):
     (proc / "uptime").write_text("5.0 5.0\n", encoding="utf-8")
     sampler = module.AceSampler(str(proc), clock=lambda: 1.0)
     assert sampler.sample()["ace_available"] is False
+
+
+def test_monitoring_shows_gpu_load_from_the_clients_when_the_kernel_exports_none(monkeypatch, tmp_path):
+    module = _module(monkeypatch)
+    plugin = module.Plugin()
+    clock = iter([10.0, 11.0])
+    plugin._ace = module.AceSampler(str(_proc(tmp_path, 0)), clock=lambda: next(clock))
+    monkeypatch.setattr(plugin, "_run", lambda *_a, **_k: {
+        "ok": True, "protocol": module.HELPER_PROTOCOL, "gpu_busy_percent": None,
+    })
+    monkeypatch.setattr(module, "_read_vrm_telemetry", lambda: {})
+    monkeypatch.setattr(plugin, "_cpu_usage_snapshot", lambda: {})
+
+    first = asyncio.run(plugin.monitor_snapshot())
+    assert first["gpu_busy_percent"] is None  # no baseline yet
+    assert "gpu_busy_fdinfo_percent" not in first
+
+    _proc(tmp_path, 340_000_000)
+    second = asyncio.run(plugin.monitor_snapshot())
+    assert second["gpu_busy_percent"] == 34
+
+    # A kernel that does export it wins: the sysfs counter is the more exact one.
+    monkeypatch.setattr(plugin, "_run", lambda *_a, **_k: {
+        "ok": True, "protocol": module.HELPER_PROTOCOL, "gpu_busy_percent": 71,
+    })
+    plugin._ace = module.AceSampler(str(_proc(tmp_path, 0)), clock=iter([20.0, 21.0]).__next__)
+    asyncio.run(plugin.monitor_snapshot())
+    _proc(tmp_path, 340_000_000)
+    assert asyncio.run(plugin.monitor_snapshot())["gpu_busy_percent"] == 71

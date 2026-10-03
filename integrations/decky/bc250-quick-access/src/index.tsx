@@ -545,6 +545,11 @@ const SettingsContext = createContext<{ settings: QuickAccessSettings; setSettin
   gddr6: { live: false, minutesLeft: 0, setLive: () => {}, merge: () => {} },
 });
 
+// The player's accent, for the surfaces that used to be a fixed green.
+function useAccent() {
+  return ACCENT_SWATCHES[useContext(SettingsContext).settings.accent];
+}
+
 function PadButton({ children, disabled = false, onActivate, style, preferredFocus = false, label }: {
   children: ReactNode; disabled?: boolean; onActivate: () => void; style?: CSSProperties; preferredFocus?: boolean; label?: string;
 }) {
@@ -783,6 +788,7 @@ function physicalCores(cores: CoreEntry[], slots?: number | null) {
 }
 
 function CoreGrid({ cores, slots }: { cores: CoreEntry[]; slots?: number | null }) {
+  const accent = useAccent();
   if (!cores.length) return null;
   const groups = physicalCores(cores, slots);
   const active = groups.filter((group) => group.threads.length > 0).length;
@@ -803,7 +809,7 @@ function CoreGrid({ cores, slots }: { cores: CoreEntry[]; slots?: number | null 
         const lead = locked ? undefined : busiest(group.threads);
         const usage = group.threads.filter((entry) => entry.percent != null);
         const load = usage.length ? Math.round(usage.reduce((sum, entry) => sum + (entry.percent ?? 0), 0) / usage.length) : 0;
-        const tone = load >= 85 ? tokens.colors.red : load >= 60 ? tokens.colors.amber : tokens.colors.green;
+        const tone = load >= 85 ? tokens.colors.red : load >= 60 ? tokens.colors.amber : accent.focus;
         return <div key={group.id} title={locked ? text.cpuCoreLocked : `${load}%`} style={{ alignItems: "center", display: "flex", flexDirection: "column", gap: 3, opacity: locked ? .4 : 1 }}>
           <div style={{ alignItems: "flex-end", background: tokens.colors.panel, border: locked ? `1px dashed ${tokens.colors.border}` : "none", borderRadius: 3, display: "flex", height: 34, overflow: "hidden", width: "100%" }}>
             {locked ? null : <div style={{ background: tone, height: `${Math.max(4, Math.min(100, load))}%`, transition: "height .4s ease", width: "100%" }} />}
@@ -834,15 +840,20 @@ function SubNav<T extends string>({ value, onChange, items }: { value: T; onChan
 // read, so nothing reaches the SMU for it until it is turned on again.
 function Gddr6Switch() {
   const { gddr6 } = useContext(SettingsContext);
+  const accent = useAccent();
   const on = gddr6.live;
   return <PadButton label={text.memoryMonitoring} onActivate={() => gddr6.setLive(!on)} style={{ alignItems: "center", background: "transparent", border: "none", display: "flex", height: 30, justifyContent: "space-between", margin: "2px 0 6px", minHeight: 0, padding: "0 4px", width: "100%" }}>
     <span style={{ color: tokens.colors.text, fontSize: 10, fontWeight: 600 }}>{text.memoryMonitoring}</span>
-    <span style={{ background: on ? tokens.colors.green : tokens.colors.panel_raised, border: `1px solid ${on ? tokens.colors.green : tokens.colors.border}`, borderRadius: 10, display: "inline-block", height: 18, position: "relative", transition: "background .2s ease", width: 34 }}>
+    <span style={{ background: on ? accent.focus : tokens.colors.panel_raised, border: `1px solid ${on ? accent.focus : tokens.colors.border}`, borderRadius: 10, display: "inline-block", height: 18, position: "relative", transition: "background .2s ease", width: 34 }}>
       <span style={{ background: on ? "#FFFFFF" : tokens.colors.subtle, borderRadius: "50%", height: 14, left: on ? 17 : 2, position: "absolute", top: 1, transition: "left .2s ease", width: 14 }} />
     </span>
   </PadButton>;
 }
 
+// The switch sits OUTSIDE any ScrollStop: a ScrollStop is a Focusable with a
+// no-op activate, and wrapped in one the controller landed on it and swallowed
+// A -- the switch could be selected but never toggled. Only the read-only
+// temperatures below it are a scroll stop.
 function Gddr6Panel({ state }: { state: Status }) {
   const panelContext = useContext(SettingsContext);
   const accent = ACCENT_SWATCHES[panelContext.settings.accent];
@@ -851,22 +862,24 @@ function Gddr6Panel({ state }: { state: Status }) {
   const available = Boolean(state.gddr6_available) && chips.length > 0;
   return <div style={{ marginBottom: 6 }}>
     <Gddr6Switch />
-    {!available
-      ? state.gddr6_patch_error
-        ? <div style={{ color: tokens.colors.red, fontSize: 9, lineHeight: 1.35, margin: "0 2px 6px", overflowWrap: "anywhere" }}>{state.gddr6_patch_error.replace(/^QUICK_ACCESS_GDDR6:\s*/, "")}</div>
-        : <div style={{ color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 6px" }}>{state.gddr6_reason === "GDDR6_PATCH_INACTIVE" ? text.gddr6Patching : text.gddr6Unavailable}</div>
-      : <>
-        <MetricGrid tiles={[
-          { label: "AVG", value: state.gddr6_average_c != null ? `${state.gddr6_average_c.toFixed(1)} °C` : "—" },
-          { label: "HOTSPOT", value: state.gddr6_hotspot_c != null ? `${state.gddr6_hotspot_c.toFixed(1)} °C` : "—" },
-        ]} />
-        <div style={{ background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 6, display: "grid", gap: 1, gridTemplateColumns: "repeat(4,minmax(0,1fr))", overflow: "hidden" }}>
-          {chips.map((chip) => <div key={chip.chip} style={{ background: chip.chip === state.gddr6_hotspot_chip ? accent.focus_soft : tokens.colors.panel_raised, padding: "6px 7px" }}>
-            <div style={{ color: tokens.colors.subtle, fontSize: 8 }}>CHIP {chip.chip}</div>
-            <div style={{ fontSize: 10, fontWeight: 650 }}>{chip.temperature_c.toFixed(1)} °C</div>
-          </div>)}
-        </div>
-      </>}
+    <ScrollStop>
+      {!available
+        ? state.gddr6_patch_error
+          ? <div style={{ color: tokens.colors.red, fontSize: 9, lineHeight: 1.35, margin: "0 2px 6px", overflowWrap: "anywhere" }}>{state.gddr6_patch_error.replace(/^QUICK_ACCESS_GDDR6:\s*/, "")}</div>
+          : <div style={{ color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 6px" }}>{state.gddr6_reason === "GDDR6_PATCH_INACTIVE" ? text.gddr6Patching : text.gddr6Unavailable}</div>
+        : <>
+          <MetricGrid tiles={[
+            { label: "AVG", value: state.gddr6_average_c != null ? `${state.gddr6_average_c.toFixed(1)} °C` : "—" },
+            { label: "HOTSPOT", value: state.gddr6_hotspot_c != null ? `${state.gddr6_hotspot_c.toFixed(1)} °C` : "—" },
+          ]} />
+          <div style={{ background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 6, display: "grid", gap: 1, gridTemplateColumns: "repeat(4,minmax(0,1fr))", overflow: "hidden" }}>
+            {chips.map((chip) => <div key={chip.chip} style={{ background: chip.chip === state.gddr6_hotspot_chip ? accent.focus_soft : tokens.colors.panel_raised, padding: "6px 7px" }}>
+              <div style={{ color: tokens.colors.subtle, fontSize: 8 }}>CHIP {chip.chip}</div>
+              <div style={{ fontSize: 10, fontWeight: 650 }}>{chip.temperature_c.toFixed(1)} °C</div>
+            </div>)}
+          </div>
+        </>}
+    </ScrollStop>
   </div>;
 }
 
@@ -889,6 +902,22 @@ function ScrollStop({ children, end = false }: { children?: ReactNode; end?: boo
       : { borderRadius: 8, boxShadow: focused ? `0 0 0 1px ${accent.focus}` : "none", marginBottom: 2, padding: 1, transition: "box-shadow 90ms ease" }}>
     {children ?? <span />}
   </Focusable>;
+}
+
+// One header for every drop-down row of the GPU settings (more frequencies,
+// voltage lab, kernel compatibility): the name on the left, which may shorten
+// but never collides, the current choice as a small pill and the chevron on
+// the right.
+function DisclosureRow({ label, value, open, onActivate, disabled = false, warn = false }: { label: string; value?: string; open: boolean; onActivate: () => void; disabled?: boolean; warn?: boolean }) {
+  const accent = useAccent();
+  const tone = warn ? tokens.colors.amber : accent.focus;
+  return <PadButton onActivate={onActivate} disabled={disabled} style={{ alignItems: "center", display: "flex", fontSize: 11, gap: 10, height: 34, justifyContent: "space-between", marginBottom: 6, padding: "5px 10px", width: "100%" }}>
+    <span style={{ flex: "1 1 auto", minWidth: 0, overflow: "hidden", textAlign: "left", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
+    <span style={{ alignItems: "center", display: "flex", flex: "0 0 auto", gap: 6 }}>
+      {value ? <span style={{ background: warn ? tokens.colors.amber_soft : accent.focus_soft, borderRadius: 10, color: tone, fontSize: 9, fontWeight: 650, padding: "2px 8px", whiteSpace: "nowrap" }}>{value}</span> : null}
+      <span style={{ color: tone, fontSize: 10 }}>{open ? "▴" : "▾"}</span>
+    </span>
+  </PadButton>;
 }
 
 const VOLTAGE_LEVELS = [0, 1, 2, 3] as const;
@@ -929,10 +958,7 @@ function CyanCompatibility({ state, busy, execute }: { state: Status; busy: bool
   const choiceStyle = (selected: boolean): CSSProperties => ({ background: selected ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${selected ? accent.focus : tokens.colors.border}`, color: selected ? accent.focus : tokens.colors.text, fontSize: 10, fontWeight: 650, height: 30, padding: 2, textAlign: "center", width: "100%" });
   const labelStyle: CSSProperties = { color: tokens.colors.subtle, fontSize: 10, margin: "2px 2px 4px" };
   return <>
-    <PadButton onActivate={() => setOpen(!open)} style={{ alignItems: "center", display: "flex", fontSize: 11, height: 34, justifyContent: "space-between", marginBottom: 6, padding: "5px 9px", width: "100%" }}>
-      <span>{text.compatTitle}</span>
-      <span style={{ color: current.usage_method === "process" ? tokens.colors.amber : accent.focus }}>{current.set_method === "smu" ? "SMU" : "Kernel"} · {current.usage_method} {open ? "▴" : "▾"}</span>
-    </PadButton>
+    <DisclosureRow label={text.compatTitle} value={`${current.set_method === "smu" ? "SMU" : "Kernel"} · ${current.usage_method}`} open={open} warn={current.usage_method === "process"} onActivate={() => setOpen(!open)} />
     {open ? <div style={{ background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 6, marginBottom: 6, padding: 6 }}>
       {!cyanActive ? <div style={{ color: tokens.colors.amber, fontSize: 9, marginBottom: 6 }}>{text.compatNeedsCyan}</div> : null}
       {cyanActive && !cyanRunningNow ? <div style={{ color: tokens.colors.amber, fontSize: 9, marginBottom: 6 }}>{text.compatStaged}</div> : null}
@@ -993,10 +1019,7 @@ function VoltageLab({ state, busy, execute }: { state: Status; busy: boolean; ex
     strOKButtonText={text.voltageApplyPoints}
     onOK={() => void execute(`GPU · ${text.voltageLab}`, () => applyGpuVoltagePoints(changed.map((point) => ({ frequency: point.frequency, voltage: valueOf(point) }))), "gpu")} />);
   return <>
-    <PadButton onActivate={() => setOpen(!open)} disabled={!points.length} style={{ alignItems: "center", display: "flex", fontSize: 11, height: 34, justifyContent: "space-between", marginBottom: 6, padding: "5px 9px", width: "100%" }}>
-      <span>{text.voltageLab}</span>
-      <span style={{ color: accent.focus }}>{points.length ? levelLabel : text.unavailable} {open ? "▴" : "▾"}</span>
-    </PadButton>
+    <DisclosureRow label={text.voltageLab} value={points.length ? levelLabel : text.unavailable} open={open} disabled={!points.length} onActivate={() => setOpen(!open)} />
     {open ? <div style={{ background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 6, marginBottom: 6, padding: 6 }}>
       {!cyanRunning ? <div style={{ color: tokens.colors.amber, fontSize: 9, marginBottom: 6 }}>{text.voltageNeedsCyan}</div> : null}
       <Focusable flow-children="row" style={{ display: "grid", gap: 5, gridTemplateColumns: "repeat(4,minmax(0,1fr))", marginBottom: 6 }}>
@@ -1005,7 +1028,6 @@ function VoltageLab({ state, busy, execute }: { state: Status; busy: boolean; ex
           return <PadButton key={value} preferredFocus={current || (level == null && value === 0)} disabled={busy || !cyanRunning} onActivate={() => { if (!current) confirmLevel(value); }} style={{ background: current ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, color: current ? accent.focus : tokens.colors.text, fontSize: 10, fontWeight: 650, height: 32, padding: 2, textAlign: "center", width: "100%" }}>{value === 0 ? text.voltageGovernor : `+${value * 10} mV`}</PadButton>;
         })}
       </Focusable>
-      <div style={{ color: tokens.colors.subtle, fontSize: 9, lineHeight: 1.35, margin: "0 2px 7px" }}>{text.voltageHint}</div>
       <Focusable flow-children="down">
         {points.map((point) => {
           const value = valueOf(point);
@@ -1028,36 +1050,37 @@ const cpuPresetName = (preset: CpuPreset) => preset.default ? ({ board_average: 
 
 // Monitoring › CPU is where a CPU run sends the player (see cpuRunRedirected):
 // say what is happening there while it runs, then keep the result on top.
-function cpuRunNotice(state: Status, cpuRun: { target: number; elapsed: number } | null | undefined) {
-  const box: CSSProperties = { alignItems: "center", background: tokens.colors.green_soft, border: `1px solid ${tokens.colors.green}`, borderRadius: 6, display: "flex", fontSize: 9, gap: 6, justifyContent: "space-between", marginBottom: 7, padding: "6px 8px" };
-  if (cpuRun) return <div role="status" aria-live="polite" style={box}><span style={{ color: tokens.colors.green, lineHeight: 1.35 }}>{text.cpuMonitorApplying.replace("{target}", String(cpuRun.target))}</span><b style={{ color: tokens.colors.green, whiteSpace: "nowrap" }}>{cpuRun.elapsed}s</b></div>;
+function cpuRunNotice(state: Status, cpuRun: { target: number; elapsed: number } | null | undefined, accent: { focus: string; focus_soft: string }) {
+  const box: CSSProperties = { alignItems: "center", background: accent.focus_soft, border: `1px solid ${accent.focus}`, borderRadius: 6, display: "flex", fontSize: 9, gap: 6, justifyContent: "space-between", marginBottom: 7, padding: "6px 8px" };
+  if (cpuRun) return <div role="status" aria-live="polite" style={box}><span style={{ color: accent.focus, lineHeight: 1.35 }}>{text.cpuMonitorApplying.replace("{target}", String(cpuRun.target))}</span><b style={{ color: accent.focus, whiteSpace: "nowrap" }}>{cpuRun.elapsed}s</b></div>;
   const detected = state.cpu_detected_profile;
   if (!detected?.ready) return null;
   const active = state.cpu_active_profile ?? detected.active_profile;
   const frequency = active?.frequency ?? detected.frequency;
   const scale = active?.scale ?? detected.scale;
-  return <div style={box}><span style={{ color: tokens.colors.subtle }}>{text.cpuDetected}</span><b style={{ color: tokens.colors.green }}>{`${frequency} MHz · scale ${scale}`}</b></div>;
+  return <div style={box}><span style={{ color: tokens.colors.subtle }}>{text.cpuDetected}</span><b style={{ color: accent.focus }}>{`${frequency} MHz · scale ${scale}`}</b></div>;
 }
 
 // Monitoring › CPU, as two cards instead of an eight-row list: what the CPU
 // is doing now (clock, temperature, load, voltage) and what overclock it runs.
 // The list mixed the sensor voltage and the overclock's estimated VID under
 // the same label, and called the live average a "target".
-function heatTone(celsius: number | null | undefined) {
+function heatTone(celsius: number | null | undefined, normal: string = tokens.colors.green) {
   if (celsius == null) return tokens.colors.text;
-  return celsius >= 85 ? tokens.colors.red : celsius >= 75 ? tokens.colors.amber : tokens.colors.green;
+  return celsius >= 85 ? tokens.colors.red : celsius >= 75 ? tokens.colors.amber : normal;
 }
 
 // Clock and temperature as headlines, a thin load bar, load and voltage under
 // it: shared by Monitoring › CPU and › GPU so the two read alike.
 function ChipOverview({ mhz, celsius, usage, millivolts }: { mhz: number | null | undefined; celsius: number | null | undefined; usage: number | null | undefined; millivolts: number | null | undefined }) {
+  const accent = useAccent();
   const ghz = mhz != null ? (mhz / 1000).toFixed(2) : "—";
   return <div style={{ background: tokens.colors.panel_alt, borderRadius: 6, marginBottom: 8, padding: "8px 10px" }}>
     <div style={{ alignItems: "flex-end", display: "flex", justifyContent: "space-between" }}>
       <div><div style={{ color: tokens.colors.subtle, fontSize: 9 }}>{text.cpuNow}</div><div style={{ fontSize: 18, fontWeight: 700 }}>{ghz} <span style={{ color: tokens.colors.subtle, fontSize: 10, fontWeight: 500 }}>GHz</span></div></div>
-      <div style={{ textAlign: "right" }}><div style={{ color: tokens.colors.subtle, fontSize: 9 }}>{text.cpuTemperature}</div><div style={{ color: heatTone(celsius), fontSize: 18, fontWeight: 700 }}>{celsius != null ? celsius.toFixed(1) : "—"} <span style={{ color: tokens.colors.subtle, fontSize: 10, fontWeight: 500 }}>°C</span></div></div>
+      <div style={{ textAlign: "right" }}><div style={{ color: tokens.colors.subtle, fontSize: 9 }}>{text.cpuTemperature}</div><div style={{ color: heatTone(celsius, accent.focus), fontSize: 18, fontWeight: 700 }}>{celsius != null ? celsius.toFixed(1) : "—"} <span style={{ color: tokens.colors.subtle, fontSize: 10, fontWeight: 500 }}>°C</span></div></div>
     </div>
-    <div style={{ background: tokens.colors.panel, borderRadius: 2, height: 3, margin: "7px 0 5px", overflow: "hidden" }}><div style={{ background: tokens.colors.green, height: "100%", transition: "width .4s ease", width: `${Math.max(1, Math.min(100, usage ?? 0))}%` }} /></div>
+    <div style={{ background: tokens.colors.panel, borderRadius: 2, height: 3, margin: "7px 0 5px", overflow: "hidden" }}><div style={{ background: accent.focus, height: "100%", transition: "width .4s ease", width: `${Math.max(1, Math.min(100, usage ?? 0))}%` }} /></div>
     <div style={{ color: tokens.colors.subtle, display: "flex", fontSize: 9, justifyContent: "space-between" }}><span>{text.usage} <b style={{ color: tokens.colors.text }}>{usage != null ? `${usage}%` : "—"}</b></span><span>{text.gpuVoltage} <b style={{ color: tokens.colors.text }}>{millivolts != null ? `${millivolts} mV` : "—"}</b></span></div>
   </div>;
 }
@@ -1068,8 +1091,9 @@ function CpuOverview({ state }: { state: Status }) {
 
 // Rows of name and value on one panel: the overclock and GPU detail cards.
 function DetailCard({ title, status, statusOn, rows, children }: { title: string; status?: string; statusOn?: boolean; rows: [string, string][]; children?: ReactNode }) {
+  const accent = useAccent();
   return <div style={{ background: tokens.colors.panel_alt, borderRadius: 6, marginBottom: 8, padding: "6px 10px 4px" }}>
-    <div style={{ display: "flex", fontSize: 10, justifyContent: "space-between", padding: "2px 0 5px" }}><b>{title}</b>{status ? <span style={{ color: statusOn ? tokens.colors.green : tokens.colors.subtle, fontSize: 9 }}>{status}</span> : null}</div>
+    <div style={{ display: "flex", fontSize: 10, justifyContent: "space-between", padding: "2px 0 5px" }}><b>{title}</b>{status ? <span style={{ color: statusOn ? accent.focus : tokens.colors.subtle, fontSize: 9 }}>{status}</span> : null}</div>
     {rows.map(([name, value]) => <div key={name} style={{ borderTop: `1px solid ${tokens.colors.border}`, display: "flex", fontSize: 10, gap: 8, justifyContent: "space-between", padding: "4px 0" }}><span style={{ color: tokens.colors.subtle, whiteSpace: "nowrap" }}>{name}</span><span style={{ overflow: "hidden", textAlign: "right", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{value}</span></div>)}
     {children}
   </div>;
@@ -1098,6 +1122,7 @@ function RailVrm({ state, label, tiles }: { state: Status; label: string; tiles:
 
 // Async compute as one slim meter: share of time on the compute queues.
 function AceMeter({ state }: { state: Status }) {
+  const accent = useAccent();
   const game = useRunningGame();
   const percent = state.ace_busy_percent;
   const available = Boolean(state.ace_available);
@@ -1105,12 +1130,13 @@ function AceMeter({ state }: { state: Status }) {
   const who = active ? (game?.name || state.ace_process || "") : "";
   return <div title={who || undefined} style={{ alignItems: "center", background: tokens.colors.panel_alt, borderRadius: 6, display: "flex", fontSize: 9, gap: 8, marginBottom: 8, padding: "6px 10px" }}>
     <span style={{ color: tokens.colors.subtle, whiteSpace: "nowrap" }}>Async compute</span>
-    <div style={{ background: tokens.colors.panel, borderRadius: 2, flex: 1, height: 3, overflow: "hidden" }}><div style={{ background: tokens.colors.green, height: "100%", transition: "width .4s ease", width: `${active ? Math.max(2, Math.min(100, percent ?? 0)) : 0}%` }} /></div>
-    <b style={{ color: active ? tokens.colors.green : tokens.colors.subtle, minWidth: 26, textAlign: "right" }}>{!available || percent == null ? "—" : `${percent}%`}</b>
+    <div style={{ background: tokens.colors.panel, borderRadius: 2, flex: 1, height: 3, overflow: "hidden" }}><div style={{ background: accent.focus, height: "100%", transition: "width .4s ease", width: `${active ? Math.max(2, Math.min(100, percent ?? 0)) : 0}%` }} /></div>
+    <b style={{ color: active ? accent.focus : tokens.colors.subtle, minWidth: 26, textAlign: "right" }}>{!available || percent == null ? "—" : `${percent}%`}</b>
   </div>;
 }
 
 function GpuDetails({ state }: { state: Status }) {
+  const accent = useAccent();
   const mhz = (value: number | null | undefined) => value != null ? `${value} MHz` : "—";
   const range = (pair: [number, number] | null | undefined) => pair ? `${pair[0]}–${pair[1]} MHz` : "—";
   const rows: [string, string][] = [
@@ -1127,7 +1153,7 @@ function GpuDetails({ state }: { state: Status }) {
   const mib = 1024 * 1024;
   return <DetailCard title={text.gpuDetails} rows={rows}>
     <div style={{ borderTop: `1px solid ${tokens.colors.border}`, paddingTop: 6 }}>
-      <UsageBar label="VRAM" used={state.gpu_vram_used_mib != null ? state.gpu_vram_used_mib * mib : null} total={state.gpu_vram_total_mib != null ? state.gpu_vram_total_mib * mib : null} color={tokens.colors.green} />
+      <UsageBar label="VRAM" used={state.gpu_vram_used_mib != null ? state.gpu_vram_used_mib * mib : null} total={state.gpu_vram_total_mib != null ? state.gpu_vram_total_mib * mib : null} color={accent.focus} />
       <UsageBar label="GTT" used={state.gpu_gtt_used_mib != null ? state.gpu_gtt_used_mib * mib : null} total={state.gpu_gtt_total_mib != null ? state.gpu_gtt_total_mib * mib : null} color={tokens.colors.cyan} />
     </div>
   </DetailCard>;
@@ -1161,6 +1187,7 @@ function FanCard({ state }: { state: Status }) {
 
 // Board temperatures as rows, each coloured by heat like the CPU/GPU headlines.
 function BoardCard({ state }: { state: Status }) {
+  const accent = useAccent();
   const rows: [string, number | null | undefined][] = [
     [text.board, state.board_temperature_c],
     ["M.2", state.nvme_temperature_c],
@@ -1169,7 +1196,7 @@ function BoardCard({ state }: { state: Status }) {
   ];
   return <div style={{ background: tokens.colors.panel_alt, borderRadius: 6, marginBottom: 8, padding: "6px 10px 4px" }}>
     <div style={{ fontSize: 10, padding: "2px 0 5px" }}><b>{text.board}</b></div>
-    {rows.map(([name, celsius]) => <div key={name} style={{ borderTop: `1px solid ${tokens.colors.border}`, display: "flex", fontSize: 10, justifyContent: "space-between", padding: "4px 0" }}><span style={{ color: tokens.colors.subtle }}>{name}</span><span style={{ color: celsius != null ? heatTone(celsius) : tokens.colors.subtle }}>{celsius != null ? `${celsius.toFixed(1)} °C` : "—"}</span></div>)}
+    {rows.map(([name, celsius]) => <div key={name} style={{ borderTop: `1px solid ${tokens.colors.border}`, display: "flex", fontSize: 10, justifyContent: "space-between", padding: "4px 0" }}><span style={{ color: tokens.colors.subtle }}>{name}</span><span style={{ color: celsius != null ? heatTone(celsius, accent.focus) : tokens.colors.subtle }}>{celsius != null ? `${celsius.toFixed(1)} °C` : "—"}</span></div>)}
   </div>;
 }
 
@@ -1213,7 +1240,7 @@ function MonitorTab({ state, cpuRun }: { state: Status; cpuRun?: { target: numbe
     ]} />
 
     {section === "cpu" ? <Focusable flow-children="down">
-      {cpuRunNotice(state, cpuRun)}
+      {cpuRunNotice(state, cpuRun, accent)}
       <ScrollStop><CpuOverview state={state} /><CpuOcCard state={state} /></ScrollStop>
       <ScrollStop><CoreGrid cores={state.cpu_cores ?? []} slots={state.cpu_physical_slots} /></ScrollStop>
       <ScrollStop><RailVrm state={state} label="VRM CPU" tiles={cpuVrmTiles} /></ScrollStop>
@@ -1224,7 +1251,7 @@ function MonitorTab({ state, cpuRun }: { state: Status; cpuRun?: { target: numbe
       <ScrollStop><GpuOverview state={state} /><AceMeter state={state} /></ScrollStop>
       <ScrollStop><GpuDetails state={state} /></ScrollStop>
       <ScrollStop><RailVrm state={state} label="VRM GPU" tiles={gpuVrmTiles} /></ScrollStop>
-      <ScrollStop><Gddr6Panel state={state} /></ScrollStop>
+      <Gddr6Panel state={state} />
       <ScrollStop end />
     </Focusable> : null}
 
@@ -1240,7 +1267,7 @@ function MonitorTab({ state, cpuRun }: { state: Status; cpuRun?: { target: numbe
         <ScrollStop><SectionTitle kind="gpu" title="GPU" /><GpuOverview state={state} /><AceMeter state={state} /></ScrollStop>
         <ScrollStop><GpuDetails state={state} /></ScrollStop>
         <ScrollStop><RailVrm state={state} label="VRM GPU" tiles={gpuVrmTiles} /></ScrollStop>
-        <ScrollStop><Gddr6Panel state={state} /></ScrollStop>
+        <Gddr6Panel state={state} />
 
         <ScrollStop><SectionTitle kind="fan" title={text.fan} /><FanCard state={state} /></ScrollStop>
         <ScrollStop><BoardCard state={state} /></ScrollStop>
@@ -1525,7 +1552,10 @@ function Content() {
       // operation can't freeze them — see sampleMonitorSensors). Replacing
       // the whole state object here wiped those fields out again every 5 s,
       // which is exactly what made the CPU core grid blink in and out.
-      setState((current) => ({ ...current, ...result })); setLoaded(true); setStale(false);
+      // gpu_busy_percent is the one passive sensor both calls report: status() has
+      // only the kernel's counter (absent on most kernels) while monitor_snapshot()
+      // fills it in from the clients' engine time, so a null here must not wipe it.
+      setState((current) => ({ ...current, ...result, gpu_busy_percent: result.gpu_busy_percent ?? current.gpu_busy_percent })); setLoaded(true); setStale(false);
       if (validMasks(result.cu_masks)) setCuDraft((existing) => { if (dirty.current.cu && reason !== "after") { if (!sameMasks(existing, result.cu_masks!)) setCuConflict(true); return existing; } dirty.current.cu = false; setCuConflict(false); return result.cu_masks!.slice(); });
       const points = result.gpu_safe_point_ceilings ?? [];
       if (!dirty.current.gpu || reason === "after") {
@@ -1795,7 +1825,7 @@ function Content() {
     <Focusable flow-children="grid" navEntryPreferPosition={NavEntryPositionPreferences.PREFERRED_CHILD} style={{ display: "grid", gap: 6, gridTemplateColumns: `repeat(${activeGpuProfiles.length || 1},minmax(0,1fr))`, marginBottom: 6 }}>
       {activeGpuProfiles.map((profile) => { const current = state.gpu_range?.[0] === profile.min && state.gpu_range?.[1] === profile.max && (state.gpu_governor !== "cyan" || state.gpu_performance_enabled === false); const allowed = Boolean(state.gpu_allowed_range && state.gpu_allowed_range[0] <= profile.min && profile.max <= state.gpu_allowed_range[1]); return <PadButton key={profile.key} disabled={busy || !gpuReady || !allowed} preferredFocus={profile.key === (state.gpu_governor === "oberon" ? "oberon-1850" : "balanced")} onActivate={() => { void execute(`GPU · ${profile.name}`, () => applyGpuProfile(profile.key), "gpu"); }} style={{ alignItems: "center", background: current ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, display: "flex", flexDirection: "column", gap: 2, height: 60, justifyContent: "center", minWidth: 0, padding: "6px 6px", textAlign: "center", width: "100%" }}><span style={{ color: current ? accent.focus : tokens.colors.text, fontSize: 11, fontWeight: 650, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }}>{profile.name}</span><span style={{ color: current ? accent.focus : tokens.colors.subtle, fontSize: 9, lineHeight: 1.3 }}>{profile.min}–{profile.max}<br />MHz{current ? ` · ${text.current}` : ""}</span></PadButton>; })}
     </Focusable>
-    {points.length ? <><PadButton onActivate={() => setHighOpen(!highOpen)} disabled={busy || !gpuReady} style={{ alignItems: "center", display: "flex", fontSize: 11, height: 34, justifyContent: "space-between", marginBottom: 6, padding: "5px 9px", width: "100%" }}><span>{text.more}</span><span style={{ color: accent.focus }}>{highOpen ? "▴" : "▾"}</span></PadButton>{highOpen ? <Focusable flow-children="grid" navEntryPreferPosition={NavEntryPositionPreferences.PREFERRED_CHILD} style={{ background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 6, display: "grid", gap: 5, gridTemplateColumns: "1fr 1fr", padding: 6 }}>{points.map((point, index) => { const current = point.frequency === liveHighPoint?.frequency; const allowed = Boolean(state.gpu_allowed_range && point.frequency <= state.gpu_allowed_range[1]); return <PadButton key={point.frequency} disabled={busy || !gpuReady || !allowed} preferredFocus={current || (!liveHighPoint && index === 0)} onActivate={() => { if (!current) void execute(`GPU · ${governorName || text.advanced}`, () => applyGpuSafePoint(point.frequency), "gpu"); }} style={{ background: current ? accent.focus_soft : tokens.colors.panel_alt, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, color: current ? accent.focus : tokens.colors.text, fontSize: 10, height: 34, padding: 4, textAlign: "center", width: "100%" }}>{point.frequency} MHz · {point.voltage} mV{current ? ` · ${text.current}` : ""}</PadButton>; })}</Focusable> : null}</> : null}
+    {points.length ? <><DisclosureRow label={text.more} open={highOpen} disabled={busy || !gpuReady} onActivate={() => setHighOpen(!highOpen)} />{highOpen ? <Focusable flow-children="grid" navEntryPreferPosition={NavEntryPositionPreferences.PREFERRED_CHILD} style={{ background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 6, display: "grid", gap: 5, gridTemplateColumns: "1fr 1fr", padding: 6 }}>{points.map((point, index) => { const current = point.frequency === liveHighPoint?.frequency; const allowed = Boolean(state.gpu_allowed_range && point.frequency <= state.gpu_allowed_range[1]); return <PadButton key={point.frequency} disabled={busy || !gpuReady || !allowed} preferredFocus={current || (!liveHighPoint && index === 0)} onActivate={() => { if (!current) void execute(`GPU · ${governorName || text.advanced}`, () => applyGpuSafePoint(point.frequency), "gpu"); }} style={{ background: current ? accent.focus_soft : tokens.colors.panel_alt, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, color: current ? accent.focus : tokens.colors.text, fontSize: 10, height: 34, padding: 4, textAlign: "center", width: "100%" }}>{point.frequency} MHz · {point.voltage} mV{current ? ` · ${text.current}` : ""}</PadButton>; })}</Focusable> : null}</> : null}
     <VoltageLab state={state} busy={busy} execute={execute} />
     <CyanCompatibility state={state} busy={busy} execute={execute} />
     <GovernorServiceRow state={state} busy={busy} execute={execute} />
@@ -1842,7 +1872,7 @@ function Content() {
         <div title={manualScaleDescription} style={{ background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, fontSize: 11, marginBottom: 4, overflow: "hidden" }}><ToggleField label={text.cpuManual} layout="inline" bottomSeparator="none" highlightOnFocus checked={cpuManual} disabled={busy || !manualReady} onChange={(checked: boolean) => { setCpuManual(checked); if (checked && detectedCpu) { setCpuScale(activeCpu?.frequency === detectedCpu.frequency ? (activeCpu.scale ?? detectedCpu.scale) : detectedCpu.scale); } dirty.current.cpu = true; }} /></div>
         {cpuManual && detectedCpu && !manualFrequencyReady ? <div style={{ color: tokens.colors.amber, fontSize: 9, lineHeight: 1.3, margin: "-2px 2px 7px" }}>{text.cpuManualHelp} · {detectedCpu.frequency} MHz</div> : null}
         <CompactSlider label={text.cpuScale} value={cpuScale} suffix="" min={scaleMin} max={scaleMax} step={1} disabled={busy || !cpuManual || !manualFrequencyReady} onChange={(value) => { setCpuScale(Math.max(-50, Math.min(0, Math.round(value)))); dirty.current.cpu = true; }} />
-        <div style={{ color: tokens.colors.disabled_text, display: "flex", fontSize: 9, justifyContent: "space-between", margin: "0 2px 7px" }}><span>{cpuManual ? `${text.cpuScale}: ${scaleMin}…${scaleMax}` : `${text.voltageHint} · ${vidMin}–${vidMax} mV`}</span><span>{cpuManual ? `~${selectedEstimatedVid ?? "—"} mV` : `${text.safeRange}: ${cpuMin}–${cpuMax} MHz`}</span></div>
+        {cpuManual ? <div style={{ color: tokens.colors.disabled_text, display: "flex", fontSize: 9, justifyContent: "space-between", margin: "0 2px 7px" }}><span>{`${text.cpuScale}: ${scaleMin}…${scaleMax}`}</span><span>{`~${selectedEstimatedVid ?? "—"} mV`}</span></div> : null}
         <ActionRow><Action label={cpuManual ? text.cpuApplyManual : text.cpuApplyAuto} primary disabled={busy || !cpuReady || (cpuManual && (!manualFrequencyReady || (selectedEstimatedVid ?? 0) > vidMax))} onActivate={() => confirmCpu("detect")} /></ActionRow>
       </div>
       <div style={{ marginTop: 6, minHeight: 36 }}><ActionRow><Action label={text.install} disabled={busy || !activeMatchesTarget || Boolean(state.cpu_service_enabled)} onActivate={() => confirmCpu("install")} /><Action label={text.remove} danger disabled={busy || (!state.cpu_service_installed && !state.cpu_service_enabled)} onActivate={() => showModal(<ConfirmModal strTitle={text.remove} strDescription={text.serviceRemovedBootProfile} strOKButtonText={text.remove} bDestructiveWarning onOK={() => void execute("BC250 CPU", removeCpuService, "cpu")} />)} /></ActionRow></div>

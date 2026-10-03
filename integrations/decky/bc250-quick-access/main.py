@@ -475,21 +475,25 @@ ACE_YOUNG_PROCESS_SECONDS = 120.0
 ACE_FULL_RESCAN_SECONDS = 300.0
 
 
-def _compute_counters(text: str) -> tuple[str | None, int] | None:
-    """(client id, compute-engine ns) from one amdgpu fdinfo, else None."""
+def _engine_counters(text: str) -> tuple[str | None, int, int] | None:
+    """(client id, compute-engine ns, every-engine ns) from one amdgpu fdinfo."""
     client: str | None = None
     amdgpu = False
     compute = 0
+    total = 0
     for line in text.splitlines():
         if line.startswith("drm-driver:"):
             amdgpu = line.partition(":")[2].strip() == "amdgpu"
         elif line.startswith("drm-client-id:"):
             client = line.partition(":")[2].strip() or None
-        elif line.startswith("drm-engine-compute:"):
-            fields = line.partition(":")[2].split()
+        elif line.startswith("drm-engine-") and not line.startswith("drm-engine-capacity-"):
+            name, _, rest = line.partition(":")
+            fields = rest.split()
             if len(fields) >= 2 and fields[1] == "ns" and fields[0].isdigit():
-                compute = int(fields[0])
-    return (client, compute) if amdgpu else None
+                total += int(fields[0])
+                if name == "drm-engine-compute":
+                    compute = int(fields[0])
+    return (client, compute, total) if amdgpu else None
 
 
 class AceSampler:
@@ -507,7 +511,7 @@ class AceSampler:
         self._by_pid: dict[str, tuple[float | None, list[str]]] = {}
         self._discovered_at: float | None = None
         self._full_scan_at: float | None = None
-        self._previous: tuple[float, dict[str, int]] | None = None
+        self._previous: tuple[float, dict[str, int], dict[str, int]] | None = None
         self._owners: dict[str, str] = {}
 
     def _read(self, path: str) -> str | None:
@@ -575,6 +579,7 @@ class AceSampler:
             self._paths = self._discover(now)
             self._discovered_at = now
         counters: dict[str, int] = {}
+        totals: dict[str, int] = {}
         owners: dict[str, str] = {}
         alive: list[str] = []
         amdgpu_seen = False
@@ -583,12 +588,13 @@ class AceSampler:
             if text is None:
                 continue
             alive.append(path)
-            parsed = _compute_counters(text)
+            parsed = _engine_counters(text)
             if parsed is None:
                 continue
             amdgpu_seen = True
-            client, compute = parsed
+            client, compute, total = parsed
             key = client or path
+            totals[key] = max(totals.get(key, 0), total)
             if compute >= counters.get(key, 0):
                 counters[key] = compute
                 owners[key] = path[len(self._proc) + 1:].partition("/")[0]
@@ -596,10 +602,13 @@ class AceSampler:
         result: dict[str, object] = {
             "ace_available": amdgpu_seen,
             "ace_busy_percent": None,
+            # GPU load summed from every client's engine time, the way the
+            # desktop does it: this kernel does not export gpu_busy_percent.
+            "gpu_busy_fdinfo_percent": None,
             "ace_process": "",
         }
         previous = self._previous
-        self._previous = (now, counters)
+        self._previous = (now, counters, totals)
         if previous is None:
             self._owners = owners
             return result
@@ -612,6 +621,11 @@ class AceSampler:
         if elapsed_ns > 0:
             busy = sum(moved.values()) / elapsed_ns * 100
             result["ace_busy_percent"] = int(max(0, min(100, round(busy))))
+            if amdgpu_seen:
+                # Only clients present in both samples: one that appears or
+                # goes away between two reads is neither a spike nor a drop.
+                gpu = sum(max(0, totals[client] - before) for client, before in previous[2].items() if client in totals)
+                result["gpu_busy_fdinfo_percent"] = int(max(0, min(100, round(gpu / elapsed_ns * 100))))
         if moved:
             busiest = max(moved, key=moved.__getitem__)
             pid = owners.get(busiest) or self._owners.get(busiest, "")
@@ -1002,7 +1016,14 @@ class Plugin:
         result.update(await asyncio.to_thread(self._cpu_usage_snapshot))
         # The same amdgpu counter the desktop's Performance › Async compute
         # view reads: busy share of the compute queues since the last poll.
-        result.update(await asyncio.to_thread(self._ace.sample))
+        sampled = await asyncio.to_thread(self._ace.sample)
+        fdinfo_busy = sampled.pop("gpu_busy_fdinfo_percent", None)
+        result.update(sampled)
+        # The helper reads amdgpu's gpu_busy_percent, which this kernel (and
+        # any without the BC-250 patches) does not export: the same load, from
+        # the clients' engine time, fills in, as on the desktop.
+        if result.get("gpu_busy_percent") is None and fdinfo_busy is not None:
+            result["gpu_busy_percent"] = fdinfo_busy
         return result
 
     async def _run_single_operation(self, *args: str, timeout: int = 190) -> dict:
