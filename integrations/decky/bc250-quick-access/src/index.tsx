@@ -12,7 +12,9 @@ import {
 import { callable, definePlugin, toaster } from "@decky/api";
 import {
   type CSSProperties,
+  type ReactElement,
   type ReactNode,
+  cloneElement,
   createContext,
   useCallback,
   useContext,
@@ -33,7 +35,7 @@ import {
   FaMicrochip,
   FaTh,
 } from "react-icons/fa";
-import { LuActivity, LuCpu, LuFan, LuGrid3X3, LuLayoutGrid, LuMemoryStick, LuMicrochip, LuSettings, LuSlidersHorizontal } from "react-icons/lu";
+import { LuActivity, LuCpu, LuFan, LuFlame, LuGamepad2, LuGauge, LuGrid3X3, LuLayoutGrid, LuMemoryStick, LuMicrochip, LuScale, LuSettings, LuSlidersHorizontal, LuZap } from "react-icons/lu";
 import { tokens } from "./theme";
 // Generated from src/bc250cc/shared/error_catalog.py; rollup inlines it.
 import errorCatalog from "./generated/error_catalog.json";
@@ -548,6 +550,9 @@ function useAccent() {
   return ACCENT_SWATCHES[useContext(SettingsContext).settings.accent];
 }
 
+// Lucide's default stroke is 2; navigation icons are drawn finer.
+const NAV_STROKE = 1.25;
+
 function PadButton({ children, disabled = false, onActivate, style, preferredFocus = false, label }: {
   children: ReactNode; disabled?: boolean; onActivate: () => void; style?: CSSProperties; preferredFocus?: boolean; label?: string;
 }) {
@@ -826,7 +831,7 @@ function SubNav<T extends string>({ value, onChange, items }: { value: T; onChan
   return <Focusable flow-children="row" style={{ display: "grid", gap: 5, gridTemplateColumns: `repeat(${items.length},minmax(0,1fr))`, marginBottom: 10 }}>
     {items.map((item) => {
       const active = item.key === value;
-      return <PadButton key={item.key} label={item.label} onActivate={() => onChange(item.key)} style={{ alignItems: "center", background: active ? item.colorSoft : tokens.colors.panel_alt, border: `1px solid ${active ? item.color : tokens.colors.border}`, color: active ? item.color : tokens.colors.subtle, display: "flex", fontSize: 19, height: 40, justifyContent: "center", padding: 0 }}>
+      return <PadButton key={item.key} label={item.label} onActivate={() => onChange(item.key)} style={{ alignItems: "center", background: active ? item.colorSoft : tokens.colors.panel_alt, border: `1px solid ${active ? item.color : tokens.colors.border}`, color: active ? item.color : tokens.colors.subtle, display: "flex", fontSize: 18, height: 36, justifyContent: "center", padding: 0 }}>
         {item.icon}
       </PadButton>;
     })}
@@ -901,6 +906,34 @@ function ScrollStop({ children, end = false }: { children?: ReactNode; end?: boo
     {children ?? <span />}
   </Focusable>;
 }
+
+// A GPU or CPU profile as one card: its icon and name, the figures it sets, and
+// a thin bar showing where those figures sit inside what the hardware allows.
+// The profile in force carries the accent and an "ACTUAL" tag.
+function ProfileCard({ icon, title, detail, from, to, current, disabled, preferredFocus, onActivate }: { icon: ReactElement; title: string; detail: string; from: number; to: number; current: boolean; disabled: boolean; preferredFocus?: boolean; onActivate: () => void }) {
+  const accent = useAccent();
+  const clamp = (value: number) => Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0));
+  const start = clamp(from);
+  const width = Math.max(0.04, clamp(to) - start);
+  return <PadButton label={title} disabled={disabled} preferredFocus={preferredFocus} onActivate={onActivate} style={{ alignItems: "stretch", background: current ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, display: "flex", flexDirection: "column", gap: 4, height: 66, justifyContent: "space-between", minWidth: 0, padding: "7px 8px 8px", textAlign: "left", width: "100%" }}>
+    <span style={{ alignItems: "center", color: current ? accent.focus : tokens.colors.subtle, display: "flex", fontSize: 14, gap: 5, justifyContent: "space-between" }}>
+      {cloneElement(icon, { strokeWidth: 1.5 } as Record<string, unknown>)}
+      {current ? <span style={{ background: accent.focus, borderRadius: 8, color: tokens.colors.window, fontSize: 7, fontWeight: 800, letterSpacing: .4, padding: "1px 5px" }}>{text.current}</span> : null}
+    </span>
+    <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
+      <span style={{ color: current ? accent.focus : tokens.colors.text, fontSize: 11, fontWeight: 650, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</span>
+      <span style={{ color: tokens.colors.subtle, fontSize: 8.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{detail}</span>
+    </span>
+    <span style={{ background: tokens.colors.progress_track, borderRadius: 2, display: "block", height: 2, position: "relative", width: "100%" }}>
+      <span style={{ background: current ? accent.focus : tokens.colors.border_strong, borderRadius: 2, height: "100%", left: `${start * 100}%`, position: "absolute", width: `${width * 100}%` }} />
+    </span>
+  </PadButton>;
+}
+
+const GPU_PROFILE_ICONS: Record<string, ReactElement> = {
+  balanced: <LuScale />, "oberon-1500": <LuScale />, gaming: <LuGamepad2 />, "oberon-1850": <LuGamepad2 />, benchmark: <LuFlame />, "oberon-2000": <LuFlame />,
+};
+const CPU_PROFILE_ICONS: Record<string, ReactElement> = { board_average: <LuScale />, mid_point: <LuGauge />, safe_maximum: <LuZap /> };
 
 // One header for every drop-down row of the GPU settings (more frequencies,
 // voltage lab, kernel compatibility): the name on the left, which may shorten
@@ -1232,9 +1265,9 @@ function MonitorTab({ state, cpuRun }: { state: Status; cpuRun?: { target: numbe
 
   return <>
     <SubNav<MonitorSection> value={section} onChange={setSection} items={[
-      { key: "cpu", label: "CPU", icon: <LuCpu />, color: accent.focus, colorSoft: accent.focus_soft },
-      { key: "gpu", label: "GPU", icon: <LuMicrochip />, color: accent.focus, colorSoft: accent.focus_soft },
-      { key: "all", label: text.allSensors, icon: <LuLayoutGrid />, color: accent.focus, colorSoft: accent.focus_soft },
+      { key: "cpu", label: "CPU", icon: <LuCpu strokeWidth={NAV_STROKE} />, color: accent.focus, colorSoft: accent.focus_soft },
+      { key: "gpu", label: "GPU", icon: <LuMicrochip strokeWidth={NAV_STROKE} />, color: accent.focus, colorSoft: accent.focus_soft },
+      { key: "all", label: text.allSensors, icon: <LuLayoutGrid strokeWidth={NAV_STROKE} />, color: accent.focus, colorSoft: accent.focus_soft },
     ]} />
 
     {section === "cpu" ? <Focusable flow-children="down">
@@ -1790,13 +1823,13 @@ function Content() {
 
     <Focusable flow-children="row" style={{ background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 8, display: "grid", gap: 4, gridTemplateColumns: "repeat(4,minmax(0,1fr))", marginBottom: 12, padding: 4 }}>
       {([
-        ["board", text.boardSetup, <LuSlidersHorizontal />],
-        ["monitor", text.monitoring, <LuActivity />],
-        ["memory", text.memoryAndVideo, <LuMemoryStick />],
-        ["settings", text.settingsTab, <LuSettings />],
+        ["board", text.boardSetup, <LuSlidersHorizontal strokeWidth={NAV_STROKE} />],
+        ["monitor", text.monitoring, <LuActivity strokeWidth={NAV_STROKE} />],
+        ["memory", text.memoryAndVideo, <LuMemoryStick strokeWidth={NAV_STROKE} />],
+        ["settings", text.settingsTab, <LuSettings strokeWidth={NAV_STROKE} />],
       ] as [PanelTab, string, ReactNode][]).map(([tab, label, tabIcon]) => {
         const active = activeTab === tab;
-        return <PadButton key={tab} label={label} onActivate={() => setActiveTab(tab)} style={{ alignItems: "center", background: active ? accent.focus_soft : "transparent", border: active ? `1px solid ${accent.focus}` : "1px solid transparent", color: active ? accent.focus : tokens.colors.subtle, display: "flex", fontSize: 19, height: 42, justifyContent: "center", padding: 0, width: "100%" }}>
+        return <PadButton key={tab} label={label} onActivate={() => setActiveTab(tab)} style={{ alignItems: "center", background: active ? accent.focus_soft : "transparent", border: active ? `1px solid ${accent.focus}` : "1px solid transparent", color: active ? accent.focus : tokens.colors.subtle, display: "flex", fontSize: 18, height: 38, justifyContent: "center", padding: 0, width: "100%" }}>
           {tabIcon}
         </PadButton>;
       })}
@@ -1808,10 +1841,10 @@ function Content() {
     {activeTab === "board" ? <>
     <GameProfileCard state={state} busy={busy} />
     <SubNav<BoardSection> value={boardSection} onChange={setBoardSection} items={[
-      { key: "gpu", label: "GPU", icon: <LuMicrochip />, color: accent.focus, colorSoft: accent.focus_soft },
-      { key: "cu", label: text.compute, icon: <LuGrid3X3 />, color: accent.focus, colorSoft: accent.focus_soft },
-      { key: "cpu", label: "CPU", icon: <LuCpu />, color: accent.focus, colorSoft: accent.focus_soft },
-      { key: "fan", label: text.fan, icon: <LuFan />, color: accent.focus, colorSoft: accent.focus_soft },
+      { key: "gpu", label: "GPU", icon: <LuMicrochip strokeWidth={NAV_STROKE} />, color: accent.focus, colorSoft: accent.focus_soft },
+      { key: "cu", label: text.compute, icon: <LuGrid3X3 strokeWidth={NAV_STROKE} />, color: accent.focus, colorSoft: accent.focus_soft },
+      { key: "cpu", label: "CPU", icon: <LuCpu strokeWidth={NAV_STROKE} />, color: accent.focus, colorSoft: accent.focus_soft },
+      { key: "fan", label: text.fan, icon: <LuFan strokeWidth={NAV_STROKE} />, color: accent.focus, colorSoft: accent.focus_soft },
     ]} />
 
     {busy && boardSection !== "cpu" ? <div style={{ alignItems: "center", background: accent.focus_soft, border: `1px solid ${accent.focus}`, borderRadius: 7, color: accent.focus, display: "flex", fontSize: 10, gap: 6, marginBottom: 10, padding: "7px 9px" }}><FaClock />{text.operationInProgress}</div> : null}
@@ -1821,7 +1854,16 @@ function Content() {
     {gpuReady && state.gpu_dbus_responsive === false ? <div style={{ color: tokens.colors.amber, fontSize: 9, marginBottom: 6 }}>{text.governorUnresponsive}</div> : null}
     {!gpuReady ? <div style={{ color: state.gpu_governor === "conflict" ? tokens.colors.red : tokens.colors.amber, fontSize: 9, marginBottom: 6 }}>{state.gpu_governor === "conflict" ? text.governorConflict : state.gpu_service_installed ? text.governorStopped : text.governorMissing}</div> : null}
     <Focusable flow-children="grid" navEntryPreferPosition={NavEntryPositionPreferences.PREFERRED_CHILD} style={{ display: "grid", gap: 6, gridTemplateColumns: `repeat(${activeGpuProfiles.length || 1},minmax(0,1fr))`, marginBottom: 6 }}>
-      {activeGpuProfiles.map((profile) => { const current = state.gpu_range?.[0] === profile.min && state.gpu_range?.[1] === profile.max && (state.gpu_governor !== "cyan" || state.gpu_performance_enabled === false); const allowed = Boolean(state.gpu_allowed_range && state.gpu_allowed_range[0] <= profile.min && profile.max <= state.gpu_allowed_range[1]); return <PadButton key={profile.key} disabled={busy || !gpuReady || !allowed} preferredFocus={profile.key === (state.gpu_governor === "oberon" ? "oberon-1850" : "balanced")} onActivate={() => { void execute(`GPU · ${profile.name}`, () => applyGpuProfile(profile.key), "gpu"); }} style={{ alignItems: "center", background: current ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, display: "flex", flexDirection: "column", gap: 2, height: 60, justifyContent: "center", minWidth: 0, padding: "6px 6px", textAlign: "center", width: "100%" }}><span style={{ color: current ? accent.focus : tokens.colors.text, fontSize: 11, fontWeight: 650, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }}>{profile.name}</span><span style={{ color: current ? accent.focus : tokens.colors.subtle, fontSize: 9, lineHeight: 1.3 }}>{profile.min}–{profile.max}<br />MHz{current ? ` · ${text.current}` : ""}</span></PadButton>; })}
+      {activeGpuProfiles.map((profile) => {
+        const current = state.gpu_range?.[0] === profile.min && state.gpu_range?.[1] === profile.max && (state.gpu_governor !== "cyan" || state.gpu_performance_enabled === false);
+        const allowed = Boolean(state.gpu_allowed_range && state.gpu_allowed_range[0] <= profile.min && profile.max <= state.gpu_allowed_range[1]);
+        const [low, high] = state.gpu_allowed_range ?? [profile.min, profile.max];
+        const span = Math.max(1, high - low);
+        return <ProfileCard key={profile.key} icon={GPU_PROFILE_ICONS[profile.key] ?? <LuGauge />} title={profile.name} detail={`${profile.min}–${profile.max} MHz`}
+          from={(profile.min - low) / span} to={(profile.max - low) / span} current={current} disabled={busy || !gpuReady || !allowed}
+          preferredFocus={profile.key === (state.gpu_governor === "oberon" ? "oberon-1850" : "balanced")}
+          onActivate={() => { void execute(`GPU · ${profile.name}`, () => applyGpuProfile(profile.key), "gpu"); }} />;
+      })}
     </Focusable>
     {points.length ? <><DisclosureRow label={text.more} open={highOpen} disabled={busy || !gpuReady} onActivate={() => setHighOpen(!highOpen)} />{highOpen ? <Focusable flow-children="grid" navEntryPreferPosition={NavEntryPositionPreferences.PREFERRED_CHILD} style={{ background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 6, display: "grid", gap: 5, gridTemplateColumns: "1fr 1fr", padding: 6 }}>{points.map((point, index) => { const current = point.frequency === liveHighPoint?.frequency; const allowed = Boolean(state.gpu_allowed_range && point.frequency <= state.gpu_allowed_range[1]); return <PadButton key={point.frequency} disabled={busy || !gpuReady || !allowed} preferredFocus={current || (!liveHighPoint && index === 0)} onActivate={() => { if (!current) void execute(`GPU · ${governorName || text.advanced}`, () => applyGpuSafePoint(point.frequency), "gpu"); }} style={{ background: current ? accent.focus_soft : tokens.colors.panel_alt, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, color: current ? accent.focus : tokens.colors.text, fontSize: 10, height: 34, padding: 4, textAlign: "center", width: "100%" }}>{point.frequency} MHz · {point.voltage} mV{current ? ` · ${text.current}` : ""}</PadButton>; })}</Focusable> : null}</> : null}
     <VoltageLab state={state} busy={busy} execute={execute} />
@@ -1856,10 +1898,9 @@ function Content() {
       {state.cpu_profiles?.length ? <Focusable flow-children="grid" navEntryPreferPosition={NavEntryPositionPreferences.PREFERRED_CHILD} style={{ display: "grid", gap: 6, gridTemplateColumns: `repeat(${state.cpu_profiles.length},minmax(0,1fr))`, marginBottom: 7 }}>
         {state.cpu_profiles.map((preset) => {
           const current = !cpuManual && cpuFrequency === preset.frequency && cpuVid === preset.vid;
-          return <PadButton key={preset.key} disabled={busy || !cpuReady} onActivate={() => { setCpuFrequency(preset.frequency); setCpuVid(preset.vid); setCpuManual(false); dirty.current.cpu = true; }} style={{ alignItems: "center", background: current ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, display: "flex", flexDirection: "column", gap: 2, height: 52, justifyContent: "center", minWidth: 0, padding: "6px 6px", textAlign: "center", width: "100%" }}>
-            <span style={{ color: current ? accent.focus : tokens.colors.text, fontSize: 11, fontWeight: 650, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }}>{cpuPresetName(preset)}</span>
-            <span style={{ color: current ? accent.focus : tokens.colors.subtle, fontSize: 9 }}>{preset.frequency} MHz</span>
-          </PadButton>;
+          return <ProfileCard key={preset.key} icon={CPU_PROFILE_ICONS[preset.key] ?? <LuCpu />} title={cpuPresetName(preset)} detail={`${preset.frequency} MHz · ${preset.vid} mV`}
+            from={0} to={(preset.frequency - cpuMin) / Math.max(1, cpuMax - cpuMin)} current={current} disabled={busy || !cpuReady}
+            onActivate={() => { setCpuFrequency(preset.frequency); setCpuVid(preset.vid); setCpuManual(false); dirty.current.cpu = true; }} />;
         })}
       </Focusable> : null}
       {detectedCpu?.ready ? <div style={{ alignItems: "center", background: tokens.colors.green_soft, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, display: "flex", fontSize: 9, gap: 6, justifyContent: "space-between", marginBottom: 6, padding: "6px 8px" }}><span style={{ color: tokens.colors.subtle }}>{text.cpuDetected}</span><b style={{ color: tokens.colors.green }}>{detectedCpuSummary}</b></div> : null}
