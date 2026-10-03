@@ -266,6 +266,28 @@ def _read_core_frequencies_mhz(root: pathlib.Path = CPUFREQ_ROOT) -> dict[int, i
     return frequencies
 
 
+#: The BC-250's Zen 2 die has eight cores; the factory enables six. A core's
+#: id stays its die position, so an id the system does not list is a locked
+#: core (bc250-core-unlock turns those two on).
+BC250_PHYSICAL_CORES = 8
+
+
+def _read_core_ids(root: pathlib.Path = CPUFREQ_ROOT) -> dict[int, int]:
+    """Logical CPU -> physical core id; two SMT threads share one id."""
+    core_ids: dict[int, int] = {}
+    try:
+        cpu_dirs = sorted(root.glob("cpu[0-9]*"))
+    except OSError:
+        return core_ids
+    for cpu_dir in cpu_dirs:
+        try:
+            index = int(cpu_dir.name[3:])
+            core_ids[index] = int((cpu_dir / "topology" / "core_id").read_text(encoding="ascii").strip())
+        except (OSError, ValueError):
+            continue
+    return core_ids
+
+
 CPU_PROFILE_KEYS = ("board_average", "mid_point", "safe_maximum")
 
 
@@ -645,6 +667,7 @@ class Plugin:
             busy = max(0.0, min(100.0, 100.0 * (1 - idle_delta / total_delta)))
             per_core_percent[index] = round(busy, 1)
         frequencies = _read_core_frequencies_mhz()
+        core_ids = _read_core_ids()
         cores = sorted(set(times) | set(frequencies))
         aggregate = (
             round(sum(per_core_percent.values()) / len(per_core_percent), 1)
@@ -653,9 +676,17 @@ class Plugin:
         return {
             "cpu_usage_percent": aggregate,
             "cpu_cores": [
-                {"core": index, "percent": per_core_percent.get(index), "frequency_mhz": frequencies.get(index)}
+                {
+                    "core": index,
+                    "core_id": core_ids.get(index),
+                    "percent": per_core_percent.get(index),
+                    "frequency_mhz": frequencies.get(index),
+                }
                 for index in cores
             ],
+            "cpu_physical_slots": max(
+                [BC250_PHYSICAL_CORES, *(core_id + 1 for core_id in core_ids.values())]
+            ),
         }
 
     def _record_action(self, module: str, target: str, result: dict) -> dict:

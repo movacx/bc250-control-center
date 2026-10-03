@@ -529,3 +529,16 @@ def test_failed_operations_are_kept_for_the_desktop_diagnostics(monkeypatch, tmp
     assert entry["module"] == "cpu" and entry["target"] == "detect-3850:1150"
     assert entry["error"] == "ERR SMU_IN_USE: busy"
     assert (tmp_path / module.DIAGNOSTICS_FILENAME).stat().st_mode & 0o777 == 0o644
+
+
+def test_cpu_cores_carry_their_physical_core(monkeypatch, tmp_path):
+    module = _backend_module(monkeypatch)
+    # Six of the die's eight cores enabled, two SMT threads each (ids 3 and 7 locked).
+    for index, core_id in enumerate((0, 0, 1, 1, 2, 2, 4, 4, 5, 5, 6, 6)):
+        topology = tmp_path / f"cpu{index}" / "topology"
+        topology.mkdir(parents=True)
+        (topology / "core_id").write_text(f"{core_id}\n")
+    ids = module._read_core_ids(tmp_path)
+    assert sorted(set(ids.values())) == [0, 1, 2, 4, 5, 6]
+    assert len(ids) == 12
+    assert module.BC250_PHYSICAL_CORES == 8

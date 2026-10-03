@@ -233,5 +233,8 @@
   "cpuPresetMidPoint": "Punkt środkowy",
   "cpuPresetSafeMaximum": "Bezpieczne maksimum",
   "cuKernelManaged": "Jądro BC-250 zarządza jednostkami obliczeniowymi (bc250_cc_write_mode=3) i odblokowało je wszystkie przy starcie. Ta karta jest tylko do odczytu; wyłącz odblokowanie CU przez jądro w trybie pulpitu, aby zmienić routing.",
-  "cpuMonitorApplying": "Chwileczkę: podkręcanie CPU do {target} MHz jest stosowane i testowane obciążeniem. Obserwuj temperatury w trakcie."
+  "cpuMonitorApplying": "Chwileczkę: podkręcanie CPU do {target} MHz jest stosowane i testowane obciążeniem. Obserwuj temperatury w trakcie.",
+  "cpuCoreLabel": "Rdzeń",
+  "cpuCoreLocked": "Zablokowany",
+  "cpuCoresSummary": "{active}/{total} rdzeni · {threads} wątków"
 }

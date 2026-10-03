@@ -233,5 +233,8 @@
   "cpuPresetMidPoint": "Ponto médio",
   "cpuPresetSafeMaximum": "Máximo seguro",
   "cuKernelManaged": "O kernel BC-250 gere as Compute Units (bc250_cc_write_mode=3) e desbloqueou-as todas no arranque. Este separador é só de leitura; desative o desbloqueio pelo kernel no Modo Desktop para alterar o encaminhamento.",
-  "cpuMonitorApplying": "Aguarde: o overclock da CPU a {target} MHz está a ser aplicado e testado. Vigie as temperaturas enquanto decorre."
+  "cpuMonitorApplying": "Aguarde: o overclock da CPU a {target} MHz está a ser aplicado e testado. Vigie as temperaturas enquanto decorre.",
+  "cpuCoreLabel": "Núcleo",
+  "cpuCoreLocked": "Bloqueado",
+  "cpuCoresSummary": "{active}/{total} núcleos · {threads} threads"
 }

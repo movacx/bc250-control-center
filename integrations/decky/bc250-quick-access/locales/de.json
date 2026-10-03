@@ -233,5 +233,8 @@
   "cpuPresetMidPoint": "Mittelwert",
   "cpuPresetSafeMaximum": "Sicheres Maximum",
   "cuKernelManaged": "Der BC-250-Kernel verwaltet die Compute Units (bc250_cc_write_mode=3) und hat beim Start alle freigeschaltet. Dieser Tab ist schreibgeschützt; schalte die Kernel-CU-Freischaltung im Desktop-Modus ab, um das Routing zu ändern.",
-  "cpuMonitorApplying": "Bitte warten: Der CPU-Overclock auf {target} MHz wird angewendet und unter Last getestet. Behalte die Temperaturen im Blick."
+  "cpuMonitorApplying": "Bitte warten: Der CPU-Overclock auf {target} MHz wird angewendet und unter Last getestet. Behalte die Temperaturen im Blick.",
+  "cpuCoreLabel": "Kern",
+  "cpuCoreLocked": "Gesperrt",
+  "cpuCoresSummary": "{active}/{total} Kerne · {threads} Threads"
 }

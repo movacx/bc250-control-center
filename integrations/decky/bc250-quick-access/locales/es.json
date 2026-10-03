@@ -233,5 +233,8 @@
   "cpuPresetMidPoint": "Punto medio",
   "cpuPresetSafeMaximum": "Máximo seguro",
   "cuKernelManaged": "El kernel BC-250 gestiona las Compute Units (bc250_cc_write_mode=3) y las desbloqueó todas al arrancar. Esta pestaña es de solo lectura; desactiva el desbloqueo por kernel en Modo Escritorio para cambiar el enrutado.",
-  "cpuMonitorApplying": "Espera un momento: se está aplicando y probando el OC de CPU a {target} MHz. Vigila las temperaturas mientras dura."
+  "cpuMonitorApplying": "Espera un momento: se está aplicando y probando el OC de CPU a {target} MHz. Vigila las temperaturas mientras dura.",
+  "cpuCoreLabel": "Núcleo",
+  "cpuCoreLocked": "Bloqueado",
+  "cpuCoresSummary": "{active}/{total} núcleos · {threads} hilos"
 }

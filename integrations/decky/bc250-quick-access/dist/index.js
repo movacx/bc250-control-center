@@ -1004,6 +1004,9 @@ var de = {
 	serviceNotInstalled: serviceNotInstalled$7,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$7,
 	serviceRunningBoot: serviceRunningBoot$7,
+	cpuCoreLabel: "Kern",
+	cpuCoreLocked: "Gesperrt",
+	cpuCoresSummary: "{active}/{total} Kerne · {threads} Threads",
 	cpuMonitorApplying: "Bitte warten: Der CPU-Overclock auf {target} MHz wird angewendet und unter Last getestet. Behalte die Temperaturen im Blick.",
 	cuKernelManaged: "Der BC-250-Kernel verwaltet die Compute Units (bc250_cc_write_mode=3) und hat beim Start alle freigeschaltet. Dieser Tab ist schreibgeschützt; schalte die Kernel-CU-Freischaltung im Desktop-Modus ab, um das Routing zu ändern.",
 	cpuPresetBoardAverage: "Durchschnittsboard",
@@ -1468,6 +1471,9 @@ var en = {
 	serviceNotInstalled: serviceNotInstalled$6,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$6,
 	serviceRunningBoot: serviceRunningBoot$6,
+	cpuCoreLabel: "Core",
+	cpuCoreLocked: "Locked",
+	cpuCoresSummary: "{active}/{total} cores · {threads} threads",
 	cpuMonitorApplying: "Please wait: the CPU overclock at {target} MHz is being applied and stress-tested. Watch the temperatures while it runs.",
 	cuKernelManaged: "The BC-250 kernel manages the compute units (bc250_cc_write_mode=3) and unlocked all of them at boot. This tab is read-only; turn the kernel CU unlock off in Desktop Mode to change routing.",
 	cpuPresetBoardAverage: "Average board",
@@ -1932,6 +1938,9 @@ var es = {
 	serviceNotInstalled: serviceNotInstalled$5,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$5,
 	serviceRunningBoot: serviceRunningBoot$5,
+	cpuCoreLabel: "Núcleo",
+	cpuCoreLocked: "Bloqueado",
+	cpuCoresSummary: "{active}/{total} núcleos · {threads} hilos",
 	cpuMonitorApplying: "Espera un momento: se está aplicando y probando el OC de CPU a {target} MHz. Vigila las temperaturas mientras dura.",
 	cuKernelManaged: "El kernel BC-250 gestiona las Compute Units (bc250_cc_write_mode=3) y las desbloqueó todas al arrancar. Esta pestaña es de solo lectura; desactiva el desbloqueo por kernel en Modo Escritorio para cambiar el enrutado.",
 	cpuPresetBoardAverage: "Placa promedio",
@@ -2396,6 +2405,9 @@ var es419 = {
 	serviceNotInstalled: serviceNotInstalled$4,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$4,
 	serviceRunningBoot: serviceRunningBoot$4,
+	cpuCoreLabel: "Núcleo",
+	cpuCoreLocked: "Bloqueado",
+	cpuCoresSummary: "{active}/{total} núcleos · {threads} hilos",
 	cpuMonitorApplying: "Espera un momento: se está aplicando y probando el OC de CPU a {target} MHz. Vigila las temperaturas mientras dura.",
 	cuKernelManaged: "El kernel BC-250 gestiona las Compute Units (bc250_cc_write_mode=3) y las desbloqueó todas al arrancar. Esta pestaña es de solo lectura; desactiva el desbloqueo por kernel en Modo Escritorio para cambiar el enrutado.",
 	cpuPresetBoardAverage: "Placa promedio",
@@ -2860,6 +2872,9 @@ var pl = {
 	serviceNotInstalled: serviceNotInstalled$3,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$3,
 	serviceRunningBoot: serviceRunningBoot$3,
+	cpuCoreLabel: "Rdzeń",
+	cpuCoreLocked: "Zablokowany",
+	cpuCoresSummary: "{active}/{total} rdzeni · {threads} wątków",
 	cpuMonitorApplying: "Chwileczkę: podkręcanie CPU do {target} MHz jest stosowane i testowane obciążeniem. Obserwuj temperatury w trakcie.",
 	cuKernelManaged: "Jądro BC-250 zarządza jednostkami obliczeniowymi (bc250_cc_write_mode=3) i odblokowało je wszystkie przy starcie. Ta karta jest tylko do odczytu; wyłącz odblokowanie CU przez jądro w trybie pulpitu, aby zmienić routing.",
 	cpuPresetBoardAverage: "Przeciętna płyta",
@@ -3324,6 +3339,9 @@ var pt = {
 	serviceNotInstalled: serviceNotInstalled$2,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$2,
 	serviceRunningBoot: serviceRunningBoot$2,
+	cpuCoreLabel: "Núcleo",
+	cpuCoreLocked: "Bloqueado",
+	cpuCoresSummary: "{active}/{total} núcleos · {threads} threads",
 	cpuMonitorApplying: "Aguarde: o overclock da CPU a {target} MHz está a ser aplicado e testado. Vigie as temperaturas enquanto decorre.",
 	cuKernelManaged: "O kernel BC-250 gere as Compute Units (bc250_cc_write_mode=3) e desbloqueou-as todas no arranque. Este separador é só de leitura; desative o desbloqueio pelo kernel no Modo Desktop para alterar o encaminhamento.",
 	cpuPresetBoardAverage: "Placa média",
@@ -3788,6 +3806,9 @@ var ru = {
 	serviceNotInstalled: serviceNotInstalled$1,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$1,
 	serviceRunningBoot: serviceRunningBoot$1,
+	cpuCoreLabel: "Ядро",
+	cpuCoreLocked: "Заблокировано",
+	cpuCoresSummary: "{active}/{total} ядер · {threads} потоков",
 	cpuMonitorApplying: "Подождите: разгон CPU до {target} МГц применяется и проверяется нагрузкой. Следите за температурами.",
 	cuKernelManaged: "Ядро BC-250 управляет вычислительными блоками (bc250_cc_write_mode=3) и разблокировало их все при загрузке. Эта вкладка только для чтения; отключите разблокировку CU ядром в режиме рабочего стола, чтобы изменить маршрутизацию.",
 	cpuPresetBoardAverage: "Средняя плата",
@@ -4252,6 +4273,9 @@ var uk = {
 	serviceNotInstalled: serviceNotInstalled,
 	serviceRemovedBootProfile: serviceRemovedBootProfile,
 	serviceRunningBoot: serviceRunningBoot,
+	cpuCoreLabel: "Ядро",
+	cpuCoreLocked: "Заблоковано",
+	cpuCoresSummary: "{active}/{total} ядер · {threads} потоків",
 	cpuMonitorApplying: "Зачекайте: розгін CPU до {target} МГц застосовується й перевіряється навантаженням. Стежте за температурами.",
 	cuKernelManaged: "Ядро BC-250 керує обчислювальними блоками (bc250_cc_write_mode=3) і розблокувало їх усі під час завантаження. Ця вкладка лише для читання; вимкніть розблокування CU ядром у режимі робочого столу, щоб змінити маршрутизацію.",
 	cpuPresetBoardAverage: "Середня плата",
@@ -4770,11 +4794,32 @@ function StatusRow({ label, value, active }) {
     const color = active == null ? tokens.colors.subtle : active ? tokens.colors.green : tokens.colors.disabled_text;
     return SP_JSX.jsxs("div", { style: { alignItems: "center", display: "flex", fontSize: 10, justifyContent: "space-between", padding: "7px 9px" }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.subtle }, children: label }), SP_JSX.jsx("span", { style: { color, fontWeight: 650 }, children: value })] });
 }
-function CoreGrid({ cores }) {
+function physicalCores(cores, slots) {
+    const known = cores.some((entry) => typeof entry.core_id === "number");
+    if (!known)
+        return cores.map((entry, index) => ({ id: index, threads: [entry] }));
+    const total = Math.max(slots ?? 8, ...cores.map((entry) => (entry.core_id ?? 0) + 1));
+    return Array.from({ length: total }, (_unused, id) => ({ id, threads: cores.filter((entry) => entry.core_id === id) }));
+}
+function CoreGrid({ cores, slots }) {
     if (!cores.length)
         return null;
-    const columns = cores.length > 6 ? 4 : cores.length > 2 ? 3 : 2;
-    return SP_JSX.jsx("div", { style: { background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 6, display: "grid", gap: 1, gridTemplateColumns: `repeat(${columns},minmax(0,1fr))`, marginBottom: 10, overflow: "hidden" }, children: cores.map((entry) => SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_raised, padding: "6px 7px" }, children: [SP_JSX.jsxs("div", { style: { color: tokens.colors.subtle, fontSize: 8 }, children: ["N", entry.core + 1] }), SP_JSX.jsx("div", { style: { fontSize: 10, fontWeight: 650 }, children: entry.frequency_mhz != null ? `${(entry.frequency_mhz / 1000).toFixed(2)} GHz` : "—" }), SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9 }, children: entry.percent != null ? `${entry.percent}%` : "—" })] }, entry.core)) });
+    const groups = physicalCores(cores, slots);
+    const active = groups.filter((group) => group.threads.length > 0).length;
+    const busiest = (threads) => {
+        const lead = threads.reduce((best, entry) => (entry.percent ?? -1) > (best?.percent ?? -1) ? entry : best, threads[0]);
+        if ((lead?.percent ?? 0) >= 1)
+            return lead;
+        return threads.reduce((low, entry) => (entry.frequency_mhz ?? Infinity) < (low?.frequency_mhz ?? Infinity) ? entry : low, threads[0]);
+    };
+    return SP_JSX.jsxs("div", { style: { marginBottom: 10 }, children: [SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 4px" }, children: text.cpuCoresSummary.replace("{active}", String(active)).replace("{total}", String(groups.length)).replace("{threads}", String(cores.length)) }), SP_JSX.jsx("div", { style: { display: "grid", gap: 4, gridTemplateColumns: "repeat(4,minmax(0,1fr))" }, children: groups.map((group) => {
+                if (!group.threads.length)
+                    return SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_alt, border: `1px dashed ${tokens.colors.border}`, borderRadius: 6, opacity: .55, padding: "5px 6px" }, children: [SP_JSX.jsxs("div", { style: { color: tokens.colors.subtle, fontSize: 8 }, children: [text.cpuCoreLabel, " ", group.id + 1] }), SP_JSX.jsx("div", { style: { color: tokens.colors.muted, fontSize: 9, fontWeight: 650, marginTop: 3 }, children: text.cpuCoreLocked })] }, group.id);
+                const lead = busiest(group.threads);
+                const usage = group.threads.filter((entry) => entry.percent != null);
+                const average = usage.length ? Math.round(usage.reduce((sum, entry) => sum + entry.percent, 0) / usage.length) : null;
+                return SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_raised, border: `1px solid ${tokens.colors.border}`, borderRadius: 6, padding: "5px 6px" }, children: [SP_JSX.jsxs("div", { style: { color: tokens.colors.subtle, display: "flex", fontSize: 8, justifyContent: "space-between" }, children: [SP_JSX.jsxs("span", { children: [text.cpuCoreLabel, " ", group.id + 1] }), SP_JSX.jsx("span", { children: average != null ? `${average}%` : "—" })] }), SP_JSX.jsx("div", { style: { fontSize: 11, fontWeight: 650, margin: "2px 0 4px" }, children: lead?.frequency_mhz != null ? `${(lead.frequency_mhz / 1000).toFixed(2)} GHz` : "—" }), SP_JSX.jsx("div", { style: { display: "grid", gap: 2 }, children: group.threads.map((entry) => SP_JSX.jsx("div", { style: { background: tokens.colors.panel_alt, borderRadius: 2, height: 3, overflow: "hidden" }, children: SP_JSX.jsx("div", { style: { background: tokens.colors.green, height: "100%", width: `${Math.max(0, Math.min(100, entry.percent ?? 0))}%` } }) }, entry.core)) })] }, group.id);
+            }) })] });
 }
 function SubNav({ value, onChange, items }) {
     return SP_JSX.jsx(DFL.Focusable, { "flow-children": "row", style: { display: "grid", gap: 5, gridTemplateColumns: `repeat(${items.length},minmax(0,1fr))`, marginBottom: 10 }, children: items.map((item) => {
@@ -4974,7 +5019,7 @@ function MonitorTab({ state, cpuRun }) {
                     { key: "gpu", label: "GPU", icon: SP_JSX.jsx(FaMicrochip, {}), color: accent.focus, colorSoft: accent.focus_soft },
                     { key: "cooling", label: text.fan, icon: SP_JSX.jsx(FaFan, {}), color: accent.focus, colorSoft: accent.focus_soft },
                     { key: "all", label: text.allSensors, icon: SP_JSX.jsx(FaLayerGroup, {}), color: accent.focus, colorSoft: accent.focus_soft },
-                ] }), section === "cpu" ? SP_JSX.jsxs(DFL.Focusable, { "flow-children": "down", children: [cpuRunNotice(state, cpuRun), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(MetricGrid, { tiles: cpuTiles }), SP_JSX.jsxs("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "-3px 2px 8px" }, children: [text.cpuTrial, ": ", state.cpu_tuning_temperature ?? "—", "\u00B0C"] })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(CoreGrid, { cores: state.cpu_cores ?? [] }) }), SP_JSX.jsxs(ScrollStop, { children: [vrmNotice, SP_JSX.jsx(MetricGrid, { tiles: cpuVrmTiles })] }), SP_JSX.jsx(ScrollStop, { end: true })] }) : null, section === "gpu" ? SP_JSX.jsxs(DFL.Focusable, { "flow-children": "down", children: [SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(AceRow, { state: state }) }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(MetricGrid, { tiles: gpuTiles }), SP_JSX.jsxs("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "-3px 2px 2px" }, children: ["VBIOS \u00B7 ", state.gpu_vbios_version || "—"] }), SP_JSX.jsxs("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 6px" }, children: [state.gpu_range ? `${state.gpu_range[0]}–${state.gpu_range[1]} MHz` : "—", state.gpu_allowed_range ? ` · ${text.safeRange} ${state.gpu_allowed_range[0]}–${state.gpu_allowed_range[1]} MHz` : ""] })] }), SP_JSX.jsxs(ScrollStop, { children: [vrmNotice, SP_JSX.jsx(MetricGrid, { tiles: gpuVrmTiles })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(Gddr6Panel, { state: state }) }), SP_JSX.jsx(ScrollStop, { end: true })] }) : null, section === "cooling" ? SP_JSX.jsxs(DFL.Focusable, { "flow-children": "down", children: [SP_JSX.jsx(ScrollStop, { children: fanChannelList }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(MetricGrid, { tiles: fanControlTiles }) }), SP_JSX.jsx(ScrollStop, { end: true })] }) : null, section === "all" ? SP_JSX.jsx("section", { children: SP_JSX.jsxs(DFL.Focusable, { "flow-children": "down", children: [SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "cpu", title: "CPU" }), SP_JSX.jsx(MetricGrid, { tiles: cpuTiles })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(CoreGrid, { cores: state.cpu_cores ?? [] }) }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(MetricGrid, { tiles: cpuVrmTiles }) }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "gpu", title: "GPU" }), SP_JSX.jsx(AceRow, { state: state }), SP_JSX.jsx(MetricGrid, { tiles: gpuTiles })] }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsxs("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "-3px 2px 8px" }, children: ["VBIOS \u00B7 ", state.gpu_vbios_version || "—", " \u00B7 ", state.gpu_range ? `${state.gpu_range[0]}–${state.gpu_range[1]} MHz` : "—", state.gpu_allowed_range ? ` · ${text.safeRange} ${state.gpu_allowed_range[0]}–${state.gpu_allowed_range[1]} MHz` : ""] }), SP_JSX.jsx(MetricGrid, { tiles: gpuVrmTiles })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(Gddr6Panel, { state: state }) }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "fan", title: text.fan }), fanChannelList] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(MetricGrid, { tiles: boardSensorTiles }) }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(MetricGrid, { tiles: fanControlTiles }) }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "power", title: text.power }), vrmNotice, SP_JSX.jsx(MetricGrid, { tiles: powerTiles })] }), SP_JSX.jsx(ScrollStop, { end: true })] }) }) : null] });
+                ] }), section === "cpu" ? SP_JSX.jsxs(DFL.Focusable, { "flow-children": "down", children: [cpuRunNotice(state, cpuRun), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(MetricGrid, { tiles: cpuTiles }), SP_JSX.jsxs("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "-3px 2px 8px" }, children: [text.cpuTrial, ": ", state.cpu_tuning_temperature ?? "—", "\u00B0C"] })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(CoreGrid, { cores: state.cpu_cores ?? [], slots: state.cpu_physical_slots }) }), SP_JSX.jsxs(ScrollStop, { children: [vrmNotice, SP_JSX.jsx(MetricGrid, { tiles: cpuVrmTiles })] }), SP_JSX.jsx(ScrollStop, { end: true })] }) : null, section === "gpu" ? SP_JSX.jsxs(DFL.Focusable, { "flow-children": "down", children: [SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(AceRow, { state: state }) }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(MetricGrid, { tiles: gpuTiles }), SP_JSX.jsxs("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "-3px 2px 2px" }, children: ["VBIOS \u00B7 ", state.gpu_vbios_version || "—"] }), SP_JSX.jsxs("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 6px" }, children: [state.gpu_range ? `${state.gpu_range[0]}–${state.gpu_range[1]} MHz` : "—", state.gpu_allowed_range ? ` · ${text.safeRange} ${state.gpu_allowed_range[0]}–${state.gpu_allowed_range[1]} MHz` : ""] })] }), SP_JSX.jsxs(ScrollStop, { children: [vrmNotice, SP_JSX.jsx(MetricGrid, { tiles: gpuVrmTiles })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(Gddr6Panel, { state: state }) }), SP_JSX.jsx(ScrollStop, { end: true })] }) : null, section === "cooling" ? SP_JSX.jsxs(DFL.Focusable, { "flow-children": "down", children: [SP_JSX.jsx(ScrollStop, { children: fanChannelList }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(MetricGrid, { tiles: fanControlTiles }) }), SP_JSX.jsx(ScrollStop, { end: true })] }) : null, section === "all" ? SP_JSX.jsx("section", { children: SP_JSX.jsxs(DFL.Focusable, { "flow-children": "down", children: [SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "cpu", title: "CPU" }), SP_JSX.jsx(MetricGrid, { tiles: cpuTiles })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(CoreGrid, { cores: state.cpu_cores ?? [], slots: state.cpu_physical_slots }) }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(MetricGrid, { tiles: cpuVrmTiles }) }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "gpu", title: "GPU" }), SP_JSX.jsx(AceRow, { state: state }), SP_JSX.jsx(MetricGrid, { tiles: gpuTiles })] }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsxs("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "-3px 2px 8px" }, children: ["VBIOS \u00B7 ", state.gpu_vbios_version || "—", " \u00B7 ", state.gpu_range ? `${state.gpu_range[0]}–${state.gpu_range[1]} MHz` : "—", state.gpu_allowed_range ? ` · ${text.safeRange} ${state.gpu_allowed_range[0]}–${state.gpu_allowed_range[1]} MHz` : ""] }), SP_JSX.jsx(MetricGrid, { tiles: gpuVrmTiles })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(Gddr6Panel, { state: state }) }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "fan", title: text.fan }), fanChannelList] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(MetricGrid, { tiles: boardSensorTiles }) }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(MetricGrid, { tiles: fanControlTiles }) }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "power", title: text.power }), vrmNotice, SP_JSX.jsx(MetricGrid, { tiles: powerTiles })] }), SP_JSX.jsx(ScrollStop, { end: true })] }) }) : null] });
 }
 function MemoryTab({ state, busy, execute }) {
     const vram = state.vram;

@@ -233,5 +233,8 @@
   "cpuPresetMidPoint": "Mid point",
   "cpuPresetSafeMaximum": "Safe maximum",
   "cuKernelManaged": "The BC-250 kernel manages the compute units (bc250_cc_write_mode=3) and unlocked all of them at boot. This tab is read-only; turn the kernel CU unlock off in Desktop Mode to change routing.",
-  "cpuMonitorApplying": "Please wait: the CPU overclock at {target} MHz is being applied and stress-tested. Watch the temperatures while it runs."
+  "cpuMonitorApplying": "Please wait: the CPU overclock at {target} MHz is being applied and stress-tested. Watch the temperatures while it runs.",
+  "cpuCoreLabel": "Core",
+  "cpuCoreLocked": "Locked",
+  "cpuCoresSummary": "{active}/{total} cores · {threads} threads"
 }

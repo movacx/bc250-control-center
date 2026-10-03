@@ -187,7 +187,8 @@ type Result = {
   gpu_vbios_version?: string;
   cpu_voltage_mv?: number | null;
   cpu_usage_percent?: number | null;
-  cpu_cores?: { core: number; percent: number | null; frequency_mhz: number | null }[];
+  cpu_cores?: { core: number; core_id?: number | null; percent: number | null; frequency_mhz: number | null }[];
+  cpu_physical_slots?: number;
   board_temperature_c?: number | null;
   vrm_mos_temperature_c?: number | null;
   nvme_temperature_c?: number | null;
@@ -733,15 +734,49 @@ function StatusRow({ label, value, active }: { label: string; value: string; act
   </div>;
 }
 
-function CoreGrid({ cores }: { cores: { core: number; percent: number | null; frequency_mhz: number | null }[] }) {
+type CoreEntry = { core: number; core_id?: number | null; percent: number | null; frequency_mhz: number | null };
+
+// Logical CPUs grouped by physical core. The panel used to draw every SMT
+// thread as its own "core" (12 tiles for 6 cores), and the die's two locked
+// cores not at all. A core's id is its die position, so a missing id is a
+// locked core.
+function physicalCores(cores: CoreEntry[], slots?: number | null) {
+  const known = cores.some((entry) => typeof entry.core_id === "number");
+  if (!known) return cores.map((entry, index) => ({ id: index, threads: [entry] }));
+  const total = Math.max(slots ?? 8, ...cores.map((entry) => (entry.core_id ?? 0) + 1));
+  return Array.from({ length: total }, (_unused, id) => ({ id, threads: cores.filter((entry) => entry.core_id === id) }));
+}
+
+function CoreGrid({ cores, slots }: { cores: CoreEntry[]; slots?: number | null }) {
   if (!cores.length) return null;
-  const columns = cores.length > 6 ? 4 : cores.length > 2 ? 3 : 2;
-  return <div style={{ background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 6, display: "grid", gap: 1, gridTemplateColumns: `repeat(${columns},minmax(0,1fr))`, marginBottom: 10, overflow: "hidden" }}>
-    {cores.map((entry) => <div key={entry.core} style={{ background: tokens.colors.panel_raised, padding: "6px 7px" }}>
-      <div style={{ color: tokens.colors.subtle, fontSize: 8 }}>N{entry.core + 1}</div>
-      <div style={{ fontSize: 10, fontWeight: 650 }}>{entry.frequency_mhz != null ? `${(entry.frequency_mhz / 1000).toFixed(2)} GHz` : "—"}</div>
-      <div style={{ color: tokens.colors.subtle, fontSize: 9 }}>{entry.percent != null ? `${entry.percent}%` : "—"}</div>
-    </div>)}
+  const groups = physicalCores(cores, slots);
+  const active = groups.filter((group) => group.threads.length > 0).length;
+  // An idle thread reports the nominal clock, not a live one: a core shows
+  // the clock of its busier thread.
+  const busiest = (threads: CoreEntry[]) => {
+    const lead = threads.reduce((best, entry) => (entry.percent ?? -1) > (best?.percent ?? -1) ? entry : best, threads[0]);
+    if ((lead?.percent ?? 0) >= 1) return lead;
+    // Both threads idle: the lower clock is the live one.
+    return threads.reduce((low, entry) => (entry.frequency_mhz ?? Infinity) < (low?.frequency_mhz ?? Infinity) ? entry : low, threads[0]);
+  };
+  return <div style={{ marginBottom: 10 }}>
+    <div style={{ color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 4px" }}>{text.cpuCoresSummary.replace("{active}", String(active)).replace("{total}", String(groups.length)).replace("{threads}", String(cores.length))}</div>
+    <div style={{ display: "grid", gap: 4, gridTemplateColumns: "repeat(4,minmax(0,1fr))" }}>
+      {groups.map((group) => {
+        if (!group.threads.length) return <div key={group.id} style={{ background: tokens.colors.panel_alt, border: `1px dashed ${tokens.colors.border}`, borderRadius: 6, opacity: .55, padding: "5px 6px" }}>
+          <div style={{ color: tokens.colors.subtle, fontSize: 8 }}>{text.cpuCoreLabel} {group.id + 1}</div>
+          <div style={{ color: tokens.colors.muted, fontSize: 9, fontWeight: 650, marginTop: 3 }}>{text.cpuCoreLocked}</div>
+        </div>;
+        const lead = busiest(group.threads);
+        const usage = group.threads.filter((entry) => entry.percent != null);
+        const average = usage.length ? Math.round(usage.reduce((sum, entry) => sum + (entry.percent ?? 0), 0) / usage.length) : null;
+        return <div key={group.id} style={{ background: tokens.colors.panel_raised, border: `1px solid ${tokens.colors.border}`, borderRadius: 6, padding: "5px 6px" }}>
+          <div style={{ color: tokens.colors.subtle, display: "flex", fontSize: 8, justifyContent: "space-between" }}><span>{text.cpuCoreLabel} {group.id + 1}</span><span>{average != null ? `${average}%` : "—"}</span></div>
+          <div style={{ fontSize: 11, fontWeight: 650, margin: "2px 0 4px" }}>{lead?.frequency_mhz != null ? `${(lead.frequency_mhz / 1000).toFixed(2)} GHz` : "—"}</div>
+          <div style={{ display: "grid", gap: 2 }}>{group.threads.map((entry) => <div key={entry.core} style={{ background: tokens.colors.panel_alt, borderRadius: 2, height: 3, overflow: "hidden" }}><div style={{ background: tokens.colors.green, height: "100%", width: `${Math.max(0, Math.min(100, entry.percent ?? 0))}%` }} /></div>)}</div>
+        </div>;
+      })}
+    </div>
   </div>;
 }
 
@@ -1046,7 +1081,7 @@ function MonitorTab({ state, cpuRun }: { state: Status; cpuRun?: { target: numbe
       {cpuRunNotice(state, cpuRun)}
       <ScrollStop><MetricGrid tiles={cpuTiles} />
         <div style={{ color: tokens.colors.subtle, fontSize: 9, margin: "-3px 2px 8px" }}>{text.cpuTrial}: {state.cpu_tuning_temperature ?? "—"}°C</div></ScrollStop>
-      <ScrollStop><CoreGrid cores={state.cpu_cores ?? []} /></ScrollStop>
+      <ScrollStop><CoreGrid cores={state.cpu_cores ?? []} slots={state.cpu_physical_slots} /></ScrollStop>
       <ScrollStop>{vrmNotice}<MetricGrid tiles={cpuVrmTiles} /></ScrollStop>
       <ScrollStop end />
     </Focusable> : null}
@@ -1073,7 +1108,7 @@ function MonitorTab({ state, cpuRun }: { state: Status; cpuRun?: { target: numbe
           block is a ScrollStop so the D-pad can walk down to the last one. */}
       <Focusable flow-children="down">
         <ScrollStop><SectionTitle kind="cpu" title="CPU" /><MetricGrid tiles={cpuTiles} /></ScrollStop>
-        <ScrollStop><CoreGrid cores={state.cpu_cores ?? []} /></ScrollStop>
+        <ScrollStop><CoreGrid cores={state.cpu_cores ?? []} slots={state.cpu_physical_slots} /></ScrollStop>
         <ScrollStop><MetricGrid tiles={cpuVrmTiles} /></ScrollStop>
 
         <ScrollStop><SectionTitle kind="gpu" title="GPU" /><AceRow state={state} /><MetricGrid tiles={gpuTiles} /></ScrollStop>
