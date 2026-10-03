@@ -1007,6 +1007,7 @@ var de = {
 	serviceNotInstalled: serviceNotInstalled$7,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$7,
 	serviceRunningBoot: serviceRunningBoot$7,
+	memoryMonitoring: "Speicherüberwachung",
 	gddr6PatchButton: "GDDR6-Patch anwenden (dieser Start)",
 	gddr6PatchTitle: "GDDR6-Temperaturpatch anwenden?",
 	gddr6PatchConfirm: "Schreibt den geprüften bc250-memory-temperature-Patch in die SMU, damit die Speichertemperaturen bis zum nächsten Neustart lesbar sind. Er ist per Reverse Engineering entstanden und laut seinem Autor nicht vollständig verifiziert: ein falscher Zustand könnte den GDDR6-Verkehr stören und Instabilität oder einen Absturz verursachen. Nur für Firmware P3.0; wartet, wenn der GPU-Governor startet.",
@@ -1498,6 +1499,7 @@ var en = {
 	serviceNotInstalled: serviceNotInstalled$6,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$6,
 	serviceRunningBoot: serviceRunningBoot$6,
+	memoryMonitoring: "Memory monitoring",
 	gddr6PatchButton: "Apply the GDDR6 patch (this boot)",
 	gddr6PatchTitle: "Apply the GDDR6 temperature patch?",
 	gddr6PatchConfirm: "Writes the reviewed bc250-memory-temperature patch into the SMU so the memory temperatures can be read, until the next reboot. It is reverse-engineered and, by its own author, not fully verified: a wrong state could disturb GDDR6 traffic and cause instability or a crash. Only for P3.0 firmware; it waits if the GPU governor is starting.",
@@ -1989,6 +1991,7 @@ var es = {
 	serviceNotInstalled: serviceNotInstalled$5,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$5,
 	serviceRunningBoot: serviceRunningBoot$5,
+	memoryMonitoring: "Monitoreo de memoria",
 	gddr6PatchButton: "Aplicar parche GDDR6 (este arranque)",
 	gddr6PatchTitle: "¿Aplicar el parche de temperatura GDDR6?",
 	gddr6PatchConfirm: "Escribe en la SMU el parche revisado de bc250-memory-temperature para poder leer las temperaturas de la memoria, hasta el próximo reinicio. Es ingeniería inversa y, según su propio autor, no está totalmente verificado: un estado incorrecto podría alterar el tráfico de la GDDR6 y causar inestabilidad o un cuelgue. Solo para firmware P3.0; espera si el governor de GPU está arrancando.",
@@ -2480,6 +2483,7 @@ var es419 = {
 	serviceNotInstalled: serviceNotInstalled$4,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$4,
 	serviceRunningBoot: serviceRunningBoot$4,
+	memoryMonitoring: "Monitoreo de memoria",
 	gddr6PatchButton: "Aplicar parche GDDR6 (este arranque)",
 	gddr6PatchTitle: "¿Aplicar el parche de temperatura GDDR6?",
 	gddr6PatchConfirm: "Escribe en la SMU el parche revisado de bc250-memory-temperature para poder leer las temperaturas de la memoria, hasta el próximo reinicio. Es ingeniería inversa y, según su propio autor, no está totalmente verificado: un estado incorrecto podría alterar el tráfico de la GDDR6 y causar inestabilidad o un cuelgue. Solo para firmware P3.0; espera si el governor de GPU está arrancando.",
@@ -2971,6 +2975,7 @@ var pl = {
 	serviceNotInstalled: serviceNotInstalled$3,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$3,
 	serviceRunningBoot: serviceRunningBoot$3,
+	memoryMonitoring: "Monitorowanie pamięci",
 	gddr6PatchButton: "Zastosuj łatkę GDDR6 (ten rozruch)",
 	gddr6PatchTitle: "Zastosować łatkę temperatury GDDR6?",
 	gddr6PatchConfirm: "Zapisuje w SMU sprawdzoną łatkę bc250-memory-temperature, aby do następnego restartu można było odczytywać temperatury pamięci. Powstała przez inżynierię wsteczną i według autora nie jest w pełni zweryfikowana: błędny stan może zakłócić ruch GDDR6 i spowodować niestabilność lub zawieszenie. Tylko dla firmware P3.0; czeka, jeśli governor GPU się uruchamia.",
@@ -3462,6 +3467,7 @@ var pt = {
 	serviceNotInstalled: serviceNotInstalled$2,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$2,
 	serviceRunningBoot: serviceRunningBoot$2,
+	memoryMonitoring: "Monitorização da memória",
 	gddr6PatchButton: "Aplicar patch GDDR6 (este arranque)",
 	gddr6PatchTitle: "Aplicar o patch de temperatura GDDR6?",
 	gddr6PatchConfirm: "Escreve na SMU o patch revisto do bc250-memory-temperature para ler as temperaturas da memória, até ao próximo reinício. É engenharia inversa e, segundo o próprio autor, não está totalmente verificado: um estado errado pode perturbar o tráfego da GDDR6 e causar instabilidade ou um bloqueio. Só para firmware P3.0; espera se o governor da GPU estiver a arrancar.",
@@ -3953,6 +3959,7 @@ var ru = {
 	serviceNotInstalled: serviceNotInstalled$1,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$1,
 	serviceRunningBoot: serviceRunningBoot$1,
+	memoryMonitoring: "Мониторинг памяти",
 	gddr6PatchButton: "Применить патч GDDR6 (эта загрузка)",
 	gddr6PatchTitle: "Применить патч температуры GDDR6?",
 	gddr6PatchConfirm: "Записывает в SMU проверенный патч bc250-memory-temperature, чтобы до следующей перезагрузки можно было читать температуры памяти. Он получен обратной разработкой и, по словам автора, не полностью проверен: неверное состояние может нарушить работу GDDR6 и вызвать нестабильность или зависание. Только для прошивки P3.0; ждёт, если governor GPU запускается.",
@@ -4444,6 +4451,7 @@ var uk = {
 	serviceNotInstalled: serviceNotInstalled,
 	serviceRemovedBootProfile: serviceRemovedBootProfile,
 	serviceRunningBoot: serviceRunningBoot,
+	memoryMonitoring: "Моніторинг пам'яті",
 	gddr6PatchButton: "Застосувати патч GDDR6 (цей запуск)",
 	gddr6PatchTitle: "Застосувати патч температури GDDR6?",
 	gddr6PatchConfirm: "Записує в SMU перевірений патч bc250-memory-temperature, щоб до наступного перезавантаження можна було читати температури пам'яті. Його отримано зворотною розробкою, і, за словами автора, він не повністю перевірений: неправильний стан може порушити роботу GDDR6 і спричинити нестабільність або зависання. Лише для прошивки P3.0; чекає, якщо governor GPU запускається.",
@@ -5036,8 +5044,8 @@ function SubNav({ value, onChange, items }) {
 function Gddr6Switch() {
     const { gddr6 } = SP_REACT.useContext(SettingsContext);
     const on = gddr6.live;
-    return SP_JSX.jsxs(PadButton, { label: "GDDR6", onActivate: () => gddr6.setLive(!on), style: { alignItems: "center", background: "transparent", border: "none", display: "flex", height: 30, justifyContent: "space-between", margin: "2px 0 6px", minHeight: 0, padding: "0 4px", width: "100%" }, children: [
-            SP_JSX.jsx("span", { style: { color: tokens.colors.text, fontSize: 10, fontWeight: 600, textTransform: "uppercase" }, children: "GDDR6" }),
+    return SP_JSX.jsxs(PadButton, { label: text.memoryMonitoring, onActivate: () => gddr6.setLive(!on), style: { alignItems: "center", background: "transparent", border: "none", display: "flex", height: 30, justifyContent: "space-between", margin: "2px 0 6px", minHeight: 0, padding: "0 4px", width: "100%" }, children: [
+            SP_JSX.jsx("span", { style: { color: tokens.colors.text, fontSize: 10, fontWeight: 600 }, children: text.memoryMonitoring }),
             SP_JSX.jsx("span", { style: { background: on ? tokens.colors.green : tokens.colors.panel_raised, border: `1px solid ${on ? tokens.colors.green : tokens.colors.border}`, borderRadius: 10, display: "inline-block", height: 18, position: "relative", transition: "background .2s ease", width: 34 }, children: SP_JSX.jsx("span", { style: { background: on ? "#FFFFFF" : tokens.colors.subtle, borderRadius: "50%", height: 14, left: on ? 17 : 2, position: "absolute", top: 1, transition: "left .2s ease", width: 14 } }) })
         ] });
 }

@@ -260,5 +260,6 @@
   "gddr6PatchConfirm": "Writes the reviewed bc250-memory-temperature patch into the SMU so the memory temperatures can be read, until the next reboot. It is reverse-engineered and, by its own author, not fully verified: a wrong state could disturb GDDR6 traffic and cause instability or a crash. Only for P3.0 firmware; it waits if the GPU governor is starting.",
   "gddr6PatchOk": "Apply patch",
   "gddr6PatchInactive": "The GDDR6 patch is not applied this boot.",
-  "gddr6Patching": "Applying the GDDR6 patch…"
+  "gddr6Patching": "Applying the GDDR6 patch…",
+  "memoryMonitoring": "Memory monitoring"
 }

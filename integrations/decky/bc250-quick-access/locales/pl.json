@@ -260,5 +260,6 @@
   "gddr6PatchConfirm": "Zapisuje w SMU sprawdzoną łatkę bc250-memory-temperature, aby do następnego restartu można było odczytywać temperatury pamięci. Powstała przez inżynierię wsteczną i według autora nie jest w pełni zweryfikowana: błędny stan może zakłócić ruch GDDR6 i spowodować niestabilność lub zawieszenie. Tylko dla firmware P3.0; czeka, jeśli governor GPU się uruchamia.",
   "gddr6PatchOk": "Zastosuj łatkę",
   "gddr6PatchInactive": "Łatka GDDR6 nie jest zastosowana w tym rozruchu.",
-  "gddr6Patching": "Stosowanie łatki GDDR6…"
+  "gddr6Patching": "Stosowanie łatki GDDR6…",
+  "memoryMonitoring": "Monitorowanie pamięci"
 }

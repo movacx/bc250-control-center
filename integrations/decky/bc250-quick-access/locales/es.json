@@ -260,5 +260,6 @@
   "gddr6PatchConfirm": "Escribe en la SMU el parche revisado de bc250-memory-temperature para poder leer las temperaturas de la memoria, hasta el próximo reinicio. Es ingeniería inversa y, según su propio autor, no está totalmente verificado: un estado incorrecto podría alterar el tráfico de la GDDR6 y causar inestabilidad o un cuelgue. Solo para firmware P3.0; espera si el governor de GPU está arrancando.",
   "gddr6PatchOk": "Aplicar parche",
   "gddr6PatchInactive": "El parche GDDR6 no está aplicado en este arranque.",
-  "gddr6Patching": "Aplicando el parche GDDR6…"
+  "gddr6Patching": "Aplicando el parche GDDR6…",
+  "memoryMonitoring": "Monitoreo de memoria"
 }
