@@ -937,7 +937,20 @@ function VoltageLab({ state, busy, execute }: { state: Status; busy: boolean; ex
 // Desktop defaults arrive with an English name; show them in the panel's language.
 const cpuPresetName = (preset: CpuPreset) => preset.default ? ({ board_average: text.cpuPresetBoardAverage, mid_point: text.cpuPresetMidPoint, safe_maximum: text.cpuPresetSafeMaximum } as Record<string, string>)[preset.key] ?? preset.name : preset.name;
 
-function MonitorTab({ state }: { state: Status }) {
+// Monitoring › CPU is where a CPU run sends the player (see cpuRunRedirected):
+// say what is happening there while it runs, then keep the result on top.
+function cpuRunNotice(state: Status, cpuRun: { target: number; elapsed: number } | null | undefined) {
+  const box: CSSProperties = { alignItems: "center", background: tokens.colors.green_soft, border: `1px solid ${tokens.colors.green}`, borderRadius: 6, display: "flex", fontSize: 9, gap: 6, justifyContent: "space-between", marginBottom: 7, padding: "6px 8px" };
+  if (cpuRun) return <div role="status" aria-live="polite" style={box}><span style={{ color: tokens.colors.green, lineHeight: 1.35 }}>{text.cpuMonitorApplying.replace("{target}", String(cpuRun.target))}</span><b style={{ color: tokens.colors.green, whiteSpace: "nowrap" }}>{cpuRun.elapsed}s</b></div>;
+  const detected = state.cpu_detected_profile;
+  if (!detected?.ready) return null;
+  const active = state.cpu_active_profile ?? detected.active_profile;
+  const frequency = active?.frequency ?? detected.frequency;
+  const scale = active?.scale ?? detected.scale;
+  return <div style={box}><span style={{ color: tokens.colors.subtle }}>{text.cpuDetected}</span><b style={{ color: tokens.colors.green }}>{`${frequency} MHz · scale ${scale}`}</b></div>;
+}
+
+function MonitorTab({ state, cpuRun }: { state: Status; cpuRun?: { target: number; elapsed: number } | null }) {
   const accent = ACCENT_SWATCHES[useContext(SettingsContext).settings.accent];
   const [section, setSection] = useState<MonitorSection>("cpu");
   const gpuVramKnown = typeof state.gpu_vram_used_mib === "number" && typeof state.gpu_vram_total_mib === "number";
@@ -1030,6 +1043,7 @@ function MonitorTab({ state }: { state: Status }) {
     ]} />
 
     {section === "cpu" ? <Focusable flow-children="down">
+      {cpuRunNotice(state, cpuRun)}
       <ScrollStop><MetricGrid tiles={cpuTiles} />
         <div style={{ color: tokens.colors.subtle, fontSize: 9, margin: "-3px 2px 8px" }}>{text.cpuTrial}: {state.cpu_tuning_temperature ?? "—"}°C</div></ScrollStop>
       <ScrollStop><CoreGrid cores={state.cpu_cores ?? []} /></ScrollStop>
@@ -1468,7 +1482,7 @@ function Content() {
       })}
     </Focusable>
 
-    {activeTab === "monitor" ? <MonitorTab state={state} /> : null}
+    {activeTab === "monitor" ? <MonitorTab state={state} cpuRun={cpuOperation ? { target: cpuOperation.target, elapsed: cpuElapsed } : null} /> : null}
     {activeTab === "memory" ? <MemoryTab state={state} busy={busy} execute={execute} /> : null}
     {activeTab === "settings" ? <SettingsTab settings={settings} setSettings={setSettings} state={state} busy={busy} execute={execute} /> : null}
     {activeTab === "board" ? <>

@@ -1004,6 +1004,7 @@ var de = {
 	serviceNotInstalled: serviceNotInstalled$7,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$7,
 	serviceRunningBoot: serviceRunningBoot$7,
+	cpuMonitorApplying: "Bitte warten: Der CPU-Overclock auf {target} MHz wird angewendet und unter Last getestet. Behalte die Temperaturen im Blick.",
 	cuKernelManaged: "Der BC-250-Kernel verwaltet die Compute Units (bc250_cc_write_mode=3) und hat beim Start alle freigeschaltet. Dieser Tab ist schreibgeschützt; schalte die Kernel-CU-Freischaltung im Desktop-Modus ab, um das Routing zu ändern.",
 	cpuPresetBoardAverage: "Durchschnittsboard",
 	cpuPresetMidPoint: "Mittelwert",
@@ -1467,6 +1468,7 @@ var en = {
 	serviceNotInstalled: serviceNotInstalled$6,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$6,
 	serviceRunningBoot: serviceRunningBoot$6,
+	cpuMonitorApplying: "Please wait: the CPU overclock at {target} MHz is being applied and stress-tested. Watch the temperatures while it runs.",
 	cuKernelManaged: "The BC-250 kernel manages the compute units (bc250_cc_write_mode=3) and unlocked all of them at boot. This tab is read-only; turn the kernel CU unlock off in Desktop Mode to change routing.",
 	cpuPresetBoardAverage: "Average board",
 	cpuPresetMidPoint: "Mid point",
@@ -1930,6 +1932,7 @@ var es = {
 	serviceNotInstalled: serviceNotInstalled$5,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$5,
 	serviceRunningBoot: serviceRunningBoot$5,
+	cpuMonitorApplying: "Espera un momento: se está aplicando y probando el OC de CPU a {target} MHz. Vigila las temperaturas mientras dura.",
 	cuKernelManaged: "El kernel BC-250 gestiona las Compute Units (bc250_cc_write_mode=3) y las desbloqueó todas al arrancar. Esta pestaña es de solo lectura; desactiva el desbloqueo por kernel en Modo Escritorio para cambiar el enrutado.",
 	cpuPresetBoardAverage: "Placa promedio",
 	cpuPresetMidPoint: "Punto medio",
@@ -2393,6 +2396,7 @@ var es419 = {
 	serviceNotInstalled: serviceNotInstalled$4,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$4,
 	serviceRunningBoot: serviceRunningBoot$4,
+	cpuMonitorApplying: "Espera un momento: se está aplicando y probando el OC de CPU a {target} MHz. Vigila las temperaturas mientras dura.",
 	cuKernelManaged: "El kernel BC-250 gestiona las Compute Units (bc250_cc_write_mode=3) y las desbloqueó todas al arrancar. Esta pestaña es de solo lectura; desactiva el desbloqueo por kernel en Modo Escritorio para cambiar el enrutado.",
 	cpuPresetBoardAverage: "Placa promedio",
 	cpuPresetMidPoint: "Punto medio",
@@ -2856,6 +2860,7 @@ var pl = {
 	serviceNotInstalled: serviceNotInstalled$3,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$3,
 	serviceRunningBoot: serviceRunningBoot$3,
+	cpuMonitorApplying: "Chwileczkę: podkręcanie CPU do {target} MHz jest stosowane i testowane obciążeniem. Obserwuj temperatury w trakcie.",
 	cuKernelManaged: "Jądro BC-250 zarządza jednostkami obliczeniowymi (bc250_cc_write_mode=3) i odblokowało je wszystkie przy starcie. Ta karta jest tylko do odczytu; wyłącz odblokowanie CU przez jądro w trybie pulpitu, aby zmienić routing.",
 	cpuPresetBoardAverage: "Przeciętna płyta",
 	cpuPresetMidPoint: "Punkt środkowy",
@@ -3319,6 +3324,7 @@ var pt = {
 	serviceNotInstalled: serviceNotInstalled$2,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$2,
 	serviceRunningBoot: serviceRunningBoot$2,
+	cpuMonitorApplying: "Aguarde: o overclock da CPU a {target} MHz está a ser aplicado e testado. Vigie as temperaturas enquanto decorre.",
 	cuKernelManaged: "O kernel BC-250 gere as Compute Units (bc250_cc_write_mode=3) e desbloqueou-as todas no arranque. Este separador é só de leitura; desative o desbloqueio pelo kernel no Modo Desktop para alterar o encaminhamento.",
 	cpuPresetBoardAverage: "Placa média",
 	cpuPresetMidPoint: "Ponto médio",
@@ -3782,6 +3788,7 @@ var ru = {
 	serviceNotInstalled: serviceNotInstalled$1,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$1,
 	serviceRunningBoot: serviceRunningBoot$1,
+	cpuMonitorApplying: "Подождите: разгон CPU до {target} МГц применяется и проверяется нагрузкой. Следите за температурами.",
 	cuKernelManaged: "Ядро BC-250 управляет вычислительными блоками (bc250_cc_write_mode=3) и разблокировало их все при загрузке. Эта вкладка только для чтения; отключите разблокировку CU ядром в режиме рабочего стола, чтобы изменить маршрутизацию.",
 	cpuPresetBoardAverage: "Средняя плата",
 	cpuPresetMidPoint: "Середина",
@@ -4245,6 +4252,7 @@ var uk = {
 	serviceNotInstalled: serviceNotInstalled,
 	serviceRemovedBootProfile: serviceRemovedBootProfile,
 	serviceRunningBoot: serviceRunningBoot,
+	cpuMonitorApplying: "Зачекайте: розгін CPU до {target} МГц застосовується й перевіряється навантаженням. Стежте за температурами.",
 	cuKernelManaged: "Ядро BC-250 керує обчислювальними блоками (bc250_cc_write_mode=3) і розблокувало їх усі під час завантаження. Ця вкладка лише для читання; вимкніть розблокування CU ядром у режимі робочого столу, щоб змінити маршрутизацію.",
 	cpuPresetBoardAverage: "Середня плата",
 	cpuPresetMidPoint: "Середина",
@@ -4872,7 +4880,19 @@ function VoltageLab({ state, busy, execute }) {
                         }) }), SP_JSX.jsxs(ActionRow, { children: [SP_JSX.jsx(Action, { label: text.voltageApplyPoints, primary: true, disabled: busy || !cyanRunning || !changed.length, onActivate: confirmPoints }), SP_JSX.jsx(Action, { label: text.voltageDiscard, disabled: busy || !changed.length, onActivate: () => setDraft({}) })] })] }) : null] });
 }
 const cpuPresetName = (preset) => preset.default ? ({ board_average: text.cpuPresetBoardAverage, mid_point: text.cpuPresetMidPoint, safe_maximum: text.cpuPresetSafeMaximum }[preset.key] ?? preset.name) : preset.name;
-function MonitorTab({ state }) {
+function cpuRunNotice(state, cpuRun) {
+    const box = { alignItems: "center", background: tokens.colors.green_soft, border: `1px solid ${tokens.colors.green}`, borderRadius: 6, display: "flex", fontSize: 9, gap: 6, justifyContent: "space-between", marginBottom: 7, padding: "6px 8px" };
+    if (cpuRun)
+        return SP_JSX.jsxs("div", { role: "status", "aria-live": "polite", style: box, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.green, lineHeight: 1.35 }, children: text.cpuMonitorApplying.replace("{target}", String(cpuRun.target)) }), SP_JSX.jsxs("b", { style: { color: tokens.colors.green, whiteSpace: "nowrap" }, children: [cpuRun.elapsed, "s"] })] });
+    const detected = state.cpu_detected_profile;
+    if (!detected?.ready)
+        return null;
+    const active = state.cpu_active_profile ?? detected.active_profile;
+    const frequency = active?.frequency ?? detected.frequency;
+    const scale = active?.scale ?? detected.scale;
+    return SP_JSX.jsxs("div", { style: box, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.subtle }, children: text.cpuDetected }), SP_JSX.jsx("b", { style: { color: tokens.colors.green }, children: `${frequency} MHz · scale ${scale}` })] });
+}
+function MonitorTab({ state, cpuRun }) {
     const accent = ACCENT_SWATCHES[SP_REACT.useContext(SettingsContext).settings.accent];
     const [section, setSection] = SP_REACT.useState("cpu");
     const gpuVramKnown = typeof state.gpu_vram_used_mib === "number" && typeof state.gpu_vram_total_mib === "number";
@@ -4954,7 +4974,7 @@ function MonitorTab({ state }) {
                     { key: "gpu", label: "GPU", icon: SP_JSX.jsx(FaMicrochip, {}), color: accent.focus, colorSoft: accent.focus_soft },
                     { key: "cooling", label: text.fan, icon: SP_JSX.jsx(FaFan, {}), color: accent.focus, colorSoft: accent.focus_soft },
                     { key: "all", label: text.allSensors, icon: SP_JSX.jsx(FaLayerGroup, {}), color: accent.focus, colorSoft: accent.focus_soft },
-                ] }), section === "cpu" ? SP_JSX.jsxs(DFL.Focusable, { "flow-children": "down", children: [SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(MetricGrid, { tiles: cpuTiles }), SP_JSX.jsxs("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "-3px 2px 8px" }, children: [text.cpuTrial, ": ", state.cpu_tuning_temperature ?? "—", "\u00B0C"] })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(CoreGrid, { cores: state.cpu_cores ?? [] }) }), SP_JSX.jsxs(ScrollStop, { children: [vrmNotice, SP_JSX.jsx(MetricGrid, { tiles: cpuVrmTiles })] }), SP_JSX.jsx(ScrollStop, { end: true })] }) : null, section === "gpu" ? SP_JSX.jsxs(DFL.Focusable, { "flow-children": "down", children: [SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(AceRow, { state: state }) }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(MetricGrid, { tiles: gpuTiles }), SP_JSX.jsxs("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "-3px 2px 2px" }, children: ["VBIOS \u00B7 ", state.gpu_vbios_version || "—"] }), SP_JSX.jsxs("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 6px" }, children: [state.gpu_range ? `${state.gpu_range[0]}–${state.gpu_range[1]} MHz` : "—", state.gpu_allowed_range ? ` · ${text.safeRange} ${state.gpu_allowed_range[0]}–${state.gpu_allowed_range[1]} MHz` : ""] })] }), SP_JSX.jsxs(ScrollStop, { children: [vrmNotice, SP_JSX.jsx(MetricGrid, { tiles: gpuVrmTiles })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(Gddr6Panel, { state: state }) }), SP_JSX.jsx(ScrollStop, { end: true })] }) : null, section === "cooling" ? SP_JSX.jsxs(DFL.Focusable, { "flow-children": "down", children: [SP_JSX.jsx(ScrollStop, { children: fanChannelList }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(MetricGrid, { tiles: fanControlTiles }) }), SP_JSX.jsx(ScrollStop, { end: true })] }) : null, section === "all" ? SP_JSX.jsx("section", { children: SP_JSX.jsxs(DFL.Focusable, { "flow-children": "down", children: [SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "cpu", title: "CPU" }), SP_JSX.jsx(MetricGrid, { tiles: cpuTiles })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(CoreGrid, { cores: state.cpu_cores ?? [] }) }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(MetricGrid, { tiles: cpuVrmTiles }) }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "gpu", title: "GPU" }), SP_JSX.jsx(AceRow, { state: state }), SP_JSX.jsx(MetricGrid, { tiles: gpuTiles })] }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsxs("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "-3px 2px 8px" }, children: ["VBIOS \u00B7 ", state.gpu_vbios_version || "—", " \u00B7 ", state.gpu_range ? `${state.gpu_range[0]}–${state.gpu_range[1]} MHz` : "—", state.gpu_allowed_range ? ` · ${text.safeRange} ${state.gpu_allowed_range[0]}–${state.gpu_allowed_range[1]} MHz` : ""] }), SP_JSX.jsx(MetricGrid, { tiles: gpuVrmTiles })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(Gddr6Panel, { state: state }) }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "fan", title: text.fan }), fanChannelList] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(MetricGrid, { tiles: boardSensorTiles }) }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(MetricGrid, { tiles: fanControlTiles }) }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "power", title: text.power }), vrmNotice, SP_JSX.jsx(MetricGrid, { tiles: powerTiles })] }), SP_JSX.jsx(ScrollStop, { end: true })] }) }) : null] });
+                ] }), section === "cpu" ? SP_JSX.jsxs(DFL.Focusable, { "flow-children": "down", children: [cpuRunNotice(state, cpuRun), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(MetricGrid, { tiles: cpuTiles }), SP_JSX.jsxs("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "-3px 2px 8px" }, children: [text.cpuTrial, ": ", state.cpu_tuning_temperature ?? "—", "\u00B0C"] })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(CoreGrid, { cores: state.cpu_cores ?? [] }) }), SP_JSX.jsxs(ScrollStop, { children: [vrmNotice, SP_JSX.jsx(MetricGrid, { tiles: cpuVrmTiles })] }), SP_JSX.jsx(ScrollStop, { end: true })] }) : null, section === "gpu" ? SP_JSX.jsxs(DFL.Focusable, { "flow-children": "down", children: [SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(AceRow, { state: state }) }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(MetricGrid, { tiles: gpuTiles }), SP_JSX.jsxs("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "-3px 2px 2px" }, children: ["VBIOS \u00B7 ", state.gpu_vbios_version || "—"] }), SP_JSX.jsxs("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 6px" }, children: [state.gpu_range ? `${state.gpu_range[0]}–${state.gpu_range[1]} MHz` : "—", state.gpu_allowed_range ? ` · ${text.safeRange} ${state.gpu_allowed_range[0]}–${state.gpu_allowed_range[1]} MHz` : ""] })] }), SP_JSX.jsxs(ScrollStop, { children: [vrmNotice, SP_JSX.jsx(MetricGrid, { tiles: gpuVrmTiles })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(Gddr6Panel, { state: state }) }), SP_JSX.jsx(ScrollStop, { end: true })] }) : null, section === "cooling" ? SP_JSX.jsxs(DFL.Focusable, { "flow-children": "down", children: [SP_JSX.jsx(ScrollStop, { children: fanChannelList }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(MetricGrid, { tiles: fanControlTiles }) }), SP_JSX.jsx(ScrollStop, { end: true })] }) : null, section === "all" ? SP_JSX.jsx("section", { children: SP_JSX.jsxs(DFL.Focusable, { "flow-children": "down", children: [SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "cpu", title: "CPU" }), SP_JSX.jsx(MetricGrid, { tiles: cpuTiles })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(CoreGrid, { cores: state.cpu_cores ?? [] }) }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(MetricGrid, { tiles: cpuVrmTiles }) }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "gpu", title: "GPU" }), SP_JSX.jsx(AceRow, { state: state }), SP_JSX.jsx(MetricGrid, { tiles: gpuTiles })] }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsxs("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "-3px 2px 8px" }, children: ["VBIOS \u00B7 ", state.gpu_vbios_version || "—", " \u00B7 ", state.gpu_range ? `${state.gpu_range[0]}–${state.gpu_range[1]} MHz` : "—", state.gpu_allowed_range ? ` · ${text.safeRange} ${state.gpu_allowed_range[0]}–${state.gpu_allowed_range[1]} MHz` : ""] }), SP_JSX.jsx(MetricGrid, { tiles: gpuVrmTiles })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(Gddr6Panel, { state: state }) }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "fan", title: text.fan }), fanChannelList] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(MetricGrid, { tiles: boardSensorTiles }) }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(MetricGrid, { tiles: fanControlTiles }) }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "power", title: text.power }), vrmNotice, SP_JSX.jsx(MetricGrid, { tiles: powerTiles })] }), SP_JSX.jsx(ScrollStop, { end: true })] }) }) : null] });
 }
 function MemoryTab({ state, busy, execute }) {
     const vram = state.vram;
@@ -5381,7 +5401,7 @@ function Content() {
                     ].map(([tab, label, tabIcon]) => {
                         const active = activeTab === tab;
                         return SP_JSX.jsxs(PadButton, { onActivate: () => setActiveTab(tab), style: { alignItems: "center", background: active ? accent.focus_soft : "transparent", border: active ? `1px solid ${accent.focus}` : "1px solid transparent", color: active ? accent.focus : tokens.colors.subtle, display: "flex", flexDirection: "column", fontSize: 9, fontWeight: 650, gap: 3, height: 44, justifyContent: "center", padding: "4px 2px", textAlign: "center", width: "100%" }, children: [tabIcon, SP_JSX.jsx("span", { style: { lineHeight: 1.1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }, children: label })] }, tab);
-                    }) }), activeTab === "monitor" ? SP_JSX.jsx(MonitorTab, { state: state }) : null, activeTab === "memory" ? SP_JSX.jsx(MemoryTab, { state: state, busy: busy, execute: execute }) : null, activeTab === "settings" ? SP_JSX.jsx(SettingsTab, { settings: settings, setSettings: setSettings, state: state, busy: busy, execute: execute }) : null, activeTab === "board" ? SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(GameProfileCard, { state: state, busy: busy }), SP_JSX.jsx(SubNav, { value: boardSection, onChange: setBoardSection, items: [
+                    }) }), activeTab === "monitor" ? SP_JSX.jsx(MonitorTab, { state: state, cpuRun: cpuOperation ? { target: cpuOperation.target, elapsed: cpuElapsed } : null }) : null, activeTab === "memory" ? SP_JSX.jsx(MemoryTab, { state: state, busy: busy, execute: execute }) : null, activeTab === "settings" ? SP_JSX.jsx(SettingsTab, { settings: settings, setSettings: setSettings, state: state, busy: busy, execute: execute }) : null, activeTab === "board" ? SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(GameProfileCard, { state: state, busy: busy }), SP_JSX.jsx(SubNav, { value: boardSection, onChange: setBoardSection, items: [
                                 { key: "gpu", label: "GPU", icon: SP_JSX.jsx(FaMicrochip, {}), color: accent.focus, colorSoft: accent.focus_soft },
                                 { key: "cu", label: text.compute, icon: SP_JSX.jsx(FaTh, {}), color: accent.focus, colorSoft: accent.focus_soft },
                                 { key: "cpu", label: "CPU", icon: SP_JSX.jsx(FaBolt, {}), color: accent.focus, colorSoft: accent.focus_soft },
