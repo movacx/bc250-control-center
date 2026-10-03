@@ -636,12 +636,6 @@ function GovernorServiceRow({ state, busy, execute }: {
   const running = Boolean(state.gpu_service_active);
   const atBoot = Boolean(state.gpu_service_enabled);
   const conflict = Boolean(state.gpu_service_conflict);
-  const summary = conflict ? text.governorConflict
-    : !installed ? text.serviceNotInstalled
-    : running ? (atBoot ? text.serviceRunningBoot : text.serviceRunningNoBoot)
-    : state.gpu_service_starting ? text.serviceStarting
-    : (atBoot ? text.serviceStoppedBoot : text.serviceStopped);
-  const tone = conflict ? tokens.colors.red : !installed || (!running && state.gpu_service_starting) ? tokens.colors.amber : running ? accent.focus : tokens.colors.subtle;
   const confirm = (enable: boolean) => showModal(<ConfirmModal
     strTitle={enable ? text.enableService : text.disableService}
     strDescription={(enable ? text.enableServiceHint : text.disableServiceHint).replace("{name}", name)}
@@ -650,14 +644,7 @@ function GovernorServiceRow({ state, busy, execute }: {
     onOK={() => void execute(`GPU · ${text.governorService}`, () => setGpuGovernorService(enable), "gpu")}
   />);
   return <div style={{ background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 8, marginTop: 6, padding: "9px 9px 9px" }}>
-    <div style={{ alignItems: "center", display: "flex", gap: 9 }}>
-      <span style={{ background: tone, borderRadius: "50%", boxShadow: running ? `0 0 0 3px ${tokens.colors.panel_raised}` : "none", flex: "0 0 auto", height: 8, width: 8 }} />
-      <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
-        <span style={{ color: tokens.colors.text, fontSize: 11, fontWeight: 650 }}>{text.governorService}</span>
-        {name ? <span style={{ color: tokens.colors.subtle, fontSize: 9 }}>{name}</span> : null}
-      </span>
-    </div>
-    <div style={{ color: tone, fontSize: 9, fontWeight: 600, lineHeight: 1.35, margin: "7px 0 9px 17px" }}>{summary}</div>
+    <div style={{ color: tokens.colors.text, fontSize: 11, fontWeight: 650, margin: "0 2px 8px" }}>{text.governorService}</div>
     <ActionRow height={32}>
       <Action label={text.enableService} primary={installed && !running} disabled={busy || !installed || conflict || (running && atBoot)} onActivate={() => confirm(true)} />
       <Action label={text.disableService} danger disabled={busy || !installed || conflict || (!running && !atBoot)} onActivate={() => confirm(false)} />

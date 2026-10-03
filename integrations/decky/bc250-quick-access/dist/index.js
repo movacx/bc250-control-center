@@ -5566,21 +5566,15 @@ function Notice({ value, dismiss }) {
 // Every change is confirmed first and read back by the root helper, which
 // picks the unit itself and refuses while both governors run.
 function GovernorServiceRow({ state, busy, execute }) {
-    const accent = ACCENT_SWATCHES[SP_REACT.useContext(SettingsContext).settings.accent];
+    ACCENT_SWATCHES[SP_REACT.useContext(SettingsContext).settings.accent];
     const target = state.gpu_service_target ?? "";
     const name = target === "oberon" ? "Oberon" : target === "cyan" ? "Cyan Skillfish" : "";
     const installed = Boolean(state.gpu_service_installed && target);
     const running = Boolean(state.gpu_service_active);
     const atBoot = Boolean(state.gpu_service_enabled);
     const conflict = Boolean(state.gpu_service_conflict);
-    const summary = conflict ? text.governorConflict
-        : !installed ? text.serviceNotInstalled
-            : running ? (atBoot ? text.serviceRunningBoot : text.serviceRunningNoBoot)
-                : state.gpu_service_starting ? text.serviceStarting
-                    : (atBoot ? text.serviceStoppedBoot : text.serviceStopped);
-    const tone = conflict ? tokens.colors.red : !installed || (!running && state.gpu_service_starting) ? tokens.colors.amber : running ? accent.focus : tokens.colors.subtle;
     const confirm = (enable) => DFL.showModal(SP_JSX.jsx(DFL.ConfirmModal, { strTitle: enable ? text.enableService : text.disableService, strDescription: (enable ? text.enableServiceHint : text.disableServiceHint).replace("{name}", name), strOKButtonText: enable ? text.enableService : text.disableService, bDestructiveWarning: !enable, onOK: () => void execute(`GPU · ${text.governorService}`, () => setGpuGovernorService(enable), "gpu") }));
-    return SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 8, marginTop: 6, padding: "9px 9px 9px" }, children: [SP_JSX.jsxs("div", { style: { alignItems: "center", display: "flex", gap: 9 }, children: [SP_JSX.jsx("span", { style: { background: tone, borderRadius: "50%", boxShadow: running ? `0 0 0 3px ${tokens.colors.panel_raised}` : "none", flex: "0 0 auto", height: 8, width: 8 } }), SP_JSX.jsxs("span", { style: { display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.text, fontSize: 11, fontWeight: 650 }, children: text.governorService }), name ? SP_JSX.jsx("span", { style: { color: tokens.colors.subtle, fontSize: 9 }, children: name }) : null] })] }), SP_JSX.jsx("div", { style: { color: tone, fontSize: 9, fontWeight: 600, lineHeight: 1.35, margin: "7px 0 9px 17px" }, children: summary }), SP_JSX.jsxs(ActionRow, { height: 32, children: [SP_JSX.jsx(Action, { label: text.enableService, primary: installed && !running, disabled: busy || !installed || conflict || (running && atBoot), onActivate: () => confirm(true) }), SP_JSX.jsx(Action, { label: text.disableService, danger: true, disabled: busy || !installed || conflict || (!running && !atBoot), onActivate: () => confirm(false) })] })] });
+    return SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 8, marginTop: 6, padding: "9px 9px 9px" }, children: [SP_JSX.jsx("div", { style: { color: tokens.colors.text, fontSize: 11, fontWeight: 650, margin: "0 2px 8px" }, children: text.governorService }), SP_JSX.jsxs(ActionRow, { height: 32, children: [SP_JSX.jsx(Action, { label: text.enableService, primary: installed && !running, disabled: busy || !installed || conflict || (running && atBoot), onActivate: () => confirm(true) }), SP_JSX.jsx(Action, { label: text.disableService, danger: true, disabled: busy || !installed || conflict || (!running && !atBoot), onActivate: () => confirm(false) })] })] });
 }
 // Cyan's commented TOML points above 2000 MHz, as the switch it is. It sits at
 // the top of "More frequencies", next to the points it unlocks. It asks first,
