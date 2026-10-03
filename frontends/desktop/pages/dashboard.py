@@ -313,9 +313,10 @@ class DashboardPage(QWidget):
         self.vrm_help_button.setProperty("dashboardCardAction", True)
         self.vrm_help_button.clicked.connect(self._show_vrm_help)
         self.vrm_help_button.hide()
-        # A row of its own under the title: beside it the title was clipped
-        # on a narrow window.
-        self.vrm_strip.layout().insertWidget(1, self.vrm_help_button, 0, Qt.AlignmentFlag.AlignLeft)
+        # Where the "Requires the I2C modification" note was, at the right of
+        # the title like the GDDR6 card's "Monitor live": the dialog says that
+        # and what to do about it.
+        self.vrm_strip.head.addWidget(self.vrm_help_button, 0, Qt.AlignmentFlag.AlignVCenter)
         self.main_layout.addWidget(self.vrm_strip)
 
         self.readiness = PreparationSidebar()
@@ -1240,7 +1241,7 @@ class DashboardPage(QWidget):
         if not available and self._vrm_manual:
             self._show_vrm_probe(state.vrm_probe)
             return
-        strip.set_note("" if available else tr("Requires the I2C modification"))
+        strip.set_note("")
         self.vrm_help_button.setVisible(not available)
         # Without the link the band is one line that says so, not eight
         # cells repeating "Not detected".
