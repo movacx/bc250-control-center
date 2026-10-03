@@ -763,17 +763,19 @@ function CoreGrid({ cores, slots }: { cores: CoreEntry[]; slots?: number | null 
     <div style={{ color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 4px" }}>{text.cpuCoresSummary.replace("{active}", String(active)).replace("{total}", String(groups.length)).replace("{threads}", String(cores.length))}</div>
     <div style={{ display: "grid", gap: 4, gridTemplateColumns: "repeat(4,minmax(0,1fr))" }}>
       {groups.map((group) => {
-        if (!group.threads.length) return <div key={group.id} style={{ background: tokens.colors.panel_alt, border: `1px dashed ${tokens.colors.border}`, borderRadius: 6, opacity: .55, padding: "5px 6px" }}>
+        if (!group.threads.length) return <div key={group.id} style={{ background: tokens.colors.panel_alt, border: `1px dashed ${tokens.colors.border}`, borderRadius: 7, display: "flex", flexDirection: "column", gap: 4, justifyContent: "center", opacity: .5, padding: "6px 7px 7px" }}>
           <div style={{ color: tokens.colors.subtle, fontSize: 8 }}>{text.cpuCoreLabel} {group.id + 1}</div>
           <div style={{ color: tokens.colors.muted, fontSize: 9, fontWeight: 650, marginTop: 3 }}>{text.cpuCoreLocked}</div>
         </div>;
         const lead = busiest(group.threads);
         const usage = group.threads.filter((entry) => entry.percent != null);
         const average = usage.length ? Math.round(usage.reduce((sum, entry) => sum + (entry.percent ?? 0), 0) / usage.length) : null;
-        return <div key={group.id} style={{ background: tokens.colors.panel_raised, border: `1px solid ${tokens.colors.border}`, borderRadius: 6, padding: "5px 6px" }}>
-          <div style={{ color: tokens.colors.subtle, display: "flex", fontSize: 8, justifyContent: "space-between" }}><span>{text.cpuCoreLabel} {group.id + 1}</span><span>{average != null ? `${average}%` : "—"}</span></div>
-          <div style={{ fontSize: 11, fontWeight: 650, margin: "2px 0 4px" }}>{lead?.frequency_mhz != null ? `${(lead.frequency_mhz / 1000).toFixed(2)} GHz` : "—"}</div>
-          <div style={{ display: "grid", gap: 2 }}>{group.threads.map((entry) => <div key={entry.core} style={{ background: tokens.colors.panel_alt, borderRadius: 2, height: 3, overflow: "hidden" }}><div style={{ background: tokens.colors.green, height: "100%", width: `${Math.max(0, Math.min(100, entry.percent ?? 0))}%` }} /></div>)}</div>
+        const load = average ?? 0;
+        const tone = load >= 85 ? tokens.colors.red : load >= 60 ? tokens.colors.amber : tokens.colors.green;
+        return <div key={group.id} style={{ background: tokens.colors.panel_raised, border: `1px solid ${tokens.colors.border}`, borderRadius: 7, display: "flex", flexDirection: "column", gap: 4, padding: "6px 7px 7px" }}>
+          <div style={{ alignItems: "baseline", display: "flex", justifyContent: "space-between" }}><span style={{ color: tokens.colors.subtle, fontSize: 8, letterSpacing: .3 }}>{text.cpuCoreLabel} {group.id + 1}</span><span style={{ color: average != null ? tone : tokens.colors.subtle, fontSize: 8, fontWeight: 650 }}>{average != null ? `${average}%` : "—"}</span></div>
+          <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1 }}>{lead?.frequency_mhz != null ? <>{(lead.frequency_mhz / 1000).toFixed(2)}<span style={{ color: tokens.colors.subtle, fontSize: 8, fontWeight: 600, marginLeft: 2 }}>GHz</span></> : "—"}</div>
+          <div style={{ background: tokens.colors.panel_alt, borderRadius: 3, height: 4, overflow: "hidden" }}><div style={{ background: tone, borderRadius: 3, height: "100%", transition: "width .4s ease", width: `${Math.max(3, Math.min(100, load))}%` }} /></div>
         </div>;
       })}
     </div>
