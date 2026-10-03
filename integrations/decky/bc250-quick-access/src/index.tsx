@@ -23,19 +23,17 @@ import {
 } from "react";
 import {
   FaBolt,
-  FaChartLine,
   FaClock,
   FaCog,
   FaExclamationTriangle,
   FaFan,
   FaGamepad,
   FaHdd,
-  FaLayerGroup,
   FaMemory,
   FaMicrochip,
-  FaSlidersH,
   FaTh,
 } from "react-icons/fa";
+import { LuActivity, LuCpu, LuFan, LuGrid3X3, LuLayoutGrid, LuMemoryStick, LuMicrochip, LuSettings, LuSlidersHorizontal } from "react-icons/lu";
 import { tokens } from "./theme";
 // Generated from src/bc250cc/shared/error_catalog.py; rollup inlines it.
 import errorCatalog from "./generated/error_catalog.json";
@@ -828,8 +826,8 @@ function SubNav<T extends string>({ value, onChange, items }: { value: T; onChan
   return <Focusable flow-children="row" style={{ display: "grid", gap: 5, gridTemplateColumns: `repeat(${items.length},minmax(0,1fr))`, marginBottom: 10 }}>
     {items.map((item) => {
       const active = item.key === value;
-      return <PadButton key={item.key} onActivate={() => onChange(item.key)} style={{ alignItems: "center", background: active ? item.colorSoft : tokens.colors.panel_alt, border: `1px solid ${active ? item.color : tokens.colors.border}`, color: active ? item.color : tokens.colors.subtle, display: "flex", flexDirection: "column", fontSize: 9, fontWeight: 650, gap: 3, height: 40, justifyContent: "center", padding: "4px 2px" }}>
-        {item.icon}<span>{item.label}</span>
+      return <PadButton key={item.key} label={item.label} onActivate={() => onChange(item.key)} style={{ alignItems: "center", background: active ? item.colorSoft : tokens.colors.panel_alt, border: `1px solid ${active ? item.color : tokens.colors.border}`, color: active ? item.color : tokens.colors.subtle, display: "flex", fontSize: 19, height: 40, justifyContent: "center", padding: 0 }}>
+        {item.icon}
       </PadButton>;
     })}
   </Focusable>;
@@ -1050,15 +1048,15 @@ const cpuPresetName = (preset: CpuPreset) => preset.default ? ({ board_average: 
 
 // Monitoring › CPU is where a CPU run sends the player (see cpuRunRedirected):
 // say what is happening there while it runs, then keep the result on top.
-function cpuRunNotice(state: Status, cpuRun: { target: number; elapsed: number } | null | undefined, accent: { focus: string; focus_soft: string }) {
-  const box: CSSProperties = { alignItems: "center", background: accent.focus_soft, border: `1px solid ${accent.focus}`, borderRadius: 6, display: "flex", fontSize: 9, gap: 6, justifyContent: "space-between", marginBottom: 7, padding: "6px 8px" };
-  if (cpuRun) return <div role="status" aria-live="polite" style={box}><span style={{ color: accent.focus, lineHeight: 1.35 }}>{text.cpuMonitorApplying.replace("{target}", String(cpuRun.target))}</span><b style={{ color: accent.focus, whiteSpace: "nowrap" }}>{cpuRun.elapsed}s</b></div>;
+function cpuRunNotice(state: Status, cpuRun: { target: number; elapsed: number } | null | undefined) {
+  const box: CSSProperties = { alignItems: "center", background: tokens.colors.green_soft, border: `1px solid ${tokens.colors.green}`, borderRadius: 6, display: "flex", fontSize: 9, gap: 6, justifyContent: "space-between", marginBottom: 7, padding: "6px 8px" };
+  if (cpuRun) return <div role="status" aria-live="polite" style={box}><span style={{ color: tokens.colors.green, lineHeight: 1.35 }}>{text.cpuMonitorApplying.replace("{target}", String(cpuRun.target))}</span><b style={{ color: tokens.colors.green, whiteSpace: "nowrap" }}>{cpuRun.elapsed}s</b></div>;
   const detected = state.cpu_detected_profile;
   if (!detected?.ready) return null;
   const active = state.cpu_active_profile ?? detected.active_profile;
   const frequency = active?.frequency ?? detected.frequency;
   const scale = active?.scale ?? detected.scale;
-  return <div style={box}><span style={{ color: tokens.colors.subtle }}>{text.cpuDetected}</span><b style={{ color: accent.focus }}>{`${frequency} MHz · scale ${scale}`}</b></div>;
+  return <div style={box}><span style={{ color: tokens.colors.subtle }}>{text.cpuDetected}</span><b style={{ color: tokens.colors.green }}>{`${frequency} MHz · scale ${scale}`}</b></div>;
 }
 
 // Monitoring › CPU, as two cards instead of an eight-row list: what the CPU
@@ -1234,13 +1232,13 @@ function MonitorTab({ state, cpuRun }: { state: Status; cpuRun?: { target: numbe
 
   return <>
     <SubNav<MonitorSection> value={section} onChange={setSection} items={[
-      { key: "cpu", label: "CPU", icon: <FaBolt />, color: accent.focus, colorSoft: accent.focus_soft },
-      { key: "gpu", label: "GPU", icon: <FaMicrochip />, color: accent.focus, colorSoft: accent.focus_soft },
-      { key: "all", label: text.allSensors, icon: <FaLayerGroup />, color: accent.focus, colorSoft: accent.focus_soft },
+      { key: "cpu", label: "CPU", icon: <LuCpu />, color: accent.focus, colorSoft: accent.focus_soft },
+      { key: "gpu", label: "GPU", icon: <LuMicrochip />, color: accent.focus, colorSoft: accent.focus_soft },
+      { key: "all", label: text.allSensors, icon: <LuLayoutGrid />, color: accent.focus, colorSoft: accent.focus_soft },
     ]} />
 
     {section === "cpu" ? <Focusable flow-children="down">
-      {cpuRunNotice(state, cpuRun, accent)}
+      {cpuRunNotice(state, cpuRun)}
       <ScrollStop><CpuOverview state={state} /><CpuOcCard state={state} /></ScrollStop>
       <ScrollStop><CoreGrid cores={state.cpu_cores ?? []} slots={state.cpu_physical_slots} /></ScrollStop>
       <ScrollStop><RailVrm state={state} label="VRM CPU" tiles={cpuVrmTiles} /></ScrollStop>
@@ -1792,14 +1790,14 @@ function Content() {
 
     <Focusable flow-children="row" style={{ background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 8, display: "grid", gap: 4, gridTemplateColumns: "repeat(4,minmax(0,1fr))", marginBottom: 12, padding: 4 }}>
       {([
-        ["board", text.boardSetup, <FaSlidersH />],
-        ["monitor", text.monitoring, <FaChartLine />],
-        ["memory", text.memoryAndVideo, <FaMemory />],
-        ["settings", text.settingsTab, <FaCog />],
+        ["board", text.boardSetup, <LuSlidersHorizontal />],
+        ["monitor", text.monitoring, <LuActivity />],
+        ["memory", text.memoryAndVideo, <LuMemoryStick />],
+        ["settings", text.settingsTab, <LuSettings />],
       ] as [PanelTab, string, ReactNode][]).map(([tab, label, tabIcon]) => {
         const active = activeTab === tab;
-        return <PadButton key={tab} onActivate={() => setActiveTab(tab)} style={{ alignItems: "center", background: active ? accent.focus_soft : "transparent", border: active ? `1px solid ${accent.focus}` : "1px solid transparent", color: active ? accent.focus : tokens.colors.subtle, display: "flex", flexDirection: "column", fontSize: 9, fontWeight: 650, gap: 3, height: 44, justifyContent: "center", padding: "4px 2px", textAlign: "center", width: "100%" }}>
-          {tabIcon}<span style={{ lineHeight: 1.1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }}>{label}</span>
+        return <PadButton key={tab} label={label} onActivate={() => setActiveTab(tab)} style={{ alignItems: "center", background: active ? accent.focus_soft : "transparent", border: active ? `1px solid ${accent.focus}` : "1px solid transparent", color: active ? accent.focus : tokens.colors.subtle, display: "flex", fontSize: 19, height: 42, justifyContent: "center", padding: 0, width: "100%" }}>
+          {tabIcon}
         </PadButton>;
       })}
     </Focusable>
@@ -1810,10 +1808,10 @@ function Content() {
     {activeTab === "board" ? <>
     <GameProfileCard state={state} busy={busy} />
     <SubNav<BoardSection> value={boardSection} onChange={setBoardSection} items={[
-      { key: "gpu", label: "GPU", icon: <FaMicrochip />, color: accent.focus, colorSoft: accent.focus_soft },
-      { key: "cu", label: text.compute, icon: <FaTh />, color: accent.focus, colorSoft: accent.focus_soft },
-      { key: "cpu", label: "CPU", icon: <FaBolt />, color: accent.focus, colorSoft: accent.focus_soft },
-      { key: "fan", label: text.fan, icon: <FaFan />, color: accent.focus, colorSoft: accent.focus_soft },
+      { key: "gpu", label: "GPU", icon: <LuMicrochip />, color: accent.focus, colorSoft: accent.focus_soft },
+      { key: "cu", label: text.compute, icon: <LuGrid3X3 />, color: accent.focus, colorSoft: accent.focus_soft },
+      { key: "cpu", label: "CPU", icon: <LuCpu />, color: accent.focus, colorSoft: accent.focus_soft },
+      { key: "fan", label: text.fan, icon: <LuFan />, color: accent.focus, colorSoft: accent.focus_soft },
     ]} />
 
     {busy && boardSection !== "cpu" ? <div style={{ alignItems: "center", background: accent.focus_soft, border: `1px solid ${accent.focus}`, borderRadius: 7, color: accent.focus, display: "flex", fontSize: 10, gap: 6, marginBottom: 10, padding: "7px 9px" }}><FaClock />{text.operationInProgress}</div> : null}
