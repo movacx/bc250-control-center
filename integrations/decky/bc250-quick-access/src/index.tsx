@@ -1866,8 +1866,8 @@ function Content() {
     <GameProfileCard state={state} busy={busy} />
     <SubNav<BoardSection> value={boardSection} onChange={setBoardSection} items={[
       { key: "gpu", label: "GPU", icon: <LuMicrochip strokeWidth={NAV_STROKE} />, color: accent.focus, colorSoft: accent.focus_soft },
-      { key: "cu", label: text.compute, icon: <LuGrid3X3 strokeWidth={NAV_STROKE} />, color: accent.focus, colorSoft: accent.focus_soft },
       { key: "cpu", label: "CPU", icon: <LuCpu strokeWidth={NAV_STROKE} />, color: accent.focus, colorSoft: accent.focus_soft },
+      { key: "cu", label: text.compute, icon: <LuGrid3X3 strokeWidth={NAV_STROKE} />, color: accent.focus, colorSoft: accent.focus_soft },
       { key: "fan", label: text.fan, icon: <LuFan strokeWidth={NAV_STROKE} />, color: accent.focus, colorSoft: accent.focus_soft },
     ]} />
 
