@@ -5033,64 +5033,30 @@ function SubNav({ value, onChange, items }) {
             return SP_JSX.jsxs(PadButton, { onActivate: () => onChange(item.key), style: { alignItems: "center", background: active ? item.colorSoft : tokens.colors.panel_alt, border: `1px solid ${active ? item.color : tokens.colors.border}`, color: active ? item.color : tokens.colors.subtle, display: "flex", flexDirection: "column", fontSize: 9, fontWeight: 650, gap: 3, height: 40, justifyContent: "center", padding: "4px 2px" }, children: [item.icon, SP_JSX.jsx("span", { children: item.label })] }, item.key);
         }) });
 }
-function Gddr6LiveToggle() {
+function Gddr6Switch() {
     const { gddr6 } = SP_REACT.useContext(SettingsContext);
-    return SP_JSX.jsxs(PadButton, { onActivate: () => gddr6.setLive(!gddr6.live), style: { alignItems: "center", display: "flex", fontSize: 10, height: 30, justifyContent: "space-between", marginBottom: 6, padding: "4px 9px", width: "100%" }, children: [SP_JSX.jsx("span", { children: text.gddr6LiveButton }), SP_JSX.jsx("span", { style: { color: gddr6.live ? tokens.colors.green : tokens.colors.subtle, fontSize: 9 }, children: gddr6.live ? text.gddr6LiveLeft.replace("{minutes}", String(gddr6.minutesLeft)) : text.gddr6Off })] });
-}
-function Gddr6PatchRow({ state }) {
-    const { gddr6 } = SP_REACT.useContext(SettingsContext);
-    const [patching, setPatching] = SP_REACT.useState(false);
-    const [patchError, setPatchError] = SP_REACT.useState(null);
-    if (state.gddr6_reason !== "GDDR6_PATCH_INACTIVE" || state.gddr6_firmware_supported === false)
-        return null;
-    const apply = async () => {
-        setPatching(true);
-        setPatchError(null);
-        try {
-            const result = await applyGddr6Patch();
-            if (result.ok === false)
-                setPatchError(result.error ?? text.error);
-            else {
-                const { ok: _ok, protocol: _protocol, error: _error, ...fields } = result;
-                gddr6.merge(fields);
-            }
-        }
-        catch (error) {
-            setPatchError(failed(error).error ?? text.error);
-        }
-        finally {
-            setPatching(false);
-        }
-    };
-    const confirm = () => DFL.showModal(SP_JSX.jsx(DFL.ConfirmModal, { strTitle: text.gddr6PatchTitle, strDescription: text.gddr6PatchConfirm, strOKButtonText: text.gddr6PatchOk, bDestructiveWarning: true, onOK: () => void apply() }));
-    return SP_JSX.jsxs("div", { style: { marginBottom: 6 }, children: [
-            SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 10, lineHeight: 1.4, margin: "0 2px 6px" }, children: text.gddr6PatchInactive }),
-            SP_JSX.jsx(PadButton, { disabled: patching, onActivate: confirm, style: { fontSize: 10, height: 30, padding: "4px 9px", width: "100%" }, children: patching ? text.gddr6Patching : text.gddr6PatchButton }),
-            patchError ? SP_JSX.jsx("div", { style: { color: tokens.colors.red, fontSize: 9, lineHeight: 1.35, margin: "5px 2px 0", overflowWrap: "anywhere" }, children: patchError }) : null
+    const on = gddr6.live;
+    return SP_JSX.jsxs(PadButton, { label: "GDDR6", onActivate: () => gddr6.setLive(!on), style: { alignItems: "center", background: "transparent", border: "none", display: "flex", height: 22, justifyContent: "space-between", margin: "2px 0 4px", minHeight: 0, padding: "0 2px", width: "100%" }, children: [
+            SP_JSX.jsx("span", { style: { color: tokens.colors.subtle, fontSize: 9, textTransform: "uppercase" }, children: "GDDR6" }),
+            SP_JSX.jsx("span", { style: { background: on ? tokens.colors.green : tokens.colors.panel_raised, border: `1px solid ${on ? tokens.colors.green : tokens.colors.border}`, borderRadius: 8, display: "inline-block", height: 12, position: "relative", transition: "background .2s ease", width: 24 }, children: SP_JSX.jsx("span", { style: { background: on ? "#FFFFFF" : tokens.colors.subtle, borderRadius: "50%", height: 8, left: on ? 13 : 2, position: "absolute", top: 1, transition: "left .2s ease", width: 8 } }) })
         ] });
 }
 function Gddr6Panel({ state }) {
     const panelContext = SP_REACT.useContext(SettingsContext);
     const accent = ACCENT_SWATCHES[panelContext.settings.accent];
     if (!panelContext.gddr6.live)
-        return SP_JSX.jsxs("div", { style: { margin: "2px 0 6px" }, children: [SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "4px 2px 4px", textTransform: "uppercase" }, children: "GDDR6" }), SP_JSX.jsx(Gddr6LiveToggle, {})] });
+        return SP_JSX.jsx("div", { style: { marginBottom: 6 }, children: SP_JSX.jsx(Gddr6Switch, {}) });
     const chips = state.gddr6_chips ?? [];
     const available = Boolean(state.gddr6_available) && chips.length > 0;
-    return SP_JSX.jsxs("div", { style: { margin: "2px 0 6px" }, children: [SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "4px 2px 4px", textTransform: "uppercase" }, children: "GDDR6" }), SP_JSX.jsx(Gddr6LiveToggle, {}), !available
-                ? state.gddr6_reason === "GDDR6_PATCH_INACTIVE" && state.gddr6_firmware_supported !== false
-                    ? SP_JSX.jsx(Gddr6PatchRow, { state: state })
-                    : SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 10, lineHeight: 1.4, margin: "0 2px 6px" }, children: text.gddr6Unavailable })
+    return SP_JSX.jsxs("div", { style: { marginBottom: 6 }, children: [SP_JSX.jsx(Gddr6Switch, {}), !available
+                ? state.gddr6_patch_error
+                    ? SP_JSX.jsx("div", { style: { color: tokens.colors.red, fontSize: 9, lineHeight: 1.35, margin: "0 2px 6px", overflowWrap: "anywhere" }, children: state.gddr6_patch_error.replace(/^QUICK_ACCESS_GDDR6:\s*/, "") })
+                    : SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 6px" }, children: state.gddr6_reason === "GDDR6_PATCH_INACTIVE" ? text.gddr6Patching : text.gddr6Unavailable })
                 : SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(MetricGrid, { tiles: [
-                                { label: "AVG", value: state.gddr6_average_c != null ? `${state.gddr6_average_c.toFixed(1)} °C` : "—" },
-                                { label: "HOTSPOT", value: state.gddr6_hotspot_c != null ? `${state.gddr6_hotspot_c.toFixed(1)} °C` : "—" },
+                                { label: "AVG", value: state.gddr6_average_c != null ? `${state.gddr6_average_c.toFixed(1)} \u00B0C` : "—" },
+                                { label: "HOTSPOT", value: state.gddr6_hotspot_c != null ? `${state.gddr6_hotspot_c.toFixed(1)} \u00B0C` : "—" },
                             ] }), SP_JSX.jsx("div", { style: { background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 6, display: "grid", gap: 1, gridTemplateColumns: "repeat(4,minmax(0,1fr))", overflow: "hidden" }, children: chips.map((chip) => SP_JSX.jsxs("div", { style: { background: chip.chip === state.gddr6_hotspot_chip ? accent.focus_soft : tokens.colors.panel_raised, padding: "6px 7px" }, children: [SP_JSX.jsxs("div", { style: { color: tokens.colors.subtle, fontSize: 8 }, children: ["CHIP ", chip.chip] }), SP_JSX.jsxs("div", { style: { fontSize: 10, fontWeight: 650 }, children: [chip.temperature_c.toFixed(1), " \u00B0C"] })] }, chip.chip)) })] })] });
 }
-// Read-only sensor tiles are plain divs, and a Quick Access panel scrolls only
-// to reveal the element the controller has focused: with nothing focusable
-// under the sub-tabs, "down" had nowhere to go and every sensor below the
-// fold was out of reach. Each block is a quiet focus stop -- outlined in the
-// accent while focused, so the player sees where they are -- and an invisible
-// stop at the very end carries the scroll to the bottom of the section.
 function ScrollStop({ children, end = false }) {
     const accent = ACCENT_SWATCHES[SP_REACT.useContext(SettingsContext).settings.accent];
     const [focused, setFocused] = SP_REACT.useState(false);
@@ -5664,6 +5630,30 @@ function Content() {
         const timer = globalThis.setInterval(() => void sampleGddr6(), settings.refreshIntervalMs * 2);
         return () => globalThis.clearInterval(timer);
     }, [sampleGddr6, settings.refreshIntervalMs, gddr6Live, gddr6Paused]);
+    const gddr6PatchTried = SP_REACT.useRef(false);
+    SP_REACT.useEffect(() => { if (!gddr6Live)
+        gddr6PatchTried.current = false; }, [gddr6Live]);
+    SP_REACT.useEffect(() => {
+        if (!gddr6Live || gddr6Paused || gddr6PatchTried.current)
+            return;
+        if (state.gddr6_reason !== "GDDR6_PATCH_INACTIVE" || state.gddr6_firmware_supported === false)
+            return;
+        gddr6PatchTried.current = true;
+        void (async () => {
+            try {
+                const result = await applyGddr6Patch();
+                if (result.ok === false)
+                    setState((current) => ({ ...current, gddr6_patch_error: result.error ?? text.error }));
+                else {
+                    const { ok: _ok, protocol: _protocol, error: _error, ...fields } = result;
+                    setState((current) => ({ ...current, ...fields, gddr6_patch_error: null }));
+                }
+            }
+            catch (error) {
+                setState((current) => ({ ...current, gddr6_patch_error: failed(error).error ?? text.error }));
+            }
+        })();
+    }, [gddr6Live, gddr6Paused, state.gddr6_reason, state.gddr6_firmware_supported]);
     const execute = async (title, operation, kind = "none", cpuProgress) => {
         if (busyRef.current)
             return;
@@ -5919,9 +5909,8 @@ function GameProfileCard({ state, busy }) {
     return SP_JSX.jsxs("section", { style: { background: tokens.colors.panel_alt, border: `1px solid ${active ? accent.focus : tokens.colors.border}`, borderRadius: 8, marginBottom: 10, padding: "8px 9px" }, children: [SP_JSX.jsx(SectionTitle, { kind: "game", title: text.perGameProfiles, trailing: active ? SP_JSX.jsx("span", { style: { color: accent.focus, fontSize: 9, fontWeight: 700 }, children: text.gameProfileActive }) : undefined }), SP_JSX.jsx("div", { style: { fontSize: 11, overflow: "hidden" }, children: SP_JSX.jsx(DFL.ToggleField, { label: text.applyAutomatically, layout: "inline", bottomSeparator: "none", highlightOnFocus: true, checked: enabled, disabled: working, onChange: toggle }) }), !game ? SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 10, lineHeight: 1.4, margin: "4px 2px 6px" }, children: text.gameNotRunning }) : SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsxs("div", { style: { margin: "4px 2px 6px" }, children: [SP_JSX.jsx("div", { style: { color: tokens.colors.text, fontSize: 12, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: game.name }), SP_JSX.jsx("div", { style: { color: saved ? tokens.colors.muted : tokens.colors.subtle, fontSize: 9, marginTop: 2 }, children: saved ? summary(saved) : text.gameNoProfile })] }), !editing ? SP_JSX.jsxs(ActionRow, { marginBottom: 6, children: [SP_JSX.jsx(Action, { label: saved ? text.editProfile : text.assignProfile, primary: !saved, disabled: working || busy, onActivate: beginEdit }), saved ? SP_JSX.jsx(Action, { label: text.removeGame, danger: true, disabled: working, onActivate: () => remove(saved.app_id) }) : null] }) : SP_JSX.jsxs("div", { style: { borderTop: `1px solid ${tokens.colors.border_soft}`, paddingTop: 6 }, children: [SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 4px" }, children: "GPU" }), SP_JSX.jsxs(DFL.Focusable, { "flow-children": "grid", style: { display: "grid", gap: 4, gridTemplateColumns: `repeat(${Math.min(4, gpuProfiles.length + 1)},minmax(0,1fr))`, marginBottom: 6 }, children: [choice(null, draftGpu, text.unchanged, () => setDraftGpu(null), "gpu-none"), gpuProfiles.map((profile) => choice(profile.key, draftGpu, profile.name, () => setDraftGpu(profile.key), `gpu-${profile.key}`))] }), SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 4px" }, children: text.fans }), SP_JSX.jsxs(DFL.Focusable, { "flow-children": "grid", style: { display: "grid", gap: 4, gridTemplateColumns: "repeat(3,minmax(0,1fr))", marginBottom: 6 }, children: [choice(null, draftFan, text.unchanged, () => setDraftFan(null), "fan-none"), ["quiet", "balanced", "boost", "automatic"].map((key) => choice(key, draftFan, presetLabel(key, fanPresets), () => setDraftFan(key), `fan-${key}`))] }), SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, lineHeight: 1.35, margin: "0 2px 6px" }, children: text.gameCpuNote }), SP_JSX.jsxs(ActionRow, { marginBottom: 6, children: [SP_JSX.jsx(Action, { label: text.gameProfileSave, primary: true, disabled: working || (!draftGpu && !draftFan), onActivate: save }), SP_JSX.jsx(Action, { label: text.cancel, disabled: working, onActivate: () => setEditing(false) })] })] })] }), SP_JSX.jsxs(PadButton, { onActivate: () => setListOpen(!listOpen), style: { alignItems: "center", display: "flex", fontSize: 10, height: 30, justifyContent: "space-between", padding: "4px 8px", width: "100%" }, children: [SP_JSX.jsxs("span", { children: [text.savedGames, " \u00B7 ", games.length] }), SP_JSX.jsx("span", { style: { color: accent.focus }, children: listOpen ? "▴" : "▾" })] }), listOpen ? SP_JSX.jsx(DFL.Focusable, { "flow-children": "down", style: { marginTop: 5 }, children: !games.length ? SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "2px 2px 0" }, children: text.gamesEmpty }) : games.map((entry) => SP_JSX.jsxs(DFL.Focusable, { "flow-children": "row", style: { alignItems: "center", borderTop: `1px solid ${tokens.colors.border_soft}`, display: "grid", gap: 6, gridTemplateColumns: "1fr 72px", padding: "5px 0" }, children: [SP_JSX.jsxs("div", { style: { minWidth: 0 }, children: [SP_JSX.jsx("div", { style: { fontSize: 10, fontWeight: 650, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: entry.name || appName(Number(entry.app_id)) }), SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 8, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: summary(entry) })] }), SP_JSX.jsx(Action, { label: text.removeGame, danger: true, disabled: working, onActivate: () => remove(entry.app_id) })] }, entry.app_id)) }) : null] });
 }
 function SettingsTab({ settings, setSettings, state, busy, execute }) {
-    const { gddr6 } = SP_REACT.useContext(SettingsContext);
     const accent = ACCENT_SWATCHES[settings.accent];
-    return SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsxs("section", { style: { marginBottom: 12 }, children: [SP_JSX.jsx(SectionTitle, { kind: "gpu", title: "GPU" }), SP_JSX.jsx(HighPointsSwitch, { state: state, busy: busy, execute: execute })] }), SP_JSX.jsxs("section", { style: { marginBottom: 12 }, children: [SP_JSX.jsx(SectionTitle, { kind: "settings", title: "GDDR6" }), SP_JSX.jsx("div", { style: { background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, fontSize: 11, overflow: "hidden" }, children: SP_JSX.jsx(DFL.ToggleField, { label: text.gddr6Monitoring, description: gddr6.live ? `${text.gddr6LiveLeft.replace("{minutes}", String(gddr6.minutesLeft))} · ${text.gddr6MonitoringHint}` : text.gddr6MonitoringHint, layout: "inline", bottomSeparator: "none", highlightOnFocus: true, checked: gddr6.live, onChange: (checked) => gddr6.setLive(checked) }) })] }), SP_JSX.jsxs("section", { style: { marginBottom: 12 }, children: [SP_JSX.jsx(SectionTitle, { kind: "settings", title: text.accentColor }), SP_JSX.jsx(DFL.Focusable, { "flow-children": "grid", navEntryPreferPosition: DFL.NavEntryPositionPreferences.PREFERRED_CHILD, style: { display: "grid", gap: 6, gridTemplateColumns: "repeat(3,minmax(0,1fr))" }, children: ACCENT_KEYS.map((key) => {
+    return SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsxs("section", { style: { marginBottom: 12 }, children: [SP_JSX.jsx(SectionTitle, { kind: "gpu", title: "GPU" }), SP_JSX.jsx(HighPointsSwitch, { state: state, busy: busy, execute: execute })] }), SP_JSX.jsxs("section", { style: { marginBottom: 12 }, children: [SP_JSX.jsx(SectionTitle, { kind: "settings", title: text.accentColor }), SP_JSX.jsx(DFL.Focusable, { "flow-children": "grid", navEntryPreferPosition: DFL.NavEntryPositionPreferences.PREFERRED_CHILD, style: { display: "grid", gap: 6, gridTemplateColumns: "repeat(3,minmax(0,1fr))" }, children: ACCENT_KEYS.map((key) => {
                             const swatch = ACCENT_SWATCHES[key];
                             const active = settings.accent === key;
                             return SP_JSX.jsxs(PadButton, { preferredFocus: active, onActivate: () => setSettings({ ...settings, accent: key }), style: { alignItems: "center", background: active ? swatch.focus_soft : tokens.colors.panel_raised, border: `1px solid ${active ? swatch.focus : tokens.colors.border}`, display: "flex", flexDirection: "column", gap: 4, height: 48, justifyContent: "center", width: "100%" }, children: [SP_JSX.jsx("span", { style: { background: swatch.focus, border: `1px solid ${tokens.colors.border_strong}`, borderRadius: "50%", height: 14, width: 14 } }), SP_JSX.jsx("span", { style: { color: active ? swatch.focus : tokens.colors.subtle, fontSize: 9, fontWeight: 650 }, children: swatch.label })] }, key);

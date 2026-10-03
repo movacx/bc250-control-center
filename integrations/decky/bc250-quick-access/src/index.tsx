@@ -199,6 +199,7 @@ type Result = {
   system_fan_duty?: number | null;
   gddr6_available?: boolean;
   gddr6_reason?: string;
+  gddr6_patch_error?: string | null;
   gddr6_chips?: { chip: number; temperature_c: number }[];
   gddr6_average_c?: number | null;
   gddr6_hotspot_c?: number | null;
@@ -803,52 +804,32 @@ function SubNav<T extends string>({ value, onChange, items }: { value: T; onChan
   </Focusable>;
 }
 
-function Gddr6LiveToggle() {
+// The GDDR6 panel's own switch, one slim row: on starts a live session (and,
+// quietly, this boot's SMU patch when it is missing); off stops every GDDR6
+// read, so nothing reaches the SMU for it until it is turned on again.
+function Gddr6Switch() {
   const { gddr6 } = useContext(SettingsContext);
-  return <PadButton onActivate={() => gddr6.setLive(!gddr6.live)} style={{ alignItems: "center", display: "flex", fontSize: 10, height: 30, justifyContent: "space-between", marginBottom: 6, padding: "4px 9px", width: "100%" }}>
-    <span>{text.gddr6LiveButton}</span>
-    <span style={{ color: gddr6.live ? tokens.colors.green : tokens.colors.subtle, fontSize: 9 }}>{gddr6.live ? text.gddr6LiveLeft.replace("{minutes}", String(gddr6.minutesLeft)) : text.gddr6Off}</span>
+  const on = gddr6.live;
+  return <PadButton label="GDDR6" onActivate={() => gddr6.setLive(!on)} style={{ alignItems: "center", background: "transparent", border: "none", display: "flex", height: 22, justifyContent: "space-between", margin: "2px 0 4px", minHeight: 0, padding: "0 2px", width: "100%" }}>
+    <span style={{ color: tokens.colors.subtle, fontSize: 9, textTransform: "uppercase" }}>GDDR6</span>
+    <span style={{ background: on ? tokens.colors.green : tokens.colors.panel_raised, border: `1px solid ${on ? tokens.colors.green : tokens.colors.border}`, borderRadius: 8, display: "inline-block", height: 12, position: "relative", transition: "background .2s ease", width: 24 }}>
+      <span style={{ background: on ? "#FFFFFF" : tokens.colors.subtle, borderRadius: "50%", height: 8, left: on ? 13 : 2, position: "absolute", top: 1, transition: "left .2s ease", width: 8 }} />
+    </span>
   </PadButton>;
-}
-
-// Without this boot's SMU patch the memory cannot be read. The desktop's
-// "Monitor live" applies it; here the player may apply it too, after a risk
-// confirmation, through the same reviewed helper. It lasts until reboot.
-function Gddr6PatchRow({ state }: { state: Status }) {
-  const { gddr6 } = useContext(SettingsContext);
-  const [patching, setPatching] = useState(false);
-  const [patchError, setPatchError] = useState<string | null>(null);
-  if (state.gddr6_reason !== "GDDR6_PATCH_INACTIVE" || state.gddr6_firmware_supported === false) return null;
-  const apply = async () => {
-    setPatching(true); setPatchError(null);
-    try {
-      const result = await applyGddr6Patch();
-      if (result.ok === false) setPatchError(result.error ?? text.error);
-      else { const { ok: _ok, protocol: _protocol, error: _error, ...fields } = result; gddr6.merge(fields as Partial<Status>); }
-    } catch (error) { setPatchError(failed(error).error ?? text.error); }
-    finally { setPatching(false); }
-  };
-  const confirm = () => showModal(<ConfirmModal strTitle={text.gddr6PatchTitle} strDescription={text.gddr6PatchConfirm} strOKButtonText={text.gddr6PatchOk} bDestructiveWarning onOK={() => void apply()} />);
-  return <div style={{ marginBottom: 6 }}>
-    <div style={{ color: tokens.colors.amber, fontSize: 10, lineHeight: 1.4, margin: "0 2px 6px" }}>{text.gddr6PatchInactive}</div>
-    <PadButton disabled={patching} onActivate={confirm} style={{ fontSize: 10, height: 30, padding: "4px 9px", width: "100%" }}>{patching ? text.gddr6Patching : text.gddr6PatchButton}</PadButton>
-    {patchError ? <div style={{ color: tokens.colors.red, fontSize: 9, lineHeight: 1.35, margin: "5px 2px 0", overflowWrap: "anywhere" }}>{patchError}</div> : null}
-  </div>;
 }
 
 function Gddr6Panel({ state }: { state: Status }) {
   const panelContext = useContext(SettingsContext);
   const accent = ACCENT_SWATCHES[panelContext.settings.accent];
-  if (!panelContext.gddr6.live) return <div style={{ margin: "2px 0 6px" }}><div style={{ color: tokens.colors.subtle, fontSize: 9, margin: "4px 2px 4px", textTransform: "uppercase" }}>GDDR6</div><Gddr6LiveToggle /></div>;
+  if (!panelContext.gddr6.live) return <div style={{ marginBottom: 6 }}><Gddr6Switch /></div>;
   const chips = state.gddr6_chips ?? [];
   const available = Boolean(state.gddr6_available) && chips.length > 0;
-  return <div style={{ margin: "2px 0 6px" }}>
-    <div style={{ color: tokens.colors.subtle, fontSize: 9, margin: "4px 2px 4px", textTransform: "uppercase" }}>GDDR6</div>
-    <Gddr6LiveToggle />
+  return <div style={{ marginBottom: 6 }}>
+    <Gddr6Switch />
     {!available
-      ? state.gddr6_reason === "GDDR6_PATCH_INACTIVE" && state.gddr6_firmware_supported !== false
-        ? <Gddr6PatchRow state={state} />
-        : <div style={{ color: tokens.colors.amber, fontSize: 10, lineHeight: 1.4, margin: "0 2px 6px" }}>{text.gddr6Unavailable}</div>
+      ? state.gddr6_patch_error
+        ? <div style={{ color: tokens.colors.red, fontSize: 9, lineHeight: 1.35, margin: "0 2px 6px", overflowWrap: "anywhere" }}>{state.gddr6_patch_error.replace(/^QUICK_ACCESS_GDDR6:\s*/, "")}</div>
+        : <div style={{ color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 6px" }}>{state.gddr6_reason === "GDDR6_PATCH_INACTIVE" ? text.gddr6Patching : text.gddr6Unavailable}</div>
       : <>
         <MetricGrid tiles={[
           { label: "AVG", value: state.gddr6_average_c != null ? `${state.gddr6_average_c.toFixed(1)} °C` : "—" },
@@ -1541,6 +1522,22 @@ function Content() {
     const timer = globalThis.setInterval(() => void sampleGddr6(), settings.refreshIntervalMs * 2);
     return () => globalThis.clearInterval(timer);
   }, [sampleGddr6, settings.refreshIntervalMs, gddr6Live, gddr6Paused]);
+  // Turning GDDR6 on applies this boot's SMU patch when it is missing,
+  // quietly and once per session; a refusal shows in the panel.
+  const gddr6PatchTried = useRef(false);
+  useEffect(() => { if (!gddr6Live) gddr6PatchTried.current = false; }, [gddr6Live]);
+  useEffect(() => {
+    if (!gddr6Live || gddr6Paused || gddr6PatchTried.current) return;
+    if (state.gddr6_reason !== "GDDR6_PATCH_INACTIVE" || state.gddr6_firmware_supported === false) return;
+    gddr6PatchTried.current = true;
+    void (async () => {
+      try {
+        const result = await applyGddr6Patch();
+        if (result.ok === false) setState((current) => ({ ...current, gddr6_patch_error: result.error ?? text.error }));
+        else { const { ok: _ok, protocol: _protocol, error: _error, ...fields } = result; setState((current) => ({ ...current, ...fields, gddr6_patch_error: null })); }
+      } catch (error) { setState((current) => ({ ...current, gddr6_patch_error: failed(error).error ?? text.error })); }
+    })();
+  }, [gddr6Live, gddr6Paused, state.gddr6_reason, state.gddr6_firmware_supported]);
 
   const execute = async (title: string, operation: () => Promise<Result>, kind: DraftKind = "none", cpuProgress?: { target: number; manual: boolean }) => {
     if (busyRef.current) return; busyRef.current = true; setBusy(true);
@@ -1882,19 +1879,12 @@ function SettingsTab({ settings, setSettings, state, busy, execute }: {
   execute: (title: string, operation: () => Promise<Result>, kind?: DraftKind) => Promise<void>;
 }) {
   const accent = ACCENT_SWATCHES[settings.accent];
-  const { gddr6 } = useContext(SettingsContext);
   return <>
     <section style={{ marginBottom: 12 }}>
       <SectionTitle kind="gpu" title="GPU" />
       <HighPointsSwitch state={state} busy={busy} execute={execute} />
     </section>
 
-    <section style={{ marginBottom: 12 }}>
-      <SectionTitle kind="settings" title="GDDR6" />
-      <div style={{ background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, fontSize: 11, overflow: "hidden" }}>
-        <ToggleField label={text.gddr6Monitoring} description={gddr6.live ? `${text.gddr6LiveLeft.replace("{minutes}", String(gddr6.minutesLeft))} · ${text.gddr6MonitoringHint}` : text.gddr6MonitoringHint} layout="inline" bottomSeparator="none" highlightOnFocus checked={gddr6.live} onChange={(checked: boolean) => gddr6.setLive(checked)} />
-      </div>
-    </section>
 
     <section style={{ marginBottom: 12 }}>
       <SectionTitle kind="settings" title={text.accentColor} />
