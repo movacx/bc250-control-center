@@ -98,3 +98,27 @@ def test_the_gpu_memory_limit_goes_through_the_desktops_helper():
     assert "SYSTEM_SETUP_HELPER" in helper
     assert '_system_setup_json(["ttm-apply", "--ttm", value]' in helper
     assert "/sys/module/ttm/parameters/pages_limit\").write" not in helper
+
+
+def test_card_names_and_tags_fit_a_profile_card_in_every_language():
+    """A GPU/CPU profile card is about 96 px wide: no unbroken word may outgrow it.
+
+    The tag must stay short too; a long one would cover the name in the corner.
+    """
+    catalogs = {path.stem: json.loads(path.read_text(encoding="utf-8")) for path in LOCALE_ROOT.glob("*.json")}
+    names = ("profileBalanced", "profileGaming", "profileBenchmark",
+             "cpuPresetBoardAverage", "cpuPresetMidPoint", "cpuPresetSafeMaximum")
+    for language, catalog in catalogs.items():
+        for key in names:
+            for word in re.split(r"[\s\-]+", catalog[key]):
+                assert len(word) <= 12, (language, key, word)
+        assert len(catalog["current"]) <= 8, (language, catalog["current"])
+
+
+def test_every_language_keeps_the_same_placeholders():
+    catalogs = {path.stem: json.loads(path.read_text(encoding="utf-8")) for path in LOCALE_ROOT.glob("*.json")}
+    english = catalogs["en"]
+    for key, value in english.items():
+        expected = sorted(re.findall(r"\{[a-zA-Z_]+\}", value))
+        for language, catalog in catalogs.items():
+            assert sorted(re.findall(r"\{[a-zA-Z_]+\}", catalog[key])) == expected, (language, key)

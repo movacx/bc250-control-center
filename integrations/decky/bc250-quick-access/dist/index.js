@@ -863,7 +863,7 @@ var serviceStarting$7 = "Startet oder scheitert beim Start · neuer Versuch";
 var governorStopped$7 = "Der Governor-Dienst läuft nicht. Unten „Dienst aktivieren“ verwenden.";
 var governorUnresponsive$7 = "Cyan antwortet nicht (die Auslastungsmessung \"process\" blockiert ihn bei laufendem Spiel). Bereichssteuerungen schlagen fehl, bis er antwortet; Auslastungsmessung auf busy-flag stellen.";
 var compatStaged$7 = "Cyan läuft nicht: Die Änderung wird gespeichert und Cyan damit neu gestartet (falls aktiviert) oder beim nächsten Start verwendet.";
-var cpuPresetBoardAverage$7 = "Durchschnittsboard";
+var cpuPresetBoardAverage$7 = "Board-Durchschnitt";
 var cpuPresetMidPoint$7 = "Mittelwert";
 var cpuPresetSafeMaximum$7 = "Sicheres Maximum";
 var cuKernelManaged$7 = "Der BC-250-Kernel verwaltet die Compute Units (bc250_cc_write_mode=3) und hat beim Start alle freigeschaltet. Dieser Tab ist schreibgeschützt; schalte die Kernel-CU-Freischaltung im Desktop-Modus ab, um das Routing zu ändern.";
@@ -2975,7 +2975,7 @@ var diagnosticCode$3 = "Kod diagnostyczny";
 var disableHighPoints$3 = "Wyłącz punkty >2000 MHz";
 var disableService$3 = "Wyłącz usługę";
 var disableServiceHint$3 = "Zatrzymuje regulator {name} i usuwa go z autostartu. GPU pracuje na zegarach sterownika, dopóki regulator znów nie zadziała.";
-var disabled$3 = "Niepełnosprawny";
+var disabled$3 = "Wyłączony";
 var editProfile$3 = "Edytuj profil";
 var elapsed$3 = "Upłynął";
 var enableHighPoints$3 = "Włącz punkty >2000 MHz";
@@ -3061,7 +3061,7 @@ var persistent$3 = "Trwałe";
 var personalization$3 = "Personalizacja";
 var power$3 = "ZASILANIE";
 var profileBalanced$3 = "Zrównoważony";
-var profileBenchmark$3 = "Punkt odniesienia";
+var profileBenchmark$3 = "Benchmark";
 var profileGaming$3 = "Gry";
 var profileRecovery$3 = "Odzyskiwanie";
 var protocolAction$3 = "Napraw Szybki dostęp w trybie pulpitu, a następnie uruchom ponownie moduł ładujący Decky.";
@@ -3628,7 +3628,7 @@ var persistent$2 = "Persistente";
 var personalization$2 = "Personalização";
 var power$2 = "ENERGIA";
 var profileBalanced$2 = "Equilibrado";
-var profileBenchmark$2 = "Referência";
+var profileBenchmark$2 = "Benchmark";
 var profileGaming$2 = "Jogos";
 var profileRecovery$2 = "Recuperação";
 var protocolAction$2 = "Repare o acesso rápido no modo desktop e reinicie o Decky Loader.";
@@ -3681,7 +3681,7 @@ var voltageApplyPoints$2 = "Aplicar pontos";
 var voltageConfirm$2 = "O governador Cyan reinicia para ler a nova curva e depois o seu intervalo de frequência atual é restaurado. Teste a estabilidade antes de confiar nela.";
 var voltageCustom$2 = "Personalizado";
 var voltageDiscard$2 = "Descartar";
-var voltageGovernor$2 = "Governador";
+var voltageGovernor$2 = "Governor";
 var voltageHint$2 = "Só acrescenta tensão aos pontos a partir de 2000 MHz. Abaixo, ajuste um ponto em passos de 5 mV; o valor do governador é o mínimo.";
 var voltageLab$2 = "Laboratório de tensão";
 var voltageNeedsCyan$2 = "Inicie o governador Cyan para alterar a curva de tensão.";
@@ -4194,8 +4194,8 @@ var perGameProfiles$1 = "Профили для игр";
 var persistent$1 = "Постоянно";
 var personalization$1 = "Персонализация";
 var power$1 = "ПИТАНИЕ";
-var profileBalanced$1 = "Сбалансированный";
-var profileBenchmark$1 = "Тест производительности";
+var profileBalanced$1 = "Баланс";
+var profileBenchmark$1 = "Бенчмарк";
 var profileGaming$1 = "Игровой";
 var profileRecovery$1 = "Восстановление";
 var protocolAction$1 = "Восстановите быстрый доступ в режиме рабочего стола, затем перезапустите загрузчик Decky.";
@@ -4248,7 +4248,7 @@ var voltageApplyPoints$1 = "Применить точки";
 var voltageConfirm$1 = "Губернатор Cyan перезапустится, чтобы прочитать новую кривую, затем текущий диапазон частот будет восстановлен. Проверьте стабильность, прежде чем полагаться на неё.";
 var voltageCustom$1 = "Своя";
 var voltageDiscard$1 = "Отменить";
-var voltageGovernor$1 = "Губернатор";
+var voltageGovernor$1 = "Governor";
 var voltageHint$1 = "Повышает напряжение только для точек от 2000 МГц. Ниже можно менять одну точку шагом 5 мВ; значение губернатора — нижняя граница.";
 var voltageLab$1 = "Лаборатория напряжения";
 var voltageNeedsCyan$1 = "Запустите губернатор Cyan, чтобы изменить кривую напряжения.";
@@ -4761,8 +4761,8 @@ var perGameProfiles = "Профілі для ігор";
 var persistent = "Постійно";
 var personalization = "Персоналізація";
 var power = "ЖИВЛЕННЯ";
-var profileBalanced = "Збалансований";
-var profileBenchmark = "Тест продуктивності";
+var profileBalanced = "Баланс";
+var profileBenchmark = "Бенчмарк";
 var profileGaming = "Ігровий";
 var profileRecovery = "Відновлення";
 var protocolAction = "Відновіть швидкий доступ у режимі робочого столу, а потім перезапустіть Decky Loader.";
@@ -4815,7 +4815,7 @@ var voltageApplyPoints = "Застосувати точки";
 var voltageConfirm = "Губернатор Cyan перезапуститься, щоб прочитати нову криву, потім поточний діапазон частот буде відновлено. Перевірте стабільність, перш ніж на неї покладатися.";
 var voltageCustom = "Власна";
 var voltageDiscard = "Скасувати";
-var voltageGovernor = "Губернатор";
+var voltageGovernor = "Governor";
 var voltageHint = "Підвищує напругу лише для точок від 2000 МГц. Нижче можна змінювати одну точку кроком 5 мВ; значення губернатора — нижня межа.";
 var voltageLab = "Лабораторія напруги";
 var voltageNeedsCyan = "Запустіть губернатор Cyan, щоб змінити криву напруги.";
@@ -5366,12 +5366,21 @@ function presetLabel(key, presets) {
         return exported;
     return key === "quiet" ? text.fanQuiet : key === "balanced" ? text.fanBalanced : key === "boost" ? text.fanBoost : key;
 }
+// The built-in ladder arrives with English names; a name the player gave a card on
+// the desktop is shown as written, the built-in ones in the panel's language.
+const BUILT_IN_GPU_NAMES = {
+    Balanced: () => text.profileBalanced, Gaming: () => text.profileGaming, Benchmark: () => text.profileBenchmark,
+};
+function gpuProfileName(profile) {
+    const builtIn = /^(oberon-\d+|balanced|gaming|benchmark)$/.test(profile.key) ? BUILT_IN_GPU_NAMES[profile.name] : undefined;
+    return builtIn ? builtIn() : profile.name;
+}
 function gpuLabel(key, profiles) {
     if (!key)
         return text.unchanged;
-    const named = profiles?.find((profile) => profile.key === key)?.name;
-    if (named)
-        return named;
+    const found = profiles?.find((profile) => profile.key === key);
+    if (found)
+        return gpuProfileName(found);
     if (key === "balanced")
         return text.profileBalanced;
     if (key === "gaming")
@@ -5754,11 +5763,11 @@ function ScrollStop({ children, end = false }) {
 // quieter form, a small dot (CPU).
 function ProfileCard({ title, detail, tagged = false, current, disabled, preferredFocus, onActivate }) {
     const accent = useAccent();
-    return SP_JSX.jsxs(PadButton, { label: title, disabled: disabled, preferredFocus: preferredFocus, onActivate: onActivate, style: { alignItems: "stretch", background: current ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, display: "flex", flexDirection: "column", gap: 3, height: tagged ? 46 : 54, justifyContent: "center", minWidth: 0, overflow: "visible", padding: "6px 8px", position: "relative", textAlign: "left", width: "100%" }, children: [current
+    return SP_JSX.jsxs(PadButton, { label: title, disabled: disabled, preferredFocus: preferredFocus, onActivate: onActivate, style: { alignItems: "stretch", background: current ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, display: "flex", flexDirection: "column", gap: 3, height: tagged ? 60 : 54, justifyContent: tagged ? "flex-end" : "center", minWidth: 0, padding: "6px 8px 7px", position: "relative", textAlign: "left", width: "100%" }, children: [current
                 ? tagged
-                    ? SP_JSX.jsx("span", { style: { background: accent.focus, borderRadius: 7, boxShadow: `0 0 0 2px ${tokens.colors.panel}`, color: tokens.colors.window, fontSize: 7, fontWeight: 800, letterSpacing: .4, padding: "1px 5px", position: "absolute", right: 6, top: -6 }, children: text.current })
+                    ? SP_JSX.jsx("span", { style: { background: accent.focus, borderRadius: 7, color: tokens.colors.window, fontSize: 7, fontWeight: 800, letterSpacing: .4, padding: "1px 5px", position: "absolute", right: 6, top: 6 }, children: text.current })
                     : SP_JSX.jsx("span", { style: { background: accent.focus, borderRadius: "50%", height: 6, position: "absolute", right: 8, top: 8, width: 6 } })
-                : null, SP_JSX.jsxs("span", { style: { display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }, children: [SP_JSX.jsx("span", { style: { WebkitBoxOrient: "vertical", WebkitLineClamp: tagged ? 1 : 2, color: current ? accent.focus : tokens.colors.text, display: "-webkit-box", fontSize: 10.5, fontWeight: 650, lineHeight: 1.15, overflow: "hidden", paddingRight: current && !tagged ? 8 : 0 }, children: title }), SP_JSX.jsx("span", { style: { color: tokens.colors.subtle, fontSize: 8.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: detail })] })] });
+                : null, SP_JSX.jsxs("span", { style: { display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }, children: [SP_JSX.jsx("span", { style: { WebkitBoxOrient: "vertical", WebkitLineClamp: 2, color: current ? accent.focus : tokens.colors.text, display: "-webkit-box", fontSize: 10.5, fontWeight: 650, lineHeight: 1.15, overflow: "hidden", overflowWrap: "anywhere", paddingRight: current && !tagged ? 8 : 0 }, children: title }), SP_JSX.jsx("span", { style: { color: tokens.colors.subtle, fontSize: 8.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: detail })] })] });
 }
 // 500 -> "0.5", 1850 -> "1.85", 2000 -> "2": gigahertz without trailing zeros.
 const ghz = (mhz) => String(Number((mhz / 1000).toFixed(2)));
@@ -6584,7 +6593,7 @@ function Content() {
                             ] }), busy && boardSection !== "cpu" ? SP_JSX.jsxs("div", { style: { alignItems: "center", background: accent.focus_soft, border: `1px solid ${accent.focus}`, borderRadius: 7, color: accent.focus, display: "flex", fontSize: 10, gap: 6, marginBottom: 10, padding: "7px 9px" }, children: [SP_JSX.jsx(FaClock, {}), text.operationInProgress] }) : null, boardSection === "gpu" ? SP_JSX.jsxs("section", { style: { marginBottom: 12 }, children: [SP_JSX.jsx(SectionTitle, { kind: "gpu", title: "GPU", trailing: governorName ? SP_JSX.jsx("span", { style: { color: tokens.colors.subtle, fontSize: 9 }, children: governorName }) : undefined }), !loaded ? SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 10, marginBottom: 6 }, children: text.loadingGpu }) : SP_JSX.jsxs(SP_JSX.Fragment, { children: [gpuReady && state.gpu_dbus_responsive === false ? SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 9, marginBottom: 6 }, children: text.governorUnresponsive }) : null, !gpuReady ? SP_JSX.jsx("div", { style: { color: state.gpu_governor === "conflict" ? tokens.colors.red : tokens.colors.amber, fontSize: 9, marginBottom: 6 }, children: state.gpu_governor === "conflict" ? text.governorConflict : state.gpu_service_installed ? text.governorStopped : text.governorMissing }) : null, SP_JSX.jsx(DFL.Focusable, { "flow-children": "grid", navEntryPreferPosition: DFL.NavEntryPositionPreferences.PREFERRED_CHILD, style: { display: "grid", gap: 6, gridTemplateColumns: `repeat(${activeGpuProfiles.length || 1},minmax(0,1fr))`, marginBottom: 6 }, children: activeGpuProfiles.map((profile) => {
                                                 const current = state.gpu_range?.[0] === profile.min && state.gpu_range?.[1] === profile.max && (state.gpu_governor !== "cyan" || state.gpu_performance_enabled === false);
                                                 const allowed = Boolean(state.gpu_allowed_range && state.gpu_allowed_range[0] <= profile.min && profile.max <= state.gpu_allowed_range[1]);
-                                                return SP_JSX.jsx(ProfileCard, { title: profile.name, detail: `${ghz(profile.min)}–${ghz(profile.max)} GHz`, tagged: true, current: current, disabled: busy || !gpuReady || !allowed, preferredFocus: profile.key === (state.gpu_governor === "oberon" ? "oberon-1850" : "balanced"), onActivate: () => { void execute(`GPU · ${profile.name}`, () => applyGpuProfile(profile.key), "gpu"); } }, profile.key);
+                                                return SP_JSX.jsx(ProfileCard, { title: gpuProfileName(profile), detail: `${ghz(profile.min)}–${ghz(profile.max)} GHz`, tagged: true, current: current, disabled: busy || !gpuReady || !allowed, preferredFocus: profile.key === (state.gpu_governor === "oberon" ? "oberon-1850" : "balanced"), onActivate: () => { void execute(`GPU · ${profile.name}`, () => applyGpuProfile(profile.key), "gpu"); } }, profile.key);
                                             }) }), points.length || state.gpu_governor === "cyan" ? SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(DisclosureRow, { label: text.more, value: points.length ? text.enabled : text.disabled, open: highOpen, disabled: busy || !gpuReady, onActivate: () => setHighOpen(!highOpen) }), highOpen ? SP_JSX.jsxs(Drawer, { children: [SP_JSX.jsx(HighPointsSwitch, { state: state, busy: busy, execute: execute }), points.length ? SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(Divider, {}), SP_JSX.jsx(DrawerLabel, { children: text.advanced }), SP_JSX.jsx(DFL.Focusable, { "flow-children": "grid", navEntryPreferPosition: DFL.NavEntryPositionPreferences.PREFERRED_CHILD, style: { display: "grid", gap: 5, gridTemplateColumns: "repeat(3,minmax(0,1fr))", marginBottom: 4 }, children: points.map((point, index) => {
                                                                         const current = point.frequency === liveHighPoint?.frequency;
                                                                         const allowed = Boolean(state.gpu_allowed_range && point.frequency <= state.gpu_allowed_range[1]);
@@ -6693,7 +6702,7 @@ function GameProfileCard({ state, busy }) {
     });
     const pill = (icon, label) => SP_JSX.jsxs("span", { style: { alignItems: "center", background: tokens.colors.panel_raised, borderRadius: 10, color: tokens.colors.muted, display: "inline-flex", fontSize: 9, gap: 4, maxWidth: "100%", padding: "2px 8px 2px 6px" }, children: [icon, SP_JSX.jsx("span", { style: { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: label })] });
     const profilePills = (entry) => SP_JSX.jsxs("span", { style: { display: "flex", flexWrap: "wrap", gap: 4 }, children: [pill(SP_JSX.jsx(LuMicrochip, { strokeWidth: 1.75 }), gpuLabel(entry.gpu, gpuProfiles)), pill(SP_JSX.jsx(LuFan, { strokeWidth: 1.75 }), presetLabel(entry.fan, fanPresets))] });
-    const gpuOptions = [{ key: "none", label: text.unchanged }, ...gpuProfiles.map((profile) => ({ key: profile.key, label: profile.name }))];
+    const gpuOptions = [{ key: "none", label: text.unchanged }, ...gpuProfiles.map((profile) => ({ key: profile.key, label: gpuProfileName(profile) }))];
     const fanOptions = [{ key: "none", label: text.unchanged }, ...["quiet", "balanced", "boost", "automatic"].map((key) => ({ key, label: presetLabel(key, fanPresets) }))];
     return SP_JSX.jsxs("section", { style: { background: tokens.colors.panel_alt, border: `1px solid ${active ? accent.focus : tokens.colors.border}`, borderRadius: 10, marginBottom: 10, padding: "8px 8px 4px" }, children: [SP_JSX.jsx(SectionTitle, { kind: "game", title: text.perGameProfiles, trailing: active ? SP_JSX.jsx("span", { style: { background: accent.focus_soft, borderRadius: 8, color: accent.focus, fontSize: 8, fontWeight: 800, letterSpacing: .4, padding: "1px 6px" }, children: text.gameProfileActive }) : undefined }), SP_JSX.jsx(SwitchRow, { label: text.applyAutomatically, checked: enabled, disabled: working, onChange: toggle }), !game ? SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9.5, lineHeight: 1.4, margin: "0 8px 8px" }, children: text.gameNotRunning }) : SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsxs("div", { style: { background: tokens.colors.panel, borderRadius: 8, display: "flex", flexDirection: "column", gap: 5, margin: "2px 0 8px", padding: "8px 9px" }, children: [SP_JSX.jsxs("div", { style: { alignItems: "center", display: "flex", gap: 6 }, children: [SP_JSX.jsx(LuGamepad2, { strokeWidth: 1.5, color: active ? accent.focus : tokens.colors.subtle }), SP_JSX.jsx("span", { style: { color: tokens.colors.text, flex: 1, fontSize: 12, fontWeight: 700, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: game.name })] }), saved ? profilePills(saved) : SP_JSX.jsx("span", { style: { color: tokens.colors.subtle, fontSize: 9 }, children: text.gameNoProfile })] }), !editing ? SP_JSX.jsxs(ActionRow, { marginBottom: 8, children: [SP_JSX.jsx(Action, { label: saved ? text.editProfile : text.assignProfile, primary: !saved, disabled: working || busy, onActivate: beginEdit }), saved ? SP_JSX.jsx(Action, { label: text.removeGame, danger: true, disabled: working, onActivate: () => remove(saved.app_id) }) : null] }) : SP_JSX.jsxs(Drawer, { children: [SP_JSX.jsx(DrawerLabel, { children: "GPU" }), SP_JSX.jsx(Segmented, { disabled: working, value: draftGpu ?? "none", columns: Math.min(4, gpuOptions.length), onChange: (key) => setDraftGpu(key === "none" ? null : key), options: gpuOptions }), SP_JSX.jsx(DrawerLabel, { children: text.fans }), SP_JSX.jsx(Segmented, { disabled: working, value: draftFan ?? "none", columns: 3, onChange: (key) => setDraftFan(key === "none" ? null : key), options: fanOptions }), SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, lineHeight: 1.35, margin: "0 2px 8px" }, children: text.gameCpuNote }), SP_JSX.jsxs(ActionRow, { marginBottom: 2, children: [SP_JSX.jsx(Action, { label: text.gameProfileSave, primary: true, disabled: working || (!draftGpu && !draftFan), onActivate: save }), SP_JSX.jsx(Action, { label: text.cancel, disabled: working, onActivate: () => setEditing(false) })] })] })] }), SP_JSX.jsx(DisclosureRow, { label: text.savedGames, value: String(games.length), open: listOpen, onActivate: () => setListOpen(!listOpen) }), listOpen ? SP_JSX.jsx("div", { style: { background: tokens.colors.panel, borderRadius: 8, marginBottom: 6, padding: "2px 8px" }, children: SP_JSX.jsx(DFL.Focusable, { "flow-children": "down", children: !games.length ? SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, padding: "7px 0" }, children: text.gamesEmpty }) : games.map((entry, index) => SP_JSX.jsxs(DFL.Focusable, { "flow-children": "row", style: { alignItems: "center", borderTop: index ? `1px solid ${tokens.colors.border_soft}` : "none", display: "grid", gap: 8, gridTemplateColumns: "1fr 30px", padding: "6px 0" }, children: [SP_JSX.jsxs("div", { style: { display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }, children: [SP_JSX.jsx("span", { style: { fontSize: 10.5, fontWeight: 650, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, children: entry.name || appName(Number(entry.app_id)) }), profilePills(entry)] }), SP_JSX.jsx(PadButton, { label: text.removeGame, disabled: working, onActivate: () => remove(entry.app_id), style: { alignItems: "center", background: tokens.colors.red_soft, border: `1px solid ${tokens.colors.red_soft}`, color: tokens.colors.red, display: "flex", fontSize: 14, height: 30, justifyContent: "center", padding: 0, width: "100%" }, children: SP_JSX.jsx(LuTrash2, { strokeWidth: 1.75 }) })] }, entry.app_id)) }) }) : null] });
 }
