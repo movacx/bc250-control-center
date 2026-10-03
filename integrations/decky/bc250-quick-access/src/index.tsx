@@ -919,14 +919,14 @@ function ScrollStop({ children, end = false }: { children?: ReactNode; end?: boo
 // quieter form, a small dot (CPU).
 function ProfileCard({ title, detail, tagged = false, current, disabled, preferredFocus, onActivate }: { title: string; detail: string; tagged?: boolean; current: boolean; disabled: boolean; preferredFocus?: boolean; onActivate: () => void }) {
   const accent = useAccent();
-  return <PadButton label={title} disabled={disabled} preferredFocus={preferredFocus} onActivate={onActivate} style={{ alignItems: "stretch", background: current ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, display: "flex", flexDirection: "column", gap: 3, height: tagged ? 70 : 58, justifyContent: tagged ? "flex-end" : "center", minWidth: 0, padding: "7px 8px 8px", position: "relative", textAlign: "left", width: "100%" }}>
+  return <PadButton label={title} disabled={disabled} preferredFocus={preferredFocus} onActivate={onActivate} style={{ alignItems: "stretch", background: current ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, display: "flex", flexDirection: "column", gap: 3, height: tagged ? 46 : 54, justifyContent: "center", minWidth: 0, overflow: "visible", padding: "6px 8px", position: "relative", textAlign: "left", width: "100%" }}>
     {current
       ? tagged
-        ? <span style={{ background: accent.focus, borderRadius: 8, color: tokens.colors.window, fontSize: 7, fontWeight: 800, letterSpacing: .4, padding: "1px 5px", position: "absolute", right: 7, top: 7 }}>{text.current}</span>
+        ? <span style={{ background: accent.focus, borderRadius: 7, boxShadow: `0 0 0 2px ${tokens.colors.panel}`, color: tokens.colors.window, fontSize: 7, fontWeight: 800, letterSpacing: .4, padding: "1px 5px", position: "absolute", right: 6, top: -6 }}>{text.current}</span>
         : <span style={{ background: accent.focus, borderRadius: "50%", height: 6, position: "absolute", right: 8, top: 8, width: 6 }} />
       : null}
     <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
-      <span style={{ WebkitBoxOrient: "vertical", WebkitLineClamp: 2, color: current ? accent.focus : tokens.colors.text, display: "-webkit-box", fontSize: 10.5, fontWeight: 650, lineHeight: 1.15, overflow: "hidden", paddingRight: current && !tagged ? 8 : 0 }}>{title}</span>
+      <span style={{ WebkitBoxOrient: "vertical", WebkitLineClamp: tagged ? 1 : 2, color: current ? accent.focus : tokens.colors.text, display: "-webkit-box", fontSize: 10.5, fontWeight: 650, lineHeight: 1.15, overflow: "hidden", paddingRight: current && !tagged ? 8 : 0 }}>{title}</span>
       <span style={{ color: tokens.colors.subtle, fontSize: 8.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{detail}</span>
     </span>
   </PadButton>;
