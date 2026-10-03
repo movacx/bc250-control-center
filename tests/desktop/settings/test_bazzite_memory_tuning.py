@@ -112,3 +112,96 @@ def test_kernel_default_ttm_is_selectable_on_bazzite_after_a_generic_refresh(qtb
 
     assert owner.ttm_limit_combo.itemData(1) == -1
     assert owner.ttm_limit_combo.model().item(1).isEnabled()
+
+
+# ------------------------------------------ the GPU memory limit, everywhere
+
+
+def _owner(qtbot):
+    from frontends.desktop.pages.dashboard import DashboardPage
+
+    page = DashboardPage(object())
+    qtbot.addWidget(page)
+    return next(
+        widget for widget in (page, *page.findChildren(object))
+        if hasattr(widget, "ttm_limit_combo") and hasattr(widget, "memory_policy_combo")
+    )
+
+
+TTM = {
+    "supported": True, "backend": "limine", "reason": "", "page_size": 4096,
+    "presets_gib": [8, 10], "configured_pages": 2_097_152, "managed": True,
+    "managed_pages": 2_097_152, "external": False, "gtt_override": None,
+    "legacy_pages": None, "reboot_required": True,
+}
+
+
+def test_the_card_shows_what_the_next_boot_uses_from_the_state_game_mode_shares(qtbot):
+    from frontends.desktop.components.system_setup_controls import (
+        update_memory_controls,
+    )
+
+    owner = _owner(qtbot)
+    tools = {"os_family": "arch", "system_setup": {"helper_available": True, "ttm": TTM, "memory": {
+        "supported": True, "policies": ["preserve"], "ttm_available": True,
+        "ttm_restore_available": False,
+    }}}
+    update_memory_controls(owner, tools)
+    assert "8 GiB" in owner.memory_ttm_state.text() and "Reboot required" in owner.memory_ttm_state.text()
+    # Ours, so it can be restored; 12 GiB does not fit the next boot.
+    assert owner.ttm_limit_combo.model().item(1).isEnabled()
+    twelve = owner.ttm_limit_combo.findData(12)
+    assert not owner.ttm_limit_combo.model().item(twelve).isEnabled()
+    owner.ttm_limit_combo.setCurrentIndex(twelve)
+    update_memory_controls(owner, tools)
+    assert not owner.memory_ttm_apply_button.isEnabled()
+
+
+def test_a_system_that_cannot_keep_the_limit_says_why(qtbot):
+    from frontends.desktop.components.system_setup_controls import (
+        update_memory_controls,
+    )
+
+    owner = _owner(qtbot)
+    reason = "No Limine, GRUB or grubby boot configuration was found"
+    update_memory_controls(owner, {"os_family": "arch", "system_setup": {"helper_available": True, "ttm": {
+        **TTM, "supported": False, "reason": reason, "managed": False,
+    }, "memory": {"supported": True, "policies": ["preserve"], "ttm_available": True}}})
+    assert not owner.ttm_limit_combo.isEnabled()
+    assert reason in owner.memory_ttm_state.text()
+    assert reason in owner.memory_ttm_apply_button.toolTip()
+
+
+def test_the_limit_alone_runs_the_shared_helper_on_every_family_including_bazzite(monkeypatch):
+    from bc250cc.infrastructure import dependencias_repository as repository
+
+    opened = []
+
+    class Repository(repository.DependenciasRepository):
+        def __init__(self, family):
+            self.family = family
+
+        def _os_repository(self):
+            return type("Os", (), {"family": self.family})()
+
+        def _abrir_terminal(self, command, title="BC250 Control Center"):
+            opened.append((command, title))
+
+    for family in ("bazzite", "arch", "fedora"):
+        Repository(family).preparar_memoria("preserve", 10)
+    assert all("bc250-system-setup-helper ttm-apply --ttm 10" in command for command, _ in opened)
+    opened.clear()
+    Repository("bazzite").preparar_memoria("current", -1)
+    assert "ttm-apply --ttm -1" in opened[0][0]
+    # A swap profile on Bazzite still goes through its own reviewed workflow.
+    opened.clear()
+    Repository("bazzite").preparar_memoria("zswap-16", 0)
+    assert "rpm-ostree" in opened[0][0] and "ttm-apply" not in opened[0][0]
+
+
+def test_the_desktop_never_asks_the_helper_for_a_limit_of_zero():
+    from bc250cc.infrastructure.system_setup import command
+
+    with pytest.raises(ValueError):
+        command("ttm-apply", ttm_gib=0)
+    assert command("ttm-apply", ttm_gib=12).endswith("ttm-apply --ttm 12\n")

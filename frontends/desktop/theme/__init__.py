@@ -1446,6 +1446,61 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QFrame[dashboardPreparationInfo='true']:hover {{
         border-color: {c['border_strong']};
     }}
+    /* In a list row the buttons sit straight on the row. A second bordered
+       box around them made three nested outlines (list, panel, button). */
+    QFrame[dashboardPreparationInfo='true'][listRow='true'] QFrame[dashboardCompatibilityActions='true'],
+    QFrame[dashboardPreparationInfo='true'][listRow='true'] QFrame[dashboardCompatibilityState='true'] {{
+        background: transparent;
+        border: none;
+        border-radius: 0px;
+        padding: 0px;
+    }}
+    /* Boot options (mitigations, SMT, read-only): the card action sits on a
+       panel painted in panel_alt, so it is lifted a step like the ones in the
+       compatibility rows, and every state of it keeps the same shape. */
+    QFrame[dashboardBootPanel='true'] QPushButton[dashboardCardAction='true'] {{
+        min-height: 20px;
+        padding: 6px 12px;
+        border-radius: 9px;
+        background: {c['control']};
+        border: 1px solid {c['border_strong']};
+        color: {c['text']};
+        font-size: 11px;
+        font-weight: 720;
+    }}
+    QFrame[dashboardBootPanel='true'] QPushButton[dashboardCardAction='true']:hover,
+    QFrame[dashboardBootPanel='true'] QPushButton[dashboardCardAction='true']:focus {{
+        background: {c['control_hover']};
+        border-color: {c['blue_border']};
+        color: {c['blue']};
+    }}
+    QFrame[dashboardBootPanel='true'] QPushButton[dashboardCardAction='true'][dangerAction='true'] {{
+        background: {c['red_soft']};
+        border-color: {c['red_border']};
+        color: {c['red']};
+    }}
+    QFrame[dashboardBootPanel='true'] QPushButton[dashboardCardAction='true'][dangerAction='true']:hover,
+    QFrame[dashboardBootPanel='true'] QPushButton[dashboardCardAction='true'][dangerAction='true']:focus {{
+        background: {c['red_soft']};
+        border-color: {c['red']};
+        color: {c['red']};
+    }}
+    QFrame[dashboardCompatibilityGroupBox='true'] {{
+        background: {c['panel_alt']};
+        border: 1px solid {c['border_soft']};
+        border-radius: 11px;
+    }}
+    QFrame[dashboardPreparationInfo='true'][listRow='true'],
+    QFrame[dashboardPreparationInfo='true'][listRow='true']:hover {{
+        background: transparent;
+        border: none;
+        border-top: 1px solid {c['border_soft']};
+        border-radius: 0px;
+    }}
+    QFrame[dashboardPreparationInfo='true'][listRow='true'][listFirst='true'],
+    QFrame[dashboardPreparationInfo='true'][listRow='true'][listFirst='true']:hover {{
+        border-top: none;
+    }}
     /* The component checklist row is a checkbox and a one-line label — it
        does not need the same footprint as a full compatibility card, so it
        gets a tighter radius to read as a smaller, denser control. */
@@ -1466,6 +1521,25 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         border: 1px solid {c['border_soft']};
         border-radius: 9px;
         padding: 6px;
+    }}
+    QLabel[dashboardCompatibilityGroup='true'] {{
+        color: {c['subtle']};
+        font-size: 9px;
+        font-weight: 820;
+        letter-spacing: 0.9px;
+        padding: 14px 2px 2px 2px;
+    }}
+    QToolButton[dashboardDisclosure='true'] {{
+        background: transparent;
+        border: 0px;
+        color: {c['muted']};
+        font-size: 13px;
+        font-weight: 700;
+        padding: 0px 4px;
+    }}
+    QToolButton[dashboardDisclosure='true']:hover,
+    QToolButton[dashboardDisclosure='true']:focus {{
+        color: {c['text']};
     }}
     QLabel[dashboardCompatibilityLabel='true'] {{
         color: {c['muted']};
@@ -1864,6 +1938,14 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QPushButton[dangerAction='true']:hover {{
         background: {c['red_soft']};
         border-color: {c['red_border']};
+    }}
+    /* The generic danger button (8px 13px, radius 10) is declared after the
+       card action rule and won, so Uninstall / Remove came out taller than
+       the buttons beside them. In a card it keeps the card button's shape. */
+    QPushButton[dashboardCardAction='true'][dangerAction='true'] {{
+        padding: 6px 10px;
+        border-radius: 9px;
+        font-weight: 720;
     }}
     QPushButton[successAction='true'] {{
         background: {c['green_soft']};

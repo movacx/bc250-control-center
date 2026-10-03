@@ -53,7 +53,7 @@ def test_a_panel_reports_its_answers_in_the_shape_the_window_applies_them(qtbot,
 
 def test_the_shipped_tour_visits_pages_the_window_actually_has(qtbot, window):
     """A stop naming a page that does not exist would navigate nowhere."""
-    known = {"dashboard", "cpu", "gpu", "cu", "performance", "fans", "processes", "firmware"}
+    known = {"dashboard", "cpu", "gpu", "cu", "extras", "performance", "fans", "processes", "firmware"}
     for stop in tour_stops():
         assert stop.page in known, stop.page
 
@@ -77,11 +77,11 @@ def test_the_route_runs_in_the_order_the_modules_are_used(qtbot, window):
     and settings.
     """
     assert [stop.page for stop in tour_stops()] == [
-        "dashboard", "dashboard", "dashboard", "dashboard", "dashboard",
-        "dashboard", "dashboard", "dashboard", "dashboard", "dashboard",
+        "dashboard", "dashboard", "dashboard", "dashboard",
         "cpu", "cpu", "cpu", "cpu", "cpu",
         "gpu", "gpu", "gpu", "gpu", "gpu", "gpu",
         "cu", "cu",
+        "extras", "extras", "extras", "extras", "extras", "extras",
         "performance", "performance", "performance",
         "fans", "fans", "fans",
         "firmware", "firmware", "firmware", "firmware",

@@ -1,0 +1,2 @@
+#!/bin/bash
+echo "stub limine-mkinitcpio: regenerated"

@@ -22,6 +22,9 @@ def helper_module():
     # Most fixtures exercise the generic backend contract. Individual SteamOS
     # tests opt in explicitly so results never depend on the developer host.
     module.is_steamos = lambda: False
+    # Nor on the host's own kernel CU unlock (a linux-cachyos-bc250 board
+    # running bc250_cc_write_mode=3 would refuse every CU write test).
+    module.CU_WRITE_MODE_PARAMETER = Path("/nonexistent/bc250_cc_write_mode")
     # Nor on profiles the developer exported to Decky from this machine: the
     # loader reads a fixed /etc path, and a real export there changed which
     # range "gaming" meant and failed an unrelated test on that host only.
@@ -1650,7 +1653,7 @@ def test_cpu_manual_scale_invokes_only_audited_helper_and_verifies_active_eviden
     assert calls == [
         (
             [str(helper_module.CPU_HELPER), "apply-qam-scale", "3700", "-30", "90"],
-            {"timeout": 180},
+            {"timeout": 600},
         )
     ]
     assert json.loads(capsys.readouterr().out)["cpu_active_profile"] == active
@@ -1754,6 +1757,8 @@ def _systemd(states):
         if verb == "is-active":
             unit = command[-1]
             return subprocess.CompletedProcess(command, 0 if states.get(unit, {}).get("active") else 3, "", "")
+        if verb in {"reset-failed", "restart"}:
+            return subprocess.CompletedProcess(command, 0, "", "")
         if verb in {"enable", "disable"}:
             unit = command[-1]
             state = states.setdefault(unit, {})
@@ -1768,6 +1773,9 @@ def _systemd(states):
 @pytest.fixture()
 def governor_memory(helper_module, tmp_path, monkeypatch):
     """The remembered target, in a temporary directory the test owns."""
+    # Cyan's D-Bus answers whenever it runs; no real waiting in tests.
+    monkeypatch.setattr(helper_module, "cyan_range", lambda: (1000, 1850))
+    monkeypatch.setattr(helper_module.time, "sleep", lambda _seconds: None)
     remembered = tmp_path / "quick-access-gpu-governor"
     monkeypatch.setattr(helper_module, "trusted_file", lambda path, **_k: Path(path).is_file())
     monkeypatch.setattr(helper_module, "trusted_directory", lambda path: Path(path).is_dir())
@@ -1874,3 +1882,280 @@ def test_gpu_service_reports_a_governor_that_dies_after_enable(
 
     assert helper_module.gpu_service_action("enable") == 69
     assert "did not stay running" in capsys.readouterr().err
+
+
+def test_gpu_service_restarts_a_governor_stuck_in_a_restart_loop(
+    helper_module, monkeypatch, capsys, governor_memory
+):
+    cyan = helper_module.CYAN_SERVICE
+    states = {cyan: {"installed": True, "enabled": True}}
+    run, calls = _systemd(states)
+
+    def looping(command, **kwargs):
+        result = run(command, **kwargs)
+        if command[1] == "enable":
+            states[cyan]["active"] = False  # enable --now is a no-op for it
+        if command[1] == "restart":
+            states[cyan]["active"] = True
+        return result
+
+    monkeypatch.setattr(helper_module, "run", looping)
+
+    assert helper_module.gpu_service_action("enable") == 0
+    assert ["/usr/bin/systemctl", "reset-failed", cyan] in calls
+    assert ["/usr/bin/systemctl", "restart", "--no-block", cyan] in calls
+
+
+def test_cyan_that_never_publishes_its_dbus_range_is_not_reported_running(
+    helper_module, monkeypatch, capsys, governor_memory
+):
+    cyan = helper_module.CYAN_SERVICE
+    run, _calls = _systemd({cyan: {"installed": True}})
+    monkeypatch.setattr(helper_module, "run", run)
+    monkeypatch.setattr(helper_module, "cyan_range", lambda: None)
+    monkeypatch.setattr(helper_module, "GOVERNOR_SERVICE_START_SECONDS", 0.0)
+
+    assert helper_module.gpu_service_action("enable") == 69
+    assert "did not stay running" in capsys.readouterr().err
+
+
+def test_activating_governor_is_starting_not_running(helper_module, monkeypatch):
+    def run(command, **_kwargs):
+        return subprocess.CompletedProcess(
+            command, 0, "LoadState=loaded\nUnitFileState=enabled\nActiveState=activating\n", "",
+        )
+
+    monkeypatch.setattr(helper_module, "run", run)
+    state = helper_module.governor_unit_state(helper_module.CYAN_SERVICE)
+    assert state["active"] is False and state["starting"] is True
+
+
+def test_a_program_that_does_not_answer_fails_the_command_not_the_whole_action(
+    helper_module, monkeypatch
+):
+    """Cyan stops answering D-Bus under its 'process' usage reading; one slow
+    busctl used to escape as TimeoutExpired and fail the entire status read."""
+
+    def hang(command, **_kwargs):
+        raise subprocess.TimeoutExpired(command, 8, output="partial", stderr=None)
+
+    monkeypatch.setattr(helper_module.subprocess, "run", hang)
+    result = helper_module.run(["/usr/bin/busctl", "get-property"], timeout=8)
+    assert result.returncode == 124
+    assert result.stdout == "partial"
+    assert "timed out after 8s" in result.stderr
+    # The readers built on it report 'unknown', never raise.
+    assert helper_module.cyan_range() is None
+    assert helper_module.cyan_allowed_range() is None
+
+
+def _write_cyan_config(path, body):
+    path.write_text(body, encoding="utf-8")
+
+
+def test_cyan_compatibility_reads_the_four_settings_with_the_governors_defaults(
+    helper_module, tmp_path, monkeypatch
+):
+    monkeypatch.setattr(helper_module, "trusted_directory", lambda _path: True)
+    monkeypatch.setattr(helper_module, "trusted_file", lambda _path, **_kw: True)
+    config = tmp_path / "config.toml"
+    _write_cyan_config(config, "[gpu]\n")
+    assert helper_module.cyan_compatibility(config) == {
+        "set_method": "smu", "usage_method": "busy-flag",
+        "fix_metrics": True, "fix_frequency": False,
+    }
+    _write_cyan_config(
+        config,
+        '[gpu]\nset-method = "kernel"\n[gpu-usage]\nmethod = "process"\nfix-metrics = false\nfix-freq = true\n',
+    )
+    assert helper_module.cyan_compatibility(config) == {
+        "set_method": "kernel", "usage_method": "process",
+        "fix_metrics": False, "fix_frequency": True,
+    }
+    _write_cyan_config(config, '[gpu-usage]\nmethod = "bogus"\n')
+    assert helper_module.cyan_compatibility(config) is None
+
+
+def _compat_systemd(helper_module, monkeypatch, *, active, enabled=True, starts=lambda settings: True):
+    """Fake systemd + governor-config helper for gpu_compatibility()."""
+    state = {"active": active, "settings": ("smu", "busy-flag", "1", "0")}
+    calls = []
+
+    def fake_run(command, **_kwargs):
+        calls.append(list(command))
+        if command[-5:-4] == ["set-cyan-compatibility"]:
+            state["settings"] = tuple(command[-4:])
+        elif command[1:3] == ["restart", "--no-block"]:
+            state["active"] = starts(state["settings"])
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(helper_module, "run", fake_run)
+    monkeypatch.setattr(helper_module, "trusted_file", lambda _path, **_kw: True)
+    monkeypatch.setattr(helper_module, "service_active", lambda unit: unit == helper_module.CYAN_SERVICE and state["active"])
+    monkeypatch.setattr(helper_module, "governor_unit_state", lambda _unit: {
+        "installed": True, "enabled": enabled, "active": state["active"], "starting": False,
+    })
+    monkeypatch.setattr(helper_module, "cyan_range", lambda: None)  # Cyan's D-Bus is silent
+    monkeypatch.setattr(helper_module, "cyan_compatibility", lambda *_a, **_k: {
+        "set_method": state["settings"][0], "usage_method": state["settings"][1],
+        "fix_metrics": state["settings"][2] == "1", "fix_frequency": state["settings"][3] == "1",
+    })
+    monkeypatch.setattr(helper_module, "cyan_kernel_usage_supported", lambda: False)
+    monkeypatch.setattr(helper_module, "cyan_kernel_set_supported", lambda: False)
+    monkeypatch.setattr(helper_module.time, "sleep", lambda _s: None)
+    monkeypatch.setattr(helper_module, "GOVERNOR_SERVICE_START_SECONDS", 0.0)
+    return state, calls
+
+
+def test_gpu_compat_refuses_bad_values_and_restarts_cyan_even_when_it_does_not_answer(
+    helper_module, monkeypatch, capsys
+):
+    assert helper_module.gpu_compatibility(["smu", "bogus", "1", "0"]) == 20
+    assert helper_module.gpu_compatibility(["smu", "busy-flag", "yes", "0"]) == 20
+    capsys.readouterr()
+
+    state, calls = _compat_systemd(helper_module, monkeypatch, active=True)
+    assert helper_module.gpu_compatibility(["smu", "process", "1", "0"]) == 0
+    assert state["settings"] == ("smu", "process", "1", "0")
+    assert ["/usr/bin/systemctl", "restart", "--no-block", helper_module.CYAN_SERVICE] in calls
+    assert json.loads(capsys.readouterr().out)["ok"] is True
+
+
+def test_gpu_compat_can_be_changed_while_cyan_is_stopped(helper_module, monkeypatch, capsys):
+    state, calls = _compat_systemd(helper_module, monkeypatch, active=False, enabled=False)
+    assert helper_module.gpu_compatibility(["smu", "busy-flag", "0", "1"]) == 0
+    assert state["settings"] == ("smu", "busy-flag", "0", "1")
+    assert not any(call[1:2] == ["restart"] for call in calls)
+    assert "next start" in json.loads(capsys.readouterr().out)["message"]
+
+
+def test_gpu_compat_repairs_a_cyan_crash_looping_on_a_bad_setting(helper_module, monkeypatch, capsys):
+    # Enabled but not running: the kernel/kernel choice made it exit.
+    state, _calls = _compat_systemd(
+        helper_module, monkeypatch, active=False, starts=lambda settings: settings[0] == "smu",
+    )
+    assert helper_module.gpu_compatibility(["smu", "busy-flag", "0", "0"]) == 0
+    assert state["active"] is True
+
+
+def test_gpu_compat_rolls_back_settings_cyan_cannot_start_on(helper_module, monkeypatch, capsys):
+    state, _calls = _compat_systemd(
+        helper_module, monkeypatch, active=True, starts=lambda settings: settings[3] == "0",
+    )
+    assert helper_module.gpu_compatibility(["smu", "busy-flag", "1", "1"]) == 24
+    assert state["settings"] == ("smu", "busy-flag", "1", "0")
+    assert state["active"] is True
+    assert "previous settings were restored" in capsys.readouterr().err
+
+
+def test_gpu_compat_refuses_kernel_options_this_kernel_lacks(helper_module, monkeypatch, capsys):
+    state, calls = _compat_systemd(helper_module, monkeypatch, active=True)
+    assert helper_module.gpu_compatibility(["smu", "kernel", "1", "0"]) == 20
+    assert helper_module.gpu_compatibility(["kernel", "busy-flag", "1", "0"]) == 20
+    assert state["settings"] == ("smu", "busy-flag", "1", "0")
+    assert calls == []
+
+
+def test_kernel_set_probe_rejects_placeholder_overdrive_table(helper_module, tmp_path):
+    (tmp_path / "pp_od_clk_voltage").write_text(
+        "OD_SCLK:\n0: 14Mhz *\nOD_VDDC:\n0: 918mV *\nOD_RANGE:\nSCLK:    1000Mhz       2000Mhz\n"
+    )
+    assert helper_module.cyan_kernel_set_supported(tmp_path) is False
+    (tmp_path / "pp_od_clk_voltage").write_text(
+        "OD_SCLK:\n0: 1000Mhz\n1: 1850Mhz\nOD_RANGE:\nSCLK:    1000Mhz       2000Mhz\n"
+    )
+    assert helper_module.cyan_kernel_set_supported(tmp_path) is True
+
+
+def test_status_pass_stops_asking_cyan_once_it_stops_answering(helper_module, monkeypatch):
+    calls = []
+
+    def hang(command, **_kwargs):
+        calls.append(command)
+        return subprocess.CompletedProcess(command, 124, "", "timed out after 8s")
+
+    monkeypatch.setattr(helper_module, "run", hang)
+    monkeypatch.setitem(helper_module.CYAN_DBUS_LATCH, "enabled", True)
+    monkeypatch.setitem(helper_module.CYAN_DBUS_LATCH, "unresponsive", False)
+
+    assert helper_module.cyan_range() is None
+    assert helper_module.cyan_allowed_range() is None
+    assert helper_module.cyan_performance_enabled() is None
+    assert len(calls) == 1
+
+
+def test_gpu_clock_falls_back_to_hwmon_when_dpm_marks_a_bogus_level(helper_module, tmp_path):
+    device = tmp_path / "card1" / "device"
+    (device / "hwmon" / "hwmon1").mkdir(parents=True)
+    (device / "vendor").write_text("0x1002\n")
+    (device / "pp_dpm_sclk").write_text("0: 1000Mhz \n1: 40Mhz *\n2: 2000Mhz \n")
+    (device / "hwmon" / "hwmon1" / "freq1_input").write_text("1850000000\n")
+
+    assert helper_module.gpu_core_mhz(tmp_path) == 1850
+
+
+def test_gpu_clock_prefers_hwmon_over_a_plausible_but_wrong_dpm_mark(helper_module, tmp_path):
+    device = tmp_path / "card1" / "device"
+    (device / "hwmon" / "hwmon1").mkdir(parents=True)
+    (device / "vendor").write_text("0x1002\n")
+    # Under Cyan's SMU backend the mark wanders: "100Mhz *" while at 1700.
+    (device / "pp_dpm_sclk").write_text("0: 1000Mhz \n1: 100Mhz *\n2: 2000Mhz \n")
+    (device / "hwmon" / "hwmon1" / "freq1_input").write_text("1700000000\n")
+
+    assert helper_module.gpu_core_mhz(tmp_path) == 1700
+
+
+def test_cu_writes_are_refused_while_the_kernel_owns_cu_routing(helper_module, tmp_path, capsys, monkeypatch):
+    parameter = tmp_path / "bc250_cc_write_mode"
+    parameter.write_text("3\n")
+    monkeypatch.setattr(helper_module, "CU_WRITE_MODE_PARAMETER", parameter)
+    monkeypatch.setattr(helper_module, "require_runtime", lambda: "")
+    monkeypatch.setattr(helper_module, "load_contract", lambda: None)
+    # Nothing past the guard may run.
+    monkeypatch.setattr(helper_module, "operation_lock", lambda *_args: (_ for _ in ()).throw(AssertionError("reached a CU write")))
+
+    for argv in (["h", "cu-mode", "40"], ["h", "cu-table", "31", "31", "31", "31"],
+                 ["h", "cu-save", "31", "31", "31", "31"], ["h", "cu-service", "install"]):
+        assert helper_module.main(argv) == 30
+    assert "QUICK_ACCESS_CU_KERNEL" in capsys.readouterr().err
+    assert helper_module.kernel_cu_unlock_active() is True
+    parameter.write_text("0\n")
+    assert helper_module.kernel_cu_unlock_active() is False
+
+
+def test_gddr6_patch_runs_the_reviewed_helper_then_reads(helper_module, monkeypatch, tmp_path, capsys):
+    calls = []
+    patch_helper = tmp_path / "bc250-gddr6-temp-helper"
+    patch_helper.write_text("#!/bin/sh\n")
+    monkeypatch.setattr(helper_module, "GDDR6_PATCH_HELPER_PATHS", (patch_helper,))
+    monkeypatch.setattr(helper_module, "trusted_file", lambda path, **_kw: Path(path) == patch_helper)
+    monkeypatch.setattr(helper_module, "_gddr6_repository_candidates", lambda: [(tmp_path / "repo", 1000)])
+    monkeypatch.setattr(helper_module, "gddr6_sensors", lambda: print('{"ok": true, "gddr6_available": true}') or 0)
+
+    def fake_run(command, **kwargs):
+        calls.append((command, kwargs["env"]["PKEXEC_UID"]))
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(helper_module.subprocess, "run", fake_run)
+    assert helper_module.gddr6_patch() == 0
+    assert calls == [([str(patch_helper), "--repo", str(tmp_path / "repo"), "--action", "apply"], "1000")]
+    assert json.loads(capsys.readouterr().out)["gddr6_available"] is True
+
+
+def test_gddr6_patch_reports_the_helpers_own_refusal(helper_module, monkeypatch, tmp_path, capsys):
+    patch_helper = tmp_path / "bc250-gddr6-temp-helper"
+    patch_helper.write_text("#!/bin/sh\n")
+    monkeypatch.setattr(helper_module, "GDDR6_PATCH_HELPER_PATHS", (patch_helper,))
+    monkeypatch.setattr(helper_module, "trusted_file", lambda path, **_kw: True)
+    monkeypatch.setattr(helper_module, "_gddr6_repository_candidates", lambda: [(tmp_path / "a", 1000), (tmp_path / "b", 1000)])
+    runs = []
+
+    def refuse(command, **_kwargs):
+        runs.append(command)
+        return subprocess.CompletedProcess(command, 1, "", "ERROR: GDDR6_FIRMWARE_UNSUPPORTED: this board reports P2.0.")
+
+    monkeypatch.setattr(helper_module.subprocess, "run", refuse)
+    assert helper_module.gddr6_patch() == 66
+    err = capsys.readouterr().err
+    assert "QUICK_ACCESS_GDDR6: GDDR6_FIRMWARE_UNSUPPORTED" in err
+    assert len(runs) == 1  # a board refusal is not retried on another checkout

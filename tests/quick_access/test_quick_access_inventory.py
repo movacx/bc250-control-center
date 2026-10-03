@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from bc250cc.infrastructure.external_tools.quick_access_inventory import (
+    EXPECTED_HELPER_PROTOCOL,
     quick_access_inventory,
 )
 from bc250cc.platform.init.services import InitManagerState
@@ -8,7 +9,7 @@ from bc250cc.platform.init.services import InitManagerState
 
 def _root_owned(path: Path, *, executable: bool = False):
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("HELPER_PROTOCOL = 13\n", encoding="utf-8")
+    path.write_text(f"HELPER_PROTOCOL = {EXPECTED_HELPER_PROTOCOL}\n", encoding="utf-8")
     path.chmod(0o755 if executable else 0o644)
 
 
@@ -276,3 +277,16 @@ def test_quick_access_inventory_treats_an_unreadable_decky_payload_as_unverified
     assert inventory.plugin_present is False
     assert inventory.ready is False
     assert "installer" in inventory.next_action.lower()
+
+
+def test_the_detector_expects_exactly_what_the_shipped_helper_and_plugin_declare():
+    """A stale copy of the number reported a good install as needing repair."""
+    from bc250cc.infrastructure.external_tools.quick_access_inventory import (
+        _declared_protocol,
+    )
+
+    root = Path(__file__).resolve().parents[2]
+    helper = root / "privileged/helpers/bc250-quick-access-helper"
+    plugin = root / "integrations/decky/bc250-quick-access/main.py"
+    assert _declared_protocol(helper) == EXPECTED_HELPER_PROTOCOL
+    assert _declared_protocol(plugin) == EXPECTED_HELPER_PROTOCOL

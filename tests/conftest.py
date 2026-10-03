@@ -75,3 +75,16 @@ def _simulated_systemd_host(monkeypatch):
         which=lambda name: f"/usr/bin/{name}" if name == "systemctl" else None,
     )
     monkeypatch.setattr(services.detect_init_manager, "__kwdefaults__", defaults)
+
+
+# Nor the host kernel's own CU unlock: on linux-cachyos-bc250 with
+# bc250_cc_write_mode=3 every CU write surface turns read-only, which would
+# fail the CU page tests on that machine only. Tests that need it opt in.
+@pytest.fixture(autouse=True)
+def _no_host_kernel_cu_unlock(monkeypatch):
+    try:
+        from bc250cc.infrastructure import cu_kernel_unlock, cu_repository
+    except Exception:  # noqa: BLE001 - suites without the package
+        return
+    monkeypatch.setattr(cu_kernel_unlock, "CU_WRITE_MODE_PARAMETER", cu_kernel_unlock.Path("/nonexistent/bc250_cc_write_mode"))
+    monkeypatch.setattr(cu_repository, "kernel_cu_unlock_active", lambda: False)

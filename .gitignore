@@ -69,3 +69,6 @@ Claude outputs/
 
 # Working notes, not part of the shipped project
 docs/CONTEXTO.md
+
+# Decky plugin settings created by a backend run outside Decky
+integrations/settings/

@@ -47,12 +47,6 @@
       "retryable": false
     },
     {
-      "code": "BC250-WORKFLOW-001",
-      "markers": [],
-      "exit_statuses": [],
-      "retryable": false
-    },
-    {
       "code": "BC250-GENERAL-001",
       "markers": [],
       "exit_statuses": [],
@@ -111,6 +105,7 @@
       "code": "BC250-CU-001",
       "markers": [
         "QUICK_ACCESS_CU_TABLE",
+        "QUICK_ACCESS_CU_KERNEL",
         "QUICK_ACCESS_CU_MODE",
         "QUICK_ACCESS_CU_BACKEND",
         "QUICK_ACCESS_CU_SERVICE_REMOVE",
@@ -145,6 +140,16 @@
       "retryable": false
     },
     {
+      "code": "BC250-WORKFLOW-001",
+      "markers": [
+        "QUICK_ACCESS_GDDR6"
+      ],
+      "exit_statuses": [
+        66
+      ],
+      "retryable": false
+    },
+    {
       "code": "BC250-VRAM-001",
       "markers": [
         "QUICK_ACCESS_VRAM"
@@ -170,6 +175,14 @@
       "code": "BC250-AUTH-002",
       "markers": [
         "QUICK_ACCESS_AUTH"
+      ],
+      "exit_statuses": [],
+      "retryable": false
+    },
+    {
+      "code": "BC250-TTM-001",
+      "markers": [
+        "QUICK_ACCESS_TTM"
       ],
       "exit_statuses": [],
       "retryable": false
@@ -387,6 +400,7 @@
     "QUICK_ACCESS_GPU_HELPER",
     "QUICK_ACCESS_PRIVILEGE",
     "QUICK_ACCESS_CPU_SCALE",
+    "QUICK_ACCESS_CU_KERNEL",
     "QUICK_ACCESS_CU_VERIFY",
     "failed retrieving file",
     "QUICK_ACCESS_GPU_DBUS",
@@ -405,10 +419,12 @@
     "CPU_PAYLOAD_REFUSED",
     "CPU_BACKEND_MISSING",
     "returned error: 404",
+    "QUICK_ACCESS_GDDR6",
     "QUICK_ACCESS_VRAM",
     "Cyan D-Bus policy",
     "QUICK_ACCESS_AUTH",
     "CU_HELPER_MISSING",
+    "QUICK_ACCESS_TTM",
     "QUICK_ACCESS_FAN",
     "QUICK_ACCESS_CPU",
     "HARDWARE_CONTEXT",

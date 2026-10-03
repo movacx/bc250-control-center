@@ -80,7 +80,9 @@ def test_power_delivery_stays_folded_until_manual_mode_is_on(page):
     page.apply_state(replace(DashboardState(), vrm_probe=PROBE_INVALID))
     strip = page.vrm_strip
     assert strip.readings_visible is False
-    assert strip.note.text() == "Requires the I2C modification"
+    # The note became the "How to enable" button, where the note was.
+    assert strip.note.isHidden() is True
+    assert page.vrm_help_button.isHidden() is False
 
     page.set_vrm_manual(True)
 

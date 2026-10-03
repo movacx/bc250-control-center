@@ -101,6 +101,13 @@ _CODES: tuple[ErrorCode, ...] = (
         markers=('QUICK_ACCESS_VRAM',),
     ),
     ErrorCode(
+        "BC250-TTM-001",
+        "The GPU memory limit could not be changed.",
+        "This system cannot keep a kernel boot argument the way Control Center manages it, another tool already set the limit, or the boot loader or rpm-ostree refused the change.",
+        "Read the reason in the Memory section. On SteamOS, systemd-boot or rEFInd add the ttm.pages_limit argument yourself; elsewhere retry once the boot loader or rpm-ostree is idle.",
+        markers=('QUICK_ACCESS_TTM',),
+    ),
+    ErrorCode(
         "BC250-STORAGE-001",
         "There is not enough writable storage.",
         "The target filesystem, temporary directory, boot partition, or user quota is full.",
@@ -185,7 +192,7 @@ _CODES: tuple[ErrorCode, ...] = (
         "Run Unlock/Sync again, check the displayed live map, prepare UMR if missing, and apply only after the requested and driver maps agree.",
         exit_statuses=(30, 62, 63),
         markers=(
-            'QUICK_ACCESS_CU_TABLE', 'QUICK_ACCESS_CU_MODE', 'QUICK_ACCESS_CU_BACKEND',
+            'QUICK_ACCESS_CU_TABLE', 'QUICK_ACCESS_CU_KERNEL', 'QUICK_ACCESS_CU_MODE', 'QUICK_ACCESS_CU_BACKEND',
             'QUICK_ACCESS_CU_SERVICE_REMOVE', 'QUICK_ACCESS_CU_STATE',
             'QUICK_ACCESS_CU_VERIFY', 'QUICK_ACCESS_CU_SERVICE_PROFILE',
             'QUICK_ACCESS_CU_SERVICE_VERIFY',
@@ -274,6 +281,10 @@ _CODES: tuple[ErrorCode, ...] = (
         "The workflow reported the failure itself.",
         "The workflow stopped on a condition it detected and described in its own output.",
         "Follow the steps the workflow printed above; they name the exact package, kernel or path involved.",
+        # Quick Access runs the reviewed GDDR6 patch helper, whose own error
+        # (unsupported firmware, governor starting, SMU busy) is the message.
+        exit_statuses=(66,),
+        markers=('QUICK_ACCESS_GDDR6',),
     ),
     # Fallback: wording reused from the desktop diagnostic rules so it is
     # already translated in all 30 locales.

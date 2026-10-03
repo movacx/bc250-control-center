@@ -16,9 +16,20 @@ plain file I/O, no compiled helper needed.
 """
 from __future__ import annotations
 
+import fcntl
+import os
+import stat
+import time
+from contextlib import contextmanager
+
 from system_setup_common import Host, SetupError
 
 DEVICE = "/dev/port"
+#: One lock for every process that touches the CMOS index/data pair: the pair
+#: is a shared latch, and two interleaved accesses write to the wrong offset.
+#: The Quick Access helper takes the same file (CMOS_OPERATION_LOCK there).
+CMOS_LOCK = "/run/bc250-control-center-cmos.lock"
+CMOS_LOCK_TIMEOUT_SECONDS = 3.0
 INDEX_PORT = 0x72
 DATA_PORT = 0x73
 BANK_OFFSET = 0x90          # absolute CMOS offset of the MemConf_t bank
@@ -40,6 +51,35 @@ def _open_port():
         return open(DEVICE, "r+b", buffering=0)
     except OSError as exc:
         raise SetupError(f"Cannot access BC250 CMOS I/O ports ({DEVICE}): {exc}") from exc
+
+
+@contextmanager
+def cmos_guard(port_open=None):
+    """Serialise CMOS port access; an injected opener (tests) is not locked."""
+    if port_open not in (None, _open_port):
+        yield
+        return
+    flags = os.O_CREAT | os.O_RDWR | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(CMOS_LOCK, flags, 0o600)
+    except OSError as exc:
+        raise SetupError(f"Cannot lock the BC250 CMOS I/O ports: {exc}") from exc
+    try:
+        info = os.fstat(descriptor)
+        if not stat.S_ISREG(info.st_mode) or info.st_uid != 0 or info.st_mode & 0o077:
+            raise SetupError("Unsafe BC250 CMOS lock file")
+        deadline = time.monotonic() + CMOS_LOCK_TIMEOUT_SECONDS
+        while True:
+            try:
+                fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except BlockingIOError:
+                if time.monotonic() >= deadline:
+                    raise SetupError("Another BC250 CMOS access is still in progress") from None
+                time.sleep(0.025)
+        yield
+    finally:
+        os.close(descriptor)
 
 
 def _read_index_byte(port, offset: int) -> int:
@@ -84,11 +124,12 @@ def read(host: Host, *, port_open=_open_port) -> dict:
     available = status(host)
     if not available["supported"]:
         raise SetupError(available["reason"] or "BC250 VRAM configuration is unavailable")
-    port = port_open()
-    try:
-        bank = _read_bank(port)
-    finally:
-        port.close()
+    with cmos_guard(port_open):
+        port = port_open()
+        try:
+            bank = _read_bank(port)
+        finally:
+            port.close()
     uma_size_mb = bank[UMA_SIZE_OFFSET] | (bank[UMA_SIZE_OFFSET + 1] << 8)
     return {"supported": True, "uma_size_mb": uma_size_mb}
 
@@ -100,15 +141,16 @@ def apply(host: Host, uma_size_mb: int, *, port_open=_open_port) -> dict:
     if not available["supported"]:
         raise SetupError(available["reason"] or "BC250 VRAM configuration is unavailable")
     aligned = align_uma_size(uma_size_mb)
-    port = port_open()
-    try:
-        bank = _read_bank(port)
-        bank[UMA_SIZE_OFFSET] = aligned & 0xFF
-        bank[UMA_SIZE_OFFSET + 1] = (aligned >> 8) & 0xFF
-        bank[0:4] = SIGNATURE.to_bytes(4, "little")
-        checksum = sum(bank[CHECKSUM_FIELD_OFFSET:]) & 0xFFFF
-        bank[4:6] = checksum.to_bytes(2, "little")
-        _write_bank(port, bank)
-    finally:
-        port.close()
+    with cmos_guard(port_open):
+        port = port_open()
+        try:
+            bank = _read_bank(port)
+            bank[UMA_SIZE_OFFSET] = aligned & 0xFF
+            bank[UMA_SIZE_OFFSET + 1] = (aligned >> 8) & 0xFF
+            bank[0:4] = SIGNATURE.to_bytes(4, "little")
+            checksum = sum(bank[CHECKSUM_FIELD_OFFSET:]) & 0xFFFF
+            bank[4:6] = checksum.to_bytes(2, "little")
+            _write_bank(port, bank)
+        finally:
+            port.close()
     return {"supported": True, "applied_uma_size_mb": aligned}

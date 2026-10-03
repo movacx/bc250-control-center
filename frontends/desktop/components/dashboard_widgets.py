@@ -35,6 +35,7 @@ from PyQt6.QtWidgets import (
     QProgressBar,
     QScrollArea,
     QSizePolicy,
+    QToolButton,
     QToolTip,
     QVBoxLayout,
     QWidget,
@@ -42,6 +43,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtWidgets import QPushButton as IconButton
 
 from bc250cc.infrastructure.bazzite_async_compute import BAZZITE_ASYNC_COMPUTE_ICD
+from bc250cc.infrastructure.system_setup import CU_UNLOCK_OPTION, CU_UNLOCK_THERMAL_NOTE
 from bc250cc.infrastructure.terminal_repository import TerminalRepository
 
 from .. import theme
@@ -889,6 +891,18 @@ class PreparationComponentCard(QFrame):
 class PreparationInfoCard(QFrame):
     action_requested = pyqtSignal(object)
 
+    #: Colour is kept for the three states that ask something of the reader:
+    #: working, needs attention, broken. Everything else (where a card applies,
+    #: available, not installed, checking) is neutral, so a column of badges
+    #: does not compete for attention.
+    _STATUS_TONES = frozenset({"green", "orange", "red"})
+    _DISCLOSURE_WIDTH = 18
+    _STATUS_COLUMN_WIDTH = 124
+
+    @classmethod
+    def _status_tone(cls, tone: str) -> str:
+        return tone if tone in cls._STATUS_TONES else "gray"
+
     def __init__(
         self,
         title: str,
@@ -916,7 +930,10 @@ class PreparationInfoCard(QFrame):
         self.scope = PillLabel(scope_text or "Compatibility", "gray")
         self.scope.setVisible(bool(scope_text))
         header.addWidget(self.scope)
-        self.status = PillLabel(status_text or "Not detected", status_tone)
+        self._body: QWidget | None = None
+        self._toggle: QToolButton | None = None
+        self._auto_expanded_for = ""
+        self.status = PillLabel(status_text or "Not detected", self._status_tone(status_tone))
         self.status.setVisible(bool(status_text))
         header.addWidget(self.status)
         layout.addLayout(header)
@@ -998,7 +1015,10 @@ class PreparationInfoCard(QFrame):
             self.actions.itemAt(index).widget()
             for index in range(self.actions.count())
         ]
-        buttons = [button for button in buttons if button is not None and button.isVisibleTo(self)]
+        # ``isHidden`` and not ``isVisibleTo(self)``: a collapsed row hides its
+        # whole body, which would make every button here look hidden and leave
+        # its accent and width stale until the row is opened.
+        buttons = [button for button in buttons if button is not None and not button.isHidden()]
         primary_gets_accent = (
             len(buttons) >= 2
             and bool(buttons[-1].property("linkAction"))
@@ -1006,6 +1026,15 @@ class PreparationInfoCard(QFrame):
             and not buttons[0].property("dangerAction")
         )
         for index, button in enumerate(buttons):
+            # A link takes the room it needs and no more, so it does not sit
+            # centred in an empty half of the row.
+            is_link = bool(button.property("linkAction"))
+            self.actions.setStretchFactor(button, 0 if is_link else 1)
+            # The same button swaps between an action and a link as the state
+            # changes, so the alignment is set both ways, never left behind.
+            self.actions.setAlignment(
+                button, Qt.AlignmentFlag.AlignLeft if is_link else Qt.AlignmentFlag(0)
+            )
             button.setProperty("accented", index == 0 and primary_gets_accent)
             button.style().unpolish(button)
             button.style().polish(button)
@@ -1046,12 +1075,85 @@ class PreparationInfoCard(QFrame):
 
     def set_status(self, text: str, tone: str) -> None:
         self.status.setText(tr(text))
-        self.status.set_tone(tone)
+        self.status.set_tone(self._status_tone(tone))
         self.status.show()
+        # A card that needs the reader opens itself, once per problem: a
+        # reader who closes it again is not reopened on every refresh.
+        if self._body is not None and tone in {"orange", "red"}:
+            if self._auto_expanded_for != tone:
+                self._auto_expanded_for = tone
+                self.set_expanded(True)
+        elif tone not in {"orange", "red"}:
+            self._auto_expanded_for = ""
+
+    def make_collapsible(self) -> None:
+        """Show only the title row; the description and actions open on demand.
+
+        Everything below the header moves into one body widget, so the code
+        that shows, hides and rewrites those widgets keeps working unchanged.
+        """
+        if self._body is not None:
+            return
+        layout = self.layout()
+        body = QWidget()
+        body_layout = QVBoxLayout(body)
+        # Lined up under the title, not under the chevron.
+        body_layout.setContentsMargins(self._DISCLOSURE_WIDTH + 7, 0, 0, 0)
+        body_layout.setSpacing(layout.spacing())
+        while layout.count() > 1:
+            item = layout.takeAt(1)
+            if item.widget() is not None:
+                body_layout.addWidget(item.widget())
+            elif item.layout() is not None:
+                body_layout.addLayout(item.layout())
+        layout.addWidget(body)
+        toggle = QToolButton()
+        toggle.setProperty("dashboardDisclosure", True)
+        toggle.setCursor(Qt.CursorShape.PointingHandCursor)
+        toggle.setAutoRaise(True)
+        toggle.setFixedSize(self._DISCLOSURE_WIDTH, 24)
+        toggle.clicked.connect(lambda: self.set_expanded(not self.is_expanded()))
+        header = layout.itemAt(0).layout()
+        header.insertWidget(0, toggle)
+        # One row shape for every card: where a card applies is quiet text,
+        # and the status sits in a column of one width, so the states line up
+        # down the page instead of following each scope's length.
+        self.scope.setStyleSheet(
+            f"PillLabel {{ color:{theme.COLORS['subtle']}; background:transparent; border:none; }}"
+        )
+        self.status.setMinimumWidth(self._STATUS_COLUMN_WIDTH)
+        layout.setContentsMargins(12, 8, 12, 8)
+        self._body, self._toggle = body, toggle
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.set_expanded(False)
+
+    def is_expanded(self) -> bool:
+        return self._body is not None and not self._body.isHidden()
+
+    def set_expanded(self, expanded: bool) -> None:
+        if self._body is None or self._toggle is None:
+            return
+        self._body.setVisible(bool(expanded))
+        self._toggle.setText("⌄" if expanded else "›")
+        self._toggle.setAccessibleName(
+            tr("Hide details") if expanded else tr("Show details")
+        )
+
+    def mousePressEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        # The title row toggles; clicks inside the body belong to its buttons.
+        if (
+            self._body is not None
+            and event.button() == Qt.MouseButton.LeftButton
+            and event.position().y() <= self.layout().itemAt(0).geometry().bottom() + 6
+        ):
+            self.set_expanded(not self.is_expanded())
+            event.accept()
+            return
+        super().mousePressEvent(event)
 
     def set_scope(self, text: str, tone: str = "gray") -> None:
+        # Where a card applies is a label, never a state: always neutral.
         self.scope.setText(tr(text))
-        self.scope.set_tone(tone)
         self.scope.show()
 
 
@@ -1072,9 +1174,21 @@ class PreparationSidebar(QFrame):
         ("fan_pwm", "NCT sensors and PWM", "Fan control route."),
     )
 
-    def __init__(self, parent: QWidget | None = None, *, settings=None) -> None:
+    def __init__(
+        self,
+        parent: QWidget | None = None,
+        *,
+        settings=None,
+        standalone: bool = False,
+    ) -> None:
+        """``standalone`` is the copy on the Additional settings page.
+
+        It carries Compatibility, Memory & Swap and Drivers, and opens on
+        Compatibility. Components and Decky stay on the Dashboard.
+        """
         super().__init__(parent)
         self._settings = settings or application_settings()
+        self._standalone = bool(standalone)
         self.setProperty("dashboardPreparation", True)
         self.setMinimumWidth(0)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
@@ -1089,7 +1203,12 @@ class PreparationSidebar(QFrame):
         system_layout.setSpacing(8)
         heading_copy = QVBoxLayout()
         heading_copy.setSpacing(3)
-        heading_copy.addWidget(_label("Prepare BC250 system", "dashboardCardTitle"))
+        heading_copy.addWidget(
+            _label(
+                "Additional settings" if self._standalone else "Prepare BC250 system",
+                "dashboardCardTitle",
+            )
+        )
         self.system_label = _label(
             "Detected system: Not detected", "dashboardCardSubtitle"
         )
@@ -1121,6 +1240,14 @@ class PreparationSidebar(QFrame):
                 lambda _checked=False, value=index: self.select_tab(value)
             )
             self.tab_buttons.append(button)
+        # The Dashboard keeps the tabs that act on the machine as a whole:
+        # Components and Decky. Compatibility, Memory & Swap and Drivers live
+        # on the Additional settings page, which shows a copy of this panel
+        # with those three tabs, without Components and without Decky. The pages behind the
+        # hidden buttons stay built so the state they read keeps flowing.
+        self._hidden_tabs = frozenset({0, 3}) if self._standalone else frozenset({1, 2, 4})
+        for hidden in self._hidden_tabs:
+            self.tab_buttons[hidden].hide()
         root.addWidget(self.tabs_host)
 
         self.stack = _PreparationStack()
@@ -1163,7 +1290,7 @@ class PreparationSidebar(QFrame):
         self._tab_columns = 0
         self._component_columns = 0
         self._reflow(390)
-        self.select_tab(0)
+        self.select_tab(min(set(range(len(self.tab_buttons))) - self._hidden_tabs))
         self._sync_components()
 
     def retranslate_dynamic_copy(self) -> None:
@@ -1228,9 +1355,24 @@ class PreparationSidebar(QFrame):
             card.setProperty("gamepadHorizontalIndex", index)
             card.checkbox.toggled.connect(self._sync_components)
             self.component_cards[key] = card
-        layout.addWidget(self._bazzite_mitigations_panel())
-        layout.addWidget(self._steamos_readonly_panel())
-        layout.addWidget(self._kernel_options_panel())
+        # Mitigations, read-only mode and kernel options are not dependency
+        # preparation. They live on Additional settings > Compatibility; the
+        # Dashboard keeps the panels built (their state is still written) but
+        # inside a holder that is never shown.
+        self._boot_panels = (
+            self._bazzite_mitigations_panel(),
+            self._steamos_readonly_panel(),
+            self._kernel_options_panel(),
+        )
+        self._boot_holder = QWidget()
+        holder_layout = QVBoxLayout(self._boot_holder)
+        holder_layout.setContentsMargins(0, 0, 0, 0)
+        holder_layout.setSpacing(8)
+        for boot_panel in self._boot_panels:
+            holder_layout.addWidget(boot_panel)
+        self._boot_holder.hide()
+        if not self._standalone:
+            layout.addWidget(self._boot_holder)
         layout.addWidget(self.components_host)
         layout.addStretch(1)
         return page
@@ -1403,6 +1545,9 @@ class PreparationSidebar(QFrame):
         self.memory_ttm_card = ttm_card
         self.memory_ttm_readout = _label("—", "metricTileValue", wrap=False)
         ttm_layout.addWidget(self.memory_ttm_readout)
+        # What the next boot will use, from the state Game Mode shares.
+        self.memory_ttm_state = _label("", "dashboardMemoryDetail")
+        ttm_layout.addWidget(self.memory_ttm_state)
         self.ttm_limit_combo = QComboBox()
         self.ttm_limit_combo.setProperty("dashboardMemoryCombo", True)
         self.ttm_limit_combo.addItem(tr("Keep current TTM limit"), 0)
@@ -1688,6 +1833,7 @@ class PreparationSidebar(QFrame):
         panel = QFrame()
         self.mitigations_panel = panel
         panel.setProperty("dashboardMemoryPanel", True)
+        panel.setProperty("dashboardBootPanel", True)
         panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
         root = QBoxLayout(QBoxLayout.Direction.LeftToRight, panel)
@@ -1735,6 +1881,7 @@ class PreparationSidebar(QFrame):
         panel = QFrame()
         self.readonly_panel = panel
         panel.setProperty("dashboardMemoryPanel", True)
+        panel.setProperty("dashboardBootPanel", True)
         panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         root = QBoxLayout(QBoxLayout.Direction.LeftToRight, panel)
         self.readonly_layout = root
@@ -1765,14 +1912,21 @@ class PreparationSidebar(QFrame):
         panel.hide()
         return panel
 
+    _KERNEL_STATE_WIDTH = 124
+    _KERNEL_ACTION_WIDTH = 176
+
     #: The two boot options, in the order the panel shows them.
     KERNEL_OPTION_ROWS = (
         ("mitigations=off", "CPU security mitigations", "Disable mitigations", "Restore mitigations"),
         ("nosmt", "Simultaneous multithreading (SMT)", "Disable SMT", "Restore SMT"),
+        (CU_UNLOCK_OPTION, "Compute Units unlock (kernel)", "Unlock all 40 CUs", "Restore CU lock"),
     )
+    #: Options that give something up, and so are drawn as a warning. Unlocking
+    #: compute units gives nothing up: it is the BC-250 kernel's own method.
+    KERNEL_OPTION_NEUTRAL = frozenset({CU_UNLOCK_OPTION})
 
     def _kernel_options_panel(self) -> QFrame:
-        """mitigations=off and nosmt for mutable distributions.
+        """mitigations=off, nosmt and the kernel's CU unlock for mutable distributions.
 
         Bazzite keeps its own mitigations card and SteamOS rewrites its boot
         setup, so this panel only appears where the protected helper reports
@@ -1781,6 +1935,7 @@ class PreparationSidebar(QFrame):
         panel = QFrame()
         self.kernel_options_panel = panel
         panel.setProperty("dashboardMemoryPanel", True)
+        panel.setProperty("dashboardBootPanel", True)
         panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         root = QVBoxLayout(panel)
         root.setContentsMargins(12, 10, 12, 10)
@@ -1793,21 +1948,51 @@ class PreparationSidebar(QFrame):
         detail.setWordWrap(True)
         root.addWidget(detail)
         self.kernel_option_controls: dict[str, tuple[QLabel, PillLabel, QPushButton]] = {}
-        for option, title, _disable, _restore in self.KERNEL_OPTION_ROWS:
-            row = QHBoxLayout()
-            row.setSpacing(8)
-            name = _label(title, "dashboardCompatibilityLabel", wrap=False)
-            row.addWidget(name)
+        # Each option is one row: its name, then its state and its action side
+        # by side in two columns of fixed width, so the eye does not cross the
+        # whole panel to connect a state with the button that changes it.
+        grid = QGridLayout()
+        grid.setContentsMargins(0, 2, 0, 0)
+        grid.setHorizontalSpacing(8)
+        grid.setVerticalSpacing(0)
+        grid.setColumnStretch(0, 1)
+        root.addLayout(grid)
+        self.kernel_option_rules: dict[str, QFrame] = {}
+        for index, (option, title, _disable, _restore) in enumerate(self.KERNEL_OPTION_ROWS):
+            row = index * 2
+            if index:
+                rule = QFrame()
+                rule.setObjectName("ListDivider")
+                rule.setFixedHeight(1)
+                grid.addWidget(rule, row - 1, 0, 1, 3)
+                self.kernel_option_rules[option] = rule
+            name = _label(title, "dashboardComponentTitle", wrap=False)
             pill = PillLabel("Checking", "gray")
-            row.addWidget(pill)
-            row.addStretch(1)
+            pill.setMinimumWidth(self._KERNEL_STATE_WIDTH)
             button = QPushButton(tr(_disable))
             button.setProperty("dashboardCardAction", True)
-            button.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+            button.setMinimumWidth(self._KERNEL_ACTION_WIDTH)
+            button.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
             button.clicked.connect(lambda _checked=False, value=option: self._request_kernel_option(value))
-            row.addWidget(button)
-            root.addLayout(row)
+            grid.addWidget(name, row, 0, Qt.AlignmentFlag.AlignVCenter)
+            grid.addWidget(pill, row, 1, Qt.AlignmentFlag.AlignVCenter)
+            grid.addWidget(button, row, 2, Qt.AlignmentFlag.AlignVCenter)
+            grid.setRowMinimumHeight(row, 46)
             self.kernel_option_controls[option] = (name, pill, button)
+        # Said once, under the rows, and only while the unlock row is shown.
+        self.kernel_cu_note = _label(
+            "The kernel unlocks the compute units itself, so umr and the CU live manager are not needed: turn the live manager's boot service off so only one of them sets the CUs. If your board has a damaged CU pair, not all 40 will work; mask the pair with amdgpu.disable_cu (see the linux-cachyos-bc250 README). Applies at the next boot.",
+            "dashboardMemoryDetail",
+        )
+        self.kernel_cu_note.setWordWrap(True)
+        self.kernel_cu_note.hide()
+        root.addWidget(self.kernel_cu_note)
+        # Power and heat are the real cost of the extra units, so they are said
+        # next to the unlock and not only when it is confirmed.
+        self.kernel_cu_heat = _label(CU_UNLOCK_THERMAL_NOTE, "dashboardMemoryDetail")
+        self.kernel_cu_heat.setWordWrap(True)
+        self.kernel_cu_heat.hide()
+        root.addWidget(self.kernel_cu_heat)
         self._kernel_options_state: dict[str, object] = {}
         panel.hide()
         return panel
@@ -1835,9 +2020,24 @@ class PreparationSidebar(QFrame):
         if not available:
             return
         arguments = _mapping(state.get("arguments"))
+        cu_item = _mapping(arguments.get(CU_UNLOCK_OPTION))
+        # Only a kernel that has the parameter can use the unlock. A row that
+        # was staged, or set by hand, stays so that it can still be taken back.
+        cu_visible = bool(
+            _mapping(state.get("cu_unlock")).get("supported")
+            or cu_item.get("managed")
+            or cu_item.get("configured")
+            or cu_item.get("external")
+        )
+        self.kernel_cu_note.setVisible(cu_visible)
+        self.kernel_cu_heat.setVisible(cu_visible)
         for option, _title, disable_text, restore_text in self.KERNEL_OPTION_ROWS:
-            _name, pill, button = self.kernel_option_controls[option]
+            name, pill, button = self.kernel_option_controls[option]
             item = _mapping(arguments.get(option))
+            if option == CU_UNLOCK_OPTION:
+                for widget in (name, pill, button, self.kernel_option_rules.get(option)):
+                    if widget is not None:
+                        widget.setVisible(cu_visible and (widget is not pill))
             if item.get("external"):
                 status, tone = "Set outside Control Center", "blue"
             elif bool(item.get("configured")) != bool(item.get("active")):
@@ -1848,9 +2048,14 @@ class PreparationSidebar(QFrame):
                 status, tone = "Enabled", "green"
             pill.setText(tr(status))
             pill.set_tone(tone)
+            # Enabled / Disabled is already what the button says ("Disable SMT"
+            # means it is on, "Restore SMT" that it is off). The pill is kept
+            # only for what the button cannot say: a pending reboot, or an
+            # option set outside Control Center.
+            pill.setVisible(status not in {"Enabled", "Disabled"} and (option != CU_UNLOCK_OPTION or cu_visible))
             managed = bool(item.get("managed"))
             button.setText(tr(restore_text if managed else disable_text))
-            button.setProperty("dangerAction", not managed)
+            button.setProperty("dangerAction", not managed and option not in self.KERNEL_OPTION_NEUTRAL)
             button.style().unpolish(button)
             button.style().polish(button)
             button.setEnabled(not item.get("external"))
@@ -2215,7 +2420,65 @@ class PreparationSidebar(QFrame):
         for card in (*self.cachyos_cards, *self.fsr4_cards):
             layout.addWidget(card)
         layout.addStretch(1)
+        if self._standalone:
+            self._organise_compatibility(layout)
         return page
+
+    def _organise_compatibility(self, layout: QVBoxLayout) -> None:
+        """Additional settings: one list per topic, a title row per tool.
+
+        Each group is a single surface with the tools as rows divided by thin
+        lines; the description and actions of a row open on demand.
+        """
+        self.compatibility_groups = (
+            ("System", (self.acpi_card,)),
+            ("GPU governor", (self.cyan_card, self.oberon_card)),
+            ("Kernel and graphics", (self.gfx_card, *self.cachyos_cards)),
+            ("Upscaling", self.fsr4_cards),
+        )
+        layout.setSpacing(0)
+        # Boot options: the panels that used to sit above the component list.
+        layout.insertSpacing(layout.count() - 1, 12)
+        layout.insertWidget(layout.count() - 1, self._boot_holder)
+        self._compatibility_headings = []
+        for title, cards in self.compatibility_groups:
+            index = layout.indexOf(cards[0])
+            box = QFrame()
+            box.setProperty("dashboardCompatibilityGroupBox", True)
+            box_layout = QVBoxLayout(box)
+            box_layout.setContentsMargins(0, 0, 0, 0)
+            box_layout.setSpacing(0)
+            for card in cards:
+                layout.removeWidget(card)
+                card.setProperty("listRow", True)
+                card.make_collapsible()
+                # State rows (Kernel / Mesa pills) line up with the title.
+                for frame in card.findChildren(QFrame):
+                    if frame.property("dashboardCompatibilityState") and frame.layout():
+                        margins = frame.layout().contentsMargins()
+                        frame.layout().setContentsMargins(0, margins.top(), 0, margins.bottom())
+                box_layout.addWidget(card)
+            heading = _label(title, "dashboardCompatibilityGroup", wrap=False)
+            layout.insertWidget(index, heading)
+            layout.insertWidget(index + 1, box)
+            self._compatibility_headings.append((heading, box, cards))
+        self._refresh_compatibility_summary()
+
+    def _refresh_compatibility_summary(self) -> None:
+        """Hide a group whose tools are all hidden; keep one rule above each row but the first."""
+        if not self._standalone or not hasattr(self, "_compatibility_headings"):
+            return
+        self._boot_holder.setVisible(any(not panel.isHidden() for panel in self._boot_panels))
+        for heading, box, cards in self._compatibility_headings:
+            shown = [card for card in cards if not card.isHidden()]
+            heading.setVisible(bool(shown))
+            box.setVisible(bool(shown))
+            for card in cards:
+                first = bool(shown) and card is shown[0]
+                if card.property("listFirst") != first:
+                    card.setProperty("listFirst", first)
+                    card.style().unpolish(card)
+                    card.style().polish(card)
 
     def _decky_page(self) -> QWidget:
         page = QWidget()
@@ -2421,7 +2684,11 @@ class PreparationSidebar(QFrame):
             button.style().polish(button)
 
     def _reflow(self, width: int) -> None:
-        tab_columns = 5 if width >= 620 else 3 if width >= 420 else 2
+        tab_columns = (
+            len(self.tab_buttons) - len(self._hidden_tabs)
+            if width >= 620
+            else 3 if width >= 420 else 2
+        )
         self.system_layout.setDirection(
             QBoxLayout.Direction.TopToBottom
             if width < 480
@@ -2464,7 +2731,8 @@ class PreparationSidebar(QFrame):
         if tab_columns != self._tab_columns:
             self._tab_columns = tab_columns
             clear_grid(self.tabs_grid, reset_columns=5, reset_rows=3)
-            for index, button in enumerate(self.tab_buttons):
+            shown = [b for i, b in enumerate(self.tab_buttons) if i not in self._hidden_tabs]
+            for index, button in enumerate(shown):
                 self.tabs_grid.addWidget(
                     button, index // tab_columns, index % tab_columns
                 )
@@ -3067,6 +3335,7 @@ class PreparationSidebar(QFrame):
         )
         self.cachyos_stack_card.setVisible(show_all or selected == "arch")
         self.fsr4_card.setVisible(FSR4_UI_ENABLED)
+        self._refresh_compatibility_summary()
 
         if not preview:
             return
@@ -3093,7 +3362,7 @@ class PreparationSidebar(QFrame):
                 pills.append(self.steamos_fsr4_status)
             for pill in pills:
                 pill.setText(tr("Available on SteamOS"))
-                pill.set_tone("blue")
+                pill.set_tone("gray")
             self.gfx_card.update_action(
                 self.gfx_primary_button,
                 text="1 · Install SteamOS kernel",
@@ -3175,7 +3444,7 @@ class PreparationSidebar(QFrame):
             "not-active": "Not active",
             "incomplete": "Incomplete",
             "managed-elsewhere": "Managed externally",
-            "needs-check": "Check status",
+            "needs-check": "Not verified",
         }.get(acpi.get("status"), "Not installed")
         acpi_tone = (
             "green"
@@ -3293,7 +3562,7 @@ class PreparationSidebar(QFrame):
             else tr("Not installed")
         )
         self.cachyos_kernel_status.set_tone(
-            "green" if kernel_active else "blue" if kernel_installed else "gray"
+            "green" if kernel_active else "gray"
         )
         self.cachyos_mesa_status.setText(
             tr("Patched installed") if mesa_installed else tr("Not installed")
@@ -3423,7 +3692,7 @@ class PreparationSidebar(QFrame):
                 if fsr4_current
                 else "orange"
                 if fsr4_state == "invalid"
-                else "blue"
+                else "gray"
             )
             self.gfx_card.update_action(
                 self.gfx_primary_button,

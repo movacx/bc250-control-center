@@ -32,7 +32,7 @@ PERFORMANCE_MODE="/usr/local/bin/cyan-skillfish-performance-mode"
 REPOSITORY="https://github.com/filippor/cyan-skillfish-governor"
 MARKER="GPU frequency fix enabled"
 REVIEWED_RELEASE_TAG="v0.4.13"
-REVIEWED_COMMIT="aaed42535622aee1a93df8b22860c409539f67f8"
+REVIEWED_COMMIT="7f34882ed28ab2065e478df9fb904b5e0a924afc"
 REVIEWED_ARCHIVE_SHA256="94a3c45438db39ec84037ec9c75ea34266fbc9c89c9bac13f70b0f86db058603"
 BC250CC_RUNTIME_REVISION="bc250cc.2"
 BC250CC_PATCHER="$SCRIPT_DIR/patch-cyan-bc250cc-runtime.py"
@@ -125,7 +125,11 @@ prepare_native_build_tools() {
   if ! have cc || ! have pkg-config || ! pkg-config --exists libdrm libdrm_amdgpu || ((${#rust_packages[@]})); then
     case "$target_family" in
       arch|cachyos|manjaro)
-        as_root pacman -Syu --needed --noconfirm base-devel libdrm "${rust_packages[@]}" ;;
+        # Never start with a full system update: on CachyOS it replaces the
+        # running kernel (see arch/prepare-dependencies.sh). Update only when
+        # the local database cannot provide the packages.
+        as_root pacman -S --needed --noconfirm base-devel libdrm "${rust_packages[@]}" ||
+          as_root pacman -Syu --needed --noconfirm base-devel libdrm "${rust_packages[@]}" ;;
       steamos)
         as_root pacman -S --needed --noconfirm base-devel libdrm "${rust_packages[@]}" ;;
       debian|ubuntu)
@@ -140,31 +144,37 @@ prepare_native_build_tools() {
   if cyan_rust_is_supported; then
     return 0
   fi
+  # A rustup-provided rustc/cargo (for example the Arch/CachyOS "rustup"
+  # package, which a previous AUR build may have pulled in as a makedepend)
+  # is only a shim: without a configured default toolchain it prints nothing
+  # useful and fails.  Treat both "too old" and "no toolchain" the same way.
   case "$target_family" in
     debian|ubuntu)
-      info "The distribution Rust toolchain is too old; installing the pinned user Rust 1.88.0 toolchain"
+      info "The distribution Rust toolchain is too old; installing rustup"
       as_root apt-get update
-      as_root apt-get install -y rustup
-      have rustup || die "rustup is required to install the user Rust 1.88.0 toolchain"
-      rustup toolchain install 1.88.0 --profile minimal ||
-        die "Could not install the user Rust 1.88.0 toolchain; verify network access and retry"
-      export PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
-      # Select this toolchain only for the current preparation process.  This
-      # works even when the user has never configured a rustup default, while
-      # preserving any default toolchain they already use elsewhere.
-      export RUSTUP_TOOLCHAIN=1.88.0
-      ;;
-    *)
-      die "Cyan requires Rust >= 1.88, but $(rustc --version) is installed. Update the user toolchain and retry; the existing governor was not replaced."
-      ;;
+      as_root apt-get install -y rustup ;;
   esac
+  if have rustup; then
+    info "Installing the pinned user Rust 1.88.0 toolchain"
+    rustup toolchain install 1.88.0 --profile minimal ||
+      die "Could not install the user Rust 1.88.0 toolchain; verify network access and retry"
+    export PATH="${CARGO_HOME:-$HOME/.cargo}/bin:$PATH"
+    # Select this toolchain only for the current preparation process.  This
+    # works even when the user has never configured a rustup default, while
+    # preserving any default toolchain they already use elsewhere.
+    export RUSTUP_TOOLCHAIN=1.88.0
+  else
+    die "Cyan requires Rust >= 1.88, but $(rustc --version 2>/dev/null || echo 'no usable toolchain') is installed. Update the user toolchain and retry; the existing governor was not replaced."
+  fi
   cyan_rust_is_supported ||
     die "Rust 1.88.0 was not selected after installation; the existing governor was not replaced."
 }
 
 cyan_rust_is_supported() {
   have rustc || return 1
-  python3 - "$(rustc --version)" <<'PY'
+  local version
+  version="$(rustc --version 2>/dev/null)" || return 1
+  python3 - "$version" <<'PY'
 import re, sys
 match = re.match(r"rustc (\d+)\.(\d+)\.(\d+)", sys.argv[1])
 if not match or tuple(map(int, match.groups())) < (1, 88, 0):

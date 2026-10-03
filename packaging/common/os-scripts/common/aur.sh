@@ -52,7 +52,7 @@ ensure_aur_helper() {
 }
 
 install_aur_package_direct() {
-  local package="$1"
+  local package="$1" rebuild="${2:-}"
   ensure_arch_build_toolchain
   require_user_build
   export_parallel_build_env
@@ -60,17 +60,31 @@ install_aur_package_direct() {
   clone_or_update "https://aur.archlinux.org/${package}.git" "$package_dir"
   (
     cd "$package_dir"
-    run makepkg --cleanbuild --clean --force --syncdeps --install --needed --noconfirm
+    # --needed skips a package whose version is already installed, which is
+    # exactly the case of one that must be built again against new libraries.
+    if [[ "$rebuild" == "rebuild" ]]; then
+      run makepkg --cleanbuild --clean --force --syncdeps --install --noconfirm
+    else
+      run makepkg --cleanbuild --clean --force --syncdeps --install --needed --noconfirm
+    fi
   )
 }
 
+# install_aur_package <package> [rebuild]
+# "rebuild" builds it again even though the same version is installed: for a
+# package that still exists but no longer starts because a library it was
+# linked against was replaced.
 install_aur_package() {
-  local package="$1"
+  local package="$1" rebuild="${2:-}"
   ensure_aur_helper
   if [[ -n "$AUR_HELPER" && -x "$AUR_HELPER" ]]; then
     bold "Installing AUR package: $package"
     export_parallel_build_env
     local -a helper_args=(-S --needed --noconfirm)
+    if [[ "$rebuild" == "rebuild" ]]; then
+      # paru and yay both take --rebuild: always build the target.
+      helper_args=(-S --rebuild --noconfirm)
+    fi
     # --answerclean/--answerdiff are yay options. Passing them to paru makes a
     # valid CachyOS installation fail before package resolution starts.
     if [[ "$(basename "$AUR_HELPER")" == "yay" ]]; then
@@ -81,5 +95,5 @@ install_aur_package() {
     fi
     warn "$AUR_HELPER failed; falling back to a clean makepkg build for $package"
   fi
-  install_aur_package_direct "$package"
+  install_aur_package_direct "$package" "$rebuild"
 }

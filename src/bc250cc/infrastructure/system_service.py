@@ -486,6 +486,9 @@ class SistemaService:
     def gestionar_radv_async(self, action):
         return self.repo.gestionar_radv_async(action)
 
+    def gestionar_apu_telemetry(self, action):
+        return self.repo.gestionar_apu_telemetry(action)
+
     def actualizar_aplicacion_local(self):
         return self.repo.actualizar_aplicacion_local()
 

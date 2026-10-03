@@ -1,0 +1,7 @@
+#!/bin/bash
+# Minimal systemctl for a container without systemd: nothing is active or enabled.
+case "${1:-}" in
+  is-active|is-enabled|is-failed) echo inactive; exit 3;;
+  show|list-unit-files|list-units|status) exit 0;;
+  *) exit 0;;
+esac

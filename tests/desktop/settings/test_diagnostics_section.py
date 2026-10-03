@@ -32,6 +32,8 @@ from frontends.desktop.pages.settings import SettingsPage
 def journal_file(tmp_path, monkeypatch):
     path = tmp_path / "state" / "diagnostics.jsonl"
     monkeypatch.setattr(journal, "journal_path", lambda env=None: path)
+    # Never the real Decky history of the machine running the tests.
+    monkeypatch.setattr(diagnostic_history, "DECKY_DIAGNOSTICS", tmp_path / "decky" / "diagnostics.jsonl")
     return path
 
 
@@ -226,3 +228,41 @@ def test_an_older_entry_shows_the_wording_its_code_has_today(journal_file):
     assert diagnostic_history.current_wording(entry).action == explain_code("BC250-CMD-001").action
     unknown = journal.record(code="BC250-GONE-999", source="window", title="x", summary="s", cause="c", action="a", now=99)
     assert diagnostic_history.current_wording(unknown).action == "a"
+
+
+# ------------------------------------------------------- Decky Quick Access
+
+
+def _decky_line(path, **entry):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "a", encoding="utf-8") as handle:
+        handle.write(json.dumps(entry) + "\n")
+
+
+def test_decky_failures_join_the_history_classified_like_desktop_errors(journal_file):
+    _entry("BC250-GPU-003", at=1_000)
+    decky = diagnostic_history.DECKY_DIAGNOSTICS
+    _decky_line(decky, at=2_000, module="cpu", target="detect-3850:1150",
+                error="SMU_IN_USE: Another BC-250 tool kept the SMU busy")
+    _decky_line(decky, at=500, module="gpu", target="benchmark",
+                error="QUICK_ACCESS_GPU_DBUS: Cyan D-Bus is not ready; no range was changed.")
+    decky.open("a").write("not json\n")
+
+    entries = diagnostic_history.history_entries()
+
+    assert [(entry.source, entry.at) for entry in entries] == [
+        ("decky", 2_000), ("window", 1_000), ("decky", 500),
+    ]
+    assert entries[0].title == "Decky Quick Access · CPU · detect-3850:1150"
+    assert entries[2].code == "BC250-DBUS-001"
+
+
+def test_clearing_hides_decky_failures_it_cannot_delete(journal_file):
+    decky = diagnostic_history.DECKY_DIAGNOSTICS
+    _decky_line(decky, at=1_000, module="fan", target="quiet", error="QUICK_ACCESS_FAN: write failed")
+    assert diagnostic_history.history_entries()
+
+    diagnostic_history.clear_history()
+
+    assert diagnostic_history.history_entries() == []
+    assert decky.exists()

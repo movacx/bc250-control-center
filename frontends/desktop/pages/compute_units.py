@@ -73,6 +73,15 @@ UNKNOWN_MASKS = (0x00, 0x00, 0x00, 0x00)
 TABLE_ROW_HEIGHT = 72
 
 
+#: Shown when linux-cachyos-bc250 unlocked the CUs itself (bc250_cc_write_mode=3).
+KERNEL_MANAGED_NOTICE = (
+    "The BC-250 kernel manages the compute units (amdgpu.bc250_cc_write_mode=3): "
+    "it unlocked all of them at boot. This page is read-only while that boot option "
+    "is set; umr and the live manager are not needed. To change the routing, turn "
+    "the kernel CU unlock off in Additional settings and reboot."
+)
+
+
 def _gpu_integer(value: object) -> int:
     try:
         return int(float(value))
@@ -251,6 +260,16 @@ class WgpToggleButton(QPushButton):
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.toggled.connect(self._refresh_visual)
         self._refresh_visual(False)
+
+    def set_read_only(self, read_only: bool) -> None:
+        """Keep the route colours but take no clicks or keyboard focus.
+
+        A disabled QPushButton is painted grey, which hid the very routing a
+        read-only table is there to show.
+        """
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, read_only)
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus if read_only else Qt.FocusPolicy.StrongFocus)
+        self.setCursor(Qt.CursorShape.ArrowCursor if read_only else Qt.CursorShape.PointingHandCursor)
 
     def set_route(self, enabled: bool, driver_on: bool) -> None:
         self.driver_on = bool(driver_on)
@@ -532,6 +551,10 @@ class CuTopologyTable(QFrame):
         self.grid.setColumnMinimumWidth(6, 76)
         self.grid.setColumnStretch(6, 2)
         self.set_state({"masks": list(UNKNOWN_MASKS), "driver_masks": list(UNKNOWN_MASKS), "rows": []})
+
+    def set_read_only(self, read_only: bool) -> None:
+        for button in self.buttons.values():
+            button.set_read_only(read_only)
 
     def set_state(self, state: dict) -> None:
         masks = self._normalize_masks(state.get("masks"), UNKNOWN_MASKS)
@@ -822,6 +845,11 @@ class ComputeUnitsPage(QWidget):
         for column in range(3):
             selection_layout.setColumnStretch(column, 1)
         self._action_buttons.extend([self.live_refresh_button, self.discard_button, self.apply_live_button])
+        self.kernel_managed_notice = QLabel(tr(KERNEL_MANAGED_NOTICE))
+        self.kernel_managed_notice.setProperty("fieldHint", True)
+        self.kernel_managed_notice.setWordWrap(True)
+        self.kernel_managed_notice.hide()
+        card.body.addWidget(self.kernel_managed_notice)
         card.body.addWidget(selection_panel)
         card.body.addWidget(self._build_persistence_panel())
 
@@ -1390,6 +1418,8 @@ class ComputeUnitsPage(QWidget):
 
     def balance_selection(self) -> None:
         """Trim the stronger shader engine to match the weaker one."""
+        if self._refuse_when_kernel_managed():
+            return
         current = self.topology_table.current_masks()
         target = balanced_masks(current, self.topology_table.driver_masks)
         if target != current:
@@ -1422,6 +1452,8 @@ class ComputeUnitsPage(QWidget):
         return sum((int(target[row]) ^ int(live[row])).bit_count() for row in range(4))
 
     def apply_selected_table(self) -> None:
+        if self._refuse_when_kernel_managed():
+            return
         masks = self.topology_table.current_masks()
         pending = self._pending_wgp_count(masks)
         if pending <= 0:
@@ -1462,6 +1494,8 @@ class ComputeUnitsPage(QWidget):
         )
 
     def restore_factory_now(self) -> None:
+        if self._refuse_when_kernel_managed():
+            return
         self._run_confirmed_action(
             "factory_repair",
             "Restore factory 24 CU routing",
@@ -1471,6 +1505,8 @@ class ComputeUnitsPage(QWidget):
         )
 
     def save_boot_layout(self) -> None:
+        if self._refuse_when_kernel_managed():
+            return
         masks = self.topology_table.current_masks()
         target_cus = self._target_cus_from_masks(masks)
         pending = self._pending_wgp_count(masks)
@@ -1498,6 +1534,8 @@ class ComputeUnitsPage(QWidget):
         )
 
     def install_service(self) -> None:
+        if self._refuse_when_kernel_managed():
+            return
         self._run_confirmed_action(
             "install_service",
             "Install boot restore service",
@@ -1507,6 +1545,8 @@ class ComputeUnitsPage(QWidget):
         )
 
     def apply_saved_layout(self) -> None:
+        if self._refuse_when_kernel_managed():
+            return
         pending = self._pending_wgp_count(self.topology_table.current_masks())
         if pending > 0:
             self._show_info(
@@ -1768,6 +1808,24 @@ class ComputeUnitsPage(QWidget):
         self.restore_factory_button.setEnabled(availability.restore_factory)
         self.discard_button.setEnabled(availability.discard)
         self.apply_live_button.setEnabled(availability.apply_live)
+        kernel_managed = self._kernel_managed()
+        self.kernel_managed_notice.setVisible(kernel_managed)
+        if kernel_managed:
+            # Read-only: the table shows the kernel's routing, nothing edits it.
+            # Unlock / Sync stays: it runs the backend's read-only "status",
+            # which is how the table learns the kernel's live routing.
+            self.balance_button.setEnabled(False)
+        self.topology_table.set_read_only(kernel_managed)
+
+    def _kernel_managed(self) -> bool:
+        return bool(self.current_state.get("kernel_managed"))
+
+    def _refuse_when_kernel_managed(self) -> bool:
+        """A guard on every write entry point, not only on the buttons."""
+        if not self._kernel_managed():
+            return False
+        self._show_info("Compute Units", KERNEL_MANAGED_NOTICE)
+        return True
 
     def _has_authorized_state(self) -> bool:
         masks = self.current_state.get("masks")

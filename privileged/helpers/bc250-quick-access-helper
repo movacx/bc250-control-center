@@ -21,7 +21,11 @@ import subprocess
 import sys
 import tempfile
 import time
-import tomllib
+try:
+    import tomllib
+except ModuleNotFoundError:  # Python 3.10: Ubuntu 22.04, Linux Mint 21
+    print("ERR QUICK_ACCESS_PYTHON: Python 3.11 or newer is required by this helper.", file=sys.stderr)
+    raise SystemExit(2)
 from collections.abc import Mapping, Sequence
 from contextlib import contextmanager
 
@@ -42,7 +46,12 @@ from contextlib import contextmanager
 # presets ("fan_profiles" in the status), "fan-resume" (hand the fans back to
 # the desktop's system fan service after a Decky takeover) and the
 # system_fan_* ownership fields per-game profiles restore from.
-HELPER_PROTOCOL = 19
+# Protocol 20 adds "gpu-compat <smu|kernel> <busy-flag|process|kernel> <0|1> <0|1>"
+# (the desktop's Cyan kernel compatibility) and the gpu_compatibility status field.
+# Protocol 21 adds "ttm-status" and "ttm-apply <8|10|12|default>" (the GPU
+# memory limit, through the desktop's system-setup helper) and the vram
+# active_mb/reboot_pending fields.
+HELPER_PROTOCOL = 21
 REQUIRED_CONTRACT_REVISION = 1
 CONTRACT_PATH = pathlib.Path(
     "/usr/libexec/bc250-control-center/lib/bc250_contract.py"
@@ -327,6 +336,11 @@ PWM_DUTY_VERIFY_INTERVAL_SECONDS = 0.10
 PWM_MODE_SETTLE_SECONDS = 0.15
 FAN_OPERATION_LOCK = pathlib.Path('/run/bc250-control-center-fan.lock')
 CU_OPERATION_LOCK = pathlib.Path('/run/bc250-control-center-cu.lock')
+#: The CMOS index/data pair (ports 0x72/0x73) is one shared latch: two
+#: processes interleaving "select index" and "access data" write a byte to the
+#: wrong CMOS offset. Every reader and writer, here and in the desktop's
+#: system-setup helper (system_setup_vram.py), takes this same lock.
+CMOS_OPERATION_LOCK = pathlib.Path('/run/bc250-control-center-cmos.lock')
 OPERATION_LOCK_TIMEOUT_SECONDS = 3.0
 
 
@@ -357,6 +371,19 @@ def operation_lock(path: pathlib.Path, label: str):
         os.close(descriptor)
 
 
+@contextmanager
+def cmos_guard(port_open=None):
+    """Serialise CMOS port access across processes; injected openers (tests) skip it."""
+    if port_open is not None:
+        yield
+        return
+    try:
+        with operation_lock(CMOS_OPERATION_LOCK, 'BC250 CMOS'):
+            yield
+    except OSError as error:
+        raise RuntimeError(f"QUICK_ACCESS_VRAM: Cannot lock the BC250 CMOS I/O ports: {error}") from error
+
+
 def fail(message: str, code: int = 1) -> int:
     print(f"ERR {message}", file=sys.stderr, flush=True)
     return code
@@ -381,6 +408,7 @@ def run(
     *,
     timeout: int = 45,
     extra_env: Mapping[str, str] | None = None,
+    keep_running: bool = False,
 ) -> subprocess.CompletedProcess[str]:
     environment = {
         "PATH": "/usr/sbin:/usr/bin:/sbin:/bin",
@@ -389,11 +417,43 @@ def run(
     }
     if extra_env:
         environment.update({str(key): str(value) for key, value in extra_env.items()})
-    return subprocess.run(
-        list(command), text=True, capture_output=True,
-        timeout=timeout, check=False,
-        env=environment,
-    )
+    if keep_running:
+        # Killing a program that is changing the system half way leaves the
+        # change and its journal out of step. On a timeout it is left running.
+        process = subprocess.Popen(
+            list(command), text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            env=environment, start_new_session=True,
+        )
+        try:
+            stdout, stderr = process.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            return subprocess.CompletedProcess(
+                list(command), 124, "",
+                "ERROR: The change is still running. Wait a minute and check the GPU memory limit again before retrying.",
+            )
+        return subprocess.CompletedProcess(list(command), process.returncode, stdout, stderr)
+    try:
+        return subprocess.run(
+            list(command), text=True, capture_output=True,
+            timeout=timeout, check=False,
+            env=environment,
+        )
+    except subprocess.TimeoutExpired as expired:
+        # A program that does not answer in time is a failed command, not a
+        # crash of the whole action. Cyan stops answering D-Bus while its
+        # "process" usage reading walks every open file, and one slow busctl
+        # used to escape as TimeoutExpired and fail the entire status read:
+        # the panel then showed an error and stale data for as long as it did.
+        def _text(value: object) -> str:
+            if isinstance(value, bytes):
+                return value.decode("utf-8", "replace")
+            return str(value or "")
+
+        return subprocess.CompletedProcess(
+            list(command), 124,
+            stdout=_text(expired.stdout),
+            stderr=_text(expired.stderr) or f"timed out after {timeout}s: {command[0]}",
+        )
 
 
 def is_steamos() -> bool:
@@ -509,15 +569,25 @@ def vram_status(*, port_open=None) -> dict[str, object]:
         return {"supported": False, "reason": "/dev/port is not available on this kernel", "uma_size_mb": None, "boot_id": boot_id}
     opener = port_open or (lambda: open(VRAM_DEVICE, "r+b", buffering=0))
     try:
-        port = opener()
-    except OSError as error:
+        with cmos_guard(port_open):
+            port = opener()
+            try:
+                bank = _vram_read_bank(port)
+            finally:
+                port.close()
+    except (OSError, RuntimeError) as error:
         return {"supported": False, "reason": f"Cannot access BC250 CMOS I/O ports: {error}", "uma_size_mb": None, "boot_id": boot_id}
-    try:
-        bank = _vram_read_bank(port)
-    finally:
-        port.close()
     uma_size_mb = bank[VRAM_UMA_SIZE_OFFSET] | (bank[VRAM_UMA_SIZE_OFFSET + 1] << 8)
-    return {"supported": True, "reason": "", "uma_size_mb": uma_size_mb, "boot_id": boot_id}
+    # What the firmware booted with, from amdgpu. CMOS holding another size
+    # means a reboot is pending, whoever wrote it -- this panel or the
+    # desktop -- so the notice no longer depends on this panel's own memory.
+    usage = gpu_vram_usage_mib()
+    active_mb = usage[1] if usage else None
+    return {
+        "supported": True, "reason": "", "uma_size_mb": uma_size_mb, "boot_id": boot_id,
+        "active_mb": active_mb,
+        "reboot_pending": active_mb is not None and abs(uma_size_mb - active_mb) >= 64,
+    }
 
 
 def vram_apply(size_mb: int, *, port_open=None) -> dict[str, object]:
@@ -528,20 +598,21 @@ def vram_apply(size_mb: int, *, port_open=None) -> dict[str, object]:
             "QUICK_ACCESS_VRAM: " + (current["reason"] or "BC250 VRAM configuration is unavailable.")
         )
     opener = port_open or (lambda: open(VRAM_DEVICE, "r+b", buffering=0))
-    try:
-        port = opener()
-    except OSError as error:
-        raise RuntimeError(f"QUICK_ACCESS_VRAM: Cannot access BC250 CMOS I/O ports: {error}") from error
-    try:
-        bank = _vram_read_bank(port)
-        bank[VRAM_UMA_SIZE_OFFSET] = size_mb & 0xFF
-        bank[VRAM_UMA_SIZE_OFFSET + 1] = (size_mb >> 8) & 0xFF
-        bank[0:4] = VRAM_SIGNATURE.to_bytes(4, "little")
-        checksum = sum(bank[VRAM_CHECKSUM_FIELD_OFFSET:]) & 0xFFFF
-        bank[4:6] = checksum.to_bytes(2, "little")
-        _vram_write_bank(port, bank)
-    finally:
-        port.close()
+    with cmos_guard(port_open):
+        try:
+            port = opener()
+        except OSError as error:
+            raise RuntimeError(f"QUICK_ACCESS_VRAM: Cannot access BC250 CMOS I/O ports: {error}") from error
+        try:
+            bank = _vram_read_bank(port)
+            bank[VRAM_UMA_SIZE_OFFSET] = size_mb & 0xFF
+            bank[VRAM_UMA_SIZE_OFFSET + 1] = (size_mb >> 8) & 0xFF
+            bank[0:4] = VRAM_SIGNATURE.to_bytes(4, "little")
+            checksum = sum(bank[VRAM_CHECKSUM_FIELD_OFFSET:]) & 0xFFFF
+            bank[4:6] = checksum.to_bytes(2, "little")
+            _vram_write_bank(port, bank)
+        finally:
+            port.close()
     return {"applied_uma_size_mb": size_mb}
 
 
@@ -560,6 +631,110 @@ def vram_apply_action(raw_size_mb: str) -> int:
         "ok": True,
         **result,
         "message": "VRAM size written to CMOS. Restart your console to activate it.",
+    }))
+    return 0
+
+
+# ------------------------------------------------- GPU memory limit (TTM)
+# Protocol 21. The limit is a kernel boot argument kept by the desktop's own
+# system-setup helper (privileged/lib/system_setup_ttm.py): Limine, GRUB or
+# grubby on mutable distributions, rpm-ostree on Bazzite. This panel never
+# writes it itself, so the desktop and the panel read and change one state
+# through one implementation, and either one sees what the other did.
+SYSTEM_SETUP_HELPER = pathlib.Path(
+    "/usr/libexec/bc250-control-center/bc250-system-setup-helper"
+)
+TTM_CHOICES = {"8": "8", "10": "10", "12": "12", "default": "-1"}
+#: Read from the helper's answer, each with the only type it may have.
+TTM_FIELDS = {
+    "supported": bool, "backend": str, "reason": str, "page_size": int,
+    "presets_gib": list, "manual_arguments": dict, "physical_ram_bytes": int,
+    "next_boot_ram_bytes": int, "live_pages": int, "boot_pages": int,
+    "configured_pages": int, "managed": bool, "managed_pages": int,
+    "external": bool, "external_pages": int, "gtt_total_bytes": int,
+    "gtt_override": int, "legacy_pages": int, "reboot_required": bool,
+}
+
+
+def ttm_payload(data: Mapping[str, object]) -> dict[str, object]:
+    """Only the documented fields, so the panel never renders anything else."""
+    payload: dict[str, object] = {}
+    for name, kind in TTM_FIELDS.items():
+        value = data.get(name)
+        if kind is int:
+            payload[name] = value if type(value) is int and value >= 0 else None
+        elif kind is bool:
+            payload[name] = value is True
+        elif kind is str:
+            payload[name] = str(value or "")[:400]
+        elif kind is list:
+            payload[name] = [item for item in value if type(item) is int and item in (8, 10, 12)] if isinstance(value, list) else []
+        else:
+            payload[name] = (
+                {str(key): str(item)[:64] for key, item in value.items() if str(key) in {"8", "10", "12"}}
+                if isinstance(value, dict) else {}
+            )
+    return payload
+
+
+def _system_setup_json(arguments: Sequence[str], timeout: int) -> dict[str, object]:
+    if not trusted_file(SYSTEM_SETUP_HELPER, executable=True):
+        raise RuntimeError(
+            "QUICK_ACCESS_TTM: the protected system setup helper is unavailable. "
+            "Update or reinstall BC250 Control Center from Desktop Mode."
+        )
+    # A change is never killed half way: a late answer is reported and the
+    # helper, which holds the setup lock, is left to finish.
+    changing = bool(arguments) and arguments[0] == "ttm-apply"
+    result = run([str(SYSTEM_SETUP_HELPER), *arguments], timeout=timeout, keep_running=changing)
+    line = next((item for item in result.stdout.splitlines() if item.startswith("{")), "")
+    if result.returncode != 0 or not line:
+        errors = [item.removeprefix("ERROR:").strip() for item in result.stderr.splitlines() if item.startswith("ERROR:")]
+        detail = errors[-1] if errors else (result.stderr.strip() or result.stdout.strip() or "no answer")
+        raise RuntimeError(f"QUICK_ACCESS_TTM: {detail}")
+    try:
+        data = json.loads(line)
+    except ValueError as error:
+        raise RuntimeError("QUICK_ACCESS_TTM: the system setup helper answered with invalid data.") from error
+    if not isinstance(data, dict):
+        raise RuntimeError("QUICK_ACCESS_TTM: the system setup helper answered with invalid data.")
+    return data
+
+
+TTM_STEAMOS_REASON = (
+    "SteamOS rewrites its boot configuration on every update, so a GPU memory "
+    "limit set here would not survive. It needs the ttm.pages_limit kernel argument."
+)
+
+
+def ttm_status_action() -> int:
+    if is_steamos() and not trusted_file(SYSTEM_SETUP_HELPER, executable=True):
+        # The answer is the same with or without the desktop's helper.
+        print(json.dumps({"ok": True, "ttm": ttm_payload({
+            "supported": False, "backend": "unsupported", "reason": TTM_STEAMOS_REASON,
+        })}))
+        return 0
+    try:
+        data = _system_setup_json(["ttm-status"], timeout=60)
+    except RuntimeError as error:
+        return fail(str(error), 51)
+    print(json.dumps({"ok": True, "ttm": ttm_payload(data)}))
+    return 0
+
+
+def ttm_apply_action(raw: str) -> int:
+    value = TTM_CHOICES.get(raw)
+    if value is None:
+        return fail("QUICK_ACCESS_TTM: expected 8, 10, 12 or default.", 2)
+    try:
+        # rpm-ostree writes a new deployment, which takes a while.
+        data = _system_setup_json(["ttm-apply", "--ttm", value], timeout=240)
+    except RuntimeError as error:
+        return fail(str(error), 51)
+    print(json.dumps({
+        "ok": True,
+        "ttm": ttm_payload(data),
+        "message": "GPU memory limit saved for the next boot. Restart your console to apply it.",
     }))
     return 0
 
@@ -642,19 +817,35 @@ def system_memory_state(
 
 
 def gpu_core_mhz(drm_root: pathlib.Path = pathlib.Path("/sys/class/drm")) -> int | None:
-    """Read the current marked AMD DPM core clock without issuing a command."""
+    """Read the live GPU core clock without issuing a command.
+
+    amdgpu's hwmon freq1_input comes first: on the BC-250 the driver's own
+    current-level marks in pp_dpm_sclk (and gpu_metrics' current_gfxclk) are
+    noise under Cyan's SMU backend -- "14Mhz *", "100Mhz *" while the GPU
+    really runs at 1700 MHz -- and Cyan's fix-freq keeps freq1_input exact.
+    pp_dpm_sclk stays the fallback for hosts without that hwmon file.
+    """
     try:
         devices = sorted(drm_root.glob("card*/device"))
     except OSError:
         return None
     for device in devices:
-        dpm = device / "pp_dpm_sclk"
         try:
             vendor = (device / "vendor").read_text(encoding="ascii", errors="ignore").strip().lower()
-            payload = dpm.read_text(encoding="ascii", errors="ignore")
         except OSError:
             continue
         if vendor != "0x1002":
+            continue
+        for frequency_file in sorted(device.glob("hwmon/hwmon*/freq1_input")):
+            try:
+                hertz = int(frequency_file.read_text(encoding="ascii").strip())
+            except (OSError, ValueError):
+                continue
+            if 100 <= hertz // 1_000_000 <= 5000:
+                return hertz // 1_000_000
+        try:
+            payload = (device / "pp_dpm_sclk").read_text(encoding="ascii", errors="ignore")
+        except OSError:
             continue
         for line in payload.splitlines():
             match = re.search(r"\b(\d+)\s*(?:mhz|mhs)\b.*\*", line, re.IGNORECASE)
@@ -1089,6 +1280,52 @@ GDDR6_HOME_ROOTS = (pathlib.Path("/home"), pathlib.Path("/var/home"))
 GDDR6_MIN_DESKTOP_UID = 1000
 
 
+GDDR6_PATCH_HELPER_PATHS = (
+    pathlib.Path("/usr/libexec/bc250-control-center") / "bc250-gddr6-temp-helper",
+    pathlib.Path("/usr/local/libexec/bc250-control-center") / "bc250-gddr6-temp-helper",
+)
+
+
+def gddr6_patch() -> int:
+    """Apply the runtime GDDR6 temperature patch for this boot, on request.
+
+    Runs the same reviewed bc250-gddr6-temp-helper the desktop's "Monitor
+    live" runs, with the same checks inside it (P3.0 firmware, the SMN window
+    and collector locks, a settled GPU governor) -- nothing is re-implemented
+    here. The player asks for it from Quick Access after a risk confirmation;
+    the patch lasts until the next boot. Answers with a fresh reading.
+    """
+    helper = next(
+        (path for path in GDDR6_PATCH_HELPER_PATHS if trusted_file(path, executable=True)),
+        None,
+    )
+    if helper is None:
+        return fail("QUICK_ACCESS_GDDR6: the protected GDDR6 patch helper is not installed.", 66)
+    last_error = "no reviewed bc250-memory-temperature checkout was found."
+    for repository, uid in _gddr6_repository_candidates():
+        try:
+            result = subprocess.run(
+                [str(helper), "--repo", str(repository), "--action", "apply"],
+                text=True, capture_output=True, timeout=180, check=False,
+                env={
+                    "PATH": "/usr/sbin:/usr/bin:/sbin:/bin",
+                    "LANG": "C.UTF-8", "LC_ALL": "C.UTF-8",
+                    "PKEXEC_UID": str(uid),
+                },
+            )
+        except subprocess.TimeoutExpired:
+            return fail("QUICK_ACCESS_GDDR6: the GDDR6 patch did not finish in time.", 66)
+        if result.returncode == 0:
+            return gddr6_sensors()
+        detail = (result.stderr or result.stdout or "").strip().splitlines()
+        last_error = (detail[-1] if detail else "the patch helper failed.").removeprefix("ERROR: ")
+        # Only a checkout the helper rejected is worth trying the next one;
+        # firmware, governor or SMU refusals are about the board.
+        if not any(word in last_error.lower() for word in ("checkout", "clone", "repository", "origin", "revision")):
+            break
+    return fail(f"QUICK_ACCESS_GDDR6: {last_error}", 66)
+
+
 def _gddr6_reader_path() -> pathlib.Path | None:
     for candidate in GDDR6_READER_PATHS:
         if trusted_file(candidate, executable=True):
@@ -1236,7 +1473,8 @@ def service_active(service: str) -> bool:
 #: The only two services this action may touch, keyed by the governor name
 #: the panel already reports. Never a caller-supplied unit.
 GOVERNOR_SERVICES = {"cyan": CYAN_SERVICE, "oberon": OBERON_SERVICE}
-GOVERNOR_SERVICE_START_SECONDS = 8.0
+#: Cyan's ExecStartPre preflight alone may take up to ~10 s.
+GOVERNOR_SERVICE_START_SECONDS = 25.0
 #: Which governor the panel last enabled or disabled, so "Disable" followed
 #: by "Enable" brings back the same one on a board with both installed.
 GOVERNOR_LAST_TARGET = pathlib.Path("/var/lib/bc250-control-center/quick-access-gpu-governor")
@@ -1296,7 +1534,11 @@ def governor_unit_state(service: str) -> dict[str, bool]:
     return {
         "installed": values.get("LoadState") == "loaded",
         "enabled": values.get("UnitFileState") in {"enabled", "enabled-runtime"},
-        "active": values.get("ActiveState") in {"active", "activating", "reloading"},
+        # "activating" is not running: a governor stuck in a restart loop
+        # sits there forever, and counting it as active made the panel say
+        # "running" while every GPU control said no governor was active.
+        "active": values.get("ActiveState") in {"active", "reloading"},
+        "starting": values.get("ActiveState") == "activating",
     }
 
 
@@ -1325,14 +1567,37 @@ def governor_service_state() -> dict[str, object]:
         target = "cyan"
     else:
         target = ""
-    target_state = states.get(target, {"installed": False, "enabled": False, "active": False})
+    target_state = states.get(target, {"installed": False, "enabled": False, "active": False, "starting": False})
     return {
         "gpu_service_target": target,
         "gpu_service_installed": bool(target_state["installed"]),
         "gpu_service_enabled": bool(target_state["enabled"]),
         "gpu_service_active": bool(target_state["active"]),
+        "gpu_service_starting": bool(target_state.get("starting")),
         "gpu_service_conflict": len(active) > 1,
     }
+
+
+def governor_ready(target: str, service: str) -> bool:
+    if not service_active(service):
+        return False
+    # systemd reports Cyan "active" before it has bound its overlays; a Cyan
+    # that then fails exits a moment later.  Its D-Bus range is published
+    # only once it is really governing.
+    return target != "cyan" or cyan_range() is not None
+
+
+def wait_for_governor_ready(target: str, service: str) -> bool:
+    deadline = time.monotonic() + GOVERNOR_SERVICE_START_SECONDS
+    while True:
+        if governor_ready(target, service):
+            # Still up a moment later: not the start of a crash loop.
+            time.sleep(1.0)
+            if governor_ready(target, service):
+                return True
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(0.4)
 
 
 def gpu_service_action(action: str) -> int:
@@ -1368,20 +1633,23 @@ def gpu_service_action(action: str) -> int:
                 69,
             )
         result = run(["/usr/bin/systemctl", "enable", "--now", service], timeout=45)
+        if result.returncode == 0 and not service_active(service):
+            # A unit stuck in a restart loop ("activating") ignores
+            # enable --now; clear the failure counter and start it afresh.
+            run(["/usr/bin/systemctl", "reset-failed", service], timeout=15)
+            result = run(["/usr/bin/systemctl", "restart", "--no-block", service], timeout=45)
         if result.returncode != 0:
             return fail(
                 "QUICK_ACCESS_GPU_SERVICE: "
                 + (result.stderr.strip() or result.stdout.strip() or f"could not enable {service}."),
                 69,
             )
-        deadline = time.monotonic() + GOVERNOR_SERVICE_START_SECONDS
-        while not service_active(service) and time.monotonic() < deadline:
-            time.sleep(0.4)
-        verified = governor_unit_state(service)
-        if not (verified["enabled"] and verified["active"]):
+        if not wait_for_governor_ready(target, service):
             return fail(
                 f"QUICK_ACCESS_GPU_SERVICE: {service} was enabled but did not stay "
-                "running. Open its status from BC250 Control Center Desktop.",
+                "running. If Cyan kernel compatibility uses a kernel option this "
+                "kernel lacks, switch it back to SMU / busy-flag: it can be changed "
+                "while Cyan is stopped.",
                 69,
             )
         message = f"{service} is enabled and running."
@@ -1458,6 +1726,17 @@ def trusted_generic_immutable_cu_path(
         and not metadata.st_mode & 0o022
         and (not executable or bool(metadata.st_mode & stat.S_IXUSR))
     )
+
+
+CU_WRITE_MODE_PARAMETER = pathlib.Path("/sys/module/amdgpu/parameters/bc250_cc_write_mode")
+
+
+def kernel_cu_unlock_active(parameter: pathlib.Path | None = None) -> bool:
+    """linux-cachyos-bc250 at clear-all-SAs: the driver owns CU routing."""
+    try:
+        return (parameter or CU_WRITE_MODE_PARAMETER).read_text(encoding="ascii", errors="strict").strip() == "3"
+    except (OSError, UnicodeError):
+        return False
 
 
 def cu_backend_ready() -> bool:
@@ -1893,13 +2172,28 @@ def parse_uint(payload: str) -> int | None:
     return int(match.group(1)) if match else None
 
 
+#: Set by status() for its single pass.  Under the "process" usage reading
+#: Cyan stops answering D-Bus while a game runs; each of status()'s five
+#: reads then waited out its own 8 s timeout, so one panel refresh took ~40 s
+#: and every other control queued behind it.  Once one read times out, the
+#: rest of that pass reports "unknown" immediately.
+CYAN_DBUS_LATCH = {"enabled": False, "unresponsive": False}
+
+
+def cyan_get_property(path: str, interface: str, name: str) -> subprocess.CompletedProcess[str]:
+    command = ["/usr/bin/busctl", "--system", "get-property", CYAN_BUS, path, interface, name]
+    if CYAN_DBUS_LATCH["enabled"] and CYAN_DBUS_LATCH["unresponsive"]:
+        return subprocess.CompletedProcess(command, 124, "", "Cyan D-Bus is not answering.")
+    result = run(command, timeout=8)
+    if CYAN_DBUS_LATCH["enabled"] and result.returncode == 124:
+        CYAN_DBUS_LATCH["unresponsive"] = True
+    return result
+
+
 def cyan_range() -> tuple[int, int] | None:
     values: list[int] = []
     for property_name in ("Min", "Max"):
-        result = run([
-            "/usr/bin/busctl", "--system", "get-property", CYAN_BUS, CYAN_RANGE_PATH,
-            CYAN_RANGE_INTERFACE, property_name,
-        ], timeout=8)
+        result = cyan_get_property(CYAN_RANGE_PATH, CYAN_RANGE_INTERFACE, property_name)
         value = parse_uint(result.stdout) if result.returncode == 0 else None
         if value is None:
             return None
@@ -1911,11 +2205,9 @@ def cyan_allowed_range() -> tuple[int, int] | None:
     """Read Cyan's active safety envelope before a live range transition."""
     values: list[int] = []
     for property_name in ("Min", "Max"):
-        result = run([
-            "/usr/bin/busctl", "--system", "get-property", CYAN_BUS,
-            "/com/cyanskillfish/Governor/Range/Allowed", CYAN_RANGE_INTERFACE,
-            property_name,
-        ], timeout=8)
+        result = cyan_get_property(
+            "/com/cyanskillfish/Governor/Range/Allowed", CYAN_RANGE_INTERFACE, property_name,
+        )
         value = parse_uint(result.stdout) if result.returncode == 0 else None
         if value is None:
             return None
@@ -1936,6 +2228,191 @@ def cyan_set_method(config: pathlib.Path = CYAN_CONFIG) -> str | None:
         return "smu"
     method = str(gpu.get("set-method") or "smu").strip().lower()
     return method if method in {"smu", "kernel"} else None
+
+
+CYAN_USAGE_METHODS = ("busy-flag", "process", "kernel")
+
+
+def cyan_compatibility(config: pathlib.Path = CYAN_CONFIG) -> dict[str, object] | None:
+    """The four Cyan kernel-compatibility settings, read from the protected TOML.
+
+    Defaults follow the governor's own: SMU writes, the busy-flag usage reading
+    (the only one that never walks every open file), Fix metrics on and Fix
+    frequencies off. None means there is no trustworthy Cyan configuration.
+    """
+    if not trusted_directory(config.parent) or not trusted_file(config):
+        return None
+    try:
+        parsed = tomllib.loads(config.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, tomllib.TOMLDecodeError):
+        return None
+    gpu = parsed.get("gpu") if isinstance(parsed.get("gpu"), dict) else {}
+    usage = parsed.get("gpu-usage")
+    if not isinstance(usage, dict):
+        usage = parsed.get("gpu_usage") if isinstance(parsed.get("gpu_usage"), dict) else {}
+    set_method = str(gpu.get("set-method") or "smu").strip().lower()
+    usage_method = str(usage.get("method") or "busy-flag").strip().lower()
+    if set_method not in {"smu", "kernel"} or usage_method not in CYAN_USAGE_METHODS:
+        return None
+    fix_metrics = usage.get("fix-metrics", True)
+    fix_frequency = usage.get("fix-freq", usage.get("fix_freq", False))
+    return {
+        "set_method": set_method,
+        "usage_method": usage_method,
+        "fix_metrics": bool(fix_metrics),
+        "fix_frequency": bool(fix_frequency),
+    }
+
+
+def cyan_kernel_usage_supported(device: pathlib.Path | None = None) -> bool | None:
+    """Cyan's "kernel" usage reading needs a readable gpu_busy_percent."""
+    device = device if device is not None else _amdgpu_device()
+    if device is None:
+        return None
+    try:
+        value = int((device / "gpu_busy_percent").read_text(encoding="ascii").strip())
+    except (OSError, ValueError):
+        return False
+    return 0 <= value <= 100
+
+
+def cyan_kernel_set_supported(device: pathlib.Path | None = None) -> bool | None:
+    """Cyan's "kernel" set-method needs working overdrive clock controls.
+
+    An unpatched BC-250 kernel exposes pp_od_clk_voltage with a single
+    placeholder OD_SCLK level far below its own OD_RANGE (e.g. "0: 14Mhz"
+    against "SCLK: 1000Mhz 2000Mhz"); Cyan then exits with "Operation not
+    supported".  A usable table keeps every OD_SCLK level inside OD_RANGE.
+    """
+    device = device if device is not None else _amdgpu_device()
+    if device is None:
+        return None
+    try:
+        payload = (device / "pp_od_clk_voltage").read_text(encoding="ascii", errors="strict")
+    except (OSError, UnicodeError):
+        return False
+    bounds = re.search(r"^\s*SCLK:\s*(\d+)\s*Mhz\s+(\d+)\s*Mhz", payload, re.IGNORECASE | re.MULTILINE)
+    section = re.search(r"OD_SCLK:(.*?)(?:^[A-Z_]+:|\Z)", payload, re.DOTALL | re.MULTILINE)
+    if bounds is None or section is None:
+        return False
+    low, high = int(bounds.group(1)), int(bounds.group(2))
+    levels = [int(value) for value in re.findall(r"(\d+)\s*Mhz", section.group(1), re.IGNORECASE)]
+    return bool(levels) and all(low <= level <= high for level in levels)
+
+
+def _cyan_started_cleanly() -> bool:
+    """Running and still running a moment later, D-Bus or not.
+
+    D-Bus is not required here: under the "process" reading Cyan is healthy
+    while its bus does not answer.  A rejected setting makes it exit at once.
+    """
+    deadline = time.monotonic() + GOVERNOR_SERVICE_START_SECONDS
+    while True:
+        if service_active(CYAN_SERVICE):
+            time.sleep(2.0)
+            if service_active(CYAN_SERVICE):
+                return True
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(0.4)
+
+
+def gpu_compatibility(arguments: Sequence[str]) -> int:
+    """Apply Cyan's kernel compatibility the way the desktop does.
+
+    - Cyan stopped (or crash-looping on a bad setting): the TOML may still be
+      edited -- requiring a running Cyan made a bad "kernel" choice
+      impossible to undo from Game Mode, since that choice is what stops it.
+    - "kernel" choices this kernel cannot serve are refused before the TOML
+      is touched.
+    - When Cyan should run (active, enabled or restarting) it is restarted
+      with the new settings; if it does not stay up, the previous settings
+      are written back and Cyan restarted on them.
+    """
+    set_method, usage_method, fix_metrics, fix_frequency = arguments
+    if (
+        set_method not in {"smu", "kernel"}
+        or usage_method not in CYAN_USAGE_METHODS
+        or fix_metrics not in {"0", "1"}
+        or fix_frequency not in {"0", "1"}
+    ):
+        return fail(
+            "QUICK_ACCESS_GPU_CONFIG: expected smu|kernel, busy-flag|process|kernel and two 0/1 flags.", 20,
+        )
+    if service_active(OBERON_SERVICE):
+        return fail("QUICK_ACCESS_GPU_SERVICE: Oberon is the active governor; Cyan settings are not used.", 21)
+    unit = governor_unit_state(CYAN_SERVICE)
+    if not unit["installed"]:
+        return fail("QUICK_ACCESS_GPU_SERVICE: the Cyan governor is not installed.", 21)
+    if not trusted_file(GOVERNOR_CONFIG_HELPER, executable=True):
+        return fail(
+            "QUICK_ACCESS_GPU_HELPER: the protected governor configuration helper is unavailable. "
+            "Reinstall BC250 Control Center.", 21,
+        )
+    if usage_method == "kernel" and cyan_kernel_usage_supported() is False:
+        return fail(
+            "QUICK_ACCESS_GPU_CONFIG: this kernel does not expose a readable gpu_busy_percent, so "
+            "Cyan cannot use the kernel usage reading. Nothing was changed; choose busy-flag.", 20,
+        )
+    if set_method == "kernel" and cyan_kernel_set_supported() is False:
+        return fail(
+            "QUICK_ACCESS_GPU_CONFIG: this kernel has no usable overdrive clock controls, so Cyan "
+            "cannot use the kernel set-method. Nothing was changed; choose SMU.", 20,
+        )
+    previous_settings = cyan_compatibility()
+    should_run = bool(unit["active"] or unit["starting"] or unit["enabled"])
+    previous_range = cyan_range() if unit["active"] else None
+
+    def write(values: Sequence[str]) -> subprocess.CompletedProcess[str]:
+        return run([str(GOVERNOR_CONFIG_HELPER), "set-cyan-compatibility", *values], timeout=20)
+
+    result = write((set_method, usage_method, fix_metrics, fix_frequency))
+    if result.returncode != 0:
+        return fail(result.stderr.strip() or result.stdout.strip() or "Governor configuration update failed.", 22)
+    if not should_run:
+        print(json.dumps({
+            "ok": True,
+            "message": "Cyan is stopped; the compatibility settings apply on its next start.",
+            "gpu_compatibility": cyan_compatibility(),
+        }))
+        return 0
+
+    run(["/usr/bin/systemctl", "reset-failed", CYAN_SERVICE], timeout=15)
+    run(["/usr/bin/systemctl", "restart", "--no-block", CYAN_SERVICE], timeout=30)
+    if not _cyan_started_cleanly():
+        rollback = ""
+        if previous_settings is not None:
+            write((
+                str(previous_settings["set_method"]), str(previous_settings["usage_method"]),
+                "1" if previous_settings["fix_metrics"] else "0",
+                "1" if previous_settings["fix_frequency"] else "0",
+            ))
+            run(["/usr/bin/systemctl", "reset-failed", CYAN_SERVICE], timeout=15)
+            run(["/usr/bin/systemctl", "restart", "--no-block", CYAN_SERVICE], timeout=30)
+            rollback = (
+                " The previous settings were restored."
+                if _cyan_started_cleanly()
+                else " The previous settings were restored, but Cyan did not start on them either."
+            )
+        return fail(
+            "QUICK_ACCESS_GPU_VERIFY: Cyan did not stay running with the requested compatibility "
+            "settings." + rollback, 24,
+        )
+    message = "Cyan kernel compatibility applied."
+    if previous_range is not None:
+        # Best effort, like the desktop: the settings already applied, and the
+        # "process" reading may keep D-Bus silent.
+        deadline = time.monotonic() + 10.0
+        while cyan_range() is None and time.monotonic() < deadline:
+            time.sleep(0.3)
+        restored = run([
+            "/usr/bin/busctl", "--system", "call", CYAN_BUS, CYAN_PERFORMANCE_PATH,
+            CYAN_PERFORMANCE_INTERFACE, "SetRange", "uu", str(previous_range[0]), str(previous_range[1]),
+        ], timeout=12)
+        if restored.returncode != 0:
+            message += " Cyan's D-Bus did not answer, so the previous range was not put back."
+    print(json.dumps({"ok": True, "message": message, "gpu_compatibility": cyan_compatibility()}))
+    return 0
 
 
 def cyan_safe_point_ceilings(config: pathlib.Path = CYAN_CONFIG) -> tuple[dict[str, int], ...]:
@@ -2169,10 +2646,7 @@ def set_oberon_range(requested: tuple[int, int]) -> int:
 
 
 def cyan_performance_enabled() -> bool | None:
-    result = run([
-        "/usr/bin/busctl", "--system", "get-property", CYAN_BUS,
-        CYAN_PERFORMANCE_PATH, CYAN_PERFORMANCE_INTERFACE, "Enabled",
-    ], timeout=8)
+    result = cyan_get_property(CYAN_PERFORMANCE_PATH, CYAN_PERFORMANCE_INTERFACE, "Enabled")
     if result.returncode == 0:
         if result.stdout.strip() == "b true":
             return True
@@ -2282,13 +2756,10 @@ def gpu_high_points(enabled_raw: str) -> int:
 
     Mirrors the Desktop's "Enable/Disable +2000 MHz TOML points" button,
     through the same governor-config helper it uses (Decky is already root,
-    so this calls it directly instead of through pkexec). This is purely a
-    persistent-file edit -- it never restarts Cyan and never touches the live
-    D-Bus range. A newly enabled point appears in cyan_safe_point_ceilings()
-    (and therefore gpu-safe-point) immediately, but Cyan's own running
-    process will not route to it until the service reloads -- exactly the
-    same gap set_cyan_range() already has for any Allowed value it has not
-    seen yet, so no separate reload logic is added here.
+    so this calls it directly instead of through pkexec). When Cyan is running it is then
+    restarted and the live range put back (clamped to 2000 MHz when the high
+    points are removed): Cyan reads its Allowed range only at start, so
+    without the restart the new points stayed unusable until the next one.
     """
     if enabled_raw not in {"0", "1"}:
         return fail("QUICK_ACCESS_GPU_HIGH_POINTS: expected 0 or 1.", 20)
@@ -2303,9 +2774,19 @@ def gpu_high_points(enabled_raw: str) -> int:
             21,
         )
     action = "enable-high-points" if enabled_raw == "1" else "disable-high-points"
+    previous = cyan_range() if active_gpu_governor() == "cyan" else None
     result = run([str(GOVERNOR_CONFIG_HELPER), action], timeout=20)
     if result.returncode != 0:
         return fail(result.stderr.strip() or result.stdout.strip() or "Governor configuration update failed.", 22)
+    if previous is not None:
+        # Cyan derives its Allowed range from the TOML only when it starts:
+        # without a restart the new points stayed greyed out (or the removed
+        # ones stayed reachable) until something else restarted it.
+        if enabled_raw == "0":
+            previous = (min(previous[0], 2000), min(previous[1], 2000))
+        error = _restart_cyan_keeping_range(previous)
+        if error:
+            return fail(error, 24)
     print(json.dumps({
         "ok": True,
         "gpu_high_points_enabled": enabled_raw == "1",
@@ -2415,7 +2896,7 @@ def _restart_cyan_keeping_range(previous: tuple[int, int]) -> str:
     if restarted.returncode != 0:
         return (restarted.stderr.strip() or restarted.stdout.strip()
                 or "QUICK_ACCESS_GPU_VERIFY: Cyan did not restart.")
-    deadline = time.monotonic() + 15.0
+    deadline = time.monotonic() + 30.0
     while time.monotonic() < deadline and cyan_range() is None:
         time.sleep(0.3)
     if cyan_range() is None:
@@ -2439,7 +2920,6 @@ def _voltage_result(message: str) -> int:
         "message": message,
         "gpu_voltage_points": list(points),
         "gpu_voltage_level": detected_voltage_level(points),
-        "gpu_range": list(cyan_range() or ()),
     }))
     return 0
 
@@ -3430,7 +3910,7 @@ def cpu_apply_manual_scale(frequency_raw: str, scale_raw: str) -> int:
             str(CPU_HELPER), "apply-qam-scale", str(candidate["frequency"]),
             str(candidate["scale"]), str(candidate["temperature"]),
         ],
-        timeout=180,
+        timeout=600,
     )
     if result.returncode != 0:
         return fail(
@@ -3581,6 +4061,7 @@ def _contract_payload() -> dict:
 
 
 def status() -> int:
+    CYAN_DBUS_LATCH["enabled"] = True
     cu_topology = cu_dashboard_topology()
     cu_persistence = cu_service_state()
     # Resolve hwmon once so the reported channel list and its preset describe
@@ -3654,6 +4135,7 @@ def status() -> int:
         "gpu_governor_active": governor in {"cyan", "oberon"},
         **governor_service_state(),
         "gpu_range": current_range,
+        "gpu_dbus_responsive": not CYAN_DBUS_LATCH["unresponsive"],
         "gpu_performance_enabled": cyan_performance_enabled() if governor == "cyan" else None,
         "gpu_allowed_range": allowed_range,
         "gpu_safe_point_ceilings": safe_points,
@@ -3683,6 +4165,7 @@ def status() -> int:
         "cpu_voltage_mv": cpu_voltage_sensor_mv(),
         **board_and_storage_temperatures(),
         "cu_backend_ready": cu_backend_ready(),
+        "cu_kernel_managed": kernel_cu_unlock_active(),
         "cu_active_cus": cu_topology["active_cus"] if cu_topology else None,
         "cu_total_cus": cu_topology["total_cus"] if cu_topology else None,
         "cu_masks": list(cu_topology["masks"]) if cu_topology else None,
@@ -3703,6 +4186,7 @@ def status() -> int:
         # and it carried its own copy of the VID coefficients and the CU
         # ladder. Anything it needs to draw a control belongs here.
         "contract": _contract_payload(),
+        "gpu_compatibility": cyan_compatibility(),
         "vram": vram_status(),
         **memory_runtime_state(),
         **system_memory_state(),
@@ -3806,13 +4290,14 @@ def main(argv: Sequence[str]) -> int:
     load_contract()
     valid_arity = (
         len(argv) == 2
-        or (len(argv) == 3 and argv[1] in {"gpu-profile", "gpu-safe-point", "gpu-high-points", "gpu-service", "gpu-voltage-level", "cu-mode", "cu-service", "fan-auto", "fan-system", "cpu-service", "vram-apply"})
+        or (len(argv) == 3 and argv[1] in {"gpu-profile", "gpu-safe-point", "gpu-high-points", "gpu-service", "gpu-voltage-level", "cu-mode", "cu-service", "fan-auto", "fan-system", "cpu-service", "vram-apply", "ttm-apply"})
         or (3 <= len(argv) <= 20 and argv[1] == "gpu-voltage-custom")
+        or (len(argv) == 6 and argv[1] == "gpu-compat")
         or (len(argv) == 4 and argv[1] in {"fan-channel", "cpu-detect", "cpu-scale"})
         or (len(argv) == 6 and argv[1] in {"cu-table", "cu-save"})
     )
     if not valid_arity:
-        return fail("Usage: status | cpu-telemetry | qam-sensors | gddr6-sensors | gpu-profile <name> | gpu-safe-point <toml-mhz> | gpu-high-points <0|1> | gpu-service <enable|disable> | gpu-voltage-level <0-3> | gpu-voltage-custom <mhz=mv>... | cu-mode <name> | cu-table <m0> <m1> <m2> <m3> | cu-save <m0> <m1> <m2> <m3> | cu-service <install|remove> | fan-auto <channel> | fan-system <preset> | fan-resume | fan-channel <2-5> <automatic|20-100> | cpu-apply-saved | cpu-detect <frequency> <vid> | cpu-scale <frequency> <scale> | cpu-service <install|remove> | vram-apply <mb>", 2)
+        return fail("Usage: status | cpu-telemetry | qam-sensors | gddr6-sensors | gddr6-patch | gpu-profile <name> | gpu-safe-point <toml-mhz> | gpu-high-points <0|1> | gpu-service <enable|disable> | gpu-voltage-level <0-3> | gpu-voltage-custom <mhz=mv>... | gpu-compat <smu|kernel> <busy-flag|process|kernel> <0|1> <0|1> | cu-mode <name> | cu-table <m0> <m1> <m2> <m3> | cu-save <m0> <m1> <m2> <m3> | cu-service <install|remove> | fan-auto <channel> | fan-system <preset> | fan-resume | fan-channel <2-5> <automatic|20-100> | cpu-apply-saved | cpu-detect <frequency> <vid> | cpu-scale <frequency> <scale> | cpu-service <install|remove> | vram-apply <mb> | ttm-status | ttm-apply <8|10|12|default>", 2)
     action = argv[1]
     if action == "status" and len(argv) == 2:
         return status()
@@ -3822,6 +4307,8 @@ def main(argv: Sequence[str]) -> int:
         return qam_sensors()
     if action == "gddr6-sensors" and len(argv) == 2:
         return gddr6_sensors()
+    if action == "gddr6-patch" and len(argv) == 2:
+        return gddr6_patch()
     if action == "gpu-profile" and len(argv) == 3:
         return gpu_profile(argv[2])
     if action == "gpu-safe-point" and len(argv) == 3:
@@ -3834,6 +4321,16 @@ def main(argv: Sequence[str]) -> int:
         return gpu_voltage_level(argv[2])
     if action == "gpu-voltage-custom":
         return gpu_voltage_custom(argv[2:])
+    if action == "gpu-compat" and len(argv) == 6:
+        return gpu_compatibility(argv[2:])
+    if action in {"cu-mode", "cu-table", "cu-save"} or (action == "cu-service" and argv[2:3] == ["install"]):
+        if kernel_cu_unlock_active():
+            return fail(
+                "QUICK_ACCESS_CU_KERNEL: the BC-250 kernel manages the compute units "
+                "(amdgpu.bc250_cc_write_mode=3) and unlocked all of them at boot; live and "
+                "boot CU writes are refused. Turn the kernel CU unlock off in Desktop Mode to change routing.",
+                30,
+            )
     if action == "cu-mode" and len(argv) == 3:
         with operation_lock(CU_OPERATION_LOCK, "CU"):
             return cu_mode(argv[2])
@@ -3886,6 +4383,10 @@ def main(argv: Sequence[str]) -> int:
         return fail("QUICK_ACCESS_CPU_SERVICE: action must be install or remove.", 2)
     if action == "vram-apply" and len(argv) == 3:
         return vram_apply_action(argv[2])
+    if action == "ttm-status" and len(argv) == 2:
+        return ttm_status_action()
+    if action == "ttm-apply" and len(argv) == 3:
+        return ttm_apply_action(argv[2])
     return fail("Invalid Quick Access action.", 2)
 
 
@@ -3908,6 +4409,8 @@ def guarded_main(argv: Sequence[str]) -> int:
             f"({type(error).__name__})",
             70,
         )
+    except subprocess.TimeoutExpired:
+        return fail("QUICK_ACCESS_TIMEOUT: operation timed out.", 124)
     except (RuntimeError, ValueError) as error:
         return fail(
             "QUICK_ACCESS_OPERATION_FAILED: "

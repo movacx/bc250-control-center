@@ -1,0 +1,8 @@
+NAME="Bazzite"
+VERSION="44.20261001 (Kinoite)"
+RELEASE_TYPE=stable
+ID=bazzite
+ID_LIKE="fedora"
+VERSION_ID=44
+VARIANT_ID=bazzite-kinoite
+IMAGE_ID=bazzite

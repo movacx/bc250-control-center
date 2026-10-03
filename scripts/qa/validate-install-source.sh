@@ -28,6 +28,7 @@ required=(
   privileged/lib/system_setup_acpi.py
   privileged/lib/system_setup_telemetry.py
   privileged/lib/system_setup_kernel_args.py
+  privileged/lib/system_setup_ttm.py
   privileged/lib/system_setup_vram.py
   privileged/lib/acpi_payload.py
   privileged/lib/governor_toml.py
@@ -108,6 +109,7 @@ for relative in \
   privileged/lib/system_setup_acpi.py \
   privileged/lib/system_setup_telemetry.py \
   privileged/lib/system_setup_kernel_args.py \
+  privileged/lib/system_setup_ttm.py \
   privileged/lib/system_setup_vram.py \
   privileged/lib/acpi_payload.py \
   privileged/helpers/bc250-core-unlock-helper \
