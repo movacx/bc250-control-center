@@ -914,23 +914,21 @@ function ScrollStop({ children, end = false }: { children?: ReactNode; end?: boo
   </Focusable>;
 }
 
-// A GPU or CPU profile as one card: its name and the figure it sets, with a
-// thin bar (GPU) placing the range inside what the hardware allows. The profile
-// in force carries the accent and a small dot.
-function ProfileCard({ title, detail, bar, current, disabled, preferredFocus, onActivate }: { title: string; detail: string; bar?: { from: number; to: number }; current: boolean; disabled: boolean; preferredFocus?: boolean; onActivate: () => void }) {
+// A GPU or CPU profile as one card: its name and the figure it sets. The one in
+// force carries the accent and either the ACTUAL tag (`tagged`, GPU) or, in the
+// quieter form, a small dot (CPU).
+function ProfileCard({ title, detail, tagged = false, current, disabled, preferredFocus, onActivate }: { title: string; detail: string; tagged?: boolean; current: boolean; disabled: boolean; preferredFocus?: boolean; onActivate: () => void }) {
   const accent = useAccent();
-  const clamp = (value: number) => Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0));
-  const start = clamp(bar?.from ?? 0);
-  const width = Math.max(0.04, clamp(bar?.to ?? 0) - start);
-  return <PadButton label={title} disabled={disabled} preferredFocus={preferredFocus} onActivate={onActivate} style={{ alignItems: "stretch", background: current ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, display: "flex", flexDirection: "column", gap: 6, height: bar ? 64 : 58, justifyContent: "center", minWidth: 0, padding: "7px 8px 8px", position: "relative", textAlign: "left", width: "100%" }}>
-    {current ? <span style={{ background: accent.focus, borderRadius: "50%", height: 6, position: "absolute", right: 8, top: 8, width: 6 }} /> : null}
+  return <PadButton label={title} disabled={disabled} preferredFocus={preferredFocus} onActivate={onActivate} style={{ alignItems: "stretch", background: current ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, display: "flex", flexDirection: "column", gap: 3, height: tagged ? 70 : 58, justifyContent: tagged ? "flex-end" : "center", minWidth: 0, padding: "7px 8px 8px", position: "relative", textAlign: "left", width: "100%" }}>
+    {current
+      ? tagged
+        ? <span style={{ background: accent.focus, borderRadius: 8, color: tokens.colors.window, fontSize: 7, fontWeight: 800, letterSpacing: .4, padding: "1px 5px", position: "absolute", right: 7, top: 7 }}>{text.current}</span>
+        : <span style={{ background: accent.focus, borderRadius: "50%", height: 6, position: "absolute", right: 8, top: 8, width: 6 }} />
+      : null}
     <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
-      <span style={{ WebkitBoxOrient: "vertical", WebkitLineClamp: 2, color: current ? accent.focus : tokens.colors.text, display: "-webkit-box", fontSize: 10.5, fontWeight: 650, lineHeight: 1.15, overflow: "hidden", paddingRight: current ? 8 : 0 }}>{title}</span>
+      <span style={{ WebkitBoxOrient: "vertical", WebkitLineClamp: 2, color: current ? accent.focus : tokens.colors.text, display: "-webkit-box", fontSize: 10.5, fontWeight: 650, lineHeight: 1.15, overflow: "hidden", paddingRight: current && !tagged ? 8 : 0 }}>{title}</span>
       <span style={{ color: tokens.colors.subtle, fontSize: 8.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{detail}</span>
     </span>
-    {bar ? <span style={{ background: tokens.colors.progress_track, borderRadius: 2, display: "block", height: 2, position: "relative", width: "100%" }}>
-      <span style={{ background: current ? accent.focus : tokens.colors.border_strong, borderRadius: 2, height: "100%", left: `${start * 100}%`, position: "absolute", width: `${width * 100}%` }} />
-    </span> : null}
   </PadButton>;
 }
 
@@ -1879,10 +1877,8 @@ function Content() {
       {activeGpuProfiles.map((profile) => {
         const current = state.gpu_range?.[0] === profile.min && state.gpu_range?.[1] === profile.max && (state.gpu_governor !== "cyan" || state.gpu_performance_enabled === false);
         const allowed = Boolean(state.gpu_allowed_range && state.gpu_allowed_range[0] <= profile.min && profile.max <= state.gpu_allowed_range[1]);
-        const [low, high] = state.gpu_allowed_range ?? [profile.min, profile.max];
-        const span = Math.max(1, high - low);
         return <ProfileCard key={profile.key} title={profile.name} detail={`${ghz(profile.min)}–${ghz(profile.max)} GHz`}
-          bar={{ from: (profile.min - low) / span, to: (profile.max - low) / span }} current={current} disabled={busy || !gpuReady || !allowed}
+          tagged current={current} disabled={busy || !gpuReady || !allowed}
           preferredFocus={profile.key === (state.gpu_governor === "oberon" ? "oberon-1850" : "balanced")}
           onActivate={() => { void execute(`GPU · ${profile.name}`, () => applyGpuProfile(profile.key), "gpu"); }} />;
       })}
