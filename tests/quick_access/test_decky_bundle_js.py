@@ -33,7 +33,9 @@ def _core_summary():
       return JSON.stringify(groups.map((group) => group.threads.length
         ? (busiest(group.threads).frequency_mhz / 1000).toFixed(2) : "locked"));
     }""")
-    return lambda cores: json.loads(context.eval(f"summarize({json.dumps(cores)}, 8)"))
+    # A Qt test earlier in the run may switch the process to a decimal-comma
+    # locale, which quickjs's number formatting follows.
+    return lambda cores: [value.replace(",", ".") for value in json.loads(context.eval(f"summarize({json.dumps(cores)}, 8)"))]
 
 
 def _cores(ids, frequency, percent):

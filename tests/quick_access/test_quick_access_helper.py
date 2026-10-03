@@ -2121,3 +2121,41 @@ def test_cu_writes_are_refused_while_the_kernel_owns_cu_routing(helper_module, t
     assert helper_module.kernel_cu_unlock_active() is True
     parameter.write_text("0\n")
     assert helper_module.kernel_cu_unlock_active() is False
+
+
+def test_gddr6_patch_runs_the_reviewed_helper_then_reads(helper_module, monkeypatch, tmp_path, capsys):
+    calls = []
+    patch_helper = tmp_path / "bc250-gddr6-temp-helper"
+    patch_helper.write_text("#!/bin/sh\n")
+    monkeypatch.setattr(helper_module, "GDDR6_PATCH_HELPER_PATHS", (patch_helper,))
+    monkeypatch.setattr(helper_module, "trusted_file", lambda path, **_kw: Path(path) == patch_helper)
+    monkeypatch.setattr(helper_module, "_gddr6_repository_candidates", lambda: [(tmp_path / "repo", 1000)])
+    monkeypatch.setattr(helper_module, "gddr6_sensors", lambda: print('{"ok": true, "gddr6_available": true}') or 0)
+
+    def fake_run(command, **kwargs):
+        calls.append((command, kwargs["env"]["PKEXEC_UID"]))
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(helper_module.subprocess, "run", fake_run)
+    assert helper_module.gddr6_patch() == 0
+    assert calls == [([str(patch_helper), "--repo", str(tmp_path / "repo"), "--action", "apply"], "1000")]
+    assert json.loads(capsys.readouterr().out)["gddr6_available"] is True
+
+
+def test_gddr6_patch_reports_the_helpers_own_refusal(helper_module, monkeypatch, tmp_path, capsys):
+    patch_helper = tmp_path / "bc250-gddr6-temp-helper"
+    patch_helper.write_text("#!/bin/sh\n")
+    monkeypatch.setattr(helper_module, "GDDR6_PATCH_HELPER_PATHS", (patch_helper,))
+    monkeypatch.setattr(helper_module, "trusted_file", lambda path, **_kw: True)
+    monkeypatch.setattr(helper_module, "_gddr6_repository_candidates", lambda: [(tmp_path / "a", 1000), (tmp_path / "b", 1000)])
+    runs = []
+
+    def refuse(command, **_kwargs):
+        runs.append(command)
+        return subprocess.CompletedProcess(command, 1, "", "ERROR: GDDR6_FIRMWARE_UNSUPPORTED: this board reports P2.0.")
+
+    monkeypatch.setattr(helper_module.subprocess, "run", refuse)
+    assert helper_module.gddr6_patch() == 66
+    err = capsys.readouterr().err
+    assert "QUICK_ACCESS_GDDR6: GDDR6_FIRMWARE_UNSUPPORTED" in err
+    assert len(runs) == 1  # a board refusal is not retried on another checkout

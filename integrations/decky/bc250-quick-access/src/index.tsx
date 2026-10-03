@@ -233,6 +233,7 @@ const getStatus = callable<[], Status>("status");
 const getCpuTelemetry = callable<[], Result>("cpu_telemetry");
 const getMonitorSnapshot = callable<[], Result>("monitor_snapshot");
 const getGddr6Sensors = callable<[], Result>("gddr6_sensors");
+const applyGddr6Patch = callable<[], Result>("apply_gddr6_patch");
 const applyGpuProfile = callable<[profile: string], Result>("apply_gpu_profile");
 const applyGpuSafePoint = callable<[frequency: number], Result>("apply_gpu_safe_point");
 const setGpuHighFrequencyPoints = callable<[enabled: boolean], Result>("set_gpu_high_frequency_points");
@@ -468,7 +469,7 @@ const DEFAULT_SETTINGS: QuickAccessSettings = { accent: "orange", refreshInterva
 // a setting that stays on. Module scope: the panel remounts with Quick Access.
 const GDDR6_SESSION_MS = 10 * 60 * 1000;
 let gddr6LiveUntil = 0;
-type Gddr6Session = { live: boolean; minutesLeft: number; setLive: (on: boolean) => void };
+type Gddr6Session = { live: boolean; minutesLeft: number; setLive: (on: boolean) => void; merge: (fields: Partial<Status>) => void };
 const SETTINGS_STORAGE_KEY = "bc250-quick-access:settings";
 
 function loadSettings(): QuickAccessSettings {
@@ -515,7 +516,7 @@ function saveVramPending(record: VramPendingRecord | null) {
 
 const SettingsContext = createContext<{ settings: QuickAccessSettings; setSettings: (next: QuickAccessSettings) => void; gddr6: Gddr6Session }>({
   settings: DEFAULT_SETTINGS, setSettings: () => {},
-  gddr6: { live: false, minutesLeft: 0, setLive: () => {} },
+  gddr6: { live: false, minutesLeft: 0, setLive: () => {}, merge: () => {} },
 });
 
 function PadButton({ children, disabled = false, onActivate, style, preferredFocus = false, label }: {
@@ -810,6 +811,31 @@ function Gddr6LiveToggle() {
   </PadButton>;
 }
 
+// Without this boot's SMU patch the memory cannot be read. The desktop's
+// "Monitor live" applies it; here the player may apply it too, after a risk
+// confirmation, through the same reviewed helper. It lasts until reboot.
+function Gddr6PatchRow({ state }: { state: Status }) {
+  const { gddr6 } = useContext(SettingsContext);
+  const [patching, setPatching] = useState(false);
+  const [patchError, setPatchError] = useState<string | null>(null);
+  if (state.gddr6_reason !== "GDDR6_PATCH_INACTIVE" || state.gddr6_firmware_supported === false) return null;
+  const apply = async () => {
+    setPatching(true); setPatchError(null);
+    try {
+      const result = await applyGddr6Patch();
+      if (result.ok === false) setPatchError(result.error ?? text.error);
+      else { const { ok: _ok, protocol: _protocol, error: _error, ...fields } = result; gddr6.merge(fields as Partial<Status>); }
+    } catch (error) { setPatchError(failed(error).error ?? text.error); }
+    finally { setPatching(false); }
+  };
+  const confirm = () => showModal(<ConfirmModal strTitle={text.gddr6PatchTitle} strDescription={text.gddr6PatchConfirm} strOKButtonText={text.gddr6PatchOk} bDestructiveWarning onOK={() => void apply()} />);
+  return <div style={{ marginBottom: 6 }}>
+    <div style={{ color: tokens.colors.amber, fontSize: 10, lineHeight: 1.4, margin: "0 2px 6px" }}>{text.gddr6PatchInactive}</div>
+    <PadButton disabled={patching} onActivate={confirm} style={{ fontSize: 10, height: 30, padding: "4px 9px", width: "100%" }}>{patching ? text.gddr6Patching : text.gddr6PatchButton}</PadButton>
+    {patchError ? <div style={{ color: tokens.colors.red, fontSize: 9, lineHeight: 1.35, margin: "5px 2px 0", overflowWrap: "anywhere" }}>{patchError}</div> : null}
+  </div>;
+}
+
 function Gddr6Panel({ state }: { state: Status }) {
   const panelContext = useContext(SettingsContext);
   const accent = ACCENT_SWATCHES[panelContext.settings.accent];
@@ -820,7 +846,9 @@ function Gddr6Panel({ state }: { state: Status }) {
     <div style={{ color: tokens.colors.subtle, fontSize: 9, margin: "4px 2px 4px", textTransform: "uppercase" }}>GDDR6</div>
     <Gddr6LiveToggle />
     {!available
-      ? <div style={{ color: tokens.colors.amber, fontSize: 10, lineHeight: 1.4, margin: "0 2px 6px" }}>{text.gddr6Unavailable}</div>
+      ? state.gddr6_reason === "GDDR6_PATCH_INACTIVE" && state.gddr6_firmware_supported !== false
+        ? <Gddr6PatchRow state={state} />
+        : <div style={{ color: tokens.colors.amber, fontSize: 10, lineHeight: 1.4, margin: "0 2px 6px" }}>{text.gddr6Unavailable}</div>
       : <>
         <MetricGrid tiles={[
           { label: "AVG", value: state.gddr6_average_c != null ? `${state.gddr6_average_c.toFixed(1)} °C` : "—" },
@@ -1490,7 +1518,7 @@ function Content() {
     const timer = globalThis.setInterval(() => setGddr6Now(Date.now()), 15000);
     return () => globalThis.clearInterval(timer);
   }, [gddr6Live]);
-  const gddr6Session = useMemo<Gddr6Session>(() => ({ live: gddr6Live, minutesLeft: Math.max(1, Math.ceil((gddr6LiveUntil - gddr6Now) / 60000)), setLive: setGddr6Live }), [gddr6Live, gddr6Now, setGddr6Live]);
+  const gddr6Session = useMemo<Gddr6Session>(() => ({ live: gddr6Live, minutesLeft: Math.max(1, Math.ceil((gddr6LiveUntil - gddr6Now) / 60000)), setLive: setGddr6Live, merge: (fields: Partial<Status>) => setState((current) => ({ ...current, ...fields })) }), [gddr6Live, gddr6Now, setGddr6Live]);
   const sampleGddr6 = useCallback(async () => {
     if (gddr6Refreshing.current) return;
     gddr6Refreshing.current = true;

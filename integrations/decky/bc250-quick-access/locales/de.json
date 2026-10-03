@@ -254,5 +254,11 @@
   "gddr6MonitoringHint": "Liest über die SMU die Temperatur jedes Speicherchips, solange sie an ist, höchstens 10 Minuten; danach schaltet sie sich selbst ab, wie in der Desktop-App. Die SMU teilen sich GPU-Governor und CPU-Overclock.",
   "gddr6Off": "Überwachung aus",
   "gddr6LiveButton": "Live überwachen",
-  "gddr6LiveLeft": "Live · noch {minutes} Min"
+  "gddr6LiveLeft": "Live · noch {minutes} Min",
+  "gddr6PatchButton": "GDDR6-Patch anwenden (dieser Start)",
+  "gddr6PatchTitle": "GDDR6-Temperaturpatch anwenden?",
+  "gddr6PatchConfirm": "Schreibt den geprüften bc250-memory-temperature-Patch in die SMU, damit die Speichertemperaturen bis zum nächsten Neustart lesbar sind. Er ist per Reverse Engineering entstanden und laut seinem Autor nicht vollständig verifiziert: ein falscher Zustand könnte den GDDR6-Verkehr stören und Instabilität oder einen Absturz verursachen. Nur für Firmware P3.0; wartet, wenn der GPU-Governor startet.",
+  "gddr6PatchOk": "Patch anwenden",
+  "gddr6PatchInactive": "Der GDDR6-Patch ist in diesem Start nicht angewendet.",
+  "gddr6Patching": "GDDR6-Patch wird angewendet…"
 }

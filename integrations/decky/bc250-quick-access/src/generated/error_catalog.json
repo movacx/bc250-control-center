@@ -47,12 +47,6 @@
       "retryable": false
     },
     {
-      "code": "BC250-WORKFLOW-001",
-      "markers": [],
-      "exit_statuses": [],
-      "retryable": false
-    },
-    {
       "code": "BC250-GENERAL-001",
       "markers": [],
       "exit_statuses": [],
@@ -143,6 +137,16 @@
         "failed retrieving file"
       ],
       "exit_statuses": [],
+      "retryable": false
+    },
+    {
+      "code": "BC250-WORKFLOW-001",
+      "markers": [
+        "QUICK_ACCESS_GDDR6"
+      ],
+      "exit_statuses": [
+        66
+      ],
       "retryable": false
     },
     {
@@ -407,6 +411,7 @@
     "CPU_PAYLOAD_REFUSED",
     "CPU_BACKEND_MISSING",
     "returned error: 404",
+    "QUICK_ACCESS_GDDR6",
     "QUICK_ACCESS_VRAM",
     "Cyan D-Bus policy",
     "QUICK_ACCESS_AUTH",

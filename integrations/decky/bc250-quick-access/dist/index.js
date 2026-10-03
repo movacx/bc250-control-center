@@ -200,8 +200,10 @@ var codes = [
 	{
 		code: "BC250-WORKFLOW-001",
 		markers: [
+			"QUICK_ACCESS_GDDR6"
 		],
 		exit_statuses: [
+			66
 		],
 		retryable: false
 	},
@@ -569,6 +571,7 @@ var markers_longest_first = [
 	"CPU_PAYLOAD_REFUSED",
 	"CPU_BACKEND_MISSING",
 	"returned error: 404",
+	"QUICK_ACCESS_GDDR6",
 	"QUICK_ACCESS_VRAM",
 	"Cyan D-Bus policy",
 	"QUICK_ACCESS_AUTH",
@@ -1004,6 +1007,12 @@ var de = {
 	serviceNotInstalled: serviceNotInstalled$7,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$7,
 	serviceRunningBoot: serviceRunningBoot$7,
+	gddr6PatchButton: "GDDR6-Patch anwenden (dieser Start)",
+	gddr6PatchTitle: "GDDR6-Temperaturpatch anwenden?",
+	gddr6PatchConfirm: "Schreibt den geprüften bc250-memory-temperature-Patch in die SMU, damit die Speichertemperaturen bis zum nächsten Neustart lesbar sind. Er ist per Reverse Engineering entstanden und laut seinem Autor nicht vollständig verifiziert: ein falscher Zustand könnte den GDDR6-Verkehr stören und Instabilität oder einen Absturz verursachen. Nur für Firmware P3.0; wartet, wenn der GPU-Governor startet.",
+	gddr6PatchOk: "Patch anwenden",
+	gddr6PatchInactive: "Der GDDR6-Patch ist in diesem Start nicht angewendet.",
+	gddr6Patching: "GDDR6-Patch wird angewendet…",
 	gddr6Monitoring: "GDDR6-Überwachung",
 	gddr6MonitoringHint: "Liest über die SMU die Temperatur jedes Speicherchips, solange sie an ist, höchstens 10 Minuten; danach schaltet sie sich selbst ab, wie in der Desktop-App. Die SMU teilen sich GPU-Governor und CPU-Overclock.",
 	gddr6Off: "Überwachung aus",
@@ -1489,6 +1498,12 @@ var en = {
 	serviceNotInstalled: serviceNotInstalled$6,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$6,
 	serviceRunningBoot: serviceRunningBoot$6,
+	gddr6PatchButton: "Apply the GDDR6 patch (this boot)",
+	gddr6PatchTitle: "Apply the GDDR6 temperature patch?",
+	gddr6PatchConfirm: "Writes the reviewed bc250-memory-temperature patch into the SMU so the memory temperatures can be read, until the next reboot. It is reverse-engineered and, by its own author, not fully verified: a wrong state could disturb GDDR6 traffic and cause instability or a crash. Only for P3.0 firmware; it waits if the GPU governor is starting.",
+	gddr6PatchOk: "Apply patch",
+	gddr6PatchInactive: "The GDDR6 patch is not applied this boot.",
+	gddr6Patching: "Applying the GDDR6 patch…",
 	gddr6Monitoring: "GDDR6 monitoring",
 	gddr6MonitoringHint: "Reads each memory chip's temperature through the SMU while it is on, for 10 minutes at most; then it turns itself off, as in the desktop app. The SMU is shared with the GPU governor and the CPU overclock.",
 	gddr6Off: "Monitoring is off",
@@ -1974,6 +1989,12 @@ var es = {
 	serviceNotInstalled: serviceNotInstalled$5,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$5,
 	serviceRunningBoot: serviceRunningBoot$5,
+	gddr6PatchButton: "Aplicar parche GDDR6 (este arranque)",
+	gddr6PatchTitle: "¿Aplicar el parche de temperatura GDDR6?",
+	gddr6PatchConfirm: "Escribe en la SMU el parche revisado de bc250-memory-temperature para poder leer las temperaturas de la memoria, hasta el próximo reinicio. Es ingeniería inversa y, según su propio autor, no está totalmente verificado: un estado incorrecto podría alterar el tráfico de la GDDR6 y causar inestabilidad o un cuelgue. Solo para firmware P3.0; espera si el governor de GPU está arrancando.",
+	gddr6PatchOk: "Aplicar parche",
+	gddr6PatchInactive: "El parche GDDR6 no está aplicado en este arranque.",
+	gddr6Patching: "Aplicando el parche GDDR6…",
 	gddr6Monitoring: "Monitoreo de GDDR6",
 	gddr6MonitoringHint: "Lee la temperatura de cada chip de memoria a través de la SMU mientras esté encendido, 10 minutos como máximo; luego se apaga solo, como en la app de escritorio. La SMU la comparten el governor de GPU y el OC de CPU.",
 	gddr6Off: "Monitoreo apagado",
@@ -2459,6 +2480,12 @@ var es419 = {
 	serviceNotInstalled: serviceNotInstalled$4,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$4,
 	serviceRunningBoot: serviceRunningBoot$4,
+	gddr6PatchButton: "Aplicar parche GDDR6 (este arranque)",
+	gddr6PatchTitle: "¿Aplicar el parche de temperatura GDDR6?",
+	gddr6PatchConfirm: "Escribe en la SMU el parche revisado de bc250-memory-temperature para poder leer las temperaturas de la memoria, hasta el próximo reinicio. Es ingeniería inversa y, según su propio autor, no está totalmente verificado: un estado incorrecto podría alterar el tráfico de la GDDR6 y causar inestabilidad o un cuelgue. Solo para firmware P3.0; espera si el governor de GPU está arrancando.",
+	gddr6PatchOk: "Aplicar parche",
+	gddr6PatchInactive: "El parche GDDR6 no está aplicado en este arranque.",
+	gddr6Patching: "Aplicando el parche GDDR6…",
 	gddr6Monitoring: "Monitoreo de GDDR6",
 	gddr6MonitoringHint: "Lee la temperatura de cada chip de memoria a través de la SMU mientras esté encendido, 10 minutos como máximo; luego se apaga solo, como en la app de escritorio. La SMU la comparten el governor de GPU y el OC de CPU.",
 	gddr6Off: "Monitoreo apagado",
@@ -2944,6 +2971,12 @@ var pl = {
 	serviceNotInstalled: serviceNotInstalled$3,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$3,
 	serviceRunningBoot: serviceRunningBoot$3,
+	gddr6PatchButton: "Zastosuj łatkę GDDR6 (ten rozruch)",
+	gddr6PatchTitle: "Zastosować łatkę temperatury GDDR6?",
+	gddr6PatchConfirm: "Zapisuje w SMU sprawdzoną łatkę bc250-memory-temperature, aby do następnego restartu można było odczytywać temperatury pamięci. Powstała przez inżynierię wsteczną i według autora nie jest w pełni zweryfikowana: błędny stan może zakłócić ruch GDDR6 i spowodować niestabilność lub zawieszenie. Tylko dla firmware P3.0; czeka, jeśli governor GPU się uruchamia.",
+	gddr6PatchOk: "Zastosuj łatkę",
+	gddr6PatchInactive: "Łatka GDDR6 nie jest zastosowana w tym rozruchu.",
+	gddr6Patching: "Stosowanie łatki GDDR6…",
 	gddr6Monitoring: "Monitorowanie GDDR6",
 	gddr6MonitoringHint: "Odczytuje przez SMU temperaturę każdego układu pamięci, dopóki jest włączone, maksymalnie 10 minut; potem wyłącza się samo, jak w aplikacji na pulpit. SMU dzielą governor GPU i podkręcanie CPU.",
 	gddr6Off: "Monitorowanie wyłączone",
@@ -3429,6 +3462,12 @@ var pt = {
 	serviceNotInstalled: serviceNotInstalled$2,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$2,
 	serviceRunningBoot: serviceRunningBoot$2,
+	gddr6PatchButton: "Aplicar patch GDDR6 (este arranque)",
+	gddr6PatchTitle: "Aplicar o patch de temperatura GDDR6?",
+	gddr6PatchConfirm: "Escreve na SMU o patch revisto do bc250-memory-temperature para ler as temperaturas da memória, até ao próximo reinício. É engenharia inversa e, segundo o próprio autor, não está totalmente verificado: um estado errado pode perturbar o tráfego da GDDR6 e causar instabilidade ou um bloqueio. Só para firmware P3.0; espera se o governor da GPU estiver a arrancar.",
+	gddr6PatchOk: "Aplicar patch",
+	gddr6PatchInactive: "O patch GDDR6 não está aplicado neste arranque.",
+	gddr6Patching: "A aplicar o patch GDDR6…",
 	gddr6Monitoring: "Monitorização da GDDR6",
 	gddr6MonitoringHint: "Lê a temperatura de cada chip de memória através da SMU enquanto estiver ligada, 10 minutos no máximo; depois desliga-se sozinha, como na app de desktop. A SMU é partilhada com o governor da GPU e o overclock da CPU.",
 	gddr6Off: "Monitorização desligada",
@@ -3914,6 +3953,12 @@ var ru = {
 	serviceNotInstalled: serviceNotInstalled$1,
 	serviceRemovedBootProfile: serviceRemovedBootProfile$1,
 	serviceRunningBoot: serviceRunningBoot$1,
+	gddr6PatchButton: "Применить патч GDDR6 (эта загрузка)",
+	gddr6PatchTitle: "Применить патч температуры GDDR6?",
+	gddr6PatchConfirm: "Записывает в SMU проверенный патч bc250-memory-temperature, чтобы до следующей перезагрузки можно было читать температуры памяти. Он получен обратной разработкой и, по словам автора, не полностью проверен: неверное состояние может нарушить работу GDDR6 и вызвать нестабильность или зависание. Только для прошивки P3.0; ждёт, если governor GPU запускается.",
+	gddr6PatchOk: "Применить патч",
+	gddr6PatchInactive: "Патч GDDR6 не применён в этой загрузке.",
+	gddr6Patching: "Применяется патч GDDR6…",
 	gddr6Monitoring: "Мониторинг GDDR6",
 	gddr6MonitoringHint: "Читает через SMU температуру каждого чипа памяти, пока включён, не дольше 10 минут; затем выключается сам, как в приложении для рабочего стола. SMU делят governor GPU и разгон CPU.",
 	gddr6Off: "Мониторинг выключен",
@@ -4399,6 +4444,12 @@ var uk = {
 	serviceNotInstalled: serviceNotInstalled,
 	serviceRemovedBootProfile: serviceRemovedBootProfile,
 	serviceRunningBoot: serviceRunningBoot,
+	gddr6PatchButton: "Застосувати патч GDDR6 (цей запуск)",
+	gddr6PatchTitle: "Застосувати патч температури GDDR6?",
+	gddr6PatchConfirm: "Записує в SMU перевірений патч bc250-memory-temperature, щоб до наступного перезавантаження можна було читати температури пам'яті. Його отримано зворотною розробкою, і, за словами автора, він не повністю перевірений: неправильний стан може порушити роботу GDDR6 і спричинити нестабільність або зависання. Лише для прошивки P3.0; чекає, якщо governor GPU запускається.",
+	gddr6PatchOk: "Застосувати патч",
+	gddr6PatchInactive: "Патч GDDR6 не застосовано в цьому запуску.",
+	gddr6Patching: "Застосовується патч GDDR6…",
 	gddr6Monitoring: "Моніторинг GDDR6",
 	gddr6MonitoringHint: "Читає через SMU температуру кожного чипа пам'яті, поки ввімкнений, не довше 10 хвилин; потім вимикається сам, як у застосунку для робочого столу. SMU ділять governor GPU і розгін CPU.",
 	gddr6Off: "Моніторинг вимкнено",
@@ -4507,6 +4558,7 @@ const getStatus = callable("status");
 const getCpuTelemetry = callable("cpu_telemetry");
 const getMonitorSnapshot = callable("monitor_snapshot");
 const getGddr6Sensors = callable("gddr6_sensors");
+const applyGddr6Patch = callable("apply_gddr6_patch");
 const applyGpuProfile = callable("apply_gpu_profile");
 const applyGpuSafePoint = callable("apply_gpu_safe_point");
 const setGpuHighFrequencyPoints = callable("set_gpu_high_frequency_points");
@@ -4801,7 +4853,7 @@ function saveVramPending(record) {
 }
 const SettingsContext = SP_REACT.createContext({
     settings: DEFAULT_SETTINGS, setSettings: () => { },
-    gddr6: { live: false, minutesLeft: 0, setLive: () => { } },
+    gddr6: { live: false, minutesLeft: 0, setLive: () => { }, merge: () => { } },
 });
 function PadButton({ children, disabled = false, onActivate, style, preferredFocus = false, label }) {
     const [focused, setFocused] = SP_REACT.useState(false);
@@ -4985,6 +5037,38 @@ function Gddr6LiveToggle() {
     const { gddr6 } = SP_REACT.useContext(SettingsContext);
     return SP_JSX.jsxs(PadButton, { onActivate: () => gddr6.setLive(!gddr6.live), style: { alignItems: "center", display: "flex", fontSize: 10, height: 30, justifyContent: "space-between", marginBottom: 6, padding: "4px 9px", width: "100%" }, children: [SP_JSX.jsx("span", { children: text.gddr6LiveButton }), SP_JSX.jsx("span", { style: { color: gddr6.live ? tokens.colors.green : tokens.colors.subtle, fontSize: 9 }, children: gddr6.live ? text.gddr6LiveLeft.replace("{minutes}", String(gddr6.minutesLeft)) : text.gddr6Off })] });
 }
+function Gddr6PatchRow({ state }) {
+    const { gddr6 } = SP_REACT.useContext(SettingsContext);
+    const [patching, setPatching] = SP_REACT.useState(false);
+    const [patchError, setPatchError] = SP_REACT.useState(null);
+    if (state.gddr6_reason !== "GDDR6_PATCH_INACTIVE" || state.gddr6_firmware_supported === false)
+        return null;
+    const apply = async () => {
+        setPatching(true);
+        setPatchError(null);
+        try {
+            const result = await applyGddr6Patch();
+            if (result.ok === false)
+                setPatchError(result.error ?? text.error);
+            else {
+                const { ok: _ok, protocol: _protocol, error: _error, ...fields } = result;
+                gddr6.merge(fields);
+            }
+        }
+        catch (error) {
+            setPatchError(failed(error).error ?? text.error);
+        }
+        finally {
+            setPatching(false);
+        }
+    };
+    const confirm = () => DFL.showModal(SP_JSX.jsx(DFL.ConfirmModal, { strTitle: text.gddr6PatchTitle, strDescription: text.gddr6PatchConfirm, strOKButtonText: text.gddr6PatchOk, bDestructiveWarning: true, onOK: () => void apply() }));
+    return SP_JSX.jsxs("div", { style: { marginBottom: 6 }, children: [
+            SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 10, lineHeight: 1.4, margin: "0 2px 6px" }, children: text.gddr6PatchInactive }),
+            SP_JSX.jsx(PadButton, { disabled: patching, onActivate: confirm, style: { fontSize: 10, height: 30, padding: "4px 9px", width: "100%" }, children: patching ? text.gddr6Patching : text.gddr6PatchButton }),
+            patchError ? SP_JSX.jsx("div", { style: { color: tokens.colors.red, fontSize: 9, lineHeight: 1.35, margin: "5px 2px 0", overflowWrap: "anywhere" }, children: patchError }) : null
+        ] });
+}
 function Gddr6Panel({ state }) {
     const panelContext = SP_REACT.useContext(SettingsContext);
     const accent = ACCENT_SWATCHES[panelContext.settings.accent];
@@ -4993,7 +5077,9 @@ function Gddr6Panel({ state }) {
     const chips = state.gddr6_chips ?? [];
     const available = Boolean(state.gddr6_available) && chips.length > 0;
     return SP_JSX.jsxs("div", { style: { margin: "2px 0 6px" }, children: [SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "4px 2px 4px", textTransform: "uppercase" }, children: "GDDR6" }), SP_JSX.jsx(Gddr6LiveToggle, {}), !available
-                ? SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 10, lineHeight: 1.4, margin: "0 2px 6px" }, children: text.gddr6Unavailable })
+                ? state.gddr6_reason === "GDDR6_PATCH_INACTIVE" && state.gddr6_firmware_supported !== false
+                    ? SP_JSX.jsx(Gddr6PatchRow, { state: state })
+                    : SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 10, lineHeight: 1.4, margin: "0 2px 6px" }, children: text.gddr6Unavailable })
                 : SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(MetricGrid, { tiles: [
                                 { label: "AVG", value: state.gddr6_average_c != null ? `${state.gddr6_average_c.toFixed(1)} °C` : "—" },
                                 { label: "HOTSPOT", value: state.gddr6_hotspot_c != null ? `${state.gddr6_hotspot_c.toFixed(1)} °C` : "—" },
@@ -5550,7 +5636,7 @@ function Content() {
         const timer = globalThis.setInterval(() => setGddr6Now(Date.now()), 15000);
         return () => globalThis.clearInterval(timer);
     }, [gddr6Live]);
-    const gddr6Session = SP_REACT.useMemo(() => ({ live: gddr6Live, minutesLeft: Math.max(1, Math.ceil((gddr6LiveUntil - gddr6Now) / 60000)), setLive: setGddr6Live }), [gddr6Live, gddr6Now, setGddr6Live]);
+    const gddr6Session = SP_REACT.useMemo(() => ({ live: gddr6Live, minutesLeft: Math.max(1, Math.ceil((gddr6LiveUntil - gddr6Now) / 60000)), setLive: setGddr6Live, merge: (fields) => setState((current) => ({ ...current, ...fields })) }), [gddr6Live, gddr6Now, setGddr6Live]);
     const sampleGddr6 = SP_REACT.useCallback(async () => {
         if (gddr6Refreshing.current)
             return;

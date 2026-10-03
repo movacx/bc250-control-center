@@ -254,5 +254,11 @@
   "gddr6MonitoringHint": "Odczytuje przez SMU temperaturę każdego układu pamięci, dopóki jest włączone, maksymalnie 10 minut; potem wyłącza się samo, jak w aplikacji na pulpit. SMU dzielą governor GPU i podkręcanie CPU.",
   "gddr6Off": "Monitorowanie wyłączone",
   "gddr6LiveButton": "Monitoruj na żywo",
-  "gddr6LiveLeft": "Na żywo · zostało {minutes} min"
+  "gddr6LiveLeft": "Na żywo · zostało {minutes} min",
+  "gddr6PatchButton": "Zastosuj łatkę GDDR6 (ten rozruch)",
+  "gddr6PatchTitle": "Zastosować łatkę temperatury GDDR6?",
+  "gddr6PatchConfirm": "Zapisuje w SMU sprawdzoną łatkę bc250-memory-temperature, aby do następnego restartu można było odczytywać temperatury pamięci. Powstała przez inżynierię wsteczną i według autora nie jest w pełni zweryfikowana: błędny stan może zakłócić ruch GDDR6 i spowodować niestabilność lub zawieszenie. Tylko dla firmware P3.0; czeka, jeśli governor GPU się uruchamia.",
+  "gddr6PatchOk": "Zastosuj łatkę",
+  "gddr6PatchInactive": "Łatka GDDR6 nie jest zastosowana w tym rozruchu.",
+  "gddr6Patching": "Stosowanie łatki GDDR6…"
 }

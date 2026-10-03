@@ -959,6 +959,17 @@ class Plugin:
             }
         return result
 
+    async def apply_gddr6_patch(self) -> dict:
+        """Apply the GDDR6 temperature patch for this boot, on the player's request.
+
+        One board operation like any other (it holds the SMU while it writes),
+        so it never runs beside a CPU run or a second click.
+        """
+        result = await self._run_single_operation("gddr6-patch", timeout=200)
+        if result.get("ok") is not False and result.get("protocol") not in (None, HELPER_PROTOCOL):
+            return {"ok": False, "error": "BC250 GDDR6 protocol is incompatible. Reinstall BC250 Control Center from Desktop Mode."}
+        return self._record_action("gddr6", "patch", result)
+
     async def monitor_snapshot(self) -> dict:
         """Read the passive GPU/board/fan/memory bundle without the write lock.
 

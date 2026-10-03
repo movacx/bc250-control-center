@@ -274,6 +274,10 @@ _CODES: tuple[ErrorCode, ...] = (
         "The workflow reported the failure itself.",
         "The workflow stopped on a condition it detected and described in its own output.",
         "Follow the steps the workflow printed above; they name the exact package, kernel or path involved.",
+        # Quick Access runs the reviewed GDDR6 patch helper, whose own error
+        # (unsupported firmware, governor starting, SMU busy) is the message.
+        exit_statuses=(66,),
+        markers=('QUICK_ACCESS_GDDR6',),
     ),
     # Fallback: wording reused from the desktop diagnostic rules so it is
     # already translated in all 30 locales.
