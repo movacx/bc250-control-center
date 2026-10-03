@@ -924,22 +924,20 @@ function ProfileCard({ icon, title, detail, from, to, current, disabled, preferr
   const clamp = (value: number) => Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0));
   const start = clamp(from);
   const width = Math.max(0.04, clamp(to) - start);
-  return <PadButton label={title} disabled={disabled} preferredFocus={preferredFocus} onActivate={onActivate} style={{ alignItems: "stretch", background: current ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, display: "flex", flexDirection: "column", gap: 4, height: compact ? 76 : 66, justifyContent: "space-between", minWidth: 0, padding: "7px 8px 8px", textAlign: "left", width: "100%" }}>
-    <span style={{ alignItems: "center", color: current ? accent.focus : tokens.colors.subtle, display: "flex", fontSize: 14, gap: 5, justifyContent: "space-between" }}>
+  return <PadButton label={title} disabled={disabled} preferredFocus={preferredFocus} onActivate={onActivate} style={{ alignItems: "stretch", background: current ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, display: "flex", flexDirection: "column", gap: 4, height: compact ? 58 : 66, justifyContent: compact ? "center" : "space-between", minWidth: 0, padding: "7px 8px 8px", position: "relative", textAlign: "left", width: "100%" }}>
+    {compact ? (current ? <span style={{ background: accent.focus, borderRadius: "50%", height: 6, position: "absolute", right: 8, top: 8, width: 6 }} /> : null) : <span style={{ alignItems: "center", color: current ? accent.focus : tokens.colors.subtle, display: "flex", fontSize: 14, gap: 5, justifyContent: "space-between" }}>
       {cloneElement(icon, { strokeWidth: 1.5 } as Record<string, unknown>)}
-      {current ? compact
-        ? <span style={{ background: accent.focus, borderRadius: "50%", height: 6, width: 6 }} />
-        : <span style={{ background: accent.focus, borderRadius: 8, color: tokens.colors.window, fontSize: 7, fontWeight: 800, letterSpacing: .4, padding: "1px 5px" }}>{text.current}</span> : null}
-    </span>
+      {current ? <span style={{ background: accent.focus, borderRadius: 8, color: tokens.colors.window, fontSize: 7, fontWeight: 800, letterSpacing: .4, padding: "1px 5px" }}>{text.current}</span> : null}
+    </span>}
     <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
       <span style={compact
         ? { WebkitBoxOrient: "vertical", WebkitLineClamp: 2, color: current ? accent.focus : tokens.colors.text, display: "-webkit-box", fontSize: 10.5, fontWeight: 650, lineHeight: 1.15, overflow: "hidden" }
         : { color: current ? accent.focus : tokens.colors.text, fontSize: 11, fontWeight: 650, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</span>
       <span style={{ color: tokens.colors.subtle, fontSize: 8.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{detail}</span>
     </span>
-    <span style={{ background: tokens.colors.progress_track, borderRadius: 2, display: "block", height: 2, position: "relative", width: "100%" }}>
+    {compact ? null : <span style={{ background: tokens.colors.progress_track, borderRadius: 2, display: "block", height: 2, position: "relative", width: "100%" }}>
       <span style={{ background: current ? accent.focus : tokens.colors.border_strong, borderRadius: 2, height: "100%", left: `${start * 100}%`, position: "absolute", width: `${width * 100}%` }} />
-    </span>
+    </span>}
   </PadButton>;
 }
 
