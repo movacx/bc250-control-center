@@ -84,6 +84,59 @@ TELEMETRY_GUIDE_SOURCES = (
     TELEMETRY_GUIDE_PATCH_OFF, TELEMETRY_GUIDE_BAZZITE_NOTE,
 )
 
+#: BC250-UMR-001. UMR links against LLVM. After a system update it can stay
+#: installed and stop starting ("libLLVM.so.22.1: cannot open shared object
+#: file"); the CU manager then only says it could not read the WGP register.
+#: Seen on CachyOS with 1.20.4: reinstalling UMR was the whole fix. The steps
+#: name the command for this system; commands are never translated.
+UMR_REPAIR_CODE = "BC250-UMR-001"
+UMR_REPAIR_COMMANDS = {
+    "arch": "sudo pacman -Rdd --noconfirm $(pacman -Qq umr umr-git 2>/dev/null); paru -S umr-git",
+    # A umr built from source by Prepare dependencies is not in apt: it
+    # cannot be reinstalled, so it is removed and step 4 builds it again.
+    "debian": "sudo apt update; sudo apt install --reinstall -y umr || sudo apt remove -y umr",
+    "fedora": "sudo dnf upgrade --refresh -y && sudo dnf reinstall -y umr",
+    "bazzite": "sudo rpm-ostree upgrade",
+}
+_UMR_COMMAND_FAMILY = {
+    "arch": "arch", "cachyos": "arch", "manjaro": "arch",
+    "debian": "debian", "ubuntu": "debian",
+    "fedora": "fedora", "bazzite": "bazzite",
+}
+UMR_STEPS_COPY = (
+    "1. Press {button} at the bottom of this window.\n"
+    "2. Open a terminal (Konsole), paste the command with Ctrl+Shift+V and press Enter."
+)
+UMR_STEPS_WAIT_AUR = (
+    "3. Type your password if it asks for it and press Enter on every question. Building UMR "
+    "takes a few minutes. If it says paru was not found, change paru to yay and run it again."
+)
+UMR_STEPS_WAIT = "3. Type your password if it asks for it and wait until it finishes."
+UMR_STEPS_RETRY = "4. Close Control Center, open it again and repeat what you were doing."
+UMR_STEPS_PREPARE = (
+    "4. Open Control Center, go to {page}, open {section} at the bottom, tick UMR and press "
+    "{button}. Then repeat what you were doing."
+)
+UMR_STEPS_REBOOT = "4. Restart the computer and repeat what you were doing."
+UMR_STEPS_STEAMOS = (
+    "On SteamOS you do not need a terminal:\n"
+    "1. Go to {page}, open {section} at the bottom, tick UMR and press {button}.\n"
+    "2. Wait until it finishes and repeat what you were doing."
+)
+UMR_STEPS_OTHER = (
+    "Reinstall the umr package with your system's package manager. Then go to {page}, open "
+    "{section} at the bottom, tick UMR and press {button}."
+)
+_UMR_STEPS_FINISH = {
+    "arch": UMR_STEPS_RETRY, "debian": UMR_STEPS_PREPARE,
+    "fedora": UMR_STEPS_RETRY, "bazzite": UMR_STEPS_REBOOT,
+}
+UMR_REPAIR_SOURCES = (
+    UMR_STEPS_COPY, UMR_STEPS_WAIT_AUR, UMR_STEPS_WAIT, UMR_STEPS_RETRY,
+    UMR_STEPS_PREPARE, UMR_STEPS_REBOOT, UMR_STEPS_STEAMOS, UMR_STEPS_OTHER,
+    "Copy command",
+)
+
 # Same wording as the terminal diagnosis, so both surfaces say one thing.
 _GFX_RELEASE_INSTALLED = error_catalog.BY_CODE["BC250-GFX-001"]
 
@@ -109,6 +162,18 @@ _RULES = (
         "This kernel cannot do the Cyan metrics fix.",
         "Fix metrics makes Cyan publish its own gpu_metrics file. The running kernel does not expose the file it needs to replace, so the governor refuses to start while that option is on. Nothing on the hardware was changed.",
         "Turn off Fix metrics in Cyan kernel compatibility and apply again. Leave Fix frequencies off too if the start still fails. A BC-250 patched kernel is the other way out.",
+    ),
+    # Before the broad Compute Units and missing-command rules: their patterns
+    # ("umr", "no such file or directory") also match this text, and their
+    # advice does not bring a broken UMR back.
+    _Rule(
+        UMR_REPAIR_CODE,
+        (r"failed to (?:read|write) [^\n]{0,160}? with umr",
+         r"\bumr: error while loading shared libraries",
+         r"\bumr\b[^\n]{0,40}does not start"),
+        "UMR is not working.",
+        "UMR is the program Control Center uses to read and change the Compute Units. It does not start or cannot read the GPU, usually because a system update replaced a library it needs.",
+        "Reinstall UMR by following these steps:",
     ),
     # Adding the OptiScaler launch option edits Steam's own settings file,
     # one game or the whole library at a time.
@@ -497,6 +562,7 @@ DIAGNOSTIC_SOURCES = tuple(dict.fromkeys((
     *TERMINAL_SOURCES,
     *(value for rule in _RULES for value in (rule.summary, rule.cause, rule.action)),
     *TELEMETRY_GUIDE_SOURCES,
+    *UMR_REPAIR_SOURCES,
     *(value for _code, _markers, summary, cause, action in _CONTEXT_FALLBACKS for value in (summary, cause, action)),
     "The operation could not be completed.",
     "The component returned a failure that does not yet match a more specific diagnostic rule.",
@@ -565,21 +631,61 @@ def diagnose_error(message: object, *, context: object = "") -> ErrorDiagnosis:
     )
 
 
+def _os_family() -> str:
+    try:
+        from bc250cc.platform.packages.strategies.detector import detect_os_info
+
+        return detect_os_info().family
+    except Exception:  # A diagnosis must never fail because os-release did not.
+        return "unsupported"
+
+
+def umr_repair_command(message: object, *, context: object = "", os_family: str | None = None) -> str:
+    """The one command that reinstalls UMR here, or "" when this is not that fault."""
+    if diagnose_error(message, context=context).code != UMR_REPAIR_CODE:
+        return ""
+    family = _UMR_COMMAND_FAMILY.get(os_family or _os_family(), "")
+    return UMR_REPAIR_COMMANDS.get(family, "")
+
+
+def _umr_repair_steps(os_family: str, translate: Translator) -> str:
+    places = {
+        "page": translate("Dashboard"),
+        "section": translate("Prepare BC250 system"),
+        "button": translate("Prepare selected"),
+    }
+    if os_family == "steamos":
+        return translate(UMR_STEPS_STEAMOS).format(**places)
+    family = _UMR_COMMAND_FAMILY.get(os_family, "")
+    if not family:
+        return translate(UMR_STEPS_OTHER).format(**places)
+    wait = UMR_STEPS_WAIT_AUR if family == "arch" else UMR_STEPS_WAIT
+    return "\n".join((
+        translate(UMR_STEPS_COPY).format(button=translate("Copy command")),
+        translate(wait),
+        translate(_UMR_STEPS_FINISH[family]).format(**places),
+    ))
+
+
 def format_error_for_user(
     message: object,
     *,
     context: object = "",
     translate: Translator = str,
+    os_family: str | None = None,
 ) -> str:
     """Return a human explanation while preserving bounded technical evidence."""
     detail = _clean_detail(message)
     if "Diagnostic code:" in detail or "Código de diagnóstico:" in detail:
         return detail
     diagnosis = diagnose_error(detail, context=context)
+    action = translate(diagnosis.action)
+    if diagnosis.code == UMR_REPAIR_CODE:
+        action = f"{action}\n{_umr_repair_steps(os_family or _os_family(), translate)}"
     sections = (
         (translate("What happened"), translate(diagnosis.summary)),
         (translate("Likely cause"), translate(diagnosis.cause)),
-        (translate("How to fix it"), translate(diagnosis.action)),
+        (translate("How to fix it"), action),
         (translate("Technical detail"), translate(detail)),
     )
     rendered = "\n\n".join(f"{heading}\n{body}" for heading, body in sections)

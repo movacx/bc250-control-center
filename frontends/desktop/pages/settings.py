@@ -46,16 +46,19 @@ from PyQt6.QtWidgets import (
 )
 
 from bc250cc.infrastructure import SystemdUserService
+from bc250cc.infrastructure.apu_telemetry_service import apu_telemetry_state
 from bc250cc.infrastructure.gddr6_memory_temp_repository import (
     board_bios_version,
     gddr6_firmware_supported,
 )
 from bc250cc.infrastructure.governor_conflicts import normalize_governor_preference
 from bc250cc.infrastructure.system_snapshot import system_snapshot
-from bc250cc.infrastructure.apu_telemetry_service import apu_telemetry_state
-from bc250cc.infrastructure.vrm_telemetry_reader import kernel_vrm_driver_present, sondear_telemetria_vrm
-from bc250cc.platform.packages.strategies.detector import detect_os_info
+from bc250cc.infrastructure.vrm_telemetry_reader import (
+    kernel_vrm_driver_present,
+    sondear_telemetria_vrm,
+)
 from bc250cc.platform.init.services import detect_init_manager
+from bc250cc.platform.packages.strategies.detector import detect_os_info
 from bc250cc.shared.failure_text import describe_failure
 from bc250cc.shared.version import __version__
 
@@ -71,7 +74,12 @@ from ..components.responsive import (
 from ..components.toast import show_toast
 from ..components.toggle_switch import ToggleSwitch
 from ..components.widgets import IconBadge, InfoDialog, PillLabel, apply_shadow, icon
-from ..core.diagnostic_history import clear_history, current_wording, diagnostic_report, history_entries
+from ..core.diagnostic_history import (
+    clear_history,
+    current_wording,
+    diagnostic_report,
+    history_entries,
+)
 from ..core.external_links import open_external_url
 from ..core.preferences import application_settings
 from ..core.state import state_cache_for

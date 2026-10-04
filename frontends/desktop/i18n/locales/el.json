@@ -4600,5 +4600,17 @@
   "2 · Repair Mesa RADV": "2 · Επισκευή Mesa RADV",
   "Remove Mesa RADV": "Αφαίρεση Mesa RADV",
   "Install the kernel and reboot first.": "Εγκαταστήστε πρώτα τον πυρήνα και κάντε επανεκκίνηση.",
-  "SteamOS · BC-250 toolkit": "SteamOS · Εργαλεία BC-250"
+  "SteamOS · BC-250 toolkit": "SteamOS · Εργαλεία BC-250",
+  "UMR is not working.": "Το UMR δεν λειτουργεί.",
+  "UMR is the program Control Center uses to read and change the Compute Units. It does not start or cannot read the GPU, usually because a system update replaced a library it needs.": "Το UMR είναι το πρόγραμμα που χρησιμοποιεί το Control Center για να διαβάζει και να αλλάζει τις υπολογιστικές μονάδες. Δεν ξεκινά ή δεν μπορεί να διαβάσει τη GPU, συνήθως επειδή μια ενημέρωση του συστήματος αντικατέστησε μια βιβλιοθήκη που χρειάζεται.",
+  "Reinstall UMR by following these steps:": "Επανεγκαταστήστε το UMR ακολουθώντας αυτά τα βήματα:",
+  "1. Press {button} at the bottom of this window.\n2. Open a terminal (Konsole), paste the command with Ctrl+Shift+V and press Enter.": "1. Πατήστε {button} στο κάτω μέρος αυτού του παραθύρου.\n2. Ανοίξτε ένα τερματικό (Konsole), επικολλήστε την εντολή με Ctrl+Shift+V και πατήστε Enter.",
+  "3. Type your password if it asks for it and press Enter on every question. Building UMR takes a few minutes. If it says paru was not found, change paru to yay and run it again.": "3. Πληκτρολογήστε τον κωδικό σας αν σας ζητηθεί και πατήστε Enter σε κάθε ερώτηση. Η μεταγλώττιση του UMR διαρκεί λίγα λεπτά. Αν εμφανιστεί ότι το paru δεν βρέθηκε, αλλάξτε το paru σε yay και εκτελέστε την εντολή ξανά.",
+  "3. Type your password if it asks for it and wait until it finishes.": "3. Πληκτρολογήστε τον κωδικό σας αν σας ζητηθεί και περιμένετε να ολοκληρωθεί.",
+  "4. Close Control Center, open it again and repeat what you were doing.": "4. Κλείστε το Control Center, ανοίξτε το ξανά και επαναλάβετε αυτό που κάνατε.",
+  "4. Open Control Center, go to {page}, open {section} at the bottom, tick UMR and press {button}. Then repeat what you were doing.": "4. Ανοίξτε το Control Center, μεταβείτε στο {page}, ανοίξτε το {section} στο κάτω μέρος, επιλέξτε UMR και πατήστε {button}. Έπειτα επαναλάβετε αυτό που κάνατε.",
+  "4. Restart the computer and repeat what you were doing.": "4. Επανεκκινήστε τον υπολογιστή και επαναλάβετε αυτό που κάνατε.",
+  "On SteamOS you do not need a terminal:\n1. Go to {page}, open {section} at the bottom, tick UMR and press {button}.\n2. Wait until it finishes and repeat what you were doing.": "Στο SteamOS δεν χρειάζεστε τερματικό:\n1. Μεταβείτε στο {page}, ανοίξτε το {section} στο κάτω μέρος, επιλέξτε UMR και πατήστε {button}.\n2. Περιμένετε να ολοκληρωθεί και επαναλάβετε αυτό που κάνατε.",
+  "Reinstall the umr package with your system's package manager. Then go to {page}, open {section} at the bottom, tick UMR and press {button}.": "Επανεγκαταστήστε το πακέτο umr με τη διαχείριση πακέτων του συστήματός σας. Έπειτα μεταβείτε στο {page}, ανοίξτε το {section} στο κάτω μέρος, επιλέξτε UMR και πατήστε {button}.",
+  "Copy command": "Αντιγραφή εντολής"
 }

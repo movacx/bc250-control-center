@@ -4600,5 +4600,17 @@
   "2 · Repair Mesa RADV": "2 · 修复 Mesa RADV",
   "Remove Mesa RADV": "移除 Mesa RADV",
   "Install the kernel and reboot first.": "请先安装内核并重启。",
-  "SteamOS · BC-250 toolkit": "SteamOS · BC-250 工具包"
+  "SteamOS · BC-250 toolkit": "SteamOS · BC-250 工具包",
+  "UMR is not working.": "UMR 无法正常工作。",
+  "UMR is the program Control Center uses to read and change the Compute Units. It does not start or cannot read the GPU, usually because a system update replaced a library it needs.": "UMR 是 Control Center 用来读取和更改计算单元的程序。它无法启动或无法读取 GPU，通常是因为系统更新替换了它所需的库。",
+  "Reinstall UMR by following these steps:": "请按以下步骤重新安装 UMR：",
+  "1. Press {button} at the bottom of this window.\n2. Open a terminal (Konsole), paste the command with Ctrl+Shift+V and press Enter.": "1. 点击此窗口底部的 {button}。\n2. 打开终端（Konsole），用 Ctrl+Shift+V 粘贴命令并按 Enter。",
+  "3. Type your password if it asks for it and press Enter on every question. Building UMR takes a few minutes. If it says paru was not found, change paru to yay and run it again.": "3. 如果要求输入密码，请输入，并在每个问题处按 Enter。编译 UMR 需要几分钟。如果提示找不到 paru，请把 paru 改为 yay 后再次运行。",
+  "3. Type your password if it asks for it and wait until it finishes.": "3. 如果要求输入密码，请输入，然后等待完成。",
+  "4. Close Control Center, open it again and repeat what you were doing.": "4. 关闭 Control Center，重新打开，然后重复刚才的操作。",
+  "4. Open Control Center, go to {page}, open {section} at the bottom, tick UMR and press {button}. Then repeat what you were doing.": "4. 打开 Control Center，进入 {page}，打开底部的 {section}，勾选 UMR 并点击 {button}。然后重复刚才的操作。",
+  "4. Restart the computer and repeat what you were doing.": "4. 重新启动电脑，然后重复刚才的操作。",
+  "On SteamOS you do not need a terminal:\n1. Go to {page}, open {section} at the bottom, tick UMR and press {button}.\n2. Wait until it finishes and repeat what you were doing.": "在 SteamOS 上无需使用终端：\n1. 进入 {page}，打开底部的 {section}，勾选 UMR 并点击 {button}。\n2. 等待完成，然后重复刚才的操作。",
+  "Reinstall the umr package with your system's package manager. Then go to {page}, open {section} at the bottom, tick UMR and press {button}.": "使用系统的软件包管理器重新安装 umr 软件包。然后进入 {page}，打开底部的 {section}，勾选 UMR 并点击 {button}。",
+  "Copy command": "复制命令"
 }

@@ -4600,5 +4600,17 @@
   "2 · Repair Mesa RADV": "2 · ซ่อม Mesa RADV",
   "Remove Mesa RADV": "ลบ Mesa RADV",
   "Install the kernel and reboot first.": "ติดตั้งเคอร์เนลและรีบูตก่อน",
-  "SteamOS · BC-250 toolkit": "SteamOS · ชุดเครื่องมือ BC-250"
+  "SteamOS · BC-250 toolkit": "SteamOS · ชุดเครื่องมือ BC-250",
+  "UMR is not working.": "UMR ไม่ทำงาน",
+  "UMR is the program Control Center uses to read and change the Compute Units. It does not start or cannot read the GPU, usually because a system update replaced a library it needs.": "UMR คือโปรแกรมที่ Control Center ใช้อ่านและเปลี่ยนหน่วยประมวลผล โปรแกรมนี้เปิดไม่ขึ้นหรืออ่าน GPU ไม่ได้ ซึ่งมักเกิดจากการอัปเดตระบบที่แทนที่ไลบรารีที่โปรแกรมต้องใช้",
+  "Reinstall UMR by following these steps:": "ติดตั้ง UMR ใหม่ตามขั้นตอนต่อไปนี้:",
+  "1. Press {button} at the bottom of this window.\n2. Open a terminal (Konsole), paste the command with Ctrl+Shift+V and press Enter.": "1. กด {button} ที่ด้านล่างของหน้าต่างนี้\n2. เปิดเทอร์มินัล (Konsole) วางคำสั่งด้วย Ctrl+Shift+V แล้วกด Enter",
+  "3. Type your password if it asks for it and press Enter on every question. Building UMR takes a few minutes. If it says paru was not found, change paru to yay and run it again.": "3. พิมพ์รหัสผ่านหากระบบถาม และกด Enter ทุกคำถาม การคอมไพล์ UMR ใช้เวลาสองสามนาที หากขึ้นว่าไม่พบ paru ให้เปลี่ยน paru เป็น yay แล้วเรียกใช้อีกครั้ง",
+  "3. Type your password if it asks for it and wait until it finishes.": "3. พิมพ์รหัสผ่านหากระบบถาม แล้วรอจนเสร็จ",
+  "4. Close Control Center, open it again and repeat what you were doing.": "4. ปิด Control Center แล้วเปิดใหม่อีกครั้ง จากนั้นทำสิ่งที่คุณทำอยู่ซ้ำ",
+  "4. Open Control Center, go to {page}, open {section} at the bottom, tick UMR and press {button}. Then repeat what you were doing.": "4. เปิด Control Center ไปที่ {page} เปิด {section} ที่ด้านล่าง เลือก UMR แล้วกด {button} จากนั้นทำสิ่งที่คุณทำอยู่ซ้ำ",
+  "4. Restart the computer and repeat what you were doing.": "4. รีสตาร์ทคอมพิวเตอร์ แล้วทำสิ่งที่คุณทำอยู่ซ้ำ",
+  "On SteamOS you do not need a terminal:\n1. Go to {page}, open {section} at the bottom, tick UMR and press {button}.\n2. Wait until it finishes and repeat what you were doing.": "บน SteamOS ไม่ต้องใช้เทอร์มินัล:\n1. ไปที่ {page} เปิด {section} ที่ด้านล่าง เลือก UMR แล้วกด {button}\n2. รอจนเสร็จ แล้วทำสิ่งที่คุณทำอยู่ซ้ำ",
+  "Reinstall the umr package with your system's package manager. Then go to {page}, open {section} at the bottom, tick UMR and press {button}.": "ติดตั้งแพ็กเกจ umr ใหม่ด้วยตัวจัดการแพ็กเกจของระบบ จากนั้นไปที่ {page} เปิด {section} ที่ด้านล่าง เลือก UMR แล้วกด {button}",
+  "Copy command": "คัดลอกคำสั่ง"
 }

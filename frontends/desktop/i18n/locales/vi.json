@@ -4600,5 +4600,17 @@
   "2 · Repair Mesa RADV": "2 · Sửa Mesa RADV",
   "Remove Mesa RADV": "Gỡ Mesa RADV",
   "Install the kernel and reboot first.": "Hãy cài kernel và khởi động lại trước.",
-  "SteamOS · BC-250 toolkit": "SteamOS · Bộ công cụ BC-250"
+  "SteamOS · BC-250 toolkit": "SteamOS · Bộ công cụ BC-250",
+  "UMR is not working.": "UMR không hoạt động.",
+  "UMR is the program Control Center uses to read and change the Compute Units. It does not start or cannot read the GPU, usually because a system update replaced a library it needs.": "UMR là chương trình mà Control Center dùng để đọc và thay đổi các đơn vị tính toán. Nó không khởi động được hoặc không đọc được GPU, thường là do một bản cập nhật hệ thống đã thay thế một thư viện mà nó cần.",
+  "Reinstall UMR by following these steps:": "Cài đặt lại UMR theo các bước sau:",
+  "1. Press {button} at the bottom of this window.\n2. Open a terminal (Konsole), paste the command with Ctrl+Shift+V and press Enter.": "1. Nhấn {button} ở cuối cửa sổ này.\n2. Mở một terminal (Konsole), dán lệnh bằng Ctrl+Shift+V và nhấn Enter.",
+  "3. Type your password if it asks for it and press Enter on every question. Building UMR takes a few minutes. If it says paru was not found, change paru to yay and run it again.": "3. Nhập mật khẩu nếu được hỏi và nhấn Enter ở mỗi câu hỏi. Việc biên dịch UMR mất vài phút. Nếu thông báo không tìm thấy paru, hãy đổi paru thành yay rồi chạy lại.",
+  "3. Type your password if it asks for it and wait until it finishes.": "3. Nhập mật khẩu nếu được hỏi và đợi cho đến khi hoàn tất.",
+  "4. Close Control Center, open it again and repeat what you were doing.": "4. Đóng Control Center, mở lại và lặp lại việc bạn đang làm.",
+  "4. Open Control Center, go to {page}, open {section} at the bottom, tick UMR and press {button}. Then repeat what you were doing.": "4. Mở Control Center, vào {page}, mở {section} ở phía dưới, đánh dấu UMR và nhấn {button}. Sau đó lặp lại việc bạn đang làm.",
+  "4. Restart the computer and repeat what you were doing.": "4. Khởi động lại máy tính và lặp lại việc bạn đang làm.",
+  "On SteamOS you do not need a terminal:\n1. Go to {page}, open {section} at the bottom, tick UMR and press {button}.\n2. Wait until it finishes and repeat what you were doing.": "Trên SteamOS bạn không cần terminal:\n1. Vào {page}, mở {section} ở phía dưới, đánh dấu UMR và nhấn {button}.\n2. Đợi cho đến khi hoàn tất rồi lặp lại việc bạn đang làm.",
+  "Reinstall the umr package with your system's package manager. Then go to {page}, open {section} at the bottom, tick UMR and press {button}.": "Cài đặt lại gói umr bằng trình quản lý gói của hệ thống. Sau đó vào {page}, mở {section} ở phía dưới, đánh dấu UMR và nhấn {button}.",
+  "Copy command": "Sao chép lệnh"
 }

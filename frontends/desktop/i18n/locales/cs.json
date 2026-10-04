@@ -4600,5 +4600,17 @@
   "2 · Repair Mesa RADV": "2 · Opravit Mesa RADV",
   "Remove Mesa RADV": "Odebrat Mesa RADV",
   "Install the kernel and reboot first.": "Nejprve nainstalujte jádro a restartujte.",
-  "SteamOS · BC-250 toolkit": "SteamOS · Sada nástrojů BC-250"
+  "SteamOS · BC-250 toolkit": "SteamOS · Sada nástrojů BC-250",
+  "UMR is not working.": "UMR nefunguje.",
+  "UMR is the program Control Center uses to read and change the Compute Units. It does not start or cannot read the GPU, usually because a system update replaced a library it needs.": "UMR je program, pomocí kterého Control Center čte a mění výpočetní jednotky. Nespouští se nebo nedokáže číst GPU, obvykle proto, že aktualizace systému nahradila knihovnu, kterou potřebuje.",
+  "Reinstall UMR by following these steps:": "Přeinstalujte UMR podle těchto kroků:",
+  "1. Press {button} at the bottom of this window.\n2. Open a terminal (Konsole), paste the command with Ctrl+Shift+V and press Enter.": "1. Stiskněte {button} ve spodní části tohoto okna.\n2. Otevřete terminál (Konsole), vložte příkaz pomocí Ctrl+Shift+V a stiskněte Enter.",
+  "3. Type your password if it asks for it and press Enter on every question. Building UMR takes a few minutes. If it says paru was not found, change paru to yay and run it again.": "3. Pokud budete vyzváni, zadejte heslo a u každé otázky stiskněte Enter. Sestavení UMR trvá několik minut. Pokud se zobrazí, že paru nebylo nalezeno, nahraďte paru za yay a spusťte příkaz znovu.",
+  "3. Type your password if it asks for it and wait until it finishes.": "3. Pokud budete vyzváni, zadejte heslo a počkejte na dokončení.",
+  "4. Close Control Center, open it again and repeat what you were doing.": "4. Zavřete Control Center, znovu ho otevřete a zopakujte, co jste dělali.",
+  "4. Open Control Center, go to {page}, open {section} at the bottom, tick UMR and press {button}. Then repeat what you were doing.": "4. Otevřete Control Center, přejděte na {page}, dole otevřete {section}, zaškrtněte UMR a stiskněte {button}. Potom zopakujte, co jste dělali.",
+  "4. Restart the computer and repeat what you were doing.": "4. Restartujte počítač a zopakujte, co jste dělali.",
+  "On SteamOS you do not need a terminal:\n1. Go to {page}, open {section} at the bottom, tick UMR and press {button}.\n2. Wait until it finishes and repeat what you were doing.": "V SteamOS terminál nepotřebujete:\n1. Přejděte na {page}, dole otevřete {section}, zaškrtněte UMR a stiskněte {button}.\n2. Počkejte na dokončení a zopakujte, co jste dělali.",
+  "Reinstall the umr package with your system's package manager. Then go to {page}, open {section} at the bottom, tick UMR and press {button}.": "Přeinstalujte balíček umr pomocí správce balíčků vašeho systému. Potom přejděte na {page}, dole otevřete {section}, zaškrtněte UMR a stiskněte {button}.",
+  "Copy command": "Kopírovat příkaz"
 }

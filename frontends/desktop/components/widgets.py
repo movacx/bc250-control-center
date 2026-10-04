@@ -21,7 +21,7 @@ from PyQt6.QtWidgets import (
 
 from .. import theme as theme_module
 from ..core.diagnostic_history import record_window_error
-from ..core.error_diagnostics import format_error_for_user
+from ..core.error_diagnostics import format_error_for_user, umr_repair_command
 from ..i18n import localize_widget_tree, tr
 from ..theme import COLORS, application_stylesheet, palette_color, semantic_color_key
 from .busy_spinner import BusySpinner
@@ -255,8 +255,13 @@ class InfoDialog(QDialog):
     ):
         raw_title = str(title)
         raw_eyebrow = str(eyebrow)
+        umr_command = ""
         if tone == "red":
             record_window_error(message, context=f"{raw_eyebrow} {raw_title}", title=raw_title)
+            # A broken UMR gets its reinstall command on a footer button: the
+            # steps point at it, so it must not hide under the scrolled detail.
+            if not copy_text:
+                umr_command = umr_repair_command(message, context=f"{raw_eyebrow} {raw_title}")
             message = format_error_for_user(
                 message,
                 context=f"{raw_eyebrow} {raw_title}",
@@ -414,6 +419,20 @@ class InfoDialog(QDialog):
 
         footer = QHBoxLayout()
         footer.addStretch(1)
+        if umr_command:
+            umr_copy = QPushButton(tr("Copy command"))
+            umr_copy.setProperty("compactAction", True)
+            umr_copy.setMinimumWidth(132)
+            umr_copy.setCursor(Qt.CursorShape.PointingHandCursor)
+
+            def copy_umr_command() -> None:
+                clipboard = QApplication.clipboard()
+                if clipboard is not None:
+                    clipboard.setText(umr_command)
+                umr_copy.setText(tr("Copied"))
+
+            umr_copy.clicked.connect(copy_umr_command)
+            footer.addWidget(umr_copy)
         primary = QPushButton(button_text)
         primary.setObjectName("DialogPrimary")
         primary.setMinimumWidth(132)

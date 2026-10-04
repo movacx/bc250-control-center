@@ -132,7 +132,9 @@ def test_malformed_pending_count_cannot_unlock_live_apply():
 
 
 def test_kernel_managed_cus_leave_only_removing_an_old_boot_service():
-    from frontends.desktop.core.compute_units_presenter import plan_cu_action_availability
+    from frontends.desktop.core.compute_units_presenter import (
+        plan_cu_action_availability,
+    )
 
     state = {
         "kernel_managed": True, "privileged_backend_ready": True, "available": True,

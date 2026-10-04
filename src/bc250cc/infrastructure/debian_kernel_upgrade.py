@@ -136,7 +136,7 @@ def build_debian_kernel_command(action: str, codename: str, *, source: Path = SO
         "sudo -v",
         # Add the suite in a file of its own, unless some source already has it.
         f'if ! grep -rqsE "^(Suites:.*|deb .*) {suite}( |$)" /etc/apt/sources.list /etc/apt/sources.list.d; then',
-        f'  test -r /usr/share/keyrings/debian-archive-keyring.gpg || {{ echo "ERROR: debian-archive-keyring is missing."; exit 29; }}',
+        '  test -r /usr/share/keyrings/debian-archive-keyring.gpg || { echo "ERROR: debian-archive-keyring is missing."; exit 29; }',
         "  printf 'Types: deb\\nURIs: http://deb.debian.org/debian\\n"
         f"Suites: {suite}\\nComponents: main non-free-firmware\\n"
         f"Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg\\n' | sudo tee {quoted_source} >/dev/null",
@@ -166,7 +166,7 @@ def build_debian_kernel_command(action: str, codename: str, *, source: Path = SO
         "    fi",
         "  done",
         f'  test -n "$packages" || {{ echo "ERROR: {suite} has no complete kernel of {minimum} or newer right now. Try again later."; exit 29; }}',
-        f'  packages="$packages firmware-amd-graphics"',
+        '  packages="$packages firmware-amd-graphics"',
         '  echo "[INFO] Installing $packages from backports."',
         "fi",
         f"sudo apt-get install -y -t {suite} $packages",

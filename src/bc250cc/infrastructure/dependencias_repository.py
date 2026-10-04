@@ -14,6 +14,11 @@ from bc250cc.application.preparation.component_engine import (
     unavailable_components,
 )
 from bc250cc.infrastructure.accessories import accessory_inventory
+from bc250cc.infrastructure.apu_telemetry_service import (
+    APU_TELEMETRY_DIRECTORY,
+    apu_telemetry_supported,
+    build_apu_telemetry_command,
+)
 from bc250cc.infrastructure.bazzite_async_compute import (
     build_bazzite_async_compute_command,
     probe_bazzite_async_compute,
@@ -47,6 +52,10 @@ from bc250cc.infrastructure.cu_privileged_backend import (
     generic_cu_backend_status,
     steamos_cu_backend_status,
 )
+from bc250cc.infrastructure.debian_kernel_upgrade import (
+    build_debian_kernel_command,
+    debian_kernel_upgrade_state,
+)
 from bc250cc.infrastructure.decky_quick_access import (
     build_bazzite_decky_bootstrap_command,
     build_decky_bootstrap_command,
@@ -71,10 +80,6 @@ from bc250cc.infrastructure.gfx1013_compute_policy import (
     STEAMOS_GFX1013_SAFE_RADV_VERSION,
     STEAMOS_REVIEWED_DRYHOPPED_COMMIT,
     classify_gfx1013_support,
-)
-from bc250cc.infrastructure.debian_kernel_upgrade import (
-    build_debian_kernel_command,
-    debian_kernel_upgrade_state,
 )
 from bc250cc.infrastructure.gfx1013_source import (
     build_gfx1013_source_command,
@@ -102,11 +107,6 @@ from bc250cc.infrastructure.preparation_workflow import (
     secure_cpu_checkout_command,
 )
 from bc250cc.infrastructure.privileged_install_state import privileged_install_state
-from bc250cc.infrastructure.apu_telemetry_service import (
-    APU_TELEMETRY_DIRECTORY,
-    apu_telemetry_supported,
-    build_apu_telemetry_command,
-)
 from bc250cc.infrastructure.radv_async_compute import (
     build_radv_async_command,
     radv_async_state,

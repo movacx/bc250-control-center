@@ -67,16 +67,16 @@ from bc250cc.domain.gpu.profiles import (
     default_cyan_profiles,
     profiles_for_allowed_range,
 )
-from bc250cc.infrastructure.system_setup import CU_UNLOCK_OPTION, CU_UNLOCK_THERMAL_NOTE
 from bc250cc.infrastructure.bazzite_async_compute import (
     BAZZITE_ASYNC_COMPUTE_REPOSITORY,
 )
-from bc250cc.infrastructure.radv_async_compute import RADV_ASYNC_REVIEWED_COMMIT
 from bc250cc.infrastructure.gpu.governor_toml import (
     GOVERNOR_DEFAULT_VOLTAGES,
     SUPPORTED_VOLTAGE_LEVELS,
     VOLTAGE_BOOST_START_MHZ,
 )
+from bc250cc.infrastructure.radv_async_compute import RADV_ASYNC_REVIEWED_COMMIT
+from bc250cc.infrastructure.system_setup import CU_UNLOCK_OPTION, CU_UNLOCK_THERMAL_NOTE
 
 from ..components.async_tools import AsyncRefresh, BackgroundExecutor
 from ..components.buttons import WrappingButton as QPushButton

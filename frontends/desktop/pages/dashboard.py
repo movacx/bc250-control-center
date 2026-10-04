@@ -14,13 +14,13 @@ from PyQt6.QtWidgets import (
 )
 
 from bc250cc.infrastructure.install_source import detect_install_source
-from bc250cc.infrastructure.vrm_telemetry_reader import (
-    kernel_vrm_driver_present,
-    sondear_telemetria_vrm,
-)
 from bc250cc.infrastructure.release_check import (
     RELEASES_PAGE_URL,
     check_for_update,
+)
+from bc250cc.infrastructure.vrm_telemetry_reader import (
+    kernel_vrm_driver_present,
+    sondear_telemetria_vrm,
 )
 
 from ..components.async_tools import AsyncRefresh, BackgroundExecutor
@@ -39,12 +39,12 @@ from ..components.dashboard_widgets import (
     PreparationSidebar,
     UpdateCallout,
 )
+from ..components.page_widgets import ConfirmDialog
 from ..components.responsive import (
     clear_grid,
     configure_responsive_scroll_area,
 )
 from ..components.toast import show_toast
-from ..components.page_widgets import ConfirmDialog
 from ..components.widgets import InfoDialog
 from ..core.attention import attention_items
 from ..core.dashboard_presenter import FAN_OWNER_LABELS

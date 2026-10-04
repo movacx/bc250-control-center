@@ -4600,5 +4600,17 @@
   "2 · Repair Mesa RADV": "2 · Mesa RADV 복구",
   "Remove Mesa RADV": "Mesa RADV 제거",
   "Install the kernel and reboot first.": "먼저 커널을 설치하고 재부팅하세요.",
-  "SteamOS · BC-250 toolkit": "SteamOS · BC-250 툴킷"
+  "SteamOS · BC-250 toolkit": "SteamOS · BC-250 툴킷",
+  "UMR is not working.": "UMR이 작동하지 않습니다.",
+  "UMR is the program Control Center uses to read and change the Compute Units. It does not start or cannot read the GPU, usually because a system update replaced a library it needs.": "UMR은 Control Center가 컴퓨팅 유닛을 읽고 변경하는 데 사용하는 프로그램입니다. 시작되지 않거나 GPU를 읽을 수 없으며, 대개 시스템 업데이트로 필요한 라이브러리가 교체되었기 때문입니다.",
+  "Reinstall UMR by following these steps:": "다음 단계에 따라 UMR을 다시 설치하세요:",
+  "1. Press {button} at the bottom of this window.\n2. Open a terminal (Konsole), paste the command with Ctrl+Shift+V and press Enter.": "1. 이 창 아래쪽의 {button}을(를) 누르세요.\n2. 터미널(Konsole)을 열고 Ctrl+Shift+V로 명령을 붙여 넣은 다음 Enter를 누르세요.",
+  "3. Type your password if it asks for it and press Enter on every question. Building UMR takes a few minutes. If it says paru was not found, change paru to yay and run it again.": "3. 비밀번호를 묻는 경우 입력하고 모든 질문에 Enter를 누르세요. UMR 빌드에는 몇 분이 걸립니다. paru를 찾을 수 없다고 나오면 paru를 yay로 바꿔 다시 실행하세요.",
+  "3. Type your password if it asks for it and wait until it finishes.": "3. 비밀번호를 묻는 경우 입력하고 끝날 때까지 기다리세요.",
+  "4. Close Control Center, open it again and repeat what you were doing.": "4. Control Center를 닫았다가 다시 열고 하던 작업을 다시 실행하세요.",
+  "4. Open Control Center, go to {page}, open {section} at the bottom, tick UMR and press {button}. Then repeat what you were doing.": "4. Control Center를 열고 {page}(으)로 이동한 다음 아래쪽의 {section}을(를) 열고 UMR을 선택한 후 {button}을(를) 누르세요. 그런 다음 하던 작업을 다시 실행하세요.",
+  "4. Restart the computer and repeat what you were doing.": "4. 컴퓨터를 다시 시작하고 하던 작업을 다시 실행하세요.",
+  "On SteamOS you do not need a terminal:\n1. Go to {page}, open {section} at the bottom, tick UMR and press {button}.\n2. Wait until it finishes and repeat what you were doing.": "SteamOS에서는 터미널이 필요 없습니다:\n1. {page}(으)로 이동한 다음 아래쪽의 {section}을(를) 열고 UMR을 선택한 후 {button}을(를) 누르세요.\n2. 끝날 때까지 기다린 다음 하던 작업을 다시 실행하세요.",
+  "Reinstall the umr package with your system's package manager. Then go to {page}, open {section} at the bottom, tick UMR and press {button}.": "시스템의 패키지 관리자로 umr 패키지를 다시 설치하세요. 그런 다음 {page}(으)로 이동해 아래쪽의 {section}을(를) 열고 UMR을 선택한 후 {button}을(를) 누르세요.",
+  "Copy command": "명령 복사"
 }

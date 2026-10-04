@@ -4600,5 +4600,17 @@
   "2 · Repair Mesa RADV": "2 · 修復 Mesa RADV",
   "Remove Mesa RADV": "移除 Mesa RADV",
   "Install the kernel and reboot first.": "請先安裝核心並重新開機。",
-  "SteamOS · BC-250 toolkit": "SteamOS · BC-250 工具組"
+  "SteamOS · BC-250 toolkit": "SteamOS · BC-250 工具組",
+  "UMR is not working.": "UMR 無法正常運作。",
+  "UMR is the program Control Center uses to read and change the Compute Units. It does not start or cannot read the GPU, usually because a system update replaced a library it needs.": "UMR 是 Control Center 用來讀取和變更計算單元的程式。它無法啟動或無法讀取 GPU，通常是因為系統更新取代了它需要的程式庫。",
+  "Reinstall UMR by following these steps:": "請依照以下步驟重新安裝 UMR：",
+  "1. Press {button} at the bottom of this window.\n2. Open a terminal (Konsole), paste the command with Ctrl+Shift+V and press Enter.": "1. 按下此視窗底部的 {button}。\n2. 開啟終端機（Konsole），用 Ctrl+Shift+V 貼上指令並按 Enter。",
+  "3. Type your password if it asks for it and press Enter on every question. Building UMR takes a few minutes. If it says paru was not found, change paru to yay and run it again.": "3. 如果要求輸入密碼，請輸入，並在每個問題按 Enter。編譯 UMR 需要幾分鐘。如果顯示找不到 paru，請將 paru 改為 yay 後再執行一次。",
+  "3. Type your password if it asks for it and wait until it finishes.": "3. 如果要求輸入密碼，請輸入，然後等待完成。",
+  "4. Close Control Center, open it again and repeat what you were doing.": "4. 關閉 Control Center，重新開啟，然後重複剛才的操作。",
+  "4. Open Control Center, go to {page}, open {section} at the bottom, tick UMR and press {button}. Then repeat what you were doing.": "4. 開啟 Control Center，前往 {page}，開啟底部的 {section}，勾選 UMR 並按下 {button}。然後重複剛才的操作。",
+  "4. Restart the computer and repeat what you were doing.": "4. 重新啟動電腦，然後重複剛才的操作。",
+  "On SteamOS you do not need a terminal:\n1. Go to {page}, open {section} at the bottom, tick UMR and press {button}.\n2. Wait until it finishes and repeat what you were doing.": "在 SteamOS 上不需要終端機：\n1. 前往 {page}，開啟底部的 {section}，勾選 UMR 並按下 {button}。\n2. 等待完成，然後重複剛才的操作。",
+  "Reinstall the umr package with your system's package manager. Then go to {page}, open {section} at the bottom, tick UMR and press {button}.": "使用系統的套件管理員重新安裝 umr 套件。然後前往 {page}，開啟底部的 {section}，勾選 UMR 並按下 {button}。",
+  "Copy command": "複製指令"
 }

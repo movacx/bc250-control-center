@@ -4600,5 +4600,17 @@
   "2 · Repair Mesa RADV": "2 · Korjaa Mesa RADV",
   "Remove Mesa RADV": "Poista Mesa RADV",
   "Install the kernel and reboot first.": "Asenna ensin ydin ja käynnistä uudelleen.",
-  "SteamOS · BC-250 toolkit": "SteamOS · BC-250-työkalut"
+  "SteamOS · BC-250 toolkit": "SteamOS · BC-250-työkalut",
+  "UMR is not working.": "UMR ei toimi.",
+  "UMR is the program Control Center uses to read and change the Compute Units. It does not start or cannot read the GPU, usually because a system update replaced a library it needs.": "UMR on ohjelma, jolla Control Center lukee ja muuttaa laskentayksiköitä. Se ei käynnisty tai ei pysty lukemaan GPU:ta, yleensä koska järjestelmäpäivitys on korvannut kirjaston, jota se tarvitsee.",
+  "Reinstall UMR by following these steps:": "Asenna UMR uudelleen näillä ohjeilla:",
+  "1. Press {button} at the bottom of this window.\n2. Open a terminal (Konsole), paste the command with Ctrl+Shift+V and press Enter.": "1. Paina tämän ikkunan alareunasta {button}.\n2. Avaa pääte (Konsole), liitä komento näppäimillä Ctrl+Shift+V ja paina Enter.",
+  "3. Type your password if it asks for it and press Enter on every question. Building UMR takes a few minutes. If it says paru was not found, change paru to yay and run it again.": "3. Kirjoita salasanasi, jos sitä kysytään, ja paina Enter jokaisen kysymyksen kohdalla. UMR:n kääntäminen kestää muutaman minuutin. Jos ilmoitetaan, ettei paru-ohjelmaa löydy, vaihda paru tilalle yay ja suorita komento uudelleen.",
+  "3. Type your password if it asks for it and wait until it finishes.": "3. Kirjoita salasanasi, jos sitä kysytään, ja odota, että se valmistuu.",
+  "4. Close Control Center, open it again and repeat what you were doing.": "4. Sulje Control Center, avaa se uudelleen ja toista se, mitä olit tekemässä.",
+  "4. Open Control Center, go to {page}, open {section} at the bottom, tick UMR and press {button}. Then repeat what you were doing.": "4. Avaa Control Center, siirry kohtaan {page}, avaa alhaalta {section}, valitse UMR ja paina {button}. Toista sitten se, mitä olit tekemässä.",
+  "4. Restart the computer and repeat what you were doing.": "4. Käynnistä tietokone uudelleen ja toista se, mitä olit tekemässä.",
+  "On SteamOS you do not need a terminal:\n1. Go to {page}, open {section} at the bottom, tick UMR and press {button}.\n2. Wait until it finishes and repeat what you were doing.": "SteamOS:ssä et tarvitse päätettä:\n1. Siirry kohtaan {page}, avaa alhaalta {section}, valitse UMR ja paina {button}.\n2. Odota, että se valmistuu, ja toista se, mitä olit tekemässä.",
+  "Reinstall the umr package with your system's package manager. Then go to {page}, open {section} at the bottom, tick UMR and press {button}.": "Asenna umr-paketti uudelleen järjestelmäsi paketinhallinnalla. Siirry sitten kohtaan {page}, avaa alhaalta {section}, valitse UMR ja paina {button}.",
+  "Copy command": "Kopioi komento"
 }

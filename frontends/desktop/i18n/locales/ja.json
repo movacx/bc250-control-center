@@ -4600,5 +4600,17 @@
   "2 · Repair Mesa RADV": "2 · Mesa RADV を修復",
   "Remove Mesa RADV": "Mesa RADV を削除",
   "Install the kernel and reboot first.": "先にカーネルをインストールして再起動してください。",
-  "SteamOS · BC-250 toolkit": "SteamOS · BC-250 ツールキット"
+  "SteamOS · BC-250 toolkit": "SteamOS · BC-250 ツールキット",
+  "UMR is not working.": "UMR が動作していません。",
+  "UMR is the program Control Center uses to read and change the Compute Units. It does not start or cannot read the GPU, usually because a system update replaced a library it needs.": "UMR は、Control Center が演算ユニットの読み取りと変更に使うプログラムです。起動しないか GPU を読み取れません。通常、システム更新によって必要なライブラリが置き換えられたことが原因です。",
+  "Reinstall UMR by following these steps:": "次の手順で UMR を再インストールしてください:",
+  "1. Press {button} at the bottom of this window.\n2. Open a terminal (Konsole), paste the command with Ctrl+Shift+V and press Enter.": "1. このウィンドウ下部の {button} を押します。\n2. ターミナル (Konsole) を開き、Ctrl+Shift+V でコマンドを貼り付けて Enter を押します。",
+  "3. Type your password if it asks for it and press Enter on every question. Building UMR takes a few minutes. If it says paru was not found, change paru to yay and run it again.": "3. パスワードを求められたら入力し、すべての質問で Enter を押します。UMR のビルドには数分かかります。paru が見つからないと表示された場合は、paru を yay に置き換えてもう一度実行してください。",
+  "3. Type your password if it asks for it and wait until it finishes.": "3. パスワードを求められたら入力し、完了するまで待ちます。",
+  "4. Close Control Center, open it again and repeat what you were doing.": "4. Control Center を閉じて再度開き、行っていた操作をもう一度実行します。",
+  "4. Open Control Center, go to {page}, open {section} at the bottom, tick UMR and press {button}. Then repeat what you were doing.": "4. Control Center を開き、{page} に移動して下部の {section} を開き、UMR にチェックを入れて {button} を押します。その後、行っていた操作をもう一度実行します。",
+  "4. Restart the computer and repeat what you were doing.": "4. コンピューターを再起動し、行っていた操作をもう一度実行します。",
+  "On SteamOS you do not need a terminal:\n1. Go to {page}, open {section} at the bottom, tick UMR and press {button}.\n2. Wait until it finishes and repeat what you were doing.": "SteamOS ではターミナルは不要です:\n1. {page} に移動して下部の {section} を開き、UMR にチェックを入れて {button} を押します。\n2. 完了するまで待ち、行っていた操作をもう一度実行します。",
+  "Reinstall the umr package with your system's package manager. Then go to {page}, open {section} at the bottom, tick UMR and press {button}.": "システムのパッケージマネージャーで umr パッケージを再インストールします。その後、{page} に移動して下部の {section} を開き、UMR にチェックを入れて {button} を押します。",
+  "Copy command": "コマンドをコピー"
 }

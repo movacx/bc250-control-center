@@ -4600,5 +4600,17 @@
   "2 · Repair Mesa RADV": "2 · Ripara Mesa RADV",
   "Remove Mesa RADV": "Rimuovi Mesa RADV",
   "Install the kernel and reboot first.": "Prima installa il kernel e riavvia.",
-  "SteamOS · BC-250 toolkit": "SteamOS · Toolkit BC-250"
+  "SteamOS · BC-250 toolkit": "SteamOS · Toolkit BC-250",
+  "UMR is not working.": "UMR non funziona.",
+  "UMR is the program Control Center uses to read and change the Compute Units. It does not start or cannot read the GPU, usually because a system update replaced a library it needs.": "UMR è il programma che Control Center usa per leggere e modificare le unità di calcolo. Non si avvia o non riesce a leggere la GPU, di solito perché un aggiornamento del sistema ha sostituito una libreria di cui ha bisogno.",
+  "Reinstall UMR by following these steps:": "Reinstalla UMR seguendo questi passaggi:",
+  "1. Press {button} at the bottom of this window.\n2. Open a terminal (Konsole), paste the command with Ctrl+Shift+V and press Enter.": "1. Premi {button} in fondo a questa finestra.\n2. Apri un terminale (Konsole), incolla il comando con Ctrl+Shift+V e premi Invio.",
+  "3. Type your password if it asks for it and press Enter on every question. Building UMR takes a few minutes. If it says paru was not found, change paru to yay and run it again.": "3. Inserisci la password se viene richiesta e premi Invio a ogni domanda. La compilazione di UMR richiede alcuni minuti. Se compare il messaggio che paru non è stato trovato, sostituisci paru con yay ed eseguilo di nuovo.",
+  "3. Type your password if it asks for it and wait until it finishes.": "3. Inserisci la password se viene richiesta e attendi che finisca.",
+  "4. Close Control Center, open it again and repeat what you were doing.": "4. Chiudi Control Center, riaprilo e ripeti ciò che stavi facendo.",
+  "4. Open Control Center, go to {page}, open {section} at the bottom, tick UMR and press {button}. Then repeat what you were doing.": "4. Apri Control Center, vai a {page}, apri {section} in basso, seleziona UMR e premi {button}. Poi ripeti ciò che stavi facendo.",
+  "4. Restart the computer and repeat what you were doing.": "4. Riavvia il computer e ripeti ciò che stavi facendo.",
+  "On SteamOS you do not need a terminal:\n1. Go to {page}, open {section} at the bottom, tick UMR and press {button}.\n2. Wait until it finishes and repeat what you were doing.": "Su SteamOS non serve un terminale:\n1. Vai a {page}, apri {section} in basso, seleziona UMR e premi {button}.\n2. Attendi che finisca e ripeti ciò che stavi facendo.",
+  "Reinstall the umr package with your system's package manager. Then go to {page}, open {section} at the bottom, tick UMR and press {button}.": "Reinstalla il pacchetto umr con il gestore di pacchetti del tuo sistema. Poi vai a {page}, apri {section} in basso, seleziona UMR e premi {button}.",
+  "Copy command": "Copia comando"
 }

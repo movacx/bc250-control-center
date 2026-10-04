@@ -4600,5 +4600,17 @@
   "2 · Repair Mesa RADV": "2 · Поправка на Mesa RADV",
   "Remove Mesa RADV": "Премахване на Mesa RADV",
   "Install the kernel and reboot first.": "Първо инсталирайте ядрото и рестартирайте.",
-  "SteamOS · BC-250 toolkit": "SteamOS · Инструменти за BC-250"
+  "SteamOS · BC-250 toolkit": "SteamOS · Инструменти за BC-250",
+  "UMR is not working.": "UMR не работи.",
+  "UMR is the program Control Center uses to read and change the Compute Units. It does not start or cannot read the GPU, usually because a system update replaced a library it needs.": "UMR е програмата, с която Control Center чете и променя изчислителните единици. Тя не стартира или не може да прочете GPU, обикновено защото системна актуализация е заменила библиотека, от която се нуждае.",
+  "Reinstall UMR by following these steps:": "Преинсталирайте UMR със следните стъпки:",
+  "1. Press {button} at the bottom of this window.\n2. Open a terminal (Konsole), paste the command with Ctrl+Shift+V and press Enter.": "1. Натиснете {button} в долната част на този прозорец.\n2. Отворете терминал (Konsole), поставете командата с Ctrl+Shift+V и натиснете Enter.",
+  "3. Type your password if it asks for it and press Enter on every question. Building UMR takes a few minutes. If it says paru was not found, change paru to yay and run it again.": "3. Въведете паролата си, ако бъде поискана, и натискайте Enter на всеки въпрос. Компилирането на UMR отнема няколко минути. Ако пише, че paru не е намерен, сменете paru с yay и го изпълнете отново.",
+  "3. Type your password if it asks for it and wait until it finishes.": "3. Въведете паролата си, ако бъде поискана, и изчакайте да приключи.",
+  "4. Close Control Center, open it again and repeat what you were doing.": "4. Затворете Control Center, отворете го отново и повторете това, което правехте.",
+  "4. Open Control Center, go to {page}, open {section} at the bottom, tick UMR and press {button}. Then repeat what you were doing.": "4. Отворете Control Center, отидете в {page}, отворете {section} най-долу, отметнете UMR и натиснете {button}. След това повторете това, което правехте.",
+  "4. Restart the computer and repeat what you were doing.": "4. Рестартирайте компютъра и повторете това, което правехте.",
+  "On SteamOS you do not need a terminal:\n1. Go to {page}, open {section} at the bottom, tick UMR and press {button}.\n2. Wait until it finishes and repeat what you were doing.": "В SteamOS не ви трябва терминал:\n1. Отидете в {page}, отворете {section} най-долу, отметнете UMR и натиснете {button}.\n2. Изчакайте да приключи и повторете това, което правехте.",
+  "Reinstall the umr package with your system's package manager. Then go to {page}, open {section} at the bottom, tick UMR and press {button}.": "Преинсталирайте пакета umr с мениджъра на пакети на вашата система. След това отидете в {page}, отворете {section} най-долу, отметнете UMR и натиснете {button}.",
+  "Copy command": "Копиране на командата"
 }
