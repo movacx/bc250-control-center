@@ -140,7 +140,7 @@ BC250 Control Center builds on community work and claims none of these projects 
 - [Oberon Governor](https://gitlab.com/mothenjoyer69/oberon-governor): supported alternative governor.
 - [bc250-gfx1013-fix](https://github.com/DryhoppedIPA/bc250-gfx1013-fix) and [bc250-steamos](https://github.com/keyboardspecialist/bc250-steamos): kernel and Mesa/RADV for GFX1013.
 - [linux-cachyos-bc250](https://github.com/MastaG/linux-cachyos-bc250): matched kernel and Mesa/RADV for Arch/CachyOS.
-- [bc250-async-compute-bazzite](https://github.com/tri3gubki-ops/bc250-async-compute-bazzite): async compute on Bazzite 44.
+- [bc250-async-compute-bazzite](https://github.com/tri3gubki-ops/bc250-async-compute-bazzite): async compute on Bazzite 44; its RADV patches are also built for Arch/CachyOS and Fedora on kernel 7.2 or newer.
 - [bc250-fsr4](https://github.com/dmorazasanchez/bc250-fsr4) and [bc250-fsr4-fork](https://github.com/daniel-h-0/bc250-fsr4-fork) (OptiScaler Client): per-game FSR4.
 
 **CPU and Compute Units**

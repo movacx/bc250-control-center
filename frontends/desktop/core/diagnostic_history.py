@@ -8,10 +8,12 @@ probable cause, for Settings › Diagnostics. Recording never raises.
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 import time
 from datetime import datetime
+from pathlib import Path
 
 from bc250cc.infrastructure import diagnostic_journal
 
@@ -92,6 +94,83 @@ def record_terminal_failure(result: object, exit_code: int) -> None:
         title=str(getattr(result, "title", "") or "Terminal"),
         detail=detail,
     )
+
+
+#: Written by the Decky Quick Access backend (root) beside its settings; read
+#: here only.  See ``Plugin._record_diagnostic`` in the plugin's main.py.
+DECKY_DIAGNOSTICS = Path.home() / "homebrew" / "settings" / "bc250-quick-access" / "diagnostics.jsonl"
+#: The Decky file is root-owned, so "Clear" cannot delete it: entries older
+#: than this mark are hidden instead.
+DECKY_CLEARED_MARK = "decky-diagnostics-cleared-at"
+DECKY_MODULES = {
+    "gpu": "GPU", "cu": "Compute Units", "cpu": "CPU", "fan": "Fan", "vram": "VRAM",
+}
+
+
+def _decky_cleared_path() -> Path:
+    return diagnostic_journal.journal_path().with_name(DECKY_CLEARED_MARK)
+
+
+def _decky_cleared_at() -> float:
+    try:
+        return float(_decky_cleared_path().read_text(encoding="ascii").strip())
+    except (OSError, ValueError):
+        return 0.0
+
+
+def read_decky_entries(path: Path | None = None, *, cleared_at: float | None = None) -> list:
+    """Decky Quick Access failures as journal entries, newest first.
+
+    Each is classified with the same rules as a desktop error, so a Game Mode
+    failure gets the same code, cause and fix as the desktop would show.
+    """
+    path = path or DECKY_DIAGNOSTICS
+    cleared_at = _decky_cleared_at() if cleared_at is None else cleared_at
+    try:
+        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return []
+    entries = []
+    for line in reversed(lines[-diagnostic_journal.MAX_ENTRIES:]):
+        try:
+            data = json.loads(line)
+            at = float(data["at"])
+            module = str(data.get("module") or "")
+            target = str(data.get("target") or "")
+            detail = str(data.get("error") or "").strip()[: diagnostic_journal.MAX_DETAIL]
+        except (ValueError, KeyError, TypeError):
+            continue
+        if at <= cleared_at:
+            continue
+        codes = CODE_PATTERN.findall(detail)
+        diagnosis = (explain_code(codes[-1]) if codes else None) or diagnose_error(detail, context=module)
+        entries.append(diagnostic_journal.DiagnosticEntry(
+            at=at,
+            code=diagnosis.code,
+            source="decky",
+            title=f"Decky Quick Access · {DECKY_MODULES.get(module, module)} · {target}",
+            summary=diagnosis.summary,
+            cause=diagnosis.cause,
+            action=diagnosis.action,
+            detail=detail,
+        ))
+    return entries
+
+
+def history_entries(limit: int = diagnostic_journal.MAX_ENTRIES) -> list:
+    """Desktop and Decky Quick Access errors together, newest first."""
+    merged = diagnostic_journal.read(limit) + read_decky_entries()
+    return sorted(merged, key=lambda entry: entry.at, reverse=True)[:limit]
+
+
+def clear_history() -> None:
+    diagnostic_journal.clear()
+    try:
+        mark = _decky_cleared_path()
+        mark.parent.mkdir(parents=True, exist_ok=True)
+        mark.write_text(f"{time.time():.3f}\n", encoding="ascii")
+    except OSError:
+        logger.debug("Could not hide the Decky diagnostic history", exc_info=True)
 
 
 #: Errors a copied report carries; the newest are the ones asked about.

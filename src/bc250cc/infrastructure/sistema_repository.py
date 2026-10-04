@@ -72,6 +72,7 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
         # The compute (ACE) queues on their own: whether async compute is
         # really used, and by which process.
         self.gpu_compute_anterior = None
+        self.tiempo_gpu_compute = None
         self.gpu_compute_busy = None
         self.gpu_compute_process = ''
         self.gpu_busy_cache = None
@@ -466,25 +467,45 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
     def _gpu_fdinfo_total_ns(self):
         return sum(self._gpu_fdinfo_sampler().sample().values())
 
+    def _update_gpu_compute(self, sampler, compute, ahora):
+        previous = self.gpu_compute_anterior
+        since = getattr(self, 'tiempo_gpu_compute', None)
+        self.gpu_compute_anterior = compute
+        self.tiempo_gpu_compute = ahora
+        if isinstance(previous, dict) and since is not None:
+            self.gpu_compute_busy = busy_percent(previous, compute, ahora - since)
+            client = busiest_client(previous, compute)
+            self.gpu_compute_process = sampler.process_name(client) if client else ''
+
     def _gpu_busy_fdinfo(self):
         with _GPU_BUSY_LOCK:
             sampler = self._gpu_fdinfo_sampler()
             current = sampler.sample()
-            compute = sampler.compute_sample()
             ahora = time.monotonic_ns()
             previous = self.gpu_fdinfo_anterior
-            previous_compute = self.gpu_compute_anterior
             since = self.tiempo_gpu_fdinfo
             self.gpu_fdinfo_anterior = current
-            self.gpu_compute_anterior = compute
             self.tiempo_gpu_fdinfo = ahora
+            self._update_gpu_compute(sampler, sampler.compute_sample(), ahora)
             if not isinstance(previous, dict) or since is None:
                 return None
-            if isinstance(previous_compute, dict):
-                self.gpu_compute_busy = busy_percent(previous_compute, compute, ahora - since)
-                client = busiest_client(previous_compute, compute)
-                self.gpu_compute_process = sampler.process_name(client) if client else ''
             return busy_percent(previous, current, ahora - since)
+
+    def _gpu_compute_fdinfo(self):
+        """Keep the compute (ACE) share fresh while sysfs gives the GPU load.
+
+        A kernel with the BC-250 activity-metrics fix reports a valid
+        gpu_busy_percent, so the fdinfo fallback above never ran there and the
+        async-compute chart stayed unavailable on exactly the kernels that
+        enable async compute. Sampled at most once a second.
+        """
+        with _GPU_BUSY_LOCK:
+            since = getattr(self, 'tiempo_gpu_compute', None)
+            if since is not None and time.monotonic_ns() - since < 1_000_000_000:
+                return
+            sampler = self._gpu_fdinfo_sampler()
+            sampler.sample()
+            self._update_gpu_compute(sampler, sampler.compute_sample(), time.monotonic_ns())
 
     def _gpu_busy_percent(self, gpu=None):
         sysfs_invalid = False
@@ -494,6 +515,7 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
                 if 0 <= busy <= 100:
                     self.gpu_busy_cache = busy
                     self.gpu_busy_cache_time = time.monotonic()
+                    self._gpu_compute_fdinfo()
                     return self.gpu_busy_cache
                 # Broken BC-250 metrics can expose impossible percentages
                 # (for example ~655%).  Clamping those to 100% fabricates a

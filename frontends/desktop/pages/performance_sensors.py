@@ -79,6 +79,7 @@ from bc250cc.infrastructure.sensor_inventory import (
 from ..components.chart_axes import range_axis
 from ..components.chart_strokes import draw_series, fill_area
 from ..components.flow_layout import FlowLayout
+from ..components.widgets import icon
 from ..core.preferences import application_settings
 from ..core.sensor_log import SensorEntry, SensorLog, format_sensor_value
 from ..i18n import tr, tr_format
@@ -639,6 +640,8 @@ class SensorBoard(QFrame):
         self.back_button.setProperty("viewSwitch", True)
         self.back_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.back_button.setToolTip(tr("Back to the chart of the selected resource"))
+        self.back_button.setIcon(icon("chevron_left_blue"))
+        self.back_button.setIconSize(QSize(14, 14))
         self.back_button.clicked.connect(self.back_requested.emit)
         top.addWidget(self.back_button, 0, Qt.AlignmentFlag.AlignVCenter)
         self.title = QLabel(tr("Sensors"))

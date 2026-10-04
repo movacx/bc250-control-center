@@ -6,7 +6,9 @@ from pathlib import Path
 from bc250cc.infrastructure.steamos_graphics_runtime import (
     CURRENT_FSR4_PATCH_SHA256,
     CURRENT_MESA_TAG,
+    CURRENT_RADV_PROFILE_REVISION,
     CURRENT_UPSTREAM_COMMIT,
+    FSR4_MESA_TAG,
     LEGACY_UPSTREAM_COMMIT,
     STEAMOS_FSR4_LAUNCH_OPTION,
     probe_steamos_graphics_runtime,
@@ -30,9 +32,12 @@ def _install_current_runtime(tmp_path: Path, *, fsr4: bool = False) -> tuple[Pat
     state = home / ".local/share/bc250-mesh-shader"
     driver = _write(tmp_path / "system/libvulkan_radeon_driconf.so", b"radv")
     icd = _write(home / "radeon_driconf_icd.x86_64.json", b'{"ICD": "radv"}')
+    generator = _write(tmp_path / "system/60-bc250-gfx1013", "#!/bin/sh\n", executable=True)
+    # Toolkit v0.29+ manifest: driver, ICD, Mesa, upstream, profile, generator.
     _write(
         state / "install.conf",
-        f"{_digest(driver)} {_digest(icd)} {CURRENT_MESA_TAG} {CURRENT_UPSTREAM_COMMIT}\n",
+        f"{_digest(driver)} {_digest(icd)} {CURRENT_MESA_TAG} {CURRENT_UPSTREAM_COMMIT} "
+        f"{CURRENT_RADV_PROFILE_REVISION} {_digest(generator)}\n",
     )
     if fsr4:
         fsr4_dir = state / "fsr4"
@@ -43,7 +48,7 @@ def _install_current_runtime(tmp_path: Path, *, fsr4: bool = False) -> tuple[Pat
             fsr4_dir / "install.conf",
             " ".join((
                 _digest(fsr4_driver), _digest(fsr4_icd), _digest(runner),
-                CURRENT_MESA_TAG, CURRENT_FSR4_PATCH_SHA256,
+                FSR4_MESA_TAG, CURRENT_FSR4_PATCH_SHA256,
             )) + "\n",
         )
     return home, driver, icd
@@ -63,7 +68,8 @@ def test_probe_verifies_current_radv_and_per_game_fsr4_profile(tmp_path):
     home, driver, icd = _install_current_runtime(tmp_path, fsr4=True)
 
     state = probe_steamos_graphics_runtime(
-        home=home, driver_path=driver, icd_path=icd
+        home=home, driver_path=driver, icd_path=icd,
+        generator_path=tmp_path / "system/60-bc250-gfx1013",
     )
 
     assert state["radv"] == {
@@ -85,7 +91,8 @@ def test_probe_marks_tampered_profile_as_invalid_without_following_symlinks(tmp_
     (profile / "bc250-fsr4-run").symlink_to(tmp_path / "other-runner")
 
     state = probe_steamos_graphics_runtime(
-        home=home, driver_path=driver, icd_path=icd
+        home=home, driver_path=driver, icd_path=icd,
+        generator_path=tmp_path / "system/60-bc250-gfx1013",
     )
 
     assert state["radv"]["state"] == "ready"
@@ -102,9 +109,49 @@ def test_probe_distinguishes_a_verified_legacy_manifest_from_current_runtime(tmp
     )
 
     state = probe_steamos_graphics_runtime(
-        home=home, driver_path=driver, icd_path=icd
+        home=home, driver_path=driver, icd_path=icd,
+        generator_path=tmp_path / "system/60-bc250-gfx1013",
     )
 
     assert state["radv"]["state"] == "ready"
     assert state["radv"]["legacy"] is True
     assert state["legacy_radv_detected"] is True
+
+
+def test_probe_reads_a_pre_v029_manifest_as_ready_but_not_current(tmp_path):
+    # Built by toolkit v0.21.2: four fields and Mesa 26.2.0. It still works,
+    # and the matched Mesa stage offers the rebuild.
+    home, driver, icd = _install_current_runtime(tmp_path)
+    manifest = home / ".local/share/bc250-mesh-shader/install.conf"
+    manifest.write_text(
+        f"{_digest(driver)} {_digest(icd)} mesa-26.2.0 {CURRENT_UPSTREAM_COMMIT}\n",
+        encoding="utf-8",
+    )
+
+    state = probe_steamos_graphics_runtime(
+        home=home, driver_path=driver, icd_path=icd,
+        generator_path=tmp_path / "system/60-bc250-gfx1013",
+    )
+
+    assert state["radv"]["state"] == "ready"
+    assert state["radv"]["current"] is False
+    assert state["radv"]["mesa_tag"] == "mesa-26.2.0"
+    assert state["incomplete"] is False
+
+
+def test_probe_rejects_a_changed_generator_and_an_unknown_profile(tmp_path):
+    home, driver, icd = _install_current_runtime(tmp_path)
+    generator = tmp_path / "system/60-bc250-gfx1013"
+    probe = lambda: probe_steamos_graphics_runtime(  # noqa: E731
+        home=home, driver_path=driver, icd_path=icd, generator_path=generator
+    )
+    generator.write_text("#!/bin/sh\necho changed\n", encoding="utf-8")
+    assert probe()["radv"]["state"] == "invalid"
+
+    manifest = home / ".local/share/bc250-mesh-shader/install.conf"
+    manifest.write_text(
+        f"{_digest(driver)} {_digest(icd)} {CURRENT_MESA_TAG} {CURRENT_UPSTREAM_COMMIT} "
+        "mesh-task-v1\n",
+        encoding="utf-8",
+    )
+    assert probe()["radv"]["state"] == "invalid"

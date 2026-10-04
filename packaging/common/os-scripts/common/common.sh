@@ -174,6 +174,22 @@ verify_command() {
   return 1
 }
 
+# True when the program can start: every shared library it was linked against
+# is still there. Finding the file is not that. A binary built against a
+# library that has since been replaced stays on disk and fails on launch; umr
+# built against LLVM 22 is what CachyOS broke by moving to LLVM 23.
+binary_runs() {
+  local path output
+  path="$(command -v "$1" 2>/dev/null)" || return 1
+  if have ldd; then
+    # A static binary prints "not a dynamic executable", which is fine.
+    ! ldd "$path" 2>/dev/null | grep -q 'not found'
+    return
+  fi
+  output="$("$path" --help 2>&1 </dev/null || true)"
+  ! grep -q 'error while loading shared libraries' <<<"$output"
+}
+
 
 bc250_running_kernel_release() {
   printf '%s\n' "${BC250_KERNEL_RELEASE_OVERRIDE:-$(uname -r)}"

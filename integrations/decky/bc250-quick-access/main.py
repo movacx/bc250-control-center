@@ -50,7 +50,9 @@ CONTRACT_PATH = pathlib.Path(
 # shape of the shared contract this file was written against.
 # Protocol 19 adds fan_profiles/system_fan_* to the status and "fan-resume",
 # which per-game profiles use to hand the fans back after a game.
-HELPER_PROTOCOL = 19
+# Protocol 21 adds "ttm-status"/"ttm-apply" (the GPU memory limit, kept by the
+# desktop's own system-setup helper) and vram active_mb/reboot_pending.
+HELPER_PROTOCOL = 21
 REQUIRED_CONTRACT_REVISION = 1
 GPU_PROFILES = (
     "balanced", "gaming", "benchmark",
@@ -72,6 +74,9 @@ CPU_SCALES = tuple(range(-50, 1))
 # against the shared contract in _contract_disagreement() before it is ever
 # shown, so a stale plugin cannot offer a size the root helper would reject.
 VRAM_SIZE_PRESETS_MB = (256, 512, 1024, 2048, 3072, 4096, 5120, 6144, 7168, 8192, 12288)
+# GPU memory limit (TTM) choices: the helper validates them again, and the
+# desktop's system-setup helper a third time before anything is written.
+TTM_CHOICES = ("8", "10", "12", "default")
 MAX_RECENT_ACTIONS = 10
 #: Passive read of the optional onlinermm/BC250-Telemetry daemon's snapshot —
 #: mirrors bc250cc.infrastructure.vrm_telemetry_reader.leer_telemetria_vrm()
@@ -266,7 +271,40 @@ def _read_core_frequencies_mhz(root: pathlib.Path = CPUFREQ_ROOT) -> dict[int, i
     return frequencies
 
 
+#: The BC-250's Zen 2 die has eight cores; the factory enables six. A core's
+#: id stays its die position, so an id the system does not list is a locked
+#: core (bc250-core-unlock turns those two on).
+BC250_PHYSICAL_CORES = 8
+
+
+def _read_core_ids(root: pathlib.Path = CPUFREQ_ROOT) -> dict[int, int]:
+    """Logical CPU -> physical core id; two SMT threads share one id."""
+    core_ids: dict[int, int] = {}
+    try:
+        cpu_dirs = sorted(root.glob("cpu[0-9]*"))
+    except OSError:
+        return core_ids
+    for cpu_dir in cpu_dirs:
+        try:
+            index = int(cpu_dir.name[3:])
+            core_ids[index] = int((cpu_dir / "topology" / "core_id").read_text(encoding="ascii").strip())
+        except (OSError, ValueError):
+            continue
+    return core_ids
+
+
 CPU_PROFILE_KEYS = ("board_average", "mid_point", "safe_maximum")
+
+
+#: The desktop's DEFAULT_CPU_PROFILES (frontends/desktop/pages/cpu_control_view.py).
+#: Shown until the player exports their own from the desktop; an exported card
+#: replaces the default with the same key.  ``default`` lets the panel show the
+#: name in its own language.
+DEFAULT_CPU_PROFILES = (
+    {"key": "board_average", "name": "Average board", "frequency": 3550, "vid": 1050, "default": True},
+    {"key": "mid_point", "name": "Mid point", "frequency": 3850, "vid": 1150, "default": True},
+    {"key": "safe_maximum", "name": "Safe maximum", "frequency": 4000, "vid": 1275, "default": True},
+)
 
 
 def _validated_cpu_profiles(custom: object) -> list[dict[str, object]]:
@@ -279,7 +317,7 @@ def _validated_cpu_profiles(custom: object) -> list[dict[str, object]]:
     shown as a button that would fail when pressed.
     """
     if not isinstance(custom, list):
-        return []
+        custom = []
     profiles: list[dict[str, object]] = []
     for entry in custom:
         if not isinstance(entry, dict):
@@ -294,7 +332,8 @@ def _validated_cpu_profiles(custom: object) -> list[dict[str, object]]:
         ):
             continue
         profiles.append({"key": key, "name": name, "frequency": frequency, "vid": vid})
-    return profiles
+    exported = {profile["key"]: profile for profile in profiles}
+    return [dict(exported.get(default["key"], default)) for default in DEFAULT_CPU_PROFILES]
 
 
 
@@ -305,6 +344,10 @@ def _validated_cpu_profiles(custom: object) -> list[dict[str, object]]:
 #: one again exactly as if the player had pressed the button. The CPU is not
 #: part of it on purpose: its overclock is only trusted after a stress test
 #: of up to fifteen minutes, which cannot run every time a game starts.
+#: Failed operations, read by the desktop's Settings › Diagnostics.
+DIAGNOSTICS_FILENAME = "diagnostics.jsonl"
+MAX_DIAGNOSTICS = 200
+MAX_DIAGNOSTIC_DETAIL = 1500
 GAME_PROFILES_FILENAME = "game-profiles.json"
 GAME_PROFILES_SCHEMA = 1
 MAX_GAME_PROFILES = 200
@@ -432,21 +475,25 @@ ACE_YOUNG_PROCESS_SECONDS = 120.0
 ACE_FULL_RESCAN_SECONDS = 300.0
 
 
-def _compute_counters(text: str) -> tuple[str | None, int] | None:
-    """(client id, compute-engine ns) from one amdgpu fdinfo, else None."""
+def _engine_counters(text: str) -> tuple[str | None, int, int] | None:
+    """(client id, compute-engine ns, every-engine ns) from one amdgpu fdinfo."""
     client: str | None = None
     amdgpu = False
     compute = 0
+    total = 0
     for line in text.splitlines():
         if line.startswith("drm-driver:"):
             amdgpu = line.partition(":")[2].strip() == "amdgpu"
         elif line.startswith("drm-client-id:"):
             client = line.partition(":")[2].strip() or None
-        elif line.startswith("drm-engine-compute:"):
-            fields = line.partition(":")[2].split()
+        elif line.startswith("drm-engine-") and not line.startswith("drm-engine-capacity-"):
+            name, _, rest = line.partition(":")
+            fields = rest.split()
             if len(fields) >= 2 and fields[1] == "ns" and fields[0].isdigit():
-                compute = int(fields[0])
-    return (client, compute) if amdgpu else None
+                total += int(fields[0])
+                if name == "drm-engine-compute":
+                    compute = int(fields[0])
+    return (client, compute, total) if amdgpu else None
 
 
 class AceSampler:
@@ -464,7 +511,7 @@ class AceSampler:
         self._by_pid: dict[str, tuple[float | None, list[str]]] = {}
         self._discovered_at: float | None = None
         self._full_scan_at: float | None = None
-        self._previous: tuple[float, dict[str, int]] | None = None
+        self._previous: tuple[float, dict[str, int], dict[str, int]] | None = None
         self._owners: dict[str, str] = {}
 
     def _read(self, path: str) -> str | None:
@@ -532,6 +579,7 @@ class AceSampler:
             self._paths = self._discover(now)
             self._discovered_at = now
         counters: dict[str, int] = {}
+        totals: dict[str, int] = {}
         owners: dict[str, str] = {}
         alive: list[str] = []
         amdgpu_seen = False
@@ -540,12 +588,13 @@ class AceSampler:
             if text is None:
                 continue
             alive.append(path)
-            parsed = _compute_counters(text)
+            parsed = _engine_counters(text)
             if parsed is None:
                 continue
             amdgpu_seen = True
-            client, compute = parsed
+            client, compute, total = parsed
             key = client or path
+            totals[key] = max(totals.get(key, 0), total)
             if compute >= counters.get(key, 0):
                 counters[key] = compute
                 owners[key] = path[len(self._proc) + 1:].partition("/")[0]
@@ -553,10 +602,13 @@ class AceSampler:
         result: dict[str, object] = {
             "ace_available": amdgpu_seen,
             "ace_busy_percent": None,
+            # GPU load summed from every client's engine time, the way the
+            # desktop does it: this kernel does not export gpu_busy_percent.
+            "gpu_busy_fdinfo_percent": None,
             "ace_process": "",
         }
         previous = self._previous
-        self._previous = (now, counters)
+        self._previous = (now, counters, totals)
         if previous is None:
             self._owners = owners
             return result
@@ -569,6 +621,11 @@ class AceSampler:
         if elapsed_ns > 0:
             busy = sum(moved.values()) / elapsed_ns * 100
             result["ace_busy_percent"] = int(max(0, min(100, round(busy))))
+            if amdgpu_seen:
+                # Only clients present in both samples: one that appears or
+                # goes away between two reads is neither a spike nor a drop.
+                gpu = sum(max(0, totals[client] - before) for client, before in previous[2].items() if client in totals)
+                result["gpu_busy_fdinfo_percent"] = int(max(0, min(100, round(gpu / elapsed_ns * 100))))
         if moved:
             busiest = max(moved, key=moved.__getitem__)
             pid = owners.get(busiest) or self._owners.get(busiest, "")
@@ -588,6 +645,19 @@ class Plugin:
         # Session-only feedback for the player.  It is intentionally bounded
         # and in-memory: QAM must not create a second persistent tuning store.
         self._recent_actions: list[dict[str, object]] = []
+        # GPU range writes are one Cyan/Oberon D-Bus call; they do not touch
+        # UMR or hwmon, so they skip the helper lock instead of waiting
+        # several seconds behind a passive status() scan.  A status scan that
+        # overlapped such a write may have read the old range, so the last
+        # verified write is overlaid on that scan's result.
+        self._gpu_write_seq = 0
+        # Decky unmounts the panel whenever Quick Access closes -- opening a
+        # confirmation modal does it -- and the remounted panel asks for
+        # status() while a CPU run may hold the helper lock for minutes.  It
+        # gets the last good scan plus what is running instead of waiting.
+        self._last_status: dict | None = None
+        self._running_operation: dict[str, object] | None = None
+        self._gpu_write_result: dict[str, object] = {}
         self._last_cpu_times: dict[int, tuple[int, int]] = {}
         self._ace = AceSampler()
         # One game start or stop at a time; they may wait behind a running
@@ -616,6 +686,7 @@ class Plugin:
             busy = max(0.0, min(100.0, 100.0 * (1 - idle_delta / total_delta)))
             per_core_percent[index] = round(busy, 1)
         frequencies = _read_core_frequencies_mhz()
+        core_ids = _read_core_ids()
         cores = sorted(set(times) | set(frequencies))
         aggregate = (
             round(sum(per_core_percent.values()) / len(per_core_percent), 1)
@@ -624,9 +695,17 @@ class Plugin:
         return {
             "cpu_usage_percent": aggregate,
             "cpu_cores": [
-                {"core": index, "percent": per_core_percent.get(index), "frequency_mhz": frequencies.get(index)}
+                {
+                    "core": index,
+                    "core_id": core_ids.get(index),
+                    "percent": per_core_percent.get(index),
+                    "frequency_mhz": frequencies.get(index),
+                }
                 for index in cores
             ],
+            "cpu_physical_slots": max(
+                [BC250_PHYSICAL_CORES, *(core_id + 1 for core_id in core_ids.values())]
+            ),
         }
 
     def _record_action(self, module: str, target: str, result: dict) -> dict:
@@ -648,7 +727,42 @@ class Plugin:
             target,
             "verified" if succeeded else "failed",
         )
+        if not succeeded:
+            # The helper's own one-line diagnosis (never a register dump or a
+            # player string), so a failure can be explained after the toast.
+            error = " ".join(str(result.get("error") or "").split())[-300:]
+            decky.logger.info("BC250 operation module=%s error=%s", module, error)
+            self._record_diagnostic(module, target, str(result.get("error") or ""))
         return result
+
+    def _record_diagnostic(self, module: str, target: str, error: str) -> None:
+        """Append one failure for the desktop's Settings › Diagnostics.
+
+        A file of its own beside the plugin settings: the desktop journal lives
+        in the player's home and this process is root, so writing there would
+        leave it root-owned.  The desktop only reads this one.  Bounded, and
+        never raises: losing a history line must not break the failed action.
+        """
+        path = self._settings_dir / DIAGNOSTICS_FILENAME
+        entry = {
+            "at": round(time.time(), 3),
+            "module": module,
+            "target": target,
+            "error": error.strip()[-MAX_DIAGNOSTIC_DETAIL:],
+        }
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+            except FileNotFoundError:
+                lines = []
+            lines = (lines + [json.dumps(entry, ensure_ascii=False)])[-MAX_DIAGNOSTICS:]
+            temporary = path.with_suffix(".tmp")
+            temporary.write_text("\n".join(lines) + "\n", encoding="utf-8")
+            os.chmod(temporary, 0o644)
+            os.replace(temporary, path)
+        except OSError:
+            decky.logger.info("BC250 diagnostic history could not be written")
 
     async def _main(self):
         decky.logger.info("BC250 Quick Access plugin ready")
@@ -769,13 +883,41 @@ class Plugin:
             return status
         return self._run(*args, timeout=timeout)
 
+    def _note_gpu_write(self, result: dict) -> dict:
+        if result.get("ok") is not False and isinstance(result.get("gpu_range"), list):
+            self._gpu_write_seq += 1
+            self._gpu_write_result = {
+                key: result[key]
+                for key in ("gpu_range", "gpu_performance_enabled")
+                if key in result
+            }
+        return result
+
+    async def _run_gpu_range_write(self, *args: str) -> dict:
+        """Run a gpu-profile / gpu-safe-point without the helper lock."""
+        result = await asyncio.to_thread(self._run, *args, timeout=30)
+        return self._note_gpu_write(result)
+
     async def status(self) -> dict:
+        if self._helper_lock.locked() and self._running_operation and self._last_status:
+            cached = dict(self._last_status)
+            cached["recent_actions"] = list(reversed(self._recent_actions))
+            cached["operation_in_progress"] = dict(self._running_operation)
+            cached["status_cached"] = True
+            return cached
         async with self._helper_lock:
+            seq = self._gpu_write_seq
             result = await asyncio.to_thread(self._verified_status)
+            if result.get("ok") is not False and seq != self._gpu_write_seq:
+                result.update(self._gpu_write_result)
         if result.get("ok") is not False:
             self._decorate_status(result)
             result["recent_actions"] = list(reversed(self._recent_actions))
             result["helper_protected"] = True
+            result["operation_in_progress"] = (
+                dict(self._running_operation) if self._running_operation else None
+            )
+            self._last_status = dict(result)
         return result
 
     @staticmethod
@@ -836,6 +978,17 @@ class Plugin:
             }
         return result
 
+    async def apply_gddr6_patch(self) -> dict:
+        """Apply the GDDR6 temperature patch for this boot, on the player's request.
+
+        One board operation like any other (it holds the SMU while it writes),
+        so it never runs beside a CPU run or a second click.
+        """
+        result = await self._run_single_operation("gddr6-patch", timeout=200)
+        if result.get("ok") is not False and result.get("protocol") not in (None, HELPER_PROTOCOL):
+            return {"ok": False, "error": "BC250 GDDR6 protocol is incompatible. Reinstall BC250 Control Center from Desktop Mode."}
+        return self._record_action("gddr6", "patch", result)
+
     async def monitor_snapshot(self) -> dict:
         """Read the passive GPU/board/fan/memory bundle without the write lock.
 
@@ -863,7 +1016,14 @@ class Plugin:
         result.update(await asyncio.to_thread(self._cpu_usage_snapshot))
         # The same amdgpu counter the desktop's Performance › Async compute
         # view reads: busy share of the compute queues since the last poll.
-        result.update(await asyncio.to_thread(self._ace.sample))
+        sampled = await asyncio.to_thread(self._ace.sample)
+        fdinfo_busy = sampled.pop("gpu_busy_fdinfo_percent", None)
+        result.update(sampled)
+        # The helper reads amdgpu's gpu_busy_percent, which this kernel (and
+        # any without the BC-250 patches) does not export: the same load, from
+        # the clients' engine time, fills in, as on the desktop.
+        if result.get("gpu_busy_percent") is None and fdinfo_busy is not None:
+            result["gpu_busy_percent"] = fdinfo_busy
         return result
 
     async def _run_single_operation(self, *args: str, timeout: int = 190) -> dict:
@@ -873,8 +1033,17 @@ class Plugin:
                 "ok": False,
                 "error": "BC250 Quick Access is already applying an operation. Wait for its verified result before choosing another control.",
             }
-        async with self._operation_lock, self._helper_lock:
-            return await asyncio.to_thread(self._run_verified, *args, timeout=timeout)
+        async with self._operation_lock:
+            self._running_operation = {
+                "action": args[0],
+                "arguments": [str(value) for value in args[1:3]],
+                "started_at": int(time.time() * 1000),
+            }
+            try:
+                async with self._helper_lock:
+                    return await asyncio.to_thread(self._run_verified, *args, timeout=timeout)
+            finally:
+                self._running_operation = None
 
     async def apply_gpu_profile(self, profile: str) -> dict:
         if profile not in GPU_PROFILES:
@@ -885,14 +1054,12 @@ class Plugin:
                 "error": "A BC250 operation is still running. Wait for the verified result before changing the GPU range.",
             }
         async with self._operation_lock:
-            async with self._helper_lock:
-                # The root helper accepts only a named profile and performs
-                # its own active-governor validation and backend-specific
-                # read-back. Running a
-                # complete status scan before it added 5–10 seconds of CPU,
-                # CU and fan reads to every GPU press without improving this
-                # hardware boundary.
-                result = await asyncio.to_thread(self._run, "gpu-profile", profile, timeout=30)
+            # The root helper accepts only a named profile and performs its
+            # own active-governor validation and backend-specific read-back.
+            # Neither a status preflight nor the helper lock is taken: both
+            # made every GPU press wait 5-10 s behind CU/fan/CMOS reads that
+            # this D-Bus-only transition never touches.
+            result = await self._run_gpu_range_write("gpu-profile", profile)
             return self._record_action("gpu", profile, result)
 
     async def apply_gpu_safe_point(self, frequency: int) -> dict:
@@ -915,20 +1082,17 @@ class Plugin:
             return {
                 "ok": False,
                 "error": "A BC250 operation is still running. Wait for its verified result before changing the GPU range.",
-        }
+            }
         async with self._operation_lock:
-            async with self._helper_lock:
-                result = await asyncio.to_thread(
-                    self._run, "gpu-safe-point", str(normalized), timeout=30,
-                )
+            result = await self._run_gpu_range_write("gpu-safe-point", str(normalized))
             return self._record_action("gpu", f"toml-{normalized}", result)
 
     async def set_gpu_high_frequency_points(self, enabled: bool) -> dict:
         """Comment/uncomment the Cyan TOML safe-points above 2000 MHz.
 
         Mirrors the Desktop's "Enable/Disable +2000 MHz TOML points" button.
-        A persistent-file edit only: it never restarts Cyan or changes the
-        live GPU range, so it does not need cpu-detect's long timeout.
+        Cyan is restarted so it loads the new points, and the live range is
+        put back afterwards.
         """
         if self._operation_lock.locked():
             return {
@@ -938,7 +1102,7 @@ class Plugin:
         async with self._operation_lock:
             async with self._helper_lock:
                 result = await asyncio.to_thread(
-                    self._run, "gpu-high-points", "1" if enabled else "0", timeout=30,
+                    self._run, "gpu-high-points", "1" if enabled else "0", timeout=90,
                 )
             return self._record_action("gpu", f"toml-high-points-{'on' if enabled else 'off'}", result)
 
@@ -959,7 +1123,7 @@ class Plugin:
         async with self._operation_lock:
             async with self._helper_lock:
                 result = await asyncio.to_thread(
-                    self._run, "gpu-service", "enable" if enabled else "disable", timeout=60,
+                    self._run, "gpu-service", "enable" if enabled else "disable", timeout=120,
                 )
             return self._record_action("gpu", f"service-{'on' if enabled else 'off'}", result)
 
@@ -983,6 +1147,36 @@ class Plugin:
                     self._run, "gpu-voltage-level", str(level), timeout=90,
                 )
             return self._record_action("gpu", f"voltage-level-{level}", result)
+
+    async def apply_gpu_compatibility(
+        self, set_method: str, usage_method: str, fix_metrics: bool, fix_frequency: bool,
+    ) -> dict:
+        """Cyan kernel compatibility: write the four settings, restart Cyan.
+
+        Reachable even while Cyan is not answering, on purpose: the "process"
+        usage reading stops it answering with a game open, and switching to
+        busy-flag is how it starts answering again. The helper validates every
+        value again and does the restart.
+        """
+        if (
+            set_method not in ("smu", "kernel")
+            or usage_method not in ("busy-flag", "process", "kernel")
+            or type(fix_metrics) is not bool or type(fix_frequency) is not bool
+        ):
+            return {"ok": False, "error": "Unsupported Cyan compatibility request."}
+        if self._operation_lock.locked():
+            return {
+                "ok": False,
+                "error": "A BC250 operation is still running. Wait for its verified result before changing the Cyan compatibility.",
+            }
+        async with self._operation_lock:
+            async with self._helper_lock:
+                result = await asyncio.to_thread(
+                    self._run, "gpu-compat", set_method, usage_method,
+                    "1" if fix_metrics else "0", "1" if fix_frequency else "0",
+                    timeout=150,
+                )
+            return self._record_action("gpu", f"compat-{set_method}-{usage_method}", result)
 
     async def apply_gpu_voltage_points(self, points: list[dict]) -> dict:
         """Set a few TOML points; the helper bounds each one again."""
@@ -1126,7 +1320,7 @@ class Plugin:
         except ValueError as exc:
             return {"ok": False, "error": str(exc)}
         result = await self._run_single_operation(
-            "cpu-scale", str(frequency), str(scale), timeout=200,
+            "cpu-scale", str(frequency), str(scale), timeout=620,
         )
         return self._record_action("cpu", f"manual-{frequency}:{scale}", result)
 
@@ -1156,6 +1350,27 @@ class Plugin:
             return {"ok": False, "error": "Unsupported VRAM size."}
         result = await self._run_single_operation("vram-apply", str(normalized), timeout=30)
         return self._record_action("vram", str(normalized), result)
+
+    async def ttm_state(self) -> dict:
+        """The GPU memory limit, as the desktop's system-setup helper reports it.
+
+        Read-only and outside both write locks, like gddr6_sensors(): on
+        Bazzite it asks rpm-ostree for the next deployment's arguments, which
+        takes a moment and must not hold up the status poll. Desktop and panel
+        read the same state, so a limit set from either shows up in both.
+        """
+        return await asyncio.to_thread(self._run, "ttm-status", timeout=70)
+
+    async def apply_ttm_limit(self, value: int | str) -> dict:
+        """Set the GPU memory limit for the next boot (8/10/12 GiB) or remove it."""
+        if isinstance(value, bool) or type(value) not in {int, str}:
+            return {"ok": False, "error": "Unsupported GPU memory limit."}
+        normalized = str(value).strip().lower()
+        if normalized not in TTM_CHOICES:
+            return {"ok": False, "error": "Unsupported GPU memory limit."}
+        # rpm-ostree writes a whole new deployment on Bazzite.
+        result = await self._run_single_operation("ttm-apply", normalized, timeout=260)
+        return self._record_action("ttm", normalized, result)
 
     # ------------------------------------------------------------ per game
     def _game_store_path(self) -> pathlib.Path:
@@ -1300,7 +1515,7 @@ class Plugin:
         applied: dict[str, str | None] = {"gpu": None, "fan": None}
         errors: list[str] = []
         if entry.get("gpu") and entry["gpu"] != gpu_key:
-            result = self._record_action("gpu", f"game-{entry['gpu']}", self._run("gpu-profile", str(entry["gpu"]), timeout=30))
+            result = self._record_action("gpu", f"game-{entry['gpu']}", self._note_gpu_write(self._run("gpu-profile", str(entry["gpu"]), timeout=30)))
             if result.get("ok") is False:
                 errors.append(str(result.get("error") or "GPU profile failed."))
             else:
@@ -1345,7 +1560,10 @@ class Plugin:
                 # return is the board's own automatic control.
                 operations.append(("fan", ("fan-system", "automatic")))
         for module, arguments in operations:
-            result = self._record_action(module, f"restore-{arguments[-1]}", self._run(*arguments, timeout=30))
+            result = self._run(*arguments, timeout=30)
+            if module == "gpu":
+                self._note_gpu_write(result)
+            result = self._record_action(module, f"restore-{arguments[-1]}", result)
             if result.get("ok") is False:
                 errors.append(str(result.get("error") or "Restore failed."))
         return {"ok": not errors, "restored": True, "name": session.get("name", ""), "error": " ".join(errors)}

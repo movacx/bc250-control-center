@@ -9,8 +9,18 @@ from pathlib import Path
 
 HELPER = Path("/usr/libexec/bc250-control-center/bc250-system-setup-helper")
 POLICIES = {"preserve", "restore", "swap-16", "swap-32", "zram", "zswap-16", "zswap-32"}
+#: The BC-250 kernel unlocks all 40 compute units itself when amdgpu is given
+#: this write mode; it replaces umr and the live CU manager.
+CU_UNLOCK_OPTION = "amdgpu.bc250_cc_write_mode=3"
+#: What the extra compute units cost. From the linux-cachyos-bc250 notes: about
+#: +30 W at a held 1500 MHz, and a board at the governor's 2 GHz default drew
+#: around 181 W and reached 96 °C, which is not a sustainable operating point.
+CU_UNLOCK_THERMAL_NOTE = (
+    "The extra CUs raise power draw by about 30 W, and at a 2 GHz GPU clock a board reached "
+    "96 °C in upstream tests: cap the GPU clock to about 1500 MHz with the governor."
+)
 #: The only kernel boot options the helper manages.
-KERNEL_OPTIONS = ("mitigations=off", "nosmt")
+KERNEL_OPTIONS = ("mitigations=off", "nosmt", CU_UNLOCK_OPTION)
 
 
 def inventory() -> dict:
@@ -37,7 +47,7 @@ def command(action: str, policy: str = "preserve", ttm_gib: int = 0, uma_size_mb
     if action not in {
         "memory-apply", "acpi-install", "acpi-uninstall", "acpi-check",
         "telemetry-fix", "telemetry-restore", "vram-read", "vram-apply",
-        "kernel-options-set",
+        "kernel-options-set", "ttm-apply",
     }:
         raise ValueError("Unsupported system setup action")
     kernel_options = tuple(kernel_options or ())
@@ -56,6 +66,10 @@ def command(action: str, policy: str = "preserve", ttm_gib: int = 0, uma_size_mb
             args += " --takeover-zram"
         if target_mount:
             args += f" --target-mount {shlex.quote(target_mount)}"
+    elif action == "ttm-apply":
+        if ttm_gib == 0:
+            raise ValueError("Choose a GPU memory limit or the kernel default")
+        args = f" --ttm {ttm_gib}"
     elif action == "vram-apply":
         args = f" --uma-size {uma_size_mb}"
     elif action == "kernel-options-set":

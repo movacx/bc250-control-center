@@ -32,6 +32,11 @@
   </categories>
   <url type="homepage">https://github.com/movacx/bc250-control-center</url>
   <releases>
+    <release version="1.21.0" date="2026-10-04">
+      <description>
+        <p>SteamOS: se usa el toolkit bc250-steamos de keyboardspecialist sin modificar; con su módulo el GPU queda limitado a 2230 MHz y la app avisa antes de pasar ese límite; Mesa RADV 26.2.2; servicio BC-250 Telemetry disponible en SteamOS. Tarjeta de cómputo asíncrono más corta y traducida; la gráfica de cómputo asíncrono del monitor ahora siempre se mide. Rediseño del menú rápido de Decky, límite de memoria de GPU (TTM) y correcciones para Fedora, Bazzite y Debian.</p>
+      </description>
+    </release>
     <release version="1.20.4" date="2026-09-30">
       <description>
         <p>Nueva sección Diagnóstico en Ajustes con tabla del sistema e historial de errores; accesorios de caja (pantalla Thermalright y ventiladores Corsair) en Controladores; avisos en el panel cuando algo instalado necesita atención; botón para reportar un problema o sugerir una idea. Correcciones en actualizaciones (Bazzite, instalaciones con script, ventana oculta), GPU governor, telemetría con 8 núcleos, firmware, preparación de dependencias y Ubuntu.</p>

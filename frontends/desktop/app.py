@@ -180,6 +180,7 @@ class ControlCenterWindow(QMainWindow):
 
         # Import modules only after the selected palette is configured. Their
         # existing functional widgets therefore keep the correct initial colors.
+        from .pages.additional_settings import AdditionalSettingsPage
         from .pages.compute_units import ComputeUnitsPage
         from .pages.cpu_smu import CpuSmuPage
         from .pages.dashboard import DashboardPage
@@ -200,6 +201,9 @@ class ControlCenterWindow(QMainWindow):
         )
         self.gpu_page = GpuGovernorPage(controller, settings_service=settings_service)
         self.cu_page = ComputeUnitsPage(controller, activity_service=activity_service)
+        self.extras_page = AdditionalSettingsPage(
+            state_feed=lambda active: self.dashboard.feed_state(active)
+        )
         self.fans_page = FansPage(
             controller,
             activity_service=activity_service,
@@ -220,6 +224,7 @@ class ControlCenterWindow(QMainWindow):
             "dashboard": self.dashboard,
             "cpu": self.cpu_page,
             "gpu": self.gpu_page,
+            "extras": self.extras_page,
             "cu": self.cu_page,
             "performance": self.performance_page,
             "fans": self.fans_page,
@@ -235,6 +240,13 @@ class ControlCenterWindow(QMainWindow):
             self._dashboard_driver_support
         )
         self.dashboard.update_requested.connect(self.open_update_dialog)
+        self.dashboard.state_applied.connect(self.extras_page.apply_state)
+        self.extras_page.dependency_action_requested.connect(
+            self._dashboard_dependency_action
+        )
+        self.extras_page.driver_support_requested.connect(
+            self._dashboard_driver_support
+        )
         for page in self.pages.values():
             self.stack.addWidget(page)
         layout.addWidget(self.stack, 1)
@@ -1505,6 +1517,9 @@ class ControlCenterWindow(QMainWindow):
         self.close()
 
     def _dashboard_action(self, action: str) -> None:
+        if action == "telemetry_settings":
+            self._open_settings_dialog("telemetry")
+            return
         if action in {"cpu_configuration", "cpu_overview"}:
             self.navigate("cpu")
             self.cpu_page._select_workspace(action.removeprefix("cpu_"))

@@ -312,7 +312,13 @@ FACTORY_FIX_FREQUENCY = False
 
 
 def _service_action(page, action: str) -> None:
-    """'status' is a pure read; everything else uses the page's own confirmed flow."""
+    """'status' is a pure read; everything else uses the page's own confirmed flow.
+
+    Enabling also puts the fix flags back to off, as a sudo step of the same
+    terminal that starts the service. It used to be a pkexec call made first,
+    so one start asked for the password twice: a polkit dialog, then the
+    terminal.
+    """
     if action == "status":
         page.read_service_status()
         return
@@ -321,36 +327,9 @@ def _service_action(page, action: str) -> None:
         page._append_console(f"Unsupported governor service action: {action}")
         return
     if action == "enable":
-        _reset_fix_flags_to_factory(page)
-    page._service_action(backend_action)
-
-
-def _reset_fix_flags_to_factory(page) -> None:
-    """Put fix-metrics / fix-freq back to their known-good values.
-
-    Best effort on purpose: if the compatibility write fails the service start
-    still goes ahead, and the daemon reports the real reason itself. Silently
-    refusing to start because a preparatory step failed would be worse.
-    """
-    telemetry = (getattr(page, "current_state", None) or {}).get("cyan_telemetry")
-    current = telemetry if isinstance(telemetry, dict) else {}
-    set_method = str(current.get("set_method") or "smu")
-    usage_method = str(current.get("method") or "busy-flag")
-    if (
-        bool(current.get("fix_metrics", FACTORY_FIX_METRICS)) == FACTORY_FIX_METRICS
-        and bool(current.get("fix_frequency", FACTORY_FIX_FREQUENCY)) == FACTORY_FIX_FREQUENCY
-    ):
+        page._service_action(backend_action, reset_cyan_fix_flags=True)
         return
-    try:
-        page.controller.configurar_compatibilidad_gpu_cyan(
-            set_method, usage_method, FACTORY_FIX_METRICS, FACTORY_FIX_FREQUENCY
-        )
-    except Exception as error:  # pragma: no cover - reported, never fatal
-        page._append_console(f"Could not reset Cyan fix flags: {error}")
-    else:
-        page._append_console(
-            "Cyan fix-metrics and fix-freq reset to their default values before start."
-        )
+    page._service_action(backend_action)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

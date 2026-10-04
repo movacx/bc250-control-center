@@ -155,7 +155,7 @@ def test_prepare_command_clones_smu_and_uses_checksummed_upstream_installer(tmp_
     )
 
     assert "filippor/cyan-skillfish-governor" in command
-    assert "aaed42535622aee1a93df8b22860c409539f67f8" in command
+    assert "7f34882ed28ab2065e478df9fb904b5e0a924afc" in command
     assert "--branch smu" not in command
     assert "src/gpu_frequency_fix.rs" in command
     assert "DryhoppedIPA" not in command
@@ -365,7 +365,7 @@ def test_bazzite_runtime_identity_requires_binary_patcher_and_version_match(
     patcher_sha = hashlib.sha256(patcher.read_bytes()).hexdigest()
     (state_dir / "runtime-revision").write_text("bc250cc.2\n", encoding="utf-8")
     (state_dir / "upstream-commit").write_text(
-        "aaed42535622aee1a93df8b22860c409539f67f8\n", encoding="utf-8"
+        "7f34882ed28ab2065e478df9fb904b5e0a924afc\n", encoding="utf-8"
     )
     (state_dir / "binary-sha256").write_text(binary_sha + "\n", encoding="utf-8")
     (state_dir / "patcher-sha256").write_text(patcher_sha + "\n", encoding="utf-8")

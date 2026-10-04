@@ -338,7 +338,7 @@ def test_gfx1013_card_routes_only_explicit_steamos_actions(qtbot):
     qtbot.addWidget(dialog)
 
     assert not dialog.gfx1013_card.isHidden()
-    _button(dialog, "1 · Install SteamOS kernel").click()
+    _button(dialog, "1 · Install kernel").click()
 
     assert dialog.action == "steamos_compat"
 
@@ -352,7 +352,7 @@ def test_gfx1013_card_enables_radv_only_when_kernel_is_ready(qtbot):
     dialog = DependencyPreparationDialog(tools, "cyan-skillfish-governor-smu")
     qtbot.addWidget(dialog)
 
-    assert _button(dialog, "Update / repair SteamOS kernel").isEnabled()
+    assert _button(dialog, "1 · Repair kernel").isEnabled()
     assert _button(dialog, "2 · Install / repair Mesa RADV").isEnabled()
 
 
@@ -571,3 +571,90 @@ def test_bazzite_memory_card_copy_is_translated_in_every_supported_language():
     )
     for language in ("es", "pt", "ru", "uk", "de", "pl"):
         assert all(tr(text, language) != text for text in copy), language
+
+
+def test_gfx1013_card_offers_the_patched_radv_on_fedora_7_2(qtbot):
+    tools = _tools()
+    tools["gfx1013_compute"] = {
+        "reason_key": "fedora-upstream-managed",
+        "dryhopped_installed": True,
+        "radv_async": {"supported": True, "state": "not-installed", "installed": False,
+                       "kernel": "7.2.8-200.fc44.x86_64", "expected_version": "26.2.3"},
+    }
+    dialog = DependencyPreparationDialog(tools, "cyan-skillfish-governor-smu")
+    qtbot.addWidget(dialog)
+
+    texts = {button.text() for button in dialog.gfx1013_card.findChildren(QPushButton)}
+    assert "Install / update" not in texts and "Boot with the fix" not in texts
+    assert "7.2.8-200.fc44.x86_64" in dialog.gfx1013_card.toolTip()
+    _button(dialog, "Remove the kernel-side fix").click()
+    assert dialog.action == "gfx1013_fedora_uninstall"
+
+
+def test_gfx1013_card_builds_the_patched_radv_on_fedora_7_2(qtbot):
+    tools = _tools()
+    tools["gfx1013_compute"] = {
+        "reason_key": "fedora-upstream-managed",
+        "radv_async": {"supported": True, "state": "not-installed", "installed": False,
+                       "kernel": "7.2.8-200.fc44.x86_64", "expected_version": "26.2.3"},
+    }
+    dialog = DependencyPreparationDialog(tools, "cyan-skillfish-governor-smu")
+    qtbot.addWidget(dialog)
+
+    _button(dialog, "Build and install").click()
+    assert dialog.action == "radv_async_install"
+
+
+@pytest.mark.parametrize(("hide_offer", "hidden"), ((True, True), (False, False)))
+def test_gfx1013_card_steps_aside_on_an_old_debian_kernel(qtbot, hide_offer, hidden):
+    tools = _tools()
+    tools["gfx1013_compute"] = {
+        "reason_key": "manual-patches-only",
+        "source": {"supported": not hide_offer, "installed": False, "hide_offer": hide_offer},
+    }
+    dialog = DependencyPreparationDialog(tools, "cyan-skillfish-governor-smu")
+    qtbot.addWidget(dialog)
+    assert dialog.gfx1013_card.isHidden() is hidden
+
+
+@pytest.mark.parametrize(
+    ("upgrade", "visible", "enabled"),
+    (
+        ({"offered": True, "state": "available"}, True, True),
+        ({"offered": True, "state": "reboot-required"}, True, False),
+        ({"offered": False, "state": "not-offered"}, False, None),
+    ),
+)
+def test_debian_kernel_card_follows_the_backports_state(qtbot, upgrade, visible, enabled):
+    tools = _tools()
+    tools["gfx1013_compute"] = {
+        "reason_key": "manual-patches-only",
+        "source": {"supported": False, "installed": False, "hide_offer": True},
+        "kernel_upgrade": upgrade,
+    }
+    dialog = DependencyPreparationDialog(tools, "cyan-skillfish-governor-smu")
+    qtbot.addWidget(dialog)
+    assert dialog.debian_kernel_card.isHidden() is (not visible)
+    if enabled is not None:
+        button = next(
+            b for b in dialog.debian_kernel_card.findChildren(QPushButton)
+            if b.objectName() == "PrimaryAction"
+        )
+        assert button.isEnabled() is enabled
+
+
+def test_debian_kernel_button_requests_the_install_action(qtbot):
+    tools = _tools()
+    tools["gfx1013_compute"] = {
+        "reason_key": "manual-patches-only",
+        "source": {"supported": False, "installed": False, "hide_offer": True},
+        "kernel_upgrade": {"offered": True, "state": "available"},
+    }
+    dialog = DependencyPreparationDialog(tools, "cyan-skillfish-governor-smu")
+    qtbot.addWidget(dialog)
+    button = next(
+        b for b in dialog.debian_kernel_card.findChildren(QPushButton)
+        if b.objectName() == "PrimaryAction"
+    )
+    button.click()
+    assert dialog.action == "debian_kernel_install"

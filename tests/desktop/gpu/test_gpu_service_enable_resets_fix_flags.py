@@ -45,8 +45,8 @@ class _Page:
     def _append_console(self, message):
         self.console.append(str(message))
 
-    def _service_action(self, action):
-        self.backend_actions.append(action)
+    def _service_action(self, action, **options):
+        self.backend_actions.append((action, options))
 
 
 def _page(**telemetry):
@@ -56,13 +56,12 @@ def _page(**telemetry):
     return _Page(**base)
 
 
-def test_enabling_resets_the_fix_flags_and_keeps_the_chosen_methods():
+def test_enabling_asks_the_terminal_to_reset_the_fix_flags_without_a_polkit_step():
+    """The reset was a pkexec call before the terminal: the password twice."""
     page = _page()
     integration._service_action(page, "enable")
-    assert page.backend_actions == ["activar"]
-    assert page.controller.compatibility_calls == [
-        ("smu", "busy-flag", integration.FACTORY_FIX_METRICS, integration.FACTORY_FIX_FREQUENCY)
-    ]
+    assert page.backend_actions == [("activar", {"reset_cyan_fix_flags": True})]
+    assert page.controller.compatibility_calls == []
 
 
 def test_both_fix_flags_default_to_off():
@@ -75,38 +74,89 @@ def test_both_fix_flags_default_to_off():
     assert integration.FACTORY_FIX_FREQUENCY is False
 
 
-def test_a_kernel_set_method_survives_the_reset():
-    page = _page(set_method="kernel", method="process")
-    integration._service_action(page, "enable")
-    assert page.controller.compatibility_calls[0][:2] == ("kernel", "process")
-
-
-def test_nothing_is_rewritten_when_the_flags_are_already_at_factory():
-    page = _page(fix_metrics=integration.FACTORY_FIX_METRICS,
-                 fix_frequency=integration.FACTORY_FIX_FREQUENCY)
-    integration._service_action(page, "enable")
-    assert page.controller.compatibility_calls == []
-    assert page.backend_actions == ["activar"]
-
-
 @pytest.mark.parametrize("action", ("restart", "disable"))
 def test_only_enabling_touches_the_flags(action):
     page = _page()
     integration._service_action(page, action)
     assert page.controller.compatibility_calls == []
-    assert page.backend_actions == [integration._SERVICE_ACTIONS[action]]
+    assert page.backend_actions == [(integration._SERVICE_ACTIONS[action], {})]
 
 
-def test_a_failed_reset_still_lets_the_service_start():
-    page = _page()
+HELPER = "/usr/libexec/bc250-control-center/bc250-governor-config-helper"
 
-    def explode(*_args):
-        raise RuntimeError("config.toml is read-only")
 
-    page.controller.configurar_compatibilidad_gpu_cyan = explode
-    integration._service_action(page, "enable")
-    assert page.backend_actions == ["activar"]
-    assert any("read-only" in line for line in page.console)
+def _activation_command(monkeypatch, compatibility, *, reset=True):
+    from bc250cc.infrastructure.gpu_repository import GPURepository
+    from bc250cc.platform.init.services import InitManagerState
+
+    captured = {}
+
+    class Repository(GPURepository):
+        def _selected_gpu_governor(self):
+            return "cyan-skillfish-governor-smu"
+
+        def _command_path(self, _name):
+            return "/usr/local/bin/cyan-skillfish-governor-smu"
+
+        def _current_cyan_compatibility(self):
+            if isinstance(compatibility, Exception):
+                raise compatibility
+            return compatibility
+
+        def _governor_config_helper_path(self):
+            return HELPER
+
+        def _abrir_terminal(self, command, title):
+            captured.update(command=command)
+            return "terminal"
+
+    monkeypatch.setattr(
+        "bc250cc.infrastructure.gpu_repository.ensure_no_incompatible_governors",
+        lambda *_args, **_kwargs: [],
+    )
+    monkeypatch.setattr(
+        "bc250cc.infrastructure.gpu_repository.detect_init_manager",
+        lambda: InitManagerState("systemd", True, "test"),
+    )
+    Repository().controlar_governor("activar", reset_cyan_fix_flags=reset)
+    return captured["command"]
+
+
+def test_the_reset_is_a_sudo_step_of_the_start_terminal(monkeypatch):
+    command = _activation_command(monkeypatch, ("smu", "busy-flag", True, True))
+    reset = f"sudo {HELPER} set-cyan-compatibility smu busy-flag 0 0"
+    assert reset in command
+    assert command.index(reset) < command.index("systemctl enable --now")
+    assert "pkexec" not in command
+
+
+def test_a_kernel_set_method_survives_the_reset(monkeypatch):
+    command = _activation_command(monkeypatch, ("kernel", "process", False, True))
+    assert f"sudo {HELPER} set-cyan-compatibility kernel process 0 0" in command
+
+
+def test_nothing_is_rewritten_when_the_flags_are_already_at_factory(monkeypatch):
+    command = _activation_command(
+        monkeypatch,
+        ("smu", "busy-flag", integration.FACTORY_FIX_METRICS, integration.FACTORY_FIX_FREQUENCY),
+    )
+    assert "set-cyan-compatibility" not in command
+    assert "systemctl enable --now" in command
+
+
+def test_a_failed_reset_still_lets_the_service_start(monkeypatch):
+    """Unreadable flags skip the step; a failing write only warns."""
+    unreadable = _activation_command(monkeypatch, RuntimeError("config.toml is invalid"))
+    assert "set-cyan-compatibility" not in unreadable
+    assert "systemctl enable --now" in unreadable
+    command = _activation_command(monkeypatch, ("smu", "busy-flag", True, False))
+    step = command[: command.index("set -e;")]
+    assert "set-cyan-compatibility" in step and "starting anyway" in step
+
+
+def test_an_activation_that_does_not_ask_for_it_resets_nothing(monkeypatch):
+    command = _activation_command(monkeypatch, ("smu", "busy-flag", True, True), reset=False)
+    assert "set-cyan-compatibility" not in command
 
 
 def test_the_failing_start_log_is_not_reported_as_a_compute_units_problem():

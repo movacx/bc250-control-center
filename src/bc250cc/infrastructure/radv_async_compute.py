@@ -1,4 +1,4 @@
-"""Async compute for Arch-family systems: the patched RADV alone, kernel 7.2+.
+"""Async compute for Arch-family systems and Fedora: the patched RADV alone, kernel 7.2+.
 
 tri3gubki-ops/bc250-async-compute-bazzite runs RADV with the GFX1013
 compute-queue patch on Bazzite's OGC 7.2 kernel, whose amdgpu is stock. The
@@ -8,6 +8,12 @@ in 7.2.7 -- so on an Arch-family kernel 7.2 or newer that driver is all async
 compute needs: no patched amdgpu, no initramfs, nothing to rebuild after a
 kernel update. Older kernels keep DryhoppedIPA's kernel-side fix
 (``gfx1013_source``), without which the patched RADV can hang the GPU.
+
+Fedora on 7.2 or newer is the same case: its kernel patch touches nothing
+under drivers/gpu/drm/amd, and DryhoppedIPA's own Fedora installer cannot
+deliver its kernel half there -- the patched amdgpu lives only in a second
+initramfs, and Fedora 44 loads amdgpu after switching root, from the stock
+module. Older Fedora kernels keep that installer (``fedora_gfx1013``).
 
 The driver is built from Mesa's release tarball with the upstream patches, at
 a reviewed commit, and installed beside the system Mesa; the shell side lives
@@ -35,8 +41,13 @@ SCRIPT = Path(__file__).resolve().parents[3] / "scripts" / "system" / "bc250-asy
 PREFIX_ROOT = Path("/opt/bc250cc-radv")
 CONF_DIR = Path("/etc/bc250cc-radv")
 GFX1013_RUN_DIR = Path("/run/bc250cc-gfx1013")
+PROC_CMDLINE = Path("/proc/cmdline")
+#: The boot marker of DryhoppedIPA's Fedora installer (its patched entry).
+DRYHOPPED_BOOT_MARKER = "bc250.gfx1013_v33=1"
 MARKER = "# Managed by BC250 Control Center: RADV async compute"
 ARCH_FAMILIES = frozenset({"arch", "cachyos", "manjaro", "endeavouros", "garuda", "artix"})
+#: Mutable Fedora and its derivatives (Nobara), as the OS detector names them.
+FEDORA_FAMILIES = frozenset({"fedora"})
 ACTIONS = frozenset({"install", "enable", "disable", "uninstall", "status", "test"})
 MIN_KERNEL = (7, 2)
 
@@ -65,8 +76,8 @@ def radv_async_supported(
         return False, "SteamOS keeps its dedicated toolkit."
     if immutable:
         return False, "Image-based systems are not covered by this build."
-    if family not in ARCH_FAMILIES and distro_id not in ARCH_FAMILIES:
-        return False, "This build covers Arch-family distributions."
+    if not ({family, distro_id} & (ARCH_FAMILIES | FEDORA_FAMILIES)):
+        return False, "This build covers Arch-family distributions and Fedora."
     if "bc250" in str(kernel or "").lower():
         return False, "This BC-250 kernel ships its own matching Mesa route."
     version = _kernel_version(kernel)
@@ -99,7 +110,12 @@ def radv_async_state(
     enabled = (CONF_DIR / "enabled").exists()
     session_files = str((environ if environ is not None else os.environ).get("VK_DRIVER_FILES") or "")
     session_active = bool(icd) and str(icd) in session_files.split(":")
-    deferred = _read(GFX1013_RUN_DIR / "loaded") == "patched"
+    # The generator's own deferrals: the source build's patched module, or a
+    # boot of DryhoppedIPA's patched Fedora entry, brings its own RADV.
+    deferred = (
+        _read(GFX1013_RUN_DIR / "loaded") == "patched"
+        or DRYHOPPED_BOOT_MARKER in _read(PROC_CMDLINE).split()
+    )
     if not installed:
         state = "not-installed"
     elif not driver_present:

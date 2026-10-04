@@ -43,6 +43,7 @@ LIBRARIES = (
     "system_setup_acpi.py",
     "system_setup_telemetry.py",
     "system_setup_kernel_args.py",
+    "system_setup_ttm.py",
     "system_setup_vram.py",
     "acpi_payload.py",
     "bc250_contract.py",

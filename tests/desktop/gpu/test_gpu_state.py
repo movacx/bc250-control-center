@@ -208,5 +208,9 @@ def test_gpu_busy_accepts_valid_sysfs_metric_without_fdinfo(tmp_path):
     repository.gpu_busy_cache_time = 0
     repository._leer_entero = lambda _path: 88
     repository._gpu_busy_fdinfo = lambda: (_ for _ in ()).throw(AssertionError("fdinfo"))
+    # The compute (ACE) share still comes from fdinfo, on its own.
+    compute_samples = []
+    repository._gpu_compute_fdinfo = lambda: compute_samples.append(True)
 
     assert repository._gpu_busy_percent(tmp_path) == 88
+    assert compute_samples == [True]

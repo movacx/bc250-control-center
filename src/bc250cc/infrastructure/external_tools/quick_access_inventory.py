@@ -10,10 +10,14 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from bc250cc.platform.init.services import detect_init_manager
+from bc250cc.shared import contract
 
 PLUGIN_NAME = "bc250-quick-access"
 HELPER_PATH = Path("/usr/libexec/bc250-control-center/bc250-quick-access-helper")
-EXPECTED_HELPER_PROTOCOL = 13
+# The one number the helper and the plugin both declare. A copy of it here
+# stayed at 13 while both moved on to 19, so a correctly installed plugin was
+# reported as needing repair and "ready" was never true.
+EXPECTED_HELPER_PROTOCOL = contract.QUICK_ACCESS_PROTOCOL
 STEAM_RENAMED_INIT_API_BUILD = 1784934043
 DECKY_RENAMED_INIT_API_MIN_VERSION = (3, 2, 8)
 

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: MIT
 #
-# BC-250 async compute for Arch-family systems (Arch, CachyOS, Manjaro...):
-# RADV with the GFX1013 compute-queue patch, built from source and installed
-# as a second Vulkan driver beside the system Mesa -- the approach of
+# BC-250 async compute for Arch-family systems (Arch, CachyOS, Manjaro...)
+# and Fedora: RADV with the GFX1013 compute-queue patch, built from source and
+# installed as a second Vulkan driver beside the system Mesa -- the approach of
 # tri3gubki-ops/bc250-async-compute-bazzite, whose patches and tests this
 # builds from a reviewed commit.
 #
@@ -13,6 +13,13 @@
 # and CS code are byte-identical in 7.2.7), so kernel 7.2 or newer is
 # required and nothing else. Older kernels keep DryhoppedIPA's kernel-side
 # fix (bc250-gfx1013-source.sh): the patched RADV on them can hang the GPU.
+#
+# Fedora is the same case: its kernel patch (patch-7.2-redhat.patch) touches
+# nothing under drivers/gpu/drm/amd, and from 7.2.1 to 7.2.8 upstream left
+# gfx_v10_0.c, gmc_v10_0.c and the CS, ring and VMID code alone. DryhoppedIPA's
+# installer is no answer there on 7.2: it puts its amdgpu only in a second
+# initramfs, and Fedora 44 loads amdgpu after switching root, from the stock
+# module, so its patched boot ran the patched Mesa on the stock kernel anyway.
 #
 # Nothing replaces the system Mesa. The driver lives in
 # /opt/bc250cc-radv/<mesa version>; a user environment generator offers it to
@@ -64,7 +71,7 @@ family() {
         steamos) echo steamos ;;
         fedora) echo fedora ;;
         arch|cachyos|endeavouros|manjaro|garuda|artix) echo arch ;;
-        *) case "$like" in *" arch "*) echo arch ;; *) echo other ;; esac ;;
+        *) case "$like" in *" arch "*) echo arch ;; *" fedora "*) echo fedora ;; *) echo other ;; esac ;;
     esac
 }
 
@@ -79,8 +86,7 @@ check_host() {
     case "$(family)" in
         bazzite) die "Bazzite keeps its own reviewed async-compute release; this build is not for it." ;;
         steamos) die "SteamOS uses its own reviewed toolkit; this build is not for it." ;;
-        fedora) die "Fedora is covered by the upstream Bazzite/Fedora release and DryhoppedIPA's installer." ;;
-        other) die "this build covers Arch-family distributions (Arch, CachyOS, Manjaro, EndeavourOS)." ;;
+        other) die "this build covers Arch-family distributions (Arch, CachyOS, Manjaro, EndeavourOS) and Fedora." ;;
     esac
     [[ -e /run/ostree-booted ]] && die "image-based systems are not covered by this build."
     [[ "$(uname -m)" == x86_64 ]] || die "x86_64 only."
@@ -93,12 +99,24 @@ check_host() {
     case "$KVER" in
         *bc250*) die "this BC-250 kernel ($KVER) ships its own matching Mesa route; use that instead." ;;
     esac
-    kernel_supported "$KVER" || die "kernel $KVER is older than ${MIN_MAJOR}.${MIN_MINOR}. On it the patched RADV needs DryhoppedIPA's kernel-side fix; use the GFX1013 source build instead, or update the kernel."
+    if ! kernel_supported "$KVER"; then
+        [[ $(family) == fedora ]] \
+            && die "kernel $KVER is older than ${MIN_MAJOR}.${MIN_MINOR}. On it the patched RADV needs DryhoppedIPA's kernel-side fix; use DryhoppedIPA's installer instead, or update the kernel."
+        die "kernel $KVER is older than ${MIN_MAJOR}.${MIN_MINOR}. On it the patched RADV needs DryhoppedIPA's kernel-side fix; use the GFX1013 source build instead, or update the kernel."
+    fi
 }
 
 # ---------------------------------------------------------------- deps (user)
 deps() {
     check_host
+    case "$(family)" in
+        fedora) deps_fedora ;;
+        *) deps_arch ;;
+    esac
+    say "build tools ready"
+}
+
+deps_arch() {
     local -a wanted=(base-devel curl patch git meson ninja python-mako python-yaml python-packaging
         glslang libdrm wayland wayland-protocols libxcb libx11 libxrandr libxshmfence
         expat zlib zstd spirv-tools vulkan-headers vulkan-icd-loader shaderc vulkan-tools pciutils)
@@ -110,7 +128,27 @@ deps() {
         say "installing ${missing[*]}"
         sudo pacman -S --needed --noconfirm "${missing[@]}"
     fi
-    say "build tools ready"
+}
+
+deps_fedora() {
+    # The Mesa half is the list DryhoppedIPA's installer builds Mesa with on
+    # Fedora 44; glslc, vulkan-headers and vulkan-loader-devel build the
+    # verification tests, and vulkan-tools reads the queue families back.
+    # zlib-ng-compat-devel is what provides zlib-devel since Fedora 40.
+    local -a wanted=(gcc gcc-c++ make pkgconf-pkg-config curl patch git xz tar meson ninja-build
+        bison flex python3-mako python3-pyyaml python3-packaging glslang glslc
+        libdrm-devel wayland-devel wayland-protocols-devel libxcb-devel libX11-devel
+        libXrandr-devel libxshmfence-devel expat-devel zlib-ng-compat-devel libzstd-devel
+        spirv-tools-devel vulkan-headers vulkan-loader-devel vulkan-tools pciutils)
+    local -a missing=()
+    local package
+    for package in "${wanted[@]}"; do
+        rpm -q --quiet "$package" || missing+=("$package")
+    done
+    if ((${#missing[@]})); then
+        say "installing ${missing[*]}"
+        sudo dnf install -y "${missing[@]}"
+    fi
 }
 
 fetch() {
@@ -241,6 +279,10 @@ install_release() {
     rm -rf -- "$prefix.new"
     mkdir -p "$PREFIX_ROOT"
     cp -a "$stage/root$prefix" "$prefix.new"
+    # cp -a kept the owner of the build, the user who ran it. A driver every
+    # session loads must not stay replaceable by that one account.
+    chown -R root:root "$prefix.new"
+    chmod -R go-w "$prefix.new"
     # Mesa reads game profiles from its own prefix; point it at the system's
     # so they follow every Mesa update instead of freezing at build time.
     rm -rf -- "$prefix.new/share/drirc.d"
@@ -292,7 +334,7 @@ case "${1:-status}" in
     status)
         echo "BC-250 async compute (RADV ${VERSION:-?}, built from tri3gubki-ops' patches)"
         echo "  kernel       : $(uname -r)"
-        echo "  system Mesa  : $(pacman -Q vulkan-radeon 2>/dev/null | awk '{print $2}')"
+        echo "  system Mesa  : $( { pacman -Q vulkan-radeon || rpm -q --qf '%{VERSION}-%{RELEASE}\n' mesa-vulkan-drivers; } 2>/dev/null | awk 'NR == 1 {print $NF}')"
         if [ -f "$PREFIX/lib/libvulkan_radeon.so" ]; then echo "  driver       : $PREFIX"; else echo "  driver       : MISSING at $PREFIX"; exit 1; fi
         missing=$(ldd "$PREFIX/lib/libvulkan_radeon.so" 2>/dev/null | awk '/not found/ {print $1}' | tr '\n' ' ')
         [ -z "$missing" ] && echo "  libraries    : all resolve" || echo "  libraries    : UNRESOLVED $missing"
@@ -329,8 +371,10 @@ R="\${BC250CC_TEST_ROOT:-}"
 [ -f "\$R$CONF_DIR/enabled" ] || exit 0
 grep -qw 'bc250.async=0' "\$R/proc/cmdline" 2>/dev/null && exit 0
 [ -d "\$R/sys/module/amdgpu" ] || exit 0
-# DryhoppedIPA's kernel-side fix brings its own RADV while its module is loaded.
+# DryhoppedIPA's kernel-side fix brings its own RADV while its module is loaded,
+# and so does a boot of its Fedora installer's patched entry.
 [ "\$(cat "\$R/run/bc250cc-gfx1013/loaded" 2>/dev/null)" = patched ] && exit 0
+grep -qw 'bc250.gfx1013_v33=1' "\$R/proc/cmdline" 2>/dev/null && exit 0
 release="\${BC250CC_TEST_KERNEL:-\$(uname -r)}"
 major=\${release%%.*}; rest=\${release#*.}; minor=\${rest%%[!0-9]*}
 case "\$major:\$minor" in *[!0-9:]*|:*|*:) exit 0 ;; esac
@@ -350,6 +394,11 @@ GEN
     install -d -m 0755 "$CONF_DIR"
     printf '%s\nVERSION=%s\nUPSTREAM=%s\n' "$MARKER" "$version" "${upstream:-unknown}" > "$CONF_DIR/active.env"
     : > "$CONF_DIR/enabled"
+    # SELinux (Fedora): cp -a carried the build cache's type (cache_home_t)
+    # into the prefix. Give every installed path the type policy expects.
+    if command -v restorecon >/dev/null 2>&1; then
+        restorecon -RF "$PREFIX_ROOT" "$LIB_DIR" "$CONF_DIR" "$HELPER" "$GENERATOR" 2>/dev/null || true
+    fi
     say "installed and switched on. Log out and back in; games need no launch options."
     echo "Check it with: bc250cc-async-compute status"
     echo "If the desktop does not come back after logging in, press e at the boot menu and add: bc250.async=0"

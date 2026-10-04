@@ -14,8 +14,8 @@ def test_runtime_identity_uses_the_shipped_patcher_not_the_removed_legacy_path()
     assert CYAN_BC250CC_PATCHER == INSTALLER.with_name("patch-cyan-bc250cc-runtime.py")
 
 
-@pytest.mark.parametrize("family,manager", (("arch", "pacman -Syu"), ("cachyos", "pacman -Syu"),
-    ("manjaro", "pacman -Syu"), ("steamos", "pacman -S"), ("debian", "apt-get install"),
+@pytest.mark.parametrize("family,manager", (("arch", "pacman -S"), ("cachyos", "pacman -S"),
+    ("manjaro", "pacman -S"), ("steamos", "pacman -S"), ("debian", "apt-get install"),
     ("ubuntu", "apt-get install"), ("fedora", "dnf install")))
 @pytest.mark.parametrize("toolchain_present", (True, False))
 def test_native_build_dependency_routes_without_executing_package_managers(family, manager, toolchain_present):
@@ -44,7 +44,9 @@ prepare_native_build_tools
             assert "cargo rustc" in result.stdout
         else:
             assert "rust" in result.stdout
-    if family == "steamos":
+    if family in {"arch", "cachyos", "manjaro", "steamos"}:
+        # A full system update can replace the running kernel; the stubbed
+        # package manager succeeds, so it must never be the first attempt.
         assert "-Syu" not in result.stdout
 
 
@@ -86,4 +88,42 @@ printf 'selected=%s\\n' "$RUSTUP_TOOLCHAIN"
     assert result.returncode == 0, result.stderr
     assert "apt-get install -y rustup" in result.stdout
     assert "rustc 1.88.0" in result.stdout
+    assert "selected=1.88.0" in result.stdout
+
+
+def test_cachyos_rustup_shim_without_default_toolchain_gets_pinned_user_rust():
+    source = INSTALLER.read_text()
+    function = source.split("prepare_native_build_tools() {", 1)[1].split(
+        "\nbuild_bc250cc_runtime()", 1
+    )[0]
+    script = f'''
+set -eu
+target_family=cachyos
+HOME=/tmp/bc250-rust-test
+modern=0
+have() {{ case "$1" in cargo|rustc|cc|pkg-config|rustup) return 0;; *) return 1;; esac; }}
+pkg-config() {{ return 0; }}
+as_root() {{ printf 'planned: %s\\n' "$*"; }}
+info() {{ printf 'info: %s\\n' "$*"; }}
+die() {{ echo "$*"; exit 61; }}
+rustc() {{
+  [ "$modern" = 1 ] || {{ echo "error: rustup could not choose a version of rustc" >&2; return 1; }}
+  printf 'rustc 1.88.0 (test)\\n'
+}}
+rustup() {{
+  [ "$1" = toolchain ] && [ "$2" = install ] && [ "$3" = 1.88.0 ] || return 1
+  modern=1
+}}
+cyan_rust_is_supported() {{
+  have rustc || return 1
+  local v; v="$(rustc --version 2>/dev/null)" || return 1
+  [ -n "$v" ]
+}}
+prepare_native_build_tools() {{{function}
+prepare_native_build_tools
+printf 'selected=%s\\n' "$RUSTUP_TOOLCHAIN"
+'''
+    result = subprocess.run(["bash", "-c", script], capture_output=True, text=True, check=False)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "apt-get" not in result.stdout
     assert "selected=1.88.0" in result.stdout

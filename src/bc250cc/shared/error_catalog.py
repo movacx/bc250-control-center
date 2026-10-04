@@ -101,6 +101,13 @@ _CODES: tuple[ErrorCode, ...] = (
         markers=('QUICK_ACCESS_VRAM',),
     ),
     ErrorCode(
+        "BC250-TTM-001",
+        "The GPU memory limit could not be changed.",
+        "This system cannot keep a kernel boot argument the way Control Center manages it, another tool already set the limit, or the boot loader or rpm-ostree refused the change.",
+        "Read the reason in the Memory section. On SteamOS, systemd-boot or rEFInd add the ttm.pages_limit argument yourself; elsewhere retry once the boot loader or rpm-ostree is idle.",
+        markers=('QUICK_ACCESS_TTM',),
+    ),
+    ErrorCode(
         "BC250-STORAGE-001",
         "There is not enough writable storage.",
         "The target filesystem, temporary directory, boot partition, or user quota is full.",
@@ -114,7 +121,10 @@ _CODES: tuple[ErrorCode, ...] = (
         "A previous BC250 action, package manager, service restart, or external toolkit still holds the required lock.",
         "Wait for the current terminal or progress indicator to finish, refresh the page, and retry once. Close other BC250 toolkits if the lock remains.",
         exit_statuses=(75,),
-        markers=(),
+        # The SMU mailbox gave no answer in time (0x00) or said it was busy
+        # (0xFC). The CPU/SMU helper exits 70 for it, which alone reads as a
+        # helper version mismatch and sent users to reinstall.
+        markers=('smu returned status 0x00', 'smu returned status 0xFC'),
     ),
     ErrorCode(
         "BC250-CONFIG-001",
@@ -185,7 +195,7 @@ _CODES: tuple[ErrorCode, ...] = (
         "Run Unlock/Sync again, check the displayed live map, prepare UMR if missing, and apply only after the requested and driver maps agree.",
         exit_statuses=(30, 62, 63),
         markers=(
-            'QUICK_ACCESS_CU_TABLE', 'QUICK_ACCESS_CU_MODE', 'QUICK_ACCESS_CU_BACKEND',
+            'QUICK_ACCESS_CU_TABLE', 'QUICK_ACCESS_CU_KERNEL', 'QUICK_ACCESS_CU_MODE', 'QUICK_ACCESS_CU_BACKEND',
             'QUICK_ACCESS_CU_SERVICE_REMOVE', 'QUICK_ACCESS_CU_STATE',
             'QUICK_ACCESS_CU_VERIFY', 'QUICK_ACCESS_CU_SERVICE_PROFILE',
             'QUICK_ACCESS_CU_SERVICE_VERIFY',
@@ -205,7 +215,10 @@ _CODES: tuple[ErrorCode, ...] = (
         "The stress dependency, SMU helper, same-boot detector evidence, temperature limit, or selected frequency and VID do not satisfy the validated workflow.",
         "Run automatic detection for this exact frequency first. Keep the terminal open, monitor temperature, and save the service only after the live result is verified.",
         exit_statuses=(50, 51, 52, 53, 54, 55, 57, 60, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 91, 93, 94),
-        markers=('QUICK_ACCESS_CPU', 'QUICK_ACCESS_CPU_VERIFY', 'QUICK_ACCESS_CPU_SERVICE', 'QUICK_ACCESS_CPU_SCALE_VERIFY', 'stress is required by bc250-detect', 'Run automatic detection at this exact frequency', 'Manual scale must reuse the detected thermal limit', 'bc250-detect returned values outside the requested', 'bc250-detect did not produce a valid configuration'),
+        markers=('QUICK_ACCESS_CPU', 'QUICK_ACCESS_CPU_VERIFY', 'QUICK_ACCESS_CPU_SERVICE', 'QUICK_ACCESS_CPU_SCALE_VERIFY', 'stress is required by bc250-detect', 'Run automatic detection at this exact frequency', 'Manual scale must reuse the detected thermal limit', 'bc250-detect returned values outside the requested', 'bc250-detect did not produce a valid configuration',
+                 # Any other SMU mailbox refusal; the shorter marker loses to
+                 # the no-answer and busy ones under BC250-BUSY-001.
+                 'smu returned status 0x'),
     ),
     ErrorCode(
         "BC250-AUTH-002",
@@ -274,6 +287,20 @@ _CODES: tuple[ErrorCode, ...] = (
         "The workflow reported the failure itself.",
         "The workflow stopped on a condition it detected and described in its own output.",
         "Follow the steps the workflow printed above; they name the exact package, kernel or path involved.",
+        # Quick Access runs the reviewed GDDR6 patch helper, whose own error
+        # (unsupported firmware, governor starting, SMU busy) is the message.
+        exit_statuses=(66,),
+        markers=('QUICK_ACCESS_GDDR6',),
+    ),
+    # DryhoppedIPA's install.sh refuses to install over a release. Fedora's
+    # Install / update now removes the old release after the build, so this is
+    # left for older Control Center versions and manual runs.
+    ErrorCode(
+        "BC250-GFX-001",
+        "A GFX1013 fix release is already installed.",
+        "The upstream installer does not install over an existing release, so the build finished but the install step stopped. The installed release and its boot entry were not changed.",
+        "Run Install / update again from Control Center: it now replaces the previous release itself. To use the release already installed, press Boot with the fix and restart.",
+        markers=('a release is already installed',),
     ),
     # Fallback: wording reused from the desktop diagnostic rules so it is
     # already translated in all 30 locales.

@@ -109,7 +109,8 @@ def test_the_power_band_says_a_stock_board_cannot_report_its_rails(page):
     page.apply_state(DashboardState())
     assert page.vrm_strip.isHidden() is False
     assert page.vrm_strip["input"].value.text() == tr("Not detected")
-    assert page.vrm_strip.note.text() != ""
+    # It says so through its "How to enable" button, where a note used to be.
+    assert page.vrm_help_button.isHidden() is False
 
     page.apply_state(
         page.state.with_live_metrics(
@@ -152,4 +153,5 @@ def test_power_delivery_labels_are_unique_and_fold_without_the_link(page):
     page._update_vrm_strip(SimpleNamespace(vrm_source=""))
     assert page.vrm_strip.readings_visible is False
     assert all(reading.isHidden() for reading in page.vrm_strip.readings.values())
-    assert page.vrm_strip.note.text() != ""
+    # It says so through its "How to enable" button, where a note used to be.
+    assert page.vrm_help_button.isHidden() is False

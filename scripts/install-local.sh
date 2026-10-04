@@ -241,6 +241,12 @@ elif [[ ${#missing_python_deps_command[@]} -gt 0 ]]; then
 fi
 
 bash "$ROOT_DIR/scripts/qa/validate-install-source.sh" "$ROOT_DIR"
+if command -v python3 >/dev/null 2>&1 && \
+   ! python3 -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 1)' >/dev/null 2>&1; then
+  echo "Error: BC250 Control Center needs Python 3.11 or newer; this system has $(python3 -V 2>&1)." >&2
+  echo "Ubuntu 22.04 and Linux Mint 21 ship Python 3.10. Use Ubuntu 24.04 / Linux Mint 22 or newer, or a newer Python." >&2
+  exit 2
+fi
 
 install -dm755 "$APP_DIR" "$BIN_DIR" "$DESKTOP_DIR" "$ICON_DIR" "$METAINFO_DIR" "$SYSTEMD_USER_DIR" "$DOC_DIR"
 
@@ -424,6 +430,7 @@ install_privileged_pwm_components() {
     "/usr/libexec/bc250-control-center/lib/system_setup_acpi.py"
     "/usr/libexec/bc250-control-center/lib/system_setup_telemetry.py"
     "/usr/libexec/bc250-control-center/lib/system_setup_kernel_args.py"
+    "/usr/libexec/bc250-control-center/lib/system_setup_ttm.py"
     "/usr/libexec/bc250-control-center/lib/system_setup_vram.py"
     "/usr/libexec/bc250-control-center/lib/acpi_payload.py"
     "/usr/libexec/bc250-control-center/lib/bc250_contract.py"
@@ -477,7 +484,7 @@ install_privileged_pwm_components() {
     # by the group, causing every hardened helper to reject its own imports.
     "${elevate[@]}" install -d -m0755 /usr/libexec/bc250-control-center /usr/libexec/bc250-control-center/lib
     "${elevate[@]}" install -Dm755 "$system_setup_helper_source" /usr/libexec/bc250-control-center/bc250-system-setup-helper
-    for setup_module in system_setup_common.py system_setup_memory.py system_setup_acpi.py system_setup_telemetry.py system_setup_kernel_args.py system_setup_vram.py acpi_payload.py bc250_contract.py; do
+    for setup_module in system_setup_common.py system_setup_memory.py system_setup_acpi.py system_setup_telemetry.py system_setup_kernel_args.py system_setup_ttm.py system_setup_vram.py acpi_payload.py bc250_contract.py; do
       "${elevate[@]}" install -Dm644 "$ROOT_DIR/privileged/lib/$setup_module" "/usr/libexec/bc250-control-center/lib/$setup_module"
     done
     "${elevate[@]}" install -Dm755 "$helper_source" "$SYSTEM_PRIV_HELPER"

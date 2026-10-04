@@ -65,3 +65,15 @@ def test_a_board_that_is_not_on_p3_is_told_beside_the_gddr6_switch(qtbot, tmp_pa
 
     supported, _settings = _page(qtbot, tmp_path / "p3", monkeypatch, bios="P3.00")
     assert supported.gddr6_firmware_note.isHidden()
+
+
+def test_detection_names_the_kernel_driver_on_the_bc250_kernel(monkeypatch):
+    from frontends.desktop.pages import settings as settings_module
+
+    describe = settings_module.SettingsPage.describe_vrm_detection
+    reading = {"daemon": "kernel", "rails": {"cpu": {"valid": True}, "gpu": {"valid": True}}}
+    assert describe(reading) == "Detected: the kernel driver (bc250_vrm) reads the regulator"
+    monkeypatch.setattr(settings_module, "kernel_vrm_driver_present", lambda: True)
+    assert describe({"daemon": "missing", "rails": {}}) == (
+        "Not detected: the kernel driver (bc250_vrm) gets no answer from the regulator"
+    )

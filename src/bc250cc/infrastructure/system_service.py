@@ -483,8 +483,14 @@ class SistemaService:
     def gestionar_gfx1013_source(self, action):
         return self.repo.gestionar_gfx1013_source(action)
 
+    def gestionar_kernel_debian(self, action):
+        return self.repo.gestionar_kernel_debian(action)
+
     def gestionar_radv_async(self, action):
         return self.repo.gestionar_radv_async(action)
+
+    def gestionar_apu_telemetry(self, action):
+        return self.repo.gestionar_apu_telemetry(action)
 
     def actualizar_aplicacion_local(self):
         return self.repo.actualizar_aplicacion_local()
@@ -520,8 +526,12 @@ class SistemaService:
     def desinstalar_governor(self, governor):
         return self.repo.desinstalar_governor(governor)
 
-    def controlar_governor(self, accion, confirmar_conflictos=False, desactivar_conflictos=False):
-        return self.repo.controlar_governor(accion, confirmar_conflictos, desactivar_conflictos)
+    def controlar_governor(
+        self, accion, confirmar_conflictos=False, desactivar_conflictos=False, reset_cyan_fix_flags=False
+    ):
+        return self.repo.controlar_governor(
+            accion, confirmar_conflictos, desactivar_conflictos, reset_cyan_fix_flags
+        )
 
     def manage_accessory(self, component, action):
         return self.repo.manage_accessory(component, action)

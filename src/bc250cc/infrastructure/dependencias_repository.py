@@ -14,6 +14,11 @@ from bc250cc.application.preparation.component_engine import (
     unavailable_components,
 )
 from bc250cc.infrastructure.accessories import accessory_inventory
+from bc250cc.infrastructure.apu_telemetry_service import (
+    APU_TELEMETRY_DIRECTORY,
+    apu_telemetry_supported,
+    build_apu_telemetry_command,
+)
 from bc250cc.infrastructure.bazzite_async_compute import (
     build_bazzite_async_compute_command,
     probe_bazzite_async_compute,
@@ -46,6 +51,10 @@ from bc250cc.infrastructure.cu_privileged_backend import (
     STEAMOS_CU_BACKEND,
     generic_cu_backend_status,
     steamos_cu_backend_status,
+)
+from bc250cc.infrastructure.debian_kernel_upgrade import (
+    build_debian_kernel_command,
+    debian_kernel_upgrade_state,
 )
 from bc250cc.infrastructure.decky_quick_access import (
     build_bazzite_decky_bootstrap_command,
@@ -117,11 +126,11 @@ from bc250cc.infrastructure.steam_launch_options import (
 from bc250cc.infrastructure.steamos_amdgpu import (
     build_steamos_amdgpu_diagnostic_command,
     build_steamos_compatibility_command,
+    gpu_points_above_module_limit,
 )
 from bc250cc.infrastructure.steamos_amdgpu_backend import (
     STEAMOS_AMDGPU_AUDIO_FIX_ROOT,
     STEAMOS_AMDGPU_BACKEND,
-    STEAMOS_AMDGPU_BACKEND_ROOT,
     STEAMOS_AMDGPU_BOOT_CONFIG,
     protected_backend_guard,
     stage_backend_command,
@@ -215,10 +224,24 @@ class DependenciasRepository:
         os_repository = self._os_repository()
         if os_repository.family != 'bazzite':
             raise RuntimeError('Bazzite memory setup is only available on Bazzite.')
-        command = build_bazzite_memory_tuning_command(policy, int(ttm_gib))
+        ttm_gib = int(ttm_gib)
+        # The swap/zswap transaction never touches the GPU memory limit: that
+        # goes through the shared helper (system_setup_ttm.py) so the panel in
+        # Game Mode reads and restores exactly what was set here.
+        command = build_bazzite_memory_tuning_command(policy, 0)
+        if ttm_gib:
+            command += '\n' + system_setup_command('ttm-apply', ttm_gib=ttm_gib)
         return self._abrir_terminal(command, 'Configurar memoria BC250 en Bazzite')
 
     def preparar_memoria(self, policy: str, ttm_gib: int, *, takeover_zram: bool = False, target_mount: str = ''):
+        if int(ttm_gib) and policy in {'preserve', 'current'}:
+            # The GPU memory limit alone: one implementation, the one the
+            # Decky panel uses too (system_setup_ttm.py), on every family
+            # including Bazzite, so both read and restore the same state.
+            return self._abrir_terminal(
+                system_setup_command('ttm-apply', ttm_gib=int(ttm_gib)),
+                'BC250 GPU memory limit',
+            )
         if self._os_repository().family == 'bazzite':
             return self.preparar_memoria_bazzite(policy, ttm_gib)
         return self._abrir_terminal(
@@ -250,7 +273,7 @@ class DependenciasRepository:
         )
 
     def gestionar_opciones_kernel(self, options):
-        """Set which of mitigations=off / nosmt Control Center manages."""
+        """Set which kernel boot options Control Center manages (see KERNEL_OPTIONS)."""
         if self._os_repository().family in {'bazzite', 'steamos'}:
             raise RuntimeError('Kernel boot options are managed differently on this system.')
         return self._abrir_terminal(
@@ -496,8 +519,12 @@ class DependenciasRepository:
             raise RuntimeError('The direct GFX1013 workflow is available only on Fedora.')
         if action == 'install' and not state.get('direct_installer_allowed'):
             raise RuntimeError('The direct GFX1013 workflow is not offered on this host by upstream policy.')
-        if action not in {'install', 'status', 'uninstall'}:
+        if action not in {'install', 'status', 'uninstall', 'boot-patched', 'activate'}:
             raise ValueError('Unsupported Fedora GFX1013 action.')
+        if action in {'boot-patched', 'activate'} and not state.get('dryhopped_installed'):
+            raise RuntimeError('The GFX1013 fix is not installed.')
+        if action == 'activate' and not state.get('dryhopped_boot_active'):
+            raise RuntimeError('boot the patched entry successfully before making it the default')
         destination = self._tool_dir() / 'bc250-gfx1013-fix'
         self.estado_herramientas_cache = None
         return self._abrir_terminal(
@@ -676,6 +703,14 @@ class DependenciasRepository:
                 kernel=kernel,
                 immutable=bool(getattr(os_repository.info, 'immutable', False)),
             ),
+            # Debian 13 ships a kernel (6.12) that cannot run the build above and a
+            # Mesa that does not know the GPU: backports is the way out.
+            'kernel_upgrade': debian_kernel_upgrade_state(
+                family=os_repository.info.family,
+                distro_id=os_repository.info.distro_id,
+                kernel=kernel,
+                immutable=bool(getattr(os_repository.info, 'immutable', False)),
+            ),
             # The patched RADV alone, on Arch-family kernels 7.2 or newer,
             # where the stock amdgpu is the one Bazzite's release runs on.
             'radv_async': radv_async_state(
@@ -718,6 +753,24 @@ class DependenciasRepository:
             titles[action],
         )
 
+    def gestionar_kernel_debian(self, action: str) -> object:
+        """Install a newer kernel from the Debian backports, in the terminal."""
+        info = self._os_repository().info
+        action = str(action or '').strip().lower()
+        state = debian_kernel_upgrade_state(
+            family=info.family,
+            distro_id=info.distro_id,
+            kernel=platform.release(),
+            immutable=bool(getattr(info, 'immutable', False)),
+        )
+        if not state['offered']:
+            raise RuntimeError(state['reason'] or 'A newer kernel is not offered on this system.')
+        self.estado_herramientas_cache = None
+        return self._abrir_terminal(
+            build_debian_kernel_command(action, state['codename']),
+            'Debian · newer kernel from backports',
+        )
+
     def gestionar_radv_async(self, action: str) -> object:
         """Build, install, switch, test or remove the RADV-only async compute."""
         info = self._os_repository().info
@@ -743,6 +796,31 @@ class DependenciasRepository:
         self.estado_herramientas_cache = None
         return self._abrir_terminal(
             build_radv_async_command(action, self._tool_dir() / 'bc250-async-compute-bazzite'),
+            titles[action],
+        )
+
+    def gestionar_apu_telemetry(self, action: str) -> object:
+        """Install, check or remove the BC250-Telemetry daemon behind the Power delivery band."""
+        info = self._os_repository().info
+        action = str(action or '').strip().lower()
+        supported, reason = apu_telemetry_supported(
+            family=info.family,
+            distro_id=info.distro_id,
+            immutable=bool(getattr(info, 'immutable', False)),
+        )
+        if action == 'install' and not supported:
+            raise RuntimeError(reason or 'BC250-Telemetry cannot be installed on this system.')
+        titles = {
+            'install': 'BC250-Telemetry · build and install',
+            'uninstall': 'BC250-Telemetry · remove',
+            'status': 'BC250-Telemetry · status',
+        }
+        if action not in titles:
+            raise ValueError('Unsupported BC250-Telemetry action.')
+        return self._abrir_terminal(
+            build_apu_telemetry_command(
+                action, self._tool_dir() / APU_TELEMETRY_DIRECTORY, family=info.family
+            ),
             titles[action],
         )
 
@@ -835,7 +913,7 @@ class DependenciasRepository:
                 ),
                 'cpu_oc': repository_probe['smu_exists'],
                 'core_unlock': repository_probe['core_unlock_script_exists'],
-                'umr': bool(runtime_probe['umr']),
+                'umr': bool(runtime_probe['umr']) and not runtime_probe['umr_broken'],
                 'cu_manager': cu_selection.exists,
                 'fan_pwm': Path('/sys/module/nct6687').is_dir(),
             },
@@ -854,6 +932,7 @@ class DependenciasRepository:
             'paru': runtime_probe['paru'],
             'git': runtime_probe['git'],
             'umr': runtime_probe['umr'],
+            'umr_broken': runtime_probe['umr_broken'],
             'stress': runtime_probe['stress'],
             'bc250_detect': bc250_detect,
             'cu_manager': cu_selection.manager,
@@ -1084,6 +1163,13 @@ class DependenciasRepository:
         if callable(git_probe):
             commands['git'] = str(safe(git_probe, commands['git']) or commands['git'])
         commands['bc250_detect'] = commands.pop('bc250-detect')
+        # Finding umr is not the same as being able to run it: it links against
+        # LLVM, and a copy built before the distribution moved to a newer LLVM
+        # stays in PATH and fails on launch. Such a copy must not count as the
+        # UMR component being present, or Prepare would keep it as it is.
+        commands['umr_broken'] = bool(commands['umr']) and bool(safe(
+            lambda: self._has_unresolved_libraries(commands['umr']), False
+        ))
         # Finding the client binary is not evidence that an OpenRC host has a
         # usable system bus.  Cyan owns a name on that bus and every GPU range
         # change is read back through it, so its preflight must distinguish an
@@ -1093,6 +1179,30 @@ class DependenciasRepository:
             False,
         )
         return commands
+
+    @staticmethod
+    def _has_unresolved_libraries(path: object, *, runner=subprocess.run) -> bool:
+        """True when ``path`` is linked against a shared library that is gone.
+
+        Read-only and bounded. Anything that cannot be asked, including a missing
+        ``ldd`` and a static binary, answers False: only evidence of a missing
+        library may turn a working tool into one that is prepared again.
+        """
+        executable = str(path or '').strip()
+        ldd = shutil.which('ldd')
+        if not executable or not ldd:
+            return False
+        try:
+            result = runner(
+                [ldd, executable],
+                text=True,
+                capture_output=True,
+                timeout=3,
+                check=False,
+            )
+        except (OSError, subprocess.SubprocessError):
+            return False
+        return 'not found' in str(getattr(result, 'stdout', '') or '')
 
     @staticmethod
     def _system_dbus_ready(busctl_path: object, *, runner=subprocess.run) -> bool:
@@ -1403,29 +1513,11 @@ class DependenciasRepository:
         destination = self._tool_dir() / STEAMOS_FIX_DIRECTORY
         script = STEAMOS_AMDGPU_BACKEND
         boot_config = STEAMOS_AMDGPU_BOOT_CONFIG
-        overlay_script = (
-            Path(__file__).resolve().parents[3]
-            / 'scripts/system/prepare-steamos-telemetry-oc-overlay.py'
-        )
-        if not overlay_script.is_file():
-            raise RuntimeError(
-                'The SteamOS high-OC telemetry overlay is missing from this Control Center installation.'
-            )
-        # The local checkout is deliberately not invoked as root.  The exact
-        # reviewed Git tree is staged atomically beneath /usr/libexec first;
-        # the app-owned telemetry overlay is then run from its installed,
-        # root-owned implementation against that protected tree.
-        installed_overlay = Path(
-            '/usr/libexec/bc250-control-center/bc250-steamos-amdgpu-overlay'
-        )
-        overlay_command = (
-            f'sudo test -f {shlex.quote(str(installed_overlay))} && '
-            f'sudo test ! -L {shlex.quote(str(installed_overlay))} && '
-            f'[ "$(sudo stat -c %u:%a {shlex.quote(str(installed_overlay))})" = "0:755" ] || '
-            '{ echo "ERROR: installed SteamOS telemetry overlay is unavailable or untrusted; run scripts/install-local.sh from Desktop Mode."; exit 38; }; '
-            f'sudo /usr/bin/python3 {shlex.quote(str(installed_overlay))} '
-            f'{shlex.quote(str(STEAMOS_AMDGPU_BACKEND_ROOT))}'
-        )
+        # The toolkit is built exactly as reviewed. Earlier builds staged an
+        # app-owned overlay that widened the module's GPU clock telemetry to
+        # 2400 MHz; the governor editors now keep the GPU within the module's
+        # own 2230 MHz instead (``gpu_frequency_ceiling``).
+        #
         # Upstream's patch-driver is intentionally a normal-user build
         # workflow: it creates its lock, dependency cache and kernel tree next
         # to the script.  The protected /usr/libexec stage must therefore be
@@ -1437,9 +1529,6 @@ class DependenciasRepository:
         q_user_audio = shlex.quote(str(user_audio_root))
         q_protected_audio = shlex.quote(str(STEAMOS_AMDGPU_AUDIO_FIX_ROOT))
         build_install_command = '; '.join((
-            overlay_command,
-            f'/usr/bin/install -m 0755 {q_protected_audio}/build.sh {q_user_audio}/build.sh',
-            'export BC250_CONTROL_CENTER_OC_TELEMETRY=1',
             f'sudo /usr/bin/bash {q_protected_audio}/ensure-build-prereqs.sh',
             'echo; echo "== Downloading exact Valve kernel sources and build dependencies =="; '
             'echo "[INFO] This step can remain quiet for several minutes while Git is working. Do not close this window; the process is still running."',
@@ -1447,7 +1536,17 @@ class DependenciasRepository:
             'echo "[OK] Kernel sources and build dependencies are ready."; echo; '
             'echo "== Building the BC250 AMDGPU module =="; '
             'echo "[INFO] Configuration and compilation can take a while. Do not close this window; compiler output will appear as work progresses."',
-            f'/usr/bin/bash {q_user_audio}/build.sh',
+            # build.sh exits 75 when the kernel tree is not in a state it
+            # recognises, typically one patched by an earlier toolkit
+            # revision. Like upstream's patch-driver, clean the tree (cached
+            # downloads are kept) and build once more.
+            f'bc250_build_rc=0; /usr/bin/bash {q_user_audio}/build.sh || bc250_build_rc=$?',
+            'if [ "$bc250_build_rc" = 75 ]; then '
+            'echo "[INFO] The kernel tree was prepared by an earlier toolkit revision; cleaning it and building again. Cached downloads are kept."; '
+            f'/usr/bin/bash {q_user_audio}/clean.sh; '
+            f'/usr/bin/bash {q_user_audio}/fetch-sources.sh; '
+            f'/usr/bin/bash {q_user_audio}/build.sh; '
+            'elif [ "$bc250_build_rc" != 0 ]; then exit "$bc250_build_rc"; fi',
             f'for artifact in amdgpu.ko.zst amdgpu.gfx1013.attestation; do '
             f'source_artifact={q_user_audio}/$artifact; '
             'test -f "$source_artifact" && test ! -L "$source_artifact" && '
@@ -1478,7 +1577,6 @@ class DependenciasRepository:
             boot_config=boot_config,
             checkout_command=checkout_command,
             install=install,
-            telemetry_oc_overlay_command=overlay_command if install else '',
             module_install_command=build_install_command if install else '',
             backend_guard=protected_backend_guard(
                 reviewed_revision=STEAMOS_FIX_REVIEWED_COMMIT
@@ -1486,10 +1584,19 @@ class DependenciasRepository:
         )
 
 
+    def _steamos_module_frequency_blocker(self):
+        return gpu_points_above_module_limit(
+            cyan_config=Path(GOVERNOR_SPECS[CYAN_GOVERNOR]['config_path']),
+            oberon_config=Path(GOVERNOR_SPECS[OBERON_GOVERNOR]['config_path']),
+        )
+
     def preparar_compatibilidad_steamos(self):
         os_repository = self._os_repository()
         if os_repository.info.family != 'steamos':
             raise RuntimeError('The dedicated SteamOS compatibility workflow is available only on SteamOS.')
+        blocker = self._steamos_module_frequency_blocker()
+        if blocker:
+            raise RuntimeError(blocker)
         command = self._join_shell_commands((
             'set -Eeuo pipefail',
             'export LC_ALL=C LANG=C',

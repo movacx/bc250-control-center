@@ -16,9 +16,9 @@ from bc250cc.infrastructure.steamos_graphics_runtime import (
     (
         ("status", "status-json"),
         ("install", " setup"),
-        ("install-fsr4", "setup --fsr4"),
+        ("install-fsr4", "retired the per-game FSR4 V3 profile"),
         ("uninstall", " uninstall"),
-        ("uninstall-fsr4", "uninstall --fsr4"),
+        ("uninstall-fsr4", "uninstall --fsr4-legacy"),
     ),
 )
 def test_steamos_graphics_actions_use_only_the_protected_backend(action, fragment):
@@ -43,6 +43,17 @@ def test_steamos_graphics_actions_use_only_the_protected_backend(action, fragmen
     else:
         assert "STAGE_REVIEWED_TREE" in command
         assert command.count("status-json") == 1
+
+
+def test_the_retired_fsr4_profile_is_refused_but_can_still_be_removed():
+    # Toolkit v0.29 replaced "setup --fsr4" with per-DLL installs and kept
+    # only "--fsr4-legacy" to remove the old profile.
+    install = build_steamos_graphics_command("install-fsr4", backend_guard="true")
+    assert "setup --fsr4" not in install
+    assert "exit 2" in install
+    remove = build_steamos_graphics_command("uninstall-fsr4", backend_guard="true")
+    assert remove.count("uninstall --fsr4-legacy") == 1
+    assert "uninstall --fsr4;" not in remove
 
 
 def test_steamos_graphics_action_surface_is_finite_and_rejects_empty_guards():

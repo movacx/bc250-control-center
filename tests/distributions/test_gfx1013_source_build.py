@@ -271,3 +271,125 @@ def test_a_finished_build_is_not_repeated_and_download_bars_stay_short():
     text = SCRIPT.read_text(encoding="utf-8")
     assert 'say "already built for $KVER: $stage"' in text
     assert "COLUMNS=60 curl" in text
+
+
+def test_mesa_is_configured_before_the_long_kernel_build():
+    """Ubuntu's libdrm was too old for Mesa and it only failed after the kernel build."""
+    text = SCRIPT.read_text(encoding="utf-8")
+    build = text[text.index("build() {"):]
+    assert build.index('meson setup "$mesa_work/mesa-build"') < build.index('say "building amdgpu')
+    # A distribution libdrm older than Mesa's requirement is built from
+    # Mesa's own hash-pinned wrap instead of stopping the build.
+    assert "-Dallow-fallback-for=libdrm --force-fallback-for=libdrm" in build
+    assert "-Dlibdrm:default_library=static" in build
+
+
+def test_mesa_is_never_built_under_a_gfx_numbered_path():
+    """The stage lives under .../gfx1013/..., which Mesa's generators read as the gfx version."""
+    text = SCRIPT.read_text(encoding="utf-8")
+    build = text[text.index("build() {"):]
+    assert '[[ $mesa_work =~ gfx[0-9] ]] && mesa_work=' in build
+    assert '[[ $mesa_work =~ gfx[0-9] ]] && die' in build
+    # Both the source tree and the build directory follow mesa_work.
+    assert '"$work/mesa-build"' not in build
+    assert 'local mesa_src="$mesa_work/mesa-$MESA_VERSION"' in build
+    assert 'meson setup "$mesa_work/mesa-build" "$mesa_src"' in build
+
+
+@pytest.mark.parametrize(
+    ("family", "distro_id", "kernel", "hidden"),
+    [
+        ("debian", "debian", "6.12.48+deb13-amd64", True),     # Debian 13 as shipped
+        ("ubuntu", "ubuntu", "6.8.0-85-generic", True),        # Ubuntu 24.04 before HWE
+        ("ubuntu", "linuxmint", "6.8.0-85-generic", True),
+        # Derivatives and backports on 6.14+ keep the offer: the kernel decides.
+        ("debian", "debian", "6.16.12+bpo-amd64", False),
+        ("ubuntu", "ubuntu", "6.17.0-5-generic", False),
+        ("ubuntu", "pop", "6.16.3-76061603-generic", False),
+        # Other families keep their own note.
+        ("opensuse", "opensuse-leap", "6.4.0-150600", False),
+    ],
+)
+def test_an_old_debian_family_kernel_hides_the_offer(tmp_path, monkeypatch, family, distro_id, kernel, hidden):
+    for name in ("LIB_DIR", "CONF_DIR", "STATE_DIR", "RUN_DIR"):
+        monkeypatch.setattr(gfx1013_source, name, tmp_path / name)
+    state = gfx1013_source_state(family=family, distro_id=distro_id, kernel=kernel)
+    assert state["hide_offer"] is hidden
+
+
+def test_an_install_stays_visible_on_an_old_kernel_so_it_can_be_removed(tmp_path, monkeypatch):
+    for name, value in {
+        "LIB_DIR": tmp_path / "lib", "CONF_DIR": tmp_path / "conf",
+        "STATE_DIR": tmp_path / "state", "RUN_DIR": tmp_path / "run",
+    }.items():
+        monkeypatch.setattr(gfx1013_source, name, value)
+    _write(tmp_path / "conf/active.env", f"{gfx1013_source.MARKER}\nVERSION=0.2.0-alpha\n")
+    state = gfx1013_source_state(family="debian", distro_id="debian", kernel="6.12.48+deb13-amd64")
+    assert state["installed"] and state["hide_offer"] is False
+
+
+def _debian_sidebar(source):
+    from tests.infrastructure.test_upstream_preparation_presentation import _sidebar
+    from tests.infrastructure.test_upstream_preparation_presentation import (
+        _state as sidebar_state,
+    )
+
+    sidebar = _sidebar()
+    state = sidebar_state("debian", {})
+    state.preparation_tools["gfx1013_compute"] = {
+        "reason_key": "manual-patches-only",
+        "source": source,
+        "radv_async": {"supported": False},
+    }
+    sidebar.set_state(state)
+    return sidebar
+
+
+def test_debian_13_does_not_show_the_card_at_all():
+    sidebar = _debian_sidebar({"supported": False, "installed": False, "hide_offer": True})
+    assert sidebar.gfx_card.isHidden()
+
+
+def test_a_debian_derivative_on_a_new_kernel_still_gets_the_build():
+    sidebar = _debian_sidebar({"supported": True, "installed": False, "hide_offer": False,
+                               "state": "not-installed", "kernel": "6.17.0-5-generic"})
+    assert not sidebar.gfx_card.isHidden()
+    assert sidebar.gfx_primary_button.request_payload["action"] == "gfx1013_source_install"
+
+
+def test_debian_13_shows_the_backports_kernel_in_the_card_instead_of_hiding_it():
+    sidebar = _sidebar_for(sidebar_state_with_upgrade({"offered": True, "state": "available"}))
+    assert not sidebar.gfx_card.isHidden()
+    assert sidebar.gfx_primary_button.request_payload["action"] == "debian_kernel_install"
+
+
+def test_without_a_backports_kernel_the_card_still_steps_aside():
+    sidebar = _sidebar_for(sidebar_state_with_upgrade({"offered": False, "state": "not-offered"}))
+    assert sidebar.gfx_card.isHidden()
+
+
+def test_the_backports_kernel_button_waits_for_the_restart():
+    state_sidebar = _sidebar_for(sidebar_state_with_upgrade({"offered": True, "state": "reboot-required"}))
+    assert not state_sidebar.gfx_primary_button.isEnabled()
+
+
+def sidebar_state_with_upgrade(upgrade):
+    return {
+        "reason_key": "manual-patches-only",
+        "source": {"supported": False, "installed": False, "hide_offer": True},
+        "radv_async": {"supported": False},
+        "kernel_upgrade": upgrade,
+    }
+
+
+def _sidebar_for(gfx_state):
+    from tests.infrastructure.test_upstream_preparation_presentation import _sidebar
+    from tests.infrastructure.test_upstream_preparation_presentation import (
+        _state as sidebar_state,
+    )
+
+    sidebar = _sidebar()
+    state = sidebar_state("debian", {})
+    state.preparation_tools["gfx1013_compute"] = gfx_state
+    sidebar.set_state(state)
+    return sidebar
