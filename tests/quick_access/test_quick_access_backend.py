@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import importlib.util
+import json
 import sys
 import time
+import tempfile
 import types
 from pathlib import Path
 
@@ -16,6 +18,9 @@ BACKEND = ROOT / "integrations" / "decky" / "bc250-quick-access" / "main.py"
 def _backend_module(monkeypatch):
     decky = types.ModuleType("decky")
     decky.logger = types.SimpleNamespace(info=lambda *_args, **_kwargs: None)
+    # Decky always passes this; without it the backend falls back to a path
+    # next to the plugin, which in a checkout is inside the repository.
+    decky.DECKY_PLUGIN_SETTINGS_DIR = tempfile.mkdtemp(prefix="bc250-qam-settings-")
     monkeypatch.setitem(sys.modules, "decky", decky)
     spec = importlib.util.spec_from_file_location("bc250_quick_access_backend_test", BACKEND)
     assert spec and spec.loader
@@ -99,6 +104,49 @@ def test_backend_safe_point_delegates_advertisement_validation_to_root_helper(mo
 
     assert result["ok"] is True
     assert calls == [("gpu-safe-point", "2200")]
+
+
+def test_gpu_range_write_does_not_wait_behind_a_passive_status_scan(monkeypatch):
+    module = _backend_module(monkeypatch)
+    plugin = module.Plugin()
+
+    async def immediate_to_thread(callback, *args, **kwargs):
+        return callback(*args, **kwargs)
+
+    monkeypatch.setattr(module.asyncio, "to_thread", immediate_to_thread)
+    monkeypatch.setattr(plugin, "_run", lambda *_args, **_kwargs: {"ok": True, "gpu_range": [1000, 2000]})
+
+    async def exercise():
+        # A status() scan holds the helper lock; the D-Bus-only GPU write
+        # must not queue behind it.
+        await plugin._helper_lock.acquire()
+        try:
+            return await asyncio.wait_for(plugin.apply_gpu_profile("benchmark"), 1)
+        finally:
+            plugin._helper_lock.release()
+
+    assert asyncio.run(exercise())["gpu_range"] == [1000, 2000]
+
+
+def test_status_overlapping_a_gpu_write_reports_the_verified_new_range(monkeypatch):
+    module = _backend_module(monkeypatch)
+    plugin = module.Plugin()
+
+    async def immediate_to_thread(callback, *args, **kwargs):
+        return callback(*args, **kwargs)
+
+    def stale_status():
+        # The write lands while this scan is still reading the old range.
+        plugin._note_gpu_write({"ok": True, "gpu_range": [1000, 2000], "gpu_performance_enabled": False})
+        return {"ok": True, "protocol": module.HELPER_PROTOCOL, "gpu_range": [1000, 1850]}
+
+    monkeypatch.setattr(module.asyncio, "to_thread", immediate_to_thread)
+    monkeypatch.setattr(plugin, "_verified_status", stale_status)
+
+    result = asyncio.run(plugin.status())
+
+    assert result["gpu_range"] == [1000, 2000]
+    assert result["gpu_performance_enabled"] is False
 
 
 def test_cpu_telemetry_remains_available_during_exclusive_cpu_operation(monkeypatch):
@@ -421,3 +469,76 @@ def test_backend_rejects_out_of_contract_cpu_values_before_helper(monkeypatch):
     )
     for frequency, scale in invalid_scale:
         assert asyncio.run(plugin.apply_cpu_scale(frequency, scale))["ok"] is False
+
+
+def test_cpu_profiles_default_to_the_desktop_tiers_until_exported(monkeypatch):
+    module = _backend_module(monkeypatch)
+
+    defaults = module._validated_cpu_profiles(None)
+    assert [(p["key"], p["frequency"], p["vid"]) for p in defaults] == [
+        ("board_average", 3550, 1050), ("mid_point", 3850, 1150), ("safe_maximum", 4000, 1275),
+    ]
+    assert all(p["default"] for p in defaults)
+
+    exported = module._validated_cpu_profiles([
+        {"key": "mid_point", "name": "Mine", "frequency": 3900, "vid": 1160},
+    ])
+    assert exported[1] == {"key": "mid_point", "name": "Mine", "frequency": 3900, "vid": 1160}
+    assert exported[0]["default"] and exported[2]["default"]
+
+
+def test_status_during_a_long_operation_answers_from_the_last_scan(monkeypatch):
+    """A remounted panel must not wait minutes behind a CPU run for its cards."""
+    module = _backend_module(monkeypatch)
+    plugin = module.Plugin()
+
+    async def immediate_to_thread(callback, *args, **kwargs):
+        return callback(*args, **kwargs)
+
+    monkeypatch.setattr(module.asyncio, "to_thread", immediate_to_thread)
+    monkeypatch.setattr(plugin, "_verified_status", lambda: {"ok": True, "protocol": module.HELPER_PROTOCOL, "cu_active_cus": 34})
+    first = asyncio.run(plugin.status())
+    assert first["operation_in_progress"] is None
+
+    async def exercise():
+        await plugin._helper_lock.acquire()
+        plugin._running_operation = {"action": "cpu-detect", "arguments": ["3850", "1150"], "started_at": 1}
+        try:
+            return await asyncio.wait_for(plugin.status(), 1)
+        finally:
+            plugin._running_operation = None
+            plugin._helper_lock.release()
+
+    cached = asyncio.run(exercise())
+    assert cached["cu_active_cus"] == 34
+    assert cached["status_cached"] is True
+    assert cached["operation_in_progress"]["action"] == "cpu-detect"
+
+
+def test_failed_operations_are_kept_for_the_desktop_diagnostics(monkeypatch, tmp_path):
+    module = _backend_module(monkeypatch)
+    plugin = module.Plugin()
+    plugin._settings_dir = tmp_path
+
+    plugin._record_action("cpu", "detect-3850:1150", {"ok": False, "error": "ERR SMU_IN_USE: busy"})
+    plugin._record_action("gpu", "gaming", {"ok": True})
+
+    lines = (tmp_path / module.DIAGNOSTICS_FILENAME).read_text(encoding="utf-8").splitlines()
+    assert len(lines) == 1
+    entry = json.loads(lines[0])
+    assert entry["module"] == "cpu" and entry["target"] == "detect-3850:1150"
+    assert entry["error"] == "ERR SMU_IN_USE: busy"
+    assert (tmp_path / module.DIAGNOSTICS_FILENAME).stat().st_mode & 0o777 == 0o644
+
+
+def test_cpu_cores_carry_their_physical_core(monkeypatch, tmp_path):
+    module = _backend_module(monkeypatch)
+    # Six of the die's eight cores enabled, two SMT threads each (ids 3 and 7 locked).
+    for index, core_id in enumerate((0, 0, 1, 1, 2, 2, 4, 4, 5, 5, 6, 6)):
+        topology = tmp_path / f"cpu{index}" / "topology"
+        topology.mkdir(parents=True)
+        (topology / "core_id").write_text(f"{core_id}\n")
+    ids = module._read_core_ids(tmp_path)
+    assert sorted(set(ids.values())) == [0, 1, 2, 4, 5, 6]
+    assert len(ids) == 12
+    assert module.BC250_PHYSICAL_CORES == 8

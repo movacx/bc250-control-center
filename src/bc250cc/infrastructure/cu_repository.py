@@ -9,6 +9,7 @@ import time
 from pathlib import Path
 
 from bc250cc.infrastructure.cu_dashboard import clean_dashboard, parse_dashboard
+from bc250cc.infrastructure.cu_kernel_unlock import kernel_cu_unlock_active
 from bc250cc.infrastructure.cu_operations import (
     plan_cu_mask_operations,
     validate_cu_masks,
@@ -392,6 +393,9 @@ class CURepository:
         ``active_cus`` and the WGP rows are hardware evidence.  An unavailable
         service backend must never replace them with the factory fallback.
         """
+        # Every snapshot path (cache, /run, live) ends here, so the kernel's
+        # own CU unlock is reported on all of them.
+        state['kernel_managed'] = kernel_cu_unlock_active()
         init_manager = detect_init_manager()
         state['init_manager'] = init_manager.kind
         state['persistence_supported'] = init_manager.persistence_supported
@@ -811,6 +815,7 @@ class CURepository:
             'asic': 'unknown',
             'amdgpu_mode': 'not exposed',
             'amdgpu_active_cus': 'unknown',
+            'kernel_managed': kernel_cu_unlock_active(),
             'service': 'Not installed',
             'service_installed': False,
             'service_enabled': False,

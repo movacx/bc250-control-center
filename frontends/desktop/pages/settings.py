@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import logging
 import os
+import shutil
 import subprocess
 import time
 from datetime import datetime
 from pathlib import Path
 
 from PyQt6.QtCore import (
+    QEvent,
+    QRect,
     QSettings,
     QSignalBlocker,
     Qt,
@@ -42,14 +45,16 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from bc250cc.infrastructure import SystemdUserService, diagnostic_journal
+from bc250cc.infrastructure import SystemdUserService
 from bc250cc.infrastructure.gddr6_memory_temp_repository import (
     board_bios_version,
     gddr6_firmware_supported,
 )
 from bc250cc.infrastructure.governor_conflicts import normalize_governor_preference
 from bc250cc.infrastructure.system_snapshot import system_snapshot
-from bc250cc.infrastructure.vrm_telemetry_reader import sondear_telemetria_vrm
+from bc250cc.infrastructure.apu_telemetry_service import apu_telemetry_state
+from bc250cc.infrastructure.vrm_telemetry_reader import kernel_vrm_driver_present, sondear_telemetria_vrm
+from bc250cc.platform.packages.strategies.detector import detect_os_info
 from bc250cc.platform.init.services import detect_init_manager
 from bc250cc.shared.failure_text import describe_failure
 from bc250cc.shared.version import __version__
@@ -66,7 +71,7 @@ from ..components.responsive import (
 from ..components.toast import show_toast
 from ..components.toggle_switch import ToggleSwitch
 from ..components.widgets import IconBadge, InfoDialog, PillLabel, apply_shadow, icon
-from ..core.diagnostic_history import current_wording, diagnostic_report
+from ..core.diagnostic_history import clear_history, current_wording, diagnostic_report, history_entries
 from ..core.external_links import open_external_url
 from ..core.preferences import application_settings
 from ..core.state import state_cache_for
@@ -180,6 +185,9 @@ def settings_stylesheet() -> str:
     }}
     QWidget[settingsPage='true'] QFrame[settingRow='true'] {{
         background:transparent; border:none; border-bottom:1px solid {c['border_soft']};
+    }}
+    QWidget[settingsPage='true'] QFrame[settingRow='true'][lastRow='true'] {{
+        border-bottom:none;
     }}
     QWidget[settingsPage='true'] QFrame[repositoryRow='true'] {{
         background:{c['panel_raised']}; border:1px solid {c['border_soft']}; border-radius:11px;
@@ -316,6 +324,14 @@ def settings_stylesheet() -> str:
     """)
 
 
+
+#: The BC-250 kernel reads the regulator itself; a service installed earlier
+#: can no longer open the bus.
+VRM_SERVICE_REDUNDANT = (
+    "This kernel reads the regulator itself (bc250_vrm), so the BC250-Telemetry service "
+    "is not needed and cannot open the bus. Remove it here."
+)
+
 class SettingsNavButton(QPushButton):
     def __init__(self, key: str, text: str, icon_name: str, parent: QWidget | None = None):
         super().__init__(text, parent)
@@ -346,12 +362,74 @@ class ReadOnlyPathField(QLineEdit):
         self.setCursorPosition(0)
 
 
-class ActionGrid(QWidget):
-    """Responsive action container that avoids one-line button overflow."""
+class WrappedLabel(QLabel):
+    """A word-wrapped label whose height is exactly what its text needs.
 
-    def __init__(self, parent: QWidget | None = None, columns: int = 2):
+    ``QLabel.heightForWidth`` can answer one line too many for a paragraph that
+    wraps at the edge of its width: a two-line text then gets the height of
+    three and, centred in it, floats in a gap above and below. The height is
+    measured here with ``QFontMetrics``, the measurement the text is painted
+    with, and the text is anchored to the top.
+    """
+
+    def __init__(self, text: str = "", parent: QWidget | None = None):
+        super().__init__(text, parent)
+        self.setWordWrap(True)
+        self.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+    def _is_rich(self) -> bool:
+        mode = self.textFormat()
+        return mode == Qt.TextFormat.RichText or (
+            mode == Qt.TextFormat.AutoText and Qt.mightBeRichText(self.text())
+        )
+
+    def heightForWidth(self, width: int) -> int:  # noqa: N802 - Qt API name
+        if self._is_rich():
+            return super().heightForWidth(width)
+        margins = self.contentsMargins()
+        pad = 2 * self.margin()
+        inner = max(1, width - margins.left() - margins.right() - pad)
+        rect = self.fontMetrics().boundingRect(
+            QRect(0, 0, inner, 100000), int(Qt.TextFlag.TextWordWrap), self.text()
+        )
+        return rect.height() + margins.top() + margins.bottom() + pad
+
+    def _fit_height(self) -> None:
+        width = self.width()
+        if width <= 0:
+            return
+        height = self.heightForWidth(width)
+        if height > 0 and self.height() != height:
+            self.setFixedHeight(height)
+
+    def setText(self, text: str) -> None:  # noqa: N802 - Qt API name
+        super().setText(text)
+        self._fit_height()
+
+    def resizeEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        super().resizeEvent(event)
+        self._fit_height()
+
+    def changeEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        super().changeEvent(event)
+        if event.type() == QEvent.Type.FontChange:
+            self._fit_height()
+
+
+class ActionGrid(QWidget):
+    """Responsive action container that avoids one-line button overflow.
+
+    ``fit_content`` keeps every button on one row, each as wide as its own
+    label asks, when they all fit, and wraps into ``columns`` columns when
+    they do not, so one row stays one row in a language whose labels are short
+    and becomes a grid in one whose labels are long.
+    """
+
+    def __init__(self, parent: QWidget | None = None, columns: int = 2, *, fit_content: bool = False):
         super().__init__(parent)
         self._preferred_columns = max(1, int(columns))
+        self._fit_content = bool(fit_content)
         self._buttons: list[QWidget] = []
         self._grid = QGridLayout(self)
         self._grid.setContentsMargins(0, 0, 0, 0)
@@ -368,18 +446,28 @@ class ActionGrid(QWidget):
 
     def _column_count(self) -> int:
         width = self.width()
+        if self._fit_content and width > 0 and self._buttons and self._fits_one_row(width):
+            return len(self._buttons)
         if width > 0 and width < 520:
             return 1
         return self._preferred_columns
+
+    def _fits_one_row(self, width: int) -> bool:
+        spacing = self._grid.horizontalSpacing()
+        needed = sum(button.sizeHint().width() for button in self._buttons)
+        return needed + spacing * (len(self._buttons) - 1) <= width
 
     def _reflow(self) -> None:
         while self._grid.count():
             self._grid.takeAt(0)
         columns = self._column_count()
+        single_row = self._fit_content and columns == len(self._buttons) and columns > self._preferred_columns
         for index, widget in enumerate(self._buttons):
             self._grid.addWidget(widget, index // columns, index % columns)
         for column in range(columns):
-            self._grid.setColumnStretch(column, 1)
+            # A single row shares the spare width in proportion to each label.
+            weight = self._buttons[column].sizeHint().width() if single_row else 1
+            self._grid.setColumnStretch(column, max(1, weight))
 
     def resizeEvent(self, event) -> None:  # noqa: N802 - Qt API name
         super().resizeEvent(event)
@@ -405,12 +493,10 @@ class SettingRow(QFrame):
         copy_layout = QVBoxLayout(copy)
         copy_layout.setContentsMargins(0, 0, 0, 0)
         copy_layout.setSpacing(2)
-        self.title_label = QLabel(tr(title))
-        self.title_label.setWordWrap(True)
+        self.title_label = WrappedLabel(tr(title))
         self.title_label.setProperty("rowTitle", True)
-        self.description_label = QLabel(tr(description))
+        self.description_label = WrappedLabel(tr(description))
         self.description_label.setProperty("rowDescription", True)
-        self.description_label.setWordWrap(True)
         copy_layout.addWidget(self.title_label)
         copy_layout.addWidget(self.description_label)
         # Any height the row has beyond its copy goes under the description,
@@ -479,8 +565,20 @@ class SettingsGroup(QFrame):
         self.layout_root.addLayout(self.body)
 
     def add_row(self, row: SettingRow) -> None:
+        # Rows are separated by a line under each one; the last row of a group
+        # must not end in a stray line against the group's own border.
+        if self.rows:
+            self._mark_last(self.rows[-1], False)
         self.rows.append(row)
+        self._mark_last(row, True)
         self.body.addWidget(row)
+
+    @staticmethod
+    def _mark_last(row: SettingRow, last: bool) -> None:
+        row.setProperty("lastRow", last)
+        style = row.style()
+        style.unpolish(row)
+        style.polish(row)
 
     def set_compact(self, compact: bool) -> None:
         self.layout_root.setSpacing(0)
@@ -1276,8 +1374,6 @@ class SettingsPage(QWidget):
             "Telemetry",
             "Sampling, refresh cadence, passive monitoring, and the optional user daemon.",
         )
-        layout.addWidget(self._build_gddr6_manual_group())
-        layout.addWidget(self._build_vrm_manual_group())
         daemon_group = SettingsGroup("Optional daemon")
         self.daemon_status_label = QLabel("Checking…")
         self.daemon_status_label.setProperty("daemonState", True)
@@ -1296,22 +1392,18 @@ class SettingsPage(QWidget):
                 "settings/daemon_interval", daemon_interval, self._save_daemon_interval,
             ),
         ))
-        layout.addWidget(daemon_group)
-
-        daemon_card = QFrame()
-        daemon_card.setProperty("banner", True)
-        daemon_layout = QVBoxLayout(daemon_card)
-        daemon_layout.setContentsMargins(14, 12, 14, 12)
-        daemon_layout.setSpacing(8)
-        daemon_text = QLabel(
+        # What the daemon does and its buttons belong to the daemon, so they sit
+        # inside its group instead of in a second, unrelated card below.
+        daemon_text = WrappedLabel(
             "The optional user daemon records JSONL metrics and restores the saved fan mode after login: "
             "an enabled automatic curve, a named preset or the last manual speed. "
             "It never applies CPU or GPU overclock automatically."
         )
-        daemon_text.setProperty("bannerText", True)
-        daemon_text.setWordWrap(True)
-        daemon_layout.addWidget(daemon_text)
-        daemon_actions = ActionGrid(columns=2)
+        daemon_text.setProperty("rowDescription", True)
+        daemon_group.layout_root.addSpacing(8)
+        daemon_group.layout_root.addWidget(daemon_text)
+        daemon_group.layout_root.addSpacing(8)
+        daemon_actions = ActionGrid(columns=2, fit_content=True)
         self.daemon_refresh_button = self._button("Refresh status", self.refresh_daemon_status)
         self.daemon_enable_button = self._button("Enable daemon", lambda: self._change_daemon(True))
         self.daemon_disable_button = self._button("Disable daemon", lambda: self._change_daemon(False))
@@ -1319,9 +1411,14 @@ class SettingsPage(QWidget):
         daemon_actions.addWidget(self.daemon_enable_button)
         daemon_actions.addWidget(self.daemon_disable_button)
         daemon_actions.addWidget(self._button("View daemon details", self._show_daemon_details))
-        daemon_layout.addWidget(daemon_actions)
+        daemon_group.layout_root.addWidget(daemon_actions)
+        daemon_group.layout_root.addSpacing(8)
         self._action_grids.append(daemon_actions)
-        layout.addWidget(daemon_card)
+        # Everyday monitoring first; the readings that need hardware or carry
+        # a warning come after it.
+        layout.addWidget(daemon_group)
+        layout.addWidget(self._build_vrm_manual_group())
+        layout.addWidget(self._build_gddr6_manual_group())
         layout.addStretch(1)
         return page
 
@@ -1387,19 +1484,54 @@ class SettingsPage(QWidget):
         group.layout_root.addWidget(self.gddr6_firmware_note)
         group.layout_root.addSpacing(6)
         explanation = QFrame()
+        self.gddr6_help_panel = explanation
         explanation.setProperty("banner", True)
         explanation_layout = QVBoxLayout(explanation)
-        explanation_layout.setContentsMargins(14, 12, 14, 12)
-        explanation_layout.setSpacing(8)
-        for heading, text in self.GDDR6_MANUAL_EXPLANATION:
-            title = QLabel(tr(heading))
+        explanation_layout.setContentsMargins(14, 12, 14, 14)
+        explanation_layout.setSpacing(0)
+        for index, (heading, text) in enumerate(self.GDDR6_MANUAL_EXPLANATION):
+            if index:
+                explanation_layout.addSpacing(14)
+            title = WrappedLabel(tr(heading))
             title.setProperty("bannerTitle", True)
-            body = QLabel(tr(text))
+            body = WrappedLabel(tr(text))
             body.setProperty("bannerText", True)
-            body.setWordWrap(True)
             explanation_layout.addWidget(title)
+            explanation_layout.addSpacing(4)
             explanation_layout.addWidget(body)
-        group.layout_root.addWidget(explanation)
+        # Four long paragraphs under a single switch buried the controls, so
+        # they fold away until asked for. The choice is remembered.
+        self.gddr6_help_toggle = QPushButton("")
+        self.gddr6_help_toggle.setProperty("ghostAction", True)
+        self.gddr6_help_toggle.setCheckable(True)
+        self.gddr6_help_toggle.setCursor(Qt.CursorShape.PointingHandCursor)
+
+        def show_help(opened: bool) -> None:
+            explanation.setVisible(opened)
+            self.gddr6_help_toggle.setText(("\u25be  " if opened else "\u25b8  ") + tr("Details"))
+
+        def help_toggled(opened: bool) -> None:
+            self.app_settings.setValue("settings/gddr6_help_open", "true" if opened else "false")
+            show_help(opened)
+
+        opened = self._bool_value(self.app_settings.value("settings/gddr6_help_open", False), False)
+        self.gddr6_help_toggle.setChecked(opened)
+        show_help(opened)
+        self.gddr6_help_toggle.toggled.connect(help_toggled)
+        toggle_row = QWidget()
+        toggle_layout = QHBoxLayout(toggle_row)
+        toggle_layout.setContentsMargins(0, 0, 0, 0)
+        toggle_layout.addWidget(self.gddr6_help_toggle)
+        toggle_layout.addStretch(1)
+        # One container, so the gap between the button and the panel exists
+        # only while the panel is open instead of lingering when it is folded.
+        help_block = QWidget()
+        help_layout = QVBoxLayout(help_block)
+        help_layout.setContentsMargins(0, 4, 0, 0)
+        help_layout.setSpacing(8)
+        help_layout.addWidget(toggle_row)
+        help_layout.addWidget(explanation)
+        group.layout_root.addWidget(help_block)
         group.layout_root.addSpacing(10)
         return group
 
@@ -1425,14 +1557,119 @@ class SettingsPage(QWidget):
             "What the dashboard finds right now in BC250-Telemetry's snapshot.",
             self.vrm_detection_label,
         ))
+        self.apu_telemetry_button = QPushButton("")
+        self.apu_telemetry_button.setProperty("ghostAction", True)
+        self.apu_telemetry_button.clicked.connect(self._apu_telemetry_clicked)
+        group.add_row(SettingRow(
+            "BC250-Telemetry service",
+            "Installs the daemon that publishes the power delivery readings. Control "
+            "Center builds the reviewed version and installs only that service. It "
+            "needs the physical I2C modification on the board.",
+            self.apu_telemetry_button,
+        ))
         self.refresh_vrm_detection()
         return group
+
+    def _apu_telemetry_state(self) -> dict:
+        try:
+            info = detect_os_info(has_rpm_ostree=bool(shutil.which("rpm-ostree")))
+            return apu_telemetry_state(
+                family=info.family, distro_id=info.distro_id, immutable=info.immutable
+            )
+        except (OSError, RuntimeError, ValueError):
+            return {"state": "not-installed", "supported": False, "blocked_reason": ""}
+
+    def refresh_apu_telemetry_button(self) -> None:
+        button = getattr(self, "apu_telemetry_button", None)
+        if button is None:
+            return
+        state = self._apu_telemetry_state()
+        kind = state.get("state")
+        button.setToolTip("")
+        if kind == "external":
+            button.setText(tr("Installed separately"))
+            button.setEnabled(False)
+            button.setToolTip(tr(
+                "apu-telemetry.service was installed by BC250-Telemetry itself, so "
+                "Control Center leaves it alone."
+            ))
+        elif state.get("managed"):
+            button.setText(tr("Remove service"))
+            button.setEnabled(True)
+            if kernel_vrm_driver_present():
+                # Installed before booting the BC-250 kernel: harmless (the
+                # driver refuses it the bus, so nothing is read twice) but
+                # useless, and it retries forever.
+                button.setToolTip(tr(VRM_SERVICE_REDUNDANT))
+        else:
+            button.setText(tr("Install service"))
+            supported = bool(state.get("supported"))
+            button.setEnabled(supported)
+            if not supported and state.get("blocked_reason"):
+                button.setToolTip(str(state["blocked_reason"]))
+
+    def _apu_telemetry_clicked(self) -> None:
+        action = "uninstall" if self._apu_telemetry_state().get("managed") else "install"
+        if action == "install":
+            confirmation = ConfirmDialog(
+                "Install the BC250-Telemetry service?",
+                "Control Center builds the daemon from the reviewed upstream source and "
+                "installs it as a root service that reads the voltage regulators over "
+                "I2C. Without the physical I2C modification it finds nothing and only "
+                "keeps retrying. Building needs your password and an internet connection.",
+                summary=(
+                    ("Source", "github.com/onlinermm/BC250-Telemetry"),
+                    ("Installs", "apu-telemetry.service"),
+                    ("Not installed", "Web server, fan module and memory collector"),
+                    ("Writes to the board", "One PMBus page-select register; no regulator setting"),
+                ),
+                confirm_text="Build and install",
+                tone="orange",
+                parent=self,
+            )
+        else:
+            confirmation = ConfirmDialog(
+                "Remove the BC250-Telemetry service?",
+                "Stops and removes the service and its binary. The power delivery "
+                "readings stop until it is installed again.",
+                confirm_text="Remove",
+                tone="orange",
+                parent=self,
+            )
+        if confirmation.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        def success(_result: object) -> None:
+            self._state_cache.invalidate("tools")
+            self.refresh_apu_telemetry_button()
+
+        def failure(message: str) -> None:
+            InfoDialog(
+                "Could not run the BC250-Telemetry workflow",
+                message,
+                icon_name="warning_orange",
+                parent=self,
+                tone="red",
+            ).exec()
+
+        self._start_task(
+            lambda: self.controller.gestionar_apu_telemetry(action),
+            success,
+            failure,
+            controls=(self.apu_telemetry_button,),
+        )
 
     @staticmethod
     def describe_vrm_detection(probe: dict) -> str:
         daemon = str(probe.get("daemon") or "missing")
         rails = probe.get("rails") if isinstance(probe.get("rails"), dict) else {}
+        if daemon == "kernel":
+            if any(isinstance(rail, dict) and rail.get("valid") for rail in rails.values()):
+                return tr("Detected: the kernel driver (bc250_vrm) reads the regulator")
+            return tr("Not detected: the kernel driver (bc250_vrm) gets no answer from the regulator")
         if daemon == "missing":
+            if kernel_vrm_driver_present():
+                return tr("Not detected: the kernel driver (bc250_vrm) gets no answer from the regulator")
             return tr("Not detected: BC250-Telemetry is not running")
         if daemon == "unreadable":
             return tr("Not detected: its snapshot could not be read")
@@ -1448,7 +1685,11 @@ class SettingsPage(QWidget):
     def refresh_vrm_detection(self) -> None:
         label = getattr(self, "vrm_detection_label", None)
         if label is not None:
-            label.setText(self.describe_vrm_detection(sondear_telemetria_vrm()))
+            text = self.describe_vrm_detection(sondear_telemetria_vrm())
+            if kernel_vrm_driver_present() and self._apu_telemetry_state().get("managed"):
+                text = f"{text}\n{tr(VRM_SERVICE_REDUNDANT)}"
+            label.setText(text)
+        self.refresh_apu_telemetry_button()
 
     def _gddr6_manual_toggled(self, enabled: bool) -> None:
         if enabled and not self._confirm_gddr6_manual():
@@ -2332,7 +2573,7 @@ class SettingsPage(QWidget):
         """Read the history now and the system facts in the background."""
         if not hasattr(self, "diagnostics_table"):
             return
-        self._apply_diagnostic_history(diagnostic_journal.read())
+        self._apply_diagnostic_history(history_entries())
 
         def success(rows: object) -> None:
             self._apply_system_rows(list(rows) if isinstance(rows, list) else [])
@@ -2367,7 +2608,7 @@ class SettingsPage(QWidget):
                 values = (
                     datetime.fromtimestamp(entry.at).strftime("%Y-%m-%d %H:%M:%S"),
                     entry.code,
-                    tr("Terminal") if entry.source == "terminal" else tr("Window"),
+                    {"terminal": tr("Terminal"), "decky": tr("Decky Quick Access")}.get(entry.source, tr("Window")),
                     tr(current_wording(entry).summary),
                     tr(current_wording(entry).cause),
                 )
@@ -2411,7 +2652,7 @@ class SettingsPage(QWidget):
         show_toast(self, "Copied", "Paste it into your problem report.", tone="green")
 
     def _clear_diagnostic_history(self) -> None:
-        diagnostic_journal.clear()
+        clear_history()
         self._apply_diagnostic_history([])
         show_toast(self, "Diagnostic history cleared", tone="blue")
 

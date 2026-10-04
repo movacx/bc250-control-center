@@ -672,6 +672,7 @@ class WelcomeOverlay(QWidget):
         ("cpu", "CPU"),
         ("gpu", "GPU"),
         ("cu", "Compute units"),
+        ("extras", "Additional settings"),
         ("performance", "Performance"),
         ("fans", "Fans"),
         ("firmware", "Firmware (BIOS)"),

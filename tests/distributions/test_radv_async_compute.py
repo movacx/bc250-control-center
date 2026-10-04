@@ -1,8 +1,8 @@
-"""Async compute from the patched RADV alone, on Arch-family kernels 7.2+.
+"""Async compute from the patched RADV alone, on Arch-family and Fedora kernels 7.2+.
 
 Bazzite's release runs the patched RADV on the stock amdgpu of its OGC 7.2
-kernel, and the amdgpu of 7.2 is the same on CachyOS, so there the driver is
-all async compute needs. These tests pin who is offered it, what the
+kernel, and the amdgpu of 7.2 is the same on CachyOS and Fedora, so there the
+driver is all async compute needs. These tests pin who is offered it, what the
 installed files mean, what the embedded terminal runs, and the generator that
 decides, at every login, whether a session gets the patched driver.
 """
@@ -41,11 +41,14 @@ SCRIPT = ROOT / "scripts" / "system" / "bc250-async-compute-radv.sh"
         ("cachyos", "cachyos", "7.2.7-1-cachyos-bc250", False),
         ("bazzite", "bazzite", "7.2.1-ogc4.1.fc44.x86_64", False),
         ("steamos", "steamos", "7.2.0-valve1", False),
-        ("fedora", "fedora", "7.2.3-200.fc44.x86_64", False),
+        ("fedora", "fedora", "7.2.8-200.fc44.x86_64", True),
+        ("fedora", "nobara", "7.2.3-201.nobara.fc44.x86_64", True),
+        # Fedora 43's kernel: DryhoppedIPA's installer keeps it.
+        ("fedora", "fedora", "7.1.5-101.fc43.x86_64", False),
         ("debian", "debian", "7.2.0-1-amd64", False),
     ],
 )
-def test_only_arch_family_kernels_from_7_2_are_offered(family, distro_id, kernel, allowed):
+def test_only_arch_family_and_fedora_kernels_from_7_2_are_offered(family, distro_id, kernel, allowed):
     supported, reason = radv_async_supported(family=family, distro_id=distro_id, kernel=kernel)
     assert supported is allowed
     assert bool(reason) is (not allowed)
@@ -59,6 +62,8 @@ def test_bazzite_is_never_offered_this_route():
     text = SCRIPT.read_text(encoding="utf-8")
     assert 'bazzite) die "Bazzite keeps its own reviewed async-compute release' in text
     assert radv_async_supported(family="arch", kernel="7.2.7", immutable=True)[0] is False
+    # Fedora Atomic images are detected as immutable and stay out as well.
+    assert radv_async_supported(family="fedora", distro_id="fedora", kernel="7.2.8", immutable=True)[0] is False
 
 
 @pytest.fixture
@@ -69,6 +74,9 @@ def installed(tmp_path, monkeypatch):
     monkeypatch.setattr(radv, "PREFIX_ROOT", prefix_root)
     monkeypatch.setattr(radv, "CONF_DIR", conf)
     monkeypatch.setattr(radv, "GFX1013_RUN_DIR", run)
+    cmdline = tmp_path / "cmdline"
+    cmdline.write_text("root=UUID=x ro rhgb quiet\n", encoding="utf-8")
+    monkeypatch.setattr(radv, "PROC_CMDLINE", cmdline)
 
     def install(*, version=RADV_ASYNC_MESA_VERSION, enabled=True, driver=True):
         conf.mkdir(parents=True, exist_ok=True)
@@ -103,6 +111,15 @@ def test_the_state_follows_the_files_and_the_session(installed):
 
     run.mkdir(parents=True, exist_ok=True)
     (run / "loaded").write_text("patched\n", encoding="utf-8")
+    assert _state(environ={})["state"] == "deferred"
+
+
+def test_a_boot_of_dryhoppeds_patched_fedora_entry_defers_like_the_generator(installed):
+    """That entry's own generator offers its RADV; this route steps aside."""
+    install, _run = installed
+    install()
+    assert _state(environ={})["state"] == "relogin-required"
+    radv.PROC_CMDLINE.write_text("root=UUID=x ro amdgpu.sched_policy=2 bc250.gfx1013_v33=1\n", encoding="utf-8")
     assert _state(environ={})["state"] == "deferred"
 
 
@@ -147,6 +164,75 @@ def test_arch_dependencies_are_asked_through_pacman_deptest():
     text = SCRIPT.read_text(encoding="utf-8")
     assert 'pacman -T "${wanted[@]}"' in text
     assert "shaderc" in text and "vulkan-headers" in text
+
+
+def _function(name: str) -> str:
+    text = SCRIPT.read_text(encoding="utf-8")
+    return re.search(rf"^{name}\(\) \{{\n.*?^\}}\n", text, re.S | re.M).group(0)
+
+
+def test_fedora_dependencies_are_installed_through_dnf():
+    deps = _function("deps_fedora")
+    assert 'rpm -q --quiet "$package"' in deps
+    assert 'sudo dnf install -y "${missing[@]}"' in deps
+    # Mesa itself, then what the verification tests compile and read back with.
+    for package in ("meson", "ninja-build", "python3-mako", "python3-packaging", "glslang",
+                    "libdrm-devel", "spirv-tools-devel", "zlib-ng-compat-devel",
+                    "glslc", "vulkan-headers", "vulkan-loader-devel", "vulkan-tools"):
+        assert f" {package}" in deps or f"({package}" in deps, package
+    assert "fedora) deps_fedora" in _function("deps")
+
+
+@pytest.mark.parametrize(
+    ("os_release", "expected"),
+    [
+        ('ID=fedora\nVERSION_ID=44\n', "fedora"),
+        ('ID=nobara\nID_LIKE="rhel centos fedora"\n', "fedora"),
+        ('ID=bazzite\nID_LIKE="fedora"\n', "bazzite"),
+        ('ID=cachyos\nID_LIKE=arch\n', "arch"),
+        ('ID=ubuntu\nID_LIKE=debian\n', "other"),
+    ],
+)
+def test_the_script_names_the_family_the_way_the_application_does(tmp_path, os_release, expected):
+    release = tmp_path / "os-release"
+    release.write_text(os_release, encoding="utf-8")
+    os_field = _function("os_field").replace("/etc/os-release", str(release))
+    script = f"{os_field}{_function('family')}family\n"
+    output = subprocess.run(["bash", "-c", script], text=True, capture_output=True, check=True).stdout
+    assert output.strip() == expected
+
+
+def test_the_script_offers_fedora_and_still_refuses_image_based_systems():
+    check = _function("check_host")
+    assert "fedora) die" not in check
+    assert "/run/ostree-booted" in check
+    # An older Fedora kernel is sent to DryhoppedIPA's installer, not the source build.
+    assert "use DryhoppedIPA's installer instead" in check
+
+
+def test_installed_files_get_the_selinux_types_policy_expects():
+    """cp -a carried the build cache's type into /opt; restorecon replaces it."""
+    # The function embeds whole scripts in heredocs, so it ends where the next one starts.
+    text = SCRIPT.read_text(encoding="utf-8")
+    install = text[text.index("\ninstall_release() {"):text.index("\nenable_driver() {")]
+    assert 'restorecon -RF "$PREFIX_ROOT" "$LIB_DIR" "$CONF_DIR" "$HELPER" "$GENERATOR"' in install
+    assert install.index('cp -a "$stage/root$prefix"') < install.index("restorecon -RF")
+
+
+def test_the_installed_driver_belongs_to_root_not_to_the_user_who_built_it():
+    """cp -a kept the builder's ownership: every session loaded a user-replaceable driver."""
+    text = SCRIPT.read_text(encoding="utf-8")
+    install = text[text.index("\ninstall_release() {"):text.index("\nenable_driver() {")]
+    copy = install.index('cp -a "$stage/root$prefix" "$prefix.new"')
+    assert copy < install.index('chown -R root:root "$prefix.new"') < install.index('mv -- "$prefix.new" "$prefix"')
+    assert 'chmod -R go-w "$prefix.new"' in install
+
+
+def test_the_status_tool_reads_the_system_mesa_on_fedora_too():
+    text = SCRIPT.read_text(encoding="utf-8")
+    # 64- and 32-bit packages both answer: one line each, the first one shown.
+    assert "rpm -q --qf '%{VERSION}-%{RELEASE}\\n' mesa-vulkan-drivers" in text
+    assert "awk 'NR == 1 {print $NF}'" in text
 
 
 def _generator(tmp_path: Path) -> Path:
@@ -205,7 +291,8 @@ def test_a_session_gets_the_patched_driver_with_the_system_32_bit_one_and_llvmpi
 
 @pytest.mark.parametrize(
     "condition",
-    ["switched-off", "boot-menu", "no-amdgpu", "old-kernel", "kernel-side-fix", "no-driver", "bad-version"],
+    ["switched-off", "boot-menu", "no-amdgpu", "old-kernel", "kernel-side-fix", "dryhopped-boot",
+     "no-driver", "bad-version"],
 )
 def test_a_session_keeps_the_system_driver_whenever_it_should(fake_session, condition):
     root, run = fake_session
@@ -221,6 +308,8 @@ def test_a_session_keeps_the_system_driver_whenever_it_should(fake_session, cond
     elif condition == "kernel-side-fix":
         (root / "run/bc250cc-gfx1013").mkdir(parents=True)
         (root / "run/bc250cc-gfx1013/loaded").write_text("patched\n", encoding="utf-8")
+    elif condition == "dryhopped-boot":
+        (root / "proc/cmdline").write_text("root=UUID=x ro amdgpu.sched_policy=2 bc250.gfx1013_v33=1\n", encoding="utf-8")
     elif condition == "no-driver":
         next(root.glob("opt/bc250cc-radv/*/share/vulkan/icd.d/radeon_icd.x86_64.json")).unlink()
     elif condition == "bad-version":
@@ -249,3 +338,55 @@ def test_the_dashboard_offers_the_build_and_the_removal_of_the_kernel_side_fix()
     assert sidebar.gfx_quaternary_button.request_payload["action"] == "gfx1013_source_uninstall"
     assert not sidebar.gfx_quaternary_button.isHidden()
     assert RADV_ASYNC_MESA_VERSION in sidebar.gfx_card.detail.text()
+
+
+def test_fedora_on_7_2_gets_this_route_instead_of_dryhoppeds_installer():
+    from tests.infrastructure.test_upstream_preparation_presentation import _sidebar
+    from tests.infrastructure.test_upstream_preparation_presentation import (
+        _state as sidebar_state,
+    )
+
+    sidebar = _sidebar()
+    state = sidebar_state("fedora", {})
+    state.preparation_tools["gfx1013_compute"] = {
+        "reason_key": "fedora-upstream-managed",
+        "dryhopped_installed": True,
+        "radv_async": {"supported": True, "state": "not-installed", "kernel": "7.2.8-200.fc44.x86_64",
+                       "expected_version": RADV_ASYNC_MESA_VERSION},
+        "source": {"supported": False, "installed": False},
+    }
+    sidebar.set_state(state)
+
+    assert not sidebar.gfx_card.isHidden()
+    assert sidebar.gfx_primary_button.request_payload["action"] == "radv_async_install"
+    # DryhoppedIPA's leftover install is offered for removal, never for install.
+    assert sidebar.gfx_quaternary_button.request_payload["action"] == "gfx1013_fedora_uninstall"
+    assert not sidebar.gfx_quaternary_button.isHidden()
+    actions = {
+        button.request_payload["action"]
+        for button in (sidebar.gfx_primary_button, sidebar.gfx_secondary_button,
+                       sidebar.gfx_tertiary_button, sidebar.gfx_quaternary_button,
+                       sidebar.gfx_quinary_button)
+        if not button.isHidden()
+    }
+    assert "gfx1013_fedora_install" not in actions
+    assert "7.2.8-200.fc44.x86_64" in sidebar.gfx_card.detail.text()
+    assert "Fedora" in sidebar.gfx_card.scope.text()
+
+
+def test_fedora_before_7_2_keeps_dryhoppeds_installer():
+    from tests.infrastructure.test_upstream_preparation_presentation import _sidebar
+    from tests.infrastructure.test_upstream_preparation_presentation import (
+        _state as sidebar_state,
+    )
+
+    sidebar = _sidebar()
+    state = sidebar_state("fedora", {})
+    state.preparation_tools["gfx1013_compute"] = {
+        "reason_key": "fedora-upstream-managed",
+        "dryhopped_installed": False,
+        "radv_async": {"supported": False, "state": "not-installed", "kernel": "7.1.5-101.fc43.x86_64"},
+    }
+    sidebar.set_state(state)
+
+    assert sidebar.gfx_primary_button.request_payload["action"] == "gfx1013_fedora_install"

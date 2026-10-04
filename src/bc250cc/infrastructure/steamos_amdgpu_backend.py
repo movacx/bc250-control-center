@@ -21,8 +21,7 @@ STEAMOS_AMDGPU_BACKEND_ROOT = Path(
     "/usr/libexec/bc250-control-center/steamos-amdgpu-backend"
 )
 # Preserve the reviewed parent layout.  The upstream boot transaction calls
-# ``../bc250-update-persistence.sh`` (which calls the storage sibling), and
-# the Control Center telemetry overlay targets ``bc250-audio-fix/build.sh``.
+# ``../bc250-update-persistence.sh`` (which calls the storage sibling).
 STEAMOS_AMDGPU_AUDIO_FIX_ROOT = STEAMOS_AMDGPU_BACKEND_ROOT / "bc250-audio-fix"
 STEAMOS_AMDGPU_BACKEND = STEAMOS_AMDGPU_AUDIO_FIX_ROOT / "patch-driver.sh"
 STEAMOS_AMDGPU_BOOT_CONFIG = STEAMOS_AMDGPU_AUDIO_FIX_ROOT / "boot-config.sh"

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import os
 import re
 import sys
@@ -27,6 +28,21 @@ from bc250cc.domain.gpu.voltage_profiles import (
 from bc250cc.domain.gpu.voltage_profiles import (
     voltage_profile as _voltage_profile,
 )
+
+#: keyboardspecialist's SteamOS AMDGPU module (bc250-steamos) widens the Cyan
+#: Skillfish SCLK range to 350-2230 MHz and discards any GFX clock the SMU
+#: reports outside it: above 2230 MHz the whole gpu_metrics read fails, so the
+#: clock, temperature, power and load go blank in MangoHud and in this
+#: application. Its own tools stop at 2230 MHz; with its module, so does this.
+#: The same rule is enforced by privileged/lib/governor_toml.py, which writes.
+STEAMOS_TOOLKIT_GFXCLK_MAX_MHZ = 2230
+STEAMOS_TOOLKIT_GFXCLK_REASON = (
+    "The SteamOS BC-250 kernel module reports the GPU clock only up to "
+    f"{STEAMOS_TOOLKIT_GFXCLK_MAX_MHZ} MHz; above it the GPU telemetry goes blank."
+)
+#: Earlier Control Center builds widened that module's telemetry range to
+#: 500-2400 MHz and stored the SHA-256 of the module they built here.
+STEAMOS_TELEMETRY_OC_MARKER = ".bc250-control-center-telemetry-oc-2400"
 
 _TABLE_RE = re.compile(r"^\s*\[([^\[\]]+)\]\s*(?:#.*)?$")
 _COMMENTED_TABLE_RE = re.compile(
@@ -265,6 +281,43 @@ def _validate_voltage_targets(
         raise GovernorTomlError(
             f"The requested safe-points are not present in the governor TOML: {joined} MHz."
         )
+
+
+def _telemetry_overlay_attested(updates: Path) -> bool:
+    marker = updates / STEAMOS_TELEMETRY_OC_MARKER
+    module = updates / "amdgpu.ko.zst"
+    if marker.is_symlink() or module.is_symlink():
+        return False
+    try:
+        expected = marker.read_text(encoding="ascii").strip()
+        digest = hashlib.sha256(module.read_bytes()).hexdigest()
+    except (OSError, UnicodeError):
+        return False
+    return expected == digest
+
+
+def gpu_frequency_ceiling(
+    root: str | Path = "/", release: str | None = None
+) -> tuple[int | None, str]:
+    """The highest GPU clock this kernel still reports, and why.
+
+    ``None`` means no kernel limit. The SteamOS toolkit module counts while it
+    is loaded and also once it is installed for the running kernel, so the
+    limit holds from the install until the reboot that loads it.
+    """
+    root = Path(root)
+    try:
+        os_release = (root / "etc/os-release").read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return None, ""
+    if re.search(r'^ID="?steamos"?\s*$', os_release, re.MULTILINE) is None:
+        return None, ""
+    updates = root / "usr/lib/modules" / (release or os.uname().release) / "updates"
+    installed = (updates / ".bc250-gfx1013-fix").is_file()
+    loaded = (root / "sys/module/amdgpu/parameters/bc250_gfx1013_fix").exists()
+    if not (installed or loaded) or _telemetry_overlay_attested(updates):
+        return None, ""
+    return STEAMOS_TOOLKIT_GFXCLK_MAX_MHZ, STEAMOS_TOOLKIT_GFXCLK_REASON
 
 
 class GovernorTomlEditor:
@@ -664,6 +717,9 @@ class GovernorTomlEditor:
             raise GovernorTomlError("Frequency range maximum cannot be negative.")
         if minimum and maximum and int(minimum) > int(maximum):
             raise GovernorTomlError("Frequency range minimum cannot exceed maximum.")
+        ceiling, reason = gpu_frequency_ceiling()
+        if ceiling is not None and maximum and int(maximum) > ceiling:
+            raise GovernorTomlError(f"{reason} Choose a maximum of {ceiling} MHz or lower.")
         original = self._read()
         self._validate(original)
         lines = original.splitlines(keepends=True)
@@ -716,6 +772,9 @@ class GovernorTomlEditor:
             raise GovernorTomlError("Frequency floor must be an integer.") from error
         if minimum < 0:
             raise GovernorTomlError("Frequency floor cannot be negative.")
+        ceiling, reason = gpu_frequency_ceiling()
+        if ceiling is not None and minimum > ceiling:
+            raise GovernorTomlError(f"{reason} Choose a floor of {ceiling} MHz or lower.")
 
         state = self.frequency_range_state()
         if not state.get("valid"):
@@ -955,9 +1014,20 @@ class GovernorTomlEditor:
             raise GovernorTomlError(
                 "The governor TOML contains duplicate high-frequency safe-points."
             )
+        # Points the kernel cannot report stay commented even when enabling.
+        ceiling, reason = gpu_frequency_ceiling()
+        allowed = {
+            frequency for frequency in frequencies
+            if ceiling is None or frequency <= ceiling
+        }
+        if enabled and not allowed:
+            raise GovernorTomlError(
+                f"{reason} The governor TOML has no safe-point between 2000 and {ceiling} MHz."
+            )
         for block in high_blocks:
             _transform_safe_point_block(
-                lines, block.start, block.end, enabled=bool(enabled)
+                lines, block.start, block.end,
+                enabled=bool(enabled) and block.frequency in allowed,
             )
 
         # Derive safe startup bounds from the actual table rather than assuming
@@ -1049,7 +1119,7 @@ class GovernorTomlEditor:
         # Read the file back after the atomic replace. A helper exit code is not
         # sufficient evidence that all blocks were actually transformed.
         state = self.high_frequency_state()
-        expected = set(frequencies) if enabled else set()
+        expected = allowed if enabled else set()
         actual = {int(value) for value in state.get("enabled_frequencies") or ()}
         if actual != expected:
             raise GovernorTomlError(
@@ -1177,11 +1247,18 @@ class GovernorTomlEditor:
                 frequencies.append(block.frequency)
                 if block.active:
                     enabled.append(block.frequency)
+        ceiling, reason = gpu_frequency_ceiling()
         return {
             "available": bool(frequencies),
             "frequencies": tuple(sorted(set(frequencies))),
             "enabled_frequencies": tuple(sorted(set(enabled))),
             "enabled": bool(enabled),
+            # What enabling would turn on under this kernel's limit.
+            "allowed_frequencies": tuple(
+                sorted({f for f in frequencies if ceiling is None or f <= ceiling})
+            ),
+            "ceiling_mhz": ceiling,
+            "ceiling_reason": reason,
         }
 
     def safe_point_state(self) -> tuple[dict[str, int | bool], ...]:
@@ -1439,6 +1516,9 @@ class OberonYamlEditor:
             values[("voltage", "max")],
             enforce_safe_voltage=True,
         )
+        ceiling, reason = gpu_frequency_ceiling()
+        if ceiling is not None and values[("frequency", "max")] > ceiling:
+            raise OberonYamlError(f"{reason} Choose a maximum of {ceiling} MHz or lower.")
         original = self._read()
         bounds = self._bounds(original)
         lines = original.splitlines(keepends=True)

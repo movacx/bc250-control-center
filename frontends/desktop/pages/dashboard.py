@@ -4,8 +4,9 @@ import logging
 import time
 from typing import NamedTuple
 
-from PyQt6.QtCore import QPoint, QRect, QTimer, pyqtSignal
+from PyQt6.QtCore import QPoint, QRect, Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
+    QDialog,
     QGridLayout,
     QSizePolicy,
     QVBoxLayout,
@@ -13,6 +14,10 @@ from PyQt6.QtWidgets import (
 )
 
 from bc250cc.infrastructure.install_source import detect_install_source
+from bc250cc.infrastructure.vrm_telemetry_reader import (
+    kernel_vrm_driver_present,
+    sondear_telemetria_vrm,
+)
 from bc250cc.infrastructure.release_check import (
     RELEASES_PAGE_URL,
     check_for_update,
@@ -39,6 +44,7 @@ from ..components.responsive import (
     configure_responsive_scroll_area,
 )
 from ..components.toast import show_toast
+from ..components.page_widgets import ConfirmDialog
 from ..components.widgets import InfoDialog
 from ..core.attention import attention_items
 from ..core.dashboard_presenter import FAN_OWNER_LABELS
@@ -99,6 +105,27 @@ REPORT_URL = (
 )
 
 
+#: The three answers to "why is Power delivery empty?", one per situation.
+VRM_HELP_SERVICE = (
+    "These readings come from the board's voltage regulator (PMIC) over I2C, which "
+    "needs the physical I2C modification: two wires between I2C_HEADER1 and TPMS1. "
+    "With the modification in place, open Settings › Telemetry and install the "
+    "BC250-Telemetry service under Power delivery (I2C mod). The readings appear here "
+    "a few seconds after it starts."
+)
+VRM_HELP_KERNEL = (
+    "Your kernel reads the voltage regulator itself (bc250_vrm), so no service is "
+    "needed: with the physical I2C modification wired, the readings appear here on "
+    "their own. The BC250-Telemetry service cannot open the bus on this kernel; if it "
+    "is installed, remove it in Settings › Telemetry."
+)
+VRM_HELP_NO_ANSWER = (
+    "The BC250-Telemetry service is running, but the voltage regulator does not answer "
+    "over I2C. Check the two wires of the I2C modification between I2C_HEADER1 and "
+    "TPMS1, then look at Settings › Telemetry › Automatic detection."
+)
+
+
 class DashboardPage(QWidget):
     """GPU-first system overview with one real preparation surface."""
 
@@ -109,6 +136,9 @@ class DashboardPage(QWidget):
     action_requested = pyqtSignal(str)
     dependency_action_requested = pyqtSignal(object)
     driver_support_requested = pyqtSignal(str)
+    #: Every state the page applies, for the Additional settings copy of the
+    #: preparation tabs, which reads the same tools snapshot.
+    state_applied = pyqtSignal(object)
     #: "See what's new" in the update bubble: the window opens the updater.
     update_requested = pyqtSignal()
 
@@ -277,6 +307,16 @@ class DashboardPage(QWidget):
             ("gpu_temperature", "GPU rail temperature"),
         ):
             self.vrm_strip.add(key, label)
+        # A stock board only ever said "Requires the I2C modification", with
+        # nothing about where the readings are then switched on.
+        self.vrm_help_button = QPushButton(tr("How to enable"))
+        self.vrm_help_button.setProperty("dashboardCardAction", True)
+        self.vrm_help_button.clicked.connect(self._show_vrm_help)
+        self.vrm_help_button.hide()
+        # Where the "Requires the I2C modification" note was, at the right of
+        # the title like the GDDR6 card's "Monitor live": the dialog says that
+        # and what to do about it.
+        self.vrm_strip.head.addWidget(self.vrm_help_button, 0, Qt.AlignmentFlag.AlignVCenter)
         self.main_layout.addWidget(self.vrm_strip)
 
         self.readiness = PreparationSidebar()
@@ -388,6 +428,20 @@ class DashboardPage(QWidget):
             self.timer.stop()
             self._live_refresher.set_active(False)
             self.live_timer.stop()
+
+    def feed_state(self, active: bool) -> None:
+        """Keep reading the tools snapshot for another page while hidden.
+
+        Only the five-second state read runs; the one-second live sample stays
+        off, since nothing outside the Dashboard shows it.
+        """
+        if active:
+            if not self.timer.isActive():
+                self.timer.start()
+            self._refresher.activate(fresh_for=2.5)
+        elif not self._updates_active:
+            self._refresher.set_active(False)
+            self.timer.stop()
 
     def retranslate_dynamic_copy(self) -> None:
         self.readiness.retranslate_dynamic_copy()
@@ -709,6 +763,7 @@ class DashboardPage(QWidget):
         self._apply_cpu_card(state)
         self._apply_fan_card(state)
         self.readiness.set_state(state)
+        self.state_applied.emit(state)
         self._announce_attention(state)
 
     def _announce_attention(self, state: DashboardState) -> None:
@@ -1152,6 +1207,26 @@ class DashboardPage(QWidget):
         detail = f"{state.vrm_cpu_power_w:.1f} W" if state.vrm_cpu_power_w > 0 else ""
         return self._format_temperature(state.vrm_cpu_temperature_c), detail
 
+    def _show_vrm_help(self) -> None:
+        """Where the power delivery readings come from on this board, and the
+        one place they are switched on: Settings › Telemetry."""
+        if kernel_vrm_driver_present():
+            message = VRM_HELP_KERNEL
+        elif str(sondear_telemetria_vrm().get("daemon") or "missing") in {"running", "stale"}:
+            message = VRM_HELP_NO_ANSWER
+        else:
+            message = VRM_HELP_SERVICE
+        dialog = ConfirmDialog(
+            "Show the power delivery readings",
+            message,
+            confirm_text="Open Telemetry settings",
+            eyebrow="Power delivery",
+            tone="blue",
+            parent=self,
+        )
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self.action_requested.emit("telemetry_settings")
+
     def _update_vrm_strip(self, state) -> None:
         """The rails, whether or not this board can measure them.
 
@@ -1166,7 +1241,8 @@ class DashboardPage(QWidget):
         if not available and self._vrm_manual:
             self._show_vrm_probe(state.vrm_probe)
             return
-        strip.set_note("" if available else tr("Requires the I2C modification"))
+        strip.set_note("")
+        self.vrm_help_button.setVisible(not available)
         # Without the link the band is one line that says so, not eight
         # cells repeating "Not detected".
         strip.set_readings_visible(available)
@@ -1250,7 +1326,10 @@ class DashboardPage(QWidget):
     @staticmethod
     def _vrm_probe_note(daemon: str, probe: dict, rails) -> str:
         if daemon == "missing":
-            return tr("Manual mode · BC250-Telemetry is not publishing, so there is nothing to read")
+            return tr(
+                "Manual mode · BC250-Telemetry is not publishing, so there is nothing to read. "
+                "Install its service in Settings › Telemetry."
+            )
         if daemon == "unreadable":
             return tr("Manual mode · BC250-Telemetry's snapshot could not be read")
         if daemon == "stale":

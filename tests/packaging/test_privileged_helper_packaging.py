@@ -820,8 +820,8 @@ def test_cpu_smu_helper_uses_root_owned_audited_vendor_payload():
 
     helper = _text(helper_path)
     assert "bc250_smu_oc_vendor.zip" in helper
-    assert "EXPECTED_VENDOR_COMMIT = '43d6b4c6e38c57bc9ec8908c44675ce7d5fd3d2f'" in helper
-    assert "EXPECTED_VENDOR_SHA256 = '741f85266b6d2c5d52c9bcacaca0042c8732dc0ebae586f902e835cc79bc81ea'" in helper
+    assert "EXPECTED_VENDOR_COMMIT = '327014d6515d7108b1144adfa7203b4cc2eefd0b'" in helper
+    assert "EXPECTED_VENDOR_SHA256 = '74d80d6bf713b8f62f1ce7d325c5eb17c8a7d9dd2f7ccf5c4c7637f3a1de83ef'" in helper
     assert "hashlib.sha256(VENDOR_ZIP.read_bytes()).hexdigest()" in helper
     assert "apply-live" in helper
     assert "install-boot" in helper
@@ -832,7 +832,7 @@ def test_cpu_smu_helper_uses_root_owned_audited_vendor_payload():
 
     with zipfile.ZipFile(vendor_path) as archive:
         names = set(archive.namelist())
-        assert archive.read("UPSTREAM_COMMIT").decode().strip() == "43d6b4c6e38c57bc9ec8908c44675ce7d5fd3d2f"
+        assert archive.read("UPSTREAM_COMMIT").decode().strip() == "327014d6515d7108b1144adfa7203b4cc2eefd0b"
         assert "LICENSE" in names
         assert "bc250_detect.py" in names
         assert "bc250_apply.py" in names
@@ -1038,6 +1038,8 @@ def _qam_cpu_helper(tmp_path, monkeypatch):
         lambda path, maximum_size=64 * 1024: path.is_file() and not path.is_symlink() and path.stat().st_size <= maximum_size,
     )
     monkeypatch.setattr(namespace["shutil"], "which", lambda *_args, **_kwargs: "/usr/bin/stress")
+    # The stepped stress test needs the real SMU; by default every step holds.
+    monkeypatch.setitem(scope, "_stress_test_held_scale", lambda frequency, _scale, _temperature: frequency)
     return namespace, scope, boot_id
 
 
@@ -1201,6 +1203,39 @@ def test_qam_cpu_manual_scale_failure_leaves_no_installable_manual_evidence(
 
     monkeypatch.setitem(scope, "run_vendor_module", lambda *_args, **_kwargs: 9)
     assert namespace["action_apply_qam_scale"](["3700", "-30", "90"]) == 9
+    assert not scope["QAM_MANUAL_CONFIG"].exists()
+    assert not scope["QAM_MANUAL_EVIDENCE"].exists()
+
+
+def test_qam_cpu_manual_scale_is_stress_tested_and_restores_detection_when_it_fails(
+    tmp_path, monkeypatch, capsys
+):
+    namespace, scope, _boot_id = _qam_cpu_helper(tmp_path, monkeypatch)
+    calls = []
+
+    def fake_vendor(module, args, *, pass_fds=()):
+        calls.append((module, list(args)))
+        if module == "bc250_detect":
+            descriptor = pass_fds[0]
+            os.ftruncate(descriptor, 0)
+            os.lseek(descriptor, 0, os.SEEK_SET)
+            os.write(descriptor, b"[overclock]\nfrequency = 3700\nscale = -34\nmax_temperature = 90\n")
+        return 0
+
+    monkeypatch.setitem(scope, "run_vendor_module", fake_vendor)
+    assert namespace["action_detect_qam"](["3700", "1200", "90"]) == 0
+    capsys.readouterr()
+    tested = []
+    monkeypatch.setitem(
+        scope, "_stress_test_held_scale",
+        lambda frequency, scale, temperature: tested.append((frequency, scale, temperature)) or 3600,
+    )
+
+    assert namespace["action_apply_qam_scale"](["3700", "-45", "90"]) == 57
+    assert tested == [(3700, -45, 90)]
+    assert "held only up to 3600 MHz" in capsys.readouterr().err
+    # The detected profile is put back, and nothing manual becomes installable.
+    assert calls[-1] == ("bc250_apply", ["--apply", str(scope["QAM_CONFIG"])])
     assert not scope["QAM_MANUAL_CONFIG"].exists()
     assert not scope["QAM_MANUAL_EVIDENCE"].exists()
 

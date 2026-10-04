@@ -3,6 +3,8 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+import pytest
+
 import bc250cc.infrastructure.dependencias_repository as dependencies_module
 from bc250cc.infrastructure.dependencias_repository import (
     STEAMOS_CORE_UNLOCK_REVIEWED_COMMIT,
@@ -54,6 +56,8 @@ def _repository(tmp_path: Path, monkeypatch):
     )
     repository._comando_preparar_nct6687_control_pwm = lambda: 'echo "prepare pwm"'
     repository._abrir_terminal = lambda command, _title: command
+    # The host's own governor configuration is not the subject here.
+    repository._steamos_module_frequency_blocker = lambda: ""
     monkeypatch.setattr(
         dependencies_module,
         "ensure_no_incompatible_governors",
@@ -297,3 +301,30 @@ def test_steamos_cyan_source_and_release_are_pinned_for_reproducible_clean_insta
     assert dependencies_module.STEAMOS_CYAN_REVIEWED_COMMIT in command
     assert f"BC250_CYAN_RELEASE_TAG={dependencies_module.STEAMOS_CYAN_REVIEWED_RELEASE}" in command
     assert dependencies_module.STEAMOS_CYAN_REVIEWED_RELEASE == "v0.4.13"
+
+
+def test_the_kernel_module_waits_until_gpu_points_above_its_limit_are_off(tmp_path, monkeypatch):
+    repository = _repository(tmp_path, monkeypatch)
+    repository._steamos_module_frequency_blocker = lambda: "turn the points off first"
+
+    with pytest.raises(RuntimeError, match="turn the points off first"):
+        repository.preparar_compatibilidad_steamos()
+
+
+def test_the_toolkit_is_built_unmodified_and_an_old_tree_is_cleaned_once(tmp_path, monkeypatch):
+    repository = _repository(tmp_path, monkeypatch)
+    command = repository.preparar_compatibilidad_steamos()
+
+    # No app overlay any more: the reviewed build.sh is used as committed.
+    assert "telemetry-oc-overlay" not in command
+    assert "bc250-steamos-amdgpu-overlay" not in command
+    assert "BC250_CONTROL_CENTER_OC_TELEMETRY" not in command
+    audio = f"{tmp_path}/ResourceTools/bc250-steamos/bc250-audio-fix"
+    # Exit 75 (tree prepared by an older toolkit) cleans and builds once more.
+    first = command.index(f"/usr/bin/bash {audio}/build.sh || bc250_build_rc=$?")
+    retry = command.index('if [ "$bc250_build_rc" = 75 ]; then', first)
+    clean = command.index(f"/usr/bin/bash {audio}/clean.sh;", retry)
+    rebuild = command.index(f"/usr/bin/bash {audio}/build.sh;", clean)
+    assert first < retry < clean < rebuild
+    assert 'elif [ "$bc250_build_rc" != 0 ]; then exit "$bc250_build_rc"; fi' in command
+    assert "clean.sh --all" not in command

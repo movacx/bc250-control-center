@@ -73,11 +73,14 @@ def _together(*resolvers):
     return resolve
 
 
-def _readiness(window):
+def _readiness(window, where: str = "dashboard"):
+    """The preparation panel: the Dashboard's, or Additional settings' copy."""
+    if where == "extras":
+        return _attribute("extras_page", "panel")(window)
     return _attribute("dashboard", "readiness")(window)
 
 
-def _preparation_tab(key: str):
+def _preparation_tab(key: str, where: str = "dashboard"):
     """A tab of *Prepare BC250 system*, with what is on it.
 
     The button alone would highlight a word and leave the user to guess what
@@ -88,7 +91,7 @@ def _preparation_tab(key: str):
     """
 
     def resolve(window):
-        readiness = _readiness(window)
+        readiness = _readiness(window, where)
         buttons = getattr(readiness, "tab_buttons", None) if readiness else None
         index = readiness.tab_index(key) if readiness is not None else -1
         if not buttons or not 0 <= index < len(buttons):
@@ -103,7 +106,7 @@ def _preparation_tab(key: str):
     return resolve
 
 
-def _open_preparation_tab(key: str):
+def _open_preparation_tab(key: str, where: str = "dashboard"):
     """Select that tab, and bring the whole panel into view while at it.
 
     The panel sits at the foot of a page taller than the window, so without
@@ -113,7 +116,7 @@ def _open_preparation_tab(key: str):
     """
 
     def arrange(window):
-        readiness = _readiness(window)
+        readiness = _readiness(window, where)
         if readiness is None:
             return
         index = readiness.tab_index(key)
@@ -124,10 +127,10 @@ def _open_preparation_tab(key: str):
 
 
 def _memory_card(name: str):
-    """One card of the Memory & Swap tab."""
+    """One card of the Memory & Swap tab, which lives on Additional settings."""
 
     def resolve(window):
-        readiness = _readiness(window)
+        readiness = _readiness(window, "extras")
         return getattr(readiness, name, None) if readiness else None
 
     return resolve
@@ -261,68 +264,6 @@ def tour_stops() -> tuple[TourStop, ...]:
         ),
         TourStop(
             page="dashboard",
-            anchor=_preparation_tab("compatibility"),
-            arrange=_open_preparation_tab("compatibility"),
-            title=tr("Compatibility: make it run better"),
-            body=tr(
-                "Fixes and extras that improve how the board performs: the GPU "
-                "governor, the graphics stack, the power-management "
-                "correction. Some of them replace the kernel or Mesa — the one "
-                "you have now always stays as a fallback you can boot into."
-            ),
-        ),
-        TourStop(
-            page="dashboard",
-            anchor=_preparation_tab("memory"),
-            arrange=_open_preparation_tab("memory"),
-            title=tr("Memory & Swap: when the RAM runs out"),
-            body=tr(
-                "The BC250 shares its memory between the processor and the "
-                "graphics. When games fill it, the system needs somewhere to "
-                "put the overflow, or the game closes. This tab decides where "
-                "that goes, how much the graphics may borrow, and how much is "
-                "set aside for video memory."
-            ),
-        ),
-        TourStop(
-            page="dashboard",
-            anchor=_memory_card("memory_swap_card"),
-            arrange=_open_preparation_tab("memory"),
-            title=tr("Swap and compression: pick one"),
-            body=tr(
-                "Disk swap is a file on the SSD that catches the overflow: "
-                "slow but roomy. ZRAM squeezes the overflow and keeps it in "
-                "RAM: fast but smaller. ZSWAP does both — compresses first, "
-                "sends the rest to disk. Not sure? Disk swap of 16 GiB is the "
-                "safe choice. Restore puts everything back as it was."
-            ),
-        ),
-        TourStop(
-            page="dashboard",
-            anchor=_memory_card("memory_ttm_card"),
-            arrange=_open_preparation_tab("memory"),
-            title=tr("TTM limit: how much the graphics may borrow"),
-            body=tr(
-                "Besides its own video memory, the GPU borrows normal RAM for "
-                "textures. TTM is the ceiling on that loan. Higher helps big "
-                "games; too high leaves the system without room. Move along "
-                "the line to choose, then press Apply TTM. It needs a restart."
-            ),
-        ),
-        TourStop(
-            page="dashboard",
-            anchor=_memory_card("memory_vram_card"),
-            arrange=_open_preparation_tab("memory"),
-            title=tr("VRAM size: memory reserved for video"),
-            body=tr(
-                "This is the part of the RAM set aside only for the GPU when "
-                "the board starts. More VRAM helps games that check for it; "
-                "the rest stays for the system. The change is written to the "
-                "board's firmware settings and takes effect after a restart."
-            ),
-        ),
-        TourStop(
-            page="dashboard",
             anchor=_preparation_tab("decky"),
             arrange=_open_preparation_tab("decky"),
             title=tr("Decky: controls from the couch"),
@@ -331,17 +272,6 @@ def tour_stops() -> tuple[TourStop, ...]:
                 "or Steam Big Picture. Install it and you can change fan speed "
                 "and clocks from the Steam overlay, with a controller, without "
                 "coming back to this window."
-            ),
-        ),
-        TourStop(
-            page="dashboard",
-            anchor=_preparation_tab("drivers"),
-            arrange=_open_preparation_tab("drivers"),
-            title=tr("Drivers: get the rest of the hardware working"),
-            body=tr(
-                "The things around the board rather than the board itself: "
-                "Wi-Fi adapters and printers. If something is plugged in and "
-                "the system cannot see it, this is the tab to try."
             ),
         ),
         TourStop(
@@ -520,6 +450,80 @@ def tour_stops() -> tuple[TourStop, ...]:
                 "the weaker engine, so 20 + 18 works like 18 + 18: keep both "
                 "equal. Apply now tests it live; a restart undoes it until you "
                 "save it."
+            ),
+        ),
+        # ----------------------------------------------- additional settings
+        TourStop(
+            page="extras",
+            anchor=_preparation_tab("compatibility", "extras"),
+            arrange=_open_preparation_tab("compatibility", "extras"),
+            title=tr("Compatibility: make it run better"),
+            body=tr(
+                "Fixes and extras that improve how the board performs: the GPU "
+                "governor, the graphics stack, the power-management "
+                "correction. Some of them replace the kernel or Mesa — the one "
+                "you have now always stays as a fallback you can boot into."
+            ),
+        ),
+        TourStop(
+            page="extras",
+            anchor=_preparation_tab("memory", "extras"),
+            arrange=_open_preparation_tab("memory", "extras"),
+            title=tr("Memory & Swap: when the RAM runs out"),
+            body=tr(
+                "The BC250 shares its memory between the processor and the "
+                "graphics. When games fill it, the system needs somewhere to "
+                "put the overflow, or the game closes. This tab decides where "
+                "that goes, how much the graphics may borrow, and how much is "
+                "set aside for video memory."
+            ),
+        ),
+        TourStop(
+            page="extras",
+            anchor=_memory_card("memory_swap_card"),
+            arrange=_open_preparation_tab("memory", "extras"),
+            title=tr("Swap and compression: pick one"),
+            body=tr(
+                "Disk swap is a file on the SSD that catches the overflow: "
+                "slow but roomy. ZRAM squeezes the overflow and keeps it in "
+                "RAM: fast but smaller. ZSWAP does both — compresses first, "
+                "sends the rest to disk. Not sure? Disk swap of 16 GiB is the "
+                "safe choice. Restore puts everything back as it was."
+            ),
+        ),
+        TourStop(
+            page="extras",
+            anchor=_memory_card("memory_ttm_card"),
+            arrange=_open_preparation_tab("memory", "extras"),
+            title=tr("TTM limit: how much the graphics may borrow"),
+            body=tr(
+                "Besides its own video memory, the GPU borrows normal RAM for "
+                "textures. TTM is the ceiling on that loan. Higher helps big "
+                "games; too high leaves the system without room. Move along "
+                "the line to choose, then press Apply TTM. It needs a restart."
+            ),
+        ),
+        TourStop(
+            page="extras",
+            anchor=_memory_card("memory_vram_card"),
+            arrange=_open_preparation_tab("memory", "extras"),
+            title=tr("VRAM size: memory reserved for video"),
+            body=tr(
+                "This is the part of the RAM set aside only for the GPU when "
+                "the board starts. More VRAM helps games that check for it; "
+                "the rest stays for the system. The change is written to the "
+                "board's firmware settings and takes effect after a restart."
+            ),
+        ),
+        TourStop(
+            page="extras",
+            anchor=_preparation_tab("drivers", "extras"),
+            arrange=_open_preparation_tab("drivers", "extras"),
+            title=tr("Drivers: get the rest of the hardware working"),
+            body=tr(
+                "The things around the board rather than the board itself: "
+                "Wi-Fi adapters and printers. If something is plugged in and "
+                "the system cannot see it, this is the tab to try."
             ),
         ),
         # ----------------------------------------------------- performance

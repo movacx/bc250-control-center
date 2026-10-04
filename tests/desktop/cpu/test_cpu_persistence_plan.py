@@ -329,3 +329,40 @@ def test_the_confirmation_shows_the_active_scale_and_drops_repeated_rows(qtbot):
     assert "Detected result" not in labels
     assert "Scale" not in labels
     assert "automatic detection" in shown["notice"]
+
+
+def test_stress_tested_manual_scale_saves_through_detector_evidence():
+    # The stress-tested manual apply is recorded as the detection run and
+    # clears the live-test record; it must still be savable for boot.
+    for frequency in (3850, 3900):
+        result = plan_cpu_persistence(
+            detection(snapshot={
+                "run_id": "run-1",
+                "frequency": 3850,
+                "requested_frequency": 3900,
+                "scale": -35,
+                "temperature": 90,
+            }),
+            scale_override=-35,
+            candidate_frequency=frequency,
+            candidate_temperature=90,
+            live_state={},
+        )
+
+        assert isinstance(result, CpuPersistencePlan)
+        assert result.scale_override is None
+        assert result.command_frequency is None
+        assert result.boot_candidate == "3850 MHz | scale -35 | 90 °C"
+
+
+def test_manual_scale_differing_from_detector_still_needs_live_test():
+    result = plan_cpu_persistence(
+        detection(),
+        scale_override=-35,
+        candidate_frequency=3850,
+        candidate_temperature=85,
+        live_state={},
+    )
+
+    assert isinstance(result, PersistenceBlocker)
+    assert result.title == "Apply this scale temporarily first"

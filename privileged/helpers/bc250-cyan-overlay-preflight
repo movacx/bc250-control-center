@@ -21,7 +21,6 @@ import tempfile
 import time
 
 
-SOURCE = "/dev/shm/patched_freq_metrics"
 DEVICE = Path("/sys/bus/pci/devices/0000:01:00.0")
 
 
@@ -99,37 +98,77 @@ def _trusted_self() -> bool:
     return True
 
 
-def main() -> int:
-    try:
-        mounts = subprocess.run(
-            ["/usr/bin/findmnt", "-rn", "-S", SOURCE, "-o", "TARGET"],
-            capture_output=True,
-            text=True,
-            timeout=4,
-            check=False,
-        ).stdout.splitlines()
-    except (OSError, subprocess.SubprocessError):
-        mounts = []
-    prefix = str(DEVICE / "hwmon") + "/"
-    for raw_target in mounts:
-        target = Path(raw_target.strip())
-        # Do not unmount arbitrary mounts: only Cyan's exact transient source
-        # and only a BC-250 amdgpu freq1_input target are eligible.
-        if (
-            str(target).startswith(prefix)
-            and target.name == "freq1_input"
-            and target.parent.name.startswith("hwmon")
+#: Cyan's two transient tmpfs sources.  When Cyan stops it deletes the files
+#: but leaves the bind mounts behind, so mountinfo then reports their root as
+#: "/patched_gpu_metrics//deleted".  A new Cyan cannot bind on top of such a
+#: stale mount (move_mount: ENOENT), exits, and systemd restarts it forever.
+CYAN_MOUNT_ROOTS = ("/patched_freq_metrics", "/patched_gpu_metrics")
+
+
+def _unescape_mountinfo(field: str) -> str:
+    return (
+        field.replace("\\040", " ").replace("\\011", "\t")
+        .replace("\\012", "\n").replace("\\134", "\\")
+    )
+
+
+def stale_cyan_mounts(mountinfo: str, device: Path) -> list[str]:
+    """Cyan's own bind mounts below the BC-250 device, newest first.
+
+    Only the exact Cyan tmpfs sources (live or deleted) on the device's
+    gpu_metrics file or an amdgpu hwmon freq1_input are eligible; any other
+    mount is left alone.
+    """
+    device_root = os.path.realpath(device)
+    targets: list[str] = []
+    for line in mountinfo.splitlines():
+        fields = line.split()
+        if len(fields) < 5:
+            continue
+        root = _unescape_mountinfo(fields[3])
+        target = _unescape_mountinfo(fields[4])
+        if root.endswith("//deleted"):
+            root = root[: -len("//deleted")]
+        if root not in CYAN_MOUNT_ROOTS:
+            continue
+        relative = os.path.relpath(target, device_root)
+        if relative.startswith(".."):
+            continue
+        parts = Path(relative).parts
+        if parts == ("gpu_metrics",) or (
+            len(parts) == 3 and parts[0] == "hwmon"
+            and parts[1].startswith("hwmon") and parts[2] == "freq1_input"
         ):
+            targets.append(target)
+    return list(reversed(targets))
+
+
+def unmount_stale_cyan_mounts() -> None:
+    # Mounts can be stacked after several failed restarts: repeat until none
+    # remains, bounded so a mount that refuses to go cannot hang the start.
+    for _ in range(16):
+        try:
+            mountinfo = Path("/proc/self/mountinfo").read_text(encoding="utf-8")
+        except OSError:
+            return
+        targets = stale_cyan_mounts(mountinfo, DEVICE)
+        if not targets:
+            return
+        for target in targets:
             try:
                 subprocess.run(
-                    ["/usr/bin/umount", "-l", "--", str(target)],
+                    ["/usr/bin/umount", "-l", "--", target],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                     timeout=4,
                     check=False,
                 )
             except (OSError, subprocess.SubprocessError):
-                pass
+                return
+
+
+def main() -> int:
+    unmount_stale_cyan_mounts()
 
     # Avoid racing udev directly after a governor stop, but never hold the
     # service start for a long time.  On some SteamOS kernels the target is

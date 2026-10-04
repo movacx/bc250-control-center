@@ -191,6 +191,9 @@ def main(argv):
         if len(argv) != 2:
             raise RuntimeError(f'{action} does not accept bounds.')
         result = editor.set_high_frequency_points(action == 'enable-high-points')
+        ceiling, reason = module.gpu_frequency_ceiling()
+        if action == 'enable-high-points' and ceiling is not None:
+            print(f'{reason} Safe-points above {ceiling} MHz stay disabled.')
     print('Governor configuration updated and validated.' if result.changed else 'Governor configuration already matched the requested state.')
     return 0
 

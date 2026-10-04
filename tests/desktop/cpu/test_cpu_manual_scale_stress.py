@@ -282,3 +282,30 @@ def test_the_unified_view_offers_manual_scale_without_a_detection(qtbot):
 
     view._apply_tuning(CpuTuningState(manual_scale_available=False, applying=True))
     assert not view.manual_scale_check.isEnabled()
+
+
+def test_a_transient_smu_timeout_is_retried_instead_of_failing(monkeypatch):
+    """Upstream raises 'status 0x00' when the SMU is briefly busy; repeating works."""
+    helper = _helper()
+    results = [
+        type("Result", (), {"returncode": 1, "stderr": b"RuntimeError: smu returned status 0x00 for queue 3 msg 0x8F"})(),
+        type("Result", (), {"returncode": 0, "stderr": b""})(),
+    ]
+    monkeypatch.setattr(helper.subprocess, "run", lambda *a, **k: results.pop(0))
+    monkeypatch.setattr(helper.time, "sleep", lambda _s: None)
+
+    assert helper.run_vendor_module("bc250_detect", []) == 0
+    assert not results
+
+
+def test_a_real_detector_failure_is_not_retried(monkeypatch):
+    helper = _helper()
+    calls = []
+
+    def fake_run(*_a, **_k):
+        calls.append(1)
+        return type("Result", (), {"returncode": 3, "stderr": b"ValueError: out of bounds"})()
+
+    monkeypatch.setattr(helper.subprocess, "run", fake_run)
+    assert helper.run_vendor_module("bc250_detect", []) == 3
+    assert len(calls) == 1

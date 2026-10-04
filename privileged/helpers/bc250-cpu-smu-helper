@@ -9,6 +9,8 @@ writable ResourceTools checkout.
 from __future__ import annotations
 
 import configparser
+import contextlib
+import fcntl
 import hashlib
 import io
 import json
@@ -41,13 +43,104 @@ QAM_EVIDENCE_SCHEMA = 1
 QAM_MANUAL_EVIDENCE_SCHEMA = 1
 QAM_PUBLIC_STATE_SCHEMA = 1
 QAM_HELPER_PROTOCOL = 8
-EXPECTED_VENDOR_COMMIT = '43d6b4c6e38c57bc9ec8908c44675ce7d5fd3d2f'
-EXPECTED_VENDOR_SHA256 = '741f85266b6d2c5d52c9bcacaca0042c8732dc0ebae586f902e835cc79bc81ea'
+EXPECTED_VENDOR_COMMIT = '327014d6515d7108b1144adfa7203b4cc2eefd0b'
+EXPECTED_VENDOR_SHA256 = '74d80d6bf713b8f62f1ce7d325c5eb17c8a7d9dd2f7ccf5c4c7637f3a1de83ef'
+#: BC250-Telemetry's optional memory collector keeps this lock for as long as
+#: it runs; the GDDR6 helpers already take it, and a CPU tuning run must not
+#: share the SMU mailbox with it either.
+COLLECTOR_SMU_LOCK = pathlib.Path('/run/bc250-memory/smu.lock')
+#: Held exclusively by a CPU tuning run for its whole length, and taken shared,
+#: for one sample at a time, by the GDDR6 helpers. See ``smu_exclusive_run``.
+SMU_RUN_LOCK = pathlib.Path('/run/bc250-smu-run.lock')
+#: How long a run waits for a sample that is already in flight to finish.
+SMU_RUN_WAIT_SECONDS = 15.0
+#: The BC-250 kernel's GDDR6 temperature driver. It is off by default, and when
+#: it is loaded, anything that reads its temperatures talks to the SMU through
+#: the mailbox a tuning run is using, and the two cannot coordinate.
+KERNEL_MEMORY_MODULE = pathlib.Path('/sys/module/bc250_memory')
+#: The actions that send messages to the SMU. Reading state, or writing the
+#: boot configuration, does not and is never held back by this.
+SMU_LIVE_ACTIONS = frozenset({
+    'detect', 'detect-qam', 'apply-qam-scale', 'apply-live', 'verify-scale',
+})
 
 
 def fail(message: str, code: int = 1) -> int:
     print(f'ERR {message}', file=sys.stderr, flush=True)
     return code
+
+
+class SmuInUse(RuntimeError):
+    """Another program is using the SMU mailbox; says what happened and what to do."""
+
+    def __init__(self, what: str, how: str) -> None:
+        super().__init__(what)
+        self.what = what
+        self.how = how
+
+
+@contextlib.contextmanager
+def smu_exclusive_run(
+    *,
+    collector_lock: pathlib.Path = COLLECTOR_SMU_LOCK,
+    run_lock: pathlib.Path = SMU_RUN_LOCK,
+    wait: float = SMU_RUN_WAIT_SECONDS,
+):
+    """Keep every other SMU sampler away for the whole length of a tuning run.
+
+    The SMU has one mailbox and each message is several register writes. The
+    vendor payload locks the PCI window around every 32-bit access, not around a
+    message, so a sample from another program can land between two steps of a
+    message: it clears the response register or overwrites the argument, and
+    the payload then polls a response that never comes. That is the
+    ``smu returned status 0x00`` failure: it hit a different message each time.
+
+    Two kinds of sampler are kept out. BC250-Telemetry's memory collector holds
+    its own lock for its whole life, so while it runs the tuning is refused
+    before anything reaches the SMU. The GDDR6 helpers take ``run_lock`` shared
+    for one sample at a time, so the run waits for a sample already in flight and
+    then holds it exclusively: they stand aside until it is released.
+    """
+    try:
+        probe = os.open(collector_lock, os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW)
+    except OSError:
+        probe = -1  # no collector has run this boot: nothing to coordinate with
+    if probe >= 0:
+        try:
+            if os.fstat(probe).st_uid == 0:
+                try:
+                    fcntl.flock(probe, fcntl.LOCK_SH | fcntl.LOCK_NB)
+                except OSError:
+                    raise SmuInUse(
+                        "BC250-Telemetry's memory service (bc250-memory.service) is using the SMU.",
+                        "Two programs on the SMU mailbox corrupt each other's messages. Stop it with "
+                        "'sudo systemctl disable --now bc250-memory.service' (this also keeps it off "
+                        "at boot; Control Center reads GDDR6 temperatures by itself) and try again.",
+                    ) from None
+                fcntl.flock(probe, fcntl.LOCK_UN)
+        finally:
+            os.close(probe)
+    fd = os.open(run_lock, os.O_RDWR | os.O_CREAT | os.O_CLOEXEC | os.O_NOFOLLOW, 0o644)
+    try:
+        deadline = time.monotonic() + max(0.0, float(wait))
+        while True:
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except OSError:
+                if time.monotonic() >= deadline:
+                    raise SmuInUse(
+                        "Another BC-250 tool kept the SMU busy, so CPU tuning did not start.",
+                        "Stop GDDR6 live monitoring on the dashboard, wait for any other CPU "
+                        "tuning run to finish, and try again.",
+                    ) from None
+                time.sleep(0.05)
+        try:
+            yield
+        finally:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+    finally:
+        os.close(fd)
 
 
 def bc250_identity_present() -> bool:
@@ -152,6 +245,15 @@ def write_config(path: pathlib.Path, frequency: int, scale: int, temperature: in
         tmp.unlink(missing_ok=True)
 
 
+#: bc250_smu reports "status 0x00" when its mailbox poll runs out before the
+#: SMU answers. It is transient (the amdgpu driver, the governor or a previous
+#: run can hold the SMU for a moment), it hits different messages on different
+#: tries, and upstream never retries, so the same request succeeds when repeated.
+SMU_TIMEOUT_MARKER = 'smu returned status 0x00'
+SMU_TIMEOUT_ATTEMPTS = 3
+SMU_TIMEOUT_RETRY_SECONDS = 2.0
+
+
 def run_vendor_module(module: str, args: Sequence[str], *, pass_fds: Sequence[int] = ()) -> int:
     env = {
         'PATH': '/usr/sbin:/usr/bin:/sbin:/bin',
@@ -163,14 +265,31 @@ def run_vendor_module(module: str, args: Sequence[str], *, pass_fds: Sequence[in
         # Unbuffered, each step shows up as the detector prints it.
         'PYTHONUNBUFFERED': '1',
     }
-    result = subprocess.run(
-        [sys.executable, '-m', module, *map(str, args)],
-        env=env,
-        cwd=str(HELPER_PATH.parent),
-        pass_fds=tuple(pass_fds),
-        check=False,
-    )
-    return int(result.returncode)
+    for attempt in range(1, SMU_TIMEOUT_ATTEMPTS + 1):
+        result = subprocess.run(
+            [sys.executable, '-m', module, *map(str, args)],
+            env=env,
+            cwd=str(HELPER_PATH.parent),
+            pass_fds=tuple(pass_fds),
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+        captured = getattr(result, 'stderr', None) or b''
+        text = captured.decode('utf-8', 'replace') if isinstance(captured, bytes) else str(captured)
+        transient = int(result.returncode) != 0 and SMU_TIMEOUT_MARKER in text
+        if transient and attempt < SMU_TIMEOUT_ATTEMPTS:
+            print(
+                f'The SMU did not answer in time (attempt {attempt} of {SMU_TIMEOUT_ATTEMPTS}); '
+                'retrying in a moment.',
+                flush=True,
+            )
+            time.sleep(SMU_TIMEOUT_RETRY_SECONDS)
+            continue
+        if text:
+            sys.stderr.write(text)
+            sys.stderr.flush()
+        return int(result.returncode)
+    return 1
 
 
 def user_detection_config_fd(requested_path: str) -> tuple[int, pathlib.Path]:
@@ -999,6 +1118,32 @@ def action_detect_qam(argv: Sequence[str]) -> int:
         detected.unlink(missing_ok=True)
 
 
+def _stress_test_held_scale(frequency: int, scale: int, temperature: int) -> int:
+    """verify-scale's steps for the QAM path; returns the highest MHz that held."""
+    signal.signal(signal.SIGTERM, _raise_system_exit)
+    signal.signal(signal.SIGHUP, _raise_system_exit)
+    os.environ['PATH'] = '/usr/sbin:/usr/bin:/sbin:/bin'
+    if str(VENDOR_ZIP) not in sys.path:
+        sys.path.insert(0, str(VENDOR_ZIP))
+    import stress_helper  # noqa: PLC0415 - audited vendor zip
+    from bc250_smu import Bc250Smu  # noqa: PLC0415 - audited vendor zip
+
+    smu = Bc250Smu(use_flock=True)
+    smu.check_test_message()
+    passed = 0
+    try:
+        passed, voltage = verify_scale_steps(
+            smu, _VendorStress(stress_helper), frequency, scale, temperature,
+            write_result=lambda *_values: None,
+        )
+    finally:
+        if not passed:
+            _revert_smu_defaults(smu)
+    if passed:
+        print(f'Held: {passed} MHz @ {voltage} mV using scale {scale}', flush=True)
+    return passed
+
+
 def action_apply_qam_scale(argv: Sequence[str]) -> int:
     """Apply one manual scale bound to this boot's protected detector result."""
     if len(argv) != 3:
@@ -1013,10 +1158,23 @@ def action_apply_qam_scale(argv: Sequence[str]) -> int:
     if temperature != int(detected['temperature']):
         return fail('Manual scale must reuse the detected thermal limit.', 94)
 
+    if not shutil.which('stress', path='/usr/sbin:/usr/bin:/sbin:/bin'):
+        return fail('stress is required by bc250-detect to test a manual scale.', 86)
+
     _clear_qam_manual_evidence()
+    # The desktop never applies a typed scale untested (verify-scale); Game
+    # Mode used to go straight to bc250-apply.  Run the same 100 MHz steps
+    # with the scale held.  Manual evidence is bound to the detected
+    # frequency, so anything short of it puts the detected profile back.
+    print('== BC250 QAM manual scale, stress-tested in steps ==', flush=True)
+    passed = _stress_test_held_scale(frequency, scale, temperature)
+    if passed < frequency:
+        restored = run_vendor_module('bc250_apply', ['--apply', str(QAM_CONFIG)])
+        held = f'held only up to {passed} MHz' if passed else 'did not hold even at the first step'
+        note = 'the detected profile was restored' if restored == 0 else 'restoring the detected profile also failed'
+        return fail(f'Manual scale {scale} {held} (target {frequency} MHz); {note}.', 57)
     config = root_temp_config(frequency, scale, temperature)
     try:
-        print('== BC250 QAM manual scale ==', flush=True)
         print(f'Applying {frequency} MHz | scale {scale} | temp {temperature} C', flush=True)
         result = run_vendor_module('bc250_apply', ['--apply', str(config)])
         if result != 0:
@@ -1096,6 +1254,30 @@ def action_disable_boot(argv: Sequence[str]) -> int:
     return 0
 
 
+def _dispatch(action: str, args: Sequence[str]) -> int:
+    if action == 'detect':
+        return action_detect(args)
+    if action == 'detect-qam':
+        return action_detect_qam(args)
+    if action == 'qam-status':
+        return action_qam_status(args)
+    if action == 'apply-qam-scale':
+        return action_apply_qam_scale(args)
+    if action == 'install-qam':
+        return action_install_qam(args)
+    if action == 'apply-live':
+        return action_apply_live(args)
+    if action == 'verify-scale':
+        return action_verify_scale(args)
+    if action == 'install-boot':
+        return action_install_boot(args)
+    if action == 'apply-config':
+        return action_apply_config(args)
+    if action == 'disable-boot':
+        return action_disable_boot(args)
+    return fail('Unknown action.', 3)
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     try:
@@ -1106,27 +1288,24 @@ def main(argv: Sequence[str] | None = None) -> int:
         return fail('Missing action.', 2)
     action, args = argv[0], argv[1:]
     try:
-        if action == 'detect':
-            return action_detect(args)
-        if action == 'detect-qam':
-            return action_detect_qam(args)
-        if action == 'qam-status':
-            return action_qam_status(args)
-        if action == 'apply-qam-scale':
-            return action_apply_qam_scale(args)
-        if action == 'install-qam':
-            return action_install_qam(args)
-        if action == 'apply-live':
-            return action_apply_live(args)
-        if action == 'verify-scale':
-            return action_verify_scale(args)
-        if action == 'install-boot':
-            return action_install_boot(args)
-        if action == 'apply-config':
-            return action_apply_config(args)
-        if action == 'disable-boot':
-            return action_disable_boot(args)
-        return fail('Unknown action.', 3)
+        if action in SMU_LIVE_ACTIONS:
+            if KERNEL_MEMORY_MODULE.is_dir():
+                print(
+                    '[WARN] The kernel driver bc250_memory is loaded. While this runs, close anything that '
+                    'reads GDDR6 temperatures (MangoHud, CoolerControl, sensors): it shares the SMU mailbox '
+                    'with this tuning and can make it fail.',
+                    flush=True,
+                )
+            try:
+                with smu_exclusive_run():
+                    return _dispatch(action, args)
+            except SmuInUse as exc:
+                # The terminal shows the helper's own [ERROR] lines as the
+                # explanation, so say exactly what is in the way.
+                print(f'[ERROR] {exc.what}', flush=True)
+                print(f'[ERROR] {exc.how}', flush=True)
+                return fail(f'SMU_IN_USE: {exc.what}', 44)
+        return _dispatch(action, args)
     except Exception as exc:
         return fail(str(exc), 70)
 

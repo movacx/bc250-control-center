@@ -211,3 +211,24 @@ def test_a_failed_build_shows_the_end_of_its_own_log(tmp_path):
     assert "file3.c:12:1: error: expected declaration" in result.stdout
     assert "from the attempt before" not in result.stdout
     assert "BUILD STEP OK" not in result.stdout
+
+
+def test_install_replaces_an_installed_release_only_after_the_build(tmp_path):
+    """Upstream refuses to install over a release, so Install / update failed."""
+    command = build_fedora_gfx1013_command("install", tmp_path / "gfx")
+
+    replace = command.index(f"if [ -e {fedora_gfx1013.STATE_ROOT}/active.env ]")
+    assert command.index("install.sh build") < replace
+    assert replace < command.index("install.sh uninstall") < command.index("sudo " + shlex.quote(str(tmp_path / "gfx")) + "/install.sh install")
+
+
+def test_boot_selection_actions_call_upstreams_own_commands(tmp_path):
+    boot = build_fedora_gfx1013_command("boot-patched", tmp_path / "gfx")
+    activate = build_fedora_gfx1013_command("activate", tmp_path / "gfx")
+
+    assert "install.sh boot-patched" in boot
+    assert "BC250_REBOOT_REQUIRED=1" in boot
+    assert "install.sh activate" in activate
+    for command in (boot, activate):
+        assert "install.sh build" not in command
+        assert "install.sh uninstall" not in command

@@ -1,0 +1,11 @@
+#!/bin/bash
+for a in "$@"; do case "$a" in
+  --target=device) echo /dev/sda1; exit 0;;
+  --target=fs_uuid) echo 1234-abcd; exit 0;;
+  --target=fs_hints) echo hd0,msdos1; exit 0;;
+  --target=fs) echo ext2; exit 0;;
+  --target=partmap) echo msdos; exit 0;;
+  --target=abstraction) exit 0;;
+  --target=drive|--target=compatibility_hint) echo "(hd0,msdos1)"; exit 0;;
+esac; done
+echo ext2

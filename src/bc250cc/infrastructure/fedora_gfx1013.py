@@ -18,7 +18,9 @@ from .gfx1013_compute_policy import (
 )
 from .source_checkout import clone_or_update_commit
 
-_ACTIONS = frozenset({"install", "status", "uninstall"})
+_ACTIONS = frozenset({"install", "status", "uninstall", "boot-patched", "activate"})
+#: Upstream's marker of an installed release; ``install.sh`` refuses a second.
+STATE_ROOT = "/var/lib/bc250-gfx1013"
 #: Seconds between the progress lines printed while upstream builds.
 PROGRESS_INTERVAL = 30
 
@@ -200,6 +202,14 @@ fi''',
             "trap 'kill \"$bc250_sudo_keepalive\" \"${bc250_build_watch:-}\" 2>/dev/null || true' EXIT",
             f"sudo {qdest}/install.sh deps",
             _build_with_progress(qdest, shlex.quote(str(destination / "build"))),
+            # Upstream refuses to install over a release ("a release is
+            # already installed; uninstall it first"), so Install / update
+            # failed after a full build. The old release is removed only once
+            # the new build exists: a failed build leaves it untouched.
+            f'''if [ -e {STATE_ROOT}/active.env ]; then
+  echo "[INFO] A previous GFX1013 release is installed; replacing it with this build."
+  sudo {qdest}/install.sh uninstall
+fi''',
             f"sudo {qdest}/install.sh install",
             'echo "BC250_REBOOT_REQUIRED=1"',
             'echo "OK: the patched entry is selected for the next boot only; the stock Fedora entry remains the default."',
@@ -208,6 +218,17 @@ fi''',
         commands.extend((
             f"sudo {qdest}/install.sh uninstall",
             'echo "OK: upstream GFX1013 files and patched boot entry were removed."',
+        ))
+    elif action == "boot-patched":
+        commands.extend((
+            f"sudo {qdest}/install.sh boot-patched",
+            'echo "BC250_REBOOT_REQUIRED=1"',
+            'echo "OK: the next boot uses the patched entry once; the stock Fedora entry remains the default."',
+        ))
+    elif action == "activate":
+        commands.extend((
+            f"sudo {qdest}/install.sh activate",
+            'echo "OK: the patched entry is now the default boot entry. The stock entry stays in the boot menu for recovery."',
         ))
     else:
         commands.append(f"{qdest}/install.sh status")

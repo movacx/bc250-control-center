@@ -84,6 +84,9 @@ TELEMETRY_GUIDE_SOURCES = (
     TELEMETRY_GUIDE_PATCH_OFF, TELEMETRY_GUIDE_BAZZITE_NOTE,
 )
 
+# Same wording as the terminal diagnosis, so both surfaces say one thing.
+_GFX_RELEASE_INSTALLED = error_catalog.BY_CODE["BC250-GFX-001"]
+
 _RULES = (
     # First on purpose. Cyan's fix-metrics / fix-freq replace two GPU sensor
     # files with patched copies through a bind mount. When one is left behind
@@ -163,7 +166,8 @@ _RULES = (
     ),
     _Rule(
         "BC250-BUSY-001",
-        (r"already.*(?:running|applying|in progress)", r"operation.*still.*(?:running|progress)", r"resource busy", r"device or resource busy"),
+        (r"already.*(?:running|applying|in progress)", r"operation.*still.*(?:running|progress)", r"resource busy", r"device or resource busy",
+         r"smu returned status 0x(?:00|fc)\b"),
         "Another operation is still using this component.",
         "A previous BC250 action, package manager, service restart, or external toolkit still holds the required lock.",
         "Wait for the current terminal or progress indicator to finish, refresh the page, and retry once. Close other BC250 toolkits if the lock remains.",
@@ -254,8 +258,15 @@ _RULES = (
         "Return to the Dashboard and prepare the affected module.",
     ),
     _Rule(
+        "BC250-GFX-001",
+        (r"a release is already installed",),
+        _GFX_RELEASE_INSTALLED.summary,
+        _GFX_RELEASE_INSTALLED.cause,
+        _GFX_RELEASE_INSTALLED.action,
+    ),
+    _Rule(
         "BC250-KERNEL-001",
-        (r"kernel headers", r"module.*(?:not found|invalid format|unknown symbol)", r"modprobe.*(?:failed|fatal)", r"dkms.*(?:failed|error)", r"vermagic", r"version magic", r"headers .*(?:not found|were not found)", r"invalid module format", r"-ogc\d"),
+        (r"kernel headers", r"module.*(?:not found|invalid format|unknown symbol)", r"modprobe.*(?:failed|fatal)", r"dkms.*(?:failed|error)", r"vermagic", r"version magic", r"headers .*(?:not found|were not found)", r"invalid module format", r"-ogc\d", r"boot the patched entry"),
         "The running kernel and its driver or headers do not match.",
         "The machine may still be running the old kernel, headers may be missing, Secure Boot may reject the module, or a partial update mixed versions.",
         "Restart into the intended BC250 kernel, verify its matching headers, then repair the affected driver. Review Secure Boot only if the module log names it.",
@@ -312,14 +323,16 @@ _RULES = (
         "BC250-RANGE-001",
         (r"out of range", r"unsupported.*(?:profile|safe-point|mode|voltage level)", r"cannot exceed maximum", r"cannot be negative", r"requires positive", r"outside cyan's active", r"minimum cannot exceed", r"invalid lab level", r"must be (?:between|an? )", r"exceeds.*(?:limit|ceiling|ram)", r"invalid.*(?:frequency|voltage|target|mask)", r"the ui limits", r"outside the safe editor range", r"limits .* to \d", r"must not exceed", r"outside the supported", r"outside the reviewed",
          r"decky (?:gpu|fan|cpu) profile (?:names|speeds|range|values|bounds)", r"needs a unique known key",
-         r"needs exactly one profile list"),
+         r"needs exactly one profile list",
+         # The SteamOS toolkit module's 2230 MHz GPU clock limit.
+         r"reports the gpu clock only up to", r"mhz or lower"),
         "The requested value is outside the supported range.",
         "The value does not match the active hardware table, available RAM, safe points, or the limits enforced by the selected backend.",
         "Choose a value currently offered by the application. Refresh first if another toolkit or a restart may have changed the live limits.",
     ),
     _Rule(
         "BC250-CU-001",
-        (r"\bumr\b", r"wgp", r"compute unit", r"cu_(?:table|backend|verify|service|mode)", r"0x77", r"0xff\b", r"shader_array_config", r"wgp mask", r"topolog", r"core presence mask", r"bc250_cc_write_mode", r"disable_cu"),
+        (r"\bumr\b", r"wgp", r"compute unit", r"cu_(?:table|backend|verify|service|mode)", r"0x77", r"(?<!status )0xff\b", r"shader_array_config", r"wgp mask", r"topolog", r"core presence mask", r"bc250_cc_write_mode", r"disable_cu"),
         "The Compute Units operation could not be verified.",
         "UMR, the GPU database, the live manager, the saved WGP map, or the AMDGPU topology may not match the running kernel and Mesa stack.",
         "Run Unlock/Sync again, check the displayed live map, prepare UMR if missing, and apply only after the requested and driver maps agree.",

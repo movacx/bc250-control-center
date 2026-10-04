@@ -4,9 +4,19 @@ from __future__ import annotations
 
 import re
 import shlex
+from contextlib import suppress
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
+
+from .gpu.governor_toml import (
+    STEAMOS_TOOLKIT_GFXCLK_MAX_MHZ,
+    STEAMOS_TOOLKIT_GFXCLK_REASON,
+    GovernorTomlEditor,
+    GovernorTomlError,
+    OberonYamlEditor,
+    OberonYamlError,
+)
 
 MODULE_MARKER = "installed, metrics and compute aware"
 INSTALLED_MARKER = "[bc250-amdgpu] state: installed"
@@ -221,6 +231,37 @@ def classify_amdgpu_status(
         bool(privileged),
         reboot,
         action,
+    )
+
+
+def gpu_points_above_module_limit(*, cyan_config: Path, oberon_config: Path) -> str:
+    """Why the toolkit's AMDGPU module cannot be installed yet; "" when it can.
+
+    The module discards every GPU clock reading above 2230 MHz. Installed
+    while a governor may still run higher, the GPU telemetry would go blank
+    after the reboot, so those points are turned off first, by the person.
+    A configuration this process cannot read is left to the root-owned editor,
+    which keeps enabled points within the limit once the module is installed.
+    """
+    limit = STEAMOS_TOOLKIT_GFXCLK_MAX_MHZ
+    steps = []
+    with suppress(GovernorTomlError, OSError, TypeError, ValueError):
+        state = GovernorTomlEditor(cyan_config).high_frequency_state()
+        above = sorted(int(f) for f in state.get("enabled_frequencies") or () if int(f) > limit)
+        if above:
+            listed = ", ".join(str(frequency) for frequency in above)
+            steps.append(
+                f"turn off the Cyan safe-points above {limit} MHz ({listed} MHz) "
+                "with Disable +2000 MHz TOML points"
+            )
+    with suppress(OberonYamlError, OSError, KeyError, TypeError, ValueError):
+        if int(OberonYamlEditor(oberon_config).state()["frequency_max"]) > limit:
+            steps.append(f"lower the Oberon maximum to {limit} MHz")
+    if not steps:
+        return ""
+    return (
+        f"{STEAMOS_TOOLKIT_GFXCLK_REASON} Before installing it, {' and '.join(steps)}. "
+        f"Enabling the points again afterwards stops at {limit} MHz."
     )
 
 

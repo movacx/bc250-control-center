@@ -704,3 +704,23 @@ def test_the_balance_button_stays_in_the_grid_through_every_reflow(qtbot, width)
     balance = page.balance_button.geometry()
     for other in (page.live_refresh_button, page.discard_button, page.apply_live_button):
         assert not balance.intersects(other.geometry()), other.text()
+
+
+def test_kernel_managed_page_is_read_only(qtbot):
+    page = ComputeUnitsPage(object())
+    qtbot.addWidget(page)
+    state = CURepository().parsear_dashboard_cu(FULL_40_CU_DASHBOARD)
+    state.update(privileged_backend_ready=True, kernel_managed=True)
+    page._apply_state(state)
+    page._update_action_availability()
+
+    assert page.kernel_managed_notice.isHidden() is False
+    for button in (page.apply_live_button, page.restore_factory_button,
+                   page.save_boot_button, page.install_service_button):
+        assert button.isEnabled() is False
+    # Its read-only "status" is how the table syncs with the kernel's routing.
+    assert page.live_refresh_button.isEnabled() is True
+    # Read-only but still in colour: a disabled table was painted all grey.
+    assert page.topology_table.isEnabled() is True
+    for button in page.topology_table.buttons.values():
+        assert button.testAttribute(compute_units_module.Qt.WidgetAttribute.WA_TransparentForMouseEvents)

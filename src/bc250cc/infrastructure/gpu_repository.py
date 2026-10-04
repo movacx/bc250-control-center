@@ -41,6 +41,7 @@ from bc250cc.infrastructure.gpu.governor_toml import (
     GovernorTomlError,
     OberonYamlEditor,
     OberonYamlError,
+    gpu_frequency_ceiling,
 )
 from bc250cc.infrastructure.gpu_live_clock import read_hwmon_clock_mhz
 from bc250cc.infrastructure.gpu_state import (
@@ -678,7 +679,11 @@ class GPURepository:
         )
 
     def controlar_governor(
-        self, accion, confirmar_conflictos=False, desactivar_conflictos=False
+        self,
+        accion,
+        confirmar_conflictos=False,
+        desactivar_conflictos=False,
+        reset_cyan_fix_flags=False,
     ):
         selected = self._selected_gpu_governor()
         init_manager = detect_init_manager()
@@ -710,6 +715,8 @@ class GPURepository:
                     + "; "
                 )
         if accion == "activar":
+            if reset_cyan_fix_flags and selected == CYAN_GOVERNOR:
+                prefix += self._cyan_fix_flags_reset_step()
             comando = self._governor_activation_command(selected, servicio, prefix)
         elif accion == "desactivar":
             # systemctl status intentionally returns 3 for a clean inactive
@@ -739,6 +746,47 @@ class GPURepository:
             "reiniciar": "Restart",
         }
         return self._abrir_terminal(comando, f"{titles[accion]} {selected}")
+
+    def _cyan_fix_flags_reset_step(self):
+        """Turn fix-metrics / fix-freq off as the first step of the start.
+
+        A mount either flag leaves behind breaks the next start, so enabling
+        Cyan puts both back to off; set-method and the usage method are the
+        user's choices and stay. This used to run through pkexec before the
+        terminal opened, so one start asked for the password twice: a polkit
+        dialog, then sudo in the terminal. It is a sudo step of that same
+        terminal now. Best effort, as before: a failed reset is reported and
+        the start goes ahead, and the daemon reports the real reason itself.
+        """
+        try:
+            set_method, usage_method, fix_metrics, fix_frequency = (
+                self._current_cyan_compatibility()
+            )
+        except Exception:
+            return ""
+        if not (fix_metrics or fix_frequency):
+            return ""
+        request = plan_governor_config_request(
+            "set-cyan-compatibility", (set_method, usage_method, False, False)
+        )
+        if getattr(self, "_usar_steamos_game_helper", lambda: False)():
+            # Game Mode's helper needs no password: apply it right here.
+            try:
+                self._editar_governor_toml(request.action, set_method, usage_method, False, False)
+            except Exception:
+                pass
+            return ""
+        helper = self._governor_config_helper_path()
+        if not helper:
+            return ""
+        command = " ".join(
+            shlex.quote(part) for part in ("sudo", helper, request.action, *request.arguments)
+        )
+        return (
+            f"if {command}; then "
+            "echo 'Cyan fix-metrics and fix-freq reset to their default values before start.'; "
+            "else echo 'WARNING: Cyan fix-metrics and fix-freq could not be reset; starting anyway.'; fi; "
+        )
 
     @staticmethod
     def _cyan_dbus_wait_steps(service, failure_message):
@@ -1101,6 +1149,11 @@ class GPURepository:
         the old Allowed table in memory.
         """
         minimo, maximo = int(minimo), int(maximo)
+        # Checked before Cyan's own envelope: points enabled by hand or by
+        # another tool can still advertise more than this kernel reports.
+        ceiling, reason = gpu_frequency_ceiling()
+        if ceiling is not None and maximo > ceiling:
+            raise ValueError(f"{reason} Choose {ceiling} MHz or lower.")
         allowed = self._leer_rango_governor("Allowed")
         if allowed is None:
             raise RuntimeError(

@@ -71,10 +71,36 @@ install_sensors() {
   verify_command sensors
 }
 
+# umr links against LLVM. When the distribution moves to a new LLVM, a umr that
+# was built here (AUR) stays installed and stops starting, and "it is
+# installed" is no longer a reason to leave it alone. The package that
+# provides it, in the order the AUR names them, is what has to be built again.
+rebuild_broken_umr() {
+  local package
+  if pacman -Qq umr-git >/dev/null 2>&1; then
+    package=umr-git
+  else
+    package=umr
+  fi
+  warn "UMR is installed but does not start: a library it was built against was replaced (for example CachyOS moving to LLVM 23)."
+  warn "Rebuilding $package against the libraries that are installed now."
+  install_aur_package "$package" rebuild || true
+  hash -r
+  if ! binary_runs umr; then
+    error "UMR still does not start after rebuilding it:"
+    ldd "$(command -v umr)" 2>&1 | grep 'not found' | sed 's/^/  /' >&2 || true
+    return 1
+  fi
+}
+
 install_umr() {
   if [[ "${BC250_FORCE_UMR_FALLBACK:-0}" != "1" ]] && have umr; then
-    info "UMR already installed: $(command -v umr)"
-    return 0
+    if binary_runs umr; then
+      info "UMR already installed: $(command -v umr)"
+      return 0
+    fi
+    rebuild_broken_umr
+    return
   fi
   if ! as_root pacman -S --needed --noconfirm umr; then
     warn "umr is not available from pacman; trying AUR"
@@ -94,7 +120,10 @@ check_runtime() { verify_command python3; verify_command git; verify_command lsp
 check_governor() { verify_command cyan-skillfish-governor-smu; }
 check_stress() { verify_command stress; }
 check_sensors() { verify_command sensors; }
-check_umr() { verify_command umr; }
+check_umr() {
+  verify_command umr || return 1
+  binary_runs umr || { error "umr is installed but does not start: a library it needs is missing. Prepare UMR again to rebuild it."; return 1; }
+}
 plan_runtime() { plan_packages runtime pacman "${runtime_packages[@]}"; }
 plan_governor() { plan_packages governor aur cyan-skillfish-governor-smu; }
 plan_stress() { plan_packages stress pacman stress; }

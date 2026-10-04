@@ -67,9 +67,11 @@ from bc250cc.domain.gpu.profiles import (
     default_cyan_profiles,
     profiles_for_allowed_range,
 )
+from bc250cc.infrastructure.system_setup import CU_UNLOCK_OPTION, CU_UNLOCK_THERMAL_NOTE
 from bc250cc.infrastructure.bazzite_async_compute import (
     BAZZITE_ASYNC_COMPUTE_REPOSITORY,
 )
+from bc250cc.infrastructure.radv_async_compute import RADV_ASYNC_REVIEWED_COMMIT
 from bc250cc.infrastructure.gpu.governor_toml import (
     GOVERNOR_DEFAULT_VOLTAGES,
     SUPPORTED_VOLTAGE_LEVELS,
@@ -110,7 +112,7 @@ from ..core.feature_visibility import (
     GPU_REFERENCE_PANELS_ENABLED,
     mastag_stack_replaces_gfx1013_card,
 )
-from ..core.gfx1013_presenter import present_gfx1013
+from ..core.gfx1013_presenter import RADV_ROUTE_SECOND_FIX, present_gfx1013
 from ..core.operation_gate import OperationGate
 from ..core.preferences import application_settings
 from ..core.state import state_cache_for
@@ -509,10 +511,17 @@ class DependencyPreparationDialog(QDialog):
         advanced_layout.setContentsMargins(0, 0, 6, 0)
         advanced_layout.setSpacing(10)
         self.gfx1013_card = self._gfx1013_card()
+        gfx_state = _dict(self.tools.get("gfx1013_compute"))
         self.gfx1013_card.setVisible(
             not mastag_stack_replaces_gfx1013_card(self.tools)
+            # Debian family on a kernel too old for any route: nothing to offer.
+            and not bool(_dict(gfx_state.get("source")).get("hide_offer"))
         )
         advanced_layout.addWidget(self.gfx1013_card)
+        kernel_upgrade = _dict(gfx_state.get("kernel_upgrade"))
+        self.debian_kernel_card = self._debian_kernel_card(kernel_upgrade)
+        self.debian_kernel_card.setVisible(bool(kernel_upgrade.get("offered")))
+        advanced_layout.addWidget(self.debian_kernel_card)
         advanced_layout.addWidget(
             self._cachyos_kernel_card(
                 supported=bool(self.tools.get("masta_bc250_stack_supported"))
@@ -1232,13 +1241,24 @@ class DependencyPreparationDialog(QDialog):
         header.addWidget(status)
         layout.addLayout(header)
 
-        complete_detail = " ".join(tr(part) for part in presentation.detail)
+        complete_detail = " ".join(
+            tr_format(part, **presentation.detail_values) for part in presentation.detail
+        )
 
         card.setToolTip(complete_detail)
+        route = presentation.radv_route
         reviewed = tr_format(
             "Reviewed upstream: {version} · {commit}",
-            version=str(state.get("reviewed_version") or "0.2.0-alpha"),
-            commit=str(state.get("reviewed_commit") or "")[:7],
+            version=(
+                f"RADV {route.values.get('version', '')}"
+                if route is not None
+                else str(state.get("reviewed_version") or "0.2.0-alpha")
+            ),
+            commit=(
+                RADV_ASYNC_REVIEWED_COMMIT
+                if route is not None
+                else str(state.get("reviewed_commit") or "")
+            )[:7],
         )
         card.setToolTip(f"{complete_detail}\n{reviewed}".strip())
 
@@ -1273,6 +1293,18 @@ class DependencyPreparationDialog(QDialog):
                 )
                 actions.addWidget(install, 1)
             else:
+                # Upstream boots the patched entry once; these switch it on.
+                patched_boot = bool(state.get("dryhopped_boot_active"))
+                boot_action = (
+                    "gfx1013_fedora_activate" if patched_boot else "gfx1013_fedora_boot_patched"
+                )
+                boot = QPushButton(
+                    tr("Make the fix the default" if patched_boot else "Boot with the fix")
+                )
+                boot.setProperty("dependencyGfxAction", True)
+                boot.setProperty("dependencyGfxPrimary", True)
+                boot.clicked.connect(lambda: self._choose(boot_action, ""))
+                actions.addWidget(boot, 1)
                 uninstall = QPushButton(tr("Uninstall"))
                 uninstall.setProperty("dangerAction", True)
                 uninstall.setProperty("dependencyGfxAction", True)
@@ -1280,6 +1312,45 @@ class DependencyPreparationDialog(QDialog):
                     lambda: self._choose("gfx1013_fedora_uninstall", "")
                 )
                 actions.addWidget(uninstall, 1)
+        if route is not None:
+            # Fedora on kernel 7.2+: the patched RADV alone.
+            radv_action = (
+                "radv_async_install"
+                if route.build
+                else "radv_async_disable"
+                if route.enabled
+                else "radv_async_enable"
+            )
+            primary = QPushButton(tr(
+                "Build and install"
+                if route.build
+                else "Switch off"
+                if route.enabled
+                else "Switch on"
+            ))
+            primary.setProperty("dependencyGfxAction", True)
+            primary.setProperty("dependencyGfxPrimary", True)
+            primary.clicked.connect(lambda: self._choose(radv_action, ""))
+            actions.addWidget(primary, 1)
+            if route.testable:
+                test = QPushButton(tr("Test async compute"))
+                test.setProperty("dependencyGfxAction", True)
+                test.clicked.connect(lambda: self._choose("radv_async_test", ""))
+                actions.addWidget(test, 1)
+            if route.installed:
+                remove = QPushButton(tr("Remove"))
+                remove.setProperty("dangerAction", True)
+                remove.setProperty("dependencyGfxAction", True)
+                remove.clicked.connect(lambda: self._choose("radv_async_uninstall", ""))
+                actions.addWidget(remove, 1)
+            if route.remove_fix_action:
+                remove_fix = QPushButton(tr("Remove the kernel-side fix"))
+                remove_fix.setProperty("dangerAction", True)
+                remove_fix.setProperty("dependencyGfxAction", True)
+                remove_fix.clicked.connect(
+                    lambda: self._choose(route.remove_fix_action, "")
+                )
+                actions.addWidget(remove_fix, 1)
         if presentation.bazzite_actions:
             if not bool(state.get("bazzite_async_installed")):
                 install = QPushButton(tr("Install / update"))
@@ -1318,6 +1389,59 @@ class DependencyPreparationDialog(QDialog):
         upstream.setProperty("dependencyGfxAction", True)
         upstream.clicked.connect(self._open_gfx1013_upstream)
         actions.addWidget(upstream, 1)
+        layout.addLayout(actions)
+        return card
+
+    def _debian_kernel_card(self, upgrade: dict) -> QFrame:
+        """Debian 13: the stock kernel and Mesa cannot drive the GPU; backports can."""
+        pending_restart = str(upgrade.get("state") or "") == "reboot-required"
+        card = QFrame()
+        card.setProperty("dependencyActionTile", True)
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(14, 12, 14, 12)
+        layout.setSpacing(9)
+
+        header = QHBoxLayout()
+        header.setSpacing(10)
+        header.addWidget(IconBadge("shield_green", COLORS["green_soft"], 34, radius=9))
+        copy = QVBoxLayout()
+        copy.setSpacing(2)
+        title = QLabel(tr("Newer kernel for the BC-250"))
+        title.setProperty("sectionTitle", True)
+        subtitle = QLabel(tr("Debian backports · needed for GPU acceleration"))
+        subtitle.setProperty("sectionSubtitle", True)
+        subtitle.setWordWrap(True)
+        copy.addWidget(title)
+        copy.addWidget(subtitle)
+        header.addLayout(copy, 1)
+        header.addWidget(
+            PillLabel(
+                tr("Restart required") if pending_restart else tr("Recommended"),
+                "blue" if pending_restart else "orange",
+            )
+        )
+        layout.addLayout(header)
+
+        warning = QLabel(
+            tr(
+                "A newer kernel is already installed. Restart to use it, then build the GFX1013 fix."
+            )
+            if pending_restart
+            else tr(
+                "Optional. The Debian kernel and Mesa do not recognize the BC-250 GPU, so the desktop is drawn by the CPU and feels slow. This installs a newer kernel from Debian backports beside the current one, which stays in the boot menu."
+            )
+        )
+        warning.setProperty("warningText", True)
+        warning.setWordWrap(True)
+        layout.addWidget(warning)
+
+        actions = QHBoxLayout()
+        actions.addStretch(1)
+        install = QPushButton(tr("Install newer kernel"))
+        install.setObjectName("PrimaryAction")
+        install.setEnabled(not pending_restart)
+        install.clicked.connect(lambda: self._choose("debian_kernel_install", ""))
+        actions.addWidget(install)
         layout.addLayout(actions)
         return card
 
@@ -1383,6 +1507,8 @@ class DependencyPreparationDialog(QDialog):
         url = (
             BAZZITE_ASYNC_COMPUTE_REPOSITORY
             if str(state.get("reason_key") or "").startswith("bazzite-release-")
+            # Fedora's patched-RADV route builds that project's patches.
+            or present_gfx1013(state).radv_route is not None
             else str(
                 state.get("upstream_url")
                 or "https://github.com/DryhoppedIPA/bc250-gfx1013-fix"
@@ -3477,7 +3603,10 @@ class GpuGovernorPage(QWidget):
         """Reflect a confirmed TOML edit immediately while the full refresh runs."""
 
         state = dict(_dict(self.current_state.get("high_frequency_points")))
-        frequencies = tuple(state.get("frequencies") or ())
+        # Under a kernel clock limit only the points within it are enabled.
+        frequencies = tuple(
+            state.get("allowed_frequencies") or state.get("frequencies") or ()
+        )
         state["enabled"] = bool(enabled)
         state["enabled_frequencies"] = frequencies if enabled else ()
         self.current_state["high_frequency_points"] = state
@@ -3706,16 +3835,22 @@ class GpuGovernorPage(QWidget):
                 action.removeprefix("gfx1013_source_"), dialog_parent=dialog_parent
             )
             return
+        if action == "debian_kernel_install":
+            self._manage_debian_kernel(dialog_parent=dialog_parent)
+            return
         if action.startswith("radv_async_"):
             self._manage_radv_async(
                 action.removeprefix("radv_async_"), dialog_parent=dialog_parent
             )
             return
-        if action in {"gfx1013_fedora_install", "gfx1013_fedora_uninstall"}:
+        if action in {
+            "gfx1013_fedora_install",
+            "gfx1013_fedora_uninstall",
+            "gfx1013_fedora_boot_patched",
+            "gfx1013_fedora_activate",
+        }:
             self._manage_gfx1013_fedora(
-                "install"
-                if action.endswith("install") and not action.endswith("uninstall")
-                else "uninstall",
+                action.removeprefix("gfx1013_fedora_").replace("_", "-"),
                 dialog_parent=dialog_parent,
             )
             return
@@ -3784,7 +3919,8 @@ class GpuGovernorPage(QWidget):
             if scope == "swap"
             else (
                 (tr("Dynamic GPU Memory Limit (TTM)"), ttm_label),
-                (tr("Reboot"), tr("Required to activate the selected configuration" if bazzite else "Not required")),
+                # amdgpu sizes GTT when it loads: a boot argument, on every system.
+                (tr("Reboot"), tr("Required to activate the selected configuration")),
             )
         )
         confirmation = ConfirmDialog(
@@ -3792,6 +3928,9 @@ class GpuGovernorPage(QWidget):
             tr("This disables the ZRAM the distribution set up by default; ZSWAP takes over once you reboot. "
                "Nothing else about that ZRAM configuration is touched, and it comes back if you restore this setting.")
             if takeover_zram
+            else tr("The limit is saved as a kernel boot argument, shared with BC250 Quick Access in Game Mode, "
+                    "and takes effect at the next reboot.")
+            if scope != "swap"
             else tr("A reboot may be required.") if bazzite
             else tr("Optional system setup. Disk swap uses up to 32 GiB of storage; existing user swap is preserved. TTM is applied live when supported. ZRAM and deferred restoration require a reboot. Hardware testing is still required."),
             summary=summary,
@@ -3802,7 +3941,7 @@ class GpuGovernorPage(QWidget):
         if confirmation.exec() != QDialog.DialogCode.Accepted:
             return
         self._run_backend_action(
-            lambda: (self.controller.preparar_memoria_bazzite(policy, ttm_gib) if bazzite
+            lambda: (self.controller.preparar_memoria_bazzite(policy, ttm_gib) if bazzite and scope == "swap"
                      else self.controller.preparar_memoria(
                          policy, ttm_gib, takeover_zram=takeover_zram, target_mount=target_mount)),
             lambda _result: GpuGovernorPage._record_preparation_result(
@@ -3896,23 +4035,47 @@ class GpuGovernorPage(QWidget):
     def _manage_kernel_options(
         self, options: tuple[str, ...], *, changed: str, dialog_parent: QWidget | None
     ) -> None:
-        """Turn one of mitigations=off / nosmt on or off at the next boot."""
+        """Turn one of the managed kernel boot options on or off at the next boot."""
         if changed in options:
-            # Adding either one gives something up; restoring needs no question.
-            mitigations = changed == "mitigations=off"
+            # Adding any of them changes how the board runs, so it is asked
+            # first; restoring needs no question.
+            if changed == CU_UNLOCK_OPTION:
+                title = "Unlock all 40 compute units with the kernel"
+                body = (
+                    "The BC-250 kernel unlocks the compute units by itself when amdgpu starts, so umr "
+                    "and the CU live manager are not needed. Turn off the live manager's boot service "
+                    "so only one of them sets the CUs. A board with a damaged CU pair cannot run all "
+                    "40. The change applies after reboot and can be restored from Control Center."
+                )
+                body = tr(body) + "\n\n" + tr(CU_UNLOCK_THERMAL_NOTE)
+                confirm_text, tone = "Unlock 40 CUs", "orange"
+            elif changed == "mitigations=off":
+                title = "Disable CPU security mitigations"
+                body = (
+                    "This disables optional kernel protections against multiple CPU vulnerabilities. "
+                    "It may improve performance in some workloads. The change applies after reboot "
+                    "and can be restored from Control Center."
+                )
+                confirm_text, tone = "Disable mitigations", "red"
+            else:
+                title = "Disable simultaneous multithreading"
+                body = (
+                    "The CPU runs one thread per core: 6 or 8 threads instead of 12 or 16. Some games "
+                    "run smoother, others slower; measure yours. The change applies after reboot and "
+                    "can be restored from Control Center."
+                )
+                confirm_text, tone = "Disable SMT", "orange"
             confirmation = ConfirmDialog(
-                tr("Disable CPU security mitigations" if mitigations else "Disable simultaneous multithreading"),
-                tr(
-                    "This disables optional kernel protections against multiple CPU vulnerabilities. It may improve performance in some workloads. The change applies after reboot and can be restored from Control Center."
-                    if mitigations
-                    else "The CPU runs one thread per core: 6 or 8 threads instead of 12 or 16. Some games run smoother, others slower; measure yours. The change applies after reboot and can be restored from Control Center."
-                ),
+                tr(title),
+                # The unlock's body is already translated: it carries the
+                # thermal paragraph, which has its own catalog entry.
+                body if changed == CU_UNLOCK_OPTION else tr(body),
                 summary=(
                     (tr("Kernel argument"), changed),
                     (tr("Reboot"), tr("Required to activate the selected configuration")),
                 ),
-                confirm_text=tr("Disable mitigations" if mitigations else "Disable SMT"),
-                tone="red" if mitigations else "orange",
+                confirm_text=tr(confirm_text),
+                tone=tone,
                 parent=dialog_parent or self,
             )
             if confirmation.exec() != QDialog.DialogCode.Accepted:
@@ -4158,13 +4321,15 @@ class GpuGovernorPage(QWidget):
         }.get(action)
         if copy is None:
             raise ValueError("Unsupported FSR4 action.")
+        from bc250cc.infrastructure.bc250_opticlient import OPTICLIENT_TAG
+
         title, body, confirm, tone = copy
         confirmation = ConfirmDialog(
             title,
             tr(body),
             summary=(
                 (tr("Source"), "github.com/daniel-h-0/bc250-fsr4-fork"),
-                (tr("Release"), "opticlient-v1.0.7-bc250.3"),
+                (tr("Release"), OPTICLIENT_TAG),
                 (tr("Scope"), tr("Your user folder; games only when you choose them")),
             ),
             confirm_text=confirm,
@@ -4343,6 +4508,36 @@ class GpuGovernorPage(QWidget):
             error_parent=dialog_parent,
         )
 
+    def _manage_debian_kernel(self, *, dialog_parent: QWidget | None) -> None:
+        """A newer kernel from Debian backports: confirm, then run it in the terminal."""
+        confirmation = ConfirmDialog(
+            "Install a newer kernel",
+            tr(
+                "Debian 13 ships a kernel and a Mesa that do not know the BC-250 GPU, so the desktop is drawn by the CPU. This adds the Debian backports suite in its own source file and installs the newer kernel, its headers and the GPU firmware from it. The current kernel stays installed and in the boot menu under Advanced options. Restart afterwards, then build the GFX1013 fix from this same card. Needs your password and an internet connection."
+            ),
+            summary=(
+                (tr("Source"), "deb.debian.org · backports"),
+                (tr("Current kernel"), tr("Kept; choose it in the boot menu to go back")),
+                (tr("Restart"), tr("Required")),
+            ),
+            confirm_text="Install kernel",
+            tone="orange",
+            parent=dialog_parent or self,
+        )
+        if confirmation.exec() != QDialog.DialogCode.Accepted:
+            return
+        self._run_backend_action(
+            lambda: self.controller.gestionar_kernel_debian("install"),
+            lambda _result: GpuGovernorPage._record_preparation_result(
+                self,
+                "Debian kernel",
+                "Opened the newer-kernel workflow in the terminal.",
+            ),
+            "Could not install the newer kernel",
+            controls=(),
+            error_parent=dialog_parent,
+        )
+
     def _manage_radv_async(
         self, action: str, *, dialog_parent: QWidget | None
     ) -> None:
@@ -4476,22 +4671,34 @@ class GpuGovernorPage(QWidget):
         tools = _dict(self.current_state.get("tools"))
         state = _dict(tools.get("gfx1013_compute"))
         presentation = present_gfx1013(state)
-        detail = " ".join(tr(part) for part in presentation.detail)
+        if action == "uninstall" and presentation.radv_route is not None:
+            # Removed beside the patched RADV, which makes it redundant.
+            detail = tr(RADV_ROUTE_SECOND_FIX)
+        else:
+            detail = " ".join(
+                tr_format(part, **presentation.detail_values) for part in presentation.detail
+            )
         version_id = str(state.get("version_id") or "").strip()
         system_label = f"Fedora {version_id}" if version_id else "Fedora"
+        summary = [
+            (tr("System"), system_label),
+            (tr("Running kernel"), str(state.get("kernel") or tr("Unknown"))),
+            (tr("Source"), "DryhoppedIPA/bc250-gfx1013-fix"),
+        ]
+        if action == "activate":
+            summary.append((tr("Recovery"), tr("Stock entry stays in the boot menu")))
+        else:
+            summary.append((tr("Recovery"), tr("Stock boot remains the default")))
+            summary.append((tr("Reboot"), tr("Required after installation")))
         confirmation = ConfirmDialog(
             tr("GFX1013 async compute"),
             detail,
-            summary=(
-                (tr("System"), system_label),
-                (tr("Running kernel"), str(state.get("kernel") or tr("Unknown"))),
-                (tr("Source"), "DryhoppedIPA/bc250-gfx1013-fix"),
-                (tr("Recovery"), tr("Stock boot remains the default")),
-                (tr("Reboot"), tr("Required after installation")),
-            ),
-            confirm_text=tr(
-                "Uninstall" if action == "uninstall" else "Install / update"
-            ),
+            summary=tuple(summary),
+            confirm_text=tr({
+                "uninstall": "Uninstall",
+                "boot-patched": "Boot with the fix",
+                "activate": "Make the fix the default",
+            }.get(action, "Install / update")),
             tone="red" if action == "uninstall" else "orange",
             parent=dialog_parent or self,
         )
@@ -4628,7 +4835,7 @@ class GpuGovernorPage(QWidget):
         if action == "install":
             title = "Install matched SteamOS Mesa / RADV"
             body = (
-                "This builds the reviewed Mesa 26.2.0 async-compute runtime for the active verified AMDGPU module. "
+                "This builds the reviewed Mesa 26.2.2 async-compute runtime for the active verified AMDGPU module. "
                 "It installs a separate 64-bit RADV driver, keeps stock 32-bit RADV as fallback and enables it only when module attestation and amdgpu.sched_policy=2 agree. A reboot is required when the scheduler policy changes."
             )
             confirm_text = "Install Mesa / RADV"
@@ -4810,7 +5017,7 @@ class GpuGovernorPage(QWidget):
         )
         return confirmation.exec() == QDialog.DialogCode.Accepted
 
-    def _service_action(self, action: str) -> None:
+    def _service_action(self, action: str, *, reset_cyan_fix_flags: bool = False) -> None:
         tools = _dict(self.current_state.get("tools"))
         plan = plan_gpu_service_action(
             action,
@@ -4823,7 +5030,7 @@ class GpuGovernorPage(QWidget):
         # of it was one more click for the same decision. Starting it over
         # another governor still asks, because that also stops the other one.
         if not plan.has_conflicts:
-            self._run_service_plan(plan)
+            self._run_service_plan(plan, reset_cyan_fix_flags=reset_cyan_fix_flags)
             return
         dialog = ConfirmDialog(
             tr_format("{action} GPU governor", action=tr(plan.label)),
@@ -4841,9 +5048,9 @@ class GpuGovernorPage(QWidget):
         )
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
-        self._run_service_plan(plan)
+        self._run_service_plan(plan, reset_cyan_fix_flags=reset_cyan_fix_flags)
 
-    def _run_service_plan(self, plan) -> None:
+    def _run_service_plan(self, plan, *, reset_cyan_fix_flags: bool = False) -> None:
         def success(_result: object) -> None:
             self._last_operation_summary = f"Opened service workflow: {plan.label}."
             self.last_operation_line.set_values(
@@ -4853,7 +5060,10 @@ class GpuGovernorPage(QWidget):
 
         self._run_backend_action(
             lambda: self.controller.controlar_governor(
-                plan.action, plan.has_conflicts, plan.has_conflicts
+                plan.action,
+                plan.has_conflicts,
+                plan.has_conflicts,
+                reset_cyan_fix_flags=reset_cyan_fix_flags,
             ),
             success,
             "Governor service action failed",

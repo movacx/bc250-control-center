@@ -167,8 +167,41 @@ disable_managed_fan_service() {
   esac
 }
 
+#: Files a system package owns, or that sit on a read-only /usr (Bazzite and
+#: Fedora Atomic): this script cannot remove them, so it says how instead of
+#: stopping half way (set -e) before the user data it was asked to purge.
+PACKAGE_OWNED=()
+
+package_owner() {
+  local path="$1"
+  if command -v rpm >/dev/null 2>&1 && rpm -qf --qf '%{NAME}\n' -- "$path" >/dev/null 2>&1; then
+    rpm -qf --qf '%{NAME}\n' -- "$path" 2>/dev/null | head -n1
+    return 0
+  fi
+  if command -v pacman >/dev/null 2>&1 && pacman -Qoq -- "$path" >/dev/null 2>&1; then
+    pacman -Qoq -- "$path" 2>/dev/null | head -n1
+    return 0
+  fi
+  if command -v dpkg-query >/dev/null 2>&1 && dpkg-query -S -- "$path" >/dev/null 2>&1; then
+    dpkg-query -S -- "$path" 2>/dev/null | head -n1 | cut -d: -f1
+    return 0
+  fi
+  return 1
+}
+
+read_only_location() {
+  local path="$1" options
+  options="$(findmnt -no OPTIONS --target "$path" 2>/dev/null || true)"
+  [[ ",$options," == *",ro,"* ]]
+}
+
 remove_path() {
   local path="$1"
+  if [[ -e "$path" || -L "$path" ]] && read_only_location "$path"; then
+    echo "Keeping $path: it is on a read-only file system." >&2
+    PACKAGE_OWNED+=("(read-only system file)")
+    return 0
+  fi
   if [[ -e "$path" || -L "$path" ]]; then
     echo "Removing: $path"
     if [[ "$DRY_RUN" -eq 0 ]]; then
@@ -189,6 +222,17 @@ remove_managed_privileged_file() {
   local source="$1"
   local target="$2"
   [[ -e "$target" || -L "$target" ]] || return 0
+  local owner
+  if owner="$(package_owner "$target")"; then
+    echo "Keeping $target: it belongs to the installed package '$owner'." >&2
+    PACKAGE_OWNED+=("$owner")
+    return 0
+  fi
+  if read_only_location "$target"; then
+    echo "Keeping $target: it is on a read-only file system." >&2
+    PACKAGE_OWNED+=("(read-only system file)")
+    return 0
+  fi
   # A local uninstall must not turn a stale/custom prefix into authority to
   # remove a global root file. The installed application still contains the
   # exact source that install-local.sh copied, so use it as a conservative
@@ -335,11 +379,12 @@ remove_path "$DESKTOP_DIR/io.github.movacx.bc250-control-center.desktop"
 remove_path "$METAINFO_DIR/io.github.movacx.bc250-control-center.metainfo.xml"
 remove_path "$SYSTEMD_USER_DIR/bc250-control-centerd.service"
 if [[ "$KEEP_PRIVILEGED" -eq 0 ]]; then
-if [[ -e /var/lib/bc250-control-center/system-setup/acpi.json || -e /var/lib/bc250-control-center/system-setup/telemetry.json || -e /etc/systemd/system/bc250-memory-setup.service || -e /var/lib/bc250-control-center-swap/swapfile || -e /etc/systemd/zram-generator.conf.d/90-bc250.conf || -e /etc/sysctl.d/90-bc250-memory.conf ]]; then
+if [[ -e /var/lib/bc250-control-center/system-setup/acpi.json || -e /var/lib/bc250-control-center/system-setup/telemetry.json || -e /etc/bc250-control-center/ttm-kargs.original || -e /etc/systemd/system/bc250-memory-setup.service || -e /var/lib/bc250-control-center-swap/swapfile || -e /etc/systemd/zram-generator.conf.d/90-bc250.conf || -e /etc/sysctl.d/90-bc250-memory.conf ]] \
+   || grep -Eqs '"(arguments|values)": [[{]$' /var/lib/bc250-control-center/system-setup/kernel-options.json; then
   echo "Keeping the optional memory/ACPI helper for restoration. Restore these settings in Control Center before removing that helper."
 else
   remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-system-setup-helper" "/usr/libexec/bc250-control-center/bc250-system-setup-helper"
-  for setup_module in system_setup_common.py system_setup_memory.py system_setup_acpi.py system_setup_telemetry.py system_setup_kernel_args.py system_setup_vram.py acpi_payload.py; do
+  for setup_module in system_setup_common.py system_setup_memory.py system_setup_acpi.py system_setup_telemetry.py system_setup_kernel_args.py system_setup_ttm.py system_setup_vram.py acpi_payload.py; do
     remove_managed_privileged_file "$APP_DIR/privileged/lib/$setup_module" "/usr/libexec/bc250-control-center/lib/$setup_module"
   done
 fi
@@ -445,6 +490,21 @@ cat <<INFO
 
 Uninstall complete.
 INFO
+
+if [[ "${#PACKAGE_OWNED[@]}" -gt 0 ]]; then
+  echo
+  echo "Some files were kept because they belong to a system package, not to this local install."
+  echo "Control Center is also installed as a package. Remove it with your package manager:"
+  if [[ -e /run/ostree-booted ]]; then
+    echo "  rpm-ostree uninstall bc250-control-center    # then reboot"
+  elif command -v pacman >/dev/null 2>&1; then
+    echo "  sudo pacman -Rns bc250-control-center        # or bc250-control-center-git (AUR)"
+  elif command -v dnf >/dev/null 2>&1; then
+    echo "  sudo dnf remove bc250-control-center"
+  elif command -v apt-get >/dev/null 2>&1; then
+    echo "  sudo apt remove bc250-control-center"
+  fi
+fi
 
 if [[ -d /run/systemd/system ]]; then
   cat <<INFO

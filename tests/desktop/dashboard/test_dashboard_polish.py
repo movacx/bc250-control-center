@@ -324,7 +324,7 @@ def test_sidebar_no_longer_claims_system_protection(qtbot):
             label.text() in {tr("System protected"), tr("BC250 services ready")}
             for label in sidebar.findChildren(QLabel)
         )
-    assert len(sidebar.buttons) == 9
+    assert len(sidebar.buttons) == 10
 
 
 def test_compatibility_filter_ignores_incidental_mouse_wheel(qtbot):

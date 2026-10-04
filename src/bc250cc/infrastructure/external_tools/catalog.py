@@ -137,7 +137,7 @@ EXTERNAL_TOOLS: dict[str, ExternalToolSpec] = {
         key="cyan_smu",
         upstream="https://github.com/filippor/cyan-skillfish-governor",
         license="MIT",
-        reviewed_revision="aaed42535622aee1a93df8b22860c409539f67f8",
+        reviewed_revision="7f34882ed28ab2065e478df9fb904b5e0a924afc",
         privilege_class="service-config",
         hardware_writes=True,
         automated=True,
@@ -148,7 +148,7 @@ EXTERNAL_TOOLS: dict[str, ExternalToolSpec] = {
         key="cpu_smu_oc",
         upstream="https://github.com/bc250-collective/bc250_smu_oc",
         license="MIT",
-        reviewed_revision="43d6b4c6e38c57bc9ec8908c44675ce7d5fd3d2f",
+        reviewed_revision="327014d6515d7108b1144adfa7203b4cc2eefd0b",
         privilege_class="live-hardware",
         hardware_writes=True,
         automated=True,
@@ -196,14 +196,16 @@ EXTERNAL_TOOLS: dict[str, ExternalToolSpec] = {
         key="steamos_amdgpu",
         upstream="https://github.com/keyboardspecialist/bc250-steamos",
         license="mixed-per-subproject",
-        # v0.21.2. Earlier revisions had no patch variant for the Valve 7.2
-        # kernel, so build.sh aborted on SteamOS 7.2 before this bump.
-        reviewed_revision="1f4f3266d7f0e3dc0e8c760592bd63871d2c53c3",
+        # v0.30.0, used unmodified. Since v0.21.2 its module carries the
+        # eight-core SMU metrics ABI (off by default), raises the SCLK floor
+        # to 350 MHz, writes a six-field RADV manifest and retires the
+        # per-game FSR4 V3 profile.
+        reviewed_revision="e1563f2051727702a000b6ff6f6c524e2792aa21",
         privilege_class="boot-kernel-initramfs",
         hardware_writes=False,
         automated=True,
         rollback="Upstream AMDGPU and RADV transactions provide independent uninstall/rollback paths; physical boot recovery is still required.",
-        validation_level="code-reviewed-field-tested-single-host",
+        validation_level="code-reviewed-hardware-gate-pending",
     ),
     # Per-user FSR4 runtime. Registered here so the shared manifest validator
     # and checkout inventory can see it; it was previously pinned only inside
@@ -284,6 +286,20 @@ EXTERNAL_TOOLS: dict[str, ExternalToolSpec] = {
             "or flash state is written."
         ),
         validation_level="reverse-engineered-community-reported-hardware-gate-pending",
+    ),
+    "apu_telemetry": ExternalToolSpec(
+        key="apu_telemetry",
+        upstream="https://github.com/onlinermm/BC250-Telemetry",
+        license="MIT",
+        reviewed_revision="71ad42184012367ab43eac177942a8d8d9ef73c4",
+        privilege_class="root-service",
+        # The daemon writes one register: the standard PMBus PAGE selector that
+        # picks the CPU or GPU rail before each read. It changes no regulator
+        # setting; everything else it does on the bus is a read.
+        hardware_writes=True,
+        automated=True,
+        rollback="Disable and remove the managed service and binary; no board state is kept.",
+        validation_level="code-reviewed-hardware-gate-pending",
     ),
 }
 
@@ -412,6 +428,19 @@ EXTERNAL_TOOL_LIFECYCLES: dict[str, ExternalToolLifecycle] = {
             "crashes. Use at your own risk."
         ),
     ),
+    "apu_telemetry": _lifecycle(
+        "Build the pinned daemon on this machine and install only apu-telemetry.service; the web server, fan module and memory collector are not installed.",
+        "Verify the managed unit and binary, then that /run/apu_telemetry.json is being published.",
+        "Disable and remove the managed unit and binary; a service installed by upstream's own installer is never touched.",
+        conflicts=("apu-telemetry.service installed by upstream's install.sh",),
+        vocabulary="Power delivery readings (CPU and GPU rail voltage, current and temperature)",
+        actions=(LifecycleAction.CHECK, LifecycleAction.INSTALL, LifecycleAction.UNINSTALL),
+        maintainer=(
+            "onlinermm maintains the daemon; Control Center only builds the "
+            "pinned revision and installs its service. Readings need the "
+            "physical I2C modification described in the project's hardware.md."
+        ),
+    ),
 }
 
 
@@ -525,6 +554,7 @@ EXTERNAL_TOOL_DIRECTORIES = {
     "oberon_governor": "oberon-governor",
     "gfx1013_direct": "bc250-gfx1013-fix",
     "gddr6_memory_temp": "bc250-memory-temperature",
+    "apu_telemetry": "bc250-telemetry",
 }
 
 

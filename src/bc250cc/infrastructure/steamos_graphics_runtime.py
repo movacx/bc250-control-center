@@ -23,7 +23,16 @@ CURRENT_FSR4_PATCH_SHA256 = (
 STEAMOS_FSR4_LAUNCH_OPTION = (
     '"$HOME/.local/share/bc250-mesh-shader/fsr4/bc250-fsr4-run" %command%'
 )
-CURRENT_MESA_TAG = "mesa-26.2.0"
+CURRENT_MESA_TAG = "mesa-26.2.2"
+#: The global RADV manifest gained two optional fields in toolkit v0.29: the
+#: build profile and the SHA-256 of the session generator that enables it.
+#: The toolkit itself still reads manifests without them.
+CURRENT_RADV_PROFILE_REVISION = "production-fsr4-v4"
+_RADV_PROFILE_REVISIONS = frozenset({"", "compute-only-v2", CURRENT_RADV_PROFILE_REVISION})
+RADV_GENERATOR = Path("/usr/lib/systemd/user-environment-generators/60-bc250-gfx1013")
+#: The per-game FSR4 V3 profile was retired upstream in v0.29; a profile built
+#: before that keeps the Mesa it was built with.
+FSR4_MESA_TAG = "mesa-26.2.0"
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _MESA_TAG = re.compile(r"^mesa-[0-9][0-9A-Za-z._-]*$")
 
@@ -177,7 +186,7 @@ if state.get("kernelReady") is True:
         ("ACTIVE", "AMDGPU DP audio compatibility quirk"),
         ("ACTIVE", "Cyan Skillfish GPU activity metrics"),
         ("ACTIVE", "Cyan Skillfish live GFX clock query"),
-        ("ACTIVE", "Cyan Skillfish 300-2230 MHz control range"),
+        ("ACTIVE", "Cyan Skillfish 350-2230 MHz control range"),
         ("ACTIVE", "AMDGPU TTM NULL-page cleanup guard"),
         ("ACTIVE", "GFX1013 MMIO PASID routing"),
         ("ACTIVE", "GFX1013 compute GFXOFF guard"),
@@ -265,9 +274,12 @@ def build_steamos_graphics_command(
     command = {
         "status": status_report,
         "install": f"/usr/bin/bash {qscript} setup",
-        "install-fsr4": f"/usr/bin/bash {qscript} setup --fsr4",
+        "install-fsr4": (
+            'echo "ERROR: the toolkit retired the per-game FSR4 V3 profile; only removing it is supported."; '
+            "exit 2"
+        ),
         "uninstall": f"/usr/bin/bash {qscript} uninstall",
-        "uninstall-fsr4": f"/usr/bin/bash {qscript} uninstall --fsr4",
+        "uninstall-fsr4": f"/usr/bin/bash {qscript} uninstall --fsr4-legacy",
     }[action]
     mutation = action != "status"
     steps = [
@@ -315,29 +327,31 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _tokens(path: Path, count: int) -> tuple[str, ...] | None:
+def _line_tokens(path: Path) -> tuple[str, ...] | None:
     if not _regular_file(path):
         return None
     try:
         lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
     except OSError:
         return None
-    if len(lines) != 1:
-        return None
-    values = tuple(lines[0].split())
-    return values if len(values) == count else None
+    return tuple(lines[0].split()) if len(lines) == 1 else None
+
+
+def _tokens(path: Path, count: int) -> tuple[str, ...] | None:
+    values = _line_tokens(path)
+    return values if values is not None and len(values) == count else None
 
 
 def _global_runtime_state(
-    *, state_dir: Path, driver_path: Path, icd_path: Path
+    *, state_dir: Path, driver_path: Path, icd_path: Path, generator_path: Path
 ) -> dict[str, object]:
     manifest = state_dir / "install.conf"
     artifacts_present = any(
         path.exists() or path.is_symlink()
         for path in (manifest, driver_path, icd_path, state_dir / "install-transaction")
     )
-    values = _tokens(manifest, 4)
-    if values is None:
+    values = _line_tokens(manifest)
+    if values is None or not 4 <= len(values) <= 6:
         return {
             "state": "invalid" if artifacts_present else "not-installed",
             "present": artifacts_present,
@@ -347,23 +361,30 @@ def _global_runtime_state(
             "mesa_tag": "",
             "upstream_commit": "",
         }
-    driver_sha, icd_sha, mesa_tag, upstream_commit = values
+    driver_sha, icd_sha, mesa_tag, upstream_commit, *extra = values
+    profile_revision = extra[0] if extra else ""
+    generator_sha = extra[1] if len(extra) > 1 else ""
     manifest_valid = bool(
         _SHA256.fullmatch(driver_sha)
         and _SHA256.fullmatch(icd_sha)
         and _MESA_TAG.fullmatch(mesa_tag)
         and upstream_commit in {CURRENT_UPSTREAM_COMMIT, LEGACY_UPSTREAM_COMMIT}
+        and profile_revision in _RADV_PROFILE_REVISIONS
+        and (not generator_sha or _SHA256.fullmatch(generator_sha))
     )
     intact = bool(
         manifest_valid
         and _regular_directory(state_dir)
         and _sha256(driver_path) == driver_sha
         and _sha256(icd_path) == icd_sha
+        and (not generator_sha or _sha256(generator_path) == generator_sha)
     )
     current = bool(
         intact
         and upstream_commit == CURRENT_UPSTREAM_COMMIT
         and mesa_tag == CURRENT_MESA_TAG
+        and profile_revision == CURRENT_RADV_PROFILE_REVISION
+        and generator_sha
     )
     return {
         "state": "ready" if intact else "invalid",
@@ -416,7 +437,7 @@ def _fsr4_runtime_state(*, state_dir: Path) -> dict[str, object]:
     )
     current = bool(
         intact
-        and mesa_tag == CURRENT_MESA_TAG
+        and mesa_tag == FSR4_MESA_TAG
         and patch_sha == CURRENT_FSR4_PATCH_SHA256
     )
     return {
@@ -435,11 +456,13 @@ def probe_steamos_graphics_runtime(
     home: Path | None = None,
     driver_path: Path | None = None,
     icd_path: Path | None = None,
+    generator_path: Path | None = None,
 ) -> dict[str, object]:
     """Return non-invasive evidence for the reviewed SteamOS graphics stack.
 
-    ``driver_path`` and ``icd_path`` are injectable only for tests.  Production
-    uses the fixed paths declared by the reviewed external runtime.
+    ``driver_path``, ``icd_path`` and ``generator_path`` are injectable only
+    for tests.  Production uses the fixed paths declared by the reviewed
+    external runtime.
     """
     home = Path.home() if home is None else Path(home)
     state_dir = home / ".local" / "share" / "bc250-mesh-shader"
@@ -447,6 +470,7 @@ def probe_steamos_graphics_runtime(
         state_dir=state_dir,
         driver_path=driver_path or Path("/usr/lib/libvulkan_radeon_driconf.so"),
         icd_path=icd_path or home / "radeon_driconf_icd.x86_64.json",
+        generator_path=generator_path or RADV_GENERATOR,
     )
     fsr4 = _fsr4_runtime_state(state_dir=state_dir)
     return {

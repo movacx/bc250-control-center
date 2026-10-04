@@ -176,6 +176,15 @@ def plan_cu_action_availability(
 ) -> CuActionAvailability:
     idle = not busy
     write_ready = bool(state.get("privileged_backend_ready"))
+    if state.get("kernel_managed"):
+        # The BC-250 kernel unlocked every CU at boot (bc250_cc_write_mode=3):
+        # no live or boot write may change routing under it. Only taking a
+        # previously installed CU boot service away stays possible.
+        return CuActionAvailability(
+            install_umr=False, save_boot=False, install_service=False, apply_saved=False,
+            remove_service=idle and write_ready and bool(state.get("service_installed")),
+            restore_factory=False, discard=False, apply_live=False,
+        )
     verified = bool(state.get("available")) and bool(_masks(state.get("masks")))
     saved = str(state.get("boot_sync_key") or "") == "saved"
     persistence_supported = state.get("persistence_supported") is not False

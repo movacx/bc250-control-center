@@ -82,7 +82,7 @@ def test_real_page_adapter_dispatches_the_exact_confirmed_plan(monkeypatch):
         "Controller",
         (),
         {
-            "controlar_governor": lambda self, *args: calls.append(
+            "controlar_governor": lambda self, *args, **_options: calls.append(
                 ("controller", args)
             ) or "terminal"
         },
@@ -120,7 +120,7 @@ def test_real_page_adapter_dispatches_the_exact_confirmed_plan(monkeypatch):
 
 def _page_without_conflicts(calls, action_backend="cyan-skillfish-governor-smu"):
     controller = type("Controller", (), {
-        "controlar_governor": lambda self, *args: calls.append(("controller", args)) or "terminal",
+        "controlar_governor": lambda self, *args, **_options: calls.append(("controller", args)) or "terminal",
     })()
     last_operation = type("Status", (), {"set_values": lambda self, *args: None})()
 

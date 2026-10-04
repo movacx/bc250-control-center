@@ -13,6 +13,8 @@ install_runtime() {
   bold "${BC250_OS_LABEL:-Fedora family}: installing BC250 runtime dependencies"
   as_root dnf install -y "${runtime_packages[@]}"
   as_root dnf install -y glx-utils || warn "Optional OpenGL diagnostics package glx-utils is unavailable"
+  # bsdtar unpacks the 7z BIOS images on the Firmware page.
+  as_root dnf install -y bsdtar || warn "Optional bsdtar is unavailable; the Firmware page cannot unpack 7z BIOS images"
 }
 
 install_governor() {
@@ -38,7 +40,7 @@ check_governor() { verify_command cyan-skillfish-governor-smu; }
 check_stress() { verify_command stress; }
 check_sensors() { verify_command sensors; }
 check_umr() { verify_command umr; }
-plan_runtime() { plan_packages runtime dnf "${runtime_packages[@]}"; echo "PLAN optional=glx-utils"; }
+plan_runtime() { plan_packages runtime dnf "${runtime_packages[@]}"; echo "PLAN optional=glx-utils bsdtar"; }
 plan_governor() { plan_packages governor copr cyan-skillfish-governor-smu; }
 plan_stress() { plan_packages stress dnf stress; }
 plan_sensors() { plan_packages sensors dnf lm_sensors; }

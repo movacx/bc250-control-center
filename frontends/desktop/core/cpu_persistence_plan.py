@@ -72,6 +72,42 @@ def validate_detection_for_persistence(
     return None
 
 
+def _same_integer(left: object, right: object) -> bool:
+    try:
+        return int(left) == int(right)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return False
+
+
+def manual_scale_is_detector_result(
+    detection: Mapping[str, object],
+    *,
+    scale: int,
+    frequency: int,
+    temperature: int,
+) -> bool:
+    """Whether a manual scale is exactly what the recorded detector run produced.
+
+    The stress-tested manual apply runs bc250-detect and is recorded as a
+    detection run, which clears any live-test record on purpose. Its result is
+    detector evidence already, so asking for a separate live test made the
+    "Save for boot" step impossible right after the UI said it was ready. The
+    frequency may be the detected one or the request that produced the run,
+    because the detector can settle on a lower safe clock.
+    """
+    snapshot = _mapping(detection.get("snapshot"))
+    if not snapshot or not detection.get("matches_current_config"):
+        return False
+    return (
+        _same_integer(scale, snapshot.get("scale"))
+        and _same_integer(temperature, snapshot.get("temperature"))
+        and (
+            _same_integer(frequency, snapshot.get("frequency"))
+            or _same_integer(frequency, snapshot.get("requested_frequency"))
+        )
+    )
+
+
 def plan_cpu_persistence(
     detection: Mapping[str, object],
     *,
@@ -84,6 +120,14 @@ def plan_cpu_persistence(
     blocker = validate_detection_for_persistence(detection)
     if blocker is not None:
         return blocker
+    if scale_override is not None and manual_scale_is_detector_result(
+        detection,
+        scale=scale_override,
+        frequency=candidate_frequency,
+        temperature=candidate_temperature,
+    ):
+        scale_override = None
+        scale_analysis = None
     detection_run = _mapping(detection.get("snapshot"))
     current_config = _mapping(detection.get("current_config"))
     analysis = scale_analysis or {}

@@ -8,7 +8,7 @@ from html import escape
 from math import log10
 from typing import Callable, Iterable
 
-from PyQt6.QtCore import QPointF, QRect, QRectF, Qt, QTimer, pyqtSignal
+from PyQt6.QtCore import QPointF, QRect, QRectF, QSize, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import (
     QBrush,
     QColor,
@@ -55,7 +55,13 @@ from ..components.responsive import (
     configure_responsive_scroll_area,
     effective_viewport_width,
 )
-from ..components.widgets import IconBadge, PillLabel, apply_shadow, readable_text_on
+from ..components.widgets import (
+    IconBadge,
+    PillLabel,
+    apply_shadow,
+    icon,
+    readable_text_on,
+)
 from ..core.gddr6_monitor import gddr6_monitor_for
 from ..core.performance_sample_presenter import present_performance_sample
 from ..core.performance_views import (
@@ -151,11 +157,17 @@ QWidget[performancePage='true'] QPushButton[scaleMode='true']:checked {{
     background: {c['blue_soft']}; color: {c['blue']}; border-color: {c['blue_border']};
 }}
 QWidget[performancePage='true'] QPushButton[viewSwitch='true'] {{
-    min-height: 0; padding: 2px 10px; border-radius: 7px; font-size: 9px; font-weight: 780;
-    background: {c['panel_alt']}; color: {c['text']}; border: 1px solid {c['border']};
+    min-height: 0; padding: 4px 12px; border-radius: 8px; font-size: 11px; font-weight: 800;
+    background: {c['panel_raised']}; color: {c['text']}; border: 1px solid {c['border_strong']};
 }}
 QWidget[performancePage='true'] QPushButton[viewSwitch='true']:hover {{
-    background: {c['control_hover']}; border-color: {c['blue_border']};
+    background: {c['control_hover']}; color: {c['blue']}; border-color: {c['blue_border']};
+}}
+QWidget[performancePage='true'] QPushButton[viewSwitch='true']:pressed {{
+    background: {c['blue_soft']}; border-color: {c['blue']};
+}}
+QWidget[performancePage='true'] QPushButton[viewSwitch='true']:focus {{
+    border-color: {c['blue']};
 }}
 QWidget[performancePage='true'] QFrame[viewFlyout='true'] {{
     background: {c['panel_raised']}; border: 1px solid {c['border_strong']}; border-radius: 10px;
@@ -1280,6 +1292,10 @@ class DetailPanel(QFrame):
         self.sensors_button.setProperty("viewSwitch", True)
         self.sensors_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.sensors_button.setToolTip(tr("Every sensor in a list, with minimum, average and maximum"))
+        # An arrow says it leads somewhere; plain text read as a label.
+        self.sensors_button.setIcon(icon("chevron_right_blue"))
+        self.sensors_button.setIconSize(QSize(14, 14))
+        self.sensors_button.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
         self.sensors_button.clicked.connect(self.sensors_requested.emit)
         top_row.addWidget(self.sensors_button, 0, Qt.AlignmentFlag.AlignVCenter)
         self.root.addLayout(top_row)

@@ -63,9 +63,9 @@ def test_resume_releases_only_a_takeover_decky_recorded(helper, tmp_path, monkey
     assert payload["system_fan_override"] is False
 
 
-def test_protocol_19_is_the_one_the_plugin_and_contract_expect(helper):
+def test_the_protocol_is_the_one_the_plugin_and_contract_expect(helper):
     contract = (ROOT / "privileged/lib/bc250_contract.py").read_text(encoding="utf-8")
     plugin = (ROOT / "integrations/decky/bc250-quick-access/main.py").read_text(encoding="utf-8")
-    assert helper.HELPER_PROTOCOL == 19
-    assert "QUICK_ACCESS_PROTOCOL = 19" in contract
-    assert "HELPER_PROTOCOL = 19" in plugin
+    assert helper.HELPER_PROTOCOL == 21
+    assert "QUICK_ACCESS_PROTOCOL = 21" in contract
+    assert "HELPER_PROTOCOL = 21" in plugin

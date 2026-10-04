@@ -289,6 +289,9 @@ def build_bazzite_memory_tuning_command(policy: str, ttm_gib: int) -> str:
         "if [ \"$bc250_remove_ttm_state\" -eq 1 ]; then sudo rm -f \"$bc250_ttm_state\"; fi",
         "if [ \"$bc250_remove_zswap_state\" -eq 1 ]; then sudo rm -f \"$bc250_zswap_state\"; fi",
         "sudo restorecon -RF /etc/systemd/system /etc/bc250-control-center /var/swap 2>/dev/null || true",
+        # restorecon leaves the swapfile var_t, which systemd-logind may not
+        # read when it checks swap for hibernation: an AVC alert every boot.
+        "if command -v chcon >/dev/null 2>&1 && sudo test -f /var/swap/bc250-zswap.swap; then sudo chcon -t swapfile_t /var/swap/bc250-zswap.swap 2>/dev/null || true; fi",
         "echo 'BC250_RESULT status=ok component=memory_tuning code=0 message=boot\\ configuration\\ prepared'",
         "echo 'BC250_REBOOT_REQUIRED=1'",
         "echo '== Finished: reboot required =='",

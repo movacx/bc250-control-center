@@ -42,6 +42,11 @@ ACTIONS = frozenset({"install", "rebuild", "enable", "disable", "uninstall", "st
 #: 6.12 (Debian 13), 6.8 (Ubuntu 24.04 before its HWE kernel) or older they do
 #: not, so the build is not offered there at all.
 MIN_KERNEL = (6, 14)
+#: Where an old kernel is the norm rather than a choice -- Debian 13 ships
+#: 6.12 -- the card is not shown at all instead of a "manual only" note. A
+#: derivative on 6.14 or newer (Ubuntu 25.04, Pop!_OS, Debian backports) still
+#: gets the build, because the decision is the kernel's, not the name's.
+DEBIAN_FAMILIES = frozenset({"debian", "ubuntu", "linuxmint", "pop"})
 
 
 def kernel_version(kernel: str) -> tuple[int, int] | None:
@@ -113,7 +118,18 @@ def gfx1013_source_state(
         state = "blocked-early-load"
     else:
         state = "reboot-required"
+    version_tuple = kernel_version(running)
+    debian_family = bool(
+        {str(family or "").strip().lower(), str(distro_id or "").strip().lower()} & DEBIAN_FAMILIES
+    )
     return {
+        # An install stays visible whatever the kernel: it must remain removable.
+        "hide_offer": bool(
+            debian_family
+            and not installed
+            and version_tuple is not None
+            and version_tuple < MIN_KERNEL
+        ),
         "supported": supported,
         "blocked_reason": blocked_reason,
         "installed": installed,

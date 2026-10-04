@@ -394,10 +394,10 @@ def test_dashboard_stages_and_restores_bazzite_cpu_mitigations(qtbot):
 
     assert page.readiness.mitigations_status.text() == "Enabled"
     assert not page.readiness.mitigations_panel.isHidden()
-    components_layout = page.readiness.mitigations_panel.parentWidget().layout()
-    assert components_layout.indexOf(page.readiness.mitigations_panel) < (
-        components_layout.indexOf(page.readiness.components_host)
-    )
+    # Boot options are not dependency preparation: the Dashboard keeps the panel
+    # built but in a holder that is never shown; Additional settings shows it.
+    assert page.readiness.mitigations_panel.parentWidget() is page.readiness._boot_holder
+    assert page.readiness._boot_holder.isHidden()
     assert not page.readiness.memory_panel.isAncestorOf(
         page.readiness.mitigations_apply_button
     )
@@ -534,7 +534,11 @@ def test_dashboard_preparation_tabs_are_real_stacked_sections(qtbot):
     page = DashboardPage(object())
     qtbot.addWidget(page)
 
+    # Compatibility, Memory & Swap and Drivers moved to Additional settings.
+    assert [b.isHidden() for b in page.readiness.tab_buttons] == [False, True, True, False, True]
     for index, button in enumerate(page.readiness.tab_buttons):
+        if button.isHidden():
+            continue
         button.click()
         assert page.readiness.stack.currentIndex() == index
         assert [item.isChecked() for item in page.readiness.tab_buttons] == [

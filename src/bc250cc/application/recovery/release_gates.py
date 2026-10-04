@@ -73,11 +73,12 @@ _HARDWARE_QUALIFICATION_MATRIX = {
         ),
     },
     "memory_thermal": {
-        "tools": ("gddr6_memory_temp",),
+        "tools": ("gddr6_memory_temp", "apu_telemetry"),
         "requirements": (
             "confirm the runtime SMU patch does not corrupt GDDR6 traffic under sustained load",
             "cross-check chip-by-chip readings against an independent thermal reference",
             "power-cycle recovery verification after the patch is applied",
+            "confirm the PMBus page-select write leaves the regulator configuration unchanged and the rail readings match an independent meter",
         ),
     },
 }

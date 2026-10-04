@@ -152,3 +152,45 @@ def test_the_busiest_client_is_the_one_whose_counter_moved_most():
     assert busiest_client({"a": 0, "b": 0}, {"a": 10, "b": 30}) == "b"
     assert busiest_client({"a": 5}, {"a": 5}) is None
     assert busiest_client({}, {"new": 99}) is None
+
+
+class _FakeSampler:
+    def __init__(self):
+        self.compute = {"8": 0}
+
+    def sample(self):
+        return {"8": 0}
+
+    def compute_sample(self):
+        return dict(self.compute)
+
+    def process_name(self, client):
+        return "b1-Win64-Shippi"
+
+
+def test_async_compute_is_measured_while_sysfs_reports_the_gpu_load(tmp_path, monkeypatch):
+    """A kernel with the activity-metrics fix never needs the fdinfo fallback.
+
+    The compute (ACE) share used to be read only inside that fallback, so the
+    async-compute chart stayed empty on exactly the kernels that enable it.
+    """
+    from bc250cc.infrastructure import sistema_repository as module
+
+    repository = object.__new__(module.SistemaRepository)
+    repository.gpu_compute_anterior = None
+    repository.tiempo_gpu_compute = None
+    repository.gpu_compute_busy = None
+    repository.gpu_compute_process = ""
+    repository.gpu_busy_cache = None
+    repository.gpu_busy_cache_time = 0
+    sampler = repository._drm_fdinfo_sampler = _FakeSampler()
+    (tmp_path / "gpu_busy_percent").write_text("95\n", encoding="utf-8")
+    clock = iter((0, 2_000_000_000, 2_000_000_000))
+    monkeypatch.setattr(module.time, "monotonic_ns", lambda: next(clock))
+
+    assert repository._gpu_busy_percent(tmp_path) == 95
+    sampler.compute = {"8": 500_000_000}
+    assert repository._gpu_busy_percent(tmp_path) == 95
+
+    assert repository.gpu_compute_busy == 25
+    assert repository.gpu_compute_process == "b1-Win64-Shippi"
