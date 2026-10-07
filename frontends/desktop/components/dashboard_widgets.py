@@ -1140,6 +1140,9 @@ class _GameMatrix(QFrame):
         while self._grid.count():
             item = self._grid.takeAt(0)
             if item.widget() is not None:
+                # Hidden at once: deleteLater waits for the event loop, and
+                # until then the old row would paint under the new one.
+                item.widget().hide()
                 item.widget().deleteLater()
         self.rows = {}
         for column, text in enumerate(("Game", "HelixSR", "FSR4 INT8")):

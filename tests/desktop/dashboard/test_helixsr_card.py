@@ -195,3 +195,13 @@ def test_an_empty_table_says_how_to_find_games():
     sidebar.set_state(_state(_ready()))
     texts = [label.text() for label in sidebar.game_matrix.findChildren(QLabel)]
     assert "No games yet. Find FSR 3.1 games looks through your Steam library." in texts
+
+
+def test_a_rebuilt_table_leaves_nothing_of_the_old_one_on_screen():
+    sidebar = _sidebar()
+    sidebar.set_state(_state(_ready()))
+    old = sidebar.game_matrix.findChildren(QLabel)
+    sidebar.set_state(_state(_ready([
+        {"appid": "1", "kind": "game", "name": "Active", "state": "installed", "files": ["/a.dll"]},
+    ])))
+    assert all(label.isHidden() for label in old)
