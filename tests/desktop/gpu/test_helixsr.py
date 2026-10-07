@@ -144,6 +144,8 @@ def _release_zip(path: Path, *, extra: str = "") -> Path:
     setup = (
         "#!/usr/bin/env bash\nset -e\n"
         'test "$HELIXSR_FORCE_PORTABLE" = 0 -o "$HELIXSR_FORCE_PORTABLE" = 1\n'
+        'printf "%s\\n" "$@" > "$1/.setup-args"\n'
+        'if [ "$2" = --dlss ]; then cmp -s "$3" "$HOME/expected-dlss" || exit 9; fi\n'
         'printf weights > "$1/helixsr_weights.bin"\nprintf kernels > "$1/helixsr_kernels.pak"\n'
     )
     with zipfile.ZipFile(path, "w") as bundle:
@@ -553,3 +555,56 @@ def test_the_repository_routes_optiscaler_actions(home, tmp_path, monkeypatch):
     assert repository.gestionar_helixsr("opti_install:300")["game"] == "Racer"
     repository.gestionar_helixsr("opti_remove:300")
     assert (root / "OptiScaler.ini").read_bytes() == OPTISCALER_INI.encode()
+
+
+# ------------------------------------------------------------------ local DLSS DLL
+
+DLSS = b"MZ nvngx_dlss 310.7.0"
+
+
+def _client_dlss(home: Path, monkeypatch, data: bytes) -> Path:
+    """OptiScaler Client's payload copy of NVIDIA's DLSS DLL."""
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(home / "config"))
+    monkeypatch.setattr(helixsr, "DLSS_DLL_SHA256", _sha(DLSS))
+    payload = home / "config" / "OptiscalerClient-BC250" / "BC250" / "payload" / "nvngx_dlss.dll"
+    payload.parent.mkdir(parents=True)
+    payload.write_bytes(data)
+    (home / "expected-dlss").write_bytes(DLSS)
+    return payload
+
+
+def _setup_args() -> list[str]:
+    return (helixsr.helixsr_directory() / ".setup-args").read_text(encoding="utf-8").split()
+
+
+def test_the_client_copy_of_dlss_spares_the_nvidia_download(home, monkeypatch):
+    payload = _client_dlss(home, monkeypatch, DLSS)
+    assert helixsr.helixsr_state(machine="x86_64")["local_dlss"] is True
+
+    result = _run_install(home, _release_zip(home / "release.zip"), monkeypatch)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    args = _setup_args()
+    assert args[1] == "--dlss" and args[2] != str(payload), "a private, verified copy is handed over"
+    assert "Nothing is downloaded from NVIDIA" in result.stdout
+    assert payload.read_bytes() == DLSS, "the client's own file stays untouched"
+    assert not Path(args[2]).exists(), "the private copy is removed afterwards"
+
+
+def test_a_changed_client_copy_is_skipped_and_the_setup_asks_as_usual(home, monkeypatch):
+    _client_dlss(home, monkeypatch, b"MZ some other dll")
+
+    result = _run_install(home, _release_zip(home / "release.zip"), monkeypatch)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "--dlss" not in _setup_args()
+    assert "is not NVIDIA's DLSS 310.7.0 DLL" in result.stdout
+    assert "The setup asks before it downloads" in result.stdout
+
+
+def test_without_the_client_the_setup_asks_before_downloading(home, monkeypatch):
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(home / "config"))
+    assert helixsr.helixsr_state(machine="x86_64")["local_dlss"] is False
+    result = _run_install(home, _release_zip(home / "release.zip"), monkeypatch)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert _setup_args() == [str(helixsr.helixsr_directory())]

@@ -4684,5 +4684,8 @@
   "OptiScaler is not installed in this game. Install it with the FSR4 OptiScaler Client first.": "此遊戲未安裝 OptiScaler。請先用 FSR4 的 OptiScaler Client 安裝。",
   "OptiScaler's settings file was not found in this game.": "在此遊戲中找不到 OptiScaler 的設定檔。",
   "This game already has a HelixSR folder that Control Center did not create. Remove it by hand first.": "此遊戲已有一個不是 Control Center 建立的 HelixSR 資料夾。請先手動刪除。",
-  "Close this game before changing its files.": "請先關閉此遊戲，再變更其檔案。"
+  "Close this game before changing its files.": "請先關閉此遊戲，再變更其檔案。",
+  "NVIDIA DLSS DLL": "NVIDIA 的 DLSS DLL",
+  "OptiScaler Client's copy, checked by SHA-256; nothing is downloaded from NVIDIA": "OptiScaler Client 的副本，已驗證 SHA-256；不會從 NVIDIA 下載任何內容",
+  "Downloaded from NVIDIA's GitHub after you agree in the terminal": "在你於終端機中同意後從 NVIDIA 的 GitHub 下載"
 }

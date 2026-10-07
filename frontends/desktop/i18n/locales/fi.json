@@ -4684,5 +4684,8 @@
   "OptiScaler is not installed in this game. Install it with the FSR4 OptiScaler Client first.": "OptiScaleria ei ole asennettu tähän peliin. Asenna se ensin FSR4:n OptiScaler Clientilla.",
   "OptiScaler's settings file was not found in this game.": "OptiScalerin asetustiedostoa ei löytynyt tästä pelistä.",
   "This game already has a HelixSR folder that Control Center did not create. Remove it by hand first.": "Tässä pelissä on jo HelixSR-kansio, jota Control Center ei luonut. Poista se ensin käsin.",
-  "Close this game before changing its files.": "Sulje tämä peli ennen kuin sen tiedostoja muutetaan."
+  "Close this game before changing its files.": "Sulje tämä peli ennen kuin sen tiedostoja muutetaan.",
+  "NVIDIA DLSS DLL": "NVIDIAn DLSS-DLL",
+  "OptiScaler Client's copy, checked by SHA-256; nothing is downloaded from NVIDIA": "OptiScaler Clientin kopio, tarkistettu SHA-256:lla; NVIDIAlta ei ladata mitään",
+  "Downloaded from NVIDIA's GitHub after you agree in the terminal": "Ladataan NVIDIAn GitHubista, kun hyväksyt sen päätteessä"
 }

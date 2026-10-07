@@ -4455,6 +4455,16 @@ class GpuGovernorPage(QWidget):
                 (tr("Source"), "github.com/lonewolf0622/HelixSR"),
                 (tr("Release"), HELIXSR_TAG),
                 (tr("Scope"), tr("Your user folder; games only when you choose them")),
+                *(
+                    ()
+                    if action == "uninstall"
+                    else ((
+                        tr("NVIDIA DLSS DLL"),
+                        tr("OptiScaler Client's copy, checked by SHA-256; nothing is downloaded from NVIDIA")
+                        if _dict(_dict(self.current_state.get("tools")).get("helixsr")).get("local_dlss")
+                        else tr("Downloaded from NVIDIA's GitHub after you agree in the terminal"),
+                    ),)
+                ),
             ),
             notice=""
             if action == "uninstall"

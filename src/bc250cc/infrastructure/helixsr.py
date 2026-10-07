@@ -59,6 +59,9 @@ HELIXSR_NETWORK_FILES = ("helixsr_weights.bin", "helixsr_kernels.pak")
 HELIXSR_LOG = "helixsr.log"
 HELIXSR_LICENSE = f"{HELIXSR_REPOSITORY}/blob/main/LICENSE"
 DLSS_LICENSE = "https://github.com/NVIDIA/DLSS/blob/v310.7.0/LICENSE.txt"
+#: NVIDIA's nvngx_dlss.dll 310.7.0, the one HelixSR's setup builds from
+#: (DLSS_SHA256 in its helixsr_setup.py). OptiScaler Client pins the same file.
+DLSS_DLL_SHA256 = "be6e434a94ca32499515eb62ca0e6c274526055d568d0426e4c652dcdfb6ee6e"
 
 #: The FSR 3.1 DLLs HelixSR stands in for. In a folder that has both, the
 #: upscaler DLL is the one replaced.
@@ -625,6 +628,7 @@ def helixsr_state(*, machine: str | None = None) -> dict:
         "path": str(directory),
         "other_versions": others,
         "wine_available": wine_available(),
+        "local_dlss": bool(local_dlss_candidates()),
         "games": games,
         "installed_games": sum(1 for game in games if game["state"] != "available"),
     }
@@ -654,6 +658,20 @@ test -n "$bc250_wine" || {
 }'''
 
 
+def local_dlss_candidates() -> list[Path]:
+    """Copies of NVIDIA's DLSS 310.7.0 DLL already on this PC.
+
+    OptiScaler Client downloads it from NVIDIA's GitHub, checked against the
+    same SHA-256, and keeps it in its payload folder. Using that copy spares a
+    second download; the terminal checks its digest again before using it,
+    and HelixSR's setup downloads the DLL itself (after asking) otherwise.
+    """
+    from .bc250_opticlient import opticlient_records
+
+    payload = opticlient_records() / "BC250" / "payload" / "nvngx_dlss.dll"
+    return [payload] if payload.is_file() and not payload.is_symlink() else []
+
+
 def _setup_block(target: str) -> str:
     """Run upstream's setup without ever reaching its ``sudo`` branch.
 
@@ -662,21 +680,46 @@ def _setup_block(target: str) -> str:
     portable Python in ~/.local/share/HelixSR instead, as it does on SteamOS.
     ``--yes`` is never passed: the setup asks in this terminal before it
     downloads NVIDIA's DLSS DLL.
+
+    A copy of that DLL already on this PC (OptiScaler Client's) is copied to a
+    private folder, checked by SHA-256 there and handed over with ``--dlss``;
+    the setup then downloads nothing from NVIDIA.
     """
+    candidates = " ".join(shlex.quote(str(path)) for path in local_dlss_candidates())
     return f'''bc250_portable=1
 if command -v python3 >/dev/null 2>&1 && python3 -c 'import numpy, sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)' >/dev/null 2>&1; then
   bc250_portable=0
 fi
+bc250_dlss_dir="$(mktemp -d "${{TMPDIR:-/tmp}}/bc250-helixsr-dlss.XXXXXX")"
+bc250_dlss_args=()
+for bc250_candidate in {candidates}; do
+  test -f "$bc250_candidate" -a ! -L "$bc250_candidate" || continue
+  cp -- "$bc250_candidate" "$bc250_dlss_dir/nvngx_dlss.dll" || continue
+  if printf '%s  %s\\n' {DLSS_DLL_SHA256} "$bc250_dlss_dir/nvngx_dlss.dll" | sha256sum -c --status -; then
+    echo "Using the copy of NVIDIA's DLSS 310.7.0 DLL already on this PC (checked by SHA-256):"
+    echo "  $bc250_candidate"
+    bc250_dlss_args=(--dlss "$bc250_dlss_dir/nvngx_dlss.dll")
+    break
+  fi
+  echo "Skipping $bc250_candidate: it is not NVIDIA's DLSS 310.7.0 DLL."
+  rm -f -- "$bc250_dlss_dir/nvngx_dlss.dll"
+done
 echo
 echo "Building HelixSR's network files on this PC."
-echo "The setup asks before it downloads NVIDIA's DLSS 310.7.0 DLL (license: {DLSS_LICENSE})."
+if test "${{#bc250_dlss_args[@]}}" -eq 0; then
+  echo "The setup asks before it downloads NVIDIA's DLSS 310.7.0 DLL (license: {DLSS_LICENSE})."
+else
+  echo "Nothing is downloaded from NVIDIA. The DLL stays under NVIDIA's license: {DLSS_LICENSE}"
+fi
 echo "The files it builds hold NVIDIA's network: they are for this PC only, never share or upload them."
 echo
-if ! HELIXSR_FORCE_PORTABLE="$bc250_portable" bash {target}/{HELIXSR_SETUP} {target}; then
+if ! HELIXSR_FORCE_PORTABLE="$bc250_portable" bash {target}/{HELIXSR_SETUP} {target} "${{bc250_dlss_args[@]}}"; then
+  rm -rf -- "$bc250_dlss_dir"
   echo
   echo "The network files were not built. HelixSR is installed; use Build network files to try again."
   exit 1
 fi
+rm -rf -- "$bc250_dlss_dir"
 for bc250_file in {" ".join(HELIXSR_NETWORK_FILES)}; do
   test -s {target}/"$bc250_file" || {{ echo "ERROR: $bc250_file was not created."; exit 1; }}
 done
