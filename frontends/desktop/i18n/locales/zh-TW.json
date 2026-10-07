@@ -4699,5 +4699,12 @@
   "Native FSR 3.1 detected": "偵測到原生 FSR 3.1",
   "Through OptiScaler · press Insert and pick FSR HelixSR": "透過 OptiScaler · 按下 Insert 並選擇 FSR HelixSR",
   "OptiScaler no longer points to HelixSR": "OptiScaler 不再指向 HelixSR",
-  "Through OptiScaler · also for DLSS and XeSS games": "透過 OptiScaler · 也適用於 DLSS 和 XeSS 遊戲"
+  "Through OptiScaler · also for DLSS and XeSS games": "透過 OptiScaler · 也適用於 DLSS 和 XeSS 遊戲",
+  "HelixSR": "HelixSR",
+  "FSR4 INT8": "FSR4 INT8",
+  "DLSS's neural network running on this GPU, in place of a game's FSR 3.1 upscaler.": "在此 GPU 上執行的 DLSS 神經網路，取代遊戲的 FSR 3.1 超解析度元件。",
+  "Active via OptiScaler": "透過 OptiScaler 啟用",
+  "Add via OptiScaler": "透過 OptiScaler 加入",
+  "Steam option missing": "缺少 Steam 選項",
+  "Set up in launcher": "在啟動器中設定"
 }

@@ -146,6 +146,7 @@ def attention_items(tools: Mapping) -> tuple[Attention, ...]:
     items: list[Attention] = []
 
     compatibility = _where("Prepare BC250 system", "Compatibility")
+    upscaling = _where("Additional settings", "Upscaling")
     helpers = _mapping(tools.get("privileged_install"))
     if helpers.get("state") == "outdated":
         # A package still owns these files: a local install would overwrite
@@ -199,10 +200,10 @@ def attention_items(tools: Mapping) -> tuple[Attention, ...]:
     if fsr4.get("installer_available"):
         if fsr4.get("state") == "invalid":
             items.append(Attention("fsr4-invalid", FSR4_REPAIR_TITLE, _say(
-                FSR4_REPAIR_MESSAGE, button=tr("Repair FSR4 client"), section=compatibility,
+                FSR4_REPAIR_MESSAGE, button=tr("Repair FSR4 client"), section=upscaling,
             )))
         elif fsr4.get("state") == "update-available":
             items.append(Attention("fsr4-update", FSR4_UPDATE_TITLE, _say(
-                FSR4_UPDATE_MESSAGE, button=tr("Update FSR4 client"), section=compatibility,
+                FSR4_UPDATE_MESSAGE, button=tr("Update FSR4 client"), section=upscaling,
             ), "blue"))
     return tuple(items)

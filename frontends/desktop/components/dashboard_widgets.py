@@ -13,6 +13,7 @@ from PyQt6.QtCore import (
     QPoint,
     QPointF,
     QPropertyAnimation,
+    QRect,
     QRectF,
     QSize,
     Qt,
@@ -57,6 +58,7 @@ from ..core.preferences import application_settings
 from ..i18n import tr, tr_format
 from .buttons import WrappingButton as QPushButton
 from .dashboard_instruments import HeadingLabel
+from .flow_layout import FlowLayout
 from .responsive import clear_grid
 from .system_setup_controls import (
     VRAM_SIZE_PRESETS_MB,
@@ -428,6 +430,26 @@ class _PreparationStack(QWidget):
 
     def currentWidget(self) -> QWidget | None:
         return self._pages[self._index] if self._index >= 0 else None
+
+    def widget(self, index: int) -> QWidget | None:
+        return self._pages[index] if 0 <= index < len(self._pages) else None
+
+    def hasHeightForWidth(self) -> bool:  # noqa: N802 - Qt API name
+        page = self.currentWidget()
+        return page is not None and page.hasHeightForWidth()
+
+    def heightForWidth(self, width: int) -> int:  # noqa: N802 - Qt API name
+        page = self.currentWidget()
+        return page.heightForWidth(width) if page is not None else -1
+
+    def sizeHint(self) -> QSize:  # noqa: N802 - Qt API name
+        # The stack is capped at its hint (Maximum policy); at a narrow width
+        # wrapped content needs more than the hint measured at full width.
+        hint = super().sizeHint()
+        page = self.currentWidget()
+        if page is not None and self.width() > 0 and page.hasHeightForWidth():
+            hint.setHeight(max(hint.height(), page.heightForWidth(self.width())))
+        return hint
 
     def setCurrentIndex(self, index: int) -> None:
         if index == self._index or not 0 <= index < len(self._pages):
@@ -892,42 +914,259 @@ class PreparationComponentCard(QFrame):
         # over, on every five-second dashboard tick, and changed nothing.
 
 
-class _StatusDot(QWidget):
-    """An 8 px state dot, filled for a tone, a hollow ring without one.
+def _invalidate_if_alive(layout: FlowLayout) -> None:
+    """Deferred relayout; the widget may have been closed in the meantime."""
+    try:
+        layout.invalidate()
+    except RuntimeError:
+        pass
 
-    Painted rather than styled: a QFrame's border-radius at this size comes
-    out square on some styles. Colours are read from the theme at paint time,
-    so it follows light and dark mode.
+
+class _WrappingActions(FlowLayout):
+    """A FlowLayout that also reports its wrapped height as its size.
+
+    Parents that size children from sizeHint rather than heightForWidth (a
+    stacked column of cards) would otherwise give it one row and clip the
+    rest. The height follows the width it was last laid out at.
     """
 
-    def __init__(self, tone: str = "", parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-        self._tone = tone
-        self.setFixedSize(10, 10)
+    def __init__(self, parent: QWidget | None = None, *, spacing: int = 6) -> None:
+        super().__init__(parent, spacing=spacing)
+        self._width = 0
 
-    def set_tone(self, tone: str) -> None:
-        if tone != self._tone:
-            self._tone = tone
-            self.update()
+    def setGeometry(self, rect: QRect) -> None:  # noqa: N802 - Qt API name
+        width_changed = rect.width() != self._width
+        self._width = rect.width()
+        super().setGeometry(rect)
+        if width_changed:
+            # Ask the parents again, now with the height this width needs.
+            QTimer.singleShot(0, lambda layout=self: _invalidate_if_alive(layout))
 
-    def tone(self) -> str:
-        return self._tone
+    def minimumSize(self) -> QSize:  # noqa: N802 - Qt API name
+        size = super().minimumSize()
+        if self._width > 0:
+            size.setHeight(max(size.height(), self.heightForWidth(self._width)))
+        return size
 
-    def paintEvent(self, _event) -> None:  # noqa: N802 - Qt API name
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        if self._tone:
-            color = QColor(theme.COLORS.get(self._tone, theme.COLORS["border_strong"]))
-            painter.setPen(Qt.PenStyle.NoPen)
-            painter.setBrush(color)
-            painter.drawEllipse(1, 1, 8, 8)
-        else:
-            pen = QPen(QColor(theme.COLORS["border_strong"]))
-            pen.setWidthF(1.5)
-            painter.setPen(pen)
-            painter.setBrush(Qt.BrushStyle.NoBrush)
-            painter.drawEllipse(QRectF(1.75, 1.75, 6.5, 6.5))
-        painter.end()
+
+class _SpecSheet(QFrame):
+    """Facts about one tool, laid out like a datasheet: name, then value.
+
+    Values are set in the console's monospace face between two dashed rules,
+    so a version or a state reads as data, not as a badge.
+    """
+
+    def __init__(self, rows: tuple[tuple[str, str], ...]) -> None:
+        super().__init__()
+        self.setProperty("specSheet", True)
+        grid = QGridLayout(self)
+        grid.setContentsMargins(0, 8, 0, 8)
+        grid.setHorizontalSpacing(18)
+        grid.setVerticalSpacing(5)
+        self.values: dict[str, QLabel] = {}
+        for row, (key, caption) in enumerate(rows):
+            name = _label(caption, "specKey", wrap=False)
+            value = QLabel("—")
+            value.setProperty("specValue", True)
+            value.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+            grid.addWidget(name, row, 0)
+            grid.addWidget(value, row, 1)
+            self.values[key] = value
+        grid.setColumnStretch(1, 1)
+
+    def set(self, key: str, text: str, tone: str = "") -> None:
+        value = self.values[key]
+        value.setText(text)
+        if value.property("tone") != tone:
+            value.setProperty("tone", tone)
+            value.style().unpolish(value)
+            value.style().polish(value)
+
+
+def game_matrix_rows(
+    helixsr_games: list[Mapping], fsr4_games: list[Mapping], *, helixsr_ready: bool
+) -> list[dict]:
+    """One row per Steam game, with what HelixSR and FSR4 each do in it.
+
+    A cell is ``(text, tone, tooltip, actions)``; ``actions`` holds
+    ``(label, action, enabled)``. Rows that need the reader come first, then
+    working ones, then the rest, each by name.
+    """
+    rows: dict[str, dict] = {}
+
+    def row_for(appid: str, name: str) -> dict:
+        key = appid or name
+        row = rows.setdefault(key, {"appid": appid, "name": name, "helixsr": None, "fsr4": None})
+        row["name"] = row["name"] or name
+        return row
+
+    by_game: dict[str, list[Mapping]] = {}
+    for game in helixsr_games:
+        appid = str(game.get("appid") or "")
+        row_for(appid, str(game.get("name") or appid))
+        by_game.setdefault(appid or str(game.get("name")), []).append(game)
+    for key, entries in by_game.items():
+        def first(state: str, entries=entries):
+            return next((g for g in entries if g.get("state") == state), None)
+
+        appid = rows[key]["appid"]
+        chosen = first("installed") or first("restored")
+        if chosen is not None:
+            optiscaler = chosen.get("kind") == "optiscaler"
+            copy = (PreparationSidebar._HELIXSR_OPTISCALER_COPY if optiscaler
+                    else PreparationSidebar._HELIXSR_GAME_COPY)[chosen.get("state")]
+            if chosen.get("state") == "installed":
+                text, tone = ("Active via OptiScaler" if optiscaler else "Active"), "green"
+            else:
+                text, tone = ("OptiScaler changed" if optiscaler else "Original file back"), "orange"
+            route = "opti" if optiscaler else "game"
+            rows[key]["helixsr"] = (
+                text, tone, copy[2], (("Remove", f"helixsr_{route}_remove:{appid}", True),)
+            )
+            continue
+        native = next((g for g in entries if g.get("kind") != "optiscaler"), None)
+        chosen = native or entries[0]
+        optiscaler = chosen.get("kind") == "optiscaler"
+        copy = (PreparationSidebar._HELIXSR_OPTISCALER_COPY if optiscaler
+                else PreparationSidebar._HELIXSR_GAME_COPY)["available"]
+        label = "Add via OptiScaler" if optiscaler else "Add"
+        route = "opti" if optiscaler else "game"
+        rows[key]["helixsr"] = (
+            "", "", copy[2], ((label, f"helixsr_{route}_install:{appid}", helixsr_ready),)
+        )
+    fsr4_copy = PreparationSidebar._FSR4_MATRIX_COPY
+    for game in fsr4_games:
+        appid = str(game.get("appid") or "")
+        row = row_for(appid, str(game.get("name") or appid))
+        state = str(game.get("state") or "not-installed")
+        text, tone = fsr4_copy.get(state, fsr4_copy["not-installed"])
+        detail = PreparationSidebar._FSR4_GAME_COPY.get(
+            state, PreparationSidebar._FSR4_GAME_COPY["not-installed"]
+        )[2]
+        tooltip = tr_format(
+            detail,
+            dll=str(game.get("adapter") or "dxgi.dll").removesuffix(".dll"),
+            link=str(game.get("linked_path") or ""),
+            path=str(game.get("real_path") or ""),
+        )
+        executable = str(game.get("suggested_executable") or "")
+        if state == "not-installed" and executable:
+            tooltip = f"{tooltip} {tr_format('If it asks for the executable, choose {path}.', path=executable)}"
+        actions = ()
+        if state == "needs-launch-option" and game.get("steam"):
+            actions = (("Add to Steam", f"fsr4_steam_option:{appid}", True),)
+        row["fsr4"] = (text, tone, tooltip, actions)
+
+    def rank(row: dict) -> tuple:
+        tones = {cell[1] for cell in (row["helixsr"], row["fsr4"]) if cell}
+        order = 0 if "orange" in tones else 1 if "green" in tones else 2
+        return order, row["name"].lower()
+
+    return sorted(rows.values(), key=rank)
+
+
+class _GameMatrix(QFrame):
+    """Steam games against the two upscalers: a plain ruled table.
+
+    One grid for the whole table, so every column keeps one width however
+    long a game's name or a cell's state is; rules are rows of their own.
+    """
+
+    action_requested = pyqtSignal(object)
+    _STRETCH = (5, 4, 4)
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.setProperty("gameMatrix", True)
+        self._grid = QGridLayout(self)
+        self._grid.setContentsMargins(0, 0, 0, 0)
+        self._grid.setHorizontalSpacing(16)
+        self._grid.setVerticalSpacing(0)
+        for column, stretch in enumerate(self._STRETCH):
+            self._grid.setColumnStretch(column, stretch)
+        self._signature: tuple = ()
+        #: The row's action buttons, by Steam app id (or name).
+        self.rows: dict[str, list[QPushButton]] = {}
+
+    def _rule(self, row: int, *, head: bool = False) -> None:
+        rule = QFrame()
+        rule.setProperty("matrixRuleHead" if head else "matrixRule", True)
+        rule.setFixedHeight(2 if head else 1)
+        self._grid.addWidget(rule, row, 0, 1, len(self._STRETCH))
+
+    def _cell(self, cell) -> tuple[QWidget, list[QPushButton]]:
+        widget = QWidget()
+        layout = QHBoxLayout(widget)
+        layout.setContentsMargins(0, 9, 0, 9)
+        layout.setSpacing(10)
+        buttons: list[QPushButton] = []
+        if cell is None:
+            state = QLabel("—")
+            state.setProperty("matrixState", True)
+            layout.addWidget(state)
+            layout.addStretch(1)
+            return widget, buttons
+        text, tone, tooltip, actions = cell
+        widget.setToolTip(tr(tooltip))
+        if text:
+            state = QLabel(tr(text))
+            state.setProperty("matrixState", True)
+            state.setProperty("tone", tone)
+            layout.addWidget(state)
+        for label, action, enabled in actions:
+            button = QPushButton(tr(label))
+            button.setProperty("matrixAction", True)
+            button.setCursor(Qt.CursorShape.PointingHandCursor)
+            button.setEnabled(bool(enabled))
+            button.setToolTip(tr(tooltip))
+            button.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+            button.clicked.connect(
+                lambda _checked=False, value=action: self.action_requested.emit(
+                    {"action": value, "governor": ""}
+                )
+            )
+            layout.addWidget(button)
+            buttons.append(button)
+        layout.addStretch(1)
+        return widget, buttons
+
+    def set_rows(self, rows: list[dict]) -> None:
+        signature = (tr("Game"), *(
+            (r["appid"], r["name"], r["helixsr"], r["fsr4"]) for r in rows
+        ))
+        if signature == self._signature:
+            return
+        self._signature = signature
+        while self._grid.count():
+            item = self._grid.takeAt(0)
+            if item.widget() is not None:
+                item.widget().deleteLater()
+        self.rows = {}
+        for column, text in enumerate(("Game", "HelixSR", "FSR4 INT8")):
+            head = QLabel(tr(text))
+            head.setProperty("matrixHeadLabel", True)
+            self._grid.addWidget(head, 0, column)
+        self._rule(1, head=True)
+        line = 2
+        for row in rows[:40]:
+            name = QLabel(row["name"])
+            name.setProperty("matrixGame", True)
+            name.setWordWrap(True)
+            name.setMinimumWidth(0)
+            self._grid.addWidget(name, line, 0)
+            buttons: list[QPushButton] = []
+            for column, key in ((1, "helixsr"), (2, "fsr4")):
+                widget, found = self._cell(row[key])
+                self._grid.addWidget(widget, line, column)
+                buttons.extend(found)
+            self.rows[row["appid"] or row["name"]] = buttons
+            self._rule(line + 1)
+            line += 2
+        if not rows:
+            self._grid.addWidget(_label(
+                "No games yet. Find FSR 3.1 games looks through your Steam library.",
+                "matrixEmpty",
+            ), line, 0, 1, len(self._STRETCH))
 
 
 class PreparationInfoCard(QFrame):
@@ -1009,7 +1248,7 @@ class PreparationInfoCard(QFrame):
     #: run a workflow. These read as plain links, not boxed buttons, and
     #: never get the "primary action" accent — a URL is never the recommended
     #: choice among a card's actions.
-    _LINK_ACTION_TEXTS = frozenset({"Open upstream project"})
+    _LINK_ACTION_TEXTS = frozenset({"Open upstream project", "Step-by-step guide"})
 
     @classmethod
     def _is_link_action(cls, text: str) -> bool:
@@ -1072,6 +1311,32 @@ class PreparationInfoCard(QFrame):
             and not loud[0].property("dangerAction")
         )
         accented = loud[0] if primary_gets_accent else None
+        if not isinstance(self.actions, QBoxLayout):
+            # A flowing row reads left to right: the thing to do, the other
+            # actions, then the quiet ones and the links.
+            everything = [
+                self.actions.itemAt(index).widget() for index in range(self.actions.count())
+            ]
+            everything = [button for button in everything if button is not None]
+
+            def weight(button) -> int:
+                if button is accented:
+                    return 0
+                if button.property("linkAction"):
+                    return 3
+                return 2 if button.property("quietAction") else 1
+
+            ordered = sorted(everything, key=weight)
+            if ordered != everything:
+                while self.actions.count():
+                    self.actions.takeAt(0)
+                for button in ordered:
+                    self.actions.addWidget(button)
+            for button in everything:
+                button.setProperty("accented", button is accented)
+                button.style().unpolish(button)
+                button.style().polish(button)
+            return
         for button in buttons:
             # A link takes the room it needs and no more, so it does not sit
             # centred in an empty half of the row.
@@ -1094,7 +1359,10 @@ class PreparationInfoCard(QFrame):
         danger: bool = False,
     ) -> QPushButton:
         button = self._action_button(text, payload, danger=danger)
-        self.actions.addWidget(button, 1)
+        if isinstance(self.actions, QBoxLayout):
+            self.actions.addWidget(button, 1)
+        else:
+            self.actions.addWidget(button)
         self.actions_panel.show()
         self._refresh_action_styles()
         return button
@@ -1120,10 +1388,14 @@ class PreparationInfoCard(QFrame):
         button.setToolTip(tr(tooltip) if tooltip else "")
         self._refresh_action_styles()
 
+    #: False on the Upscaling page, where the state is a line of the card's
+    #: datasheet instead of a badge in the title row.
+    status_badge = True
+
     def set_status(self, text: str, tone: str) -> None:
         self.status.setText(tr(text))
         self.status.set_tone(self._status_tone(tone))
-        self.status.show()
+        self.status.setVisible(self.status_badge)
         # A card that needs the reader opens itself, once per problem: a
         # reader who closes it again is not reopened on every refresh.
         if self._body is not None and tone in {"orange", "red"}:
@@ -1132,6 +1404,33 @@ class PreparationInfoCard(QFrame):
                 self.set_expanded(True)
         elif tone not in {"orange", "red"}:
             self._auto_expanded_for = ""
+
+    def use_flowing_actions(self) -> None:
+        """Lay the actions out at their natural width, wrapping onto new lines.
+
+        For a narrow card with several actions: a stretched row squeezes
+        each label until it breaks letter by letter.
+        """
+        if not isinstance(self.actions, QBoxLayout):
+            return
+        buttons = [
+            self.actions.itemAt(index).widget() for index in range(self.actions.count())
+        ]
+        panel = QFrame()
+        panel.setProperty("dashboardCompatibilityActions", True)
+        flow = _WrappingActions(panel, spacing=8)
+        flow.setContentsMargins(0, 2, 0, 0)
+        for button in buttons:
+            if button is not None:
+                button.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+                flow.addWidget(button)
+        layout = self.layout()
+        index = layout.indexOf(self.actions_panel)
+        layout.removeWidget(self.actions_panel)
+        self.actions_panel.deleteLater()
+        layout.insertWidget(index, panel)
+        self.actions_panel, self.actions = panel, flow
+        self._refresh_action_styles()
 
     def make_collapsible(self) -> None:
         """Show only the title row; the description and actions open on demand.
@@ -1201,7 +1500,7 @@ class PreparationInfoCard(QFrame):
     def set_scope(self, text: str, tone: str = "gray") -> None:
         # Where a card applies is a label, never a state: always neutral.
         self.scope.setText(tr(text))
-        self.scope.show()
+        self.scope.setVisible(self.status_badge)
 
 
 class PreparationSidebar(QFrame):
@@ -1275,14 +1574,16 @@ class PreparationSidebar(QFrame):
         self.tabs_grid.setHorizontalSpacing(6)
         self.tabs_grid.setVerticalSpacing(8)
         self.tab_buttons: list[QPushButton] = []
+        # Stack order (TAB_KEYS) is append-only so saved indices keep their
+        # meaning; the row shows the tabs in TAB_ORDER.
         for index, text in enumerate(
-            ("Components", "Compatibility", "Memory & Swap", "Decky", "Drivers")
+            ("Components", "Compatibility", "Memory & Swap", "Decky", "Drivers", "Upscaling")
         ):
             button = _PreparationTabButton(text)
             button.setCheckable(True)
             button.setProperty("dashboardPreparationTab", True)
             button.setProperty("gamepadHorizontalGroup", "preparation-tabs")
-            button.setProperty("gamepadHorizontalIndex", index)
+            button.setProperty("gamepadHorizontalIndex", self.TAB_ORDER.index(index))
             button.clicked.connect(
                 lambda _checked=False, value=index: self.select_tab(value)
             )
@@ -1292,7 +1593,7 @@ class PreparationSidebar(QFrame):
         # on the Additional settings page, which shows a copy of this panel
         # with those three tabs, without Components and without Decky. The pages behind the
         # hidden buttons stay built so the state they read keeps flowing.
-        self._hidden_tabs = frozenset({0, 3}) if self._standalone else frozenset({1, 2, 4})
+        self._hidden_tabs = frozenset({0, 3}) if self._standalone else frozenset({1, 2, 4, 5})
         for hidden in self._hidden_tabs:
             self.tab_buttons[hidden].hide()
         root.addWidget(self.tabs_host)
@@ -1307,6 +1608,7 @@ class PreparationSidebar(QFrame):
         self.stack.addWidget(self._memory_page())
         self.stack.addWidget(self._decky_page())
         self.stack.addWidget(self._drivers_page())
+        self.stack.addWidget(self._upscaling_page())
         root.addWidget(self.stack, 1)
 
         footer = QWidget()
@@ -2474,7 +2776,7 @@ class PreparationSidebar(QFrame):
         self.cachyos_cards = (self.cachyos_stack_card,)
         self.fsr4_cards = (self.fsr4_card,)
         self._build_helixsr_card()
-        for card in (*self.cachyos_cards, *self.fsr4_cards, self.helixsr_card):
+        for card in self.cachyos_cards:
             layout.addWidget(card)
         layout.addStretch(1)
         if self._standalone:
@@ -2484,56 +2786,21 @@ class PreparationSidebar(QFrame):
     def _build_helixsr_card(self) -> None:
         """HelixSR (lonewolf0622/HelixSR): DLSS Model E behind an FSR 3.1 DLL.
 
-        The body reads top to bottom: a three-part readiness strip (release,
-        network files, games), the game list, then the actions. State is a
-        small dot and one grey line per game; the long explanation of each
-        state is the row's tooltip, so the list stays calm.
+        Lives on the Upscaling tab beside FSR4: a datasheet of its state and
+        its actions; the games it is in are rows of the shared game table.
         """
         self.helixsr_card = PreparationInfoCard(
-            "HelixSR · DLSS quality for FSR 3.1 games",
-            "Replaces a game's FSR 3.1 upscaler with HelixSR, which runs DLSS's neural network on this GPU. The game's own file is kept as a backup.",
-            scope_text="All distributions · per game · no root",
+            "HelixSR",
+            "DLSS's neural network running on this GPU, in place of a game's FSR 3.1 upscaler.",
             status_text="Checking",
         )
-        strip = QFrame()
-        strip.setProperty("helixsrSurface", True)
-        strip_layout = QHBoxLayout(strip)
-        strip_layout.setContentsMargins(4, 8, 4, 8)
-        strip_layout.setSpacing(0)
-        self.helixsr_strip = strip
-        self.helixsr_facts: dict[str, tuple[_StatusDot, QLabel]] = {}
-        for index, (key, caption) in enumerate(
-            (("release", "Release"), ("network", "Network files"), ("games", "Games"))
-        ):
-            if index:
-                divider = QFrame()
-                divider.setProperty("helixsrDivider", True)
-                strip_layout.addWidget(divider)
-            cell = QWidget()
-            cell_layout = QVBoxLayout(cell)
-            cell_layout.setContentsMargins(12, 0, 12, 0)
-            cell_layout.setSpacing(3)
-            cell_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-            cell_layout.addWidget(_label(caption, "helixsrCaption", wrap=False))
-            value_row = QHBoxLayout()
-            value_row.setSpacing(7)
-            dot = _StatusDot()
-            value = _label("—", "helixsrValue", wrap=False)
-            value_row.addWidget(dot, 0, Qt.AlignmentFlag.AlignVCenter)
-            value_row.addWidget(value, 1)
-            cell_layout.addLayout(value_row)
-            strip_layout.addWidget(cell, 1)
-            self.helixsr_facts[key] = (dot, value)
-        self.helixsr_card.layout().insertWidget(2, strip)
-        self.helixsr_games = QFrame()
-        self.helixsr_games.setProperty("helixsrSurface", True)
-        self.helixsr_games_layout = QVBoxLayout(self.helixsr_games)
-        self.helixsr_games_layout.setContentsMargins(0, 0, 0, 0)
-        self.helixsr_games_layout.setSpacing(0)
-        self.helixsr_card.layout().insertWidget(3, self.helixsr_games)
-        self.helixsr_games.hide()
-        self._helixsr_games_signature: tuple = ()
-        self.helixsr_game_rows: dict[str, QFrame] = {}
+        self.helixsr_sheet = _SpecSheet((
+            ("release", "Release"),
+            ("network", "Network files"),
+            ("games", "Games"),
+            ("state", "Status"),
+        ))
+        self.helixsr_card.layout().insertWidget(2, self.helixsr_sheet)
         self.helixsr_scan_button = self.helixsr_card.add_action(
             "Find FSR 3.1 games", {"action": "helixsr_scan", "governor": ""}
         )
@@ -2556,10 +2823,57 @@ class PreparationSidebar(QFrame):
         self.helixsr_card.setEnabled(HELIXSR_UI_ENABLED)
         self.helixsr_card.setVisible(HELIXSR_UI_ENABLED)
 
-    def _set_helixsr_fact(self, key: str, text: str, tone: str = "") -> None:
-        dot, value = self.helixsr_facts[key]
-        value.setText(text)
-        dot.set_tone(tone)
+    def _upscaling_page(self) -> QWidget:
+        """Additional settings > Upscaling: FSR4 and HelixSR, and the games.
+
+        Two tool panels side by side (stacked when narrow), each a title, one
+        sentence, a datasheet and its actions; below them one table with a
+        row per game and a column per tool.
+        """
+        page = QWidget()
+        page.setProperty("upscalingPage", True)
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(16, 14, 16, 14)
+        layout.setSpacing(18)
+        self.fsr4_card.title.setText(tr("FSR4 INT8"))
+        self.fsr4_card.title.setProperty("i18nSourceText", "FSR4 INT8")
+        self.fsr4_sheet = _SpecSheet((
+            ("release", "Release"),
+            ("games", "Games"),
+            ("state", "Status"),
+        ))
+        self.fsr4_card.layout().insertWidget(2, self.fsr4_sheet)
+        # The launch option becomes one more line of the datasheet: its name,
+        # the option itself in the console face, and a plain copy control.
+        self.fsr4_launch_label.setProperty("dashboardCompatibilityLabel", False)
+        self.fsr4_launch_label.setProperty("specKey", True)
+        self.fsr4_launch_value = QLabel(self._fsr4_launch_option)
+        self.fsr4_launch_value.setProperty("specValue", True)
+        self.fsr4_launch_value.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        launch_layout = self.fsr4_launch_row.layout()
+        launch_layout.setContentsMargins(0, 0, 0, 0)
+        launch_layout.setSpacing(12)
+        launch_layout.insertWidget(1, self.fsr4_launch_value, 1)
+        self.upscaling_engines = QBoxLayout(QBoxLayout.Direction.LeftToRight)
+        self.upscaling_engines.setSpacing(14)
+        for card, tone in ((self.fsr4_card, "fsr4"), (self.helixsr_card, "helixsr")):
+            card.setProperty("upscalerEngine", tone)
+            card.status_badge = False
+            card.status.hide()
+            card.scope.hide()
+            card.use_flowing_actions()
+            card.layout().addStretch(1)
+            self.upscaling_engines.addWidget(card, 1)
+        for button in (self.fsr4_remove_button, self.fsr4_legacy_button):
+            button.setProperty("quietAction", True)
+        layout.addLayout(self.upscaling_engines)
+        heading = _label("Games", "matrixTitle", wrap=False)
+        layout.addWidget(heading)
+        self.game_matrix = _GameMatrix()
+        self.game_matrix.action_requested.connect(self._forward_dependency_action)
+        layout.addWidget(self.game_matrix)
+        layout.addStretch(1)
+        return page
 
     def _organise_compatibility(self, layout: QVBoxLayout) -> None:
         """Additional settings: one list per topic, a title row per tool.
@@ -2571,7 +2885,6 @@ class PreparationSidebar(QFrame):
             ("System", (self.acpi_card,)),
             ("GPU governor", (self.cyan_card, self.oberon_card)),
             ("Kernel and graphics", (self.gfx_card, *self.cachyos_cards)),
-            ("Upscaling", (*self.fsr4_cards, self.helixsr_card)),
         )
         layout.setSpacing(0)
         # Boot options: the panels that used to sit above the component list.
@@ -2807,7 +3120,9 @@ class PreparationSidebar(QFrame):
     #: Stable names for the tabs, in order. The guided tour used to address
     #: them by position and pointed at the wrong one after "Memory & Swap"
     #: was inserted in the middle.
-    TAB_KEYS = ("components", "compatibility", "memory", "decky", "drivers")
+    TAB_KEYS = ("components", "compatibility", "memory", "decky", "drivers", "upscaling")
+    #: Upscaling sits next to Compatibility, where its tools used to live.
+    TAB_ORDER = (0, 1, 5, 2, 3, 4)
 
     def tab_index(self, key: str) -> int:
         return self.TAB_KEYS.index(key) if key in self.TAB_KEYS else -1
@@ -2862,13 +3177,21 @@ class PreparationSidebar(QFrame):
                 if compact_mitigations
                 else Qt.AlignmentFlag.AlignVCenter,
             )
+        if hasattr(self, "upscaling_engines"):
+            self.upscaling_engines.setDirection(
+                QBoxLayout.Direction.LeftToRight
+                if width >= 860
+                else QBoxLayout.Direction.TopToBottom
+            )
         component_columns = (
             4 if width >= 1280 else 3 if width >= 980 else 2 if width >= 650 else 1
         )
         if tab_columns != self._tab_columns:
             self._tab_columns = tab_columns
-            clear_grid(self.tabs_grid, reset_columns=5, reset_rows=3)
-            shown = [b for i, b in enumerate(self.tab_buttons) if i not in self._hidden_tabs]
+            clear_grid(self.tabs_grid, reset_columns=6, reset_rows=3)
+            shown = [
+                self.tab_buttons[i] for i in self.TAB_ORDER if i not in self._hidden_tabs
+            ]
             for index, button in enumerate(shown):
                 self.tabs_grid.addWidget(
                     button, index // tab_columns, index % tab_columns
@@ -3315,8 +3638,18 @@ class PreparationSidebar(QFrame):
                       "OptiScaler is in this game, so HelixSR can upscale through it, even when the game only offers DLSS or XeSS."),
     }
 
+    #: FSR4 per game, as the game table shows it: (text, tone).
+    _FSR4_MATRIX_COPY = {
+        "ready": ("Active", "green"),
+        "needs-launch-option": ("Steam option missing", "orange"),
+        "not-installed": ("Not installed", ""),
+        "other-launcher": ("Set up in launcher", ""),
+        "unknown-adapter": ("Check the adapter", "orange"),
+        "linked-folder": ("Linked folder", "orange"),
+    }
+
     def _render_helixsr(self, helixsr: Mapping) -> None:
-        """Release, network files and one row per game, from ``helixsr_state``."""
+        """HelixSR's datasheet and actions, from ``helixsr_state``."""
         available = bool(helixsr.get("installer_available"))
         installed = bool(helixsr.get("installed"))
         current = bool(helixsr.get("current"))
@@ -3324,10 +3657,7 @@ class PreparationSidebar(QFrame):
         wine = bool(helixsr.get("wine_available", True))
         state = str(helixsr.get("state") or "not-installed")
         games = [dict(game) for game in helixsr.get("games") or () if isinstance(game, Mapping)]
-        active = sum(1 for game in games if game.get("state") == "installed")
-        found = sum(1 for game in games if game.get("state") == "available")
-        self.helixsr_card.set_scope("All distributions · per game · no root", "purple")
-        detail = ""
+        detail = "DLSS's neural network running on this GPU, in place of a game's FSR 3.1 upscaler."
         if ready:
             status, tone = "Ready", "green"
         elif not available:
@@ -3347,40 +3677,33 @@ class PreparationSidebar(QFrame):
             detail = "A newer HelixSR release is available. Games that already use HelixSR keep working."
         else:
             status, tone = "Not installed", "gray"
-            detail = "Downloads the official release, checks its SHA-256 and builds the network files on this PC with HelixSR's own setup. NVIDIA's DLSS DLL is downloaded only after you agree in the terminal."
         self.helixsr_card.set_status(status, tone)
-        if not detail:
-            detail = "Replaces a game's FSR 3.1 upscaler with HelixSR, which runs DLSS's neural network on this GPU. The game's own file is kept as a backup."
         self.helixsr_card.detail.setText(tr(detail))
-
+        sheet = self.helixsr_sheet
         version = str(helixsr.get("version") or "")
-        if current:
-            self._set_helixsr_fact("release", f"HelixSR {version}".strip(), "green")
-        elif state == "invalid":
-            self._set_helixsr_fact("release", tr("Repair required"), "orange")
-        elif state == "update-available":
-            self._set_helixsr_fact("release", tr("Update available"), "orange")
-        else:
-            self._set_helixsr_fact("release", tr("Not installed"))
-        if ready:
-            self._set_helixsr_fact("network", tr("Built on this PC"), "green")
-        elif current:
-            self._set_helixsr_fact("network", tr("Not built yet"), "orange")
-        else:
-            self._set_helixsr_fact("network", "—")
-        if games:
-            self._set_helixsr_fact(
-                "games",
-                tr_format("{active} active · {found} available", active=active, found=found),
-                "green" if active else "",
-            )
-        else:
-            self._set_helixsr_fact("games", "—")
-        # Before the release is installed the strip would only show dashes.
-        self.helixsr_strip.setVisible(available and (installed or bool(games)))
+        sheet.set("release", version if current and version else "—")
+        sheet.set(
+            "network",
+            tr("Built on this PC") if ready else tr("Not built yet") if current else "—",
+            "" if ready else "orange" if current else "",
+        )
+        active = sum(1 for game in games if game.get("state") == "installed")
+        found = sum(1 for game in games if game.get("state") == "available")
+        sheet.set(
+            "games",
+            tr_format("{active} active · {found} available", active=active, found=found)
+            if games else "—",
+        )
+        sheet.set("state", tr(status), tone if tone in {"green", "orange", "red"} else "")
 
         self.helixsr_card.update_action(
             self.helixsr_scan_button, text="Find FSR 3.1 games", visible=ready,
+        )
+        self.helixsr_card.update_action(
+            self.helixsr_network_button,
+            text="Build network files",
+            enabled=wine,
+            visible=current and not ready,
         )
         self.helixsr_card.update_action(
             self.helixsr_install_button,
@@ -3393,20 +3716,11 @@ class PreparationSidebar(QFrame):
         )
         self._set_quiet(self.helixsr_install_button, current)
         self.helixsr_card.update_action(
-            self.helixsr_network_button,
-            text="Build network files",
-            enabled=wine,
-            visible=current and not ready,
-        )
-        self.helixsr_card.update_action(
             self.helixsr_remove_button, text="Remove HelixSR", visible=installed,
         )
         self.helixsr_upstream_button.show()
         self.helixsr_card._refresh_action_styles()
-        in_use = any(game.get("state") != "available" for game in games)
-        self._render_helixsr_games(
-            games if HELIXSR_UI_ENABLED and (ready or installed or in_use) else [], ready
-        )
+        self._helixsr_matrix = (games if HELIXSR_UI_ENABLED else [], ready)
 
     @staticmethod
     def _set_quiet(button: QPushButton, quiet: bool) -> None:
@@ -3414,124 +3728,23 @@ class PreparationSidebar(QFrame):
         button.style().unpolish(button)
         button.style().polish(button)
 
-    def _render_helixsr_games(self, games: list[dict], ready: bool) -> None:
-        """One calm row per game; rebuilt only when something changed."""
-        games = games[:12]
-        signature = (ready, *(
-            (g.get("kind"), g.get("appid"), g.get("name"), g.get("state"), len(g.get("files") or ()))
-            for g in games
-        ))
-        if signature == self._helixsr_games_signature:
-            return
-        self._helixsr_games_signature = signature
-        while self.helixsr_games_layout.count():
-            item = self.helixsr_games_layout.takeAt(0)
-            if item.widget() is not None:
-                item.widget().deleteLater()
-        self.helixsr_game_rows = {}
-        for index, game in enumerate(games):
-            self.helixsr_games_layout.addWidget(self._helixsr_game_row(game, ready, first=index == 0))
-        if ready and not games:
-            self.helixsr_games_layout.addWidget(_label(
-                "No games yet. Find FSR 3.1 games looks through your Steam library.",
-                "helixsrEmpty",
-            ))
-        self.helixsr_games.setVisible(bool(games) or ready)
-
-    def _helixsr_game_row(self, game: dict, ready: bool, *, first: bool = False) -> QFrame:
-        state = str(game.get("state") or "available")
-        optiscaler = game.get("kind") == "optiscaler"
-        copy = self._HELIXSR_OPTISCALER_COPY if optiscaler else self._HELIXSR_GAME_COPY
-        tone, note, tooltip = copy.get(state, copy["available"])
-        appid = str(game.get("appid") or "")
-        row = QFrame()
-        row.setProperty("helixsrRow", True)
-        row.setProperty("first", first)
-        row.setToolTip(tr(tooltip))
-        layout = QHBoxLayout(row)
-        layout.setContentsMargins(14, 9, 10, 9)
-        layout.setSpacing(12)
-        layout.addWidget(_StatusDot(tone), 0, Qt.AlignmentFlag.AlignVCenter)
-        text = QVBoxLayout()
-        text.setSpacing(1)
-        name = _label(str(game.get("name") or appid), "helixsrGame", wrap=False)
-        name.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
-        text.addWidget(name)
-        text.addWidget(_label(note, "helixsrNote"))
-        layout.addLayout(text, 1)
-        prefix = "helixsr_opti" if optiscaler else "helixsr_game"
-        adding = state == "available"
-        button = QPushButton(tr("Add" if adding else "Remove"))
-        button.setProperty("helixsrRowAction", True)
-        button.setProperty("primary", adding)
-        button.setCursor(Qt.CursorShape.PointingHandCursor)
-        button.setToolTip(tr("Use HelixSR in OptiScaler" if optiscaler and adding else tooltip))
-        button.setEnabled(ready or not adding)
-        action = f"{prefix}_{'install' if adding else 'remove'}:{appid}"
-        button.clicked.connect(
-            lambda _checked=False, value=action: self._forward_dependency_action(
-                {"action": value, "governor": ""}
-            )
+    def _render_game_matrix(self) -> None:
+        helixsr_games, ready = getattr(self, "_helixsr_matrix", ([], False))
+        fsr4_games = getattr(self, "_fsr4_matrix", [])
+        self.game_matrix.set_rows(
+            game_matrix_rows(helixsr_games, fsr4_games, helixsr_ready=ready)
         )
-        layout.addWidget(button, 0, Qt.AlignmentFlag.AlignVCenter)
-        self.helixsr_game_rows[f"opti:{appid}" if optiscaler else appid] = row
-        return row
 
     def _render_fsr4_games(self, games: list[dict]) -> None:
-        """One compact row per game; rebuilt only when something changed."""
-        signature = tuple(
-            (g.get("appid"), g.get("name"), g.get("state"), g.get("adapter"),
-             g.get("suggested_executable"), g.get("location"))
-            for g in games[:8]
+        """FSR4's games are rows of the shared game table on the Upscaling tab."""
+        self._fsr4_matrix = list(games)
+        self.fsr4_games.hide()
+        ready = sum(1 for game in games if game.get("state") == "ready")
+        self.fsr4_sheet.set(
+            "games",
+            tr_format("{active} active · {found} available", active=ready, found=len(games) - ready)
+            if games else "—",
         )
-        if signature == self._fsr4_games_signature:
-            return
-        self._fsr4_games_signature = signature
-        while self.fsr4_games_layout.count():
-            item = self.fsr4_games_layout.takeAt(0)
-            if item.widget() is not None:
-                item.widget().deleteLater()
-        self.fsr4_game_rows = {}
-        for game in games[:8]:
-            self.fsr4_games_layout.addWidget(self._fsr4_game_row(game))
-        self.fsr4_games.setVisible(bool(games))
-
-    def _fsr4_game_row(self, game: dict) -> QFrame:
-        state = str(game.get("state") or "not-installed")
-        chip, tone, detail = self._FSR4_GAME_COPY.get(state, self._FSR4_GAME_COPY["not-installed"])
-        row = QFrame()
-        row.setProperty("fsr4GameRow", True)
-        layout = QGridLayout(row)
-        layout.setContentsMargins(10, 7, 8, 7)
-        layout.setHorizontalSpacing(10)
-        layout.setVerticalSpacing(2)
-        name = _label(str(game.get("name") or ""), "dashboardCompatibilityLabel", wrap=False)
-        status = PillLabel(chip, tone)
-        text = tr_format(
-            detail,
-            dll=str(game.get("adapter") or "dxgi.dll").removesuffix(".dll"),
-            link=str(game.get("linked_path") or ""),
-            path=str(game.get("real_path") or ""),
-        )
-        executable = str(game.get("suggested_executable") or "")
-        if state == "not-installed" and executable:
-            text = f"{text} {tr_format('If it asks for the executable, choose {path}.', path=executable)}"
-        note = _label(text, "dashboardCardSubtitle")
-        layout.addWidget(name, 0, 0)
-        layout.addWidget(status, 0, 1, Qt.AlignmentFlag.AlignLeft)
-        layout.addWidget(note, 1, 0, 1, 3)
-        layout.setColumnStretch(2, 1)
-        if state == "needs-launch-option" and game.get("steam"):
-            button = QPushButton(tr("Add to Steam"))
-            button.setProperty("compactAction", True)
-            button.clicked.connect(
-                lambda _checked=False, appid=str(game.get("appid")): self._forward_dependency_action(
-                    {"action": f"fsr4_steam_option:{appid}", "governor": ""}
-                )
-            )
-            layout.addWidget(button, 0, 3, 2, 1, Qt.AlignmentFlag.AlignVCenter)
-        self.fsr4_game_rows[str(game.get("appid") or game.get("name"))] = row
-        return row
 
     def _copy_row(self, label: str, action: str, value) -> tuple[QFrame, IconButton]:
         """A compact "label ··· ⧉" row that copies ``value()`` when pressed."""
@@ -3733,8 +3946,6 @@ class PreparationSidebar(QFrame):
             self.oberon_card,
             self.gfx_card,
             self.cachyos_stack_card,
-            self.fsr4_card,
-            self.helixsr_card,
         ):
             for button in card.findChildren(QPushButton):
                 action = str(getattr(button, "request_payload", {}).get("action") or "")
@@ -4212,6 +4423,8 @@ class PreparationSidebar(QFrame):
         fsr4_current = bool(fsr4.get("current"))
         fsr4_state = str(fsr4.get("state") or "not-installed")
         self._fsr4_launch_option = str(fsr4.get("steam_launch_option") or "")
+        if hasattr(self, "fsr4_launch_value"):
+            self.fsr4_launch_value.setText(self._fsr4_launch_option)
         self.fsr4_launch_row.setVisible(
             FSR4_UI_ENABLED and fsr4_current and bool(self._fsr4_launch_option)
         )
@@ -4241,6 +4454,11 @@ class PreparationSidebar(QFrame):
             )
         self.fsr4_card.set_status(status, tone)
         self.fsr4_card.detail.setText(detail)
+        self._set_quiet(self.fsr4_install_button, fsr4_current)
+        self.fsr4_sheet.set(
+            "release", str(fsr4.get("version") or "—") if fsr4_installed else "—"
+        )
+        self.fsr4_sheet.set("state", tr(status), tone if tone in {"green", "orange", "red"} else "")
         self.fsr4_card.update_action(
             self.fsr4_install_button,
             text="Repair FSR4 client" if fsr4_state == "invalid"
@@ -4279,6 +4497,7 @@ class PreparationSidebar(QFrame):
             ))
 
         self._render_helixsr(_mapping(tools.get("helixsr")))
+        self._render_game_matrix()
 
         self._render_accessories(_mapping(tools.get("accessories")))
 

@@ -4699,5 +4699,12 @@
   "Native FSR 3.1 detected": "Wykryto natywny FSR 3.1",
   "Through OptiScaler · press Insert and pick FSR HelixSR": "Przez OptiScaler · naciśnij Insert i wybierz FSR HelixSR",
   "OptiScaler no longer points to HelixSR": "OptiScaler nie wskazuje już na HelixSR",
-  "Through OptiScaler · also for DLSS and XeSS games": "Przez OptiScaler · także dla gier z DLSS i XeSS"
+  "Through OptiScaler · also for DLSS and XeSS games": "Przez OptiScaler · także dla gier z DLSS i XeSS",
+  "HelixSR": "HelixSR",
+  "FSR4 INT8": "FSR4 INT8",
+  "DLSS's neural network running on this GPU, in place of a game's FSR 3.1 upscaler.": "Sieć neuronowa DLSS działająca na tym GPU zamiast skalera FSR 3.1 gry.",
+  "Active via OptiScaler": "Aktywny przez OptiScaler",
+  "Add via OptiScaler": "Dodaj przez OptiScaler",
+  "Steam option missing": "Brak opcji Steam",
+  "Set up in launcher": "Skonfiguruj w launcherze"
 }

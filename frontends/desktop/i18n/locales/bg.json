@@ -4699,5 +4699,12 @@
   "Native FSR 3.1 detected": "Открит е вграден FSR 3.1",
   "Through OptiScaler · press Insert and pick FSR HelixSR": "Чрез OptiScaler · натиснете Insert и изберете FSR HelixSR",
   "OptiScaler no longer points to HelixSR": "OptiScaler вече не сочи към HelixSR",
-  "Through OptiScaler · also for DLSS and XeSS games": "Чрез OptiScaler · и за игри с DLSS и XeSS"
+  "Through OptiScaler · also for DLSS and XeSS games": "Чрез OptiScaler · и за игри с DLSS и XeSS",
+  "HelixSR": "HelixSR",
+  "FSR4 INT8": "FSR4 INT8",
+  "DLSS's neural network running on this GPU, in place of a game's FSR 3.1 upscaler.": "Невронната мрежа на DLSS на този GPU вместо FSR 3.1 ъпскейлъра на играта.",
+  "Active via OptiScaler": "Активен чрез OptiScaler",
+  "Add via OptiScaler": "Добави чрез OptiScaler",
+  "Steam option missing": "Липсва опцията на Steam",
+  "Set up in launcher": "Настройте в лаунчера"
 }

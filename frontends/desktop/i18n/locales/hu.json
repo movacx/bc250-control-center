@@ -4699,5 +4699,12 @@
   "Native FSR 3.1 detected": "Natív FSR 3.1 található",
   "Through OptiScaler · press Insert and pick FSR HelixSR": "OptiScaleren át · nyomd meg az Insertet, és válaszd az FSR HelixSR-t",
   "OptiScaler no longer points to HelixSR": "Az OptiScaler már nem a HelixSR-re mutat",
-  "Through OptiScaler · also for DLSS and XeSS games": "OptiScaleren át · DLSS-es és XeSS-es játékokhoz is"
+  "Through OptiScaler · also for DLSS and XeSS games": "OptiScaleren át · DLSS-es és XeSS-es játékokhoz is",
+  "HelixSR": "HelixSR",
+  "FSR4 INT8": "FSR4 INT8",
+  "DLSS's neural network running on this GPU, in place of a game's FSR 3.1 upscaler.": "A DLSS neurális hálója ezen a GPU-n, a játék FSR 3.1-es felskálázója helyett.",
+  "Active via OptiScaler": "Aktív OptiScaleren át",
+  "Add via OptiScaler": "Hozzáadás OptiScaleren át",
+  "Steam option missing": "Hiányzik a Steam-opció",
+  "Set up in launcher": "Beállítás a launcherben"
 }
