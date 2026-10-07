@@ -3225,6 +3225,14 @@ class PreparationSidebar(QFrame):
         "available": ("FSR 3.1 found", "blue",
                       "Add HelixSR to replace this game's FSR 3.1 upscaler. The original file is kept as a backup."),
     }
+    _HELIXSR_OPTISCALER_COPY = {
+        "installed": ("HelixSR in OptiScaler", "green",
+                      "In the game choose DLSS, FSR or XeSS, press Insert and pick FSR HelixSR in OptiScaler's upscaler menu. Remove puts OptiScaler's settings back."),
+        "restored": ("OptiScaler changed", "orange",
+                     "OptiScaler's settings no longer point to HelixSR, usually after OptiScaler Client updated or restored this game. Remove cleans up HelixSR's folder."),
+        "available": ("Via OptiScaler", "blue",
+                      "OptiScaler is in this game, so HelixSR can upscale through it, even when the game only offers DLSS or XeSS."),
+    }
 
     def _render_helixsr(self, helixsr: Mapping) -> None:
         """Release, network files and one row per game, from ``helixsr_state``."""
@@ -3298,7 +3306,7 @@ class PreparationSidebar(QFrame):
         """One compact row per game; rebuilt only when something changed."""
         games = games[:12]
         signature = (ready, *(
-            (g.get("appid"), g.get("name"), g.get("state"), len(g.get("files") or ()))
+            (g.get("kind"), g.get("appid"), g.get("name"), g.get("state"), len(g.get("files") or ()))
             for g in games
         ))
         if signature == self._helixsr_games_signature:
@@ -3315,7 +3323,9 @@ class PreparationSidebar(QFrame):
 
     def _helixsr_game_row(self, game: dict, ready: bool) -> QFrame:
         state = str(game.get("state") or "available")
-        chip, tone, detail = self._HELIXSR_GAME_COPY.get(state, self._HELIXSR_GAME_COPY["available"])
+        optiscaler = game.get("kind") == "optiscaler"
+        copy = self._HELIXSR_OPTISCALER_COPY if optiscaler else self._HELIXSR_GAME_COPY
+        chip, tone, detail = copy.get(state, copy["available"])
         appid = str(game.get("appid") or "")
         row = QFrame()
         row.setProperty("fsr4GameRow", True)
@@ -3327,10 +3337,12 @@ class PreparationSidebar(QFrame):
         layout.addWidget(PillLabel(chip, tone), 0, 1, Qt.AlignmentFlag.AlignLeft)
         layout.addWidget(_label(tr(detail), "dashboardCardSubtitle"), 1, 0, 1, 3)
         layout.setColumnStretch(2, 1)
+        prefix = "helixsr_opti" if optiscaler else "helixsr_game"
         if state == "available":
-            text, action = "Add HelixSR", f"helixsr_game_install:{appid}"
+            text = "Use HelixSR in OptiScaler" if optiscaler else "Add HelixSR"
+            action = f"{prefix}_install:{appid}"
         else:
-            text, action = "Remove", f"helixsr_game_remove:{appid}"
+            text, action = "Remove", f"{prefix}_remove:{appid}"
         button = QPushButton(tr(text))
         button.setProperty("compactAction", True)
         button.setEnabled(ready or state != "available")
@@ -3340,7 +3352,7 @@ class PreparationSidebar(QFrame):
             )
         )
         layout.addWidget(button, 0, 3, 2, 1, Qt.AlignmentFlag.AlignVCenter)
-        self.helixsr_game_rows[appid] = row
+        self.helixsr_game_rows[f"opti:{appid}" if optiscaler else appid] = row
         return row
 
     def _render_fsr4_games(self, games: list[dict]) -> None:

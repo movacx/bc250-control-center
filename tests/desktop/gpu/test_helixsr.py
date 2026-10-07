@@ -43,6 +43,9 @@ def _release(directory: Path, *, network: bool = True) -> None:
     (directory / helixsr.HELIXSR_DLL).write_bytes(DLL)
     (directory / helixsr.HELIXSR_SETUP).write_text("#!/bin/sh\n", encoding="utf-8")
     (directory / helixsr.HELIXSR_MARKER).write_text(helixsr.HELIXSR_SHA256 + "\n", encoding="ascii")
+    (directory / "helixsr.ini").write_text(
+        "[Sharpening]\nMode = off\n\n[Forwarding]\nDll =\nUpscalerDll =\n", encoding="utf-8"
+    )
     if network:
         for name in helixsr.HELIXSR_NETWORK_FILES:
             (directory / name).write_bytes(b"network:" + name.encode())
@@ -391,3 +394,162 @@ def test_games_stay_listed_when_the_release_folder_is_gone(home):
     assert state["state"] == "not-installed"
     assert state["installed_games"] == 1
     helixsr.remove_helixsr_game("100")
+
+
+# ------------------------------------------------------------------ OptiScaler
+
+OPTISCALER_INI = (
+    "; OptiScaler\r\n[Upscalers]\r\nDx11Upscaler=ffx_12\r\nDx12Upscaler=ffx\r\n\r\n"
+    "[Libraries]\r\nOptiDllPath=auto\r\nFfxDx12Path=auto\r\nFfxDx12SRPath=auto\r\n\r\n"
+    "[Menu]\r\nScale=auto\r\n"
+)
+FSR4 = b"MZ BC250 FSR4 INT8"
+
+
+def _optiscaler_game(home: Path, monkeypatch, *, fsr4: bool = True) -> Path:
+    """A game as OptiScaler Client leaves it: dxgi.dll, OptiScaler.ini, the FSR4 DLL."""
+    config = home / "config"
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(config))
+    install = home / "games" / "Racer"
+    root = install / "Bin"
+    (root / "OptiScaler").mkdir(parents=True)
+    (root / "dxgi.dll").write_bytes(b"MZ optiscaler")
+    (root / "OptiScaler.ini").write_bytes(OPTISCALER_INI.encode())
+    if fsr4:
+        (root / "OptiScaler" / helixsr.UPSCALER_DLL).write_bytes(FSR4)
+    records = config / "OptiscalerClient-BC250"
+    records.mkdir(parents=True)
+    (records / "games.json").write_text(
+        '[{"Name": "Racer", "AppId": "300", "InstallPath": "%s"}]' % install, encoding="utf-8"
+    )
+    monkeypatch.setattr(helixsr, "_optiscaler_games", lambda: [
+        {"appid": "300", "name": "Racer", "adapter": "dxgi.dll", "location": "Bin"}
+    ])
+    return root
+
+
+def test_optiscaler_games_are_offered_once_helixsr_is_ready(home, monkeypatch):
+    _optiscaler_game(home, monkeypatch)
+    assert helixsr.helixsr_state(machine="x86_64")["games"] == []
+    _ready(home)
+    rows = helixsr.helixsr_state(machine="x86_64")["games"]
+    assert [(row["kind"], row["appid"], row["state"]) for row in rows] == [("optiscaler", "300", "available")]
+
+
+def test_optiscaler_is_pointed_at_helixsr_and_keeps_fsr4_selectable(home, monkeypatch):
+    _ready(home)
+    root = _optiscaler_game(home, monkeypatch)
+
+    result = helixsr.install_helixsr_optiscaler("300")
+
+    assert result == {"game": "Racer", "fsr4": True}
+    folder = root / "HelixSR"
+    assert (folder / helixsr.LOADER_DLL).read_bytes() == DLL
+    assert (folder / helixsr.UPSCALER_DLL).read_bytes() == DLL
+    assert (folder / helixsr.SECOND_UPSCALER).read_bytes() == FSR4
+    for name in helixsr.HELIXSR_NETWORK_FILES:
+        assert (folder / name).is_file()
+    settings = (folder / "helixsr.ini").read_text(encoding="utf-8")
+    assert helixsr._ini_get(settings, "Forwarding", "UpscalerDll") == helixsr.SECOND_UPSCALER
+    text = (root / "OptiScaler.ini").read_bytes().decode()
+    assert "\r\n" in text and "\n[" not in text.replace("\r\n", "")
+    assert helixsr._ini_get(text, "Upscalers", "Dx12Upscaler") == "ffx"
+    expected = "Z:" + str(folder).replace("/", "\\")
+    assert helixsr._ini_get(text, "Libraries", "FfxDx12SRPath") == expected + "\\" + helixsr.UPSCALER_DLL
+    assert helixsr._ini_get(text, "Libraries", "FfxDx12Path") == expected + "\\" + helixsr.LOADER_DLL
+    assert helixsr._ini_get(text, "Menu", "Scale") == "auto"
+    assert (root / "OptiScaler" / helixsr.UPSCALER_DLL).read_bytes() == FSR4, "the client's files stay as they are"
+    state = helixsr.helixsr_state(machine="x86_64")
+    assert [(row["kind"], row["state"]) for row in state["games"]] == [("optiscaler", "installed")]
+    assert state["installed_games"] == 1
+
+
+def test_removal_puts_optiscaler_ini_back_byte_for_byte(home, monkeypatch):
+    _ready(home)
+    root = _optiscaler_game(home, monkeypatch)
+    helixsr.install_helixsr_optiscaler("300")
+
+    result = helixsr.remove_helixsr_optiscaler("300")
+
+    assert result["restored"] == "exact"
+    assert (root / "OptiScaler.ini").read_bytes() == OPTISCALER_INI.encode()
+    assert not (root / "HelixSR").exists()
+    assert helixsr.helixsr_state(machine="x86_64")["installed_games"] == 0
+
+
+def test_settings_changed_in_optiscaler_since_are_kept_on_removal(home, monkeypatch):
+    _ready(home)
+    root = _optiscaler_game(home, monkeypatch)
+    helixsr.install_helixsr_optiscaler("300")
+    ini = root / "OptiScaler.ini"
+    ini.write_bytes(ini.read_bytes().replace(b"Scale=auto", b"Scale=1.5"))
+
+    assert helixsr.remove_helixsr_optiscaler("300")["restored"] == "settings"
+
+    text = ini.read_bytes().decode()
+    assert helixsr._ini_get(text, "Menu", "Scale") == "1.5"
+    assert helixsr._ini_get(text, "Libraries", "FfxDx12SRPath") == "auto"
+    assert helixsr._ini_get(text, "Libraries", "FfxDx12Path") == "auto"
+
+
+def test_a_client_restore_is_shown_and_left_alone(home, monkeypatch):
+    _ready(home)
+    root = _optiscaler_game(home, monkeypatch)
+    helixsr.install_helixsr_optiscaler("300")
+    (root / "OptiScaler.ini").write_bytes(OPTISCALER_INI.encode())
+
+    assert helixsr.helixsr_state(machine="x86_64")["games"][0]["state"] == "restored"
+    assert helixsr.remove_helixsr_optiscaler("300")["restored"] == "kept"
+    assert (root / "OptiScaler.ini").read_bytes() == OPTISCALER_INI.encode()
+    assert not (root / "HelixSR").exists()
+
+
+def test_without_the_fsr4_dll_helixsr_is_the_only_upscaler(home, monkeypatch):
+    _ready(home)
+    root = _optiscaler_game(home, monkeypatch, fsr4=False)
+    assert helixsr.install_helixsr_optiscaler("300")["fsr4"] is False
+    assert not (root / "HelixSR" / helixsr.SECOND_UPSCALER).exists()
+    settings = (root / "HelixSR" / "helixsr.ini").read_text(encoding="utf-8")
+    assert helixsr._ini_get(settings, "Forwarding", "UpscalerDll") == ""
+
+
+def test_a_foreign_helixsr_folder_is_never_overwritten(home, monkeypatch):
+    _ready(home)
+    root = _optiscaler_game(home, monkeypatch)
+    (root / "HelixSR").mkdir()
+    (root / "HelixSR" / "mine.txt").write_text("user", encoding="utf-8")
+    with pytest.raises(RuntimeError, match="HelixSR folder"):
+        helixsr.install_helixsr_optiscaler("300")
+    assert (root / "OptiScaler.ini").read_bytes() == OPTISCALER_INI.encode()
+    assert (root / "HelixSR" / "mine.txt").read_text(encoding="utf-8") == "user"
+
+
+def test_a_failure_halfway_leaves_optiscaler_untouched(home, monkeypatch):
+    _ready(home)
+    root = _optiscaler_game(home, monkeypatch)
+    monkeypatch.setattr(helixsr, "_write_json", lambda *_args: (_ for _ in ()).throw(OSError("disk full")))
+    with pytest.raises(OSError, match="disk full"):
+        helixsr.install_helixsr_optiscaler("300")
+    assert (root / "OptiScaler.ini").read_bytes() == OPTISCALER_INI.encode()
+    assert not (root / "HelixSR").exists()
+
+
+def test_a_running_game_is_refused(tmp_path):
+    proc = tmp_path / "proc"
+    (proc / "4242").mkdir(parents=True)
+    game = tmp_path / "games" / "Racer"
+    (proc / "4242" / "cmdline").write_bytes(
+        b"/proton\0waitforexitandrun\0Z:" + str(game / "Bin" / "Racer.exe").replace("/", "\\").encode()
+    )
+    with pytest.raises(RuntimeError, match="Close this game"):
+        helixsr._refuse_running(game, proc=proc)
+    helixsr._refuse_running(tmp_path / "games" / "Other", proc=proc)
+
+
+def test_the_repository_routes_optiscaler_actions(home, tmp_path, monkeypatch):
+    _ready(home)
+    root = _optiscaler_game(home, monkeypatch)
+    repository = _repository(tmp_path)
+    assert repository.gestionar_helixsr("opti_install:300")["game"] == "Racer"
+    repository.gestionar_helixsr("opti_remove:300")
+    assert (root / "OptiScaler.ini").read_bytes() == OPTISCALER_INI.encode()

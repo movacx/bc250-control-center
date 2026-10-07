@@ -4668,5 +4668,21 @@
   "Remove HelixSR from your games first, so each one gets its own FSR file back.": "นำ HelixSR ออกจากเกมของคุณก่อน เพื่อให้แต่ละเกมได้ไฟล์ FSR ของตัวเองกลับคืน",
   "The game's upscaler files were not changed.": "ไฟล์ตัวอัปสเกลของเกมไม่ได้ถูกเปลี่ยน",
   "The per-game upscaler found the game in a state it does not change safely: the tool is not installed or prepared yet, the game is not where Steam says, or its files were already changed by hand. Nothing in the game folder was changed.": "ตัวอัปสเกลรายเกมพบว่าเกมอยู่ในสถานะที่เปลี่ยนแปลงอย่างปลอดภัยไม่ได้: ยังไม่ได้ติดตั้งหรือเตรียมเครื่องมือ เกมไม่ได้อยู่ในตำแหน่งที่ Steam ระบุ หรือไฟล์ของเกมถูกเปลี่ยนด้วยมือแล้ว ไม่มีสิ่งใดในโฟลเดอร์เกมถูกเปลี่ยน",
-  "Read the technical detail below: it names the step that is missing. Usually that is installing or preparing the tool first, closing the game, or using Steam > Verify integrity of game files to put the game's own files back.": "อ่านรายละเอียดทางเทคนิคด้านล่าง: จะบอกขั้นตอนที่ขาดไป โดยปกติคือติดตั้งหรือเตรียมเครื่องมือก่อน ปิดเกม หรือใช้ Steam > ตรวจสอบความสมบูรณ์ของไฟล์เกม เพื่อคืนไฟล์เดิมของเกม"
+  "Read the technical detail below: it names the step that is missing. Usually that is installing or preparing the tool first, closing the game, or using Steam > Verify integrity of game files to put the game's own files back.": "อ่านรายละเอียดทางเทคนิคด้านล่าง: จะบอกขั้นตอนที่ขาดไป โดยปกติคือติดตั้งหรือเตรียมเครื่องมือก่อน ปิดเกม หรือใช้ Steam > ตรวจสอบความสมบูรณ์ของไฟล์เกม เพื่อคืนไฟล์เดิมของเกม",
+  "HelixSR in OptiScaler": "HelixSR ใน OptiScaler",
+  "In the game choose DLSS, FSR or XeSS, press Insert and pick FSR HelixSR in OptiScaler's upscaler menu. Remove puts OptiScaler's settings back.": "ในเกมให้เลือก DLSS, FSR หรือ XeSS กด Insert แล้วเลือก FSR HelixSR ในเมนูตัวอัปสเกลของ OptiScaler การนำออกจะคืนการตั้งค่าของ OptiScaler",
+  "OptiScaler changed": "OptiScaler ถูกเปลี่ยน",
+  "OptiScaler's settings no longer point to HelixSR, usually after OptiScaler Client updated or restored this game. Remove cleans up HelixSR's folder.": "การตั้งค่าของ OptiScaler ไม่ได้ชี้ไปที่ HelixSR แล้ว โดยปกติเพราะ OptiScaler Client อัปเดตหรือกู้คืนเกมนี้ การนำออกจะเก็บกวาดโฟลเดอร์ HelixSR",
+  "Via OptiScaler": "ผ่าน OptiScaler",
+  "OptiScaler is in this game, so HelixSR can upscale through it, even when the game only offers DLSS or XeSS.": "เกมนี้มี OptiScaler อยู่ HelixSR จึงอัปสเกลผ่านมันได้ แม้เกมจะมีแค่ DLSS หรือ XeSS",
+  "Use HelixSR in OptiScaler": "ใช้ HelixSR ใน OptiScaler",
+  "Remove HelixSR from OptiScaler": "นำ HelixSR ออกจาก OptiScaler",
+  "A HelixSR folder is added next to OptiScaler and OptiScaler.ini is pointed at it; the previous OptiScaler.ini is saved first. If the FSR4 client's DLL is there, FSR4 stays selectable in OptiScaler's menu next to HelixSR. Close the game first. While HelixSR is in use, remove it here before you update or restore this game in OptiScaler Client.": "จะเพิ่มโฟลเดอร์ HelixSR ไว้ข้าง OptiScaler และให้ OptiScaler.ini ชี้ไปที่โฟลเดอร์นั้น โดยบันทึก OptiScaler.ini เดิมไว้ก่อน หากมี DLL ของไคลเอนต์ FSR4 อยู่ FSR4 จะยังเลือกได้ในเมนูของ OptiScaler ข้าง HelixSR ปิดเกมก่อน ระหว่างใช้ HelixSR ให้นำออกที่นี่ก่อนอัปเดตหรือกู้คืนเกมนี้ใน OptiScaler Client",
+  "OptiScaler.ini is put back exactly as it was and the HelixSR folder is removed. Close the game first.": "OptiScaler.ini จะกลับเป็นเหมือนเดิมทุกประการ และโฟลเดอร์ HelixSR จะถูกลบ ปิดเกมก่อน",
+  "OptiScaler in {game} now uses HelixSR. In the game, press Insert and choose FSR HelixSR.": "OptiScaler ใน {game} ใช้ HelixSR แล้ว ในเกม กด Insert แล้วเลือก FSR HelixSR",
+  "OptiScaler in {game} is back to its previous settings.": "OptiScaler ใน {game} กลับไปใช้การตั้งค่าเดิมแล้ว",
+  "OptiScaler is not installed in this game. Install it with the FSR4 OptiScaler Client first.": "ไม่ได้ติดตั้ง OptiScaler ในเกมนี้ ติดตั้งด้วย OptiScaler Client ของ FSR4 ก่อน",
+  "OptiScaler's settings file was not found in this game.": "ไม่พบไฟล์การตั้งค่าของ OptiScaler ในเกมนี้",
+  "This game already has a HelixSR folder that Control Center did not create. Remove it by hand first.": "เกมนี้มีโฟลเดอร์ HelixSR ที่ Control Center ไม่ได้สร้างอยู่แล้ว ลบออกด้วยมือก่อน",
+  "Close this game before changing its files.": "ปิดเกมนี้ก่อนเปลี่ยนไฟล์ของเกม"
 }

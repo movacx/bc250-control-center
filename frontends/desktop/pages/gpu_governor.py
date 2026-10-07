@@ -4378,6 +4378,9 @@ class GpuGovernorPage(QWidget):
             )
             return
         game_action, _sep, appid = action.partition(":")
+        if game_action in {"opti_install", "opti_remove"}:
+            self._manage_helixsr_optiscaler(action, dialog_parent=dialog_parent)
+            return
         if game_action in {"game_install", "game_remove"}:
             helixsr = _dict(_dict(self.current_state.get("tools")).get("helixsr"))
             game = next(
@@ -4468,6 +4471,50 @@ class GpuGovernorPage(QWidget):
                 self, label, "Opened the HelixSR workflow in the terminal.",
             ),
             "Could not manage HelixSR",
+            controls=(),
+            error_parent=dialog_parent,
+        )
+
+    def _manage_helixsr_optiscaler(self, action: str, *, dialog_parent: QWidget | None) -> None:
+        """Point a game's OptiScaler at HelixSR, or put its settings back."""
+        game_action, _sep, appid = action.partition(":")
+        installing = game_action == "opti_install"
+        helixsr = _dict(_dict(self.current_state.get("tools")).get("helixsr"))
+        game = next(
+            (
+                dict(item) for item in helixsr.get("games") or ()
+                if _dict(item).get("kind") == "optiscaler" and str(_dict(item).get("appid")) == appid
+            ),
+            {"appid": appid, "name": appid},
+        )
+        name = str(game.get("name") or appid)
+        confirmation = ConfirmDialog(
+            "Use HelixSR in OptiScaler" if installing else "Remove HelixSR from OptiScaler",
+            tr(
+                "A HelixSR folder is added next to OptiScaler and OptiScaler.ini is pointed at it; the previous OptiScaler.ini is saved first. If the FSR4 client's DLL is there, FSR4 stays selectable in OptiScaler's menu next to HelixSR. Close the game first. While HelixSR is in use, remove it here before you update or restore this game in OptiScaler Client."
+                if installing else
+                "OptiScaler.ini is put back exactly as it was and the HelixSR folder is removed. Close the game first."
+            ),
+            summary=((tr("Game"), name),),
+            confirm_text="Use HelixSR in OptiScaler" if installing else "Remove",
+            tone="blue" if installing else "orange",
+            parent=dialog_parent or self,
+        )
+        if confirmation.exec() != QDialog.DialogCode.Accepted:
+            return
+        self._run_backend_action(
+            lambda: self.controller.gestionar_helixsr(action),
+            lambda result: GpuGovernorPage._record_preparation_result(
+                self,
+                "HelixSR",
+                tr_format(
+                    "OptiScaler in {game} now uses HelixSR. In the game, press Insert and choose FSR HelixSR."
+                    if installing else
+                    "OptiScaler in {game} is back to its previous settings.",
+                    game=str(_dict(result).get("game") or name),
+                ),
+            ),
+            "Could not change the game's files",
             controls=(),
             error_parent=dialog_parent,
         )

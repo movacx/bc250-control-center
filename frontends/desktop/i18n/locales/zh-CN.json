@@ -4668,5 +4668,21 @@
   "Remove HelixSR from your games first, so each one gets its own FSR file back.": "请先从你的游戏中移除 HelixSR，让每个游戏恢复自带的 FSR 文件。",
   "The game's upscaler files were not changed.": "游戏的超分辨率文件未被更改。",
   "The per-game upscaler found the game in a state it does not change safely: the tool is not installed or prepared yet, the game is not where Steam says, or its files were already changed by hand. Nothing in the game folder was changed.": "按游戏的超分辨率工具发现游戏处于无法安全更改的状态：工具尚未安装或准备好、游戏不在 Steam 所指的位置，或其文件已被手动更改。游戏文件夹中没有任何更改。",
-  "Read the technical detail below: it names the step that is missing. Usually that is installing or preparing the tool first, closing the game, or using Steam > Verify integrity of game files to put the game's own files back.": "请阅读下方的技术细节：其中写明了缺少的步骤。通常是先安装或准备好工具、关闭游戏，或使用 Steam > 验证游戏文件的完整性 恢复游戏自带的文件。"
+  "Read the technical detail below: it names the step that is missing. Usually that is installing or preparing the tool first, closing the game, or using Steam > Verify integrity of game files to put the game's own files back.": "请阅读下方的技术细节：其中写明了缺少的步骤。通常是先安装或准备好工具、关闭游戏，或使用 Steam > 验证游戏文件的完整性 恢复游戏自带的文件。",
+  "HelixSR in OptiScaler": "OptiScaler 中的 HelixSR",
+  "In the game choose DLSS, FSR or XeSS, press Insert and pick FSR HelixSR in OptiScaler's upscaler menu. Remove puts OptiScaler's settings back.": "在游戏中选择 DLSS、FSR 或 XeSS，按 Insert，然后在 OptiScaler 的超分辨率菜单中选择 FSR HelixSR。移除会恢复 OptiScaler 的设置。",
+  "OptiScaler changed": "OptiScaler 已更改",
+  "OptiScaler's settings no longer point to HelixSR, usually after OptiScaler Client updated or restored this game. Remove cleans up HelixSR's folder.": "OptiScaler 的设置不再指向 HelixSR，通常是因为 OptiScaler Client 更新或恢复了此游戏。移除会清理 HelixSR 文件夹。",
+  "Via OptiScaler": "通过 OptiScaler",
+  "OptiScaler is in this game, so HelixSR can upscale through it, even when the game only offers DLSS or XeSS.": "此游戏装有 OptiScaler，因此即使游戏只提供 DLSS 或 XeSS，HelixSR 也能通过它进行超分辨率。",
+  "Use HelixSR in OptiScaler": "在 OptiScaler 中使用 HelixSR",
+  "Remove HelixSR from OptiScaler": "从 OptiScaler 移除 HelixSR",
+  "A HelixSR folder is added next to OptiScaler and OptiScaler.ini is pointed at it; the previous OptiScaler.ini is saved first. If the FSR4 client's DLL is there, FSR4 stays selectable in OptiScaler's menu next to HelixSR. Close the game first. While HelixSR is in use, remove it here before you update or restore this game in OptiScaler Client.": "会在 OptiScaler 旁添加一个 HelixSR 文件夹，并让 OptiScaler.ini 指向它；原来的 OptiScaler.ini 会先保存。如果 FSR4 客户端的 DLL 在那里，FSR4 仍可在 OptiScaler 菜单中与 HelixSR 并列选择。请先关闭游戏。使用 HelixSR 期间，在 OptiScaler Client 中更新或恢复此游戏前，请先在这里移除它。",
+  "OptiScaler.ini is put back exactly as it was and the HelixSR folder is removed. Close the game first.": "OptiScaler.ini 会完全恢复原样，HelixSR 文件夹会被删除。请先关闭游戏。",
+  "OptiScaler in {game} now uses HelixSR. In the game, press Insert and choose FSR HelixSR.": "{game} 中的 OptiScaler 现在使用 HelixSR。在游戏中按 Insert 并选择 FSR HelixSR。",
+  "OptiScaler in {game} is back to its previous settings.": "{game} 中的 OptiScaler 已恢复之前的设置。",
+  "OptiScaler is not installed in this game. Install it with the FSR4 OptiScaler Client first.": "此游戏未安装 OptiScaler。请先用 FSR4 的 OptiScaler Client 安装。",
+  "OptiScaler's settings file was not found in this game.": "在此游戏中未找到 OptiScaler 的设置文件。",
+  "This game already has a HelixSR folder that Control Center did not create. Remove it by hand first.": "此游戏已有一个不是 Control Center 创建的 HelixSR 文件夹。请先手动删除。",
+  "Close this game before changing its files.": "请先关闭此游戏，再更改其文件。"
 }

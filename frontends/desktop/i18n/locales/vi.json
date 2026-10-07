@@ -4668,5 +4668,21 @@
   "Remove HelixSR from your games first, so each one gets its own FSR file back.": "Hãy gỡ HelixSR khỏi các game của bạn trước, để mỗi game lấy lại tệp FSR của riêng nó.",
   "The game's upscaler files were not changed.": "Các tệp bộ nâng độ phân giải của game không bị thay đổi.",
   "The per-game upscaler found the game in a state it does not change safely: the tool is not installed or prepared yet, the game is not where Steam says, or its files were already changed by hand. Nothing in the game folder was changed.": "Bộ nâng độ phân giải theo từng game thấy game ở trạng thái không thể thay đổi an toàn: công cụ chưa được cài hoặc chuẩn bị, game không nằm ở nơi Steam chỉ ra, hoặc tệp của game đã bị sửa thủ công. Không có gì trong thư mục game bị thay đổi.",
-  "Read the technical detail below: it names the step that is missing. Usually that is installing or preparing the tool first, closing the game, or using Steam > Verify integrity of game files to put the game's own files back.": "Hãy đọc chi tiết kỹ thuật bên dưới: nó nêu bước còn thiếu. Thường là cài hoặc chuẩn bị công cụ trước, đóng game, hoặc dùng Steam > Xác minh tính toàn vẹn của tệp game để trả lại tệp gốc của game."
+  "Read the technical detail below: it names the step that is missing. Usually that is installing or preparing the tool first, closing the game, or using Steam > Verify integrity of game files to put the game's own files back.": "Hãy đọc chi tiết kỹ thuật bên dưới: nó nêu bước còn thiếu. Thường là cài hoặc chuẩn bị công cụ trước, đóng game, hoặc dùng Steam > Xác minh tính toàn vẹn của tệp game để trả lại tệp gốc của game.",
+  "HelixSR in OptiScaler": "HelixSR trong OptiScaler",
+  "In the game choose DLSS, FSR or XeSS, press Insert and pick FSR HelixSR in OptiScaler's upscaler menu. Remove puts OptiScaler's settings back.": "Trong game chọn DLSS, FSR hoặc XeSS, nhấn Insert và chọn FSR HelixSR trong menu bộ nâng độ phân giải của OptiScaler. Gỡ sẽ trả lại cài đặt của OptiScaler.",
+  "OptiScaler changed": "OptiScaler đã thay đổi",
+  "OptiScaler's settings no longer point to HelixSR, usually after OptiScaler Client updated or restored this game. Remove cleans up HelixSR's folder.": "Cài đặt của OptiScaler không còn trỏ tới HelixSR, thường do OptiScaler Client đã cập nhật hoặc khôi phục game này. Gỡ sẽ dọn thư mục HelixSR.",
+  "Via OptiScaler": "Qua OptiScaler",
+  "OptiScaler is in this game, so HelixSR can upscale through it, even when the game only offers DLSS or XeSS.": "Game này có OptiScaler, nên HelixSR có thể nâng độ phân giải qua nó, kể cả khi game chỉ có DLSS hoặc XeSS.",
+  "Use HelixSR in OptiScaler": "Dùng HelixSR trong OptiScaler",
+  "Remove HelixSR from OptiScaler": "Gỡ HelixSR khỏi OptiScaler",
+  "A HelixSR folder is added next to OptiScaler and OptiScaler.ini is pointed at it; the previous OptiScaler.ini is saved first. If the FSR4 client's DLL is there, FSR4 stays selectable in OptiScaler's menu next to HelixSR. Close the game first. While HelixSR is in use, remove it here before you update or restore this game in OptiScaler Client.": "Một thư mục HelixSR được thêm cạnh OptiScaler và OptiScaler.ini được trỏ tới đó; OptiScaler.ini cũ được lưu trước. Nếu có DLL của trình FSR4, FSR4 vẫn chọn được trong menu OptiScaler cạnh HelixSR. Hãy đóng game trước. Khi đang dùng HelixSR, hãy gỡ nó ở đây trước khi cập nhật hoặc khôi phục game này trong OptiScaler Client.",
+  "OptiScaler.ini is put back exactly as it was and the HelixSR folder is removed. Close the game first.": "OptiScaler.ini được trả lại đúng như cũ và thư mục HelixSR bị xóa. Hãy đóng game trước.",
+  "OptiScaler in {game} now uses HelixSR. In the game, press Insert and choose FSR HelixSR.": "OptiScaler trong {game} giờ dùng HelixSR. Trong game, nhấn Insert và chọn FSR HelixSR.",
+  "OptiScaler in {game} is back to its previous settings.": "OptiScaler trong {game} đã trở về cài đặt trước đó.",
+  "OptiScaler is not installed in this game. Install it with the FSR4 OptiScaler Client first.": "OptiScaler chưa được cài trong game này. Hãy cài nó trước bằng OptiScaler Client của FSR4.",
+  "OptiScaler's settings file was not found in this game.": "Không tìm thấy tệp cài đặt của OptiScaler trong game này.",
+  "This game already has a HelixSR folder that Control Center did not create. Remove it by hand first.": "Game này đã có một thư mục HelixSR không do Control Center tạo. Hãy xóa thủ công trước.",
+  "Close this game before changing its files.": "Hãy đóng game này trước khi thay đổi tệp của nó."
 }

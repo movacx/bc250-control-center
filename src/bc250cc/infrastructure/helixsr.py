@@ -236,13 +236,18 @@ def scan_helixsr_games(*, home: Path | None = None) -> list[dict]:
     return games
 
 
-def helixsr_games() -> list[dict]:
-    """One row per game: recorded installs first, then the last scan's finds."""
+def helixsr_games(*, optiscaler: bool = True) -> list[dict]:
+    """One row per game: recorded installs first, then the last scan's finds.
+
+    ``optiscaler`` also offers the games where OptiScaler is in place; the
+    ones already routed to HelixSR are listed either way.
+    """
     records = _records()
     rows: list[dict] = []
     for appid, record in records.items():
         rows.append({
             "appid": appid,
+            "kind": "game",
             "name": str(record.get("name") or appid),
             "state": _record_state(record),
             "files": [str(entry.get("path") or "") for entry in record["files"]],
@@ -259,12 +264,311 @@ def helixsr_games() -> list[dict]:
             continue
         rows.append({
             "appid": appid,
+            "kind": "game",
             "name": str(game.get("name") or appid),
             "state": "available",
             "files": files,
         })
+    rows.extend(optiscaler_rows(available=optiscaler))
     order = {"installed": 0, "restored": 1, "available": 2}
-    return sorted(rows, key=lambda row: (order[row["state"]], row["name"].lower()))
+    return sorted(rows, key=lambda row: (order[row["state"]], row["name"].lower(), row["kind"]))
+
+
+# ---------------------------------------------------------------- OptiScaler
+#
+# OptiScaler (installed per game by the FSR4 card's OptiScaler Client) can hand
+# a game's DLSS, XeSS or FSR input to any FidelityFX upscaler DLL. Pointing it
+# at HelixSR, as upstream's README describes, brings HelixSR to games that do
+# not ship FSR 3.1. HelixSR goes into a folder of its own beside OptiScaler and
+# OptiScaler.ini names it; nothing of OptiScaler or of the game is replaced.
+#
+# OptiScaler Client records the digest of every file it installed, the .ini
+# included, and refuses to update or restore a game whose files changed. So
+# the .ini is saved byte for byte first and put back byte for byte on removal,
+# which leaves the client's records valid again.
+
+OPTISCALER_INI = "OptiScaler.ini"
+OPTISCALER_FOLDER = "HelixSR"
+#: The name HelixSR's README uses for a second FidelityFX upscaler DLL.
+SECOND_UPSCALER = "amd_fidelityfx_upscaler_dx12.amd.dll"
+#: OptiScaler 10 calls its FidelityFX route (FSR 2.3, 3.1 and 4) "ffx"; older
+#: releases, and HelixSR's README, call it "fsr31".
+OPTISCALER_UPSCALER = "ffx"
+
+
+def _optiscaler_path() -> Path:
+    return helixsr_root() / ".optiscaler"
+
+
+def _optiscaler_records() -> dict[str, dict]:
+    records = _read_json(_optiscaler_path() / "games.json", {})
+    return {str(key): value for key, value in records.items() if isinstance(value, dict)}
+
+
+def _ini_get(text: str, section: str, key: str) -> str | None:
+    current = ""
+    for line in text.split("\n"):
+        stripped = line.strip()
+        if stripped.startswith("[") and stripped.endswith("]"):
+            current = stripped[1:-1]
+        elif (current.lower() == section.lower() and "=" in stripped
+              and stripped.split("=", 1)[0].strip().lower() == key.lower()):
+            return stripped.split("=", 1)[1].strip()
+    return None
+
+
+def _ini_set(text: str, section: str, key: str, value: str) -> str:
+    """Set one key in one section, as OptiScaler Client does; nothing else moves."""
+    newline = "\r\n" if "\r\n" in text else "\n"
+    lines = text.replace("\r\n", "\n").split("\n")
+    inside = found = written = False
+    index = 0
+    while index < len(lines):
+        stripped = lines[index].strip()
+        if stripped.startswith("[") and stripped.endswith("]"):
+            if inside and not written:
+                lines.insert(index, f"{key}={value}")
+                written = True
+                index += 1
+            inside = stripped[1:-1].lower() == section.lower()
+            found = found or inside
+        elif (inside and "=" in stripped
+              and stripped.split("=", 1)[0].strip().lower() == key.lower()):
+            lines[index] = f"{key}={value}"
+            written = True
+        index += 1
+    if not found:
+        lines.append(f"[{section}]")
+    if not written:
+        lines.append(f"{key}={value}")
+    return newline.join(lines)
+
+
+def _windows_path(path: Path) -> str:
+    """The path Proton's Wine sees: Z: is the Linux root."""
+    return "Z:" + os.path.realpath(path).replace("/", "\\")
+
+
+def _optiscaler_settings(folder: Path) -> dict[tuple[str, str], str]:
+    return {
+        ("Upscalers", "Dx12Upscaler"): OPTISCALER_UPSCALER,
+        ("Libraries", "FfxDx12Path"): _windows_path(folder / LOADER_DLL),
+        ("Libraries", "FfxDx12SRPath"): _windows_path(folder / UPSCALER_DLL),
+    }
+
+
+def _optiscaler_upscaler(root: Path, text: str) -> Path | None:
+    """The FidelityFX upscaler OptiScaler loads now (the FSR4 DLL), if any."""
+    configured = (_ini_get(text, "Libraries", "FfxDx12SRPath") or "auto").strip()
+    folder = (_ini_get(text, "Libraries", "OptiDllPath") or "auto").strip()
+    if configured.lower() == "auto":
+        relative = (Path("OptiScaler") if folder.lower() == "auto" else Path(folder.replace("\\", "/"))) / UPSCALER_DLL
+    elif ":" in configured or configured.startswith("/"):
+        return None
+    else:
+        relative = Path(configured.replace("\\", "/"))
+    if ".." in relative.parts:
+        return None
+    candidate = root / relative
+    if candidate.is_dir():
+        candidate = candidate / UPSCALER_DLL
+    return candidate if candidate.is_file() and not _is_helixsr(candidate) else None
+
+
+def _optiscaler_games() -> list[dict]:
+    """Games with OptiScaler in place, from OptiScaler Client's list."""
+    from .bc250_opticlient import opticlient_games, opticlient_state
+
+    try:
+        if not opticlient_state().get("current"):
+            return []
+        games = opticlient_games()
+    except (OSError, ValueError, RuntimeError):
+        return []
+    found = []
+    for game in games:
+        adapter = str(game.get("adapter") or "")
+        if not adapter or adapter == "unknown":
+            continue
+        found.append(game)
+    return found
+
+
+def _optiscaler_root(appid: str) -> tuple[dict, Path]:
+    from .bc250_opticlient import opticlient_records
+
+    appid = str(appid or "").strip()
+    game = next((g for g in _optiscaler_games() if str(g.get("appid")) == appid), None)
+    if game is None:
+        raise RuntimeError("OptiScaler is not installed in this game. Install it with the FSR4 OptiScaler Client first.")
+    records = _read_json(opticlient_records() / "games.json", [])
+    record = next(
+        (r for r in records if isinstance(r, dict) and str(r.get("AppId") or "") == appid), None
+    )
+    install = Path(str((record or {}).get("InstallPath") or ""))
+    root = install / str(game.get("location") or "")
+    if not str(install) or not (root / OPTISCALER_INI).is_file():
+        raise RuntimeError("OptiScaler's settings file was not found in this game.")
+    return game, root
+
+
+def _optiscaler_state(record: dict) -> str:
+    """``installed`` while OptiScaler.ini still names the HelixSR folder."""
+    root = Path(str(record.get("root") or ""))
+    folder = root / OPTISCALER_FOLDER
+    try:
+        text = (root / OPTISCALER_INI).read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return "restored"
+    pointed = _ini_get(text, "Libraries", "FfxDx12SRPath") == _windows_path(folder / UPSCALER_DLL)
+    return "installed" if pointed and _is_helixsr(folder / UPSCALER_DLL) else "restored"
+
+
+def optiscaler_rows(*, available: bool = True) -> list[dict]:
+    """Games with OptiScaler: HelixSR routed through it, or ready to be."""
+    records = _optiscaler_records()
+    rows = [
+        {
+            "appid": appid,
+            "kind": "optiscaler",
+            "name": str(record.get("name") or appid),
+            "state": _optiscaler_state(record),
+            "files": [str(Path(str(record.get("root") or "")) / OPTISCALER_INI)],
+            "fsr4": bool(record.get("fsr4")),
+        }
+        for appid, record in records.items()
+    ]
+    if not available:
+        return rows
+    for game in _optiscaler_games():
+        appid = str(game.get("appid") or "")
+        if not appid or appid in records:
+            continue
+        rows.append({
+            "appid": appid,
+            "kind": "optiscaler",
+            "name": str(game.get("name") or appid),
+            "state": "available",
+            "files": [],
+            "fsr4": False,
+        })
+    return rows
+
+
+def install_helixsr_optiscaler(appid: str) -> dict:
+    """Point a game's OptiScaler at HelixSR; FSR4 stays selectable beside it."""
+    if not helixsr_state()["network_ready"]:
+        raise RuntimeError("Install HelixSR and build its network files first.")
+    appid = str(appid or "").strip()
+    records = _optiscaler_records()
+    if appid in records:
+        raise RuntimeError("HelixSR is already recorded for this game. Remove it first, then add it again.")
+    game, root = _optiscaler_root(appid)
+    _refuse_running(root)
+    folder = root / OPTISCALER_FOLDER
+    if folder.exists() or folder.is_symlink():
+        raise RuntimeError("This game already has a HelixSR folder that Control Center did not create. Remove it by hand first.")
+    ini = root / OPTISCALER_INI
+    original = ini.read_bytes()
+    text = original.decode("utf-8", errors="surrogateescape")
+    fsr4 = _optiscaler_upscaler(root, text)
+    source = helixsr_directory()
+    backup = _optiscaler_path() / appid / OPTISCALER_INI
+    backup.parent.mkdir(parents=True, exist_ok=True)
+    backup.write_bytes(original)
+    try:
+        folder.mkdir()
+        for name in (LOADER_DLL, UPSCALER_DLL):
+            shutil.copyfile(source / HELIXSR_DLL, folder / name)
+        for name in HELIXSR_NETWORK_FILES:
+            shutil.copyfile(source / name, folder / name)
+        settings = (source / "helixsr.ini").read_text(encoding="utf-8")
+        if fsr4 is not None:
+            shutil.copyfile(fsr4, folder / SECOND_UPSCALER)
+            settings = _ini_set(settings, "Forwarding", "UpscalerDll", SECOND_UPSCALER)
+        (folder / "helixsr.ini").write_text(settings, encoding="utf-8")
+        for (section, key), value in _optiscaler_settings(folder).items():
+            text = _ini_set(text, section, key, value)
+        written = text.encode("utf-8", errors="surrogateescape")
+        staged = root / f".{OPTISCALER_INI}.bc250-helixsr"
+        staged.write_bytes(written)
+        os.replace(staged, ini)
+        records[appid] = {
+            "name": str(game.get("name") or appid),
+            "root": str(root),
+            "backup": str(backup),
+            "written_sha256": hashlib.sha256(written).hexdigest(),
+            "fsr4": fsr4 is not None,
+            "version": HELIXSR_VERSION,
+        }
+        _write_json(_optiscaler_path() / "games.json", records)
+    except Exception:
+        if ini.read_bytes() != original:
+            ini.write_bytes(original)
+        shutil.rmtree(folder, ignore_errors=True)
+        (root / f".{OPTISCALER_INI}.bc250-helixsr").unlink(missing_ok=True)
+        backup.unlink(missing_ok=True)
+        raise
+    return {"game": records[appid]["name"], "fsr4": fsr4 is not None}
+
+
+def remove_helixsr_optiscaler(appid: str) -> dict:
+    """Put OptiScaler.ini back exactly and remove the HelixSR folder."""
+    appid = str(appid or "").strip()
+    records = _optiscaler_records()
+    record = records.get(appid)
+    if record is None:
+        raise RuntimeError("HelixSR is not recorded for this game.")
+    root = Path(str(record.get("root") or ""))
+    _refuse_running(root)
+    ini = root / OPTISCALER_INI
+    backup = Path(str(record.get("backup") or ""))
+    restored = "kept"
+    if ini.is_file():
+        current = ini.read_bytes()
+        if hashlib.sha256(current).hexdigest() == record.get("written_sha256") and backup.is_file():
+            # Untouched since: the saved file goes back byte for byte, so
+            # OptiScaler Client recognises it again.
+            staged = root / f".{OPTISCALER_INI}.bc250-helixsr"
+            shutil.copyfile(backup, staged)
+            os.replace(staged, ini)
+            restored = "exact"
+        elif _ini_get(current.decode("utf-8", errors="replace"), "Libraries", "FfxDx12SRPath") == \
+                _windows_path(root / OPTISCALER_FOLDER / UPSCALER_DLL):
+            # Changed in OptiScaler's own menu since: only HelixSR's three
+            # values go back, every other setting stays.
+            text = current.decode("utf-8", errors="surrogateescape")
+            saved = backup.read_text(encoding="utf-8", errors="surrogateescape") if backup.is_file() else ""
+            for section, key in _optiscaler_settings(root / OPTISCALER_FOLDER):
+                text = _ini_set(text, section, key, _ini_get(saved, section, key) or "auto")
+            ini.write_bytes(text.encode("utf-8", errors="surrogateescape"))
+            restored = "settings"
+    folder = root / OPTISCALER_FOLDER
+    if folder.is_dir() and not folder.is_symlink():
+        shutil.rmtree(folder)
+    shutil.rmtree(backup.parent, ignore_errors=True)
+    del records[appid]
+    _write_json(_optiscaler_path() / "games.json", records)
+    return {"game": str(record.get("name") or appid), "restored": restored}
+
+
+def _refuse_running(folder: Path, proc: Path = Path("/proc")) -> None:
+    """Refuse while a process runs from the game folder (Proton paths included)."""
+    spellings = {str(folder).rstrip("/") + "/", os.path.realpath(folder).rstrip("/") + "/"}
+    try:
+        entries = list(proc.iterdir())
+    except OSError:
+        return
+    for entry in entries:
+        if not entry.name.isdigit() or entry.name == str(os.getpid()):
+            continue
+        try:
+            command = (entry / "cmdline").read_bytes().replace(b"\0", b" ").decode("utf-8", "replace")
+        except OSError:
+            continue
+        command = command.replace("\\", "/")
+        if any(spelling in command for spelling in spellings):
+            raise RuntimeError("Close this game before changing its files.")
 
 
 # ---------------------------------------------------------------- state
@@ -307,7 +611,7 @@ def helixsr_state(*, machine: str | None = None) -> dict:
         state = "not-installed"
     # Recorded games are listed even when the release folder is gone: they
     # still carry HelixSR and must stay removable.
-    games = helixsr_games()
+    games = helixsr_games(optiscaler=network_ready)
     return {
         "provider": "helixsr",
         "version": HELIXSR_VERSION,
@@ -501,6 +805,7 @@ def install_helixsr_game(appid: str) -> dict:
     records = _records()
     if str(appid) in records:
         raise RuntimeError("HelixSR is already recorded for this game. Remove it first, then add it again.")
+    _refuse_running(install)
     targets = _fsr_folders(install)
     if not targets:
         raise RuntimeError("No FSR 3.1 DLL was found in this game. HelixSR replaces amd_fidelityfx_upscaler_dx12.dll or amd_fidelityfx_dx12.dll.")
@@ -536,7 +841,9 @@ def install_helixsr_game(appid: str) -> dict:
                 "backup": str(backup),
                 "created": created,
             })
-        records[str(appid)] = {"name": game["name"], "files": files, "version": HELIXSR_VERSION}
+        records[str(appid)] = {
+            "name": game["name"], "install": str(install), "files": files, "version": HELIXSR_VERSION,
+        }
         _write_json(_records_path(), records)
     except Exception:
         for step in reversed(undo):
@@ -555,6 +862,11 @@ def remove_helixsr_game(appid: str) -> dict:
     record = records.get(appid)
     if record is None:
         raise RuntimeError("HelixSR is not recorded for this game.")
+    files = [Path(str(entry.get("path") or "")) for entry in record["files"]]
+    if record.get("install"):
+        _refuse_running(Path(str(record["install"])))
+    elif files:
+        _refuse_running(Path(os.path.commonpath([str(path.parent) for path in files])))
     entries = []
     for entry in record["files"]:
         target = Path(str(entry.get("path") or ""))

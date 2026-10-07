@@ -106,7 +106,9 @@ from bc250cc.infrastructure.helixsr import (
     build_helixsr_remove_command,
     helixsr_state,
     install_helixsr_game,
+    install_helixsr_optiscaler,
     remove_helixsr_game,
+    remove_helixsr_optiscaler,
     scan_helixsr_games,
 )
 from bc250cc.infrastructure.memory_runtime import read_memory_runtime_state
@@ -538,6 +540,14 @@ class DependenciasRepository:
             return result
         if action.startswith('game_remove:'):
             result = remove_helixsr_game(action.partition(':')[2])
+            self.estado_herramientas_cache = None
+            return result
+        if action.startswith('opti_install:'):
+            result = install_helixsr_optiscaler(action.partition(':')[2])
+            self.estado_herramientas_cache = None
+            return result
+        if action.startswith('opti_remove:'):
+            result = remove_helixsr_optiscaler(action.partition(':')[2])
             self.estado_herramientas_cache = None
             return result
         state = helixsr_state()

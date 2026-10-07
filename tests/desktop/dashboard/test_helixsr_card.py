@@ -133,3 +133,26 @@ def test_a_preview_of_another_distribution_never_runs_the_installer():
     sidebar.compatibility_filter.setCurrentIndex(index)
     assert not sidebar.helixsr_install_button.isEnabled()
     assert sidebar.helixsr_upstream_button.isEnabled()
+
+
+def test_optiscaler_games_get_their_own_row_and_action():
+    sidebar = _sidebar()
+    games = [
+        {"appid": "7", "kind": "game", "name": "Racer", "state": "available", "files": ["/r.dll"]},
+        {"appid": "7", "kind": "optiscaler", "name": "Racer", "state": "available", "files": []},
+        {"appid": "8", "kind": "optiscaler", "name": "Shooter", "state": "installed", "files": ["/OptiScaler.ini"]},
+    ]
+    sidebar.set_state(_state(_helixsr(
+        installed=True, current=True, network_ready=True, state="ready", games=games, installed_games=1,
+    )))
+    assert list(sidebar.helixsr_game_rows) == ["7", "opti:7", "opti:8"]
+    assert sidebar.helixsr_game_rows["opti:7"].findChild(QPushButton).text() == "Use HelixSR in OptiScaler"
+
+    requested = []
+    sidebar.dependency_action_requested.connect(requested.append)
+    for key in ("opti:7", "opti:8"):
+        sidebar.helixsr_game_rows[key].findChild(QPushButton).click()
+    assert [item["action"] for item in requested] == [
+        "helixsr_opti_install:7",
+        "helixsr_opti_remove:8",
+    ]

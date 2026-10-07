@@ -4668,5 +4668,21 @@
   "Remove HelixSR from your games first, so each one gets its own FSR file back.": "Nejprve odeberte HelixSR ze svých her, aby každá dostala zpět vlastní soubor FSR.",
   "The game's upscaler files were not changed.": "Soubory upscaleru hry nebyly změněny.",
   "The per-game upscaler found the game in a state it does not change safely: the tool is not installed or prepared yet, the game is not where Steam says, or its files were already changed by hand. Nothing in the game folder was changed.": "Upscaler pro jednotlivé hry našel hru ve stavu, který bezpečně nemění: nástroj ještě není nainstalovaný nebo připravený, hra není tam, kde uvádí Steam, nebo už byly její soubory změněny ručně. Ve složce hry se nic nezměnilo.",
-  "Read the technical detail below: it names the step that is missing. Usually that is installing or preparing the tool first, closing the game, or using Steam > Verify integrity of game files to put the game's own files back.": "Přečtěte si technické podrobnosti níže: uvádějí chybějící krok. Obvykle jde o to nejprve nainstalovat nebo připravit nástroj, zavřít hru nebo použít Steam > Ověřit integritu herních souborů a vrátit vlastní soubory hry."
+  "Read the technical detail below: it names the step that is missing. Usually that is installing or preparing the tool first, closing the game, or using Steam > Verify integrity of game files to put the game's own files back.": "Přečtěte si technické podrobnosti níže: uvádějí chybějící krok. Obvykle jde o to nejprve nainstalovat nebo připravit nástroj, zavřít hru nebo použít Steam > Ověřit integritu herních souborů a vrátit vlastní soubory hry.",
+  "HelixSR in OptiScaler": "HelixSR v OptiScaleru",
+  "In the game choose DLSS, FSR or XeSS, press Insert and pick FSR HelixSR in OptiScaler's upscaler menu. Remove puts OptiScaler's settings back.": "Ve hře zvolte DLSS, FSR nebo XeSS, stiskněte Insert a v nabídce upscaleru OptiScaleru vyberte FSR HelixSR. Odebrání vrátí nastavení OptiScaleru.",
+  "OptiScaler changed": "OptiScaler změněn",
+  "OptiScaler's settings no longer point to HelixSR, usually after OptiScaler Client updated or restored this game. Remove cleans up HelixSR's folder.": "Nastavení OptiScaleru už neukazuje na HelixSR, obvykle proto, že OptiScaler Client tuto hru aktualizoval nebo obnovil. Odebrání uklidí složku HelixSR.",
+  "Via OptiScaler": "Přes OptiScaler",
+  "OptiScaler is in this game, so HelixSR can upscale through it, even when the game only offers DLSS or XeSS.": "V této hře je OptiScaler, takže HelixSR přes něj může škálovat, i když hra nabízí jen DLSS nebo XeSS.",
+  "Use HelixSR in OptiScaler": "Použít HelixSR v OptiScaleru",
+  "Remove HelixSR from OptiScaler": "Odebrat HelixSR z OptiScaleru",
+  "A HelixSR folder is added next to OptiScaler and OptiScaler.ini is pointed at it; the previous OptiScaler.ini is saved first. If the FSR4 client's DLL is there, FSR4 stays selectable in OptiScaler's menu next to HelixSR. Close the game first. While HelixSR is in use, remove it here before you update or restore this game in OptiScaler Client.": "Vedle OptiScaleru se přidá složka HelixSR a OptiScaler.ini na ni začne odkazovat; předchozí OptiScaler.ini se nejprve uloží. Pokud je přítomna knihovna DLL klienta FSR4, FSR4 zůstane v nabídce OptiScaleru vedle HelixSR k výběru. Nejprve hru zavřete. Dokud HelixSR používáte, odeberte ho zde, než tuto hru v OptiScaler Client aktualizujete nebo obnovíte.",
+  "OptiScaler.ini is put back exactly as it was and the HelixSR folder is removed. Close the game first.": "OptiScaler.ini se vrátí přesně do původní podoby a složka HelixSR se odstraní. Nejprve hru zavřete.",
+  "OptiScaler in {game} now uses HelixSR. In the game, press Insert and choose FSR HelixSR.": "OptiScaler v {game} nyní používá HelixSR. Ve hře stiskněte Insert a zvolte FSR HelixSR.",
+  "OptiScaler in {game} is back to its previous settings.": "OptiScaler v {game} má znovu předchozí nastavení.",
+  "OptiScaler is not installed in this game. Install it with the FSR4 OptiScaler Client first.": "OptiScaler v této hře není nainstalovaný. Nejprve ho nainstalujte pomocí OptiScaler Client pro FSR4.",
+  "OptiScaler's settings file was not found in this game.": "Soubor nastavení OptiScaleru nebyl v této hře nalezen.",
+  "This game already has a HelixSR folder that Control Center did not create. Remove it by hand first.": "Tato hra už má složku HelixSR, kterou nevytvořil Control Center. Nejprve ji ručně odstraňte.",
+  "Close this game before changing its files.": "Před změnou souborů hru zavřete."
 }
