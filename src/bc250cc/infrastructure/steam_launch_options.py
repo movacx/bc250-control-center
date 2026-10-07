@@ -298,9 +298,8 @@ def _manifest_value(text: str, key: str) -> str:
     return match.group(1) if match else ""
 
 
-def installed_steam_games(home: Path | None = None) -> list[dict]:
-    """Every installed Steam game, from each library's app manifests."""
-    games: dict[str, dict] = {}
+def _game_manifests(home: Path | None = None):
+    """(library, manifest text) for every app manifest of every Steam library."""
     for root in steam_roots(home):
         libraries = [root]
         try:
@@ -316,7 +315,27 @@ def installed_steam_games(home: Path | None = None) -> list[dict]:
                     continue
                 appid, name = _manifest_value(text, "appid"), _manifest_value(text, "name")
                 if appid.isdigit() and not name.lower().startswith(_TOOL_PREFIXES):
-                    games.setdefault(appid, {"appid": appid, "name": name})
+                    yield library, appid, name, text
+
+
+def installed_steam_games(home: Path | None = None) -> list[dict]:
+    """Every installed Steam game, from each library's app manifests."""
+    games: dict[str, dict] = {}
+    for _library, appid, name, _text in _game_manifests(home):
+        games.setdefault(appid, {"appid": appid, "name": name})
+    return sorted(games.values(), key=lambda game: game["name"].lower())
+
+
+def installed_steam_game_folders(home: Path | None = None) -> list[dict]:
+    """``installed_steam_games`` plus each game's folder under steamapps/common."""
+    games: dict[str, dict] = {}
+    for library, appid, name, text in _game_manifests(home):
+        folder = _unescape(_manifest_value(text, "installdir"))
+        if not folder or "/" in folder or folder in {".", ".."}:
+            continue
+        path = library / "steamapps" / "common" / folder
+        if path.is_dir():
+            games.setdefault(appid, {"appid": appid, "name": name, "path": path})
     return sorted(games.values(), key=lambda game: game["name"].lower())
 
 

@@ -474,6 +474,9 @@ class SistemaService:
     def gestionar_fsr4_bc250(self, action):
         return self.repo.gestionar_fsr4_bc250(action)
 
+    def gestionar_helixsr(self, action):
+        return self.repo.gestionar_helixsr(action)
+
     def gestionar_gfx1013_fedora(self, action):
         return self.repo.gestionar_gfx1013_fedora(action)
 

@@ -47,7 +47,11 @@ from bc250cc.infrastructure.system_setup import CU_UNLOCK_OPTION, CU_UNLOCK_THER
 from bc250cc.infrastructure.terminal_repository import TerminalRepository
 
 from .. import theme
-from ..core.feature_visibility import FSR4_UI_ENABLED, GFX1013_FSR4_UI_ENABLED
+from ..core.feature_visibility import (
+    FSR4_UI_ENABLED,
+    GFX1013_FSR4_UI_ENABLED,
+    HELIXSR_UI_ENABLED,
+)
 from ..core.gfx1013_presenter import present_gfx1013, present_radv_route
 from ..core.preferences import application_settings
 from ..i18n import tr, tr_format
@@ -2426,12 +2430,56 @@ class PreparationSidebar(QFrame):
         self.fsr4_source_card = self.fsr4_card
         self.cachyos_cards = (self.cachyos_stack_card,)
         self.fsr4_cards = (self.fsr4_card,)
-        for card in (*self.cachyos_cards, *self.fsr4_cards):
+        self._build_helixsr_card()
+        for card in (*self.cachyos_cards, *self.fsr4_cards, self.helixsr_card):
             layout.addWidget(card)
         layout.addStretch(1)
         if self._standalone:
             self._organise_compatibility(layout)
         return page
+
+    def _build_helixsr_card(self) -> None:
+        """HelixSR (lonewolf0622/HelixSR): DLSS Model E behind an FSR 3.1 DLL.
+
+        The release is fetched and verified on this PC and its own setup
+        builds the NVIDIA-derived network files here. Each game row adds or
+        removes HelixSR, keeping the game's DLL as ``*.original.dll``.
+        """
+        self.helixsr_card = PreparationInfoCard(
+            "HelixSR · DLSS quality for FSR 3.1 games",
+            "Replaces a game's FSR 3.1 upscaler with HelixSR, which runs DLSS's neural network on this GPU. The game's own file is kept as a backup.",
+            scope_text="All distributions · per game · no root",
+            status_text="Checking",
+        )
+        self.helixsr_games = QFrame()
+        self.helixsr_games.setProperty("fsr4Games", True)
+        self.helixsr_games_layout = QVBoxLayout(self.helixsr_games)
+        self.helixsr_games_layout.setContentsMargins(0, 0, 0, 0)
+        self.helixsr_games_layout.setSpacing(6)
+        self.helixsr_card.layout().insertWidget(2, self.helixsr_games)
+        self.helixsr_games.hide()
+        self._helixsr_games_signature: tuple = ()
+        self.helixsr_game_rows: dict[str, QFrame] = {}
+        self.helixsr_install_button = self.helixsr_card.add_action(
+            "Install HelixSR", {"action": "helixsr_install", "governor": ""}
+        )
+        self.helixsr_network_button = self.helixsr_card.add_action(
+            "Build network files", {"action": "helixsr_network", "governor": ""}
+        )
+        self.helixsr_scan_button = self.helixsr_card.add_action(
+            "Find FSR 3.1 games", {"action": "helixsr_scan", "governor": ""}
+        )
+        self.helixsr_remove_button = self.helixsr_card.add_action(
+            "Remove HelixSR",
+            {"action": "helixsr_uninstall", "governor": ""},
+            danger=True,
+        )
+        self.helixsr_upstream_button = self.helixsr_card.add_action(
+            "Open upstream project", {"action": "helixsr_upstream", "governor": ""}
+        )
+        self.helixsr_card.action_requested.connect(self._forward_dependency_action)
+        self.helixsr_card.setEnabled(HELIXSR_UI_ENABLED)
+        self.helixsr_card.setVisible(HELIXSR_UI_ENABLED)
 
     def _organise_compatibility(self, layout: QVBoxLayout) -> None:
         """Additional settings: one list per topic, a title row per tool.
@@ -2443,7 +2491,7 @@ class PreparationSidebar(QFrame):
             ("System", (self.acpi_card,)),
             ("GPU governor", (self.cyan_card, self.oberon_card)),
             ("Kernel and graphics", (self.gfx_card, *self.cachyos_cards)),
-            ("Upscaling", self.fsr4_cards),
+            ("Upscaling", (*self.fsr4_cards, self.helixsr_card)),
         )
         layout.setSpacing(0)
         # Boot options: the panels that used to sit above the component list.
@@ -3169,6 +3217,132 @@ class PreparationSidebar(QFrame):
                           "OptiScaler Client refuses folders reached through a link ({link}). Add this library again in its launcher from the real folder: {path}"),
     }
 
+    _HELIXSR_GAME_COPY = {
+        "installed": ("HelixSR active", "green",
+                      "In the game, choose AMD FSR as the upscaler. Remove puts the game's own file back."),
+        "restored": ("Original file back", "orange",
+                     "A game update or Steam's file check put the game's own FSR file back. Remove cleans up; add HelixSR again if you want it."),
+        "available": ("FSR 3.1 found", "blue",
+                      "Add HelixSR to replace this game's FSR 3.1 upscaler. The original file is kept as a backup."),
+    }
+
+    def _render_helixsr(self, helixsr: Mapping) -> None:
+        """Release, network files and one row per game, from ``helixsr_state``."""
+        available = bool(helixsr.get("installer_available"))
+        installed = bool(helixsr.get("installed"))
+        current = bool(helixsr.get("current"))
+        ready = bool(helixsr.get("network_ready"))
+        wine = bool(helixsr.get("wine_available", True))
+        state = str(helixsr.get("state") or "not-installed")
+        games = [dict(game) for game in helixsr.get("games") or () if isinstance(game, Mapping)]
+        self.helixsr_card.set_scope("All distributions · per game · no root", "purple")
+        if ready:
+            status, tone = "Ready", "green"
+            detail = (
+                "In each game with HelixSR, choose AMD FSR as the upscaler. A game update or Steam's file check puts the game's own file back."
+                if games else
+                "Press Find FSR 3.1 games, then add HelixSR to a game. In the game, choose AMD FSR as the upscaler."
+            )
+        elif not available:
+            status, tone = "Unavailable", "gray"
+            detail = "HelixSR's setup runs on x86_64 Linux only."
+        elif not wine:
+            status, tone = "Proton required", "orange"
+            detail = "HelixSR's setup compiles its shaders through Proton. Install Proton from Steam first: setting any game to use Proton installs it."
+        elif current:
+            status, tone = "Network files missing", "orange"
+            detail = "HelixSR is installed, but its network files are not built yet. The setup asks before it downloads NVIDIA's DLSS DLL."
+        elif state == "invalid":
+            status, tone = "Repair required", "orange"
+            detail = "The HelixSR folder is incomplete or was changed. Reinstall it."
+        elif state == "update-available":
+            status, tone = "Update available", "blue"
+            detail = "A newer HelixSR release is available. Games that already use HelixSR keep working."
+        else:
+            status, tone = "Not installed", "gray"
+            detail = "Downloads the official release, checks its SHA-256 and builds the network files on this PC with HelixSR's own setup. NVIDIA's DLSS DLL is downloaded only after you agree in the terminal."
+        self.helixsr_card.set_status(status, tone)
+        self.helixsr_card.detail.setText(tr(detail))
+        self.helixsr_card.update_action(
+            self.helixsr_install_button,
+            text="Repair HelixSR" if state == "invalid"
+            else "Update HelixSR" if state == "update-available"
+            else "Reinstall HelixSR" if current
+            else "Install HelixSR",
+            enabled=available and (wine or current),
+            visible=available,
+        )
+        self.helixsr_card.update_action(
+            self.helixsr_network_button,
+            text="Build network files",
+            enabled=wine,
+            visible=current and not ready,
+        )
+        self.helixsr_card.update_action(
+            self.helixsr_scan_button,
+            text="Find FSR 3.1 games",
+            visible=ready,
+        )
+        self.helixsr_card.update_action(
+            self.helixsr_remove_button,
+            text="Remove HelixSR",
+            visible=installed,
+        )
+        self.helixsr_upstream_button.show()
+        in_use = any(game.get("state") != "available" for game in games)
+        self._render_helixsr_games(
+            games if HELIXSR_UI_ENABLED and (ready or installed or in_use) else [], ready
+        )
+
+    def _render_helixsr_games(self, games: list[dict], ready: bool) -> None:
+        """One compact row per game; rebuilt only when something changed."""
+        games = games[:12]
+        signature = (ready, *(
+            (g.get("appid"), g.get("name"), g.get("state"), len(g.get("files") or ()))
+            for g in games
+        ))
+        if signature == self._helixsr_games_signature:
+            return
+        self._helixsr_games_signature = signature
+        while self.helixsr_games_layout.count():
+            item = self.helixsr_games_layout.takeAt(0)
+            if item.widget() is not None:
+                item.widget().deleteLater()
+        self.helixsr_game_rows = {}
+        for game in games:
+            self.helixsr_games_layout.addWidget(self._helixsr_game_row(game, ready))
+        self.helixsr_games.setVisible(bool(games))
+
+    def _helixsr_game_row(self, game: dict, ready: bool) -> QFrame:
+        state = str(game.get("state") or "available")
+        chip, tone, detail = self._HELIXSR_GAME_COPY.get(state, self._HELIXSR_GAME_COPY["available"])
+        appid = str(game.get("appid") or "")
+        row = QFrame()
+        row.setProperty("fsr4GameRow", True)
+        layout = QGridLayout(row)
+        layout.setContentsMargins(10, 7, 8, 7)
+        layout.setHorizontalSpacing(10)
+        layout.setVerticalSpacing(2)
+        layout.addWidget(_label(str(game.get("name") or appid), "dashboardCompatibilityLabel", wrap=False), 0, 0)
+        layout.addWidget(PillLabel(chip, tone), 0, 1, Qt.AlignmentFlag.AlignLeft)
+        layout.addWidget(_label(tr(detail), "dashboardCardSubtitle"), 1, 0, 1, 3)
+        layout.setColumnStretch(2, 1)
+        if state == "available":
+            text, action = "Add HelixSR", f"helixsr_game_install:{appid}"
+        else:
+            text, action = "Remove", f"helixsr_game_remove:{appid}"
+        button = QPushButton(tr(text))
+        button.setProperty("compactAction", True)
+        button.setEnabled(ready or state != "available")
+        button.clicked.connect(
+            lambda _checked=False, value=action: self._forward_dependency_action(
+                {"action": value, "governor": ""}
+            )
+        )
+        layout.addWidget(button, 0, 3, 2, 1, Qt.AlignmentFlag.AlignVCenter)
+        self.helixsr_game_rows[appid] = row
+        return row
+
     def _render_fsr4_games(self, games: list[dict]) -> None:
         """One compact row per game; rebuilt only when something changed."""
         signature = tuple(
@@ -3344,6 +3518,7 @@ class PreparationSidebar(QFrame):
         )
         self.cachyos_stack_card.setVisible(show_all or selected == "arch")
         self.fsr4_card.setVisible(FSR4_UI_ENABLED)
+        self.helixsr_card.setVisible(HELIXSR_UI_ENABLED)
         self._refresh_compatibility_summary()
 
         if not preview:
@@ -3425,6 +3600,7 @@ class PreparationSidebar(QFrame):
             self.gfx_card,
             self.cachyos_stack_card,
             self.fsr4_card,
+            self.helixsr_card,
         ):
             for button in card.findChildren(QPushButton):
                 action = str(getattr(button, "request_payload", {}).get("action") or "")
@@ -3967,6 +4143,8 @@ class PreparationSidebar(QFrame):
                 "Open the client, choose Scan Games, select games and press Install / update selected. "
                 "Each game below says what is still missing before Insert opens OptiScaler."
             ))
+
+        self._render_helixsr(_mapping(tools.get("helixsr")))
 
         self._render_accessories(_mapping(tools.get("accessories")))
 

@@ -185,6 +185,19 @@ _RULES = (
         "Control Center adds the launch option by editing Steam's own settings file. Steam has to be closed while that happens, and the Steam profile needs at least one game started from it.",
         "Close Steam completely (Steam > Exit, not just its window), start the game once from Steam if it never ran, then try again. The previous settings file is kept beside it as a backup.",
     ),
+    # Per-game upscalers (HelixSR, and OptiScaler for FSR4) refuse a game
+    # they cannot change safely. Before the missing-command rule: "not
+    # installed" here is about a game or a tool, never a system command.
+    _Rule(
+        "BC250-UPSCALE-001",
+        (r"helixsr (?:is|was) (?:already|not)", r"\binstall helixsr\b", r"remove helixsr from",
+         r"helixsr's setup runs", r"fsr 3\.1 dll", r"original fsr file",
+         r"\.original\.dll backup", r"not installed in steam", r"invalid steam app id",
+         r"optiscaler client list"),
+        "The game's upscaler files were not changed.",
+        "The per-game upscaler found the game in a state it does not change safely: the tool is not installed or prepared yet, the game is not where Steam says, or its files were already changed by hand. Nothing in the game folder was changed.",
+        "Read the technical detail below: it names the step that is missing. Usually that is installing or preparing the tool first, closing the game, or using Steam > Verify integrity of game files to put the game's own files back.",
+    ),
     _Rule(
         "BC250-AUTH-001",
         (r"textual authentication agent", r"/dev/tty.*no such device", r"controlling terminal"),

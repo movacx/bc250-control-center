@@ -3805,8 +3805,14 @@ class GpuGovernorPage(QWidget):
         if action == "fsr4_upstream":
             self._open_fsr4_upstream(dialog_parent=dialog_parent)
             return
+        if action.startswith("helixsr_") and action != "helixsr_upstream":
+            self._manage_helixsr(
+                action.removeprefix("helixsr_"), dialog_parent=dialog_parent
+            )
+            return
         if action in {
             "acpi_upstream",
+            "helixsr_upstream",
             "gfx1013_upstream",
             "bazzite_async_upstream",
             "bazzite_image_upstream",
@@ -4350,6 +4356,122 @@ class GpuGovernorPage(QWidget):
             error_parent=dialog_parent,
         )
 
+    def _manage_helixsr(self, action: str, *, dialog_parent: QWidget | None) -> None:
+        """HelixSR: release and network files in the terminal, games in place."""
+        from bc250cc.infrastructure.helixsr import HELIXSR_TAG
+
+        label = "HelixSR"
+        if action == "scan":
+            self._run_backend_action(
+                lambda: self.controller.gestionar_helixsr("scan"),
+                lambda result: GpuGovernorPage._record_preparation_result(
+                    self,
+                    label,
+                    tr_format(
+                        "Found {count} Steam games with an FSR 3.1 DLL.",
+                        count=int(_dict(result).get("games") or 0),
+                    ),
+                ),
+                "Could not search for FSR 3.1 games",
+                controls=(),
+                error_parent=dialog_parent,
+            )
+            return
+        game_action, _sep, appid = action.partition(":")
+        if game_action in {"game_install", "game_remove"}:
+            helixsr = _dict(_dict(self.current_state.get("tools")).get("helixsr"))
+            game = next(
+                (
+                    dict(item) for item in helixsr.get("games") or ()
+                    if str(_dict(item).get("appid")) == appid
+                ),
+                {"appid": appid, "name": appid, "files": []},
+            )
+            installing = game_action == "game_install"
+            confirmation = ConfirmDialog(
+                "Add HelixSR to this game" if installing else "Remove HelixSR from this game",
+                tr(
+                    "The game's FSR 3.1 DLL is renamed to *.original.dll and HelixSR takes its place, with its network files beside it. Close the game first, then choose AMD FSR as the upscaler in its settings."
+                    if installing else
+                    "HelixSR's files are removed from the game folder and the game's own FSR DLL is renamed back. Close the game first."
+                ),
+                summary=(
+                    (tr("Game"), str(game.get("name") or appid)),
+                    *((tr("File"), str(path)) for path in list(game.get("files") or ())[:3]),
+                ),
+                confirm_text="Add HelixSR" if installing else "Remove",
+                tone="blue" if installing else "orange",
+                parent=dialog_parent or self,
+            )
+            if confirmation.exec() != QDialog.DialogCode.Accepted:
+                return
+            self._run_backend_action(
+                lambda: self.controller.gestionar_helixsr(action),
+                lambda result: GpuGovernorPage._record_preparation_result(
+                    self,
+                    label,
+                    tr_format(
+                        "HelixSR was added to {game}. In the game, choose AMD FSR as the upscaler."
+                        if installing else
+                        "HelixSR was removed from {game}; its own FSR file is back.",
+                        game=str(_dict(result).get("game") or game.get("name") or appid),
+                    ),
+                ),
+                "Could not change the game's files",
+                controls=(),
+                error_parent=dialog_parent,
+            )
+            return
+        copy = {
+            "install": (
+                "Install HelixSR",
+                "Downloads the official HelixSR release, checks its SHA-256 and installs it in your user folder. HelixSR's own setup then builds the network files on this PC from NVIDIA's DLSS DLL, which it downloads from NVIDIA's GitHub only after you agree in the terminal. It takes 2-3 minutes and needs no password. HelixSR is an independent project, not affiliated with NVIDIA or AMD.",
+                "Install",
+                "blue",
+            ),
+            "network": (
+                "Build HelixSR network files",
+                "HelixSR's own setup builds the network files on this PC from NVIDIA's DLSS DLL, which it downloads from NVIDIA's GitHub only after you agree in the terminal. It takes 2-3 minutes and needs no password.",
+                "Build network files",
+                "blue",
+            ),
+            "uninstall": (
+                "Remove HelixSR",
+                "Removes the HelixSR release, its network files and its setup cache (portable Python and shader compiler). Games must not use HelixSR any more: remove it from each game first.",
+                "Remove HelixSR",
+                "orange",
+            ),
+        }.get(action)
+        if copy is None:
+            raise ValueError("Unsupported HelixSR action.")
+        title, body, confirm, tone = copy
+        confirmation = ConfirmDialog(
+            title,
+            tr(body),
+            summary=(
+                (tr("Source"), "github.com/lonewolf0622/HelixSR"),
+                (tr("Release"), HELIXSR_TAG),
+                (tr("Scope"), tr("Your user folder; games only when you choose them")),
+            ),
+            notice=""
+            if action == "uninstall"
+            else "The network files hold NVIDIA's network. They stay on this PC: never share or upload them.",
+            confirm_text=confirm,
+            tone=tone,
+            parent=dialog_parent or self,
+        )
+        if confirmation.exec() != QDialog.DialogCode.Accepted:
+            return
+        self._run_backend_action(
+            lambda: self.controller.gestionar_helixsr(action),
+            lambda _result: GpuGovernorPage._record_preparation_result(
+                self, label, "Opened the HelixSR workflow in the terminal.",
+            ),
+            "Could not manage HelixSR",
+            controls=(),
+            error_parent=dialog_parent,
+        )
+
     def _add_fsr4_steam_option_to_library(self, *, dialog_parent: QWidget | None) -> None:
         """The same option for every installed Steam game, asked for on Reddit."""
         from bc250cc.infrastructure.steam_launch_options import installed_steam_games
@@ -4631,6 +4753,7 @@ class GpuGovernorPage(QWidget):
             "gfx1013_upstream": gfx_url,
             "bazzite_async_upstream": BAZZITE_ASYNC_COMPUTE_REPOSITORY,
             "bazzite_image_upstream": "https://github.com/62fixolab/Latest-Bazzite-AMD-BC-250-Patched-Images",
+            "helixsr_upstream": "https://github.com/lonewolf0622/HelixSR",
         }
         opened, message = open_external_url(urls[action])
         if opened:

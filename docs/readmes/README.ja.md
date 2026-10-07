@@ -121,6 +121,7 @@ BC250 Control Center はコミュニティの成果の上に成り立ってお�
 - [linux-cachyos-bc250](https://github.com/MastaG/linux-cachyos-bc250): Arch/CachyOS 向けに対応付けたカーネルと Mesa/RADV。
 - [bc250-async-compute-bazzite](https://github.com/tri3gubki-ops/bc250-async-compute-bazzite): Bazzite 44 での async compute。
 - [bc250-fsr4](https://github.com/dmorazasanchez/bc250-fsr4) と [bc250-fsr4-fork](https://github.com/daniel-h-0/bc250-fsr4-fork) (OptiScaler Client): ゲームごとの FSR4。
+- [HelixSR](https://github.com/lonewolf0622/HelixSR): FSR 3.1 ゲーム向けの DLSS Model E 再構成 (ゲームごと)。
 
 **CPU と Compute Units**
 - [bc250_smu_oc](https://github.com/bc250-collective/bc250_smu_oc): SMU による CPU の検出とチューニング。

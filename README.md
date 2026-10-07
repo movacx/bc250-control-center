@@ -107,7 +107,7 @@ Before applying any change, check the module's status: it tells you what is read
 
 **System**
 - Dependency preparation adapted to each distribution, with a built-in terminal that shows every command.
-- Compatibility fixes: GFX1013 and async compute, per-game FSR4, telemetry and ACPI.
+- Compatibility fixes: GFX1013 and async compute, per-game FSR4 and HelixSR, telemetry and ACPI.
 - Wi-Fi, Bluetooth and printer drivers from your distribution's official repositories.
 - Diagnostics, history and CSV metric export.
 
@@ -142,6 +142,7 @@ BC250 Control Center builds on community work and claims none of these projects 
 - [linux-cachyos-bc250](https://github.com/MastaG/linux-cachyos-bc250): matched kernel and Mesa/RADV for Arch/CachyOS.
 - [bc250-async-compute-bazzite](https://github.com/tri3gubki-ops/bc250-async-compute-bazzite): async compute on Bazzite 44; its RADV patches are also built for Arch/CachyOS and Fedora on kernel 7.2 or newer.
 - [bc250-fsr4](https://github.com/dmorazasanchez/bc250-fsr4) and [bc250-fsr4-fork](https://github.com/daniel-h-0/bc250-fsr4-fork) (OptiScaler Client): per-game FSR4.
+- [HelixSR](https://github.com/lonewolf0622/HelixSR): DLSS Model E reconstruction for FSR 3.1 games, per game.
 
 **CPU and Compute Units**
 - [bc250_smu_oc](https://github.com/bc250-collective/bc250_smu_oc): CPU detection and tuning through the SMU.
