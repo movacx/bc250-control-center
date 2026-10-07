@@ -4687,5 +4687,17 @@
   "Close this game before changing its files.": "Hãy đóng game này trước khi thay đổi tệp của nó.",
   "NVIDIA DLSS DLL": "DLL DLSS của NVIDIA",
   "OptiScaler Client's copy, checked by SHA-256; nothing is downloaded from NVIDIA": "Bản sao của OptiScaler Client, đã kiểm tra bằng SHA-256; không tải gì từ NVIDIA",
-  "Downloaded from NVIDIA's GitHub after you agree in the terminal": "Được tải từ GitHub của NVIDIA sau khi bạn đồng ý trong terminal"
+  "Downloaded from NVIDIA's GitHub after you agree in the terminal": "Được tải từ GitHub của NVIDIA sau khi bạn đồng ý trong terminal",
+  "Add": "Thêm",
+  "Network files": "Tệp mạng",
+  "Built on this PC": "Đã tạo trên PC này",
+  "Not built yet": "Chưa tạo",
+  "{active} active · {found} available": "{active} đang dùng · {found} có thể thêm",
+  "No games yet. Find FSR 3.1 games looks through your Steam library.": "Chưa có game nào. Tìm game FSR 3.1 sẽ xem thư viện Steam của bạn.",
+  "Native FSR 3.1 · choose AMD FSR in the game": "FSR 3.1 gốc · chọn AMD FSR trong game",
+  "The game's own file came back after an update": "Một bản cập nhật đã trả lại tệp gốc của game",
+  "Native FSR 3.1 detected": "Phát hiện FSR 3.1 gốc",
+  "Through OptiScaler · press Insert and pick FSR HelixSR": "Qua OptiScaler · nhấn Insert và chọn FSR HelixSR",
+  "OptiScaler no longer points to HelixSR": "OptiScaler không còn trỏ tới HelixSR",
+  "Through OptiScaler · also for DLSS and XeSS games": "Qua OptiScaler · cả cho game DLSS và XeSS"
 }

@@ -4687,5 +4687,17 @@
   "Close this game before changing its files.": "Închide acest joc înainte de a-i modifica fișierele.",
   "NVIDIA DLSS DLL": "DLL-ul DLSS de la NVIDIA",
   "OptiScaler Client's copy, checked by SHA-256; nothing is downloaded from NVIDIA": "Copia din OptiScaler Client, verificată prin SHA-256; nu se descarcă nimic de la NVIDIA",
-  "Downloaded from NVIDIA's GitHub after you agree in the terminal": "Descărcat de pe GitHub-ul NVIDIA după ce accepți în terminal"
+  "Downloaded from NVIDIA's GitHub after you agree in the terminal": "Descărcat de pe GitHub-ul NVIDIA după ce accepți în terminal",
+  "Add": "Adaugă",
+  "Network files": "Fișierele rețelei",
+  "Built on this PC": "Generate pe acest PC",
+  "Not built yet": "Încă negenerate",
+  "{active} active · {found} available": "{active} active · {found} disponibile",
+  "No games yet. Find FSR 3.1 games looks through your Steam library.": "Încă nu există jocuri. Caută jocuri cu FSR 3.1 verifică biblioteca ta Steam.",
+  "Native FSR 3.1 · choose AMD FSR in the game": "FSR 3.1 nativ · alege AMD FSR în joc",
+  "The game's own file came back after an update": "O actualizare a pus înapoi fișierul propriu al jocului",
+  "Native FSR 3.1 detected": "FSR 3.1 nativ detectat",
+  "Through OptiScaler · press Insert and pick FSR HelixSR": "Prin OptiScaler · apasă Insert și alege FSR HelixSR",
+  "OptiScaler no longer points to HelixSR": "OptiScaler nu mai indică spre HelixSR",
+  "Through OptiScaler · also for DLSS and XeSS games": "Prin OptiScaler · și pentru jocuri cu DLSS și XeSS"
 }

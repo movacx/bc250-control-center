@@ -146,7 +146,9 @@ def test_optiscaler_games_get_their_own_row_and_action():
         installed=True, current=True, network_ready=True, state="ready", games=games, installed_games=1,
     )))
     assert list(sidebar.helixsr_game_rows) == ["7", "opti:7", "opti:8"]
-    assert sidebar.helixsr_game_rows["opti:7"].findChild(QPushButton).text() == "Use HelixSR in OptiScaler"
+    opti_button = sidebar.helixsr_game_rows["opti:7"].findChild(QPushButton)
+    assert opti_button.text() == "Add"
+    assert opti_button.toolTip() == "Use HelixSR in OptiScaler"
 
     requested = []
     sidebar.dependency_action_requested.connect(requested.append)
@@ -156,3 +158,56 @@ def test_optiscaler_games_get_their_own_row_and_action():
         "helixsr_opti_install:7",
         "helixsr_opti_remove:8",
     ]
+
+
+def test_rows_carry_state_as_a_dot_and_one_line_not_a_badge():
+    from PyQt6.QtWidgets import QLabel
+
+    from frontends.desktop.components.dashboard_widgets import PillLabel, _StatusDot
+
+    sidebar = _sidebar()
+    games = [
+        {"appid": "1", "kind": "game", "name": "Active", "state": "installed", "files": ["/a.dll"]},
+        {"appid": "2", "kind": "game", "name": "Restored", "state": "restored", "files": ["/b.dll"]},
+        {"appid": "3", "kind": "game", "name": "Found", "state": "available", "files": ["/c.dll"]},
+    ]
+    sidebar.set_state(_state(_helixsr(
+        installed=True, current=True, network_ready=True, state="ready", version="1.2.0",
+        games=games, installed_games=2,
+    )))
+    tones = {}
+    for appid, row in sidebar.helixsr_game_rows.items():
+        assert not row.findChildren(PillLabel)
+        tones[appid] = row.findChild(_StatusDot).tone()
+        assert row.toolTip()
+    assert tones == {"1": "green", "2": "orange", "3": ""}
+    facts = {key: label.text() for key, (_dot, label) in sidebar.helixsr_facts.items()}
+    assert facts == {
+        "release": "HelixSR 1.2.0",
+        "network": "Built on this PC",
+        "games": "1 active · 1 available",
+    }
+    assert not sidebar.helixsr_strip.isHidden()
+    # The main action stands out; reinstall and remove are quiet text.
+    assert sidebar.helixsr_scan_button.property("accented") is True
+    assert sidebar.helixsr_install_button.property("quietAction") is True
+    assert sidebar.helixsr_remove_button.property("quietAction") is True
+    assert isinstance(sidebar.helixsr_games.findChild(QLabel), QLabel)
+
+
+def test_before_installing_there_is_no_strip_of_dashes():
+    sidebar = _sidebar()
+    sidebar.set_state(_state(_helixsr()))
+    assert sidebar.helixsr_strip.isHidden()
+    assert sidebar.helixsr_install_button.property("accented") is True
+    assert not sidebar.helixsr_install_button.property("quietAction")
+
+
+def test_a_ready_install_without_games_says_how_to_find_them():
+    from PyQt6.QtWidgets import QLabel
+
+    sidebar = _sidebar()
+    sidebar.set_state(_state(_helixsr(installed=True, current=True, network_ready=True, state="ready")))
+    assert not sidebar.helixsr_games.isHidden()
+    texts = [label.text() for label in sidebar.helixsr_games.findChildren(QLabel)]
+    assert texts == ["No games yet. Find FSR 3.1 games looks through your Steam library."]

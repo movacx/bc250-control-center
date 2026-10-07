@@ -4687,5 +4687,17 @@
   "Close this game before changing its files.": "Закройте эту игру, прежде чем менять её файлы.",
   "NVIDIA DLSS DLL": "DLL DLSS от NVIDIA",
   "OptiScaler Client's copy, checked by SHA-256; nothing is downloaded from NVIDIA": "Копия OptiScaler Client, проверенная по SHA-256; с NVIDIA ничего не скачивается",
-  "Downloaded from NVIDIA's GitHub after you agree in the terminal": "Скачивается с GitHub NVIDIA после вашего согласия в терминале"
+  "Downloaded from NVIDIA's GitHub after you agree in the terminal": "Скачивается с GitHub NVIDIA после вашего согласия в терминале",
+  "Add": "Добавить",
+  "Network files": "Файлы сети",
+  "Built on this PC": "Собраны на этом ПК",
+  "Not built yet": "Ещё не собраны",
+  "{active} active · {found} available": "Активно: {active} · доступно: {found}",
+  "No games yet. Find FSR 3.1 games looks through your Steam library.": "Игр пока нет. «Найти игры с FSR 3.1» просмотрит вашу библиотеку Steam.",
+  "Native FSR 3.1 · choose AMD FSR in the game": "Встроенный FSR 3.1 · выберите AMD FSR в игре",
+  "The game's own file came back after an update": "Обновление вернуло собственный файл игры",
+  "Native FSR 3.1 detected": "Найден встроенный FSR 3.1",
+  "Through OptiScaler · press Insert and pick FSR HelixSR": "Через OptiScaler · нажмите Insert и выберите FSR HelixSR",
+  "OptiScaler no longer points to HelixSR": "OptiScaler больше не указывает на HelixSR",
+  "Through OptiScaler · also for DLSS and XeSS games": "Через OptiScaler · также для игр с DLSS и XeSS"
 }

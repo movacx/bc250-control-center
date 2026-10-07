@@ -4687,5 +4687,17 @@
   "Close this game before changing its files.": "Zárd be ezt a játékot, mielőtt a fájljai megváltoznak.",
   "NVIDIA DLSS DLL": "Az NVIDIA DLSS DLL-je",
   "OptiScaler Client's copy, checked by SHA-256; nothing is downloaded from NVIDIA": "Az OptiScaler Client másolata, SHA-256-tal ellenőrizve; semmi sem töltődik le az NVIDIA-tól",
-  "Downloaded from NVIDIA's GitHub after you agree in the terminal": "Az NVIDIA GitHubjáról töltődik le, miután a terminálban beleegyeztél"
+  "Downloaded from NVIDIA's GitHub after you agree in the terminal": "Az NVIDIA GitHubjáról töltődik le, miután a terminálban beleegyeztél",
+  "Add": "Hozzáadás",
+  "Network files": "Hálófájlok",
+  "Built on this PC": "Ezen a PC-n előállítva",
+  "Not built yet": "Még nincs előállítva",
+  "{active} active · {found} available": "{active} aktív · {found} elérhető",
+  "No games yet. Find FSR 3.1 games looks through your Steam library.": "Még nincsenek játékok. Az FSR 3.1-es játékok keresése átnézi a Steam-könyvtáradat.",
+  "Native FSR 3.1 · choose AMD FSR in the game": "Natív FSR 3.1 · a játékban válaszd az AMD FSR-t",
+  "The game's own file came back after an update": "Egy frissítés visszahozta a játék saját fájlját",
+  "Native FSR 3.1 detected": "Natív FSR 3.1 található",
+  "Through OptiScaler · press Insert and pick FSR HelixSR": "OptiScaleren át · nyomd meg az Insertet, és válaszd az FSR HelixSR-t",
+  "OptiScaler no longer points to HelixSR": "Az OptiScaler már nem a HelixSR-re mutat",
+  "Through OptiScaler · also for DLSS and XeSS games": "OptiScaleren át · DLSS-es és XeSS-es játékokhoz is"
 }

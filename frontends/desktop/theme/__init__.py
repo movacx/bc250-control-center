@@ -1366,6 +1366,101 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         border-color: transparent;
         color: {c['blue']};
     }}
+    /* Secondary actions that should not compete with the row's main one:
+       text only, like a link, but they run a workflow (reinstall, remove). */
+    QFrame[dashboardPreparationInfo='true'] QPushButton[dashboardCardAction='true'][quietAction='true'] {{
+        background: transparent;
+        border-color: transparent;
+        color: {c['muted']};
+    }}
+    QFrame[dashboardPreparationInfo='true'] QPushButton[dashboardCardAction='true'][quietAction='true']:hover,
+    QFrame[dashboardPreparationInfo='true'] QPushButton[dashboardCardAction='true'][quietAction='true']:focus {{
+        background: {c['control_hover']};
+        border-color: transparent;
+        color: {c['text']};
+    }}
+    QFrame[dashboardPreparationInfo='true'] QPushButton[dashboardCardAction='true'][quietAction='true'][dangerAction='true']:hover,
+    QFrame[dashboardPreparationInfo='true'] QPushButton[dashboardCardAction='true'][quietAction='true'][dangerAction='true']:focus {{
+        background: {c['red_soft']};
+        color: {c['red']};
+    }}
+    /* HelixSR: a three-part readiness strip and a quiet game list. State is
+       a small dot and one grey line, never a coloured badge per row. */
+    QFrame[helixsrSurface='true'] {{
+        background: {c['panel']};
+        border: 1px solid {c['border_soft']};
+        border-radius: 10px;
+    }}
+    QFrame[helixsrDivider='true'] {{
+        background: {c['border_soft']};
+        border: none;
+        min-width: 1px;
+        max-width: 1px;
+    }}
+    QLabel[helixsrCaption='true'] {{
+        color: {c['subtle']};
+        font-size: 10px;
+        font-weight: 700;
+    }}
+    QLabel[helixsrValue='true'] {{
+        color: {c['text']};
+        font-size: 12px;
+        font-weight: 700;
+    }}
+    QLabel[helixsrGame='true'] {{
+        color: {c['text']};
+        font-size: 12px;
+        font-weight: 700;
+    }}
+    QLabel[helixsrNote='true'] {{
+        color: {c['subtle']};
+        font-size: 11px;
+    }}
+    QLabel[helixsrEmpty='true'] {{
+        color: {c['subtle']};
+        font-size: 11px;
+        padding: 14px 6px;
+    }}
+    QFrame[helixsrRow='true'] {{
+        background: transparent;
+        border: none;
+        border-top: 1px solid {c['border_soft']};
+        border-radius: 0px;
+    }}
+    QFrame[helixsrRow='true'][first='true'] {{
+        border-top: none;
+    }}
+    QPushButton[helixsrRowAction='true'] {{
+        min-height: 18px;
+        padding: 5px 12px;
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        color: {c['muted']};
+        font-size: 11px;
+        font-weight: 700;
+    }}
+    QPushButton[helixsrRowAction='true']:hover,
+    QPushButton[helixsrRowAction='true']:focus {{
+        background: {c['red_soft']};
+        color: {c['red']};
+    }}
+    QPushButton[helixsrRowAction='true'][primary='true'] {{
+        background: {c['blue_soft']};
+        border-color: {c['blue_border']};
+        color: {c['blue']};
+    }}
+    QPushButton[helixsrRowAction='true'][primary='true']:hover,
+    QPushButton[helixsrRowAction='true'][primary='true']:focus {{
+        background: {c['blue_soft']};
+        border-color: {c['blue']};
+        color: {c['blue']};
+    }}
+    QPushButton[helixsrRowAction='true']:disabled {{
+        background: transparent;
+        border-color: transparent;
+        color: {c['disabled_text']};
+    }}
     QPushButton[dashboardTelemetryAction='true'] {{
         min-height: 26px;
         padding: 8px 12px;

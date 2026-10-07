@@ -4687,5 +4687,17 @@
   "Close this game before changing its files.": "请先关闭此游戏，再更改其文件。",
   "NVIDIA DLSS DLL": "NVIDIA 的 DLSS DLL",
   "OptiScaler Client's copy, checked by SHA-256; nothing is downloaded from NVIDIA": "OptiScaler Client 的副本，已校验 SHA-256；不会从 NVIDIA 下载任何内容",
-  "Downloaded from NVIDIA's GitHub after you agree in the terminal": "在你于终端中同意后从 NVIDIA 的 GitHub 下载"
+  "Downloaded from NVIDIA's GitHub after you agree in the terminal": "在你于终端中同意后从 NVIDIA 的 GitHub 下载",
+  "Add": "添加",
+  "Network files": "网络文件",
+  "Built on this PC": "已在本机生成",
+  "Not built yet": "尚未生成",
+  "{active} active · {found} available": "已启用 {active} · 可添加 {found}",
+  "No games yet. Find FSR 3.1 games looks through your Steam library.": "还没有游戏。“查找 FSR 3.1 游戏”会检查你的 Steam 库。",
+  "Native FSR 3.1 · choose AMD FSR in the game": "原生 FSR 3.1 · 在游戏中选择 AMD FSR",
+  "The game's own file came back after an update": "游戏更新恢复了其自带文件",
+  "Native FSR 3.1 detected": "检测到原生 FSR 3.1",
+  "Through OptiScaler · press Insert and pick FSR HelixSR": "通过 OptiScaler · 按 Insert 并选择 FSR HelixSR",
+  "OptiScaler no longer points to HelixSR": "OptiScaler 不再指向 HelixSR",
+  "Through OptiScaler · also for DLSS and XeSS games": "通过 OptiScaler · 也适用于 DLSS 和 XeSS 游戏"
 }

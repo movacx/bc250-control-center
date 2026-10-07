@@ -892,6 +892,44 @@ class PreparationComponentCard(QFrame):
         # over, on every five-second dashboard tick, and changed nothing.
 
 
+class _StatusDot(QWidget):
+    """An 8 px state dot, filled for a tone, a hollow ring without one.
+
+    Painted rather than styled: a QFrame's border-radius at this size comes
+    out square on some styles. Colours are read from the theme at paint time,
+    so it follows light and dark mode.
+    """
+
+    def __init__(self, tone: str = "", parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._tone = tone
+        self.setFixedSize(10, 10)
+
+    def set_tone(self, tone: str) -> None:
+        if tone != self._tone:
+            self._tone = tone
+            self.update()
+
+    def tone(self) -> str:
+        return self._tone
+
+    def paintEvent(self, _event) -> None:  # noqa: N802 - Qt API name
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        if self._tone:
+            color = QColor(theme.COLORS.get(self._tone, theme.COLORS["border_strong"]))
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(color)
+            painter.drawEllipse(1, 1, 8, 8)
+        else:
+            pen = QPen(QColor(theme.COLORS["border_strong"]))
+            pen.setWidthF(1.5)
+            painter.setPen(pen)
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawEllipse(QRectF(1.75, 1.75, 6.5, 6.5))
+        painter.end()
+
+
 class PreparationInfoCard(QFrame):
     action_requested = pyqtSignal(object)
 
@@ -1023,23 +1061,28 @@ class PreparationInfoCard(QFrame):
         # whole body, which would make every button here look hidden and leave
         # its accent and width stale until the row is opened.
         buttons = [button for button in buttons if button is not None and not button.isHidden()]
+        # Quiet actions (reinstall, remove) are text, like links: they never
+        # take the accent and never stretch.
+        loud = [button for button in buttons if not button.property("quietAction")]
         primary_gets_accent = (
             len(buttons) >= 2
             and bool(buttons[-1].property("linkAction"))
-            and not buttons[0].property("linkAction")
-            and not buttons[0].property("dangerAction")
+            and bool(loud)
+            and not loud[0].property("linkAction")
+            and not loud[0].property("dangerAction")
         )
-        for index, button in enumerate(buttons):
+        accented = loud[0] if primary_gets_accent else None
+        for button in buttons:
             # A link takes the room it needs and no more, so it does not sit
             # centred in an empty half of the row.
-            is_link = bool(button.property("linkAction"))
+            is_link = bool(button.property("linkAction") or button.property("quietAction"))
             self.actions.setStretchFactor(button, 0 if is_link else 1)
             # The same button swaps between an action and a link as the state
             # changes, so the alignment is set both ways, never left behind.
             self.actions.setAlignment(
                 button, Qt.AlignmentFlag.AlignLeft if is_link else Qt.AlignmentFlag(0)
             )
-            button.setProperty("accented", index == 0 and primary_gets_accent)
+            button.setProperty("accented", button is accented)
             button.style().unpolish(button)
             button.style().polish(button)
 
@@ -2441,9 +2484,10 @@ class PreparationSidebar(QFrame):
     def _build_helixsr_card(self) -> None:
         """HelixSR (lonewolf0622/HelixSR): DLSS Model E behind an FSR 3.1 DLL.
 
-        The release is fetched and verified on this PC and its own setup
-        builds the NVIDIA-derived network files here. Each game row adds or
-        removes HelixSR, keeping the game's DLL as ``*.original.dll``.
+        The body reads top to bottom: a three-part readiness strip (release,
+        network files, games), the game list, then the actions. State is a
+        small dot and one grey line per game; the long explanation of each
+        state is the row's tooltip, so the list stays calm.
         """
         self.helixsr_card = PreparationInfoCard(
             "HelixSR · DLSS quality for FSR 3.1 games",
@@ -2451,35 +2495,71 @@ class PreparationSidebar(QFrame):
             scope_text="All distributions · per game · no root",
             status_text="Checking",
         )
+        strip = QFrame()
+        strip.setProperty("helixsrSurface", True)
+        strip_layout = QHBoxLayout(strip)
+        strip_layout.setContentsMargins(4, 8, 4, 8)
+        strip_layout.setSpacing(0)
+        self.helixsr_strip = strip
+        self.helixsr_facts: dict[str, tuple[_StatusDot, QLabel]] = {}
+        for index, (key, caption) in enumerate(
+            (("release", "Release"), ("network", "Network files"), ("games", "Games"))
+        ):
+            if index:
+                divider = QFrame()
+                divider.setProperty("helixsrDivider", True)
+                strip_layout.addWidget(divider)
+            cell = QWidget()
+            cell_layout = QVBoxLayout(cell)
+            cell_layout.setContentsMargins(12, 0, 12, 0)
+            cell_layout.setSpacing(3)
+            cell_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+            cell_layout.addWidget(_label(caption, "helixsrCaption", wrap=False))
+            value_row = QHBoxLayout()
+            value_row.setSpacing(7)
+            dot = _StatusDot()
+            value = _label("—", "helixsrValue", wrap=False)
+            value_row.addWidget(dot, 0, Qt.AlignmentFlag.AlignVCenter)
+            value_row.addWidget(value, 1)
+            cell_layout.addLayout(value_row)
+            strip_layout.addWidget(cell, 1)
+            self.helixsr_facts[key] = (dot, value)
+        self.helixsr_card.layout().insertWidget(2, strip)
         self.helixsr_games = QFrame()
-        self.helixsr_games.setProperty("fsr4Games", True)
+        self.helixsr_games.setProperty("helixsrSurface", True)
         self.helixsr_games_layout = QVBoxLayout(self.helixsr_games)
         self.helixsr_games_layout.setContentsMargins(0, 0, 0, 0)
-        self.helixsr_games_layout.setSpacing(6)
-        self.helixsr_card.layout().insertWidget(2, self.helixsr_games)
+        self.helixsr_games_layout.setSpacing(0)
+        self.helixsr_card.layout().insertWidget(3, self.helixsr_games)
         self.helixsr_games.hide()
         self._helixsr_games_signature: tuple = ()
         self.helixsr_game_rows: dict[str, QFrame] = {}
-        self.helixsr_install_button = self.helixsr_card.add_action(
-            "Install HelixSR", {"action": "helixsr_install", "governor": ""}
+        self.helixsr_scan_button = self.helixsr_card.add_action(
+            "Find FSR 3.1 games", {"action": "helixsr_scan", "governor": ""}
         )
         self.helixsr_network_button = self.helixsr_card.add_action(
             "Build network files", {"action": "helixsr_network", "governor": ""}
         )
-        self.helixsr_scan_button = self.helixsr_card.add_action(
-            "Find FSR 3.1 games", {"action": "helixsr_scan", "governor": ""}
+        self.helixsr_install_button = self.helixsr_card.add_action(
+            "Install HelixSR", {"action": "helixsr_install", "governor": ""}
         )
         self.helixsr_remove_button = self.helixsr_card.add_action(
             "Remove HelixSR",
             {"action": "helixsr_uninstall", "governor": ""},
             danger=True,
         )
+        self.helixsr_remove_button.setProperty("quietAction", True)
         self.helixsr_upstream_button = self.helixsr_card.add_action(
             "Open upstream project", {"action": "helixsr_upstream", "governor": ""}
         )
         self.helixsr_card.action_requested.connect(self._forward_dependency_action)
         self.helixsr_card.setEnabled(HELIXSR_UI_ENABLED)
         self.helixsr_card.setVisible(HELIXSR_UI_ENABLED)
+
+    def _set_helixsr_fact(self, key: str, text: str, tone: str = "") -> None:
+        dot, value = self.helixsr_facts[key]
+        value.setText(text)
+        dot.set_tone(tone)
 
     def _organise_compatibility(self, layout: QVBoxLayout) -> None:
         """Additional settings: one list per topic, a title row per tool.
@@ -3217,20 +3297,21 @@ class PreparationSidebar(QFrame):
                           "OptiScaler Client refuses folders reached through a link ({link}). Add this library again in its launcher from the real folder: {path}"),
     }
 
+    #: Per game: (dot tone, one short line, tooltip with the full story).
     _HELIXSR_GAME_COPY = {
-        "installed": ("HelixSR active", "green",
+        "installed": ("green", "Native FSR 3.1 · choose AMD FSR in the game",
                       "In the game, choose AMD FSR as the upscaler. Remove puts the game's own file back."),
-        "restored": ("Original file back", "orange",
+        "restored": ("orange", "The game's own file came back after an update",
                      "A game update or Steam's file check put the game's own FSR file back. Remove cleans up; add HelixSR again if you want it."),
-        "available": ("FSR 3.1 found", "blue",
+        "available": ("", "Native FSR 3.1 detected",
                       "Add HelixSR to replace this game's FSR 3.1 upscaler. The original file is kept as a backup."),
     }
     _HELIXSR_OPTISCALER_COPY = {
-        "installed": ("HelixSR in OptiScaler", "green",
+        "installed": ("green", "Through OptiScaler · press Insert and pick FSR HelixSR",
                       "In the game choose DLSS, FSR or XeSS, press Insert and pick FSR HelixSR in OptiScaler's upscaler menu. Remove puts OptiScaler's settings back."),
-        "restored": ("OptiScaler changed", "orange",
+        "restored": ("orange", "OptiScaler no longer points to HelixSR",
                      "OptiScaler's settings no longer point to HelixSR, usually after OptiScaler Client updated or restored this game. Remove cleans up HelixSR's folder."),
-        "available": ("Via OptiScaler", "blue",
+        "available": ("", "Through OptiScaler · also for DLSS and XeSS games",
                       "OptiScaler is in this game, so HelixSR can upscale through it, even when the game only offers DLSS or XeSS."),
     }
 
@@ -3243,14 +3324,12 @@ class PreparationSidebar(QFrame):
         wine = bool(helixsr.get("wine_available", True))
         state = str(helixsr.get("state") or "not-installed")
         games = [dict(game) for game in helixsr.get("games") or () if isinstance(game, Mapping)]
+        active = sum(1 for game in games if game.get("state") == "installed")
+        found = sum(1 for game in games if game.get("state") == "available")
         self.helixsr_card.set_scope("All distributions · per game · no root", "purple")
+        detail = ""
         if ready:
             status, tone = "Ready", "green"
-            detail = (
-                "In each game with HelixSR, choose AMD FSR as the upscaler. A game update or Steam's file check puts the game's own file back."
-                if games else
-                "Press Find FSR 3.1 games, then add HelixSR to a game. In the game, choose AMD FSR as the upscaler."
-            )
         elif not available:
             status, tone = "Unavailable", "gray"
             detail = "HelixSR's setup runs on x86_64 Linux only."
@@ -3270,7 +3349,39 @@ class PreparationSidebar(QFrame):
             status, tone = "Not installed", "gray"
             detail = "Downloads the official release, checks its SHA-256 and builds the network files on this PC with HelixSR's own setup. NVIDIA's DLSS DLL is downloaded only after you agree in the terminal."
         self.helixsr_card.set_status(status, tone)
+        if not detail:
+            detail = "Replaces a game's FSR 3.1 upscaler with HelixSR, which runs DLSS's neural network on this GPU. The game's own file is kept as a backup."
         self.helixsr_card.detail.setText(tr(detail))
+
+        version = str(helixsr.get("version") or "")
+        if current:
+            self._set_helixsr_fact("release", f"HelixSR {version}".strip(), "green")
+        elif state == "invalid":
+            self._set_helixsr_fact("release", tr("Repair required"), "orange")
+        elif state == "update-available":
+            self._set_helixsr_fact("release", tr("Update available"), "orange")
+        else:
+            self._set_helixsr_fact("release", tr("Not installed"))
+        if ready:
+            self._set_helixsr_fact("network", tr("Built on this PC"), "green")
+        elif current:
+            self._set_helixsr_fact("network", tr("Not built yet"), "orange")
+        else:
+            self._set_helixsr_fact("network", "—")
+        if games:
+            self._set_helixsr_fact(
+                "games",
+                tr_format("{active} active · {found} available", active=active, found=found),
+                "green" if active else "",
+            )
+        else:
+            self._set_helixsr_fact("games", "—")
+        # Before the release is installed the strip would only show dashes.
+        self.helixsr_strip.setVisible(available and (installed or bool(games)))
+
+        self.helixsr_card.update_action(
+            self.helixsr_scan_button, text="Find FSR 3.1 games", visible=ready,
+        )
         self.helixsr_card.update_action(
             self.helixsr_install_button,
             text="Repair HelixSR" if state == "invalid"
@@ -3280,6 +3391,7 @@ class PreparationSidebar(QFrame):
             enabled=available and (wine or current),
             visible=available,
         )
+        self._set_quiet(self.helixsr_install_button, current)
         self.helixsr_card.update_action(
             self.helixsr_network_button,
             text="Build network files",
@@ -3287,23 +3399,23 @@ class PreparationSidebar(QFrame):
             visible=current and not ready,
         )
         self.helixsr_card.update_action(
-            self.helixsr_scan_button,
-            text="Find FSR 3.1 games",
-            visible=ready,
-        )
-        self.helixsr_card.update_action(
-            self.helixsr_remove_button,
-            text="Remove HelixSR",
-            visible=installed,
+            self.helixsr_remove_button, text="Remove HelixSR", visible=installed,
         )
         self.helixsr_upstream_button.show()
+        self.helixsr_card._refresh_action_styles()
         in_use = any(game.get("state") != "available" for game in games)
         self._render_helixsr_games(
             games if HELIXSR_UI_ENABLED and (ready or installed or in_use) else [], ready
         )
 
+    @staticmethod
+    def _set_quiet(button: QPushButton, quiet: bool) -> None:
+        button.setProperty("quietAction", bool(quiet))
+        button.style().unpolish(button)
+        button.style().polish(button)
+
     def _render_helixsr_games(self, games: list[dict], ready: bool) -> None:
-        """One compact row per game; rebuilt only when something changed."""
+        """One calm row per game; rebuilt only when something changed."""
         games = games[:12]
         signature = (ready, *(
             (g.get("kind"), g.get("appid"), g.get("name"), g.get("state"), len(g.get("files") or ()))
@@ -3317,41 +3429,51 @@ class PreparationSidebar(QFrame):
             if item.widget() is not None:
                 item.widget().deleteLater()
         self.helixsr_game_rows = {}
-        for game in games:
-            self.helixsr_games_layout.addWidget(self._helixsr_game_row(game, ready))
-        self.helixsr_games.setVisible(bool(games))
+        for index, game in enumerate(games):
+            self.helixsr_games_layout.addWidget(self._helixsr_game_row(game, ready, first=index == 0))
+        if ready and not games:
+            self.helixsr_games_layout.addWidget(_label(
+                "No games yet. Find FSR 3.1 games looks through your Steam library.",
+                "helixsrEmpty",
+            ))
+        self.helixsr_games.setVisible(bool(games) or ready)
 
-    def _helixsr_game_row(self, game: dict, ready: bool) -> QFrame:
+    def _helixsr_game_row(self, game: dict, ready: bool, *, first: bool = False) -> QFrame:
         state = str(game.get("state") or "available")
         optiscaler = game.get("kind") == "optiscaler"
         copy = self._HELIXSR_OPTISCALER_COPY if optiscaler else self._HELIXSR_GAME_COPY
-        chip, tone, detail = copy.get(state, copy["available"])
+        tone, note, tooltip = copy.get(state, copy["available"])
         appid = str(game.get("appid") or "")
         row = QFrame()
-        row.setProperty("fsr4GameRow", True)
-        layout = QGridLayout(row)
-        layout.setContentsMargins(10, 7, 8, 7)
-        layout.setHorizontalSpacing(10)
-        layout.setVerticalSpacing(2)
-        layout.addWidget(_label(str(game.get("name") or appid), "dashboardCompatibilityLabel", wrap=False), 0, 0)
-        layout.addWidget(PillLabel(chip, tone), 0, 1, Qt.AlignmentFlag.AlignLeft)
-        layout.addWidget(_label(tr(detail), "dashboardCardSubtitle"), 1, 0, 1, 3)
-        layout.setColumnStretch(2, 1)
+        row.setProperty("helixsrRow", True)
+        row.setProperty("first", first)
+        row.setToolTip(tr(tooltip))
+        layout = QHBoxLayout(row)
+        layout.setContentsMargins(14, 9, 10, 9)
+        layout.setSpacing(12)
+        layout.addWidget(_StatusDot(tone), 0, Qt.AlignmentFlag.AlignVCenter)
+        text = QVBoxLayout()
+        text.setSpacing(1)
+        name = _label(str(game.get("name") or appid), "helixsrGame", wrap=False)
+        name.setTextInteractionFlags(Qt.TextInteractionFlag.NoTextInteraction)
+        text.addWidget(name)
+        text.addWidget(_label(note, "helixsrNote"))
+        layout.addLayout(text, 1)
         prefix = "helixsr_opti" if optiscaler else "helixsr_game"
-        if state == "available":
-            text = "Use HelixSR in OptiScaler" if optiscaler else "Add HelixSR"
-            action = f"{prefix}_install:{appid}"
-        else:
-            text, action = "Remove", f"{prefix}_remove:{appid}"
-        button = QPushButton(tr(text))
-        button.setProperty("compactAction", True)
-        button.setEnabled(ready or state != "available")
+        adding = state == "available"
+        button = QPushButton(tr("Add" if adding else "Remove"))
+        button.setProperty("helixsrRowAction", True)
+        button.setProperty("primary", adding)
+        button.setCursor(Qt.CursorShape.PointingHandCursor)
+        button.setToolTip(tr("Use HelixSR in OptiScaler" if optiscaler and adding else tooltip))
+        button.setEnabled(ready or not adding)
+        action = f"{prefix}_{'install' if adding else 'remove'}:{appid}"
         button.clicked.connect(
             lambda _checked=False, value=action: self._forward_dependency_action(
                 {"action": value, "governor": ""}
             )
         )
-        layout.addWidget(button, 0, 3, 2, 1, Qt.AlignmentFlag.AlignVCenter)
+        layout.addWidget(button, 0, Qt.AlignmentFlag.AlignVCenter)
         self.helixsr_game_rows[f"opti:{appid}" if optiscaler else appid] = row
         return row
 

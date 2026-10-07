@@ -4687,5 +4687,17 @@
   "Close this game before changing its files.": "ปิดเกมนี้ก่อนเปลี่ยนไฟล์ของเกม",
   "NVIDIA DLSS DLL": "DLL ของ DLSS จาก NVIDIA",
   "OptiScaler Client's copy, checked by SHA-256; nothing is downloaded from NVIDIA": "สำเนาจาก OptiScaler Client ตรวจด้วย SHA-256 แล้ว ไม่มีการดาวน์โหลดจาก NVIDIA",
-  "Downloaded from NVIDIA's GitHub after you agree in the terminal": "ดาวน์โหลดจาก GitHub ของ NVIDIA หลังจากคุณยอมรับในเทอร์มินัล"
+  "Downloaded from NVIDIA's GitHub after you agree in the terminal": "ดาวน์โหลดจาก GitHub ของ NVIDIA หลังจากคุณยอมรับในเทอร์มินัล",
+  "Add": "เพิ่ม",
+  "Network files": "ไฟล์โครงข่าย",
+  "Built on this PC": "สร้างบนพีซีนี้แล้ว",
+  "Not built yet": "ยังไม่ได้สร้าง",
+  "{active} active · {found} available": "ใช้งาน {active} · เพิ่มได้ {found}",
+  "No games yet. Find FSR 3.1 games looks through your Steam library.": "ยังไม่มีเกม ค้นหาเกม FSR 3.1 จะตรวจคลัง Steam ของคุณ",
+  "Native FSR 3.1 · choose AMD FSR in the game": "FSR 3.1 ในตัว · เลือก AMD FSR ในเกม",
+  "The game's own file came back after an update": "การอัปเดตคืนไฟล์เดิมของเกมแล้ว",
+  "Native FSR 3.1 detected": "พบ FSR 3.1 ในตัว",
+  "Through OptiScaler · press Insert and pick FSR HelixSR": "ผ่าน OptiScaler · กด Insert แล้วเลือก FSR HelixSR",
+  "OptiScaler no longer points to HelixSR": "OptiScaler ไม่ได้ชี้ไปที่ HelixSR แล้ว",
+  "Through OptiScaler · also for DLSS and XeSS games": "ผ่าน OptiScaler · ใช้กับเกม DLSS และ XeSS ได้ด้วย"
 }

@@ -4687,5 +4687,17 @@
   "Close this game before changing its files.": "Tutup permainan ini sebelum failnya diubah.",
   "NVIDIA DLSS DLL": "DLL DLSS NVIDIA",
   "OptiScaler Client's copy, checked by SHA-256; nothing is downloaded from NVIDIA": "Salinan OptiScaler Client, disemak dengan SHA-256; tiada apa-apa dimuat turun daripada NVIDIA",
-  "Downloaded from NVIDIA's GitHub after you agree in the terminal": "Dimuat turun daripada GitHub NVIDIA selepas anda bersetuju dalam terminal"
+  "Downloaded from NVIDIA's GitHub after you agree in the terminal": "Dimuat turun daripada GitHub NVIDIA selepas anda bersetuju dalam terminal",
+  "Add": "Tambah",
+  "Network files": "Fail rangkaian",
+  "Built on this PC": "Dibina pada PC ini",
+  "Not built yet": "Belum dibina",
+  "{active} active · {found} available": "{active} aktif · {found} tersedia",
+  "No games yet. Find FSR 3.1 games looks through your Steam library.": "Belum ada permainan. Cari permainan FSR 3.1 akan menyemak pustaka Steam anda.",
+  "Native FSR 3.1 · choose AMD FSR in the game": "FSR 3.1 asli · pilih AMD FSR dalam permainan",
+  "The game's own file came back after an update": "Kemas kini mengembalikan fail asal permainan",
+  "Native FSR 3.1 detected": "FSR 3.1 asli dikesan",
+  "Through OptiScaler · press Insert and pick FSR HelixSR": "Melalui OptiScaler · tekan Insert dan pilih FSR HelixSR",
+  "OptiScaler no longer points to HelixSR": "OptiScaler tidak lagi menunjuk kepada HelixSR",
+  "Through OptiScaler · also for DLSS and XeSS games": "Melalui OptiScaler · juga untuk permainan DLSS dan XeSS"
 }

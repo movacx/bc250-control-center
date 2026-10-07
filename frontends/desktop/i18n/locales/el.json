@@ -4687,5 +4687,17 @@
   "Close this game before changing its files.": "Κλείστε αυτό το παιχνίδι πριν αλλάξουν τα αρχεία του.",
   "NVIDIA DLSS DLL": "DLL του DLSS της NVIDIA",
   "OptiScaler Client's copy, checked by SHA-256; nothing is downloaded from NVIDIA": "Αντίγραφο του OptiScaler Client, ελεγμένο με SHA-256· δεν κατεβαίνει τίποτα από τη NVIDIA",
-  "Downloaded from NVIDIA's GitHub after you agree in the terminal": "Κατεβαίνει από το GitHub της NVIDIA αφού συμφωνήσετε στο τερματικό"
+  "Downloaded from NVIDIA's GitHub after you agree in the terminal": "Κατεβαίνει από το GitHub της NVIDIA αφού συμφωνήσετε στο τερματικό",
+  "Add": "Προσθήκη",
+  "Network files": "Αρχεία δικτύου",
+  "Built on this PC": "Δημιουργήθηκαν σε αυτόν τον υπολογιστή",
+  "Not built yet": "Δεν έχουν δημιουργηθεί",
+  "{active} active · {found} available": "{active} ενεργά · {found} διαθέσιμα",
+  "No games yet. Find FSR 3.1 games looks through your Steam library.": "Δεν υπάρχουν παιχνίδια ακόμη. Η Εύρεση παιχνιδιών FSR 3.1 ελέγχει τη βιβλιοθήκη σας στο Steam.",
+  "Native FSR 3.1 · choose AMD FSR in the game": "Εγγενές FSR 3.1 · επιλέξτε AMD FSR στο παιχνίδι",
+  "The game's own file came back after an update": "Μια ενημέρωση επανέφερε το αρχείο του παιχνιδιού",
+  "Native FSR 3.1 detected": "Βρέθηκε εγγενές FSR 3.1",
+  "Through OptiScaler · press Insert and pick FSR HelixSR": "Μέσω OptiScaler · πατήστε Insert και επιλέξτε FSR HelixSR",
+  "OptiScaler no longer points to HelixSR": "Το OptiScaler δεν δείχνει πια στο HelixSR",
+  "Through OptiScaler · also for DLSS and XeSS games": "Μέσω OptiScaler · και για παιχνίδια με DLSS και XeSS"
 }

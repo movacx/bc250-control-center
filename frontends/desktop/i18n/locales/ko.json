@@ -4687,5 +4687,17 @@
   "Close this game before changing its files.": "파일을 변경하기 전에 이 게임을 닫으세요.",
   "NVIDIA DLSS DLL": "NVIDIA DLSS DLL",
   "OptiScaler Client's copy, checked by SHA-256; nothing is downloaded from NVIDIA": "OptiScaler Client의 사본(SHA-256 확인됨). NVIDIA에서 아무것도 내려받지 않습니다",
-  "Downloaded from NVIDIA's GitHub after you agree in the terminal": "터미널에서 동의한 뒤 NVIDIA GitHub에서 내려받습니다"
+  "Downloaded from NVIDIA's GitHub after you agree in the terminal": "터미널에서 동의한 뒤 NVIDIA GitHub에서 내려받습니다",
+  "Add": "추가",
+  "Network files": "네트워크 파일",
+  "Built on this PC": "이 PC에서 생성됨",
+  "Not built yet": "아직 생성 안 됨",
+  "{active} active · {found} available": "활성 {active} · 추가 가능 {found}",
+  "No games yet. Find FSR 3.1 games looks through your Steam library.": "아직 게임이 없습니다. FSR 3.1 게임 찾기로 Steam 라이브러리를 살펴봅니다.",
+  "Native FSR 3.1 · choose AMD FSR in the game": "기본 FSR 3.1 · 게임에서 AMD FSR 선택",
+  "The game's own file came back after an update": "업데이트로 게임 원래 파일이 돌아왔습니다",
+  "Native FSR 3.1 detected": "기본 FSR 3.1 감지됨",
+  "Through OptiScaler · press Insert and pick FSR HelixSR": "OptiScaler 경유 · Insert를 누르고 FSR HelixSR 선택",
+  "OptiScaler no longer points to HelixSR": "OptiScaler가 더 이상 HelixSR을 가리키지 않음",
+  "Through OptiScaler · also for DLSS and XeSS games": "OptiScaler 경유 · DLSS 및 XeSS 게임에도 사용"
 }
