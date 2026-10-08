@@ -4711,5 +4711,17 @@
   "Add FSR4 to Steam": "Adaugă FSR4 în Steam",
   "AMD's FSR 4 in INT8, installed per game by OptiScaler Client.": "FSR 4 de la AMD în INT8, instalat pe fiecare joc cu OptiScaler Client.",
   "Steam loads OptiScaler only with this option. Close Steam before adding it.": "Steam încarcă OptiScaler doar cu această opțiune. Închide Steam înainte de a o adăuga.",
-  "No games yet. Install FSR4 in a game from OptiScaler Client.": "Încă nu există jocuri. Instalează FSR4 într-un joc din OptiScaler Client."
+  "No games yet. Install FSR4 in a game from OptiScaler Client.": "Încă nu există jocuri. Instalează FSR4 într-un joc din OptiScaler Client.",
+  "Add game folder": "Adaugă folderul jocului",
+  "For games outside Steam, choose the game's folder.": "Pentru jocurile din afara Steam, alege folderul jocului.",
+  "Choose the game's folder": "Alege folderul jocului",
+  "Outside Steam": "În afara Steam",
+  "Remove from list": "Scoate din listă",
+  "{game} was added. Turn HelixSR on for it in the list.": "{game} a fost adăugat. Activează HelixSR pentru el în listă.",
+  "{game} was taken off the list.": "{game} a fost scos din listă.",
+  "Could not add the game folder": "Nu s-a putut adăuga folderul jocului",
+  "That folder does not exist.": "Acest folder nu există.",
+  "Choose the game's own folder, not a whole drive or your home folder.": "Alege folderul jocului, nu o unitate întreagă sau folderul personal.",
+  "This folder is not on the list.": "Acest folder nu este în listă.",
+  "Remove HelixSR from this game first, so it gets its own FSR file back.": "Scoate mai întâi HelixSR din acest joc, ca să-și recapete propriul fișier FSR."
 }

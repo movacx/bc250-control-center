@@ -4711,5 +4711,17 @@
   "Add FSR4 to Steam": "Dodaj FSR4 do Steam",
   "AMD's FSR 4 in INT8, installed per game by OptiScaler Client.": "FSR 4 od AMD w INT8, instalowany osobno dla każdej gry przez OptiScaler Client.",
   "Steam loads OptiScaler only with this option. Close Steam before adding it.": "Steam wczytuje OptiScaler tylko z tą opcją. Zamknij Steam przed jej dodaniem.",
-  "No games yet. Install FSR4 in a game from OptiScaler Client.": "Brak gier. Zainstaluj FSR4 w grze za pomocą OptiScaler Client."
+  "No games yet. Install FSR4 in a game from OptiScaler Client.": "Brak gier. Zainstaluj FSR4 w grze za pomocą OptiScaler Client.",
+  "Add game folder": "Dodaj folder gry",
+  "For games outside Steam, choose the game's folder.": "Dla gier spoza Steam wybierz folder gry.",
+  "Choose the game's folder": "Wybierz folder gry",
+  "Outside Steam": "Spoza Steam",
+  "Remove from list": "Usuń z listy",
+  "{game} was added. Turn HelixSR on for it in the list.": "Dodano {game}. Włącz dla niej HelixSR na liście.",
+  "{game} was taken off the list.": "Usunięto {game} z listy.",
+  "Could not add the game folder": "Nie udało się dodać folderu gry",
+  "That folder does not exist.": "Ten folder nie istnieje.",
+  "Choose the game's own folder, not a whole drive or your home folder.": "Wybierz folder samej gry, a nie cały dysk ani folder domowy.",
+  "This folder is not on the list.": "Tego folderu nie ma na liście.",
+  "Remove HelixSR from this game first, so it gets its own FSR file back.": "Najpierw usuń HelixSR z tej gry, aby odzyskała własny plik FSR."
 }

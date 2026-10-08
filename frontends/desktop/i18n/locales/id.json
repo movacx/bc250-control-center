@@ -4711,5 +4711,17 @@
   "Add FSR4 to Steam": "Tambahkan FSR4 ke Steam",
   "AMD's FSR 4 in INT8, installed per game by OptiScaler Client.": "FSR 4 dari AMD dalam INT8, dipasang per game melalui OptiScaler Client.",
   "Steam loads OptiScaler only with this option. Close Steam before adding it.": "Steam hanya memuat OptiScaler dengan opsi ini. Tutup Steam sebelum menambahkannya.",
-  "No games yet. Install FSR4 in a game from OptiScaler Client.": "Belum ada game. Pasang FSR4 di game melalui OptiScaler Client."
+  "No games yet. Install FSR4 in a game from OptiScaler Client.": "Belum ada game. Pasang FSR4 di game melalui OptiScaler Client.",
+  "Add game folder": "Tambah folder game",
+  "For games outside Steam, choose the game's folder.": "Untuk game di luar Steam, pilih folder game-nya.",
+  "Choose the game's folder": "Pilih folder game",
+  "Outside Steam": "Di luar Steam",
+  "Remove from list": "Hapus dari daftar",
+  "{game} was added. Turn HelixSR on for it in the list.": "{game} sudah ditambahkan. Aktifkan HelixSR untuknya di daftar.",
+  "{game} was taken off the list.": "{game} sudah dihapus dari daftar.",
+  "Could not add the game folder": "Tidak dapat menambahkan folder game",
+  "That folder does not exist.": "Folder itu tidak ada.",
+  "Choose the game's own folder, not a whole drive or your home folder.": "Pilih folder game itu sendiri, bukan seluruh drive atau folder rumah Anda.",
+  "This folder is not on the list.": "Folder ini tidak ada di daftar.",
+  "Remove HelixSR from this game first, so it gets its own FSR file back.": "Hapus HelixSR dari game ini dulu, agar game mendapatkan kembali file FSR-nya sendiri."
 }

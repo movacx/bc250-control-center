@@ -101,6 +101,11 @@ def _scan_path() -> Path:
     return helixsr_root() / "scan.json"
 
 
+def _folders_path() -> Path:
+    """Game folders the user added by hand: games Steam does not know."""
+    return helixsr_root() / "folders.json"
+
+
 def _sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with open(path, "rb") as handle:
@@ -239,6 +244,66 @@ def scan_helixsr_games(*, home: Path | None = None) -> list[dict]:
     return games
 
 
+# ---------------------------------------------------------------- folders
+#
+# Games outside Steam (GOG, Epic through Heroic, Lutris, a folder copied by
+# hand) have no app manifest to find them by. The user picks the game's
+# folder instead; it is searched exactly like a Steam game's, and from then
+# on the game is a row like any other, with the same install, backup and
+# removal. Its id is "folder-" and a digest of the path, so it can never
+# collide with a Steam app id.
+
+FOLDER_PREFIX = "folder-"
+
+
+def _folder_id(path: Path) -> str:
+    return FOLDER_PREFIX + hashlib.sha256(str(path).encode("utf-8")).hexdigest()[:12]
+
+
+def _folders() -> dict[str, dict]:
+    folders = _read_json(_folders_path(), {})
+    return {
+        str(key): value for key, value in folders.items()
+        if str(key).startswith(FOLDER_PREFIX) and isinstance(value, dict) and value.get("path")
+    }
+
+
+def add_helixsr_folder(path: str) -> dict:
+    """Add a game folder from outside Steam, if it ships an FSR 3.1 DLL."""
+    text = str(path or "").strip()
+    if not text:
+        raise ValueError("Choose the game's folder.")
+    folder = Path(text).expanduser()
+    if not folder.is_absolute() or not folder.is_dir():
+        raise RuntimeError("That folder does not exist.")
+    folder = folder.resolve()
+    # The search stops after a fixed number of entries, so a whole drive or
+    # home folder would end half searched: the game's own folder is wanted.
+    if folder == Path(folder.anchor) or folder == Path.home().resolve():
+        raise RuntimeError("Choose the game's own folder, not a whole drive or your home folder.")
+    targets = _fsr_folders(folder)
+    if not targets:
+        raise RuntimeError("No FSR 3.1 DLL was found in this game. HelixSR replaces amd_fidelityfx_upscaler_dx12.dll or amd_fidelityfx_dx12.dll.")
+    key = _folder_id(folder)
+    folders = _folders()
+    folders[key] = {"name": folder.name, "path": str(folder), "files": [str(t) for t in targets]}
+    _write_json(_folders_path(), folders)
+    return {"game": folder.name, "id": key, "files": [str(t) for t in targets]}
+
+
+def forget_helixsr_folder(key: str) -> dict:
+    """Take a folder off the list; HelixSR must not be in it any more."""
+    key = str(key or "").strip()
+    folders = _folders()
+    if key not in folders:
+        raise RuntimeError("This folder is not on the list.")
+    if key in _records():
+        raise RuntimeError("Remove HelixSR from this game first, so it gets its own FSR file back.")
+    entry = folders.pop(key)
+    _write_json(_folders_path(), folders)
+    return {"game": str(entry.get("name") or key)}
+
+
 def helixsr_games(*, optiscaler: bool = True) -> list[dict]:
     """One row per game: recorded installs first, then the last scan's finds.
 
@@ -271,6 +336,20 @@ def helixsr_games(*, optiscaler: bool = True) -> list[dict]:
             "name": str(game.get("name") or appid),
             "state": "available",
             "files": files,
+        })
+    for key, entry in _folders().items():
+        if key in records:
+            continue
+        files = [str(path) for path in entry.get("files") or () if Path(str(path)).is_file()]
+        if not files:
+            continue
+        rows.append({
+            "appid": key,
+            "kind": "game",
+            "name": str(entry.get("name") or key),
+            "state": "available",
+            "files": files,
+            "folder": str(entry.get("path") or ""),
         })
     rows.extend(optiscaler_rows(available=optiscaler))
     order = {"installed": 0, "restored": 1, "available": 2}
@@ -827,6 +906,12 @@ echo "OK: HelixSR was removed. Your games use their own FSR files."
 
 def _game(appid: str) -> dict:
     appid = str(appid or "").strip()
+    folder = _folders().get(appid)
+    if folder is not None:
+        path = Path(str(folder["path"]))
+        if not path.is_dir():
+            raise RuntimeError("That folder does not exist.")
+        return {"appid": appid, "name": str(folder.get("name") or path.name), "path": str(path)}
     if not appid.isdigit():
         raise ValueError("Invalid Steam app id.")
     for game in installed_steam_game_folders():

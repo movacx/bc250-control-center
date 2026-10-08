@@ -16,6 +16,7 @@ from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDialog,
+    QFileDialog,
     QFrame,
     QGridLayout,
     QHBoxLayout,
@@ -4377,7 +4378,46 @@ class GpuGovernorPage(QWidget):
                 error_parent=dialog_parent,
             )
             return
+        if action == "add_folder":
+            # A game outside Steam: the user points at its folder, which is
+            # searched for an FSR 3.1 DLL like a Steam game's.
+            folder = QFileDialog.getExistingDirectory(
+                dialog_parent or self, tr("Choose the game's folder"), str(Path.home())
+            )
+            if not folder:
+                return
+            self._run_backend_action(
+                lambda: self.controller.gestionar_helixsr(f"add_folder:{folder}"),
+                lambda result: GpuGovernorPage._record_preparation_result(
+                    self,
+                    label,
+                    tr_format(
+                        "{game} was added. Turn HelixSR on for it in the list.",
+                        game=str(_dict(result).get("game") or Path(folder).name),
+                    ),
+                ),
+                "Could not add the game folder",
+                controls=(),
+                error_parent=dialog_parent,
+            )
+            return
         game_action, _sep, appid = action.partition(":")
+        if game_action == "forget_folder":
+            self._run_backend_action(
+                lambda: self.controller.gestionar_helixsr(action),
+                lambda result: GpuGovernorPage._record_preparation_result(
+                    self,
+                    label,
+                    tr_format(
+                        "{game} was taken off the list.",
+                        game=str(_dict(result).get("game") or appid),
+                    ),
+                ),
+                "Could not manage HelixSR",
+                controls=(),
+                error_parent=dialog_parent,
+            )
+            return
         if game_action in {"opti_install", "opti_remove"}:
             self._manage_helixsr_optiscaler(action, dialog_parent=dialog_parent)
             return

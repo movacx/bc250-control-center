@@ -4711,5 +4711,17 @@
   "Add FSR4 to Steam": "FSR4 を Steam に追加",
   "AMD's FSR 4 in INT8, installed per game by OptiScaler Client.": "AMD の FSR 4 の INT8 版。OptiScaler Client でゲームごとにインストールします。",
   "Steam loads OptiScaler only with this option. Close Steam before adding it.": "Steam はこのオプションがあるときだけ OptiScaler を読み込みます。追加する前に Steam を閉じてください。",
-  "No games yet. Install FSR4 in a game from OptiScaler Client.": "まだゲームがありません。OptiScaler Client からゲームに FSR4 をインストールしてください。"
+  "No games yet. Install FSR4 in a game from OptiScaler Client.": "まだゲームがありません。OptiScaler Client からゲームに FSR4 をインストールしてください。",
+  "Add game folder": "ゲームフォルダーを追加",
+  "For games outside Steam, choose the game's folder.": "Steam 以外のゲームは、ゲームのフォルダーを選んでください。",
+  "Choose the game's folder": "ゲームのフォルダーを選択",
+  "Outside Steam": "Steam 以外",
+  "Remove from list": "リストから外す",
+  "{game} was added. Turn HelixSR on for it in the list.": "{game} を追加しました。リストで HelixSR をオンにしてください。",
+  "{game} was taken off the list.": "{game} をリストから外しました。",
+  "Could not add the game folder": "ゲームフォルダーを追加できませんでした",
+  "That folder does not exist.": "そのフォルダーは存在しません。",
+  "Choose the game's own folder, not a whole drive or your home folder.": "ドライブ全体やホームフォルダーではなく、ゲーム自体のフォルダーを選んでください。",
+  "This folder is not on the list.": "このフォルダーはリストにありません。",
+  "Remove HelixSR from this game first, so it gets its own FSR file back.": "先にこのゲームから HelixSR を外し、ゲーム自身の FSR ファイルに戻してください。"
 }

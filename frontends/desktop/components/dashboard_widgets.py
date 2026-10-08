@@ -935,7 +935,10 @@ def game_matrix_rows(
     by_game: dict[str, list[Mapping]] = {}
     for game in helixsr_games:
         appid = str(game.get("appid") or "")
-        row_for(appid, str(game.get("name") or appid))
+        row = row_for(appid, str(game.get("name") or appid))
+        if game.get("folder"):
+            # Added by hand from outside Steam: the folder it came from.
+            row["folder"] = str(game["folder"])
         by_game.setdefault(appid or str(game.get("name")), []).append(game)
     for key, entries in by_game.items():
         def first(state: str, entries=entries):
@@ -1311,6 +1314,9 @@ class _UpscalerSection(SectionCard):
         self.games_empty = _label("", "fieldHint")
         self.games_empty.hide()
         self.body.addWidget(self.games_empty)
+        self.after_games = QVBoxLayout()
+        self.after_games.setSpacing(8)
+        self.body.addLayout(self.after_games)
         self.body.addStretch(1)
         self.footer_panel = QFrame()
         self.footer_panel.setProperty("configurationFooter", True)
@@ -1377,7 +1383,7 @@ class _UpscalerSection(SectionCard):
             for game in games:
                 row = self.games.add(game["key"], game["name"])
                 row.LONGEST_VALUE = self.VALUE_LENGTH
-                row.set_value(game["text"])
+                row.set_value(game["text"], game.get("detail") or "")
                 row.set_tone(self.TONES.get(game["tone"], ""))
                 row.setToolTip(tr(game["tooltip"]))
                 control = self._control(game)
@@ -1389,7 +1395,33 @@ class _UpscalerSection(SectionCard):
         self.games_empty.setVisible(not games and bool(empty))
 
     def _control(self, game: Mapping) -> QWidget | None:
-        switch = game.get("switch")
+        buttons = [self._action_button(*entry) for entry in game.get("actions") or ()]
+        switch = self._switch(game.get("switch")) if game.get("switch") else None
+        controls = [*buttons, *([switch] if switch else [])]
+        if len(controls) <= 1:
+            return controls[0] if controls else None
+        host = QWidget()
+        row = QHBoxLayout(host)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(10)
+        for control in controls:
+            row.addWidget(control, 0, Qt.AlignmentFlag.AlignVCenter)
+        host.switch = switch
+        return host
+
+    def _action_button(self, label: str, action: str, enabled: bool) -> QPushButton:
+        button = QPushButton(tr(label))
+        button.setProperty("compactAction", True)
+        button.setCursor(Qt.CursorShape.PointingHandCursor)
+        button.setEnabled(bool(enabled))
+        button.clicked.connect(
+            lambda _checked=False, value=action: self.action_requested.emit(
+                {"action": value, "governor": ""}
+            )
+        )
+        return button
+
+    def _switch(self, switch: Mapping) -> ToggleSwitch:
         if switch:
             toggle = ToggleSwitch()
             toggle.setChecked(bool(switch["checked"]))
@@ -1407,18 +1439,6 @@ class _UpscalerSection(SectionCard):
 
             toggle.toggled.connect(flipped)
             return toggle
-        for label, action, enabled in game.get("actions") or ():
-            button = QPushButton(tr(label))
-            button.setProperty("compactAction", True)
-            button.setCursor(Qt.CursorShape.PointingHandCursor)
-            button.setEnabled(bool(enabled))
-            button.clicked.connect(
-                lambda _checked=False, value=action: self.action_requested.emit(
-                    {"action": value, "governor": ""}
-                )
-            )
-            return button
-        return None
 
 
 class PreparationSidebar(QFrame):
@@ -2799,6 +2819,26 @@ class PreparationSidebar(QFrame):
         self.helixsr_section.add_header_button(
             "Open upstream project", lambda: self.helixsr_upstream_button.click()
         )
+        # Games Steam does not know: the user points at the game's folder.
+        self.helixsr_folder_panel = QFrame()
+        self.helixsr_folder_panel.setProperty("compactPanel", True)
+        folder_row = QHBoxLayout(self.helixsr_folder_panel)
+        folder_row.setContentsMargins(12, 10, 12, 10)
+        folder_row.setSpacing(10)
+        folder_row.addWidget(
+            _label("For games outside Steam, choose the game's folder.", "fieldHint"), 1
+        )
+        self.helixsr_folder_button = QPushButton(tr("Add game folder"))
+        self.helixsr_folder_button.setProperty("compactAction", True)
+        self.helixsr_folder_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.helixsr_folder_button.setMinimumHeight(34)
+        self.helixsr_folder_button.clicked.connect(
+            lambda: self._forward_dependency_action(
+                {"action": "helixsr_add_folder", "governor": ""}
+            )
+        )
+        folder_row.addWidget(self.helixsr_folder_button, 0, Qt.AlignmentFlag.AlignVCenter)
+        self.helixsr_section.after_games.addWidget(self.helixsr_folder_panel)
         for section in (self.fsr4_section, self.helixsr_section):
             section.action_requested.connect(self._forward_dependency_action)
         for button in (
@@ -3743,18 +3783,26 @@ class PreparationSidebar(QFrame):
             text, tone, tooltip, actions = cell
             label, action, enabled = actions[0]
             on = label.startswith("Remove")
+            folder = row.get("folder") or ""
             games.append({
                 "key": row["appid"] or row["name"], "name": row["name"],
-                "text": text or "Available", "tone": tone, "tooltip": tooltip,
+                "text": text or "Available", "tone": tone,
+                "tooltip": f"{tr(tooltip)}\n{folder}" if folder else tooltip,
+                "detail": "Outside Steam" if folder else "",
                 "switch": {
                     "checked": on, "action": action, "enabled": enabled,
                     "tooltip": "Remove HelixSR from this game" if on else "Add HelixSR to this game",
                 },
-                "actions": (),
+                # A folder added by hand can leave the list while HelixSR is not in it.
+                "actions": (
+                    (("Remove from list", f"helixsr_forget_folder:{row['appid']}", True),)
+                    if folder and not on else ()
+                ),
             })
         section.set_games(
             games, "No games yet. Find FSR 3.1 games looks through your Steam library." if ready else ""
         )
+        self.helixsr_folder_panel.setVisible(current)
         if not current:
             secondary, primary = [self.helixsr_remove_button], self.helixsr_install_button
         elif not ready:

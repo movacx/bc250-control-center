@@ -4711,5 +4711,17 @@
   "Add FSR4 to Steam": "Thêm FSR4 vào Steam",
   "AMD's FSR 4 in INT8, installed per game by OptiScaler Client.": "FSR 4 của AMD ở dạng INT8, được cài cho từng trò chơi bằng OptiScaler Client.",
   "Steam loads OptiScaler only with this option. Close Steam before adding it.": "Steam chỉ tải OptiScaler khi có tùy chọn này. Hãy đóng Steam trước khi thêm.",
-  "No games yet. Install FSR4 in a game from OptiScaler Client.": "Chưa có trò chơi nào. Hãy cài FSR4 vào trò chơi từ OptiScaler Client."
+  "No games yet. Install FSR4 in a game from OptiScaler Client.": "Chưa có trò chơi nào. Hãy cài FSR4 vào trò chơi từ OptiScaler Client.",
+  "Add game folder": "Thêm thư mục trò chơi",
+  "For games outside Steam, choose the game's folder.": "Với trò chơi ngoài Steam, hãy chọn thư mục của trò chơi.",
+  "Choose the game's folder": "Chọn thư mục của trò chơi",
+  "Outside Steam": "Ngoài Steam",
+  "Remove from list": "Bỏ khỏi danh sách",
+  "{game} was added. Turn HelixSR on for it in the list.": "Đã thêm {game}. Hãy bật HelixSR cho trò chơi này trong danh sách.",
+  "{game} was taken off the list.": "Đã bỏ {game} khỏi danh sách.",
+  "Could not add the game folder": "Không thể thêm thư mục trò chơi",
+  "That folder does not exist.": "Thư mục đó không tồn tại.",
+  "Choose the game's own folder, not a whole drive or your home folder.": "Hãy chọn thư mục của chính trò chơi, không phải cả ổ đĩa hay thư mục nhà của bạn.",
+  "This folder is not on the list.": "Thư mục này không có trong danh sách.",
+  "Remove HelixSR from this game first, so it gets its own FSR file back.": "Hãy bỏ HelixSR khỏi trò chơi này trước để nó lấy lại tệp FSR của riêng mình."
 }

@@ -4711,5 +4711,17 @@
   "Add FSR4 to Steam": "Lisää FSR4 Steamiin",
   "AMD's FSR 4 in INT8, installed per game by OptiScaler Client.": "AMD:n FSR 4 INT8-muodossa, asennetaan peleittäin OptiScaler Clientillä.",
   "Steam loads OptiScaler only with this option. Close Steam before adding it.": "Steam lataa OptiScalerin vain tällä asetuksella. Sulje Steam ennen sen lisäämistä.",
-  "No games yet. Install FSR4 in a game from OptiScaler Client.": "Ei vielä pelejä. Asenna FSR4 peliin OptiScaler Clientin kautta."
+  "No games yet. Install FSR4 in a game from OptiScaler Client.": "Ei vielä pelejä. Asenna FSR4 peliin OptiScaler Clientin kautta.",
+  "Add game folder": "Lisää pelikansio",
+  "For games outside Steam, choose the game's folder.": "Valitse Steamin ulkopuolisille peleille pelin kansio.",
+  "Choose the game's folder": "Valitse pelin kansio",
+  "Outside Steam": "Steamin ulkopuolella",
+  "Remove from list": "Poista listalta",
+  "{game} was added. Turn HelixSR on for it in the list.": "{game} lisättiin. Ota HelixSR käyttöön sille listassa.",
+  "{game} was taken off the list.": "{game} poistettiin listalta.",
+  "Could not add the game folder": "Pelikansiota ei voitu lisätä",
+  "That folder does not exist.": "Kansiota ei ole olemassa.",
+  "Choose the game's own folder, not a whole drive or your home folder.": "Valitse pelin oma kansio, ei koko asemaa tai kotikansiotasi.",
+  "This folder is not on the list.": "Tämä kansio ei ole listalla.",
+  "Remove HelixSR from this game first, so it gets its own FSR file back.": "Poista ensin HelixSR tästä pelistä, jotta se saa oman FSR-tiedostonsa takaisin."
 }

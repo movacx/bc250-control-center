@@ -7,7 +7,7 @@ from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 
 from PyQt6.QtCore import QSettings
-from PyQt6.QtWidgets import QApplication
+from PyQt6.QtWidgets import QApplication, QPushButton
 
 from frontends.desktop.components.dashboard_widgets import (
     PreparationSidebar,
@@ -157,6 +157,38 @@ def test_each_helixsr_game_has_a_switch_that_asks_before_it_moves():
     ]
     # Nothing changed yet: the switches wait for the game's real state.
     assert controls["1"].isChecked() and not controls["2"].isChecked()
+
+
+def test_a_game_outside_steam_is_marked_and_can_leave_the_list():
+    sidebar = _sidebar()
+    games = [{"appid": "folder-abc", "kind": "game", "name": "Loose", "state": "available",
+              "files": ["/g/a.dll"], "folder": "/g"}]
+    sidebar.set_state(_state(_ready(games)))
+    section = sidebar.helixsr_section
+    row = section.games.readings["folder-abc"]
+    assert row.detail.text() == "Outside Steam"
+    host = section.game_controls["folder-abc"]
+    requested = []
+    sidebar.dependency_action_requested.connect(requested.append)
+    forget = [b for b in host.findChildren(QPushButton) if b.text() == "Remove from list"]
+    forget[0].click()
+    host.switch.click()
+    assert [item["action"] for item in requested] == [
+        "helixsr_forget_folder:folder-abc",
+        "helixsr_game_install:folder-abc",
+    ]
+
+
+def test_the_folder_button_asks_the_page_for_a_folder():
+    sidebar = _sidebar()
+    sidebar.set_state(_state(_ready()))
+    assert not sidebar.helixsr_folder_panel.isHidden()
+    requested = []
+    sidebar.dependency_action_requested.connect(requested.append)
+    sidebar.helixsr_folder_button.click()
+    assert [item["action"] for item in requested] == ["helixsr_add_folder"]
+    sidebar.set_state(_state(_helixsr()))
+    assert sidebar.helixsr_folder_panel.isHidden()
 
 
 def test_an_empty_library_says_how_to_find_games():

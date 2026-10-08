@@ -4711,5 +4711,17 @@
   "Add FSR4 to Steam": "将 FSR4 添加到 Steam",
   "AMD's FSR 4 in INT8, installed per game by OptiScaler Client.": "AMD FSR 4 的 INT8 版本，通过 OptiScaler Client 按游戏安装。",
   "Steam loads OptiScaler only with this option. Close Steam before adding it.": "只有带此选项时 Steam 才会加载 OptiScaler。添加前请先关闭 Steam。",
-  "No games yet. Install FSR4 in a game from OptiScaler Client.": "暂无游戏。请通过 OptiScaler Client 在游戏中安装 FSR4。"
+  "No games yet. Install FSR4 in a game from OptiScaler Client.": "暂无游戏。请通过 OptiScaler Client 在游戏中安装 FSR4。",
+  "Add game folder": "添加游戏文件夹",
+  "For games outside Steam, choose the game's folder.": "对于 Steam 以外的游戏，请选择游戏的文件夹。",
+  "Choose the game's folder": "选择游戏的文件夹",
+  "Outside Steam": "Steam 以外",
+  "Remove from list": "从列表移除",
+  "{game} was added. Turn HelixSR on for it in the list.": "已添加 {game}。请在列表中为它开启 HelixSR。",
+  "{game} was taken off the list.": "已将 {game} 从列表移除。",
+  "Could not add the game folder": "无法添加游戏文件夹",
+  "That folder does not exist.": "该文件夹不存在。",
+  "Choose the game's own folder, not a whole drive or your home folder.": "请选择游戏本身的文件夹，而不是整个磁盘或你的主文件夹。",
+  "This folder is not on the list.": "此文件夹不在列表中。",
+  "Remove HelixSR from this game first, so it gets its own FSR file back.": "请先从此游戏移除 HelixSR，让它恢复自己的 FSR 文件。"
 }

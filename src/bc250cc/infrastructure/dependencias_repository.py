@@ -101,9 +101,11 @@ from bc250cc.infrastructure.governor_install_shell import (
     oberon_install_command,
 )
 from bc250cc.infrastructure.helixsr import (
+    add_helixsr_folder,
     build_helixsr_install_command,
     build_helixsr_network_command,
     build_helixsr_remove_command,
+    forget_helixsr_folder,
     helixsr_state,
     install_helixsr_game,
     install_helixsr_optiscaler,
@@ -529,7 +531,17 @@ class DependenciasRepository:
         HelixSR to a game or removing it is a few file renames in the user's
         own Steam library, done here and recorded so it can be undone.
         """
-        action = str(action or '').strip().lower()
+        action = str(action or '').strip()
+        if action.startswith('add_folder:'):
+            # A path keeps its case: it is the one action that carries one.
+            result = add_helixsr_folder(action.partition(':')[2])
+            self.estado_herramientas_cache = None
+            return result
+        action = action.lower()
+        if action.startswith('forget_folder:'):
+            result = forget_helixsr_folder(action.partition(':')[2])
+            self.estado_herramientas_cache = None
+            return result
         if action == 'scan':
             result = scan_helixsr_games()
             self.estado_herramientas_cache = None

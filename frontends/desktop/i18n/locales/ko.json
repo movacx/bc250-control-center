@@ -4711,5 +4711,17 @@
   "Add FSR4 to Steam": "Steam에 FSR4 추가",
   "AMD's FSR 4 in INT8, installed per game by OptiScaler Client.": "AMD FSR 4의 INT8 버전으로, OptiScaler Client로 게임별로 설치합니다.",
   "Steam loads OptiScaler only with this option. Close Steam before adding it.": "Steam은 이 옵션이 있을 때만 OptiScaler를 불러옵니다. 추가하기 전에 Steam을 닫으세요.",
-  "No games yet. Install FSR4 in a game from OptiScaler Client.": "아직 게임이 없습니다. OptiScaler Client에서 게임에 FSR4를 설치하세요."
+  "No games yet. Install FSR4 in a game from OptiScaler Client.": "아직 게임이 없습니다. OptiScaler Client에서 게임에 FSR4를 설치하세요.",
+  "Add game folder": "게임 폴더 추가",
+  "For games outside Steam, choose the game's folder.": "Steam 외부 게임은 게임 폴더를 선택하세요.",
+  "Choose the game's folder": "게임 폴더 선택",
+  "Outside Steam": "Steam 외부",
+  "Remove from list": "목록에서 제거",
+  "{game} was added. Turn HelixSR on for it in the list.": "{game}이(가) 추가되었습니다. 목록에서 HelixSR을 켜세요.",
+  "{game} was taken off the list.": "{game}이(가) 목록에서 제거되었습니다.",
+  "Could not add the game folder": "게임 폴더를 추가할 수 없습니다",
+  "That folder does not exist.": "해당 폴더가 없습니다.",
+  "Choose the game's own folder, not a whole drive or your home folder.": "드라이브 전체나 홈 폴더가 아닌 게임 자체의 폴더를 선택하세요.",
+  "This folder is not on the list.": "이 폴더는 목록에 없습니다.",
+  "Remove HelixSR from this game first, so it gets its own FSR file back.": "먼저 이 게임에서 HelixSR을 제거해 원래 FSR 파일을 되돌리세요."
 }

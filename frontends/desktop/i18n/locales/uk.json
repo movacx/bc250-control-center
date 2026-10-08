@@ -4711,5 +4711,17 @@
   "Add FSR4 to Steam": "Додати FSR4 до Steam",
   "AMD's FSR 4 in INT8, installed per game by OptiScaler Client.": "FSR 4 від AMD в INT8, встановлюється для кожної гри через OptiScaler Client.",
   "Steam loads OptiScaler only with this option. Close Steam before adding it.": "Steam завантажує OptiScaler лише з цим параметром. Закрийте Steam перед додаванням.",
-  "No games yet. Install FSR4 in a game from OptiScaler Client.": "Ігор поки немає. Установіть FSR4 у гру через OptiScaler Client."
+  "No games yet. Install FSR4 in a game from OptiScaler Client.": "Ігор поки немає. Установіть FSR4 у гру через OptiScaler Client.",
+  "Add game folder": "Додати теку гри",
+  "For games outside Steam, choose the game's folder.": "Для ігор поза Steam виберіть теку гри.",
+  "Choose the game's folder": "Виберіть теку гри",
+  "Outside Steam": "Поза Steam",
+  "Remove from list": "Прибрати зі списку",
+  "{game} was added. Turn HelixSR on for it in the list.": "{game} додано. Увімкніть для неї HelixSR у списку.",
+  "{game} was taken off the list.": "{game} прибрано зі списку.",
+  "Could not add the game folder": "Не вдалося додати теку гри",
+  "That folder does not exist.": "Такої теки немає.",
+  "Choose the game's own folder, not a whole drive or your home folder.": "Виберіть теку самої гри, а не весь диск чи домашню теку.",
+  "This folder is not on the list.": "Цієї теки немає в списку.",
+  "Remove HelixSR from this game first, so it gets its own FSR file back.": "Спочатку приберіть HelixSR з цієї гри, щоб повернути її власний файл FSR."
 }

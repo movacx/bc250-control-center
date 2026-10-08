@@ -4711,5 +4711,17 @@
   "Add FSR4 to Steam": "FSR4 toevoegen aan Steam",
   "AMD's FSR 4 in INT8, installed per game by OptiScaler Client.": "AMD's FSR 4 in INT8, per game geïnstalleerd met OptiScaler Client.",
   "Steam loads OptiScaler only with this option. Close Steam before adding it.": "Steam laadt OptiScaler alleen met deze optie. Sluit Steam voordat je hem toevoegt.",
-  "No games yet. Install FSR4 in a game from OptiScaler Client.": "Nog geen games. Installeer FSR4 in een game via OptiScaler Client."
+  "No games yet. Install FSR4 in a game from OptiScaler Client.": "Nog geen games. Installeer FSR4 in een game via OptiScaler Client.",
+  "Add game folder": "Gamemap toevoegen",
+  "For games outside Steam, choose the game's folder.": "Kies voor games buiten Steam de map van de game.",
+  "Choose the game's folder": "Kies de map van de game",
+  "Outside Steam": "Buiten Steam",
+  "Remove from list": "Uit de lijst halen",
+  "{game} was added. Turn HelixSR on for it in the list.": "{game} is toegevoegd. Zet HelixSR ervoor aan in de lijst.",
+  "{game} was taken off the list.": "{game} is uit de lijst gehaald.",
+  "Could not add the game folder": "Kan de gamemap niet toevoegen",
+  "That folder does not exist.": "Die map bestaat niet.",
+  "Choose the game's own folder, not a whole drive or your home folder.": "Kies de map van de game zelf, niet een hele schijf of je thuismap.",
+  "This folder is not on the list.": "Deze map staat niet in de lijst.",
+  "Remove HelixSR from this game first, so it gets its own FSR file back.": "Haal HelixSR eerst uit deze game, zodat hij zijn eigen FSR-bestand terugkrijgt."
 }

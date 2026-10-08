@@ -608,3 +608,81 @@ def test_without_the_client_the_setup_asks_before_downloading(home, monkeypatch)
     result = _run_install(home, _release_zip(home / "release.zip"), monkeypatch)
     assert result.returncode == 0, result.stdout + result.stderr
     assert _setup_args() == [str(helixsr.helixsr_directory())]
+
+
+# ------------------------------------------------------- games outside Steam
+
+
+def _loose_game(home: Path, name: str = "Loose Game") -> Path:
+    """A game in a folder of its own, unknown to Steam (GOG, Heroic, by hand)."""
+    folder = home / "Games" / name / "bin"
+    folder.mkdir(parents=True)
+    (folder / helixsr.UPSCALER_DLL).write_bytes(ORIGINAL)
+    return home / "Games" / name
+
+
+def test_a_folder_outside_steam_is_listed_and_handled_like_a_steam_game(home, tmp_path):
+    _ready(home)
+    game = _loose_game(home)
+    dll = game / "bin" / helixsr.UPSCALER_DLL
+    repository = _repository(tmp_path)
+
+    added = repository.gestionar_helixsr(f"add_folder:{game}")
+
+    key = added["id"]
+    assert key.startswith(helixsr.FOLDER_PREFIX) and added["game"] == "Loose Game"
+    rows = helixsr.helixsr_state(machine="x86_64")["games"]
+    assert [(row["appid"], row["state"], row["folder"]) for row in rows] == [
+        (key, "available", str(game))
+    ]
+
+    repository.gestionar_helixsr(f"game_install:{key}")
+    assert dll.read_bytes() == DLL
+    assert (dll.parent / "amd_fidelityfx_upscaler_dx12.original.dll").read_bytes() == ORIGINAL
+    assert helixsr.helixsr_state(machine="x86_64")["games"][0]["state"] == "installed"
+
+    with pytest.raises(RuntimeError, match="Remove HelixSR from this game first"):
+        repository.gestionar_helixsr(f"forget_folder:{key}")
+    repository.gestionar_helixsr(f"game_remove:{key}")
+    assert dll.read_bytes() == ORIGINAL
+    assert not (dll.parent / "amd_fidelityfx_upscaler_dx12.original.dll").exists()
+
+    repository.gestionar_helixsr(f"forget_folder:{key}")
+    assert helixsr.helixsr_state(machine="x86_64")["games"] == []
+
+
+def test_a_folder_path_keeps_its_case(home, tmp_path):
+    _ready(home)
+    game = _loose_game(home, "Mixed Case GAME")
+    added = _repository(tmp_path).gestionar_helixsr(f"add_folder:{game}")
+    assert helixsr.helixsr_state(machine="x86_64")["games"][0]["folder"] == str(game)
+    assert added["game"] == "Mixed Case GAME"
+
+
+def test_a_folder_without_fsr31_is_refused(home):
+    folder = home / "Games" / "Other"
+    folder.mkdir(parents=True)
+    (folder / "game.exe").write_bytes(b"MZ")
+    with pytest.raises(RuntimeError, match="No FSR 3.1 DLL"):
+        helixsr.add_helixsr_folder(str(folder))
+    assert helixsr.helixsr_state(machine="x86_64")["games"] == []
+
+
+@pytest.mark.parametrize("which", ["home", "root", "missing", "relative"])
+def test_only_a_real_game_folder_is_taken(home, which):
+    path = {
+        "home": str(home),
+        "root": "/",
+        "missing": str(home / "nowhere"),
+        "relative": "Games/Loose",
+    }[which]
+    with pytest.raises(RuntimeError):
+        helixsr.add_helixsr_folder(path)
+
+
+def test_a_folder_that_was_deleted_leaves_the_list(home):
+    _ready(home)
+    game = _loose_game(home)
+    helixsr.add_helixsr_folder(str(game))
+    (game / "bin" / helixsr.UPSCALER_DLL).unlink()
+    assert helixsr.helixsr_state(machine="x86_64")["games"] == []

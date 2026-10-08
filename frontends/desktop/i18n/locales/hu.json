@@ -4711,5 +4711,17 @@
   "Add FSR4 to Steam": "FSR4 hozzáadása a Steamhez",
   "AMD's FSR 4 in INT8, installed per game by OptiScaler Client.": "Az AMD FSR 4 INT8 változata, játékonként telepítve az OptiScaler Clienttel.",
   "Steam loads OptiScaler only with this option. Close Steam before adding it.": "A Steam csak ezzel a beállítással tölti be az OptiScalert. Hozzáadás előtt zárd be a Steamet.",
-  "No games yet. Install FSR4 in a game from OptiScaler Client.": "Még nincs játék. Telepítsd az FSR4-et egy játékba az OptiScaler Clientből."
+  "No games yet. Install FSR4 in a game from OptiScaler Client.": "Még nincs játék. Telepítsd az FSR4-et egy játékba az OptiScaler Clientből.",
+  "Add game folder": "Játékmappa hozzáadása",
+  "For games outside Steam, choose the game's folder.": "A Steamen kívüli játékoknál válaszd ki a játék mappáját.",
+  "Choose the game's folder": "Válaszd ki a játék mappáját",
+  "Outside Steam": "Steamen kívül",
+  "Remove from list": "Eltávolítás a listáról",
+  "{game} was added. Turn HelixSR on for it in the list.": "{game} hozzáadva. Kapcsold be hozzá a HelixSR-t a listában.",
+  "{game} was taken off the list.": "{game} lekerült a listáról.",
+  "Could not add the game folder": "Nem sikerült hozzáadni a játékmappát",
+  "That folder does not exist.": "Ez a mappa nem létezik.",
+  "Choose the game's own folder, not a whole drive or your home folder.": "A játék saját mappáját válaszd, ne egy egész meghajtót vagy a saját mappádat.",
+  "This folder is not on the list.": "Ez a mappa nincs a listán.",
+  "Remove HelixSR from this game first, so it gets its own FSR file back.": "Előbb vedd ki a HelixSR-t ebből a játékból, hogy visszakapja a saját FSR-fájlját."
 }

@@ -4711,5 +4711,17 @@
   "Add FSR4 to Steam": "Προσθήκη FSR4 στο Steam",
   "AMD's FSR 4 in INT8, installed per game by OptiScaler Client.": "Το FSR 4 της AMD σε INT8, εγκαθίσταται ανά παιχνίδι μέσω του OptiScaler Client.",
   "Steam loads OptiScaler only with this option. Close Steam before adding it.": "Το Steam φορτώνει το OptiScaler μόνο με αυτή την επιλογή. Κλείστε το Steam πριν την προσθέσετε.",
-  "No games yet. Install FSR4 in a game from OptiScaler Client.": "Δεν υπάρχουν ακόμη παιχνίδια. Εγκαταστήστε το FSR4 σε ένα παιχνίδι από το OptiScaler Client."
+  "No games yet. Install FSR4 in a game from OptiScaler Client.": "Δεν υπάρχουν ακόμη παιχνίδια. Εγκαταστήστε το FSR4 σε ένα παιχνίδι από το OptiScaler Client.",
+  "Add game folder": "Προσθήκη φακέλου παιχνιδιού",
+  "For games outside Steam, choose the game's folder.": "Για παιχνίδια εκτός Steam, επιλέξτε τον φάκελο του παιχνιδιού.",
+  "Choose the game's folder": "Επιλέξτε τον φάκελο του παιχνιδιού",
+  "Outside Steam": "Εκτός Steam",
+  "Remove from list": "Αφαίρεση από τη λίστα",
+  "{game} was added. Turn HelixSR on for it in the list.": "Το {game} προστέθηκε. Ενεργοποιήστε το HelixSR για αυτό στη λίστα.",
+  "{game} was taken off the list.": "Το {game} αφαιρέθηκε από τη λίστα.",
+  "Could not add the game folder": "Δεν ήταν δυνατή η προσθήκη του φακέλου παιχνιδιού",
+  "That folder does not exist.": "Αυτός ο φάκελος δεν υπάρχει.",
+  "Choose the game's own folder, not a whole drive or your home folder.": "Επιλέξτε τον φάκελο του ίδιου του παιχνιδιού, όχι ολόκληρο δίσκο ή τον προσωπικό σας φάκελο.",
+  "This folder is not on the list.": "Αυτός ο φάκελος δεν είναι στη λίστα.",
+  "Remove HelixSR from this game first, so it gets its own FSR file back.": "Αφαιρέστε πρώτα το HelixSR από αυτό το παιχνίδι, ώστε να πάρει πίσω το δικό του αρχείο FSR."
 }

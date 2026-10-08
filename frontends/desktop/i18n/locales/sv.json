@@ -4711,5 +4711,17 @@
   "Add FSR4 to Steam": "Lägg till FSR4 i Steam",
   "AMD's FSR 4 in INT8, installed per game by OptiScaler Client.": "AMD:s FSR 4 i INT8, installerat per spel med OptiScaler Client.",
   "Steam loads OptiScaler only with this option. Close Steam before adding it.": "Steam läser bara in OptiScaler med det här alternativet. Stäng Steam innan du lägger till det.",
-  "No games yet. Install FSR4 in a game from OptiScaler Client.": "Inga spel ännu. Installera FSR4 i ett spel från OptiScaler Client."
+  "No games yet. Install FSR4 in a game from OptiScaler Client.": "Inga spel ännu. Installera FSR4 i ett spel från OptiScaler Client.",
+  "Add game folder": "Lägg till spelmapp",
+  "For games outside Steam, choose the game's folder.": "För spel utanför Steam väljer du spelets mapp.",
+  "Choose the game's folder": "Välj spelets mapp",
+  "Outside Steam": "Utanför Steam",
+  "Remove from list": "Ta bort från listan",
+  "{game} was added. Turn HelixSR on for it in the list.": "{game} har lagts till. Slå på HelixSR för det i listan.",
+  "{game} was taken off the list.": "{game} har tagits bort från listan.",
+  "Could not add the game folder": "Det gick inte att lägga till spelmappen",
+  "That folder does not exist.": "Den mappen finns inte.",
+  "Choose the game's own folder, not a whole drive or your home folder.": "Välj spelets egen mapp, inte en hel enhet eller din hemmapp.",
+  "This folder is not on the list.": "Den här mappen finns inte i listan.",
+  "Remove HelixSR from this game first, so it gets its own FSR file back.": "Ta först bort HelixSR från det här spelet så att det får tillbaka sin egen FSR-fil."
 }

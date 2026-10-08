@@ -4711,5 +4711,17 @@
   "Add FSR4 to Steam": "เพิ่ม FSR4 ใน Steam",
   "AMD's FSR 4 in INT8, installed per game by OptiScaler Client.": "FSR 4 ของ AMD แบบ INT8 ติดตั้งทีละเกมผ่าน OptiScaler Client",
   "Steam loads OptiScaler only with this option. Close Steam before adding it.": "Steam จะโหลด OptiScaler เฉพาะเมื่อมีตัวเลือกนี้ ปิด Steam ก่อนเพิ่ม",
-  "No games yet. Install FSR4 in a game from OptiScaler Client.": "ยังไม่มีเกม ติดตั้ง FSR4 ในเกมผ่าน OptiScaler Client"
+  "No games yet. Install FSR4 in a game from OptiScaler Client.": "ยังไม่มีเกม ติดตั้ง FSR4 ในเกมผ่าน OptiScaler Client",
+  "Add game folder": "เพิ่มโฟลเดอร์เกม",
+  "For games outside Steam, choose the game's folder.": "สำหรับเกมนอก Steam ให้เลือกโฟลเดอร์ของเกม",
+  "Choose the game's folder": "เลือกโฟลเดอร์ของเกม",
+  "Outside Steam": "นอก Steam",
+  "Remove from list": "นำออกจากรายการ",
+  "{game} was added. Turn HelixSR on for it in the list.": "เพิ่ม {game} แล้ว เปิด HelixSR ให้เกมนี้ในรายการ",
+  "{game} was taken off the list.": "นำ {game} ออกจากรายการแล้ว",
+  "Could not add the game folder": "ไม่สามารถเพิ่มโฟลเดอร์เกมได้",
+  "That folder does not exist.": "ไม่มีโฟลเดอร์นั้น",
+  "Choose the game's own folder, not a whole drive or your home folder.": "เลือกโฟลเดอร์ของตัวเกมเอง ไม่ใช่ทั้งไดรฟ์หรือโฟลเดอร์หลักของคุณ",
+  "This folder is not on the list.": "โฟลเดอร์นี้ไม่อยู่ในรายการ",
+  "Remove HelixSR from this game first, so it gets its own FSR file back.": "นำ HelixSR ออกจากเกมนี้ก่อน เพื่อให้เกมได้ไฟล์ FSR ของตัวเองกลับมา"
 }
