@@ -1462,115 +1462,24 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         background: transparent;
         border: none;
     }}
-    QFrame[upscalerEngine='fsr4'] QPushButton[dashboardCardAction='true'],
-    QFrame[upscalerEngine='helixsr'] QPushButton[dashboardCardAction='true'],
-    QFrame[upscalerEngine='fsr4'] QPushButton[launchCopyText='true'] {{
-        min-height: 18px;
-        background: {c['panel']};
-        border: 1px solid {c['border_strong']};
-        border-radius: 3px;
-        padding: 7px 14px;
-        color: {c['text']};
-        font-size: 12px;
-        font-weight: 650;
-    }}
-    QFrame[upscalerEngine='fsr4'] QPushButton[launchCopyText='true'] {{
-        padding: 3px 10px;
+    /* Upscaling buttons are the app's card buttons, one size down: the
+       panels and the game table hold many of them side by side. */
+    QPushButton[dashboardCardAction='true'][smallAction='true'],
+    QPushButton[dashboardCardAction='true'][smallAction='true'][dangerAction='true'] {{
+        min-height: 16px;
+        padding: 4px 10px;
+        border-radius: 8px;
         font-size: 11px;
     }}
-    QFrame[upscalerEngine='fsr4'] QPushButton[dashboardCardAction='true']:hover,
-    QFrame[upscalerEngine='helixsr'] QPushButton[dashboardCardAction='true']:hover,
-    QFrame[upscalerEngine='fsr4'] QPushButton[dashboardCardAction='true']:focus,
-    QFrame[upscalerEngine='helixsr'] QPushButton[dashboardCardAction='true']:focus,
-    QFrame[upscalerEngine='fsr4'] QPushButton[launchCopyText='true']:hover {{
-        background: {c['control_hover']};
-        border-color: {c['text']};
-        color: {c['text']};
-    }}
-    QFrame[upscalerEngine='fsr4'] QPushButton[dashboardCardAction='true'][accented='true'],
-    QFrame[upscalerEngine='helixsr'] QPushButton[dashboardCardAction='true'][accented='true'] {{
-        background: {c['text']};
-        border-color: {c['text']};
-        color: {c['panel']};
-    }}
-    QFrame[upscalerEngine='fsr4'] QPushButton[dashboardCardAction='true'][accented='true']:hover,
-    QFrame[upscalerEngine='helixsr'] QPushButton[dashboardCardAction='true'][accented='true']:hover,
-    QFrame[upscalerEngine='fsr4'] QPushButton[dashboardCardAction='true'][accented='true']:focus,
-    QFrame[upscalerEngine='helixsr'] QPushButton[dashboardCardAction='true'][accented='true']:focus {{
-        background: {c['muted']};
-        border-color: {c['muted']};
-        color: {c['panel']};
-    }}
-    QFrame[upscalerEngine='fsr4'] QPushButton[dashboardCardAction='true'][dangerAction='true'],
-    QFrame[upscalerEngine='helixsr'] QPushButton[dashboardCardAction='true'][dangerAction='true'] {{
-        color: {c['red']};
-    }}
-    QFrame[upscalerEngine='fsr4'] QPushButton[dashboardCardAction='true'][dangerAction='true']:hover,
-    QFrame[upscalerEngine='helixsr'] QPushButton[dashboardCardAction='true'][dangerAction='true']:hover {{
-        background: {c['red_soft']};
-        border-color: {c['red']};
-        color: {c['red']};
-    }}
-    QFrame[upscalerEngine='fsr4'] QPushButton[dashboardCardAction='true'][linkAction='true'],
-    QFrame[upscalerEngine='helixsr'] QPushButton[dashboardCardAction='true'][linkAction='true'] {{
-        background: transparent;
-        border-color: transparent;
-        color: {c['muted']};
-        padding: 7px 4px;
-    }}
-    QFrame[upscalerEngine='fsr4'] QPushButton[dashboardCardAction='true'][linkAction='true']:hover,
-    QFrame[upscalerEngine='helixsr'] QPushButton[dashboardCardAction='true'][linkAction='true']:hover {{
-        background: transparent;
-        border-color: transparent;
-        color: {c['text']};
-    }}
-    QFrame[upscalerEngine='fsr4'] QPushButton[dashboardCardAction='true']:disabled,
-    QFrame[upscalerEngine='helixsr'] QPushButton[dashboardCardAction='true']:disabled {{
-        background: transparent;
-        border-color: {c['border_soft']};
-        color: {c['disabled_text']};
-    }}
-    QFrame[dashboardPreparationInfo='true'][upscalerEngine='fsr4'] QPushButton[dashboardCardAction='true'][quietAction='true'],
-    QFrame[dashboardPreparationInfo='true'][upscalerEngine='helixsr'] QPushButton[dashboardCardAction='true'][quietAction='true'] {{
-        background: {c['panel']};
-        border: 1px solid {c['border_strong']};
-    }}
-    QFrame[dashboardPreparationInfo='true'][upscalerEngine='fsr4'] QPushButton[dashboardCardAction='true'][quietAction='true']:hover,
-    QFrame[dashboardPreparationInfo='true'][upscalerEngine='helixsr'] QPushButton[dashboardCardAction='true'][quietAction='true']:hover {{
-        background: {c['control_hover']};
-        border-color: {c['text']};
+    QPushButton[dashboardCardAction='true'][smallAction='true'][linkAction='true'],
+    QPushButton[dashboardCardAction='true'][smallAction='true'][quietAction='true'] {{
+        padding: 4px 6px;
     }}
     QFrame[actionsFooter='true'] {{
         background: transparent;
         border: none;
         border-top: 1px solid {c['border_soft']};
         border-radius: 0px;
-    }}
-    QFrame[dashboardPreparationInfo='true'][upscalerEngine='fsr4'] QPushButton[dashboardCardAction='true'][minorAction='true'],
-    QFrame[dashboardPreparationInfo='true'][upscalerEngine='helixsr'] QPushButton[dashboardCardAction='true'][minorAction='true'] {{
-        background: transparent;
-        border: 1px solid transparent;
-        padding: 2px 0px;
-        color: {c['muted']};
-        font-size: 12px;
-        font-weight: 600;
-    }}
-    QFrame[dashboardPreparationInfo='true'][upscalerEngine='fsr4'] QPushButton[dashboardCardAction='true'][minorAction='true']:hover,
-    QFrame[dashboardPreparationInfo='true'][upscalerEngine='helixsr'] QPushButton[dashboardCardAction='true'][minorAction='true']:hover, QFrame[dashboardPreparationInfo='true'][upscalerEngine='fsr4'] QPushButton[dashboardCardAction='true'][minorAction='true']:focus,
-    QFrame[dashboardPreparationInfo='true'][upscalerEngine='helixsr'] QPushButton[dashboardCardAction='true'][minorAction='true']:focus {{
-        background: transparent;
-        border-color: transparent;
-        color: {c['text']};
-    }}
-    QFrame[dashboardPreparationInfo='true'][upscalerEngine='fsr4'] QPushButton[dashboardCardAction='true'][minorAction='true'][dangerAction='true'],
-    QFrame[dashboardPreparationInfo='true'][upscalerEngine='helixsr'] QPushButton[dashboardCardAction='true'][minorAction='true'][dangerAction='true'] {{
-        color: {c['red']};
-    }}
-    QFrame[dashboardPreparationInfo='true'][upscalerEngine='fsr4'] QPushButton[dashboardCardAction='true'][minorAction='true'][dangerAction='true']:hover,
-    QFrame[dashboardPreparationInfo='true'][upscalerEngine='helixsr'] QPushButton[dashboardCardAction='true'][minorAction='true'][dangerAction='true']:hover {{
-        background: transparent;
-        border-color: transparent;
-        color: {c['red']};
     }}
     QLabel[matrixTitle='true'] {{
         color: {c['text']};
@@ -1610,35 +1519,6 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     }}
     QLabel[matrixState='true'][tone='orange'] {{
         color: {c['orange']};
-    }}
-    QPushButton[matrixAction='true'] {{
-        min-height: 14px;
-        background: {c['panel']};
-        border: 1px solid {c['border_strong']};
-        border-radius: 3px;
-        padding: 3px 10px;
-        color: {c['text']};
-        font-size: 11px;
-        font-weight: 650;
-    }}
-    QPushButton[matrixAction='true']:hover,
-    QPushButton[matrixAction='true']:focus {{
-        background: {c['control_hover']};
-        border-color: {c['text']};
-    }}
-    QPushButton[matrixAction='true'][primary='true'] {{
-        background: {c['text']};
-        border-color: {c['text']};
-        color: {c['panel']};
-    }}
-    QPushButton[matrixAction='true'][primary='true']:hover {{
-        background: {c['muted']};
-        border-color: {c['muted']};
-    }}
-    QPushButton[matrixAction='true']:disabled {{
-        background: transparent;
-        border-color: {c['border_soft']};
-        color: {c['disabled_text']};
     }}
     QLabel[matrixEmpty='true'] {{
         color: {c['subtle']};

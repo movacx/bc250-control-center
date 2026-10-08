@@ -1123,7 +1123,7 @@ class _GameMatrix(QFrame):
 
     action_requested = pyqtSignal(object)
     #: Game | HelixSR | its actions | FSR4 | its actions.
-    _STRETCH = (5, 4, 4, 4, 3)
+    _STRETCH = (5, 4, 3, 4, 3)
 
     def __init__(self) -> None:
         super().__init__()
@@ -1150,7 +1150,7 @@ class _GameMatrix(QFrame):
         state.setProperty("matrixState", True)
         actions = QWidget()
         # Every row the same height, with or without a button in it.
-        actions.setMinimumHeight(38)
+        actions.setMinimumHeight(40)
         layout = QHBoxLayout(actions)
         layout.setContentsMargins(0, 6, 0, 6)
         layout.setSpacing(8)
@@ -1163,8 +1163,9 @@ class _GameMatrix(QFrame):
             state.setToolTip(tr(tooltip))
             for label, action, enabled in entries:
                 button = QPushButton(tr(label))
-                button.setProperty("matrixAction", True)
-                button.setProperty("primary", label != "Remove")
+                button.setProperty("dashboardCardAction", True)
+                button.setProperty("smallAction", True)
+                button.setProperty("dangerAction", label == "Remove")
                 button.setCursor(Qt.CursorShape.PointingHandCursor)
                 button.setEnabled(bool(enabled))
                 button.setToolTip(tr(tooltip))
@@ -1478,6 +1479,8 @@ class PreparationInfoCard(QFrame):
         for button in everything:
             button.setProperty("accented", button is accented)
             button.setProperty("minorAction", minor(button) and self.footer_actions is not None)
+            # Panels with a footer hold a whole tool's actions: one size down.
+            button.setProperty("smallAction", self.footer_actions is not None)
             button.style().unpolish(button)
             button.style().polish(button)
 
@@ -2941,7 +2944,8 @@ class PreparationSidebar(QFrame):
         # A text button here: the icon button paints into a fixed 30 px square.
         old_copy = self.fsr4_copy_button
         self.fsr4_copy_button = QPushButton(tr("Copy"))
-        self.fsr4_copy_button.setProperty("launchCopyText", True)
+        self.fsr4_copy_button.setProperty("dashboardCardAction", True)
+        self.fsr4_copy_button.setProperty("smallAction", True)
         self.fsr4_copy_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.fsr4_copy_button.setToolTip(tr("Copy Steam launch option"))
         self.fsr4_copy_button.setAccessibleName(tr("Copy Steam launch option"))
