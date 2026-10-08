@@ -1464,7 +1464,7 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     }}
     QFrame[upscalerEngine='fsr4'] QPushButton[dashboardCardAction='true'],
     QFrame[upscalerEngine='helixsr'] QPushButton[dashboardCardAction='true'],
-    QFrame[upscalerEngine='fsr4'] QPushButton[fsr4LaunchCopy='true'] {{
+    QFrame[upscalerEngine='fsr4'] QPushButton[launchCopyText='true'] {{
         min-height: 18px;
         background: {c['panel']};
         border: 1px solid {c['border_strong']};
@@ -1474,7 +1474,7 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         font-size: 12px;
         font-weight: 650;
     }}
-    QFrame[upscalerEngine='fsr4'] QPushButton[fsr4LaunchCopy='true'] {{
+    QFrame[upscalerEngine='fsr4'] QPushButton[launchCopyText='true'] {{
         padding: 3px 10px;
         font-size: 11px;
     }}
@@ -1482,7 +1482,7 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QFrame[upscalerEngine='helixsr'] QPushButton[dashboardCardAction='true']:hover,
     QFrame[upscalerEngine='fsr4'] QPushButton[dashboardCardAction='true']:focus,
     QFrame[upscalerEngine='helixsr'] QPushButton[dashboardCardAction='true']:focus,
-    QFrame[upscalerEngine='fsr4'] QPushButton[fsr4LaunchCopy='true']:hover {{
+    QFrame[upscalerEngine='fsr4'] QPushButton[launchCopyText='true']:hover {{
         background: {c['control_hover']};
         border-color: {c['text']};
         color: {c['text']};

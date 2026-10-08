@@ -1122,7 +1122,8 @@ class _GameMatrix(QFrame):
     """
 
     action_requested = pyqtSignal(object)
-    _STRETCH = (3, 4, 4)
+    #: Game | HelixSR | its actions | FSR4 | its actions.
+    _STRETCH = (5, 4, 4, 4, 3)
 
     def __init__(self) -> None:
         super().__init__()
@@ -1143,42 +1144,40 @@ class _GameMatrix(QFrame):
         rule.setFixedHeight(1)
         self._grid.addWidget(rule, row, 0, 1, len(self._STRETCH))
 
-    def _cell(self, cell) -> tuple[QWidget, list[QPushButton]]:
-        widget = QWidget()
-        layout = QHBoxLayout(widget)
-        layout.setContentsMargins(0, 7, 0, 7)
-        layout.setSpacing(10)
+    def _cell(self, cell) -> tuple[QLabel, QWidget, list[QPushButton]]:
+        """A tool's state, and its actions for the unnamed column beside it."""
+        state = QLabel("—")
+        state.setProperty("matrixState", True)
+        actions = QWidget()
+        # Every row the same height, with or without a button in it.
+        actions.setMinimumHeight(38)
+        layout = QHBoxLayout(actions)
+        layout.setContentsMargins(0, 6, 0, 6)
+        layout.setSpacing(8)
         buttons: list[QPushButton] = []
-        if cell is None:
-            state = QLabel("—")
-            state.setProperty("matrixState", True)
-            layout.addWidget(state)
-            layout.addStretch(1)
-            return widget, buttons
-        text, tone, tooltip, actions = cell
-        widget.setToolTip(tr(tooltip))
-        if text:
-            state = QLabel(tr(text))
-            state.setProperty("matrixState", True)
+        if cell is not None:
+            text, tone, tooltip, entries = cell
+            # A game the tool could take but does not use yet.
+            state.setText(tr(text) if text else tr("Available"))
             state.setProperty("tone", tone)
-            layout.addWidget(state)
-        for label, action, enabled in actions:
-            button = QPushButton(tr(label))
-            button.setProperty("matrixAction", True)
-            button.setProperty("primary", label != "Remove")
-            button.setCursor(Qt.CursorShape.PointingHandCursor)
-            button.setEnabled(bool(enabled))
-            button.setToolTip(tr(tooltip))
-            button.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-            button.clicked.connect(
-                lambda _checked=False, value=action: self.action_requested.emit(
-                    {"action": value, "governor": ""}
+            state.setToolTip(tr(tooltip))
+            for label, action, enabled in entries:
+                button = QPushButton(tr(label))
+                button.setProperty("matrixAction", True)
+                button.setProperty("primary", label != "Remove")
+                button.setCursor(Qt.CursorShape.PointingHandCursor)
+                button.setEnabled(bool(enabled))
+                button.setToolTip(tr(tooltip))
+                button.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+                button.clicked.connect(
+                    lambda _checked=False, value=action: self.action_requested.emit(
+                        {"action": value, "governor": ""}
+                    )
                 )
-            )
-            layout.addWidget(button)
-            buttons.append(button)
+                layout.addWidget(button)
+                buttons.append(button)
         layout.addStretch(1)
-        return widget, buttons
+        return state, actions, buttons
 
     def set_rows(self, rows: list[dict]) -> None:
         signature = (tr("Game"), *(
@@ -1195,7 +1194,9 @@ class _GameMatrix(QFrame):
                 item.widget().hide()
                 item.widget().deleteLater()
         self.rows = {}
-        for column, text in enumerate(("Game", "HelixSR", "FSR4 INT8")):
+        # Each tool has its state column and, beside it, an unnamed column
+        # that holds its buttons, so every button in a column lines up.
+        for column, text in ((0, "Game"), (1, "HelixSR"), (3, "FSR4 INT8")):
             head = QLabel(tr(text))
             head.setProperty("matrixHeadLabel", True)
             self._grid.addWidget(head, 0, column)
@@ -1211,9 +1212,10 @@ class _GameMatrix(QFrame):
             name.setMinimumWidth(0)
             self._grid.addWidget(name, line, 0)
             buttons: list[QPushButton] = []
-            for column, key in ((1, "helixsr"), (2, "fsr4")):
-                widget, found = self._cell(row[key])
-                self._grid.addWidget(widget, line, column)
+            for column, key in ((1, "helixsr"), (3, "fsr4")):
+                state, actions, found = self._cell(row[key])
+                self._grid.addWidget(state, line, column)
+                self._grid.addWidget(actions, line, column + 1)
                 buttons.extend(found)
             self.rows[row["appid"] or row["name"]] = buttons
             self._rule(line + 1)
@@ -2936,10 +2938,18 @@ class PreparationSidebar(QFrame):
         launch_layout.removeItem(stretch)
         launch_layout.insertWidget(1, self.fsr4_launch_value)
         launch_layout.insertStretch(2, 1)
-        self.fsr4_copy_button.setText(tr("Copy"))
-        self.fsr4_copy_button.setMinimumSize(0, 0)
-        self.fsr4_copy_button.setMaximumSize(16777215, 16777215)
-        self.fsr4_copy_button.setFixedHeight(26)
+        # A text button here: the icon button paints into a fixed 30 px square.
+        old_copy = self.fsr4_copy_button
+        self.fsr4_copy_button = QPushButton(tr("Copy"))
+        self.fsr4_copy_button.setProperty("launchCopyText", True)
+        self.fsr4_copy_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.fsr4_copy_button.setToolTip(tr("Copy Steam launch option"))
+        self.fsr4_copy_button.setAccessibleName(tr("Copy Steam launch option"))
+        self.fsr4_copy_button.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        self.fsr4_copy_button.clicked.connect(self._copy_fsr4_launch_option)
+        launch_layout.replaceWidget(old_copy, self.fsr4_copy_button)
+        old_copy.hide()
+        old_copy.deleteLater()
         self.fsr4_launch_row.setProperty("fsr4LaunchOption", False)
         self.fsr4_sheet.add_row(self.fsr4_launch_row)
         self.upscaling_engines = QBoxLayout(QBoxLayout.Direction.LeftToRight)
