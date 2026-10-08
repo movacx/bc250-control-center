@@ -127,7 +127,7 @@ def test_ready_fills_the_datasheet_and_puts_the_search_first():
     ]
     sidebar.set_state(_state(_ready(games)))
     values = {key: label.text() for key, label in sidebar.helixsr_sheet.values.items()}
-    assert values == {"network": "Built on this PC", "games": "1 active · 1 available"}
+    assert values == {"network": "Built on this PC"}
     assert sidebar.helixsr_card.engine_version.text() == "1.2.0"
     assert sidebar.helixsr_card.engine_state.text.text() == "Ready"
     assert sidebar.helixsr_card.engine_state.text.property("tone") == "green"
@@ -215,3 +215,22 @@ def test_the_launch_option_is_a_row_of_the_fsr4_list():
     assert not sidebar.fsr4_launch_row.isHidden()
     assert sidebar.fsr4_launch_value.text() == 'WINEDLLOVERRIDES="dxgi=n,b" %command%'
     assert sidebar.fsr4_card.engine_version.text() == "1.0.7"
+
+
+def test_minor_actions_sit_in_the_panel_footer():
+    sidebar = _sidebar()
+    sidebar.set_state(_state(_ready()))
+    card = sidebar.helixsr_card
+    main = [card.actions.itemAt(i).widget() for i in range(card.actions.count())]
+    foot = [card.footer_actions.itemAt(i).widget() for i in range(card.footer_actions.count())]
+    assert sidebar.helixsr_scan_button in main
+    assert sidebar.helixsr_scan_button.property("accented") is True
+    for button in (sidebar.helixsr_install_button, sidebar.helixsr_remove_button,
+                   sidebar.helixsr_upstream_button):
+        assert button in foot
+    # Before installing, Install is the main action again, not a footer link.
+    sidebar.set_state(_state(_helixsr()))
+    main = [card.actions.itemAt(i).widget() for i in range(card.actions.count())]
+    assert sidebar.helixsr_install_button in main
+    assert sidebar.helixsr_install_button.property("accented") is True
+    assert sidebar.helixsr_sheet.isHidden()

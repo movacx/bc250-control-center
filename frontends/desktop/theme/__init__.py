@@ -1392,7 +1392,7 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QFrame[dashboardPreparationInfo='true'][upscalerEngine='helixsr'] {{
         background: {c['panel']};
         border: 1px solid {c['border']};
-        border-top: 3px solid {c['red']};
+        border-top: 2px solid {c['red']};
         border-radius: 4px;
     }}
     QFrame[dashboardPreparationInfo='true'][upscalerEngine='helixsr'] {{
@@ -1400,8 +1400,8 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     }}
     QFrame[upscalerEngine='fsr4'] QLabel[dashboardComponentTitle='true'],
     QFrame[upscalerEngine='helixsr'] QLabel[dashboardComponentTitle='true'] {{
-        font-size: 19px;
-        font-weight: 800;
+        font-size: 17px;
+        font-weight: 750;
         color: {c['text']};
     }}
     QLabel[engineVersion='true'] {{
@@ -1429,8 +1429,8 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QFrame[specSheet='true'] {{
         background: transparent;
         border: none;
-        border-top: 1px dashed {c['border_strong']};
-        border-bottom: 1px dashed {c['border_strong']};
+        border-top: 1px solid {c['border_soft']};
+        border-bottom: 1px solid {c['border_soft']};
         border-radius: 0px;
     }}
     QFrame[specRow='true'] {{
@@ -1477,7 +1477,6 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QFrame[upscalerEngine='fsr4'] QPushButton[fsr4LaunchCopy='true'] {{
         padding: 3px 10px;
         font-size: 11px;
-        min-width: 0px; max-width: 16777215px; min-height: 0px; max-height: 16777215px;
     }}
     QFrame[upscalerEngine='fsr4'] QPushButton[dashboardCardAction='true']:hover,
     QFrame[upscalerEngine='helixsr'] QPushButton[dashboardCardAction='true']:hover,
@@ -1540,6 +1539,38 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QFrame[dashboardPreparationInfo='true'][upscalerEngine='helixsr'] QPushButton[dashboardCardAction='true'][quietAction='true']:hover {{
         background: {c['control_hover']};
         border-color: {c['text']};
+    }}
+    QFrame[actionsFooter='true'] {{
+        background: transparent;
+        border: none;
+        border-top: 1px solid {c['border_soft']};
+        border-radius: 0px;
+    }}
+    QFrame[dashboardPreparationInfo='true'][upscalerEngine='fsr4'] QPushButton[dashboardCardAction='true'][minorAction='true'],
+    QFrame[dashboardPreparationInfo='true'][upscalerEngine='helixsr'] QPushButton[dashboardCardAction='true'][minorAction='true'] {{
+        background: transparent;
+        border: 1px solid transparent;
+        padding: 2px 0px;
+        color: {c['muted']};
+        font-size: 12px;
+        font-weight: 600;
+    }}
+    QFrame[dashboardPreparationInfo='true'][upscalerEngine='fsr4'] QPushButton[dashboardCardAction='true'][minorAction='true']:hover,
+    QFrame[dashboardPreparationInfo='true'][upscalerEngine='helixsr'] QPushButton[dashboardCardAction='true'][minorAction='true']:hover, QFrame[dashboardPreparationInfo='true'][upscalerEngine='fsr4'] QPushButton[dashboardCardAction='true'][minorAction='true']:focus,
+    QFrame[dashboardPreparationInfo='true'][upscalerEngine='helixsr'] QPushButton[dashboardCardAction='true'][minorAction='true']:focus {{
+        background: transparent;
+        border-color: transparent;
+        color: {c['text']};
+    }}
+    QFrame[dashboardPreparationInfo='true'][upscalerEngine='fsr4'] QPushButton[dashboardCardAction='true'][minorAction='true'][dangerAction='true'],
+    QFrame[dashboardPreparationInfo='true'][upscalerEngine='helixsr'] QPushButton[dashboardCardAction='true'][minorAction='true'][dangerAction='true'] {{
+        color: {c['red']};
+    }}
+    QFrame[dashboardPreparationInfo='true'][upscalerEngine='fsr4'] QPushButton[dashboardCardAction='true'][minorAction='true'][dangerAction='true']:hover,
+    QFrame[dashboardPreparationInfo='true'][upscalerEngine='helixsr'] QPushButton[dashboardCardAction='true'][minorAction='true'][dangerAction='true']:hover {{
+        background: transparent;
+        border-color: transparent;
+        color: {c['red']};
     }}
     QLabel[matrixTitle='true'] {{
         color: {c['text']};

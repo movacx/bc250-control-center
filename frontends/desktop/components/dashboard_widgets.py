@@ -1368,30 +1368,7 @@ class PreparationInfoCard(QFrame):
         )
         accented = loud[0] if primary_gets_accent else None
         if not isinstance(self.actions, QBoxLayout):
-            # A flowing row reads left to right: the thing to do, the other
-            # actions, then the quiet ones and the links.
-            everything = [
-                self.actions.itemAt(index).widget() for index in range(self.actions.count())
-            ]
-            everything = [button for button in everything if button is not None]
-
-            def weight(button) -> int:
-                if button is accented:
-                    return 0
-                if button.property("linkAction"):
-                    return 3
-                return 2 if button.property("quietAction") else 1
-
-            ordered = sorted(everything, key=weight)
-            if ordered != everything:
-                while self.actions.count():
-                    self.actions.takeAt(0)
-                for button in ordered:
-                    self.actions.addWidget(button)
-            for button in everything:
-                button.setProperty("accented", button is accented)
-                button.style().unpolish(button)
-                button.style().polish(button)
+            self._refresh_flowing_actions()
             return
         for button in buttons:
             # A link takes the room it needs and no more, so it does not sit
@@ -1461,7 +1438,51 @@ class PreparationInfoCard(QFrame):
         elif tone not in {"orange", "red"}:
             self._auto_expanded_for = ""
 
-    def use_flowing_actions(self) -> None:
+    def _refresh_flowing_actions(self) -> None:
+        """Main row: the actions, the next step first and accented. Footer:
+        reinstall, remove and the links, as small text under a rule."""
+        flows = [self.actions] + ([self.footer_actions] if self.footer_actions else [])
+        everything = []
+        for flow in flows:
+            everything += [flow.itemAt(i).widget() for i in range(flow.count())]
+        everything = [button for button in everything if button is not None]
+
+        def minor(button) -> bool:
+            return bool(button.property("quietAction") or button.property("linkAction"))
+
+        shown = [button for button in everything if not button.isHidden()]
+        loud = [b for b in shown if not minor(b) and not b.property("dangerAction")]
+        accented = loud[0] if loud else None
+        if self.footer_actions is not None:
+            main = sorted((b for b in everything if not minor(b)), key=lambda b: b is not accented)
+            footer = sorted(
+                (b for b in everything if minor(b)),
+                key=lambda b: (bool(b.property("linkAction")), bool(b.property("dangerAction"))),
+            )
+        else:
+            main = sorted(everything, key=lambda b: (b is not accented, minor(b), bool(b.property("linkAction"))))
+            footer = []
+        for flow, wanted in ((self.actions, main), (self.footer_actions, footer)):
+            if flow is None:
+                continue
+            current = [flow.itemAt(i).widget() for i in range(flow.count())]
+            if current != wanted:
+                while flow.count():
+                    flow.takeAt(0)
+                for button in wanted:
+                    flow.addWidget(button)
+        if self.footer_panel is not None:
+            self.footer_panel.setVisible(any(not b.isHidden() for b in footer))
+        for button in everything:
+            button.setProperty("accented", button is accented)
+            button.setProperty("minorAction", minor(button) and self.footer_actions is not None)
+            button.style().unpolish(button)
+            button.style().polish(button)
+
+    footer_actions = None
+    footer_panel = None
+
+    def use_flowing_actions(self, *, footer: bool = False) -> None:
         """Lay the actions out at their natural width, wrapping onto new lines.
 
         For a narrow card with several actions: a stretched row squeezes
@@ -1486,6 +1507,12 @@ class PreparationInfoCard(QFrame):
         self.actions_panel.deleteLater()
         layout.insertWidget(index, panel)
         self.actions_panel, self.actions = panel, flow
+        if footer:
+            self.footer_panel = QFrame()
+            self.footer_panel.setProperty("actionsFooter", True)
+            self.footer_actions = _WrappingActions(self.footer_panel, spacing=18)
+            self.footer_actions.setContentsMargins(0, 10, 0, 0)
+            layout.insertWidget(index + 1, self.footer_panel)
         self._refresh_action_styles()
 
     def make_collapsible(self) -> None:
@@ -2850,10 +2877,7 @@ class PreparationSidebar(QFrame):
             "DLSS's neural network running on this GPU, in place of a game's FSR 3.1 upscaler.",
             status_text="Checking",
         )
-        self.helixsr_sheet = _SpecSheet((
-            ("games", "Games"),
-            ("network", "Network files"),
-        ))
+        self.helixsr_sheet = _SpecSheet((("network", "Network files"),))
         self.helixsr_card.layout().insertWidget(2, self.helixsr_sheet)
         self.helixsr_scan_button = self.helixsr_card.add_action(
             "Find FSR 3.1 games", {"action": "helixsr_scan", "governor": ""}
@@ -2891,7 +2915,7 @@ class PreparationSidebar(QFrame):
         layout.setSpacing(18)
         self.fsr4_card.title.setText(tr("FSR4 INT8"))
         self.fsr4_card.title.setProperty("i18nSourceText", "FSR4 INT8")
-        self.fsr4_sheet = _SpecSheet((("games", "Games"),))
+        self.fsr4_sheet = _SpecSheet(())
         self.fsr4_card.layout().insertWidget(2, self.fsr4_sheet)
         # The launch option is the list's last row: its name, the option in
         # the console face, and a copy control.
@@ -2937,8 +2961,11 @@ class PreparationSidebar(QFrame):
             header.addWidget(card.engine_state)
             card.layout().setSpacing(12)
             card.layout().setContentsMargins(18, 16, 18, 16)
-            card.use_flowing_actions()
+            # The footer goes to the card's foot, under the stretch.
+            card.use_flowing_actions(footer=True)
+            card.layout().removeWidget(card.footer_panel)
             card.layout().addStretch(1)
+            card.layout().addWidget(card.footer_panel)
             self.upscaling_engines.addWidget(card, 1)
         for button in (self.fsr4_remove_button, self.fsr4_legacy_button):
             button.setProperty("quietAction", True)
@@ -3763,13 +3790,8 @@ class PreparationSidebar(QFrame):
             tr("Built on this PC") if ready else tr("Not built yet") if current else "—",
             "" if ready else "orange" if current else "",
         )
-        active = sum(1 for game in games if game.get("state") == "installed")
-        found = sum(1 for game in games if game.get("state") == "available")
-        sheet.set(
-            "games",
-            tr_format("{active} active · {found} available", active=active, found=found)
-            if games else "—",
-        )
+        # Nothing to say about network files before the release is in.
+        sheet.setVisible(current)
         self.helixsr_card.engine_state.set(tr(status), tone)
 
         self.helixsr_card.update_action(
@@ -3815,12 +3837,6 @@ class PreparationSidebar(QFrame):
         """FSR4's games are rows of the shared game table on the Upscaling tab."""
         self._fsr4_matrix = list(games)
         self.fsr4_games.hide()
-        ready = sum(1 for game in games if game.get("state") == "ready")
-        self.fsr4_sheet.set(
-            "games",
-            tr_format("{active} active · {found} available", active=ready, found=len(games) - ready)
-            if games else "—",
-        )
 
     def _copy_row(self, label: str, action: str, value) -> tuple[QFrame, IconButton]:
         """A compact "label ··· ⧉" row that copies ``value()`` when pressed."""
@@ -4504,6 +4520,8 @@ class PreparationSidebar(QFrame):
         self.fsr4_launch_row.setVisible(
             FSR4_UI_ENABLED and fsr4_current and bool(self._fsr4_launch_option)
         )
+        if hasattr(self, "fsr4_sheet"):
+            self.fsr4_sheet.setVisible(not self.fsr4_launch_row.isHidden())
         self.fsr4_copy_button.setToolTip(tr("Copy Steam launch option"))
         self.fsr4_copy_button.setAccessibleName(tr("Copy Steam launch option"))
         self.fsr4_card.set_scope("All distributions · per game · no root", "purple")
