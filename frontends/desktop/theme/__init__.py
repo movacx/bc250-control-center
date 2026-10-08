@@ -1194,6 +1194,9 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         color: {c['muted']};
         font-size: 9px;
     }}
+    QFrame[reading='true'][tone='good'] QLabel[readingValue='true'] {{
+        color: {c['green']};
+    }}
     QFrame[reading='true'][tone='warning'] QLabel[readingValue='true'] {{
         color: {c['orange']};
     }}
@@ -1383,147 +1386,6 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QFrame[dashboardPreparationInfo='true'] QPushButton[dashboardCardAction='true'][quietAction='true'][dangerAction='true']:focus {{
         background: {c['red_soft']};
         color: {c['red']};
-    }}
-    /* Additional settings > Upscaling. Each tool is a panel with a rule in
-       its colour across the top, its name large with the release beside it,
-       its state as one coloured word, its facts in a dashed-rule sheet, and
-       rectangular buttons: the next step in ink. No icons, no badges. */
-    QFrame[dashboardPreparationInfo='true'][upscalerEngine='fsr4'],
-    QFrame[dashboardPreparationInfo='true'][upscalerEngine='helixsr'] {{
-        background: {c['panel']};
-        border: 1px solid {c['border']};
-        border-top: 2px solid {c['red']};
-        border-radius: 4px;
-    }}
-    QFrame[dashboardPreparationInfo='true'][upscalerEngine='helixsr'] {{
-        border-top-color: {c['cyan']};
-    }}
-    QFrame[upscalerEngine='fsr4'] QLabel[dashboardComponentTitle='true'],
-    QFrame[upscalerEngine='helixsr'] QLabel[dashboardComponentTitle='true'] {{
-        font-size: 17px;
-        font-weight: 750;
-        color: {c['text']};
-    }}
-    QLabel[engineVersion='true'] {{
-        color: {c['subtle']};
-        font-family: 'JetBrains Mono', 'Noto Sans Mono', monospace;
-        font-size: 12px;
-        padding-top: 4px;
-    }}
-    QLabel[engineState='true'] {{
-        color: {c['muted']};
-        font-size: 12px;
-        font-weight: 700;
-    }}
-    QLabel[engineState='true'][tone='green'] {{
-        color: {c['green']};
-    }}
-    QLabel[engineState='true'][tone='orange'], QLabel[engineState='true'][tone='red'] {{
-        color: {c['orange']};
-    }}
-    QFrame[upscalerEngine='fsr4'] QLabel[dashboardComponentDetail='true'],
-    QFrame[upscalerEngine='helixsr'] QLabel[dashboardComponentDetail='true'] {{
-        color: {c['muted']};
-        font-size: 12px;
-    }}
-    QFrame[specSheet='true'] {{
-        background: transparent;
-        border: none;
-        border-top: 1px solid {c['border_soft']};
-        border-bottom: 1px solid {c['border_soft']};
-        border-radius: 0px;
-    }}
-    QFrame[specRow='true'] {{
-        background: transparent;
-        border: none;
-    }}
-    QLabel[specKey='true'] {{
-        color: {c['subtle']};
-        font-size: 12px;
-        font-weight: 600;
-    }}
-    QLabel[specValue='true'] {{
-        color: {c['text']};
-        font-size: 12px;
-    }}
-    QLabel[specValue='true'][tone='orange'] {{
-        color: {c['orange']};
-    }}
-    QLabel[specValue='true'][tone='green'] {{
-        color: {c['green']};
-    }}
-    QLabel[specCode='true'] {{
-        color: {c['text']};
-        font-family: 'JetBrains Mono', 'Noto Sans Mono', monospace;
-        font-size: 12px;
-    }}
-    QFrame[upscalerEngine='fsr4'] QFrame[dashboardCompatibilityActions='true'],
-    QFrame[upscalerEngine='helixsr'] QFrame[dashboardCompatibilityActions='true'] {{
-        background: transparent;
-        border: none;
-    }}
-    /* Upscaling buttons are the app's card buttons, one size down: the
-       panels and the game table hold many of them side by side. */
-    QPushButton[dashboardCardAction='true'][smallAction='true'],
-    QPushButton[dashboardCardAction='true'][smallAction='true'][dangerAction='true'] {{
-        min-height: 16px;
-        padding: 4px 10px;
-        border-radius: 8px;
-        font-size: 11px;
-    }}
-    QPushButton[dashboardCardAction='true'][smallAction='true'][linkAction='true'],
-    QPushButton[dashboardCardAction='true'][smallAction='true'][quietAction='true'] {{
-        padding: 4px 6px;
-    }}
-    QFrame[actionsFooter='true'] {{
-        background: transparent;
-        border: none;
-        border-top: 1px solid {c['border_soft']};
-        border-radius: 0px;
-    }}
-    QLabel[matrixTitle='true'] {{
-        color: {c['text']};
-        font-size: 14px;
-        font-weight: 800;
-        padding-top: 4px;
-    }}
-    QFrame[gameMatrix='true'] {{
-        background: transparent;
-        border: none;
-    }}
-    QLabel[matrixHeadLabel='true'] {{
-        color: {c['text']};
-        font-size: 11px;
-        font-weight: 800;
-        padding-bottom: 7px;
-    }}
-    QFrame[matrixRuleHead='true'] {{
-        background: {c['text']};
-        border: none;
-    }}
-    QFrame[matrixRule='true'] {{
-        background: {c['border_soft']};
-        border: none;
-    }}
-    QLabel[matrixGame='true'] {{
-        color: {c['text']};
-        font-size: 12px;
-        font-weight: 650;
-    }}
-    QLabel[matrixState='true'] {{
-        color: {c['subtle']};
-        font-size: 12px;
-    }}
-    QLabel[matrixState='true'][tone='green'] {{
-        color: {c['green']};
-    }}
-    QLabel[matrixState='true'][tone='orange'] {{
-        color: {c['orange']};
-    }}
-    QLabel[matrixEmpty='true'] {{
-        color: {c['subtle']};
-        font-size: 12px;
-        padding: 16px 0px;
     }}
     QPushButton[dashboardTelemetryAction='true'] {{
         min-height: 26px;

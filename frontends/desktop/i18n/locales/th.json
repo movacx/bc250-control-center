@@ -4708,5 +4708,8 @@
   "Steam option missing": "ไม่มีตัวเลือก Steam",
   "Set up in launcher": "ตั้งค่าใน launcher",
   "AMD's FSR 4 in INT8, installed per game by OptiScaler Client. Each game's state is in the table below.": "FSR 4 ของ AMD แบบ INT8 ติดตั้งรายเกมโดย OptiScaler Client สถานะของแต่ละเกมอยู่ในตารางด้านล่าง",
-  "Add FSR4 to Steam": "เพิ่ม FSR4 ใน Steam"
+  "Add FSR4 to Steam": "เพิ่ม FSR4 ใน Steam",
+  "AMD's FSR 4 in INT8, installed per game by OptiScaler Client.": "FSR 4 ของ AMD แบบ INT8 ติดตั้งทีละเกมผ่าน OptiScaler Client",
+  "Steam loads OptiScaler only with this option. Close Steam before adding it.": "Steam จะโหลด OptiScaler เฉพาะเมื่อมีตัวเลือกนี้ ปิด Steam ก่อนเพิ่ม",
+  "No games yet. Install FSR4 in a game from OptiScaler Client.": "ยังไม่มีเกม ติดตั้ง FSR4 ในเกมผ่าน OptiScaler Client"
 }

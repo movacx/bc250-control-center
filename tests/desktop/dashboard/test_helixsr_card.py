@@ -1,4 +1,4 @@
-"""Additional settings > Upscaling: FSR4 and HelixSR panels and the game table."""
+"""Additional settings > Upscaling: one page card per upscaler, with its games."""
 
 from __future__ import annotations
 
@@ -7,13 +7,13 @@ from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 
 from PyQt6.QtCore import QSettings
-from PyQt6.QtWidgets import QApplication, QLabel
+from PyQt6.QtWidgets import QApplication
 
 from frontends.desktop.components.dashboard_widgets import (
-    PillLabel,
     PreparationSidebar,
     game_matrix_rows,
 )
+from frontends.desktop.components.toggle_switch import ToggleSwitch
 
 _APP: QApplication | None = None
 
@@ -69,70 +69,156 @@ def _ready(games=(), **overrides) -> dict:
                     version="1.2.0", games=list(games), **overrides)
 
 
-def test_fsr4_and_helixsr_live_on_their_own_tab_not_in_compatibility():
+def test_both_upscalers_are_page_cards_on_their_own_tab():
     sidebar = _sidebar()
     upscaling = sidebar.stack.widget(sidebar.tab_index("upscaling"))
     assert sidebar.tab_buttons[sidebar.tab_index("upscaling")].text() == "Upscaling"
-    assert sidebar.fsr4_card.parent() is upscaling
-    assert sidebar.helixsr_card.parent() is upscaling
+    assert upscaling.isAncestorOf(sidebar.fsr4_section)
+    assert upscaling.isAncestorOf(sidebar.helixsr_section)
     assert "Upscaling" not in dict(sidebar.compatibility_groups)
+    # The cards only own the actions; their buttons live in the sections.
+    assert sidebar.upscaling_sources.isHidden()
+    assert sidebar.helixsr_section.isAncestorOf(sidebar.helixsr_install_button)
+    assert sidebar.fsr4_section.isAncestorOf(sidebar.fsr4_install_button)
 
 
-def test_the_panels_carry_no_badges():
-    sidebar = _sidebar()
-    sidebar.set_state(_state(_ready(), {"installer_available": True, "installed": True,
-                                        "current": True, "state": "ready", "version": "1.0.7"}))
-    for card in (sidebar.fsr4_card, sidebar.helixsr_card):
-        assert card.status.isHidden() and card.scope.isHidden()
-        assert not [pill for pill in card.findChildren(PillLabel) if not pill.isHidden()]
-    assert sidebar.helixsr_card.status.text() == "Ready"
-    assert sidebar.fsr4_card.status.text() == "Ready"
+def _footer(section):
+    grid = section.footer
+    return [grid.itemAt(i).widget() for i in range(grid.count())]
 
 
-def test_not_installed_offers_only_the_install():
+def test_not_installed_offers_the_install_as_the_blue_button():
     sidebar = _sidebar()
     sidebar.set_state(_state(_helixsr()))
-    assert sidebar.helixsr_card.status.text() == "Not installed"
-    assert sidebar.helixsr_card.engine_state.text.text() == "Not installed"
+    section = sidebar.helixsr_section
+    assert section.rows["state"].value.text() == "Not installed"
     assert sidebar.helixsr_install_button.text() == "Install HelixSR"
-    assert sidebar.helixsr_install_button.property("accented") is True
-    for button in (sidebar.helixsr_network_button, sidebar.helixsr_scan_button, sidebar.helixsr_remove_button):
+    assert sidebar.helixsr_install_button.objectName() == "PrimaryAction"
+    assert _footer(section)[-1] is sidebar.helixsr_install_button
+    for button in (sidebar.helixsr_network_button, sidebar.helixsr_scan_button,
+                   sidebar.helixsr_remove_button):
         assert button.isHidden()
 
 
 def test_without_proton_the_install_waits_for_it():
     sidebar = _sidebar()
     sidebar.set_state(_state(_helixsr(wine_available=False)))
-    assert sidebar.helixsr_card.status.text() == "Proton required"
-    assert sidebar.helixsr_card.engine_state.text.property("tone") == "orange"
+    reading = sidebar.helixsr_section.rows["state"]
+    assert reading.value.text() == "Proton required"
+    assert reading.property("tone") == "warning"
     assert not sidebar.helixsr_install_button.isEnabled()
+    assert not sidebar.helixsr_section.notice.isHidden()
 
 
-def test_missing_network_files_put_the_build_first():
+def test_missing_network_files_make_the_build_the_next_step():
     sidebar = _sidebar()
-    sidebar.set_state(_state(_helixsr(installed=True, current=True, state="needs-network", version="1.2.0")))
-    assert sidebar.helixsr_sheet.values["network"].text() == "Not built yet"
-    assert sidebar.helixsr_network_button.property("accented") is True
-    assert sidebar.helixsr_install_button.property("quietAction") is True
-    flow = sidebar.helixsr_card.actions
-    shown = [flow.itemAt(i).widget() for i in range(flow.count()) if not flow.itemAt(i).widget().isHidden()]
-    assert shown[0] is sidebar.helixsr_network_button
+    sidebar.set_state(_state(_helixsr(installed=True, current=True, state="needs-network",
+                                      version="1.2.0")))
+    section = sidebar.helixsr_section
+    assert section.rows["network"].value.text() == "Not built yet"
+    assert sidebar.helixsr_network_button.objectName() == "PrimaryAction"
+    assert sidebar.helixsr_install_button.objectName() == ""
+    assert _footer(section)[-1] is sidebar.helixsr_network_button
 
 
-def test_ready_fills_the_datasheet_and_puts_the_search_first():
+def test_ready_shows_the_readings_and_puts_the_search_last():
+    sidebar = _sidebar()
+    sidebar.set_state(_state(_ready()))
+    section = sidebar.helixsr_section
+    values = {key: row.value.text() for key, row in section.rows.items()}
+    assert values == {"state": "Ready", "version": "1.2.0", "network": "Built on this PC"}
+    assert section.rows["state"].property("tone") == "good"
+    assert section.notice.isHidden()
+    footer = _footer(section)
+    assert footer[-1] is sidebar.helixsr_scan_button
+    assert sidebar.helixsr_scan_button.objectName() == "PrimaryAction"
+    assert sidebar.helixsr_install_button.text() == "Reinstall HelixSR"
+    assert sidebar.helixsr_remove_button in footer
+
+
+def test_each_helixsr_game_has_a_switch_that_asks_before_it_moves():
     sidebar = _sidebar()
     games = [
         {"appid": "1", "kind": "game", "name": "Active", "state": "installed", "files": ["/a.dll"]},
-        {"appid": "3", "kind": "game", "name": "Found", "state": "available", "files": ["/c.dll"]},
+        {"appid": "2", "kind": "optiscaler", "name": "Opti", "state": "available", "files": []},
     ]
     sidebar.set_state(_state(_ready(games)))
-    values = {key: label.text() for key, label in sidebar.helixsr_sheet.values.items()}
-    assert values == {"network": "Built on this PC"}
-    assert sidebar.helixsr_card.engine_version.text() == "1.2.0"
-    assert sidebar.helixsr_card.engine_state.text.text() == "Ready"
-    assert sidebar.helixsr_card.engine_state.text.property("tone") == "green"
-    assert sidebar.helixsr_scan_button.property("accented") is True
-    assert sidebar.helixsr_remove_button.property("quietAction") is True
+    controls = sidebar.helixsr_section.game_controls
+    assert set(controls) == {"1", "2"}
+    assert all(isinstance(control, ToggleSwitch) for control in controls.values())
+    assert controls["1"].isChecked() and not controls["2"].isChecked()
+    requested = []
+    sidebar.dependency_action_requested.connect(requested.append)
+    controls["1"].click()
+    controls["2"].click()
+    assert [item["action"] for item in requested] == [
+        "helixsr_game_remove:1",
+        "helixsr_opti_install:2",
+    ]
+    # Nothing changed yet: the switches wait for the game's real state.
+    assert controls["1"].isChecked() and not controls["2"].isChecked()
+
+
+def test_an_empty_library_says_how_to_find_games():
+    sidebar = _sidebar()
+    sidebar.set_state(_state(_ready()))
+    empty = sidebar.helixsr_section.games_empty
+    assert not empty.isHidden()
+    assert empty.text() == "No games yet. Find FSR 3.1 games looks through your Steam library."
+
+
+def test_a_rebuilt_list_leaves_nothing_of_the_old_one_on_screen():
+    sidebar = _sidebar()
+    sidebar.set_state(_state(_ready([
+        {"appid": "1", "kind": "game", "name": "One", "state": "available", "files": ["/a.dll"]},
+    ])))
+    old = sidebar.helixsr_section.games
+    sidebar.set_state(_state(_ready([
+        {"appid": "1", "kind": "game", "name": "One", "state": "installed", "files": ["/a.dll"]},
+    ])))
+    assert old.isHidden()
+    assert sidebar.helixsr_section.game_controls["1"].isChecked()
+
+
+def _fsr4_ready(**overrides) -> dict:
+    state = {
+        "installer_available": True, "installed": True, "current": True, "state": "ready",
+        "version": "1.0.7", "steam_launch_option": 'WINEDLLOVERRIDES="dxgi=n,b" %command%',
+        "games": [{"appid": "10", "name": "Puzzle", "state": "needs-launch-option",
+                   "steam": True, "adapter": "dxgi.dll"}],
+    }
+    state.update(overrides)
+    return state
+
+
+def test_fsr4_shows_the_launch_option_and_opens_the_client_as_the_next_step():
+    sidebar = _sidebar()
+    sidebar.set_state(_state(_helixsr(), _fsr4_ready()))
+    section = sidebar.fsr4_section
+    assert not sidebar.fsr4_launch_panel.isHidden()
+    assert sidebar.fsr4_launch_field.text() == 'WINEDLLOVERRIDES="dxgi=n,b" %command%'
+    assert sidebar.fsr4_copy_button.text() == "Copy"
+    assert section.rows["version"].value.text() == "1.0.7"
+    assert _footer(section)[-1] is sidebar.fsr4_launch_button
+    assert sidebar.fsr4_launch_button.objectName() == "PrimaryAction"
+
+
+def test_an_fsr4_game_missing_the_option_offers_the_fix():
+    sidebar = _sidebar()
+    sidebar.set_state(_state(_helixsr(), _fsr4_ready()))
+    button = sidebar.fsr4_section.game_controls["10"]
+    requested = []
+    sidebar.dependency_action_requested.connect(requested.append)
+    button.click()
+    assert [item["action"] for item in requested] == ["fsr4_steam_option:10"]
+
+
+def test_fsr4_not_installed_hides_the_launch_option_and_offers_the_install():
+    sidebar = _sidebar()
+    sidebar.set_state(_state(_helixsr(), {"installer_available": True, "state": "not-installed"}))
+    assert sidebar.fsr4_launch_panel.isHidden()
+    assert _footer(sidebar.fsr4_section)[-1] is sidebar.fsr4_install_button
+    assert sidebar.fsr4_install_button.objectName() == "PrimaryAction"
 
 
 def test_one_table_row_per_game_with_both_tools():
@@ -171,67 +257,3 @@ def test_optiscaler_only_games_are_added_through_optiscaler_and_wait_for_the_net
     assert rows[0]["helixsr"][3] == (("Add HelixSR", "helixsr_opti_install:5", False),)
 
 
-def test_table_actions_reach_the_page():
-    sidebar = _sidebar()
-    games = [
-        {"appid": "1", "kind": "game", "name": "Active", "state": "installed", "files": ["/a.dll"]},
-        {"appid": "2", "kind": "optiscaler", "name": "Opti", "state": "available", "files": []},
-    ]
-    sidebar.set_state(_state(_ready(games)))
-    assert set(sidebar.game_matrix.rows) == {"1", "2"}
-    requested = []
-    sidebar.dependency_action_requested.connect(requested.append)
-    for appid in ("1", "2"):
-        sidebar.game_matrix.rows[appid][0].click()
-    assert [item["action"] for item in requested] == [
-        "helixsr_game_remove:1",
-        "helixsr_opti_install:2",
-    ]
-
-
-def test_an_empty_table_says_how_to_find_games():
-    sidebar = _sidebar()
-    sidebar.set_state(_state(_ready()))
-    texts = [label.text() for label in sidebar.game_matrix.findChildren(QLabel)]
-    assert "No games yet. Find FSR 3.1 games looks through your Steam library." in texts
-
-
-def test_a_rebuilt_table_leaves_nothing_of_the_old_one_on_screen():
-    sidebar = _sidebar()
-    sidebar.set_state(_state(_ready()))
-    old = sidebar.game_matrix.findChildren(QLabel)
-    sidebar.set_state(_state(_ready([
-        {"appid": "1", "kind": "game", "name": "Active", "state": "installed", "files": ["/a.dll"]},
-    ])))
-    assert all(label.isHidden() for label in old)
-
-
-def test_the_launch_option_is_a_row_of_the_fsr4_list():
-    sidebar = _sidebar()
-    sidebar.set_state(_state(_helixsr(), {
-        "installer_available": True, "installed": True, "current": True, "state": "ready",
-        "version": "1.0.7", "steam_launch_option": 'WINEDLLOVERRIDES="dxgi=n,b" %command%',
-    }))
-    assert sidebar.fsr4_launch_row.parent() is sidebar.fsr4_sheet
-    assert not sidebar.fsr4_launch_row.isHidden()
-    assert sidebar.fsr4_launch_value.text() == 'WINEDLLOVERRIDES="dxgi=n,b" %command%'
-    assert sidebar.fsr4_card.engine_version.text() == "1.0.7"
-
-
-def test_minor_actions_sit_in_the_panel_footer():
-    sidebar = _sidebar()
-    sidebar.set_state(_state(_ready()))
-    card = sidebar.helixsr_card
-    main = [card.actions.itemAt(i).widget() for i in range(card.actions.count())]
-    foot = [card.footer_actions.itemAt(i).widget() for i in range(card.footer_actions.count())]
-    assert sidebar.helixsr_scan_button in main
-    assert sidebar.helixsr_scan_button.property("accented") is True
-    for button in (sidebar.helixsr_install_button, sidebar.helixsr_remove_button,
-                   sidebar.helixsr_upstream_button):
-        assert button in foot
-    # Before installing, Install is the main action again, not a footer link.
-    sidebar.set_state(_state(_helixsr()))
-    main = [card.actions.itemAt(i).widget() for i in range(card.actions.count())]
-    assert sidebar.helixsr_install_button in main
-    assert sidebar.helixsr_install_button.property("accented") is True
-    assert sidebar.helixsr_sheet.isHidden()

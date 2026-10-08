@@ -4708,5 +4708,8 @@
   "Steam option missing": "Chybí volba Steamu",
   "Set up in launcher": "Nastavit v launcheru",
   "AMD's FSR 4 in INT8, installed per game by OptiScaler Client. Each game's state is in the table below.": "FSR 4 od AMD v INT8, instalovaný do jednotlivých her přes OptiScaler Client. Stav každé hry je v tabulce níže.",
-  "Add FSR4 to Steam": "Přidat FSR4 do Steamu"
+  "Add FSR4 to Steam": "Přidat FSR4 do Steamu",
+  "AMD's FSR 4 in INT8, installed per game by OptiScaler Client.": "FSR 4 od AMD v INT8, instalovaný pro každou hru zvlášť přes OptiScaler Client.",
+  "Steam loads OptiScaler only with this option. Close Steam before adding it.": "Steam načte OptiScaler jen s touto volbou. Před přidáním zavřete Steam.",
+  "No games yet. Install FSR4 in a game from OptiScaler Client.": "Zatím žádné hry. Nainstalujte FSR4 do hry přes OptiScaler Client."
 }

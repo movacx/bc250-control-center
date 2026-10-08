@@ -382,7 +382,7 @@ def test_installed_stack_changes_badges_and_buttons_to_repair_actions():
     assert sidebar.gfx_card.status.text() == "Installed via MastaG"
     assert "No separate DryhoppedIPA installation" in sidebar.gfx_card.detail.text()
     assert sidebar.gfx_primary_button.text() == "View original GFX1013 project"
-    assert sidebar.fsr4_remove_button.isVisibleTo(sidebar.fsr4_card)
+    assert sidebar.fsr4_remove_button.isVisibleTo(sidebar.fsr4_section)
 
 
 def test_distribution_filter_defaults_to_detected_and_persists_last_choice():
