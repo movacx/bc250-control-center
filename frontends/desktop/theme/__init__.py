@@ -1369,24 +1369,6 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         border-color: transparent;
         color: {c['blue']};
     }}
-    /* Secondary actions that should not compete with the row's main one:
-       text only, like a link, but they run a workflow (reinstall, remove). */
-    QFrame[dashboardPreparationInfo='true'] QPushButton[dashboardCardAction='true'][quietAction='true'] {{
-        background: transparent;
-        border-color: transparent;
-        color: {c['muted']};
-    }}
-    QFrame[dashboardPreparationInfo='true'] QPushButton[dashboardCardAction='true'][quietAction='true']:hover,
-    QFrame[dashboardPreparationInfo='true'] QPushButton[dashboardCardAction='true'][quietAction='true']:focus {{
-        background: {c['control_hover']};
-        border-color: transparent;
-        color: {c['text']};
-    }}
-    QFrame[dashboardPreparationInfo='true'] QPushButton[dashboardCardAction='true'][quietAction='true'][dangerAction='true']:hover,
-    QFrame[dashboardPreparationInfo='true'] QPushButton[dashboardCardAction='true'][quietAction='true'][dangerAction='true']:focus {{
-        background: {c['red_soft']};
-        color: {c['red']};
-    }}
     QPushButton[dashboardTelemetryAction='true'] {{
         min-height: 26px;
         padding: 8px 12px;

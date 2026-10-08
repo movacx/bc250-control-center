@@ -57,7 +57,6 @@ HELIXSR_SETUP = "helixsr-setup.sh"
 HELIXSR_MARKER = ".bc250-archive-sha256"
 HELIXSR_NETWORK_FILES = ("helixsr_weights.bin", "helixsr_kernels.pak")
 HELIXSR_LOG = "helixsr.log"
-HELIXSR_LICENSE = f"{HELIXSR_REPOSITORY}/blob/main/LICENSE"
 DLSS_LICENSE = "https://github.com/NVIDIA/DLSS/blob/v310.7.0/LICENSE.txt"
 #: NVIDIA's nvngx_dlss.dll 310.7.0, the one HelixSR's setup builds from
 #: (DLSS_SHA256 in its helixsr_setup.py). OptiScaler Client pins the same file.

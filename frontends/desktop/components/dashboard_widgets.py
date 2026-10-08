@@ -956,7 +956,7 @@ def game_matrix_rows(
                 text, tone = ("OptiScaler changed" if optiscaler else "Original file back"), "orange"
             route = "opti" if optiscaler else "game"
             rows[key]["helixsr"] = (
-                text, tone, copy[2], (("Remove HelixSR", f"helixsr_{route}_remove:{appid}", True),)
+                text, tone, copy, (("Remove HelixSR", f"helixsr_{route}_remove:{appid}", True),)
             )
             continue
         native = next((g for g in entries if g.get("kind") != "optiscaler"), None)
@@ -966,7 +966,7 @@ def game_matrix_rows(
                 else PreparationSidebar._HELIXSR_GAME_COPY)["available"]
         route = "opti" if optiscaler else "game"
         rows[key]["helixsr"] = (
-            "Via OptiScaler" if optiscaler else "", "", copy[2],
+            "Via OptiScaler" if optiscaler else "", "", copy,
             (("Add HelixSR", f"helixsr_{route}_install:{appid}", helixsr_ready),),
         )
     fsr4_copy = PreparationSidebar._FSR4_MATRIX_COPY
@@ -1079,7 +1079,7 @@ class PreparationInfoCard(QFrame):
     #: run a workflow. These read as plain links, not boxed buttons, and
     #: never get the "primary action" accent — a URL is never the recommended
     #: choice among a card's actions.
-    _LINK_ACTION_TEXTS = frozenset({"Open upstream project", "Step-by-step guide"})
+    _LINK_ACTION_TEXTS = frozenset({"Open upstream project"})
 
     @classmethod
     def _is_link_action(cls, text: str) -> bool:
@@ -1131,28 +1131,23 @@ class PreparationInfoCard(QFrame):
         # whole body, which would make every button here look hidden and leave
         # its accent and width stale until the row is opened.
         buttons = [button for button in buttons if button is not None and not button.isHidden()]
-        # Quiet actions (reinstall, remove) are text, like links: they never
-        # take the accent and never stretch.
-        loud = [button for button in buttons if not button.property("quietAction")]
         primary_gets_accent = (
             len(buttons) >= 2
             and bool(buttons[-1].property("linkAction"))
-            and bool(loud)
-            and not loud[0].property("linkAction")
-            and not loud[0].property("dangerAction")
+            and not buttons[0].property("linkAction")
+            and not buttons[0].property("dangerAction")
         )
-        accented = loud[0] if primary_gets_accent else None
-        for button in buttons:
+        for index, button in enumerate(buttons):
             # A link takes the room it needs and no more, so it does not sit
             # centred in an empty half of the row.
-            is_link = bool(button.property("linkAction") or button.property("quietAction"))
+            is_link = bool(button.property("linkAction"))
             self.actions.setStretchFactor(button, 0 if is_link else 1)
             # The same button swaps between an action and a link as the state
             # changes, so the alignment is set both ways, never left behind.
             self.actions.setAlignment(
                 button, Qt.AlignmentFlag.AlignLeft if is_link else Qt.AlignmentFlag(0)
             )
-            button.setProperty("accented", button is accented)
+            button.setProperty("accented", index == 0 and primary_gets_accent)
             button.style().unpolish(button)
             button.style().polish(button)
 
@@ -1164,10 +1159,7 @@ class PreparationInfoCard(QFrame):
         danger: bool = False,
     ) -> QPushButton:
         button = self._action_button(text, payload, danger=danger)
-        if isinstance(self.actions, QBoxLayout):
-            self.actions.addWidget(button, 1)
-        else:
-            self.actions.addWidget(button)
+        self.actions.addWidget(button, 1)
         self.actions_panel.show()
         self._refresh_action_styles()
         return button
@@ -2755,38 +2747,7 @@ class PreparationSidebar(QFrame):
             scope_text="All distributions · per game · no root",
             status_text="Checking",
         )
-        self.fsr4_launch_row = QFrame()
-        self.fsr4_launch_row.setProperty("fsr4LaunchOption", True)
-        fsr4_launch_layout = QHBoxLayout(self.fsr4_launch_row)
-        fsr4_launch_layout.setContentsMargins(8, 5, 6, 5)
-        fsr4_launch_layout.setSpacing(7)
-        self.fsr4_launch_label = _label(
-            "Steam launch option", "dashboardCompatibilityLabel", wrap=False
-        )
-        fsr4_launch_layout.addWidget(self.fsr4_launch_label)
-        fsr4_launch_layout.addStretch(1)
-        self.fsr4_copy_button = IconButton("⧉")
-        self.fsr4_copy_button.setProperty("fsr4LaunchCopy", True)
-        self.fsr4_copy_button.setFixedSize(30, 30)
-        self.fsr4_copy_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.fsr4_copy_button.setAccessibleName(tr("Copy Steam launch option"))
-        self.fsr4_copy_button.setToolTip(tr("Copy Steam launch option"))
-        self.fsr4_copy_button.clicked.connect(self._copy_fsr4_launch_option)
-        fsr4_launch_layout.addWidget(self.fsr4_copy_button)
-        self.fsr4_card.layout().insertWidget(2, self.fsr4_launch_row)
-        self.fsr4_launch_row.hide()
         self._fsr4_launch_option = ""
-        # One line per game from the client's list: what is still missing
-        # before OptiScaler opens with Insert, and the fix when it is ours.
-        self.fsr4_games = QFrame()
-        self.fsr4_games.setProperty("fsr4Games", True)
-        self.fsr4_games_layout = QVBoxLayout(self.fsr4_games)
-        self.fsr4_games_layout.setContentsMargins(0, 0, 0, 0)
-        self.fsr4_games_layout.setSpacing(6)
-        self.fsr4_card.layout().insertWidget(3, self.fsr4_games)
-        self.fsr4_games.hide()
-        self._fsr4_games_signature: tuple = ()
-        self.fsr4_game_rows: dict[str, QFrame] = {}
         self.fsr4_install_button = self.fsr4_card.add_action(
             "Install FSR4", {"action": "fsr4_install", "governor": ""}
         )
@@ -2811,11 +2772,7 @@ class PreparationSidebar(QFrame):
         )
         self.fsr4_card.action_requested.connect(self._forward_dependency_action)
         self.fsr4_card.setEnabled(FSR4_UI_ENABLED)
-        self.fsr4_install_card = self.fsr4_card
-        self.fsr4_remove_card = self.fsr4_card
-        self.fsr4_source_card = self.fsr4_card
         self.cachyos_cards = (self.cachyos_stack_card,)
-        self.fsr4_cards = (self.fsr4_card,)
         self._build_helixsr_card()
         for card in self.cachyos_cards:
             layout.addWidget(card)
@@ -2849,7 +2806,6 @@ class PreparationSidebar(QFrame):
             {"action": "helixsr_uninstall", "governor": ""},
             danger=True,
         )
-        self.helixsr_remove_button.setProperty("quietAction", True)
         self.helixsr_upstream_button = self.helixsr_card.add_action(
             "Open upstream project", {"action": "helixsr_upstream", "governor": ""}
         )
@@ -2901,14 +2857,12 @@ class PreparationSidebar(QFrame):
         self.fsr4_launch_field.setReadOnly(True)
         self.fsr4_launch_field.setProperty("i18nLiteral", True)
         launch_row.addWidget(self.fsr4_launch_field, 1)
-        old_copy = self.fsr4_copy_button
         self.fsr4_copy_button = QPushButton(tr("Copy"))
         self.fsr4_copy_button.setProperty("compactAction", True)
         self.fsr4_copy_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.fsr4_copy_button.setToolTip(tr("Copy Steam launch option"))
         self.fsr4_copy_button.setAccessibleName(tr("Copy Steam launch option"))
         self.fsr4_copy_button.clicked.connect(self._copy_fsr4_launch_option)
-        old_copy.hide()
         launch_row.addWidget(self.fsr4_copy_button)
         launch.addLayout(launch_row)
         self._adopt(self.fsr4_steam_all_button, "accentAction")
@@ -2960,8 +2914,7 @@ class PreparationSidebar(QFrame):
         ``compactAction`` (grey), ``accentAction`` (blue tint) or, when the
         footer makes it the next step, the solid blue ``PrimaryAction``."""
         danger = bool(button.property("dangerAction"))
-        for name in ("dashboardCardAction", "accented", "quietAction", "linkAction",
-                     "compactAction", "accentAction"):
+        for name in ("dashboardCardAction", "accented", "linkAction", "compactAction", "accentAction"):
             button.setProperty(name, False)
         if not danger:
             button.setProperty(role, True)
@@ -3715,22 +3668,16 @@ class PreparationSidebar(QFrame):
                           "OptiScaler Client refuses folders reached through a link ({link}). Add this library again in its launcher from the real folder: {path}"),
     }
 
-    #: Per game: (dot tone, one short line, tooltip with the full story).
+    #: Per game and state: the tooltip with the full story.
     _HELIXSR_GAME_COPY = {
-        "installed": ("green", "Native FSR 3.1 · choose AMD FSR in the game",
-                      "In the game, choose AMD FSR as the upscaler. Remove puts the game's own file back."),
-        "restored": ("orange", "The game's own file came back after an update",
-                     "A game update or Steam's file check put the game's own FSR file back. Remove cleans up; add HelixSR again if you want it."),
-        "available": ("", "Native FSR 3.1 detected",
-                      "Add HelixSR to replace this game's FSR 3.1 upscaler. The original file is kept as a backup."),
+        "installed": "In the game, choose AMD FSR as the upscaler. Remove puts the game's own file back.",
+        "restored": "A game update or Steam's file check put the game's own FSR file back. Remove cleans up; add HelixSR again if you want it.",
+        "available": "Add HelixSR to replace this game's FSR 3.1 upscaler. The original file is kept as a backup.",
     }
     _HELIXSR_OPTISCALER_COPY = {
-        "installed": ("green", "Through OptiScaler · press Insert and pick FSR HelixSR",
-                      "In the game choose DLSS, FSR or XeSS, press Insert and pick FSR HelixSR in OptiScaler's upscaler menu. Remove puts OptiScaler's settings back."),
-        "restored": ("orange", "OptiScaler no longer points to HelixSR",
-                     "OptiScaler's settings no longer point to HelixSR, usually after OptiScaler Client updated or restored this game. Remove cleans up HelixSR's folder."),
-        "available": ("", "Through OptiScaler · also for DLSS and XeSS games",
-                      "OptiScaler is in this game, so HelixSR can upscale through it, even when the game only offers DLSS or XeSS."),
+        "installed": "In the game choose DLSS, FSR or XeSS, press Insert and pick FSR HelixSR in OptiScaler's upscaler menu. Remove puts OptiScaler's settings back.",
+        "restored": "OptiScaler's settings no longer point to HelixSR, usually after OptiScaler Client updated or restored this game. Remove cleans up HelixSR's folder.",
+        "available": "OptiScaler is in this game, so HelixSR can upscale through it, even when the game only offers DLSS or XeSS.",
     }
 
     #: FSR4 per game, as the game table shows it: (text, tone).
@@ -3797,19 +3744,12 @@ class PreparationSidebar(QFrame):
             enabled=available and (wine or current),
             visible=available,
         )
-        self._set_quiet(self.helixsr_install_button, current)
         self.helixsr_card.update_action(
             self.helixsr_remove_button, text="Remove HelixSR", visible=installed,
         )
         self.helixsr_upstream_button.show()
         self.helixsr_card._refresh_action_styles()
         self._helixsr_games = (games if HELIXSR_UI_ENABLED else [], ready)
-
-    @staticmethod
-    def _set_quiet(button: QPushButton, quiet: bool) -> None:
-        button.setProperty("quietAction", bool(quiet))
-        button.style().unpolish(button)
-        button.style().polish(button)
 
     def _render_upscaling(self) -> None:
         """Both upscalers' cards, then the games table shared by both."""
@@ -3910,7 +3850,6 @@ class PreparationSidebar(QFrame):
     def _render_fsr4_games(self, games: list[dict]) -> None:
         """FSR4's games are rows of its section on the Upscaling tab."""
         self._fsr4_games = list(games)
-        self.fsr4_games.hide()
 
     def _copy_row(self, label: str, action: str, value) -> tuple[QFrame, IconButton]:
         """A compact "label ··· ⧉" row that copies ``value()`` when pressed."""
@@ -4589,11 +4528,6 @@ class PreparationSidebar(QFrame):
         fsr4_current = bool(fsr4.get("current"))
         fsr4_state = str(fsr4.get("state") or "not-installed")
         self._fsr4_launch_option = str(fsr4.get("steam_launch_option") or "")
-        self.fsr4_launch_row.setVisible(
-            FSR4_UI_ENABLED and fsr4_current and bool(self._fsr4_launch_option)
-        )
-        self.fsr4_copy_button.setToolTip(tr("Copy Steam launch option"))
-        self.fsr4_copy_button.setAccessibleName(tr("Copy Steam launch option"))
         self.fsr4_card.set_scope("All distributions · per game · no root", "purple")
         if fsr4_current:
             status, tone = ("Open" if fsr4.get("running") else "Ready"), "green"
@@ -4618,7 +4552,6 @@ class PreparationSidebar(QFrame):
             )
         self.fsr4_card.set_status(status, tone)
         self.fsr4_card.detail.setText(detail)
-        self._set_quiet(self.fsr4_install_button, fsr4_current)
         self._fsr4_view = {
             "state": fsr4, "status": status, "tone": tone, "detail": detail,
             "version": str(fsr4.get("version") or "") if fsr4_installed else "",
