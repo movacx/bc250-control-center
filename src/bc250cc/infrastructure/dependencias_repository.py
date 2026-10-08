@@ -111,6 +111,7 @@ from bc250cc.infrastructure.helixsr import (
     install_helixsr_optiscaler,
     remove_helixsr_game,
     remove_helixsr_optiscaler,
+    save_helixsr_settings,
     scan_helixsr_games,
     update_helixsr_game,
 )
@@ -523,6 +524,12 @@ class DependenciasRepository:
             raise ValueError('Unsupported BC-250 FSR4 action.')
         self.estado_herramientas_cache = None
         return self._abrir_terminal(command, title)
+
+    def guardar_ajustes_helixsr(self, values: dict) -> dict:
+        """Keep HelixSR's settings and write them into every game that has it."""
+        result = save_helixsr_settings(values)
+        self.estado_herramientas_cache = None
+        return result
 
     def gestionar_helixsr(self, action: str) -> object:
         """HelixSR: the pinned release, its network files, and games.

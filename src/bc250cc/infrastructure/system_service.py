@@ -477,6 +477,9 @@ class SistemaService:
     def gestionar_helixsr(self, action):
         return self.repo.gestionar_helixsr(action)
 
+    def guardar_ajustes_helixsr(self, values):
+        return self.repo.guardar_ajustes_helixsr(values)
+
     def gestionar_gfx1013_fedora(self, action):
         return self.repo.gestionar_gfx1013_fedora(action)
 

@@ -790,3 +790,145 @@ def test_a_folder_that_was_deleted_leaves_the_list(home):
     helixsr.add_helixsr_folder(str(game))
     (game / "bin" / helixsr.UPSCALER_DLL).unlink()
     assert helixsr.helixsr_state(machine="x86_64")["games"] == []
+
+
+# ------------------------------------------------------------------ settings
+
+RELEASE_INI = (
+    "; helixsr.ini - optional\n\n[Sharpening]\n; off = never sharpen\nMode = off\nSharpness = 0.3\n"
+    "MotionAdaptive = true\n\n[Upscaling]\nNetworkResolution = auto\n\n[ModelE]\nNetwork = auto\n"
+    "MotionVectorFrontEnd = false\n\n[Forwarding]\nDll =\nUpscalerDll =\n"
+)
+
+
+FULL_INI = RELEASE_INI.replace(
+    "MotionVectorFrontEnd = false\n",
+    "MotionVectorFrontEnd = false\nUseReactiveMask = false\nDilateDisplayMotionVectors = false\n"
+    "InvertJitter = false\nInvertMotionVectors = false\n\n[Log]\nEnabled = true\n\n"
+    "[Compatibility]\nWaveSize = auto\n",
+)
+
+
+def test_defaults_leave_the_release_ini_exactly_as_it_is():
+    assert helixsr._settings_text(FULL_INI, helixsr.helixsr_defaults()) == FULL_INI
+    text = helixsr._settings_text(RELEASE_INI, {**helixsr.helixsr_defaults(), "Sharpening.Mode": "override",
+                                                "Compatibility.WaveSize": "32"})
+    assert "; off = never sharpen\nMode = override\n" in text, "the comments stay"
+    assert helixsr._ini_get(text, "Compatibility", "WaveSize") == "32", "a missing section is added"
+    assert helixsr._ini_get(text, "ModelE", "MotionVectorFrontEnd") == "false", "unknown keys are kept"
+
+
+def test_settings_are_validated_and_saved(home):
+    assert helixsr.helixsr_settings() == helixsr.helixsr_defaults()
+    result = helixsr.save_helixsr_settings({"Sharpening.Sharpness": "0.55", "Log.Enabled": False})
+    assert result == {"settings": helixsr.helixsr_settings(), "games": 0, "skipped": []}
+    assert helixsr.helixsr_settings()["Sharpening.Sharpness"] == 0.55
+    assert helixsr.helixsr_settings()["Log.Enabled"] is False
+    for bad in ({"Sharpening.Mode": "max"}, {"Sharpening.Sharpness": 2}, {"Log.Enabled": "maybe"}):
+        with pytest.raises(ValueError, match="Invalid HelixSR settings"):
+            helixsr.save_helixsr_settings(bad)
+    assert helixsr.helixsr_settings()["Sharpening.Sharpness"] == 0.55, "a refused save changes nothing"
+
+
+def test_a_new_game_gets_the_settings_and_loses_them_on_removal(home):
+    _ready(home)
+    (helixsr.helixsr_directory() / "helixsr.ini").write_text(RELEASE_INI, encoding="utf-8")
+    helixsr.save_helixsr_settings({"Upscaling.NetworkResolution": "fast"})
+    install = _steam_game(home, "100", "Space Game", {"Bin": (helixsr.UPSCALER_DLL,)})
+    folder = install / "Bin"
+    before = {path.name: path.read_bytes() for path in folder.iterdir()}
+
+    helixsr.install_helixsr_game("100")
+
+    text = (folder / "helixsr.ini").read_text(encoding="utf-8")
+    assert helixsr._ini_get(text, "Upscaling", "NetworkResolution") == "fast"
+    assert "; off = never sharpen" in text
+    helixsr.remove_helixsr_game("100")
+    assert {path.name: path.read_bytes() for path in folder.iterdir()} == before
+
+
+def test_saving_reaches_every_game_with_helixsr(home, monkeypatch):
+    _ready(home)
+    native = _steam_game(home, "100", "Space Game", {"Bin": (helixsr.UPSCALER_DLL,)}) / "Bin"
+    helixsr.install_helixsr_game("100")
+    (native / "helixsr.ini").unlink()   # an install from before settings existed
+    records = helixsr._records()
+    records["100"]["files"][0]["created"].remove("helixsr.ini")
+    helixsr._write_json(helixsr._records_path(), records)
+    root = _optiscaler_game(home, monkeypatch)
+    helixsr.install_helixsr_optiscaler("300")
+
+    result = helixsr.save_helixsr_settings({"Sharpening.Mode": "game", "ModelE.UseReactiveMask": True})
+
+    assert result["games"] == 2 and result["skipped"] == []
+    for folder in (native, root / "HelixSR"):
+        text = (folder / "helixsr.ini").read_text(encoding="utf-8")
+        assert helixsr._ini_get(text, "Sharpening", "Mode") == "game"
+        assert helixsr._ini_get(text, "ModelE", "UseReactiveMask") == "true"
+    opti = (root / "HelixSR" / "helixsr.ini").read_text(encoding="utf-8")
+    assert helixsr._ini_get(opti, "Forwarding", "UpscalerDll") == helixsr.SECOND_UPSCALER, "kept"
+    assert "helixsr.ini" in helixsr._records()["100"]["files"][0]["created"], "and removal cleans it"
+
+
+def test_a_running_game_is_skipped_and_named(home, monkeypatch):
+    _ready(home)
+    _steam_game(home, "100", "Space Game", {"Bin": (helixsr.UPSCALER_DLL,)})
+    helixsr.install_helixsr_game("100")
+
+    def running(_folder, proc=None):
+        raise RuntimeError("Close this game before changing its files.")
+
+    monkeypatch.setattr(helixsr, "_refuse_running", running)
+    result = helixsr.save_helixsr_settings({"Sharpening.Mode": "game"})
+    assert result["games"] == 0 and result["skipped"] == ["Space Game"]
+
+
+def test_the_repository_saves_settings(home, tmp_path):
+    result = _repository(tmp_path).guardar_ajustes_helixsr({"Compatibility.WaveSize": "64"})
+    assert result["settings"]["Compatibility.WaveSize"] == "64"
+    assert helixsr.helixsr_state(machine="x86_64")["settings"]["Compatibility.WaveSize"] == "64"
+
+
+# ------------------------------------------------------------------ game states
+
+
+def test_missing_network_files_are_shown_and_restored_by_the_update(home):
+    _ready(home)
+    folder = _steam_game(home, "100", "Space Game", {"Bin": (helixsr.UPSCALER_DLL,)}) / "Bin"
+    helixsr.install_helixsr_game("100")
+    (folder / "helixsr_kernels.pak").unlink()
+    row = helixsr.helixsr_state(machine="x86_64")["games"][0]
+    assert (row["state"], row["network_missing"]) == ("installed", True)
+
+    helixsr.update_helixsr_game("100")
+
+    assert (folder / "helixsr_kernels.pak").is_file()
+    assert helixsr.helixsr_state(machine="x86_64")["games"][0]["network_missing"] is False
+
+
+def test_a_game_whose_folder_is_gone_is_shown_and_can_be_forgotten(home):
+    import shutil
+
+    _ready(home)
+    install = _steam_game(home, "100", "Space Game", {"Bin": (helixsr.UPSCALER_DLL,)})
+    helixsr.install_helixsr_game("100")
+    shutil.rmtree(install)
+
+    assert helixsr.helixsr_state(machine="x86_64")["games"][0]["state"] == "missing"
+    helixsr.remove_helixsr_game("100")
+    assert helixsr.helixsr_state(machine="x86_64")["games"] == []
+
+
+def test_a_game_that_ships_dlss_310_7_spares_the_download(home, monkeypatch):
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(home / "config"))
+    monkeypatch.setattr(helixsr, "DLSS_DLL_SHA256", _sha(DLSS))
+    monkeypatch.setattr(helixsr, "DLSS_DLL_SIZE", len(DLSS))
+    install = _steam_game(home, "100", "Space Game", {"Bin": (helixsr.UPSCALER_DLL,)})
+    (install / "Bin" / "nvngx_dlss.dll").write_bytes(DLSS)
+    other = _steam_game(home, "200", "Other", {"Bin": ()})
+    (other / "Bin" / "nvngx_dlss.dll").write_bytes(b"MZ another version!")   # same size, other DLL
+
+    helixsr.scan_helixsr_games()
+
+    assert helixsr.local_dlss_candidates() == [install / "Bin" / "nvngx_dlss.dll"]
+    assert helixsr.helixsr_state(machine="x86_64")["local_dlss"] is True

@@ -3739,9 +3739,13 @@ class GpuGovernorPage(QWidget):
         vram_uma_size_mb: int = 0,
         kernel_options: tuple[str, ...] = (),
         kernel_option_changed: str = "",
+        helixsr_settings: dict | None = None,
     ) -> None:
         """Execute a dialog or dashboard preparation request through one route."""
         tools = _dict(self.current_state.get("tools"))
+        if action == "helixsr_settings":
+            self._save_helixsr_settings(dict(helixsr_settings or {}), dialog_parent=dialog_parent)
+            return
         if action in {"acpi-install", "acpi-update", "acpi-uninstall", "acpi-status"}:
             self._manage_acpi(action, dialog_parent)
             return
@@ -4363,6 +4367,30 @@ class GpuGovernorPage(QWidget):
                 "Opened the FSR4 workflow in the terminal.",
             ),
             "Could not manage FSR4",
+            controls=(),
+            error_parent=dialog_parent,
+        )
+
+    def _save_helixsr_settings(self, values: dict, *, dialog_parent: QWidget | None) -> None:
+        """Keep helixsr.ini's settings and write them into every game with HelixSR."""
+
+        def done(result) -> None:
+            result = _dict(result)
+            message = tr_format(
+                "HelixSR settings saved. {count} games with HelixSR use them now.",
+                count=int(result.get("games") or 0),
+            )
+            skipped = [str(name) for name in result.get("skipped") or ()]
+            if skipped:
+                message += " " + tr_format(
+                    "Close {games} and save again to reach them.", games=", ".join(skipped)
+                )
+            GpuGovernorPage._record_preparation_result(self, "HelixSR", message)
+
+        self._run_backend_action(
+            lambda: self.controller.guardar_ajustes_helixsr(values),
+            done,
+            "Could not save the HelixSR settings",
             controls=(),
             error_parent=dialog_parent,
         )

@@ -321,3 +321,87 @@ def test_a_long_library_can_be_searched():
     assert shown == ["7"]
     table.search.setText("nothing like it")
     assert table.empty.text() == "No game matches the search."
+
+
+def test_an_update_sits_beside_removal_with_its_own_label():
+    sidebar = _sidebar()
+    games = [
+        {"appid": "1", "kind": "game", "name": "Old", "state": "installed", "outdated": True, "files": []},
+        {"appid": "2", "kind": "game", "name": "Bare", "state": "installed", "network_missing": True,
+         "files": []},
+    ]
+    sidebar.set_state(_state(_ready(games)))
+    controls = sidebar.upscaling_games.controls
+    for key in ("1", "2"):
+        assert [b.text() for b in controls[key]] == ["Update HelixSR", "Remove HelixSR"]
+    requested = []
+    sidebar.dependency_action_requested.connect(requested.append)
+    controls["2"][0].click()
+    assert requested[-1]["action"] == "helixsr_game_update:2"
+
+
+def test_missing_games_and_network_files_are_named():
+    rows = game_matrix_rows(
+        [
+            {"appid": "1", "kind": "game", "name": "Gone", "state": "missing"},
+            {"appid": "2", "kind": "optiscaler", "name": "Gone Opti", "state": "missing"},
+            {"appid": "3", "kind": "game", "name": "Bare", "state": "installed", "network_missing": True,
+             "outdated": True},
+        ],
+        [], helixsr_ready=True,
+    )
+    by_name = {row["name"]: row for row in rows}
+    assert by_name["Gone"]["helixsr"][:2] == ("Game not found", "orange")
+    assert by_name["Gone"]["helixsr"][3] == (("Remove HelixSR", "helixsr_game_remove:1", True),)
+    assert by_name["Gone Opti"]["helixsr"][3] == (("Remove HelixSR", "helixsr_opti_remove:2", True),)
+    assert by_name["Bare"]["helixsr"][:2] == ("Network files missing", "orange"), "before the update"
+    assert by_name["Bare"]["helixsr"][3][0] == ("Update HelixSR", "helixsr_game_update:3", True)
+
+
+def _settings(**overrides) -> dict:
+    from bc250cc.infrastructure.helixsr import helixsr_defaults
+
+    return {**helixsr_defaults(), **overrides}
+
+
+def test_the_settings_form_shows_saves_and_restores():
+    from bc250cc.infrastructure.helixsr import helixsr_defaults
+
+    sidebar = _sidebar()
+    form = sidebar.helixsr_settings
+    sidebar.set_state(_state(_ready(settings=_settings(**{"Sharpening.Mode": "override",
+                                                            "Sharpening.Sharpness": 0.5}),
+                                    settings_defaults=helixsr_defaults())))
+    assert form.values() == _settings(**{"Sharpening.Mode": "override", "Sharpening.Sharpness": 0.5})
+    assert not form.save_button.isEnabled(), "nothing to save yet"
+    assert form.defaults_button.isEnabled()
+    assert form.controls["Sharpening.Sharpness"].isEnabled()
+
+    form.controls["Compatibility.WaveSize"].setCurrentIndex(form.controls["Compatibility.WaveSize"].findData("32"))
+    form.controls["ModelE.InvertJitter"].setChecked(True)
+    assert form.save_button.isEnabled() and not form.hint.isHidden()
+    requested = []
+    sidebar.dependency_action_requested.connect(requested.append)
+    form.save_button.click()
+    assert requested[-1]["action"] == "helixsr_settings"
+    assert requested[-1]["helixsr_settings"]["Compatibility.WaveSize"] == "32"
+    assert requested[-1]["helixsr_settings"]["ModelE.InvertJitter"] is True
+
+    form.defaults_button.click()
+    assert form.values() == helixsr_defaults()
+    assert not form.controls["Sharpening.Sharpness"].isEnabled(), "Off does not sharpen"
+
+
+def test_a_form_being_edited_is_not_overwritten_by_a_refresh():
+    from bc250cc.infrastructure.helixsr import helixsr_defaults
+
+    sidebar = _sidebar()
+    form = sidebar.helixsr_settings
+    state = _state(_ready(settings=helixsr_defaults(), settings_defaults=helixsr_defaults()))
+    sidebar.set_state(state)
+    form.controls["Log.Enabled"].setChecked(False)
+    sidebar.set_state(_state(_ready(settings=_settings(**{"ModelE.Network": "main"}),
+                                    settings_defaults=helixsr_defaults())))
+    assert form.values()["Log.Enabled"] is False
+    assert form.values()["ModelE.Network"] == "auto", "the user's form stays as they left it"
+    assert form.save_button.isEnabled()

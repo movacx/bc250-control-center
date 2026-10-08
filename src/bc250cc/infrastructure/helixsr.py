@@ -64,6 +64,8 @@ DLSS_LICENSE = "https://github.com/NVIDIA/DLSS/blob/v310.7.0/LICENSE.txt"
 #: NVIDIA's nvngx_dlss.dll 310.7.0, the one HelixSR's setup builds from
 #: (DLSS_SHA256 in its helixsr_setup.py). OptiScaler Client pins the same file.
 DLSS_DLL_SHA256 = "be6e434a94ca32499515eb62ca0e6c274526055d568d0426e4c652dcdfb6ee6e"
+DLSS_DLL_SIZE = 58_977_904
+DLSS_DLL = "nvngx_dlss.dll"
 
 #: The FSR 3.1 DLLs HelixSR stands in for. In a folder that has both, the
 #: upscaler DLL is the one replaced.
@@ -180,21 +182,31 @@ def _records() -> dict[str, dict]:
 
 def _record_state(record: dict) -> str:
     """``installed``: HelixSR is in place; ``restored``: the game put its own
-    file back (an update or a file check), so only the backup is left."""
+    file back (an update or a file check), so only the backup is left;
+    ``missing``: the game's folders are gone (uninstalled or moved)."""
     files = [Path(str(entry.get("path") or "")) for entry in record.get("files") or ()]
+    if files and not any(path.parent.is_dir() for path in files):
+        return "missing"
     if files and all(_is_helixsr(path) for path in files):
         return "installed"
     return "restored"
 
 
+def _network_missing(folders: list[Path]) -> bool:
+    """HelixSR is in place but a network file beside it is not: it would
+    only do its simple upscale. Update HelixSR copies them back."""
+    return any(not _nonempty(folder / name) for folder in folders for name in HELIXSR_NETWORK_FILES)
+
+
 # ---------------------------------------------------------------- scanning
 
 
-def _fsr_folders(install: Path) -> list[Path]:
+def _fsr_folders(install: Path, dlss: list[Path] | None = None) -> list[Path]:
     """Every file HelixSR should replace in a game: one per folder.
 
     A folder with the FSR 3.1 upscaler DLL gets that one replaced; a folder
     with only the loader DLL gets the loader. Links are never followed.
+    ``dlss`` collects, on the same walk, NVIDIA DLSS DLLs the size of 310.7.0.
     """
     targets: list[Path] = []
     seen = 0
@@ -218,6 +230,9 @@ def _fsr_folders(install: Path) -> list[Path]:
                         stack.append((Path(entry.path), depth + 1))
                 elif entry.name.lower() in _FSR_DLLS:
                     names[entry.name.lower()] = Path(entry.path)
+                elif (dlss is not None and entry.name.lower() == DLSS_DLL
+                      and entry.stat(follow_symlinks=False).st_size == DLSS_DLL_SIZE):
+                    dlss.append(Path(entry.path))
             except OSError:
                 continue
         for wanted in _FSR_DLLS:
@@ -230,8 +245,9 @@ def _fsr_folders(install: Path) -> list[Path]:
 def scan_helixsr_games(*, home: Path | None = None) -> list[dict]:
     """Installed Steam games that ship an FSR 3.1 DLL. Read-only; cached."""
     games = []
+    sized: list[Path] = []
     for game in installed_steam_game_folders(home):
-        targets = _fsr_folders(Path(game["path"]))
+        targets = _fsr_folders(Path(game["path"]), sized)
         if targets:
             games.append({
                 "appid": game["appid"],
@@ -239,11 +255,21 @@ def scan_helixsr_games(*, home: Path | None = None) -> list[dict]:
                 "path": str(game["path"]),
                 "files": [str(path) for path in targets],
             })
+    # A game that ships NVIDIA's DLSS 310.7.0 spares its download: one copy
+    # with the right digest is enough, and the terminal checks it again.
+    dlss = next((str(path) for path in sized if _sha256_or_empty(path) == DLSS_DLL_SHA256), "")
     try:
-        _write_json(_scan_path(), {"time": int(time.time()), "games": games})
+        _write_json(_scan_path(), {"time": int(time.time()), "games": games, "dlss": dlss})
     except OSError:
         pass
     return games
+
+
+def _sha256_or_empty(path: Path) -> str:
+    try:
+        return _sha256(path)
+    except OSError:
+        return ""
 
 
 # ---------------------------------------------------------------- folders
@@ -320,6 +346,9 @@ def helixsr_games(*, optiscaler: bool = True) -> list[dict]:
             "kind": "game",
             "name": str(record.get("name") or appid),
             "state": _record_state(record),
+            "network_missing": _record_state(record) == "installed" and _network_missing(
+                [Path(str(entry.get("path") or "")).parent for entry in record["files"]]
+            ),
             "files": [str(entry.get("path") or "") for entry in record["files"]],
             "version": str(record.get("version") or ""),
             # Given an earlier release; update_helixsr_game brings it here.
@@ -357,7 +386,7 @@ def helixsr_games(*, optiscaler: bool = True) -> list[dict]:
             "folder": str(entry.get("path") or ""),
         })
     rows.extend(optiscaler_rows(available=optiscaler))
-    order = {"installed": 0, "restored": 1, "available": 2}
+    order = {"installed": 0, "restored": 1, "missing": 1, "available": 2}
     return sorted(rows, key=lambda row: (order[row["state"]], row["name"].lower(), row["kind"]))
 
 
@@ -404,30 +433,45 @@ def _ini_get(text: str, section: str, key: str) -> str | None:
     return None
 
 
-def _ini_set(text: str, section: str, key: str, value: str) -> str:
-    """Set one key in one section, as OptiScaler Client does; nothing else moves."""
+def _ini_set(text: str, section: str, key: str, value: str, *, separator: str = "=") -> str:
+    """Set one key in one section, as OptiScaler Client does; nothing else moves.
+
+    ``separator`` keeps a file's own style: helixsr.ini writes ``Key = value``.
+    """
     newline = "\r\n" if "\r\n" in text else "\n"
     lines = text.replace("\r\n", "\n").split("\n")
+    line = f"{key}{separator}{value}"
     inside = found = written = False
     index = 0
     while index < len(lines):
         stripped = lines[index].strip()
         if stripped.startswith("[") and stripped.endswith("]"):
             if inside and not written:
-                lines.insert(index, f"{key}={value}")
+                # After the section's last line, not after the blank lines
+                # that separate it from the next one.
+                at = index
+                while at > 0 and not lines[at - 1].strip():
+                    at -= 1
+                lines.insert(at, line)
                 written = True
                 index += 1
             inside = stripped[1:-1].lower() == section.lower()
             found = found or inside
         elif (inside and "=" in stripped
               and stripped.split("=", 1)[0].strip().lower() == key.lower()):
-            lines[index] = f"{key}={value}"
+            lines[index] = line
             written = True
         index += 1
     if not found:
-        lines.append(f"[{section}]")
+        while lines and not lines[-1].strip():
+            lines.pop()
+        lines += ["", f"[{section}]"]
     if not written:
-        lines.append(f"{key}={value}")
+        while inside and lines and not lines[-1].strip():
+            lines.pop()
+        lines.append(line)
+    if lines and lines[-1].strip():
+        lines.append("")
     return newline.join(lines)
 
 
@@ -503,6 +547,8 @@ def _optiscaler_state(record: dict) -> str:
     """``installed`` while OptiScaler.ini still names the HelixSR folder."""
     root = Path(str(record.get("root") or ""))
     folder = root / OPTISCALER_FOLDER
+    if not root.is_dir():
+        return "missing"
     try:
         text = (root / OPTISCALER_INI).read_text(encoding="utf-8", errors="replace")
     except OSError:
@@ -520,6 +566,9 @@ def optiscaler_rows(*, available: bool = True) -> list[dict]:
             "kind": "optiscaler",
             "name": str(record.get("name") or appid),
             "state": _optiscaler_state(record),
+            "network_missing": _optiscaler_state(record) == "installed" and _network_missing(
+                [Path(str(record.get("root") or "")) / OPTISCALER_FOLDER]
+            ),
             "files": [str(Path(str(record.get("root") or "")) / OPTISCALER_INI)],
             "fsr4": bool(record.get("fsr4")),
             "version": str(record.get("version") or ""),
@@ -575,6 +624,7 @@ def install_helixsr_optiscaler(appid: str) -> dict:
         if fsr4 is not None:
             shutil.copyfile(fsr4, folder / SECOND_UPSCALER)
             settings = _ini_set(settings, "Forwarding", "UpscalerDll", SECOND_UPSCALER)
+        settings = _settings_text(settings, helixsr_settings())
         (folder / "helixsr.ini").write_text(settings, encoding="utf-8")
         for (section, key), value in _optiscaler_settings(folder).items():
             text = _ini_set(text, section, key, value)
@@ -717,6 +767,8 @@ def helixsr_state(*, machine: str | None = None) -> dict:
         "local_dlss": bool(local_dlss_candidates()),
         "games": games,
         "installed_games": sum(1 for game in games if game["state"] != "available"),
+        "settings": helixsr_settings(),
+        "settings_defaults": helixsr_defaults(),
     }
 
 
@@ -725,6 +777,166 @@ def _nonempty(path: Path) -> bool:
         return path.is_file() and path.stat().st_size > 0
     except OSError:
         return False
+
+
+# ---------------------------------------------------------------- settings
+#
+# HelixSR reads helixsr.ini next to its DLL; every key has a default. The
+# options a player is likely to touch are kept here once and written into
+# every game that has HelixSR, on top of the release's own helixsr.ini so
+# its comments stay. Keys this list does not know are never touched.
+
+HELIXSR_INI = "helixsr.ini"
+
+#: (section, key, kind, default, choices): ``kind`` is choice, bool or float.
+HELIXSR_SETTINGS: tuple[tuple[str, str, str, object, tuple], ...] = (
+    ("Sharpening", "Mode", "choice", "off", ("off", "game", "override")),
+    ("Sharpening", "Sharpness", "float", 0.3, (0.0, 1.0)),
+    ("Sharpening", "MotionAdaptive", "bool", True, ()),
+    ("Upscaling", "NetworkResolution", "choice", "auto", ("auto", "fast", "full")),
+    ("ModelE", "Network", "choice", "auto", ("auto", "nvidia", "main", "ultraperformance")),
+    ("ModelE", "UseReactiveMask", "bool", False, ()),
+    ("ModelE", "DilateDisplayMotionVectors", "bool", False, ()),
+    ("ModelE", "InvertJitter", "bool", False, ()),
+    ("ModelE", "InvertMotionVectors", "bool", False, ()),
+    ("Compatibility", "WaveSize", "choice", "auto", ("auto", "32", "64")),
+    ("Log", "Enabled", "bool", True, ()),
+)
+
+
+def _settings_path() -> Path:
+    return helixsr_root() / "settings.json"
+
+
+def _setting_id(section: str, key: str) -> str:
+    return f"{section}.{key}"
+
+
+def helixsr_defaults() -> dict[str, object]:
+    return {_setting_id(section, key): default for section, key, _kind, default, _choices in HELIXSR_SETTINGS}
+
+
+def _valid_setting(kind: str, choices: tuple, value: object) -> object:
+    """The value in its type, or ValueError: nothing else reaches a game."""
+    if kind == "bool":
+        if isinstance(value, bool):
+            return value
+        if str(value).strip().lower() in {"true", "false"}:
+            return str(value).strip().lower() == "true"
+        raise ValueError(value)
+    if kind == "float":
+        number = round(float(value), 2)
+        if not choices[0] <= number <= choices[1]:
+            raise ValueError(value)
+        return number
+    text = str(value).strip().lower()
+    if text not in choices:
+        raise ValueError(value)
+    return text
+
+
+def helixsr_settings() -> dict[str, object]:
+    """The saved settings over the defaults; anything unreadable is the default."""
+    saved = _read_json(_settings_path(), {})
+    values = helixsr_defaults()
+    if not isinstance(saved, dict):
+        return values
+    for section, key, kind, _default, choices in HELIXSR_SETTINGS:
+        name = _setting_id(section, key)
+        if name in saved:
+            try:
+                values[name] = _valid_setting(kind, choices, saved[name])
+            except (TypeError, ValueError):
+                pass
+    return values
+
+
+def _format_setting(value: object) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, float):
+        return f"{value:g}"
+    return str(value)
+
+
+def _settings_text(base: str, values: dict[str, object]) -> str:
+    """``base`` (a helixsr.ini) with every known key set; the rest stays."""
+    text = base
+    for section, key, _kind, _default, _choices in HELIXSR_SETTINGS:
+        text = _ini_set(text, section, key, _format_setting(values[_setting_id(section, key)]),
+                        separator=" = ")
+    return text
+
+
+def _release_ini() -> str:
+    try:
+        return (helixsr_directory() / HELIXSR_INI).read_text(encoding="utf-8")
+    except OSError:
+        return "; helixsr.ini - optional, next to the upscaler DLL. Every key has a default.\n"
+
+
+def _write_settings(folder: Path, values: dict[str, object]) -> bool:
+    """Write helixsr.ini in ``folder``; True when the file is new there."""
+    path = folder / HELIXSR_INI
+    created = not path.exists()
+    base = _release_ini() if created else path.read_text(encoding="utf-8", errors="replace")
+    _replace_text(path, _settings_text(base, values))
+    return created
+
+
+def _replace_text(path: Path, text: str) -> None:
+    staged = path.parent / f".{path.name}.bc250-helixsr"
+    staged.write_text(text, encoding="utf-8")
+    os.replace(staged, path)
+
+
+def save_helixsr_settings(values: dict) -> dict:
+    """Keep the settings and write them into every game that has HelixSR.
+
+    A game that is running is skipped and named; the next save reaches it.
+    """
+    if not isinstance(values, dict):
+        raise ValueError("Invalid HelixSR settings.")
+    clean = helixsr_settings()
+    for section, key, kind, _default, choices in HELIXSR_SETTINGS:
+        name = _setting_id(section, key)
+        if name in values:
+            try:
+                clean[name] = _valid_setting(kind, choices, values[name])
+            except (TypeError, ValueError):
+                raise ValueError("Invalid HelixSR settings.") from None
+    _write_json(_settings_path(), clean)
+    applied, skipped = 0, []
+    records = _records()
+    changed = False
+    for appid, record in records.items():
+        targets = [Path(str(entry.get("path") or "")) for entry in record.get("files") or ()]
+        if not targets or not all(_is_helixsr(target) for target in targets):
+            continue
+        try:
+            _refuse_running(Path(str(record.get("install") or targets[0].parent)))
+        except RuntimeError:
+            skipped.append(str(record.get("name") or appid))
+            continue
+        for entry, target in zip(record["files"], targets):
+            if _write_settings(target.parent, clean):
+                entry["created"] = [*entry.get("created", ()), HELIXSR_INI]
+                changed = True
+        applied += 1
+    if changed:
+        _write_json(_records_path(), records)
+    for appid, record in _optiscaler_records().items():
+        if _optiscaler_state(record) != "installed":
+            continue
+        root = Path(str(record.get("root") or ""))
+        try:
+            _refuse_running(root)
+        except RuntimeError:
+            skipped.append(str(record.get("name") or appid))
+            continue
+        _write_settings(root / OPTISCALER_FOLDER, clean)
+        applied += 1
+    return {"settings": clean, "games": applied, "skipped": skipped}
 
 
 # ---------------------------------------------------------------- terminal
@@ -751,11 +963,16 @@ def local_dlss_candidates() -> list[Path]:
     same SHA-256, and keeps it in its payload folder. Using that copy spares a
     second download; the terminal checks its digest again before using it,
     and HelixSR's setup downloads the DLL itself (after asking) otherwise.
+    A game that ships the same DLL, found by the last game search, counts too.
     """
     from .bc250_opticlient import opticlient_records
 
-    payload = opticlient_records() / "BC250" / "payload" / "nvngx_dlss.dll"
-    return [payload] if payload.is_file() and not payload.is_symlink() else []
+    candidates = [opticlient_records() / "BC250" / "payload" / DLSS_DLL]
+    scan = _read_json(_scan_path(), {})
+    found = str(scan.get("dlss") or "") if isinstance(scan, dict) else ""
+    if found:
+        candidates.append(Path(found))
+    return [path for path in candidates if path.is_file() and not path.is_symlink()]
 
 
 def _setup_block(target: str) -> str:
@@ -971,6 +1188,12 @@ def install_helixsr_game(appid: str) -> dict:
                 shutil.copyfile(source / name, destination)
                 if name in created:
                     undo.append(lambda destination=destination: destination.unlink(missing_ok=True))
+            # The settings from the Upscaling tab. A helixsr.ini already
+            # there (an earlier manual install) is left as it is.
+            if not (folder / HELIXSR_INI).exists():
+                _write_settings(folder, helixsr_settings())
+                created.append(HELIXSR_INI)
+                undo.append(lambda folder=folder: (folder / HELIXSR_INI).unlink(missing_ok=True))
             files.append({
                 "path": str(target),
                 "backup": str(backup),
@@ -1021,7 +1244,7 @@ def remove_helixsr_game(appid: str) -> dict:
             # check); the old backup is left for the user to judge.
             kept.append(str(backup))
         for name in (*entry.get("created", ()), HELIXSR_LOG):
-            if name in (*HELIXSR_NETWORK_FILES, HELIXSR_LOG):
+            if name in (*HELIXSR_NETWORK_FILES, HELIXSR_LOG, HELIXSR_INI):
                 (target.parent / name).unlink(missing_ok=True)
     del records[appid]
     _write_json(_records_path(), records)

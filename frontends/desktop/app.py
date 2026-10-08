@@ -1595,6 +1595,9 @@ class ControlCenterWindow(QMainWindow):
                 kernel_options=tuple(str(item) for item in payload.get("kernel_options") or ()),
                 kernel_option_changed=str(payload.get("kernel_option_changed") or ""),
             )
+        elif options["action"] == "helixsr_settings":
+            settings = payload.get("helixsr_settings")
+            options.update(helixsr_settings=dict(settings) if isinstance(settings, dict) else {})
         self.gpu_page.execute_dependency_action(
             **options,
         )

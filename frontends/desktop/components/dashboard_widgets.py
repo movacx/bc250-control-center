@@ -26,6 +26,7 @@ from PyQt6.QtWidgets import (
     QAbstractButton,
     QApplication,
     QBoxLayout,
+    QCheckBox,
     QComboBox,
     QDialog,
     QFrame,
@@ -944,18 +945,27 @@ def game_matrix_rows(
             return next((g for g in entries if g.get("state") == state), None)
 
         appid = rows[key]["appid"]
-        chosen = first("installed") or first("restored")
+        chosen = first("installed") or first("restored") or first("missing")
         if chosen is not None:
             optiscaler = chosen.get("kind") == "optiscaler"
+            state = chosen.get("state")
             copy = (PreparationSidebar._HELIXSR_OPTISCALER_COPY if optiscaler
-                    else PreparationSidebar._HELIXSR_GAME_COPY)[chosen.get("state")]
-            if chosen.get("state") == "installed":
+                    else PreparationSidebar._HELIXSR_GAME_COPY)[state]
+            if state == "installed":
                 text, tone = ("Active via OptiScaler" if optiscaler else "Active"), "green"
+            elif state == "missing":
+                text, tone = "Game not found", "orange"
             else:
                 text, tone = ("OptiScaler changed" if optiscaler else "Original file back"), "orange"
             route = "opti" if optiscaler else "game"
             actions = (("Remove HelixSR", f"helixsr_{route}_remove:{appid}", True),)
-            if chosen.get("state") == "installed" and chosen.get("outdated"):
+            if state == "installed" and chosen.get("network_missing"):
+                # Without them HelixSR only does its simple upscale; the
+                # update copies the installed release's files back.
+                text, tone = "Network files missing", "orange"
+                copy = PreparationSidebar._HELIXSR_NETWORK_MISSING_COPY
+                actions = (("Update HelixSR", f"helixsr_game_update:{appid}", helixsr_ready), *actions)
+            elif state == "installed" and chosen.get("outdated"):
                 # Still working with the release it was given; one click
                 # brings it the one installed here.
                 text, tone = "Update available", "orange"
@@ -1523,6 +1533,160 @@ class _UpscalingGames(SectionCard):
         else:
             self.empty.setText(tr("No game matches the search."))
         self.empty.setVisible(shown == 0 and bool(self.empty.text()))
+
+
+class _HelixSRSettings(SectionCard):
+    """HelixSR's helixsr.ini, as a form on the Upscaling tab.
+
+    One set of settings for every game: saving writes them next to HelixSR
+    in each game that has it, and every game it is added to later gets them.
+    Only the keys below are written; the rest of the file keeps HelixSR's own
+    defaults and comments.
+    """
+
+    save_requested = pyqtSignal(object)
+
+    #: (setting, label, hint, choices as (value, label)); no choices: a switch.
+    FIELDS = (
+        ("Sharpening.Mode", "Sharpening",
+         "Off leaves the image as DLSS's network makes it. Game's setting follows the game's FSR sharpness slider; Fixed always uses the strength below.",
+         (("off", "Off"), ("game", "Game's setting"), ("override", "Fixed"))),
+        ("Sharpening.Sharpness", "Sharpening strength",
+         "Used by Fixed, and by Game's setting when the game sends none. 0 is none, 1 the strongest.",
+         tuple((f"{step / 10:g}", f"{step / 10:.1f}") for step in range(11))),
+        ("Upscaling.NetworkResolution", "Network resolution",
+         "Auto runs the network at a smaller size in Ultra Performance, with the same image at about a third less GPU time. Fast does the same in Performance and Balanced, a little softer. Full always uses the screen size.",
+         (("auto", "Auto"), ("fast", "Fast"), ("full", "Full"))),
+        ("ModelE.Network", "Network",
+         "Auto uses the main network at every quality mode, which is the faster choice on this GPU. As DLSS picks the Ultra Performance network above a 2.5 ratio, as NVIDIA does.",
+         (("auto", "Auto"), ("nvidia", "As DLSS"), ("main", "Main"), ("ultraperformance", "Ultra Performance"))),
+        ("Compatibility.WaveSize", "Wave size",
+         "Auto picks 32 on this GPU. 64 gives the same image about 5% slower; use it only if a game shows a broken image.",
+         (("auto", "Auto"), ("32", "32"), ("64", "64"))),
+        ("Sharpening.MotionAdaptive", "Less sharpening in motion",
+         "Fast-moving pixels get less sharpening, which avoids shimmering edges.", ()),
+        ("ModelE.UseReactiveMask", "Use the game's reactive mask",
+         "Favours the new frame over history on particles and animated textures. Try it if those leave trails.", ()),
+        ("ModelE.DilateDisplayMotionVectors", "Dilate display motion vectors",
+         "For games that send display-resolution motion vectors: try it if moving edges ghost. Costs about 0.1 ms at 1080p.", ()),
+        ("ModelE.InvertJitter", "Mirrored jitter",
+         "Only for a game whose image shakes because its jitter comes out mirrored.", ()),
+        ("ModelE.InvertMotionVectors", "Mirrored motion vectors",
+         "Only for a game whose moving objects smear because its motion vectors come out mirrored.", ()),
+        ("Log.Enabled", "Write helixsr.log",
+         "HelixSR writes what it does next to its DLL in each game: useful when a game misbehaves.", ()),
+    )
+
+    def __init__(self) -> None:
+        super().__init__(
+            "HelixSR settings",
+            "Written to helixsr.ini next to HelixSR in every game that has it, and in every game you add it to.",
+            icon_name="",
+        )
+        self.setProperty("helixsrSettings", True)
+        self.controls: dict[str, QWidget] = {}
+        self._defaults: dict[str, object] = {}
+        self._saved: dict[str, object] = {}
+        grid = QGridLayout()
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.setHorizontalSpacing(18)
+        grid.setVerticalSpacing(10)
+        choices = [field for field in self.FIELDS if field[3]]
+        switches = [field for field in self.FIELDS if not field[3]]
+        # Choices on the left, each with its label; switches on the right.
+        for row, (name, label, hint, options) in enumerate(choices):
+            caption = _label(label, "fieldLabel", wrap=False)
+            caption.setToolTip(tr(hint))
+            combo = QComboBox()
+            combo.setMinimumWidth(180)
+            combo.setMaximumWidth(340)
+            combo.setToolTip(tr(hint))
+            combo.setAccessibleName(tr(label))
+            for value, text in options:
+                combo.addItem(tr(text) if not text[:1].isdigit() else text, value)
+            combo.currentIndexChanged.connect(self._changed)
+            grid.addWidget(caption, row, 0)
+            grid.addWidget(combo, row, 1)
+            self.controls[name] = combo
+        for row, (name, label, hint, _options) in enumerate(switches):
+            box = QCheckBox(tr(label))
+            box.setToolTip(tr(hint))
+            box.toggled.connect(self._changed)
+            grid.addWidget(box, row, 3)
+            self.controls[name] = box
+        grid.setColumnStretch(1, 1)
+        grid.setColumnMinimumWidth(2, 12)
+        grid.setColumnStretch(3, 1)
+        self.body.addLayout(grid)
+        self.hint = _label("", "fieldHint")
+        self.body.addWidget(self.hint)
+        footer = QHBoxLayout()
+        footer.setSpacing(8)
+        self.defaults_button = QPushButton(tr("Restore defaults"))
+        self.defaults_button.setProperty("compactAction", True)
+        self.defaults_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.defaults_button.clicked.connect(lambda: self._show(self._defaults))
+        footer.addWidget(self.defaults_button)
+        footer.addStretch(1)
+        self.save_button = QPushButton(tr("Save settings"))
+        self.save_button.setObjectName("PrimaryAction")
+        self.save_button.setProperty("compactAction", True)
+        self.save_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.save_button.clicked.connect(lambda: self.save_requested.emit(self.values()))
+        footer.addWidget(self.save_button)
+        self.body.addLayout(footer)
+        self._changed()
+
+    def values(self) -> dict[str, object]:
+        values: dict[str, object] = {}
+        for name, control in self.controls.items():
+            if isinstance(control, QCheckBox):
+                values[name] = control.isChecked()
+            else:
+                data = control.currentData()
+                values[name] = float(data) if name == "Sharpening.Sharpness" else data
+        return values
+
+    def set_settings(self, saved: Mapping[str, object], defaults: Mapping[str, object]) -> None:
+        """The saved settings; a form the user is changing is left alone."""
+        saved, defaults = dict(saved), dict(defaults)
+        dirty = self._saved and self.values() != self._saved
+        self._defaults = defaults or self._defaults
+        if saved == self._saved:
+            return
+        self._saved = saved
+        if not dirty:
+            self._show(saved)
+        self._changed()
+
+    def _show(self, values: Mapping[str, object]) -> None:
+        for name, control in self.controls.items():
+            if name not in values:
+                continue
+            value = values[name]
+            control.blockSignals(True)
+            if isinstance(control, QCheckBox):
+                control.setChecked(bool(value))
+            else:
+                text = f"{float(value):g}" if name == "Sharpening.Sharpness" else str(value)
+                index = control.findData(text)
+                if index < 0 and name == "Sharpening.Sharpness":
+                    # A strength saved by hand between two steps stays as it is.
+                    control.addItem(f"{float(value):.2f}", text)
+                    index = control.count() - 1
+                control.setCurrentIndex(max(index, 0))
+            control.blockSignals(False)
+        self._changed()
+
+    def _changed(self, *_args) -> None:
+        values = self.values()
+        # The strength only matters while something sharpens.
+        self.controls["Sharpening.Sharpness"].setEnabled(values["Sharpening.Mode"] != "off")
+        changed = bool(self._saved) and values != self._saved
+        self.save_button.setEnabled(changed)
+        self.defaults_button.setEnabled(bool(self._defaults) and values != self._defaults)
+        self.hint.setText(tr("Unsaved changes.") if changed else "")
+        self.hint.setVisible(changed)
 
 
 class PreparationSidebar(QFrame):
@@ -2892,6 +3056,18 @@ class PreparationSidebar(QFrame):
         self.upscaling_row.addWidget(self.helixsr_section, 1)
         layout.addLayout(self.upscaling_row)
         layout.addSpacing(14)
+        # helixsr.ini, once for every game.
+        self.helixsr_settings = _HelixSRSettings()
+        self.helixsr_settings.save_requested.connect(
+            lambda values: self._forward_dependency_action(
+                {"action": "helixsr_settings", "helixsr_settings": values, "governor": ""}
+            )
+        )
+        self.helixsr_settings.setVisible(HELIXSR_UI_ENABLED)
+        if hasattr(self, "_helixsr_settings_state"):
+            self.helixsr_settings.set_settings(*self._helixsr_settings_state)
+        layout.addWidget(self.helixsr_settings)
+        layout.addSpacing(14)
         layout.addWidget(self.upscaling_games)
         layout.addStretch(1)
         self._render_upscaling()
@@ -3662,11 +3838,16 @@ class PreparationSidebar(QFrame):
         "installed": "In the game, choose AMD FSR as the upscaler. Remove puts the game's own file back.",
         "restored": "A game update or Steam's file check put the game's own FSR file back. Remove cleans up; add HelixSR again if you want it.",
         "available": "Add HelixSR to replace this game's FSR 3.1 upscaler. The original file is kept as a backup.",
+        "missing": "The game's folder is gone: it was uninstalled or moved. Remove HelixSR forgets it here.",
     }
+    _HELIXSR_NETWORK_MISSING_COPY = (
+        "HelixSR is in this game but its network files are not, so it only does a simple upscale. Update HelixSR copies them back."
+    )
     _HELIXSR_OPTISCALER_COPY = {
         "installed": "In the game choose DLSS, FSR or XeSS, press Insert and pick FSR HelixSR in OptiScaler's upscaler menu. Remove puts OptiScaler's settings back.",
         "restored": "OptiScaler's settings no longer point to HelixSR, usually after OptiScaler Client updated or restored this game. Remove cleans up HelixSR's folder.",
         "available": "OptiScaler is in this game, so HelixSR can upscale through it, even when the game only offers DLSS or XeSS.",
+        "missing": "The game's folder is gone: it was uninstalled or moved. Remove HelixSR forgets it here.",
     }
 
     #: FSR4 per game, as the game table shows it: (text, tone).
@@ -3739,6 +3920,11 @@ class PreparationSidebar(QFrame):
         self.helixsr_upstream_button.show()
         self.helixsr_card._refresh_action_styles()
         self._helixsr_games = (games if HELIXSR_UI_ENABLED else [], ready)
+        self._helixsr_settings_state = (
+            _mapping(helixsr.get("settings")), _mapping(helixsr.get("settings_defaults"))
+        )
+        if hasattr(self, "helixsr_settings"):
+            self.helixsr_settings.set_settings(*self._helixsr_settings_state)
 
     def _render_upscaling(self) -> None:
         """Both upscalers' cards, then the games table shared by both."""
@@ -3807,12 +3993,15 @@ class PreparationSidebar(QFrame):
             helixsr = None
             if row["helixsr"] is not None:
                 text, tone, tooltip, actions = row["helixsr"]
-                label, action, enabled = actions[0]
-                on = label.startswith("Remove")
+                # HelixSR is in the game whenever one of its actions removes it.
+                on = any(label.startswith("Remove") for label, _action, _enabled in actions)
                 helixsr = {
                     "text": text or "Available", "tone": tone, "tooltip": tooltip,
                     "actions": (
-                        ("Remove HelixSR" if on else "Add HelixSR", action, enabled),
+                        # Every action keeps its own label: an update sits
+                        # beside Remove HelixSR, never in place of it.
+                        *((label if on else "Add HelixSR", action, enabled)
+                          for label, action, enabled in actions),
                         # A folder added by hand can leave the list while HelixSR is not in it.
                         *((("Remove from list", f"helixsr_forget_folder:{row['appid']}", True),)
                           if folder and not on else ()),
