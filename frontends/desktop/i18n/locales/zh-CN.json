@@ -4707,5 +4707,6 @@
   "Add via OptiScaler": "通过 OptiScaler 添加",
   "Steam option missing": "缺少 Steam 选项",
   "Set up in launcher": "在启动器中设置",
-  "AMD's FSR 4 in INT8, installed per game by OptiScaler Client. Each game's state is in the table below.": "AMD 的 FSR 4（INT8），由 OptiScaler Client 按游戏安装。各游戏的状态见下表。"
+  "AMD's FSR 4 in INT8, installed per game by OptiScaler Client. Each game's state is in the table below.": "AMD 的 FSR 4（INT8），由 OptiScaler Client 按游戏安装。各游戏的状态见下表。",
+  "Add FSR4 to Steam": "将 FSR4 添加到 Steam"
 }

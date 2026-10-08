@@ -4707,5 +4707,6 @@
   "Add via OptiScaler": "OptiScaler로 추가",
   "Steam option missing": "Steam 옵션 없음",
   "Set up in launcher": "런처에서 설정",
-  "AMD's FSR 4 in INT8, installed per game by OptiScaler Client. Each game's state is in the table below.": "AMD의 FSR 4(INT8)를 OptiScaler Client가 게임별로 설치합니다. 각 게임의 상태는 아래 표에 있습니다."
+  "AMD's FSR 4 in INT8, installed per game by OptiScaler Client. Each game's state is in the table below.": "AMD의 FSR 4(INT8)를 OptiScaler Client가 게임별로 설치합니다. 각 게임의 상태는 아래 표에 있습니다.",
+  "Add FSR4 to Steam": "Steam에 FSR4 추가"
 }

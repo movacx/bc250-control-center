@@ -1070,7 +1070,7 @@ def game_matrix_rows(
                 text, tone = ("OptiScaler changed" if optiscaler else "Original file back"), "orange"
             route = "opti" if optiscaler else "game"
             rows[key]["helixsr"] = (
-                text, tone, copy[2], (("Remove", f"helixsr_{route}_remove:{appid}", True),)
+                text, tone, copy[2], (("Remove HelixSR", f"helixsr_{route}_remove:{appid}", True),)
             )
             continue
         native = next((g for g in entries if g.get("kind") != "optiscaler"), None)
@@ -1078,10 +1078,10 @@ def game_matrix_rows(
         optiscaler = chosen.get("kind") == "optiscaler"
         copy = (PreparationSidebar._HELIXSR_OPTISCALER_COPY if optiscaler
                 else PreparationSidebar._HELIXSR_GAME_COPY)["available"]
-        label = "Add via OptiScaler" if optiscaler else "Add"
         route = "opti" if optiscaler else "game"
         rows[key]["helixsr"] = (
-            "", "", copy[2], ((label, f"helixsr_{route}_install:{appid}", helixsr_ready),)
+            "Via OptiScaler" if optiscaler else "", "", copy[2],
+            (("Add HelixSR", f"helixsr_{route}_install:{appid}", helixsr_ready),),
         )
     fsr4_copy = PreparationSidebar._FSR4_MATRIX_COPY
     for game in fsr4_games:
@@ -1103,7 +1103,7 @@ def game_matrix_rows(
             tooltip = f"{tooltip} {tr_format('If it asks for the executable, choose {path}.', path=executable)}"
         actions = ()
         if state == "needs-launch-option" and game.get("steam"):
-            actions = (("Add to Steam", f"fsr4_steam_option:{appid}", True),)
+            actions = (("Add FSR4 to Steam", f"fsr4_steam_option:{appid}", True),)
         row["fsr4"] = (text, tone, tooltip, actions)
 
     def rank(row: dict) -> tuple:
@@ -1119,11 +1119,13 @@ class _GameMatrix(QFrame):
 
     One grid for the whole table, so every column keeps one width however
     long a game's name or a cell's state is; rules are rows of their own.
+    A row's buttons sit together at its end, aligned right, each one naming
+    the tool it acts on.
     """
 
     action_requested = pyqtSignal(object)
-    #: Game | HelixSR | its actions | FSR4 | its actions.
-    _STRETCH = (5, 4, 3, 4, 3)
+    #: Game | HelixSR | FSR4 | the row's actions.
+    _STRETCH = (5, 4, 4, 4)
 
     def __init__(self) -> None:
         super().__init__()
@@ -1144,41 +1146,33 @@ class _GameMatrix(QFrame):
         rule.setFixedHeight(1)
         self._grid.addWidget(rule, row, 0, 1, len(self._STRETCH))
 
-    def _cell(self, cell) -> tuple[QLabel, QWidget, list[QPushButton]]:
-        """A tool's state, and its actions for the unnamed column beside it."""
+    @staticmethod
+    def _state(cell) -> QLabel:
         state = QLabel("—")
         state.setProperty("matrixState", True)
-        actions = QWidget()
-        # Every row the same height, with or without a button in it.
-        actions.setMinimumHeight(40)
-        layout = QHBoxLayout(actions)
-        layout.setContentsMargins(0, 6, 0, 6)
-        layout.setSpacing(8)
-        buttons: list[QPushButton] = []
         if cell is not None:
-            text, tone, tooltip, entries = cell
+            text, tone, tooltip, _entries = cell
             # A game the tool could take but does not use yet.
             state.setText(tr(text) if text else tr("Available"))
             state.setProperty("tone", tone)
             state.setToolTip(tr(tooltip))
-            for label, action, enabled in entries:
-                button = QPushButton(tr(label))
-                button.setProperty("dashboardCardAction", True)
-                button.setProperty("smallAction", True)
-                button.setProperty("dangerAction", label == "Remove")
-                button.setCursor(Qt.CursorShape.PointingHandCursor)
-                button.setEnabled(bool(enabled))
-                button.setToolTip(tr(tooltip))
-                button.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-                button.clicked.connect(
-                    lambda _checked=False, value=action: self.action_requested.emit(
-                        {"action": value, "governor": ""}
-                    )
-                )
-                layout.addWidget(button)
-                buttons.append(button)
-        layout.addStretch(1)
-        return state, actions, buttons
+        return state
+
+    def _button(self, cell, label: str, action: str, enabled: bool) -> QPushButton:
+        button = QPushButton(tr(label))
+        button.setProperty("dashboardCardAction", True)
+        button.setProperty("smallAction", True)
+        button.setProperty("dangerAction", label.startswith("Remove"))
+        button.setCursor(Qt.CursorShape.PointingHandCursor)
+        button.setEnabled(bool(enabled))
+        button.setToolTip(tr(cell[2]))
+        button.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        button.clicked.connect(
+            lambda _checked=False, value=action: self.action_requested.emit(
+                {"action": value, "governor": ""}
+            )
+        )
+        return button
 
     def set_rows(self, rows: list[dict]) -> None:
         signature = (tr("Game"), *(
@@ -1195,9 +1189,7 @@ class _GameMatrix(QFrame):
                 item.widget().hide()
                 item.widget().deleteLater()
         self.rows = {}
-        # Each tool has its state column and, beside it, an unnamed column
-        # that holds its buttons, so every button in a column lines up.
-        for column, text in ((0, "Game"), (1, "HelixSR"), (3, "FSR4 INT8")):
+        for column, text in ((0, "Game"), (1, "HelixSR"), (2, "FSR4 INT8")):
             head = QLabel(tr(text))
             head.setProperty("matrixHeadLabel", True)
             self._grid.addWidget(head, 0, column)
@@ -1212,12 +1204,22 @@ class _GameMatrix(QFrame):
             name.setWordWrap(True)
             name.setMinimumWidth(0)
             self._grid.addWidget(name, line, 0)
+            actions = QWidget()
+            # Every row the same height, with or without a button in it.
+            actions.setMinimumHeight(40)
+            layout = QHBoxLayout(actions)
+            layout.setContentsMargins(0, 6, 0, 6)
+            layout.setSpacing(6)
+            layout.addStretch(1)
             buttons: list[QPushButton] = []
-            for column, key in ((1, "helixsr"), (3, "fsr4")):
-                state, actions, found = self._cell(row[key])
-                self._grid.addWidget(state, line, column)
-                self._grid.addWidget(actions, line, column + 1)
-                buttons.extend(found)
+            for column, key in ((1, "helixsr"), (2, "fsr4")):
+                cell = row[key]
+                self._grid.addWidget(self._state(cell), line, column)
+                for label, action, enabled in (cell[3] if cell else ()):
+                    button = self._button(cell, label, action, enabled)
+                    layout.addWidget(button)
+                    buttons.append(button)
+            self._grid.addWidget(actions, line, 3)
             self.rows[row["appid"] or row["name"]] = buttons
             self._rule(line + 1)
             line += 2

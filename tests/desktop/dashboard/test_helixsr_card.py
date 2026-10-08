@@ -152,14 +152,14 @@ def test_one_table_row_per_game_with_both_tools():
     )
     by_name = {row["name"]: row for row in rows}
     assert [row["name"] for row in rows][:2] == ["Puzzle", "Updated"], "attention first"
-    assert by_name["Racer"]["helixsr"][3] == (("Add", "helixsr_game_install:7", True),)
+    assert by_name["Racer"]["helixsr"][3] == (("Add HelixSR", "helixsr_game_install:7", True),)
     assert by_name["Racer"]["fsr4"] is None
     assert by_name["Shooter"]["helixsr"][:2] == ("Active via OptiScaler", "green")
-    assert by_name["Shooter"]["helixsr"][3] == (("Remove", "helixsr_opti_remove:8", True),)
+    assert by_name["Shooter"]["helixsr"][3] == (("Remove HelixSR", "helixsr_opti_remove:8", True),)
     assert by_name["Shooter"]["fsr4"][:2] == ("Active", "green")
     assert by_name["Updated"]["helixsr"][:2] == ("Original file back", "orange")
     assert by_name["Puzzle"]["helixsr"] is None
-    assert by_name["Puzzle"]["fsr4"][3] == (("Add to Steam", "fsr4_steam_option:10", True),)
+    assert by_name["Puzzle"]["fsr4"][3] == (("Add FSR4 to Steam", "fsr4_steam_option:10", True),)
 
 
 def test_optiscaler_only_games_are_added_through_optiscaler_and_wait_for_the_network():
@@ -167,7 +167,8 @@ def test_optiscaler_only_games_are_added_through_optiscaler_and_wait_for_the_net
         [{"appid": "5", "kind": "optiscaler", "name": "Only DLSS", "state": "available"}],
         [], helixsr_ready=False,
     )
-    assert rows[0]["helixsr"][3] == (("Add via OptiScaler", "helixsr_opti_install:5", False),)
+    assert rows[0]["helixsr"][0] == "Via OptiScaler"
+    assert rows[0]["helixsr"][3] == (("Add HelixSR", "helixsr_opti_install:5", False),)
 
 
 def test_table_actions_reach_the_page():
