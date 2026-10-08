@@ -193,8 +193,8 @@ def test_ready_fsr4_runtime_is_offered_while_the_backend_remains_available():
 
     assert not sidebar.fsr4_card.isHidden()
     assert not sidebar.fsr4_launch_row.isHidden()
-    assert sidebar.fsr4_copy_button.width() == 30
-    assert sidebar.fsr4_copy_button.height() == 30
+    # On the Upscaling tab the copy control is a plain text button.
+    assert sidebar.fsr4_copy_button.text() == "Copy"
     assert sidebar._fsr4_launch_option == option
 
 
