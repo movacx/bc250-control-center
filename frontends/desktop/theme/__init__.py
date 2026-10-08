@@ -1985,18 +1985,72 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         border: 1px solid {c['border']};
         border-radius: 20px;
     }}
-    /* Additional settings > Upscaling: the app's page cards, with the
-       engine's colour as a rule across the top (FSR4 red, HelixSR cyan),
-       its release beside its name, and the games as one ruled table. */
+    /* Additional settings > Upscaling: the app's page cards, set tighter
+       for a working tool: small radii, one button height (32 px), quiet
+       secondary buttons, red text rather than a pink pill for removal,
+       solid blue only for the next step, and the games as a bordered table
+       with a header band. */
     QFrame[pageCard='true'][upscalerSection='true'],
     QFrame[pageCard='true'][upscalingGames='true'] {{
-        border-radius: 12px;
+        border-radius: 10px;
     }}
-    QFrame[pageCard='true'][upscalerEngine='fsr4'] {{
-        border-top: 3px solid {c['red']};
+    QFrame[pageCard='true'][upscalerSection='true'] QPushButton[compactAction='true'],
+    QFrame[pageCard='true'][upscalerSection='true'] QPushButton[accentAction='true'],
+    QFrame[pageCard='true'][upscalerSection='true'] QPushButton[dangerAction='true'],
+    QFrame[pageCard='true'][upscalingGames='true'] QPushButton[compactAction='true'] {{
+        min-height: 18px;
+        padding: 6px 12px;
+        background: {c['panel']};
+        border: 1px solid {c['border']};
+        border-radius: 7px;
+        color: {c['text']};
+        font-size: 12px;
+        font-weight: 600;
     }}
-    QFrame[pageCard='true'][upscalerEngine='helixsr'] {{
-        border-top: 3px solid {c['cyan']};
+    QFrame[pageCard='true'][upscalerSection='true'] QPushButton[compactAction='true']:hover,
+    QFrame[pageCard='true'][upscalerSection='true'] QPushButton[accentAction='true']:hover,
+    QFrame[pageCard='true'][upscalingGames='true'] QPushButton[compactAction='true']:hover {{
+        background: {c['control_hover']};
+        border-color: {c['border_strong']};
+    }}
+    QFrame[pageCard='true'][upscalerSection='true'] QPushButton[dangerAction='true'] {{
+        color: {c['red']};
+    }}
+    QFrame[pageCard='true'][upscalerSection='true'] QPushButton[dangerAction='true']:hover {{
+        background: {c['red_soft']};
+        border-color: {c['red']};
+    }}
+    QFrame[pageCard='true'][upscalerSection='true'] QPushButton#PrimaryAction {{
+        min-height: 18px;
+        padding: 6px 16px;
+        background: {c['blue']};
+        border: 1px solid {c['blue']};
+        border-radius: 7px;
+        color: {c['on_blue']};
+        font-size: 12px;
+        font-weight: 650;
+    }}
+    QFrame[pageCard='true'][upscalerSection='true'] QPushButton#PrimaryAction:hover {{
+        background: {c['blue_hover']};
+        border-color: {c['blue_hover']};
+    }}
+    QFrame[pageCard='true'][upscalerSection='true'] QPushButton:disabled {{
+        background: {c['panel_alt']};
+        border-color: {c['border_soft']};
+        color: {c['disabled_text']};
+    }}
+    QFrame[upscalerSection='true'] QFrame[compactPanel='true'],
+    QFrame[upscalerSection='true'] QFrame[compactPanel='true']:hover {{
+        background: {c['panel_alt']};
+        border: 1px solid {c['border_soft']};
+        border-radius: 8px;
+    }}
+    QFrame[upscalerSection='true'] QLineEdit {{
+        min-height: 18px;
+        padding: 5px 10px;
+        border-radius: 7px;
+        font-family: 'JetBrains Mono', 'Noto Sans Mono', monospace;
+        font-size: 12px;
     }}
     QLabel[engineVersion='true'] {{
         color: {c['subtle']};
@@ -2004,10 +2058,28 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         font-size: 12px;
         padding-bottom: 1px;
     }}
+    QFrame[gameTable='true'] {{
+        background: {c['panel']};
+        border: 1px solid {c['border']};
+        border-radius: 8px;
+    }}
+    QFrame[gameTableHead='true'] {{
+        background: {c['panel_alt']};
+        border: none;
+        border-bottom: 1px solid {c['border']};
+        border-top-left-radius: 8px;
+        border-top-right-radius: 8px;
+    }}
+    QLabel[gameColumn='true'] {{
+        color: {c['muted']};
+        font-size: 10px;
+        font-weight: 700;
+        padding: 9px 0px;
+    }}
     QLabel[gameName='true'] {{
         color: {c['text']};
         font-size: 12px;
-        font-weight: 700;
+        font-weight: 650;
     }}
     QLabel[gameDetail='true'] {{
         color: {c['subtle']};
@@ -2017,11 +2089,16 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QLabel[gameState='true'] {{
         color: {c['muted']};
         font-size: 12px;
-        font-weight: 600;
+        font-weight: 500;
     }}
     QLabel[gameState='true'][tone='good'] {{ color: {c['green']}; }}
     QLabel[gameState='true'][tone='warning'] {{ color: {c['orange']}; }}
     QLabel[gameState='true'][tone='danger'] {{ color: {c['red']}; }}
+    QFrame[upscalingGames='true'] QLineEdit[gameSearch='true'] {{
+        min-height: 18px;
+        padding: 5px 10px;
+        border-radius: 7px;
+    }}
     QFrame[metricTile='true'] {{
         background: {c['panel_alt']};
         border: 1px solid {c['border_soft']};

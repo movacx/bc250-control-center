@@ -1393,7 +1393,8 @@ class _UpscalingGames(SectionCard):
         self.search.setProperty("gameSearch", True)
         self.search.textChanged.connect(self._filter)
         self.body.addWidget(self.search)
-        self.table = QWidget()
+        self.table = QFrame()
+        self.table.setProperty("gameTable", True)
         self.grid = QGridLayout(self.table)
         self.grid.setContentsMargins(0, 0, 0, 0)
         self.grid.setHorizontalSpacing(18)
@@ -1410,11 +1411,12 @@ class _UpscalingGames(SectionCard):
         self.controls: dict[tuple[str, str], QWidget] = {}
 
     @staticmethod
-    def _head(text: str) -> HeadingLabel:
+    def _head(text: str, column: int) -> HeadingLabel:
         label = HeadingLabel()
         label.source_text = text
         label.setText(tr(text))
-        label.setProperty("groupTitle", True)
+        label.setProperty("gameColumn", True)
+        label.setContentsMargins(14 if column == 0 else 0, 0, 14 if column == 2 else 0, 0)
         return label
 
     def set_rows(self, rows: list[dict], empty: str) -> None:
@@ -1432,14 +1434,17 @@ class _UpscalingGames(SectionCard):
                 item.widget().deleteLater()
         self._rows, self.controls = [], {}
         if rows:
+            # A header band behind the column names, edge to edge.
+            band = QFrame()
+            band.setProperty("gameTableHead", True)
+            self.grid.addWidget(band, 0, 0, 1, 3)
             for column, text in enumerate(("Game", "HelixSR", "FSR4 INT8")):
-                self.grid.addWidget(self._head(text), 0, column)
-            self.grid.addWidget(self._rule(), 1, 0, 1, 3)
-        line = 2
-        for row in rows:
+                self.grid.addWidget(self._head(text, column), 0, column)
+        line = 1
+        for index, row in enumerate(rows):
             name = QWidget()
             name_box = QVBoxLayout(name)
-            name_box.setContentsMargins(0, 8, 0, 8)
+            name_box.setContentsMargins(14, 8, 0, 8)
             name_box.setSpacing(1)
             title = _label(row["name"], "gameName")
             title.setText(row["name"])
@@ -1452,11 +1457,15 @@ class _UpscalingGames(SectionCard):
             self.grid.addWidget(name, line, 0)
             for column, key in ((1, "helixsr"), (2, "fsr4")):
                 cell = self._cell(row["key"], key, row[key])
+                if column == 2:
+                    cell.layout().setContentsMargins(0, 6, 14, 6)
                 self.grid.addWidget(cell, line, column)
                 widgets.append(cell)
-            rule = self._rule()
-            self.grid.addWidget(rule, line + 1, 0, 1, 3)
-            widgets.append(rule)
+            if index < len(rows) - 1:
+                # The table's own border closes the last row.
+                rule = self._rule()
+                self.grid.addWidget(rule, line + 1, 0, 1, 3)
+                widgets.append(rule)
             self._rows.append((row["name"].casefold(), widgets))
             line += 2
         self.search.setVisible(len(rows) > 8)
@@ -2956,7 +2965,7 @@ class PreparationSidebar(QFrame):
             button.setProperty(name, False)
         if not danger:
             button.setProperty(role, True)
-        button.setMinimumHeight(38)
+        button.setMinimumHeight(32)
         button.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         button.style().unpolish(button)
         button.style().polish(button)
