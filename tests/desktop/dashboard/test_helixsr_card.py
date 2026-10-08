@@ -405,3 +405,25 @@ def test_a_form_being_edited_is_not_overwritten_by_a_refresh():
     assert form.values()["Log.Enabled"] is False
     assert form.values()["ModelE.Network"] == "auto", "the user's form stays as they left it"
     assert form.save_button.isEnabled()
+
+
+def test_an_optiscaler_folder_added_by_hand_is_marked_and_can_leave_the_list():
+    sidebar = _sidebar()
+    games = [{"appid": "optifolder-abc", "kind": "optiscaler", "name": "Hand Racer", "state": "available",
+              "files": [], "folder": "/games/Hand Racer/Bin"}]
+    sidebar.set_state(_state(_ready(games)))
+    assert not sidebar.helixsr_opti_folder_button.isHidden()
+    controls = sidebar.upscaling_games.controls["optifolder-abc"]
+    assert [b.text() for b in controls] == ["Add HelixSR", "Remove from list"]
+    requested = []
+    sidebar.dependency_action_requested.connect(requested.append)
+    controls[0].click()
+    controls[1].click()
+    sidebar.helixsr_opti_folder_button.click()
+    assert [item["action"] for item in requested] == [
+        "helixsr_opti_install:optifolder-abc",
+        "helixsr_forget_folder:optifolder-abc",
+        "helixsr_add_opti_folder",
+    ]
+    rows = game_matrix_rows(games, [], helixsr_ready=True)
+    assert rows[0]["folder_detail"] == "OptiScaler added by hand"

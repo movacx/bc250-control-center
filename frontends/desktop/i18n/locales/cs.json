@@ -4755,5 +4755,13 @@
   "Mirrored motion vectors": "Zrcadlené vektory pohybu",
   "Only for a game whose moving objects smear because its motion vectors come out mirrored.": "Jen pro hru, jejíž pohybující se objekty se rozmazávají, protože její vektory pohybu přicházejí zrcadlené.",
   "Write helixsr.log": "Zapisovat helixsr.log",
-  "HelixSR writes what it does next to its DLL in each game: useful when a game misbehaves.": "HelixSR zapisuje, co dělá, vedle své knihovny DLL v každé hře: užitečné, když hra zlobí."
+  "HelixSR writes what it does next to its DLL in each game: useful when a game misbehaves.": "HelixSR zapisuje, co dělá, vedle své knihovny DLL v každé hře: užitečné, když hra zlobí.",
+  "Add OptiScaler game": "Přidat hru s OptiScalerem",
+  "For a game where you installed OptiScaler yourself: choose the game's folder and HelixSR can upscale through it.": "Pro hru, do které jste OptiScaler nainstalovali sami: vyberte složku hry a HelixSR přes něj bude moci škálovat.",
+  "OptiScaler added by hand": "OptiScaler nainstalovaný ručně",
+  "{game} was added. Add HelixSR to it from the list.": "Hra {game} byla přidána. Přidejte do ní HelixSR ze seznamu.",
+  "No OptiScaler.ini was found in this folder. Install OptiScaler in the game first.": "V této složce nebyl nalezen žádný OptiScaler.ini. Nejprve do hry nainstalujte OptiScaler.",
+  "This folder has more than one OptiScaler.ini. Choose the folder of the one the game uses.": "Tato složka obsahuje více než jeden OptiScaler.ini. Vyberte složku toho, který hra používá.",
+  "That is HelixSR's own folder. Choose the game's folder.": "To je složka samotného HelixSR. Vyberte složku hry.",
+  "Remove HelixSR from this game first, so OptiScaler gets its settings back.": "Nejprve z této hry odeberte HelixSR, aby OptiScaler dostal zpět své nastavení."
 }

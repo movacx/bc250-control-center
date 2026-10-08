@@ -4755,5 +4755,13 @@
   "Mirrored motion vectors": "Peilatut liikevektorit",
   "Only for a game whose moving objects smear because its motion vectors come out mirrored.": "Vain peliin, jonka liikkuvat kohteet sumentuvat, koska sen liikevektorit tulevat peilattuina.",
   "Write helixsr.log": "Kirjoita helixsr.log",
-  "HelixSR writes what it does next to its DLL in each game: useful when a game misbehaves.": "HelixSR kirjaa tekemisensä DLL-tiedostonsa viereen jokaisessa pelissä: hyödyllinen, kun peli toimii oudosti."
+  "HelixSR writes what it does next to its DLL in each game: useful when a game misbehaves.": "HelixSR kirjaa tekemisensä DLL-tiedostonsa viereen jokaisessa pelissä: hyödyllinen, kun peli toimii oudosti.",
+  "Add OptiScaler game": "Lisää peli, jossa on OptiScaler",
+  "For a game where you installed OptiScaler yourself: choose the game's folder and HelixSR can upscale through it.": "Peliin, johon asensit OptiScalerin itse: valitse pelin kansio, niin HelixSR voi skaalata sen kautta.",
+  "OptiScaler added by hand": "OptiScaler asennettu käsin",
+  "{game} was added. Add HelixSR to it from the list.": "{game} lisättiin. Lisää siihen HelixSR luettelosta.",
+  "No OptiScaler.ini was found in this folder. Install OptiScaler in the game first.": "Tästä kansiosta ei löytynyt OptiScaler.ini-tiedostoa. Asenna OptiScaler ensin peliin.",
+  "This folder has more than one OptiScaler.ini. Choose the folder of the one the game uses.": "Tässä kansiossa on useampi OptiScaler.ini. Valitse sen kansio, jota peli käyttää.",
+  "That is HelixSR's own folder. Choose the game's folder.": "Tämä on HelixSR:n oma kansio. Valitse pelin kansio.",
+  "Remove HelixSR from this game first, so OptiScaler gets its settings back.": "Poista HelixSR ensin tästä pelistä, jotta OptiScaler saa asetuksensa takaisin."
 }

@@ -4755,5 +4755,13 @@
   "Mirrored motion vectors": "Speglade rörelsevektorer",
   "Only for a game whose moving objects smear because its motion vectors come out mirrored.": "Bara för ett spel vars objekt i rörelse smetas ut eftersom dess rörelsevektorer kommer speglade.",
   "Write helixsr.log": "Skriv helixsr.log",
-  "HelixSR writes what it does next to its DLL in each game: useful when a game misbehaves.": "HelixSR antecknar vad det gör bredvid sin DLL i varje spel: användbart när ett spel krånglar."
+  "HelixSR writes what it does next to its DLL in each game: useful when a game misbehaves.": "HelixSR antecknar vad det gör bredvid sin DLL i varje spel: användbart när ett spel krånglar.",
+  "Add OptiScaler game": "Lägg till spel med OptiScaler",
+  "For a game where you installed OptiScaler yourself: choose the game's folder and HelixSR can upscale through it.": "För ett spel där du själv har installerat OptiScaler: välj spelets mapp så kan HelixSR uppskala genom det.",
+  "OptiScaler added by hand": "OptiScaler installerat manuellt",
+  "{game} was added. Add HelixSR to it from the list.": "{game} lades till. Lägg till HelixSR från listan.",
+  "No OptiScaler.ini was found in this folder. Install OptiScaler in the game first.": "Ingen OptiScaler.ini hittades i den här mappen. Installera OptiScaler i spelet först.",
+  "This folder has more than one OptiScaler.ini. Choose the folder of the one the game uses.": "Den här mappen har mer än en OptiScaler.ini. Välj mappen med den som spelet använder.",
+  "That is HelixSR's own folder. Choose the game's folder.": "Det är HelixSR:s egen mapp. Välj spelets mapp.",
+  "Remove HelixSR from this game first, so OptiScaler gets its settings back.": "Ta bort HelixSR från spelet först, så att OptiScaler får tillbaka sina inställningar."
 }

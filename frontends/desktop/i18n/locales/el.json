@@ -4755,5 +4755,13 @@
   "Mirrored motion vectors": "Κατοπτρικά διανύσματα κίνησης",
   "Only for a game whose moving objects smear because its motion vectors come out mirrored.": "Μόνο για παιχνίδι του οποίου τα κινούμενα αντικείμενα θολώνουν επειδή τα διανύσματα κίνησής του έρχονται κατοπτρικά.",
   "Write helixsr.log": "Εγγραφή helixsr.log",
-  "HelixSR writes what it does next to its DLL in each game: useful when a game misbehaves.": "Το HelixSR καταγράφει τι κάνει δίπλα στο DLL του σε κάθε παιχνίδι: χρήσιμο όταν ένα παιχνίδι δυσλειτουργεί."
+  "HelixSR writes what it does next to its DLL in each game: useful when a game misbehaves.": "Το HelixSR καταγράφει τι κάνει δίπλα στο DLL του σε κάθε παιχνίδι: χρήσιμο όταν ένα παιχνίδι δυσλειτουργεί.",
+  "Add OptiScaler game": "Προσθήκη παιχνιδιού με OptiScaler",
+  "For a game where you installed OptiScaler yourself: choose the game's folder and HelixSR can upscale through it.": "Για παιχνίδι στο οποίο εγκαταστήσατε μόνοι σας το OptiScaler: επιλέξτε τον φάκελο του παιχνιδιού και το HelixSR θα μπορεί να κλιμακώνει μέσω αυτού.",
+  "OptiScaler added by hand": "OptiScaler εγκατεστημένο με το χέρι",
+  "{game} was added. Add HelixSR to it from the list.": "Το {game} προστέθηκε. Προσθέστε του το HelixSR από τη λίστα.",
+  "No OptiScaler.ini was found in this folder. Install OptiScaler in the game first.": "Δεν βρέθηκε OptiScaler.ini σε αυτόν τον φάκελο. Εγκαταστήστε πρώτα το OptiScaler στο παιχνίδι.",
+  "This folder has more than one OptiScaler.ini. Choose the folder of the one the game uses.": "Αυτός ο φάκελος έχει περισσότερα από ένα OptiScaler.ini. Επιλέξτε τον φάκελο εκείνου που χρησιμοποιεί το παιχνίδι.",
+  "That is HelixSR's own folder. Choose the game's folder.": "Αυτός είναι ο φάκελος του ίδιου του HelixSR. Επιλέξτε τον φάκελο του παιχνιδιού.",
+  "Remove HelixSR from this game first, so OptiScaler gets its settings back.": "Αφαιρέστε πρώτα το HelixSR από αυτό το παιχνίδι, ώστε το OptiScaler να πάρει πίσω τις ρυθμίσεις του."
 }

@@ -322,6 +322,8 @@ def add_helixsr_folder(path: str) -> dict:
 def forget_helixsr_folder(key: str) -> dict:
     """Take a folder off the list; HelixSR must not be in it any more."""
     key = str(key or "").strip()
+    if key.startswith(OPTI_FOLDER_PREFIX):
+        return _forget_optiscaler_folder(key)
     folders = _folders()
     if key not in folders:
         raise RuntimeError("This folder is not on the list.")
@@ -529,6 +531,12 @@ def _optiscaler_root(appid: str) -> tuple[dict, Path]:
     from .bc250_opticlient import opticlient_records
 
     appid = str(appid or "").strip()
+    manual = _optiscaler_folders().get(appid)
+    if manual is not None:
+        root = Path(str(manual["root"]))
+        if not (root / OPTISCALER_INI).is_file():
+            raise RuntimeError("OptiScaler's settings file was not found in this game.")
+        return {"appid": appid, "name": str(manual.get("name") or root.name)}, root
     game = next((g for g in _optiscaler_games() if str(g.get("appid")) == appid), None)
     if game is None:
         raise RuntimeError("OptiScaler is not installed in this game. Install it with the FSR4 OptiScaler Client first.")
@@ -571,11 +579,26 @@ def optiscaler_rows(*, available: bool = True) -> list[dict]:
             ),
             "files": [str(Path(str(record.get("root") or "")) / OPTISCALER_INI)],
             "fsr4": bool(record.get("fsr4")),
+            # A folder added by hand stays marked as one while HelixSR is in it.
+            "folder": str(record.get("root") or "") if appid.startswith(OPTI_FOLDER_PREFIX) else "",
             "version": str(record.get("version") or ""),
             "outdated": str(record.get("version") or "") != HELIXSR_VERSION,
         }
         for appid, record in records.items()
     ]
+    # Folders added by hand are listed either way, like games outside Steam.
+    for key, entry in _optiscaler_folders().items():
+        if key in records:
+            continue
+        rows.append({
+            "appid": key,
+            "kind": "optiscaler",
+            "name": str(entry.get("name") or key),
+            "state": "available",
+            "files": [str(Path(str(entry["root"])) / OPTISCALER_INI)],
+            "fsr4": False,
+            "folder": str(entry["root"]),
+        })
     if not available:
         return rows
     for game in _optiscaler_games():
@@ -591,6 +614,94 @@ def optiscaler_rows(*, available: bool = True) -> list[dict]:
             "fsr4": False,
         })
     return rows
+
+
+# OptiScaler put in a game by hand (or by another tool) has no OptiScaler
+# Client record to find it by. The user picks the game's folder instead; the
+# folder that holds OptiScaler.ini becomes the game's root and from then on it
+# is handled exactly like a Client game: the HelixSR folder beside it, the
+# .ini saved first and put back byte for byte.
+
+OPTI_FOLDER_PREFIX = "optifolder-"
+
+
+def _optiscaler_folders_path() -> Path:
+    return _optiscaler_path() / "folders.json"
+
+
+def _optiscaler_folders() -> dict[str, dict]:
+    folders = _read_json(_optiscaler_folders_path(), {})
+    if not isinstance(folders, dict):
+        return {}
+    return {
+        str(key): value for key, value in folders.items()
+        if str(key).startswith(OPTI_FOLDER_PREFIX) and isinstance(value, dict) and value.get("root")
+    }
+
+
+def _optiscaler_ini_folders(folder: Path) -> list[Path]:
+    """Every folder under ``folder`` that holds an OptiScaler.ini; links are not followed."""
+    found: list[Path] = []
+    seen = 0
+    stack: list[tuple[Path, int]] = [(folder, 0)]
+    while stack:
+        current, depth = stack.pop()
+        try:
+            entries = list(os.scandir(current))
+        except OSError:
+            continue
+        for entry in entries:
+            seen += 1
+            if seen > _SCAN_ENTRY_LIMIT:
+                return sorted(found)
+            try:
+                if entry.is_symlink():
+                    continue
+                if entry.is_dir(follow_symlinks=False):
+                    if depth < _SCAN_DEPTH and entry.name != OPTISCALER_FOLDER:
+                        stack.append((Path(entry.path), depth + 1))
+                elif entry.name.lower() == OPTISCALER_INI.lower():
+                    found.append(current)
+            except OSError:
+                continue
+    return sorted(found)
+
+
+def add_optiscaler_folder(path: str) -> dict:
+    """Add a game whose OptiScaler was not installed by OptiScaler Client."""
+    text = str(path or "").strip()
+    if not text:
+        raise ValueError("Choose the game's folder.")
+    folder = Path(text).expanduser()
+    if not folder.is_absolute() or not folder.is_dir():
+        raise RuntimeError("That folder does not exist.")
+    folder = folder.resolve()
+    if folder == Path(folder.anchor) or folder == Path.home().resolve():
+        raise RuntimeError("Choose the game's own folder, not a whole drive or your home folder.")
+    roots = _optiscaler_ini_folders(folder)
+    if not roots:
+        raise RuntimeError("No OptiScaler.ini was found in this folder. Install OptiScaler in the game first.")
+    if len(roots) > 1:
+        raise RuntimeError("This folder has more than one OptiScaler.ini. Choose the folder of the one the game uses.")
+    root = roots[0]
+    if root.name.lower() == OPTISCALER_FOLDER.lower() and (root / HELIXSR_DLL).exists():
+        raise RuntimeError("That is HelixSR's own folder. Choose the game's folder.")
+    key = OPTI_FOLDER_PREFIX + hashlib.sha256(str(root).encode("utf-8")).hexdigest()[:12]
+    folders = _optiscaler_folders()
+    folders[key] = {"name": folder.name, "root": str(root)}
+    _write_json(_optiscaler_folders_path(), folders)
+    return {"game": folder.name, "id": key, "root": str(root)}
+
+
+def _forget_optiscaler_folder(key: str) -> dict:
+    folders = _optiscaler_folders()
+    if key not in folders:
+        raise RuntimeError("This folder is not on the list.")
+    if key in _optiscaler_records():
+        raise RuntimeError("Remove HelixSR from this game first, so OptiScaler gets its settings back.")
+    entry = folders.pop(key)
+    _write_json(_optiscaler_folders_path(), folders)
+    return {"game": str(entry.get("name") or key)}
 
 
 def install_helixsr_optiscaler(appid: str) -> dict:

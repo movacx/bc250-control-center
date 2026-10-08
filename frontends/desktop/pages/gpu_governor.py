@@ -4416,6 +4416,28 @@ class GpuGovernorPage(QWidget):
                 error_parent=dialog_parent,
             )
             return
+        if action == "add_opti_folder":
+            # OptiScaler installed by hand: the folder that holds OptiScaler.ini.
+            folder = QFileDialog.getExistingDirectory(
+                dialog_parent or self, tr("Choose the game's folder"), str(Path.home())
+            )
+            if not folder:
+                return
+            self._run_backend_action(
+                lambda: self.controller.gestionar_helixsr(f"add_opti_folder:{folder}"),
+                lambda result: GpuGovernorPage._record_preparation_result(
+                    self,
+                    label,
+                    tr_format(
+                        "{game} was added. Add HelixSR to it from the list.",
+                        game=str(_dict(result).get("game") or Path(folder).name),
+                    ),
+                ),
+                "Could not add the game folder",
+                controls=(),
+                error_parent=dialog_parent,
+            )
+            return
         if action == "add_folder":
             # A game outside Steam: the user points at its folder, which is
             # searched for an FSR 3.1 DLL like a Steam game's.

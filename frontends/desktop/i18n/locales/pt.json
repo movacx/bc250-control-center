@@ -4755,5 +4755,13 @@
   "Mirrored motion vectors": "Vetores de movimento espelhados",
   "Only for a game whose moving objects smear because its motion vectors come out mirrored.": "Só para um jogo cujos objetos em movimento ficam borrados porque os vetores de movimento vêm espelhados.",
   "Write helixsr.log": "Gravar helixsr.log",
-  "HelixSR writes what it does next to its DLL in each game: useful when a game misbehaves.": "O HelixSR regista o que faz junto à DLL em cada jogo: útil quando um jogo se porta mal."
+  "HelixSR writes what it does next to its DLL in each game: useful when a game misbehaves.": "O HelixSR regista o que faz junto à DLL em cada jogo: útil quando um jogo se porta mal.",
+  "Add OptiScaler game": "Adicionar jogo com OptiScaler",
+  "For a game where you installed OptiScaler yourself: choose the game's folder and HelixSR can upscale through it.": "Para um jogo em que instalou o OptiScaler manualmente: escolha a pasta do jogo e o HelixSR poderá fazer o upscaling através dele.",
+  "OptiScaler added by hand": "OptiScaler instalado manualmente",
+  "{game} was added. Add HelixSR to it from the list.": "{game} foi adicionado. Adicione-lhe o HelixSR a partir da lista.",
+  "No OptiScaler.ini was found in this folder. Install OptiScaler in the game first.": "Não foi encontrado nenhum OptiScaler.ini nesta pasta. Instale primeiro o OptiScaler no jogo.",
+  "This folder has more than one OptiScaler.ini. Choose the folder of the one the game uses.": "Esta pasta tem mais de um OptiScaler.ini. Escolha a pasta daquele que o jogo usa.",
+  "That is HelixSR's own folder. Choose the game's folder.": "Essa é a pasta do próprio HelixSR. Escolha a pasta do jogo.",
+  "Remove HelixSR from this game first, so OptiScaler gets its settings back.": "Remova primeiro o HelixSR deste jogo para que o OptiScaler recupere as suas definições."
 }

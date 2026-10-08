@@ -4755,5 +4755,13 @@
   "Mirrored motion vectors": "Vektor gerak tercermin",
   "Only for a game whose moving objects smear because its motion vectors come out mirrored.": "Hanya untuk game yang objek bergeraknya mengabur karena vektor geraknya tercermin.",
   "Write helixsr.log": "Tulis helixsr.log",
-  "HelixSR writes what it does next to its DLL in each game: useful when a game misbehaves.": "HelixSR mencatat yang dilakukannya di samping DLL-nya di setiap game: berguna saat game bermasalah."
+  "HelixSR writes what it does next to its DLL in each game: useful when a game misbehaves.": "HelixSR mencatat yang dilakukannya di samping DLL-nya di setiap game: berguna saat game bermasalah.",
+  "Add OptiScaler game": "Tambahkan game dengan OptiScaler",
+  "For a game where you installed OptiScaler yourself: choose the game's folder and HelixSR can upscale through it.": "Untuk game yang OptiScaler-nya Anda pasang sendiri: pilih folder game dan HelixSR dapat melakukan upscale melaluinya.",
+  "OptiScaler added by hand": "OptiScaler dipasang manual",
+  "{game} was added. Add HelixSR to it from the list.": "{game} ditambahkan. Tambahkan HelixSR ke game ini dari daftar.",
+  "No OptiScaler.ini was found in this folder. Install OptiScaler in the game first.": "Tidak ada OptiScaler.ini di folder ini. Pasang OptiScaler di game terlebih dahulu.",
+  "This folder has more than one OptiScaler.ini. Choose the folder of the one the game uses.": "Folder ini memiliki lebih dari satu OptiScaler.ini. Pilih folder dari yang dipakai game.",
+  "That is HelixSR's own folder. Choose the game's folder.": "Itu folder milik HelixSR sendiri. Pilih folder game.",
+  "Remove HelixSR from this game first, so OptiScaler gets its settings back.": "Hapus HelixSR dari game ini terlebih dahulu agar OptiScaler mendapatkan kembali pengaturannya."
 }

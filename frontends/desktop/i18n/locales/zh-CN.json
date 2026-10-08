@@ -4755,5 +4755,13 @@
   "Mirrored motion vectors": "镜像运动矢量",
   "Only for a game whose moving objects smear because its motion vectors come out mirrored.": "仅用于因运动矢量被镜像而运动物体拖糊的游戏。",
   "Write helixsr.log": "写入 helixsr.log",
-  "HelixSR writes what it does next to its DLL in each game: useful when a game misbehaves.": "HelixSR 会在每个游戏的 DLL 旁记录它的操作：游戏出问题时很有用。"
+  "HelixSR writes what it does next to its DLL in each game: useful when a game misbehaves.": "HelixSR 会在每个游戏的 DLL 旁记录它的操作：游戏出问题时很有用。",
+  "Add OptiScaler game": "添加装有 OptiScaler 的游戏",
+  "For a game where you installed OptiScaler yourself: choose the game's folder and HelixSR can upscale through it.": "适用于你自己安装了 OptiScaler 的游戏：选择游戏文件夹，HelixSR 即可通过它进行放大。",
+  "OptiScaler added by hand": "手动安装的 OptiScaler",
+  "{game} was added. Add HelixSR to it from the list.": "已添加 {game}。请在列表中为它添加 HelixSR。",
+  "No OptiScaler.ini was found in this folder. Install OptiScaler in the game first.": "此文件夹中找不到 OptiScaler.ini。请先在游戏中安装 OptiScaler。",
+  "This folder has more than one OptiScaler.ini. Choose the folder of the one the game uses.": "此文件夹中有多个 OptiScaler.ini。请选择游戏所用那个所在的文件夹。",
+  "That is HelixSR's own folder. Choose the game's folder.": "这是 HelixSR 自己的文件夹。请选择游戏的文件夹。",
+  "Remove HelixSR from this game first, so OptiScaler gets its settings back.": "请先从此游戏中移除 HelixSR，让 OptiScaler 恢复其设置。"
 }

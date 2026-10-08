@@ -4755,5 +4755,13 @@
   "Mirrored motion vectors": "Gespiegelde bewegingsvectoren",
   "Only for a game whose moving objects smear because its motion vectors come out mirrored.": "Alleen voor een game waarvan bewegende objecten uitsmeren omdat de bewegingsvectoren gespiegeld binnenkomen.",
   "Write helixsr.log": "helixsr.log schrijven",
-  "HelixSR writes what it does next to its DLL in each game: useful when a game misbehaves.": "HelixSR noteert in elke game naast zijn DLL wat het doet: handig als een game zich vreemd gedraagt."
+  "HelixSR writes what it does next to its DLL in each game: useful when a game misbehaves.": "HelixSR noteert in elke game naast zijn DLL wat het doet: handig als een game zich vreemd gedraagt.",
+  "Add OptiScaler game": "Game met OptiScaler toevoegen",
+  "For a game where you installed OptiScaler yourself: choose the game's folder and HelixSR can upscale through it.": "Voor een game waarin je OptiScaler zelf hebt geïnstalleerd: kies de map van de game en HelixSR kan erdoorheen opschalen.",
+  "OptiScaler added by hand": "OptiScaler met de hand geïnstalleerd",
+  "{game} was added. Add HelixSR to it from the list.": "{game} is toegevoegd. Voeg er HelixSR aan toe vanuit de lijst.",
+  "No OptiScaler.ini was found in this folder. Install OptiScaler in the game first.": "Er is geen OptiScaler.ini in deze map gevonden. Installeer eerst OptiScaler in de game.",
+  "This folder has more than one OptiScaler.ini. Choose the folder of the one the game uses.": "Deze map heeft meer dan één OptiScaler.ini. Kies de map van degene die de game gebruikt.",
+  "That is HelixSR's own folder. Choose the game's folder.": "Dat is de eigen map van HelixSR. Kies de map van de game.",
+  "Remove HelixSR from this game first, so OptiScaler gets its settings back.": "Verwijder eerst HelixSR uit deze game, zodat OptiScaler zijn instellingen terugkrijgt."
 }

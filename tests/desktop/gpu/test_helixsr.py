@@ -932,3 +932,74 @@ def test_a_game_that_ships_dlss_310_7_spares_the_download(home, monkeypatch):
 
     assert helixsr.local_dlss_candidates() == [install / "Bin" / "nvngx_dlss.dll"]
     assert helixsr.helixsr_state(machine="x86_64")["local_dlss"] is True
+
+
+# ------------------------------------------------------- OptiScaler added by hand
+
+
+def _manual_optiscaler(home: Path, *, fsr4: bool = True) -> tuple[Path, Path]:
+    """A game where OptiScaler was copied in by hand: no OptiScaler Client record."""
+    game = home / "Games" / "Hand Racer"
+    root = game / "Bin" / "Win64"
+    (root / "OptiScaler").mkdir(parents=True)
+    (root / "dxgi.dll").write_bytes(b"MZ optiscaler")
+    (root / "OptiScaler.ini").write_bytes(OPTISCALER_INI.encode())
+    if fsr4:
+        (root / "OptiScaler" / helixsr.UPSCALER_DLL).write_bytes(FSR4)
+    return game, root
+
+
+def test_a_hand_installed_optiscaler_is_found_from_the_game_folder(home):
+    game, root = _manual_optiscaler(home)
+
+    result = helixsr.add_optiscaler_folder(str(game))
+
+    assert result["game"] == "Hand Racer" and result["root"] == str(root)
+    rows = [row for row in helixsr.helixsr_state(machine="x86_64")["games"] if row["kind"] == "optiscaler"]
+    assert [(row["appid"], row["state"], row["folder"]) for row in rows] == [(result["id"], "available", str(root))]
+
+
+def test_a_hand_installed_optiscaler_gets_helixsr_and_is_put_back_exactly(home, tmp_path):
+    _ready(home)
+    game, root = _manual_optiscaler(home)
+    key = helixsr.add_optiscaler_folder(str(game))["id"]
+    repository = _repository(tmp_path)
+
+    assert repository.gestionar_helixsr(f"opti_install:{key}") == {"game": "Hand Racer", "fsr4": True}
+
+    folder = root / "HelixSR"
+    assert (folder / helixsr.UPSCALER_DLL).read_bytes() == DLL
+    assert (folder / helixsr.SECOND_UPSCALER).read_bytes() == FSR4
+    text = (root / "OptiScaler.ini").read_bytes().decode()
+    assert helixsr._ini_get(text, "Libraries", "FfxDx12SRPath").endswith("HelixSR\\" + helixsr.UPSCALER_DLL)
+    rows = [row for row in helixsr.helixsr_state(machine="x86_64")["games"] if row["kind"] == "optiscaler"]
+    assert [(row["state"], row["folder"]) for row in rows] == [("installed", str(root))]
+    with pytest.raises(RuntimeError, match="Remove HelixSR from this game first"):
+        repository.gestionar_helixsr(f"forget_folder:{key}")
+
+    repository.gestionar_helixsr(f"opti_remove:{key}")
+    assert (root / "OptiScaler.ini").read_bytes() == OPTISCALER_INI.encode()
+    assert not folder.exists()
+    assert repository.gestionar_helixsr(f"forget_folder:{key}") == {"game": "Hand Racer"}
+    assert [row for row in helixsr.helixsr_state(machine="x86_64")["games"] if row["kind"] == "optiscaler"] == []
+
+
+def test_the_repository_keeps_the_case_of_an_optiscaler_folder(home, tmp_path):
+    game, _root = _manual_optiscaler(home)
+    upper = game.parent / "UPPER Case"
+    game.rename(upper)
+    assert _repository(tmp_path).gestionar_helixsr(f"add_opti_folder:{upper}")["game"] == "UPPER Case"
+
+
+@pytest.mark.parametrize("problem", ["none", "two", "missing", "home"])
+def test_a_folder_without_one_clear_optiscaler_is_refused(home, problem):
+    game, root = _manual_optiscaler(home)
+    if problem == "none":
+        (root / "OptiScaler.ini").unlink()
+    elif problem == "two":
+        (game / "Other").mkdir()
+        (game / "Other" / "OptiScaler.ini").write_text("[Upscalers]\n", encoding="utf-8")
+    target = {"missing": home / "nowhere", "home": home}.get(problem, game)
+    with pytest.raises(RuntimeError):
+        helixsr.add_optiscaler_folder(str(target))
+    assert helixsr._optiscaler_folders() == {}

@@ -4755,5 +4755,13 @@
   "Mirrored motion vectors": "Tükrözött mozgásvektorok",
   "Only for a game whose moving objects smear because its motion vectors come out mirrored.": "Csak olyan játékhoz, amelynek mozgó tárgyai elkenődnek, mert a mozgásvektorai tükrözve érkeznek.",
   "Write helixsr.log": "helixsr.log írása",
-  "HelixSR writes what it does next to its DLL in each game: useful when a game misbehaves.": "A HelixSR minden játékban a DLL-je mellé jegyzi, mit csinál: hasznos, ha egy játék rosszul működik."
+  "HelixSR writes what it does next to its DLL in each game: useful when a game misbehaves.": "A HelixSR minden játékban a DLL-je mellé jegyzi, mit csinál: hasznos, ha egy játék rosszul működik.",
+  "Add OptiScaler game": "OptiScaleres játék hozzáadása",
+  "For a game where you installed OptiScaler yourself: choose the game's folder and HelixSR can upscale through it.": "Olyan játékhoz, amelybe saját magad telepítetted az OptiScalert: válaszd ki a játék mappáját, és a HelixSR rajta keresztül skálázhat.",
+  "OptiScaler added by hand": "Kézzel telepített OptiScaler",
+  "{game} was added. Add HelixSR to it from the list.": "{game} hozzáadva. Add hozzá a HelixSR-t a listából.",
+  "No OptiScaler.ini was found in this folder. Install OptiScaler in the game first.": "Ebben a mappában nincs OptiScaler.ini. Először telepítsd az OptiScalert a játékba.",
+  "This folder has more than one OptiScaler.ini. Choose the folder of the one the game uses.": "Ebben a mappában több OptiScaler.ini is van. Válaszd annak a mappáját, amelyet a játék használ.",
+  "That is HelixSR's own folder. Choose the game's folder.": "Ez a HelixSR saját mappája. Válaszd a játék mappáját.",
+  "Remove HelixSR from this game first, so OptiScaler gets its settings back.": "Előbb távolítsd el a HelixSR-t ebből a játékból, hogy az OptiScaler visszakapja a beállításait."
 }

@@ -4755,5 +4755,13 @@
   "Mirrored motion vectors": "Дзеркальні вектори руху",
   "Only for a game whose moving objects smear because its motion vectors come out mirrored.": "Лише для гри, рухомі об'єкти якої розмазуються через дзеркальні вектори руху.",
   "Write helixsr.log": "Записувати helixsr.log",
-  "HelixSR writes what it does next to its DLL in each game: useful when a game misbehaves.": "HelixSR записує, що робить, поруч зі своєю DLL у кожній грі: корисно, коли гра поводиться дивно."
+  "HelixSR writes what it does next to its DLL in each game: useful when a game misbehaves.": "HelixSR записує, що робить, поруч зі своєю DLL у кожній грі: корисно, коли гра поводиться дивно.",
+  "Add OptiScaler game": "Додати гру з OptiScaler",
+  "For a game where you installed OptiScaler yourself: choose the game's folder and HelixSR can upscale through it.": "Для гри, у яку ви самі встановили OptiScaler: виберіть теку гри, і HelixSR зможе масштабувати через нього.",
+  "OptiScaler added by hand": "OptiScaler встановлено вручну",
+  "{game} was added. Add HelixSR to it from the list.": "Гру {game} додано. Додайте до неї HelixSR зі списку.",
+  "No OptiScaler.ini was found in this folder. Install OptiScaler in the game first.": "У цій теці не знайдено OptiScaler.ini. Спершу встановіть OptiScaler у гру.",
+  "This folder has more than one OptiScaler.ini. Choose the folder of the one the game uses.": "У цій теці більше одного OptiScaler.ini. Виберіть теку того, який використовує гра.",
+  "That is HelixSR's own folder. Choose the game's folder.": "Це тека самого HelixSR. Виберіть теку гри.",
+  "Remove HelixSR from this game first, so OptiScaler gets its settings back.": "Спершу видаліть HelixSR із цієї гри, щоб OptiScaler отримав свої налаштування назад."
 }

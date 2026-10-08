@@ -939,6 +939,9 @@ def game_matrix_rows(
         if game.get("folder"):
             # Added by hand from outside Steam: the folder it came from.
             row["folder"] = str(game["folder"])
+            row["folder_detail"] = (
+                "OptiScaler added by hand" if game.get("kind") == "optiscaler" else "Outside Steam"
+            )
         by_game.setdefault(appid or str(game.get("name")), []).append(game)
     for key, entries in by_game.items():
         def first(state: str, entries=entries):
@@ -3042,6 +3045,16 @@ class PreparationSidebar(QFrame):
         self.helixsr_folder_button.setToolTip(
             tr("For games outside Steam, choose the game's folder.")
         )
+        # OptiScaler put in a game by hand, not by OptiScaler Client.
+        self.helixsr_opti_folder_button = self.upscaling_games.add_header_button(
+            "Add OptiScaler game",
+            lambda: self._forward_dependency_action(
+                {"action": "helixsr_add_opti_folder", "governor": ""}
+            ),
+        )
+        self.helixsr_opti_folder_button.setToolTip(
+            tr("For a game where you installed OptiScaler yourself: choose the game's folder and HelixSR can upscale through it.")
+        )
         for button in (
             self.fsr4_install_button, self.fsr4_launch_button, self.fsr4_remove_button,
             self.fsr4_steam_all_button,
@@ -4014,7 +4027,7 @@ class PreparationSidebar(QFrame):
                         "actions": actions}
             table.append({
                 "key": row["appid"] or row["name"], "name": row["name"],
-                "detail": "Outside Steam" if folder else "", "tooltip": folder,
+                "detail": (row.get("folder_detail") or "Outside Steam") if folder else "", "tooltip": folder,
                 "helixsr": helixsr, "fsr4": fsr4,
             })
         self.upscaling_games.set_rows(
@@ -4022,6 +4035,7 @@ class PreparationSidebar(QFrame):
             "No games yet. Find FSR 3.1 games looks through your Steam library." if ready else "",
         )
         self.helixsr_folder_button.setVisible(helixsr_current)
+        self.helixsr_opti_folder_button.setVisible(helixsr_current)
 
     def _render_fsr4_games(self, games: list[dict]) -> None:
         """FSR4's games are rows of its section on the Upscaling tab."""

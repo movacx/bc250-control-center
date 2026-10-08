@@ -4755,5 +4755,13 @@
   "Mirrored motion vectors": "เวกเตอร์การเคลื่อนไหวกลับด้าน",
   "Only for a game whose moving objects smear because its motion vectors come out mirrored.": "สำหรับเกมที่วัตถุเคลื่อนไหวเบลอเพราะเวกเตอร์การเคลื่อนไหวถูกส่งมาแบบกลับด้านเท่านั้น",
   "Write helixsr.log": "เขียน helixsr.log",
-  "HelixSR writes what it does next to its DLL in each game: useful when a game misbehaves.": "HelixSR จะบันทึกสิ่งที่ทำไว้ข้าง DLL ในแต่ละเกม มีประโยชน์เมื่อเกมทำงานผิดปกติ"
+  "HelixSR writes what it does next to its DLL in each game: useful when a game misbehaves.": "HelixSR จะบันทึกสิ่งที่ทำไว้ข้าง DLL ในแต่ละเกม มีประโยชน์เมื่อเกมทำงานผิดปกติ",
+  "Add OptiScaler game": "เพิ่มเกมที่มี OptiScaler",
+  "For a game where you installed OptiScaler yourself: choose the game's folder and HelixSR can upscale through it.": "สำหรับเกมที่คุณติดตั้ง OptiScaler เอง: เลือกโฟลเดอร์ของเกม แล้ว HelixSR จะขยายภาพผ่าน OptiScaler ได้",
+  "OptiScaler added by hand": "OptiScaler ที่ติดตั้งเอง",
+  "{game} was added. Add HelixSR to it from the list.": "เพิ่ม {game} แล้ว เพิ่ม HelixSR ให้เกมนี้จากรายการ",
+  "No OptiScaler.ini was found in this folder. Install OptiScaler in the game first.": "ไม่พบ OptiScaler.ini ในโฟลเดอร์นี้ ติดตั้ง OptiScaler ในเกมก่อน",
+  "This folder has more than one OptiScaler.ini. Choose the folder of the one the game uses.": "โฟลเดอร์นี้มี OptiScaler.ini มากกว่าหนึ่งไฟล์ เลือกโฟลเดอร์ของไฟล์ที่เกมใช้",
+  "That is HelixSR's own folder. Choose the game's folder.": "นี่คือโฟลเดอร์ของ HelixSR เอง เลือกโฟลเดอร์ของเกม",
+  "Remove HelixSR from this game first, so OptiScaler gets its settings back.": "นำ HelixSR ออกจากเกมนี้ก่อน เพื่อให้ OptiScaler ได้การตั้งค่าคืน"
 }

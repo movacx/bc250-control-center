@@ -4755,5 +4755,13 @@
   "Mirrored motion vectors": "Aynalanmış hareket vektörleri",
   "Only for a game whose moving objects smear because its motion vectors come out mirrored.": "Yalnızca hareket vektörleri aynalanmış geldiği için hareketli nesneleri bulanıklaşan bir oyun için.",
   "Write helixsr.log": "helixsr.log yaz",
-  "HelixSR writes what it does next to its DLL in each game: useful when a game misbehaves.": "HelixSR her oyunda DLL'sinin yanına ne yaptığını yazar: bir oyun sorun çıkardığında işe yarar."
+  "HelixSR writes what it does next to its DLL in each game: useful when a game misbehaves.": "HelixSR her oyunda DLL'sinin yanına ne yaptığını yazar: bir oyun sorun çıkardığında işe yarar.",
+  "Add OptiScaler game": "OptiScaler'lı oyun ekle",
+  "For a game where you installed OptiScaler yourself: choose the game's folder and HelixSR can upscale through it.": "OptiScaler'ı kendiniz kurduğunuz bir oyun için: oyunun klasörünü seçin, HelixSR onun üzerinden ölçekleme yapabilsin.",
+  "OptiScaler added by hand": "Elle kurulmuş OptiScaler",
+  "{game} was added. Add HelixSR to it from the list.": "{game} eklendi. Listeden ona HelixSR ekleyin.",
+  "No OptiScaler.ini was found in this folder. Install OptiScaler in the game first.": "Bu klasörde OptiScaler.ini bulunamadı. Önce oyuna OptiScaler'ı kurun.",
+  "This folder has more than one OptiScaler.ini. Choose the folder of the one the game uses.": "Bu klasörde birden fazla OptiScaler.ini var. Oyunun kullandığının klasörünü seçin.",
+  "That is HelixSR's own folder. Choose the game's folder.": "Bu, HelixSR'ın kendi klasörü. Oyunun klasörünü seçin.",
+  "Remove HelixSR from this game first, so OptiScaler gets its settings back.": "OptiScaler ayarlarını geri alsın diye önce HelixSR'ı bu oyundan kaldırın."
 }

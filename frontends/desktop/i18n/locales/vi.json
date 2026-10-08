@@ -4755,5 +4755,13 @@
   "Mirrored motion vectors": "Vector chuyển động bị lật",
   "Only for a game whose moving objects smear because its motion vectors come out mirrored.": "Chỉ cho trò chơi có vật thể chuyển động bị nhòe vì vector chuyển động bị lật.",
   "Write helixsr.log": "Ghi helixsr.log",
-  "HelixSR writes what it does next to its DLL in each game: useful when a game misbehaves.": "HelixSR ghi lại việc nó làm cạnh DLL trong mỗi trò chơi: hữu ích khi trò chơi gặp sự cố."
+  "HelixSR writes what it does next to its DLL in each game: useful when a game misbehaves.": "HelixSR ghi lại việc nó làm cạnh DLL trong mỗi trò chơi: hữu ích khi trò chơi gặp sự cố.",
+  "Add OptiScaler game": "Thêm trò chơi có OptiScaler",
+  "For a game where you installed OptiScaler yourself: choose the game's folder and HelixSR can upscale through it.": "Cho trò chơi mà bạn tự cài OptiScaler: chọn thư mục trò chơi và HelixSR có thể nâng cấp ảnh thông qua nó.",
+  "OptiScaler added by hand": "OptiScaler cài thủ công",
+  "{game} was added. Add HelixSR to it from the list.": "Đã thêm {game}. Hãy thêm HelixSR cho nó từ danh sách.",
+  "No OptiScaler.ini was found in this folder. Install OptiScaler in the game first.": "Không tìm thấy OptiScaler.ini trong thư mục này. Hãy cài OptiScaler vào trò chơi trước.",
+  "This folder has more than one OptiScaler.ini. Choose the folder of the one the game uses.": "Thư mục này có nhiều hơn một OptiScaler.ini. Hãy chọn thư mục của tệp mà trò chơi dùng.",
+  "That is HelixSR's own folder. Choose the game's folder.": "Đó là thư mục của chính HelixSR. Hãy chọn thư mục của trò chơi.",
+  "Remove HelixSR from this game first, so OptiScaler gets its settings back.": "Hãy gỡ HelixSR khỏi trò chơi này trước để OptiScaler lấy lại cài đặt."
 }

@@ -4755,5 +4755,13 @@
   "Mirrored motion vectors": "反転したモーションベクトル",
   "Only for a game whose moving objects smear because its motion vectors come out mirrored.": "モーションベクトルが反転しているせいで動く物体がにじむゲームのみ。",
   "Write helixsr.log": "helixsr.log を書き込む",
-  "HelixSR writes what it does next to its DLL in each game: useful when a game misbehaves.": "HelixSR は各ゲームで DLL の横に動作を記録します。ゲームの挙動がおかしいときに役立ちます。"
+  "HelixSR writes what it does next to its DLL in each game: useful when a game misbehaves.": "HelixSR は各ゲームで DLL の横に動作を記録します。ゲームの挙動がおかしいときに役立ちます。",
+  "Add OptiScaler game": "OptiScaler 入りのゲームを追加",
+  "For a game where you installed OptiScaler yourself: choose the game's folder and HelixSR can upscale through it.": "OptiScaler を自分で入れたゲーム向け：ゲームのフォルダーを選ぶと、HelixSR がそれを通してアップスケールできます。",
+  "OptiScaler added by hand": "手動で入れた OptiScaler",
+  "{game} was added. Add HelixSR to it from the list.": "{game} を追加しました。一覧から HelixSR を追加してください。",
+  "No OptiScaler.ini was found in this folder. Install OptiScaler in the game first.": "このフォルダーに OptiScaler.ini が見つかりません。先にゲームへ OptiScaler を入れてください。",
+  "This folder has more than one OptiScaler.ini. Choose the folder of the one the game uses.": "このフォルダーには OptiScaler.ini が複数あります。ゲームが使うもののフォルダーを選んでください。",
+  "That is HelixSR's own folder. Choose the game's folder.": "それは HelixSR 自身のフォルダーです。ゲームのフォルダーを選んでください。",
+  "Remove HelixSR from this game first, so OptiScaler gets its settings back.": "先にこのゲームから HelixSR を削除して、OptiScaler の設定を元に戻してください。"
 }

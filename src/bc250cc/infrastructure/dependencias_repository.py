@@ -102,6 +102,7 @@ from bc250cc.infrastructure.governor_install_shell import (
 )
 from bc250cc.infrastructure.helixsr import (
     add_helixsr_folder,
+    add_optiscaler_folder,
     build_helixsr_install_command,
     build_helixsr_network_command,
     build_helixsr_remove_command,
@@ -541,8 +542,12 @@ class DependenciasRepository:
         """
         action = str(action or '').strip()
         if action.startswith('add_folder:'):
-            # A path keeps its case: it is the one action that carries one.
+            # A path keeps its case: these are the actions that carry one.
             result = add_helixsr_folder(action.partition(':')[2])
+            self.estado_herramientas_cache = None
+            return result
+        if action.startswith('add_opti_folder:'):
+            result = add_optiscaler_folder(action.partition(':')[2])
             self.estado_herramientas_cache = None
             return result
         action = action.lower()
