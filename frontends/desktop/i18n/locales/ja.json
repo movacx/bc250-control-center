@@ -4723,5 +4723,8 @@
   "That folder does not exist.": "そのフォルダーは存在しません。",
   "Choose the game's own folder, not a whole drive or your home folder.": "ドライブ全体やホームフォルダーではなく、ゲーム自体のフォルダーを選んでください。",
   "This folder is not on the list.": "このフォルダーはリストにありません。",
-  "Remove HelixSR from this game first, so it gets its own FSR file back.": "先にこのゲームから HelixSR を外し、ゲーム自身の FSR ファイルに戻してください。"
+  "Remove HelixSR from this game first, so it gets its own FSR file back.": "先にこのゲームから HelixSR を外し、ゲーム自身の FSR ファイルに戻してください。",
+  "Steam games and folders you added, with each upscaler's state.": "Steam のゲームと追加したフォルダー、それぞれのアップスケーラーの状態。",
+  "Search games": "ゲームを検索",
+  "No game matches the search.": "検索に一致するゲームはありません。"
 }

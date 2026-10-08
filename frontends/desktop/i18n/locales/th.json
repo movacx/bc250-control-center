@@ -4723,5 +4723,8 @@
   "That folder does not exist.": "ไม่มีโฟลเดอร์นั้น",
   "Choose the game's own folder, not a whole drive or your home folder.": "เลือกโฟลเดอร์ของตัวเกมเอง ไม่ใช่ทั้งไดรฟ์หรือโฟลเดอร์หลักของคุณ",
   "This folder is not on the list.": "โฟลเดอร์นี้ไม่อยู่ในรายการ",
-  "Remove HelixSR from this game first, so it gets its own FSR file back.": "นำ HelixSR ออกจากเกมนี้ก่อน เพื่อให้เกมได้ไฟล์ FSR ของตัวเองกลับมา"
+  "Remove HelixSR from this game first, so it gets its own FSR file back.": "นำ HelixSR ออกจากเกมนี้ก่อน เพื่อให้เกมได้ไฟล์ FSR ของตัวเองกลับมา",
+  "Steam games and folders you added, with each upscaler's state.": "เกม Steam และโฟลเดอร์ที่คุณเพิ่ม พร้อมสถานะของตัวอัปสเกลแต่ละตัว",
+  "Search games": "ค้นหาเกม",
+  "No game matches the search.": "ไม่มีเกมที่ตรงกับการค้นหา"
 }

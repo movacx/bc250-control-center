@@ -1985,6 +1985,43 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         border: 1px solid {c['border']};
         border-radius: 20px;
     }}
+    /* Additional settings > Upscaling: the app's page cards, with the
+       engine's colour as a rule across the top (FSR4 red, HelixSR cyan),
+       its release beside its name, and the games as one ruled table. */
+    QFrame[pageCard='true'][upscalerSection='true'],
+    QFrame[pageCard='true'][upscalingGames='true'] {{
+        border-radius: 12px;
+    }}
+    QFrame[pageCard='true'][upscalerEngine='fsr4'] {{
+        border-top: 3px solid {c['red']};
+    }}
+    QFrame[pageCard='true'][upscalerEngine='helixsr'] {{
+        border-top: 3px solid {c['cyan']};
+    }}
+    QLabel[engineVersion='true'] {{
+        color: {c['subtle']};
+        font-family: 'JetBrains Mono', 'Noto Sans Mono', monospace;
+        font-size: 12px;
+        padding-bottom: 1px;
+    }}
+    QLabel[gameName='true'] {{
+        color: {c['text']};
+        font-size: 12px;
+        font-weight: 700;
+    }}
+    QLabel[gameDetail='true'] {{
+        color: {c['subtle']};
+        font-size: 10px;
+        font-weight: 600;
+    }}
+    QLabel[gameState='true'] {{
+        color: {c['muted']};
+        font-size: 12px;
+        font-weight: 600;
+    }}
+    QLabel[gameState='true'][tone='good'] {{ color: {c['green']}; }}
+    QLabel[gameState='true'][tone='warning'] {{ color: {c['orange']}; }}
+    QLabel[gameState='true'][tone='danger'] {{ color: {c['red']}; }}
     QFrame[metricTile='true'] {{
         background: {c['panel_alt']};
         border: 1px solid {c['border_soft']};

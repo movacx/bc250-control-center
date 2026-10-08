@@ -4723,5 +4723,8 @@
   "That folder does not exist.": "Tato složka neexistuje.",
   "Choose the game's own folder, not a whole drive or your home folder.": "Vyberte složku samotné hry, ne celý disk ani domovskou složku.",
   "This folder is not on the list.": "Tato složka není v seznamu.",
-  "Remove HelixSR from this game first, so it gets its own FSR file back.": "Nejprve z této hry odeberte HelixSR, aby dostala zpět vlastní soubor FSR."
+  "Remove HelixSR from this game first, so it gets its own FSR file back.": "Nejprve z této hry odeberte HelixSR, aby dostala zpět vlastní soubor FSR.",
+  "Steam games and folders you added, with each upscaler's state.": "Hry ze Steamu a přidané složky se stavem každého upscaleru.",
+  "Search games": "Hledat hry",
+  "No game matches the search.": "Hledání neodpovídá žádná hra."
 }

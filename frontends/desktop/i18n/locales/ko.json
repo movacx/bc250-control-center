@@ -4723,5 +4723,8 @@
   "That folder does not exist.": "해당 폴더가 없습니다.",
   "Choose the game's own folder, not a whole drive or your home folder.": "드라이브 전체나 홈 폴더가 아닌 게임 자체의 폴더를 선택하세요.",
   "This folder is not on the list.": "이 폴더는 목록에 없습니다.",
-  "Remove HelixSR from this game first, so it gets its own FSR file back.": "먼저 이 게임에서 HelixSR을 제거해 원래 FSR 파일을 되돌리세요."
+  "Remove HelixSR from this game first, so it gets its own FSR file back.": "먼저 이 게임에서 HelixSR을 제거해 원래 FSR 파일을 되돌리세요.",
+  "Steam games and folders you added, with each upscaler's state.": "Steam 게임과 추가한 폴더, 그리고 각 업스케일러의 상태입니다.",
+  "Search games": "게임 검색",
+  "No game matches the search.": "검색과 일치하는 게임이 없습니다."
 }

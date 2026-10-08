@@ -4723,5 +4723,8 @@
   "That folder does not exist.": "Kansiota ei ole olemassa.",
   "Choose the game's own folder, not a whole drive or your home folder.": "Valitse pelin oma kansio, ei koko asemaa tai kotikansiotasi.",
   "This folder is not on the list.": "Tämä kansio ei ole listalla.",
-  "Remove HelixSR from this game first, so it gets its own FSR file back.": "Poista ensin HelixSR tästä pelistä, jotta se saa oman FSR-tiedostonsa takaisin."
+  "Remove HelixSR from this game first, so it gets its own FSR file back.": "Poista ensin HelixSR tästä pelistä, jotta se saa oman FSR-tiedostonsa takaisin.",
+  "Steam games and folders you added, with each upscaler's state.": "Steam-pelit ja lisäämäsi kansiot sekä kunkin skaalaimen tila.",
+  "Search games": "Hae pelejä",
+  "No game matches the search.": "Mikään peli ei vastaa hakua."
 }

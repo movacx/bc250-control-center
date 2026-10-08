@@ -4723,5 +4723,8 @@
   "That folder does not exist.": "Такої теки немає.",
   "Choose the game's own folder, not a whole drive or your home folder.": "Виберіть теку самої гри, а не весь диск чи домашню теку.",
   "This folder is not on the list.": "Цієї теки немає в списку.",
-  "Remove HelixSR from this game first, so it gets its own FSR file back.": "Спочатку приберіть HelixSR з цієї гри, щоб повернути її власний файл FSR."
+  "Remove HelixSR from this game first, so it gets its own FSR file back.": "Спочатку приберіть HelixSR з цієї гри, щоб повернути її власний файл FSR.",
+  "Steam games and folders you added, with each upscaler's state.": "Ігри Steam і додані вами теки зі станом кожного апскейлера.",
+  "Search games": "Пошук ігор",
+  "No game matches the search.": "Жодна гра не відповідає пошуку."
 }

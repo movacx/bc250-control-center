@@ -1280,19 +1280,30 @@ class PreparationInfoCard(QFrame):
 class _UpscalerSection(SectionCard):
     """One upscaler on the Upscaling tab, built like the GPU page's cards.
 
-    Readings for its state, a sentence when something is missing, its games
-    as reading rows (HelixSR with a switch per game) and a footer: the
-    other actions on the left, the next step as the blue button on the right.
+    A rule in the engine's colour across the top, its release beside its
+    name, its state as readings, a sentence when something is missing and
+    a footer: the other actions on the left, the next step as the blue
+    button on the right. Its games are rows of the shared games table.
     """
 
-    action_requested = pyqtSignal(object)
-    #: Readings may hold a game's whole state ("Active via OptiScaler").
-    VALUE_LENGTH = 34
     TONES = {"green": "good", "orange": "warning", "red": "danger"}
 
-    def __init__(self, title: str, subtitle: str) -> None:
+    def __init__(self, title: str, subtitle: str, engine: str) -> None:
         super().__init__(title, subtitle, icon_name="")
         self.setProperty("upscalerSection", True)
+        self.setProperty("upscalerEngine", engine)
+        # The release sits beside the name, in the console face.
+        title_box = self._title_host.layout()
+        title_label = title_box.itemAt(0).widget()
+        title_box.removeWidget(title_label)
+        title_row = QHBoxLayout()
+        title_row.setSpacing(10)
+        title_row.addWidget(title_label)
+        self.version = QLabel("")
+        self.version.setProperty("engineVersion", True)
+        title_row.addWidget(self.version, 0, Qt.AlignmentFlag.AlignBottom)
+        title_row.addStretch(1)
+        title_box.insertLayout(0, title_row)
         # The card's title already names the tool: the readings need no heading.
         self.facts = ReadingGroup("State")
         self.facts.title.hide()
@@ -1305,18 +1316,6 @@ class _UpscalerSection(SectionCard):
         self.extra = QVBoxLayout()
         self.extra.setSpacing(10)
         self.body.addLayout(self.extra)
-        self.games_host = QVBoxLayout()
-        self.games_host.setSpacing(0)
-        self.body.addLayout(self.games_host)
-        self.games: ReadingGroup | None = None
-        self.game_controls: dict[str, QWidget] = {}
-        self._games_signature: object = None
-        self.games_empty = _label("", "fieldHint")
-        self.games_empty.hide()
-        self.body.addWidget(self.games_empty)
-        self.after_games = QVBoxLayout()
-        self.after_games.setSpacing(8)
-        self.body.addLayout(self.after_games)
         self.body.addStretch(1)
         self.footer_panel = QFrame()
         self.footer_panel.setProperty("configurationFooter", True)
@@ -1325,12 +1324,16 @@ class _UpscalerSection(SectionCard):
         self.footer.setHorizontalSpacing(8)
         self.body.addWidget(self.footer_panel)
 
+    def set_version(self, version: str) -> None:
+        self.version.setText(version)
+        self.version.setVisible(bool(version))
+
     def set_fact(self, key: str, label: str, value: str, tone: str = "") -> None:
         """A reading of the state group, added the first time it is set."""
         row = self.rows.get(key)
         if row is None:
             row = self.facts.add(key, label)
-            row.LONGEST_VALUE = self.VALUE_LENGTH
+            row.LONGEST_VALUE = 34
             self.rows[key] = row
         row.set_value(value)
         row.set_tone(self.TONES.get(tone, ""))
@@ -1362,66 +1365,138 @@ class _UpscalerSection(SectionCard):
             any(not b.isHidden() for b in secondary) or (primary is not None and not primary.isHidden())
         )
 
-    def set_games(self, games: list[dict], empty: str) -> None:
-        """One reading per game: its state and, at the end, its control.
 
-        A game is ``{key, name, text, tone, tooltip, switch, actions}``;
-        ``switch`` is ``{checked, action, enabled, tooltip}`` and
-        ``actions`` holds ``(label, action, enabled)``.
-        """
-        signature = (tr("Games"), empty, repr(games))
-        if signature == self._games_signature:
+class _UpscalingGames(SectionCard):
+    """Every game against both upscalers, as one table across the page.
+
+    Rows are games (Steam's and folders added by hand); each upscaler has a
+    column with the game's state and, at its right edge, its control: the
+    HelixSR switch, or FSR4's fix when one is ours. A search narrows a long
+    library; the header adds a folder from outside Steam.
+    """
+
+    action_requested = pyqtSignal(object)
+    TONES = _UpscalerSection.TONES
+    #: Game | HelixSR | FSR4 INT8.
+    STRETCH = (5, 6, 6)
+
+    def __init__(self) -> None:
+        super().__init__(
+            "Games",
+            "Steam games and folders you added, with each upscaler's state.",
+            icon_name="",
+        )
+        self.setProperty("upscalingGames", True)
+        self.search = QLineEdit()
+        self.search.setPlaceholderText(tr("Search games"))
+        self.search.setClearButtonEnabled(True)
+        self.search.setProperty("gameSearch", True)
+        self.search.textChanged.connect(self._filter)
+        self.body.addWidget(self.search)
+        self.table = QWidget()
+        self.grid = QGridLayout(self.table)
+        self.grid.setContentsMargins(0, 0, 0, 0)
+        self.grid.setHorizontalSpacing(18)
+        self.grid.setVerticalSpacing(0)
+        for column, stretch in enumerate(self.STRETCH):
+            self.grid.setColumnStretch(column, stretch)
+        self.body.addWidget(self.table)
+        self.empty = _label("", "fieldHint")
+        self.empty.hide()
+        self.body.addWidget(self.empty)
+        self._signature: object = None
+        self._rows: list[tuple[str, list[QWidget]]] = []
+        #: The controls of each row, by (game key, "helixsr" or "fsr4").
+        self.controls: dict[tuple[str, str], QWidget] = {}
+
+    @staticmethod
+    def _head(text: str) -> HeadingLabel:
+        label = HeadingLabel()
+        label.source_text = text
+        label.setText(tr(text))
+        label.setProperty("groupTitle", True)
+        return label
+
+    def set_rows(self, rows: list[dict], empty: str) -> None:
+        """``rows``: ``{key, name, detail, tooltip, helixsr, fsr4}``; a tool's
+        cell is ``None`` or ``{text, tone, tooltip, switch, actions}``."""
+        signature = (tr("Games"), empty, repr(rows))
+        if signature == self._signature:
             return
-        self._games_signature = signature
-        if self.games is not None:
-            self.games.hide()
-            self.games.deleteLater()
-            self.games = None
-        self.game_controls = {}
-        if games:
-            self.games = ReadingGroup("Games")
-            for game in games:
-                row = self.games.add(game["key"], game["name"])
-                row.LONGEST_VALUE = self.VALUE_LENGTH
-                row.set_value(game["text"], game.get("detail") or "")
-                row.set_tone(self.TONES.get(game["tone"], ""))
-                row.setToolTip(tr(game["tooltip"]))
-                control = self._control(game)
-                if control is not None:
-                    row.layout().addWidget(control, 0, Qt.AlignmentFlag.AlignVCenter)
-                    self.game_controls[game["key"]] = control
-            self.games_host.addWidget(self.games)
-        self.games_empty.setText(tr(empty))
-        self.games_empty.setVisible(not games and bool(empty))
+        self._signature = signature
+        while self.grid.count():
+            item = self.grid.takeAt(0)
+            if item.widget() is not None:
+                # Hidden at once: deleteLater waits for the event loop.
+                item.widget().hide()
+                item.widget().deleteLater()
+        self._rows, self.controls = [], {}
+        if rows:
+            for column, text in enumerate(("Game", "HelixSR", "FSR4 INT8")):
+                self.grid.addWidget(self._head(text), 0, column)
+            self.grid.addWidget(self._rule(), 1, 0, 1, 3)
+        line = 2
+        for row in rows:
+            name = QWidget()
+            name_box = QVBoxLayout(name)
+            name_box.setContentsMargins(0, 8, 0, 8)
+            name_box.setSpacing(1)
+            title = _label(row["name"], "gameName")
+            title.setText(row["name"])
+            title.setProperty("i18nLiteral", True)
+            name_box.addWidget(title)
+            if row.get("detail"):
+                name_box.addWidget(_label(row["detail"], "gameDetail"))
+            name.setToolTip(row.get("tooltip") or "")
+            widgets = [name]
+            self.grid.addWidget(name, line, 0)
+            for column, key in ((1, "helixsr"), (2, "fsr4")):
+                cell = self._cell(row["key"], key, row[key])
+                self.grid.addWidget(cell, line, column)
+                widgets.append(cell)
+            rule = self._rule()
+            self.grid.addWidget(rule, line + 1, 0, 1, 3)
+            widgets.append(rule)
+            self._rows.append((row["name"].casefold(), widgets))
+            line += 2
+        self.search.setVisible(len(rows) > 8)
+        self._empty_text = tr(empty)
+        self._filter()
 
-    def _control(self, game: Mapping) -> QWidget | None:
-        buttons = [self._action_button(*entry) for entry in game.get("actions") or ()]
-        switch = self._switch(game.get("switch")) if game.get("switch") else None
-        controls = [*buttons, *([switch] if switch else [])]
-        if len(controls) <= 1:
-            return controls[0] if controls else None
+    @staticmethod
+    def _rule() -> QFrame:
+        rule = QFrame()
+        rule.setProperty("instrumentHairline", True)
+        rule.setFixedHeight(1)
+        return rule
+
+    def _cell(self, game: str, tool: str, cell) -> QWidget:
         host = QWidget()
         row = QHBoxLayout(host)
-        row.setContentsMargins(0, 0, 0, 0)
+        row.setContentsMargins(0, 6, 0, 6)
         row.setSpacing(10)
-        for control in controls:
-            row.addWidget(control, 0, Qt.AlignmentFlag.AlignVCenter)
-        host.switch = switch
-        return host
-
-    def _action_button(self, label: str, action: str, enabled: bool) -> QPushButton:
-        button = QPushButton(tr(label))
-        button.setProperty("compactAction", True)
-        button.setCursor(Qt.CursorShape.PointingHandCursor)
-        button.setEnabled(bool(enabled))
-        button.clicked.connect(
-            lambda _checked=False, value=action: self.action_requested.emit(
-                {"action": value, "governor": ""}
+        state = QLabel("—" if cell is None else tr(cell["text"]))
+        state.setProperty("gameState", True)
+        state.setProperty("tone", "" if cell is None else self.TONES.get(cell["tone"], ""))
+        state.setWordWrap(True)
+        row.addWidget(state, 1)
+        if cell is None:
+            return host
+        host.setToolTip(tr(cell["tooltip"]))
+        controls: list[QWidget] = []
+        for label, action, enabled in cell.get("actions") or ():
+            button = QPushButton(tr(label))
+            button.setProperty("compactAction", True)
+            button.setCursor(Qt.CursorShape.PointingHandCursor)
+            button.setEnabled(bool(enabled))
+            button.clicked.connect(
+                lambda _checked=False, value=action: self.action_requested.emit(
+                    {"action": value, "governor": ""}
+                )
             )
-        )
-        return button
-
-    def _switch(self, switch: Mapping) -> ToggleSwitch:
+            row.addWidget(button, 0, Qt.AlignmentFlag.AlignVCenter)
+            controls.append(button)
+        switch = cell.get("switch")
         if switch:
             toggle = ToggleSwitch()
             toggle.setChecked(bool(switch["checked"]))
@@ -1438,7 +1513,26 @@ class _UpscalerSection(SectionCard):
                 self.action_requested.emit({"action": switch["action"], "governor": ""})
 
             toggle.toggled.connect(flipped)
-            return toggle
+            row.addWidget(toggle, 0, Qt.AlignmentFlag.AlignVCenter)
+            host.switch = toggle
+        host.buttons = controls
+        self.controls[(game, tool)] = host
+        return host
+
+    def _filter(self) -> None:
+        query = self.search.text().strip().casefold()
+        shown = 0
+        for name, widgets in self._rows:
+            visible = query in name
+            shown += visible
+            for widget in widgets:
+                widget.setVisible(visible)
+        self.table.setVisible(shown > 0)
+        if not self._rows:
+            self.empty.setText(self._empty_text)
+        else:
+            self.empty.setText(tr("No game matches the search."))
+        self.empty.setVisible(shown == 0 and bool(self.empty.text()))
 
 
 class PreparationSidebar(QFrame):
@@ -2776,7 +2870,7 @@ class PreparationSidebar(QFrame):
         self.upscaling_sources.hide()
 
         self.fsr4_section = _UpscalerSection(
-            "FSR4 INT8", "AMD's FSR 4 in INT8, installed per game by OptiScaler Client."
+            "FSR4 INT8", "AMD's FSR 4 in INT8, installed per game by OptiScaler Client.", "fsr4"
         )
         self.fsr4_section.add_header_button(
             "Step-by-step guide", lambda: self.fsr4_upstream_button.click()
@@ -2815,32 +2909,24 @@ class PreparationSidebar(QFrame):
         self.helixsr_section = _UpscalerSection(
             "HelixSR",
             "DLSS's neural network running on this GPU, in place of a game's FSR 3.1 upscaler.",
+            "helixsr",
         )
         self.helixsr_section.add_header_button(
             "Open upstream project", lambda: self.helixsr_upstream_button.click()
         )
+        # Every game against both upscalers, across the page.
+        self.upscaling_games = _UpscalingGames()
+        self.upscaling_games.action_requested.connect(self._forward_dependency_action)
         # Games Steam does not know: the user points at the game's folder.
-        self.helixsr_folder_panel = QFrame()
-        self.helixsr_folder_panel.setProperty("compactPanel", True)
-        folder_row = QHBoxLayout(self.helixsr_folder_panel)
-        folder_row.setContentsMargins(12, 10, 12, 10)
-        folder_row.setSpacing(10)
-        folder_row.addWidget(
-            _label("For games outside Steam, choose the game's folder.", "fieldHint"), 1
-        )
-        self.helixsr_folder_button = QPushButton(tr("Add game folder"))
-        self.helixsr_folder_button.setProperty("compactAction", True)
-        self.helixsr_folder_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.helixsr_folder_button.setMinimumHeight(34)
-        self.helixsr_folder_button.clicked.connect(
+        self.helixsr_folder_button = self.upscaling_games.add_header_button(
+            "Add game folder",
             lambda: self._forward_dependency_action(
                 {"action": "helixsr_add_folder", "governor": ""}
-            )
+            ),
         )
-        folder_row.addWidget(self.helixsr_folder_button, 0, Qt.AlignmentFlag.AlignVCenter)
-        self.helixsr_section.after_games.addWidget(self.helixsr_folder_panel)
-        for section in (self.fsr4_section, self.helixsr_section):
-            section.action_requested.connect(self._forward_dependency_action)
+        self.helixsr_folder_button.setToolTip(
+            tr("For games outside Steam, choose the game's folder.")
+        )
         for button in (
             self.fsr4_install_button, self.fsr4_launch_button, self.fsr4_remove_button,
             self.fsr4_legacy_button, self.helixsr_install_button, self.helixsr_network_button,
@@ -2853,6 +2939,8 @@ class PreparationSidebar(QFrame):
         self.upscaling_row.addWidget(self.fsr4_section, 1)
         self.upscaling_row.addWidget(self.helixsr_section, 1)
         layout.addLayout(self.upscaling_row)
+        layout.addSpacing(14)
+        layout.addWidget(self.upscaling_games)
         layout.addStretch(1)
         self._render_upscaling()
         return page
@@ -3715,42 +3803,29 @@ class PreparationSidebar(QFrame):
         button.style().polish(button)
 
     def _render_upscaling(self) -> None:
-        """Lay both upscalers' state, games and actions into their sections."""
+        """Both upscalers' cards, then the games table shared by both."""
         if not hasattr(self, "fsr4_section"):
             return
         helixsr_games, ready = getattr(self, "_helixsr_games", ([], False))
         rows = game_matrix_rows(
             helixsr_games, getattr(self, "_fsr4_games", []), helixsr_ready=ready
         )
-        self._render_fsr4_section(rows)
-        self._render_helixsr_section(rows)
+        self._render_fsr4_section()
+        self._render_helixsr_section()
+        self._render_upscaling_games(rows, ready)
 
-    def _render_fsr4_section(self, rows: list[dict]) -> None:
+    def _render_fsr4_section(self) -> None:
         view = getattr(self, "_fsr4_view", None) or {
             "state": {}, "status": "Checking", "tone": "", "detail": "", "version": "",
         }
         fsr4 = view["state"]
         current = bool(fsr4.get("current"))
         section = self.fsr4_section
+        section.set_version(view["version"])
         section.set_fact("state", "State", view["status"], view["tone"])
-        section.set_fact("version", "Version", view["version"] or "—")
         section.set_notice("" if current else view["detail"])
         self.fsr4_launch_panel.setVisible(current and bool(self._fsr4_launch_option))
         self.fsr4_launch_field.setText(self._fsr4_launch_option)
-        games = []
-        for row in rows:
-            cell = row["fsr4"]
-            if cell is None:
-                continue
-            text, tone, tooltip, actions = cell
-            games.append({
-                "key": row["appid"] or row["name"], "name": row["name"],
-                "text": text or "Available", "tone": tone, "tooltip": tooltip,
-                "switch": None, "actions": actions,
-            })
-        section.set_games(
-            games, "No games yet. Install FSR4 in a game from OptiScaler Client." if current else ""
-        )
         if current:
             secondary = [self.fsr4_install_button, self.fsr4_remove_button, self.fsr4_legacy_button]
             primary = self.fsr4_launch_button
@@ -3759,7 +3834,7 @@ class PreparationSidebar(QFrame):
             primary = self.fsr4_install_button
         section.set_actions(secondary, primary)
 
-    def _render_helixsr_section(self, rows: list[dict]) -> None:
+    def _render_helixsr_section(self) -> None:
         view = getattr(self, "_helixsr_view", None) or {
             "state": {}, "status": "Checking", "tone": "", "detail": "", "version": "",
         }
@@ -3767,42 +3842,14 @@ class PreparationSidebar(QFrame):
         current = bool(helixsr.get("current"))
         ready = bool(helixsr.get("network_ready"))
         section = self.helixsr_section
+        section.set_version(view["version"])
         section.set_fact("state", "State", view["status"], view["tone"])
-        section.set_fact("version", "Version", view["version"] or "—")
         section.set_fact(
             "network", "Network files",
             "Built on this PC" if ready else "Not built yet" if current else "—",
             "" if ready or not current else "orange",
         )
         section.set_notice("" if ready else view["detail"])
-        games = []
-        for row in rows:
-            cell = row["helixsr"]
-            if cell is None:
-                continue
-            text, tone, tooltip, actions = cell
-            label, action, enabled = actions[0]
-            on = label.startswith("Remove")
-            folder = row.get("folder") or ""
-            games.append({
-                "key": row["appid"] or row["name"], "name": row["name"],
-                "text": text or "Available", "tone": tone,
-                "tooltip": f"{tr(tooltip)}\n{folder}" if folder else tooltip,
-                "detail": "Outside Steam" if folder else "",
-                "switch": {
-                    "checked": on, "action": action, "enabled": enabled,
-                    "tooltip": "Remove HelixSR from this game" if on else "Add HelixSR to this game",
-                },
-                # A folder added by hand can leave the list while HelixSR is not in it.
-                "actions": (
-                    (("Remove from list", f"helixsr_forget_folder:{row['appid']}", True),)
-                    if folder and not on else ()
-                ),
-            })
-        section.set_games(
-            games, "No games yet. Find FSR 3.1 games looks through your Steam library." if ready else ""
-        )
-        self.helixsr_folder_panel.setVisible(current)
         if not current:
             secondary, primary = [self.helixsr_remove_button], self.helixsr_install_button
         elif not ready:
@@ -3812,6 +3859,44 @@ class PreparationSidebar(QFrame):
             secondary = [self.helixsr_install_button, self.helixsr_remove_button]
             primary = self.helixsr_scan_button
         section.set_actions(secondary, primary)
+
+    def _render_upscaling_games(self, rows: list[dict], ready: bool) -> None:
+        helixsr_current = bool(_mapping(getattr(self, "_helixsr_view", {}).get("state")).get("current"))
+        table = []
+        for row in rows:
+            folder = row.get("folder") or ""
+            helixsr = None
+            if row["helixsr"] is not None:
+                text, tone, tooltip, actions = row["helixsr"]
+                label, action, enabled = actions[0]
+                on = label.startswith("Remove")
+                helixsr = {
+                    "text": text or "Available", "tone": tone, "tooltip": tooltip,
+                    "switch": {
+                        "checked": on, "action": action, "enabled": enabled,
+                        "tooltip": "Remove HelixSR from this game" if on else "Add HelixSR to this game",
+                    },
+                    # A folder added by hand can leave the list while HelixSR is not in it.
+                    "actions": (
+                        (("Remove from list", f"helixsr_forget_folder:{row['appid']}", True),)
+                        if folder and not on else ()
+                    ),
+                }
+            fsr4 = None
+            if row["fsr4"] is not None:
+                text, tone, tooltip, actions = row["fsr4"]
+                fsr4 = {"text": text or "Available", "tone": tone, "tooltip": tooltip,
+                        "switch": None, "actions": actions}
+            table.append({
+                "key": row["appid"] or row["name"], "name": row["name"],
+                "detail": "Outside Steam" if folder else "", "tooltip": folder,
+                "helixsr": helixsr, "fsr4": fsr4,
+            })
+        self.upscaling_games.set_rows(
+            table,
+            "No games yet. Find FSR 3.1 games looks through your Steam library." if ready else "",
+        )
+        self.helixsr_folder_button.setVisible(helixsr_current)
 
     def _render_fsr4_games(self, games: list[dict]) -> None:
         """FSR4's games are rows of its section on the Upscaling tab."""

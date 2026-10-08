@@ -4723,5 +4723,8 @@
   "That folder does not exist.": "Den mappe findes ikke.",
   "Choose the game's own folder, not a whole drive or your home folder.": "Vælg spillets egen mappe, ikke et helt drev eller din hjemmemappe.",
   "This folder is not on the list.": "Denne mappe er ikke på listen.",
-  "Remove HelixSR from this game first, so it gets its own FSR file back.": "Fjern først HelixSR fra dette spil, så det får sin egen FSR-fil tilbage."
+  "Remove HelixSR from this game first, so it gets its own FSR file back.": "Fjern først HelixSR fra dette spil, så det får sin egen FSR-fil tilbage.",
+  "Steam games and folders you added, with each upscaler's state.": "Steam-spil og mapper, du har tilføjet, med hver upscalers status.",
+  "Search games": "Søg efter spil",
+  "No game matches the search.": "Ingen spil matcher søgningen."
 }

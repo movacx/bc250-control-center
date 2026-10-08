@@ -4723,5 +4723,8 @@
   "That folder does not exist.": "Ez a mappa nem létezik.",
   "Choose the game's own folder, not a whole drive or your home folder.": "A játék saját mappáját válaszd, ne egy egész meghajtót vagy a saját mappádat.",
   "This folder is not on the list.": "Ez a mappa nincs a listán.",
-  "Remove HelixSR from this game first, so it gets its own FSR file back.": "Előbb vedd ki a HelixSR-t ebből a játékból, hogy visszakapja a saját FSR-fájlját."
+  "Remove HelixSR from this game first, so it gets its own FSR file back.": "Előbb vedd ki a HelixSR-t ebből a játékból, hogy visszakapja a saját FSR-fájlját.",
+  "Steam games and folders you added, with each upscaler's state.": "Steam-játékok és a hozzáadott mappák, minden felskálázó állapotával.",
+  "Search games": "Játékok keresése",
+  "No game matches the search.": "Egy játék sem felel meg a keresésnek."
 }

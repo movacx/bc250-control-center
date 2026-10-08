@@ -4723,5 +4723,8 @@
   "That folder does not exist.": "该文件夹不存在。",
   "Choose the game's own folder, not a whole drive or your home folder.": "请选择游戏本身的文件夹，而不是整个磁盘或你的主文件夹。",
   "This folder is not on the list.": "此文件夹不在列表中。",
-  "Remove HelixSR from this game first, so it gets its own FSR file back.": "请先从此游戏移除 HelixSR，让它恢复自己的 FSR 文件。"
+  "Remove HelixSR from this game first, so it gets its own FSR file back.": "请先从此游戏移除 HelixSR，让它恢复自己的 FSR 文件。",
+  "Steam games and folders you added, with each upscaler's state.": "Steam 游戏和你添加的文件夹，以及每个超分辨率工具的状态。",
+  "Search games": "搜索游戏",
+  "No game matches the search.": "没有符合搜索的游戏。"
 }

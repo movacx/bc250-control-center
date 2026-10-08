@@ -4723,5 +4723,8 @@
   "That folder does not exist.": "Тази папка не съществува.",
   "Choose the game's own folder, not a whole drive or your home folder.": "Изберете папката на самата игра, а не цял диск или домашната си папка.",
   "This folder is not on the list.": "Тази папка не е в списъка.",
-  "Remove HelixSR from this game first, so it gets its own FSR file back.": "Първо премахнете HelixSR от тази игра, за да си върне собствения FSR файл."
+  "Remove HelixSR from this game first, so it gets its own FSR file back.": "Първо премахнете HelixSR от тази игра, за да си върне собствения FSR файл.",
+  "Steam games and folders you added, with each upscaler's state.": "Игри от Steam и добавени от вас папки със състоянието на всеки ъпскейлър.",
+  "Search games": "Търсене на игри",
+  "No game matches the search.": "Няма игри, отговарящи на търсенето."
 }

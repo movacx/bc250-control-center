@@ -4723,5 +4723,8 @@
   "That folder does not exist.": "Thư mục đó không tồn tại.",
   "Choose the game's own folder, not a whole drive or your home folder.": "Hãy chọn thư mục của chính trò chơi, không phải cả ổ đĩa hay thư mục nhà của bạn.",
   "This folder is not on the list.": "Thư mục này không có trong danh sách.",
-  "Remove HelixSR from this game first, so it gets its own FSR file back.": "Hãy bỏ HelixSR khỏi trò chơi này trước để nó lấy lại tệp FSR của riêng mình."
+  "Remove HelixSR from this game first, so it gets its own FSR file back.": "Hãy bỏ HelixSR khỏi trò chơi này trước để nó lấy lại tệp FSR của riêng mình.",
+  "Steam games and folders you added, with each upscaler's state.": "Trò chơi Steam và thư mục bạn đã thêm, kèm trạng thái của từng bộ nâng cấp độ phân giải.",
+  "Search games": "Tìm trò chơi",
+  "No game matches the search.": "Không có trò chơi nào khớp với tìm kiếm."
 }

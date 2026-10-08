@@ -4723,5 +4723,8 @@
   "That folder does not exist.": "Folder itu tidak wujud.",
   "Choose the game's own folder, not a whole drive or your home folder.": "Pilih folder permainan itu sendiri, bukan seluruh pemacu atau folder rumah anda.",
   "This folder is not on the list.": "Folder ini tiada dalam senarai.",
-  "Remove HelixSR from this game first, so it gets its own FSR file back.": "Buang HelixSR daripada permainan ini dahulu, supaya ia mendapat semula fail FSR sendiri."
+  "Remove HelixSR from this game first, so it gets its own FSR file back.": "Buang HelixSR daripada permainan ini dahulu, supaya ia mendapat semula fail FSR sendiri.",
+  "Steam games and folders you added, with each upscaler's state.": "Permainan Steam dan folder yang anda tambah, dengan status setiap upscaler.",
+  "Search games": "Cari permainan",
+  "No game matches the search.": "Tiada permainan yang sepadan dengan carian."
 }

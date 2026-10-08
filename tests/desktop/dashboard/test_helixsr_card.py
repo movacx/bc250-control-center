@@ -7,7 +7,7 @@ from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 
 from PyQt6.QtCore import QSettings
-from PyQt6.QtWidgets import QApplication, QPushButton
+from PyQt6.QtWidgets import QApplication, QLabel, QPushButton
 
 from frontends.desktop.components.dashboard_widgets import (
     PreparationSidebar,
@@ -126,7 +126,8 @@ def test_ready_shows_the_readings_and_puts_the_search_last():
     sidebar.set_state(_state(_ready()))
     section = sidebar.helixsr_section
     values = {key: row.value.text() for key, row in section.rows.items()}
-    assert values == {"state": "Ready", "version": "1.2.0", "network": "Built on this PC"}
+    assert values == {"state": "Ready", "network": "Built on this PC"}
+    assert section.version.text() == "1.2.0"
     assert section.rows["state"].property("tone") == "good"
     assert section.notice.isHidden()
     footer = _footer(section)
@@ -143,8 +144,9 @@ def test_each_helixsr_game_has_a_switch_that_asks_before_it_moves():
         {"appid": "2", "kind": "optiscaler", "name": "Opti", "state": "available", "files": []},
     ]
     sidebar.set_state(_state(_ready(games)))
-    controls = sidebar.helixsr_section.game_controls
-    assert set(controls) == {"1", "2"}
+    table = sidebar.upscaling_games.controls
+    assert {key for key, tool in table if tool == "helixsr"} == {"1", "2"}
+    controls = {key: table[(key, "helixsr")].switch for key in ("1", "2")}
     assert all(isinstance(control, ToggleSwitch) for control in controls.values())
     assert controls["1"].isChecked() and not controls["2"].isChecked()
     requested = []
@@ -164,10 +166,9 @@ def test_a_game_outside_steam_is_marked_and_can_leave_the_list():
     games = [{"appid": "folder-abc", "kind": "game", "name": "Loose", "state": "available",
               "files": ["/g/a.dll"], "folder": "/g"}]
     sidebar.set_state(_state(_ready(games)))
-    section = sidebar.helixsr_section
-    row = section.games.readings["folder-abc"]
-    assert row.detail.text() == "Outside Steam"
-    host = section.game_controls["folder-abc"]
+    table = sidebar.upscaling_games
+    assert "Outside Steam" in [label.text() for label in table.table.findChildren(QLabel)]
+    host = table.controls[("folder-abc", "helixsr")]
     requested = []
     sidebar.dependency_action_requested.connect(requested.append)
     forget = [b for b in host.findChildren(QPushButton) if b.text() == "Remove from list"]
@@ -182,19 +183,19 @@ def test_a_game_outside_steam_is_marked_and_can_leave_the_list():
 def test_the_folder_button_asks_the_page_for_a_folder():
     sidebar = _sidebar()
     sidebar.set_state(_state(_ready()))
-    assert not sidebar.helixsr_folder_panel.isHidden()
+    assert not sidebar.helixsr_folder_button.isHidden()
     requested = []
     sidebar.dependency_action_requested.connect(requested.append)
     sidebar.helixsr_folder_button.click()
     assert [item["action"] for item in requested] == ["helixsr_add_folder"]
     sidebar.set_state(_state(_helixsr()))
-    assert sidebar.helixsr_folder_panel.isHidden()
+    assert sidebar.helixsr_folder_button.isHidden()
 
 
 def test_an_empty_library_says_how_to_find_games():
     sidebar = _sidebar()
     sidebar.set_state(_state(_ready()))
-    empty = sidebar.helixsr_section.games_empty
+    empty = sidebar.upscaling_games.empty
     assert not empty.isHidden()
     assert empty.text() == "No games yet. Find FSR 3.1 games looks through your Steam library."
 
@@ -204,12 +205,12 @@ def test_a_rebuilt_list_leaves_nothing_of_the_old_one_on_screen():
     sidebar.set_state(_state(_ready([
         {"appid": "1", "kind": "game", "name": "One", "state": "available", "files": ["/a.dll"]},
     ])))
-    old = sidebar.helixsr_section.games
+    old = sidebar.upscaling_games.controls[("1", "helixsr")]
     sidebar.set_state(_state(_ready([
         {"appid": "1", "kind": "game", "name": "One", "state": "installed", "files": ["/a.dll"]},
     ])))
     assert old.isHidden()
-    assert sidebar.helixsr_section.game_controls["1"].isChecked()
+    assert sidebar.upscaling_games.controls[("1", "helixsr")].switch.isChecked()
 
 
 def _fsr4_ready(**overrides) -> dict:
@@ -230,7 +231,7 @@ def test_fsr4_shows_the_launch_option_and_opens_the_client_as_the_next_step():
     assert not sidebar.fsr4_launch_panel.isHidden()
     assert sidebar.fsr4_launch_field.text() == 'WINEDLLOVERRIDES="dxgi=n,b" %command%'
     assert sidebar.fsr4_copy_button.text() == "Copy"
-    assert section.rows["version"].value.text() == "1.0.7"
+    assert section.version.text() == "1.0.7"
     assert _footer(section)[-1] is sidebar.fsr4_launch_button
     assert sidebar.fsr4_launch_button.objectName() == "PrimaryAction"
 
@@ -238,7 +239,7 @@ def test_fsr4_shows_the_launch_option_and_opens_the_client_as_the_next_step():
 def test_an_fsr4_game_missing_the_option_offers_the_fix():
     sidebar = _sidebar()
     sidebar.set_state(_state(_helixsr(), _fsr4_ready()))
-    button = sidebar.fsr4_section.game_controls["10"]
+    button = sidebar.upscaling_games.controls[("10", "fsr4")].buttons[0]
     requested = []
     sidebar.dependency_action_requested.connect(requested.append)
     button.click()
@@ -289,3 +290,19 @@ def test_optiscaler_only_games_are_added_through_optiscaler_and_wait_for_the_net
     assert rows[0]["helixsr"][3] == (("Add HelixSR", "helixsr_opti_install:5", False),)
 
 
+
+
+def test_a_long_library_can_be_searched():
+    sidebar = _sidebar()
+    games = [
+        {"appid": str(i), "kind": "game", "name": f"Game {i}", "state": "available", "files": ["/a.dll"]}
+        for i in range(10)
+    ]
+    sidebar.set_state(_state(_ready(games)))
+    table = sidebar.upscaling_games
+    assert not table.search.isHidden()
+    table.search.setText("Game 7")
+    shown = [key for (key, tool), host in table.controls.items() if not host.isHidden()]
+    assert shown == ["7"]
+    table.search.setText("nothing like it")
+    assert table.empty.text() == "No game matches the search."

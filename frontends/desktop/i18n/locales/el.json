@@ -4723,5 +4723,8 @@
   "That folder does not exist.": "Αυτός ο φάκελος δεν υπάρχει.",
   "Choose the game's own folder, not a whole drive or your home folder.": "Επιλέξτε τον φάκελο του ίδιου του παιχνιδιού, όχι ολόκληρο δίσκο ή τον προσωπικό σας φάκελο.",
   "This folder is not on the list.": "Αυτός ο φάκελος δεν είναι στη λίστα.",
-  "Remove HelixSR from this game first, so it gets its own FSR file back.": "Αφαιρέστε πρώτα το HelixSR από αυτό το παιχνίδι, ώστε να πάρει πίσω το δικό του αρχείο FSR."
+  "Remove HelixSR from this game first, so it gets its own FSR file back.": "Αφαιρέστε πρώτα το HelixSR από αυτό το παιχνίδι, ώστε να πάρει πίσω το δικό του αρχείο FSR.",
+  "Steam games and folders you added, with each upscaler's state.": "Παιχνίδια Steam και φάκελοι που προσθέσατε, με την κατάσταση κάθε upscaler.",
+  "Search games": "Αναζήτηση παιχνιδιών",
+  "No game matches the search.": "Κανένα παιχνίδι δεν ταιριάζει με την αναζήτηση."
 }

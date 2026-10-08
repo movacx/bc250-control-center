@@ -4723,5 +4723,8 @@
   "That folder does not exist.": "Ten folder nie istnieje.",
   "Choose the game's own folder, not a whole drive or your home folder.": "Wybierz folder samej gry, a nie cały dysk ani folder domowy.",
   "This folder is not on the list.": "Tego folderu nie ma na liście.",
-  "Remove HelixSR from this game first, so it gets its own FSR file back.": "Najpierw usuń HelixSR z tej gry, aby odzyskała własny plik FSR."
+  "Remove HelixSR from this game first, so it gets its own FSR file back.": "Najpierw usuń HelixSR z tej gry, aby odzyskała własny plik FSR.",
+  "Steam games and folders you added, with each upscaler's state.": "Gry ze Steam i dodane foldery ze stanem każdego upscalera.",
+  "Search games": "Szukaj gier",
+  "No game matches the search.": "Żadna gra nie pasuje do wyszukiwania."
 }

@@ -4723,5 +4723,8 @@
   "That folder does not exist.": "Acest folder nu există.",
   "Choose the game's own folder, not a whole drive or your home folder.": "Alege folderul jocului, nu o unitate întreagă sau folderul personal.",
   "This folder is not on the list.": "Acest folder nu este în listă.",
-  "Remove HelixSR from this game first, so it gets its own FSR file back.": "Scoate mai întâi HelixSR din acest joc, ca să-și recapete propriul fișier FSR."
+  "Remove HelixSR from this game first, so it gets its own FSR file back.": "Scoate mai întâi HelixSR din acest joc, ca să-și recapete propriul fișier FSR.",
+  "Steam games and folders you added, with each upscaler's state.": "Jocuri Steam și foldere adăugate de tine, cu starea fiecărui upscaler.",
+  "Search games": "Caută jocuri",
+  "No game matches the search.": "Niciun joc nu se potrivește căutării."
 }

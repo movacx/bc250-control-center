@@ -4723,5 +4723,8 @@
   "That folder does not exist.": "That folder does not exist.",
   "Choose the game's own folder, not a whole drive or your home folder.": "Choose the game's own folder, not a whole drive or your home folder.",
   "This folder is not on the list.": "This folder is not on the list.",
-  "Remove HelixSR from this game first, so it gets its own FSR file back.": "Remove HelixSR from this game first, so it gets its own FSR file back."
+  "Remove HelixSR from this game first, so it gets its own FSR file back.": "Remove HelixSR from this game first, so it gets its own FSR file back.",
+  "Steam games and folders you added, with each upscaler's state.": "Steam games and folders you added, with each upscaler's state.",
+  "Search games": "Search games",
+  "No game matches the search.": "No game matches the search."
 }

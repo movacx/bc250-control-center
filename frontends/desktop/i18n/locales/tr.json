@@ -4723,5 +4723,8 @@
   "That folder does not exist.": "Bu klasör yok.",
   "Choose the game's own folder, not a whole drive or your home folder.": "Tüm bir sürücüyü veya ana klasörünüzü değil, oyunun kendi klasörünü seçin.",
   "This folder is not on the list.": "Bu klasör listede değil.",
-  "Remove HelixSR from this game first, so it gets its own FSR file back.": "Önce bu oyundan HelixSR'ı kaldırın; böylece kendi FSR dosyasına geri döner."
+  "Remove HelixSR from this game first, so it gets its own FSR file back.": "Önce bu oyundan HelixSR'ı kaldırın; böylece kendi FSR dosyasına geri döner.",
+  "Steam games and folders you added, with each upscaler's state.": "Steam oyunları ve eklediğiniz klasörler, her ölçekleyicinin durumuyla.",
+  "Search games": "Oyun ara",
+  "No game matches the search.": "Aramayla eşleşen oyun yok."
 }
