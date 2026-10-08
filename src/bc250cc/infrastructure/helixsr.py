@@ -38,20 +38,23 @@ from pathlib import Path
 from .steam_launch_options import installed_steam_game_folders
 
 HELIXSR_REPOSITORY = "https://github.com/lonewolf0622/HelixSR"
-HELIXSR_TAG = "v1.2.0"
-HELIXSR_VERSION = "1.2.0"
+HELIXSR_TAG = "v1.3.0"
+HELIXSR_VERSION = "1.3.0"
 HELIXSR_TOP = f"HelixSR-{HELIXSR_VERSION}"
 HELIXSR_ARCHIVE = f"{HELIXSR_TOP}.zip"
 HELIXSR_URL = f"{HELIXSR_REPOSITORY}/releases/download/{HELIXSR_TAG}/{HELIXSR_ARCHIVE}"
-#: SHA-256 of the official v1.2.0 release archive, reviewed for this release.
-HELIXSR_SHA256 = "7c9aeac2e3dcd73f6e9b2dd8b04c41a828fd8e1a8fe30a2ac77787097ddbeb0e"
-HELIXSR_SIZE = 2_315_352
+#: SHA-256 of the official v1.3.0 release archive, reviewed for this release.
+HELIXSR_SHA256 = "fb2b570abf2f35b336f83127720ee6640bbbdd8173809f975cfe1aab0e5181eb"
+HELIXSR_SIZE = 2_337_353
 #: SHA-256 of ``amd_fidelityfx_dx12.dll`` inside that archive. A game file
 #: with this digest is HelixSR; anything else is the game's own.
-HELIXSR_DLL_SHA256 = "745477ee77c5cccd2de4bd251fc950d33895387f411815e889625fbbdc12a7e4"
+HELIXSR_DLL_SHA256 = "f1aa13ac8ade0cbccbb43ca8837520ddbcf6d496f1ca9dfe30c6fff9c7c8f3fb"
 #: Every reviewed HelixSR DLL. A game keeps the copy it was given when the
 #: release here is updated; it is still HelixSR and still removable.
-HELIXSR_DLL_DIGESTS = frozenset({HELIXSR_DLL_SHA256})
+HELIXSR_DLL_DIGESTS = frozenset({
+    HELIXSR_DLL_SHA256,
+    "745477ee77c5cccd2de4bd251fc950d33895387f411815e889625fbbdc12a7e4",  # v1.2.0
+})
 HELIXSR_DLL = "amd_fidelityfx_dx12.dll"
 HELIXSR_SETUP = "helixsr-setup.sh"
 HELIXSR_MARKER = ".bc250-archive-sha256"
@@ -318,6 +321,9 @@ def helixsr_games(*, optiscaler: bool = True) -> list[dict]:
             "name": str(record.get("name") or appid),
             "state": _record_state(record),
             "files": [str(entry.get("path") or "") for entry in record["files"]],
+            "version": str(record.get("version") or ""),
+            # Given an earlier release; update_helixsr_game brings it here.
+            "outdated": str(record.get("version") or "") != HELIXSR_VERSION,
         })
     scan = _read_json(_scan_path(), {})
     for game in scan.get("games") or ():
@@ -516,6 +522,8 @@ def optiscaler_rows(*, available: bool = True) -> list[dict]:
             "state": _optiscaler_state(record),
             "files": [str(Path(str(record.get("root") or "")) / OPTISCALER_INI)],
             "fsr4": bool(record.get("fsr4")),
+            "version": str(record.get("version") or ""),
+            "outdated": str(record.get("version") or "") != HELIXSR_VERSION,
         }
         for appid, record in records.items()
     ]
@@ -802,7 +810,7 @@ for bc250_file in {" ".join(HELIXSR_NETWORK_FILES)}; do
   test -s {target}/"$bc250_file" || {{ echo "ERROR: $bc250_file was not created."; exit 1; }}
 done
 echo
-echo "OK: HelixSR {HELIXSR_VERSION} is ready. Add it to a game from Additional settings > Compatibility."'''
+echo "OK: HelixSR {HELIXSR_VERSION} is ready. Add it to a game from Additional settings > Upscaling."'''
 
 
 def build_helixsr_install_command() -> str:
@@ -1018,3 +1026,57 @@ def remove_helixsr_game(appid: str) -> dict:
     del records[appid]
     _write_json(_records_path(), records)
     return {"game": str(record.get("name") or appid), "kept": kept}
+
+
+def _replace_file(source: Path, destination: Path) -> None:
+    staged = destination.parent / f".{destination.name}.bc250-helixsr"
+    shutil.copyfile(source, staged)
+    os.replace(staged, destination)
+
+
+def update_helixsr_game(appid: str) -> dict:
+    """Give a game the HelixSR release installed here, in place.
+
+    A game keeps the DLL and network files it was given when the release is
+    updated, and that pair keeps working. 1.3.0 changed the kernel file
+    format, so the DLL and both network files are replaced together. The
+    game's own FSR backup and OptiScaler.ini are not touched.
+    """
+    if not helixsr_state()["network_ready"]:
+        raise RuntimeError("Install HelixSR and build its network files first.")
+    appid = str(appid or "").strip()
+    source = helixsr_directory()
+    records = _records()
+    record = records.get(appid)
+    if record is not None:
+        targets = [Path(str(entry.get("path") or "")) for entry in record["files"]]
+        if record.get("install"):
+            _refuse_running(Path(str(record["install"])))
+        elif targets:
+            _refuse_running(Path(os.path.commonpath([str(path.parent) for path in targets])))
+        # Checked for every folder before any is touched.
+        if not targets or not all(_is_helixsr(target) for target in targets):
+            raise RuntimeError("The game put its own FSR file back. Remove HelixSR from it, then add it again.")
+        for target in targets:
+            _replace_file(source / HELIXSR_DLL, target)
+            for name in HELIXSR_NETWORK_FILES:
+                _replace_file(source / name, target.parent / name)
+        record["version"] = HELIXSR_VERSION
+        _write_json(_records_path(), records)
+        return {"game": str(record.get("name") or appid), "version": HELIXSR_VERSION}
+    records = _optiscaler_records()
+    record = records.get(appid)
+    if record is None:
+        raise RuntimeError("HelixSR is not recorded for this game.")
+    root = Path(str(record.get("root") or ""))
+    _refuse_running(root)
+    if _optiscaler_state(record) != "installed":
+        raise RuntimeError("OptiScaler in this game no longer uses HelixSR. Remove HelixSR from it, then add it again.")
+    folder = root / OPTISCALER_FOLDER
+    for name in (LOADER_DLL, UPSCALER_DLL):
+        _replace_file(source / HELIXSR_DLL, folder / name)
+    for name in HELIXSR_NETWORK_FILES:
+        _replace_file(source / name, folder / name)
+    record["version"] = HELIXSR_VERSION
+    _write_json(_optiscaler_path() / "games.json", records)
+    return {"game": str(record.get("name") or appid), "version": HELIXSR_VERSION}

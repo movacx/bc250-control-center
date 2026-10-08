@@ -112,6 +112,7 @@ from bc250cc.infrastructure.helixsr import (
     remove_helixsr_game,
     remove_helixsr_optiscaler,
     scan_helixsr_games,
+    update_helixsr_game,
 )
 from bc250cc.infrastructure.memory_runtime import read_memory_runtime_state
 from bc250cc.infrastructure.preparation_workflow import (
@@ -552,6 +553,11 @@ class DependenciasRepository:
             return result
         if action.startswith('game_remove:'):
             result = remove_helixsr_game(action.partition(':')[2])
+            self.estado_herramientas_cache = None
+            return result
+        if action.startswith('game_update:'):
+            # Native installs and OptiScaler routes alike.
+            result = update_helixsr_game(action.partition(':')[2])
             self.estado_herramientas_cache = None
             return result
         if action.startswith('opti_install:'):

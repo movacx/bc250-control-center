@@ -4641,9 +4641,9 @@
   "HelixSR was added to {game}. In the game, choose AMD FSR as the upscaler.": "{game} に HelixSR を追加しました。ゲーム内でアップスケーラーに AMD FSR を選んでください。",
   "HelixSR was removed from {game}; its own FSR file is back.": "{game} から HelixSR を削除しました。本来の FSR ファイルに戻っています。",
   "Could not change the game's files": "ゲームのファイルを変更できませんでした",
-  "Downloads the official HelixSR release, checks its SHA-256 and installs it in your user folder. HelixSR's own setup then builds the network files on this PC from NVIDIA's DLSS DLL, which it downloads from NVIDIA's GitHub only after you agree in the terminal. It takes 2-3 minutes and needs no password. HelixSR is an independent project, not affiliated with NVIDIA or AMD.": "HelixSR の公式リリースをダウンロードして SHA-256 を確認し、ユーザーフォルダーにインストールします。その後、HelixSR 自身のセットアップが NVIDIA の DLSS DLL からこの PC 上でネットワークファイルを生成します。DLL はターミナルで同意した後にのみ NVIDIA の GitHub からダウンロードされます。所要時間は 2-3 分で、パスワードは不要です。HelixSR は NVIDIA や AMD とは関係のない独立したプロジェクトです。",
+  "Downloads the official HelixSR release, checks its SHA-256 and installs it in your user folder. HelixSR's own setup then builds the network files on this PC from NVIDIA's DLSS DLL, which it downloads from NVIDIA's GitHub only after you agree in the terminal. It takes 4-5 minutes and needs no password. HelixSR is an independent project, not affiliated with NVIDIA or AMD.": "HelixSR の公式リリースをダウンロードして SHA-256 を確認し、ユーザーフォルダーにインストールします。その後、HelixSR 自身のセットアップが NVIDIA の DLSS DLL からこの PC 上でネットワークファイルを生成します。DLL はターミナルで同意した後にのみ NVIDIA の GitHub からダウンロードされます。所要時間は 4-5 分で、パスワードは不要です。HelixSR は NVIDIA や AMD とは関係のない独立したプロジェクトです。",
   "Build HelixSR network files": "HelixSR のネットワークファイルを生成",
-  "HelixSR's own setup builds the network files on this PC from NVIDIA's DLSS DLL, which it downloads from NVIDIA's GitHub only after you agree in the terminal. It takes 2-3 minutes and needs no password.": "HelixSR 自身のセットアップが NVIDIA の DLSS DLL からこの PC 上でネットワークファイルを生成します。DLL はターミナルで同意した後にのみ NVIDIA の GitHub からダウンロードされます。所要時間は 2-3 分で、パスワードは不要です。",
+  "HelixSR's own setup builds the network files on this PC from NVIDIA's DLSS DLL, which it downloads from NVIDIA's GitHub only after you agree in the terminal. It takes 4-5 minutes and needs no password.": "HelixSR 自身のセットアップが NVIDIA の DLSS DLL からこの PC 上でネットワークファイルを生成します。DLL はターミナルで同意した後にのみ NVIDIA の GitHub からダウンロードされます。所要時間は 4-5 分で、パスワードは不要です。",
   "Removes the HelixSR release, its network files and its setup cache (portable Python and shader compiler). Games must not use HelixSR any more: remove it from each game first.": "HelixSR のリリース、ネットワークファイル、セットアップのキャッシュ (ポータブル Python とシェーダーコンパイラー) を削除します。HelixSR を使っているゲームが残っていてはいけません。先に各ゲームから削除してください。",
   "The network files hold NVIDIA's network. They stay on this PC: never share or upload them.": "ネットワークファイルには NVIDIA のネットワークが含まれています。この PC から出さず、共有やアップロードは絶対にしないでください。",
   "Opened the HelixSR workflow in the terminal.": "HelixSR の処理をターミナルで開きました。",
@@ -4709,5 +4709,11 @@
   "Remove HelixSR from this game first, so it gets its own FSR file back.": "先にこのゲームから HelixSR を外し、ゲーム自身の FSR ファイルに戻してください。",
   "Steam games and folders you added, with each upscaler's state.": "Steam のゲームと追加したフォルダー、それぞれのアップスケーラーの状態。",
   "Search games": "ゲームを検索",
-  "No game matches the search.": "検索に一致するゲームはありません。"
+  "No game matches the search.": "検索に一致するゲームはありません。",
+  "Update correction": "修正を更新",
+  "This replaces the tables of the BC250 ACPI boot entry with v1.1.1, which drops the C3 idle state that can freeze the board. The boot entries themselves are not changed. Reboot only after the terminal reports success.": "BC250 ACPI ブートエントリのテーブルを v1.1.1 に置き換えます。v1.1.1 では、ボードがフリーズすることがある C3 アイドル状態が削除されています。ブートエントリ自体は変更されません。ターミナルが成功を報告してから再起動してください。",
+  "{game} now uses HelixSR {version}.": "{game} は HelixSR {version} を使用するようになりました。",
+  "Could not update HelixSR": "HelixSR を更新できませんでした",
+  "The game put its own FSR file back. Remove HelixSR from it, then add it again.": "ゲームが自身の FSR ファイルを元に戻しました。HelixSR を削除してから、もう一度追加してください。",
+  "OptiScaler in this game no longer uses HelixSR. Remove HelixSR from it, then add it again.": "このゲームの OptiScaler は HelixSR を使用しなくなりました。HelixSR を削除してから、もう一度追加してください。"
 }

@@ -15,7 +15,7 @@ import shlex
 import struct
 import textwrap
 
-from acpi_payload import SHA256, archive
+from acpi_payload import SHA256, SUPERSEDED, SUPERSEDED_CPU_TABLES, VERSION, archive
 from system_setup_common import MARKER, STATE, Host, SetupError
 
 GRUB_SCRIPT = "/etc/grub.d/09_bc250_acpi"
@@ -47,6 +47,7 @@ def table_status(host: Host) -> tuple[str, list[str]]:
     installed = set()
     foreign = False
     cpu_tables = 0
+    outdated_cpu = False
     expected = {}
     cpio = archive()
     offset = 0
@@ -75,6 +76,7 @@ def table_status(host: Host) -> tuple[str, list[str]]:
         tables.append(f"{oem}:{name}:{revision}")
         if name == "AMD CPU":
             cpu_tables += 1
+            outdated_cpu = outdated_cpu or hashlib.sha256(data).hexdigest() in SUPERSEDED_CPU_TABLES
         if (oem, name) in {("AMD", "AMD CPU"), ("HACK", "PSTATES"), ("HACK", "STUBS")}:
             if hashlib.sha256(data).digest() == expected.get(name):
                 installed.add(name)
@@ -82,6 +84,9 @@ def table_status(host: Host) -> tuple[str, list[str]]:
             foreign = True
     if installed == {"AMD CPU", "PSTATES", "STUBS"} and cpu_tables == 1:
         return "active", tables
+    # An earlier pinned release: its idle table changed, the other two did not.
+    if installed == {"PSTATES", "STUBS"} and cpu_tables == 1 and outdated_cpu:
+        return "outdated", tables
     return ("foreign" if foreign else "stock" if "AMD:AMD CPU:1" in tables else "unknown"), tables
 
 
@@ -248,7 +253,8 @@ def compatibility_requirements(host: Host, state: dict, live: str) -> list[dict]
 
     tables_ok = bool(state) or live == "stock"
     table_names = {"stock": "stock BC-250 tables", "active": "BC250 Control Center payload is active",
-                   "foreign": "tables modified by another ACPI fix", "unknown": "stock tables could not be confirmed"}
+                   "foreign": "tables modified by another ACPI fix", "unknown": "stock tables could not be confirmed",
+                   "outdated": "an earlier release of the BC250 ACPI fix is active"}
     requirements.append(_requirement(
         "tables", "ACPI table state", tables_ok, table_names.get(live, live),
         "Unmodified stock BC-250 ACPI tables, or this application's tracked installation.",
@@ -300,6 +306,7 @@ def installation_summary(result: dict) -> tuple[str, str]:
         "pending-reboot": ("REBOOT REQUIRED", "The ACPI fix is installed. Reboot to activate it, then check status."),
         "not-active": ("NOT ACTIVE", "The ACPI fix is installed but its tables are not active. Boot the BC250 ACPI entry, then check status."),
         "incomplete": ("INCOMPLETE", "The ACPI installation is incomplete. Review its status and uninstall before retrying."),
+        "outdated": ("UPDATE AVAILABLE", f"The installed ACPI fix is an earlier release whose C3 idle state can freeze the board. Use Update correction to install v{VERSION}, then reboot."),
         "managed-elsewhere": ("MANAGED EXTERNALLY", "ACPI tables are supplied by firmware or another tool. Do not install a second fix."),
     }
     if result.get("status") == "not-installed" and not result.get("installed"):
@@ -377,7 +384,7 @@ def status(host: Host, *, cached: bool = True) -> dict:
     state = host.state("acpi")
     live, tables = table_status(host)
     result = {"available": False, "installed": bool(state), "status": "not-installed",
-              "tables": tables, "version": "1.1.0", "reason": "", "backend": ""}
+              "tables": tables, "version": VERSION, "reason": "", "backend": ""}
     result["cpufreq_driver"] = host.read("/sys/devices/system/cpu/cpufreq/policy0/scaling_driver")
     result["cpuidle_driver"] = host.read("/sys/devices/system/cpu/cpuidle/current_driver")
     if state:
@@ -386,7 +393,7 @@ def status(host: Host, *, cached: bool = True) -> dict:
                             else "not-active")
         if state.get("phase") != "installed":
             result["status"] = "incomplete"
-    elif live in {"active", "foreign"}:
+    elif live in {"active", "foreign", "outdated"}:
         result["status"] = "managed-elsewhere"
     try:
         if not host.mutable_systemd() or not host.bc250():
@@ -440,6 +447,11 @@ def status(host: Host, *, cached: bool = True) -> dict:
         elif live == "unknown":
             result.update(available=False, status="needs-check",
                           reason="Use Check status to inspect protected ACPI tables and boot files")
+    # Decided by the journal alone, so neither a cached probe nor unreadable
+    # tables can hide it: what is on disk is an earlier pinned payload.
+    installed_version = SUPERSEDED.get(state.get("sha256", "")) if state else None
+    if installed_version and state.get("phase") == "installed":
+        result.update(status="outdated", update_available=True, installed_version=installed_version)
     return result
 
 
@@ -506,6 +518,35 @@ def install(host: Host) -> dict:
     return check(host)
 
 
+def update(host: Host) -> dict:
+    """Replace an earlier pinned payload in place; the boot entry is unchanged.
+
+    The entry already loads ``bc250-acpi.cpio`` from the journaled mount, so
+    only that file and the journal's digest change.
+    """
+    host.require_host()
+    host.safe(STATE)
+    state = host.state("acpi")
+    if not state:
+        raise SetupError("No ACPI installation owned by Control Center")
+    if state.get("phase") != "installed":
+        raise SetupError("The ACPI installation is incomplete; uninstall before retrying")
+    if state.get("sha256") == SHA256:
+        raise SetupError(f"The ACPI fix is already at v{VERSION}")
+    if state.get("sha256") not in SUPERSEDED:
+        raise SetupError("The installed ACPI payload is not a release this application recognizes")
+    mount = state.get("mount")
+    if mount not in {"/boot", "/efi", "/boot/efi"}:
+        raise SetupError("Invalid ACPI installation journal")
+    payload = mount + "/bc250-acpi.cpio"
+    path = host.safe(payload)
+    if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != state["sha256"]:
+        raise SetupError("Modified or missing ACPI payload preserved for manual review")
+    host.write(payload, archive())
+    host.save("acpi", state | {"sha256": SHA256, "boot_id": host.read("/proc/sys/kernel/random/boot_id")})
+    return check(host)
+
+
 def uninstall(host: Host) -> dict:
     host.safe(STATE)
     state = host.state("acpi")
@@ -539,7 +580,7 @@ def uninstall(host: Host) -> dict:
         raise SetupError("Invalid ACPI boot backend")
     payload = host.safe(mount + "/bc250-acpi.cpio")
     if payload.exists():
-        if hashlib.sha256(payload.read_bytes()).hexdigest() != SHA256:
+        if hashlib.sha256(payload.read_bytes()).hexdigest() not in {SHA256, *SUPERSEDED}:
             raise SetupError("Modified ACPI payload preserved for manual review")
         payload.unlink()
     host.safe(f"{STATE}/acpi.json").unlink()

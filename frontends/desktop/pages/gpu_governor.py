@@ -3742,7 +3742,7 @@ class GpuGovernorPage(QWidget):
     ) -> None:
         """Execute a dialog or dashboard preparation request through one route."""
         tools = _dict(self.current_state.get("tools"))
-        if action in {"acpi-install", "acpi-uninstall", "acpi-status"}:
+        if action in {"acpi-install", "acpi-update", "acpi-uninstall", "acpi-status"}:
             self._manage_acpi(action, dialog_parent)
             return
         if action in {"memory_swap", "memory_ttm"}:
@@ -4144,12 +4144,22 @@ class GpuGovernorPage(QWidget):
                 tr("Could not check ACPI status"), controls=(), error_parent=dialog_parent,
             )
             return
+        label = (
+            tr("Install correction") if action == "acpi-install"
+            else tr("Update correction") if action == "acpi-update"
+            else tr("Uninstall")
+        )
+        body = (
+            tr("This replaces the tables of the BC250 ACPI boot entry with v1.1.1, which drops the C3 idle state that can freeze the board. The boot entries themselves are not changed. Reboot only after the terminal reports success.")
+            if action == "acpi-update"
+            else tr("This changes the default boot entry, not your BIOS. The original boot entry remains available for recovery. Use it if the ACPI entry does not boot. Reboot only after the terminal reports success. This optional integration still requires hardware testing.")
+        )
         confirmation = ConfirmDialog(
             tr("CPU power management · ACPI"),
-            tr("This changes the default boot entry, not your BIOS. The original boot entry remains available for recovery. Use it if the ACPI entry does not boot. Reboot only after the terminal reports success. This optional integration still requires hardware testing."),
-            summary=((tr("Action"), tr("Install correction" if action == "acpi-install" else "Uninstall")),
-                     (tr("Version"), "e-tho v1.1.0")),
-            confirm_text=tr("Install correction" if action == "acpi-install" else "Uninstall"),
+            body,
+            summary=((tr("Action"), label),
+                     (tr("Version"), "e-tho v1.1.1")),
+            confirm_text=label,
             tone="orange", parent=dialog_parent or self,
         )
         if confirmation.exec() != QDialog.DialogCode.Accepted:
@@ -4418,6 +4428,25 @@ class GpuGovernorPage(QWidget):
                 error_parent=dialog_parent,
             )
             return
+        if game_action == "game_update":
+            # Only HelixSR's own files are replaced, so nothing to confirm;
+            # the backend still refuses while the game is running.
+            self._run_backend_action(
+                lambda: self.controller.gestionar_helixsr(action),
+                lambda result: GpuGovernorPage._record_preparation_result(
+                    self,
+                    label,
+                    tr_format(
+                        "{game} now uses HelixSR {version}.",
+                        game=str(_dict(result).get("game") or appid),
+                        version=str(_dict(result).get("version") or ""),
+                    ),
+                ),
+                "Could not update HelixSR",
+                controls=(),
+                error_parent=dialog_parent,
+            )
+            return
         if game_action in {"opti_install", "opti_remove"}:
             self._manage_helixsr_optiscaler(action, dialog_parent=dialog_parent)
             return
@@ -4468,13 +4497,13 @@ class GpuGovernorPage(QWidget):
         copy = {
             "install": (
                 "Install HelixSR",
-                "Downloads the official HelixSR release, checks its SHA-256 and installs it in your user folder. HelixSR's own setup then builds the network files on this PC from NVIDIA's DLSS DLL, which it downloads from NVIDIA's GitHub only after you agree in the terminal. It takes 2-3 minutes and needs no password. HelixSR is an independent project, not affiliated with NVIDIA or AMD.",
+                "Downloads the official HelixSR release, checks its SHA-256 and installs it in your user folder. HelixSR's own setup then builds the network files on this PC from NVIDIA's DLSS DLL, which it downloads from NVIDIA's GitHub only after you agree in the terminal. It takes 4-5 minutes and needs no password. HelixSR is an independent project, not affiliated with NVIDIA or AMD.",
                 "Install",
                 "blue",
             ),
             "network": (
                 "Build HelixSR network files",
-                "HelixSR's own setup builds the network files on this PC from NVIDIA's DLSS DLL, which it downloads from NVIDIA's GitHub only after you agree in the terminal. It takes 2-3 minutes and needs no password.",
+                "HelixSR's own setup builds the network files on this PC from NVIDIA's DLSS DLL, which it downloads from NVIDIA's GitHub only after you agree in the terminal. It takes 4-5 minutes and needs no password.",
                 "Build network files",
                 "blue",
             ),

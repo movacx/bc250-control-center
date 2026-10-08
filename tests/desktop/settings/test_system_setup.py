@@ -619,6 +619,117 @@ def test_acpi_modified_payload_is_preserved(sandbox):
     assert sandbox.host.state("acpi")
 
 
+def _payload_tables() -> dict[str, bytes]:
+    raw, offset, tables = archive(), 0, {}
+    while offset + 110 <= len(raw):
+        header = raw[offset:offset + 110]
+        length, namesize = int(header[54:62], 16), int(header[94:102], 16)
+        if raw[offset + 110:offset + 110 + namesize - 1] == b"TRAILER!!!":
+            break
+        start = (offset + 110 + namesize + 3) & ~3
+        data = raw[start:start + length]
+        offset = (start + length + 3) & ~3
+        if length:
+            tables[data[16:24].decode("ascii").strip("\0 ")] = data
+    return tables
+
+
+def test_payload_is_v111_without_the_c3_idle_state():
+    import acpi_payload
+
+    assert acpi_payload.VERSION == "1.1.1"
+    tables = _payload_tables()
+    assert set(tables) == {"AMD CPU", "PSTATES", "STUBS"}
+    # v1.1.0 published C3 at the idle register 0x415 and froze the board.
+    assert b"\x15\x04\x00\x00\x00\x00\x00\x00" not in tables["AMD CPU"]
+    assert b"\x14\x04\x00\x00\x00\x00\x00\x00" in tables["AMD CPU"], "C2 stays"
+    assert SHA256 not in acpi_payload.SUPERSEDED
+    assert hashlib.sha256(tables["AMD CPU"]).hexdigest() not in acpi_payload.SUPERSEDED_CPU_TABLES
+
+
+OLD_PAYLOAD = b"07070100 an earlier pinned ACPI payload"
+
+
+def _older_install(sandbox, monkeypatch) -> str:
+    """A GRUB installation made by an earlier release that pinned OLD_PAYLOAD."""
+    sandbox.grub()
+    acpi.install(sandbox.host)
+    old = hashlib.sha256(OLD_PAYLOAD).hexdigest()
+    monkeypatch.setattr(acpi, "SUPERSEDED", {old: "1.1.0"})
+    sandbox.put("/boot/bc250-acpi.cpio", OLD_PAYLOAD)
+    sandbox.host.save("acpi", sandbox.host.state("acpi") | {"sha256": old})
+    return old
+
+
+def test_acpi_installation_of_an_earlier_release_offers_the_update(sandbox, monkeypatch):
+    _older_install(sandbox, monkeypatch)
+
+    result = acpi.check(sandbox.host)
+    report = acpi.requirements_report(result)
+
+    assert result["installed"] and result["status"] == "outdated"
+    assert result["update_available"] and result["installed_version"] == "1.1.0"
+    assert "UPDATE AVAILABLE" in report
+    assert "Use Update correction to install v1.1.1" in " ".join(report.replace("│", " ").split())
+
+
+def test_acpi_update_replaces_only_the_payload(sandbox, monkeypatch):
+    _older_install(sandbox, monkeypatch)
+    host = sandbox.host
+    entry = host.path(acpi.GRUB_SCRIPT).read_bytes()
+    config = host.path(acpi.GRUB_CONFIG).read_bytes()
+    calls = len(sandbox.calls)
+
+    result = acpi.update(host)
+
+    assert host.path("/boot/bc250-acpi.cpio").read_bytes() == archive()
+    assert host.state("acpi")["sha256"] == SHA256
+    assert result["status"] == "pending-reboot"
+    assert host.path(acpi.GRUB_SCRIPT).read_bytes() == entry
+    assert host.path(acpi.GRUB_CONFIG).read_bytes() == config
+    assert not [call for call in sandbox.calls[calls:] if call[0] in {"grub-mkconfig", "bootctl"}], \
+        "no bootloader command runs"
+    sandbox.load_acpi_tables()
+    assert acpi.check(host)["status"] == "active"
+    assert acpi.uninstall(host)["status"] == "removed-pending-reboot"
+
+
+def test_acpi_update_refuses_a_modified_payload_and_a_current_one(sandbox, monkeypatch):
+    _older_install(sandbox, monkeypatch)
+    sandbox.put("/boot/bc250-acpi.cpio", b"changed")
+    with pytest.raises(SetupError, match="Modified or missing"):
+        acpi.update(sandbox.host)
+    assert sandbox.host.read("/boot/bc250-acpi.cpio") == "changed"
+    sandbox.put("/boot/bc250-acpi.cpio", OLD_PAYLOAD)
+    acpi.update(sandbox.host)
+    with pytest.raises(SetupError, match="already at v1.1.1"):
+        acpi.update(sandbox.host)
+
+
+def test_acpi_uninstall_accepts_an_earlier_pinned_payload(sandbox, monkeypatch):
+    _older_install(sandbox, monkeypatch)
+    assert acpi.uninstall(sandbox.host)["status"] == "removed-pending-reboot"
+    assert not sandbox.host.path("/boot/bc250-acpi.cpio").exists()
+
+
+def test_live_tables_of_an_earlier_release_are_recognised(sandbox, monkeypatch):
+    sandbox.load_acpi_tables()
+    old_cpu = sandbox.table(revision=2)
+    for path in sandbox.host.path("/sys/firmware/acpi/tables").glob("SSDT*"):
+        if path.read_bytes()[16:24].startswith(b"AMD CPU"):
+            path.write_bytes(old_cpu)
+    assert acpi.table_status(sandbox.host)[0] == "foreign"
+    monkeypatch.setattr(acpi, "SUPERSEDED_CPU_TABLES", {hashlib.sha256(old_cpu).hexdigest(): "1.1.0"})
+    assert acpi.table_status(sandbox.host)[0] == "outdated"
+    # Not installed by Control Center: it is left to the tool that put it there.
+    assert acpi.status(sandbox.host)["status"] == "managed-elsewhere"
+
+
+def test_bridge_offers_the_acpi_update():
+    from bc250cc.infrastructure.system_setup import command
+    assert "bc250-system-setup-helper acpi-update" in command("acpi-update")
+
+
 def test_desktop_acpi_check_cache_expires_after_reboot_and_never_authorizes_install(sandbox, monkeypatch):
     sandbox.systemd_boot()
     assert acpi.check(sandbox.host)["available"]

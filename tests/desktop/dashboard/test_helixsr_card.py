@@ -283,6 +283,28 @@ def test_optiscaler_only_games_are_added_through_optiscaler_and_wait_for_the_net
     assert rows[0]["helixsr"][3] == (("Add HelixSR", "helixsr_opti_install:5", False),)
 
 
+def test_a_game_with_an_earlier_release_offers_the_update_next_to_removal():
+    rows = game_matrix_rows(
+        [
+            {"appid": "1", "kind": "game", "name": "Old", "state": "installed", "outdated": True},
+            {"appid": "2", "kind": "optiscaler", "name": "Old via Opti", "state": "installed", "outdated": True},
+            {"appid": "3", "kind": "game", "name": "Current", "state": "installed", "outdated": False},
+            {"appid": "4", "kind": "game", "name": "Restored", "state": "restored", "outdated": True},
+        ],
+        [], helixsr_ready=True,
+    )
+    by_name = {row["name"]: row for row in rows}
+    assert by_name["Old"]["helixsr"][:2] == ("Update available", "orange")
+    assert by_name["Old"]["helixsr"][3] == (
+        ("Update HelixSR", "helixsr_game_update:1", True),
+        ("Remove HelixSR", "helixsr_game_remove:1", True),
+    )
+    assert by_name["Old via Opti"]["helixsr"][3][0] == ("Update HelixSR", "helixsr_game_update:2", True)
+    assert by_name["Current"]["helixsr"][:2] == ("Active", "green")
+    assert len(by_name["Current"]["helixsr"][3]) == 1
+    assert by_name["Restored"]["helixsr"][3] == (("Remove HelixSR", "helixsr_game_remove:4", True),)
+
+
 
 
 def test_a_long_library_can_be_searched():

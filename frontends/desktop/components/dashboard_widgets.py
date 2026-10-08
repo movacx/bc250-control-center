@@ -954,9 +954,13 @@ def game_matrix_rows(
             else:
                 text, tone = ("OptiScaler changed" if optiscaler else "Original file back"), "orange"
             route = "opti" if optiscaler else "game"
-            rows[key]["helixsr"] = (
-                text, tone, copy, (("Remove HelixSR", f"helixsr_{route}_remove:{appid}", True),)
-            )
+            actions = (("Remove HelixSR", f"helixsr_{route}_remove:{appid}", True),)
+            if chosen.get("state") == "installed" and chosen.get("outdated"):
+                # Still working with the release it was given; one click
+                # brings it the one installed here.
+                text, tone = "Update available", "orange"
+                actions = (("Update HelixSR", f"helixsr_game_update:{appid}", helixsr_ready), *actions)
+            rows[key]["helixsr"] = (text, tone, copy, actions)
             continue
         native = next((g for g in entries if g.get("kind") != "optiscaler"), None)
         chosen = native or entries[0]
@@ -2535,6 +2539,9 @@ class PreparationSidebar(QFrame):
         self.acpi_install_button = self.acpi_card.add_action(
             "Install correction", {"action": "acpi-install"}
         )
+        self.acpi_update_button = self.acpi_card.add_action(
+            "Update correction", {"action": "acpi-update"}
+        )
         self.acpi_remove_button = self.acpi_card.add_action(
             "Uninstall", {"action": "acpi-uninstall"}, danger=True
         )
@@ -2545,6 +2552,8 @@ class PreparationSidebar(QFrame):
             "Open upstream project", {"action": "acpi_upstream"}
         )
         self.acpi_install_button.setEnabled(False)
+        self.acpi_update_button.setEnabled(False)
+        self.acpi_update_button.setVisible(False)
         self.acpi_remove_button.setEnabled(False)
         layout.addWidget(self.acpi_card)
         self.cyan_card = PreparationInfoCard(
@@ -4058,12 +4067,13 @@ class PreparationSidebar(QFrame):
             "incomplete": "Incomplete",
             "managed-elsewhere": "Managed externally",
             "needs-check": "Not verified",
+            "outdated": "Update available",
         }.get(acpi.get("status"), "Not installed")
         acpi_tone = (
             "green"
             if acpi.get("status") == "active"
             else "orange"
-            if acpi.get("status") in {"pending-reboot", "incomplete", "not-active"}
+            if acpi.get("status") in {"pending-reboot", "incomplete", "not-active", "outdated"}
             else "blue"
             if acpi.get("status") == "managed-elsewhere"
             else "gray"
@@ -4081,6 +4091,10 @@ class PreparationSidebar(QFrame):
             bool(setup.get("helper_available") and acpi.get("installed"))
         )
         self.acpi_install_button.setVisible(not bool(acpi.get("installed")))
+        # An earlier pinned release: v1.1.0's C3 idle state freezes the board.
+        outdated = acpi.get("status") == "outdated"
+        self.acpi_update_button.setEnabled(bool(setup.get("helper_available") and outdated))
+        self.acpi_update_button.setVisible(outdated)
         self.acpi_remove_button.setVisible(bool(acpi.get("installed")))
         self.acpi_card.setToolTip(tr(reason))
         capabilities = _mapping(tools.get("prepare_components"))

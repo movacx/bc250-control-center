@@ -557,6 +557,110 @@ def test_the_repository_routes_optiscaler_actions(home, tmp_path, monkeypatch):
     assert (root / "OptiScaler.ini").read_bytes() == OPTISCALER_INI.encode()
 
 
+# ------------------------------------------------------------------ updating games
+
+NEW_DLL = b"MZ helixsr next release"
+
+
+def _age_records(path: Path) -> None:
+    """Mark every recorded game as given the release before this one."""
+    import json
+
+    records = json.loads(path.read_text(encoding="utf-8"))
+    for record in records.values():
+        record["version"] = "1.2.0"
+    path.write_text(json.dumps(records), encoding="utf-8")
+
+
+def _next_release(monkeypatch) -> None:
+    """The release folder now holds a newer DLL and rebuilt network files."""
+    directory = helixsr.helixsr_directory()
+    (directory / helixsr.HELIXSR_DLL).write_bytes(NEW_DLL)
+    for name in helixsr.HELIXSR_NETWORK_FILES:
+        (directory / name).write_bytes(b"rebuilt:" + name.encode())
+    monkeypatch.setattr(helixsr, "HELIXSR_DLL_SHA256", _sha(NEW_DLL))
+    monkeypatch.setattr(helixsr, "HELIXSR_DLL_DIGESTS", frozenset({_sha(DLL), _sha(NEW_DLL)}))
+
+
+def test_the_release_pins_the_new_dll_and_still_knows_the_previous_one():
+    assert helixsr.HELIXSR_VERSION == "1.3.0"
+    assert helixsr.HELIXSR_DLL_SHA256 in helixsr.HELIXSR_DLL_DIGESTS
+    assert "745477ee77c5cccd2de4bd251fc950d33895387f411815e889625fbbdc12a7e4" in helixsr.HELIXSR_DLL_DIGESTS
+
+
+def test_a_game_given_an_earlier_release_is_updated_in_place(home, monkeypatch):
+    _ready(home)
+    install = _steam_game(home, "100", "Space Game", {"Bin": (helixsr.UPSCALER_DLL,)})
+    folder = install / "Bin"
+    original = (folder / helixsr.UPSCALER_DLL).read_bytes()
+    helixsr.install_helixsr_game("100")
+    _age_records(helixsr._records_path())
+    _next_release(monkeypatch)
+    assert helixsr.helixsr_state(machine="x86_64")["games"][0]["outdated"] is True
+
+    result = helixsr.update_helixsr_game("100")
+
+    assert result == {"game": "Space Game", "version": helixsr.HELIXSR_VERSION}
+    assert (folder / helixsr.UPSCALER_DLL).read_bytes() == NEW_DLL
+    for name in helixsr.HELIXSR_NETWORK_FILES:
+        assert (folder / name).read_bytes() == b"rebuilt:" + name.encode()
+    assert (folder / "amd_fidelityfx_upscaler_dx12.original.dll").read_bytes() == original
+    assert not any(path.name.endswith(".bc250-helixsr") for path in folder.iterdir())
+    assert helixsr.helixsr_state(machine="x86_64")["games"][0]["outdated"] is False
+    helixsr.remove_helixsr_game("100")
+    assert sorted(path.name for path in folder.iterdir()) == [helixsr.UPSCALER_DLL]
+    assert (folder / helixsr.UPSCALER_DLL).read_bytes() == original
+
+
+def test_an_update_is_refused_when_the_game_put_its_own_file_back(home, monkeypatch):
+    _ready(home)
+    install = _steam_game(home, "100", "Space Game", {"Bin": (helixsr.UPSCALER_DLL,)})
+    helixsr.install_helixsr_game("100")
+    _age_records(helixsr._records_path())
+    _next_release(monkeypatch)
+    (install / "Bin" / helixsr.UPSCALER_DLL).write_bytes(ORIGINAL)
+    before = {path.name: path.read_bytes() for path in (install / "Bin").iterdir()}
+
+    with pytest.raises(RuntimeError, match="put its own FSR file back"):
+        helixsr.update_helixsr_game("100")
+
+    assert {path.name: path.read_bytes() for path in (install / "Bin").iterdir()} == before
+
+
+def test_an_optiscaler_route_is_updated_and_its_settings_are_kept(home, monkeypatch):
+    _ready(home)
+    root = _optiscaler_game(home, monkeypatch)
+    repository = _repository(home / "repo")
+    repository.gestionar_helixsr("opti_install:300")
+    _age_records(helixsr._optiscaler_path() / "games.json")
+    _next_release(monkeypatch)
+    folder = root / "HelixSR"
+    settings = (folder / "helixsr.ini").read_bytes()
+    ini = (root / "OptiScaler.ini").read_bytes()
+
+    assert repository.gestionar_helixsr("game_update:300")["game"] == "Racer"
+
+    assert (folder / helixsr.LOADER_DLL).read_bytes() == NEW_DLL
+    assert (folder / helixsr.UPSCALER_DLL).read_bytes() == NEW_DLL
+    assert (folder / helixsr.SECOND_UPSCALER).read_bytes() == FSR4
+    for name in helixsr.HELIXSR_NETWORK_FILES:
+        assert (folder / name).read_bytes() == b"rebuilt:" + name.encode()
+    assert (folder / "helixsr.ini").read_bytes() == settings
+    assert (root / "OptiScaler.ini").read_bytes() == ini
+    rows = helixsr.helixsr_state(machine="x86_64")["games"]
+    assert [(row["state"], row["outdated"]) for row in rows] == [("installed", False)]
+    repository.gestionar_helixsr("opti_remove:300")
+    assert (root / "OptiScaler.ini").read_bytes() == OPTISCALER_INI.encode()
+
+
+def test_an_update_needs_the_network_files_and_a_recorded_game(home):
+    with pytest.raises(RuntimeError, match="build its network files first"):
+        helixsr.update_helixsr_game("100")
+    _ready(home)
+    with pytest.raises(RuntimeError, match="not recorded"):
+        helixsr.update_helixsr_game("100")
+
+
 # ------------------------------------------------------------------ local DLSS DLL
 
 DLSS = b"MZ nvngx_dlss 310.7.0"
