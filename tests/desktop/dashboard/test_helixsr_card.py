@@ -7,13 +7,12 @@ from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 
 from PyQt6.QtCore import QSettings
-from PyQt6.QtWidgets import QApplication, QLabel, QPushButton
+from PyQt6.QtWidgets import QApplication, QLabel
 
 from frontends.desktop.components.dashboard_widgets import (
     PreparationSidebar,
     game_matrix_rows,
 )
-from frontends.desktop.components.toggle_switch import ToggleSwitch
 
 _APP: QApplication | None = None
 
@@ -137,28 +136,24 @@ def test_ready_shows_the_readings_and_puts_the_search_last():
     assert sidebar.helixsr_remove_button in footer
 
 
-def test_each_helixsr_game_has_a_switch_that_asks_before_it_moves():
+def test_each_helixsr_game_has_its_add_or_remove_button():
     sidebar = _sidebar()
     games = [
         {"appid": "1", "kind": "game", "name": "Active", "state": "installed", "files": ["/a.dll"]},
         {"appid": "2", "kind": "optiscaler", "name": "Opti", "state": "available", "files": []},
     ]
     sidebar.set_state(_state(_ready(games)))
-    table = sidebar.upscaling_games.controls
-    assert {key for key, tool in table if tool == "helixsr"} == {"1", "2"}
-    controls = {key: table[(key, "helixsr")].switch for key in ("1", "2")}
-    assert all(isinstance(control, ToggleSwitch) for control in controls.values())
-    assert controls["1"].isChecked() and not controls["2"].isChecked()
+    controls = sidebar.upscaling_games.controls
+    assert [b.text() for b in controls["1"]] == ["Remove HelixSR"]
+    assert [b.text() for b in controls["2"]] == ["Add HelixSR"]
     requested = []
     sidebar.dependency_action_requested.connect(requested.append)
-    controls["1"].click()
-    controls["2"].click()
+    controls["1"][0].click()
+    controls["2"][0].click()
     assert [item["action"] for item in requested] == [
         "helixsr_game_remove:1",
         "helixsr_opti_install:2",
     ]
-    # Nothing changed yet: the switches wait for the game's real state.
-    assert controls["1"].isChecked() and not controls["2"].isChecked()
 
 
 def test_a_game_outside_steam_is_marked_and_can_leave_the_list():
@@ -168,15 +163,13 @@ def test_a_game_outside_steam_is_marked_and_can_leave_the_list():
     sidebar.set_state(_state(_ready(games)))
     table = sidebar.upscaling_games
     assert "Outside Steam" in [label.text() for label in table.table.findChildren(QLabel)]
-    host = table.controls[("folder-abc", "helixsr")]
     requested = []
     sidebar.dependency_action_requested.connect(requested.append)
-    forget = [b for b in host.findChildren(QPushButton) if b.text() == "Remove from list"]
-    forget[0].click()
-    host.switch.click()
+    for button in table.controls["folder-abc"]:
+        button.click()
     assert [item["action"] for item in requested] == [
-        "helixsr_forget_folder:folder-abc",
         "helixsr_game_install:folder-abc",
+        "helixsr_forget_folder:folder-abc",
     ]
 
 
@@ -205,12 +198,12 @@ def test_a_rebuilt_list_leaves_nothing_of_the_old_one_on_screen():
     sidebar.set_state(_state(_ready([
         {"appid": "1", "kind": "game", "name": "One", "state": "available", "files": ["/a.dll"]},
     ])))
-    old = sidebar.upscaling_games.controls[("1", "helixsr")]
+    old = sidebar.upscaling_games.controls["1"][0]
     sidebar.set_state(_state(_ready([
         {"appid": "1", "kind": "game", "name": "One", "state": "installed", "files": ["/a.dll"]},
     ])))
-    assert old.isHidden()
-    assert sidebar.upscaling_games.controls[("1", "helixsr")].switch.isChecked()
+    assert old.parentWidget().isHidden()
+    assert sidebar.upscaling_games.controls["1"][0].text() == "Remove HelixSR"
 
 
 def _fsr4_ready(**overrides) -> dict:
@@ -239,7 +232,7 @@ def test_fsr4_shows_the_launch_option_and_opens_the_client_as_the_next_step():
 def test_an_fsr4_game_missing_the_option_offers_the_fix():
     sidebar = _sidebar()
     sidebar.set_state(_state(_helixsr(), _fsr4_ready()))
-    button = sidebar.upscaling_games.controls[("10", "fsr4")].buttons[0]
+    button = sidebar.upscaling_games.controls["10"][0]
     requested = []
     sidebar.dependency_action_requested.connect(requested.append)
     button.click()
@@ -302,7 +295,7 @@ def test_a_long_library_can_be_searched():
     table = sidebar.upscaling_games
     assert not table.search.isHidden()
     table.search.setText("Game 7")
-    shown = [key for (key, tool), host in table.controls.items() if not host.isHidden()]
+    shown = [key for key, buttons in table.controls.items() if not buttons[0].parentWidget().isHidden()]
     assert shown == ["7"]
     table.search.setText("nothing like it")
     assert table.empty.text() == "No game matches the search."

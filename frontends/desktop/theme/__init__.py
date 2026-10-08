@@ -2061,7 +2061,30 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QLabel[gameName='true'] {{
         color: {c['text']};
         font-size: 12px;
+        font-weight: 600;
+    }}
+    /* Formal type: names at 14 px, readings in regular weight, small
+       outlined buttons in the table. */
+    QFrame[pageCard='true'][upscalerSection='true'] QLabel[cardTitle='true'],
+    QFrame[pageCard='true'][upscalingGames='true'] QLabel[cardTitle='true'] {{
+        font-size: 14px;
         font-weight: 650;
+    }}
+    QFrame[upscalerSection='true'] QLabel[readingValue='true'] {{
+        font-size: 12px;
+        font-weight: 600;
+    }}
+    QFrame[upscalerSection='true'] QLabel[readingLabel='true'] {{
+        font-size: 12px;
+    }}
+    QFrame[pageCard='true'][upscalingGames='true'] QFrame[gameTable='true'] QPushButton[compactAction='true'] {{
+        min-height: 14px;
+        padding: 4px 10px;
+        font-size: 11px;
+        font-weight: 600;
+    }}
+    QFrame[pageCard='true'][upscalingGames='true'] QFrame[gameTable='true'] QPushButton[dangerAction='true'] {{
+        color: {c['red']};
     }}
     QLabel[gameDetail='true'] {{
         color: {c['subtle']};

@@ -67,7 +67,6 @@ from .system_setup_controls import (
     update_memory_controls,
     vram_size_label,
 )
-from .toggle_switch import ToggleSwitch
 from .widgets import ICON_DIR, IconBadge, InfoDialog, PillLabel, apply_shadow, icon
 
 
@@ -1369,8 +1368,8 @@ class _UpscalingGames(SectionCard):
 
     action_requested = pyqtSignal(object)
     TONES = _UpscalerSection.TONES
-    #: Game | HelixSR | FSR4 INT8.
-    STRETCH = (5, 6, 6)
+    #: Game | HelixSR | FSR4 INT8 | the row's actions.
+    STRETCH = (5, 4, 4, 5)
 
     def __init__(self) -> None:
         super().__init__(
@@ -1399,8 +1398,8 @@ class _UpscalingGames(SectionCard):
         self.body.addWidget(self.empty)
         self._signature: object = None
         self._rows: list[tuple[str, list[QWidget]]] = []
-        #: The controls of each row, by (game key, "helixsr" or "fsr4").
-        self.controls: dict[tuple[str, str], QWidget] = {}
+        #: The action buttons of each row, by game key.
+        self.controls: dict[str, list[QPushButton]] = {}
 
     @staticmethod
     def _head(text: str, column: int) -> HeadingLabel:
@@ -1408,12 +1407,12 @@ class _UpscalingGames(SectionCard):
         label.source_text = text
         label.setText(tr(text))
         label.setProperty("gameColumn", True)
-        label.setContentsMargins(14 if column == 0 else 0, 0, 14 if column == 2 else 0, 0)
+        label.setContentsMargins(14 if column == 0 else 0, 0, 0, 0)
         return label
 
     def set_rows(self, rows: list[dict], empty: str) -> None:
         """``rows``: ``{key, name, detail, tooltip, helixsr, fsr4}``; a tool's
-        cell is ``None`` or ``{text, tone, tooltip, switch, actions}``."""
+        cell is ``None`` or ``{text, tone, tooltip, actions}``."""
         signature = (tr("Games"), empty, repr(rows))
         if signature == self._signature:
             return
@@ -1429,7 +1428,7 @@ class _UpscalingGames(SectionCard):
             # A header band behind the column names, edge to edge.
             band = QFrame()
             band.setProperty("gameTableHead", True)
-            self.grid.addWidget(band, 0, 0, 1, 3)
+            self.grid.addWidget(band, 0, 0, 1, 4)
             for column, text in enumerate(("Game", "HelixSR", "FSR4 INT8")):
                 self.grid.addWidget(self._head(text, column), 0, column)
         line = 1
@@ -1448,15 +1447,16 @@ class _UpscalingGames(SectionCard):
             widgets = [name]
             self.grid.addWidget(name, line, 0)
             for column, key in ((1, "helixsr"), (2, "fsr4")):
-                cell = self._cell(row["key"], key, row[key])
-                if column == 2:
-                    cell.layout().setContentsMargins(0, 6, 14, 6)
+                cell = self._cell(row[key])
                 self.grid.addWidget(cell, line, column)
                 widgets.append(cell)
+            actions = self._actions(row)
+            self.grid.addWidget(actions, line, 3)
+            widgets.append(actions)
             if index < len(rows) - 1:
                 # The table's own border closes the last row.
                 rule = self._rule()
-                self.grid.addWidget(rule, line + 1, 0, 1, 3)
+                self.grid.addWidget(rule, line + 1, 0, 1, 4)
                 widgets.append(rule)
             self._rows.append((row["name"].casefold(), widgets))
             line += 2
@@ -1471,53 +1471,38 @@ class _UpscalingGames(SectionCard):
         rule.setFixedHeight(1)
         return rule
 
-    def _cell(self, game: str, tool: str, cell) -> QWidget:
-        host = QWidget()
-        row = QHBoxLayout(host)
-        row.setContentsMargins(0, 6, 0, 6)
-        row.setSpacing(10)
+    def _cell(self, cell) -> QLabel:
         state = QLabel("—" if cell is None else tr(cell["text"]))
         state.setProperty("gameState", True)
         state.setProperty("tone", "" if cell is None else self.TONES.get(cell["tone"], ""))
         state.setWordWrap(True)
-        row.addWidget(state, 1)
-        if cell is None:
-            return host
-        host.setToolTip(tr(cell["tooltip"]))
-        controls: list[QWidget] = []
-        for label, action, enabled in cell.get("actions") or ():
-            button = QPushButton(tr(label))
-            button.setProperty("compactAction", True)
-            button.setCursor(Qt.CursorShape.PointingHandCursor)
-            button.setEnabled(bool(enabled))
-            button.clicked.connect(
-                lambda _checked=False, value=action: self.action_requested.emit(
-                    {"action": value, "governor": ""}
+        if cell is not None:
+            state.setToolTip(tr(cell["tooltip"]))
+        return state
+
+    def _actions(self, row: dict) -> QWidget:
+        """The row's buttons, right-aligned in the last column."""
+        host = QWidget()
+        box = QHBoxLayout(host)
+        box.setContentsMargins(0, 6, 14, 6)
+        box.setSpacing(6)
+        box.addStretch(1)
+        buttons = []
+        for tool in ("helixsr", "fsr4"):
+            for label, action, enabled in (row[tool] or {}).get("actions") or ():
+                button = QPushButton(tr(label))
+                button.setProperty("compactAction", True)
+                button.setProperty("dangerAction", label.startswith("Remove HelixSR"))
+                button.setCursor(Qt.CursorShape.PointingHandCursor)
+                button.setEnabled(bool(enabled))
+                button.clicked.connect(
+                    lambda _checked=False, value=action: self.action_requested.emit(
+                        {"action": value, "governor": ""}
+                    )
                 )
-            )
-            row.addWidget(button, 0, Qt.AlignmentFlag.AlignVCenter)
-            controls.append(button)
-        switch = cell.get("switch")
-        if switch:
-            toggle = ToggleSwitch()
-            toggle.setChecked(bool(switch["checked"]))
-            toggle.setEnabled(bool(switch["enabled"]))
-            toggle.setToolTip(tr(switch["tooltip"]))
-            toggle.setAccessibleName(tr(switch["tooltip"]))
-
-            def flipped(_checked: bool, toggle=toggle, switch=switch) -> None:
-                # The switch shows the game's real state, not the click: the
-                # action asks first, and the next refresh moves the switch.
-                toggle.blockSignals(True)
-                toggle.setChecked(bool(switch["checked"]))
-                toggle.blockSignals(False)
-                self.action_requested.emit({"action": switch["action"], "governor": ""})
-
-            toggle.toggled.connect(flipped)
-            row.addWidget(toggle, 0, Qt.AlignmentFlag.AlignVCenter)
-            host.switch = toggle
-        host.buttons = controls
-        self.controls[(game, tool)] = host
+                box.addWidget(button)
+                buttons.append(button)
+        self.controls[row["key"]] = buttons
         return host
 
     def _filter(self) -> None:
@@ -2843,17 +2828,14 @@ class PreparationSidebar(QFrame):
         # The Steam launch option: the field, a copy and a fix for every game.
         self.fsr4_launch_panel = QFrame()
         self.fsr4_launch_panel.setProperty("compactPanel", True)
-        launch = QVBoxLayout(self.fsr4_launch_panel)
-        launch.setContentsMargins(12, 10, 12, 12)
-        launch.setSpacing(8)
-        launch.addWidget(_label("Steam launch option", "fieldLabel"))
-        launch.addWidget(_label(
-            "Steam loads OptiScaler only with this option. Close Steam before adding it.",
-            "fieldHint",
-        ))
-        launch_row = QHBoxLayout()
+        launch_row = QHBoxLayout(self.fsr4_launch_panel)
+        launch_row.setContentsMargins(10, 8, 10, 8)
         launch_row.setSpacing(8)
+        launch_row.addWidget(_label("Steam launch option", "fieldLabel", wrap=False))
         self.fsr4_launch_field = QLineEdit()
+        self.fsr4_launch_field.setToolTip(
+            tr("Steam loads OptiScaler only with this option. Close Steam before adding it.")
+        )
         self.fsr4_launch_field.setReadOnly(True)
         self.fsr4_launch_field.setProperty("i18nLiteral", True)
         launch_row.addWidget(self.fsr4_launch_field, 1)
@@ -2864,9 +2846,6 @@ class PreparationSidebar(QFrame):
         self.fsr4_copy_button.setAccessibleName(tr("Copy Steam launch option"))
         self.fsr4_copy_button.clicked.connect(self._copy_fsr4_launch_option)
         launch_row.addWidget(self.fsr4_copy_button)
-        launch.addLayout(launch_row)
-        self._adopt(self.fsr4_steam_all_button, "accentAction")
-        launch.addWidget(self.fsr4_steam_all_button, 0, Qt.AlignmentFlag.AlignLeft)
         self.fsr4_section.extra.addWidget(self.fsr4_launch_panel)
 
         self.helixsr_section = _UpscalerSection(
@@ -2892,6 +2871,7 @@ class PreparationSidebar(QFrame):
         )
         for button in (
             self.fsr4_install_button, self.fsr4_launch_button, self.fsr4_remove_button,
+            self.fsr4_steam_all_button,
             self.fsr4_legacy_button, self.helixsr_install_button, self.helixsr_network_button,
             self.helixsr_scan_button, self.helixsr_remove_button,
         ):
@@ -3776,7 +3756,8 @@ class PreparationSidebar(QFrame):
         self.fsr4_launch_panel.setVisible(current and bool(self._fsr4_launch_option))
         self.fsr4_launch_field.setText(self._fsr4_launch_option)
         if current:
-            secondary = [self.fsr4_install_button, self.fsr4_remove_button, self.fsr4_legacy_button]
+            secondary = [self.fsr4_steam_all_button, self.fsr4_install_button,
+                         self.fsr4_remove_button, self.fsr4_legacy_button]
             primary = self.fsr4_launch_button
         else:
             secondary = [self.fsr4_remove_button, self.fsr4_legacy_button]
@@ -3821,21 +3802,18 @@ class PreparationSidebar(QFrame):
                 on = label.startswith("Remove")
                 helixsr = {
                     "text": text or "Available", "tone": tone, "tooltip": tooltip,
-                    "switch": {
-                        "checked": on, "action": action, "enabled": enabled,
-                        "tooltip": "Remove HelixSR from this game" if on else "Add HelixSR to this game",
-                    },
-                    # A folder added by hand can leave the list while HelixSR is not in it.
                     "actions": (
-                        (("Remove from list", f"helixsr_forget_folder:{row['appid']}", True),)
-                        if folder and not on else ()
+                        ("Remove HelixSR" if on else "Add HelixSR", action, enabled),
+                        # A folder added by hand can leave the list while HelixSR is not in it.
+                        *((("Remove from list", f"helixsr_forget_folder:{row['appid']}", True),)
+                          if folder and not on else ()),
                     ),
                 }
             fsr4 = None
             if row["fsr4"] is not None:
                 text, tone, tooltip, actions = row["fsr4"]
                 fsr4 = {"text": text or "Available", "tone": tone, "tooltip": tooltip,
-                        "switch": None, "actions": actions}
+                        "actions": actions}
             table.append({
                 "key": row["appid"] or row["name"], "name": row["name"],
                 "detail": "Outside Steam" if folder else "", "tooltip": folder,
