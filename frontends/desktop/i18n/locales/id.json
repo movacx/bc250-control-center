@@ -4706,5 +4706,6 @@
   "Active via OptiScaler": "Aktif melalui OptiScaler",
   "Add via OptiScaler": "Tambah melalui OptiScaler",
   "Steam option missing": "Opsi Steam belum ada",
-  "Set up in launcher": "Atur di launcher"
+  "Set up in launcher": "Atur di launcher",
+  "AMD's FSR 4 in INT8, installed per game by OptiScaler Client. Each game's state is in the table below.": "FSR 4 dari AMD dalam INT8, dipasang per game oleh OptiScaler Client. Status setiap game ada di tabel di bawah."
 }

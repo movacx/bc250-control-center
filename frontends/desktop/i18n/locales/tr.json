@@ -4706,5 +4706,6 @@
   "Active via OptiScaler": "OptiScaler üzerinden etkin",
   "Add via OptiScaler": "OptiScaler üzerinden ekle",
   "Steam option missing": "Steam seçeneği eksik",
-  "Set up in launcher": "Başlatıcıda ayarlayın"
+  "Set up in launcher": "Başlatıcıda ayarlayın",
+  "AMD's FSR 4 in INT8, installed per game by OptiScaler Client. Each game's state is in the table below.": "AMD'nin INT8 FSR 4'ü, OptiScaler Client ile oyun başına kurulur. Her oyunun durumu aşağıdaki tablodadır."
 }

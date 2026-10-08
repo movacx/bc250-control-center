@@ -93,7 +93,7 @@ def test_not_installed_offers_only_the_install():
     sidebar = _sidebar()
     sidebar.set_state(_state(_helixsr()))
     assert sidebar.helixsr_card.status.text() == "Not installed"
-    assert sidebar.helixsr_sheet.values["state"].text() == "Not installed"
+    assert sidebar.helixsr_card.engine_state.text.text() == "Not installed"
     assert sidebar.helixsr_install_button.text() == "Install HelixSR"
     assert sidebar.helixsr_install_button.property("accented") is True
     for button in (sidebar.helixsr_network_button, sidebar.helixsr_scan_button, sidebar.helixsr_remove_button):
@@ -104,7 +104,7 @@ def test_without_proton_the_install_waits_for_it():
     sidebar = _sidebar()
     sidebar.set_state(_state(_helixsr(wine_available=False)))
     assert sidebar.helixsr_card.status.text() == "Proton required"
-    assert sidebar.helixsr_sheet.values["state"].property("tone") == "orange"
+    assert sidebar.helixsr_card.engine_state.text.property("tone") == "orange"
     assert not sidebar.helixsr_install_button.isEnabled()
 
 
@@ -127,12 +127,10 @@ def test_ready_fills_the_datasheet_and_puts_the_search_first():
     ]
     sidebar.set_state(_state(_ready(games)))
     values = {key: label.text() for key, label in sidebar.helixsr_sheet.values.items()}
-    assert values == {
-        "release": "1.2.0",
-        "network": "Built on this PC",
-        "games": "1 active · 1 available",
-        "state": "Ready",
-    }
+    assert values == {"network": "Built on this PC", "games": "1 active · 1 available"}
+    assert sidebar.helixsr_card.engine_version.text() == "1.2.0"
+    assert sidebar.helixsr_card.engine_state.text.text() == "Ready"
+    assert sidebar.helixsr_card.engine_state.text.property("tone") == "green"
     assert sidebar.helixsr_scan_button.property("accented") is True
     assert sidebar.helixsr_remove_button.property("quietAction") is True
 
@@ -205,3 +203,15 @@ def test_a_rebuilt_table_leaves_nothing_of_the_old_one_on_screen():
         {"appid": "1", "kind": "game", "name": "Active", "state": "installed", "files": ["/a.dll"]},
     ])))
     assert all(label.isHidden() for label in old)
+
+
+def test_the_launch_option_is_a_row_of_the_fsr4_list():
+    sidebar = _sidebar()
+    sidebar.set_state(_state(_helixsr(), {
+        "installer_available": True, "installed": True, "current": True, "state": "ready",
+        "version": "1.0.7", "steam_launch_option": 'WINEDLLOVERRIDES="dxgi=n,b" %command%',
+    }))
+    assert sidebar.fsr4_launch_row.parent() is sidebar.fsr4_sheet
+    assert not sidebar.fsr4_launch_row.isHidden()
+    assert sidebar.fsr4_launch_value.text() == 'WINEDLLOVERRIDES="dxgi=n,b" %command%'
+    assert sidebar.fsr4_card.engine_version.text() == "1.0.7"

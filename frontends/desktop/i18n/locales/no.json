@@ -4706,5 +4706,6 @@
   "Active via OptiScaler": "Aktiv via OptiScaler",
   "Add via OptiScaler": "Legg til via OptiScaler",
   "Steam option missing": "Steam-alternativ mangler",
-  "Set up in launcher": "Sett opp i launcher"
+  "Set up in launcher": "Sett opp i launcher",
+  "AMD's FSR 4 in INT8, installed per game by OptiScaler Client. Each game's state is in the table below.": "AMD sin FSR 4 i INT8, installert per spill av OptiScaler Client. Tilstanden til hvert spill står i tabellen nedenfor."
 }

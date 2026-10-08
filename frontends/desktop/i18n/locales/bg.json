@@ -4706,5 +4706,6 @@
   "Active via OptiScaler": "Активен чрез OptiScaler",
   "Add via OptiScaler": "Добави чрез OptiScaler",
   "Steam option missing": "Липсва опцията на Steam",
-  "Set up in launcher": "Настройте в лаунчера"
+  "Set up in launcher": "Настройте в лаунчера",
+  "AMD's FSR 4 in INT8, installed per game by OptiScaler Client. Each game's state is in the table below.": "FSR 4 на AMD в INT8, инсталиран за всяка игра чрез OptiScaler Client. Състоянието на всяка игра е в таблицата по-долу."
 }

@@ -4706,5 +4706,6 @@
   "Active via OptiScaler": "透過 OptiScaler 啟用",
   "Add via OptiScaler": "透過 OptiScaler 加入",
   "Steam option missing": "缺少 Steam 選項",
-  "Set up in launcher": "在啟動器中設定"
+  "Set up in launcher": "在啟動器中設定",
+  "AMD's FSR 4 in INT8, installed per game by OptiScaler Client. Each game's state is in the table below.": "AMD 的 FSR 4（INT8），由 OptiScaler Client 按遊戲安裝。各遊戲的狀態見下表。"
 }

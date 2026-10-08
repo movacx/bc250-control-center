@@ -950,29 +950,48 @@ class _WrappingActions(FlowLayout):
 
 
 class _SpecSheet(QFrame):
-    """Facts about one tool, laid out like a datasheet: name, then value.
+    """A boxed list of properties: the name on the left, the value right.
 
-    Values are set in the console's monospace face between two dashed rules,
-    so a version or a state reads as data, not as a badge.
+    The same shape system settings panels use, so a tool's facts line up
+    row by row and read at a glance; rules divide the rows.
     """
 
     def __init__(self, rows: tuple[tuple[str, str], ...]) -> None:
         super().__init__()
         self.setProperty("specSheet", True)
-        grid = QGridLayout(self)
-        grid.setContentsMargins(0, 8, 0, 8)
-        grid.setHorizontalSpacing(18)
-        grid.setVerticalSpacing(5)
+        self._layout = QVBoxLayout(self)
+        self._layout.setContentsMargins(0, 0, 0, 0)
+        self._layout.setSpacing(0)
         self.values: dict[str, QLabel] = {}
-        for row, (key, caption) in enumerate(rows):
-            name = _label(caption, "specKey", wrap=False)
+        self._rows: list[QWidget] = []
+        for key, caption in rows:
             value = QLabel("—")
             value.setProperty("specValue", True)
+            value.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             value.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-            grid.addWidget(name, row, 0)
-            grid.addWidget(value, row, 1)
+            row = QFrame()
+            layout = QHBoxLayout(row)
+            layout.setContentsMargins(14, 0, 14, 0)
+            layout.setSpacing(16)
+            layout.addWidget(_label(caption, "specKey", wrap=False))
+            layout.addStretch(1)
+            layout.addWidget(value)
+            self.add_row(row)
             self.values[key] = value
-        grid.setColumnStretch(1, 1)
+
+    def add_row(self, row: QFrame) -> None:
+        """Append a row (any frame); it gets the list's height and rules."""
+        row.setProperty("specRow", True)
+        row.setMinimumHeight(40)
+        self._rows.append(row)
+        self._layout.addWidget(row)
+        self._restyle_rules()
+
+    def _restyle_rules(self) -> None:
+        for index, row in enumerate(self._rows):
+            row.setProperty("first", index == 0)
+            row.style().unpolish(row)
+            row.style().polish(row)
 
     def set(self, key: str, text: str, tone: str = "") -> None:
         value = self.values[key]
@@ -981,6 +1000,37 @@ class _SpecSheet(QFrame):
             value.setProperty("tone", tone)
             value.style().unpolish(value)
             value.style().polish(value)
+
+
+class _EngineState(QWidget):
+    """A tool's state in its title row: a small mark and a word, no badge."""
+
+    _MARKS = {"green": "check_green", "orange": "warning_orange", "red": "warning_orange"}
+
+    def __init__(self) -> None:
+        super().__init__()
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(6)
+        self.mark = QLabel()
+        self.mark.setFixedSize(14, 14)
+        self.text = QLabel()
+        self.text.setProperty("engineState", True)
+        layout.addWidget(self.mark)
+        layout.addWidget(self.text)
+        self._tone = None
+
+    def set(self, text: str, tone: str) -> None:
+        self.text.setText(text)
+        tone = tone if tone in self._MARKS else ""
+        if tone != self._tone:
+            self._tone = tone
+            self.mark.setVisible(bool(tone))
+            if tone:
+                self.mark.setPixmap(icon(self._MARKS[tone]).pixmap(14, 14))
+            self.text.setProperty("tone", tone)
+            self.text.style().unpolish(self.text)
+            self.text.style().polish(self.text)
 
 
 def game_matrix_rows(
@@ -1073,13 +1123,13 @@ class _GameMatrix(QFrame):
     """
 
     action_requested = pyqtSignal(object)
-    _STRETCH = (5, 4, 4)
+    _STRETCH = (3, 4, 4)
 
     def __init__(self) -> None:
         super().__init__()
         self.setProperty("gameMatrix", True)
         self._grid = QGridLayout(self)
-        self._grid.setContentsMargins(0, 0, 0, 0)
+        self._grid.setContentsMargins(1, 1, 1, 1)
         self._grid.setHorizontalSpacing(16)
         self._grid.setVerticalSpacing(0)
         for column, stretch in enumerate(self._STRETCH):
@@ -1088,16 +1138,16 @@ class _GameMatrix(QFrame):
         #: The row's action buttons, by Steam app id (or name).
         self.rows: dict[str, list[QPushButton]] = {}
 
-    def _rule(self, row: int, *, head: bool = False) -> None:
+    def _rule(self, row: int) -> None:
         rule = QFrame()
-        rule.setProperty("matrixRuleHead" if head else "matrixRule", True)
-        rule.setFixedHeight(2 if head else 1)
+        rule.setProperty("matrixRule", True)
+        rule.setFixedHeight(1)
         self._grid.addWidget(rule, row, 0, 1, len(self._STRETCH))
 
     def _cell(self, cell) -> tuple[QWidget, list[QPushButton]]:
         widget = QWidget()
         layout = QHBoxLayout(widget)
-        layout.setContentsMargins(0, 9, 0, 9)
+        layout.setContentsMargins(0, 8, 16, 8)
         layout.setSpacing(10)
         buttons: list[QPushButton] = []
         if cell is None:
@@ -1116,6 +1166,7 @@ class _GameMatrix(QFrame):
         for label, action, enabled in actions:
             button = QPushButton(tr(label))
             button.setProperty("matrixAction", True)
+            button.setProperty("primary", label != "Remove")
             button.setCursor(Qt.CursorShape.PointingHandCursor)
             button.setEnabled(bool(enabled))
             button.setToolTip(tr(tooltip))
@@ -1145,12 +1196,15 @@ class _GameMatrix(QFrame):
                 item.widget().hide()
                 item.widget().deleteLater()
         self.rows = {}
+        band = QFrame()
+        band.setProperty("matrixHeadBand", True)
+        self._grid.addWidget(band, 0, 0, 1, len(self._STRETCH))
         for column, text in enumerate(("Game", "HelixSR", "FSR4 INT8")):
             head = QLabel(tr(text))
             head.setProperty("matrixHeadLabel", True)
+            head.setProperty("first", column == 0)
             self._grid.addWidget(head, 0, column)
-        self._rule(1, head=True)
-        line = 2
+        line = 1
         for row in rows[:40]:
             name = QLabel(row["name"])
             name.setProperty("matrixGame", True)
@@ -1163,7 +1217,8 @@ class _GameMatrix(QFrame):
                 self._grid.addWidget(widget, line, column)
                 buttons.extend(found)
             self.rows[row["appid"] or row["name"]] = buttons
-            self._rule(line + 1)
+            if row is not rows[:40][-1]:
+                self._rule(line + 1)
             line += 2
         if not rows:
             self._grid.addWidget(_label(
@@ -2798,10 +2853,8 @@ class PreparationSidebar(QFrame):
             status_text="Checking",
         )
         self.helixsr_sheet = _SpecSheet((
-            ("release", "Release"),
-            ("network", "Network files"),
             ("games", "Games"),
-            ("state", "Status"),
+            ("network", "Network files"),
         ))
         self.helixsr_card.layout().insertWidget(2, self.helixsr_sheet)
         self.helixsr_scan_button = self.helixsr_card.add_action(
@@ -2840,33 +2893,52 @@ class PreparationSidebar(QFrame):
         layout.setSpacing(18)
         self.fsr4_card.title.setText(tr("FSR4 INT8"))
         self.fsr4_card.title.setProperty("i18nSourceText", "FSR4 INT8")
-        self.fsr4_sheet = _SpecSheet((
-            ("release", "Release"),
-            ("games", "Games"),
-            ("state", "Status"),
-        ))
+        self.fsr4_sheet = _SpecSheet((("games", "Games"),))
         self.fsr4_card.layout().insertWidget(2, self.fsr4_sheet)
-        # The launch option becomes one more line of the datasheet: its name,
-        # the option itself in the console face, and a plain copy control.
+        # The launch option is the list's last row: its name, the option in
+        # the console face, and a copy control.
+        self.fsr4_card.layout().removeWidget(self.fsr4_launch_row)
         self.fsr4_launch_label.setProperty("dashboardCompatibilityLabel", False)
         self.fsr4_launch_label.setProperty("specKey", True)
         self.fsr4_launch_value = QLabel(self._fsr4_launch_option)
-        self.fsr4_launch_value.setProperty("specValue", True)
+        self.fsr4_launch_value.setProperty("specCode", True)
+        self.fsr4_launch_value.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.fsr4_launch_value.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         launch_layout = self.fsr4_launch_row.layout()
-        launch_layout.setContentsMargins(0, 0, 0, 0)
+        launch_layout.setContentsMargins(14, 0, 8, 0)
         launch_layout.setSpacing(12)
-        launch_layout.insertWidget(1, self.fsr4_launch_value, 1)
+        launch_layout.insertWidget(2, self.fsr4_launch_value)
+        self.fsr4_launch_row.setProperty("fsr4LaunchOption", False)
+        self.fsr4_sheet.add_row(self.fsr4_launch_row)
         self.upscaling_engines = QBoxLayout(QBoxLayout.Direction.LeftToRight)
-        self.upscaling_engines.setSpacing(14)
-        for card, tone in ((self.fsr4_card, "fsr4"), (self.helixsr_card, "helixsr")):
+        self.upscaling_engines.setSpacing(16)
+        for card, tone, badge in (
+            (self.fsr4_card, "fsr4", ("gpu_purple", "purple_soft")),
+            (self.helixsr_card, "helixsr", ("compute_blue", "blue_soft")),
+        ):
             card.setProperty("upscalerEngine", tone)
             card.status_badge = False
             card.status.hide()
             card.scope.hide()
+            # Title row: the tool's mark, its name and release, its state.
+            header = card.layout().itemAt(0).layout()
+            header.setSpacing(10)
+            header.insertWidget(0, IconBadge(badge[0], badge[1], 34, radius=9))
+            card.engine_version = QLabel("")
+            card.engine_version.setProperty("engineVersion", True)
+            header.insertWidget(header.indexOf(card.title) + 1, card.engine_version)
+            header.setStretchFactor(card.title, 0)
+            header.insertStretch(header.indexOf(card.engine_version) + 1, 1)
+            card.engine_state = _EngineState()
+            header.addWidget(card.engine_state)
+            card.layout().setSpacing(12)
+            card.layout().setContentsMargins(18, 16, 18, 16)
             card.use_flowing_actions()
             card.layout().addStretch(1)
             self.upscaling_engines.addWidget(card, 1)
+        for button in (self.fsr4_upstream_button, self.helixsr_upstream_button):
+            button.setIcon(icon("external_gray"))
+            button.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
         for button in (self.fsr4_remove_button, self.fsr4_legacy_button):
             button.setProperty("quietAction", True)
         layout.addLayout(self.upscaling_engines)
@@ -3684,7 +3756,7 @@ class PreparationSidebar(QFrame):
         self.helixsr_card.detail.setText(tr(detail))
         sheet = self.helixsr_sheet
         version = str(helixsr.get("version") or "")
-        sheet.set("release", version if current and version else "—")
+        self.helixsr_card.engine_version.setText(version if current else "")
         sheet.set(
             "network",
             tr("Built on this PC") if ready else tr("Not built yet") if current else "—",
@@ -3697,7 +3769,7 @@ class PreparationSidebar(QFrame):
             tr_format("{active} active · {found} available", active=active, found=found)
             if games else "—",
         )
-        sheet.set("state", tr(status), tone if tone in {"green", "orange", "red"} else "")
+        self.helixsr_card.engine_state.set(tr(status), tone)
 
         self.helixsr_card.update_action(
             self.helixsr_scan_button, text="Find FSR 3.1 games", visible=ready,
@@ -4458,10 +4530,10 @@ class PreparationSidebar(QFrame):
         self.fsr4_card.set_status(status, tone)
         self.fsr4_card.detail.setText(detail)
         self._set_quiet(self.fsr4_install_button, fsr4_current)
-        self.fsr4_sheet.set(
-            "release", str(fsr4.get("version") or "—") if fsr4_installed else "—"
+        self.fsr4_card.engine_version.setText(
+            str(fsr4.get("version") or "") if fsr4_installed else ""
         )
-        self.fsr4_sheet.set("state", tr(status), tone if tone in {"green", "orange", "red"} else "")
+        self.fsr4_card.engine_state.set(tr(status), tone)
         self.fsr4_card.update_action(
             self.fsr4_install_button,
             text="Repair FSR4 client" if fsr4_state == "invalid"
@@ -4493,10 +4565,11 @@ class PreparationSidebar(QFrame):
         self.fsr4_upstream_button.show()
         games = [dict(game) for game in fsr4.get("games") or () if isinstance(game, Mapping)]
         self._render_fsr4_games(games if FSR4_UI_ENABLED and fsr4_current else [])
-        if fsr4_current and games:
+        if fsr4_current:
+            # The steps live in the client and in the game table; the panel
+            # says what the tool is.
             self.fsr4_card.detail.setText(tr(
-                "Open the client, choose Scan Games, select games and press Install / update selected. "
-                "Each game below says what is still missing before Insert opens OptiScaler."
+                "AMD's FSR 4 in INT8, installed per game by OptiScaler Client. Each game's state is in the table below."
             ))
 
         self._render_helixsr(_mapping(tools.get("helixsr")))
