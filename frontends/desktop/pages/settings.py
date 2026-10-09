@@ -118,6 +118,7 @@ OFFICIAL_REPOSITORIES = (
     ("BC250 GDDR6 memory temperature (SMU inspection workflow)", "pan-Rijovich/bc250-memory-temperature", "https://github.com/pan-Rijovich/bc250-memory-temperature"),
     ("BC250 Batocera tools reference", "tmghd272/bc250-batocera-tools", "https://github.com/tmghd272/bc250-batocera-tools"),
     ("BC250 ACPI fix", "e-tho/bc250-acpi-fix", "https://github.com/e-tho/bc250-acpi-fix"),
+    ("BC250 VA-API driver (hardware video)", "simpmix/bc250-encoding-decoding-fix", "https://github.com/simpmix/bc250-encoding-decoding-fix"),
     ("BC250 ACPI fix updated", "mendesrr/bc250-acpi-fix-updated-8c", "https://github.com/mendesrr/bc250-acpi-fix-updated-8c"),
     ("BC250 native mesh shaders reference", "lonewolf0622/BC250-Native-Mesh-Shaders-", "https://github.com/lonewolf0622/BC250-Native-Mesh-Shaders-"),
     ("BC250 memory configuration reference", "fanoush/bc250_memcfg", "https://github.com/fanoush/bc250_memcfg"),

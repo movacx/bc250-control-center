@@ -3818,6 +3818,7 @@ class GpuGovernorPage(QWidget):
         if action in {
             "acpi_upstream",
             "helixsr_upstream",
+            "vaapi_upstream",
             "gfx1013_upstream",
             "bazzite_async_upstream",
             "bazzite_image_upstream",
@@ -3848,6 +3849,9 @@ class GpuGovernorPage(QWidget):
             return
         if action == "debian_kernel_install":
             self._manage_debian_kernel(dialog_parent=dialog_parent)
+            return
+        if action.startswith("vaapi_"):
+            self._manage_vaapi(action.removeprefix("vaapi_"), dialog_parent=dialog_parent)
             return
         if action.startswith("radv_async_"):
             self._manage_radv_async(
@@ -4839,6 +4843,54 @@ class GpuGovernorPage(QWidget):
             error_parent=dialog_parent,
         )
 
+    def _manage_vaapi(self, action: str, *, dialog_parent: QWidget | None) -> None:
+        """The BC-250 VA-API driver: confirm what changes, then run it in the terminal."""
+        copy = {
+            "install": (
+                "Install hardware video",
+                "Downloads simpmix's VA-API driver at a reviewed version, checks it, and builds it in a container: about 5 minutes and a few hundred MB the first time. It is switched on only after it starts and offers H.264 and HEVC. Programs that use VA-API (Sunshine, OBS, Steam Remote Play, ffmpeg, browsers) then encode and decode with it. For streaming while you play, choose H.264: HEVC encodes mostly on the CPU. Log out and back in afterwards.",
+                "Build and install",
+                "orange",
+            ),
+            "uninstall": (
+                "Remove hardware video",
+                "Removes the driver and the two files that switch it on. Programs go back to software video from the next login.",
+                "Remove",
+                "orange",
+            ),
+        }.get(action)
+        if action == "test":
+            copy = None
+        elif copy is None:
+            raise ValueError("Unsupported VA-API action.")
+        if copy is not None:
+            title, body, confirm, tone = copy
+            confirmation = ConfirmDialog(
+                title,
+                tr(body),
+                summary=(
+                    (tr("Source"), "github.com/simpmix/bc250-encoding-decoding-fix"),
+                    (tr("License"), "GPL-3.0"),
+                    (tr("Apply"), tr("Log out and back in")),
+                ),
+                confirm_text=confirm,
+                tone=tone,
+                parent=dialog_parent or self,
+            )
+            if confirmation.exec() != QDialog.DialogCode.Accepted:
+                return
+        self._run_backend_action(
+            lambda: self.controller.gestionar_vaapi(action),
+            lambda _result: GpuGovernorPage._record_preparation_result(
+                self,
+                "Hardware video",
+                "Opened the hardware video workflow in the terminal.",
+            ),
+            "Could not run the hardware video workflow",
+            controls=(),
+            error_parent=dialog_parent,
+        )
+
     def _manage_radv_async(
         self, action: str, *, dialog_parent: QWidget | None
     ) -> None:
@@ -4933,6 +4985,7 @@ class GpuGovernorPage(QWidget):
             "bazzite_async_upstream": BAZZITE_ASYNC_COMPUTE_REPOSITORY,
             "bazzite_image_upstream": "https://github.com/62fixolab/Latest-Bazzite-AMD-BC-250-Patched-Images",
             "helixsr_upstream": "https://github.com/lonewolf0622/HelixSR",
+            "vaapi_upstream": "https://github.com/simpmix/bc250-encoding-decoding-fix",
         }
         opened, message = open_external_url(urls[action])
         if opened:

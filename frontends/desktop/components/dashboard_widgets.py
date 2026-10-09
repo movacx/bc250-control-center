@@ -3185,10 +3185,80 @@ class PreparationSidebar(QFrame):
         self._build_helixsr_card()
         for card in self.cachyos_cards:
             layout.addWidget(card)
+        self._build_vaapi_card()
+        layout.addWidget(self.vaapi_card)
         layout.addStretch(1)
         if self._standalone:
             self._organise_compatibility(layout)
         return page
+
+    def _build_vaapi_card(self) -> None:
+        """simpmix's VA-API driver: the video block the BC-250 does not have."""
+        self.vaapi_card = PreparationInfoCard(
+            "Hardware video · VA-API",
+            "The BC-250 has no working video block, so programs fall back to software video. This driver encodes H.264 on the GPU and HEVC mostly on the CPU, and decodes both, for Sunshine, OBS, Steam Remote Play, ffmpeg and browsers.",
+            scope_text="Beta",
+            status_text="Not installed",
+        )
+        self.vaapi_card.action_requested.connect(self._forward_dependency_action)
+        self.vaapi_install_button = self.vaapi_card.add_action(
+            "Install", {"action": "vaapi_install", "governor": ""}
+        )
+        self.vaapi_test_button = self.vaapi_card.add_action(
+            "Test", {"action": "vaapi_test", "governor": ""}
+        )
+        self.vaapi_remove_button = self.vaapi_card.add_action(
+            "Remove", {"action": "vaapi_uninstall", "governor": ""}, danger=True
+        )
+        self.vaapi_upstream_button = self.vaapi_card.add_action(
+            "Open upstream project", {"action": "vaapi_upstream", "governor": ""}
+        )
+
+    def _render_vaapi(self, tools: Mapping[str, object]) -> None:
+        if not hasattr(self, "vaapi_card"):
+            return
+        vaapi = _mapping(tools.get("vaapi_video"))
+        state = str(vaapi.get("state") or "not-installed")
+        supported = bool(vaapi.get("supported"))
+        status, tone, detail = {
+            "active": ("Active", "green",
+                       "Programs that use VA-API encode and decode with it. For streaming while you play, choose H.264."),
+            "relogin-required": ("Log out to apply", "orange",
+                                 "Installed. Log out and back in (or restart) so programs pick it up."),
+            "outdated": ("Update available", "orange",
+                         "A newer reviewed version is available. Install builds and switches to it."),
+            "invalid": ("Incomplete", "orange",
+                        "The files that switch it on are there but the driver is missing. Install it again or remove it."),
+            "managed-elsewhere": ("Managed externally", "blue",
+                                  "Another installer already switches this driver on (its own scripts or the SteamOS toolkit). Remove that one first to manage it here."),
+            "hardware-vcn": ("Not needed", "gray",
+                             "The kernel's experimental hardware video block is on (amdgpu.bc250_vcn=1), and radeonsi drives it."),
+        }.get(state, ("Not installed" if supported else "Not compatible", "gray", ""))
+        installed = bool(vaapi.get("installed"))
+        self.vaapi_card.set_status(status, tone)
+        reason = str(vaapi.get("blocked_reason") or "")
+        if detail:
+            self.vaapi_card.detail.setText(tr(detail))
+        elif not supported and reason:
+            self.vaapi_card.detail.setText(tr(reason))
+        else:
+            self.vaapi_card.detail.setText(tr(
+                "The BC-250 has no working video block, so programs fall back to software video. This driver encodes H.264 on the GPU and HEVC mostly on the CPU, and decodes both, for Sunshine, OBS, Steam Remote Play, ffmpeg and browsers."
+            ))
+        can_install = supported and state not in {"managed-elsewhere", "hardware-vcn", "active", "relogin-required"}
+        self.vaapi_card.update_action(
+            self.vaapi_install_button,
+            text="Update" if state == "outdated" else "Reinstall" if state == "invalid" else "Install",
+            enabled=can_install,
+            visible=state not in {"active", "relogin-required", "managed-elsewhere", "hardware-vcn"},
+            tooltip="" if supported else reason,
+        )
+        self.vaapi_card.update_action(
+            self.vaapi_test_button, text="Test", visible=installed and state != "invalid",
+        )
+        self.vaapi_card.update_action(
+            self.vaapi_remove_button, text="Remove", visible=installed,
+        )
 
     def _build_helixsr_card(self) -> None:
         """HelixSR (lonewolf0622/HelixSR): DLSS Model E behind an FSR 3.1 DLL.
@@ -3369,6 +3439,7 @@ class PreparationSidebar(QFrame):
             ("System", (self.acpi_card,)),
             ("GPU governor", (self.cyan_card, self.oberon_card)),
             ("Kernel and graphics", (self.gfx_card, *self.cachyos_cards)),
+            ("Video", (self.vaapi_card,)),
         )
         layout.setSpacing(0)
         # Boot options: the panels that used to sit above the component list.
@@ -4612,6 +4683,7 @@ class PreparationSidebar(QFrame):
             if acpi.get("status") == "managed-elsewhere"
             else "gray"
         )
+        self._render_vaapi(tools)
         self.acpi_card.set_status(status_text, acpi_tone)
         reason = str(setup.get("reason") or acpi.get("reason") or "")
         self.acpi_install_button.setEnabled(

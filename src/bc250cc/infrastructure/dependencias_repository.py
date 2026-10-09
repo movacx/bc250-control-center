@@ -176,6 +176,11 @@ from bc250cc.infrastructure.tool_inventory import (
     mark_component_installation,
     select_cu_backend,
 )
+from bc250cc.infrastructure.vaapi_video import (
+    build_vaapi_command,
+    vaapi_state,
+    vaapi_supported,
+)
 from bc250cc.platform.init.services import detect_init_manager, openrc_preflight
 from bc250cc.platform.packages.strategies import create_os_repository
 from bc250cc.platform.packages.strategies.detector import read_os_release
@@ -890,6 +895,24 @@ class DependenciasRepository:
             titles[action],
         )
 
+    def gestionar_vaapi(self, action: str) -> object:
+        """Build, check and install, test, or remove the BC-250 VA-API driver."""
+        family = self._os_repository().info.family
+        action = str(action or '').strip().lower()
+        if action == 'install':
+            supported, reason = vaapi_supported(family=family)
+            if not supported:
+                raise RuntimeError(reason or 'The VA-API driver is not available on this system.')
+        titles = {
+            'install': 'Hardware video · build and install',
+            'test': 'Hardware video · test',
+            'uninstall': 'Hardware video · remove',
+        }
+        if action not in titles:
+            raise ValueError('Unsupported VA-API action.')
+        self.estado_herramientas_cache = None
+        return self._abrir_terminal(build_vaapi_command(action, family=family), titles[action])
+
     def gestionar_apu_telemetry(self, action: str) -> object:
         """Install, check or remove the BC250-Telemetry daemon behind the Power delivery band."""
         info = self._os_repository().info
@@ -1075,6 +1098,11 @@ class DependenciasRepository:
                 ),
                 {'supported': False, 'kernel_installed': False,
                  'kernel_active': False, 'mesa_installed': False},
+            ),
+            # simpmix's VA-API driver: read from files only, never started here.
+            'vaapi_video': self._optional_inventory_probe(
+                lambda: vaapi_state(family=os_info.family),
+                {'supported': False, 'state': 'not-installed', 'installed': False},
             ),
             'init_manager': init_manager.kind,
             'init_manager_available': init_manager.available,

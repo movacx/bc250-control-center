@@ -252,6 +252,20 @@ EXTERNAL_TOOLS: dict[str, ExternalToolSpec] = {
         rollback="Remove HelixSR from each game, which renames its *.original.dll back; then remove the release and ~/.local/share/HelixSR.",
         validation_level="code-reviewed-upstream-tested-bc250",
     ),
+    # simpmix's VA-API driver for the BC-250's missing video block. GPL-3.0:
+    # built on the user's PC from the pinned source archive, in a container,
+    # and switched on only after libva starts it with H.264 and HEVC.
+    "vaapi_video": ExternalToolSpec(
+        key="vaapi_video",
+        upstream="https://github.com/simpmix/bc250-encoding-decoding-fix",
+        license="GPL-3.0-only",
+        reviewed_revision="b8de980fa58806ba34f3cdc91192584fe9e433d5",
+        privilege_class="userspace",
+        hardware_writes=False,
+        automated=True,
+        rollback="Remove deletes /var/lib/bc250-control-center/vaapi and the environment.d, profile.d and SteamOS keep-list files that switch it on; programs use software video from the next login.",
+        validation_level="code-reviewed-field-tested-single-host",
+    ),
     "nct6687": ExternalToolSpec(
         key="nct6687",
         upstream="https://github.com/Fred78290/nct6687d",
@@ -377,6 +391,14 @@ EXTERNAL_TOOL_LIFECYCLES: dict[str, ExternalToolLifecycle] = {
         "Restore each game's original FSR DLL, then remove the release and upstream's setup cache.",
         vocabulary="HelixSR per game (FSR 3.1 games)",
         actions=(LifecycleAction.CHECK, LifecycleAction.INSTALL, LifecycleAction.ROLLBACK, LifecycleAction.UNINSTALL),
+    ),
+    "vaapi_video": _lifecycle(
+        "Download the pinned source archive, verify its SHA-256, build it in a Fedora container and install it only after libva starts it with H.264 and HEVC.",
+        "Start the installed driver through libva and list its codecs; encode and decode a 1080p60 sample with ffmpeg when it is installed.",
+        "Remove the driver folder and the files that switch it on; nothing else on the system was changed.",
+        conflicts=("bc250-encoding-decoding-fix's own installers", "keyboardspecialist/bc250-steamos video-codec"),
+        vocabulary="Hardware video (VA-API)",
+        actions=(LifecycleAction.CHECK, LifecycleAction.INSTALL, LifecycleAction.UNINSTALL),
     ),
     "core_unlock": _lifecycle(
         "Prepare the exact reviewed revision and SHA-256 payload for descriptor-bound execution.",
@@ -575,6 +597,8 @@ EXTERNAL_TOOL_DIRECTORIES = {
     "fsr4_opticlient": "bc250-opticlient",
     # Not a git checkout either: the verified release, per user.
     "helixsr": "helixsr",
+    # Not a git checkout: a source archive built in a container, then removed.
+    "vaapi_video": "bc250-vaapi",
     "oberon_governor": "oberon-governor",
     "gfx1013_direct": "bc250-gfx1013-fix",
     "gddr6_memory_temp": "bc250-memory-temperature",
