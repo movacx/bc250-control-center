@@ -4784,6 +4784,8 @@
   "Step by step on GitHub (daniel-h-0/bc250-fsr4-fork): installing OptiScaler in a game, the Steam launch option and undoing it.": "Từng bước trên GitHub (daniel-h-0/bc250-fsr4-fork): cài OptiScaler vào game, tùy chọn khởi chạy Steam và cách hoàn tác.",
   "HelixSR's own guide on GitHub (lonewolf0622/HelixSR): its network files, each game, OptiScaler and every helixsr.ini setting.": "Hướng dẫn của chính HelixSR trên GitHub (lonewolf0622/HelixSR): tệp mạng, từng game, OptiScaler và mọi thiết lập trong helixsr.ini.",
   "SteamOS beta": "SteamOS beta",
+  "Highlight the report button": "Làm nổi bật nút báo cáo",
+  "A soft glow every few seconds around the dashboard's button for reporting a problem or suggesting an idea.": "Một quầng sáng nhẹ sau mỗi vài giây quanh nút trên bảng điều khiển để báo cáo sự cố hoặc góp ý tưởng.",
   "Apply to games again": "Áp dụng lại cho trò chơi",
   "Writes the saved settings again into every game that has HelixSR: after a game update replaced them, or for a game that was open when you saved.": "Ghi lại các cài đặt đã lưu vào mọi trò chơi có HelixSR: sau khi bản cập nhật trò chơi thay thế chúng, hoặc cho trò chơi đang mở khi bạn lưu.",
   "Applied": "Đã áp dụng",

@@ -4784,6 +4784,8 @@
   "Step by step on GitHub (daniel-h-0/bc250-fsr4-fork): installing OptiScaler in a game, the Steam launch option and undoing it.": "Пошагово на GitHub (daniel-h-0/bc250-fsr4-fork): установка OptiScaler в игру, параметр запуска Steam и отмена.",
   "HelixSR's own guide on GitHub (lonewolf0622/HelixSR): its network files, each game, OptiScaler and every helixsr.ini setting.": "Руководство самого HelixSR на GitHub (lonewolf0622/HelixSR): файлы сети, каждая игра, OptiScaler и все настройки helixsr.ini.",
   "SteamOS beta": "SteamOS (бета)",
+  "Highlight the report button": "Подсвечивать кнопку сообщения",
+  "A soft glow every few seconds around the dashboard's button for reporting a problem or suggesting an idea.": "Мягкое свечение каждые несколько секунд вокруг кнопки панели для сообщения о проблеме или предложения идеи.",
   "Apply to games again": "Применить к играм снова",
   "Writes the saved settings again into every game that has HelixSR: after a game update replaced them, or for a game that was open when you saved.": "Снова записывает сохранённые настройки во все игры с HelixSR: после того как обновление игры их заменило, или в игру, которая была открыта при сохранении.",
   "Applied": "Применено",

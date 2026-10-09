@@ -1166,6 +1166,7 @@ class ControlCenterWindow(QMainWindow):
             dialog.diagnostics_changed.connect(self._set_detailed_diagnostics)
             dialog.sidebar_collapsed_changed.connect(self.sidebar.set_collapsed)
             dialog.gamepad_navigation_changed.connect(self._set_gamepad_navigation_enabled)
+            dialog.report_glow_changed.connect(self.dashboard.footer.set_report_glow)
             dialog.gamepad_keypad_changed.connect(self.gamepad.set_onscreen_keypad_enabled)
             dialog.gamepad_keypad_auto_show_changed.connect(self.gamepad.set_onscreen_keypad_auto_show)
             dialog.embedded_terminal_changed.connect(self.set_embedded_terminal_enabled)

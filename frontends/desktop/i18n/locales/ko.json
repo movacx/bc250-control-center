@@ -4784,6 +4784,8 @@
   "Step by step on GitHub (daniel-h-0/bc250-fsr4-fork): installing OptiScaler in a game, the Steam launch option and undoing it.": "GitHub의 단계별 안내(daniel-h-0/bc250-fsr4-fork): 게임에 OptiScaler 설치, Steam 실행 옵션, 되돌리기.",
   "HelixSR's own guide on GitHub (lonewolf0622/HelixSR): its network files, each game, OptiScaler and every helixsr.ini setting.": "HelixSR 자체의 GitHub 가이드(lonewolf0622/HelixSR): 네트워크 파일, 각 게임, OptiScaler, helixsr.ini의 모든 설정.",
   "SteamOS beta": "SteamOS 베타",
+  "Highlight the report button": "신고 버튼 강조",
+  "A soft glow every few seconds around the dashboard's button for reporting a problem or suggesting an idea.": "문제를 신고하거나 아이디어를 제안하는 대시보드 버튼 주위에 몇 초마다 은은한 빛을 표시합니다.",
   "Apply to games again": "게임에 다시 적용",
   "Writes the saved settings again into every game that has HelixSR: after a game update replaced them, or for a game that was open when you saved.": "저장한 설정을 HelixSR이 있는 모든 게임에 다시 기록합니다. 게임 업데이트로 바뀌었거나 저장할 때 실행 중이던 게임에 사용하세요.",
   "Applied": "적용됨",

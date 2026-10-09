@@ -32,6 +32,11 @@
   </categories>
   <url type="homepage">https://github.com/movacx/bc250-control-center</url>
   <releases>
+    <release version="1.21.1" date="2026-10-09">
+      <description>
+        <p>Nueva pestaña Escalado con FSR4 INT8 (OptiScaler Client) y HelixSR (DLSS Model E en juegos con FSR 3.1), con sus ajustes de helixsr.ini, juegos con OptiScaler instalado a mano y opción de lanzamiento de Steam siempre visible. Vídeo por hardware (VA-API) en beta para Sunshine, OBS y Steam Remote Play. SteamOS: memoria, swap y límite de memoria de GPU (TTM), también desde Modo Juego. ACPI v1.1.1 sin el estado C3 y en Bazzite (beta). Kernels RC y BORE de MastaG reconocidos. Los desplegables ya no cambian con la rueda del ratón; los controladores de Corsair ya no abren los controles de mando; el botón de reportar destella y se puede apagar en Configuración.</p>
+      </description>
+    </release>
     <release version="1.21.0" date="2026-10-04">
       <description>
         <p>SteamOS: se usa el toolkit bc250-steamos de keyboardspecialist sin modificar; con su módulo el GPU queda limitado a 2230 MHz y la app avisa antes de pasar ese límite; Mesa RADV 26.2.2; servicio BC-250 Telemetry disponible en SteamOS. Tarjeta de cómputo asíncrono más corta y traducida; la gráfica de cómputo asíncrono del monitor ahora siempre se mide. Rediseño del menú rápido de Decky, límite de memoria de GPU (TTM) y correcciones para Fedora, Bazzite y Debian.</p>

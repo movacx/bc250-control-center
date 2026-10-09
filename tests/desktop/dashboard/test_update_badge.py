@@ -35,7 +35,7 @@ def footer(qtbot):
 
 
 def _running(badge: _UpdateBadgeButton) -> bool:
-    return badge._pulse.state() == QPropertyAnimation.State.Running
+    return badge._glow.state() == QPropertyAnimation.State.Running
 
 
 # ------------------------------------------------------------ when it appears
@@ -87,35 +87,37 @@ def test_the_named_version_survives_a_retranslation_pass(footer):
     assert footer.update_button.property("i18nSourceAccessibleName") is None
 
 
-# ------------------------------------------------------------------ the pulse
+# ------------------------------------------------------------------- the glow
 
 
-def test_it_pulses_while_visible(footer):
+def test_it_glows_while_visible(footer):
     footer.announce_update("1.20.0")
     assert _running(footer.update_button)
-    assert footer.update_button._pulse.loopCount() == -1
+    assert footer.update_button._glow.loopCount() == -1
+
+
+def test_it_lights_up_every_two_seconds_like_the_report_button(footer):
+    badge = footer.update_button
+    assert type(badge).__mro__[1] is type(footer.report_button).__mro__[1]
+    assert badge._glow.duration() == 2000
 
 
 def test_the_glow_really_moves(qtbot, footer):
     footer.announce_update("1.20.0")
-    effect = footer.update_button.graphicsEffect()
     seen: set[float] = set()
 
     def sample() -> bool:
-        seen.add(round(effect.blurRadius(), 1))
+        seen.add(round(footer.update_button._level, 2))
         return len(seen) > 2
 
     qtbot.waitUntil(sample, timeout=4000)
-    assert min(seen) >= footer.update_button.GLOW_MIN - 0.5
-    assert max(seen) <= footer.update_button.GLOW_MAX + 0.5
+    assert 0.0 <= min(seen) and max(seen) <= 1.0
 
 
-def test_the_glow_is_a_glow_and_not_a_shadow(footer):
-    """A black drop shadow offset downwards reads as depth, not as attention."""
-    effect = footer.update_button.graphicsEffect()
-    assert effect.offset().x() == 0 and effect.offset().y() == 0
-    assert effect.color().alpha() > 0
-    assert effect.color().name() != "#000000"
+def test_the_glow_is_in_the_accent_colour(footer):
+    from frontends.desktop import theme
+
+    assert footer.update_button.glow_color().name().lower() == theme.COLORS["blue"].lower()
 
 
 def test_hiding_it_stops_the_animation(footer):
@@ -123,14 +125,7 @@ def test_hiding_it_stops_the_animation(footer):
     assert _running(footer.update_button)
     footer.announce_update("")
     assert not _running(footer.update_button)
-
-
-def test_hovering_does_not_fight_the_pulse(footer):
-    """Both drive ``blurRadius``; while breathing, the pulse owns it."""
-    footer.announce_update("1.20.0")
-    footer.update_button._animate_lift(True)
-    assert _running(footer.update_button)
-    assert footer.update_button._lift.state() != QPropertyAnimation.State.Running
+    assert footer.update_button._level == 0.0
 
 
 def test_the_badge_has_its_own_icon():

@@ -400,3 +400,25 @@ def test_the_bumpers_walk_the_modules_and_never_open_settings():
     window.current_page_key = "cpu"
     ControlCenterWindow.gamepad_cycle_section(window, 1)
     assert visited == ["dashboard", "firmware", "firmware"]
+
+
+def _js_node(root, name, key, abs_bits):
+    caps = root / name / "device" / "capabilities"
+    caps.mkdir(parents=True)
+    (caps / "key").write_text(key + "\n")
+    (caps / "abs").write_text(abs_bits + "\n")
+
+
+def test_a_virtual_absolute_mouse_js_node_is_not_a_controller(tmp_path):
+    """OpenLinkHub's five-button virtual mouse got a js node from joydev."""
+    from frontends.desktop.core.gamepad import _joystick_is_gamepad
+
+    # BTN_LEFT..BTN_EXTRA (0x110-0x114), ABS_X + ABS_Y.
+    _js_node(tmp_path, "js0", "1f0000 0 0 0 0", "3")
+    # An Xbox-style pad: BTN_SOUTH, EAST, NORTH, WEST, TL, TR, SELECT, START,
+    # MODE, THUMBL, THUMBR; sticks, triggers and the hat.
+    _js_node(tmp_path, "js1", "7cdb000000000000 0 0 0 0", "3003f")
+    assert not _joystick_is_gamepad("/dev/input/js0", tmp_path)
+    assert _joystick_is_gamepad("/dev/input/js1", tmp_path)
+    # Unreadable capabilities keep the old behaviour.
+    assert _joystick_is_gamepad("/dev/input/js9", tmp_path)

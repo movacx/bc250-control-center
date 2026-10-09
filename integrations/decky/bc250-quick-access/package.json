@@ -1,7 +1,7 @@
 {
   "name": "bc250-quick-access",
   "private": true,
-  "version": "1.21.0",
+  "version": "1.21.1",
   "type": "module",
   "scripts": { "build": "rollup -c" },
   "devDependencies": {

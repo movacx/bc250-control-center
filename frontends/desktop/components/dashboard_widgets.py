@@ -14,6 +14,7 @@ from PyQt6.QtCore import (
     QPointF,
     QPropertyAnimation,
     QRectF,
+    QSequentialAnimationGroup,
     QSize,
     Qt,
     QTimer,
@@ -5273,70 +5274,104 @@ class _FooterActionButton(IconButton):
         super().hideEvent(event)
 
 
-class _UpdateBadgeButton(_FooterActionButton):
-    """Appears only when a newer release exists, and breathes so it is noticed.
+class _GlowingFooterButton(_FooterActionButton):
+    """A footer button whose outline lights up softly every two seconds.
 
-    The other three footer buttons are always there, so a fourth appearing in
-    the same row is easy to miss on a glance. A slow pulse on a coloured glow
-    reads as "new" without a dialog interrupting anything — and it costs
-    nothing while hidden, because the animation is stopped with the widget.
     The edge and a faint tint fade in and out inside the button's own
     outline: nothing moves, blinks or grows, nothing is drawn outside the
     row (a drop-shadow halo was cut off by the header), and it rests while
     the button is hidden or under the pointer.
     """
 
-    #: Blur radius the glow travels between, in logical pixels.
-    GLOW_MIN = 4.0
-    GLOW_MAX = 16.0
-    #: Alpha the glow travels between, so it brightens and grows together
-    #: instead of just swelling at a constant intensity.
-    ALPHA_MIN = 70
-    ALPHA_MAX = 210
-    PULSE_MS = 1900
+    EDGE_ALPHA = 210
+    TINT_ALPHA = 34
+    #: One glow every two seconds: in, out, and a short rest.
+    FADE_MS = 700
+    PAUSE_MS = 600
+
+    def __init__(self, text: str) -> None:
+        super().__init__(text)
+        self._glowing = False
+        self._level = 0.0
+        self._glow = QSequentialAnimationGroup(self)
+        for start, end in ((0.0, 1.0), (1.0, 0.0)):
+            fade = QVariantAnimation(self)
+            fade.setDuration(self.FADE_MS)
+            fade.setStartValue(start)
+            fade.setEndValue(end)
+            fade.setEasingCurve(QEasingCurve.Type.InOutSine)
+            fade.valueChanged.connect(self._set_level)
+            self._glow.addAnimation(fade)
+        self._glow.addPause(self.PAUSE_MS)
+        self._glow.setLoopCount(-1)
+
+    def glow_color(self) -> QColor:
+        raise NotImplementedError
+
+    def glowing(self) -> bool:
+        return self._glowing
+
+    def _set_level(self, value) -> None:
+        self._level = float(value)
+        self.update()
+
+    def set_glow(self, enabled: bool) -> None:
+        enabled = bool(enabled)
+        if enabled == self._glowing:
+            return
+        self._glowing = enabled
+        if enabled and self.isVisible():
+            self._glow.start()
+        elif not enabled:
+            self._glow.stop()
+            self._set_level(0.0)
+
+    def showEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        super().showEvent(event)
+        if self._glowing and self._glow.state() != QSequentialAnimationGroup.State.Running:
+            self._glow.start()
+
+    def hideEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        super().hideEvent(event)
+        self._glow.stop()
+        self._level = 0.0
+
+    def paintEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        super().paintEvent(event)
+        if self._level <= 0.0 or self.underMouse() or self.hasFocus():
+            return
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        # The button's own corner (17 px in the stylesheet, halved by formal).
+        radius = 17.0 * (theme.FORMAL_RADIUS_FACTOR if theme.ACTIVE_STYLE == "formal" else 1.0)
+        radius = min(radius * theme.ACTIVE_SCALE / 100, self.height() / 2)
+        rect = QRectF(self.rect()).adjusted(0.75, 0.75, -0.75, -0.75)
+        color = self.glow_color()
+        painter.setBrush(QColor(color.red(), color.green(), color.blue(), round(self.TINT_ALPHA * self._level)))
+        painter.setPen(QPen(QColor(color.red(), color.green(), color.blue(), round(self.EDGE_ALPHA * self._level)), 1.5))
+        painter.drawRoundedRect(rect, radius, radius)
+        painter.end()
+
+
+class _UpdateBadgeButton(_GlowingFooterButton):
+    """Appears only when a newer release exists, and glows so it is noticed.
+
+    The other footer buttons are always there, so one appearing in the same
+    row is easy to miss on a glance. It lights up like the report button, in
+    the active accent, every two seconds while it is shown; hidden, it costs
+    nothing because the animation stops with the widget.
+    """
 
     def __init__(self) -> None:
         super().__init__("A newer version is available")
         self.setProperty("updateAvailable", True)
         self.setIcon(QIcon(str(ICON_DIR / "update_badge.png")))
-        self._glow_base = QColor(theme.COLORS["blue"])
-        # A single QVariantAnimation drives blur and alpha together, so the
-        # glow brightens as it grows and dims as it shrinks - one breath,
-        # not a shadow that swells at a constant, flat intensity.
-        self._pulse = QVariantAnimation(self)
-        self._pulse.setDuration(self.PULSE_MS)
-        self._pulse.setEasingCurve(QEasingCurve.Type.InOutSine)
-        self._pulse.setStartValue(0.0)
-        self._pulse.setKeyValueAt(0.5, 1.0)
-        self._pulse.setEndValue(0.0)
-        self._pulse.setLoopCount(-1)
-        self._pulse.valueChanged.connect(self._apply_pulse)
         self._published = ""
         self.hide()
-        self._tint_glow()
+        self.set_glow(True)
 
-    def _tint_glow(self) -> None:
-        """A black drop shadow is a shadow; a coloured one is an aura.
-
-        Tinted with the active accent color, so the badge matches whatever
-        the user picked in preferences instead of a fixed hue.
-        """
-        effect = self.graphicsEffect()
-        if effect is None:
-            return
-        effect.setOffset(0, 0)
-        self._glow_base = QColor(theme.COLORS["blue"])
-        self._apply_pulse(self._pulse.currentValue() or 0.0)
-
-    def _apply_pulse(self, value: object) -> None:
-        effect = self.graphicsEffect()
-        if effect is None:
-            return
-        position = float(value or 0.0)
-        effect.setBlurRadius(self.GLOW_MIN + (self.GLOW_MAX - self.GLOW_MIN) * position)
-        glow = QColor(self._glow_base)
-        glow.setAlpha(round(self.ALPHA_MIN + (self.ALPHA_MAX - self.ALPHA_MIN) * position))
-        effect.setColor(glow)
+    def glow_color(self) -> QColor:
+        return QColor(theme.COLORS["blue"])
 
     def announce(self, published: str) -> None:
         """Show the badge for a specific version, or hide it for none."""
@@ -5357,28 +5392,6 @@ class _UpdateBadgeButton(_FooterActionButton):
     @property
     def published_version(self) -> str:
         return self._published
-
-    def _refresh_palette(self) -> None:
-        super()._refresh_palette()
-        self._tint_glow()
-
-    def showEvent(self, event) -> None:  # noqa: N802 - Qt API name
-        super().showEvent(event)
-        self._pulse.start()
-
-    def hideEvent(self, event) -> None:  # noqa: N802 - Qt API name
-        # ``_FooterActionButton.hideEvent`` resets the blur; stop pulsing first
-        # or the animation would immediately overwrite that and keep running
-        # against a widget nobody can see.
-        self._pulse.stop()
-        super().hideEvent(event)
-
-    def _animate_lift(self, active: bool) -> None:
-        # Hover lift and the pulse drive the same property. While the badge is
-        # breathing, the pulse owns it.
-        if self._pulse.state() == QVariantAnimation.State.Running:
-            return
-        super()._animate_lift(active)
 
 
 class UpdateCallout(QFrame):
@@ -5574,6 +5587,16 @@ class UpdateCallout(QFrame):
         self.dismissed.emit()
 
 
+class _ReportButton(_GlowingFooterButton):
+    """The report button, in the amber of its icon, so it is found.
+
+    Settings > General switches the glow off (``settings/report_glow``).
+    """
+
+    def glow_color(self) -> QColor:
+        return QColor(245, 166, 35)
+
+
 class DashboardFooter(QWidget):
     """Compact external links embedded in the preparation header."""
 
@@ -5603,7 +5626,7 @@ class DashboardFooter(QWidget):
         self.contact_button.setIcon(icon("discord"))
         self.contact_button.clicked.connect(self.contact_clicked)
         self.layout.addWidget(self.contact_button)
-        self.report_button = _FooterActionButton("Report a problem or suggest an idea")
+        self.report_button = _ReportButton("Report a problem or suggest an idea")
         self.report_button.setIcon(icon("report_amber"))
         self.report_button.clicked.connect(self.report_clicked)
         self.layout.addWidget(self.report_button)
@@ -5613,6 +5636,9 @@ class DashboardFooter(QWidget):
         self.support_button.setIcon(QIcon(str(ICON_DIR / "kofi_cup.png")))
         self.support_button.clicked.connect(self.support_clicked)
         self.layout.addWidget(self.support_button)
+
+    def set_report_glow(self, enabled: bool) -> None:
+        self.report_button.set_glow(enabled)
 
     def announce_update(self, published: str) -> None:
         """Show or hide the update badge. Empty string means nothing to show."""
