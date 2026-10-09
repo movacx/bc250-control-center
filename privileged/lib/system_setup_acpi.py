@@ -3,6 +3,14 @@
 Initial qualification: Arch/CachyOS/Manjaro, GRUB simple Linux entries or
 systemd-boot Type #1. UKI, Secure Boot, unknown layouts and foreign fixes are
 intentionally diagnostic-only. The original boot entry is the recovery route.
+
+Bazzite (beta) boots its ostree deployments through GRUB's blscfg, which
+puts the ``early_initrd`` variable of grubenv in front of every entry's
+initrd: the route upstream documents for Universal Blue
+(GRUB_EARLY_INITRD_LINUX_CUSTOM="../../acpi_override.cpio"), set here with
+grub2-editenv instead of regenerating Bazzite's bootupd GRUB configuration.
+The recovery route is a submenu in /boot/grub2/custom.cfg that lists the same
+entries without the tables.
 """
 from __future__ import annotations
 
@@ -15,7 +23,7 @@ import shlex
 import struct
 import textwrap
 
-from acpi_payload import SHA256, archive
+from acpi_payload import SHA256, SUPERSEDED, SUPERSEDED_CPU_TABLES, VERSION, archive
 from system_setup_common import MARKER, STATE, Host, SetupError
 
 GRUB_SCRIPT = "/etc/grub.d/09_bc250_acpi"
@@ -25,6 +33,126 @@ GRUB_BLOCK = "\n# BEGIN BC250 ACPI DEFAULT\nGRUB_DEFAULT=bc250-acpi\n# END BC250
 EFI_GUID = "4a67b082-0a4c-41cf-b6c7-440b29bb8c4f"
 PROBE_SCHEMA = 3
 UPSTREAM_URL = "https://github.com/e-tho/bc250-acpi-fix"
+BAZZITE_GRUBENV = "/boot/grub2/grubenv"
+BAZZITE_GRUBCFG = "/boot/grub2/grub.cfg"
+BAZZITE_CUSTOM = "/boot/grub2/custom.cfg"
+#: Relative to each kernel's folder (/ostree/<deployment>/), so /boot's root.
+BAZZITE_EARLY_INITRD = "../../bc250-acpi.cpio"
+#: Upstream's own manual install for Universal Blue.
+BAZZITE_UPSTREAM_PAYLOAD = "/boot/acpi_override.cpio"
+BAZZITE_BEGIN = "# BEGIN BC250 ACPI RECOVERY"
+BAZZITE_END = "# END BC250 ACPI RECOVERY"
+BAZZITE_RECOVERY = (
+    f"{BAZZITE_BEGIN}\n"
+    "# Managed by BC250 Control Center. Every Bazzite entry above loads the BC250\n"
+    "# ACPI tables (early_initrd in grubenv); these are the same entries without them.\n"
+    "submenu 'Bazzite without the BC250 ACPI tables (recovery)' --id bc250-acpi-recovery {\n"
+    "  unset early_initrd\n"
+    "  blscfg\n"
+    "}\n"
+    f"{BAZZITE_END}\n"
+)
+_BAZZITE_BLOCK = re.compile(rf"\n?{re.escape(BAZZITE_BEGIN)}\n.*?{re.escape(BAZZITE_END)}\n", re.S)
+
+
+def _grubenv_early_initrd(host: Host) -> str | None:
+    """The ``early_initrd`` grubenv sets, "" for none, None when unreadable."""
+    try:
+        listing = host.run("grub2-editenv", BAZZITE_GRUBENV, "list")
+    except SetupError:
+        return None
+    for line in listing.splitlines():
+        if line.startswith("early_initrd="):
+            return line.split("=", 1)[1]
+    return ""
+
+
+def _bazzite_plan(host: Host) -> dict:
+    if not host.command("grub2-editenv"):
+        raise SetupError("grub2-editenv is missing")
+    entries = sorted(host.path("/boot/loader/entries").glob("ostree-*.conf"))
+    if not entries:
+        raise SetupError("No ostree boot entries were found in /boot/loader/entries")
+    for entry in entries:
+        linux = re.search(r"^linux\s+(\S+)\s*$", entry.read_text(encoding="utf-8", errors="replace"), re.M)
+        # Exactly two folders deep, so ../../ is the root of /boot.
+        if not linux or not re.fullmatch(r"/ostree/[A-Za-z0-9_.+-]+/vmlinuz-[A-Za-z0-9_.+-]+", linux[1]):
+            raise SetupError("An ostree boot entry has an unexpected kernel path")
+    menu = host.read(BAZZITE_GRUBCFG)
+    if not menu:
+        raise SetupError("The GRUB configuration could not be read; use Check status")
+    if "blscfg" not in menu:
+        raise SetupError("GRUB does not read the ostree boot entries through blscfg")
+    if "early_initrd" in menu:
+        raise SetupError("Bazzite's GRUB configuration sets early_initrd itself and would override this fix")
+    if "custom.cfg" not in menu:
+        raise SetupError("Bazzite's GRUB configuration does not read custom.cfg, so no recovery entry can be added")
+    current = _grubenv_early_initrd(host)
+    if current is None:
+        raise SetupError("grubenv could not be read")
+    return {"backend": "bazzite-bls", "mount": "/boot", "early_initrd": BAZZITE_EARLY_INITRD,
+            "env_early_initrd": current}
+
+
+def _boot_writable(host: Host) -> bool:
+    """Remount a read-only /boot (bootc) for the change; True when it was."""
+    for line in host.read("/proc/mounts").splitlines():
+        fields = line.split()
+        if len(fields) >= 4 and fields[1] == "/boot" and "ro" in fields[3].split(","):
+            host.run("mount", "-o", "remount,rw", "/boot")
+            return True
+    return False
+
+
+def _bazzite_install(host: Host, payload: str) -> dict:
+    """The payload, a recovery submenu, then the variable that loads the tables."""
+    remounted = _boot_writable(host)
+    custom = host.safe(BAZZITE_CUSTOM)
+    created = not custom.exists()
+    try:
+        host.write(payload, archive())
+        base = "" if created else custom.read_text(encoding="utf-8")
+        if BAZZITE_BEGIN in base:
+            raise SetupError("An untracked BC250 recovery block already exists in custom.cfg")
+        if base and not base.endswith("\n"):
+            base += "\n"
+        host.write(BAZZITE_CUSTOM, base + BAZZITE_RECOVERY, mode=0o600)
+        host.run("grub2-editenv", BAZZITE_GRUBENV, "set", f"early_initrd={BAZZITE_EARLY_INITRD}")
+        if _grubenv_early_initrd(host) != BAZZITE_EARLY_INITRD:
+            raise SetupError("grubenv did not keep early_initrd")
+    finally:
+        if remounted:
+            host.run("mount", "-o", "remount,ro", "/boot", check=False)
+    return {"custom_created": created}
+
+
+def _bazzite_uninstall(host: Host, state: dict) -> None:
+    remounted = _boot_writable(host)
+    try:
+        current = _grubenv_early_initrd(host)
+        if current == BAZZITE_EARLY_INITRD:
+            host.run("grub2-editenv", BAZZITE_GRUBENV, "unset", "early_initrd")
+        elif current:
+            raise SetupError("grubenv's early_initrd was changed by someone else; it was left as it is")
+        custom = host.safe(BAZZITE_CUSTOM)
+        if custom.exists():
+            text = custom.read_text(encoding="utf-8")
+            if BAZZITE_BEGIN in text:
+                remaining = _BAZZITE_BLOCK.sub("", text, count=1)
+                if BAZZITE_BEGIN in remaining or BAZZITE_END in remaining:
+                    raise SetupError("The BC250 recovery block in custom.cfg was edited; manual recovery required")
+                if state.get("custom_created") and not remaining.strip():
+                    custom.unlink()
+                else:
+                    host.write(BAZZITE_CUSTOM, remaining, mode=0o600)
+        payload = host.safe("/boot/bc250-acpi.cpio")
+        if payload.exists():
+            if hashlib.sha256(payload.read_bytes()).hexdigest() not in {SHA256, *SUPERSEDED}:
+                raise SetupError("Modified ACPI payload preserved for manual review")
+            payload.unlink()
+    finally:
+        if remounted:
+            host.run("mount", "-o", "remount,ro", "/boot", check=False)
 
 
 def efi_string(host: Host, name: str) -> str:
@@ -47,6 +175,7 @@ def table_status(host: Host) -> tuple[str, list[str]]:
     installed = set()
     foreign = False
     cpu_tables = 0
+    outdated_cpu = False
     expected = {}
     cpio = archive()
     offset = 0
@@ -75,6 +204,7 @@ def table_status(host: Host) -> tuple[str, list[str]]:
         tables.append(f"{oem}:{name}:{revision}")
         if name == "AMD CPU":
             cpu_tables += 1
+            outdated_cpu = outdated_cpu or hashlib.sha256(data).hexdigest() in SUPERSEDED_CPU_TABLES
         if (oem, name) in {("AMD", "AMD CPU"), ("HACK", "PSTATES"), ("HACK", "STUBS")}:
             if hashlib.sha256(data).digest() == expected.get(name):
                 installed.add(name)
@@ -82,10 +212,15 @@ def table_status(host: Host) -> tuple[str, list[str]]:
             foreign = True
     if installed == {"AMD CPU", "PSTATES", "STUBS"} and cpu_tables == 1:
         return "active", tables
+    # An earlier pinned release: its idle table changed, the other two did not.
+    if installed == {"PSTATES", "STUBS"} and cpu_tables == 1 and outdated_cpu:
+        return "outdated", tables
     return ("foreign" if foreign else "stock" if "AMD:AMD CPU:1" in tables else "unknown"), tables
 
 
 def boot_plan(host: Host) -> dict:
+    if host.bazzite():
+        return _bazzite_plan(host)
     # A systemd-stub image means the initrd is embedded in a UKI, even when
     # GRUB chainloads it. Injecting an external early CPIO would require a
     # separate, signed/reproducible UKI rebuild and is not this integration.
@@ -176,7 +311,7 @@ def compatibility_requirements(host: Host, state: dict, live: str) -> list[dict]
     requirements = []
 
     bc250 = host.bc250()
-    mutable = host.mutable_systemd()
+    mutable = host.mutable_systemd() or host.bazzite()
     host_details = []
     host_details.append("AMD BC-250 PCI device found" if bc250 else "AMD BC-250 PCI device not found")
     host_details.append("mutable systemd host" if mutable else "immutable, non-systemd, or unsupported host")
@@ -192,11 +327,11 @@ def compatibility_requirements(host: Host, state: dict, live: str) -> list[dict]
     pretty_match = re.search(r'^PRETTY_NAME=["\']?([^"\'\n]+)', os_release, re.M)
     distro = distro_match.group(1).lower() if distro_match else "unknown"
     pretty = pretty_match.group(1) if pretty_match else distro
-    distro_ok = distro in {"arch", "cachyos", "manjaro"}
+    distro_ok = distro in {"arch", "cachyos", "manjaro"} or host.bazzite()
     requirements.append(_requirement(
         "distribution", "Qualified Linux distribution", distro_ok,
         pretty or "Distribution could not be identified",
-        "Arch Linux, CachyOS, or Manjaro.",
+        "Arch Linux, CachyOS, Manjaro, or Bazzite (beta).",
         "Use the ACPI tool only from a qualified Arch-family installation. Other distributions remain inspection-only.",
     ))
 
@@ -248,7 +383,8 @@ def compatibility_requirements(host: Host, state: dict, live: str) -> list[dict]
 
     tables_ok = bool(state) or live == "stock"
     table_names = {"stock": "stock BC-250 tables", "active": "BC250 Control Center payload is active",
-                   "foreign": "tables modified by another ACPI fix", "unknown": "stock tables could not be confirmed"}
+                   "foreign": "tables modified by another ACPI fix", "unknown": "stock tables could not be confirmed",
+                   "outdated": "an earlier release of the BC250 ACPI fix is active"}
     requirements.append(_requirement(
         "tables", "ACPI table state", tables_ok, table_names.get(live, live),
         "Unmodified stock BC-250 ACPI tables, or this application's tracked installation.",
@@ -262,6 +398,8 @@ def compatibility_requirements(host: Host, state: dict, live: str) -> list[dict]
                 conflicts.append(directory + "/*.aml")
         if "GRUB_EARLY_INITRD_LINUX_CUSTOM" in host.read(GRUB_CONFIG):
             conflicts.append("GRUB_EARLY_INITRD_LINUX_CUSTOM")
+        if host.bazzite() and host.path(BAZZITE_UPSTREAM_PAYLOAD).exists():
+            conflicts.append(BAZZITE_UPSTREAM_PAYLOAD)
     requirements.append(_requirement(
         "conflicts", "Existing ACPI override conflicts", not conflicts,
         ", ".join(conflicts) if conflicts else ("installation tracked by BC250 Control Center" if state else "none found"),
@@ -273,6 +411,7 @@ def compatibility_requirements(host: Host, state: dict, live: str) -> list[dict]
         plan = boot_plan(host)
         boot_ok = True
         boot_detected = ("conventional GRUB kernel + external initramfs" if plan["backend"] == "grub"
+                         else "Bazzite GRUB with ostree boot entries (blscfg)" if plan["backend"] == "bazzite-bls"
                          else "systemd-boot Type #1 kernel + external initramfs")
         boot_resolution = ""
     except (SetupError, OSError, ValueError, KeyError, IndexError) as exc:
@@ -300,6 +439,7 @@ def installation_summary(result: dict) -> tuple[str, str]:
         "pending-reboot": ("REBOOT REQUIRED", "The ACPI fix is installed. Reboot to activate it, then check status."),
         "not-active": ("NOT ACTIVE", "The ACPI fix is installed but its tables are not active. Boot the BC250 ACPI entry, then check status."),
         "incomplete": ("INCOMPLETE", "The ACPI installation is incomplete. Review its status and uninstall before retrying."),
+        "outdated": ("UPDATE AVAILABLE", f"The installed ACPI fix is an earlier release whose C3 idle state can freeze the board. Use Update correction to install v{VERSION}, then reboot."),
         "managed-elsewhere": ("MANAGED EXTERNALLY", "ACPI tables are supplied by firmware or another tool. Do not install a second fix."),
     }
     if result.get("status") == "not-installed" and not result.get("installed"):
@@ -377,7 +517,7 @@ def status(host: Host, *, cached: bool = True) -> dict:
     state = host.state("acpi")
     live, tables = table_status(host)
     result = {"available": False, "installed": bool(state), "status": "not-installed",
-              "tables": tables, "version": "1.1.0", "reason": "", "backend": ""}
+              "tables": tables, "version": VERSION, "reason": "", "backend": ""}
     result["cpufreq_driver"] = host.read("/sys/devices/system/cpu/cpufreq/policy0/scaling_driver")
     result["cpuidle_driver"] = host.read("/sys/devices/system/cpu/cpuidle/current_driver")
     if state:
@@ -386,14 +526,15 @@ def status(host: Host, *, cached: bool = True) -> dict:
                             else "not-active")
         if state.get("phase") != "installed":
             result["status"] = "incomplete"
-    elif live in {"active", "foreign"}:
+    elif live in {"active", "foreign", "outdated"}:
         result["status"] = "managed-elsewhere"
     try:
-        if not host.mutable_systemd() or not host.bc250():
+        bazzite = host.bazzite() and host.path("/run/systemd/system").is_dir()
+        if not (host.mutable_systemd() or bazzite) or not host.bc250():
             raise SetupError("Requires a supported mutable systemd distribution and BC250 hardware")
         os_release = host.read("/etc/os-release")
-        if not re.search(r'^ID=["\']?(arch|cachyos|manjaro)["\']?$', os_release, re.M):
-            raise SetupError("ACPI installation is initially qualified only for Arch, CachyOS and Manjaro layouts")
+        if not bazzite and not re.search(r'^ID=["\']?(arch|cachyos|manjaro)["\']?$', os_release, re.M):
+            raise SetupError("ACPI installation is qualified for Arch, CachyOS, Manjaro and Bazzite layouts")
         if not kernel_support(host):
             raise SetupError("ACPI_TABLE_UPGRADE support could not be confirmed for the running kernel")
         efi = host.path("/sys/firmware/efi")
@@ -419,7 +560,11 @@ def status(host: Host, *, cached: bool = True) -> dict:
                     raise SetupError("Existing ACPI injection must be reviewed before installing another fix")
             if "GRUB_EARLY_INITRD_LINUX_CUSTOM" in host.read(GRUB_CONFIG):
                 raise SetupError("Existing early initrd configuration requires manual conflict review")
+            if bazzite and host.path(BAZZITE_UPSTREAM_PAYLOAD).exists():
+                raise SetupError("Upstream's manual install (/boot/acpi_override.cpio) is present; remove it first")
         plan = boot_plan(host)
+        if plan["backend"] == "bazzite-bls" and not state and plan.get("env_early_initrd"):
+            raise SetupError("grubenv already loads an early initrd; review it before installing another")
         result.update(available=True, backend=plan["backend"])
     except (SetupError, OSError, ValueError, KeyError, IndexError) as exc:
         result["reason"] = str(exc)
@@ -440,6 +585,11 @@ def status(host: Host, *, cached: bool = True) -> dict:
         elif live == "unknown":
             result.update(available=False, status="needs-check",
                           reason="Use Check status to inspect protected ACPI tables and boot files")
+    # Decided by the journal alone, so neither a cached probe nor unreadable
+    # tables can hide it: what is on disk is an earlier pinned payload.
+    installed_version = SUPERSEDED.get(state.get("sha256", "")) if state else None
+    if installed_version and state.get("phase") == "installed":
+        result.update(status="outdated", update_available=True, installed_version=installed_version)
     return result
 
 
@@ -453,7 +603,7 @@ def check(host: Host) -> dict:
 
 
 def install(host: Host) -> dict:
-    host.require_host()
+    host.require_host(bazzite=True)
     host.safe(STATE)
     current = status(host, cached=False)
     if current["installed"]:
@@ -463,6 +613,24 @@ def install(host: Host) -> dict:
     plan = boot_plan(host)
     mount = plan["mount"]
     payload = mount + "/bc250-acpi.cpio"
+    if plan["backend"] == "bazzite-bls":
+        if host.safe(payload).exists():
+            raise SetupError(f"Existing file preserved: {payload}")
+        state = {**plan, "phase": "preparing", "boot_id": host.read("/proc/sys/kernel/random/boot_id"),
+                 "payload": payload, "entry": BAZZITE_CUSTOM, "sha256": SHA256}
+        host.save("acpi", state)
+        try:
+            state.update(_bazzite_install(host, payload))
+            state["phase"] = "installed"
+            host.save("acpi", state)
+        except Exception:
+            try:
+                uninstall(host)
+            except Exception:
+                state["phase"] = "incomplete"
+                host.save("acpi", state)
+            raise
+        return check(host)
     entry = (mount + "/loader/entries/bc250-acpi.conf") if plan["backend"] == "systemd-boot" else GRUB_SCRIPT
     for name in (payload, entry):
         if host.safe(name).exists():
@@ -506,6 +674,35 @@ def install(host: Host) -> dict:
     return check(host)
 
 
+def update(host: Host) -> dict:
+    """Replace an earlier pinned payload in place; the boot entry is unchanged.
+
+    The entry already loads ``bc250-acpi.cpio`` from the journaled mount, so
+    only that file and the journal's digest change.
+    """
+    host.require_host(bazzite=True)
+    host.safe(STATE)
+    state = host.state("acpi")
+    if not state:
+        raise SetupError("No ACPI installation owned by Control Center")
+    if state.get("phase") != "installed":
+        raise SetupError("The ACPI installation is incomplete; uninstall before retrying")
+    if state.get("sha256") == SHA256:
+        raise SetupError(f"The ACPI fix is already at v{VERSION}")
+    if state.get("sha256") not in SUPERSEDED:
+        raise SetupError("The installed ACPI payload is not a release this application recognizes")
+    mount = state.get("mount")
+    if mount not in {"/boot", "/efi", "/boot/efi"}:
+        raise SetupError("Invalid ACPI installation journal")
+    payload = mount + "/bc250-acpi.cpio"
+    path = host.safe(payload)
+    if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != state["sha256"]:
+        raise SetupError("Modified or missing ACPI payload preserved for manual review")
+    host.write(payload, archive())
+    host.save("acpi", state | {"sha256": SHA256, "boot_id": host.read("/proc/sys/kernel/random/boot_id")})
+    return check(host)
+
+
 def uninstall(host: Host) -> dict:
     host.safe(STATE)
     state = host.state("acpi")
@@ -523,6 +720,8 @@ def uninstall(host: Host) -> dict:
                 raise SetupError("Invalid saved boot default")
             host.run("bootctl", "set-default", original)
         host.remove_managed(entry)
+    elif state.get("backend") == "bazzite-bls":
+        _bazzite_uninstall(host, state)
     elif state.get("backend") == "grub":
         text = host.path(GRUB_CONFIG).read_text()
         if GRUB_BLOCK in text:
@@ -539,7 +738,7 @@ def uninstall(host: Host) -> dict:
         raise SetupError("Invalid ACPI boot backend")
     payload = host.safe(mount + "/bc250-acpi.cpio")
     if payload.exists():
-        if hashlib.sha256(payload.read_bytes()).hexdigest() != SHA256:
+        if hashlib.sha256(payload.read_bytes()).hexdigest() not in {SHA256, *SUPERSEDED}:
             raise SetupError("Modified ACPI payload preserved for manual review")
         payload.unlink()
     host.safe(f"{STATE}/acpi.json").unlink()

@@ -81,7 +81,7 @@ from ..core.diagnostic_history import (
     history_entries,
 )
 from ..core.external_links import open_external_url
-from ..core.preferences import application_settings
+from ..core.preferences import REPORT_GLOW_KEY, application_settings
 from ..core.state import state_cache_for
 from ..i18n import (
     LANGUAGE_OPTIONS,
@@ -118,6 +118,7 @@ OFFICIAL_REPOSITORIES = (
     ("BC250 GDDR6 memory temperature (SMU inspection workflow)", "pan-Rijovich/bc250-memory-temperature", "https://github.com/pan-Rijovich/bc250-memory-temperature"),
     ("BC250 Batocera tools reference", "tmghd272/bc250-batocera-tools", "https://github.com/tmghd272/bc250-batocera-tools"),
     ("BC250 ACPI fix", "e-tho/bc250-acpi-fix", "https://github.com/e-tho/bc250-acpi-fix"),
+    ("BC250 VA-API driver (hardware video)", "simpmix/bc250-encoding-decoding-fix", "https://github.com/simpmix/bc250-encoding-decoding-fix"),
     ("BC250 ACPI fix updated", "mendesrr/bc250-acpi-fix-updated-8c", "https://github.com/mendesrr/bc250-acpi-fix-updated-8c"),
     ("BC250 native mesh shaders reference", "lonewolf0622/BC250-Native-Mesh-Shaders-", "https://github.com/lonewolf0622/BC250-Native-Mesh-Shaders-"),
     ("BC250 memory configuration reference", "fanoush/bc250_memcfg", "https://github.com/fanoush/bc250_memcfg"),
@@ -768,6 +769,7 @@ class SettingsPage(QWidget):
     diagnostics_changed = pyqtSignal(bool)
     sidebar_collapsed_changed = pyqtSignal(bool)
     gamepad_navigation_changed = pyqtSignal(bool)
+    report_glow_changed = pyqtSignal(bool)
     gamepad_keypad_changed = pyqtSignal(bool)
     gamepad_keypad_auto_show_changed = pyqtSignal(bool)
     embedded_terminal_changed = pyqtSignal(bool)
@@ -1143,6 +1145,11 @@ class SettingsPage(QWidget):
             "Guided tour",
             "Walk through the modules again, with each stop pointing at the control it describes.",
             self._button("Start the tour", self.tour_requested.emit),
+        ))
+        help_group.add_row(SettingRow(
+            "Highlight the report button",
+            "A soft glow every few seconds around the dashboard's button for reporting a problem or suggesting an idea.",
+            self._switch(REPORT_GLOW_KEY, True, self.report_glow_changed.emit),
         ))
         layout.addWidget(help_group)
         layout.addStretch(1)
@@ -2778,6 +2785,7 @@ class SettingsPage(QWidget):
             "settings/reopen_last_module": "true",
             "sidebar_collapsed": "false",
             "settings/gamepad_navigation": "true",
+            REPORT_GLOW_KEY: "true",
             "settings/gamepad_onscreen_keypad": "true",
             "settings/gamepad_keypad_auto_show": "true",
             "settings/appearance": "system",
@@ -2809,6 +2817,7 @@ class SettingsPage(QWidget):
         self.diagnostics_changed.emit(False)
         self.sidebar_collapsed_changed.emit(False)
         self.gamepad_navigation_changed.emit(True)
+        self.report_glow_changed.emit(True)
         self.gamepad_keypad_changed.emit(True)
         self.gamepad_keypad_auto_show_changed.emit(True)
         show_toast(
@@ -2831,6 +2840,7 @@ class SettingsDialog(QDialog):
     diagnostics_changed = pyqtSignal(bool)
     sidebar_collapsed_changed = pyqtSignal(bool)
     gamepad_navigation_changed = pyqtSignal(bool)
+    report_glow_changed = pyqtSignal(bool)
     gamepad_keypad_changed = pyqtSignal(bool)
     gamepad_keypad_auto_show_changed = pyqtSignal(bool)
     embedded_terminal_changed = pyqtSignal(bool)
@@ -2883,6 +2893,7 @@ class SettingsDialog(QDialog):
         self.page.tour_requested.connect(self.tour_requested.emit)
         self.page.update_requested.connect(self.update_requested.emit)
         self.page.gamepad_navigation_changed.connect(self.gamepad_navigation_changed.emit)
+        self.page.report_glow_changed.connect(self.report_glow_changed.emit)
         self.page.gamepad_keypad_changed.connect(self.gamepad_keypad_changed.emit)
         self.page.gamepad_keypad_auto_show_changed.connect(self.gamepad_keypad_auto_show_changed.emit)
         self.page.embedded_terminal_changed.connect(self.embedded_terminal_changed.emit)

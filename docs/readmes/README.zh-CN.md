@@ -121,6 +121,7 @@ BC250 Control Center 建立在社区的工作之上，不声称拥有这些项�
 - [linux-cachyos-bc250](https://github.com/MastaG/linux-cachyos-bc250): 为 Arch/CachyOS 配套的内核与 Mesa/RADV。
 - [bc250-async-compute-bazzite](https://github.com/tri3gubki-ops/bc250-async-compute-bazzite): Bazzite 44 上的异步计算。
 - [bc250-fsr4](https://github.com/dmorazasanchez/bc250-fsr4) 和 [bc250-fsr4-fork](https://github.com/daniel-h-0/bc250-fsr4-fork) (OptiScaler Client): 按游戏的 FSR4。
+- [HelixSR](https://github.com/lonewolf0622/HelixSR): 为 FSR 3.1 游戏提供 DLSS Model E 重建，按游戏启用。
 
 **CPU 与计算单元**
 - [bc250_smu_oc](https://github.com/bc250-collective/bc250_smu_oc): 通过 SMU 检测和调校 CPU。

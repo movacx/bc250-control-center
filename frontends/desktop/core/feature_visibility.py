@@ -8,6 +8,10 @@ from collections.abc import Mapping
 # validated on more BC-250 configurations.
 FSR4_UI_ENABLED = True
 
+# HelixSR (DLSS Model E behind an FSR 3.1 DLL), per game, on every
+# distribution. Same switch pattern as FSR4 above.
+HELIXSR_UI_ENABLED = True
+
 # The GFX1013 per-game FSR4 step is superseded by the OptiScaler FSR INT8
 # client; keep its backend but hide it from the GFX1013 card.
 GFX1013_FSR4_UI_ENABLED = False

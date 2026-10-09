@@ -17,7 +17,9 @@ boot, the same way everywhere:
   ``/etc/bc250-control-center/ttm-kargs.original`` -- the same file, in the
   same format, the desktop's Bazzite memory workflow has always used -- so a
   limit set from either place is restored from either place.
-* SteamOS: not offered. Its updates rewrite the boot configuration.
+* SteamOS (beta): a drop-in in ``/etc/default/grub.d`` and a regenerated
+  ``/efi/EFI/steamos/grub.cfg``, kept across updates by a keep list (see
+  system_setup_kernel_args.py).
 
 Releases before this one wrote the sysfs knob at boot from
 ``bc250-memory-setup.service``. That setting is recognised as ours, reported,
@@ -49,7 +51,7 @@ OSTREE_STATE = "/etc/bc250-control-center/ttm-kargs.original"
 OSTREE_MARKER = "# Managed by BC250 Control Center"
 _KARG = re.compile(r"ttm\.pages_limit=[0-9]+")
 _STEAMOS = (
-    "SteamOS rewrites its boot configuration on every update, so a GPU memory "
+    "This SteamOS has no GRUB that reads /etc/default/grub.d, so a GPU memory "
     "limit set here would not survive. It needs the ttm.pages_limit kernel argument."
 )
 
@@ -102,6 +104,8 @@ def backend(host: Host) -> tuple[str, str]:
     release = host.os_release()
     identifiers = {release.get("ID", ""), *release.get("ID_LIKE", "").split(), release.get("VARIANT_ID", "")}
     if identifiers & {"steamos", "holo"}:
+        if kernel_args.backend(host) == "steamos-grub":
+            return "steamos-grub", ""
         return "unsupported", _STEAMOS
     if host.path("/run/ostree-booted").exists():
         if host.command("rpm-ostree"):

@@ -29,6 +29,17 @@ BAZZITE_MEMORY_OPTIONS = (
     ("Advanced heavy loads · ZSWAP + 32 GiB swapfile", "zswap-32"),
 )
 
+#: SteamOS (beta). Its own half-RAM zstd ZRAM stays the default; the emergency
+#: swapfile sits behind it, and ZSWAP replaces it after one reboot. The
+#: swapfile goes on /home, as keyboardspecialist/bc250-steamos does.
+STEAMOS_MEMORY_OPTIONS = (
+    ("Keep current configuration", "preserve"),
+    ("Recommended · ZRAM + 16 GiB emergency swap", "swap-16"),
+    ("Advanced · ZSWAP + 16 GiB swapfile", "zswap-16"),
+    ("Advanced heavy loads · ZSWAP + 32 GiB swapfile", "zswap-32"),
+    ("Restore BC250 memory changes", "restore"),
+)
+
 GIB = 1024 ** 3
 
 
@@ -88,6 +99,15 @@ def is_bazzite_host(tools) -> bool:
     return any(
         "bazzite" in str(tools.get(key) or "").strip().lower()
         for key in ("os_family", "os_id", "os_label", "os_variant", "image_id")
+    )
+
+
+def is_steamos_host(tools) -> bool:
+    """SteamOS, from the inventory or from the helper's own answer."""
+    memory = ((tools.get("system_setup") or {}).get("memory") or {})
+    return bool(memory.get("steamos")) or any(
+        "steamos" in str(tools.get(key) or "").strip().lower()
+        for key in ("os_family", "os_id")
     )
 
 
@@ -169,13 +189,15 @@ def update_memory_controls(owner, tools):
         return False
     setup = tools.get("system_setup") or {}
     memory = setup.get("memory") or {}
+    steamos = is_steamos_host(tools)
+    options = STEAMOS_MEMORY_OPTIONS if steamos else MEMORY_OPTIONS
     combo = owner.memory_policy_combo
     existing = [combo.itemData(i) for i in range(combo.count())]
-    if existing != [value for _, value in MEMORY_OPTIONS]:
+    if existing != [value for _, value in options]:
         previous = combo.currentData()
         combo.blockSignals(True)
         combo.clear()
-        for label, value in MEMORY_OPTIONS:
+        for label, value in options:
             combo.addItem(tr(label), value)
         combo.setCurrentIndex(max(0, combo.findData(previous)))
         combo.blockSignals(False)
@@ -241,18 +263,25 @@ def update_memory_controls(owner, tools):
     if hasattr(owner, "memory_swap_target_combo"):
         target_combo = owner.memory_swap_target_combo
         targets = memory.get("swap_targets") or {}
-        expected = ["", *sorted(target for target in targets if target)]
+        # The same words everywhere; SteamOS's default lives on /home, which
+        # is then not offered a second time under its own name.
+        default_mount = str(memory.get("default_swap_mount") or "/var/lib")
+        expected = ["", *sorted(
+            target for target in targets
+            if target and not (steamos and target == default_mount)
+        )]
         existing_targets = [target_combo.itemData(i) for i in range(target_combo.count())]
         if existing_targets != expected:
             previous_target = target_combo.currentData()
             target_combo.blockSignals(True)
             target_combo.clear()
-            target_combo.addItem(tr("Default (/var/lib)"), "")
+            target_combo.addItem("", "")
             for target in expected[1:]:
                 target_combo.addItem(target, target)
             index = target_combo.findData(previous_target)
             target_combo.setCurrentIndex(index if index >= 0 else 0)
             target_combo.blockSignals(False)
+        target_combo.setItemText(0, tr("Default (/var/lib)").replace("/var/lib", default_mount))
         creates_swapfile = selected_policy in {"swap-16", "swap-32", "zswap-16", "zswap-32"}
         target_combo.setEnabled(enabled and creates_swapfile)
         owner.memory_swap_target_label.setVisible(creates_swapfile)
@@ -270,7 +299,7 @@ def update_memory_controls(owner, tools):
     for widget in (owner.ttm_limit_combo, owner.memory_ttm_apply_button):
         widget.setToolTip(tr(ttm_reason) if ttm_reason else tr("Optional system setup. Review changes before applying."))
     if hasattr(owner, "memory_scope"):
-        label = "Testing" if enabled else "Unavailable"
+        label = "SteamOS beta" if steamos else "Testing" if enabled else "Unavailable"
         if enabled and memory.get("phase") == "incomplete":
             label = "Incomplete"
         elif enabled and any(memory.get(key) for key in

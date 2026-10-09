@@ -474,6 +474,12 @@ class SistemaService:
     def gestionar_fsr4_bc250(self, action):
         return self.repo.gestionar_fsr4_bc250(action)
 
+    def gestionar_helixsr(self, action):
+        return self.repo.gestionar_helixsr(action)
+
+    def guardar_ajustes_helixsr(self, values):
+        return self.repo.guardar_ajustes_helixsr(values)
+
     def gestionar_gfx1013_fedora(self, action):
         return self.repo.gestionar_gfx1013_fedora(action)
 
@@ -488,6 +494,9 @@ class SistemaService:
 
     def gestionar_radv_async(self, action):
         return self.repo.gestionar_radv_async(action)
+
+    def gestionar_vaapi(self, action):
+        return self.repo.gestionar_vaapi(action)
 
     def gestionar_apu_telemetry(self, action):
         return self.repo.gestionar_apu_telemetry(action)

@@ -11,6 +11,7 @@ from bc250cc.infrastructure.steamos_rescue import ensure_steamos_rescue
 from bc250cc.infrastructure.terminal_plan import set_translator
 from bc250cc.shared.logging_config import configure_logging
 from frontends.desktop import ControlCenterWindow
+from frontends.desktop.components.wheel_guard import install_combo_wheel_guard
 from frontends.desktop.i18n import tr
 
 #: How long after the window first shows the performance recorder starts.
@@ -35,6 +36,8 @@ def main() -> int:
     app.setApplicationName("BC250 Control Center")
     app.setApplicationDisplayName("BC250 Control Center")
     app.setDesktopFileName("io.github.movacx.bc250-control-center")
+    # Scrolling a page never changes a drop-down list it passes over.
+    install_combo_wheel_guard(app)
     # Standalone compositors such as Hyprland do not always autostart the
     # installed Polkit prompt.  Prepare it before any page can request root.
     ensure_graphical_polkit_agent()

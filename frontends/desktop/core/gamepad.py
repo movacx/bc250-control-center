@@ -212,6 +212,52 @@ def _joystick_ids(path: str) -> tuple[int, int] | None:
         return None
 
 
+def _capability_bits(text: str) -> set[int] | None:
+    """Bits of a sysfs ``capabilities/*`` bitmap: 64-bit words, highest first."""
+    words = str(text or "").split()
+    if not words:
+        return None
+    bits: set[int] = set()
+    try:
+        for offset, word in enumerate(reversed(words)):
+            value = int(word, 16)
+            bits.update(offset * 64 + bit for bit in range(64) if value >> bit & 1)
+    except ValueError:
+        return None
+    return bits
+
+
+#: linux/input-event-codes.h
+_FACE_BUTTONS = {0x130, 0x131, 0x133, 0x134}  # BTN_SOUTH, EAST, NORTH, WEST
+_DPAD_BUTTONS = {0x220, 0x221, 0x222, 0x223}  # BTN_DPAD_UP .. RIGHT
+_STICK = {0x00, 0x01}  # ABS_X, ABS_Y
+_HAT = {0x10, 0x11}  # ABS_HAT0X, ABS_HAT0Y
+
+
+def _joystick_is_gamepad(path: str, sysfs: Path = Path("/sys/class/input")) -> bool:
+    """Whether a ``/dev/input/jsN`` node belongs to a real gamepad.
+
+    joydev gives a js node to anything with an X axis that is not exactly a
+    three-button absolute mouse. OpenLinkHub, installed for Corsair fans and
+    lighting, creates a five-button virtual absolute mouse, and its js node
+    opened the controller interface with no controller anywhere. The node is
+    held to the evdev backend's own test: face buttons and a stick or D-pad.
+    A node whose capabilities cannot be read is still accepted.
+    """
+    base = sysfs / Path(path).name / "device" / "capabilities"
+    try:
+        keys = _capability_bits((base / "key").read_text())
+        axes = _capability_bits((base / "abs").read_text())
+    except OSError:
+        return True
+    if keys is None and axes is None:
+        return True
+    keys, axes = keys or set(), axes or set()
+    return len(keys & _FACE_BUTTONS) >= 2 and (
+        _STICK <= axes or _HAT <= axes or len(keys & _DPAD_BUTTONS) >= 2
+    )
+
+
 class GamepadBackend(Protocol):
     def refresh(self) -> GamepadDevice | None: ...
 
@@ -505,6 +551,8 @@ class LinuxJoystickBackend(_AxisStateMixin):
         for path in sorted(glob.glob("/dev/input/js*")):
             ids = _joystick_ids(path)
             if ids is not None and not steam_allows_device(*ids):
+                continue
+            if not _joystick_is_gamepad(path):
                 continue
             try:
                 fd = os.open(path, os.O_RDONLY | os.O_NONBLOCK)

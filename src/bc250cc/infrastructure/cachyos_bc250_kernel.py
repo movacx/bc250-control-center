@@ -20,6 +20,15 @@ CACHYOS_BC250_PACKAGES = (
     "linux-cachyos-bc250",
     "linux-cachyos-bc250-headers",
 )
+#: Every kernel the repository builds, keyed by the suffix ``uname -r`` ends
+#: with (``7.2.9-2-cachyos-bc250``, ``7.3.0-rc6-2-cachyos-rc-bc250``). The
+#: app installs the stable one; RC and BORE are put in by hand beside it and
+#: count as the BC-250 kernel just the same.
+CACHYOS_BC250_KERNEL_VARIANTS = {
+    "stable": "linux-cachyos-bc250",
+    "rc": "linux-cachyos-rc-bc250",
+    "bore": "linux-cachyos-bore-bc250",
+}
 CACHYOS_BC250_MESA_PACKAGES = ("mesa", "vulkan-radeon")
 CACHYOS_BC250_ACTIONS = {"kernel", "mesa", "full"}
 MASTA_BC250_SUPPORTED_IDS = frozenset({"arch", "cachyos", "cachy"})
@@ -104,7 +113,12 @@ def masta_bc250_stack_state(*, distro_id: str, family: str) -> dict:
             return False
         return result.returncode == 0 and result.stdout.strip() == package
 
-    kernel_installed = all(installed(package) for package in CACHYOS_BC250_PACKAGES)
+    installed_variants = [
+        variant
+        for variant, package in CACHYOS_BC250_KERNEL_VARIANTS.items()
+        if installed(package)
+    ]
+    running_variant = running_bc250_kernel_variant(platform.release())
     mesa_packages = ("mesa", "vulkan-radeon")
     installed_mesa = all(installed(package) for package in mesa_packages)
     mesa_from_bc250_repository = False
@@ -133,10 +147,23 @@ def masta_bc250_stack_state(*, distro_id: str, family: str) -> dict:
     return {
         "supported": supported,
         "repository_configured": repository_configured,
-        "kernel_installed": kernel_installed,
-        "kernel_active": kernel_installed and "bc250" in platform.release().lower(),
+        "kernel_installed": bool(installed_variants),
+        "kernel_active": running_variant in installed_variants,
+        "kernel_variant": running_variant if running_variant in installed_variants
+        else (installed_variants[0] if installed_variants else ""),
         "mesa_installed": mesa_from_bc250_repository,
     }
+
+
+def running_bc250_kernel_variant(release: str) -> str:
+    """``stable``, ``rc`` or ``bore`` for a MastaG kernel's ``uname -r``, else ``""``."""
+    release = str(release or "").strip().lower()
+    for variant, package in sorted(
+        CACHYOS_BC250_KERNEL_VARIANTS.items(), key=lambda item: -len(item[1])
+    ):
+        if release.endswith("-" + package.removeprefix("linux-")):
+            return variant
+    return ""
 
 
 def build_cachyos_bc250_kernel_command(action: str = "kernel") -> str:

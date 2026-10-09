@@ -249,3 +249,11 @@ class UiPreferences:
             "settings/density",
             self.normalize_density(self.settings.value("settings/density", "comfortable")),
         )
+
+
+#: The dashboard's report button glows softly unless this is switched off.
+REPORT_GLOW_KEY = "settings/report_glow"
+
+
+def report_glow_enabled() -> bool:
+    return UiPreferences().bool_value(REPORT_GLOW_KEY, True)

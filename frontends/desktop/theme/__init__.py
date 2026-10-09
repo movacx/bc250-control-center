@@ -627,6 +627,14 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     # is not reachable from QSS. Kept as POSIX separators, which Qt
     # accepts on every platform it builds for.
     icon_dir = (Path(__file__).resolve().parent / "icons").as_posix()
+    # This tab's cards, hairlines, fields and title bands take the greys of the
+    # Compatibility tab in both themes; the title bands are a step darker.
+    upscaling_card, upscaling_field = c['panel_alt'], c['control']
+    upscaling_line, upscaling_line_strong = c['border_soft'], c['border']
+    upscaling_head = (
+        c['control_pressed'] if ACTIVE_MODE == "light"
+        else _blend(c['panel_alt'], c['window'], 0.5)
+    )
     # Glass, for the first-run panel: the card has to be translucent for the
     # frosted portrait behind it to mean anything, and Qt takes that as an
     # rgba() rather than as a palette entry. Light glass on a light palette,
@@ -1193,6 +1201,9 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QLabel[readingDetail='true'] {{
         color: {c['muted']};
         font-size: 9px;
+    }}
+    QFrame[reading='true'][tone='good'] QLabel[readingValue='true'] {{
+        color: {c['green']};
     }}
     QFrame[reading='true'][tone='warning'] QLabel[readingValue='true'] {{
         color: {c['orange']};
@@ -1963,6 +1974,210 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         background: {c['panel']};
         border: 1px solid {c['border']};
         border-radius: 20px;
+    }}
+    /* Additional settings > Upscaling: the app's page cards, set tighter
+       for a working tool: small radii, one button height (32 px), quiet
+       secondary buttons, red text rather than a pink pill for removal,
+       solid blue only for the next step, and the games as a bordered table
+       with a header band. */
+    QFrame[pageCard='true'][upscalerSection='true'],
+    QFrame[pageCard='true'][upscalingGames='true'],
+    QFrame[pageCard='true'][helixsrSettings='true'] {{
+        background: {upscaling_card};
+        border: 1px solid {upscaling_line};
+        border-radius: 10px;
+    }}
+    QFrame[pageCard='true'][upscalerSection='true'] QPushButton[compactAction='true'],
+    QFrame[pageCard='true'][upscalerSection='true'] QPushButton[accentAction='true'],
+    QFrame[pageCard='true'][upscalerSection='true'] QPushButton[dangerAction='true'],
+    QFrame[pageCard='true'][upscalingGames='true'] QPushButton[compactAction='true'] {{
+        min-height: 18px;
+        padding: 6px 12px;
+        background: {upscaling_field};
+        border: 1px solid {upscaling_line_strong};
+        border-radius: 7px;
+        color: {c['text']};
+        font-size: 12px;
+        font-weight: 600;
+    }}
+    QFrame[pageCard='true'][upscalerSection='true'] QPushButton[compactAction='true']:hover,
+    QFrame[pageCard='true'][upscalerSection='true'] QPushButton[accentAction='true']:hover,
+    QFrame[pageCard='true'][upscalingGames='true'] QPushButton[compactAction='true']:hover {{
+        background: {c['control_hover']};
+        border-color: {c['border_strong']};
+    }}
+    QFrame[pageCard='true'][upscalerSection='true'] QPushButton[dangerAction='true'] {{
+        color: {c['red']};
+    }}
+    QFrame[pageCard='true'][upscalerSection='true'] QPushButton[dangerAction='true']:hover {{
+        background: {c['red_soft']};
+        border-color: {c['red']};
+    }}
+    QFrame[pageCard='true'][upscalerSection='true'] QPushButton#PrimaryAction {{
+        min-height: 18px;
+        padding: 6px 16px;
+        background: {c['blue']};
+        border: 1px solid {c['blue']};
+        border-radius: 7px;
+        color: {c['on_blue']};
+        font-size: 12px;
+        font-weight: 650;
+    }}
+    QFrame[pageCard='true'][upscalerSection='true'] QPushButton#PrimaryAction:hover {{
+        background: {c['blue_hover']};
+        border-color: {c['blue_hover']};
+    }}
+    QFrame[pageCard='true'][upscalerSection='true'] QPushButton:disabled {{
+        background: {upscaling_card};
+        border-color: {upscaling_line};
+        color: {c['disabled_text']};
+    }}
+    QFrame[upscalingGames='true'] QFrame[compactPanel='true'],
+    QFrame[upscalingGames='true'] QFrame[compactPanel='true']:hover {{
+        background: transparent;
+        border: 1px solid {upscaling_line};
+        border-radius: 8px;
+    }}
+    QFrame[upscalingGames='true'] QFrame[compactPanel='true'] QLineEdit {{
+        background: {upscaling_field};
+        border: 1px solid {upscaling_line};
+        min-height: 18px;
+        padding: 5px 10px;
+        border-radius: 7px;
+        font-family: 'JetBrains Mono', 'Noto Sans Mono', monospace;
+        font-size: 12px;
+    }}
+    QFrame[settingsGroupRow='true'] {{
+        background: transparent;
+        border: none;
+        border-top: 1px solid {upscaling_line};
+        border-radius: 0px;
+    }}
+    QFrame[helixsrSettings='true'] QFrame[dashboardCompatibilityGroupBox='true'] {{
+        background: {upscaling_card};
+        border: 1px solid {upscaling_line};
+    }}
+    QFrame[upscalerHead='true'] {{
+        background: {upscaling_head};
+        border: none;
+        border-bottom: 1px solid {upscaling_line};
+        border-top-left-radius: 9px;
+        border-top-right-radius: 9px;
+        border-bottom-left-radius: 0px;
+        border-bottom-right-radius: 0px;
+    }}
+    QFrame[settingsGroupHead='true'] {{
+        background: {upscaling_head};
+        border: none;
+        border-top: 1px solid {upscaling_line};
+        border-radius: 0px;
+    }}
+    QFrame[settingsGroupHead='true'][listFirst='true'] {{
+        border-top: none;
+        border-top-left-radius: 10px;
+        border-top-right-radius: 10px;
+    }}
+    QFrame[settingsGroupRow='true'][listFirst='true'] {{
+        border-top: none;
+    }}
+    QLabel[settingsSummary='true'] {{
+        color: {c['muted']};
+        font-size: 12px;
+    }}
+    QFrame[helixsrSettings='true'] QWidget[settingRow='true'] {{
+        border: none;
+        border-bottom: 1px solid {upscaling_line};
+    }}
+    QFrame[helixsrSettings='true'] QLabel[settingHint='true'] {{
+        color: {c['subtle']};
+        font-size: 11px;
+    }}
+    QFrame[helixsrSettings='true'] QComboBox {{
+        background: {upscaling_field};
+        border: 1px solid {upscaling_line};
+        min-height: 18px;
+        padding: 4px 8px;
+    }}
+    /* The two upscaler cards: thinner buttons, as on the other tabs. */
+    QFrame[pageCard='true'][upscalerSection='true'] QPushButton[compactAction='true'],
+    QFrame[pageCard='true'][upscalerSection='true'] QPushButton[dangerAction='true'],
+    QFrame[pageCard='true'][upscalerSection='true'] QPushButton#PrimaryAction {{
+        min-height: 14px;
+        padding: 4px 12px;
+    }}
+    QFrame[upscalerSection='true'] QLabel[fieldHint='true'] {{
+        color: {c['muted']};
+        font-size: 12px;
+    }}
+    QLabel[engineVersion='true'] {{
+        color: {c['subtle']};
+        font-family: 'JetBrains Mono', 'Noto Sans Mono', monospace;
+        font-size: 12px;
+        padding: 0px;
+    }}
+    QFrame[gameTable='true'] {{
+        background: transparent;
+        border: 1px solid {upscaling_line};
+        border-radius: 8px;
+    }}
+    QFrame[gameTableHead='true'] {{
+        background: {upscaling_head};
+        border: none;
+        border-bottom: 1px solid {upscaling_line_strong};
+        border-top-left-radius: 8px;
+        border-top-right-radius: 8px;
+    }}
+    QLabel[gameColumn='true'] {{
+        color: {c['muted']};
+        font-size: 10px;
+        font-weight: 700;
+        padding: 9px 0px;
+    }}
+    QLabel[gameName='true'] {{
+        color: {c['text']};
+        font-size: 12px;
+        font-weight: 600;
+    }}
+    /* Formal type: names at 14 px, readings in regular weight, small
+       outlined buttons in the table. */
+    QFrame[pageCard='true'][upscalerSection='true'] QLabel[cardTitle='true'],
+    QFrame[pageCard='true'][upscalingGames='true'] QLabel[cardTitle='true'] {{
+        font-size: 14px;
+        font-weight: 650;
+    }}
+    QFrame[upscalerSection='true'] QLabel[readingValue='true'] {{
+        font-size: 12px;
+        font-weight: 600;
+    }}
+    QFrame[upscalerSection='true'] QLabel[readingLabel='true'] {{
+        font-size: 12px;
+    }}
+    QFrame[pageCard='true'][upscalingGames='true'] QFrame[gameTable='true'] QPushButton[compactAction='true'] {{
+        min-height: 14px;
+        padding: 4px 10px;
+        font-size: 11px;
+        font-weight: 600;
+    }}
+    QFrame[pageCard='true'][upscalingGames='true'] QFrame[gameTable='true'] QPushButton[dangerAction='true'] {{
+        color: {c['red']};
+    }}
+    QLabel[gameDetail='true'] {{
+        color: {c['subtle']};
+        font-size: 10px;
+        font-weight: 600;
+    }}
+    QLabel[gameState='true'] {{
+        color: {c['muted']};
+        font-size: 12px;
+        font-weight: 500;
+    }}
+    QLabel[gameState='true'][tone='good'] {{ color: {c['green']}; }}
+    QLabel[gameState='true'][tone='warning'] {{ color: {c['orange']}; }}
+    QLabel[gameState='true'][tone='danger'] {{ color: {c['red']}; }}
+    QFrame[upscalingGames='true'] QLineEdit[gameSearch='true'] {{
+        min-height: 18px;
+        padding: 5px 10px;
+        border-radius: 7px;
     }}
     QFrame[metricTile='true'] {{
         background: {c['panel_alt']};

@@ -45,7 +45,7 @@ def command(action: str, policy: str = "preserve", ttm_gib: int = 0, uma_size_mb
             takeover_zram: bool = False, target_mount: str = "",
             kernel_options: tuple[str, ...] = ()) -> str:
     if action not in {
-        "memory-apply", "acpi-install", "acpi-uninstall", "acpi-check",
+        "memory-apply", "acpi-install", "acpi-update", "acpi-uninstall", "acpi-check",
         "telemetry-fix", "telemetry-restore", "vram-read", "vram-apply",
         "kernel-options-set", "ttm-apply",
     }:

@@ -58,6 +58,7 @@ from ..core.error_diagnostics import (
 )
 from ..core.external_links import open_external_url, update_checks_enabled
 from ..core.gddr6_monitor import EXTERNAL_SOURCE, gddr6_monitor_for
+from ..core.preferences import report_glow_enabled
 from ..core.state import DashboardState, state_cache_for
 from ..i18n import tr, tr_format
 
@@ -335,6 +336,7 @@ class DashboardPage(QWidget):
         self.footer.support_clicked.connect(self._open_support)
         self.footer.update_clicked.connect(self._badge_clicked)
         self.readiness.set_header_actions(self.footer)
+        self.footer.set_report_glow(report_glow_enabled())
         self.contact_button = self.footer.contact_button
         self.report_button = self.footer.report_button
         self.support_button = self.footer.support_button
@@ -435,6 +437,7 @@ class DashboardPage(QWidget):
         Only the five-second state read runs; the one-second live sample stays
         off, since nothing outside the Dashboard shows it.
         """
+        self._feeding = bool(active)
         if active:
             if not self.timer.isActive():
                 self.timer.start()
@@ -465,7 +468,10 @@ class DashboardPage(QWidget):
         self._refresh_failed(message)
 
     def refresh(self) -> None:
-        if self._updates_active:
+        # The timer also runs while another page is fed from here (see
+        # feed_state); its ticks must read for that page too, or it shows
+        # the snapshot it opened with until it is left and opened again.
+        if self._updates_active or getattr(self, "_feeding", False):
             self._refresher.request()
 
     def refresh_now(self) -> None:

@@ -10,10 +10,13 @@ def test_the_page_has_only_compatibility_memory_and_drivers_and_opens_on_compati
     panel = page.panel
 
     # Components and Decky stay on the Dashboard.
-    visible = [panel.tab_buttons[i] for i in (1, 2, 4)]
+    visible = [panel.tab_buttons[i] for i in (1, 5, 2, 4)]
     assert all(panel.tab_buttons[i].isHidden() for i in (0, 3))
     assert all(panel.tabs_grid.indexOf(b) >= 0 for b in visible)
     assert all(panel.tabs_grid.indexOf(panel.tab_buttons[i]) < 0 for i in (0, 3))
+    # Upscaling sits right after Compatibility, in that order on screen.
+    places = [panel.tabs_grid.getItemPosition(panel.tabs_grid.indexOf(b))[:2] for b in visible]
+    assert places == sorted(places) and len(set(places)) == 4
     assert panel.stack.currentIndex() == 1
     assert panel.tab_buttons[1].isChecked()
     assert not panel.prepare_footer.isVisibleTo(panel)
@@ -148,3 +151,20 @@ def test_kernel_options_hide_the_plain_enabled_disabled_pill(qtbot):
     panel._update_kernel_options_control(tools)
     assert not smt_pill.isHidden()
     assert smt_pill.text() == "Reboot required"
+
+
+def test_the_dashboard_timer_keeps_reading_for_a_page_it_feeds():
+    """Additional settings is fed by the Dashboard's five-second read: its
+    ticks must not stop because the Dashboard itself is hidden."""
+    from types import SimpleNamespace
+
+    from frontends.desktop.pages.dashboard import DashboardPage
+
+    requests = []
+    page = SimpleNamespace(_updates_active=False, _feeding=True,
+                           _refresher=SimpleNamespace(request=lambda: requests.append(1)))
+    DashboardPage.refresh(page)
+    assert requests == [1]
+    page._feeding = False
+    DashboardPage.refresh(page)
+    assert requests == [1], "nothing shown, nothing read"
