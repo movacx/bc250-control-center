@@ -69,6 +69,26 @@ def _alive(obj: QObject | None) -> bool:
         return False
 
 
+def _release_after_delivery(task: "_FunctionTask | None") -> None:
+    """Let a finished task's signals go only once Qt is done delivering them.
+
+    The slot of a task's ``finished`` signal drops the last reference to the
+    task, and Python would then destroy ``signals`` (it has no parent) while Qt
+    is still delivering that very signal from it: a use-after-free that
+    crashed the test run on CI now and then (Python 3.11). Handed over to Qt
+    and deleted with deleteLater, the object outlives the delivery.
+    """
+    signals = getattr(task, "signals", None)
+    if signals is None or not _alive(signals):
+        return
+    try:
+        if sip is not None:
+            sip.transferto(signals, None)
+        signals.deleteLater()
+    except (RuntimeError, TypeError):
+        pass
+
+
 class _TaskSignals(QObject):
     succeeded = pyqtSignal(object)
     failed = pyqtSignal(str)
@@ -272,8 +292,9 @@ class AsyncRefresh(QObject):
             logger.warning("UI refresh %s failed: %s", self._name, message)
 
     def _finished(self) -> None:
+        task, self._task = self._task, None
+        _release_after_delivery(task)
         self._running = False
-        self._task = None
         if self._queued and self._active:
             self.request()
 
@@ -314,6 +335,7 @@ class BackgroundExecutor(QObject):
             task.signals.failed.connect(lambda message, task_key=key: logger.error("Background task %s failed: %s", task_key, message))
 
         def finished() -> None:
+            _release_after_delivery(task)
             # The executor may be gone by now; a task outlives the widget that
             # started it. Everything below touches ``self``, so ask first.
             if not _alive(self):
