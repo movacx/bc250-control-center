@@ -257,6 +257,16 @@ class ControlCenterWindow(QMainWindow):
         # the next poll through two caches.
         self.workflow_watch = WorkflowCompletionWatcher(self)
         self.workflow_watch.finished.connect(self._workflow_finished)
+        # Actions that run here (a game's files, a launch option, settings)
+        # end when the page goes idle: read the tools again then.
+        self.gpu_page.operation_busy_changed.connect(
+            lambda busy: None if busy else self._tools_changed()
+        )
+        # Back from OptiScaler Client, Steam or a file manager: what they
+        # changed shows at once instead of on the next poll.
+        app = QApplication.instance()
+        if app is not None:
+            app.applicationStateChanged.connect(self._application_state_changed)
         self.workflow_watch.install()
         if getattr(self, "console", None) is not None:
             self.console.workflow_log_finished.connect(self.workflow_watch.embedded_finished)
@@ -1340,6 +1350,24 @@ class ControlCenterWindow(QMainWindow):
         else:
             self.gamepad.stop()
 
+    def _tools_changed(self) -> None:
+        """The tools on disk changed: drop both caches and read them again."""
+        invalidate = getattr(self.controller, "invalidar_estado_herramientas", None)
+        if callable(invalidate):
+            try:
+                invalidate()
+            except Exception:
+                logger.debug("Could not reset the tool inventory cache", exc_info=True)
+        self._state_cache.invalidate("tools")
+        self.dashboard.refresh_now()
+
+    def _application_state_changed(self, state) -> None:
+        if state != Qt.ApplicationState.ApplicationActive:
+            return
+        # Only the pages that show the tools inventory.
+        if self.stack.currentWidget() in (self.dashboard, getattr(self, "extras_page", None)):
+            self._tools_changed()
+
     def _workflow_finished(self, result: object, code: int) -> None:
         """A terminal workflow ended: whatever it installed or removed is real now."""
         record_terminal_failure(result, code)
@@ -1595,6 +1623,9 @@ class ControlCenterWindow(QMainWindow):
                 kernel_options=tuple(str(item) for item in payload.get("kernel_options") or ()),
                 kernel_option_changed=str(payload.get("kernel_option_changed") or ""),
             )
+        elif options["action"] == "helixsr_settings":
+            settings = payload.get("helixsr_settings")
+            options.update(helixsr_settings=dict(settings) if isinstance(settings, dict) else {})
         self.gpu_page.execute_dependency_action(
             **options,
         )

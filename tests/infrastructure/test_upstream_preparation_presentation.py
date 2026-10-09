@@ -142,7 +142,7 @@ def test_every_distribution_gets_the_same_fsr4_client_without_a_kernel_gate(fami
     assert sidebar.fsr4_card.scope.text() == "All distributions · per game · no root"
     assert sidebar.fsr4_install_button.isEnabled()
     assert not sidebar.fsr4_install_button.isHidden()
-    assert sidebar.fsr4_launch_row.isHidden()
+    assert sidebar.fsr4_launch_panel.isHidden()
 
 
 def test_a_ready_client_is_opened_from_the_card_with_its_launch_option():
@@ -156,8 +156,8 @@ def test_a_ready_client_is_opened_from_the_card_with_its_launch_option():
     assert not sidebar.fsr4_launch_button.isHidden()
     assert sidebar.fsr4_launch_button.isEnabled()
     assert not sidebar.fsr4_remove_button.isHidden()
-    assert sidebar.fsr4_install_button.text() == "Reinstall FSR4 client"
-    assert not sidebar.fsr4_launch_row.isHidden()
+    assert sidebar.fsr4_install_button.text() == "Reinstall"
+    assert not sidebar.fsr4_launch_panel.isHidden()
     assert sidebar._fsr4_launch_option == 'WINEDLLOVERRIDES="dxgi=n,b" %command%'
 
 
@@ -187,14 +187,16 @@ def test_ready_fsr4_runtime_is_offered_while_the_backend_remains_available():
                 "current": True,
                 "state": "ready",
                 "steam_launch_option": option,
+                "games": [{"appid": "10", "name": "Puzzle", "state": "needs-launch-option",
+                           "steam": True, "adapter": "dxgi.dll"}],
             },
         )
     )
 
     assert not sidebar.fsr4_card.isHidden()
-    assert not sidebar.fsr4_launch_row.isHidden()
-    assert sidebar.fsr4_copy_button.width() == 30
-    assert sidebar.fsr4_copy_button.height() == 30
+    assert not sidebar.fsr4_launch_panel.isHidden()
+    # On the Upscaling tab the copy control is a plain text button.
+    assert sidebar.fsr4_copy_button.text() == "Copy"
     assert sidebar._fsr4_launch_option == option
 
 
@@ -382,7 +384,7 @@ def test_installed_stack_changes_badges_and_buttons_to_repair_actions():
     assert sidebar.gfx_card.status.text() == "Installed via MastaG"
     assert "No separate DryhoppedIPA installation" in sidebar.gfx_card.detail.text()
     assert sidebar.gfx_primary_button.text() == "View original GFX1013 project"
-    assert sidebar.fsr4_remove_button.isVisibleTo(sidebar.fsr4_card)
+    assert sidebar.fsr4_remove_button.isVisibleTo(sidebar.fsr4_section)
 
 
 def test_distribution_filter_defaults_to_detected_and_persists_last_choice():

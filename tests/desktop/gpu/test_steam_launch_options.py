@@ -232,3 +232,71 @@ def test_a_regular_folder_is_not_flagged(tmp_path, monkeypatch):
     [entry] = bc250_opticlient.opticlient_games(home=_steam_home(tmp_path))
 
     assert entry["state"] == "not-installed" and entry["real_path"] == ""
+
+
+def test_one_game_listed_by_several_paths_is_one_entry(tmp_path, monkeypatch):
+    """Seen on a BC-250 with Bazzite: the client had each game twice, as
+    /home/... and /var/home/..., and once more added by hand ("Manual_...")
+    through ~/.steam/steam. They are one folder, and one row."""
+    real = tmp_path / "var/home/user"
+    library = real / ".local/share/Steam/steamapps/common"
+    racer = library / "Racer"
+    racer.mkdir(parents=True)
+    (racer / "OptiScaler.ini").write_text("[Upscalers]\n", encoding="utf-8")
+    (racer / "dxgi.dll").write_bytes(b"MZ")
+    (racer / "racer.exe").write_bytes(b"MZ")
+    (library / "Puzzle").mkdir()
+    (tmp_path / "home").symlink_to("var/home")
+    (real / ".steam").mkdir()
+    (real / ".steam/steam").symlink_to(real / ".local/share/Steam")
+    linked = tmp_path / "home/user/.local/share/Steam/steamapps/common"
+    records = tmp_path / "records"
+    records.mkdir()
+    (records / "games.json").write_text(json.dumps([
+        {"Name": "racer", "AppId": "Manual_1", "InstallPath": str(real / ".steam/steam/steamapps/common/Racer"),
+         "HasUpscaler": True},
+        {"Name": "Racer", "AppId": "100", "InstallPath": str(linked / "Racer"), "HasUpscaler": True},
+        {"Name": "Racer", "AppId": "100", "InstallPath": str(racer), "HasUpscaler": True},
+        {"Name": "Puzzle", "AppId": "200", "InstallPath": str(linked / "Puzzle"), "HasUpscaler": True},
+        {"Name": "Puzzle", "AppId": "200", "InstallPath": str(library / "Puzzle"), "HasUpscaler": True},
+    ]), encoding="utf-8")
+    monkeypatch.setattr(bc250_opticlient, "opticlient_records", lambda: records)
+
+    games = bc250_opticlient.opticlient_games(home=_steam_home(tmp_path / "steam-home"))
+
+    assert [(game["appid"], game["name"]) for game in games] == [("100", "Racer"), ("200", "Puzzle")]
+    assert games[0]["adapter"] == "dxgi.dll" and games[0]["path"] == str(racer.resolve())
+    # The client takes the real folder; the copy through /home would be refused.
+    assert games[1]["state"] == "not-installed"
+
+
+def test_optiscaler_is_found_by_its_ini_when_the_game_has_no_executable(tmp_path, monkeypatch):
+    """Seen on a BC-250: an Unreal game whose Binaries/Win64 held OptiScaler
+    but no .exe (half installed); the client keeps no executable path."""
+    game = tmp_path / "SteamLibrary/steamapps/common/Wukong"
+    win64 = game / "b1/Binaries/Win64"
+    (win64 / "OptiScaler").mkdir(parents=True)
+    (win64 / "OptiScaler/OptiScaler.ini").write_text("not this one\n", encoding="utf-8")
+    (win64 / "OptiScaler.ini").write_text("[Upscalers]\n", encoding="utf-8")
+    (win64 / "dxgi.dll").write_bytes(b"MZ")
+    records = tmp_path / "records"
+    records.mkdir()
+    (records / "games.json").write_text(json.dumps([
+        {"Name": "Wukong", "AppId": "2358720", "InstallPath": str(game), "HasUpscaler": True},
+    ]), encoding="utf-8")
+    monkeypatch.setattr(bc250_opticlient, "opticlient_records", lambda: records)
+
+    [entry] = bc250_opticlient.opticlient_games(home=_steam_home(tmp_path / "steam-home"))
+
+    assert (entry["adapter"], entry["location"]) == ("dxgi.dll", "b1/Binaries/Win64")
+    assert entry["state"] == "needs-launch-option"
+
+
+def test_every_launch_option_is_read_in_one_pass():
+    from bc250cc.infrastructure.steam_launch_options import (
+        read_all_launch_options,
+        read_launch_options,
+    )
+
+    options = read_all_launch_options(LOCALCONFIG)
+    assert options and all(read_launch_options(LOCALCONFIG, appid) == value for appid, value in options.items())

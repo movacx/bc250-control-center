@@ -237,6 +237,21 @@ EXTERNAL_TOOLS: dict[str, ExternalToolSpec] = {
         rollback="Restore / recover selected in the client puts each game back; removing the client keeps ~/.config/OptiscalerClient-BC250.",
         validation_level="code-reviewed-field-tested-single-host",
     ),
+    # HelixSR: DLSS Model E behind an FSR 3.1 DLL. The DLL is freeware that
+    # may only be passed on unmodified from the official release, so the
+    # pinned archive is fetched on the user's PC and checked by SHA-256; the
+    # NVIDIA-derived network files are built there and never leave it.
+    "helixsr": ExternalToolSpec(
+        key="helixsr",
+        upstream="https://github.com/lonewolf0622/HelixSR",
+        license="HelixSR Freeware License (DLL) · Apache-2.0 (setup scripts)",
+        reviewed_revision="3ffdd8268d4987139ff0d3d80c57a15b2fa5a674",
+        privilege_class="userspace",
+        hardware_writes=False,
+        automated=True,
+        rollback="Remove HelixSR from each game, which renames its *.original.dll back; then remove the release and ~/.local/share/HelixSR.",
+        validation_level="code-reviewed-upstream-tested-bc250",
+    ),
     "nct6687": ExternalToolSpec(
         key="nct6687",
         upstream="https://github.com/Fred78290/nct6687d",
@@ -355,6 +370,13 @@ EXTERNAL_TOOL_LIFECYCLES: dict[str, ExternalToolLifecycle] = {
         "Remove the client program and its desktop entry; the client's own game backups are kept.",
         vocabulary="FSR4 INT8 per game (OptiScaler Client)",
         actions=(LifecycleAction.CHECK, LifecycleAction.INSTALL, LifecycleAction.UNINSTALL),
+    ),
+    "helixsr": _lifecycle(
+        "Download the pinned HelixSR release, verify its SHA-256 and DLL digest, and build the network files with upstream's setup.",
+        "Verify the archive marker, the DLL digest and the network files; per game, check the recorded DLL is still HelixSR.",
+        "Restore each game's original FSR DLL, then remove the release and upstream's setup cache.",
+        vocabulary="HelixSR per game (FSR 3.1 games)",
+        actions=(LifecycleAction.CHECK, LifecycleAction.INSTALL, LifecycleAction.ROLLBACK, LifecycleAction.UNINSTALL),
     ),
     "core_unlock": _lifecycle(
         "Prepare the exact reviewed revision and SHA-256 payload for descriptor-bound execution.",
@@ -551,6 +573,8 @@ EXTERNAL_TOOL_DIRECTORIES = {
     "fsr4_runtime": "bc250-fsr4",
     # Not a git checkout: a verified release archive installed per user.
     "fsr4_opticlient": "bc250-opticlient",
+    # Not a git checkout either: the verified release, per user.
+    "helixsr": "helixsr",
     "oberon_governor": "oberon-governor",
     "gfx1013_direct": "bc250-gfx1013-fix",
     "gddr6_memory_temp": "bc250-memory-temperature",

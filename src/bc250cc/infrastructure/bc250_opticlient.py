@@ -43,7 +43,7 @@ from .steam_launch_options import (
     SteamConfigError,
     has_dll_override,
     localconfig_files,
-    read_launch_options,
+    read_all_launch_options,
 )
 
 OPTICLIENT_REPOSITORY = "https://github.com/daniel-h-0/bc250-fsr4-fork"
@@ -213,6 +213,36 @@ def _real_library(install: Path) -> Path:
     return real
 
 
+def _optiscaler_folders(install: Path, depth: int = 4) -> list[Path]:
+    """Folders under ``install`` with an OptiScaler.ini, shallowest first.
+
+    Links are not followed, and OptiScaler's own folder and HelixSR's are
+    not entered.
+    """
+    found: list[Path] = []
+    level = [install]
+    for _ in range(depth + 1):
+        following: list[Path] = []
+        for folder in level:
+            try:
+                entries = sorted(os.scandir(folder), key=lambda entry: entry.name)
+            except OSError:
+                continue
+            for entry in entries:
+                try:
+                    if entry.is_symlink():
+                        continue
+                    if entry.is_dir(follow_symlinks=False):
+                        if entry.name.lower() not in {"optiscaler", "helixsr"}:
+                            following.append(Path(entry.path))
+                    elif entry.name.lower() == "optiscaler.ini":
+                        found.append(folder)
+                except OSError:
+                    continue
+        level = following
+    return found
+
+
 def _adapter_in(directory: Path) -> str:
     if not (directory / "OptiScaler.ini").is_file():
         return ""
@@ -236,11 +266,12 @@ def opticlient_games(*, home: Path | None = None) -> list[dict]:
         records = json.loads((opticlient_records() / "games.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return []
-    configs: dict[Path, str] = {}
+    # Each Steam profile's launch options, read once for every game.
+    configs: list[dict[str, str]] = []
     for path in localconfig_files(home):
         try:
-            configs[path] = path.read_text(encoding="utf-8")
-        except (OSError, UnicodeDecodeError):
+            configs.append(read_all_launch_options(path.read_text(encoding="utf-8")))
+        except (OSError, UnicodeDecodeError, SteamConfigError):
             continue
     games = []
     for record in records if isinstance(records, list) else []:
@@ -262,6 +293,14 @@ def opticlient_games(*, home: Path | None = None) -> list[dict]:
             if adapter:
                 location = directory
                 break
+        if not adapter:
+            # No executable to look beside (the client kept none, or the
+            # game is half installed): OptiScaler.ini itself says where it is.
+            for directory in _optiscaler_folders(install):
+                adapter = _adapter_in(directory)
+                if adapter:
+                    location = directory
+                    break
         if not adapter and not record.get("HasUpscaler", True):
             continue  # nothing for OptiScaler to take over in this game
         suggested = candidates[0] if candidates else None
@@ -286,12 +325,7 @@ def opticlient_games(*, home: Path | None = None) -> list[dict]:
         elif adapter == "unknown":
             entry["state"] = "unknown-adapter"
         elif steam:
-            values = []
-            for text in configs.values():
-                try:
-                    values.append(read_launch_options(text, appid))
-                except SteamConfigError:
-                    continue
+            values = [config.get(appid.lower(), "") for config in configs]
             dll = adapter.removesuffix(".dll")
             entry["launch_options"] = next((value for value in values if value), "")
             entry["state"] = (
@@ -300,8 +334,38 @@ def opticlient_games(*, home: Path | None = None) -> list[dict]:
             )
         else:
             entry["state"] = "other-launcher"
+        entry["path"] = os.path.realpath(install)
         games.append(entry)
-    return games
+    return _one_per_folder(games)
+
+
+def _one_per_folder(games: list[dict]) -> list[dict]:
+    """One entry per real game folder, in the client's order.
+
+    The client can list a game more than once: scanned once as
+    /home/user/... and once as /var/home/user/... on Fedora Atomic (before
+    1.0.7-bc250.5), or scanned from Steam and added again by hand
+    ("Manual_..." id) through ~/.steam/steam. They are one game. The entry
+    that says the most wins: OptiScaler found, then Steam's own id, then a
+    path the client accepts (not through a link).
+    """
+    def score(entry: dict) -> tuple:
+        return (
+            bool(entry["adapter"]),
+            bool(entry["steam"]),
+            entry["state"] != "linked-folder",
+        )
+
+    best: dict[str, dict] = {}
+    order: list[str] = []
+    for entry in games:
+        key = entry["path"]
+        if key not in best:
+            order.append(key)
+            best[key] = entry
+        elif score(entry) > score(best[key]):
+            best[key] = entry
+    return [best[key] for key in order]
 
 
 def _relative(path: Path | None, root: Path) -> str:
@@ -313,7 +377,7 @@ def _relative(path: Path | None, root: Path) -> str:
         return str(path)
 
 
-def opticlient_state(*, machine: str | None = None) -> dict:
+def opticlient_state(*, machine: str | None = None, games: bool = True) -> dict:
     """Read-only: what is installed, and whether it is the pinned release."""
     directory = opticlient_directory()
     launcher = directory / OPTICLIENT_LAUNCHER
@@ -361,7 +425,7 @@ def opticlient_state(*, machine: str | None = None) -> dict:
         "running": _running() if current else False,
         "legacy_v3_installed": BC250_FSR4_PREFIX.exists(),
         "steam_launch_option": STEAM_LAUNCH_OPTION,
-        "games": opticlient_games() if current else [],
+        "games": opticlient_games() if current and games else [],
     }
 
 

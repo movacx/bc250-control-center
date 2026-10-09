@@ -100,6 +100,22 @@ from bc250cc.infrastructure.governor_install_shell import (
     cyan_upstream_runtime_command,
     oberon_install_command,
 )
+from bc250cc.infrastructure.helixsr import (
+    add_helixsr_folder,
+    add_optiscaler_folder,
+    build_helixsr_install_command,
+    build_helixsr_network_command,
+    build_helixsr_remove_command,
+    forget_helixsr_folder,
+    helixsr_state,
+    install_helixsr_game,
+    install_helixsr_optiscaler,
+    remove_helixsr_game,
+    remove_helixsr_optiscaler,
+    save_helixsr_settings,
+    scan_helixsr_games,
+    update_helixsr_game,
+)
 from bc250cc.infrastructure.memory_runtime import read_memory_runtime_state
 from bc250cc.infrastructure.preparation_workflow import (
     PreparationContext,
@@ -510,6 +526,81 @@ class DependenciasRepository:
         self.estado_herramientas_cache = None
         return self._abrir_terminal(command, title)
 
+    def guardar_ajustes_helixsr(self, values: dict) -> dict:
+        """Keep HelixSR's settings and write them into every game that has it."""
+        result = save_helixsr_settings(values)
+        self.estado_herramientas_cache = None
+        return result
+
+    def gestionar_helixsr(self, action: str) -> object:
+        """HelixSR: the pinned release, its network files, and games.
+
+        The release and its network build run in the terminal, where the
+        upstream setup asks before it downloads NVIDIA's DLSS DLL. Adding
+        HelixSR to a game or removing it is a few file renames in the user's
+        own Steam library, done here and recorded so it can be undone.
+        """
+        action = str(action or '').strip()
+        if action.startswith('add_folder:'):
+            # A path keeps its case: these are the actions that carry one.
+            result = add_helixsr_folder(action.partition(':')[2])
+            self.estado_herramientas_cache = None
+            return result
+        if action.startswith('add_opti_folder:'):
+            result = add_optiscaler_folder(action.partition(':')[2])
+            self.estado_herramientas_cache = None
+            return result
+        # The verb is matched without case; the game id after it keeps its
+        # case: OptiScaler Client names games added by hand "Manual_...".
+        verb, separator, game = action.partition(':')
+        action = verb.lower() + separator + game.strip()
+        if action.startswith('forget_folder:'):
+            result = forget_helixsr_folder(action.partition(':')[2])
+            self.estado_herramientas_cache = None
+            return result
+        if action == 'scan':
+            result = scan_helixsr_games()
+            self.estado_herramientas_cache = None
+            return {'games': len(result)}
+        if action.startswith('game_install:'):
+            result = install_helixsr_game(action.partition(':')[2])
+            self.estado_herramientas_cache = None
+            return result
+        if action.startswith('game_remove:'):
+            result = remove_helixsr_game(action.partition(':')[2])
+            self.estado_herramientas_cache = None
+            return result
+        if action.startswith('game_update:'):
+            # Native installs and OptiScaler routes alike.
+            result = update_helixsr_game(action.partition(':')[2])
+            self.estado_herramientas_cache = None
+            return result
+        if action.startswith('opti_install:'):
+            result = install_helixsr_optiscaler(action.partition(':')[2])
+            self.estado_herramientas_cache = None
+            return result
+        if action.startswith('opti_remove:'):
+            result = remove_helixsr_optiscaler(action.partition(':')[2])
+            self.estado_herramientas_cache = None
+            return result
+        state = helixsr_state()
+        if action == 'install':
+            if not state.get('installer_available'):
+                raise RuntimeError("HelixSR's setup runs on x86_64 Linux only.")
+            command, title = build_helixsr_install_command(), 'HelixSR · install'
+        elif action == 'network':
+            if not state.get('current'):
+                raise RuntimeError('Install HelixSR first.')
+            command, title = build_helixsr_network_command(), 'HelixSR · network files'
+        elif action == 'uninstall':
+            if state.get('installed_games'):
+                raise RuntimeError('Remove HelixSR from your games first, so each one gets its own FSR file back.')
+            command, title = build_helixsr_remove_command(), 'HelixSR · remove'
+        else:
+            raise ValueError('Unsupported HelixSR action.')
+        self.estado_herramientas_cache = None
+        return self._abrir_terminal(command, title)
+
     def gestionar_gfx1013_fedora(self, action: str) -> object:
         """Run the official upstream GFX1013 lifecycle on mutable Fedora."""
         os_repository = self._os_repository()
@@ -857,6 +948,7 @@ class DependenciasRepository:
         )
         gfx1013_compute = repository_probe['gfx1013_compute']
         fsr4 = repository_probe['fsr4']
+        helixsr = repository_probe['helixsr']
         bc250_detect = runtime_probe['bc250_detect']
         governor_probe = self._probe_governor_inventory()
         governor_context = governor_probe['context']
@@ -1014,6 +1106,7 @@ class DependenciasRepository:
             'steamos_fix_repo_url': STEAMOS_FIX_REPOSITORY,
             'gfx1013_compute': gfx1013_compute,
             'fsr4': fsr4,
+            'helixsr': helixsr,
             'tools_dir': str(self._tool_dir()),
             'optional_dependencies': optional_dependencies,
             'prepare_components': component_capabilities,
@@ -1239,6 +1332,7 @@ class DependenciasRepository:
             {'supported': False, 'state': 'probe-failed'},
         )
         fsr4 = safe(opticlient_state, {'installed': False, 'installer_available': False})
+        helixsr = safe(helixsr_state, {'installed': False, 'installer_available': False})
         return {
             'smu_path': smu_path,
             'smu_exists': bool(smu_path and safe(lambda: Path(smu_path).exists(), False)),
@@ -1254,6 +1348,7 @@ class DependenciasRepository:
             ),
             'gfx1013_compute': gfx1013_compute,
             'fsr4': fsr4,
+            'helixsr': helixsr,
         }
 
     def _probe_platform_inventory(self, *, is_steamos, expected_steamos_repo):

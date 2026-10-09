@@ -31,12 +31,14 @@ class SteamConfigError(RuntimeError):
 
 
 def steam_roots(home: Path | None = None) -> list[Path]:
-    """Steam installations of this user: native and Flatpak."""
+    """Steam installations of this user: native, Flatpak and Snap (Ubuntu)."""
     home = home or Path.home()
     candidates = (
         home / ".local/share/Steam",
         home / ".steam/steam",
+        home / ".steam/root",
         home / ".var/app/com.valvesoftware.Steam/.local/share/Steam",
+        home / "snap/steam/common/.local/share/Steam",
     )
     roots: list[Path] = []
     for candidate in candidates:
@@ -150,6 +152,35 @@ def _indent_before(text: str, offset: int) -> str:
     line_start = text.rfind("\n", 0, offset) + 1
     prefix = text[line_start:offset]
     return prefix if not prefix.strip() else ""
+
+
+def read_all_launch_options(text: str) -> dict[str, str]:
+    """Every app's LaunchOptions in one pass: ``{appid: options}``."""
+    options: dict[str, str] = {}
+    stack: list[str] = []
+    key: str | None = None
+    depth = len(APPS_PATH)
+    for kind, _start, _end, value in _tokens(text):
+        if kind == "str":
+            if key is None:
+                key = value
+                continue
+            if (len(stack) == depth + 1 and tuple(stack[:depth]) == APPS_PATH
+                    and key.lower() == "launchoptions"):
+                options[stack[depth]] = value
+            key = None
+        elif kind == "{":
+            if key is None:
+                raise SteamConfigError("Steam configuration is malformed: a block without a name")
+            stack.append(key.lower())
+            key = None
+        else:
+            if not stack:
+                raise SteamConfigError("Steam configuration is malformed: unbalanced braces")
+            stack.pop()
+    if stack:
+        raise SteamConfigError("Steam configuration is malformed: unbalanced braces")
+    return options
 
 
 def read_launch_options(text: str, appid: str) -> str:
@@ -298,25 +329,58 @@ def _manifest_value(text: str, key: str) -> str:
     return match.group(1) if match else ""
 
 
+def steam_libraries(home: Path | None = None) -> list[Path]:
+    """Every Steam library of every installation: the root, then the extra
+    folders libraryfolders.vdf names (a second drive, /mnt/games, ...)."""
+    libraries: list[Path] = []
+    for root in steam_roots(home):
+        found = [root]
+        try:
+            folders = (root / "steamapps/libraryfolders.vdf").read_text(encoding="utf-8", errors="replace")
+            found += [Path(_unescape(path)) for path in re.findall(r'"path"\s+"([^"]+)"', folders)]
+        except OSError:
+            pass
+        for library in found:
+            try:
+                real = library.resolve()
+            except OSError:
+                continue
+            if real not in libraries:
+                libraries.append(real)
+    return libraries
+
+
+def _game_manifests(home: Path | None = None):
+    """(library, manifest text) for every app manifest of every Steam library."""
+    for library in steam_libraries(home):
+        for manifest in sorted((library / "steamapps").glob("appmanifest_*.acf")):
+            try:
+                text = manifest.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            appid, name = _manifest_value(text, "appid"), _manifest_value(text, "name")
+            if appid.isdigit() and not name.lower().startswith(_TOOL_PREFIXES):
+                yield library, appid, name, text
+
+
 def installed_steam_games(home: Path | None = None) -> list[dict]:
     """Every installed Steam game, from each library's app manifests."""
     games: dict[str, dict] = {}
-    for root in steam_roots(home):
-        libraries = [root]
-        try:
-            folders = (root / "steamapps/libraryfolders.vdf").read_text(encoding="utf-8", errors="replace")
-            libraries += [Path(_unescape(path)) for path in re.findall(r'"path"\s+"([^"]+)"', folders)]
-        except OSError:
-            pass
-        for library in libraries:
-            for manifest in sorted((library / "steamapps").glob("appmanifest_*.acf")):
-                try:
-                    text = manifest.read_text(encoding="utf-8", errors="replace")
-                except OSError:
-                    continue
-                appid, name = _manifest_value(text, "appid"), _manifest_value(text, "name")
-                if appid.isdigit() and not name.lower().startswith(_TOOL_PREFIXES):
-                    games.setdefault(appid, {"appid": appid, "name": name})
+    for _library, appid, name, _text in _game_manifests(home):
+        games.setdefault(appid, {"appid": appid, "name": name})
+    return sorted(games.values(), key=lambda game: game["name"].lower())
+
+
+def installed_steam_game_folders(home: Path | None = None) -> list[dict]:
+    """``installed_steam_games`` plus each game's folder under steamapps/common."""
+    games: dict[str, dict] = {}
+    for library, appid, name, text in _game_manifests(home):
+        folder = _unescape(_manifest_value(text, "installdir"))
+        if not folder or "/" in folder or folder in {".", ".."}:
+            continue
+        path = library / "steamapps" / "common" / folder
+        if path.is_dir():
+            games.setdefault(appid, {"appid": appid, "name": name, "path": path})
     return sorted(games.values(), key=lambda game: game["name"].lower())
 
 
