@@ -3746,7 +3746,7 @@ class GpuGovernorPage(QWidget):
         if action == "helixsr_settings":
             self._save_helixsr_settings(dict(helixsr_settings or {}), dialog_parent=dialog_parent)
             return
-        if action in {"acpi-install", "acpi-uninstall", "acpi-status"}:
+        if action in {"acpi-install", "acpi-update", "acpi-uninstall", "acpi-status"}:
             self._manage_acpi(action, dialog_parent)
             return
         if action in {"memory_swap", "memory_ttm"}:
@@ -4148,12 +4148,25 @@ class GpuGovernorPage(QWidget):
                 tr("Could not check ACPI status"), controls=(), error_parent=dialog_parent,
             )
             return
+        label = (
+            tr("Install correction") if action == "acpi-install"
+            else tr("Update correction") if action == "acpi-update"
+            else tr("Uninstall")
+        )
+        bazzite = str(_dict(self.current_state.get("tools")).get("os_family") or "") == "bazzite"
+        body = (
+            tr("This replaces the tables of the BC250 ACPI boot entry with v1.1.1, which drops the C3 idle state that can freeze the board. The boot entries themselves are not changed. Reboot only after the terminal reports success.")
+            if action == "acpi-update"
+            else tr("On Bazzite every boot entry loads the ACPI tables, through GRUB's early_initrd setting; your BIOS and the system image are not changed. If it does not boot, open the submenu 'Bazzite without the BC250 ACPI tables (recovery)' at the end of the boot menu. Reboot only after the terminal reports success. Beta on Bazzite.")
+            if action == "acpi-install" and bazzite
+            else tr("This changes the default boot entry, not your BIOS. The original boot entry remains available for recovery. Use it if the ACPI entry does not boot. Reboot only after the terminal reports success. This optional integration still requires hardware testing.")
+        )
         confirmation = ConfirmDialog(
             tr("CPU power management · ACPI"),
-            tr("This changes the default boot entry, not your BIOS. The original boot entry remains available for recovery. Use it if the ACPI entry does not boot. Reboot only after the terminal reports success. This optional integration still requires hardware testing."),
-            summary=((tr("Action"), tr("Install correction" if action == "acpi-install" else "Uninstall")),
-                     (tr("Version"), "e-tho v1.1.0")),
-            confirm_text=tr("Install correction" if action == "acpi-install" else "Uninstall"),
+            body,
+            summary=((tr("Action"), label),
+                     (tr("Version"), "e-tho v1.1.1")),
+            confirm_text=label,
             tone="orange", parent=dialog_parent or self,
         )
         if confirmation.exec() != QDialog.DialogCode.Accepted:

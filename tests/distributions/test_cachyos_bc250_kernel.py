@@ -38,6 +38,7 @@ def test_masta_stack_state_reports_kernel_and_repository_mesa(monkeypatch, tmp_p
         "repository_configured": True,
         "kernel_installed": True,
         "kernel_active": True,
+        "kernel_variant": "stable",
         "mesa_installed": True,
     }
 
@@ -249,3 +250,37 @@ def test_cachyos_workflow_rejects_unknown_actions():
 
     with pytest.raises(ValueError, match="Unsupported"):
         build_cachyos_bc250_kernel_command("everything")
+
+
+def test_running_variant_reads_the_uname_suffix():
+    from bc250cc.infrastructure.cachyos_bc250_kernel import running_bc250_kernel_variant
+
+    assert running_bc250_kernel_variant("7.2.9-2-cachyos-bc250") == "stable"
+    assert running_bc250_kernel_variant("7.3.0-rc6-2-cachyos-rc-bc250") == "rc"
+    assert running_bc250_kernel_variant("7.2.9-2-cachyos-bore-bc250") == "bore"
+    assert running_bc250_kernel_variant("7.2.9-2-cachyos") == ""
+    assert running_bc250_kernel_variant("7.2.4-ogc3.1.fc44.x86_64") == ""
+
+
+def test_masta_stack_counts_an_rc_kernel_installed_alone(monkeypatch, tmp_path):
+    import bc250cc.infrastructure.cachyos_bc250_kernel as module
+
+    monkeypatch.setattr(module, "CACHYOS_BC250_INCLUDE", str(tmp_path / "bc250.conf"))
+    (tmp_path / "bc250.conf").write_text("[bc250-cachyos]\n")
+    monkeypatch.setattr(module.platform, "release", lambda: "7.3.0-rc6-2-cachyos-rc-bc250")
+
+    class Result:
+        def __init__(self, code, stdout=""):
+            self.returncode = code
+            self.stdout = stdout
+
+    def run(args, **_kwargs):
+        if args[1] == "-Qq":
+            return Result(0, args[2] + "\n") if args[2] == "linux-cachyos-rc-bc250" else Result(1)
+        return Result(0, "")
+
+    monkeypatch.setattr(module.subprocess, "run", run)
+    state = masta_bc250_stack_state(distro_id="cachyos", family="cachyos")
+
+    assert state["kernel_installed"] and state["kernel_active"]
+    assert state["kernel_variant"] == "rc"

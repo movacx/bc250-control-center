@@ -702,14 +702,16 @@ def _system_setup_json(arguments: Sequence[str], timeout: int) -> dict[str, obje
 
 
 TTM_STEAMOS_REASON = (
-    "SteamOS rewrites its boot configuration on every update, so a GPU memory "
-    "limit set here would not survive. It needs the ttm.pages_limit kernel argument."
+    "On SteamOS the GPU memory limit is set by BC250 Control Center's system "
+    "setup helper, which is not installed. Update or reinstall the application "
+    "from Desktop Mode, then open this panel again."
 )
 
 
 def ttm_status_action() -> int:
     if is_steamos() and not trusted_file(SYSTEM_SETUP_HELPER, executable=True):
-        # The answer is the same with or without the desktop's helper.
+        # SteamOS keeps the limit through the desktop's helper (its GRUB
+        # drop-in); without that helper there is nothing here to set it.
         print(json.dumps({"ok": True, "ttm": ttm_payload({
             "supported": False, "backend": "unsupported", "reason": TTM_STEAMOS_REASON,
         })}))

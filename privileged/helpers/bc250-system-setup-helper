@@ -11,7 +11,7 @@ from pathlib import Path
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("action", choices=("status", "memory-plan", "memory-apply", "memory-boot",
-                                           "acpi-install", "acpi-uninstall", "acpi-check",
+                                           "acpi-install", "acpi-update", "acpi-uninstall", "acpi-check",
                                            "telemetry-fix", "telemetry-restore", "kernel-options-set",
                                            "vram-read", "vram-apply", "ttm-status", "ttm-apply",
                                            "uninstall-check"))
@@ -97,6 +97,8 @@ def main():
                 result = memory.boot(host)
             elif args.action == "acpi-install":
                 result = acpi.install(host)
+            elif args.action == "acpi-update":
+                result = acpi.update(host)
             elif args.action == "acpi-check":
                 result = acpi.check(host)
             elif args.action == "telemetry-fix":

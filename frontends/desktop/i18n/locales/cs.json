@@ -4708,6 +4708,8 @@
   "Steam games and folders you added, with each upscaler's state.": "Hry ze Steamu a přidané složky se stavem každého upscaleru.",
   "Search games": "Hledat hry",
   "No game matches the search.": "Hledání neodpovídá žádná hra.",
+  "Update correction": "Aktualizovat opravu",
+  "This replaces the tables of the BC250 ACPI boot entry with v1.1.1, which drops the C3 idle state that can freeze the board. The boot entries themselves are not changed. Reboot only after the terminal reports success.": "Tabulky spouštěcí položky BC250 ACPI se nahradí verzí v1.1.1, která odstraňuje stav nečinnosti C3, jenž může desku zamrazit. Samotné spouštěcí položky se nemění. Restartujte až poté, co terminál ohlásí úspěch.",
   "{game} now uses HelixSR {version}.": "{game} nyní používá HelixSR {version}.",
   "Could not update HelixSR": "HelixSR se nepodařilo aktualizovat",
   "The game put its own FSR file back. Remove HelixSR from it, then add it again.": "Hra vrátila svůj vlastní soubor FSR. Odeberte z ní HelixSR a pak ho přidejte znovu.",
@@ -4781,7 +4783,10 @@
   "HelixSR guide": "Průvodce HelixSR",
   "Step by step on GitHub (daniel-h-0/bc250-fsr4-fork): installing OptiScaler in a game, the Steam launch option and undoing it.": "Krok za krokem na GitHubu (daniel-h-0/bc250-fsr4-fork): instalace OptiScaleru do hry, možnost spuštění Steamu a vrácení zpět.",
   "HelixSR's own guide on GitHub (lonewolf0622/HelixSR): its network files, each game, OptiScaler and every helixsr.ini setting.": "Průvodce samotného HelixSR na GitHubu (lonewolf0622/HelixSR): soubory sítě, každá hra, OptiScaler a každé nastavení helixsr.ini.",
+  "SteamOS beta": "SteamOS beta",
   "Apply to games again": "Znovu použít ve hrách",
   "Writes the saved settings again into every game that has HelixSR: after a game update replaced them, or for a game that was open when you saved.": "Znovu zapíše uložená nastavení do každé hry s HelixSR: poté, co je aktualizace hry nahradila, nebo do hry, která byla při ukládání otevřená.",
-  "Applied": "Použito"
+  "Applied": "Použito",
+  "Beta · Bazzite": "Beta · Bazzite",
+  "On Bazzite every boot entry loads the ACPI tables, through GRUB's early_initrd setting; your BIOS and the system image are not changed. If it does not boot, open the submenu 'Bazzite without the BC250 ACPI tables (recovery)' at the end of the boot menu. Reboot only after the terminal reports success. Beta on Bazzite.": "V Bazzite každá spouštěcí položka načítá tabulky ACPI přes nastavení early_initrd v GRUB; BIOS ani obraz systému se nemění. Pokud systém nenaběhne, otevřete podnabídku 'Bazzite without the BC250 ACPI tables (recovery)' na konci spouštěcí nabídky. Restartujte až poté, co terminál ohlásí úspěch. Beta v Bazzite."
 }

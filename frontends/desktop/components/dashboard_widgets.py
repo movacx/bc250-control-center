@@ -65,6 +65,7 @@ from .system_setup_controls import (
     VRAM_SIZE_PRESETS_MB,
     bazzite_ui_preview_enabled,
     is_bazzite_host,
+    is_steamos_host,
     update_memory_controls,
     vram_size_label,
 )
@@ -2394,8 +2395,12 @@ class PreparationSidebar(QFrame):
             self.memory_option_rows_layout.removeWidget(row)
             row.setParent(None)
             row.deleteLater()
+        steamos = is_steamos_host(getattr(self, "_tools_snapshot", None) or {})
         for index, row in enumerate(self.memory_option_rows):
             value = str(combo.itemData(index) or "")
+            if steamos and value == "swap-16":
+                # SteamOS keeps its own ZRAM in front of this swapfile.
+                value = "zram-swap-16"
             row.set_content(combo.itemText(index), tr(_MEMORY_POLICY_DETAILS.get(value, "")))
             row.set_selected(index == combo.currentIndex())
             model_item = combo.model().item(index)
@@ -2949,6 +2954,9 @@ class PreparationSidebar(QFrame):
         self.acpi_install_button = self.acpi_card.add_action(
             "Install correction", {"action": "acpi-install"}
         )
+        self.acpi_update_button = self.acpi_card.add_action(
+            "Update correction", {"action": "acpi-update"}
+        )
         self.acpi_remove_button = self.acpi_card.add_action(
             "Uninstall", {"action": "acpi-uninstall"}, danger=True
         )
@@ -2959,6 +2967,8 @@ class PreparationSidebar(QFrame):
             "Open upstream project", {"action": "acpi_upstream"}
         )
         self.acpi_install_button.setEnabled(False)
+        self.acpi_update_button.setEnabled(False)
+        self.acpi_update_button.setVisible(False)
         self.acpi_remove_button.setEnabled(False)
         layout.addWidget(self.acpi_card)
         self.cyan_card = PreparationInfoCard(
@@ -4464,7 +4474,11 @@ class PreparationSidebar(QFrame):
             "debian": "Ubuntu / Debian",
             "other": "Other distributions",
         }
-        self.acpi_card.setVisible(show_all or selected == "arch")
+        self.acpi_card.setVisible(show_all or selected in {"arch", "bazzite"})
+        # Bazzite takes the same tables through grubenv (beta).
+        self.acpi_card.set_scope(
+            "Beta · Bazzite" if selected == "bazzite" else "Validated · Arch / CachyOS / Manjaro"
+        )
         self.cyan_card.setVisible(True)
         self.oberon_card.setVisible(True)
         self.gfx_card.setVisible(
@@ -4593,7 +4607,7 @@ class PreparationSidebar(QFrame):
             "green"
             if acpi.get("status") == "active"
             else "orange"
-            if acpi.get("status") in {"pending-reboot", "incomplete", "not-active"}
+            if acpi.get("status") in {"pending-reboot", "incomplete", "not-active", "outdated"}
             else "blue"
             if acpi.get("status") == "managed-elsewhere"
             else "gray"
@@ -4611,6 +4625,10 @@ class PreparationSidebar(QFrame):
             bool(setup.get("helper_available") and acpi.get("installed"))
         )
         self.acpi_install_button.setVisible(not bool(acpi.get("installed")))
+        # An earlier pinned release: v1.1.0's C3 idle state freezes the board.
+        outdated = acpi.get("status") == "outdated"
+        self.acpi_update_button.setEnabled(bool(setup.get("helper_available") and outdated))
+        self.acpi_update_button.setVisible(outdated)
         self.acpi_remove_button.setVisible(bool(acpi.get("installed")))
         self.acpi_card.setToolTip(tr(reason))
         capabilities = _mapping(tools.get("prepare_components"))
@@ -4697,13 +4715,19 @@ class PreparationSidebar(QFrame):
             self.cachyos_stack_card.set_status("Partially installed", "orange")
         else:
             self.cachyos_stack_card.set_status("Available", "blue")
-        self.cachyos_kernel_status.setText(
+        kernel_text = (
             tr("Active")
             if kernel_active
             else tr("Installed")
             if kernel_installed
             else tr("Not installed")
         )
+        # RC and BORE are installed by hand beside the stable kernel; name the
+        # one in use so "Active" is not read as the stable build.
+        variant = {"rc": "RC", "bore": "BORE"}.get(str(masta.get("kernel_variant") or ""))
+        if kernel_installed and variant:
+            kernel_text = f"{kernel_text} · {variant}"
+        self.cachyos_kernel_status.setText(kernel_text)
         self.cachyos_kernel_status.set_tone(
             "green" if kernel_active else "gray"
         )

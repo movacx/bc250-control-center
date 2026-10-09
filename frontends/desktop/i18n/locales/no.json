@@ -4708,6 +4708,8 @@
   "Steam games and folders you added, with each upscaler's state.": "Steam-spill og mapper du har lagt til, med statusen til hver oppskalerer.",
   "Search games": "Søk etter spill",
   "No game matches the search.": "Ingen spill samsvarer med søket.",
+  "Update correction": "Oppdater rettelse",
+  "This replaces the tables of the BC250 ACPI boot entry with v1.1.1, which drops the C3 idle state that can freeze the board. The boot entries themselves are not changed. Reboot only after the terminal reports success.": "Tabellene i oppstartsoppføringen BC250 ACPI erstattes med v1.1.1, som fjerner C3-hviletilstanden som kan fryse kortet. Selve oppstartsoppføringene endres ikke. Start på nytt først når terminalen melder at det lyktes.",
   "{game} now uses HelixSR {version}.": "{game} bruker nå HelixSR {version}.",
   "Could not update HelixSR": "Kunne ikke oppdatere HelixSR",
   "The game put its own FSR file back. Remove HelixSR from it, then add it again.": "Spillet har lagt tilbake sin egen FSR-fil. Fjern HelixSR fra det, og legg det til på nytt.",
@@ -4781,7 +4783,10 @@
   "HelixSR guide": "Veiledning for HelixSR",
   "Step by step on GitHub (daniel-h-0/bc250-fsr4-fork): installing OptiScaler in a game, the Steam launch option and undoing it.": "Trinn for trinn på GitHub (daniel-h-0/bc250-fsr4-fork): installere OptiScaler i et spill, Steam-oppstartsvalget og angre det.",
   "HelixSR's own guide on GitHub (lonewolf0622/HelixSR): its network files, each game, OptiScaler and every helixsr.ini setting.": "HelixSR sin egen veiledning på GitHub (lonewolf0622/HelixSR): nettverksfilene, hvert spill, OptiScaler og hver innstilling i helixsr.ini.",
+  "SteamOS beta": "SteamOS beta",
   "Apply to games again": "Bruk på spillene på nytt",
   "Writes the saved settings again into every game that has HelixSR: after a game update replaced them, or for a game that was open when you saved.": "Skriver de lagrede innstillingene på nytt i hvert spill med HelixSR: etter at en spilloppdatering erstattet dem, eller for et spill som var åpent da du lagret.",
-  "Applied": "Brukt"
+  "Applied": "Brukt",
+  "Beta · Bazzite": "Beta · Bazzite",
+  "On Bazzite every boot entry loads the ACPI tables, through GRUB's early_initrd setting; your BIOS and the system image are not changed. If it does not boot, open the submenu 'Bazzite without the BC250 ACPI tables (recovery)' at the end of the boot menu. Reboot only after the terminal reports success. Beta on Bazzite.": "På Bazzite laster hver oppstartsoppføring ACPI-tabellene via GRUBs innstilling early_initrd; BIOS og systembildet endres ikke. Hvis den ikke starter, åpne undermenyen 'Bazzite without the BC250 ACPI tables (recovery)' nederst i oppstartsmenyen. Start på nytt først når terminalen melder at det lyktes. Beta på Bazzite."
 }

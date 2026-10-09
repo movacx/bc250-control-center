@@ -4708,6 +4708,8 @@
   "Steam games and folders you added, with each upscaler's state.": "Steam のゲームと追加したフォルダー、それぞれのアップスケーラーの状態。",
   "Search games": "ゲームを検索",
   "No game matches the search.": "検索に一致するゲームはありません。",
+  "Update correction": "修正を更新",
+  "This replaces the tables of the BC250 ACPI boot entry with v1.1.1, which drops the C3 idle state that can freeze the board. The boot entries themselves are not changed. Reboot only after the terminal reports success.": "BC250 ACPI ブートエントリのテーブルを v1.1.1 に置き換えます。v1.1.1 では、ボードがフリーズすることがある C3 アイドル状態が削除されています。ブートエントリ自体は変更されません。ターミナルが成功を報告してから再起動してください。",
   "{game} now uses HelixSR {version}.": "{game} は HelixSR {version} を使用するようになりました。",
   "Could not update HelixSR": "HelixSR を更新できませんでした",
   "The game put its own FSR file back. Remove HelixSR from it, then add it again.": "ゲームが自身の FSR ファイルを元に戻しました。HelixSR を削除してから、もう一度追加してください。",
@@ -4781,7 +4783,10 @@
   "HelixSR guide": "HelixSR ガイド",
   "Step by step on GitHub (daniel-h-0/bc250-fsr4-fork): installing OptiScaler in a game, the Steam launch option and undoing it.": "GitHub の手順（daniel-h-0/bc250-fsr4-fork）：ゲームへの OptiScaler のインストール、Steam 起動オプション、元に戻す方法。",
   "HelixSR's own guide on GitHub (lonewolf0622/HelixSR): its network files, each game, OptiScaler and every helixsr.ini setting.": "HelixSR 自身の GitHub ガイド（lonewolf0622/HelixSR）：ネットワークファイル、各ゲーム、OptiScaler、helixsr.ini の各設定。",
+  "SteamOS beta": "SteamOS ベータ",
   "Apply to games again": "ゲームにもう一度適用",
   "Writes the saved settings again into every game that has HelixSR: after a game update replaced them, or for a game that was open when you saved.": "保存した設定を HelixSR が入っているすべてのゲームにもう一度書き込みます。ゲームの更新で置き換えられたときや、保存時に起動していたゲームに。",
-  "Applied": "適用しました"
+  "Applied": "適用しました",
+  "Beta · Bazzite": "ベータ · Bazzite",
+  "On Bazzite every boot entry loads the ACPI tables, through GRUB's early_initrd setting; your BIOS and the system image are not changed. If it does not boot, open the submenu 'Bazzite without the BC250 ACPI tables (recovery)' at the end of the boot menu. Reboot only after the terminal reports success. Beta on Bazzite.": "Bazzite ではすべてのブートエントリーが GRUB の early_initrd 設定を通じて ACPI テーブルを読み込みます。BIOS とシステムイメージは変更されません。起動しない場合は、ブートメニューの最後にあるサブメニュー 'Bazzite without the BC250 ACPI tables (recovery)' を開いてください。ターミナルが成功を報告してから再起動してください。Bazzite ではベータです。"
 }

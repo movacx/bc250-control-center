@@ -21,6 +21,14 @@ until it is set or restored again.
 
 Each original value is journalled before it is changed, so an interrupted
 transaction is always restorable.
+
+SteamOS (beta) gets the same profiles with the two things its image needs,
+following keyboardspecialist/bc250-steamos (public domain): the swapfile lives
+on ``/home``, because ``/var`` is a small partition there, and every ``/etc``
+file this setup writes is listed in ``/etc/atomic-update.conf.d`` so a SteamOS
+update carries it over. The ZSWAP pool is also switched on by a tmpfiles.d
+entry, which keeps working after an update that has not yet brought this
+helper back.
 """
 from __future__ import annotations
 
@@ -81,6 +89,58 @@ ZRAM_ALGORITHMS = ("zstd", "lz4", "lzo-rle")
 # recreate it, which is what makes this reversible without guessing at
 # someone else's zram-generator.conf.
 FOREIGN_ZRAM_MARKER = "/etc/bc250-control-center/zram-disabled"
+
+#: SteamOS: ``/var`` is a small partition, ``/home`` holds its own swapfile.
+STEAMOS_SWAP_MOUNT = "/home"
+#: SteamOS keeps the /etc paths listed here across its atomic updates.
+STEAMOS_KEEP = "/etc/atomic-update.conf.d/bc250-control-center-memory.conf"
+STEAMOS_ZSWAP_TMPFILES = "/etc/tmpfiles.d/90-bc250-control-center-zswap.conf"
+#: Every /etc path this setup may own. Globs, so no escaped unit name has to
+#: survive the keep list's own parsing.
+STEAMOS_KEEP_PATHS = (
+    SERVICE_PATH,
+    "/etc/systemd/system/multi-user.target.wants/" + SERVICE,
+    "/etc/systemd/system/*bc250*swapfile.swap",
+    "/etc/systemd/system/swap.target.wants/*bc250*swapfile.swap",
+    ZRAM,
+    SYSCTL,
+    "/etc/systemd/system/systemd-zram-setup@*.service.d/90-bc250-zswap.conf",
+    FOREIGN_ZRAM_MARKER,
+    STEAMOS_ZSWAP_TMPFILES,
+)
+
+
+def steamos_host(host: Host) -> bool:
+    return host.steamos() and host.path("/run/systemd/system").is_dir()
+
+
+def default_swap_mount(host: Host) -> str:
+    return STEAMOS_SWAP_MOUNT if host.steamos() else "/var/lib"
+
+
+def _owns_anything(state: dict) -> bool:
+    return bool(state.get("owns_swap") or state.get("owns_zram") or state.get("owns_sysctl")
+                or state.get("foreign_zram_disabled") or state.get("zswap_original") is not None
+                or state.get("restore_pending") or state.get("zram_restore_pending"))
+
+
+def sync_steamos_files(host: Host, state: dict) -> None:
+    """SteamOS: keep what this setup owns across updates, drop the list after."""
+    if not host.steamos():
+        return
+    zswap = state.get("policy", "").startswith("zswap-") and state.get("zswap_original") is not None
+    if zswap:
+        tuning = dict(state.get("zswap_tuning") or {})
+        lines = [f"w! {ZSWAP_PARAMETERS}/{name} - - - - {value}"
+                 for name, value in tuning.items()]
+        lines.append(f"w! {ZSWAP} - - - - Y")
+        host.managed(STEAMOS_ZSWAP_TMPFILES, "\n".join(lines) + "\n")
+    else:
+        host.remove_managed(STEAMOS_ZSWAP_TMPFILES)
+    if _owns_anything(state) or state.get("policy", "preserve") not in {"preserve", "restore"}:
+        host.managed(STEAMOS_KEEP, "\n".join(STEAMOS_KEEP_PATHS) + "\n")
+    else:
+        host.remove_managed(STEAMOS_KEEP)
 
 
 def _profile(policy: str) -> str:
@@ -428,7 +488,7 @@ def zram_foreign_config(host: Host) -> bool:
 
 
 def status(host: Host) -> dict:
-    supported = host.mutable_systemd() and host.bc250()
+    supported = (host.mutable_systemd() or steamos_host(host)) and host.bc250()
     state = host.state("memory")
     active = swaps(host)
     generator = any(host.path(p).is_file() for p in (
@@ -474,7 +534,7 @@ def status(host: Host) -> dict:
     ttm_state = ttm.summary(host)
     family = host.distro_family()
     immutable = host.immutable_image()
-    if immutable:
+    if immutable and not steamos_host(host):
         reason = "Immutable/image-based systems require their dedicated adapter"
     elif family == "unsupported":
         reason = "Distribution is outside the supported Arch, Debian/Ubuntu and Fedora families"
@@ -492,7 +552,9 @@ def status(host: Host) -> dict:
             "ttm_available": ttm_state["supported"],
             "ttm_current_pages": int(pages) if pages.isdigit() else None,
             "swap_active": current_swap in active, "swap_used_bytes": active.get(current_swap, 0),
-            "swap_dir": state.get("swap_dir", SWAP_DIR),
+            "swap_dir": state.get("swap_dir", swap_dir_for_target(default_swap_mount(host))),
+            "default_swap_mount": default_swap_mount(host),
+            "steamos": host.steamos(),
             "configured_policy": state.get("policy", "preserve"),
             "phase": state.get("phase", "none"), "restore_pending": state.get("restore_pending", False),
             "configured_ttm_pages": (
@@ -637,7 +699,7 @@ def create_swap(host: Host, size: int, state: dict, target_mount: str | None = N
     target has always worked. A swapfile created here that the kernel does
     not activate at full size is removed again before the error is reported.
     """
-    mount = target_mount or state.get("swap_mount") or "/var/lib"
+    mount = target_mount or state.get("swap_mount") or default_swap_mount(host)
     requested = swap_dir_for_target(mount)
     swap_file = requested.rstrip("/") + "/swapfile"
     path = host.safe(swap_file)
@@ -794,7 +856,7 @@ def apply(host: Host, policy: str = "preserve", ttm_gib: int = 0,
 
 
 def _apply_policy(host: Host, policy: str, takeover_zram: bool, target_mount: str | None) -> dict:
-    host.require_host()
+    host.require_host(steamos=True)
     host.safe(STATE)
     available = status(host)
     state = host.state("memory")
@@ -811,7 +873,8 @@ def _apply_policy(host: Host, policy: str, takeover_zram: bool, target_mount: st
         raise SetupError("Restore the current BC250 memory policy before choosing another")
     # Preflight managed files before any hardware write.
     _, _, _, current_unit_path = swap_paths(host, state)
-    for name in (SERVICE_PATH, current_unit_path, ZRAM, SYSCTL):
+    for name in (SERVICE_PATH, current_unit_path, ZRAM, SYSCTL,
+                 *((STEAMOS_KEEP, STEAMOS_ZSWAP_TMPFILES) if host.steamos() else ())):
         if host.safe(name).exists() and not host.read(name).startswith("# Managed by BC250 Control Center"):
             raise SetupError(f"Foreign file preserved: {name}")
     state["phase"] = "preparing"
@@ -856,6 +919,7 @@ def _apply_policy(host: Host, policy: str, takeover_zram: bool, target_mount: st
         host.save("memory", state)
         host.run("systemctl", "daemon-reload")
         settle_service(host, state)
+        sync_steamos_files(host, state)
     except Exception:
         state["phase"] = "incomplete"
         host.save("memory", state)
@@ -864,7 +928,7 @@ def _apply_policy(host: Host, policy: str, takeover_zram: bool, target_mount: st
 
 
 def boot(host: Host) -> dict:
-    host.require_host()
+    host.require_host(steamos=True)
     host.safe(STATE)
     state = host.state("memory")
     if state.get("phase") != "configured":
@@ -899,4 +963,5 @@ def boot(host: Host) -> dict:
         state.pop("zram_restore_pending", None)
     host.save("memory", state)
     settle_service(host, state)
+    sync_steamos_files(host, state)
     return status(host)

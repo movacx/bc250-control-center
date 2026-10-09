@@ -191,7 +191,7 @@ def test_mutable_derivatives_are_routed_by_os_release_family(sandbox, release, f
     assert sandbox.calls == []
 
 
-@pytest.mark.parametrize("distro", ["steamos", "bazzite", "alpine", "unknown"])
+@pytest.mark.parametrize("distro", ["bazzite", "alpine", "unknown"])
 def test_unsupported_images_are_read_only(sandbox, distro):
     sandbox.put("/etc/os-release", f"ID={distro}")
     assert not memory.status(sandbox.host)["supported"]
@@ -202,7 +202,6 @@ def test_unsupported_images_are_read_only(sandbox, distro):
 
 @pytest.mark.parametrize("release", [
     "ID=bazzite\nID_LIKE=fedora\nVARIANT_ID=bazzite-deck\n",
-    "ID=steamos\nID_LIKE=arch\nVARIANT_ID=steamdeck\n",
     "ID=fedora\nID_LIKE=fedora\nVARIANT_ID=silverblue\n",
     "ID=fedora\nID_LIKE=fedora\nVARIANT_ID=kinoite\n",
 ])
@@ -211,6 +210,133 @@ def test_image_based_derivatives_never_fall_through_to_mutable_adapter(sandbox, 
     data = memory.status(sandbox.host)
     assert not data["supported"] and data["immutable_image"]
     assert "dedicated adapter" in data["reason"]
+
+
+STEAMOS_RELEASE = "ID=steamos\nID_LIKE=arch\nVARIANT_ID=steamdeck\n"
+
+
+def test_steamos_memory_is_offered_with_the_swapfile_on_home(sandbox):
+    sandbox.put("/etc/os-release", STEAMOS_RELEASE)
+    data = memory.status(sandbox.host)
+    assert data["supported"] and data["steamos"]
+    assert data["default_swap_mount"] == "/home"
+    assert {"swap-16", "zswap-16"} <= set(data["policies"])
+    assert sandbox.calls == []
+
+
+def test_steamos_swap_is_kept_across_updates_and_restored(sandbox):
+    host = sandbox.host
+    sandbox.put("/etc/os-release", STEAMOS_RELEASE)
+    result = memory.apply(host, "swap-16")
+    swapfile = "/home/bc250-control-center-swap/swapfile"
+    assert result["swap_active"]
+    assert host.path(swapfile).stat().st_size == 16 * memory.GIB
+    keep = host.read(memory.STEAMOS_KEEP)
+    assert keep.startswith(MARKER.strip())
+    assert "/etc/systemd/system/*bc250*swapfile.swap" in keep
+    assert "/etc/systemd/system/swap.target.wants/*bc250*swapfile.swap" in keep
+    _, _, unit, unit_path = memory.swap_paths(host, host.state("memory"))
+    assert unit.startswith("home-bc250")
+    assert host.path(unit_path).exists()
+    assert not host.path(memory.STEAMOS_ZSWAP_TMPFILES).exists()
+
+    memory.apply(host, "restore")
+    assert not host.path(swapfile).exists()
+    assert not host.path(memory.STEAMOS_KEEP).exists()
+
+
+def test_steamos_zswap_replaces_its_zram_and_survives_without_the_helper(sandbox):
+    host = sandbox.host
+    sandbox.put("/etc/os-release", STEAMOS_RELEASE)
+    _cachyos_default_zram(sandbox)
+    for name in ("compressor", "max_pool_percent", "shrinker_enabled"):
+        sandbox.put(f"{memory.ZSWAP_PARAMETERS}/{name}", "x")
+    memory.apply(host, "zswap-16", takeover_zram=True)
+    tmpfiles = host.read(memory.STEAMOS_ZSWAP_TMPFILES)
+    assert f"w! {memory.ZSWAP} - - - - Y" in tmpfiles
+    assert f"w! {memory.ZSWAP_PARAMETERS}/compressor - - - - lz4" in tmpfiles
+    assert memory.FOREIGN_ZRAM_MARKER in host.read(memory.STEAMOS_KEEP)
+
+    memory.apply(host, "restore")
+    assert not host.path(memory.STEAMOS_ZSWAP_TMPFILES).exists()
+    assert not host.path(memory.STEAMOS_KEEP).exists()
+
+
+def _steamos_menu(extra=""):
+    """SteamOS's generated menu: both A/B slots boot through steamenv_boot."""
+    entries = []
+    for slot in ("A", "B"):
+        entries.append(
+            f"menuentry 'SteamOS {slot}' {{\n"
+            f"  steamenv_boot linux /boot/vmlinuz-linux-neptune-{slot} quiet splash{extra}\n"
+            "}\n"
+        )
+    return "function steamenv_boot {\n  echo booting\n}\n" + "".join(entries)
+
+
+def _steamos_grub(sandbox, *, carry=True, twice=False):
+    """SteamOS's GRUB: grub-mkconfig reads the drop-in into every entry."""
+    sandbox.put("/etc/os-release", STEAMOS_RELEASE)
+    sandbox.put("/usr/bin/grub-mkconfig", 'for x in ${sysconfdir}/default/grub.d/*.cfg; do . "$x"; done')
+    sandbox.put(kernel_args.GRUB_CONFIG, 'GRUB_CMDLINE_LINUX_DEFAULT="quiet splash"\n')
+    original = _steamos_menu()
+    sandbox.put(kernel_args.STEAMOS_GRUB_OUTPUT, original)
+    sandbox.put("/proc/cmdline", "BOOT_IMAGE=/boot/vmlinuz-linux-neptune-A quiet splash")
+    run = sandbox.run
+
+    def runner(*args, check=True):
+        if args[0] == "grub-mkconfig" and args[-1] == kernel_args.STEAMOS_GRUB_STAGED:
+            sandbox.calls.append(args)
+            dropin = sandbox.host.read(kernel_args.GRUB_DROPIN)
+            extra = " ".join(word for word in dropin.split() if word.startswith("ttm.")).rstrip('"')
+            if twice and extra:
+                extra = "ttm.pages_limit=1 " + extra
+            sandbox.put(args[-1], _steamos_menu(f" {extra}" if carry and extra else ""))
+            return ""
+        return run(*args, check=check)
+
+    sandbox.host.runner = runner
+    return original
+
+
+def test_steamos_gpu_memory_limit_goes_through_its_grub(sandbox):
+    host = sandbox.host
+    _steamos_grub(sandbox)
+    pages = 12 * memory.GIB // os.sysconf("SC_PAGE_SIZE")
+    assert kernel_args.backend(host) == "steamos-grub"
+    assert not kernel_args.status(host)["available"]  # the switches stay off SteamOS
+    data = memory.apply(host, "preserve", 12)
+    assert data["configured_ttm_pages"] == pages
+    assert f"ttm.pages_limit={pages}" in host.read(kernel_args.GRUB_DROPIN)
+    assert f"ttm.pages_limit={pages}" in host.read(kernel_args.STEAMOS_GRUB_OUTPUT)
+    assert kernel_args.GRUB_DROPIN in host.read(kernel_args.STEAMOS_KEEP)
+    assert not host.path(kernel_args.STEAMOS_GRUB_STAGED).exists()
+    with pytest.raises(SetupError, match="only the GPU memory limit"):
+        kernel_args.apply(host, ["nosmt"])
+
+    memory.apply(host, "preserve", -1)
+    assert "ttm.pages_limit" not in host.read(kernel_args.STEAMOS_GRUB_OUTPUT)
+    assert not host.path(kernel_args.GRUB_DROPIN).exists()
+    assert not host.path(kernel_args.STEAMOS_KEEP).exists()
+
+
+def test_steamos_boot_menu_is_left_alone_when_grub_drops_the_argument(sandbox):
+    host = sandbox.host
+    original = _steamos_grub(sandbox, carry=False)
+    with pytest.raises(SetupError, match="left as it was"):
+        memory.apply(host, "preserve", 12)
+    assert host.read(kernel_args.STEAMOS_GRUB_OUTPUT) == original.strip()
+    assert not host.path(kernel_args.GRUB_DROPIN).exists()
+    assert not host.path(kernel_args.STEAMOS_KEEP).exists()
+    assert not host.path(kernel_args.STEAMOS_GRUB_STAGED).exists()
+
+
+def test_steamos_refuses_a_menu_where_the_limit_appears_twice(sandbox):
+    host = sandbox.host
+    original = _steamos_grub(sandbox, twice=True)
+    with pytest.raises(SetupError, match="left as it was"):
+        memory.apply(host, "preserve", 12)
+    assert host.read(kernel_args.STEAMOS_GRUB_OUTPUT) == original.strip()
 
 
 def test_supported_family_without_running_systemd_is_read_only(sandbox):
@@ -439,6 +565,115 @@ def test_acpi_separate_entry_and_exact_restore(sandbox, backend):
         assert acpi.efi_string(host, "LoaderEntryDefault") == "arch.conf"
 
 
+BAZZITE_RELEASE = 'ID=bazzite\nID_LIKE="fedora"\nVARIANT_ID=bazzite-deck\nIMAGE_ID="bazzite-deck-44"\n'
+
+
+def _bazzite_boot(sandbox, *, grubenv=None, menu=None, boot_ro=False):
+    """Bazzite: ostree BLS entries read by bootupd's static GRUB (blscfg)."""
+    host = sandbox.host
+    sandbox.put("/etc/os-release", BAZZITE_RELEASE)
+    sandbox.put("/run/ostree-booted", "")
+    for index in (0, 1):
+        sandbox.put(
+            f"/boot/loader/entries/ostree-{index + 1}.conf",
+            f"title Bazzite (ostree:{index})\nversion {index + 1}\noptions rhgb quiet\n"
+            f"linux /ostree/default-abc{index}/vmlinuz-7.2.4-ogc3.1.fc44.x86_64\n"
+            f"initrd /ostree/default-abc{index}/initramfs-7.2.4-ogc3.1.fc44.x86_64.img\n",
+        )
+    sandbox.put(acpi.BAZZITE_GRUBCFG, menu if menu is not None else (
+        "load_env\nblscfg\nif [ -f $prefix/custom.cfg ]; then\n  source $prefix/custom.cfg\nfi\n"))
+    sandbox.put("/proc/mounts", f"/dev/sda2 /boot ext4 {'ro' if boot_ro else 'rw'},relatime 0 0\n")
+    sandbox.grubenv = dict(grubenv or {"saved_entry": "0"})
+    run = sandbox.run
+
+    def runner(*args, check=True):
+        if args[0] == "grub2-editenv":
+            sandbox.calls.append(args)
+            if args[2] == "list":
+                return "\n".join(f"{key}={value}" for key, value in sandbox.grubenv.items())
+            if args[2] == "set":
+                key, value = args[3].split("=", 1)
+                sandbox.grubenv[key] = value
+            if args[2] == "unset":
+                sandbox.grubenv.pop(args[3], None)
+            return ""
+        if args[0] == "mount":
+            sandbox.calls.append(args)
+            return ""
+        return run(*args, check=check)
+
+    host.runner = runner
+    return host
+
+
+def test_bazzite_loads_the_tables_through_grubenv_and_keeps_a_recovery_menu(sandbox):
+    host = _bazzite_boot(sandbox)
+    sandbox.put(acpi.BAZZITE_CUSTOM, "menuentry 'My own entry' {\n  true\n}\n")
+    data = acpi.status(host, cached=False)
+    assert data["available"] and data["backend"] == "bazzite-bls", data["reason"]
+    passed = {item["id"]: item["passed"] for item in data["requirements"]}
+    assert passed["host"] and passed["distribution"] and passed["boot"]
+
+    acpi.install(host)
+    assert host.path("/boot/bc250-acpi.cpio").read_bytes() == archive()
+    assert sandbox.grubenv["early_initrd"] == "../../bc250-acpi.cpio"
+    custom = host.read(acpi.BAZZITE_CUSTOM)
+    assert custom.startswith("menuentry 'My own entry'"), "the user's own entries stay"
+    recovery = custom[custom.index("submenu"):]
+    assert recovery.index("unset early_initrd") < recovery.index("blscfg")
+    assert host.state("acpi")["backend"] == "bazzite-bls"
+    # Nothing of the image's own boot files changes.
+    assert "early_initrd" not in host.read(acpi.BAZZITE_GRUBCFG)
+    assert "bc250" not in host.read("/boot/loader/entries/ostree-1.conf")
+
+    assert acpi.uninstall(host)["status"] == "removed-pending-reboot"
+    assert "early_initrd" not in sandbox.grubenv and sandbox.grubenv["saved_entry"] == "0"
+    assert host.read(acpi.BAZZITE_CUSTOM) == "menuentry 'My own entry' {\n  true\n}"
+    assert not host.path("/boot/bc250-acpi.cpio").exists()
+
+
+def test_bazzite_removes_a_custom_cfg_it_created(sandbox):
+    host = _bazzite_boot(sandbox)
+    acpi.install(host)
+    acpi.uninstall(host)
+    assert not host.path(acpi.BAZZITE_CUSTOM).exists()
+
+
+def test_bazzite_remounts_a_read_only_boot_and_puts_it_back(sandbox):
+    host = _bazzite_boot(sandbox, boot_ro=True)
+    acpi.install(host)
+    mounts = [call for call in sandbox.calls if call[0] == "mount"]
+    assert mounts == [("mount", "-o", "remount,rw", "/boot"), ("mount", "-o", "remount,ro", "/boot")]
+
+
+@pytest.mark.parametrize("obstacle,reason", [
+    ("grubenv", "already loads an early initrd"),
+    ("upstream", "acpi_override.cpio"),
+    ("no-blscfg", "blscfg"),
+    ("menu-sets-it", "sets early_initrd itself"),
+])
+def test_bazzite_refuses_what_would_stack_or_be_overridden(sandbox, obstacle, reason):
+    menu = {"no-blscfg": "load_env\nsource $prefix/custom.cfg\n",
+            "menu-sets-it": "set early_initrd=x\nblscfg\nsource $prefix/custom.cfg\n"}.get(obstacle)
+    grubenv = {"early_initrd": "../../acpi_override.cpio"} if obstacle == "grubenv" else None
+    host = _bazzite_boot(sandbox, grubenv=grubenv, menu=menu)
+    if obstacle == "upstream":
+        sandbox.put(acpi.BAZZITE_UPSTREAM_PAYLOAD, b"cpio")
+    data = acpi.status(host, cached=False)
+    assert not data["available"] and reason in data["reason"]
+    with pytest.raises(SetupError):
+        acpi.install(host)
+    assert not host.path("/boot/bc250-acpi.cpio").exists()
+
+
+def test_other_image_based_systems_still_cannot_install_acpi(sandbox):
+    _bazzite_boot(sandbox)
+    sandbox.put("/etc/os-release", 'ID=fedora\nVARIANT_ID=silverblue\n')
+    assert not acpi.status(sandbox.host, cached=False)["available"]
+    with pytest.raises(SetupError):
+        acpi.install(sandbox.host)
+
+
 def test_acpi_accepts_tab_separated_grub_commands(sandbox):
     sandbox.grub()
     grub = sandbox.grub_original.replace(" linux ", " linux\t").replace(" initrd ", " initrd\t")
@@ -617,6 +852,117 @@ def test_acpi_modified_payload_is_preserved(sandbox):
         acpi.uninstall(sandbox.host)
     assert sandbox.host.read("/boot/bc250-acpi.cpio") == "changed"
     assert sandbox.host.state("acpi")
+
+
+def _payload_tables() -> dict[str, bytes]:
+    raw, offset, tables = archive(), 0, {}
+    while offset + 110 <= len(raw):
+        header = raw[offset:offset + 110]
+        length, namesize = int(header[54:62], 16), int(header[94:102], 16)
+        if raw[offset + 110:offset + 110 + namesize - 1] == b"TRAILER!!!":
+            break
+        start = (offset + 110 + namesize + 3) & ~3
+        data = raw[start:start + length]
+        offset = (start + length + 3) & ~3
+        if length:
+            tables[data[16:24].decode("ascii").strip("\0 ")] = data
+    return tables
+
+
+def test_payload_is_v111_without_the_c3_idle_state():
+    import acpi_payload
+
+    assert acpi_payload.VERSION == "1.1.1"
+    tables = _payload_tables()
+    assert set(tables) == {"AMD CPU", "PSTATES", "STUBS"}
+    # v1.1.0 published C3 at the idle register 0x415 and froze the board.
+    assert b"\x15\x04\x00\x00\x00\x00\x00\x00" not in tables["AMD CPU"]
+    assert b"\x14\x04\x00\x00\x00\x00\x00\x00" in tables["AMD CPU"], "C2 stays"
+    assert SHA256 not in acpi_payload.SUPERSEDED
+    assert hashlib.sha256(tables["AMD CPU"]).hexdigest() not in acpi_payload.SUPERSEDED_CPU_TABLES
+
+
+OLD_PAYLOAD = b"07070100 an earlier pinned ACPI payload"
+
+
+def _older_install(sandbox, monkeypatch) -> str:
+    """A GRUB installation made by an earlier release that pinned OLD_PAYLOAD."""
+    sandbox.grub()
+    acpi.install(sandbox.host)
+    old = hashlib.sha256(OLD_PAYLOAD).hexdigest()
+    monkeypatch.setattr(acpi, "SUPERSEDED", {old: "1.1.0"})
+    sandbox.put("/boot/bc250-acpi.cpio", OLD_PAYLOAD)
+    sandbox.host.save("acpi", sandbox.host.state("acpi") | {"sha256": old})
+    return old
+
+
+def test_acpi_installation_of_an_earlier_release_offers_the_update(sandbox, monkeypatch):
+    _older_install(sandbox, monkeypatch)
+
+    result = acpi.check(sandbox.host)
+    report = acpi.requirements_report(result)
+
+    assert result["installed"] and result["status"] == "outdated"
+    assert result["update_available"] and result["installed_version"] == "1.1.0"
+    assert "UPDATE AVAILABLE" in report
+    assert "Use Update correction to install v1.1.1" in " ".join(report.replace("│", " ").split())
+
+
+def test_acpi_update_replaces_only_the_payload(sandbox, monkeypatch):
+    _older_install(sandbox, monkeypatch)
+    host = sandbox.host
+    entry = host.path(acpi.GRUB_SCRIPT).read_bytes()
+    config = host.path(acpi.GRUB_CONFIG).read_bytes()
+    calls = len(sandbox.calls)
+
+    result = acpi.update(host)
+
+    assert host.path("/boot/bc250-acpi.cpio").read_bytes() == archive()
+    assert host.state("acpi")["sha256"] == SHA256
+    assert result["status"] == "pending-reboot"
+    assert host.path(acpi.GRUB_SCRIPT).read_bytes() == entry
+    assert host.path(acpi.GRUB_CONFIG).read_bytes() == config
+    assert not [call for call in sandbox.calls[calls:] if call[0] in {"grub-mkconfig", "bootctl"}], \
+        "no bootloader command runs"
+    sandbox.load_acpi_tables()
+    assert acpi.check(host)["status"] == "active"
+    assert acpi.uninstall(host)["status"] == "removed-pending-reboot"
+
+
+def test_acpi_update_refuses_a_modified_payload_and_a_current_one(sandbox, monkeypatch):
+    _older_install(sandbox, monkeypatch)
+    sandbox.put("/boot/bc250-acpi.cpio", b"changed")
+    with pytest.raises(SetupError, match="Modified or missing"):
+        acpi.update(sandbox.host)
+    assert sandbox.host.read("/boot/bc250-acpi.cpio") == "changed"
+    sandbox.put("/boot/bc250-acpi.cpio", OLD_PAYLOAD)
+    acpi.update(sandbox.host)
+    with pytest.raises(SetupError, match="already at v1.1.1"):
+        acpi.update(sandbox.host)
+
+
+def test_acpi_uninstall_accepts_an_earlier_pinned_payload(sandbox, monkeypatch):
+    _older_install(sandbox, monkeypatch)
+    assert acpi.uninstall(sandbox.host)["status"] == "removed-pending-reboot"
+    assert not sandbox.host.path("/boot/bc250-acpi.cpio").exists()
+
+
+def test_live_tables_of_an_earlier_release_are_recognised(sandbox, monkeypatch):
+    sandbox.load_acpi_tables()
+    old_cpu = sandbox.table(revision=2)
+    for path in sandbox.host.path("/sys/firmware/acpi/tables").glob("SSDT*"):
+        if path.read_bytes()[16:24].startswith(b"AMD CPU"):
+            path.write_bytes(old_cpu)
+    assert acpi.table_status(sandbox.host)[0] == "foreign"
+    monkeypatch.setattr(acpi, "SUPERSEDED_CPU_TABLES", {hashlib.sha256(old_cpu).hexdigest(): "1.1.0"})
+    assert acpi.table_status(sandbox.host)[0] == "outdated"
+    # Not installed by Control Center: it is left to the tool that put it there.
+    assert acpi.status(sandbox.host)["status"] == "managed-elsewhere"
+
+
+def test_bridge_offers_the_acpi_update():
+    from bc250cc.infrastructure.system_setup import command
+    assert "bc250-system-setup-helper acpi-update" in command("acpi-update")
 
 
 def test_desktop_acpi_check_cache_expires_after_reboot_and_never_authorizes_install(sandbox, monkeypatch):
@@ -1455,8 +1801,10 @@ def test_a_limit_the_desktops_bazzite_workflow_set_is_restored_from_game_mode(sa
 
 
 def test_steamos_is_told_why_and_nothing_runs(sandbox):
+    """A SteamOS whose GRUB never reads the drop-in directory is not touched."""
     sandbox.grub()
     sandbox.put("/etc/os-release", "ID=steamos\nID_LIKE=arch\nVARIANT_ID=steamdeck\n")
+    sandbox.put("/usr/bin/grub-mkconfig", '. "${sysconfdir}/default/grub"')
     state = ttm_setup.status(sandbox.host)
     assert not state["supported"] and "SteamOS" in state["reason"]
     with pytest.raises(SetupError, match="SteamOS"):

@@ -153,6 +153,13 @@ class Host:
             return "fedora"
         return "unsupported"
 
+    def steamos(self) -> bool:
+        """Valve's SteamOS (Holo), which ships a read-only root but keeps the
+        ``/etc`` files named in ``/etc/atomic-update.conf.d`` across updates."""
+        values = self.os_release()
+        identifiers = {values.get("ID", ""), *values.get("ID_LIKE", "").split(), values.get("VARIANT_ID", "")}
+        return bool(identifiers & {"steamos", "holo"})
+
     def mutable_systemd(self) -> bool:
         return (self.distro_family() != "unsupported"
                 and not self.immutable_image()
@@ -168,7 +175,14 @@ class Host:
                 continue
         return False
 
-    def require_host(self) -> None:
+    def bazzite(self) -> bool:
+        """Bazzite's image: ostree-booted, its /etc and /boot writable."""
+        values = self.os_release()
+        names = {values.get("ID", ""), *re.split(r"[^a-z0-9]+", values.get("VARIANT_ID", "")),
+                 *re.split(r"[^a-z0-9]+", values.get("IMAGE_ID", ""))}
+        return "bazzite" in names and self.path("/run/ostree-booted").exists()
+
+    def require_host(self, *, steamos: bool = False, bazzite: bool = False) -> None:
         """Refuse with the reason, not with the list of requirements.
 
         Four different situations produced one sentence naming all four, which
@@ -180,7 +194,10 @@ class Host:
             raise SetupError(
                 "HARDWARE_CONTEXT: AMD BC-250 hardware identity was not detected."
             )
-        if self.immutable_image():
+        # SteamOS only where the caller has an adapter for it: its /etc stays
+        # writable and is carried across updates by a keep list.
+        if (self.immutable_image() and not (steamos and self.steamos())
+                and not (bazzite and self.bazzite())):
             raise SetupError(
                 "This operation writes to /etc and /usr, which are read-only on an "
                 "image-based system. Layer the change with rpm-ostree instead."

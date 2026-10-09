@@ -22,7 +22,13 @@ does it:
 
 An argument already present that this module did not add is reported as
 managed elsewhere and never touched. Everything applies at the next boot.
-SteamOS is excluded: its updates rewrite the boot configuration.
+
+SteamOS (beta) takes only the GPU memory limit, the way
+keyboardspecialist/bc250-steamos (public domain) sets it: the same drop-in in
+``/etc/default/grub.d``, ``grub-mkconfig`` into a new file beside
+``/efi/EFI/steamos/grub.cfg`` that replaces it only once every kernel entry
+carries the argument, and the drop-in named in ``/etc/atomic-update.conf.d``
+so an update keeps it. The switches stay off SteamOS.
 
 Besides those fixed switches the same block carries one argument with a value,
 ``ttm.pages_limit=<pages>`` (the GPU memory limit, see system_setup_ttm.py).
@@ -39,6 +45,7 @@ read the directory, the options go in a marked block at the end of
 """
 from __future__ import annotations
 
+import os
 import re
 
 from system_setup_common import Host, SetupError
@@ -72,6 +79,9 @@ _LIMINE_BLOCK = re.compile(
 #: The same marked block, at the end of /etc/default/grub.
 _GRUB_BLOCK = _LIMINE_BLOCK
 _STATE_KEY = "kernel-options"
+STEAMOS_GRUB_OUTPUT = "/efi/EFI/steamos/grub.cfg"
+STEAMOS_GRUB_STAGED = "/efi/EFI/steamos/.bc250-grub.cfg.new"
+STEAMOS_KEEP = "/etc/atomic-update.conf.d/bc250-control-center-boot.conf"
 
 
 def _tokens(text: str) -> set[str]:
@@ -88,8 +98,14 @@ def _read_exact(host: Host, name: str) -> str:
 
 
 def _backend(host: Host) -> str:
-    if host.immutable_image() or host.os_release().get("ID") == "steamos":
-        # Bazzite keeps its own reviewed card; SteamOS rewrites its boot setup.
+    if host.steamos():
+        # Only a GRUB that reads the drop-in directory: SteamOS's own
+        # /etc/default/grub belongs to the image and is never edited.
+        if host.command("grub-mkconfig") and grub_reads_dropins(host):
+            return "steamos-grub"
+        return "unsupported"
+    if host.immutable_image():
+        # Bazzite keeps its own reviewed card.
         return "unsupported"
     if host.path(LIMINE_CONFIG).is_file() and host.command("limine-mkinitcpio"):
         return "limine"
@@ -128,6 +144,12 @@ def _configured_tokens(host: Host, backend: str) -> set[str]:
         text = host.read(GRUB_CONFIG)
         if grub_reads_dropins(host):
             text += "\n" + host.read(GRUB_DROPIN)
+    elif backend == "steamos-grub":
+        # What the next boot reads; the drop-in when the EFI partition is not
+        # readable from here (the unprivileged inventory).
+        text = host.read(STEAMOS_GRUB_OUTPUT) or (
+            host.read(GRUB_CONFIG) + "\n" + host.read(GRUB_DROPIN)
+        )
     elif backend == "grubby":
         text = host.run("grubby", "--info=DEFAULT", check=False)
     else:
@@ -179,7 +201,7 @@ def _stale(host: Host, backend: str, saved: dict, configured_tokens: set[str] | 
     that an earlier release put where this GRUB never reads it, or a block the
     owner deleted by hand, would otherwise count as set and never be redone.
     """
-    if backend not in ("limine", "grub"):
+    if backend not in ("limine", "grub", "steamos-grub"):
         return set()
     managed = set(_managed_tokens(saved.get("arguments"), _values(saved)))
     if not managed:
@@ -237,7 +259,8 @@ def status(host: Host) -> dict:
     mode = host.read(CU_UNLOCK_PARAMETER).strip()
     return {
         "backend": backend,
-        "available": backend != "unsupported" and host.bc250(),
+        # SteamOS takes only the GPU memory limit, not these switches.
+        "available": backend not in {"unsupported", "steamos-grub"} and host.bc250(),
         "arguments": arguments,
         "values": value_items,
         # Whether this kernel has the parameter at all, and what it is set to now.
@@ -322,6 +345,8 @@ def _write(host: Host, backend: str, tokens: list[str], previous: list[str]) -> 
             if _read_exact(host, GRUB_CONFIG) != main_before:
                 host.write(GRUB_CONFIG, main_before)
             raise
+    elif backend == "steamos-grub":
+        _write_steamos_grub(host, tokens, previous)
     else:
         added = [token for token in tokens if token not in previous]
         removed = [token for token in previous if token not in tokens]
@@ -332,6 +357,76 @@ def _write(host: Host, backend: str, tokens: list[str], previous: list[str]) -> 
             host.run("grubby", "--update-kernel=ALL", f"--remove-args={' '.join(removed)}")
         if added:
             host.run("grubby", "--update-kernel=ALL", f"--args={' '.join(added)}")
+
+
+def _kernel_entries(menu: str) -> list[list[str]]:
+    """The words of every kernel line of a generated GRUB menu.
+
+    SteamOS does not write ``linux /vmlinuz...`` itself: its entries call a
+    helper, ``steamenv_boot linux /vmlinuz... <arguments>`` (the same lines
+    keyboardspecialist/bc250-steamos validates).
+    """
+    entries = []
+    for line in menu.splitlines():
+        words = line.split()
+        if words and (words[0].startswith("linux")
+                      or (words[0] == "steamenv_boot" and len(words) > 1 and words[1].startswith("linux"))):
+            entries.append(words)
+    return entries
+
+
+def _write_steamos_grub(host: Host, tokens: list[str], previous: list[str]) -> None:
+    """The drop-in, then a regenerated menu that replaces SteamOS's only when right."""
+    output = host.path(STEAMOS_GRUB_OUTPUT)
+    staged = host.path(STEAMOS_GRUB_STAGED)
+    if output.is_symlink() or not output.is_file():
+        raise SetupError(f"SteamOS's boot menu ({STEAMOS_GRUB_OUTPUT}) was not found")
+    if staged.is_symlink():
+        raise SetupError(f"Refusing symbolic link: {STEAMOS_GRUB_STAGED}")
+    line = f'GRUB_CMDLINE_LINUX_DEFAULT="${{GRUB_CMDLINE_LINUX_DEFAULT}} {" ".join(tokens)}"'
+    dropin_before = _read_exact(host, GRUB_DROPIN) if host.path(GRUB_DROPIN).exists() else None
+    keep_before = _read_exact(host, STEAMOS_KEEP) if host.path(STEAMOS_KEEP).exists() else None
+    gone = [token for token in previous if token not in tokens]
+    try:
+        if tokens:
+            host.managed(GRUB_DROPIN, line + "\n")
+            host.managed(STEAMOS_KEEP, GRUB_DROPIN + "\n")
+        else:
+            host.remove_managed(GRUB_DROPIN)
+        staged.unlink(missing_ok=True)
+        host.run("grub-mkconfig", "-o", STEAMOS_GRUB_STAGED)
+        try:
+            generated = staged.read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as error:
+            raise SetupError("grub-mkconfig wrote no readable boot menu") from error
+        entries = _kernel_entries(generated)
+        if not entries:
+            raise SetupError("grub-mkconfig produced no kernel entries; the boot menu was left as it was")
+        for words in entries:
+            # A valued argument at most once: with two, the kernel would take
+            # whichever comes last.
+            repeated = any(sum(word.startswith(name + "=") for word in words) > 1
+                           for name in VALUE_ARGUMENTS)
+            if (repeated or any(token not in words for token in tokens)
+                    or any(token in words for token in gone)):
+                raise SetupError(
+                    "SteamOS's grub-mkconfig did not carry the change into every kernel entry; "
+                    "the boot menu was left as it was"
+                )
+        os.replace(staged, output)
+        if not tokens:
+            host.remove_managed(STEAMOS_KEEP)
+    except Exception:
+        staged.unlink(missing_ok=True)
+        if dropin_before is not None:
+            host.write(GRUB_DROPIN, dropin_before)
+        elif host.path(GRUB_DROPIN).exists():
+            host.path(GRUB_DROPIN).unlink()
+        if keep_before is not None:
+            host.write(STEAMOS_KEEP, keep_before)
+        elif host.path(STEAMOS_KEEP).exists():
+            host.path(STEAMOS_KEEP).unlink()
+        raise
 
 
 def _prepare(host: Host) -> tuple[dict, str, dict]:
@@ -376,6 +471,8 @@ def apply(host: Host, wanted: list[str] | tuple[str, ...]) -> dict:
     if wanted_set - set(ARGUMENTS):
         raise SetupError("Only mitigations=off, nosmt and amdgpu.bc250_cc_write_mode=3 can be managed here")
     current, backend, saved = _prepare(host)
+    if backend == "steamos-grub" and wanted_set != set(saved.get("arguments") or ()):
+        raise SetupError("On SteamOS only the GPU memory limit is set here")
     for argument in wanted_set:
         if current["arguments"][argument]["external"]:
             raise SetupError(f"{argument} is already set outside Control Center and is left as it is")
