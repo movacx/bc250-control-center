@@ -12,7 +12,7 @@ modify the host, publish a release, or invoke hardware helpers.
   and writes `SHA256SUMS.txt`: the files a GitHub release carries. Without
   `dpkg-deb` it runs only that tool in a local `debian:trixie` podman image.
 
-## Publishing a release
+## Publishing a release 
 
 1. Bump `VERSION`, the `version` of `integrations/decky/bc250-quick-access/package.json`
    and add a `<release>` to the AppStream metainfo (the builders refuse a mismatch).
