@@ -128,6 +128,7 @@ OFFICIAL_REPOSITORIES = (
     ("ASRock BIOS update kit mirror", "kenavru/BC-250", "https://github.com/kenavru/BC-250"),
     ("BC250 custom boot logo reference", "tmghd272/bc250-custom-bios-logo", "https://github.com/tmghd272/bc250-custom-bios-logo"),
     ("nct6687d fan driver", "Fred78290/nct6687d", "https://github.com/Fred78290/nct6687d"),
+    ("cecd HDMI-CEC daemon (Valve)", "holo/linux-cec", "https://gitlab.steamos.cloud/holo/linux-cec"),
     ("USB Wi-Fi compatibility reference", "morrownr/USB-WiFi", "https://github.com/morrownr/USB-WiFi"),
     ("CUPS printing reference", "OpenPrinting/cups", "https://github.com/OpenPrinting/cups"),
     ("ipp-usb printing reference", "OpenPrinting/ipp-usb", "https://github.com/OpenPrinting/ipp-usb"),

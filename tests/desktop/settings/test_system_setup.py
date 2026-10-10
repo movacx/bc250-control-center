@@ -254,7 +254,11 @@ def test_steamos_zswap_replaces_its_zram_and_survives_without_the_helper(sandbox
     memory.apply(host, "zswap-16", takeover_zram=True)
     tmpfiles = host.read(memory.STEAMOS_ZSWAP_TMPFILES)
     assert f"w! {memory.ZSWAP} - - - - Y" in tmpfiles
-    assert f"w! {memory.ZSWAP_PARAMETERS}/compressor - - - - lz4" in tmpfiles
+    # The values of keyboardspecialist/bc250-steamos: zstd, a 10 % pool, the shrinker.
+    assert f"w! {memory.ZSWAP_PARAMETERS}/compressor - - - - zstd" in tmpfiles
+    assert f"w! {memory.ZSWAP_PARAMETERS}/max_pool_percent - - - - 10" in tmpfiles
+    assert f"w! {memory.ZSWAP_PARAMETERS}/shrinker_enabled - - - - Y" in tmpfiles
+    assert "zpool" not in tmpfiles
     assert memory.FOREIGN_ZRAM_MARKER in host.read(memory.STEAMOS_KEEP)
 
     memory.apply(host, "restore")
@@ -288,7 +292,9 @@ def _steamos_grub(sandbox, *, carry=True, twice=False):
         if args[0] == "grub-mkconfig" and args[-1] == kernel_args.STEAMOS_GRUB_STAGED:
             sandbox.calls.append(args)
             dropin = sandbox.host.read(kernel_args.GRUB_DROPIN)
-            extra = " ".join(word for word in dropin.split() if word.startswith("ttm.")).rstrip('"')
+            extra = " ".join(
+                word for word in dropin.split() if word.startswith(("ttm.", "mitigations=", "nosmt"))
+            ).rstrip('"')
             if twice and extra:
                 extra = "ttm.pages_limit=1 " + extra
             sandbox.put(args[-1], _steamos_menu(f" {extra}" if carry and extra else ""))
@@ -304,20 +310,71 @@ def test_steamos_gpu_memory_limit_goes_through_its_grub(sandbox):
     _steamos_grub(sandbox)
     pages = 12 * memory.GIB // os.sysconf("SC_PAGE_SIZE")
     assert kernel_args.backend(host) == "steamos-grub"
-    assert not kernel_args.status(host)["available"]  # the switches stay off SteamOS
+    # SteamOS is offered mitigations=off and nosmt, not the CU unlock.
+    assert kernel_args.status(host)["allowed"] == ["mitigations=off", "nosmt"]
     data = memory.apply(host, "preserve", 12)
     assert data["configured_ttm_pages"] == pages
     assert f"ttm.pages_limit={pages}" in host.read(kernel_args.GRUB_DROPIN)
     assert f"ttm.pages_limit={pages}" in host.read(kernel_args.STEAMOS_GRUB_OUTPUT)
     assert kernel_args.GRUB_DROPIN in host.read(kernel_args.STEAMOS_KEEP)
     assert not host.path(kernel_args.STEAMOS_GRUB_STAGED).exists()
-    with pytest.raises(SetupError, match="only the GPU memory limit"):
-        kernel_args.apply(host, ["nosmt"])
+    with pytest.raises(SetupError, match="only mitigations=off, nosmt"):
+        kernel_args.apply(host, [kernel_args.CU_UNLOCK])
 
     memory.apply(host, "preserve", -1)
     assert "ttm.pages_limit" not in host.read(kernel_args.STEAMOS_GRUB_OUTPUT)
     assert not host.path(kernel_args.GRUB_DROPIN).exists()
     assert not host.path(kernel_args.STEAMOS_KEEP).exists()
+
+
+def test_steamos_mitigations_go_through_its_grub_and_come_back(sandbox):
+    host = sandbox.host
+    _steamos_grub(sandbox)
+    assert kernel_args.status(host)["available"]
+    data = kernel_args.apply(host, ["mitigations=off"])
+    assert data["arguments"]["mitigations=off"]["managed"]
+    assert data["arguments"]["mitigations=off"]["configured"]
+    assert data["reboot_required"]
+    assert "mitigations=off" in host.read(kernel_args.GRUB_DROPIN)
+    assert "mitigations=off" in host.read(kernel_args.STEAMOS_GRUB_OUTPUT)
+    # SteamOS's own /etc/default/grub belongs to the image and is not touched.
+    assert "mitigations" not in host.read(kernel_args.GRUB_CONFIG)
+    assert kernel_args.GRUB_DROPIN in host.read(kernel_args.STEAMOS_KEEP)
+    assert not host.path(kernel_args.STEAMOS_GRUB_STAGED).exists()
+
+    data = kernel_args.apply(host, ["mitigations=off", "nosmt"])
+    assert data["arguments"]["nosmt"]["configured"]
+    assert " nosmt" in host.read(kernel_args.STEAMOS_GRUB_OUTPUT)
+
+    data = kernel_args.apply(host, [])
+    assert not data["arguments"]["mitigations=off"]["configured"]
+    assert "mitigations" not in host.read(kernel_args.STEAMOS_GRUB_OUTPUT)
+    assert "nosmt" not in host.read(kernel_args.STEAMOS_GRUB_OUTPUT)
+    assert not host.path(kernel_args.GRUB_DROPIN).exists()
+    assert not host.path(kernel_args.STEAMOS_KEEP).exists()
+
+
+def test_steamos_mitigations_from_the_other_toolkit_are_left_alone(sandbox):
+    """keyboardspecialist/bc250-steamos writes its own grub.d file."""
+    host = sandbox.host
+    _steamos_grub(sandbox)
+    sandbox.put(kernel_args.STEAMOS_GRUB_OUTPUT, _steamos_menu(" mitigations=off"))
+    item = kernel_args.status(host)["arguments"]["mitigations=off"]
+    assert item["external"] and not item["managed"]
+    with pytest.raises(SetupError, match="already set outside"):
+        kernel_args.apply(host, ["mitigations=off"])
+
+
+def test_steamos_mitigations_and_gpu_memory_limit_coexist(sandbox):
+    host = sandbox.host
+    _steamos_grub(sandbox)
+    kernel_args.apply(host, ["mitigations=off"])
+    memory.apply(host, "preserve", 12)
+    menu = host.read(kernel_args.STEAMOS_GRUB_OUTPUT)
+    assert "mitigations=off" in menu and "ttm.pages_limit=" in menu
+    memory.apply(host, "preserve", -1)
+    menu = host.read(kernel_args.STEAMOS_GRUB_OUTPUT)
+    assert "mitigations=off" in menu and "ttm.pages_limit" not in menu
 
 
 def test_steamos_boot_menu_is_left_alone_when_grub_drops_the_argument(sandbox):
@@ -672,6 +729,135 @@ def test_other_image_based_systems_still_cannot_install_acpi(sandbox):
     assert not acpi.status(sandbox.host, cached=False)["available"]
     with pytest.raises(SetupError):
         acpi.install(sandbox.host)
+
+
+def _steamos_acpi_menu(early=False):
+    """SteamOS's classic GRUB menu: both entries boot through steamenv_boot."""
+    entries = []
+    for title, image in (("SteamOS", "initramfs-linux-neptune.img"),
+                         ("SteamOS (fallback)", "initramfs-linux-neptune-fallback.img")):
+        cpio = " /boot/bc250-acpi.cpio" if early else ""
+        entries.append(
+            f"menuentry '{title}' {{\n"
+            "  search --no-floppy --fs-uuid --set=root aaa-bbb\n"
+            "  steamenv_boot linux /boot/vmlinuz-linux-neptune quiet splash\n"
+            f"  initrd /boot/amd-ucode.img{cpio} /boot/{image}\n"
+            "}\n"
+        )
+    return "function steamenv_boot {\n  true\n}\n" + "".join(entries)
+
+
+def _steamos_acpi(sandbox, *, honours_early_initrd=True):
+    """SteamOS: grub-mkconfig reads grub.d and, like 10_linux, lists an early
+    initrd image only when it sits beside the kernel."""
+    host = sandbox.host
+    sandbox.put("/etc/os-release", STEAMOS_RELEASE)
+    sandbox.put("/usr/bin/grub-mkconfig", 'for x in ${sysconfdir}/default/grub.d/*.cfg; do . "$x"; done')
+    sandbox.put(acpi.GRUB_CONFIG, 'GRUB_CMDLINE_LINUX_DEFAULT="quiet splash"\n')
+    for image in ("vmlinuz-linux-neptune", "amd-ucode.img", "initramfs-linux-neptune.img",
+                  "initramfs-linux-neptune-fallback.img"):
+        sandbox.put("/boot/" + image, b"original")
+    original = _steamos_acpi_menu()
+    sandbox.put(kernel_args.STEAMOS_GRUB_OUTPUT, original)
+    run = sandbox.run
+
+    def runner(*args, check=True):
+        if args[0] == "grub-mkconfig" and args[-1] == kernel_args.STEAMOS_GRUB_STAGED:
+            sandbox.calls.append(args)
+            early = (honours_early_initrd and "bc250-acpi.cpio" in host.read(acpi.STEAMOS_DROPIN)
+                     and host.path(acpi.STEAMOS_PAYLOAD).exists())
+            sandbox.put(args[-1], _steamos_acpi_menu(early))
+            return ""
+        return run(*args, check=check)
+
+    host.runner = runner
+    return original
+
+
+def test_steamos_loads_the_tables_through_grubs_early_initrd_and_takes_them_back(sandbox):
+    host = sandbox.host
+    _steamos_acpi(sandbox)
+    data = acpi.status(host, cached=False)
+    assert data["available"] and data["backend"] == "steamos-grub", data["reason"]
+    passed = {item["id"]: item for item in data["requirements"]}
+    assert passed["host"]["passed"] and passed["distribution"]["passed"]
+    assert "SteamOS GRUB" in passed["boot"]["detected"]
+
+    assert acpi.install(host)["status"] == "pending-reboot"
+    assert host.path(acpi.STEAMOS_PAYLOAD).read_bytes() == archive()
+    assert host.read(acpi.STEAMOS_DROPIN).startswith(MARKER.strip())
+    assert 'GRUB_EARLY_INITRD_LINUX_CUSTOM="bc250-acpi.cpio"' in host.read(acpi.STEAMOS_DROPIN)
+    assert acpi.STEAMOS_DROPIN in host.read(acpi.STEAMOS_KEEP)
+    menu = host.read(kernel_args.STEAMOS_GRUB_OUTPUT)
+    for line in (line for line in menu.splitlines() if "initrd" in line):
+        assert line.index("bc250-acpi.cpio") < line.index("initramfs")
+    assert not host.path(kernel_args.STEAMOS_GRUB_STAGED).exists()
+    # SteamOS's own /etc/default/grub belongs to the image.
+    assert "bc250" not in host.read(acpi.GRUB_CONFIG)
+
+    assert acpi.uninstall(host)["status"] == "removed-pending-reboot"
+    assert "bc250-acpi.cpio" not in host.read(kernel_args.STEAMOS_GRUB_OUTPUT)
+    for name in (acpi.STEAMOS_PAYLOAD, acpi.STEAMOS_DROPIN, acpi.STEAMOS_KEEP, f"{STATE}/acpi.json"):
+        assert not host.path(name).exists(), name
+
+
+def test_steamos_menu_is_left_alone_when_grub_ignores_the_early_initrd(sandbox):
+    host = sandbox.host
+    original = _steamos_acpi(sandbox, honours_early_initrd=False)
+    with pytest.raises(SetupError, match="left as it was"):
+        acpi.install(host)
+    assert host.read(kernel_args.STEAMOS_GRUB_OUTPUT) == original.strip()
+    for name in (acpi.STEAMOS_PAYLOAD, acpi.STEAMOS_DROPIN, acpi.STEAMOS_KEEP,
+                 kernel_args.STEAMOS_GRUB_STAGED, f"{STATE}/acpi.json"):
+        assert not host.path(name).exists(), name
+
+
+def test_steamos_update_that_replaced_boot_is_repaired(sandbox):
+    host = sandbox.host
+    _steamos_acpi(sandbox)
+    acpi.install(host)
+    # A SteamOS update: a new /boot without the archive, a menu regenerated
+    # from the kept drop-in, and a new boot.
+    host.path(acpi.STEAMOS_PAYLOAD).unlink()
+    sandbox.put(kernel_args.STEAMOS_GRUB_OUTPUT, _steamos_acpi_menu())
+    sandbox.put("/proc/sys/kernel/random/boot_id", "boot-two")
+    assert acpi.status(host, cached=False)["status"] == "needs-repair"
+    summary = acpi.installation_summary({"status": "needs-repair", "installed": True})
+    assert summary[0] == "REPAIR REQUIRED"
+
+    assert acpi.update(host)["status"] == "pending-reboot"
+    assert host.path(acpi.STEAMOS_PAYLOAD).read_bytes() == archive()
+    assert "/boot/bc250-acpi.cpio" in host.read(kernel_args.STEAMOS_GRUB_OUTPUT)
+
+
+def test_steamos_installation_whose_journal_was_lost_is_still_ours(sandbox):
+    host = sandbox.host
+    _steamos_acpi(sandbox)
+    acpi.install(host)
+    host.path(f"{STATE}/acpi.json").unlink()
+    data = acpi.status(host, cached=False)
+    # Without the journal there is no telling whether this boot predates it.
+    assert data["installed"] and data["status"] == "not-active"
+    acpi.uninstall(host)
+    assert not host.path(acpi.STEAMOS_DROPIN).exists()
+    assert not host.path(acpi.STEAMOS_PAYLOAD).exists()
+
+
+@pytest.mark.parametrize("foreign", [
+    "/etc/default/grub.d/bc250-acpi.cfg", "/boot/acpi_override.cpio", "early-initrd",
+])
+def test_steamos_never_stacks_on_another_toolkits_tables(sandbox, foreign):
+    host = sandbox.host
+    _steamos_acpi(sandbox)
+    if foreign == "early-initrd":
+        sandbox.put("/etc/default/grub.d/50-mine.cfg", 'GRUB_EARLY_INITRD_LINUX_CUSTOM="x.cpio"\n')
+    else:
+        sandbox.put(foreign, "keyboardspecialist")
+    data = acpi.status(host, cached=False)
+    assert not data["available"]
+    with pytest.raises(SetupError):
+        acpi.install(host)
+    assert not host.path(acpi.STEAMOS_PAYLOAD).exists()
 
 
 def test_acpi_accepts_tab_separated_grub_commands(sandbox):
@@ -1165,7 +1351,9 @@ def test_vram_apply_aligns_size_and_preserves_every_other_byte(sandbox):
     assert written[4:6] == expected_checksum.to_bytes(2, "little")
 
 
-@pytest.mark.parametrize("uma_size_mb", [0, 255, 16384, 100000, "512"])
+# 2048 (and anything that aligns down to it) can stop Linux from booting on a
+# BC-250; 12288 is the largest split the documentation lists.
+@pytest.mark.parametrize("uma_size_mb", [0, 255, 2048, 2055, 12289, 16384, 100000, "512"])
 def test_vram_apply_rejects_out_of_range_requests_without_opening_port(sandbox, uma_size_mb):
     def fail_open():
         raise AssertionError("must not touch hardware for an invalid request")
@@ -1185,9 +1373,10 @@ def test_bridge_rejects_vram_out_of_range_and_builds_the_uma_size_flag():
     script = command("vram-apply", uma_size_mb=512)
     assert "--uma-size 512" in script
     assert script.count("sudo ") == 1
-    for uma_size_mb in (0, 255, 16384, "512"):
+    for uma_size_mb in (0, 255, 2048, 2055, 12289, 16384, "512"):
         with pytest.raises(ValueError):
             command("vram-apply", uma_size_mb=uma_size_mb)
+    assert "--uma-size 12288" in command("vram-apply", uma_size_mb=12288)
 
 
 # ------------------------------------------------ memory profiles, hardened
@@ -1312,6 +1501,20 @@ def test_zram_profile_names_its_algorithm_and_tunes_in_memory_swap(sandbox):
     assert sandbox.host.read(f"{memory.VM}/swappiness") == "60"
     assert sandbox.host.read(f"{memory.VM}/page-cluster") == "3"
     assert not sandbox.host.path(memory.SYSCTL).exists()
+
+
+def test_steamos_zram_keeps_the_half_of_ram_its_image_uses(sandbox):
+    _zswap_knobs(sandbox)
+    sandbox.put("/etc/os-release", STEAMOS_RELEASE)
+    sandbox.put("/usr/lib/systemd/system-generators/zram-generator", "#!/bin/sh\n")
+    sandbox.put("/proc/crypto", "name         : lzo-rle\n\nname         : zstd\n")
+    memory.apply(sandbox.host, "zram")
+
+    config = sandbox.host.read(memory.ZRAM)
+    # Capping it at 4 GiB would shrink SteamOS's own half-RAM zram.
+    assert "zram-size = ram / 2\n" in config
+    assert "compression-algorithm = zstd" in config
+    assert "swap-priority = 100" in config
 
 
 def test_zram_without_a_known_algorithm_keeps_the_kernel_default(sandbox):
@@ -1515,13 +1718,36 @@ def test_fedora_uses_grubby_with_only_the_arguments_it_added(sandbox):
     ]
 
 
-@pytest.mark.parametrize("release", ['ID=bazzite\nVARIANT_ID=bazzite\n', "ID=steamos\nID_LIKE=arch\n"])
-def test_bazzite_and_steamos_keep_their_own_boot_handling(sandbox, release):
+def test_bazzite_keeps_its_own_boot_handling(sandbox):
     sandbox.grub()
-    sandbox.put("/etc/os-release", release)
+    sandbox.put("/etc/os-release", 'ID=bazzite\nVARIANT_ID=bazzite\n')
     assert kernel_args.status(sandbox.host)["available"] is False
     with pytest.raises(SetupError):
         kernel_args.apply(sandbox.host, ["nosmt"])
+
+
+def test_smt_turned_off_while_running_is_somebody_elses_setting(sandbox):
+    """bc250-steamos' cpu-smt writes sysfs, not the command line."""
+    sandbox.grub()
+    sandbox.put("/etc/os-release", "ID=steamos\nID_LIKE=arch\n")
+    sandbox.put(kernel_args.SMT_CONTROL, "off\n")
+    item = kernel_args.status(sandbox.host)["arguments"]["nosmt"]
+    assert item["active"] and item["external"] and not item["managed"]
+    with pytest.raises(SetupError, match="already set outside"):
+        kernel_args.apply(sandbox.host, ["nosmt"])
+
+    sandbox.put(kernel_args.SMT_CONTROL, "on\n")
+    item = kernel_args.status(sandbox.host)["arguments"]["nosmt"]
+    assert not item["active"] and not item["external"]
+
+
+def test_steamos_takes_mitigations_and_smt_but_not_the_cu_unlock(sandbox):
+    sandbox.grub()
+    sandbox.put("/etc/os-release", "ID=steamos\nID_LIKE=arch\n")
+    status = kernel_args.status(sandbox.host)
+    assert status["allowed"] == ["mitigations=off", "nosmt"]
+    with pytest.raises(SetupError, match="only mitigations=off, nosmt"):
+        kernel_args.apply(sandbox.host, [kernel_args.CU_UNLOCK])
 
 
 def test_only_the_reviewed_arguments_exist(sandbox):

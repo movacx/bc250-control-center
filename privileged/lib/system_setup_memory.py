@@ -7,6 +7,7 @@ Every policy is a complete, reversible profile rather than a single switch:
 
 * ``zram`` — a 4 GiB (at most half of RAM) compressed RAM swap with an
   explicit algorithm, plus the virtual-memory tuning in-memory swap needs.
+  SteamOS gets half of RAM, which is what its own image already uses.
 * ``swap-16`` / ``swap-32`` — a dedicated, fully allocated disk swapfile.
 * ``zswap-16`` / ``zswap-32`` — that swapfile behind a tuned ZSWAP cache
   (compressor, pool size, allocator, shrinker) re-applied at every boot.
@@ -63,6 +64,14 @@ ZSWAP_TUNING = (
     ("compressor", ("lz4", "zstd", "lzo-rle")),
     ("zpool", ("zsmalloc",)),
     ("max_pool_percent", ("25",)),
+    ("shrinker_enabled", ("Y",)),
+)
+#: SteamOS (keyboardspecialist/bc250-steamos, v0.32): Zstandard, a pool of 10 %
+#: of RAM and the memory shrinker, which writes cold pages back to the disk
+#: swapfile so the pool cannot hold on to them. The zpool is left to the kernel.
+STEAMOS_ZSWAP_TUNING = (
+    ("compressor", ("zstd", "lz4", "lzo-rle")),
+    ("max_pool_percent", ("10",)),
     ("shrinker_enabled", ("Y",)),
 )
 SYSCTL = "/etc/sysctl.d/90-bc250-memory.conf"
@@ -160,7 +169,7 @@ def apply_zswap_tuning(host: Host, state: dict) -> dict[str, str]:
     """
     originals = state.setdefault("zswap_tuning_original", {})
     applied: dict[str, str] = {}
-    for name, candidates in ZSWAP_TUNING:
+    for name, candidates in (STEAMOS_ZSWAP_TUNING if host.steamos() else ZSWAP_TUNING):
         path = f"{ZSWAP_PARAMETERS}/{name}"
         if not host.writable_parameter(path):
             continue
@@ -241,7 +250,10 @@ def zram_algorithm(host: Host) -> str:
 
 def zram_config(host: Host) -> str:
     algorithm = zram_algorithm(host)
-    lines = ["[zram0]", "zram-size = min(ram / 2, 4096)"]
+    # SteamOS ships half of RAM as zram (allocated on demand, not reserved);
+    # capping it at 4 GiB would shrink the image's own default.
+    size = "ram / 2" if host.steamos() else "min(ram / 2, 4096)"
+    lines = ["[zram0]", f"zram-size = {size}"]
     if algorithm:
         lines.append(f"compression-algorithm = {algorithm}")
     lines += ["swap-priority = 100", "fs-type = swap"]

@@ -328,7 +328,7 @@ QAM_FAN_MIN_PERCENT = 20
 QAM_FAN_MAX_PERCENT = 100
 # Same fixed ladder the desktop's own VRAM control offers. Checked against
 # the shared contract in load_contract() before anything touches CMOS.
-VRAM_SIZE_PRESETS_MB = (256, 512, 1024, 2048, 3072, 4096, 5120, 6144, 7168, 8192, 12288)
+VRAM_SIZE_PRESETS_MB = (256, 512, 1024, 3072, 4096, 5120, 6144, 7168, 8192, 12288)
 PWM_MODE_VERIFY_ATTEMPTS = 10
 PWM_MODE_VERIFY_INTERVAL_SECONDS = 0.05
 PWM_DUTY_VERIFY_ATTEMPTS = 16

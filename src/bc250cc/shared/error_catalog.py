@@ -276,7 +276,6 @@ _CODES: tuple[ErrorCode, ...] = (
         markers=(
             "returned error: 404",
             "failed to synchronize all databases",
-            "failed retrieving file",
         ),
     ),
     # The workflow printed its own [ERROR] lines, so its wording is shown

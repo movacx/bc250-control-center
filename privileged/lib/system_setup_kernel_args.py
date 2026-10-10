@@ -23,12 +23,13 @@ does it:
 An argument already present that this module did not add is reported as
 managed elsewhere and never touched. Everything applies at the next boot.
 
-SteamOS (beta) takes only the GPU memory limit, the way
-keyboardspecialist/bc250-steamos (public domain) sets it: the same drop-in in
-``/etc/default/grub.d``, ``grub-mkconfig`` into a new file beside
+SteamOS (beta) takes the GPU memory limit, ``mitigations=off`` and ``nosmt``, the way
+keyboardspecialist/bc250-steamos (public domain) sets the first: the same
+drop-in in ``/etc/default/grub.d``, ``grub-mkconfig`` into a new file beside
 ``/efi/EFI/steamos/grub.cfg`` that replaces it only once every kernel entry
 carries the argument, and the drop-in named in ``/etc/atomic-update.conf.d``
-so an update keeps it. The switches stay off SteamOS.
+so an update keeps it. ``/etc/default/grub`` itself belongs to the image and is
+never edited. The CU unlock stays off SteamOS.
 
 Besides those fixed switches the same block carries one argument with a value,
 ``ttm.pages_limit=<pages>`` (the GPU memory limit, see system_setup_ttm.py).
@@ -56,9 +57,12 @@ CU_UNLOCK = "amdgpu.bc250_cc_write_mode=3"
 CU_UNLOCK_PARAMETER = "/sys/module/amdgpu/parameters/bc250_cc_write_mode"
 CU_UNLOCK_PREFIX = "amdgpu.bc250_cc_write_mode="
 ARGUMENTS = ("mitigations=off", "nosmt", CU_UNLOCK)
+#: What SteamOS's boot menu takes among the switches.
+STEAMOS_ARGUMENTS = ("mitigations=off", "nosmt")
 #: Arguments that carry a value, and the only values each may have.
 VALUE_ARGUMENTS = {"ttm.pages_limit": re.compile(r"[1-9][0-9]{0,9}")}
 CMDLINE = "/proc/cmdline"
+SMT_CONTROL = "/sys/devices/system/cpu/smt/control"
 BOOT_ID = "/proc/sys/kernel/random/boot_id"
 LIMINE_CONFIG = "/etc/default/limine"
 GRUB_CONFIG = "/etc/default/grub"
@@ -221,6 +225,11 @@ def status(host: Host) -> dict:
     removing = set(saved.get("removed") or ()) if saved.get("boot_id") == host.read(BOOT_ID) else set()
     command_line = host.read(CMDLINE).split()
     active = set(command_line)
+    # SMT switched off while the system runs (bc250-steamos' cpu-smt, or by
+    # hand) is not on the command line, but it is just as active: it counts
+    # as somebody else's setting, never as "Enabled".
+    if host.read(SMT_CONTROL).strip() in {"off", "forceoff"}:
+        active.add("nosmt")
     configured_tokens = _configured_tokens(host, backend)
     configured = {argument for argument in ARGUMENTS if argument in configured_tokens}
     stale = _stale(host, backend, saved, configured_tokens)
@@ -259,8 +268,9 @@ def status(host: Host) -> dict:
     mode = host.read(CU_UNLOCK_PARAMETER).strip()
     return {
         "backend": backend,
-        # SteamOS takes only the GPU memory limit, not these switches.
-        "available": backend not in {"unsupported", "steamos-grub"} and host.bc250(),
+        "available": backend != "unsupported" and host.bc250(),
+        # The switches this host's boot loader takes; SteamOS not the CU unlock.
+        "allowed": list(STEAMOS_ARGUMENTS if backend == "steamos-grub" else ARGUMENTS),
         "arguments": arguments,
         "values": value_items,
         # Whether this kernel has the parameter at all, and what it is set to now.
@@ -471,8 +481,8 @@ def apply(host: Host, wanted: list[str] | tuple[str, ...]) -> dict:
     if wanted_set - set(ARGUMENTS):
         raise SetupError("Only mitigations=off, nosmt and amdgpu.bc250_cc_write_mode=3 can be managed here")
     current, backend, saved = _prepare(host)
-    if backend == "steamos-grub" and wanted_set != set(saved.get("arguments") or ()):
-        raise SetupError("On SteamOS only the GPU memory limit is set here")
+    if backend == "steamos-grub" and wanted_set - set(STEAMOS_ARGUMENTS):
+        raise SetupError("On SteamOS only mitigations=off, nosmt and the GPU memory limit are set here")
     for argument in wanted_set:
         if current["arguments"][argument]["external"]:
             raise SetupError(f"{argument} is already set outside Control Center and is left as it is")

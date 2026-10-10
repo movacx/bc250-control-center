@@ -499,6 +499,6 @@ def build_preparation_command(context: PreparationContext) -> str:
         )
     else:
         commands.append(
-            'if [ "$BC250_REBOOT_REQUIRED" = "1" ]; then echo "== Finished: reboot required =="; else echo "== Finished successfully =="; fi'
+            'if [ "$BC250_REBOOT_REQUIRED" = "1" ] || [ "${BC250_PWM_DEFERRED:-0}" = "1" ]; then echo "== Finished: reboot required =="; else echo "== Finished successfully =="; fi'
         )
     return repo._join_shell_commands(commands)

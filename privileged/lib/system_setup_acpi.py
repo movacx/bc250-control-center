@@ -11,6 +11,19 @@ initrd: the route upstream documents for Universal Blue
 grub2-editenv instead of regenerating Bazzite's bootupd GRUB configuration.
 The recovery route is a submenu in /boot/grub2/custom.cfg that lists the same
 entries without the tables.
+
+SteamOS (beta) generates its classic GRUB menu with grub-mkconfig into
+/efi/EFI/steamos/grub.cfg, which reads /etc/default/grub.d. The tables go in
+through GRUB's own early-initrd list: a drop-in sets
+GRUB_EARLY_INITRD_LINUX_CUSTOM="bc250-acpi.cpio" and the archive sits beside
+the kernel in /boot, the route keyboardspecialist/bc250-steamos (public
+domain) uses. The new menu is written beside the old one and replaces it only
+once every initrd line loads the archive before the initramfs. Each SteamOS
+image (A/B) has its own /boot and its own menu, so the other image keeps
+booting with the stock tables: that is the recovery route. A SteamOS update
+brings a /boot without the archive; the drop-in is kept by the update's keep
+list, and the installation reads as needing a repair until the archive is
+written again.
 """
 from __future__ import annotations
 
@@ -23,6 +36,7 @@ import shlex
 import struct
 import textwrap
 
+import system_setup_kernel_args as kernel_args
 from acpi_payload import SHA256, SUPERSEDED, SUPERSEDED_CPU_TABLES, VERSION, archive
 from system_setup_common import MARKER, STATE, Host, SetupError
 
@@ -53,6 +67,171 @@ BAZZITE_RECOVERY = (
     f"{BAZZITE_END}\n"
 )
 _BAZZITE_BLOCK = re.compile(rf"\n?{re.escape(BAZZITE_BEGIN)}\n.*?{re.escape(BAZZITE_END)}\n", re.S)
+STEAMOS_DROPIN = "/etc/default/grub.d/92-bc250-acpi.cfg"
+STEAMOS_KEEP = "/etc/atomic-update.conf.d/bc250-control-center-acpi.conf"
+STEAMOS_PAYLOAD = "/boot/bc250-acpi.cpio"
+STEAMOS_DROPIN_LINE = 'GRUB_EARLY_INITRD_LINUX_CUSTOM="bc250-acpi.cpio"\n'
+#: keyboardspecialist/bc250-steamos's own ACPI install: its drop-in, its
+#: archive and the service that writes the archive back after an update.
+STEAMOS_FOREIGN = (
+    "/etc/default/grub.d/bc250-acpi.cfg",
+    "/boot/acpi_override.cpio",
+    "/etc/systemd/system/bc250-acpi-heal.service",
+)
+
+
+def _steamos_host(host: Host) -> bool:
+    return host.steamos() and host.path("/run/systemd/system").is_dir()
+
+
+def _initrd_entries(menu: str) -> list[list[str]]:
+    """The images of every initrd line, ``steamenv_boot initrd`` included."""
+    entries = []
+    for line in menu.splitlines():
+        words = line.split()
+        if words[:1] == ["steamenv_boot"]:
+            words = words[1:]
+        if words and words[0].startswith("initrd"):
+            entries.append(words[1:])
+    return entries
+
+
+def _steamos_owned(host: Host) -> bool:
+    """Our drop-in is there, whether or not the journal survived."""
+    return host.read(STEAMOS_DROPIN).startswith(MARKER.strip())
+
+
+def _steamos_foreign_early_initrd(host: Host) -> str:
+    """A GRUB configuration file, other than ours, that sets an early initrd."""
+    candidates = [GRUB_CONFIG, *sorted(
+        "/etc/default/grub.d/" + path.name for path in host.path("/etc/default/grub.d").glob("*.cfg")
+    )]
+    for name in candidates:
+        if name == STEAMOS_DROPIN and _steamos_owned(host):
+            continue
+        for line in host.read(name).splitlines():
+            if not line.lstrip().startswith("#") and "GRUB_EARLY_INITRD_LINUX_CUSTOM" in line:
+                return name
+    return ""
+
+
+def _steamos_plan(host: Host) -> dict:
+    if not host.command("grub-mkconfig") or not kernel_args.grub_reads_dropins(host):
+        raise SetupError("SteamOS's grub-mkconfig does not read /etc/default/grub.d")
+    output = host.path(kernel_args.STEAMOS_GRUB_OUTPUT)
+    if output.is_symlink() or not output.is_file():
+        raise SetupError(f"SteamOS's boot menu ({kernel_args.STEAMOS_GRUB_OUTPUT}) was not found")
+    menu = host.read(kernel_args.STEAMOS_GRUB_OUTPUT)
+    if not menu:
+        raise SetupError("SteamOS's boot menu could not be read; use Check status")
+    initrds = _initrd_entries(menu)
+    if not kernel_args._kernel_entries(menu) or not initrds:
+        raise SetupError("SteamOS's boot menu has no kernel entry with an initramfs")
+    for images in initrds:
+        if not images or any(not image.startswith("/boot/") or ".." in image.split("/") for image in images):
+            raise SetupError("A SteamOS boot entry loads its initramfs from outside /boot")
+    return {"backend": "steamos-grub", "mount": "/boot"}
+
+
+def _steamos_menu_loads_tables(menu: str) -> bool:
+    """Every initrd line loads the archive, before any initramfs image."""
+    initrds = _initrd_entries(menu)
+    if not initrds:
+        return False
+    for images in initrds:
+        if STEAMOS_PAYLOAD not in images:
+            return False
+        position = images.index(STEAMOS_PAYLOAD)
+        if any("initramfs" in image for image in images[:position]):
+            return False
+    return True
+
+
+def _steamos_regenerate(host: Host, *, tables: bool) -> None:
+    """A new menu beside SteamOS's, put in place only when it is right."""
+    staged = host.path(kernel_args.STEAMOS_GRUB_STAGED)
+    if staged.is_symlink():
+        raise SetupError(f"Refusing symbolic link: {kernel_args.STEAMOS_GRUB_STAGED}")
+    try:
+        staged.unlink(missing_ok=True)
+        host.run("grub-mkconfig", "-o", kernel_args.STEAMOS_GRUB_STAGED)
+        try:
+            generated = staged.read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as error:
+            raise SetupError("grub-mkconfig wrote no readable boot menu") from error
+        if not kernel_args._kernel_entries(generated) or not _initrd_entries(generated):
+            raise SetupError("grub-mkconfig produced no kernel entries; the boot menu was left as it was")
+        if tables and not _steamos_menu_loads_tables(generated):
+            raise SetupError(
+                "SteamOS's grub-mkconfig did not load the ACPI tables in every boot entry; "
+                "the boot menu was left as it was"
+            )
+        if not tables and any(STEAMOS_PAYLOAD in images for images in _initrd_entries(generated)):
+            raise SetupError("SteamOS's boot menu still loads the ACPI tables; it was left as it was")
+        os.replace(staged, host.path(kernel_args.STEAMOS_GRUB_OUTPUT))
+    finally:
+        staged.unlink(missing_ok=True)
+
+
+def _steamos_put_payload(host: Host) -> None:
+    payload = host.safe(STEAMOS_PAYLOAD)
+    if payload.exists() and hashlib.sha256(payload.read_bytes()).hexdigest() not in {SHA256, *SUPERSEDED}:
+        raise SetupError(f"Modified ACPI payload preserved for manual review: {STEAMOS_PAYLOAD}")
+    host.write(STEAMOS_PAYLOAD, archive())
+
+
+def _steamos_install(host: Host) -> None:
+    """Archive, drop-in and keep list, then a verified menu; all undone on failure."""
+    had_payload = host.path(STEAMOS_PAYLOAD).exists()
+    had_dropin = host.path(STEAMOS_DROPIN).exists()
+    had_keep = host.path(STEAMOS_KEEP).exists()
+    try:
+        _steamos_put_payload(host)
+        host.managed(STEAMOS_DROPIN, STEAMOS_DROPIN_LINE)
+        host.managed(STEAMOS_KEEP, STEAMOS_DROPIN + "\n")
+        _steamos_regenerate(host, tables=True)
+    except Exception:
+        if not had_dropin:
+            host.remove_managed(STEAMOS_DROPIN)
+        if not had_keep:
+            host.remove_managed(STEAMOS_KEEP)
+        if not had_payload:
+            host.path(STEAMOS_PAYLOAD).unlink(missing_ok=True)
+        raise
+
+
+def _steamos_uninstall(host: Host) -> None:
+    """The drop-in goes first, so the archive is only removed once nothing loads it."""
+    if host.path(STEAMOS_DROPIN).exists():
+        host.remove_managed(STEAMOS_DROPIN)
+    try:
+        _steamos_regenerate(host, tables=False)
+    except Exception:
+        host.managed(STEAMOS_DROPIN, STEAMOS_DROPIN_LINE)
+        raise
+    host.remove_managed(STEAMOS_KEEP)
+    payload = host.safe(STEAMOS_PAYLOAD)
+    if payload.exists():
+        if hashlib.sha256(payload.read_bytes()).hexdigest() not in {SHA256, *SUPERSEDED}:
+            raise SetupError("Modified ACPI payload preserved for manual review")
+        payload.unlink()
+
+
+def _steamos_needs_repair(host: Host) -> bool:
+    """After a SteamOS update: the drop-in is kept, the archive or menu is not.
+
+    Only answered when /boot can be listed; otherwise the caller keeps the
+    status it already had rather than guessing.
+    """
+    if not os.access(host.path("/boot"), os.R_OK | os.X_OK):
+        return False
+    payload = host.path(STEAMOS_PAYLOAD)
+    try:
+        intact = payload.is_file() and hashlib.sha256(payload.read_bytes()).hexdigest() in {SHA256, *SUPERSEDED}
+    except OSError:
+        return False
+    menu = host.read(kernel_args.STEAMOS_GRUB_OUTPUT)
+    return not intact or (bool(menu) and not _steamos_menu_loads_tables(menu))
 
 
 def _grubenv_early_initrd(host: Host) -> str | None:
@@ -221,6 +400,8 @@ def table_status(host: Host) -> tuple[str, list[str]]:
 def boot_plan(host: Host) -> dict:
     if host.bazzite():
         return _bazzite_plan(host)
+    if _steamos_host(host):
+        return _steamos_plan(host)
     # A systemd-stub image means the initrd is embedded in a UKI, even when
     # GRUB chainloads it. Injecting an external early CPIO would require a
     # separate, signed/reproducible UKI rebuild and is not this integration.
@@ -311,7 +492,8 @@ def compatibility_requirements(host: Host, state: dict, live: str) -> list[dict]
     requirements = []
 
     bc250 = host.bc250()
-    mutable = host.mutable_systemd() or host.bazzite()
+    steamos = _steamos_host(host)
+    mutable = host.mutable_systemd() or host.bazzite() or steamos
     host_details = []
     host_details.append("AMD BC-250 PCI device found" if bc250 else "AMD BC-250 PCI device not found")
     host_details.append("mutable systemd host" if mutable else "immutable, non-systemd, or unsupported host")
@@ -327,11 +509,11 @@ def compatibility_requirements(host: Host, state: dict, live: str) -> list[dict]
     pretty_match = re.search(r'^PRETTY_NAME=["\']?([^"\'\n]+)', os_release, re.M)
     distro = distro_match.group(1).lower() if distro_match else "unknown"
     pretty = pretty_match.group(1) if pretty_match else distro
-    distro_ok = distro in {"arch", "cachyos", "manjaro"} or host.bazzite()
+    distro_ok = distro in {"arch", "cachyos", "manjaro"} or host.bazzite() or steamos
     requirements.append(_requirement(
         "distribution", "Qualified Linux distribution", distro_ok,
         pretty or "Distribution could not be identified",
-        "Arch Linux, CachyOS, Manjaro, or Bazzite (beta).",
+        "Arch Linux, CachyOS, Manjaro, Bazzite (beta) or SteamOS (beta).",
         "Use the ACPI tool only from a qualified Arch-family installation. Other distributions remain inspection-only.",
     ))
 
@@ -400,6 +582,11 @@ def compatibility_requirements(host: Host, state: dict, live: str) -> list[dict]
             conflicts.append("GRUB_EARLY_INITRD_LINUX_CUSTOM")
         if host.bazzite() and host.path(BAZZITE_UPSTREAM_PAYLOAD).exists():
             conflicts.append(BAZZITE_UPSTREAM_PAYLOAD)
+        if steamos:
+            conflicts.extend(name for name in STEAMOS_FOREIGN if host.path(name).exists())
+            foreign = _steamos_foreign_early_initrd(host)
+            if foreign and "GRUB_EARLY_INITRD_LINUX_CUSTOM" not in conflicts:
+                conflicts.append(f"GRUB_EARLY_INITRD_LINUX_CUSTOM ({foreign})")
     requirements.append(_requirement(
         "conflicts", "Existing ACPI override conflicts", not conflicts,
         ", ".join(conflicts) if conflicts else ("installation tracked by BC250 Control Center" if state else "none found"),
@@ -412,6 +599,7 @@ def compatibility_requirements(host: Host, state: dict, live: str) -> list[dict]
         boot_ok = True
         boot_detected = ("conventional GRUB kernel + external initramfs" if plan["backend"] == "grub"
                          else "Bazzite GRUB with ostree boot entries (blscfg)" if plan["backend"] == "bazzite-bls"
+                         else "SteamOS GRUB menu generated from /etc/default/grub.d" if plan["backend"] == "steamos-grub"
                          else "systemd-boot Type #1 kernel + external initramfs")
         boot_resolution = ""
     except (SetupError, OSError, ValueError, KeyError, IndexError) as exc:
@@ -441,6 +629,7 @@ def installation_summary(result: dict) -> tuple[str, str]:
         "incomplete": ("INCOMPLETE", "The ACPI installation is incomplete. Review its status and uninstall before retrying."),
         "outdated": ("UPDATE AVAILABLE", f"The installed ACPI fix is an earlier release whose C3 idle state can freeze the board. Use Update correction to install v{VERSION}, then reboot."),
         "managed-elsewhere": ("MANAGED EXTERNALLY", "ACPI tables are supplied by firmware or another tool. Do not install a second fix."),
+        "needs-repair": ("REPAIR REQUIRED", "A SteamOS update replaced /boot, so this image boots without the ACPI tables. Use Repair correction, then reboot."),
     }
     if result.get("status") == "not-installed" and not result.get("installed"):
         if result.get("available"):
@@ -513,8 +702,21 @@ def requirements_report(result: dict, *, width: int = 78) -> str:
     return "\n".join(lines)
 
 
+def _steamos_recovered_state(host: Host) -> dict:
+    """The journal for an installation whose journal did not survive.
+
+    The journal lives in /var; the drop-in, carried over by SteamOS's keep
+    list and marked as ours, is the proof that the installation is ours.
+    """
+    if _steamos_host(host) and _steamos_owned(host):
+        return {"backend": "steamos-grub", "mount": "/boot", "phase": "installed",
+                "payload": STEAMOS_PAYLOAD, "entry": STEAMOS_DROPIN, "sha256": SHA256}
+    return {}
+
+
 def status(host: Host, *, cached: bool = True) -> dict:
-    state = host.state("acpi")
+    state = host.state("acpi") or _steamos_recovered_state(host)
+    steamos = _steamos_host(host)
     live, tables = table_status(host)
     result = {"available": False, "installed": bool(state), "status": "not-installed",
               "tables": tables, "version": VERSION, "reason": "", "backend": ""}
@@ -526,15 +728,17 @@ def status(host: Host, *, cached: bool = True) -> dict:
                             else "not-active")
         if state.get("phase") != "installed":
             result["status"] = "incomplete"
+        elif state.get("backend") == "steamos-grub" and live != "active" and _steamos_needs_repair(host):
+            result["status"] = "needs-repair"
     elif live in {"active", "foreign", "outdated"}:
         result["status"] = "managed-elsewhere"
     try:
         bazzite = host.bazzite() and host.path("/run/systemd/system").is_dir()
-        if not (host.mutable_systemd() or bazzite) or not host.bc250():
+        if not (host.mutable_systemd() or bazzite or steamos) or not host.bc250():
             raise SetupError("Requires a supported mutable systemd distribution and BC250 hardware")
         os_release = host.read("/etc/os-release")
-        if not bazzite and not re.search(r'^ID=["\']?(arch|cachyos|manjaro)["\']?$', os_release, re.M):
-            raise SetupError("ACPI installation is qualified for Arch, CachyOS, Manjaro and Bazzite layouts")
+        if not (bazzite or steamos) and not re.search(r'^ID=["\']?(arch|cachyos|manjaro)["\']?$', os_release, re.M):
+            raise SetupError("ACPI installation is qualified for Arch, CachyOS, Manjaro, Bazzite and SteamOS layouts")
         if not kernel_support(host):
             raise SetupError("ACPI_TABLE_UPGRADE support could not be confirmed for the running kernel")
         efi = host.path("/sys/firmware/efi")
@@ -562,6 +766,12 @@ def status(host: Host, *, cached: bool = True) -> dict:
                 raise SetupError("Existing early initrd configuration requires manual conflict review")
             if bazzite and host.path(BAZZITE_UPSTREAM_PAYLOAD).exists():
                 raise SetupError("Upstream's manual install (/boot/acpi_override.cpio) is present; remove it first")
+            if steamos:
+                for name in STEAMOS_FOREIGN:
+                    if host.path(name).exists():
+                        raise SetupError(f"Another SteamOS toolkit already installs ACPI tables ({name}); remove it first")
+                if _steamos_foreign_early_initrd(host):
+                    raise SetupError("Existing early initrd configuration requires manual conflict review")
         plan = boot_plan(host)
         if plan["backend"] == "bazzite-bls" and not state and plan.get("env_early_initrd"):
             raise SetupError("grubenv already loads an early initrd; review it before installing another")
@@ -603,7 +813,7 @@ def check(host: Host) -> dict:
 
 
 def install(host: Host) -> dict:
-    host.require_host(bazzite=True)
+    host.require_host(steamos=True, bazzite=True)
     host.safe(STATE)
     current = status(host, cached=False)
     if current["installed"]:
@@ -613,6 +823,19 @@ def install(host: Host) -> dict:
     plan = boot_plan(host)
     mount = plan["mount"]
     payload = mount + "/bc250-acpi.cpio"
+    if plan["backend"] == "steamos-grub":
+        state = {**plan, "phase": "preparing", "boot_id": host.read("/proc/sys/kernel/random/boot_id"),
+                 "payload": STEAMOS_PAYLOAD, "entry": STEAMOS_DROPIN, "sha256": SHA256}
+        host.save("acpi", state)
+        try:
+            _steamos_install(host)
+        except Exception:
+            # Everything it wrote was taken back; so is the journal.
+            host.safe(f"{STATE}/acpi.json").unlink(missing_ok=True)
+            raise
+        state["phase"] = "installed"
+        host.save("acpi", state)
+        return check(host)
     if plan["backend"] == "bazzite-bls":
         if host.safe(payload).exists():
             raise SetupError(f"Existing file preserved: {payload}")
@@ -680,13 +903,22 @@ def update(host: Host) -> dict:
     The entry already loads ``bc250-acpi.cpio`` from the journaled mount, so
     only that file and the journal's digest change.
     """
-    host.require_host(bazzite=True)
+    host.require_host(steamos=True, bazzite=True)
     host.safe(STATE)
-    state = host.state("acpi")
+    state = host.state("acpi") or _steamos_recovered_state(host)
     if not state:
         raise SetupError("No ACPI installation owned by Control Center")
     if state.get("phase") != "installed":
         raise SetupError("The ACPI installation is incomplete; uninstall before retrying")
+    if state.get("backend") == "steamos-grub" and _steamos_needs_repair(host):
+        # A SteamOS update brought a /boot without the archive: write it
+        # again (the current release) and regenerate the verified menu.
+        _steamos_put_payload(host)
+        host.managed(STEAMOS_DROPIN, STEAMOS_DROPIN_LINE)
+        host.managed(STEAMOS_KEEP, STEAMOS_DROPIN + "\n")
+        _steamos_regenerate(host, tables=True)
+        host.save("acpi", state | {"sha256": SHA256, "boot_id": host.read("/proc/sys/kernel/random/boot_id")})
+        return check(host)
     if state.get("sha256") == SHA256:
         raise SetupError(f"The ACPI fix is already at v{VERSION}")
     if state.get("sha256") not in SUPERSEDED:
@@ -705,7 +937,7 @@ def update(host: Host) -> dict:
 
 def uninstall(host: Host) -> dict:
     host.safe(STATE)
-    state = host.state("acpi")
+    state = host.state("acpi") or _steamos_recovered_state(host)
     if not state:
         raise SetupError("No ACPI installation owned by Control Center")
     # Never take arbitrary deletion paths from a manifest, even root-owned.
@@ -722,6 +954,8 @@ def uninstall(host: Host) -> dict:
         host.remove_managed(entry)
     elif state.get("backend") == "bazzite-bls":
         _bazzite_uninstall(host, state)
+    elif state.get("backend") == "steamos-grub":
+        _steamos_uninstall(host)
     elif state.get("backend") == "grub":
         text = host.path(GRUB_CONFIG).read_text()
         if GRUB_BLOCK in text:
@@ -741,7 +975,7 @@ def uninstall(host: Host) -> dict:
         if hashlib.sha256(payload.read_bytes()).hexdigest() not in {SHA256, *SUPERSEDED}:
             raise SetupError("Modified ACPI payload preserved for manual review")
         payload.unlink()
-    host.safe(f"{STATE}/acpi.json").unlink()
+    host.safe(f"{STATE}/acpi.json").unlink(missing_ok=True)
     probe = host.safe(f"{STATE}/acpi-probe.json")
     if probe.exists():
         probe.unlink()

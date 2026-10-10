@@ -2716,9 +2716,9 @@ class PreparationSidebar(QFrame):
     def _kernel_options_panel(self) -> QFrame:
         """mitigations=off, nosmt and the kernel's CU unlock for mutable distributions.
 
-        Bazzite keeps its own mitigations card and SteamOS rewrites its boot
-        setup, so this panel only appears where the protected helper reports
-        a Limine, GRUB or grubby boot configuration it can manage.
+        Bazzite keeps its own mitigations card, so this panel only appears
+        where the protected helper reports a Limine, GRUB, grubby or SteamOS
+        boot configuration it can manage. SteamOS has no CU unlock row.
         """
         panel = QFrame()
         self.kernel_options_panel = panel
@@ -2811,10 +2811,11 @@ class PreparationSidebar(QFrame):
         if not available:
             return
         arguments = _mapping(state.get("arguments"))
+        allowed = set(state.get("allowed") or (option for option, *_ in self.KERNEL_OPTION_ROWS))
         cu_item = _mapping(arguments.get(CU_UNLOCK_OPTION))
         # Only a kernel that has the parameter can use the unlock. A row that
         # was staged, or set by hand, stays so that it can still be taken back.
-        cu_visible = bool(
+        cu_visible = CU_UNLOCK_OPTION in allowed and bool(
             _mapping(state.get("cu_unlock")).get("supported")
             or cu_item.get("managed")
             or cu_item.get("configured")
@@ -2825,15 +2826,18 @@ class PreparationSidebar(QFrame):
         for option, _title, disable_text, restore_text in self.KERNEL_OPTION_ROWS:
             name, pill, button = self.kernel_option_controls[option]
             item = _mapping(arguments.get(option))
-            if option == CU_UNLOCK_OPTION:
+            row_visible = option in allowed and (option != CU_UNLOCK_OPTION or cu_visible)
+            if option == CU_UNLOCK_OPTION or option not in allowed:
                 for widget in (name, pill, button, self.kernel_option_rules.get(option)):
                     if widget is not None:
-                        widget.setVisible(cu_visible and (widget is not pill))
+                        widget.setVisible(row_visible and (widget is not pill))
                 # A hidden row still kept its minimum height and left an empty
                 # band under SMT wherever the kernel has no CU unlock.
                 self.kernel_option_grid.setRowMinimumHeight(
-                    self.kernel_option_rows[option], self._KERNEL_ROW_HEIGHT if cu_visible else 0
+                    self.kernel_option_rows[option], self._KERNEL_ROW_HEIGHT if row_visible else 0
                 )
+            if not row_visible:
+                continue
             if item.get("external"):
                 status, tone = "Set outside Control Center", "blue"
             elif bool(item.get("configured")) != bool(item.get("active")):
@@ -3581,13 +3585,38 @@ class PreparationSidebar(QFrame):
             scope_text="Case accessory",
             status_text="Checking",
         )
+        # The receiver and the TV: neither needs a program window, both are
+        # settings of the sound server and of a daemon SteamOS already runs.
+        self.hdmi_ac3_card = PreparationInfoCard(
+            "HDMI audio · Dolby Digital 5.1",
+            "Encodes 5.1 sound to AC-3 in real time for receivers and soundbars that only take "
+            "Dolby Digital over HDMI, with PipeWire's own AC-3 profile and ALSA's a52 encoder.",
+            scope_text="Audio and TV",
+            status_text="Checking",
+        )
+        self.hdmi_cec_card = PreparationInfoCard(
+            "TV control · HDMI-CEC",
+            "Valve's cecd, the CEC daemon SteamOS uses: the TV turns on when the BC-250 wakes and "
+            "sleeps when it suspends, and its remote works as input. Needs a DisplayPort-to-HDMI "
+            "adapter that passes CEC.",
+            scope_text="Audio and TV",
+            status_text="Checking",
+        )
         self.accessory_buttons: dict[str, dict[str, QPushButton]] = {}
         # One line under the description for what the current state asks of
         # the owner (restart, log out, plug the device in). Empty most of the time.
         self._accessory_notes: dict[str, QLabel] = {}
+        self._accessory_cards = {
+            "thermalright": self.thermalright_card,
+            "corsair": self.corsair_card,
+            "hdmi_ac3": self.hdmi_ac3_card,
+            "hdmi_cec": self.hdmi_cec_card,
+        }
         for key, card, configure_text in (
             ("thermalright", self.thermalright_card, "Open configuration"),
             ("corsair", self.corsair_card, "Open control panel"),
+            ("hdmi_ac3", self.hdmi_ac3_card, "Open configuration"),
+            ("hdmi_cec", self.hdmi_cec_card, "Test TV control"),
         ):
             buttons = {
                 "install": card.add_action("Install", {"accessory": key, "op": "install"}),
@@ -3631,10 +3660,22 @@ class PreparationSidebar(QFrame):
         ("corsair", "unsupported"): "OpenLinkHub is published for x86_64 only.",
         ("corsair", "relogin-required"): "Installed. Log out and back in (or restart) once, so this account can reach the Corsair devices.",
         ("corsair", "managed-elsewhere"): "OpenLinkHub is already installed on this system outside Control Center, so it is left as it is.",
+        ("hdmi_ac3", "unsupported"): "Needs PipeWire with WirePlumber 0.5 or newer and the BC-250 HDMI audio function.",
+        ("hdmi_ac3", "reboot-required"): "The encoder is in the next deployment. Restart, then press Install again to switch the output to 5.1.",
+        ("hdmi_ac3", "installed"): "Configured, but another output is in use. Press Use 5.1 output to switch back to it.",
+        ("hdmi_ac3", "managed-elsewhere"): "Another toolkit already switches the AC-3 profile on, so it is left as it is.",
+        ("hdmi_cec", "unsupported"): "The running kernel was built without CEC over DisplayPort.",
+    }
+    #: What the configure button reads as, per accessory; empty hides it.
+    _ACCESSORY_CONFIGURE = {
+        "thermalright": "Open configuration",
+        "corsair": "Open control panel",
+        "hdmi_ac3": "",
+        "hdmi_cec": "Test TV control",
     }
 
     def _render_accessories(self, accessories: Mapping[str, object]) -> None:
-        for key, card in (("thermalright", self.thermalright_card), ("corsair", self.corsair_card)):
+        for key, card in self._accessory_cards.items():
             info = _mapping(accessories.get(key))
             state = str(info.get("state") or "")
             buttons = self.accessory_buttons[key]
@@ -3651,19 +3692,27 @@ class PreparationSidebar(QFrame):
                 status, tone = "Device detected", "blue"
             card.set_status(status, tone)
             note = self._ACCESSORY_NOTES.get((key, state), "")
-            if state in {"installed", "active"} and not info.get("device"):
+            if key == "hdmi_ac3" and state == "installed":
+                # Set up, but the owner picked another output since.
+                install_text = "Use 5.1 output"
+            if key == "hdmi_ac3" and state in {"installed", "active"} and not info.get("device"):
+                note = "The connected display does not list Dolby Digital. Connect a receiver or soundbar that decodes AC-3."
+            elif state in {"installed", "active"} and not info.get("device"):
                 note = "Nothing is plugged in right now; it starts by itself when the device is connected."
+            elif key == "hdmi_cec" and state == "not-installed" and not info.get("device"):
+                note = "No CEC adapter is connected. CEC needs a DisplayPort-to-HDMI adapter that passes it, such as a Club3D CAC-1080 or CAC-1085."
             card.update_action(
                 buttons["install"],
                 text=install_text or "Install",
                 payload={"accessory": key, "op": "install"},
                 visible=bool(install_text),
             )
+            configure_text = self._ACCESSORY_CONFIGURE.get(key, "")
             card.update_action(
                 buttons["configure"],
-                text="Open configuration" if key == "thermalright" else "Open control panel",
+                text=configure_text or "Open configuration",
                 payload={"accessory": key, "op": "configure"},
-                visible=installed or state == "managed-elsewhere",
+                visible=bool(configure_text) and (installed or state == "managed-elsewhere"),
                 enabled=state != "relogin-required",
             )
             card.update_action(
@@ -4674,12 +4723,13 @@ class PreparationSidebar(QFrame):
             "managed-elsewhere": "Managed externally",
             "needs-check": "Not verified",
             "outdated": "Update available",
+            "needs-repair": "Repair required",
         }.get(acpi.get("status"), "Not installed")
         acpi_tone = (
             "green"
             if acpi.get("status") == "active"
             else "orange"
-            if acpi.get("status") in {"pending-reboot", "incomplete", "not-active", "outdated"}
+            if acpi.get("status") in {"pending-reboot", "incomplete", "not-active", "outdated", "needs-repair"}
             else "blue"
             if acpi.get("status") == "managed-elsewhere"
             else "gray"
@@ -4699,7 +4749,11 @@ class PreparationSidebar(QFrame):
         )
         self.acpi_install_button.setVisible(not bool(acpi.get("installed")))
         # An earlier pinned release: v1.1.0's C3 idle state freezes the board.
-        outdated = acpi.get("status") == "outdated"
+        # On SteamOS the same action writes the tables back after an update.
+        outdated = acpi.get("status") in {"outdated", "needs-repair"}
+        self.acpi_update_button.setText(
+            tr("Repair correction" if acpi.get("status") == "needs-repair" else "Update correction")
+        )
         self.acpi_update_button.setEnabled(bool(setup.get("helper_available") and outdated))
         self.acpi_update_button.setVisible(outdated)
         self.acpi_remove_button.setVisible(bool(acpi.get("installed")))

@@ -136,3 +136,32 @@ def test_configure_starts_trcc_detached_and_corsair_opens_its_panel(monkeypatch)
     _run(window, "corsair", "configure")
     assert started == [("/bin/true", [])]
     assert opened == ["http://127.0.0.1:27003"]
+
+
+# ------------------------------------------------------- receiver and TV
+
+
+def test_ac3_set_up_but_not_selected_offers_to_switch_back(sidebar):
+    _show(sidebar, hdmi_ac3={"state": "installed", "device": True})
+    assert _visible(sidebar, "hdmi_ac3") == {"install", "remove", "upstream"}
+    assert sidebar.accessory_buttons["hdmi_ac3"]["install"].text() == "Use 5.1 output"
+    _show(sidebar, hdmi_ac3={"state": "active", "device": False})
+    assert _visible(sidebar, "hdmi_ac3") == {"remove", "upstream"}
+    assert "Dolby Digital" in sidebar._accessory_notes["hdmi_ac3"].text()
+
+
+def test_tv_control_offers_its_test_once_cecd_runs(sidebar):
+    _show(sidebar, hdmi_cec={"state": "not-installed", "device": False})
+    assert "adapter" in sidebar._accessory_notes["hdmi_cec"].text()
+    assert _visible(sidebar, "hdmi_cec") == {"install", "upstream"}
+    _show(sidebar, hdmi_cec={"state": "active", "device": True})
+    configure = sidebar.accessory_buttons["hdmi_cec"]["configure"]
+    assert not configure.isHidden() and configure.text() == "Test TV control"
+
+
+def test_the_tv_test_goes_to_the_terminal():
+    calls = []
+    controller = _Controller()
+    controller.test_tv_control = lambda: calls.append("test")
+    _run(_window(controller), "hdmi_cec", "configure")
+    assert calls == ["test"]

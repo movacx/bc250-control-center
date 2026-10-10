@@ -156,7 +156,19 @@ class FanRepository:
                 ),
             ])
         else:
-            comandos.append(comando_instalar)
+            # Exit 20: the running kernel's modules and headers are gone
+            # because the system was updated and not rebooted yet. Nothing can
+            # be built for a kernel that is no longer on disk and nothing is
+            # broken, so the build waits for the reboot. Any other non-zero
+            # status is still a failure.
+            comandos.append(
+                'BC250_PWM_DEFERRED=0; bc250_step_status=0; set +e; '
+                + comando_instalar
+                + '; bc250_step_status=$?; set -e; '
+                + 'if [ "$bc250_step_status" -eq 20 ]; then BC250_PWM_DEFERRED=1; '
+                + 'elif [ "$bc250_step_status" -ne 0 ]; then exit "$bc250_step_status"; fi'
+            )
+        deferred_from = len(comandos)
 
         comandos.extend([
             'echo "== Configuring module preference =="',
@@ -182,6 +194,18 @@ class FanRepository:
             f"{servicios['logs']}; exit 1; fi",
             'echo "If PWM files remain read-only after a successful check, reboot once and verify the loaded module."',
         ])
+        if os_repository.info.family != 'bazzite':
+            pending = (
+                'echo "The system kernel was updated and this session still runs the old one."; '
+                'echo "Reboot into the updated kernel, then press Prepare PWM driver again."'
+            )
+            comandos = comandos[:deferred_from] + [
+                'if [ "$BC250_PWM_DEFERRED" = "1" ]; then '
+                + pending
+                + '; else '
+                + '; '.join(comandos[deferred_from:])
+                + '; fi'
+            ]
         return '; '.join(comandos)
 
     def preparar_nct6687_control_pwm(self):

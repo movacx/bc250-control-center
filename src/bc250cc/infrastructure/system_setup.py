@@ -55,7 +55,10 @@ def command(action: str, policy: str = "preserve", ttm_gib: int = 0, uma_size_mb
         raise ValueError("Invalid kernel option request")
     if policy not in POLICIES or type(ttm_gib) is not int or ttm_gib not in {-1, 0, 8, 10, 12}:
         raise ValueError("Invalid memory setup request")
-    if action == "vram-apply" and (type(uma_size_mb) is not int or not (256 <= uma_size_mb < 16384)):
+    if action == "vram-apply" and (
+        type(uma_size_mb) is not int or not (256 <= uma_size_mb <= 12288) or uma_size_mb & ~15 == 2048
+    ):
+        # 2048 MB: the BC-250 documentation warns that Linux does not boot with it.
         raise ValueError("Invalid VRAM setup request")
     target_mount = str(target_mount or "")
     if target_mount and not re.fullmatch(r"/[A-Za-z0-9_./-]*", target_mount):

@@ -87,6 +87,7 @@ bash scripts/uninstall-local.sh
 **系统**
 - 按发行版适配的依赖准备，内置终端显示每条命令。
 - 兼容性修复：GFX1013 与异步计算、按游戏的 FSR4、遥测和 ACPI。
+- 为功放和条形音箱提供 HDMI 杜比数字 5.1，并通过 Valve 的 cecd 用 HDMI-CEC 控制电视。
 - 从发行版官方仓库安装 Wi-Fi、蓝牙和打印机驱动。
 - 诊断、历史记录以及导出 CSV 指标。
 
@@ -134,6 +135,7 @@ BC250 Control Center 建立在社区的工作之上，不声称拥有这些项�
 - [bc250-memory-temperature](https://github.com/pan-Rijovich/bc250-memory-temperature): GDDR6 显存温度。
 - [bc250_memcfg](https://github.com/fanoush/bc250_memcfg): 通过 CMOS 设置显存大小。
 - [nct6687d](https://github.com/Fred78290/nct6687d): NCT 传感器与风扇 PWM。
+- [linux-cec](https://gitlab.steamos.cloud/holo/linux-cec): Valve 的 HDMI-CEC 守护进程 cecd。
 
 **固件**
 - [bc250-bios](https://gitlab.com/TuxThePenguin0/bc250-bios): 原版 P3.00 和 Chipset Menu BIOS。

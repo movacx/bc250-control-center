@@ -1,6 +1,6 @@
 # Third-party notices
 
-BC250 Control Center is MIT-licensed and does not claim ownership of any project listed here. This notice mirrors the **Official repositories** panel in the desktop application: 38 entries in total, consisting of this project and the 37 external sources below.
+BC250 Control Center is MIT-licensed and does not claim ownership of any project listed here. This notice mirrors the **Official repositories** panel in the desktop application: 39 entries in total, consisting of this project and the 38 external sources below.
 
 Every canonical URL was checked and returned HTTP 200: on 29 August 2026, and the boot logo reference on 25 September 2026. A link or reference does not mean that its code is packaged, executed or endorsed by BC250 Control Center.
 
@@ -22,7 +22,7 @@ Every canonical URL was checked and returned HTTP 200: on 29 August 2026, and th
 | [bc250-cu-live-manager-SteamOS](https://github.com/F5GO/bc250-cu-live-manager-SteamOS) | SteamOS CU topology workflow | Integrated runtime fetch; no license grant recorded |
 | [bc250-40cu-unlock](https://github.com/duggasco/bc250-40cu-unlock) | 40 CU research | Reference only |
 | [bc250-core-unlock](https://github.com/rw-r-r-0644/bc250-core-unlock) | Experimental CPU core unlock | Integrated explicit workflow; MIT upstream |
-| [bc250-steamos](https://github.com/keyboardspecialist/bc250-steamos) | SteamOS AMDGPU and RADV compatibility | Integrated explicit workflow |
+| [bc250-steamos](https://github.com/keyboardspecialist/bc250-steamos) | SteamOS AMDGPU and RADV compatibility; reference for the SteamOS ACPI route, the HDMI AC-3 profile selection and the cecd integration | Integrated explicit workflow; public domain (Unlicense) |
 | [bc250-gfx1013-fix](https://github.com/DryhoppedIPA/bc250-gfx1013-fix) | GFX1013 compute queue, kernel and Mesa/RADV stack | External install; Control Center updates official `main`, applies only the reviewed Fedora 44 RPM 6 source-path compatibility repair when its exact upstream line is present, and invokes the complete upstream lifecycle after local safety gates |
 | [bc250-async-compute-bazzite](https://github.com/tri3gubki-ops/bc250-async-compute-bazzite) | Separate GFX1013 async-compute RADV for Bazzite 44 | Integrated explicit release workflow; v0.2.4 archive and SHA-256 are pinned, Bazzite/BC-250/OGC-kernel gates are enforced, and system Mesa is not replaced. On Arch/CachyOS and Fedora with kernel 7.2+, its two RADV patches (reviewed commit `56bf06b`) are built against Mesa 26.2.3 and installed beside system Mesa; MIT upstream |
 | [bc250-steamos-real-toolkit](https://github.com/rpf16rj/bc250-steamos-real-toolkit) | SteamOS ASIC fallback research | Reference only |
@@ -45,6 +45,7 @@ Every canonical URL was checked and returned HTTP 200: on 29 August 2026, and th
 | [BC-250](https://github.com/kenavru/BC-250) | Mirror of ASRock's 4U12G BIOS update kit (AFU flasher, official P5.00 image and its flash command) and the P2.00 image | Integrated explicit workflow on the Firmware (BIOS) page: downloaded at runtime from one pinned commit and verified against pinned SHA-256 values; nothing is redistributed |
 | [bc250-custom-bios-logo](https://github.com/tmghd272/bc250-custom-bios-logo) | Custom boot logo research: its ROM, made with AMI's ChangeLogo, was compared with the images Control Center builds on the Firmware (BIOS) page, and its 672 × 378 recommendation matches the MeiMeiDXE logos | Reference only; its ROM and ChangeLogo.exe are never downloaded, run or redistributed by Control Center |
 | [nct6687d](https://github.com/Fred78290/nct6687d) | NCT sensor and PWM driver | Integrated explicit kernel-module workflow; GPL-2.0 upstream |
+| [linux-cec](https://gitlab.steamos.cloud/holo/linux-cec) | cecd, Valve's HDMI-CEC daemon (TV on with the console, asleep on suspend, remote as input) | Integrated explicit workflow on the Drivers tab: SteamOS ships cecd and only a configuration fragment is written; elsewhere commit `2b7a801` (cecd 0.3.0) is fetched at runtime, built on the user's PC (Bazzite: in a Fedora container) and run from the user's data folder as a user service with upstream's two uaccess udev rules; nothing is redistributed. LGPL-2.1-or-later upstream (linux-cec-sys: BSD-3-Clause) |
 | [USB-WiFi](https://github.com/morrownr/USB-WiFi) | USB Wi-Fi compatibility reference | Reference only |
 | [CUPS](https://github.com/OpenPrinting/cups) | Printing compatibility reference | Reference only |
 | [ipp-usb](https://github.com/OpenPrinting/ipp-usb) | USB printing reference | Reference only |

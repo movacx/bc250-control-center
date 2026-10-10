@@ -317,8 +317,7 @@ var codes = [
 		code: "BC250-UPSTREAM-404",
 		markers: [
 			"returned error: 404",
-			"failed to synchronize all databases",
-			"failed retrieving file"
+			"failed to synchronize all databases"
 		],
 		exit_statuses: [
 		],
@@ -598,7 +597,6 @@ var markers_longest_first = [
 	"QUICK_ACCESS_CU_KERNEL",
 	"QUICK_ACCESS_CU_VERIFY",
 	"smu returned status 0x",
-	"failed retrieving file",
 	"QUICK_ACCESS_GPU_DBUS",
 	"QUICK_ACCESS_CU_TABLE",
 	"QUICK_ACCESS_CU_STATE",
@@ -5243,7 +5241,7 @@ const cuRows = ["SE0.SH0", "SE0.SH1", "SE1.SH0", "SE1.SH1"];
 // Same ladder the desktop's own VRAM control offers; used only until the
 // first status() reply carries the contract-sourced list, so the dropdown
 // never renders empty on first paint.
-const VRAM_PRESETS_FALLBACK = [256, 512, 1024, 2048, 3072, 4096, 5120, 6144, 7168, 8192, 12288];
+const VRAM_PRESETS_FALLBACK = [256, 512, 1024, 3072, 4096, 5120, 6144, 7168, 8192, 12288];
 function vramSizeLabel(sizeMb) {
     return sizeMb < 1024 ? `${sizeMb} MiB` : `${Math.round(sizeMb / 1024 * 10) / 10} GiB`;
 }

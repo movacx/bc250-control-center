@@ -456,8 +456,19 @@ class DriversRepository:
         titles = {
             "thermalright": "Thermalright LCD",
             "corsair": "Corsair devices (OpenLinkHub)",
+            "hdmi_ac3": "HDMI audio (Dolby Digital 5.1)",
+            "hdmi_cec": "TV control (HDMI-CEC)",
         }
         return self._abrir_terminal(command, titles.get(component, "Accessory"))
+
+    def test_tv_control(self) -> object:
+        """Ask cecd to wake the TV, in the terminal, so the owner sees why not."""
+        from bc250cc.infrastructure.accessories import hdmi_cec
+
+        info = detect_os_info(has_rpm_ostree=bool(shutil.which("rpm-ostree")))
+        return self._abrir_terminal(
+            hdmi_cec.test_command(info.family, self._tool_dir()), "TV control (HDMI-CEC)"
+        )
 
     @staticmethod
     def accessory_configure_argv(component: str) -> list[str]:

@@ -38,7 +38,10 @@ UMA_SIZE_OFFSET = 26        # bank-relative offset of the UMA_SIZE WORD (0xAA)
 CHECKSUM_FIELD_OFFSET = 6   # bank-relative start of the checksummed range
 SIGNATURE = 0x42435041      # LINUX_TOOL_SIGNATURE
 UMA_SIZE_MIN_MB = 256
-UMA_SIZE_MAX_MB = 16368     # highest value < 16384 aligned down to 16 MiB
+UMA_SIZE_MAX_MB = 12288     # the largest split the BC-250 documentation lists
+#: The documentation warns that Linux does not boot with a 2048 MiB split; a
+#: board left like that needs a CMOS clear, so it is refused outright.
+UMA_SIZE_BLOCKED_MB = 2048
 UMA_SIZE_ALIGNMENT_MB = 16
 
 
@@ -135,12 +138,14 @@ def read(host: Host, *, port_open=_open_port) -> dict:
 
 
 def apply(host: Host, uma_size_mb: int, *, port_open=_open_port) -> dict:
-    if type(uma_size_mb) is not int or not (UMA_SIZE_MIN_MB <= uma_size_mb < 16384):
-        raise SetupError(f"UMA_SIZE must be between {UMA_SIZE_MIN_MB} and 16383 MB")
+    if type(uma_size_mb) is not int or not (UMA_SIZE_MIN_MB <= uma_size_mb <= UMA_SIZE_MAX_MB):
+        raise SetupError(f"UMA_SIZE must be between {UMA_SIZE_MIN_MB} and {UMA_SIZE_MAX_MB} MB")
+    aligned = align_uma_size(uma_size_mb)
+    if aligned == UMA_SIZE_BLOCKED_MB:
+        raise SetupError("A 2048 MB UMA_SIZE can stop Linux from booting on a BC-250, so it is not applied")
     available = status(host)
     if not available["supported"]:
         raise SetupError(available["reason"] or "BC250 VRAM configuration is unavailable")
-    aligned = align_uma_size(uma_size_mb)
     with cmos_guard(port_open):
         port = port_open()
         try:

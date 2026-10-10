@@ -548,6 +548,9 @@ class SistemaService:
     def accessory_configure_argv(self, component):
         return self.repo.accessory_configure_argv(component)
 
+    def test_tv_control(self):
+        return self.repo.test_tv_control()
+
     def status_governor(self):
         return self.repo.status_governor()
 

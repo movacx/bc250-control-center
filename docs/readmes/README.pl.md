@@ -87,6 +87,7 @@ Przed każdą zmianą sprawdź stan modułu: mówi, co jest gotowe, czego brakuj
 **System**
 - Przygotowanie zależności dopasowane do każdej dystrybucji, z wbudowanym terminalem pokazującym każde polecenie.
 - Poprawki zgodności: GFX1013 i async compute, FSR4 dla poszczególnych gier, telemetria i ACPI.
+- Dolby Digital 5.1 przez HDMI dla amplitunerów i soundbarów oraz sterowanie telewizorem przez HDMI-CEC za pomocą cecd od Valve.
 - Sterowniki Wi-Fi, Bluetooth i drukarek z oficjalnych repozytoriów twojej dystrybucji.
 - Diagnostyka, historia i eksport pomiarów do CSV.
 
@@ -134,6 +135,7 @@ BC250 Control Center opiera się na pracy społeczności i nie przypisuje sobie 
 - [bc250-memory-temperature](https://github.com/pan-Rijovich/bc250-memory-temperature): temperatura pamięci GDDR6.
 - [bc250_memcfg](https://github.com/fanoush/bc250_memcfg): rozmiar VRAM przez CMOS.
 - [nct6687d](https://github.com/Fred78290/nct6687d): czujniki NCT i PWM wentylatorów.
+- [linux-cec](https://gitlab.steamos.cloud/holo/linux-cec): cecd, demon HDMI-CEC od Valve.
 
 **Firmware**
 - [bc250-bios](https://gitlab.com/TuxThePenguin0/bc250-bios): fabryczny BIOS P3.00 i Chipset Menu.

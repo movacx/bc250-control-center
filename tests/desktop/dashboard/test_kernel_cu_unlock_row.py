@@ -109,3 +109,15 @@ def test_a_hidden_unlock_row_leaves_no_empty_band_under_smt(qtbot):
     assert grid.rowMinimumHeight(row) == 0
     panel._update_kernel_options_control(_tools(supported=True))
     assert grid.rowMinimumHeight(row) == panel._KERNEL_ROW_HEIGHT
+
+
+def test_steamos_is_offered_mitigations_and_smt_but_not_the_cu_unlock(qtbot):
+    """SteamOS's boot menu takes mitigations=off and nosmt; the CU unlock stays off it."""
+    panel = _panel(qtbot)
+    tools = _tools(supported=True)
+    tools["system_setup"]["kernel_options"]["allowed"] = ["mitigations=off", "nosmt"]
+    panel._update_kernel_options_control(tools)
+    assert not panel.kernel_options_panel.isHidden()
+    assert not panel.kernel_option_controls["mitigations=off"][2].isHidden()
+    assert not panel.kernel_option_controls["nosmt"][2].isHidden()
+    assert _visible(panel) == (False, False, False)

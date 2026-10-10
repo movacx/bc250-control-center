@@ -295,15 +295,24 @@ class DependenciasRepository:
 
     def gestionar_opciones_kernel(self, options):
         """Set which kernel boot options Control Center manages (see KERNEL_OPTIONS)."""
-        if self._os_repository().family in {'bazzite', 'steamos'}:
+        family = self._os_repository().family
+        if family == 'bazzite':
             raise RuntimeError('Kernel boot options are managed differently on this system.')
+        if family == 'steamos' and set(options) - {'mitigations=off', 'nosmt'}:
+            # SteamOS's boot menu takes everything here except the CU unlock.
+            raise RuntimeError('Only mitigations=off and nosmt can be managed on SteamOS.')
         return self._abrir_terminal(
             system_setup_command('kernel-options-set', kernel_options=tuple(options)),
             'BC250 kernel boot options',
         )
 
     def gestionar_acpi(self, action: str):
-        return self._abrir_terminal(system_setup_command(action), 'BC250 ACPI')
+        # SteamOS keeps the archive beside the kernel in /boot, which is part
+        # of its read-only root; the guard unlocks it for this command only.
+        command = wrap_steamos_writable_command(
+            system_setup_command(action), family=self._os_repository().family
+        )
+        return self._abrir_terminal(command, 'BC250 ACPI')
 
     def reparar_telemetria_8core(self, action: str = "telemetry-fix"):
         if action not in {"telemetry-fix", "telemetry-restore"}:
