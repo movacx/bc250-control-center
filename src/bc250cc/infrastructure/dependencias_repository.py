@@ -105,6 +105,7 @@ from bc250cc.infrastructure.helixsr import (
     add_optiscaler_folder,
     build_helixsr_install_command,
     build_helixsr_network_command,
+    build_helixsr_releases_command,
     build_helixsr_remove_command,
     forget_helixsr_folder,
     helixsr_state,
@@ -114,6 +115,7 @@ from bc250cc.infrastructure.helixsr import (
     remove_helixsr_optiscaler,
     save_helixsr_settings,
     scan_helixsr_games,
+    select_helixsr_release,
     update_helixsr_game,
 )
 from bc250cc.infrastructure.memory_runtime import read_memory_runtime_state
@@ -538,7 +540,7 @@ class DependenciasRepository:
         return result
 
     def gestionar_helixsr(self, action: str) -> object:
-        """HelixSR: the pinned release, its network files, and games.
+        """HelixSR: the picked release, its network files, and games.
 
         The release and its network build run in the terminal, where the
         upstream setup asks before it downloads NVIDIA's DLSS DLL. Adding
@@ -561,6 +563,11 @@ class DependenciasRepository:
         action = verb.lower() + separator + game.strip()
         if action.startswith('forget_folder:'):
             result = forget_helixsr_folder(action.partition(':')[2])
+            self.estado_herramientas_cache = None
+            return result
+        if action.startswith('select:'):
+            # Only the pick is saved; Install/Update downloads it.
+            result = select_helixsr_release(action.partition(':')[2])
             self.estado_herramientas_cache = None
             return result
         if action == 'scan':
@@ -597,6 +604,8 @@ class DependenciasRepository:
             if not state.get('current'):
                 raise RuntimeError('Install HelixSR first.')
             command, title = build_helixsr_network_command(), 'HelixSR · network files'
+        elif action == 'releases':
+            command, title = build_helixsr_releases_command(), 'HelixSR · releases'
         elif action == 'uninstall':
             if state.get('installed_games'):
                 raise RuntimeError('Remove HelixSR from your games first, so each one gets its own FSR file back.')

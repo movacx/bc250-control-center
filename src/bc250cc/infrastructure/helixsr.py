@@ -7,13 +7,19 @@ Proton/vkd3d-proton run on the BC-250 (it was developed on one).
 
 Its licence shapes everything this module does:
 
-* the release is never bundled: the pinned official archive is downloaded on
-  the user's PC and checked against the SHA-256 recorded here, then installed
-  unmodified under the user's data folder;
-* the network files (``helixsr_weights.bin`` and ``helixsr_kernels.pak``)
-  hold NVIDIA's network and must never leave the PC. HelixSR's own setup
-  builds them locally from NVIDIA's DLSS DLL, after asking in the terminal;
-  this module only copies them next to a game's DLL on the same PC;
+* the release is never bundled: the official archive is downloaded on the
+  user's PC and checked against the SHA-256 recorded here, then installed
+  unmodified under the user's data folder. Every release since 1.2 is
+  reviewed and recorded; the newest stable one is installed unless the user
+  picks another. A newer release (a pre-release too) can be picked once
+  Check for new releases has read GitHub's list, and is checked against
+  the SHA-256 GitHub publishes for its archive;
+* the network NVIDIA's DLL holds must never leave the PC. HelixSR's own
+  setup builds it locally from NVIDIA's DLSS DLL (downloaded only after the
+  user agrees in the terminal) and appends it to HelixSR's DLL; this module
+  only copies that DLL next to a game's on the same PC. Releases before 1.7
+  kept the network as two separate files (``helixsr_weights.bin`` and
+  ``helixsr_kernels.pak``), which are still recognised and cleaned up;
 * the setup's optional ``sudo`` package install is never reached: with numpy
   missing, the setup is told to use its portable Python instead.
 
@@ -31,6 +37,7 @@ import os
 import platform
 import shlex
 import shutil
+import struct
 import sys
 import time
 from pathlib import Path
@@ -38,27 +45,83 @@ from pathlib import Path
 from .steam_launch_options import installed_steam_game_folders, steam_libraries
 
 HELIXSR_REPOSITORY = "https://github.com/lonewolf0622/HelixSR"
-HELIXSR_TAG = "v1.3.0"
-HELIXSR_VERSION = "1.3.0"
-HELIXSR_TOP = f"HelixSR-{HELIXSR_VERSION}"
-HELIXSR_ARCHIVE = f"{HELIXSR_TOP}.zip"
-HELIXSR_URL = f"{HELIXSR_REPOSITORY}/releases/download/{HELIXSR_TAG}/{HELIXSR_ARCHIVE}"
-#: SHA-256 of the official v1.3.0 release archive, reviewed for this release.
-HELIXSR_SHA256 = "fb2b570abf2f35b336f83127720ee6640bbbdd8173809f975cfe1aab0e5181eb"
-HELIXSR_SIZE = 2_337_353
-#: SHA-256 of ``amd_fidelityfx_dx12.dll`` inside that archive. A game file
-#: with this digest is HelixSR; anything else is the game's own.
-HELIXSR_DLL_SHA256 = "f1aa13ac8ade0cbccbb43ca8837520ddbcf6d496f1ca9dfe30c6fff9c7c8f3fb"
+
+#: Every release this module was reviewed against, by tag. ``sha256`` is the
+#: release archive's, ``dll_sha256`` the digest of ``amd_fidelityfx_dx12.dll``
+#: inside it, as downloaded: the setup later appends the network to that DLL,
+#: and a game file is HelixSR when it matches once that appended part is set
+#: aside. 1.2 to 1.4 keep the network in two files beside the DLL, 1.7 builds
+#: it the same way and 1.8 appends it to the DLL.
+HELIXSR_REVIEWED: dict[str, dict] = {
+    "v1.8.1": {
+        "archive": "HelixSR-1.8.1.zip",
+        "sha256": "abab32b16acf2536b39663763c355f3cfd35c4876c90297d6b5481bd9ad03a19",
+        "size": 55_766_339,
+        "dll_sha256": "78af8c74d2c2634a2af84b463ad0ac3678081d47f22e8ea2aff635a491a9190b",
+    },
+    "v1.8.0": {
+        "archive": "HelixSR-1.8.0.zip",
+        "sha256": "7041d4bee121cc33c24660902c9f09481ed15644fe2ff5a458071337e0cda848",
+        "size": 56_617_399,
+        "dll_sha256": "95e31d2ccf60d3016971c6697d677001598b5888e6ec9f0d033ed0d9daab9e18",
+    },
+    "v1.7.0": {
+        "archive": "HelixSR-1.7.0.zip",
+        "sha256": "5254b507d4915293389c66de8f243749d84d7a764b4983671f78b243eb372785",
+        "size": 56_601_341,
+        "dll_sha256": "542bc9bd44ed5c1458be692b412a02bcde4f0cb348f30053ad95d77bf4c3bfe8",
+    },
+    "v1.4.3": {
+        "archive": "HelixSR-1.4.3.zip",
+        "sha256": "d79e849444e0ea8928c0b8df22ec21368ac08ec038417c087a3d2df7a6722119",
+        "size": 2_342_525,
+        "dll_sha256": "3fe8d532516b6441bd8893d986c494a19795375ebd2a6dffb1a9742e3db7dcfd",
+    },
+    "v1.3.0": {
+        "archive": "HelixSR-1.3.0.zip",
+        "sha256": "fb2b570abf2f35b336f83127720ee6640bbbdd8173809f975cfe1aab0e5181eb",
+        "size": 2_337_353,
+        "dll_sha256": "f1aa13ac8ade0cbccbb43ca8837520ddbcf6d496f1ca9dfe30c6fff9c7c8f3fb",
+    },
+    "v1.2.0": {
+        "archive": "HelixSR-1.2.0.zip",
+        "sha256": "7c9aeac2e3dcd73f6e9b2dd8b04c41a828fd8e1a8fe30a2ac77787097ddbeb0e",
+        "size": 2_315_352,
+        "dll_sha256": "745477ee77c5cccd2de4bd251fc950d33895387f411815e889625fbbdc12a7e4",
+    },
+}
+#: The release installed unless the user picks another: the newest stable
+#: one reviewed here.
+HELIXSR_TAG = "v1.8.1"
+HELIXSR_VERSION = HELIXSR_TAG.removeprefix("v")
+HELIXSR_SHA256 = HELIXSR_REVIEWED[HELIXSR_TAG]["sha256"]
+HELIXSR_DLL_SHA256 = HELIXSR_REVIEWED[HELIXSR_TAG]["dll_sha256"]
+#: 1.2.0 is the first release whose download holds no NVIDIA content (its
+#: setup builds the network on the user's PC): nothing older is offered.
+HELIXSR_OLDEST = (1, 2, 0)
 #: Every reviewed HelixSR DLL. A game keeps the copy it was given when the
-#: release here is updated; it is still HelixSR and still removable.
+#: release here changes; it is still HelixSR and still removable. 1.9.0 was
+#: published as a pre-release and withdrawn; games given it are still known.
 HELIXSR_DLL_DIGESTS = frozenset({
-    HELIXSR_DLL_SHA256,
-    "745477ee77c5cccd2de4bd251fc950d33895387f411815e889625fbbdc12a7e4",  # v1.2.0
+    *(release["dll_sha256"] for release in HELIXSR_REVIEWED.values()),
+    "d9fc3ad6b3e3a47cf7ecbe8e8e7ad11c6c320ae295e8feed79303aabd0bed993",  # v1.9.0
 })
+HELIXSR_RELEASES_API = "https://api.github.com/repos/lonewolf0622/HelixSR/releases?per_page=50"
+#: GitHub's answer for 50 releases with their notes is well under this.
+_RELEASES_LIMIT = 4 * 1024 * 1024
 HELIXSR_DLL = "amd_fidelityfx_dx12.dll"
 HELIXSR_SETUP = "helixsr-setup.sh"
 HELIXSR_MARKER = ".bc250-archive-sha256"
+HELIXSR_DLL_MARKER = ".bc250-dll-sha256"
+#: The network as two files beside the DLL: how releases before 1.7 kept it.
 HELIXSR_NETWORK_FILES = ("helixsr_weights.bin", "helixsr_kernels.pak")
+#: The setup appends the network to HelixSR's DLL and ends it with this
+#: footer: magic, then three little-endian u64 (weights size, kernels size,
+#: format), as its helixsr_setup.py ``embed`` writes it.
+HELIXSR_EMBED_MAGIC = b"HXSRNET1"
+_EMBED_FOOTER = 32
+#: Where 1.7 and newer leave the built DLL's helixsr.ini, with its comments.
+HELIXSR_DROP_IN = "fsr3-drop-in"
 HELIXSR_LOG = "helixsr.log"
 DLSS_LICENSE = "https://github.com/NVIDIA/DLSS/blob/v310.7.0/LICENSE.txt"
 #: NVIDIA's nvngx_dlss.dll 310.7.0, the one HelixSR's setup builds from
@@ -66,6 +129,8 @@ DLSS_LICENSE = "https://github.com/NVIDIA/DLSS/blob/v310.7.0/LICENSE.txt"
 DLSS_DLL_SHA256 = "be6e434a94ca32499515eb62ca0e6c274526055d568d0426e4c652dcdfb6ee6e"
 DLSS_DLL_SIZE = 58_977_904
 DLSS_DLL = "nvngx_dlss.dll"
+#: Where HelixSR's setup itself downloads it from (DLSS_URL in helixsr_setup.py).
+DLSS_DLL_URL = "https://raw.githubusercontent.com/NVIDIA/DLSS/v310.7.0/lib/Windows_x86_64/rel/nvngx_dlss.dll"
 
 #: The FSR 3.1 DLLs HelixSR stands in for. In a folder that has both, the
 #: upscaler DLL is the one replaced.
@@ -88,8 +153,140 @@ def helixsr_root() -> Path:
     return _data_home() / "bc250-control-center" / "helixsr"
 
 
+def _version(tag: str) -> tuple[int, ...] | None:
+    """``v1.8.1`` -> (1, 8, 1); None for a tag that is not a plain version."""
+    parts = str(tag).removeprefix("v").split(".")
+    if not 2 <= len(parts) <= 4 or not all(part.isdigit() and len(part) <= 4 for part in parts):
+        return None
+    return tuple(int(part) for part in parts)
+
+
+def _older(given: str, version: str) -> bool:
+    """A game given ``given`` has an older release than ``version``; a
+    version that cannot be read (a record from before versions) is older."""
+    return (_version(given) or ()) < (_version(version) or ())
+
+
+def _releases_path() -> Path:
+    """GitHub's release list as Check for new releases saved it."""
+    return helixsr_root() / "releases.json"
+
+
+def _selection_path() -> Path:
+    return helixsr_root() / "selection.json"
+
+
+def _published_release(entry: dict) -> dict | None:
+    """One release from GitHub's list, if it can be installed here.
+
+    It needs a plain version tag no older than HELIXSR_OLDEST and exactly one
+    ``HelixSR-*.zip`` asset whose SHA-256 GitHub published. That digest is
+    what the terminal checks the download against.
+    """
+    if not isinstance(entry, dict) or entry.get("draft"):
+        return None
+    tag = str(entry.get("tag_name") or "")
+    version = _version(tag)
+    if version is None or version < HELIXSR_OLDEST or not tag.startswith("v"):
+        return None
+    archives = [
+        asset for asset in entry.get("assets") or ()
+        if isinstance(asset, dict) and str(asset.get("name") or "").startswith("HelixSR-")
+        and str(asset.get("name") or "").endswith(".zip")
+    ]
+    if len(archives) != 1:
+        return None
+    asset = archives[0]
+    name = str(asset["name"])
+    digest = str(asset.get("digest") or "").removeprefix("sha256:").lower()
+    size = asset.get("size")
+    if (len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest)
+            or not isinstance(size, int) or size <= 0
+            or not all(c.isalnum() or c in "._-" for c in name)):
+        return None
+    return {"tag": tag, "archive": name, "sha256": digest, "size": size,
+            "prerelease": bool(entry.get("prerelease"))}
+
+
+def helixsr_releases() -> list[dict]:
+    """The releases on offer, newest first.
+
+    The reviewed ones always; the ones Check for new releases found on
+    GitHub on top. A release reviewed here keeps its reviewed digests: if
+    GitHub now lists another archive under its tag, the download is refused.
+    A release GitHub no longer lists (withdrawn) is not offered.
+    """
+    releases = {tag: {"tag": tag, **entry, "prerelease": False, "reviewed": True}
+                for tag, entry in HELIXSR_REVIEWED.items()}
+    listed = _read_json(_releases_path(), {}).get("releases")
+    if isinstance(listed, list):
+        found = {}
+        for entry in listed[:200]:
+            release = _published_release(entry)
+            if release is not None:
+                found.setdefault(release["tag"], release)
+        for tag, release in found.items():
+            if tag in releases:
+                releases[tag]["prerelease"] = release["prerelease"]
+            else:
+                releases[tag] = {**release, "dll_sha256": "", "reviewed": False}
+        # GitHub's list is the truth about what can still be downloaded.
+        releases = {tag: release for tag, release in releases.items() if tag in found}
+    rows = [
+        {**release, "version": tag.removeprefix("v"), "default": tag == HELIXSR_TAG}
+        for tag, release in releases.items()
+    ]
+    return sorted(rows, key=lambda release: _version(release["tag"]), reverse=True)
+
+
+def helixsr_release(tag: str | None = None) -> dict:
+    """The release with ``tag``, by default the one the user picked.
+
+    A pick that is no longer on offer falls back to the default release.
+    """
+    wanted = tag if tag is not None else _read_json(_selection_path(), {}).get("tag")
+    releases = {release["tag"]: release for release in helixsr_releases()}
+    if wanted in releases:
+        return releases[wanted]
+    if HELIXSR_TAG in releases:
+        return releases[HELIXSR_TAG]
+    return {"tag": HELIXSR_TAG, "version": HELIXSR_VERSION, **HELIXSR_REVIEWED[HELIXSR_TAG],
+            "prerelease": False, "reviewed": True, "default": True}
+
+
+def select_helixsr_release(tag: str) -> dict:
+    """Pick the release Install/Update brings in. Nothing is downloaded here."""
+    tag = str(tag or "").strip()
+    if tag not in {release["tag"] for release in helixsr_releases()}:
+        raise ValueError("This HelixSR release is not on offer.")
+    _write_json(_selection_path(), {"tag": tag})
+    return {"tag": tag, "version": tag.removeprefix("v")}
+
+
+def helixsr_url(release: dict) -> str:
+    return f"{HELIXSR_REPOSITORY}/releases/download/{release['tag']}/{release['archive']}"
+
+
 def helixsr_directory() -> Path:
-    return helixsr_root() / HELIXSR_VERSION
+    return helixsr_root() / helixsr_release()["version"]
+
+
+def _digests_path() -> Path:
+    """The digest of every HelixSR DLL installed here, as downloaded."""
+    return helixsr_root() / "dll-digests.txt"
+
+
+def _known_digests() -> frozenset[str]:
+    """Reviewed DLLs, plus the ones of releases installed from GitHub's list."""
+    try:
+        lines = _digests_path().read_text(encoding="ascii").split()
+    except (OSError, ValueError):
+        lines = []
+    recorded = {
+        line.lower() for line in lines[:1000]
+        if len(line) == 64 and all(c in "0123456789abcdef" for c in line.lower())
+    }
+    return HELIXSR_DLL_DIGESTS | recorded
 
 
 def helixsr_cache() -> Path:
@@ -118,10 +315,55 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _is_helixsr(path: Path, digests: frozenset[str] | None = None) -> bool:
-    known = HELIXSR_DLL_DIGESTS if digests is None else digests
+def _embedded_size(handle, size: int) -> int:
+    """Bytes the setup appended to a HelixSR DLL (its network), 0 for none."""
+    if size < _EMBED_FOOTER:
+        return 0
+    handle.seek(size - _EMBED_FOOTER)
+    footer = handle.read(_EMBED_FOOTER)
+    if footer[:len(HELIXSR_EMBED_MAGIC)] != HELIXSR_EMBED_MAGIC:
+        return 0
+    weights, kernels, _format = struct.unpack("<QQQ", footer[len(HELIXSR_EMBED_MAGIC):])
+    appended = _EMBED_FOOTER + weights + kernels
+    # A footer that claims more than the file holds is not the setup's.
+    return appended if appended <= size else 0
+
+
+def _dll_digest(path: Path) -> str:
+    """SHA-256 of a DLL as released: the network the setup appended is left out."""
+    digest = hashlib.sha256()
+    with open(path, "rb") as handle:
+        size = os.fstat(handle.fileno()).st_size
+        remaining = size - _embedded_size(handle, size)
+        handle.seek(0)
+        while remaining > 0:
+            block = handle.read(min(1 << 20, remaining))
+            if not block:
+                break
+            digest.update(block)
+            remaining -= len(block)
+    return digest.hexdigest()
+
+
+def _has_embedded_network(path: Path) -> bool:
     try:
-        return path.is_file() and not path.is_symlink() and _sha256(path) in known
+        with open(path, "rb") as handle:
+            return _embedded_size(handle, os.fstat(handle.fileno()).st_size) > 0
+    except OSError:
+        return False
+
+
+def _carries_network(dll: Path) -> bool:
+    """HelixSR's DLL has its network: appended to it, or as the two older files."""
+    return _has_embedded_network(dll) or all(
+        _nonempty(dll.parent / name) for name in HELIXSR_NETWORK_FILES
+    )
+
+
+def _is_helixsr(path: Path, digests: frozenset[str] | None = None) -> bool:
+    known = _known_digests() if digests is None else digests
+    try:
+        return path.is_file() and not path.is_symlink() and _dll_digest(path) in known
     except OSError:
         return False
 
@@ -210,10 +452,16 @@ def _record_state(record: dict) -> str:
     return "restored"
 
 
-def _network_missing(folders: list[Path]) -> bool:
-    """HelixSR is in place but a network file beside it is not: it would
-    only do its simple upscale. Update HelixSR copies them back."""
-    return any(not _nonempty(folder / name) for folder in folders for name in HELIXSR_NETWORK_FILES)
+def _network_missing(dlls: list[Path]) -> bool:
+    """HelixSR is in place but without its network (not appended to the DLL,
+    no network files beside it): it would only do its simple upscale.
+    Update HelixSR gives it the built DLL again."""
+    return any(not _carries_network(dll) for dll in dlls)
+
+
+def _network_files(source: Path) -> tuple[str, ...]:
+    """The network files to copy beside HelixSR: none once its DLL carries it."""
+    return () if _has_embedded_network(source / HELIXSR_DLL) else HELIXSR_NETWORK_FILES
 
 
 # ---------------------------------------------------------------- scanning
@@ -408,6 +656,7 @@ def helixsr_games(*, optiscaler: bool = True) -> list[dict]:
     ones already routed to HelixSR are listed either way.
     """
     records = _records()
+    version = helixsr_release()["version"]
     rows: list[dict] = []
     for appid, record in records.items():
         rows.append({
@@ -416,13 +665,14 @@ def helixsr_games(*, optiscaler: bool = True) -> list[dict]:
             "name": str(record.get("name") or appid),
             "state": _record_state(record),
             "network_missing": _record_state(record) == "installed" and _network_missing(
-                [Path(str(entry.get("path") or "")).parent for entry in record["files"]]
+                [Path(str(entry.get("path") or "")) for entry in record["files"]]
             ),
             "files": [str(entry.get("path") or "") for entry in record["files"]],
             "path": _record_folder(record),
             "version": str(record.get("version") or ""),
-            # Given an earlier release; update_helixsr_game brings it here.
-            "outdated": str(record.get("version") or "") != HELIXSR_VERSION,
+            # Given another release; update_helixsr_game brings it here.
+            "outdated": str(record.get("version") or "") != version,
+            "older": _older(str(record.get("version") or ""), version),
         })
     scan = _read_json(_scan_path(), {})
     for game in scan.get("games") or ():
@@ -640,6 +890,7 @@ def _optiscaler_state(record: dict) -> str:
 def optiscaler_rows(*, available: bool = True) -> list[dict]:
     """Games with OptiScaler: HelixSR routed through it, or ready to be."""
     records = _optiscaler_records()
+    version = helixsr_release()["version"]
     rows = [
         {
             "appid": appid,
@@ -647,7 +898,7 @@ def optiscaler_rows(*, available: bool = True) -> list[dict]:
             "name": str(record.get("name") or appid),
             "state": _optiscaler_state(record),
             "network_missing": _optiscaler_state(record) == "installed" and _network_missing(
-                [Path(str(record.get("root") or "")) / OPTISCALER_FOLDER]
+                [Path(str(record.get("root") or "")) / OPTISCALER_FOLDER / UPSCALER_DLL]
             ),
             "files": [str(Path(str(record.get("root") or "")) / OPTISCALER_INI)],
             "path": str(record.get("root") or ""),
@@ -655,7 +906,8 @@ def optiscaler_rows(*, available: bool = True) -> list[dict]:
             # A folder added by hand stays marked as one while HelixSR is in it.
             "folder": str(record.get("root") or "") if appid.startswith(OPTI_FOLDER_PREFIX) else "",
             "version": str(record.get("version") or ""),
-            "outdated": str(record.get("version") or "") != HELIXSR_VERSION,
+            "outdated": str(record.get("version") or "") != version,
+            "older": _older(str(record.get("version") or ""), version),
         }
         for appid, record in records.items()
     ]
@@ -806,9 +1058,9 @@ def install_helixsr_optiscaler(appid: str) -> dict:
         folder.mkdir()
         for name in (LOADER_DLL, UPSCALER_DLL):
             shutil.copyfile(source / HELIXSR_DLL, folder / name)
-        for name in HELIXSR_NETWORK_FILES:
+        for name in _network_files(source):
             shutil.copyfile(source / name, folder / name)
-        settings = (source / "helixsr.ini").read_text(encoding="utf-8")
+        settings = _release_ini()
         if fsr4 is not None:
             shutil.copyfile(fsr4, folder / SECOND_UPSCALER)
             settings = _ini_set(settings, "Forwarding", "UpscalerDll", SECOND_UPSCALER)
@@ -826,7 +1078,7 @@ def install_helixsr_optiscaler(appid: str) -> dict:
             "backup": str(backup),
             "written_sha256": hashlib.sha256(written).hexdigest(),
             "fsr4": fsr4 is not None,
-            "version": HELIXSR_VERSION,
+            "version": helixsr_release()["version"],
         }
         _write_json(_optiscaler_path() / "games.json", records)
     except Exception:
@@ -902,26 +1154,29 @@ def _refuse_running(folder: Path, proc: Path = Path("/proc")) -> None:
 
 
 def helixsr_state(*, machine: str | None = None) -> dict:
-    """Read-only: the release, its network files and every game's state."""
+    """Read-only: the release, its network and every game's state."""
+    release = helixsr_release()
     directory = helixsr_directory()
     try:
         marker = (directory / HELIXSR_MARKER).read_text(encoding="ascii").strip()
     except OSError:
         marker = ""
     installed = directory.exists()
+    # A release from GitHub's list has no reviewed DLL digest: the terminal
+    # recorded the one it unpacked, from the archive it checked.
+    expected = release["dll_sha256"] or _recorded_digest(directory)
     current = bool(
-        marker == HELIXSR_SHA256
+        marker == release["sha256"]
+        and expected
         and (directory / HELIXSR_SETUP).is_file()
-        and _is_helixsr(directory / HELIXSR_DLL, frozenset({HELIXSR_DLL_SHA256}))
+        and _is_helixsr(directory / HELIXSR_DLL, frozenset({expected}))
     )
-    network_ready = current and all(
-        _nonempty(directory / name) for name in HELIXSR_NETWORK_FILES
-    )
+    network_ready = current and _carries_network(directory / HELIXSR_DLL)
     try:
         others = sorted(
             entry.name for entry in helixsr_root().iterdir()
             if entry.is_dir() and not entry.name.startswith(".")
-            and entry.name != HELIXSR_VERSION
+            and entry.name != release["version"]
         )
     except OSError:
         others = []
@@ -933,7 +1188,12 @@ def helixsr_state(*, machine: str | None = None) -> dict:
     elif installed:
         state = "invalid"
     elif others:
-        state = "update-available"
+        # Another release is installed: an update when the picked one is
+        # newer than all of them, otherwise an older one or a pre-release
+        # picked on purpose.
+        picked = _version(release["tag"]) or ()
+        newer = all(picked > (_version(other) or ()) for other in others)
+        state = "update-available" if newer else "other-version"
     else:
         state = "not-installed"
     if network_ready:
@@ -946,7 +1206,16 @@ def helixsr_state(*, machine: str | None = None) -> dict:
     games = helixsr_games(optiscaler=network_ready)
     return {
         "provider": "helixsr",
-        "version": HELIXSR_VERSION,
+        "version": release["version"],
+        "tag": release["tag"],
+        "prerelease": release["prerelease"],
+        "reviewed": release["reviewed"],
+        # Every release on offer, newest first, for the version picker.
+        "releases": [
+            {key: entry[key] for key in ("tag", "version", "prerelease", "reviewed", "default")}
+            for entry in helixsr_releases()
+        ],
+        "releases_checked": bool(_read_json(_releases_path(), {}).get("releases")),
         "repository": HELIXSR_REPOSITORY,
         "supported": supported,
         "installer_available": supported,
@@ -963,6 +1232,14 @@ def helixsr_state(*, machine: str | None = None) -> dict:
         "settings": helixsr_settings(),
         "settings_defaults": helixsr_defaults(),
     }
+
+
+def _recorded_digest(directory: Path) -> str:
+    try:
+        digest = (directory / HELIXSR_DLL_MARKER).read_text(encoding="ascii").strip().lower()
+    except (OSError, ValueError):
+        return ""
+    return digest if len(digest) == 64 and all(c in "0123456789abcdef" for c in digest) else ""
 
 
 def _nonempty(path: Path) -> bool:
@@ -983,8 +1260,11 @@ HELIXSR_INI = "helixsr.ini"
 
 #: (section, key, kind, default, choices): ``kind`` is choice, bool or float.
 HELIXSR_SETTINGS: tuple[tuple[str, str, str, object, tuple], ...] = (
-    ("Sharpening", "Mode", "choice", "off", ("off", "game", "override")),
+    # 1.7 replaced Mode (off/game/override, always AMD's RCAS) with a choice of
+    # filter and a switch for the game's slider; see _migrated_settings.
+    ("Sharpening", "Sharpener", "choice", "off", ("off", "nvidia", "rcas")),
     ("Sharpening", "Sharpness", "float", 0.3, (0.0, 1.0)),
+    ("Sharpening", "UseGameSlider", "bool", False, ()),
     ("Sharpening", "MotionAdaptive", "bool", True, ()),
     # Motion in output pixels per frame where the reduction starts and where
     # it is complete, and how much sharpening it takes away there.
@@ -992,6 +1272,8 @@ HELIXSR_SETTINGS: tuple[tuple[str, str, str, object, tuple], ...] = (
     ("Sharpening", "MotionLimit", "float", 16.0, (0.0, 64.0)),
     ("Sharpening", "MotionReduction", "float", 0.6, (0.0, 1.0)),
     ("Upscaling", "NetworkResolution", "choice", "auto", ("auto", "fast", "full")),
+    # 1.9.0 and newer; earlier releases ignore the key.
+    ("Upscaling", "Int8", "choice", "auto", ("auto", "on", "off")),
     ("ModelE", "Network", "choice", "auto", ("auto", "nvidia", "main", "ultraperformance")),
     ("ModelE", "UseReactiveMask", "bool", False, ()),
     ("ModelE", "DilateDisplayMotionVectors", "bool", False, ()),
@@ -1001,6 +1283,28 @@ HELIXSR_SETTINGS: tuple[tuple[str, str, str, object, tuple], ...] = (
     ("Compatibility", "WaveSize", "choice", "auto", ("auto", "32", "64")),
     ("Log", "Enabled", "bool", True, ()),
 )
+
+
+def _migrated_settings(saved: dict) -> dict:
+    """Settings saved for 1.3, in the keys and values 1.7 and newer read.
+
+    Mode used AMD's RCAS: "override" is RCAS at the saved strength, "game"
+    the same following the game's slider.
+    """
+    saved = dict(saved)
+    mode = str(saved.pop("Sharpening.Mode", "") or "").strip().lower()
+    if mode and "Sharpening.Sharpener" not in saved:
+        saved["Sharpening.Sharpener"] = "off" if mode == "off" else "rcas"
+        if mode == "game":
+            saved.setdefault("Sharpening.UseGameSlider", True)
+    return saved
+
+
+def _legacy_mode(values: dict[str, object]) -> str:
+    """Sharpener and UseGameSlider as Mode, the key releases before 1.7 read."""
+    if values["Sharpening.Sharpener"] == "off":
+        return "off"
+    return "game" if values["Sharpening.UseGameSlider"] else "override"
 
 
 def _settings_path() -> Path:
@@ -1040,6 +1344,7 @@ def helixsr_settings() -> dict[str, object]:
     values = helixsr_defaults()
     if not isinstance(saved, dict):
         return values
+    saved = _migrated_settings(saved)
     for section, key, kind, _default, choices in HELIXSR_SETTINGS:
         name = _setting_id(section, key)
         if name in saved:
@@ -1059,19 +1364,28 @@ def _format_setting(value: object) -> str:
 
 
 def _settings_text(base: str, values: dict[str, object]) -> str:
-    """``base`` (a helixsr.ini) with every known key set; the rest stays."""
+    """``base`` (a helixsr.ini) with every known key set; the rest stays.
+
+    Mode is written too, so a game still on a release before 1.7 sharpens as
+    the settings say; newer releases ignore it.
+    """
     text = base
     for section, key, _kind, _default, _choices in HELIXSR_SETTINGS:
         text = _ini_set(text, section, key, _format_setting(values[_setting_id(section, key)]),
                         separator=" = ")
-    return text
+    return _ini_set(text, "Sharpening", "Mode", _legacy_mode(values), separator=" = ")
 
 
 def _release_ini() -> str:
-    try:
-        return (helixsr_directory() / HELIXSR_INI).read_text(encoding="utf-8")
-    except OSError:
-        return "; helixsr.ini - optional, next to the upscaler DLL. Every key has a default.\n"
+    """The release's commented helixsr.ini: 1.7 and newer write it beside the
+    built DLL in fsr3-drop-in; 1.3 shipped it at the top of the release."""
+    directory = helixsr_directory()
+    for path in (directory / HELIXSR_DROP_IN / HELIXSR_INI, directory / HELIXSR_INI):
+        try:
+            return path.read_text(encoding="utf-8")
+        except OSError:
+            continue
+    return "; helixsr.ini - optional, next to the upscaler DLL. Every key has a default.\n"
 
 
 def _write_settings(folder: Path, values: dict[str, object]) -> bool:
@@ -1180,17 +1494,13 @@ def local_dlss_candidates() -> list[Path]:
     return [path for path in candidates if path.is_file() and not path.is_symlink()]
 
 
-#: Shaders the 1.3.0 setup compiles in its step 5/5: each kernel for wave32
-#: and wave64 ("helixsr_kernels.pak (60 shaders)" in its own output).
-HELIXSR_SHADER_COUNT = 60
-
-
 def _shader_progress(work: str) -> str:
-    """A line each time step 5/5 compiles more shaders.
+    """A line each time the setup compiles more shaders.
 
-    Upstream compiles them one after another through Wine, with no output for
-    about ten minutes on a BC-250; its temporary folder (TMPDIR, ours) holds a
-    .cso per finished shader, so counting them shows the build is moving.
+    Upstream compiles them through Wine, for several minutes on a BC-250; its
+    temporary folder (TMPDIR, ours) holds a .cso per finished shader, so
+    counting them shows the build is moving. How many there are depends on
+    the release and the GPU (wave32 only, or wave64 as well), so no total.
     """
     return f'''( bc250_last=0; bc250_first=0
   # The sleep keeps no hold on the terminal: killed with the loop, it would
@@ -1201,7 +1511,7 @@ def _shader_progress(work: str) -> str:
     if [ "$bc250_done" -gt "$bc250_last" ]; then
       [ "$bc250_first" -gt 0 ] || bc250_first=$SECONDS
       bc250_elapsed=$((SECONDS - bc250_first))
-      printf '[bc250] shaders compiled: %s of {HELIXSR_SHADER_COUNT} (%d min %02d s)\\n' "$bc250_done" $((bc250_elapsed / 60)) $((bc250_elapsed % 60))
+      printf '[bc250] shaders compiled: %s (%d min %02d s)\\n' "$bc250_done" $((bc250_elapsed / 60)) $((bc250_elapsed % 60))
       bc250_last=$bc250_done
     fi
   done ) &
@@ -1209,19 +1519,24 @@ bc250_progress=$!'''
 
 
 def _setup_block(target: str) -> str:
-    """Run upstream's setup without ever reaching its ``sudo`` branch.
+    """Build the network with upstream's setup, and nothing else.
 
     With system numpy present the setup uses it. Without it the setup would
     offer ``sudo <package manager>``; HELIXSR_FORCE_PORTABLE makes it use its
     portable Python in ~/.local/share/HelixSR instead, as it does on SteamOS.
-    ``--yes`` is never passed: the setup asks in this terminal before it
-    downloads NVIDIA's DLSS DLL.
 
-    A copy of that DLL already on this PC (OptiScaler Client's) is copied to a
-    private folder, checked by SHA-256 there and handed over with ``--dlss``;
-    the setup then downloads nothing from NVIDIA.
+    NVIDIA's DLSS DLL is always handed over with ``--dlss``: a copy already
+    on this PC (OptiScaler Client's, or a game's) when its SHA-256 matches,
+    otherwise the one this terminal downloads from NVIDIA's GitHub after the
+    user says yes, checked the same way. ``--yes`` is never passed.
+
+    Since 1.7 the setup goes on to its own list of games once the network is
+    built. Control Center adds HelixSR to games itself and records every
+    change, so the setup runs with no input: its list stops at the first
+    question (end of input) and changes no game.
     """
     candidates = " ".join(shlex.quote(str(path)) for path in local_dlss_candidates())
+    version = helixsr_release()["version"]
     return f'''bc250_portable=1
 if command -v python3 >/dev/null 2>&1 && python3 -c 'import numpy, sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)' >/dev/null 2>&1; then
   bc250_portable=0
@@ -1240,16 +1555,29 @@ for bc250_candidate in {candidates}; do
   echo "Skipping $bc250_candidate: it is not NVIDIA's DLSS 310.7.0 DLL."
   rm -f -- "$bc250_dlss_dir/nvngx_dlss.dll"
 done
-echo
-echo "Building HelixSR's network files on this PC."
 if test "${{#bc250_dlss_args[@]}}" -eq 0; then
-  echo "The setup asks before it downloads NVIDIA's DLSS 310.7.0 DLL (license: {DLSS_LICENSE})."
-else
-  echo "Nothing is downloaded from NVIDIA. The DLL stays under NVIDIA's license: {DLSS_LICENSE}"
+  echo
+  echo "HelixSR builds its network from NVIDIA's DLSS 310.7.0 DLL ({DLSS_DLL_SIZE / 1_000_000:.0f} MB), from NVIDIA's own GitHub."
+  echo "License: {DLSS_LICENSE}"
+  bc250_answer=""
+  printf 'Download it now? [y/N] '
+  read -r bc250_answer || bc250_answer=""
+  case "$bc250_answer" in
+    y|Y|yes|YES) ;;
+    *)
+      rm -rf -- "$bc250_dlss_dir"
+      echo "Nothing was downloaded. HelixSR is installed; use Build network files when you want the network."
+      exit 1 ;;
+  esac
+  bc250_fetch "$bc250_dlss_dir/nvngx_dlss.dll" {shlex.quote(DLSS_DLL_URL)}
+  printf '%s  %s\\n' {DLSS_DLL_SHA256} "$bc250_dlss_dir/nvngx_dlss.dll" | sha256sum -c - || {{
+    rm -rf -- "$bc250_dlss_dir"; echo "ERROR: the download is not NVIDIA's DLSS 310.7.0 DLL."; exit 29; }}
+  bc250_dlss_args=(--dlss "$bc250_dlss_dir/nvngx_dlss.dll")
 fi
-echo "The files it builds hold NVIDIA's network: they are for this PC only, never share or upload them."
-echo "Step 5/5 compiles {HELIXSR_SHADER_COUNT} shaders through Wine, one after another: about 10 minutes on a"
-echo "BC-250, during which the setup itself prints nothing. The count below shows it is moving."
+echo
+echo "Building HelixSR's network on this PC. The DLL stays under NVIDIA's license: {DLSS_LICENSE}"
+echo "The network ends up inside HelixSR's DLL: it is for this PC only, never share or upload it."
+echo "The shaders compile through Wine, for several minutes on a BC-250. The count below shows it is moving."
 echo
 # Upstream looks for Proton only in native Steam's folders, then for wine on
 # PATH: the one found above (Flatpak or Snap Steam, another library) is that.
@@ -1257,70 +1585,97 @@ bc250_shim="$(mktemp -d "${{TMPDIR:-/tmp}}/bc250-helixsr-wine.XXXXXX")"
 ln -s -- "$bc250_wine" "$bc250_shim/wine"
 bc250_work="$(mktemp -d "${{TMPDIR:-/tmp}}/bc250-helixsr-build.XXXXXX")"
 {_shader_progress('"$bc250_work"')}
-if ! TMPDIR="$bc250_work" PATH="$bc250_shim:$PATH" HELIXSR_FORCE_PORTABLE="$bc250_portable" bash {target}/{HELIXSR_SETUP} {target} "${{bc250_dlss_args[@]}}"; then
+if ! TMPDIR="$bc250_work" PATH="$bc250_shim:$PATH" HELIXSR_FORCE_PORTABLE="$bc250_portable" bash {target}/{HELIXSR_SETUP} "${{bc250_dlss_args[@]}}" </dev/null; then
   kill "$bc250_progress" 2>/dev/null || true
   rm -rf -- "$bc250_dlss_dir" "$bc250_shim" "$bc250_work"
   echo
-  echo "The network files were not built. HelixSR is installed; use Build network files to try again."
+  echo "The network was not built. HelixSR is installed; use Build network files to try again."
   exit 1
 fi
 kill "$bc250_progress" 2>/dev/null || true
 rm -rf -- "$bc250_dlss_dir" "$bc250_shim" "$bc250_work"
-for bc250_file in {" ".join(HELIXSR_NETWORK_FILES)}; do
-  test -s {target}/"$bc250_file" || {{ echo "ERROR: $bc250_file was not created."; exit 1; }}
-done
 echo
-echo "OK: HelixSR {HELIXSR_VERSION} is ready. Add it to a game from Additional settings > Upscaling."'''
+echo "(The setup's own list of games above stops by design: Control Center adds HelixSR to games itself.)"
+# 1.8 and newer append the network to the DLL; older releases write two files.
+test "$(tail -c {_EMBED_FOOTER} {target}/{HELIXSR_DLL} | head -c {len(HELIXSR_EMBED_MAGIC)})" = {HELIXSR_EMBED_MAGIC.decode()} \\
+  || {{ test -s {target}/{HELIXSR_NETWORK_FILES[0]} && test -s {target}/{HELIXSR_NETWORK_FILES[1]}; }} || {{
+  echo "ERROR: the setup finished without building the network."; exit 1; }}
+echo
+echo "OK: HelixSR {version} is ready. Add it to a game from Additional settings > Upscaling."'''
+
+
+def _fetch_check() -> str:
+    """``bc250_fetch FILE URL`` with curl or wget, and the tools both need."""
+    return '''for bc250_command in sha256sum mktemp; do
+  command -v "$bc250_command" >/dev/null 2>&1 || { echo "ERROR: $bc250_command is required."; exit 69; }
+done
+if command -v curl >/dev/null 2>&1; then
+  bc250_fetch() { curl -fL --retry 3 --connect-timeout 20 --progress-bar -o "$1" "$2"; }
+elif command -v wget >/dev/null 2>&1; then
+  bc250_fetch() { wget -q --show-progress -O "$1" "$2"; }
+else
+  echo "ERROR: curl or wget is required to download HelixSR."; exit 69
+fi'''
 
 
 def build_helixsr_install_command() -> str:
-    """Download, verify and unpack the pinned release, then build the network."""
+    """Download, verify and unpack the picked release, then build the network."""
+    release = helixsr_release()
     root = shlex.quote(str(helixsr_root()))
     target = shlex.quote(str(helixsr_directory()))
     python = shlex.quote(sys.executable or "python3")
+    label = " (pre-release)" if release["prerelease"] else ""
+    if release["reviewed"]:
+        check = f'''printf '%s  %s\\n' {release['dll_sha256']} "$bc250_stage/{HELIXSR_DLL}" | sha256sum -c - >/dev/null || {{
+  echo "ERROR: the HelixSR DLL in the archive is not the reviewed one."; exit 29; }}'''
+        source = "Checking the reviewed SHA-256..."
+    else:
+        # Not reviewed here: the archive is the one GitHub lists for the
+        # release. The DLL's digest is kept so games given it stay known.
+        check = f'''test -f "$bc250_stage/{HELIXSR_DLL}" || {{ echo "ERROR: the archive has no {HELIXSR_DLL}."; exit 29; }}
+echo "This release is newer than the ones Control Center was reviewed with."'''
+        source = "Checking the SHA-256 GitHub published for this release..."
     return f'''set -Eeuo pipefail
-echo "== HelixSR {HELIXSR_VERSION} · DLSS Model E for FSR 3.1 games =="
-echo "Source: {HELIXSR_REPOSITORY} ({HELIXSR_TAG})"
+echo "== HelixSR {release['version']}{label} · DLSS Model E for FSR 3.1 games =="
+echo "Source: {HELIXSR_REPOSITORY} ({release['tag']})"
 echo "HelixSR is an independent project, not affiliated with NVIDIA or AMD."
 test "$(uname -m)" = x86_64 || {{ echo "ERROR: HelixSR's setup runs on x86_64 Linux only."; exit 64; }}
-for bc250_command in sha256sum mktemp; do
-  command -v "$bc250_command" >/dev/null 2>&1 || {{ echo "ERROR: $bc250_command is required."; exit 69; }}
-done
+{_fetch_check()}
 bc250_python="$(command -v python3 || echo {python})"
-if command -v curl >/dev/null 2>&1; then
-  bc250_fetch() {{ curl -fL --retry 3 --connect-timeout 20 --progress-bar -o "$1" "$2"; }}
-elif command -v wget >/dev/null 2>&1; then
-  bc250_fetch() {{ wget -q --show-progress -O "$1" "$2"; }}
-else
-  echo "ERROR: curl or wget is required to download HelixSR."; exit 69
-fi
 {_wine_check()}
 bc250_work="$(mktemp -d "${{TMPDIR:-/tmp}}/bc250-helixsr.XXXXXX")"
 trap 'rm -rf -- "$bc250_work"' EXIT
-bc250_archive="$bc250_work/{HELIXSR_ARCHIVE}"
-echo "Downloading {HELIXSR_ARCHIVE} ({HELIXSR_SIZE / 1_000_000:.1f} MB)..."
-bc250_fetch "$bc250_archive" {shlex.quote(HELIXSR_URL)}
-echo "Checking the reviewed SHA-256..."
-printf '%s  %s\\n' {HELIXSR_SHA256} "$bc250_archive" | sha256sum -c -
+bc250_archive="$bc250_work/{release['archive']}"
+echo "Downloading {release['archive']} ({release['size'] / 1_000_000:.1f} MB)..."
+bc250_fetch "$bc250_archive" {shlex.quote(helixsr_url(release))}
+echo "{source}"
+printf '%s  %s\\n' {release['sha256']} "$bc250_archive" | sha256sum -c -
 echo "Checking the archive layout and unpacking..."
-"$bc250_python" -I - "$bc250_archive" "$bc250_work" {HELIXSR_TOP} <<'BC250_UNZIP'
-import stat, sys, zipfile
-archive, destination, top = sys.argv[1:4]
+# Every entry sits in one HelixSR-* folder (1.9.0.2's archive holds
+# HelixSR-1.9.0), with no links and no way out of it.
+bc250_top="$("$bc250_python" -I - "$bc250_archive" "$bc250_work" <<'BC250_UNZIP'
+import re, stat, sys, zipfile
+archive, destination = sys.argv[1:3]
 with zipfile.ZipFile(archive) as bundle:
+    tops = {{item.filename.split("/")[0] for item in bundle.infolist()}}
+    if len(tops) != 1 or not re.fullmatch(r"HelixSR-[0-9][0-9A-Za-z._-]*", next(iter(tops))):
+        sys.exit("ERROR: the archive is not one HelixSR folder.")
     for item in bundle.infolist():
         name = item.filename
         parts = name.split("/")
-        if parts[0] != top or ".." in parts or name.startswith("/") or "\\\\" in name:
+        if ".." in parts or name.startswith("/") or "\\\\" in name:
             sys.exit(f"ERROR: unexpected archive entry: {{name}}")
         if stat.S_ISLNK(item.external_attr >> 16):
             sys.exit(f"ERROR: the archive contains a link: {{name}}")
     bundle.extractall(destination)
+print(next(iter(tops)))
 BC250_UNZIP
-bc250_stage="$bc250_work/{HELIXSR_TOP}"
-printf '%s  %s\\n' {HELIXSR_DLL_SHA256} "$bc250_stage/{HELIXSR_DLL}" | sha256sum -c - >/dev/null || {{
-  echo "ERROR: the HelixSR DLL in the archive is not the reviewed one."; exit 29; }}
+)"
+bc250_stage="$bc250_work/$bc250_top"
+{check}
 chmod +x "$bc250_stage/{HELIXSR_SETUP}" "$bc250_stage/setup/lib/model/launch_synth"
-printf '%s\\n' {HELIXSR_SHA256} > "$bc250_stage/{HELIXSR_MARKER}"
+printf '%s\\n' {release['sha256']} > "$bc250_stage/{HELIXSR_MARKER}"
+sha256sum "$bc250_stage/{HELIXSR_DLL}" | cut -d' ' -f1 > "$bc250_stage/{HELIXSR_DLL_MARKER}"
 mkdir -p {root}
 if test -L {target}; then echo "ERROR: refusing to replace a symlink at {target}."; exit 29; fi
 bc250_previous=""
@@ -1331,25 +1686,84 @@ if test -e {target}; then
 fi
 mv -- "$bc250_stage" {target}
 test -z "$bc250_previous" || rm -rf -- "$bc250_previous"
+cat {target}/{HELIXSR_DLL_MARKER} >> {root}/{_digests_path().name}
 for bc250_old in {root}/*; do
   test -d "$bc250_old" || continue
   test "$bc250_old" = {target} && continue
-  echo "Removing the older HelixSR copy $(basename "$bc250_old")."
+  echo "Removing the HelixSR $(basename "$bc250_old") copy it replaces."
   rm -rf -- "$bc250_old"
 done
-echo "OK: the HelixSR {HELIXSR_VERSION} release is installed in {helixsr_directory()}."
+echo "OK: the HelixSR {release['version']} release is installed in {helixsr_directory()}."
 {_setup_block(target)}
 '''
 
 
 def build_helixsr_network_command() -> str:
-    """Build (or rebuild) the network files of the installed release."""
+    """Build (or rebuild) the network of the installed release."""
     target = shlex.quote(str(helixsr_directory()))
     return f'''set -Eeuo pipefail
-echo "== HelixSR {HELIXSR_VERSION} · network files =="
+echo "== HelixSR {helixsr_release()['version']} · network =="
 test -f {target}/{HELIXSR_SETUP} || {{ echo "ERROR: install HelixSR first."; exit 66; }}
+{_fetch_check()}
 {_wine_check()}
 {_setup_block(target)}
+'''
+
+
+def build_helixsr_releases_command() -> str:
+    """Save GitHub's list of HelixSR releases, for the version picker.
+
+    Nothing is installed: the list only adds releases newer than the reviewed
+    ones (pre-releases included) and drops the ones upstream withdrew. Only
+    the tag, the pre-release flag and each asset's name, size and digest are
+    kept.
+    """
+    root = shlex.quote(str(helixsr_root()))
+    python = shlex.quote(sys.executable or "python3")
+    return f'''set -Eeuo pipefail
+echo "== HelixSR · releases =="
+echo "Source: {HELIXSR_REPOSITORY}/releases"
+{_fetch_check()}
+bc250_python="$(command -v python3 || echo {python})"
+bc250_work="$(mktemp -d "${{TMPDIR:-/tmp}}/bc250-helixsr-releases.XXXXXX")"
+trap 'rm -rf -- "$bc250_work"' EXIT
+if command -v curl >/dev/null 2>&1; then
+  curl -fsSL --connect-timeout 20 --max-filesize {_RELEASES_LIMIT} -H 'Accept: application/vnd.github+json' \\
+    -o "$bc250_work/releases.json" {shlex.quote(HELIXSR_RELEASES_API)}
+else
+  bc250_fetch "$bc250_work/releases.json" {shlex.quote(HELIXSR_RELEASES_API)}
+fi
+mkdir -p {root}
+"$bc250_python" -I - "$bc250_work/releases.json" {root}/releases.json {_RELEASES_LIMIT} <<'BC250_RELEASES'
+import json, os, sys, time
+source, destination, limit = sys.argv[1], sys.argv[2], int(sys.argv[3])
+if os.path.getsize(source) > limit:
+    sys.exit("ERROR: GitHub's answer is larger than expected.")
+listed = json.load(open(source, encoding="utf-8"))
+if not isinstance(listed, list):
+    sys.exit("ERROR: GitHub did not answer with a list of releases.")
+kept = []
+for entry in listed:
+    if not isinstance(entry, dict):
+        continue
+    kept.append({{
+        "tag_name": str(entry.get("tag_name") or ""),
+        "draft": bool(entry.get("draft")),
+        "prerelease": bool(entry.get("prerelease")),
+        "assets": [
+            {{"name": str(a.get("name") or ""), "size": a.get("size"), "digest": str(a.get("digest") or "")}}
+            for a in entry.get("assets") or () if isinstance(a, dict)
+        ],
+    }})
+staged = destination + ".tmp"
+with open(staged, "w", encoding="utf-8") as handle:
+    json.dump({{"time": int(time.time()), "releases": kept}}, handle, indent=1)
+os.replace(staged, destination)
+for entry in kept:
+    if not entry["draft"]:
+        print("  " + entry["tag_name"] + ("  (pre-release)" if entry["prerelease"] else ""))
+BC250_RELEASES
+echo "OK: the version list is up to date. Pick a version in the HelixSR section, then Install or Update."
 '''
 
 
@@ -1424,7 +1838,7 @@ def install_helixsr_game(appid: str) -> dict:
             os.replace(staged, target)
             undo.append(lambda target=target: target.unlink(missing_ok=True))
             created = []
-            for name in HELIXSR_NETWORK_FILES:
+            for name in _network_files(source):
                 destination = folder / name
                 if not destination.exists():
                     created.append(name)
@@ -1443,7 +1857,8 @@ def install_helixsr_game(appid: str) -> dict:
                 "created": created,
             })
         records[str(appid)] = {
-            "name": game["name"], "install": str(install), "files": files, "version": HELIXSR_VERSION,
+            "name": game["name"], "install": str(install), "files": files,
+            "version": helixsr_release()["version"],
         }
         _write_json(_records_path(), records)
     except Exception:
@@ -1500,18 +1915,36 @@ def _replace_file(source: Path, destination: Path) -> None:
     os.replace(staged, destination)
 
 
+def _update_network(source: Path, folder: Path) -> tuple[str, ...]:
+    """The network beside HelixSR in ``folder`` as the release keeps it.
+
+    A release whose DLL carries the network gets no separate files: the ones
+    an earlier release left there are removed (HelixSR reads its own copy
+    first, and an old kernel file is only dead weight), as upstream's own
+    installer does. Returns the network files now in ``folder``.
+    """
+    names = _network_files(source)
+    for name in HELIXSR_NETWORK_FILES:
+        if name in names:
+            _replace_file(source / name, folder / name)
+        else:
+            (folder / name).unlink(missing_ok=True)
+    return names
+
+
 def update_helixsr_game(appid: str) -> dict:
     """Give a game the HelixSR release installed here, in place.
 
-    A game keeps the DLL and network files it was given when the release is
-    updated, and that pair keeps working. 1.3.0 changed the kernel file
-    format, so the DLL and both network files are replaced together. The
+    A game keeps the DLL it was given when the release is updated, and it
+    keeps working. Updating replaces the DLL together with the network (1.3
+    changed the kernel format, 1.7 moved the network into the DLL). The
     game's own FSR backup and OptiScaler.ini are not touched.
     """
     if not helixsr_state()["network_ready"]:
         raise RuntimeError("Install HelixSR and build its network files first.")
     appid = str(appid or "").strip()
     source = helixsr_directory()
+    version = helixsr_release()["version"]
     records = _records()
     record = records.get(appid)
     if record is not None:
@@ -1523,13 +1956,17 @@ def update_helixsr_game(appid: str) -> dict:
         # Checked for every folder before any is touched.
         if not targets or not all(_is_helixsr(target) for target in targets):
             raise RuntimeError("The game put its own FSR file back. Remove HelixSR from it, then add it again.")
-        for target in targets:
+        for entry, target in zip(record["files"], targets):
             _replace_file(source / HELIXSR_DLL, target)
-            for name in HELIXSR_NETWORK_FILES:
-                _replace_file(source / name, target.parent / name)
-        record["version"] = HELIXSR_VERSION
+            kept = _update_network(source, target.parent)
+            # Network files this game no longer has are no longer ours to remove.
+            entry["created"] = [
+                name for name in entry.get("created", ())
+                if name not in HELIXSR_NETWORK_FILES or name in kept
+            ]
+        record["version"] = version
         _write_json(_records_path(), records)
-        return {"game": str(record.get("name") or appid), "version": HELIXSR_VERSION}
+        return {"game": str(record.get("name") or appid), "version": version}
     records = _optiscaler_records()
     record = records.get(appid)
     if record is None:
@@ -1541,8 +1978,7 @@ def update_helixsr_game(appid: str) -> dict:
     folder = root / OPTISCALER_FOLDER
     for name in (LOADER_DLL, UPSCALER_DLL):
         _replace_file(source / HELIXSR_DLL, folder / name)
-    for name in HELIXSR_NETWORK_FILES:
-        _replace_file(source / name, folder / name)
-    record["version"] = HELIXSR_VERSION
+    _update_network(source, folder)
+    record["version"] = version
     _write_json(_optiscaler_path() / "games.json", records)
-    return {"game": str(record.get("name") or appid), "version": HELIXSR_VERSION}
+    return {"game": str(record.get("name") or appid), "version": version}

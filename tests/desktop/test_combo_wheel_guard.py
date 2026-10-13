@@ -76,7 +76,7 @@ def test_no_drop_down_on_the_real_pages_moves_under_the_wheel():
     app = QApplication.instance() or QApplication([])
     install_combo_wheel_guard(app)
     page = AdditionalSettingsPage()
-    defaults = {"Sharpening.Mode": "off"}
+    defaults = {"Sharpening.Sharpener": "off"}
     page.apply_state(SimpleNamespace(
         preparation_tools={"os_id": "bazzite", "os_label": "Bazzite", "os_family": "bazzite",
                            "prepare_components": {},

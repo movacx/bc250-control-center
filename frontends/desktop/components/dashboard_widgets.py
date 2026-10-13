@@ -972,8 +972,9 @@ def game_matrix_rows(
                 actions = (("Update HelixSR", f"helixsr_game_update:{appid}", helixsr_ready), *actions)
             elif state == "installed" and chosen.get("outdated"):
                 # Still working with the release it was given; one click
-                # brings it the one installed here.
-                text, tone = "Update available", "orange"
+                # brings it the one installed here, newer or picked older.
+                text = "Update available" if chosen.get("older", True) else "Other version"
+                tone = "orange"
                 actions = (("Update HelixSR", f"helixsr_game_update:{appid}", helixsr_ready), *actions)
             rows[key]["helixsr"] = (text, tone, copy, actions)
             continue
@@ -1653,12 +1654,14 @@ class _HelixSRSettings(SectionCard):
     #: no choices: a check box.
     GROUPS = (
         ("Sharpening", (
-            ("Sharpening.Mode", "Sharpening",
-             "Off leaves the image as DLSS's network makes it. Game's setting follows the game's FSR sharpness slider; Fixed always uses the strength below.",
-             (("off", "Off"), ("game", "Game's setting"), ("override", "Fixed"))),
+            ("Sharpening.Sharpener", "Sharpening",
+             "Off leaves the image as DLSS's network makes it, as DLSS does. NVIDIA is the driver's Image Sharpening filter, AMD RCAS is FSR's. Releases before 1.7 always use AMD RCAS.",
+             (("off", "Off"), ("nvidia", "NVIDIA"), ("rcas", "AMD RCAS"))),
             ("Sharpening.Sharpness", "Sharpening strength",
-             "Used by Fixed, and by Game's setting when the game sends none. 0 is none, 1 the strongest.",
+             "Used while a filter is on, and when the game's slider sends none. 0 is none, 1 the strongest.",
              _TENTHS),
+            ("Sharpening.UseGameSlider", "Follow the game's slider",
+             "Uses the game's FSR sharpness slider instead of the strength above, when the game has one.", ()),
             ("Sharpening.MotionAdaptive", "Less sharpening in motion",
              "Fast-moving pixels get less sharpening, which avoids shimmering edges.", ()),
             ("Sharpening.MotionThreshold", "Motion where it starts",
@@ -1675,6 +1678,9 @@ class _HelixSRSettings(SectionCard):
             ("ModelE.Network", "Network",
              "Auto uses the main network at every quality mode, which is the faster choice on this GPU. As DLSS picks the Ultra Performance network above a 2.5 ratio, as NVIDIA does.",
              (("auto", "Auto"), ("nvidia", "As DLSS"), ("main", "Main"), ("ultraperformance", "Ultra Performance"))),
+            ("Upscaling.Int8", "8-bit network",
+             "HelixSR 1.9 and newer. Auto runs most of the network with 8-bit math on GPUs that are fast at it, a little faster with a nearly identical image. Turn it off if something looks wrong.",
+             (("auto", "Auto"), ("on", "On"), ("off", "Off"))),
         )),
         ("Compatibility", (
             ("Compatibility.WaveSize", "Wave size",
@@ -1914,9 +1920,9 @@ class _HelixSRSettings(SectionCard):
     def _changed(self, *_args) -> None:
         values = self.values()
         # Each control is live only while it changes something.
-        sharpening = values["Sharpening.Mode"] != "off"
-        self.controls["Sharpening.Sharpness"].setEnabled(sharpening)
-        self.controls["Sharpening.MotionAdaptive"].setEnabled(sharpening)
+        sharpening = values["Sharpening.Sharpener"] != "off"
+        for name in ("Sharpening.Sharpness", "Sharpening.UseGameSlider", "Sharpening.MotionAdaptive"):
+            self.controls[name].setEnabled(sharpening)
         in_motion = sharpening and bool(values["Sharpening.MotionAdaptive"])
         for name in ("Sharpening.MotionThreshold", "Sharpening.MotionLimit", "Sharpening.MotionReduction"):
             self.controls[name].setEnabled(in_motion)
@@ -3358,6 +3364,29 @@ class PreparationSidebar(QFrame):
         self.helixsr_guide_button.setToolTip(tr(
             "HelixSR's own guide on GitHub (lonewolf0622/HelixSR): its network files, each game, OptiScaler and every helixsr.ini setting."
         ))
+        # The release Install or Update brings in: the recommended one unless
+        # the user picks an older one or a pre-release.
+        version_row = QHBoxLayout()
+        version_row.setSpacing(8)
+        version_row.addWidget(_label("Version", "readingLabel", wrap=False))
+        self.helixsr_version_combo = _ClickOnlyComboBox()
+        self.helixsr_version_combo.setAccessibleName(tr("HelixSR version"))
+        self.helixsr_version_combo.setToolTip(tr(
+            "The HelixSR release Install or Update brings in. The recommended one is the release this version of Control Center was checked with."
+        ))
+        self.helixsr_version_combo.activated.connect(self._select_helixsr_release)
+        version_row.addWidget(self.helixsr_version_combo, 1)
+        self.helixsr_releases_button = QPushButton(tr("Check for new releases"))
+        self.helixsr_releases_button.setProperty("compactAction", True)
+        self.helixsr_releases_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.helixsr_releases_button.setToolTip(tr(
+            "Reads HelixSR's list of releases on GitHub, in the terminal, so newer releases and pre-releases can be picked. Nothing is installed."
+        ))
+        self.helixsr_releases_button.clicked.connect(
+            lambda: self._forward_dependency_action({"action": "helixsr_releases", "governor": ""})
+        )
+        version_row.addWidget(self.helixsr_releases_button)
+        self.helixsr_section.extra.addLayout(version_row)
         # Every game against both upscalers, across the page.
         self.upscaling_games = _UpscalingGames()
         self.upscaling_games.action_requested.connect(self._forward_dependency_action)
@@ -4236,6 +4265,9 @@ class PreparationSidebar(QFrame):
         elif state == "update-available":
             status, tone = "Update available", "blue"
             detail = "A newer HelixSR release is available. Games that already use HelixSR keep working."
+        elif state == "other-version":
+            status, tone = "Other version selected", "blue"
+            detail = "The selected HelixSR release is not installed yet. Install brings it in; games that already use HelixSR keep working."
         else:
             status, tone = "Not installed", "gray"
             detail = "Downloads the official release, checks it, and installs it in your user folder. Then build its network files and pick your games."
@@ -4348,6 +4380,32 @@ class PreparationSidebar(QFrame):
         self.fsr4_steam_all_button.setVisible(current and bool(missing))
         section.set_actions(secondary, primary)
 
+    def _select_helixsr_release(self, index: int) -> None:
+        tag = str(self.helixsr_version_combo.itemData(index) or "")
+        helixsr = _mapping(_mapping(getattr(self, "_helixsr_view", {})).get("state"))
+        if tag and tag != str(helixsr.get("tag") or ""):
+            self._forward_dependency_action({"action": f"helixsr_select:{tag}", "governor": ""})
+
+    def _render_helixsr_versions(self, helixsr: Mapping) -> None:
+        """The releases on offer, newest first, the picked one shown."""
+        combo = self.helixsr_version_combo
+        releases = [_mapping(item) for item in helixsr.get("releases") or () if isinstance(item, Mapping)]
+        combo.blockSignals(True)
+        combo.clear()
+        for release in releases:
+            version = str(release.get("version") or "")
+            if release.get("default"):
+                text = tr_format("{version} (recommended)", version=version)
+            elif release.get("prerelease"):
+                text = tr_format("{version} (pre-release)", version=version)
+            else:
+                text = version
+            combo.addItem(text, str(release.get("tag") or ""))
+        combo.setCurrentIndex(max(combo.findData(str(helixsr.get("tag") or "")), 0))
+        combo.blockSignals(False)
+        combo.setEnabled(bool(helixsr.get("installer_available")) and combo.count() > 1)
+        self.helixsr_releases_button.setEnabled(bool(helixsr.get("installer_available")))
+
     def _render_helixsr_section(self) -> None:
         """HelixSR: state, its network files, its games, next step."""
         view = getattr(self, "_helixsr_view", None) or {
@@ -4363,6 +4421,7 @@ class PreparationSidebar(QFrame):
         active = [row for row in games if row["helixsr"] and row["helixsr"][1] == "green"]
         section = self.helixsr_section
         section.set_version(view["version"])
+        self._render_helixsr_versions(helixsr)
         section.set_fact("state", "State", view["status"], view["tone"])
         section.set_fact(
             "prepare", "Network files",
