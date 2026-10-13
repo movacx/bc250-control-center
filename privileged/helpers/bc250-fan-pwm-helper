@@ -50,6 +50,12 @@ RUNTIME_DIR = Path('/run/bc250-control-center')
 STATUS_FILE = RUNTIME_DIR / 'fan-control.json'
 OVERRIDE_FILE = RUNTIME_DIR / 'fan-override.json'
 HWMON_BASE = Path('/sys/class/hwmon')
+# The only chips read_temperatures() takes a reading from. Every other hwmon
+# is skipped before any of its inputs are read: on a BC-250 the in-kernel
+# bc250_memory driver answers a GDDR6 temperature read with eight SMU Queue 3
+# messages, outside the SMN window lock the other SMU clients share, and this
+# loop runs every CONTROL_INTERVAL_SECONDS from boot, next to the governor.
+TEMPERATURE_CHIPS = ('amdgpu', 'k10temp', 'zenpower', 'nct')
 CONTROL_UNIT_NAME = 'bc250-fan-control.service'
 CONTROL_UNIT_PATH = Path('/etc/systemd/system') / CONTROL_UNIT_NAME
 CONTROL_UNIT_WANTS = Path('/etc/systemd/system/multi-user.target.wants') / CONTROL_UNIT_NAME
@@ -500,7 +506,8 @@ def read_temperatures(base: Path | None = None) -> dict:
     GPU is amdgpu ``edge``; CPU prefers k10temp/zenpower Tctl/Tdie and falls
     back to the Nuvoton channel labelled exactly ``CPU``; board and VRM come
     only from explicitly labelled NCT channels. Disconnected 0 °C inputs are
-    rejected, never guessed.
+    rejected, never guessed. Chips outside ``TEMPERATURE_CHIPS`` are never
+    read at all.
     """
     base = HWMON_BASE if base is None else base
     gpu = None
@@ -515,6 +522,8 @@ def read_temperatures(base: Path | None = None) -> dict:
         try:
             name = (hwmon / 'name').read_text(encoding='utf-8').strip().lower()
         except OSError:
+            continue
+        if not any(chip in name for chip in TEMPERATURE_CHIPS):
             continue
         labels: dict[str, float] = {}
         for label_path in sorted(hwmon.glob('temp*_label')):
