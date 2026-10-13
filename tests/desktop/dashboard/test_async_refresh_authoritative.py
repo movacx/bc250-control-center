@@ -47,6 +47,8 @@ def test_a_finished_task_does_not_touch_a_destroyed_executor(qtbot):
     ``RuntimeError`` surfaced from inside the event loop, reported against
     whichever unrelated test happened to be running.
     """
+    import threading
+
     from PyQt6.QtWidgets import QWidget
 
     from frontends.desktop.components.async_tools import BackgroundExecutor, _alive
@@ -54,26 +56,53 @@ def test_a_finished_task_does_not_touch_a_destroyed_executor(qtbot):
     owner = QWidget()
     qtbot.addWidget(owner)
     executor = BackgroundExecutor(owner)
-
-    captured = {}
-    original = executor.start
-
-    def capture(key, operation, on_success=None, on_error=None, on_finished=None):
-        started = original(key, operation, on_success, on_error, on_finished)
-        captured["signals"] = executor._running[key].signals
-        return started
-
-    executor.start = capture
-    executor.start("probe", lambda: None)
-    signals = captured["signals"]
+    gate = threading.Event()
+    executor.start("probe", lambda: gate.wait(5))
+    signals = executor._running["probe"].signals
 
     owner.deleteLater()
     del owner
     qtbot.waitUntil(lambda: not _alive(executor), timeout=4000)
 
-    # The task finishes late and emits into the deleted executor. Before the
-    # guard this raised; now it is simply ignored.
-    signals.finished.emit()
+    # The task finishes late, into the deleted executor. Before the guard this
+    # raised; now it is ignored, and its signals are released afterwards.
+    gate.set()
+    qtbot.waitUntil(lambda: not _alive(signals), timeout=4000)
+
+
+def test_a_finished_task_releases_its_signals_only_after_delivering_them(qtbot):
+    """The slot of ``finished`` drops the last reference to its task.
+
+    Python then destroyed the task's signals object while Qt was still
+    delivering that very signal from it, and the test run crashed now and then
+    on CI (Python 3.11). The object is handed to Qt and deleted later instead.
+    """
+    from PyQt6.QtWidgets import QWidget
+
+    from frontends.desktop.components.async_tools import (
+        AsyncRefresh,
+        BackgroundExecutor,
+        _alive,
+    )
+
+    owner = QWidget()
+    qtbot.addWidget(owner)
+    executor = BackgroundExecutor(owner)
+    done = []
+    executor.start("probe", lambda: 1, on_success=done.append, on_finished=lambda: done.append("finished"))
+    signals = executor._running["probe"].signals
+    qtbot.waitUntil(lambda: done == [1, "finished"], timeout=4000)
+    assert not executor.is_running()
+    qtbot.waitUntil(lambda: not _alive(signals), timeout=4000)
+
+    results = []
+    refresh = AsyncRefresh(owner, "probe", lambda: 2, results.append)
+    refresh.set_active(True)
+    refresh.request()
+    refresh_signals = refresh._task.signals
+    qtbot.waitUntil(lambda: results == [2] and not refresh.running, timeout=4000)
+    assert refresh._task is None
+    qtbot.waitUntil(lambda: not _alive(refresh_signals), timeout=4000)
 
 
 def test_liveness_is_answered_for_the_awkward_inputs(qtbot):
