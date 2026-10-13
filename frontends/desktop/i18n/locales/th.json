@@ -4831,5 +4831,7 @@
   "8-bit network": "เครือข่าย 8 บิต",
   "HelixSR 1.9 and newer. Auto runs most of the network with 8-bit math on GPUs that are fast at it, a little faster with a nearly identical image. Turn it off if something looks wrong.": "HelixSR 1.9 ขึ้นไป อัตโนมัติ จะรันเครือข่ายส่วนใหญ่ด้วยการคำนวณ 8 บิตบน GPU ที่ทำได้เร็ว เร็วขึ้นเล็กน้อยโดยภาพแทบเหมือนเดิม ปิดไว้หากมีสิ่งใดดูผิดปกติ",
   "On": "เปิด",
-  "HelixSR {version} is selected. Install or Update brings it in.": "เลือก HelixSR {version} แล้ว กด ติดตั้ง หรือ อัปเดต เพื่อนำมาใช้"
+  "HelixSR {version} is selected. Install or Update brings it in.": "เลือก HelixSR {version} แล้ว กด ติดตั้ง หรือ อัปเดต เพื่อนำมาใช้",
+  "This game is no longer in Steam's non-Steam games.": "เกมนี้ไม่อยู่ในเกมที่ไม่ใช่ของ Steam ใน Steam แล้ว",
+  "This HelixSR release is not on offer.": "ไม่มีรุ่นนี้ของ HelixSR ให้เลือก"
 }

@@ -4831,5 +4831,7 @@
   "8-bit network": "Rețea pe 8 biți",
   "HelixSR 1.9 and newer. Auto runs most of the network with 8-bit math on GPUs that are fast at it, a little faster with a nearly identical image. Turn it off if something looks wrong.": "HelixSR 1.9 și mai noi. Automat rulează cea mai mare parte a rețelei cu calcul pe 8 biți pe GPU-urile rapide la asta: puțin mai rapid, cu o imagine aproape identică. Opriți-l dacă ceva arată greșit.",
   "On": "Pornit",
-  "HelixSR {version} is selected. Install or Update brings it in.": "HelixSR {version} este selectat. Instalează sau Actualizează îl aduce."
+  "HelixSR {version} is selected. Install or Update brings it in.": "HelixSR {version} este selectat. Instalează sau Actualizează îl aduce.",
+  "This game is no longer in Steam's non-Steam games.": "Acest joc nu mai este printre jocurile non-Steam din Steam.",
+  "This HelixSR release is not on offer.": "Această versiune HelixSR nu este disponibilă."
 }

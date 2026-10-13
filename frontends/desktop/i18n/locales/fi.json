@@ -4831,5 +4831,7 @@
   "8-bit network": "8-bittinen verkko",
   "HelixSR 1.9 and newer. Auto runs most of the network with 8-bit math on GPUs that are fast at it, a little faster with a nearly identical image. Turn it off if something looks wrong.": "HelixSR 1.9 ja uudemmat. Automaattinen ajaa suurimman osan verkosta 8-bittisellä laskennalla näytönohjaimilla, jotka ovat siinä nopeita: hieman nopeampi, lähes sama kuva. Kytke pois, jos jokin näyttää väärältä.",
   "On": "Päällä",
-  "HelixSR {version} is selected. Install or Update brings it in.": "HelixSR {version} on valittu. Asenna tai Päivitä tuo sen."
+  "HelixSR {version} is selected. Install or Update brings it in.": "HelixSR {version} on valittu. Asenna tai Päivitä tuo sen.",
+  "This game is no longer in Steam's non-Steam games.": "Tämä peli ei ole enää Steamin muiden kuin Steam-pelien joukossa.",
+  "This HelixSR release is not on offer.": "Tätä HelixSR-julkaisua ei ole tarjolla."
 }

@@ -1383,3 +1383,98 @@ def test_the_repository_routes_the_version_actions(home, tmp_path):
     assert repository.gestionar_helixsr(f"select:{helixsr.HELIXSR_TAG}")["tag"] == helixsr.HELIXSR_TAG
     title, command = repository.gestionar_helixsr("releases")
     assert title == "HelixSR · releases" and helixsr.HELIXSR_RELEASES_API in command
+
+
+# ------------------------------------------------------- non-Steam games in Steam
+
+
+def _binary_vdf(value: dict) -> bytes:
+    """Steam's binary KeyValues, as shortcuts.vdf holds them."""
+    out = b""
+    for key, item in value.items():
+        name = key.encode() + b"\0"
+        if isinstance(item, dict):
+            out += b"\x00" + name + _binary_vdf(item) + b"\x08"
+        elif isinstance(item, int):
+            out += b"\x02" + name + (item & 0xFFFFFFFF).to_bytes(4, "little")
+        else:
+            out += b"\x01" + name + str(item).encode() + b"\0"
+    return out
+
+
+def _shortcuts(home: Path, *entries: dict) -> Path:
+    path = home / ".local/share/Steam/userdata/1/config/shortcuts.vdf"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    shortcuts = {str(index): entry for index, entry in enumerate(entries)}
+    path.write_bytes(_binary_vdf({"shortcuts": shortcuts}) + b"\x08")
+    return path
+
+
+def _cyberpunk(home: Path) -> Path:
+    """A game copied by hand, its .exe and FSR 3.1 loader in bin/x64."""
+    folder = home / "Games" / "Cyberpunk 2077" / "bin" / "x64"
+    folder.mkdir(parents=True)
+    (folder / "Cyberpunk2077.exe").write_bytes(b"MZ")
+    (folder / helixsr.LOADER_DLL).write_bytes(ORIGINAL)
+    return home / "Games" / "Cyberpunk 2077"
+
+
+def test_a_non_steam_game_added_to_steam_is_found_and_handled_like_a_steam_game(home):
+    from bc250cc.infrastructure.steam_launch_options import steam_shortcut_game_folders
+
+    _ready(home)
+    game = _cyberpunk(home)
+    exe = game / "bin/x64/Cyberpunk2077.exe"
+    _shortcuts(
+        home,
+        {"appid": -381695011, "AppName": "Cyberpunk2077.exe", "Exe": f'"{exe}"', "StartDir": f"{exe.parent}/"},
+        {"appid": 7, "appname": "Heroic", "exe": "/usr/bin/heroic", "StartDir": "/usr/bin"},
+        {"appid": 8, "AppName": "Whole home", "Exe": f'"{home}/x.exe"', "StartDir": str(home)},
+    )
+    assert [(g["appid"], g["name"], g["path"]) for g in steam_shortcut_game_folders(home)] == [
+        ("shortcut-3913272285", "Cyberpunk 2077", game.resolve()),
+    ], "Steam's signed id is unsigned; bin/x64 leads to the game; nothing outside a game's folder"
+
+    rows = helixsr.helixsr_state(machine="x86_64")["games"]
+    assert [(r["appid"], r["name"], r["state"]) for r in rows] == [("shortcut-3913272285", "Cyberpunk 2077", "available")]
+
+    helixsr.install_helixsr_game("shortcut-3913272285")
+    assert (game / "bin/x64" / helixsr.LOADER_DLL).read_bytes() == DLL
+    assert helixsr.helixsr_state(machine="x86_64")["games"][0]["state"] == "installed"
+    helixsr.remove_helixsr_game("shortcut-3913272285")
+    assert (game / "bin/x64" / helixsr.LOADER_DLL).read_bytes() == ORIGINAL
+
+
+def test_a_new_shortcut_is_searched_without_pressing_find(home):
+    _ready(home)
+    assert helixsr.helixsr_state(machine="x86_64")["games"] == []
+    exe = _cyberpunk(home) / "bin/x64/Cyberpunk2077.exe"
+    path = _shortcuts(home, {"appid": 5, "AppName": "Cyberpunk", "Exe": f'"{exe}"', "StartDir": ""})
+    os.utime(path, ns=(1, 1))   # a different stamp from any earlier search
+    assert [r["name"] for r in helixsr.helixsr_state(machine="x86_64")["games"]] == ["Cyberpunk"]
+
+
+def test_a_shortcut_to_a_folder_added_by_hand_is_not_listed_twice(home):
+    _ready(home)
+    game = _cyberpunk(home)
+    helixsr.add_helixsr_folder(str(game))
+    exe = game / "bin/x64/Cyberpunk2077.exe"
+    _shortcuts(home, {"appid": 5, "AppName": "Cyberpunk", "Exe": f'"{exe}"', "StartDir": ""})
+    rows = helixsr.helixsr_state(machine="x86_64")["games"]
+    assert [r["appid"][:7] for r in rows] == ["folder-"]
+
+
+def test_a_broken_shortcuts_file_is_ignored(home):
+    from bc250cc.infrastructure.steam_launch_options import steam_shortcut_game_folders
+
+    path = home / ".local/share/Steam/userdata/1/config/shortcuts.vdf"
+    path.parent.mkdir(parents=True)
+    for data in (b"\x00shortcuts\x00\x00", b"\x09bad", b"\x00shortcuts\x00\x00 0\x00\x02appid\x00\x01"):
+        path.write_bytes(data)
+        assert steam_shortcut_game_folders(home) == []
+
+
+def test_a_shortcut_that_left_steam_cannot_be_given_helixsr(home):
+    _ready(home)
+    with pytest.raises(RuntimeError, match="no longer in Steam"):
+        helixsr.install_helixsr_game("shortcut-123")

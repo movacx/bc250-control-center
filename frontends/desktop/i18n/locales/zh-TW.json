@@ -4831,5 +4831,7 @@
   "8-bit network": "8 位元網路",
   "HelixSR 1.9 and newer. Auto runs most of the network with 8-bit math on GPUs that are fast at it, a little faster with a nearly identical image. Turn it off if something looks wrong.": "HelixSR 1.9 及更新版本。「自動」在擅長 8 位元運算的 GPU 上以 8 位元運算執行大部分網路:速度稍快,畫面幾乎相同。如有異常請關閉。",
   "On": "開",
-  "HelixSR {version} is selected. Install or Update brings it in.": "已選擇 HelixSR {version}。按「安裝」或「更新」即可裝入。"
+  "HelixSR {version} is selected. Install or Update brings it in.": "已選擇 HelixSR {version}。按「安裝」或「更新」即可裝入。",
+  "This game is no longer in Steam's non-Steam games.": "此遊戲已不在 Steam 的非 Steam 遊戲中。",
+  "This HelixSR release is not on offer.": "此 HelixSR 版本無法使用。"
 }

@@ -4831,5 +4831,7 @@
   "8-bit network": "8비트 네트워크",
   "HelixSR 1.9 and newer. Auto runs most of the network with 8-bit math on GPUs that are fast at it, a little faster with a nearly identical image. Turn it off if something looks wrong.": "HelixSR 1.9 이상. 자동은 8비트 연산이 빠른 GPU에서 네트워크 대부분을 8비트 연산으로 실행합니다. 이미지는 거의 같고 조금 더 빠릅니다. 이상해 보이면 끄세요.",
   "On": "켜기",
-  "HelixSR {version} is selected. Install or Update brings it in.": "HelixSR {version}이(가) 선택되었습니다. 설치 또는 업데이트로 가져옵니다."
+  "HelixSR {version} is selected. Install or Update brings it in.": "HelixSR {version}이(가) 선택되었습니다. 설치 또는 업데이트로 가져옵니다.",
+  "This game is no longer in Steam's non-Steam games.": "이 게임은 더 이상 Steam의 비 Steam 게임에 없습니다.",
+  "This HelixSR release is not on offer.": "이 HelixSR 릴리스는 제공되지 않습니다."
 }

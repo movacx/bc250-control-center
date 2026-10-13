@@ -4831,5 +4831,7 @@
   "8-bit network": "8bitová síť",
   "HelixSR 1.9 and newer. Auto runs most of the network with 8-bit math on GPUs that are fast at it, a little faster with a nearly identical image. Turn it off if something looks wrong.": "HelixSR 1.9 a novější. Auto počítá většinu sítě v 8bitové aritmetice na GPU, které v ní jsou rychlé: o něco rychleji s téměř shodným obrazem. Vypněte, pokud něco vypadá špatně.",
   "On": "Zapnuto",
-  "HelixSR {version} is selected. Install or Update brings it in.": "Vybráno HelixSR {version}. Instalovat nebo Aktualizovat ho přidá."
+  "HelixSR {version} is selected. Install or Update brings it in.": "Vybráno HelixSR {version}. Instalovat nebo Aktualizovat ho přidá.",
+  "This game is no longer in Steam's non-Steam games.": "Tato hra už není mezi hrami mimo Steam ve Steamu.",
+  "This HelixSR release is not on offer.": "Toto vydání HelixSR není k dispozici."
 }

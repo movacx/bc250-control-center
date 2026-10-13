@@ -42,7 +42,11 @@ import sys
 import time
 from pathlib import Path
 
-from .steam_launch_options import installed_steam_game_folders, steam_libraries
+from .steam_launch_options import (
+    installed_steam_game_folders,
+    steam_libraries,
+    steam_shortcut_game_folders,
+)
 
 HELIXSR_REPOSITORY = "https://github.com/lonewolf0622/HelixSR"
 
@@ -515,14 +519,34 @@ def _fsr_folders(install: Path, dlss: list[Path] | None = None) -> list[Path]:
     return sorted(targets)
 
 
+def _game_folders(home: Path | None = None) -> list[dict]:
+    """Steam's games, then the non-Steam games added to Steam (GOG, Epic, a
+    folder copied by hand): their shortcuts name the game's folder. A
+    shortcut to a folder that is already listed (a Steam game, or a folder
+    added by hand) is left out."""
+    games = installed_steam_game_folders(home)
+    seen = {Path(game["path"]) for game in games}
+    for entry in _folders().values():
+        try:
+            seen.add(Path(str(entry["path"])).resolve())
+        except OSError:
+            continue
+    for game in steam_shortcut_game_folders(home):
+        if Path(game["path"]) not in seen:
+            seen.add(Path(game["path"]))
+            games.append(game)
+    return games
+
+
 def _library_signature(folders: list[dict]) -> list[list[str]]:
     """What the last search saw: each game and when Steam last wrote its
-    manifest, which an install, an update or a removal all change."""
+    manifest (or, for a non-Steam game, its shortcuts), which an install,
+    an update or a removal all change."""
     signature = []
     for game in folders:
         manifest = Path(game["path"]).parent.parent / f"appmanifest_{game['appid']}.acf"
         try:
-            stamp = str(manifest.stat().st_mtime_ns)
+            stamp = str(game.get("stamp") or manifest.stat().st_mtime_ns)
         except OSError:
             stamp = ""
         signature.append([str(game["appid"]), str(game["path"]), stamp])
@@ -536,7 +560,7 @@ def refresh_helixsr_scan(*, home: Path | None = None) -> bool:
     state read can call it every time: a game installed, updated or removed
     in Steam shows up without pressing Find FSR 3.1 games.
     """
-    folders = installed_steam_game_folders(home)
+    folders = _game_folders(home)
     scan = _read_json(_scan_path(), {})
     if isinstance(scan, dict) and scan.get("library") == _library_signature(folders):
         return False
@@ -545,10 +569,11 @@ def refresh_helixsr_scan(*, home: Path | None = None) -> bool:
 
 
 def scan_helixsr_games(*, home: Path | None = None, folders: list[dict] | None = None) -> list[dict]:
-    """Installed Steam games that ship an FSR 3.1 DLL. Read-only; cached."""
+    """Installed games (Steam's and non-Steam shortcuts) that ship an FSR 3.1
+    DLL. Read-only; cached."""
     games = []
     sized: list[Path] = []
-    folders = installed_steam_game_folders(home) if folders is None else folders
+    folders = _game_folders(home) if folders is None else folders
     for game in folders:
         targets = _fsr_folders(Path(game["path"]), sized)
         if targets:
@@ -586,6 +611,8 @@ def _sha256_or_empty(path: Path) -> str:
 # collide with a Steam app id.
 
 FOLDER_PREFIX = "folder-"
+#: Non-Steam games added to Steam: their shortcut's id, see steam_shortcut_game_folders.
+SHORTCUT_PREFIX = "shortcut-"
 
 
 def _folder_id(path: Path) -> str:
@@ -1793,6 +1820,11 @@ def _game(appid: str) -> dict:
         if not path.is_dir():
             raise RuntimeError("That folder does not exist.")
         return {"appid": appid, "name": str(folder.get("name") or path.name), "path": str(path)}
+    if appid.startswith(SHORTCUT_PREFIX):
+        for game in steam_shortcut_game_folders():
+            if game["appid"] == appid:
+                return game
+        raise RuntimeError("This game is no longer in Steam's non-Steam games.")
     if not appid.isdigit():
         raise ValueError("Invalid Steam app id.")
     for game in installed_steam_game_folders():

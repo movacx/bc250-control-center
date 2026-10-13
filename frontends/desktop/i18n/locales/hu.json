@@ -4831,5 +4831,7 @@
   "8-bit network": "8 bites hálózat",
   "HelixSR 1.9 and newer. Auto runs most of the network with 8-bit math on GPUs that are fast at it, a little faster with a nearly identical image. Turn it off if something looks wrong.": "HelixSR 1.9 és újabb. Az Automatikus a hálózat nagy részét 8 bites számítással futtatja az ebben gyors GPU-kon: kicsit gyorsabb, szinte azonos képpel. Kapcsolja ki, ha valami hibásnak tűnik.",
   "On": "Be",
-  "HelixSR {version} is selected. Install or Update brings it in.": "A HelixSR {version} van kiválasztva. A Telepítés vagy a Frissítés hozza."
+  "HelixSR {version} is selected. Install or Update brings it in.": "A HelixSR {version} van kiválasztva. A Telepítés vagy a Frissítés hozza.",
+  "This game is no longer in Steam's non-Steam games.": "Ez a játék már nincs a Steam nem Steam-es játékai között.",
+  "This HelixSR release is not on offer.": "Ez a HelixSR-kiadás nem érhető el."
 }

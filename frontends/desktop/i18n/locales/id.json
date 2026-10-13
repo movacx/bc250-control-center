@@ -4831,5 +4831,7 @@
   "8-bit network": "Jaringan 8-bit",
   "HelixSR 1.9 and newer. Auto runs most of the network with 8-bit math on GPUs that are fast at it, a little faster with a nearly identical image. Turn it off if something looks wrong.": "HelixSR 1.9 dan yang lebih baru. Otomatis menjalankan sebagian besar jaringan dengan perhitungan 8-bit pada GPU yang cepat dalam hal itu: sedikit lebih cepat dengan gambar hampir sama. Matikan jika ada yang terlihat salah.",
   "On": "Nyala",
-  "HelixSR {version} is selected. Install or Update brings it in.": "HelixSR {version} dipilih. Pasang atau Perbarui akan membawanya."
+  "HelixSR {version} is selected. Install or Update brings it in.": "HelixSR {version} dipilih. Pasang atau Perbarui akan membawanya.",
+  "This game is no longer in Steam's non-Steam games.": "Game ini sudah tidak ada di game non-Steam Steam.",
+  "This HelixSR release is not on offer.": "Rilis HelixSR ini tidak tersedia."
 }

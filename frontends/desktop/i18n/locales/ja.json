@@ -4831,5 +4831,7 @@
   "8-bit network": "8 ビットネットワーク",
   "HelixSR 1.9 and newer. Auto runs most of the network with 8-bit math on GPUs that are fast at it, a little faster with a nearly identical image. Turn it off if something looks wrong.": "HelixSR 1.9 以降。自動では、8 ビット演算が速い GPU でネットワークの大部分を 8 ビット演算で実行します。画質はほぼ同じで少し速くなります。おかしく見える場合はオフにしてください。",
   "On": "オン",
-  "HelixSR {version} is selected. Install or Update brings it in.": "HelixSR {version} を選択しました。「インストール」または「更新」で導入されます。"
+  "HelixSR {version} is selected. Install or Update brings it in.": "HelixSR {version} を選択しました。「インストール」または「更新」で導入されます。",
+  "This game is no longer in Steam's non-Steam games.": "このゲームは Steam の非 Steam ゲームにもうありません。",
+  "This HelixSR release is not on offer.": "この HelixSR のリリースは提供されていません。"
 }
