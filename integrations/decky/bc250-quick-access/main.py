@@ -73,7 +73,7 @@ CPU_SCALES = tuple(range(-50, 1))
 # Same fixed ladder the desktop's own VRAM control offers. Cross-checked
 # against the shared contract in _contract_disagreement() before it is ever
 # shown, so a stale plugin cannot offer a size the root helper would reject.
-VRAM_SIZE_PRESETS_MB = (256, 512, 1024, 2048, 3072, 4096, 5120, 6144, 7168, 8192, 12288)
+VRAM_SIZE_PRESETS_MB = (256, 512, 1024, 3072, 4096, 5120, 6144, 7168, 8192, 12288)
 # GPU memory limit (TTM) choices: the helper validates them again, and the
 # desktop's system-setup helper a third time before anything is written.
 TTM_CHOICES = ("8", "10", "12", "default")

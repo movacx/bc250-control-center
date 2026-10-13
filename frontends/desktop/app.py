@@ -1389,6 +1389,8 @@ class ControlCenterWindow(QMainWindow):
     _ACCESSORY_LINKS = {
         "thermalright": ("https://github.com/Lexonight1/thermalright-trcc-linux", "TRCC Linux"),
         "corsair": ("https://github.com/jurkovic-nikola/OpenLinkHub", "OpenLinkHub"),
+        "hdmi_ac3": ("https://github.com/keyboardspecialist/bc250-steamos/tree/main/hdmi-ac3", "Dolby Digital 5.1"),
+        "hdmi_cec": ("https://gitlab.steamos.cloud/holo/linux-cec", "cecd"),
     }
 
     def _dashboard_accessory(self, accessory: str, operation: str) -> None:
@@ -1402,6 +1404,8 @@ class ControlCenterWindow(QMainWindow):
         try:
             if operation == "upstream":
                 open_external_url(upstream)
+            elif operation == "configure" and accessory == "hdmi_cec":
+                self.controller.test_tv_control()
             elif operation == "configure" and accessory == "corsair":
                 from bc250cc.infrastructure.accessories.openlinkhub import PANEL_URL
 
@@ -1416,11 +1420,18 @@ class ControlCenterWindow(QMainWindow):
                 self.controller.manage_accessory(accessory, "install")
             elif operation == "remove":
                 # Removing takes the program away; the owner's own themes and
-                # profiles stay, which the dialog says.
+                # profiles stay, which the dialog says. Audio and TV settings
+                # have no profiles: what Control Center added goes, nothing else.
+                body = (
+                    "The settings Control Center added are removed and the previous behaviour returns. "
+                    "Packages installed for it stay."
+                    if accessory in {"hdmi_ac3", "hdmi_cec"}
+                    else "The program and the service Control Center set up for it are removed. "
+                    "Your own themes and profiles are kept."
+                )
                 dialog = ConfirmDialog(
                     tr_format("Remove {program}?", program=program),
-                    "The program and the service Control Center set up for it are removed. "
-                    "Your own themes and profiles are kept.",
+                    body,
                     confirm_text="Remove",
                     tone="orange",
                     parent=self,

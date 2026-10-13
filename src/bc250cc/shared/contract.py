@@ -189,11 +189,12 @@ QUICK_ACCESS_FAN_PERCENT_STEP = 5
 
 # ----------------------------------------------------------- VRAM (UMA_SIZE)
 
-# Fixed CMOS presets, aligned to the 16 MiB granularity the firmware itself
+# Fixed CMOS presets (2048 MiB is left out on purpose: the BC-250 documentation
+# warns that Linux does not boot with that split), aligned to the 16 MiB granularity the firmware itself
 # enforces (github.com/fanoush/bc250_memcfg). Below 1 GiB the desktop's label
 # stays in MiB; every other preset here is an exact GiB multiple. Kept as one
 # ladder so the desktop dropdown and the Quick Access dropdown can never
 # offer different sizes for the same preset.
 VRAM_SIZE_PRESETS_MB: tuple[int, ...] = (
-    256, 512, 1024, 2048, 3072, 4096, 5120, 6144, 7168, 8192, 12288,
+    256, 512, 1024, 3072, 4096, 5120, 6144, 7168, 8192, 12288,
 )

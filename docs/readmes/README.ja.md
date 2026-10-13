@@ -87,6 +87,7 @@ bash scripts/uninstall-local.sh
 **システム**
 - ディストリビューションごとに合わせた依存関係の準備。内蔵ターミナルですべてのコマンドを表示。
 - 互換性の修正: GFX1013 と async compute、ゲームごとの FSR4、テレメトリ、ACPI。
+- AV アンプやサウンドバー向けの HDMI 経由ドルビーデジタル 5.1 と、Valve の cecd による HDMI-CEC でのテレビ制御。
 - ディストリビューション公式リポジトリからの Wi-Fi、Bluetooth、プリンタードライバー。
 - 診断、履歴、CSV へのメトリクスのエクスポート。
 
@@ -134,6 +135,7 @@ BC250 Control Center はコミュニティの成果の上に成り立ってお�
 - [bc250-memory-temperature](https://github.com/pan-Rijovich/bc250-memory-temperature): GDDR6 メモリの温度。
 - [bc250_memcfg](https://github.com/fanoush/bc250_memcfg): CMOS による VRAM サイズ。
 - [nct6687d](https://github.com/Fred78290/nct6687d): NCT センサーとファン PWM。
+- [linux-cec](https://gitlab.steamos.cloud/holo/linux-cec): Valve の HDMI-CEC デーモン cecd。
 
 **ファームウェア**
 - [bc250-bios](https://gitlab.com/TuxThePenguin0/bc250-bios): 純正 P3.00 と Chipset Menu の BIOS。

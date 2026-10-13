@@ -40,7 +40,7 @@ def panel(qtbot):
 def test_the_grid_paints_in_the_font_it_is_measured_in(qtbot, panel):
     view = panel.view
     assert QFontInfo(view._grid_font).fixedPitch()
-    text = "[sudo] password for fabianbeita:"
+    text = "[sudo] password for user:"
     advance = QFontMetricsF(view._grid_font).horizontalAdvance(text)
     assert abs(advance - len(text) * view._cell_width) <= 1.0
 

@@ -144,8 +144,7 @@
       "code": "BC250-UPSTREAM-404",
       "markers": [
         "returned error: 404",
-        "failed to synchronize all databases",
-        "failed retrieving file"
+        "failed to synchronize all databases"
       ],
       "exit_statuses": [],
       "retryable": false
@@ -418,7 +417,6 @@
     "QUICK_ACCESS_CU_KERNEL",
     "QUICK_ACCESS_CU_VERIFY",
     "smu returned status 0x",
-    "failed retrieving file",
     "QUICK_ACCESS_GPU_DBUS",
     "QUICK_ACCESS_CU_TABLE",
     "QUICK_ACCESS_CU_STATE",
