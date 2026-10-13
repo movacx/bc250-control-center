@@ -87,6 +87,7 @@ bash scripts/uninstall-local.sh
 **Система**
 - Подготовка зависимостей для каждого дистрибутива со встроенным терминалом, где видна каждая команда.
 - Исправления совместимости: GFX1013 и async compute, FSR4 для отдельных игр, телеметрия и ACPI.
+- Dolby Digital 5.1 по HDMI для ресиверов и саундбаров и управление телевизором по HDMI-CEC через cecd от Valve.
 - Драйверы Wi-Fi, Bluetooth и принтеров из официальных репозиториев вашего дистрибутива.
 - Диагностика, история и экспорт метрик в CSV.
 
@@ -134,6 +135,7 @@ BC250 Control Center опирается на работу сообщества �
 - [bc250-memory-temperature](https://github.com/pan-Rijovich/bc250-memory-temperature): температура памяти GDDR6.
 - [bc250_memcfg](https://github.com/fanoush/bc250_memcfg): размер VRAM через CMOS.
 - [nct6687d](https://github.com/Fred78290/nct6687d): датчики NCT и PWM вентиляторов.
+- [linux-cec](https://gitlab.steamos.cloud/holo/linux-cec): cecd, демон HDMI-CEC от Valve.
 
 **Прошивка**
 - [bc250-bios](https://gitlab.com/TuxThePenguin0/bc250-bios): стоковый BIOS P3.00 и Chipset Menu.

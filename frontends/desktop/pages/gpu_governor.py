@@ -4152,17 +4152,26 @@ class GpuGovernorPage(QWidget):
                 tr("Could not check ACPI status"), controls=(), error_parent=dialog_parent,
             )
             return
+        tools = _dict(self.current_state.get("tools"))
+        family = str(tools.get("os_family") or "")
+        acpi_status = str(_dict(_dict(tools.get("system_setup")).get("acpi")).get("status") or "")
+        # On SteamOS the same action writes the tables back after an update.
+        repair = action == "acpi-update" and acpi_status == "needs-repair"
         label = (
             tr("Install correction") if action == "acpi-install"
+            else tr("Repair correction") if repair
             else tr("Update correction") if action == "acpi-update"
             else tr("Uninstall")
         )
-        bazzite = str(_dict(self.current_state.get("tools")).get("os_family") or "") == "bazzite"
         body = (
-            tr("This replaces the tables of the BC250 ACPI boot entry with v1.1.1, which drops the C3 idle state that can freeze the board. The boot entries themselves are not changed. Reboot only after the terminal reports success.")
+            tr("A SteamOS update replaced /boot, so this image starts without the ACPI tables. This writes them back beside the kernel and regenerates the boot menu; nothing else changes. Reboot only after the terminal reports success.")
+            if repair
+            else tr("This replaces the tables of the BC250 ACPI boot entry with v1.1.1, which drops the C3 idle state that can freeze the board. The boot entries themselves are not changed. Reboot only after the terminal reports success.")
             if action == "acpi-update"
             else tr("On Bazzite every boot entry loads the ACPI tables, through GRUB's early_initrd setting; your BIOS and the system image are not changed. If it does not boot, open the submenu 'Bazzite without the BC250 ACPI tables (recovery)' at the end of the boot menu. Reboot only after the terminal reports success. Beta on Bazzite.")
-            if action == "acpi-install" and bazzite
+            if action == "acpi-install" and family == "bazzite"
+            else tr("On SteamOS every entry of this SteamOS image loads the ACPI tables, through GRUB's early initrd list; your BIOS is not changed and the other SteamOS image keeps the stock tables. If it does not boot, press e on the entry in the boot menu, delete /boot/bc250-acpi.cpio from the initrd line and press Ctrl+X, or start the other image. After a SteamOS update, use Repair correction. Reboot only after the terminal reports success. Beta on SteamOS.")
+            if action == "acpi-install" and family == "steamos"
             else tr("This changes the default boot entry, not your BIOS. The original boot entry remains available for recovery. Use it if the ACPI entry does not boot. Reboot only after the terminal reports success. This optional integration still requires hardware testing.")
         )
         confirmation = ConfirmDialog(
