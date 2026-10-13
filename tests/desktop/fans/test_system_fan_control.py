@@ -173,6 +173,28 @@ def test_the_hottest_labelled_input_wins_and_disconnected_ones_are_ignored(board
     assert readings == {"gpu": 48.0, "cpu": 52.0, "vrm": 44.5, "board": 45.0}
 
 
+def test_chips_the_curve_does_not_use_are_never_read(board, monkeypatch):
+    # bc250_memory answers every read with SMU messages; the loop must not
+    # touch it (or any other chip it has no use for) every two seconds.
+    module, g, _nct, _k10 = board
+    memory = g["HWMON_BASE"] / "hwmon4"
+    _write(memory / "name", "bc250_memory")
+    (memory / "temp1_label").write_text("VRAM Hotspot\n", encoding="utf-8")
+    _write(memory / "temp1_input", 70000)
+    read = []
+    original = g["_read_temperature"]
+
+    def recording(path):
+        read.append(path)
+        return original(path)
+
+    monkeypatch.setitem(g, "_read_temperature", recording)
+    readings = module["read_temperatures"](g["HWMON_BASE"])
+
+    assert readings == {"gpu": 48.0, "cpu": 52.0, "vrm": 44.5, "board": 45.0}
+    assert read and not [path for path in read if memory in path.parents]
+
+
 def test_the_loop_follows_the_curve_from_firmware_mode(board):
     module, g, nct, k10 = board
     module["save_policy"](_policy())
