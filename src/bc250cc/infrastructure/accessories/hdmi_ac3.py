@@ -14,9 +14,15 @@ and a WirePlumber rule select the profile set, the HDMI sink stays open
 between sounds (a receiver relocks on every new stream) and the encoder
 buffers one 1536-sample AC-3 frame before playback starts. On top of it:
 its own file names, every distribution with PipeWire and WirePlumber 0.5,
-the distribution's packages for the encoder, and the encoder's ALSA
-definition switched on where a distribution ships it switched off (the Arch
-family leaves 60-a52-encoder.conf out of /etc/alsa/conf.d).
+the distribution's packages for the encoder, and the start delay matched by
+node name: through the a52 plugin a node reports an empty ``alsa.name``, so
+the ``alsa.name`` match both toolkits used never fired (rpf16rj's later
+guide; the sink then fails with EPIPE whenever a sound starts).
+
+The encoder's ALSA definition (60-a52-encoder.conf) is linked into
+/etc/alsa/conf.d by every distribution's package that was checked (Arch,
+Manjaro, Fedora 42 to 44, Debian 12 and 13, Ubuntu 24.04 to 26.04); it is
+only linked here when nothing defines ``pcm.a52`` and the path is free.
 """
 
 from __future__ import annotations
@@ -92,8 +98,9 @@ monitor.alsa.rules = [
     actions = {{ update-props = {{ session.suspend-timeout-seconds = 3600 }} }}
   }}
   {{
-    # One AC-3 frame (1536 samples) buffered before playback starts.
-    matches = [ {{ node.name = "~alsa_output.pci-.*hdmi.*", alsa.name = "~a52.*" }} ]
+    # One AC-3 frame (1536 samples) buffered before playback starts. Matched
+    # by node name: through the a52 plugin alsa.name is empty.
+    matches = [ {{ node.name = "~alsa_output.pci-.*hdmi-ac3-surround.*" }} ]
     actions = {{ update-props = {{ api.alsa.start-delay = 1536 }} }}
   }}
 ]
@@ -103,34 +110,59 @@ monitor.alsa.rules = [
 #: profiles. ``bc250_select <ac3|stereo>``: the AC-3 profile of the port the
 #: stereo profile was on (hdmi-stereo-extra1 -> hdmi-ac3-surround-extra1), so
 #: the sound stays on the same output.
-_SELECT = r"""bc250_card() {
-  pactl list cards 2>/dev/null | awk '
+_SELECT = r"""bc250_cards=""
+# pactl's output is read whole first: under pipefail, an awk that stops early
+# would kill pactl with SIGPIPE and the whole selection with it.
+bc250_read_cards() { bc250_cards="$(pactl list cards 2>/dev/null || true)"; }
+bc250_card() {
+  awk '
     /^Card #/ { name = "" }
     /^[[:space:]]+Name:/ { name = $2 }
-    /device.product.id = "0x13ff"/ && name != "" { print name; exit }'
+    /device.product.id = "0x13ff"/ && name != "" && found == "" { found = name }
+    END { if (found != "") print found }' <<<"$bc250_cards"
 }
 bc250_active_profile() {
-  pactl list cards 2>/dev/null | awk -v target="$1" '
+  awk -v target="$1" '
     /^Card #/ { selected = 0 }
     /^[[:space:]]+Name:/ { selected = ($2 == target) }
-    selected && /^[[:space:]]+Active Profile:/ { sub(/^[^:]+:[[:space:]]*/, ""); print; exit }'
+    selected && /^[[:space:]]+Active Profile:/ && found == "" { sub(/^[^:]+:[[:space:]]*/, ""); found = $0 }
+    END { if (found != "") print found }' <<<"$bc250_cards"
 }
-bc250_available_profiles() {
-  pactl list cards 2>/dev/null | awk -v target="$1" -v kind="$2" '
+# "<profile> <yes|no|unknown>" for each output profile of one kind.
+bc250_profiles() {
+  awk -v target="$1" -v kind="$2" '
     /^Card #/ { selected = 0 }
     /^[[:space:]]+Name:/ { selected = ($2 == target) }
-    selected && $1 ~ ("^output:" kind) && /available: yes/ { sub(/:$/, "", $1); print $1 }'
+    selected && $1 ~ ("^output:" kind "(-extra[0-9]+)?:$") {
+      state = "unknown"
+      if ($0 ~ /available: yes/) state = "yes"
+      else if ($0 ~ /available: no/) state = "no"
+      sub(/:$/, "", $1); print $1, state
+    }' <<<"$bc250_cards"
 }
+# The profile of that kind on the port with this suffix, unless it is "no".
+bc250_usable() { bc250_profiles "$1" "$2" | awk -v want="output:$2$3" '$1 == want && $2 != "no" { print $1 }'; }
 bc250_select() {
-  local want="$1" card="" active suffix target sink _
-  for _ in $(seq 1 15); do card="$(bc250_card)"; [ -n "$card" ] && break; sleep 1; done
+  local want="$1" card="" active suffix target kind sink sinks name state _
+  for _ in $(seq 1 15); do bc250_read_cards; card="$(bc250_card)"; [ -n "$card" ] && break; sleep 1; done
   [ -n "$card" ] || { echo "ERROR: the BC-250 HDMI/DisplayPort audio card was not found."; return 1; }
   active="$(bc250_active_profile "$card")"
   suffix="$(printf '%s\n' "$active" | sed -n 's/^output:hdmi-[a-z0-9-]*\(-extra[0-9]\+\)$/\1/p')"
-  if [ "$want" = ac3 ]; then target="output:hdmi-ac3-surround$suffix"; kind="hdmi-ac3-surround"
-  else target="output:hdmi-stereo$suffix"; kind="hdmi-stereo"; fi
-  if ! bc250_available_profiles "$card" "$kind" | grep -qxF "$target"; then
-    target="$(bc250_available_profiles "$card" "$kind" | head -n 1)"
+  if [ "$want" = ac3 ]; then kind="hdmi-ac3-surround"; else kind="hdmi-stereo"; fi
+  # PipeWire reports the AC-3 profiles' availability as "unknown": the port
+  # the sound is on now decides, then any port whose stereo profile is
+  # connected, then any profile of the kind that is not unavailable.
+  target=""
+  case "$active" in output:hdmi-*) target="$(bc250_usable "$card" "$kind" "$suffix")" ;; esac
+  if [ -z "$target" ]; then
+    while read -r name state; do
+      [ "$state" = yes ] || continue
+      target="$(bc250_usable "$card" "$kind" "$(printf '%s\n' "$name" | sed -n 's/^output:hdmi-stereo\(-extra[0-9]\+\)$/\1/p')")"
+      [ -n "$target" ] && break
+    done <<<"$(bc250_profiles "$card" hdmi-stereo)"
+  fi
+  if [ -z "$target" ]; then
+    target="$(bc250_profiles "$card" "$kind" | awk '$2 != "no" && found == "" { found = $1 } END { if (found != "") print found }')"
   fi
   if [ -z "$target" ]; then
     echo "ERROR: no connected HDMI/DisplayPort output offers this profile. Is the display or receiver on?"
@@ -138,7 +170,8 @@ bc250_select() {
   fi
   pactl set-card-profile "$card" "$target"
   sleep 1
-  sink="$(pactl list sinks short | awk -v card="${card#alsa_card.}" 'index($2, card) { print $2; exit }')"
+  sinks="$(pactl list sinks short 2>/dev/null || true)"
+  sink="$(awk -v card="${card#alsa_card.}" 'index($2, card) && found == "" { found = $2 } END { if (found != "") print found }' <<<"$sinks")"
   if [ -n "$sink" ]; then pactl set-default-sink "$sink"; echo "[INFO] Default output: $sink"; fi
   echo "[INFO] Profile: $target"
 }"""
@@ -230,12 +263,15 @@ def _package_lines(family: str) -> list[str]:
         return [f"sudo dnf install -y {packages}"]
     if family in {"debian", "ubuntu"}:
         # Install what this release offers: -extra only exists on older Ubuntu.
+        # No pipe into grep: under pipefail an early grep exit is a SIGPIPE.
         return [
             "sudo apt-get update",
             f"for bc250_package in {packages}; do",
-            '  if apt-cache policy "$bc250_package" 2>/dev/null | grep -q "Candidate: [^(]"; then',
-            '    sudo apt-get install -y --no-install-recommends "$bc250_package"',
-            "  fi",
+            '  bc250_policy="$(apt-cache policy "$bc250_package" 2>/dev/null || true)"',
+            '  case "$bc250_policy" in',
+            '    *"Candidate: (none)"*|"") ;;',
+            '    *Candidate:*) sudo apt-get install -y --no-install-recommends "$bc250_package" ;;',
+            "  esac",
             "done",
         ]
     if family == "bazzite":
@@ -264,10 +300,12 @@ def _root_script(steamos: bool) -> str:
         "umask 022",
         f"mkdir -p {shlex.quote(str(UDEV_RULE.parent))}",
         f"printf '%s' \"$1\" > {rule}",
-        # The encoder's ALSA definition, only where nothing defines pcm.a52.
-        f"if ! grep -qs '^pcm.a52' /etc/alsa/conf.d/*.conf && [ -f {shlex.quote(str(A52_SOURCE))} ]; then",
+        # The encoder's ALSA definition, only where nothing defines pcm.a52
+        # and the path is free: a file a package owns is never replaced.
+        f"if ! grep -qs '^pcm.a52' /etc/alsa/conf.d/*.conf && [ -f {shlex.quote(str(A52_SOURCE))} ] "
+        f"&& [ ! -e {shlex.quote(str(A52_LINK))} ] && [ ! -L {shlex.quote(str(A52_LINK))} ]; then",
         f"  install -d -m 0755 /etc/alsa/conf.d {record_dir}",
-        f"  ln -sfn {shlex.quote(str(A52_SOURCE))} {shlex.quote(str(A52_LINK))}",
+        f"  ln -s {shlex.quote(str(A52_SOURCE))} {shlex.quote(str(A52_LINK))}",
         f"  printf '%s\\n' {shlex.quote(MARKER)} > {shlex.quote(str(A52_LINK_RECORD))}",
         "fi",
     ]
@@ -291,7 +329,7 @@ def _foreign_guard() -> list[str]:
     system = " ".join(shlex.quote(str(path)) for path in FOREIGN_SYSTEM)
     rule = shlex.quote(str(UDEV_RULE))
     return [
-        f'bc250_wp_dir="${{XDG_CONFIG_HOME:-$HOME/.config}}/wireplumber/wireplumber.conf.d"',
+        'bc250_wp_dir="${XDG_CONFIG_HOME:-$HOME/.config}/wireplumber/wireplumber.conf.d"',
         f'for bc250_file in {system} "$bc250_wp_dir/{FOREIGN_USER_NAME}"; do',
         '  if [ -e "$bc250_file" ]; then',
         '    echo "ERROR: $bc250_file already switches the AC-3 profile on (another toolkit). Remove that installation first."',
@@ -350,21 +388,27 @@ def install_command(family: str) -> str:
     return "\n".join(commands)
 
 
-def remove_command(family: str) -> str:
-    family = str(family or "").strip().lower()
+def _root_remove_script() -> str:
+    """The system half of removing: only what carries this application's mark."""
     rule = shlex.quote(str(UDEV_RULE))
     record = shlex.quote(str(A52_LINK_RECORD))
     link = shlex.quote(str(A52_LINK))
-    root = "\n".join((
+    keep = shlex.quote(str(KEEP_FILE))
+    return "\n".join((
         "set -eu",
         f"if [ -e {rule} ] && grep -qxF {shlex.quote(MARKER)} {rule}; then rm -f {rule}; fi",
         # The encoder link only when this application made it.
         f"if [ -f {record} ] && [ -L {link} ]; then rm -f {link}; fi",
         f"rm -f {record}",
-        f"if [ -e {shlex.quote(str(KEEP_FILE))} ] && grep -qxF {shlex.quote(MARKER)} {shlex.quote(str(KEEP_FILE))}; then rm -f {shlex.quote(str(KEEP_FILE))}; fi",
+        f"if [ -e {keep} ] && grep -qxF {shlex.quote(MARKER)} {keep}; then rm -f {keep}; fi",
         "udevadm control --reload-rules",
         "udevadm trigger --subsystem-match=sound || true",
     ))
+
+
+def remove_command(family: str) -> str:
+    family = str(family or "").strip().lower()
+    root = _root_remove_script()
     commands = shell_header("HDMI audio · back to stereo")
     commands += [
         *((STEAMOS_PASSWORD_GUARD, "bc250_require_password") if family == "steamos" else ()),

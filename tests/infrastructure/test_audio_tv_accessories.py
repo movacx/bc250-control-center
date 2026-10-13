@@ -145,8 +145,8 @@ _CARDS = """Card #46
 \tProfiles:
 \t\toutput:hdmi-stereo: Digital Stereo (HDMI) Output (sinks: 1, sources: 0, priority: 5900, available: no)
 \t\toutput:hdmi-stereo-extra1: Digital Stereo (HDMI 2) Output (sinks: 1, sources: 0, priority: 5700, available: yes)
-\t\toutput:hdmi-ac3-surround: Digital Surround 5.1 (HDMI/AC3) Output (sinks: 1, sources: 0, priority: 1, available: no)
-\t\toutput:hdmi-ac3-surround-extra1: Digital Surround 5.1 (HDMI 2/AC3) Output (sinks: 1, sources: 0, priority: 1, available: yes)
+\t\toutput:hdmi-ac3-surround: Digital Surround 5.1 (HDMI/AC3) Output (sinks: 1, sources: 0, priority: 100, available: unknown)
+\t\toutput:hdmi-ac3-surround-extra1: Digital Surround 5.1 (HDMI 2/AC3) Output (sinks: 1, sources: 0, priority: 100, available: unknown)
 \tActive Profile: @ACTIVE@
 Card #47
 \tName: alsa_card.usb-Generic
@@ -158,10 +158,12 @@ Card #47
 
 @pytest.mark.skipif(shutil.which("bash") is None, reason="bash is needed to run the selection")
 @pytest.mark.parametrize(("active", "want", "chosen"), [
+    # PipeWire lists the AC-3 profiles as "available: unknown" (measured on a
+    # BC-250 with spa-acp-tool); the port the sound is on decides.
     ("output:hdmi-stereo-extra1", "ac3", "output:hdmi-ac3-surround-extra1"),
     ("output:hdmi-ac3-surround-extra1", "stereo", "output:hdmi-stereo-extra1"),
-    # The port of the active profile is not connected: the connected one wins.
-    ("output:hdmi-stereo", "ac3", "output:hdmi-ac3-surround-extra1"),
+    # Off: the connected stereo port (extra1) picks the AC-3 port.
+    ("off", "ac3", "output:hdmi-ac3-surround-extra1"),
 ])
 def test_the_ac3_profile_stays_on_the_port_the_sound_was_on(tmp_path, active, want, chosen):
     bin_dir = tmp_path / "bin"
@@ -251,16 +253,56 @@ def test_cecd_is_built_from_the_reviewed_commit(cec):
     assert f"fetch -q --depth 1 {hdmi_cec.REPOSITORY}.git {hdmi_cec.REVIEWED_REVISION}" in command
     assert command.index("rev-parse HEAD") < command.index("cargo build --release --locked")
     assert hdmi_cec.MIN_RUST in command
+    assert 'export PATH="$HOME/.cargo/bin:$PATH"' in command
     assert 'SUBSYSTEM=="cec", TAG+="uaccess"' in command
     assert "dbus-1/services" in command and hdmi_cec.SERVICE in command
     assert "wake_tv = true" in command and "suspend_tv = true" in command
     assert "LICENSE.linux-cec-sys" in command
 
 
-def test_bazzite_builds_cecd_in_a_fedora_container_of_its_release(cec):
+def test_bazzite_builds_cecd_in_the_official_rust_image(cec):
     command = hdmi_cec.install_command("bazzite", cec)
-    assert "registry.fedoraproject.org/fedora:$bc250_fedora" in command
+    assert hdmi_cec.BUILD_IMAGE in command and "docker.io/library/rust:" in hdmi_cec.BUILD_IMAGE
+    # The source is fetched and verified inside the container as well.
+    assert hdmi_cec.REVIEWED_REVISION in command and "rev-parse HEAD" in command
     assert "rpm-ostree" not in command and "pacman" not in command
+    assert "cargo build --release --locked" in command
+
+
+def test_the_rust_floor_is_the_locked_dependencies_own():
+    # zbus 5.18, in the reviewed Cargo.lock, declares rust-version 1.87.
+    assert hdmi_cec.MIN_RUST == "1.87.0"
+
+
+@pytest.mark.parametrize("family", ["debian", "ubuntu"])
+def test_an_old_distribution_rust_falls_back_to_the_container(cec, family):
+    command = hdmi_cec.install_command(family, cec)
+    # Native only when the installed or offered rustc is new enough.
+    assert command.index("bc250_rust_ok") < command.index(hdmi_cec.BUILD_IMAGE)
+    assert "apt-cache policy rustc" in command
+    assert "sudo apt-get install -y podman" in command
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="bash is needed to run the check")
+@pytest.mark.parametrize(("reported", "ok"), [
+    (None, "0"), ("1.75.0", "0"), ("1.85.1", "0"), ("1.87.0", "1"), ("1.99.0", "1"),
+])
+def test_the_rust_check_survives_pipefail_and_reads_the_version(tmp_path, reported, ok):
+    tools = tmp_path / "bin"
+    tools.mkdir()
+    for name in ("awk", "sort", "head", "sed"):
+        (tools / name).symlink_to(shutil.which(name))
+    if reported:
+        rustc = tools / "rustc"
+        rustc.write_text(f"#!/bin/sh\necho 'rustc {reported} (0000000 2026-01-01)'\n", encoding="utf-8")
+        rustc.chmod(0o755)
+    script = "set -Eeuo pipefail\n" + hdmi_cec._rust_check() + '\necho "ok=$bc250_rust_ok"\n'
+    result = subprocess.run(
+        [shutil.which("bash"), "-c", script], capture_output=True, text=True,
+        env={"PATH": str(tools), "HOME": str(tmp_path)},
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == f"ok={ok}"
 
 
 def test_the_user_unit_runs_the_bundled_cecd(tmp_path):
@@ -306,3 +348,17 @@ def test_a_display_without_ac3_is_warned_about_before_anything_changes(ac3, monk
     assert command.index("plays it as silence") < command.index("sudo sh -c")
     monkeypatch.setattr(hdmi_ac3, "receiver_takes_ac3", lambda: True)
     assert "plays it as silence" not in hdmi_ac3.install_command("cachyos")
+
+
+def test_the_start_delay_is_matched_by_node_name_not_alsa_name():
+    """Through the a52 plugin alsa.name is empty; such a rule never fires."""
+    text = hdmi_ac3.WIREPLUMBER_TEXT
+    assert "alsa.name" not in text.split("monitor.alsa.rules", 1)[1].replace("# by node name: through the a52 plugin alsa.name is empty.", "")
+    assert 'node.name = "~alsa_output.pci-.*hdmi-ac3-surround.*"' in text
+    assert "api.alsa.start-delay = 1536" in text
+
+
+def test_a_package_owned_a52_definition_is_never_replaced():
+    script = hdmi_ac3._root_script(False)
+    assert "ln -sfn" not in script and "ln -s " in script
+    assert f"[ ! -e {hdmi_ac3.A52_LINK} ] && [ ! -L {hdmi_ac3.A52_LINK} ]" in script

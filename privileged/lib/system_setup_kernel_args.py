@@ -86,6 +86,9 @@ _STATE_KEY = "kernel-options"
 STEAMOS_GRUB_OUTPUT = "/efi/EFI/steamos/grub.cfg"
 STEAMOS_GRUB_STAGED = "/efi/EFI/steamos/.bc250-grub.cfg.new"
 STEAMOS_KEEP = "/etc/atomic-update.conf.d/bc250-control-center-boot.conf"
+#: Where GRUB's modules are on SteamOS; one missing from every one of them
+#: cannot be loaded at boot.
+GRUB_MODULE_DIRS = ("/usr/lib/grub/x86_64-efi", "/boot/grub/x86_64-efi")
 
 
 def _tokens(text: str) -> set[str]:
@@ -385,6 +388,28 @@ def _kernel_entries(menu: str) -> list[list[str]]:
     return entries
 
 
+def steamos_menu_without_missing_video(host: Host, menu: str) -> str:
+    """``insmod efi_uga`` commented out when GRUB ships no efi_uga.mod.
+
+    Valve's GRUB 2.13 (holo) has no efi_uga.mod. Its 00_header only loads it
+    when all_video is missing, but upstream's later "disable loading
+    all_video for EFI" loads it on every EFI boot, and a failed insmod stops
+    the boot at "Press any key to continue" on a console without a keyboard
+    (rpf16rj/bc250-steamos-real-toolkit). The BC-250's firmware draws through
+    GOP, never UGA, so leaving the line out changes nothing that boots.
+    """
+    dirs = [host.path(name) for name in GRUB_MODULE_DIRS if host.path(name).is_dir()]
+    if not dirs or any((directory / "efi_uga.mod").is_file() for directory in dirs):
+        return menu
+    # A statement, not just a comment: the line may be alone in an if block,
+    # and GRUB's script parser refuses an empty one. efi_gop is loaded anyway.
+    if any((directory / "efi_gop.mod").is_file() for directory in dirs):
+        replacement = r"\1insmod efi_gop  # BC250 Control Center: no efi_uga.mod on this system"
+    else:
+        replacement = r"\1# \2"
+    return re.sub(r"^([ \t]*)(insmod[ \t]+efi_uga)\b", replacement, menu, flags=re.M)
+
+
 def _write_steamos_grub(host: Host, tokens: list[str], previous: list[str]) -> None:
     """The drop-in, then a regenerated menu that replaces SteamOS's only when right."""
     output = host.path(STEAMOS_GRUB_OUTPUT)
@@ -409,6 +434,10 @@ def _write_steamos_grub(host: Host, tokens: list[str], previous: list[str]) -> N
             generated = staged.read_text(encoding="utf-8")
         except (OSError, UnicodeError) as error:
             raise SetupError("grub-mkconfig wrote no readable boot menu") from error
+        safe = steamos_menu_without_missing_video(host, generated)
+        if safe != generated:
+            staged.write_text(safe, encoding="utf-8")
+            generated = safe
         entries = _kernel_entries(generated)
         if not entries:
             raise SetupError("grub-mkconfig produced no kernel entries; the boot menu was left as it was")

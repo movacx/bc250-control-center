@@ -4595,10 +4595,13 @@ class PreparationSidebar(QFrame):
             "debian": "Ubuntu / Debian",
             "other": "Other distributions",
         }
-        self.acpi_card.setVisible(show_all or selected in {"arch", "bazzite"})
-        # Bazzite takes the same tables through grubenv (beta).
+        self.acpi_card.setVisible(show_all or selected in {"arch", "bazzite", "steamos"})
+        # Bazzite takes the same tables through grubenv, SteamOS through GRUB's
+        # early initrd list (both beta).
         self.acpi_card.set_scope(
-            "Beta · Bazzite" if selected == "bazzite" else "Validated · Arch / CachyOS / Manjaro"
+            "Beta · Bazzite" if selected == "bazzite"
+            else "Beta · SteamOS" if selected == "steamos"
+            else "Validated · Arch / CachyOS / Manjaro"
         )
         self.cyan_card.setVisible(True)
         self.oberon_card.setVisible(True)

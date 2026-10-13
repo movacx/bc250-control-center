@@ -159,6 +159,10 @@ def _steamos_regenerate(host: Host, *, tables: bool) -> None:
             generated = staged.read_text(encoding="utf-8")
         except (OSError, UnicodeError) as error:
             raise SetupError("grub-mkconfig wrote no readable boot menu") from error
+        safe = kernel_args.steamos_menu_without_missing_video(host, generated)
+        if safe != generated:
+            staged.write_text(safe, encoding="utf-8")
+            generated = safe
         if not kernel_args._kernel_entries(generated) or not _initrd_entries(generated):
             raise SetupError("grub-mkconfig produced no kernel entries; the boot menu was left as it was")
         if tables and not _steamos_menu_loads_tables(generated):

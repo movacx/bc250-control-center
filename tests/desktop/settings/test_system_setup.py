@@ -2234,3 +2234,59 @@ def test_a_swapfile_on_another_mount_gets_the_same_selinux_types(sandbox):
     directory = "/mnt/games/bc250-control-center-swap"
     assert ("chcon", "-t", "var_lib_t", directory) in sandbox.calls
     assert ("chcon", "-t", "swapfile_t", directory + "/swapfile") in sandbox.calls
+
+
+# ------------------------------------- SteamOS's real GRUB 2.13 output
+
+#: Valve's grub-mkconfig and 10_linux run in a container with the kernel
+#: options and ACPI drop-ins of this module (see the fixture's header).
+VALVE_MENU = (Path(__file__).resolve().parents[2] / "fixtures/steamos/grub-2.13-generated.cfg").read_text(
+    encoding="utf-8"
+)
+
+
+def test_valves_own_menu_is_read_the_way_grub_boots_it():
+    entries = kernel_args._kernel_entries(VALVE_MENU)
+    assert len(entries) == 3
+    assert all(words[0] == "steamenv_boot" for words in entries)
+    assert all({"mitigations=off", "nosmt", "ttm.pages_limit=3014656"} <= set(words) for words in entries)
+    initrds = acpi._initrd_entries(VALVE_MENU)
+    assert initrds[0] == ["/boot/amd-ucode.img", "/boot/bc250-acpi.cpio", "/boot/initramfs-linux-neptune-618.img"]
+    assert acpi._steamos_menu_loads_tables(VALVE_MENU)
+    stock = VALVE_MENU.replace(" /boot/bc250-acpi.cpio", "")
+    assert not acpi._steamos_menu_loads_tables(stock)
+
+
+def test_a_menu_that_would_load_a_missing_efi_uga_is_made_safe(sandbox):
+    host = sandbox.host
+    sandbox.put("/usr/lib/grub/x86_64-efi/efi_gop.mod", b"")
+    safe = kernel_args.steamos_menu_without_missing_video(host, VALVE_MENU)
+    assert "insmod efi_uga" not in safe
+    assert "insmod efi_gop  # BC250 Control Center: no efi_uga.mod on this system" in safe
+    # Nothing else changes, and nothing at all when the module is there.
+    assert safe.replace("insmod efi_gop  # BC250 Control Center: no efi_uga.mod on this system", "insmod efi_uga") == VALVE_MENU
+    sandbox.put("/usr/lib/grub/x86_64-efi/efi_uga.mod", b"")
+    assert kernel_args.steamos_menu_without_missing_video(host, VALVE_MENU) == VALVE_MENU
+
+
+def test_without_a_module_directory_the_menu_is_left_as_generated(sandbox):
+    assert kernel_args.steamos_menu_without_missing_video(sandbox.host, VALVE_MENU) == VALVE_MENU
+
+
+def test_steamos_regeneration_writes_the_safe_menu(sandbox):
+    host = sandbox.host
+    _steamos_grub(sandbox)
+    sandbox.put("/usr/lib/grub/x86_64-efi/efi_gop.mod", b"")
+    run = host.runner
+
+    def runner(*args, check=True):
+        result = run(*args, check=check)
+        if args[0] == "grub-mkconfig":
+            staged = host.path(args[-1])
+            staged.write_text("insmod efi_uga\n" + staged.read_text(encoding="utf-8"), encoding="utf-8")
+        return result
+
+    host.runner = runner
+    kernel_args.apply(host, ["mitigations=off"])
+    menu = host.read(kernel_args.STEAMOS_GRUB_OUTPUT)
+    assert "mitigations=off" in menu and "insmod efi_uga" not in menu

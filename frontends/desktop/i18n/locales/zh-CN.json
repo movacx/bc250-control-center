@@ -4835,5 +4835,8 @@
   "No CEC adapter is connected. CEC needs a DisplayPort-to-HDMI adapter that passes it, such as a Club3D CAC-1080 or CAC-1085.": "未连接 CEC 转接器。CEC 需要一个能传递它的 DisplayPort 转 HDMI 转接器，例如 Club3D CAC-1080 或 CAC-1085。",
   "The settings Control Center added are removed and the previous behaviour returns. Packages installed for it stay.": "Control Center 添加的设置会被移除，恢复之前的行为。为此安装的软件包会保留。",
   "HDMI audio (Dolby Digital 5.1)": "HDMI 音频（杜比数字 5.1）",
-  "TV control (HDMI-CEC)": "电视控制（HDMI-CEC）"
+  "TV control (HDMI-CEC)": "电视控制（HDMI-CEC）",
+  "Beta · SteamOS": "测试版 · SteamOS",
+  "A SteamOS update replaced /boot, so this image starts without the ACPI tables. This writes them back beside the kernel and regenerates the boot menu; nothing else changes. Reboot only after the terminal reports success.": "SteamOS 更新替换了 /boot，因此此镜像启动时不带 ACPI 表。此操作会把它们重新写到内核旁边并重新生成启动菜单；其他内容不变。请在终端报告成功后再重启。",
+  "On SteamOS every entry of this SteamOS image loads the ACPI tables, through GRUB's early initrd list; your BIOS is not changed and the other SteamOS image keeps the stock tables. If it does not boot, press e on the entry in the boot menu, delete /boot/bc250-acpi.cpio from the initrd line and press Ctrl+X, or start the other image. After a SteamOS update, use Repair correction. Reboot only after the terminal reports success. Beta on SteamOS.": "在 SteamOS 上，此 SteamOS 镜像的每个启动项都会通过 GRUB 的 early initrd 列表加载 ACPI 表；BIOS 不会改变，另一个 SteamOS 镜像保留原厂表。如果无法启动，请在启动菜单中对该启动项按 e，从 initrd 行中删除 /boot/bc250-acpi.cpio 并按 Ctrl+X，或启动另一个镜像。SteamOS 更新后，请使用“修复更正”。请在终端报告成功后再重启。SteamOS 上为测试版。"
 }

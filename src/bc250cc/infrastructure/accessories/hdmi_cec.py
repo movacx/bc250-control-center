@@ -14,12 +14,17 @@ the same one keyboardspecialist/bc250-steamos's bc250-cec.sh builds on.
 
 SteamOS ships cecd: only a configuration fragment is written (the BC-250's
 name on the TV), and Steam's own CEC settings keep deciding when the TV
-follows the console. Elsewhere cecd is built here from one reviewed commit,
-with the distribution's Rust toolchain (Bazzite: in a Fedora container of
-the same release), and runs from the user's tools folder as a user service,
-like the upstream unit; the only system files are the two uaccess udev
-rules upstream installs, so the logged-in user can reach /dev/cecN and
-/dev/uinput.
+follows the console. Elsewhere cecd is built here from one reviewed commit
+and runs from the user's tools folder as a user service, like the upstream
+unit; the only system files are the two uaccess udev rules upstream
+installs, so the logged-in user can reach /dev/cecN and /dev/uinput.
+
+The locked dependencies need Rust 1.87 (zbus 5.18). Arch, CachyOS, Manjaro
+and Fedora ship a newer one and build natively. Where the distribution's
+Rust is older (Debian 13 and Ubuntu 25.10 carry 1.85, Ubuntu 24.04 1.75) and
+on Bazzite, which has no compiler, cecd is built in the official Rust image
+on Debian 12, whose binary needs only glibc 2.34 and libudev; it was checked
+to run on Debian 13 and on Ubuntu 24.04, 25.10 and 26.04.
 """
 
 from __future__ import annotations
@@ -27,10 +32,8 @@ from __future__ import annotations
 import gzip
 import os
 import shlex
-import shutil
 from pathlib import Path
 
-from ..steamos_readonly import STEAMOS_PASSWORD_GUARD
 from ._shared import UNIT_DIRECTORY, command_output, shell_header, user_service_state
 
 REPOSITORY = "https://gitlab.steamos.cloud/holo/linux-cec"
@@ -58,7 +61,18 @@ BUILD_PACKAGES = {
     "ubuntu": "sudo apt-get update && sudo apt-get install -y --no-install-recommends cargo rustc pkg-config libudev-dev git",
 }
 FAMILIES = frozenset(BUILD_PACKAGES) | {"bazzite", "steamos"}
-MIN_RUST = "1.85.0"
+#: zbus 5.18 in the reviewed Cargo.lock declares rust-version 1.87.
+MIN_RUST = "1.87.0"
+#: The official Rust image, on Debian 12: its binaries need glibc 2.34.
+BUILD_IMAGE = "docker.io/library/rust:1.90-slim-bookworm"
+PODMAN_PACKAGES = {
+    "arch": "sudo pacman -S --needed --noconfirm podman",
+    "manjaro": "sudo pacman -S --needed --noconfirm podman",
+    "cachyos": "sudo pacman -S --needed --noconfirm podman",
+    "fedora": "sudo dnf install -y podman",
+    "debian": "sudo apt-get update && sudo apt-get install -y podman",
+    "ubuntu": "sudo apt-get update && sudo apt-get install -y podman",
+}
 
 UDEV_TEXT = f"""{MARKER}
 # From linux-cec (60-cec-uaccess.rules, 60-cecd-uinput.rules): the logged-in
@@ -205,53 +219,110 @@ def _config_lines(*, follow_console: bool) -> list[str]:
     ]
 
 
-def _build_lines(family: str) -> list[str]:
-    """Fetch the reviewed commit and build cecd and cectool in "$bc250_stage"."""
-    fetch = [
-        'git -C "$bc250_stage/src" init -q',
-        f'git -C "$bc250_stage/src" fetch -q --depth 1 {shlex.quote(REPOSITORY + ".git")} {REVIEWED_REVISION}',
-        'git -C "$bc250_stage/src" checkout -q FETCH_HEAD',
-        f'[ "$(git -C "$bc250_stage/src" rev-parse HEAD)" = {REVIEWED_REVISION} ] '
+def _fetch_lines(directory: str) -> list[str]:
+    return [
+        f'git -C {directory} init -q',
+        f'git -C {directory} fetch -q --depth 1 {shlex.quote(REPOSITORY + ".git")} {REVIEWED_REVISION}',
+        f'git -C {directory} checkout -q FETCH_HEAD',
+        f'[ "$(git -C {directory} rev-parse HEAD)" = {REVIEWED_REVISION} ] '
         "|| { echo 'ERROR: the fetched source is not the reviewed commit.'; exit 29; }",
     ]
-    # cectool (linux-cec's default feature) comes along for diagnosis.
-    cargo = "cargo build --release --locked -p cecd -p linux-cec"
-    if family == "bazzite":
-        # No compiler on the image: build in a Fedora container of the same
-        # release, so the binary links against the same glibc and libudev.
-        build = (
-            "dnf -y -q install cargo rust pkgconf-pkg-config systemd-devel >/tmp/dnf.log 2>&1 "
-            "|| { tail -20 /tmp/dnf.log; exit 31; }; "
-            f"cd /src && {cargo} && cp target/release/cecd target/release/cectool /out/"
-        )
-        return [
-            "command -v podman >/dev/null 2>&1 || { echo 'ERROR: Podman is required to build cecd and is missing.'; exit 69; }",
-            "command -v git >/dev/null 2>&1 || { echo 'ERROR: git is required.'; exit 69; }",
-            *fetch,
-            'bc250_fedora="$(. /etc/os-release; printf %s "${VERSION_ID:-latest}")"',
-            'echo "== Building cecd in a Fedora $bc250_fedora container (a few minutes; nothing is installed yet) =="',
-            'mkdir -p "$bc250_stage/out"',
-            "bc250_podman=podman; podman info >/dev/null 2>&1 || bc250_podman='sudo podman'",
-            '$bc250_podman run --rm --pull=missing -v "$bc250_stage/src":/src:Z -v "$bc250_stage/out":/out:Z '
-            f'"registry.fedoraproject.org/fedora:$bc250_fedora" bash -c {shlex.quote(build)}',
-        ]
+
+
+#: cectool (linux-cec's default feature) comes along for diagnosis.
+CARGO = "cargo build --release --locked -p cecd -p linux-cec"
+#: What either route leaves in "$bc250_stage/out".
+_COLLECT = (
+    "cp target/release/cecd target/release/cectool {out}/ && "
+    "cp cecd/LICENSE {out}/LICENSE && cp linux-cec-sys/LICENSE {out}/LICENSE.linux-cec-sys"
+)
+
+
+def _container_lines(family: str) -> list[str]:
+    """Build in the official Rust image; the source is fetched inside it too."""
+    build = " && ".join((
+        "apt-get update -qq >/tmp/apt.log 2>&1",
+        "apt-get install -y -qq --no-install-recommends pkg-config libudev-dev git ca-certificates >>/tmp/apt.log 2>&1",
+    )) + " || { tail -20 /tmp/apt.log; exit 31; }; " + "; ".join((
+        "set -e",
+        "mkdir -p /tmp/src",
+        *_fetch_lines("/tmp/src"),
+        f"cd /tmp/src && {CARGO}",
+        _COLLECT.format(out="/out"),
+    ))
+    get_podman = PODMAN_PACKAGES.get(family, "")
     return [
-        "if ! command -v cargo >/dev/null 2>&1 || ! command -v pkg-config >/dev/null 2>&1 || ! command -v git >/dev/null 2>&1; then",
-        "  echo '== Installing the Rust toolchain to build cecd =='",
-        f"  {BUILD_PACKAGES[family]}",
+        "if ! command -v podman >/dev/null 2>&1; then",
+        *(
+            ["  echo '== Installing Podman to build cecd in a container =='", f"  {get_podman}"]
+            if get_podman
+            else ["  echo 'ERROR: Podman is required to build cecd and is missing.'", "  exit 69"]
+        ),
         "fi",
-        # The locked dependencies (clap 4.6, toml 1.1) need Rust 1.85.
-        "bc250_rust=\"$(rustc --version 2>/dev/null | awk '{print $2}')\"",
-        f'if [ "$(printf \'%s\\n%s\\n\' {MIN_RUST} "${{bc250_rust:-0}}" | sort -V | head -n 1)" != {MIN_RUST} ]; then',
-        f"  echo \"ERROR: cecd needs Rust {MIN_RUST} or newer; this system has ${{bc250_rust:-none}}. Install a newer toolchain (for example with rustup) and try again.\"",
-        "  exit 69",
-        "fi",
-        *fetch,
-        'echo "== Building cecd (a few minutes; nothing is installed yet) =="',
-        f'(cd "$bc250_stage/src" && {cargo})',
+        f'echo "== Building cecd in {BUILD_IMAGE} (a few minutes, about 1 GB downloaded the first time; nothing is installed yet) =="',
         'mkdir -p "$bc250_stage/out"',
-        'cp "$bc250_stage/src/target/release/cecd" "$bc250_stage/src/target/release/cectool" "$bc250_stage/out/"',
+        "bc250_podman=podman; podman info >/dev/null 2>&1 || bc250_podman='sudo podman'",
+        f'$bc250_podman run --rm --pull=missing -v "$bc250_stage/out":/out:Z {BUILD_IMAGE} bash -c {shlex.quote(build)}',
     ]
+
+
+def _rust_check() -> str:
+    """Sets bc250_rust_ok=1 when the rustc on PATH is new enough."""
+    return (
+        # "|| true": under pipefail a missing rustc would otherwise end the script.
+        "bc250_rust=\"$(rustc --version 2>/dev/null | awk '{print $2}' || true)\"; bc250_rust_ok=0; "
+        f'if [ -n "$bc250_rust" ] && [ "$(printf \'%s\\n%s\\n\' {MIN_RUST} "$bc250_rust" | sort -V | head -n 1)" = {MIN_RUST} ]; '
+        "then bc250_rust_ok=1; fi"
+    )
+
+
+def _build_lines(family: str) -> list[str]:
+    """Build cecd and cectool into "$bc250_stage/out", natively when possible."""
+    if family == "bazzite":
+        # No compiler on the image.
+        return _container_lines(family)
+    native = [
+        *_fetch_lines('"$bc250_stage/src"'),
+        'echo "== Building cecd (a few minutes; nothing is installed yet) =="',
+        f'(cd "$bc250_stage/src" && {CARGO} && {_COLLECT.format(out=chr(34) + "$bc250_stage/out" + chr(34))})',
+    ]
+    lines = [
+        # A toolchain installed with rustup counts as well.
+        'export PATH="$HOME/.cargo/bin:$PATH"',
+        'mkdir -p "$bc250_stage/src" "$bc250_stage/out"',
+        _rust_check(),
+    ]
+    if family in {"debian", "ubuntu"}:
+        # The distribution's own Rust is only taken when it is new enough;
+        # otherwise the container route, not a toolchain that cannot build it.
+        lines += [
+            'if [ "$bc250_rust_ok" = 1 ]; then',
+            "  sudo apt-get update && sudo apt-get install -y --no-install-recommends pkg-config libudev-dev git",
+            "else",
+            '  bc250_candidate="$(apt-cache policy rustc 2>/dev/null | sed -n \'s/^ *Candidate: //p\' || true)"',
+            f'  if [ -n "$bc250_candidate" ] && [ "$bc250_candidate" != "(none)" ] && [ "$(printf \'%s\\n%s\\n\' {MIN_RUST} "$bc250_candidate" | sort -V | head -n 1)" = {MIN_RUST} ]; then',
+            f"    {BUILD_PACKAGES[family]}",
+            f"    {_rust_check()}",
+            "  fi",
+            "fi",
+        ]
+    else:
+        lines += [
+            "if ! command -v cargo >/dev/null 2>&1 || ! command -v pkg-config >/dev/null 2>&1 || ! command -v git >/dev/null 2>&1; then",
+            "  echo '== Installing the Rust toolchain to build cecd =='",
+            f"  {BUILD_PACKAGES[family]}",
+            f"  {_rust_check()}",
+            "fi",
+        ]
+    lines += [
+        'if [ "$bc250_rust_ok" = 1 ]; then',
+        *("  " + line for line in native),
+        "else",
+        f'  echo "[INFO] This system\'s Rust (${{bc250_rust:-none}}) is older than the {MIN_RUST} cecd needs; building in a container instead."',
+        *("  " + line for line in _container_lines(family)),
+        "fi",
+    ]
+    return lines
 
 
 def install_command(family: str, tool_dir: Path) -> str:
@@ -283,15 +354,13 @@ def install_command(family: str, tool_dir: Path) -> str:
         "sudo -v",
         'bc250_stage="$(mktemp -d /tmp/bc250-cecd.XXXXXX)"',
         "trap 'rm -rf -- \"$bc250_stage\"' EXIT",
-        'mkdir -p "$bc250_stage/src"',
         *_build_lines(family),
         'test -x "$bc250_stage/out/cecd" || { echo "ERROR: the build produced no cecd."; exit 31; }',
         'echo "== Installing =="',
         f"systemctl --user stop {SERVICE} 2>/dev/null || true",
         f"mkdir -p {target}",
         f'install -m 0755 "$bc250_stage/out/cecd" "$bc250_stage/out/cectool" {target}/',
-        f'install -m 0644 "$bc250_stage/src/cecd/LICENSE" {target}/LICENSE',
-        f'install -m 0644 "$bc250_stage/src/linux-cec-sys/LICENSE" {target}/LICENSE.linux-cec-sys',
+        f'install -m 0644 "$bc250_stage/out/LICENSE" "$bc250_stage/out/LICENSE.linux-cec-sys" {target}/',
         f"printf '%s\\n' {VERSION} > {target}/{VERSION_MARKER}",
         (
             "sudo sh -c "
