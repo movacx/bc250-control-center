@@ -35,6 +35,7 @@ import hashlib
 import json
 import os
 import platform
+import re
 import shlex
 import shutil
 import struct
@@ -1256,9 +1257,16 @@ def helixsr_state(*, machine: str | None = None) -> dict:
         "local_dlss": bool(local_dlss_candidates()),
         "games": games,
         "installed_games": sum(1 for game in games if game["state"] != "available"),
+        "int8_supported": _reads_int8(release["tag"]),
         "settings": helixsr_settings(),
         "settings_defaults": helixsr_defaults(),
     }
+
+
+def _reads_int8(tag: str) -> bool:
+    """Upscaling.Int8 is read by HelixSR 1.9 and newer; earlier releases skip it."""
+    numbers = tuple(int(part) for part in re.findall(r"\d+", str(tag))[:2])
+    return numbers >= (1, 9)
 
 
 def _recorded_digest(directory: Path) -> str:

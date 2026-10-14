@@ -631,3 +631,12 @@ def test_a_game_on_a_newer_release_than_the_picked_one_says_so():
     by_name = {row["name"]: row for row in game_matrix_rows(games, [], helixsr_ready=True)}
     assert by_name["Older"]["helixsr"][0] == "Update available"
     assert by_name["Newer"]["helixsr"][0] == "Other version"
+
+
+def test_the_int8_row_is_off_for_a_release_that_does_not_read_it():
+    sidebar = _sidebar()
+    form = sidebar.helixsr_settings
+    sidebar.set_state(_state(_ready(int8_supported=False)))
+    assert not form.controls["Upscaling.Int8"].isEnabled()
+    sidebar.set_state(_state(_ready(int8_supported=True)))
+    assert form.controls["Upscaling.Int8"].isEnabled()

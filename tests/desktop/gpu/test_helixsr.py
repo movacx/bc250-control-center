@@ -1478,3 +1478,9 @@ def test_a_shortcut_that_left_steam_cannot_be_given_helixsr(home):
     _ready(home)
     with pytest.raises(RuntimeError, match="no longer in Steam"):
         helixsr.install_helixsr_game("shortcut-123")
+
+
+def test_only_1_9_and_newer_read_the_int8_setting(home):
+    assert helixsr.helixsr_state(machine="x86_64")["int8_supported"] is False
+    assert [helixsr._reads_int8(tag) for tag in ("v1.8.1", "v1.3.0", "v1.9.0", "v2.0.0", "v1.10.0")] == [
+        False, False, True, True, True]

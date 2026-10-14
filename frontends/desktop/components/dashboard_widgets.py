@@ -1711,6 +1711,8 @@ class _HelixSRSettings(SectionCard):
         self.controls: dict[str, QWidget] = {}
         self._defaults: dict[str, object] = {}
         self._saved: dict[str, object] = {}
+        #: Releases before 1.9 ignore Upscaling.Int8; the row stays but is off.
+        self._int8_supported = True
         # One list, as on the Compatibility tab: a row per group that opens
         # on demand, with what it is set to on the closed row.
         self.groups_box = QFrame()
@@ -1860,6 +1862,13 @@ class _HelixSRSettings(SectionCard):
                 values[name] = float(data) if name in self.NUMBERS else data
         return values
 
+    def set_int8_supported(self, supported: bool) -> None:
+        """Whether the release in use reads Upscaling.Int8 (1.9 and newer)."""
+        supported = bool(supported)
+        if supported != self._int8_supported:
+            self._int8_supported = supported
+            self._changed()
+
     def set_settings(self, saved: Mapping[str, object], defaults: Mapping[str, object]) -> None:
         """The saved settings; a form the user is changing is left alone."""
         saved, defaults = dict(saved), dict(defaults)
@@ -1926,6 +1935,8 @@ class _HelixSRSettings(SectionCard):
         in_motion = sharpening and bool(values["Sharpening.MotionAdaptive"])
         for name in ("Sharpening.MotionThreshold", "Sharpening.MotionLimit", "Sharpening.MotionReduction"):
             self.controls[name].setEnabled(in_motion)
+        if "Upscaling.Int8" in self.controls:
+            self.controls["Upscaling.Int8"].setEnabled(self._int8_supported)
         # The reduction fades in between the two speeds: the start comes first.
         ordered = values["Sharpening.MotionThreshold"] < values["Sharpening.MotionLimit"]
         changed = bool(self._saved) and values != self._saved
@@ -3441,6 +3452,7 @@ class PreparationSidebar(QFrame):
             )
         )
         if hasattr(self, "_helixsr_settings_state"):
+            self.helixsr_settings.set_int8_supported(getattr(self, "_helixsr_int8", True))
             self.helixsr_settings.set_settings(*self._helixsr_settings_state)
             self.helixsr_settings.set_game_count(getattr(self, "_helixsr_game_count", 0))
         layout.addWidget(self.helixsr_settings)
@@ -4357,7 +4369,9 @@ class PreparationSidebar(QFrame):
         self._helixsr_game_count = sum(
             1 for game in games if str(_mapping(game).get("state") or "") == "installed"
         )
+        self._helixsr_int8 = bool(helixsr.get("int8_supported", True))
         if hasattr(self, "helixsr_settings"):
+            self.helixsr_settings.set_int8_supported(self._helixsr_int8)
             self.helixsr_settings.set_settings(*self._helixsr_settings_state)
             self.helixsr_settings.set_game_count(self._helixsr_game_count)
 
