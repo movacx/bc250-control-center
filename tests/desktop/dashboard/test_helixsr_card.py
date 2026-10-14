@@ -439,10 +439,10 @@ def test_the_settings_form_shows_saves_and_restores():
 
     sidebar = _sidebar()
     form = sidebar.helixsr_settings
-    sidebar.set_state(_state(_ready(settings=_settings(**{"Sharpening.Mode": "override",
+    sidebar.set_state(_state(_ready(settings=_settings(**{"Sharpening.Sharpener": "nvidia",
                                                             "Sharpening.Sharpness": 0.5}),
                                     settings_defaults=helixsr_defaults())))
-    assert form.values() == _settings(**{"Sharpening.Mode": "override", "Sharpening.Sharpness": 0.5})
+    assert form.values() == _settings(**{"Sharpening.Sharpener": "nvidia", "Sharpening.Sharpness": 0.5})
     assert not form.save_button.isEnabled(), "nothing to save yet"
     assert form.defaults_button.isEnabled()
     assert form.controls["Sharpening.Sharpness"].isEnabled()
@@ -468,7 +468,7 @@ def test_saved_settings_can_reach_the_games_again_without_a_change():
 
     sidebar = _sidebar()
     form = sidebar.helixsr_settings
-    saved = _settings(**{"Sharpening.Mode": "game"})
+    saved = _settings(**{"Sharpening.Sharpener": "rcas", "Sharpening.UseGameSlider": True})
     sidebar.set_state(_state(_ready(settings=saved, settings_defaults=helixsr_defaults())))
     assert not form.reapply_button.isEnabled(), "no game has HelixSR yet"
 
@@ -549,9 +549,11 @@ def test_the_motion_settings_follow_the_sharpening_and_keep_their_order():
     motion = [form.controls[name] for name in
               ("Sharpening.MotionThreshold", "Sharpening.MotionLimit", "Sharpening.MotionReduction")]
     assert not any(control.isEnabled() for control in motion), "sharpening is off"
-    mode = form.controls["Sharpening.Mode"]
-    mode.setCurrentIndex(mode.findData("override"))
+    assert not form.controls["Sharpening.UseGameSlider"].isEnabled()
+    mode = form.controls["Sharpening.Sharpener"]
+    mode.setCurrentIndex(mode.findData("rcas"))
     assert all(control.isEnabled() for control in motion)
+    assert form.controls["Sharpening.UseGameSlider"].isEnabled()
     limit = form.controls["Sharpening.MotionLimit"]
     limit.setCurrentIndex(limit.findData("1"))
     assert not form.save_button.isEnabled(), "the start must come before the end"
@@ -572,8 +574,60 @@ def test_the_settings_groups_open_on_demand_and_say_what_they_hold():
     assert not any(form.is_group_expanded(title) for title in form.groups), "closed, as on Compatibility"
     summary = form.groups["Sharpening"][3]
     assert summary.text() == "Off", "nothing else counts while sharpening is off"
-    mode = form.controls["Sharpening.Mode"]
-    mode.setCurrentIndex(mode.findData("override"))
-    assert summary.text().startswith("Fixed · 0.3")
+    mode = form.controls["Sharpening.Sharpener"]
+    mode.setCurrentIndex(mode.findData("nvidia"))
+    assert summary.text().startswith("NVIDIA · 0.3")
     form.groups["Network"][1].click()
     assert form.is_group_expanded("Network")
+
+
+def _releases(*tags: str, prerelease: tuple[str, ...] = ()) -> list[dict]:
+    return [{"tag": tag, "version": tag.removeprefix("v"), "prerelease": tag in prerelease,
+             "reviewed": tag not in prerelease, "default": index == 1} for index, tag in enumerate(tags)]
+
+
+def test_the_version_is_picked_in_the_section_and_newer_releases_checked_in_the_terminal():
+    sidebar = _sidebar()
+    sidebar.set_state(_state(_ready(tag="v1.8.1", releases=_releases("v1.9.0", "v1.8.1", "v1.3.0",
+                                                                    prerelease=("v1.9.0",)))))
+    combo = sidebar.helixsr_version_combo
+    assert sidebar.helixsr_section.isAncestorOf(combo)
+    assert [combo.itemText(i) for i in range(combo.count())] == [
+        "1.9.0 (pre-release)", "1.8.1 (recommended)", "1.3.0",
+    ]
+    assert combo.currentData() == "v1.8.1" and combo.isEnabled()
+    requested = []
+    sidebar.dependency_action_requested.connect(requested.append)
+
+    combo.activated.emit(1)                      # the one already picked: nothing to do
+    combo.activated.emit(0)
+    sidebar.helixsr_releases_button.click()
+
+    assert [item["action"] for item in requested] == ["helixsr_select:v1.9.0", "helixsr_releases"]
+
+
+def test_a_single_release_leaves_nothing_to_pick():
+    sidebar = _sidebar()
+    sidebar.set_state(_state(_helixsr(tag="v1.8.1", releases=_releases("v1.8.1"))))
+    assert not sidebar.helixsr_version_combo.isEnabled()
+    assert sidebar.helixsr_releases_button.isEnabled()
+
+
+def test_an_older_release_picked_on_purpose_is_not_offered_as_an_update():
+    sidebar = _sidebar()
+    sidebar.set_state(_state(_helixsr(installed=False, state="other-version", tag="v1.3.0",
+                                      releases=_releases("v1.8.1", "v1.3.0"))))
+    assert sidebar.helixsr_card.status.text() == "Other version selected"
+    assert sidebar.helixsr_install_button.text() == "Install HelixSR"
+
+
+def test_a_game_on_a_newer_release_than_the_picked_one_says_so():
+    games = [
+        {"appid": "1", "name": "Older", "state": "installed", "kind": "game", "files": ["/g/a.dll"],
+         "outdated": True, "older": True},
+        {"appid": "2", "name": "Newer", "state": "installed", "kind": "game", "files": ["/g/b.dll"],
+         "outdated": True, "older": False},
+    ]
+    by_name = {row["name"]: row for row in game_matrix_rows(games, [], helixsr_ready=True)}
+    assert by_name["Older"]["helixsr"][0] == "Update available"
+    assert by_name["Newer"]["helixsr"][0] == "Other version"

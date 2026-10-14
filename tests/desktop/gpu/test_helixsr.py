@@ -1,4 +1,4 @@
-"""HelixSR: the pinned release, its network files, and games.
+"""HelixSR: the picked release, its network files, and games.
 
 The release is never bundled: it is fetched on the user's PC, checked by
 SHA-256 and unpacked unmodified; HelixSR's own setup builds the NVIDIA-derived
@@ -32,9 +32,24 @@ def _sha(data: bytes) -> str:
 def home(tmp_path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
-    monkeypatch.setattr(helixsr, "HELIXSR_DLL_SHA256", _sha(DLL))
+    # One reviewed release, the default, with the test DLL in it.
+    monkeypatch.setattr(helixsr, "HELIXSR_REVIEWED", {helixsr.HELIXSR_TAG: {
+        "archive": f"HelixSR-{helixsr.HELIXSR_VERSION}.zip", "sha256": _sha(b"archive"),
+        "size": 1_000_000, "dll_sha256": _sha(DLL),
+    }})
     monkeypatch.setattr(helixsr, "HELIXSR_DLL_DIGESTS", frozenset({_sha(DLL)}))
+    # The NVIDIA DLL the fake download hands out.
+    monkeypatch.setattr(helixsr, "DLSS_DLL_SHA256", _sha(DLSS))
     return tmp_path
+
+
+def _pinned() -> dict:
+    """The reviewed default release of the test."""
+    return helixsr.HELIXSR_REVIEWED[helixsr.HELIXSR_TAG]
+
+
+def _pin(**fields) -> None:
+    _pinned().update(fields)
 
 
 def _release(directory: Path, *, network: bool = True) -> None:
@@ -42,7 +57,7 @@ def _release(directory: Path, *, network: bool = True) -> None:
     directory.mkdir(parents=True)
     (directory / helixsr.HELIXSR_DLL).write_bytes(DLL)
     (directory / helixsr.HELIXSR_SETUP).write_text("#!/bin/sh\n", encoding="utf-8")
-    (directory / helixsr.HELIXSR_MARKER).write_text(helixsr.HELIXSR_SHA256 + "\n", encoding="ascii")
+    (directory / helixsr.HELIXSR_MARKER).write_text(_pinned()["sha256"] + "\n", encoding="ascii")
     (directory / "helixsr.ini").write_text(
         "[Sharpening]\nMode = off\n\n[Forwarding]\nDll =\nUpscalerDll =\n", encoding="utf-8"
     )
@@ -127,6 +142,7 @@ def test_the_commands_never_ask_for_root_and_never_skip_the_nvidia_question(home
     for command in (
         helixsr.build_helixsr_install_command(),
         helixsr.build_helixsr_network_command(),
+        helixsr.build_helixsr_releases_command(),
         helixsr.build_helixsr_remove_command(),
     ):
         for word in ("sudo", "pkexec", "doas", "run0", "--yes"):
@@ -134,20 +150,33 @@ def test_the_commands_never_ask_for_root_and_never_skip_the_nvidia_question(home
         result = subprocess.run(["bash", "-n"], input=command, text=True, capture_output=True, check=False)
         assert result.returncode == 0, result.stderr
     install = helixsr.build_helixsr_install_command()
-    assert helixsr.HELIXSR_URL in install
-    assert helixsr.HELIXSR_SHA256 in install
+    assert helixsr.helixsr_url(helixsr.helixsr_release()) in install
+    assert _pinned()["sha256"] in install
     assert "HELIXSR_FORCE_PORTABLE" in install, "missing numpy must not reach the setup's sudo branch"
 
 
-def _release_zip(path: Path, *, extra: str = "") -> Path:
-    top = helixsr.HELIXSR_TOP
+def _release_zip(path: Path, *, extra: str = "", top: str = "", embed: bool = False) -> Path:
+    """A release as upstream ships it. Its setup builds the network beside
+    the DLL (1.2 to 1.7) or, with ``embed``, appends it to the DLL (1.8)."""
+    top = top or f"HelixSR-{helixsr.HELIXSR_VERSION}"
+    build = (
+        'printf weightskernels >> "$here/amd_fidelityfx_dx12.dll"\n'
+        "printf 'HXSRNET1\\007\\0\\0\\0\\0\\0\\0\\0\\007\\0\\0\\0\\0\\0\\0\\0\\001\\0\\0\\0\\0\\0\\0\\0'"
+        ' >> "$here/amd_fidelityfx_dx12.dll"\n'
+        if embed else
+        'printf weights > "$here/helixsr_weights.bin"\nprintf kernels > "$here/helixsr_kernels.pak"\n'
+    )
     setup = (
         "#!/usr/bin/env bash\nset -e\n"
+        'here="$(cd "$(dirname "$0")" && pwd)"\n'
         'test "$HELIXSR_FORCE_PORTABLE" = 0 -o "$HELIXSR_FORCE_PORTABLE" = 1\n'
-        'printf "%s\\n" "$@" > "$1/.setup-args"\n'
-        'printf "%s" "$TMPDIR" > "$1/.setup-tmpdir"\n'
-        'if [ "$2" = --dlss ]; then cmp -s "$3" "$HOME/expected-dlss" || exit 9; fi\n'
-        'printf weights > "$1/helixsr_weights.bin"\nprintf kernels > "$1/helixsr_kernels.pak"\n'
+        # The setup's own game list (1.7 and newer) must find no input.
+        'if read -r _line; then exit 8; fi\n'
+        'printf "%s\\n" "$@" > "$here/.setup-args"\n'
+        'printf "%s" "$TMPDIR" > "$here/.setup-tmpdir"\n'
+        'test "$1" = --dlss || exit 7\n'
+        'cmp -s "$2" "$HOME/expected-dlss" || exit 9\n'
+        + build
     )
     with zipfile.ZipFile(path, "w") as bundle:
         bundle.writestr(f"{top}/{helixsr.HELIXSR_DLL}", DLL)
@@ -159,15 +188,20 @@ def _release_zip(path: Path, *, extra: str = "") -> Path:
     return path
 
 
-def _run_install(home: Path, archive: Path, monkeypatch, *, pin: bool = True) -> subprocess.CompletedProcess:
+def _run_install(home: Path, archive: Path, monkeypatch, *, pin: bool = True,
+                 answer: str = "y\n") -> subprocess.CompletedProcess:
+    """The install command, with ``answer`` typed at the DLSS question."""
     if pin:
-        monkeypatch.setattr(helixsr, "HELIXSR_SHA256", _sha(archive.read_bytes()))
+        _pin(sha256=_sha(archive.read_bytes()))
+    if not (home / "expected-dlss").exists():
+        (home / "expected-dlss").write_bytes(DLSS)
     bin_dir = home / "bin"
     bin_dir.mkdir(exist_ok=True)
     curl = bin_dir / "curl"
+    # NVIDIA's GitHub hands out the DLSS DLL, HelixSR's the release.
     curl.write_text(
-        '#!/bin/sh\nwhile [ $# -gt 0 ]; do case "$1" in -o) out="$2"; shift;; esac; shift; done\n'
-        f'cp "{archive}" "$out"\n',
+        '#!/bin/sh\nwhile [ $# -gt 0 ]; do case "$1" in -o) out="$2"; shift;; -*) ;; *) url="$1";; esac; shift; done\n'
+        f'case "$url" in *nvngx_dlss.dll) cp "{home}/expected-dlss" "$out";; *) cp "{archive}" "$out";; esac\n',
         encoding="utf-8",
     )
     wine = bin_dir / "wine"
@@ -179,7 +213,7 @@ def _run_install(home: Path, archive: Path, monkeypatch, *, pin: bool = True) ->
                        PATH=f"{bin_dir}:{os.environ['PATH']}", TMPDIR=str(home), LC_ALL="C")
     return subprocess.run(
         ["bash", "-c", helixsr.build_helixsr_install_command()],
-        env=environment, stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=60, check=False,
+        env=environment, input=answer, capture_output=True, text=True, timeout=60, check=False,
     )
 
 
@@ -196,7 +230,7 @@ def test_the_long_shader_step_is_announced_and_its_progress_watched(home, monkey
     is ours, so its finished shaders can be counted, and both go at the end."""
     result = _run_install(home, _release_zip(home / "release.zip"), monkeypatch)
     assert result.returncode == 0, result.stdout + result.stderr
-    assert "about 10 minutes" in result.stdout
+    assert "several minutes" in result.stdout
     work = Path((helixsr.helixsr_directory() / ".setup-tmpdir").read_text())
     assert work.name.startswith("bc250-helixsr-build.")
     assert not work.exists(), "the build folder is removed afterwards"
@@ -205,17 +239,21 @@ def test_the_long_shader_step_is_announced_and_its_progress_watched(home, monkey
     assert command.count('kill "$bc250_progress"') == 2, "stopped on success and on failure"
 
 
-@pytest.mark.parametrize("entry", ["../escape.txt", "OtherTop/file.txt", f"{helixsr.HELIXSR_TOP}/../x"])
-def test_the_install_refuses_entries_outside_the_release_folder(home, monkeypatch, entry):
+@pytest.mark.parametrize("entry, message", [
+    ("../escape.txt", "not one HelixSR folder"),
+    ("OtherTop/file.txt", "not one HelixSR folder"),
+    (f"HelixSR-{helixsr.HELIXSR_VERSION}/../x", "unexpected archive entry"),
+])
+def test_the_install_refuses_entries_outside_the_release_folder(home, monkeypatch, entry, message):
     result = _run_install(home, _release_zip(home / "release.zip", extra=entry), monkeypatch)
     assert result.returncode != 0
-    assert "unexpected archive entry" in result.stdout + result.stderr
+    assert message in result.stdout + result.stderr
     assert not helixsr.helixsr_directory().exists()
     assert not (home / "escape.txt").exists()
 
 
 def test_the_install_refuses_a_different_archive(home, monkeypatch):
-    monkeypatch.setattr(helixsr, "HELIXSR_SHA256", "0" * 64)
+    _pin(sha256="0" * 64)
     result = _run_install(home, _release_zip(home / "release.zip"), monkeypatch, pin=False)
     assert result.returncode != 0
     assert "FAILED" in result.stdout + result.stderr
@@ -223,7 +261,7 @@ def test_the_install_refuses_a_different_archive(home, monkeypatch):
 
 
 def test_the_install_refuses_a_release_with_another_dll(home, monkeypatch):
-    monkeypatch.setattr(helixsr, "HELIXSR_DLL_SHA256", "0" * 64)
+    _pin(dll_sha256="0" * 64)
     result = _run_install(home, _release_zip(home / "release.zip"), monkeypatch)
     assert result.returncode != 0
     assert "not the reviewed one" in result.stdout + result.stderr
@@ -358,7 +396,7 @@ def test_every_distribution_gets_the_same_workflow(home, tmp_path, family):
     title, command = repository.gestionar_helixsr("install")
 
     assert "HelixSR" in title
-    assert helixsr.HELIXSR_SHA256 in command
+    assert _pinned()["sha256"] in command
 
 
 def test_removal_waits_until_no_game_uses_helixsr(home, tmp_path):
@@ -594,13 +632,16 @@ def _next_release(monkeypatch) -> None:
     (directory / helixsr.HELIXSR_DLL).write_bytes(NEW_DLL)
     for name in helixsr.HELIXSR_NETWORK_FILES:
         (directory / name).write_bytes(b"rebuilt:" + name.encode())
-    monkeypatch.setattr(helixsr, "HELIXSR_DLL_SHA256", _sha(NEW_DLL))
+    _pin(dll_sha256=_sha(NEW_DLL))
     monkeypatch.setattr(helixsr, "HELIXSR_DLL_DIGESTS", frozenset({_sha(DLL), _sha(NEW_DLL)}))
 
 
-def test_the_release_pins_the_new_dll_and_still_knows_the_previous_one():
-    assert helixsr.HELIXSR_VERSION == "1.3.0"
-    assert helixsr.HELIXSR_DLL_SHA256 in helixsr.HELIXSR_DLL_DIGESTS
+def test_the_default_is_the_newest_reviewed_stable_release_and_every_dll_is_known():
+    assert helixsr.HELIXSR_VERSION == "1.8.1"
+    assert helixsr.HELIXSR_TAG == max(helixsr.HELIXSR_REVIEWED, key=helixsr._version)
+    for release in helixsr.HELIXSR_REVIEWED.values():
+        assert release["dll_sha256"] in helixsr.HELIXSR_DLL_DIGESTS
+        assert release["archive"].startswith("HelixSR-") and release["size"] > 0
     assert "745477ee77c5cccd2de4bd251fc950d33895387f411815e889625fbbdc12a7e4" in helixsr.HELIXSR_DLL_DIGESTS
 
 
@@ -701,33 +742,51 @@ def test_the_client_copy_of_dlss_spares_the_nvidia_download(home, monkeypatch):
     payload = _client_dlss(home, monkeypatch, DLSS)
     assert helixsr.helixsr_state(machine="x86_64")["local_dlss"] is True
 
+    result = _run_install(home, _release_zip(home / "release.zip"), monkeypatch, answer="")
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    args = _setup_args()
+    assert args[0] == "--dlss" and args[1] != str(payload), "a private, verified copy is handed over"
+    assert "already on this PC" in result.stdout and "Download it now?" not in result.stdout
+    assert payload.read_bytes() == DLSS, "the client's own file stays untouched"
+    assert not Path(args[1]).exists(), "the private copy is removed afterwards"
+
+
+def test_a_changed_client_copy_is_skipped_and_nothing_is_downloaded_without_a_yes(home, monkeypatch):
+    _client_dlss(home, monkeypatch, b"MZ some other dll")
+
+    result = _run_install(home, _release_zip(home / "release.zip"), monkeypatch, answer="n\n")
+
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "is not NVIDIA's DLSS 310.7.0 DLL" in result.stdout
+    assert "Download it now?" in result.stdout + result.stderr
+    assert "Nothing was downloaded" in result.stdout
+    assert not (helixsr.helixsr_directory() / ".setup-args").exists(), "the setup never ran"
+    assert helixsr.helixsr_state(machine="x86_64")["state"] == "needs-network"
+
+
+def test_without_the_client_the_dll_is_downloaded_after_a_yes_and_checked(home, monkeypatch):
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(home / "config"))
+    monkeypatch.setattr(helixsr, "DLSS_DLL_SHA256", _sha(DLSS))
+    assert helixsr.helixsr_state(machine="x86_64")["local_dlss"] is False
+
     result = _run_install(home, _release_zip(home / "release.zip"), monkeypatch)
 
     assert result.returncode == 0, result.stdout + result.stderr
     args = _setup_args()
-    assert args[1] == "--dlss" and args[2] != str(payload), "a private, verified copy is handed over"
-    assert "Nothing is downloaded from NVIDIA" in result.stdout
-    assert payload.read_bytes() == DLSS, "the client's own file stays untouched"
-    assert not Path(args[2]).exists(), "the private copy is removed afterwards"
+    assert args[0] == "--dlss" and len(args) == 2, "no target and no --yes: the setup uses its own folder"
+    assert not Path(args[1]).exists(), "NVIDIA's DLL is removed afterwards"
 
 
-def test_a_changed_client_copy_is_skipped_and_the_setup_asks_as_usual(home, monkeypatch):
-    _client_dlss(home, monkeypatch, b"MZ some other dll")
-
-    result = _run_install(home, _release_zip(home / "release.zip"), monkeypatch)
-
-    assert result.returncode == 0, result.stdout + result.stderr
-    assert "--dlss" not in _setup_args()
-    assert "is not NVIDIA's DLSS 310.7.0 DLL" in result.stdout
-    assert "The setup asks before it downloads" in result.stdout
-
-
-def test_without_the_client_the_setup_asks_before_downloading(home, monkeypatch):
+def test_a_download_that_is_not_nvidias_dll_is_refused(home, monkeypatch):
     monkeypatch.setenv("XDG_CONFIG_HOME", str(home / "config"))
-    assert helixsr.helixsr_state(machine="x86_64")["local_dlss"] is False
+    monkeypatch.setattr(helixsr, "DLSS_DLL_SHA256", "0" * 64)
+
     result = _run_install(home, _release_zip(home / "release.zip"), monkeypatch)
-    assert result.returncode == 0, result.stdout + result.stderr
-    assert _setup_args() == [str(helixsr.helixsr_directory())]
+
+    assert result.returncode == 29, result.stdout + result.stderr
+    assert "not NVIDIA's DLSS 310.7.0 DLL" in result.stdout
+    assert not (helixsr.helixsr_directory() / ".setup-args").exists()
 
 
 # ------------------------------------------------------- games outside Steam
@@ -811,7 +870,7 @@ def test_a_folder_that_was_deleted_leaves_the_list(home):
 # ------------------------------------------------------------------ settings
 
 RELEASE_INI = (
-    "; helixsr.ini - optional\n\n[Sharpening]\n; off = never sharpen\nMode = off\nSharpness = 0.3\n"
+    "; helixsr.ini - optional\n\n[Sharpening]\n; off = never sharpen\nSharpener = off\nSharpness = 0.3\n"
     "MotionAdaptive = true\n\n[Upscaling]\nNetworkResolution = auto\n\n[ModelE]\nNetwork = auto\n"
     "MotionVectorFrontEnd = false\n\n[Forwarding]\nDll =\nUpscalerDll =\n"
 )
@@ -819,7 +878,10 @@ RELEASE_INI = (
 
 FULL_INI = RELEASE_INI.replace(
     "MotionAdaptive = true\n",
-    "MotionAdaptive = true\nMotionThreshold = 2\nMotionLimit = 16\nMotionReduction = 0.6\n",
+    "MotionAdaptive = true\nUseGameSlider = false\nMotionThreshold = 2\nMotionLimit = 16\n"
+    "MotionReduction = 0.6\nMode = off\n",
+).replace(
+    "NetworkResolution = auto\n", "NetworkResolution = auto\nInt8 = auto\n",
 ).replace(
     "MotionVectorFrontEnd = false\n",
     "MotionVectorFrontEnd = false\nUseReactiveMask = false\nDilateDisplayMotionVectors = false\n"
@@ -830,9 +892,10 @@ FULL_INI = RELEASE_INI.replace(
 
 def test_defaults_leave_the_release_ini_exactly_as_it_is():
     assert helixsr._settings_text(FULL_INI, helixsr.helixsr_defaults()) == FULL_INI
-    text = helixsr._settings_text(RELEASE_INI, {**helixsr.helixsr_defaults(), "Sharpening.Mode": "override",
+    text = helixsr._settings_text(RELEASE_INI, {**helixsr.helixsr_defaults(), "Sharpening.Sharpener": "nvidia",
                                                 "Compatibility.WaveSize": "32"})
-    assert "; off = never sharpen\nMode = override\n" in text, "the comments stay"
+    assert "; off = never sharpen\nSharpener = nvidia\n" in text, "the comments stay"
+    assert helixsr._ini_get(text, "Sharpening", "Mode") == "override", "releases before 1.7 sharpen too"
     assert helixsr._ini_get(text, "Compatibility", "WaveSize") == "32", "a missing section is added"
     assert helixsr._ini_get(text, "Forwarding", "UpscalerDll") == "", "keys not on the form are kept"
 
@@ -843,7 +906,8 @@ def test_settings_are_validated_and_saved(home):
     assert result == {"settings": helixsr.helixsr_settings(), "games": 0, "skipped": []}
     assert helixsr.helixsr_settings()["Sharpening.Sharpness"] == 0.55
     assert helixsr.helixsr_settings()["Log.Enabled"] is False
-    for bad in ({"Sharpening.Mode": "max"}, {"Sharpening.Sharpness": 2}, {"Log.Enabled": "maybe"}):
+    for bad in ({"Sharpening.Sharpener": "max"}, {"Upscaling.Int8": "yes"}, {"Sharpening.Sharpness": 2},
+                {"Log.Enabled": "maybe"}):
         with pytest.raises(ValueError, match="Invalid HelixSR settings"):
             helixsr.save_helixsr_settings(bad)
     assert helixsr.helixsr_settings()["Sharpening.Sharpness"] == 0.55, "a refused save changes nothing"
@@ -884,11 +948,14 @@ def test_saving_reaches_every_game_with_helixsr(home, monkeypatch):
     root = _optiscaler_game(home, monkeypatch)
     helixsr.install_helixsr_optiscaler("300")
 
-    result = helixsr.save_helixsr_settings({"Sharpening.Mode": "game", "ModelE.UseReactiveMask": True})
+    result = helixsr.save_helixsr_settings({"Sharpening.Sharpener": "rcas", "Sharpening.UseGameSlider": True,
+                                            "ModelE.UseReactiveMask": True})
 
     assert result["games"] == 2 and result["skipped"] == []
     for folder in (native, root / "HelixSR"):
         text = (folder / "helixsr.ini").read_text(encoding="utf-8")
+        assert helixsr._ini_get(text, "Sharpening", "Sharpener") == "rcas"
+        assert helixsr._ini_get(text, "Sharpening", "UseGameSlider") == "true"
         assert helixsr._ini_get(text, "Sharpening", "Mode") == "game"
         assert helixsr._ini_get(text, "ModelE", "UseReactiveMask") == "true"
     opti = (root / "HelixSR" / "helixsr.ini").read_text(encoding="utf-8")
@@ -905,7 +972,7 @@ def test_a_running_game_is_skipped_and_named(home, monkeypatch):
         raise RuntimeError("Close this game before changing its files.")
 
     monkeypatch.setattr(helixsr, "_refuse_running", running)
-    result = helixsr.save_helixsr_settings({"Sharpening.Mode": "game"})
+    result = helixsr.save_helixsr_settings({"Sharpening.Sharpener": "nvidia"})
     assert result["games"] == 0 and result["skipped"] == ["Space Game"]
 
 
@@ -1093,3 +1160,321 @@ def test_a_game_installed_in_steam_is_found_without_pressing_find(home):
     rows = helixsr.helixsr_state(machine="x86_64")["games"]
     assert [(row["appid"], row["state"]) for row in rows] == [("500", "available")]
     assert helixsr.refresh_helixsr_scan(home=home) is False
+
+
+# ------------------------------------------------------------------ releases
+
+
+def _github(home: Path, *entries: dict) -> None:
+    """GitHub's release list as Check for new releases saves it."""
+    helixsr._write_json(helixsr._releases_path(), {"time": 1, "releases": list(entries)})
+
+
+def _listed(tag: str, archive: bytes | str, *, prerelease: bool = False, name: str = "",
+            **extra) -> dict:
+    digest = _sha(archive) if isinstance(archive, bytes) else archive
+    version = tag.removeprefix("v")
+    return {"tag_name": tag, "draft": False, "prerelease": prerelease, "assets": [
+        {"name": name or f"HelixSR-{version}.zip", "size": 1234, "digest": f"sha256:{digest}"},
+    ], **extra}
+
+
+def test_without_a_check_the_reviewed_releases_are_offered_and_the_default_picked(home):
+    state = helixsr.helixsr_state(machine="x86_64")
+    assert [r["tag"] for r in state["releases"]] == [helixsr.HELIXSR_TAG]
+    assert state["tag"] == helixsr.HELIXSR_TAG and state["reviewed"] and not state["releases_checked"]
+
+
+def test_githubs_list_adds_newer_releases_and_drops_withdrawn_ones(home, monkeypatch):
+    reviewed = {**_pinned()}
+    monkeypatch.setattr(helixsr, "HELIXSR_REVIEWED", {
+        helixsr.HELIXSR_TAG: reviewed,
+        "v1.3.0": {"archive": "HelixSR-1.3.0.zip", "sha256": "3" * 64, "size": 1, "dll_sha256": "4" * 64},
+    })
+    _github(
+        home,
+        _listed("v2.0.0", b"new", prerelease=True),
+        _listed("v1.9.9", b"draft", draft=True),
+        _listed("v1.1.0", b"too old"),
+        _listed("v1.9.8", "not a digest"),
+        _listed("v1.9.7", b"x", name="setup.exe"),
+        # Another archive under a reviewed tag: the reviewed digest stays.
+        _listed(helixsr.HELIXSR_TAG, b"replaced upstream"),
+    )
+
+    releases = helixsr.helixsr_releases()
+
+    assert [(r["tag"], r["prerelease"], r["reviewed"]) for r in releases] == [
+        ("v2.0.0", True, False), (helixsr.HELIXSR_TAG, False, True),
+    ], "v1.3.0 was withdrawn from GitHub"
+    assert releases[1]["sha256"] == reviewed["sha256"]
+    assert releases[0]["sha256"] == _sha(b"new") and releases[0]["dll_sha256"] == ""
+
+
+def test_a_pick_is_saved_and_falls_back_to_the_default_once_withdrawn(home):
+    _github(home, _listed("v2.0.0", b"new", prerelease=True), _listed(helixsr.HELIXSR_TAG, _pinned()["sha256"]))
+    with pytest.raises(ValueError, match="not on offer"):
+        helixsr.select_helixsr_release("v9.9.9")
+    assert helixsr.select_helixsr_release("v2.0.0") == {"tag": "v2.0.0", "version": "2.0.0"}
+    state = helixsr.helixsr_state(machine="x86_64")
+    assert (state["tag"], state["prerelease"], state["reviewed"]) == ("v2.0.0", True, False)
+    assert helixsr.helixsr_directory().name == "2.0.0"
+    assert "(pre-release)" in helixsr.build_helixsr_install_command()
+
+    _github(home, _listed(helixsr.HELIXSR_TAG, _pinned()["sha256"]))
+
+    assert helixsr.helixsr_release()["tag"] == helixsr.HELIXSR_TAG
+
+
+def test_a_release_from_githubs_list_is_checked_by_its_published_digest(home, monkeypatch):
+    """1.9.0's archive is HelixSR-1.9.0.2.zip with HelixSR-1.9.0 inside."""
+    other = b"MZ helixsr from github"
+    archive = home / "github.zip"
+    _release_zip(archive, top="HelixSR-1.9.0")
+    with zipfile.ZipFile(archive, "a") as bundle:
+        bundle.writestr("HelixSR-1.9.0/" + helixsr.HELIXSR_DLL + ".tmp", b"")
+    # The zip's DLL is the test DLL; give it another one, as a new release would have.
+    rebuilt = home / "github2.zip"
+    with zipfile.ZipFile(archive) as source, zipfile.ZipFile(rebuilt, "w") as bundle:
+        for item in source.infolist():
+            if item.filename.endswith(".tmp"):
+                continue
+            data = other if item.filename.endswith(helixsr.HELIXSR_DLL) else source.read(item)
+            bundle.writestr(item, data)
+    _github(home, _listed("v1.9.0", rebuilt.read_bytes(), prerelease=True, name="HelixSR-1.9.0.2.zip"),
+            _listed(helixsr.HELIXSR_TAG, _pinned()["sha256"]))
+    helixsr.select_helixsr_release("v1.9.0")
+
+    result = _run_install(home, rebuilt, monkeypatch, pin=False)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "GitHub published" in result.stdout
+    state = helixsr.helixsr_state(machine="x86_64")
+    assert (state["state"], state["version"]) == ("ready", "1.9.0")
+    assert _sha(other) in helixsr._known_digests(), "games given it stay known after a switch"
+
+
+def test_a_tampered_release_from_githubs_list_is_refused(home, monkeypatch):
+    archive = _release_zip(home / "release.zip", top="HelixSR-2.0.0")
+    _github(home, _listed("v2.0.0", b"what github published"), _listed(helixsr.HELIXSR_TAG, _pinned()["sha256"]))
+    helixsr.select_helixsr_release("v2.0.0")
+
+    result = _run_install(home, archive, monkeypatch, pin=False)
+
+    assert result.returncode != 0
+    assert not helixsr.helixsr_directory().exists()
+
+
+def test_picking_an_older_release_is_not_called_an_update(home, monkeypatch):
+    monkeypatch.setattr(helixsr, "HELIXSR_REVIEWED", {
+        helixsr.HELIXSR_TAG: _pinned(),
+        "v1.3.0": {"archive": "HelixSR-1.3.0.zip", "sha256": "3" * 64, "size": 1, "dll_sha256": "4" * 64},
+    })
+    _ready(home)
+    helixsr.select_helixsr_release("v1.3.0")
+    assert helixsr.helixsr_state(machine="x86_64")["state"] == "other-version"
+    _release(helixsr.helixsr_root() / "1.2.0")
+    import shutil
+    shutil.rmtree(helixsr.helixsr_root() / helixsr.HELIXSR_VERSION)
+    assert helixsr.helixsr_state(machine="x86_64")["state"] == "update-available"
+
+
+def test_the_release_list_is_read_in_the_terminal_and_kept_small(home):
+    command = helixsr.build_helixsr_releases_command()
+    assert helixsr.HELIXSR_RELEASES_API in command
+    bin_dir = home / "bin"
+    bin_dir.mkdir()
+    answer = home / "answer.json"
+    import json
+    answer.write_text(json.dumps([
+        {**_listed("v2.0.0", b"new", prerelease=True), "body": "notes " * 1000, "author": {"login": "x"}},
+    ]), encoding="utf-8")
+    curl = bin_dir / "curl"
+    curl.write_text(
+        '#!/bin/sh\nwhile [ $# -gt 0 ]; do case "$1" in -o) out="$2"; shift;; esac; shift; done\n'
+        f'cp "{answer}" "$out"\n', encoding="utf-8",
+    )
+    curl.chmod(0o755)
+    environment = dict(os.environ, HOME=str(home), XDG_DATA_HOME=str(home / "data"),
+                       PATH=f"{bin_dir}:{os.environ['PATH']}", TMPDIR=str(home), LC_ALL="C")
+
+    result = subprocess.run(["bash", "-c", command], env=environment, capture_output=True, text=True,
+                            timeout=60, check=False)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "v2.0.0  (pre-release)" in result.stdout
+    saved = json.loads(helixsr._releases_path().read_text(encoding="utf-8"))
+    assert set(saved["releases"][0]) == {"tag_name", "draft", "prerelease", "assets"}
+    assert "v2.0.0" in [r["tag"] for r in helixsr.helixsr_releases()]
+
+
+def test_a_built_network_inside_the_dll_is_recognised_and_copied_alone(home, monkeypatch):
+    """1.8 appends the network to HelixSR's DLL: the DLL is still the
+    reviewed one once that part is set aside, and no network files follow."""
+    result = _run_install(home, _release_zip(home / "release.zip", embed=True), monkeypatch)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert helixsr.helixsr_state(machine="x86_64")["state"] == "ready"
+    folder = _steam_game(home, "100", "Space Game", {"Bin": (helixsr.UPSCALER_DLL,)}) / "Bin"
+
+    helixsr.install_helixsr_game("100")
+
+    assert (folder / helixsr.UPSCALER_DLL).read_bytes().startswith(DLL)
+    assert not any((folder / name).exists() for name in helixsr.HELIXSR_NETWORK_FILES)
+    row = helixsr.helixsr_state(machine="x86_64")["games"][0]
+    assert (row["state"], row["network_missing"]) == ("installed", False)
+    helixsr.remove_helixsr_game("100")
+    assert sorted(path.name for path in folder.iterdir()) == [helixsr.UPSCALER_DLL]
+
+
+def test_an_update_to_a_dll_with_its_network_removes_the_old_network_files(home, monkeypatch):
+    _ready(home)
+    folder = _steam_game(home, "100", "Space Game", {"Bin": (helixsr.UPSCALER_DLL,)}) / "Bin"
+    helixsr.install_helixsr_game("100")
+    assert all((folder / name).is_file() for name in helixsr.HELIXSR_NETWORK_FILES)
+    directory = helixsr.helixsr_directory()
+    footer = b"HXSRNET1" + (7).to_bytes(8, "little") + (7).to_bytes(8, "little") + (1).to_bytes(8, "little")
+    (directory / helixsr.HELIXSR_DLL).write_bytes(DLL + b"weightskernels" + footer)
+    for name in helixsr.HELIXSR_NETWORK_FILES:
+        (directory / name).unlink()
+
+    helixsr.update_helixsr_game("100")
+
+    assert not any((folder / name).exists() for name in helixsr.HELIXSR_NETWORK_FILES)
+    assert helixsr._records()["100"]["files"][0]["created"] == ["helixsr.ini"]
+    helixsr.remove_helixsr_game("100")
+    assert sorted(path.name for path in folder.iterdir()) == [helixsr.UPSCALER_DLL]
+
+
+def test_a_footer_that_claims_more_than_the_file_is_not_a_network(tmp_path):
+    dll = tmp_path / "x.dll"
+    dll.write_bytes(DLL + b"HXSRNET1" + (1 << 40).to_bytes(8, "little") + bytes(16))
+    assert helixsr._dll_digest(dll) == _sha(dll.read_bytes())
+    assert not helixsr._has_embedded_network(dll)
+
+
+def test_a_setup_that_builds_nothing_is_reported(home, monkeypatch):
+    archive = home / "release.zip"
+    _release_zip(archive)
+    with zipfile.ZipFile(archive) as source, zipfile.ZipFile(home / "empty.zip", "w") as bundle:
+        for item in source.infolist():
+            data = source.read(item)
+            if item.filename.endswith(helixsr.HELIXSR_SETUP):
+                data = b"#!/usr/bin/env bash\nexit 0\n"
+            bundle.writestr(item, data)
+
+    result = _run_install(home, home / "empty.zip", monkeypatch)
+
+    assert result.returncode == 1
+    assert "without building the network" in result.stdout
+
+
+def test_settings_saved_for_13_are_carried_over():
+    assert helixsr._migrated_settings({"Sharpening.Mode": "game"}) == {
+        "Sharpening.Sharpener": "rcas", "Sharpening.UseGameSlider": True,
+    }
+    assert helixsr._migrated_settings({"Sharpening.Mode": "override"}) == {"Sharpening.Sharpener": "rcas"}
+    assert helixsr._migrated_settings({"Sharpening.Mode": "off", "Sharpening.Sharpener": "nvidia"}) == {
+        "Sharpening.Sharpener": "nvidia",
+    }
+
+
+def test_the_repository_routes_the_version_actions(home, tmp_path):
+    repository = _repository(tmp_path)
+    assert repository.gestionar_helixsr(f"select:{helixsr.HELIXSR_TAG}")["tag"] == helixsr.HELIXSR_TAG
+    title, command = repository.gestionar_helixsr("releases")
+    assert title == "HelixSR · releases" and helixsr.HELIXSR_RELEASES_API in command
+
+
+# ------------------------------------------------------- non-Steam games in Steam
+
+
+def _binary_vdf(value: dict) -> bytes:
+    """Steam's binary KeyValues, as shortcuts.vdf holds them."""
+    out = b""
+    for key, item in value.items():
+        name = key.encode() + b"\0"
+        if isinstance(item, dict):
+            out += b"\x00" + name + _binary_vdf(item) + b"\x08"
+        elif isinstance(item, int):
+            out += b"\x02" + name + (item & 0xFFFFFFFF).to_bytes(4, "little")
+        else:
+            out += b"\x01" + name + str(item).encode() + b"\0"
+    return out
+
+
+def _shortcuts(home: Path, *entries: dict) -> Path:
+    path = home / ".local/share/Steam/userdata/1/config/shortcuts.vdf"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    shortcuts = {str(index): entry for index, entry in enumerate(entries)}
+    path.write_bytes(_binary_vdf({"shortcuts": shortcuts}) + b"\x08")
+    return path
+
+
+def _cyberpunk(home: Path) -> Path:
+    """A game copied by hand, its .exe and FSR 3.1 loader in bin/x64."""
+    folder = home / "Games" / "Cyberpunk 2077" / "bin" / "x64"
+    folder.mkdir(parents=True)
+    (folder / "Cyberpunk2077.exe").write_bytes(b"MZ")
+    (folder / helixsr.LOADER_DLL).write_bytes(ORIGINAL)
+    return home / "Games" / "Cyberpunk 2077"
+
+
+def test_a_non_steam_game_added_to_steam_is_found_and_handled_like_a_steam_game(home):
+    from bc250cc.infrastructure.steam_launch_options import steam_shortcut_game_folders
+
+    _ready(home)
+    game = _cyberpunk(home)
+    exe = game / "bin/x64/Cyberpunk2077.exe"
+    _shortcuts(
+        home,
+        {"appid": -381695011, "AppName": "Cyberpunk2077.exe", "Exe": f'"{exe}"', "StartDir": f"{exe.parent}/"},
+        {"appid": 7, "appname": "Heroic", "exe": "/usr/bin/heroic", "StartDir": "/usr/bin"},
+        {"appid": 8, "AppName": "Whole home", "Exe": f'"{home}/x.exe"', "StartDir": str(home)},
+    )
+    assert [(g["appid"], g["name"], g["path"]) for g in steam_shortcut_game_folders(home)] == [
+        ("shortcut-3913272285", "Cyberpunk 2077", game.resolve()),
+    ], "Steam's signed id is unsigned; bin/x64 leads to the game; nothing outside a game's folder"
+
+    rows = helixsr.helixsr_state(machine="x86_64")["games"]
+    assert [(r["appid"], r["name"], r["state"]) for r in rows] == [("shortcut-3913272285", "Cyberpunk 2077", "available")]
+
+    helixsr.install_helixsr_game("shortcut-3913272285")
+    assert (game / "bin/x64" / helixsr.LOADER_DLL).read_bytes() == DLL
+    assert helixsr.helixsr_state(machine="x86_64")["games"][0]["state"] == "installed"
+    helixsr.remove_helixsr_game("shortcut-3913272285")
+    assert (game / "bin/x64" / helixsr.LOADER_DLL).read_bytes() == ORIGINAL
+
+
+def test_a_new_shortcut_is_searched_without_pressing_find(home):
+    _ready(home)
+    assert helixsr.helixsr_state(machine="x86_64")["games"] == []
+    exe = _cyberpunk(home) / "bin/x64/Cyberpunk2077.exe"
+    path = _shortcuts(home, {"appid": 5, "AppName": "Cyberpunk", "Exe": f'"{exe}"', "StartDir": ""})
+    os.utime(path, ns=(1, 1))   # a different stamp from any earlier search
+    assert [r["name"] for r in helixsr.helixsr_state(machine="x86_64")["games"]] == ["Cyberpunk"]
+
+
+def test_a_shortcut_to_a_folder_added_by_hand_is_not_listed_twice(home):
+    _ready(home)
+    game = _cyberpunk(home)
+    helixsr.add_helixsr_folder(str(game))
+    exe = game / "bin/x64/Cyberpunk2077.exe"
+    _shortcuts(home, {"appid": 5, "AppName": "Cyberpunk", "Exe": f'"{exe}"', "StartDir": ""})
+    rows = helixsr.helixsr_state(machine="x86_64")["games"]
+    assert [r["appid"][:7] for r in rows] == ["folder-"]
+
+
+def test_a_broken_shortcuts_file_is_ignored(home):
+    from bc250cc.infrastructure.steam_launch_options import steam_shortcut_game_folders
+
+    path = home / ".local/share/Steam/userdata/1/config/shortcuts.vdf"
+    path.parent.mkdir(parents=True)
+    for data in (b"\x00shortcuts\x00\x00", b"\x09bad", b"\x00shortcuts\x00\x00 0\x00\x02appid\x00\x01"):
+        path.write_bytes(data)
+        assert steam_shortcut_game_folders(home) == []
+
+
+def test_a_shortcut_that_left_steam_cannot_be_given_helixsr(home):
+    _ready(home)
+    with pytest.raises(RuntimeError, match="no longer in Steam"):
+        helixsr.install_helixsr_game("shortcut-123")

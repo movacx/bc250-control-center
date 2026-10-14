@@ -4477,7 +4477,36 @@ class GpuGovernorPage(QWidget):
                 error_parent=dialog_parent,
             )
             return
+        if action == "releases":
+            # Only GitHub's list of releases is read; nothing is installed.
+            self._run_backend_action(
+                lambda: self.controller.gestionar_helixsr(action),
+                lambda _result: GpuGovernorPage._record_preparation_result(
+                    self, label, "Opened the HelixSR workflow in the terminal.",
+                ),
+                "Could not manage HelixSR",
+                controls=(),
+                error_parent=dialog_parent,
+            )
+            return
         game_action, _sep, appid = action.partition(":")
+        if game_action == "select":
+            # Only the pick is saved: Install or Update downloads it.
+            self._run_backend_action(
+                lambda: self.controller.gestionar_helixsr(action),
+                lambda result: GpuGovernorPage._record_preparation_result(
+                    self,
+                    label,
+                    tr_format(
+                        "HelixSR {version} is selected. Install or Update brings it in.",
+                        version=str(_dict(result).get("version") or appid),
+                    ),
+                ),
+                "Could not manage HelixSR",
+                controls=(),
+                error_parent=dialog_parent,
+            )
+            return
         if game_action == "forget_folder":
             self._run_backend_action(
                 lambda: self.controller.gestionar_helixsr(action),
@@ -4583,12 +4612,16 @@ class GpuGovernorPage(QWidget):
         if copy is None:
             raise ValueError("Unsupported HelixSR action.")
         title, body, confirm, tone = copy
+        helixsr = _dict(_dict(self.current_state.get("tools")).get("helixsr"))
+        release = str(helixsr.get("tag") or HELIXSR_TAG)
+        if helixsr.get("prerelease"):
+            release = tr_format("{version} (pre-release)", version=release)
         confirmation = ConfirmDialog(
             title,
             tr(body),
             summary=(
                 (tr("Source"), "github.com/lonewolf0622/HelixSR"),
-                (tr("Release"), HELIXSR_TAG),
+                (tr("Release"), release),
                 (tr("Scope"), tr("Your user folder; games only when you choose them")),
                 *(
                     ()
@@ -4596,7 +4629,7 @@ class GpuGovernorPage(QWidget):
                     else ((
                         tr("NVIDIA DLSS DLL"),
                         tr("OptiScaler Client's copy, checked by SHA-256; nothing is downloaded from NVIDIA")
-                        if _dict(_dict(self.current_state.get("tools")).get("helixsr")).get("local_dlss")
+                        if helixsr.get("local_dlss")
                         else tr("Downloaded from NVIDIA's GitHub after you agree in the terminal"),
                     ),)
                 ),

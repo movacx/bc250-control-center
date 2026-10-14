@@ -384,6 +384,125 @@ def installed_steam_game_folders(home: Path | None = None) -> list[dict]:
     return sorted(games.values(), key=lambda game: game["name"].lower())
 
 
+# ------------------------------------------------------------ non-Steam games
+#
+# A game from GOG, Epic or a folder copied by hand is often added to Steam as
+# a non-Steam game, to start it with Proton from Steam. Steam keeps those in
+# userdata/<account>/config/shortcuts.vdf, in its binary KeyValues format.
+
+#: The binary format's types: a nested map, a string, a 32-bit integer and
+#: the end of a map. 64-bit and float values are skipped by size.
+_BIN_MAP, _BIN_STRING, _BIN_INT32, _BIN_FLOAT, _BIN_UINT64, _BIN_END = 0, 1, 2, 3, 7, 8
+_BIN_SIZES = {_BIN_INT32: 4, _BIN_FLOAT: 4, _BIN_UINT64: 8}
+#: Folders a Windows game keeps its executable in, under its own folder.
+_EXE_FOLDERS = frozenset({"bin", "binaries", "x64", "x86", "win64", "win32", "x86_64"})
+
+
+def _binary_vdf(data: bytes) -> dict:
+    """Steam's binary KeyValues as nested dicts; ValueError when malformed."""
+    position = 0
+
+    def cstring() -> str:
+        nonlocal position
+        end = data.index(b"\0", position)
+        text = data[position:end].decode("utf-8", errors="replace")
+        position = end + 1
+        return text
+
+    def read_map(depth: int) -> dict:
+        nonlocal position
+        if depth > 16:
+            raise ValueError("nested too deep")
+        result: dict = {}
+        while position < len(data):
+            kind = data[position]
+            position += 1
+            if kind == _BIN_END:
+                return result
+            key = cstring()
+            if kind == _BIN_MAP:
+                result[key] = read_map(depth + 1)
+            elif kind == _BIN_STRING:
+                result[key] = cstring()
+            elif kind in _BIN_SIZES:
+                size = _BIN_SIZES[kind]
+                if position + size > len(data):
+                    raise ValueError("truncated value")
+                result[key] = int.from_bytes(data[position:position + size], "little")
+                position += size
+            else:
+                raise ValueError(f"unknown type {kind}")
+        return result
+
+    return read_map(0)
+
+
+def _shortcut_folder(exe: str, start: str, home: Path) -> Path | None:
+    """The game's own folder for a shortcut to a Windows executable.
+
+    The executable's folder, or the game folder above it when that is one of
+    the usual bin/x64 folders (Cyberpunk 2077 keeps its .exe in bin/x64).
+    None for anything that is not a Windows game in a folder of its own.
+    """
+    exe = exe.strip().strip('"')
+    if not exe.lower().endswith(".exe"):
+        return None
+    folder = Path(start.strip().strip('"') or os.path.dirname(exe))
+    if not folder.is_absolute():
+        folder = Path(os.path.dirname(exe))
+    try:
+        folder = folder.resolve()
+    except OSError:
+        return None
+    while folder.name.lower() in _EXE_FOLDERS and folder.parent != folder:
+        folder = folder.parent
+    home = home.resolve()
+    # Never a whole drive, the home folder or a system folder.
+    if folder in {Path(folder.anchor), home} or not folder.is_dir():
+        return None
+    if folder.parts[1:2] and folder.parts[1] in {"usr", "bin", "etc", "opt", "var", "snap", "proc", "sys"}:
+        return None
+    return folder
+
+
+def steam_shortcut_game_folders(home: Path | None = None) -> list[dict]:
+    """Non-Steam games added to Steam, with the folder each one lives in.
+
+    ``appid`` is ``shortcut-`` and Steam's id for the shortcut, so it never
+    collides with a Steam app id. ``stamp`` changes whenever Steam rewrites
+    shortcuts.vdf, which adding or removing a shortcut does.
+    """
+    home = home or Path.home()
+    games: dict[str, dict] = {}
+    for root in steam_roots(home):
+        for path in sorted((root / "userdata").glob("*/config/shortcuts.vdf")):
+            try:
+                data = path.read_bytes()
+                stamp = str(path.stat().st_mtime_ns)
+                shortcuts = _binary_vdf(data).get("shortcuts", {})
+            except (OSError, ValueError):
+                continue
+            if not isinstance(shortcuts, dict):
+                continue
+            for entry in shortcuts.values():
+                if not isinstance(entry, dict):
+                    continue
+                # Steam has written both spellings over the years.
+                values = {str(key).lower(): value for key, value in entry.items()}
+                folder = _shortcut_folder(str(values.get("exe") or ""), str(values.get("startdir") or ""), home)
+                appid = values.get("appid")
+                if folder is None or not isinstance(appid, int):
+                    continue
+                name = str(values.get("appname") or "").strip()
+                if not name or name.lower().endswith(".exe"):
+                    # Steam names a shortcut after its .exe; the folder reads better.
+                    name = folder.name
+                games.setdefault(f"shortcut-{appid}", {
+                    "appid": f"shortcut-{appid}", "name": name, "path": folder, "stamp": stamp,
+                })
+    return sorted(games.values(), key=lambda game: game["name"].lower())
+
+
 def _locate_apps(text: str) -> tuple[dict, dict[str, dict]]:
     """``_locate`` for every app at once: one pass over the file."""
     depth = len(APPS_PATH)
