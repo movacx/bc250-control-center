@@ -2294,7 +2294,10 @@ class GpuGovernorView(QWidget):
         self._reflow(self.width())
 
     def _reflow(self, width: int) -> None:
-        stacked = width < 1180
+        # At the default window (1460 px) the page is about 1200 px wide: too
+        # narrow for the range slider beside the telemetry, so it stacks, as
+        # the CPU page does.
+        stacked = width < 1280
         telemetry_stacked = self._workspace.itemAtPosition(1, 0) is not None
         if stacked and not telemetry_stacked:
             self._workspace.removeWidget(self._telemetry)
