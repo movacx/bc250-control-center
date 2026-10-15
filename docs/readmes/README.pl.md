@@ -2,7 +2,9 @@
 
 [English](../../README.md) · [Español](README.es.md) · [Português](README.pt-BR.md) · [Русский](README.ru.md) · [Українська](README.uk.md) · [Deutsch](README.de.md) · [Français](README.fr.md) · [中文](README.zh-CN.md) · [日本語](README.ja.md)
 
-Centrum sterowania dla AMD BC-250 w Linuksie. Monitorowanie, sterowanie GPU, strojenie CPU, Compute Units, wentylatory i aktualizacja BIOS-u w jednej aplikacji na pulpit – z jasnymi ograniczeniami i kontrolą przed każdą zmianą sprzętu.
+Aplikacja na pulpit do codziennej pracy z AMD BC-250 w Linuksie. Miałem dość żonglowania tuzinem skryptów i wpisów z forów, więc monitorowanie, governor GPU, strojenie CPU, Compute Units, wentylatory i aktualizacje BIOS-u są teraz w jednym miejscu. Każda zmiana w sprzęcie ma limity i kontrolę przed zastosowaniem, bo ta płyta nie wybacza zgadywania.
+
+Powstała dla społeczności BC-250 i z jej pomocą: większość funkcji zaczęła się od czyjegoś zgłoszenia błędu albo pytania „czy to da się zrobić?” na Discordzie.
 
 ## Zrzuty ekranu
 
@@ -47,11 +49,11 @@ W Debianie i Ubuntu używaj `apt install`, a nie `dpkg -i`: wtedy APT pobierze t
 
 ### Aktualizacje
 
-Nie trzeba wracać na tę stronę. Gdy pojawi się nowa wersja, panel o tym powie, pokaże zmiany i zainstaluje ją menedżerem pakietów twojego systemu, najpierw sprawdzając SHA-256.
+Nie musisz tu wracać. Gdy pojawi się nowa wersja, panel da ci znać, pokaże listę zmian i zainstaluje ją menedżerem pakietów, po sprawdzeniu SHA-256.
 
-W SteamOS aktualizacja wyłącza ochronę tylko do odczytu, instaluje pakiet i włącza ją ponownie. Aktualizacja SteamOS usuwa wszystko, co zainstalowano w systemie, również tę aplikację: otwórz **Reinstall BC250 Control Center** z menu trybu pulpitu i ponownie przygotuj zależności. SteamOS pyta o hasło `deck`; jeśli nigdy go nie ustawiono, najpierw uruchom `passwd` w Konsole.
+W SteamOS aktualizacja wyłącza ochronę tylko do odczytu, instaluje pakiet i włącza ją z powrotem. Pamiętaj, że systemowa aktualizacja SteamOS kasuje wszystko, co zainstalowano w systemie, tę aplikację też: otwórz **Reinstall BC250 Control Center** z menu trybu pulpitu i ponownie przygotuj zależności. SteamOS pyta o hasło `deck`; jeśli nigdy go nie ustawiono, najpierw uruchom `passwd` w Konsole.
 
-**Przechodzisz z 1.19?** Jej wbudowany aktualizator nie instaluje pakietów. Zaktualizuj raz ręcznie pakietem z [najnowszego wydania](https://github.com/movacx/bc250-control-center/releases/latest); potem aplikacja aktualizuje się sama. W Bazzite zastąp 1.19 jednym krokiem i uruchom ponownie; jeśli użyto install-local.sh, najpierw usuń tamtą kopię:
+**Przechodzisz z 1.19?** Jej aktualizator nie umie instalować pakietów, przepraszam. Zaktualizuj raz ręcznie pakietem z [najnowszego wydania](https://github.com/movacx/bc250-control-center/releases/latest), a potem aplikacja zadba o siebie sama. W Bazzite zastąp 1.19 jednym krokiem i uruchom ponownie; jeśli użyto install-local.sh, najpierw usuń tamtą kopię:
 
 ```bash
 # Bazzite / Fedora Atomic
@@ -65,15 +67,15 @@ bash scripts/uninstall-local.sh
 ## Pierwsze uruchomienie
 
 1. Otwórz **BC250 Control Center**.
-2. Ekran powitalny zapyta o język, wygląd i pasek boczny oraz zaproponuje instalację narzędzi potrzebnych płycie. Wszystko można później zmienić w **Ustawieniach**.
-3. Jeśli chcesz, przejdź przewodnik: odwiedza każdy moduł i wyjaśnia, co każdy z nich zmienia na płycie.
+2. Ekran powitalny pyta o język, wygląd i pasek boczny oraz proponuje zainstalować to, czego potrzebuje płyta. Wszystko zmienisz później w **Ustawieniach**.
+3. Warto poświęcić minutę na przewodnik. Przechodzi przez każdy moduł i mówi, czego dotyka na płycie.
 
-Przed każdą zmianą sprawdź stan modułu: mówi, co jest gotowe, czego brakuje i dlaczego.
+Zanim cokolwiek zastosujesz, zerknij na linię stanu modułu. Mówi, co jest gotowe, czego brakuje i dlaczego.
 
 ## Co potrafi
 
 **Panel i monitorowanie**
-- Panel z procesorem, grafiką i chłodzeniem, rdzeniami na żywo, temperaturą każdego układu GDDR6, liniami zasilania (z modem I2C) i zainstalowanym BIOS-em.
+- Panel z procesorem, grafiką i chłodzeniem, rdzeniami na żywo, temperaturą każdej kostki GDDR6, liniami zasilania (jeśli zrobiłeś mod I2C) i zainstalowanym BIOS-em.
 - Moduł Wydajność z wykresami CPU, GPU, VRAM, RAM, dysku i sieci oraz widokiem Czujniki z minimum, średnią i maksimum.
 
 **Sprzęt**
@@ -85,8 +87,8 @@ Przed każdą zmianą sprawdź stan modułu: mówi, co jest gotowe, czego brakuj
 - **Firmware (BIOS):** przygotowuje USB z aktualizacją P3.00 Chipset Menu, MeiMeiDXE v3, P5.00, P3.00 lub P2.00, każdy plik sprawdzony.
 
 **System**
-- Przygotowanie zależności dopasowane do każdej dystrybucji, z wbudowanym terminalem pokazującym każde polecenie.
-- Poprawki zgodności: GFX1013 i async compute, FSR4 dla poszczególnych gier, telemetria i ACPI.
+- Przygotowanie zależności dopasowane do twojej dystrybucji. Działa we wbudowanym terminalu, więc widzisz każde polecenie.
+- Poprawki zgodności: GFX1013 i async compute, FSR4 i HelixSR dla poszczególnych gier, telemetria i ACPI. W Ubuntu i Fedorze ostrzega też, gdy pulpit jest rysowany przez CPU (llvmpipe), bo Mesa jest za stara, a w Ubuntu potrafi to naprawić z PPA kisak.
 - Dolby Digital 5.1 przez HDMI dla amplitunerów i soundbarów oraz sterowanie telewizorem przez HDMI-CEC za pomocą cecd od Valve.
 - Sterowniki Wi-Fi, Bluetooth i drukarek z oficjalnych repozytoriów twojej dystrybucji.
 - Diagnostyka, historia i eksport pomiarów do CSV.
@@ -97,23 +99,23 @@ Przed każdą zmianą sprawdź stan modułu: mówi, co jest gotowe, czego brakuj
 
 ## Decky Quick Access (opcjonalnie)
 
-Panel dla menu szybkiego dostępu SteamOS i trybu gry Steam. Daje codzienne ustawienia (GPU, CU, CPU, wentylatory i VRAM) bez wychodzenia z gry; zaawansowana konfiguracja zostaje w aplikacji na pulpit.
+Panel dla menu szybkiego dostępu w trybie gry, żeby zmieniać codzienne rzeczy (GPU, CU, CPU, wentylatory, VRAM) bez wychodzenia z gry. Zaawansowana konfiguracja zostaje w aplikacji na pulpit.
 
 - **Profile dla gier:** przypisz każdej grze profil GPU i wentylatorów. Stosuje się go przy uruchomieniu gry, a po jej zamknięciu wszystko wraca do poprzedniego stanu.
 - **Async compute na żywo:** pokazuje, czy i jak bardzo gra korzysta z obliczeń asynchronicznych.
 - **Presety wentylatorów:** z nazwami i prędkościami wyeksportowanymi z pulpitu.
 
-Aby zainstalować, otwórz **Panel**, przewiń do sekcji **Decky** i wybierz proponowaną akcję. Jeśli brakuje Decky Loadera, aplikacja go zainstaluje; jeśli już jest, zainstaluje lub naprawi tylko BC250 Quick Access. Zwykłe przygotowanie zależności nigdy samo nie instaluje Decky.
+Aby zainstalować, otwórz **Panel**, przewiń do **Decky** i wybierz proponowaną akcję. Jeśli brakuje Decky Loadera, zainstaluje też jego; jeśli jest, zainstaluje lub naprawi tylko BC250 Quick Access. Przygotowanie zależności nigdy samo nie instaluje Decky.
 
 Więcej w [README Decky](../../integrations/decky/bc250-quick-access/README.md).
 
 ## Bezpieczeństwo
 
-Podkręcanie, zmiany Compute Units, sterowanie wentylatorami i aktualizacja BIOS-u mogą zawiesić lub wyłączyć system, spowodować utratę danych albo uszkodzić sprzęt. Wprowadzaj jedną zmianę naraz, zawsze miej drogę powrotu i nie traktuj kontroli aplikacji jako gwarancji dla sprzętu.
+Podkręcanie, odblokowywanie Compute Units, sterowanie wentylatorami i wgrywanie BIOS-u mogą zawiesić komputer, spowodować utratę danych albo zabić płytę. Zmieniaj jedną rzecz naraz, miej drogę powrotu i nie traktuj kontroli aplikacji jako gwarancji. Łapią oczywiste błędy, nie wszystkie.
 
 ## Narzędzia zewnętrzne i podziękowania
 
-BC250 Control Center opiera się na pracy społeczności i nie przypisuje sobie żadnego z tych projektów. Każde narzędzie jest używane wyłącznie przez jawne, sprawdzone procedury.
+Nic z tego by nie istniało bez ludzi, którzy zrobili inżynierię wsteczną tej płyty. Poniższe projekty są ich, nie moje, a aplikacja dotyka ich tylko przez procedury, które przeczytałem i przypiąłem do konkretnej wersji.
 
 **GPU**
 - [cyan-skillfish-governor](https://github.com/filippor/cyan-skillfish-governor/tree/smu): governor GPU.
@@ -173,7 +175,11 @@ bc250-control-center/
 ├── scripts/              Programy uruchamiające, lokalny instalator i narzędzia systemowe
 ├── assets/               Ikony, zrzuty ekranu i galeria WWW
 ├── docs/                 Dokumentacja, informacje o komponentach zewnętrznych i tłumaczenia tego README
-└── tests/                Ponad 4000 testów automatycznych
+└── tests/                Ponad 5000 testów automatycznych, w tym pliki os-release z 37 prawdziwych dystrybucji
 ```
+
+## Współtworzenie
+
+Najwięcej pomagają zgłoszenia błędów, zwłaszcza z twoją dystrybucją, jądrem i tym, co wypisał terminal. Jeśli używasz dystrybucji, której nie ma na liście wyżej, napisz mi, jak poszło, dobrze czy źle.
 
 Licencja [MIT](../../LICENSE).

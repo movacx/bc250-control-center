@@ -1,6 +1,8 @@
 # BC250 Control Center
 
-Linux control center for the AMD BC-250. It brings monitoring, GPU control, CPU tuning, Compute Units, fans and BIOS updates into one desktop application, with clear limits and validation before every hardware change.
+A desktop app for running an AMD BC-250 on Linux. I got tired of juggling a dozen scripts and forum posts, so the monitoring, GPU governor, CPU tuning, Compute Units, fans and BIOS updates live in one place. Every change to the hardware has limits and a check before it is applied, because this board punishes guesses.
+
+It is built for the BC-250 community and made with their feedback: most features started as someone's bug report or "can it do X?" in the Discord.
 
 ## Screenshots
 
@@ -68,11 +70,11 @@ On Debian and Ubuntu use `apt install`, not `dpkg -i`, so APT also downloads the
 
 ### Updates
 
-No need to come back to this page. When a new version is out, the dashboard says so, shows what changed and installs it with your system's package manager, checking its SHA-256 first.
+You don't need to come back here. When there is a new version the dashboard tells you, shows the changelog and installs it with your package manager, after checking its SHA-256.
 
-On SteamOS the update switches the read-only protection off, installs and switches it back on. A SteamOS update removes everything installed into the system, this application included: open **Reinstall BC250 Control Center** from the Desktop Mode menu, then run Prepare dependencies again. SteamOS asks for the `deck` password; if you never set one, run `passwd` in Konsole first.
+On SteamOS the update turns the read-only protection off, installs, and turns it back on. Keep in mind that a SteamOS system update wipes everything installed into the system, this app included: open **Reinstall BC250 Control Center** from the Desktop Mode menu, then run Prepare dependencies again. SteamOS asks for the `deck` password; if you never set one, run `passwd` in Konsole first.
 
-**Coming from 1.19?** Its built-in updater cannot install packages. Update once by hand with the package from the [latest release](https://github.com/movacx/bc250-control-center/releases/latest); from then on the application updates itself.
+**Coming from 1.19?** Its updater can't install packages, sorry. Update once by hand with the package from the [latest release](https://github.com/movacx/bc250-control-center/releases/latest) and after that the app takes care of itself.
 
 ```bash
 # Bazzite / Fedora Atomic: replace the layered 1.19 in one step, then reboot
@@ -86,15 +88,15 @@ bash scripts/uninstall-local.sh
 ## First start
 
 1. Open **BC250 Control Center**.
-2. The welcome screen asks for your language, appearance and sidebar, and offers to install the tools the board needs. Everything can be changed later in **Settings**.
-3. If you like, follow the guided tour: it visits every module and explains what each one changes on the board.
+2. The welcome screen asks for language, appearance and sidebar, and offers to install what the board needs. You can change all of it later in **Settings**.
+3. The guided tour is worth a minute. It walks through every module and says what each one touches on the board.
 
-Before applying any change, check the module's status: it tells you what is ready, what is missing and why.
+Before you apply anything, look at the module's status line. It says what is ready, what is missing and why.
 
 ## What it does
 
 **Dashboard and monitoring**
-- Dashboard with processor, graphics and cooling, live cores, the temperature of every GDDR6 chip, power delivery rails (with the I2C mod) and the installed BIOS.
+- A dashboard with processor, graphics and cooling, live cores, the temperature of each GDDR6 chip, the power rails (if you did the I2C mod) and the BIOS you have installed.
 - Performance module with CPU, GPU, VRAM, RAM, disk and network charts, plus a Sensors view with minimum, average and maximum.
 
 **Hardware**
@@ -106,8 +108,8 @@ Before applying any change, check the module's status: it tells you what is read
 - **Firmware (BIOS):** prepares an update USB with P3.00 Chipset Menu, MeiMeiDXE v3, P5.00, P3.00 or P2.00, with every file verified.
 
 **System**
-- Dependency preparation adapted to each distribution, with a built-in terminal that shows every command.
-- Compatibility fixes: GFX1013 and async compute, per-game FSR4 and HelixSR, telemetry and ACPI.
+- Dependency setup that adapts to your distribution. It runs in a built-in terminal so you see every command.
+- Compatibility fixes: GFX1013 and async compute, per-game FSR4 and HelixSR, telemetry and ACPI. On Ubuntu and Fedora it also warns you if your desktop is being drawn by the CPU (llvmpipe) because Mesa is too old, and on Ubuntu can fix it from the kisak PPA.
 - Dolby Digital 5.1 over HDMI for receivers and soundbars, and TV control over HDMI-CEC with Valve's cecd.
 - Wi-Fi, Bluetooth and printer drivers from your distribution's official repositories.
 - Diagnostics, history and CSV metric export.
@@ -118,23 +120,23 @@ Before applying any change, check the module's status: it tells you what is read
 
 ## Decky Quick Access (optional)
 
-A panel for the SteamOS Quick Access menu and Steam Game Mode. It brings the everyday controls (GPU, CU, CPU, fans and VRAM) without leaving the game; advanced setup stays in the desktop application.
+A panel for the Quick Access menu in Game Mode, so you can change the everyday things (GPU, CU, CPU, fans, VRAM) without leaving the game. The advanced setup stays in the desktop app.
 
 - **Per-game profiles:** give each game a GPU and fan profile. It is applied when the game opens and everything goes back when it closes.
 - **Live async compute:** shows whether the game uses asynchronous compute, and how much.
 - **Fan presets:** with the names and speeds you export from the desktop.
 
-To install it, open the **Dashboard**, scroll to the **Decky** section and choose the action it offers. If Decky Loader is missing, the application installs it; if it is already there, it installs or repairs only BC250 Quick Access. Normal dependency preparation never installs Decky on its own.
+To install it, open the **Dashboard**, scroll to **Decky** and pick the action it offers. If Decky Loader is missing it installs that too; if it is there, only BC250 Quick Access is installed or repaired. Preparing dependencies never installs Decky on its own.
 
 More details in the [Decky README](integrations/decky/bc250-quick-access/README.md).
 
 ## Safety
 
-Overclocking, Compute Unit changes, fan control and BIOS updates can freeze or shut down the system, lose data or damage the hardware. Apply one change at a time, always keep a way back, and do not take the application's checks as a hardware guarantee.
+Overclocking, unlocking Compute Units, fan control and flashing a BIOS can freeze the machine, lose data or kill the board. Change one thing at a time, keep a way back, and don't read the app's checks as a guarantee. They catch the obvious mistakes, not all of them.
 
 ## External tools and credits
 
-BC250 Control Center builds on community work and claims none of these projects as its own. Each tool is used only through explicit, reviewed workflows.
+None of this would exist without the people who reverse-engineered the board. The projects below are theirs, not mine, and the app only touches them through workflows I have read and pinned.
 
 **GPU**
 - [cyan-skillfish-governor](https://github.com/filippor/cyan-skillfish-governor/tree/smu): GPU governor.
@@ -163,6 +165,11 @@ BC250 Control Center builds on community work and claims none of these projects 
 - [AMD-BC-250-UEFI-v2.2-Firmware-Menu-Script](https://github.com/Forbidden-Darkness/AMD-BC-250-UEFI-v2.2-Firmware-Menu-Script): UEFI Shell and MeiMeiDXE v3.
 - [BC-250](https://github.com/kenavru/BC-250): mirror of ASRock's update kit (P2.00 and P5.00).
 - [bc250-custom-bios-logo](https://github.com/tmghd272/bc250-custom-bios-logo): custom boot logo.
+
+**Related projects I'm following** (the app does not use them yet; licenses as GitHub reports them)
+- [bc250-vrm-dkms](https://github.com/Hexxeh/bc250-vrm-dkms) and [bc250-memory-dkms](https://github.com/Hexxeh/bc250-memory-dkms) (GPL-2.0): VRM and memory temperatures as kernel modules.
+- [bc250-bazzite-suite](https://github.com/RobertoTorino/bc250-bazzite-suite) (GPL-3.0): another take on setting up Bazzite.
+- [bc250-vcn-research](https://github.com/Shalasere/bc250-vcn-research) and [amdgpu-wddm](https://github.com/D-Ogi/amdgpu-wddm): VCN video encoding research and an open Windows driver. Neither declares a license, so I only link them.
 
 Licenses, review status and the exact scope of every integration are in the [third-party notices](docs/THIRD_PARTY_NOTICES.md).
 
@@ -194,7 +201,11 @@ bc250-control-center/
 ├── scripts/              Launchers, local installer and system utilities
 ├── assets/               Icons, screenshots and web gallery
 ├── docs/                 Documentation, third-party notices and translations of this README
-└── tests/                More than 4000 automated tests
+└── tests/                Over 5,000 automated tests, including os-release files from 37 real distributions
 ```
+
+## Contributing
+
+Bug reports are the most useful thing you can send, especially with your distribution, kernel and what the terminal printed. If you are on a distribution that isn't listed above, tell me how it went either way.
 
 Licensed under the [MIT License](LICENSE).

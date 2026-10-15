@@ -2,7 +2,9 @@
 
 [English](../../README.md) · [Português](README.pt-BR.md) · [Русский](README.ru.md) · [Українська](README.uk.md) · [Deutsch](README.de.md) · [Français](README.fr.md) · [Polski](README.pl.md) · [中文](README.zh-CN.md) · [日本語](README.ja.md)
 
-Centro de control para la AMD BC-250 en Linux. Reúne en una sola aplicación de escritorio la monitorización, el control de la GPU, el ajuste de la CPU, las Unidades de Cómputo, los ventiladores y la actualización del BIOS, con límites claros y validaciones antes de cada cambio en el hardware.
+Una aplicación de escritorio para sacarle partido a la AMD BC-250 en Linux. Me cansé de andar entre una docena de scripts y mensajes de foro, así que la monitorización, el gobernador de la GPU, el ajuste de la CPU, las Unidades de Cómputo, los ventiladores y el BIOS están en un solo sitio. Cada cambio en el hardware tiene límites y una comprobación antes de aplicarse, porque esta placa no perdona los tanteos.
+
+Está hecha para la comunidad de la BC-250 y con su ayuda: casi todas las funciones empezaron como el reporte de un fallo o un «¿puede hacer X?» en el Discord.
 
 ## Capturas
 
@@ -47,11 +49,11 @@ En Debian y Ubuntu usa `apt install` y no `dpkg -i`: así APT descarga también 
 
 ### Actualizaciones
 
-No hace falta volver a esta página. Cuando sale una versión nueva, el panel lo avisa, muestra qué cambió y la instala con el gestor de paquetes de tu sistema, verificando antes su SHA-256.
+No hace falta que vuelvas aquí. Cuando hay una versión nueva el panel te avisa, te enseña los cambios y la instala con tu gestor de paquetes, tras comprobar su SHA-256.
 
-En SteamOS la actualización desactiva la protección de solo lectura, instala y la vuelve a activar. Una actualización de SteamOS elimina todo lo instalado en el sistema, también esta aplicación: abre **Reinstall BC250 Control Center** desde el menú del Modo Escritorio y vuelve a preparar las dependencias. SteamOS pide la contraseña de `deck`; si nunca la creaste, ejecuta `passwd` en Konsole primero.
+En SteamOS la actualización desactiva la protección de solo lectura, instala y la vuelve a activar. Ojo: una actualización del sistema de SteamOS borra todo lo instalado en el sistema, esta aplicación incluida: abre **Reinstall BC250 Control Center** desde el menú del Modo Escritorio y vuelve a preparar las dependencias. SteamOS pide la contraseña de `deck`; si nunca la creaste, ejecuta `passwd` en Konsole primero.
 
-**¿Vienes de la 1.19?** Su actualizador integrado no puede instalar paquetes. Actualiza una vez a mano con el paquete de la [última versión](https://github.com/movacx/bc250-control-center/releases/latest); a partir de ahí la aplicación se actualiza sola. En Bazzite reemplaza la 1.19 en un solo paso y reinicia; si la instalaste con install-local.sh, quita primero esa copia:
+**¿Vienes de la 1.19?** Su actualizador no sabe instalar paquetes, perdona. Actualiza una vez a mano con el paquete de la [última versión](https://github.com/movacx/bc250-control-center/releases/latest); a partir de ahí la aplicación se actualiza sola. En Bazzite reemplaza la 1.19 en un solo paso y reinicia; si la instalaste con install-local.sh, quita primero esa copia:
 
 ```bash
 # Bazzite / Fedora Atomic
@@ -65,15 +67,15 @@ bash scripts/uninstall-local.sh
 ## Primer inicio
 
 1. Abre **BC250 Control Center**.
-2. La pantalla de bienvenida te pregunta el idioma, la apariencia y cómo quieres la barra lateral, y te ofrece instalar las herramientas que necesita la placa. Todo se puede cambiar después en **Configuración**.
-3. Si quieres, sigue el tour guiado: recorre cada módulo y explica qué cambia en la placa.
+2. La bienvenida pregunta idioma, apariencia y barra lateral, y ofrece instalar lo que necesita la placa. Todo se cambia después en **Configuración**.
+3. El tour guiado merece un minuto: pasa por cada módulo y dice qué toca en la placa.
 
-Antes de aplicar cualquier cambio, revisa el estado del módulo: te dice qué está listo, qué falta y por qué.
+Antes de aplicar nada, mira la línea de estado del módulo. Dice qué está listo, qué falta y por qué.
 
 ## Qué hace
 
 **Panel y monitorización**
-- Panel con procesador, gráficos y refrigeración, núcleos en vivo, temperatura de cada chip GDDR6, rieles de alimentación (con el mod I2C) y el BIOS instalado.
+- Un panel con procesador, gráficos y refrigeración, núcleos en vivo, la temperatura de cada chip GDDR6, los rieles de alimentación (si hiciste el mod I2C) y el BIOS que tienes instalado.
 - Módulo de Rendimiento con gráficas de CPU, GPU, VRAM, RAM, disco y red, y una vista de Sensores con mínimos, medias y máximos.
 
 **Hardware**
@@ -85,8 +87,8 @@ Antes de aplicar cualquier cambio, revisa el estado del módulo: te dice qué es
 - **Firmware (BIOS):** prepara un USB de actualización con P3.00 Chipset Menu, MeiMeiDXE v3, P5.00, P3.00 o P2.00, con cada archivo verificado.
 
 **Sistema**
-- Preparación de dependencias adaptada a cada distribución, con una terminal integrada donde se ve cada comando.
-- Correcciones de compatibilidad: GFX1013 y async compute, FSR4 por juego, telemetría y ACPI.
+- Preparación de dependencias que se adapta a tu distribución. Corre en una terminal integrada para que veas cada comando.
+- Correcciones de compatibilidad: GFX1013 y async compute, FSR4 por juego, telemetría y ACPI. En Ubuntu y Fedora también avisa si el escritorio se dibuja con la CPU (llvmpipe) porque Mesa es demasiado viejo, y en Ubuntu puede arreglarlo desde el PPA de kisak.
 - Dolby Digital 5.1 por HDMI para receptores y barras de sonido, y control de la TV por HDMI-CEC con el cecd de Valve.
 - Controladores de Wi-Fi, Bluetooth e impresoras desde los repositorios oficiales de tu distribución.
 - Diagnósticos, historial y exportación de métricas a CSV.
@@ -97,23 +99,23 @@ Antes de aplicar cualquier cambio, revisa el estado del módulo: te dice qué es
 
 ## Decky Quick Access (opcional)
 
-Un panel para el menú de acceso rápido de SteamOS y el modo Juego de Steam. Trae los controles del día a día (GPU, CU, CPU, ventiladores y VRAM) sin salir del juego; la configuración avanzada sigue en la aplicación de escritorio.
+Un panel para el menú de acceso rápido del modo Juego, para cambiar lo de siempre (GPU, CU, CPU, ventiladores, VRAM) sin salir del juego. La configuración avanzada se queda en la aplicación de escritorio.
 
 - **Perfiles por juego:** asigna a cada juego un perfil de GPU y de ventiladores. Se aplica al abrirlo y todo vuelve a como estaba al cerrarlo.
 - **Async compute en vivo:** muestra si el juego está usando el cómputo asíncrono y cuánto.
 - **Presets de ventiladores:** con los nombres y velocidades que exportes desde el escritorio.
 
-Para instalarlo, abre el **Panel**, baja hasta la sección **Decky** y elige la acción que te ofrece. Si falta Decky Loader, la aplicación lo instala; si ya está, instala o repara solo BC250 Quick Access. La preparación normal de dependencias nunca instala Decky por su cuenta.
+Para instalarlo, abre el **Panel**, baja a **Decky** y elige la acción que ofrece. Si falta Decky Loader, lo instala también; si ya está, solo instala o repara BC250 Quick Access. Preparar dependencias nunca instala Decky por su cuenta.
 
 Más detalles en el [README de Decky](../../integrations/decky/bc250-quick-access/README.md).
 
 ## Seguridad
 
-El overclock, los cambios de Unidades de Cómputo, el control de ventiladores y la actualización del BIOS pueden congelar o apagar el equipo, hacer perder datos o dañar el hardware. Aplica un cambio cada vez, ten siempre una forma de volver atrás y no tomes las comprobaciones de la aplicación como una garantía del hardware.
+El overclock, desbloquear Unidades de Cómputo, el control de ventiladores y flashear un BIOS pueden congelar el equipo, perder datos o matar la placa. Cambia una cosa cada vez, ten siempre un camino de vuelta y no leas las comprobaciones de la app como una garantía: atrapan los errores evidentes, no todos.
 
 ## Herramientas externas y créditos
 
-BC250 Control Center se apoya en el trabajo de la comunidad y no reclama como propio ninguno de estos proyectos. Cada herramienta se usa solo a través de flujos explícitos y revisados.
+Nada de esto existiría sin quienes hicieron la ingeniería inversa de la placa. Los proyectos de abajo son suyos, no míos, y la aplicación solo los toca mediante flujos que he leído y fijado a una revisión.
 
 **GPU**
 - [cyan-skillfish-governor](https://github.com/filippor/cyan-skillfish-governor/tree/smu): governor de la GPU.
@@ -142,6 +144,11 @@ BC250 Control Center se apoya en el trabajo de la comunidad y no reclama como pr
 - [AMD-BC-250-UEFI-v2.2-Firmware-Menu-Script](https://github.com/Forbidden-Darkness/AMD-BC-250-UEFI-v2.2-Firmware-Menu-Script): UEFI Shell y MeiMeiDXE v3.
 - [BC-250](https://github.com/kenavru/BC-250): copia del kit de actualización de ASRock (P2.00 y P5.00).
 - [bc250-custom-bios-logo](https://github.com/tmghd272/bc250-custom-bios-logo): logotipo de arranque personalizado.
+
+**Proyectos relacionados que sigo** (la aplicación todavía no los usa; licencias según las muestra GitHub)
+- [bc250-vrm-dkms](https://github.com/Hexxeh/bc250-vrm-dkms) y [bc250-memory-dkms](https://github.com/Hexxeh/bc250-memory-dkms) (GPL-2.0): temperaturas del VRM y de la memoria como módulos de kernel.
+- [bc250-bazzite-suite](https://github.com/RobertoTorino/bc250-bazzite-suite) (GPL-3.0): otra forma de configurar Bazzite.
+- [bc250-vcn-research](https://github.com/Shalasere/bc250-vcn-research) y [amdgpu-wddm](https://github.com/D-Ogi/amdgpu-wddm): investigación de VCN y un driver abierto de Windows. Ninguno declara licencia, así que solo los enlazo.
 
 Las licencias, el estado de revisión y el alcance exacto de cada integración están en los [avisos de terceros](../THIRD_PARTY_NOTICES.md).
 
@@ -173,7 +180,11 @@ bc250-control-center/
 ├── scripts/                  Lanzadores, instalador local y utilidades de sistema
 ├── assets/                   Iconos, capturas y galería web
 ├── docs/                     Documentación, avisos de terceros y traducciones de este README
-└── tests/                    Más de 4000 pruebas automáticas
+└── tests/                    Más de 5000 pruebas automáticas, con os-release de 37 distribuciones reales
 ```
+
+## Contribuir
+
+Lo más útil que puedes mandar es un reporte de fallo, sobre todo con tu distribución, tu kernel y lo que imprimió la terminal. Si usas una distribución que no aparece arriba, cuéntame cómo te fue, bien o mal.
 
 Licencia [MIT](../../LICENSE).

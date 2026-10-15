@@ -2,7 +2,9 @@
 
 [English](../../README.md) · [Español](README.es.md) · [Português](README.pt-BR.md) · [Русский](README.ru.md) · [Українська](README.uk.md) · [Français](README.fr.md) · [Polski](README.pl.md) · [中文](README.zh-CN.md) · [日本語](README.ja.md)
 
-Kontrollzentrum für die AMD BC-250 unter Linux. Überwachung, GPU-Steuerung, CPU-Tuning, Compute Units, Lüfter und BIOS-Aktualisierung in einer Desktop-Anwendung – mit klaren Grenzen und Prüfungen vor jeder Änderung an der Hardware.
+Eine Desktop-Anwendung, um die AMD BC-250 unter Linux sinnvoll zu betreiben. Ich hatte es satt, zwischen einem Dutzend Skripten und Forenbeiträgen hin und her zu springen, also stecken Überwachung, GPU-Governor, CPU-Tuning, Compute Units, Lüfter und BIOS jetzt an einem Ort. Jede Änderung an der Hardware hat Grenzen und eine Prüfung, bevor sie angewendet wird, denn diese Platine verzeiht kein Raten.
+
+Sie ist für die BC-250-Community gemacht und mit ihrer Hilfe: Die meisten Funktionen begannen als jemandes Fehlerbericht oder als „Kann es auch X?“ im Discord.
 
 ## Screenshots
 
@@ -47,11 +49,11 @@ Unter Debian und Ubuntu `apt install` statt `dpkg -i` verwenden: So lädt APT au
 
 ### Aktualisierungen
 
-Du musst nicht auf diese Seite zurückkommen. Wenn eine neue Version erscheint, meldet die Übersicht das, zeigt die Änderungen und installiert sie mit dem Paketmanager deines Systems, nachdem sie die SHA-256 geprüft hat.
+Du musst nicht hierher zurückkommen. Gibt es eine neue Version, sagt dir die Übersicht Bescheid, zeigt die Änderungen und installiert sie mit deinem Paketmanager, nachdem sie die SHA-256 geprüft hat.
 
-Unter SteamOS schaltet das Update den Schreibschutz aus, installiert und schaltet ihn wieder ein. Ein SteamOS-Update entfernt alles, was ins System installiert wurde, auch diese Anwendung: Öffnen Sie **Reinstall BC250 Control Center** im Menü des Desktop-Modus und bereiten Sie die Abhängigkeiten erneut vor. SteamOS fragt nach dem Passwort von `deck`; falls Sie nie eines gesetzt haben, führen Sie zuerst `passwd` in Konsole aus.
+Unter SteamOS schaltet das Update den Schreibschutz aus, installiert und schaltet ihn wieder ein. Wichtig: Ein SteamOS-Systemupdate löscht alles, was ins System installiert wurde, auch diese Anwendung: Öffnen Sie **Reinstall BC250 Control Center** im Menü des Desktop-Modus und bereiten Sie die Abhängigkeiten erneut vor. SteamOS fragt nach dem Passwort von `deck`; falls Sie nie eines gesetzt haben, führen Sie zuerst `passwd` in Konsole aus.
 
-**Von 1.19 kommend?** Deren Updater kann keine Pakete installieren. Aktualisieren Sie einmal von Hand mit dem Paket der [neuesten Version](https://github.com/movacx/bc250-control-center/releases/latest); danach aktualisiert sich die Anwendung selbst. Unter Bazzite ersetzen Sie 1.19 in einem Schritt und starten neu; bei einer Installation mit install-local.sh entfernen Sie zuerst diese Kopie:
+**Von 1.19 kommend?** Deren Updater kann leider keine Pakete installieren. Aktualisieren Sie einmal von Hand mit dem Paket der [neuesten Version](https://github.com/movacx/bc250-control-center/releases/latest); danach aktualisiert sich die Anwendung selbst. Unter Bazzite ersetzen Sie 1.19 in einem Schritt und starten neu; bei einer Installation mit install-local.sh entfernen Sie zuerst diese Kopie:
 
 ```bash
 # Bazzite / Fedora Atomic
@@ -65,15 +67,15 @@ bash scripts/uninstall-local.sh
 ## Erster Start
 
 1. Öffne **BC250 Control Center**.
-2. Der Willkommensbildschirm fragt nach Sprache, Aussehen und Seitenleiste und bietet an, die Werkzeuge zu installieren, die die Platine braucht. Alles lässt sich später in den **Einstellungen** ändern.
-3. Wenn du möchtest, folge der geführten Tour: Sie besucht jedes Modul und erklärt, was es an der Platine ändert.
+2. Der Willkommensbildschirm fragt nach Sprache, Aussehen und Seitenleiste und bietet an, zu installieren, was die Platine braucht. Alles lässt sich später in den **Einstellungen** ändern.
+3. Die geführte Tour ist eine Minute wert: Sie geht jedes Modul durch und sagt, was es an der Platine anfasst.
 
-Prüfe vor jeder Änderung den Status des Moduls: Er sagt, was bereit ist, was fehlt und warum.
+Bevor du etwas anwendest, wirf einen Blick auf die Statuszeile des Moduls. Sie sagt, was bereit ist, was fehlt und warum.
 
 ## Funktionen
 
 **Übersicht und Überwachung**
-- Übersicht mit Prozessor, Grafik und Kühlung, Kernen live, der Temperatur jedes GDDR6-Chips, den Stromversorgungsschienen (mit I2C-Mod) und dem installierten BIOS.
+- Eine Übersicht mit Prozessor, Grafik und Kühlung, Kernen live, der Temperatur jedes GDDR6-Chips, den Stromversorgungsschienen (falls du den I2C-Mod gemacht hast) und dem installierten BIOS.
 - Leistungsmodul mit Diagrammen für CPU, GPU, VRAM, RAM, Datenträger und Netzwerk sowie einer Sensoransicht mit Minimum, Durchschnitt und Maximum.
 
 **Hardware**
@@ -85,8 +87,8 @@ Prüfe vor jeder Änderung den Status des Moduls: Er sagt, was bereit ist, was f
 - **Firmware (BIOS):** erstellt einen Update-USB-Stick mit P3.00 Chipset Menu, MeiMeiDXE v3, P5.00, P3.00 oder P2.00, jede Datei geprüft.
 
 **System**
-- Vorbereitung der Abhängigkeiten passend zu jeder Distribution, mit einem eingebauten Terminal, das jeden Befehl zeigt.
-- Kompatibilitätskorrekturen: GFX1013 und Async Compute, FSR4 pro Spiel, Telemetrie und ACPI.
+- Einrichtung der Abhängigkeiten, die sich an deine Distribution anpasst. Sie läuft in einem eingebauten Terminal, damit du jeden Befehl siehst.
+- Kompatibilitätskorrekturen: GFX1013 und Async Compute, FSR4 pro Spiel, Telemetrie und ACPI. Unter Ubuntu und Fedora warnt sie dich außerdem, wenn dein Desktop wegen eines zu alten Mesa von der CPU gezeichnet wird (llvmpipe), und unter Ubuntu kann sie das über das kisak-PPA beheben.
 - Dolby Digital 5.1 über HDMI für Receiver und Soundbars sowie TV-Steuerung über HDMI-CEC mit Valves cecd.
 - WLAN-, Bluetooth- und Druckertreiber aus den offiziellen Paketquellen deiner Distribution.
 - Diagnose, Verlauf und Export der Messwerte als CSV.
@@ -97,23 +99,23 @@ Prüfe vor jeder Änderung den Status des Moduls: Er sagt, was bereit ist, was f
 
 ## Decky Quick Access (optional)
 
-Ein Panel für das Schnellzugriffsmenü von SteamOS und den Steam-Spielmodus. Es bringt die alltäglichen Regler (GPU, CU, CPU, Lüfter und VRAM) ins Spiel; die erweiterte Einrichtung bleibt in der Desktop-Anwendung.
+Ein Panel für das Schnellzugriffsmenü im Spielmodus, damit du die alltäglichen Dinge (GPU, CU, CPU, Lüfter, VRAM) ändern kannst, ohne das Spiel zu verlassen. Die erweiterte Einrichtung bleibt in der Desktop-Anwendung.
 
 - **Profile pro Spiel:** Weise jedem Spiel ein GPU- und Lüfterprofil zu. Es wird beim Start des Spiels angewendet, und beim Beenden kehrt alles zum vorherigen Zustand zurück.
 - **Async Compute live:** zeigt, ob und wie stark das Spiel asynchrones Rechnen nutzt.
 - **Lüfter-Presets:** mit den Namen und Drehzahlen, die du vom Desktop exportierst.
 
-Zum Installieren öffne die **Übersicht**, scrolle zum Abschnitt **Decky** und wähle die angebotene Aktion. Fehlt Decky Loader, installiert die Anwendung ihn; ist er schon da, installiert oder repariert sie nur BC250 Quick Access. Die normale Vorbereitung der Abhängigkeiten installiert Decky nie von selbst.
+Zum Installieren öffne die **Übersicht**, scrolle zu **Decky** und wähle die angebotene Aktion. Fehlt Decky Loader, wird er mit installiert; ist er schon da, wird nur BC250 Quick Access installiert oder repariert. Das Vorbereiten der Abhängigkeiten installiert Decky nie von selbst.
 
 Mehr dazu im [Decky-README](../../integrations/decky/bc250-quick-access/README.md).
 
 ## Sicherheit
 
-Übertakten, Änderungen an den Compute Units, Lüftersteuerung und BIOS-Aktualisierungen können das System einfrieren oder abschalten, Daten verlieren oder die Hardware beschädigen. Nimm eine Änderung nach der anderen vor, halte immer einen Weg zurück bereit und betrachte die Prüfungen der Anwendung nicht als Garantie für die Hardware.
+Übertakten, das Freischalten von Compute Units, Lüftersteuerung und das Flashen eines BIOS können die Maschine einfrieren, Daten kosten oder die Platine töten. Ändere immer nur eine Sache, halte einen Weg zurück bereit und verstehe die Prüfungen der Anwendung nicht als Garantie. Sie fangen die offensichtlichen Fehler ab, nicht alle.
 
 ## Externe Werkzeuge und Danksagungen
 
-BC250 Control Center baut auf der Arbeit der Community auf und beansprucht keines dieser Projekte für sich. Jedes Werkzeug wird nur über ausdrückliche, geprüfte Abläufe genutzt.
+Ohne die Leute, die die Platine per Reverse Engineering erschlossen haben, gäbe es nichts davon. Die Projekte unten gehören ihnen, nicht mir, und die Anwendung berührt sie nur über Abläufe, die ich gelesen und auf eine Revision festgelegt habe.
 
 **GPU**
 - [cyan-skillfish-governor](https://github.com/filippor/cyan-skillfish-governor/tree/smu): GPU-Governor.
@@ -173,7 +175,11 @@ bc250-control-center/
 ├── scripts/              Starter, lokaler Installer und Systemwerkzeuge
 ├── assets/               Symbole, Screenshots und Web-Galerie
 ├── docs/                 Dokumentation, Drittanbieterhinweise und Übersetzungen dieses README
-└── tests/                Mehr als 4000 automatische Tests
+└── tests/                Über 5000 automatische Tests, mit os-release-Dateien von 37 echten Distributionen
 ```
+
+## Mitmachen
+
+Am meisten hilft mir ein Fehlerbericht, vor allem mit deiner Distribution, dem Kernel und dem, was das Terminal ausgegeben hat. Wenn du eine Distribution nutzt, die oben nicht aufgeführt ist, erzähl mir, wie es lief, egal ob gut oder schlecht.
 
 Lizenziert unter der [MIT-Lizenz](../../LICENSE).
