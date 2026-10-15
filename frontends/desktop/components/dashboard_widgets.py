@@ -70,6 +70,7 @@ from .system_setup_controls import (
     update_memory_controls,
     vram_size_label,
 )
+from .wheel_guard import GuardedComboBox
 from .widgets import ICON_DIR, IconBadge, InfoDialog, PillLabel, apply_shadow, icon
 
 
@@ -339,15 +340,6 @@ DECKY_PREVIEW_IMAGE = (
     / "screenshots"
     / "decky-quick-access.png"
 )
-
-
-class _ClickOnlyComboBox(QComboBox):
-    """Do not let incidental scrolling change a saved compatibility choice."""
-
-    def wheelEvent(self, event) -> None:  # noqa: N802 - Qt API name
-        # Let the parent scroll area receive the wheel event when the pointer
-        # merely crosses this control.  Selecting remains an explicit click.
-        event.ignore()
 
 
 class _DeckyScreenshotDialog(QDialog):
@@ -1809,7 +1801,7 @@ class _HelixSRSettings(SectionCard):
             grid.addWidget(caption, 0, 0)
             grid.addWidget(_label(hint, "settingHint"), 1, 0)
             if options:
-                control = QComboBox()
+                control = GuardedComboBox()
                 control.setFixedWidth(150)
                 for value, text in options:
                     control.addItem(tr(text) if not text[:1].isdigit() else text, value)
@@ -2275,7 +2267,7 @@ class PreparationSidebar(QFrame):
         self.memory_swap_target_label = _label(
             "Swapfile location", "dashboardMemoryControlLabel"
         )
-        self.memory_swap_target_combo = QComboBox()
+        self.memory_swap_target_combo = GuardedComboBox()
         self.memory_swap_target_combo.setProperty("dashboardMemoryCombo", True)
         self.memory_swap_target_combo.addItem(tr("Default (/var/lib)"), "")
         swap_layout.addWidget(self.memory_swap_target_label)
@@ -2311,7 +2303,7 @@ class PreparationSidebar(QFrame):
         self.memory_swap_usage_label.hide()
         swap_layout.addLayout(usage_row)
 
-        self.memory_policy_combo = QComboBox()
+        self.memory_policy_combo = GuardedComboBox()
         self.memory_policy_combo.setProperty("dashboardMemoryCombo", True)
         for label, value in (
             ("Keep Bazzite default (ZRAM)", "current"),
@@ -2348,7 +2340,7 @@ class PreparationSidebar(QFrame):
         # What the next boot will use, from the state Game Mode shares.
         self.memory_ttm_state = _label("", "dashboardMemoryDetail")
         ttm_layout.addWidget(self.memory_ttm_state)
-        self.ttm_limit_combo = QComboBox()
+        self.ttm_limit_combo = GuardedComboBox()
         self.ttm_limit_combo.setProperty("dashboardMemoryCombo", True)
         self.ttm_limit_combo.addItem(tr("Keep current TTM limit"), 0)
         self.ttm_limit_combo.addItem(tr("Kernel default (remove BC250 TTM limit)"), -1)
@@ -2379,7 +2371,7 @@ class PreparationSidebar(QFrame):
         self.memory_vram_readout = _label("—", "metricTileValue", wrap=False)
         vram_layout.addWidget(self.memory_vram_readout)
         self._tools_snapshot: Mapping[str, object] = {}
-        self.vram_size_combo = QComboBox()
+        self.vram_size_combo = GuardedComboBox()
         self.vram_size_combo.setProperty("dashboardMemoryCombo", True)
         self.vram_size_combo.addItem(tr("Keep current VRAM size"), 0)
         for target in VRAM_SIZE_PRESETS_MB:
@@ -2801,9 +2793,42 @@ class PreparationSidebar(QFrame):
         self.kernel_cu_heat.setWordWrap(True)
         self.kernel_cu_heat.hide()
         root.addWidget(self.kernel_cu_heat)
+        # SMT can also be switched while the system runs: now, and not kept.
+        self.smt_live_rule = QFrame()
+        self.smt_live_rule.setObjectName("ListDivider")
+        self.smt_live_rule.setFixedHeight(1)
+        root.addWidget(self.smt_live_rule)
+        self.smt_live_row = QWidget()
+        live = QHBoxLayout(self.smt_live_row)
+        live.setContentsMargins(0, 0, 0, 0)
+        live.setSpacing(8)
+        live.addWidget(_label("SMT right now", "dashboardComponentTitle", wrap=False), 1)
+        self.smt_live_pill = PillLabel("Checking", "gray")
+        self.smt_live_pill.setMinimumWidth(self._KERNEL_STATE_WIDTH)
+        live.addWidget(self.smt_live_pill)
+        self.smt_live_button = QPushButton(tr("Turn SMT off now"))
+        self.smt_live_button.setProperty("dashboardCardAction", True)
+        self.smt_live_button.setMinimumWidth(self._KERNEL_ACTION_WIDTH)
+        self.smt_live_button.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+        self.smt_live_button.clicked.connect(self._request_smt_live)
+        live.addWidget(self.smt_live_button)
+        root.addWidget(self.smt_live_row)
+        self._smt_live_target = "off"
+        self.smt_live_rule.hide()
+        self.smt_live_row.hide()
         self._kernel_options_state: dict[str, object] = {}
         panel.hide()
         return panel
+
+    def _request_smt_live(self) -> None:
+        self.dependency_action_requested.emit(
+            {
+                "action": "smt_live",
+                "governor": "",
+                "selected_components": self.selected_components,
+                "smt_mode": self._smt_live_target,
+            }
+        )
 
     def _request_kernel_option(self, option: str) -> None:
         arguments = _mapping(self._kernel_options_state.get("arguments"))
@@ -2876,6 +2901,16 @@ class PreparationSidebar(QFrame):
             button.style().unpolish(button)
             button.style().polish(button)
             button.setEnabled(not item.get("external"))
+        smt = _mapping(state.get("smt"))
+        live = bool(smt.get("supported")) and "nosmt" in allowed
+        self.smt_live_rule.setVisible(live)
+        self.smt_live_row.setVisible(live)
+        if live:
+            is_on = str(smt.get("control") or "") == "on"
+            self._smt_live_target = "off" if is_on else "on"
+            self.smt_live_pill.setText(tr("Enabled" if is_on else "Disabled"))
+            self.smt_live_pill.set_tone("green" if is_on else "orange")
+            self.smt_live_button.setText(tr("Turn SMT off now" if is_on else "Turn SMT on now"))
 
     def _request_steamos_readonly(self) -> None:
         self.dependency_action_requested.emit(
@@ -2921,7 +2956,7 @@ class PreparationSidebar(QFrame):
         filter_layout.addWidget(
             _label("Show compatibility for", "dashboardCompatibilityLabel", wrap=False)
         )
-        self.compatibility_filter = _ClickOnlyComboBox()
+        self.compatibility_filter = GuardedComboBox()
         self.compatibility_filter.setProperty("dashboardMemoryCombo", True)
         self.compatibility_filter.setProperty("gamepadEntry", True)
         self.compatibility_filter.setMinimumWidth(0)
@@ -3207,12 +3242,53 @@ class PreparationSidebar(QFrame):
         self._build_helixsr_card()
         for card in self.cachyos_cards:
             layout.addWidget(card)
+        self._build_mesa_card()
+        layout.addWidget(self.mesa_card)
         self._build_vaapi_card()
         layout.addWidget(self.vaapi_card)
         layout.addStretch(1)
         if self._standalone:
             self._organise_compatibility(layout)
         return page
+
+    def _build_mesa_card(self) -> None:
+        """Mesa older than 26.1: Vulkan runs on the GPU but the desktop is drawn by the CPU."""
+        self.mesa_card = PreparationInfoCard(
+            "Desktop graphics · Mesa",
+            "The Mesa of this system does not draw the desktop on the BC-250 GPU, so windows are drawn by the CPU and feel slow, although games using Vulkan already run on the GPU. Mesa 26.1 or newer fixes it. This adds the kisak-mesa PPA, a third-party source, and updates Mesa from it.",
+            status_text="Mesa too old for the desktop",
+        )
+        self.mesa_card.action_requested.connect(self._forward_dependency_action)
+        self.mesa_button = self.mesa_card.add_action(
+            "Update Mesa", {"action": "mesa_ppa_install", "governor": ""}
+        )
+        self.mesa_card.setVisible(False)
+
+    def _render_mesa(self, tools: Mapping[str, object]) -> None:
+        if not hasattr(self, "mesa_card"):
+            return
+        mesa = _mapping(tools.get("mesa_desktop"))
+        route = str(mesa.get("route") or "")
+        self.mesa_card.setVisible(bool(mesa.get("offered")))
+        self.mesa_card.set_status("Mesa too old for the desktop", "orange")
+        if route == "release":
+            self.mesa_card.detail.setText(tr(
+                "The Mesa of this system does not draw the desktop on the BC-250 GPU, so windows are drawn by the CPU and feel slow, although games using Vulkan already run on the GPU. Fedora 44 ships Mesa 26.1 or newer: upgrade to it with GNOME Software, KDE Discover or dnf system-upgrade."
+            ))
+        elif route == "backports":
+            self.mesa_card.detail.setText(tr(
+                "Optional. The Mesa that Debian 13 ships does not recognize the BC-250 GPU, so the desktop is drawn by the CPU and feels slow. This installs the newer Mesa from Debian backports."
+            ))
+        else:
+            self.mesa_card.detail.setText(tr(
+                "The Mesa of this system does not draw the desktop on the BC-250 GPU, so windows are drawn by the CPU and feel slow, although games using Vulkan already run on the GPU. Mesa 26.1 or newer fixes it. This adds the kisak-mesa PPA, a third-party source, and updates Mesa from it."
+            ))
+        self.mesa_card.update_action(
+            self.mesa_button,
+            text="Install from backports" if route == "backports" else "Update Mesa",
+            payload={"action": str(mesa.get("action") or "mesa_ppa_install"), "governor": ""},
+            visible=route in {"ppa", "backports"},
+        )
 
     def _build_vaapi_card(self) -> None:
         """simpmix's VA-API driver: the video block the BC-250 does not have."""
@@ -3228,6 +3304,12 @@ class PreparationSidebar(QFrame):
         )
         self.vaapi_test_button = self.vaapi_card.add_action(
             "Test", {"action": "vaapi_test", "governor": ""}
+        )
+        self.vaapi_flatpak_button = self.vaapi_card.add_action(
+            "Allow Flatpak apps", {"action": "vaapi_flatpak", "governor": ""}
+        )
+        self.vaapi_32_button = self.vaapi_card.add_action(
+            "Add 32-bit driver", {"action": "vaapi_install32", "governor": ""}
         )
         self.vaapi_remove_button = self.vaapi_card.add_action(
             "Remove", {"action": "vaapi_uninstall", "governor": ""}, danger=True
@@ -3267,6 +3349,30 @@ class PreparationSidebar(QFrame):
             self.vaapi_card.detail.setText(tr(
                 "The BC-250 has no working video block, so programs fall back to software video. This driver encodes H.264 on the GPU and HEVC mostly on the CPU, and decodes both, for Sunshine, OBS, Steam Remote Play, ffmpeg and browsers."
             ))
+        flatpak = _mapping(vaapi.get("flatpak"))
+        flatpak_missing = (
+            installed and state != "invalid" and bool(flatpak.get("available"))
+            # Without the radeonsi alias, programs that clear LIBVA_DRIVER_NAME
+            # (GPU Screen Recorder) cannot find the driver even when allowed.
+            and (not flatpak.get("applied") or not vaapi.get("alias", True))
+        )
+        if flatpak_missing:
+            self.vaapi_card.detail.setText(
+                self.vaapi_card.detail.text() + "\n" + tr(
+                    "Flatpak apps such as GPU Screen Recorder cannot see the driver yet, so they list H.264 as not available."
+                )
+            )
+        driver32 = _mapping(vaapi.get("driver32"))
+        state32 = str(driver32.get("state") or "unsupported")
+        offer32 = installed and state != "invalid" and state32 in {"not-installed", "needs-libs"}
+        if offer32:
+            self.vaapi_card.detail.setText(
+                self.vaapi_card.detail.text() + "\n" + tr(
+                    "A SteamOS update removed the 32-bit libraries, so Steam Remote Play falls back to software video until they are back."
+                    if state32 == "needs-libs" else
+                    "Steam Remote Play and Steam Link encode with a 32-bit driver; without it they use software video."
+                )
+            )
         can_install = supported and state not in {"managed-elsewhere", "hardware-vcn", "active", "relogin-required"}
         self.vaapi_card.update_action(
             self.vaapi_install_button,
@@ -3277,6 +3383,14 @@ class PreparationSidebar(QFrame):
         )
         self.vaapi_card.update_action(
             self.vaapi_test_button, text="Test", visible=installed and state != "invalid",
+        )
+        self.vaapi_card.update_action(
+            self.vaapi_flatpak_button, text="Allow Flatpak apps", visible=flatpak_missing,
+        )
+        self.vaapi_card.update_action(
+            self.vaapi_32_button,
+            text="Repair 32-bit driver" if state32 == "needs-libs" else "Add 32-bit driver",
+            visible=offer32,
         )
         self.vaapi_card.update_action(
             self.vaapi_remove_button, text="Remove", visible=installed,
@@ -3384,7 +3498,7 @@ class PreparationSidebar(QFrame):
         version_row = QHBoxLayout()
         version_row.setSpacing(8)
         version_row.addWidget(_label("Version", "readingLabel", wrap=False))
-        self.helixsr_version_combo = _ClickOnlyComboBox()
+        self.helixsr_version_combo = GuardedComboBox()
         self.helixsr_version_combo.setAccessibleName(tr("HelixSR version"))
         self.helixsr_version_combo.setToolTip(tr(
             "The HelixSR release Install or Update brings in. The recommended one is the release this version of Control Center was checked with."
@@ -3484,7 +3598,8 @@ class PreparationSidebar(QFrame):
         self.compatibility_groups = (
             ("System", (self.acpi_card,)),
             ("GPU governor", (self.cyan_card, self.oberon_card)),
-            ("Kernel and graphics", (self.gfx_card, *self.cachyos_cards)),
+            # Mesa first: it is what leaves the desktop on the CPU, whatever the kernel does.
+            ("Kernel and graphics", (self.mesa_card, self.gfx_card, *self.cachyos_cards)),
             ("Video", (self.vaapi_card,)),
         )
         layout.setSpacing(0)
@@ -3493,7 +3608,8 @@ class PreparationSidebar(QFrame):
         layout.insertWidget(layout.count() - 1, self._boot_holder)
         self._compatibility_headings = []
         for title, cards in self.compatibility_groups:
-            index = layout.indexOf(cards[0])
+            # The earliest of its cards, whatever order they are listed in.
+            index = min(layout.indexOf(card) for card in cards)
             box = QFrame()
             box.setProperty("dashboardCompatibilityGroupBox", True)
             box_layout = QVBoxLayout(box)
@@ -3657,7 +3773,7 @@ class PreparationSidebar(QFrame):
             ("thermalright", self.thermalright_card, "Open configuration"),
             ("corsair", self.corsair_card, "Open control panel"),
             ("hdmi_ac3", self.hdmi_ac3_card, "Open configuration"),
-            ("hdmi_cec", self.hdmi_cec_card, "Test TV control"),
+            ("hdmi_cec", self.hdmi_cec_card, "Open TV control"),
         ):
             buttons = {
                 "install": card.add_action("Install", {"accessory": key, "op": "install"}),
@@ -3712,7 +3828,7 @@ class PreparationSidebar(QFrame):
         "thermalright": "Open configuration",
         "corsair": "Open control panel",
         "hdmi_ac3": "",
-        "hdmi_cec": "Test TV control",
+        "hdmi_cec": "Open TV control",
     }
 
     def _render_accessories(self, accessories: Mapping[str, object]) -> None:
@@ -4176,23 +4292,30 @@ class PreparationSidebar(QFrame):
         )
 
     def _render_debian_kernel(self, upgrade: Mapping[str, object]) -> None:
-        """Debian 13: install a newer kernel from backports, then the GFX1013 build."""
+        """Debian 13: install a newer Mesa and kernel from backports, then the GFX1013 build."""
         pending_restart = str(upgrade.get("state") or "") == "reboot-required"
-        self.gfx_card.set_scope("Debian · Kernel too old for the GPU", "orange")
+        with_kernel = bool(upgrade.get("install_kernel", True))
+        self.gfx_card.set_scope("Debian · Kernel and Mesa too old for the GPU", "orange")
         self.gfx_card.set_status(
-            "Restart required" if pending_restart else "Newer kernel needed",
+            "Restart required" if pending_restart else "Newer kernel and Mesa needed",
             "blue" if pending_restart else "orange",
         )
         self.gfx_card.detail.setText(
             tr("A newer kernel is already installed. Restart to use it, then build the GFX1013 fix.")
             if pending_restart
-            else tr(
-                "Optional. The Debian kernel and Mesa do not recognize the BC-250 GPU, so the desktop is drawn by the CPU and feels slow. This installs a newer kernel from Debian backports beside the current one, which stays in the boot menu."
+            else (
+                tr(
+                    "Optional. The Debian kernel and Mesa do not recognize the BC-250 GPU, so the desktop is drawn by the CPU and feels slow. This installs a newer Mesa and kernel from Debian backports; the current kernel stays in the boot menu."
+                )
+                if with_kernel
+                else tr(
+                    "Optional. The Mesa that Debian 13 ships does not recognize the BC-250 GPU, so the desktop is drawn by the CPU and feels slow. This installs the newer Mesa from Debian backports."
+                )
             )
         )
         self.gfx_card.update_action(
             self.gfx_primary_button,
-            text="Install newer kernel",
+            text="Install from backports",
             payload={"action": "debian_kernel_install", "governor": ""},
             enabled=not pending_restart,
         )
@@ -4811,6 +4934,7 @@ class PreparationSidebar(QFrame):
             else "gray"
         )
         self._render_vaapi(tools)
+        self._render_mesa(tools)
         self.acpi_card.set_status(status_text, acpi_tone)
         reason = str(setup.get("reason") or acpi.get("reason") or "")
         self.acpi_install_button.setEnabled(

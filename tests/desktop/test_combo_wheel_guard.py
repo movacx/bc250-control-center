@@ -6,7 +6,7 @@ from PyQt6.QtCore import QPoint, QPointF, Qt
 from PyQt6.QtGui import QWheelEvent
 from PyQt6.QtWidgets import QApplication, QComboBox, QScrollArea, QVBoxLayout, QWidget
 
-from frontends.desktop.components.wheel_guard import install_combo_wheel_guard
+from frontends.desktop.components.wheel_guard import GuardedComboBox
 
 
 def _wheel(widget: QWidget) -> None:
@@ -18,12 +18,11 @@ def _wheel(widget: QWidget) -> None:
 
 
 def test_the_wheel_scrolls_the_page_and_leaves_the_choice_alone():
-    app = QApplication.instance() or QApplication([])
-    install_combo_wheel_guard(app)
+    _app = QApplication.instance() or QApplication([])
     area = QScrollArea()
     page = QWidget()
     layout = QVBoxLayout(page)
-    combo = QComboBox()
+    combo = GuardedComboBox()
     combo.addItems(["Auto", "32", "64"])
     layout.addWidget(combo)
     page.setMinimumHeight(3000)
@@ -36,20 +35,18 @@ def test_the_wheel_scrolls_the_page_and_leaves_the_choice_alone():
 
     assert combo.currentIndex() == 0, "the value did not move"
     assert area.verticalScrollBar().value() > 0, "the page scrolled instead"
-    assert install_combo_wheel_guard(app) is install_combo_wheel_guard(app), "installed once"
     area.close()
 
 
 def test_an_inner_area_at_its_end_hands_the_wheel_to_the_page():
-    app = QApplication.instance() or QApplication([])
-    install_combo_wheel_guard(app)
+    _app = QApplication.instance() or QApplication([])
     outer = QScrollArea()
     page = QWidget()
     page_layout = QVBoxLayout(page)
     inner = QScrollArea()
     inner.setFixedHeight(120)
     content = QWidget()
-    QVBoxLayout(content).addWidget(combo := QComboBox())
+    QVBoxLayout(content).addWidget(combo := GuardedComboBox())
     combo.addItems(["A", "B"])
     inner.setWidget(content)  # fits: nothing to scroll inside
     page_layout.addWidget(inner)
@@ -73,8 +70,7 @@ def test_no_drop_down_on_the_real_pages_moves_under_the_wheel():
 
     from frontends.desktop.pages.additional_settings import AdditionalSettingsPage
 
-    app = QApplication.instance() or QApplication([])
-    install_combo_wheel_guard(app)
+    _app = QApplication.instance() or QApplication([])
     page = AdditionalSettingsPage()
     defaults = {"Sharpening.Sharpener": "off"}
     page.apply_state(SimpleNamespace(
@@ -105,3 +101,27 @@ def test_no_drop_down_on_the_real_pages_moves_under_the_wheel():
             checked += 1
     assert checked >= 8, checked
     page.close()
+
+
+def test_an_open_list_keeps_the_wheel_for_itself():
+    _app = QApplication.instance() or QApplication([])
+    area = QScrollArea()
+    page = QWidget()
+    layout = QVBoxLayout(page)
+    combo = GuardedComboBox()
+    combo.addItems(["A", "B", "C"])
+    layout.addWidget(combo)
+    page.setMinimumHeight(3000)
+    area.setWidget(page)
+    area.resize(300, 200)
+    area.show()
+    QApplication.processEvents()
+    combo.showPopup()
+    QApplication.processEvents()
+    assert combo.view().isVisible()
+
+    _wheel(combo)
+
+    assert area.verticalScrollBar().value() == 0, "the page stayed where it was: the list took the wheel"
+    combo.hidePopup()
+    area.close()

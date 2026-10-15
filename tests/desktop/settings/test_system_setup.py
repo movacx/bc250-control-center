@@ -254,8 +254,8 @@ def test_steamos_zswap_replaces_its_zram_and_survives_without_the_helper(sandbox
     memory.apply(host, "zswap-16", takeover_zram=True)
     tmpfiles = host.read(memory.STEAMOS_ZSWAP_TMPFILES)
     assert f"w! {memory.ZSWAP} - - - - Y" in tmpfiles
-    # The values of keyboardspecialist/bc250-steamos: zstd, a 10 % pool, the shrinker.
-    assert f"w! {memory.ZSWAP_PARAMETERS}/compressor - - - - zstd" in tmpfiles
+    # The values of keyboardspecialist/bc250-steamos (v0.34): lz4, a 10 % pool, the shrinker.
+    assert f"w! {memory.ZSWAP_PARAMETERS}/compressor - - - - lz4" in tmpfiles
     assert f"w! {memory.ZSWAP_PARAMETERS}/max_pool_percent - - - - 10" in tmpfiles
     assert f"w! {memory.ZSWAP_PARAMETERS}/shrinker_enabled - - - - Y" in tmpfiles
     assert "zpool" not in tmpfiles
@@ -2290,3 +2290,27 @@ def test_steamos_regeneration_writes_the_safe_menu(sandbox):
     kernel_args.apply(host, ["mitigations=off"])
     menu = host.read(kernel_args.STEAMOS_GRUB_OUTPUT)
     assert "mitigations=off" in menu and "insmod efi_uga" not in menu
+
+
+def test_smt_is_switched_while_the_system_runs_and_only_when_the_kernel_allows_it(sandbox):
+    host = sandbox.host
+    control = kernel_args.SMT_CONTROL
+    sandbox.put(control, "on\n")
+    assert kernel_args.smt_status(host) == {"control": "on", "supported": True}
+    assert kernel_args.smt_live(host, "off")["smt"] == {"control": "off", "supported": True}
+    assert host.read(control) == "off"
+    assert kernel_args.smt_live(host, "on")["smt"]["control"] == "on"
+    with pytest.raises(SetupError, match="on or off"):
+        kernel_args.smt_live(host, "forceoff")
+    # nosmt=force on the command line: the kernel cannot bring it back at run time.
+    sandbox.put(control, "forceoff\n")
+    assert kernel_args.smt_status(host)["supported"] is False
+    with pytest.raises(SetupError, match="cannot be switched"):
+        kernel_args.smt_live(host, "on")
+    host.path(control).unlink()
+    assert kernel_args.smt_status(host) == {"control": "", "supported": False}
+
+
+def test_the_kernel_options_report_smt_for_the_panel(sandbox):
+    sandbox.put(kernel_args.SMT_CONTROL, "on\n")
+    assert kernel_args.status(sandbox.host)["smt"] == {"control": "on", "supported": True}

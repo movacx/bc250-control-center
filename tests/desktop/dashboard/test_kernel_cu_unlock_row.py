@@ -121,3 +121,24 @@ def test_steamos_is_offered_mitigations_and_smt_but_not_the_cu_unlock(qtbot):
     assert not panel.kernel_option_controls["mitigations=off"][2].isHidden()
     assert not panel.kernel_option_controls["nosmt"][2].isHidden()
     assert _visible(panel) == (False, False, False)
+
+
+def test_smt_can_be_switched_now_where_the_kernel_allows_it(qtbot):
+    panel = _panel(qtbot)
+    tools = _tools(supported=False)
+    tools["system_setup"]["kernel_options"]["smt"] = {"control": "on", "supported": True}
+    panel._update_kernel_options_control(tools)
+    assert not panel.smt_live_row.isHidden()
+    assert panel.smt_live_button.text() == "Turn SMT off now" and panel.smt_live_pill.text() == "Enabled"
+    requested = []
+    panel.dependency_action_requested.connect(requested.append)
+    panel.smt_live_button.click()
+    assert requested[-1]["action"] == "smt_live" and requested[-1]["smt_mode"] == "off"
+    tools["system_setup"]["kernel_options"]["smt"] = {"control": "off", "supported": True}
+    panel._update_kernel_options_control(tools)
+    assert panel.smt_live_button.text() == "Turn SMT on now" and panel.smt_live_pill.text() == "Disabled"
+    panel.smt_live_button.click()
+    assert requested[-1]["smt_mode"] == "on"
+    tools["system_setup"]["kernel_options"]["smt"] = {"control": "forceoff", "supported": False}
+    panel._update_kernel_options_control(tools)
+    assert panel.smt_live_row.isHidden(), "nosmt=force cannot be switched back while running"

@@ -14,10 +14,12 @@ def main():
                                            "acpi-install", "acpi-update", "acpi-uninstall", "acpi-check",
                                            "telemetry-fix", "telemetry-restore", "kernel-options-set",
                                            "vram-read", "vram-apply", "ttm-status", "ttm-apply",
-                                           "uninstall-check"))
+                                           "smt-live", "uninstall-check"))
     parser.add_argument("--policy", choices=("preserve", "restore", "swap-16", "swap-32", "zram", "zswap-16", "zswap-32"), default="preserve")
     parser.add_argument("--ttm", type=int, choices=(-1, 0, 8, 10, 12), default=0)
     parser.add_argument("--uma-size", type=int, default=0)
+    parser.add_argument("--smt", choices=("on", "off"), default="on",
+                        help="smt-live: switch simultaneous multithreading now; not saved across a reboot")
     parser.add_argument("--kernel-options", default="",
                         help="Comma-separated subset of mitigations=off,nosmt,amdgpu.bc250_cc_write_mode=3; empty restores all")
     parser.add_argument("--takeover-zram", action="store_true",
@@ -114,6 +116,8 @@ def main():
                 result = vram.apply(host, args.uma_size)
             elif args.action == "ttm-apply":
                 result = ttm.apply(host, args.ttm, next_boot_ram=next_boot_ram())
+            elif args.action == "smt-live":
+                result = kernel_args.smt_live(host, args.smt)
             else:
                 result = acpi.uninstall(host)
         finally:
@@ -136,6 +140,8 @@ def main():
             print("The new VRAM size is written to CMOS and takes effect on next reboot; it is not an automatic reboot.")
         elif args.action == "ttm-apply":
             print("The GPU memory limit is a kernel boot argument: it takes effect at the next reboot.")
+        elif args.action == "smt-live":
+            print("SMT was switched now. It is not saved: the next boot starts as its kernel boot options say.")
         else:
             print("Review the reported state. Reboot is required for ACPI and ZRAM changes; no automatic reboot was requested.")
         return 0

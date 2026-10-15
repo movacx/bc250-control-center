@@ -86,6 +86,9 @@ def _window(controller):
     return type("W", (), {
         "controller": controller,
         "_ACCESSORY_LINKS": ControlCenterWindow._ACCESSORY_LINKS,
+        "_open_tv_control": ControlCenterWindow._open_tv_control,
+        "_accessory_error": lambda self, error: self.errors.append(str(error)),
+        "errors": [],
     })()
 
 
@@ -156,12 +159,54 @@ def test_tv_control_offers_its_test_once_cecd_runs(sidebar):
     assert _visible(sidebar, "hdmi_cec") == {"install", "upstream"}
     _show(sidebar, hdmi_cec={"state": "active", "device": True})
     configure = sidebar.accessory_buttons["hdmi_cec"]["configure"]
-    assert not configure.isHidden() and configure.text() == "Test TV control"
+    assert not configure.isHidden() and configure.text() == "Open TV control"
 
 
-def test_the_tv_test_goes_to_the_terminal():
-    calls = []
+class _Signal:
+    def __init__(self):
+        self.slots = []
+
+    def connect(self, slot):
+        self.slots.append(slot)
+
+    def emit(self, *args):
+        for slot in self.slots:
+            slot(*args)
+
+
+def _fake_dialog(monkeypatch):
+    """A stand-in for the TV window: it records that it opened and asks for one automation."""
+    from frontends.desktop.pages import tv_control
+
+    opened = []
+
+    class Dialog:
+        def __init__(self, controller, *, parent=None):
+            self.automation_requested = _Signal()
+            opened.append(controller)
+
+        def exec(self):
+            self.automation_requested.emit("wake-install")
+
+    monkeypatch.setattr(tv_control, "TvControlDialog", Dialog)
+    return opened
+
+
+def test_tv_control_opens_and_its_automations_go_to_the_terminal(monkeypatch):
+    opened = _fake_dialog(monkeypatch)
     controller = _Controller()
-    controller.test_tv_control = lambda: calls.append("test")
     _run(_window(controller), "hdmi_cec", "configure")
-    assert calls == ["test"]
+    assert opened == [controller]
+    assert controller.calls == [("hdmi_cec", "wake-install")]
+
+
+def test_a_failed_terminal_request_from_the_list_is_a_dialog_not_a_crash(monkeypatch):
+    _fake_dialog(monkeypatch)
+
+    class Failing(_Controller):
+        def manage_accessory(self, component, action):
+            raise RuntimeError("no terminal")
+
+    window = _window(Failing())
+    _run(window, "hdmi_cec", "configure")
+    assert window.errors == ["no terminal"]

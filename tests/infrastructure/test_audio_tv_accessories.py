@@ -319,19 +319,12 @@ def test_removing_cec_takes_back_only_what_control_center_added(cec):
     assert "sudo" not in steamos and "rm -rf" not in steamos
 
 
-def test_the_tv_test_asks_cecd_to_wake_the_tv(cec):
-    command = hdmi_cec.test_command("arch", cec)
-    assert f"{hdmi_cec.DAEMON_PATH} {hdmi_cec.BUS_NAME}.Daemon1 Wake" in command
-    assert "no CEC adapter is connected" in command
-
-
 @pytest.mark.skipif(shutil.which("bash") is None, reason="bash is needed to parse the scripts")
 @pytest.mark.parametrize("family", FAMILIES)
 def test_every_cec_script_parses(cec, family):
     for command in (
         hdmi_cec.install_command(family, cec),
         hdmi_cec.remove_command(family, cec),
-        hdmi_cec.test_command(family, cec),
     ):
         assert subprocess.run(["bash", "-n"], input=command, text=True).returncode == 0
 

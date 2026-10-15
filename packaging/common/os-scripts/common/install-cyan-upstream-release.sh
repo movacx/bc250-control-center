@@ -220,7 +220,19 @@ build_bc250cc_runtime() (
     chmod 0777 "$output_dir"
     image="registry.fedoraproject.org/fedora:44"
     info "Building Cyan ${REVIEWED_RELEASE_TAG}-${BC250CC_RUNTIME_REVISION} in an isolated Fedora container"
-    podman run --rm \
+    # While something is mounted over /sys (the governor's own gpu_metrics overlay, from a
+    # previous install) the kernel refuses a rootless container its own sysfs; on the host
+    # network it bind-mounts /sys instead. Ask the kernel, and only then change the network.
+    container_network=""
+    if command -v unshare >/dev/null 2>&1 && unshare -Urmn true >/dev/null 2>&1; then
+      probe="$(mktemp -d)"
+      if ! unshare -Urmn mount -t sysfs sysfs "$probe" >/dev/null 2>&1; then
+        info "Something is mounted over /sys, so the container cannot get its own: using the host network"
+        container_network="--network=host"
+      fi
+      rmdir "$probe" 2>/dev/null || true
+    fi
+    podman run --rm $container_network \
     -v "$source_copy:/src:ro,Z" \
     -v "$output_dir:/out:Z" \
     -w /src \

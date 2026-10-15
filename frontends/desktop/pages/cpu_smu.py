@@ -1857,7 +1857,7 @@ class CpuSmuPage(QWidget):
         url = "https://github.com/Forbidden-Darkness/AMD-BC-250-UEFI-v2.2-Firmware-Menu-Script"
         dialog = InfoDialog(
             "Firmware persistence guide",
-            "Firmware-level persistence requires the external UEFI menu workflow. The guide opens in your browser; this application does not flash firmware, change NVRAM, or reboot the system.",
+            "The core unlock does not last: it is applied after the system starts, so a full power-off or a cold start brings the board back to 6 cores. If the board is ever unstable with 8 cores, shut it down completely and start it again: it comes back to 6. If it is stable and you want 8 cores at every start, the permanent way is the firmware, through the external UEFI menu workflow. The guide opens in your browser; this application does not flash firmware, change NVRAM, or reboot the system.",
             "info_blue",
             self,
             eyebrow="EXTERNAL FIRMWARE GUIDE",

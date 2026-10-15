@@ -1405,7 +1405,7 @@ class ControlCenterWindow(QMainWindow):
             if operation == "upstream":
                 open_external_url(upstream)
             elif operation == "configure" and accessory == "hdmi_cec":
-                self.controller.test_tv_control()
+                self._open_tv_control()
             elif operation == "configure" and accessory == "corsair":
                 from bc250cc.infrastructure.accessories.openlinkhub import PANEL_URL
 
@@ -1439,15 +1439,35 @@ class ControlCenterWindow(QMainWindow):
                 if dialog.exec() == dialog.DialogCode.Accepted:
                     self.controller.manage_accessory(accessory, "remove")
         except (AttributeError, OSError, RuntimeError, TypeError, ValueError) as error:
-            InfoDialog(
-                "Support unavailable",
-                str(error),
-                icon_name="warning_orange",
-                parent=self,
-                eyebrow="Hardware",
-                notice="No changes were made.",
-                tone="orange",
-            ).open()
+            self._accessory_error(error)
+
+    def _accessory_error(self, error: Exception) -> None:
+        InfoDialog(
+            "Support unavailable",
+            str(error),
+            icon_name="warning_orange",
+            parent=self,
+            eyebrow="Hardware",
+            notice="No changes were made.",
+            tone="orange",
+        ).open()
+
+    def _open_tv_control(self) -> None:
+        """TV control: the remote, and behind its gear the settings and the two automations."""
+        from .pages.tv_control import TvControlDialog
+
+        def run(operation) -> None:
+            # A slot: an exception here would end the application.
+            try:
+                operation()
+            except (AttributeError, OSError, RuntimeError, TypeError, ValueError) as error:
+                self._accessory_error(error)
+
+        dialog = TvControlDialog(self.controller, parent=self)
+        dialog.automation_requested.connect(
+            lambda action: run(lambda: self.controller.manage_accessory("hdmi_cec", action))
+        )
+        dialog.exec()
 
     def closeEvent(self, event) -> None:  # noqa: N802 - Qt API name
         gamepad = getattr(self, "gamepad", None)
@@ -1630,6 +1650,8 @@ class ControlCenterWindow(QMainWindow):
             )
         elif options["action"] == "vram_apply":
             options.update(vram_uma_size_mb=int(payload.get("vram_uma_size_mb") or 0))
+        elif options["action"] == "smt_live":
+            options.update(smt_mode=str(payload.get("smt_mode") or ""))
         elif options["action"] == "kernel_options_set":
             options.update(
                 kernel_options=tuple(str(item) for item in payload.get("kernel_options") or ()),

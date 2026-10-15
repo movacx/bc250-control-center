@@ -66,11 +66,14 @@ ZSWAP_TUNING = (
     ("max_pool_percent", ("25",)),
     ("shrinker_enabled", ("Y",)),
 )
-#: SteamOS (keyboardspecialist/bc250-steamos, v0.32): Zstandard, a pool of 10 %
-#: of RAM and the memory shrinker, which writes cold pages back to the disk
-#: swapfile so the pool cannot hold on to them. The zpool is left to the kernel.
+#: SteamOS (keyboardspecialist/bc250-steamos): a pool of 10 % of RAM and the
+#: memory shrinker, which writes cold pages back to the disk swapfile so the
+#: pool cannot hold on to them. The zpool is left to the kernel. Compression
+#: is LZ4 first, as that toolkit has had it since v0.34 (it started on
+#: Zstandard, which compresses harder and costs more CPU); Zstandard and
+#: lzo-rle remain the fallbacks.
 STEAMOS_ZSWAP_TUNING = (
-    ("compressor", ("zstd", "lz4", "lzo-rle")),
+    ("compressor", ("lz4", "zstd", "lzo-rle")),
     ("max_pool_percent", ("10",)),
     ("shrinker_enabled", ("Y",)),
 )

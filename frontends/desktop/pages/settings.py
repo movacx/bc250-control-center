@@ -73,6 +73,7 @@ from ..components.responsive import (
 )
 from ..components.toast import show_toast
 from ..components.toggle_switch import ToggleSwitch
+from ..components.wheel_guard import GuardedComboBox
 from ..components.widgets import IconBadge, InfoDialog, PillLabel, apply_shadow, icon
 from ..core.diagnostic_history import (
     clear_history,
@@ -138,6 +139,8 @@ OFFICIAL_REPOSITORIES = (
     ("pappl-retrofit printing reference", "OpenPrinting/pappl-retrofit", "https://github.com/OpenPrinting/pappl-retrofit"),
     ("BlueZ Bluetooth reference", "bluez/bluez", "https://github.com/bluez/bluez"),
 )
+#: Repositories whose owner has archived them: still the reference for what they were, no longer updated.
+ARCHIVED_REPOSITORIES = frozenset({"duggasco/bc250-40cu-unlock"})
 CONTACT_URL = "https://discord.com/channels/1315924807128449065/1526169299490836510"
 
 
@@ -654,19 +657,19 @@ class RepositoriesDialog(QDialog):
         self.setStyleSheet(application_stylesheet() + settings_stylesheet())
         enable_adaptive_dialog(
             self,
-            preferred_width=760,
-            preferred_height=540,
-            minimum_width=460,
-            minimum_height=360,
+            preferred_width=640,
+            preferred_height=500,
+            minimum_width=420,
+            minimum_height=320,
         )
         self.setProperty("settingsPage", True)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 18, 20, 18)
-        layout.setSpacing(12)
+        layout.setContentsMargins(16, 14, 16, 12)
+        layout.setSpacing(8)
         header = QHBoxLayout()
         header.setSpacing(12)
-        header_icon = IconBadge("github", "neutral_soft", 42, radius=12)
+        header_icon = IconBadge("github", "neutral_soft", 36, radius=10)
         header.addWidget(header_icon)
         header_copy = QVBoxLayout()
         header_copy.setContentsMargins(0, 0, 0, 0)
@@ -675,6 +678,7 @@ class RepositoriesDialog(QDialog):
         header_title.setProperty("bannerTitle", True)
         header_subtitle = QLabel(tr("Build information, local paths, project scope, and official repositories."))
         header_subtitle.setProperty("bannerText", True)
+        header_subtitle.setProperty("naturalHeight", True)
         header_subtitle.setWordWrap(True)
         header_copy.addWidget(header_title)
         header_copy.addWidget(header_subtitle)
@@ -690,23 +694,37 @@ class RepositoriesDialog(QDialog):
         )
         intro.setWordWrap(True)
         intro.setProperty("bannerText", True)
+        intro.setProperty("naturalHeight", True)
         layout.addWidget(intro)
+
+        self.search = QLineEdit()
+        self.search.setPlaceholderText(tr("Search repositories"))
+        self.search.setAccessibleName(tr("Search repositories"))
+        self.search.setClearButtonEnabled(True)
+        self.search.textChanged.connect(self._filter)
+        layout.addWidget(self.search)
+        self._count = count
 
         repository_scroll = QScrollArea()
         repository_scroll.setWidgetResizable(True)
         repository_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        # 39 rows must not size the dialog: the list scrolls inside whatever
+        # height is left, instead of stretching the window to the screen.
+        repository_scroll.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Ignored)
+        repository_scroll.setMinimumHeight(160)
         repository_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         repository_body = QWidget()
         repository_layout = QVBoxLayout(repository_body)
         repository_layout.setContentsMargins(0, 0, 0, 0)
-        repository_layout.setSpacing(6)
+        repository_layout.setSpacing(4)
         repository_scroll.setWidget(repository_body)
+        self._rows: list[tuple[QFrame, str]] = []
         for index, (name, repository, url) in enumerate(OFFICIAL_REPOSITORIES, start=1):
             row = QFrame()
             row.setProperty("repositoryRow", True)
             row_layout = QGridLayout(row)
-            row_layout.setContentsMargins(12, 8, 10, 8)
-            row_layout.setHorizontalSpacing(12)
+            row_layout.setContentsMargins(10, 5, 8, 5)
+            row_layout.setHorizontalSpacing(10)
             index_label = QLabel(f"{index:02d}")
             index_label.setProperty("repositoryIndex", True)
             index_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -716,25 +734,43 @@ class RepositoriesDialog(QDialog):
             copy.setSpacing(1)
             name_label = QLabel(name)
             name_label.setProperty("repositoryName", True)
+            archived = repository in ARCHIVED_REPOSITORIES
             address_label = QLabel(repository)
             address_label.setProperty("repositoryAddress", True)
             address_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-            copy.addWidget(name_label)
+            if archived:
+                title_row = QHBoxLayout()
+                title_row.setSpacing(8)
+                title_row.addWidget(name_label)
+                title_row.addWidget(PillLabel(tr("Archived"), "gray"))
+                title_row.addStretch(1)
+                copy.addLayout(title_row)
+            else:
+                copy.addWidget(name_label)
             copy.addWidget(address_label)
             button = QPushButton("Open")
             button.setProperty("ghostAction", True)
-            button.setMinimumWidth(88)
+            button.setMinimumWidth(72)
+            button.setFixedHeight(28)
             button.clicked.connect(lambda _checked=False, target=url: self._open_repository(target))
             row_layout.addWidget(index_label, 0, 0)
             row_layout.addLayout(copy, 0, 1)
             row_layout.addWidget(button, 0, 2, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             row_layout.setColumnStretch(1, 1)
             repository_layout.addWidget(row)
+            tags = " archived" if archived else ""
+            self._rows.append((row, f"{name} {repository} {url}{tags}".casefold()))
+        self._no_match = QLabel(tr("No repository matches the search."))
+        self._no_match.setProperty("bannerText", True)
+        self._no_match.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._no_match.hide()
+        repository_layout.addWidget(self._no_match)
         repository_layout.addStretch(1)
         layout.addWidget(repository_scroll, 1)
 
         note = QLabel("If Firefox reports a locked profile when opened from a terminal, use the buttons in this window or copy the URL into the browser that is already running.")
         note.setProperty("bannerText", True)
+        note.setProperty("naturalHeight", True)
         note.setWordWrap(True)
         layout.addWidget(note)
         footer = QHBoxLayout()
@@ -745,6 +781,17 @@ class RepositoriesDialog(QDialog):
         footer.addWidget(close)
         layout.addLayout(footer)
         localize_widget_tree(self)
+
+    def _filter(self, text: str) -> None:
+        """Show the repositories whose name, address or URL has every word typed."""
+        words = text.casefold().split()
+        shown = 0
+        for row, haystack in self._rows:
+            match = all(word in haystack for word in words)
+            row.setVisible(match)
+            shown += match
+        self._no_match.setVisible(shown == 0)
+        self._count.setText(str(shown))
 
     def _open_repository(self, url: str) -> None:
         if QDesktopServices.openUrl(QUrl(url)):
@@ -958,7 +1005,7 @@ class SettingsPage(QWidget):
         default: object,
         callback=None,
     ) -> QComboBox:
-        combo = QComboBox()
+        combo = GuardedComboBox()
         combo.setProperty("settingsCombo", True)
         popup = combo.view()
         popup.setProperty("settingsComboPopup", True)

@@ -77,6 +77,7 @@ from ..components.busy_spinner import BusySpinner
 from ..components.buttons import WrappingButton as QPushButton
 from ..components.dashboard_instruments import HeadingLabel
 from ..components.page_widgets import ConfirmDialog, SectionCard, caption
+from ..components.wheel_guard import GuardedComboBox
 from ..components.widgets import icon
 from ..core.boot_logo_image import (
     SIZE_RANGE,
@@ -437,7 +438,7 @@ class FirmwareCard(_SelectableCard):
         self.variant_label = QLabel()
         self.variant_label.setProperty("fieldLabel", True)
         variant.addWidget(self.variant_label, 0)
-        self.variant_combo = QComboBox()
+        self.variant_combo = GuardedComboBox()
         self.variant_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
         self.variant_combo.setMinimumWidth(0)
         for image in family.images:

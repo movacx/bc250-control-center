@@ -14,7 +14,6 @@ from PyQt6.QtWidgets import (
     QApplication,
     QButtonGroup,
     QCheckBox,
-    QComboBox,
     QDialog,
     QFileDialog,
     QFrame,
@@ -105,6 +104,7 @@ from ..components.system_setup_controls import (
 )
 from ..components.toast import show_toast
 from ..components.voltage_lab_drawer import VoltageLabDrawer
+from ..components.wheel_guard import GuardedComboBox
 from ..components.widgets import IconBadge, InfoDialog, PillLabel, apply_shadow, icon
 from ..core.action_session import ActionSession
 from ..core.external_links import open_external_url, open_local_file
@@ -822,7 +822,7 @@ class DependencyPreparationDialog(QDialog):
         swap_label = QLabel(tr("Swap and compression"))
         swap_label.setProperty("fieldLabel", True)
         controls.addWidget(swap_label, 0, 0)
-        self.memory_policy_combo = QComboBox()
+        self.memory_policy_combo = GuardedComboBox()
         self.memory_policy_combo.setProperty("settingsCombo", True)
         for label, value in (
             ("Keep Bazzite default (ZRAM)", "current"),
@@ -842,7 +842,7 @@ class DependencyPreparationDialog(QDialog):
         ttm_label = QLabel(tr("Dynamic GPU Memory Limit (TTM)"))
         ttm_label.setProperty("fieldLabel", True)
         controls.addWidget(ttm_label, 1, 0)
-        self.ttm_limit_combo = QComboBox()
+        self.ttm_limit_combo = GuardedComboBox()
         self.ttm_limit_combo.setProperty("settingsCombo", True)
         self.ttm_limit_combo.addItem(tr("Keep current TTM limit"), 0)
         self.ttm_limit_combo.addItem(tr("Kernel default (remove BC250 TTM limit)"), -1)
@@ -864,7 +864,7 @@ class DependencyPreparationDialog(QDialog):
         vram_label = QLabel(tr("VRAM size (UMA_SIZE)"))
         vram_label.setProperty("fieldLabel", True)
         controls.addWidget(vram_label, 2, 0)
-        self.vram_size_combo = QComboBox()
+        self.vram_size_combo = GuardedComboBox()
         self.vram_size_combo.setProperty("settingsCombo", True)
         self.vram_size_combo.addItem(tr("Keep current VRAM size"), 0)
         for target in VRAM_SIZE_PRESETS_MB:
@@ -1077,7 +1077,7 @@ class DependencyPreparationDialog(QDialog):
 
         controls = QHBoxLayout()
         controls.setSpacing(7)
-        self.ttm_limit_combo = QComboBox()
+        self.ttm_limit_combo = GuardedComboBox()
         self.ttm_limit_combo.setProperty("settingsCombo", True)
         self.ttm_limit_combo.addItem(tr("Keep current configuration"), 0)
         for target in (8, 10, 12):
@@ -1396,6 +1396,7 @@ class DependencyPreparationDialog(QDialog):
     def _debian_kernel_card(self, upgrade: dict) -> QFrame:
         """Debian 13: the stock kernel and Mesa cannot drive the GPU; backports can."""
         pending_restart = str(upgrade.get("state") or "") == "reboot-required"
+        with_kernel = bool(upgrade.get("install_kernel", True))
         card = QFrame()
         card.setProperty("dependencyActionTile", True)
         layout = QVBoxLayout(card)
@@ -1407,7 +1408,7 @@ class DependencyPreparationDialog(QDialog):
         header.addWidget(IconBadge("shield_green", COLORS["green_soft"], 34, radius=9))
         copy = QVBoxLayout()
         copy.setSpacing(2)
-        title = QLabel(tr("Newer kernel for the BC-250"))
+        title = QLabel(tr("Newer kernel and Mesa for the BC-250"))
         title.setProperty("sectionTitle", True)
         subtitle = QLabel(tr("Debian backports · needed for GPU acceleration"))
         subtitle.setProperty("sectionSubtitle", True)
@@ -1428,8 +1429,14 @@ class DependencyPreparationDialog(QDialog):
                 "A newer kernel is already installed. Restart to use it, then build the GFX1013 fix."
             )
             if pending_restart
-            else tr(
-                "Optional. The Debian kernel and Mesa do not recognize the BC-250 GPU, so the desktop is drawn by the CPU and feels slow. This installs a newer kernel from Debian backports beside the current one, which stays in the boot menu."
+            else (
+                tr(
+                    "Optional. The Debian kernel and Mesa do not recognize the BC-250 GPU, so the desktop is drawn by the CPU and feels slow. This installs a newer Mesa and kernel from Debian backports; the current kernel stays in the boot menu."
+                )
+                if with_kernel
+                else tr(
+                    "Optional. The Mesa that Debian 13 ships does not recognize the BC-250 GPU, so the desktop is drawn by the CPU and feels slow. This installs the newer Mesa from Debian backports."
+                )
             )
         )
         warning.setProperty("warningText", True)
@@ -1438,7 +1445,7 @@ class DependencyPreparationDialog(QDialog):
 
         actions = QHBoxLayout()
         actions.addStretch(1)
-        install = QPushButton(tr("Install newer kernel"))
+        install = QPushButton(tr("Install from backports"))
         install.setObjectName("PrimaryAction")
         install.setEnabled(not pending_restart)
         install.clicked.connect(lambda: self._choose("debian_kernel_install", ""))
@@ -1843,7 +1850,7 @@ class GpuProfileEditDialog(QDialog):
         point_label = QLabel(tr("Reference safe-point (frequency and voltage)"))
         point_label.setProperty("fieldLabel", True)
         root.addWidget(point_label)
-        self.point_combo = QComboBox()
+        self.point_combo = GuardedComboBox()
         for frequency, voltage in safe_points:
             self.point_combo.addItem(
                 f"{frequency} MHz · {voltage} mV" if voltage else f"{frequency} MHz",
@@ -2131,10 +2138,10 @@ class GpuGovernorPage(QWidget):
         compatibility_title.setWordWrap(True)
         compatibility_title.setProperty("fieldLabel", True)
         compatibility_layout.addWidget(compatibility_title, 0, 0, 1, 2)
-        self.cyan_set_method = QComboBox()
+        self.cyan_set_method = GuardedComboBox()
         self.cyan_set_method.addItem(tr("Governor method: SMU"), "smu")
         self.cyan_set_method.addItem(tr("Governor method: Kernel"), "kernel")
-        self.cyan_usage_method = QComboBox()
+        self.cyan_usage_method = GuardedComboBox()
         for usage_method in ("busy-flag", "process", "kernel"):
             self.cyan_usage_method.addItem(
                 f"gpu-usage.method: {usage_method}", usage_method
@@ -2186,7 +2193,7 @@ class GpuGovernorPage(QWidget):
         quick_range_hint.setWordWrap(True)
         quick_range_layout.addWidget(quick_range_title)
         quick_range_layout.addWidget(quick_range_hint)
-        self.quick_safe_point_combo = QComboBox()
+        self.quick_safe_point_combo = GuardedComboBox()
         self.quick_safe_point_combo.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
         )
@@ -2415,7 +2422,7 @@ class GpuGovernorPage(QWidget):
         toml_actions_label.setWordWrap(True)
         fixed_actions.addWidget(toml_actions_label, 0, 1)
 
-        self.oc_frequency = QComboBox()
+        self.oc_frequency = GuardedComboBox()
         self.oc_frequency.setSizePolicy(
             QSizePolicy.Policy.Expanding,
             QSizePolicy.Policy.Fixed,
@@ -3740,6 +3747,7 @@ class GpuGovernorPage(QWidget):
         kernel_options: tuple[str, ...] = (),
         kernel_option_changed: str = "",
         helixsr_settings: dict | None = None,
+        smt_mode: str = "",
     ) -> None:
         """Execute a dialog or dashboard preparation request through one route."""
         tools = _dict(self.current_state.get("tools"))
@@ -3767,6 +3775,9 @@ class GpuGovernorPage(QWidget):
                 action.removeprefix("bazzite_mitigations_"),
                 dialog_parent=dialog_parent,
             )
+            return
+        if action == "smt_live":
+            self._manage_smt_live(smt_mode, dialog_parent=dialog_parent)
             return
         if action == "kernel_options_set":
             self._manage_kernel_options(
@@ -3849,6 +3860,9 @@ class GpuGovernorPage(QWidget):
             return
         if action == "debian_kernel_install":
             self._manage_debian_kernel(dialog_parent=dialog_parent)
+            return
+        if action == "mesa_ppa_install":
+            self._manage_mesa_ppa(dialog_parent=dialog_parent)
             return
         if action.startswith("vaapi_"):
             self._manage_vaapi(action.removeprefix("vaapi_"), dialog_parent=dialog_parent)
@@ -4103,6 +4117,37 @@ class GpuGovernorPage(QWidget):
                 tr("The change was staged. Reboot after the terminal reports success."),
             ),
             tr("Could not change the kernel boot options"),
+            controls=(),
+            error_parent=dialog_parent,
+        )
+
+    def _manage_smt_live(self, mode: str, *, dialog_parent: QWidget | None) -> None:
+        """Switch simultaneous multithreading now; it is not kept across a reboot."""
+        mode = str(mode or "").strip().lower()
+        if mode not in {"on", "off"}:
+            raise ValueError("Unsupported SMT action.")
+        if mode == "off":
+            confirmation = ConfirmDialog(
+                tr("Turn SMT off now"),
+                tr(
+                    "The CPU runs one thread per core until you turn it back on or restart: some games run smoother, others slower. "
+                    "Nothing is saved: the next boot starts as the kernel boot options say."
+                ),
+                summary=((tr("Applies"), tr("Right now, until the next boot")),),
+                confirm_text=tr("Turn SMT off now"),
+                tone="orange",
+                parent=dialog_parent or self,
+            )
+            if confirmation.exec() != QDialog.DialogCode.Accepted:
+                return
+        self._run_backend_action(
+            lambda: self.controller.gestionar_smt_vivo(mode),
+            lambda _result: GpuGovernorPage._record_preparation_result(
+                self,
+                tr("SMT"),
+                tr("The terminal shows the new state."),
+            ),
+            tr("Could not switch SMT"),
             controls=(),
             error_parent=dialog_parent,
         )
@@ -4856,18 +4901,28 @@ class GpuGovernorPage(QWidget):
         )
 
     def _manage_debian_kernel(self, *, dialog_parent: QWidget | None) -> None:
-        """A newer kernel from Debian backports: confirm, then run it in the terminal."""
+        """Kernel and Mesa from Debian backports: confirm, then run it in the terminal."""
+        upgrade = _dict(
+            _dict(_dict(self.current_state.get("tools")).get("gfx1013_compute")).get("kernel_upgrade")
+        )
+        with_kernel = bool(upgrade.get("install_kernel", True))
+        summary = [(tr("Source"), "deb.debian.org · backports")]
+        if with_kernel:
+            summary.append((tr("Current kernel"), tr("Kept; choose it in the boot menu to go back")))
+        summary.append((tr("Restart"), tr("Required")))
         confirmation = ConfirmDialog(
-            "Install a newer kernel",
-            tr(
-                "Debian 13 ships a kernel and a Mesa that do not know the BC-250 GPU, so the desktop is drawn by the CPU. This adds the Debian backports suite in its own source file and installs the newer kernel, its headers and the GPU firmware from it. The current kernel stays installed and in the boot menu under Advanced options. Restart afterwards, then build the GFX1013 fix from this same card. Needs your password and an internet connection."
+            "Install from backports",
+            (
+                tr(
+                    "Debian 13 ships a kernel and a Mesa that do not know the BC-250 GPU, so the desktop is drawn by the CPU. This adds the Debian backports suite in its own source file and installs from it a newer Mesa, a newer kernel with its headers and the GPU firmware. The current kernel stays installed and in the boot menu under Advanced options. Restart afterwards, then build the GFX1013 fix from this same card. Needs your password and an internet connection."
+                )
+                if with_kernel
+                else tr(
+                    "Debian 13 ships a Mesa that does not know the BC-250 GPU, so the desktop is drawn by the CPU. This adds the Debian backports suite in its own source file and installs the newer Mesa from it. Restart afterwards. Needs your password and an internet connection."
+                )
             ),
-            summary=(
-                (tr("Source"), "deb.debian.org · backports"),
-                (tr("Current kernel"), tr("Kept; choose it in the boot menu to go back")),
-                (tr("Restart"), tr("Required")),
-            ),
-            confirm_text="Install kernel",
+            summary=tuple(summary),
+            confirm_text="Install from backports",
             tone="orange",
             parent=dialog_parent or self,
         )
@@ -4877,10 +4932,39 @@ class GpuGovernorPage(QWidget):
             lambda: self.controller.gestionar_kernel_debian("install"),
             lambda _result: GpuGovernorPage._record_preparation_result(
                 self,
-                "Debian kernel",
-                "Opened the newer-kernel workflow in the terminal.",
+                "Debian backports",
+                "Opened the backports workflow in the terminal.",
             ),
-            "Could not install the newer kernel",
+            "Could not install from backports",
+            controls=(),
+            error_parent=dialog_parent,
+        )
+
+    def _manage_mesa_ppa(self, *, dialog_parent: QWidget | None) -> None:
+        """A newer Mesa from the kisak-mesa PPA: confirm what is added, then run it in the terminal."""
+        confirmation = ConfirmDialog(
+            "Update Mesa",
+            tr(
+                "This adds the kisak-mesa PPA (ppa:kisak/kisak-mesa), a third-party source, in its own source file after checking that its signing key is the expected one, and updates Mesa and, if present, its 32-bit libraries from it. Other packages are not touched. To go back, delete the source file and key and downgrade Mesa; the terminal prints the commands. Restart afterwards. Needs your password and an internet connection."
+            ),
+            summary=(
+                (tr("Source"), "ppa.launchpadcontent.net · kisak/kisak-mesa"),
+                (tr("Restart"), tr("Required")),
+            ),
+            confirm_text="Update Mesa",
+            tone="orange",
+            parent=dialog_parent or self,
+        )
+        if confirmation.exec() != QDialog.DialogCode.Accepted:
+            return
+        self._run_backend_action(
+            lambda: self.controller.gestionar_mesa_desktop("install"),
+            lambda _result: GpuGovernorPage._record_preparation_result(
+                self,
+                "Mesa",
+                "Opened the Mesa update in the terminal.",
+            ),
+            "Could not update Mesa",
             controls=(),
             error_parent=dialog_parent,
         )
@@ -4892,6 +4976,18 @@ class GpuGovernorPage(QWidget):
                 "Install hardware video",
                 "Downloads simpmix's VA-API driver at a reviewed version, checks it, and builds it in a container: about 5 minutes and a few hundred MB the first time. It is switched on only after it starts and offers H.264 and HEVC. Programs that use VA-API (Sunshine, OBS, Steam Remote Play, ffmpeg, browsers) then encode and decode with it. For streaming while you play, choose H.264: HEVC encodes mostly on the CPU. Log out and back in afterwards.",
                 "Build and install",
+                "orange",
+            ),
+            "install32": (
+                "Add the 32-bit video driver",
+                "Steam Remote Play and Steam Link are 32-bit programs and use software video without a 32-bit driver. This installs the signed 32-bit libraries (on SteamOS it turns the read-only protection off for the install and back on), builds the 32-bit driver in a container from the same reviewed source, checks it starts on this GPU, and only then adds it beside the 64-bit one. A SteamOS update removes the 32-bit libraries; this button then reads Repair 32-bit driver and brings them back without rebuilding. Log out and back in afterwards.",
+                "Add",
+                "orange",
+            ),
+            "flatpak": (
+                "Allow Flatpak apps to use hardware video",
+                "Flatpak apps (GPU Screen Recorder, OBS, Steam) run in a sandbox that cannot see the driver, so they list H.264 as not available. This gives them read-only access to the driver folder and the two libva variables, for your user only. Restart those apps afterwards.",
+                "Allow",
                 "orange",
             ),
             "uninstall": (
@@ -4913,7 +5009,7 @@ class GpuGovernorPage(QWidget):
                 summary=(
                     (tr("Source"), "github.com/simpmix/bc250-encoding-decoding-fix"),
                     (tr("License"), "GPL-3.0"),
-                    (tr("Apply"), tr("Log out and back in")),
+                    (tr("Apply"), tr("Restart the app") if action == "flatpak" else tr("Log out and back in")),
                 ),
                 confirm_text=confirm,
                 tone=tone,

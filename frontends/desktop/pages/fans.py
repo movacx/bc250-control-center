@@ -95,6 +95,7 @@ from ..components.responsive import (
 )
 from ..components.toast import show_toast
 from ..components.toggle_switch import ToggleSwitch
+from ..components.wheel_guard import GuardedComboBox
 from ..components.widgets import IconBadge, InfoDialog, icon
 from ..core.dashboard_presenter import FAN_OWNER_LABELS, fan_owner
 from ..core.fan_action_policy import plan_automatic_curve, plan_fan_action_availability
@@ -2393,7 +2394,7 @@ class FansPage(QWidget):
         return card
 
     def _make_channel_combo(self) -> QComboBox:
-        combo = QComboBox()
+        combo = GuardedComboBox()
         combo.setObjectName("fan-channel-selector")
         combo.setToolTip(tr("Selecting a channel only stages the target; it does not write hardware."))
         combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)

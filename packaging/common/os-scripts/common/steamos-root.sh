@@ -83,8 +83,30 @@ bc250_steamos_verify_usr_writable() {
   return 1
 }
 
+# SteamOS' /var is a small partition (about 230 MB) that backs the overlay of
+# /etc and holds pacman's cache. When it fills up pacman dies half way and
+# blames "/etc too full". Refuse before anything is written, and say what takes
+# the room. BC250_STEAMOS_MIN_VAR_MB and BC250_STEAMOS_VAR_DIR exist for tests.
+bc250_steamos_require_var_space() {
+  local need="${BC250_STEAMOS_MIN_VAR_MB:-100}" directory="${BC250_STEAMOS_VAR_DIR:-/var}" free
+  command -v df >/dev/null 2>&1 || return 0
+  free="$(df -Pm "$directory" 2>/dev/null | awk 'NR==2 {print $4}')"
+  [[ "$free" =~ ^[0-9]+$ ]] || return 0
+  if (( free < need )); then
+    printf '[ERROR] %s has only %s MB free and this needs about %s MB.\n' "$directory" "$free" "$need" >&2
+    printf '[ERROR] SteamOS keeps /var small, and a full /var breaks package installs half way. What takes the room:\n' >&2
+    du -xh --max-depth=2 "$directory" 2>/dev/null | sort -rh | head -6 >&2 || true
+    printf '[ERROR] Free some space (journalctl --vacuum-size=50M, pacman -Sc) and try again.\n' >&2
+    return 75
+  fi
+  if (( free < 250 )); then
+    printf '[WARN] %s has only %s MB free; this works now, but keep an eye on it.\n' "$directory" "$free" >&2
+  fi
+}
+
 bc250_steamos_unlock_root() {
   local state
+  bc250_steamos_require_var_space || return $?
   command -v steamos-readonly >/dev/null 2>&1 || return 0
   state="$(bc250_steamos_readonly_state)"
   case "$state" in

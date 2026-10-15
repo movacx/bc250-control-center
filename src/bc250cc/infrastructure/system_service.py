@@ -441,6 +441,9 @@ class SistemaService:
     def gestionar_opciones_kernel(self, options):
         return self.repo.gestionar_opciones_kernel(options)
 
+    def gestionar_smt_vivo(self, mode):
+        return self.repo.gestionar_smt_vivo(mode)
+
     def gestionar_acpi(self, action: str):
         return self.repo.gestionar_acpi(action)
 
@@ -498,6 +501,9 @@ class SistemaService:
     def gestionar_vaapi(self, action):
         return self.repo.gestionar_vaapi(action)
 
+    def gestionar_mesa_desktop(self, action):
+        return self.repo.gestionar_mesa_desktop(action)
+
     def gestionar_apu_telemetry(self, action):
         return self.repo.gestionar_apu_telemetry(action)
 
@@ -548,8 +554,14 @@ class SistemaService:
     def accessory_configure_argv(self, component):
         return self.repo.accessory_configure_argv(component)
 
-    def test_tv_control(self):
-        return self.repo.test_tv_control()
+    def tv_control_action(self, action):
+        return self.repo.tv_control_action(action)
+
+    def tv_control_status(self):
+        return self.repo.tv_control_status()
+
+    def tv_control_automation(self):
+        return self.repo.tv_control_automation()
 
     def status_governor(self):
         return self.repo.status_governor()

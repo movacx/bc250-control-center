@@ -459,16 +459,35 @@ class DriversRepository:
             "hdmi_ac3": "HDMI audio (Dolby Digital 5.1)",
             "hdmi_cec": "TV control (HDMI-CEC)",
         }
-        return self._abrir_terminal(command, titles.get(component, "Accessory"))
+        title = {
+            "wake-install": "TV control · wake the TV at start",
+            "wake-remove": "TV control · stop waking the TV at start",
+            "poweroff-install": "TV control · standby at power-off",
+            "poweroff-remove": "TV control · no standby at power-off",
+        }.get(action) if component == "hdmi_cec" else None
+        return self._abrir_terminal(command, title or titles.get(component, "Accessory"))
 
-    def test_tv_control(self) -> object:
-        """Ask cecd to wake the TV, in the terminal, so the owner sees why not."""
+    @staticmethod
+    def tv_control_action(action: str) -> dict:
+        """One remote-control action sent to the TV or the receiver through cecd."""
+        from bc250cc.infrastructure.accessories.hdmi_cec_control import TvControl
+
+        result = TvControl().run(action)
+        return {"ok": result.ok, "code": result.code, "detail": result.detail}
+
+    @staticmethod
+    def tv_control_status() -> dict:
+        """The TV's and the receiver's power state, as cecd sees them."""
+        from bc250cc.infrastructure.accessories.hdmi_cec_control import TvControl
+
+        return TvControl().status()
+
+    @staticmethod
+    def tv_control_automation() -> dict:
+        """Whether the TV wakes at session start and stands by at power-off."""
         from bc250cc.infrastructure.accessories import hdmi_cec
 
-        info = detect_os_info(has_rpm_ostree=bool(shutil.which("rpm-ostree")))
-        return self._abrir_terminal(
-            hdmi_cec.test_command(info.family, self._tool_dir()), "TV control (HDMI-CEC)"
-        )
+        return hdmi_cec.automation_state()
 
     @staticmethod
     def accessory_configure_argv(component: str) -> list[str]:

@@ -119,6 +119,10 @@ from bc250cc.infrastructure.helixsr import (
     update_helixsr_game,
 )
 from bc250cc.infrastructure.memory_runtime import read_memory_runtime_state
+from bc250cc.infrastructure.mesa_desktop import (
+    build_mesa_ppa_command,
+    mesa_desktop_state,
+)
 from bc250cc.infrastructure.preparation_workflow import (
     PreparationContext,
     build_preparation_command,
@@ -182,6 +186,7 @@ from bc250cc.infrastructure.vaapi_video import (
     build_vaapi_command,
     vaapi_state,
     vaapi_supported,
+    vaapi_supported32,
 )
 from bc250cc.platform.init.services import detect_init_manager, openrc_preflight
 from bc250cc.platform.packages.strategies import create_os_repository
@@ -307,6 +312,13 @@ class DependenciasRepository:
             system_setup_command('kernel-options-set', kernel_options=tuple(options)),
             'BC250 kernel boot options',
         )
+
+    def gestionar_smt_vivo(self, mode: str):
+        """Switch simultaneous multithreading now; the next boot starts as its boot options say."""
+        mode = str(mode or "").strip().lower()
+        if mode not in {"on", "off"}:
+            raise ValueError("Unsupported SMT action.")
+        return self._abrir_terminal(system_setup_command('smt-live', smt=mode), 'BC250 SMT (now)')
 
     def gestionar_acpi(self, action: str):
         # SteamOS keeps the archive beside the kernel in /boot, which is part
@@ -868,7 +880,7 @@ class DependenciasRepository:
         )
 
     def gestionar_kernel_debian(self, action: str) -> object:
-        """Install a newer kernel from the Debian backports, in the terminal."""
+        """Install the newer kernel and Mesa still missing from the Debian backports, in the terminal."""
         info = self._os_repository().info
         action = str(action or '').strip().lower()
         state = debian_kernel_upgrade_state(
@@ -881,8 +893,13 @@ class DependenciasRepository:
             raise RuntimeError(state['reason'] or 'A newer kernel is not offered on this system.')
         self.estado_herramientas_cache = None
         return self._abrir_terminal(
-            build_debian_kernel_command(action, state['codename']),
-            'Debian · newer kernel from backports',
+            build_debian_kernel_command(
+                action,
+                state['codename'],
+                kernel=state['install_kernel'],
+                mesa=state['install_mesa'],
+            ),
+            'Debian · kernel and Mesa from backports',
         )
 
     def gestionar_radv_async(self, action: str) -> object:
@@ -921,15 +938,39 @@ class DependenciasRepository:
             supported, reason = vaapi_supported(family=family)
             if not supported:
                 raise RuntimeError(reason or 'The VA-API driver is not available on this system.')
+        elif action == 'install32':
+            supported, reason = vaapi_supported32(family)
+            if not supported:
+                raise RuntimeError(reason)
         titles = {
             'install': 'Hardware video · build and install',
             'test': 'Hardware video · test',
             'uninstall': 'Hardware video · remove',
+            'install32': 'Hardware video · 32-bit driver',
+            'flatpak': 'Hardware video · Flatpak apps',
+            'flatpak-remove': 'Hardware video · Flatpak apps · remove',
         }
         if action not in titles:
             raise ValueError('Unsupported VA-API action.')
         self.estado_herramientas_cache = None
         return self._abrir_terminal(build_vaapi_command(action, family=family), titles[action])
+
+    def gestionar_mesa_desktop(self, action: str) -> object:
+        """Update Mesa from the kisak-mesa PPA (Ubuntu and derivatives), in the terminal."""
+        info = self._os_repository().info
+        action = str(action or '').strip().lower()
+        state = mesa_desktop_state(
+            family=info.family,
+            distro_id=info.distro_id,
+            immutable=bool(getattr(info, 'immutable', False)),
+        )
+        if state['route'] != 'ppa':
+            raise RuntimeError(state['reason'] or 'A newer Mesa is not offered on this system.')
+        self.estado_herramientas_cache = None
+        return self._abrir_terminal(
+            build_mesa_ppa_command(action, state['codename']),
+            'Mesa · kisak-mesa PPA',
+        )
 
     def gestionar_apu_telemetry(self, action: str) -> object:
         """Install, check or remove the BC250-Telemetry daemon behind the Power delivery band."""
@@ -1121,6 +1162,21 @@ class DependenciasRepository:
             'vaapi_video': self._optional_inventory_probe(
                 lambda: vaapi_state(family=os_info.family),
                 {'supported': False, 'state': 'not-installed', 'installed': False},
+            ),
+            # Where the desktop is still drawn by the CPU for want of Mesa 26.1.
+            'mesa_desktop': self._optional_inventory_probe(
+                lambda: mesa_desktop_state(
+                    family=os_info.family,
+                    distro_id=os_info.distro_id,
+                    immutable=bool(getattr(os_info, 'immutable', False)),
+                    debian_upgrade=debian_kernel_upgrade_state(
+                        family=os_info.family,
+                        distro_id=os_info.distro_id,
+                        kernel=platform.release(),
+                        immutable=bool(getattr(os_info, 'immutable', False)),
+                    ),
+                ),
+                {'offered': False, 'route': '', 'action': ''},
             ),
             'init_manager': init_manager.kind,
             'init_manager_available': init_manager.available,

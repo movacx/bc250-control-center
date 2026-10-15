@@ -218,6 +218,31 @@ def _stale(host: Host, backend: str, saved: dict, configured_tokens: set[str] | 
     return managed - configured_tokens
 
 
+def smt_status(host: Host) -> dict:
+    """Whether SMT can be switched while the system runs, and what it is now.
+
+    The kernel reports ``on``, ``off``, ``forceoff`` (``nosmt=force`` on the
+    command line: it cannot be switched back without a reboot),
+    ``notsupported`` or ``notimplemented``.
+    """
+    control = host.read(SMT_CONTROL).strip()
+    return {"control": control, "supported": control in {"on", "off"} and host.writable_parameter(SMT_CONTROL)}
+
+
+def smt_live(host: Host, mode: str) -> dict:
+    """Switch SMT on or off now. It is not saved: the next boot starts as its boot options say."""
+    if mode not in {"on", "off"}:
+        raise SetupError("SMT can only be switched on or off")
+    current = smt_status(host)
+    if not current["supported"]:
+        raise SetupError(
+            f"SMT cannot be switched while the system runs here (the kernel reports "
+            f"{current['control'] or 'no SMT control'})"
+        )
+    host.parameter(SMT_CONTROL, mode)
+    return {"smt": smt_status(host)}
+
+
 def status(host: Host) -> dict:
     backend = _backend(host)
     saved = host.state(_STATE_KEY)
@@ -270,6 +295,7 @@ def status(host: Host) -> dict:
         }
     mode = host.read(CU_UNLOCK_PARAMETER).strip()
     return {
+        "smt": smt_status(host),
         "backend": backend,
         "available": backend != "unsupported" and host.bc250(),
         # The switches this host's boot loader takes; SteamOS not the CU unlock.

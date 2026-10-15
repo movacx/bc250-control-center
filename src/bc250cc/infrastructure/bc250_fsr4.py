@@ -13,6 +13,7 @@ import json
 import shlex
 from pathlib import Path
 
+from . import container_network
 from .source_checkout import clone_or_update_commit
 
 BC250_FSR4_REPOSITORY = "https://github.com/dmorazasanchez/bc250-fsr4"
@@ -297,6 +298,7 @@ fi'''
         BC250_FSR4_REVIEWED_COMMIT,
     )
     qdest = shlex.quote(str(destination))
+    network_setup = "\n".join(container_network.setup_lines("podman"))
     return f'''set -euo pipefail
 echo "== BC-250 FSR4 official V3 source build for {platform_label} =="
 test -r /etc/os-release || {{ echo "ERROR: /etc/os-release is unavailable."; exit 64; }}
@@ -309,6 +311,7 @@ for bc250_command in git lspci podman python3 ldd vulkaninfo; do
 done
 lspci -Dn | grep -qiE '1002:13fe' || {{ echo "ERROR: AMD BC-250 PCI ID 1002:13FE was not detected."; exit 64; }}
 podman info >/dev/null || {{ echo "ERROR: rootless Podman is not ready for the current user."; exit 69; }}
+{network_setup}
 {checkout}
 for bc250_file in Dockerfile build-bc250.sh bc250-fsr4-v3.patch mesa-commit.txt; do
   test -f {qdest}/"$bc250_file" || {{ echo "ERROR: official upstream $bc250_file is missing."; exit 29; }}
@@ -333,9 +336,9 @@ else
   rm -f -- "$bc250_build_revision"
   mkdir -p "$bc250_build"
   echo "Building the official Fedora 44 image with Podman. The first build can take several minutes."
-  podman build --tag "$bc250_image" --build-arg "MESA_COMMIT=$bc250_mesa_commit" {qdest}
+  podman build $bc250_net --tag "$bc250_image" --build-arg "MESA_COMMIT=$bc250_mesa_commit" {qdest}
   echo "Compiling the official FSR4 V3 RADV runtime..."
-  podman run --rm \
+  podman run --rm $bc250_net \
     --env VARIANT=patch \
     --volume {qdest}:/workspace:ro,Z \
     --volume "$bc250_build":/build:Z \
@@ -345,12 +348,12 @@ else
 fi
 if ! podman image exists "$bc250_image"; then
   echo "Restoring the official Fedora 44 image required for the private FSR4 runtime libraries."
-  podman build --tag "$bc250_image" --build-arg "MESA_COMMIT=$bc250_mesa_commit" {qdest}
+  podman build $bc250_net --tag "$bc250_image" --build-arg "MESA_COMMIT=$bc250_mesa_commit" {qdest}
 fi
 bc250_runtime_libs="$bc250_build/runtime-libs"
 rm -rf -- "$bc250_runtime_libs"
 mkdir -p "$bc250_runtime_libs"
-podman run --rm \
+podman run --rm $bc250_net \
   --entrypoint /bin/sh \
   --volume "$bc250_runtime_libs":/out:Z \
   "$bc250_image" \
