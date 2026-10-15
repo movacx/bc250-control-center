@@ -94,14 +94,6 @@ def _read_text(path: Path) -> str:
         raise DatabaseError(f"cannot read {path}: {exc}") from exc
 
 
-def _first_nonempty_line(path: Path) -> str:
-    for line in _read_text(path).splitlines():
-        stripped = line.strip()
-        if stripped:
-            return stripped
-    return ""
-
-
 def _validate_asic_header(database: Path) -> tuple[str, str, list[str]]:
     model = _safe_database_file(database, MODEL_FILE)
     if not model.is_file():

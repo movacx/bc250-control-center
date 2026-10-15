@@ -595,5 +595,6 @@ case ${1:-} in
     disable) disable_fix ;;
     uninstall) uninstall_release ;;
     status) status ;;
+    -h|--help) sed -n '2,40p' "$0"; exit 0 ;;
     *) sed -n '2,40p' "$0" >&2; exit 64 ;;
 esac
