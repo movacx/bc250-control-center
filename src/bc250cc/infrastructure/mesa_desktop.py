@@ -37,6 +37,9 @@ KEY_FILE = Path("/etc/apt/keyrings/bc250-control-center-kisak-mesa.asc")
 #: Ubuntu itself and the derivatives that take Ubuntu's archive (the PPA needs its codename).
 UBUNTU_IDS = frozenset({"ubuntu", "linuxmint", "pop", "zorin", "elementary", "neon"})
 ACTIONS = frozenset({"install"})
+#: The package families this module reads a Mesa version for: the detector calls
+#: Ubuntu and its derivatives ``ubuntu``, Debian itself ``debian``.
+MESA_FAMILIES = frozenset({"debian", "ubuntu", "fedora"})
 #: Fedora 44 is the first release whose Mesa is new enough.
 FEDORA_RELEASE = 44
 #: 32-bit Mesa, only when it is installed (Steam): apt keeps both architectures at one version.
@@ -102,14 +105,14 @@ def mesa_desktop_state(
     fields = os_release_fields() if fields is None else fields
     id_like = fields.get("ID_LIKE", "") if id_like is None else str(id_like)
     if mesa_version is None:
-        mesa_version = installed_mesa_version(family) if family in {"debian", "fedora"} else ""
+        mesa_version = installed_mesa_version(family) if family in MESA_FAMILIES else ""
     mesa_version = str(mesa_version).strip()
     series = kernel_version(mesa_version)
     old = series is not None and series < MESA_MIN
     route, action, reason = "", "", ""
     if immutable:
         reason = "Image-based systems update Mesa with the image."
-    elif family not in {"debian", "fedora"}:
+    elif family not in MESA_FAMILIES:
         reason = "No route is offered for this distribution."
     elif series is None:
         reason = "The installed Mesa version could not be read."

@@ -19,9 +19,12 @@ class OSInfo:
     def label(self) -> str:
         return self.pretty_name or self.name or self.distro_id or "Unknown Linux"
 
-    def is_like(self, *values: str) -> bool:
-        expected = {value.lower() for value in values}
-        return self.distro_id in expected or bool(expected.intersection(self.id_like))
+def _unquote(value: str) -> str:
+    """A os-release value without its shell quotes; Gentoo writes ``ID='gentoo'``."""
+    value = value.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+        value = value[1:-1]
+    return value
 
 
 def read_os_release() -> dict[str, str]:
@@ -35,7 +38,7 @@ def read_os_release() -> dict[str, str]:
                 if not line or line.startswith("#") or "=" not in line:
                     continue
                 key, value = line.split("=", 1)
-                data[key] = value.strip().strip('"')
+                data[key] = _unquote(value)
             return data
         except OSError:
             continue

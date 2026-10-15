@@ -24,7 +24,7 @@ MINT = {"ID": "linuxmint", "ID_LIKE": "ubuntu debian", "VERSION_CODENAME": "wilm
 
 def _state(**overrides):
     values = {
-        "family": "debian", "distro_id": "ubuntu", "mesa_version": "25.2.8-0ubuntu0.24.04.4", "fields": NOBLE,
+        "family": "ubuntu", "distro_id": "ubuntu", "mesa_version": "25.2.8-0ubuntu0.24.04.4", "fields": NOBLE,
     }
     return mesa_desktop_state(**{**values, **overrides})
 

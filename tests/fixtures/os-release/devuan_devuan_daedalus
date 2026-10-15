@@ -1,0 +1,10 @@
+PRETTY_NAME="Devuan GNU/Linux 5 (daedalus)"
+NAME="Devuan GNU/Linux"
+VERSION_ID="5"
+VERSION="5 (daedalus)"
+VERSION_CODENAME="daedalus"
+ID=devuan
+ID_LIKE=debian
+HOME_URL="https://www.devuan.org/"
+SUPPORT_URL="https://devuan.org/os/community"
+BUG_REPORT_URL="https://bugs.devuan.org/"
