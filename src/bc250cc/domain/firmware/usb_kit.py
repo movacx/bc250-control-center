@@ -81,10 +81,6 @@ class KitPlan:
         return sum(item.size for item in self.files)
 
     @property
-    def rom_path(self) -> str:
-        return f"{KIT_FOLDER}/FIRMWARE/{_rom_name(self.image, self.logo)}"
-
-    @property
     def logo_pending(self) -> bool:
         """The picture still has to be put into the image before anything is written."""
         return any(item.logo is not None for item in self.files)
@@ -94,6 +90,10 @@ class KitPlan:
         if self.logo is None:
             raise ValueError("This kit has no custom boot logo.")
         return plan_kit(self.family, self.image, prepared=self.prepared, logo=self.logo, rom=rom)
+
+    @property
+    def rom_path(self) -> str:
+        return f"{KIT_FOLDER}/FIRMWARE/{_rom_name(self.image, self.logo)}"
 
 
 def _crlf(*lines: str) -> bytes:

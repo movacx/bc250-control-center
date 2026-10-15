@@ -50,9 +50,6 @@ class ToggleSwitch(QCheckBox):
     def minimumSizeHint(self) -> QSize:  # noqa: N802 - Qt API name
         return self.sizeHint()
 
-    def hitButton(self, pos) -> bool:  # noqa: N802 - Qt API name
-        return self.rect().contains(pos)
-
     # ------------------------------------------------------------ animation
 
     def setChecked(self, checked: bool) -> None:  # noqa: N802 - Qt API name
@@ -147,3 +144,6 @@ class ToggleSwitch(QCheckBox):
         travel = width - knob_diameter - 2 * KNOB_MARGIN * factor
         return QPointF(x + KNOB_MARGIN * factor + travel * self._position + knob_diameter / 2.0,
                        self.height() / 2.0)
+
+    def hitButton(self, pos) -> bool:  # noqa: N802 - Qt API name
+        return self.rect().contains(pos)

@@ -10,7 +10,6 @@ from PyQt6.QtWidgets import (
     QDialog,
     QFrame,
     QGraphicsDropShadowEffect,
-    QGridLayout,
     QHBoxLayout,
     QLabel,
     QScrollArea,
@@ -136,99 +135,6 @@ class PillLabel(QLabel):
         self.setStyleSheet(
             f"PillLabel {{ color:{foreground}; background:{background}; border:1px solid {border}; }}"
         )
-
-
-class SummaryMetric(QWidget):
-    """One compact item in the Dashboard hardware summary bar."""
-
-    def __init__(self, icon_name: str, label: str, value: str, parent: QWidget | None = None):
-        super().__init__(parent)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        row = QHBoxLayout(self)
-        row.setContentsMargins(10, 6, 10, 6)
-        row.setSpacing(12)
-        row.addWidget(IconBadge(icon_name, "neutral_soft", 36, radius=10))
-
-        text_box = QVBoxLayout()
-        text_box.setSpacing(1)
-        self.label = QLabel(tr(label))
-        self.label.setObjectName("SummaryLabel")
-        self.label.setWordWrap(True)
-        self.label.setMinimumWidth(0)
-        self.value = QLabel(tr(value))
-        self.value.setObjectName("SummaryValue")
-        self.value.setWordWrap(True)
-        self.value.setMinimumWidth(0)
-        self.value.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        text_box.addWidget(self.label)
-        text_box.addWidget(self.value)
-        row.addLayout(text_box, 1)
-
-    def set_value(self, value: str) -> None:
-        self.value.setText(tr(value))
-
-    def set_label(self, label: str) -> None:
-        self.label.setText(tr(label))
-
-
-class SystemSummaryBar(QFrame):
-    """Hardware summary strip that reflows from four columns down to one."""
-
-    def __init__(self, parent: QWidget | None = None):
-        super().__init__(parent)
-        self.setObjectName("SystemSummaryBar")
-        self.setMinimumWidth(0)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        apply_shadow(self, blur=18, y=3, alpha=14)
-
-        self.layout_grid = QGridLayout(self)
-        self.layout_grid.setContentsMargins(16, 10, 16, 10)
-        self.layout_grid.setHorizontalSpacing(10)
-        self.layout_grid.setVerticalSpacing(8)
-
-        self.gpu = SummaryMetric("gpu_gray", "GPU", "BC250")
-        self.vram = SummaryMetric("vram_gray", "VRAM", "Not detected")
-        self.power = SummaryMetric("power_gray", "Board power", "Not detected")
-        self.uptime = SummaryMetric("uptime_gray", "Uptime", "Not detected")
-        self.items = [self.gpu, self.vram, self.power, self.uptime]
-        self._columns = 0
-        self._reflow(1200)
-
-    def _reflow(self, width: int) -> None:
-        columns = 4 if width >= 980 else 2 if width >= 520 else 1
-        if columns == self._columns and self.layout_grid.count():
-            return
-        self._columns = columns
-        while self.layout_grid.count():
-            # Preserve parentage so the metrics do not blink while moving to a
-            # new row during a live window resize.
-            self.layout_grid.takeAt(0)
-        for index, item in enumerate(self.items):
-            self.layout_grid.addWidget(item, index // columns, index % columns)
-        for column in range(4):
-            self.layout_grid.setColumnStretch(column, 1 if column < columns else 0)
-        self.updateGeometry()
-
-    def resizeEvent(self, event) -> None:  # noqa: N802 - Qt API name
-        super().resizeEvent(event)
-        self._reflow(event.size().width())
-
-    def set_values(
-        self,
-        *,
-        gpu: str,
-        vram: str,
-        power: str,
-        uptime: str,
-        power_label: str = "SoC package power",
-        power_tooltip: str = "",
-    ) -> None:
-        self.gpu.set_value(gpu)
-        self.vram.set_value(vram)
-        self.power.set_label(power_label)
-        self.power.set_value(power)
-        self.power.setToolTip(tr(power_tooltip) if power_tooltip else "")
-        self.uptime.set_value(uptime)
 
 
 class InfoDialog(QDialog):

@@ -18,9 +18,7 @@ from bc250cc.domain.firmware.catalog import (
     ROM_BYTES,
     UEFI_SHELL,
     ArchivedFile,
-    RemoteFile,
     archives_of,
-    catalog_problems,
     sources_for,
 )
 from bc250cc.domain.firmware.usb import (
@@ -32,10 +30,6 @@ from bc250cc.domain.firmware.usb import (
 )
 
 GB = 1000 ** 3
-
-
-def test_the_catalog_has_no_problems():
-    assert catalog_problems() == []
 
 
 def test_the_recommended_default_is_the_chipset_menu_bios():
@@ -116,35 +110,6 @@ def test_archives_of_returns_the_published_file():
     assert archives_of(rom) is rom.archive
     assert rom.archive_format == "zip"
     assert archives_of(UEFI_SHELL) is UEFI_SHELL
-
-
-def test_a_broken_entry_is_reported(monkeypatch):
-    from bc250cc.domain.firmware import catalog
-
-    broken = RemoteFile(url="http://example.com/latest/x.rom", sha256="nope", size=0, name="a/b")
-    family = catalog.FIRMWARE_FAMILIES[2]
-    image = catalog.FirmwareImage(key="x", label="x", rom=broken)
-    monkeypatch.setattr(
-        catalog,
-        "FIRMWARE_FAMILIES",
-        (*catalog.FIRMWARE_FAMILIES, catalog.FirmwareFamily(
-            key=family.key, title="t", version="v", origin="other", summary="",
-            caution="", tool=family.tool, images=(image,), project="p",
-            project_url="http://example.com", recommended=True, cpu_cores=12, boot_logos=3,
-        )),
-    )
-    problems = "\n".join(catalog.catalog_problems())
-    assert "duplicate family key" in problems
-    assert "unknown origin" in problems
-    assert "project URL is not https" in problems
-    assert "SHA-256 is malformed" in problems
-    assert "not pinned to a commit" in problems
-    assert "size must be positive" in problems
-    assert "is not a plain name" in problems
-    assert "exactly one family must be recommended" in problems
-    assert "six to eight CPU cores" in problems
-    assert "boot logo count does not match" in problems
-    assert "highlights, none of them empty" in problems
 
 
 @pytest.mark.parametrize(

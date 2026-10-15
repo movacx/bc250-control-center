@@ -12,7 +12,6 @@ from bc250cc.infrastructure.cu_dashboard import clean_dashboard, parse_dashboard
 from bc250cc.infrastructure.cu_kernel_unlock import kernel_cu_unlock_active
 from bc250cc.infrastructure.cu_operations import (
     plan_cu_mask_operations,
-    validate_cu_masks,
 )
 from bc250cc.infrastructure.polkit_session import pkexec_argv
 from bc250cc.platform.init.services import (
@@ -451,33 +450,8 @@ class CURepository:
         return state
 
 
-    def _requiere_terminal_sudo(self, texto):
-        texto = (texto or '').lower()
-        pistas = [
-            'a password is required',
-            'a terminal is required',
-            'sudo:',
-            'contraseña',
-            'password',
-        ]
-        return any(pista in texto for pista in pistas)
-
-
     def _limpiar_dashboard_cu(self, texto):
         return clean_dashboard(texto)
-
-
-    def _dashboard_fallback_mapa(self, mapa, error=''):
-        lineas = [
-            '| BC-250 CU Dashboard / legacy map fallback |',
-            '+--------------------------------------------------------------+',
-            'Source     : bc250-40cu-unlock/cu_map.sh',
-            'Note       : this map shows the harvest/boot map; it does not confirm current live routing.',
-        ]
-        if error:
-            lineas.extend(['', 'Live-manager unavailable without authorization:', error[:600]])
-        lineas.extend(['', mapa or '--'])
-        return '\n'.join(lineas).strip()
 
 
     def ejecutar_cu_manager(self, accion):
@@ -602,29 +576,6 @@ class CURepository:
         return mapping[key]
 
 
-    def _error_umr_faltante(self, texto):
-        texto = (texto or '').lower()
-        pistas = [
-            'cu_umr_missing',
-            'umr not found',
-            'no such file or directory: umr',
-            'command not found: umr',
-            'umr: command not found',
-            'falta umr',
-        ]
-        return any(pista in texto for pista in pistas)
-
-
-    def _mensaje_umr_faltante(self):
-        return (
-            'UMR is missing from the system.\n\n'
-            'UMR is the tool that bc250-cu-live-manager uses to read and write AMD/AMDGPU registers. '
-            'Without UMR, the live dashboard and enable/restore 40CU actions cannot run from the interface.\n\n'
-            'Solution: press the "Install UMR" button in the 40CU panel. '
-            'The app will detect your distribution and try to install the matching package.'
-        )
-
-
     @staticmethod
     def _steamos_umr_selector_from_database(database):
         """Return the GC register namespace declared by cyan_skillfish.asic.
@@ -681,94 +632,12 @@ class CURepository:
         return env
 
 
-    def _env_args_cu(self, tools):
-        return [f'{clave}={valor}' for clave, valor in self._cu_manager_env(tools).items() if valor]
-
-
-    def _steamos_cu_env_probe_shell(self, tools):
-        # Export the database-defined GC namespace and let the patched backend
-        # auto-detect the concrete DRI instance. This keeps every click bounded
-        # without assuming whether a future UMR database calls the block gfx1010
-        # or gfx1013.
-        return self._exportar_env_cu_simple(tools)
-
-
-
     def _exportar_env_cu_simple(self, tools):
         partes = []
         for clave, valor in self._cu_manager_env(tools).items():
             if valor:
                 partes.append(f'export {clave}={shlex.quote(str(valor))}; ')
         return ''.join(partes)
-
-
-    def _exportar_env_cu(self, tools):
-        exported = self._exportar_env_cu_simple(tools)
-        if tools.get('cu_manager_backend') == 'steamos' or tools.get('is_steamos'):
-            return exported
-        # WinnieLV's current standard backend tests only its default selector.
-        # Port the bounded `umr -lb` fallback from rpf16rj's toolkit without
-        # modifying or replacing the cloned upstream manager.
-        umr = shlex.quote(str(tools.get('umr') or self._command_path('umr') or 'umr'))
-        register = 'mmSPI_PG_ENABLE_STATIC_WGP_MASK'
-        return exported + (
-            'if [ -z "${UMR_ASIC:-}" ]; then '
-            'bc250_default_asic=cyan_skillfish.gfx1013; '
-            f'if {umr} -r "$bc250_default_asic.{register}" 2>/dev/null | '
-            "grep -Eq '0x[0-9a-fA-F]+'; then export UMR_ASIC=\"$bc250_default_asic\"; "
-            'else while IFS= read -r bc250_candidate; do '
-            'case "$bc250_candidate" in *cyan_skillfish*|*gfx1013*) ;; *) continue ;; esac; '
-            f'if {umr} -r "$bc250_candidate.{register}" 2>/dev/null | '
-            "grep -Eq '0x[0-9a-fA-F]+'; then export UMR_ASIC=\"$bc250_candidate\"; break; fi; "
-            f"done < <({umr} -lb 2>/dev/null | awk '/^[[:space:]]*[a-zA-Z0-9_.-]+/{{print $1}}'); fi; "
-            'fi; '
-        )
-
-
-    def _error_steamos_umr_selector(self, texto):
-        texto = (texto or '').lower()
-        pistas = [
-            'cu_umr_database_invalid',
-            'invalid asic header line',
-            'cyan_skillfish.asic is empty',
-            'invalid cyan_skillfish.asic header',
-            'missing or empty soc15',
-            'missing: mmspi_pg_enable_static_wgp_mask',
-            'cu_umr_asic_binding',
-            'cu_umr_version',
-            'cu_umr_register_access',
-            'unknown asic [amd13fe]',
-            'should be added to pci.did',
-            'regspi_pg_enable_static_wgp_mask',
-            'path <cyan_skillfish',
-            'failed to bind/read cyan_skillfish.gfx1013',
-            'failed to bind/read cyan_skillfish.gfx1010',
-            'cu_umr_storage_full',
-            'no space left on device',
-            'no queda espacio en el dispositivo',
-            'mmspi_pg_enable_static_wgp_mask',
-            'static cyan_skillfish model',
-        ]
-        return any(pista in texto for pista in pistas)
-
-
-    def _mensaje_steamos_umr_selector(self):
-        tools = self.estado_herramientas_bc250()
-        database = tools.get('cu_steamos_umr_database') or '~/.local/share/bc250-control-center/ResourceTools/umr-steamos/database'
-        return (
-            'SteamOS Game Mode was verified, but UMR could not read the BC-250 CU registers.\n\n'
-            "The previous build used two wrong assumptions: it stored the full UMR database on SteamOS' tiny "
-            '/var partition, and it tried the nonexistent register namespace cyan_skillfish.gfx1013 before the '
-            'database-defined GC register selector. That caused partial databases, long selector scans, '
-            'and the page remaining in Working state.\n\n'
-            'This build stores the SteamOS-only database under /home, derives the cyan_skillfish GC selector from that validated database, and '
-            'performs at most one bounded fallback. Other Linux distribution backends are unchanged.\n\n'
-            'From Desktop Mode, run Prepare dependencies once. The expected database is:\n'
-            f'{database}\n\n'
-            'If preparation reports CU_UMR_STORAGE_FULL, free space on /home. The obsolete /var database copies '
-            'are removed only after the new database validates successfully.'
-        )
-
 
 
     _CU_ROW_NAMES = ('SE0.SH0', 'SE0.SH1', 'SE1.SH0', 'SE1.SH1')
@@ -903,10 +772,6 @@ class CURepository:
             f'CU boot persistence is not supported on {init_manager.display_name}. '
             f'The {action} action was not run; live CU status and temporary routing remain available.'
         )
-
-
-    def _validar_mascaras_cu(self, masks):
-        return list(validate_cu_masks(masks))
 
 
     def _ejecutar_tabla_cu(self, masks, *, save_boot=False):

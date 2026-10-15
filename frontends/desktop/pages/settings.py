@@ -1059,33 +1059,6 @@ class SettingsPage(QWidget):
         button.clicked.connect(callback)
         return button
 
-    def _banner(self, title: str, text: str, button_text: str, callback) -> QFrame:
-        card = QFrame()
-        card.setProperty("banner", True)
-        layout = QVBoxLayout(card)
-        layout.setContentsMargins(14, 12, 14, 12)
-        layout.setSpacing(8)
-        header = QHBoxLayout()
-        header.setSpacing(10)
-        header.addWidget(IconBadge("shield_green", COLORS["green_soft"], 38, radius=11), 0, Qt.AlignmentFlag.AlignTop)
-        copy = QVBoxLayout()
-        copy.setSpacing(2)
-        title_label = QLabel(tr(title))
-        title_label.setProperty("bannerTitle", True)
-        title_label.setWordWrap(True)
-        title_label.setMinimumWidth(0)
-        text_label = QLabel(tr(text))
-        text_label.setProperty("bannerText", True)
-        text_label.setWordWrap(True)
-        copy.addWidget(title_label)
-        copy.addWidget(text_label)
-        header.addLayout(copy, 1)
-        layout.addLayout(header)
-        action = self._button(button_text, callback)
-        action.setProperty("bannerAction", True)
-        layout.addWidget(action, 0, Qt.AlignmentFlag.AlignLeft)
-        return card
-
     def _build_page_frame(self, title: str, subtitle: str) -> tuple[QWidget, QVBoxLayout]:
         page = QWidget()
         page_layout = QVBoxLayout(page)
@@ -1781,35 +1754,6 @@ class SettingsPage(QWidget):
         )
         return dialog.exec() == QDialog.DialogCode.Accepted
 
-    def _build_notifications_page(self) -> QWidget:
-        # Kept for a future feature branch, but deliberately unreachable from
-        # the navigation and incapable of re-enabling notifications.
-        self.app_settings.setValue("settings/smart_alerts", "false")
-        self.app_settings.setValue("settings/desktop_notifications", "false")
-        page, layout = self._build_page_frame(
-            "Notifications",
-            "Notifications are currently disabled.",
-        )
-        group = SettingsGroup("Safety monitoring")
-        group.add_row(SettingRow(
-            "Smart safety alerts",
-            "This reserved feature is disabled and cannot run.",
-            PillLabel("Disabled", "gray"),
-        ))
-        group.add_row(SettingRow(
-            "Desktop notifications",
-            "Desktop notification delivery is disabled.",
-            PillLabel("Disabled", "gray"),
-        ))
-        group.add_row(SettingRow(
-            "Operation results",
-            "Success, failure, and mandatory safety confirmation dialogs are always shown.",
-            PillLabel("Always shown", "green"),
-        ))
-        layout.addWidget(group)
-        layout.addStretch(1)
-        return page
-
     def _build_security_page(self) -> QWidget:
         # Security policies remain mandatory. The page documents the behavior
         # without presenting controls that could falsely imply safety bypasses.
@@ -2309,34 +2253,6 @@ class SettingsPage(QWidget):
                 tone="red",
             ).exec()
 
-    def _show_local_paths(self) -> None:
-        paths = self._paths()
-        if not paths:
-            InfoDialog(
-                "Local paths unavailable",
-                "The application backend did not return its shared configuration paths.",
-                icon_name="warning_orange",
-                parent=self,
-                eyebrow="LOCAL PATH",
-                notice="No hardware command was executed.",
-                tone="red",
-            ).exec()
-            return
-        preferred = ("config", "perfiles", "historial", "estabilidad", "metricas_runtime", "tools", "data", "resource_tools")
-        labels = {
-            "config": "Configuration", "perfiles": "Profiles", "historial": "History",
-            "estabilidad": "Stability data", "metricas_runtime": "Runtime metrics",
-            "tools": "Installed tools", "data": "Application data", "resource_tools": "Bundled tool sources",
-        }
-        lines: list[str] = []
-        for key in preferred:
-            value = paths.get(key)
-            if value:
-                lines.append(f"{tr(labels.get(key, key))}:\n{value}")
-        for key in sorted(set(paths) - set(preferred)):
-            lines.append(f"{key}:\n{paths[key]}")
-        TextDetailsDialog("Local paths", "\n\n".join(lines), self).exec()
-
     @staticmethod
     def _format_bytes(value: object) -> str:
         try:
@@ -2353,57 +2269,6 @@ class SettingsPage(QWidget):
             number /= 1024
         return f"{number:.1f} {unit}"
 
-    def _evaluate_memory_pressure(self) -> None:
-        button = getattr(self, "memory_pressure_button", None)
-        if isinstance(button, QPushButton):
-            button.setText(tr("Evaluating…"))
-
-        def operation() -> object:
-            return self.controller.proteccion_memoria(aplicar=False) or {}
-
-        def success(payload: object) -> None:
-            if isinstance(button, QPushButton):
-                button.setText(tr("Evaluate memory pressure"))
-            result = payload if isinstance(payload, dict) else {}
-            state = result.get("estado") or {}
-            candidates = list(result.get("candidatos") or [])
-            games = list(state.get("juegos_detectados") or [])
-            level = str(state.get("nivel") or "unknown").capitalize()
-            lines = [
-                f"{tr('Level')}: {tr(level)}",
-                f"{tr('RAM used')}: {float(state.get('ram_percent') or 0):.1f} %",
-                f"{tr('RAM available')}: {self._format_bytes(state.get('ram_available'))}",
-                f"{tr('Swap used')}: {float(state.get('swap_percent') or 0):.1f} %",
-                f"{tr('Detected games')}: {len(games)}",
-                f"{tr('Suggested applications')}: {len(candidates)}",
-                "",
-                tr("This evaluation is read-only. No process was closed and no cache command was executed."),
-            ]
-            if candidates:
-                lines.extend(("", tr("Largest suggested applications:")))
-                for item in candidates[:8]:
-                    name = item.get("nombre") or tr("Process")
-                    lines.append(
-                        f"• {name} · {float(item.get('memoria_mb') or 0):.1f} MiB · PID {item.get('pid', '--')}"
-                    )
-            TextDetailsDialog("Memory pressure", "\n".join(lines), self).exec()
-
-        def failure(message: str) -> None:
-            if isinstance(button, QPushButton):
-                button.setText(tr("Evaluate memory pressure"))
-            InfoDialog(
-                "Memory evaluation failed",
-                message,
-                icon_name="warning_orange",
-                parent=self,
-                eyebrow="MEMORY",
-                notice="No process was closed and no cache command was executed.",
-                tone="red",
-            ).exec()
-
-        controls = (button,) if isinstance(button, QWidget) else ()
-        self._start_task(operation, success, failure, controls=controls)
-
     def _open_settings_folder(self) -> None:
         self._open_directory(Path(self._path_for("config")).expanduser().resolve().parent, tr("Settings folder"))
 
@@ -2412,99 +2277,6 @@ class SettingsPage(QWidget):
 
     def _portable_start_directory(self) -> str:
         return str(Path(self._path_for("config")).expanduser().resolve().parent)
-
-    def _export_profile_bundle(self) -> None:
-        destination, _selected_filter = QFileDialog.getSaveFileName(
-            self,
-            tr("Export settings and profiles"),
-            str(Path(self._portable_start_directory()) / "bc250-settings-profiles.json"),
-            tr("BC250 profile bundle (*.json)"),
-        )
-        if not destination:
-            return
-
-        def success(result: object) -> None:
-            show_toast(
-                self,
-                "Export completed",
-                tr_format("Portable settings and profiles were saved to {path}.", path=result),
-                tone="green",
-            )
-
-        def failure(message: str) -> None:
-            InfoDialog(
-                "Export failed", message, icon_name="warning_orange", parent=self,
-                eyebrow="DATA PORTABILITY",
-                notice="No hardware or system setting was changed.", tone="red",
-            ).exec()
-
-        self._start_task(
-            lambda: self.settings_service.export_profile_bundle(destination),
-            success,
-            failure,
-            controls=(self.profile_export_button,),
-        )
-
-    def _import_profile_bundle(self) -> None:
-        source, _selected_filter = QFileDialog.getOpenFileName(
-            self,
-            tr("Import settings and profiles"),
-            self._portable_start_directory(),
-            tr("BC250 profile bundle (*.json)"),
-        )
-        if not source:
-            return
-
-        def preview_ready(payload: object) -> None:
-            preview = payload if isinstance(payload, dict) else {}
-            config_count = len(preview.get("config_keys") or ())
-            profile_count = len(preview.get("profile_sections") or ())
-            dialog = ConfirmDialog(
-                "Import portable settings and profiles",
-                "The bundle checksum is valid. Current user settings and profiles will be backed up before the transactional import. Nothing is applied to live hardware.",
-                summary=(
-                    ("File", source),
-                    ("Configuration keys", str(config_count)),
-                    ("Profile sections", str(profile_count)),
-                ),
-                confirm_text="Import bundle",
-                eyebrow="CONFIRM USER DATA IMPORT",
-                tone="orange",
-                parent=self,
-            )
-            if dialog.exec() != QDialog.DialogCode.Accepted:
-                return
-
-            def imported(result: object) -> None:
-                show_toast(
-                    self,
-                    "Import completed",
-                    tr_format("Settings and profiles were imported. Backup: {path}", path=result),
-                    tone="green",
-                )
-
-            self._start_task(
-                lambda: self.settings_service.import_profile_bundle(source),
-                imported,
-                lambda message: InfoDialog(
-                    "Import failed", message, icon_name="warning_orange", parent=self,
-                    eyebrow="DATA PORTABILITY",
-                    notice="The transaction attempted to restore the previous user configuration.",
-                    tone="red",
-                ).exec(),
-                controls=(self.profile_import_button,),
-            )
-
-        self._start_task(
-            lambda: self.settings_service.preview_profile_bundle(source),
-            preview_ready,
-            lambda message: InfoDialog(
-                "Bundle validation failed", message, icon_name="warning_orange", parent=self,
-                eyebrow="DATA PORTABILITY",
-                notice="The selected file was not imported.", tone="red",
-            ).exec(),
-            controls=(self.profile_import_button,),
-        )
 
     def _export_runtime_metrics(self, format_name: str) -> None:
         # Settings intentionally exposes one interoperable report format.

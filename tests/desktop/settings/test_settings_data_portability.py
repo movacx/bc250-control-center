@@ -2,8 +2,6 @@ from PyQt6.QtCore import QSettings
 from PyQt6.QtWidgets import QDialog
 
 import frontends.desktop.pages.settings as settings_module
-from bc250cc.infrastructure.persistence.configuracion_local import ConfiguracionLocal
-from bc250cc.infrastructure.sistema_repository import SistemaRepository
 from frontends.desktop.i18n import SUPPORTED_LANGUAGES, tr
 from frontends.desktop.pages.settings import SettingsPage
 
@@ -183,31 +181,3 @@ def test_current_reports_copy_is_translated_in_every_language():
     for language in SUPPORTED_LANGUAGES - {"en"}:
         assert all(tr(source, language) != source for source in sources), language
 
-
-def test_repository_portability_facade_uses_transactional_user_files(
-    tmp_path, monkeypatch
-):
-    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
-    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
-    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
-    configuration = ConfiguracionLocal()
-    configuration.guardar_config_completa({"language": "es"})
-    configuration.guardar_perfiles({"cpu": {"safe": True}})
-    repository = SistemaRepository.__new__(SistemaRepository)
-    repository.configuracion = configuration
-
-    bundle = tmp_path / "portable.json"
-    assert repository.exportar_bundle_perfil(bundle) == str(bundle)
-    preview = repository.previsualizar_bundle_perfil(bundle)
-    assert "language" in preview["config_keys"]
-    assert "cpu" in preview["profile_sections"]
-
-    configuration.guardar_config_completa({"language": "de"})
-    backup = repository.importar_bundle_perfil(bundle)
-    assert configuration.leer_config()["language"] == "es"
-    assert "profile-before-import" in backup
-
-    configuration.registrar_metrica_runtime({"gpu_temp": 55})
-    metrics = tmp_path / "metrics.csv"
-    assert repository.exportar_metricas_runtime(metrics, "csv") == str(metrics)
-    assert "gpu_temp" in metrics.read_text(encoding="utf-8")

@@ -585,12 +585,6 @@ DIAGNOSTIC_SOURCES = tuple(dict.fromkeys((
 )))
 
 
-def diagnosis_for(code: str) -> ErrorDiagnosis:
-    """One rule's explanation by code, for a screen that already knows the fault."""
-    rule = next(rule for rule in _RULES if rule.code == code)
-    return ErrorDiagnosis(rule.code, rule.summary, rule.cause, rule.action)
-
-
 def explain_code(code: str) -> ErrorDiagnosis | None:
     """The explanation behind a code already printed somewhere, or None."""
     for rule in _RULES:
@@ -705,3 +699,10 @@ def format_error_for_user(
     )
     rendered = "\n\n".join(f"{heading}\n{body}" for heading, body in sections)
     return f"{rendered}\n\n{translate('Diagnostic code')}: {diagnosis.code}"
+
+
+
+def diagnosis_for(code: str) -> ErrorDiagnosis:
+    """One rule's explanation by code, for a screen that already knows the fault."""
+    rule = next(rule for rule in _RULES if rule.code == code)
+    return ErrorDiagnosis(rule.code, rule.summary, rule.cause, rule.action)

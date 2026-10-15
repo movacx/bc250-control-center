@@ -42,11 +42,3 @@ def describe_failure(
     rendered = " ".join(dict.fromkeys(part for part in parts if part))
     return f"{rendered} [{entry.code}]"
 
-
-def failure_code(returncode: object, stdout: object = "", stderr: object = "") -> str:
-    """Return only the stable identifier for a failed process."""
-    detail = (str(stderr or "").strip() or str(stdout or "").strip())
-    entry = error_catalog.for_marker(detail) if detail else None
-    if entry is None:
-        entry = error_catalog.for_exit_status(returncode)
-    return (entry or error_catalog.GENERAL_FAILURE).code

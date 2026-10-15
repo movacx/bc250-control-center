@@ -653,10 +653,6 @@ class _LogoPreview(QWidget):
     def sizeHint(self) -> QSize:  # noqa: N802 - Qt API name
         return QSize(self.MAX_WIDTH, self.MAX_WIDTH * LOGO_HEIGHT // LOGO_WIDTH)
 
-    @property
-    def showing_logo(self) -> bool:
-        return self._pixmap is not None
-
     def set_logo(self, image: QImage | None, placeholder: str) -> None:
         self._pixmap = QPixmap.fromImage(image) if image is not None and not image.isNull() else None
         self._placeholder = placeholder
@@ -696,6 +692,10 @@ class _LogoPreview(QWidget):
         painter.setPen(QPen(QColor(COLORS["border_soft"]), 1))
         painter.drawPath(outline)
         painter.end()
+
+    @property
+    def showing_logo(self) -> bool:
+        return self._pixmap is not None
 
 
 class _LogoSection(QWidget):

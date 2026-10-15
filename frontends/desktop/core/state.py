@@ -697,20 +697,6 @@ class DashboardState:
             return f"{_format_binary_bytes(self.gpu_gtt_used_bytes)} / {total}"
         return total
 
-    @property
-    def dpm_summary(self) -> str:
-        force = self.gpu_dpm_force_level.strip()
-        state = self.gpu_dpm_state.strip()
-        return force or state or "Not detected"
-
-    @property
-    def power_tooltip(self) -> str:
-        if self.power_is_total:
-            return "Dedicated total-board power sensor detected."
-        if self.power_scope == "gpu_soc":
-            return "AMDGPU hwmon reports SoC package power; total board power is not exposed."
-        return "No live power sensor is exposed by the current kernel drivers."
-
     @classmethod
     def from_controller(cls, controller: Any, cache: ControllerStateCache | None = None) -> DashboardState:
         """Build a passive, read-only snapshot from existing R64 APIs.
@@ -915,3 +901,9 @@ class DashboardState:
             vram_total_bytes=_integer(gpu.get("vram_total"), 0),
             activities=activity_items,
         )
+
+    @property
+    def dpm_summary(self) -> str:
+        force = self.gpu_dpm_force_level.strip()
+        state = self.gpu_dpm_state.strip()
+        return force or state or "Not detected"

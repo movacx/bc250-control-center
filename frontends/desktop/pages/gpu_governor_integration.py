@@ -3,8 +3,8 @@
 Destination: ``frontends/desktop/pages/gpu_governor_integration.py``
 
 Strategy: ``gpu_governor.py`` is **not rewritten** (6400+ lines of already
-tested logic). Only what is shown gets replaced — and only for the Cyan
-backend; Oberon keeps its original screen untouched, per project policy.
+tested logic). Only what is shown gets replaced: the new view serves both the
+Cyan and the Oberon backend, and the original screen stays built but hidden.
 
 ``GpuGovernorPage`` already has:
 
@@ -438,15 +438,3 @@ def install_redesigned_gpu_view(page) -> GpuGovernorView:
         )
     return view
 
-
-def uninstall_redesigned_gpu_view(page) -> None:
-    """Reverts to the original screen (useful for comparing during rollout)."""
-    view = getattr(page, _ATTRIBUTE, None)
-    if view is None:
-        return
-    view.setParent(None)
-    view.deleteLater()
-    delattr(page, _ATTRIBUTE)
-    legacy_scroll = getattr(page, "overview_scroll", None)
-    if legacy_scroll is not None:
-        legacy_scroll.show()

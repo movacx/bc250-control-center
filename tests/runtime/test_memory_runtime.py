@@ -1,7 +1,5 @@
 from pathlib import Path
 
-import pytest
-
 from bc250cc.infrastructure.memory_runtime import (
     GIB,
     kernel_argument,
@@ -9,16 +7,7 @@ from bc250cc.infrastructure.memory_runtime import (
     parse_proc_swaps,
     read_memory_runtime_state,
     supported_ttm_gib_presets,
-    ttm_pages_for_gib,
 )
-
-
-def test_ttm_presets_are_real_gib_values_not_ambiguous_vram_labels():
-    assert ttm_pages_for_gib(8) == 2_097_152
-    assert ttm_pages_for_gib(10) == 2_621_440
-    assert ttm_pages_for_gib(12) == 3_145_728
-    with pytest.raises(ValueError):
-        ttm_pages_for_gib(9)
 
 
 def test_proc_swaps_separates_zram_from_the_backing_swap_zswap_requires():

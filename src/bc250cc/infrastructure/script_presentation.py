@@ -20,8 +20,6 @@ frontend's catalogs.
 
 from __future__ import annotations
 
-import shlex
-
 RULE_WIDTH = 74
 RULE = "=" * RULE_WIDTH
 THIN_RULE = "-" * RULE_WIDTH
@@ -67,12 +65,3 @@ def progress_note(text: object) -> str:
     """
     return f'echo "    ... {text}";'
 
-
-def quoted_banner(title: object, subtitle: object = "") -> str:
-    """``banner`` for titles that may contain shell metacharacters."""
-    safe_title = shlex.quote(str(title))
-    parts = [f'echo; echo "{RULE}"; echo "  "{safe_title};']
-    if str(subtitle or "").strip():
-        parts.append(f'echo "  "{shlex.quote(str(subtitle))};')
-    parts.append(f'echo "{RULE}"; echo;')
-    return " ".join(parts)

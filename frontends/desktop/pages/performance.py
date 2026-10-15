@@ -8,6 +8,7 @@ from html import escape
 from math import log10
 from typing import Callable, Iterable
 
+from PyQt6 import sip
 from PyQt6.QtCore import QPointF, QRect, QRectF, QSize, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import (
     QBrush,
@@ -883,6 +884,18 @@ class DetailGraph(QWidget):
         return font
 
     def paintEvent(self, event) -> None:  # pragma: no cover - visual rendering
+        # A paint queued before the widget was torn down can still be delivered
+        # while Qt destroys it. Painting then raises, and letting that exception
+        # leave a virtual override has taken the whole process down in the tests.
+        if sip.isdeleted(self):
+            return
+        try:
+            self._paint(event)
+        except RuntimeError:
+            if not sip.isdeleted(self):
+                raise
+
+    def _paint(self, event) -> None:  # pragma: no cover - visual rendering
         key = self._cache_key()
         if self._cache is None or key != self._cache_key_value:
             ratio = self.devicePixelRatioF()

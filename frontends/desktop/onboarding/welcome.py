@@ -578,10 +578,6 @@ class WelcomeOverlay(QWidget):
         self.console.setVisible(opening)
         self._dependencies_layout.setStretch(self._dependencies_spacer, 0 if opening else 1)
 
-    @property
-    def terminal_open(self) -> bool:
-        return not self.console.isHidden()
-
     def selected_components(self) -> set[str]:
         return self.picker.selection()
 
@@ -946,3 +942,7 @@ class WelcomeOverlay(QWidget):
         scrim.setAlpha(SCRIM_ALPHA.get(theme_module.ACTIVE_MODE, 130))
         painter.fillRect(self.rect(), scrim)
         painter.end()
+
+    @property
+    def terminal_open(self) -> bool:
+        return not self.console.isHidden()

@@ -953,10 +953,6 @@ for line in sys.stdin:
 
 
 
-    def _parece_permiso_denegado(self, out, err):
-        texto = f'{out}\n{err}'.lower()
-        return any(x in texto for x in ['permission denied', 'permiso denegado', 'read-only file system', 'solo lectura'])
-
     def _leer_sensores_nct(self):
         self._buscar_sensores()
         salida = {'chip': '', 'path': '', 'fans': [], 'temps': [], 'pwms': []}
@@ -1066,20 +1062,8 @@ for line in sys.stdin:
             'raw': '\n'.join(line for line in texto.splitlines() if line.startswith(('nct6683 ', 'nct6687 ', 'nct6687d '))),
         }
 
-    def _comando_instalar_nct6687(self):
-        tools_dir = str(self._tool_dir() / 'nct6687d')
-        return self._os_repository().install_fan_pwm_command(tools_dir)
-
     def _comando_instalar_lm_sensors(self):
         return self._os_repository().install_lm_sensors_command()
-
-
-    def _comando_servicio_nct6687_persistente(self):
-        tools_dir = str(self._tool_dir() / 'nct6687d')
-        return self._os_repository().install_fan_persistence_command(tools_dir)
-
-
-
 
 
     def _resumen_fan(self, sensores, modulos):

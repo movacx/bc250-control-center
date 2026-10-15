@@ -1,11 +1,9 @@
-import os
 import subprocess
 from pathlib import Path
 
 from bc250cc.infrastructure.dependencias_repository import DependenciasRepository
 from bc250cc.infrastructure.gpu_repository import GPURepository
 from bc250cc.infrastructure.terminal_plan import workflow_wrapper
-from bc250cc.infrastructure.terminal_repository import TerminalRepository
 
 
 def test_cyan_installer_reloads_system_dbus_policy():
@@ -184,27 +182,6 @@ def test_a_workflow_shown_in_the_console_does_not_wait_for_a_key_press():
         assert 'tee' in wrapper
         assert '> /tmp/s' in wrapper
         assert wrapper.rstrip().endswith('exit "$status"')
-
-
-def test_manual_terminal_log_is_complete_and_preserves_failure(tmp_path, monkeypatch):
-    monkeypatch.setenv('XDG_STATE_HOME', str(tmp_path))
-    script = TerminalRepository()._manual_terminal_script(
-        "printf 'stdout-line\\n'; printf 'stderr-line\\n' >&2; exit 17",
-        'Logging test',
-    )
-
-    completed = subprocess.run(
-        ['bash', str(script)], capture_output=True, text=True, check=False,
-        env={**os.environ, 'XDG_STATE_HOME': str(tmp_path)},
-    )
-    assert completed.returncode == 17
-    logs = list((tmp_path / 'bc250-control-center' / 'terminal').glob('workflow-*.log'))
-    assert len(logs) == 1
-    log = logs[0].read_text(encoding='utf-8')
-    assert 'stdout-line' in log
-    assert 'stderr-line' in log
-    assert 'Process finished with exit code 17' in log
-    assert f'Full log saved to: {logs[0]}' in log
 
 
 def test_steamos_nct6687_install_waits_before_reporting_load_error():

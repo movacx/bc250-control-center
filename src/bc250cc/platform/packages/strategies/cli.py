@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 from .detector import read_os_release
@@ -30,12 +31,16 @@ def main() -> int:
 
     host = StandaloneHost()
     repository = create_os_repository(host)
-    command = repository.prepare_dependencies_command(
-        'all' if args.runtime else args.component,
-        cu_manager_script=args.cu_manager_script,
-        mode=args.mode,
-    )
-    completed = subprocess.run(['bash', '-lc', command], check=False)
+    try:
+        command = repository.prepare_dependencies_command(
+            'all' if args.runtime else args.component,
+            cu_manager_script=args.cu_manager_script,
+            mode=args.mode,
+        )
+    except RuntimeError as error:
+        print(f'Error: {error}', file=sys.stderr)
+        return 3
+    completed = subprocess.run(['bash', '-c', command], check=False)
     return completed.returncode
 
 

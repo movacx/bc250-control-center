@@ -9,7 +9,6 @@ from bc250cc.infrastructure.polkit_session import pkexec_argv
 from bc250cc.infrastructure.session_privilege_policy import (
     SteamSessionSignals,
     classify_steamos_game_mode,
-    has_desktop_shell,
     trusted_helper_metadata,
 )
 from bc250cc.shared.failure_text import describe_failure
@@ -67,13 +66,6 @@ class PrivilegeRepository:
             return 0
         match = re.search(r'^BC250_HELPER_PROTOCOL\s*=\s*(\d+)\s*$', text, re.MULTILINE)
         return int(match.group(1)) if match else 0
-
-    def _steam_session_has_desktop_shell(self):
-        text = ' '.join(
-            os.environ.get(name, '')
-            for name in ('XDG_CURRENT_DESKTOP', 'XDG_SESSION_DESKTOP', 'DESKTOP_SESSION')
-        )
-        return has_desktop_shell(text)
 
     def _steamos_game_mode_detected(self):
         try:

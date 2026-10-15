@@ -1286,10 +1286,6 @@ class Plugin:
         )
         return self._record_action("fan", f"pwm{normalized_channel}:{normalized_target}", result)
 
-    async def apply_saved_cpu_profile(self) -> dict:
-        result = await self._run_single_operation("cpu-apply-saved", timeout=920)
-        return self._record_action("cpu", "saved", result)
-
     @staticmethod
     def _cpu_value(value: int, allowed: tuple[int, ...], label: str) -> int:
         if isinstance(value, bool) or type(value) not in {int, str}:
@@ -1567,3 +1563,7 @@ class Plugin:
             if result.get("ok") is False:
                 errors.append(str(result.get("error") or "Restore failed."))
         return {"ok": not errors, "restored": True, "name": session.get("name", ""), "error": " ".join(errors)}
+
+    async def apply_saved_cpu_profile(self) -> dict:
+        result = await self._run_single_operation("cpu-apply-saved", timeout=920)
+        return self._record_action("cpu", "saved", result)

@@ -6,7 +6,6 @@ import shutil
 import subprocess
 import threading
 import time
-from dataclasses import asdict
 from pathlib import Path
 
 import psutil
@@ -31,7 +30,6 @@ from bc250cc.infrastructure.gpu_repository import GPURepository
 from bc250cc.infrastructure.memory_runtime import read_memory_runtime_state
 from bc250cc.infrastructure.persistence.activity_journal import activity_journal_path
 from bc250cc.infrastructure.persistence.configuracion_local import ConfiguracionLocal
-from bc250cc.infrastructure.persistence.profile_bundle import ProfileBundleRepository
 from bc250cc.infrastructure.polkit_session import normalize_polkit_error
 from bc250cc.infrastructure.privilege_repository import PrivilegeRepository
 from bc250cc.infrastructure.realtime_metrics_policy import (
@@ -263,10 +261,6 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
             'sensor_label': str(selected.get('sensor_label') or ''),
         }
 
-    def potencia_gpu(self):
-        """Compatibility accessor for the AMDGPU/SoC channel only."""
-        return self.lectura_potencia().get('gpu_w')
-
     def voltaje_chip(self, chip, etiqueta):
         for nombre, carpeta in self.hwmons:
             if chip.lower() not in nombre.lower():
@@ -425,13 +419,6 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
         except Exception as error:
             return 1, '', str(error)
 
-    def _leer_gpu_archivo(self, nombre):
-        for ruta in sorted(Path('/sys/class/drm').glob('card*/device')):
-            archivo = ruta / nombre
-            if archivo.exists():
-                return self._leer_texto(archivo)
-        return None
-
     def _gpu_device_path(self):
         for ruta in sorted(Path('/sys/class/drm').glob('card*/device')):
             vendor = self._leer_texto(ruta / 'vendor') or ''
@@ -463,9 +450,6 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
         if sampler is None:
             sampler = self._drm_fdinfo_sampler = DrmFdinfoSampler()
         return sampler
-
-    def _gpu_fdinfo_total_ns(self):
-        return sum(self._gpu_fdinfo_sampler().sample().values())
 
     def _update_gpu_compute(self, sampler, compute, ahora):
         previous = self.gpu_compute_anterior
@@ -668,26 +652,8 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
             'recovery': str(self._recovery_snapshot_root()),
         }
 
-    def leer_config_local(self):
-        return self.configuracion.leer_config()
-
-    def guardar_config_local(self, datos):
-        return self.configuracion.guardar_config(datos)
-
-    def leer_perfiles_locales(self):
-        return self.configuracion.leer_perfiles()
-
     def registrar_metrica_runtime(self, datos):
         return self.configuracion.registrar_metrica_runtime(datos)
-
-    def exportar_bundle_perfil(self, destino):
-        return str(ProfileBundleRepository(self.configuracion).export(destino))
-
-    def previsualizar_bundle_perfil(self, origen):
-        return asdict(ProfileBundleRepository(self.configuracion).preview(origen))
-
-    def importar_bundle_perfil(self, origen):
-        return str(ProfileBundleRepository(self.configuracion).import_bundle(origen))
 
     def exportar_metricas_runtime(self, destino, formato='csv'):
         # The optional daemon is the normal producer.  A first-time desktop
@@ -1230,3 +1196,6 @@ class SistemaRepository(PrivilegeRepository, TerminalRepository, DependenciasRep
 
     def obtener_procesos(self):
         return psutil.process_iter(['pid', 'name', 'cmdline', 'memory_info', 'uids'])
+
+    def leer_config_local(self):
+        return self.configuracion.leer_config()

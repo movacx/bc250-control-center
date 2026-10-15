@@ -56,10 +56,6 @@ def set_translator(translate=None) -> None:
     _TRANSLATOR = translate if callable(translate) else _identity
 
 
-def active_translator():
-    return _TRANSLATOR
-
-
 def exit_explanation_shell(translate=None) -> str:
     """Shell fragment explaining a failing status, with a traceable code.
 

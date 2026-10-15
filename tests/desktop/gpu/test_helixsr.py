@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import shutil
 import subprocess
 import zipfile
 from pathlib import Path
@@ -19,6 +20,8 @@ import pytest
 
 from bc250cc.infrastructure import helixsr
 from bc250cc.infrastructure.dependencias_repository import DependenciasRepository
+
+needs_cmp = pytest.mark.skipif(shutil.which("cmp") is None, reason="the fake DLL check uses cmp (diffutils)")
 
 DLL = b"MZ helixsr test dll"
 ORIGINAL = b"MZ the game's own FSR 3.1 dll"
@@ -217,6 +220,7 @@ def _run_install(home: Path, archive: Path, monkeypatch, *, pin: bool = True,
     )
 
 
+@needs_cmp
 def test_the_install_verifies_unpacks_and_builds_the_network(home, monkeypatch):
     result = _run_install(home, _release_zip(home / "release.zip"), monkeypatch)
     assert result.returncode == 0, result.stdout + result.stderr
@@ -225,6 +229,7 @@ def test_the_install_verifies_unpacks_and_builds_the_network(home, monkeypatch):
     assert os.access(helixsr.helixsr_directory() / "setup/lib/model/launch_synth", os.X_OK)
 
 
+@needs_cmp
 def test_the_long_shader_step_is_announced_and_its_progress_watched(home, monkeypatch):
     """Step 5/5 prints nothing for ~10 minutes: the setup's own temp folder
     is ours, so its finished shaders can be counted, and both go at the end."""
@@ -738,6 +743,7 @@ def _setup_args() -> list[str]:
     return (helixsr.helixsr_directory() / ".setup-args").read_text(encoding="utf-8").split()
 
 
+@needs_cmp
 def test_the_client_copy_of_dlss_spares_the_nvidia_download(home, monkeypatch):
     payload = _client_dlss(home, monkeypatch, DLSS)
     assert helixsr.helixsr_state(machine="x86_64")["local_dlss"] is True
@@ -765,6 +771,7 @@ def test_a_changed_client_copy_is_skipped_and_nothing_is_downloaded_without_a_ye
     assert helixsr.helixsr_state(machine="x86_64")["state"] == "needs-network"
 
 
+@needs_cmp
 def test_without_the_client_the_dll_is_downloaded_after_a_yes_and_checked(home, monkeypatch):
     monkeypatch.setenv("XDG_CONFIG_HOME", str(home / "config"))
     monkeypatch.setattr(helixsr, "DLSS_DLL_SHA256", _sha(DLSS))
@@ -1226,6 +1233,7 @@ def test_a_pick_is_saved_and_falls_back_to_the_default_once_withdrawn(home):
     assert helixsr.helixsr_release()["tag"] == helixsr.HELIXSR_TAG
 
 
+@needs_cmp
 def test_a_release_from_githubs_list_is_checked_by_its_published_digest(home, monkeypatch):
     """1.9.0's archive is HelixSR-1.9.0.2.zip with HelixSR-1.9.0 inside."""
     other = b"MZ helixsr from github"
@@ -1308,6 +1316,7 @@ def test_the_release_list_is_read_in_the_terminal_and_kept_small(home):
     assert "v2.0.0" in [r["tag"] for r in helixsr.helixsr_releases()]
 
 
+@needs_cmp
 def test_a_built_network_inside_the_dll_is_recognised_and_copied_alone(home, monkeypatch):
     """1.8 appends the network to HelixSR's DLL: the DLL is still the
     reviewed one once that part is set aside, and no network files follow."""

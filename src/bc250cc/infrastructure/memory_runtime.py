@@ -16,15 +16,6 @@ GIB = 1024 ** 3
 TTM_GIB_PRESETS = (8, 10, 12)
 
 
-def ttm_pages_for_gib(gib: int, *, page_size: int = 4096) -> int:
-    """Convert a visible GiB target to the TTM module's page count."""
-    if type(gib) is not int or gib not in TTM_GIB_PRESETS:
-        raise ValueError("TTM target must be one of the reviewed 8, 10, or 12 GiB presets.")
-    if type(page_size) is not int or page_size <= 0 or GIB % page_size:
-        raise ValueError("The running kernel page size cannot represent a whole GiB target.")
-    return gib * GIB // page_size
-
-
 def _read_text(path: Path) -> str:
     try:
         return path.read_text(encoding="utf-8", errors="strict").strip()

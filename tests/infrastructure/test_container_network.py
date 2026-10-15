@@ -10,7 +10,6 @@ import pytest
 from bc250cc.infrastructure import container_network, vaapi_video
 from bc250cc.infrastructure.accessories import hdmi_cec
 from bc250cc.infrastructure.apu_telemetry_service import _container_build
-from bc250cc.infrastructure.bc250_fsr4 import build_fsr4_v3_bazzite_install_command
 
 
 def _network(tmp_path, *, podman="podman", mount_fails=False, userns_works=True, with_unshare=True):
@@ -83,15 +82,6 @@ def test_the_telemetry_build_stays_isolated_unless_the_overlay_leaves_no_other_w
     preflight, build = _container_build("'/src'")
     assert any("bc250_container_network()" in line for line in preflight)
     assert "${bc250_net:---network=none}" in build[0]
-
-
-def test_the_fsr4_build_uses_it_for_the_image_and_both_runs(tmp_path, monkeypatch):
-    from bc250cc.infrastructure import bc250_fsr4
-
-    monkeypatch.setattr(bc250_fsr4, "clone_or_update_commit", lambda *_args: "git -C x checkout")
-    command = build_fsr4_v3_bazzite_install_command(tmp_path / "fsr4")
-    assert command.count("$bc250_net") >= 4
-    assert "podman build --tag" not in command and "podman run --rm \\\n" not in command
 
 
 def test_every_bash_flow_that_runs_podman_asks_the_kernel_first():

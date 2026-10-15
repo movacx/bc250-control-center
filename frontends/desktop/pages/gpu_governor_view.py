@@ -791,9 +791,6 @@ class SafePointRail(QWidget):
         return self._minimum, self._maximum
 
     # -- controller and keyboard -------------------------------------------
-    def active_handle(self) -> str:
-        return self._active
-
     def set_active_handle(self, handle: str) -> None:
         if handle in ("minimum", "maximum") and handle != self._active:
             self._active = handle
@@ -999,6 +996,9 @@ class SafePointRail(QWidget):
     def focusOutEvent(self, event) -> None:  # noqa: N802 (Qt)
         super().focusOutEvent(event)
         self.update()
+
+    def active_handle(self) -> str:
+        return self._active
 
 
 # ─────────────────────────────────────────────────────────────────────────────

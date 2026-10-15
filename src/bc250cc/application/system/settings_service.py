@@ -48,9 +48,6 @@ class SettingsService:
     def save_local_config(self, values: dict) -> dict:
         return self._store.guardar_config(values)
 
-    def read_local_profiles(self) -> dict:
-        return self._store.leer_perfiles()
-
     def export_profile_bundle(self, destination: str | Path) -> str:
         return str(self._bundle_repository.export(destination))
 

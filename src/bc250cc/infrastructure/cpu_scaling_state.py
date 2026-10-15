@@ -64,16 +64,3 @@ def _override_active(root: Path) -> bool:
             return True
     return False
 
-
-def detect_cpu_scaling(*, root: Path | str = "/") -> dict[str, object]:
-    """Report whether CPU frequency scaling is available, without changing it."""
-    base = Path(root)
-    cpufreq = base / CPU_ROOT / "cpu0/cpufreq"
-    driver = _read(cpufreq / "scaling_driver")
-    governor = _read(cpufreq / "scaling_governor")
-    return CpuScalingState(
-        scaling_available=bool(driver),
-        scaling_driver=driver,
-        governor=governor,
-        acpi_override_active=_override_active(base),
-    ).to_dict()

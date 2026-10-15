@@ -561,8 +561,9 @@ def test_40cu_reference_is_not_an_installed_or_cloned_dependency():
 
 
 def test_core_unlock_is_an_official_cloned_dependency():
-    dependency_source = Path("src/bc250cc/infrastructure/dependencias_repository.py").read_text(
-        encoding="utf-8"
+    dependency_source = "\n".join(
+        Path(f"src/bc250cc/infrastructure/{name}.py").read_text(encoding="utf-8")
+        for name in ("dependencias_repository", "dependencias_constants")
     )
     manifest_source = Path("src/bc250cc/infrastructure/external_tools/catalog.py").read_text(encoding="utf-8")
     assert "https://github.com/rw-r-r-0644/bc250-core-unlock" in manifest_source
@@ -606,20 +607,6 @@ def test_changed_40cu_output_format_produces_clear_error():
         repository.obtener_estado_cu()
 
 
-def test_standard_cu_backend_gets_bounded_umr_selector_fallback():
-    repository = CURepository()
-    repository._command_path = lambda name: f"/usr/bin/{name}"
-    shell = repository._exportar_env_cu({
-        "cu_manager_backend": "standard",
-        "is_steamos": False,
-        "umr": "/usr/bin/umr",
-    })
-    assert "cyan_skillfish.gfx1013" in shell
-    assert "umr -lb" in shell
-    assert "mmSPI_PG_ENABLE_STATIC_WGP_MASK" in shell
-    assert "while IFS= read -r bc250_candidate" in shell
-
-
 def test_community_research_and_bazzite_sources_are_credited_without_becoming_dependencies():
     readme = Path("README.md").read_text(encoding="utf-8")
     notices = Path("docs/THIRD_PARTY_NOTICES.md").read_text(encoding="utf-8")
@@ -638,31 +625,6 @@ def test_community_research_and_bazzite_sources_are_credited_without_becoming_de
     assert "rpf16rj/bc250-steamos-real-toolkit" not in dependency_source
     assert "redbeard1083/bc250-toolkit" not in dependency_source
     assert "62fixolab/Latest-Bazzite-AMD-BC-250-Patched-Images" not in dependency_source
-
-
-@pytest.mark.parametrize("gc_block", ("gfx1010", "gfx1013"))
-def test_steamos_cu_backend_derives_static_selector_without_scan(tmp_path, gc_block):
-    database = tmp_path / "umr-db"
-    database.mkdir()
-    (database / "cyan_skillfish.asic").write_text(
-        f"cyan_skillfish soc15 10 1 256 1\n{gc_block} GC 0 {gc_block}.reg\n",
-        encoding="utf-8",
-    )
-    (database / f"{gc_block}.reg").write_text(
-        "mmCC_GC_SHADER_ARRAY_CONFIG\n"
-        "mmSPI_PG_ENABLE_STATIC_WGP_MASK\n"
-        "mmRLC_PG_ALWAYS_ON_WGP_MASK\n",
-        encoding="utf-8",
-    )
-    repository = CURepository()
-    repository._tool_dir = lambda: tmp_path / "tools"
-    shell = repository._exportar_env_cu({
-        "cu_manager_backend": "steamos",
-        "is_steamos": True,
-        "cu_steamos_umr_database": str(database),
-    })
-    assert f"UMR_ASIC=cyan_skillfish.{gc_block}" in shell
-    assert "-lb" not in shell
 
 
 def test_busctl_properties_require_the_expected_typed_format():

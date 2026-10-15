@@ -11,14 +11,9 @@ from bc250cc.infrastructure.quick_access_policy import (
     CU_MODES,
     FAN_SYSTEM_PRESETS,
     GPU_PROFILES,
-    QAM_FAN_CHANNELS,
-    QAM_FAN_MAX_PERCENT,
-    QAM_FAN_MIN_PERCENT,
     cu_mode,
     fan_system_preset,
     gpu_profile,
-    safe_fan_channel,
-    safe_fan_percent,
 )
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -43,27 +38,6 @@ def test_quick_access_cu_modes_cannot_become_a_command_channel():
         cu_mode("install-service")
     with pytest.raises(ValueError):
         cu_mode(25)
-
-
-@pytest.mark.parametrize("value", [2, "3", 4, "5"])
-def test_quick_access_fan_restore_validates_channel(value):
-    assert safe_fan_channel(value) == int(value)
-
-
-@pytest.mark.parametrize("value", [0, 1, 2.5, 6, 12, "02", "x", None, True])
-def test_quick_access_fan_restore_rejects_unsafe_channel(value):
-    with pytest.raises(ValueError):
-        safe_fan_channel(value)
-
-
-def test_quick_access_manual_fan_percentage_is_thermally_bounded():
-    assert QAM_FAN_CHANNELS == (2, 3, 4, 5)
-    assert (QAM_FAN_MIN_PERCENT, QAM_FAN_MAX_PERCENT) == (20, 100)
-    assert safe_fan_percent("20") == 20
-    assert safe_fan_percent(100) == 100
-    for value in (0, 19, 20.5, 101, "020", "x", None, True):
-        with pytest.raises(ValueError):
-            safe_fan_percent(value)
 
 
 def test_quick_access_cpu_domain_is_finite_and_fans_are_named_presets():

@@ -40,18 +40,7 @@ QT_OVERRIDES = frozenset({
 # Features that are fully written but have no control that invokes them.  Each
 # one is a decision waiting to be made — wire it up or delete it — not an
 # accident, so they are listed by name rather than tolerated by pattern.
-UNWIRED_FEATURES = frozenset({
-    "SettingsPage._build_notifications_page",
-    "SettingsPage._import_profile_bundle",
-    "SettingsPage._export_profile_bundle",
-    "SettingsPage._evaluate_memory_pressure",
-    "SettingsPage._show_local_paths",
-    "SettingsPage._banner",
-    "CpuSmuPage.test_scale_live",
-    "CpuSmuPage._build_command_context_card",
-    "DependencyPreparationDialog._ttm_memory_card",
-    "DependencyPreparationDialog._show_memory_policy_preview",
-})
+UNWIRED_FEATURES: frozenset[str] = frozenset()
 
 
 def _identifiers(paths) -> collections.Counter:

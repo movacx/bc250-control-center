@@ -3,8 +3,14 @@
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 from pathlib import Path
+
+import pytest
+
+pytestmark = pytest.mark.skipif(shutil.which("git") is None, reason="git is not installed")
+
 
 ROOT = Path(__file__).resolve().parents[2]
 COMMON = ROOT / "packaging/common/os-scripts/common/common.sh"

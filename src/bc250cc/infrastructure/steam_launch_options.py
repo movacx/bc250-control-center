@@ -257,17 +257,6 @@ def merge_dll_override(options: str, dll: str) -> str:
 
 # ------------------------------------------------------------------ the files
 
-def launch_options_for(appid: str, home: Path | None = None) -> dict[Path, str]:
-    """Each Steam profile's current launch options for the app."""
-    result = {}
-    for path in localconfig_files(home):
-        try:
-            result[path] = read_launch_options(path.read_text(encoding="utf-8"), appid)
-        except (OSError, UnicodeDecodeError, SteamConfigError):
-            continue
-    return result
-
-
 def add_dll_override(appid: str, dll: str, *, home: Path | None = None,
                      proc: Path = Path("/proc")) -> dict:
     """Write the override into every Steam profile that knows this game."""

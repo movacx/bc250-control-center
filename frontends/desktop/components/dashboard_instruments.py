@@ -287,12 +287,12 @@ class ReadingBook(QWidget):
         self._group_titles[key] = group
         return reading
 
+    def __getitem__(self, key: str) -> Reading:
+        return self.readings[key]
+
     def group_of(self, key: str) -> str:
         """The (untranslated) title of the group a reading was placed in."""
         return self._group_titles.get(key, "")
-
-    def __getitem__(self, key: str) -> Reading:
-        return self.readings[key]
 
 
 class Headline(QWidget):

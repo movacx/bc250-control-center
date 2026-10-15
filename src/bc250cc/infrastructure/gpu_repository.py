@@ -323,55 +323,6 @@ class GPURepository:
         self._restart_governor(service)
         return True
 
-    def asegurar_telemetria_gpu_cyan(self):
-        """Validate Cyan telemetry without overriding either explicit switch."""
-        telemetry = self._cyan_configuration_state()[-1]
-        result = self._editar_governor_toml(
-            "ensure-cyan-telemetry", bool(telemetry.get("fix_frequency"))
-        )
-        restarted = self._restart_governor_if_active(
-            str(GOVERNOR_SPECS[CYAN_GOVERNOR]["service"])
-        )
-        self.estado_bc250_cache = None
-        return result + (" Active Cyan service restarted." if restarted else "")
-
-    def desactivar_fix_metricas_gpu_cyan(self):
-        """Disable Cyan's optional metrics overlay without changing live clocks.
-
-        Editing ``fix-metrics`` is configuration-only, but an active Cyan
-        service must restart before the overlay disappears.  A restart can
-        otherwise reset an operator's selected min/max clock range, so this
-        follows the same read-before-write / restore-after-restart contract as
-        the voltage and high-point operations.  If the current range cannot
-        be read, leave both the file and service untouched.
-        """
-        service = str(GOVERNOR_SPECS[CYAN_GOVERNOR]["service"])
-        was_active = self._service_is_active(service)
-        previous_range = None
-        if was_active:
-            previous_range = self._leer_rango_governor("Current")
-            if previous_range is None:
-                raise RuntimeError(
-                    "The active Cyan range could not be read through D-Bus. "
-                    "The optional metrics overlay was not changed because "
-                    "restarting now could reset the current GPU range."
-                )
-        result = self._editar_governor_toml("set-cyan-metrics-fix", False)
-        if not was_active:
-            self.estado_bc250_cache = None
-            return (
-                result + " Cyan is inactive; fix-metrics will remain disabled "
-                "when the service is next started."
-            )
-        if not self._restart_governor_if_active(service):
-            raise RuntimeError("The active Cyan governor could not be restarted.")
-        restored = self._restaurar_rango_governor(previous_range)
-        self.estado_bc250_cache = None
-        return (
-            f"{result} Runtime range preserved at "
-            f"{restored[0]}-{restored[1]} MHz after the Cyan restart."
-        )
-
     def _cyan_metrics_overlay_available(self):
         """Return whether this kernel exposes Cyan's bind-mount destination.
 
@@ -773,8 +724,8 @@ class GPURepository:
             # Game Mode's helper needs no password: apply it right here.
             try:
                 self._editar_governor_toml(request.action, set_method, usage_method, False, False)
-            except Exception:
-                pass
+            except (OSError, ValueError, RuntimeError) as exc:
+                return f"Could not apply the governor setting: {exc}"
             return ""
         helper = self._governor_config_helper_path()
         if not helper:
@@ -1049,27 +1000,6 @@ class GPURepository:
         return GovernorTomlEditor(
             self._cyan_runtime_config_path()
         ).frequency_range_state()
-
-    def _cyan_high_points_enabled(self):
-        return bool(
-            GovernorTomlEditor(self._cyan_runtime_config_path())
-            .high_frequency_state()
-            .get("enabled")
-        )
-
-    def _cyan_set_method(self) -> str:
-        try:
-            state = GovernorTomlEditor(
-                self._cyan_runtime_config_path()
-            ).gpu_telemetry_state()
-        except (OSError, RuntimeError, ValueError) as error:
-            raise RuntimeError(
-                "The Cyan GPU backend could not be validated before changing frequency."
-            ) from error
-        method = str(state.get("set_method") or "").strip().lower()
-        if method not in {"smu", "kernel"}:
-            raise RuntimeError("Cyan gpu.set-method must be smu or kernel.")
-        return method
 
     def aplicar_perfil_gpu(self, minimo, maximo):
         """Apply a live GPU profile without rewriting persistent TOML limits.
@@ -1346,34 +1276,6 @@ class GPURepository:
         if minimo is None or maximo is None or minimo > maximo:
             return None
         return int(minimo), int(maximo)
-
-    def _esperar_rango_governor(self, expected, *, timeout=1.5):
-        expected = int(expected[0]), int(expected[1])
-        deadline = time.monotonic() + max(0.1, float(timeout))
-        current = None
-        while time.monotonic() < deadline:
-            current = self._leer_rango_governor("Current")
-            if current == expected:
-                return current
-            time.sleep(0.05)
-        return current
-
-    def _require_cyan_runtime_range_ready(self):
-        """Block a new live request while Cyan is still recovering its D-Bus API.
-
-        A voltage-curve transaction restarts Cyan and restores the previous
-        range before it returns.  If that transaction reports a failure, the
-        system-bus objects can still be absent while SteamOS retries the
-        hwmon/fix-freq path.  Sending another SetRange at that point only
-        produces a second, less useful failure and obscures the first one.
-        """
-        current = self._leer_rango_governor("Current")
-        if current is None:
-            raise RuntimeError(
-                "Cyan D-Bus runtime range is not ready after a governor restart. "
-                "Wait for Cyan to recover, then refresh GPU status before applying a new range."
-            )
-        return current
 
     @staticmethod
     def _limitar_rango_governor(previous, allowed):

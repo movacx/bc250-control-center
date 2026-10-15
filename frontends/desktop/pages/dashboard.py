@@ -1187,10 +1187,6 @@ class DashboardPage(QWidget):
         return "warning" if value_c >= warm else ""
 
     @staticmethod
-    def _format_ghz(value_mhz: int) -> str:
-        return f"{value_mhz / 1000:.2f} GHz" if value_mhz > 0 else "Not detected"
-
-    @staticmethod
     def _format_mhz(value_mhz: int) -> str:
         return f"{value_mhz} MHz" if value_mhz > 0 else "Not detected"
 
@@ -1429,3 +1425,7 @@ class DashboardPage(QWidget):
                 )
             for row in range((len(self.instruments) + module_columns - 1) // module_columns):
                 self.modules_grid.setRowStretch(row, 1)
+
+    @staticmethod
+    def _format_ghz(value_mhz: int) -> str:
+        return f"{value_mhz / 1000:.2f} GHz" if value_mhz > 0 else "Not detected"

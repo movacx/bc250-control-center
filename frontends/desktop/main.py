@@ -17,15 +17,6 @@ from frontends.desktop.i18n import tr
 PERFORMANCE_RECORDING_DELAY_MS = 2000
 
 
-def build_desktop_api():
-    """Build the desktop-facing application API from the composition root."""
-
-    service = ApplicationContainer.production().system_service
-    if service is None:
-        raise RuntimeError("Application container did not construct the system service")
-    return service
-
-
 def main() -> int:
     configure_logging()
     # Text baked into the generated terminal script has to be translated here,

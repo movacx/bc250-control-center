@@ -164,12 +164,6 @@ def _configured_tokens(host: Host, backend: str) -> set[str]:
     return _tokens(text)
 
 
-def _configured(host: Host, backend: str) -> set[str]:
-    """Arguments the boot configuration asks for, whoever wrote them."""
-    tokens = _configured_tokens(host, backend)
-    return {argument for argument in ARGUMENTS if argument in tokens}
-
-
 def _other_cu_mode(tokens: set[str]) -> bool:
     """The write mode set to something other than 3, by somebody else."""
     return any(token.startswith(CU_UNLOCK_PREFIX) and token != CU_UNLOCK for token in tokens)

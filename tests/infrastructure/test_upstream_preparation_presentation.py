@@ -8,7 +8,11 @@ import pytest
 from PyQt6.QtCore import QSettings
 from PyQt6.QtWidgets import QApplication, QSizePolicy
 
-from frontends.desktop.components import dashboard_widgets
+from frontends.desktop.components import (
+    dashboard_widgets,
+    preparation_pages,
+    preparation_render,
+)
 from frontends.desktop.components.dashboard_widgets import PreparationSidebar
 
 _APP: QApplication | None = None
@@ -226,7 +230,9 @@ def test_the_superseded_steamos_fsr4_step_stays_off_the_graphics_card():
 def test_steamos_ready_fsr4_is_offered_on_the_graphics_card(monkeypatch):
     # The backend is kept for a later return; with the flag on, the card
     # must still offer it exactly as before.
-    monkeypatch.setattr(dashboard_widgets, "GFX1013_FSR4_UI_ENABLED", True)
+    for module in (dashboard_widgets, preparation_pages, preparation_render):
+        if hasattr(module, "GFX1013_FSR4_UI_ENABLED"):
+            monkeypatch.setattr(module, "GFX1013_FSR4_UI_ENABLED", True)
     sidebar = _sidebar()
     option = (
         '"$HOME/.local/share/bc250-mesh-shader/fsr4/bc250-fsr4-run" %command%'

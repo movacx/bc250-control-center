@@ -165,10 +165,6 @@ def config_path() -> Path:
     return _config_home() / "cecd" / "config.d" / CONFIG_NAME
 
 
-def dbus_service_path() -> Path:
-    return _data_home() / "dbus-1" / "services" / f"{BUS_NAME}.service"
-
-
 def adapters(root: Path = CEC_CLASS) -> list[str]:
     try:
         return sorted(path.name for path in root.iterdir() if path.name.startswith("cec"))

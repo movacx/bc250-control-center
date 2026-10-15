@@ -970,36 +970,6 @@ class CpuSmuPage(QWidget):
         self._retranslate_firmware_persistence_button()
         return card
 
-    def _build_command_context_card(self) -> SectionCard:
-        card = SectionCard(
-            "Technical context",
-            "Current command path and validated limits for this CPU session.",
-            icon_name="info_blue",
-            icon_background=COLORS["blue_soft"],
-            compact=True,
-        )
-        panel = QFrame()
-        panel.setProperty("compactPanel", True)
-        layout = QVBoxLayout(panel)
-        layout.setContentsMargins(10, 8, 10, 8)
-        layout.setSpacing(6)
-        self.command_line = StatusLine(
-            "Command",
-            "bc250-detect --keep",
-            "Temporary CPU session action",
-            compact=True,
-        )
-        self.limits_line = StatusLine(
-            "UI limits",
-            "3100–4200 MHz",
-            "950–1325 mV · up to 90 °C",
-            compact=True,
-        )
-        layout.addWidget(self.command_line)
-        layout.addWidget(self.limits_line)
-        card.body.addWidget(panel)
-        return card
-
     def _build_advanced_card(self) -> SectionCard:
         card = SectionCard(
             "Advanced details",
@@ -1490,79 +1460,6 @@ class CpuSmuPage(QWidget):
             ),
             f"Manual CPU OC {frequency} MHz / scale {scale} / {temperature} °C",
             "Manual CPU configuration rejected",
-        )
-
-    def test_scale_live(self) -> None:
-        if self.process is not None and self.process.state() != QProcess.ProcessState.NotRunning:
-            self._show_info(
-                "CPU operation in progress",
-                "Wait for the current process to finish before testing another CPU scale.",
-                tone="orange", modal=False,
-            )
-            return
-        if not self.scale_override_check.isChecked():
-            self._show_info(
-                "Manual scale test is disabled",
-                "Enable 'Test a manual scale after bc250-detect' first.",
-                tone="orange",
-            )
-            return
-        requested = self.scale_control.value()
-        requested_frequency = self.frequency_control.value()
-        requested_temperature = self.temperature_control.value()
-        try:
-            analysis = _dict(self.controller.evaluar_override_escala_cpu(
-                requested, requested_frequency
-            ))
-        except Exception as exc:
-            self._show_info("Unsafe CPU scale test", str(exc), tone="red")
-            return
-
-        reference = int(analysis.get("reference_scale", requested))
-        requested_vid = analysis.get("requested_estimated_vid")
-        reference_vid = analysis.get("reference_estimated_vid")
-        delta_vid = analysis.get("estimated_vid_delta")
-        delta_steps = int(analysis.get("delta_steps", 0))
-        direction = (
-            tr("less negative — estimated voltage increases")
-            if delta_steps > 0
-            else tr("more negative — estimated voltage decreases")
-            if delta_steps < 0
-            else tr("same as detected")
-        )
-        tone = "red" if analysis.get("requires_extreme_confirmation") else "orange"
-        dialog = ConfirmDialog(
-            "Test CPU scale live",
-            "This applies the selected scale to the current session without changing boot persistence. "
-            "Scale is a voltage-curve offset, not millivolts. A less-negative value generally raises voltage. "
-            "The VID shown here is only the upstream curve estimate; monitor the real sensor and stop if the board becomes unstable.",
-            summary=(
-                ("Detected reference", f"scale {reference} · ~{reference_vid} mV estimated"),
-                ("Live candidate", f"{requested_frequency} MHz · scale {requested} · ~{requested_vid} mV estimated"),
-                ("Temperature limit", f"{requested_temperature} °C"),
-                ("Difference", f"{delta_steps:+d} scale steps · {int(delta_vid or 0):+d} mV estimated"),
-                ("Direction", direction),
-                ("Persistence", "Unchanged — live session only"),
-            ),
-            confirm_text="Authenticate and test live",
-            tone=tone,
-            parent=self,
-        )
-        if dialog.exec() != QDialog.DialogCode.Accepted:
-            return
-        self._pending_live_scale = int(requested)
-        self._pending_live_frequency = int(requested_frequency)
-        self._pending_live_temperature = int(requested_temperature)
-        self._pending_manual_direct = False
-        self._build_and_start_process(
-            lambda: self.controller.comando_cpu_scale_live_embebido(
-                requested,
-                bool(analysis.get("requires_extra_confirmation")),
-                requested_frequency,
-                requested_temperature,
-            ),
-            f"Live CPU test {requested_frequency} MHz / scale {requested}",
-            "CPU scale test rejected",
         )
 
     def prepare_tools(self) -> None:

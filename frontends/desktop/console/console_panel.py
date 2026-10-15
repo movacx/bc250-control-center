@@ -324,9 +324,6 @@ class ConsolePanel(QFrame):
                 return tab
         return None
 
-    def tab_count(self) -> int:
-        return len(self._tabs)
-
     def running_count(self) -> int:
         return sum(1 for tab in self._tabs if tab.running_workflow)
 
@@ -841,3 +838,6 @@ class ConsolePanel(QFrame):
         for tab in self._tabs:
             tab.shutdown()
         self._announce_running_count()
+
+    def tab_count(self) -> int:
+        return len(self._tabs)

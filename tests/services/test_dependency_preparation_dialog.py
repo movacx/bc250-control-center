@@ -4,6 +4,7 @@ from PyQt6.QtWidgets import QFrame, QLabel, QPushButton, QScrollArea
 
 from frontends.desktop.i18n import tr
 from frontends.desktop.pages import gpu_governor as gpu_governor_module
+from frontends.desktop.pages import gpu_governor_widgets
 from frontends.desktop.pages.gpu_governor import (
     DependencyPreparationDialog,
     GpuGovernorPage,
@@ -450,11 +451,12 @@ def test_bazzite_upstream_button_opens_the_bazzite_async_compute_project(
     qtbot.addWidget(dialog)
 
     opened = []
-    monkeypatch.setattr(
-        gpu_governor_module,
-        "open_external_url",
-        lambda url: (opened.append(url) or True, ""),
-    )
+    for module in (gpu_governor_widgets, gpu_governor_module):
+        monkeypatch.setattr(
+            module,
+            "open_external_url",
+            lambda url: (opened.append(url) or True, ""),
+        )
     upstream = next(
         button
         for button in dialog.findChildren(QPushButton)

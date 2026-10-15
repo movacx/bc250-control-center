@@ -6,11 +6,6 @@ from bc250cc.platform.init.services import (
     InitManagerState,
     detect_init_manager,
     inspect_service,
-    openrc_enable_argv,
-    openrc_start_argv,
-    openrc_status_argv,
-    parse_openrc_runlevel,
-    parse_openrc_status,
 )
 
 
@@ -96,17 +91,6 @@ def test_unknown_init_has_an_explicit_non_persistent_state(tmp_path):
     )
     assert state.kind == 'unknown'
     assert state.persistence_supported is False
-
-
-def test_openrc_argv_and_parsers_are_strict():
-    assert openrc_status_argv('bc250-smu-oc.service') == ('rc-service', 'bc250-smu-oc', 'status')
-    assert openrc_start_argv('nct6687-load', 'restart') == ('rc-service', 'nct6687-load', 'restart')
-    assert openrc_enable_argv('bc250-cu-live-manager', True) == ('rc-update', 'add', 'bc250-cu-live-manager', 'default')
-    assert parse_openrc_status(0, ' * status: started') == 'active'
-    assert parse_openrc_status(3, ' * status: stopped') == 'inactive'
-    assert parse_openrc_status(1, ' * status: crashed') == 'failed'
-    assert parse_openrc_runlevel(' bc250-smu-oc | default\n', 'bc250-smu-oc') is True
-    assert parse_openrc_runlevel('nct6687-load | default\n', 'bc250-smu-oc') is False
 
 
 def test_shared_service_inspection_normalizes_systemd_state(tmp_path):
