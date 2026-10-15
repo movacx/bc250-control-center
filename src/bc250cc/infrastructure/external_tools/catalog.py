@@ -331,6 +331,34 @@ EXTERNAL_TOOLS: dict[str, ExternalToolSpec] = {
         rollback="Disable and remove the managed service and binary; no board state is kept.",
         validation_level="code-reviewed-hardware-gate-pending",
     ),
+    # Listed so the community's work on kernel-side sensors is on record. Control
+    # Center neither installs nor runs these: a person who wants them follows the
+    # upstream README. The revision is the upstream main at the time of listing,
+    # NOT a code review, which is what validation_level says.
+    "bc250_vrm_dkms": ExternalToolSpec(
+        key="bc250_vrm_dkms",
+        upstream="https://github.com/Hexxeh/bc250-vrm-dkms",
+        license="GPL-2.0",
+        reviewed_revision="fb842fa765bf3f67f559c7e63129f2326a72c6f7",
+        privilege_class="kernel-module-reference",
+        hardware_writes=False,
+        automated=False,
+        rollback="Nothing is installed by Control Center; remove the DKMS module following upstream.",
+        validation_level="reference-only-listed-not-code-reviewed",
+        payload_distribution="reference-only",
+    ),
+    "bc250_memory_dkms": ExternalToolSpec(
+        key="bc250_memory_dkms",
+        upstream="https://github.com/Hexxeh/bc250-memory-dkms",
+        license="GPL-2.0",
+        reviewed_revision="de4740c9b60b93c36f3ff6c85789e4aea3cefe31",
+        privilege_class="kernel-module-reference",
+        hardware_writes=False,
+        automated=False,
+        rollback="Nothing is installed by Control Center; remove the DKMS module following upstream.",
+        validation_level="reference-only-listed-not-code-reviewed",
+        payload_distribution="reference-only",
+    ),
 }
 
 
@@ -486,6 +514,20 @@ EXTERNAL_TOOL_LIFECYCLES: dict[str, ExternalToolLifecycle] = {
             "physical I2C modification described in the project's hardware.md."
         ),
     ),
+    "bc250_vrm_dkms": _lifecycle(
+        "Not installed by Control Center. Reference only: follow the upstream README to build the DKMS module.",
+        "No health check: Control Center does not run this project.",
+        "Nothing to remove; Control Center keeps no state for it.",
+        vocabulary="VRM temperature kernel module (reference)",
+        actions=(LifecycleAction.CHECK,),
+    ),
+    "bc250_memory_dkms": _lifecycle(
+        "Not installed by Control Center. Reference only: follow the upstream README to build the DKMS module.",
+        "No health check: Control Center does not run this project.",
+        "Nothing to remove; Control Center keeps no state for it.",
+        vocabulary="GDDR6 memory temperature kernel module (reference)",
+        actions=(LifecycleAction.CHECK,),
+    ),
 }
 
 
@@ -604,6 +646,9 @@ EXTERNAL_TOOL_DIRECTORIES = {
     "gfx1013_direct": "bc250-gfx1013-fix",
     "gddr6_memory_temp": "bc250-memory-temperature",
     "apu_telemetry": "bc250-telemetry",
+    # Reference only: never checked out by Control Center, listed for the record.
+    "bc250_vrm_dkms": "bc250-vrm-dkms",
+    "bc250_memory_dkms": "bc250-memory-dkms",
 }
 
 
