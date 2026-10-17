@@ -227,12 +227,21 @@ class AsyncRefresh(QObject):
         source_generation = self._source_generation
         task = _FunctionTask(self._name, self._operation)
         self._task = task
-        task.signals.succeeded.connect(
-            lambda result, generation=source_generation: self._result_ready(result, generation)
-        )
+        # Not a closure: Qt can still hold a queued ``succeeded`` for a refresher
+        # whose Python cycle the garbage collector has already cleared, and then
+        # calls a function with its defaults and cell contents gone ("missing
+        # argument", or a crash). A bound method of a QObject is disconnected by
+        # Qt itself when the object goes away, so nothing stale is ever called.
+        task.signals.source_generation = source_generation
+        task.signals.succeeded.connect(self._result_from_task)
         task.signals.failed.connect(self._error_ready)
         task.signals.finished.connect(self._finished)
         _submit(self._pool, task)
+
+    def _result_from_task(self, result: Any) -> None:
+        """Receive a task's result with the source generation it was started under."""
+        signals = self.sender()
+        self._result_ready(result, getattr(signals, "source_generation", None))
 
     def _result_ready(self, result: Any, source_generation: int | None = None) -> None:
         # Reached through a plain closure, and Qt only auto-disconnects a
