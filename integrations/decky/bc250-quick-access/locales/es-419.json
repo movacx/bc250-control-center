@@ -280,5 +280,8 @@
   "vramTtmConflict": "El límite de memoria GPU fijado para el próximo arranque ({limit}) es mayor que los {size} de memoria del sistema que deja este tamaño de VRAM. Bájalo después.",
   "ttmFailed": "No se pudo cambiar el límite de memoria GPU.",
   "ttmCause": "Este sistema no puede conservar el argumento de arranque, otra herramienta ya fijó el límite, o el gestor de arranque o rpm-ostree rechazó el cambio.",
-  "ttmAction": "Lee el motivo bajo Límite de memoria GPU y vuelve a intentar cuando el gestor de arranque o rpm-ostree esté libre."
+  "ttmAction": "Lee el motivo bajo Límite de memoria GPU y vuelve a intentar cuando el gestor de arranque o rpm-ostree esté libre.",
+  "gpuResets": "Reinicios de GPU",
+  "gpuResetsNone": "Ninguno desde el arranque",
+  "gpuResetsHint": "El registro del kernel muestra que la GPU se colgó desde que arrancó el equipo. Los detalles están en GPU › Detalles."
 }

@@ -280,5 +280,8 @@
   "vramTtmConflict": "O limite de memória da GPU definido para a próxima inicialização ({limit}) é maior que os {size} de memória do sistema que este tamanho de VRAM deixa. Reduza o limite depois.",
   "ttmFailed": "Não foi possível alterar o limite de memória da GPU.",
   "ttmCause": "Este sistema não consegue manter o argumento de inicialização, outra ferramenta já definiu o limite, ou o carregador de inicialização ou o rpm-ostree recusou a alteração.",
-  "ttmAction": "Leia o motivo em Limite de memória da GPU e tente de novo quando o carregador de inicialização ou o rpm-ostree estiver livre."
+  "ttmAction": "Leia o motivo em Limite de memória da GPU e tente de novo quando o carregador de inicialização ou o rpm-ostree estiver livre.",
+  "gpuResets": "Reinícios da GPU",
+  "gpuResetsNone": "Nenhum desde o arranque",
+  "gpuResetsHint": "O registo do kernel mostra que a GPU bloqueou desde que o sistema arrancou. Os detalhes estão em GPU › Detalhes."
 }

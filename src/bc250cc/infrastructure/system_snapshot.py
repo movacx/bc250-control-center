@@ -17,6 +17,7 @@ import subprocess
 from collections.abc import Callable
 from pathlib import Path
 
+from bc250cc.infrastructure.gpu_reset_log import read_gpu_resets
 from bc250cc.infrastructure.install_source import UpdateChannel, detect_install_source
 from bc250cc.shared.version import application_version
 
@@ -138,6 +139,28 @@ def _mesa() -> str:
     return UNKNOWN
 
 
+def _vulkan_driver() -> str:
+    """The Vulkan driver a game really gets, which the package manager may not know.
+
+    A per-user RADV build (FSR4, async compute) never shows up in ``pacman -Q mesa``.
+    """
+    text = _run(["vulkaninfo", "--summary"])
+    device = driver = ""
+    for line in text.splitlines():
+        key, _, value = line.partition("=")
+        key, value = key.strip(), value.strip()
+        if key == "deviceName" and not device and "llvmpipe" not in value.lower():
+            device = value
+        elif key == "driverInfo" and device and not driver:
+            driver = value
+    return " · ".join(part for part in (device, driver) if part) or UNKNOWN
+
+
+def _gpu_resets() -> str:
+    summary = read_gpu_resets()
+    return summary.label() if summary is not None else UNKNOWN
+
+
 def _governor() -> str:
     running = [name for unit, name in GOVERNOR_UNITS if _run(["systemctl", "is-active", unit]) == "active"]
     return ", ".join(running) if running else "None running"
@@ -171,7 +194,9 @@ def system_snapshot(project_root: Path | None = None) -> list[tuple[str, str]]:
         ("Memory", _memory),
         ("Graphics", _gpu),
         ("Mesa", _mesa),
+        ("Vulkan driver", _vulkan_driver),
         ("GPU governor", _governor),
+        ("GPU resets", _gpu_resets),
         ("Session", _session),
         ("Python", lambda: platform.python_version()),
     ]

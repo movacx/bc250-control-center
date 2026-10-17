@@ -280,5 +280,8 @@
   "vramTtmConflict": "Das für den nächsten Start gesetzte GPU-Speicherlimit ({limit}) ist größer als die {size} Systemspeicher, die diese VRAM-Größe übrig lässt. Danach das Limit senken.",
   "ttmFailed": "Das GPU-Speicherlimit konnte nicht geändert werden.",
   "ttmCause": "Dieses System kann das Bootargument nicht behalten, ein anderes Werkzeug hat das Limit bereits gesetzt, oder der Bootloader bzw. rpm-ostree hat die Änderung abgelehnt.",
-  "ttmAction": "Den Grund unter GPU-Speicherlimit lesen und erneut versuchen, sobald Bootloader oder rpm-ostree frei sind."
+  "ttmAction": "Den Grund unter GPU-Speicherlimit lesen und erneut versuchen, sobald Bootloader oder rpm-ostree frei sind.",
+  "gpuResets": "GPU-Resets",
+  "gpuResetsNone": "Keine seit dem Start",
+  "gpuResetsHint": "Das Kernel-Protokoll zeigt, dass die GPU seit dem Start hing. Die Details stehen unter GPU › Details."
 }

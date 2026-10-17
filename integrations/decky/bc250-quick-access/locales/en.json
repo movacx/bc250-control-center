@@ -280,5 +280,8 @@
   "vramTtmConflict": "The GPU memory limit set for the next boot ({limit}) is larger than the {size} of system memory this VRAM size leaves. Lower the limit afterwards.",
   "ttmFailed": "The GPU memory limit could not be changed.",
   "ttmCause": "This system cannot keep the boot argument, another tool already set the limit, or the boot loader or rpm-ostree refused the change.",
-  "ttmAction": "Read the reason under GPU memory limit, then retry once the boot loader or rpm-ostree is idle."
+  "ttmAction": "Read the reason under GPU memory limit, then retry once the boot loader or rpm-ostree is idle.",
+  "gpuResets": "GPU resets",
+  "gpuResetsNone": "None this boot",
+  "gpuResetsHint": "The kernel log shows the GPU hung since this boot started. The details are under GPU › Details."
 }

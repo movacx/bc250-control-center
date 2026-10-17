@@ -921,6 +921,9 @@ var vramTtmConflict$7 = "Das für den nächsten Start gesetzte GPU-Speicherlimit
 var ttmFailed$7 = "Das GPU-Speicherlimit konnte nicht geändert werden.";
 var ttmCause$7 = "Dieses System kann das Bootargument nicht behalten, ein anderes Werkzeug hat das Limit bereits gesetzt, oder der Bootloader bzw. rpm-ostree hat die Änderung abgelehnt.";
 var ttmAction$7 = "Den Grund unter GPU-Speicherlimit lesen und erneut versuchen, sobald Bootloader oder rpm-ostree frei sind.";
+var gpuResets$7 = "GPU-Resets";
+var gpuResetsNone$7 = "Keine seit dem Start";
+var gpuResetsHint$7 = "Das Kernel-Protokoll zeigt, dass die GPU seit dem Start hing. Die Details stehen unter GPU › Details.";
 var de = {
 	accentBlue: accentBlue$7,
 	accentColor: accentColor$7,
@@ -1203,7 +1206,10 @@ var de = {
 	vramTtmConflict: vramTtmConflict$7,
 	ttmFailed: ttmFailed$7,
 	ttmCause: ttmCause$7,
-	ttmAction: ttmAction$7
+	ttmAction: ttmAction$7,
+	gpuResets: gpuResets$7,
+	gpuResetsNone: gpuResetsNone$7,
+	gpuResetsHint: gpuResetsHint$7
 };
 
 var accentBlue$6 = "Blue";
@@ -1488,6 +1494,9 @@ var vramTtmConflict$6 = "The GPU memory limit set for the next boot ({limit}) is
 var ttmFailed$6 = "The GPU memory limit could not be changed.";
 var ttmCause$6 = "This system cannot keep the boot argument, another tool already set the limit, or the boot loader or rpm-ostree refused the change.";
 var ttmAction$6 = "Read the reason under GPU memory limit, then retry once the boot loader or rpm-ostree is idle.";
+var gpuResets$6 = "GPU resets";
+var gpuResetsNone$6 = "None this boot";
+var gpuResetsHint$6 = "The kernel log shows the GPU hung since this boot started. The details are under GPU › Details.";
 var en = {
 	accentBlue: accentBlue$6,
 	accentColor: accentColor$6,
@@ -1770,7 +1779,10 @@ var en = {
 	vramTtmConflict: vramTtmConflict$6,
 	ttmFailed: ttmFailed$6,
 	ttmCause: ttmCause$6,
-	ttmAction: ttmAction$6
+	ttmAction: ttmAction$6,
+	gpuResets: gpuResets$6,
+	gpuResetsNone: gpuResetsNone$6,
+	gpuResetsHint: gpuResetsHint$6
 };
 
 var accentBlue$5 = "Azul";
@@ -2055,6 +2067,9 @@ var vramTtmConflict$5 = "El límite de memoria GPU fijado para el próximo arran
 var ttmFailed$5 = "No se pudo cambiar el límite de memoria GPU.";
 var ttmCause$5 = "Este sistema no puede conservar el argumento de arranque, otra herramienta ya fijó el límite, o el gestor de arranque o rpm-ostree rechazó el cambio.";
 var ttmAction$5 = "Lee el motivo bajo Límite de memoria GPU y reintenta cuando el gestor de arranque o rpm-ostree esté libre.";
+var gpuResets$5 = "Reinicios de GPU";
+var gpuResetsNone$5 = "Ninguno desde el arranque";
+var gpuResetsHint$5 = "El registro del kernel muestra que la GPU se colgó desde que arrancó el equipo. Los detalles están en GPU › Detalles.";
 var es = {
 	accentBlue: accentBlue$5,
 	accentColor: accentColor$5,
@@ -2337,7 +2352,10 @@ var es = {
 	vramTtmConflict: vramTtmConflict$5,
 	ttmFailed: ttmFailed$5,
 	ttmCause: ttmCause$5,
-	ttmAction: ttmAction$5
+	ttmAction: ttmAction$5,
+	gpuResets: gpuResets$5,
+	gpuResetsNone: gpuResetsNone$5,
+	gpuResetsHint: gpuResetsHint$5
 };
 
 var accentBlue$4 = "Azul";
@@ -2622,6 +2640,9 @@ var vramTtmConflict$4 = "El límite de memoria GPU fijado para el próximo arran
 var ttmFailed$4 = "No se pudo cambiar el límite de memoria GPU.";
 var ttmCause$4 = "Este sistema no puede conservar el argumento de arranque, otra herramienta ya fijó el límite, o el gestor de arranque o rpm-ostree rechazó el cambio.";
 var ttmAction$4 = "Lee el motivo bajo Límite de memoria GPU y vuelve a intentar cuando el gestor de arranque o rpm-ostree esté libre.";
+var gpuResets$4 = "Reinicios de GPU";
+var gpuResetsNone$4 = "Ninguno desde el arranque";
+var gpuResetsHint$4 = "El registro del kernel muestra que la GPU se colgó desde que arrancó el equipo. Los detalles están en GPU › Detalles.";
 var es419 = {
 	accentBlue: accentBlue$4,
 	accentColor: accentColor$4,
@@ -2904,7 +2925,10 @@ var es419 = {
 	vramTtmConflict: vramTtmConflict$4,
 	ttmFailed: ttmFailed$4,
 	ttmCause: ttmCause$4,
-	ttmAction: ttmAction$4
+	ttmAction: ttmAction$4,
+	gpuResets: gpuResets$4,
+	gpuResetsNone: gpuResetsNone$4,
+	gpuResetsHint: gpuResetsHint$4
 };
 
 var accentBlue$3 = "Niebieski";
@@ -3189,6 +3213,9 @@ var vramTtmConflict$3 = "Limit pamięci GPU ustawiony na następny rozruch ({lim
 var ttmFailed$3 = "Nie udało się zmienić limitu pamięci GPU.";
 var ttmCause$3 = "Ten system nie może zachować argumentu rozruchu, inne narzędzie już ustawiło limit albo program rozruchowy lub rpm-ostree odrzucił zmianę.";
 var ttmAction$3 = "Przeczytaj przyczynę w sekcji Limit pamięci GPU i spróbuj ponownie, gdy program rozruchowy lub rpm-ostree będzie wolny.";
+var gpuResets$3 = "Resety GPU";
+var gpuResetsNone$3 = "Brak od uruchomienia";
+var gpuResetsHint$3 = "Dziennik jądra pokazuje, że GPU zawieszał się od startu systemu. Szczegóły są w GPU › Szczegóły.";
 var pl = {
 	accentBlue: accentBlue$3,
 	accentColor: accentColor$3,
@@ -3471,7 +3498,10 @@ var pl = {
 	vramTtmConflict: vramTtmConflict$3,
 	ttmFailed: ttmFailed$3,
 	ttmCause: ttmCause$3,
-	ttmAction: ttmAction$3
+	ttmAction: ttmAction$3,
+	gpuResets: gpuResets$3,
+	gpuResetsNone: gpuResetsNone$3,
+	gpuResetsHint: gpuResetsHint$3
 };
 
 var accentBlue$2 = "Azul";
@@ -3756,6 +3786,9 @@ var vramTtmConflict$2 = "O limite de memória da GPU definido para a próxima in
 var ttmFailed$2 = "Não foi possível alterar o limite de memória da GPU.";
 var ttmCause$2 = "Este sistema não consegue manter o argumento de inicialização, outra ferramenta já definiu o limite, ou o carregador de inicialização ou o rpm-ostree recusou a alteração.";
 var ttmAction$2 = "Leia o motivo em Limite de memória da GPU e tente de novo quando o carregador de inicialização ou o rpm-ostree estiver livre.";
+var gpuResets$2 = "Reinícios da GPU";
+var gpuResetsNone$2 = "Nenhum desde o arranque";
+var gpuResetsHint$2 = "O registo do kernel mostra que a GPU bloqueou desde que o sistema arrancou. Os detalhes estão em GPU › Detalhes.";
 var pt = {
 	accentBlue: accentBlue$2,
 	accentColor: accentColor$2,
@@ -4038,7 +4071,10 @@ var pt = {
 	vramTtmConflict: vramTtmConflict$2,
 	ttmFailed: ttmFailed$2,
 	ttmCause: ttmCause$2,
-	ttmAction: ttmAction$2
+	ttmAction: ttmAction$2,
+	gpuResets: gpuResets$2,
+	gpuResetsNone: gpuResetsNone$2,
+	gpuResetsHint: gpuResetsHint$2
 };
 
 var accentBlue$1 = "Синий";
@@ -4323,6 +4359,9 @@ var vramTtmConflict$1 = "Лимит памяти GPU для следующей �
 var ttmFailed$1 = "Не удалось изменить лимит памяти GPU.";
 var ttmCause$1 = "Эта система не может сохранить параметр загрузки, лимит уже задан другим инструментом, или загрузчик либо rpm-ostree отклонили изменение.";
 var ttmAction$1 = "Прочитайте причину в разделе «Лимит памяти GPU» и повторите, когда загрузчик или rpm-ostree освободятся.";
+var gpuResets$1 = "Сбросы GPU";
+var gpuResetsNone$1 = "Нет с момента загрузки";
+var gpuResetsHint$1 = "Журнал ядра показывает, что GPU зависал с момента загрузки. Подробности — в разделе GPU › Подробности.";
 var ru = {
 	accentBlue: accentBlue$1,
 	accentColor: accentColor$1,
@@ -4605,7 +4644,10 @@ var ru = {
 	vramTtmConflict: vramTtmConflict$1,
 	ttmFailed: ttmFailed$1,
 	ttmCause: ttmCause$1,
-	ttmAction: ttmAction$1
+	ttmAction: ttmAction$1,
+	gpuResets: gpuResets$1,
+	gpuResetsNone: gpuResetsNone$1,
+	gpuResetsHint: gpuResetsHint$1
 };
 
 var accentBlue = "Синій";
@@ -4890,6 +4932,9 @@ var vramTtmConflict = "Ліміт пам'яті GPU на наступне зав
 var ttmFailed = "Не вдалося змінити ліміт пам'яті GPU.";
 var ttmCause = "Ця система не може зберегти параметр завантаження, інший інструмент уже задав ліміт, або завантажувач чи rpm-ostree відхилили зміну.";
 var ttmAction = "Прочитайте причину в розділі «Ліміт пам'яті GPU» і повторіть, коли завантажувач або rpm-ostree звільняться.";
+var gpuResets = "Скидання GPU";
+var gpuResetsNone = "Немає від запуску";
+var gpuResetsHint = "Журнал ядра показує, що GPU зависав від запуску системи. Подробиці — у розділі GPU › Подробиці.";
 var uk = {
 	accentBlue: accentBlue,
 	accentColor: accentColor,
@@ -5172,7 +5217,10 @@ var uk = {
 	vramTtmConflict: vramTtmConflict,
 	ttmFailed: ttmFailed,
 	ttmCause: ttmCause,
-	ttmAction: ttmAction
+	ttmAction: ttmAction,
+	gpuResets: gpuResets,
+	gpuResetsNone: gpuResetsNone,
+	gpuResetsHint: gpuResetsHint
 };
 
 const catalogs = {
@@ -5933,6 +5981,22 @@ function AceMeter({ state }) {
     const who = active ? (game?.name || state.ace_process || "") : "";
     return SP_JSX.jsxs("div", { title: who || undefined, style: { alignItems: "center", background: tokens.colors.panel_alt, borderRadius: 6, display: "flex", fontSize: 9, gap: 8, marginBottom: 8, padding: "6px 10px" }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.subtle, whiteSpace: "nowrap" }, children: "Async compute" }), SP_JSX.jsx("div", { style: { background: tokens.colors.panel, borderRadius: 2, flex: 1, height: 3, overflow: "hidden" }, children: SP_JSX.jsx("div", { style: { background: accent.focus, height: "100%", transition: "width .4s ease", width: `${active ? Math.max(2, Math.min(100, percent ?? 0)) : 0}%` } }) }), SP_JSX.jsx("b", { style: { color: active ? accent.focus : tokens.colors.subtle, minWidth: 26, textAlign: "right" }, children: !available || percent == null ? "—" : `${percent}%` })] });
 }
+// How many hangs the kernel log shows this boot: a full reset is the one that
+// loses the VRAM; without one, the ring timeouts and failed ring resets.
+const resetCount = (resets) => resets ? (resets.full_resets || resets.ring_timeouts + resets.ring_resets_failed) : 0;
+function resetsText(resets) {
+    if (!resets)
+        return "—";
+    return resetCount(resets) ? resets.label : text.gpuResetsNone;
+}
+// Shown only after a hang, in the amber reserved for "needs attention".
+function GpuResetNotice({ state }) {
+    const resets = state.gpu_resets;
+    const count = resetCount(resets);
+    if (!resets || !count)
+        return null;
+    return SP_JSX.jsxs("div", { title: `${text.gpuResetsHint}\n${resets.label}`, style: { alignItems: "center", background: tokens.colors.amber_soft, borderRadius: 6, color: tokens.colors.amber, display: "flex", fontSize: 9, gap: 8, justifyContent: "space-between", marginBottom: 8, padding: "6px 10px" }, children: [SP_JSX.jsx("span", { children: text.gpuResets }), SP_JSX.jsx("b", { children: count })] });
+}
 function GpuDetails({ state }) {
     const accent = useAccent();
     const mhz = (value) => value != null ? `${value} MHz` : "—";
@@ -5947,6 +6011,7 @@ function GpuDetails({ state }) {
         [text.gpuFabricClock, mhz(state.gpu_fabric_clock_mhz)],
         ["PCIe", state.gpu_pcie_link || "—"],
         ["VBIOS", state.gpu_vbios_version || "—"],
+        [text.gpuResets, resetsText(state.gpu_resets)],
     ];
     const mib = 1024 * 1024;
     return SP_JSX.jsx(DetailCard, { title: text.gpuDetails, rows: rows, children: SP_JSX.jsxs("div", { style: { borderTop: `1px solid ${tokens.colors.border}`, paddingTop: 6 }, children: [SP_JSX.jsx(UsageBar, { label: "VRAM", used: state.gpu_vram_used_mib != null ? state.gpu_vram_used_mib * mib : null, total: state.gpu_vram_total_mib != null ? state.gpu_vram_total_mib * mib : null, color: accent.focus }), SP_JSX.jsx(UsageBar, { label: "GTT", used: state.gpu_gtt_used_mib != null ? state.gpu_gtt_used_mib * mib : null, total: state.gpu_gtt_total_mib != null ? state.gpu_gtt_total_mib * mib : null, color: tokens.colors.cyan })] }) });
@@ -6009,7 +6074,7 @@ function MonitorTab({ state, cpuRun }) {
                     { key: "cpu", label: "CPU", icon: SP_JSX.jsx(LuCpu, { strokeWidth: NAV_STROKE }), color: accent.focus, colorSoft: accent.focus_soft },
                     { key: "gpu", label: "GPU", icon: SP_JSX.jsx(LuMicrochip, { strokeWidth: NAV_STROKE }), color: accent.focus, colorSoft: accent.focus_soft },
                     { key: "all", label: text.allSensors, icon: SP_JSX.jsx(LuLayoutGrid, { strokeWidth: NAV_STROKE }), color: accent.focus, colorSoft: accent.focus_soft },
-                ] }), section === "cpu" ? SP_JSX.jsxs(DFL.Focusable, { "flow-children": "down", children: [cpuRunNotice(state, cpuRun), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(CpuOverview, { state: state }), SP_JSX.jsx(CpuOcCard, { state: state })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(CoreGrid, { cores: state.cpu_cores ?? [], slots: state.cpu_physical_slots }) }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(RailVrm, { state: state, label: "VRM CPU", tiles: cpuVrmTiles }) }), SP_JSX.jsx(ScrollStop, { end: true })] }) : null, section === "gpu" ? SP_JSX.jsxs(DFL.Focusable, { "flow-children": "down", children: [SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(GpuOverview, { state: state }), SP_JSX.jsx(AceMeter, { state: state })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(GpuDetails, { state: state }) }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(RailVrm, { state: state, label: "VRM GPU", tiles: gpuVrmTiles }) }), SP_JSX.jsx(Gddr6Panel, { state: state }), SP_JSX.jsx(ScrollStop, { end: true })] }) : null, section === "all" ? SP_JSX.jsx("section", { children: SP_JSX.jsxs(DFL.Focusable, { "flow-children": "down", children: [SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "cpu", title: "CPU" }), SP_JSX.jsx(CpuOverview, { state: state }), SP_JSX.jsx(CpuOcCard, { state: state })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(CoreGrid, { cores: state.cpu_cores ?? [], slots: state.cpu_physical_slots }) }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(RailVrm, { state: state, label: "VRM CPU", tiles: cpuVrmTiles }) }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "gpu", title: "GPU" }), SP_JSX.jsx(GpuOverview, { state: state }), SP_JSX.jsx(AceMeter, { state: state })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(GpuDetails, { state: state }) }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(RailVrm, { state: state, label: "VRM GPU", tiles: gpuVrmTiles }) }), SP_JSX.jsx(Gddr6Panel, { state: state }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "fan", title: text.fan }), SP_JSX.jsx(FanCard, { state: state })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(BoardCard, { state: state }) }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "power", title: text.power }), SP_JSX.jsx(RailVrm, { state: state, label: "VRM", tiles: powerTiles })] }), SP_JSX.jsx(ScrollStop, { end: true })] }) }) : null] });
+                ] }), section === "cpu" ? SP_JSX.jsxs(DFL.Focusable, { "flow-children": "down", children: [cpuRunNotice(state, cpuRun), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(CpuOverview, { state: state }), SP_JSX.jsx(CpuOcCard, { state: state })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(CoreGrid, { cores: state.cpu_cores ?? [], slots: state.cpu_physical_slots }) }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(RailVrm, { state: state, label: "VRM CPU", tiles: cpuVrmTiles }) }), SP_JSX.jsx(ScrollStop, { end: true })] }) : null, section === "gpu" ? SP_JSX.jsxs(DFL.Focusable, { "flow-children": "down", children: [SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(GpuOverview, { state: state }), SP_JSX.jsx(AceMeter, { state: state }), SP_JSX.jsx(GpuResetNotice, { state: state })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(GpuDetails, { state: state }) }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(RailVrm, { state: state, label: "VRM GPU", tiles: gpuVrmTiles }) }), SP_JSX.jsx(Gddr6Panel, { state: state }), SP_JSX.jsx(ScrollStop, { end: true })] }) : null, section === "all" ? SP_JSX.jsx("section", { children: SP_JSX.jsxs(DFL.Focusable, { "flow-children": "down", children: [SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "cpu", title: "CPU" }), SP_JSX.jsx(CpuOverview, { state: state }), SP_JSX.jsx(CpuOcCard, { state: state })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(CoreGrid, { cores: state.cpu_cores ?? [], slots: state.cpu_physical_slots }) }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(RailVrm, { state: state, label: "VRM CPU", tiles: cpuVrmTiles }) }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "gpu", title: "GPU" }), SP_JSX.jsx(GpuOverview, { state: state }), SP_JSX.jsx(AceMeter, { state: state }), SP_JSX.jsx(GpuResetNotice, { state: state })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(GpuDetails, { state: state }) }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(RailVrm, { state: state, label: "VRM GPU", tiles: gpuVrmTiles }) }), SP_JSX.jsx(Gddr6Panel, { state: state }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "fan", title: text.fan }), SP_JSX.jsx(FanCard, { state: state })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(BoardCard, { state: state }) }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "power", title: text.power }), SP_JSX.jsx(RailVrm, { state: state, label: "VRM", tiles: powerTiles })] }), SP_JSX.jsx(ScrollStop, { end: true })] }) }) : null] });
 }
 function GpuMemoryLimit({ ttm, error, busy, execute, onState }) {
     const pageSize = ttm?.page_size ?? 4096;

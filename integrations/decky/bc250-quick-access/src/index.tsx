@@ -229,7 +229,10 @@ type Result = {
   ace_available?: boolean;
   ace_busy_percent?: number | null;
   ace_process?: string;
+  gpu_resets?: GpuResets | null;
 };
+// GPU hangs this boot, from the kernel log; null when the log cannot be read.
+type GpuResets = { full_resets: number; ring_timeouts: number; ring_resets_failed: number; vram_lost: boolean; last_at: string; last_process: string; last_ring: string; label: string };
 type FanPreset = { key: string; name: string; percent: number };
 type GameProfile = { app_id: string; name: string; gpu: string | null; fan: string | null };
 type GameSession = { app_id: string; name: string; applied: { gpu: string | null; fan: string | null } };
@@ -1181,6 +1184,26 @@ function AceMeter({ state }: { state: Status }) {
   </div>;
 }
 
+// How many hangs the kernel log shows this boot: a full reset is the one that
+// loses the VRAM; without one, the ring timeouts and failed ring resets.
+const resetCount = (resets?: GpuResets | null) => resets ? (resets.full_resets || resets.ring_timeouts + resets.ring_resets_failed) : 0;
+
+function resetsText(resets?: GpuResets | null): string {
+  if (!resets) return "—";
+  return resetCount(resets) ? resets.label : text.gpuResetsNone;
+}
+
+// Shown only after a hang, in the amber reserved for "needs attention".
+function GpuResetNotice({ state }: { state: Status }) {
+  const resets = state.gpu_resets;
+  const count = resetCount(resets);
+  if (!resets || !count) return null;
+  return <div title={`${text.gpuResetsHint}\n${resets.label}`} style={{ alignItems: "center", background: tokens.colors.amber_soft, borderRadius: 6, color: tokens.colors.amber, display: "flex", fontSize: 9, gap: 8, justifyContent: "space-between", marginBottom: 8, padding: "6px 10px" }}>
+    <span>{text.gpuResets}</span>
+    <b>{count}</b>
+  </div>;
+}
+
 function GpuDetails({ state }: { state: Status }) {
   const accent = useAccent();
   const mhz = (value: number | null | undefined) => value != null ? `${value} MHz` : "—";
@@ -1195,6 +1218,7 @@ function GpuDetails({ state }: { state: Status }) {
     [text.gpuFabricClock, mhz(state.gpu_fabric_clock_mhz)],
     ["PCIe", state.gpu_pcie_link || "—"],
     ["VBIOS", state.gpu_vbios_version || "—"],
+    [text.gpuResets, resetsText(state.gpu_resets)],
   ];
   const mib = 1024 * 1024;
   return <DetailCard title={text.gpuDetails} rows={rows}>
@@ -1294,7 +1318,7 @@ function MonitorTab({ state, cpuRun }: { state: Status; cpuRun?: { target: numbe
     </Focusable> : null}
 
     {section === "gpu" ? <Focusable flow-children="down">
-      <ScrollStop><GpuOverview state={state} /><AceMeter state={state} /></ScrollStop>
+      <ScrollStop><GpuOverview state={state} /><AceMeter state={state} /><GpuResetNotice state={state} /></ScrollStop>
       <ScrollStop><GpuDetails state={state} /></ScrollStop>
       <ScrollStop><RailVrm state={state} label="VRM GPU" tiles={gpuVrmTiles} /></ScrollStop>
       <Gddr6Panel state={state} />
@@ -1310,7 +1334,7 @@ function MonitorTab({ state, cpuRun }: { state: Status; cpuRun?: { target: numbe
         <ScrollStop><CoreGrid cores={state.cpu_cores ?? []} slots={state.cpu_physical_slots} /></ScrollStop>
         <ScrollStop><RailVrm state={state} label="VRM CPU" tiles={cpuVrmTiles} /></ScrollStop>
 
-        <ScrollStop><SectionTitle kind="gpu" title="GPU" /><GpuOverview state={state} /><AceMeter state={state} /></ScrollStop>
+        <ScrollStop><SectionTitle kind="gpu" title="GPU" /><GpuOverview state={state} /><AceMeter state={state} /><GpuResetNotice state={state} /></ScrollStop>
         <ScrollStop><GpuDetails state={state} /></ScrollStop>
         <ScrollStop><RailVrm state={state} label="VRM GPU" tiles={gpuVrmTiles} /></ScrollStop>
         <Gddr6Panel state={state} />

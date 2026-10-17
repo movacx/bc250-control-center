@@ -280,5 +280,8 @@
   "vramTtmConflict": "Limit pamięci GPU ustawiony na następny rozruch ({limit}) jest większy niż {size} pamięci systemowej, które zostawia ten rozmiar VRAM. Potem obniż limit.",
   "ttmFailed": "Nie udało się zmienić limitu pamięci GPU.",
   "ttmCause": "Ten system nie może zachować argumentu rozruchu, inne narzędzie już ustawiło limit albo program rozruchowy lub rpm-ostree odrzucił zmianę.",
-  "ttmAction": "Przeczytaj przyczynę w sekcji Limit pamięci GPU i spróbuj ponownie, gdy program rozruchowy lub rpm-ostree będzie wolny."
+  "ttmAction": "Przeczytaj przyczynę w sekcji Limit pamięci GPU i spróbuj ponownie, gdy program rozruchowy lub rpm-ostree będzie wolny.",
+  "gpuResets": "Resety GPU",
+  "gpuResetsNone": "Brak od uruchomienia",
+  "gpuResetsHint": "Dziennik jądra pokazuje, że GPU zawieszał się od startu systemu. Szczegóły są w GPU › Szczegóły."
 }

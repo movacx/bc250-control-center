@@ -11,6 +11,7 @@ import importlib.util
 import json
 import os
 import pathlib
+import re
 import stat
 import subprocess
 import sys
@@ -635,6 +636,89 @@ class AceSampler:
         return result
 
 
+# GPU hangs from the kernel log. The patterns mirror
+# ``bc250cc.domain.gpu.reset_log`` (this plugin cannot import the application's
+# package); ``tests/quick_access`` checks both give the same answer.
+GPU_RESET_REFRESH_SECONDS = 30.0
+_RESET_TIMEOUT = re.compile(r"\bring (\S+) timeout\b")
+_RESET_RING_FAILED = re.compile(r"\bring (\S+) reset failed\b", re.IGNORECASE)
+_RESET_FULL = re.compile(r"\bGPU reset begin\b|\bGPU reset\(\d+\) begin\b")
+_RESET_PROCESS = re.compile(r"\bprocess (\S+) pid (\d+)", re.IGNORECASE)
+_RESET_VRAM_LOST = re.compile(r"\bVRAM is lost\b", re.IGNORECASE)
+_RESET_STAMP = re.compile(r"^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}:\d{2})")
+
+
+def summarize_gpu_resets(lines) -> dict:
+    """Count the amdgpu hangs in a kernel log; same keys as ``GpuResetSummary.to_dict()``."""
+    full = timeouts = failed = 0
+    vram_lost = False
+    last_at = last_process = last_ring = ""
+    for raw in lines:
+        line = str(raw)
+        if "amdgpu" not in line:
+            continue
+        stamp = _RESET_STAMP.match(line)
+        when = f"{stamp.group(1)} {stamp.group(2)}" if stamp else ""
+        matched = False
+        match = _RESET_TIMEOUT.search(line)
+        if match:
+            timeouts += 1
+            last_ring = match.group(1)
+            matched = True
+        match = _RESET_RING_FAILED.search(line)
+        if match:
+            failed += 1
+            last_ring = match.group(1)
+            matched = True
+        if _RESET_FULL.search(line):
+            full += 1
+            matched = True
+        if _RESET_VRAM_LOST.search(line):
+            vram_lost = True
+            matched = True
+        match = _RESET_PROCESS.search(line)
+        if match:
+            last_process = match.group(1)
+        if matched and when:
+            last_at = when
+    parts = []
+    if full:
+        parts.append(f"{full} full reset{'s' if full != 1 else ''}")
+    if timeouts:
+        parts.append(f"{timeouts} ring timeout{'s' if timeouts != 1 else ''}")
+    if failed:
+        parts.append(f"{failed} ring reset{'s' if failed != 1 else ''} failed")
+    if vram_lost:
+        parts.append("VRAM lost")
+    last = " ".join(part for part in (last_at, last_ring, last_process) if part)
+    label = "None this boot" if not (full or timeouts or failed) else (
+        " \u00b7 ".join(parts) + (f" \u00b7 last {last}" if last else "")
+    )
+    return {
+        "full_resets": full, "ring_timeouts": timeouts, "ring_resets_failed": failed,
+        "vram_lost": vram_lost, "last_at": last_at, "last_process": last_process,
+        "last_ring": last_ring, "label": label,
+    }
+
+
+def read_gpu_resets() -> dict | None:
+    """This boot's GPU hangs (the plugin runs as root), or ``None`` when the log is unreadable."""
+    for argv in (
+        ["journalctl", "-k", "-b", "0", "-o", "short-iso", "--no-pager", "-q"],
+        ["dmesg", "--time-format", "iso"],
+    ):
+        try:
+            done = subprocess.run(
+                argv, capture_output=True, text=True, errors="replace", timeout=4, check=False,
+                env={"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "LC_ALL": "C"},
+            )
+        except (OSError, subprocess.SubprocessError):
+            continue
+        if done.returncode == 0 and done.stdout:
+            return summarize_gpu_resets(done.stdout[: 8 * 1024 * 1024].splitlines())
+    return None
+
+
 class Plugin:
     def __init__(self) -> None:
         self._operation_lock = asyncio.Lock()
@@ -660,6 +744,8 @@ class Plugin:
         self._gpu_write_result: dict[str, object] = {}
         self._last_cpu_times: dict[int, tuple[int, int]] = {}
         self._ace = AceSampler()
+        self._gpu_resets: dict | None = None
+        self._gpu_resets_at: float | None = None
         # One game start or stop at a time; they may wait behind a running
         # board operation, never interleave with each other.
         self._game_lock = asyncio.Lock()
@@ -912,6 +998,7 @@ class Plugin:
                 result.update(self._gpu_write_result)
         if result.get("ok") is not False:
             self._decorate_status(result)
+            result["gpu_resets"] = await self._gpu_reset_state()
             result["recent_actions"] = list(reversed(self._recent_actions))
             result["helper_protected"] = True
             result["operation_in_progress"] = (
@@ -919,6 +1006,14 @@ class Plugin:
             )
             self._last_status = dict(result)
         return result
+
+    async def _gpu_reset_state(self) -> dict | None:
+        """The kernel log's GPU hangs, re-read at most every GPU_RESET_REFRESH_SECONDS."""
+        now = time.monotonic()
+        if self._gpu_resets_at is None or now - self._gpu_resets_at >= GPU_RESET_REFRESH_SECONDS:
+            self._gpu_resets = await asyncio.to_thread(read_gpu_resets)
+            self._gpu_resets_at = now
+        return self._gpu_resets
 
     @staticmethod
     def _decorate_status(result: dict) -> dict:
