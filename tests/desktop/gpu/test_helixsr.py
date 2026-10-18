@@ -1218,6 +1218,24 @@ def test_githubs_list_adds_newer_releases_and_drops_withdrawn_ones(home, monkeyp
     assert releases[0]["sha256"] == _sha(b"new") and releases[0]["dll_sha256"] == ""
 
 
+def test_the_scaler_app_published_beside_a_release_is_not_its_archive(home):
+    """Since 1.9 each release also carries HelixSR-Scaler-*.zip (and a desktop
+    app); those used to make the release look like it had two archives."""
+    release = _listed("v1.9.3", b"helixsr 1.9.3")
+    release["assets"] += [
+        {"name": "HelixSR-Scaler-1.0.6.zip", "size": 99, "digest": "sha256:" + "a" * 64},
+        {"name": "HelixSR-Scaler-1.0.6-linux.tar.gz", "size": 99, "digest": "sha256:" + "b" * 64},
+        {"name": "SHA256SUMS.txt", "size": 9, "digest": "sha256:" + "c" * 64},
+    ]
+    _github(home, release, _listed(helixsr.HELIXSR_TAG, _pinned()["sha256"]))
+
+    newest = helixsr.helixsr_releases()[0]
+
+    assert (newest["tag"], newest["archive"], newest["sha256"]) == (
+        "v1.9.3", "HelixSR-1.9.3.zip", _sha(b"helixsr 1.9.3"),
+    )
+
+
 def test_a_pick_is_saved_and_falls_back_to_the_default_once_withdrawn(home):
     _github(home, _listed("v2.0.0", b"new", prerelease=True), _listed(helixsr.HELIXSR_TAG, _pinned()["sha256"]))
     with pytest.raises(ValueError, match="not on offer"):
@@ -1296,6 +1314,7 @@ def test_the_release_list_is_read_in_the_terminal_and_kept_small(home):
     import json
     answer.write_text(json.dumps([
         {**_listed("v2.0.0", b"new", prerelease=True), "body": "notes " * 1000, "author": {"login": "x"}},
+        _listed("v1.9.9", b"x", name="setup.exe"),
     ]), encoding="utf-8")
     curl = bin_dir / "curl"
     curl.write_text(
@@ -1310,7 +1329,8 @@ def test_the_release_list_is_read_in_the_terminal_and_kept_small(home):
                             timeout=60, check=False)
 
     assert result.returncode == 0, result.stdout + result.stderr
-    assert "v2.0.0  (pre-release)" in result.stdout
+    assert "v2.0.0  (pre-release)\n" in result.stdout
+    assert "v1.9.9  (no single HelixSR archive: not offered)" in result.stdout
     saved = json.loads(helixsr._releases_path().read_text(encoding="utf-8"))
     assert set(saved["releases"][0]) == {"tag_name", "draft", "prerelease", "assets"}
     assert "v2.0.0" in [r["tag"] for r in helixsr.helixsr_releases()]

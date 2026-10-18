@@ -114,6 +114,9 @@ HELIXSR_DLL_DIGESTS = frozenset({
 HELIXSR_RELEASES_API = "https://api.github.com/repos/lonewolf0622/HelixSR/releases?per_page=50"
 #: GitHub's answer for 50 releases with their notes is well under this.
 _RELEASES_LIMIT = 4 * 1024 * 1024
+#: The release archive: ``HelixSR-1.9.3.zip``, ``HelixSR-1.9.0.2.zip``. A
+#: version follows the dash, so ``HelixSR-Scaler-1.0.6.zip`` is not one.
+_RELEASE_ARCHIVE = re.compile(r"HelixSR-[0-9][0-9A-Za-z._-]*\.zip")
 HELIXSR_DLL = "amd_fidelityfx_dx12.dll"
 HELIXSR_SETUP = "helixsr-setup.sh"
 HELIXSR_MARKER = ".bc250-archive-sha256"
@@ -185,8 +188,10 @@ def _published_release(entry: dict) -> dict | None:
     """One release from GitHub's list, if it can be installed here.
 
     It needs a plain version tag no older than HELIXSR_OLDEST and exactly one
-    ``HelixSR-*.zip`` asset whose SHA-256 GitHub published. That digest is
-    what the terminal checks the download against.
+    ``HelixSR-<version>.zip`` asset whose SHA-256 GitHub published. That digest
+    is what the terminal checks the download against. Since 1.9 a release also
+    carries ``HelixSR-Scaler-*.zip``, a separate desktop app: it is not the
+    release archive and does not count.
     """
     if not isinstance(entry, dict) or entry.get("draft"):
         return None
@@ -196,8 +201,7 @@ def _published_release(entry: dict) -> dict | None:
         return None
     archives = [
         asset for asset in entry.get("assets") or ()
-        if isinstance(asset, dict) and str(asset.get("name") or "").startswith("HelixSR-")
-        and str(asset.get("name") or "").endswith(".zip")
+        if isinstance(asset, dict) and _RELEASE_ARCHIVE.fullmatch(str(asset.get("name") or ""))
     ]
     if len(archives) != 1:
         return None
@@ -1769,9 +1773,10 @@ else
   bc250_fetch "$bc250_work/releases.json" {shlex.quote(HELIXSR_RELEASES_API)}
 fi
 mkdir -p {root}
-"$bc250_python" -I - "$bc250_work/releases.json" {root}/releases.json {_RELEASES_LIMIT} <<'BC250_RELEASES'
-import json, os, sys, time
+"$bc250_python" -I - "$bc250_work/releases.json" {root}/releases.json {_RELEASES_LIMIT} {shlex.quote(_RELEASE_ARCHIVE.pattern)} <<'BC250_RELEASES'
+import json, os, re, sys, time
 source, destination, limit = sys.argv[1], sys.argv[2], int(sys.argv[3])
+archive = re.compile(sys.argv[4])
 if os.path.getsize(source) > limit:
     sys.exit("ERROR: GitHub's answer is larger than expected.")
 listed = json.load(open(source, encoding="utf-8"))
@@ -1796,7 +1801,9 @@ with open(staged, "w", encoding="utf-8") as handle:
 os.replace(staged, destination)
 for entry in kept:
     if not entry["draft"]:
-        print("  " + entry["tag_name"] + ("  (pre-release)" if entry["prerelease"] else ""))
+        found = sum(1 for a in entry["assets"] if archive.fullmatch(a["name"]))
+        print("  " + entry["tag_name"] + ("  (pre-release)" if entry["prerelease"] else "")
+              + ("" if found == 1 else "  (no single HelixSR archive: not offered)"))
 BC250_RELEASES
 echo "OK: the version list is up to date. Pick a version in the HelixSR section, then Install or Update."
 '''
