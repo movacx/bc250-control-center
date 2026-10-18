@@ -16,7 +16,12 @@ from bc250cc.infrastructure.fan_transport import (
 from bc250cc.infrastructure.governor_config_request import plan_governor_config_request
 from bc250cc.infrastructure.polkit_session import normalize_polkit_error, pkexec_argv
 from bc250cc.infrastructure.steamos_shell import wrap_steamos_writable_command
-from bc250cc.infrastructure.system_fan_control import read_system_fan_control
+from bc250cc.infrastructure.system_fan_control import (
+    FAN_EXTERNAL_MESSAGE,
+    fan_handed_to_external,
+    read_system_fan_control,
+    running_fan_managers,
+)
 from bc250cc.platform.init.services import detect_init_manager
 from bc250cc.shared.failure_text import describe_failure
 
@@ -386,8 +391,16 @@ class FanRepository:
             'verified': confirmed,
         }
 
+    @staticmethod
+    def _rechazar_si_fan_externo():
+        # Every route below -- a user-writable sysfs file included, which no
+        # root helper sees -- stops here while another program has the fan.
+        if fan_handed_to_external():
+            raise RuntimeError(FAN_EXTERNAL_MESSAGE)
+
     def aplicar_pwm_fan(self, pwm, valor):
         pwm, valor = validate_pwm_request(pwm, valor)
+        self._rechazar_si_fan_externo()
         daemon_helper = self._usar_steamos_fan_daemon_helper()
         game_helper = not daemon_helper and self._usar_steamos_game_helper()
         initial = (
@@ -444,6 +457,7 @@ class FanRepository:
             raise RuntimeError('Invalid PWM channel.') from None
         if pwm < 1 or pwm > 12:
             raise RuntimeError('Invalid PWM channel.')
+        self._rechazar_si_fan_externo()
 
         if self._usar_steamos_game_helper():
             output = self._ejecutar_steamos_game_helper('fan-pwm-auto', pwm, timeout=120)
@@ -578,6 +592,7 @@ class FanRepository:
     def estado_control_fan_sistema(self):
         """Read-only: what the root fan service is doing, with no prompt."""
         snapshot = read_system_fan_control()
+        snapshot['managers'] = running_fan_managers()
         snapshot['available'] = bool(
             self._fan_pwm_packaged_helper_path() is not None
             and detect_init_manager().kind in {'systemd', 'openrc'}
@@ -603,6 +618,28 @@ class FanRepository:
     def desactivar_control_fan_sistema(self):
         self._requerir_helper_control_sistema()
         return {'servicio': self._comando_fan_helper('CONTROL DISABLE', timeout=150)}
+
+    def ceder_fan_a_otro_programa(self, ceder):
+        """Hand the fan to another program (True), or take it back (False).
+
+        Nothing is written to the fan either way: the root helper removes the
+        system service, the policy and the duty replayed at boot, and from
+        then on every BC250 writer refuses until the fan is taken back.
+        """
+        self._requerir_helper_control_sistema()
+        linea = 'EXTERNAL ON' if ceder else 'EXTERNAL OFF'
+        try:
+            salida = self._comando_fan_helper(linea, timeout=150)
+        except RuntimeError as error:
+            # A helper from before this command reads the line as a PWM write.
+            if 'invalid literal for int()' in str(error):
+                raise RuntimeError(
+                    'The installed fan helper is older than this application. '
+                    'Reinstall BC250 Control Center to hand the fan to another program.'
+                ) from None
+            raise
+        self.estado_herramientas_cache = None
+        return {'salida': salida, 'external': bool(ceder)}
 
     def exportar_perfiles_fan_decky(self, profiles):
         """Publish the three fan profiles for Decky Quick Access's presets.

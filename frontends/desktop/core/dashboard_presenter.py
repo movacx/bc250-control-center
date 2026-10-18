@@ -82,6 +82,7 @@ FAN_OWNER_LABELS = {
     "daemon": "Desktop daemon",
     "firmware": "Firmware (BIOS)",
     "manual": "Manual value",
+    "external": "Another program",
 }
 
 
@@ -91,13 +92,17 @@ def fan_owner(
     pwm_enable: object,
     curve_enabled: bool,
     preset_enabled: bool,
+    external: bool = False,
 ) -> str:
     """Who sets the fan's duty right now.
 
-    The root service when it holds the fan; the board firmware when the
+    Another program (CoolerControl...) once the fan was handed to it; the
+    root service when it holds the fan; the board firmware when the
     channel is in automatic mode (pwm_enable 2); the desktop daemon when a
     curve or preset is saved for it; otherwise a value someone wrote by hand.
     """
+    if external:
+        return "external"
     if system_owned:
         return "system"
     if _integer(pwm_enable, -1) == 2:
@@ -108,7 +113,8 @@ def fan_owner(
 
 
 def dashboard_fan_owner(
-    fan: Mapping[str, object], *, system_owned: bool, config: Mapping[str, object]
+    fan: Mapping[str, object], *, system_owned: bool, config: Mapping[str, object],
+    external: bool = False,
 ) -> str:
     """``fan_owner`` for the dashboard's pump fan, from the saved settings."""
     row = _pump_row(fan) if fan else {}
@@ -119,6 +125,7 @@ def dashboard_fan_owner(
         pwm_enable=row.get("pwm_enable"),
         curve_enabled=isinstance(curve, Mapping) and bool(curve.get("enabled")),
         preset_enabled=isinstance(preset, Mapping) and bool(preset.get("enabled")),
+        external=external,
     )
 
 

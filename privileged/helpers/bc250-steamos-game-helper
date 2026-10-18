@@ -46,6 +46,8 @@ PWM_MODE_SETTLE_SECONDS = 0.15
 PWM_DUTY_VERIFY_ATTEMPTS = 16
 PWM_DUTY_VERIFY_INTERVAL_SECONDS = 0.10
 FAN_OPERATION_LOCK = pathlib.Path('/run/bc250-control-center-fan.lock')
+#: The fan handed to another program (see bc250-fan-pwm-helper): no PWM write.
+FAN_EXTERNAL_FILE = pathlib.Path('/var/lib/bc250-control-center/fan-external.json')
 CU_OPERATION_LOCK = pathlib.Path('/run/bc250-control-center-cu.lock')
 OPERATION_LOCK_TIMEOUT_SECONDS = 3.0
 
@@ -1552,6 +1554,12 @@ def main(argv: Sequence[str]) -> int:
         if persistent_error:
             return persistent_error
     try:
+        if action in {'fan-pwm', 'fan-daemon-pwm', 'fan-pwm-auto'} and FAN_EXTERNAL_FILE.is_file():
+            return fail(
+                'FAN_EXTERNAL: the fan is handed to another program. '
+                'Take control back on the Fans page first.',
+                58,
+            )
         if action in {'fan-pwm', 'fan-daemon-pwm'}:
             with operation_lock(FAN_OPERATION_LOCK, 'fan'):
                 return action_fan_pwm(args)

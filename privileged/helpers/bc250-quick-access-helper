@@ -3258,6 +3258,9 @@ def nct_sensor(hwmon_root: pathlib.Path = pathlib.Path("/sys/class/hwmon")) -> p
 #: looks, instead of being silently undone on its next verify.
 SYSTEM_FAN_POLICY = pathlib.Path("/var/lib/bc250-control-center/fan-policy.json")
 SYSTEM_FAN_OVERRIDE = pathlib.Path("/run/bc250-control-center/fan-override.json")
+#: The Desktop's "Another program controls the fan" marker (see
+#: bc250-fan-pwm-helper): while it exists no fan preset is applied from here.
+SYSTEM_FAN_EXTERNAL = pathlib.Path("/var/lib/bc250-control-center/fan-external.json")
 
 
 def note_fan_takeover(channels: Sequence[object]) -> None:
@@ -3302,7 +3305,11 @@ def system_fan_ownership() -> dict[str, bool]:
         override = isinstance(document, dict) and bool(document.get("channels"))
     except (OSError, ValueError):
         override = False
-    return {"system_fan_policy": policy, "system_fan_override": override}
+    return {
+        "system_fan_policy": policy,
+        "system_fan_override": override,
+        "system_fan_external": SYSTEM_FAN_EXTERNAL.is_file(),
+    }
 
 
 def fan_resume() -> int:
@@ -4350,6 +4357,12 @@ def main(argv: Sequence[str]) -> int:
             with operation_lock(CU_OPERATION_LOCK, "CU"):
                 return cu_remove_service()
         return fail("QUICK_ACCESS_CU_SERVICE: action must be install or remove.", 2)
+    if action in {"fan-auto", "fan-system", "fan-channel"} and SYSTEM_FAN_EXTERNAL.is_file():
+        return fail(
+            "QUICK_ACCESS_FAN_EXTERNAL: the fan is handed to another program. "
+            "Take control back on the Desktop's Fans page first.",
+            58,
+        )
     if action == "fan-auto" and len(argv) == 3:
         with operation_lock(FAN_OPERATION_LOCK, "fan"):
             code = fan_auto(argv[2])

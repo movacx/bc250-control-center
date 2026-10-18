@@ -789,17 +789,14 @@ class FanCurveScale(QWidget):
         # The interface accent when the curve drives the fan, neutral grey
         # while it is only a preview: the state reads from the line itself.
         line_color = QColor(COLORS["blue"] if self.enabled else COLORS["subtle"])
-        # The exact step response the daemon applies, as one path: the line
-        # and a faint fill under it, so the duty at any temperature is the
+        # The exact response the daemon applies, as one path: flat to the
+        # first point, straight lines between points, flat after the last;
+        # with a faint fill under it, so the duty at any temperature is the
         # height of the shaded area rather than something to trace by eye.
-        previous_duty = points[0][1]
-        response = QPainterPath(QPointF(plot.left(), y_for(previous_duty)))
-        for threshold, duty in points[1:]:
-            x = x_for(threshold)
-            response.lineTo(QPointF(x, y_for(previous_duty)))
-            response.lineTo(QPointF(x, y_for(duty)))
-            previous_duty = duty
-        response.lineTo(QPointF(plot.right(), y_for(previous_duty)))
+        response = QPainterPath(QPointF(plot.left(), y_for(points[0][1])))
+        for threshold, duty in points:
+            response.lineTo(QPointF(x_for(threshold), y_for(duty)))
+        response.lineTo(QPointF(plot.right(), y_for(points[-1][1])))
         area = QPainterPath(response)
         area.lineTo(QPointF(plot.right(), plot.bottom()))
         area.lineTo(QPointF(plot.left(), plot.bottom()))

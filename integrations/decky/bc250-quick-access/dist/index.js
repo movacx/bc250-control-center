@@ -504,6 +504,17 @@ var codes = [
 		retryable: false
 	},
 	{
+		code: "BC250-FAN-002",
+		markers: [
+			"FAN_EXTERNAL",
+			"QUICK_ACCESS_FAN_EXTERNAL"
+		],
+		exit_statuses: [
+			58
+		],
+		retryable: false
+	},
+	{
 		code: "BC250-GPU-005",
 		markers: [
 			"patched_gpu_metrics",
@@ -577,6 +588,7 @@ var markers_longest_first = [
 	"D-Bus name is unavailable",
 	"Frequency must be between",
 	"QAM CPU frequency must be",
+	"QUICK_ACCESS_FAN_EXTERNAL",
 	"QUICK_ACCESS_GPU_SERVICE",
 	"smu returned status 0x00",
 	"smu returned status 0xFC",
@@ -631,6 +643,7 @@ var markers_longest_first = [
 	"HELPER_USAGE",
 	"mount --bind",
 	"HELPER_RANGE",
+	"FAN_EXTERNAL",
 	"move_mount",
 	"expects:"
 ];

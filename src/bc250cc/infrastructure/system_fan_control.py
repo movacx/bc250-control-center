@@ -27,12 +27,29 @@ from bc250cc.domain.fan.persistence import (
 POLICY_FILE = Path("/var/lib/bc250-control-center/fan-policy.json")
 STATUS_FILE = Path("/run/bc250-control-center/fan-control.json")
 OVERRIDE_FILE = Path("/run/bc250-control-center/fan-override.json")
+#: Written by the root helper when the user hands the fan to another program.
+EXTERNAL_FILE = Path("/var/lib/bc250-control-center/fan-external.json")
+FAN_EXTERNAL_MESSAGE = (
+    "The fan is handed to another program. Take control back on the Fans page first."
+)
+#: Other fan controllers, by the name the kernel gives their process
+#: (/proc/PID/comm, at most 15 characters).
+EXTERNAL_FAN_MANAGERS = {
+    "coolercontrold": "CoolerControl",
+    "fancontrol": "fancontrol",
+    "fan2go": "fan2go",
+    "thinkfan": "thinkfan",
+}
 UNIT_WANTS = Path(
     "/etc/systemd/system/multi-user.target.wants/bc250-fan-control.service"
 )
 OPENRC_LINK = Path("/etc/runlevels/default/bc250-fan-control")
 POLICY_SCHEMA = 1
 HEARTBEAT_STALE_SECONDS = 15.0
+#: The service rounds its heartbeat to 0.1 s, so a read right after a write
+#: can see it up to 0.05 s in the future. Treating that as "not running"
+#: made the Fans page flicker between Active and Stopped.
+HEARTBEAT_FUTURE_TOLERANCE_SECONDS = 2.0
 _MAX_FILE_BYTES = 8192
 _SENSORS = ("gpu", "cpu", "vrm", "board")
 
@@ -61,6 +78,33 @@ def service_enabled() -> bool:
         return False
 
 
+def fan_handed_to_external() -> bool:
+    """True while the user handed the fan to another program."""
+    try:
+        return EXTERNAL_FILE.is_file()
+    except OSError:
+        return False
+
+
+def running_fan_managers(proc: Path = Path("/proc")) -> list[str]:
+    """Other fan controllers running now, by display name, sorted."""
+    found: set[str] = set()
+    try:
+        entries = list(proc.iterdir())
+    except OSError:
+        return []
+    for entry in entries:
+        if not entry.name.isdigit():
+            continue
+        try:
+            name = (entry / "comm").read_text(encoding="utf-8", errors="replace").strip()
+        except OSError:
+            continue
+        if name in EXTERNAL_FAN_MANAGERS:
+            found.add(EXTERNAL_FAN_MANAGERS[name])
+    return sorted(found)
+
+
 def read_system_fan_control(*, now: float | None = None) -> dict:
     """Return what the service is doing, from files any user may read."""
     enabled = service_enabled()
@@ -71,7 +115,10 @@ def read_system_fan_control(*, now: float | None = None) -> dict:
         heartbeat = float(status.get("heartbeat") or 0.0)
     except (TypeError, ValueError):
         heartbeat = 0.0
-    running = bool(status) and 0.0 <= current - heartbeat <= HEARTBEAT_STALE_SECONDS
+    age = current - heartbeat
+    running = bool(status) and (
+        -HEARTBEAT_FUTURE_TOLERANCE_SECONDS <= age <= HEARTBEAT_STALE_SECONDS
+    )
     state = str(status.get("state") or "") if running else ""
     if not state:
         state = "stopped" if enabled else "off"
@@ -83,6 +130,7 @@ def read_system_fan_control(*, now: float | None = None) -> dict:
         "policy": policy,
         "policy_digest": policy_digest(policy) if policy else "",
         "override": bool(_read_json(OVERRIDE_FILE).get("channels")),
+        "external": fan_handed_to_external(),
     }
 
 

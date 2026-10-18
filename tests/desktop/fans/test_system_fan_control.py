@@ -86,6 +86,7 @@ def board(tmp_path, monkeypatch):
     monkeypatch.setitem(g, "POLICY_FILE", state / "fan-policy.json")
     monkeypatch.setitem(g, "STATUS_FILE", run / "fan-control.json")
     monkeypatch.setitem(g, "OVERRIDE_FILE", run / "fan-override.json")
+    monkeypatch.setitem(g, "EXTERNAL_FILE", state / "fan-external.json")
     monkeypatch.setattr(g["time"], "sleep", lambda _seconds: None)
 
     @contextmanager
@@ -204,11 +205,13 @@ def test_the_loop_follows_the_curve_from_firmware_mode(board):
     controller.step()
     assert controller.state == "active"
     assert (nct / "pwm2_enable").read_text().strip() == "1"
-    assert (nct / "pwm2").read_text().strip() == str(round(70 * 255 / 100))
+    # CPU 52 C, on the line from 45 C / 70 % to 60 C / 90 %: 79 %.
+    assert (nct / "pwm2").read_text().strip() == str(round(79 * 255 / 100))
 
     _write(k10 / "temp1_input", 63000)
     controller.step()
-    assert (nct / "pwm2").read_text().strip() == str(round(90 * 255 / 100))
+    # 63 C, on the line from 60 C / 90 % to 68 C / 100 %: 94 %.
+    assert (nct / "pwm2").read_text().strip() == str(round(94 * 255 / 100))
     status = controller.status()
     assert status["state"] == "active" and status["sensor"] == "cpu"
     assert status["policy_digest"] == policy_digest(_policy())
@@ -388,6 +391,7 @@ def _paths(tmp_path, monkeypatch):
     monkeypatch.setattr(system_fan_control, "OVERRIDE_FILE", tmp_path / "fan-override.json")
     monkeypatch.setattr(system_fan_control, "UNIT_WANTS", tmp_path / "wants.service")
     monkeypatch.setattr(system_fan_control, "OPENRC_LINK", tmp_path / "runlevel")
+    monkeypatch.setattr(system_fan_control, "EXTERNAL_FILE", tmp_path / "fan-external.json")
 
 
 def test_a_stale_heartbeat_is_reported_as_stopped(tmp_path, monkeypatch):
@@ -405,6 +409,20 @@ def test_a_stale_heartbeat_is_reported_as_stopped(tmp_path, monkeypatch):
     # Enabled with a policy owns the fan even before the first heartbeat:
     # early boot is exactly when a desktop write would prompt.
     assert system_fan_control_owns_fan(stale)
+
+
+def test_a_heartbeat_rounded_into_the_future_is_still_running(tmp_path, monkeypatch):
+    """The service rounds its heartbeat to 0.1 s: read right after a write it
+    can sit a few ms ahead, and the Fans page flickered Active / Stopped."""
+    _paths(tmp_path, monkeypatch)
+    (tmp_path / "wants.service").symlink_to("/dev/null")
+    (tmp_path / "fan-policy.json").write_text(json.dumps(_policy()))
+    (tmp_path / "fan-control.json").write_text(json.dumps({"heartbeat": 100.1, "state": "active"}))
+
+    snapshot = read_system_fan_control(now=100.05)
+
+    assert snapshot["running"] and snapshot["state"] == "active"
+    assert read_system_fan_control(now=90.0)["state"] == "stopped", "a clock far behind is not trusted"
 
 
 def test_disabled_service_owns_nothing(tmp_path, monkeypatch):
@@ -431,3 +449,142 @@ def test_the_desktop_daemon_never_writes_while_the_service_owns_the_fan(monkeypa
     daemon.aplicar_ventilador_persistente_si_corresponde({"gpu_temp": 70}, CURVE_CONFIG)
 
     assert applied == []
+
+
+# -- the fan handed to another program (CoolerControl, fancontrol...) --------
+
+
+def _session(module, g, monkeypatch, capsys, *lines: str) -> list[str]:
+    monkeypatch.setitem(g, "bc250_identity_present", lambda: True)
+    monkeypatch.setattr(g["os"], "geteuid", lambda: 0)
+    monkeypatch.setattr(g["sys"], "stdin", iter(line + "\n" for line in (*lines, "EXIT")))
+    capsys.readouterr()
+    assert module["session"]() == 0
+    return capsys.readouterr().out.splitlines()[1:-1]
+
+
+def test_handing_the_fan_over_writes_nothing_and_forgets_every_bc250_claim(board, monkeypatch):
+    module, g, nct, _k10 = board
+    module["save_policy"](_policy())
+    g["_remember_applied"](2, 200)
+    g["OVERRIDE_FILE"].parent.mkdir(parents=True, exist_ok=True)
+    g["OVERRIDE_FILE"].write_text('{"channels": [2], "source": "decky"}', encoding="utf-8")
+    disabled = []
+    monkeypatch.setitem(g, "control_service_enabled", lambda: True)
+    monkeypatch.setitem(g, "disable_control_service", lambda: disabled.append(True) or "OK CONTROL DISABLED")
+    # CoolerControl holds the channel in manual mode at its own duty.
+    _write(nct / "pwm2_enable", 1)
+    _write(nct / "pwm2", 90)
+
+    assert module["external_command"](True) == "OK EXTERNAL ON"
+
+    assert disabled == [True]
+    assert g["EXTERNAL_FILE"].is_file()
+    assert not g["POLICY_FILE"].exists() and not g["OVERRIDE_FILE"].exists()
+    assert g["_load_state"]()["channels"] == {}, "nothing replayed at the next boot"
+    assert (nct / "pwm2_enable").read_text().strip() == "1"
+    assert (nct / "pwm2").read_text().strip() == "90"
+
+
+def test_the_service_on_its_way_out_leaves_the_other_programs_channel_alone(board):
+    module, g, nct, _k10 = board
+    module["save_policy"](_policy())
+    clock = iter(range(0, 10_000, 10)).__next__
+    controller = module["FanController"](clock=clock)
+    controller.step()
+    assert controller.channel == 2
+    g["EXTERNAL_FILE"].parent.mkdir(parents=True, exist_ok=True)
+    g["EXTERNAL_FILE"].write_text("{}", encoding="utf-8")
+    _write(nct / "pwm2", 90)  # the other program takes over
+
+    controller.step()
+    controller.release()
+
+    assert controller.state == "external"
+    assert (nct / "pwm2_enable").read_text().strip() == "1", "no return to automatic"
+    assert (nct / "pwm2").read_text().strip() == "90"
+
+
+def test_every_session_write_is_refused_until_the_fan_is_taken_back(board, monkeypatch, capsys):
+    module, g, nct, _k10 = board
+    monkeypatch.setitem(g, "control_service_enabled", lambda: False)
+    monkeypatch.setitem(g, "CONTROL_UNIT_PATH", g["STATE_DIR"] / "no-such.service")
+    payload = json.dumps(_policy(), separators=(",", ":"))
+
+    replies = _session(
+        module, g, monkeypatch, capsys,
+        "EXTERNAL ON", "2 255", "AUTO 2", f"POLICY {payload}", "CONTROL ENABLE",
+        "EXTERNAL OFF", "AUTO 2",
+    )
+
+    refusal = g["EXTERNAL_REFUSAL"]
+    assert replies == [
+        "OK EXTERNAL ON", refusal, refusal, refusal, refusal, "OK EXTERNAL OFF", "OK PWM 2 AUTO",
+    ]
+    assert not g["EXTERNAL_FILE"].exists()
+    assert not g["POLICY_FILE"].exists()
+
+
+def test_restore_boot_replays_nothing_for_a_handed_over_fan(board, monkeypatch):
+    module, g, nct, _k10 = board
+    g["_remember_applied"](2, 60)
+    g["EXTERNAL_FILE"].parent.mkdir(parents=True, exist_ok=True)
+    g["EXTERNAL_FILE"].write_text("{}", encoding="utf-8")
+    monkeypatch.setitem(g, "bc250_identity_present", lambda: True)
+    monkeypatch.setattr(g["os"], "geteuid", lambda: 0)
+
+    assert module["restore_boot_state"]() == 0
+    assert (nct / "pwm2").read_text().strip() == "127"
+    assert (nct / "pwm2_enable").read_text().strip() == "2"
+
+
+def test_the_desktop_reads_the_hand_off_and_the_running_fan_managers(tmp_path, monkeypatch):
+    _paths(tmp_path, monkeypatch)
+    assert read_system_fan_control(now=0.0)["external"] is False
+    (tmp_path / "fan-external.json").write_text("{}")
+    assert read_system_fan_control(now=0.0)["external"] is True
+
+    proc = tmp_path / "proc"
+    for pid, name in (("1", "systemd"), ("812", "coolercontrold"), ("813", "coolercontrold"),
+                      ("900", "fan2go"), ("self", "coolercontrold")):
+        (proc / pid).mkdir(parents=True)
+        (proc / pid / "comm").write_text(name + "\n")
+    (proc / "77").mkdir()  # a process that exited while being read
+
+    assert system_fan_control.running_fan_managers(proc) == ["CoolerControl", "fan2go"]
+    assert system_fan_control.running_fan_managers(tmp_path / "missing") == []
+
+
+def test_the_desktop_daemon_never_writes_while_another_program_has_the_fan(monkeypatch):
+    daemon = object.__new__(BC250ControlCenterDaemon)
+    daemon.ultimo_fan_curve_apply = 0
+    daemon.ultimo_fan_curve_percent = None
+    daemon.ultimo_fan_curve_error = 0
+    daemon._health_enabled = False
+    applied = []
+    daemon.servicio = type("Service", (), {
+        "aplicar_pwm_fan": lambda self, pwm, value: applied.append((pwm, value)),
+        "leer_pwm_fan": lambda self, pwm: {"value": 0, "sensor_path": ""},
+    })()
+    daemon._system_fan_control_snapshot = lambda: {"external": True}
+    monkeypatch.setattr("bc250cc.infrastructure.daemon.time.monotonic", lambda: 10.0)
+
+    daemon.aplicar_ventilador_persistente_si_corresponde({"gpu_temp": 70}, CURVE_CONFIG)
+
+    assert applied == []
+
+
+def test_the_repository_refuses_every_route_while_another_program_has_the_fan(monkeypatch):
+    from bc250cc.infrastructure import fan_repository
+
+    repository = object.__new__(fan_repository.FanRepository)
+    touched = []
+    for name in ("_usar_steamos_fan_daemon_helper", "_usar_steamos_game_helper", "_sensor_nct_principal"):
+        monkeypatch.setattr(repository, name, lambda *a, _n=name: touched.append(_n), raising=False)
+    monkeypatch.setattr(fan_repository, "fan_handed_to_external", lambda: True)
+
+    with pytest.raises(RuntimeError, match="handed to another program"):
+        repository.aplicar_pwm_fan(2, 128)
+    with pytest.raises(RuntimeError, match="handed to another program"):
+        repository.restaurar_pwm_automatico(2)
+    assert touched == [], "refused before any route is even chosen"

@@ -738,6 +738,9 @@ class SistemaService:
     def desactivar_control_fan_sistema(self):
         return self.repo.desactivar_control_fan_sistema()
 
+    def ceder_fan_a_otro_programa(self, ceder):
+        return self.repo.ceder_fan_a_otro_programa(ceder)
+
     def exportar_perfiles_fan_decky(self, profiles):
         return self.repo.exportar_perfiles_fan_decky(profiles)
 

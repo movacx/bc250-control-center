@@ -96,13 +96,14 @@ def _fan_owner(fan: dict[str, Any], cache: "ControllerStateCache") -> str:
     try:
         snapshot = read_system_fan_control()
         system_owned = system_fan_control_owns_fan(snapshot) and snapshot.get("state") != "override"
+        external = bool(snapshot.get("external"))
     except Exception:
-        system_owned = False
+        system_owned = external = False
     try:
         config = cache.config()
     except Exception:
         config = {}
-    return dashboard_fan_owner(fan, system_owned=system_owned, config=config)
+    return dashboard_fan_owner(fan, system_owned=system_owned, config=config, external=external)
 
 
 def _number(value: Any, default: float = 0.0) -> float:

@@ -464,12 +464,12 @@ def test_automatic_curve_does_not_write_when_hardware_already_matches(qtbot):
 
     page.current_state = {
         "driver_control": True,
-        # 178/255 rounds to 70%, matching what the default curve computes
+        # 189/255 rounds to 74%, matching what the default curve computes
         # for a 52 C reading -- exactly as a boot-time restore would leave it.
         "sensores": {"fans": [_fan(2, "Pump Fan", root_writable=True)]},
         "modulos": {"nct6687": True},
     }
-    page.current_state["sensores"]["fans"][0]["pwm"] = 178
+    page.current_state["sensores"]["fans"][0]["pwm"] = 189
     page.performance_state = {"gpu_temp": 52.0}
     page._curve_target_pwm = 2
     page.curve_enabled.setChecked(True)
@@ -481,7 +481,7 @@ def test_automatic_curve_does_not_write_when_hardware_already_matches(qtbot):
     page._maybe_apply_curve()
 
     assert writes == [], f"unnecessary privileged write on page entry: {writes}"
-    assert page._last_curve_percent == 70
+    assert page._last_curve_percent == 74
 
 
 def test_automatic_curve_still_applies_a_genuinely_different_target(qtbot):

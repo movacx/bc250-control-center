@@ -210,6 +210,14 @@ _CODES: tuple[ErrorCode, ...] = (
         markers=('QUICK_ACCESS_FAN',),
     ),
     ErrorCode(
+        "BC250-FAN-002",
+        "The fan is handed to another program.",
+        "On the Fans page the fan was handed to another program, such as CoolerControl, so BC250 Control Center does not write to it.",
+        "Use that program to change the fan, or press Take control back on the Fans page first.",
+        exit_statuses=(58,),
+        markers=('FAN_EXTERNAL', 'QUICK_ACCESS_FAN_EXTERNAL'),
+    ),
+    ErrorCode(
         "BC250-CPU-001",
         "The CPU tuning result could not be applied or verified.",
         "The stress dependency, SMU helper, same-boot detector evidence, temperature limit, or selected frequency and VID do not satisfy the validated workflow.",

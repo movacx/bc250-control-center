@@ -35,6 +35,7 @@ from PyQt6.QtWidgets import (
 from bc250cc.domain.fan.persistence import (
     CUSTOM_FAN_PRESET,
     DEFAULT_CRITICAL_TEMPERATURES_C,
+    interpolate_fan_curve,
     normalize_fan_curve,
     select_fan_control_temperature,
     validate_fan_curve_points,
@@ -116,10 +117,14 @@ VISIBLE_PWM_ORDER = (2, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
 #: Below this duty a manual speed asks before it is written: the board can
 #: overheat under load. Anything above is applied on the click.
 LOW_DUTY_CONFIRM_PERCENT = 30
+#: Five points each: the curve is a line between points, so five give it a
+#: gentle start, a steeper middle where a BC-250 under load spends its time,
+#: and full speed with margin before the 95 C critical failsafe. Each keeps
+#: roughly where its three-point predecessor started and reached 100 %.
 CURVE_PRESETS = {
-    "silent": ((50, 45), (65, 70), (75, 100)),
-    "balanced": ((50, 60), (65, 85), (72, 100)),
-    "aggressive": ((45, 70), (60, 90), (68, 100)),
+    "silent": ((45, 40), (55, 50), (65, 65), (72, 85), (78, 100)),
+    "balanced": ((40, 50), (50, 60), (60, 75), (67, 90), (74, 100)),
+    "aggressive": ((40, 60), (48, 70), (56, 82), (63, 92), (70, 100)),
 }
 
 _ICON_DIR = (Path(__file__).resolve().parents[1] / "theme" / "icons").as_posix()
@@ -1178,6 +1183,14 @@ class FansPage(QWidget):
         self.restore_auto_button.setProperty("fanAction", "secondary")
         self.restore_auto_button.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.restore_auto_button.clicked.connect(self.restore_automatic_pwm)
+        # For CoolerControl, fancontrol and the like: the driver stays loaded
+        # for them, and BC250 Control Center stops writing to the fan at all.
+        self.external_button = QPushButton(tr("Hand off to another program"))
+        self.external_button.setObjectName("fan-external")
+        self.external_button.setProperty("compactAction", True)
+        self.external_button.setProperty("fanAction", "secondary")
+        self.external_button.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.external_button.clicked.connect(self._toggle_external_control)
         self.apply_pwm_button = QPushButton(tr("Apply PWM"))
         self.apply_pwm_button.setObjectName("fan-apply")
         self.apply_pwm_button.setProperty("primaryAction", True)
@@ -1413,6 +1426,124 @@ class FansPage(QWidget):
     def _system_fan_owned(self) -> bool:
         return system_fan_control_owns_fan(self._system_fan_control)
 
+    def _fan_external(self) -> bool:
+        """True while the fan is handed to another program."""
+        return bool(self._system_fan_control.get("external"))
+
+    def _fan_managers(self) -> list[str]:
+        managers = self._system_fan_control.get("managers")
+        return [str(name) for name in managers] if isinstance(managers, list) else []
+
+    def _render_external_button(self) -> None:
+        if not hasattr(self, "external_button"):
+            return
+        managers = self._fan_managers()
+        if self._fan_external():
+            text = tr("Take control back")
+            tooltip = tr(
+                "BC250 Control Center controls the fan again. Nothing is written "
+                "until you apply a speed, a curve or Return to BIOS control."
+            )
+        else:
+            text = (
+                tr_format("Hand off to {program}", program=managers[0])
+                if len(managers) == 1 else tr("Hand off to another program")
+            )
+            tooltip = tr(
+                "For CoolerControl, fancontrol or fan2go: the driver stays loaded for "
+                "them and BC250 Control Center stops writing to the fan, from boot too."
+            )
+        self.external_button.setText(text)
+        self.external_button.setToolTip(tooltip)
+        self.external_button.setEnabled(not self._busy and not self._system_fan_busy)
+
+    def _toggle_external_control(self) -> None:
+        if self._busy or self._system_fan_busy:
+            return
+        external = self._fan_external()
+        managers = self._fan_managers()
+        program = ", ".join(managers) if managers else tr("the other program")
+        if external:
+            operation_flag = False
+            done_title = "BC250 Control Center controls the fan again"
+            done_text = (
+                "The fan keeps the speed the other program left. Apply a speed, a curve "
+                "or Return to BIOS control when you want to change it. Stop the other "
+                "program first, or the two will fight over the fan."
+            )
+        else:
+            dialog = ConfirmDialog(
+                "Hand off the fan",
+                "BC250 Control Center stops writing to the fan: no speed, curve, preset, "
+                "Quick Access change or control from boot, and nothing at the next boot. "
+                "The fan driver stays loaded, so the other program keeps working. "
+                "Speeds and temperatures are still shown here.",
+                summary=(
+                    ("Other program", program),
+                    ("Fan right now", tr("Unchanged")),
+                ),
+                confirm_text="Hand off",
+                tone="blue",
+                parent=self,
+            )
+            if dialog.exec() != QDialog.DialogCode.Accepted:
+                return
+            operation_flag = True
+            done_title = "The fan is handed to another program"
+            done_text = tr_format(
+                "{program} controls the fan now. BC250 Control Center only reads its speed and temperatures.",
+                program=program,
+            )
+
+        # Read on the GUI thread: the operation below runs in the background.
+        # Nothing to resume once the fan is taken back: the curve and the
+        # preset are off, as after Return to BIOS control.
+        try:
+            curve = self._curve_config()
+        except ValueError:
+            curve = dict(self._fan_root_config.get("fan_curve") or {})
+        curve["enabled"] = False
+        preset = {**self._fan_preset_config, "enabled": False}
+        settings = self.settings_service
+
+        def operation() -> object:
+            result = self.controller.ceder_fan_a_otro_programa(operation_flag)
+            if operation_flag:
+                if settings is None:
+                    raise RuntimeError("FansPage requires a settings service to save preferences")
+                settings.save_local_config({"fan_curve": curve, "fan_preset": preset})
+            return result
+
+        self._system_fan_busy = True
+        self._system_fan_sync_error = ""
+        self._render_system_control()
+
+        def success(_result: object) -> None:
+            self._system_fan_busy = False
+            if operation_flag:
+                self.curve_enabled.blockSignals(True)
+                self.curve_enabled.setChecked(False)
+                self.curve_enabled.blockSignals(False)
+                self._fan_preset_config = {**self._fan_preset_config, "enabled": False}
+            self._system_fan_control = {**self._system_fan_control, "external": operation_flag}
+            self._render_system_control()
+            self._update_action_availability()
+            self._record_event("info", done_title, done_text)
+            self._state_cache.invalidate("fans", "config")
+            self.refresh()
+            self._show_info(done_title, done_text, tone="blue")
+
+        def failure(message: str) -> None:
+            self._system_fan_busy = False
+            self._render_system_control()
+            self._record_event("error", "Fan hand-off failed", message)
+            self._show_error("Fan hand-off failed", message)
+
+        if not self._background.start("fan-external-control", operation, success, failure):
+            # The previous hand-off is still closing: nothing was started.
+            self._system_fan_busy = False
+            self._render_system_control()
+
     def _render_system_control(self) -> None:
         if not hasattr(self, "system_control_chip"):
             return
@@ -1430,6 +1561,14 @@ class FansPage(QWidget):
         if self._system_fan_busy:
             chip, tone = "Working", "blue"
             detail = tr("Waiting for the administrator password…")
+        elif snapshot.get("external"):
+            chip, tone = "Another program", "blue"
+            managers = self._fan_managers()
+            detail = (
+                tr_format("{program} controls the fan. Nothing here writes to it.", program=", ".join(managers))
+                if managers else
+                tr("The fan is handed to another program. Nothing here writes to it.")
+            )
         elif not snapshot:
             chip, tone = "Checking", "gray"
             detail = tr("Checking the system fan service…")
@@ -1485,8 +1624,9 @@ class FansPage(QWidget):
             self.system_control_button.style().unpolish(self.system_control_button)
             self.system_control_button.style().polish(self.system_control_button)
         self.system_control_button.setEnabled(
-            not self._system_fan_busy and (enabled or available)
+            not self._system_fan_busy and (enabled or available) and not snapshot.get("external")
         )
+        self._render_external_button()
         self.system_control_sync_button.setVisible(enabled and out_of_date)
         self.system_control_sync_button.setEnabled(not self._system_fan_busy)
 
@@ -1564,7 +1704,10 @@ class FansPage(QWidget):
 
     def _sync_system_fan_policy(self, *, force: bool = False, clear: bool = False) -> None:
         """Hand a saved curve or preset to the root service, when it is on."""
-        if not self._system_fan_control.get("enabled") or self._system_fan_busy:
+        if (
+            not self._system_fan_control.get("enabled") or self._system_fan_busy
+            or self._fan_external()
+        ):
             return
         policy = None if clear else self._desktop_fan_policy()
         if policy is None and not clear:
@@ -1831,7 +1974,7 @@ class FansPage(QWidget):
         """Keep the primary write action visually dominant at every width."""
         self._place_action_bar(
             self.manual_footer_grid,
-            [self.restore_auto_button],
+            [self.restore_auto_button, self.external_button],
             self.apply_pwm_button,
             wide=int(columns) >= 3,
         )
@@ -2277,12 +2420,7 @@ class FansPage(QWidget):
         self._update_curve_summary()
 
     def _curve_percent_for_temp(self, temperature: float) -> int:
-        points = self._curve_points_values()
-        target = points[0][1]
-        for limit, speed in points:
-            if temperature >= limit:
-                target = speed
-        return max(0, min(100, int(target)))
+        return interpolate_fan_curve(self._curve_points_values(), temperature)
 
     def _update_curve_summary(self) -> None:
         points = self._curve_points_values()
@@ -2547,7 +2685,19 @@ class FansPage(QWidget):
                 return
         self._run_pwm_write(pwm, percent, source="manual")
 
+    def _refuse_while_external(self) -> bool:
+        if not self._fan_external():
+            return False
+        self._show_info(
+            "The fan is handed to another program",
+            "The fan is handed to another program. Take control back on the Fans page first.",
+            tone="orange",
+        )
+        return True
+
     def restore_automatic_pwm(self) -> None:
+        if self._refuse_while_external():
+            return
         if not self._fan_control_available():
             self._show_info(
                 "PWM control is not ready",
@@ -2647,6 +2797,17 @@ class FansPage(QWidget):
                 tone="orange",
             )
             return
+        if self._system_fan_owned():
+            # The root service follows the curve. A direct write would pause
+            # it on a fixed duty (and could land after the sync that resumes
+            # it, leaving it paused): hand the curve over instead.
+            self._persist_curve(show_error=False, on_success=lambda: self._sync_system_fan_policy(force=True))
+            self._show_info(
+                "Fan curve applied",
+                "The system service follows this curve now.",
+                tone="blue",
+            )
+            return
         percent = self._curve_percent_for_temp(temperature)
         # The curve on screen is the one the user drew; applying it needs no
         # second question.
@@ -2655,6 +2816,8 @@ class FansPage(QWidget):
 
     def _run_pwm_write(self, pwm, percent: int, *, source: str, automatic: bool = False) -> None:
         if self._busy:
+            return
+        if self._refuse_while_external():
             return
         pwm = _integer(pwm, 2)
         percent = max(0, min(100, _integer(percent)))
@@ -3249,6 +3412,7 @@ class FansPage(QWidget):
             pwm_enable=presentation.selected_fan.get("pwm_enable") if presentation.selected_fan else None,
             curve_enabled=self.curve_enabled.isChecked(),
             preset_enabled=bool(self._fan_preset_config.get("enabled")),
+            external=self._fan_external(),
         )
 
     def _render_fan_driver(self, presentation: FanStatePresentation, driver: str) -> None:
@@ -3342,10 +3506,14 @@ class FansPage(QWidget):
             curve_point_count=len(self.curve_points),
             busy=self._busy,
         )
-        manual_writable = availability.apply_pwm and self._selected_channel_writable()
+        external = self._fan_external()
+        manual_writable = (
+            availability.apply_pwm and self._selected_channel_writable() and not external
+        )
         curve_editable = availability.edit_curve and self.curve_enabled.isChecked()
         curve_writable = (
-            availability.apply_curve
+            not external
+            and availability.apply_curve
             and self.curve_enabled.isChecked()
             and self._fan_writable_for_pwm(self._curve_target_pwm)
         )
@@ -3360,7 +3528,7 @@ class FansPage(QWidget):
         self.manual_mode_button.setEnabled(not self._busy)
         self.curve_mode_button.setEnabled(not self._busy)
         for button in self.manual_preset_buttons:
-            button.setEnabled(availability.channel_select)
+            button.setEnabled(availability.channel_select and not external)
         self.add_curve_point_button.setEnabled(availability.add_point and curve_editable)
         self.remove_curve_point_button.setEnabled(availability.remove_point and curve_editable)
         for point in self.curve_points:
@@ -3368,7 +3536,8 @@ class FansPage(QWidget):
         for button in self.curve_preset_buttons:
             # Reachable with the curve off too: picking one switches it on.
             button.setEnabled(availability.edit_curve)
-        self.curve_enabled.setEnabled(availability.edit_curve)
+        self.curve_enabled.setEnabled(availability.edit_curve and not external)
+        self._render_external_button()
         self.prepare_button.setEnabled(availability.driver_setup)
         self.read_only_button.setEnabled(availability.driver_setup)
         self.disable_button.setEnabled(availability.driver_setup)
@@ -3419,6 +3588,9 @@ class FansPage(QWidget):
         return None if raw is None else round(max(0, min(255, _integer(raw))) * 100 / 255)
 
     def _maybe_apply_curve(self) -> None:
+        if self._fan_external():
+            # Another program has the fan: never write, not even the curve.
+            return
         if self._system_fan_owned():
             # The root service follows the curve; a write from here would go
             # through pkexec and only fight it (GitHub #15).

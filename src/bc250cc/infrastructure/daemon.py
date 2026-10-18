@@ -311,6 +311,10 @@ class BC250ControlCenterDaemon:
         # policy from boot, this per-user loop must not write at all -- every
         # write here goes through pkexec and could ask for a password.
         snapshot = self._system_fan_control_snapshot()
+        if snapshot.get('external'):
+            # Handed to another program (CoolerControl...): never write.
+            self._write_health(fan_owner='external', fan_error='')
+            return
         if system_fan_control_owns_fan(snapshot):
             self._write_health(
                 fan_owner='system', fan_system_state=snapshot.get('state', ''),
