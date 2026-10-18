@@ -4953,5 +4953,10 @@
   "The fan is handed to another program. Nothing here writes to it.": "พัดลมถูกมอบให้โปรแกรมอื่นแล้ว ไม่มีสิ่งใดที่นี่เขียนไปยังพัดลม",
   "The fan is handed to another program. Take control back on the Fans page first.": "พัดลมถูกมอบให้โปรแกรมอื่นแล้ว รับการควบคุมคืนที่หน้าพัดลมก่อน",
   "The installed fan helper is older than this application. Reinstall BC250 Control Center to hand the fan to another program.": "ตัวช่วยพัดลมที่ติดตั้งเก่ากว่าแอปพลิเคชันนี้ ติดตั้ง BC250 Control Center ใหม่เพื่อมอบพัดลมให้โปรแกรมอื่น",
-  "The system service follows this curve now.": "ตอนนี้บริการระบบทำงานตามเส้นโค้งนี้"
+  "The system service follows this curve now.": "ตอนนี้บริการระบบทำงานตามเส้นโค้งนี้",
+  "OptiScaler Client version": "เวอร์ชัน OptiScaler Client",
+  "OptiScaler Client {version} is selected. Install or Update brings it in.": "เลือก OptiScaler Client {version} แล้ว กด ติดตั้ง หรือ อัปเดต เพื่อนำมาใช้",
+  "The OptiScaler Client build Install or Update brings in. The recommended one is the build this version of Control Center was checked with.": "รุ่นของ OptiScaler Client ที่ ติดตั้ง หรือ อัปเดต จะนำมาใช้ รุ่นที่แนะนำคือรุ่นที่ใช้ตรวจสอบ Control Center เวอร์ชันนี้",
+  "The selected client build is not installed yet. Install brings it in; your games and backups are kept.": "เวอร์ชันไคลเอนต์ที่เลือกยังไม่ได้ติดตั้ง ติดตั้งจะนำเข้ามา เกมและข้อมูลสำรองของคุณยังคงอยู่",
+  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "อ่านรายการรุ่นของ OptiScaler Client บน GitHub ในเทอร์มินัล เพื่อให้เลือกรุ่นที่ใหม่กว่าและรุ่นทดลองได้ ไม่มีการติดตั้งสิ่งใด"
 }

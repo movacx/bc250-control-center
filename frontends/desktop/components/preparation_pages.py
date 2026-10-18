@@ -884,6 +884,29 @@ class PreparationPagesMixin:
         ))
         # The Steam launch option: always in view at the head of the games
         # table, where each game says whether it has it, with a copy.
+        # The client build Install or Update brings in, as for HelixSR: the
+        # recommended one unless the user picks another from GitHub's list.
+        fsr4_version_row = QHBoxLayout()
+        fsr4_version_row.setSpacing(8)
+        fsr4_version_row.addWidget(_label("Version", "readingLabel", wrap=False))
+        self.fsr4_version_combo = GuardedComboBox()
+        self.fsr4_version_combo.setAccessibleName(tr("OptiScaler Client version"))
+        self.fsr4_version_combo.setToolTip(tr(
+            "The OptiScaler Client build Install or Update brings in. The recommended one is the build this version of Control Center was checked with."
+        ))
+        self.fsr4_version_combo.activated.connect(self._select_fsr4_release)
+        fsr4_version_row.addWidget(self.fsr4_version_combo, 1)
+        self.fsr4_releases_button = QPushButton(tr("Check for new releases"))
+        self.fsr4_releases_button.setProperty("compactAction", True)
+        self.fsr4_releases_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.fsr4_releases_button.setToolTip(tr(
+            "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed."
+        ))
+        self.fsr4_releases_button.clicked.connect(
+            lambda: self._forward_dependency_action({"action": "fsr4_releases", "governor": ""})
+        )
+        fsr4_version_row.addWidget(self.fsr4_releases_button)
+        self.fsr4_section.extra.addLayout(fsr4_version_row)
         self.fsr4_launch_panel = QFrame()
         self.fsr4_launch_panel.setProperty("compactPanel", True)
         launch_row = QHBoxLayout(self.fsr4_launch_panel)

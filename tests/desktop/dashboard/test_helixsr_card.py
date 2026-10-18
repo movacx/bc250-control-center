@@ -640,3 +640,53 @@ def test_the_int8_row_is_off_for_a_release_that_does_not_read_it():
     assert not form.controls["Upscaling.Int8"].isEnabled()
     sidebar.set_state(_state(_ready(int8_supported=True)))
     assert form.controls["Upscaling.Int8"].isEnabled()
+
+
+def _fsr4(**overrides) -> dict:
+    state = {
+        "provider": "opticlient", "installer_available": True, "installed": True, "current": True,
+        "state": "ready", "version": "1.0.7-bc250.5", "tag": "opticlient-v1.0.7-bc250.5",
+        "games": [], "steam_launch_option": 'WINEDLLOVERRIDES="dxgi=n,b" %command%',
+    }
+    state.update(overrides)
+    return state
+
+
+def _client_releases(*versions: str) -> list[dict]:
+    return [{"tag": "opticlient-v" + version, "version": version, "prerelease": True,
+             "reviewed": version == "1.0.7-bc250.5", "default": version == "1.0.7-bc250.5"}
+            for version in versions]
+
+
+def test_the_fsr4_client_build_is_picked_like_helixsrs():
+    sidebar = _sidebar()
+    sidebar.set_state(_state(_helixsr(), _fsr4(
+        releases=_client_releases("1.0.8-bc250.1", "1.0.7-bc250.5", "1.0.7-bc250.4"),
+    )))
+    combo = sidebar.fsr4_version_combo
+    assert sidebar.fsr4_section.isAncestorOf(combo)
+    assert [combo.itemText(i) for i in range(combo.count())] == [
+        "1.0.8-bc250.1 (pre-release)", "1.0.7-bc250.5 (recommended)", "1.0.7-bc250.4 (pre-release)",
+    ]
+    assert combo.currentData() == "opticlient-v1.0.7-bc250.5" and combo.isEnabled()
+    requested = []
+    sidebar.dependency_action_requested.connect(requested.append)
+
+    combo.activated.emit(1)                      # already picked: nothing to do
+    combo.activated.emit(0)
+    sidebar.fsr4_releases_button.click()
+
+    assert [item["action"] for item in requested] == [
+        "fsr4_select:opticlient-v1.0.8-bc250.1", "fsr4_releases",
+    ]
+
+
+def test_an_older_client_build_picked_on_purpose_is_not_offered_as_an_update():
+    sidebar = _sidebar()
+    sidebar.set_state(_state(_helixsr(), _fsr4(
+        current=False, state="other-version", version="1.0.7-bc250.4",
+        tag="opticlient-v1.0.7-bc250.4",
+        releases=_client_releases("1.0.7-bc250.5", "1.0.7-bc250.4"),
+    )))
+    assert sidebar.fsr4_card.status.text() == "Other version selected"
+    assert sidebar.fsr4_install_button.text() == "Install FSR4"

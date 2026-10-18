@@ -4953,5 +4953,10 @@
   "The fan is handed to another program. Nothing here writes to it.": "팬을 다른 프로그램에 넘겼습니다. 여기서는 아무것도 쓰지 않습니다.",
   "The fan is handed to another program. Take control back on the Fans page first.": "팬을 다른 프로그램에 넘겼습니다. 먼저 팬 페이지에서 제어를 되찾으세요.",
   "The installed fan helper is older than this application. Reinstall BC250 Control Center to hand the fan to another program.": "설치된 팬 도우미가 이 애플리케이션보다 오래되었습니다. 팬을 다른 프로그램에 넘기려면 BC250 Control Center를 다시 설치하세요.",
-  "The system service follows this curve now.": "이제 시스템 서비스가 이 곡선을 따릅니다."
+  "The system service follows this curve now.": "이제 시스템 서비스가 이 곡선을 따릅니다.",
+  "OptiScaler Client version": "OptiScaler Client 버전",
+  "OptiScaler Client {version} is selected. Install or Update brings it in.": "OptiScaler Client {version}이(가) 선택되었습니다. 설치 또는 업데이트로 가져옵니다.",
+  "The OptiScaler Client build Install or Update brings in. The recommended one is the build this version of Control Center was checked with.": "설치 또는 업데이트로 가져오는 OptiScaler Client 릴리스입니다. 권장 릴리스는 이 버전의 Control Center가 확인한 릴리스입니다.",
+  "The selected client build is not installed yet. Install brings it in; your games and backups are kept.": "선택한 클라이언트 버전이 아직 설치되지 않았습니다. 설치를 누르면 추가되며, 게임과 백업은 유지됩니다.",
+  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "터미널에서 GitHub의 OptiScaler Client 릴리스 목록을 읽어 더 새로운 릴리스와 프리릴리스를 고를 수 있게 합니다. 아무것도 설치하지 않습니다."
 }

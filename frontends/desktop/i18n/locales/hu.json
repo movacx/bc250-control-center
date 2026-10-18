@@ -4953,5 +4953,10 @@
   "The fan is handed to another program. Nothing here writes to it.": "A ventilátor át van adva egy másik programnak. Innen semmi sem ír bele.",
   "The fan is handed to another program. Take control back on the Fans page first.": "A ventilátor át van adva egy másik programnak. Előbb vedd vissza a vezérlést a Ventilátorok oldalon.",
   "The installed fan helper is older than this application. Reinstall BC250 Control Center to hand the fan to another program.": "A telepített ventilátor-segédprogram régebbi ennél az alkalmazásnál. Telepítsd újra a BC250 Control Centert, hogy átadhasd a ventilátort egy másik programnak.",
-  "The system service follows this curve now.": "A rendszerszolgáltatás most ezt a görbét követi."
+  "The system service follows this curve now.": "A rendszerszolgáltatás most ezt a görbét követi.",
+  "OptiScaler Client version": "OptiScaler Client-verzió",
+  "OptiScaler Client {version} is selected. Install or Update brings it in.": "A OptiScaler Client {version} van kiválasztva. A Telepítés vagy a Frissítés hozza.",
+  "The OptiScaler Client build Install or Update brings in. The recommended one is the build this version of Control Center was checked with.": "A OptiScaler Client-kiadás, amelyet a Telepítés vagy a Frissítés hoz. Az ajánlott az a kiadás, amellyel a Control Center ezen verzióját ellenőrizték.",
+  "The selected client build is not installed yet. Install brings it in; your games and backups are kept.": "A kiválasztott kliensverzió még nincs telepítve. A Telepítés hozza; a játékaid és a biztonsági mentéseid megmaradnak.",
+  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "A terminálban beolvassa a OptiScaler Client GitHubon lévő kiadáslistáját, hogy újabb kiadások és előzetes kiadások is választhatók legyenek. Semmi sem települ."
 }

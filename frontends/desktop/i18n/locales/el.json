@@ -4953,5 +4953,10 @@
   "The fan is handed to another program. Nothing here writes to it.": "Ο ανεμιστήρας παραδόθηκε σε άλλο πρόγραμμα. Τίποτα εδώ δεν γράφει σε αυτόν.",
   "The fan is handed to another program. Take control back on the Fans page first.": "Ο ανεμιστήρας παραδόθηκε σε άλλο πρόγραμμα. Ανακτήστε πρώτα τον έλεγχο στη σελίδα Ανεμιστήρες.",
   "The installed fan helper is older than this application. Reinstall BC250 Control Center to hand the fan to another program.": "Ο εγκατεστημένος βοηθός ανεμιστήρων είναι παλαιότερος από αυτήν την εφαρμογή. Επανεγκαταστήστε το BC250 Control Center για να παραδώσετε τον ανεμιστήρα σε άλλο πρόγραμμα.",
-  "The system service follows this curve now.": "Η υπηρεσία συστήματος ακολουθεί τώρα αυτήν την καμπύλη."
+  "The system service follows this curve now.": "Η υπηρεσία συστήματος ακολουθεί τώρα αυτήν την καμπύλη.",
+  "OptiScaler Client version": "Έκδοση OptiScaler Client",
+  "OptiScaler Client {version} is selected. Install or Update brings it in.": "Επιλέχθηκε το OptiScaler Client {version}. Η Εγκατάσταση ή η Ενημέρωση το φέρνει.",
+  "The OptiScaler Client build Install or Update brings in. The recommended one is the build this version of Control Center was checked with.": "Η έκδοση του OptiScaler Client που φέρνει η Εγκατάσταση ή η Ενημέρωση. Η προτεινόμενη είναι η έκδοση με την οποία ελέγχθηκε αυτή η έκδοση του Control Center.",
+  "The selected client build is not installed yet. Install brings it in; your games and backups are kept.": "Η επιλεγμένη έκδοση του προγράμματος-πελάτη δεν έχει εγκατασταθεί ακόμη. Η Εγκατάσταση την προσθέτει· τα παιχνίδια και τα αντίγραφα ασφαλείας σας διατηρούνται.",
+  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "Διαβάζει στο τερματικό τη λίστα εκδόσεων του OptiScaler Client στο GitHub, ώστε να μπορούν να επιλεγούν νεότερες εκδόσεις και προεκδόσεις. Δεν εγκαθίσταται τίποτα."
 }

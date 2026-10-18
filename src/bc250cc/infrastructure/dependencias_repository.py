@@ -36,10 +36,12 @@ from bc250cc.infrastructure.bc250_fsr4 import (
 )
 from bc250cc.infrastructure.bc250_opticlient import (
     build_opticlient_install_command,
+    build_opticlient_releases_command,
     build_opticlient_remove_command,
     launch_opticlient,
     opticlient_games,
     opticlient_state,
+    select_opticlient_release,
 )
 from bc250cc.infrastructure.cachyos_bc250_kernel import (
     build_cachyos_bc250_kernel_command,
@@ -494,6 +496,11 @@ class DependenciasRepository(SteamosDependenciesMixin):
         action = str(action or '').strip().lower()
         if action == 'launch':
             return launch_opticlient()
+        if action.startswith('select:'):
+            # Only the pick is saved; Install/Update downloads it.
+            result = select_opticlient_release(action.partition(':')[2])
+            self.estado_herramientas_cache = None
+            return result
         if action == 'steam_option_all':
             # One launch option for the whole library, so the client only has
             # to copy files into a new game. dxgi is the client's default.
@@ -518,6 +525,8 @@ class DependenciasRepository(SteamosDependenciesMixin):
             if not opticlient_state().get('installer_available'):
                 raise RuntimeError('OptiScaler Client is built for x86_64 Linux only.')
             command, title = build_opticlient_install_command(), 'FSR4 · OptiScaler Client BC250'
+        elif action == 'releases':
+            command, title = build_opticlient_releases_command(), 'FSR4 · releases'
         elif action == 'uninstall':
             command, title = build_opticlient_remove_command(), 'FSR4 · remove OptiScaler Client'
         elif action == 'legacy_uninstall':

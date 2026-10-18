@@ -4953,5 +4953,10 @@
   "The fan is handed to another program. Nothing here writes to it.": "Blæseren er overdraget til et andet program. Intet her skriver til den.",
   "The fan is handed to another program. Take control back on the Fans page first.": "Blæseren er overdraget til et andet program. Tag først styringen tilbage på siden Blæsere.",
   "The installed fan helper is older than this application. Reinstall BC250 Control Center to hand the fan to another program.": "Den installerede blæserhjælper er ældre end dette program. Geninstaller BC250 Control Center for at overdrage blæseren til et andet program.",
-  "The system service follows this curve now.": "Systemtjenesten følger nu denne kurve."
+  "The system service follows this curve now.": "Systemtjenesten følger nu denne kurve.",
+  "OptiScaler Client version": "OptiScaler Client-version",
+  "OptiScaler Client {version} is selected. Install or Update brings it in.": "OptiScaler Client {version} er valgt. Installer eller Opdater henter den.",
+  "The OptiScaler Client build Install or Update brings in. The recommended one is the build this version of Control Center was checked with.": "Den OptiScaler Client-udgivelse, som Installer eller Opdater henter. Den anbefalede er den udgivelse, denne version af Control Center er kontrolleret med.",
+  "The selected client build is not installed yet. Install brings it in; your games and backups are kept.": "Den valgte klientversion er ikke installeret endnu. Installer henter den; dine spil og sikkerhedskopier bevares.",
+  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "Læser i terminalen listen over OptiScaler Client-udgivelser på GitHub, så nyere udgivelser og forhåndsudgivelser kan vælges. Intet bliver installeret."
 }

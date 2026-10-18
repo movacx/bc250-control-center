@@ -4953,5 +4953,10 @@
   "The fan is handed to another program. Nothing here writes to it.": "Fan başka bir programa devredildi. Buradaki hiçbir şey ona yazmaz.",
   "The fan is handed to another program. Take control back on the Fans page first.": "Fan başka bir programa devredildi. Önce Fanlar sayfasında kontrolü geri alın.",
   "The installed fan helper is older than this application. Reinstall BC250 Control Center to hand the fan to another program.": "Yüklü fan yardımcısı bu uygulamadan daha eski. Fanı başka bir programa devretmek için BC250 Control Center'ı yeniden yükleyin.",
-  "The system service follows this curve now.": "Sistem hizmeti artık bu eğriyi izliyor."
+  "The system service follows this curve now.": "Sistem hizmeti artık bu eğriyi izliyor.",
+  "OptiScaler Client version": "OptiScaler Client sürümü",
+  "OptiScaler Client {version} is selected. Install or Update brings it in.": "OptiScaler Client {version} seçildi. Yükle veya Güncelle onu getirir.",
+  "The OptiScaler Client build Install or Update brings in. The recommended one is the build this version of Control Center was checked with.": "Yükle veya Güncelle ile gelen OptiScaler Client sürümü. Önerilen, Control Center'ın bu sürümüyle denetlenmiş olan sürümdür.",
+  "The selected client build is not installed yet. Install brings it in; your games and backups are kept.": "Seçilen istemci sürümü henüz yüklü değil. Yükle onu getirir; oyunlarınız ve yedekleriniz korunur.",
+  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "Terminalde GitHub'daki OptiScaler Client sürüm listesini okur; böylece daha yeni sürümler ve ön sürümler seçilebilir. Hiçbir şey yüklenmez."
 }

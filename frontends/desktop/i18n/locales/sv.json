@@ -4953,5 +4953,10 @@
   "The fan is handed to another program. Nothing here writes to it.": "Fläkten är överlämnad till ett annat program. Inget här skriver till den.",
   "The fan is handed to another program. Take control back on the Fans page first.": "Fläkten är överlämnad till ett annat program. Ta först tillbaka styrningen på sidan Fläktar.",
   "The installed fan helper is older than this application. Reinstall BC250 Control Center to hand the fan to another program.": "Den installerade fläkthjälparen är äldre än det här programmet. Installera om BC250 Control Center för att lämna över fläkten till ett annat program.",
-  "The system service follows this curve now.": "Systemtjänsten följer nu den här kurvan."
+  "The system service follows this curve now.": "Systemtjänsten följer nu den här kurvan.",
+  "OptiScaler Client version": "OptiScaler Client-version",
+  "OptiScaler Client {version} is selected. Install or Update brings it in.": "OptiScaler Client {version} är vald. Installera eller Uppdatera hämtar den.",
+  "The OptiScaler Client build Install or Update brings in. The recommended one is the build this version of Control Center was checked with.": "Den OptiScaler Client-utgåva som Installera eller Uppdatera hämtar. Den rekommenderade är utgåvan som den här versionen av Control Center kontrollerades med.",
+  "The selected client build is not installed yet. Install brings it in; your games and backups are kept.": "Den valda klientversionen är inte installerad än. Installera hämtar den; dina spel och säkerhetskopior behålls.",
+  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "Läser listan över OptiScaler Client-utgåvor på GitHub i terminalen, så att nyare utgåvor och förhandsutgåvor kan väljas. Inget installeras."
 }

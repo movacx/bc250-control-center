@@ -541,6 +541,7 @@ class PreparationRenderMixin:
         }
         fsr4 = view["state"]
         current = bool(fsr4.get("current"))
+        self._render_fsr4_versions(fsr4)
         games = list(getattr(self, "_fsr4_games", []))
         missing = [g for g in games if g.get("state") == "needs-launch-option" and g.get("steam")]
         patched = [g for g in games if g.get("state") not in {"not-installed", "linked-folder"}]
@@ -578,8 +579,16 @@ class PreparationRenderMixin:
 
     def _render_helixsr_versions(self, helixsr: Mapping) -> None:
         """The releases on offer, newest first, the picked one shown."""
-        combo = self.helixsr_version_combo
-        releases = [_mapping(item) for item in helixsr.get("releases") or () if isinstance(item, Mapping)]
+        self._render_version_picker(self.helixsr_version_combo, self.helixsr_releases_button, helixsr)
+
+    def _render_fsr4_versions(self, fsr4: Mapping) -> None:
+        """The OptiScaler Client builds on offer, as for HelixSR."""
+        if hasattr(self, "fsr4_version_combo"):
+            self._render_version_picker(self.fsr4_version_combo, self.fsr4_releases_button, fsr4)
+
+    @staticmethod
+    def _render_version_picker(combo, button, state: Mapping) -> None:
+        releases = [_mapping(item) for item in state.get("releases") or () if isinstance(item, Mapping)]
         combo.blockSignals(True)
         combo.clear()
         for release in releases:
@@ -591,10 +600,10 @@ class PreparationRenderMixin:
             else:
                 text = version
             combo.addItem(text, str(release.get("tag") or ""))
-        combo.setCurrentIndex(max(combo.findData(str(helixsr.get("tag") or "")), 0))
+        combo.setCurrentIndex(max(combo.findData(str(state.get("tag") or "")), 0))
         combo.blockSignals(False)
-        combo.setEnabled(bool(helixsr.get("installer_available")) and combo.count() > 1)
-        self.helixsr_releases_button.setEnabled(bool(helixsr.get("installer_available")))
+        combo.setEnabled(bool(state.get("installer_available")) and combo.count() > 1)
+        button.setEnabled(bool(state.get("installer_available")))
 
     def _render_helixsr_section(self) -> None:
         """HelixSR: state, its network files, its games, next step."""
@@ -1313,6 +1322,9 @@ class PreparationRenderMixin:
         elif fsr4_state == "update-available":
             status, tone = "Update available", "blue"
             detail = tr("A newer BC250 build of the client is available. Updating keeps your games and backups.")
+        elif fsr4_state == "other-version":
+            status, tone = "Other version selected", "blue"
+            detail = tr("The selected client build is not installed yet. Install brings it in; your games and backups are kept.")
         elif not fsr4_available:
             status, tone = "Unavailable", "gray"
             detail = tr("The client is built for x86_64 Linux only.")
@@ -1326,7 +1338,8 @@ class PreparationRenderMixin:
         self.fsr4_card.detail.setText(detail)
         self._fsr4_view = {
             "state": fsr4, "status": status, "tone": tone, "detail": detail,
-            "version": str(fsr4.get("version") or "") if fsr4_installed else "",
+            # The build in use, not the one picked for the next install.
+            "version": str(fsr4.get("version") or "") if fsr4_current else "",
         }
         self.fsr4_card.update_action(
             self.fsr4_install_button,

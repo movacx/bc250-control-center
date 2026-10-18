@@ -4953,5 +4953,10 @@
   "The fan is handed to another program. Nothing here writes to it.": "Wentylator przekazano innemu programowi. Nic tutaj do niego nie zapisuje.",
   "The fan is handed to another program. Take control back on the Fans page first.": "Wentylator przekazano innemu programowi. Najpierw odzyskaj sterowanie na stronie Wentylatory.",
   "The installed fan helper is older than this application. Reinstall BC250 Control Center to hand the fan to another program.": "Zainstalowany pomocnik wentylatorów jest starszy niż ta aplikacja. Zainstaluj ponownie BC250 Control Center, aby przekazać wentylator innemu programowi.",
-  "The system service follows this curve now.": "Usługa systemowa korzysta teraz z tej krzywej."
+  "The system service follows this curve now.": "Usługa systemowa korzysta teraz z tej krzywej.",
+  "OptiScaler Client version": "Wersja OptiScaler Client",
+  "OptiScaler Client {version} is selected. Install or Update brings it in.": "Wybrano OptiScaler Client {version}. Zainstaluj lub Aktualizuj go doda.",
+  "The OptiScaler Client build Install or Update brings in. The recommended one is the build this version of Control Center was checked with.": "Wydanie OptiScaler Client, które instalują Zainstaluj lub Aktualizuj. Zalecane to wydanie, z którym sprawdzono tę wersję Control Center.",
+  "The selected client build is not installed yet. Install brings it in; your games and backups are kept.": "Wybrana wersja klienta nie jest jeszcze zainstalowana. Instaluj ją doda; twoje gry i kopie zapasowe zostaną zachowane.",
+  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "Odczytuje w terminalu listę wydań OptiScaler Client na GitHubie, aby można było wybrać nowsze wydania i wersje przedpremierowe. Nic nie jest instalowane."
 }

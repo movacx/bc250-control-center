@@ -4953,5 +4953,10 @@
   "The fan is handed to another program. Nothing here writes to it.": "Viften er overlatt til et annet program. Ingenting her skriver til den.",
   "The fan is handed to another program. Take control back on the Fans page first.": "Viften er overlatt til et annet program. Ta tilbake styringen på Vifter-siden først.",
   "The installed fan helper is older than this application. Reinstall BC250 Control Center to hand the fan to another program.": "Den installerte viftehjelperen er eldre enn dette programmet. Installer BC250 Control Center på nytt for å overlate viften til et annet program.",
-  "The system service follows this curve now.": "Systemtjenesten følger nå denne kurven."
+  "The system service follows this curve now.": "Systemtjenesten følger nå denne kurven.",
+  "OptiScaler Client version": "OptiScaler Client-versjon",
+  "OptiScaler Client {version} is selected. Install or Update brings it in.": "OptiScaler Client {version} er valgt. Installer eller Oppdater henter den.",
+  "The OptiScaler Client build Install or Update brings in. The recommended one is the build this version of Control Center was checked with.": "OptiScaler Client-utgivelsen som Installer eller Oppdater henter. Den anbefalte er utgivelsen denne versjonen av Control Center er kontrollert med.",
+  "The selected client build is not installed yet. Install brings it in; your games and backups are kept.": "Den valgte klientversjonen er ikke installert ennå. Installer henter den; spillene og sikkerhetskopiene dine beholdes.",
+  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "Leser listen over OptiScaler Client-utgivelser på GitHub i terminalen, slik at nyere utgivelser og forhåndsutgivelser kan velges. Ingenting blir installert."
 }

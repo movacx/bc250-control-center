@@ -4953,5 +4953,10 @@
   "The fan is handed to another program. Nothing here writes to it.": "Tuuletin on luovutettu toiselle ohjelmalle. Mikään täällä ei kirjoita siihen.",
   "The fan is handed to another program. Take control back on the Fans page first.": "Tuuletin on luovutettu toiselle ohjelmalle. Ota ensin ohjaus takaisin Tuulettimet-sivulla.",
   "The installed fan helper is older than this application. Reinstall BC250 Control Center to hand the fan to another program.": "Asennettu tuuletinapuri on vanhempi kuin tämä sovellus. Asenna BC250 Control Center uudelleen, jotta voit luovuttaa tuulettimen toiselle ohjelmalle.",
-  "The system service follows this curve now.": "Järjestelmäpalvelu noudattaa nyt tätä käyrää."
+  "The system service follows this curve now.": "Järjestelmäpalvelu noudattaa nyt tätä käyrää.",
+  "OptiScaler Client version": "OptiScaler Client-versio",
+  "OptiScaler Client {version} is selected. Install or Update brings it in.": "OptiScaler Client {version} on valittu. Asenna tai Päivitä tuo sen.",
+  "The OptiScaler Client build Install or Update brings in. The recommended one is the build this version of Control Center was checked with.": "OptiScaler Client-julkaisu, jonka Asenna tai Päivitä tuo. Suositeltu on julkaisu, jolla tämä Control Centerin versio on tarkistettu.",
+  "The selected client build is not installed yet. Install brings it in; your games and backups are kept.": "Valittua asiakasohjelman versiota ei ole vielä asennettu. Asenna tuo sen; pelisi ja varmuuskopiosi säilyvät.",
+  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "Lukee päätteessä OptiScaler Client:n julkaisuluettelon GitHubista, jotta uudempia julkaisuja ja esijulkaisuja voi valita. Mitään ei asenneta."
 }

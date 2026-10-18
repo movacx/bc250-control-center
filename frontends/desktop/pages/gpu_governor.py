@@ -1400,6 +1400,36 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
                 error_parent=dialog_parent,
             )
             return
+        if action == "releases":
+            # Only GitHub's list of client builds is read; nothing is installed.
+            self._run_backend_action(
+                lambda: self.controller.gestionar_fsr4_bc250("releases"),
+                lambda _result: GpuGovernorPage._record_preparation_result(
+                    self, "FSR4 · OptiScaler Client", "Opened the FSR4 workflow in the terminal.",
+                ),
+                "Could not manage FSR4",
+                controls=(),
+                error_parent=dialog_parent,
+            )
+            return
+        if action.startswith("select:"):
+            # Only the pick is saved: Install or Update downloads it.
+            tag = action.partition(":")[2]
+            self._run_backend_action(
+                lambda: self.controller.gestionar_fsr4_bc250(f"select:{tag}"),
+                lambda result: GpuGovernorPage._record_preparation_result(
+                    self,
+                    "FSR4 · OptiScaler Client",
+                    tr_format(
+                        "OptiScaler Client {version} is selected. Install or Update brings it in.",
+                        version=str(_dict(result).get("version") or tag),
+                    ),
+                ),
+                "Could not manage FSR4",
+                controls=(),
+                error_parent=dialog_parent,
+            )
+            return
         copy = {
             "install": (
                 "Install FSR4 (OptiScaler Client)",
@@ -1424,13 +1454,15 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
             raise ValueError("Unsupported FSR4 action.")
         from bc250cc.infrastructure.bc250_opticlient import OPTICLIENT_TAG
 
+        fsr4 = _dict(_dict(self.current_state.get("tools")).get("fsr4"))
+        release_tag = str(fsr4.get("tag") or OPTICLIENT_TAG)
         title, body, confirm, tone = copy
         confirmation = ConfirmDialog(
             title,
             tr(body),
             summary=(
                 (tr("Source"), "github.com/daniel-h-0/bc250-fsr4-fork"),
-                (tr("Release"), OPTICLIENT_TAG),
+                (tr("Release"), release_tag),
                 (tr("Scope"), tr("Your user folder; games only when you choose them")),
             ),
             confirm_text=confirm,

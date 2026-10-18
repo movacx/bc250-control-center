@@ -4953,5 +4953,10 @@
   "The fan is handed to another program. Nothing here writes to it.": "風扇已交給其他程式。這裡不會向其寫入任何內容。",
   "The fan is handed to another program. Take control back on the Fans page first.": "風扇已交給其他程式。請先在「風扇」頁面收回控制。",
   "The installed fan helper is older than this application. Reinstall BC250 Control Center to hand the fan to another program.": "已安裝的風扇助手比此應用程式舊。請重新安裝 BC250 Control Center 以將風扇交給其他程式。",
-  "The system service follows this curve now.": "系統服務現在依此曲線運作。"
+  "The system service follows this curve now.": "系統服務現在依此曲線運作。",
+  "OptiScaler Client version": "OptiScaler Client 版本",
+  "OptiScaler Client {version} is selected. Install or Update brings it in.": "已選擇 OptiScaler Client {version}。按「安裝」或「更新」即可裝入。",
+  "The OptiScaler Client build Install or Update brings in. The recommended one is the build this version of Control Center was checked with.": "「安裝」或「更新」將使用的 OptiScaler Client 版本。建議版本是此版 Control Center 經過檢查的版本。",
+  "The selected client build is not installed yet. Install brings it in; your games and backups are kept.": "所選用戶端版本尚未安裝。「安裝」會將其裝入；你的遊戲與備份會保留。",
+  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "在終端機中讀取 GitHub 上的 OptiScaler Client 版本清單,以便選擇較新的版本和預先發行版本。不會安裝任何內容。"
 }

@@ -4953,5 +4953,10 @@
   "The fan is handed to another program. Nothing here writes to it.": "Kipas diserahkan ke program lain. Tidak ada yang di sini menulis ke kipas.",
   "The fan is handed to another program. Take control back on the Fans page first.": "Kipas diserahkan ke program lain. Ambil kembali kendali di halaman Kipas terlebih dahulu.",
   "The installed fan helper is older than this application. Reinstall BC250 Control Center to hand the fan to another program.": "Helper kipas yang terpasang lebih lama dari aplikasi ini. Pasang ulang BC250 Control Center untuk menyerahkan kipas ke program lain.",
-  "The system service follows this curve now.": "Layanan sistem kini mengikuti kurva ini."
+  "The system service follows this curve now.": "Layanan sistem kini mengikuti kurva ini.",
+  "OptiScaler Client version": "Versi OptiScaler Client",
+  "OptiScaler Client {version} is selected. Install or Update brings it in.": "OptiScaler Client {version} dipilih. Pasang atau Perbarui akan membawanya.",
+  "The OptiScaler Client build Install or Update brings in. The recommended one is the build this version of Control Center was checked with.": "Rilis OptiScaler Client yang dipasang oleh Pasang atau Perbarui. Yang direkomendasikan adalah rilis yang digunakan untuk memeriksa versi Control Center ini.",
+  "The selected client build is not installed yet. Install brings it in; your games and backups are kept.": "Versi klien yang dipilih belum terpasang. Pasang akan menambahkannya; game dan cadangan Anda tetap disimpan.",
+  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "Membaca daftar rilis OptiScaler Client di GitHub di terminal, agar rilis yang lebih baru dan pra-rilis dapat dipilih. Tidak ada yang dipasang."
 }

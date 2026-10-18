@@ -4953,5 +4953,10 @@
   "The fan is handed to another program. Nothing here writes to it.": "Ventilátor je předán jinému programu. Nic odsud do něj nezapisuje.",
   "The fan is handed to another program. Take control back on the Fans page first.": "Ventilátor je předán jinému programu. Nejprve převezměte řízení zpět na stránce Ventilátory.",
   "The installed fan helper is older than this application. Reinstall BC250 Control Center to hand the fan to another program.": "Nainstalovaný pomocník ventilátorů je starší než tato aplikace. Přeinstalujte BC250 Control Center, abyste mohli předat ventilátor jinému programu.",
-  "The system service follows this curve now.": "Systémová služba se nyní řídí touto křivkou."
+  "The system service follows this curve now.": "Systémová služba se nyní řídí touto křivkou.",
+  "OptiScaler Client version": "Verze OptiScaler Client",
+  "OptiScaler Client {version} is selected. Install or Update brings it in.": "Vybráno OptiScaler Client {version}. Instalovat nebo Aktualizovat ho přidá.",
+  "The OptiScaler Client build Install or Update brings in. The recommended one is the build this version of Control Center was checked with.": "Vydání OptiScaler Client, které nainstaluje Instalovat nebo Aktualizovat. Doporučené je vydání, se kterým byla tato verze Control Center ověřena.",
+  "The selected client build is not installed yet. Install brings it in; your games and backups are kept.": "Vybraná verze klienta zatím není nainstalovaná. Instalovat ji přidá; vaše hry a zálohy zůstanou zachovány.",
+  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "Načte v terminálu seznam vydání OptiScaler Client na GitHubu, aby šlo vybrat novější vydání a předběžné verze. Nic se neinstaluje."
 }

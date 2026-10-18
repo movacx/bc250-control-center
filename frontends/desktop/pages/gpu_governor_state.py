@@ -1222,7 +1222,10 @@ class GpuGovernorStateMixin:
                 action.partition(":")[2], dialog_parent=dialog_parent
             )
             return
-        if action in {"fsr4_install", "fsr4_uninstall", "fsr4_legacy_uninstall", "fsr4_launch"}:
+        if action in {
+            "fsr4_install", "fsr4_uninstall", "fsr4_legacy_uninstall", "fsr4_launch",
+            "fsr4_releases",
+        } or action.startswith("fsr4_select:"):
             self._manage_fsr4_bc250(
                 action.removeprefix("fsr4_"), dialog_parent=dialog_parent
             )

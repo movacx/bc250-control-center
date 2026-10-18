@@ -2954,6 +2954,12 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, QFrame):
         return f"{active} / {total}" if installed else "—"
 
 
+    def _select_fsr4_release(self, index: int) -> None:
+        tag = str(self.fsr4_version_combo.itemData(index) or "")
+        fsr4 = _mapping(_mapping(getattr(self, "_fsr4_view", {})).get("state"))
+        if tag and tag != str(fsr4.get("tag") or ""):
+            self._forward_dependency_action({"action": f"fsr4_select:{tag}", "governor": ""})
+
     def _select_helixsr_release(self, index: int) -> None:
         tag = str(self.helixsr_version_combo.itemData(index) or "")
         helixsr = _mapping(_mapping(getattr(self, "_helixsr_view", {})).get("state"))
