@@ -218,6 +218,33 @@ def test_gpu_profile_is_runtime_only_and_does_not_rewrite_persistent_toml():
     assert events == [("runtime", 1000, 2000)]
 
 
+def test_bazzite_applies_a_profile_with_the_cyan_it_already_has():
+    """Bazzite's COPR package or an image's own Cyan: no Control Center build is
+    required any more (until 1.21.1 the desktop refused every live change)."""
+    events = []
+
+    class Repository(GPURepository):
+        def _os_repository(self):
+            return type("Os", (), {"info": type("Info", (), {"family": "bazzite"})()})()
+
+        def _cyan_runtime_identity(self):
+            return {"runtime_managed": False, "config_matches_managed_path": True,
+                    "version": "cyan-skillfish-governor-smu v0.4.14"}
+
+        def _selected_gpu_governor(self):
+            return "cyan-skillfish-governor-smu"
+
+        def _leer_rango_governor(self, kind):
+            return 500, 2000
+
+        def _apply_cyan_runtime_range(self, minimum, maximum):
+            events.append((minimum, maximum))
+            return "ok"
+
+    assert Repository().aplicar_perfil_gpu(1000, 1850) == "ok"
+    assert events == [(1000, 1850)]
+
+
 def test_gpu_profile_preserves_persistent_floor_while_applying_runtime_range():
     events = []
 

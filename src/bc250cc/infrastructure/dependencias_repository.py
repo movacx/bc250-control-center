@@ -54,6 +54,9 @@ from bc250cc.infrastructure.cu_privileged_backend import (
     generic_cu_backend_status,
     steamos_cu_backend_status,
 )
+from bc250cc.infrastructure.cyan_governor_runtime import (
+    managed_runtime_update_available,
+)
 from bc250cc.infrastructure.debian_kernel_upgrade import (
     build_debian_kernel_command,
     debian_kernel_upgrade_state,
@@ -1077,6 +1080,8 @@ class DependenciasRepository(SteamosDependenciesMixin):
         )
         resultado = {
             'governor_cmd': governor_probe['command'],
+            # Prepare would move the managed Cyan to the reviewed upstream release.
+            'cyan_runtime_update_available': managed_runtime_update_available(),
             'governor_pkg': bool(governor_probe['command']),
             'governor_backend': selected_governor,
             'governor_detected_backend': str(

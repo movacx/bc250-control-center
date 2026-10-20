@@ -927,32 +927,6 @@ class GPURepository:
             )
         return path
 
-    def _require_cyan_runtime_for_live_control(self):
-        """Require the reviewed BC250CC Cyan runtime on Bazzite live writes."""
-
-        family = ""
-        os_repository_factory = getattr(self, "_os_repository", None)
-        if callable(os_repository_factory):
-            try:
-                family = str(os_repository_factory().info.family or "").lower()
-            except (AttributeError, OSError, RuntimeError, TypeError, ValueError):
-                family = ""
-        if family != "bazzite":
-            return self._cyan_runtime_identity()
-
-        identity = self._cyan_runtime_identity()
-        if not identity.get("config_matches_managed_path"):
-            raise RuntimeError(
-                "Bazzite Cyan is running with a TOML that BC250 Control Center does not manage. "
-                "Run Prepare dependencies to repair the service/config binding before changing GPU frequency."
-            )
-        if not identity.get("runtime_bc250cc_verified"):
-            raise RuntimeError(
-                "Bazzite GPU control requires the reviewed BC250CC Cyan runtime. "
-                "Run Prepare dependencies to build and verify the managed Cyan runtime before applying a live GPU range."
-            )
-        return identity
-
     def _editar_governor_toml(self, action, *arguments):
         request = plan_governor_config_request(action, arguments)
         if action not in {"set-oberon-operating-points", "set-decky-gpu-profiles"}:
@@ -1011,7 +985,6 @@ class GPURepository:
         if self._selected_gpu_governor() == OBERON_GOVERNOR:
             return self.aplicar_rango_bc250(minimo, maximo)
         minimo, maximo = int(minimo), int(maximo)
-        self._require_cyan_runtime_for_live_control()
         self._ensure_cyan_frequency_range_loaded(minimo, maximo)
         return self._apply_cyan_runtime_range(minimo, maximo)
 
@@ -1027,7 +1000,6 @@ class GPURepository:
             raise RuntimeError(
                 "Startup range persistence is available only for the Cyan governor."
             )
-        self._require_cyan_runtime_for_live_control()
         current = self._leer_rango_governor("Current")
         if current is None or len(current) != 2:
             raise RuntimeError(
@@ -1609,13 +1581,9 @@ class GPURepository:
                 ),
                 "runtime_version": str(identity.get("version") or ""),
                 "runtime_binary_sha256": str(identity.get("binary_sha256") or ""),
-                "runtime_revision": str(identity.get("runtime_revision") or ""),
-                "runtime_upstream_commit": str(
-                    identity.get("runtime_upstream_commit") or ""
-                ),
-                "runtime_hash_matches": bool(identity.get("runtime_hash_matches")),
-                "runtime_bc250cc_verified": bool(
-                    identity.get("runtime_bc250cc_verified")
+                "runtime_release": str(identity.get("runtime_release") or ""),
+                "runtime_update_available": bool(
+                    identity.get("runtime_update_available")
                 ),
                 "runtime_binary": runtime.get("binary_path", ""),
                 "runtime_frequency_fix_supported": bool(
@@ -1917,7 +1885,6 @@ class GPURepository:
     def _apply_cyan_runtime_range(self, minimo, maximo):
         """Apply and verify one Cyan adaptive range request."""
 
-        self._require_cyan_runtime_for_live_control()
         self._validar_curva_oc_alta(maximo)
         result = CyanGpuEngine(self).apply_range(minimo, maximo)
         self._raise_if_cyan_hardware_rejected(result, fixed=False)
@@ -1960,7 +1927,6 @@ class GPURepository:
                 " Active Oberon service restarted." if restarted else ""
             )
             return state
-        self._require_cyan_runtime_for_live_control()
         current = self._leer_rango_governor("Current")
         allowed = self._leer_rango_governor("Allowed")
         if allowed is None:

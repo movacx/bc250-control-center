@@ -15,7 +15,7 @@ Every canonical URL was checked and returned HTTP 200: on 29 August 2026, and th
 
 | Source | Role in BC250 Control Center | Boundary |
 |---|---|---|
-| [cyan-skillfish-governor](https://github.com/filippor/cyan-skillfish-governor/tree/smu) | GPU governor | Integrated; MIT upstream |
+| [cyan-skillfish-governor](https://github.com/filippor/cyan-skillfish-governor/tree/smu) | GPU governor | Integrated as upstream publishes it: the official `v0.4.14` release binary, checked by SHA-256, or the same commit (`7b08fdc`) built unmodified where the C library is older than glibc 2.39. Until 1.21.1 Control Center built it with a patch of its own; Prepare now replaces that build. MIT upstream |
 | [Oberon Governor](https://gitlab.com/mothenjoyer69/oberon-governor) | Alternative GPU governor | Integrated when selected; MIT upstream |
 | [bc250_smu_oc](https://github.com/bc250-collective/bc250_smu_oc) | CPU SMU detection and tuning | Reviewed bundled snapshot; MIT upstream |
 | [bc250-cu-live-manager](https://github.com/WinnieLV/bc250-cu-live-manager) | Standard CU topology workflow | Integrated runtime fetch; no license grant recorded |

@@ -3,15 +3,56 @@ from pathlib import Path
 
 import pytest
 
-from bc250cc.infrastructure.cyan_governor_runtime import CYAN_BC250CC_PATCHER
-
 ROOT = Path(__file__).resolve().parents[3]
 INSTALLER = ROOT / "packaging/common/os-scripts/common/install-cyan-upstream-release.sh"
+PATCHER = INSTALLER.with_name("patch-cyan-bc250cc-runtime.py")
 
 
-def test_runtime_identity_uses_the_shipped_patcher_not_the_removed_legacy_path():
-    assert CYAN_BC250CC_PATCHER.is_file()
-    assert CYAN_BC250CC_PATCHER == INSTALLER.with_name("patch-cyan-bc250cc-runtime.py")
+def test_cyan_is_installed_as_upstream_publishes_it():
+    """No Control Center patch: the official release, or its commit built as is."""
+    source = INSTALLER.read_text()
+    assert not PATCHER.exists()
+    assert "BC250CC_RUNTIME_REVISION" not in source and "patched_runtime" not in source
+    assert 'REVIEWED_RELEASE_TAG="v0.4.14"' in source
+    assert 'REVIEWED_COMMIT="7b08fdcf542d1edd82f3a9077c902038019c9842"' in source
+    assert 'REVIEWED_ARCHIVE_SHA256="57fda5438d5f1856e9638300a60ba8c54c39f356ada749381275b836e8b1c787"' in source
+    main = source.split('target_family="${BC250_CYAN_TARGET_FAMILY:-unknown}"', 1)[1]
+    assert main.index("elif release_runs_here; then") < main.index("install_release")
+    assert main.index("install_release") < main.index("build_upstream_source")
+
+
+@pytest.mark.parametrize("glibc,expected", (("2.41", 0), ("2.39", 0), ("2.36", 1), ("2.35", 1)))
+def test_the_official_binary_is_used_from_glibc_2_39(glibc, expected):
+    source = INSTALLER.read_text()
+    function = source.split("release_runs_here() {", 1)[1].split("\n}\n", 1)[0]
+    script = f'''
+RELEASE_MIN_GLIBC=2.39
+getconf() {{ echo "glibc {glibc}"; }}
+release_runs_here() {{{function}
+}}
+release_runs_here
+'''
+    result = subprocess.run(["bash", "-c", script], capture_output=True, text=True, check=False)
+    assert result.returncode == expected, result.stderr
+
+
+def test_the_source_build_changes_nothing_in_the_source():
+    source = INSTALLER.read_text()
+    build = source.split("build_upstream_source() (", 1)[1].split("\n)\n", 1)[0]
+    assert 'git -C "$SOURCE_DIR" archive --format=tar "$REVIEWED_COMMIT"' in build
+    assert 'CYAN_SKILLFISH_GOVERNOR_VERSION="$REVIEWED_RELEASE_TAG"' in build
+    assert "cargo build --locked --release" in build
+    assert "python3" not in build and "sed " not in build and "patch" not in build.lower()
+    assert "Run preparation as your desktop user" in build
+
+
+def test_a_patched_runtime_from_an_older_release_is_replaced_and_forgotten():
+    source = INSTALLER.read_text()
+    assert "LEGACY_STATE_FILES=(runtime-revision upstream-commit patcher-sha256 binary-sha256)" in source
+    fast_path = source.split("if supports_frequency_fix \"$MANAGED_BINARY\"", 2)[-1].split("elif", 1)[0]
+    assert '[[ "$legacy_runtime" -eq 0 ]]' in fast_path
+    stage = source.split("stage_managed_binary() (", 1)[1].split("\n)\n", 1)[0]
+    assert "forget_legacy_runtime" in stage
 
 
 @pytest.mark.parametrize("family,manager", (("arch", "pacman -S"), ("cachyos", "pacman -S"),
@@ -20,7 +61,7 @@ def test_runtime_identity_uses_the_shipped_patcher_not_the_removed_legacy_path()
 @pytest.mark.parametrize("toolchain_present", (True, False))
 def test_native_build_dependency_routes_without_executing_package_managers(family, manager, toolchain_present):
     source = INSTALLER.read_text()
-    function = source.split("prepare_native_build_tools() {", 1)[1].split("\nbuild_bc250cc_runtime()", 1)[0]
+    function = source.split("prepare_native_build_tools() {", 1)[1].split("\nbuild_upstream_source()", 1)[0]
     # Execute the actual shell function with harmless command doubles. No root
     # access, package manager, compiler installation, or hardware writes.
     script = f'''
@@ -50,19 +91,10 @@ prepare_native_build_tools
         assert "-Syu" not in result.stdout
 
 
-def test_all_requested_distros_select_the_patch_and_preserve_source_integrity():
-    source = INSTALLER.read_text()
-    assert "bazzite|arch|cachyos|manjaro|debian|ubuntu|fedora|steamos) patched_runtime=1" in source
-    assert 'cargo build --locked --release' in source
-    assert 'cd "$source_copy"' in source
-    assert 'git -C "$SOURCE_DIR" archive' in source
-    assert 'Run preparation as your desktop user' in source
-
-
 def test_ubuntu_bootstraps_a_pinned_user_rust_when_apt_rust_is_too_old():
     source = INSTALLER.read_text()
     function = source.split("prepare_native_build_tools() {", 1)[1].split(
-        "\nbuild_bc250cc_runtime()", 1
+        "\nbuild_upstream_source()", 1
     )[0]
     script = f'''
 set -eu
@@ -94,7 +126,7 @@ printf 'selected=%s\\n' "$RUSTUP_TOOLCHAIN"
 def test_cachyos_rustup_shim_without_default_toolchain_gets_pinned_user_rust():
     source = INSTALLER.read_text()
     function = source.split("prepare_native_build_tools() {", 1)[1].split(
-        "\nbuild_bc250cc_runtime()", 1
+        "\nbuild_upstream_source()", 1
     )[0]
     script = f'''
 set -eu

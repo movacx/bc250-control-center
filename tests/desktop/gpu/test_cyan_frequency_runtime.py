@@ -155,7 +155,7 @@ def test_prepare_command_clones_smu_and_uses_checksummed_upstream_installer(tmp_
     )
 
     assert "filippor/cyan-skillfish-governor" in command
-    assert "7f34882ed28ab2065e478df9fb904b5e0a924afc" in command
+    assert "7b08fdcf542d1edd82f3a9077c902038019c9842" in command
     assert "--branch smu" not in command
     assert "src/gpu_frequency_fix.rs" in command
     assert "DryhoppedIPA" not in command
@@ -235,7 +235,7 @@ def test_cyan_upstream_installer_preserves_switches_across_core_unlock():
     assert "if (( logical_cpus < 16 )); then" not in script
     assert "preserving the selected Cyan compatibility switches" in script
     assert "install_release" in script
-    assert 'REVIEWED_RELEASE_TAG="v0.4.13"' in script
+    assert 'REVIEWED_RELEASE_TAG="v0.4.14"' in script
     assert 'release_tag="$REVIEWED_RELEASE_TAG"' in script
 
 
@@ -335,83 +335,96 @@ def test_exec_argument_parsers_do_not_guess_unstructured_config_paths():
     )
 
 
-def test_bazzite_runtime_fast_path_verifies_patcher_identity_and_version():
+def test_the_fast_path_only_skips_the_reviewed_upstream_release():
     installer = (
         Path(__file__).resolve().parents[3]
         / "packaging/common/os-scripts/common/install-cyan-upstream-release.sh"
     ).read_text(encoding="utf-8")
 
-    assert '[[ -r "$STATE_DIR/patcher-sha256" ]]' in installer
-    assert '"$(<"$STATE_DIR/patcher-sha256")"' in installer
-    assert 'managed_version="$($MANAGED_BINARY --version' in installer
-    assert '[[ "$managed_version" == *"${BC250CC_RUNTIME_REVISION}"* ]]' in installer
+    assert 'managed_version="$("$MANAGED_BINARY" --version' in installer
+    assert '[[ "$managed_version" == *"$release_tag"* ]]' in installer
+    assert '[[ "$(<"$STATE_DIR/release")" == "$release_tag" ]]' in installer
+    assert "patcher-sha256\" ]]" not in installer
 
 
-def test_bazzite_runtime_identity_requires_binary_patcher_and_version_match(
-    monkeypatch, tmp_path
-):
+def _identity_for(monkeypatch, tmp_path, *, version, release=None, legacy=False, managed=True):
     binary = tmp_path / "cyan-skillfish-governor-smu"
     binary.write_bytes(b"reviewed-binary")
-    patcher = tmp_path / "patch-cyan.py"
-    patcher.write_text("# reviewed patcher\n", encoding="utf-8")
+    packaged = tmp_path / "usr-bin-cyan-skillfish-governor-smu"
+    packaged.write_bytes(b"distribution-binary")
     config = tmp_path / "config.toml"
     config.write_text("[dbus]\nenabled = true\n", encoding="utf-8")
     state_dir = tmp_path / "state"
-    state_dir.mkdir()
-
-    import hashlib
-
-    binary_sha = hashlib.sha256(binary.read_bytes()).hexdigest()
-    patcher_sha = hashlib.sha256(patcher.read_bytes()).hexdigest()
-    (state_dir / "runtime-revision").write_text("bc250cc.2\n", encoding="utf-8")
-    (state_dir / "upstream-commit").write_text(
-        "7f34882ed28ab2065e478df9fb904b5e0a924afc\n", encoding="utf-8"
-    )
-    (state_dir / "binary-sha256").write_text(binary_sha + "\n", encoding="utf-8")
-    (state_dir / "patcher-sha256").write_text(patcher_sha + "\n", encoding="utf-8")
-
+    state_dir.mkdir(exist_ok=True)
+    if release is not None:
+        (state_dir / "release").write_text(release + "\n", encoding="utf-8")
+    if legacy:
+        (state_dir / "runtime-revision").write_text("bc250cc.2\n", encoding="utf-8")
+        (state_dir / "patcher-sha256").write_text("0" * 64 + "\n", encoding="utf-8")
+    running = binary if managed else packaged
     monkeypatch.setattr(
         "bc250cc.infrastructure.cyan_governor_runtime.detect_init_manager",
         lambda: SimpleNamespace(kind="systemd"),
     )
-    monkeypatch.setattr(
-        "bc250cc.infrastructure.cyan_governor_runtime.CYAN_MANAGED_BINARY", binary
-    )
-    monkeypatch.setattr(
-        "bc250cc.infrastructure.cyan_governor_runtime.CYAN_CONFIG", config
-    )
-    monkeypatch.setattr(
-        "bc250cc.infrastructure.cyan_governor_runtime.CYAN_STATE_DIR", state_dir
-    )
-    monkeypatch.setattr(
-        "bc250cc.infrastructure.cyan_governor_runtime.CYAN_BC250CC_PATCHER", patcher
-    )
+    monkeypatch.setattr("bc250cc.infrastructure.cyan_governor_runtime.CYAN_MANAGED_BINARY", binary)
+    monkeypatch.setattr("bc250cc.infrastructure.cyan_governor_runtime.CYAN_CONFIG", config)
+    monkeypatch.setattr("bc250cc.infrastructure.cyan_governor_runtime.CYAN_STATE_DIR", state_dir)
 
     class Repository:
         @staticmethod
         def _ejecutar(command, timeout=4):
             if command[0] == "systemctl":
-                return (
-                    0,
-                    f"{{ path={binary} ; argv[]={binary} {config} ; ignore_errors=no ; }}",
-                    "",
-                )
-            if command == [str(binary), "--version"]:
-                return 0, "cyan-skillfish-governor-smu v0.4.12-bc250cc.2\n", ""
+                return 0, f"{{ path={running} ; argv[]={running} {config} ; ignore_errors=no ; }}", ""
+            if command == [str(running), "--version"]:
+                return 0, f"cyan-skillfish-governor-smu {version}\n", ""
             raise AssertionError(command)
 
         @staticmethod
         def _command_path(_name):
-            return str(binary)
+            return str(running)
 
-    identity = detect_cyan_runtime_identity(Repository())
+    return detect_cyan_runtime_identity(Repository())
 
-    assert identity["runtime_hash_matches"] is True
-    assert identity["runtime_patcher_matches"] is True
-    assert identity["runtime_version_matches"] is True
-    assert identity["runtime_bc250cc_verified"] is True
 
-    (state_dir / "patcher-sha256").write_text("0" * 64 + "\n", encoding="utf-8")
-    identity = detect_cyan_runtime_identity(Repository())
-    assert identity["runtime_patcher_matches"] is False
-    assert identity["runtime_bc250cc_verified"] is False
+def test_the_reviewed_upstream_release_needs_nothing(monkeypatch, tmp_path):
+    identity = _identity_for(monkeypatch, tmp_path, version="v0.4.14", release="v0.4.14")
+    assert identity["runtime_managed"] is True
+    assert identity["runtime_release"] == "v0.4.14"
+    assert identity["runtime_update_available"] is False
+
+
+def test_a_patched_runtime_from_before_1_21_2_is_offered_the_upstream_release(monkeypatch, tmp_path):
+    identity = _identity_for(monkeypatch, tmp_path, version="v0.4.13-bc250cc.2", legacy=True)
+    assert identity["runtime_legacy_patched"] is True
+    assert identity["runtime_update_available"] is True
+
+
+def test_an_older_managed_release_is_offered_the_reviewed_one(monkeypatch, tmp_path):
+    identity = _identity_for(monkeypatch, tmp_path, version="v0.4.13", release="v0.4.13")
+    assert identity["runtime_update_available"] is True
+
+
+def test_a_distribution_or_upstream_install_is_left_alone(monkeypatch, tmp_path):
+    """Bazzite's COPR package, the AUR, upstream's own installer: used as is."""
+    identity = _identity_for(monkeypatch, tmp_path, version="v0.4.14", managed=False)
+    assert identity["runtime_managed"] is False
+    assert identity["runtime_update_available"] is False
+
+
+def test_the_snapshot_flag_reads_only_the_files_prepare_leaves(tmp_path):
+    from bc250cc.infrastructure.cyan_governor_runtime import (
+        managed_runtime_update_available,
+    )
+
+    binary = tmp_path / "cyan"
+    state = tmp_path / "state"
+    state.mkdir()
+    assert managed_runtime_update_available(state, binary) is False
+    binary.write_bytes(b"x")
+    (state / "release").write_text("v0.4.14\n", encoding="utf-8")
+    assert managed_runtime_update_available(state, binary) is False
+    (state / "release").write_text("v0.4.13\n", encoding="utf-8")
+    assert managed_runtime_update_available(state, binary) is True
+    (state / "release").write_text("v0.4.14\n", encoding="utf-8")
+    (state / "runtime-revision").write_text("bc250cc.2\n", encoding="utf-8")
+    assert managed_runtime_update_available(state, binary) is True

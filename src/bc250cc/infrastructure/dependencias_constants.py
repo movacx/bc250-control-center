@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from bc250cc.infrastructure.external_tools.catalog import EXTERNAL_TOOLS
 
+from .cyan_governor_runtime import CYAN_REVIEWED_RELEASE  # noqa: F401 - re-exported
+
 CORE_UNLOCK_REPOSITORY = EXTERNAL_TOOLS["core_unlock"].upstream
 CORE_UNLOCK_DIRECTORY = "bc250-core-unlock"
 CORE_UNLOCK_SCRIPT = "bc250-unlock-cores.py"
@@ -20,7 +22,6 @@ STANDARD_CU_REVIEWED_COMMIT = EXTERNAL_TOOLS["cu_manager_standard"].reviewed_rev
 STEAMOS_SMU_OC_REVIEWED_COMMIT = EXTERNAL_TOOLS["cpu_smu_oc"].reviewed_revision
 STEAMOS_CORE_UNLOCK_REVIEWED_COMMIT = EXTERNAL_TOOLS["core_unlock"].reviewed_revision
 STEAMOS_CYAN_REVIEWED_COMMIT = EXTERNAL_TOOLS["cyan_smu"].reviewed_revision
-CYAN_REVIEWED_RELEASE = "v0.4.13"
 # Retain the former SteamOS-specific spelling for callers that still import it.
 # The executable release is now fixed on every supported distribution.
 STEAMOS_CYAN_REVIEWED_RELEASE = CYAN_REVIEWED_RELEASE

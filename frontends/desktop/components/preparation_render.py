@@ -934,9 +934,16 @@ class PreparationRenderMixin:
             evidence = _mapping(detected_governors.get(identifier))
             installed = bool(evidence.get("detected"))
             active = bool(evidence.get("active"))
+            # Control Center's own copy of Cyan is an older release (or the
+            # patched build of an earlier version): Update / repair moves it
+            # to the reviewed upstream one.
+            outdated = installed and identifier == "cyan-skillfish-governor-smu" and bool(
+                tools.get("cyan_runtime_update_available")
+            )
             card.set_status(
-                "Active" if active else "Installed" if installed else "Not installed",
-                "green" if active else "blue" if installed else "gray",
+                "Update available" if outdated
+                else "Active" if active else "Installed" if installed else "Not installed",
+                "orange" if outdated else "green" if active else "blue" if installed else "gray",
             )
             if card.primary_button is not None:
                 card.update_action(

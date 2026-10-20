@@ -22,12 +22,34 @@ CYAN_PACKAGED_BINARY = Path("/usr/bin/cyan-skillfish-governor-smu")
 CYAN_SERVICE = "cyan-skillfish-governor-smu.service"
 CYAN_CONFIG = Path("/etc/cyan-skillfish-governor-smu/config.toml")
 CYAN_STATE_DIR = Path("/var/lib/bc250-control-center/cyan-governor")
-CYAN_BC250CC_RUNTIME_REVISION = "bc250cc.2"
-CYAN_REVIEWED_UPSTREAM_COMMIT = "7f34882ed28ab2065e478df9fb904b5e0a924afc"
-CYAN_BC250CC_PATCHER = (
-    Path(__file__).resolve().parents[3]
-    / "packaging/common/os-scripts/common/patch-cyan-bc250cc-runtime.py"
-)
+#: The release Prepare installs: upstream's own, unmodified (see
+#: install-cyan-upstream-release.sh). Releases before 1.21.2 built it with a
+#: Control Center patch and left these files behind; their presence marks
+#: that runtime.
+CYAN_REVIEWED_RELEASE = "v0.4.14"
+CYAN_LEGACY_STATE_FILES = ("runtime-revision", "upstream-commit", "patcher-sha256", "binary-sha256")
+
+
+def managed_runtime_update_available(
+    state_dir: Path = CYAN_STATE_DIR,
+    managed_binary: Path = CYAN_MANAGED_BINARY,
+) -> bool:
+    """Whether Prepare would replace the Cyan binary Control Center manages.
+
+    Read from the files Prepare leaves, without running anything, so the
+    dependency snapshot can afford it: an older release, or the patched build
+    of a Control Center before 1.21.2. A governor installed only by the
+    distribution or by upstream's own installer is never flagged.
+    """
+    try:
+        if not managed_binary.is_file():
+            return False
+        if any((state_dir / name).exists() for name in CYAN_LEGACY_STATE_FILES):
+            return True
+        release = (state_dir / "release").read_text(encoding="utf-8").strip()
+    except OSError:
+        return False
+    return bool(release) and release != CYAN_REVIEWED_RELEASE
 
 
 @lru_cache(maxsize=8)
@@ -203,24 +225,9 @@ def detect_cyan_runtime_identity(repository) -> dict[str, object]:
         except OSError:
             return ""
 
-    runtime_revision = read_state("runtime-revision")
-    upstream_commit = read_state("upstream-commit")
-    expected_binary_sha256 = read_state("binary-sha256")
-    expected_patcher_sha256 = read_state("patcher-sha256")
-    patcher_sha256 = _sha256_file(CYAN_BC250CC_PATCHER)
-    runtime_hash_matches = bool(
-        binary_sha256
-        and expected_binary_sha256
-        and binary_sha256 == expected_binary_sha256
-    )
-    runtime_patcher_matches = bool(
-        patcher_sha256
-        and expected_patcher_sha256
-        and patcher_sha256 == expected_patcher_sha256
-    )
-    runtime_version_matches = bool(
-        version and CYAN_BC250CC_RUNTIME_REVISION in version
-    )
+    managed_release = read_state("release")
+    legacy_patched = any((CYAN_STATE_DIR / name).exists() for name in CYAN_LEGACY_STATE_FILES)
+    managed = service_path == str(CYAN_MANAGED_BINARY)
     return {
         "init_manager": manager,
         "binary_path": service_path,
@@ -228,21 +235,15 @@ def detect_cyan_runtime_identity(repository) -> dict[str, object]:
         "version": version,
         "config_path": config_path,
         "config_matches_managed_path": Path(config_path) == CYAN_CONFIG,
-        "runtime_revision": runtime_revision,
-        "runtime_upstream_commit": upstream_commit,
-        "runtime_expected_binary_sha256": expected_binary_sha256,
-        "runtime_hash_matches": runtime_hash_matches,
-        "runtime_patcher_sha256": patcher_sha256,
-        "runtime_expected_patcher_sha256": expected_patcher_sha256,
-        "runtime_patcher_matches": runtime_patcher_matches,
-        "runtime_version_matches": runtime_version_matches,
-        "runtime_bc250cc_verified": bool(
-            runtime_revision == CYAN_BC250CC_RUNTIME_REVISION
-            and upstream_commit == CYAN_REVIEWED_UPSTREAM_COMMIT
-            and runtime_hash_matches
-            and runtime_patcher_matches
-            and runtime_version_matches
-            and service_path == str(CYAN_MANAGED_BINARY)
+        # The service runs the binary Prepare installs, rather than the
+        # distribution's package or an upstream install of its own.
+        "runtime_managed": managed,
+        "runtime_release": managed_release,
+        "runtime_legacy_patched": legacy_patched,
+        # What Prepare would change: an older release, or the patched build
+        # of an earlier Control Center, is still the one the service runs.
+        "runtime_update_available": bool(
+            managed and (legacy_patched or (managed_release and managed_release != CYAN_REVIEWED_RELEASE))
         ),
         "raw_exec": raw_exec,
     }

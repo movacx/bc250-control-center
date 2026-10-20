@@ -84,11 +84,11 @@ def test_cyan_delegate_matches_extracted_builder(tmp_path, family):
         destination=destination,
         installer=installer,
         checkout_command=checkout,
-        reviewed_release="v0.4.13",
+        reviewed_release="v0.4.14",
     )
     actual = repository._cyan_upstream_runtime_command(os_repository)
     assert actual == expected
-    assert "BC250_CYAN_RELEASE_TAG=v0.4.13" in actual
+    assert "BC250_CYAN_RELEASE_TAG=v0.4.14" in actual
 
 
 def test_cyan_verification_delegate_is_exact_and_valid_bash():

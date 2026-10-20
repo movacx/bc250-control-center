@@ -137,7 +137,9 @@ EXTERNAL_TOOLS: dict[str, ExternalToolSpec] = {
         key="cyan_smu",
         upstream="https://github.com/filippor/cyan-skillfish-governor",
         license="MIT",
-        reviewed_revision="7f34882ed28ab2065e478df9fb904b5e0a924afc",
+        # v0.4.14, installed as upstream publishes it: the official release
+        # binary, or this commit built unmodified where its glibc is too old.
+        reviewed_revision="7b08fdcf542d1edd82f3a9077c902038019c9842",
         privilege_class="service-config",
         hardware_writes=True,
         automated=True,
@@ -386,8 +388,8 @@ def _lifecycle(
 
 EXTERNAL_TOOL_LIFECYCLES: dict[str, ExternalToolLifecycle] = {
     "cyan_smu": _lifecycle(
-        "Install the reviewed governor and managed service/config overlay.",
-        "Verify binary revision, service state, D-Bus range and telemetry overlay.",
+        "Install the reviewed upstream release, unmodified, and the managed service/config overlay.",
+        "Verify the binary's release, service state, D-Bus range and telemetry overlay.",
         "Disable the service, remove managed overlay and restore prior configuration.",
         conflicts=("oberon-governor.service",),
         vocabulary="GPU governor and frequency range",

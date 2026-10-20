@@ -84,9 +84,10 @@ def test_the_telemetry_build_stays_isolated_unless_the_overlay_leaves_no_other_w
     assert "${bc250_net:---network=none}" in build[0]
 
 
-def test_every_bash_flow_that_runs_podman_asks_the_kernel_first():
+def test_the_cyan_installer_no_longer_builds_in_a_container():
+    """Bazzite gets upstream's release binary since 1.21.2: no podman build."""
     script = Path("packaging/common/os-scripts/common/install-cyan-upstream-release.sh").read_text()
-    assert script.index("unshare -Urmn mount -t sysfs") < script.index("podman run --rm $container_network")
+    assert "podman" not in script
 
 
 def test_the_oberon_build_on_bazzite_uses_it_and_is_valid_shell(tmp_path):
