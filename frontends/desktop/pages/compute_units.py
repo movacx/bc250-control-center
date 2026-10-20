@@ -43,6 +43,7 @@ from ..components.responsive import (
     configure_responsive_scroll_area,
     effective_viewport_width,
 )
+from ..components.style_state import set_style_property
 from ..components.toast import show_toast
 from ..components.widgets import (
     InfoDialog,
@@ -300,12 +301,10 @@ class WgpToggleButton(QPushButton):
         else:
             state, token, sub = "off", "--", "OFF"
             meaning = "This WGP pair is not routed."
-        self.setProperty("routeState", state)
+        set_style_property(self, "routeState", state)
         self.setText(f"{token}\n{tr(sub)}")
         pair = WGP_CU_PAIRS[self.wgp_index]
         self.setToolTip(f"WGP{self.wgp_index} · CU{pair}\n{tr(meaning)}")
-        self.style().unpolish(self)
-        self.style().polish(self)
         self.update()
 
 

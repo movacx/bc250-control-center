@@ -48,6 +48,7 @@ from ..i18n import tr, tr_format
 from .buttons import WrappingButton as QPushButton
 from .dashboard_instruments import HeadingLabel, Reading, ReadingGroup
 from .page_widgets import SectionCard
+from .style_state import repolish
 from .system_setup_controls import (
     bazzite_ui_preview_enabled,
     is_bazzite_host,
@@ -1128,15 +1129,23 @@ class PreparationInfoCard(QFrame):
             # A link takes the room it needs and no more, so it does not sit
             # centred in an empty half of the row.
             is_link = bool(button.property("linkAction"))
+            accented = index == 0 and primary_gets_accent
+            # Every state refresh comes through here for every button of
+            # every card; restyling the ones whose look did not change made
+            # switching pages stutter. linkAction is in the key because
+            # update_action sets it just before calling this.
+            look = (is_link, accented, bool(button.property("dangerAction")))
+            if getattr(button, "_bc250_action_look", None) == look:
+                continue
+            button._bc250_action_look = look
             self.actions.setStretchFactor(button, 0 if is_link else 1)
             # The same button swaps between an action and a link as the state
             # changes, so the alignment is set both ways, never left behind.
             self.actions.setAlignment(
                 button, Qt.AlignmentFlag.AlignLeft if is_link else Qt.AlignmentFlag(0)
             )
-            button.setProperty("accented", index == 0 and primary_gets_accent)
-            button.style().unpolish(button)
-            button.style().polish(button)
+            button.setProperty("accented", accented)
+            repolish(button)
 
     def add_action(
         self,

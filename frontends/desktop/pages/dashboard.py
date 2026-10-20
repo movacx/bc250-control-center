@@ -44,6 +44,7 @@ from ..components.responsive import (
     clear_grid,
     configure_responsive_scroll_area,
 )
+from ..components.style_state import offscreen_in_shown_window
 from ..components.toast import show_toast
 from ..components.widgets import InfoDialog
 from ..core.attention import attention_items
@@ -637,6 +638,7 @@ class DashboardPage(QWidget):
     def showEvent(self, event) -> None:  # noqa: N802 - Qt API name
         """Coming back to the dashboard brings the bubble back with it."""
         super().showEvent(event)
+        self._render_state()
         if self._update_pending:
             self._show_callout()
 
@@ -765,12 +767,24 @@ class DashboardPage(QWidget):
             metrics = self._live_sample if time.monotonic() - self._live_sample_at <= 3.0 else {}
             state = state.with_live_metrics(metrics)
         self.state = state
+        # While Additional settings is open the Dashboard keeps reading the
+        # state for it (feed_state) but is not on screen: its cards and its
+        # own copy of the preparation panel are drawn when it is shown again.
+        self._unrendered_state = state
+        if not offscreen_in_shown_window(self):
+            self._render_state()
+        self.state_applied.emit(state)
+        self._announce_attention(state)
+
+    def _render_state(self) -> None:
+        state = getattr(self, "_unrendered_state", None)
+        self._unrendered_state = None
+        if state is None:
+            return
         self._apply_gpu_card(state)
         self._apply_cpu_card(state)
         self._apply_fan_card(state)
         self.readiness.set_state(state)
-        self.state_applied.emit(state)
-        self._announce_attention(state)
 
     def _announce_attention(self, state: DashboardState) -> None:
         """Say once per session what the installed tools need, as a toast.

@@ -57,6 +57,7 @@ from ..components.page_widgets import (
     caption,
     subpanel,
 )
+from ..components.style_state import set_style_properties, set_style_property
 from ..components.widgets import PillLabel, icon
 from ..i18n import governor_fix_label, shipped_name, tr, tr_format
 from ..theme import COLORS
@@ -642,9 +643,7 @@ class ProfileCardEditable(EditableCardNavigation, QFrame):
 
     def set_active(self, active: bool) -> None:
         self._active_pill.setVisible(active)
-        self.setProperty("selectedProfile", active)
-        self.style().unpolish(self)
-        self.style().polish(self)
+        set_style_property(self, "selectedProfile", active)
 
     def set_unlocked(self, unlocked: bool) -> None:
         self._unlocked = unlocked
@@ -714,11 +713,8 @@ class ProfileCardEditable(EditableCardNavigation, QFrame):
         self._range_label.setText(profile.summary())
         self._voltage_label.setText(f"{profile.voltage} mV")
         blocked = self.is_blocked()
-        self._range_label.setProperty("danger", blocked)
-        self.setProperty("blockedProfile", blocked)
-        for widget in (self._range_label, self):
-            widget.style().unpolish(widget)
-            widget.style().polish(widget)
+        set_style_property(self._range_label, "danger", blocked)
+        set_style_property(self, "blockedProfile", blocked)
         self.setToolTip(
             tr("Uncomment the +2000 MHz points to use this profile")
             if self.is_blocked()
@@ -1896,10 +1892,9 @@ class GpuGovernorView(QWidget):
         self.service_toggle.setText(
             tr("Stop governor") if running else tr("Start governor")
         )
-        self.service_toggle.setProperty("dangerAction", running)
-        self.service_toggle.setProperty("successAction", not running)
-        self.service_toggle.style().unpolish(self.service_toggle)
-        self.service_toggle.style().polish(self.service_toggle)
+        set_style_properties(
+            self.service_toggle, {"dangerAction": running, "successAction": not running}
+        )
 
     # ── safe mode banner ───────────────────────────────────────────────────
     def _sync_safe_mode(self, state: "GpuViewState") -> None:

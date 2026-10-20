@@ -77,6 +77,7 @@ from ..components.buttons import WrappingButton as QPushButton
 from ..components.card_navigation import EditableCardNavigation
 from ..components.core_monitor import CoreGrid, CoreReading
 from ..components.page_widgets import SectionCard, caption, subpanel
+from ..components.style_state import set_style_property
 from ..components.widgets import PillLabel, icon
 from ..i18n import shipped_name, tr, tr_format
 from ..theme import COLORS
@@ -622,9 +623,7 @@ class CpuProfileCard(EditableCardNavigation, QFrame):
 
     def set_active(self, active: bool) -> None:
         self._active_pill.setVisible(active)
-        self.setProperty("selectedProfile", active)
-        self.style().unpolish(self)
-        self.style().polish(self)
+        set_style_property(self, "selectedProfile", active)
 
     def begin_edit(self) -> None:
         # The field shows what the card shows; a shipped name stays a

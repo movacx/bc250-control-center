@@ -55,6 +55,7 @@ from ..components.dialogs import (
     enable_adaptive_dialog,
     reflow_wrapped_labels,
 )
+from ..components.style_state import set_style_property
 from ..components.widgets import IconBadge, icon
 from ..core.preferences import application_settings
 from ..i18n import localize_widget_tree, shipped_name, tr, tr_format
@@ -543,9 +544,7 @@ class FanStatusChip(QLabel):
 
     def set_tone(self, tone: str) -> None:
         normalized = tone if tone in {"green", "blue", "orange", "gray"} else "gray"
-        self.setProperty("fanStatusChipTone", normalized)
-        self.style().unpolish(self)
-        self.style().polish(self)
+        set_style_property(self, "fanStatusChipTone", normalized)
 
 
 class CurvePoint(QFrame):
@@ -1041,9 +1040,7 @@ class FanChannelRow(QFrame):
 
     def _set_access(self, text: str, tone: str) -> None:
         self.access.setText(text)
-        self.access.setProperty("fanAccess", tone)
-        self.access.style().unpolish(self.access)
-        self.access.style().polish(self.access)
+        set_style_property(self.access, "fanAccess", tone)
 
 
 class PathEntry(QFrame):
