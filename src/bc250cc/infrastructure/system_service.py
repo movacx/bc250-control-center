@@ -103,6 +103,24 @@ class SistemaService:
     def metricas_tiempo_real(self):
         return self.repo.obtener_metricas_tiempo_real()
 
+    def _process_inventory(self):
+        inventory = getattr(self, '_inventory', None)
+        if inventory is None:
+            from bc250cc.infrastructure.process_inventory import ProcessInventory
+
+            inventory = self._inventory = ProcessInventory(uid=self.uid, own_pid=self.pid_actual)
+        return inventory
+
+    def inventario_procesos(self):
+        """The Processes page's snapshot: every process of this user, with
+        its application, CPU, GPU, GPU memory and PSS, and whether
+        systemd-oomd runs (it may end a unit whose memory went to swap)."""
+        inventory = self._process_inventory()
+        return {
+            'processes': inventory.sample(),
+            'oomd': inventory.oomd_active,
+        }
+
     def procesos(self, ocultar_sistema=True):
         lista = []
         for p in self.repo.obtener_procesos():
@@ -133,6 +151,21 @@ class SistemaService:
         lista.sort(key=lambda x: x.memoria, reverse=True)
         return lista
 
+    @staticmethod
+    def _critical_identity(identity) -> bool:
+        """Protected by its program's own name, never by its arguments, by
+        Gaming Mode's role for it, or by sitting in the session's slice."""
+        from bc250cc.infrastructure.process_inventory import (
+            program_name,
+            protection_reason,
+            read_cgroup,
+            session_reason,
+        )
+
+        command = identity.command.split(' ') if identity.command else []
+        program = program_name(identity.name, command)
+        return bool(protection_reason(program, command, read_cgroup(identity.pid)) or session_reason(identity.name))
+
     def cerrar_procesos(self, procesos):
         pendientes = []
         for proceso in procesos:
@@ -147,7 +180,7 @@ class SistemaService:
                     expected_create_time=expected_time,
                     owner_uid=self.uid,
                     controller_pid=self.pid_actual,
-                    critical=bool(self._es_critico(identity.name, identity.command)),
+                    critical=self._critical_identity(identity),
                 )
                 if not decision.allowed:
                     continue
@@ -176,7 +209,7 @@ class SistemaService:
                     expected_create_time=create_time,
                     owner_uid=self.uid,
                     controller_pid=self.pid_actual,
-                    critical=bool(self._es_critico(identity.name, identity.command)),
+                    critical=self._critical_identity(identity),
                 )
                 if decision.allowed:
                     process.kill()
@@ -184,6 +217,31 @@ class SistemaService:
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess, OSError, ValueError, TypeError, OverflowError):
                 continue
         return force_closed
+
+    def pausar_procesos(self, procesos, pausar=True):
+        """Pause (SIGSTOP) or resume (SIGCONT) the same, owned, unprotected
+        processes the close action may end. Returns the PIDs signalled."""
+        signalled = []
+        for proceso in procesos:
+            if proceso.protegido:
+                continue
+            try:
+                process = psutil.Process(int(proceso.pid))
+                identity = self._process_identity(process)
+                decision = authorize_process_termination(
+                    identity,
+                    expected_create_time=getattr(proceso, 'create_time', None),
+                    owner_uid=self.uid,
+                    controller_pid=self.pid_actual,
+                    critical=self._critical_identity(identity),
+                )
+                if not decision.allowed:
+                    continue
+                process.send_signal(signal.SIGSTOP if pausar else signal.SIGCONT)
+                signalled.append(process.pid)
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess, OSError, ValueError, TypeError, OverflowError):
+                continue
+        return signalled
 
     @staticmethod
     def _process_identity(process) -> ProcessIdentity:

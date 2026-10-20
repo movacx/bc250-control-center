@@ -492,6 +492,38 @@ def steam_shortcut_game_folders(home: Path | None = None) -> list[dict]:
     return sorted(games.values(), key=lambda game: game["name"].lower())
 
 
+def steam_shortcut_names(home: Path | None = None) -> dict[int, str]:
+    """Every non-Steam shortcut's name, by Steam's 32-bit id for it.
+
+    A running shortcut carries that id in ``SteamLaunch AppId=`` and, shifted
+    up 32 bits, in its 64-bit ``SteamGameId``.
+    """
+    home = home or Path.home()
+    names: dict[int, str] = {}
+    for root in steam_roots(home):
+        for path in sorted((root / "userdata").glob("*/config/shortcuts.vdf")):
+            try:
+                shortcuts = _binary_vdf(path.read_bytes()).get("shortcuts", {})
+            except (OSError, ValueError):
+                continue
+            if not isinstance(shortcuts, dict):
+                continue
+            for entry in shortcuts.values():
+                if not isinstance(entry, dict):
+                    continue
+                values = {str(key).lower(): value for key, value in entry.items()}
+                appid = values.get("appid")
+                if not isinstance(appid, int):
+                    continue
+                name = str(values.get("appname") or "").strip()
+                if not name:
+                    exe = str(values.get("exe") or "").strip().strip('"')
+                    name = os.path.basename(exe).rsplit(".", 1)[0]
+                if name:
+                    names.setdefault(appid & 0xFFFFFFFF, name)
+    return names
+
+
 def _locate_apps(text: str) -> tuple[dict, dict[str, dict]]:
     """``_locate`` for every app at once: one pass over the file."""
     depth = len(APPS_PATH)
