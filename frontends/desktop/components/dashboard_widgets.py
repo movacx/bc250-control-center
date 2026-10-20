@@ -1939,6 +1939,8 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, QFrame):
     prepare_requested = pyqtSignal(object)
     dependency_action_requested = pyqtSignal(object)
     driver_support_requested = pyqtSignal(str)
+    #: The key (TAB_KEYS) of the tab just selected, by a click or by code.
+    tab_selected = pyqtSignal(str)
 
     COMPONENTS = (
         ("runtime", "Base dependencies", "Runtime files and packages."),
@@ -2680,7 +2682,8 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, QFrame):
             button.setChecked(button_index == index)
             button.style().unpolish(button)
             button.style().polish(button)
-
+        if 0 <= index < len(self.TAB_KEYS):
+            self.tab_selected.emit(self.TAB_KEYS[index])
 
     def resizeEvent(self, event) -> None:  # noqa: N802
         super().resizeEvent(event)

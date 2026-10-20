@@ -5003,5 +5003,15 @@
   "game mode session": "ゲームモードのセッション",
   "Every sensor with its minimum, average and maximum.": "すべてのセンサーと、その最小・平均・最大。",
   "The list, with the sensors you tick drawn beside it.": "一覧と、チェックしたセンサーのグラフを横に表示。",
-  "Only the graphs of the sensors you tick, larger.": "チェックしたセンサーのグラフだけを大きく表示。"
+  "Only the graphs of the sensors you tick, larger.": "チェックしたセンサーのグラフだけを大きく表示。",
+  "Upscaling: more frames from the same GPU": "アップスケーリング：同じ GPU でフレームを増やす",
+  "The game draws a smaller picture and an upscaler rebuilds it at your screen's size, so it runs faster. Two are offered, each added game by game: FSR4 INT8 and HelixSR. A game stays as it is until you add one to it.": "ゲームは小さめの画面を描き、アップスケーラーがそれを画面の大きさに組み立て直すので、速く動きます。用意しているのは二つで、ゲームごとに追加します：FSR4 INT8 と HelixSR。追加しない限り、ゲームはそのままです。",
+  "FSR4 INT8: AMD's FSR 4 on this GPU": "FSR4 INT8：AMD の FSR 4 をこの GPU で",
+  "Install FSR4 brings in OptiScaler Client. Open it to put OptiScaler into the games you choose; it keeps a backup of every file it replaces. Steam then needs a launch option in each of those games, which the games table adds for you. No root and no driver change.": "「FSR4 をインストール」で OptiScaler Client が入ります。それを開き、選んだゲームに OptiScaler を入れます。置き換えるファイルはすべてバックアップされます。そのあと Steam ではそれぞれのゲームに起動オプションが必要ですが、ゲーム表が代わりに追加します。root もドライバーの変更も要りません。",
+  "HelixSR: DLSS's network in FSR 3.1 games": "HelixSR：FSR 3.1 のゲームで DLSS のネットワーク",
+  "HelixSR takes the place of a game's FSR 3.1 upscaler and runs NVIDIA's DLSS model on this GPU. Install HelixSR downloads the release and, once you agree in the terminal, builds the network on this PC from NVIDIA's own file. The recommended version is the one this Control Center was checked with.": "HelixSR はゲームの FSR 3.1 アップスケーラーの代わりに入り、NVIDIA の DLSS モデルをこの GPU で動かします。「HelixSR をインストール」でリリースをダウンロードし、ターミナルで同意すると、NVIDIA 自身のファイルからこの PC 上でネットワークを組み立てます。推奨バージョンは、この Control Center で確認したものです。",
+  "Your games, one row each": "あなたのゲーム、1 本につき 1 行",
+  "Each row says what FSR4 and HelixSR do in that game, with the next step beside it: add, update or remove HelixSR, or add FSR4 to Steam. Removing puts back the files the game had. For a game outside Steam, use Add game folder.": "各行には、そのゲームで FSR4 と HelixSR がどうなっているかと、次の操作が並びます：HelixSR の追加・更新・削除、または FSR4 を Steam に追加。削除すると、ゲームにあったファイルが元に戻ります。Steam 以外のゲームは「ゲームフォルダーを追加」を使います。",
+  "HelixSR settings for every game": "すべてのゲームに共通の HelixSR 設定",
+  "Sharpening, the network and the compatibility switches of helixsr.ini, saved once for every game that has HelixSR. The defaults suit this GPU: change one only if a game looks wrong, then restart the game.": "helixsr.ini のシャープネス、ネットワーク、互換性のスイッチを、HelixSR が入ったすべてのゲームに一度で保存します。既定値はこの GPU に合っています。ゲームの見た目がおかしいときだけ変え、そのあとゲームを再起動してください。"
 }

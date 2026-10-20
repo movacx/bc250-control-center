@@ -13,7 +13,12 @@ gate: the flag below records that the offer was made, not that it was taken.
 from __future__ import annotations
 
 from .glass import frosted, frosted_snapshot
-from .script import PERFORMANCE_VIEWS_FEATURE, feature_stops, tour_stops
+from .script import (
+    PERFORMANCE_VIEWS_FEATURE,
+    UPSCALING_FEATURE,
+    feature_stops,
+    tour_stops,
+)
 from .tour import Spotlight, TourCallout, TourGuide, TourStop
 from .welcome import WelcomeOverlay
 
@@ -69,6 +74,7 @@ __all__ = [
     "TourCallout",
     "TourGuide",
     "TourStop",
+    "UPSCALING_FEATURE",
     "WelcomeOverlay",
     "completed_version",
     "feature_stops",

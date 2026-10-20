@@ -41,6 +41,7 @@ from .i18n import (
 )
 from .onboarding import (
     PERFORMANCE_VIEWS_FEATURE,
+    UPSCALING_FEATURE,
     TourGuide,
     WelcomeOverlay,
     feature_stops,
@@ -247,6 +248,7 @@ class ControlCenterWindow(QMainWindow):
         self.extras_page.driver_support_requested.connect(
             self._dashboard_driver_support
         )
+        self.extras_page.panel.tab_selected.connect(self._preparation_tab_opened)
         for page in self.pages.values():
             self.stack.addWidget(page)
         layout.addWidget(self.stack, 1)
@@ -812,6 +814,19 @@ class ControlCenterWindow(QMainWindow):
         mark_features_introduced(self.settings, {feature})
         self._run_tour(stops)
 
+    def _preparation_tab_opened(self, key: str) -> None:
+        """Upscaling on Additional settings, introduced once to tours before it."""
+        if key != "upscaling" or getattr(self, "_first_run_pending", False):
+            return
+
+        def introduce() -> None:
+            panel = self.extras_page.panel
+            # Still on that tab: a quick look at it and away is not a visit.
+            if panel.stack.currentIndex() == panel.tab_index("upscaling"):
+                self._introduce_feature(UPSCALING_FEATURE, "extras")
+
+        QTimer.singleShot(700, introduce)
+
     def _tour_requested_from_settings(self) -> None:
         """Close the dialog first: the tour points at the window behind it."""
         dialog = getattr(self, "settings_dialog", None)
@@ -1096,6 +1111,10 @@ class ControlCenterWindow(QMainWindow):
                 QTimer.singleShot(
                     900, lambda: self._introduce_feature(PERFORMANCE_VIEWS_FEATURE, "performance")
                 )
+            if key == "extras":
+                panel = self.extras_page.panel
+                if panel.stack.currentIndex() == panel.tab_index("upscaling"):
+                    self._preparation_tab_opened("upscaling")
             # Hidden QStackedWidget pages may retain the geometry from their
             # construction pass.  Reflow only after the selected page owns the
             # real stack area, preserving desktop layouts on wide windows.

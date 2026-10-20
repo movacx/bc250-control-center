@@ -9,6 +9,7 @@ import pytest
 from PyQt6.QtWidgets import QMainWindow, QWidget
 
 from frontends.desktop.app import ControlCenterWindow
+from frontends.desktop.i18n import tr
 from frontends.desktop.onboarding import TourGuide, WelcomeOverlay, tour_stops
 
 
@@ -72,7 +73,9 @@ def test_the_route_runs_in_the_order_the_modules_are_used(qtbot, window):
     links row (GitHub, Discord, report form, Ko-fi) in one stop,
     the CPU profiles, pencil, Decky export, cores and hidden cores, the GPU
     service, profiles, export, range and voltage laboratory (opened), the
-    compute-unit editor's first button and its grid, performance with its
+    compute-unit editor's first button and its grid, Additional settings with
+    Upscaling (the tab, FSR4, HelixSR, the games, helixsr.ini) after
+    Compatibility, performance with its
     per-part views and sensor list, the three kinds of fan control, the firmware images, the boot logo, drive and flash,
     and settings.
     """
@@ -81,7 +84,9 @@ def test_the_route_runs_in_the_order_the_modules_are_used(qtbot, window):
         "cpu", "cpu", "cpu", "cpu", "cpu",
         "gpu", "gpu", "gpu", "gpu", "gpu", "gpu",
         "cu", "cu",
-        "extras", "extras", "extras", "extras", "extras", "extras",
+        "extras",
+        "extras", "extras", "extras", "extras", "extras",
+        "extras", "extras", "extras", "extras", "extras",
         "performance", "performance", "performance",
         "fans", "fans", "fans",
         "firmware", "firmware", "firmware", "firmware",
@@ -90,10 +95,10 @@ def test_the_route_runs_in_the_order_the_modules_are_used(qtbot, window):
 
 
 def test_the_stops_that_live_on_a_tab_open_it_first(qtbot, window):
-    """Eight preparation stops, five CPU stops, the laboratory, the views
-    menu and the sensor list, two fan modes."""
+    """Eight preparation stops, five Upscaling stops, five CPU stops, the
+    laboratory, the views menu and the sensor list, two fan modes."""
     arranged = [stop for stop in tour_stops() if stop.arrange is not None]
-    assert len(arranged) == 18
+    assert len(arranged) == 23
 
 
 def test_the_stops_that_open_something_close_it_again(qtbot, window):
@@ -109,6 +114,83 @@ def test_the_performance_views_are_introduced_on_their_own(qtbot, window):
     stops = feature_stops(PERFORMANCE_VIEWS_FEATURE)
     assert [stop.page for stop in stops] == ["performance", "performance"]
     assert all(stop.arrange is not None and stop.leave is not None for stop in stops)
+
+
+def test_upscaling_is_introduced_on_its_own_after_compatibility(qtbot, window):
+    """Tours taken before the Upscaling tab had stops are shown just those."""
+    from frontends.desktop.onboarding import UPSCALING_FEATURE, feature_stops
+
+    stops = feature_stops(UPSCALING_FEATURE)
+    assert [stop.page for stop in stops] == ["extras"] * 5
+    assert all(stop.arrange is not None for stop in stops)
+    titles = [stop.title for stop in tour_stops()]
+    first = titles.index(stops[0].title)
+    assert titles[first - 1] == tr("Compatibility: make it run better")
+    assert titles[first:first + 5] == [stop.title for stop in stops]
+
+
+def test_each_upscaling_stop_points_at_a_part_of_the_tab(qtbot):
+    """The anchors resolve on the real Additional settings page, and the
+    arrange step opens the Upscaling tab they live on."""
+    from types import SimpleNamespace
+
+    from frontends.desktop.onboarding import UPSCALING_FEATURE, feature_stops
+    from frontends.desktop.pages.additional_settings import AdditionalSettingsPage
+
+    page = AdditionalSettingsPage()
+    qtbot.addWidget(page)
+    owner = SimpleNamespace(extras_page=page)
+    panel = page.panel
+    panel.select_tab(panel.tab_index("compatibility"))
+    stops = feature_stops(UPSCALING_FEATURE)
+    stops[0].arrange(owner)
+    assert panel.stack.currentIndex() == panel.tab_index("upscaling")
+    expected = [None, panel.fsr4_section, panel.helixsr_section,
+                panel.upscaling_games, panel.helixsr_settings]
+    for stop, widget in zip(stops, expected):
+        anchor = stop.anchor(owner)
+        if widget is None:
+            assert panel.tab_buttons[panel.tab_index("upscaling")] in anchor
+        else:
+            assert anchor is widget
+
+
+def test_opening_the_upscaling_tab_introduces_it(qtbot):
+    """Only Upscaling, only once the tab is still open, never before the welcome."""
+    from types import SimpleNamespace
+
+    from frontends.desktop.onboarding import UPSCALING_FEATURE
+    from frontends.desktop.pages.additional_settings import AdditionalSettingsPage
+
+    page = AdditionalSettingsPage()
+    qtbot.addWidget(page)
+    panel = page.panel
+    seen = []
+    owner = SimpleNamespace(
+        extras_page=page,
+        _first_run_pending=False,
+        _introduce_feature=lambda feature, key: seen.append((feature, key)),
+    )
+
+    def opened(key):
+        ControlCenterWindow._preparation_tab_opened(owner, key)
+
+    panel.tab_selected.connect(opened)
+    panel.select_tab(panel.tab_index("memory"))
+    panel.select_tab(panel.tab_index("upscaling"))
+    qtbot.waitUntil(lambda: seen == [(UPSCALING_FEATURE, "extras")], timeout=2000)
+
+    # Left again before the introduction was due: nothing is shown.
+    seen.clear()
+    panel.select_tab(panel.tab_index("upscaling"))
+    panel.select_tab(panel.tab_index("drivers"))
+    qtbot.wait(900)
+    assert seen == []
+
+    owner._first_run_pending = True
+    panel.select_tab(panel.tab_index("upscaling"))
+    qtbot.wait(900)
+    assert seen == []
 
 
 def test_a_feature_is_introduced_once(tmp_path):

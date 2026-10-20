@@ -5003,5 +5003,15 @@
   "game mode session": "sesja trybu gry",
   "Every sensor with its minimum, average and maximum.": "Każdy czujnik z minimum, średnią i maksimum.",
   "The list, with the sensors you tick drawn beside it.": "Lista, a obok wykresy zaznaczonych czujników.",
-  "Only the graphs of the sensors you tick, larger.": "Tylko wykresy zaznaczonych czujników, większe."
+  "Only the graphs of the sensors you tick, larger.": "Tylko wykresy zaznaczonych czujników, większe.",
+  "Upscaling: more frames from the same GPU": "Skalowanie obrazu: więcej klatek z tej samej GPU",
+  "The game draws a smaller picture and an upscaler rebuilds it at your screen's size, so it runs faster. Two are offered, each added game by game: FSR4 INT8 and HelixSR. A game stays as it is until you add one to it.": "Gra rysuje mniejszy obraz, a skaler odtwarza go w rozmiarze Twojego ekranu, więc gra działa szybciej. Do wyboru są dwa, dodawane osobno do każdej gry: FSR4 INT8 i HelixSR. Gra pozostaje bez zmian, dopóki nie dodasz do niej jednego z nich.",
+  "FSR4 INT8: AMD's FSR 4 on this GPU": "FSR4 INT8: FSR 4 od AMD na tej GPU",
+  "Install FSR4 brings in OptiScaler Client. Open it to put OptiScaler into the games you choose; it keeps a backup of every file it replaces. Steam then needs a launch option in each of those games, which the games table adds for you. No root and no driver change.": "Zainstaluj FSR4 pobiera OptiScaler Client. Otwórz go, aby umieścić OptiScaler w wybranych grach; zachowuje on kopię każdego zastępowanego pliku. Potem Steam potrzebuje opcji uruchamiania w każdej z tych gier, którą tabela gier doda za Ciebie. Bez roota i bez zmiany sterownika.",
+  "HelixSR: DLSS's network in FSR 3.1 games": "HelixSR: sieć DLSS w grach z FSR 3.1",
+  "HelixSR takes the place of a game's FSR 3.1 upscaler and runs NVIDIA's DLSS model on this GPU. Install HelixSR downloads the release and, once you agree in the terminal, builds the network on this PC from NVIDIA's own file. The recommended version is the one this Control Center was checked with.": "HelixSR zastępuje skaler FSR 3.1 w grze i uruchamia model DLSS firmy NVIDIA na tej GPU. Zainstaluj HelixSR pobiera wydanie i, gdy wyrazisz zgodę w terminalu, buduje sieć na tym komputerze z własnego pliku NVIDIA. Zalecana wersja to ta, z którą sprawdzono ten Control Center.",
+  "Your games, one row each": "Twoje gry, po jednym wierszu",
+  "Each row says what FSR4 and HelixSR do in that game, with the next step beside it: add, update or remove HelixSR, or add FSR4 to Steam. Removing puts back the files the game had. For a game outside Steam, use Add game folder.": "Każdy wiersz mówi, co FSR4 i HelixSR robią w danej grze, a obok jest kolejny krok: dodaj, zaktualizuj lub usuń HelixSR albo dodaj FSR4 do Steam. Usunięcie przywraca pliki, które gra miała. Dla gry spoza Steam użyj Dodaj folder gry.",
+  "HelixSR settings for every game": "Ustawienia HelixSR dla wszystkich gier",
+  "Sharpening, the network and the compatibility switches of helixsr.ini, saved once for every game that has HelixSR. The defaults suit this GPU: change one only if a game looks wrong, then restart the game.": "Wyostrzanie, sieć i przełączniki zgodności z helixsr.ini, zapisywane raz dla wszystkich gier z HelixSR. Wartości domyślne pasują do tej GPU: zmieniaj coś tylko wtedy, gdy gra wygląda źle, a potem uruchom ją ponownie."
 }

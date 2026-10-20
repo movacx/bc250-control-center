@@ -5003,5 +5003,15 @@
   "game mode session": "遊戲模式工作階段",
   "Every sensor with its minimum, average and maximum.": "每個感測器及其最小值、平均值和最大值。",
   "The list, with the sensors you tick drawn beside it.": "清單，旁邊繪出你勾選的感測器。",
-  "Only the graphs of the sensors you tick, larger.": "只顯示你勾選的感測器圖表，更大。"
+  "Only the graphs of the sensors you tick, larger.": "只顯示你勾選的感測器圖表，更大。",
+  "Upscaling: more frames from the same GPU": "畫面超解析：同一顆 GPU，更多幀數",
+  "The game draws a smaller picture and an upscaler rebuilds it at your screen's size, so it runs faster. Two are offered, each added game by game: FSR4 INT8 and HelixSR. A game stays as it is until you add one to it.": "遊戲先畫出較小的畫面，再由超解析工具把它重建成螢幕的尺寸，所以跑得更快。這裡提供兩種，逐個遊戲加入：FSR4 INT8 和 HelixSR。你不幫遊戲加入，它就維持原樣。",
+  "FSR4 INT8: AMD's FSR 4 on this GPU": "FSR4 INT8：在這顆 GPU 上執行 AMD 的 FSR 4",
+  "Install FSR4 brings in OptiScaler Client. Open it to put OptiScaler into the games you choose; it keeps a backup of every file it replaces. Steam then needs a launch option in each of those games, which the games table adds for you. No root and no driver change.": "「安裝 FSR4」會裝好 OptiScaler Client。開啟它，把 OptiScaler 放進你選的遊戲；它會備份每個被取代的檔案。之後 Steam 需要在這些遊戲各加一個啟動選項，遊戲表會替你加上。不需要 root，也不換驅動程式。",
+  "HelixSR: DLSS's network in FSR 3.1 games": "HelixSR：在 FSR 3.1 遊戲裡用 DLSS 的網路",
+  "HelixSR takes the place of a game's FSR 3.1 upscaler and runs NVIDIA's DLSS model on this GPU. Install HelixSR downloads the release and, once you agree in the terminal, builds the network on this PC from NVIDIA's own file. The recommended version is the one this Control Center was checked with.": "HelixSR 取代遊戲的 FSR 3.1 超解析，並在這顆 GPU 上執行 NVIDIA 的 DLSS 模型。「安裝 HelixSR」會下載該版本，並在你於終端機同意後，用 NVIDIA 自己的檔案在這台電腦上建立網路。建議版本就是本 Control Center 檢驗過的那一版。",
+  "Your games, one row each": "你的遊戲，每款一列",
+  "Each row says what FSR4 and HelixSR do in that game, with the next step beside it: add, update or remove HelixSR, or add FSR4 to Steam. Removing puts back the files the game had. For a game outside Steam, use Add game folder.": "每一列寫出 FSR4 和 HelixSR 在這款遊戲的狀態，旁邊就是下一步：加入、更新或移除 HelixSR，或將 FSR4 加入 Steam。移除時會放回遊戲原本的檔案。Steam 以外的遊戲，請用「新增遊戲資料夾」。",
+  "HelixSR settings for every game": "所有遊戲共用的 HelixSR 設定",
+  "Sharpening, the network and the compatibility switches of helixsr.ini, saved once for every game that has HelixSR. The defaults suit this GPU: change one only if a game looks wrong, then restart the game.": "helixsr.ini 的銳利化、網路和相容性開關，儲存一次就套用到所有裝了 HelixSR 的遊戲。預設值適合這顆 GPU：只有遊戲畫面不對時才改，改完重新啟動遊戲。"
 }

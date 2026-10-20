@@ -180,6 +180,13 @@ def _open_cpu_workspace(name: str):
 
 #: The per-part views and the sensor list of the Performance page.
 PERFORMANCE_VIEWS_FEATURE = "performance-views"
+#: Additional settings > Upscaling: FSR4 INT8, HelixSR and the games table.
+UPSCALING_FEATURE = "upscaling"
+
+
+def _upscaling(name: str):
+    """One part of the Upscaling tab, on Additional settings."""
+    return _attribute("extras_page", "panel", name)
 
 
 def _performance_views_menu(window):
@@ -463,6 +470,73 @@ def tour_stops() -> tuple[TourStop, ...]:
                 "governor, the graphics stack, the power-management "
                 "correction. Some of them replace the kernel or Mesa — the one "
                 "you have now always stays as a fallback you can boot into."
+            ),
+        ),
+        TourStop(
+            page="extras",
+            anchor=_preparation_tab("upscaling", "extras"),
+            arrange=_open_preparation_tab("upscaling", "extras"),
+            feature=UPSCALING_FEATURE,
+            title=tr("Upscaling: more frames from the same GPU"),
+            body=tr(
+                "The game draws a smaller picture and an upscaler rebuilds it "
+                "at your screen's size, so it runs faster. Two are offered, "
+                "each added game by game: FSR4 INT8 and HelixSR. A game stays "
+                "as it is until you add one to it."
+            ),
+        ),
+        TourStop(
+            page="extras",
+            anchor=_upscaling("fsr4_section"),
+            arrange=_open_preparation_tab("upscaling", "extras"),
+            feature=UPSCALING_FEATURE,
+            title=tr("FSR4 INT8: AMD's FSR 4 on this GPU"),
+            body=tr(
+                "Install FSR4 brings in OptiScaler Client. Open it to put "
+                "OptiScaler into the games you choose; it keeps a backup of "
+                "every file it replaces. Steam then needs a launch option in "
+                "each of those games, which the games table adds for you. No "
+                "root and no driver change."
+            ),
+        ),
+        TourStop(
+            page="extras",
+            anchor=_upscaling("helixsr_section"),
+            arrange=_open_preparation_tab("upscaling", "extras"),
+            feature=UPSCALING_FEATURE,
+            title=tr("HelixSR: DLSS's network in FSR 3.1 games"),
+            body=tr(
+                "HelixSR takes the place of a game's FSR 3.1 upscaler and runs "
+                "NVIDIA's DLSS model on this GPU. Install HelixSR downloads "
+                "the release and, once you agree in the terminal, builds the "
+                "network on this PC from NVIDIA's own file. The recommended "
+                "version is the one this Control Center was checked with."
+            ),
+        ),
+        TourStop(
+            page="extras",
+            anchor=_upscaling("upscaling_games"),
+            arrange=_open_preparation_tab("upscaling", "extras"),
+            feature=UPSCALING_FEATURE,
+            title=tr("Your games, one row each"),
+            body=tr(
+                "Each row says what FSR4 and HelixSR do in that game, with the "
+                "next step beside it: add, update or remove HelixSR, or add "
+                "FSR4 to Steam. Removing puts back the files the game had. "
+                "For a game outside Steam, use Add game folder."
+            ),
+        ),
+        TourStop(
+            page="extras",
+            anchor=_upscaling("helixsr_settings"),
+            arrange=_open_preparation_tab("upscaling", "extras"),
+            feature=UPSCALING_FEATURE,
+            title=tr("HelixSR settings for every game"),
+            body=tr(
+                "Sharpening, the network and the compatibility switches of "
+                "helixsr.ini, saved once for every game that has HelixSR. The "
+                "defaults suit this GPU: change one only if a game looks "
+                "wrong, then restart the game."
             ),
         ),
         TourStop(
