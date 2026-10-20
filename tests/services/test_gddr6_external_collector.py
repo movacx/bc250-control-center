@@ -290,7 +290,10 @@ def test_a_read_samples_the_smu_itself_when_the_collector_is_idle(
     reader = _load("bc250-gddr6-temp-reader")
     monkeypatch.setattr(reader, "external_collector_lock", _lock(reader, runtime, installed))
 
-    def sample(payload, _repository, _uid, *, chips_wanted, ignore_governor=False):
+    seen = []
+
+    def sample(payload, _repository, _uid, *, chips_wanted, ignore_governor=False, collector_installed):
+        seen.append(collector_installed)
         payload["patch_active"] = True
 
     monkeypatch.setattr(reader, "_sample_smu", sample)
@@ -298,6 +301,8 @@ def test_a_read_samples_the_smu_itself_when_the_collector_is_idle(
     payload = _read_payload(capsys)
     assert payload["patch_active"] is True
     assert "source" not in payload
+    # Installed but idle: the first payload stays readable for it.
+    assert seen == [True]
 
 
 def test_a_live_session_never_patches_over_a_running_collector(tmp_path, monkeypatch, capsys):
@@ -355,6 +360,8 @@ def test_patching_is_refused_while_the_collector_owns_the_smu(
     monkeypatch.setattr(
         helper, "_open_verified_script", lambda *args: os.open(script, os.O_RDONLY)
     )
+    monkeypatch.setattr(helper, "_verify_artifacts", lambda *args: None)
+    monkeypatch.setattr(helper, "_patch_status", lambda *args, **kwargs: {"payload": ""})
     monkeypatch.setattr(helper, "external_collector_lock", _lock(helper, runtime, installed))
     monkeypatch.setattr(helper.subprocess, "run", lambda *args, **kwargs: ran.append(args))
     with pytest.raises(RuntimeError, match="GDDR6_EXTERNAL_COLLECTOR"):
@@ -491,6 +498,8 @@ def test_patching_waits_out_a_governor_that_is_starting(tmp_path, monkeypatch):
     ran = []
     monkeypatch.setattr(helper, "bios_version", lambda: "P3.00")
     monkeypatch.setattr(helper, "_open_verified_script", lambda *args: os.open(script, os.O_RDONLY))
+    monkeypatch.setattr(helper, "_verify_artifacts", lambda *args: None)
+    monkeypatch.setattr(helper, "_patch_status", lambda *args, **kwargs: {"payload": ""})
     monkeypatch.setattr(helper, "external_collector_lock", lambda: contextlib.nullcontext(False))
     monkeypatch.setattr(helper, "smn_window_lock", lambda: contextlib.nullcontext())
     monkeypatch.setattr(helper, "governor_unsettled", lambda: "starting")
@@ -540,10 +549,11 @@ def test_the_manual_override_reads_through_a_starting_governor(tmp_path, monkeyp
 
     class FakeSmu:
         def smu_read(self, _register, _count):
-            return struct.pack("<I", reader.QUEUE_3_MSG_5_HANDLER)
+            msg5, msg6, msg7 = reader.CURRENT_HANDLERS
+            return struct.pack("<5I", msg5, 0, msg6, 0, msg7)
 
         def send_message(self, _queue, _message, arguments):
-            return (0, 38 + arguments[0])
+            return (1, 0x26262626 + arguments[0])
 
         def close(self):
             pass
@@ -568,6 +578,8 @@ def test_the_manual_override_patches_through_a_starting_governor(tmp_path, monke
     script.write_text("print('patched')\n")
     monkeypatch.setattr(helper, "bios_version", lambda: "P3.00")
     monkeypatch.setattr(helper, "_open_verified_script", lambda *args: os.open(script, os.O_RDONLY))
+    monkeypatch.setattr(helper, "_verify_artifacts", lambda *args: None)
+    monkeypatch.setattr(helper, "_patch_status", lambda *args, **kwargs: {"payload": ""})
     monkeypatch.setattr(helper, "external_collector_lock", lambda: contextlib.nullcontext(False))
     monkeypatch.setattr(helper, "smn_window_lock", lambda: contextlib.nullcontext())
     monkeypatch.setattr(helper, "governor_unsettled", lambda: "starting")

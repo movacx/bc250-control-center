@@ -72,8 +72,9 @@ GOVERNOR_UNIT = "cyan-skillfish-governor-smu.service"
 GOVERNOR_SETTLE_SECONDS = 5.0
 
 #: BC250-Telemetry (github.com/onlinermm/BC250-Telemetry) can install an
-#: optional root service, bc250-memory.service, that patches the SMU with this
-#: same payload at boot and then polls Queue 3 / Message 5 every three seconds.
+#: optional root service, bc250-memory.service, that patches the SMU with the
+#: first version of this payload at boot and then polls Queue 3 / Message 5
+#: every three seconds.
 #: It serialises itself with its own lock file, never with SMN_WINDOW_PATH, so
 #: the two samplers used to run straight into each other: interleaved
 #: index/data writes land in the wrong registers, the payload is handed a chip
@@ -90,11 +91,16 @@ EXTERNAL_COLLECTOR_MARKERS = (
 #: The collector's own rule for its per-boot guard file: anything but a clean
 #: "ready" means an SMU operation was interrupted and its firmware side may
 #: still be running, so it leaves the SMU alone until a power cycle. This
-#: helper follows the same rule. The one exception is a rejection its later
-#: version migrates itself, raised before anything was written.
+#: helper follows the same rule. The exceptions are rejections raised after
+#: reads only, before anything was written: one its later version migrates
+#: itself, and the three it gives when it finds the payload this helper
+#: installs (or one written over its own) instead of the one it bundles.
 EXTERNAL_GUARD_BENIGN = (
     {"state": "ready"},
     {"state": "failed", "error": "unexpected original Q3/5 handler: 0x00000000"},
+    {"state": "failed", "error": "unexpected original Q3/5 handler: 0x0003ab34"},
+    {"state": "failed", "error": "SMU patch changed during this boot; reboot before retrying"},
+    {"state": "failed", "error": "Q3/5 points at an unexpected payload; reboot before retrying"},
 )
 
 #: A monitoring session is bounded on purpose. One Polkit prompt buys this
@@ -111,12 +117,25 @@ OFFICIAL_ORIGINS = frozenset({
     "https://github.com/pan-Rijovich/bc250-memory-temperature",
     "https://github.com/pan-Rijovich/bc250-memory-temperature.git",
 })
-REVIEWED_REVISION = "b7e6bffcb5d592fc03edde375b7598ddc79aa846"
+REVIEWED_REVISION = "4a2221d1da387fa2e738bb9368b39594e242ba4b"
 PATCH_SCRIPT = "patch_smu.py"
 PAYLOAD_FILE = "SMUPayload.bin"
+#: patch_smu.py takes the handler addresses from here, not from constants.
+SYMBOLS_FILE = "SMUPayload.symbols"
 REVIEWED_SCRIPT_SHA256 = {
-    PATCH_SCRIPT: "c6c0b17f3f2dad415f7814035a1918331068ab1827269a97254df0ddb554ca6e",
+    PATCH_SCRIPT: "04e69ef1e4c1ec3051d97ed8c3cb68eb31b43c2be3cdb921f1d3957f99aa32ed",
 }
+#: What patch_smu.py writes into SMU RAM, and where it points Queue 3. The
+#: clean-tree check already pins them; these are the same defense in depth
+#: the script itself gets.
+REVIEWED_ARTIFACT_SHA256 = {
+    PAYLOAD_FILE: "32ab902bb07a5a00cdb54f8686b8944fed8cb30abf394c395d5e8d421f756529",
+    SYMBOLS_FILE: "16c3baadae4a6790c315c71107e7ca9343dedd0d624d5bdaa507dc00ffe655a1",
+}
+#: patch_smu.py refuses to write over a payload that is already installed
+#: unless it is given this. It is passed for one case only: the reader found
+#: the first payload, byte for byte, and nothing else in the payload area.
+FORCE_FLAG = "-f"
 
 #: The payload writes fixed SMU addresses that are only correct for the board
 #: firmware it was built against. The upstream README is explicit: "Do not use
@@ -528,8 +547,69 @@ def _trusted_self() -> bool:
     return True
 
 
+def _verify_artifacts(repository: pathlib.Path, uid: int) -> None:
+    """The payload and its symbol table: owned by the user, the reviewed bytes."""
+    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    for name, expected in REVIEWED_ARTIFACT_SHA256.items():
+        path = repository / name
+        if path.is_symlink() or not path.is_file():
+            raise RuntimeError(f"{name} was not found in the reviewed checkout.")
+        fd = os.open(path, flags)
+        try:
+            metadata = os.fstat(fd)
+            if metadata.st_uid != uid or metadata.st_mode & 0o022:
+                raise RuntimeError(
+                    f"{name} must belong to the desktop user and not be group/other writable."
+                )
+            content = os.read(fd, metadata.st_size + 1)
+        finally:
+            os.close(fd)
+        if hashlib.sha256(content).hexdigest() != expected:
+            raise RuntimeError(f"{name} does not match the independently reviewed payload.")
+
+
+def _patch_status(repository: pathlib.Path, uid: int, *, ignore_governor: bool) -> dict:
+    """What the reader finds installed, before deciding how to patch."""
+    return _read_once(
+        _installed_reader(), repository, uid, "status", ignore_governor=ignore_governor
+    )
+
+
+def _patch_arguments(status: dict) -> tuple[str, ...] | None:
+    """patch_smu.py's arguments for what is installed, or None: nothing to do.
+
+    Raises when patching must not be attempted at all.
+    """
+    if status.get("external_collector"):
+        raise ExternalCollectorActive("BC250-Telemetry's memory collector is sampling the SMU.")
+    if status.get("deferred"):
+        raise RuntimeError(
+            "GDDR6_GOVERNOR_UNSETTLED: the GPU governor is "
+            f"{status.get('governor_state') or 'starting'} and uses the SMU queue this "
+            "patch goes through while it does. Try again once it is running."
+        )
+    installed = str(status.get("payload") or "")
+    if installed == "unknown":
+        raise RuntimeError(
+            "GDDR6_PATCH_UNKNOWN: Queue 3 already points into the payload area, but "
+            "not at a payload this version recognises (or one that did not finish "
+            "installing). Power the board off completely before trying again."
+        )
+    if installed == "current" or status.get("patch_active"):
+        # The reviewed payload, or the first one kept for BC250-Telemetry.
+        return None
+    # The first payload waits for a chip with no time limit; the reviewed one
+    # replaces it under both locks, so no message can reach it mid-write.
+    return (FORCE_FLAG,) if installed == "legacy" else ()
+
+
 def _do_apply(
-    repository: pathlib.Path, uid: int, gid: int, *, ignore_governor: bool = False
+    repository: pathlib.Path,
+    uid: int,
+    gid: int,
+    *,
+    ignore_governor: bool = False,
+    status: dict | None = None,
 ) -> int:
     detected = bios_version()
     if detected.strip().lower() not in SUPPORTED_BIOS_VERSIONS:
@@ -538,57 +618,58 @@ def _do_apply(
             f"firmware P3.0; this board reports {detected or 'an unknown version'}. "
             "Writing it here could place the patch at the wrong addresses."
         )
-    payload = repository / PAYLOAD_FILE
-    if payload.is_symlink() or not payload.is_file():
-        raise RuntimeError(f"{PAYLOAD_FILE} was not found in the reviewed checkout.")
-    metadata = payload.stat(follow_symlinks=False)
-    if metadata.st_uid != uid or metadata.st_mode & 0o022:
-        raise RuntimeError(f"{PAYLOAD_FILE} must belong to the desktop user and not be group/other writable.")
-
-    script_fd = _open_verified_script(repository, PATCH_SCRIPT, uid, gid)
+    _verify_artifacts(repository, uid)
     try:
-        # Held across the whole patch run: the payload is written one 32-bit
-        # word at a time, and another SMU client redirecting the window
-        # mid-write would scatter it across the wrong addresses.
-        with external_collector_lock(), smn_window_lock():
-            # The user's manual override (Settings) skips only this check;
-            # both locks above are still held for the whole patch run.
-            governor = "" if ignore_governor else governor_unsettled()
-            if governor:
-                raise RuntimeError(
-                    f"GDDR6_GOVERNOR_UNSETTLED: the GPU governor is {governor} and uses "
-                    "the SMU queue this patch goes through while it does. Try again "
-                    "once it is running."
+        if status is None:
+            status = _patch_status(repository, uid, ignore_governor=ignore_governor)
+        arguments = _patch_arguments(status)
+        if arguments is None:
+            print("The runtime SMU patch is already active for this boot.")
+            return 0
+        script_fd = _open_verified_script(repository, PATCH_SCRIPT, uid, gid)
+        try:
+            # Held across the whole patch run: the payload is written one 32-bit
+            # word at a time, and another SMU client redirecting the window
+            # mid-write would scatter it across the wrong addresses.
+            with external_collector_lock(), smn_window_lock():
+                # The user's manual override (Settings) skips only this check;
+                # both locks above are still held for the whole patch run.
+                governor = "" if ignore_governor else governor_unsettled()
+                if governor:
+                    raise RuntimeError(
+                        f"GDDR6_GOVERNOR_UNSETTLED: the GPU governor is {governor} and uses "
+                        "the SMU queue this patch goes through while it does. Try again "
+                        "once it is running."
+                    )
+                result = subprocess.run(
+                    ["/usr/bin/python3", f"/proc/self/fd/{script_fd}", *arguments],
+                    text=True,
+                    capture_output=True,
+                    check=False,
+                    timeout=30,
+                    pass_fds=(script_fd,),
+                    cwd=str(repository),
+                    env={
+                        "PATH": "/usr/sbin:/usr/bin:/sbin:/bin",
+                        "LANG": "C", "LC_ALL": "C",
+                        "PYTHONPATH": str(repository),
+                    },
                 )
-            result = subprocess.run(
-                ["/usr/bin/python3", f"/proc/self/fd/{script_fd}"],
-                text=True,
-                capture_output=True,
-                check=False,
-                timeout=30,
-                pass_fds=(script_fd,),
-                cwd=str(repository),
-                env={
-                    "PATH": "/usr/sbin:/usr/bin:/sbin:/bin",
-                    "LANG": "C", "LC_ALL": "C",
-                    "PYTHONPATH": str(repository),
-                },
-            )
+        finally:
+            os.close(script_fd)
     except ExternalCollectorActive:
         raise RuntimeError(
             "GDDR6_EXTERNAL_COLLECTOR: BC250-Telemetry's memory collector already "
             "patched the SMU and is reading these chips. Control Center shows its "
             "readings instead of patching again."
         ) from None
-    finally:
-        os.close(script_fd)
     if result.stdout:
         print(result.stdout.rstrip())
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or "The official patch_smu.py tool failed.")
     print(
         "Runtime SMU patch applied. This lives in volatile SMU RAM only; a full "
-        "power cycle restores the factory Queue 3 / Message 5 handler."
+        "power cycle restores the factory Queue 3 handlers."
     )
     return 0
 
@@ -679,7 +760,7 @@ def _do_monitor(
         and not status.get("deferred")
         and not status.get("patch_active")
     ):
-        _do_apply(repository, uid, gid, ignore_governor=ignore_governor)
+        _do_apply(repository, uid, gid, ignore_governor=ignore_governor, status=status)
 
     deadline = time.monotonic() + max(0.0, float(seconds))
     while True:
@@ -695,6 +776,15 @@ def _do_monitor(
         ):
             # The patch went away underneath us; sampling cannot recover.
             break
+        if sample.get("blocked_reason") == "GDDR6_NO_CHIP_ANSWERED":
+            # Every chip timed out. Each one held the SMU for the payload's
+            # whole wait, so stop asking rather than repeat that every few
+            # seconds; the user can start again.
+            raise RuntimeError(
+                "GDDR6_NO_CHIP_ANSWERED: no memory chip answered, so live monitoring "
+                "stopped. Try again later; if it keeps happening, power the board off "
+                "completely."
+            )
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             break

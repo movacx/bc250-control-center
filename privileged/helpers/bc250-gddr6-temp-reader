@@ -16,22 +16,31 @@ published instead (see ``external_collector_lock``).
 Two reads are offered, both through the reviewed ``bc250_smu`` package:
 
 ``status``
-    ``smu_read(0x748C)`` is an ungated transfer-engine read. Comparing it
-    with the payload's ``umc_read_temp_per_chip`` address tells whether the
-    runtime SMU patch is currently active, without touching anything.
+    ``smu_read`` of Queue 3's handler table is an ungated transfer-engine
+    read. Comparing the entries for messages 5-7 with the payload's
+    addresses tells which runtime SMU patch is active, if any, without
+    touching anything.
 
 ``read``
-    The same ``send_message(3, 0x5, [chip])`` primitive ``read_temp.py``
-    uses. It is refused unless ``status`` says the patch is active:
-    ``umc_read_temp_per_chip`` lives in the *payload*, not in the factory
-    firmware, so on an unpatched board Queue 3 / Message 5 reaches an
-    unknown stock handler. Output is JSON so the desktop can draw a real
+    The same ``send_message(3, 0x6, [parity])`` primitive ``read_temp.py``
+    uses: two messages, four chips each. It is refused unless ``status``
+    says the patch is active: the handlers live in the *payload*, not in
+    the factory firmware, so on an unpatched board those messages reach
+    unknown stock handlers. Output is JSON so the desktop can draw a real
     table instead of parsing console text.
+
+The payload Control Center 1.21.1 and earlier installed (and the one
+BC250-Telemetry still bundles) answers only message 5, one chip at a time,
+and waits for each chip with no time limit. It is recognised by its exact
+bytes and read the old way only while BC250-Telemetry's collector is
+installed, so that collector keeps working; otherwise the helper replaces
+it, and until then this reports the patch as inactive.
 """
 from __future__ import annotations
 
 import contextlib
 import fcntl
+import hashlib
 import json
 import os
 import pathlib
@@ -84,8 +93,9 @@ GOVERNOR_UNIT = "cyan-skillfish-governor-smu.service"
 GOVERNOR_SETTLE_SECONDS = 5.0
 
 #: BC250-Telemetry (github.com/onlinermm/BC250-Telemetry) can install an
-#: optional root service, bc250-memory.service, that patches the SMU with this
-#: same payload at boot and then polls Queue 3 / Message 5 every three seconds.
+#: optional root service, bc250-memory.service, that patches the SMU with the
+#: first version of this payload at boot and then polls Queue 3 / Message 5
+#: every three seconds.
 #: It serialises itself with its own lock file, never with SMN_WINDOW_PATH, so
 #: the two samplers used to run straight into each other: interleaved
 #: index/data writes land in the wrong registers, the payload is handed a chip
@@ -102,11 +112,16 @@ EXTERNAL_COLLECTOR_MARKERS = (
 #: The collector's own rule for its per-boot guard file: anything but a clean
 #: "ready" means an SMU operation was interrupted and its firmware side may
 #: still be running, so it leaves the SMU alone until a power cycle. This
-#: helper follows the same rule. The one exception is a rejection its later
-#: version migrates itself, raised before anything was written.
+#: helper follows the same rule. The exceptions are rejections raised after
+#: reads only, before anything was written: one its later version migrates
+#: itself, and the three it gives when it finds the payload this helper
+#: installs (or one written over its own) instead of the one it bundles.
 EXTERNAL_GUARD_BENIGN = (
     {"state": "ready"},
     {"state": "failed", "error": "unexpected original Q3/5 handler: 0x00000000"},
+    {"state": "failed", "error": "unexpected original Q3/5 handler: 0x0003ab34"},
+    {"state": "failed", "error": "SMU patch changed during this boot; reboot before retrying"},
+    {"state": "failed", "error": "Q3/5 points at an unexpected payload; reboot before retrying"},
 )
 #: Where that collector's reading is published for other programs.
 EXTERNAL_TELEMETRY_PATH = pathlib.Path("/run/apu_telemetry.json")
@@ -120,13 +135,34 @@ OFFICIAL_ORIGINS = frozenset({
     "https://github.com/pan-Rijovich/bc250-memory-temperature",
     "https://github.com/pan-Rijovich/bc250-memory-temperature.git",
 })
-REVIEWED_REVISION = "b7e6bffcb5d592fc03edde375b7598ddc79aa846"
+REVIEWED_REVISION = "4a2221d1da387fa2e738bb9368b39594e242ba4b"
 
-#: ``patch_smu.py``: the register Queue 3 / Message 5 dispatches through, and
-#: the payload address it is redirected to. Reading the register back is how
-#: an active patch is recognised.
-QUEUE_3_MSG_5_HANDLER_REG = 0x0000748C
-QUEUE_3_MSG_5_HANDLER = 0x0003AAC4
+#: ``patch_smu.py``: Queue 3's dispatch table, {handler, flags} per message.
+#: Messages 5, 6 and 7 are redirected into the payload; reading their handler
+#: fields back is how an active patch is recognised. Neither the GPU governor
+#: nor the CPU OC tool sends any of them.
+QUEUE_3_HANDLER_TABLE = 0x00007464
+QUEUE_3_ENTRY_SIZE = 8
+#: ``SMUPayload.symbols`` at the reviewed revision: umc_read_temp_per_chip,
+#: umc_read_temp_packed and regdump_read, for messages 5, 6 and 7.
+CURRENT_HANDLERS = (0x0003AB34, 0x0003AC34, 0x0003AD54)
+MSG_READ_TEMP_PACKED = 0x6
+#: The reserved SMU RAM the payload is written to (EXTRA_SRAM in smu3.ld). A
+#: handler pointing in here belongs to some version of this payload.
+PAYLOAD_START = 0x0003AA9C
+PAYLOAD_END = 0x0003E000
+
+#: The first payload (b7e6bff), which Control Center 1.21.1 and earlier
+#: installed and BC250-Telemetry still bundles: message 5 only, no timeout.
+#: Its handler address alone proves nothing once a newer payload has been
+#: written over it, so its bytes are compared too.
+LEGACY_HANDLER = 0x0003AAC4
+LEGACY_PAYLOAD_SIZE = 176
+LEGACY_PAYLOAD_SHA256 = "b31908460e932a615d9eafb6b3112e6448994f9f6fa656d1d80a8616ac1df4df"
+
+#: The payload gives up on a chip that does not answer instead of waiting
+#: forever, and says so in that chip's byte.
+CHIP_ERRORS = {0xFF: "stage1_timeout", 0xFE: "stage2_timeout"}
 
 #: The payload is built for one board firmware; see the upstream README.
 SUPPORTED_BIOS_VERSIONS = frozenset({"p3.0", "p3.00"})
@@ -595,14 +631,99 @@ def _open_smu(repository: pathlib.Path, uid: int):
     return Bc250Smu()
 
 
-def _patch_active(smu) -> bool:
-    """Read the Queue 3 / Message 5 dispatch register without writing anything.
+def _handler_words(smu) -> tuple[int, int, int]:
+    """Queue 3's handler fields for messages 5, 6 and 7, in one transfer.
 
     ``smu_read`` goes through the transfer engine (Queue 2), which is not part
     of the gated cluster ``unlock.py`` opens, so this stays a pure read.
     """
-    word = smu.smu_read(QUEUE_3_MSG_5_HANDLER_REG, 1)
-    return struct.unpack("<I", word[:4])[0] == QUEUE_3_MSG_5_HANDLER
+    first = QUEUE_3_HANDLER_TABLE + 5 * QUEUE_3_ENTRY_SIZE
+    words = struct.unpack("<5I", smu.smu_read(first, 5)[:20])
+    return words[0], words[2], words[4]
+
+
+def _smu_bytes(smu, start: int, size: int) -> bytes:
+    """``size`` bytes of SMU RAM, at most 18 words per transfer."""
+    chunks = []
+    for address in range(start, start + size, 72):
+        words = min(18, (start + size - address) // 4)
+        chunks.append(smu.smu_read(address, words)[: words * 4])
+    return b"".join(chunks)
+
+
+def _in_payload_area(address: int) -> bool:
+    return PAYLOAD_START <= address < PAYLOAD_END
+
+
+def _installed_payload(smu) -> str:
+    """"current", "legacy", "unknown" (some other patch) or "" (none)."""
+    handlers = _handler_words(smu)
+    if handlers == CURRENT_HANDLERS:
+        return "current"
+    if (
+        handlers[0] == LEGACY_HANDLER
+        and not any(_in_payload_area(word) for word in handlers[1:])
+        and hashlib.sha256(_smu_bytes(smu, PAYLOAD_START, LEGACY_PAYLOAD_SIZE)).hexdigest()
+        == LEGACY_PAYLOAD_SHA256
+    ):
+        return "legacy"
+    # A newer payload half-written over the old one, or one this version
+    # does not know: sending it a message could run anything.
+    if any(_in_payload_area(word) for word in handlers):
+        return "unknown"
+    return ""
+
+
+def _chip_entry(chip: int, raw: int, code: int) -> dict:
+    return {"chip": chip, "raw": raw, "code": code, "temperature_c": (code * 2) - 40}
+
+
+def _sort_reading(chips: list[dict], errors: list[dict], chip: int, raw: int, code: int) -> None:
+    """A valid JEDEC MR3 code joins ``chips``; anything else is reported, not shown."""
+    if code <= MR3_CODE_MAX:
+        chips.append(_chip_entry(chip, raw, code))
+    else:
+        errors.append({"chip": chip, "raw": raw, "error": CHIP_ERRORS.get(code, "out_of_range")})
+
+
+def _packed_chips(smu) -> tuple[list[dict], list[dict]]:
+    """Two messages, four chips each: parity 0 is chips 0/2/4/6, parity 1 the rest."""
+    chips: list[dict] = []
+    errors: list[dict] = []
+    for parity in (0, 1):
+        word = smu.send_message(3, MSG_READ_TEMP_PACKED, [parity])[1] & 0xFFFFFFFF
+        for slot in range(4):
+            code = (word >> (8 * slot)) & 0xFF
+            _sort_reading(chips, errors, parity + 2 * slot, code, code)
+    chips.sort(key=lambda entry: entry["chip"])
+    errors.sort(key=lambda entry: entry["chip"])
+    return chips, errors
+
+
+def _legacy_chips(smu) -> tuple[list[dict], list[dict]]:
+    """The first payload's message 5, one chip at a time."""
+    chips: list[dict] = []
+    errors: list[dict] = []
+    for chip in range(CHIP_COUNT):
+        raw = smu.send_message(3, 0x5, [chip])[1]
+        _sort_reading(chips, errors, chip, raw, raw & 0xFF)
+    return chips, errors
+
+
+def _summarise(payload: dict, chips: list[dict], errors: list[dict]) -> None:
+    payload["chips"] = chips
+    if errors:
+        payload["chip_errors"] = errors
+    if not chips:
+        payload["blocked_reason"] = "GDDR6_NO_CHIP_ANSWERED"
+        return
+    temperatures = [entry["temperature_c"] for entry in chips]
+    hotspot = max(temperatures)
+    payload.update({
+        "average_c": sum(temperatures) / len(temperatures),
+        "hotspot_c": hotspot,
+        "hotspot_chip": chips[temperatures.index(hotspot)]["chip"],
+    })
 
 
 def _sample_smu(
@@ -612,9 +733,10 @@ def _sample_smu(
     *,
     chips_wanted: bool,
     ignore_governor: bool = False,
+    collector_installed: bool = False,
 ) -> None:
     """Fill ``payload`` from the SMU itself, holding the shared window lock."""
-    # One lock for the whole sample, not one per message: eight consecutive
+    # One lock for the whole sample, not one per message: consecutive
     # mailbox round trips interleaved with another client's transactions is
     # exactly the failure the lock exists to prevent.
     with smn_window_lock():
@@ -631,31 +753,25 @@ def _sample_smu(
             return
         smu = _open_smu(repository, uid)
         try:
-            payload["patch_active"] = _patch_active(smu)
-            if not payload["patch_active"]:
-                # umc_read_temp_per_chip is provided by the runtime SMU payload,
-                # not by the factory firmware: on an unpatched board Queue 3 /
-                # Message 5 would reach an unknown stock handler.
+            installed = _installed_payload(smu)
+            payload["payload"] = installed
+            # The first payload stays in use only for BC250-Telemetry, whose
+            # collector refuses to start over any other one.
+            payload["patch_active"] = installed == "current" or (
+                installed == "legacy" and collector_installed
+            )
+            if installed == "unknown":
+                payload["blocked_reason"] = "GDDR6_PATCH_UNKNOWN"
+            elif not payload["patch_active"]:
+                # The handlers are provided by the runtime SMU payload, not by
+                # the factory firmware: on an unpatched board these messages
+                # would reach unknown stock handlers.
                 payload["blocked_reason"] = "GDDR6_PATCH_INACTIVE"
             elif chips_wanted:
-                chips = []
-                for chip in range(CHIP_COUNT):
-                    raw = smu.send_message(3, 0x5, [chip])[1]
-                    code = raw & 0xFF
-                    chips.append({
-                        "chip": chip,
-                        "raw": raw,
-                        "code": code,
-                        "temperature_c": (code * 2) - 40,
-                    })
-                temperatures = [entry["temperature_c"] for entry in chips]
-                hotspot = max(temperatures)
-                payload.update({
-                    "chips": chips,
-                    "average_c": sum(temperatures) / len(temperatures),
-                    "hotspot_c": hotspot,
-                    "hotspot_chip": temperatures.index(hotspot),
-                })
+                chips, errors = (
+                    _packed_chips(smu) if installed == "current" else _legacy_chips(smu)
+                )
+                _summarise(payload, chips, errors)
         finally:
             smu.close()
 
@@ -675,10 +791,11 @@ def _do_read(
     failure: it exits 0 with an empty chip list and a named reason, so the
     desktop can offer the patch button instead of reporting an error.
 
-    read_temp.py additionally requires the third-party ``tabulate`` package
-    purely to draw its ASCII table; that is not something a root-owned helper
-    should depend on being installed system-wide. This calls the exact same
-    reviewed primitive read_temp.py calls and emits JSON instead.
+    read_temp.py is an endless terminal monitor that redraws the screen;
+    that is not something a root-owned helper should run. This calls the
+    exact same reviewed primitive read_temp.py calls and emits JSON instead.
+    A chip that did not answer is listed under ``chip_errors`` and left out
+    of ``chips``, the average and the hotspot.
     """
     payload: dict = {
         "bios_version": bios_version(),
@@ -689,13 +806,14 @@ def _do_read(
         "chips": [],
     }
     try:
-        with external_collector_lock():
+        with external_collector_lock() as collector_installed:
             _sample_smu(
                 payload,
                 repository,
                 uid,
                 chips_wanted=chips_wanted,
                 ignore_governor=ignore_governor,
+                collector_installed=collector_installed,
             )
     except ExternalCollectorActive:
         # BC250-Telemetry is sampling these chips right now. A second sampler

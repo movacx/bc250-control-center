@@ -54,6 +54,9 @@ EXTERNAL_GUARD_PATH = Path('/run/bc250-memory/patch-state.json')
 EXTERNAL_GUARD_BENIGN = (
     {'state': 'ready'},
     {'state': 'failed', 'error': 'unexpected original Q3/5 handler: 0x00000000'},
+    {'state': 'failed', 'error': 'unexpected original Q3/5 handler: 0x0003ab34'},
+    {'state': 'failed', 'error': 'SMU patch changed during this boot; reboot before retrying'},
+    {'state': 'failed', 'error': 'Q3/5 points at an unexpected payload; reboot before retrying'},
 )
 BIOS_VERSION_PATH = Path('/sys/class/dmi/id/bios_version')
 
@@ -181,7 +184,15 @@ class Gddr6MemoryTempRepository:
             'helper_ready': bool(self._gddr6_temp_helper_path()),
             'reader_ready': bool(self._gddr6_temp_reader_path()),
             'repository_ready': repository_ready,
-            'payload_present': (repository / 'SMUPayload.bin').is_file(),
+            # A clean official clone at an earlier reviewed revision: the
+            # helpers refuse it until the same Prepare button fetches this one.
+            'repository_outdated': bool(
+                origin in GDDR6_MEMORY_TEMP_ORIGINS and clean and not revision_matches
+            ),
+            'payload_present': all(
+                (repository / name).is_file()
+                for name in ('SMUPayload.bin', 'SMUPayload.symbols')
+            ),
             'repository_path': str(repository),
             'reference_url': GDDR6_MEMORY_TEMP_REPOSITORY,
             'reviewed_revision': REVIEWED_REVISION,
@@ -217,7 +228,10 @@ class Gddr6MemoryTempRepository:
         clone still validates as clean afterwards.
         """
         package = repository / 'bc250_smu'
-        paths = [repository, repository / 'patch_smu.py', repository / 'SMUPayload.bin']
+        paths = [
+            repository / name
+            for name in ('', 'patch_smu.py', 'SMUPayload.bin', 'SMUPayload.symbols')
+        ]
         if package.is_dir() and not package.is_symlink():
             paths.extend((package, *package.rglob('*.py')))
         uid = os.getuid()

@@ -308,13 +308,17 @@ EXTERNAL_TOOLS: dict[str, ExternalToolSpec] = {
         key="gddr6_memory_temp",
         upstream="https://github.com/pan-Rijovich/bc250-memory-temperature",
         license="MIT",
-        reviewed_revision="b7e6bffcb5d592fc03edde375b7598ddc79aa846",
+        # 4a2221d (Oct 14, 2026): the payload gives up on a chip that does not
+        # answer instead of waiting forever, rejects a chip index above 7, and
+        # reads four chips per message; patch_smu.py checks the SMU firmware
+        # version and verifies the handlers it writes.
+        reviewed_revision="4a2221d1da387fa2e738bb9368b39594e242ba4b",
         privilege_class="live-hardware-firmware",
         hardware_writes=True,
         automated=True,
         rollback=(
             "The SMU patch lives in volatile SMU RAM only; a full power cycle "
-            "restores the factory Queue 3 / Message 5 handler. No persistent "
+            "restores the factory Queue 3 handlers. No persistent "
             "or flash state is written."
         ),
         validation_level="reverse-engineered-community-reported-hardware-gate-pending",
