@@ -264,11 +264,8 @@ def test_patching_waits_for_what_the_status_said(helper):
 
 
 def _patch_run(helper, monkeypatch, tmp_path, status):
-    script = tmp_path / "patch_smu.py"
-    script.write_text("pass\n")
     monkeypatch.setattr(helper, "bios_version", lambda: "P3.00")
-    monkeypatch.setattr(helper, "_verify_artifacts", lambda *args: None)
-    monkeypatch.setattr(helper, "_open_verified_script", lambda *args: os.open(script, os.O_RDONLY))
+    monkeypatch.setattr(helper, "staged_checkout", lambda *args: contextlib.nullcontext(tmp_path))
     monkeypatch.setattr(helper, "external_collector_lock", lambda: contextlib.nullcontext(False))
     monkeypatch.setattr(helper, "smn_window_lock", lambda: contextlib.nullcontext())
     monkeypatch.setattr(helper, "governor_unsettled", lambda: "")
@@ -302,25 +299,28 @@ def test_an_installed_payload_is_not_written_again(helper, monkeypatch, tmp_path
 def test_the_artifacts_patch_smu_reads_are_the_reviewed_ones(helper, monkeypatch, tmp_path):
     repository = tmp_path / "bc250-memory-temperature"
     repository.mkdir()
+    staging_parent = tmp_path / "run"
+    staging_parent.mkdir()
+    monkeypatch.setattr(helper, "STAGING_PARENT", str(staging_parent))
     files = {helper.PAYLOAD_FILE: b"payload", helper.SYMBOLS_FILE: b"symbols"}
     for name, content in files.items():
         (repository / name).write_bytes(content)
         (repository / name).chmod(0o644)
-    monkeypatch.setattr(
-        helper,
-        "REVIEWED_ARTIFACT_SHA256",
-        {name: hashlib.sha256(content).hexdigest() for name, content in files.items()},
-    )
-    helper._verify_artifacts(repository, os.getuid())
+    reviewed = {name: hashlib.sha256(content).hexdigest() for name, content in files.items()}
+    with helper.staged_checkout(repository, os.getuid(), reviewed) as staging:
+        assert {name: (staging / name).read_bytes() for name in files} == files
 
     (repository / helper.SYMBOLS_FILE).write_bytes(b"umc_read_temp_packed T 00000800 0000011e\n")
     with pytest.raises(RuntimeError, match="SMUPayload.symbols does not match"):
-        helper._verify_artifacts(repository, os.getuid())
+        with helper.staged_checkout(repository, os.getuid(), reviewed):
+            pytest.fail("a payload that is not the reviewed one must never be handed out")
 
     (repository / helper.SYMBOLS_FILE).write_bytes(b"symbols")
     (repository / helper.PAYLOAD_FILE).chmod(0o666)
-    with pytest.raises(RuntimeError, match="group/other writable"):
-        helper._verify_artifacts(repository, os.getuid())
+    with pytest.raises(RuntimeError, match="not be writable by group or others"):
+        with helper.staged_checkout(repository, os.getuid(), reviewed):
+            pytest.fail("a payload others can write must never be handed out")
+    assert list(staging_parent.iterdir()) == []
 
 
 def test_a_session_stops_when_no_chip_answers(helper, monkeypatch, capsys):
@@ -384,6 +384,24 @@ def test_the_session_passes_its_status_to_the_patch(helper, monkeypatch, capsys)
 def test_both_helpers_and_the_desktop_pin_the_same_revision(reader, helper):
     assert reader.REVIEWED_REVISION == helper.REVIEWED_REVISION == REVIEWED_REVISION
     assert helper.REVIEWED_SCRIPT_SHA256[helper.PATCH_SCRIPT] == REVIEWED_PATCH_SCRIPT_SHA256
+
+
+def test_both_helpers_pin_the_same_bc250_smu_files(reader, helper):
+    # The reader imports the package; patch_smu.py imports it too, with unlock.
+    package = {
+        name: digest
+        for name, digest in helper.REVIEWED_MODULE_SHA256.items()
+        if name.startswith("bc250_smu/")
+    }
+    assert package == reader.REVIEWED_PACKAGE_SHA256
+    assert "bc250_smu/__init__.py" in package
+    assert set(helper._reviewed_files()) == {
+        helper.PATCH_SCRIPT,
+        "unlock.py",
+        *package,
+        helper.PAYLOAD_FILE,
+        helper.SYMBOLS_FILE,
+    }
 
 
 def test_bc250_telemetrys_rejections_of_the_new_payload_are_benign_everywhere(reader, helper):

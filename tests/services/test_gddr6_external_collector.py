@@ -349,18 +349,14 @@ def test_a_session_keeps_relaying_while_the_collector_is_still_starting(
 def test_patching_is_refused_while_the_collector_owns_the_smu(
     tmp_path, runtime, installed, collector, monkeypatch
 ):
+    import contextlib
+
     helper = _load("bc250-gddr6-temp-helper")
     repository = tmp_path / "bc250-memory-temperature"
     repository.mkdir()
-    (repository / "SMUPayload.bin").write_bytes(b"\0" * 176)
-    script = tmp_path / "patch_smu.py"
-    script.write_text("raise SystemExit('must not run')\n")
     ran = []
     monkeypatch.setattr(helper, "bios_version", lambda: "P3.00")
-    monkeypatch.setattr(
-        helper, "_open_verified_script", lambda *args: os.open(script, os.O_RDONLY)
-    )
-    monkeypatch.setattr(helper, "_verify_artifacts", lambda *args: None)
+    monkeypatch.setattr(helper, "staged_checkout", lambda *args: contextlib.nullcontext(tmp_path))
     monkeypatch.setattr(helper, "_patch_status", lambda *args, **kwargs: {"payload": ""})
     monkeypatch.setattr(helper, "external_collector_lock", _lock(helper, runtime, installed))
     monkeypatch.setattr(helper.subprocess, "run", lambda *args, **kwargs: ran.append(args))
@@ -492,13 +488,9 @@ def test_patching_waits_out_a_governor_that_is_starting(tmp_path, monkeypatch):
     helper = _load("bc250-gddr6-temp-helper")
     repository = tmp_path / "bc250-memory-temperature"
     repository.mkdir()
-    (repository / "SMUPayload.bin").write_bytes(b"\0" * 176)
-    script = tmp_path / "patch_smu.py"
-    script.write_text("raise SystemExit('must not run')\n")
     ran = []
     monkeypatch.setattr(helper, "bios_version", lambda: "P3.00")
-    monkeypatch.setattr(helper, "_open_verified_script", lambda *args: os.open(script, os.O_RDONLY))
-    monkeypatch.setattr(helper, "_verify_artifacts", lambda *args: None)
+    monkeypatch.setattr(helper, "staged_checkout", lambda *args: contextlib.nullcontext(tmp_path))
     monkeypatch.setattr(helper, "_patch_status", lambda *args, **kwargs: {"payload": ""})
     monkeypatch.setattr(helper, "external_collector_lock", lambda: contextlib.nullcontext(False))
     monkeypatch.setattr(helper, "smn_window_lock", lambda: contextlib.nullcontext())
@@ -573,12 +565,8 @@ def test_the_manual_override_patches_through_a_starting_governor(tmp_path, monke
     helper = _load("bc250-gddr6-temp-helper")
     repository = tmp_path / "bc250-memory-temperature"
     repository.mkdir()
-    (repository / "SMUPayload.bin").write_bytes(b"\0" * 176)
-    script = tmp_path / "patch_smu.py"
-    script.write_text("print('patched')\n")
     monkeypatch.setattr(helper, "bios_version", lambda: "P3.00")
-    monkeypatch.setattr(helper, "_open_verified_script", lambda *args: os.open(script, os.O_RDONLY))
-    monkeypatch.setattr(helper, "_verify_artifacts", lambda *args: None)
+    monkeypatch.setattr(helper, "staged_checkout", lambda *args: contextlib.nullcontext(tmp_path))
     monkeypatch.setattr(helper, "_patch_status", lambda *args, **kwargs: {"payload": ""})
     monkeypatch.setattr(helper, "external_collector_lock", lambda: contextlib.nullcontext(False))
     monkeypatch.setattr(helper, "smn_window_lock", lambda: contextlib.nullcontext())

@@ -23,7 +23,10 @@ def test_core_unlock_helper_launches_only_validated_official_upstream_script():
     assert "head != REVIEWED_REVISION" in helper
     assert "working_hash != REVIEWED_SCRIPT_SHA256" in helper
     assert '"rev-parse", "refs/remotes/origin/main"' not in helper
-    assert 'f"/proc/self/fd/{script_fd}"' in helper
+    # A private root-owned copy of the verified bytes, never the checkout's
+    # own file: the desktop user can rewrite that one after the check.
+    assert '"/usr/bin/python3", "-I", str(script)' in helper
+    assert "/proc/self/fd/" not in helper
     assert "0x0115A870" not in helper
     assert "SMU_WRITE_FF_MESSAGE" not in helper
     assert '"cyan-skillfish-governor-smu.service"' in helper

@@ -30,8 +30,7 @@ HELPER = Path(__file__).resolve().parents[3] / "privileged" / "helpers" / "bc250
 def _helper_run(monkeypatch, tmp_path, argv):
     """Run the helper's main() up to the upstream call, with nothing real."""
     helper_globals = runpy.run_path(str(HELPER))["main"].__globals__
-    script = tmp_path / "script.py"
-    script.write_text("print('ok')\n", encoding="utf-8")
+    monkeypatch.setitem(helper_globals, "STAGING_PARENT", str(tmp_path))
     launched = []
     monkeypatch.setattr(os, "geteuid", lambda: 0)
     fakes = {
@@ -39,7 +38,7 @@ def _helper_run(monkeypatch, tmp_path, argv):
         "_bc250_identity_present": lambda: True,
         "Path": lambda _path: type("P", (), {"is_file": lambda self: True})(),
         "_invoking_user": lambda: (1000, 1000, tmp_path),
-        "_validate_repository": lambda path, *_: os.open(script, os.O_RDONLY),
+        "_validate_repository": lambda path, *_: b"print('ok')\n",
         "_stop_gpu_governors": lambda: (),
         "_reboot_after_core_unlock": lambda: None,
     }
@@ -55,7 +54,8 @@ def _helper_run(monkeypatch, tmp_path, argv):
 
 def test_the_helper_runs_upstream_without_f_by_default(monkeypatch, tmp_path):
     command = _helper_run(monkeypatch, tmp_path, ["helper", "--repo", str(tmp_path), "--reboot"])
-    assert command[0] == "/usr/bin/python3" and command[1].startswith("/proc/self/fd/")
+    assert command[:2] == ["/usr/bin/python3", "-I"]
+    assert command[2].endswith("/bc250-unlock-cores.py")
     assert "-f" not in command
 
 
@@ -63,7 +63,7 @@ def test_the_helper_passes_f_only_for_the_owners_explicit_flag(monkeypatch, tmp_
     command = _helper_run(
         monkeypatch, tmp_path, ["helper", "--repo", str(tmp_path), "--reboot", "--ignore-core-mask"]
     )
-    assert command[2:] == ["-f"]
+    assert command[3:] == ["-f"]
 
 
 @pytest.mark.parametrize(

@@ -2,16 +2,17 @@
 """Narrow privileged launcher for the official bc250-core-unlock tool."""
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import os
-from pathlib import Path
 import pathlib
 import pwd
 import shutil
 import stat
 import subprocess
 import sys
-
+import tempfile
+from pathlib import Path
 
 REPOSITORY_NAME = "bc250-core-unlock"
 OFFICIAL_ORIGINS = frozenset({
@@ -26,6 +27,9 @@ REVIEWED_SCRIPT_SHA256 = "b52bdcc14012c9dd222ebc71b4df11c3e976824a129f01f026bcc3
 # Its own "-f" skips that check. This helper passes it only when the owner
 # ticked the box for it, and never on its own.
 IGNORE_CORE_MASK = "--ignore-core-mask"
+#: Where the verified script is copied before it runs: a fresh directory under
+#: it that only root can enter (see ``_staged_script``).
+STAGING_PARENT = "/run"
 GOVERNOR_SERVICES = (
     "cyan-skillfish-governor-smu.service",
     "oberon-governor.service",
@@ -75,7 +79,8 @@ def _invoking_user() -> tuple[int, int, Path]:
     return uid, account.pw_gid, Path(account.pw_dir).resolve()
 
 
-def _validate_repository(raw_path: str, uid: int, gid: int, home: Path) -> int:
+def _validate_repository(raw_path: str, uid: int, gid: int, home: Path) -> bytes:
+    """The reviewed script's bytes, read once from a clean, reviewed checkout."""
     requested = Path(raw_path)
     if not requested.is_absolute():
         raise RuntimeError("The upstream repository path must be absolute.")
@@ -114,13 +119,15 @@ def _validate_repository(raw_path: str, uid: int, gid: int, home: Path) -> int:
 
     flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
     fd = os.open(script, flags)
-    metadata = os.fstat(fd)
-    if metadata.st_uid != uid or metadata.st_mode & 0o022:
+    try:
+        metadata = os.fstat(fd)
+        if metadata.st_uid != uid or metadata.st_mode & 0o022:
+            raise RuntimeError(
+                "The upstream script must belong to the desktop user and not be writable by group or others."
+            )
+        working_bytes = os.read(fd, metadata.st_size + 1)
+    finally:
         os.close(fd)
-        raise RuntimeError(
-            "The upstream script must belong to the desktop user and not be writable by group or others."
-        )
-    working_bytes = os.read(fd, metadata.st_size + 1)
     committed_bytes = subprocess.run(
         git + ["show", f"{head}:{UPSTREAM_SCRIPT}"],
         capture_output=True,
@@ -137,15 +144,35 @@ def _validate_repository(raw_path: str, uid: int, gid: int, home: Path) -> int:
         },
     )
     if committed_bytes.returncode != 0:
-        os.close(fd)
         raise RuntimeError("The committed upstream script could not be read.")
     working_hash = hashlib.sha256(working_bytes).hexdigest()
     committed_hash = hashlib.sha256(committed_bytes.stdout).hexdigest()
     if working_hash != REVIEWED_SCRIPT_SHA256 or committed_hash != REVIEWED_SCRIPT_SHA256:
-        os.close(fd)
         raise RuntimeError("The opened upstream script does not match the independently reviewed payload.")
-    os.lseek(fd, 0, os.SEEK_SET)
-    return fd
+    return working_bytes
+
+
+@contextlib.contextmanager
+def _staged_script(content: bytes):
+    """Yield the verified bytes as a file only root can reach, removed afterwards.
+
+    Running the checkout's own file, even through an fd, runs whatever its
+    owner, the desktop user, writes into it after the hash check: the fd pins
+    the inode, not its bytes. And Python put the checkout's directory first on
+    sys.path, where a ``struct.py`` that ``.git/info/exclude`` hides from
+    ``git status`` was imported in place of the standard module.
+    """
+    staging = pathlib.Path(tempfile.mkdtemp(prefix="bc250-core-unlock-", dir=STAGING_PARENT))
+    try:
+        script = staging / UPSTREAM_SCRIPT
+        fd = os.open(
+            script, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600
+        )
+        with open(fd, "wb") as handle:
+            handle.write(content)
+        yield script
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
 
 
 def _bc250_identity_present() -> bool:
@@ -387,20 +414,21 @@ def main(argv: list[str]) -> int:
         raise RuntimeError("git is required to validate the official upstream clone.")
 
     uid, gid, home = _invoking_user()
-    script_fd = _validate_repository(arguments[1], uid, gid, home)
-    try:
+    script_bytes = _validate_repository(arguments[1], uid, gid, home)
+    with _staged_script(script_bytes) as script:
         stopped_governors = _stop_gpu_governors()
 
         if ignore_core_mask:
             print("Core mask check skipped at the owner's request (upstream -f).")
         try:
+            # -I: the staged copy's directory is not put on sys.path either.
             result = subprocess.run(
-                ["/usr/bin/python3", f"/proc/self/fd/{script_fd}", *(("-f",) if ignore_core_mask else ())],
+                ["/usr/bin/python3", "-I", str(script), *(("-f",) if ignore_core_mask else ())],
                 text=True,
                 capture_output=True,
                 check=False,
                 timeout=30,
-                pass_fds=(script_fd,),
+                cwd=str(script.parent),
                 env={"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "LANG": "C", "LC_ALL": "C"},
             )
         except OSError as error:
@@ -420,8 +448,6 @@ def main(argv: list[str]) -> int:
                 result.stderr.strip() or "The official upstream core unlock tool failed.",
                 before_smu_write=_stopped_before_smu_write(result.stdout, result.stderr),
             )
-    finally:
-        os.close(script_fd)
 
     print("Executed official upstream tool: rw-r-r-0644/bc250-core-unlock")
     if stopped_governors:

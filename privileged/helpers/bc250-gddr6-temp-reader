@@ -45,10 +45,12 @@ import json
 import os
 import pathlib
 import pwd
+import shutil
 import stat
 import struct
 import subprocess
 import sys
+import tempfile
 import time
 
 REPOSITORY_NAME = "bc250-memory-temperature"
@@ -136,6 +138,29 @@ OFFICIAL_ORIGINS = frozenset({
     "https://github.com/pan-Rijovich/bc250-memory-temperature.git",
 })
 REVIEWED_REVISION = "4a2221d1da387fa2e738bb9368b39594e242ba4b"
+#: Every file of the reviewed ``bc250_smu`` package at REVIEWED_REVISION. The
+#: reader imports exactly these, from a private copy (see ``staged_checkout``).
+#: These hashes are the trust anchor, not git: git runs as the desktop user,
+#: over objects that user owns. ``bc250-gddr6-temp-helper`` pins the same.
+REVIEWED_PACKAGE_SHA256 = {
+    "bc250_smu/__init__.py": "ad87f03cc35aaa0da4e75d6e45bd56bc5baa7c1e680a25b528c3c6fce480884a",
+    "bc250_smu/api.py": "7fe9beed4fa12bb8625096859ff32e8ee64ee8b9cb1265f1546b5cc7127422fc",
+    "bc250_smu/api_q0.py": "b1e0afa14b2a75a73d30308019ee7199733a59ad946210fae91ee2d675256ad1",
+    "bc250_smu/api_q1.py": "811de63b7e3c3eb23808971ae7c6b0cc661cc52fc0d9c9b7a055aa25cfb9b31a",
+    "bc250_smu/api_q2.py": "cc3db581a1c8136664d4520d6d96c35449c768df621eea3c3a1c5101fa612e78",
+    "bc250_smu/api_q3.py": "e5f5021643d866c78a9117e15f7f085edcd19173d1e26c5282ff7b8cc660e7c3",
+    "bc250_smu/api_q4.py": "011baa51294b043b7e636b3e7e441184061fe9a37534125330e28afc6fc5d2ff",
+    "bc250_smu/codec.py": "bb747622598b92ff43f10583ef93803bda4d6ae59b2480e74fc2abf6751db116",
+    "bc250_smu/errors.py": "eec00a893b809d64f176cfd375179be84643221628b571ea5b5a3bc0e753d7c4",
+    "bc250_smu/mailbox.py": "2efaaa10f2d7285c2587c892f9633000ea400c93d8492d4fbf7ed1e54de3622c",
+    "bc250_smu/primitives.py": "8ea7262d4b548933530889858d40fac5eeb3aaaa42dbb167e4bdeaec36b6f50b",
+    "bc250_smu/transport.py": "8030084a9aae7c20e8ea787fca72f2a2bc75d9c2305d62047d6f0a5b2fe2d39d",
+}
+#: Where that copy is made: a fresh directory under it that only root can
+#: enter, removed as soon as the import is done.
+STAGING_PARENT = "/run"
+#: No reviewed file comes close; anything bigger is not one of them.
+STAGED_FILE_MAX_BYTES = 1 << 20
 
 #: ``patch_smu.py``: Queue 3's dispatch table, {handler, flags} per message.
 #: Messages 5, 6 and 7 are redirected into the payload; reading their handler
@@ -272,25 +297,88 @@ def _validate_repository(raw_path: str, uid: int, gid: int, home: pathlib.Path) 
     return repository
 
 
-def _verify_package_ownership(repository: pathlib.Path, uid: int) -> None:
-    """Require the reviewed bc250_smu package to be owned by the desktop user.
+def _require_user_owned(metadata: os.stat_result, name: str, uid: int) -> None:
+    """The same per-file ownership guard the other helpers use."""
+    if metadata.st_uid != uid or metadata.st_mode & 0o022:
+        raise RuntimeError(
+            f"{name} must belong to the desktop user and not be writable by group or others."
+        )
 
-    The git origin/revision/clean-tree check already pins every tracked file's
-    exact content; this adds the same per-file ownership guard the other
-    helpers use before loading anything outside the standard library.
+
+def _read_checkout_file(root_fd: int, name: str, uid: int) -> bytes:
+    """One file of the checkout, reached through no symbolic link at any level.
+
+    ``O_NONBLOCK`` keeps a FIFO left in a file's place from hanging a root
+    process at ``open``; it changes nothing for a regular file.
     """
-    package_dir = repository / "bc250_smu"
-    if package_dir.is_symlink() or not package_dir.is_dir():
-        raise RuntimeError("The bc250_smu package was not found in the reviewed checkout.")
-    for path in (package_dir, *package_dir.rglob("*.py")):
-        if path.is_symlink():
-            raise RuntimeError("bc250_smu must not contain symbolic links.")
-        metadata = path.stat(follow_symlinks=False)
-        if metadata.st_uid != uid or metadata.st_mode & 0o022:
-            raise RuntimeError(
-                "bc250_smu package files must belong to the desktop user and not be "
-                "writable by group or others."
+    flags = os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW | os.O_NONBLOCK
+    *directories, leaf = name.split("/")
+    opened: list[int] = []
+    try:
+        parent = root_fd
+        for directory in directories:
+            parent = os.open(directory, flags | os.O_DIRECTORY, dir_fd=parent)
+            opened.append(parent)
+            _require_user_owned(os.fstat(parent), directory, uid)
+        fd = os.open(leaf, flags, dir_fd=parent)
+        opened.append(fd)
+        metadata = os.fstat(fd)
+        if not stat.S_ISREG(metadata.st_mode) or metadata.st_size > STAGED_FILE_MAX_BYTES:
+            raise RuntimeError(f"{name} in the reviewed checkout is not a regular file.")
+        _require_user_owned(metadata, name, uid)
+        return os.read(fd, metadata.st_size + 1)
+    except OSError as error:
+        raise RuntimeError(
+            f"{name} was not found in the reviewed checkout, or is behind a symbolic link."
+        ) from error
+    finally:
+        for fd in reversed(opened):
+            os.close(fd)
+
+
+@contextlib.contextmanager
+def staged_checkout(repository: pathlib.Path, uid: int, reviewed: dict[str, str]):
+    """Yield a private copy of the ``reviewed`` files, each one its reviewed bytes.
+
+    The checkout belongs to the desktop user, so whatever was validated there
+    holds only until that user's next write: a file replaced afterwards would
+    be imported as root. Nor does a clean ``git status`` mean only reviewed
+    code is there: upstream ignores ``__pycache__``, and a bytecode file
+    forged to match a source's size and time is imported in its place. So root
+    takes nothing from the checkout but bytes: each file is read once,
+    compared with its pinned SHA-256 and written into a fresh directory only
+    root can enter. Everything is imported from there, and the directory is
+    removed on the way out.
+    """
+    staging = pathlib.Path(tempfile.mkdtemp(prefix="bc250-gddr6-read-", dir=STAGING_PARENT))
+    try:
+        try:
+            root_fd = os.open(
+                repository, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
             )
+        except OSError as error:
+            raise RuntimeError("The reviewed checkout could not be opened.") from error
+        try:
+            for name, expected in reviewed.items():
+                content = _read_checkout_file(root_fd, name, uid)
+                if hashlib.sha256(content).hexdigest() != expected:
+                    raise RuntimeError(
+                        f"{name} does not match the independently reviewed payload."
+                    )
+                target = staging / name
+                target.parent.mkdir(mode=0o700, exist_ok=True)
+                fd = os.open(
+                    target,
+                    os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC,
+                    0o600,
+                )
+                with open(fd, "wb") as handle:
+                    handle.write(content)
+        finally:
+            os.close(root_fd)
+        yield staging
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
 
 
 def _trusted_self() -> bool:
@@ -622,12 +710,17 @@ def relay_external_sample(
 
 
 def _open_smu(repository: pathlib.Path, uid: int):
-    _verify_package_ownership(repository, uid)
-    sys.path.insert(0, str(repository))
-    try:
-        from bc250_smu import Bc250Smu  # noqa: PLC0415
-    except Exception as error:
-        raise RuntimeError(f"Could not import the reviewed bc250_smu package: {error}") from error
+    """The reviewed ``Bc250Smu``, imported from a private copy, never the checkout."""
+    with staged_checkout(repository, uid, REVIEWED_PACKAGE_SHA256) as staging:
+        sys.path.insert(0, str(staging))
+        try:
+            from bc250_smu import Bc250Smu  # noqa: PLC0415
+        except Exception as error:
+            raise RuntimeError(
+                f"Could not import the reviewed bc250_smu package: {error}"
+            ) from error
+        finally:
+            sys.path.remove(str(staging))
     return Bc250Smu()
 
 
