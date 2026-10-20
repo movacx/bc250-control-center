@@ -27,7 +27,7 @@ from bc250cc.infrastructure.radv_async_compute import RADV_ASYNC_REVIEWED_COMMIT
 from ..components.buttons import WrappingButton as QPushButton
 from ..components.dialogs import enable_adaptive_dialog
 from ..components.system_setup_controls import (
-    VRAM_SIZE_PRESETS_MB,
+    VRAM_SIZE_CHOICES,
     bazzite_ui_preview_enabled,
     is_bazzite_host,
     update_memory_controls,
@@ -710,7 +710,7 @@ class DependencyPreparationDialog(QDialog):
         self.vram_size_combo = GuardedComboBox()
         self.vram_size_combo.setProperty("settingsCombo", True)
         self.vram_size_combo.addItem(tr("Keep current VRAM size"), 0)
-        for target in VRAM_SIZE_PRESETS_MB:
+        for target in VRAM_SIZE_CHOICES:
             self.vram_size_combo.addItem(vram_size_label(target), target)
         controls.addWidget(self.vram_size_combo, 2, 1)
         self.vram_apply_button = QPushButton(tr("Apply VRAM"))

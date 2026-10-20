@@ -326,9 +326,12 @@ SYSTEM_FAN_CHANNELS = tuple(range(3, 9))
 QAM_FAN_CHANNELS = (2, 3, 4, 5)
 QAM_FAN_MIN_PERCENT = 20
 QAM_FAN_MAX_PERCENT = 100
-# Same fixed ladder the desktop's own VRAM control offers. Checked against
-# the shared contract in load_contract() before anything touches CMOS.
-VRAM_SIZE_PRESETS_MB = (256, 512, 1024, 3072, 4096, 5120, 6144, 7168, 8192, 12288)
+# The shared contract's ladder, checked against it in load_contract() before
+# anything touches CMOS. 2048 stays listed so a plugin from 1.21.0 or 1.21.1
+# keeps agreeing with the contract; it is refused below and never offered.
+VRAM_SIZE_PRESETS_MB = (256, 512, 1024, 2048, 3072, 4096, 5120, 6144, 7168, 8192, 12288)
+# Linux does not boot on a BC-250 with this split.
+VRAM_SIZE_BLOCKED_MB = (2048,)
 PWM_MODE_VERIFY_ATTEMPTS = 10
 PWM_MODE_VERIFY_INTERVAL_SECONDS = 0.05
 PWM_DUTY_VERIFY_ATTEMPTS = 16
@@ -621,7 +624,7 @@ def vram_apply_action(raw_size_mb: str) -> int:
         size_mb = int(raw_size_mb)
     except ValueError:
         return fail("QUICK_ACCESS_VRAM: Invalid VRAM size.", 2)
-    if size_mb not in VRAM_SIZE_PRESETS_MB:
+    if size_mb not in VRAM_SIZE_PRESETS_MB or size_mb in VRAM_SIZE_BLOCKED_MB:
         return fail("QUICK_ACCESS_VRAM: Unsupported VRAM size.", 2)
     try:
         result = vram_apply(size_mb)
@@ -4065,7 +4068,8 @@ def _contract_payload() -> dict:
             "percent_range": list(shared.QUICK_ACCESS_FAN_PERCENT_RANGE),
             "percent_step": shared.QUICK_ACCESS_FAN_PERCENT_STEP,
         },
-        "vram": {"presets": list(shared.VRAM_SIZE_PRESETS_MB)},
+        # What the panel offers: an older plugin builds its slider from this.
+        "vram": {"presets": list(shared.vram_size_choices())},
     }
 
 
@@ -4277,6 +4281,7 @@ def load_contract():
                 tuple(sorted(module.OBERON_DESKTOP_PROFILES)),
             ),
             ("VRAM presets", VRAM_SIZE_PRESETS_MB, tuple(module.VRAM_SIZE_PRESETS_MB)),
+            ("blocked VRAM presets", VRAM_SIZE_BLOCKED_MB, tuple(module.VRAM_SIZE_BLOCKED_MB)),
         )
         if mine != theirs
     ]

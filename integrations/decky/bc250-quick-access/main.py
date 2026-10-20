@@ -71,10 +71,13 @@ FAN_MAX_PERCENT = 100
 CPU_FREQUENCIES = tuple(range(3100, 4201, 50))
 CPU_VIDS = tuple(range(950, 1326, 5))
 CPU_SCALES = tuple(range(-50, 1))
-# Same fixed ladder the desktop's own VRAM control offers. Cross-checked
-# against the shared contract in _contract_disagreement() before it is ever
-# shown, so a stale plugin cannot offer a size the root helper would reject.
-VRAM_SIZE_PRESETS_MB = (256, 512, 1024, 3072, 4096, 5120, 6144, 7168, 8192, 12288)
+# The shared contract's ladder. Cross-checked against it in
+# _contract_disagreement() before it is ever shown, so a stale plugin cannot
+# offer a size the root helper would reject. 2048 stays listed so the tuple
+# matches the one every release since 1.21.0 installed; it is never offered
+# (the panel shows the helper's choices) and never accepted.
+VRAM_SIZE_PRESETS_MB = (256, 512, 1024, 2048, 3072, 4096, 5120, 6144, 7168, 8192, 12288)
+VRAM_SIZE_BLOCKED_MB = (2048,)
 # GPU memory limit (TTM) choices: the helper validates them again, and the
 # desktop's system-setup helper a third time before anything is written.
 TTM_CHOICES = ("8", "10", "12", "default")
@@ -1437,7 +1440,11 @@ class Plugin:
             normalized = int(size_mb)
         except (TypeError, ValueError, OverflowError):
             return {"ok": False, "error": "Unsupported VRAM size."}
-        if str(normalized) != str(size_mb) or normalized not in VRAM_SIZE_PRESETS_MB:
+        if (
+            str(normalized) != str(size_mb)
+            or normalized not in VRAM_SIZE_PRESETS_MB
+            or normalized in VRAM_SIZE_BLOCKED_MB
+        ):
             return {"ok": False, "error": "Unsupported VRAM size."}
         result = await self._run_single_operation("vram-apply", str(normalized), timeout=30)
         return self._record_action("vram", str(normalized), result)

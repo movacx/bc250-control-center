@@ -43,7 +43,7 @@ from .dashboard_widgets import (  # noqa: E402
     _UpscalingGames,
 )
 from .system_setup_controls import (
-    VRAM_SIZE_PRESETS_MB,
+    VRAM_SIZE_CHOICES,
     is_bazzite_host,
     vram_size_label,
 )
@@ -271,7 +271,7 @@ class PreparationPagesMixin:
         self.vram_size_combo = GuardedComboBox()
         self.vram_size_combo.setProperty("dashboardMemoryCombo", True)
         self.vram_size_combo.addItem(tr("Keep current VRAM size"), 0)
-        for target in VRAM_SIZE_PRESETS_MB:
+        for target in VRAM_SIZE_CHOICES:
             self.vram_size_combo.addItem(vram_size_label(target), target)
         self.vram_size_combo.hide()
         self.vram_size_combo.currentIndexChanged.connect(self._update_vram_control)

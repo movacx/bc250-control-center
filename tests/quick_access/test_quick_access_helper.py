@@ -2159,3 +2159,17 @@ def test_gddr6_patch_reports_the_helpers_own_refusal(helper_module, monkeypatch,
     err = capsys.readouterr().err
     assert "QUICK_ACCESS_GDDR6: GDDR6_FIRMWARE_UNSUPPORTED" in err
     assert len(runs) == 1  # a board refusal is not retried on another checkout
+
+
+def test_vram_2048_stays_in_the_contract_but_is_never_offered_or_written(helper_module, monkeypatch, capsys):
+    """Listed so a 1.21.0 or 1.21.1 plugin keeps agreeing; refused all the same."""
+    written = []
+    monkeypatch.setattr(helper_module, "vram_apply", lambda size: written.append(size) or {})
+
+    assert 2048 in helper_module.VRAM_SIZE_PRESETS_MB
+    assert 2048 not in helper_module._contract_payload()["vram"]["presets"]
+    assert helper_module.vram_apply_action("2048") != 0
+    assert "QUICK_ACCESS_VRAM" in capsys.readouterr().err + capsys.readouterr().out
+    assert written == []
+    assert helper_module.vram_apply_action("4096") == 0
+    assert written == [4096]

@@ -6,11 +6,13 @@ from bc250cc.infrastructure.memory_runtime import (
     TTM_GIB_PRESETS,
     supported_ttm_gib_presets,
 )
-from bc250cc.shared.contract import (
-    VRAM_SIZE_PRESETS_MB,  # noqa: F401 - re-exported to the dashboard
-)
+from bc250cc.shared.contract import vram_size_choices
 
 from ..i18n import tr, tr_format
+
+#: The sizes the VRAM dropdowns offer: the contract's presets without the one
+#: Linux does not boot with.
+VRAM_SIZE_CHOICES = vram_size_choices()
 
 MEMORY_OPTIONS = (
     ("Keep current configuration", "preserve"),
