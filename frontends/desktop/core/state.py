@@ -682,7 +682,10 @@ class DashboardState:
     def _pool_summary(used: int, total: int) -> str:
         if total <= 0:
             return "Not detected"
-        return f"{_format_binary_bytes(used)} / {_format_binary_bytes(total)}"
+        # A pool that exists but holds nothing (swap on a machine with RAM to
+        # spare) is "0 MB" of its total, never "Not detected".
+        used_text = _format_binary_bytes(used) if used > 0 else "0 MB"
+        return f"{used_text} / {_format_binary_bytes(total)}"
 
     @property
     def vram_summary(self) -> str:

@@ -310,6 +310,13 @@ class PreparationPagesMixin:
         )
         backing_line = tr("Active") if runtime.get("backing_swap_active") else tr("None")
         zswap_line = tr("Active") if runtime.get("zswap_enabled") is True else tr("Disabled")
+        # Which compressor each one really uses, read from the kernel.
+        zram_algorithms = [str(name) for name in runtime.get("zram_algorithms") or () if name]
+        if zram_active and zram_algorithms:
+            zram_line = f"{zram_line} · {', '.join(zram_algorithms)}"
+        zswap_compressor = str(runtime.get("zswap_compressor") or "")
+        if runtime.get("zswap_enabled") is True and zswap_compressor:
+            zswap_line = f"{zswap_line} · {zswap_compressor}"
         ttm_bytes = runtime.get("ttm_limit_bytes")
         ttm_line = (
             self._report_gib(ttm_bytes, default=tr("unknown"))
