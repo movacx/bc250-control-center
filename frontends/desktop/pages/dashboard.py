@@ -101,6 +101,8 @@ def _look_for_update() -> _UpdateLookup:
 
 CONTACT_URL = "https://discord.com/channels/1315924807128449065/1526169299490836510"
 SUPPORT_URL = "https://ko-fi.com/movacx"
+#: The BC-250 community's Telegram group.
+TELEGRAM_URL = "https://t.me/+LJAp9e4cpPs3Mzky"
 REPORT_URL = (
     "https://docs.google.com/forms/d/e/"
     "1FAIpQLSe3M1stf3bpCoorb4hCWFX9YC_TZ_Gv6WHWQDRe1AV5rJT6rA/viewform"
@@ -333,12 +335,14 @@ class DashboardPage(QWidget):
             lambda: self.action_requested.emit("repositories")
         )
         self.footer.contact_clicked.connect(self._open_contact)
+        self.footer.telegram_clicked.connect(self._open_telegram)
         self.footer.report_clicked.connect(self._open_report)
         self.footer.support_clicked.connect(self._open_support)
         self.footer.update_clicked.connect(self._badge_clicked)
         self.readiness.set_header_actions(self.footer)
         self.footer.set_report_glow(report_glow_enabled())
         self.contact_button = self.footer.contact_button
+        self.telegram_button = self.footer.telegram_button
         self.report_button = self.footer.report_button
         self.support_button = self.footer.support_button
         self.update_button = self.footer.update_button
@@ -697,6 +701,20 @@ class DashboardPage(QWidget):
             parent=self,
             eyebrow="CONTACT",
             notice=tr_format("Copy this address manually: {url}", url=CONTACT_URL),
+            tone="orange",
+        ).exec()
+
+    def _open_telegram(self) -> None:
+        opened, message = open_external_url(TELEGRAM_URL)
+        if opened:
+            return
+        InfoDialog(
+            "Contact link could not be opened",
+            message,
+            icon_name="warning_orange",
+            parent=self,
+            eyebrow="CONTACT",
+            notice=tr_format("Copy this address manually: {url}", url=TELEGRAM_URL),
             tone="orange",
         ).exec()
 

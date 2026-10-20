@@ -1424,7 +1424,7 @@
   "Forces a minimum for light games that do not wake the governor": "บังคับขั้นต่ำสำหรับเกมเบาที่ไม่ปลุกผู้ว่าการ",
   "Formal": "ทางการ",
   "Format it FAT32": "ฟอร์แมตเป็น FAT32",
-  "Four buttons, each one opens a page in your browser:": "ปุ่มสี่ปุ่ม แต่ละปุ่มเปิดหน้าเว็บในเบราว์เซอร์ของคุณ:",
+  "Five buttons, each one opens a page in your browser:": "ปุ่มห้าปุ่ม แต่ละปุ่มเปิดหน้าเว็บในเบราว์เซอร์ของคุณ:",
   "Free cache": "แคชฟรี",
   "Free cache with warning": "แคชฟรีพร้อมคำเตือน",
   "Free space on the filesystem named in the technical detail, then retry. Kernel installs also require free space in /boot.": "พื้นที่ว่างบนระบบไฟล์ที่มีชื่ออยู่ในรายละเอียดทางเทคนิค จากนั้นลองอีกครั้ง การติดตั้งเคอร์เนลยังต้องการพื้นที่ว่างใน /boot",
@@ -5013,5 +5013,7 @@
   "Your games, one row each": "เกมของคุณ เกมละหนึ่งแถว",
   "Each row says what FSR4 and HelixSR do in that game, with the next step beside it: add, update or remove HelixSR, or add FSR4 to Steam. Removing puts back the files the game had. For a game outside Steam, use Add game folder.": "แต่ละแถวบอกว่า FSR4 และ HelixSR ทำอะไรในเกมนั้น พร้อมขั้นตอนถัดไปอยู่ข้าง ๆ: เพิ่ม อัปเดต หรือลบ HelixSR หรือเพิ่ม FSR4 ใน Steam การลบจะคืนไฟล์เดิมของเกมกลับมา สำหรับเกมที่อยู่นอก Steam ให้ใช้ เพิ่มโฟลเดอร์เกม",
   "HelixSR settings for every game": "การตั้งค่า HelixSR สำหรับทุกเกม",
-  "Sharpening, the network and the compatibility switches of helixsr.ini, saved once for every game that has HelixSR. The defaults suit this GPU: change one only if a game looks wrong, then restart the game.": "ความคมชัด เครือข่าย และสวิตช์ความเข้ากันได้ใน helixsr.ini บันทึกครั้งเดียวสำหรับทุกเกมที่มี HelixSR ค่าเริ่มต้นเหมาะกับ GPU นี้แล้ว: เปลี่ยนเฉพาะเมื่อภาพในเกมดูผิดปกติ แล้วเปิดเกมใหม่"
+  "Sharpening, the network and the compatibility switches of helixsr.ini, saved once for every game that has HelixSR. The defaults suit this GPU: change one only if a game looks wrong, then restart the game.": "ความคมชัด เครือข่าย และสวิตช์ความเข้ากันได้ใน helixsr.ini บันทึกครั้งเดียวสำหรับทุกเกมที่มี HelixSR ค่าเริ่มต้นเหมาะกับ GPU นี้แล้ว: เปลี่ยนเฉพาะเมื่อภาพในเกมดูผิดปกติ แล้วเปิดเกมใหม่",
+  "BC250 community on Telegram": "ชุมชน BC250 บน Telegram",
+  "Telegram: the BC250 community's group, also for questions and news.": "Telegram: กลุ่มของชุมชน BC250 สำหรับคำถามและข่าวสารเช่นกัน"
 }

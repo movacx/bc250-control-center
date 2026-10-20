@@ -9,6 +9,7 @@ from frontends.desktop.pages.dashboard import (
     CONTACT_URL,
     REPORT_URL,
     SUPPORT_URL,
+    TELEGRAM_URL,
     DashboardPage,
 )
 from frontends.desktop.theme import application_stylesheet
@@ -36,7 +37,7 @@ def test_header_actions_stay_visible_without_covering_scrolled_controls(qtbot, w
     for value in (bar.maximum() // 2, bar.maximum(), 0):
         bar.setValue(value)
         qtbot.wait(10)
-        for button in (page.footer.repositories_button, page.contact_button, page.support_button):
+        for button in (page.footer.repositories_button, page.contact_button, page.telegram_button, page.support_button):
             assert button.isVisible()
             origin = button.mapTo(page.readiness.system_bar, QPoint())
             assert page.readiness.system_bar.rect().contains(origin)
@@ -57,6 +58,7 @@ def test_sticky_buttons_keep_routes_translations_and_keyboard_activation(qtbot, 
             for button, label in (
                 (page.support_button, "Buy me a coffee"),
                 (page.contact_button, "BC250 community on Discord"),
+                (page.telegram_button, "BC250 community on Telegram"),
                 (page.report_button, "Report a problem or suggest an idea"),
                 (page.footer.repositories_button, "Official repositories"),
             ):
@@ -66,8 +68,10 @@ def test_sticky_buttons_keep_routes_translations_and_keyboard_activation(qtbot, 
         page.support_button.setFocus()
         qtbot.keyClick(page.support_button, Qt.Key.Key_Space)
         page.contact_button.click()
+        page.telegram_button.click()
         page.report_button.click()
-        assert opened == [SUPPORT_URL, CONTACT_URL, REPORT_URL]
+        assert opened == [SUPPORT_URL, CONTACT_URL, TELEGRAM_URL, REPORT_URL]
+        assert TELEGRAM_URL.startswith("https://t.me/")
     finally:
         set_language("en")
 
@@ -98,15 +102,16 @@ def test_header_actions_are_compact_and_scale_without_clipping(qtbot, scale, mod
         page.show()
         qtbot.wait(100)
         assert page.width() == 360
-        # Four square links (the update badge stays hidden): 60 px each at most.
-        assert page.footer.width() < 240
+        # Five square links (the update badge stays hidden): 60 px each at most.
+        assert page.footer.width() < 300
         assert page.footer.height() < 70
         assert page.footer.repositories_button.geometry().right() < page.contact_button.x()
-        assert page.contact_button.y() == page.report_button.y() == page.support_button.y()
-        assert page.contact_button.geometry().right() < page.report_button.x()
+        assert page.contact_button.y() == page.telegram_button.y() == page.report_button.y() == page.support_button.y()
+        assert page.contact_button.geometry().right() < page.telegram_button.x()
+        assert page.telegram_button.geometry().right() < page.report_button.x()
         assert page.report_button.geometry().right() < page.support_button.x()
         for button in (
-            page.footer.repositories_button, page.contact_button,
+            page.footer.repositories_button, page.contact_button, page.telegram_button,
             page.report_button, page.support_button,
         ):
             assert abs(button.width() - button.height()) <= 2

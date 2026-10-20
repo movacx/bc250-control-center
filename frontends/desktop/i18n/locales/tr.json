@@ -1424,7 +1424,7 @@
   "Forces a minimum for light games that do not wake the governor": "Valiyi uyandırmayan hafif oyunlar için minimum gücü zorlar",
   "Formal": "Resmi",
   "Format it FAT32": "FAT32 olarak biçimlendir",
-  "Four buttons, each one opens a page in your browser:": "Dört düğme, her biri tarayıcınızda bir sayfa açar:",
+  "Five buttons, each one opens a page in your browser:": "Beş düğme, her biri tarayıcınızda bir sayfa açar:",
   "Free cache": "Ücretsiz önbellek",
   "Free cache with warning": "Uyarı içeren ücretsiz önbellek",
   "Free space on the filesystem named in the technical detail, then retry. Kernel installs also require free space in /boot.": "Teknik ayrıntıda adı geçen dosya sisteminde boş alan açın, ardından tekrar deneyin. Çekirdek yüklemeleri ayrıca /boot'ta boş alan gerektirir.",
@@ -5013,5 +5013,7 @@
   "Your games, one row each": "Oyunların, her biri bir satırda",
   "Each row says what FSR4 and HelixSR do in that game, with the next step beside it: add, update or remove HelixSR, or add FSR4 to Steam. Removing puts back the files the game had. For a game outside Steam, use Add game folder.": "Her satır FSR4 ile HelixSR'ın o oyunda ne yaptığını ve yanında sıradaki adımı gösterir: HelixSR'ı eklemek, güncellemek ya da kaldırmak veya FSR4'ü Steam'e eklemek. Kaldırınca oyunun eski dosyaları geri gelir. Steam dışındaki bir oyun için Oyun klasörü ekle'yi kullan.",
   "HelixSR settings for every game": "Tüm oyunlar için HelixSR ayarları",
-  "Sharpening, the network and the compatibility switches of helixsr.ini, saved once for every game that has HelixSR. The defaults suit this GPU: change one only if a game looks wrong, then restart the game.": "Keskinleştirme, ağ ve helixsr.ini'deki uyumluluk anahtarları, HelixSR olan tüm oyunlar için tek seferde kaydedilir. Varsayılanlar bu GPU'ya uygundur: yalnızca bir oyun yanlış görünürse birini değiştir, sonra oyunu yeniden başlat."
+  "Sharpening, the network and the compatibility switches of helixsr.ini, saved once for every game that has HelixSR. The defaults suit this GPU: change one only if a game looks wrong, then restart the game.": "Keskinleştirme, ağ ve helixsr.ini'deki uyumluluk anahtarları, HelixSR olan tüm oyunlar için tek seferde kaydedilir. Varsayılanlar bu GPU'ya uygundur: yalnızca bir oyun yanlış görünürse birini değiştir, sonra oyunu yeniden başlat.",
+  "BC250 community on Telegram": "Telegram'daki BC250 topluluğu",
+  "Telegram: the BC250 community's group, also for questions and news.": "Telegram: BC250 topluluğunun grubu, yine sorular ve haberler için."
 }

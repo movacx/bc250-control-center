@@ -1424,7 +1424,7 @@
   "Forces a minimum for light games that do not wake the governor": "Tvingar fram ett minimum för lätta spel som inte väcker guvernören",
   "Formal": "Formell",
   "Format it FAT32": "Formatera det som FAT32",
-  "Four buttons, each one opens a page in your browser:": "Fyra knappar, var och en öppnar en sida i din webbläsare:",
+  "Five buttons, each one opens a page in your browser:": "Fem knappar, var och en öppnar en sida i din webbläsare:",
   "Free cache": "Gratis cache",
   "Free cache with warning": "Gratis cache med varning",
   "Free space on the filesystem named in the technical detail, then retry. Kernel installs also require free space in /boot.": "Frigör utrymme på filsystemet som anges i den tekniska detaljen, försök sedan igen. Kernelinstallationer kräver också ledigt utrymme i /boot.",
@@ -5013,5 +5013,7 @@
   "Your games, one row each": "Dina spel, en rad var",
   "Each row says what FSR4 and HelixSR do in that game, with the next step beside it: add, update or remove HelixSR, or add FSR4 to Steam. Removing puts back the files the game had. For a game outside Steam, use Add game folder.": "Varje rad visar vad FSR4 och HelixSR gör i det spelet, med nästa steg bredvid: lägg till, uppdatera eller ta bort HelixSR, eller lägg till FSR4 i Steam. Borttagning lägger tillbaka filerna som spelet hade. För ett spel utanför Steam använder du Lägg till spelmapp.",
   "HelixSR settings for every game": "HelixSR-inställningar för alla spel",
-  "Sharpening, the network and the compatibility switches of helixsr.ini, saved once for every game that has HelixSR. The defaults suit this GPU: change one only if a game looks wrong, then restart the game.": "Skärpa, nätverket och kompatibilitetsreglagen i helixsr.ini, sparade en gång för alla spel med HelixSR. Standardvärdena passar den här GPU:n: ändra bara något om ett spel ser fel ut, och starta sedan om spelet."
+  "Sharpening, the network and the compatibility switches of helixsr.ini, saved once for every game that has HelixSR. The defaults suit this GPU: change one only if a game looks wrong, then restart the game.": "Skärpa, nätverket och kompatibilitetsreglagen i helixsr.ini, sparade en gång för alla spel med HelixSR. Standardvärdena passar den här GPU:n: ändra bara något om ett spel ser fel ut, och starta sedan om spelet.",
+  "BC250 community on Telegram": "BC250-communityn på Telegram",
+  "Telegram: the BC250 community's group, also for questions and news.": "Telegram: BC250-communityns grupp, också för frågor och nyheter."
 }

@@ -1424,7 +1424,7 @@
   "Forces a minimum for light games that do not wake the governor": "Vynucuje minimum pro lehké hry, které neprobudí guvernéra",
   "Formal": "Formální",
   "Format it FAT32": "Naformátovat na FAT32",
-  "Four buttons, each one opens a page in your browser:": "Čtyři tlačítka, každé otevře stránku v prohlížeči:",
+  "Five buttons, each one opens a page in your browser:": "Pět tlačítek, každé otevře stránku v prohlížeči:",
   "Free cache": "Zdarma cache",
   "Free cache with warning": "Zdarma cache s varováním",
   "Free space on the filesystem named in the technical detail, then retry. Kernel installs also require free space in /boot.": "Uvolněte místo na souborovém systému uvedeném v technických detailech a zkuste to znovu. Instalace jádra také vyžadují volné místo v /boot.",
@@ -5013,5 +5013,7 @@
   "Your games, one row each": "Vaše hry, každá na jednom řádku",
   "Each row says what FSR4 and HelixSR do in that game, with the next step beside it: add, update or remove HelixSR, or add FSR4 to Steam. Removing puts back the files the game had. For a game outside Steam, use Add game folder.": "Každý řádek říká, co ve hře dělají FSR4 a HelixSR, a vedle je další krok: přidat, aktualizovat nebo odebrat HelixSR, případně přidat FSR4 do Steamu. Odebrání vrátí soubory, které hra měla. Pro hru mimo Steam použijte Přidat složku hry.",
   "HelixSR settings for every game": "Nastavení HelixSR pro všechny hry",
-  "Sharpening, the network and the compatibility switches of helixsr.ini, saved once for every game that has HelixSR. The defaults suit this GPU: change one only if a game looks wrong, then restart the game.": "Doostření, síť a přepínače kompatibility z helixsr.ini, uložené jednou pro všechny hry s HelixSR. Výchozí hodnoty této GPU sedí: měňte něco, jen když hra vypadá špatně, a pak hru restartujte."
+  "Sharpening, the network and the compatibility switches of helixsr.ini, saved once for every game that has HelixSR. The defaults suit this GPU: change one only if a game looks wrong, then restart the game.": "Doostření, síť a přepínače kompatibility z helixsr.ini, uložené jednou pro všechny hry s HelixSR. Výchozí hodnoty této GPU sedí: měňte něco, jen když hra vypadá špatně, a pak hru restartujte.",
+  "BC250 community on Telegram": "Komunita BC250 na Telegramu",
+  "Telegram: the BC250 community's group, also for questions and news.": "Telegram: skupina komunity BC250, také pro dotazy a novinky."
 }

@@ -1424,7 +1424,7 @@
   "Forces a minimum for light games that do not wake the governor": "Επιβάλλει ένα ελάχιστο για ελαφρά παιχνίδια που δεν ξυπνούν τον κυβερνήτη",
   "Formal": "Επίσημο",
   "Format it FAT32": "Μορφοποίηση σε FAT32",
-  "Four buttons, each one opens a page in your browser:": "Τέσσερα κουμπιά, το καθένα ανοίγει μια σελίδα στον περιηγητή:",
+  "Five buttons, each one opens a page in your browser:": "Πέντε κουμπιά, το καθένα ανοίγει μια σελίδα στον περιηγητή:",
   "Free cache": "Δωρεάν προσωρινή μνήμη",
   "Free cache with warning": "Δωρεάν προσωρινή μνήμη με προειδοποίηση",
   "Free space on the filesystem named in the technical detail, then retry. Kernel installs also require free space in /boot.": "Ελευθερώστε χώρο στο σύστημα αρχείων που αναφέρεται στις τεχνικές λεπτομέρειες και, στη συνέχεια, δοκιμάστε ξανά. Οι εγκαταστάσεις πυρήνα απαιτούν επίσης ελεύθερο χώρο στο /boot.",
@@ -5013,5 +5013,7 @@
   "Your games, one row each": "Τα παιχνίδια σας, ένα σε κάθε γραμμή",
   "Each row says what FSR4 and HelixSR do in that game, with the next step beside it: add, update or remove HelixSR, or add FSR4 to Steam. Removing puts back the files the game had. For a game outside Steam, use Add game folder.": "Κάθε γραμμή λέει τι κάνουν το FSR4 και το HelixSR σε εκείνο το παιχνίδι, με το επόμενο βήμα δίπλα: προσθήκη, ενημέρωση ή αφαίρεση του HelixSR, ή προσθήκη του FSR4 στο Steam. Η αφαίρεση επαναφέρει τα αρχεία που είχε το παιχνίδι. Για παιχνίδι εκτός Steam, χρησιμοποιήστε την Προσθήκη φακέλου παιχνιδιού.",
   "HelixSR settings for every game": "Ρυθμίσεις HelixSR για όλα τα παιχνίδια",
-  "Sharpening, the network and the compatibility switches of helixsr.ini, saved once for every game that has HelixSR. The defaults suit this GPU: change one only if a game looks wrong, then restart the game.": "Η όξυνση, το δίκτυο και οι διακόπτες συμβατότητας του helixsr.ini, αποθηκευμένα μία φορά για όλα τα παιχνίδια που έχουν HelixSR. Οι προεπιλογές ταιριάζουν σε αυτή τη GPU: αλλάξτε κάτι μόνο αν ένα παιχνίδι δείχνει λάθος και μετά επανεκκινήστε το."
+  "Sharpening, the network and the compatibility switches of helixsr.ini, saved once for every game that has HelixSR. The defaults suit this GPU: change one only if a game looks wrong, then restart the game.": "Η όξυνση, το δίκτυο και οι διακόπτες συμβατότητας του helixsr.ini, αποθηκευμένα μία φορά για όλα τα παιχνίδια που έχουν HelixSR. Οι προεπιλογές ταιριάζουν σε αυτή τη GPU: αλλάξτε κάτι μόνο αν ένα παιχνίδι δείχνει λάθος και μετά επανεκκινήστε το.",
+  "BC250 community on Telegram": "Κοινότητα BC250 στο Telegram",
+  "Telegram: the BC250 community's group, also for questions and news.": "Telegram: η ομάδα της κοινότητας BC250, επίσης για ερωτήσεις και νέα."
 }

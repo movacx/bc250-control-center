@@ -1424,7 +1424,7 @@
   "Forces a minimum for light games that do not wake the governor": "ガバナーをウェイクアップしないライトゲームには最小値を強制します",
   "Formal": "フォーマル",
   "Format it FAT32": "FAT32 でフォーマット",
-  "Four buttons, each one opens a page in your browser:": "4つのボタン。それぞれブラウザでページを開きます:",
+  "Five buttons, each one opens a page in your browser:": "5つのボタン。それぞれブラウザでページを開きます:",
   "Free cache": "無料キャッシュ",
   "Free cache with warning": "警告付きでキャッシュを解放する",
   "Free space on the filesystem named in the technical detail, then retry. Kernel installs also require free space in /boot.": "技術的な詳細で指定されたファイルシステム上のスペースを解放してから、再試行してください。カーネルのインストールには、/boot の空き領域も必要です。",
@@ -5013,5 +5013,7 @@
   "Your games, one row each": "あなたのゲーム、1 本につき 1 行",
   "Each row says what FSR4 and HelixSR do in that game, with the next step beside it: add, update or remove HelixSR, or add FSR4 to Steam. Removing puts back the files the game had. For a game outside Steam, use Add game folder.": "各行には、そのゲームで FSR4 と HelixSR がどうなっているかと、次の操作が並びます：HelixSR の追加・更新・削除、または FSR4 を Steam に追加。削除すると、ゲームにあったファイルが元に戻ります。Steam 以外のゲームは「ゲームフォルダーを追加」を使います。",
   "HelixSR settings for every game": "すべてのゲームに共通の HelixSR 設定",
-  "Sharpening, the network and the compatibility switches of helixsr.ini, saved once for every game that has HelixSR. The defaults suit this GPU: change one only if a game looks wrong, then restart the game.": "helixsr.ini のシャープネス、ネットワーク、互換性のスイッチを、HelixSR が入ったすべてのゲームに一度で保存します。既定値はこの GPU に合っています。ゲームの見た目がおかしいときだけ変え、そのあとゲームを再起動してください。"
+  "Sharpening, the network and the compatibility switches of helixsr.ini, saved once for every game that has HelixSR. The defaults suit this GPU: change one only if a game looks wrong, then restart the game.": "helixsr.ini のシャープネス、ネットワーク、互換性のスイッチを、HelixSR が入ったすべてのゲームに一度で保存します。既定値はこの GPU に合っています。ゲームの見た目がおかしいときだけ変え、そのあとゲームを再起動してください。",
+  "BC250 community on Telegram": "Telegram の BC250 コミュニティ",
+  "Telegram: the BC250 community's group, also for questions and news.": "Telegram: BC250 コミュニティのグループ。こちらでも質問やニュースに。"
 }

@@ -415,6 +415,7 @@ class DashboardFooter(QWidget):
     """Compact external links embedded in the preparation header."""
 
     contact_clicked = pyqtSignal()
+    telegram_clicked = pyqtSignal()
     report_clicked = pyqtSignal()
     support_clicked = pyqtSignal()
     repositories_clicked = pyqtSignal()
@@ -440,6 +441,11 @@ class DashboardFooter(QWidget):
         self.contact_button.setIcon(icon("discord"))
         self.contact_button.clicked.connect(self.contact_clicked)
         self.layout.addWidget(self.contact_button)
+        # The community's Telegram group, beside its Discord.
+        self.telegram_button = _FooterActionButton("BC250 community on Telegram")
+        self.telegram_button.setIcon(icon("telegram"))
+        self.telegram_button.clicked.connect(self.telegram_clicked)
+        self.layout.addWidget(self.telegram_button)
         self.report_button = _ReportButton("Report a problem or suggest an idea")
         self.report_button.setIcon(icon("report_amber"))
         self.report_button.clicked.connect(self.report_clicked)

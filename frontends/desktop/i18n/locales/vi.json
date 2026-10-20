@@ -1424,7 +1424,7 @@
   "Forces a minimum for light games that do not wake the governor": "Lực lượng tối thiểu cho những game nhẹ không đánh thức được thống đốc",
   "Formal": "Trang trọng",
   "Format it FAT32": "Định dạng FAT32",
-  "Four buttons, each one opens a page in your browser:": "Bốn nút, mỗi nút mở một trang trong trình duyệt của bạn:",
+  "Five buttons, each one opens a page in your browser:": "Năm nút, mỗi nút mở một trang trong trình duyệt của bạn:",
   "Free cache": "Bộ nhớ đệm miễn phí",
   "Free cache with warning": "Bộ nhớ đệm miễn phí có cảnh báo",
   "Free space on the filesystem named in the technical detail, then retry. Kernel installs also require free space in /boot.": "Dung lượng trống trên hệ thống tệp có tên trong chi tiết kỹ thuật, sau đó thử lại. Việc cài đặt kernel cũng yêu cầu dung lượng trống trong /boot.",
@@ -5013,5 +5013,7 @@
   "Your games, one row each": "Trò chơi của bạn, mỗi trò một hàng",
   "Each row says what FSR4 and HelixSR do in that game, with the next step beside it: add, update or remove HelixSR, or add FSR4 to Steam. Removing puts back the files the game had. For a game outside Steam, use Add game folder.": "Mỗi hàng cho biết FSR4 và HelixSR làm gì trong trò chơi đó, kèm bước tiếp theo bên cạnh: thêm, cập nhật hoặc gỡ HelixSR, hoặc thêm FSR4 vào Steam. Khi gỡ, các tệp vốn có của trò chơi được trả lại. Với trò chơi ngoài Steam, hãy dùng Thêm thư mục trò chơi.",
   "HelixSR settings for every game": "Cài đặt HelixSR cho mọi trò chơi",
-  "Sharpening, the network and the compatibility switches of helixsr.ini, saved once for every game that has HelixSR. The defaults suit this GPU: change one only if a game looks wrong, then restart the game.": "Độ sắc nét, mạng và các công tắc tương thích của helixsr.ini, lưu một lần cho mọi trò chơi có HelixSR. Giá trị mặc định đã hợp với GPU này: chỉ đổi khi trò chơi hiển thị sai, rồi khởi động lại trò chơi."
+  "Sharpening, the network and the compatibility switches of helixsr.ini, saved once for every game that has HelixSR. The defaults suit this GPU: change one only if a game looks wrong, then restart the game.": "Độ sắc nét, mạng và các công tắc tương thích của helixsr.ini, lưu một lần cho mọi trò chơi có HelixSR. Giá trị mặc định đã hợp với GPU này: chỉ đổi khi trò chơi hiển thị sai, rồi khởi động lại trò chơi.",
+  "BC250 community on Telegram": "Cộng đồng BC250 trên Telegram",
+  "Telegram: the BC250 community's group, also for questions and news.": "Telegram: nhóm của cộng đồng BC250, cũng để hỏi đáp và cập nhật tin tức."
 }

@@ -1424,7 +1424,7 @@
   "Forces a minimum for light games that do not wake the governor": "強制執行不會吵醒州長的輕型遊戲的最低限度",
   "Formal": "正式",
   "Format it FAT32": "格式化為 FAT32",
-  "Four buttons, each one opens a page in your browser:": "四個按鈕，每個都會在瀏覽器中開啟一個頁面：",
+  "Five buttons, each one opens a page in your browser:": "五個按鈕，每個都會在瀏覽器中開啟一個頁面：",
   "Free cache": "免費快取",
   "Free cache with warning": "免費快取並帶有警告",
   "Free space on the filesystem named in the technical detail, then retry. Kernel installs also require free space in /boot.": "技術細節中指定的檔案系統上有可用空間，然後重試。核心安裝還需要 /boot 中的可用空間。",
@@ -5013,5 +5013,7 @@
   "Your games, one row each": "你的遊戲，每款一列",
   "Each row says what FSR4 and HelixSR do in that game, with the next step beside it: add, update or remove HelixSR, or add FSR4 to Steam. Removing puts back the files the game had. For a game outside Steam, use Add game folder.": "每一列寫出 FSR4 和 HelixSR 在這款遊戲的狀態，旁邊就是下一步：加入、更新或移除 HelixSR，或將 FSR4 加入 Steam。移除時會放回遊戲原本的檔案。Steam 以外的遊戲，請用「新增遊戲資料夾」。",
   "HelixSR settings for every game": "所有遊戲共用的 HelixSR 設定",
-  "Sharpening, the network and the compatibility switches of helixsr.ini, saved once for every game that has HelixSR. The defaults suit this GPU: change one only if a game looks wrong, then restart the game.": "helixsr.ini 的銳利化、網路和相容性開關，儲存一次就套用到所有裝了 HelixSR 的遊戲。預設值適合這顆 GPU：只有遊戲畫面不對時才改，改完重新啟動遊戲。"
+  "Sharpening, the network and the compatibility switches of helixsr.ini, saved once for every game that has HelixSR. The defaults suit this GPU: change one only if a game looks wrong, then restart the game.": "helixsr.ini 的銳利化、網路和相容性開關，儲存一次就套用到所有裝了 HelixSR 的遊戲。預設值適合這顆 GPU：只有遊戲畫面不對時才改，改完重新啟動遊戲。",
+  "BC250 community on Telegram": "Telegram 上的 BC250 社群",
+  "Telegram: the BC250 community's group, also for questions and news.": "Telegram：BC250 社群的群組，同樣可提問與取得動態。"
 }

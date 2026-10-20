@@ -1424,7 +1424,7 @@
   "Forces a minimum for light games that do not wake the governor": "Примусово задає мінімум для легких ігор, які не активують governor",
   "Formal": "Строгий",
   "Format it FAT32": "Відформатувати у FAT32",
-  "Four buttons, each one opens a page in your browser:": "Чотири кнопки, кожна відкриває сторінку в браузері:",
+  "Five buttons, each one opens a page in your browser:": "П'ять кнопок, кожна відкриває сторінку в браузері:",
   "Free cache": "Звільнити кеш",
   "Free cache with warning": "Звільнити кеш з попередженням",
   "Free space on the filesystem named in the technical detail, then retry. Kernel installs also require free space in /boot.": "Звільніть місце у файловій системі, зазначеній у технічних деталях, а потім повторіть спробу. Для встановлення ядра також потрібен вільний простір у /boot.",
@@ -5013,5 +5013,7 @@
   "Your games, one row each": "Ваші ігри, по рядку на кожну",
   "Each row says what FSR4 and HelixSR do in that game, with the next step beside it: add, update or remove HelixSR, or add FSR4 to Steam. Removing puts back the files the game had. For a game outside Steam, use Add game folder.": "У кожному рядку видно, що роблять FSR4 і HelixSR у цій грі, а поруч — наступний крок: додати, оновити чи видалити HelixSR або додати FSR4 до Steam. Під час видалення повертаються файли, які мала гра. Для гри поза Steam скористайтеся «Додати теку гри».",
   "HelixSR settings for every game": "Налаштування HelixSR для всіх ігор",
-  "Sharpening, the network and the compatibility switches of helixsr.ini, saved once for every game that has HelixSR. The defaults suit this GPU: change one only if a game looks wrong, then restart the game.": "Різкість, нейромережа й перемикачі сумісності з helixsr.ini, які зберігаються одразу для всіх ігор з HelixSR. Типові значення пасують цій GPU: змінюйте щось, лише якщо гра виглядає неправильно, а потім перезапустіть її."
+  "Sharpening, the network and the compatibility switches of helixsr.ini, saved once for every game that has HelixSR. The defaults suit this GPU: change one only if a game looks wrong, then restart the game.": "Різкість, нейромережа й перемикачі сумісності з helixsr.ini, які зберігаються одразу для всіх ігор з HelixSR. Типові значення пасують цій GPU: змінюйте щось, лише якщо гра виглядає неправильно, а потім перезапустіть її.",
+  "BC250 community on Telegram": "Спільнота BC250 у Telegram",
+  "Telegram: the BC250 community's group, also for questions and news.": "Telegram: група спільноти BC250, теж для запитань і новин."
 }

@@ -1424,7 +1424,7 @@
   "Forces a minimum for light games that do not wake the governor": "주지사를 깨우지 않는 가벼운 게임을 최소한으로 강제합니다.",
   "Formal": "포멀",
   "Format it FAT32": "FAT32로 포맷",
-  "Four buttons, each one opens a page in your browser:": "네 개의 버튼, 각각 브라우저에서 페이지를 엽니다:",
+  "Five buttons, each one opens a page in your browser:": "다섯 개의 버튼, 각각 브라우저에서 페이지를 엽니다:",
   "Free cache": "무료 캐시",
   "Free cache with warning": "경고가 있는 무료 캐시",
   "Free space on the filesystem named in the technical detail, then retry. Kernel installs also require free space in /boot.": "기술 세부정보에 명시된 파일 시스템의 여유 공간을 확보한 후 다시 시도하세요. 커널 설치에는 /boot에 여유 공간도 필요합니다.",
@@ -5013,5 +5013,7 @@
   "Your games, one row each": "내 게임, 한 줄에 하나씩",
   "Each row says what FSR4 and HelixSR do in that game, with the next step beside it: add, update or remove HelixSR, or add FSR4 to Steam. Removing puts back the files the game had. For a game outside Steam, use Add game folder.": "각 줄에는 그 게임에서 FSR4와 HelixSR이 어떤 상태인지와 다음 단계가 나옵니다: HelixSR 추가, 업데이트, 제거 또는 Steam에 FSR4 추가. 제거하면 게임에 있던 파일이 되돌아옵니다. Steam 밖의 게임은 게임 폴더 추가를 쓰세요.",
   "HelixSR settings for every game": "모든 게임에 쓰이는 HelixSR 설정",
-  "Sharpening, the network and the compatibility switches of helixsr.ini, saved once for every game that has HelixSR. The defaults suit this GPU: change one only if a game looks wrong, then restart the game.": "helixsr.ini의 선명도, 신경망, 호환성 스위치를 HelixSR이 들어간 모든 게임에 한 번에 저장합니다. 기본값이 이 GPU에 맞습니다. 게임 화면이 이상할 때만 바꾸고, 바꾼 뒤에는 게임을 다시 시작하세요."
+  "Sharpening, the network and the compatibility switches of helixsr.ini, saved once for every game that has HelixSR. The defaults suit this GPU: change one only if a game looks wrong, then restart the game.": "helixsr.ini의 선명도, 신경망, 호환성 스위치를 HelixSR이 들어간 모든 게임에 한 번에 저장합니다. 기본값이 이 GPU에 맞습니다. 게임 화면이 이상할 때만 바꾸고, 바꾼 뒤에는 게임을 다시 시작하세요.",
+  "BC250 community on Telegram": "Telegram의 BC250 커뮤니티",
+  "Telegram: the BC250 community's group, also for questions and news.": "Telegram: BC250 커뮤니티 그룹, 여기서도 질문과 소식을 나눕니다."
 }

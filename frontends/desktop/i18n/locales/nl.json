@@ -1424,7 +1424,7 @@
   "Forces a minimum for light games that do not wake the governor": "Dwingt een minimum af voor lichte games die de gouverneur niet wakker maken",
   "Formal": "Formeel",
   "Format it FAT32": "Formatteren als FAT32",
-  "Four buttons, each one opens a page in your browser:": "Vier knoppen, elk opent een pagina in je browser:",
+  "Five buttons, each one opens a page in your browser:": "Vijf knoppen, elk opent een pagina in je browser:",
   "Free cache": "Gratis cache",
   "Free cache with warning": "Gratis cache met waarschuwing",
   "Free space on the filesystem named in the technical detail, then retry. Kernel installs also require free space in /boot.": "Maak ruimte vrij op het bestandssysteem genoemd in de technische details en probeer het opnieuw. Kernelinstallaties vereisen ook vrije ruimte in /boot.",
@@ -5013,5 +5013,7 @@
   "Your games, one row each": "Je games, één rij per game",
   "Each row says what FSR4 and HelixSR do in that game, with the next step beside it: add, update or remove HelixSR, or add FSR4 to Steam. Removing puts back the files the game had. For a game outside Steam, use Add game folder.": "Elke rij vertelt wat FSR4 en HelixSR in die game doen, met de volgende stap ernaast: HelixSR toevoegen, bijwerken of verwijderen, of FSR4 toevoegen aan Steam. Verwijderen zet de bestanden terug die de game had. Voor een game buiten Steam gebruik je Gamemap toevoegen.",
   "HelixSR settings for every game": "HelixSR-instellingen voor elke game",
-  "Sharpening, the network and the compatibility switches of helixsr.ini, saved once for every game that has HelixSR. The defaults suit this GPU: change one only if a game looks wrong, then restart the game.": "Verscherping, het netwerk en de compatibiliteitsschakelaars van helixsr.ini, één keer opgeslagen voor elke game met HelixSR. De standaardwaarden passen bij deze GPU: verander er alleen een als een game er verkeerd uitziet en start de game daarna opnieuw."
+  "Sharpening, the network and the compatibility switches of helixsr.ini, saved once for every game that has HelixSR. The defaults suit this GPU: change one only if a game looks wrong, then restart the game.": "Verscherping, het netwerk en de compatibiliteitsschakelaars van helixsr.ini, één keer opgeslagen voor elke game met HelixSR. De standaardwaarden passen bij deze GPU: verander er alleen een als een game er verkeerd uitziet en start de game daarna opnieuw.",
+  "BC250 community on Telegram": "BC250-community op Telegram",
+  "Telegram: the BC250 community's group, also for questions and news.": "Telegram: de groep van de BC250-community, ook voor vragen en nieuws."
 }

@@ -1424,7 +1424,7 @@
   "Forces a minimum for light games that do not wake the governor": "Minimumra kényszeríti a könnyű játékokat, amelyek nem ébresztik fel a kormányzót",
   "Formal": "Hivatalos",
   "Format it FAT32": "Formázás FAT32-re",
-  "Four buttons, each one opens a page in your browser:": "Négy gomb, mindegyik egy oldalt nyit meg a böngészőben:",
+  "Five buttons, each one opens a page in your browser:": "Öt gomb, mindegyik egy oldalt nyit meg a böngészőben:",
   "Free cache": "Ingyenes gyorsítótár",
   "Free cache with warning": "Ingyenes gyorsítótár figyelmeztetéssel",
   "Free space on the filesystem named in the technical detail, then retry. Kernel installs also require free space in /boot.": "Szabadítson fel helyet a technikai részletekben megnevezett fájlrendszeren, majd próbálkozzon újra. A kerneltelepítésekhez is szabad hely szükséges a /boot fájlban.",
@@ -5013,5 +5013,7 @@
   "Your games, one row each": "A játékaid, mindegyik egy sorban",
   "Each row says what FSR4 and HelixSR do in that game, with the next step beside it: add, update or remove HelixSR, or add FSR4 to Steam. Removing puts back the files the game had. For a game outside Steam, use Add game folder.": "Minden sor megmutatja, mit csinál az FSR4 és a HelixSR abban a játékban, mellette a következő lépéssel: a HelixSR hozzáadása, frissítése vagy eltávolítása, illetve az FSR4 hozzáadása a Steamhez. Eltávolításkor visszakerülnek a játék eredeti fájljai. Steamen kívüli játékhoz használd a Játékmappa hozzáadása gombot.",
   "HelixSR settings for every game": "HelixSR-beállítások minden játékhoz",
-  "Sharpening, the network and the compatibility switches of helixsr.ini, saved once for every game that has HelixSR. The defaults suit this GPU: change one only if a game looks wrong, then restart the game.": "A helixsr.ini élesítési, hálózati és kompatibilitási kapcsolói, egyszer elmentve minden HelixSR-es játékhoz. Az alapértékek illenek ehhez a GPU-hoz: csak akkor változtass, ha egy játék rosszul néz ki, aztán indítsd újra a játékot."
+  "Sharpening, the network and the compatibility switches of helixsr.ini, saved once for every game that has HelixSR. The defaults suit this GPU: change one only if a game looks wrong, then restart the game.": "A helixsr.ini élesítési, hálózati és kompatibilitási kapcsolói, egyszer elmentve minden HelixSR-es játékhoz. Az alapértékek illenek ehhez a GPU-hoz: csak akkor változtass, ha egy játék rosszul néz ki, aztán indítsd újra a játékot.",
+  "BC250 community on Telegram": "BC250 közösség a Telegramon",
+  "Telegram: the BC250 community's group, also for questions and news.": "Telegram: a BC250 közösség csoportja, szintén kérdésekhez és hírekhez."
 }

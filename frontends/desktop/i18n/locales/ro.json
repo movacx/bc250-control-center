@@ -1424,7 +1424,7 @@
   "Forces a minimum for light games that do not wake the governor": "Forțează un minim pentru jocurile ușoare care nu trezesc guvernatorul",
   "Formal": "Formal",
   "Format it FAT32": "Formatează-l FAT32",
-  "Four buttons, each one opens a page in your browser:": "Patru butoane, fiecare deschide o pagină în browser:",
+  "Five buttons, each one opens a page in your browser:": "Cinci butoane, fiecare deschide o pagină în browser:",
   "Free cache": "Cache gratuit",
   "Free cache with warning": "Cache gratuit cu avertisment",
   "Free space on the filesystem named in the technical detail, then retry. Kernel installs also require free space in /boot.": "Eliberați spațiu pe sistemul de fișiere numit în detaliul tehnic, apoi reîncercați. Instalările kernelului necesită, de asemenea, spațiu liber în /boot.",
@@ -5013,5 +5013,7 @@
   "Your games, one row each": "Jocurile tale, câte un rând fiecare",
   "Each row says what FSR4 and HelixSR do in that game, with the next step beside it: add, update or remove HelixSR, or add FSR4 to Steam. Removing puts back the files the game had. For a game outside Steam, use Add game folder.": "Fiecare rând spune ce fac FSR4 și HelixSR în acel joc, cu pasul următor alături: adaugi, actualizezi sau elimini HelixSR, ori adaugi FSR4 în Steam. Eliminarea pune la loc fișierele pe care le avea jocul. Pentru un joc din afara Steam, folosește Adaugă folderul jocului.",
   "HelixSR settings for every game": "Setările HelixSR pentru toate jocurile",
-  "Sharpening, the network and the compatibility switches of helixsr.ini, saved once for every game that has HelixSR. The defaults suit this GPU: change one only if a game looks wrong, then restart the game.": "Claritatea, rețeaua și comutatoarele de compatibilitate din helixsr.ini, salvate o dată pentru toate jocurile care au HelixSR. Valorile implicite i se potrivesc acestui GPU: schimbă una doar dacă un joc arată greșit, apoi repornește jocul."
+  "Sharpening, the network and the compatibility switches of helixsr.ini, saved once for every game that has HelixSR. The defaults suit this GPU: change one only if a game looks wrong, then restart the game.": "Claritatea, rețeaua și comutatoarele de compatibilitate din helixsr.ini, salvate o dată pentru toate jocurile care au HelixSR. Valorile implicite i se potrivesc acestui GPU: schimbă una doar dacă un joc arată greșit, apoi repornește jocul.",
+  "BC250 community on Telegram": "Comunitatea BC250 pe Telegram",
+  "Telegram: the BC250 community's group, also for questions and news.": "Telegram: grupul comunității BC250, tot pentru întrebări și noutăți."
 }

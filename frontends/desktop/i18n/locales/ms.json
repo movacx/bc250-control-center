@@ -1424,7 +1424,7 @@
   "Forces a minimum for light games that do not wake the governor": "Memaksa minimum untuk permainan ringan yang tidak menyedarkan gabenor",
   "Formal": "Formal",
   "Format it FAT32": "Format sebagai FAT32",
-  "Four buttons, each one opens a page in your browser:": "Empat butang, setiap satu membuka halaman dalam pelayar anda:",
+  "Five buttons, each one opens a page in your browser:": "Lima butang, setiap satu membuka halaman dalam pelayar anda:",
   "Free cache": "Cache percuma",
   "Free cache with warning": "Cache percuma dengan amaran",
   "Free space on the filesystem named in the technical detail, then retry. Kernel installs also require free space in /boot.": "Ruang kosong pada sistem fail dinamakan dalam butiran teknikal, kemudian cuba semula. Pemasangan kernel juga memerlukan ruang kosong dalam /boot.",
@@ -5013,5 +5013,7 @@
   "Your games, one row each": "Permainan anda, satu baris setiap satu",
   "Each row says what FSR4 and HelixSR do in that game, with the next step beside it: add, update or remove HelixSR, or add FSR4 to Steam. Removing puts back the files the game had. For a game outside Steam, use Add game folder.": "Setiap baris menunjukkan apa yang FSR4 dan HelixSR lakukan dalam permainan itu, dengan langkah seterusnya di sebelah: tambah, kemas kini atau buang HelixSR, atau tambah FSR4 ke Steam. Membuang akan memulihkan fail yang ada pada permainan. Untuk permainan di luar Steam, gunakan Tambah folder permainan.",
   "HelixSR settings for every game": "Tetapan HelixSR untuk semua permainan",
-  "Sharpening, the network and the compatibility switches of helixsr.ini, saved once for every game that has HelixSR. The defaults suit this GPU: change one only if a game looks wrong, then restart the game.": "Penajaman, rangkaian dan suis keserasian dalam helixsr.ini, disimpan sekali untuk semua permainan yang ada HelixSR. Nilai lalai sesuai untuk GPU ini: ubah hanya jika permainan kelihatan salah, kemudian mulakan semula permainan itu."
+  "Sharpening, the network and the compatibility switches of helixsr.ini, saved once for every game that has HelixSR. The defaults suit this GPU: change one only if a game looks wrong, then restart the game.": "Penajaman, rangkaian dan suis keserasian dalam helixsr.ini, disimpan sekali untuk semua permainan yang ada HelixSR. Nilai lalai sesuai untuk GPU ini: ubah hanya jika permainan kelihatan salah, kemudian mulakan semula permainan itu.",
+  "BC250 community on Telegram": "Komuniti BC250 di Telegram",
+  "Telegram: the BC250 community's group, also for questions and news.": "Telegram: kumpulan komuniti BC250, juga untuk soalan dan berita."
 }

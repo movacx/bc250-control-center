@@ -1424,7 +1424,7 @@
   "Forces a minimum for light games that do not wake the governor": "Pakottaa minimin kevyille peleille, jotka eivät herätä kuvernööriä",
   "Formal": "Muodollinen",
   "Format it FAT32": "Alusta se FAT32-muotoon",
-  "Four buttons, each one opens a page in your browser:": "Neljä painiketta, jokainen avaa sivun selaimessa:",
+  "Five buttons, each one opens a page in your browser:": "Viisi painiketta, jokainen avaa sivun selaimessa:",
   "Free cache": "Ilmainen välimuisti",
   "Free cache with warning": "Ilmainen välimuisti varoituksella",
   "Free space on the filesystem named in the technical detail, then retry. Kernel installs also require free space in /boot.": "Vapauta tilaa teknisissä tiedoissa mainitussa tiedostojärjestelmässä ja yritä sitten uudelleen. Ytimen asennukset vaativat myös vapaata tilaa /bootissa.",
@@ -5013,5 +5013,7 @@
   "Your games, one row each": "Pelisi, kukin omalla rivillään",
   "Each row says what FSR4 and HelixSR do in that game, with the next step beside it: add, update or remove HelixSR, or add FSR4 to Steam. Removing puts back the files the game had. For a game outside Steam, use Add game folder.": "Jokainen rivi kertoo, mitä FSR4 ja HelixSR tekevät siinä pelissä, ja vieressä on seuraava askel: lisää, päivitä tai poista HelixSR tai lisää FSR4 Steamiin. Poistaminen palauttaa pelin alkuperäiset tiedostot. Steamin ulkopuoliselle pelille käytä Lisää pelikansio -painiketta.",
   "HelixSR settings for every game": "HelixSR-asetukset kaikille peleille",
-  "Sharpening, the network and the compatibility switches of helixsr.ini, saved once for every game that has HelixSR. The defaults suit this GPU: change one only if a game looks wrong, then restart the game.": "Terävöitys, verkko ja helixsr.ini-tiedoston yhteensopivuuskytkimet tallennetaan kerralla kaikille peleille, joissa on HelixSR. Oletukset sopivat tälle GPU:lle: muuta jotain vain, jos peli näyttää väärältä, ja käynnistä peli sitten uudelleen."
+  "Sharpening, the network and the compatibility switches of helixsr.ini, saved once for every game that has HelixSR. The defaults suit this GPU: change one only if a game looks wrong, then restart the game.": "Terävöitys, verkko ja helixsr.ini-tiedoston yhteensopivuuskytkimet tallennetaan kerralla kaikille peleille, joissa on HelixSR. Oletukset sopivat tälle GPU:lle: muuta jotain vain, jos peli näyttää väärältä, ja käynnistä peli sitten uudelleen.",
+  "BC250 community on Telegram": "BC250-yhteisö Telegramissa",
+  "Telegram: the BC250 community's group, also for questions and news.": "Telegram: BC250-yhteisön ryhmä, myös kysymyksille ja uutisille."
 }

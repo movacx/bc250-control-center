@@ -1424,7 +1424,7 @@
   "Forces a minimum for light games that do not wake the governor": "Wymusza minimum dla lekkich gier, które nie budzą governora",
   "Formal": "Formalny",
   "Format it FAT32": "Sformatuj go w FAT32",
-  "Four buttons, each one opens a page in your browser:": "Cztery przyciski, każdy otwiera stronę w przeglądarce:",
+  "Five buttons, each one opens a page in your browser:": "Pięć przycisków, każdy otwiera stronę w przeglądarce:",
   "Free cache": "Darmowa pamięć podręczna",
   "Free cache with warning": "Darmowa pamięć podręczna z ostrzeżeniem",
   "Free space on the filesystem named in the technical detail, then retry. Kernel installs also require free space in /boot.": "Zwolnij miejsce w systemie plików wymienionym w szczegółach technicznych, a następnie spróbuj ponownie. Instalacje jądra wymagają również wolnego miejsca w katalogu /boot.",
@@ -5013,5 +5013,7 @@
   "Your games, one row each": "Twoje gry, po jednym wierszu",
   "Each row says what FSR4 and HelixSR do in that game, with the next step beside it: add, update or remove HelixSR, or add FSR4 to Steam. Removing puts back the files the game had. For a game outside Steam, use Add game folder.": "Każdy wiersz mówi, co FSR4 i HelixSR robią w danej grze, a obok jest kolejny krok: dodaj, zaktualizuj lub usuń HelixSR albo dodaj FSR4 do Steam. Usunięcie przywraca pliki, które gra miała. Dla gry spoza Steam użyj Dodaj folder gry.",
   "HelixSR settings for every game": "Ustawienia HelixSR dla wszystkich gier",
-  "Sharpening, the network and the compatibility switches of helixsr.ini, saved once for every game that has HelixSR. The defaults suit this GPU: change one only if a game looks wrong, then restart the game.": "Wyostrzanie, sieć i przełączniki zgodności z helixsr.ini, zapisywane raz dla wszystkich gier z HelixSR. Wartości domyślne pasują do tej GPU: zmieniaj coś tylko wtedy, gdy gra wygląda źle, a potem uruchom ją ponownie."
+  "Sharpening, the network and the compatibility switches of helixsr.ini, saved once for every game that has HelixSR. The defaults suit this GPU: change one only if a game looks wrong, then restart the game.": "Wyostrzanie, sieć i przełączniki zgodności z helixsr.ini, zapisywane raz dla wszystkich gier z HelixSR. Wartości domyślne pasują do tej GPU: zmieniaj coś tylko wtedy, gdy gra wygląda źle, a potem uruchom ją ponownie.",
+  "BC250 community on Telegram": "Społeczność BC250 na Telegramie",
+  "Telegram: the BC250 community's group, also for questions and news.": "Telegram: grupa społeczności BC250, także do pytań i nowości."
 }
