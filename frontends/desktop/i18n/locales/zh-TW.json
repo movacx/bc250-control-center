@@ -479,7 +479,6 @@
   "BLOCKED": "封鎖",
   "Back": "返回",
   "Back to Dashboard": "返回儀表板",
-  "Back to the chart of the selected resource": "返回所選資源的圖表",
   "Backend": "後端",
   "Backends the hardware modules rely on. Frequencies, voltages and fan curves are set in each module.": "硬體模組所依賴的後端服務。頻率、電壓和風扇曲線在各模組中設定。",
   "Background refresh alerts": "後臺重新整理提醒",
@@ -641,7 +640,6 @@
   "Changes made during this application session.": "在此應用程式會話期間所做的更改。",
   "Channel": "通道",
   "Channels that have read nothing but zero since the list started, like a fan header with no fan.": "自清單開始以來一直讀數為零的通道，例如沒接風扇的風扇接頭。",
-  "Chart": "圖表",
   "Check SteamOS compatibility": "檢查 SteamOS 相容性",
   "Check full stack": "檢查完整堆疊",
   "Check it": "檢查一下",
@@ -1289,7 +1287,6 @@
   "Every file comes from the project that publishes it and is checked against its SHA-256 before it reaches the USB.": "每個檔案都來自發布它的專案，並在寫入 USB 前以 SHA-256 驗證。",
   "Every installed Steam game gets the option that lets Proton load OptiScaler, so after this the client only has to copy files into a game. Games without OptiScaler run as before. What each game already had stays. Close Steam completely first; the previous Steam settings file is kept beside it as a backup.": "所有已安裝的 Steam 遊戲都會取得讓 Proton 載入 OptiScaler 的選項，之後用戶端只需把檔案複製到遊戲中。沒有 OptiScaler 的遊戲照常執行。每個遊戲原有的選項會保留。請先完全結束 Steam；之前的 Steam 設定檔會作為備份保留在旁邊。",
   "Every part has more views": "每個元件都有更多檢視",
-  "Every sensor in a list, with minimum, average and maximum": "以清單顯示全部感測器及最小值、平均值與最大值",
   "Every sensor in one list": "所有感測器集中在一個清單",
   "Everything on it will be erased and replaced by the BIOS update kit. This cannot be undone.": "碟上的所有內容都會被清除並替換為 BIOS 更新套件。此操作無法復原。",
   "Everything on the chosen drive is erased. The name, size and volumes shown are what will be lost.": "所選磁碟上的所有內容都會被清除。顯示的名稱、容量與磁碟區就是將會遺失的內容。",
@@ -4958,5 +4955,9 @@
   "OptiScaler Client {version} is selected. Install or Update brings it in.": "已選擇 OptiScaler Client {version}。按「安裝」或「更新」即可裝入。",
   "The OptiScaler Client build Install or Update brings in. The recommended one is the build this version of Control Center was checked with.": "「安裝」或「更新」將使用的 OptiScaler Client 版本。建議版本是此版 Control Center 經過檢查的版本。",
   "The selected client build is not installed yet. Install brings it in; your games and backups are kept.": "所選用戶端版本尚未安裝。「安裝」會將其裝入；你的遊戲與備份會保留。",
-  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "在終端機中讀取 GitHub 上的 OptiScaler Client 版本清單,以便選擇較新的版本和預先發行版本。不會安裝任何內容。"
+  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "在終端機中讀取 GitHub 上的 OptiScaler Client 版本清單,以便選擇較新的版本和預先發行版本。不會安裝任何內容。",
+  "CPU": "CPU",
+  "Every sensor with its minimum, average and maximum.": "每個感測器及其最小值、平均值和最大值。",
+  "The list, with the sensors you tick drawn beside it.": "清單，旁邊繪出你勾選的感測器。",
+  "Only the graphs of the sensors you tick, larger.": "只顯示你勾選的感測器圖表，更大。"
 }

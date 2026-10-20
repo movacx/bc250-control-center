@@ -479,7 +479,6 @@
   "BLOCKED": "BLOQUÉ",
   "Back": "Retour",
   "Back to Dashboard": "Retour au tableau de bord",
-  "Back to the chart of the selected resource": "Revenir au graphique de la ressource sélectionnée",
   "Backend": "Back-end",
   "Backends the hardware modules rely on. Frequencies, voltages and fan curves are set in each module.": "Services sur lesquels reposent les modules matériels. Fréquences, tensions et courbes de ventilation se règlent dans chaque module.",
   "Background refresh alerts": "Alertes d'actualisation en arrière-plan",
@@ -641,7 +640,6 @@
   "Changes made during this application session.": "Modifications apportées au cours de cette session de candidature.",
   "Channel": "Canal",
   "Channels that have read nothing but zero since the list started, like a fan header with no fan.": "Canaux qui n'ont lu que zéro depuis le début de la liste, comme un connecteur de ventilateur sans ventilateur.",
-  "Chart": "Graphique",
   "Check SteamOS compatibility": "Vérifier la compatibilité SteamOS",
   "Check full stack": "Vérifier la pile complète",
   "Check it": "Vérifiez-le",
@@ -1289,7 +1287,6 @@
   "Every file comes from the project that publishes it and is checked against its SHA-256 before it reaches the USB.": "Chaque fichier provient du projet qui le publie et est contrôlé avec son SHA-256 avant d'arriver sur la clé USB.",
   "Every installed Steam game gets the option that lets Proton load OptiScaler, so after this the client only has to copy files into a game. Games without OptiScaler run as before. What each game already had stays. Close Steam completely first; the previous Steam settings file is kept beside it as a backup.": "Chaque jeu Steam installé reçoit l'option qui permet à Proton de charger OptiScaler ; ensuite, le client n'a plus qu'à copier des fichiers dans un jeu. Les jeux sans OptiScaler fonctionnent comme avant. Ce que chaque jeu avait déjà est conservé. Fermez d'abord complètement Steam ; l'ancien fichier de réglages de Steam est gardé à côté comme sauvegarde.",
   "Every part has more views": "Chaque composant a d'autres vues",
-  "Every sensor in a list, with minimum, average and maximum": "Tous les capteurs en liste, avec minimum, moyenne et maximum",
   "Every sensor in one list": "Tous les capteurs dans une seule liste",
   "Everything on it will be erased and replaced by the BIOS update kit. This cannot be undone.": "Tout ce qu'elle contient sera effacé et remplacé par le kit de mise à jour du BIOS. Cette opération est irréversible.",
   "Everything on the chosen drive is erased. The name, size and volumes shown are what will be lost.": "Tout le contenu du disque choisi est effacé. Le nom, la taille et les volumes affichés sont ce qui sera perdu.",
@@ -4958,5 +4955,9 @@
   "OptiScaler Client {version} is selected. Install or Update brings it in.": "OptiScaler Client {version} est sélectionné. Installer ou Mettre à jour l'ajoute.",
   "The OptiScaler Client build Install or Update brings in. The recommended one is the build this version of Control Center was checked with.": "La version de OptiScaler Client qu'installent Installer ou Mettre à jour. La version recommandée est celle avec laquelle cette version de Control Center a été vérifiée.",
   "The selected client build is not installed yet. Install brings it in; your games and backups are kept.": "La version du client choisie n'est pas encore installée. Installer l'ajoute ; vos jeux et sauvegardes sont conservés.",
-  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "Lit dans le terminal la liste des versions de OptiScaler Client sur GitHub, pour pouvoir choisir des versions plus récentes et des préversions. Rien n'est installé."
+  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "Lit dans le terminal la liste des versions de OptiScaler Client sur GitHub, pour pouvoir choisir des versions plus récentes et des préversions. Rien n'est installé.",
+  "CPU": "CPU",
+  "Every sensor with its minimum, average and maximum.": "Chaque capteur avec son minimum, sa moyenne et son maximum.",
+  "The list, with the sensors you tick drawn beside it.": "La liste, avec les capteurs cochés tracés à côté.",
+  "Only the graphs of the sensors you tick, larger.": "Seulement les graphiques des capteurs cochés, en plus grand."
 }

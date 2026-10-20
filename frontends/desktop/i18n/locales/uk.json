@@ -479,7 +479,6 @@
   "BLOCKED": "ЗАБЛОКОВАНО",
   "Back": "Назад",
   "Back to Dashboard": "Повернутися на панель",
-  "Back to the chart of the selected resource": "Повернутися до графіка вибраного ресурсу",
   "Backend": "Внутрішній модуль",
   "Backends the hardware modules rely on. Frequencies, voltages and fan curves are set in each module.": "Базові служби, на які спираються модулі обладнання. Частоти, напруги й криві вентиляторів налаштовуються в кожному модулі.",
   "Background refresh alerts": "Сповіщення про помилки фонового оновлення",
@@ -641,7 +640,6 @@
   "Changes made during this application session.": "Зміни, виконані в поточному сеансі програми.",
   "Channel": "Канал",
   "Channels that have read nothing but zero since the list started, like a fan header with no fan.": "Канали, що від початку списку показували лише нуль, наприклад роз'єм вентилятора без вентилятора.",
-  "Chart": "Графік",
   "Check SteamOS compatibility": "Перевірити SteamOS",
   "Check full stack": "Перевірити весь стек",
   "Check it": "Перевір це",
@@ -1289,7 +1287,6 @@
   "Every file comes from the project that publishes it and is checked against its SHA-256 before it reaches the USB.": "Кожен файл береться з проєкту, що його публікує, і перевіряється за SHA-256, перш ніж потрапити на USB-накопичувач.",
   "Every installed Steam game gets the option that lets Proton load OptiScaler, so after this the client only has to copy files into a game. Games without OptiScaler run as before. What each game already had stays. Close Steam completely first; the previous Steam settings file is kept beside it as a backup.": "Усі встановлені ігри Steam отримають параметр, що дає Proton завантажувати OptiScaler, тож далі клієнту залишиться лише копіювати файли в ігри. Ігри без OptiScaler працюють як раніше. Те, що вже було в кожної гри, зберігається. Спершу повністю закрийте Steam; попередній файл налаштувань Steam зберігається поруч як резервна копія.",
   "Every part has more views": "Кожен вузол має інші види",
-  "Every sensor in a list, with minimum, average and maximum": "Усі датчики списком: мінімум, середнє та максимум",
   "Every sensor in one list": "Усі датчики в одному списку",
   "Everything on it will be erased and replaced by the BIOS update kit. This cannot be undone.": "Усе на ньому буде стерто й замінено комплектом оновлення BIOS. Цю дію не можна скасувати.",
   "Everything on the chosen drive is erased. The name, size and volumes shown are what will be lost.": "Усе на обраному накопичувачі буде стерто. Показані назва, обсяг і томи — це те, що буде втрачено.",
@@ -4958,5 +4955,9 @@
   "OptiScaler Client {version} is selected. Install or Update brings it in.": "Вибрано OptiScaler Client {version}. «Встановити» або «Оновити» додасть його.",
   "The OptiScaler Client build Install or Update brings in. The recommended one is the build this version of Control Center was checked with.": "Випуск OptiScaler Client, який встановлюють «Встановити» або «Оновити». Рекомендований — випуск, з яким перевірено цю версію Control Center.",
   "The selected client build is not installed yet. Install brings it in; your games and backups are kept.": "Вибрану версію клієнта ще не встановлено. «Встановити» додасть її; ваші ігри та резервні копії збережуться.",
-  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "Читає в терміналі список випусків OptiScaler Client на GitHub, щоб можна було вибрати новіші випуски та попередні версії. Нічого не встановлюється."
+  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "Читає в терміналі список випусків OptiScaler Client на GitHub, щоб можна було вибрати новіші випуски та попередні версії. Нічого не встановлюється.",
+  "CPU": "CPU",
+  "Every sensor with its minimum, average and maximum.": "Кожен датчик із мінімумом, середнім і максимумом.",
+  "The list, with the sensors you tick drawn beside it.": "Список, а поруч графіки позначених датчиків.",
+  "Only the graphs of the sensors you tick, larger.": "Лише графіки позначених датчиків, більші."
 }

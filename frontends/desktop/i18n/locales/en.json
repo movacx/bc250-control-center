@@ -479,7 +479,6 @@
   "BLOCKED": "BLOCKED",
   "Back": "Back",
   "Back to Dashboard": "Back to Dashboard",
-  "Back to the chart of the selected resource": "Back to the chart of the selected resource",
   "Backend": "Backend",
   "Backends the hardware modules rely on. Frequencies, voltages and fan curves are set in each module.": "Backends the hardware modules rely on. Frequencies, voltages and fan curves are set in each module.",
   "Background refresh alerts": "Background refresh alerts",
@@ -641,7 +640,6 @@
   "Changes made during this application session.": "Changes made during this application session.",
   "Channel": "Channel",
   "Channels that have read nothing but zero since the list started, like a fan header with no fan.": "Channels that have read nothing but zero since the list started, like a fan header with no fan.",
-  "Chart": "Chart",
   "Check SteamOS compatibility": "Check SteamOS compatibility",
   "Check full stack": "Check full stack",
   "Check it": "Check it",
@@ -1289,7 +1287,6 @@
   "Every file comes from the project that publishes it and is checked against its SHA-256 before it reaches the USB.": "Every file comes from the project that publishes it and is checked against its SHA-256 before it reaches the USB.",
   "Every installed Steam game gets the option that lets Proton load OptiScaler, so after this the client only has to copy files into a game. Games without OptiScaler run as before. What each game already had stays. Close Steam completely first; the previous Steam settings file is kept beside it as a backup.": "Every installed Steam game gets the option that lets Proton load OptiScaler, so after this the client only has to copy files into a game. Games without OptiScaler run as before. What each game already had stays. Close Steam completely first; the previous Steam settings file is kept beside it as a backup.",
   "Every part has more views": "Every part has more views",
-  "Every sensor in a list, with minimum, average and maximum": "Every sensor in a list, with minimum, average and maximum",
   "Every sensor in one list": "Every sensor in one list",
   "Everything on it will be erased and replaced by the BIOS update kit. This cannot be undone.": "Everything on it will be erased and replaced by the BIOS update kit. This cannot be undone.",
   "Everything on the chosen drive is erased. The name, size and volumes shown are what will be lost.": "Everything on the chosen drive is erased. The name, size and volumes shown are what will be lost.",
@@ -4958,5 +4955,9 @@
   "OptiScaler Client {version} is selected. Install or Update brings it in.": "OptiScaler Client {version} is selected. Install or Update brings it in.",
   "The OptiScaler Client build Install or Update brings in. The recommended one is the build this version of Control Center was checked with.": "The OptiScaler Client build Install or Update brings in. The recommended one is the build this version of Control Center was checked with.",
   "The selected client build is not installed yet. Install brings it in; your games and backups are kept.": "The selected client build is not installed yet. Install brings it in; your games and backups are kept.",
-  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed."
+  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.",
+  "CPU": "CPU",
+  "Every sensor with its minimum, average and maximum.": "Every sensor with its minimum, average and maximum.",
+  "The list, with the sensors you tick drawn beside it.": "The list, with the sensors you tick drawn beside it.",
+  "Only the graphs of the sensors you tick, larger.": "Only the graphs of the sensors you tick, larger."
 }

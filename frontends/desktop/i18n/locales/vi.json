@@ -479,7 +479,6 @@
   "BLOCKED": "ĐÃ CHẶN",
   "Back": "Quay lại",
   "Back to Dashboard": "Quay lại Trang tổng quan",
-  "Back to the chart of the selected resource": "Quay lại biểu đồ của tài nguyên đã chọn",
   "Backend": "Phần phụ trợ",
   "Backends the hardware modules rely on. Frequencies, voltages and fan curves are set in each module.": "Các dịch vụ nền mà mô-đun phần cứng dựa vào. Tần số, điện áp và đường cong quạt được đặt trong từng mô-đun.",
   "Background refresh alerts": "Cảnh báo làm mới nền",
@@ -641,7 +640,6 @@
   "Changes made during this application session.": "Những thay đổi được thực hiện trong phiên đăng ký này.",
   "Channel": "Kênh",
   "Channels that have read nothing but zero since the list started, like a fan header with no fan.": "Các kênh chỉ đọc được số 0 kể từ khi danh sách bắt đầu, như đầu cắm quạt không có quạt.",
-  "Chart": "Biểu đồ",
   "Check SteamOS compatibility": "Kiểm tra khả năng tương thích của SteamOS",
   "Check full stack": "Kiểm tra toàn bộ ngăn xếp",
   "Check it": "Kiểm tra nó",
@@ -1289,7 +1287,6 @@
   "Every file comes from the project that publishes it and is checked against its SHA-256 before it reaches the USB.": "Mỗi tệp đến từ dự án phát hành nó và được đối chiếu với SHA-256 trước khi chép vào USB.",
   "Every installed Steam game gets the option that lets Proton load OptiScaler, so after this the client only has to copy files into a game. Games without OptiScaler run as before. What each game already had stays. Close Steam completely first; the previous Steam settings file is kept beside it as a backup.": "Mọi game Steam đã cài đều nhận tùy chọn cho phép Proton nạp OptiScaler, nên sau đó ứng dụng chỉ cần chép tệp vào game. Game không có OptiScaler vẫn chạy như trước. Tùy chọn sẵn có của từng game được giữ nguyên. Hãy thoát hẳn Steam trước; tệp cài đặt Steam cũ được giữ bên cạnh làm bản sao lưu.",
   "Every part has more views": "Mỗi bộ phận có thêm chế độ xem",
-  "Every sensor in a list, with minimum, average and maximum": "Toàn bộ cảm biến trong một danh sách, kèm tối thiểu, trung bình và tối đa",
   "Every sensor in one list": "Mọi cảm biến trong một danh sách",
   "Everything on it will be erased and replaced by the BIOS update kit. This cannot be undone.": "Mọi thứ trên đó sẽ bị xóa và thay bằng bộ cập nhật BIOS. Không thể hoàn tác.",
   "Everything on the chosen drive is erased. The name, size and volumes shown are what will be lost.": "Mọi thứ trên ổ đã chọn sẽ bị xóa. Tên, dung lượng và các phân vùng hiển thị là những gì sẽ mất.",
@@ -4958,5 +4955,9 @@
   "OptiScaler Client {version} is selected. Install or Update brings it in.": "Đã chọn OptiScaler Client {version}. Cài đặt hoặc Cập nhật sẽ đưa nó vào.",
   "The OptiScaler Client build Install or Update brings in. The recommended one is the build this version of Control Center was checked with.": "Bản phát hành OptiScaler Client mà Cài đặt hoặc Cập nhật sẽ đưa vào. Bản được đề xuất là bản mà phiên bản Control Center này đã được kiểm tra cùng.",
   "The selected client build is not installed yet. Install brings it in; your games and backups are kept.": "Phiên bản client đã chọn chưa được cài. Cài đặt sẽ thêm nó; trò chơi và bản sao lưu của bạn vẫn được giữ.",
-  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "Đọc danh sách bản phát hành OptiScaler Client trên GitHub trong terminal, để có thể chọn bản mới hơn và bản thử nghiệm. Không cài đặt gì cả."
+  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "Đọc danh sách bản phát hành OptiScaler Client trên GitHub trong terminal, để có thể chọn bản mới hơn và bản thử nghiệm. Không cài đặt gì cả.",
+  "CPU": "CPU",
+  "Every sensor with its minimum, average and maximum.": "Mọi cảm biến với giá trị nhỏ nhất, trung bình và lớn nhất.",
+  "The list, with the sensors you tick drawn beside it.": "Danh sách, kèm đồ thị các cảm biến bạn đánh dấu bên cạnh.",
+  "Only the graphs of the sensors you tick, larger.": "Chỉ đồ thị của các cảm biến bạn đánh dấu, lớn hơn."
 }

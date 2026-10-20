@@ -479,7 +479,6 @@
   "BLOCKED": "BLOKKOLVA",
   "Back": "Vissza",
   "Back to Dashboard": "Vissza az irányítópultra",
-  "Back to the chart of the selected resource": "Vissza a kiválasztott erőforrás grafikonjához",
   "Backend": "Háttérrendszer",
   "Backends the hardware modules rely on. Frequencies, voltages and fan curves are set in each module.": "A hardvermodulok által használt háttérszolgáltatások. A frekvenciákat, feszültségeket és ventilátorgörbéket az egyes modulokban állíthatja be.",
   "Background refresh alerts": "Háttérfrissítési figyelmeztetések",
@@ -641,7 +640,6 @@
   "Changes made during this application session.": "Az alkalmazási munkamenet során végrehajtott módosítások.",
   "Channel": "Csatorna",
   "Channels that have read nothing but zero since the list started, like a fan header with no fan.": "Csatornák, amelyek a lista kezdete óta csak nullát mértek, például ventilátor nélküli ventilátorcsatlakozó.",
-  "Chart": "Grafikon",
   "Check SteamOS compatibility": "Ellenőrizze a SteamOS kompatibilitást",
   "Check full stack": "Ellenőrizze a teljes köteget",
   "Check it": "Ellenőrizze",
@@ -1289,7 +1287,6 @@
   "Every file comes from the project that publishes it and is checked against its SHA-256 before it reaches the USB.": "Minden fájl az azt közzétevő projektből származik, és az SHA-256 értéke alapján ellenőrizve kerül az USB-meghajtóra.",
   "Every installed Steam game gets the option that lets Proton load OptiScaler, so after this the client only has to copy files into a game. Games without OptiScaler run as before. What each game already had stays. Close Steam completely first; the previous Steam settings file is kept beside it as a backup.": "Minden telepített Steam-játék megkapja azt a beállítást, amellyel a Proton betölti az OptiScalert, így ezután a kliensnek csak fájlokat kell másolnia a játékba. Az OptiScaler nélküli játékok ugyanúgy futnak. Ami egy játéknál már be volt állítva, megmarad. Előbb zárd be teljesen a Steamet; az előző Steam-beállításfájl biztonsági mentésként mellette marad.",
   "Every part has more views": "Minden résznek több nézete van",
-  "Every sensor in a list, with minimum, average and maximum": "Minden érzékelő listában, minimummal, átlaggal és maximummal",
   "Every sensor in one list": "Minden érzékelő egy listában",
   "Everything on it will be erased and replaced by the BIOS update kit. This cannot be undone.": "Minden adat törlődik róla, és a BIOS-frissítőkészlet kerül a helyére. Ez nem vonható vissza.",
   "Everything on the chosen drive is erased. The name, size and volumes shown are what will be lost.": "A kiválasztott meghajtón minden törlődik. A látható név, méret és kötetek azok, amik elvesznek.",
@@ -4958,5 +4955,9 @@
   "OptiScaler Client {version} is selected. Install or Update brings it in.": "A OptiScaler Client {version} van kiválasztva. A Telepítés vagy a Frissítés hozza.",
   "The OptiScaler Client build Install or Update brings in. The recommended one is the build this version of Control Center was checked with.": "A OptiScaler Client-kiadás, amelyet a Telepítés vagy a Frissítés hoz. Az ajánlott az a kiadás, amellyel a Control Center ezen verzióját ellenőrizték.",
   "The selected client build is not installed yet. Install brings it in; your games and backups are kept.": "A kiválasztott kliensverzió még nincs telepítve. A Telepítés hozza; a játékaid és a biztonsági mentéseid megmaradnak.",
-  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "A terminálban beolvassa a OptiScaler Client GitHubon lévő kiadáslistáját, hogy újabb kiadások és előzetes kiadások is választhatók legyenek. Semmi sem települ."
+  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "A terminálban beolvassa a OptiScaler Client GitHubon lévő kiadáslistáját, hogy újabb kiadások és előzetes kiadások is választhatók legyenek. Semmi sem települ.",
+  "CPU": "CPU",
+  "Every sensor with its minimum, average and maximum.": "Minden érzékelő a minimumával, átlagával és maximumával.",
+  "The list, with the sensors you tick drawn beside it.": "A lista, mellette a bejelölt érzékelők grafikonjaival.",
+  "Only the graphs of the sensors you tick, larger.": "Csak a bejelölt érzékelők grafikonjai, nagyobban."
 }

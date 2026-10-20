@@ -479,7 +479,6 @@
   "BLOCKED": "ZABLOKOWANE",
   "Back": "Powrót",
   "Back to Dashboard": "Powrót do Panelu",
-  "Back to the chart of the selected resource": "Wróć do wykresu wybranego zasobu",
   "Backend": "Zaplecze",
   "Backends the hardware modules rely on. Frequencies, voltages and fan curves are set in each module.": "Usługi, na których opierają się moduły sprzętowe. Częstotliwości, napięcia i krzywe wentylatorów ustawia się w każdym module.",
   "Background refresh alerts": "Alerty odświeżania w tle",
@@ -641,7 +640,6 @@
   "Changes made during this application session.": "Zmiany wprowadzone podczas tej sesji aplikacji.",
   "Channel": "Kanał",
   "Channels that have read nothing but zero since the list started, like a fan header with no fan.": "Kanały, które od początku listy odczytały tylko zero, np. złącze wentylatora bez wentylatora.",
-  "Chart": "Wykres",
   "Check SteamOS compatibility": "Sprawdź SteamOS",
   "Check full stack": "Sprawdź cały stos",
   "Check it": "Sprawdź to",
@@ -1289,7 +1287,6 @@
   "Every file comes from the project that publishes it and is checked against its SHA-256 before it reaches the USB.": "Każdy plik pochodzi z projektu, który go publikuje, i jest sprawdzany jego SHA-256, zanim trafi na pendrive.",
   "Every installed Steam game gets the option that lets Proton load OptiScaler, so after this the client only has to copy files into a game. Games without OptiScaler run as before. What each game already had stays. Close Steam completely first; the previous Steam settings file is kept beside it as a backup.": "Każda zainstalowana gra Steam dostanie opcję, dzięki której Proton ładuje OptiScaler, więc potem klient musi już tylko kopiować pliki do gier. Gry bez OptiScalera działają jak dotąd. To, co gra już miała, zostaje. Najpierw całkowicie zamknij Steam; poprzedni plik ustawień Steam zostaje obok jako kopia zapasowa.",
   "Every part has more views": "Każdy podzespół ma więcej widoków",
-  "Every sensor in a list, with minimum, average and maximum": "Wszystkie czujniki na liście z minimum, średnią i maksimum",
   "Every sensor in one list": "Wszystkie czujniki na jednej liście",
   "Everything on it will be erased and replaced by the BIOS update kit. This cannot be undone.": "Wszystko, co na nim jest, zostanie usunięte i zastąpione zestawem aktualizacji BIOS. Tego nie można cofnąć.",
   "Everything on the chosen drive is erased. The name, size and volumes shown are what will be lost.": "Wszystko na wybranym dysku zostanie usunięte. Pokazane nazwa, rozmiar i woluminy to to, co zostanie utracone.",
@@ -4958,5 +4955,9 @@
   "OptiScaler Client {version} is selected. Install or Update brings it in.": "Wybrano OptiScaler Client {version}. Zainstaluj lub Aktualizuj go doda.",
   "The OptiScaler Client build Install or Update brings in. The recommended one is the build this version of Control Center was checked with.": "Wydanie OptiScaler Client, które instalują Zainstaluj lub Aktualizuj. Zalecane to wydanie, z którym sprawdzono tę wersję Control Center.",
   "The selected client build is not installed yet. Install brings it in; your games and backups are kept.": "Wybrana wersja klienta nie jest jeszcze zainstalowana. Instaluj ją doda; twoje gry i kopie zapasowe zostaną zachowane.",
-  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "Odczytuje w terminalu listę wydań OptiScaler Client na GitHubie, aby można było wybrać nowsze wydania i wersje przedpremierowe. Nic nie jest instalowane."
+  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "Odczytuje w terminalu listę wydań OptiScaler Client na GitHubie, aby można było wybrać nowsze wydania i wersje przedpremierowe. Nic nie jest instalowane.",
+  "CPU": "CPU",
+  "Every sensor with its minimum, average and maximum.": "Każdy czujnik z minimum, średnią i maksimum.",
+  "The list, with the sensors you tick drawn beside it.": "Lista, a obok wykresy zaznaczonych czujników.",
+  "Only the graphs of the sensors you tick, larger.": "Tylko wykresy zaznaczonych czujników, większe."
 }

@@ -38,7 +38,7 @@ from PyQt6.QtGui import (
 )
 from PyQt6.QtWidgets import (
     QAbstractItemView,
-    QButtonGroup,
+    QBoxLayout,
     QCheckBox,
     QFrame,
     QGridLayout,
@@ -79,7 +79,6 @@ from bc250cc.infrastructure.sensor_inventory import (
 from ..components.chart_axes import range_axis
 from ..components.chart_strokes import draw_series, fill_area
 from ..components.flow_layout import FlowLayout
-from ..components.widgets import icon
 from ..core.preferences import application_settings
 from ..core.sensor_log import SensorEntry, SensorLog, format_sensor_value
 from ..i18n import tr, tr_format
@@ -619,7 +618,8 @@ class SensorPlots(QScrollArea):
 class SensorBoard(QFrame):
     """The whole Sensors view: its bar, the list and the traces."""
 
-    back_requested = pyqtSignal()
+    #: The layout changed (List, List + graphs or Graphs).
+    mode_changed = pyqtSignal(str)
 
     def __init__(self, log: SensorLog, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -633,37 +633,16 @@ class SensorBoard(QFrame):
         root.setContentsMargins(18, 14, 18, 14)
         root.setSpacing(10)
 
-        # First line: the way back, what this is, and how to lay it out.
-        top = QHBoxLayout()
-        top.setSpacing(10)
-        self.back_button = QPushButton(tr("Chart"))
-        self.back_button.setProperty("viewSwitch", True)
-        self.back_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.back_button.setToolTip(tr("Back to the chart of the selected resource"))
-        self.back_button.setIcon(icon("chevron_left_blue"))
-        self.back_button.setIconSize(QSize(14, 14))
-        self.back_button.clicked.connect(self.back_requested.emit)
-        top.addWidget(self.back_button, 0, Qt.AlignmentFlag.AlignVCenter)
-        self.title = QLabel(tr("Sensors"))
-        self.title.setProperty("detailTitle", True)
-        top.addWidget(self.title, 0, Qt.AlignmentFlag.AlignVCenter)
+        # First line: the page's tabs over a hairline (the page puts them in
+        # rail_slot; the Sensors tab's menu chooses List, List + graphs or
+        # Graphs).
+        self.rail_slot = QHBoxLayout()
+        self.rail_slot.setContentsMargins(0, 0, 0, 0)
+        root.addLayout(self.rail_slot)
         self.summary = QLabel("")
-        self.summary.setProperty("detailContext", True)
+        self.summary.setProperty("sampleFooter", True)
         self.summary.setProperty("i18nLiteral", True)
-        top.addWidget(self.summary, 1, Qt.AlignmentFlag.AlignVCenter)
-        self.mode_group = QButtonGroup(self)
-        self.mode_group.setExclusive(True)
-        self.mode_buttons: dict[str, QPushButton] = {}
-        for mode, text in MODES:
-            button = QPushButton(tr(text))
-            button.setCheckable(True)
-            button.setProperty("scaleMode", True)
-            button.setCursor(Qt.CursorShape.PointingHandCursor)
-            button.clicked.connect(lambda _checked=False, value=mode: self.set_mode(value))
-            self.mode_group.addButton(button)
-            self.mode_buttons[mode] = button
-            top.addWidget(button, 0, Qt.AlignmentFlag.AlignVCenter)
-        root.addLayout(top)
+        self.mode = "split"
 
         # Second line: narrowing the list.
         tools = QHBoxLayout()
@@ -674,16 +653,25 @@ class SensorBoard(QFrame):
         self.filter_field.setClearButtonEnabled(True)
         self.filter_field.setFixedHeight(30)
         tools.addWidget(self.filter_field, 1)
+        self.tool_row = QWidget()
+        extras = self._extras = QBoxLayout(QBoxLayout.Direction.LeftToRight, self.tool_row)
+        extras.setContentsMargins(0, 0, 0, 0)
+        extras.setSpacing(10)
         self.unused_toggle = QCheckBox(tr("Hide unused channels"))
         self.unused_toggle.setToolTip(
             tr("Channels that have read nothing but zero since the list started, like a fan header with no fan.")
         )
-        tools.addWidget(self.unused_toggle, 0)
+        extras.addWidget(self.unused_toggle, 0)
+        extras.addStretch(1)
         self.reset_button = QPushButton(tr("Reset min/max"))
         self.reset_button.setProperty("viewSwitch", True)
         self.reset_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.reset_button.clicked.connect(self.reset_statistics)
-        tools.addWidget(self.reset_button, 0)
+        extras.addWidget(self.reset_button, 0, Qt.AlignmentFlag.AlignLeft)
+        tools.addWidget(self.tool_row, 0)
+        self._tools = tools
+        self._root = root
+        self._compact = False
         root.addLayout(tools)
 
         # Third line: the kinds, as chips that combine; wraps when narrow.
@@ -745,7 +733,17 @@ class SensorBoard(QFrame):
         self.footer = QLabel("")
         self.footer.setProperty("sampleFooter", True)
         self.footer.setProperty("i18nLiteral", True)
-        root.addWidget(self.footer)
+        self.footer.setWordWrap(True)
+        # How many sensors the list shows, before when its statistics began.
+        footer = QHBoxLayout()
+        footer.setSpacing(6)
+        footer.addWidget(self.summary, 0, Qt.AlignmentFlag.AlignTop)
+        separator = QLabel("·")
+        separator.setProperty("sampleFooter", True)
+        separator.setProperty("i18nLiteral", True)
+        footer.addWidget(separator, 0, Qt.AlignmentFlag.AlignTop)
+        footer.addWidget(self.footer, 1)
+        root.addLayout(footer)
 
         self._restore()
         self.filter_field.textChanged.connect(self._filter_changed)
@@ -754,13 +752,48 @@ class SensorBoard(QFrame):
         self.model.modelReset.connect(self.tree.expandAll)
         self._filter_changed()
 
+    def resizeEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        super().resizeEvent(event)
+        self._reflow(self.width())
+
+    def _wide_width(self) -> int:
+        """The width the second line needs with the filter's companions on it."""
+        margins = self._root.contentsMargins()
+        return self.tool_row.sizeHint().width() + 280 + self._tools.spacing() + margins.left() + margins.right()
+
+    def _reflow(self, width: int) -> None:
+        """Narrow, the unused-channel switch and the min/max reset take a
+        line of their own, and the list and its traces stack."""
+        compact = width < self._wide_width()
+        if compact == self._compact:
+            return
+        self._compact = compact
+        self._tools.removeWidget(self.tool_row)
+        self._root.removeWidget(self.tool_row)
+        if compact:
+            self._root.insertWidget(2, self.tool_row)
+        else:
+            self._tools.addWidget(self.tool_row, 0)
+        self._extras.setDirection(QBoxLayout.Direction.TopToBottom if compact else QBoxLayout.Direction.LeftToRight)
+        self.splitter.setOrientation(Qt.Orientation.Vertical if compact else Qt.Orientation.Horizontal)
+        self.tree.setMinimumWidth(0 if compact else 420)
+        self.plots.setMinimumWidth(0 if compact else 260)
+        self.tree.setMinimumHeight(260 if compact else 0)
+        self._split_sized = False
+        self._size_split()
+
     def showEvent(self, event) -> None:  # noqa: N802 - Qt API name
         super().showEvent(event)
-        if not self._split_sized and self.splitter.width() > 0:
+        self._reflow(self.width())
+        self._size_split()
+
+    def _size_split(self) -> None:
+        vertical = self.splitter.orientation() == Qt.Orientation.Vertical
+        length = self.splitter.height() if vertical else self.splitter.width()
+        if not self._split_sized and length > 0 and self.isVisible():
             # Three fifths for the list, the rest for the traces, the first
-            # time it has a width to share; the user's drag wins after that.
-            width = self.splitter.width()
-            self.splitter.setSizes([int(width * 0.6), width - int(width * 0.6)])
+            # time it has room to share; the user's drag wins after that.
+            self.splitter.setSizes([int(length * 0.6), length - int(length * 0.6)])
             self._split_sized = True
 
     # ------------------------------------------------------------- settings
@@ -799,13 +832,15 @@ class SensorBoard(QFrame):
     def set_mode(self, mode: str, *, persist: bool = True) -> None:
         if mode not in dict(MODES):
             mode = "split"
+        changed = mode != self.mode
         self.mode = mode
-        self.mode_buttons[mode].setChecked(True)
         self.tree.setVisible(mode != "graphs")
         self.plots.setVisible(mode != "list")
         self.plots.set_max_columns(3 if mode == "graphs" else 2)
         if persist:
             self._save()
+        if changed:
+            self.mode_changed.emit(mode)
 
     def _chosen_kind_labels(self) -> list[str]:
         return [label for label, chip in self.kind_chips.items() if label != self._all_label and chip.isChecked()]

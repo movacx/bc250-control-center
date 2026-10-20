@@ -70,7 +70,15 @@ def test_the_reading_sits_beside_the_name_with_no_icon_or_band(page):
     assert abs(detail.sample_state.y() - detail.footer_left.y()) < 12
 
 
+def test_the_page_opens_on_the_sensor_list_and_a_tile_opens_its_chart(page):
+    assert page.body.currentWidget() is page.sensor_board
+    assert not any(tile.property("selected") for tile in page.tiles.values())
+    page._select_resource("gpu")
+    assert page.body.currentWidget() is page.detail
+
+
 def test_a_narrow_panel_stacks_the_description_and_statistics(qtbot, page):
+    page.show_chart()
     page.resize(420, 900)
     qtbot.wait(5)
     page._sample_ready(SAMPLE)

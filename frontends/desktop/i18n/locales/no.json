@@ -479,7 +479,6 @@
   "BLOCKED": "BLOKKERT",
   "Back": "Tilbake",
   "Back to Dashboard": "Tilbake til Dashboard",
-  "Back to the chart of the selected resource": "Tilbake til grafen for den valgte ressursen",
   "Backend": "Backend",
   "Backends the hardware modules rely on. Frequencies, voltages and fan curves are set in each module.": "Tjenester som maskinvaremodulene bygger på. Frekvenser, spenninger og viftekurver stilles inn i hver modul.",
   "Background refresh alerts": "Bakgrunnsoppdateringsvarsler",
@@ -641,7 +640,6 @@
   "Changes made during this application session.": "Endringer gjort under denne søknadsøkten.",
   "Channel": "Kanal",
   "Channels that have read nothing but zero since the list started, like a fan header with no fan.": "Kanaler som bare har lest null siden listen startet, for eksempel en viftekontakt uten vifte.",
-  "Chart": "Graf",
   "Check SteamOS compatibility": "Sjekk SteamOS-kompatibilitet",
   "Check full stack": "Sjekk full stabel",
   "Check it": "Sjekk det",
@@ -1289,7 +1287,6 @@
   "Every file comes from the project that publishes it and is checked against its SHA-256 before it reaches the USB.": "Hver fil kommer fra prosjektet som publiserer den, og kontrolleres mot sin SHA-256 før den havner på minnepinnen.",
   "Every installed Steam game gets the option that lets Proton load OptiScaler, so after this the client only has to copy files into a game. Games without OptiScaler run as before. What each game already had stays. Close Steam completely first; the previous Steam settings file is kept beside it as a backup.": "Alle installerte Steam-spill får valget som lar Proton laste inn OptiScaler, så etterpå trenger klienten bare å kopiere filer inn i et spill. Spill uten OptiScaler kjører som før. Det hvert spill allerede hadde, beholdes. Lukk Steam helt først; den forrige Steam-innstillingsfilen blir liggende ved siden av som sikkerhetskopi.",
   "Every part has more views": "Hver del har flere visninger",
-  "Every sensor in a list, with minimum, average and maximum": "Alle sensorer i en liste med minimum, gjennomsnitt og maksimum",
   "Every sensor in one list": "Alle sensorer i én liste",
   "Everything on it will be erased and replaced by the BIOS update kit. This cannot be undone.": "Alt på den blir slettet og erstattet av BIOS-oppdateringssettet. Dette kan ikke angres.",
   "Everything on the chosen drive is erased. The name, size and volumes shown are what will be lost.": "Alt på den valgte disken slettes. Navnet, størrelsen og volumene som vises, er det som går tapt.",
@@ -4958,5 +4955,9 @@
   "OptiScaler Client {version} is selected. Install or Update brings it in.": "OptiScaler Client {version} er valgt. Installer eller Oppdater henter den.",
   "The OptiScaler Client build Install or Update brings in. The recommended one is the build this version of Control Center was checked with.": "OptiScaler Client-utgivelsen som Installer eller Oppdater henter. Den anbefalte er utgivelsen denne versjonen av Control Center er kontrollert med.",
   "The selected client build is not installed yet. Install brings it in; your games and backups are kept.": "Den valgte klientversjonen er ikke installert ennå. Installer henter den; spillene og sikkerhetskopiene dine beholdes.",
-  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "Leser listen over OptiScaler Client-utgivelser på GitHub i terminalen, slik at nyere utgivelser og forhåndsutgivelser kan velges. Ingenting blir installert."
+  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "Leser listen over OptiScaler Client-utgivelser på GitHub i terminalen, slik at nyere utgivelser og forhåndsutgivelser kan velges. Ingenting blir installert.",
+  "CPU": "CPU",
+  "Every sensor with its minimum, average and maximum.": "Hver sensor med minimum, gjennomsnitt og maksimum.",
+  "The list, with the sensors you tick drawn beside it.": "Listen, med sensorene du krysser av tegnet ved siden av.",
+  "Only the graphs of the sensors you tick, larger.": "Bare grafene for sensorene du krysser av, større."
 }

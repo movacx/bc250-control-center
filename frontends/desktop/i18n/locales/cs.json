@@ -479,7 +479,6 @@
   "BLOCKED": "BLOKOVÁNO",
   "Back": "Zpět",
   "Back to Dashboard": "Zpět na Dashboard",
-  "Back to the chart of the selected resource": "Zpět na graf vybraného prostředku",
   "Backend": "Backend",
   "Backends the hardware modules rely on. Frequencies, voltages and fan curves are set in each module.": "Služby, na kterých stojí hardwarové moduly. Frekvence, napětí a křivky ventilátorů se nastavují v jednotlivých modulech.",
   "Background refresh alerts": "Upozornění na obnovení pozadí",
@@ -641,7 +640,6 @@
   "Changes made during this application session.": "Změny provedené během této relace aplikace.",
   "Channel": "Kanál",
   "Channels that have read nothing but zero since the list started, like a fan header with no fan.": "Kanály, které od začátku seznamu četly jen nulu, třeba konektor ventilátoru bez ventilátoru.",
-  "Chart": "Graf",
   "Check SteamOS compatibility": "Zkontrolujte kompatibilitu se systémem SteamOS",
   "Check full stack": "Zkontrolujte plný zásobník",
   "Check it": "Zkontrolujte to",
@@ -1289,7 +1287,6 @@
   "Every file comes from the project that publishes it and is checked against its SHA-256 before it reaches the USB.": "Každý soubor pochází z projektu, který ho zveřejňuje, a před zápisem na USB disk se ověří jeho SHA-256.",
   "Every installed Steam game gets the option that lets Proton load OptiScaler, so after this the client only has to copy files into a game. Games without OptiScaler run as before. What each game already had stays. Close Steam completely first; the previous Steam settings file is kept beside it as a backup.": "Každá nainstalovaná hra ve Steamu dostane možnost, díky které Proton načte OptiScaler, takže pak klient už jen kopíruje soubory do her. Hry bez OptiScaleru běží jako dřív. Co už hra měla, zůstane. Nejprve Steam úplně zavřete; předchozí soubor nastavení Steamu zůstane vedle jako záloha.",
   "Every part has more views": "Každá část má další pohledy",
-  "Every sensor in a list, with minimum, average and maximum": "Všechna čidla v seznamu s minimem, průměrem a maximem",
   "Every sensor in one list": "Všechny senzory v jednom seznamu",
   "Everything on it will be erased and replaced by the BIOS update kit. This cannot be undone.": "Vše na něm bude vymazáno a nahrazeno sadou pro aktualizaci BIOS. Tuto akci nelze vrátit.",
   "Everything on the chosen drive is erased. The name, size and volumes shown are what will be lost.": "Vše na vybraném disku se vymaže. Zobrazený název, velikost a svazky jsou to, co se ztratí.",
@@ -4958,5 +4955,9 @@
   "OptiScaler Client {version} is selected. Install or Update brings it in.": "Vybráno OptiScaler Client {version}. Instalovat nebo Aktualizovat ho přidá.",
   "The OptiScaler Client build Install or Update brings in. The recommended one is the build this version of Control Center was checked with.": "Vydání OptiScaler Client, které nainstaluje Instalovat nebo Aktualizovat. Doporučené je vydání, se kterým byla tato verze Control Center ověřena.",
   "The selected client build is not installed yet. Install brings it in; your games and backups are kept.": "Vybraná verze klienta zatím není nainstalovaná. Instalovat ji přidá; vaše hry a zálohy zůstanou zachovány.",
-  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "Načte v terminálu seznam vydání OptiScaler Client na GitHubu, aby šlo vybrat novější vydání a předběžné verze. Nic se neinstaluje."
+  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "Načte v terminálu seznam vydání OptiScaler Client na GitHubu, aby šlo vybrat novější vydání a předběžné verze. Nic se neinstaluje.",
+  "CPU": "CPU",
+  "Every sensor with its minimum, average and maximum.": "Každý senzor s minimem, průměrem a maximem.",
+  "The list, with the sensors you tick drawn beside it.": "Seznam a vedle něj grafy zaškrtnutých senzorů.",
+  "Only the graphs of the sensors you tick, larger.": "Jen grafy zaškrtnutých senzorů, větší."
 }

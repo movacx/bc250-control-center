@@ -479,7 +479,6 @@
   "BLOCKED": "ЗАБЛОКИРОВАНО",
   "Back": "Назад",
   "Back to Dashboard": "Вернуться на панель",
-  "Back to the chart of the selected resource": "Вернуться к графику выбранного ресурса",
   "Backend": "Внутренний модуль",
   "Backends the hardware modules rely on. Frequencies, voltages and fan curves are set in each module.": "Базовые службы, на которые опираются модули оборудования. Частоты, напряжения и кривые вентиляторов настраиваются в каждом модуле.",
   "Background refresh alerts": "Оповещения об ошибках фонового обновления",
@@ -641,7 +640,6 @@
   "Changes made during this application session.": "Изменения, выполненные в текущем сеансе приложения.",
   "Channel": "Канал",
   "Channels that have read nothing but zero since the list started, like a fan header with no fan.": "Каналы, которые с начала списка показывали только ноль, например разъём вентилятора без вентилятора.",
-  "Chart": "График",
   "Check SteamOS compatibility": "Проверить SteamOS",
   "Check full stack": "Проверить весь стек",
   "Check it": "Проверьте это",
@@ -1289,7 +1287,6 @@
   "Every file comes from the project that publishes it and is checked against its SHA-256 before it reaches the USB.": "Каждый файл берётся из проекта, который его публикует, и проверяется по SHA-256, прежде чем попасть на USB-накопитель.",
   "Every installed Steam game gets the option that lets Proton load OptiScaler, so after this the client only has to copy files into a game. Games without OptiScaler run as before. What each game already had stays. Close Steam completely first; the previous Steam settings file is kept beside it as a backup.": "Все установленные игры Steam получат параметр, позволяющий Proton загружать OptiScaler, поэтому дальше клиенту останется только копировать файлы в игры. Игры без OptiScaler работают как раньше. То, что уже было у каждой игры, сохраняется. Сначала полностью закройте Steam; прежний файл настроек Steam сохраняется рядом как резервная копия.",
   "Every part has more views": "У каждого узла есть другие виды",
-  "Every sensor in a list, with minimum, average and maximum": "Все датчики списком: минимум, среднее и максимум",
   "Every sensor in one list": "Все датчики в одном списке",
   "Everything on it will be erased and replaced by the BIOS update kit. This cannot be undone.": "Всё на нём будет стёрто и заменено комплектом обновления BIOS. Это нельзя отменить.",
   "Everything on the chosen drive is erased. The name, size and volumes shown are what will be lost.": "Всё на выбранном накопителе будет стёрто. Показанные имя, объём и тома — то, что будет потеряно.",
@@ -4958,5 +4955,9 @@
   "OptiScaler Client {version} is selected. Install or Update brings it in.": "Выбран OptiScaler Client {version}. «Установить» или «Обновить» добавит его.",
   "The OptiScaler Client build Install or Update brings in. The recommended one is the build this version of Control Center was checked with.": "Выпуск OptiScaler Client, который устанавливают «Установить» или «Обновить». Рекомендуемый — выпуск, с которым проверялась эта версия Control Center.",
   "The selected client build is not installed yet. Install brings it in; your games and backups are kept.": "Выбранная версия клиента ещё не установлена. «Установить» добавит её; ваши игры и резервные копии сохранятся.",
-  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "Читает в терминале список выпусков OptiScaler Client на GitHub, чтобы можно было выбрать более новые выпуски и предварительные версии. Ничего не устанавливается."
+  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "Читает в терминале список выпусков OptiScaler Client на GitHub, чтобы можно было выбрать более новые выпуски и предварительные версии. Ничего не устанавливается.",
+  "CPU": "CPU",
+  "Every sensor with its minimum, average and maximum.": "Каждый датчик с минимумом, средним и максимумом.",
+  "The list, with the sensors you tick drawn beside it.": "Список, а рядом графики отмеченных датчиков.",
+  "Only the graphs of the sensors you tick, larger.": "Только графики отмеченных датчиков, крупнее."
 }

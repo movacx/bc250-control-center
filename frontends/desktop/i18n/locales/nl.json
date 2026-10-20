@@ -479,7 +479,6 @@
   "BLOCKED": "GEBLOKKEERD",
   "Back": "Terug",
   "Back to Dashboard": "Terug naar Dashboard",
-  "Back to the chart of the selected resource": "Terug naar de grafiek van de gekozen bron",
   "Backend": "Achterkant",
   "Backends the hardware modules rely on. Frequencies, voltages and fan curves are set in each module.": "Diensten waar de hardwaremodules op steunen. Frequenties, spanningen en ventilatorcurves stel je in per module in.",
   "Background refresh alerts": "Waarschuwingen voor vernieuwing op de achtergrond",
@@ -641,7 +640,6 @@
   "Changes made during this application session.": "Wijzigingen aangebracht tijdens deze sollicitatiesessie.",
   "Channel": "Kanaal",
   "Channels that have read nothing but zero since the list started, like a fan header with no fan.": "Kanalen die sinds het begin van de lijst alleen nul lazen, zoals een ventilatoraansluiting zonder ventilator.",
-  "Chart": "Grafiek",
   "Check SteamOS compatibility": "Controleer de compatibiliteit met SteamOS",
   "Check full stack": "Controleer de volledige stapel",
   "Check it": "Controleer het",
@@ -1289,7 +1287,6 @@
   "Every file comes from the project that publishes it and is checked against its SHA-256 before it reaches the USB.": "Elk bestand komt van het project dat het publiceert en wordt met zijn SHA-256 gecontroleerd voordat het op de USB-stick komt.",
   "Every installed Steam game gets the option that lets Proton load OptiScaler, so after this the client only has to copy files into a game. Games without OptiScaler run as before. What each game already had stays. Close Steam completely first; the previous Steam settings file is kept beside it as a backup.": "Elke geïnstalleerde Steam-game krijgt de optie waarmee Proton OptiScaler laadt, zodat de client daarna alleen nog bestanden in een game hoeft te kopiëren. Games zonder OptiScaler werken zoals voorheen. Wat een game al had, blijft staan. Sluit Steam eerst volledig af; het vorige Steam-instellingenbestand blijft ernaast als back-up.",
   "Every part has more views": "Elk onderdeel heeft meer weergaven",
-  "Every sensor in a list, with minimum, average and maximum": "Alle sensoren in een lijst, met minimum, gemiddelde en maximum",
   "Every sensor in one list": "Alle sensoren in één lijst",
   "Everything on it will be erased and replaced by the BIOS update kit. This cannot be undone.": "Alles erop wordt gewist en vervangen door het BIOS-updatekit. Dit kan niet ongedaan worden gemaakt.",
   "Everything on the chosen drive is erased. The name, size and volumes shown are what will be lost.": "Alles op de gekozen schijf wordt gewist. De getoonde naam, grootte en volumes zijn wat verloren gaat.",
@@ -4958,5 +4955,9 @@
   "OptiScaler Client {version} is selected. Install or Update brings it in.": "OptiScaler Client {version} is gekozen. Installeren of Bijwerken haalt het binnen.",
   "The OptiScaler Client build Install or Update brings in. The recommended one is the build this version of Control Center was checked with.": "De OptiScaler Client-release die Installeren of Bijwerken binnenhaalt. De aanbevolen release is die waarmee deze versie van Control Center is gecontroleerd.",
   "The selected client build is not installed yet. Install brings it in; your games and backups are kept.": "De gekozen clientversie is nog niet geïnstalleerd. Installeren voegt die toe; je games en back-ups blijven behouden.",
-  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "Leest in de terminal de lijst met OptiScaler Client-releases op GitHub, zodat nieuwere releases en pre-releases gekozen kunnen worden. Er wordt niets geïnstalleerd."
+  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "Leest in de terminal de lijst met OptiScaler Client-releases op GitHub, zodat nieuwere releases en pre-releases gekozen kunnen worden. Er wordt niets geïnstalleerd.",
+  "CPU": "CPU",
+  "Every sensor with its minimum, average and maximum.": "Elke sensor met minimum, gemiddelde en maximum.",
+  "The list, with the sensors you tick drawn beside it.": "De lijst, met de aangevinkte sensoren ernaast getekend.",
+  "Only the graphs of the sensors you tick, larger.": "Alleen de grafieken van de aangevinkte sensoren, groter."
 }

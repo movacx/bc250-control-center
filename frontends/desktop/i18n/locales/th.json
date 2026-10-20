@@ -479,7 +479,6 @@
   "BLOCKED": "ถูกบล็อก",
   "Back": "กลับ",
   "Back to Dashboard": "กลับไปที่แดชบอร์ด",
-  "Back to the chart of the selected resource": "กลับไปที่กราฟของทรัพยากรที่เลือก",
   "Backend": "แบ็กเอนด์",
   "Backends the hardware modules rely on. Frequencies, voltages and fan curves are set in each module.": "บริการเบื้องหลังที่โมดูลฮาร์ดแวร์ใช้ ความถี่ แรงดันไฟ และกราฟพัดลมตั้งค่าได้ในแต่ละโมดูล",
   "Background refresh alerts": "การแจ้งเตือนการรีเฟรชพื้นหลัง",
@@ -641,7 +640,6 @@
   "Changes made during this application session.": "การเปลี่ยนแปลงที่เกิดขึ้นระหว่างเซสชันการสมัครนี้",
   "Channel": "ช่อง",
   "Channels that have read nothing but zero since the list started, like a fan header with no fan.": "ช่องที่อ่านได้แต่ศูนย์ตั้งแต่เริ่มรายการ เช่น ช่องเสียบพัดลมที่ไม่มีพัดลม",
-  "Chart": "กราฟ",
   "Check SteamOS compatibility": "ตรวจสอบความเข้ากันได้ของ SteamOS",
   "Check full stack": "ตรวจสอบกองเต็ม",
   "Check it": "ตรวจสอบมัน",
@@ -1289,7 +1287,6 @@
   "Every file comes from the project that publishes it and is checked against its SHA-256 before it reaches the USB.": "ทุกไฟล์มาจากโปรเจกต์ที่เผยแพร่ และถูกตรวจสอบด้วย SHA-256 ก่อนจะถูกคัดลอกลง USB",
   "Every installed Steam game gets the option that lets Proton load OptiScaler, so after this the client only has to copy files into a game. Games without OptiScaler run as before. What each game already had stays. Close Steam completely first; the previous Steam settings file is kept beside it as a backup.": "เกม Steam ที่ติดตั้งทุกเกมจะได้รับตัวเลือกที่ให้ Proton โหลด OptiScaler ได้ หลังจากนี้ไคลเอนต์แค่คัดลอกไฟล์ลงในเกมเท่านั้น เกมที่ไม่มี OptiScaler ทำงานเหมือนเดิม ตัวเลือกเดิมของแต่ละเกมยังคงอยู่ ปิด Steam ให้หมดก่อน ไฟล์การตั้งค่า Steam เดิมจะถูกเก็บไว้ข้างกันเป็นข้อมูลสำรอง",
   "Every part has more views": "ทุกส่วนมีมุมมองเพิ่มเติม",
-  "Every sensor in a list, with minimum, average and maximum": "เซนเซอร์ทั้งหมดในรายการ พร้อมค่าต่ำสุด เฉลี่ย และสูงสุด",
   "Every sensor in one list": "เซนเซอร์ทั้งหมดในรายการเดียว",
   "Everything on it will be erased and replaced by the BIOS update kit. This cannot be undone.": "ข้อมูลทั้งหมดในไดรฟ์จะถูกลบและแทนที่ด้วยชุดอัปเดต BIOS ไม่สามารถย้อนกลับได้",
   "Everything on the chosen drive is erased. The name, size and volumes shown are what will be lost.": "ทุกอย่างในไดรฟ์ที่เลือกจะถูกลบ ชื่อ ขนาด และวอลุ่มที่แสดงคือสิ่งที่จะหายไป",
@@ -4958,5 +4955,9 @@
   "OptiScaler Client {version} is selected. Install or Update brings it in.": "เลือก OptiScaler Client {version} แล้ว กด ติดตั้ง หรือ อัปเดต เพื่อนำมาใช้",
   "The OptiScaler Client build Install or Update brings in. The recommended one is the build this version of Control Center was checked with.": "รุ่นของ OptiScaler Client ที่ ติดตั้ง หรือ อัปเดต จะนำมาใช้ รุ่นที่แนะนำคือรุ่นที่ใช้ตรวจสอบ Control Center เวอร์ชันนี้",
   "The selected client build is not installed yet. Install brings it in; your games and backups are kept.": "เวอร์ชันไคลเอนต์ที่เลือกยังไม่ได้ติดตั้ง ติดตั้งจะนำเข้ามา เกมและข้อมูลสำรองของคุณยังคงอยู่",
-  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "อ่านรายการรุ่นของ OptiScaler Client บน GitHub ในเทอร์มินัล เพื่อให้เลือกรุ่นที่ใหม่กว่าและรุ่นทดลองได้ ไม่มีการติดตั้งสิ่งใด"
+  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "อ่านรายการรุ่นของ OptiScaler Client บน GitHub ในเทอร์มินัล เพื่อให้เลือกรุ่นที่ใหม่กว่าและรุ่นทดลองได้ ไม่มีการติดตั้งสิ่งใด",
+  "CPU": "CPU",
+  "Every sensor with its minimum, average and maximum.": "เซนเซอร์ทุกตัวพร้อมค่าต่ำสุด เฉลี่ย และสูงสุด",
+  "The list, with the sensors you tick drawn beside it.": "รายการ พร้อมกราฟของเซนเซอร์ที่คุณเลือกอยู่ข้างๆ",
+  "Only the graphs of the sensors you tick, larger.": "เฉพาะกราฟของเซนเซอร์ที่คุณเลือก ขนาดใหญ่ขึ้น"
 }

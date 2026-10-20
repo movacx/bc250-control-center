@@ -479,7 +479,6 @@
   "BLOCKED": "DIBLOKIR",
   "Back": "Kembali",
   "Back to Dashboard": "Kembali ke Dasbor",
-  "Back to the chart of the selected resource": "Kembali ke grafik sumber daya yang dipilih",
   "Backend": "Bagian belakang",
   "Backends the hardware modules rely on. Frequencies, voltages and fan curves are set in each module.": "Layanan yang diandalkan modul perangkat keras. Frekuensi, tegangan, dan kurva kipas diatur di masing-masing modul.",
   "Background refresh alerts": "Peringatan penyegaran latar belakang",
@@ -641,7 +640,6 @@
   "Changes made during this application session.": "Perubahan dilakukan selama sesi aplikasi ini.",
   "Channel": "Saluran",
   "Channels that have read nothing but zero since the list started, like a fan header with no fan.": "Kanal yang hanya membaca nol sejak daftar dimulai, seperti konektor kipas tanpa kipas.",
-  "Chart": "Grafik",
   "Check SteamOS compatibility": "Periksa kompatibilitas SteamOS",
   "Check full stack": "Periksa tumpukan penuh",
   "Check it": "Periksa itu",
@@ -1289,7 +1287,6 @@
   "Every file comes from the project that publishes it and is checked against its SHA-256 before it reaches the USB.": "Setiap berkas berasal dari proyek yang menerbitkannya dan diperiksa dengan SHA-256-nya sebelum sampai ke USB.",
   "Every installed Steam game gets the option that lets Proton load OptiScaler, so after this the client only has to copy files into a game. Games without OptiScaler run as before. What each game already had stays. Close Steam completely first; the previous Steam settings file is kept beside it as a backup.": "Setiap game Steam yang terpasang mendapat opsi yang membuat Proton memuat OptiScaler, jadi setelah ini klien cukup menyalin file ke dalam game. Game tanpa OptiScaler berjalan seperti biasa. Opsi yang sudah ada di tiap game tetap dipertahankan. Tutup Steam sepenuhnya terlebih dahulu; file pengaturan Steam sebelumnya disimpan di sebelahnya sebagai cadangan.",
   "Every part has more views": "Setiap bagian punya tampilan lain",
-  "Every sensor in a list, with minimum, average and maximum": "Semua sensor dalam daftar, dengan minimum, rata-rata, dan maksimum",
   "Every sensor in one list": "Semua sensor dalam satu daftar",
   "Everything on it will be erased and replaced by the BIOS update kit. This cannot be undone.": "Semua isinya akan dihapus dan diganti dengan kit pembaruan BIOS. Ini tidak dapat dibatalkan.",
   "Everything on the chosen drive is erased. The name, size and volumes shown are what will be lost.": "Semua isi drive yang dipilih akan dihapus. Nama, ukuran, dan volume yang ditampilkan adalah yang akan hilang.",
@@ -4958,5 +4955,9 @@
   "OptiScaler Client {version} is selected. Install or Update brings it in.": "OptiScaler Client {version} dipilih. Pasang atau Perbarui akan membawanya.",
   "The OptiScaler Client build Install or Update brings in. The recommended one is the build this version of Control Center was checked with.": "Rilis OptiScaler Client yang dipasang oleh Pasang atau Perbarui. Yang direkomendasikan adalah rilis yang digunakan untuk memeriksa versi Control Center ini.",
   "The selected client build is not installed yet. Install brings it in; your games and backups are kept.": "Versi klien yang dipilih belum terpasang. Pasang akan menambahkannya; game dan cadangan Anda tetap disimpan.",
-  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "Membaca daftar rilis OptiScaler Client di GitHub di terminal, agar rilis yang lebih baru dan pra-rilis dapat dipilih. Tidak ada yang dipasang."
+  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "Membaca daftar rilis OptiScaler Client di GitHub di terminal, agar rilis yang lebih baru dan pra-rilis dapat dipilih. Tidak ada yang dipasang.",
+  "CPU": "CPU",
+  "Every sensor with its minimum, average and maximum.": "Setiap sensor dengan minimum, rata-rata, dan maksimumnya.",
+  "The list, with the sensors you tick drawn beside it.": "Daftar, dengan grafik sensor yang Anda centang di sampingnya.",
+  "Only the graphs of the sensors you tick, larger.": "Hanya grafik sensor yang Anda centang, lebih besar."
 }

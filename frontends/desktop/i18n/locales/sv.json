@@ -479,7 +479,6 @@
   "BLOCKED": "BLOCKERAD",
   "Back": "Tillbaka",
   "Back to Dashboard": "Tillbaka till Dashboard",
-  "Back to the chart of the selected resource": "Tillbaka till diagrammet för vald resurs",
   "Backend": "Backend",
   "Backends the hardware modules rely on. Frequencies, voltages and fan curves are set in each module.": "Tjänster som hårdvarumodulerna bygger på. Frekvenser, spänningar och fläktkurvor ställs in i varje modul.",
   "Background refresh alerts": "Bakgrundsuppdateringsvarningar",
@@ -641,7 +640,6 @@
   "Changes made during this application session.": "Ändringar gjorda under denna ansökningssession.",
   "Channel": "Kanal",
   "Channels that have read nothing but zero since the list started, like a fan header with no fan.": "Kanaler som bara har läst noll sedan listan startade, till exempel ett fläktuttag utan fläkt.",
-  "Chart": "Diagram",
   "Check SteamOS compatibility": "Kontrollera SteamOS-kompatibiliteten",
   "Check full stack": "Kontrollera full stack",
   "Check it": "Kontrollera det",
@@ -1289,7 +1287,6 @@
   "Every file comes from the project that publishes it and is checked against its SHA-256 before it reaches the USB.": "Varje fil kommer från projektet som publicerar den och kontrolleras mot sin SHA-256 innan den hamnar på USB-minnet.",
   "Every installed Steam game gets the option that lets Proton load OptiScaler, so after this the client only has to copy files into a game. Games without OptiScaler run as before. What each game already had stays. Close Steam completely first; the previous Steam settings file is kept beside it as a backup.": "Varje installerat Steam-spel får alternativet som låter Proton läsa in OptiScaler, så efter detta behöver klienten bara kopiera filer till ett spel. Spel utan OptiScaler fungerar som förut. Det varje spel redan hade finns kvar. Stäng Steam helt först; den tidigare Steam-inställningsfilen sparas bredvid som säkerhetskopia.",
   "Every part has more views": "Varje del har fler vyer",
-  "Every sensor in a list, with minimum, average and maximum": "Alla sensorer i en lista med minimum, genomsnitt och maximum",
   "Every sensor in one list": "Alla sensorer i en lista",
   "Everything on it will be erased and replaced by the BIOS update kit. This cannot be undone.": "Allt på det raderas och ersätts av BIOS-uppdateringskitet. Det går inte att ångra.",
   "Everything on the chosen drive is erased. The name, size and volumes shown are what will be lost.": "Allt på den valda enheten raderas. Namnet, storleken och volymerna som visas är det som går förlorat.",
@@ -4958,5 +4955,9 @@
   "OptiScaler Client {version} is selected. Install or Update brings it in.": "OptiScaler Client {version} är vald. Installera eller Uppdatera hämtar den.",
   "The OptiScaler Client build Install or Update brings in. The recommended one is the build this version of Control Center was checked with.": "Den OptiScaler Client-utgåva som Installera eller Uppdatera hämtar. Den rekommenderade är utgåvan som den här versionen av Control Center kontrollerades med.",
   "The selected client build is not installed yet. Install brings it in; your games and backups are kept.": "Den valda klientversionen är inte installerad än. Installera hämtar den; dina spel och säkerhetskopior behålls.",
-  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "Läser listan över OptiScaler Client-utgåvor på GitHub i terminalen, så att nyare utgåvor och förhandsutgåvor kan väljas. Inget installeras."
+  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "Läser listan över OptiScaler Client-utgåvor på GitHub i terminalen, så att nyare utgåvor och förhandsutgåvor kan väljas. Inget installeras.",
+  "CPU": "CPU",
+  "Every sensor with its minimum, average and maximum.": "Varje sensor med minimum, medel och maximum.",
+  "The list, with the sensors you tick drawn beside it.": "Listan, med sensorerna du bockar i ritade bredvid.",
+  "Only the graphs of the sensors you tick, larger.": "Bara graferna för sensorerna du bockar i, större."
 }

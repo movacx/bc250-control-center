@@ -479,7 +479,6 @@
   "BLOCKED": "ENGELLENMİŞ",
   "Back": "Geri",
   "Back to Dashboard": "Kontrol Paneline Geri Dön",
-  "Back to the chart of the selected resource": "Seçili kaynağın grafiğine dön",
   "Backend": "Arka uç",
   "Backends the hardware modules rely on. Frequencies, voltages and fan curves are set in each module.": "Donanım modüllerinin dayandığı arka uçlar. Frekanslar, voltajlar ve fan eğrileri her modülde ayarlanır.",
   "Background refresh alerts": "Arka planda yenileme uyarıları",
@@ -641,7 +640,6 @@
   "Changes made during this application session.": "Bu uygulama oturumu sırasında yapılan değişiklikler.",
   "Channel": "Kanal",
   "Channels that have read nothing but zero since the list started, like a fan header with no fan.": "Liste başladığından beri yalnızca sıfır okuyan kanallar; örneğin fansız bir fan soketi.",
-  "Chart": "Grafik",
   "Check SteamOS compatibility": "SteamOS uyumluluğunu kontrol edin",
   "Check full stack": "Tüm yığını kontrol et",
   "Check it": "Kontrol et",
@@ -1289,7 +1287,6 @@
   "Every file comes from the project that publishes it and is checked against its SHA-256 before it reaches the USB.": "Her dosya onu yayımlayan projeden gelir ve USB belleğe ulaşmadan önce SHA-256 değeriyle denetlenir.",
   "Every installed Steam game gets the option that lets Proton load OptiScaler, so after this the client only has to copy files into a game. Games without OptiScaler run as before. What each game already had stays. Close Steam completely first; the previous Steam settings file is kept beside it as a backup.": "Yüklü her Steam oyunu, Proton'un OptiScaler'ı yüklemesini sağlayan seçeneği alır; bundan sonra istemcinin yalnızca oyuna dosya kopyalaması yeterlidir. OptiScaler olmayan oyunlar eskisi gibi çalışır. Her oyunun mevcut seçenekleri korunur. Önce Steam'i tamamen kapatın; önceki Steam ayar dosyası yedek olarak yanında saklanır.",
   "Every part has more views": "Her parçanın başka görünümleri var",
-  "Every sensor in a list, with minimum, average and maximum": "Tüm sensörler bir listede; en düşük, ortalama ve en yüksek değerle",
   "Every sensor in one list": "Tüm sensörler tek listede",
   "Everything on it will be erased and replaced by the BIOS update kit. This cannot be undone.": "Üzerindeki her şey silinecek ve BIOS güncelleme kitiyle değiştirilecek. Bu geri alınamaz.",
   "Everything on the chosen drive is erased. The name, size and volumes shown are what will be lost.": "Seçilen sürücüdeki her şey silinir. Gösterilen ad, boyut ve birimler kaybolacak olanlardır.",
@@ -4958,5 +4955,9 @@
   "OptiScaler Client {version} is selected. Install or Update brings it in.": "OptiScaler Client {version} seçildi. Yükle veya Güncelle onu getirir.",
   "The OptiScaler Client build Install or Update brings in. The recommended one is the build this version of Control Center was checked with.": "Yükle veya Güncelle ile gelen OptiScaler Client sürümü. Önerilen, Control Center'ın bu sürümüyle denetlenmiş olan sürümdür.",
   "The selected client build is not installed yet. Install brings it in; your games and backups are kept.": "Seçilen istemci sürümü henüz yüklü değil. Yükle onu getirir; oyunlarınız ve yedekleriniz korunur.",
-  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "Terminalde GitHub'daki OptiScaler Client sürüm listesini okur; böylece daha yeni sürümler ve ön sürümler seçilebilir. Hiçbir şey yüklenmez."
+  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "Terminalde GitHub'daki OptiScaler Client sürüm listesini okur; böylece daha yeni sürümler ve ön sürümler seçilebilir. Hiçbir şey yüklenmez.",
+  "CPU": "CPU",
+  "Every sensor with its minimum, average and maximum.": "Her sensör en düşük, ortalama ve en yüksek değeriyle.",
+  "The list, with the sensors you tick drawn beside it.": "Liste ve yanında işaretlediğiniz sensörlerin grafikleri.",
+  "Only the graphs of the sensors you tick, larger.": "Yalnızca işaretlediğiniz sensörlerin grafikleri, daha büyük."
 }

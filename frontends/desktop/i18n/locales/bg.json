@@ -479,7 +479,6 @@
   "BLOCKED": "БЛОКИРАН",
   "Back": "Назад",
   "Back to Dashboard": "Назад към таблото за управление",
-  "Back to the chart of the selected resource": "Назад към графиката на избрания ресурс",
   "Backend": "Бекенд",
   "Backends the hardware modules rely on. Frequencies, voltages and fan curves are set in each module.": "Услуги, на които разчитат хардуерните модули. Честотите, напреженията и кривите на вентилаторите се задават във всеки модул.",
   "Background refresh alerts": "Сигнали за опресняване на фона",
@@ -641,7 +640,6 @@
   "Changes made during this application session.": "Промени, направени по време на тази сесия на приложението.",
   "Channel": "Канал",
   "Channels that have read nothing but zero since the list started, like a fan header with no fan.": "Канали, които от началото на списъка отчитат само нула, например конектор за вентилатор без вентилатор.",
-  "Chart": "Графика",
   "Check SteamOS compatibility": "Проверете съвместимостта на SteamOS",
   "Check full stack": "Проверете пълния стек",
   "Check it": "Проверете го",
@@ -1289,7 +1287,6 @@
   "Every file comes from the project that publishes it and is checked against its SHA-256 before it reaches the USB.": "Всеки файл идва от проекта, който го публикува, и се проверява по SHA-256, преди да стигне до USB паметта.",
   "Every installed Steam game gets the option that lets Proton load OptiScaler, so after this the client only has to copy files into a game. Games without OptiScaler run as before. What each game already had stays. Close Steam completely first; the previous Steam settings file is kept beside it as a backup.": "Всяка инсталирана игра в Steam получава опцията, която позволява на Proton да зарежда OptiScaler, така че после клиентът само копира файлове в играта. Игрите без OptiScaler работят както преди. Каквото вече е имала всяка игра, остава. Първо затворете напълно Steam; предишният файл с настройки на Steam остава до него като резервно копие.",
   "Every part has more views": "Всеки компонент има още изгледи",
-  "Every sensor in a list, with minimum, average and maximum": "Всички сензори в списък с минимум, средно и максимум",
   "Every sensor in one list": "Всички сензори в един списък",
   "Everything on it will be erased and replaced by the BIOS update kit. This cannot be undone.": "Всичко на нея ще бъде изтрито и заменено с комплекта за обновяване на BIOS. Това не може да бъде отменено.",
   "Everything on the chosen drive is erased. The name, size and volumes shown are what will be lost.": "Всичко на избрания диск се изтрива. Показаните име, размер и дялове са това, което ще бъде загубено.",
@@ -4958,5 +4955,9 @@
   "OptiScaler Client {version} is selected. Install or Update brings it in.": "Избран е OptiScaler Client {version}. „Инсталиране“ или „Обновяване“ ще го постави.",
   "The OptiScaler Client build Install or Update brings in. The recommended one is the build this version of Control Center was checked with.": "Изданието на OptiScaler Client, което „Инсталиране“ или „Обновяване“ поставя. Препоръчаното е изданието, с което е проверена тази версия на Control Center.",
   "The selected client build is not installed yet. Install brings it in; your games and backups are kept.": "Избраната версия на клиента още не е инсталирана. „Инсталиране“ я добавя; игрите и резервните копия се запазват.",
-  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "Чете в терминала списъка с издания на OptiScaler Client в GitHub, за да могат да се изберат по-нови издания и предварителни версии. Нищо не се инсталира."
+  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "Чете в терминала списъка с издания на OptiScaler Client в GitHub, за да могат да се изберат по-нови издания и предварителни версии. Нищо не се инсталира.",
+  "CPU": "CPU",
+  "Every sensor with its minimum, average and maximum.": "Всеки сензор с неговия минимум, средна стойност и максимум.",
+  "The list, with the sensors you tick drawn beside it.": "Списъкът, с отметнатите сензори начертани до него.",
+  "Only the graphs of the sensors you tick, larger.": "Само графиките на отметнатите сензори, по-големи."
 }

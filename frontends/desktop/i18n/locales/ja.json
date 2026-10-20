@@ -479,7 +479,6 @@
   "BLOCKED": "ブロックされました",
   "Back": "戻る",
   "Back to Dashboard": "ダッシュボードに戻る",
-  "Back to the chart of the selected resource": "選択中のリソースのグラフに戻る",
   "Backend": "バックエンド",
   "Backends the hardware modules rely on. Frequencies, voltages and fan curves are set in each module.": "ハードウェアモジュールが利用するバックエンド。周波数・電圧・ファンカーブは各モジュールで設定します。",
   "Background refresh alerts": "バックグラウンド更新アラート",
@@ -641,7 +640,6 @@
   "Changes made during this application session.": "このアプリケーションセッション中に行われた変更。",
   "Channel": "チャネル",
   "Channels that have read nothing but zero since the list started, like a fan header with no fan.": "一覧の開始以来ゼロしか読んでいないチャンネル（ファンをつないでいないファン端子など）。",
-  "Chart": "グラフ",
   "Check SteamOS compatibility": "SteamOSの互換性をチェックする",
   "Check full stack": "フルスタックをチェックする",
   "Check it": "チェックしてください",
@@ -1289,7 +1287,6 @@
   "Every file comes from the project that publishes it and is checked against its SHA-256 before it reaches the USB.": "各ファイルは公開元のプロジェクトから取得し、USB に書き込む前に SHA-256 で確認します。",
   "Every installed Steam game gets the option that lets Proton load OptiScaler, so after this the client only has to copy files into a game. Games without OptiScaler run as before. What each game already had stays. Close Steam completely first; the previous Steam settings file is kept beside it as a backup.": "インストール済みのすべての Steam ゲームに、Proton が OptiScaler を読み込むためのオプションを追加します。以後、クライアントはゲームにファイルをコピーするだけで済みます。OptiScaler のないゲームはこれまでどおり動作します。各ゲームの既存のオプションは残ります。先に Steam を完全に終了してください。以前の Steam 設定ファイルはバックアップとして隣に残ります。",
   "Every part has more views": "各パーツにはさらにビューがあります",
-  "Every sensor in a list, with minimum, average and maximum": "すべてのセンサーを一覧で表示（最小・平均・最大付き）",
   "Every sensor in one list": "すべてのセンサーを一覧で",
   "Everything on it will be erased and replaced by the BIOS update kit. This cannot be undone.": "中身はすべて消去され、BIOS アップデートキットに置き換えられます。元に戻せません。",
   "Everything on the chosen drive is erased. The name, size and volumes shown are what will be lost.": "選んだドライブの中身はすべて消去されます。表示されている名前、容量、ボリュームが失われるものです。",
@@ -4958,5 +4955,9 @@
   "OptiScaler Client {version} is selected. Install or Update brings it in.": "OptiScaler Client {version} を選択しました。「インストール」または「更新」で導入されます。",
   "The OptiScaler Client build Install or Update brings in. The recommended one is the build this version of Control Center was checked with.": "「インストール」または「更新」で導入される OptiScaler Client のリリース。推奨は、このバージョンの Control Center で確認されたリリースです。",
   "The selected client build is not installed yet. Install brings it in; your games and backups are kept.": "選択したクライアントのバージョンはまだインストールされていません。「インストール」で導入されます。ゲームとバックアップは保持されます。",
-  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "GitHub 上の OptiScaler Client のリリース一覧をターミナルで読み込み、新しいリリースやプレリリースを選べるようにします。何もインストールされません。"
+  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "GitHub 上の OptiScaler Client のリリース一覧をターミナルで読み込み、新しいリリースやプレリリースを選べるようにします。何もインストールされません。",
+  "CPU": "CPU",
+  "Every sensor with its minimum, average and maximum.": "すべてのセンサーと、その最小・平均・最大。",
+  "The list, with the sensors you tick drawn beside it.": "一覧と、チェックしたセンサーのグラフを横に表示。",
+  "Only the graphs of the sensors you tick, larger.": "チェックしたセンサーのグラフだけを大きく表示。"
 }

@@ -479,7 +479,6 @@
   "BLOCKED": "ΑΠΟΚΛΕΙΣΜΕΝΟ",
   "Back": "Πίσω",
   "Back to Dashboard": "Επιστροφή στον Πίνακα ελέγχου",
-  "Back to the chart of the selected resource": "Επιστροφή στο γράφημα του επιλεγμένου πόρου",
   "Backend": "Backend",
   "Backends the hardware modules rely on. Frequencies, voltages and fan curves are set in each module.": "Υπηρεσίες στις οποίες βασίζονται οι ενότητες υλικού. Συχνότητες, τάσεις και καμπύλες ανεμιστήρων ρυθμίζονται σε κάθε ενότητα.",
   "Background refresh alerts": "Ειδοποιήσεις ανανέωσης φόντου",
@@ -641,7 +640,6 @@
   "Changes made during this application session.": "Αλλαγές που έγιναν κατά τη διάρκεια αυτής της περιόδου λειτουργίας εφαρμογής.",
   "Channel": "Κανάλι",
   "Channels that have read nothing but zero since the list started, like a fan header with no fan.": "Κανάλια που διαβάζουν μόνο μηδέν από την έναρξη της λίστας, όπως μια υποδοχή ανεμιστήρα χωρίς ανεμιστήρα.",
-  "Chart": "Γράφημα",
   "Check SteamOS compatibility": "Ελέγξτε τη συμβατότητα SteamOS",
   "Check full stack": "Ελέγξτε την πλήρη στοίβα",
   "Check it": "Ελέγξτε το",
@@ -1289,7 +1287,6 @@
   "Every file comes from the project that publishes it and is checked against its SHA-256 before it reaches the USB.": "Κάθε αρχείο προέρχεται από το έργο που το δημοσιεύει και ελέγχεται με το SHA-256 του πριν φτάσει στο USB στικ.",
   "Every installed Steam game gets the option that lets Proton load OptiScaler, so after this the client only has to copy files into a game. Games without OptiScaler run as before. What each game already had stays. Close Steam completely first; the previous Steam settings file is kept beside it as a backup.": "Κάθε εγκατεστημένο παιχνίδι Steam παίρνει την επιλογή που επιτρέπει στο Proton να φορτώνει το OptiScaler, οπότε μετά ο πελάτης απλώς αντιγράφει αρχεία στο παιχνίδι. Τα παιχνίδια χωρίς OptiScaler λειτουργούν όπως πριν. Ό,τι είχε ήδη κάθε παιχνίδι παραμένει. Κλείστε πρώτα εντελώς το Steam· το προηγούμενο αρχείο ρυθμίσεων του Steam κρατιέται δίπλα ως αντίγραφο ασφαλείας.",
   "Every part has more views": "Κάθε εξάρτημα έχει περισσότερες προβολές",
-  "Every sensor in a list, with minimum, average and maximum": "Όλοι οι αισθητήρες σε λίστα, με ελάχιστο, μέσο όρο και μέγιστο",
   "Every sensor in one list": "Όλοι οι αισθητήρες σε μία λίστα",
   "Everything on it will be erased and replaced by the BIOS update kit. This cannot be undone.": "Ό,τι περιέχει θα διαγραφεί και θα αντικατασταθεί από το κιτ ενημέρωσης του BIOS. Αυτό δεν αναιρείται.",
   "Everything on the chosen drive is erased. The name, size and volumes shown are what will be lost.": "Ό,τι υπάρχει στον επιλεγμένο δίσκο διαγράφεται. Το όνομα, το μέγεθος και οι τόμοι που εμφανίζονται είναι αυτά που θα χαθούν.",
@@ -4958,5 +4955,9 @@
   "OptiScaler Client {version} is selected. Install or Update brings it in.": "Επιλέχθηκε το OptiScaler Client {version}. Η Εγκατάσταση ή η Ενημέρωση το φέρνει.",
   "The OptiScaler Client build Install or Update brings in. The recommended one is the build this version of Control Center was checked with.": "Η έκδοση του OptiScaler Client που φέρνει η Εγκατάσταση ή η Ενημέρωση. Η προτεινόμενη είναι η έκδοση με την οποία ελέγχθηκε αυτή η έκδοση του Control Center.",
   "The selected client build is not installed yet. Install brings it in; your games and backups are kept.": "Η επιλεγμένη έκδοση του προγράμματος-πελάτη δεν έχει εγκατασταθεί ακόμη. Η Εγκατάσταση την προσθέτει· τα παιχνίδια και τα αντίγραφα ασφαλείας σας διατηρούνται.",
-  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "Διαβάζει στο τερματικό τη λίστα εκδόσεων του OptiScaler Client στο GitHub, ώστε να μπορούν να επιλεγούν νεότερες εκδόσεις και προεκδόσεις. Δεν εγκαθίσταται τίποτα."
+  "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed.": "Διαβάζει στο τερματικό τη λίστα εκδόσεων του OptiScaler Client στο GitHub, ώστε να μπορούν να επιλεγούν νεότερες εκδόσεις και προεκδόσεις. Δεν εγκαθίσταται τίποτα.",
+  "CPU": "CPU",
+  "Every sensor with its minimum, average and maximum.": "Κάθε αισθητήρας με το ελάχιστο, τον μέσο όρο και το μέγιστο.",
+  "The list, with the sensors you tick drawn beside it.": "Η λίστα, με τους επιλεγμένους αισθητήρες σχεδιασμένους δίπλα της.",
+  "Only the graphs of the sensors you tick, larger.": "Μόνο τα γραφήματα των επιλεγμένων αισθητήρων, μεγαλύτερα."
 }
