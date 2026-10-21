@@ -108,7 +108,10 @@ def _backend(host: Host) -> str:
     if host.steamos():
         # Only a GRUB that reads the drop-in directory: SteamOS's own
         # /etc/default/grub belongs to the image and is never edited.
-        if host.command("grub-mkconfig") and grub_reads_dropins(host):
+        # And its boot menu on the EFI partition, which every write regenerates:
+        # without it the status offered a limit that the first apply refused.
+        if (host.command("grub-mkconfig") and grub_reads_dropins(host)
+                and host.path(STEAMOS_GRUB_OUTPUT).is_file()):
             return "steamos-grub"
         return "unsupported"
     if host.immutable_image():

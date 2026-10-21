@@ -1730,6 +1730,7 @@ def test_smt_turned_off_while_running_is_somebody_elses_setting(sandbox):
     """bc250-steamos' cpu-smt writes sysfs, not the command line."""
     sandbox.grub()
     sandbox.put("/etc/os-release", "ID=steamos\nID_LIKE=arch\n")
+    sandbox.put(kernel_args.STEAMOS_GRUB_OUTPUT, _steamos_menu())
     sandbox.put(kernel_args.SMT_CONTROL, "off\n")
     item = kernel_args.status(sandbox.host)["arguments"]["nosmt"]
     assert item["active"] and item["external"] and not item["managed"]
@@ -1744,6 +1745,7 @@ def test_smt_turned_off_while_running_is_somebody_elses_setting(sandbox):
 def test_steamos_takes_mitigations_and_smt_but_not_the_cu_unlock(sandbox):
     sandbox.grub()
     sandbox.put("/etc/os-release", "ID=steamos\nID_LIKE=arch\n")
+    sandbox.put(kernel_args.STEAMOS_GRUB_OUTPUT, _steamos_menu())
     status = kernel_args.status(sandbox.host)
     assert status["allowed"] == ["mitigations=off", "nosmt"]
     with pytest.raises(SetupError, match="only mitigations=off, nosmt"):
@@ -2314,3 +2316,12 @@ def test_smt_is_switched_while_the_system_runs_and_only_when_the_kernel_allows_i
 def test_the_kernel_options_report_smt_for_the_panel(sandbox):
     sandbox.put(kernel_args.SMT_CONTROL, "on\n")
     assert kernel_args.status(sandbox.host)["smt"] == {"control": "on", "supported": True}
+
+
+def test_a_steamos_without_its_boot_menu_is_not_offered_the_limit(sandbox):
+    """The status used to offer a limit that the first apply refused."""
+    sandbox.grub()
+    sandbox.put("/etc/os-release", "ID=steamos\nID_LIKE=arch\n")
+    assert kernel_args.backend(sandbox.host) == "unsupported"
+    sandbox.put(kernel_args.STEAMOS_GRUB_OUTPUT, _steamos_menu())
+    assert kernel_args.backend(sandbox.host) == "steamos-grub"
