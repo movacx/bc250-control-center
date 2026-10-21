@@ -49,7 +49,17 @@ def managed_runtime_update_available(
         release = (state_dir / "release").read_text(encoding="utf-8").strip()
     except OSError:
         return False
-    return bool(release) and release != CYAN_REVIEWED_RELEASE
+    if not release or release == CYAN_REVIEWED_RELEASE:
+        return False
+    # Only an older release: a newer one built by hand is not "updated" back.
+    mine, reviewed = _release_numbers(release), _release_numbers(CYAN_REVIEWED_RELEASE)
+    return mine is None or mine < reviewed
+
+
+def _release_numbers(release: str) -> tuple[int, ...] | None:
+    """``v0.4.14`` -> (0, 4, 14); None for anything that is not a plain release."""
+    match = re.fullmatch(r"v?(\d{1,4})\.(\d{1,4})(?:\.(\d{1,4}))?", release.strip())
+    return tuple(int(part) for part in match.groups() if part is not None) if match else None
 
 
 @lru_cache(maxsize=8)

@@ -425,6 +425,9 @@ def test_the_snapshot_flag_reads_only_the_files_prepare_leaves(tmp_path):
     assert managed_runtime_update_available(state, binary) is False
     (state / "release").write_text("v0.4.13\n", encoding="utf-8")
     assert managed_runtime_update_available(state, binary) is True
+    # A newer release built by hand is never "updated" back to the reviewed one.
+    (state / "release").write_text("v0.5.0\n", encoding="utf-8")
+    assert managed_runtime_update_available(state, binary) is False
     (state / "release").write_text("v0.4.14\n", encoding="utf-8")
     (state / "runtime-revision").write_text("bc250cc.2\n", encoding="utf-8")
     assert managed_runtime_update_available(state, binary) is True
