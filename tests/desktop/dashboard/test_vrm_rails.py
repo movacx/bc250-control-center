@@ -148,13 +148,16 @@ def test_an_empty_band_explains_how_to_enable_it(page, monkeypatch, kernel, daem
     shown = {}
 
     class Dialog:
-        def __init__(self, title, message, **kwargs):
-            shown.update(title=title, message=message, **kwargs)
+        TELEMETRY = dashboard_module.I2cGuideDialog.TELEMETRY
+        INSTALL = dashboard_module.I2cGuideDialog.INSTALL
+
+        def __init__(self, parent, *, message, can_install):
+            shown.update(message=message, can_install=can_install)
 
         def exec(self):
-            return dashboard_module.QDialog.DialogCode.Accepted
+            return self.TELEMETRY
 
-    monkeypatch.setattr(dashboard_module, "ConfirmDialog", Dialog)
+    monkeypatch.setattr(dashboard_module, "I2cGuideDialog", Dialog)
     monkeypatch.setattr(dashboard_module, "kernel_vrm_driver_present", lambda: kernel)
     monkeypatch.setattr(dashboard_module, "sondear_telemetria_vrm", lambda: {"daemon": daemon})
     routed = []
@@ -163,7 +166,8 @@ def test_an_empty_band_explains_how_to_enable_it(page, monkeypatch, kernel, daem
     page._show_vrm_help()
 
     assert shown["message"] == getattr(dashboard_module, expected)
-    assert shown["confirm_text"] == "Open Telemetry settings"
+    # The install is offered only while nothing reads the regulator yet.
+    assert shown["can_install"] is (expected == "VRM_HELP_SERVICE")
     assert routed == ["telemetry_settings"]
 
 

@@ -83,6 +83,7 @@ from ..core.diagnostic_history import (
 )
 from ..core.external_links import open_external_url
 from ..core.preferences import REPORT_GLOW_KEY, application_settings
+from ..core.raw_errors import remember
 from ..core.state import state_cache_for
 from ..i18n import (
     LANGUAGE_OPTIONS,
@@ -613,6 +614,7 @@ class SettingsTask(QThread):
         try:
             self.succeeded.emit(self.operation())
         except Exception as error:
+            remember(error)
             self.failed.emit(str(error))
 
 
@@ -1644,6 +1646,18 @@ class SettingsPage(QWidget):
             if not supported and state.get("blocked_reason"):
                 button.setToolTip(str(state["blocked_reason"]))
 
+    def install_apu_telemetry(self) -> None:
+        """Start the install from elsewhere (the power delivery guide).
+
+        Only when the button here would install: a service already managed or
+        installed separately is left as it is.
+        """
+        button = getattr(self, "apu_telemetry_button", None)
+        state = self._apu_telemetry_state()
+        if button is None or not button.isEnabled() or state.get("managed") or state.get("state") == "external":
+            return
+        self._apu_telemetry_clicked()
+
     def _apu_telemetry_clicked(self) -> None:
         action = "uninstall" if self._apu_telemetry_state().get("managed") else "install"
         if action == "install":
@@ -1846,13 +1860,17 @@ class SettingsPage(QWidget):
             "Diagnostics",
             "This system at a glance and every error Control Center explained, ready to paste into a problem report.",
         )
-        actions = ActionGrid(columns=3)
-        self.diagnostics_copy_button = self._button(
-            "Copy for a problem report", self._copy_diagnostic_report, primary=True
-        )
+        actions = ActionGrid(columns=4)
+        self.diagnostics_send_button = self._button("Send a report", self._send_problem_report, primary=True)
+        self.diagnostics_copy_button = self._button("Copy for a problem report", self._copy_diagnostic_report)
         self.diagnostics_refresh_button = self._button("Refresh", self._refresh_diagnostics)
         self.diagnostics_clear_button = self._button("Clear history", self._clear_diagnostic_history)
-        for button in (self.diagnostics_copy_button, self.diagnostics_refresh_button, self.diagnostics_clear_button):
+        for button in (
+            self.diagnostics_send_button,
+            self.diagnostics_copy_button,
+            self.diagnostics_refresh_button,
+            self.diagnostics_clear_button,
+        ):
             actions.addWidget(button)
         self._action_grids.append(actions)
         layout.addWidget(actions)
@@ -2480,6 +2498,13 @@ class SettingsPage(QWidget):
         if entry.detail:
             parts.append(f"{tr('Technical detail')}\n{entry.detail}")
         self.diagnostics_detail.setPlainText("\n\n".join(parts))
+
+    def _send_problem_report(self) -> None:
+        from ..components.feedback_dialog import FeedbackDialog
+
+        # The report carries the recent errors; which one it is about is the
+        # owner's to say, so no code is guessed here.
+        FeedbackDialog(self, opened_from="Settings › Diagnostics").exec()
 
     def _copy_diagnostic_report(self) -> None:
         report = diagnostic_report(self._system_rows, self._diagnostic_entries)

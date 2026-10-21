@@ -6,7 +6,6 @@ from typing import NamedTuple
 
 from PyQt6.QtCore import QPoint, QRect, Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
-    QDialog,
     QGridLayout,
     QSizePolicy,
     QVBoxLayout,
@@ -39,7 +38,8 @@ from ..components.dashboard_widgets import (
     PreparationSidebar,
     UpdateCallout,
 )
-from ..components.page_widgets import ConfirmDialog
+from ..components.feedback_dialog import FeedbackDialog
+from ..components.i2c_guide import I2cGuideDialog
 from ..components.responsive import (
     clear_grid,
     configure_responsive_scroll_area,
@@ -58,7 +58,7 @@ from ..core.error_diagnostics import (
     TELEMETRY_GUIDE_TITLE,
 )
 from ..core.external_links import open_external_url, update_checks_enabled
-from ..core.gddr6_monitor import EXTERNAL_SOURCE, gddr6_monitor_for
+from ..core.gddr6_monitor import EXTERNAL_SOURCE, KERNEL_SOURCE, gddr6_monitor_for
 from ..core.preferences import report_glow_enabled
 from ..core.state import DashboardState, state_cache_for
 from ..i18n import tr, tr_format
@@ -719,6 +719,12 @@ class DashboardPage(QWidget):
         ).exec()
 
     def _open_report(self) -> None:
+        # The form inside the app; the browser only when it cannot be built.
+        try:
+            FeedbackDialog(self.window(), opened_from="Dashboard footer").exec()
+            return
+        except Exception:  # noqa: BLE001 - the browser form still works
+            logger.exception("The report form could not be opened")
         opened, message = open_external_url(REPORT_URL)
         if opened:
             return
@@ -1025,7 +1031,7 @@ class DashboardPage(QWidget):
         # is the one that swaps the button rather than greying it out. The
         # others — no board, no helpers, wrong firmware — are stated instead:
         # nothing on this row would fix them.
-        summary.set_ready(reading.repository_ready or reading.live)
+        summary.set_ready(reading.repository_ready or reading.live or reading.kernel_driver)
         summary.live_button.setEnabled(reading.can_monitor or reading.live)
         # BC250-Telemetry's collector owns the SMU mailbox while it runs. Its
         # readings arrive on their own, so there is nothing for either button
@@ -1042,6 +1048,8 @@ class DashboardPage(QWidget):
             )
             if reading.source == EXTERNAL_SOURCE:
                 hotspot = f"{hotspot} · {tr('Read by BC250-Telemetry')}"
+            elif reading.source == KERNEL_SOURCE:
+                hotspot = f"{hotspot} · {tr('Read by the kernel driver (bc250_memory)')}"
             summary.set_detail(hotspot)
         else:
             summary.set_value("Waiting for sample")
@@ -1242,23 +1250,21 @@ class DashboardPage(QWidget):
         return self._format_temperature(state.vrm_cpu_temperature_c), detail
 
     def _show_vrm_help(self) -> None:
-        """Where the power delivery readings come from on this board, and the
-        one place they are switched on: Settings › Telemetry."""
-        if kernel_vrm_driver_present():
+        """Where the power delivery readings come from on this board, the
+        photo guide of the I2C modification, and the service that reads it."""
+        kernel = kernel_vrm_driver_present()
+        daemon = str(sondear_telemetria_vrm().get("daemon") or "missing")
+        if kernel:
             message = VRM_HELP_KERNEL
-        elif str(sondear_telemetria_vrm().get("daemon") or "missing") in {"running", "stale"}:
+        elif daemon in {"running", "stale"}:
             message = VRM_HELP_NO_ANSWER
         else:
             message = VRM_HELP_SERVICE
-        dialog = ConfirmDialog(
-            "Show the power delivery readings",
-            message,
-            confirm_text="Open Telemetry settings",
-            eyebrow="Power delivery",
-            tone="blue",
-            parent=self,
-        )
-        if dialog.exec() == QDialog.DialogCode.Accepted:
+        # One window: what this board needs beside the photo guide of the mod.
+        result = I2cGuideDialog(self, message=message, can_install=message == VRM_HELP_SERVICE).exec()
+        if result == I2cGuideDialog.INSTALL:
+            self.action_requested.emit("telemetry_install")
+        elif result == I2cGuideDialog.TELEMETRY:
             self.action_requested.emit("telemetry_settings")
 
     def _update_vrm_strip(self, state) -> None:

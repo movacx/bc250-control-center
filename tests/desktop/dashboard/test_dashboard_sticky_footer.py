@@ -7,7 +7,6 @@ from frontends.desktop.components.widgets import ICON_DIR
 from frontends.desktop.i18n import localize_widget_tree, set_language, tr
 from frontends.desktop.pages.dashboard import (
     CONTACT_URL,
-    REPORT_URL,
     SUPPORT_URL,
     TELEGRAM_URL,
     DashboardPage,
@@ -47,6 +46,17 @@ def test_header_actions_stay_visible_without_covering_scrolled_controls(qtbot, w
 def test_sticky_buttons_keep_routes_translations_and_keyboard_activation(qtbot, monkeypatch):
     opened = []
     monkeypatch.setattr(dashboard_module, "open_external_url", lambda url: (opened.append(url) or True, ""))
+    reports = []
+
+    class Report:
+        def __init__(self, parent, **kwargs):
+            reports.append(kwargs)
+
+        def exec(self):
+            return 0
+
+    # The report button opens the form inside the app, not the browser.
+    monkeypatch.setattr(dashboard_module, "FeedbackDialog", Report)
     page = DashboardPage(object())
     qtbot.addWidget(page)
     page.resize(1000, 800)
@@ -70,7 +80,8 @@ def test_sticky_buttons_keep_routes_translations_and_keyboard_activation(qtbot, 
         page.contact_button.click()
         page.telegram_button.click()
         page.report_button.click()
-        assert opened == [SUPPORT_URL, CONTACT_URL, TELEGRAM_URL, REPORT_URL]
+        assert opened == [SUPPORT_URL, CONTACT_URL, TELEGRAM_URL]
+        assert reports == [{"opened_from": "Dashboard footer"}]
         assert TELEGRAM_URL.startswith("https://t.me/")
     finally:
         set_language("en")
