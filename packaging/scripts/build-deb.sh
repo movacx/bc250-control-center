@@ -35,7 +35,7 @@ Section: utils
 Priority: optional
 Architecture: all
 Maintainer: BC250 Control Center contributors <noreply@example.invalid>
-Depends: python3, python3-pyqt6, python3-psutil, libqt6svg6, pkexec | policykit-1, jq
+Depends: python3 (>= 3.11), python3-pyqt6, python3-psutil, libqt6svg6, pkexec | policykit-1, jq
 Suggests: git, lm-sensors, pciutils, stress, vulkan-tools
 Description: BC-250 monitoring, tuning and recovery control center
  Desktop and headless management for AMD BC-250 systems.
