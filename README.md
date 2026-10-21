@@ -1,15 +1,11 @@
 # BC250 Control Center
 
-**One app to set up, tune and monitor an AMD BC-250 on Linux.**
+Desktop application for setting up, tuning and monitoring the AMD BC-250 on Linux.
 
-The BC-250 is a mining board with a PlayStation 5 APU that the community turned into a gaming PC. Getting it right used to mean a dozen scripts, forum threads and kernel patches. BC250 Control Center puts that work in one window: it prepares your distribution, runs the GPU governor, tunes the CPU, unlocks Compute Units, drives the fans, shows every sensor the board has and builds BIOS update USBs. Each hardware change has limits and a check before it is applied.
-
-It is shaped by the BC-250 community: most features started as a bug report or a "can it do X?" on Discord.
+It covers the GPU governor, CPU tuning, Compute Units, fans, memory, BIOS update media, upscaling and system preparation for the supported distributions. Every change to the hardware is range-checked and confirmed before it is applied. An optional Decky plugin brings the everyday controls to Steam's Game Mode.
 
 <p align="center">
   <a href="https://movacx.github.io/bc250-control-center/gallery/#dashboard"><img src="assets/screenshots/dashboard-overview.png" alt="BC250 Control Center dashboard" width="100%"></a>
-  <br>
-  <sub><a href="https://movacx.github.io/bc250-control-center/gallery/">See every screen in the gallery</a></sub>
 </p>
 
 <p align="center">
@@ -25,181 +21,187 @@ It is shaped by the BC-250 community: most features started as a bug report or a
   <a href="docs/readmes/README.ja.md"><img src="https://img.shields.io/badge/%E6%97%A5%E6%9C%AC%E8%AA%9E-0550ae?style=for-the-badge" alt="日本語で読む"></a>
 </p>
 
----
+More screenshots are in the [gallery](https://movacx.github.io/bc250-control-center/gallery/).
 
-## Contents
+## Features
 
-- [Supported systems](#supported-systems)
-- [Install](#install)
-- [Keeping it up to date](#keeping-it-up-to-date)
-- [Your first ten minutes](#your-first-ten-minutes)
-- [Modules](#modules)
-- [Decky Quick Access for Game Mode](#decky-quick-access-for-game-mode)
-- [When something goes wrong](#when-something-goes-wrong)
-- [Before you touch the hardware](#before-you-touch-the-hardware)
-- [Built on the community's work](#built-on-the-communitys-work)
-- [Inside the repository](#inside-the-repository)
+- Dashboard with CPU, GPU, cooling, per-core load, GDDR6 temperature per chip, installed BIOS and power rails (the rails need the I2C hardware modification; the app includes a photo guide)
+- Performance charts for CPU, GPU, VRAM, RAM, disk and network, with a sensor view and CSV export
+- GPU governor management (Cyan, with Oberon as an alternative), safe frequency ranges and a voltage laboratory
+- CPU tuning through the SMU, stability test and optional core unlock
+- Compute Units: 24 to 40 CU, with live and boot state reported separately
+- Fan control: manual PWM, temperature curves, persistent profiles, or hand-off to CoolerControl, fancontrol or fan2go
+- Memory: VRAM size, ZRAM, ZSWAP and swap
+- BIOS update USB creation (P3.00 Chipset Menu, MeiMeiDXE v3, P5.00, P3.00, P2.00) with every file verified
+- Per-game upscaling: FSR4 INT8 through OptiScaler Client and HelixSR, with backup and restore of game files
+- System preparation per distribution, run in a built-in terminal
+- Compatibility fixes for GFX1013, async compute, ACPI and Mesa; Dolby Digital 5.1 over HDMI; TV control over HDMI-CEC
+- In-app problem reports with error codes, origin codes and the raw error attached
+- 30 languages, light and dark themes, UI scaling and controller navigation
 
-## Supported systems
+## Supported distributions
 
-| Distribution | Package | Notes |
-|---|---|---|
-| Arch, CachyOS, Manjaro | `.pkg.tar.zst`, or `bc250-control-center-git` from the AUR | CachyOS can use MastaG's matched BC-250 kernel and Mesa. |
-| Fedora, Nobara | `.noarch.rpm` | Warns when Mesa is too old and the desktop falls back to the CPU. |
-| Bazzite and other Fedora Atomic | `.noarch.rpm` through `rpm-ostree` | Needs a reboot into the new deployment after installing or updating. |
-| SteamOS | AUR package | The app turns the read-only protection off and on around each install. A SteamOS system update removes it; see [Keeping it up to date](#keeping-it-up-to-date). |
-| Ubuntu, Linux Mint, Debian 13 | `_all.deb` | Install with `apt`, not `dpkg -i`, so the dependencies come along. |
+- Arch Linux, CachyOS, Manjaro
+- Fedora, Nobara
+- Bazzite and other Fedora Atomic variants
+- SteamOS (beta)
+- Ubuntu, Linux Mint, Debian 13
 
-Other distributions are detected and handled where possible, including OpenRC systems such as Gentoo and Alpine. If yours is not in the table, try it and tell me how it went.
+Python 3.11 or newer is required. Other distributions, including OpenRC systems, are detected and handled where possible but are not tested on every release.
 
-## Install
+## Installation
 
-**AUR (Arch, CachyOS, SteamOS):**
+### AUR
+
+For Arch Linux, CachyOS and SteamOS:
 
 ```bash
 yay -S bc250-control-center-git
 ```
 
-**Release packages:** download the file for your system from the [latest release](https://github.com/movacx/bc250-control-center/releases/latest), then:
+### Release packages
+
+Download the package for your distribution from the [latest release](https://github.com/movacx/bc250-control-center/releases/latest).
+
+Arch Linux, CachyOS, Manjaro:
 
 ```bash
-# Arch, CachyOS, Manjaro
 sudo pacman -U ./bc250-control-center-*-any.pkg.tar.zst
+```
 
-# Fedora, Nobara
+Fedora, Nobara:
+
+```bash
 sudo dnf install ./bc250-control-center-*.rpm
+```
 
-# Bazzite, Fedora Atomic
+Bazzite and Fedora Atomic (a reboot is required):
+
+```bash
 sudo rpm-ostree install ./bc250-control-center-*.rpm
 systemctl reboot
+```
 
-# Ubuntu, Linux Mint, Debian
+Ubuntu, Linux Mint, Debian:
+
+```bash
 sudo apt install ./bc250-control-center_*.deb
 ```
 
-If `dpkg -i` already left the package half-installed on Debian or Ubuntu, `sudo apt --fix-broken install` repairs it.
+Use `apt install` rather than `dpkg -i` so that dependencies are installed. If a package was left half-installed by `dpkg -i`, run `sudo apt --fix-broken install`.
 
-## Keeping it up to date
-
-You install once. When a new version is out, the dashboard says so, shows the changelog, checks the package's SHA-256 and installs it with your package manager.
-
-- **SteamOS:** a SteamOS system update wipes everything installed into the system, this app included. Afterwards, open **Reinstall BC250 Control Center** from the Desktop Mode menu and run Prepare dependencies again. SteamOS asks for the `deck` password; if you never set one, run `passwd` in Konsole first.
-- **Coming from 1.19:** its updater cannot install packages. Update once by hand from the [latest release](https://github.com/movacx/bc250-control-center/releases/latest); from then on the app updates itself.
+### From source
 
 ```bash
-# Bazzite / Fedora Atomic: replace a layered 1.19 in one step, then reboot
+git clone https://github.com/movacx/bc250-control-center.git
+cd bc250-control-center
+./run.sh                          # run from the checkout
+bash scripts/install-local.sh     # or install it for the current user
+```
+
+## Updating
+
+The application checks for new releases, shows the changelog, verifies the package checksum and installs the update with the system package manager.
+
+**SteamOS:** a SteamOS system update removes packages installed into the system, including this one. After a system update, run **Reinstall BC250 Control Center** from the Desktop Mode menu, then run Prepare BC250 system again. SteamOS asks for the password of the `deck` user; set one with `passwd` if you have not done so.
+
+**Upgrading from 1.19:** the 1.19 updater cannot install packages. Install the current release once by hand; later versions update themselves.
+
+```bash
+# Bazzite / Fedora Atomic: replace a layered 1.19 package
 sudo rpm-ostree uninstall bc250-control-center --install ./bc250-control-center-*.noarch.rpm
 systemctl reboot
 
-# Installed with install-local.sh: from the folder you installed it from, remove that copy,
-# then install the package for your system
+# A copy installed with install-local.sh: remove it, then install the package
 bash scripts/uninstall-local.sh
 ```
 
-## Your first ten minutes
+## Getting started
 
-1. Open **BC250 Control Center**. The welcome screen asks for language, appearance and sidebar, and offers to install what the board needs. All of it can be changed later in **Settings**.
-2. Take the guided tour. It walks through every module and says what each one touches on the board.
-3. On the **Dashboard**, run **Prepare BC250 system**. It lists what it will install for your distribution (the GPU governor, sensors, the tools the CPU and Compute Units modules need) and runs it in a built-in terminal, so every command is visible.
-4. Before applying anything in a module, read its status line: it says what is ready, what is missing and why.
+1. Launch BC250 Control Center. The first-run screen sets the language and appearance and offers to install the required components.
+2. Optionally take the guided tour, which explains what each module changes on the board.
+3. On the Dashboard, run **Prepare BC250 system**. It shows what will be installed for your distribution and runs it in the built-in terminal.
+4. Read the status line of a module before applying changes; it reports what is ready and what is missing.
 
-## Modules
+## Decky plugin
 
-| Module | What it does | Touches the hardware |
-|---|---|---|
-| **Dashboard** | Processor, graphics and cooling at a glance; live cores, the temperature of each GDDR6 chip, the installed BIOS and notices when something installed needs attention. The power rails need a small hardware modification (two wires between two headers, no soldering); the app's **Guide with photos** shows where they go. | No |
-| **Performance** | CPU, GPU, VRAM, RAM, disk and network charts, and a Sensors view with minimum, average and maximum. CSV export. | No |
-| **GPU** | The Cyan governor (Oberon as an alternative) with safe ranges, a voltage laboratory and points above 2000 MHz. If you are unsure, use Cyan. | Yes |
-| **CPU / SMU** | Temporary and persistent tuning, a stability test and the experimental hidden-core unlock. | Yes |
-| **Compute Units** | 24 to 40 CU, with the live and boot states shown separately. | Yes |
-| **Fans** | Manual PWM, temperature curves, profiles that survive a reboot, export to a file or to Decky, or hand the fan to CoolerControl, fancontrol or fan2go. | Yes |
-| **Firmware (BIOS)** | Builds an update USB with P3.00 Chipset Menu, MeiMeiDXE v3, P5.00, P3.00 or P2.00, every file verified. | Writes a USB stick |
-| **Additional settings** | VRAM size, ZRAM, ZSWAP and swap; compatibility fixes (GFX1013, async compute, ACPI, Mesa); Dolby Digital 5.1 over HDMI; TV control over HDMI-CEC with Valve's cecd. | Some options |
-| **Upscaling** | FSR4 INT8 through OptiScaler Client and HelixSR (DLSS Model E in FSR 3.1 games), per game. Backs up and restores any game the client added, offers new upstream versions on its own, and keeps the Steam launch option in one place. | Writes into game folders, with backups |
-| **Drivers** | Wi-Fi, Bluetooth and printer drivers from your distribution's repositories, and case accessories (Thermalright screen, Corsair fans). | No |
+BC250 Quick Access is an optional panel for the Quick Access menu in Steam's Game Mode. It provides GPU, Compute Unit, CPU, fan and VRAM controls, per-game GPU and fan profiles, and live async compute readings. Advanced configuration stays in the desktop application.
 
-The interface comes in 30 languages, with Light, Dark and Night blue themes, Standard and Formal styles, 10 accent colors, 70 % to 150 % scale and controller navigation.
+Install it from the **Decky** section of the Dashboard. Decky Loader is installed as well if it is missing; nothing else in the application installs Decky. See the [plugin README](integrations/decky/bc250-quick-access/README.md) for details.
 
-## Decky Quick Access for Game Mode
+## Reporting problems
 
-An optional panel in the Quick Access menu, for the everyday changes (GPU, CU, CPU, fans, VRAM) without leaving the game. The advanced setup stays in the desktop app.
+Error windows show a diagnostic code (for example `BC250-UPSCALE-001`), an origin code that identifies the function where the error occurred (for example `GPU-0142`), and the raw error with its traceback.
 
-- **Per-game profiles:** a GPU and fan profile per game, applied when it opens and undone when it closes.
-- **Live async compute:** whether the game uses asynchronous compute, and how much.
-- **Fan presets:** with the names and speeds exported from the desktop.
+Use **Report this problem** in the error window, or **Settings › Diagnostics › Send a report**. The report form opens inside the application with the codes, the raw error, system specifications and recent errors filled in. You can review everything before sending; home directory paths are replaced with `~`. If the form cannot be submitted, it opens in the browser with your answers kept. The form is also available [on the web](https://docs.google.com/forms/d/e/1FAIpQLSe3M1stf3bpCoorb4hCWFX9YC_TZ_Gv6WHWQDRe1AV5rJT6rA/viewform).
 
-It is only useful if you play from Steam's Game Mode. To install it, open the **Dashboard** and press the action in the **Decky** section: that installs Decky Loader too if it is missing. Nothing else installs Decky; Prepare BC250 system leaves it alone. More in the [Decky README](integrations/decky/bc250-quick-access/README.md).
+Issues on GitHub are welcome as well. Please include your distribution, kernel version and the terminal output.
 
-## When something goes wrong
+## Safety
 
-Every error window names the fault and where it happened:
+Overclocking, unlocking Compute Units, changing fan control and flashing a BIOS can make the system unstable, cause data loss or damage the board. Change one setting at a time and keep a way to revert it. The application's checks catch common mistakes but are not a guarantee.
 
-- **An error code** such as `BC250-UPSCALE-001`, with what happened, the likely cause and how to fix it.
-- **An origin code** such as `GPU-0142`. Every function in the app has a stable one, so the code points at the exact action and the exact line that raised the error.
-- **The raw error**, exactly as it was raised, with its traceback one click away.
+## Credits
 
-Press **Report this problem** in that window, or **Settings › Diagnostics › Send a report**, and the report form opens inside the app with all of that filled in, plus your system's specifications and recent errors. You see exactly what is sent before sending it, paths have your home folder replaced by `~`, and if Google Forms cannot be reached the form opens in the browser without losing what you wrote. The same form is [on the web](https://docs.google.com/forms/d/e/1FAIpQLSe3M1stf3bpCoorb4hCWFX9YC_TZ_Gv6WHWQDRe1AV5rJT6rA/viewform).
+This project builds on the work of the BC-250 community. The projects below belong to their authors; the application integrates them through reviewed, pinned workflows. Licenses and the scope of each integration are listed in the [third-party notices](docs/THIRD_PARTY_NOTICES.md).
 
-## Before you touch the hardware
+**GPU**
+- [cyan-skillfish-governor](https://github.com/filippor/cyan-skillfish-governor/tree/smu): GPU governor
+- [Oberon Governor](https://gitlab.com/mothenjoyer69/oberon-governor): alternative governor
+- [bc250-gfx1013-fix](https://github.com/DryhoppedIPA/bc250-gfx1013-fix) and [bc250-steamos](https://github.com/keyboardspecialist/bc250-steamos): kernel and Mesa/RADV for GFX1013
+- [linux-cachyos-bc250](https://github.com/MastaG/linux-cachyos-bc250): kernel and Mesa/RADV for Arch and CachyOS
+- [bc250-async-compute-bazzite](https://github.com/tri3gubki-ops/bc250-async-compute-bazzite): async compute on Bazzite 44, with RADV patches also built for Arch, CachyOS and Fedora on kernel 7.2 or newer
 
-Overclocking, unlocking Compute Units, controlling fans and flashing a BIOS can freeze the machine, lose data or kill the board. Change one thing at a time and keep a way back. The app's checks catch the obvious mistakes, not all of them; they are not a guarantee.
+**Upscaling**
+- [bc250-fsr4](https://github.com/dmorazasanchez/bc250-fsr4) and [bc250-fsr4-fork](https://github.com/daniel-h-0/bc250-fsr4-fork): OptiScaler Client, FSR4 per game
+- [HelixSR](https://github.com/lonewolf0622/HelixSR): DLSS Model E reconstruction in FSR 3.1 games
 
-## Built on the community's work
+**CPU and Compute Units**
+- [bc250_smu_oc](https://github.com/bc250-collective/bc250_smu_oc): CPU detection and tuning through the SMU
+- [bc250-core-unlock](https://github.com/rw-r-r-0644/bc250-core-unlock) and [bc250-efi-core-unlock](https://github.com/Hexxeh/bc250-efi-core-unlock): core unlock
+- [bc250-acpi-fix](https://github.com/e-tho/bc250-acpi-fix): CPU performance states through ACPI
+- [bc250-cu-live-manager](https://github.com/WinnieLV/bc250-cu-live-manager), [bc250-cu-live-manager-SteamOS](https://github.com/F5GO/bc250-cu-live-manager-SteamOS) and [bc250-40cu-unlock](https://github.com/duggasco/bc250-40cu-unlock): Compute Units
 
-None of this exists without the people who reverse-engineered the board. These projects are theirs; the app only reaches them through workflows I have read and pinned. Licenses, review status and the exact scope of every integration are in the [third-party notices](docs/THIRD_PARTY_NOTICES.md).
+**Sensors, memory and fans**
+- [BC250-Telemetry](https://github.com/onlinermm/BC250-Telemetry): VRM telemetry and the photos used in the I2C guide
+- [bc250-memory-temperature](https://github.com/pan-Rijovich/bc250-memory-temperature): GDDR6 temperature
+- [bc250_memcfg](https://github.com/fanoush/bc250_memcfg): VRAM size through CMOS
+- [nct6687d](https://github.com/Fred78290/nct6687d): NCT sensors and fan PWM
+- [linux-cec](https://gitlab.steamos.cloud/holo/linux-cec): cecd, Valve's HDMI-CEC daemon
 
-| Area | Project | Used for |
-|---|---|---|
-| GPU | [cyan-skillfish-governor](https://github.com/filippor/cyan-skillfish-governor/tree/smu) | GPU governor |
-| GPU | [Oberon Governor](https://gitlab.com/mothenjoyer69/oberon-governor) | Alternative governor |
-| GPU | [bc250-gfx1013-fix](https://github.com/DryhoppedIPA/bc250-gfx1013-fix), [bc250-steamos](https://github.com/keyboardspecialist/bc250-steamos) | Kernel and Mesa/RADV for GFX1013 |
-| GPU | [linux-cachyos-bc250](https://github.com/MastaG/linux-cachyos-bc250) | Matched kernel and Mesa/RADV for Arch and CachyOS |
-| GPU | [bc250-async-compute-bazzite](https://github.com/tri3gubki-ops/bc250-async-compute-bazzite) | Async compute on Bazzite 44; its RADV patches also built for Arch/CachyOS and Fedora on kernel 7.2+ |
-| Upscaling | [bc250-fsr4](https://github.com/dmorazasanchez/bc250-fsr4), [bc250-fsr4-fork](https://github.com/daniel-h-0/bc250-fsr4-fork) | FSR4 per game (OptiScaler Client) |
-| Upscaling | [HelixSR](https://github.com/lonewolf0622/HelixSR) | DLSS Model E reconstruction in FSR 3.1 games |
-| CPU | [bc250_smu_oc](https://github.com/bc250-collective/bc250_smu_oc) | CPU detection and tuning through the SMU |
-| CPU | [bc250-core-unlock](https://github.com/rw-r-r-0644/bc250-core-unlock), [bc250-efi-core-unlock](https://github.com/Hexxeh/bc250-efi-core-unlock) | Hidden-core unlock |
-| CPU | [bc250-acpi-fix](https://github.com/e-tho/bc250-acpi-fix) | CPU performance states through ACPI |
-| Compute Units | [bc250-cu-live-manager](https://github.com/WinnieLV/bc250-cu-live-manager), [its SteamOS port](https://github.com/F5GO/bc250-cu-live-manager-SteamOS), [bc250-40cu-unlock](https://github.com/duggasco/bc250-40cu-unlock) | 24 to 40 CU |
-| Sensors | [BC250-Telemetry](https://github.com/onlinermm/BC250-Telemetry) | VRM telemetry, and the photos of the I2C guide |
-| Sensors | [bc250-memory-temperature](https://github.com/pan-Rijovich/bc250-memory-temperature) | GDDR6 temperature |
-| Sensors | [nct6687d](https://github.com/Fred78290/nct6687d) | NCT sensors and fan PWM |
-| Memory | [bc250_memcfg](https://github.com/fanoush/bc250_memcfg) | VRAM size through CMOS |
-| HDMI | [linux-cec](https://gitlab.steamos.cloud/holo/linux-cec) | cecd, Valve's HDMI-CEC daemon |
-| Firmware | [bc250-bios](https://gitlab.com/TuxThePenguin0/bc250-bios) | Stock P3.00 and Chipset Menu BIOS |
-| Firmware | [AMD-BC-250-UEFI-v2.2-Firmware-Menu-Script](https://github.com/Forbidden-Darkness/AMD-BC-250-UEFI-v2.2-Firmware-Menu-Script) | UEFI Shell and MeiMeiDXE v3 |
-| Firmware | [BC-250](https://github.com/kenavru/BC-250) | Mirror of ASRock's update kit (P2.00 and P5.00) |
-| Firmware | [bc250-custom-bios-logo](https://github.com/tmghd272/bc250-custom-bios-logo) | Custom boot logo |
+**Firmware**
+- [bc250-bios](https://gitlab.com/TuxThePenguin0/bc250-bios): stock P3.00 and Chipset Menu BIOS
+- [AMD-BC-250-UEFI-v2.2-Firmware-Menu-Script](https://github.com/Forbidden-Darkness/AMD-BC-250-UEFI-v2.2-Firmware-Menu-Script): UEFI Shell and MeiMeiDXE v3
+- [BC-250](https://github.com/kenavru/BC-250): mirror of ASRock's update kit (P2.00 and P5.00)
+- [bc250-custom-bios-logo](https://github.com/tmghd272/bc250-custom-bios-logo): custom boot logo
 
-**Projects I am following** (not used by the app yet; licenses as GitHub reports them):
-[bc250-vrm-dkms](https://github.com/Hexxeh/bc250-vrm-dkms) and [bc250-memory-dkms](https://github.com/Hexxeh/bc250-memory-dkms) (GPL-2.0), VRM and memory temperatures as kernel modules;
-[bc250-bazzite-suite](https://github.com/RobertoTorino/bc250-bazzite-suite) (GPL-3.0), another take on setting up Bazzite;
-[bc250-vcn-research](https://github.com/Shalasere/bc250-vcn-research) and [amdgpu-wddm](https://github.com/D-Ogi/amdgpu-wddm), VCN video encoding research and an open Windows driver. Neither declares a license, so they are only linked.
+**Related projects** (not used by the application; licenses as reported by GitHub)
+- [bc250-vrm-dkms](https://github.com/Hexxeh/bc250-vrm-dkms) and [bc250-memory-dkms](https://github.com/Hexxeh/bc250-memory-dkms) (GPL-2.0): VRM and memory temperatures as kernel modules
+- [bc250-bazzite-suite](https://github.com/RobertoTorino/bc250-bazzite-suite) (GPL-3.0): Bazzite setup suite
+- [bc250-vcn-research](https://github.com/Shalasere/bc250-vcn-research) and [amdgpu-wddm](https://github.com/D-Ogi/amdgpu-wddm): VCN video encoding research and an open Windows driver (no license declared; linked only)
 
-## Inside the repository
+## Development
 
 ```text
-bc250-control-center/
-├── src/bc250cc/          Core, with no graphical interface
-│   ├── domain/           Rules and limits of each module
-│   ├── application/      Use cases that combine those rules
-│   ├── infrastructure/   System access: sensors, services, packages, GitHub
-│   ├── platform/         Differences between distributions and init systems
-│   └── shared/           Version, paths, error and origin codes shared by every process
-├── frontends/desktop/    Qt desktop app: pages, components, onboarding, terminal, themes, 30 languages
-├── integrations/decky/   Decky Quick Access plugin for Game Mode
-├── privileged/           What runs as root, isolated and reviewed: one helper per task, polkit policies
-├── packaging/            .pkg.tar.zst, .rpm, .deb and the AUR PKGBUILD
-├── scripts/              Launchers, local installer, system utilities and the distribution test matrix
-├── assets/               Icons, screenshots, the web gallery and the I2C guide photos
-├── docs/                 Third-party notices and translations of this README
-└── tests/                Over 5,000 automated tests, with os-release files from 37 real distributions
+src/bc250cc/          Core library without a graphical interface (domain, application, infrastructure, platform)
+frontends/desktop/    PyQt6 desktop application
+integrations/decky/   Decky Quick Access plugin
+privileged/           Helpers that run as root, and their polkit policies
+packaging/            Arch, RPM and Debian packaging, and the AUR PKGBUILD
+scripts/              Launchers, local installer, system scripts and the distribution test matrix
+tests/                Automated test suite
 ```
 
-To run it from a checkout: `./run.sh`. To install that checkout for your user: `bash scripts/install-local.sh`.
+Run the test suite:
 
-## Contributing
+```bash
+python -m venv .venv && . .venv/bin/activate
+pip install -r requirements-dev.txt
+QT_QPA_PLATFORM=offscreen python -m pytest
+```
 
-Bug reports help the most: use the in-app report, or open an issue with your distribution, kernel and what the terminal printed. If you run a distribution that is not listed, tell me how it went either way.
+The distribution matrix in `scripts/qa/rootless-matrix` tests boot options, installation, the Decky plugin and the release packages on Arch, Debian, Ubuntu, Linux Mint and Fedora root filesystems without root privileges. See its [README](scripts/qa/rootless-matrix/README.md).
 
-Licensed under the [MIT License](LICENSE).
+## License
+
+[MIT](LICENSE)
