@@ -214,7 +214,12 @@ def caller_origin(frame: FrameType | None = None) -> Origin | None:
 
 _PATH = re.compile(r'File "([^"]+)"')
 #: A home folder in any form a path can take; the name in it is the user's.
-_HOME_PATH = re.compile(r"(?:/var)?/home/[^/\s'\"]+|/Users/[^/\s'\"]+|/root(?=/|\b)")
+_HOME_PATH = re.compile(
+    r"(?:/var)?/home/[^/\s'\"]+|/Users/[^/\s'\"]+|/root(?=/|\b)"
+    # Removable drives and second disks mount under the user's name too
+    # (SteamOS: /run/media/deck/<card>), and Steam libraries live there.
+    r"|/run/media/[^/\s'\"]+|/media/[^/\s'\"]+"
+)
 
 
 def redact(text: object) -> str:

@@ -25,7 +25,12 @@ from PyQt6.QtWidgets import (
 from bc250cc.shared.error_origins import caller_origin
 
 from .. import theme as theme_module
-from ..core.diagnostic_history import origin_text, record_window_error, window_diagnosis
+from ..core.diagnostic_history import (
+    failure_section,
+    origin_text,
+    record_window_error,
+    window_diagnosis,
+)
 from ..core.error_diagnostics import (
     error_sections,
     format_error_for_user,
@@ -357,6 +362,9 @@ class InfoDialog(QDialog):
     ):
         raw_title = str(title)
         raw_eyebrow = str(eyebrow)
+        # The message as it came, in English, before it is explained and
+        # translated: that is what a report must carry as the raw error.
+        raw_message = str(message or "").strip()
         context = f"{raw_eyebrow} {raw_title}"
         umr_command = ""
         report_code = ""
@@ -371,15 +379,16 @@ class InfoDialog(QDialog):
             record_window_error(
                 message, context=context, title=raw_title, origin=self.origin, raw=self.raw_error,
             )
-            report_code = window_diagnosis(message, context=context).code
+            section = failure_section(self.origin, self.raw_error)
+            report_code = window_diagnosis(message, context=context, section=section).code
             # A broken UMR gets its reinstall command on a footer button: the
             # steps point at it, so it must not hide under the scrolled detail.
             if not copy_text:
                 umr_command = umr_repair_command(message, context=context)
-            explained = error_sections(message, context=context, translate=tr)
+            explained = error_sections(message, context=context, translate=tr, section=section)
             if explained is not None:
                 sections, report_code = explained
-            message = format_error_for_user(message, context=context, translate=tr)
+            message = format_error_for_user(message, context=context, translate=tr, section=section)
         title = tr(title)
         message = tr(message)
         eyebrow = tr(eyebrow)
@@ -534,7 +543,7 @@ class InfoDialog(QDialog):
                     area_hint=self.origin.section if self.origin is not None else "",
                     reference=self.reference(),
                     where=self.where(),
-                    raw=self.raw_error.text if self.raw_error is not None else message,
+                    raw=self.raw_error.text if self.raw_error is not None else raw_message,
                     opened_from=f"Error window: {raw_title}",
                 ).exec()
 

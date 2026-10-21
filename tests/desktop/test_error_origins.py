@@ -293,3 +293,76 @@ def test_informational_windows_have_no_report_button_nor_hardware_notice(qtbot):
 
 if sys.version_info < (3, 11):  # pragma: no cover - co_qualname is 3.11+
     pytestmark = pytest.mark.skip("needs co_qualname")
+
+
+@pytest.mark.parametrize(
+    "message",
+    (
+        "PWM 3 did not verify firmware automatic mode",
+        "The Cyan TOML did not verify the requested startup range",
+        "The BIOS image is damaged. It was not used.",
+    ),
+)
+def test_other_modules_words_are_not_read_as_an_upscaler_failure(message):
+    from frontends.desktop.core.error_diagnostics import diagnose_error
+
+    assert diagnose_error(message).code != "BC250-UPSCALE-001"
+
+
+def test_removable_drives_lose_the_user_name_too():
+    assert error_origins.redact("/run/media/alice/SD/steamapps/x.dll") == "~/SD/steamapps/x.dll"
+    assert error_origins.redact("/media/bob/Games/y") == "~/Games/y"
+
+
+def test_a_report_without_an_exception_sends_the_english_message(qtbot, journal_file, monkeypatch):
+    from frontends.desktop.i18n import set_language
+
+    set_language("ja")
+    try:
+        dialog = InfoDialog("Folder could not be opened", "No such directory: /nowhere/at/all", tone="red")
+        qtbot.addWidget(dialog)
+        captured = {}
+
+        class Report:
+            def __init__(self, parent, **kwargs):
+                captured.update(kwargs)
+
+            def exec(self):
+                return 0
+
+        import frontends.desktop.components.feedback_dialog as feedback_module
+        monkeypatch.setattr(feedback_module, "FeedbackDialog", Report)
+        dialog.report_button.click()
+        assert captured["raw"] == "No such directory: /nowhere/at/all"
+    finally:
+        set_language("en")
+
+
+def test_a_failure_no_rule_knows_takes_its_sections_code(qtbot, journal_file):
+    namespace = _origin_from(
+        "/x/frontends/desktop/pages/gpu_governor.py",
+        "class GpuGovernorPage:\n"
+        "    def _apply_profile(self):\n"
+        "        return InfoDialog('Profile not applied', 'zx-unmatched failure 42', tone='red')\n",
+        {"InfoDialog": InfoDialog},
+    )
+    dialog = namespace["GpuGovernorPage"]()._apply_profile()
+    qtbot.addWidget(dialog)
+    assert dialog.report_code == "BC250-GPU-000"
+    # The journal keeps the same code the window showed.
+    assert history_entries()[0].code == "BC250-GPU-000"
+
+
+def test_a_section_code_can_be_explained_later():
+    from frontends.desktop.core.error_diagnostics import explain_code
+
+    explained = explain_code("BC250-UPS-000")
+    assert explained is not None and explained.summary.startswith("Upscaling (FSR4, HelixSR):")
+    assert explain_code("BC250-NOPE-000") is None
+
+
+def test_a_known_failure_keeps_its_specific_code_whatever_the_section():
+    from frontends.desktop.core.error_diagnostics import diagnose_error, with_section
+
+    diagnosis = diagnose_error("Cyan D-Bus is not ready")
+    assert with_section(diagnosis, ("UPS", "Upscaling (FSR4, HelixSR)")).code == diagnosis.code

@@ -37,8 +37,10 @@ from ..core.diagnostic_history import (
     diagnostic_report,
     history_entries,
     recent_errors_text,
+    record_diagnosis,
     system_sheet_text,
 )
+from ..core.error_diagnostics import diagnose_error
 from ..core.external_links import open_external_url
 from ..i18n import current_language, localize_widget_tree, tr, tr_format
 from ..theme import COLORS, application_stylesheet
@@ -303,6 +305,11 @@ class FeedbackDialog(QDialog):
         self._prefill(code=code, summary=summary, context=context, area_hint=area_hint, terminal=terminal)
         self._show_captured()
         localize_widget_tree(self)
+        # Sending waits for the automatic report: a quick press used to post
+        # it with no specifications and no recent errors.
+        self._reading = True
+        self.send_button.setEnabled(False)
+        self.send_button.setToolTip(tr("Still reading this system…"))
         self._executor.start("report", read_report, self._report_ready, lambda _message: self._report_ready({}))
 
     # --- Layout -------------------------------------------------------------------
@@ -474,6 +481,10 @@ class FeedbackDialog(QDialog):
     def _report_ready(self, facts: object) -> None:
         facts = facts if isinstance(facts, dict) else {}
         self._facts = facts
+        self._reading = False
+        if self.send_button.text() == tr("Send"):
+            self.send_button.setEnabled(True)
+            self.send_button.setToolTip("")
         self._diagnostics = str(facts.get("report") or "")
         if not self.version.text():
             self.version.setText(str(facts.get("version") or ""))
@@ -597,6 +608,8 @@ class FeedbackDialog(QDialog):
             return
         self.send_button.setEnabled(False)
         self.send_button.setText(tr("Sending…"))
+        self._sending = True
+        self.cancel_button.setEnabled(False)
         self.browser_button.hide()
         self._set_status("")
         self._executor.start(
@@ -606,7 +619,15 @@ class FeedbackDialog(QDialog):
             self._failed,
         )
 
+    def reject(self) -> None:  # noqa: D401 - Qt API
+        # A report on its way cannot be called back: closing would only hide
+        # that it was still sent.
+        if getattr(self, "_sending", False):
+            return
+        super().reject()
+
     def _sent(self) -> None:
+        self._sending = False
         self.pages.setCurrentIndex(2)
         for widget in (self.kind_problem, self.kind_idea, self.cancel_button, self.browser_button):
             widget.hide()
@@ -617,6 +638,10 @@ class FeedbackDialog(QDialog):
         self._set_status("")
 
     def _failed(self, message: str) -> None:
+        # Kept in Settings › Diagnostics like any other failure, with its code.
+        record_diagnosis(diagnose_error(message), source="window", title="Report form", detail=message)
+        self._sending = False
+        self.cancel_button.setEnabled(True)
         self.send_button.setEnabled(True)
         self.send_button.setText(tr("Send"))
         self._set_status(
@@ -638,7 +663,10 @@ class FeedbackDialog(QDialog):
             (tr("Recent errors"), report.recent_errors),
             (tr("Report details"), report.details),
         ]
-        clipboard = "\n\n".join(f"== {title} ==\n{text.strip()}" for title, text in long_texts if text.strip())
+        # The same rule as the POST: no home folder leaves through the clipboard either.
+        clipboard = "\n\n".join(
+            f"== {title} ==\n{redact(text).strip()}" for title, text in long_texts if text.strip()
+        )
         if clipboard and QApplication.clipboard() is not None:
             QApplication.clipboard().setText(clipboard)
         opened, _message = open_external_url(form.prefill_url(report))

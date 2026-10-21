@@ -18,7 +18,12 @@ from pathlib import Path
 from bc250cc.infrastructure import diagnostic_journal
 from bc250cc.shared.error_origins import redact
 
-from .error_diagnostics import ErrorDiagnosis, diagnose_error, explain_code
+from .error_diagnostics import (
+    ErrorDiagnosis,
+    diagnose_error,
+    explain_code,
+    with_section,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -63,13 +68,25 @@ def record_diagnosis(
         logger.debug("Could not record diagnostic %s", diagnosis.code, exc_info=True)
 
 
-def window_diagnosis(message: object, *, context: str) -> ErrorDiagnosis:
-    """The diagnosis a red dialog renders, from the same text."""
+def window_diagnosis(message: object, *, context: str, section: tuple[str, str] | None = None) -> ErrorDiagnosis:
+    """The diagnosis a red dialog renders, from the same text.
+
+    ``section`` (code, name) replaces the one generic code with the section's
+    own when no rule recognises the failure.
+    """
     detail = str(message or "").strip()
     codes = CODE_PATTERN.findall(detail)
     # A message that already carries its explanation names its own code.
     diagnosis = explain_code(codes[-1]) if codes else None
-    return diagnosis or diagnose_error(detail, context=context)
+    return with_section(diagnosis or diagnose_error(detail, context=context), section)
+
+
+def failure_section(origin=None, raw=None) -> tuple[str, str] | None:
+    """The section a failure belongs to: where it was raised, else where it showed."""
+    place = getattr(raw, "site", None) or origin
+    if place is None:
+        return None
+    return place.section, place.section_name
 
 
 def origin_text(origin) -> str:
@@ -84,7 +101,7 @@ def record_window_error(message: object, *, context: str, title: str, origin=Non
     """
     detail = str(message or "").strip()
     record_diagnosis(
-        window_diagnosis(detail, context=context),
+        window_diagnosis(detail, context=context, section=failure_section(origin, raw)),
         source="window",
         title=title,
         detail=detail,

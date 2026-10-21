@@ -287,3 +287,40 @@ def test_a_page_that_still_carries_the_form_is_not_a_confirmation():
     assert form.confirmed(CONFIRMED)
     assert form.confirmed("<p>Your response has been recorded.</p>")
     assert not form.confirmed("<html>Something went wrong</html>")
+
+
+def test_send_waits_for_the_automatic_report(qtbot):
+    import threading
+
+    gate = threading.Event()
+    facts = {"report": "r", "specs": "Kernel 7.1"}
+    dialog = FeedbackDialog(read_report=lambda: (gate.wait(5), facts)[1], summary="x")
+    qtbot.addWidget(dialog)
+    assert not dialog.send_button.isEnabled()
+    gate.set()
+    qtbot.waitUntil(dialog.send_button.isEnabled)
+    assert dialog.report().specs == "Kernel 7.1"
+
+
+def test_a_report_on_its_way_cannot_be_cancelled(qtbot):
+    import threading
+
+    gate = threading.Event()
+    dialog = _dialog(qtbot, summary="Fans stop", submit=lambda report: gate.wait(5))
+    dialog._send()
+    assert not dialog.cancel_button.isEnabled()
+    dialog.reject()
+    assert dialog.isVisible() or dialog.result() == 0
+    assert dialog._sending
+    gate.set()
+    qtbot.waitUntil(lambda: dialog.pages.currentIndex() == 2)
+
+
+def test_the_browser_fallback_clipboard_has_no_home_folder(qtbot, monkeypatch):
+    monkeypatch.setattr(
+        "frontends.desktop.components.feedback_dialog.open_external_url", lambda url: (True, ""),
+    )
+    dialog = _dialog(qtbot, summary="x")
+    dialog.terminal.setPlainText("Traceback in /home/alice/projects/app.py")
+    dialog._open_in_browser()
+    assert "alice" not in QApplication.clipboard().text()
