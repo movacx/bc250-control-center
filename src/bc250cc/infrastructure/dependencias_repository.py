@@ -133,6 +133,7 @@ from bc250cc.infrastructure.governor_install_shell import (
 from bc250cc.infrastructure.helixsr import (
     add_helixsr_folder,
     add_optiscaler_folder,
+    build_helixsr_fg_command,
     build_helixsr_install_command,
     build_helixsr_network_command,
     build_helixsr_releases_command,
@@ -141,17 +142,27 @@ from bc250cc.infrastructure.helixsr import (
     helixsr_state,
     install_helixsr_game,
     install_helixsr_optiscaler,
+    install_helixsr_scaler,
     remove_helixsr_game,
     remove_helixsr_optiscaler,
+    remove_helixsr_scaler,
+    rollback_helixsr_scaler,
     save_helixsr_settings,
     scan_helixsr_games,
     select_helixsr_release,
+    set_helixsr_scaler_frame_generation,
+    update_all_helixsr_games,
     update_helixsr_game,
+    update_helixsr_scaler,
 )
 from bc250cc.infrastructure.memory_runtime import read_memory_runtime_state
 from bc250cc.infrastructure.mesa_desktop import (
     build_mesa_ppa_command,
     mesa_desktop_state,
+)
+from bc250cc.infrastructure.opticlient_undo import (
+    remove_opticlient_installation,
+    restore_opticlient_backup,
 )
 from bc250cc.infrastructure.preparation_workflow import (
     PreparationContext,
@@ -524,6 +535,20 @@ class DependenciasRepository(SteamosDependenciesMixin):
             result = add_dll_override(appid, adapter.removesuffix('.dll'))
             self.estado_herramientas_cache = None
             return {**result, 'game': game.get('name', '')}
+        if action.startswith('undo:'):
+            # The client's own Restore, done through the real folder.
+            result = remove_opticlient_installation(action.partition(':')[2])
+            self.estado_herramientas_cache = None
+            return result
+        if action.startswith('backup_restore:'):
+            result = restore_opticlient_backup(action.partition(':')[2])
+            self.estado_herramientas_cache = None
+            return result
+        if action.startswith('upgrade:'):
+            # The newer build in one step: picked, then installed in the terminal.
+            select_opticlient_release(action.partition(':')[2])
+            self.estado_herramientas_cache = None
+            action = 'install'
         if action == 'install':
             if not opticlient_state().get('installer_available'):
                 raise RuntimeError('OptiScaler Client is built for x86_64 Linux only.')
@@ -602,6 +627,30 @@ class DependenciasRepository(SteamosDependenciesMixin):
             result = remove_helixsr_optiscaler(action.partition(':')[2])
             self.estado_herramientas_cache = None
             return result
+        # HelixSR Scaler, through the release's own bridge (HelixSR 2.0 on).
+        scaler = {
+            'scaler_install:': lambda game: install_helixsr_scaler(game),
+            'scaler_install_fg:': lambda game: install_helixsr_scaler(game, frame_generation=True),
+            'scaler_remove:': remove_helixsr_scaler,
+            'scaler_fg_on:': lambda game: set_helixsr_scaler_frame_generation(game, True),
+            'scaler_fg_off:': lambda game: set_helixsr_scaler_frame_generation(game, False),
+            'scaler_update:': update_helixsr_scaler,
+            'scaler_rollback:': rollback_helixsr_scaler,
+        }
+        for prefix, operation in scaler.items():
+            if action.startswith(prefix):
+                result = operation(action.partition(':')[2])
+                self.estado_herramientas_cache = None
+                return result
+        if action == 'update_all':
+            result = update_all_helixsr_games()
+            self.estado_herramientas_cache = None
+            return result
+        if action.startswith('upgrade:'):
+            # The newer release in one step: picked, then installed in the terminal.
+            select_helixsr_release(action.partition(':')[2])
+            self.estado_herramientas_cache = None
+            action = 'install'
         state = helixsr_state()
         if action == 'install':
             if not state.get('installer_available'):
@@ -611,6 +660,10 @@ class DependenciasRepository(SteamosDependenciesMixin):
             if not state.get('current'):
                 raise RuntimeError('Install HelixSR first.')
             command, title = build_helixsr_network_command(), 'HelixSR · network files'
+        elif action == 'fg':
+            if not state.get('scaler_supported'):
+                raise RuntimeError('Install HelixSR 2.0 or newer and build its network first.')
+            command, title = build_helixsr_fg_command(), 'HelixSR · frame generation'
         elif action == 'releases':
             command, title = build_helixsr_releases_command(), 'HelixSR · releases'
         elif action == 'uninstall':

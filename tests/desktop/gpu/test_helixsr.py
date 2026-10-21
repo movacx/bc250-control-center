@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import os
 import shutil
+import struct
 import subprocess
 import zipfile
 from pathlib import Path
@@ -641,9 +642,11 @@ def _next_release(monkeypatch) -> None:
     monkeypatch.setattr(helixsr, "HELIXSR_DLL_DIGESTS", frozenset({_sha(DLL), _sha(NEW_DLL)}))
 
 
-def test_the_default_is_the_newest_reviewed_stable_release_and_every_dll_is_known():
+def test_the_default_is_the_release_checked_on_a_bc250_and_every_dll_is_known():
+    # 2.0.0 is reviewed and offered; it becomes the default once it has been
+    # through the same check on a BC-250 that 1.8.1 went through.
     assert helixsr.HELIXSR_VERSION == "1.8.1"
-    assert helixsr.HELIXSR_TAG == max(helixsr.HELIXSR_REVIEWED, key=helixsr._version)
+    assert max(helixsr.HELIXSR_REVIEWED, key=helixsr._version) == "v2.0.0"
     for release in helixsr.HELIXSR_REVIEWED.values():
         assert release["dll_sha256"] in helixsr.HELIXSR_DLL_DIGESTS
         assert release["archive"].startswith("HelixSR-") and release["size"] > 0
@@ -888,7 +891,7 @@ FULL_INI = RELEASE_INI.replace(
     "MotionAdaptive = true\nUseGameSlider = false\nMotionThreshold = 2\nMotionLimit = 16\n"
     "MotionReduction = 0.6\nMode = off\n",
 ).replace(
-    "NetworkResolution = auto\n", "NetworkResolution = auto\nInt8 = auto\n",
+    "NetworkResolution = auto\n", "NetworkResolution = auto\nInt8 = auto\nFastOutput = on\n",
 ).replace(
     "MotionVectorFrontEnd = false\n",
     "MotionVectorFrontEnd = false\nUseReactiveMask = false\nDilateDisplayMotionVectors = false\n"
@@ -1513,3 +1516,67 @@ def test_only_1_9_and_newer_read_the_int8_setting(home):
     assert helixsr.helixsr_state(machine="x86_64")["int8_supported"] is False
     assert [helixsr._reads_int8(tag) for tag in ("v1.8.1", "v1.3.0", "v1.9.0", "v2.0.0", "v1.10.0")] == [
         False, False, True, True, True]
+
+
+# ------------------------------------------------------------ HelixSR 2.0
+
+
+def _release_2(directory: Path) -> Path:
+    """A 2.0 release: the DLL, with the network appended, in its build folder."""
+    built = directory / helixsr.HELIXSR_BUILD_FOLDER
+    built.mkdir(parents=True)
+    network = b"weights" + b"kernels"
+    footer = helixsr.HELIXSR_EMBED_MAGIC + struct.pack("<QQQ", 7, 7, 1)
+    (built / helixsr.HELIXSR_DLL).write_bytes(DLL + network + footer)
+    (built / helixsr.HELIXSR_INI).write_text("[Upscaling]\nInt8 = auto\nNetworkResolution = fast\n", encoding="utf-8")
+    (directory / helixsr.HELIXSR_SETUP).write_text("#!/bin/sh\n", encoding="utf-8")
+    (directory / helixsr.HELIXSR_MARKER).write_text(_pinned()["sha256"] + "\n", encoding="ascii")
+    return built
+
+
+def test_a_2_0_release_is_found_in_its_build_folder(home):
+    built = _release_2(helixsr.helixsr_directory())
+
+    assert helixsr.helixsr_dll_folder() == built
+    state = helixsr.helixsr_state(machine="x86_64")
+    assert state["current"] and state["network_ready"]
+    assert helixsr._release_ini().startswith("[Upscaling]")
+
+
+def test_an_earlier_release_keeps_its_dll_at_the_top(home):
+    _ready(home)
+    assert helixsr.helixsr_dll_folder() == helixsr.helixsr_directory()
+
+
+def test_a_game_gets_the_2_0_dll_with_its_network(home):
+    built = _release_2(helixsr.helixsr_directory())
+    install = _steam_game(home, "100", "Space Game", {"Bin": (helixsr.UPSCALER_DLL,)})
+
+    helixsr.install_helixsr_game("100")
+
+    given = (install / "Bin" / helixsr.UPSCALER_DLL).read_bytes()
+    assert given == (built / helixsr.HELIXSR_DLL).read_bytes()
+    assert not any((install / "Bin" / name).exists() for name in helixsr.HELIXSR_NETWORK_FILES)
+    assert helixsr.helixsr_state(machine="x86_64")["games"][0]["state"] == "installed"
+
+
+def test_the_2_0_setup_skips_frame_generation_and_checks_the_built_dll(home):
+    command = helixsr.build_helixsr_network_command()
+
+    assert f"test ! -d {helixsr.helixsr_directory()}/{helixsr.HELIXSR_BUILD_FOLDER} || bc250_fg_args=(--no-fg)" in command
+    assert '"${bc250_fg_args[@]}" </dev/null' in command
+    assert f'{helixsr.HELIXSR_BUILD_FOLDER}/{helixsr.HELIXSR_DLL} || bc250_built=' in command
+
+
+def test_the_install_finds_the_dll_where_the_archive_keeps_it(home):
+    command = helixsr.build_helixsr_install_command()
+
+    assert f'bc250_dll="$bc250_stage/{helixsr.HELIXSR_BUILD_FOLDER}/{helixsr.HELIXSR_DLL}"' in command
+    assert 'sha256sum "$bc250_dll"' in command
+    assert 'test ! -f "$bc250_stage/setup/lib/model/launch_synth" ||' in command
+
+
+def test_fast_output_is_read_from_2_0_on():
+    assert helixsr._reads_fast_output("v2.0.0") and helixsr._reads_fast_output("v2.1.3")
+    assert not helixsr._reads_fast_output("v1.9.3") and not helixsr._reads_fast_output("v1.8.1")
+    assert helixsr.helixsr_defaults()["Upscaling.FastOutput"] == "on"
