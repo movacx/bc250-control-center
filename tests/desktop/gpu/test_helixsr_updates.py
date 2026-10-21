@@ -336,3 +336,15 @@ def test_an_unreachable_github_keeps_the_list_there_was(home, release, fresh_che
 def test_only_githubs_api_over_https_is_read():
     assert upscaler_releases._fetch("http://api.github.com/repos/x", 10) is None
     assert upscaler_releases._fetch("https://example.com/releases", 10) is None
+
+
+def test_an_odd_literal_in_a_downloaded_bridge_is_skipped(tmp_path, monkeypatch):
+    from bc250cc.infrastructure import helixsr as module
+
+    bridge = tmp_path / module.HELIXSR_BRIDGE
+    bridge.parent.mkdir(parents=True, exist_ok=True)
+    bridge.write_text("BAD = {[1]: 2}\nGOOD = ('c', 'full')\n", encoding="utf-8")
+    monkeypatch.setattr(module, "helixsr_directory", lambda: tmp_path)
+    module._BRIDGE_LITERALS.clear()
+    assert module._bridge_constant("BAD") is None
+    assert module._bridge_constant("GOOD") == ("c", "full")

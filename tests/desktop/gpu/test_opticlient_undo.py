@@ -519,3 +519,48 @@ def test_an_interrupted_removal_is_offered_back_in_the_table():
                              helixsr_ready=True, fsr4_installations=[record])
     assert row["fsr4"][:2] == ("Interrupted", "orange")
     assert row["fsr4"][3][-1] == ("Put OptiScaler back", "fsr4_backup_restore:space-1", True)
+
+
+def test_a_put_back_that_cannot_undo_itself_says_which_files_stayed(client, monkeypatch):
+    backup = Path(opticlient_undo.remove_opticlient_installation(client["key"])["backup"])
+    real_move = opticlient_undo._move_verified
+    calls = {"n": 0}
+
+    def flaky(source, target, digest):
+        calls["n"] += 1
+        # Two files go back into the game, the third fails, and then the
+        # rollback of the first one fails too.
+        if calls["n"] in (3, 4):
+            raise RuntimeError("Disk full.")
+        return real_move(source, target, digest)
+
+    monkeypatch.setattr(opticlient_undo, "_move_verified", flaky)
+    with pytest.raises(RuntimeError, match="still in the game folder") as caught:
+        opticlient_undo.restore_opticlient_backup(backup.name)
+
+    stayed = str(caught.value).split("still in the game folder: ", 1)[1].split(". ", 1)[0].split(", ")
+    manifest = json.loads((backup / "manifest.json").read_text())
+    # The manifest follows the files: what stayed in the game is no longer listed as in the backup.
+    for item in manifest["files"]:
+        if item["path"] in stayed:
+            assert item["moved"] is False
+    assert len(stayed) == 1
+
+
+def test_a_record_without_digests_is_not_one_to_act_on(client):
+    receipt = client["state"] / "receipt.json"
+    data = json.loads(receipt.read_text())
+    del data["Files"][0]["Installed"]
+    receipt.write_text(json.dumps(data))
+
+    [record] = opticlient_undo.opticlient_installations(fresh=True)
+    assert record["state"] == "unsupported" and not record["removable"]
+
+
+def test_the_linked_home_of_an_atomic_system_is_not_the_games_link(tmp_path, monkeypatch):
+    var_home = tmp_path / "var" / "home"
+    (var_home / "alice" / "Games" / "Space Game").mkdir(parents=True)
+    (tmp_path / "home").symlink_to(var_home)
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path / "home" / "alice"))
+
+    assert opticlient_undo._linked_component(str(tmp_path / "home" / "alice" / "Games" / "Space Game")) == ""

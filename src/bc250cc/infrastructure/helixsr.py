@@ -1541,11 +1541,11 @@ def _bridge_constant(name: str) -> object:
                         and isinstance(node.targets[0], ast.Name) and node.targets[0].id.isupper()):
                     try:
                         literals[node.targets[0].id] = ast.literal_eval(node.value)
-                    except ValueError:
+                    except Exception:  # noqa: BLE001 - a downloaded file: any odd literal is skipped
                         continue
             _BRIDGE_LITERALS.clear()
             _BRIDGE_LITERALS[key] = literals
-    except (OSError, SyntaxError, ValueError):
+    except (OSError, SyntaxError, ValueError, RecursionError, MemoryError):
         return None
     return _BRIDGE_LITERALS[key].get(name)
 

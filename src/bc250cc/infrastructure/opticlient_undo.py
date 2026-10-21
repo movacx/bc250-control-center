@@ -116,7 +116,7 @@ def _inside(root: Path, relative: Path) -> Path:
     for part in relative.parts:
         current = current / part
         if current.is_symlink():
-            raise RuntimeError(f"{current} is a link; it was not touched.")
+            raise RuntimeError(f"Game folder {current} is a link; it was not touched.")
     return target
 
 
@@ -135,7 +135,7 @@ def _remove_empty_folders(root: Path, relatives: list[Path]) -> None:
 def _move_verified(source: Path, target: Path, digest: str) -> None:
     """Move one file whose SHA-256 is ``digest``; across drives, copy and check."""
     if _sha256(source, fresh=True) != digest:
-        raise RuntimeError(f"{source} changed; it was not moved.")
+        raise RuntimeError(f"Game file {source} changed; it was not moved.")
     target.parent.mkdir(parents=True, exist_ok=True)
     try:
         os.replace(source, target)
@@ -147,7 +147,7 @@ def _move_verified(source: Path, target: Path, digest: str) -> None:
     shutil.copy2(source, staged)
     if _sha256(staged, fresh=True) != digest:
         staged.unlink(missing_ok=True)
-        raise RuntimeError(f"The copy of {source} did not verify; it was not moved.")
+        raise RuntimeError(f"The copy of game file {source} did not verify; it was not moved.")
     _fsync(staged)
     os.replace(staged, target)
     source.unlink()
@@ -161,12 +161,12 @@ def _fsync(path: Path) -> None:
 
 def _copy_verified(source: Path, target: Path, digest: str) -> None:
     if _sha256(source, fresh=True) != digest:
-        raise RuntimeError(f"The client's copy of {target.name} changed; it was not used.")
+        raise RuntimeError(f"The client's copy of game file {target.name} changed; it was not used.")
     staged = target.with_name(target.name + _PART)
     shutil.copy2(source, staged)
     if _sha256(staged, fresh=True) != digest:
         staged.unlink(missing_ok=True)
-        raise RuntimeError(f"The copy of {target.name} did not verify.")
+        raise RuntimeError(f"The copy of game file {target.name} did not verify.")
     _fsync(staged)
     os.replace(staged, target)
 
@@ -174,7 +174,7 @@ def _copy_verified(source: Path, target: Path, digest: str) -> None:
 def _move_folder(source: Path, target: Path) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
     if target.exists() or target.is_symlink():
-        raise RuntimeError(f"{target} already exists; it was not replaced.")
+        raise RuntimeError(f"Game file {target} already exists; it was not replaced.")
     shutil.move(str(source), str(target))
 
 
@@ -286,9 +286,22 @@ def _name_for(real_root: Path, games: list[tuple[Path, str, str]]) -> tuple[str,
 
 
 def _linked_component(path: str) -> str:
+    """The first linked folder on the way to the game, below the home folder.
+
+    ``/home`` itself is a link on Bazzite and Fedora Atomic (to ``/var/home``);
+    that one is the system's and never the reason the client's Restore fails.
+    """
     current = Path(path)
+    home = Path.home()
+    system = {home, *home.parents}
+    try:
+        system |= {home.resolve(), *home.resolve().parents}
+    except OSError:
+        pass
     for candidate in (current, *current.parents):
         try:
+            if candidate in system or candidate.resolve() in system:
+                continue
             if candidate.is_symlink():
                 return str(candidate)
         except OSError:
@@ -342,7 +355,11 @@ def _installation(folder: Path, games: list[tuple[Path, str, str]], *, fresh: bo
             original = item.get("Original")
             original = str(original) if original else None
             backup = str(item.get("Backup") or "")
-            if original is not None and not _GAME_KEY.fullmatch(backup):
+            # Every digest the moves will check must be one: a record without
+            # them is one this code does not understand, not one to act on.
+            if not _GAME_KEY.fullmatch(installed):
+                return entry
+            if original is not None and not (_GAME_KEY.fullmatch(original) and _GAME_KEY.fullmatch(backup)):
                 return entry
             checked.append((relative, installed, original, backup))
     except ValueError:
@@ -646,7 +663,11 @@ def _undo_moves(real_root: Path, backup: Path, files: list[dict]) -> None:
         except Exception:  # noqa: BLE001 - keep going; the rest still goes back
             left = True
     if left:
-        _write_json(backup / _MANIFEST, {**_read_json(backup / _MANIFEST), "files": files})
+        try:
+            manifest = _read_json(backup / _MANIFEST)
+        except Exception:  # noqa: BLE001 - a broken manifest must not hide the real failure
+            manifest = {}
+        _write_json(backup / _MANIFEST, {**(manifest if isinstance(manifest, dict) else {}), "files": files})
         return
     (backup / _MANIFEST).unlink(missing_ok=True)
     _remove_empty_tree(backup)
@@ -697,12 +718,25 @@ def restore_opticlient_backup(backup_id: str) -> dict:
             originals = folder / _RECORD / "originals"
             if not originals.is_dir():
                 originals = _client_games() / entry["key"] / "originals"
+            stayed: list[str] = []
             for item in reversed(done):
                 relative = Path(item["path"])
                 target = real_root / relative
-                _move_verified(target, folder / _FILES / relative, item["installed"])
-                if item.get("original"):
-                    _copy_verified(originals / item["backup"], target, item["original"])
+                try:
+                    _move_verified(target, folder / _FILES / relative, item["installed"])
+                    if item.get("original"):
+                        _copy_verified(originals / item["backup"], target, item["original"])
+                except Exception:  # noqa: BLE001 - put the rest back; say which stayed
+                    item["moved"] = False
+                    stayed.append(item["path"])
+            if stayed:
+                # The manifest follows the files, so the backup still lists
+                # exactly what it holds and the rest can be finished by hand.
+                _write_json(folder / _MANIFEST, {**manifest, "files": manifest["files"]})
+                raise RuntimeError(
+                    f"{error} These files are still in the game folder: {', '.join(stayed)}. "
+                    "The backup keeps the others."
+                ) from error
             raise RuntimeError(f"{error} Nothing was touched.") from error
     (folder / _MANIFEST).unlink(missing_ok=True)
     _remove_empty_tree(folder)

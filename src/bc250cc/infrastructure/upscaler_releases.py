@@ -26,6 +26,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import tempfile
 import threading
 import time
 import urllib.error
@@ -128,10 +129,16 @@ def refresh_release_lists(*, now: float | None = None, fetch=None) -> list[str]:
         if listed is None:
             continue
         try:
-            staged = path.with_name(path.name + ".tmp")
-            staged.write_text(json.dumps({"time": int(moment), "releases": _kept(listed)}, indent=1),
-                              encoding="utf-8")
-            os.replace(staged, path)
+            # A name of its own: the terminal "check for new releases" stages
+            # into "<list>.tmp", and two writers must not share a file.
+            handle, staged = tempfile.mkstemp(prefix=path.name + ".", suffix=".part", dir=path.parent)
+            try:
+                with os.fdopen(handle, "w", encoding="utf-8") as stream:
+                    stream.write(json.dumps({"time": int(moment), "releases": _kept(listed)}, indent=1))
+                os.replace(staged, path)
+            except BaseException:
+                Path(staged).unlink(missing_ok=True)
+                raise
             changed.append(name)
         except OSError:
             logger.debug("Could not save the %s release list", name, exc_info=True)
