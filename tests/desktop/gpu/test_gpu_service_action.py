@@ -177,11 +177,14 @@ def test_the_status_opens_in_the_terminal_and_a_stopped_service_is_not_a_failure
     assert command.rstrip().endswith("true") and title == "GPU governor status"
 
 
-def test_the_advanced_console_stays_but_has_no_actions(qtbot):
-    from PyQt6.QtWidgets import QPushButton
+def test_the_advanced_card_has_no_console(qtbot):
+    """Service output runs in the application's terminal: no empty console on the GPU page."""
+    from PyQt6.QtWidgets import QPlainTextEdit
 
-    from frontends.desktop.pages.gpu_governor_view import OperationsConsole
+    from frontends.desktop.pages import gpu_governor_view
+    from frontends.desktop.pages.gpu_governor_view import GpuGovernorView
 
-    console = OperationsConsole()
-    qtbot.addWidget(console)
-    assert console.findChildren(QPushButton) == [] and console.text() == ""
+    view = GpuGovernorView()
+    qtbot.addWidget(view)
+    assert not hasattr(gpu_governor_view, "OperationsConsole")
+    assert view._advanced_body.findChildren(QPlainTextEdit) == []

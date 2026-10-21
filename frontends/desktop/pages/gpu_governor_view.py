@@ -25,7 +25,7 @@ screen (``gpu_governor.py``) untouched.
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
-from typing import Iterable, Sequence
+from typing import Sequence
 
 from PyQt6.QtCore import QRectF, QSize, Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QPainter, QPainterPath, QPen
@@ -37,7 +37,6 @@ from PyQt6.QtWidgets import (
     QLabel,
     QLineEdit,
     QMenu,
-    QPlainTextEdit,
     QScrollArea,
     QSizePolicy,
     QSpinBox,
@@ -58,7 +57,7 @@ from ..components.page_widgets import (
     subpanel,
 )
 from ..components.style_state import set_style_properties, set_style_property
-from ..components.widgets import PillLabel, icon
+from ..components.widgets import icon
 from ..i18n import governor_fix_label, shipped_name, tr, tr_format
 from ..theme import COLORS
 
@@ -537,9 +536,6 @@ class ProfileCardEditable(EditableCardNavigation, QFrame):
         self._name_label.setProperty("profileTitle", True)
         self._name_label.setMinimumWidth(0)
         head.addWidget(self._name_label, 1)
-        self._active_pill = PillLabel(tr("Active"), "blue")
-        self._active_pill.setVisible(False)
-        head.addWidget(self._active_pill, 0)
         self._edit_button = QPushButton()
         self._edit_button.setIcon(icon("edit_gray"))
         self._edit_button.setFixedSize(24, 24)
@@ -642,7 +638,7 @@ class ProfileCardEditable(EditableCardNavigation, QFrame):
         self._sync_view()
 
     def set_active(self, active: bool) -> None:
-        self._active_pill.setVisible(active)
+        # The selected card's outline says it is the active one.
         set_style_property(self, "selectedProfile", active)
 
     def set_unlocked(self, unlocked: bool) -> None:
@@ -998,61 +994,8 @@ class SafePointRail(QWidget):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Console, point table and contract
+# Point table and contract
 # ─────────────────────────────────────────────────────────────────────────────
-
-class OperationsConsole(QFrame):
-    """Console that fills the full height of its column.
-
-    Kept on purpose, empty and without actions: service output now runs in
-    the application's terminal, and this panel is reserved for later use.
-    """
-
-    def __init__(self, parent: QWidget | None = None):
-        super().__init__(parent)
-        self.setProperty("subPanel", True)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        root = QVBoxLayout(self)
-        root.setContentsMargins(0, 0, 0, 0)
-        root.setSpacing(0)
-
-        head = QWidget()
-        # Scoped to the header itself: a bare declaration also underlined every
-        # label inside it and restyled their tooltips.
-        head.setObjectName("gpuPanelHead")
-        head.setStyleSheet(
-            f"QWidget#gpuPanelHead {{ border-bottom:1px solid {COLORS['border_soft']}; }}"
-        )
-        head_row = QHBoxLayout(head)
-        head_row.setContentsMargins(14, 11, 14, 11)
-        head_row.setSpacing(10)
-        title = QLabel(tr("Operations console"))
-        title.setProperty("cardTitle", True)
-        head_row.addWidget(title, 1)
-        root.addWidget(head)
-
-        self.output = QPlainTextEdit()
-        self.output.setReadOnly(True)
-        self.output.setFrameShape(QFrame.Shape.NoFrame)
-        self.output.setMinimumHeight(300)
-        self.output.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        self.output.setStyleSheet(
-            f"QPlainTextEdit {{ background:{COLORS['console_bg']};"
-            f" color:{COLORS['console_text']}; border:none; padding:10px 13px;"
-            " border-bottom-left-radius:12px; border-bottom-right-radius:12px;"
-            " font-family:'JetBrains Mono','DejaVu Sans Mono',monospace; font-size:12px; }"
-        )
-        root.addWidget(self.output, 1)
-
-    def append(self, line: str) -> None:
-        self.output.appendPlainText(line)
-
-    def set_lines(self, lines: Iterable[str]) -> None:
-        self.output.setPlainText("\n".join(lines))
-
-    def text(self) -> str:
-        return self.output.toPlainText()
-
 
 class _SafePointRow(QFrame):
     """One frequency/voltage entry of the safe-point table.
@@ -1408,7 +1351,6 @@ class GpuGovernorView(QWidget):
 
         apply_state(GpuViewState)
         set_profiles(profiles)
-        set_console_lines(lines) / append_console_line(line)
     """
 
     range_apply_requested = pyqtSignal(int, int)
@@ -1805,8 +1747,7 @@ class GpuGovernorView(QWidget):
     def _build_advanced_card(self) -> SectionCard:
         card = SectionCard(
             "Advanced GPU diagnostics",
-            "TOML safe-point controls, voltage validation, hardware details, "
-            "and operation output.",
+            "TOML safe-point controls, voltage validation and hardware details.",
             icon_name="",
         )
         # add_header_button keeps SectionCard's own bookkeeping in sync; adding
@@ -1839,13 +1780,9 @@ class GpuGovernorView(QWidget):
         left_box.addWidget(self._safe_point_table)
         left_box.addWidget(self._contract)
         left_box.addStretch(1)
-
-        self.console = OperationsConsole()
-
+        # Service output runs in the application's terminal: the table and
+        # the contract take the card's whole width.
         body.addWidget(left, 0, 0)
-        body.addWidget(self.console, 0, 1)
-        body.setColumnStretch(0, 13)
-        body.setColumnStretch(1, 10)
         self._advanced_body.setVisible(False)
         card.root.addWidget(self._advanced_body)
         return card
@@ -2262,15 +2199,6 @@ class GpuGovernorView(QWidget):
             )
         )
 
-    def set_console_lines(self, lines: Iterable[str]) -> None:
-        self.console.set_lines(lines)
-
-    def append_console_line(self, line: str) -> None:
-        self.console.append(line)
-
-    def console_text(self) -> str:
-        return self.console.text()
-
     # ── lifecycle ──────────────────────────────────────────────────────────
     def showEvent(self, event) -> None:  # noqa: N802 (Qt)
         super().showEvent(event)
@@ -2302,16 +2230,6 @@ class GpuGovernorView(QWidget):
             self._workspace.removeWidget(self._telemetry)
             self._workspace.addWidget(self._telemetry, 0, 1)
             self._workspace.setColumnStretch(1, 12)
-
-        console_stacked = self._advanced_grid.itemAtPosition(1, 0) is not None
-        if stacked and not console_stacked:
-            self._advanced_grid.removeWidget(self.console)
-            self._advanced_grid.addWidget(self.console, 1, 0)
-            self._advanced_grid.setColumnStretch(1, 0)
-        elif not stacked and console_stacked:
-            self._advanced_grid.removeWidget(self.console)
-            self._advanced_grid.addWidget(self.console, 0, 1)
-            self._advanced_grid.setColumnStretch(1, 10)
 
         columns = 1 if width < 700 else 3
         current = 1 if self._profiles_grid.itemAtPosition(1, 0) is not None else 3
@@ -2347,14 +2265,6 @@ def _demo() -> None:  # pragma: no cover
     view.resize(1600, 980)
     # An f-string keeps this developer-only title out of the i18n catalogs.
     view.setWindowTitle(f"BC250 · GPU module ({mode} preview)")
-    view.set_console_lines(
-        (
-            "10:41:58 governor → cyan-skillfish-governor-smu ready",
-            f"10:41:58 toml → {len(SAFE_POINTS)} safe-points loaded",
-            "10:42:06 dbus → SetRange(1000, 1850)",
-            "10:42:06 ok range accepted · max 1850 MHz",
-        )
-    )
     view.show()
 
     def tick() -> None:
@@ -2382,16 +2292,8 @@ def _demo() -> None:  # pragma: no cover
     timer.start(1600)
     tick()
 
-    view.range_apply_requested.connect(
-        lambda low, high: view.append_console_line(f"dbus → SetRange({low}, {high})")
-    )
     view.high_points_toggle_requested.connect(
-        lambda enabled: (
-            view.apply_state(replace(view._state, unlocked=enabled)),
-            view.append_console_line(
-                f"toml → +2000 points {'uncommented' if enabled else 'commented out'}"
-            ),
-        )
+        lambda enabled: view.apply_state(replace(view._state, unlocked=enabled))
     )
     sys.exit(app.exec())
 

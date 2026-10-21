@@ -78,7 +78,7 @@ from ..components.card_navigation import EditableCardNavigation
 from ..components.core_monitor import CoreGrid, CoreReading
 from ..components.page_widgets import SectionCard, caption, subpanel
 from ..components.style_state import set_style_property
-from ..components.widgets import PillLabel, icon
+from ..components.widgets import icon
 from ..i18n import shipped_name, tr, tr_format
 from ..theme import COLORS
 
@@ -508,9 +508,6 @@ class CpuProfileCard(EditableCardNavigation, QFrame):
         self._name_label.setProperty("profileTitle", True)
         self._name_label.setMinimumWidth(0)
         head.addWidget(self._name_label, 1)
-        self._active_pill = PillLabel(tr("Active"), "blue")
-        self._active_pill.setVisible(False)
-        head.addWidget(self._active_pill, 0)
         self._edit_button = QPushButton()
         self._edit_button.setIcon(icon("edit_gray"))
         self._edit_button.setFixedSize(24, 24)
@@ -622,7 +619,7 @@ class CpuProfileCard(EditableCardNavigation, QFrame):
         self._sync_view()
 
     def set_active(self, active: bool) -> None:
-        self._active_pill.setVisible(active)
+        # The selected card's outline says it is the active one.
         set_style_property(self, "selectedProfile", active)
 
     def begin_edit(self) -> None:
