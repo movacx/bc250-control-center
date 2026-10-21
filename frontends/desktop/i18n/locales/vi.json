@@ -5318,5 +5318,15 @@
   "Install the service": "Cài đặt dịch vụ",
   "The report was not sent.": "Báo cáo chưa được gửi.",
   "Google Forms could not be reached or did not confirm it, or the form changed since this version of the app.": "Không kết nối được Google Forms hoặc nó không xác nhận, hoặc biểu mẫu đã thay đổi so với phiên bản ứng dụng này.",
-  "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.": "Nhấn Mở trong trình duyệt: các câu trả lời giống hệt sẽ mở trong biểu mẫu ở đó, câu trả lời dài được sao chép để dán."
+  "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.": "Nhấn Mở trong trình duyệt: các câu trả lời giống hệt sẽ mở trong biểu mẫu ở đó, câu trả lời dài được sao chép để dán.",
+  "{area}: the operation could not be completed.": "{area}: không thể hoàn tất thao tác.",
+  "This failure has no specific explanation yet. The origin code and the raw error say exactly where it came from.": "Lỗi này chưa có giải thích cụ thể. Mã nguồn gốc và lỗi thô cho biết chính xác nó đến từ đâu.",
+  "Read the raw error below. If it does not make the cause clear, press Report this problem: the code, the origin and the raw error go with it.": "Đọc lỗi thô bên dưới. Nếu vẫn chưa rõ nguyên nhân, nhấn Báo cáo sự cố này: mã, nguồn gốc và lỗi thô sẽ được gửi kèm.",
+  "Report form": "Biểu mẫu báo cáo",
+  "The recovery snapshot could not be verified.": "Không thể xác minh bản chụp khôi phục.",
+  "A snapshot file changed, has unsafe metadata, is outside the approved paths, or does not match the recovery manifest.": "Một tệp trong bản chụp đã thay đổi, có siêu dữ liệu không an toàn, nằm ngoài các đường dẫn được phép hoặc không khớp với tệp kê khai khôi phục.",
+  "Discard that snapshot and create a new one. Do not restore a file that could not be verified.": "Bỏ bản chụp đó và tạo bản mới. Đừng khôi phục tệp không thể xác minh.",
+  "The Control Center update could not be downloaded or verified.": "Không thể tải xuống hoặc xác minh bản cập nhật Control Center.",
+  "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.": "GitHub trả về dữ liệu phát hành không đầy đủ, hoặc tệp tải về không khớp với kích thước hay mã kiểm tra đã công bố.",
+  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Kiểm tra mạng và ngày hệ thống rồi thử cập nhật lại. Nếu vẫn lỗi, hãy cài gói từ trang phát hành."
 }

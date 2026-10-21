@@ -5253,7 +5253,7 @@
   "Open in the browser": "Ouvrir dans le navigateur",
   "Answer this first: {question}": "Répondez d'abord à ceci : {question}",
   "Sending…": "Envoi en cours…",
-  "It was not sent: {reason}. What you wrote is still here.": "Non envoyé : {reason}. Votre texte est conservé ici.",
+  "It was not sent: {reason}. What you wrote is still here.": "Non envoyé : {reason}. Ce que vous avez écrit est toujours là.",
   "Diagnostics report": "Rapport de diagnostic",
   "The long answers were copied. Paste them into the form in the browser.": "Les réponses longues ont été copiées. Collez-les dans le formulaire du navigateur.",
   "Still reading this system…": "Lecture du système en cours…",
@@ -5318,5 +5318,15 @@
   "Install the service": "Installer le service",
   "The report was not sent.": "Le rapport n'a pas été envoyé.",
   "Google Forms could not be reached or did not confirm it, or the form changed since this version of the app.": "Google Forms était injoignable ou ne l'a pas confirmé, ou le formulaire a changé depuis cette version de l'app.",
-  "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.": "Appuyez sur Ouvrir dans le navigateur : les mêmes réponses s'y ouvrent dans le formulaire, et les longues sont copiées pour être collées."
+  "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.": "Appuyez sur Ouvrir dans le navigateur : les mêmes réponses s'y ouvrent dans le formulaire, et les longues sont copiées pour être collées.",
+  "{area}: the operation could not be completed.": "{area} : l'opération n'a pas pu aboutir.",
+  "This failure has no specific explanation yet. The origin code and the raw error say exactly where it came from.": "Cette panne n'a pas encore d'explication précise. Le code d'origine et l'erreur brute disent exactement d'où elle vient.",
+  "Read the raw error below. If it does not make the cause clear, press Report this problem: the code, the origin and the raw error go with it.": "Lisez l'erreur brute ci-dessous. Si la cause n'est pas claire, appuyez sur Signaler ce problème : le code, l'origine et l'erreur brute sont envoyés avec.",
+  "Report form": "Formulaire de signalement",
+  "The recovery snapshot could not be verified.": "L'instantané de récupération n'a pas pu être vérifié.",
+  "A snapshot file changed, has unsafe metadata, is outside the approved paths, or does not match the recovery manifest.": "Un fichier de l'instantané a changé, a des métadonnées non sûres, est hors des chemins approuvés ou ne correspond pas au manifeste de récupération.",
+  "Discard that snapshot and create a new one. Do not restore a file that could not be verified.": "Supprimez cet instantané et créez-en un nouveau. Ne restaurez pas un fichier qui n'a pas pu être vérifié.",
+  "The Control Center update could not be downloaded or verified.": "La mise à jour de Control Center n'a pas pu être téléchargée ou vérifiée.",
+  "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.": "GitHub a renvoyé des données de version incomplètes, ou le fichier téléchargé ne correspond pas à la taille ou à la somme de contrôle publiées.",
+  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Vérifiez le réseau et la date du système, puis relancez la mise à jour. Si l'échec persiste, installez le paquet depuis la page de la version."
 }

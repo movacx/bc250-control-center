@@ -5318,5 +5318,15 @@
   "Install the service": "Εγκατάσταση υπηρεσίας",
   "The report was not sent.": "Η αναφορά δεν στάλθηκε.",
   "Google Forms could not be reached or did not confirm it, or the form changed since this version of the app.": "Το Google Forms δεν ήταν διαθέσιμο ή δεν την επιβεβαίωσε, ή η φόρμα άλλαξε μετά από αυτή την έκδοση της εφαρμογής.",
-  "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.": "Πατήστε Άνοιγμα στο πρόγραμμα περιήγησης: οι ίδιες απαντήσεις ανοίγουν εκεί στη φόρμα και οι μεγάλες αντιγράφονται για επικόλληση."
+  "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.": "Πατήστε Άνοιγμα στο πρόγραμμα περιήγησης: οι ίδιες απαντήσεις ανοίγουν εκεί στη φόρμα και οι μεγάλες αντιγράφονται για επικόλληση.",
+  "{area}: the operation could not be completed.": "{area}: η λειτουργία δεν μπόρεσε να ολοκληρωθεί.",
+  "This failure has no specific explanation yet. The origin code and the raw error say exactly where it came from.": "Αυτό το σφάλμα δεν έχει ακόμη συγκεκριμένη εξήγηση. Ο κωδικός προέλευσης και το ακατέργαστο σφάλμα δείχνουν ακριβώς από πού προήλθε.",
+  "Read the raw error below. If it does not make the cause clear, press Report this problem: the code, the origin and the raw error go with it.": "Διαβάστε το ακατέργαστο σφάλμα παρακάτω. Αν η αιτία δεν είναι σαφής, πατήστε Αναφορά αυτού του προβλήματος: ο κωδικός, η προέλευση και το ακατέργαστο σφάλμα στέλνονται μαζί.",
+  "Report form": "Φόρμα αναφοράς",
+  "The recovery snapshot could not be verified.": "Δεν ήταν δυνατή η επαλήθευση του στιγμιότυπου ανάκτησης.",
+  "A snapshot file changed, has unsafe metadata, is outside the approved paths, or does not match the recovery manifest.": "Ένα αρχείο του στιγμιότυπου άλλαξε, έχει μη ασφαλή μεταδεδομένα, βρίσκεται εκτός εγκεκριμένων διαδρομών ή δεν ταιριάζει με το μανιφέστο ανάκτησης.",
+  "Discard that snapshot and create a new one. Do not restore a file that could not be verified.": "Απορρίψτε αυτό το στιγμιότυπο και δημιουργήστε νέο. Μην επαναφέρετε αρχείο που δεν επαληθεύτηκε.",
+  "The Control Center update could not be downloaded or verified.": "Η ενημέρωση του Control Center δεν μπόρεσε να ληφθεί ή να επαληθευτεί.",
+  "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.": "Το GitHub επέστρεψε ελλιπή στοιχεία έκδοσης ή το ληφθέν αρχείο δεν ταιριάζει με το δημοσιευμένο μέγεθος ή άθροισμα ελέγχου.",
+  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Ελέγξτε το δίκτυο και την ημερομηνία συστήματος και δοκιμάστε ξανά την ενημέρωση. Αν συνεχίζει να αποτυγχάνει, εγκαταστήστε το πακέτο από τη σελίδα της έκδοσης."
 }

@@ -5318,5 +5318,15 @@
   "Install the service": "Instal layanan",
   "The report was not sent.": "Laporan tidak terkirim.",
   "Google Forms could not be reached or did not confirm it, or the form changed since this version of the app.": "Google Forms tidak dapat dihubungi atau tidak mengonfirmasinya, atau formulir berubah sejak versi aplikasi ini.",
-  "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.": "Tekan Buka di browser: jawaban yang sama terbuka di formulir di sana, dan yang panjang disalin untuk ditempel."
+  "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.": "Tekan Buka di browser: jawaban yang sama terbuka di formulir di sana, dan yang panjang disalin untuk ditempel.",
+  "{area}: the operation could not be completed.": "{area}: operasi tidak dapat diselesaikan.",
+  "This failure has no specific explanation yet. The origin code and the raw error say exactly where it came from.": "Kegagalan ini belum memiliki penjelasan khusus. Kode asal dan kesalahan mentah menunjukkan persis dari mana asalnya.",
+  "Read the raw error below. If it does not make the cause clear, press Report this problem: the code, the origin and the raw error go with it.": "Baca kesalahan mentah di bawah. Jika penyebabnya belum jelas, tekan Laporkan masalah ini: kode, asal, dan kesalahan mentah ikut dikirim.",
+  "Report form": "Formulir laporan",
+  "The recovery snapshot could not be verified.": "Snapshot pemulihan tidak dapat diverifikasi.",
+  "A snapshot file changed, has unsafe metadata, is outside the approved paths, or does not match the recovery manifest.": "Sebuah file snapshot berubah, memiliki metadata tidak aman, berada di luar jalur yang disetujui, atau tidak cocok dengan manifes pemulihan.",
+  "Discard that snapshot and create a new one. Do not restore a file that could not be verified.": "Buang snapshot itu dan buat yang baru. Jangan memulihkan file yang tidak dapat diverifikasi.",
+  "The Control Center update could not be downloaded or verified.": "Pembaruan Control Center tidak dapat diunduh atau diverifikasi.",
+  "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.": "GitHub mengembalikan data rilis yang tidak lengkap, atau file yang diunduh tidak cocok dengan ukuran atau checksum yang dipublikasikan.",
+  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Periksa jaringan dan tanggal sistem, lalu coba pembaruan lagi. Jika terus gagal, instal paket dari halaman rilis."
 }

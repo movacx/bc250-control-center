@@ -5318,5 +5318,15 @@
   "Install the service": "서비스 설치",
   "The report was not sent.": "보고서가 전송되지 않았습니다.",
   "Google Forms could not be reached or did not confirm it, or the form changed since this version of the app.": "Google Forms에 연결할 수 없거나 확인되지 않았거나, 이 앱 버전 이후 양식이 바뀌었습니다.",
-  "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.": "브라우저에서 열기를 누르세요. 같은 답변이 브라우저의 양식에 열리고, 긴 답변은 붙여넣기용으로 복사됩니다."
+  "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.": "브라우저에서 열기를 누르세요. 같은 답변이 브라우저의 양식에 열리고, 긴 답변은 붙여넣기용으로 복사됩니다.",
+  "{area}: the operation could not be completed.": "{area}: 작업을 완료할 수 없습니다.",
+  "This failure has no specific explanation yet. The origin code and the raw error say exactly where it came from.": "이 오류에는 아직 구체적인 설명이 없습니다. 발생 위치 코드와 원본 오류가 정확히 어디서 왔는지 알려 줍니다.",
+  "Read the raw error below. If it does not make the cause clear, press Report this problem: the code, the origin and the raw error go with it.": "아래 원본 오류를 읽어 보세요. 원인이 분명하지 않으면 이 문제 보고를 누르세요. 코드, 발생 위치, 원본 오류가 함께 전송됩니다.",
+  "Report form": "보고 양식",
+  "The recovery snapshot could not be verified.": "복구 스냅숏을 확인할 수 없습니다.",
+  "A snapshot file changed, has unsafe metadata, is outside the approved paths, or does not match the recovery manifest.": "스냅숏 파일이 바뀌었거나, 안전하지 않은 메타데이터가 있거나, 허용된 경로 밖에 있거나, 복구 매니페스트와 맞지 않습니다.",
+  "Discard that snapshot and create a new one. Do not restore a file that could not be verified.": "그 스냅숏을 버리고 새로 만드세요. 확인할 수 없는 파일은 복원하지 마세요.",
+  "The Control Center update could not be downloaded or verified.": "Control Center 업데이트를 다운로드하거나 확인할 수 없습니다.",
+  "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.": "GitHub가 불완전한 릴리스 정보를 돌려주었거나, 다운로드한 파일이 공개된 크기나 체크섬과 맞지 않습니다.",
+  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "네트워크와 시스템 날짜를 확인한 뒤 업데이트를 다시 시도하세요. 계속 실패하면 릴리스 페이지에서 패키지를 설치하세요."
 }

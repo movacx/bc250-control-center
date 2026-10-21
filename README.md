@@ -91,7 +91,8 @@ You install once. When a new version is out, the dashboard says so, shows the ch
 sudo rpm-ostree uninstall bc250-control-center --install ./bc250-control-center-*.noarch.rpm
 systemctl reboot
 
-# Installed with install-local.sh: remove that copy, then install the package for your system
+# Installed with install-local.sh: from the folder you installed it from, remove that copy,
+# then install the package for your system
 bash scripts/uninstall-local.sh
 ```
 
@@ -99,16 +100,16 @@ bash scripts/uninstall-local.sh
 
 1. Open **BC250 Control Center**. The welcome screen asks for language, appearance and sidebar, and offers to install what the board needs. All of it can be changed later in **Settings**.
 2. Take the guided tour. It walks through every module and says what each one touches on the board.
-3. On the **Dashboard**, run **Prepare BC250 system**. It installs what your distribution needs in a built-in terminal, so every command is visible before it runs.
+3. On the **Dashboard**, run **Prepare BC250 system**. It lists what it will install for your distribution (the GPU governor, sensors, the tools the CPU and Compute Units modules need) and runs it in a built-in terminal, so every command is visible.
 4. Before applying anything in a module, read its status line: it says what is ready, what is missing and why.
 
 ## Modules
 
 | Module | What it does | Touches the hardware |
 |---|---|---|
-| **Dashboard** | Processor, graphics and cooling at a glance; live cores, the temperature of each GDDR6 chip, the power rails (with the I2C modification, now explained with photos) and the installed BIOS. Notices when something installed needs attention. | No |
+| **Dashboard** | Processor, graphics and cooling at a glance; live cores, the temperature of each GDDR6 chip, the installed BIOS and notices when something installed needs attention. The power rails need a small hardware modification (two wires between two headers, no soldering); the app's **Guide with photos** shows where they go. | No |
 | **Performance** | CPU, GPU, VRAM, RAM, disk and network charts, and a Sensors view with minimum, average and maximum. CSV export. | No |
-| **GPU** | Cyan and Oberon governors with safe ranges, a voltage laboratory and points above 2000 MHz. | Yes |
+| **GPU** | The Cyan governor (Oberon as an alternative) with safe ranges, a voltage laboratory and points above 2000 MHz. If you are unsure, use Cyan. | Yes |
 | **CPU / SMU** | Temporary and persistent tuning, a stability test and the experimental hidden-core unlock. | Yes |
 | **Compute Units** | 24 to 40 CU, with the live and boot states shown separately. | Yes |
 | **Fans** | Manual PWM, temperature curves, profiles that survive a reboot, export to a file or to Decky, or hand the fan to CoolerControl, fancontrol or fan2go. | Yes |
@@ -127,7 +128,7 @@ An optional panel in the Quick Access menu, for the everyday changes (GPU, CU, C
 - **Live async compute:** whether the game uses asynchronous compute, and how much.
 - **Fan presets:** with the names and speeds exported from the desktop.
 
-Install it from the **Dashboard**, in the **Decky** section. If Decky Loader is missing it is installed too; preparing dependencies never installs Decky on its own. More in the [Decky README](integrations/decky/bc250-quick-access/README.md).
+It is only useful if you play from Steam's Game Mode. To install it, open the **Dashboard** and press the action in the **Decky** section: that installs Decky Loader too if it is missing. Nothing else installs Decky; Prepare BC250 system leaves it alone. More in the [Decky README](integrations/decky/bc250-quick-access/README.md).
 
 ## When something goes wrong
 

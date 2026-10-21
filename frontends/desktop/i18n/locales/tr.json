@@ -5318,5 +5318,15 @@
   "Install the service": "Hizmeti kur",
   "The report was not sent.": "Rapor gönderilmedi.",
   "Google Forms could not be reached or did not confirm it, or the form changed since this version of the app.": "Google Forms'a ulaşılamadı veya raporu onaylamadı ya da form uygulamanın bu sürümünden sonra değişti.",
-  "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.": "Tarayıcıda aç'a basın: aynı yanıtlar orada formda açılır, uzun olanlar yapıştırmak için kopyalanır."
+  "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.": "Tarayıcıda aç'a basın: aynı yanıtlar orada formda açılır, uzun olanlar yapıştırmak için kopyalanır.",
+  "{area}: the operation could not be completed.": "{area}: işlem tamamlanamadı.",
+  "This failure has no specific explanation yet. The origin code and the raw error say exactly where it came from.": "Bu hatanın henüz özel bir açıklaması yok. Kaynak kodu ve ham hata tam olarak nereden geldiğini gösterir.",
+  "Read the raw error below. If it does not make the cause clear, press Report this problem: the code, the origin and the raw error go with it.": "Aşağıdaki ham hatayı okuyun. Neden anlaşılmıyorsa Bu sorunu bildir'e basın: kod, kaynak ve ham hata da gönderilir.",
+  "Report form": "Rapor formu",
+  "The recovery snapshot could not be verified.": "Kurtarma anlık görüntüsü doğrulanamadı.",
+  "A snapshot file changed, has unsafe metadata, is outside the approved paths, or does not match the recovery manifest.": "Anlık görüntüdeki bir dosya değişti, güvensiz meta verilere sahip, onaylı yolların dışında veya kurtarma bildirimiyle eşleşmiyor.",
+  "Discard that snapshot and create a new one. Do not restore a file that could not be verified.": "O anlık görüntüyü silin ve yenisini oluşturun. Doğrulanamayan bir dosyayı geri yüklemeyin.",
+  "The Control Center update could not be downloaded or verified.": "Control Center güncellemesi indirilemedi veya doğrulanamadı.",
+  "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.": "GitHub eksik sürüm verisi döndürdü ya da indirilen dosya yayımlanan boyut veya sağlama toplamıyla eşleşmiyor.",
+  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Ağı ve sistem tarihini kontrol edip güncellemeyi yeniden deneyin. Hata sürerse paketi sürüm sayfasından kurun."
 }

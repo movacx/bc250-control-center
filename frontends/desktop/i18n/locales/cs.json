@@ -5318,5 +5318,15 @@
   "Install the service": "Nainstalovat službu",
   "The report was not sent.": "Hlášení nebylo odesláno.",
   "Google Forms could not be reached or did not confirm it, or the form changed since this version of the app.": "Google Forms nebyl dostupný nebo ho nepotvrdil, případně se formulář od této verze aplikace změnil.",
-  "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.": "Stiskněte Otevřít v prohlížeči: stejné odpovědi se tam otevřou ve formuláři a dlouhé se zkopírují k vložení."
+  "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.": "Stiskněte Otevřít v prohlížeči: stejné odpovědi se tam otevřou ve formuláři a dlouhé se zkopírují k vložení.",
+  "{area}: the operation could not be completed.": "{area}: operaci se nepodařilo dokončit.",
+  "This failure has no specific explanation yet. The origin code and the raw error say exactly where it came from.": "Tato chyba zatím nemá konkrétní vysvětlení. Kód původu a nezpracovaná chyba přesně ukazují, odkud pochází.",
+  "Read the raw error below. If it does not make the cause clear, press Report this problem: the code, the origin and the raw error go with it.": "Přečtěte si nezpracovanou chybu níže. Pokud příčinu neobjasní, stiskněte Nahlásit tento problém: kód, původ i nezpracovaná chyba se odešlou s ním.",
+  "Report form": "Formulář hlášení",
+  "The recovery snapshot could not be verified.": "Snímek pro obnovu se nepodařilo ověřit.",
+  "A snapshot file changed, has unsafe metadata, is outside the approved paths, or does not match the recovery manifest.": "Soubor snímku se změnil, má nebezpečná metadata, leží mimo schválené cesty nebo neodpovídá manifestu obnovy.",
+  "Discard that snapshot and create a new one. Do not restore a file that could not be verified.": "Zahoďte tento snímek a vytvořte nový. Neobnovujte soubor, který se nepodařilo ověřit.",
+  "The Control Center update could not be downloaded or verified.": "Aktualizaci Control Center se nepodařilo stáhnout ani ověřit.",
+  "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.": "GitHub vrátil neúplná data vydání nebo stažený soubor neodpovídá zveřejněné velikosti či kontrolnímu součtu.",
+  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Zkontrolujte síť a systémové datum a zkuste aktualizaci znovu. Pokud stále selhává, nainstalujte balíček ze stránky vydání."
 }

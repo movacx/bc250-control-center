@@ -5318,5 +5318,15 @@
   "Install the service": "Pasang perkhidmatan",
   "The report was not sent.": "Laporan tidak dihantar.",
   "Google Forms could not be reached or did not confirm it, or the form changed since this version of the app.": "Google Forms tidak dapat dihubungi atau tidak mengesahkannya, atau borang telah berubah sejak versi aplikasi ini.",
-  "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.": "Tekan Buka dalam pelayar: jawapan yang sama dibuka dalam borang di sana, dan yang panjang disalin untuk ditampal."
+  "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.": "Tekan Buka dalam pelayar: jawapan yang sama dibuka dalam borang di sana, dan yang panjang disalin untuk ditampal.",
+  "{area}: the operation could not be completed.": "{area}: operasi tidak dapat diselesaikan.",
+  "This failure has no specific explanation yet. The origin code and the raw error say exactly where it came from.": "Kegagalan ini belum mempunyai penjelasan khusus. Kod asal dan ralat mentah menunjukkan dengan tepat dari mana ia datang.",
+  "Read the raw error below. If it does not make the cause clear, press Report this problem: the code, the origin and the raw error go with it.": "Baca ralat mentah di bawah. Jika puncanya tidak jelas, tekan Laporkan masalah ini: kod, asal dan ralat mentah dihantar bersama.",
+  "Report form": "Borang laporan",
+  "The recovery snapshot could not be verified.": "Petikan pemulihan tidak dapat disahkan.",
+  "A snapshot file changed, has unsafe metadata, is outside the approved paths, or does not match the recovery manifest.": "Fail petikan telah berubah, mempunyai metadata tidak selamat, berada di luar laluan yang diluluskan atau tidak sepadan dengan manifes pemulihan.",
+  "Discard that snapshot and create a new one. Do not restore a file that could not be verified.": "Buang petikan itu dan cipta yang baharu. Jangan pulihkan fail yang tidak dapat disahkan.",
+  "The Control Center update could not be downloaded or verified.": "Kemas kini Control Center tidak dapat dimuat turun atau disahkan.",
+  "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.": "GitHub memulangkan data keluaran yang tidak lengkap, atau fail yang dimuat turun tidak sepadan dengan saiz atau checksum yang diterbitkan.",
+  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Semak rangkaian dan tarikh sistem, kemudian cuba kemas kini sekali lagi. Jika terus gagal, pasang pakej dari halaman keluaran."
 }

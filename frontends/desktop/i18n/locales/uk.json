@@ -5318,5 +5318,15 @@
   "Install the service": "Встановити службу",
   "The report was not sent.": "Звіт не надіслано.",
   "Google Forms could not be reached or did not confirm it, or the form changed since this version of the app.": "Google Forms недоступний або не підтвердив надсилання, або форма змінилася після цієї версії застосунку.",
-  "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.": "Натисніть «Відкрити в браузері»: ті самі відповіді відкриються там у формі, а довгі буде скопійовано для вставлення."
+  "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.": "Натисніть «Відкрити в браузері»: ті самі відповіді відкриються там у формі, а довгі буде скопійовано для вставлення.",
+  "{area}: the operation could not be completed.": "{area}: не вдалося завершити операцію.",
+  "This failure has no specific explanation yet. The origin code and the raw error say exactly where it came from.": "Для цієї помилки ще немає точного пояснення. Код походження та сира помилка точно показують, звідки вона взялася.",
+  "Read the raw error below. If it does not make the cause clear, press Report this problem: the code, the origin and the raw error go with it.": "Прочитайте сиру помилку нижче. Якщо причина незрозуміла, натисніть «Повідомити про цю проблему»: код, походження та сира помилка будуть надіслані разом.",
+  "Report form": "Форма звіту",
+  "The recovery snapshot could not be verified.": "Не вдалося перевірити знімок відновлення.",
+  "A snapshot file changed, has unsafe metadata, is outside the approved paths, or does not match the recovery manifest.": "Файл знімка змінився, має небезпечні метадані, лежить поза дозволеними шляхами або не збігається з маніфестом відновлення.",
+  "Discard that snapshot and create a new one. Do not restore a file that could not be verified.": "Відкиньте цей знімок і створіть новий. Не відновлюйте файл, який не вдалося перевірити.",
+  "The Control Center update could not be downloaded or verified.": "Не вдалося завантажити або перевірити оновлення Control Center.",
+  "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.": "GitHub повернув неповні дані випуску, або завантажений файл не збігається з опублікованим розміром чи контрольною сумою.",
+  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Перевірте мережу й системну дату, потім повторіть оновлення. Якщо помилка повторюється, встановіть пакет зі сторінки випуску."
 }

@@ -5318,5 +5318,15 @@
   "Install the service": "安裝服務",
   "The report was not sent.": "回報未送出。",
   "Google Forms could not be reached or did not confirm it, or the form changed since this version of the app.": "無法連線到 Google Forms 或其未確認，或表單在此應用程式版本之後已變更。",
-  "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.": "請按「在瀏覽器中開啟」：相同的回答會在那裡的表單中開啟，較長的回答已複製以便貼上。"
+  "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.": "請按「在瀏覽器中開啟」：相同的回答會在那裡的表單中開啟，較長的回答已複製以便貼上。",
+  "{area}: the operation could not be completed.": "{area}：無法完成操作。",
+  "This failure has no specific explanation yet. The origin code and the raw error say exactly where it came from.": "此故障尚無具體說明。來源代碼與原始錯誤會準確指出它來自哪裡。",
+  "Read the raw error below. If it does not make the cause clear, press Report this problem: the code, the origin and the raw error go with it.": "請閱讀下方的原始錯誤。如果仍不清楚原因，請按「回報此問題」：代碼、來源與原始錯誤會一併送出。",
+  "Report form": "回報表單",
+  "The recovery snapshot could not be verified.": "無法驗證復原快照。",
+  "A snapshot file changed, has unsafe metadata, is outside the approved paths, or does not match the recovery manifest.": "某個快照檔案已變更、中繼資料不安全、位於核准路徑之外，或與復原清單不符。",
+  "Discard that snapshot and create a new one. Do not restore a file that could not be verified.": "請捨棄該快照並建立新的快照。不要還原無法驗證的檔案。",
+  "The Control Center update could not be downloaded or verified.": "無法下載或驗證 Control Center 更新。",
+  "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.": "GitHub 傳回的版本資訊不完整，或下載的檔案與公布的大小或校驗和不符。",
+  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "請檢查網路與系統日期，然後重試更新。如果仍然失敗，請從發布頁面安裝套件。"
 }

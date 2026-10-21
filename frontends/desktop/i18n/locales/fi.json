@@ -5318,5 +5318,15 @@
   "Install the service": "Asenna palvelu",
   "The report was not sent.": "Raporttia ei lähetetty.",
   "Google Forms could not be reached or did not confirm it, or the form changed since this version of the app.": "Google Formsiin ei saatu yhteyttä tai se ei vahvistanut sitä, tai lomake on muuttunut tämän sovellusversion jälkeen.",
-  "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.": "Paina Avaa selaimessa: samat vastaukset avautuvat siellä lomakkeeseen ja pitkät kopioidaan liitettäviksi."
+  "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.": "Paina Avaa selaimessa: samat vastaukset avautuvat siellä lomakkeeseen ja pitkät kopioidaan liitettäviksi.",
+  "{area}: the operation could not be completed.": "{area}: toimintoa ei voitu suorittaa loppuun.",
+  "This failure has no specific explanation yet. The origin code and the raw error say exactly where it came from.": "Tälle virheelle ei ole vielä tarkkaa selitystä. Alkuperäkoodi ja raaka virhe kertovat tarkalleen, mistä se tuli.",
+  "Read the raw error below. If it does not make the cause clear, press Report this problem: the code, the origin and the raw error go with it.": "Lue raaka virhe alta. Jos syy ei selviä, paina Ilmoita tästä ongelmasta: koodi, alkuperä ja raaka virhe lähetetään mukana.",
+  "Report form": "Raporttilomake",
+  "The recovery snapshot could not be verified.": "Palautuksen tilannevedosta ei voitu varmentaa.",
+  "A snapshot file changed, has unsafe metadata, is outside the approved paths, or does not match the recovery manifest.": "Tilannevedoksen tiedosto on muuttunut, sillä on vaaralliset metatiedot, se on hyväksyttyjen polkujen ulkopuolella tai ei vastaa palautusmanifestia.",
+  "Discard that snapshot and create a new one. Do not restore a file that could not be verified.": "Hylkää se tilannevedos ja luo uusi. Älä palauta tiedostoa, jota ei voitu varmentaa.",
+  "The Control Center update could not be downloaded or verified.": "Control Centerin päivitystä ei voitu ladata tai varmentaa.",
+  "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.": "GitHub palautti puutteelliset julkaisutiedot, tai ladattu tiedosto ei vastaa julkaistua kokoa tai tarkistussummaa.",
+  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Tarkista verkko ja järjestelmän päivämäärä ja yritä päivitystä uudelleen. Jos se epäonnistuu edelleen, asenna paketti julkaisusivulta."
 }

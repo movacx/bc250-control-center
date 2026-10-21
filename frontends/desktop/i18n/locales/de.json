@@ -5318,5 +5318,15 @@
   "Install the service": "Dienst installieren",
   "The report was not sent.": "Der Bericht wurde nicht gesendet.",
   "Google Forms could not be reached or did not confirm it, or the form changed since this version of the app.": "Google Forms war nicht erreichbar oder hat ihn nicht bestätigt, oder das Formular hat sich seit dieser App-Version geändert.",
-  "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.": "Drücke Im Browser öffnen: Dieselben Antworten öffnen sich dort im Formular, und die langen werden zum Einfügen kopiert."
+  "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.": "Drücke Im Browser öffnen: Dieselben Antworten öffnen sich dort im Formular, und die langen werden zum Einfügen kopiert.",
+  "{area}: the operation could not be completed.": "{area}: Der Vorgang konnte nicht abgeschlossen werden.",
+  "This failure has no specific explanation yet. The origin code and the raw error say exactly where it came from.": "Für diesen Fehler gibt es noch keine genaue Erklärung. Ursprungscode und Rohfehler zeigen genau, woher er kommt.",
+  "Read the raw error below. If it does not make the cause clear, press Report this problem: the code, the origin and the raw error go with it.": "Lies den Rohfehler unten. Wenn die Ursache unklar bleibt, drücke Dieses Problem melden: Code, Ursprung und Rohfehler werden mitgeschickt.",
+  "Report form": "Meldeformular",
+  "The recovery snapshot could not be verified.": "Der Wiederherstellungs-Snapshot konnte nicht geprüft werden.",
+  "A snapshot file changed, has unsafe metadata, is outside the approved paths, or does not match the recovery manifest.": "Eine Snapshot-Datei hat sich geändert, hat unsichere Metadaten, liegt außerhalb der zugelassenen Pfade oder passt nicht zum Wiederherstellungsmanifest.",
+  "Discard that snapshot and create a new one. Do not restore a file that could not be verified.": "Verwirf diesen Snapshot und erstelle einen neuen. Stelle keine Datei wieder her, die nicht geprüft werden konnte.",
+  "The Control Center update could not be downloaded or verified.": "Das Control-Center-Update konnte nicht heruntergeladen oder geprüft werden.",
+  "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.": "GitHub lieferte unvollständige Release-Daten, oder die heruntergeladene Datei passt nicht zur veröffentlichten Größe oder Prüfsumme.",
+  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Prüfe Netzwerk und Systemdatum und versuche das Update erneut. Wenn es weiter fehlschlägt, installiere das Paket von der Release-Seite."
 }

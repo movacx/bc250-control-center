@@ -5318,5 +5318,15 @@
   "Install the service": "Installer tjenesten",
   "The report was not sent.": "Rapporten blev ikke sendt.",
   "Google Forms could not be reached or did not confirm it, or the form changed since this version of the app.": "Google Forms kunne ikke nås eller bekræftede den ikke, eller formularen er ændret siden denne version af appen.",
-  "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.": "Tryk på Åbn i browseren: de samme svar åbnes der i formularen, og de lange kopieres, så du kan indsætte dem."
+  "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.": "Tryk på Åbn i browseren: de samme svar åbnes der i formularen, og de lange kopieres, så du kan indsætte dem.",
+  "{area}: the operation could not be completed.": "{area}: handlingen kunne ikke fuldføres.",
+  "This failure has no specific explanation yet. The origin code and the raw error say exactly where it came from.": "Denne fejl har endnu ingen specifik forklaring. Oprindelseskoden og den rå fejl viser præcis, hvor den kom fra.",
+  "Read the raw error below. If it does not make the cause clear, press Report this problem: the code, the origin and the raw error go with it.": "Læs den rå fejl nedenfor. Hvis årsagen ikke er tydelig, tryk Rapportér dette problem: koden, oprindelsen og den rå fejl sendes med.",
+  "Report form": "Rapportformular",
+  "The recovery snapshot could not be verified.": "Gendannelsessnapshottet kunne ikke verificeres.",
+  "A snapshot file changed, has unsafe metadata, is outside the approved paths, or does not match the recovery manifest.": "En snapshotfil er ændret, har usikre metadata, ligger uden for de godkendte stier eller passer ikke med gendannelsesmanifestet.",
+  "Discard that snapshot and create a new one. Do not restore a file that could not be verified.": "Kassér det snapshot, og opret et nyt. Gendan ikke en fil, der ikke kunne verificeres.",
+  "The Control Center update could not be downloaded or verified.": "Control Center-opdateringen kunne ikke hentes eller verificeres.",
+  "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.": "GitHub returnerede ufuldstændige udgivelsesdata, eller den hentede fil passer ikke med den offentliggjorte størrelse eller checksum.",
+  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Tjek netværket og systemdatoen, og prøv opdateringen igen. Hvis den bliver ved med at fejle, så installer pakken fra udgivelsessiden."
 }

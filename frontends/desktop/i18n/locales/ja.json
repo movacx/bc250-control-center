@@ -5318,5 +5318,15 @@
   "Install the service": "サービスをインストール",
   "The report was not sent.": "レポートは送信されませんでした。",
   "Google Forms could not be reached or did not confirm it, or the form changed since this version of the app.": "Google Forms に接続できなかったか確認されなかった、またはこのバージョンのアプリ以降にフォームが変わりました。",
-  "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.": "「ブラウザーで開く」を押してください。同じ回答がブラウザーのフォームで開き、長い回答は貼り付け用にコピーされます。"
+  "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.": "「ブラウザーで開く」を押してください。同じ回答がブラウザーのフォームで開き、長い回答は貼り付け用にコピーされます。",
+  "{area}: the operation could not be completed.": "{area}: 操作を完了できませんでした。",
+  "This failure has no specific explanation yet. The origin code and the raw error say exactly where it came from.": "このエラーにはまだ具体的な説明がありません。発生元コードと生のエラーが、どこから来たかを正確に示します。",
+  "Read the raw error below. If it does not make the cause clear, press Report this problem: the code, the origin and the raw error go with it.": "下の生のエラーを読んでください。原因がわからない場合は「この問題を報告」を押してください。コード、発生元、生のエラーが一緒に送信されます。",
+  "Report form": "レポートフォーム",
+  "The recovery snapshot could not be verified.": "リカバリースナップショットを検証できませんでした。",
+  "A snapshot file changed, has unsafe metadata, is outside the approved paths, or does not match the recovery manifest.": "スナップショットのファイルが変更されたか、安全でないメタデータを持つか、許可されたパスの外にあるか、リカバリーマニフェストと一致しません。",
+  "Discard that snapshot and create a new one. Do not restore a file that could not be verified.": "そのスナップショットを破棄して新しく作成してください。検証できなかったファイルは復元しないでください。",
+  "The Control Center update could not be downloaded or verified.": "Control Center の更新をダウンロードまたは検証できませんでした。",
+  "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.": "GitHub が不完全なリリース情報を返したか、ダウンロードしたファイルが公開されたサイズまたはチェックサムと一致しません。",
+  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "ネットワークとシステムの日付を確認して、もう一度更新してください。それでも失敗する場合は、リリースページからパッケージをインストールしてください。"
 }

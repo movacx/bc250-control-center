@@ -5318,5 +5318,15 @@
   "Install the service": "Service installeren",
   "The report was not sent.": "Het rapport is niet verstuurd.",
   "Google Forms could not be reached or did not confirm it, or the form changed since this version of the app.": "Google Forms was niet bereikbaar of bevestigde het niet, of het formulier is veranderd sinds deze versie van de app.",
-  "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.": "Druk op Openen in de browser: dezelfde antwoorden openen daar in het formulier en de lange worden gekopieerd om te plakken."
+  "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.": "Druk op Openen in de browser: dezelfde antwoorden openen daar in het formulier en de lange worden gekopieerd om te plakken.",
+  "{area}: the operation could not be completed.": "{area}: de bewerking kon niet worden voltooid.",
+  "This failure has no specific explanation yet. The origin code and the raw error say exactly where it came from.": "Voor deze fout is nog geen specifieke uitleg. De oorsprongscode en de ruwe fout tonen precies waar hij vandaan komt.",
+  "Read the raw error below. If it does not make the cause clear, press Report this problem: the code, the origin and the raw error go with it.": "Lees de ruwe fout hieronder. Is de oorzaak niet duidelijk, druk dan op Dit probleem melden: de code, de oorsprong en de ruwe fout gaan mee.",
+  "Report form": "Meldformulier",
+  "The recovery snapshot could not be verified.": "De herstelsnapshot kon niet worden gecontroleerd.",
+  "A snapshot file changed, has unsafe metadata, is outside the approved paths, or does not match the recovery manifest.": "Een snapshotbestand is gewijzigd, heeft onveilige metadata, staat buiten de goedgekeurde paden of past niet bij het herstelmanifest.",
+  "Discard that snapshot and create a new one. Do not restore a file that could not be verified.": "Verwijder die snapshot en maak een nieuwe. Herstel geen bestand dat niet gecontroleerd kon worden.",
+  "The Control Center update could not be downloaded or verified.": "De Control Center-update kon niet worden gedownload of gecontroleerd.",
+  "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.": "GitHub gaf onvolledige releasegegevens, of het gedownloade bestand komt niet overeen met de gepubliceerde grootte of checksum.",
+  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Controleer het netwerk en de systeemdatum en probeer de update opnieuw. Blijft het mislukken, installeer dan het pakket via de releasepagina."
 }

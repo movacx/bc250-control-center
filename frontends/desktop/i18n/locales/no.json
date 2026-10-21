@@ -5318,5 +5318,15 @@
   "Install the service": "Installer tjenesten",
   "The report was not sent.": "Rapporten ble ikke sendt.",
   "Google Forms could not be reached or did not confirm it, or the form changed since this version of the app.": "Google Forms kunne ikke nås eller bekreftet den ikke, eller skjemaet er endret siden denne versjonen av appen.",
-  "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.": "Trykk Åpne i nettleseren: de samme svarene åpnes der i skjemaet, og de lange kopieres så du kan lime dem inn."
+  "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.": "Trykk Åpne i nettleseren: de samme svarene åpnes der i skjemaet, og de lange kopieres så du kan lime dem inn.",
+  "{area}: the operation could not be completed.": "{area}: handlingen kunne ikke fullføres.",
+  "This failure has no specific explanation yet. The origin code and the raw error say exactly where it came from.": "Denne feilen har ennå ingen spesifikk forklaring. Opprinnelseskoden og den rå feilen viser nøyaktig hvor den kom fra.",
+  "Read the raw error below. If it does not make the cause clear, press Report this problem: the code, the origin and the raw error go with it.": "Les den rå feilen nedenfor. Hvis årsaken ikke blir tydelig, trykk Rapporter dette problemet: koden, opprinnelsen og den rå feilen sendes med.",
+  "Report form": "Rapportskjema",
+  "The recovery snapshot could not be verified.": "Gjenopprettingsøyeblikksbildet kunne ikke verifiseres.",
+  "A snapshot file changed, has unsafe metadata, is outside the approved paths, or does not match the recovery manifest.": "En fil i øyeblikksbildet er endret, har usikre metadata, ligger utenfor godkjente stier eller stemmer ikke med gjenopprettingsmanifestet.",
+  "Discard that snapshot and create a new one. Do not restore a file that could not be verified.": "Forkast det øyeblikksbildet og lag et nytt. Ikke gjenopprett en fil som ikke kunne verifiseres.",
+  "The Control Center update could not be downloaded or verified.": "Control Center-oppdateringen kunne ikke lastes ned eller verifiseres.",
+  "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.": "GitHub returnerte ufullstendige versjonsdata, eller den nedlastede filen stemmer ikke med publisert størrelse eller sjekksum.",
+  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Sjekk nettverket og systemdatoen, og prøv oppdateringen igjen. Hvis den fortsatt feiler, installer pakken fra versjonssiden."
 }

@@ -5318,5 +5318,15 @@
   "Install the service": "Install the service",
   "The report was not sent.": "The report was not sent.",
   "Google Forms could not be reached or did not confirm it, or the form changed since this version of the app.": "Google Forms could not be reached or did not confirm it, or the form changed since this version of the app.",
-  "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.": "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting."
+  "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.": "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.",
+  "{area}: the operation could not be completed.": "{area}: the operation could not be completed.",
+  "This failure has no specific explanation yet. The origin code and the raw error say exactly where it came from.": "This failure has no specific explanation yet. The origin code and the raw error say exactly where it came from.",
+  "Read the raw error below. If it does not make the cause clear, press Report this problem: the code, the origin and the raw error go with it.": "Read the raw error below. If it does not make the cause clear, press Report this problem: the code, the origin and the raw error go with it.",
+  "Report form": "Report form",
+  "The recovery snapshot could not be verified.": "The recovery snapshot could not be verified.",
+  "A snapshot file changed, has unsafe metadata, is outside the approved paths, or does not match the recovery manifest.": "A snapshot file changed, has unsafe metadata, is outside the approved paths, or does not match the recovery manifest.",
+  "Discard that snapshot and create a new one. Do not restore a file that could not be verified.": "Discard that snapshot and create a new one. Do not restore a file that could not be verified.",
+  "The Control Center update could not be downloaded or verified.": "The Control Center update could not be downloaded or verified.",
+  "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.": "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.",
+  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page."
 }

@@ -5318,5 +5318,15 @@
   "Install the service": "ติดตั้งบริการ",
   "The report was not sent.": "ยังไม่ได้ส่งรายงาน",
   "Google Forms could not be reached or did not confirm it, or the form changed since this version of the app.": "เชื่อมต่อ Google Forms ไม่ได้หรือไม่ได้รับการยืนยัน หรือแบบฟอร์มเปลี่ยนไปหลังแอปเวอร์ชันนี้",
-  "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.": "กด เปิดในเบราว์เซอร์ คำตอบเดิมจะเปิดในแบบฟอร์มที่นั่น และคำตอบยาวจะถูกคัดลอกไว้ให้วาง"
+  "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.": "กด เปิดในเบราว์เซอร์ คำตอบเดิมจะเปิดในแบบฟอร์มที่นั่น และคำตอบยาวจะถูกคัดลอกไว้ให้วาง",
+  "{area}: the operation could not be completed.": "{area}: ไม่สามารถดำเนินการให้เสร็จได้",
+  "This failure has no specific explanation yet. The origin code and the raw error say exactly where it came from.": "ความผิดพลาดนี้ยังไม่มีคำอธิบายเฉพาะ รหัสต้นทางและข้อผิดพลาดดิบบอกได้ว่ามาจากที่ใด",
+  "Read the raw error below. If it does not make the cause clear, press Report this problem: the code, the origin and the raw error go with it.": "อ่านข้อผิดพลาดดิบด้านล่าง หากยังไม่ชัดเจน กด รายงานปัญหานี้ รหัส ต้นทาง และข้อผิดพลาดดิบจะถูกส่งไปด้วย",
+  "Report form": "แบบฟอร์มรายงาน",
+  "The recovery snapshot could not be verified.": "ไม่สามารถตรวจสอบสแนปช็อตสำหรับกู้คืนได้",
+  "A snapshot file changed, has unsafe metadata, is outside the approved paths, or does not match the recovery manifest.": "ไฟล์ในสแนปช็อตเปลี่ยนไป มีเมทาดาทาที่ไม่ปลอดภัย อยู่นอกเส้นทางที่อนุญาต หรือไม่ตรงกับแมนิเฟสต์การกู้คืน",
+  "Discard that snapshot and create a new one. Do not restore a file that could not be verified.": "ทิ้งสแนปช็อตนั้นแล้วสร้างใหม่ อย่ากู้คืนไฟล์ที่ตรวจสอบไม่ได้",
+  "The Control Center update could not be downloaded or verified.": "ไม่สามารถดาวน์โหลดหรือตรวจสอบการอัปเดต Control Center ได้",
+  "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.": "GitHub ส่งข้อมูลรุ่นที่ไม่ครบ หรือไฟล์ที่ดาวน์โหลดไม่ตรงกับขนาดหรือเช็กซัมที่เผยแพร่",
+  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "ตรวจสอบเครือข่ายและวันที่ของระบบ แล้วลองอัปเดตอีกครั้ง หากยังล้มเหลว ให้ติดตั้งแพ็กเกจจากหน้ารุ่น"
 }

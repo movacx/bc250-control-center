@@ -5318,5 +5318,15 @@
   "Install the service": "Установить службу",
   "The report was not sent.": "Отчёт не отправлен.",
   "Google Forms could not be reached or did not confirm it, or the form changed since this version of the app.": "Google Forms недоступен или не подтвердил отправку, либо форма изменилась после этой версии приложения.",
-  "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.": "Нажмите «Открыть в браузере»: те же ответы откроются там в форме, а длинные будут скопированы для вставки."
+  "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.": "Нажмите «Открыть в браузере»: те же ответы откроются там в форме, а длинные будут скопированы для вставки.",
+  "{area}: the operation could not be completed.": "{area}: не удалось завершить операцию.",
+  "This failure has no specific explanation yet. The origin code and the raw error say exactly where it came from.": "Для этой ошибки пока нет точного объяснения. Код источника и исходная ошибка точно показывают, откуда она взялась.",
+  "Read the raw error below. If it does not make the cause clear, press Report this problem: the code, the origin and the raw error go with it.": "Прочитайте исходную ошибку ниже. Если причина неясна, нажмите «Сообщить об этой проблеме»: код, источник и исходная ошибка будут отправлены вместе с отчётом.",
+  "Report form": "Форма отчёта",
+  "The recovery snapshot could not be verified.": "Не удалось проверить снимок восстановления.",
+  "A snapshot file changed, has unsafe metadata, is outside the approved paths, or does not match the recovery manifest.": "Файл снимка изменился, имеет небезопасные метаданные, находится вне разрешённых путей или не совпадает с манифестом восстановления.",
+  "Discard that snapshot and create a new one. Do not restore a file that could not be verified.": "Удалите этот снимок и создайте новый. Не восстанавливайте файл, который не удалось проверить.",
+  "The Control Center update could not be downloaded or verified.": "Не удалось загрузить или проверить обновление Control Center.",
+  "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.": "GitHub вернул неполные данные о выпуске, или загруженный файл не совпадает с опубликованным размером или контрольной суммой.",
+  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Проверьте сеть и системную дату, затем повторите обновление. Если ошибка повторяется, установите пакет со страницы выпуска."
 }

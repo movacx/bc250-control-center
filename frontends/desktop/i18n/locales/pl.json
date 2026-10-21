@@ -5318,5 +5318,15 @@
   "Install the service": "Zainstaluj usługę",
   "The report was not sent.": "Raport nie został wysłany.",
   "Google Forms could not be reached or did not confirm it, or the form changed since this version of the app.": "Nie udało się połączyć z Google Forms lub nie potwierdził on raportu, albo formularz zmienił się od tej wersji aplikacji.",
-  "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.": "Naciśnij Otwórz w przeglądarce: te same odpowiedzi otworzą się tam w formularzu, a długie zostaną skopiowane do wklejenia."
+  "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.": "Naciśnij Otwórz w przeglądarce: te same odpowiedzi otworzą się tam w formularzu, a długie zostaną skopiowane do wklejenia.",
+  "{area}: the operation could not be completed.": "{area}: nie udało się ukończyć operacji.",
+  "This failure has no specific explanation yet. The origin code and the raw error say exactly where it came from.": "Ten błąd nie ma jeszcze konkretnego wyjaśnienia. Kod źródła i surowy błąd pokazują dokładnie, skąd pochodzi.",
+  "Read the raw error below. If it does not make the cause clear, press Report this problem: the code, the origin and the raw error go with it.": "Przeczytaj surowy błąd poniżej. Jeśli przyczyna nie jest jasna, naciśnij Zgłoś ten problem: kod, źródło i surowy błąd zostaną dołączone.",
+  "Report form": "Formularz zgłoszenia",
+  "The recovery snapshot could not be verified.": "Nie udało się zweryfikować migawki odzyskiwania.",
+  "A snapshot file changed, has unsafe metadata, is outside the approved paths, or does not match the recovery manifest.": "Plik migawki się zmienił, ma niebezpieczne metadane, leży poza zatwierdzonymi ścieżkami lub nie zgadza się z manifestem odzyskiwania.",
+  "Discard that snapshot and create a new one. Do not restore a file that could not be verified.": "Odrzuć tę migawkę i utwórz nową. Nie przywracaj pliku, którego nie udało się zweryfikować.",
+  "The Control Center update could not be downloaded or verified.": "Nie udało się pobrać ani zweryfikować aktualizacji Control Center.",
+  "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.": "GitHub zwrócił niepełne dane wydania albo pobrany plik nie zgadza się z opublikowanym rozmiarem lub sumą kontrolną.",
+  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Sprawdź sieć i datę systemu, a potem spróbuj zaktualizować ponownie. Jeśli nadal się nie udaje, zainstaluj pakiet ze strony wydania."
 }

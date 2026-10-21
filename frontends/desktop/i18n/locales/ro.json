@@ -5318,5 +5318,15 @@
   "Install the service": "Instalează serviciul",
   "The report was not sent.": "Raportul nu a fost trimis.",
   "Google Forms could not be reached or did not confirm it, or the form changed since this version of the app.": "Google Forms nu a putut fi contactat sau nu l-a confirmat, ori formularul s-a schimbat de la această versiune a aplicației.",
-  "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.": "Apasă Deschide în browser: aceleași răspunsuri se deschid acolo în formular, iar cele lungi sunt copiate pentru lipire."
+  "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.": "Apasă Deschide în browser: aceleași răspunsuri se deschid acolo în formular, iar cele lungi sunt copiate pentru lipire.",
+  "{area}: the operation could not be completed.": "{area}: operația nu a putut fi finalizată.",
+  "This failure has no specific explanation yet. The origin code and the raw error say exactly where it came from.": "Această eroare nu are încă o explicație specifică. Codul de origine și eroarea brută spun exact de unde vine.",
+  "Read the raw error below. If it does not make the cause clear, press Report this problem: the code, the origin and the raw error go with it.": "Citește eroarea brută de mai jos. Dacă nu lămurește cauza, apasă Raportează această problemă: codul, originea și eroarea brută sunt trimise împreună.",
+  "Report form": "Formular de raportare",
+  "The recovery snapshot could not be verified.": "Instantaneul de recuperare nu a putut fi verificat.",
+  "A snapshot file changed, has unsafe metadata, is outside the approved paths, or does not match the recovery manifest.": "Un fișier din instantaneu s-a schimbat, are metadate nesigure, este în afara căilor aprobate sau nu corespunde manifestului de recuperare.",
+  "Discard that snapshot and create a new one. Do not restore a file that could not be verified.": "Renunță la acel instantaneu și creează unul nou. Nu restaura un fișier care nu a putut fi verificat.",
+  "The Control Center update could not be downloaded or verified.": "Actualizarea Control Center nu a putut fi descărcată sau verificată.",
+  "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.": "GitHub a returnat date incomplete despre versiune sau fișierul descărcat nu corespunde dimensiunii ori sumei de control publicate.",
+  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Verifică rețeaua și data sistemului, apoi încearcă din nou actualizarea. Dacă eșuează în continuare, instalează pachetul de pe pagina versiunii."
 }

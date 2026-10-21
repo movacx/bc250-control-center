@@ -5318,5 +5318,15 @@
   "Install the service": "Инсталиране на услугата",
   "The report was not sent.": "Докладът не беше изпратен.",
   "Google Forms could not be reached or did not confirm it, or the form changed since this version of the app.": "Google Forms не беше достъпен или не го потвърди, или формулярът се е променил след тази версия на приложението.",
-  "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.": "Натиснете Отваряне в браузъра: същите отговори се отварят там във формуляра, а дългите се копират за поставяне."
+  "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.": "Натиснете Отваряне в браузъра: същите отговори се отварят там във формуляра, а дългите се копират за поставяне.",
+  "{area}: the operation could not be completed.": "{area}: операцията не можа да бъде завършена.",
+  "This failure has no specific explanation yet. The origin code and the raw error say exactly where it came from.": "Тази грешка все още няма конкретно обяснение. Кодът на произход и суровата грешка показват точно откъде идва.",
+  "Read the raw error below. If it does not make the cause clear, press Report this problem: the code, the origin and the raw error go with it.": "Прочетете суровата грешка по-долу. Ако причината не е ясна, натиснете Докладване на този проблем: кодът, произходът и суровата грешка се изпращат с него.",
+  "Report form": "Формуляр за доклад",
+  "The recovery snapshot could not be verified.": "Моментната снимка за възстановяване не можа да бъде проверена.",
+  "A snapshot file changed, has unsafe metadata, is outside the approved paths, or does not match the recovery manifest.": "Файл от моментната снимка е променен, има несигурни метаданни, намира се извън одобрените пътища или не съответства на манифеста за възстановяване.",
+  "Discard that snapshot and create a new one. Do not restore a file that could not be verified.": "Изхвърлете тази моментна снимка и създайте нова. Не възстановявайте файл, който не е проверен.",
+  "The Control Center update could not be downloaded or verified.": "Актуализацията на Control Center не можа да бъде изтеглена или проверена.",
+  "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.": "GitHub върна непълни данни за версията или изтегленият файл не съвпада с публикувания размер или контролна сума.",
+  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Проверете мрежата и системната дата и опитайте актуализацията отново. Ако продължава да не успява, инсталирайте пакета от страницата на версията."
 }
