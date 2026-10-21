@@ -45,6 +45,7 @@ import json
 import os
 import pathlib
 import pwd
+import re
 import shutil
 import stat
 import struct
@@ -193,6 +194,17 @@ CHIP_ERRORS = {0xFF: "stage1_timeout", 0xFE: "stage2_timeout"}
 SUPPORTED_BIOS_VERSIONS = frozenset({"p3.0", "p3.00"})
 
 CHIP_COUNT = 8
+
+#: Hexxeh's bc250_memory driver (github.com/Hexxeh/bc250-memory-dkms), built
+#: into MastaG's BC-250 kernels and off by default there. Loaded, it installs
+#: the first payload itself and sends Queue 3 messages from the kernel each
+#: time its hwmon files are read, without the locks the other SMU clients
+#: share. Patching or sampling next to it would be two samplers on one
+#: mailbox, so this reads its hwmon files instead, holding those locks.
+KERNEL_DRIVER_MODULE = pathlib.Path("/sys/module/bc250_memory")
+HWMON_ROOT = pathlib.Path("/sys/class/hwmon")
+KERNEL_DRIVER_NAME = "bc250_memory"
+KERNEL_CHIP_LABEL = re.compile(r"VRAM Chip ([0-7])")
 
 
 def _run(command: list[str], *, timeout: int = 30, uid: int, gid: int) -> str:
@@ -869,6 +881,70 @@ def _sample_smu(
             smu.close()
 
 
+def kernel_driver_loaded(module: pathlib.Path | None = None) -> bool:
+    """Whether the kernel's own bc250_memory driver owns the SMU patch."""
+    return (module or KERNEL_DRIVER_MODULE).is_dir()
+
+
+def _kernel_driver_hwmon(root: pathlib.Path) -> pathlib.Path | None:
+    for entry in sorted(root.glob("hwmon*")):
+        try:
+            if (entry / "name").read_text(encoding="utf-8").strip() == KERNEL_DRIVER_NAME:
+                return entry
+        except OSError:
+            continue
+    return None
+
+
+def read_kernel_driver(*, chips_wanted: bool = True, root: pathlib.Path | None = None) -> dict:
+    """The chips as the kernel driver reports them, never touching the SMU here.
+
+    Each chip input it is asked for makes the driver read all eight (it keeps
+    them for a second), so a sample is one round of its messages. With the
+    reviewed payload already installed it reuses that one, whose timeouts
+    reach its files as 470 or 468 degrees: those are reported, not shown.
+    """
+    relay: dict = {
+        "source": KERNEL_DRIVER_NAME,
+        "kernel_driver": True,
+        "patch_active": False,
+        "blocked_reason": "GDDR6_KERNEL_DRIVER_NO_SENSOR",
+        "chips": [],
+    }
+    hwmon = _kernel_driver_hwmon(root or HWMON_ROOT)
+    if hwmon is None:
+        return relay
+    relay.update(patch_active=True, blocked_reason="")
+    if not chips_wanted:
+        return relay
+    chips: list[dict] = []
+    errors: list[dict] = []
+    for label_path in sorted(hwmon.glob("temp*_label")):
+        try:
+            match = KERNEL_CHIP_LABEL.fullmatch(label_path.read_text(encoding="utf-8").strip())
+        except OSError:
+            continue
+        if match is None:
+            continue
+        chip = int(match.group(1))
+        try:
+            millidegrees = int(
+                (hwmon / label_path.name.replace("_label", "_input")).read_text(encoding="utf-8")
+            )
+        except (OSError, ValueError):
+            errors.append({"chip": chip, "raw": None, "error": "unavailable"})
+            continue
+        code, remainder = divmod(millidegrees // 1000 + 40, 2)
+        if millidegrees % 1000 or remainder or code < 0:
+            errors.append({"chip": chip, "raw": millidegrees, "error": "out_of_range"})
+            continue
+        _sort_reading(chips, errors, chip, millidegrees, code)
+    chips.sort(key=lambda entry: entry["chip"])
+    errors.sort(key=lambda entry: entry["chip"])
+    _summarise(relay, chips, errors)
+    return relay
+
+
 def _do_read(
     repository: pathlib.Path,
     uid: int,
@@ -898,6 +974,22 @@ def _do_read(
         "blocked_reason": "",
         "chips": [],
     }
+    if kernel_driver_loaded():
+        # Its files are read under the same locks: the driver's own messages
+        # then never land in the middle of the governor's or the CPU tool's.
+        with smn_window_lock():
+            governor = "" if ignore_governor else governor_unsettled()
+            if governor:
+                payload.update(
+                    kernel_driver=True,
+                    deferred=True,
+                    blocked_reason="GDDR6_GOVERNOR_UNSETTLED",
+                    governor_state=governor,
+                )
+            else:
+                payload.update(read_kernel_driver(chips_wanted=chips_wanted))
+        print(json.dumps(payload))
+        return 0
     try:
         with external_collector_lock() as collector_installed:
             _sample_smu(
@@ -938,11 +1030,14 @@ def main(argv: list[str]) -> int:
         raise RuntimeError(f"Unsupported action: {action}")
     if not _bc250_identity_present():
         raise RuntimeError("AMD BC-250 hardware identity was not detected.")
-    if not pathlib.Path("/usr/bin/git").is_file():
-        raise RuntimeError("git is required to validate the official upstream clone.")
-
     uid, gid, home = _invoking_user()
-    repository = _validate_repository(argv[2], uid, gid, home)
+    if kernel_driver_loaded():
+        # Nothing of the checkout is imported or run: the kernel reads.
+        repository = pathlib.Path(argv[2])
+    else:
+        if not pathlib.Path("/usr/bin/git").is_file():
+            raise RuntimeError("git is required to validate the official upstream clone.")
+        repository = _validate_repository(argv[2], uid, gid, home)
 
     return _do_read(
         repository,

@@ -59,6 +59,10 @@ EXTERNAL_GUARD_BENIGN = (
     {'state': 'failed', 'error': 'Q3/5 points at an unexpected payload; reboot before retrying'},
 )
 BIOS_VERSION_PATH = Path('/sys/class/dmi/id/bios_version')
+#: Hexxeh's bc250_memory driver, in MastaG's kernels (off by default there).
+#: Loaded, it owns the SMU patch: the helpers read its sensors and need no
+#: checkout (see KERNEL_DRIVER_MODULE in bc250-gddr6-temp-reader).
+KERNEL_DRIVER_MODULE = Path('/sys/module/bc250_memory')
 
 
 def board_bios_version():
@@ -94,6 +98,10 @@ class Gddr6MemoryTempRepository:
             if os.access(candidate, os.X_OK):
                 return str(candidate)
         return ''
+
+    def _gddr6_kernel_driver_loaded(self):
+        """Overridable seam: whether the kernel's bc250_memory driver is loaded."""
+        return KERNEL_DRIVER_MODULE.is_dir()
 
     def _board_bios_version(self):
         """Overridable seam: tests must not depend on the host's real DMI."""
@@ -202,6 +210,7 @@ class Gddr6MemoryTempRepository:
             'volatile_after_power_off': True,
             'external': self._external_memory_telemetry(),
             'governor_state': self._gddr6_governor_state(),
+            'kernel_driver': self._gddr6_kernel_driver_loaded(),
         }
 
     def comando_preparar_gddr6_memory_temp(self):
@@ -255,6 +264,9 @@ class Gddr6MemoryTempRepository:
                 'polkit/pkexec was not found. It is required for this action.'
             )
         repository = self._gddr6_temp_repository()
+        if self._gddr6_kernel_driver_loaded():
+            # The helpers read the kernel driver's sensors and open no checkout.
+            return pkexec_argv('pkexec', helper, '--repo', str(repository), '--action', action)
         if not (repository / '.git').is_dir():
             raise RuntimeError(
                 'The official bc250-memory-temperature repository is not prepared. '
@@ -320,9 +332,13 @@ class Gddr6MemoryTempRepository:
         helper then samples even while the GPU governor is starting on the
         same SMU queue. Every lock is still taken, and the firmware check and
         BC250-Telemetry's interrupted-operation guard still apply.
+
+        With the kernel's bc250_memory driver loaded nothing is written, so
+        the firmware gate (which is about where the payload lands) does not
+        apply: the session only reads that driver's sensors.
         """
         detected = self._board_bios_version()
-        if not gddr6_firmware_supported(detected):
+        if not self._gddr6_kernel_driver_loaded() and not gddr6_firmware_supported(detected):
             raise RuntimeError(
                 'GDDR6_FIRMWARE_UNSUPPORTED: the reviewed SMU payload targets board '
                 f"firmware P3.0; this board reports {detected or 'an unknown version'}."

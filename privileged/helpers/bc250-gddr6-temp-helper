@@ -106,6 +106,12 @@ EXTERNAL_GUARD_BENIGN = (
     {"state": "failed", "error": "Q3/5 points at an unexpected payload; reboot before retrying"},
 )
 
+#: Hexxeh's bc250_memory driver, built into MastaG's BC-250 kernels and off
+#: by default there. Loaded, it installs the first payload itself and sends
+#: Queue 3 messages from the kernel without the locks above, so this helper
+#: never patches next to it: the reader relays the driver's hwmon readings.
+KERNEL_DRIVER_MODULE = pathlib.Path("/sys/module/bc250_memory")
+
 #: A monitoring session is bounded on purpose. One Polkit prompt buys this
 #: much live sampling and no more: an authenticated root process that samples
 #: for as long as a window is left open is a far bigger commitment than the
@@ -620,11 +626,18 @@ def _patch_status(repository: pathlib.Path, uid: int, *, ignore_governor: bool) 
     )
 
 
+def kernel_driver_loaded(module: pathlib.Path | None = None) -> bool:
+    """Whether the kernel's own bc250_memory driver owns the SMU patch."""
+    return (module or KERNEL_DRIVER_MODULE).is_dir()
+
+
 def _patch_arguments(status: dict) -> tuple[str, ...] | None:
     """patch_smu.py's arguments for what is installed, or None: nothing to do.
 
     Raises when patching must not be attempted at all.
     """
+    if status.get("kernel_driver"):
+        return None
     if status.get("external_collector"):
         raise ExternalCollectorActive("BC250-Telemetry's memory collector is sampling the SMU.")
     if status.get("deferred"):
@@ -656,6 +669,12 @@ def _do_apply(
     ignore_governor: bool = False,
     status: dict | None = None,
 ) -> int:
+    if kernel_driver_loaded():
+        print(
+            "The kernel's bc250_memory driver installs and reads the SMU patch "
+            "itself; Control Center reads its sensors instead of patching."
+        )
+        return 0
     detected = bios_version()
     if detected.strip().lower() not in SUPPORTED_BIOS_VERSIONS:
         raise RuntimeError(
@@ -868,11 +887,14 @@ def main(argv: list[str]) -> int:
             )
     if not _bc250_identity_present():
         raise RuntimeError("AMD BC-250 hardware identity was not detected.")
-    if not pathlib.Path("/usr/bin/git").is_file():
-        raise RuntimeError("git is required to validate the official upstream clone.")
-
     uid, gid, home = _invoking_user()
-    repository = _validate_repository(argv[2], uid, gid, home)
+    if kernel_driver_loaded():
+        # Nothing of the checkout is imported or run: the kernel reads.
+        repository = pathlib.Path(argv[2])
+    else:
+        if not pathlib.Path("/usr/bin/git").is_file():
+            raise RuntimeError("git is required to validate the official upstream clone.")
+        repository = _validate_repository(argv[2], uid, gid, home)
 
     if action == "monitor":
         return _do_monitor(

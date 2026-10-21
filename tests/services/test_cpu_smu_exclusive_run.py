@@ -44,6 +44,9 @@ def _load(name: str):
     spec = importlib.util.spec_from_loader(loader.name, loader)
     module = importlib.util.module_from_spec(spec)
     loader.exec_module(module)
+    if hasattr(module, "KERNEL_DRIVER_MODULE"):
+        # Never the host's own bc250_memory driver (MastaG's kernels carry it).
+        module.KERNEL_DRIVER_MODULE = Path("/nonexistent/bc250_memory")
     return module
 
 

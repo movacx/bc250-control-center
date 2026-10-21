@@ -44,6 +44,9 @@ class FakeRepository(Gddr6MemoryTempRepository):
     def _board_bios_version(self):
         return self._bios_version_value
 
+    def _gddr6_kernel_driver_loaded(self):
+        return getattr(self, "kernel_driver", False)
+
     def _external_memory_telemetry(self):
         # The host's own /run/apu_telemetry.json must not leak into tests.
         return getattr(self, "external_value", {"state": "", "chips": []})

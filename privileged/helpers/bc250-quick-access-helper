@@ -1283,6 +1283,9 @@ GDDR6_REPOSITORY_RELATIVE = pathlib.Path(
 )
 GDDR6_HOME_ROOTS = (pathlib.Path("/home"), pathlib.Path("/var/home"))
 GDDR6_MIN_DESKTOP_UID = 1000
+#: MastaG's kernels carry Hexxeh's bc250_memory driver; loaded, it owns the
+#: SMU patch and the reader relays its hwmon readings (see that helper).
+GDDR6_KERNEL_DRIVER = pathlib.Path("/sys/module/bc250_memory")
 
 
 GDDR6_PATCH_HELPER_PATHS = (
@@ -1363,7 +1366,9 @@ def _gddr6_repository_candidates() -> list[tuple[pathlib.Path, int]]:
             if not stat.S_ISDIR(info.st_mode) or info.st_uid < GDDR6_MIN_DESKTOP_UID:
                 continue
             repository = home / GDDR6_REPOSITORY_RELATIVE
-            if (repository / ".git").is_dir():
+            # With the kernel's bc250_memory driver loaded the reader reads
+            # its sensors and opens no checkout, so a home without one counts.
+            if (repository / ".git").is_dir() or GDDR6_KERNEL_DRIVER.is_dir():
                 candidates.append((repository, info.st_uid))
     return candidates
 
