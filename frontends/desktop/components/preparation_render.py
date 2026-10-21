@@ -506,18 +506,44 @@ class PreparationRenderMixin:
         self.helixsr_card.update_action(
             self.helixsr_remove_button, text="Remove", visible=installed,
         )
+        scaler_ready = bool(helixsr.get("scaler_supported"))
+        fg_ready = bool(helixsr.get("fg_ready"))
+        if hasattr(self, "helixsr_fg_button"):
+            self.helixsr_card.update_action(
+                self.helixsr_fg_button,
+                text="Rebuild frame generation" if fg_ready else "Build frame generation",
+                visible=scaler_ready,
+            )
         self.helixsr_upstream_button.show()
         self.helixsr_card._refresh_action_styles()
         self._helixsr_games = (games if HELIXSR_UI_ENABLED else [], ready)
+        self._helixsr_scaler = (
+            [dict(_mapping(game)) for game in helixsr.get("scaler_games") or ()] if HELIXSR_UI_ENABLED else [],
+            scaler_ready,
+            fg_ready,
+        )
         self._helixsr_settings_state = (
             _mapping(helixsr.get("settings")), _mapping(helixsr.get("settings_defaults"))
         )
+        self._helixsr_release_settings = (
+            list(helixsr.get("scaler_settings") or ()), list(helixsr.get("settings_extra") or ())
+        )
+        self._helixsr_scaler_count = sum(
+            1 for game in helixsr.get("scaler_games") or () if _mapping(game).get("state") == "installed"
+        )
+        # Games the settings reach: HelixSR Scaler's get them through its bridge.
         self._helixsr_game_count = sum(
             1 for game in games if str(_mapping(game).get("state") or "") == "installed"
-        )
+        ) + self._helixsr_scaler_count
         self._helixsr_int8 = bool(helixsr.get("int8_supported", True))
+        self._helixsr_fast_output = bool(helixsr.get("fast_output_supported", True))
         if hasattr(self, "helixsr_settings"):
             self.helixsr_settings.set_int8_supported(self._helixsr_int8)
+            self.helixsr_settings.set_fast_output_supported(self._helixsr_fast_output)
+            self.helixsr_settings.set_release_settings(
+                *getattr(self, "_helixsr_release_settings", ([], [])),
+                scaler_games=getattr(self, "_helixsr_scaler_count", 0),
+            )
             self.helixsr_settings.set_settings(*self._helixsr_settings_state)
             self.helixsr_settings.set_game_count(self._helixsr_game_count)
 
@@ -526,8 +552,12 @@ class PreparationRenderMixin:
         if not hasattr(self, "fsr4_section"):
             return
         helixsr_games, ready = getattr(self, "_helixsr_games", ([], False))
+        scaler_games, scaler_ready, fg_ready = getattr(self, "_helixsr_scaler", ([], False, False))
+        installations, backups = getattr(self, "_fsr4_records", ([], []))
         rows = game_matrix_rows(
-            helixsr_games, getattr(self, "_fsr4_games", []), helixsr_ready=ready
+            helixsr_games, getattr(self, "_fsr4_games", []), helixsr_ready=ready,
+            scaler_games=scaler_games, scaler_ready=scaler_ready, fg_ready=fg_ready,
+            fsr4_installations=installations, fsr4_backups=backups,
         )
         self._render_fsr4_section()
         self._render_helixsr_section()
@@ -535,7 +565,7 @@ class PreparationRenderMixin:
         self._match_upscaler_headers()
 
     def _render_fsr4_section(self) -> None:
-        """FSR4 INT8: state, the Steam launch option, its games, next step."""
+        """FSR4 INT8: state, active games, the launch option, the version."""
         view = getattr(self, "_fsr4_view", None) or {
             "state": {}, "status": "Checking", "tone": "", "detail": "", "version": "",
         }
@@ -544,38 +574,48 @@ class PreparationRenderMixin:
         self._render_fsr4_versions(fsr4)
         games = list(getattr(self, "_fsr4_games", []))
         missing = [g for g in games if g.get("state") == "needs-launch-option" and g.get("steam")]
-        patched = [g for g in games if g.get("state") not in {"not-installed", "linked-folder"}]
         active = [g for g in games if g.get("state") == "ready"]
         section = self.fsr4_section
         section.set_version(view["version"])
-        section.set_fact("state", "State", view["status"], view["tone"])
-        if not current or not patched:
-            option, tone = "—", ""
-        elif missing:
-            option, tone = "Missing in some games", "orange"
-        else:
-            option, tone = "In every game", ""
-        section.set_fact("prepare", "Steam launch option", option, tone)
+        section.set_status(view["status"], view["tone"])
         section.set_fact("games", "Active games", self._games_reading(len(active), len(games), current))
-        section.set_notice("" if current else view["detail"])
-        # The option is shown where it is missing, with a copy for by hand.
-        self.fsr4_launch_panel.setVisible(current and bool(self._fsr4_launch_option))
-        self.fsr4_launch_field.setText(self._fsr4_launch_option)
-        self.fsr4_launch_field.setCursorPosition(0)
-        self.fsr4_launch_field.updateGeometry()
-        self.upscaling_games._layout_header(force=True)
         if not current:
-            secondary = [self.fsr4_remove_button, self.fsr4_legacy_button]
-            primary = self.fsr4_install_button
+            notice = view["detail"]
         elif missing:
-            secondary = [self.fsr4_install_button, self.fsr4_remove_button,
-                         self.fsr4_legacy_button, self.fsr4_launch_button]
-            primary = self.fsr4_steam_all_button
+            notice = tr_format("{count} Steam games do not have the launch option yet.", count=len(missing))
         else:
-            secondary = [self.fsr4_install_button, self.fsr4_remove_button, self.fsr4_legacy_button]
-            primary = self.fsr4_launch_button
+            notice = ""
+        section.set_notice(notice)
+        upgrade = self._offer_upgrade(self.fsr4_upgrade_button, fsr4.get("newer"), current)
+        more = [self.fsr4_install_button, self.fsr4_legacy_button, self.fsr4_remove_button]
+        if not current:
+            secondary, primary = [], self.fsr4_install_button
+            more = [self.fsr4_legacy_button, self.fsr4_remove_button]
+        elif upgrade:
+            secondary, primary = [self.fsr4_launch_button], self.fsr4_upgrade_button
+        else:
+            secondary, primary = [], self.fsr4_launch_button
+        # Its own place: the launch option's strip above the games.
         self.fsr4_steam_all_button.setVisible(current and bool(missing))
-        section.set_actions(secondary, primary)
+        section.set_actions(secondary, primary, more)
+
+    @staticmethod
+    def _offer_upgrade(button, newer, current: bool) -> bool:
+        """The newer release as the card's next step, or nothing."""
+        newer = _mapping(newer)
+        version, tag = str(newer.get("version") or ""), str(newer.get("tag") or "")
+        offered = bool(current and version and tag)
+        button.setVisible(offered)
+        if offered:
+            button.setText(tr_format("Update to {version}", version=version))
+            button.setProperty("releaseTag", tag)
+            button.setToolTip(
+                tr_format("{version} is out.", version=version) + " " + (
+                    tr("It was reviewed with this version of Control Center.") if newer.get("reviewed")
+                    else tr("It has not been reviewed with Control Center yet.")
+                )
+            )
+        return offered
 
     def _render_helixsr_versions(self, helixsr: Mapping) -> None:
         """The releases on offer, newest first, the picked one shown."""
@@ -606,40 +646,62 @@ class PreparationRenderMixin:
         button.setEnabled(bool(state.get("installer_available")))
 
     def _render_helixsr_section(self) -> None:
-        """HelixSR: state, its network files, its games, next step."""
+        """HelixSR: state, active games, frame generation, the version."""
         view = getattr(self, "_helixsr_view", None) or {
             "state": {}, "status": "Checking", "tone": "", "detail": "", "version": "",
         }
         helixsr = view["state"]
         current = bool(helixsr.get("current"))
         ready = bool(helixsr.get("network_ready"))
+        scaler_games, scaler_ready, fg_ready = getattr(self, "_helixsr_scaler", ([], False, False))
         games = game_matrix_rows(
             [dict(g) for g in helixsr.get("games") or () if isinstance(g, Mapping)], [],
             helixsr_ready=ready,
+            # Only the games HelixSR Scaler is in count here, not every one it could go into.
+            scaler_games=[game for game in scaler_games if game.get("state") != "available"],
         )
-        active = [row for row in games if row["helixsr"] and row["helixsr"][1] == "green"]
+        # A game still on an older release is active all the same.
+        working = {"Update available", "Other version", "Network files missing"}
+        active = [row for row in games if row["helixsr"]
+                  and (row["helixsr"][1] == "green" or row["helixsr"][0] in working)]
         section = self.helixsr_section
         section.set_version(view["version"])
         self._render_helixsr_versions(helixsr)
-        section.set_fact("state", "State", view["status"], view["tone"])
-        section.set_fact(
-            "prepare", "Network files",
-            "Built on this PC" if ready else "Not built yet" if current else "—",
-            "" if ready or not current else "orange",
-        )
+        section.set_status(view["status"], view["tone"])
         section.set_fact(
             "games", "Active games", self._games_reading(len(active), len(games), current and (ready or bool(games)))
         )
+        # The network files are worth a row only while they are missing.
+        if current and not ready:
+            section.set_fact("prepare", "Network files", "Not built yet", "orange")
+        elif hasattr(section, "remove_fact"):
+            section.remove_fact("prepare")
+        if scaler_ready:
+            section.set_fact(
+                "frame_generation", "Frame generation",
+                "Available" if fg_ready else "Not built",
+                "" if fg_ready else "orange",
+            )
+        elif hasattr(section, "remove_fact"):
+            section.remove_fact("frame_generation")
         section.set_notice("" if ready else view["detail"])
+        upgrade = self._offer_upgrade(self.helixsr_upgrade_button, helixsr.get("newer"), ready)
+        more = [self.helixsr_install_button, self.helixsr_remove_button]
+        if scaler_ready and fg_ready:
+            more.insert(0, self.helixsr_fg_button)
         if not current:
-            secondary, primary = [self.helixsr_remove_button], self.helixsr_install_button
+            secondary, primary = [], self.helixsr_install_button
+            more = [self.helixsr_remove_button]
         elif not ready:
-            secondary = [self.helixsr_install_button, self.helixsr_remove_button]
-            primary = self.helixsr_network_button
+            secondary, primary = [], self.helixsr_network_button
+        elif upgrade:
+            secondary, primary = [self.helixsr_scan_button], self.helixsr_upgrade_button
         else:
-            secondary = [self.helixsr_install_button, self.helixsr_remove_button]
-            primary = self.helixsr_scan_button
-        section.set_actions(secondary, primary)
+            secondary, primary = [], self.helixsr_scan_button
+        if scaler_ready and not fg_ready and ready:
+            # Not built yet: a next step of its own, beside the main one.
+            secondary.insert(0, self.helixsr_fg_button)
+        section.set_actions(secondary, primary, more)
 
     def _render_upscaling_games(self, rows: list[dict], ready: bool) -> None:
         """One column per upscaler that is set up, in the cards' order."""
@@ -649,7 +711,11 @@ class PreparationRenderMixin:
         # HelixSR's column once it can go into games, or while a game still
         # has it (to update or remove it).
         helixsr_on = HELIXSR_UI_ENABLED and bool(helixsr.get("current")) and (ready or bool(helixsr_games))
-        fsr4_on = FSR4_UI_ENABLED and bool(fsr4.get("current"))
+        # FSR4's column also while the client's records or a backup are left
+        # without the client: they can still be undone or put back.
+        fsr4_on = FSR4_UI_ENABLED and (
+            bool(fsr4.get("current")) or any(getattr(self, "_fsr4_records", ([], [])))
+        )
         columns = tuple(key for key, on in (("fsr4", fsr4_on), ("helixsr", helixsr_on)) if on)
         table = []
         for row in rows:
@@ -687,8 +753,21 @@ class PreparationRenderMixin:
             columns,
         )
         self.upscaling_games.setVisible(bool(columns))
+        # The launch option loads OptiScaler: shown while a game can use it.
+        scaler_games, _scaler_ready, _fg = getattr(self, "_helixsr_scaler", ([], False, False))
+        uses_optiscaler = bool(fsr4.get("current")) or any(
+            game.get("state") == "installed" for game in scaler_games
+        ) or any(_mapping(game).get("kind") == "optiscaler" for game in helixsr_games)
+        self.fsr4_launch_panel.setVisible(bool(columns) and uses_optiscaler and bool(self._fsr4_launch_option))
+        self.fsr4_launch_field.setText(self._fsr4_launch_option)
+        self.fsr4_launch_field.setCursorPosition(0)
         for button in (self.helixsr_folder_button, self.helixsr_opti_folder_button):
             button.setVisible(helixsr_on and ready)
+        self.upscaling_add_button.setVisible(helixsr_on and ready)
+        outdated = int(helixsr.get("outdated_games") or 0) if helixsr_on and ready else 0
+        self.helixsr_update_all_button.setVisible(outdated > 1)
+        self.helixsr_update_all_button.setText(tr_format("Update all games ({count})", count=outdated))
+        for button in (self.upscaling_add_button, self.helixsr_update_all_button):
             # The header keeps each label on one line.
             button.setProperty("headerActionWidth", IconButton.sizeHint(button).width())
         self.upscaling_games._layout_header(force=True)
@@ -1379,6 +1458,11 @@ class PreparationRenderMixin:
         self.fsr4_upstream_button.show()
         games = [dict(game) for game in fsr4.get("games") or () if isinstance(game, Mapping)]
         self._render_fsr4_games(games if FSR4_UI_ENABLED and fsr4_current else [])
+        # The client's records outlive it: they are read with or without it.
+        self._fsr4_records = (
+            [dict(_mapping(item)) for item in fsr4.get("installations") or ()] if FSR4_UI_ENABLED else [],
+            [dict(_mapping(item)) for item in fsr4.get("backups") or ()] if FSR4_UI_ENABLED else [],
+        )
 
         self._render_helixsr(_mapping(tools.get("helixsr")))
         self._render_upscaling()

@@ -1217,6 +1217,11 @@ class GpuGovernorStateMixin:
         if action == "fsr4_steam_option_all":
             self._add_fsr4_steam_option_to_library(dialog_parent=dialog_parent)
             return
+        if action.startswith(("fsr4_undo:", "fsr4_backup_restore:")):
+            self._manage_opticlient_files(
+                action.removeprefix("fsr4_"), dialog_parent=dialog_parent
+            )
+            return
         if action.startswith("fsr4_steam_option:"):
             self._add_fsr4_steam_option(
                 action.partition(":")[2], dialog_parent=dialog_parent
@@ -1225,7 +1230,7 @@ class GpuGovernorStateMixin:
         if action in {
             "fsr4_install", "fsr4_uninstall", "fsr4_legacy_uninstall", "fsr4_launch",
             "fsr4_releases",
-        } or action.startswith("fsr4_select:"):
+        } or action.startswith(("fsr4_select:", "fsr4_upgrade:")):
             self._manage_fsr4_bc250(
                 action.removeprefix("fsr4_"), dialog_parent=dialog_parent
             )

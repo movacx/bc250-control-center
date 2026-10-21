@@ -1430,42 +1430,54 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
                 error_parent=dialog_parent,
             )
             return
-        copy = {
-            "install": (
-                "Install FSR4 (OptiScaler Client)",
-                "Downloads the pinned BC250 build of OptiScaler Client, checks the published SHA-256 and every file inside, and installs it in your user folder. No password is needed and nothing outside your home folder changes. Games are only patched later, by you, from the client.",
-                "Install",
-                "blue",
-            ),
-            "uninstall": (
-                "Remove OptiScaler Client",
-                "Removes the client program only. The backups of every game it patched stay in ~/.config/OptiscalerClient-BC250. To put games back as they were, use Restore / recover selected in the client before removing it.",
-                "Remove client",
-                "orange",
-            ),
-            "legacy_uninstall": (
-                "Remove the old FSR4 V3 runtime",
-                "Removes the older per-game RADV runtime (dmorazasanchez V3) that the OptiScaler Client replaces. Remove its VK_DRIVER_FILES launch option from any game that still uses it.",
-                "Remove V3 runtime",
-                "orange",
-            ),
-        }.get(action)
-        if copy is None:
-            raise ValueError("Unsupported FSR4 action.")
         from bc250cc.infrastructure.bc250_opticlient import OPTICLIENT_TAG
 
         fsr4 = _dict(_dict(self.current_state.get("tools")).get("fsr4"))
         release_tag = str(fsr4.get("tag") or OPTICLIENT_TAG)
+        if action.startswith("upgrade:"):
+            newer = _dict(fsr4.get("newer"))
+            release_tag = action.partition(":")[2]
+            version = str(newer.get("version") or release_tag)
+            copy = (
+                tr_format("Update OptiScaler Client to {version}", version=version),
+                tr("Downloads the new build from GitHub, checks it and replaces the current one. Your games keep what the client installed in them.")
+                + ("" if newer.get("reviewed") else " " + tr("This build has not been reviewed with Control Center yet.")),
+                "Update",
+                "blue",
+            )
+        else:
+            copy = {
+                "install": (
+                    "Install OptiScaler Client",
+                    "Downloads the client from GitHub, checks it and installs it in your user folder. You add games from the client afterwards.",
+                    "Install",
+                    "blue",
+                ),
+                "uninstall": (
+                    "Remove OptiScaler Client",
+                    "Removes the client. What it installed in your games stays, and so do its backups in ~/.config/OptiscalerClient-BC250.",
+                    "Remove client",
+                    "orange",
+                ),
+                "legacy_uninstall": (
+                    "Remove the old FSR4 V3 runtime",
+                    "Removes the old V3 runtime. Also remove its VK_DRIVER_FILES launch option from any game that still has it.",
+                    "Remove V3 runtime",
+                    "orange",
+                ),
+            }.get(action)
+        if copy is None:
+            raise ValueError("Unsupported FSR4 action.")
         title, body, confirm, tone = copy
         confirmation = ConfirmDialog(
             title,
             tr(body),
             summary=(
                 (tr("Source"), "github.com/daniel-h-0/bc250-fsr4-fork"),
-                (tr("Release"), release_tag),
-                (tr("Scope"), tr("Your user folder; games only when you choose them")),
+                (tr("Version"), release_tag.removeprefix("opticlient-v")),
             ),
             confirm_text=confirm,
+            eyebrow="FSR4 INT8",
             tone=tone,
             parent=dialog_parent or self,
         )
@@ -1585,6 +1597,9 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
                 error_parent=dialog_parent,
             )
             return
+        if action == "update_all":
+            self._update_all_helixsr_games(dialog_parent=dialog_parent)
+            return
         game_action, _sep, appid = action.partition(":")
         if game_action == "select":
             # Only the pick is saved: Install or Update downloads it.
@@ -1641,6 +1656,9 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
         if game_action in {"opti_install", "opti_remove"}:
             self._manage_helixsr_optiscaler(action, dialog_parent=dialog_parent)
             return
+        if game_action.startswith("scaler_"):
+            self._manage_helixsr_scaler(action, dialog_parent=dialog_parent)
+            return
         if game_action in {"game_install", "game_remove"}:
             helixsr = _dict(_dict(self.current_state.get("tools")).get("helixsr"))
             game = next(
@@ -1654,15 +1672,13 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
             confirmation = ConfirmDialog(
                 "Add HelixSR to this game" if installing else "Remove HelixSR from this game",
                 tr(
-                    "The game's FSR 3.1 DLL is renamed to *.original.dll and HelixSR takes its place, with its network files beside it. Close the game first, then choose AMD FSR as the upscaler in its settings."
+                    "HelixSR replaces the game's FSR 3.1 file; the original is kept. In the game, choose AMD FSR."
                     if installing else
-                    "HelixSR's files are removed from the game folder and the game's own FSR DLL is renamed back. Close the game first."
-                ),
-                summary=(
-                    (tr("Game"), str(game.get("name") or appid)),
-                    *((tr("File"), str(path)) for path in list(game.get("files") or ())[:3]),
-                ),
+                    "The game gets its own FSR file back."
+                ) + " " + tr("Close the game first."),
+                summary=((tr("Game"), str(game.get("name") or appid)),),
                 confirm_text="Add HelixSR" if installing else "Remove",
+                eyebrow="HelixSR",
                 tone="blue" if installing else "orange",
                 parent=dialog_parent or self,
             )
@@ -1685,55 +1701,60 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
                 error_parent=dialog_parent,
             )
             return
-        copy = {
-            "install": (
-                "Install HelixSR",
-                "Downloads the official HelixSR release, checks its SHA-256 and installs it in your user folder. HelixSR's own setup then builds the network files on this PC from NVIDIA's DLSS DLL, which it downloads from NVIDIA's GitHub only after you agree in the terminal. It takes 4-5 minutes and needs no password. HelixSR is an independent project, not affiliated with NVIDIA or AMD.",
-                "Install",
+        helixsr = _dict(_dict(self.current_state.get("tools")).get("helixsr"))
+        release = str(helixsr.get("tag") or HELIXSR_TAG)
+        if action.startswith("upgrade:"):
+            newer = _dict(helixsr.get("newer"))
+            release = action.partition(":")[2]
+            version = str(newer.get("version") or release.removeprefix("v"))
+            copy = (
+                tr_format("Update HelixSR to {version}", version=version),
+                tr("Downloads the new release from GitHub and builds its network on this PC; the terminal asks before it downloads NVIDIA's DLSS file. Your games keep their current version until you update them.")
+                + ("" if newer.get("reviewed") else " " + tr("This release has not been reviewed with Control Center yet.")),
+                "Update",
                 "blue",
-            ),
-            "network": (
-                "Build HelixSR network files",
-                "HelixSR's own setup builds the network files on this PC from NVIDIA's DLSS DLL, which it downloads from NVIDIA's GitHub only after you agree in the terminal. It takes 4-5 minutes and needs no password.",
-                "Build network files",
-                "blue",
-            ),
-            "uninstall": (
-                "Remove HelixSR",
-                "Removes the HelixSR release, its network files and its setup cache (portable Python and shader compiler). Games must not use HelixSR any more: remove it from each game first.",
-                "Remove HelixSR",
-                "orange",
-            ),
-        }.get(action)
+            )
+        else:
+            copy = {
+                "install": (
+                    "Install HelixSR",
+                    "Downloads HelixSR from GitHub and builds its network on this PC. The terminal asks before it downloads NVIDIA's DLSS file. It takes about five minutes.",
+                    "Install",
+                    "blue",
+                ),
+                "network": (
+                    "Build network files",
+                    "Builds HelixSR's network on this PC. The terminal asks before it downloads NVIDIA's DLSS file. It takes about five minutes.",
+                    "Build network files",
+                    "blue",
+                ),
+                "fg": (
+                    "Build frame generation",
+                    "Builds DLSS frame generation for games with HelixSR Scaler. The terminal asks before each download from NVIDIA (about 400 MB). No game is changed.",
+                    "Build frame generation",
+                    "blue",
+                ),
+                "uninstall": (
+                    "Remove HelixSR",
+                    "Removes HelixSR and everything it built on this PC. Remove it from your games first.",
+                    "Remove HelixSR",
+                    "orange",
+                ),
+            }.get(action)
         if copy is None:
             raise ValueError("Unsupported HelixSR action.")
         title, body, confirm, tone = copy
-        helixsr = _dict(_dict(self.current_state.get("tools")).get("helixsr"))
-        release = str(helixsr.get("tag") or HELIXSR_TAG)
-        if helixsr.get("prerelease"):
+        if helixsr.get("prerelease") and not action.startswith("upgrade:"):
             release = tr_format("{version} (pre-release)", version=release)
         confirmation = ConfirmDialog(
             title,
             tr(body),
             summary=(
                 (tr("Source"), "github.com/lonewolf0622/HelixSR"),
-                (tr("Release"), release),
-                (tr("Scope"), tr("Your user folder; games only when you choose them")),
-                *(
-                    ()
-                    if action == "uninstall"
-                    else ((
-                        tr("NVIDIA DLSS DLL"),
-                        tr("OptiScaler Client's copy, checked by SHA-256; nothing is downloaded from NVIDIA")
-                        if helixsr.get("local_dlss")
-                        else tr("Downloaded from NVIDIA's GitHub after you agree in the terminal"),
-                    ),)
-                ),
+                (tr("Version"), release.removeprefix("v")),
             ),
-            notice=""
-            if action == "uninstall"
-            else "The network files hold NVIDIA's network. They stay on this PC: never share or upload them.",
             confirm_text=confirm,
+            eyebrow="HelixSR",
             tone=tone,
             parent=dialog_parent or self,
         )
@@ -1745,6 +1766,118 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
                 self, label, "Opened the HelixSR workflow in the terminal.",
             ),
             "Could not manage HelixSR",
+            controls=(),
+            error_parent=dialog_parent,
+        )
+
+    def _manage_helixsr_scaler(self, action: str, *, dialog_parent: QWidget | None) -> None:
+        """HelixSR Scaler in a Steam game, through the HelixSR release's own bridge."""
+        game_action, _sep, appid = action.partition(":")
+        helixsr = _dict(_dict(self.current_state.get("tools")).get("helixsr"))
+        game = next(
+            (dict(item) for item in helixsr.get("scaler_games") or ()
+             if str(_dict(item).get("appid")) == appid),
+            {"appid": appid, "name": appid},
+        )
+        name = str(game.get("name") or appid)
+        version = str(helixsr.get("version") or "")
+        copy = {
+            "scaler_install": (
+                "Add HelixSR Scaler to this game",
+                "HelixSR Scaler goes next to the game and keeps any file it replaces. In the game, choose DLSS. Don't use it in online games with anti-cheat.",
+                "Add HelixSR Scaler", "blue",
+            ),
+            "scaler_remove": (
+                "Remove HelixSR Scaler from this game",
+                "Every file HelixSR Scaler replaced is put back.",
+                "Remove", "orange",
+            ),
+            "scaler_update": (
+                tr_format("Update HelixSR Scaler to {version}", version=version),
+                tr_format("The game keeps version {version} so you can go back to it.", version=str(game.get("version") or "?")),
+                "Update", "blue",
+            ),
+            "scaler_rollback": (
+                tr_format("Go back to HelixSR {version}", version=str(game.get("previous") or "?")),
+                "The game gets back the version it had before its last update. You can undo this the same way.",
+                "Go back", "orange",
+            ),
+        }.get(game_action)
+        if copy is not None:
+            title, body, confirm, tone = copy
+            confirmation = ConfirmDialog(
+                title,
+                tr(body) + " " + tr("Close the game first."),
+                summary=((tr("Game"), name),),
+                confirm_text=confirm,
+                eyebrow="HelixSR",
+                tone=tone,
+                parent=dialog_parent or self,
+            )
+            if confirmation.exec() != QDialog.DialogCode.Accepted:
+                return
+
+        def done(result: object) -> None:
+            result = _dict(result)
+            game_name = str(result.get("game") or name)
+            if game_action == "scaler_install":
+                message = tr_format(
+                    "HelixSR Scaler was added to {game}. In the game, choose DLSS as the upscaler.", game=game_name
+                )
+                if result.get("launch_option_error"):
+                    message = f"{message} " + tr_format(
+                        "Steam also needs this launch option for it: {option}", option=str(result.get("launch_options"))
+                    )
+            elif game_action == "scaler_remove":
+                message = tr_format("HelixSR Scaler was removed from {game}; its own files are back.", game=game_name)
+            elif game_action in {"scaler_update", "scaler_rollback"}:
+                message = tr_format("{game} now has HelixSR {version}.", game=game_name,
+                                    version=str(result.get("version") or "?"))
+            elif game_action == "scaler_fg_on":
+                message = tr_format(
+                    "Frame generation is on in {game}. Turn on DLSS Frame Generation in the game.", game=game_name
+                )
+            else:
+                message = tr_format("Frame generation is off in {game}.", game=game_name)
+            GpuGovernorPage._record_preparation_result(self, "HelixSR", message)
+
+        self._run_backend_action(
+            lambda: self.controller.gestionar_helixsr(action),
+            done,
+            "Could not change the game's files",
+            controls=(),
+            error_parent=dialog_parent,
+        )
+
+    def _update_all_helixsr_games(self, *, dialog_parent: QWidget | None) -> None:
+        """Every game with another HelixSR release, given the installed one."""
+        helixsr = _dict(_dict(self.current_state.get("tools")).get("helixsr"))
+        version = str(helixsr.get("version") or "")
+        count = int(helixsr.get("outdated_games") or 0)
+        confirmation = ConfirmDialog(
+            tr_format("Update {count} games to HelixSR {version}", count=count, version=version),
+            tr("Games that are open are skipped; close them and update them later. Games with HelixSR Scaler keep their current version to go back to."),
+            confirm_text="Update",
+            eyebrow="HelixSR",
+            tone="blue",
+            parent=dialog_parent or self,
+        )
+        if confirmation.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        def done(result: object) -> None:
+            result = _dict(result)
+            message = tr_format("{count} games now have HelixSR {version}.",
+                                count=len(result.get("updated") or ()), version=str(result.get("version") or version))
+            skipped = [str(name) for name in result.get("skipped") or ()]
+            if skipped:
+                message += " " + tr_format("Not updated: {games}. Close them and try again.", games=", ".join(skipped))
+            GpuGovernorPage._record_preparation_result(self, "HelixSR", message)
+
+        self._run_backend_action(
+            lambda: self.controller.gestionar_helixsr("update_all"),
+            done,
+            "Could not change the game's files",
             controls=(),
             error_parent=dialog_parent,
         )
@@ -1765,12 +1898,13 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
         confirmation = ConfirmDialog(
             "Use HelixSR in OptiScaler" if installing else "Remove HelixSR from OptiScaler",
             tr(
-                "A HelixSR folder is added next to OptiScaler and OptiScaler.ini is pointed at it; the previous OptiScaler.ini is saved first. If the FSR4 client's DLL is there, FSR4 stays selectable in OptiScaler's menu next to HelixSR. Close the game first. While HelixSR is in use, remove it here before you update or restore this game in OptiScaler Client."
+                "This game's OptiScaler is pointed at HelixSR; its settings are saved first. In the game, press Insert and pick FSR HelixSR."
                 if installing else
-                "OptiScaler.ini is put back exactly as it was and the HelixSR folder is removed. Close the game first."
-            ),
+                "OptiScaler's settings are put back as they were."
+            ) + " " + tr("Close the game first."),
             summary=((tr("Game"), name),),
             confirm_text="Use HelixSR in OptiScaler" if installing else "Remove",
+            eyebrow="HelixSR",
             tone="blue" if installing else "orange",
             parent=dialog_parent or self,
         )
@@ -1793,6 +1927,77 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
             error_parent=dialog_parent,
         )
 
+    def _manage_opticlient_files(self, action: str, *, dialog_parent: QWidget | None) -> None:
+        """Undo OptiScaler Client's install in a game into a backup, or put it back."""
+        verb, _sep, target = action.partition(":")
+        fsr4 = _dict(_dict(self.current_state.get("tools")).get("fsr4"))
+        if verb == "undo":
+            record = next(
+                (dict(item) for item in fsr4.get("installations") or ()
+                 if str(_dict(item).get("key")) == target),
+                {"name": "", "files": 0},
+            )
+            clear = record.get("state") == "removed"
+            title, body, confirm = (
+                ("Clear OptiScaler Client's record",
+                 "OptiScaler's files are already gone. The client's record moves into a backup, so the client can install the game again. Close OptiScaler Client first.",
+                 "Clear record")
+                if clear else
+                ("Remove OptiScaler from this game",
+                 "OptiScaler Client's files move into a backup and any game file they replaced comes back. Close the game and OptiScaler Client first.",
+                 "Remove, keep a backup")
+            )
+            summary = [(tr("Game"), str(record.get("name") or tr("Unknown")))]
+            if not clear:
+                summary.append((tr("Files"), str(record.get("files") or 0)))
+        else:
+            record = next(
+                (dict(item) for item in fsr4.get("backups") or ()
+                 if str(_dict(item).get("id")) == target),
+                {"name": "", "files": 0, "path": ""},
+            )
+            title, body, confirm = (
+                "Put OptiScaler back",
+                "The files and the client's record go back exactly as they were. Close the game and OptiScaler Client first.",
+                "Put back",
+            )
+            summary = [
+                (tr("Game"), str(record.get("name") or tr("Unknown"))),
+                (tr("Files"), str(record.get("files") or 0)),
+                (tr("Backup folder"), str(record.get("path") or "")),
+            ]
+        confirmation = ConfirmDialog(
+            title, tr(body), summary=tuple(summary), confirm_text=confirm, eyebrow="FSR4 INT8",
+            tone="blue" if verb != "undo" else "orange", parent=dialog_parent or self,
+        )
+        if confirmation.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        def done(result: object) -> None:
+            result = _dict(result)
+            game = str(result.get("game") or record.get("name") or "")
+            if verb != "undo":
+                message = tr_format("OptiScaler is back in {game}.", game=game)
+            elif result.get("record_only"):
+                message = tr_format(
+                    "OptiScaler Client's record of {game} was cleared. It is kept in {path}.",
+                    game=game, path=str(result.get("backup") or ""),
+                )
+            else:
+                message = tr_format(
+                    "OptiScaler was removed from {game}. Its {count} files are kept in {path}.",
+                    game=game, count=int(result.get("files") or 0), path=str(result.get("backup") or ""),
+                )
+            GpuGovernorPage._record_preparation_result(self, "FSR4 · OptiScaler Client", message)
+
+        self._run_backend_action(
+            lambda: self.controller.gestionar_fsr4_bc250(action),
+            done,
+            "Could not change the game's files",
+            controls=(),
+            error_parent=dialog_parent,
+        )
+
     def _add_fsr4_steam_option_to_library(self, *, dialog_parent: QWidget | None) -> None:
         """The same option for every installed Steam game, asked for on Reddit."""
         from bc250cc.infrastructure.steam_launch_options import installed_steam_games
@@ -1801,10 +2006,8 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
         confirmation = ConfirmDialog(
             "Add the launch option to every Steam game",
             tr(
-                "Every installed Steam game gets the option that lets Proton load OptiScaler, so "
-                "after this the client only has to copy files into a game. Games without "
-                "OptiScaler run as before. What each game already had stays. Close Steam "
-                "completely first; the previous Steam settings file is kept beside it as a backup."
+                "Every installed Steam game gets the option OptiScaler needs. What each game already had stays, "
+                "and games without OptiScaler run as before. Close Steam first."
             ),
             summary=(
                 (tr("Games"), str(len(games))),
@@ -1855,11 +2058,7 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
         after = merge_dll_override(before, dll)
         confirmation = ConfirmDialog(
             "Add the launch option to Steam",
-            tr(
-                "Steam will start this game with the option that makes Proton load OptiScaler. "
-                "What you already had stays. Close Steam completely first; the previous "
-                "Steam settings file is kept beside it as a backup."
-            ),
+            tr("This game gets the option OptiScaler needs. What it already had stays. Close Steam first."),
             summary=(
                 (tr("Game"), str(game.get("name") or appid)),
                 (tr("Now"), before or tr("(empty)")),

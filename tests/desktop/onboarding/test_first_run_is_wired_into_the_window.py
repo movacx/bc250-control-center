@@ -166,10 +166,13 @@ def test_opening_the_upscaling_tab_introduces_it(qtbot):
     qtbot.addWidget(page)
     panel = page.panel
     seen = []
+    checks = []
     owner = SimpleNamespace(
         extras_page=page,
         _first_run_pending=False,
         _introduce_feature=lambda feature, key: seen.append((feature, key)),
+        # Opening the tab also reads the upscalers' release lists, in the background.
+        _refresh_upscaler_releases=lambda: checks.append("upscaling"),
     )
 
     def opened(key):
@@ -179,6 +182,7 @@ def test_opening_the_upscaling_tab_introduces_it(qtbot):
     panel.select_tab(panel.tab_index("memory"))
     panel.select_tab(panel.tab_index("upscaling"))
     qtbot.waitUntil(lambda: seen == [(UPSCALING_FEATURE, "extras")], timeout=2000)
+    assert checks == ["upscaling"]
 
     # Left again before the introduction was due: nothing is shown.
     seen.clear()

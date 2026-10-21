@@ -13,6 +13,7 @@ from PyQt6.QtWidgets import (
     QGridLayout,
     QHBoxLayout,
     QLabel,
+    QMenu,
     QProgressBar,
     QSizePolicy,
     QVBoxLayout,
@@ -847,6 +848,10 @@ class PreparationPagesMixin:
         self.helixsr_install_button = self.helixsr_card.add_action(
             "Install HelixSR", {"action": "helixsr_install", "governor": ""}
         )
+        # HelixSR 2.0 on: DLSS frame generation, for games with HelixSR Scaler.
+        self.helixsr_fg_button = self.helixsr_card.add_action(
+            "Build frame generation", {"action": "helixsr_fg", "governor": ""}
+        )
         self.helixsr_remove_button = self.helixsr_card.add_action(
             "Remove",
             {"action": "helixsr_uninstall", "governor": ""},
@@ -884,8 +889,9 @@ class PreparationPagesMixin:
             "FSR4 INT8", "AMD's FSR 4 in INT8, installed per game by OptiScaler Client.", "fsr4"
         )
         self.fsr4_guide_button = self.fsr4_section.add_header_button(
-            "OptiScaler Client guide", lambda: self.fsr4_upstream_button.click()
+            "Guide", lambda: self.fsr4_upstream_button.click()
         )
+        self._as_guide_link(self.fsr4_guide_button)
         self.fsr4_guide_button.setToolTip(tr(
             "Step by step on GitHub (daniel-h-0/bc250-fsr4-fork): installing OptiScaler in a game, the Steam launch option and undoing it."
         ))
@@ -893,33 +899,30 @@ class PreparationPagesMixin:
         # table, where each game says whether it has it, with a copy.
         # The client build Install or Update brings in, as for HelixSR: the
         # recommended one unless the user picks another from GitHub's list.
-        fsr4_version_row = QHBoxLayout()
-        fsr4_version_row.setSpacing(8)
-        fsr4_version_row.addWidget(_label("Version", "readingLabel", wrap=False))
         self.fsr4_version_combo = GuardedComboBox()
         self.fsr4_version_combo.setAccessibleName(tr("OptiScaler Client version"))
         self.fsr4_version_combo.setToolTip(tr(
             "The OptiScaler Client build Install or Update brings in. The recommended one is the build this version of Control Center was checked with."
         ))
         self.fsr4_version_combo.activated.connect(self._select_fsr4_release)
-        fsr4_version_row.addWidget(self.fsr4_version_combo, 1)
-        self.fsr4_releases_button = QPushButton(tr("Check for new releases"))
-        self.fsr4_releases_button.setProperty("compactAction", True)
-        self.fsr4_releases_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.fsr4_releases_button.setToolTip(tr(
-            "Reads the list of OptiScaler Client builds on GitHub, in the terminal, so newer builds can be picked. Nothing is installed."
-        ))
-        self.fsr4_releases_button.clicked.connect(
-            lambda: self._forward_dependency_action({"action": "fsr4_releases", "governor": ""})
+        self.fsr4_releases_button = self._releases_button(
+            "Checks GitHub for newer OptiScaler Client builds. Control Center also checks on its own twice a day.",
+            "fsr4_releases",
         )
-        fsr4_version_row.addWidget(self.fsr4_releases_button)
-        self.fsr4_section.extra.addLayout(fsr4_version_row)
+        # The Steam launch option: what loads OptiScaler, so it serves every
+        # game that has one (OptiScaler Client's, HelixSR Scaler, one put in
+        # by hand). A strip at the head of the games table, with a copy.
         self.fsr4_launch_panel = QFrame()
-        self.fsr4_launch_panel.setProperty("compactPanel", True)
+        self.fsr4_launch_panel.setProperty("launchStrip", True)
         launch_row = QHBoxLayout(self.fsr4_launch_panel)
-        launch_row.setContentsMargins(10, 3, 3, 3)
+        launch_row.setContentsMargins(12, 6, 6, 6)
         launch_row.setSpacing(8)
-        launch_row.addWidget(_label("Steam launch option", "fieldLabel", wrap=False))
+        launch_text = QVBoxLayout()
+        launch_text.setSpacing(0)
+        launch_text.addWidget(_label("Steam launch option", "readingLabel", wrap=False))
+        launch_text.addWidget(_label("For games with OptiScaler or HelixSR Scaler", "settingHint", wrap=False))
+        launch_row.addLayout(launch_text)
+        launch_row.addStretch(1)
         self.fsr4_launch_field = _FittedLineEdit()
         self.fsr4_launch_field.setAccessibleName(tr("Steam launch option"))
         self.fsr4_launch_field.setToolTip(
@@ -927,14 +930,29 @@ class PreparationPagesMixin:
         )
         self.fsr4_launch_field.setReadOnly(True)
         self.fsr4_launch_field.setProperty("i18nLiteral", True)
-        launch_row.addWidget(self.fsr4_launch_field, 1)
-        self.fsr4_copy_button = QPushButton(tr("Copy"))
+        self.fsr4_launch_field.setProperty("launchOption", True)
+        self.fsr4_launch_field.setMinimumWidth(320)
+        launch_row.addWidget(self.fsr4_launch_field)
+        self.fsr4_copy_button = QPushButton("")
+        self.fsr4_copy_button.setIcon(icon("copy_gray"))
         self.fsr4_copy_button.setProperty("compactAction", True)
+        self.fsr4_copy_button.setProperty("iconAction", True)
         self.fsr4_copy_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.fsr4_copy_button.setToolTip(tr("Copy Steam launch option"))
         self.fsr4_copy_button.setAccessibleName(tr("Copy Steam launch option"))
         self.fsr4_copy_button.clicked.connect(self._copy_fsr4_launch_option)
         launch_row.addWidget(self.fsr4_copy_button)
+        # Into every Steam game at once, while a game still lacks it.
+        launch_row.addWidget(self.fsr4_steam_all_button)
+        self.fsr4_section.set_header_control(
+            self._version_control(self.fsr4_version_combo, self.fsr4_releases_button)
+        )
+        self.fsr4_upgrade_button = QPushButton("")
+        self.fsr4_upgrade_button.clicked.connect(
+            lambda: self._forward_dependency_action(
+                {"action": f"fsr4_upgrade:{self.fsr4_upgrade_button.property('releaseTag') or ''}", "governor": ""}
+            )
+        )
 
         self.helixsr_section = _UpscalerSection(
             "HelixSR",
@@ -942,40 +960,48 @@ class PreparationPagesMixin:
             "helixsr",
         )
         self.helixsr_guide_button = self.helixsr_section.add_header_button(
-            "HelixSR guide", lambda: self.helixsr_upstream_button.click()
+            "Guide", lambda: self.helixsr_upstream_button.click()
         )
+        self._as_guide_link(self.helixsr_guide_button)
         self.helixsr_guide_button.setToolTip(tr(
             "HelixSR's own guide on GitHub (lonewolf0622/HelixSR): its network files, each game, OptiScaler and every helixsr.ini setting."
         ))
         # The release Install or Update brings in: the recommended one unless
         # the user picks an older one or a pre-release.
-        version_row = QHBoxLayout()
-        version_row.setSpacing(8)
-        version_row.addWidget(_label("Version", "readingLabel", wrap=False))
         self.helixsr_version_combo = GuardedComboBox()
         self.helixsr_version_combo.setAccessibleName(tr("HelixSR version"))
         self.helixsr_version_combo.setToolTip(tr(
             "The HelixSR release Install or Update brings in. The recommended one is the release this version of Control Center was checked with."
         ))
         self.helixsr_version_combo.activated.connect(self._select_helixsr_release)
-        version_row.addWidget(self.helixsr_version_combo, 1)
-        self.helixsr_releases_button = QPushButton(tr("Check for new releases"))
-        self.helixsr_releases_button.setProperty("compactAction", True)
-        self.helixsr_releases_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.helixsr_releases_button.setToolTip(tr(
-            "Reads HelixSR's list of releases on GitHub, in the terminal, so newer releases and pre-releases can be picked. Nothing is installed."
-        ))
-        self.helixsr_releases_button.clicked.connect(
-            lambda: self._forward_dependency_action({"action": "helixsr_releases", "governor": ""})
+        self.helixsr_releases_button = self._releases_button(
+            "Checks GitHub for newer HelixSR releases and pre-releases. Control Center also checks on its own twice a day.",
+            "helixsr_releases",
         )
-        version_row.addWidget(self.helixsr_releases_button)
-        self.helixsr_section.extra.addLayout(version_row)
+        self.helixsr_section.set_header_control(
+            self._version_control(self.helixsr_version_combo, self.helixsr_releases_button)
+        )
+        self.helixsr_upgrade_button = QPushButton("")
+        self.helixsr_upgrade_button.clicked.connect(
+            lambda: self._forward_dependency_action(
+                {"action": f"helixsr_upgrade:{self.helixsr_upgrade_button.property('releaseTag') or ''}", "governor": ""}
+            )
+        )
         # Every game against both upscalers, across the page.
         self.upscaling_games = _UpscalingGames()
         self.upscaling_games.action_requested.connect(self._forward_dependency_action)
+        self.upscaling_games.body.insertWidget(0, self.fsr4_launch_panel)
+        # Every game with another HelixSR release than the installed one.
+        self.helixsr_update_all_button = self.upscaling_games.add_header_button(
+            "Update all games",
+            lambda: self._forward_dependency_action({"action": "helixsr_update_all", "governor": ""}),
+        )
+        self.helixsr_update_all_button.setToolTip(tr(
+            "Gives every game the installed HelixSR release. A game that is open is skipped."
+        ))
         # Games Steam does not know: the user points at the game's folder.
-        self.helixsr_folder_button = self.upscaling_games.add_header_button(
-            "Add game folder",
+        self.helixsr_folder_button = QPushButton(tr("Add game folder"))
+        self.helixsr_folder_button.clicked.connect(
             lambda: self._forward_dependency_action(
                 {"action": "helixsr_add_folder", "governor": ""}
             ),
@@ -984,8 +1010,8 @@ class PreparationPagesMixin:
             tr("For games outside Steam, choose the game's folder.")
         )
         # OptiScaler put in a game by hand, not by OptiScaler Client.
-        self.helixsr_opti_folder_button = self.upscaling_games.add_header_button(
-            "Add OptiScaler game",
+        self.helixsr_opti_folder_button = QPushButton(tr("Add OptiScaler game"))
+        self.helixsr_opti_folder_button.clicked.connect(
             lambda: self._forward_dependency_action(
                 {"action": "helixsr_add_opti_folder", "governor": ""}
             ),
@@ -993,14 +1019,24 @@ class PreparationPagesMixin:
         self.helixsr_opti_folder_button.setToolTip(
             tr("For a game where you installed OptiScaler yourself: choose the game's folder and HelixSR can upscale through it.")
         )
-        # The launch option leads the header, before the buttons.
-        self.upscaling_games._header_buttons.insert(0, self.fsr4_launch_panel)
+        # Both ways to add a game, behind one button.
+        self.upscaling_add_button = self.upscaling_games.add_header_button(
+            "Add game", self._open_add_game_menu,
+        )
+        self.upscaling_add_button.setProperty("menuAction", True)
+        self.upscaling_add_button.setIcon(icon("chevron_down_gray"))
+        self.upscaling_add_button.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+        self._add_game_holder = QWidget(self.upscaling_games)
+        self._add_game_holder.hide()
+        for button in (self.helixsr_folder_button, self.helixsr_opti_folder_button):
+            button.setParent(self._add_game_holder)
         self.upscaling_games._layout_header(force=True)
         for button in (
             self.fsr4_install_button, self.fsr4_launch_button, self.fsr4_remove_button,
             self.fsr4_steam_all_button,
             self.fsr4_legacy_button, self.helixsr_install_button, self.helixsr_network_button,
             self.helixsr_scan_button, self.helixsr_remove_button,
+            self.fsr4_upgrade_button, self.helixsr_upgrade_button,
         ):
             self._adopt(button, "compactAction")
 
@@ -1021,12 +1057,65 @@ class PreparationPagesMixin:
         )
         if hasattr(self, "_helixsr_settings_state"):
             self.helixsr_settings.set_int8_supported(getattr(self, "_helixsr_int8", True))
+            self.helixsr_settings.set_fast_output_supported(getattr(self, "_helixsr_fast_output", True))
+            self.helixsr_settings.set_release_settings(
+                *getattr(self, "_helixsr_release_settings", ([], [])),
+                scaler_games=getattr(self, "_helixsr_scaler_count", 0),
+            )
             self.helixsr_settings.set_settings(*self._helixsr_settings_state)
             self.helixsr_settings.set_game_count(getattr(self, "_helixsr_game_count", 0))
         layout.addWidget(self.helixsr_settings)
         layout.addStretch(1)
         self._render_upscaling()
         return page
+
+    @staticmethod
+    def _as_guide_link(button: QPushButton) -> None:
+        """The guide opens a web page: a quiet link with the external mark."""
+        button.setProperty("compactAction", False)
+        button.setProperty("guideLink", True)
+        button.setIcon(icon("external_gray"))
+        button.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+        button.style().unpolish(button)
+        button.style().polish(button)
+
+    def _releases_button(self, tooltip: str, action: str) -> QPushButton:
+        """A small square button beside a version picker: read GitHub's list now."""
+        button = QPushButton("")
+        button.setIcon(icon("refresh_gray"))
+        button.setProperty("compactAction", True)
+        button.setProperty("iconAction", True)
+        button.setCursor(Qt.CursorShape.PointingHandCursor)
+        button.setToolTip(tr(tooltip))
+        button.setAccessibleName(tr("Check for new releases"))
+        button.clicked.connect(lambda: self._forward_dependency_action({"action": action, "governor": ""}))
+        return button
+
+    @staticmethod
+    def _version_control(combo, button) -> QWidget:
+        host = QWidget()
+        row = QHBoxLayout(host)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(6)
+        combo.setSizeAdjustPolicy(GuardedComboBox.SizeAdjustPolicy.AdjustToContents)
+        combo.setMinimumWidth(150)
+        row.addWidget(combo)
+        row.addWidget(button)
+        return host
+
+    def _open_add_game_menu(self) -> None:
+        """Add game: a folder outside Steam, or a game with OptiScaler put in by hand."""
+        menu = QMenu(self.upscaling_add_button)
+        menu.setProperty("upscalingMenu", True)
+        for button in (self.helixsr_folder_button, self.helixsr_opti_folder_button):
+            if button.isHidden():
+                continue
+            action = menu.addAction(button.text())
+            action.setToolTip(button.toolTip())
+            action.triggered.connect(lambda _checked=False, source=button: source.click())
+        if not menu.isEmpty():
+            self._add_game_menu = menu
+            menu.popup(self.upscaling_add_button.mapToGlobal(self.upscaling_add_button.rect().bottomLeft()))
 
     def _decky_page(self) -> QWidget:
         page = QWidget()

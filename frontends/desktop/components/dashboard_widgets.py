@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import shlex
 import textwrap
 from collections.abc import Iterable, Mapping
@@ -9,6 +10,7 @@ from pathlib import Path
 
 from PyQt6.QtCore import (
     QEvent,
+    QPoint,
     QPointF,
     QRectF,
     QSize,
@@ -30,6 +32,7 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMenu,
     QScrollArea,
     QSizePolicy,
     QToolButton,
@@ -46,7 +49,7 @@ from .. import theme
 from ..core.preferences import application_settings
 from ..i18n import tr, tr_format
 from .buttons import WrappingButton as QPushButton
-from .dashboard_instruments import HeadingLabel, Reading, ReadingGroup
+from .dashboard_instruments import HeadingLabel
 from .page_widgets import SectionCard
 from .style_state import repolish
 from .system_setup_controls import (
@@ -57,6 +60,7 @@ from .system_setup_controls import (
 )
 from .wheel_guard import GuardedComboBox
 from .widgets import IconBadge, InfoDialog, PillLabel
+from .widgets import icon as theme_icon
 
 
 def _label(text: str, property_name: str, *, wrap: bool = True) -> QLabel:
@@ -884,8 +888,89 @@ class PreparationComponentCard(QFrame):
         # over, on every five-second dashboard tick, and changed nothing.
 
 
+#: FSR4 states in which OptiScaler (OptiScaler Client's) is in the game.
+_OPTISCALER_IN_GAME = frozenset({"needs-launch-option", "ready", "other-launcher", "unknown-adapter"})
+
+
+#: OptiScaler Client's record per state, when the game table has no FSR4
+#: reading of its own (the client is not installed): (text, tone).
+_FSR4_RECORD_CELL = {
+    "intact": ("OptiScaler installed", ""),
+    "partial": ("OptiScaler installed", ""),
+    "removed": ("Record left", "orange"),
+    "changed": ("Check the files", "orange"),
+    "helixsr": ("OptiScaler installed", ""),
+    "pending": ("Interrupted", "orange"),
+    "interrupted": ("Interrupted", "orange"),
+    "backup-broken": ("Check the files", "orange"),
+    "unsupported": ("Check the files", "orange"),
+}
+
+
+def _undo_rows(row_for, installations: Iterable[Mapping], backups: Iterable[Mapping]) -> None:
+    """What OptiScaler Client recorded per game, and Control Center's backups.
+
+    Any game the client recorded gets "Remove OptiScaler, keep a backup",
+    whichever way it was added; a game whose files are already gone gets
+    "Clear the client's record", which is what keeps the client from
+    installing it again. The newest backup of a game the client no longer
+    records gets "Put OptiScaler back".
+    """
+    copy = PreparationSidebar._FSR4_UNDO_COPY
+    recorded: set[str] = set()
+    for record in installations:
+        state = str(record.get("state") or "unsupported")
+        key = str(record.get("key") or "")
+        if state == "missing" or not key:
+            continue  # the game is gone; nothing in the table to act on
+        appid = str(record.get("appid") or "")
+        row = row_for(appid, str(record.get("name") or appid))
+        recorded.add(appid or row["name"])
+        row["fsr4_recorded"] = state != "removed"
+        if state == "interrupted":
+            # Control Center's own removal was cut short: its backup goes back first.
+            action = ("Put OptiScaler back", f"fsr4_backup_restore:{record.get('backup')}", True)
+        else:
+            label = "Clear the client's record" if state == "removed" else "Remove OptiScaler, keep a backup"
+            action = (label, f"fsr4_undo:{key}", bool(record.get("removable")))
+        note = tr(copy.get(state, copy["unsupported"]))
+        linked = str(record.get("linked_path") or "")
+        if linked and record.get("removable"):
+            note = f"{tr_format(copy['linked'], link=linked)} {note}"
+        cell = row["fsr4"]
+        if cell is None or state in {"removed", "interrupted"}:
+            text, tone = _FSR4_RECORD_CELL.get(state, _FSR4_RECORD_CELL["unsupported"])
+            row["fsr4"] = (text, tone, note, (*(cell[3] if cell else ()), action))
+        else:
+            row["fsr4"] = (cell[0], cell[1], f"{cell[2]} {note}", (*cell[3], action))
+    for backup in backups:
+        appid = str(backup.get("appid") or "")
+        name = str(backup.get("name") or appid)
+        # An interrupted one too: cut short at the very end, it holds the record.
+        if (appid or name) in recorded or backup.get("state") not in {"ready", "interrupted"}:
+            continue
+        recorded.add(appid or name)
+        row = row_for(appid, name)
+        note = tr_format(copy["backup"], date=str(backup.get("created") or "")[:10],
+                         path=str(backup.get("path") or ""))
+        action = ("Put OptiScaler back", f"fsr4_backup_restore:{backup.get('id')}", True)
+        cell = row["fsr4"]
+        if cell is None:
+            row["fsr4"] = ("In a backup", "", note, (action,))
+        else:
+            row["fsr4"] = (cell[0], cell[1], f"{cell[2]} {note}", (*cell[3], action))
+
+
 def game_matrix_rows(
-    helixsr_games: list[Mapping], fsr4_games: list[Mapping], *, helixsr_ready: bool
+    helixsr_games: list[Mapping],
+    fsr4_games: list[Mapping],
+    *,
+    helixsr_ready: bool,
+    scaler_games: Iterable[Mapping] = (),
+    scaler_ready: bool = False,
+    fg_ready: bool = False,
+    fsr4_installations: Iterable[Mapping] = (),
+    fsr4_backups: Iterable[Mapping] = (),
 ) -> list[dict]:
     """One row per Steam game, with what HelixSR and FSR4 each do in it.
 
@@ -979,6 +1064,50 @@ def game_matrix_rows(
         if state == "needs-launch-option" and game.get("steam"):
             actions = (("Add FSR4 to Steam", f"fsr4_steam_option:{appid}", True),)
         row["fsr4"] = (text, tone, tooltip, actions)
+        row["fsr4_state"] = state
+    _undo_rows(row_for, fsr4_installations, fsr4_backups)
+    scaler_copy = PreparationSidebar._HELIXSR_SCALER_COPY
+    for game in scaler_games:
+        appid = str(game.get("appid") or "")
+        state = str(game.get("state") or "available")
+        if not appid or (state == "available" and not scaler_ready):
+            continue
+        row = row_for(appid, str(game.get("name") or appid))
+        remove = ("Remove HelixSR Scaler", f"helixsr_scaler_remove:{appid}", True)
+        if state == "installed":
+            actions: list[tuple[str, str, bool]] = []
+            text, tone, copy = "Active via HelixSR Scaler", "green", scaler_copy["installed"]
+            if game.get("outdated"):
+                # Still working with the release it was given; one click
+                # brings it the installed one, keeping this one to go back to.
+                text, tone = ("Update available" if game.get("older", True) else "Other version"), "orange"
+                copy = tr_format(scaler_copy["outdated"], version=str(game.get("version") or "?"))
+                actions.append(("Update HelixSR", f"helixsr_scaler_update:{appid}", scaler_ready))
+            if game.get("frame_generation"):
+                actions.append(("Turn off frame generation", f"helixsr_scaler_fg_off:{appid}", True))
+            elif game.get("fg_possible") is not False:
+                # False: HelixSR's bridge found no DLSS Frame Generation in the
+                # game, nothing to switch on. None: it could not tell, and
+                # refuses on its own if not.
+                actions.append(("Turn on frame generation", f"helixsr_scaler_fg_on:{appid}", fg_ready))
+            if game.get("previous"):
+                actions.append(("Go back to the previous version", f"helixsr_scaler_rollback:{appid}", True))
+            row["helixsr"] = (text, tone, copy, (*actions, remove))
+            continue
+        if state in {"restored", "missing"}:
+            text = "HelixSR Scaler changed" if state == "restored" else "Game not found"
+            row["helixsr"] = (text, "orange", scaler_copy[state], (remove,))
+            continue
+        cell = row["helixsr"]
+        # HelixSR is in the game another way, or OptiScaler Client's
+        # OptiScaler is: a game has one of each.
+        if cell and any(label.startswith("Remove") for label, _action, _enabled in cell[3]):
+            continue
+        if (row.get("fsr4_state") in _OPTISCALER_IN_GAME or row.get("fsr4_recorded")
+                or (cell and cell[0] == "Via OptiScaler")):
+            continue
+        add = ("Add HelixSR Scaler", f"helixsr_scaler_install:{appid}", True)
+        row["helixsr"] = (*cell[:3], (*cell[3], add)) if cell else ("", "", scaler_copy["available"], (add,))
 
     def rank(row: dict) -> tuple:
         tones = {cell[1] for cell in (row["helixsr"], row["fsr4"]) if cell}
@@ -1265,13 +1394,41 @@ class PreparationInfoCard(QFrame):
         self.scope.show()
 
 
+class _StatTile(QFrame):
+    """One figure of an upscaler card: a small label over its value."""
+
+    def __init__(self, label: str) -> None:
+        super().__init__()
+        self.setProperty("statTile", True)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(14, 2, 14, 2)
+        layout.setSpacing(2)
+        self.label = _label(label, "statLabel", wrap=False)
+        self.value = QLabel("—")
+        self.value.setProperty("statValue", True)
+        self.value.setProperty("tone", "")
+        layout.addWidget(self.label)
+        layout.addWidget(self.value)
+
+    def set_value(self, value: str) -> None:
+        self.value.setText(tr(value))
+
+    def set_tone(self, tone: str) -> None:
+        if self.value.property("tone") != tone:
+            self.setProperty("tone", tone)
+            self.value.setProperty("tone", tone)
+            repolish(self.value)
+
+
 class _UpscalerSection(SectionCard):
     """One upscaler on the Upscaling tab, built like the GPU page's cards.
 
-    A rule in the engine's colour across the top, its release beside its
-    name, its state as readings, a sentence when something is missing and
-    a footer: the other actions on the left, the next step as the blue
-    button on the right. Its games are rows of the shared games table.
+    The head carries the name, the release and the state; the body a few
+    readings, each a label on the left and its value or control on the
+    right; the footer the next step as the one solid button, with what is
+    done rarely (reinstall, rebuild, remove) behind More. Both upscalers'
+    cards are built alike so they line up side by side. Their games are
+    rows of the shared games table.
     """
 
     TONES = {"green": "good", "orange": "warning", "red": "danger"}
@@ -1308,11 +1465,15 @@ class _UpscalerSection(SectionCard):
         title_row.addWidget(self.version, 0, Qt.AlignmentFlag.AlignVCenter)
         title_row.addStretch(1)
         title_box.insertLayout(0, title_row)
-        # The card's title already names the tool: the readings need no heading.
-        self.facts = ReadingGroup("State")
-        self.facts.title.hide()
-        self.facts.layout().setContentsMargins(0, 0, 0, 0)
-        self.rows: dict[str, Reading] = {}
+        self._version_in_header = False
+        # The readings as one strip of small figures, side by side: a card
+        # with two and a card with three stay the same height.
+        self.facts = QFrame()
+        self.facts.setProperty("upscalerStats", True)
+        self._stats = QHBoxLayout(self.facts)
+        self._stats.setContentsMargins(0, 0, 0, 0)
+        self._stats.setSpacing(0)
+        self.rows: dict[str, _StatTile] = {}
         self.body.addWidget(self.facts)
         self.notice = _label("", "fieldHint")
         self.notice.hide()
@@ -1328,35 +1489,127 @@ class _UpscalerSection(SectionCard):
         self.footer.setHorizontalSpacing(8)
         self.footer.setVerticalSpacing(8)
         self.body.addWidget(self.footer_panel)
+        # What is done rarely: listed behind More. The buttons themselves
+        # stay the cards' (text, state, payload), kept out of sight here.
+        self._menu_holder = QWidget(self)
+        self._menu_holder.hide()
+        self._menu_buttons: list[QPushButton] = []
+        self.more_button = QPushButton(tr("More"))
+        self.more_button.setProperty("compactAction", True)
+        self.more_button.setProperty("menuAction", True)
+        self.more_button.setIcon(theme_icon("chevron_down_gray"))
+        self.more_button.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+        self.more_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.more_button.setAccessibleName(tr("More actions"))
+        self.more_button.clicked.connect(self._open_menu)
+        self.more_button.hide()
+
+    def set_header_control(self, control: QWidget) -> None:
+        """A control in the head, before the guide: the version picker. The
+        release then shows there, not again beside the name."""
+        self._header_buttons.insert(0, control)
+        self._version_in_header = True
+        self.version.hide()
+        self._layout_header(force=True)
+
+    def set_status(self, text: str, tone: str = "") -> None:
+        """The state, as the strip's first figure."""
+        if text:
+            self.set_fact("state", "State", text, tone)
+            # Always first, whenever it was set.
+            self._stats.removeWidget(self.rows["state"])
+            self._stats.insertWidget(0, self.rows["state"], 1)
+            self._mark_first()
+        else:
+            self.remove_fact("state")
 
     def set_version(self, version: str) -> None:
         self.version.setText(version)
-        self.version.setVisible(bool(version))
+        self.version.setVisible(bool(version) and not self._version_in_header)
 
     def set_fact(self, key: str, label: str, value: str, tone: str = "") -> None:
-        """A reading of the state group, added the first time it is set."""
+        """A figure of the strip, added the first time it is set."""
         row = self.rows.get(key)
         if row is None:
-            row = self.facts.add(key, label)
-            row.LONGEST_VALUE = 34
+            row = _StatTile(label)
             self.rows[key] = row
+            self._stats.addWidget(row, 1)
         row.set_value(value)
         row.set_tone(self.TONES.get(tone, ""))
+        row.setVisible(True)
+        self._mark_first()
+
+    def remove_fact(self, key: str) -> None:
+        """Hide a figure that no longer applies (it comes back with set_fact)."""
+        row = self.rows.get(key)
+        if row is not None:
+            row.setVisible(False)
+            self._mark_first()
+
+    def _mark_first(self) -> None:
+        """Only the figures after the first are set off by a rule."""
+        first = True
+        for index in range(self._stats.count()):
+            tile = self._stats.itemAt(index).widget()
+            if tile is None or tile.isHidden():
+                continue
+            if tile.property("statFirst") != first:
+                tile.setProperty("statFirst", first)
+                # The first figure lines up with the card's edge, as the footer does.
+                tile.layout().setContentsMargins(0 if first else 14, 2, 14, 2)
+                repolish(tile)
+            first = False
 
     def set_notice(self, text: str) -> None:
         self.notice.setText(tr(text))
         self.notice.setVisible(bool(text))
 
-    def set_actions(self, secondary: list[QPushButton], primary: QPushButton | None) -> None:
-        """The footer: ``secondary`` left to right, ``primary`` at the end."""
+    def set_actions(
+        self,
+        secondary: list[QPushButton],
+        primary: QPushButton | None,
+        more: list[QPushButton] = (),
+    ) -> None:
+        """The footer: More first, then ``secondary``, ``primary`` at the end.
+
+        ``more`` lists buttons whose action is offered in the More menu while
+        they are not hidden; the menu shows their text and runs their click.
+        """
+        self._menu_buttons = list(more)
+        for button in self._menu_buttons:
+            if button.parent() is not self._menu_holder:
+                button.setParent(self._menu_holder)
+            if button.objectName():
+                # A former next step listed in More is an ordinary entry now.
+                button.setObjectName("")
         for button in (*secondary, *([primary] if primary else [])):
             name = "PrimaryAction" if button is primary else ""
             if button.objectName() != name:
                 button.setObjectName(name)
                 button.style().unpolish(button)
                 button.style().polish(button)
-        self._footer_buttons = (list(secondary), primary)
+        self.more_button.setVisible(any(not button.isHidden() for button in self._menu_buttons))
+        self._footer_buttons = ([self.more_button, *secondary], primary)
         self._lay_footer(force=True)
+
+    def _open_menu(self) -> None:
+        """The rare actions, as a menu under More; removals last, set apart."""
+        menu = QMenu(self.more_button)
+        menu.setProperty("upscalingMenu", True)
+        shown = [button for button in self._menu_buttons if not button.isHidden()]
+        plain = [b for b in shown if not b.property("dangerAction")]
+        danger = [b for b in shown if b.property("dangerAction")]
+        for group in (plain, danger):
+            if group and not menu.isEmpty():
+                menu.addSeparator()
+            for button in group:
+                action = menu.addAction(button.text())
+                action.setEnabled(button.isEnabled())
+                action.setToolTip(button.toolTip())
+                action.triggered.connect(lambda _checked=False, source=button: source.click())
+        # Shown, not run: nothing waits on the menu, and it stays referenced.
+        self._menu = menu
+        menu.popup(self.more_button.mapToGlobal(self.more_button.rect().bottomLeft()))
 
     def _lay_footer(self, *, force: bool = False) -> None:
         """One row while it fits; otherwise the next step moves to a row of
@@ -1572,22 +1825,66 @@ class _UpscalingGames(SectionCard):
         box.setSpacing(6)
         box.addStretch(1)
         buttons = []
+        overflow: list[tuple[str, str, bool]] = []
         for tool in getattr(self, "_tools", ("fsr4", "helixsr")):
             for label, action, enabled in (row[tool] or {}).get("actions") or ():
-                button = QPushButton(tr(label))
+                if label.startswith(self.OVERFLOW):
+                    # Removing and going back are rare: behind the row's menu.
+                    overflow.append((label, action, enabled))
+                    continue
+                if label in self.FG_TOGGLE:
+                    # One switch for frame generation, checked while it is on.
+                    button = QPushButton(tr("Frame generation"))
+                    button.setProperty("toggleAction", True)
+                    button.setCheckable(True)
+                    button.setChecked(label == "Turn off frame generation")
+                    button.setToolTip(tr(label))
+                else:
+                    button = QPushButton(tr(label))
                 button.setProperty("compactAction", True)
-                button.setProperty("dangerAction", label.startswith("Remove HelixSR"))
                 button.setCursor(Qt.CursorShape.PointingHandCursor)
                 button.setEnabled(bool(enabled))
                 button.clicked.connect(
-                    lambda _checked=False, value=action: self.action_requested.emit(
-                        {"action": value, "governor": ""}
-                    )
+                    lambda _checked=False, value=action, source=button: self._row_action(value, source)
                 )
                 box.addWidget(button)
                 buttons.append(button)
+        if overflow:
+            more = QPushButton("⋯")
+            more.setProperty("compactAction", True)
+            more.setProperty("iconAction", True)
+            more.setCursor(Qt.CursorShape.PointingHandCursor)
+            more.setToolTip(tr("More actions"))
+            more.setAccessibleName(tr("More actions"))
+            more.setProperty("rowActions", [label for label, _action, _enabled in overflow])
+            more.clicked.connect(lambda _checked=False, source=more, items=tuple(overflow): self._row_menu(source, items))
+            box.addWidget(more)
+            buttons.append(more)
         self.controls[row["key"]] = buttons
         return host
+
+    #: Row actions offered behind the row's menu rather than as buttons.
+    OVERFLOW = ("Remove", "Go back")
+    #: The two labels of HelixSR Scaler's frame-generation switch.
+    FG_TOGGLE = frozenset({"Turn on frame generation", "Turn off frame generation"})
+
+    def _row_action(self, action: str, source: QPushButton) -> None:
+        if source.isCheckable():
+            # The switch shows the state the game has until the change lands.
+            source.setChecked(not source.isChecked())
+        self.action_requested.emit({"action": action, "governor": ""})
+
+    def _row_menu(self, source: QPushButton, items: tuple) -> None:
+        menu = QMenu(source)
+        menu.setProperty("upscalingMenu", True)
+        for label, action, enabled in items:
+            entry = menu.addAction(tr(label))
+            entry.setEnabled(bool(enabled))
+            entry.triggered.connect(
+                lambda _checked=False, value=action: self.action_requested.emit({"action": value, "governor": ""})
+            )
+        self._menu = menu
+        menu.popup(source.mapToGlobal(source.rect().bottomRight()) - QPoint(menu.sizeHint().width(), 0))
 
     def _filter(self) -> None:
         query = self.search.text().strip().casefold()
@@ -1656,6 +1953,9 @@ class _HelixSRSettings(SectionCard):
             ("Upscaling.Int8", "8-bit network",
              "HelixSR 1.9 and newer. Auto runs most of the network with 8-bit math on GPUs that are fast at it, a little faster with a nearly identical image. Turn it off if something looks wrong.",
              (("auto", "Auto"), ("on", "On"), ("off", "Off"))),
+            ("Upscaling.FastOutput", "Fast output",
+             "HelixSR 2.0 and newer. Faster builds of the network's last step, with an identical image: about 15 to 18% less GPU time at DLAA and Ultra Quality. Turn it off only if a game shows a problem with it.",
+             (("on", "On"), ("off", "Off"))),
         )),
         ("Compatibility", (
             ("Compatibility.WaveSize", "Wave size",
@@ -1679,15 +1979,17 @@ class _HelixSRSettings(SectionCard):
     def __init__(self) -> None:
         super().__init__(
             "HelixSR settings",
-            "Written to helixsr.ini next to HelixSR in every game that has it, and in every game you add it to.",
+            "Saved into every game that has HelixSR, and into every game you add it to. In games with HelixSR Scaler, sharpening is set in its own menu (Insert).",
             icon_name="",
         )
         self.setProperty("helixsrSettings", True)
         self.controls: dict[str, QWidget] = {}
         self._defaults: dict[str, object] = {}
         self._saved: dict[str, object] = {}
-        #: Releases before 1.9 ignore Upscaling.Int8; the row stays but is off.
+        #: Releases before 1.9 ignore Upscaling.Int8, and before 2.0
+        #: Upscaling.FastOutput; their rows stay but are off.
         self._int8_supported = True
+        self._fast_output_supported = True
         # One list, as on the Compatibility tab: a row per group that opens
         # on demand, with what it is set to on the closed row.
         self.groups_box = QFrame()
@@ -1697,6 +1999,10 @@ class _HelixSRSettings(SectionCard):
         groups_layout.setSpacing(0)
         #: Each group's (title row, chevron, body, summary label, fields).
         self.groups: dict[str, tuple[QWidget, QToolButton, QWidget, QLabel, tuple]] = {}
+        self._numbers = set(self.NUMBERS)
+        self._groups_layout = groups_layout
+        self._dynamic_groups: list[str] = []
+        self._release_signature: tuple | None = None
         for index, (title, fields) in enumerate(self.GROUPS):
             groups_layout.addWidget(self._group(title, fields, first=index == 0))
         self.body.addWidget(self.groups_box)
@@ -1801,6 +2107,71 @@ class _HelixSRSettings(SectionCard):
         self.set_group_expanded(title, False)
         return group
 
+    #: HelixSR Scaler's settings this form can name; others show their key.
+    SCALER_COPY = {
+        "HelixSR.WaveSize": ("Wave size", "The same as above, for games with HelixSR Scaler.", {"auto": "Auto"}),
+        "HelixSR.FGPreset": (
+            "Frame generation quality",
+            "Light mode is NVIDIA's lighter frame generation and runs faster. Full is NVIDIA's full frame generation.",
+            {"c": "Light mode", "full": "Full"},
+        ),
+        "HelixSR.QuickFlow": (
+            "QuickFlow", "Faster frame generation. Only with Full quality.",
+            {"off": "Off", "fast": "Fast", "fastest": "Fastest"},
+        ),
+    }
+
+    def set_release_settings(self, scaler: list, extra: list, *, scaler_games: int) -> None:
+        """The groups the installed release brings: HelixSR Scaler's own
+        settings while a game has it, and any helixsr.ini setting this form
+        does not know yet, as HelixSR's own comment describes it."""
+        scaler = [dict(row) for row in scaler or () if isinstance(row, Mapping)] if scaler_games else []
+        extra = [dict(row) for row in extra or () if isinstance(row, Mapping) and row.get("kind") != "text"]
+        signature = (
+            tuple((row["id"], tuple(row.get("choices") or ())) for row in scaler),
+            tuple((row["id"], row.get("kind"), tuple(row.get("choices") or ())) for row in extra),
+        )
+        if signature == self._release_signature:
+            return
+        self._release_signature = signature
+        for title in self._dynamic_groups:
+            head, _toggle, _body, _summary, fields = self.groups.pop(title)
+            group = head.parentWidget()
+            group.hide()
+            group.setParent(None)
+            group.deleteLater()
+            for name, *_rest in fields:
+                self.controls.pop(name, None)
+                self._numbers.discard(name)
+        self._dynamic_groups = []
+        if scaler:
+            fields = []
+            for row in scaler:
+                key = str(row.get("name") or row["id"]).split(".", 1)[-1]
+                label, hint, names = self.SCALER_COPY.get(str(row.get("name")), (key, "", {}))
+                fields.append((row["id"], label, hint, tuple((c, names.get(c, c)) for c in row["choices"])))
+            self._add_group("HelixSR Scaler", tuple(fields))
+        if extra:
+            fields = []
+            for row in extra:
+                label = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", str(row.get("key") or row["id"]))
+                if row.get("kind") == "bool":
+                    options = ()
+                elif row.get("kind") == "float":
+                    low, high = (float(v) for v in row["choices"])
+                    options = tuple((f"{low + (high - low) * step / 10:g}",) * 2 for step in range(11))
+                    self._numbers.add(row["id"])
+                else:
+                    options = tuple((c, c) for c in row.get("choices") or ())
+                fields.append((row["id"], label, str(row.get("help") or ""), options))
+            self._add_group("Other settings in this release", tuple(fields))
+        if self._saved or self._defaults:
+            self._show({**self._defaults, **self._saved})
+
+    def _add_group(self, title: str, fields: tuple) -> None:
+        self._groups_layout.addWidget(self._group(title, fields))
+        self._dynamic_groups.append(title)
+
     def is_group_expanded(self, title: str) -> bool:
         return not self.groups[title][2].isHidden()
 
@@ -1834,7 +2205,7 @@ class _HelixSRSettings(SectionCard):
                 values[name] = control.isChecked()
             else:
                 data = control.currentData()
-                values[name] = float(data) if name in self.NUMBERS else data
+                values[name] = float(data) if name in self._numbers else data
         return values
 
     def set_int8_supported(self, supported: bool) -> None:
@@ -1842,6 +2213,13 @@ class _HelixSRSettings(SectionCard):
         supported = bool(supported)
         if supported != self._int8_supported:
             self._int8_supported = supported
+            self._changed()
+
+    def set_fast_output_supported(self, supported: bool) -> None:
+        """Whether the release in use reads Upscaling.FastOutput (2.0 and newer)."""
+        supported = bool(supported)
+        if supported != self._fast_output_supported:
+            self._fast_output_supported = supported
             self._changed()
 
     def set_settings(self, saved: Mapping[str, object], defaults: Mapping[str, object]) -> None:
@@ -1865,9 +2243,9 @@ class _HelixSRSettings(SectionCard):
             if isinstance(control, QCheckBox):
                 control.setChecked(bool(value))
             else:
-                text = f"{float(value):g}" if name in self.NUMBERS else str(value)
+                text = f"{float(value):g}" if name in self._numbers else str(value)
                 index = control.findData(text)
-                if index < 0 and name in self.NUMBERS:
+                if index < 0 and name in self._numbers:
                     # A value saved by hand between two steps stays as it is.
                     control.addItem(f"{float(value):g}", text)
                     index = control.count() - 1
@@ -1912,13 +2290,22 @@ class _HelixSRSettings(SectionCard):
             self.controls[name].setEnabled(in_motion)
         if "Upscaling.Int8" in self.controls:
             self.controls["Upscaling.Int8"].setEnabled(self._int8_supported)
+        if "Upscaling.FastOutput" in self.controls:
+            self.controls["Upscaling.FastOutput"].setEnabled(self._fast_output_supported)
+        # HelixSR Scaler runs QuickFlow only with the full preset.
+        if "Scaler:HelixSR.QuickFlow" in self.controls and "Scaler:HelixSR.FGPreset" in self.controls:
+            self.controls["Scaler:HelixSR.QuickFlow"].setEnabled(values["Scaler:HelixSR.FGPreset"] == "full")
         # The reduction fades in between the two speeds: the start comes first.
         ordered = values["Sharpening.MotionThreshold"] < values["Sharpening.MotionLimit"]
-        changed = bool(self._saved) and values != self._saved
+        # Only the settings on the form count: the saved ones also hold
+        # HelixSR Scaler's while no game has it and its group is not shown.
+        changed = bool(self._saved) and any(values[name] != self._saved.get(name) for name in values)
         self.save_button.setEnabled(changed and ordered)
         if hasattr(self, "reapply_button"):
             self.reapply_button.setEnabled(bool(self._saved) and not changed and self._games_with_helixsr > 0)
-        self.defaults_button.setEnabled(bool(self._defaults) and values != self._defaults)
+        self.defaults_button.setEnabled(
+            bool(self._defaults) and any(values[name] != self._defaults.get(name) for name in values)
+        )
         if not ordered:
             message = "The motion where it starts must be below the motion where it is complete."
         else:
@@ -2930,6 +3317,13 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, QFrame):
         "available": "Add HelixSR to replace this game's FSR 3.1 upscaler. The original file is kept as a backup.",
         "missing": "The game's folder is gone: it was uninstalled or moved. Remove HelixSR forgets it here.",
     }
+    _HELIXSR_SCALER_COPY = {
+        "installed": "In the game choose DLSS; Insert opens HelixSR Scaler's menu. Frame generation runs in games with DLSS Frame Generation: turn it on here, then in the game. Remove puts every file it replaced back.",
+        "restored": "A game update or Steam's file check changed HelixSR Scaler's files. Remove cleans up; add it again if you want it.",
+        "available": "HelixSR Scaler is HelixSR inside its own OptiScaler: the game's DLSS option runs HelixSR, with DLSS frame generation if you turn it on. Not for online games or games with anti-cheat.",
+        "missing": "The game's folder is gone: it was uninstalled or moved. Remove forgets it here.",
+        "outdated": "This game has HelixSR Scaler {version}. Update HelixSR gives it the installed release and keeps {version} to go back to.",
+    }
     _HELIXSR_NETWORK_MISSING_COPY = (
         "HelixSR is in this game but its network files are not, so it only does a simple upscale. Update HelixSR copies them back."
     )
@@ -2938,6 +3332,21 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, QFrame):
         "restored": "OptiScaler's settings no longer point to HelixSR, usually after OptiScaler Client updated or restored this game. Remove cleans up HelixSR's folder.",
         "available": "OptiScaler is in this game, so HelixSR can upscale through it, even when the game only offers DLSS or XeSS.",
         "missing": "The game's folder is gone: it was uninstalled or moved. Remove HelixSR forgets it here.",
+    }
+
+    #: OptiScaler Client's own record of a game, per state: the tooltip.
+    _FSR4_UNDO_COPY = {
+        "intact": "OptiScaler Client installed these files. Remove OptiScaler, keep a backup moves them into a backup folder and puts back any game file they replaced; Put OptiScaler back returns them.",
+        "partial": "Some of OptiScaler's files were deleted by hand. Remove OptiScaler, keep a backup moves the rest into a backup folder and clears the client's record.",
+        "removed": "OptiScaler's files are gone, but OptiScaler Client still records them, so it refuses to install, update or restore this game. Clear the client's record to start again; the record is kept in a backup folder.",
+        "changed": "Some of OptiScaler's files changed after the client installed them (a game update or a hand edit). Nothing was touched.",
+        "helixsr": "HelixSR uses this game's OptiScaler. Remove HelixSR from it first.",
+        "pending": "OptiScaler Client was interrupted in this game. Open the client and use Restore / recover selected first.",
+        "backup-broken": "OptiScaler Client's copy of a game file changed, so the game's own file could not come back. Nothing was touched.",
+        "unsupported": "This installation record is not one Control Center can read. Nothing was touched.",
+        "interrupted": "Control Center was interrupted while taking OptiScaler out of this game. Put OptiScaler back returns the files it had already moved; then try again.",
+        "linked": "OptiScaler Client recorded this game through a linked folder ({link}), so its own Restore cannot undo it. This panel can.",
+        "backup": "Control Center took OptiScaler out of this game on {date}. Put OptiScaler back returns it as it was. The backup is in {path}.",
     }
 
     #: FSR4 per game, as the game table shows it: (text, tone).

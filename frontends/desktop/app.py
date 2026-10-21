@@ -7,7 +7,7 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from PyQt6.QtCore import Qt, QThread, QThreadPool, QTimer
+from PyQt6.QtCore import Qt, QThread, QThreadPool, QTimer, pyqtSignal
 from PyQt6.QtGui import QIcon, QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
     QApplication,
@@ -88,6 +88,10 @@ def _is_steamos_gamemode_session() -> bool:
 
 class ControlCenterWindow(QMainWindow):
     """Definitive BC250 interface backed by the application controller."""
+
+    #: A background read found a new HelixSR or OptiScaler Client release
+    #: list; emitted from that thread, handled on this one.
+    _release_lists_changed = pyqtSignal()
 
     # How long a close request will wait for work it did not start itself, and
     # how long the final drain blocks once the window has decided to go.  Both
@@ -816,7 +820,14 @@ class ControlCenterWindow(QMainWindow):
 
     def _preparation_tab_opened(self, key: str) -> None:
         """Upscaling on Additional settings, introduced once to tours before it."""
-        if key != "upscaling" or getattr(self, "_first_run_pending", False):
+        if key != "upscaling":
+            return
+        self._refresh_upscaler_releases()
+        try:
+            self._watch_upscaler_records()
+        except Exception:  # noqa: BLE001 - a watch is a convenience, never a failure
+            logger.debug("Could not watch the upscalers' records", exc_info=True)
+        if getattr(self, "_first_run_pending", False):
             return
 
         def introduce() -> None:
@@ -826,6 +837,66 @@ class ControlCenterWindow(QMainWindow):
                 self._introduce_feature(UPSCALING_FEATURE, "extras")
 
         QTimer.singleShot(700, introduce)
+
+    def _refresh_upscaler_releases(self) -> None:
+        """HelixSR's and OptiScaler Client's release lists, read in the
+        background (at most twice a day) under the same switch as this
+        application's own update check; a new list shows at once."""
+        from bc250cc.infrastructure.upscaler_releases import refresh_in_background
+
+        from .core.external_links import update_checks_enabled
+
+        if not update_checks_enabled():
+            return
+        if not getattr(self, "_release_lists_wired", False):
+            self._release_lists_changed.connect(self._tools_changed)
+            self._release_lists_wired = True
+        refresh_in_background(lambda _names: self._release_lists_changed.emit())
+
+    def _watch_upscaler_records(self) -> None:
+        """What OptiScaler Client and HelixSR record when a game changes, watched.
+
+        The client is a program of its own: a game it patched or restored
+        used to show here only on the next poll, after both state caches ran
+        out. Its game list and each game's record folder, and HelixSR's
+        records, are watched instead; a change reads the tools again within
+        half a second. Only records: HelixSR's library scan, which reading
+        the state may rewrite, is left out so a read never triggers another.
+        """
+        from PyQt6.QtCore import QFileSystemWatcher
+
+        from bc250cc.infrastructure import helixsr
+        from bc250cc.infrastructure.bc250_opticlient import opticlient_records
+
+        watcher = getattr(self, "_upscaler_watcher", None)
+        if watcher is None:
+            watcher = QFileSystemWatcher(self)
+            timer = QTimer(self)
+            timer.setSingleShot(True)
+            timer.setInterval(400)
+            timer.timeout.connect(self._upscaler_records_changed)
+            watcher.fileChanged.connect(lambda _path: timer.start())
+            watcher.directoryChanged.connect(lambda _path: timer.start())
+            self._upscaler_watcher = watcher
+        games = opticlient_records() / "BC250" / "games"
+        try:
+            folders = [entry for entry in games.iterdir() if entry.is_dir()] if games.is_dir() else []
+        except OSError:
+            folders = []
+        paths = [
+            opticlient_records() / "games.json", games, *folders,
+            helixsr._records_path(), helixsr._scaler_records_path(), helixsr._optiscaler_path() / "games.json",
+        ]
+        wanted = {str(path) for path in paths if path.exists()}
+        # A file replaced in one go drops out of the watch: added back here.
+        missing = wanted - set(watcher.files()) - set(watcher.directories())
+        if missing:
+            watcher.addPaths(sorted(missing))
+
+    def _upscaler_records_changed(self) -> None:
+        self._watch_upscaler_records()
+        if self.stack.currentWidget() is getattr(self, "extras_page", None):
+            self._tools_changed()
 
     def _tour_requested_from_settings(self) -> None:
         """Close the dialog first: the tour points at the window behind it."""
@@ -1153,7 +1224,7 @@ class ControlCenterWindow(QMainWindow):
         self.sidebar.buttons[self.current_page_key].setChecked(True)
         self.stack.setCurrentWidget(self.pages[self.current_page_key])
 
-    def _open_settings_dialog(self, section: str = "general") -> None:
+    def _open_settings_dialog(self, section: str = "general", then=None) -> None:
         previous_key = self.current_page_key if self.current_page_key in self.sidebar.buttons else "dashboard"
         previous_page = self.pages.get(previous_key)
         self._set_page_updates(previous_page, False)
@@ -1197,6 +1268,9 @@ class ControlCenterWindow(QMainWindow):
             self.settings_dialog = dialog
         dialog = self.settings_dialog
         dialog.select_section(section)
+        if then is not None:
+            # Once the dialog is on screen, so whatever ``then`` opens sits on it.
+            QTimer.singleShot(0, lambda: then(dialog))
         dialog.exec()
         if previous_key in self.sidebar.buttons:
             self.sidebar.buttons[previous_key].setChecked(True)
@@ -1598,6 +1672,11 @@ class ControlCenterWindow(QMainWindow):
     def _dashboard_action(self, action: str) -> None:
         if action == "telemetry_settings":
             self._open_settings_dialog("telemetry")
+            return
+        if action == "telemetry_install":
+            # The install lives in Settings › Telemetry, with its confirmation;
+            # open it there and start it, so there is one install path.
+            self._open_settings_dialog("telemetry", then=lambda dialog: dialog.page.install_apu_telemetry())
             return
         if action in {"cpu_configuration", "cpu_overview"}:
             self.navigate("cpu")
