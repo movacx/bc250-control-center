@@ -31,7 +31,7 @@ MINIMUM_MESSAGE_LENGTH = 15
 GENERIC_CODES = frozenset({"BC250-GENERAL-001"})
 
 # Ratchet. Current specific coverage of the raise corpus.
-MINIMUM_COVERAGE = 0.74
+MINIMUM_COVERAGE = 0.86
 
 
 # Literal text each rule must recognise, with where it comes from. Strings taken

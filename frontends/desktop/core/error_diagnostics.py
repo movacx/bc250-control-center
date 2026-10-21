@@ -203,7 +203,10 @@ _RULES = (
          r"close optiscaler client first", r"unknown backup", r"that backup is no longer",
          r"this backup (?:is incomplete|holds only)", r"could not create a backup folder",
          r"the game's folder is gone", r"unsafe path in the installation record",
-         r"it was not (?:moved|touched|replaced|used)", r"did not verify"),
+         # Only with "game file/folder" in front: the same words close fan,
+         # Cyan and firmware messages that have nothing to do with a game.
+         r"game (?:file|folder)\b.*(?:it was not (?:moved|touched|replaced|used)|did not verify)",
+         r"still in the game folder"),
         "The game's upscaler files were not changed.",
         "The per-game upscaler found the game in a state it does not change safely: the tool is not installed or prepared yet, the game is not where Steam says, or its files were already changed by hand. Nothing in the game folder was changed.",
         "Read the technical detail below: it names the step that is missing. Usually that is installing or preparing the tool first, closing the game, or using Steam > Verify integrity of game files to put the game's own files back.",
@@ -562,6 +565,69 @@ _RULES = (
 )
 
 
+# Raise messages that used to fall to BC250-GENERAL-001, each sorted to the rule
+# whose explanation stays true for it. Kept apart from the rules above so the
+# reason every pattern is here stays visible: the corpus test in
+# tests/desktop/test_error_diagnostics_coverage.py reads these messages.
+_MORE_PATTERNS: dict[str, tuple[str, ...]] = {
+    "BC250-PLATFORM-001": (
+        r"unsupported accessory", r"openlinkhub.*x86_64", r"trcc.*(?:no package|not installed)",
+        r"debian release.*backports kernel", r"kernel boot options.*managed differently",
+        r"only mitigations=off", r"optiscaler client.*x86_64",
+    ),
+    "BC250-COLLISION-001": (r"openlinkhub.*already installed another way",),
+    "BC250-UPSCALE-001": (
+        r"(?:optiscaler client|that build).*not on offer", r"install optiscaler client first",
+        r"choose the game's folder", r"that folder does not exist", r"choose the game's own folder",
+        r"this folder is not on the list", r"no optiscaler\.ini was found", r"more than one optiscaler\.ini",
+        r"helixsr's own folder", r"game already has optiscaler", r"build helixsr's frame generation first",
+        r"no earlier helixsr version kept", r"helixsr scaler is not recorded",
+    ),
+    "BC250-FAN-001": (r"\bfan\b.*does not exist",),
+    "BC250-CONFIG-001": (
+        r"frequency floor cannot exceed", r"high-frequency safe-point", r"safe startup range.*preserved",
+        r"persisted range.*safe-point", r"active safe-point is not a toml table", r"every active safe-point",
+        r"duplicate active safe-point frequency", r"invalid helixsr settings", r"metrics format must be jsonl or csv",
+        r"bundle contains", r"profile bundle", r"evidence manifest", r"artifact (?:path|sha256|hash)",
+        r"keys mismatch", r"unknown requirement", r"duplicate requirement", r"invalid check status",
+        r"passed requirement", r"invalid dll name", r"nested too deep", r"truncated value",
+    ),
+    "BC250-RANGE-001": (
+        r"no custom voltage values", r"duplicate voltage frequency", r"voltage outside (?:the )?editor range",
+    ),
+    "BC250-CMD-001": (r"(?:preview-voltage-level|apply-voltage-level|status) expects one",),
+    "BC250-SERVICE-003": (r"systemctl is not available", r"openrc is not the active", r"rc-service is not available"),
+    "BC250-GPU-001": (r"no recorded metrics", r"current metrics sample could not be recorded"),
+    "BC250-AUTH-003": (r"pkexec is not available",),
+    "BC250-TERMINAL-001": (r"requested terminal workflow is empty",),
+}
+_RULES = tuple(
+    _Rule(rule.code, rule.patterns + _MORE_PATTERNS.get(rule.code, ()), rule.summary, rule.cause, rule.action)
+    for rule in _RULES
+)
+# Two faults no rule above describes; first, as their patterns name nothing else.
+_RULES = (
+    _Rule(
+        "BC250-RECOVERY-002",
+        (r"recovery (?:file|entry|backup|manifest|files)", r"source changed and is no longer a regular file",
+         r"non-captured recovery entry"),
+        "The recovery snapshot could not be verified.",
+        "A snapshot file changed, has unsafe metadata, is outside the approved paths, or does not match the recovery manifest.",
+        "Discard that snapshot and create a new one. Do not restore a file that could not be verified.",
+    ),
+    _Rule(
+        "BC250-UPDATE-001",
+        (r"github (?:returned|answered|could not be reached|release information)", r"release has no version tag",
+         r"only https addresses.*updates", r"published checksum", r"package (?:is larger|name is not)",
+         r"download (?:failed|answered|ended|is larger)", r"downloaded package does not match",
+         r"update package is not in the application updates folder"),
+        "The Control Center update could not be downloaded or verified.",
+        "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.",
+        "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.",
+    ),
+) + _RULES
+
+
 _CONTEXT_FALLBACKS = (
     ("BC250-GPU-900", ("gpu", "governor", "cyan", "oberon"), "The GPU operation could not be completed.", "The active governor, its service, configuration, or live hardware state did not accept the request.", "Refresh GPU status, verify the selected governor, and retry with a profile offered by the current page."),
     ("BC250-CPU-900", ("cpu", "smu"), "The CPU operation could not be completed.", "The CPU helper, detector, stress test, or live profile did not return a verified result.", "Refresh CPU status and repeat the guided detect, test, and save sequence."),
@@ -601,8 +667,18 @@ DIAGNOSTIC_SOURCES = tuple(dict.fromkeys((
 )))
 
 
+_SECTION_CODE = re.compile(r"BC250-([A-Z0-9]+)-000")
+
+
 def explain_code(code: str) -> ErrorDiagnosis | None:
     """The explanation behind a code already printed somewhere, or None."""
+    section = _SECTION_CODE.fullmatch(str(code or ""))
+    if section is not None:
+        from bc250cc.shared.error_origins import SECTION_NAMES
+
+        name = SECTION_NAMES.get(section.group(1))
+        if name:
+            return with_section(ErrorDiagnosis("BC250-GENERAL-001", "", "", ""), (section.group(1), name))
     for rule in _RULES:
         if rule.code == code:
             return ErrorDiagnosis(rule.code, rule.summary, rule.cause, rule.action)
@@ -698,14 +774,48 @@ def format_error_for_user(
     context: object = "",
     translate: Translator = str,
     os_family: str | None = None,
+    section: tuple[str, str] | None = None,
 ) -> str:
     """Return a human explanation while preserving bounded technical evidence."""
-    explained = error_sections(message, context=context, translate=translate, os_family=os_family)
+    explained = error_sections(message, context=context, translate=translate, os_family=os_family, section=section)
     if explained is None:
         return _clean_detail(message)
     sections, code = explained
     rendered = "\n\n".join(f"{heading}\n{body}" for heading, body in sections)
     return f"{rendered}\n\n{translate('Diagnostic code')}: {code}"
+
+
+#: When no rule knows a failure, the part of the app it came from still does:
+#: ``BC250-<SECTION>-000`` (``BC250-UPS-000``) instead of one code for everything.
+SECTION_SUMMARY = "{area}: the operation could not be completed."
+SECTION_CAUSE = "This failure has no specific explanation yet. The origin code and the raw error say exactly where it came from."
+SECTION_ACTION = "Read the raw error below. If it does not make the cause clear, press Report this problem: the code, the origin and the raw error go with it."
+
+
+def section_code(section: str) -> str:
+    return f"BC250-{section}-000"
+
+
+def with_section(
+    diagnosis: ErrorDiagnosis, section: tuple[str, str] | None, translate: Translator = str,
+) -> ErrorDiagnosis:
+    """A generic diagnosis given the section's own code and words.
+
+    ``section`` is ``(code, name)`` from ``error_origins``. A specific rule's
+    diagnosis is returned as it is.
+    """
+    if section is None or diagnosis.code not in GENERIC_CODES:
+        return diagnosis
+    code, name = section
+    return ErrorDiagnosis(
+        section_code(code),
+        translate(SECTION_SUMMARY).replace("{area}", translate(name)),
+        translate(SECTION_CAUSE),
+        translate(SECTION_ACTION),
+    )
+
+
+GENERIC_CODES = frozenset({"BC250-GENERAL-001"})
 
 
 def error_sections(
@@ -714,6 +824,7 @@ def error_sections(
     context: object = "",
     translate: Translator = str,
     os_family: str | None = None,
+    section: tuple[str, str] | None = None,
 ) -> tuple[tuple[tuple[str, str], ...], str] | None:
     """The explanation as (heading, text) pairs and its code, for a dialog to lay out.
 
@@ -723,12 +834,18 @@ def error_sections(
     if "Diagnostic code:" in detail or "Código de diagnóstico:" in detail:
         return None
     diagnosis = diagnose_error(detail, context=context)
-    action = translate(diagnosis.action)
+    if section is not None and diagnosis.code in GENERIC_CODES:
+        # Already translated by with_section; the rest of the path translates.
+        diagnosis = with_section(diagnosis, section, translate)
+        translate_text = str
+    else:
+        translate_text = translate
+    action = translate_text(diagnosis.action)
     if diagnosis.code == UMR_REPAIR_CODE:
         action = f"{action}\n{_umr_repair_steps(os_family or _os_family(), translate)}"
     sections = (
-        (translate("What happened"), translate(diagnosis.summary)),
-        (translate("Likely cause"), translate(diagnosis.cause)),
+        (translate("What happened"), translate_text(diagnosis.summary)),
+        (translate("Likely cause"), translate_text(diagnosis.cause)),
         (translate("How to fix it"), action),
         (translate("Technical detail"), translate(detail)),
     )
