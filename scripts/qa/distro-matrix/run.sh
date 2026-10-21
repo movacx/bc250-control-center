@@ -13,6 +13,8 @@ name=$(echo "$image" | sed 's#.*/##; s#:#_#g'); mkdir -p "$OUT"
 # --network=host: the governor's gpu_metrics overlay makes new sysfs mounts fail in userns.
 "$PODMAN" run --rm --network=host -v "$REPO":/repo:ro -v "$HERE":/qa:ro,Z -e PHASE="$phase" "$image" sh /qa/boot.sh \
   >"$OUT/$name.$phase.log" 2>&1
-echo "$image $phase rc=$?" >>"$OUT/_done"
+rc=$?
+echo "$image $phase rc=$rc" >>"$OUT/_done"
 [ "$prune" = --prune ] && "$PODMAN" rmi -f "$image" >/dev/null 2>&1
-exit 0
+# The container's own status: a failed install or test run fails the sweep.
+exit "$rc"

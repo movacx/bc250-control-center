@@ -1,7 +1,7 @@
 #!/bin/bash
 # run-matrix.sh [kind...] -- kernel-argument scenario on every distribution family,
 # rootless (bubblewrap), on throw-away clones of the rootfs images.
-here=$(cd "$(dirname "$0")" && pwd); QA=${BC250_QA:-$HOME/.cache/bc250-qa}
+here=$(cd "$(dirname "$0")" && pwd); export BC250_REPO=${BC250_REPO:-$(cd "$here/../../.." && pwd)}; QA=${BC250_QA:-$HOME/.cache/bc250-qa}
 declare -A ROOTFS=( [arch-grub-new]=archlinux-current [arch-grub-old]=archlinux-current [cachyos-limine]=archlinux-current
   [steamos]=archlinux-current [debian-grub]=debian-trixie [ubuntu-grub]=ubuntu-noble [mint-grub]=ubuntu-noble [py310-refused]=mint-zena
   [fedora-grubby]=fedora-44 [nobara-grubby]=fedora-44 [bazzite]=fedora-44 )

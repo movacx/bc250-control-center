@@ -1,6 +1,8 @@
 #!/bin/bash
 set -u
-REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)
+# The checkout under test. setup.sh copies this script into $BC250_QA, where
+# the path relative to the script no longer points at the repository.
+REPO=${BC250_REPO:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)}
 # enter.sh <rootfs> [--os-release FILE] [--cmdline STR] [--bind SRC DST]... -- cmd...
 # Every run works on a throw-away reflink clone of the rootfs (instant on btrfs).
 QA=${BC250_QA:-$HOME/.cache/bc250-qa}; base=$QA/rootfs/$1; shift
@@ -15,7 +17,7 @@ while [ "$1" != "--" ]; do
   esac
 done; shift
 if [ -n "$persist" ]; then root=$base; else
-  root=$(mktemp -d "$QA/run.XXXXXX"); rmdir "$root"; cp -a --reflink=always "$base" "$root"
+  root=$(mktemp -d "$QA/run.XXXXXX"); rmdir "$root"; cp -a --reflink=auto "$base" "$root"
   trap 'chmod -R u+w "$root" 2>/dev/null; rm -rf "$root"' EXIT
 fi
 tmp=$(mktemp -d); echo "$cmdline" > $tmp/cmdline
