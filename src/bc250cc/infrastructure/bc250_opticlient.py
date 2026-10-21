@@ -22,8 +22,10 @@ launch option it needs. This module does exactly that and nothing more:
   every game's original files and installation records.
 
 Games are patched and restored by the client itself, under its own
-transaction and backup rules; Control Center never writes into a game folder.
-It does read the client's game list and each game's folder, to say per game
+transaction and backup rules. The one exception is when the client cannot
+undo its own install (a game it recorded through a linked folder): then
+``opticlient_undo`` takes its files out from its own receipt, into a backup
+Control Center can put back. It does read the client's game list and each game's folder, to say per game
 whether OptiScaler is in place and whether Steam still needs the one launch
 option that makes Proton load it -- and can add that option for the user (see
 ``steam_launch_options``).
@@ -391,8 +393,13 @@ def _optiscaler_folders(install: Path, depth: int = 4) -> list[Path]:
     return found
 
 
+#: What HelixSR Scaler (HelixSR's own OptiScaler) leaves beside the game's
+#: executable. Its OptiScaler.ini and dxgi.dll are not OptiScaler Client's.
+HELIXSR_SCALER_MARKER = "HelixSR-Scaler.files"
+
+
 def _adapter_in(directory: Path) -> str:
-    if not (directory / "OptiScaler.ini").is_file():
+    if not (directory / "OptiScaler.ini").is_file() or (directory / HELIXSR_SCALER_MARKER).is_file():
         return ""
     for name in OPTISCALER_ADAPTERS:
         if (directory / name).is_file():
@@ -589,7 +596,30 @@ def opticlient_state(*, machine: str | None = None, games: bool = True) -> dict:
         "legacy_v3_installed": BC250_FSR4_PREFIX.exists(),
         "steam_launch_option": STEAM_LAUNCH_OPTION,
         "games": opticlient_games() if current and games else [],
+        # The newest stable build on offer, when it is newer than this one.
+        "newer": _newer_build(release) if current else None,
+        # Read even without the client: its records outlive it.
+        **_installations(games),
     }
+
+
+def _newer_build(release: dict) -> dict | None:
+    """The newest build on offer, if newer than ``release``. Upstream marks
+    every client build as a pre-release, so that flag does not hold one back."""
+    mine = _client_version(release["version"]) or ()
+    for entry in opticlient_releases():
+        if (_client_version(entry["version"]) or ()) > mine:
+            return {key: entry[key] for key in ("tag", "version", "reviewed")}
+    return None
+
+
+def _installations(wanted: bool) -> dict:
+    """What the client installed per game, and Control Center's backups."""
+    if not wanted:
+        return {"installations": [], "backups": []}
+    from .opticlient_undo import opticlient_backups, opticlient_installations
+
+    return {"installations": opticlient_installations(), "backups": opticlient_backups()}
 
 
 def build_opticlient_install_command() -> str:
