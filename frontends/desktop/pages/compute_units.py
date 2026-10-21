@@ -57,6 +57,7 @@ from ..core.compute_units_presenter import (
     present_compute_units_state,
 )
 from ..core.cu_balance import balanced_masks, engine_balance
+from ..core.raw_errors import remember
 from ..core.state import state_cache_for
 from ..i18n import count_label, localize_widget_tree, tr, tr_format
 from ..theme import COLORS, application_stylesheet
@@ -115,6 +116,7 @@ class CuTask(QThread):
         try:
             self.succeeded.emit(self.operation())
         except Exception as error:  # pragma: no cover - exercised on hardware
+            remember(error)
             self.failed.emit(str(error))
 
 

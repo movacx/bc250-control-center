@@ -62,7 +62,9 @@ def test_red_info_dialog_uses_the_shared_human_diagnostic(qtbot):
     qtbot.addWidget(dialog)
     body = next(label for label in dialog.findChildren(QLabel) if label.objectName() == "DialogBody")
     assert "The GPU governor did not expose its D-Bus controls." in body.text()
-    assert "BC250-DBUS-001" in body.text()
+    # The code heads the window, in the identity sheet above the explanation.
+    identity = [label.text() for label in dialog.findChildren(QLabel) if label.objectName() == "DialogIdentityValue"]
+    assert "BC250-DBUS-001" in identity
 
 
 UMR_WGP_READ_FAILED = (

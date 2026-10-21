@@ -9,6 +9,8 @@ from typing import Any
 
 from PyQt6.QtCore import QObject, QRunnable, QThreadPool, QTimer, pyqtSignal, pyqtSlot
 
+from ..core.raw_errors import remember
+
 try:  # pragma: no cover - sip is present in every supported PyQt6 build
     from PyQt6 import sip
 except ImportError:  # pragma: no cover - fall back to the Qt call below
@@ -109,6 +111,7 @@ class _FunctionTask(QRunnable):
         try:
             result = self.operation()
         except Exception as error:  # backend failures are reported to the UI thread
+            remember(error)
             self.signals.failed.emit(str(error))
         else:
             self.signals.succeeded.emit(result)

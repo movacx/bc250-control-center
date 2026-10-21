@@ -16,6 +16,7 @@ from datetime import datetime
 from pathlib import Path
 
 from bc250cc.infrastructure import diagnostic_journal
+from bc250cc.shared.error_origins import redact
 
 from .error_diagnostics import ErrorDiagnosis, diagnose_error, explain_code
 
@@ -35,7 +36,16 @@ def current_wording(entry) -> ErrorDiagnosis:
     return explain_code(entry.code) or ErrorDiagnosis(entry.code, entry.summary, entry.cause, entry.action)
 
 
-def record_diagnosis(diagnosis: ErrorDiagnosis, *, source: str, title: str, detail: str = "") -> None:
+def record_diagnosis(
+    diagnosis: ErrorDiagnosis,
+    *,
+    source: str,
+    title: str,
+    detail: str = "",
+    origin: str = "",
+    raised: str = "",
+    raw: str = "",
+) -> None:
     try:
         diagnostic_journal.record(
             code=diagnosis.code,
@@ -45,20 +55,43 @@ def record_diagnosis(diagnosis: ErrorDiagnosis, *, source: str, title: str, deta
             cause=diagnosis.cause,
             action=diagnosis.action,
             detail=detail,
+            origin=origin,
+            raised=raised,
+            raw=raw,
         )
     except Exception:  # noqa: BLE001 - history must never break the failing action
         logger.debug("Could not record diagnostic %s", diagnosis.code, exc_info=True)
 
 
-def record_window_error(message: object, *, context: str, title: str) -> None:
-    """A red dialog: the same diagnosis it renders, from the same text."""
+def window_diagnosis(message: object, *, context: str) -> ErrorDiagnosis:
+    """The diagnosis a red dialog renders, from the same text."""
     detail = str(message or "").strip()
     codes = CODE_PATTERN.findall(detail)
     # A message that already carries its explanation names its own code.
     diagnosis = explain_code(codes[-1]) if codes else None
-    if diagnosis is None:
-        diagnosis = diagnose_error(detail, context=context)
-    record_diagnosis(diagnosis, source="window", title=title, detail=detail)
+    return diagnosis or diagnose_error(detail, context=context)
+
+
+def origin_text(origin) -> str:
+    return f"{origin.code} · {origin.place}" if origin is not None else ""
+
+
+def record_window_error(message: object, *, context: str, title: str, origin=None, raw=None) -> None:
+    """A red dialog: the same diagnosis it renders, from the same text.
+
+    ``origin`` is the screen action that showed it and ``raw`` the exception
+    behind it (``raw_errors``), when there was one.
+    """
+    detail = str(message or "").strip()
+    record_diagnosis(
+        window_diagnosis(detail, context=context),
+        source="window",
+        title=title,
+        detail=detail,
+        origin=origin_text(origin),
+        raised=origin_text(getattr(raw, "site", None)),
+        raw=getattr(raw, "text", "") or "",
+    )
 
 
 def record_terminal_failure(result: object, exit_code: int) -> None:
@@ -177,6 +210,41 @@ def clear_history() -> None:
 REPORT_ENTRIES = 15
 
 
+def system_sheet_text(system_rows) -> str:
+    """The system facts, one aligned line each."""
+    width = max((len(label) for label, _value in system_rows), default=0)
+    lines = [f"{label.ljust(width)}  {value}" for label, value in system_rows]
+    return "\n".join(lines) or "(not read yet)"
+
+
+def recent_errors_text(entries, *, limit: int | None = None) -> str:
+    """The newest explained errors, each with where it came from and its raw form."""
+    limit = REPORT_ENTRIES if limit is None else limit
+    if not entries:
+        return "None recorded."
+    lines: list[str] = []
+    for entry in list(entries)[:limit]:
+        when = datetime.fromtimestamp(entry.at).strftime("%Y-%m-%d %H:%M:%S")
+        if lines:
+            lines.append("")
+        lines += [
+            f"{when} · {entry.code} · {entry.source} · {entry.title}",
+            f"  What happened: {current_wording(entry).summary}",
+            f"  Likely cause: {current_wording(entry).cause}",
+        ]
+        if getattr(entry, "origin", ""):
+            lines.append(f"  Origin: {entry.origin}")
+        if getattr(entry, "raised", ""):
+            lines.append(f"  Raised in: {entry.raised}")
+        if entry.detail:
+            detail = entry.detail if len(entry.detail) <= 600 else entry.detail[:597] + "..."
+            lines += ["  Detail:"] + [f"    {line}" for line in detail.splitlines()]
+        if getattr(entry, "raw", ""):
+            raw = entry.raw if len(entry.raw) <= 1500 else "..." + entry.raw[-1497:]
+            lines += ["  Raw error:"] + [f"    {line}" for line in raw.splitlines()]
+    return "\n".join(lines)
+
+
 def diagnostic_report(system_rows, entries, *, now: float | None = None) -> str:
     """Plain text for a problem report: the system sheet, then recent errors.
 
@@ -184,21 +252,9 @@ def diagnostic_report(system_rows, entries, *, now: float | None = None) -> str:
     the same words and codes from every reporter.
     """
     stamp = datetime.fromtimestamp(time.time() if now is None else now).strftime("%Y-%m-%d %H:%M")
-    width = max((len(label) for label, _value in system_rows), default=0)
     lines = [f"BC250 Control Center diagnostic report ({stamp})", "", "== System =="]
-    lines += [f"{label.ljust(width)}  {value}" for label, value in system_rows] or ["(not read yet)"]
+    lines.append(system_sheet_text(system_rows))
     lines += ["", f"== Recent errors ({min(len(entries), REPORT_ENTRIES)} of {len(entries)}) =="]
-    if not entries:
-        lines.append("None recorded.")
-    for entry in list(entries)[:REPORT_ENTRIES]:
-        when = datetime.fromtimestamp(entry.at).strftime("%Y-%m-%d %H:%M:%S")
-        lines += [
-            "",
-            f"{when} · {entry.code} · {entry.source} · {entry.title}",
-            f"  What happened: {current_wording(entry).summary}",
-            f"  Likely cause: {current_wording(entry).cause}",
-        ]
-        if entry.detail:
-            detail = entry.detail if len(entry.detail) <= 600 else entry.detail[:597] + "..."
-            lines += ["  Detail:"] + [f"    {line}" for line in detail.splitlines()]
-    return "\n".join(lines) + "\n"
+    lines.append(recent_errors_text(entries))
+    # Pasted into a public form: no home folder, so no user name.
+    return redact("\n".join(lines)) + "\n"

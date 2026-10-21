@@ -2,13 +2,11 @@ from __future__ import annotations
 
 from typing import Iterable
 
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QColor
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QAbstractScrollArea,
     QDialog,
     QFrame,
-    QGraphicsDropShadowEffect,
     QGridLayout,
     QHBoxLayout,
     QLabel,
@@ -25,7 +23,15 @@ from ..theme import COLORS, application_stylesheet
 from .busy_spinner import BusyBadge
 from .buttons import WrappingButton as QPushButton
 from .dialogs import center_dialog, enable_adaptive_dialog
-from .widgets import IconBadge, PillLabel, apply_shadow, icon
+from .widgets import (
+    IconBadge,
+    PillLabel,
+    apply_shadow,
+    dialog_card,
+    dialog_header,
+    icon,
+    tighten_dialog,
+)
 
 
 def caption(text: str = "") -> QLabel:
@@ -597,51 +603,19 @@ class ConfirmDialog(QDialog):
         self.setStyleSheet(application_stylesheet())
         enable_adaptive_dialog(self, preferred_width=580, minimum_width=400, minimum_height=240)
 
-        accent = COLORS["red"] if tone == "red" else COLORS["orange"] if tone == "orange" else COLORS["blue"]
         soft = COLORS["red_soft"] if tone == "red" else COLORS["orange_soft"] if tone == "orange" else COLORS["blue_soft"]
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(24, 24, 24, 24)
-        card = QFrame()
-        card.setObjectName("ControlDialogCard")
-        shadow = QGraphicsDropShadowEffect(card)
-        shadow.setBlurRadius(34)
-        shadow.setOffset(0, 10)
-        shadow.setColor(QColor(20, 33, 61, 55))
-        card.setGraphicsEffect(shadow)
+        card = dialog_card(self)
         outer.addWidget(card)
 
         layout = QVBoxLayout(card)
-        layout.setContentsMargins(24, 22, 24, 22)
-        layout.setSpacing(17)
-        header = QHBoxLayout()
-        header.setSpacing(13)
-        header.addWidget(IconBadge("warning_orange" if tone != "blue" else "info_blue", soft, 44))
-        heading = QVBoxLayout()
-        heading.setSpacing(2)
-        eyebrow_label = QLabel(eyebrow)
-        eyebrow_label.setObjectName("DialogEyebrow")
-        eyebrow_label.setWordWrap(True)
-        eyebrow_label.setStyleSheet(f".QLabel {{ color:{accent}; }}")
-        title_label = QLabel(tr(title))
-        title_label.setObjectName("DialogTitle")
-        title_label.setWordWrap(True)
-        heading.addWidget(eyebrow_label)
-        heading.addWidget(title_label)
-        header.addLayout(heading, 1)
-        close = QPushButton()
-        close.setObjectName("DialogClose")
-        close.setIcon(icon("close_gray"))
-        close.setFixedSize(34, 34)
-        close.setToolTip(tr("Close"))
-        close.clicked.connect(self.reject)
-        header.addWidget(close, 0, Qt.AlignmentFlag.AlignTop)
-        layout.addLayout(header)
-
-        divider = QFrame()
-        divider.setObjectName("CardDivider")
-        divider.setFixedHeight(1)
-        layout.addWidget(divider)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        layout.addWidget(dialog_header(
+            self, title, eyebrow, "warning_orange" if tone != "blue" else "info_blue", soft,
+        ))
 
         content_scroll = QScrollArea()
         content_scroll.setObjectName("DialogContentScroll")
@@ -655,12 +629,13 @@ class ConfirmDialog(QDialog):
         content = QWidget()
         content.setObjectName("DialogContent")
         content_layout = QVBoxLayout(content)
-        content_layout.setContentsMargins(0, 0, 0, 0)
+        content_layout.setContentsMargins(22, 18, 22, 20)
         content_layout.setSpacing(12)
 
         body = QLabel(tr(message))
         body.setObjectName("DialogBody")
         body.setWordWrap(True)
+        body.setProperty("naturalHeight", True)
         content_layout.addWidget(body)
 
         values = list(summary)
@@ -675,9 +650,11 @@ class ConfirmDialog(QDialog):
                 name = QLabel(tr(label))
                 name.setProperty("confirmLabel", True)
                 name.setWordWrap(True)
+                name.setProperty("naturalHeight", True)
                 data = QLabel(tr(value))
                 data.setProperty("confirmValue", True)
                 data.setWordWrap(True)
+                data.setProperty("naturalHeight", True)
                 data.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
                 grid.addWidget(name, index, 0)
                 grid.addWidget(data, index, 1)
@@ -692,7 +669,7 @@ class ConfirmDialog(QDialog):
             notice_frame.setProperty("confirmNotice", True)
             notice_frame.setStyleSheet(
                 f"QFrame[confirmNotice='true'] {{ background:{soft}; "
-                f"border:1px solid {accent}; border-radius:10px; }}"
+                f"border:none; border-radius:8px; }}"
             )
             notice_row = QHBoxLayout(notice_frame)
             notice_row.setContentsMargins(12, 10, 12, 10)
@@ -703,17 +680,24 @@ class ConfirmDialog(QDialog):
             notice_row.addWidget(glyph, 0, Qt.AlignmentFlag.AlignTop)
             notice_label = QLabel(notice)
             notice_label.setWordWrap(True)
-            notice_label.setStyleSheet(f".QLabel {{ color:{accent}; font-weight:600; }}")
+            notice_label.setProperty("naturalHeight", True)
+            notice_label.setStyleSheet(f".QLabel {{ color:{COLORS['text']}; font-weight:500; }}")
             notice_row.addWidget(notice_label, 1)
             content_layout.addWidget(notice_frame)
 
+        content_layout.addStretch(1)
         content_scroll.setWidget(content)
         layout.addWidget(content_scroll)
+        self._content_scroll = content_scroll
 
-        footer = QHBoxLayout()
+        footer_frame = QFrame()
+        footer_frame.setObjectName("DialogFooter")
+        footer = QHBoxLayout(footer_frame)
+        footer.setContentsMargins(22, 12, 22, 12)
+        footer.setSpacing(8)
         footer.addStretch(1)
         cancel = QPushButton(tr("Cancel"))
-        cancel.setProperty("compactAction", True)
+        cancel.setObjectName("DialogSecondary")
         cancel.setProperty("gamepadCancel", True)
         cancel.setProperty("gamepadEntry", True)
         cancel.clicked.connect(self.reject)
@@ -723,11 +707,13 @@ class ConfirmDialog(QDialog):
         confirm.clicked.connect(self.accept)
         footer.addWidget(cancel)
         footer.addWidget(confirm)
-        layout.addLayout(footer)
+        layout.addWidget(footer_frame)
         localize_widget_tree(self)
         self.fit_to_content()
 
     def showEvent(self, event) -> None:  # noqa: N802
         super().showEvent(event)
         self.fit_to_content()
+        tighten_dialog(self, self._content_scroll)
         center_dialog(self)
+        QTimer.singleShot(0, lambda: tighten_dialog(self, self._content_scroll))

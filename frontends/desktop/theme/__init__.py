@@ -627,14 +627,16 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     # is not reachable from QSS. Kept as POSIX separators, which Qt
     # accepts on every platform it builds for.
     icon_dir = (Path(__file__).resolve().parent / "icons").as_posix()
-    # This tab's cards, hairlines, fields and title bands take the greys of the
-    # Compatibility tab in both themes; the title bands are a step darker.
-    upscaling_card, upscaling_field = c['panel_alt'], c['control']
+    # This tab's cards, hairlines, fields and title bands. In the light theme
+    # grey cards on the grey window read as one wash: the cards are white,
+    # outlined, with the title bands and table heads a faint tint. The dark
+    # themes keep the Compatibility tab's greys, title bands a step darker.
+    light = ACTIVE_MODE == "light"
+    upscaling_card = c['panel'] if light else c['panel_alt']
+    upscaling_field = c['control']
     upscaling_line, upscaling_line_strong = c['border_soft'], c['border']
-    upscaling_head = (
-        c['control_pressed'] if ACTIVE_MODE == "light"
-        else _blend(c['panel_alt'], c['window'], 0.5)
-    )
+    upscaling_outline = c['border'] if light else c['border_soft']
+    upscaling_head = c['panel_alt'] if light else _blend(c['panel_alt'], c['window'], 0.5)
     # Glass, for the first-run panel: the card has to be translucent for the
     # frosted portrait behind it to mean anything, and Qt takes that as an
     # rgba() rather than as a palette entry. Light glass on a light palette,
@@ -1586,7 +1588,19 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QFrame#ControlDialogCard {{
         background: {c['panel']};
         border: 1px solid {c['border']};
-        border-radius: 18px;
+        border-radius: 12px;
+    }}
+    QFrame#DialogHeader {{
+        background: transparent;
+        border: none;
+        border-bottom: 1px solid {c['border_soft']};
+    }}
+    QFrame#DialogFooter {{
+        background: {c['panel_alt']};
+        border: none;
+        border-top: 1px solid {c['border_soft']};
+        border-bottom-left-radius: 12px;
+        border-bottom-right-radius: 12px;
     }}
     QLabel#DialogEyebrow {{
         font-size: 10px;
@@ -1595,22 +1609,130 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     }}
     QLabel#DialogTitle {{
         color: {c['text']};
-        font-size: 19px;
-        font-weight: 800;
+        font-size: 16px;
+        font-weight: 750;
+    }}
+    QLabel#DialogSubtitle {{
+        color: {c['muted']};
+        font-size: 12px;
+        font-weight: 500;
+    }}
+    QLabel#DialogSectionLabel {{
+        color: {c['text']};
+        font-size: 12px;
+        font-weight: 700;
     }}
     QLabel#DialogBody {{
         color: {c['muted']};
         font-size: 13px;
     }}
+    QFrame#DialogDetail {{
+        background: {c['panel_alt']};
+        border: 1px solid {c['border_soft']};
+        border-radius: 8px;
+    }}
+    QLabel#DialogDetailText {{
+        color: {c['text']};
+        font-family: 'JetBrains Mono', 'Noto Sans Mono', monospace;
+        font-size: 11px;
+    }}
     QFrame#DialogNotice {{
         background: {c['blue_soft']};
         border: 1px solid {c['blue_border']};
-        border-radius: 10px;
+        border-radius: 8px;
     }}
     QLabel#DialogNoticeText {{
         color: {c['muted']};
         font-size: 12px;
+        font-weight: 500;
+    }}
+    QFrame#DialogIdentity {{
+        background: {c['panel_alt']};
+        border: 1px solid {c['border_soft']};
+        border-radius: 8px;
+    }}
+    QLabel#DialogIdentityLabel {{
+        color: {c['muted']};
+        font-size: 11px;
         font-weight: 600;
+        padding-top: 1px;
+    }}
+    QLabel#DialogIdentityValue {{
+        color: {c['text']};
+        font-family: 'JetBrains Mono', 'Noto Sans Mono', monospace;
+        font-size: 11px;
+    }}
+    QPlainTextEdit#DialogTrace {{
+        background: {c['console_bg']};
+        color: {c['console_text']};
+        border: 1px solid {c['console_border']};
+        border-radius: 6px;
+        padding: 6px;
+        font-family: 'JetBrains Mono', 'Noto Sans Mono', monospace;
+        font-size: 10px;
+        selection-background-color: {c['selection']};
+    }}
+    /* An error window's way to the report form: the one coloured action
+       besides Close, so it is seen without competing with it. */
+    QPushButton#DialogReport {{
+        background: {c['orange_soft']};
+        color: {c['orange']};
+        border: 1px solid {c['orange_border']};
+        border-radius: 8px;
+        padding: 7px 14px;
+        font-weight: 700;
+    }}
+    QPushButton#DialogReport:hover {{
+        background: {c['orange']};
+        color: {c['on_orange']};
+        border-color: {c['orange']};
+    }}
+    /* The I2C modification guide: a manual page, not a card stack. */
+    QLabel#GuideStep {{
+        color: {c['text']};
+        font-size: 14px;
+        font-weight: 750;
+    }}
+    QLabel#GuideTableHead {{
+        color: {c['muted']};
+        font-size: 11px;
+        font-weight: 700;
+    }}
+    QLabel#GuideCaption {{
+        color: {c['muted']};
+        font-size: 12px;
+    }}
+    QLabel#GuideWarning {{
+        color: {c['text']};
+        font-size: 12px;
+        font-weight: 600;
+    }}
+    QFrame#GuidePanel {{
+        background: {c['panel']};
+        border: 1px solid {c['border_soft']};
+        border-radius: 10px;
+    }}
+    QWidget#GuidePanelContent {{
+        background: transparent;
+    }}
+    QFrame#GuideRule {{
+        background: {c['border_soft']};
+        border: none;
+    }}
+    QLabel#GuidePhoto {{
+        background: transparent;
+        border: none;
+    }}
+    QPushButton#DialogSecondary {{
+        background: {c['control']};
+        color: {c['text']};
+        border: 1px solid {c['border']};
+        border-radius: 8px;
+        padding: 7px 14px;
+        font-weight: 650;
+    }}
+    QPushButton#DialogSecondary:hover {{
+        background: {c['control_hover']};
     }}
     QPushButton#DialogClose {{
         background: transparent;
@@ -1628,9 +1750,9 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         background: {c['blue']};
         color: {c['on_blue']};
         border: 1px solid {c['blue']};
-        border-radius: 9px;
-        padding: 10px 18px;
-        font-weight: 750;
+        border-radius: 8px;
+        padding: 7px 16px;
+        font-weight: 700;
     }}
     QPushButton#DialogPrimary:hover {{
         background: {c['blue_hover']};
@@ -1640,13 +1762,125 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         background: {c['blue_pressed']};
         border-color: {c['blue_pressed']};
     }}
+    /* The in-app report form. */
+    QFrame[feedbackForm='true'] QLabel[feedbackLabel='true'] {{
+        color: {c['text']};
+        font-size: 12px;
+        font-weight: 700;
+    }}
+    QFrame[feedbackForm='true'] QLabel[feedbackHint='true'] {{
+        color: {c['muted']};
+        font-size: 11px;
+    }}
+    QFrame[feedbackForm='true'] QLabel[feedbackGroupTitle='true'] {{
+        color: {c['text']};
+        font-size: 13px;
+        font-weight: 800;
+    }}
+    QFrame[feedbackForm='true'] QFrame[feedbackGroup='true'] {{
+        background: {c['panel_alt']};
+        border: 1px solid {c['border_soft']};
+        border-radius: 12px;
+    }}
+    QFrame[feedbackForm='true'] QLineEdit, QFrame[feedbackForm='true'] QComboBox {{
+        padding: 7px 10px;
+        font-weight: 500;
+    }}
+    QFrame[feedbackForm='true'] QComboBox::drop-down {{
+        border: none;
+        background: transparent;
+        width: 26px;
+    }}
+    QFrame[feedbackForm='true'] QComboBox::down-arrow {{
+        image: url({icon_dir}/chevron_down_gray.svg);
+        width: 12px;
+        height: 12px;
+    }}
+    QFrame[feedbackForm='true'] QComboBox QLineEdit {{
+        background: transparent;
+        border: none;
+        padding: 0px;
+        min-height: 0px;
+    }}
+    QFrame[feedbackForm='true'] QCheckBox::indicator {{
+        width: 16px;
+        height: 16px;
+        border: 1px solid {c['border']};
+        border-radius: 5px;
+        background: {c['control']};
+    }}
+    QFrame[feedbackForm='true'] QCheckBox::indicator:hover {{
+        border-color: {c['blue']};
+    }}
+    QFrame[feedbackForm='true'] QCheckBox::indicator:checked {{
+        background: {c['blue']};
+        border-color: {c['blue']};
+        image: url({icon_dir}/check_white.svg);
+    }}
+    QFrame[feedbackForm='true'] QPlainTextEdit[feedbackText='true'] {{
+        background: {c['control']};
+        border: 1px solid {c['border']};
+        border-radius: 11px;
+        padding: 6px 8px;
+        selection-background-color: {c['blue_soft']};
+    }}
+    QFrame[feedbackForm='true'] QPlainTextEdit[feedbackText='true']:focus {{
+        border-color: {c['focus']};
+    }}
+    QFrame[feedbackForm='true'] QCheckBox[feedbackCheck='true'] {{
+        color: {c['text']};
+        font-size: 12px;
+        spacing: 8px;
+    }}
+    QFrame[feedbackForm='true'] QPushButton[feedbackKind] {{
+        background: {c['control']};
+        color: {c['muted']};
+        border: 1px solid {c['border']};
+        padding: 8px 14px;
+        font-weight: 700;
+    }}
+    QFrame[feedbackForm='true'] QPushButton[feedbackKind='first'] {{
+        border-top-left-radius: 10px;
+        border-bottom-left-radius: 10px;
+        border-right: none;
+    }}
+    QFrame[feedbackForm='true'] QPushButton[feedbackKind='last'] {{
+        border-top-right-radius: 10px;
+        border-bottom-right-radius: 10px;
+    }}
+    QFrame[feedbackForm='true'] QPushButton[feedbackKind]:hover {{
+        background: {c['control_hover']};
+    }}
+    QFrame[feedbackForm='true'] QPushButton[feedbackKind]:checked {{
+        background: {c['blue_soft']};
+        color: {c['blue']};
+        border-color: {c['blue_border']};
+    }}
+    QFrame[feedbackForm='true'] QLabel[feedbackStatus] {{
+        border-radius: 10px;
+        padding: 9px 12px;
+        font-size: 12px;
+        font-weight: 600;
+    }}
+    QFrame[feedbackForm='true'] QLabel[feedbackStatus='info'] {{
+        background: {c['blue_soft']};
+        color: {c['text']};
+    }}
+    QFrame[feedbackForm='true'] QLabel[feedbackStatus='warning'] {{
+        background: {c['orange_soft']};
+        color: {c['text']};
+    }}
+    QFrame[feedbackForm='true'] QLabel[feedbackStatus='error'] {{
+        background: {c['red_soft']};
+        color: {c['text']};
+    }}
     QPushButton#DialogDanger {{
         background: {c['orange']};
         color: {c['on_orange']};
         border: 1px solid {c['orange']};
-        border-radius: 9px;
-        padding: 10px 18px;
-        font-weight: 750;
+        border-radius: 8px;
+        padding: 7px 16px;
+        font-weight: 700;
     }}
     QPushButton#DialogDanger:hover {{
         background: {c['orange_hover']};
@@ -1729,7 +1963,7 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QFrame[pageCard='true'][upscalingGames='true'],
     QFrame[pageCard='true'][helixsrSettings='true'] {{
         background: {upscaling_card};
-        border: 1px solid {upscaling_line};
+        border: 1px solid {upscaling_outline};
         border-radius: 10px;
     }}
     QFrame[pageCard='true'][upscalerSection='true'] QPushButton[compactAction='true'],
@@ -1859,6 +2093,135 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         font-family: 'JetBrains Mono', 'Noto Sans Mono', monospace;
         font-size: 12px;
         padding: 0px;
+    }}
+    /* An upscaler card's figures: one strip, a small label over each value,
+       a hairline between them. */
+    QFrame[upscalerStats='true'] {{
+        background: transparent;
+        border: none;
+        padding: 10px 0px 4px 0px;
+    }}
+    QFrame[statTile='true'] {{
+        background: transparent;
+        border: none;
+        border-left: 1px solid {upscaling_line};
+        border-radius: 0px;
+    }}
+    QFrame[statTile='true'][statFirst='true'] {{
+        border-left: none;
+    }}
+    QLabel[statLabel='true'] {{
+        color: {c['muted']};
+        font-size: 11px;
+        padding: 0px;
+    }}
+    QLabel[statValue='true'] {{
+        color: {c['text']};
+        font-size: 14px;
+        font-weight: 650;
+        padding: 0px;
+    }}
+    QLabel[statValue='true'][tone='good'] {{ color: {c['green']}; }}
+    QLabel[statValue='true'][tone='warning'] {{ color: {c['orange']}; }}
+    QLabel[statValue='true'][tone='danger'] {{ color: {c['red']}; }}
+    /* The guide: a quiet link in the head, not a button. */
+    QFrame[upscalerHead='true'] QPushButton[guideLink='true'],
+    QFrame[upscalerHead='true'] QPushButton[guideLink='true']:hover {{
+        background: transparent;
+        border: none;
+        padding: 0px 2px;
+        min-height: 0px;
+        color: {c['muted']};
+        font-size: 12px;
+        font-weight: 600;
+    }}
+    QFrame[upscalerHead='true'] QPushButton[guideLink='true']:hover {{
+        color: {c['blue']};
+    }}
+    /* A quiet link inside a dialog: the report entry of an error window. */
+    QFrame#ControlDialogCard QPushButton[dialogLink='true'],
+    QFrame#ControlDialogCard QPushButton[dialogLink='true']:hover {{
+        background: transparent;
+        border: none;
+        padding: 4px 2px;
+        min-height: 0px;
+        color: {c['muted']};
+        font-size: 12px;
+        font-weight: 650;
+    }}
+    QFrame#ControlDialogCard QPushButton[dialogLink='true']:hover {{
+        color: {c['blue']};
+    }}
+    /* Square buttons that carry only an icon: refresh, copy, a row's menu. */
+    QFrame[pageCard='true'][upscalerSection='true'] QPushButton[iconAction='true'],
+    QFrame[pageCard='true'][upscalingGames='true'] QPushButton[iconAction='true'] {{
+        min-width: 28px;
+        max-width: 28px;
+        min-height: 28px;
+        max-height: 28px;
+        padding: 0px;
+    }}
+    QFrame[pageCard='true'][upscalerSection='true'] QComboBox {{
+        background: {upscaling_field};
+        border: 1px solid {upscaling_line_strong};
+        border-radius: 7px;
+        min-height: 18px;
+        padding: 4px 10px;
+        font-size: 12px;
+        font-weight: 500;
+    }}
+    QFrame[launchStrip='true'] {{
+        background: {upscaling_head};
+        border: 1px solid {upscaling_line};
+        border-radius: 8px;
+    }}
+    QFrame[launchStrip='true'] QLabel[settingHint='true'] {{
+        color: {c['subtle']};
+        font-size: 11px;
+    }}
+    QFrame[launchStrip='true'] QLineEdit[launchOption='true'],
+    QFrame[pageCard='true'][upscalerSection='true'] QLineEdit[launchOption='true'] {{
+        background: {upscaling_field};
+        border: 1px solid {upscaling_line};
+        border-radius: 7px;
+        min-height: 18px;
+        padding: 4px 10px;
+        font-family: 'JetBrains Mono', 'Noto Sans Mono', monospace;
+        font-size: 12px;
+    }}
+    QPushButton[menuAction='true'] {{
+        padding-left: 10px;
+        padding-right: 8px;
+    }}
+    /* Frame generation in a game: a switch, tinted while it is on. */
+    QFrame[pageCard='true'][upscalingGames='true'] QPushButton[toggleAction='true']:checked {{
+        background: {c['blue_soft']};
+        border-color: {c['blue_border']};
+        color: {c['blue']};
+    }}
+    QMenu[upscalingMenu='true'] {{
+        background: {c['panel_raised']};
+        color: {c['text']};
+        border: 1px solid {c['border']};
+        border-radius: 8px;
+        padding: 4px;
+    }}
+    QMenu[upscalingMenu='true']::item {{
+        background: transparent;
+        padding: 7px 18px 7px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+    }}
+    QMenu[upscalingMenu='true']::item:selected {{
+        background: {c['control_hover']};
+    }}
+    QMenu[upscalingMenu='true']::item:disabled {{
+        color: {c['disabled_text']};
+    }}
+    QMenu[upscalingMenu='true']::separator {{
+        height: 1px;
+        background: {c['border']};
+        margin: 4px 6px;
     }}
     QFrame[gameTable='true'] {{
         background: transparent;

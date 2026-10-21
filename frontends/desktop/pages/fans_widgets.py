@@ -58,6 +58,7 @@ from ..components.dialogs import (
 from ..components.style_state import set_style_property
 from ..components.widgets import IconBadge, icon
 from ..core.preferences import application_settings
+from ..core.raw_errors import remember
 from ..i18n import localize_widget_tree, shipped_name, tr, tr_format
 from ..theme import COLORS, application_stylesheet
 from .fans_helpers import _dict, _hairline, _integer, _percent_to_pwm, _pwm_to_percent  # noqa: E402
@@ -369,6 +370,7 @@ class FanTask(QThread):
         try:
             self.succeeded.emit(self.operation())
         except Exception as error:  # pragma: no cover - hardware/authentication path
+            remember(error)
             self.failed.emit(str(error))
 
 

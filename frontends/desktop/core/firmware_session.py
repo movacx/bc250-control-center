@@ -27,6 +27,7 @@ from bc250cc.infrastructure.firmware.preparation import (
 from bc250cc.infrastructure.firmware.usb_devices import list_usb_drives
 
 from ..components.async_tools import BackgroundExecutor
+from .raw_errors import remember
 
 #: udev keeps one symlink per disk here, so a stick plugged in or pulled out
 #: changes the directory straight away.
@@ -160,8 +161,10 @@ class UsbPreparationJob(QThread):
         except PreparationCancelled:
             self.stopped.emit()
         except PreparationError as error:
+            remember(error)
             self.failed.emit(error.step, str(error))
         except Exception as error:  # noqa: BLE001 - the thread must report, not die
+            remember(error)
             self.failed.emit(self.step, str(error))
         else:
             self.succeeded.emit(report)

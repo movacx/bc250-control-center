@@ -195,7 +195,15 @@ _RULES = (
          r"\.original\.dll backup", r"not installed in steam", r"invalid steam app id",
          r"optiscaler client list", r"optiscaler is not installed in this game",
          r"optiscaler's settings file", r"helixsr folder that", r"close this game before",
-         r"steam's non-steam games", r"helixsr release is not on offer"),
+         r"steam's non-steam games", r"helixsr release is not on offer",
+         # Undoing OptiScaler Client's install (opticlient_undo): every
+         # refusal leaves the game and the client's record as they were.
+         r"nothing was touched", r"everything was put back",
+         r"optiscaler client (?:has (?:no|a) record|was interrupted|operation is still)",
+         r"close optiscaler client first", r"unknown backup", r"that backup is no longer",
+         r"this backup (?:is incomplete|holds only)", r"could not create a backup folder",
+         r"the game's folder is gone", r"unsafe path in the installation record",
+         r"it was not (?:moved|touched|replaced|used)", r"did not verify"),
         "The game's upscaler files were not changed.",
         "The per-game upscaler found the game in a state it does not change safely: the tool is not installed or prepared yet, the game is not where Steam says, or its files were already changed by hand. Nothing in the game folder was changed.",
         "Read the technical detail below: it names the step that is missing. Usually that is installing or preparing the tool first, closing the game, or using Steam > Verify integrity of game files to put the game's own files back.",
@@ -308,6 +316,14 @@ _RULES = (
         "The external package repository is temporarily unavailable at its address.",
         "The upstream project republishes this pacman repository as a GitHub release, and its assets are unavailable while that release is being rebuilt. The address is still the documented one, and nothing is wrong with this system or its network.",
         "Wait for the upstream rebuild to finish and run the workflow again later; the currently installed kernel keeps working meanwhile. Only report the diagnostic code if it still fails after a day.",
+    ),
+    _Rule(
+        "BC250-REPORT-001",
+        (r"report form could not be read", r"report form changed since", r"google forms (?:did not confirm|answered with an error|could not be reached)",
+         r"a required answer is empty", r"a report was sent a moment ago"),
+        "The report was not sent.",
+        "Google Forms could not be reached or did not confirm it, or the form changed since this version of the app.",
+        "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.",
     ),
     _Rule(
         "BC250-NET-001",
@@ -684,9 +700,28 @@ def format_error_for_user(
     os_family: str | None = None,
 ) -> str:
     """Return a human explanation while preserving bounded technical evidence."""
+    explained = error_sections(message, context=context, translate=translate, os_family=os_family)
+    if explained is None:
+        return _clean_detail(message)
+    sections, code = explained
+    rendered = "\n\n".join(f"{heading}\n{body}" for heading, body in sections)
+    return f"{rendered}\n\n{translate('Diagnostic code')}: {code}"
+
+
+def error_sections(
+    message: object,
+    *,
+    context: object = "",
+    translate: Translator = str,
+    os_family: str | None = None,
+) -> tuple[tuple[tuple[str, str], ...], str] | None:
+    """The explanation as (heading, text) pairs and its code, for a dialog to lay out.
+
+    None for a message that already carries its own explanation.
+    """
     detail = _clean_detail(message)
     if "Diagnostic code:" in detail or "Código de diagnóstico:" in detail:
-        return detail
+        return None
     diagnosis = diagnose_error(detail, context=context)
     action = translate(diagnosis.action)
     if diagnosis.code == UMR_REPAIR_CODE:
@@ -697,8 +732,7 @@ def format_error_for_user(
         (translate("How to fix it"), action),
         (translate("Technical detail"), translate(detail)),
     )
-    rendered = "\n\n".join(f"{heading}\n{body}" for heading, body in sections)
-    return f"{rendered}\n\n{translate('Diagnostic code')}: {diagnosis.code}"
+    return sections, diagnosis.code
 
 
 

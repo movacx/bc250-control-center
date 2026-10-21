@@ -48,6 +48,7 @@ from ..components.responsive import (
 from ..components.toast import show_toast
 from ..components.toggle_switch import ToggleSwitch
 from ..components.widgets import InfoDialog, icon
+from ..core.raw_errors import remember
 from ..core.state import state_cache_for
 from ..i18n import count_label, current_language, tr, tr_format
 from ..theme import COLORS, scale_stylesheet
@@ -407,6 +408,7 @@ class ProcessTask(QThread):
                 self.state_cache.invalidate("performance")
             self.completed.emit(self.operation, self._snapshot())
         except Exception as error:
+            remember(error)
             self.failed.emit(self.operation, str(error))
 
 
