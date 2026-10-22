@@ -1038,6 +1038,7 @@
   "Decky Quick Access preview": "Decky Hızlı Erişim önizlemesi",
   "Decky Quick Access preview image": "Decky Hızlı Erişim önizleme resmi",
   "Decky Quick Access uses these names and speeds for its Quiet, Balanced and Boost presets.": "Decky Quick Access bu adları ve hızları Sessiz, Dengeli ve Güçlü ön ayarları için kullanır.",
+  "In Game Mode they set every active system fan (PWM3–PWM8) together, never PWM2, and a speed under 20 % runs at 20 %.": "Oyun Modunda tüm etkin sistem fanlarını (PWM3–PWM8) birlikte ayarlarlar, PWM2'yi asla; %20'nin altındaki bir hız %20'de çalışır.",
   "Decky detected": "Decky algılandı",
   "Decky is a plugin for the console-style interface — Game Mode or Steam Big Picture. Install it and you can change fan speed and clocks from the Steam overlay, with a controller, without coming back to this window.": "Decky, konsol tarzı arayüz için bir eklentidir — Game Mode ya da Steam Big Picture. Kur, fan hızını ve frekansları Steam kaplamasından, kumandayla, bu pencereye dönmeden değiştirebilirsin.",
   "Decky is detected, but the BC250 Quick Access plugin or its protected helper needs installation or repair.": "Decky algılandı, ancak BC250 Hızlı Erişim eklentisinin veya korumalı yardımcısının yüklenmesi veya onarılması gerekiyor.",
@@ -2731,6 +2732,9 @@
   "Profiles": "Profiller",
   "Profiles and safe lab for bc250-detect --keep": "bc250-detect --keep için profiller ve güvenli laboratuvar",
   "Profiles exported to Decky Quick Access.": "Profiller Decky Quick Access'e aktarıldı.",
+  "Profiles saved for Decky Quick Access, but the plugin is not installed yet. Its panel will use them once BC250 Quick Access is installed.": "Profiller Decky Quick Access için kaydedildi, ancak eklenti henüz kurulu değil. BC250 Quick Access kurulduğunda paneli bunları kullanacak.",
+  "In Game Mode each preset sets every active system fan (PWM3–PWM8) together and never PWM2, not just the channel selected here.": "Oyun Modunda her ön ayar, yalnızca burada seçilen kanalı değil, tüm etkin sistem fanlarını (PWM3–PWM8) birlikte ayarlar ve PWM2'ye asla dokunmaz.",
+  "{name}: {requested} % → {published} % in Decky.": "{name}: %{requested} → %{published} (Decky'de).",
   "Profiles, temporary tuning, persistence, and advanced details.": "Profiller, geçici ayarlama, kalıcılık ve gelişmiş ayrıntılar.",
   "Programmed ranges": "Programlanmış aralıklar",
   "Project overview": "Projeye genel bakış",
@@ -5328,5 +5332,8 @@
   "Discard that snapshot and create a new one. Do not restore a file that could not be verified.": "O anlık görüntüyü silin ve yenisini oluşturun. Doğrulanamayan bir dosyayı geri yüklemeyin.",
   "The Control Center update could not be downloaded or verified.": "Control Center güncellemesi indirilemedi veya doğrulanamadı.",
   "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.": "GitHub eksik sürüm verisi döndürdü ya da indirilen dosya yayımlanan boyut veya sağlama toplamıyla eşleşmiyor.",
-  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Ağı ve sistem tarihini kontrol edip güncellemeyi yeniden deneyin. Hata sürerse paketi sürüm sayfasından kurun."
+  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Ağı ve sistem tarihini kontrol edip güncellemeyi yeniden deneyin. Hata sürerse paketi sürüm sayfasından kurun.",
+  "Temperature reading": "Sıcaklık okuma",
+  "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Cyan'ın GPU sıcaklığını nereden okuduğu. İkisi de aynı değeri verir; sysfs yalnızca bunun için GPU aygıtını açık tutmaz. Varsayılan DRM'dir.",
+  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Bu Cyan sürümü bu ayarı okumuyor. Bağımlılıkları hazırla bölümünden güncelleyin."
 }

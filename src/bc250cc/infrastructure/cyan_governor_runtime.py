@@ -164,6 +164,36 @@ def _sha256_file(path: str | Path) -> str:
         return ""
 
 
+@lru_cache(maxsize=8)
+def _mentions_cached(path: str, size: int, mtime_ns: int, needle: bytes) -> bool:
+    del size, mtime_ns  # They intentionally participate in the cache key.
+    tail = b""
+    with Path(path).open("rb") as handle:
+        while chunk := handle.read(1024 * 1024):
+            if needle in tail + chunk:
+                return True
+            tail = chunk[-len(needle):]
+    return False
+
+
+def binary_understands(path: str | Path, key: str) -> bool | None:
+    """Whether Cyan's binary knows a config key: its name is in the binary.
+
+    None when there is no binary to look at. A newer option written for an
+    older Cyan is ignored by it, so the panel only offers what this one reads.
+    """
+    candidate = Path(path)
+    try:
+        metadata = candidate.stat()
+        if not candidate.is_file() or metadata.st_size > 64 * 1024 * 1024:
+            return None
+        return _mentions_cached(
+            str(candidate), metadata.st_size, metadata.st_mtime_ns, key.encode("ascii")
+        )
+    except OSError:
+        return None
+
+
 def detect_cyan_runtime_identity(repository) -> dict[str, object]:
     """Return the executable and TOML actually selected by the active service.
 
@@ -256,6 +286,7 @@ def detect_cyan_runtime_identity(repository) -> dict[str, object]:
             managed and (legacy_patched or (managed_release and managed_release != CYAN_REVIEWED_RELEASE))
         ),
         "raw_exec": raw_exec,
+        "temp_read_supported": binary_understands(service_path, "temp-read") if service_path else None,
     }
 
 def detect_cyan_frequency_fix_runtime(repository) -> dict[str, object]:

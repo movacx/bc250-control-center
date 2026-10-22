@@ -268,7 +268,8 @@
   "bc250cc/domain/fan/profile_exchange.py": {
    "fan_profiles_document": "FAN-0240",
    "parse_fan_profiles_document": "FAN-0241",
-   "decky_fan_profiles": "FAN-0242"
+   "decky_fan_profiles": "FAN-0242",
+   "decky_fan_raised": "FAN-0304"
   },
   "bc250cc/domain/firmware/boot_logo.py": {
    "_guid": "FW-0109",
@@ -747,6 +748,8 @@
    "parse_openrc_command_args": "GPU-0429",
    "_sha256_cached": "GPU-0430",
    "_sha256_file": "GPU-0431",
+   "_mentions_cached": "GPU-0626",
+   "binary_understands": "GPU-0627",
    "detect_cyan_runtime_identity": "GPU-0432",
    "detect_cyan_frequency_fix_runtime": "GPU-0433",
    "detect_cyan_metrics_fix_runtime": "GPU-0434"
@@ -812,6 +815,7 @@
    "DependenciasRepository._local_updater_path": "PREP-0038",
    "DependenciasRepository.actualizar_aplicacion_local": "PREP-0039",
    "DependenciasRepository._quick_access_installer_path": "PREP-0040",
+   "DependenciasRepository.estado_quick_access_decky": "PREP-0119",
    "DependenciasRepository.preparar_quick_access_steamos": "PREP-0041",
    "DependenciasRepository.preparar_kernel_cachyos_bc250": "PREP-0042",
    "DependenciasRepository.preparar_cachyos_bc250": "PREP-0043",
@@ -1134,6 +1138,8 @@
   },
   "bc250cc/infrastructure/governor_config_request.py": {
    "governor_config_helper_protocol": "GPU-0435",
+   "find_governor_config_helper": "GPU-0628",
+   "missing_governor_config_helper_message": "GPU-0629",
    "GovernorConfigRequest.argv": "GPU-0436",
    "_integers": "GPU-0437",
    "_exact_integer": "GPU-0438",
@@ -1681,6 +1687,7 @@
    "PrivilegeRepository._usar_steamos_fan_daemon_helper": "SYS-0071",
    "PrivilegeRepository._comando_steamos_game_helper": "SYS-0072",
    "PrivilegeRepository._ejecutar_steamos_game_helper": "SYS-0073",
+   "PrivilegeRepository._exportar_perfiles_decky": "SYS-0316",
    "PrivilegeRepository._ejecutar_steamos_fan_daemon_helper": "SYS-0074"
   },
   "bc250cc/infrastructure/privileged_install_state.py": {
@@ -2040,6 +2047,7 @@
    "SistemaService.gestionar_graficos_steamos": "SYS-0187",
    "SistemaService.diagnostico_steamos": "SYS-0188",
    "SistemaService.preparar_quick_access_steamos": "SYS-0189",
+   "SistemaService.estado_quick_access_decky": "SYS-0317",
    "SistemaService.driver_inventory": "SYS-0190",
    "SistemaService.install_driver_support": "SYS-0191",
    "SistemaService.preparar_kernel_cachyos_bc250": "SYS-0192",
@@ -2596,8 +2604,8 @@
    "_FooterActionButton.focusOutEvent": "DASH-0008",
    "_FooterActionButton.hideEvent": "DASH-0009",
    "_GlowingFooterButton.__init__": "DASH-0010",
+   "_GlowingFooterButton._level": "DASH-0309",
    "_GlowingFooterButton.glow_color": "DASH-0011",
-   "_GlowingFooterButton._set_level": "DASH-0012",
    "_GlowingFooterButton.set_glow": "DASH-0013",
    "_GlowingFooterButton.showEvent": "DASH-0014",
    "_GlowingFooterButton.hideEvent": "DASH-0015",
@@ -2931,6 +2939,15 @@
    "ModalScrim.eventFilter": "UI-0177",
    "ModalScrim.paintEvent": "UI-0178"
   },
+  "frontends/desktop/components/outline_glow.py": {
+   "OutlineGlow.__init__": "UI-0541",
+   "OutlineGlow._set_level": "UI-0542",
+   "OutlineGlow.glowing": "UI-0543",
+   "OutlineGlow.set_enabled": "UI-0544",
+   "OutlineGlow.shown": "UI-0545",
+   "OutlineGlow.hidden": "UI-0546",
+   "OutlineGlow.paint": "UI-0547"
+  },
   "frontends/desktop/components/page_widgets.py": {
    "caption": "UI-0179",
    "subpanel": "UI-0180",
@@ -3191,6 +3208,11 @@
    "dialog_card": "UI-0288",
    "dialog_header": "UI-0289",
    "_dialog_section": "UI-0290",
+   "ReportButton.__init__": "UI-0548",
+   "ReportButton.glowing": "UI-0549",
+   "ReportButton.showEvent": "UI-0550",
+   "ReportButton.hideEvent": "UI-0551",
+   "ReportButton.paintEvent": "UI-0552",
    "tighten_dialog": "UI-0291",
    "_error_identity": "UI-0532",
    "_raw_error_block": "UI-0533",
@@ -3449,6 +3471,7 @@
    "TerminalView._scrolled": "CON-0227",
    "TerminalView.scroll_to_bottom": "CON-0228",
    "TerminalView.feed": "CON-0229",
+   "TerminalView.set_static_text": "CON-0261",
    "TerminalView._flush": "CON-0230",
    "TerminalView.clear": "CON-0231",
    "TerminalView.keyPressEvent": "CON-0232",
@@ -3580,6 +3603,12 @@
    "dashboard_fan_owner": "DASH-0234",
    "present_dashboard_fan": "DASH-0235",
    "present_activities": "DASH-0236"
+  },
+  "frontends/desktop/core/decky_export_feedback.py": {
+   "export_and_check_plugin": "DECKY-0042",
+   "export_message": "DECKY-0043",
+   "export_tone": "DECKY-0044",
+   "fan_export_notes": "DECKY-0045"
   },
   "frontends/desktop/core/diagnostic_history.py": {
    "current_wording": "DIAG-0031",
@@ -4341,6 +4370,7 @@
    "CheckLine.setEnabled": "CPU-0079",
    "CheckLine.retranslate": "CPU-0080",
    "CheckLine.eventFilter": "CPU-0081",
+   "snap_to_step": "CPU-0295",
    "CpuProfileCard.__init__": "CPU-0082",
    "CpuProfileCard._build_spin": "CPU-0083",
    "CpuProfileCard._labelled": "CPU-0084",
@@ -4976,6 +5006,7 @@
    "_load_profiles": "GPU-0146",
    "_persist_profile": "GPU-0147",
    "_run": "GPU-0148",
+   "_report": "GPU-0630",
    "_apply_range": "GPU-0149",
    "_save_for_startup": "GPU-0150",
    "_export_profiles_to_decky": "GPU-0151",
@@ -5598,6 +5629,7 @@
   }
  },
  "retired": [
+  "DASH-0012",
   "TEL-0365",
   "TEL-0366"
  ]

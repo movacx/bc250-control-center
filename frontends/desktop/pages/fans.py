@@ -43,6 +43,7 @@ from bc250cc.domain.fan.persistence import (
 from bc250cc.domain.fan.profile_exchange import (
     MAX_DOCUMENT_BYTES,
     decky_fan_profiles,
+    decky_fan_raised,
     fan_profiles_document,
     parse_fan_profiles_document,
 )
@@ -73,6 +74,12 @@ from ..components.toggle_switch import ToggleSwitch
 from ..components.wheel_guard import GuardedComboBox
 from ..components.widgets import InfoDialog, icon
 from ..core.dashboard_presenter import FAN_OWNER_LABELS, fan_owner
+from ..core.decky_export_feedback import (
+    export_and_check_plugin,
+    export_message,
+    export_tone,
+    fan_export_notes,
+)
 from ..core.fan_action_policy import plan_automatic_curve, plan_fan_action_availability
 from ..core.fan_state_presenter import (
     FanStatePresentation,
@@ -1144,9 +1151,15 @@ class FansPage(QWidget):
         self.profiles_decky_button.setIcon(icon("gamepad_menu"))
         self.profiles_decky_button.setProperty("compactAction", True)
         self.profiles_decky_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.profiles_decky_button.setToolTip(tr(
-            "Decky Quick Access uses these names and speeds for its Quiet, Balanced and Boost presets."
-        ))
+        # Game Mode drives a different set of fans than this page, and has a
+        # floor this page does not; say both before the user exports.
+        self.profiles_decky_button.setToolTip(" ".join((
+            tr("Decky Quick Access uses these names and speeds for its Quiet, Balanced and Boost presets."),
+            tr(
+                "In Game Mode they set every active system fan (PWM3–PWM8) together, never PWM2, "
+                "and a speed under 20 % runs at 20 %."
+            ),
+        )))
         self.profiles_decky_button.clicked.connect(self.export_profiles_to_decky)
         presets_head.addWidget(self.profiles_decky_button, 0)
         controls.addSpacing(4)
@@ -2458,11 +2471,14 @@ class FansPage(QWidget):
         )
         self.curve_live_target.setText(tr_format("Target {value}%", value=duty) if duty is not None else tr("Target -- %"))
 
-    def _profiles_for_exchange(self, *, translated: bool) -> list[dict]:
+    def _profiles_for_exchange(self) -> list[dict]:
+        # The stored names: a shipped default is still its English source,
+        # which Decky shows in its own language, and the owner's own name is
+        # kept exactly as typed.
         return [
             {
                 "key": card.profile.key,
-                "name": tr(card.profile.name) if translated else card.profile.name,
+                "name": card.profile.name,
                 "percent": int(card.profile.percent),
             }
             for card in self.manual_preset_buttons
@@ -2470,15 +2486,25 @@ class FansPage(QWidget):
 
     def export_profiles_to_decky(self) -> None:
         """Publish the three profiles as Decky's Quiet/Balanced/Boost presets."""
-        payload = decky_fan_profiles(self._profiles_for_exchange(translated=True))
+        profiles = self._profiles_for_exchange()
+        payload = decky_fan_profiles(profiles)
+        raised = [
+            (tr(name), requested, published)
+            for name, requested, published in decky_fan_raised(profiles)
+        ]
         self.profiles_decky_button.setEnabled(False)
 
-        def done(_result: object) -> None:
+        def done(plugin_installed: object) -> None:
             self.profiles_decky_button.setEnabled(True)
             self._record_event("info", "Fan profiles exported to Decky", ", ".join(
                 f"{entry['name']} {entry['percent']}%" for entry in payload
             ))
-            self._show_info("Profiles exported to Decky Quick Access.", "", tone="green")
+            installed = plugin_installed if isinstance(plugin_installed, bool) else None
+            self._show_info(
+                tr("Export to Decky"),
+                export_message(installed, fan_export_notes(raised)),
+                tone=export_tone(installed),
+            )
 
         def failed(message: str) -> None:
             self.profiles_decky_button.setEnabled(True)
@@ -2486,7 +2512,9 @@ class FansPage(QWidget):
 
         self._background.start(
             "fan-export-decky",
-            lambda: self.controller.exportar_perfiles_fan_decky(payload),
+            lambda: export_and_check_plugin(
+                self.controller, lambda: self.controller.exportar_perfiles_fan_decky(payload)
+            ),
             done,
             failed,
         )
@@ -2504,7 +2532,7 @@ class FansPage(QWidget):
             curve = self._curve_config()
         except ValueError:
             curve = None
-        document = fan_profiles_document(self._profiles_for_exchange(translated=False), curve)
+        document = fan_profiles_document(self._profiles_for_exchange(), curve)
         try:
             Path(path).write_text(
                 json.dumps(document, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"

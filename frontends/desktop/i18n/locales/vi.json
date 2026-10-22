@@ -1038,6 +1038,7 @@
   "Decky Quick Access preview": "Decky Xem trước truy cập nhanh",
   "Decky Quick Access preview image": "Decky Hình ảnh xem trước truy cập nhanh",
   "Decky Quick Access uses these names and speeds for its Quiet, Balanced and Boost presets.": "Decky Quick Access dùng các tên và tốc độ này cho các thiết lập sẵn Yên tĩnh, Cân bằng và Tăng cường.",
+  "In Game Mode they set every active system fan (PWM3–PWM8) together, never PWM2, and a speed under 20 % runs at 20 %.": "Trong Chế độ trò chơi, chúng đặt cùng lúc mọi quạt hệ thống đang hoạt động (PWM3–PWM8), không bao giờ PWM2, và tốc độ dưới 20 % sẽ chạy ở 20 %.",
   "Decky detected": "Đã phát hiện thấy Decky",
   "Decky is a plugin for the console-style interface — Game Mode or Steam Big Picture. Install it and you can change fan speed and clocks from the Steam overlay, with a controller, without coming back to this window.": "Decky là một plugin cho giao diện kiểu máy chơi game — Game Mode hoặc Steam Big Picture. Cài nó vào là bạn đổi được tốc độ quạt và xung nhịp ngay trong lớp phủ Steam, bằng tay cầm, khỏi phải quay lại cửa sổ này.",
   "Decky is detected, but the BC250 Quick Access plugin or its protected helper needs installation or repair.": "Đã phát hiện thấy Decky nhưng plugin BC250 Truy cập nhanh hoặc trình trợ giúp được bảo vệ của nó cần được cài đặt hoặc sửa chữa.",
@@ -2731,6 +2732,9 @@
   "Profiles": "Hồ sơ",
   "Profiles and safe lab for bc250-detect --keep": "Hồ sơ và phòng thí nghiệm an toàn cho bc250- detect --keep",
   "Profiles exported to Decky Quick Access.": "Đã xuất hồ sơ sang Decky Quick Access.",
+  "Profiles saved for Decky Quick Access, but the plugin is not installed yet. Its panel will use them once BC250 Quick Access is installed.": "Đã lưu hồ sơ cho Decky Quick Access, nhưng plugin chưa được cài đặt. Bảng điều khiển của nó sẽ dùng chúng khi BC250 Quick Access được cài đặt.",
+  "In Game Mode each preset sets every active system fan (PWM3–PWM8) together and never PWM2, not just the channel selected here.": "Trong Chế độ trò chơi, mỗi thiết lập sẵn đặt cùng lúc mọi quạt hệ thống đang hoạt động (PWM3–PWM8) và không bao giờ PWM2, không chỉ kênh được chọn ở đây.",
+  "{name}: {requested} % → {published} % in Decky.": "{name}: {requested} % → {published} % trong Decky.",
   "Profiles, temporary tuning, persistence, and advanced details.": "Hồ sơ, điều chỉnh tạm thời, kiên trì và chi tiết nâng cao.",
   "Programmed ranges": "Phạm vi được lập trình",
   "Project overview": "Tổng quan dự án",
@@ -5328,5 +5332,8 @@
   "Discard that snapshot and create a new one. Do not restore a file that could not be verified.": "Bỏ bản chụp đó và tạo bản mới. Đừng khôi phục tệp không thể xác minh.",
   "The Control Center update could not be downloaded or verified.": "Không thể tải xuống hoặc xác minh bản cập nhật Control Center.",
   "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.": "GitHub trả về dữ liệu phát hành không đầy đủ, hoặc tệp tải về không khớp với kích thước hay mã kiểm tra đã công bố.",
-  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Kiểm tra mạng và ngày hệ thống rồi thử cập nhật lại. Nếu vẫn lỗi, hãy cài gói từ trang phát hành."
+  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Kiểm tra mạng và ngày hệ thống rồi thử cập nhật lại. Nếu vẫn lỗi, hãy cài gói từ trang phát hành.",
+  "Temperature reading": "Đọc nhiệt độ",
+  "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Nơi Cyan đọc nhiệt độ GPU. Cả hai cho cùng một giá trị; sysfs không giữ thiết bị GPU mở chỉ để làm việc đó. Mặc định là DRM.",
+  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Phiên bản Cyan này không đọc cài đặt này. Hãy cập nhật từ Chuẩn bị phụ thuộc."
 }

@@ -129,3 +129,19 @@ def decky_fan_profiles(profiles: list[dict]) -> list[dict]:
             ),
         })
     return published
+
+
+def decky_fan_raised(profiles: list[dict]) -> list[tuple[str, int, int]]:
+    """(name, speed, Decky's speed) for each profile Decky would run faster.
+
+    Decky's slider starts at its floor, so a slower profile is published at
+    the floor; the user is told rather than finding out in Game Mode.
+    """
+    raised: list[tuple[str, int, int]] = []
+    for entry in profiles:
+        if not isinstance(entry, dict) or str(entry.get("key")) not in DECKY_PRESET_FOR:
+            continue
+        percent = bounded_int(entry.get("percent"), 60, 0, DECKY_MAX_PERCENT)
+        if percent < DECKY_MIN_PERCENT:
+            raised.append((str(entry.get("name") or ""), percent, DECKY_MIN_PERCENT))
+    return raised

@@ -56,9 +56,14 @@ _KEY_RE = re.compile(
     r"(?P<spacing>\s*=\s*)(?P<value>[0-9][0-9_]*)?(?P<tail>\s*(?:#.*)?)$"
 )
 _GPU_USAGE_KEY_RE = re.compile(
-    r"^(?P<indent>\s*)(?P<comment>#\s*)?(?P<key>fix-metrics|fix-freq|fix_freq|method)"
+    r"^(?P<indent>\s*)(?P<comment>#\s*)?(?P<key>fix-metrics|fix-freq|fix_freq|method|temp-read|temp_read)"
     r"(?P<spacing>\s*=\s*)(?P<value>[^#\r\n]+?)(?P<tail>\s*(?:#.*)?)$"
 )
+#: Cyan accepts the underscore spelling too; edits write the dashed one.
+_GPU_USAGE_ALIASES = {"fix_freq": "fix-freq", "temp_read": "temp-read"}
+#: Where Cyan reads the GPU temperature: the DRM sensor ioctl or hwmon in
+#: sysfs. Same sensor either way; sysfs keeps no DRM client open for it.
+CYAN_TEMP_READ_METHODS = ("drm", "sysfs")
 _GPU_KEY_RE = re.compile(
     r"^(?P<indent>\s*)(?P<comment>#\s*)?(?P<key>set-method)"
     r"(?P<spacing>\s*=\s*)(?P<value>[^#\r\n]+?)(?P<tail>\s*(?:#.*)?)$"
@@ -345,7 +350,10 @@ class GovernorTomlEditor:
         if metadata.st_size > 2 * 1024 * 1024:
             raise GovernorTomlError("Governor configuration is unexpectedly large.")
         try:
-            return self.path.read_text(encoding="utf-8")
+            # Keep CRLF documents byte-stable outside the keys being edited.
+            # Path.read_text() uses universal-newline decoding by default.
+            with self.path.open("r", encoding="utf-8", newline="") as handle:
+                return handle.read()
         except (OSError, UnicodeError) as error:
             raise GovernorTomlError(
                 f"Governor configuration could not be read: {error}"
@@ -441,7 +449,7 @@ class GovernorTomlEditor:
             match = _GPU_USAGE_KEY_RE.match(body) if inside else None
             if match is None:
                 continue
-            key = "fix-freq" if match.group("key") == "fix_freq" else match.group("key")
+            key = _GPU_USAGE_ALIASES.get(match.group("key"), match.group("key"))
             if key in keys:
                 raise GovernorTomlError(
                     f"Duplicate gpu-usage.{key} key in governor TOML."
@@ -616,8 +624,13 @@ class GovernorTomlEditor:
         usage_method: str,
         fix_metrics: bool,
         fix_frequency: bool,
+        temp_read: str | None = None,
     ) -> TomlEditResult:
-        """Atomically set Cyan's independent backend and usage switches."""
+        """Atomically set Cyan's independent backend and usage switches.
+
+        ``temp_read`` is left as it is when not given: older callers, and the
+        Game Mode plugin, do not know it.
+        """
         normalized_set_method = str(set_method).strip().lower()
         if normalized_set_method not in {"smu", "kernel"}:
             raise GovernorTomlError("Cyan gpu.set-method must be smu or kernel.")
@@ -626,18 +639,20 @@ class GovernorTomlEditor:
             raise GovernorTomlError(
                 "Cyan gpu-usage.method must be busy-flag, process or kernel."
             )
+        desired = {
+            "fix-metrics": "true" if bool(fix_metrics) else "false",
+            "fix-freq": "true" if bool(fix_frequency) else "false",
+            "method": f'"{normalized_usage_method}"',
+        }
+        if temp_read is not None:
+            normalized_temp_read = str(temp_read).strip().lower()
+            if normalized_temp_read not in CYAN_TEMP_READ_METHODS:
+                raise GovernorTomlError("Cyan gpu-usage.temp-read must be drm or sysfs.")
+            desired["temp-read"] = f'"{normalized_temp_read}"'
         original = self._read()
         self._validate(original)
         lines = original.splitlines(keepends=True)
-        self._apply_gpu_usage_values(
-            lines,
-            {
-                "fix-metrics": "true" if bool(fix_metrics) else "false",
-                "fix-freq": "true" if bool(fix_frequency) else "false",
-                "method": f'"{normalized_usage_method}"',
-            },
-            original,
-        )
+        self._apply_gpu_usage_values(lines, desired, original)
         self._apply_gpu_values(
             lines, {"set-method": f'"{normalized_set_method}"'}, original
         )
@@ -661,6 +676,9 @@ class GovernorTomlEditor:
                 section.get("fix-freq", section.get("fix_freq", False))
             ),
             "method": method,
+            "temp_read": str(
+                section.get("temp-read", section.get("temp_read")) or "drm"
+            ).strip().lower(),
             "set_method": set_method,
             "valid": (
                 method in {"busy-flag", "process", "kernel"}

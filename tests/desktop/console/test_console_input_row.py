@@ -233,6 +233,21 @@ def test_captured_text_keeps_its_line_breaks(panel):
     assert visible == ["a", "b", "c"]
 
 
+def test_captured_text_keeps_wide_lines_and_exposes_horizontal_scroll(qtbot, panel):
+    wide = "| SE0.SH0 |  D+  | 0x1f | 0xffe00000 |  10/10 |" + (" filler |" * 30)
+    assert panel.show_text(wide, title="Estado")
+    qtbot.wait(50)
+
+    assert panel.view.screen.columns >= len(wide)
+    assert panel.view.screen.full_text() == wide
+    assert panel.view.horizontalScrollBar().maximum() > 0
+
+
+def test_live_terminal_still_uses_the_viewport_grid(panel):
+    assert panel.view._static_text is False
+    assert panel.view.horizontalScrollBar().maximum() == 0
+
+
 def test_captured_text_never_lands_on_a_running_workflow(qtbot, panel):
     """A running workflow owns its grid; its output must not be replaced.
 

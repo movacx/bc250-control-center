@@ -1038,6 +1038,7 @@
   "Decky Quick Access preview": "Decky Quick Access -esikatselu",
   "Decky Quick Access preview image": "Decky Quick Access -esikatselukuva",
   "Decky Quick Access uses these names and speeds for its Quiet, Balanced and Boost presets.": "Decky Quick Access käyttää näitä nimiä ja nopeuksia esiasetuksissa Hiljainen, Tasapainoinen ja Tehostettu.",
+  "In Game Mode they set every active system fan (PWM3–PWM8) together, never PWM2, and a speed under 20 % runs at 20 %.": "Pelitilassa ne säätävät kaikkia aktiivisia järjestelmätuulettimia (PWM3–PWM8) yhdessä, eivät koskaan PWM2:ta, ja alle 20 %:n nopeus toimii 20 %:ssa.",
   "Decky detected": "Decky havaittu",
   "Decky is a plugin for the console-style interface — Game Mode or Steam Big Picture. Install it and you can change fan speed and clocks from the Steam overlay, with a controller, without coming back to this window.": "Decky on lisäosa konsolimaiseen käyttöliittymään — Game Mode tai Steam Big Picture. Asenna se, niin voit muuttaa tuulettimen nopeutta ja kellotaajuuksia Steamin peittokuvasta ohjaimella palaamatta tähän ikkunaan.",
   "Decky is detected, but the BC250 Quick Access plugin or its protected helper needs installation or repair.": "Decky on havaittu, mutta BC250 Quick Access -laajennus tai sen suojattu apuohjelma on asennettava tai korjattava.",
@@ -2731,6 +2732,9 @@
   "Profiles": "Profiilit",
   "Profiles and safe lab for bc250-detect --keep": "Profiilit ja turvallinen laboratorio bc250-detect --keepille",
   "Profiles exported to Decky Quick Access.": "Profiilit viety Decky Quick Accessiin.",
+  "Profiles saved for Decky Quick Access, but the plugin is not installed yet. Its panel will use them once BC250 Quick Access is installed.": "Profiilit tallennettu Decky Quick Accessille, mutta laajennusta ei ole vielä asennettu. Sen paneeli käyttää niitä, kun BC250 Quick Access on asennettu.",
+  "In Game Mode each preset sets every active system fan (PWM3–PWM8) together and never PWM2, not just the channel selected here.": "Pelitilassa jokainen esiasetus säätää kaikkia aktiivisia järjestelmätuulettimia (PWM3–PWM8) yhdessä eikä koskaan PWM2:ta, ei vain tässä valittua kanavaa.",
+  "{name}: {requested} % → {published} % in Decky.": "{name}: {requested} % → {published} % Deckyssä.",
   "Profiles, temporary tuning, persistence, and advanced details.": "Profiilit, väliaikainen viritys, pysyvyys ja edistyneet yksityiskohdat.",
   "Programmed ranges": "Ohjelmoidut alueet",
   "Project overview": "Hankkeen yleiskatsaus",
@@ -5328,5 +5332,8 @@
   "Discard that snapshot and create a new one. Do not restore a file that could not be verified.": "Hylkää se tilannevedos ja luo uusi. Älä palauta tiedostoa, jota ei voitu varmentaa.",
   "The Control Center update could not be downloaded or verified.": "Control Centerin päivitystä ei voitu ladata tai varmentaa.",
   "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.": "GitHub palautti puutteelliset julkaisutiedot, tai ladattu tiedosto ei vastaa julkaistua kokoa tai tarkistussummaa.",
-  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Tarkista verkko ja järjestelmän päivämäärä ja yritä päivitystä uudelleen. Jos se epäonnistuu edelleen, asenna paketti julkaisusivulta."
+  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Tarkista verkko ja järjestelmän päivämäärä ja yritä päivitystä uudelleen. Jos se epäonnistuu edelleen, asenna paketti julkaisusivulta.",
+  "Temperature reading": "Lämpötilan luku",
+  "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Mistä Cyan lukee GPU:n lämpötilan. Molemmat antavat saman arvon; sysfs ei pidä GPU-laitetta auki vain sitä varten. DRM on oletus.",
+  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Tämä Cyan-versio ei lue tätä asetusta. Päivitä se kohdasta Valmistele riippuvuudet."
 }

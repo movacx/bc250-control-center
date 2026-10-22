@@ -1038,6 +1038,7 @@
   "Decky Quick Access preview": "Decky Quick Access preview",
   "Decky Quick Access preview image": "Decky Quick Access preview image",
   "Decky Quick Access uses these names and speeds for its Quiet, Balanced and Boost presets.": "Decky Quick Access uses these names and speeds for its Quiet, Balanced and Boost presets.",
+  "In Game Mode they set every active system fan (PWM3–PWM8) together, never PWM2, and a speed under 20 % runs at 20 %.": "In Game Mode they set every active system fan (PWM3–PWM8) together, never PWM2, and a speed under 20 % runs at 20 %.",
   "Decky detected": "Decky detected",
   "Decky is a plugin for the console-style interface — Game Mode or Steam Big Picture. Install it and you can change fan speed and clocks from the Steam overlay, with a controller, without coming back to this window.": "Decky is a plugin for the console-style interface — Game Mode or Steam Big Picture. Install it and you can change fan speed and clocks from the Steam overlay, with a controller, without coming back to this window.",
   "Decky is detected, but the BC250 Quick Access plugin or its protected helper needs installation or repair.": "Decky is detected, but the BC250 Quick Access plugin or its protected helper needs installation or repair.",
@@ -2731,6 +2732,9 @@
   "Profiles": "Profiles",
   "Profiles and safe lab for bc250-detect --keep": "Profiles and safe lab for bc250-detect --keep",
   "Profiles exported to Decky Quick Access.": "Profiles exported to Decky Quick Access.",
+  "Profiles saved for Decky Quick Access, but the plugin is not installed yet. Its panel will use them once BC250 Quick Access is installed.": "Profiles saved for Decky Quick Access, but the plugin is not installed yet. Its panel will use them once BC250 Quick Access is installed.",
+  "In Game Mode each preset sets every active system fan (PWM3–PWM8) together and never PWM2, not just the channel selected here.": "In Game Mode each preset sets every active system fan (PWM3–PWM8) together and never PWM2, not just the channel selected here.",
+  "{name}: {requested} % → {published} % in Decky.": "{name}: {requested} % → {published} % in Decky.",
   "Profiles, temporary tuning, persistence, and advanced details.": "Profiles, temporary tuning, persistence, and advanced details.",
   "Programmed ranges": "Programmed ranges",
   "Project overview": "Project overview",
@@ -5328,5 +5332,8 @@
   "Discard that snapshot and create a new one. Do not restore a file that could not be verified.": "Discard that snapshot and create a new one. Do not restore a file that could not be verified.",
   "The Control Center update could not be downloaded or verified.": "The Control Center update could not be downloaded or verified.",
   "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.": "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.",
-  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page."
+  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.",
+  "Temperature reading": "Temperature reading",
+  "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.",
+  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "This Cyan version does not read this setting. Update it from Prepare dependencies."
 }

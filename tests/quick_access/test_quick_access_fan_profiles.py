@@ -19,7 +19,33 @@ def helper():
     spec = importlib.util.spec_from_loader(loader.name, loader)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
+    # Not the preset this host's panel applied last.
+    module.SYSTEM_FAN_LAST_PRESET = Path("/nonexistent/fan-last-preset.json")
     return module
+
+
+def test_the_panel_localizes_names_the_desktop_left_at_their_default():
+    """Exported names are no longer translated; the panel must know the defaults."""
+    from frontends.desktop.pages.cpu_control_view import DEFAULT_CPU_PROFILES
+    from frontends.desktop.pages.fans_widgets import DEFAULT_FAN_PROFILES
+    from frontends.desktop.pages.gpu_governor_view import DEFAULT_PROFILES
+
+    panel = (ROOT / "integrations/decky/bc250-quick-access/src/index.tsx").read_text(encoding="utf-8")
+    decky_key = {"quiet": "quiet", "balanced": "balanced", "maximum": "boost"}
+    fan_names = ", ".join(f'{decky_key[p.key]}: "{p.name}"' for p in DEFAULT_FAN_PROFILES)
+    cpu_names = ", ".join(f'{p.key}: "{p.name}"' for p in DEFAULT_CPU_PROFILES)
+    assert f"const SHIPPED_FAN_NAMES: Record<string, string> = {{ {fan_names} }};" in panel
+    assert f"const SHIPPED_CPU_NAMES: Record<string, string> = {{ {cpu_names} }};" in panel
+    gpu_names = "Balanced: () => text.profileBalanced, Gaming: () => text.profileGaming, Benchmark: () => text.profileBenchmark"
+    assert [p.name for p in DEFAULT_PROFILES] == ["Balanced", "Gaming", "Benchmark"] and gpu_names in panel
+
+
+def test_the_panel_says_which_fans_its_presets_drive():
+    panel = (ROOT / "integrations/decky/bc250-quick-access/src/index.tsx").read_text(encoding="utf-8")
+    assert "{text.fanPresetsHint}" in panel
+    for path in (ROOT / "integrations/decky/bc250-quick-access/locales").glob("*.json"):
+        hint = json.loads(path.read_text(encoding="utf-8"))["fanPresetsHint"]
+        assert "PWM3–PWM8" in hint and "PWM2" in hint and "20 %" in hint, path.name
 
 
 def test_exported_speeds_become_the_preset_duties(helper, monkeypatch):

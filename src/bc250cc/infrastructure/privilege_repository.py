@@ -5,6 +5,10 @@ import re
 import stat
 from pathlib import Path
 
+from bc250cc.infrastructure.governor_config_request import (
+    missing_governor_config_helper_message,
+    plan_governor_config_request,
+)
 from bc250cc.infrastructure.polkit_session import pkexec_argv
 from bc250cc.infrastructure.session_privilege_policy import (
     SteamSessionSignals,
@@ -25,7 +29,7 @@ class PrivilegeRepository:
     # Protocol 20 adds gpu-usage.method to the finite Cyan compatibility action.
     # Protocol 19 adds the no-TTY CPU boot-service operation used when the
     # desktop application is launched as a Steam non-Steam game.
-    _STEAMOS_GAME_HELPER_PROTOCOL = 21
+    _STEAMOS_GAME_HELPER_PROTOCOL = 22
 
     def _game_platform_supported(self):
         try:
@@ -192,6 +196,21 @@ class PrivilegeRepository:
     def _ejecutar_steamos_game_helper(self, *args, timeout=240):
         comando = self._comando_steamos_game_helper(*args)
         rc, out, err = self._ejecutar(comando, timeout=timeout)
+        if rc != 0:
+            raise RuntimeError(describe_failure(rc, out, err))
+        return (out or '').strip()
+
+    def _exportar_perfiles_decky(self, action, profiles):
+        """Publish Decky metadata through the privilege boundary for this session."""
+        request = plan_governor_config_request(action, (list(profiles),))
+        if self._usar_steamos_game_helper():
+            return self._ejecutar_steamos_game_helper(
+                'governor-config', request.action, *request.arguments, timeout=120,
+            )
+        helper = self._governor_config_helper_path()
+        if not helper:
+            raise RuntimeError(missing_governor_config_helper_message("exporting"))
+        rc, out, err = self._ejecutar(request.argv(helper), timeout=120)
         if rc != 0:
             raise RuntimeError(describe_failure(rc, out, err))
         return (out or '').strip()

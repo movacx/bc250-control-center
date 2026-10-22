@@ -17,6 +17,7 @@ import pytest
 from bc250cc.domain.fan.persistence import CUSTOM_FAN_PRESET, normalize_fan_preset
 from bc250cc.domain.fan.profile_exchange import (
     decky_fan_profiles,
+    decky_fan_raised,
     fan_profiles_document,
     parse_fan_profiles_document,
 )
@@ -69,6 +70,17 @@ def test_decky_gets_its_own_preset_keys_within_its_speed_range():
     request = plan_governor_config_request("set-decky-fan-profiles", (published,))
     assert request.action == "set-decky-fan-profiles"
     assert json.loads(request.arguments[0])[2] == {"key": "boost", "name": "Raid", "percent": 100}
+
+
+def test_every_speed_decky_raises_to_its_floor_is_listed():
+    profiles = [
+        {"key": "quiet", "name": "Night", "percent": 0},
+        {"key": "balanced", "name": "Low", "percent": 19},
+        {"key": "maximum", "name": "Raid", "percent": 20},
+        {"key": "other", "name": "Ignored", "percent": 5},
+    ]
+    assert decky_fan_raised(profiles) == [("Night", 0, 20), ("Low", 19, 20)]
+    assert decky_fan_raised(PROFILES) == []
 
 
 @pytest.mark.parametrize("profiles", [

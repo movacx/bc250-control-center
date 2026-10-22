@@ -864,8 +864,8 @@ def _validated_qam_evidence() -> dict[str, object]:
         raise RuntimeError('QAM CPU detector target frequency is invalid.')
     if not 950 <= requested_vid <= 1325 or requested_vid % 5:
         raise RuntimeError('QAM CPU detector target VID is invalid.')
-    if requested_temperature != 90 or temperature != requested_temperature:
-        raise RuntimeError('QAM CPU detector temperature does not match the fixed QAM limit.')
+    if not 70 <= requested_temperature <= 90 or temperature != requested_temperature:
+        raise RuntimeError('QAM CPU detector temperature does not match the requested 70-90 C limit.')
     if frequency > requested_frequency:
         raise RuntimeError('QAM CPU detector returned a frequency above its requested target.')
     if result != {
@@ -1047,8 +1047,8 @@ def action_detect_qam(argv: Sequence[str]) -> int:
         return fail('QAM CPU frequency must be 3100-4200 MHz in 50 MHz steps.', 83)
     if not 950 <= vid <= 1325 or vid % 5:
         return fail('QAM CPU VID must be 950-1325 mV in 5 mV steps.', 84)
-    if temperature != 90:
-        return fail('QAM CPU detection uses a fixed 90 C thermal limit.', 85)
+    if not 70 <= temperature <= 90:
+        return fail('QAM CPU thermal limit must be 70-90 C.', 85)
     if not shutil.which('stress', path='/usr/sbin:/usr/bin:/sbin:/bin'):
         return fail('stress is required by bc250-detect.', 86)
 

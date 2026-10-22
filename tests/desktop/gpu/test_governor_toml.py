@@ -1,3 +1,4 @@
+import os
 import tomllib
 
 import pytest
@@ -5,6 +6,10 @@ import pytest
 from bc250cc.infrastructure.gpu.governor_toml import (
     GovernorTomlEditor,
     GovernorTomlError,
+    OberonYamlEditor,
+    OberonYamlError,
+    validate_voltage_curve,
+    voltage_profile,
 )
 
 SAMPLE = """# keep this comment
@@ -285,6 +290,7 @@ def test_metrics_fix_can_be_disabled_without_losing_independent_frequency_fix(tm
         "fix_metrics": False,
         "fix_frequency": True,
         "method": "busy-flag",
+        "temp_read": "drm",
         "set_method": "smu",
         "valid": True,
     }
@@ -493,3 +499,248 @@ def test_ensure_cyan_telemetry_repairs_only_invalid_usage_method(tmp_path):
     GovernorTomlEditor(path).ensure_gpu_telemetry(fix_frequency=False)
 
     assert 'method = "busy-flag"' in path.read_text(encoding="utf-8")
+
+
+TEMP_READ_SAMPLE = (
+    "[gpu-usage]\n"
+    "fix-metrics = true\n"
+    "fix-freq = false\n"
+    'method = "busy-flag"\n'
+    'temp-read = "drm" # "drm" or "sysfs"\n\n'
+    "[gpu]\n"
+    'set-method = "smu"\n\n' + SAMPLE
+)
+
+
+def test_temp_read_is_set_in_place_and_keeps_its_comment(tmp_path):
+    path = tmp_path / "config.toml"
+    path.write_text(TEMP_READ_SAMPLE, encoding="utf-8")
+    editor = GovernorTomlEditor(path)
+
+    editor.set_cyan_compatibility(
+        set_method="smu", usage_method="busy-flag", fix_metrics=True,
+        fix_frequency=False, temp_read="sysfs",
+    )
+
+    assert 'temp-read = "sysfs" # "drm" or "sysfs"' in path.read_text(encoding="utf-8")
+    assert editor.gpu_telemetry_state()["temp_read"] == "sysfs"
+
+
+def test_temp_read_is_left_alone_when_not_given(tmp_path):
+    """The Game Mode plugin sends only four values; the line must survive."""
+    path = tmp_path / "config.toml"
+    path.write_text(TEMP_READ_SAMPLE.replace('"drm" #', '"sysfs" #'), encoding="utf-8")
+
+    GovernorTomlEditor(path).set_cyan_compatibility(
+        set_method="kernel", usage_method="busy-flag", fix_metrics=False, fix_frequency=False,
+    )
+
+    assert 'temp-read = "sysfs"' in path.read_text(encoding="utf-8")
+
+
+def test_temp_read_is_added_when_missing_and_defaults_to_drm(tmp_path):
+    path = tmp_path / "config.toml"
+    path.write_text(TEMP_READ_SAMPLE.replace('temp-read = "drm" # "drm" or "sysfs"\n', ""), encoding="utf-8")
+    editor = GovernorTomlEditor(path)
+    assert editor.gpu_telemetry_state()["temp_read"] == "drm"
+
+    editor.set_cyan_compatibility(
+        set_method="smu", usage_method="busy-flag", fix_metrics=True,
+        fix_frequency=False, temp_read="sysfs",
+    )
+
+    parsed = tomllib.loads(path.read_text(encoding="utf-8"))
+    assert parsed["gpu-usage"]["temp-read"] == "sysfs"
+
+
+def test_the_underscore_spelling_is_rewritten_not_duplicated(tmp_path):
+    path = tmp_path / "config.toml"
+    path.write_text(TEMP_READ_SAMPLE.replace("temp-read =", "temp_read ="), encoding="utf-8")
+
+    GovernorTomlEditor(path).set_cyan_compatibility(
+        set_method="smu", usage_method="busy-flag", fix_metrics=True,
+        fix_frequency=False, temp_read="sysfs",
+    )
+
+    text = path.read_text(encoding="utf-8")
+    assert 'temp-read = "sysfs"' in text
+    assert "temp_read" not in text
+
+
+def test_an_invalid_temp_read_writes_nothing(tmp_path):
+    path = tmp_path / "config.toml"
+    path.write_text(TEMP_READ_SAMPLE, encoding="utf-8")
+    before = path.read_text(encoding="utf-8")
+
+    with pytest.raises(GovernorTomlError, match="drm or sysfs"):
+        GovernorTomlEditor(path).set_cyan_compatibility(
+            set_method="smu", usage_method="busy-flag", fix_metrics=True,
+            fix_frequency=False, temp_read="hwmon",
+        )
+
+    assert path.read_text(encoding="utf-8") == before
+
+
+def test_the_root_copy_of_the_editor_handles_temp_read_the_same_way(tmp_path, monkeypatch):
+    import importlib.util
+    import sys
+    from pathlib import Path
+
+    source = Path(__file__).resolve().parents[3] / "privileged/lib/governor_toml.py"
+    spec = importlib.util.spec_from_file_location("bc250_root_governor_toml", source)
+    module = importlib.util.module_from_spec(spec)
+    # Its dataclasses resolve annotations through sys.modules.
+    monkeypatch.setitem(sys.modules, spec.name, module)
+    spec.loader.exec_module(module)
+    # It writes /etc as root; a test file is the user's own.
+    monkeypatch.setattr(module, "_require_root_owned", lambda *_args: None)
+    path = tmp_path / "config.toml"
+    path.write_text(TEMP_READ_SAMPLE, encoding="utf-8")
+    editor = module.GovernorTomlEditor(path)
+
+    editor.set_cyan_compatibility(
+        set_method="smu", usage_method="busy-flag", fix_metrics=True,
+        fix_frequency=False, temp_read="sysfs",
+    )
+    editor.set_cyan_compatibility(
+        set_method="smu", usage_method="busy-flag", fix_metrics=True, fix_frequency=False,
+    )
+
+    assert 'temp-read = "sysfs" # "drm" or "sysfs"' in path.read_text(encoding="utf-8")
+    assert editor.gpu_telemetry_state()["temp_read"] == "sysfs"
+
+
+def test_root_decky_gpu_writer_accepts_a_fixed_clock_profile(tmp_path, monkeypatch):
+    import importlib.util
+    import sys
+    from pathlib import Path
+
+    source = Path(__file__).resolve().parents[3] / "privileged/lib/governor_toml.py"
+    spec = importlib.util.spec_from_file_location("bc250_root_decky_writer", source)
+    module = importlib.util.module_from_spec(spec)
+    monkeypatch.setitem(sys.modules, spec.name, module)
+    spec.loader.exec_module(module)
+    monkeypatch.setattr(module, "_require_root_owned", lambda *_args: None)
+    monkeypatch.setattr(module.os, "chown", lambda *_args: None)
+    target = tmp_path / "decky-gpu-profiles.json"
+
+    assert module.write_decky_gpu_profiles(
+        '[{"key":"balanced","name":"Fixed","min":1500,"max":1500}]', target,
+    ).changed
+
+
+
+def test_safe_point_state_and_diagnostics_distinguish_commented_points(tmp_path):
+    path = tmp_path / "config.toml"
+    path.write_text(SAMPLE, encoding="utf-8")
+    editor = GovernorTomlEditor(path)
+
+    assert editor.safe_point_state() == (
+        {"frequency": 2000, "voltage": 960, "active": True},
+        {"frequency": 2050, "voltage": 980, "active": False},
+        {"frequency": 2400, "voltage": 1150, "active": False},
+    )
+    diagnostics = editor.safe_point_diagnostics()
+    assert diagnostics["points"] == [{"frequency": 2000, "voltage": 960}]
+    assert diagnostics["max_frequency"] == 2000
+    assert diagnostics["missing_voltage"] == []
+
+
+def test_crlf_edits_preserve_line_endings_and_comments(tmp_path):
+    path = tmp_path / "config.toml"
+    path.write_bytes(SAMPLE.replace("\n", "\r\n").encode("utf-8"))
+    editor = GovernorTomlEditor(path)
+
+    editor.set_frequency_range(700, 1900)
+    editor.set_high_frequency_points(True)
+    updated = path.read_bytes()
+    assert b"\r\n" in updated
+    assert b"\n" not in updated.replace(b"\r\n", b"")
+    assert b"# keep this comment\r\n" in updated
+    assert b"min = 700    # MHz\r\n" in updated
+    tomllib.loads(updated.decode("utf-8"))
+
+
+@pytest.mark.parametrize(
+    ("values", "message"),
+    (
+        ({0: 800}, "frequency"),
+        ({1000: 0}, "voltage"),
+        ({1000: 900, 1500: 850}, "decreases"),
+    ),
+)
+def test_voltage_curve_validation_rejects_unsafe_curves(values, message):
+    with pytest.raises(GovernorTomlError, match=message):
+        validate_voltage_curve(values)
+
+
+def test_voltage_profiles_are_complete_and_level_zero_restores_defaults():
+    level_zero = voltage_profile(0)
+    boosted = voltage_profile(3)
+    assert level_zero
+    assert level_zero[2000] < boosted[2000]
+    assert level_zero[1850] == boosted[1850]
+    with pytest.raises(GovernorTomlError, match="Unsupported voltage level"):
+        voltage_profile(99)
+
+
+def test_custom_voltages_update_only_active_points_and_reject_missing_targets(tmp_path):
+    path = tmp_path / "config.toml"
+    path.write_text(SAMPLE, encoding="utf-8")
+    editor = GovernorTomlEditor(path)
+
+    result = editor.set_custom_voltages({2000: 970})
+    assert result.changed is True
+    assert result.frequencies == (2000,)
+    updated = path.read_text(encoding="utf-8")
+    assert "voltage = 970" in updated
+    assert "# voltage = 980" in updated
+    with pytest.raises(GovernorTomlError, match="not present"):
+        editor.set_custom_voltages({1800: 900})
+    assert path.read_text(encoding="utf-8") == updated
+
+
+def test_duplicate_managed_keys_are_rejected_without_writing(tmp_path):
+    path = tmp_path / "config.toml"
+    original = "[gpu-usage]\nfix-freq = false\nfix_freq = true\n"
+    path.write_text(original, encoding="utf-8")
+    with pytest.raises(GovernorTomlError, match="Duplicate gpu-usage.fix-freq"):
+        GovernorTomlEditor(path).set_gpu_metrics_fix(True)
+    assert path.read_text(encoding="utf-8") == original
+
+
+def test_atomic_write_refusal_keeps_original_configuration(tmp_path, monkeypatch):
+    path = tmp_path / "config.toml"
+    path.write_text(SAMPLE, encoding="utf-8")
+    original = path.read_bytes()
+
+    def refuse_replace(_source, _destination):
+        raise PermissionError("filesystem refused replacement")
+
+    monkeypatch.setattr(os, "replace", refuse_replace)
+    with pytest.raises(GovernorTomlError, match="could not be updated"):
+        GovernorTomlEditor(path).set_frequency_range(700, 1900)
+    assert path.read_bytes() == original
+    assert not list(tmp_path.glob(".config.toml.*.tmp"))
+
+
+def test_oberon_yaml_edit_preserves_comments_and_validates_safe_bounds(tmp_path):
+    path = tmp_path / "opps.yaml"
+    path.write_text(
+        "# keep this comment\nfrequency:\n  min: 500\n  max: 2000 # stock\n"
+        "voltage:\n  min: 850\n  max: 1150\n",
+        encoding="utf-8",
+    )
+    editor = OberonYamlEditor(path)
+    result = editor.set_operating_points(600, 1900, 930, 1200)
+    assert result.changed is True
+    assert editor.state() == {
+        "frequency_min": 600,
+        "frequency_max": 1900,
+        "voltage_min": 930,
+        "voltage_max": 1200,
+        "safe_voltage": True,
+    }
+    assert "# keep this comment" in path.read_text(encoding="utf-8")
+    with pytest.raises(OberonYamlError, match="minimum frequency"):
+        editor.set_operating_points(400, 1900, 930, 1200)

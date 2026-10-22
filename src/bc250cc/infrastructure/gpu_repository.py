@@ -1,4 +1,3 @@
-import os
 import re
 import shlex
 import subprocess
@@ -19,8 +18,8 @@ from bc250cc.infrastructure.cyan_governor_runtime import (
     detect_cyan_runtime_identity,
 )
 from bc250cc.infrastructure.governor_config_request import (
-    GOVERNOR_CONFIG_HELPER_PROTOCOL,
-    governor_config_helper_protocol,
+    find_governor_config_helper,
+    missing_governor_config_helper_message,
     plan_governor_config_request,
 )
 from bc250cc.infrastructure.governor_conflicts import (
@@ -400,7 +399,7 @@ class GPURepository:
         )
 
     def configurar_compatibilidad_gpu_cyan(
-        self, set_method, usage_method, fix_metrics, fix_frequency
+        self, set_method, usage_method, fix_metrics, fix_frequency, temp_read=None
     ):
         """Apply Cyan's four compatibility switches without overriding user intent.
 
@@ -455,12 +454,15 @@ class GPURepository:
         # told so. Cyan comes back on the TOML's own [frequency-range], which
         # is a value this application wrote.
         previous_range = self._leer_rango_governor("Current") if was_active else None
+        # The temperature source goes along only when one was chosen: None
+        # leaves gpu-usage.temp-read exactly as it is in the TOML.
         result = self._editar_governor_toml(
             "set-cyan-compatibility",
             set_method,
             usage_method,
             bool(fix_metrics),
             bool(fix_frequency),
+            *(() if temp_read is None else (temp_read,)),
         )
         if not was_active:
             self.estado_bc250_cache = None
@@ -881,34 +883,7 @@ class GPURepository:
         return prefix + " ".join(steps)
 
     def _governor_config_helper_path(self):
-        candidates = (
-            Path("/usr/libexec/bc250-control-center/bc250-governor-config-helper"),
-            Path(
-                "/usr/local/libexec/bc250-control-center/bc250-governor-config-helper"
-            ),
-        )
-        for candidate in candidates:
-            try:
-                metadata = candidate.stat(follow_symlinks=False)
-            except OSError:
-                continue
-            if candidate.is_symlink() or not candidate.is_file():
-                continue
-            if metadata.st_uid != 0 or metadata.st_mode & 0o022:
-                continue
-            if not os.access(candidate, os.X_OK):
-                continue
-            try:
-                source = candidate.read_text(encoding="utf-8", errors="strict")
-            except (OSError, UnicodeError):
-                continue
-            if (
-                governor_config_helper_protocol(source)
-                != GOVERNOR_CONFIG_HELPER_PROTOCOL
-            ):
-                continue
-            return str(candidate)
-        return ""
+        return find_governor_config_helper()[0]
 
     def _cyan_runtime_identity(self):
         return detect_cyan_runtime_identity(self)
@@ -943,10 +918,7 @@ class GPURepository:
             return result
         helper = self._governor_config_helper_path()
         if not helper:
-            raise RuntimeError(
-                "The privileged governor configuration helper is not installed. "
-                "Reinstall BC250 Control Center locally or from its package before editing /etc."
-            )
+            raise RuntimeError(missing_governor_config_helper_message("editing /etc"))
         rc, out, err = self._ejecutar(request.argv(helper), timeout=120)
         if rc != 0:
             raise RuntimeError(describe_failure(rc, out, err))
@@ -1039,8 +1011,7 @@ class GPURepository:
         live governor envelope before applying, so this never needs the Cyan
         runtime checks a live frequency change requires.
         """
-        result = self._editar_governor_toml("set-decky-gpu-profiles", list(profiles))
-        return result
+        return self._exportar_perfiles_decky("set-decky-gpu-profiles", profiles)
 
     def _ensure_cyan_frequency_range_loaded(self, minimo: int, maximo: int) -> None:
         """Ensure the running Cyan process has loaded a requested high point.
@@ -1590,6 +1561,7 @@ class GPURepository:
                     runtime.get("supports_frequency_fix")
                 ),
                 "runtime_managed_override": bool(runtime.get("managed_override")),
+                "temp_read_supported": identity.get("temp_read_supported"),
                 "runtime_metrics_fix_error": bool(
                     runtime.get("metrics_fix_runtime_error")
                 ),

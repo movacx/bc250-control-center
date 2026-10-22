@@ -602,6 +602,10 @@ def scale_stylesheet(stylesheet: str, scale: int | None = None) -> str:
 
     def replace(match: re.Match[str]) -> str:
         value = float(match.group(1))
+        if value == 0:
+            # Zero stays zero: lifted to one pixel, a margin or a hidden
+            # arrow button left a hairline that translucent dialogs paint black.
+            return "0px"
         scaled = max(1.0, value * factor)
         prefix = match.string[max(0, match.start() - 24):match.start()]
         # Improve legibility without inflating card margins or spacing. Small
@@ -689,6 +693,12 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     }}
     QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
         height: 0px;
+    }}
+    /* The track itself. Left out, Breeze paints it solid black beside every
+       scrolled form, and the bar reads as if it cut the fields off. */
+    QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
+        background: transparent;
+        border: none;
     }}
     QFrame#Sidebar {{
         background: {c['panel']};
@@ -1590,6 +1600,20 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         border: 1px solid {c['border']};
         border-radius: 12px;
     }}
+    /* Dialogs are translucent windows: a transparent track shows through to
+       nothing and Breeze paints it black. The card's own colour hides it. */
+    QFrame#ControlDialogCard QScrollBar:vertical {{
+        background: {c['panel']};
+        border: none;
+        margin: 0px;
+    }}
+    QFrame#ControlDialogCard QScrollBar::add-line:vertical,
+    QFrame#ControlDialogCard QScrollBar::sub-line:vertical,
+    QFrame#ControlDialogCard QScrollBar::add-page:vertical,
+    QFrame#ControlDialogCard QScrollBar::sub-page:vertical {{
+        background: none;
+        border: none;
+    }}
     QFrame#DialogHeader {{
         background: transparent;
         border: none;
@@ -2198,6 +2222,42 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         background: {c['blue_soft']};
         border-color: {c['blue_border']};
         color: {c['blue']};
+    }}
+    /* Every pop-up menu, not only the ones that asked: left to Breeze, a
+       picker's menu came up as a dark box over a light page. */
+    QMenu {{
+        background: {c['panel_raised']};
+        color: {c['text']};
+        border: 1px solid {c['border']};
+        border-radius: 8px;
+        padding: 4px;
+        min-width: 120px;
+    }}
+    QMenu::item {{
+        background: transparent;
+        color: {c['text']};
+        padding: 7px 18px 7px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+    }}
+    QMenu::item:selected {{
+        background: {c['control_hover']};
+        color: {c['text']};
+    }}
+    QMenu::item:disabled {{
+        color: {c['disabled_text']};
+    }}
+    QMenu::item:checked {{
+        color: {c['blue']};
+        font-weight: 700;
+    }}
+    QMenu::indicator {{
+        width: 0px;
+    }}
+    QMenu::separator {{
+        height: 1px;
+        background: {c['border']};
+        margin: 4px 6px;
     }}
     QMenu[upscalingMenu='true'] {{
         background: {c['panel_raised']};
@@ -3374,6 +3434,11 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         color: {c['on_blue']};
         min-height: 22px;
     }}
+    QWidget[redesignedModule='true'] QPushButton#PrimaryAction[ghostSized='true'] {{
+        padding: 9px 14px;
+        font-size: 12px;
+        min-height: 0px;
+    }}
     QWidget[redesignedModule='true'] QPushButton#PrimaryAction:hover {{
         background: {c['blue_hover']};
         border-color: {c['blue_hover']};
@@ -3462,6 +3527,9 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     }}
     QWidget[redesignedModule='true'] QFrame[pickerRow='true']:hover {{
         border-color: {c['border_strong']};
+    }}
+    QWidget[redesignedModule='true'] QFrame[pickerRow='true']:disabled QLabel {{
+        color: {c['subtle']};
     }}
     QWidget[redesignedModule='true'] QLabel[pickerCaption='true'] {{
         color: {c['muted']};

@@ -67,8 +67,8 @@ CONTRACT_REVISION = 1
 # reading, Fix metrics, Fix frequencies) and the gpu_compatibility status field.
 QUICK_ACCESS_PROTOCOL = 21
 CPU_SMU_HELPER_PROTOCOL = 8
-GOVERNOR_CONFIG_PROTOCOL = 6
-STEAMOS_GAME_HELPER_PROTOCOL = 21
+GOVERNOR_CONFIG_PROTOCOL = 7
+STEAMOS_GAME_HELPER_PROTOCOL = 22
 
 # Shape of the /run snapshot the Quick Access helper publishes for the desktop.
 QUICK_ACCESS_CU_RUNTIME_SCHEMA = 1

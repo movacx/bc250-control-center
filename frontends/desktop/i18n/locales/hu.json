@@ -1038,6 +1038,7 @@
   "Decky Quick Access preview": "Decky gyorselérési előnézet",
   "Decky Quick Access preview image": "Decky Gyorselérési előnézeti kép",
   "Decky Quick Access uses these names and speeds for its Quiet, Balanced and Boost presets.": "A Decky Quick Access ezeket a neveket és sebességeket használja a Csendes, Kiegyensúlyozott és Erős előbeállításokhoz.",
+  "In Game Mode they set every active system fan (PWM3–PWM8) together, never PWM2, and a speed under 20 % runs at 20 %.": "Játékmódban az összes aktív rendszerventilátort (PWM3–PWM8) együtt állítják, a PWM2-t soha, és a 20 % alatti sebesség 20 %-on fut.",
   "Decky detected": "Decky észlelve",
   "Decky is a plugin for the console-style interface — Game Mode or Steam Big Picture. Install it and you can change fan speed and clocks from the Steam overlay, with a controller, without coming back to this window.": "A Decky egy bővítmény a konzolos felülethez — Game Mode vagy Steam Big Picture. Telepítsd, és a Steam rátétjéből, kontrollerrel állíthatod a ventilátor fordulatszámát és az órajeleket, anélkül hogy ide visszatérnél.",
   "Decky is detected, but the BC250 Quick Access plugin or its protected helper needs installation or repair.": "A rendszer észlelte a Decky-t, de a BC250 Quick Access beépülő modult vagy annak védett segédjét telepíteni vagy javítani kell.",
@@ -2731,6 +2732,9 @@
   "Profiles": "Profilok",
   "Profiles and safe lab for bc250-detect --keep": "Profilok és biztonságos labor a bc250-detect --keephez",
   "Profiles exported to Decky Quick Access.": "Profilok exportálva a Decky Quick Accessbe.",
+  "Profiles saved for Decky Quick Access, but the plugin is not installed yet. Its panel will use them once BC250 Quick Access is installed.": "A profilok mentve a Decky Quick Accesshez, de a bővítmény még nincs telepítve. A panelje a BC250 Quick Access telepítése után használja őket.",
+  "In Game Mode each preset sets every active system fan (PWM3–PWM8) together and never PWM2, not just the channel selected here.": "Játékmódban minden előbeállítás az összes aktív rendszerventilátort (PWM3–PWM8) együtt állítja, a PWM2-t soha, nem csak az itt kiválasztott csatornát.",
+  "{name}: {requested} % → {published} % in Decky.": "{name}: {requested} % → {published} % a Decky-ben.",
   "Profiles, temporary tuning, persistence, and advanced details.": "Profilok, ideiglenes hangolás, kitartás és speciális részletek.",
   "Programmed ranges": "Programozott tartományok",
   "Project overview": "Projekt áttekintése",
@@ -5328,5 +5332,8 @@
   "Discard that snapshot and create a new one. Do not restore a file that could not be verified.": "Dobd el azt a pillanatképet, és készíts újat. Ne állíts vissza olyan fájlt, amelyet nem sikerült ellenőrizni.",
   "The Control Center update could not be downloaded or verified.": "A Control Center frissítését nem sikerült letölteni vagy ellenőrizni.",
   "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.": "A GitHub hiányos kiadási adatokat adott vissza, vagy a letöltött fájl nem egyezik a közzétett mérettel vagy ellenőrzőösszeggel.",
-  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Ellenőrizd a hálózatot és a rendszer dátumát, majd próbáld újra a frissítést. Ha továbbra sem sikerül, telepítsd a csomagot a kiadási oldalról."
+  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Ellenőrizd a hálózatot és a rendszer dátumát, majd próbáld újra a frissítést. Ha továbbra sem sikerül, telepítsd a csomagot a kiadási oldalról.",
+  "Temperature reading": "Hőmérséklet-olvasás",
+  "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Honnan olvassa a Cyan a GPU hőmérsékletét. Mindkettő ugyanazt az értéket adja; a sysfs nem tartja nyitva a GPU-eszközt csak emiatt. Az alapértelmezett a DRM.",
+  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Ez a Cyan-verzió nem olvassa ezt a beállítást. Frissítsd a Függőségek előkészítése menüpontban."
 }

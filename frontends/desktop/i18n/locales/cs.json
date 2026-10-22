@@ -1038,6 +1038,7 @@
   "Decky Quick Access preview": "Náhled rychlého přístupu Decky",
   "Decky Quick Access preview image": "Náhled Decky Rychlý přístup",
   "Decky Quick Access uses these names and speeds for its Quiet, Balanced and Boost presets.": "Decky Quick Access použije tyto názvy a otáčky pro své předvolby Tichý, Vyvážený a Zesílený.",
+  "In Game Mode they set every active system fan (PWM3–PWM8) together, never PWM2, and a speed under 20 % runs at 20 %.": "V herním režimu nastavují najednou všechny aktivní systémové ventilátory (PWM3–PWM8), nikdy PWM2, a otáčky pod 20 % běží na 20 %.",
   "Decky detected": "Bylo zjištěno Decky",
   "Decky is a plugin for the console-style interface — Game Mode or Steam Big Picture. Install it and you can change fan speed and clocks from the Steam overlay, with a controller, without coming back to this window.": "Decky je zásuvný modul pro konzolové rozhraní — Game Mode nebo Steam Big Picture. Nainstalujte ho a budete měnit otáčky ventilátorů a frekvence přímo z překrytí Steamu, ovladačem, bez návratu do tohoto okna.",
   "Decky is detected, but the BC250 Quick Access plugin or its protected helper needs installation or repair.": "Byl detekován Decky, ale plugin BC250 Quick Access nebo jeho chráněný pomocník potřebuje instalaci nebo opravu.",
@@ -2731,6 +2732,9 @@
   "Profiles": "Profily",
   "Profiles and safe lab for bc250-detect --keep": "Profily a bezpečná laboratoř pro bc250-detect --uchovávejte",
   "Profiles exported to Decky Quick Access.": "Profily exportovány do Decky Quick Access.",
+  "Profiles saved for Decky Quick Access, but the plugin is not installed yet. Its panel will use them once BC250 Quick Access is installed.": "Profily uloženy pro Decky Quick Access, ale plugin zatím není nainstalován. Jeho panel je použije, jakmile bude BC250 Quick Access nainstalován.",
+  "In Game Mode each preset sets every active system fan (PWM3–PWM8) together and never PWM2, not just the channel selected here.": "V herním režimu každá předvolba nastavuje najednou všechny aktivní systémové ventilátory (PWM3–PWM8) a nikdy PWM2, nejen kanál zvolený zde.",
+  "{name}: {requested} % → {published} % in Decky.": "{name}: {requested} % → {published} % v Decky.",
   "Profiles, temporary tuning, persistence, and advanced details.": "Profily, dočasné ladění, vytrvalost a pokročilé detaily.",
   "Programmed ranges": "Naprogramované rozsahy",
   "Project overview": "Přehled projektu",
@@ -5328,5 +5332,8 @@
   "Discard that snapshot and create a new one. Do not restore a file that could not be verified.": "Zahoďte tento snímek a vytvořte nový. Neobnovujte soubor, který se nepodařilo ověřit.",
   "The Control Center update could not be downloaded or verified.": "Aktualizaci Control Center se nepodařilo stáhnout ani ověřit.",
   "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.": "GitHub vrátil neúplná data vydání nebo stažený soubor neodpovídá zveřejněné velikosti či kontrolnímu součtu.",
-  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Zkontrolujte síť a systémové datum a zkuste aktualizaci znovu. Pokud stále selhává, nainstalujte balíček ze stránky vydání."
+  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Zkontrolujte síť a systémové datum a zkuste aktualizaci znovu. Pokud stále selhává, nainstalujte balíček ze stránky vydání.",
+  "Temperature reading": "Čtení teploty",
+  "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Odkud Cyan čte teplotu GPU. Obě možnosti dávají stejnou hodnotu; sysfs kvůli tomu nedrží zařízení GPU otevřené. Výchozí je DRM.",
+  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Tato verze Cyanu toto nastavení nečte. Aktualizujte ji v Připravit závislosti."
 }

@@ -1038,6 +1038,7 @@
   "Decky Quick Access preview": "Decky Aperçu d'accès rapide",
   "Decky Quick Access preview image": "Image d'aperçu d'accès rapide Decky",
   "Decky Quick Access uses these names and speeds for its Quiet, Balanced and Boost presets.": "Decky Quick Access utilise ces noms et vitesses pour ses préréglages Silencieux, Équilibré et Renforcé.",
+  "In Game Mode they set every active system fan (PWM3–PWM8) together, never PWM2, and a speed under 20 % runs at 20 %.": "En mode jeu, ils règlent ensemble tous les ventilateurs système actifs (PWM3–PWM8), jamais PWM2, et une vitesse inférieure à 20 % tourne à 20 %.",
   "Decky detected": "Decky détecté",
   "Decky is a plugin for the console-style interface — Game Mode or Steam Big Picture. Install it and you can change fan speed and clocks from the Steam overlay, with a controller, without coming back to this window.": "Decky est un plugin pour l'interface façon console — Game Mode ou Steam Big Picture. Installe-le et tu pourras changer la vitesse des ventilateurs et les fréquences depuis la surcouche Steam, à la manette, sans revenir dans cette fenêtre.",
   "Decky is detected, but the BC250 Quick Access plugin or its protected helper needs installation or repair.": "Decky est détecté, mais le plug-in BC250 Quick Access ou son assistant protégé doit être installé ou réparé.",
@@ -2339,7 +2340,7 @@
   "Observed speed · 1840 RPM": "Vitesse observée · 1840 RPM",
   "Off": "Désactivé",
   "Official CPU core unlock tool is not prepared": "L'outil de déverrouillage de base officiel CPU n'est pas préparé",
-  "Official Decky prerelease only when the installed stable version cannot support the current Steam initialization API": "Official Decky prerelease only when the installed stable version cannot support the current Steam initialization API",
+  "Official Decky prerelease only when the installed stable version cannot support the current Steam initialization API": "Prérelease Decky officielle uniquement lorsque la version stable installée ne peut pas prendre en charge l’API d’initialisation actuelle de Steam",
   "Official bc250-core-unlock clone is already ready.": "Le clone officiel bc250-core-unlock est déjà prêt.",
   "Official bc250-core-unlock preparation opened.": "Préparation officielle du déverrouillage bc250-core-unlock ouverte.",
   "Official clone: rw-r-r-0644/bc250-core-unlock": "Clone officiel : rw-r-r-0644/bc250-core-unlock",
@@ -2731,6 +2732,9 @@
   "Profiles": "Profils",
   "Profiles and safe lab for bc250-detect --keep": "Profils et laboratoire sécurisé pour bc250-detect --keep",
   "Profiles exported to Decky Quick Access.": "Profils exportés vers Decky Quick Access.",
+  "Profiles saved for Decky Quick Access, but the plugin is not installed yet. Its panel will use them once BC250 Quick Access is installed.": "Profils enregistrés pour Decky Quick Access, mais le plugin n’est pas encore installé. Son panneau les utilisera une fois BC250 Quick Access installé.",
+  "In Game Mode each preset sets every active system fan (PWM3–PWM8) together and never PWM2, not just the channel selected here.": "En mode jeu, chaque préréglage règle ensemble tous les ventilateurs système actifs (PWM3–PWM8) et jamais PWM2, pas seulement le canal choisi ici.",
+  "{name}: {requested} % → {published} % in Decky.": "{name} : {requested} % → {published} % dans Decky.",
   "Profiles, temporary tuning, persistence, and advanced details.": "Profils, réglages temporaires, persistance et détails avancés.",
   "Programmed ranges": "Plages programmées",
   "Project overview": "Aperçu du projet",
@@ -5328,5 +5332,8 @@
   "Discard that snapshot and create a new one. Do not restore a file that could not be verified.": "Supprimez cet instantané et créez-en un nouveau. Ne restaurez pas un fichier qui n'a pas pu être vérifié.",
   "The Control Center update could not be downloaded or verified.": "La mise à jour de Control Center n'a pas pu être téléchargée ou vérifiée.",
   "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.": "GitHub a renvoyé des données de version incomplètes, ou le fichier téléchargé ne correspond pas à la taille ou à la somme de contrôle publiées.",
-  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Vérifiez le réseau et la date du système, puis relancez la mise à jour. Si l'échec persiste, installez le paquet depuis la page de la version."
+  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Vérifiez le réseau et la date du système, puis relancez la mise à jour. Si l'échec persiste, installez le paquet depuis la page de la version.",
+  "Temperature reading": "Lecture de la température",
+  "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Où Cyan lit la température du GPU. Les deux donnent la même valeur ; sysfs ne garde pas le GPU ouvert juste pour cela. DRM est la valeur par défaut.",
+  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Cette version de Cyan ne lit pas ce réglage. Mettez-la à jour depuis Préparer les dépendances."
 }

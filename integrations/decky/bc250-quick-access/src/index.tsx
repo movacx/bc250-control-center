@@ -60,8 +60,8 @@ type CpuActiveProfile = CpuProfile & {
   persistable: boolean;
 };
 type GpuPoint = { frequency: number; voltage: number };
-type GpuProfile = { key: string; name: string; min: number; max: number };
-type CpuPreset = { key: string; name: string; frequency: number; vid: number; default?: boolean };
+type GpuProfile = { key: string; name: string; min: number; max: number; unavailable_reason?: string };
+type CpuPreset = { key: string; name: string; frequency: number; vid: number; temperature?: number; default?: boolean };
 type FanOption = {
   channel: number;
   label?: string;
@@ -109,11 +109,14 @@ type TtmState = {
   reboot_required: boolean;
 };
 
-type Result = {
+// What the backend's ERROR_CODES table says about one failure: the stable
+// code, the locale keys of its title and next step, and the Desktop's code.
+type Diagnosis = { code: string; title: string; hint: string; desktop_code?: string; exit_code?: number };
+type Failed = { error?: string; error_code?: string; diagnosis?: Diagnosis };
+type Result = Failed & {
   operation_in_progress?: { action: string; arguments?: string[]; started_at: number } | null;
   ok?: boolean;
   protocol?: number;
-  error?: string;
   message?: string;
   contract?: ContractLimits;
   gpu_range?: [number, number];
@@ -142,6 +145,7 @@ type Result = {
   cpu_tuning_temperature?: number | null;
   cpu_tuning_source?: "qam-detected" | "detector-required" | "stress-unavailable" | "helper-unavailable";
   cpu_tuning_error?: string;
+  cpu_tuning_diagnosis?: Diagnosis;
   cyan_active?: boolean;
   oberon_active?: boolean;
   gpu_governor?: "cyan" | "oberon" | "conflict" | "none";
@@ -153,6 +157,7 @@ type Result = {
   gpu_service_active?: boolean;
   gpu_service_starting?: boolean;
   gpu_dbus_responsive?: boolean;
+  gpu_dbus_diagnosis?: Diagnosis;
   gpu_service_conflict?: boolean;
   cu_backend_ready?: boolean;
   cu_kernel_managed?: boolean;
@@ -215,7 +220,7 @@ type Result = {
   system_fan_duty?: number | null;
   gddr6_available?: boolean;
   gddr6_reason?: string;
-  gddr6_patch_error?: string | null;
+  gddr6_patch_failure?: Failed | null;
   gddr6_chips?: { chip: number; temperature_c: number }[];
   gddr6_average_c?: number | null;
   gddr6_hotspot_c?: number | null;
@@ -236,8 +241,8 @@ type GpuResets = { full_resets: number; ring_timeouts: number; ring_resets_faile
 type FanPreset = { key: string; name: string; percent: number };
 type GameProfile = { app_id: string; name: string; gpu: string | null; fan: string | null };
 type GameSession = { app_id: string; name: string; applied: { gpu: string | null; fan: string | null } };
-type GameStore = { ok?: boolean; error?: string; enabled?: boolean; games?: GameProfile[]; session?: GameSession | null };
-type GameEvent = { ok?: boolean; error?: string; applied?: boolean; restored?: boolean; name?: string; gpu?: string | null; fan?: string | null; reason?: string };
+type GameStore = Failed & { ok?: boolean; enabled?: boolean; games?: GameProfile[]; session?: GameSession | null };
+type GameEvent = Failed & { ok?: boolean; applied?: boolean; restored?: boolean; name?: string; gpu?: string | null; fan?: string | null; reason?: string };
 // Cyan's kernel compatibility, as the helper reads it from the protected TOML.
 type GpuCompatibility = {
   set_method: "smu" | "kernel";
@@ -266,7 +271,7 @@ const saveCuTable = callable<[masks: number[]], Result>("save_cu_table");
 const installCuService = callable<[], Result>("install_cu_service");
 const removeCuService = callable<[], Result>("remove_cu_service");
 const applyFanChannel = callable<[channel: number, target: number | "automatic"], Result>("apply_fan_channel");
-const applyCpuTuning = callable<[frequency: number, vid: number], Result>("apply_cpu_tuning");
+const applyCpuTuning = callable<[frequency: number, vid: number, temperature: number], Result>("apply_cpu_tuning");
 const applyCpuScale = callable<[frequency: number, scale: number], Result>("apply_cpu_scale");
 const installCpuService = callable<[], Result>("install_cpu_service");
 const removeCpuService = callable<[], Result>("remove_cpu_service");
@@ -355,8 +360,58 @@ function diagnoseError(value: string): ErrorDiagnosis {
   if (!wording) return { code: code || "BC250-GENERAL-001", summary: text.error, cause: text.unknownCause, action: text.retryGuidance };
   return { code, ...wording() };
 }
-const localizedErrorSummary = (value: string) => diagnoseError(value).summary;
-const failed = (error: unknown): Result => ({ ok: false, error: error instanceof Error ? error.message : text.error });
+// What the player sees for one failure. The backend's ERROR_CODES table decides
+// it; the catalogue above only covers a backend from before that table, which
+// Decky can keep running after an update until it restarts.
+type FailureView = { code: string; title: string; hint: string; desktopCode: string; exitCode?: number; raw: string };
+const CODE_TOKEN = /\b(QUICK_ACCESS_[A-Z0-9_]+|HARDWARE_CONTEXT)(?=:)/;
+const localized = (key: string, fallback: string) => (text as Record<string, string>)[key] || fallback;
+function describeFailure(failure: Failed): FailureView {
+  const raw = String(failure.error ?? "");
+  const given = failure.diagnosis;
+  if (given?.code) {
+    return { code: given.code, title: localized(given.title, text.error), hint: localized(given.hint, text.retryGuidance), desktopCode: given.desktop_code ?? "", exitCode: given.exit_code, raw };
+  }
+  const legacy = diagnoseError(raw);
+  return { code: failure.error_code || CODE_TOKEN.exec(raw)?.[1] || "QUICK_ACCESS_OPERATION_FAILED", title: legacy.summary, hint: legacy.action, desktopCode: legacy.code, raw };
+}
+// One line for a toast or a compact note: what failed and the code to quote.
+const failureLine = (failure: Failed) => { const view = describeFailure(failure); return `${view.title} · ${view.code}`; };
+function failureDetails(view: FailureView): string {
+  const lines = [`${text.diagnosticCode}: ${view.code}`];
+  if (view.desktopCode) lines.push(`${text.desktopCode}: ${view.desktopCode}`);
+  if (view.exitCode != null) lines.push(`${text.exitStatus}: ${view.exitCode}`);
+  return `${lines.join("\n")}\n\n${view.raw}`;
+}
+// A call that never came back as a result: the backend crashed, Decky
+// restarted it, or the panel gave up waiting. The backend turns its own
+// exceptions into QUICK_ACCESS_BACKEND, so a rejection always means this.
+// Mirrors QUICK_ACCESS_NO_RESPONSE in main.py's ERROR_CODES (a test compares).
+const NO_RESPONSE: Diagnosis = { code: "QUICK_ACCESS_NO_RESPONSE", title: "noResponseFailed", hint: "noResponseAction", desktop_code: "BC250-GENERAL-001" };
+const failed = (error: unknown): Result => ({ ok: false, error: error instanceof Error ? error.message : String(error ?? text.error), error_code: NO_RESPONSE.code, diagnosis: NO_RESPONSE });
+// status() can wait behind a long write, but a call that never settles must
+// not stop polling for the rest of the session.
+const STATUS_TIMEOUT_MS = 60000;
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = globalThis.setTimeout(() => reject(new Error(`No answer within ${ms / 1000} s`)), ms);
+    promise.then(
+      (value) => { globalThis.clearTimeout(timer); resolve(value); },
+      (error) => { globalThis.clearTimeout(timer); reject(error); },
+    );
+  });
+}
+async function copyText(value: string): Promise<boolean> {
+  try { await globalThis.navigator.clipboard.writeText(value); return true; } catch { /* Steam's browser may refuse; try the older route */ }
+  try {
+    const area = document.createElement("textarea");
+    area.value = value; area.style.position = "fixed"; area.style.opacity = "0";
+    document.body.appendChild(area); area.select();
+    const copied = document.execCommand("copy");
+    area.remove();
+    return copied;
+  } catch { return false; }
+}
 const validMasks = (value: number[] | undefined): value is number[] => Array.isArray(value) && value.length === 4 && value.every((mask) => Number.isInteger(mask) && mask >= 0 && mask <= 31);
 const countWgps = (masks: number[]) => masks.reduce((total, mask) => total + [0, 1, 2, 3, 4].filter((bit) => Boolean(mask & (1 << bit))).length, 0);
 const sameMasks = (a: number[], b: number[]) => a.length === b.length && a.every((mask, index) => mask === b[index]);
@@ -405,11 +460,14 @@ function appName(appId: number): string {
   } catch { /* the Steam store can be unavailable for a moment */ }
   return `App ${appId}`;
 }
+// The desktop Fans page's default names (DEFAULT_FAN_PROFILES), by Decky preset key.
+const SHIPPED_FAN_NAMES: Record<string, string> = { quiet: "Quiet", balanced: "Balanced", boost: "Maximum" };
 function presetLabel(key: string | null | undefined, presets?: FanPreset[]): string {
   if (!key) return text.unchanged;
   if (key === "automatic") return text.automatic;
   const exported = presets?.find((preset) => preset.key === key)?.name;
-  if (exported) return exported;
+  // A Fans-page name left at its default arrives in English: use the panel's own.
+  if (exported && SHIPPED_FAN_NAMES[key] !== exported) return exported;
   return key === "quiet" ? text.fanQuiet : key === "balanced" ? text.fanBalanced : key === "boost" ? text.fanBoost : key;
 }
 // The built-in ladder arrives with English names; a name the player gave a card on
@@ -434,20 +492,20 @@ async function onGameStart(appId: string, name: string, refresh = false) {
   setRunningGame({ appId, name });
   try {
     const result = await gameStarted(appId, name, refresh);
-    if (result.ok === false) toaster.toast({ title: `BC250 · ${name}`, body: `${text.gameProfileNotApplied}: ${localizedErrorSummary(result.error ?? text.error)}` });
+    if (result.ok === false) toaster.toast({ title: `BC250 · ${name}`, body: `${text.gameProfileNotApplied}: ${failureLine(result)}` });
     else if (result.applied) toaster.toast({ title: `BC250 · ${name}`, body: `${text.gameProfileApplied}${result.gpu ? ` · GPU ${gpuLabel(result.gpu)}` : ""}${result.fan ? ` · ${text.fans} ${presetLabel(result.fan)}` : ""}` });
   } catch (error) {
-    toaster.toast({ title: `BC250 · ${name}`, body: `${text.gameProfileNotApplied}: ${localizedErrorSummary(failed(error).error ?? text.error)}` });
+    toaster.toast({ title: `BC250 · ${name}`, body: `${text.gameProfileNotApplied}: ${failureLine(failed(error))}` });
   } finally { notifyGameStore(); }
 }
 async function onGameStop(appId: string) {
   if (runningGame?.appId === appId) setRunningGame(null);
   try {
     const result = await gameStopped(appId);
-    if (result.ok === false) toaster.toast({ title: "BC250", body: localizedErrorSummary(result.error ?? text.error) });
+    if (result.ok === false) toaster.toast({ title: "BC250", body: failureLine(result) });
     else if (result.restored) toaster.toast({ title: `BC250 · ${result.name || appName(Number(appId))}`, body: text.gameProfileRestored });
   } catch (error) {
-    toaster.toast({ title: "BC250", body: localizedErrorSummary(failed(error).error ?? text.error) });
+    toaster.toast({ title: "BC250", body: failureLine(failed(error)) });
   } finally { notifyGameStore(); }
 }
 function onAppLifetime(update: { unAppID: number; nInstanceID: number; bRunning: boolean }) {
@@ -615,13 +673,41 @@ function SectionTitle({ kind, title, trailing }: { kind: "gpu" | "cu" | "cpu" | 
   </div>;
 }
 
-function Notice({ value, dismiss }: { value: string; dismiss: () => void }) {
+const noticeButton: CSSProperties = { fontSize: 10, minHeight: 30, padding: "4px 8px" };
+
+function Notice({ failure, dismiss }: { failure: Failed; dismiss: () => void }) {
   const [open, setOpen] = useState(false);
-  const diagnosis = diagnoseError(value);
+  const view = describeFailure(failure);
+  const details = failureDetails(view);
+  const copy = async () => { toaster.toast({ title: view.code, body: await copyText(details) ? text.copied : text.copyFailed }); };
   return <div role="alert" style={{ background: tokens.colors.red_soft, border: `1px solid ${tokens.colors.red}`, borderRadius: 8, marginBottom: 10, padding: 9 }}>
-    <div style={{ display: "flex", gap: 7 }}><FaExclamationTriangle color={tokens.colors.red} /><div><b>{text.error}</b><div style={{ color: tokens.colors.red, fontSize: 11, marginTop: 3 }}>{diagnosis.summary}</div><div style={{ color: tokens.colors.muted, fontSize: 10, marginTop: 4 }}><b>{text.likelyCause}:</b> {diagnosis.cause}</div><div style={{ color: tokens.colors.muted, fontSize: 10, marginTop: 4 }}><b>{text.next}:</b> {diagnosis.action}</div></div></div>
-    <div style={{ display: "flex", gap: 6, marginTop: 7 }}><PadButton onActivate={() => setOpen(!open)} style={{ fontSize: 10, minHeight: 30, padding: "4px 8px" }}>{open ? text.hide : text.details}</PadButton><PadButton onActivate={dismiss} style={{ fontSize: 10, minHeight: 30, padding: "4px 8px" }}>{text.close}</PadButton></div>
-    {open ? <pre style={{ background: tokens.colors.console_bg, color: tokens.colors.red, fontSize: 9, margin: "7px 0 0", overflowWrap: "anywhere", padding: 6, whiteSpace: "pre-wrap" }}>{text.diagnosticCode}: {diagnosis.code}{"\n"}{value}</pre> : null}
+    <div style={{ display: "flex", gap: 7 }}>
+      <FaExclamationTriangle color={tokens.colors.red} style={{ flexShrink: 0, marginTop: 2 }} />
+      <div style={{ minWidth: 0 }}>
+        <b style={{ fontSize: 11 }}>{view.title}</b>
+        <div style={{ color: tokens.colors.red, fontFamily: "monospace", fontSize: 9, marginTop: 3, overflowWrap: "anywhere" }}>{view.code}</div>
+        <div style={{ color: tokens.colors.muted, fontSize: 10, marginTop: 4 }}><b>{text.next}:</b> {view.hint}</div>
+      </div>
+    </div>
+    <Focusable flow-children="row" style={{ display: "flex", gap: 6, marginTop: 7 }}>
+      <PadButton onActivate={() => setOpen(!open)} style={noticeButton}>{open ? text.hide : text.details}</PadButton>
+      {open ? <PadButton onActivate={() => void copy()} style={noticeButton}>{text.copyDetails}</PadButton> : null}
+      <PadButton onActivate={dismiss} style={noticeButton}>{text.close}</PadButton>
+    </Focusable>
+    {open ? <pre style={{ background: tokens.colors.console_bg, color: tokens.colors.red, fontSize: 9, margin: "7px 0 0", overflowWrap: "anywhere", padding: 6, whiteSpace: "pre-wrap" }}>{details}</pre> : null}
+  </div>;
+}
+
+// The same failure where a full notice would crowd a card: title and code,
+// optionally the helper's own reason, and the next step. Details stay in the
+// notice at the top of the panel.
+function InlineError({ failure, reason = false }: { failure: Failed; reason?: boolean }) {
+  const view = describeFailure(failure);
+  const said = reason ? view.raw.replace(/^(?:ERR\s+)?(?:(?:QUICK_ACCESS_[A-Z0-9_]+|HARDWARE_CONTEXT):\s*)+/, "") : "";
+  return <div style={{ background: tokens.colors.red_soft, border: `1px solid ${tokens.colors.red}`, borderRadius: 6, color: tokens.colors.red, fontSize: 9, lineHeight: 1.35, marginBottom: 7, overflowWrap: "anywhere", padding: "6px 8px" }}>
+    <b>{view.title}</b> · <span style={{ fontFamily: "monospace" }}>{view.code}</span>
+    {said ? <div style={{ color: tokens.colors.muted, marginTop: 3 }}>{said}</div> : null}
+    <div style={{ color: tokens.colors.muted, marginTop: 3 }}>{view.hint}</div>
   </div>;
 }
 
@@ -877,8 +963,8 @@ function Gddr6Panel({ state }: { state: Status }) {
     <Gddr6Switch />
     <ScrollStop>
       {!available
-        ? state.gddr6_patch_error
-          ? <div style={{ color: tokens.colors.red, fontSize: 9, lineHeight: 1.35, margin: "0 2px 6px", overflowWrap: "anywhere" }}>{state.gddr6_patch_error.replace(/^QUICK_ACCESS_GDDR6:\s*/, "")}</div>
+        ? state.gddr6_patch_failure
+          ? <InlineError failure={state.gddr6_patch_failure} reason />
           : <div style={{ color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 6px" }}>{state.gddr6_reason === "GDDR6_PATCH_INACTIVE" ? text.gddr6Patching : text.gddr6Unavailable}</div>
         : <>
           <MetricGrid tiles={[
@@ -1094,8 +1180,10 @@ function VoltageLab({ state, busy, execute }: { state: Status; busy: boolean; ex
   </>;
 }
 
-// Desktop defaults arrive with an English name; show them in the panel's language.
-const cpuPresetName = (preset: CpuPreset) => preset.default ? ({ board_average: text.cpuPresetBoardAverage, mid_point: text.cpuPresetMidPoint, safe_maximum: text.cpuPresetSafeMaximum } as Record<string, string>)[preset.key] ?? preset.name : preset.name;
+// Desktop defaults arrive with an English name, built in or exported with the
+// card's name left untouched; show them in the panel's language.
+const SHIPPED_CPU_NAMES: Record<string, string> = { board_average: "Average board", mid_point: "Mid point", safe_maximum: "Safe maximum" };
+const cpuPresetName = (preset: CpuPreset) => preset.default || SHIPPED_CPU_NAMES[preset.key] === preset.name ? ({ board_average: text.cpuPresetBoardAverage, mid_point: text.cpuPresetMidPoint, safe_maximum: text.cpuPresetSafeMaximum } as Record<string, string>)[preset.key] ?? preset.name : preset.name;
 
 // Monitoring › CPU: what a CPU run is doing while it runs, then the result on top.
 // The player is not moved here; the run's progress is also in the CPU settings.
@@ -1157,7 +1245,7 @@ function CpuOcCard({ state }: { state: Status }) {
     [active?.mode === "manual" ? text.cpuScale : text.cpuEstimatedVid, !active ? "—" : active.mode === "manual" ? String(active.scale) : `${active.estimated_vid} mV`],
     // "persistable" only means it may be installed; the boot service decides.
     [text.cpuOnBoot, state.cpu_service_enabled === true ? text.enabled : text.disabled],
-    [text.cpuThermalLimit, `${state.cpu_tuning_temperature ?? "—"} °C`],
+    [text.cpuThermalLimit, `${active?.temperature ?? state.cpu_tuning_temperature ?? "—"} °C`],
   ];
   return <DetailCard title={text.cpuOcTitle} status={active ? text.enabled : text.disabled} statusOn={Boolean(active)} rows={rows} />;
 }
@@ -1435,9 +1523,9 @@ function MemoryTab({ state, busy, execute }: { state: Status; busy: boolean; exe
   const loadTtm = useCallback(async () => {
     try {
       const reply = await getTtmState();
-      if (reply.ok === false || !reply.ttm) { setTtmError(localizedErrorSummary(reply.error ?? text.error)); return; }
+      if (reply.ok === false || !reply.ttm) { setTtmError(failureLine(reply)); return; }
       setTtmError(null); setTtm(reply.ttm);
-    } catch (error) { setTtmError(localizedErrorSummary(failed(error).error ?? text.error)); }
+    } catch (error) { setTtmError(failureLine(failed(error))); }
   }, []);
   // Once on mount, and again when the VRAM size changes: a new size changes how
   // much memory the next boot has left for the limit. One read, not two.
@@ -1568,7 +1656,9 @@ function Content() {
   // remount) still blocks every control until the backend reports it done.
   const busy = busyLocal || Boolean(state.operation_in_progress);
   const [stale, setStale] = useState(false);
-  const [feedback, setFeedback] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<Failed | null>(null);
+  // Why the last refresh failed, so "stale" can say which code it is.
+  const [staleFailure, setStaleFailure] = useState<Failed | null>(null);
   const [highOpen, setHighOpen] = useState(true);
   const [highSelection, setHighSelection] = useState(0);
   const [cuDraft, setCuDraft] = useState<number[]>(masksFromTarget(24));
@@ -1578,9 +1668,10 @@ function Content() {
   const [fanDuty, setFanDuty] = useState(50);
   const [cpuFrequency, setCpuFrequency] = useState(3100);
   const [cpuVid, setCpuVid] = useState(1150);
+  const [cpuTemperature, setCpuTemperature] = useState(90);
   const [cpuScale, setCpuScale] = useState(-30);
   const [cpuManual, setCpuManual] = useState(false);
-  const [cpuError, setCpuError] = useState<string | null>(null);
+  const [cpuError, setCpuError] = useState<Failed | null>(null);
   const [cpuOperation, setCpuOperation] = useState<{ target: number; manual: boolean; startedAt: number } | null>(null);
   // A CPU run started before a remount: show its progress again.
   const running = state.operation_in_progress;
@@ -1603,8 +1694,8 @@ function Content() {
     if (refreshing.current || (reason === "poll" && busyRef.current)) return;
     refreshing.current = true;
     try {
-      const result = await getStatus();
-      if (result.ok === false) { setLoaded(true); setStale(true); if (reason === "initial") setFeedback(result.error ?? text.error); return; }
+      const result = await withTimeout(getStatus(), STATUS_TIMEOUT_MS);
+      if (result.ok === false) { setLoaded(true); setStale(true); setStaleFailure(result); if (reason === "initial") setFeedback(result); return; }
       // A merge, not a replace: status() no longer carries cpu_cores,
       // cpu_usage_percent or vrm_* (moved to monitor_snapshot() so a long
       // operation can't freeze them — see sampleMonitorSensors). Replacing
@@ -1613,7 +1704,7 @@ function Content() {
       // gpu_busy_percent is the one passive sensor both calls report: status() has
       // only the kernel's counter (absent on most kernels) while monitor_snapshot()
       // fills it in from the clients' engine time, so a null here must not wipe it.
-      setState((current) => ({ ...current, ...result, gpu_busy_percent: result.gpu_busy_percent ?? current.gpu_busy_percent })); setLoaded(true); setStale(false);
+      setState((current) => ({ ...current, ...result, gpu_busy_percent: result.gpu_busy_percent ?? current.gpu_busy_percent })); setLoaded(true); setStale(false); setStaleFailure(null);
       if (validMasks(result.cu_masks)) setCuDraft((existing) => { if (dirty.current.cu && reason !== "after") { if (!sameMasks(existing, result.cu_masks!)) setCuConflict(true); return existing; } dirty.current.cu = false; setCuConflict(false); return result.cu_masks!.slice(); });
       const points = result.gpu_safe_point_ceilings ?? [];
       if (!dirty.current.gpu || reason === "after") {
@@ -1648,13 +1739,15 @@ function Content() {
         const selectedFrequency = active?.mode === "manual" ? active.frequency : result.cpu_detected_profile.requested_frequency;
         setCpuFrequency(Math.max(lowFreq, Math.min(highFreq, selectedFrequency)));
         setCpuVid(Math.max(lowVid, Math.min(highVid, result.cpu_detected_profile.requested_vid)));
+        setCpuTemperature(result.cpu_detected_profile.requested_temperature);
         setCpuScale(Math.max(lowScale, Math.min(highScale, active?.scale ?? result.cpu_detected_profile.scale)));
         setCpuManual(active?.mode === "manual");
       } else if (!dirty.current.cpu && result.cpu_saved_profile) {
         setCpuFrequency(Math.max(lowFreq, Math.min(highFreq, Math.round(result.cpu_saved_profile.frequency / freqStep) * freqStep)));
         setCpuScale(Math.max(lowScale, Math.min(highScale, result.cpu_saved_profile.scale)));
+        setCpuTemperature(result.cpu_saved_profile.temperature);
       }
-    } catch (error) { if (reason === "initial") setLoaded(true); setStale(true); if (reason === "initial") setFeedback(failed(error).error ?? text.error); }
+    } catch (error) { const failure = failed(error); if (reason === "initial") setLoaded(true); setStale(true); setStaleFailure(failure); if (reason === "initial") setFeedback(failure); }
     finally { refreshing.current = false; }
   }, []);
   useEffect(() => { void refresh("initial"); const timer = globalThis.setInterval(() => void refresh("poll"), 5000); return () => globalThis.clearInterval(timer); }, [refresh]);
@@ -1694,7 +1787,7 @@ function Content() {
     if (monitorSensorsRefreshing.current) return;
     monitorSensorsRefreshing.current = true;
     try {
-      const { ok: _ok, protocol: _protocol, error: _error, ...fields } = await getMonitorSnapshot();
+      const { ok: _ok, protocol: _protocol, error: _error, error_code: _code, diagnosis: _diagnosis, ...fields } = await getMonitorSnapshot();
       setState((current) => ({ ...current, ...fields }));
     } catch {
       // Same trade-off as sampleCpuTelemetry: a missed passive sample just
@@ -1712,6 +1805,17 @@ function Content() {
     return () => globalThis.clearInterval(timer);
   }, [sampleMonitorSensors, settings.refreshIntervalMs]);
 
+  // Everything on screen predates a suspend, and the timers above only fire
+  // again on their next tick: flag it stale and read the board now.
+  useEffect(() => {
+    const registration = (globalThis as SteamGlobals).SteamClient?.System?.RegisterForOnResumeFromSuspend?.(() => {
+      setStale(true);
+      void refresh("poll");
+      void sampleMonitorSensors();
+    });
+    return () => { registration?.unregister?.(); };
+  }, [refresh, sampleMonitorSensors]);
+
   const [gddr6Now, setGddr6Now] = useState(() => Date.now());
   const gddr6Live = gddr6Now < gddr6LiveUntil;
   // A CPU run holds the SMU: the session waits instead of queuing behind it.
@@ -1727,7 +1831,7 @@ function Content() {
     if (gddr6Refreshing.current) return;
     gddr6Refreshing.current = true;
     try {
-      const { ok: _ok, protocol: _protocol, error: _error, ...fields } = await getGddr6Sensors();
+      const { ok: _ok, protocol: _protocol, error: _error, error_code: _code, diagnosis: _diagnosis, ...fields } = await getGddr6Sensors();
       setState((current) => ({ ...current, ...fields }));
     } catch {
       // Same trade-off as sampleMonitorSensors: a missed passive sample just
@@ -1756,9 +1860,9 @@ function Content() {
     void (async () => {
       try {
         const result = await applyGddr6Patch();
-        if (result.ok === false) setState((current) => ({ ...current, gddr6_patch_error: result.error ?? text.error }));
-        else { const { ok: _ok, protocol: _protocol, error: _error, ...fields } = result; setState((current) => ({ ...current, ...fields, gddr6_patch_error: null })); }
-      } catch (error) { setState((current) => ({ ...current, gddr6_patch_error: failed(error).error ?? text.error })); }
+        if (result.ok === false) setState((current) => ({ ...current, gddr6_patch_failure: result }));
+        else { const { ok: _ok, protocol: _protocol, error: _error, ...fields } = result; setState((current) => ({ ...current, ...fields, gddr6_patch_failure: null })); }
+      } catch (error) { setState((current) => ({ ...current, gddr6_patch_failure: failed(error) })); }
     })();
   }, [gddr6Live, gddr6Paused, state.gddr6_reason, state.gddr6_firmware_supported]);
 
@@ -1766,8 +1870,8 @@ function Content() {
     if (busyRef.current) return; busyRef.current = true; setBusy(true);
     if (kind === "cpu") setCpuError(null);
     if (cpuProgress) setCpuOperation({ ...cpuProgress, startedAt: Date.now() });
-    try { const result = await operation(); if (result.ok === false) { const message = result.error ?? text.error; if (kind === "cpu") setCpuError(message); setFeedback(message); toaster.toast({ title, body: localizedErrorSummary(message) }); } else { setState((current) => ({ ...current, ...result })); const rangeWrite = kind === "gpu" && Array.isArray(result.gpu_range); if (rangeWrite) setHighSelection(result.gpu_range![0] === 1000 && result.gpu_range![1] > 2000 ? result.gpu_range![1] : 0); setFeedback(null); if (kind !== "none") dirty.current[kind] = false; toaster.toast({ title, body: text.success }); if (!rangeWrite) await refresh("after"); } }
-    catch (error) { const result = failed(error); const message = result.error ?? text.error; if (kind === "cpu") setCpuError(message); setFeedback(message); toaster.toast({ title, body: localizedErrorSummary(message) }); }
+    try { const result = await operation(); if (result.ok === false) { if (kind === "cpu") setCpuError(result); setFeedback(result); toaster.toast({ title, body: failureLine(result) }); } else { setState((current) => ({ ...current, ...result })); const rangeWrite = kind === "gpu" && Array.isArray(result.gpu_range); if (rangeWrite) setHighSelection(result.gpu_range![0] === 1000 && result.gpu_range![1] > 2000 ? result.gpu_range![1] : 0); setFeedback(null); if (kind !== "none") dirty.current[kind] = false; toaster.toast({ title, body: text.success }); if (!rangeWrite) await refresh("after"); } }
+    catch (error) { const result = failed(error); if (kind === "cpu") setCpuError(result); setFeedback(result); toaster.toast({ title, body: failureLine(result) }); }
     finally { void sampleCpuTelemetry(); busyRef.current = false; setBusy(false); setCpuOperation(null); }
   };
 
@@ -1780,8 +1884,9 @@ function Content() {
   const governorName = state.gpu_governor === "oberon" ? "Oberon" : state.gpu_governor === "cyan" ? "Cyan" : "";
   const activeGpuProfiles = state.gpu_profiles ?? [];
   const cpuReady = Boolean(state.cpu_tuning_ready);
-  const cpuLimit = state.cpu_tuning_temperature ?? 90;
   const detectedCpu = state.cpu_detected_profile;
+  // The cap the next run uses: the card's own, or the detection's for a manual scale.
+  const cpuLimit = cpuManual ? (detectedCpu?.temperature ?? cpuTemperature) : cpuTemperature;
   const activeCpu = state.cpu_active_profile ?? detectedCpu?.active_profile;
   const manualReady = Boolean(detectedCpu?.ready && detectedCpu.same_boot && (state.cpu_manual_scale_ready ?? detectedCpu.manual_scale_ready));
   const manualFrequencyReady = Boolean(manualReady && detectedCpu?.frequency === cpuFrequency);
@@ -1821,7 +1926,7 @@ function Content() {
   const selectedEstimatedVid = estimateCpuVid(cpuFrequency, cpuScale, cpuBounds?.vid_model);
   const activeMatchesTarget = cpuManual
     ? Boolean(activeCpu?.persistable && activeCpu.mode === "manual" && activeCpu.frequency === cpuFrequency && activeCpu.scale === cpuScale)
-    : Boolean(activeCpu?.persistable && activeCpu.mode === "automatic" && detectedCpu?.requested_frequency === cpuFrequency && detectedCpu.requested_vid === cpuVid);
+    : Boolean(activeCpu?.persistable && activeCpu.mode === "automatic" && detectedCpu?.requested_frequency === cpuFrequency && detectedCpu.requested_vid === cpuVid && detectedCpu.requested_temperature === cpuTemperature);
   const confirmCpu = (mode: "detect" | "install") => showModal(<ConfirmModal
     strTitle={mode === "detect" ? (cpuManual ? text.cpuApplyManual : text.cpuApplyAuto) : text.install}
     strDescription={mode === "detect"
@@ -1832,15 +1937,15 @@ function Content() {
     strOKButtonText={mode === "detect" ? (cpuManual ? text.cpuApplyManual : text.cpuApplyAuto) : text.install}
     onOK={() => {
       // The player stays where they are: this tab shows the run's progress itself.
-      void execute("BC250 CPU", mode === "detect" ? (cpuManual ? () => applyCpuScale(cpuFrequency, cpuScale) : () => applyCpuTuning(cpuFrequency, cpuVid)) : installCpuService, "cpu", mode === "detect" ? { target: cpuFrequency, manual: cpuManual } : undefined);
+      void execute("BC250 CPU", mode === "detect" ? (cpuManual ? () => applyCpuScale(cpuFrequency, cpuScale) : () => applyCpuTuning(cpuFrequency, cpuVid, cpuTemperature)) : installCpuService, "cpu", mode === "detect" ? { target: cpuFrequency, manual: cpuManual } : undefined);
     }}
   />);
 
   return <Focusable flow-children="down" style={{ background: tokens.colors.panel, border: `1px solid ${tokens.colors.border}`, borderRadius: 12, boxSizing: "border-box", color: tokens.colors.text, minHeight: "100vh", padding: "12px 14px 72px", width: "100%" }}>
   <SettingsContext.Provider value={{ settings, setSettings, gddr6: gddr6Session }}>
     <div ref={topRef} />
-    {stale ? <div style={{ alignItems: "center", background: tokens.colors.amber_soft, border: `1px solid ${tokens.colors.amber}`, borderRadius: 6, color: tokens.colors.amber, display: "flex", fontSize: 10, gap: 6, marginBottom: 10, padding: "6px 9px" }}><FaClock />{text.stale}</div> : null}
-    {feedback ? <Notice value={feedback} dismiss={() => setFeedback(null)} /> : null}
+    {stale ? <div style={{ alignItems: "center", background: tokens.colors.amber_soft, border: `1px solid ${tokens.colors.amber}`, borderRadius: 6, color: tokens.colors.amber, display: "flex", fontSize: 10, gap: 6, marginBottom: 10, padding: "6px 9px" }}><FaClock />{text.stale}{staleFailure ? <span style={{ fontFamily: "monospace" }}>· {describeFailure(staleFailure).code}</span> : null}</div> : null}
+    {feedback ? <Notice failure={feedback} dismiss={() => setFeedback(null)} /> : null}
 
     <Focusable flow-children="row" style={{ background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 8, display: "grid", gap: 4, gridTemplateColumns: "repeat(4,minmax(0,1fr))", marginBottom: 12, padding: 4 }}>
       {([
@@ -1872,14 +1977,14 @@ function Content() {
 
     {boardSection === "gpu" ? <section style={{ marginBottom: 12 }}><SectionTitle kind="gpu" title="GPU" trailing={governorName ? <span style={{ color: tokens.colors.subtle, fontSize: 9 }}>{governorName}</span> : undefined} />
     {!loaded ? <div style={{ color: tokens.colors.subtle, fontSize: 10, marginBottom: 6 }}>{text.loadingGpu}</div> : <>
-    {gpuReady && state.gpu_dbus_responsive === false ? <div style={{ color: tokens.colors.amber, fontSize: 9, marginBottom: 6 }}>{text.governorUnresponsive}</div> : null}
+    {gpuReady && state.gpu_dbus_responsive === false ? <div style={{ color: tokens.colors.amber, fontSize: 9, marginBottom: 6 }}>{text.governorUnresponsive} <span style={{ fontFamily: "monospace" }}>{state.gpu_dbus_diagnosis?.code ?? "QUICK_ACCESS_GPU_DBUS"}</span></div> : null}
     {!gpuReady ? <div style={{ color: state.gpu_governor === "conflict" ? tokens.colors.red : tokens.colors.amber, fontSize: 9, marginBottom: 6 }}>{state.gpu_governor === "conflict" ? text.governorConflict : state.gpu_service_installed ? text.governorStopped : text.governorMissing}</div> : null}
     <Focusable flow-children="grid" navEntryPreferPosition={NavEntryPositionPreferences.PREFERRED_CHILD} style={{ display: "grid", gap: 6, gridTemplateColumns: `repeat(${activeGpuProfiles.length || 1},minmax(0,1fr))`, marginBottom: 6 }}>
       {activeGpuProfiles.map((profile) => {
         const current = state.gpu_range?.[0] === profile.min && state.gpu_range?.[1] === profile.max && (state.gpu_governor !== "cyan" || state.gpu_performance_enabled === false);
-        const allowed = Boolean(state.gpu_allowed_range && state.gpu_allowed_range[0] <= profile.min && profile.max <= state.gpu_allowed_range[1]);
-        return <ProfileCard key={profile.key} title={gpuProfileName(profile)} detail={`${ghz(profile.min)}–${ghz(profile.max)} GHz`}
-          current={current} disabled={busy || !gpuReady || !allowed}
+        const unavailable = profile.unavailable_reason ?? (!state.gpu_allowed_range || state.gpu_allowed_range[0] > profile.min || profile.max > state.gpu_allowed_range[1] ? "QUICK_ACCESS_GPU_ALLOWED" : undefined);
+        return <ProfileCard key={profile.key} title={gpuProfileName(profile)} detail={`${ghz(profile.min)}–${ghz(profile.max)} GHz${unavailable ? ` · ${text.unavailable} (${unavailable})` : ""}`}
+          current={current} disabled={busy || !gpuReady || Boolean(unavailable)}
           preferredFocus={profile.key === (state.gpu_governor === "oberon" ? "oberon-1850" : "balanced")}
           onActivate={() => { void execute(`GPU · ${profile.name}`, () => applyGpuProfile(profile.key), "gpu"); }} />;
       })}
@@ -1917,7 +2022,7 @@ function Content() {
       {state.cu_kernel_managed ? <div style={{ color: tokens.colors.amber, fontSize: 10, marginBottom: 6 }}>{text.cuKernelManaged}</div> : null}
       {state.cu_snapshot_warning ? <div style={{ color: tokens.colors.amber, fontSize: 10, marginBottom: 6 }}>{text.snapshotWarning}</div> : null}
       {cuConflict ? <div style={{ background: tokens.colors.amber_soft, border: `1px solid ${tokens.colors.amber}`, borderRadius: 6, color: tokens.colors.amber, fontSize: 10, marginBottom: 6, padding: 6 }}>{text.external}<div style={{ marginTop: 5 }}><ActionRow><Action label={text.restore} disabled={busy} onActivate={() => { dirty.current.cu = false; setCuConflict(false); setCuDraft(liveMasks); }} /><Action label={text.keep} disabled={busy} onActivate={() => setCuConflict(false)} /></ActionRow></div></div> : null}
-      {topology ? <CuMatrix live={liveMasks} driver={driverMasks} draft={cuDraft} disabled={busy || (!state.cu_backend_ready || Boolean(state.cu_kernel_managed))} change={(masks) => { dirty.current.cu = true; setCuConflict(false); setCuDraft(masks); }} minimum={() => setFeedback(text.safeCuMinimum)} /> : <div style={{ color: loaded ? tokens.colors.amber : tokens.colors.subtle, fontSize: 10, marginBottom: 6 }}>{loaded ? text.topologyUnavailable : text.loadingTopology}</div>}
+      {topology ? <CuMatrix live={liveMasks} driver={driverMasks} draft={cuDraft} disabled={busy || (!state.cu_backend_ready || Boolean(state.cu_kernel_managed))} change={(masks) => { dirty.current.cu = true; setCuConflict(false); setCuDraft(masks); }} minimum={() => toaster.toast({ title: text.compute, body: text.safeCuMinimum })} /> : <div style={{ color: loaded ? tokens.colors.amber : tokens.colors.subtle, fontSize: 10, marginBottom: 6 }}>{loaded ? text.topologyUnavailable : text.loadingTopology}</div>}
       <div style={{ minHeight: 78, width: "100%" }}>
         <ActionRow marginBottom={6}><Action label={text.applyChanges} primary disabled={busy || !topology || (!state.cu_backend_ready || Boolean(state.cu_kernel_managed)) || sameMasks(cuDraft, liveMasks)} onActivate={() => void execute("BC250 CU", () => applyCuTable(cuDraft), "cu")} /><Action label={text.save} disabled={busy || !topology || (!state.cu_backend_ready || Boolean(state.cu_kernel_managed))} onActivate={() => void execute("BC250 CU", () => saveCuTable(cuDraft), "cu")} /></ActionRow>
         <ActionRow><Action label={text.install} disabled={busy || Boolean(state.cu_kernel_managed) || Boolean(state.cu_service_installed) || !validMasks(state.cu_saved_masks ?? undefined)} onActivate={() => void execute("BC250 CU", installCuService, "cu")} /><Action label={text.remove} danger disabled={busy || !state.cu_service_installed} onActivate={() => showModal(<ConfirmModal strTitle={text.remove} strDescription={text.liveRoutingUnchanged} strOKButtonText={text.remove} bDestructiveWarning onOK={() => void execute("BC250 CU", removeCuService, "cu")} />)} /></ActionRow>
@@ -1925,7 +2030,7 @@ function Content() {
     </section> : null}
 
     {boardSection === "cpu" ? <section style={{ marginBottom: 12 }}><SectionTitle kind="cpu" title="CPU" />
-      {cpuError ? <div style={{ background: tokens.colors.red_soft, border: `1px solid ${tokens.colors.red}`, borderRadius: 6, color: tokens.colors.red, fontSize: 9, lineHeight: 1.35, marginBottom: 7, overflowWrap: "anywhere", padding: "6px 8px" }}>{localizedErrorSummary(cpuError)}</div> : null}
+      {cpuError ? <InlineError failure={cpuError} /> : null}
       {cpuOperation ? <div role="status" aria-live="polite" style={{ background: accent.focus_soft, border: `1px solid ${accent.focus}`, borderRadius: 7, marginBottom: 7, padding: "8px 9px" }}>
         <div style={{ alignItems: "center", display: "flex", gap: 7 }}><span style={{ background: accent.focus, borderRadius: "50%", boxShadow: `0 0 0 3px ${accent.focus_soft}`, height: 7, width: 7 }} /><b style={{ color: accent.focus, flex: 1, fontSize: 11 }}>{text.cpuApplying}</b><span style={{ color: tokens.colors.subtle, fontSize: 9 }}>{text.elapsed}: {cpuElapsed}s</span></div>
         <div style={{ color: tokens.colors.subtle, fontSize: 9, margin: "4px 0 7px 14px" }}>{text.cpuPleaseWait}</div>
@@ -1934,22 +2039,23 @@ function Content() {
       {!loaded ? <div style={{ color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 7px" }}>{text.loadingCpu}</div>
         : !cpuReady ? <div style={{ color: state.cpu_tuning_source === "detector-required" ? tokens.colors.subtle : tokens.colors.red, fontSize: 9, margin: "0 2px 7px" }}>{state.cpu_tuning_source === "stress-unavailable" ? text.stressMissing : (state.cpu_tuning_source === "detector-required" ? text.cpuNeedsDetection : (state.cpu_tuning_source === "helper-unavailable" ? text.cpuHelperUnavailable : text.cpuStatusUnavailable))}</div>
         : null}
-      {loaded && !cpuReady && state.cpu_tuning_error && state.cpu_tuning_source !== "detector-required" ? <div style={{ color: tokens.colors.muted, fontSize: 8, margin: "-3px 2px 7px", overflowWrap: "anywhere" }}>{localizedErrorSummary(state.cpu_tuning_error)}</div> : null}
+      {loaded && !cpuReady && state.cpu_tuning_error && state.cpu_tuning_source !== "detector-required" ? <div style={{ color: tokens.colors.muted, fontSize: 8, margin: "-3px 2px 7px", overflowWrap: "anywhere" }}>{failureLine({ error: state.cpu_tuning_error, diagnosis: state.cpu_tuning_diagnosis })}</div> : null}
       {state.cpu_profiles?.length ? <Focusable flow-children="grid" navEntryPreferPosition={NavEntryPositionPreferences.PREFERRED_CHILD} style={{ display: "grid", gap: 6, gridTemplateColumns: `repeat(${state.cpu_profiles.length},minmax(0,1fr))`, marginBottom: 7 }}>
         {state.cpu_profiles.map((preset) => {
-          const current = !cpuManual && cpuFrequency === preset.frequency && cpuVid === preset.vid;
-          return <ProfileCard key={preset.key} title={cpuPresetName(preset)} detail={`${ghz(preset.frequency)} GHz`} current={current} disabled={busy || !cpuReady}
-            onActivate={() => { setCpuFrequency(preset.frequency); setCpuVid(preset.vid); setCpuManual(false); dirty.current.cpu = true; }} />;
+          const presetTemperature = preset.temperature ?? 90;
+          const current = !cpuManual && cpuFrequency === preset.frequency && cpuVid === preset.vid && cpuTemperature === presetTemperature;
+          return <ProfileCard key={preset.key} title={cpuPresetName(preset)} detail={`${ghz(preset.frequency)} GHz · ${presetTemperature}°C`} current={current} disabled={busy || !cpuReady}
+            onActivate={() => { setCpuFrequency(preset.frequency); setCpuVid(preset.vid); setCpuTemperature(presetTemperature); setCpuManual(false); dirty.current.cpu = true; }} />;
         })}
       </Focusable> : null}
       {detectedCpu?.ready ? <div style={{ alignItems: "center", background: tokens.colors.green_soft, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, display: "flex", fontSize: 9, gap: 6, justifyContent: "space-between", marginBottom: 6, padding: "6px 8px" }}><span style={{ color: tokens.colors.subtle }}>{text.cpuDetected}</span><b style={{ color: tokens.colors.green }}>{detectedCpuSummary}</b></div> : null}
       <div style={{ borderTop: `1px solid ${tokens.colors.border_soft}`, paddingTop: 7 }}>
         <CompactSlider label={text.cpuFrequency} value={cpuFrequency} suffix=" MHz" min={cpuMin} max={cpuMax} step={cpuStep} disabled={busy || !cpuReady} onChange={(value) => { setCpuFrequency(Math.max(cpuMin, Math.min(cpuMax, Math.round(value / cpuStep) * cpuStep))); dirty.current.cpu = true; }} />
-        <CompactSlider label={text.cpuVoltage} value={cpuVid} suffix=" mV" min={vidMin} max={vidMax} step={vidStep} disabled={busy || !cpuReady || cpuManual} onChange={(value) => { setCpuVid(Math.max(vidMin, Math.min(vidMax, Math.round(value / 5) * 5))); dirty.current.cpu = true; }} />
+        <CompactSlider label={text.cpuVoltage} value={cpuVid} suffix=" mV" min={vidMin} max={vidMax} step={vidStep} disabled={busy || !cpuReady || cpuManual} onChange={(value) => { setCpuVid(Math.max(vidMin, Math.min(vidMax, Math.round(value / vidStep) * vidStep))); dirty.current.cpu = true; }} />
         {!cpuManual && cpuVid >= vidMax - 25 ? <div style={{ color: tokens.colors.amber, fontSize: 8, lineHeight: 1.3, margin: "-2px 2px 7px" }}>{text.cpuVidCeiling}</div> : null}
         <div title={manualScaleDescription} style={{ background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, fontSize: 11, marginBottom: 4, overflow: "hidden" }}><SwitchRow label={text.cpuManual} checked={cpuManual} disabled={busy || !manualReady} onChange={(checked) => { setCpuManual(checked); if (checked && detectedCpu) { setCpuScale(activeCpu?.frequency === detectedCpu.frequency ? (activeCpu.scale ?? detectedCpu.scale) : detectedCpu.scale); } dirty.current.cpu = true; }} /></div>
         {cpuManual && detectedCpu && !manualFrequencyReady ? <div style={{ color: tokens.colors.amber, fontSize: 9, lineHeight: 1.3, margin: "-2px 2px 7px" }}>{text.cpuManualHelp} · {detectedCpu.frequency} MHz</div> : null}
-        <CompactSlider label={text.cpuScale} value={cpuScale} suffix="" min={scaleMin} max={scaleMax} step={1} disabled={busy || !cpuManual || !manualFrequencyReady} onChange={(value) => { setCpuScale(Math.max(-50, Math.min(0, Math.round(value)))); dirty.current.cpu = true; }} />
+        <CompactSlider label={text.cpuScale} value={cpuScale} suffix="" min={scaleMin} max={scaleMax} step={1} disabled={busy || !cpuManual || !manualFrequencyReady} onChange={(value) => { setCpuScale(Math.max(scaleMin, Math.min(scaleMax, Math.round(value)))); dirty.current.cpu = true; }} />
         {cpuManual ? <div style={{ color: tokens.colors.disabled_text, display: "flex", fontSize: 9, justifyContent: "space-between", margin: "0 2px 7px" }}><span>{`${text.cpuScale}: ${scaleMin}…${scaleMax}`}</span><span>{`~${selectedEstimatedVid ?? "—"} mV`}</span></div> : null}
         <ActionRow><Action label={cpuManual ? text.cpuApplyManual : text.cpuApplyAuto} primary disabled={busy || !cpuReady || (cpuManual && (!manualFrequencyReady || (selectedEstimatedVid ?? 0) > vidMax))} onActivate={() => confirmCpu("detect")} /></ActionRow>
       </div>
@@ -1961,7 +2067,7 @@ function Content() {
       <PadButton disabled={busy} onActivate={() => setFanOpen(!fanOpen)} style={{ alignItems: "center", display: "flex", fontSize: 11, height: 34, justifyContent: "space-between", marginBottom: 6, padding: "5px 9px", width: "100%" }}><span>{liveFan?.label ?? `PWM ${fanChannel}`} · {fanDetected ? text.detected : text.unavailable}</span><span style={{ color: accent.focus }}>{fanOpen ? "▴" : "▾"}</span></PadButton>
       {fanOpen ? <Focusable flow-children="grid" navEntryPreferPosition={NavEntryPositionPreferences.PREFERRED_CHILD} style={{ display: "grid", gap: 5, gridTemplateColumns: "1fr 1fr", marginBottom: 7 }}>{fanChannels.map((channel) => { const option = state.fan_channel_options?.find((item) => item.channel === channel); const available = detectedFans.includes(channel); return <PadButton key={channel} disabled={busy || !available} preferredFocus={channel === fanChannel} onActivate={() => { selectionRef.current.fan = channel; setFanChannel(channel); setFanOpen(false); dirty.current.fan = false; const percent = option?.percent; if (percent != null) setFanDuty(percent); }} style={{ background: channel === fanChannel ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${channel === fanChannel ? accent.focus : tokens.colors.border}`, color: channel === fanChannel ? accent.focus : tokens.colors.text, fontSize: 10, height: 34, padding: 4, width: "100%" }}>PWM {channel} · {available ? `${option?.percent ?? "—"}%` : text.unavailable}</PadButton>; })}</Focusable> : null}
       {liveFan ? <div style={{ color: liveFan.rpm_observed ? tokens.colors.subtle : tokens.colors.amber, fontSize: 9, lineHeight: 1.3, margin: "0 2px 6px" }}>{liveFan.rpm_observed ? `${text.fanRpmObserved}: ${liveFan.rpm} RPM` : `${text.fanUnverified}. ${fanChannel === 2 ? text.fanWiring : ""}`}</div> : null}
-      <SliderField label={text.speed} value={fanDuty} min={fanMin} max={fanMax} step={fanStep} minimumDpadGranularity={fanStep} showValue valueSuffix="%" disabled={busy || !fanDetected} onChange={(value: number) => { dirty.current.fan = true; setFanDuty(Math.max(20, Math.min(100, Math.round(value / 5) * 5))); }} />
+      <SliderField label={text.speed} value={fanDuty} min={fanMin} max={fanMax} step={fanStep} minimumDpadGranularity={fanStep} showValue valueSuffix="%" disabled={busy || !fanDetected} onChange={(value: number) => { dirty.current.fan = true; setFanDuty(Math.max(fanMin, Math.min(fanMax, Math.round(value / fanStep) * fanStep))); }} />
       <Focusable flow-children="grid" style={{ display: "grid", gap: 6, gridTemplateColumns: "1fr 1fr", marginTop: 6 }}><Action label={text.apply} primary disabled={busy || !fanDetected} onActivate={() => void execute(`PWM ${fanChannel}`, () => applyFanChannel(fanChannel, fanDuty), "fan")} /><Action label={text.automatic} disabled={busy || !fanDetected} onActivate={() => void execute(`PWM ${fanChannel}`, () => applyFanChannel(fanChannel, "automatic"), "fan")} /></Focusable>
     </section> : null}
     </> : null}
@@ -2001,6 +2107,7 @@ function FanPresetRow({ state, busy, execute }: { state: Status; busy: boolean; 
   const options = [...presets.map((preset) => ({ key: preset.key, label: presetLabel(preset.key, presets), detail: `${preset.percent}%` })), { key: "automatic", label: text.automatic, detail: "BIOS" }];
   return <>
     <div style={{ color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 4px" }}>{text.fanPresets}</div>
+    <div style={{ color: tokens.colors.subtle, fontSize: 9, lineHeight: 1.35, margin: "0 2px 4px" }}>{text.fanPresetsHint}</div>
     <Focusable flow-children="grid" navEntryPreferPosition={NavEntryPositionPreferences.PREFERRED_CHILD} style={{ display: "grid", gap: 5, gridTemplateColumns: "repeat(4,minmax(0,1fr))", marginBottom: 8 }}>
       {options.map((option) => {
         const current = state.system_fan_preset === option.key;
@@ -2024,6 +2131,7 @@ function GameProfileCard({ state, busy }: { state: Status; busy: boolean }) {
   const [editing, setEditing] = useState(false);
   const [listOpen, setListOpen] = useState(false);
   const [working, setWorking] = useState(false);
+  const workingRef = useRef(false);
   const [draftGpu, setDraftGpu] = useState<string | null>(null);
   const [draftFan, setDraftFan] = useState<string | null>(null);
   const load = useCallback(async () => {
@@ -2039,10 +2147,10 @@ function GameProfileCard({ state, busy }: { state: Status; busy: boolean }) {
   const fanPresets = state.fan_profiles ?? [];
   const summary = (entry: { gpu: string | null; fan: string | null }) => `GPU ${gpuLabel(entry.gpu, gpuProfiles)} · ${text.fans} ${presetLabel(entry.fan, fanPresets)}`;
   const run = async (operation: () => Promise<GameStore | GameEvent>) => {
-    if (working) return; setWorking(true);
-    try { const result = await operation(); if (result.ok === false) toaster.toast({ title: text.perGameProfiles, body: localizedErrorSummary(result.error ?? text.error) }); }
-    catch (error) { toaster.toast({ title: text.perGameProfiles, body: localizedErrorSummary(failed(error).error ?? text.error) }); }
-    finally { setWorking(false); await load(); }
+    if (workingRef.current) return; workingRef.current = true; setWorking(true);
+    try { const result = await operation(); if (result.ok === false) toaster.toast({ title: text.perGameProfiles, body: failureLine(result) }); }
+    catch (error) { toaster.toast({ title: text.perGameProfiles, body: failureLine(failed(error)) }); }
+    finally { workingRef.current = false; setWorking(false); await load(); }
   };
   const beginEdit = () => { setDraftGpu(saved?.gpu ?? null); setDraftFan(saved?.fan ?? null); setEditing(true); };
   const save = () => {
@@ -2167,7 +2275,10 @@ function SettingsTab({ settings, setSettings, state, busy, execute }: {
 }
 
 type SteamGlobals = typeof globalThis & {
-  SteamClient?: { GameSessions?: { RegisterForAppLifetimeNotifications?: (callback: (update: { unAppID: number; nInstanceID: number; bRunning: boolean }) => void) => { unregister?: () => void } } };
+  SteamClient?: {
+    GameSessions?: { RegisterForAppLifetimeNotifications?: (callback: (update: { unAppID: number; nInstanceID: number; bRunning: boolean }) => void) => { unregister?: () => void } };
+    System?: { RegisterForOnResumeFromSuspend?: (callback: () => void) => { unregister?: () => void } };
+  };
 };
 
 export default definePlugin(() => {

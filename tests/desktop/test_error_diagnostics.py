@@ -31,6 +31,36 @@ def test_low_level_failures_have_stable_specific_diagnostics(message, context, c
     assert diagnose_error(message, context=context).code == code
 
 
+@pytest.mark.parametrize(
+    ("message", "code"),
+    (
+        ("error: failed to lock database (pacman is already running)", "BC250-PKG-001"),
+        ("zypper: System management is locked by the application with pid 421", "BC250-PKG-001"),
+        ("rpmdb: BDB0113 Thread/process failed: database is locked", "BC250-PKG-001"),
+        ("apt-get: Could not get lock /var/lib/dpkg/lock-frontend", "BC250-PKG-001"),
+        ("dnf: Another app is currently holding the dnf lock", "BC250-PKG-001"),
+        ("rpm-ostree: Transaction in progress; waiting for the lock", "BC250-PKG-001"),
+        ("apk: database is locked", "BC250-PKG-001"),
+        ("emerge: waiting for another emerge process to finish", "BC250-PKG-001"),
+        ("xbps-install: database is locked", "BC250-PKG-001"),
+        ("gpg: BAD signature; public key is unknown", "BC250-PKG-002"),
+        ("pacman: failed retrieving file from mirror: connection refused", "BC250-NET-001"),
+        ("sudo: a terminal is required to read the password", "BC250-AUTH-001"),
+        ("git: fatal: unable to access repository: Could not resolve host", "BC250-NET-001"),
+        ("curl: (60) SSL certificate problem: unable to get local issuer certificate", "BC250-NET-001"),
+        ("make: *** [dkms/install] Error 2", "BC250-CMD-001"),
+        ("fatal error: linux/module.h: No such file or directory", "BC250-CMD-001"),
+        ("journalctl: failed to read the unit journal", "BC250-SERVICE-003"),
+        ("Traceback (most recent call last):\n  File '/usr/libexec/bc250-helper', line 42", "BC250-HELPER-001"),
+    ),
+)
+def test_terminal_captures_use_specific_existing_diagnostics(message, code):
+    diagnosis = diagnose_error(message, context="dependency preparation")
+    assert diagnosis.code == code
+    assert diagnosis.cause
+    assert diagnosis.action
+
+
 def test_formatted_error_keeps_evidence_and_explains_each_section_in_spanish():
     result = format_error_for_user(
         "ERR QUICK_ACCESS_FAN: PWM 3 is unavailable",

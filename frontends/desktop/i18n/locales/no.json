@@ -1038,6 +1038,7 @@
   "Decky Quick Access preview": "Decky forhåndsvisning av rask tilgang",
   "Decky Quick Access preview image": "Decky Forhåndsvisningsbilde for rask tilgang",
   "Decky Quick Access uses these names and speeds for its Quiet, Balanced and Boost presets.": "Decky Quick Access bruker disse navnene og hastighetene for forhåndsinnstillingene Stille, Balansert og Kraftig.",
+  "In Game Mode they set every active system fan (PWM3–PWM8) together, never PWM2, and a speed under 20 % runs at 20 %.": "I spillmodus stiller de alle aktive systemvifter (PWM3–PWM8) samlet, aldri PWM2, og en hastighet under 20 % kjører på 20 %.",
   "Decky detected": "Decky oppdaget",
   "Decky is a plugin for the console-style interface — Game Mode or Steam Big Picture. Install it and you can change fan speed and clocks from the Steam overlay, with a controller, without coming back to this window.": "Decky er et tillegg for konsollaktig grensesnitt — Game Mode eller Steam Big Picture. Installer det, så kan du endre viftehastighet og klokkefrekvenser fra Steam-overlegget, med en kontroller, uten å gå tilbake til dette vinduet.",
   "Decky is detected, but the BC250 Quick Access plugin or its protected helper needs installation or repair.": "Decky er oppdaget, men BC250 Hurtigtilgang-plugin eller dens beskyttede hjelper trenger installasjon eller reparasjon.",
@@ -2731,6 +2732,9 @@
   "Profiles": "Profiler",
   "Profiles and safe lab for bc250-detect --keep": "Profiler og sikker lab for bc250-detect --keep",
   "Profiles exported to Decky Quick Access.": "Profiler eksportert til Decky Quick Access.",
+  "Profiles saved for Decky Quick Access, but the plugin is not installed yet. Its panel will use them once BC250 Quick Access is installed.": "Profiler lagret for Decky Quick Access, men programtillegget er ikke installert ennå. Panelet bruker dem når BC250 Quick Access er installert.",
+  "In Game Mode each preset sets every active system fan (PWM3–PWM8) together and never PWM2, not just the channel selected here.": "I spillmodus stiller hver forhåndsinnstilling alle aktive systemvifter (PWM3–PWM8) samlet og aldri PWM2, ikke bare kanalen som er valgt her.",
+  "{name}: {requested} % → {published} % in Decky.": "{name}: {requested} % → {published} % i Decky.",
   "Profiles, temporary tuning, persistence, and advanced details.": "Profiler, midlertidig tuning, utholdenhet og avanserte detaljer.",
   "Programmed ranges": "Programmerte områder",
   "Project overview": "Prosjektoversikt",
@@ -5328,5 +5332,8 @@
   "Discard that snapshot and create a new one. Do not restore a file that could not be verified.": "Forkast det øyeblikksbildet og lag et nytt. Ikke gjenopprett en fil som ikke kunne verifiseres.",
   "The Control Center update could not be downloaded or verified.": "Control Center-oppdateringen kunne ikke lastes ned eller verifiseres.",
   "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.": "GitHub returnerte ufullstendige versjonsdata, eller den nedlastede filen stemmer ikke med publisert størrelse eller sjekksum.",
-  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Sjekk nettverket og systemdatoen, og prøv oppdateringen igjen. Hvis den fortsatt feiler, installer pakken fra versjonssiden."
+  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Sjekk nettverket og systemdatoen, og prøv oppdateringen igjen. Hvis den fortsatt feiler, installer pakken fra versjonssiden.",
+  "Temperature reading": "Temperaturavlesning",
+  "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Hvor Cyan leser GPU-temperaturen. Begge gir samme verdi; sysfs holder ikke GPU-enheten åpen bare for det. DRM er standard.",
+  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Denne Cyan-versjonen leser ikke denne innstillingen. Oppdater den fra Klargjør avhengigheter."
 }

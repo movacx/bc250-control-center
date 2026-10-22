@@ -33,6 +33,11 @@ from frontends.desktop.i18n import SUPPORTED_LANGUAGES, tr
             ("kernel", "kernel", False, False),
             ("kernel", "kernel", "0", "0"),
         ),
+        (
+            "set-cyan-compatibility",
+            ("smu", "busy-flag", True, False, " SYSFS "),
+            ("smu", "busy-flag", "1", "0", "sysfs"),
+        ),
         ("set-cyan-voltage-level", (3,), ("3",)),
         ("set-cyan-voltage-level", (5,), ("5",)),
         (
@@ -52,11 +57,20 @@ def test_request_planner_normalizes_supported_actions(action, arguments, normali
 
 
 def test_governor_helper_protocol_is_explicit_and_fails_closed_when_absent():
-    assert GOVERNOR_CONFIG_HELPER_PROTOCOL == 6
+    assert GOVERNOR_CONFIG_HELPER_PROTOCOL == 7
     assert governor_config_helper_protocol("BC250_GOVERNOR_CONFIG_PROTOCOL = 6\n") == 6
     assert governor_config_helper_protocol("BC250_GOVERNOR_CONFIG_PROTOCOL = 1\n") == 1
     assert governor_config_helper_protocol("# no protocol\n") is None
     assert governor_config_helper_protocol("BC250_GOVERNOR_CONFIG_PROTOCOL = invalid\n") is None
+
+
+def test_decky_gpu_export_accepts_a_fixed_clock_profile():
+    request = plan_governor_config_request(
+        "set-decky-gpu-profiles",
+        ([{"key": "balanced", "name": "Fixed", "min": 1500, "max": 1500}],),
+    )
+
+    assert request.arguments == ('[{"key":"balanced","max":1500,"min":1500,"name":"Fixed"}]',)
 
 
 @pytest.mark.parametrize(
@@ -81,6 +95,7 @@ def test_governor_helper_protocol_is_explicit_and_fails_closed_when_absent():
         ("set-cyan-compatibility", ("invalid", "busy-flag", False, False), "smu or kernel"),
         ("set-cyan-compatibility", ("smu", "invalid", False, False), "busy-flag"),
         ("set-cyan-compatibility", ("smu", "busy-flag", 0, False), "must be boolean"),
+        ("set-cyan-compatibility", ("smu", "busy-flag", False, False, "hwmon"), "drm or sysfs"),
         ("set-cyan-voltage-level", (7,), "0 through 6"),
         ("set-cyan-custom-voltages", (), "No custom values"),
         ("set-cyan-custom-voltages", ("1850=950", "1850=960"), "conflicting"),
@@ -128,6 +143,21 @@ def test_repository_invokes_only_the_planned_argv_and_invalidates_cache():
     assert repository.estado_bc250_cache is None
 
 
+def test_decky_export_uses_the_game_mode_helper():
+    from bc250cc.infrastructure.privilege_repository import PrivilegeRepository
+
+    repository = object.__new__(PrivilegeRepository)
+    calls = []
+    repository._usar_steamos_game_helper = lambda: True
+    repository._ejecutar_steamos_game_helper = lambda *args, **kwargs: calls.append((args, kwargs)) or "published"
+
+    assert repository._exportar_perfiles_decky(
+        "set-decky-gpu-profiles", [{"key": "balanced", "name": "Balanced", "min": 1000, "max": 1850}],
+    ) == "published"
+    assert calls[0][0][0:2] == ("governor-config", "set-decky-gpu-profiles")
+    assert calls[0][1] == {"timeout": 120}
+
+
 def test_repository_preserves_helper_failure_evidence():
     repository = object.__new__(GPURepository)
     repository._governor_config_helper_path = lambda: "/trusted/helper"
@@ -153,3 +183,42 @@ def test_new_validation_message_is_translated_in_every_supported_language():
     for source in sources:
         for language in SUPPORTED_LANGUAGES - {"en"}:
             assert tr(source, language) != source
+
+
+def _helper(tmp_path, protocol_line):
+    helper = tmp_path / "bc250-governor-config-helper"
+    helper.write_text(f"#!/usr/bin/python3\n{protocol_line}\n", encoding="utf-8")
+    helper.chmod(0o755)
+    return helper
+
+
+def test_an_older_helper_is_reported_as_older_not_missing(tmp_path, monkeypatch):
+    """After an update, "not installed" sent people looking for a file that was there."""
+    import os
+
+    from bc250cc.infrastructure import governor_config_request as module
+
+    old = _helper(tmp_path, "BC250_GOVERNOR_CONFIG_PROTOCOL = 6")
+    real_stat = type(old).stat
+
+    def as_root(self, *args, **kwargs):
+        result = real_stat(self, *args, **kwargs)
+        return os.stat_result((result.st_mode, *result[1:4], 0, *result[5:]))
+
+    monkeypatch.setattr(type(old), "stat", as_root)
+    assert module.find_governor_config_helper((old,)) == ("", 6)
+    message = module.missing_governor_config_helper_message("editing /etc", (old,))
+    assert "older than this application" in message
+    assert "protocol 6" in message
+
+    current = _helper(tmp_path / "new" if (tmp_path / "new").mkdir() is None else tmp_path,
+                      f"BC250_GOVERNOR_CONFIG_PROTOCOL = {module.GOVERNOR_CONFIG_HELPER_PROTOCOL}")
+    assert module.find_governor_config_helper((old, current)) == (str(current), None)
+
+
+def test_no_helper_at_all_still_says_not_installed(tmp_path):
+    from bc250cc.infrastructure import governor_config_request as module
+
+    missing = tmp_path / "absent"
+    assert module.find_governor_config_helper((missing,)) == ("", None)
+    assert "is not installed" in module.missing_governor_config_helper_message("exporting", (missing,))

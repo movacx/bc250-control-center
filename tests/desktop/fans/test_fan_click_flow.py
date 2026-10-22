@@ -9,6 +9,7 @@ only a speed low enough to overheat the board asks first.
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 
 from PyQt6.QtCore import QObject, pyqtSignal
 from PyQt6.QtWidgets import QDialog
@@ -240,3 +241,51 @@ def test_applying_the_curve_while_the_service_owns_the_fan_hands_it_the_curve(qt
 
     assert all(not isinstance(write[0], int) for write in controller.writes), "no direct PWM write"
     assert notices["toasts"][-1][0] == "Fan curve applied"
+
+
+def _export_to_decky(qtbot, page, controller):
+    page.export_profiles_to_decky()
+    qtbot.waitUntil(lambda: bool(controller.exports), timeout=3000)
+    qtbot.waitUntil(page.profiles_decky_button.isEnabled, timeout=3000)
+
+
+def test_a_decky_export_says_which_fans_and_which_speeds_were_raised(qtbot, monkeypatch):
+    """Decky drives PWM3–PWM8 and starts at 20 %; the page used to say neither."""
+    page, controller, notices = _page(qtbot, monkeypatch)
+    quiet = page.manual_preset_buttons[0]
+    quiet.set_profile(replace(quiet.profile, percent=10))
+    controller.estado_quick_access_decky = lambda: {"decky_detected": True, "plugin_present": True}
+
+    _export_to_decky(qtbot, page, controller)
+
+    assert controller.exports[0][0]["percent"] == 20
+    title, message = notices["toasts"][-1]
+    assert title == "Export to Decky"
+    assert message.startswith("Profiles exported to Decky Quick Access.")
+    assert "PWM3–PWM8" in message and "never PWM2" in message
+    assert "Quiet: 10 % → 20 % in Decky." in message
+    assert "PWM3–PWM8" in page.profiles_decky_button.toolTip()
+
+
+def test_a_decky_export_without_the_plugin_does_not_claim_decky_has_it(qtbot, monkeypatch):
+    page, controller, notices = _page(qtbot, monkeypatch)
+    controller.estado_quick_access_decky = lambda: {"decky_detected": True, "plugin_present": False}
+
+    _export_to_decky(qtbot, page, controller)
+
+    _title, message = notices["toasts"][-1]
+    assert "the plugin is not installed yet" in message
+    assert "Profiles exported to Decky Quick Access." not in message
+    assert " → " not in message  # every default speed is within Decky's range
+
+
+def test_default_fan_names_reach_decky_untranslated_and_custom_ones_as_typed(qtbot, monkeypatch):
+    """Decky localizes a default name itself; a translated one froze its language."""
+    monkeypatch.setattr(fans_module, "tr", lambda text, *_args, **_kwargs: f"<{text}>")
+    page, controller, _notices = _page(qtbot, monkeypatch)
+    balanced = page.manual_preset_buttons[1]
+    balanced.set_profile(replace(balanced.profile, name="Night"))
+
+    _export_to_decky(qtbot, page, controller)
+
+    assert [entry["name"] for entry in controller.exports[0]] == ["Quiet", "Night", "Maximum"]

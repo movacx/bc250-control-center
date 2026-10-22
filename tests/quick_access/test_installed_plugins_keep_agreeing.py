@@ -104,5 +104,6 @@ def test_the_plugin_refuses_a_blocked_size_even_though_it_is_listed(monkeypatch)
 
     result = asyncio.run(plugin.apply_vram_size(2048))
 
-    assert result == {"ok": False, "error": "Unsupported VRAM size."}
+    assert result["ok"] is False and result["error"] == "Unsupported VRAM size."
+    assert result["error_code"] == "QUICK_ACCESS_INVALID_REQUEST"
     assert ran == []

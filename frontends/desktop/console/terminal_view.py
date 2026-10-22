@@ -86,6 +86,7 @@ class TerminalView(QAbstractScrollArea):
         self._bell_pending = False
         self._expected_height = 0
         self._input_elsewhere = False
+        self._static_text = False
         self._colors: dict[str, QColor] = {}
         # The grid is measured and painted with this font, never with
         # ``self.font()``: the application stylesheet gives every widget its
@@ -97,7 +98,7 @@ class TerminalView(QAbstractScrollArea):
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.setFrameShape(QAbstractScrollArea.Shape.NoFrame)
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.viewport().setCursor(Qt.CursorShape.IBeamCursor)
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.customContextMenuRequested.connect(self._show_context_menu)
@@ -213,8 +214,11 @@ class TerminalView(QAbstractScrollArea):
 
     def _recalculate_geometry(self) -> None:
         columns, rows = self._visible_columns(), self._visible_rows()
-        if (columns, rows) != (self.screen.columns, self.screen.rows):
-            self.screen.resize(columns, rows)
+        # Captured output is already formatted. Keep its widest line as the
+        # grid width so a narrow dock cannot wrap columns into fragments.
+        target_columns = self.screen.columns if self._static_text else columns
+        if (target_columns, rows) != (self.screen.columns, self.screen.rows):
+            self.screen.resize(target_columns, rows)
             self.size_changed.emit(self.screen.columns, self.screen.rows)
         self._update_scrollbar()
 
@@ -241,6 +245,14 @@ class TerminalView(QAbstractScrollArea):
         if was_following:
             bar.setValue(maximum)
         bar.blockSignals(False)
+        horizontal = self.horizontalScrollBar()
+        if self._static_text:
+            visible = self._visible_columns()
+            horizontal.setRange(0, max(0, self.screen.columns - visible))
+            horizontal.setPageStep(visible)
+            horizontal.setSingleStep(1)
+        else:
+            horizontal.setRange(0, 0)
 
     def _scrolled(self, value: int) -> None:
         self._follow_output = value >= self.verticalScrollBar().maximum()
@@ -266,6 +278,19 @@ class TerminalView(QAbstractScrollArea):
         if not self._repaint_timer.isActive():
             self._repaint_timer.start()
 
+    def set_static_text(self, text: str) -> None:
+        """Show captured text without applying the live terminal width."""
+        normalized = str(text).replace("\r\n", "\n").replace("\r", "\n")
+        lines = normalized.split("\n")
+        width = max((len(line) for line in lines), default=1)
+        self._static_text = True
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.screen.reset()
+        self.screen.resize(max(1, min(width, 1000)), self._visible_rows())
+        self.screen.feed(normalized.replace("\n", "\r\n").encode("utf-8"))
+        self._update_scrollbar()
+        self._flush()
+
     def _flush(self) -> None:
         self._update_scrollbar()
         self.viewport().update()
@@ -274,6 +299,8 @@ class TerminalView(QAbstractScrollArea):
             self.bell.emit()
 
     def clear(self) -> None:
+        self._static_text = False
+        self.horizontalScrollBar().setValue(0)
         self.screen.reset()
         self._selection = None
         self._follow_output = True
@@ -330,7 +357,7 @@ class TerminalView(QAbstractScrollArea):
     def _position_at(self, point) -> tuple[int, int]:
         top = self.verticalScrollBar().value()
         row = int(max(0.0, point.y() - PADDING_TOP) // self._cell_height) + top
-        column = int(round(max(0.0, point.x() - PADDING_X) / self._cell_width))
+        column = int(round(max(0.0, point.x() - PADDING_X + self.horizontalScrollBar().value()) / self._cell_width))
         total = len(self.screen.scrollback) + self.screen.rows
         row = max(0, min(row, total - 1))
         return row, max(0, min(column, self.screen.columns))
@@ -481,7 +508,7 @@ class TerminalView(QAbstractScrollArea):
         painter.setFont(self._grid_font)
         painter.fillRect(event.rect(), self._colors["background"])
         # Everything below draws in grid coordinates; the inset is applied once.
-        painter.translate(PADDING_X, PADDING_TOP)
+        painter.translate(PADDING_X - self.horizontalScrollBar().value(), PADDING_TOP)
 
         lines = self.screen.all_lines()
         top = self.verticalScrollBar().value()

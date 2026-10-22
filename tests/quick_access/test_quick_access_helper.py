@@ -25,6 +25,8 @@ def helper_module():
     # Nor on the host's own kernel CU unlock (a linux-cachyos-bc250 board
     # running bc250_cc_write_mode=3 would refuse every CU write test).
     module.CU_WRITE_MODE_PARAMETER = Path("/nonexistent/bc250_cc_write_mode")
+    # Nor on the preset this host's panel applied last.
+    module.SYSTEM_FAN_LAST_PRESET = Path("/nonexistent/fan-last-preset.json")
     # Nor on profiles the developer exported to Decky from this machine: the
     # loader reads a fixed /etc path, and a real export there changed which
     # range "gaming" meant and failed an unrelated test on that host only.
@@ -361,6 +363,70 @@ def test_system_fan_state_reports_a_named_manual_preset(helper_module, tmp_path,
     assert helper_module.system_fan_preset_state(sensor) == ("balanced", 153)
 
 
+def _equal_quiet_and_balanced(helper_module, tmp_path, monkeypatch):
+    """Quiet and Balanced exported at the same speed (60 % -> duty 153)."""
+    sensor = tmp_path / "hwmon12"
+    sensor.mkdir()
+    for channel in (3, 4):
+        (sensor / f"pwm{channel}").write_text("214\n", encoding="ascii")
+        (sensor / f"pwm{channel}_enable").write_text("2\n", encoding="ascii")
+    monkeypatch.setattr(helper_module, "nct_sensor", lambda: sensor)
+    monkeypatch.setattr(helper_module.time, "sleep", lambda _seconds: None)
+    monkeypatch.setattr(helper_module, "SYSTEM_FAN_LAST_PRESET", tmp_path / "run" / "fan-last-preset.json")
+    monkeypatch.setattr(
+        helper_module, "effective_fan_presets",
+        lambda: {"quiet": 153, "balanced": 153, "boost": 204, "automatic": None},
+    )
+    return sensor
+
+
+def test_equal_presets_report_the_one_applied_last(helper_module, tmp_path, monkeypatch):
+    """The first match used to win, so pressing Balanced highlighted Quiet."""
+    sensor = _equal_quiet_and_balanced(helper_module, tmp_path, monkeypatch)
+
+    assert helper_module.fan_system_preset("balanced") == 0
+    assert helper_module.system_fan_preset_state(sensor) == ("balanced", 153)
+    assert helper_module.fan_system_preset("quiet") == 0
+    assert helper_module.system_fan_preset_state(sensor) == ("quiet", 153)
+
+
+def test_equal_presets_name_none_without_a_matching_last_preset(helper_module, tmp_path, monkeypatch):
+    sensor = _equal_quiet_and_balanced(helper_module, tmp_path, monkeypatch)
+    for channel in (3, 4):
+        (sensor / f"pwm{channel}").write_text("153\n", encoding="ascii")
+        (sensor / f"pwm{channel}_enable").write_text("1\n", encoding="ascii")
+
+    # Nothing applied from the panel: the duty is reported, no preset is.
+    assert helper_module.system_fan_preset_state(sensor) == (None, 153)
+
+    # The preset applied last no longer matches what the fans run at.
+    helper_module.note_fan_preset("boost", 204)
+    assert helper_module.system_fan_preset_state(sensor) == (None, 153)
+
+    # A distinct duty still names its preset, whatever was applied last.
+    for channel in (3, 4):
+        (sensor / f"pwm{channel}").write_text("204\n", encoding="ascii")
+    helper_module.note_fan_preset("quiet", 153)
+    assert helper_module.system_fan_preset_state(sensor) == ("boost", 204)
+
+
+def test_a_malformed_last_preset_record_is_ignored(helper_module, tmp_path, monkeypatch):
+    sensor = _equal_quiet_and_balanced(helper_module, tmp_path, monkeypatch)
+    for channel in (3, 4):
+        (sensor / f"pwm{channel}").write_text("153\n", encoding="ascii")
+        (sensor / f"pwm{channel}_enable").write_text("1\n", encoding="ascii")
+    record = helper_module.SYSTEM_FAN_LAST_PRESET
+    record.parent.mkdir()
+
+    for content in ("not json", '["quiet", 153]', '{"preset": "quiet", "duty": "153"}'):
+        record.write_text(content, encoding="utf-8")
+        assert helper_module.system_fan_preset_state(sensor) == (None, 153)
+    record.unlink()
+    record.symlink_to(tmp_path / "elsewhere.json")
+    (tmp_path / "elsewhere.json").write_text('{"preset": "quiet", "duty": 153}', encoding="utf-8")
+    assert helper_module.system_fan_preset_state(sensor) == (None, 153)
+
+
 def test_gpu_profile_resets_adaptive_mode_when_cyan_bounds_already_match(helper_module, monkeypatch, capsys):
     calls = []
     monkeypatch.setattr(helper_module, "run", lambda command, **_kwargs: calls.append(command) or type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})())
@@ -372,6 +438,32 @@ def test_gpu_profile_resets_adaptive_mode_when_cyan_bounds_already_match(helper_
     assert helper_module.gpu_profile("gaming") == 0
     assert sum("SetRange" in command for command in calls) == 1
     assert '"gpu_performance_enabled": false' in capsys.readouterr().out
+
+
+def test_fixed_clock_gpu_profile_override_is_accepted(helper_module, monkeypatch):
+    monkeypatch.setattr(
+        helper_module, "_load_gpu_profile_overrides",
+        lambda: {"balanced": {"name": "Fixed", "min": 1500, "max": 1500}},
+    )
+    monkeypatch.setattr(helper_module, "active_gpu_governor", lambda: "cyan")
+    applied = []
+    monkeypatch.setattr(helper_module, "apply_gpu_range", lambda bounds: applied.append(bounds) or 0)
+
+    assert helper_module.gpu_profile("balanced") == 0
+    assert applied == [(1500, 1500)]
+
+
+def test_stale_gpu_profile_override_reports_the_same_allowed_code(helper_module, monkeypatch, capsys):
+    monkeypatch.setattr(
+        helper_module, "_load_gpu_profile_overrides",
+        lambda: {"benchmark": {"name": "High", "min": 1000, "max": 2200}},
+    )
+    monkeypatch.setattr(helper_module, "active_gpu_governor", lambda: "cyan")
+    monkeypatch.setattr(helper_module, "cyan_range", lambda: (1000, 2000))
+    monkeypatch.setattr(helper_module, "cyan_allowed_range", lambda: (500, 2000))
+
+    assert helper_module.gpu_profile("benchmark") == 22
+    assert "QUICK_ACCESS_GPU_ALLOWED" in capsys.readouterr().err
 
 
 def test_decky_reads_cyan_after_all_four_desktop_compatibility_controls_change(

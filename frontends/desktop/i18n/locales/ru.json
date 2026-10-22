@@ -1038,6 +1038,7 @@
   "Decky Quick Access preview": "Предпросмотр быстрого доступа Decky",
   "Decky Quick Access preview image": "Изображение предпросмотра быстрого доступа Decky",
   "Decky Quick Access uses these names and speeds for its Quiet, Balanced and Boost presets.": "Decky Quick Access использует эти названия и скорости для пресетов «Тихий», «Сбалансированный» и «Усиленный».",
+  "In Game Mode they set every active system fan (PWM3–PWM8) together, never PWM2, and a speed under 20 % runs at 20 %.": "В игровом режиме они задают сразу все активные системные вентиляторы (PWM3–PWM8), никогда PWM2, а скорость ниже 20 % работает на 20 %.",
   "Decky detected": "Decky обнаружен",
   "Decky is a plugin for the console-style interface — Game Mode or Steam Big Picture. Install it and you can change fan speed and clocks from the Steam overlay, with a controller, without coming back to this window.": "Decky — это плагин для консольного интерфейса: Game Mode или Steam Big Picture. Установите его, и вы сможете менять скорость вентиляторов и частоты прямо из оверлея Steam, геймпадом, не возвращаясь в это окно.",
   "Decky is detected, but the BC250 Quick Access plugin or its protected helper needs installation or repair.": "Decky обнаружен, но плагину быстрого доступа BC250 или его защищённому helper требуется установка или восстановление.",
@@ -2731,6 +2732,9 @@
   "Profiles": "Профили",
   "Profiles and safe lab for bc250-detect --keep": "Профили и безопасная лаборатория для bc250-detect --keep",
   "Profiles exported to Decky Quick Access.": "Профили экспортированы в Decky Quick Access.",
+  "Profiles saved for Decky Quick Access, but the plugin is not installed yet. Its panel will use them once BC250 Quick Access is installed.": "Профили сохранены для Decky Quick Access, но плагин ещё не установлен. Его панель начнёт их использовать после установки BC250 Quick Access.",
+  "In Game Mode each preset sets every active system fan (PWM3–PWM8) together and never PWM2, not just the channel selected here.": "В игровом режиме каждый пресет задаёт сразу все активные системные вентиляторы (PWM3–PWM8) и никогда PWM2, а не только выбранный здесь канал.",
+  "{name}: {requested} % → {published} % in Decky.": "{name}: {requested} % → {published} % в Decky.",
   "Profiles, temporary tuning, persistence, and advanced details.": "Профили, временная настройка, постоянное применение и расширенные сведения.",
   "Programmed ranges": "Заданные диапазоны",
   "Project overview": "О проекте",
@@ -5328,5 +5332,8 @@
   "Discard that snapshot and create a new one. Do not restore a file that could not be verified.": "Удалите этот снимок и создайте новый. Не восстанавливайте файл, который не удалось проверить.",
   "The Control Center update could not be downloaded or verified.": "Не удалось загрузить или проверить обновление Control Center.",
   "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.": "GitHub вернул неполные данные о выпуске, или загруженный файл не совпадает с опубликованным размером или контрольной суммой.",
-  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Проверьте сеть и системную дату, затем повторите обновление. Если ошибка повторяется, установите пакет со страницы выпуска."
+  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Проверьте сеть и системную дату, затем повторите обновление. Если ошибка повторяется, установите пакет со страницы выпуска.",
+  "Temperature reading": "Чтение температуры",
+  "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Откуда Cyan читает температуру GPU. Оба варианта дают одно и то же значение; sysfs не держит устройство GPU открытым только ради этого. По умолчанию DRM.",
+  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Эта версия Cyan не читает этот параметр. Обновите её в разделе «Подготовить зависимости»."
 }

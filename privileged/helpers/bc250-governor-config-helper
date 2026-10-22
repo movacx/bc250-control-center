@@ -10,7 +10,7 @@ import sys
 IMPLEMENTATION_PATH = Path(
     '/usr/libexec/bc250-control-center/lib/governor_toml.py'
 )
-BC250_GOVERNOR_CONFIG_PROTOCOL = 6
+BC250_GOVERNOR_CONFIG_PROTOCOL = 7
 
 
 def _load_editor_module():
@@ -116,22 +116,26 @@ def main(argv):
             raise RuntimeError('set-cyan-metrics-fix expects a 0/1 flag.')
         result = editor.set_gpu_metrics_fix(argv[2] == '1')
     elif action == 'set-cyan-compatibility':
+        # The temperature source is optional and last: the Game Mode plugin
+        # still sends the first four only, and then it is left untouched.
         if (
-            len(argv) != 6
+            len(argv) not in {6, 7}
             or argv[2] not in {'smu', 'kernel'}
             or argv[3] not in {'busy-flag', 'process', 'kernel'}
             or argv[4] not in {'0', '1'}
             or argv[5] not in {'0', '1'}
+            or (len(argv) == 7 and argv[6] not in {'drm', 'sysfs'})
         ):
             raise RuntimeError(
-                'set-cyan-compatibility expects smu/kernel, a GPU usage method '
-                'and two 0/1 flags.'
+                'set-cyan-compatibility expects smu/kernel, a GPU usage method, '
+                'two 0/1 flags and optionally drm/sysfs.'
             )
         result = editor.set_cyan_compatibility(
             set_method=argv[2],
             usage_method=argv[3],
             fix_metrics=argv[4] == '1',
             fix_frequency=argv[5] == '1',
+            temp_read=argv[6] if len(argv) == 7 else None,
         )
     elif action == 'set-cyan-voltage-level':
         if len(argv) != 3:

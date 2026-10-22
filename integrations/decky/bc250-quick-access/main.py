@@ -7,7 +7,9 @@ BC250 helper using a named, finite operation.
 from __future__ import annotations
 
 import asyncio
+import functools
 import importlib.util
+import inspect
 import json
 import os
 import pathlib
@@ -71,6 +73,10 @@ FAN_MAX_PERCENT = 100
 CPU_FREQUENCIES = tuple(range(3100, 4201, 50))
 CPU_VIDS = tuple(range(950, 1326, 5))
 CPU_SCALES = tuple(range(-50, 1))
+#: The thermal cap of a desktop CPU card; 90 is also what every run used
+#: before the cap travelled with the exported profile.
+CPU_TEMPERATURES = tuple(range(70, 91))
+CPU_DEFAULT_TEMPERATURE = 90
 # The shared contract's ladder. Cross-checked against it in
 # _contract_disagreement() before it is ever shown, so a stale plugin cannot
 # offer a size the root helper would reject. 2048 stays listed so the tuple
@@ -146,12 +152,9 @@ def _apply_custom_profile_names(
     """Overlay the Desktop's renamed/re-ranged profile cards onto the ladder.
 
     ``custom`` is the helper's own already-validated ``gpu_custom_profiles``
-    (see ``_load_gpu_profile_overrides`` there); this only clamps display
-    values to the range the hardware reports as allowed right now, exactly
-    like ``profiles_for_allowed_range`` already does for the built-in ladder.
-    Applying a profile still goes through ``apply_gpu_profile`` -> the
-    root helper -> the live D-Bus envelope check, so a stale override can be
-    displayed here but never applied outside what is actually allowed.
+    (see ``_load_gpu_profile_overrides`` there).  Never clamp an override for
+    display: the root helper applies the stored range, so showing a different
+    one would promise an action that cannot succeed.
     """
     if not isinstance(custom, list) or not custom:
         return profiles
@@ -177,15 +180,14 @@ def _apply_custom_profile_names(
         if override is None:
             updated.append(profile)
             continue
-        bounded_min = max(allowed_min, int(override["min"]))
-        bounded_max = min(allowed_max, int(override["max"]))
-        if bounded_min > bounded_max:
-            updated.append(profile)
-            continue
-        updated.append({
+        minimum, maximum = int(override["min"]), int(override["max"])
+        updated_profile = {
             "key": profile["key"], "name": override["name"],
-            "min": bounded_min, "max": bounded_max,
-        })
+            "min": minimum, "max": maximum,
+        }
+        if minimum < allowed_min or maximum > allowed_max:
+            updated_profile["unavailable_reason"] = "QUICK_ACCESS_GPU_ALLOWED"
+        updated.append(updated_profile)
     return updated
 
 
@@ -305,9 +307,9 @@ CPU_PROFILE_KEYS = ("board_average", "mid_point", "safe_maximum")
 #: replaces the default with the same key.  ``default`` lets the panel show the
 #: name in its own language.
 DEFAULT_CPU_PROFILES = (
-    {"key": "board_average", "name": "Average board", "frequency": 3550, "vid": 1050, "default": True},
-    {"key": "mid_point", "name": "Mid point", "frequency": 3850, "vid": 1150, "default": True},
-    {"key": "safe_maximum", "name": "Safe maximum", "frequency": 4000, "vid": 1275, "default": True},
+    {"key": "board_average", "name": "Average board", "frequency": 3550, "vid": 1050, "temperature": 90, "default": True},
+    {"key": "mid_point", "name": "Mid point", "frequency": 3850, "vid": 1150, "temperature": 90, "default": True},
+    {"key": "safe_maximum", "name": "Safe maximum", "frequency": 4000, "vid": 1275, "temperature": 90, "default": True},
 )
 
 
@@ -328,14 +330,18 @@ def _validated_cpu_profiles(custom: object) -> list[dict[str, object]]:
             continue
         key, name = entry.get("key"), entry.get("name")
         frequency, vid = entry.get("frequency"), entry.get("vid")
+        temperature = entry.get("temperature", CPU_DEFAULT_TEMPERATURE)
         if (
             key not in CPU_PROFILE_KEYS
             or not isinstance(name, str) or not name
             or isinstance(frequency, bool) or frequency not in CPU_FREQUENCIES
             or isinstance(vid, bool) or vid not in CPU_VIDS
+            or isinstance(temperature, bool) or not isinstance(temperature, int) or temperature not in CPU_TEMPERATURES
         ):
             continue
-        profiles.append({"key": key, "name": name, "frequency": frequency, "vid": vid})
+        profiles.append({
+            "key": key, "name": name, "frequency": frequency, "vid": vid, "temperature": temperature,
+        })
     exported = {profile["key"]: profile for profile in profiles}
     return [dict(exported.get(default["key"], default)) for default in DEFAULT_CPU_PROFILES]
 
@@ -722,6 +728,156 @@ def read_gpu_resets() -> dict | None:
     return None
 
 
+# ---------------------------------------------------------------- failures
+#: Every failure the panel can show, by the stable code it carries:
+#: code -> (title key, next-step key, desktop code). The keys name strings in
+#: locales/*.json, so one fault reads the same in a toast, the notice and the
+#: CPU card; the desktop code is what BC250 Control Center's own catalogue
+#: (src/bc250cc/shared/error_catalog.py) calls the same fault, shown under
+#: Details so support can match a Game Mode report to a Desktop one.
+#: The codes are the helper's own ``CODE:`` prefixes plus the few only this
+#: backend or the panel can see. Players quote them: never rename one.
+ERROR_CODES: dict[str, tuple[str, str, str]] = {
+    # Installation, versions and host.
+    "QUICK_ACCESS_COMPONENT_MISSING": ("helperFailed", "helperAction", "BC250-HELPER-001"),
+    "QUICK_ACCESS_PROTOCOL_MISMATCH": ("protocolFailed", "protocolAction", "BC250-PROTOCOL-001"),
+    "QUICK_ACCESS_PRIVILEGE": ("privilegeFailed", "privilegeAction", "BC250-PERM-001"),
+    "QUICK_ACCESS_CONTEXT": ("contextFailed", "contextAction", "BC250-HW-001"),
+    "QUICK_ACCESS_PYTHON": ("contextFailed", "pythonAction", "BC250-PLATFORM-001"),
+    "HARDWARE_CONTEXT": ("hardwareFailed", "hardwareAction", "BC250-HW-001"),
+    # Any operation.
+    "QUICK_ACCESS_BUSY": ("busyFailed", "busyAction", "BC250-BUSY-001"),
+    "QUICK_ACCESS_TIMEOUT": ("timeoutFailed", "timeoutAction", "BC250-TIMEOUT-001"),
+    "QUICK_ACCESS_INVALID_REQUEST": ("requestFailed", "requestAction", "BC250-RANGE-001"),
+    "QUICK_ACCESS_OPERATION_FAILED": ("error", "retryGuidance", "BC250-GENERAL-001"),
+    "QUICK_ACCESS_INTERNAL": ("internalFailed", "internalAction", "BC250-INTERNAL-001"),
+    "QUICK_ACCESS_BACKEND": ("backendFailed", "internalAction", "BC250-INTERNAL-001"),
+    # Raised by the panel itself when a call never comes back; listed here so
+    # the one table still names every code.
+    "QUICK_ACCESS_NO_RESPONSE": ("noResponseFailed", "noResponseAction", "BC250-GENERAL-001"),
+    # GPU governor.
+    "QUICK_ACCESS_GPU_CONFIG": ("gpuOperationFailed", "gpuAction", "BC250-CONFIG-001"),
+    "QUICK_ACCESS_GPU_HELPER": ("helperFailed", "helperAction", "BC250-HELPER-001"),
+    "QUICK_ACCESS_GPU_SERVICE": ("gpuServiceFailed", "gpuServiceAction", "BC250-SERVICE-003"),
+    "QUICK_ACCESS_GPU_CONFLICT": ("gpuConflictFailed", "gpuServiceAction", "BC250-SERVICE-003"),
+    "QUICK_ACCESS_GPU_DBUS": ("gpuDbusFailed", "gpuDbusAction", "BC250-DBUS-001"),
+    "QUICK_ACCESS_GPU_ALLOWED": ("gpuRangeFailed", "gpuRangeAction", "BC250-DBUS-001"),
+    "QUICK_ACCESS_GPU_PROFILE": ("gpuRangeFailed", "gpuRangeAction", "BC250-RANGE-001"),
+    "QUICK_ACCESS_GPU_SAFE_POINT": ("gpuRangeFailed", "gpuRangeAction", "BC250-RANGE-001"),
+    "QUICK_ACCESS_GPU_HIGH_POINTS": ("gpuOperationFailed", "gpuAction", "BC250-RANGE-001"),
+    "QUICK_ACCESS_GPU_VERIFY": ("gpuVerifyFailed", "gpuAction", "BC250-RANGE-001"),
+    "QUICK_ACCESS_GPU_VOLTAGE": ("gpuVoltageFailed", "gpuAction", "BC250-RANGE-001"),
+    "QUICK_ACCESS_GPU_BUSY": ("gpuBusyFailed", "gpuBusyGuidance", "BC250-GPU-001"),
+    # Compute Units.
+    "QUICK_ACCESS_CU_TABLE": ("cuOperationFailed", "cuGuidance", "BC250-CU-001"),
+    "QUICK_ACCESS_CU_MODE": ("cuOperationFailed", "cuGuidance", "BC250-CU-001"),
+    "QUICK_ACCESS_CU_STATE": ("cuOperationFailed", "cuGuidance", "BC250-CU-001"),
+    "QUICK_ACCESS_CU_VERIFY": ("cuOperationFailed", "cuGuidance", "BC250-CU-001"),
+    "QUICK_ACCESS_CU_SAVE_VERIFY": ("cuOperationFailed", "cuGuidance", "BC250-CU-001"),
+    "QUICK_ACCESS_CU_SERVICE_PROFILE": ("cuOperationFailed", "cuGuidance", "BC250-CU-001"),
+    "QUICK_ACCESS_CU_SERVICE_VERIFY": ("cuOperationFailed", "cuGuidance", "BC250-CU-001"),
+    "QUICK_ACCESS_CU_SERVICE_REMOVE": ("cuOperationFailed", "cuGuidance", "BC250-CU-001"),
+    "QUICK_ACCESS_CU_BACKEND": ("cuBackendFailed", "cuBackendAction", "BC250-CU-001"),
+    "QUICK_ACCESS_CU_KERNEL": ("cuKernelFailed", "cuKernelAction", "BC250-CU-001"),
+    # Only an argument the helper does not know, i.e. mismatched builds.
+    "QUICK_ACCESS_CU_SERVICE": ("protocolFailed", "protocolAction", "BC250-PROTOCOL-001"),
+    # Fans.
+    "QUICK_ACCESS_FAN": ("fanOperationFailed", "fanGuidance", "BC250-FAN-001"),
+    "QUICK_ACCESS_FAN_EXTERNAL": ("fanExternalFailed", "fanExternalAction", "BC250-FAN-002"),
+    # CPU.
+    "QUICK_ACCESS_CPU": ("cpuOperationFailed", "cpuGuidance", "BC250-CPU-001"),
+    "QUICK_ACCESS_CPU_VERIFY": ("cpuVerifyFailed", "cpuVerifyAction", "BC250-CPU-001"),
+    "QUICK_ACCESS_CPU_SCALE": ("cpuVerifyFailed", "cpuVerifyAction", "BC250-RANGE-001"),
+    "QUICK_ACCESS_CPU_SCALE_VERIFY": ("cpuVerifyFailed", "cpuVerifyAction", "BC250-CPU-001"),
+    # The desktop catalogue files every "QUICK_ACCESS_CPU_SERVICE:" under
+    # PROTOCOL-001, but the helper also uses it for real service failures.
+    "QUICK_ACCESS_CPU_SERVICE": ("cpuServiceFailed", "cpuServiceAction", "BC250-CPU-001"),
+    # Memory.
+    "QUICK_ACCESS_VRAM": ("vramFailed", "vramAction", "BC250-VRAM-001"),
+    "QUICK_ACCESS_TTM": ("ttmFailed", "ttmAction", "BC250-TTM-001"),
+    "QUICK_ACCESS_GDDR6": ("gddr6Failed", "gddr6Action", "BC250-WORKFLOW-001"),
+    # Per-game profiles.
+    "QUICK_ACCESS_GAME_PROFILES": ("gameProfilesFailed", "gameProfilesAction", "BC250-DECKY-900"),
+}
+_CODE_TOKEN = re.compile(r"\b(QUICK_ACCESS_[A-Z0-9_]+|HARDWARE_CONTEXT)(?=:)")
+#: Wrappers the helper puts around another message, which may name the real
+#: code itself (``QUICK_ACCESS_OPERATION_FAILED: QUICK_ACCESS_VRAM: ...``).
+_WRAPPER_CODES = frozenset({"QUICK_ACCESS_OPERATION_FAILED", "QUICK_ACCESS_INTERNAL"})
+#: The helper's own operation locks raise "Another fan operation is still in
+#: progress." with no code of its own.
+_BUSY_TEXT = re.compile(r"still in progress|still running|already applying", re.IGNORECASE)
+#: Helper actions whose uncoded failures (a sub-helper's raw stderr) belong to
+#: one area. The GPU ones differ by exit status: 23 is Cyan's SetRange, 24 a
+#: Cyan restart, anything else the governor configuration helper.
+_AREA_CODES = {
+    "cu": "QUICK_ACCESS_CU_BACKEND", "cpu": "QUICK_ACCESS_CPU", "fan": "QUICK_ACCESS_FAN",
+    "vram": "QUICK_ACCESS_VRAM", "ttm": "QUICK_ACCESS_TTM", "gddr6": "QUICK_ACCESS_GDDR6",
+}
+_GPU_EXIT_CODES = {23: "QUICK_ACCESS_GPU_DBUS", 24: "QUICK_ACCESS_GPU_VERIFY"}
+
+
+def classify_error(text: str, exit_code: int | None = None, action: str = "") -> str:
+    """The stable code for one failure message.
+
+    A code the message names wins, the first specific one before a wrapper.
+    Without one, the helper's exit status and the action decide: 2 is a usage
+    error, which here only happens when panel and helper are different builds.
+    """
+    found = [code for code in _CODE_TOKEN.findall(text) if code in ERROR_CODES]
+    specific = [code for code in found if code not in _WRAPPER_CODES]
+    if specific:
+        return specific[0]
+    if _BUSY_TEXT.search(text):
+        return "QUICK_ACCESS_BUSY"
+    if found:
+        return found[0]
+    if exit_code == 2:
+        return "QUICK_ACCESS_PROTOCOL_MISMATCH"
+    if exit_code == 124:
+        return "QUICK_ACCESS_TIMEOUT"
+    area = action.split("-", 1)[0]
+    if area == "gpu":
+        return _GPU_EXIT_CODES.get(exit_code or 0, "QUICK_ACCESS_GPU_CONFIG")
+    return _AREA_CODES.get(area, "QUICK_ACCESS_OPERATION_FAILED")
+
+
+def _failure(code: str, message: str, **extra: object) -> dict:
+    return {"ok": False, "error": message, "error_code": code, **extra}
+
+
+def diagnose(result: dict) -> dict:
+    """What the panel renders for a failed result: title, code, next step."""
+    code = result.get("error_code")
+    if code not in ERROR_CODES:
+        code = classify_error(str(result.get("error") or ""))
+    title, hint, desktop = ERROR_CODES[code]
+    diagnosis: dict[str, object] = {"code": code, "title": title, "hint": hint, "desktop_code": desktop}
+    if type(result.get("exit_code")) is int:
+        diagnosis["exit_code"] = result["exit_code"]
+    return diagnosis
+
+
+def _diagnosed(method):
+    """Give every failed RPC result its diagnosis, and turn a backend
+    exception into one instead of a rejected call with Python's text."""
+
+    @functools.wraps(method)
+    async def wrapper(self, *args, **kwargs):
+        try:
+            result = await method(self, *args, **kwargs)
+        except Exception as error:  # the RPC boundary: nothing may escape raw
+            message = f"{type(error).__name__}: {error}"
+            decky.logger.info("BC250 backend error in %s: %s", method.__name__, message[-300:])
+            self._record_diagnostic("backend", method.__name__, message, "QUICK_ACCESS_BACKEND")
+            result = _failure("QUICK_ACCESS_BACKEND", message)
+        if isinstance(result, dict) and result.get("ok") is False:
+            diagnosis = diagnose(result)
+            result = {**result, "error_code": diagnosis["code"], "diagnosis": diagnosis}
+        return result
+
+    return wrapper
+
+
 class Plugin:
     def __init__(self) -> None:
         self._operation_lock = asyncio.Lock()
@@ -820,11 +976,12 @@ class Plugin:
             # The helper's own one-line diagnosis (never a register dump or a
             # player string), so a failure can be explained after the toast.
             error = " ".join(str(result.get("error") or "").split())[-300:]
-            decky.logger.info("BC250 operation module=%s error=%s", module, error)
-            self._record_diagnostic(module, target, str(result.get("error") or ""))
+            code = diagnose(result)["code"]
+            decky.logger.info("BC250 operation module=%s code=%s error=%s", module, code, error)
+            self._record_diagnostic(module, target, str(result.get("error") or ""), code)
         return result
 
-    def _record_diagnostic(self, module: str, target: str, error: str) -> None:
+    def _record_diagnostic(self, module: str, target: str, error: str, code: str = "") -> None:
         """Append one failure for the desktop's Settings › Diagnostics.
 
         A file of its own beside the plugin settings: the desktop journal lives
@@ -839,6 +996,8 @@ class Plugin:
             "target": target,
             "error": error.strip()[-MAX_DIAGNOSTIC_DETAIL:],
         }
+        if code:
+            entry["code"] = code
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
             try:
@@ -876,6 +1035,11 @@ class Plugin:
 
     @staticmethod
     def _contract_disagreement() -> str:
+        """The contract problem's sentence; empty when everything agrees."""
+        return Plugin._contract_problem()[1]
+
+    @staticmethod
+    def _contract_problem() -> tuple[str, str]:
         """Read the shared contract and check this file was built against it.
 
         Called from ``_run``, not at import time, and that matters: Decky
@@ -884,12 +1048,13 @@ class Plugin:
         why. From inside ``_run`` the same problem reaches the panel as one
         sentence with one recovery action.
 
-        Returns an empty string when everything agrees.
+        Returns (error code, sentence); both empty when everything agrees.
         """
         try:
             metadata = CONTRACT_PATH.lstat()
         except OSError:
-            return ("BC250 shared contract is not installed. "
+            return ("QUICK_ACCESS_COMPONENT_MISSING",
+                    "BC250 shared contract is not installed. "
                     "Reinstall BC250 Control Center from Desktop Mode.")
         if (
             not stat.S_ISREG(metadata.st_mode)
@@ -897,7 +1062,8 @@ class Plugin:
             or metadata.st_uid != 0
             or metadata.st_mode & 0o022
         ):
-            return ("BC250 shared contract is not a protected root-owned file. "
+            return ("QUICK_ACCESS_COMPONENT_MISSING",
+                    "BC250 shared contract is not a protected root-owned file. "
                     "Reinstall BC250 Control Center from Desktop Mode.")
         try:
             # ``-B`` is not implied here; avoid leaving a root-owned cache in
@@ -909,32 +1075,42 @@ class Plugin:
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
         except (OSError, ImportError, SyntaxError, ValueError):
-            return ("BC250 shared contract could not be read. "
+            return ("QUICK_ACCESS_COMPONENT_MISSING",
+                    "BC250 shared contract could not be read. "
                     "Reinstall BC250 Control Center from Desktop Mode.")
         if module.CONTRACT_REVISION != REQUIRED_CONTRACT_REVISION:
-            return (f"BC250 Quick Access was built for contract revision "
+            return ("QUICK_ACCESS_PROTOCOL_MISMATCH",
+                    f"BC250 Quick Access was built for contract revision "
                     f"{REQUIRED_CONTRACT_REVISION} and this system has "
                     f"{module.CONTRACT_REVISION}. Reinstall both from Desktop Mode.")
         if module.QUICK_ACCESS_PROTOCOL != HELPER_PROTOCOL:
-            return ("BC250 Quick Access and the installed helper are different "
+            return ("QUICK_ACCESS_PROTOCOL_MISMATCH",
+                    "BC250 Quick Access and the installed helper are different "
                     "versions. Reinstall both from Desktop Mode.")
         if tuple(CPU_FREQUENCIES) != module.cpu_frequency_ladder():
-            return ("BC250 Quick Access disagrees with this system about the CPU "
+            return ("QUICK_ACCESS_PROTOCOL_MISMATCH",
+                    "BC250 Quick Access disagrees with this system about the CPU "
                     "frequency range. Reinstall both from Desktop Mode.")
         if tuple(CU_MODES) != tuple(str(value) for value in module.cu_targets()):
-            return ("BC250 Quick Access disagrees with this system about the "
+            return ("QUICK_ACCESS_PROTOCOL_MISMATCH",
+                    "BC250 Quick Access disagrees with this system about the "
                     "Compute Units range. Reinstall both from Desktop Mode.")
         if VRAM_SIZE_PRESETS_MB != tuple(module.VRAM_SIZE_PRESETS_MB):
-            return ("BC250 Quick Access disagrees with this system about the "
+            return ("QUICK_ACCESS_PROTOCOL_MISMATCH",
+                    "BC250 Quick Access disagrees with this system about the "
                     "VRAM presets. Reinstall both from Desktop Mode.")
-        return ""
+        return "", ""
 
     def _run(self, *args: str, timeout: int = 190) -> dict:
+        action = args[0] if args else ""
         if not self._trusted_helper():
-            return {"ok": False, "error": "BC250 helper is missing or not protected. Reinstall BC250 Quick Access from Desktop Mode."}
-        disagreement = self._contract_disagreement()
+            return _failure(
+                "QUICK_ACCESS_COMPONENT_MISSING",
+                "BC250 helper is missing or not protected. Reinstall BC250 Quick Access from Desktop Mode.",
+            )
+        code, disagreement = self._contract_problem()
         if disagreement:
-            return {"ok": False, "error": disagreement}
+            return _failure(code, disagreement)
         try:
             result = subprocess.run(
                 [str(HELPER), *args], text=True, capture_output=True,
@@ -942,10 +1118,24 @@ class Plugin:
                 env={"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "LANG": "C.UTF-8", "LC_ALL": "C.UTF-8"},
             )
         except subprocess.TimeoutExpired:
-            return {"ok": False, "error": "BC250 operation timed out; verify state in the full application."}
+            return _failure(
+                "QUICK_ACCESS_TIMEOUT",
+                f"BC250 {action} did not finish within {timeout} s; verify state in the full application.",
+            )
+        except OSError as error:
+            # Passed _trusted_helper() and still cannot start: a broken
+            # interpreter line or a file replaced between the check and here.
+            return _failure(
+                "QUICK_ACCESS_COMPONENT_MISSING",
+                f"BC250 helper could not start ({type(error).__name__}: {error}). "
+                "Reinstall BC250 Quick Access from Desktop Mode.",
+            )
         output = (result.stdout or "").strip()
         if result.returncode:
-            return {"ok": False, "error": (result.stderr or output or "BC250 helper failed.").strip()[-4000:]}
+            error = (result.stderr or output or "BC250 helper failed.").strip()[-4000:]
+            return _failure(
+                classify_error(error, result.returncode, action), error, exit_code=result.returncode,
+            )
         try:
             payload = json.loads(output)
         except json.JSONDecodeError:
@@ -957,13 +1147,11 @@ class Plugin:
         if result.get("ok") is False:
             return result
         if type(result.get("protocol")) is not int or result["protocol"] != HELPER_PROTOCOL:
-            return {
-                "ok": False,
-                "error": (
-                    "BC250 Quick Access helper protocol is incompatible. "
-                    "Reinstall BC250 Control Center from Desktop Mode."
-                ),
-            }
+            return _failure(
+                "QUICK_ACCESS_PROTOCOL_MISMATCH",
+                "BC250 Quick Access helper protocol is incompatible. "
+                "Reinstall BC250 Control Center from Desktop Mode.",
+            )
         return result
 
     def _run_verified(self, *args: str, timeout: int = 190) -> dict:
@@ -1037,6 +1225,11 @@ class Plugin:
             result.pop("gpu_custom_profiles", None)
             result["cpu_profiles"] = _validated_cpu_profiles(result.get("cpu_custom_profiles"))
             result.pop("cpu_custom_profiles", None)
+            # States, not failed calls, but the panel names them the same way.
+            if result.get("cpu_tuning_error"):
+                result["cpu_tuning_diagnosis"] = diagnose({"error": str(result["cpu_tuning_error"])})
+            if result.get("gpu_dbus_responsive") is False:
+                result["gpu_dbus_diagnosis"] = diagnose({"error_code": "QUICK_ACCESS_GPU_DBUS"})
         return result
 
     async def cpu_telemetry(self) -> dict:
@@ -1051,10 +1244,10 @@ class Plugin:
         if result.get("ok") is False:
             return result
         if type(result.get("protocol")) is not int or result["protocol"] != HELPER_PROTOCOL:
-            return {
-                "ok": False,
-                "error": "BC250 CPU telemetry protocol is incompatible. Reinstall BC250 Control Center from Desktop Mode.",
-            }
+            return _failure(
+                "QUICK_ACCESS_PROTOCOL_MISMATCH",
+                "BC250 CPU telemetry protocol is incompatible. Reinstall BC250 Control Center from Desktop Mode.",
+            )
         return result
 
     async def gddr6_sensors(self) -> dict:
@@ -1070,10 +1263,10 @@ class Plugin:
         if result.get("ok") is False:
             return result
         if type(result.get("protocol")) is not int or result["protocol"] != HELPER_PROTOCOL:
-            return {
-                "ok": False,
-                "error": "BC250 GDDR6 sensor protocol is incompatible. Reinstall BC250 Control Center from Desktop Mode.",
-            }
+            return _failure(
+                "QUICK_ACCESS_PROTOCOL_MISMATCH",
+                "BC250 GDDR6 sensor protocol is incompatible. Reinstall BC250 Control Center from Desktop Mode.",
+            )
         return result
 
     async def apply_gddr6_patch(self) -> dict:
@@ -1084,7 +1277,10 @@ class Plugin:
         """
         result = await self._run_single_operation("gddr6-patch", timeout=200)
         if result.get("ok") is not False and result.get("protocol") not in (None, HELPER_PROTOCOL):
-            return {"ok": False, "error": "BC250 GDDR6 protocol is incompatible. Reinstall BC250 Control Center from Desktop Mode."}
+            return _failure(
+                "QUICK_ACCESS_PROTOCOL_MISMATCH",
+                "BC250 GDDR6 protocol is incompatible. Reinstall BC250 Control Center from Desktop Mode.",
+            )
         return self._record_action("gddr6", "patch", result)
 
     async def monitor_snapshot(self) -> dict:
@@ -1101,10 +1297,10 @@ class Plugin:
         if result.get("ok") is False:
             return result
         if type(result.get("protocol")) is not int or result["protocol"] != HELPER_PROTOCOL:
-            return {
-                "ok": False,
-                "error": "BC250 Quick Access sensor protocol is incompatible. Reinstall BC250 Control Center from Desktop Mode.",
-            }
+            return _failure(
+                "QUICK_ACCESS_PROTOCOL_MISMATCH",
+                "BC250 Quick Access sensor protocol is incompatible. Reinstall BC250 Control Center from Desktop Mode.",
+            )
         # Both are plain /run and /proc reads with no helper subprocess at
         # all, so they belong beside qam-sensors rather than inside status():
         # a status() call cannot even acquire the helper lock while a write
@@ -1127,10 +1323,10 @@ class Plugin:
     async def _run_single_operation(self, *args: str, timeout: int = 190) -> dict:
         """Run one protected helper operation at a time, never queue clicks."""
         if self._operation_lock.locked():
-            return {
-                "ok": False,
-                "error": "BC250 Quick Access is already applying an operation. Wait for its verified result before choosing another control.",
-            }
+            return _failure(
+                "QUICK_ACCESS_BUSY",
+                "BC250 Quick Access is already applying an operation. Wait for its verified result before choosing another control.",
+            )
         async with self._operation_lock:
             self._running_operation = {
                 "action": args[0],
@@ -1145,12 +1341,12 @@ class Plugin:
 
     async def apply_gpu_profile(self, profile: str) -> dict:
         if profile not in GPU_PROFILES:
-            return {"ok": False, "error": "Unsupported GPU Quick Access profile."}
+            return _failure("QUICK_ACCESS_INVALID_REQUEST", "Unsupported GPU Quick Access profile.")
         if self._operation_lock.locked():
-            return {
-                "ok": False,
-                "error": "A BC250 operation is still running. Wait for the verified result before changing the GPU range.",
-            }
+            return _failure(
+                "QUICK_ACCESS_BUSY",
+                "A BC250 operation is still running. Wait for the verified result before changing the GPU range.",
+            )
         async with self._operation_lock:
             # The root helper accepts only a named profile and performs its
             # own active-governor validation and backend-specific read-back.
@@ -1169,18 +1365,18 @@ class Plugin:
         RPC contract without performing an extra, slow whole-panel status scan.
         """
         if isinstance(frequency, bool) or type(frequency) not in {int, str}:
-            return {"ok": False, "error": "Unsupported GPU safe-point."}
+            return _failure("QUICK_ACCESS_INVALID_REQUEST", "Unsupported GPU safe-point.")
         try:
             normalized = int(frequency)
         except (TypeError, ValueError, OverflowError):
-            return {"ok": False, "error": "Unsupported GPU safe-point."}
+            return _failure("QUICK_ACCESS_INVALID_REQUEST", "Unsupported GPU safe-point.")
         if str(normalized) != str(frequency):
-            return {"ok": False, "error": "Unsupported GPU safe-point."}
+            return _failure("QUICK_ACCESS_INVALID_REQUEST", "Unsupported GPU safe-point.")
         if self._operation_lock.locked():
-            return {
-                "ok": False,
-                "error": "A BC250 operation is still running. Wait for its verified result before changing the GPU range.",
-            }
+            return _failure(
+                "QUICK_ACCESS_BUSY",
+                "A BC250 operation is still running. Wait for its verified result before changing the GPU range.",
+            )
         async with self._operation_lock:
             result = await self._run_gpu_range_write("gpu-safe-point", str(normalized))
             return self._record_action("gpu", f"toml-{normalized}", result)
@@ -1193,10 +1389,10 @@ class Plugin:
         put back afterwards.
         """
         if self._operation_lock.locked():
-            return {
-                "ok": False,
-                "error": "A BC250 operation is still running. Wait for its verified result before changing the GPU TOML.",
-            }
+            return _failure(
+                "QUICK_ACCESS_BUSY",
+                "A BC250 operation is still running. Wait for its verified result before changing the GPU TOML.",
+            )
         async with self._operation_lock:
             async with self._helper_lock:
                 result = await asyncio.to_thread(
@@ -1212,12 +1408,12 @@ class Plugin:
         governors run, and reads systemd back before it reports success.
         """
         if type(enabled) is not bool:
-            return {"ok": False, "error": "Unsupported GPU governor service request."}
+            return _failure("QUICK_ACCESS_INVALID_REQUEST", "Unsupported GPU governor service request.")
         if self._operation_lock.locked():
-            return {
-                "ok": False,
-                "error": "A BC250 operation is still running. Wait for its verified result before changing the GPU governor service.",
-            }
+            return _failure(
+                "QUICK_ACCESS_BUSY",
+                "A BC250 operation is still running. Wait for its verified result before changing the GPU governor service.",
+            )
         async with self._operation_lock:
             async with self._helper_lock:
                 result = await asyncio.to_thread(
@@ -1233,12 +1429,12 @@ class Plugin:
         plain range change.
         """
         if isinstance(level, bool) or type(level) is not int or level not in (0, 1, 2, 3):
-            return {"ok": False, "error": "Unsupported GPU voltage level."}
+            return _failure("QUICK_ACCESS_INVALID_REQUEST", "Unsupported GPU voltage level.")
         if self._operation_lock.locked():
-            return {
-                "ok": False,
-                "error": "A BC250 operation is still running. Wait for its verified result before changing the GPU voltage curve.",
-            }
+            return _failure(
+                "QUICK_ACCESS_BUSY",
+                "A BC250 operation is still running. Wait for its verified result before changing the GPU voltage curve.",
+            )
         async with self._operation_lock:
             async with self._helper_lock:
                 result = await asyncio.to_thread(
@@ -1261,12 +1457,12 @@ class Plugin:
             or usage_method not in ("busy-flag", "process", "kernel")
             or type(fix_metrics) is not bool or type(fix_frequency) is not bool
         ):
-            return {"ok": False, "error": "Unsupported Cyan compatibility request."}
+            return _failure("QUICK_ACCESS_INVALID_REQUEST", "Unsupported Cyan compatibility request.")
         if self._operation_lock.locked():
-            return {
-                "ok": False,
-                "error": "A BC250 operation is still running. Wait for its verified result before changing the Cyan compatibility.",
-            }
+            return _failure(
+                "QUICK_ACCESS_BUSY",
+                "A BC250 operation is still running. Wait for its verified result before changing the Cyan compatibility.",
+            )
         async with self._operation_lock:
             async with self._helper_lock:
                 result = await asyncio.to_thread(
@@ -1279,24 +1475,24 @@ class Plugin:
     async def apply_gpu_voltage_points(self, points: list[dict]) -> dict:
         """Set a few TOML points; the helper bounds each one again."""
         if not isinstance(points, list) or not 1 <= len(points) <= 17:
-            return {"ok": False, "error": "Unsupported GPU voltage request."}
+            return _failure("QUICK_ACCESS_INVALID_REQUEST", "Unsupported GPU voltage request.")
         arguments: list[str] = []
         for point in points:
             if not isinstance(point, dict):
-                return {"ok": False, "error": "Unsupported GPU voltage request."}
+                return _failure("QUICK_ACCESS_INVALID_REQUEST", "Unsupported GPU voltage request.")
             frequency, voltage = point.get("frequency"), point.get("voltage")
             if (
                 isinstance(frequency, bool) or isinstance(voltage, bool)
                 or type(frequency) is not int or type(voltage) is not int
                 or not 100 <= frequency <= 3000 or not 600 <= voltage <= 1210
             ):
-                return {"ok": False, "error": "Unsupported GPU voltage request."}
+                return _failure("QUICK_ACCESS_INVALID_REQUEST", "Unsupported GPU voltage request.")
             arguments.append(f"{frequency}={voltage}")
         if self._operation_lock.locked():
-            return {
-                "ok": False,
-                "error": "A BC250 operation is still running. Wait for its verified result before changing the GPU voltage curve.",
-            }
+            return _failure(
+                "QUICK_ACCESS_BUSY",
+                "A BC250 operation is still running. Wait for its verified result before changing the GPU voltage curve.",
+            )
         async with self._operation_lock:
             async with self._helper_lock:
                 result = await asyncio.to_thread(
@@ -1308,19 +1504,19 @@ class Plugin:
         aliases = {"stock": "24", "full": "40"}
         mode = aliases.get(str(mode), str(mode))
         if mode not in CU_MODES:
-            return {"ok": False, "error": "Unsupported CU Quick Access mode."}
+            return _failure("QUICK_ACCESS_INVALID_REQUEST", "Unsupported CU Quick Access mode.")
         result = await self._run_single_operation("cu-mode", mode, timeout=480)
         return self._record_action("cu", mode, result)
 
     async def apply_cu_table(self, masks: list[int] | tuple[int, ...]) -> dict:
         """Apply exactly four bounded WGP row masks through the closed helper."""
         if not isinstance(masks, (list, tuple)) or len(masks) != 4:
-            return {"ok": False, "error": "A CU table must contain exactly four row masks."}
+            return _failure("QUICK_ACCESS_INVALID_REQUEST", "A CU table must contain exactly four row masks.")
         if any(type(mask) is not int or not 0 <= mask <= 0x1F for mask in masks):
-            return {"ok": False, "error": "Every CU row mask must be an integer from 0 through 31."}
+            return _failure("QUICK_ACCESS_INVALID_REQUEST", "Every CU row mask must be an integer from 0 through 31.")
         active_cus = sum(mask.bit_count() * 2 for mask in masks)
         if active_cus not in range(24, 41, 2):
-            return {"ok": False, "error": "Quick Access CU tables must route 24 through 40 CUs in WGP pairs."}
+            return _failure("QUICK_ACCESS_INVALID_REQUEST", "Quick Access CU tables must route 24 through 40 CUs in WGP pairs.")
         normalized = tuple(str(mask) for mask in masks)
         result = await self._run_single_operation("cu-table", *normalized, timeout=480)
         target = f"{active_cus}cu:{'-'.join(f'{mask:02x}' for mask in masks)}"
@@ -1329,12 +1525,12 @@ class Plugin:
     async def save_cu_table(self, masks: list[int] | tuple[int, ...]) -> dict:
         """Apply and persist exactly one bounded four-row WGP table."""
         if not isinstance(masks, (list, tuple)) or len(masks) != 4:
-            return {"ok": False, "error": "A CU table must contain exactly four row masks."}
+            return _failure("QUICK_ACCESS_INVALID_REQUEST", "A CU table must contain exactly four row masks.")
         if any(type(mask) is not int or not 0 <= mask <= 0x1F for mask in masks):
-            return {"ok": False, "error": "Every CU row mask must be an integer from 0 through 31."}
+            return _failure("QUICK_ACCESS_INVALID_REQUEST", "Every CU row mask must be an integer from 0 through 31.")
         active_cus = sum(mask.bit_count() * 2 for mask in masks)
         if active_cus not in range(24, 41, 2):
-            return {"ok": False, "error": "Quick Access CU tables must route 24 through 40 CUs in WGP pairs."}
+            return _failure("QUICK_ACCESS_INVALID_REQUEST", "Quick Access CU tables must route 24 through 40 CUs in WGP pairs.")
         result = await self._run_single_operation(
             "cu-save", *(str(mask) for mask in masks), timeout=660,
         )
@@ -1351,32 +1547,32 @@ class Plugin:
 
     async def apply_system_fan_preset(self, preset: str) -> dict:
         if preset not in FAN_PRESETS:
-            return {"ok": False, "error": "Unsupported system-fan preset."}
+            return _failure("QUICK_ACCESS_INVALID_REQUEST", "Unsupported system-fan preset.")
         result = await self._run_single_operation("fan-system", preset, timeout=30)
         return self._record_action("fan", preset, result)
 
     async def apply_fan_channel(self, channel: int, target: int | str) -> dict:
         """Apply one temporary setting without exposing a generic root argv."""
         if isinstance(channel, bool) or type(channel) not in {int, str}:
-            return {"ok": False, "error": "Unsupported Quick Access fan channel."}
+            return _failure("QUICK_ACCESS_INVALID_REQUEST", "Unsupported Quick Access fan channel.")
         try:
             normalized_channel = int(channel)
         except (TypeError, ValueError, OverflowError):
-            return {"ok": False, "error": "Unsupported Quick Access fan channel."}
+            return _failure("QUICK_ACCESS_INVALID_REQUEST", "Unsupported Quick Access fan channel.")
         if str(normalized_channel) != str(channel) or normalized_channel not in FAN_CHANNELS:
-            return {"ok": False, "error": "Unsupported Quick Access fan channel."}
+            return _failure("QUICK_ACCESS_INVALID_REQUEST", "Unsupported Quick Access fan channel.")
 
         if target == "automatic":
             normalized_target = "automatic"
         else:
             if isinstance(target, bool) or type(target) not in {int, str}:
-                return {"ok": False, "error": "Fan speed must be Automatic or 20–100%."}
+                return _failure("QUICK_ACCESS_INVALID_REQUEST", "Fan speed must be Automatic or 20–100%.")
             try:
                 percent = int(target)
             except (TypeError, ValueError, OverflowError):
-                return {"ok": False, "error": "Fan speed must be Automatic or 20–100%."}
+                return _failure("QUICK_ACCESS_INVALID_REQUEST", "Fan speed must be Automatic or 20–100%.")
             if str(percent) != str(target) or not FAN_MIN_PERCENT <= percent <= FAN_MAX_PERCENT:
-                return {"ok": False, "error": "Fan speed must be Automatic or 20–100%."}
+                return _failure("QUICK_ACCESS_INVALID_REQUEST", "Fan speed must be Automatic or 20–100%.")
             normalized_target = str(percent)
 
         result = await self._run_single_operation(
@@ -1396,23 +1592,28 @@ class Plugin:
             raise ValueError(f"Unsupported CPU {label}.")
         return normalized
 
-    async def apply_cpu_tuning(self, frequency: int, vid: int) -> dict:
+    async def apply_cpu_tuning(
+        self, frequency: int, vid: int, temperature: int = CPU_DEFAULT_TEMPERATURE
+    ) -> dict:
         try:
             frequency = self._cpu_value(frequency, CPU_FREQUENCIES, "frequency")
             vid = self._cpu_value(vid, CPU_VIDS, "maximum VID")
+            temperature = self._cpu_value(temperature, CPU_TEMPERATURES, "thermal limit")
         except ValueError as exc:
-            return {"ok": False, "error": str(exc)}
+            return _failure("QUICK_ACCESS_INVALID_REQUEST", str(exc))
+        # The default cap keeps the two-argument call an older helper accepts.
+        cap = () if temperature == CPU_DEFAULT_TEMPERATURE else (str(temperature),)
         result = await self._run_single_operation(
-            "cpu-detect", str(frequency), str(vid), timeout=920,
+            "cpu-detect", str(frequency), str(vid), *cap, timeout=920,
         )
-        return self._record_action("cpu", f"detect-{frequency}:{vid}", result)
+        return self._record_action("cpu", f"detect-{frequency}:{vid}:{temperature}", result)
 
     async def apply_cpu_scale(self, frequency: int, scale: int) -> dict:
         try:
             frequency = self._cpu_value(frequency, CPU_FREQUENCIES, "frequency")
             scale = self._cpu_value(scale, CPU_SCALES, "scale")
         except ValueError as exc:
-            return {"ok": False, "error": str(exc)}
+            return _failure("QUICK_ACCESS_INVALID_REQUEST", str(exc))
         result = await self._run_single_operation(
             "cpu-scale", str(frequency), str(scale), timeout=620,
         )
@@ -1435,17 +1636,17 @@ class Plugin:
     async def apply_vram_size(self, size_mb: int) -> dict:
         """Write one VRAM (UMA_SIZE) preset to CMOS. Activates on next reboot."""
         if isinstance(size_mb, bool) or type(size_mb) not in {int, str}:
-            return {"ok": False, "error": "Unsupported VRAM size."}
+            return _failure("QUICK_ACCESS_INVALID_REQUEST", "Unsupported VRAM size.")
         try:
             normalized = int(size_mb)
         except (TypeError, ValueError, OverflowError):
-            return {"ok": False, "error": "Unsupported VRAM size."}
+            return _failure("QUICK_ACCESS_INVALID_REQUEST", "Unsupported VRAM size.")
         if (
             str(normalized) != str(size_mb)
             or normalized not in VRAM_SIZE_PRESETS_MB
             or normalized in VRAM_SIZE_BLOCKED_MB
         ):
-            return {"ok": False, "error": "Unsupported VRAM size."}
+            return _failure("QUICK_ACCESS_INVALID_REQUEST", "Unsupported VRAM size.")
         result = await self._run_single_operation("vram-apply", str(normalized), timeout=30)
         return self._record_action("vram", str(normalized), result)
 
@@ -1462,10 +1663,10 @@ class Plugin:
     async def apply_ttm_limit(self, value: int | str) -> dict:
         """Set the GPU memory limit for the next boot (8/10/12 GiB) or remove it."""
         if isinstance(value, bool) or type(value) not in {int, str}:
-            return {"ok": False, "error": "Unsupported GPU memory limit."}
+            return _failure("QUICK_ACCESS_INVALID_REQUEST", "Unsupported GPU memory limit.")
         normalized = str(value).strip().lower()
         if normalized not in TTM_CHOICES:
-            return {"ok": False, "error": "Unsupported GPU memory limit."}
+            return _failure("QUICK_ACCESS_INVALID_REQUEST", "Unsupported GPU memory limit.")
         # rpm-ostree writes a whole new deployment on Bazzite.
         result = await self._run_single_operation("ttm-apply", normalized, timeout=260)
         return self._record_action("ttm", normalized, result)
@@ -1497,21 +1698,21 @@ class Plugin:
     async def save_game_profile(self, app_id: int | str, name: str, gpu: str | None, fan: str | None) -> dict:
         key = _app_id(app_id)
         if key is None:
-            return {"ok": False, "error": "Unsupported game id."}
+            return _failure("QUICK_ACCESS_INVALID_REQUEST", "Unsupported game id.")
         gpu = gpu or None
         fan = fan or None
         if gpu is not None and gpu not in GPU_PROFILES:
-            return {"ok": False, "error": "Unsupported GPU Quick Access profile."}
+            return _failure("QUICK_ACCESS_INVALID_REQUEST", "Unsupported GPU Quick Access profile.")
         if fan is not None and fan not in GAME_FAN_PRESETS:
-            return {"ok": False, "error": "Unsupported system-fan preset."}
+            return _failure("QUICK_ACCESS_INVALID_REQUEST", "Unsupported system-fan preset.")
         entry = _game_entry({"name": name, "gpu": gpu, "fan": fan})
         if entry is None:
-            return {"ok": False, "error": "Choose a GPU profile or a fan preset for this game."}
+            return _failure("QUICK_ACCESS_INVALID_REQUEST", "Choose a GPU profile or a fan preset for this game.")
         async with self._game_lock:
             path = self._game_store_path()
             store = await asyncio.to_thread(_load_game_store, path)
             if key not in store["games"] and len(store["games"]) >= MAX_GAME_PROFILES:
-                return {"ok": False, "error": "The per-game profile list is full. Remove a game first."}
+                return _failure("QUICK_ACCESS_GAME_PROFILES", "The per-game profile list is full. Remove a game first.")
             store["games"][key] = entry
             await asyncio.to_thread(_save_game_store, path, store)
         decky.logger.info("BC250 game profile saved app=%s gpu=%s fan=%s", key, gpu, fan)
@@ -1520,7 +1721,7 @@ class Plugin:
     async def remove_game_profile(self, app_id: int | str) -> dict:
         key = _app_id(app_id)
         if key is None:
-            return {"ok": False, "error": "Unsupported game id."}
+            return _failure("QUICK_ACCESS_INVALID_REQUEST", "Unsupported game id.")
         async with self._game_lock:
             path = self._game_store_path()
             store = await asyncio.to_thread(_load_game_store, path)
@@ -1530,7 +1731,7 @@ class Plugin:
 
     async def set_game_profiles_enabled(self, enabled: bool) -> dict:
         if type(enabled) is not bool:
-            return {"ok": False, "error": "Unsupported per-game profile request."}
+            return _failure("QUICK_ACCESS_INVALID_REQUEST", "Unsupported per-game profile request.")
         async with self._game_lock:
             path = self._game_store_path()
             store = await asyncio.to_thread(_load_game_store, path)
@@ -1548,7 +1749,7 @@ class Plugin:
         """
         key = _app_id(app_id)
         if key is None or type(refresh) is not bool:
-            return {"ok": False, "applied": False, "error": "Unsupported game id."}
+            return _failure("QUICK_ACCESS_INVALID_REQUEST", "Unsupported game id.", applied=False)
         async with self._game_lock:
             path = self._game_store_path()
             store = await asyncio.to_thread(_load_game_store, path)
@@ -1564,10 +1765,10 @@ class Plugin:
             if not store.get("enabled") or entry is None:
                 return {"ok": True, "applied": False, "reason": "no-profile"}
             if self._operation_lock.locked():
-                return {
-                    "ok": False, "applied": False,
-                    "error": "A BC250 operation is still running; this game's profile was not applied.",
-                }
+                return _failure(
+                    "QUICK_ACCESS_BUSY",
+                    "A BC250 operation is still running; this game's profile was not applied.", applied=False,
+                )
             async with self._operation_lock, self._helper_lock:
                 result = await asyncio.to_thread(
                     self._apply_game_profile, key, _game_name(name) or str(entry["name"]), entry,
@@ -1579,7 +1780,7 @@ class Plugin:
     async def game_stopped(self, app_id: int | str) -> dict:
         key = _app_id(app_id)
         if key is None:
-            return {"ok": False, "restored": False, "error": "Unsupported game id."}
+            return _failure("QUICK_ACCESS_INVALID_REQUEST", "Unsupported game id.", restored=False)
         async with self._game_lock:
             store = await asyncio.to_thread(_load_game_store, self._game_store_path())
             session = store.get("session")
@@ -1600,7 +1801,10 @@ class Plugin:
     def _apply_game_profile(self, app_id: str, name: str, entry: dict) -> dict:
         status = self._verified_status()
         if status.get("ok") is False:
-            return {"ok": False, "applied": False, "error": status.get("error"), "session": None}
+            return {
+                "ok": False, "applied": False, "error": status.get("error"),
+                "error_code": status.get("error_code"), "session": None,
+            }
         self._decorate_status(status)
         gpu_key, safe_point = _current_gpu_choice(status)
         live_fan = status.get("system_fan_preset")
@@ -1612,16 +1816,19 @@ class Plugin:
         }
         applied: dict[str, str | None] = {"gpu": None, "fan": None}
         errors: list[str] = []
+        codes: list[str] = []
         if entry.get("gpu") and entry["gpu"] != gpu_key:
             result = self._record_action("gpu", f"game-{entry['gpu']}", self._note_gpu_write(self._run("gpu-profile", str(entry["gpu"]), timeout=30)))
             if result.get("ok") is False:
                 errors.append(str(result.get("error") or "GPU profile failed."))
+                codes.append(str(result.get("error_code") or ""))
             else:
                 applied["gpu"] = str(entry["gpu"])
         if entry.get("fan") and entry["fan"] != snapshot["fan"]:
             result = self._record_action("fan", f"game-{entry['fan']}", self._run("fan-system", str(entry["fan"]), timeout=30))
             if result.get("ok") is False:
                 errors.append(str(result.get("error") or "Fan preset failed."))
+                codes.append(str(result.get("error_code") or ""))
             else:
                 applied["fan"] = str(entry["fan"])
         session = (
@@ -1631,16 +1838,20 @@ class Plugin:
         return {
             "ok": not errors, "applied": session is not None, "name": name,
             "gpu": applied["gpu"], "fan": applied["fan"],
-            "error": " ".join(errors), "session": session,
+            "error": " ".join(errors), "error_code": codes[0] if codes else "", "session": session,
         }
 
     def _restore_game_state(self, session: dict) -> dict:
         snapshot = _game_snapshot(session.get("snapshot"))
         applied = session.get("applied") or {}
         errors: list[str] = []
+        codes: list[str] = []
         status = self._verified_status()
         if status.get("ok") is False:
-            return {"ok": False, "restored": False, "name": session.get("name", ""), "error": status.get("error")}
+            return {
+                "ok": False, "restored": False, "name": session.get("name", ""),
+                "error": status.get("error"), "error_code": status.get("error_code"),
+            }
         operations: list[tuple[str, tuple[str, ...]]] = []
         if applied.get("gpu"):
             if snapshot["gpu"]:
@@ -1664,8 +1875,19 @@ class Plugin:
             result = self._record_action(module, f"restore-{arguments[-1]}", result)
             if result.get("ok") is False:
                 errors.append(str(result.get("error") or "Restore failed."))
-        return {"ok": not errors, "restored": True, "name": session.get("name", ""), "error": " ".join(errors)}
+                codes.append(str(result.get("error_code") or ""))
+        return {
+            "ok": not errors, "restored": True, "name": session.get("name", ""),
+            "error": " ".join(errors), "error_code": codes[0] if codes else "",
+        }
 
     async def apply_saved_cpu_profile(self) -> dict:
         result = await self._run_single_operation("cpu-apply-saved", timeout=920)
         return self._record_action("cpu", "saved", result)
+
+
+# Every public coroutine is a Decky RPC. Wrapping them here rather than one by
+# one means a new RPC cannot forget its diagnosis.
+for _name, _method in list(vars(Plugin).items()):
+    if not _name.startswith("_") and inspect.iscoroutinefunction(_method):
+        setattr(Plugin, _name, _diagnosed(_method))

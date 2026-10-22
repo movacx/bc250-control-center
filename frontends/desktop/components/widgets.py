@@ -36,12 +36,14 @@ from ..core.error_diagnostics import (
     format_error_for_user,
     umr_repair_command,
 )
+from ..core.preferences import report_glow_enabled
 from ..core.raw_errors import find as find_raw_error
 from ..i18n import localize_widget_tree, tr
 from ..theme import COLORS, application_stylesheet, palette_color, semantic_color_key
 from .busy_spinner import BusySpinner
 from .buttons import WrappingButton as QPushButton
 from .dialogs import center_dialog, enable_adaptive_dialog
+from .outline_glow import REPORT_AMBER, OutlineGlow
 
 ICON_DIR = Path(__file__).resolve().parents[1] / "theme" / "icons"
 
@@ -225,6 +227,37 @@ def _dialog_section(heading: str, text: str, *, detail: bool = False) -> QWidget
     else:
         column.addWidget(body)
     return holder
+
+
+class ReportButton(QPushButton):
+    """An error window's way to the report form, glowing like the dashboard's.
+
+    Same amber outline, same rhythm, and the same switch in Settings >
+    General. It stops for good once pressed: by then it has done its job.
+    """
+
+    def __init__(self, text: str) -> None:
+        super().__init__(text)
+        self._outline = OutlineGlow(self)
+        self._outline.set_enabled(report_glow_enabled())
+        self.clicked.connect(lambda: self._outline.set_enabled(False))
+
+    def glowing(self) -> bool:
+        return self._outline.glowing()
+
+    def showEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        super().showEvent(event)
+        self._outline.shown()
+
+    def hideEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        super().hideEvent(event)
+        self._outline.hidden()
+
+    def paintEvent(self, event) -> None:  # noqa: N802 - Qt API name
+        super().paintEvent(event)
+        # The button's own corner: 8 px in the stylesheet, halved by formal.
+        radius = 8.0 * (theme_module.FORMAL_RADIUS_FACTOR if theme_module.ACTIVE_STYLE == "formal" else 1.0)
+        self._outline.paint(REPORT_AMBER, radius * theme_module.ACTIVE_SCALE / 100)
 
 
 def tighten_dialog(dialog: QDialog, scroll: QScrollArea) -> None:
@@ -525,7 +558,7 @@ class InfoDialog(QDialog):
         if tone == "red":
             # Every error window can go straight to the report form, with its
             # code and the part of the app it came from already filled in.
-            report = QPushButton(tr("Report this problem"))
+            report = ReportButton(tr("Report this problem"))
             report.setObjectName("DialogReport")
             report.setIcon(icon("report_amber"))
             report.setCursor(Qt.CursorShape.PointingHandCursor)

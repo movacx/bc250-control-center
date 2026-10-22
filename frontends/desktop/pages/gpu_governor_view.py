@@ -363,7 +363,7 @@ class PickerRow(QFrame):
     # -- interaction ---------------------------------------------------------
     def open_options(self) -> None:
         """Show the choices. Reached by a click, a controller, or Enter."""
-        if not self._items:
+        if not self._items or not self.isEnabled():
             return
         menu = QMenu(self)
         for index, (text, _data) in enumerate(self._items):
@@ -1266,6 +1266,9 @@ class GpuViewState:
     usage_method: str = "busy-flag"
     fix_metrics: bool = True
     fix_frequency: bool = False
+    temp_read: str = "drm"
+    #: None: unknown (no binary found); False: this Cyan ignores temp-read.
+    temp_read_supported: bool | None = None
 
     @classmethod
     def from_backend(cls, gpu: dict, telemetry: dict | None = None) -> "GpuViewState":
@@ -1326,6 +1329,8 @@ class GpuViewState:
             usage_method=str(cyan.get("method") or "busy-flag"),
             fix_metrics=bool(cyan.get("fix_metrics", True)),
             fix_frequency=bool(cyan.get("fix_frequency", False)),
+            temp_read=str(cyan.get("temp_read") or "drm"),
+            temp_read_supported=cyan.get("temp_read_supported"),
         )
 
 
@@ -1537,7 +1542,12 @@ class GpuGovernorView(QWidget):
         self.usage_method_combo = PickerRow("Usage reading")
         for usage_method in ("busy-flag", "process", "kernel"):
             self.usage_method_combo.addItem(usage_method, usage_method)
-        for picker in (self.set_method_combo, self.usage_method_combo):
+        # gpu-usage.temp-read: the same sensor through the DRM ioctl or hwmon
+        # in sysfs; sysfs keeps no DRM client open just for the temperature.
+        self.temp_read_combo = PickerRow("Temperature reading")
+        self.temp_read_combo.addItem("DRM", "drm")
+        self.temp_read_combo.addItem("sysfs", "sysfs")
+        for picker in (self.set_method_combo, self.usage_method_combo, self.temp_read_combo):
             picker.currentIndexChanged.connect(self._mark_compatibility_dirty)
             methods.addWidget(picker, 1)
         compat_box.addLayout(methods)
@@ -1595,6 +1605,9 @@ class GpuGovernorView(QWidget):
         self.apply_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.apply_button.clicked.connect(self._confirm_and_apply)
         actions.addWidget(self.apply_button, 2)
+        # Beside "Save for startup", so it takes that button's measurements:
+        # the regular primary padding left it a few pixels taller.
+        self.apply_button.setProperty("ghostSized", True)
         card.body.addLayout(actions)
         card.body.addStretch(1)
         return card
@@ -1814,6 +1827,7 @@ class GpuGovernorView(QWidget):
         self._frequencies_toggle.setText(governor_fix_label("frequency"))
         self.set_method_combo.retranslate()
         self.usage_method_combo.retranslate()
+        self.temp_read_combo.retranslate()
         self._refresh_risk_caption()
         self._busy_badge.retranslate()
         self._advanced_toggle.setText(
@@ -1874,6 +1888,12 @@ class GpuGovernorView(QWidget):
             "usage_method": str(self.usage_method_combo.currentData() or "busy-flag"),
             "metrics": self._metrics_toggle.isChecked(),
             "frequencies": self._frequencies_toggle.isChecked(),
+            # Only for a Cyan that reads it; otherwise the line stays as is.
+            "temp_read": (
+                str(self.temp_read_combo.currentData() or "drm")
+                if self.temp_read_combo.isEnabled()
+                else None
+            ),
         }
 
     def _sync_compatibility(self, state: "GpuViewState") -> None:
@@ -1882,6 +1902,7 @@ class GpuGovernorView(QWidget):
         widgets = (
             self.set_method_combo,
             self.usage_method_combo,
+            self.temp_read_combo,
             self._metrics_toggle,
             self._frequencies_toggle,
         )
@@ -1891,12 +1912,25 @@ class GpuGovernorView(QWidget):
             usage_index = self.usage_method_combo.findData(state.usage_method)
             self.set_method_combo.setCurrentIndex(max(0, set_index))
             self.usage_method_combo.setCurrentIndex(max(0, usage_index))
+            self.temp_read_combo.setCurrentIndex(max(0, self.temp_read_combo.findData(state.temp_read)))
             self._metrics_toggle.setChecked(state.fix_metrics)
             self._frequencies_toggle.setChecked(state.fix_frequency)
         finally:
             for widget, previous in zip(widgets, blocked, strict=True):
                 widget.blockSignals(previous)
         self._sync_process_method_warning()
+        # An older Cyan ignores temp-read: shown, so the option is known, but
+        # not sent. Unknown (no binary found) is left usable.
+        supported = state.temp_read_supported is not False
+        self.temp_read_combo.setEnabled(supported)
+        self.temp_read_combo.setToolTip(
+            tr(
+                "Where Cyan reads the GPU temperature. Both give the same value; "
+                "sysfs keeps no GPU device open just for it. DRM is the default."
+            )
+            if supported
+            else tr("This Cyan version does not read this setting. Update it from Prepare dependencies.")
+        )
 
     # ── interaction ────────────────────────────────────────────────────────
     def _toggle_advanced(self, checked: bool) -> None:

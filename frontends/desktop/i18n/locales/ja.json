@@ -1038,6 +1038,7 @@
   "Decky Quick Access preview": "Decky クイック アクセス プレビュー",
   "Decky Quick Access preview image": "Decky クイック アクセス プレビュー画像",
   "Decky Quick Access uses these names and speeds for its Quiet, Balanced and Boost presets.": "Decky Quick Access は、静音・バランス・ブーストのプリセットにこれらの名前と速度を使います。",
+  "In Game Mode they set every active system fan (PWM3–PWM8) together, never PWM2, and a speed under 20 % runs at 20 %.": "ゲームモードでは、アクティブなシステムファン (PWM3–PWM8) をすべてまとめて設定し、PWM2 には触れません。20 % 未満の速度は 20 % で動作します。",
   "Decky detected": "Decky が検出されました",
   "Decky is a plugin for the console-style interface — Game Mode or Steam Big Picture. Install it and you can change fan speed and clocks from the Steam overlay, with a controller, without coming back to this window.": "Decky は、コンシューマ機ふうの画面（Game Mode や Steam Big Picture）向けのプラグインです。入れておけば、Steam のオーバーレイからコントローラーでファン回転数やクロックを変えられ、この画面に戻る必要がありません。",
   "Decky is detected, but the BC250 Quick Access plugin or its protected helper needs installation or repair.": "Decky は検出されましたが、BC250 クイック アクセス プラグインまたはその保護されたヘルパーをインストールまたは修復する必要があります。",
@@ -2731,6 +2732,9 @@
   "Profiles": "プロフィール",
   "Profiles and safe lab for bc250-detect --keep": "bc250-detect --keep のプロファイルと安全なラボ",
   "Profiles exported to Decky Quick Access.": "プロファイルをDecky Quick Accessにエクスポートしました。",
+  "Profiles saved for Decky Quick Access, but the plugin is not installed yet. Its panel will use them once BC250 Quick Access is installed.": "Decky Quick Access 用にプロファイルを保存しましたが、プラグインはまだインストールされていません。BC250 Quick Access をインストールすると、そのパネルで使われます。",
+  "In Game Mode each preset sets every active system fan (PWM3–PWM8) together and never PWM2, not just the channel selected here.": "ゲームモードでは、各プリセットがここで選んだチャンネルだけでなく、アクティブなシステムファン (PWM3–PWM8) をすべてまとめて設定し、PWM2 には触れません。",
+  "{name}: {requested} % → {published} % in Decky.": "{name}: {requested} % → Decky では {published} %。",
   "Profiles, temporary tuning, persistence, and advanced details.": "プロファイル、一時的なチューニング、永続性、および高度な詳細。",
   "Programmed ranges": "プログラムされた範囲",
   "Project overview": "プロジェクト概要",
@@ -5328,5 +5332,8 @@
   "Discard that snapshot and create a new one. Do not restore a file that could not be verified.": "そのスナップショットを破棄して新しく作成してください。検証できなかったファイルは復元しないでください。",
   "The Control Center update could not be downloaded or verified.": "Control Center の更新をダウンロードまたは検証できませんでした。",
   "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.": "GitHub が不完全なリリース情報を返したか、ダウンロードしたファイルが公開されたサイズまたはチェックサムと一致しません。",
-  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "ネットワークとシステムの日付を確認して、もう一度更新してください。それでも失敗する場合は、リリースページからパッケージをインストールしてください。"
+  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "ネットワークとシステムの日付を確認して、もう一度更新してください。それでも失敗する場合は、リリースページからパッケージをインストールしてください。",
+  "Temperature reading": "温度の読み取り",
+  "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Cyan が GPU 温度を読み取る場所です。どちらも同じ値になります。sysfs はそのためだけに GPU デバイスを開いたままにしません。既定は DRM です。",
+  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "この Cyan のバージョンはこの設定を読み取りません。「依存関係の準備」から更新してください。"
 }

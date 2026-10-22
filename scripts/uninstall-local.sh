@@ -43,6 +43,7 @@ SYSTEM_OPENRC_SERVICE_HELPER="/usr/libexec/bc250-control-center/bc250-openrc-ser
 SYSTEM_SERVICE_HELPER="/usr/libexec/bc250-control-center/bc250-service-helper"
 SYSTEM_MAINTENANCE_HELPER="/usr/libexec/bc250-control-center/bc250-maintenance-helper"
 SYSTEM_QUICK_ACCESS_HELPER="/usr/libexec/bc250-control-center/bc250-quick-access-helper"
+SYSTEM_DECKY_PROFILES_DIR="/etc/bc250-control-center"
 SYSTEM_GPU_LAB_SCRIPT="/usr/libexec/bc250-control-center/bc250-gpu-voltage-lab.sh"
 SYSTEM_STEAMOS_AMDGPU_OVERLAY="/usr/libexec/bc250-control-center/bc250-steamos-amdgpu-overlay"
 SYSTEM_CYAN_OVERLAY_PREFLIGHT="/usr/libexec/bc250-control-center/bc250-cyan-overlay-preflight"
@@ -273,6 +274,18 @@ remove_empty_dir() {
   fi
 }
 
+# "Export to Decky" writes these at run time and only the quick-access helper
+# reads them. Left behind, a later install showed those old profiles in Game
+# Mode; a helper kept for an installed package still reads them, so they stay.
+remove_decky_profile_exports() {
+  [[ -e "$SYSTEM_QUICK_ACCESS_HELPER" || -L "$SYSTEM_QUICK_ACCESS_HELPER" ]] && return 0
+  local kind
+  for kind in gpu cpu fan; do
+    remove_path "$SYSTEM_DECKY_PROFILES_DIR/decky-$kind-profiles.json"
+  done
+  remove_empty_dir "$SYSTEM_DECKY_PROFILES_DIR"
+}
+
 remove_verified_decky_plugin() {
   [[ -d "$BC250_DECKY_PLUGIN_DIR" ]] || return 0
   local manifest="$BC250_DECKY_PLUGIN_DIR/plugin.json"
@@ -400,6 +413,7 @@ remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-openrc-service
 remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-service-helper" "$SYSTEM_SERVICE_HELPER"
 remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-maintenance-helper" "$SYSTEM_MAINTENANCE_HELPER"
 remove_managed_privileged_file "$APP_DIR/privileged/helpers/bc250-quick-access-helper" "$SYSTEM_QUICK_ACCESS_HELPER"
+remove_decky_profile_exports
 gpu_lab_source="$APP_DIR/scripts/system/bc250-gpu-voltage-lab.sh"
 telemetry_overlay_source="$APP_DIR/scripts/system/prepare-steamos-telemetry-oc-overlay.py"
 # Accept the pre-reorganization 1.19 payload as an uninstall provenance source.

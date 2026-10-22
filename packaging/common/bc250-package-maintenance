@@ -31,6 +31,12 @@ case "${1:-}" in
     }; then
       printf 'CONTROL DISABLE\nEXIT\n' | "$fan_helper" >/dev/null 2>&1 || true
     fi
+    # "Export to Decky" writes these at run time, so no package owns them;
+    # left behind, a later install showed those old profiles in Game Mode.
+    for kind in gpu cpu fan; do
+      rm -f -- "/etc/bc250-control-center/decky-$kind-profiles.json"
+    done
+    rmdir --ignore-fail-on-non-empty /etc/bc250-control-center 2>/dev/null || true
     # Python writes bytecode caches next to the modules whenever root runs a
     # helper or the CLI (the uninstall-check above included). No package owns
     # them, so without this the removal leaves both trees behind holding

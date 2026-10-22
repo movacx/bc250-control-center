@@ -1038,6 +1038,7 @@
   "Decky Quick Access preview": "Decky Podgląd szybkiego dostępu",
   "Decky Quick Access preview image": "Decky Obraz podglądu szybkiego dostępu",
   "Decky Quick Access uses these names and speeds for its Quiet, Balanced and Boost presets.": "Decky Quick Access używa tych nazw i prędkości w ustawieniach Cichy, Zrównoważony i Wzmocniony.",
+  "In Game Mode they set every active system fan (PWM3–PWM8) together, never PWM2, and a speed under 20 % runs at 20 %.": "W trybie gry ustawiają jednocześnie wszystkie aktywne wentylatory systemowe (PWM3–PWM8), nigdy PWM2, a prędkość poniżej 20 % działa na 20 %.",
   "Decky detected": "Wykryto Decky",
   "Decky is a plugin for the console-style interface — Game Mode or Steam Big Picture. Install it and you can change fan speed and clocks from the Steam overlay, with a controller, without coming back to this window.": "Decky to wtyczka do interfejsu konsolowego — Game Mode albo Steam Big Picture. Zainstaluj ją, a będziesz zmieniać prędkość wentylatorów i taktowania z nakładki Steam, padem, bez wracania do tego okna.",
   "Decky is detected, but the BC250 Quick Access plugin or its protected helper needs installation or repair.": "Wykryto Decky, ale wtyczka szybkiego dostępu BC250 lub jej chroniony helper wymaga instalacji albo naprawy.",
@@ -2731,6 +2732,9 @@
   "Profiles": "Profile",
   "Profiles and safe lab for bc250-detect --keep": "Profile i bezpieczne laboratorium dla bc250-detect --keep",
   "Profiles exported to Decky Quick Access.": "Profile wyeksportowane do Decky Quick Access.",
+  "Profiles saved for Decky Quick Access, but the plugin is not installed yet. Its panel will use them once BC250 Quick Access is installed.": "Profile zapisane dla Decky Quick Access, ale wtyczka nie jest jeszcze zainstalowana. Jej panel użyje ich po zainstalowaniu BC250 Quick Access.",
+  "In Game Mode each preset sets every active system fan (PWM3–PWM8) together and never PWM2, not just the channel selected here.": "W trybie gry każde ustawienie zmienia jednocześnie wszystkie aktywne wentylatory systemowe (PWM3–PWM8) i nigdy PWM2, nie tylko wybrany tutaj kanał.",
+  "{name}: {requested} % → {published} % in Decky.": "{name}: {requested} % → {published} % w Decky.",
   "Profiles, temporary tuning, persistence, and advanced details.": "Profile, tymczasowe strojenie, trwałość i zaawansowane szczegóły.",
   "Programmed ranges": "Zaprogramowane zakresy",
   "Project overview": "Przegląd projektu",
@@ -5328,5 +5332,8 @@
   "Discard that snapshot and create a new one. Do not restore a file that could not be verified.": "Odrzuć tę migawkę i utwórz nową. Nie przywracaj pliku, którego nie udało się zweryfikować.",
   "The Control Center update could not be downloaded or verified.": "Nie udało się pobrać ani zweryfikować aktualizacji Control Center.",
   "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.": "GitHub zwrócił niepełne dane wydania albo pobrany plik nie zgadza się z opublikowanym rozmiarem lub sumą kontrolną.",
-  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Sprawdź sieć i datę systemu, a potem spróbuj zaktualizować ponownie. Jeśli nadal się nie udaje, zainstaluj pakiet ze strony wydania."
+  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Sprawdź sieć i datę systemu, a potem spróbuj zaktualizować ponownie. Jeśli nadal się nie udaje, zainstaluj pakiet ze strony wydania.",
+  "Temperature reading": "Odczyt temperatury",
+  "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Skąd Cyan odczytuje temperaturę GPU. Obie opcje dają tę samą wartość; sysfs nie trzyma otwartego urządzenia GPU tylko w tym celu. DRM jest domyślne.",
+  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Ta wersja Cyan nie odczytuje tego ustawienia. Zaktualizuj ją w Przygotuj zależności."
 }

@@ -1038,6 +1038,7 @@
   "Decky Quick Access preview": "Decky-Schnellzugriffsvorschau",
   "Decky Quick Access preview image": "Vorschaubild des Decky-Schnellzugriffs",
   "Decky Quick Access uses these names and speeds for its Quiet, Balanced and Boost presets.": "Decky Quick Access verwendet diese Namen und Drehzahlen für seine Voreinstellungen Leise, Ausgewogen und Verstärkt.",
+  "In Game Mode they set every active system fan (PWM3–PWM8) together, never PWM2, and a speed under 20 % runs at 20 %.": "Im Game Mode stellen sie alle aktiven Systemlüfter (PWM3–PWM8) gemeinsam ein, nie PWM2, und eine Drehzahl unter 20 % läuft mit 20 %.",
   "Decky detected": "Decky erkannt",
   "Decky is a plugin for the console-style interface — Game Mode or Steam Big Picture. Install it and you can change fan speed and clocks from the Steam overlay, with a controller, without coming back to this window.": "Decky ist ein Plugin für die Konsolenoberfläche — Game Mode oder Steam Big Picture. Installieren Sie es, und Sie können Lüfterdrehzahl und Takte aus dem Steam-Overlay heraus ändern, mit einem Controller, ohne in dieses Fenster zurückzukehren.",
   "Decky is detected, but the BC250 Quick Access plugin or its protected helper needs installation or repair.": "Decky wurde erkannt, aber das BC250-Schnellzugriffs-Plugin oder sein geschützter Helper muss installiert oder repariert werden.",
@@ -2731,6 +2732,9 @@
   "Profiles": "Profile",
   "Profiles and safe lab for bc250-detect --keep": "Profile und sicheres Labor für bc250-detect --keep",
   "Profiles exported to Decky Quick Access.": "Profile zu Decky Quick Access exportiert.",
+  "Profiles saved for Decky Quick Access, but the plugin is not installed yet. Its panel will use them once BC250 Quick Access is installed.": "Profile für Decky Quick Access gespeichert, aber das Plugin ist noch nicht installiert. Sein Panel verwendet sie, sobald BC250 Quick Access installiert ist.",
+  "In Game Mode each preset sets every active system fan (PWM3–PWM8) together and never PWM2, not just the channel selected here.": "Im Game Mode stellt jede Voreinstellung alle aktiven Systemlüfter (PWM3–PWM8) gemeinsam ein und nie PWM2, nicht nur den hier gewählten Kanal.",
+  "{name}: {requested} % → {published} % in Decky.": "{name}: {requested} % → {published} % in Decky veröffentlicht.",
   "Profiles, temporary tuning, persistence, and advanced details.": "Profile, temporäre Abstimmung, Persistenz und erweiterte Details.",
   "Programmed ranges": "Programmierte Bereiche",
   "Project overview": "Projektübersicht",
@@ -5328,5 +5332,8 @@
   "Discard that snapshot and create a new one. Do not restore a file that could not be verified.": "Verwirf diesen Snapshot und erstelle einen neuen. Stelle keine Datei wieder her, die nicht geprüft werden konnte.",
   "The Control Center update could not be downloaded or verified.": "Das Control-Center-Update konnte nicht heruntergeladen oder geprüft werden.",
   "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.": "GitHub lieferte unvollständige Release-Daten, oder die heruntergeladene Datei passt nicht zur veröffentlichten Größe oder Prüfsumme.",
-  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Prüfe Netzwerk und Systemdatum und versuche das Update erneut. Wenn es weiter fehlschlägt, installiere das Paket von der Release-Seite."
+  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Prüfe Netzwerk und Systemdatum und versuche das Update erneut. Wenn es weiter fehlschlägt, installiere das Paket von der Release-Seite.",
+  "Temperature reading": "Temperaturmessung",
+  "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Woher Cyan die GPU-Temperatur liest. Beide liefern denselben Wert; sysfs hält dafür kein GPU-Gerät offen. DRM ist die Voreinstellung.",
+  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Diese Cyan-Version liest diese Einstellung nicht. Aktualisiere sie unter Abhängigkeiten vorbereiten."
 }

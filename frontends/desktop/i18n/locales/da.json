@@ -1038,6 +1038,7 @@
   "Decky Quick Access preview": "Decky forhåndsvisning af hurtig adgang",
   "Decky Quick Access preview image": "Decky Eksempelbillede med hurtig adgang",
   "Decky Quick Access uses these names and speeds for its Quiet, Balanced and Boost presets.": "Decky Quick Access bruger disse navne og hastigheder til forindstillingerne Stille, Balanceret og Kraftig.",
+  "In Game Mode they set every active system fan (PWM3–PWM8) together, never PWM2, and a speed under 20 % runs at 20 %.": "I spiltilstand indstiller de alle aktive systemblæsere (PWM3–PWM8) samlet, aldrig PWM2, og en hastighed under 20 % kører med 20 %.",
   "Decky detected": "Decky blev fundet",
   "Decky is a plugin for the console-style interface — Game Mode or Steam Big Picture. Install it and you can change fan speed and clocks from the Steam overlay, with a controller, without coming back to this window.": "Decky er et plugin til den konsolagtige grænseflade — Game Mode eller Steam Big Picture. Installér det, og du kan ændre blæserhastighed og frekvenser fra Steam-overlayet, med en controller, uden at vende tilbage til dette vindue.",
   "Decky is detected, but the BC250 Quick Access plugin or its protected helper needs installation or repair.": "Decky er fundet, men BC250 Quick Access plugin eller dets beskyttede hjælper skal installeres eller repareres.",
@@ -2731,6 +2732,9 @@
   "Profiles": "Profiler",
   "Profiles and safe lab for bc250-detect --keep": "Profiler og sikkert laboratorium til bc250-detect --keep",
   "Profiles exported to Decky Quick Access.": "Profiler eksporteret til Decky Quick Access.",
+  "Profiles saved for Decky Quick Access, but the plugin is not installed yet. Its panel will use them once BC250 Quick Access is installed.": "Profiler gemt til Decky Quick Access, men pluginnet er ikke installeret endnu. Dets panel bruger dem, når BC250 Quick Access er installeret.",
+  "In Game Mode each preset sets every active system fan (PWM3–PWM8) together and never PWM2, not just the channel selected here.": "I spiltilstand indstiller hver forindstilling alle aktive systemblæsere (PWM3–PWM8) samlet og aldrig PWM2, ikke kun den kanal, der er valgt her.",
+  "{name}: {requested} % → {published} % in Decky.": "{name}: {requested} % → {published} % i Decky.",
   "Profiles, temporary tuning, persistence, and advanced details.": "Profiler, midlertidig tuning, vedholdenhed og avancerede detaljer.",
   "Programmed ranges": "Programmerede områder",
   "Project overview": "Projekt oversigt",
@@ -5328,5 +5332,8 @@
   "Discard that snapshot and create a new one. Do not restore a file that could not be verified.": "Kassér det snapshot, og opret et nyt. Gendan ikke en fil, der ikke kunne verificeres.",
   "The Control Center update could not be downloaded or verified.": "Control Center-opdateringen kunne ikke hentes eller verificeres.",
   "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.": "GitHub returnerede ufuldstændige udgivelsesdata, eller den hentede fil passer ikke med den offentliggjorte størrelse eller checksum.",
-  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Tjek netværket og systemdatoen, og prøv opdateringen igen. Hvis den bliver ved med at fejle, så installer pakken fra udgivelsessiden."
+  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Tjek netværket og systemdatoen, og prøv opdateringen igen. Hvis den bliver ved med at fejle, så installer pakken fra udgivelsessiden.",
+  "Temperature reading": "Temperaturaflæsning",
+  "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Hvor Cyan læser GPU-temperaturen. Begge giver samme værdi; sysfs holder ikke GPU-enheden åben kun til det. DRM er standard.",
+  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Denne Cyan-version læser ikke denne indstilling. Opdater den fra Forbered afhængigheder."
 }

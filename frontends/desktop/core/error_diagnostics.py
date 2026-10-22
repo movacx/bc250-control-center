@@ -213,7 +213,9 @@ _RULES = (
     ),
     _Rule(
         "BC250-AUTH-001",
-        (r"textual authentication agent", r"/dev/tty.*no such device", r"controlling terminal"),
+        (r"textual authentication agent", r"/dev/tty.*no such device", r"controlling terminal",
+         r"a terminal is required", r"no tty present", r"must be run from a terminal",
+         r"pkexec:.*terminal"),
         "The authorization window could not be opened.",
         "The application was started from a session that Polkit cannot attach its password prompt to.",
         "Close this copy, start BC250 Control Center from the desktop application menu, and try again. If it continues, reinstall the protected helpers.",
@@ -242,7 +244,7 @@ _RULES = (
     ),
     _Rule(
         "BC250-HELPER-001",
-        (r"helper.*(?:missing|not found|unavailable)", r"protected helper", r"unsafe ownership", r"unsafe.*permissions"),
+        (r"helper.*(?:missing|not found|unavailable)", r"protected helper", r"unsafe ownership", r"unsafe.*permissions", r"traceback \(most recent call last\)", r"helper is not installed"),
         "A protected BC250 helper is missing or failed its safety check.",
         "The application and its root-owned helper are from different installs, or another toolkit changed the helper's owner, mode, or path.",
         "Reinstall BC250 Control Center. Do not copy a helper manually into /usr/libexec.",
@@ -257,7 +259,7 @@ _RULES = (
     ),
     _Rule(
         "BC250-BUSY-001",
-        (r"already.*(?:running|applying|in progress)", r"operation.*still.*(?:running|progress)", r"resource busy", r"device or resource busy",
+        (r"\A(?!.*(?:pacman|apt(?:-get)?|dnf|zypper|rpmdb|rpm-ostree|apk|emerge|xbps)).*already.*(?:running|applying|in progress)", r"operation.*still.*(?:running|progress)", r"resource busy", r"device or resource busy",
          r"smu returned status 0x(?:00|fc)\b"),
         "Another operation is still using this component.",
         "A previous BC250 action, package manager, service restart, or external toolkit still holds the required lock.",
@@ -286,14 +288,14 @@ _RULES = (
     ),
     _Rule(
         "BC250-SERVICE-003",
-        (r"systemctl.*(?:failed|exited)", r"rc-service.*(?:failed|exited)", r"service.*failed", r"failed to start", r"job for .*(?:failed|exited)", r"control process exited", r"invalid openrc .*action", r"requires an active systemd", r"boot persistence is not supported", r"no service action was run", r"invalid .*service action"),
+        (r"systemctl.*(?:failed|exited)", r"rc-service.*(?:failed|exited)", r"service.*failed", r"failed to start", r"job for .*(?:failed|exited)", r"control process exited", r"invalid openrc .*action", r"requires an active systemd", r"boot persistence is not supported", r"no service action was run", r"invalid .*service action", r"journalctl.*(?:failed|error|cannot)", r"failed.*(?:unit|job)"),
         "The service manager could not complete the requested change.",
         "The service configuration is invalid, its executable is missing, or the selected init system does not match the installed service files.",
         "Open the service status and read the first reported error. Repair the module from the Dashboard before enabling it again.",
     ),
     _Rule(
         "BC250-PKG-001",
-        (r"unable to lock", r"database is locked", r"could not get lock", r"another app is currently holding", r"transaction.*lock", r"lock-?frontend", r"could not lock database", r"dpkg.*lock"),
+        (r"unable to lock", r"failed to lock", r"database is locked", r"could not get lock", r"another app is currently holding", r"transaction.*lock", r"lock-?frontend", r"could not lock database", r"dpkg.*lock", r"pacman.*(?:lock|busy)", r"zypper.*(?:lock|locked)", r"rpmdb.*(?:locked|busy)", r"apk.*database.*locked", r"emerge.*(?:lock|another emerge)", r"xbps.*(?:lock|locked)"),
         "The package manager is busy.",
         "A system update, software center, or another terminal is already changing packages.",
         "Let that update finish, close the other package tool, and retry. Do not delete package-manager lock files by hand.",
@@ -330,7 +332,7 @@ _RULES = (
     ),
     _Rule(
         "BC250-NET-001",
-        (r"could not resolve", r"temporary failure in name resolution", r"network is unreachable", r"connection.*(?:timed out|refused|reset)", r"ssl|certificate verify|tls", r"curl: \(\d+\)"),
+        (r"could not resolve", r"temporary failure in name resolution", r"network is unreachable", r"connection.*(?:timed out|refused|reset)", r"ssl|certificate verify|tls", r"curl: \(\d+\)", r"git.*(?:could not resolve host|unable to access|failed to connect|connection timed out)", r"failed to fetch.*(?:mirror|repository)", r"mirror.*(?:unavailable|not found|failed)", r"could not resolve host"),
         "A required download could not be reached or verified.",
         "The network, DNS, proxy, system clock, certificate store, or upstream server interrupted the download.",
         "Confirm internet access and the system date, then retry. If a proxy or filtered network is in use, test the repository URL in a browser.",
@@ -351,7 +353,7 @@ _RULES = (
     ),
     _Rule(
         "BC250-CMD-001",
-        (r"command not found", r"no such file or directory", r"executable.*not found", r"returned an empty command", r": command not found", r"needs one boolean", r"does not accept additional arguments", r"not prepared", r"is not installed", r"was not found", r"does not exist at", r"is missing from", r"unavailable in this build", r"terminal integration is required", r"qualification", r"bundle error", r"refusing .*without --", r"evidence error", r"expects a .*path", r"command is required", r"no custom values", r"integration script", r"requires --", r"runner is unavailable", r"executor is invalid", r"path is invalid"),
+        (r"command not found", r"no such file or directory", r"executable.*not found", r"returned an empty command", r": command not found", r"needs one boolean", r"does not accept additional arguments", r"not prepared", r"is not installed", r"was not found", r"does not exist at", r"is missing from", r"unavailable in this build", r"terminal integration is required", r"qualification", r"bundle error", r"refusing .*without --", r"evidence error", r"expects a .*path", r"command is required", r"no custom values", r"integration script", r"requires --", r"runner is unavailable", r"executor is invalid", r"path is invalid", r"cargo.*(?:command not found|failed)", r"rustc.*(?:not found|error)", r"make: \*\*\*", r"cmake.*(?:error|failed)", r"fatal error: .*\.(?:h|hpp):", r"(?:gcc|g\+\+|cc): command not found"),
         "A required program or generated command is missing.",
         "Dependencies were not prepared, a toolkit was removed, or the active distribution provides the program under a different package or path.",
         "Return to the Dashboard and prepare the affected module.",
@@ -585,6 +587,9 @@ _MORE_PATTERNS: dict[str, tuple[str, ...]] = {
     ),
     "BC250-FAN-001": (r"\bfan\b.*does not exist",),
     "BC250-CONFIG-001": (
+        # Both governors' own files, read, checked and rewritten by the helper.
+        r"oberon yaml", r"(?:governor|oberon) configuration (?:is unavailable|could not be (?:read|updated)|changed to a symlink)",
+        r"oberon minimum (?:frequency|voltage) cannot exceed",
         r"frequency floor cannot exceed", r"high-frequency safe-point", r"safe startup range.*preserved",
         r"persisted range.*safe-point", r"active safe-point is not a toml table", r"every active safe-point",
         r"duplicate active safe-point frequency", r"invalid helixsr settings", r"metrics format must be jsonl or csv",
@@ -597,7 +602,7 @@ _MORE_PATTERNS: dict[str, tuple[str, ...]] = {
     ),
     "BC250-CMD-001": (r"(?:preview-voltage-level|apply-voltage-level|status) expects one",),
     "BC250-SERVICE-003": (r"systemctl is not available", r"openrc is not the active", r"rc-service is not available"),
-    "BC250-GPU-001": (r"no recorded metrics", r"current metrics sample could not be recorded"),
+    "BC250-GPU-001": (r"no recorded metrics", r"current metrics sample could not be recorded", r"temp-read"),
     "BC250-AUTH-003": (r"pkexec is not available",),
     "BC250-TERMINAL-001": (r"requested terminal workflow is empty",),
 }

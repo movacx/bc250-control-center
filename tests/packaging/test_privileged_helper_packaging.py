@@ -60,7 +60,7 @@ def test_governor_helper_and_editor_are_deployed_together_with_current_protocol(
     installer = _text(ROOT / "scripts" / "install-local.sh")
     helper = _text(PRIVILEGED / "bc250-governor-config-helper")
 
-    assert "BC250_GOVERNOR_CONFIG_PROTOCOL = 6" in helper
+    assert "BC250_GOVERNOR_CONFIG_PROTOCOL = 7" in helper
     assert "'set-cyan-metrics-fix'" in helper
     assert "'set-cyan-voltage-level', 'set-cyan-custom-voltages'" in helper
     assert 'install -Dm755 "$governor_helper_source" "$SYSTEM_GOVERNOR_CONFIG_HELPER"' in installer
@@ -139,6 +139,57 @@ def test_local_uninstall_removes_the_cyan_dropin_it_installed(tmp_path):
     assert removed.returncode == 0 and not ours.exists(), removed.stderr
     assert foreign.exists()
     assert "keeping unverified Cyan systemd drop-in" in kept.stderr
+
+
+def _run_decky_export_removal(exports: Path, helper: Path) -> subprocess.CompletedProcess:
+    uninstaller = _text(ROOT / "scripts" / "uninstall-local.sh")
+    function = uninstaller[uninstaller.index("remove_decky_profile_exports() {"):]
+    function = function[:function.index("\n}\n") + 3]
+    script = (
+        f'SYSTEM_DECKY_PROFILES_DIR="{exports}"\n'
+        f'SYSTEM_QUICK_ACCESS_HELPER="{helper}"\n'
+        'remove_path() { rm -f -- "$1"; }\n'
+        'remove_empty_dir() { rmdir --ignore-fail-on-non-empty "$1" 2>/dev/null || true; }\n'
+        f"{function}remove_decky_profile_exports\n"
+    )
+    return subprocess.run(["bash", "-c", script], text=True, capture_output=True, timeout=20, check=False)
+
+
+def test_local_uninstall_removes_the_decky_profile_exports(tmp_path):
+    """A reinstall showed the old exported profiles in Game Mode."""
+    exports = tmp_path / "etc"
+    exports.mkdir()
+    for kind in ("gpu", "cpu", "fan"):
+        (exports / f"decky-{kind}-profiles.json").write_text("{}", encoding="utf-8")
+    other = exports / "ttm-kargs.original"
+    other.write_text("keep", encoding="utf-8")
+    helper = tmp_path / "bc250-quick-access-helper"
+
+    helper.write_text("#!/bin/sh\n", encoding="utf-8")
+    kept = _run_decky_export_removal(exports, helper)
+    assert kept.returncode == 0, kept.stderr
+    assert len(list(exports.glob("decky-*-profiles.json"))) == 3  # a kept helper still reads them
+
+    helper.unlink()
+    removed = _run_decky_export_removal(exports, helper)
+    assert removed.returncode == 0, removed.stderr
+    assert not list(exports.glob("decky-*-profiles.json"))
+    assert other.exists()
+
+    other.unlink()
+    _run_decky_export_removal(exports, helper)
+    assert not exports.exists()
+
+
+def test_package_removal_deletes_the_decky_profile_exports():
+    maintenance = _text(ROOT / "packaging/common/bc250-package-maintenance")
+    pre_remove = maintenance.split("pre-remove)", 1)[1].split(";;", 1)[0]
+
+    assert "for kind in gpu cpu fan" in pre_remove
+    assert 'rm -f -- "/etc/bc250-control-center/decky-$kind-profiles.json"' in pre_remove
+    assert "rmdir --ignore-fail-on-non-empty /etc/bc250-control-center" in pre_remove
+    # The removal gate runs first: a refused removal keeps them.
+    assert pre_remove.index('"$helper" uninstall-check') < pre_remove.index("decky-$kind-profiles.json")
 
 
 def test_install_source_preflight_runs_with_busybox_find(tmp_path):
@@ -235,7 +286,7 @@ def test_steamos_game_mode_helper_remains_a_separate_packaged_protocol():
     helper = _text(PRIVILEGED / "bc250-steamos-game-helper")
     installer = _text(ROOT / "scripts" / "install-local.sh")
     policy = _text(policy_path)
-    assert "BC250_HELPER_PROTOCOL=21" in helper
+    assert "BC250_HELPER_PROTOCOL=22" in helper
     assert "BC250_HELPER_PROTOCOL=7" not in installer
     assert "expected_game_helper_protocol" in installer
     assert "bc250-steamos-game-helper" in installer
@@ -660,6 +711,26 @@ def test_game_mode_governor_config_reuses_the_root_owned_config_helper(tmp_path,
         "set-frequency-range", "1000", "1850",
     ]
     assert action(["set-frequency-range", "1000", "bad"]) == 92
+
+
+@pytest.mark.parametrize("action_name", [
+    "set-decky-gpu-profiles", "set-decky-cpu-profiles", "set-decky-fan-profiles",
+])
+def test_game_mode_governor_config_allows_one_decky_json_payload(action_name, tmp_path, monkeypatch):
+    namespace = runpy.run_path(str(PRIVILEGED / "bc250-steamos-game-helper"))
+    action = namespace["action_governor_config"]
+    helper = tmp_path / "bc250-governor-config-helper"
+    helper.write_text("#!/bin/sh\n", encoding="utf-8")
+    helper.chmod(0o755)
+    calls = []
+    monkeypatch.setitem(action.__globals__, "GOVERNOR_CONFIG_HELPER", helper)
+    monkeypatch.setitem(action.__globals__, "trusted_installed_payload", lambda *_args, **_kwargs: True)
+    monkeypatch.setitem(action.__globals__, "run_checked", lambda command, **_kwargs: calls.append(command) or 0)
+
+    assert action([action_name, '[{"key":"balanced"}]']) == 0
+    assert calls[-1] == [str(helper), action_name, '[{"key":"balanced"}]']
+    assert action([action_name]) == 92
+    assert action([action_name, "{}", "extra"]) == 92
 
 
 

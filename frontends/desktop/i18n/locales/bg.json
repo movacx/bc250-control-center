@@ -1038,6 +1038,7 @@
   "Decky Quick Access preview": "Предварителен преглед на Decky за бърз достъп",
   "Decky Quick Access preview image": "Изображение за предварителен преглед на Decky Quick Access",
   "Decky Quick Access uses these names and speeds for its Quiet, Balanced and Boost presets.": "Decky Quick Access използва тези имена и скорости за предварителните настройки Тих, Балансиран и Усилен.",
+  "In Game Mode they set every active system fan (PWM3–PWM8) together, never PWM2, and a speed under 20 % runs at 20 %.": "В режима на игра те задават заедно всички активни системни вентилатори (PWM3–PWM8), никога PWM2, а скорост под 20 % работи на 20 %.",
   "Decky detected": "Decky е открит",
   "Decky is a plugin for the console-style interface — Game Mode or Steam Big Picture. Install it and you can change fan speed and clocks from the Steam overlay, with a controller, without coming back to this window.": "Decky е приставка за конзолния интерфейс — Game Mode или Steam Big Picture. Инсталирай я и ще можеш да сменяш скоростта на вентилаторите и честотите направо от наслагването на Steam, с контролер, без да се връщаш в този прозорец.",
   "Decky is detected, but the BC250 Quick Access plugin or its protected helper needs installation or repair.": "Decky е открит, но плъгинът за бърз достъп BC250 или неговият защитен помощник се нуждае от инсталиране или поправка.",
@@ -2731,6 +2732,9 @@
   "Profiles": "Профили",
   "Profiles and safe lab for bc250-detect --keep": "Профили и безопасна лаборатория за bc250-detect --keep",
   "Profiles exported to Decky Quick Access.": "Профилите са експортирани в Decky Quick Access.",
+  "Profiles saved for Decky Quick Access, but the plugin is not installed yet. Its panel will use them once BC250 Quick Access is installed.": "Профилите са запазени за Decky Quick Access, но приставката още не е инсталирана. Панелът ѝ ще ги използва, щом BC250 Quick Access бъде инсталиран.",
+  "In Game Mode each preset sets every active system fan (PWM3–PWM8) together and never PWM2, not just the channel selected here.": "В режима на игра всяка предварителна настройка задава заедно всички активни системни вентилатори (PWM3–PWM8) и никога PWM2, не само избрания тук канал.",
+  "{name}: {requested} % → {published} % in Decky.": "{name}: {requested} % → {published} % в Decky.",
   "Profiles, temporary tuning, persistence, and advanced details.": "Профили, временна настройка, постоянство и разширени подробности.",
   "Programmed ranges": "Програмирани диапазони",
   "Project overview": "Преглед на проекта",
@@ -5328,5 +5332,8 @@
   "Discard that snapshot and create a new one. Do not restore a file that could not be verified.": "Изхвърлете тази моментна снимка и създайте нова. Не възстановявайте файл, който не е проверен.",
   "The Control Center update could not be downloaded or verified.": "Актуализацията на Control Center не можа да бъде изтеглена или проверена.",
   "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.": "GitHub върна непълни данни за версията или изтегленият файл не съвпада с публикувания размер или контролна сума.",
-  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Проверете мрежата и системната дата и опитайте актуализацията отново. Ако продължава да не успява, инсталирайте пакета от страницата на версията."
+  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Проверете мрежата и системната дата и опитайте актуализацията отново. Ако продължава да не успява, инсталирайте пакета от страницата на версията.",
+  "Temperature reading": "Отчитане на температурата",
+  "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Откъде Cyan чете температурата на GPU. И двете дават една и съща стойност; sysfs не държи GPU устройството отворено само за това. DRM е по подразбиране.",
+  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Тази версия на Cyan не чете тази настройка. Обновете я от Подготовка на зависимости."
 }

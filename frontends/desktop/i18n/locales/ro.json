@@ -1038,6 +1038,7 @@
   "Decky Quick Access preview": "Previzualizare Decky Acces rapid",
   "Decky Quick Access preview image": "Imagine de previzualizare Decky Acces rapid",
   "Decky Quick Access uses these names and speeds for its Quiet, Balanced and Boost presets.": "Decky Quick Access folosește aceste nume și turații pentru presetările Silențios, Echilibrat și Intens.",
+  "In Game Mode they set every active system fan (PWM3–PWM8) together, never PWM2, and a speed under 20 % runs at 20 %.": "În modul de joc ele setează împreună toate ventilatoarele de sistem active (PWM3–PWM8), niciodată PWM2, iar o turație sub 20 % rulează la 20 %.",
   "Decky detected": "Decky a fost detectat",
   "Decky is a plugin for the console-style interface — Game Mode or Steam Big Picture. Install it and you can change fan speed and clocks from the Steam overlay, with a controller, without coming back to this window.": "Decky este un plugin pentru interfața tip consolă — Game Mode sau Steam Big Picture. Instalează-l și poți schimba viteza ventilatoarelor și frecvențele din suprapunerea Steam, cu un controller, fără să revii în fereastra asta.",
   "Decky is detected, but the BC250 Quick Access plugin or its protected helper needs installation or repair.": "Decky este detectat, dar pluginul BC250 Acces rapid sau asistentul său protejat necesită instalare sau reparare.",
@@ -2731,6 +2732,9 @@
   "Profiles": "Profiluri",
   "Profiles and safe lab for bc250-detect --keep": "Profile și laborator sigur pentru bc250-detect --keep",
   "Profiles exported to Decky Quick Access.": "Profiluri exportate în Decky Quick Access.",
+  "Profiles saved for Decky Quick Access, but the plugin is not installed yet. Its panel will use them once BC250 Quick Access is installed.": "Profiluri salvate pentru Decky Quick Access, dar pluginul nu este încă instalat. Panoul său le va folosi după instalarea BC250 Quick Access.",
+  "In Game Mode each preset sets every active system fan (PWM3–PWM8) together and never PWM2, not just the channel selected here.": "În modul de joc fiecare presetare setează împreună toate ventilatoarele de sistem active (PWM3–PWM8) și niciodată PWM2, nu doar canalul ales aici.",
+  "{name}: {requested} % → {published} % in Decky.": "{name}: {requested} % → {published} % în Decky.",
   "Profiles, temporary tuning, persistence, and advanced details.": "Profiluri, reglaj temporar, persistență și detalii avansate.",
   "Programmed ranges": "Domenii programate",
   "Project overview": "Prezentare generală a proiectului",
@@ -4354,7 +4358,7 @@
   "custom floor {minimum} MHz, maximum {maximum}": "etaj personalizat {minimum} MHz, maxim {maximum}",
   "custom {minimum}–{maximum}": "personalizat {minimum}–{maximum}",
   "cyan governor will be disabled": "guvernatorul cyan va fi dezactivat",
-  "cyan-skillfish-governor-smu state: {state}.": "cyan-skillfish-governor-smu state: {state}.",
+  "cyan-skillfish-governor-smu state: {state}.": "Starea cyan-skillfish-governor-smu: {state}.",
   "disabled": "dezactivat",
   "disabled for runtime profile mode": "dezactivat pentru modul profil de rulare",
   "does not exist. Install or repair the selected governor before opening its configuration.": "nu există. Instalați sau reparați regulatorul selectat înainte de a-i deschide configurația.",
@@ -5328,5 +5332,8 @@
   "Discard that snapshot and create a new one. Do not restore a file that could not be verified.": "Renunță la acel instantaneu și creează unul nou. Nu restaura un fișier care nu a putut fi verificat.",
   "The Control Center update could not be downloaded or verified.": "Actualizarea Control Center nu a putut fi descărcată sau verificată.",
   "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.": "GitHub a returnat date incomplete despre versiune sau fișierul descărcat nu corespunde dimensiunii ori sumei de control publicate.",
-  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Verifică rețeaua și data sistemului, apoi încearcă din nou actualizarea. Dacă eșuează în continuare, instalează pachetul de pe pagina versiunii."
+  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Verifică rețeaua și data sistemului, apoi încearcă din nou actualizarea. Dacă eșuează în continuare, instalează pachetul de pe pagina versiunii.",
+  "Temperature reading": "Citirea temperaturii",
+  "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "De unde citește Cyan temperatura GPU. Ambele dau aceeași valoare; sysfs nu ține dispozitivul GPU deschis doar pentru asta. DRM este implicit.",
+  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Această versiune Cyan nu citește această setare. Actualizeaz-o din Pregătește dependențele."
 }

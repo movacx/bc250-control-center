@@ -1038,6 +1038,7 @@
   "Decky Quick Access preview": "Decky Προεπισκόπηση γρήγορης πρόσβασης",
   "Decky Quick Access preview image": "Decky Εικόνα προεπισκόπησης γρήγορης πρόσβασης",
   "Decky Quick Access uses these names and speeds for its Quiet, Balanced and Boost presets.": "Το Decky Quick Access χρησιμοποιεί αυτά τα ονόματα και τις ταχύτητες για τις προεπιλογές Αθόρυβο, Ισορροπημένο και Ενισχυμένο.",
+  "In Game Mode they set every active system fan (PWM3–PWM8) together, never PWM2, and a speed under 20 % runs at 20 %.": "Στη λειτουργία παιχνιδιού ρυθμίζουν μαζί όλους τους ενεργούς ανεμιστήρες συστήματος (PWM3–PWM8), ποτέ τον PWM2, και ταχύτητα κάτω από 20 % λειτουργεί στο 20 %.",
   "Decky detected": "Εντοπίστηκε Decky",
   "Decky is a plugin for the console-style interface — Game Mode or Steam Big Picture. Install it and you can change fan speed and clocks from the Steam overlay, with a controller, without coming back to this window.": "Το Decky είναι πρόσθετο για το περιβάλλον τύπου κονσόλας — Game Mode ή Steam Big Picture. Εγκατέστησέ το και θα αλλάζεις ταχύτητα ανεμιστήρα και συχνότητες από την επικάλυψη του Steam, με χειριστήριο, χωρίς να γυρνάς σε αυτό το παράθυρο.",
   "Decky is detected, but the BC250 Quick Access plugin or its protected helper needs installation or repair.": "Εντοπίστηκε Decky, αλλά η προσθήκη BC250 Γρήγορης πρόσβασης ή ο προστατευμένος βοηθός της χρειάζεται εγκατάσταση ή επισκευή.",
@@ -2731,6 +2732,9 @@
   "Profiles": "Προφίλ",
   "Profiles and safe lab for bc250-detect --keep": "Προφίλ και ασφαλές εργαστήριο για bc250-detect --keep",
   "Profiles exported to Decky Quick Access.": "Τα προφίλ εξήχθησαν στο Decky Quick Access.",
+  "Profiles saved for Decky Quick Access, but the plugin is not installed yet. Its panel will use them once BC250 Quick Access is installed.": "Τα προφίλ αποθηκεύτηκαν για το Decky Quick Access, αλλά το πρόσθετο δεν έχει εγκατασταθεί ακόμη. Ο πίνακάς του θα τα χρησιμοποιήσει μόλις εγκατασταθεί το BC250 Quick Access.",
+  "In Game Mode each preset sets every active system fan (PWM3–PWM8) together and never PWM2, not just the channel selected here.": "Στη λειτουργία παιχνιδιού κάθε προεπιλογή ρυθμίζει μαζί όλους τους ενεργούς ανεμιστήρες συστήματος (PWM3–PWM8) και ποτέ τον PWM2, όχι μόνο το κανάλι που επιλέχθηκε εδώ.",
+  "{name}: {requested} % → {published} % in Decky.": "{name}: {requested} % → {published} % στο Decky.",
   "Profiles, temporary tuning, persistence, and advanced details.": "Προφίλ, προσωρινός συντονισμός, επιμονή και σύνθετες λεπτομέρειες.",
   "Programmed ranges": "Προγραμματισμένες περιοχές",
   "Project overview": "Επισκόπηση έργου",
@@ -5328,5 +5332,8 @@
   "Discard that snapshot and create a new one. Do not restore a file that could not be verified.": "Απορρίψτε αυτό το στιγμιότυπο και δημιουργήστε νέο. Μην επαναφέρετε αρχείο που δεν επαληθεύτηκε.",
   "The Control Center update could not be downloaded or verified.": "Η ενημέρωση του Control Center δεν μπόρεσε να ληφθεί ή να επαληθευτεί.",
   "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.": "Το GitHub επέστρεψε ελλιπή στοιχεία έκδοσης ή το ληφθέν αρχείο δεν ταιριάζει με το δημοσιευμένο μέγεθος ή άθροισμα ελέγχου.",
-  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Ελέγξτε το δίκτυο και την ημερομηνία συστήματος και δοκιμάστε ξανά την ενημέρωση. Αν συνεχίζει να αποτυγχάνει, εγκαταστήστε το πακέτο από τη σελίδα της έκδοσης."
+  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Ελέγξτε το δίκτυο και την ημερομηνία συστήματος και δοκιμάστε ξανά την ενημέρωση. Αν συνεχίζει να αποτυγχάνει, εγκαταστήστε το πακέτο από τη σελίδα της έκδοσης.",
+  "Temperature reading": "Ανάγνωση θερμοκρασίας",
+  "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Από πού διαβάζει το Cyan τη θερμοκρασία της GPU. Και τα δύο δίνουν την ίδια τιμή· το sysfs δεν κρατά ανοιχτή τη συσκευή GPU μόνο γι' αυτό. Προεπιλογή είναι το DRM.",
+  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Αυτή η έκδοση του Cyan δεν διαβάζει αυτή τη ρύθμιση. Ενημερώστε την από την Προετοιμασία εξαρτήσεων."
 }

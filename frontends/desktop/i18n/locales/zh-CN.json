@@ -1038,6 +1038,7 @@
   "Decky Quick Access preview": "Decky 快速访问预览",
   "Decky Quick Access preview image": "Decky 快速访问预览图像",
   "Decky Quick Access uses these names and speeds for its Quiet, Balanced and Boost presets.": "Decky Quick Access 会将这些名称和转速用于其“安静”“均衡”“增强”预设。",
+  "In Game Mode they set every active system fan (PWM3–PWM8) together, never PWM2, and a speed under 20 % runs at 20 %.": "在游戏模式下，它们会同时设置所有活动的系统风扇（PWM3–PWM8），从不设置 PWM2；低于 20 % 的转速将以 20 % 运行。",
   "Decky detected": "检测到 Decky",
   "Decky is a plugin for the console-style interface — Game Mode or Steam Big Picture. Install it and you can change fan speed and clocks from the Steam overlay, with a controller, without coming back to this window.": "Decky 是主机式界面（Game Mode 或 Steam Big Picture）的插件。装上以后，你可以直接在 Steam 覆盖层里用手柄改风扇转速和频率，不必回到这个窗口。",
   "Decky is detected, but the BC250 Quick Access plugin or its protected helper needs installation or repair.": "检测到 Decky，但 BC250 快速访问插件或其受保护的帮助程序需要安装或修复。",
@@ -2731,6 +2732,9 @@
   "Profiles": "配置文件",
   "Profiles and safe lab for bc250-detect --keep": "bc250-detect --keep 的配置文件和安全实验室",
   "Profiles exported to Decky Quick Access.": "配置文件已导出到 Decky Quick Access。",
+  "Profiles saved for Decky Quick Access, but the plugin is not installed yet. Its panel will use them once BC250 Quick Access is installed.": "配置文件已为 Decky Quick Access 保存，但插件尚未安装。安装 BC250 Quick Access 后，其面板将使用这些配置文件。",
+  "In Game Mode each preset sets every active system fan (PWM3–PWM8) together and never PWM2, not just the channel selected here.": "在游戏模式下，每个预设会同时设置所有活动的系统风扇（PWM3–PWM8），而不仅是此处所选的通道，并且从不设置 PWM2。",
+  "{name}: {requested} % → {published} % in Decky.": "{name}：{requested} % → 在 Decky 中为 {published} %。",
   "Profiles, temporary tuning, persistence, and advanced details.": "配置文件、临时调整、持久性和高级细节。",
   "Programmed ranges": "编程范围",
   "Project overview": "项目概况",
@@ -5328,5 +5332,8 @@
   "Discard that snapshot and create a new one. Do not restore a file that could not be verified.": "请丢弃该快照并创建新的快照。不要恢复无法验证的文件。",
   "The Control Center update could not be downloaded or verified.": "无法下载或验证 Control Center 更新。",
   "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.": "GitHub 返回的版本信息不完整，或下载的文件与公布的大小或校验和不符。",
-  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "请检查网络和系统日期，然后重试更新。如果仍然失败，请从发布页面安装软件包。"
+  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "请检查网络和系统日期，然后重试更新。如果仍然失败，请从发布页面安装软件包。",
+  "Temperature reading": "温度读取",
+  "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Cyan 读取 GPU 温度的位置。两者给出的数值相同；sysfs 不会仅为此保持 GPU 设备打开。默认为 DRM。",
+  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "此版本的 Cyan 不读取该设置。请在“准备依赖项”中更新。"
 }

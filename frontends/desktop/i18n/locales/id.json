@@ -1038,6 +1038,7 @@
   "Decky Quick Access preview": "Decky Pratinjau Akses Cepat",
   "Decky Quick Access preview image": "Decky Gambar pratinjau Akses Cepat",
   "Decky Quick Access uses these names and speeds for its Quiet, Balanced and Boost presets.": "Decky Quick Access memakai nama dan kecepatan ini untuk preset Senyap, Seimbang, dan Kencang.",
+  "In Game Mode they set every active system fan (PWM3–PWM8) together, never PWM2, and a speed under 20 % runs at 20 %.": "Di Mode Game, preset mengatur semua kipas sistem aktif (PWM3–PWM8) sekaligus, tidak pernah PWM2, dan kecepatan di bawah 20 % berjalan pada 20 %.",
   "Decky detected": "Decky terdeteksi",
   "Decky is a plugin for the console-style interface — Game Mode or Steam Big Picture. Install it and you can change fan speed and clocks from the Steam overlay, with a controller, without coming back to this window.": "Decky adalah plugin untuk antarmuka ala konsol — Game Mode atau Steam Big Picture. Pasang, dan kamu bisa mengubah kecepatan kipas dan frekuensi dari overlay Steam, pakai kontroler, tanpa kembali ke jendela ini.",
   "Decky is detected, but the BC250 Quick Access plugin or its protected helper needs installation or repair.": "Decky terdeteksi, tetapi plugin Akses Cepat BC250 atau pembantunya yang dilindungi perlu dipasang atau diperbaiki.",
@@ -2731,6 +2732,9 @@
   "Profiles": "Profil",
   "Profiles and safe lab for bc250-detect --keep": "Profil dan lab aman untuk bc250-detect --keep",
   "Profiles exported to Decky Quick Access.": "Profil diekspor ke Decky Quick Access.",
+  "Profiles saved for Decky Quick Access, but the plugin is not installed yet. Its panel will use them once BC250 Quick Access is installed.": "Profil disimpan untuk Decky Quick Access, tetapi plugin belum terpasang. Panelnya akan memakainya setelah BC250 Quick Access dipasang.",
+  "In Game Mode each preset sets every active system fan (PWM3–PWM8) together and never PWM2, not just the channel selected here.": "Di Mode Game, setiap preset mengatur semua kipas sistem aktif (PWM3–PWM8) sekaligus dan tidak pernah PWM2, bukan hanya kanal yang dipilih di sini.",
+  "{name}: {requested} % → {published} % in Decky.": "{name}: {requested} % → {published} % di Decky.",
   "Profiles, temporary tuning, persistence, and advanced details.": "Profil, penyetelan sementara, ketekunan, dan detail lanjutan.",
   "Programmed ranges": "Rentang terprogram",
   "Project overview": "Ikhtisar proyek",
@@ -5328,5 +5332,8 @@
   "Discard that snapshot and create a new one. Do not restore a file that could not be verified.": "Buang snapshot itu dan buat yang baru. Jangan memulihkan file yang tidak dapat diverifikasi.",
   "The Control Center update could not be downloaded or verified.": "Pembaruan Control Center tidak dapat diunduh atau diverifikasi.",
   "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.": "GitHub mengembalikan data rilis yang tidak lengkap, atau file yang diunduh tidak cocok dengan ukuran atau checksum yang dipublikasikan.",
-  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Periksa jaringan dan tanggal sistem, lalu coba pembaruan lagi. Jika terus gagal, instal paket dari halaman rilis."
+  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Periksa jaringan dan tanggal sistem, lalu coba pembaruan lagi. Jika terus gagal, instal paket dari halaman rilis.",
+  "Temperature reading": "Pembacaan suhu",
+  "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Dari mana Cyan membaca suhu GPU. Keduanya memberi nilai yang sama; sysfs tidak membiarkan perangkat GPU terbuka hanya untuk itu. DRM adalah bawaan.",
+  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Versi Cyan ini tidak membaca pengaturan ini. Perbarui dari Siapkan dependensi."
 }

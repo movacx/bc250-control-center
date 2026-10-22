@@ -1038,6 +1038,7 @@
   "Decky Quick Access preview": "Decky ดูตัวอย่างการเข้าถึงด่วน",
   "Decky Quick Access preview image": "Decky รูปภาพตัวอย่างการเข้าถึงด่วน",
   "Decky Quick Access uses these names and speeds for its Quiet, Balanced and Boost presets.": "Decky Quick Access ใช้ชื่อและความเร็วเหล่านี้กับพรีเซ็ต เงียบ สมดุล และ เร่ง",
+  "In Game Mode they set every active system fan (PWM3–PWM8) together, never PWM2, and a speed under 20 % runs at 20 %.": "ในโหมดเกม พรีเซ็ตจะตั้งพัดลมระบบที่ทำงานอยู่ทั้งหมด (PWM3–PWM8) พร้อมกัน ไม่แตะ PWM2 และความเร็วต่ำกว่า 20 % จะทำงานที่ 20 %",
   "Decky detected": "ตรวจพบ Decky",
   "Decky is a plugin for the console-style interface — Game Mode or Steam Big Picture. Install it and you can change fan speed and clocks from the Steam overlay, with a controller, without coming back to this window.": "Decky เป็นปลั๊กอินสำหรับหน้าจอแบบเครื่องเกม ทั้ง Game Mode และ Steam Big Picture ติดตั้งแล้วคุณจะปรับความเร็วพัดลมและความถี่ได้จากโอเวอร์เลย์ของ Steam ด้วยจอย โดยไม่ต้องกลับมาที่หน้าต่างนี้",
   "Decky is detected, but the BC250 Quick Access plugin or its protected helper needs installation or repair.": "ตรวจพบ Decky แต่ปลั๊กอิน Quick Access BC250 หรือตัวช่วยที่ได้รับการป้องกันจำเป็นต้องติดตั้งหรือซ่อมแซม",
@@ -2731,6 +2732,9 @@
   "Profiles": "โปรไฟล์",
   "Profiles and safe lab for bc250-detect --keep": "โปรไฟล์และห้องปฏิบัติการที่ปลอดภัยสำหรับ bc250-detect --keep",
   "Profiles exported to Decky Quick Access.": "ส่งออกโปรไฟล์ไปยัง Decky Quick Access แล้ว",
+  "Profiles saved for Decky Quick Access, but the plugin is not installed yet. Its panel will use them once BC250 Quick Access is installed.": "บันทึกโปรไฟล์สำหรับ Decky Quick Access แล้ว แต่ยังไม่ได้ติดตั้งปลั๊กอิน แผงของมันจะใช้โปรไฟล์เหล่านี้เมื่อติดตั้ง BC250 Quick Access แล้ว",
+  "In Game Mode each preset sets every active system fan (PWM3–PWM8) together and never PWM2, not just the channel selected here.": "ในโหมดเกม แต่ละพรีเซ็ตจะตั้งพัดลมระบบที่ทำงานอยู่ทั้งหมด (PWM3–PWM8) พร้อมกันและไม่แตะ PWM2 ไม่ใช่เฉพาะช่องที่เลือกไว้ที่นี่",
+  "{name}: {requested} % → {published} % in Decky.": "{name}: {requested} % → {published} % ใน Decky",
   "Profiles, temporary tuning, persistence, and advanced details.": "โปรไฟล์ การปรับแต่งชั่วคราว ความคงอยู่ และรายละเอียดขั้นสูง",
   "Programmed ranges": "ช่วงที่ตั้งโปรแกรมไว้",
   "Project overview": "ภาพรวมโครงการ",
@@ -5328,5 +5332,8 @@
   "Discard that snapshot and create a new one. Do not restore a file that could not be verified.": "ทิ้งสแนปช็อตนั้นแล้วสร้างใหม่ อย่ากู้คืนไฟล์ที่ตรวจสอบไม่ได้",
   "The Control Center update could not be downloaded or verified.": "ไม่สามารถดาวน์โหลดหรือตรวจสอบการอัปเดต Control Center ได้",
   "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.": "GitHub ส่งข้อมูลรุ่นที่ไม่ครบ หรือไฟล์ที่ดาวน์โหลดไม่ตรงกับขนาดหรือเช็กซัมที่เผยแพร่",
-  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "ตรวจสอบเครือข่ายและวันที่ของระบบ แล้วลองอัปเดตอีกครั้ง หากยังล้มเหลว ให้ติดตั้งแพ็กเกจจากหน้ารุ่น"
+  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "ตรวจสอบเครือข่ายและวันที่ของระบบ แล้วลองอัปเดตอีกครั้ง หากยังล้มเหลว ให้ติดตั้งแพ็กเกจจากหน้ารุ่น",
+  "Temperature reading": "การอ่านอุณหภูมิ",
+  "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "ตำแหน่งที่ Cyan อ่านอุณหภูมิ GPU ทั้งสองให้ค่าเดียวกัน sysfs ไม่เปิดอุปกรณ์ GPU ค้างไว้เพื่อการนี้ ค่าเริ่มต้นคือ DRM",
+  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Cyan เวอร์ชันนี้ไม่อ่านการตั้งค่านี้ อัปเดตได้จากเตรียมการพึ่งพา"
 }

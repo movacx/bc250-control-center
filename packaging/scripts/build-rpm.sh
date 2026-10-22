@@ -66,7 +66,7 @@ License:        MIT
 URL:            https://github.com/movacx/bc250-control-center
 Source0:        bc250-control-center-root.tar.gz
 BuildArch:      noarch
-Requires:       python3, python3-psutil, python3-pyqt6, qt6-qtsvg, polkit, jq, diffutils
+Requires:       python3 >= 3.11, python3-psutil, python3-pyqt6, qt6-qtsvg, polkit, jq, diffutils
 Suggests:       git, lm_sensors, pciutils, stress, vulkan-tools
 
 %description

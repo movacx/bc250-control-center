@@ -13,7 +13,6 @@ from bc250cc.infrastructure.fan_transport import (
     select_pwm_transport,
     validate_pwm_request,
 )
-from bc250cc.infrastructure.governor_config_request import plan_governor_config_request
 from bc250cc.infrastructure.polkit_session import normalize_polkit_error, pkexec_argv
 from bc250cc.infrastructure.steamos_shell import wrap_steamos_writable_command
 from bc250cc.infrastructure.system_fan_control import (
@@ -23,7 +22,6 @@ from bc250cc.infrastructure.system_fan_control import (
     running_fan_managers,
 )
 from bc250cc.platform.init.services import detect_init_manager
-from bc250cc.shared.failure_text import describe_failure
 
 logger = logging.getLogger(__name__)
 
@@ -648,24 +646,7 @@ class FanRepository:
         metadata writer the GPU and CPU exports use; no fan is touched here,
         and the Decky helper bounds every speed again before it applies one.
         """
-        request = plan_governor_config_request("set-decky-fan-profiles", (list(profiles),))
-        helper = self._governor_config_helper_path()
-        if not helper:
-            raise RuntimeError(
-                "The privileged governor configuration helper is not installed. "
-                "Reinstall BC250 Control Center locally or from its package before exporting."
-            )
-        rc, out, err = self._ejecutar(request.argv(helper), timeout=120)
-        if rc != 0:
-            if "Unsupported governor configuration action" in f"{out}\n{err}":
-                # A helper installed by an older build: every other export
-                # still works, this one needs the matching helper.
-                raise RuntimeError(
-                    "The installed privileged helper is older than this application. "
-                    "Reinstall BC250 Control Center to export fan profiles to Decky."
-                )
-            raise RuntimeError(describe_failure(rc, out, err))
-        return (out or "").strip()
+        return self._exportar_perfiles_decky("set-decky-fan-profiles", profiles)
 
     def _escribir_pwm_auto_con_helper(self, pwm):
         proceso = self._obtener_fan_pwm_helper()

@@ -10,14 +10,11 @@ from PyQt6.QtCore import (
     QPoint,
     QPointF,
     QPropertyAnimation,
-    QRectF,
-    QSequentialAnimationGroup,
     QSize,
     Qt,
-    QVariantAnimation,
     pyqtSignal,
 )
-from PyQt6.QtGui import QColor, QIcon, QPainter, QPainterPath, QPen, QPolygonF
+from PyQt6.QtGui import QColor, QIcon, QPainter, QPainterPath, QPolygonF
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -31,6 +28,7 @@ from PyQt6.QtWidgets import QPushButton as IconButton
 from .. import theme
 from ..i18n import tr, tr_format
 from .buttons import WrappingButton as QPushButton
+from .outline_glow import REPORT_AMBER, OutlineGlow
 from .widgets import ICON_DIR, apply_shadow, icon
 
 
@@ -98,74 +96,37 @@ class _GlowingFooterButton(_FooterActionButton):
     the button is hidden or under the pointer.
     """
 
-    EDGE_ALPHA = 210
-    TINT_ALPHA = 34
-    #: One glow every two seconds: in, out, and a short rest.
-    FADE_MS = 700
-    PAUSE_MS = 600
-
     def __init__(self, text: str) -> None:
         super().__init__(text)
-        self._glowing = False
-        self._level = 0.0
-        self._glow = QSequentialAnimationGroup(self)
-        for start, end in ((0.0, 1.0), (1.0, 0.0)):
-            fade = QVariantAnimation(self)
-            fade.setDuration(self.FADE_MS)
-            fade.setStartValue(start)
-            fade.setEndValue(end)
-            fade.setEasingCurve(QEasingCurve.Type.InOutSine)
-            fade.valueChanged.connect(self._set_level)
-            self._glow.addAnimation(fade)
-        self._glow.addPause(self.PAUSE_MS)
-        self._glow.setLoopCount(-1)
+        self._outline = OutlineGlow(self)
+        self._glow = self._outline.cycle
+
+    @property
+    def _level(self) -> float:
+        return self._outline.level
 
     def glow_color(self) -> QColor:
         raise NotImplementedError
 
-    def _set_level(self, value) -> None:
-        self._level = float(value)
-        self.update()
-
     def set_glow(self, enabled: bool) -> None:
-        enabled = bool(enabled)
-        if enabled == self._glowing:
-            return
-        self._glowing = enabled
-        if enabled and self.isVisible():
-            self._glow.start()
-        elif not enabled:
-            self._glow.stop()
-            self._set_level(0.0)
+        self._outline.set_enabled(enabled)
 
     def showEvent(self, event) -> None:  # noqa: N802 - Qt API name
         super().showEvent(event)
-        if self._glowing and self._glow.state() != QSequentialAnimationGroup.State.Running:
-            self._glow.start()
+        self._outline.shown()
 
     def hideEvent(self, event) -> None:  # noqa: N802 - Qt API name
         super().hideEvent(event)
-        self._glow.stop()
-        self._level = 0.0
+        self._outline.hidden()
 
     def paintEvent(self, event) -> None:  # noqa: N802 - Qt API name
         super().paintEvent(event)
-        if self._level <= 0.0 or self.underMouse() or self.hasFocus():
-            return
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         # The button's own corner (17 px in the stylesheet, halved by formal).
         radius = 17.0 * (theme.FORMAL_RADIUS_FACTOR if theme.ACTIVE_STYLE == "formal" else 1.0)
-        radius = min(radius * theme.ACTIVE_SCALE / 100, self.height() / 2)
-        rect = QRectF(self.rect()).adjusted(0.75, 0.75, -0.75, -0.75)
-        color = self.glow_color()
-        painter.setBrush(QColor(color.red(), color.green(), color.blue(), round(self.TINT_ALPHA * self._level)))
-        painter.setPen(QPen(QColor(color.red(), color.green(), color.blue(), round(self.EDGE_ALPHA * self._level)), 1.5))
-        painter.drawRoundedRect(rect, radius, radius)
-        painter.end()
+        self._outline.paint(self.glow_color(), radius * theme.ACTIVE_SCALE / 100)
 
     def glowing(self) -> bool:
-        return self._glowing
+        return self._outline.glowing()
 
 
 class _UpdateBadgeButton(_GlowingFooterButton):
@@ -408,7 +369,7 @@ class _ReportButton(_GlowingFooterButton):
     """
 
     def glow_color(self) -> QColor:
-        return QColor(245, 166, 35)
+        return REPORT_AMBER
 
 
 class DashboardFooter(QWidget):

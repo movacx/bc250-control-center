@@ -1038,6 +1038,7 @@
   "Decky Quick Access preview": "Decky Snelle toegang voorbeeld",
   "Decky Quick Access preview image": "Decky voorbeeldafbeelding Snelle toegang",
   "Decky Quick Access uses these names and speeds for its Quiet, Balanced and Boost presets.": "Decky Quick Access gebruikt deze namen en snelheden voor de voorinstellingen Stil, Gebalanceerd en Krachtig.",
+  "In Game Mode they set every active system fan (PWM3–PWM8) together, never PWM2, and a speed under 20 % runs at 20 %.": "In de spelmodus stellen ze alle actieve systeemventilatoren (PWM3–PWM8) samen in, nooit PWM2, en een snelheid onder 20 % draait op 20 %.",
   "Decky detected": "Decky gedetecteerd",
   "Decky is a plugin for the console-style interface — Game Mode or Steam Big Picture. Install it and you can change fan speed and clocks from the Steam overlay, with a controller, without coming back to this window.": "Decky is een plug-in voor de console-achtige interface — Game Mode of Steam Big Picture. Installeer het en je kunt ventilatorsnelheid en kloksnelheden vanuit de Steam-overlay wijzigen, met een controller, zonder terug te komen naar dit venster.",
   "Decky is detected, but the BC250 Quick Access plugin or its protected helper needs installation or repair.": "Decky is gedetecteerd, maar de BC250 Quick Access-plug-in of zijn beschermde helper moet worden geïnstalleerd of gerepareerd.",
@@ -2731,6 +2732,9 @@
   "Profiles": "Profielen",
   "Profiles and safe lab for bc250-detect --keep": "Profielen en veilig lab voor bc250-detect --keep",
   "Profiles exported to Decky Quick Access.": "Profielen geëxporteerd naar Decky Quick Access.",
+  "Profiles saved for Decky Quick Access, but the plugin is not installed yet. Its panel will use them once BC250 Quick Access is installed.": "Profielen opgeslagen voor Decky Quick Access, maar de plug-in is nog niet geïnstalleerd. Het paneel gebruikt ze zodra BC250 Quick Access is geïnstalleerd.",
+  "In Game Mode each preset sets every active system fan (PWM3–PWM8) together and never PWM2, not just the channel selected here.": "In de spelmodus stelt elke voorinstelling alle actieve systeemventilatoren (PWM3–PWM8) samen in en nooit PWM2, niet alleen het hier gekozen kanaal.",
+  "{name}: {requested} % → {published} % in Decky.": "{name}: {requested} % → {published} % gepubliceerd in Decky.",
   "Profiles, temporary tuning, persistence, and advanced details.": "Profielen, tijdelijke afstemming, persistentie en geavanceerde details.",
   "Programmed ranges": "Geprogrammeerde bereiken",
   "Project overview": "Projectoverzicht",
@@ -5328,5 +5332,8 @@
   "Discard that snapshot and create a new one. Do not restore a file that could not be verified.": "Verwijder die snapshot en maak een nieuwe. Herstel geen bestand dat niet gecontroleerd kon worden.",
   "The Control Center update could not be downloaded or verified.": "De Control Center-update kon niet worden gedownload of gecontroleerd.",
   "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.": "GitHub gaf onvolledige releasegegevens, of het gedownloade bestand komt niet overeen met de gepubliceerde grootte of checksum.",
-  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Controleer het netwerk en de systeemdatum en probeer de update opnieuw. Blijft het mislukken, installeer dan het pakket via de releasepagina."
+  "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Controleer het netwerk en de systeemdatum en probeer de update opnieuw. Blijft het mislukken, installeer dan het pakket via de releasepagina.",
+  "Temperature reading": "Temperatuurmeting",
+  "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Waar Cyan de GPU-temperatuur leest. Beide geven dezelfde waarde; sysfs houdt daarvoor geen GPU-apparaat open. DRM is de standaard.",
+  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Deze Cyan-versie leest deze instelling niet. Werk hem bij via Afhankelijkheden voorbereiden."
 }

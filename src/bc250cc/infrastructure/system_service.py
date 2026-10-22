@@ -520,6 +520,9 @@ class SistemaService:
     def preparar_quick_access_steamos(self, *, install_decky: bool):
         return self.repo.preparar_quick_access_steamos(install_decky=install_decky)
 
+    def estado_quick_access_decky(self):
+        return self.repo.estado_quick_access_decky()
+
     def driver_inventory(self):
         return self.repo.driver_inventory()
 
@@ -646,10 +649,10 @@ class SistemaService:
         return self.repo.alternar_puntos_gpu_altos(enabled)
 
     def configurar_compatibilidad_gpu_cyan(
-        self, set_method, usage_method, fix_metrics, fix_frequency
+        self, set_method, usage_method, fix_metrics, fix_frequency, temp_read=None
     ):
         return self.repo.configurar_compatibilidad_gpu_cyan(
-            set_method, usage_method, fix_metrics, fix_frequency
+            set_method, usage_method, fix_metrics, fix_frequency, temp_read
         )
 
     def instalar_cpu_oc(self):

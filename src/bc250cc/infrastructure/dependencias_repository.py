@@ -434,6 +434,10 @@ class DependenciasRepository(SteamosDependenciesMixin):
                 return candidate
         return None
 
+    def estado_quick_access_decky(self) -> dict:
+        """The Decky/plugin inventory alone: a few stat() calls, no probes."""
+        return quick_access_inventory(os_family=str(self._os_repository().family)).to_dict()
+
     def preparar_quick_access_steamos(self, *, install_decky: bool) -> object:
         """Open the explicit Game Mode Decky/BC250 Quick Access workflow.
 
