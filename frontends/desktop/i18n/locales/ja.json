@@ -417,7 +417,7 @@
   "Automatic curve is disabled": "自動カーブが無効になっています",
   "Automatic detection": "自動検出",
   "Automatic detection finds the first compatible scale. Frequency, VID, and temperature belong to detection; manual scale is a separate live test.": "自動検出により、互換性のある最初のスケールが検出されます。周波数、VID、温度は検出に属します。手動スケールは別のライブテストです。",
-  "Automatic detection · {temperature} °C": "自動検出・{temperature} ℃",
+  "Applied by automatic detection · {temperature} °C · until restart": "自動検出で適用 · {temperature} °C · 再起動まで",
   "Automatic detection: {value}": "自動検出: {value}",
   "Automatic fan control restored": "自動ファン制御が復旧しました",
   "Automatic fan restore failed": "ファンの自動復元に失敗しました",
@@ -5335,5 +5335,6 @@
   "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "ネットワークとシステムの日付を確認して、もう一度更新してください。それでも失敗する場合は、リリースページからパッケージをインストールしてください。",
   "Temperature reading": "温度の読み取り",
   "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Cyan が GPU 温度を読み取る場所です。どちらも同じ値になります。sysfs はそのためだけに GPU デバイスを開いたままにしません。既定は DRM です。",
-  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "この Cyan のバージョンはこの設定を読み取りません。「依存関係の準備」から更新してください。"
+  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "この Cyan のバージョンはこの設定を読み取りません。「依存関係の準備」から更新してください。",
+  "Hardware diagnostics": "ハードウェア診断"
 }

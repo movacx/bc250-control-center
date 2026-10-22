@@ -31,10 +31,10 @@ from PyQt6.QtWidgets import (
 
 from ..core.external_links import open_external_url
 from ..i18n import localize_widget_tree, tr, tr_format
-from ..theme import COLORS, application_stylesheet
+from ..theme import application_stylesheet
 from .buttons import WrappingButton as QPushButton
 from .dialogs import center_dialog, enable_adaptive_dialog
-from .widgets import dialog_card, dialog_header, icon
+from .widgets import dialog_card, icon
 
 IMAGES = Path(__file__).resolve().parents[3] / "assets" / "telemetry-i2c"
 GUIDE_URL = "https://github.com/onlinermm/BC250-Telemetry/blob/main/hardware.md"
@@ -164,9 +164,7 @@ class I2cGuideDialog(QDialog):
         frame = QVBoxLayout(card)
         frame.setContentsMargins(0, 0, 0, 0)
         frame.setSpacing(0)
-        frame.addWidget(dialog_header(
-            self, tr("Show the power delivery readings"), tr("Power delivery"), "info_blue", COLORS["blue_soft"],
-        ))
+        # No header: the photos and the steps get the whole height; Close is in the footer.
 
         body = QHBoxLayout()
         body.setContentsMargins(18, 16, 18, 16)

@@ -417,7 +417,7 @@
   "Automatic curve is disabled": "Az automatikus görbe le van tiltva",
   "Automatic detection": "Automatikus észlelés",
   "Automatic detection finds the first compatible scale. Frequency, VID, and temperature belong to detection; manual scale is a separate live test.": "Az automatikus felismerés megtalálja az első kompatibilis skálát. A frekvencia, a VID és a hőmérséklet az észleléshez tartozik; A kézi mérleg egy külön élő teszt.",
-  "Automatic detection · {temperature} °C": "Automatikus érzékelés · {temperature} °C",
+  "Applied by automatic detection · {temperature} °C · until restart": "Az automatikus felismerés alkalmazta · {temperature} °C · újraindításig",
   "Automatic detection: {value}": "Automatikus észlelés: {value}",
   "Automatic fan control restored": "Az automatikus ventilátorvezérlés helyreállt",
   "Automatic fan restore failed": "A ventilátor automatikus visszaállítása nem sikerült",
@@ -5335,5 +5335,6 @@
   "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Ellenőrizd a hálózatot és a rendszer dátumát, majd próbáld újra a frissítést. Ha továbbra sem sikerül, telepítsd a csomagot a kiadási oldalról.",
   "Temperature reading": "Hőmérséklet-olvasás",
   "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Honnan olvassa a Cyan a GPU hőmérsékletét. Mindkettő ugyanazt az értéket adja; a sysfs nem tartja nyitva a GPU-eszközt csak emiatt. Az alapértelmezett a DRM.",
-  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Ez a Cyan-verzió nem olvassa ezt a beállítást. Frissítsd a Függőségek előkészítése menüpontban."
+  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Ez a Cyan-verzió nem olvassa ezt a beállítást. Frissítsd a Függőségek előkészítése menüpontban.",
+  "Hardware diagnostics": "Hardverdiagnosztika"
 }

@@ -1673,6 +1673,21 @@ class GPURepository:
             return False
         return True
 
+    #: How long the OD table read is reused. On the BC-250 every read of
+    #: pp_od_clk_voltage logs eight "Unsupported clock type" kernel errors, and
+    #: the table only changes when a kernel or a governor configuration does.
+    OD_TEXT_TTL_S = 60.0
+
+    def _od_text(self, gpu):
+        key = str(gpu)
+        cached = getattr(self, "_od_cache", None)
+        now = time.monotonic()
+        if cached and cached[0] == key and now - cached[1] < self.OD_TEXT_TTL_S:
+            return cached[2]
+        text = self._leer_texto(gpu / "pp_od_clk_voltage")
+        self._od_cache = (key, now, text)
+        return text
+
     def _gpu_device_evidence(self, gpu):
         """Read one coherent sysfs sample without mixing governor decisions."""
         if not gpu:
@@ -1695,7 +1710,7 @@ class GPURepository:
             )
         sclk_text = self._leer_texto(gpu / "pp_dpm_sclk")
         mclk_text = self._leer_texto(gpu / "pp_dpm_mclk")
-        od = self._parse_od(self._leer_texto(gpu / "pp_od_clk_voltage"))
+        od = self._parse_od(self._od_text(gpu))
         hwmon_sclk, hwmon_vddgfx = self._gpu_hwmon_live_metrics(gpu)
         return GpuDeviceEvidence(
             path=str(gpu),

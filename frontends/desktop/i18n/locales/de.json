@@ -417,7 +417,7 @@
   "Automatic curve is disabled": "Die automatische Kurve ist deaktiviert",
   "Automatic detection": "Automatische Erkennung",
   "Automatic detection finds the first compatible scale. Frequency, VID, and temperature belong to detection; manual scale is a separate live test.": "Die automatische Erkennung findet die erste kompatible Skala. Frequenz, VID und Temperatur gehören zur Erkennung; die manuelle Skala ist ein separater Live-Test.",
-  "Automatic detection · {temperature} °C": "Automatische Erkennung · {temperature} °C",
+  "Applied by automatic detection · {temperature} °C · until restart": "Von der automatischen Erkennung angewendet · {temperature} °C · bis zum Neustart",
   "Automatic detection: {value}": "Automatische Erkennung: {value}",
   "Automatic fan control restored": "Automatische Lüftersteuerung wiederhergestellt",
   "Automatic fan restore failed": "Wiederherstellung der Lüfterautomatik fehlgeschlagen",
@@ -5335,5 +5335,6 @@
   "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Prüfe Netzwerk und Systemdatum und versuche das Update erneut. Wenn es weiter fehlschlägt, installiere das Paket von der Release-Seite.",
   "Temperature reading": "Temperaturmessung",
   "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Woher Cyan die GPU-Temperatur liest. Beide liefern denselben Wert; sysfs hält dafür kein GPU-Gerät offen. DRM ist die Voreinstellung.",
-  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Diese Cyan-Version liest diese Einstellung nicht. Aktualisiere sie unter Abhängigkeiten vorbereiten."
+  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Diese Cyan-Version liest diese Einstellung nicht. Aktualisiere sie unter Abhängigkeiten vorbereiten.",
+  "Hardware diagnostics": "Hardwarediagnose"
 }

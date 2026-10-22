@@ -136,6 +136,12 @@ def _parser() -> argparse.ArgumentParser:
     profiles.add_argument("path")
     profiles.add_argument("--yes", action="store_true", help="Confirm replacement during import")
 
+    commands.add_parser(
+        "black-box",
+        help="Record GPU clock, load, temperatures, voltage and fans 4 times a second until Ctrl+C; "
+             "the next problem report attaches the last seconds before a freeze",
+    )
+    commands.add_parser("diagnose", help="Print the hardware diagnosis a problem report attaches")
     metrics = commands.add_parser("metrics", help="Read or export recorded runtime metrics")
     metrics.add_argument("action", choices=("list", "export"))
     metrics.add_argument("--path")
@@ -177,6 +183,15 @@ def _run_dependencies(args, host, runner) -> int:
 
 def main(argv: list[str] | None = None, *, host=None, runner=subprocess.run) -> int:
     args = _parser().parse_args(argv)
+    if args.command == "black-box":
+        from bc250cc.infrastructure.blackbox import record
+
+        return record()
+    if args.command == "diagnose":
+        from bc250cc.infrastructure.system_diagnostics import collect_diagnostics
+
+        print(collect_diagnostics())
+        return 0
     host = host or HeadlessHost()
     os_info = detect_os_info(
         host._os_release(), has_rpm_ostree=bool(host._command_path("rpm-ostree"))

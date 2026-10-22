@@ -34,6 +34,7 @@
   "compatProcessWarning": "Die Messung process geht jede offene Datei jedes Programms durch. Solange ein Spiel läuft, antwortet Cyan nicht mehr: Bereich, +2000-MHz-Punkte und Spannungslabor funktionieren erst wieder, wenn das Spiel beendet ist. busy-flag ist die Voreinstellung.",
   "compatSetMethod": "Governor-Methode",
   "compatTitle": "Kompatibilität",
+  "compatTemperature": "Temperaturmessung",
   "compatUsage": "Auslastungsmessung",
   "compute": "RECHENEINHEITEN",
   "controller": "Controller",

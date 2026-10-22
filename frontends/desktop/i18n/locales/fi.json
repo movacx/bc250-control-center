@@ -417,7 +417,7 @@
   "Automatic curve is disabled": "Automaattinen käyrä ei ole käytössä",
   "Automatic detection": "Automaattinen tunnistus",
   "Automatic detection finds the first compatible scale. Frequency, VID, and temperature belong to detection; manual scale is a separate live test.": "Automaattinen tunnistus löytää ensimmäisen yhteensopivan vaa'an. Taajuus, VID ja lämpötila kuuluvat havaitsemiseen; manuaalinen vaaka on erillinen live-testi.",
-  "Automatic detection · {temperature} °C": "Automaattinen tunnistus · {temperature} °C",
+  "Applied by automatic detection · {temperature} °C · until restart": "Automaattisen tunnistuksen käyttöön ottama · {temperature} °C · uudelleenkäynnistykseen asti",
   "Automatic detection: {value}": "Automaattinen tunnistus: {value}",
   "Automatic fan control restored": "Automaattinen tuulettimen ohjaus palautettu",
   "Automatic fan restore failed": "Automaattinen tuulettimen palautus epäonnistui",
@@ -5335,5 +5335,6 @@
   "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Tarkista verkko ja järjestelmän päivämäärä ja yritä päivitystä uudelleen. Jos se epäonnistuu edelleen, asenna paketti julkaisusivulta.",
   "Temperature reading": "Lämpötilan luku",
   "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Mistä Cyan lukee GPU:n lämpötilan. Molemmat antavat saman arvon; sysfs ei pidä GPU-laitetta auki vain sitä varten. DRM on oletus.",
-  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Tämä Cyan-versio ei lue tätä asetusta. Päivitä se kohdasta Valmistele riippuvuudet."
+  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Tämä Cyan-versio ei lue tätä asetusta. Päivitä se kohdasta Valmistele riippuvuudet.",
+  "Hardware diagnostics": "Laitteiston diagnostiikka"
 }

@@ -417,7 +417,7 @@
   "Automatic curve is disabled": "Automatisk kurve er deaktiveret",
   "Automatic detection": "Automatisk detektering",
   "Automatic detection finds the first compatible scale. Frequency, VID, and temperature belong to detection; manual scale is a separate live test.": "Automatisk registrering finder den første kompatible vægt. Frekvens, VID og temperatur hører til detektion; manuel skala er en separat live-test.",
-  "Automatic detection · {temperature} °C": "Automatisk registrering · {temperature} °C",
+  "Applied by automatic detection · {temperature} °C · until restart": "Anvendt af automatisk registrering · {temperature} °C · indtil genstart",
   "Automatic detection: {value}": "Automatisk registrering: {value}",
   "Automatic fan control restored": "Automatisk blæserstyring genoprettet",
   "Automatic fan restore failed": "Automatisk gendannelse af blæser mislykkedes",
@@ -5335,5 +5335,6 @@
   "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Tjek netværket og systemdatoen, og prøv opdateringen igen. Hvis den bliver ved med at fejle, så installer pakken fra udgivelsessiden.",
   "Temperature reading": "Temperaturaflæsning",
   "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Hvor Cyan læser GPU-temperaturen. Begge giver samme værdi; sysfs holder ikke GPU-enheden åben kun til det. DRM er standard.",
-  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Denne Cyan-version læser ikke denne indstilling. Opdater den fra Forbered afhængigheder."
+  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Denne Cyan-version læser ikke denne indstilling. Opdater den fra Forbered afhængigheder.",
+  "Hardware diagnostics": "Hardwarediagnostik"
 }

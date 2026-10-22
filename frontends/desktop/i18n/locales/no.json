@@ -417,7 +417,7 @@
   "Automatic curve is disabled": "Automatisk kurve er deaktivert",
   "Automatic detection": "Automatisk deteksjon",
   "Automatic detection finds the first compatible scale. Frequency, VID, and temperature belong to detection; manual scale is a separate live test.": "Automatisk deteksjon finner den første kompatible vekten. Frekvens, VID og temperatur tilhører deteksjon; manuell skala er en egen live test.",
-  "Automatic detection · {temperature} °C": "Automatisk deteksjon · {temperature} °C",
+  "Applied by automatic detection · {temperature} °C · until restart": "Brukt av automatisk gjenkjenning · {temperature} °C · til omstart",
   "Automatic detection: {value}": "Automatisk gjenkjenning: {value}",
   "Automatic fan control restored": "Automatisk viftekontroll gjenopprettet",
   "Automatic fan restore failed": "Automatisk viftegjenoppretting mislyktes",
@@ -5335,5 +5335,6 @@
   "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Sjekk nettverket og systemdatoen, og prøv oppdateringen igjen. Hvis den fortsatt feiler, installer pakken fra versjonssiden.",
   "Temperature reading": "Temperaturavlesning",
   "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Hvor Cyan leser GPU-temperaturen. Begge gir samme verdi; sysfs holder ikke GPU-enheten åpen bare for det. DRM er standard.",
-  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Denne Cyan-versjonen leser ikke denne innstillingen. Oppdater den fra Klargjør avhengigheter."
+  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Denne Cyan-versjonen leser ikke denne innstillingen. Oppdater den fra Klargjør avhengigheter.",
+  "Hardware diagnostics": "Maskinvarediagnostikk"
 }

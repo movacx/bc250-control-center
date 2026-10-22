@@ -417,7 +417,7 @@
   "Automatic curve is disabled": "Otomatik eğri devre dışı",
   "Automatic detection": "Otomatik algılama",
   "Automatic detection finds the first compatible scale. Frequency, VID, and temperature belong to detection; manual scale is a separate live test.": "Otomatik algılama ilk uyumlu teraziyi bulur. Frekans, VID ve sıcaklık algılamaya aittir; manuel ölçek ayrı bir canlı testtir.",
-  "Automatic detection · {temperature} °C": "Otomatik algılama · {temperature} °C",
+  "Applied by automatic detection · {temperature} °C · until restart": "Otomatik algılama tarafından uygulandı · {temperature} °C · yeniden başlatılana kadar",
   "Automatic detection: {value}": "Otomatik algılama: {value}",
   "Automatic fan control restored": "Otomatik fan kontrolü geri yüklendi",
   "Automatic fan restore failed": "Otomatik fan geri yüklemesi başarısız oldu",
@@ -5335,5 +5335,6 @@
   "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Ağı ve sistem tarihini kontrol edip güncellemeyi yeniden deneyin. Hata sürerse paketi sürüm sayfasından kurun.",
   "Temperature reading": "Sıcaklık okuma",
   "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Cyan'ın GPU sıcaklığını nereden okuduğu. İkisi de aynı değeri verir; sysfs yalnızca bunun için GPU aygıtını açık tutmaz. Varsayılan DRM'dir.",
-  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Bu Cyan sürümü bu ayarı okumuyor. Bağımlılıkları hazırla bölümünden güncelleyin."
+  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Bu Cyan sürümü bu ayarı okumuyor. Bağımlılıkları hazırla bölümünden güncelleyin.",
+  "Hardware diagnostics": "Donanım tanılaması"
 }

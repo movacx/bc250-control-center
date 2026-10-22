@@ -761,7 +761,7 @@ ERROR_CODES: dict[str, tuple[str, str, str]] = {
     "QUICK_ACCESS_GPU_SERVICE": ("gpuServiceFailed", "gpuServiceAction", "BC250-SERVICE-003"),
     "QUICK_ACCESS_GPU_CONFLICT": ("gpuConflictFailed", "gpuServiceAction", "BC250-SERVICE-003"),
     "QUICK_ACCESS_GPU_DBUS": ("gpuDbusFailed", "gpuDbusAction", "BC250-DBUS-001"),
-    "QUICK_ACCESS_GPU_ALLOWED": ("gpuRangeFailed", "gpuRangeAction", "BC250-DBUS-001"),
+    "QUICK_ACCESS_GPU_ALLOWED": ("gpuRangeFailed", "gpuRangeAction", "BC250-RANGE-001"),
     "QUICK_ACCESS_GPU_PROFILE": ("gpuRangeFailed", "gpuRangeAction", "BC250-RANGE-001"),
     "QUICK_ACCESS_GPU_SAFE_POINT": ("gpuRangeFailed", "gpuRangeAction", "BC250-RANGE-001"),
     "QUICK_ACCESS_GPU_HIGH_POINTS": ("gpuOperationFailed", "gpuAction", "BC250-RANGE-001"),
@@ -1443,7 +1443,7 @@ class Plugin:
             return self._record_action("gpu", f"voltage-level-{level}", result)
 
     async def apply_gpu_compatibility(
-        self, set_method: str, usage_method: str, fix_metrics: bool, fix_frequency: bool,
+        self, set_method: str, usage_method: str, fix_metrics: bool, fix_frequency: bool, temp_read: str = "drm",
     ) -> dict:
         """Cyan kernel compatibility: write the four settings, restart Cyan.
 
@@ -1456,6 +1456,7 @@ class Plugin:
             set_method not in ("smu", "kernel")
             or usage_method not in ("busy-flag", "process", "kernel")
             or type(fix_metrics) is not bool or type(fix_frequency) is not bool
+            or temp_read not in ("drm", "sysfs")
         ):
             return _failure("QUICK_ACCESS_INVALID_REQUEST", "Unsupported Cyan compatibility request.")
         if self._operation_lock.locked():
@@ -1468,6 +1469,7 @@ class Plugin:
                 result = await asyncio.to_thread(
                     self._run, "gpu-compat", set_method, usage_method,
                     "1" if fix_metrics else "0", "1" if fix_frequency else "0",
+                    temp_read,
                     timeout=150,
                 )
             return self._record_action("gpu", f"compat-{set_method}-{usage_method}", result)

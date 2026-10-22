@@ -109,6 +109,29 @@ Aby zainstalować, otwórz **Panel**, przewiń do **Decky** i wybierz proponowan
 
 Więcej w [README Decky](../../integrations/decky/bc250-quick-access/README.md).
 
+## Zgłaszanie problemów
+
+Okna błędów pokazują kod diagnostyczny (na przykład `BC250-UPSCALE-001`), kod źródłowy wskazujący funkcję, w której wystąpił błąd (na przykład `GPU-0142`), oraz surowy błąd z jego śladem.
+
+Użyj opcji **Zgłoś ten problem** w oknie błędu albo **Ustawienia › Diagnostyka › Wyślij raport**. Formularz otwiera się w aplikacji z wypełnionymi kodami, surowym błędem, specyfikacją systemu i ostatnimi błędami. Przed wysłaniem możesz wszystko sprawdzić; ścieżki katalogu domowego są zastępowane przez `~`. Jeśli formularza nie można wysłać, otworzy się w przeglądarce z zachowanymi odpowiedziami. Formularz jest również dostępny [w sieci](https://docs.google.com/forms/d/e/1FAIpQLSe3M1stf3bpCoorb4hCWFX9YC_TZ_Gv6WHWQDRe1AV5rJT6rA/viewform).
+
+Raport dołącza także diagnostykę sprzętu, zbieraną bez uprawnień root na każdej dystrybucji: jądro i nagłówki, załadowane moduły czujników oraz ich komunikaty jądra (NCT6687, amdgpu), odczyty hwmon i `sensors`, wpisy dotyczące GPU i awarii z dziennika jądra, sposób zakończenia poprzedniego uruchomienia (prawidłowe wyłączenie lub nagły reset), usługi, pakiety i końcówkę ostatniego dziennika przepływu pracy. Gdy dziennik jądra jest niedostępny dla użytkownika, pulpit jednorazowo poprosi o hasło przez polkit. Raporty zbyt duże dla formularza są automatycznie skracane, zaczynając od najmniej ważnych części; **Otwórz w przeglądarce** nadal kopiuje pełny tekst.
+
+### Black box (zawieszanie i resety)
+
+Twarde zawieszenie nie zostawia nic w dzienniku jądra. Czarna skrzynka cztery razy na sekundę rejestruje zegar i obciążenie GPU, temperatury, napięcie GFX, pobór mocy, prędkość wentylatora, zegar CPU i wolną pamięć, zapisując każdą linię na dysku. Dzięki temu następny raport pokazuje ostatnie sekundy przed zawieszeniem lub resetem. Nie wymaga uprawnień root, a jej plik ma ograniczony rozmiar (512 KB, potem jest rotowany).
+
+```bash
+# Tryb pulpitu: pozostaw terminal otwarty podczas gry, zatrzymaj przez Ctrl+C
+bc250-control-center-cli black-box
+
+# Tryb gry (SteamOS): uruchom w tle przed przełączeniem
+systemd-run --user --unit=bc250-black-box bc250-control-center-cli black-box
+systemctl --user stop bc250-black-box
+```
+
+Dziennik jest przechowywany w `~/.local/state/bc250-control-center/black-box/`. `bc250-control-center-cli diagnose` wyświetla tę samą diagnostykę sprzętu, którą wysyła raport.
+
 ## Bezpieczeństwo
 
 Podkręcanie, odblokowywanie Compute Units, sterowanie wentylatorami i wgrywanie BIOS-u mogą zawiesić komputer, spowodować utratę danych albo zabić płytę. Zmieniaj jedną rzecz naraz, miej drogę powrotu i nie traktuj kontroli aplikacji jako gwarancji. Łapią oczywiste błędy, nie wszystkie.

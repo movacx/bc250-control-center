@@ -109,6 +109,29 @@ bash scripts/uninstall-local.sh
 
 更多内容见 [Decky README](../../integrations/decky/bc250-quick-access/README.md)。
 
+## 报告问题
+
+错误窗口会显示诊断代码（例如 `BC250-UPSCALE-001`）、用于标识发生错误的功能的来源代码（例如 `GPU-0142`），以及带回溯信息的原始错误。
+
+请在错误窗口中使用 **报告此问题**，或选择 **设置 › 诊断 › 发送报告**。表单会在应用内打开，并预先填入代码、原始错误、系统规格和最近的错误。发送前可以查看全部内容；主目录路径会替换为 `~`。如果无法提交表单，它会在浏览器中打开并保留你的回答。表单也可[在网页上](https://docs.google.com/forms/d/e/1FAIpQLSe3M1stf3bpCoorb4hCWFX9YC_TZ_Gv6WHWQDRe1AV5rJT6rA/viewform)使用。
+
+报告还会附带硬件诊断信息，该信息在所有发行版上都无需 root 即可收集：内核和头文件、已加载的传感器模块及其内核消息（NCT6687、amdgpu）、hwmon 和 `sensors` 读数、内核日志中的 GPU 和崩溃行、上次启动的结束方式（正常关机或突然重置）、服务、软件包以及上一次工作流日志的末尾。如果你的用户无法读取内核日志，桌面环境会通过 polkit 请求一次密码。对于超出表单大小限制的报告，系统会自动截短，优先删除不重要的部分；**在浏览器中打开**仍会复制完整文本。
+
+### Black box（冻结和重置）
+
+严重冻结不会在内核日志中留下任何内容。黑匣子每秒记录四次 GPU 时钟、负载、温度、GFX 电压、功耗、风扇转速、CPU 时钟和可用内存，并将每一行刷新到磁盘。因此，下一份报告会显示冻结或重置前最后几秒的状态。它不需要 root，文件大小有上限（512 KB，超出后轮换）。
+
+```bash
+# 桌面模式：游戏时保持终端打开，使用 Ctrl+C 停止
+bc250-control-center-cli black-box
+
+# 游戏模式（SteamOS）：切换前在后台启动
+systemd-run --user --unit=bc250-black-box bc250-control-center-cli black-box
+systemctl --user stop bc250-black-box
+```
+
+日志保存在 `~/.local/state/bc250-control-center/black-box/`。`bc250-control-center-cli diagnose` 会输出报告发送的同一份硬件诊断信息。
+
 ## 安全
 
 超频、解锁计算单元、风扇控制和刷写 BIOS 都可能让机器卡死、丢失数据，甚至毁掉主板。一次只改一样东西，始终留好退路，也别把应用的检查当成保证。它们能拦住明显的错误，但拦不住所有错误。

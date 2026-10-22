@@ -572,6 +572,30 @@ _RULES = (
 # reason every pattern is here stays visible: the corpus test in
 # tests/desktop/test_error_diagnostics_coverage.py reads these messages.
 _MORE_PATTERNS: dict[str, tuple[str, ...]] = {
+    # Wording our own scripts print, found by the error-code audit: without
+    # these the desktop fell back to GENERAL/PLATFORM/FAN for each of them.
+    "BC250-KERNEL-001": (
+        r"headers for another kernel", r"exact neptune headers", r"nct6687 build failed",
+        r"nct6687\.ko was not produced", r"nct6687 is not available for",
+        r"was not installed for the active kernel", r"dkms installation did not produce a module",
+        r"kernel-devel mismatch", r"matching kernel-devel is unavailable", r"rebuilt nct6687 has vermagic",
+    ),
+    "BC250-STORAGE-001": (r"mb free and this needs", r"steamos keeps /var small"),
+    "BC250-IMMUTABLE-001": (
+        r"steamos reports a writable root", r"steamos read-only state", r"read-only protection",
+        r"systemd-sysext or another immutable layer",
+    ),
+    "BC250-NET-001": (
+        r"unable to download", r"reviewed source commit is unavailable after fetch",
+        r"reviewed source revision could not be checked out",
+    ),
+    "BC250-FAN-001": (
+        r"fan/pwm hwmon", r"usable nct6687 module", r"nct6687 could not be loaded",
+        r"persisted nct6687 source is missing",
+    ),
+    "BC250-HELPER-001": (
+        r"protected bc250 openrc service helper is missing", r"protected gddr6 patch helper is not installed",
+    ),
     "BC250-PLATFORM-001": (
         r"unsupported accessory", r"openlinkhub.*x86_64", r"trcc.*(?:no package|not installed)",
         r"debian release.*backports kernel", r"kernel boot options.*managed differently",
@@ -705,6 +729,18 @@ def _clean_detail(value: object) -> str:
     return detail or "No additional technical detail was returned."
 
 
+#: The helper prefixes themselves (``QUICK_ACCESS_GPU_ALLOWED:``), not the
+#: catalog's plain-language markers, which the desktop rules already cover.
+_PREFIX_MARKER = re.compile(
+    "|".join(
+        re.escape(marker)
+        for entry in error_catalog.all_codes()
+        for marker in entry.markers
+        if re.fullmatch(r"[A-Z][A-Z0-9_]{3,}", marker)
+    )
+)
+
+
 def diagnose_error(message: object, *, context: object = "") -> ErrorDiagnosis:
     """Classify a failure, letting the message outrank where it came from.
 
@@ -718,6 +754,12 @@ def diagnose_error(message: object, *, context: object = "") -> ErrorDiagnosis:
     """
     detail = _clean_detail(message)
     message_only = detail.casefold()
+    # A helper's own ``PREFIX:`` (QUICK_ACCESS_VRAM, SMU_IN_USE, ...) names the
+    # fault exactly; the shared catalog maps it the same way the terminal does,
+    # so a broad desktop word ("gpu", "range") cannot outrank it.
+    marked = error_catalog.for_marker(detail)
+    if marked is not None and _PREFIX_MARKER.search(detail):
+        return ErrorDiagnosis(marked.code, marked.summary, marked.cause, marked.action)
     for rule in _RULES:
         if rule.matches(message_only):
             return ErrorDiagnosis(rule.code, rule.summary, rule.cause, rule.action)

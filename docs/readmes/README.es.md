@@ -109,6 +109,29 @@ Para instalarlo, abre el **Panel**, baja a **Decky** y elige la acción que ofre
 
 Más detalles en el [README de Decky](../../integrations/decky/bc250-quick-access/README.md).
 
+## Reportar problemas
+
+Las ventanas de error muestran un código de diagnóstico (por ejemplo, `BC250-UPSCALE-001`), un código de origen que identifica la función donde ocurrió el error (por ejemplo, `GPU-0142`) y el error sin procesar con su traceback.
+
+Usa **Reportar este problema** en la ventana de error o **Ajustes › Diagnóstico › Enviar un informe**. El formulario se abre dentro de la aplicación con los códigos, el error sin procesar, las especificaciones del sistema y los errores recientes ya rellenados. Puedes revisarlo todo antes de enviarlo; las rutas del directorio personal se sustituyen por `~`. Si no se puede enviar el formulario, se abre en el navegador con tus respuestas conservadas. El formulario también está disponible [en la web](https://docs.google.com/forms/d/e/1FAIpQLSe3M1stf3bpCoorb4hCWFX9YC_TZ_Gv6WHWQDRe1AV5rJT6rA/viewform).
+
+El informe también adjunta un diagnóstico del hardware, recopilado sin root en cualquier distribución: kernel y cabeceras, módulos de sensores cargados y sus mensajes del kernel (NCT6687, amdgpu), lecturas de hwmon y `sensors`, líneas de la GPU y de fallos del registro del kernel, cómo terminó el arranque anterior (apagado limpio o reinicio abrupto), servicios, paquetes y el final del último registro de flujo de trabajo. Si el registro del kernel está cerrado para tu usuario, el escritorio pide una vez la contraseña mediante polkit. Los informes demasiado grandes para el formulario se recortan automáticamente, empezando por las partes menos importantes; **Abrir en el navegador** sigue copiando el texto completo.
+
+### Black box (congelamientos y reinicios)
+
+Un congelamiento duro no deja nada en el registro del kernel. La caja negra registra cuatro veces por segundo el reloj y la carga de la GPU, las temperaturas, el voltaje GFX, la potencia, la velocidad del ventilador, el reloj de la CPU y la memoria libre, escribiendo cada línea en el disco. Así, el siguiente informe muestra los últimos segundos antes de un congelamiento o reinicio. No necesita root y su archivo tiene un tamaño limitado (512 KB, después rota).
+
+```bash
+# Modo Escritorio: deja el terminal abierto mientras juegas, detén con Ctrl+C
+bc250-control-center-cli black-box
+
+# Modo Juego (SteamOS): inícialo en segundo plano antes de cambiar de modo
+systemd-run --user --unit=bc250-black-box bc250-control-center-cli black-box
+systemctl --user stop bc250-black-box
+```
+
+El registro se conserva en `~/.local/state/bc250-control-center/black-box/`. `bc250-control-center-cli diagnose` muestra el mismo diagnóstico del hardware que envía el informe.
+
 ## Seguridad
 
 El overclock, desbloquear Unidades de Cómputo, el control de ventiladores y flashear un BIOS pueden congelar el equipo, perder datos o matar la placa. Cambia una cosa cada vez, ten siempre un camino de vuelta y no leas las comprobaciones de la app como una garantía: atrapan los errores evidentes, no todos.

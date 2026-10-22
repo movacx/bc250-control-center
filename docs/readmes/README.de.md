@@ -109,6 +109,29 @@ Zum Installieren öffne die **Übersicht**, scrolle zu **Decky** und wähle die 
 
 Mehr dazu im [Decky-README](../../integrations/decky/bc250-quick-access/README.md).
 
+## Probleme melden
+
+Fehlerfenster zeigen einen Diagnosecode (zum Beispiel `BC250-UPSCALE-001`), einen Herkunftscode, der die Funktion des Fehlers angibt (zum Beispiel `GPU-0142`), sowie den Rohfehler mit Traceback.
+
+Verwende **Dieses Problem melden** im Fehlerfenster oder **Einstellungen › Diagnose › Bericht senden**. Das Formular öffnet sich in der Anwendung und enthält bereits die Codes, den Rohfehler, Systemspezifikationen und die letzten Fehler. Du kannst alles vor dem Senden prüfen; Pfade im Home-Verzeichnis werden durch `~` ersetzt. Kann das Formular nicht gesendet werden, öffnet es sich mit deinen Antworten im Browser. Das Formular ist auch [im Web](https://docs.google.com/forms/d/e/1FAIpQLSe3M1stf3bpCoorb4hCWFX9YC_TZ_Gv6WHWQDRe1AV5rJT6rA/viewform) verfügbar.
+
+Der Bericht enthält außerdem eine Hardwarediagnose, die auf jeder Distribution ohne root gesammelt wird: Kernel und Header, geladene Sensormodule und ihre Kernelmeldungen (NCT6687, amdgpu), hwmon- und `sensors`-Messwerte, GPU- und Absturzzeilen aus dem Kernelprotokoll, das Ende des vorherigen Starts (sauberes Herunterfahren oder abrupter Reset), Dienste, Pakete und das Ende des letzten Workflow-Protokolls. Ist das Kernelprotokoll für deinen Benutzer gesperrt, fragt der Desktop einmal über polkit nach dem Passwort. Zu große Berichte werden automatisch gekürzt, beginnend mit den unwichtigsten Teilen; **Im Browser öffnen** kopiert weiterhin den vollständigen Text.
+
+### Black box (Einfrieren und Resets)
+
+Bei einem harten Freeze bleibt nichts im Kernelprotokoll. Die Black Box zeichnet GPU-Takt, Auslastung, Temperaturen, GFX-Spannung, Leistung, Lüfterdrehzahl, CPU-Takt und freien Speicher viermal pro Sekunde auf und schreibt jede Zeile sofort auf die Festplatte. Dadurch zeigt der nächste Bericht die letzten Sekunden vor einem Freeze oder Reset. Sie benötigt kein root, und ihre Datei ist begrenzt (512 KB, danach Rotation).
+
+```bash
+# Desktop-Modus: Lass das Terminal beim Spielen geöffnet, beende mit Ctrl+C
+bc250-control-center-cli black-box
+
+# Spielmodus (SteamOS): Starte sie vor dem Wechsel im Hintergrund
+systemd-run --user --unit=bc250-black-box bc250-control-center-cli black-box
+systemctl --user stop bc250-black-box
+```
+
+Das Protokoll wird in `~/.local/state/bc250-control-center/black-box/` gespeichert. `bc250-control-center-cli diagnose` gibt dieselbe Hardwarediagnose aus, die der Bericht sendet.
+
 ## Sicherheit
 
 Übertakten, das Freischalten von Compute Units, Lüftersteuerung und das Flashen eines BIOS können die Maschine einfrieren, Daten kosten oder die Platine töten. Ändere immer nur eine Sache, halte einen Weg zurück bereit und verstehe die Prüfungen der Anwendung nicht als Garantie. Sie fangen die offensichtlichen Fehler ab, nicht alle.

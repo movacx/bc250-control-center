@@ -2045,7 +2045,7 @@ def _write_cyan_config(path, body):
     path.write_text(body, encoding="utf-8")
 
 
-def test_cyan_compatibility_reads_the_four_settings_with_the_governors_defaults(
+def test_cyan_compatibility_reads_the_settings_with_the_governors_defaults(
     helper_module, tmp_path, monkeypatch
 ):
     monkeypatch.setattr(helper_module, "trusted_directory", lambda _path: True)
@@ -2054,15 +2054,15 @@ def test_cyan_compatibility_reads_the_four_settings_with_the_governors_defaults(
     _write_cyan_config(config, "[gpu]\n")
     assert helper_module.cyan_compatibility(config) == {
         "set_method": "smu", "usage_method": "busy-flag",
-        "fix_metrics": True, "fix_frequency": False,
+        "fix_metrics": True, "fix_frequency": False, "temp_read": "drm",
     }
     _write_cyan_config(
         config,
-        '[gpu]\nset-method = "kernel"\n[gpu-usage]\nmethod = "process"\nfix-metrics = false\nfix-freq = true\n',
+        '[gpu]\nset-method = "kernel"\n[gpu-usage]\nmethod = "process"\nfix-metrics = false\nfix-freq = true\ntemp-read = "sysfs"\n',
     )
     assert helper_module.cyan_compatibility(config) == {
         "set_method": "kernel", "usage_method": "process",
-        "fix_metrics": False, "fix_frequency": True,
+        "fix_metrics": False, "fix_frequency": True, "temp_read": "sysfs",
     }
     _write_cyan_config(config, '[gpu-usage]\nmethod = "bogus"\n')
     assert helper_module.cyan_compatibility(config) is None
@@ -2070,13 +2070,15 @@ def test_cyan_compatibility_reads_the_four_settings_with_the_governors_defaults(
 
 def _compat_systemd(helper_module, monkeypatch, *, active, enabled=True, starts=lambda settings: True):
     """Fake systemd + governor-config helper for gpu_compatibility()."""
-    state = {"active": active, "settings": ("smu", "busy-flag", "1", "0")}
+    state = {"active": active, "settings": ("smu", "busy-flag", "1", "0", "drm")}
     calls = []
 
     def fake_run(command, **_kwargs):
         calls.append(list(command))
-        if command[-5:-4] == ["set-cyan-compatibility"]:
-            state["settings"] = tuple(command[-4:])
+        if command[-6:-5] == ["set-cyan-compatibility"]:
+            state["settings"] = tuple(command[-5:])
+        elif command[-5:-4] == ["set-cyan-compatibility"]:
+            state["settings"] = (*command[-4:], "drm")
         elif command[1:3] == ["restart", "--no-block"]:
             state["active"] = starts(state["settings"])
         return subprocess.CompletedProcess(command, 0, "", "")
@@ -2091,6 +2093,7 @@ def _compat_systemd(helper_module, monkeypatch, *, active, enabled=True, starts=
     monkeypatch.setattr(helper_module, "cyan_compatibility", lambda *_a, **_k: {
         "set_method": state["settings"][0], "usage_method": state["settings"][1],
         "fix_metrics": state["settings"][2] == "1", "fix_frequency": state["settings"][3] == "1",
+        "temp_read": state["settings"][4],
     })
     monkeypatch.setattr(helper_module, "cyan_kernel_usage_supported", lambda: False)
     monkeypatch.setattr(helper_module, "cyan_kernel_set_supported", lambda: False)
@@ -2108,7 +2111,7 @@ def test_gpu_compat_refuses_bad_values_and_restarts_cyan_even_when_it_does_not_a
 
     state, calls = _compat_systemd(helper_module, monkeypatch, active=True)
     assert helper_module.gpu_compatibility(["smu", "process", "1", "0"]) == 0
-    assert state["settings"] == ("smu", "process", "1", "0")
+    assert state["settings"] == ("smu", "process", "1", "0", "drm")
     assert ["/usr/bin/systemctl", "restart", "--no-block", helper_module.CYAN_SERVICE] in calls
     assert json.loads(capsys.readouterr().out)["ok"] is True
 
@@ -2116,7 +2119,7 @@ def test_gpu_compat_refuses_bad_values_and_restarts_cyan_even_when_it_does_not_a
 def test_gpu_compat_can_be_changed_while_cyan_is_stopped(helper_module, monkeypatch, capsys):
     state, calls = _compat_systemd(helper_module, monkeypatch, active=False, enabled=False)
     assert helper_module.gpu_compatibility(["smu", "busy-flag", "0", "1"]) == 0
-    assert state["settings"] == ("smu", "busy-flag", "0", "1")
+    assert state["settings"] == ("smu", "busy-flag", "0", "1", "drm")
     assert not any(call[1:2] == ["restart"] for call in calls)
     assert "next start" in json.loads(capsys.readouterr().out)["message"]
 
@@ -2135,7 +2138,7 @@ def test_gpu_compat_rolls_back_settings_cyan_cannot_start_on(helper_module, monk
         helper_module, monkeypatch, active=True, starts=lambda settings: settings[3] == "0",
     )
     assert helper_module.gpu_compatibility(["smu", "busy-flag", "1", "1"]) == 24
-    assert state["settings"] == ("smu", "busy-flag", "1", "0")
+    assert state["settings"] == ("smu", "busy-flag", "1", "0", "drm")
     assert state["active"] is True
     assert "previous settings were restored" in capsys.readouterr().err
 
@@ -2144,8 +2147,16 @@ def test_gpu_compat_refuses_kernel_options_this_kernel_lacks(helper_module, monk
     state, calls = _compat_systemd(helper_module, monkeypatch, active=True)
     assert helper_module.gpu_compatibility(["smu", "kernel", "1", "0"]) == 20
     assert helper_module.gpu_compatibility(["kernel", "busy-flag", "1", "0"]) == 20
-    assert state["settings"] == ("smu", "busy-flag", "1", "0")
+    assert state["settings"] == ("smu", "busy-flag", "1", "0", "drm")
     assert calls == []
+
+
+def test_gpu_compat_accepts_temp_read_and_rejects_an_invalid_value(helper_module, monkeypatch, capsys):
+    state, _calls = _compat_systemd(helper_module, monkeypatch, active=False, enabled=False)
+    assert helper_module.gpu_compatibility(["smu", "busy-flag", "1", "0", "sysfs"]) == 0
+    assert state["settings"] == ("smu", "busy-flag", "1", "0", "sysfs")
+    assert helper_module.gpu_compatibility(["smu", "busy-flag", "1", "0", "hwmon"]) == 20
+    assert "drm|sysfs" in capsys.readouterr().err
 
 
 def test_kernel_set_probe_rejects_placeholder_overdrive_table(helper_module, tmp_path):

@@ -172,7 +172,7 @@ def test_the_installation_row_maps_to_the_forms_choice():
 def _dialog(qtbot, **kwargs):
     facts = {"report": "BC250 diagnostic report", "specs": "Kernel  7.1.13\nBIOS    P3.00",
              "recent": "2026-10-20 22:41:03 · BC250-UPSCALE-001 · window · HelixSR\n  What happened: x",
-             "session": "KDE · wayland", "version": "1.21.2", "install": form.INSTALLS[2],
+             "hardware": "== Modules ==\nnct6687  61440  0", "session": "KDE · wayland", "version": "1.21.2", "install": form.INSTALLS[2],
              "distribution": "Manjaro Linux", "cores": form.CORES[0]}
     dialog = FeedbackDialog(read_report=lambda: facts, **kwargs)
     qtbot.addWidget(dialog)
@@ -203,13 +203,14 @@ def test_an_error_window_opens_the_form_already_filled(qtbot):
     fields = dict(form.form_fields(report, form.parse_form(form_page())))
     assert fields[f"entry.{form.ENTRY_RAW}"].endswith("bridge failed")
     assert fields[f"entry.{form.ENTRY_SPECS}"].startswith("Kernel")
+    assert "nct6687" in fields[f"entry.{form.ENTRY_HARDWARE}"]
 
 
 def test_the_preview_is_exactly_what_the_automatic_page_sends(qtbot):
     dialog = _dialog(qtbot, summary="x", reference="BC250-FAN-001 @ FAN-0007")
     text = dialog.preview_text()
     for heading in ("Error reference", "Where it happened", "Raw error", "System specifications",
-                    "Recent errors", "Report details"):
+                    "Recent errors", "Report details", "Hardware diagnostics"):
         assert f"== {heading} ==" in text
     assert "BC250-FAN-001 @ FAN-0007" in text and "Kernel  7.1.13" in text
 
@@ -234,7 +235,7 @@ def test_the_automatic_report_can_be_left_out(qtbot):
     dialog = _dialog(qtbot, summary="x", reference="BC250-FAN-001 @ FAN-0007", raw="ValueError: x")
     dialog.attach.setChecked(False)
     report = dialog.report()
-    assert not (report.reference or report.raw or report.specs or report.recent_errors or report.details)
+    assert not (report.reference or report.raw or report.specs or report.recent_errors or report.details or report.hardware)
 
 
 def test_send_without_the_required_answer_points_at_it(qtbot):
@@ -289,6 +290,21 @@ def test_a_page_that_still_carries_the_form_is_not_a_confirmation():
     assert not form.confirmed("<html>Something went wrong</html>")
 
 
+def test_the_forms_own_confirmation_message_counts_even_with_the_form_data():
+    # Google now also carries the form data on the "recorded" page, and the
+    # form uses its own confirmation message instead of Google's sentence.
+    shown = '<div class="vHW8K">Thanks, received. I read every one of them. If you left a contact I may write to you.</div>'
+    assert form.confirmed(form_page() + shown)
+    assert form.confirmed(form_page() + "<p>Your response has been recorded.</p>")
+
+
+def test_the_message_inside_the_form_data_is_not_a_confirmation():
+    # The viewform page holds the confirmation message in its scripts; a
+    # rejected answer drawn again must not pass for a stored one.
+    hidden = "<script>var FB_PUBLIC_LOAD_DATA_ = [null,[\"Thanks, received. I read every one of them.\"]];</script>"
+    assert not form.confirmed(form_page() + hidden)
+
+
 def test_send_waits_for_the_automatic_report(qtbot):
     import threading
 
@@ -324,3 +340,37 @@ def test_the_browser_fallback_clipboard_has_no_home_folder(qtbot, monkeypatch):
     dialog.terminal.setPlainText("Traceback in /home/alice/projects/app.py")
     dialog._open_in_browser()
     assert "alice" not in QApplication.clipboard().text()
+
+
+def test_a_report_too_big_for_google_is_cut_to_fit_least_important_first():
+    # Google answers 413 over ~32 KB; fifteen tracebacks and the hardware
+    # diagnosis together went over it and the report was never stored.
+    shape = form.parse_form(form_page())
+    trace = '  File "bc250cc/infrastructure/gpu_repository.py", line 921, in _editar_governor_toml\n'
+    report = _problem(recent_errors=trace * 300, hardware="== Kernel ==\nLinux 7.1\n" + "x" * 25000,
+                      raw="Traceback\n" + "y" * 5000 + "\nRuntimeError: the real cause")
+    fitted = form.fit_report(report, shape)
+    body = urllib.parse.urlencode(form.form_fields(fitted, shape)).encode()
+    assert len(body) <= form.MAX_POST_BYTES
+    assert fitted.recent_errors.endswith(form.CUT_NOTE)
+    assert fitted.summary == report.summary
+    assert fitted.raw.endswith("RuntimeError: the real cause")
+
+
+def test_a_report_that_fits_is_sent_untouched():
+    shape = form.parse_form(form_page())
+    report = _problem(hardware="== Kernel ==\nLinux 7.1")
+    assert form.fit_report(report, shape) == report
+
+
+def test_submit_never_posts_more_than_google_accepts():
+    posted = []
+
+    def fetch(request):
+        if request.data:
+            posted.append(len(request.data))
+            return CONFIRMED
+        return form_page()
+
+    form.submit(_problem(recent_errors="z" * 20000, hardware="h" * 32000, specs="s" * 20000), fetch=fetch)
+    assert posted and posted[0] <= form.MAX_POST_BYTES

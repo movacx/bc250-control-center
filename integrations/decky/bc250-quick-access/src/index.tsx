@@ -249,6 +249,7 @@ type GpuCompatibility = {
   usage_method: "busy-flag" | "process" | "kernel";
   fix_metrics: boolean;
   fix_frequency: boolean;
+  temp_read: "drm" | "sysfs";
 };
 type Status = Result;
 type VoltagePoint = { frequency: number; voltage: number; default: number };
@@ -265,7 +266,7 @@ const setGpuHighFrequencyPoints = callable<[enabled: boolean], Result>("set_gpu_
 const setGpuGovernorService = callable<[enabled: boolean], Result>("set_gpu_governor_service");
 const applyGpuVoltageLevel = callable<[level: number], Result>("apply_gpu_voltage_level");
 const applyGpuVoltagePoints = callable<[points: { frequency: number; voltage: number }[]], Result>("apply_gpu_voltage_points");
-const applyGpuCompatibility = callable<[setMethod: string, usageMethod: string, fixMetrics: boolean, fixFrequency: boolean], Result>("apply_gpu_compatibility");
+const applyGpuCompatibility = callable<[setMethod: string, usageMethod: string, fixMetrics: boolean, fixFrequency: boolean, tempRead: string], Result>("apply_gpu_compatibility");
 const applyCuTable = callable<[masks: number[]], Result>("apply_cu_table");
 const saveCuTable = callable<[masks: number[]], Result>("save_cu_table");
 const installCuService = callable<[], Result>("install_cu_service");
@@ -1074,13 +1075,14 @@ const VOLTAGE_MAX_ABOVE_DEFAULT_MV = 60;
 // busy-flag from here is how it recovers without leaving Game Mode.
 const COMPAT_SET_METHODS = ["smu", "kernel"] as const;
 const COMPAT_USAGE_METHODS = ["busy-flag", "process", "kernel"] as const;
+const COMPAT_TEMP_READ_METHODS = ["drm", "sysfs"] as const;
 
 function CyanCompatibility({ state, busy, execute }: { state: Status; busy: boolean; execute: (title: string, operation: () => Promise<Result>, kind?: DraftKind) => Promise<void> }) {
   const accent = ACCENT_SWATCHES[useContext(SettingsContext).settings.accent];
   const current = state.gpu_compatibility ?? null;
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<GpuCompatibility | null>(null);
-  const keyOf = (value: GpuCompatibility) => `${value.set_method}:${value.usage_method}:${value.fix_metrics}:${value.fix_frequency}`;
+  const keyOf = (value: GpuCompatibility) => `${value.set_method}:${value.usage_method}:${value.fix_metrics}:${value.fix_frequency}:${value.temp_read}`;
   const signature = current ? keyOf(current) : "";
   useEffect(() => { setDraft(null); }, [signature]);
   if (state.gpu_governor === "oberon" || !current) return null;
@@ -1096,7 +1098,7 @@ function CyanCompatibility({ state, busy, execute }: { state: Status; busy: bool
     strTitle={text.compatTitle}
     strDescription={text.compatConfirm}
     strOKButtonText={text.compatApply}
-    onOK={() => void execute(`GPU · ${text.compatTitle}`, () => applyGpuCompatibility(value.set_method, value.usage_method, value.fix_metrics, value.fix_frequency), "gpu")} />);
+    onOK={() => void execute(`GPU · ${text.compatTitle}`, () => applyGpuCompatibility(value.set_method, value.usage_method, value.fix_metrics, value.fix_frequency, value.temp_read), "gpu")} />);
   return <>
     <DisclosureRow label={text.compatTitle} value={`${current.set_method === "smu" ? "SMU" : "Kernel"} · ${current.usage_method}`} open={open} warn={current.usage_method === "process"} onActivate={() => setOpen(!open)} />
     {open ? <Drawer>
@@ -1108,6 +1110,9 @@ function CyanCompatibility({ state, busy, execute }: { state: Status; busy: bool
       <DrawerLabel>{text.compatUsage}</DrawerLabel>
       <Segmented disabled={busy || !cyanActive} value={value.usage_method} onChange={(method) => choose({ usage_method: method as GpuCompatibility["usage_method"] })}
         options={COMPAT_USAGE_METHODS.map((method) => ({ key: method, label: method }))} />
+      <DrawerLabel>{text.compatTemperature}</DrawerLabel>
+      <Segmented disabled={busy || !cyanActive} value={value.temp_read} onChange={(method) => choose({ temp_read: method as GpuCompatibility["temp_read"] })}
+        options={COMPAT_TEMP_READ_METHODS.map((method) => ({ key: method, label: method === "drm" ? "DRM" : "sysfs" }))} />
       {value.usage_method === "process" ? <div style={{ color: tokens.colors.amber, fontSize: 9, lineHeight: 1.35, margin: "-2px 2px 6px" }}>{text.compatProcessWarning}</div> : null}
       <Divider />
       <SwitchRow label={text.compatFixMetrics} checked={value.fix_metrics} disabled={busy || !cyanActive} onChange={(checked) => choose({ fix_metrics: checked })} />

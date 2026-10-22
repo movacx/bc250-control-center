@@ -417,7 +417,7 @@
   "Automatic curve is disabled": "自动曲线已禁用",
   "Automatic detection": "自动检测",
   "Automatic detection finds the first compatible scale. Frequency, VID, and temperature belong to detection; manual scale is a separate live test.": "自动检测找到第一个兼容的秤。频率、VID、温度属于检测；手动秤是一个单独的实时测试。",
-  "Automatic detection · {temperature} °C": "自动检测·{temperature}℃",
+  "Applied by automatic detection · {temperature} °C · until restart": "由自动检测应用 · {temperature} °C · 直到重启",
   "Automatic detection: {value}": "自动检测：{value}",
   "Automatic fan control restored": "恢复自动风扇控制",
   "Automatic fan restore failed": "风扇自动恢复失败",
@@ -5335,5 +5335,6 @@
   "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "请检查网络和系统日期，然后重试更新。如果仍然失败，请从发布页面安装软件包。",
   "Temperature reading": "温度读取",
   "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Cyan 读取 GPU 温度的位置。两者给出的数值相同；sysfs 不会仅为此保持 GPU 设备打开。默认为 DRM。",
-  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "此版本的 Cyan 不读取该设置。请在“准备依赖项”中更新。"
+  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "此版本的 Cyan 不读取该设置。请在“准备依赖项”中更新。",
+  "Hardware diagnostics": "硬件诊断"
 }

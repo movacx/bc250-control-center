@@ -34,6 +34,7 @@
   "compatProcessWarning": "La lectura process recorre cada archivo abierto de cada programa. Con un juego abierto, Cyan deja de responder: el rango, los puntos +2000 MHz y el laboratorio de voltaje no funcionan hasta que el juego se cierra. busy-flag es la opción predeterminada.",
   "compatSetMethod": "Método del governor",
   "compatTitle": "Compatibilidad",
+  "compatTemperature": "LECTURA DE TEMPERATURA",
   "compatUsage": "Lectura de uso",
   "compute": "COMPUTE UNITS",
   "controller": "Controlador",

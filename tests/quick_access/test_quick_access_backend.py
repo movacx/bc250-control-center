@@ -85,6 +85,26 @@ def test_backend_gpu_profile_skips_the_redundant_full_status_preflight(monkeypat
     assert calls == [("gpu-profile", "benchmark")]
 
 
+def test_backend_passes_the_temperature_reading_and_rejects_invalid_values(monkeypatch):
+    module = _backend_module(monkeypatch)
+    plugin = module.Plugin()
+    calls: list[tuple[str, ...]] = []
+
+    async def immediate_to_thread(callback, *args, **kwargs):
+        return callback(*args, **kwargs)
+
+    monkeypatch.setattr(module.asyncio, "to_thread", immediate_to_thread)
+    monkeypatch.setattr(plugin, "_run", lambda *args, **_kwargs: calls.append(args) or {"ok": True})
+
+    result = asyncio.run(plugin.apply_gpu_compatibility("smu", "busy-flag", True, False, "sysfs"))
+
+    assert result["ok"] is True
+    assert calls == [("gpu-compat", "smu", "busy-flag", "1", "0", "sysfs")]
+    invalid = asyncio.run(plugin.apply_gpu_compatibility("smu", "busy-flag", True, False, "hwmon"))
+    assert invalid["ok"] is False
+    assert calls == [("gpu-compat", "smu", "busy-flag", "1", "0", "sysfs")]
+
+
 def test_stale_exported_gpu_profile_is_marked_unavailable_without_clamping(monkeypatch):
     module = _backend_module(monkeypatch)
     profiles = module._apply_custom_profile_names(

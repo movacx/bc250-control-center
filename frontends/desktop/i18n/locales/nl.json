@@ -417,7 +417,7 @@
   "Automatic curve is disabled": "Automatische curve is uitgeschakeld",
   "Automatic detection": "Automatische detectie",
   "Automatic detection finds the first compatible scale. Frequency, VID, and temperature belong to detection; manual scale is a separate live test.": "Automatische detectie vindt de eerste compatibele weegschaal. Frequentie, VID en temperatuur behoren tot detectie; handmatige schaal is een aparte live-test.",
-  "Automatic detection · {temperature} °C": "Automatische detectie · {temperature} °C",
+  "Applied by automatic detection · {temperature} °C · until restart": "Toegepast door automatische detectie · {temperature} °C · tot herstart",
   "Automatic detection: {value}": "Automatische detectie: {value}",
   "Automatic fan control restored": "Automatische ventilatorregeling hersteld",
   "Automatic fan restore failed": "Automatisch ventilatorherstel mislukt",
@@ -5335,5 +5335,6 @@
   "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Controleer het netwerk en de systeemdatum en probeer de update opnieuw. Blijft het mislukken, installeer dan het pakket via de releasepagina.",
   "Temperature reading": "Temperatuurmeting",
   "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Waar Cyan de GPU-temperatuur leest. Beide geven dezelfde waarde; sysfs houdt daarvoor geen GPU-apparaat open. DRM is de standaard.",
-  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Deze Cyan-versie leest deze instelling niet. Werk hem bij via Afhankelijkheden voorbereiden."
+  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Deze Cyan-versie leest deze instelling niet. Werk hem bij via Afhankelijkheden voorbereiden.",
+  "Hardware diagnostics": "Hardwarediagnose"
 }

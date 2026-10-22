@@ -109,6 +109,29 @@ Pour l’installer, ouvrez le **Tableau de bord**, descendez jusqu’à **Decky*
 
 Plus de détails dans le [README de Decky](../../integrations/decky/bc250-quick-access/README.md).
 
+## Signaler un problème
+
+Les fenêtres d’erreur affichent un code de diagnostic (par exemple `BC250-UPSCALE-001`), un code d’origine identifiant la fonction où l’erreur s’est produite (par exemple `GPU-0142`), ainsi que l’erreur brute avec sa trace.
+
+Utilisez **Signaler ce problème** dans la fenêtre d’erreur ou **Paramètres › Diagnostics › Envoyer un rapport**. Le formulaire s’ouvre dans l’application avec les codes, l’erreur brute, les caractéristiques du système et les erreurs récentes déjà renseignés. Vous pouvez tout vérifier avant l’envoi ; les chemins du répertoire personnel sont remplacés par `~`. Si le formulaire ne peut pas être envoyé, il s’ouvre dans le navigateur avec vos réponses conservées. Le formulaire est également disponible [sur le Web](https://docs.google.com/forms/d/e/1FAIpQLSe3M1stf3bpCoorb4hCWFX9YC_TZ_Gv6WHWQDRe1AV5rJT6rA/viewform).
+
+Le rapport joint également un diagnostic matériel, recueilli sans root sur toutes les distributions : noyau et en-têtes, modules de capteurs chargés et leurs messages du noyau (NCT6687, amdgpu), relevés hwmon et `sensors`, lignes GPU et de plantage du journal du noyau, manière dont le démarrage précédent s’est terminé (arrêt propre ou réinitialisation brutale), services, paquets et fin du dernier journal de workflow. Lorsque le journal du noyau est fermé à votre utilisateur, le bureau demande une fois le mot de passe via polkit. Les rapports trop volumineux pour le formulaire sont automatiquement raccourcis, en commençant par les parties les moins importantes ; **Ouvrir dans le navigateur** copie toujours le texte complet.
+
+### Black box (figements et réinitialisations)
+
+Un figement complet ne laisse rien dans le journal du noyau. La boîte noire enregistre quatre fois par seconde la fréquence et la charge du GPU, les températures, la tension GFX, la puissance, la vitesse du ventilateur, la fréquence du CPU et la mémoire libre, en écrivant chaque ligne sur le disque. Le rapport suivant montre ainsi les dernières secondes avant un figement ou une réinitialisation. Elle ne nécessite pas root et son fichier est limité (512 Ko, puis rotation).
+
+```bash
+# Mode Bureau : laissez le terminal ouvert pendant le jeu, arrêtez avec Ctrl+C
+bc250-control-center-cli black-box
+
+# Mode Jeu (SteamOS) : démarrez-le en arrière-plan avant de changer de mode
+systemd-run --user --unit=bc250-black-box bc250-control-center-cli black-box
+systemctl --user stop bc250-black-box
+```
+
+Le journal est conservé dans `~/.local/state/bc250-control-center/black-box/`. `bc250-control-center-cli diagnose` affiche le même diagnostic matériel que celui envoyé dans le rapport.
+
 ## Sécurité
 
 L’overclocking, le déverrouillage des Compute Units, le contrôle des ventilateurs et le flash d’un BIOS peuvent figer la machine, faire perdre des données ou tuer la carte. Changez une seule chose à la fois, gardez toujours un moyen de revenir en arrière et ne prenez pas les vérifications de l’application pour une garantie. Elles rattrapent les erreurs évidentes, pas toutes.

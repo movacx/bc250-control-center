@@ -168,7 +168,8 @@ def test_a_workflows_own_error_wins_over_a_status_guess(tmp_path: Path) -> None:
     ))
     assert "kernel and headers do not match" in output
     assert "Install headers for exactly: 7.2.3-1.87-cachyos-bc250" in output
-    assert "BC250-WORKFLOW-001" in output
+    # Matched from the script's own words, not from the status.
+    assert "BC250-KERNEL-001" in output
     # The misleading rule must not appear at all.
     assert "BC250-RANGE-001" not in output
     assert "outside the supported range" not in output
@@ -186,3 +187,82 @@ def test_third_party_output_still_uses_the_catalog(tmp_path: Path) -> None:
     ))
     assert "BC250-UPSTREAM-404" in output
     assert "BC250-WORKFLOW-001" not in output
+
+
+def test_a_scripts_exit_status_never_lends_its_cause(tmp_path: Path) -> None:
+    """Scripts reuse numbers that mean something else for a helper.
+
+    The SteamOS fan script exits 22, which a helper uses for a Cyan D-Bus
+    fault; the terminal once explained a fan driver failure with "Cyan is
+    stopped". The script's own words pick the rule.
+    """
+    output = _run_workflow(tmp_path, (
+        "echo '[INFO] Reloading the system D-Bus policy for Cyan'; "
+        "echo '[ERROR] nct6687 load verification failed or the fan/PWM hwmon is not ready'; "
+        "echo '-- No entries --'; exit 22"
+    ))
+    assert "BC250-FAN-001" in output
+    assert "BC250-DBUS-001" not in output
+    assert error_catalog.BY_CODE["BC250-DBUS-001"].cause not in output
+
+
+def test_an_unrecognised_script_error_keeps_a_neutral_code_and_no_borrowed_cause(tmp_path: Path) -> None:
+    output = _run_workflow(tmp_path, "echo '[ERROR] Something odd happened'; exit 22")
+    assert "Something odd happened" in output
+    assert "BC250-WORKFLOW-001" in output
+    assert error_catalog.BY_CODE["BC250-DBUS-001"].cause not in output
+    assert error_catalog.BY_CODE["BC250-WORKFLOW-001"].action in output
+
+
+@pytest.mark.parametrize(("line", "code"), [
+    ("SteamOS repair failed safely: only headers for another kernel were found or the exact Neptune headers are unavailable.", "BC250-KERNEL-001"),
+    ("Module/kernel mismatch: nct6687 was built for 6.1 but the running kernel is 6.18", "BC250-KERNEL-001"),
+    ("No usable nct6687 module is available for 6.18", "BC250-FAN-001"),
+    ("UMR still does not start after rebuilding it:", "BC250-UMR-001"),
+    ("/var has only 40 MB free and this needs about 300 MB.", "BC250-STORAGE-001"),
+    ("SteamOS reports a writable root, but /usr is still read-only.", "BC250-IMMUTABLE-001"),
+    ("Unable to download the pinned cyan-skillfish-governor-smu release v0.4.14", "BC250-NET-001"),
+])
+def test_our_scripts_errors_get_their_areas_code(tmp_path: Path, line: str, code: str) -> None:
+    output = _run_workflow(tmp_path, f"echo '[ERROR] {line}'; exit 1")
+    assert f": {code}" in output
+
+
+# Found by the October 2026 error-code audit: each message used to land on a
+# different code in the terminal and in the desktop, or on a misleading one.
+_AUDITED = {
+    "QUICK_ACCESS_GPU_ALLOWED: requested Oberon range is unsupported": "BC250-RANGE-001",
+    "QUICK_ACCESS_CU_MODE: target must be an even value from 24 through 40.": "BC250-RANGE-001",
+    "QUICK_ACCESS_GPU_SAFE_POINT: invalid TOML ceiling.": "BC250-CONFIG-001",
+    "SMU_IN_USE: another tool holds the SMU": "BC250-BUSY-001",
+    "QUICK_ACCESS_VRAM: unsupported size": "BC250-VRAM-001",
+    "QUICK_ACCESS_GDDR6: the GDDR6 patch did not finish in time.": "BC250-TIMEOUT-001",
+    "[ERROR] kernel-devel mismatch: a belongs to b but the running kernel is c": "BC250-KERNEL-001",
+    "[ERROR] nct6687.ko was not produced": "BC250-KERNEL-001",
+    "[ERROR] nct6687 is not available for 6.12.0": "BC250-KERNEL-001",
+    "[ERROR] rebuilt nct6687 has vermagic 6.1, expected 6.2; refusing to install it": "BC250-KERNEL-001",
+    "[ERROR] nct6687 could not be loaded for 6.12.0": "BC250-FAN-001",
+    "[ERROR] /var has only 120 MB free and this needs 900 MB": "BC250-STORAGE-001",
+    "Unable to download https://example.invalid/cyan.tar.gz": "BC250-NET-001",
+    "[ERROR] SteamOS reports a writable root": "BC250-IMMUTABLE-001",
+    "[ERROR] protected BC250 OpenRC service helper is missing; reinstall Control Center.": "BC250-HELPER-001",
+    "[ERROR] umr is installed but does not start: a library it needs is missing.": "BC250-UMR-001",
+}
+
+
+@pytest.mark.parametrize(("message", "code"), _AUDITED.items())
+def test_audited_messages_get_the_same_right_code_everywhere(message, code):
+    from bc250cc.shared import error_catalog
+    from frontends.desktop.core.error_diagnostics import diagnose_error
+
+    assert (error_catalog.for_marker(message) or error_catalog.GENERAL_FAILURE).code == code
+    assert diagnose_error(message, context="GPU governor").code == code
+
+
+@pytest.mark.parametrize("outer", ["QUICK_ACCESS_CPU", "QUICK_ACCESS_FAN", "HELPER_RANGE"])
+def test_a_wrapped_helper_error_is_explained_by_its_inner_cause(outer):
+    from frontends.desktop.core.error_diagnostics import diagnose_error
+
+    message = f"{outer}: SMU_IN_USE: another tool holds the SMU"
+    assert error_catalog.for_marker(message).code == "BC250-BUSY-001"
+    assert diagnose_error(message).code == "BC250-BUSY-001"

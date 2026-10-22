@@ -109,6 +109,29 @@ Para instalar, abra o **Painel**, desça até **Decky** e escolha a ação ofere
 
 Mais detalhes no [README do Decky](../../integrations/decky/bc250-quick-access/README.md).
 
+## Relatando problemas
+
+As janelas de erro mostram um código de diagnóstico (por exemplo, `BC250-UPSCALE-001`), um código de origem que identifica a função onde o erro ocorreu (por exemplo, `GPU-0142`) e o erro bruto com seu traceback.
+
+Use **Relatar este problema** na janela de erro ou **Configurações › Diagnóstico › Enviar um relatório**. O formulário abre dentro do aplicativo com os códigos, o erro bruto, as especificações do sistema e os erros recentes já preenchidos. Você pode revisar tudo antes de enviar; os caminhos do diretório pessoal são substituídos por `~`. Se não for possível enviar o formulário, ele abrirá no navegador com suas respostas preservadas. O formulário também está disponível [na web](https://docs.google.com/forms/d/e/1FAIpQLSe3M1stf3bpCoorb4hCWFX9YC_TZ_Gv6WHWQDRe1AV5rJT6rA/viewform).
+
+O relatório também anexa um diagnóstico do hardware, coletado sem root em qualquer distribuição: kernel e cabeçalhos, módulos de sensores carregados e suas mensagens do kernel (NCT6687, amdgpu), leituras de hwmon e `sensors`, linhas da GPU e de falhas no log do kernel, como o boot anterior terminou (desligamento limpo ou reset abrupto), serviços, pacotes e o final do último log de fluxo de trabalho. Quando o log do kernel está fechado para seu usuário, o desktop pede a senha uma vez pelo polkit. Relatórios grandes demais para o formulário são cortados automaticamente, começando pelas partes menos importantes; **Abrir no navegador** continua copiando o texto completo.
+
+### Black box (travamentos e resets)
+
+Um travamento rígido não deixa nada no log do kernel. A caixa-preta registra o clock e a carga da GPU, temperaturas, tensão GFX, potência, velocidade do ventilador, clock da CPU e memória livre quatro vezes por segundo, gravando cada linha no disco. Assim, o próximo relatório mostra os últimos segundos antes de um travamento ou reset. Ela não precisa de root e seu arquivo tem tamanho limitado (512 KB, depois gira).
+
+```bash
+# Modo Desktop: deixe o terminal aberto enquanto joga, pare com Ctrl+C
+bc250-control-center-cli black-box
+
+# Modo Jogo (SteamOS): inicie em segundo plano antes de trocar de modo
+systemd-run --user --unit=bc250-black-box bc250-control-center-cli black-box
+systemctl --user stop bc250-black-box
+```
+
+O log é mantido em `~/.local/state/bc250-control-center/black-box/`. `bc250-control-center-cli diagnose` imprime o mesmo diagnóstico de hardware enviado pelo relatório.
+
 ## Segurança
 
 Overclock, desbloqueio de Compute Units, controle de ventiladores e gravação de BIOS podem travar a máquina, perder dados ou matar a placa. Mude uma coisa de cada vez, tenha sempre um caminho de volta e não leia as verificações do aplicativo como garantia. Elas pegam os erros óbvios, não todos.

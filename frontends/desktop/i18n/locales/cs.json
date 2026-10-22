@@ -417,7 +417,7 @@
   "Automatic curve is disabled": "Automatická křivka je zakázána",
   "Automatic detection": "Automatická detekce",
   "Automatic detection finds the first compatible scale. Frequency, VID, and temperature belong to detection; manual scale is a separate live test.": "Automatická detekce najde první kompatibilní měřítko. Frekvence, VID a teplota patří k detekci; manuální váha je samostatný živý test.",
-  "Automatic detection · {temperature} °C": "Automatická detekce · {temperature} °C",
+  "Applied by automatic detection · {temperature} °C · until restart": "Použito automatickou detekcí · {temperature} °C · do restartu",
   "Automatic detection: {value}": "Automatická detekce: {value}",
   "Automatic fan control restored": "Automatické ovládání ventilátoru obnoveno",
   "Automatic fan restore failed": "Automatické obnovení ventilátoru se nezdařilo",
@@ -5335,5 +5335,6 @@
   "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Zkontrolujte síť a systémové datum a zkuste aktualizaci znovu. Pokud stále selhává, nainstalujte balíček ze stránky vydání.",
   "Temperature reading": "Čtení teploty",
   "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Odkud Cyan čte teplotu GPU. Obě možnosti dávají stejnou hodnotu; sysfs kvůli tomu nedrží zařízení GPU otevřené. Výchozí je DRM.",
-  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Tato verze Cyanu toto nastavení nečte. Aktualizujte ji v Připravit závislosti."
+  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Tato verze Cyanu toto nastavení nečte. Aktualizujte ji v Připravit závislosti.",
+  "Hardware diagnostics": "Diagnostika hardwaru"
 }

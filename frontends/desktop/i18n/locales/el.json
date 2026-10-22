@@ -417,7 +417,7 @@
   "Automatic curve is disabled": "Η αυτόματη καμπύλη είναι απενεργοποιημένη",
   "Automatic detection": "Αυτόματη ανίχνευση",
   "Automatic detection finds the first compatible scale. Frequency, VID, and temperature belong to detection; manual scale is a separate live test.": "Η αυτόματη ανίχνευση βρίσκει την πρώτη συμβατή κλίμακα. Η συχνότητα, το VID και η θερμοκρασία ανήκουν στην ανίχνευση. Η χειροκίνητη ζυγαριά είναι μια ξεχωριστή ζωντανή δοκιμή.",
-  "Automatic detection · {temperature} °C": "Αυτόματος εντοπισμός · {temperature} °C",
+  "Applied by automatic detection · {temperature} °C · until restart": "Εφαρμόστηκε από την αυτόματη ανίχνευση · {temperature} °C · έως την επανεκκίνηση",
   "Automatic detection: {value}": "Αυτόματος εντοπισμός: {value}",
   "Automatic fan control restored": "Ο αυτόματος έλεγχος ανεμιστήρα αποκαταστάθηκε",
   "Automatic fan restore failed": "Η αυτόματη επαναφορά ανεμιστήρα απέτυχε",
@@ -5335,5 +5335,6 @@
   "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Ελέγξτε το δίκτυο και την ημερομηνία συστήματος και δοκιμάστε ξανά την ενημέρωση. Αν συνεχίζει να αποτυγχάνει, εγκαταστήστε το πακέτο από τη σελίδα της έκδοσης.",
   "Temperature reading": "Ανάγνωση θερμοκρασίας",
   "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Από πού διαβάζει το Cyan τη θερμοκρασία της GPU. Και τα δύο δίνουν την ίδια τιμή· το sysfs δεν κρατά ανοιχτή τη συσκευή GPU μόνο γι' αυτό. Προεπιλογή είναι το DRM.",
-  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Αυτή η έκδοση του Cyan δεν διαβάζει αυτή τη ρύθμιση. Ενημερώστε την από την Προετοιμασία εξαρτήσεων."
+  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Αυτή η έκδοση του Cyan δεν διαβάζει αυτή τη ρύθμιση. Ενημερώστε την από την Προετοιμασία εξαρτήσεων.",
+  "Hardware diagnostics": "Διαγνωστικά υλικού"
 }

@@ -417,7 +417,7 @@
   "Automatic curve is disabled": "Automatisk kurva är inaktiverad",
   "Automatic detection": "Automatisk detektering",
   "Automatic detection finds the first compatible scale. Frequency, VID, and temperature belong to detection; manual scale is a separate live test.": "Automatisk upptäckt hittar den första kompatibla vågen. Frekvens, VID och temperatur hör till detektion; manuell våg är ett separat livetest.",
-  "Automatic detection · {temperature} °C": "Automatisk detektering · {temperature} °C",
+  "Applied by automatic detection · {temperature} °C · until restart": "Tillämpat av automatisk identifiering · {temperature} °C · tills omstart",
   "Automatic detection: {value}": "Automatisk upptäckt: {value}",
   "Automatic fan control restored": "Automatisk fläktstyrning återställd",
   "Automatic fan restore failed": "Automatisk fläktåterställning misslyckades",
@@ -5335,5 +5335,6 @@
   "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Kontrollera nätverket och systemdatumet och försök uppdatera igen. Om det fortsätter att misslyckas, installera paketet från versionssidan.",
   "Temperature reading": "Temperaturavläsning",
   "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Var Cyan läser GPU-temperaturen. Båda ger samma värde; sysfs håller inte GPU-enheten öppen bara för det. DRM är standard.",
-  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Den här Cyan-versionen läser inte den här inställningen. Uppdatera den från Förbered beroenden."
+  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Den här Cyan-versionen läser inte den här inställningen. Uppdatera den från Förbered beroenden.",
+  "Hardware diagnostics": "Hårdvarudiagnostik"
 }

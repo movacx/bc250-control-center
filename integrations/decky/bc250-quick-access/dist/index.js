@@ -168,15 +168,6 @@ const tokens = {
 
 var codes = [
 	{
-		code: "BC250-GFX-001",
-		markers: [
-			"a release is already installed"
-		],
-		exit_statuses: [
-		],
-		retryable: false
-	},
-	{
 		code: "BC250-CMD-001",
 		markers: [
 		],
@@ -207,18 +198,17 @@ var codes = [
 		retryable: false
 	},
 	{
-		code: "BC250-STORAGE-001",
+		code: "BC250-GENERAL-001",
 		markers: [
 		],
 		exit_statuses: [
-			73,
-			74
 		],
 		retryable: false
 	},
 	{
-		code: "BC250-GENERAL-001",
+		code: "BC250-GFX-001",
 		markers: [
+			"a release is already installed"
 		],
 		exit_statuses: [
 		],
@@ -236,20 +226,20 @@ var codes = [
 		retryable: false
 	},
 	{
-		code: "BC250-BUSY-001",
+		code: "BC250-UMR-001",
 		markers: [
-			"smu returned status 0x00",
-			"smu returned status 0xFC"
+			"UMR still does not start",
+			"umr is installed but does not start"
 		],
 		exit_statuses: [
-			75
 		],
 		retryable: false
 	},
 	{
 		code: "BC250-CONFIG-001",
 		markers: [
-			"QUICK_ACCESS_GPU_CONFIG"
+			"QUICK_ACCESS_GPU_CONFIG",
+			"QUICK_ACCESS_GPU_SAFE_POINT: invalid TOML ceiling"
 		],
 		exit_statuses: [
 			78
@@ -274,9 +264,22 @@ var codes = [
 		retryable: false
 	},
 	{
+		code: "BC250-STORAGE-001",
+		markers: [
+			"MB free and this needs",
+			"SteamOS keeps /var small"
+		],
+		exit_statuses: [
+			73,
+			74
+		],
+		retryable: false
+	},
+	{
 		code: "BC250-TIMEOUT-001",
 		markers: [
-			"QUICK_ACCESS_TIMEOUT"
+			"QUICK_ACCESS_TIMEOUT",
+			"GDDR6 patch did not finish in time"
 		],
 		exit_statuses: [
 			124,
@@ -305,6 +308,43 @@ var codes = [
 		retryable: false
 	},
 	{
+		code: "BC250-IMMUTABLE-001",
+		markers: [
+			"SteamOS reports a writable root",
+			"SteamOS read-only state",
+			"read-only protection",
+			"systemd-sysext or another immutable layer"
+		],
+		exit_statuses: [
+		],
+		retryable: false
+	},
+	{
+		code: "BC250-KERNEL-001",
+		markers: [
+			"kernel and headers do not match",
+			"headers for exactly",
+			"headers for another kernel",
+			"exact Neptune headers",
+			"replaced the running kernel",
+			"Module/kernel mismatch",
+			"Could not read vermagic",
+			"installed for the active kernel",
+			"match the active immutable kernel",
+			"nct6687 build failed",
+			"DKMS installation did not produce a module",
+			"PWM build prerequisites",
+			"nct6687.ko was not produced",
+			"nct6687 is not available for",
+			"kernel-devel mismatch",
+			"matching kernel-devel is unavailable",
+			"rebuilt nct6687 has vermagic"
+		],
+		exit_statuses: [
+		],
+		retryable: false
+	},
+	{
 		code: "BC250-CPUTOOL-001",
 		markers: [
 			"CPU_PAYLOAD_REFUSED"
@@ -318,6 +358,17 @@ var codes = [
 		markers: [
 			"returned error: 404",
 			"failed to synchronize all databases"
+		],
+		exit_statuses: [
+		],
+		retryable: false
+	},
+	{
+		code: "BC250-NET-001",
+		markers: [
+			"Unable to download",
+			"Reviewed source commit is unavailable after fetch",
+			"Reviewed source revision could not be checked out"
 		],
 		exit_statuses: [
 		],
@@ -346,7 +397,6 @@ var codes = [
 		code: "BC250-DBUS-001",
 		markers: [
 			"QUICK_ACCESS_GPU_DBUS",
-			"QUICK_ACCESS_GPU_ALLOWED",
 			"D-Bus name is unavailable",
 			"Cyan D-Bus policy",
 			"busctl is required for Cyan"
@@ -371,20 +421,6 @@ var codes = [
 			"QUICK_ACCESS_TTM"
 		],
 		exit_statuses: [
-		],
-		retryable: false
-	},
-	{
-		code: "BC250-FAN-001",
-		markers: [
-			"QUICK_ACCESS_FAN"
-		],
-		exit_statuses: [
-			25,
-			26,
-			27,
-			40,
-			46
 		],
 		retryable: false
 	},
@@ -460,9 +496,30 @@ var codes = [
 			"HELPER_PRIVILEGE",
 			"CPU_BACKEND_UNTRUSTED",
 			"QUICK_ACCESS_GPU_HELPER",
-			"HELPER_UNTRUSTED"
+			"HELPER_UNTRUSTED",
+			"protected BC250 OpenRC service helper is missing",
+			"protected GDDR6 patch helper is not installed"
 		],
 		exit_statuses: [
+		],
+		retryable: false
+	},
+	{
+		code: "BC250-FAN-001",
+		markers: [
+			"QUICK_ACCESS_FAN",
+			"fan/PWM hwmon",
+			"usable nct6687 module",
+			"nct6687d PWM driver workflow",
+			"nct6687 could not be loaded",
+			"persisted nct6687 source is missing"
+		],
+		exit_statuses: [
+			25,
+			26,
+			27,
+			40,
+			46
 		],
 		retryable: false
 	},
@@ -472,7 +529,9 @@ var codes = [
 			"QUICK_ACCESS_GPU_PROFILE",
 			"QUICK_ACCESS_GPU_SAFE_POINT",
 			"QUICK_ACCESS_GPU_HIGH_POINTS",
+			"QUICK_ACCESS_GPU_ALLOWED",
 			"QUICK_ACCESS_GPU_VOLTAGE",
+			"target must be an even value from 24 through 40",
 			"QUICK_ACCESS_GPU_VERIFY",
 			"QUICK_ACCESS_CPU_SCALE",
 			"Frequency must be between",
@@ -511,6 +570,18 @@ var codes = [
 		],
 		exit_statuses: [
 			58
+		],
+		retryable: false
+	},
+	{
+		code: "BC250-BUSY-001",
+		markers: [
+			"smu returned status 0x00",
+			"smu returned status 0xFC",
+			"SMU_IN_USE"
+		],
+		exit_statuses: [
+			75
 		],
 		retryable: false
 	},
@@ -565,23 +636,46 @@ var markers_longest_first = [
 	"Manual scale must reuse the detected thermal limit",
 	"bc250-detect returned values outside the requested",
 	"bc250-detect did not produce a valid configuration",
+	"QUICK_ACCESS_GPU_SAFE_POINT: invalid TOML ceiling",
+	"Reviewed source commit is unavailable after fetch",
+	"Reviewed source revision could not be checked out",
+	"protected BC250 OpenRC service helper is missing",
+	"target must be an even value from 24 through 40",
 	"Run automatic detection at this exact frequency",
+	"protected GDDR6 patch helper is not installed",
+	"DKMS installation did not produce a module",
+	"systemd-sysext or another immutable layer",
+	"matching kernel-devel is unavailable",
+	"umr is installed but does not start",
+	"persisted nct6687 source is missing",
 	"failed to synchronize all databases",
+	"GDDR6 patch did not finish in time",
 	"stress is required by bc250-detect",
 	"shared contract could not be read",
+	"match the active immutable kernel",
 	"disagrees with this system about",
 	"shared contract is not installed",
 	"was built for contract revision",
 	"QUICK_ACCESS_CU_SERVICE_PROFILE",
+	"kernel and headers do not match",
+	"installed for the active kernel",
+	"SteamOS reports a writable root",
 	"QAM CPU detection uses a fixed",
 	"QUICK_ACCESS_CU_SERVICE_REMOVE",
 	"QUICK_ACCESS_CU_SERVICE_VERIFY",
 	"a release is already installed",
 	"QUICK_ACCESS_CPU_SCALE_VERIFY",
 	"QUICK_ACCESS_GPU_HIGH_POINTS",
+	"nct6687d PWM driver workflow",
+	"nct6687 is not available for",
+	"rebuilt nct6687 has vermagic",
 	"busctl is required for Cyan",
 	"QUICK_ACCESS_GPU_SAFE_POINT",
 	"Temperature must be between",
+	"nct6687 could not be loaded",
+	"replaced the running kernel",
+	"nct6687.ko was not produced",
+	"headers for another kernel",
 	"QUICK_ACCESS_GPU_CONFLICT",
 	"does not accept arguments",
 	"QUICK_ACCESS_CPU_SERVICE:",
@@ -590,41 +684,55 @@ var markers_longest_first = [
 	"QAM CPU frequency must be",
 	"QUICK_ACCESS_FAN_EXTERNAL",
 	"QUICK_ACCESS_GPU_SERVICE",
+	"SteamOS keeps /var small",
 	"smu returned status 0x00",
 	"smu returned status 0xFC",
 	"QUICK_ACCESS_CU_SERVICE:",
 	"protocol is incompatible",
-	"QUICK_ACCESS_GPU_ALLOWED",
 	"QUICK_ACCESS_GPU_PROFILE",
+	"QUICK_ACCESS_GPU_ALLOWED",
 	"QUICK_ACCESS_GPU_VOLTAGE",
+	"UMR still does not start",
 	"QUICK_ACCESS_CPU_SERVICE",
 	"QUICK_ACCESS_GPU_CONFIG",
 	"are different versions.",
 	"QUICK_ACCESS_GPU_VERIFY",
 	"QUICK_ACCESS_CU_BACKEND",
+	"Could not read vermagic",
+	"PWM build prerequisites",
 	"QUICK_ACCESS_CPU_VERIFY",
 	"QUICK_ACCESS_GPU_HELPER",
+	"SteamOS read-only state",
 	"QUICK_ACCESS_PRIVILEGE",
+	"MB free and this needs",
 	"QUICK_ACCESS_CPU_SCALE",
 	"QUICK_ACCESS_CU_KERNEL",
 	"QUICK_ACCESS_CU_VERIFY",
+	"Module/kernel mismatch",
 	"smu returned status 0x",
 	"QUICK_ACCESS_GPU_DBUS",
 	"QUICK_ACCESS_CU_TABLE",
 	"QUICK_ACCESS_CU_STATE",
+	"usable nct6687 module",
+	"exact Neptune headers",
+	"kernel-devel mismatch",
 	"QUICK_ACCESS_GPU_BUSY",
 	"CPU_BACKEND_UNTRUSTED",
 	"QUICK_ACCESS_TIMEOUT",
 	"patched_freq_metrics",
 	"QUICK_ACCESS_CU_MODE",
+	"nct6687 build failed",
 	"QUICK_ACCESS_CONTEXT",
 	"CU_BACKEND_UNTRUSTED",
+	"read-only protection",
 	"patched_gpu_metrics",
 	"VID must be between",
 	"QAM CPU VID must be",
+	"headers for exactly",
 	"CPU_PAYLOAD_REFUSED",
 	"CPU_BACKEND_MISSING",
 	"returned error: 404",
+	"Unable to download",
 	"QUICK_ACCESS_GDDR6",
 	"QUICK_ACCESS_VRAM",
 	"Cyan D-Bus policy",
@@ -639,11 +747,13 @@ var markers_longest_first = [
 	"HELPER_UNTRUSTED",
 	"Missing action.",
 	"Unknown action.",
+	"fan/PWM hwmon",
 	"accepts only",
 	"HELPER_USAGE",
 	"mount --bind",
 	"HELPER_RANGE",
 	"FAN_EXTERNAL",
+	"SMU_IN_USE",
 	"move_mount",
 	"expects:"
 ];
@@ -687,6 +797,7 @@ var compatNeedsCyan$7 = "Installiere Cyan (oder stoppe Oberon) im Desktop-Modus,
 var compatProcessWarning$7 = "Die Messung process geht jede offene Datei jedes Programms durch. Solange ein Spiel läuft, antwortet Cyan nicht mehr: Bereich, +2000-MHz-Punkte und Spannungslabor funktionieren erst wieder, wenn das Spiel beendet ist. busy-flag ist die Voreinstellung.";
 var compatSetMethod$7 = "Governor-Methode";
 var compatTitle$7 = "Kompatibilität";
+var compatTemperature$7 = "Temperaturmessung";
 var compatUsage$7 = "Auslastungsmessung";
 var compute$7 = "RECHENEINHEITEN";
 var controller$7 = "Controller";
@@ -1011,6 +1122,7 @@ var de = {
 	compatProcessWarning: compatProcessWarning$7,
 	compatSetMethod: compatSetMethod$7,
 	compatTitle: compatTitle$7,
+	compatTemperature: compatTemperature$7,
 	compatUsage: compatUsage$7,
 	compute: compute$7,
 	controller: controller$7,
@@ -1336,6 +1448,7 @@ var compatNeedsCyan$6 = "Install Cyan (or stop Oberon) from Desktop Mode to chan
 var compatProcessWarning$6 = "The process reading goes through every open file of every program. With a game open, Cyan stops answering: the range, the +2000 MHz points and the voltage lab stop working until the game closes. busy-flag is the default.";
 var compatSetMethod$6 = "Governor method";
 var compatTitle$6 = "Compatibility";
+var compatTemperature$6 = "Temperature reading";
 var compatUsage$6 = "Usage reading";
 var compute$6 = "COMPUTE UNITS";
 var controller$6 = "Controller";
@@ -1660,6 +1773,7 @@ var en = {
 	compatProcessWarning: compatProcessWarning$6,
 	compatSetMethod: compatSetMethod$6,
 	compatTitle: compatTitle$6,
+	compatTemperature: compatTemperature$6,
 	compatUsage: compatUsage$6,
 	compute: compute$6,
 	controller: controller$6,
@@ -1985,6 +2099,7 @@ var compatNeedsCyan$5 = "Instala Cyan (o detén Oberon) desde Modo Escritorio pa
 var compatProcessWarning$5 = "La lectura process recorre cada archivo abierto de cada programa. Con un juego abierto, Cyan deja de responder: el rango, los puntos +2000 MHz y el laboratorio de voltaje no funcionan hasta que el juego se cierra. busy-flag es la opción predeterminada.";
 var compatSetMethod$5 = "Método del governor";
 var compatTitle$5 = "Compatibilidad";
+var compatTemperature$5 = "LECTURA DE TEMPERATURA";
 var compatUsage$5 = "Lectura de uso";
 var compute$5 = "COMPUTE UNITS";
 var controller$5 = "Controlador";
@@ -2309,6 +2424,7 @@ var es = {
 	compatProcessWarning: compatProcessWarning$5,
 	compatSetMethod: compatSetMethod$5,
 	compatTitle: compatTitle$5,
+	compatTemperature: compatTemperature$5,
 	compatUsage: compatUsage$5,
 	compute: compute$5,
 	controller: controller$5,
@@ -2634,6 +2750,7 @@ var compatNeedsCyan$4 = "Instala Cyan (o detén Oberon) desde Modo Escritorio pa
 var compatProcessWarning$4 = "La lectura process recorre cada archivo abierto de cada programa. Con un juego abierto, Cyan deja de responder: el rango, los puntos +2000 MHz y el laboratorio de voltaje no funcionan hasta que el juego se cierra. busy-flag es la opción predeterminada.";
 var compatSetMethod$4 = "Método del governor";
 var compatTitle$4 = "Compatibilidad";
+var compatTemperature$4 = "LECTURA DE TEMPERATURA";
 var compatUsage$4 = "Lectura de uso";
 var compute$4 = "COMPUTE UNITS";
 var controller$4 = "Controlador";
@@ -2958,6 +3075,7 @@ var es419 = {
 	compatProcessWarning: compatProcessWarning$4,
 	compatSetMethod: compatSetMethod$4,
 	compatTitle: compatTitle$4,
+	compatTemperature: compatTemperature$4,
 	compatUsage: compatUsage$4,
 	compute: compute$4,
 	controller: controller$4,
@@ -3283,6 +3401,7 @@ var compatNeedsCyan$3 = "Zainstaluj Cyan (lub zatrzymaj Oberon) w trybie pulpitu
 var compatProcessWarning$3 = "Odczyt process przechodzi przez każdy otwarty plik każdego programu. Gdy gra jest otwarta, Cyan przestaje odpowiadać: zakres, punkty +2000 MHz i laboratorium napięcia nie działają, dopóki gra się nie zamknie. busy-flag jest ustawieniem domyślnym.";
 var compatSetMethod$3 = "Metoda governora";
 var compatTitle$3 = "Zgodność";
+var compatTemperature$3 = "Odczyt temperatury";
 var compatUsage$3 = "Odczyt użycia";
 var compute$3 = "JEDNOSTKI OBLICZENIOWE";
 var controller$3 = "Kontroler";
@@ -3607,6 +3726,7 @@ var pl = {
 	compatProcessWarning: compatProcessWarning$3,
 	compatSetMethod: compatSetMethod$3,
 	compatTitle: compatTitle$3,
+	compatTemperature: compatTemperature$3,
 	compatUsage: compatUsage$3,
 	compute: compute$3,
 	controller: controller$3,
@@ -3932,6 +4052,7 @@ var compatNeedsCyan$2 = "Instale o Cyan (ou pare o Oberon) no Modo Desktop para 
 var compatProcessWarning$2 = "A leitura process percorre cada ficheiro aberto de cada programa. Com um jogo aberto, o Cyan deixa de responder: a gama, os pontos +2000 MHz e o laboratório de tensão deixam de funcionar até o jogo fechar. busy-flag é a predefinição.";
 var compatSetMethod$2 = "Método do governor";
 var compatTitle$2 = "Compatibilidade";
+var compatTemperature$2 = "Leitura de temperatura";
 var compatUsage$2 = "Leitura de uso";
 var compute$2 = "UNIDADES DE COMPUTAÇÃO";
 var controller$2 = "Controlador";
@@ -4256,6 +4377,7 @@ var pt = {
 	compatProcessWarning: compatProcessWarning$2,
 	compatSetMethod: compatSetMethod$2,
 	compatTitle: compatTitle$2,
+	compatTemperature: compatTemperature$2,
 	compatUsage: compatUsage$2,
 	compute: compute$2,
 	controller: controller$2,
@@ -4581,6 +4703,7 @@ var compatNeedsCyan$1 = "Установите Cyan (или остановите 
 var compatProcessWarning$1 = "Чтение process перебирает каждый открытый файл каждой программы. Пока открыта игра, Cyan перестаёт отвечать: диапазон, точки +2000 МГц и лаборатория напряжения не работают, пока игра не закроется. busy-flag — значение по умолчанию.";
 var compatSetMethod$1 = "Метод governor";
 var compatTitle$1 = "Совместимость";
+var compatTemperature$1 = "Чтение температуры";
 var compatUsage$1 = "Чтение загрузки";
 var compute$1 = "ВЫЧИСЛИТЕЛЬНЫЕ БЛОКИ";
 var controller$1 = "Контроллер";
@@ -4905,6 +5028,7 @@ var ru = {
 	compatProcessWarning: compatProcessWarning$1,
 	compatSetMethod: compatSetMethod$1,
 	compatTitle: compatTitle$1,
+	compatTemperature: compatTemperature$1,
 	compatUsage: compatUsage$1,
 	compute: compute$1,
 	controller: controller$1,
@@ -5230,6 +5354,7 @@ var compatNeedsCyan = "Встановіть Cyan (або зупиніть Oberon
 var compatProcessWarning = "Читання process перебирає кожен відкритий файл кожної програми. Поки відкрита гра, Cyan перестає відповідати: діапазон, точки +2000 МГц і лабораторія напруги не працюють, доки гра не закриється. busy-flag — типове значення.";
 var compatSetMethod = "Метод governor";
 var compatTitle = "Сумісність";
+var compatTemperature = "Зчитування температури";
 var compatUsage = "Зчитування навантаження";
 var compute = "ОБЧИСЛЮВАЛЬНІ БЛОКИ";
 var controller = "Контролер";
@@ -5554,6 +5679,7 @@ var uk = {
 	compatProcessWarning: compatProcessWarning,
 	compatSetMethod: compatSetMethod,
 	compatTitle: compatTitle,
+	compatTemperature: compatTemperature,
 	compatUsage: compatUsage,
 	compute: compute,
 	controller: controller,
@@ -6545,12 +6671,13 @@ const VOLTAGE_MAX_ABOVE_DEFAULT_MV = 60;
 // busy-flag from here is how it recovers without leaving Game Mode.
 const COMPAT_SET_METHODS = ["smu", "kernel"];
 const COMPAT_USAGE_METHODS = ["busy-flag", "process", "kernel"];
+const COMPAT_TEMP_READ_METHODS = ["drm", "sysfs"];
 function CyanCompatibility({ state, busy, execute }) {
     ACCENT_SWATCHES[SP_REACT.useContext(SettingsContext).settings.accent];
     const current = state.gpu_compatibility ?? null;
     const [open, setOpen] = SP_REACT.useState(false);
     const [draft, setDraft] = SP_REACT.useState(null);
-    const keyOf = (value) => `${value.set_method}:${value.usage_method}:${value.fix_metrics}:${value.fix_frequency}`;
+    const keyOf = (value) => `${value.set_method}:${value.usage_method}:${value.fix_metrics}:${value.fix_frequency}:${value.temp_read}`;
     const signature = current ? keyOf(current) : "";
     SP_REACT.useEffect(() => { setDraft(null); }, [signature]);
     if (state.gpu_governor === "oberon" || !current)
@@ -6563,8 +6690,8 @@ function CyanCompatibility({ state, busy, execute }) {
     const cyanActive = state.gpu_governor !== "conflict" && state.gpu_service_target === "cyan" && Boolean(state.gpu_service_installed);
     const cyanRunningNow = state.gpu_governor === "cyan";
     const choose = (patch) => setDraft({ ...value, ...patch });
-    const confirm = () => DFL.showModal(SP_JSX.jsx(DFL.ConfirmModal, { strTitle: text.compatTitle, strDescription: text.compatConfirm, strOKButtonText: text.compatApply, onOK: () => void execute(`GPU · ${text.compatTitle}`, () => applyGpuCompatibility(value.set_method, value.usage_method, value.fix_metrics, value.fix_frequency), "gpu") }));
-    return SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(DisclosureRow, { label: text.compatTitle, value: `${current.set_method === "smu" ? "SMU" : "Kernel"} · ${current.usage_method}`, open: open, warn: current.usage_method === "process", onActivate: () => setOpen(!open) }), open ? SP_JSX.jsxs(Drawer, { children: [!cyanActive ? SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 9, margin: "0 2px 6px" }, children: text.compatNeedsCyan }) : null, cyanActive && !cyanRunningNow ? SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 9, margin: "0 2px 6px" }, children: text.compatStaged }) : null, SP_JSX.jsx(DrawerLabel, { children: text.compatSetMethod }), SP_JSX.jsx(Segmented, { disabled: busy || !cyanActive, value: value.set_method, onChange: (method) => choose({ set_method: method }), options: COMPAT_SET_METHODS.map((method) => ({ key: method, label: method === "smu" ? "SMU" : "Kernel" })) }), SP_JSX.jsx(DrawerLabel, { children: text.compatUsage }), SP_JSX.jsx(Segmented, { disabled: busy || !cyanActive, value: value.usage_method, onChange: (method) => choose({ usage_method: method }), options: COMPAT_USAGE_METHODS.map((method) => ({ key: method, label: method })) }), value.usage_method === "process" ? SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 9, lineHeight: 1.35, margin: "-2px 2px 6px" }, children: text.compatProcessWarning }) : null, SP_JSX.jsx(Divider, {}), SP_JSX.jsx(SwitchRow, { label: text.compatFixMetrics, checked: value.fix_metrics, disabled: busy || !cyanActive, onChange: (checked) => choose({ fix_metrics: checked }) }), SP_JSX.jsx(SwitchRow, { label: text.compatFixFrequency, checked: value.fix_frequency, disabled: busy || !cyanActive, onChange: (checked) => choose({ fix_frequency: checked }) }), SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, lineHeight: 1.35, margin: "2px 8px 8px" }, children: text.compatHint }), SP_JSX.jsxs(ActionRow, { marginBottom: 2, children: [SP_JSX.jsx(Action, { label: text.compatApply, primary: true, disabled: busy || !cyanActive || !changed, onActivate: confirm }), SP_JSX.jsx(Action, { label: text.voltageDiscard, disabled: busy || !changed, onActivate: () => setDraft(null) })] })] }) : null] });
+    const confirm = () => DFL.showModal(SP_JSX.jsx(DFL.ConfirmModal, { strTitle: text.compatTitle, strDescription: text.compatConfirm, strOKButtonText: text.compatApply, onOK: () => void execute(`GPU · ${text.compatTitle}`, () => applyGpuCompatibility(value.set_method, value.usage_method, value.fix_metrics, value.fix_frequency, value.temp_read), "gpu") }));
+    return SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(DisclosureRow, { label: text.compatTitle, value: `${current.set_method === "smu" ? "SMU" : "Kernel"} · ${current.usage_method}`, open: open, warn: current.usage_method === "process", onActivate: () => setOpen(!open) }), open ? SP_JSX.jsxs(Drawer, { children: [!cyanActive ? SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 9, margin: "0 2px 6px" }, children: text.compatNeedsCyan }) : null, cyanActive && !cyanRunningNow ? SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 9, margin: "0 2px 6px" }, children: text.compatStaged }) : null, SP_JSX.jsx(DrawerLabel, { children: text.compatSetMethod }), SP_JSX.jsx(Segmented, { disabled: busy || !cyanActive, value: value.set_method, onChange: (method) => choose({ set_method: method }), options: COMPAT_SET_METHODS.map((method) => ({ key: method, label: method === "smu" ? "SMU" : "Kernel" })) }), SP_JSX.jsx(DrawerLabel, { children: text.compatUsage }), SP_JSX.jsx(Segmented, { disabled: busy || !cyanActive, value: value.usage_method, onChange: (method) => choose({ usage_method: method }), options: COMPAT_USAGE_METHODS.map((method) => ({ key: method, label: method })) }), SP_JSX.jsx(DrawerLabel, { children: text.compatTemperature }), SP_JSX.jsx(Segmented, { disabled: busy || !cyanActive, value: value.temp_read, onChange: (method) => choose({ temp_read: method }), options: COMPAT_TEMP_READ_METHODS.map((method) => ({ key: method, label: method === "drm" ? "DRM" : "sysfs" })) }), value.usage_method === "process" ? SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 9, lineHeight: 1.35, margin: "-2px 2px 6px" }, children: text.compatProcessWarning }) : null, SP_JSX.jsx(Divider, {}), SP_JSX.jsx(SwitchRow, { label: text.compatFixMetrics, checked: value.fix_metrics, disabled: busy || !cyanActive, onChange: (checked) => choose({ fix_metrics: checked }) }), SP_JSX.jsx(SwitchRow, { label: text.compatFixFrequency, checked: value.fix_frequency, disabled: busy || !cyanActive, onChange: (checked) => choose({ fix_frequency: checked }) }), SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, lineHeight: 1.35, margin: "2px 8px 8px" }, children: text.compatHint }), SP_JSX.jsxs(ActionRow, { marginBottom: 2, children: [SP_JSX.jsx(Action, { label: text.compatApply, primary: true, disabled: busy || !cyanActive || !changed, onActivate: confirm }), SP_JSX.jsx(Action, { label: text.voltageDiscard, disabled: busy || !changed, onActivate: () => setDraft(null) })] })] }) : null] });
 }
 // The desktop voltage drawer, cut down to what a controller can do safely:
 // the governor curve or +10/+20/+30 mV on the points from 2000 MHz up, and a

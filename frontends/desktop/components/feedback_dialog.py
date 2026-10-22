@@ -60,7 +60,11 @@ def _read_report() -> dict[str, object]:
     Every read fails to a blank rather than raising: a system without one of
     the files still sends the rest.
     """
-    from bc250cc.application.system.feedback import os_release, system_snapshot
+    from bc250cc.application.system.feedback import (
+        collect_diagnostics,
+        os_release,
+        system_snapshot,
+    )
 
     rows = system_snapshot()
     facts = dict(rows)
@@ -78,6 +82,7 @@ def _read_report() -> dict[str, object]:
         "report": diagnostic_report(rows, entries),
         "specs": system_sheet_text(rows),
         "recent": recent_errors_text(entries),
+        "hardware": collect_diagnostics(),
         "session": str(facts.get("Session", "")),
         "version": str(facts.get("Control Center", "")),
         "install": form.suggested_install(str(facts.get("Installation", ""))),
@@ -543,6 +548,7 @@ class FeedbackDialog(QDialog):
             "specs": str(self._facts.get("specs") or ""),
             "recent_errors": str(self._facts.get("recent") or ""),
             "details": self._details(),
+            "hardware": str(self._facts.get("hardware") or ""),
         }
         # The preview shows exactly what is sent: home folders already ~.
         return {key: redact(value) for key, value in values.items()}
@@ -569,6 +575,7 @@ class FeedbackDialog(QDialog):
         if self._raw:
             rows.append(("Raw error", self._raw.strip().splitlines()[-1]))
         rows.append(("System specifications", tr("Included") if self._facts.get("specs") else "…"))
+        rows.append(("Hardware diagnostics", tr("Included") if self._facts.get("hardware") else "…"))
         recent = str(self._facts.get("recent") or "")
         count = sum(1 for line in recent.splitlines() if line and not line.startswith(" "))
         if not self._facts:
@@ -662,6 +669,7 @@ class FeedbackDialog(QDialog):
             (tr("System specifications"), report.specs),
             (tr("Recent errors"), report.recent_errors),
             (tr("Report details"), report.details),
+            (tr("Hardware diagnostics"), report.hardware),
         ]
         # The same rule as the POST: no home folder leaves through the clipboard either.
         clipboard = "\n\n".join(
@@ -679,7 +687,7 @@ class FeedbackDialog(QDialog):
     def preview_text(self) -> str:
         """Exactly what the automatic page sends, under the form's own headings."""
         values = self._automatic() or {
-            key: "" for key in ("reference", "where", "raw", "specs", "recent_errors", "details")
+            key: "" for key in ("reference", "where", "raw", "specs", "recent_errors", "details", "hardware")
         }
         sections = (
             ("Error reference", values["reference"]),
@@ -688,6 +696,7 @@ class FeedbackDialog(QDialog):
             ("System specifications", values["specs"]),
             ("Recent errors", values["recent_errors"]),
             ("Report details", values["details"]),
+            ("Hardware diagnostics", values["hardware"]),
         )
         return "\n\n".join(f"== {title} ==\n{text or '—'}" for title, text in sections) + "\n"
 

@@ -23,7 +23,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from bc250cc.shared.error_origins import redact
 
@@ -35,8 +35,14 @@ MAX_PAGE_BYTES = 2 * 1024 * 1024
 #: Long answers are cut here: a report is read by a person, not archived.
 MAX_LONG_TEXT = 20000
 MAX_SHORT_TEXT = 500
+#: The hardware diagnosis is long by nature: kernel log, sensors, services.
+MAX_HARDWARE_TEXT = 32000
 #: One report at a time, and not twice in a row by a double press.
 MIN_SECONDS_BETWEEN = 30
+#: Google rejects a response body over about 32 KB with "413 Payload Too
+#: Large" (measured: 32 481 bytes stored, 32 656 refused). The answers are cut
+#: to fit under this, URL-encoded, before sending.
+MAX_POST_BYTES = 30000
 OTHER = "__other_option__"
 
 KIND_PROBLEM = "Report a problem"
@@ -70,6 +76,7 @@ ENTRY_RAW = 1408768783
 ENTRY_SPECS = 1028547932
 ENTRY_RECENT = 309991622
 ENTRY_DETAILS = 552182803
+ENTRY_HARDWARE = 897848333
 
 AREAS = (
     "Dashboard / Prepare dependencies",
@@ -148,11 +155,29 @@ _sent_lock = threading.Lock()
 _last_sent = 0.0
 
 
+#: The form's own confirmation message (Settings > Presentation), and
+#: Google's default one for a form without it. Either sentence only appears
+#: once the response is stored, and Google now also carries the form data on
+#: that page, so the sentence must win over it.
+CONFIRMATION_TEXTS = (
+    "thanks, received. i read every one of them",
+    "your response has been recorded",
+)
+
+
+_SCRIPT = re.compile(r"<script\b.*?</script>", re.S | re.I)
+
+
 def confirmed(answer: str) -> bool:
     """Google's "response recorded" page, not the form drawn again."""
+    # The form data inside the page's scripts already holds the confirmation
+    # message, so only the text the page shows counts.
+    shown = html.unescape(_SCRIPT.sub(" ", answer)).lower()
+    if any(text in shown for text in CONFIRMATION_TEXTS):
+        return True
     if _LOAD_DATA.search(answer):
         return False
-    return bool(_CONFIRMATION.search(answer)) or "your response has been recorded" in answer.lower()
+    return bool(_CONFIRMATION.search(answer))
 
 
 class FeedbackError(RuntimeError):
@@ -190,6 +215,7 @@ class FeedbackReport:
     specs: str = ""
     recent_errors: str = ""
     details: str = ""
+    hardware: str = ""
     contact: str = ""
     ideas: str = ""
 
@@ -304,6 +330,7 @@ def _pairs(report: FeedbackReport) -> list[tuple[int, object]]:
             (ENTRY_SPECS, _clip(report.specs, MAX_LONG_TEXT)),
             (ENTRY_RECENT, _clip(report.recent_errors, MAX_LONG_TEXT)),
             (ENTRY_DETAILS, _clip(report.details, MAX_LONG_TEXT)),
+            (ENTRY_HARDWARE, _clip(report.hardware, MAX_HARDWARE_TEXT)),
         ]
     pairs += [
         (ENTRY_CONTACT, _clip(report.contact, MAX_SHORT_TEXT)),
@@ -350,7 +377,7 @@ def form_fields(report: FeedbackReport, shape: FormShape) -> list[tuple[str, str
 #: Answers too long for a URL: the browser fallback copies them instead.
 _LONG_ANSWERS = frozenset({
     ENTRY_DIAGNOSTICS, ENTRY_STEPS, ENTRY_TERMINAL, ENTRY_IDEAS,
-    ENTRY_WHERE, ENTRY_RAW, ENTRY_SPECS, ENTRY_RECENT, ENTRY_DETAILS,
+    ENTRY_WHERE, ENTRY_RAW, ENTRY_SPECS, ENTRY_RECENT, ENTRY_DETAILS, ENTRY_HARDWARE,
 })
 
 
@@ -394,6 +421,42 @@ def _request(url: str, data: bytes | None = None) -> urllib.request.Request:
     return request
 
 
+#: Long answers in the order they give up room when the body is too big: the
+#: first one is cut first. What the owner typed comes last.
+_SHRINK_ORDER = (
+    ("recent_errors", False), ("terminal", True), ("details", False), ("specs", False),
+    ("hardware", False), ("raw", True), ("where", False), ("steps", False),
+    ("diagnostics", False), ("ideas", False),
+)
+CUT_NOTE = "\n… (cut to fit the form; the full text is in Open in browser)"
+
+
+def _body(report: FeedbackReport, shape: FormShape) -> bytes:
+    return urllib.parse.urlencode(form_fields(report, shape)).encode("utf-8")
+
+
+def fit_report(report: FeedbackReport, shape: FormShape, limit: int = MAX_POST_BYTES) -> FeedbackReport:
+    """The same report, its least important long answers cut until it fits."""
+    for name, keep_end in _SHRINK_ORDER:
+        while len(_body(report, shape)) > limit:
+            text = str(getattr(report, name) or "")
+            if text.endswith(CUT_NOTE):
+                text = text[: -len(CUT_NOTE)]
+            elif text.startswith("…"):
+                text = text[1:]
+            if len(text) <= 200:
+                break
+            excess = len(_body(report, shape)) - limit
+            # Encoded text is up to ~3x longer than the text: cut by bytes over,
+            # at least a quarter, so a few rounds settle it.
+            keep = max(200, len(text) - max(excess, len(text) // 4))
+            cut = ("…" + text[-keep:]) if keep_end else (text[:keep].rstrip() + CUT_NOTE)
+            report = replace(report, **{name: cut})
+        if len(_body(report, shape)) <= limit:
+            return report
+    return report
+
+
 def submit(
     report: FeedbackReport,
     *,
@@ -409,7 +472,7 @@ def submit(
         if _last_sent and clock() - _last_sent < MIN_SECONDS_BETWEEN:
             raise FeedbackError("A report was sent a moment ago. Wait a few seconds.", fallback=False)
         shape = parse_form(fetch(_request(f"{FORM_URL}?hl=en")))
-        body = urllib.parse.urlencode(form_fields(report, shape)).encode("utf-8")
+        body = _body(fit_report(report, shape), shape)
         answer = fetch(_request(f"{RESPONSE_URL}?hl=en", body))
         # Google answers 200 for a rejected response too, with the form drawn
         # again; only the confirmation page, without the form in it, means

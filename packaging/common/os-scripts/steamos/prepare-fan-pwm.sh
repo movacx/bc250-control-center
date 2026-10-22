@@ -221,7 +221,15 @@ fi
 if ! bc250_wait_for_nct6687_ready; then
   error "nct6687 load verification failed or the fan/PWM hwmon is not ready"
   cat "$load_error" || true
-  journalctl -u nct6687-load.service -b --no-pager | tail -120 2>/dev/null || true
+  # The load service only exists after a reboot, so its journal is usually
+  # empty here; show what the kernel and hwmon actually report instead.
+  info "Diagnostics: kernel $(uname -r)"
+  lsmod | grep -E '^nct66' || info "No nct66xx module is loaded"
+  for node in /sys/class/hwmon/hwmon*/name; do
+    [[ -r "$node" ]] && printf '  %s: %s\n' "${node%/name}" "$(cat "$node" 2>/dev/null)"
+  done
+  as_root dmesg 2>/dev/null | grep -iE 'nct66|super.?i/?o' | tail -20 || true
+  journalctl -u nct6687-load.service -b --no-pager 2>/dev/null | tail -40 || true
   exit 22
 fi
 sensors | sed -n '/nct6686/,+45p' || true

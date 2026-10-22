@@ -417,7 +417,7 @@
   "Automatic curve is disabled": "Автоматическая кривая отключена",
   "Automatic detection": "Автоопределение",
   "Automatic detection finds the first compatible scale. Frequency, VID, and temperature belong to detection; manual scale is a separate live test.": "Автоматическое определение находит первую совместимую шкалу. Частота, VID и температура относятся к определению; ручная шкала — отдельный живой тест.",
-  "Automatic detection · {temperature} °C": "Автоматическое определение · {temperature} °C",
+  "Applied by automatic detection · {temperature} °C · until restart": "Применено автоматическим определением · {temperature} °C · до перезагрузки",
   "Automatic detection: {value}": "Автоматическое определение: {value}",
   "Automatic fan control restored": "Автоматическое управление вентилятором восстановлено",
   "Automatic fan restore failed": "Не удалось восстановить автоматический режим вентилятора",
@@ -5335,5 +5335,6 @@
   "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Проверьте сеть и системную дату, затем повторите обновление. Если ошибка повторяется, установите пакет со страницы выпуска.",
   "Temperature reading": "Чтение температуры",
   "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Откуда Cyan читает температуру GPU. Оба варианта дают одно и то же значение; sysfs не держит устройство GPU открытым только ради этого. По умолчанию DRM.",
-  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Эта версия Cyan не читает этот параметр. Обновите её в разделе «Подготовить зависимости»."
+  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Эта версия Cyan не читает этот параметр. Обновите её в разделе «Подготовить зависимости».",
+  "Hardware diagnostics": "Диагностика оборудования"
 }

@@ -417,7 +417,7 @@
   "Automatic curve is disabled": "Lengkung automatik dilumpuhkan",
   "Automatic detection": "Pengesanan automatik",
   "Automatic detection finds the first compatible scale. Frequency, VID, and temperature belong to detection; manual scale is a separate live test.": "Pengesanan automatik mencari skala serasi pertama. Kekerapan, VID dan suhu tergolong dalam pengesanan; skala manual ialah ujian langsung yang berasingan.",
-  "Automatic detection · {temperature} °C": "Pengesanan automatik · {temperature} °C",
+  "Applied by automatic detection · {temperature} °C · until restart": "Digunakan oleh pengesanan automatik · {temperature} °C · sehingga dimulakan semula",
   "Automatic detection: {value}": "Pengesanan automatik: {value}",
   "Automatic fan control restored": "Kawalan kipas automatik dipulihkan",
   "Automatic fan restore failed": "Pemulihan kipas automatik gagal",
@@ -5335,5 +5335,6 @@
   "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Semak rangkaian dan tarikh sistem, kemudian cuba kemas kini sekali lagi. Jika terus gagal, pasang pakej dari halaman keluaran.",
   "Temperature reading": "Bacaan suhu",
   "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Dari mana Cyan membaca suhu GPU. Kedua-duanya memberi nilai yang sama; sysfs tidak membiarkan peranti GPU terbuka hanya untuk itu. DRM ialah lalai.",
-  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Versi Cyan ini tidak membaca tetapan ini. Kemas kininya daripada Sediakan kebergantungan."
+  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Versi Cyan ini tidak membaca tetapan ini. Kemas kininya daripada Sediakan kebergantungan.",
+  "Hardware diagnostics": "Diagnostik perkakasan"
 }

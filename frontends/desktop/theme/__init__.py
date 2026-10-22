@@ -2230,7 +2230,9 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         color: {c['text']};
         border: 1px solid {c['border']};
         border-radius: 8px;
-        padding: 4px;
+        /* The popup's items must reach both edges.  Padding here creates a
+           visible, but non-selectable, gutter around every PickerRow choice. */
+        padding: 0px;
         min-width: 120px;
     }}
     QMenu::item {{

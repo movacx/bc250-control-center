@@ -120,7 +120,7 @@ while [ "$attempt" -le 60 ]; do
   sleep 2
 done
 
-echo "ERROR: could not expose nct6687 fan/PWM hwmon after boot retries" >&2
+echo "[ERROR] could not expose nct6687 fan/PWM hwmon after boot retries" >&2
 echo "== nct6687-load diagnostics ==" >&2
 "$LSMOD" | grep -E 'nct6683|nct6687' >&2 || true
 for n in /sys/class/hwmon/hwmon*/name; do [ -r "$n" ] && echo "$n: $(cat "$n" 2>/dev/null)" >&2; done
@@ -143,7 +143,7 @@ if [ -f /run/openrc/softlevel ] \
   && command -v rc-update >/dev/null 2>&1 \
   && command -v rc-service >/dev/null 2>&1; then
   OPENRC_HELPER=/usr/libexec/bc250-control-center/bc250-openrc-service-helper
-  [ -x "$OPENRC_HELPER" ] || { echo "ERROR: protected BC250 OpenRC service helper is missing; reinstall Control Center." >&2; exit 1; }
+  [ -x "$OPENRC_HELPER" ] || { echo "[ERROR] protected BC250 OpenRC service helper is missing; reinstall Control Center." >&2; exit 1; }
   sudo "$OPENRC_HELPER" install nct6687-load
   sudo rc-service nct6687-load restart 2>/dev/null || sudo rc-service nct6687-load start 2>/dev/null || true
   if [ -x "$FAN_PWM_HELPER" ]; then

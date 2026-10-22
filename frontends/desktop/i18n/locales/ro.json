@@ -417,7 +417,7 @@
   "Automatic curve is disabled": "Curba automată este dezactivată",
   "Automatic detection": "Detectare automată",
   "Automatic detection finds the first compatible scale. Frequency, VID, and temperature belong to detection; manual scale is a separate live test.": "Detectarea automată găsește prima cântar compatibil. Frecvența, VID și temperatura aparțin detectării; scala manuală este un test live separat.",
-  "Automatic detection · {temperature} °C": "Detectare automată · {temperature} °C",
+  "Applied by automatic detection · {temperature} °C · until restart": "Aplicat de detectarea automată · {temperature} °C · până la repornire",
   "Automatic detection: {value}": "Detectare automată: {value}",
   "Automatic fan control restored": "Controlul automat al ventilatorului a fost restabilit",
   "Automatic fan restore failed": "Restaurarea automată a ventilatorului a eșuat",
@@ -5335,5 +5335,6 @@
   "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Verifică rețeaua și data sistemului, apoi încearcă din nou actualizarea. Dacă eșuează în continuare, instalează pachetul de pe pagina versiunii.",
   "Temperature reading": "Citirea temperaturii",
   "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "De unde citește Cyan temperatura GPU. Ambele dau aceeași valoare; sysfs nu ține dispozitivul GPU deschis doar pentru asta. DRM este implicit.",
-  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Această versiune Cyan nu citește această setare. Actualizeaz-o din Pregătește dependențele."
+  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Această versiune Cyan nu citește această setare. Actualizeaz-o din Pregătește dependențele.",
+  "Hardware diagnostics": "Diagnosticare hardware"
 }

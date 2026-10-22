@@ -417,7 +417,7 @@
   "Automatic curve is disabled": "Automatic curve is disabled",
   "Automatic detection": "Automatic detection",
   "Automatic detection finds the first compatible scale. Frequency, VID, and temperature belong to detection; manual scale is a separate live test.": "Automatic detection finds the first compatible scale. Frequency, VID, and temperature belong to detection; manual scale is a separate live test.",
-  "Automatic detection · {temperature} °C": "Automatic detection · {temperature} °C",
+  "Applied by automatic detection · {temperature} °C · until restart": "Applied by automatic detection · {temperature} °C · until restart",
   "Automatic detection: {value}": "Automatic detection: {value}",
   "Automatic fan control restored": "Automatic fan control restored",
   "Automatic fan restore failed": "Automatic fan restore failed",
@@ -5335,5 +5335,6 @@
   "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.",
   "Temperature reading": "Temperature reading",
   "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.",
-  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "This Cyan version does not read this setting. Update it from Prepare dependencies."
+  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "This Cyan version does not read this setting. Update it from Prepare dependencies.",
+  "Hardware diagnostics": "Hardware diagnostics"
 }

@@ -417,7 +417,7 @@
   "Automatic curve is disabled": "Đường cong tự động bị vô hiệu hóa",
   "Automatic detection": "Tự động phát hiện",
   "Automatic detection finds the first compatible scale. Frequency, VID, and temperature belong to detection; manual scale is a separate live test.": "Tự động phát hiện tìm thấy thang đo tương thích đầu tiên. Tần số, VID và nhiệt độ thuộc về phát hiện; quy mô thủ công là một thử nghiệm trực tiếp riêng biệt.",
-  "Automatic detection · {temperature} °C": "Tự động phát hiện · {temperature} °C",
+  "Applied by automatic detection · {temperature} °C · until restart": "Được áp dụng bởi tự động phát hiện · {temperature} °C · đến khi khởi động lại",
   "Automatic detection: {value}": "Tự động phát hiện: {value}",
   "Automatic fan control restored": "Điều khiển quạt tự động được khôi phục",
   "Automatic fan restore failed": "Tự động khôi phục quạt không thành công",
@@ -5335,5 +5335,6 @@
   "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.": "Kiểm tra mạng và ngày hệ thống rồi thử cập nhật lại. Nếu vẫn lỗi, hãy cài gói từ trang phát hành.",
   "Temperature reading": "Đọc nhiệt độ",
   "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Nơi Cyan đọc nhiệt độ GPU. Cả hai cho cùng một giá trị; sysfs không giữ thiết bị GPU mở chỉ để làm việc đó. Mặc định là DRM.",
-  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Phiên bản Cyan này không đọc cài đặt này. Hãy cập nhật từ Chuẩn bị phụ thuộc."
+  "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Phiên bản Cyan này không đọc cài đặt này. Hãy cập nhật từ Chuẩn bị phụ thuộc.",
+  "Hardware diagnostics": "Chẩn đoán phần cứng"
 }
