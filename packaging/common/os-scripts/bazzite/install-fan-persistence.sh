@@ -159,7 +159,7 @@ try_packaged_module() {
   : >"$ERRLOG"
   "$MODPROBE" nct6687 force=true 2>>"$ERRLOG" || "$MODPROBE" nct6687 2>>"$ERRLOG" || return 1
   settle_hwmon
-  "$LSMOD" | grep -q '^nct6687 ' && is_ready
+  grep -q '^nct6687 ' /proc/modules && is_ready
 }
 
 load_custom_module() {
@@ -169,7 +169,7 @@ load_custom_module() {
     "$INSMOD" "$MODULE_PATH" 2>>"$ERRLOG"
 }
 
-if "$LSMOD" | grep -q '^nct6687 '; then
+if grep -q '^nct6687 ' /proc/modules; then
   settle_hwmon
   is_ready && exit 0
 fi
@@ -188,7 +188,7 @@ for attempt in $(seq 1 12); do
   unload_conflicts
   if load_custom_module; then
     settle_hwmon
-    if "$LSMOD" | grep -q '^nct6687 ' && is_ready; then
+    if grep -q '^nct6687 ' /proc/modules && is_ready; then
       exit 0
     fi
   fi

@@ -185,7 +185,7 @@ def _kernel_cached(boot: str = "0") -> tuple[str, str]:
 
 #: Lines that name a module only in passing: the list printed under every
 #: kernel warning, and its CPU/taint banner.
-_NOISE = re.compile(r"Modules linked in:|kernel: CPU: \d+ UID:|kernel: Tainted: \[|kernel: Hardware name:")
+_NOISE = re.compile(r"Modules linked in:|ommand line:|kernel: CPU: \d+ UID:|kernel: Tainted: \[|kernel: Hardware name:")
 
 
 def _filtered(pattern: re.Pattern, boot: str = "0", keep: int = 60) -> str:

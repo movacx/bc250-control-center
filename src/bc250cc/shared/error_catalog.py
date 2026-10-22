@@ -318,6 +318,7 @@ _CODES: tuple[ErrorCode, ...] = (
             'CU_HELPER_MISSING', 'CU_BACKEND_UNTRUSTED', 'CPU_BACKEND_MISSING',
             'HELPER_PRIVILEGE', 'CPU_BACKEND_UNTRUSTED', 'QUICK_ACCESS_GPU_HELPER',
             'HELPER_UNTRUSTED',
+            'reviewed root-owned SteamOS graphics backend is unavailable or changed',
             'protected BC250 OpenRC service helper is missing',
             'protected GDDR6 patch helper is not installed',
         ),

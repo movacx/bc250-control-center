@@ -246,6 +246,7 @@ _AUDITED = {
     "Unable to download https://example.invalid/cyan.tar.gz": "BC250-NET-001",
     "[ERROR] SteamOS reports a writable root": "BC250-IMMUTABLE-001",
     "[ERROR] protected BC250 OpenRC service helper is missing; reinstall Control Center.": "BC250-HELPER-001",
+    "[ERROR] the reviewed root-owned SteamOS graphics backend is unavailable or changed": "BC250-HELPER-001",
     "[ERROR] umr is installed but does not start: a library it needs is missing.": "BC250-UMR-001",
 }
 
@@ -266,3 +267,19 @@ def test_a_wrapped_helper_error_is_explained_by_its_inner_cause(outer):
     message = f"{outer}: SMU_IN_USE: another tool holds the SMU"
     assert error_catalog.for_marker(message).code == "BC250-BUSY-001"
     assert diagnose_error(message).code == "BC250-BUSY-001"
+
+
+def test_diagnostics_printed_after_the_error_do_not_hide_it(tmp_path: Path) -> None:
+    """The SteamOS fan script prints modules, hwmon and dmesg after its error.
+
+    With only the last 12 lines read, the [ERROR] line fell out, exit status
+    22 took over and a fan driver failure read "Cyan is stopped" (DBUS-001).
+    """
+    diagnostics = "; ".join(f"echo '[ {170 + n}.0] nct6687: diagnostic line {n}'" for n in range(30))
+    output = _run_workflow(tmp_path, (
+        "echo '[ERROR] nct6687 load verification failed or the fan/PWM hwmon is not ready'; "
+        f"{diagnostics}; echo '-- No entries --'; exit 22"
+    ))
+    assert "BC250-FAN-001" in output
+    assert "BC250-DBUS-001" not in output
+    assert "Cyan" not in output

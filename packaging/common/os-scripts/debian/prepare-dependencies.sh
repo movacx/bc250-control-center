@@ -88,7 +88,7 @@ install_governor() (
   elif run curl --fail --location --retry 3 --output "$workdir/$archive" "$base_url/$archive"; then
     run tar -xf "$workdir/$archive" -C "$workdir"
     local installer
-    installer="$(find "$workdir" -path '*/scripts/install.sh' -type f | head -n 1)"
+    installer="$(find "$workdir" -path '*/scripts/install.sh' -type f -print -quit)"
     [[ -n "$installer" ]] || { error "Governor archive did not contain scripts/install.sh"; return 1; }
     as_root bash "$installer"
   else

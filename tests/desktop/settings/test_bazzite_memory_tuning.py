@@ -199,6 +199,27 @@ def test_the_limit_alone_runs_the_shared_helper_on_every_family_including_bazzit
     assert "rpm-ostree" in opened[0][0] and "ttm-apply" not in opened[0][0]
 
 
+def test_steamos_memory_and_ttm_changes_use_the_short_writable_root_window(monkeypatch):
+    from bc250cc.infrastructure import dependencias_repository as repository
+
+    opened = []
+
+    class Repository(repository.DependenciasRepository):
+        def _os_repository(self):
+            return type("Os", (), {"family": "steamos"})()
+
+        def _abrir_terminal(self, command, title="BC250 Control Center"):
+            opened.append((command, title))
+
+    instance = Repository()
+    instance.preparar_memoria("zswap-16", 0)
+    instance.preparar_memoria("preserve", 10)
+
+    assert all("with-steamos-writable-root.sh" in command for command, _ in opened)
+    assert "memory-apply --policy zswap-16" in opened[0][0]
+    assert "ttm-apply --ttm 10" in opened[1][0]
+
+
 def test_the_desktop_never_asks_the_helper_for_a_limit_of_zero():
     from bc250cc.infrastructure.system_setup import command
 

@@ -48,7 +48,7 @@ is_ready() {
     esac
   done
   if command -v sensors >/dev/null 2>&1; then
-    sensors 2>/dev/null | awk '/nct6686-isa/{seen=1} seen && /(Fan|fan|pwm)[ #0-9]*:/ {ok=1} END{exit ok?0:1}' && return 0
+    sensors 2>/dev/null | awk '/nct668[67]-isa/{seen=1} seen && /(Fan|fan|pwm)[ #0-9]*:/ {ok=1} END{exit ok?0:1}' && return 0
   fi
   return 1
 }
@@ -79,7 +79,7 @@ try_ready_after_load() {
   return 1
 }
 
-if "$LSMOD" | grep -q '^nct6687 '; then
+if grep -q '^nct6687 ' /proc/modules; then
   if try_ready_after_load; then exit 0; fi
   echo "WARN: nct6687 was loaded but no NCT fan/PWM hwmon appeared; reloading." >&2
   unload_all
@@ -97,20 +97,20 @@ while [ "$attempt" -le 60 ]; do
   if module_matches_kernel "$VAR_KO"; then
     echo "Trying $VAR_KO, attempt $attempt/60" >&2
     "$INSMOD" "$VAR_KO" force=1 2>>"$ERRLOG" || "$INSMOD" "$VAR_KO" force=true 2>>"$ERRLOG" || "$INSMOD" "$VAR_KO" 2>>"$ERRLOG" || true
-    if "$LSMOD" | grep -q '^nct6687 ' && try_ready_after_load; then exit 0; fi
+    if grep -q '^nct6687 ' /proc/modules && try_ready_after_load; then exit 0; fi
     unload_all
   fi
 
   if [ -n "$TREE_KO" ] && module_matches_kernel "$TREE_KO"; then
     echo "Trying kernel tree module $TREE_KO, attempt $attempt/60" >&2
     "$INSMOD" "$TREE_KO" force=1 2>>"$ERRLOG" || "$INSMOD" "$TREE_KO" force=true 2>>"$ERRLOG" || "$INSMOD" "$TREE_KO" 2>>"$ERRLOG" || true
-    if "$LSMOD" | grep -q '^nct6687 ' && try_ready_after_load; then exit 0; fi
+    if grep -q '^nct6687 ' /proc/modules && try_ready_after_load; then exit 0; fi
     unload_all
   fi
 
   echo "Trying modprobe nct6687, attempt $attempt/60" >&2
   "$MODPROBE" nct6687 force=true 2>>"$ERRLOG" || "$MODPROBE" nct6687 2>>"$ERRLOG" || true
-  if "$LSMOD" | grep -q '^nct6687 ' && try_ready_after_load; then exit 0; fi
+  if grep -q '^nct6687 ' /proc/modules && try_ready_after_load; then exit 0; fi
 
   if [ -s "$ERRLOG" ]; then
     cat "$ERRLOG" >&2

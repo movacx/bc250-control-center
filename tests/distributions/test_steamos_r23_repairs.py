@@ -190,9 +190,22 @@ def test_steamos_nct6687_install_waits_before_reporting_load_error():
     ).read_text(encoding='utf-8')
 
     assert 'bc250_wait_for_nct6687_ready()' in source
-    assert 'for attempt in {1..5}' in source
+    assert 'for attempt in {1..15}' in source
+    # Under pipefail `lsmod | grep -q` can read a loaded module as missing
+    # (SIGPIPE); the check reads /proc/modules instead.
+    assert "grep -q '^nct6687 ' /proc/modules" in source
+    assert 'lsmod | grep -q' not in source
     assert 'insmod /var/lib/nct6687/nct6687.ko force=1' in source
     assert source.count('udevadm trigger --subsystem-match=hwmon') == 2
     assert source.index('bc250_wait_for_nct6687_ready()') < source.index(
         'nct6687 load verification failed'
     )
+
+
+def test_no_fan_script_pipes_lsmod_into_grep_q():
+    # The SteamOS report showed nct6687 loaded and hwmon ready while the
+    # script said it was not: grep -q closing the pipe killed lsmod.
+    for path in Path('packaging/common/os-scripts').rglob('*.sh'):
+        text = path.read_text(encoding='utf-8')
+        assert 'lsmod | grep -q' not in text, path
+        assert '"$LSMOD" | grep -q' not in text, path

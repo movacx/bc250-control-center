@@ -221,7 +221,7 @@ build_upstream_source() (
   [[ -x "$binary" ]] || die "The Cyan build did not produce a governor binary"
   supports_frequency_fix "$binary" ||
     die "The Cyan build lacks the upstream GPU frequency-reporting fix"
-  version="$($binary --version 2>&1 | head -n 1)"
+  version="$($binary --version 2>&1 || true)"; version="${version%%$'\n'*}"
   [[ "$version" == *"${REVIEWED_RELEASE_TAG}"* ]] ||
     die "The built binary version does not match ${REVIEWED_RELEASE_TAG}: ${version}"
   stage_managed_binary "$binary" "$REVIEWED_RELEASE_TAG" "source build of ${REVIEWED_COMMIT}"

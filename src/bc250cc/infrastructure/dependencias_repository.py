@@ -252,19 +252,28 @@ class DependenciasRepository(SteamosDependenciesMixin):
         return self._abrir_terminal(command, 'Configurar memoria BC250 en Bazzite')
 
     def preparar_memoria(self, policy: str, ttm_gib: int, *, takeover_zram: bool = False, target_mount: str = ''):
+        os_repository = self._os_repository()
         if int(ttm_gib) and policy in {'preserve', 'current'}:
             # The GPU memory limit alone: one implementation, the one the
             # Decky panel uses too (system_setup_ttm.py), on every family
             # including Bazzite, so both read and restore the same state.
             return self._abrir_terminal(
-                system_setup_command('ttm-apply', ttm_gib=int(ttm_gib)),
+                wrap_steamos_writable_command(
+                    system_setup_command('ttm-apply', ttm_gib=int(ttm_gib)),
+                    family=os_repository.family,
+                ),
                 'BC250 GPU memory limit',
             )
-        if self._os_repository().family == 'bazzite':
+        if os_repository.family == 'bazzite':
             return self.preparar_memoria_bazzite(policy, ttm_gib)
         return self._abrir_terminal(
-            system_setup_command('memory-apply', policy, ttm_gib,
-                                  takeover_zram=takeover_zram, target_mount=target_mount),
+            wrap_steamos_writable_command(
+                system_setup_command(
+                    'memory-apply', policy, ttm_gib,
+                    takeover_zram=takeover_zram, target_mount=target_mount,
+                ),
+                family=os_repository.family,
+            ),
             'BC250 Memory & Swap',
         )
 

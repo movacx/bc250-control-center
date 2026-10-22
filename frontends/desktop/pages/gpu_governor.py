@@ -2522,6 +2522,31 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
         plan: GpuDependencyPlan,
         dialog_parent: QWidget | None,
     ) -> None:
+        high_points = _dict(self.current_state.get("high_frequency_points"))
+        high_point_frequencies = tuple(
+            int(value)
+            for value in high_points.get("enabled_frequencies")
+            or high_points.get("frequencies")
+            or ()
+            if str(value).isdigit() and int(value) > 2230
+        )
+        needs_module_safe_points = bool(high_points.get("enabled")) and bool(
+            high_point_frequencies
+        )
+
+        def start_preparation() -> None:
+            self._run_backend_action(
+                self.controller.preparar_compatibilidad_steamos,
+                lambda _result: GpuGovernorPage._record_preparation_result(
+                    self,
+                    "SteamOS compatibility",
+                    "Opened the explicit SteamOS kernel compatibility workflow. Review the terminal result and reboot only when it reports a successful installation.",
+                ),
+                "Could not prepare SteamOS compatibility",
+                controls=(),
+                error_parent=dialog_parent,
+            )
+
         if plan.requires_kernel_confirmation:
             confirmation = ConfirmDialog(
                 "Prepare SteamOS kernel compatibility",
@@ -2534,6 +2559,9 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
                     ("Kernel change", "amdgpu override + initramfs"),
                     ("RADV mesh/task", "Not installed"),
                     ("Reboot", "Required after installation"),
+                    *((
+                        ("Safe-points", "Disable +2000 MHz TOML points"),
+                    ) if needs_module_safe_points else ()),
                 ),
                 confirm_text="Prepare SteamOS compatibility",
                 tone="orange",
@@ -2541,14 +2569,35 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
             )
             if confirmation.exec() != QDialog.DialogCode.Accepted:
                 return
-        self._run_backend_action(
-            self.controller.preparar_compatibilidad_steamos,
-            lambda _result: GpuGovernorPage._record_preparation_result(
-                self,
-                "SteamOS compatibility",
-                "Opened the explicit SteamOS kernel compatibility workflow. Review the terminal result and reboot only when it reports a successful installation.",
+        if not needs_module_safe_points:
+            start_preparation()
+            return
+
+        confirmation = ConfirmDialog(
+            "Disable advanced +2000 MHz points",
+            "This comments the TOML safe-point blocks above 2000 MHz and validates the complete "
+            "file. Active 3D workloads must be stopped first. This does not reload Cyan or "
+            "change the live GPU range.",
+            summary=(
+                ("Safe-points", ", ".join(map(str, high_point_frequencies))),
+                ("Requested state", "Commented"),
+                ("Service", "No restart or clock change"),
             ),
-            "Could not prepare SteamOS compatibility",
+            confirm_text="Disable +2000 MHz TOML points",
+            tone="orange",
+            parent=dialog_parent or self,
+        )
+        if confirmation.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        def disabled_points(_result: object) -> None:
+            self._apply_high_points_toggle_feedback(False)
+            start_preparation()
+
+        self._run_backend_action(
+            lambda: self.controller.alternar_puntos_gpu_altos(False),
+            disabled_points,
+            "Could not update advanced safe-points",
             controls=(),
             error_parent=dialog_parent,
         )

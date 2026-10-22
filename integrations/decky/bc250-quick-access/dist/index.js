@@ -497,6 +497,7 @@ var codes = [
 			"CPU_BACKEND_UNTRUSTED",
 			"QUICK_ACCESS_GPU_HELPER",
 			"HELPER_UNTRUSTED",
+			"reviewed root-owned SteamOS graphics backend is unavailable or changed",
 			"protected BC250 OpenRC service helper is missing",
 			"protected GDDR6 patch helper is not installed"
 		],
@@ -632,6 +633,7 @@ var codes = [
 	}
 ];
 var markers_longest_first = [
+	"reviewed root-owned SteamOS graphics backend is unavailable or changed",
 	"shared contract is not a protected root-owned file",
 	"Manual scale must reuse the detected thermal limit",
 	"bc250-detect returned values outside the requested",

@@ -595,6 +595,7 @@ _MORE_PATTERNS: dict[str, tuple[str, ...]] = {
     ),
     "BC250-HELPER-001": (
         r"protected bc250 openrc service helper is missing", r"protected gddr6 patch helper is not installed",
+        r"reviewed root-owned steamos graphics backend is unavailable or changed",
     ),
     "BC250-PLATFORM-001": (
         r"unsupported accessory", r"openlinkhub.*x86_64", r"trcc.*(?:no package|not installed)",

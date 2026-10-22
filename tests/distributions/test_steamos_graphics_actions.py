@@ -35,11 +35,13 @@ def test_steamos_graphics_actions_use_only_the_protected_backend(action, fragmen
     assert fragment in command
     assert str(protected) in command
     assert "test -x PROTECTED_BACKEND" in command
+    assert "[ERROR] the reviewed root-owned SteamOS graphics backend is unavailable or changed" in command
     assert "steamos|steamdeck|holo" in command
     assert "/ResourceTools/" not in command
     if action == "status":
         assert "STAGE_REVIEWED_TREE" not in command
         assert command.count("status-json") == 1
+        assert "graphics backend is not staged yet" in command
     else:
         assert "STAGE_REVIEWED_TREE" in command
         assert command.count("status-json") == 1
