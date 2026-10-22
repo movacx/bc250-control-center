@@ -104,6 +104,21 @@ def _read_exact(host: Host, name: str) -> str:
         return ""
 
 
+def _steamos_menu_present(host: Host) -> bool:
+    """SteamOS's boot menu on the EFI partition.
+
+    The unprivileged status cannot look inside /efi/EFI/steamos (root only):
+    Path.is_file() raises there instead of answering, and that one error took
+    the whole status down, so every memory, swap and TTM control was locked.
+    A menu hidden from this user is taken as present; the privileged apply
+    checks it again before writing anything.
+    """
+    try:
+        return host.path(STEAMOS_GRUB_OUTPUT).is_file()
+    except PermissionError:
+        return True
+
+
 def _backend(host: Host) -> str:
     if host.steamos():
         # Only a GRUB that reads the drop-in directory: SteamOS's own
@@ -111,7 +126,7 @@ def _backend(host: Host) -> str:
         # And its boot menu on the EFI partition, which every write regenerates:
         # without it the status offered a limit that the first apply refused.
         if (host.command("grub-mkconfig") and grub_reads_dropins(host)
-                and host.path(STEAMOS_GRUB_OUTPUT).is_file()):
+                and _steamos_menu_present(host)):
             return "steamos-grub"
         return "unsupported"
     if host.immutable_image():

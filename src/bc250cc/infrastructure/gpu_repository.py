@@ -1576,6 +1576,13 @@ class GPURepository:
                 "enabled_frequencies": (),
                 "enabled": False,
             }
+        ceiling, ceiling_reason = gpu_frequency_ceiling()
+        if ceiling is not None:
+            high_points = {
+                **high_points,
+                "ceiling_mhz": int(ceiling),
+                "ceiling_reason": str(ceiling_reason),
+            }
         try:
             frequency_range = editor.frequency_range_state()
         except (GovernorTomlError, OSError, TypeError, ValueError) as error:

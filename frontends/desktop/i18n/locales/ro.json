@@ -5336,5 +5336,6 @@
   "Temperature reading": "Citirea temperaturii",
   "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "De unde citește Cyan temperatura GPU. Ambele dau aceeași valoare; sysfs nu ține dispozitivul GPU deschis doar pentru asta. DRM este implicit.",
   "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Această versiune Cyan nu citește această setare. Actualizeaz-o din Pregătește dependențele.",
-  "Hardware diagnostics": "Diagnosticare hardware"
+  "Hardware diagnostics": "Diagnosticare hardware",
+  "{reason} Maximum selectable frequency: {ceiling} MHz.": "{reason} Frecvența maximă selectabilă: {ceiling} MHz."
 }

@@ -243,7 +243,13 @@ def _install(checkout: Path, family: str = "") -> str:
         'rm -rf "$bc250_stage"; mkdir -p "$bc250_stage"',
         *(_pull_build_image() if steamos else ()),
         'echo "== Building the daemon =="',
+        # The compiler is silent for a while; a heartbeat shows it is not stuck.
+        'bc250_hb_start=$SECONDS',
+        '( while sleep 15; do echo "[INFO] still building... $((SECONDS - bc250_hb_start)) s"; done ) &',
+        "bc250_heartbeat=$!",
+        "trap 'kill \"$bc250_sudo_keepalive\" \"$bc250_heartbeat\" 2>/dev/null || true' EXIT",
         *build_steps,
+        'kill "$bc250_heartbeat" 2>/dev/null || true',
         'test -x "$bc250_stage/apu_telemetry" || { echo "ERROR: the built daemon is missing."; exit 30; }',
         # Our marker first, then upstream's unit with its binary path filled in.
         f'{{ printf \'%s\\n\' {marker}; sed "s|TELEMETRY_BIN_PATH|{binary_path}|g" {quoted_checkout}/apu-telemetry.service; }} '

@@ -316,8 +316,10 @@ class VoltageLabDrawer(QWidget):
         self.summary_added = _SummaryValue("Above governor default")
         for item in (self.summary_changed, self.summary_peak, self.summary_added):
             summary_layout.addWidget(item, 1)
+        # Kept for the footer text, not shown: the table's Δ column already
+        # says what changes, and the strip pushed the presets down.
         root.addWidget(summary)
-        root.addWidget(_separator())
+        summary.hide()
 
         # --- presets ---------------------------------------------------
         self.profiles_card = QWidget()

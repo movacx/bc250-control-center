@@ -754,7 +754,8 @@ def test_frame_generation_is_one_switch_in_its_row():
                "fg_possible": True, "version": "1.2.0"}]
     sidebar.set_state(_state(_ready(scaler_games=scaler, scaler_supported=True, fg_ready=True)))
     switch, more = sidebar.upscaling_games.controls["7"]
-    assert switch.text() == "Frame generation" and switch.isCheckable() and switch.isChecked()
+    # While on, it says what pressing it does.
+    assert switch.text() == "Turn off frame generation" and switch.isCheckable() and switch.isChecked()
     assert more.property("rowActions") == ["Remove HelixSR Scaler"]
     requested = []
     sidebar.dependency_action_requested.connect(requested.append)

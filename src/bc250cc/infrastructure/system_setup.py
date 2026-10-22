@@ -32,7 +32,7 @@ def inventory() -> dict:
         if info.st_uid != 0 or info.st_mode & 0o022 or HELPER.is_symlink():
             raise ValueError("System setup helper must be root-owned")
         result = subprocess.run(["/usr/bin/python3", "-I", str(HELPER), "status"],
-                                capture_output=True, text=True, timeout=8, check=True)
+                                capture_output=True, text=True, timeout=20, check=True)
         data = json.loads(result.stdout)
         if data.get("protocol") != 2:
             raise ValueError("Unsupported system setup protocol")

@@ -104,8 +104,9 @@ def ceiling_for(*, unlocked: bool) -> int:
     return ABSOLUTE_CEILING if unlocked else SAFE_CEILING
 
 
-def offered_points(*, unlocked: bool) -> list[int]:
-    return [point for point in ALL_POINTS if point <= ceiling_for(unlocked=unlocked)]
+def offered_points(*, unlocked: bool, maximum_mhz: int | None = None) -> list[int]:
+    ceiling = min(ceiling_for(unlocked=unlocked), maximum_mhz or ABSOLUTE_CEILING)
+    return [point for point in ALL_POINTS if point <= ceiling]
 
 
 def voltage_for(frequency: int) -> int:
@@ -516,6 +517,7 @@ class ProfileCardEditable(EditableCardNavigation, QFrame):
         self._profile = profile
         self._default = replace(profile)
         self._unlocked = False
+        self._maximum_mhz: int | None = None
         self.setProperty("profileCard", True)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
@@ -645,9 +647,18 @@ class ProfileCardEditable(EditableCardNavigation, QFrame):
         self._unlocked = unlocked
         self._sync_view()
 
+    def set_maximum_mhz(self, maximum_mhz: int | None) -> None:
+        self._maximum_mhz = maximum_mhz
+        ceiling = maximum_mhz or ABSOLUTE_CEILING
+        self._minimum_spin.setMaximum(ceiling)
+        self._maximum_spin.setMaximum(ceiling)
+        self._sync_view()
+
     def is_blocked(self) -> bool:
         """Asks for more than the TOML currently allows."""
-        return self._profile.is_risky() and not self._unlocked
+        return self._profile.maximum > min(
+            ceiling_for(unlocked=self._unlocked), self._maximum_mhz or ABSOLUTE_CEILING
+        )
 
     def begin_edit(self) -> None:
         self._name_edit.setText(self._profile.shown_name())
@@ -755,6 +766,7 @@ class SafePointRail(QWidget):
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self._unlocked = False
+        self._maximum_mhz: int | None = None
         self._minimum = 1000
         self._maximum = 1850
         self._dragging = ""
@@ -773,6 +785,13 @@ class SafePointRail(QWidget):
         if not unlocked:
             self._maximum = min(self._maximum, SAFE_CEILING)
             self._minimum = min(self._minimum, self._maximum)
+        self.update()
+
+    def set_maximum_mhz(self, maximum_mhz: int | None) -> None:
+        self._maximum_mhz = maximum_mhz
+        ceiling = min(ceiling_for(unlocked=self._unlocked), maximum_mhz or ABSOLUTE_CEILING)
+        self._maximum = min(self._maximum, ceiling)
+        self._minimum = min(self._minimum, self._maximum)
         self.update()
 
     def set_range(self, minimum: int, maximum: int) -> None:
@@ -813,7 +832,7 @@ class SafePointRail(QWidget):
 
     def step_active_handle(self, delta: int) -> None:
         """Move the active handle by whole safe-points, never between them."""
-        points = offered_points(unlocked=self._unlocked)
+        points = offered_points(unlocked=self._unlocked, maximum_mhz=self._maximum_mhz)
         if not points:
             return
         current = self._minimum if self._active == "minimum" else self._maximum
@@ -833,7 +852,7 @@ class SafePointRail(QWidget):
             event.accept()
             return
         if key in (Qt.Key.Key_Home, Qt.Key.Key_End):
-            points = offered_points(unlocked=self._unlocked)
+            points = offered_points(unlocked=self._unlocked, maximum_mhz=self._maximum_mhz)
             if points:
                 self.step_active_handle(-len(points) if key == Qt.Key.Key_Home else len(points))
             event.accept()
@@ -864,7 +883,7 @@ class SafePointRail(QWidget):
         return self._MARGIN + usable * fraction
 
     def _frequency_at(self, x: float) -> int:
-        return min(offered_points(unlocked=self._unlocked),
+        return min(offered_points(unlocked=self._unlocked, maximum_mhz=self._maximum_mhz),
                    key=lambda point: abs(self._x_for(point) - x))
 
     # -- interaction --------------------------------------------------------
@@ -1269,6 +1288,8 @@ class GpuViewState:
     temp_read: str = "drm"
     #: None: unknown (no binary found); False: this Cyan ignores temp-read.
     temp_read_supported: bool | None = None
+    frequency_ceiling_mhz: int | None = None
+    frequency_ceiling_reason: str = ""
 
     @classmethod
     def from_backend(cls, gpu: dict, telemetry: dict | None = None) -> "GpuViewState":
@@ -1331,6 +1352,8 @@ class GpuViewState:
             fix_frequency=bool(cyan.get("fix_frequency", False)),
             temp_read=str(cyan.get("temp_read") or "drm"),
             temp_read_supported=cyan.get("temp_read_supported"),
+            frequency_ceiling_mhz=integer(high_points.get("ceiling_mhz")) or None,
+            frequency_ceiling_reason=str(high_points.get("ceiling_reason") or ""),
         )
 
 
@@ -2141,7 +2164,13 @@ class GpuGovernorView(QWidget):
             else tr("Uncomment +2000 MHz points")
         )
         self._locked_label.setText(
-            ""
+            tr_format(
+                "{reason} Maximum selectable frequency: {ceiling} MHz.",
+                reason=state.frequency_ceiling_reason,
+                ceiling=state.frequency_ceiling_mhz,
+            )
+            if state.frequency_ceiling_mhz is not None
+            else ""
             if unlocked
             else tr_format(
                 "{minimum}–{maximum} MHz COMMENTED IN THE TOML",
@@ -2153,8 +2182,10 @@ class GpuGovernorView(QWidget):
         self._sync_safe_mode(state)
         self._sync_compatibility(state)
         self._rail.set_unlocked(unlocked)
+        self._rail.set_maximum_mhz(state.frequency_ceiling_mhz)
         for profile_card in self._profile_cards:
             profile_card.set_unlocked(unlocked)
+            profile_card.set_maximum_mhz(state.frequency_ceiling_mhz)
         self._sync_selection()
 
     def sync_active_range(self, minimum: int, maximum: int) -> None:
@@ -2173,7 +2204,10 @@ class GpuGovernorView(QWidget):
 
     def _sync_selection(self) -> None:
         unlocked = self._state.unlocked
-        ceiling = ceiling_for(unlocked=unlocked)
+        ceiling = min(
+            ceiling_for(unlocked=unlocked),
+            self._state.frequency_ceiling_mhz or ABSOLUTE_CEILING,
+        )
         self._selected_maximum = min(self._selected_maximum, ceiling)
         self._selected_minimum = min(self._selected_minimum, self._selected_maximum)
 
@@ -2181,12 +2215,17 @@ class GpuGovernorView(QWidget):
         self._range_readout.setText(
             f"{self._selected_minimum} – {self._selected_maximum} MHz"
         )
-        self._range_subtitle.setText(
-            tr_format(
-                "Fine-tune over the TOML points · current ceiling {ceiling} MHz.",
-                ceiling=ceiling,
-            )
+        subtitle = tr_format(
+            "Fine-tune over the TOML points · current ceiling {ceiling} MHz.",
+            ceiling=ceiling,
         )
+        if self._state.frequency_ceiling_mhz is not None:
+            subtitle = tr_format(
+                "{reason} Maximum selectable frequency: {ceiling} MHz.",
+                reason=self._state.frequency_ceiling_reason,
+                ceiling=ceiling,
+            ) + " " + subtitle
+        self._range_subtitle.setText(subtitle)
         self._minimum_line.set_values(str(self._selected_minimum))
         self._maximum_line.set_values(
             str(self._selected_maximum),

@@ -5336,5 +5336,6 @@
   "Temperature reading": "Sıcaklık okuma",
   "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Cyan'ın GPU sıcaklığını nereden okuduğu. İkisi de aynı değeri verir; sysfs yalnızca bunun için GPU aygıtını açık tutmaz. Varsayılan DRM'dir.",
   "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Bu Cyan sürümü bu ayarı okumuyor. Bağımlılıkları hazırla bölümünden güncelleyin.",
-  "Hardware diagnostics": "Donanım tanılaması"
+  "Hardware diagnostics": "Donanım tanılaması",
+  "{reason} Maximum selectable frequency: {ceiling} MHz.": "{reason} Seçilebilir en yüksek frekans: {ceiling} MHz."
 }

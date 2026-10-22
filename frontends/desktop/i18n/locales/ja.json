@@ -5336,5 +5336,6 @@
   "Temperature reading": "温度の読み取り",
   "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Cyan が GPU 温度を読み取る場所です。どちらも同じ値になります。sysfs はそのためだけに GPU デバイスを開いたままにしません。既定は DRM です。",
   "This Cyan version does not read this setting. Update it from Prepare dependencies.": "この Cyan のバージョンはこの設定を読み取りません。「依存関係の準備」から更新してください。",
-  "Hardware diagnostics": "ハードウェア診断"
+  "Hardware diagnostics": "ハードウェア診断",
+  "{reason} Maximum selectable frequency: {ceiling} MHz.": "{reason} 選択可能な最大周波数: {ceiling} MHz。"
 }

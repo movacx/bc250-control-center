@@ -5336,5 +5336,6 @@
   "Temperature reading": "Lämpötilan luku",
   "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Mistä Cyan lukee GPU:n lämpötilan. Molemmat antavat saman arvon; sysfs ei pidä GPU-laitetta auki vain sitä varten. DRM on oletus.",
   "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Tämä Cyan-versio ei lue tätä asetusta. Päivitä se kohdasta Valmistele riippuvuudet.",
-  "Hardware diagnostics": "Laitteiston diagnostiikka"
+  "Hardware diagnostics": "Laitteiston diagnostiikka",
+  "{reason} Maximum selectable frequency: {ceiling} MHz.": "{reason} Suurin valittava taajuus: {ceiling} MHz."
 }

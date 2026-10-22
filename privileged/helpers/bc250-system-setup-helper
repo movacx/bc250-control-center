@@ -63,16 +63,27 @@ def main():
                 return 1
             return 0
         if readonly:
-            memory_status = memory.status(host)
-            memory_status["swap_targets"] = memory.candidate_swap_targets(host)
+            def section(read):
+                # One unreadable part (a root-only file, say) must not take
+                # the others down: it used to lock every memory control.
+                try:
+                    return read()
+                except (SetupError, OSError, ValueError) as exc:
+                    return {"supported": False, "reason": str(exc)}
+
+            def memory_section():
+                memory_status = memory.status(host)
+                memory_status["swap_targets"] = memory.candidate_swap_targets(host)
+                return memory_status
+
             result = {
-                "memory": memory_status,
-                "acpi": acpi.status(host),
-                "telemetry": telemetry.status(host),
-                "kernel_options": kernel_args.status(host),
-                "vram": vram.status(host),
+                "memory": section(memory_section),
+                "acpi": section(lambda: acpi.status(host)),
+                "telemetry": section(lambda: telemetry.status(host)),
+                "kernel_options": section(lambda: kernel_args.status(host)),
+                "vram": section(lambda: vram.status(host)),
                 # Without root: no rpm-ostree probe and no CMOS read.
-                "ttm": ttm.status(host, probe=False),
+                "ttm": section(lambda: ttm.status(host, probe=False)),
                 "protocol": 2,
             }
             if args.action == "memory-plan":

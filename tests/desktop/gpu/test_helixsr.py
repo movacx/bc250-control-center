@@ -27,6 +27,18 @@ needs_cmp = pytest.mark.skipif(shutil.which("cmp") is None, reason="the fake DLL
 DLL = b"MZ helixsr test dll"
 ORIGINAL = b"MZ the game's own FSR 3.1 dll"
 
+@pytest.fixture(autouse=True)
+def _list_tests_keep_1_8_1_as_the_default(request, monkeypatch):
+    """These tests are about how releases are listed, picked and updated, and
+    their fixtures are newer releases than the default. The default itself
+    is checked in test_the_default_is_the_release_checked_on_a_bc250_..."""
+    if request.node.name.startswith("test_the_default_is_the_release_checked"):
+        return
+    monkeypatch.setattr(helixsr, "HELIXSR_TAG", "v1.8.1")
+    monkeypatch.setattr(helixsr, "HELIXSR_VERSION", "1.8.1")
+    monkeypatch.setattr(helixsr, "HELIXSR_SHA256", helixsr.HELIXSR_REVIEWED["v1.8.1"]["sha256"])
+
+
 
 def _sha(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
@@ -248,7 +260,7 @@ def test_the_long_shader_step_is_announced_and_its_progress_watched(home, monkey
 @pytest.mark.parametrize("entry, message", [
     ("../escape.txt", "not one HelixSR folder"),
     ("OtherTop/file.txt", "not one HelixSR folder"),
-    (f"HelixSR-{helixsr.HELIXSR_VERSION}/../x", "unexpected archive entry"),
+    ("HelixSR-1.8.1/../x", "unexpected archive entry"),  # the default these tests pin
 ])
 def test_the_install_refuses_entries_outside_the_release_folder(home, monkeypatch, entry, message):
     result = _run_install(home, _release_zip(home / "release.zip", extra=entry), monkeypatch)
@@ -643,9 +655,8 @@ def _next_release(monkeypatch) -> None:
 
 
 def test_the_default_is_the_release_checked_on_a_bc250_and_every_dll_is_known():
-    # 2.0.0 is reviewed and offered; it becomes the default once it has been
-    # through the same check on a BC-250 that 1.8.1 went through.
-    assert helixsr.HELIXSR_VERSION == "1.8.1"
+    # 2.0.0 went through the same check on a BC-250 that 1.8.1 did.
+    assert helixsr.HELIXSR_VERSION == "2.0.0"
     assert max(helixsr.HELIXSR_REVIEWED, key=helixsr._version) == "v2.0.0"
     for release in helixsr.HELIXSR_REVIEWED.values():
         assert release["dll_sha256"] in helixsr.HELIXSR_DLL_DIGESTS

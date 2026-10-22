@@ -70,6 +70,18 @@ def release(home):  # noqa: F811 - the imported fixture
     (directory / helixsr.HELIXSR_SCALER / "OptiScaler.dll").write_bytes(b"MZ scaler")
     return directory
 
+@pytest.fixture(autouse=True)
+def _list_tests_keep_1_8_1_as_the_default(request, monkeypatch):
+    """These tests are about how releases are listed, picked and updated, and
+    their fixtures are newer releases than the default. The default itself
+    is checked in test_the_default_is_the_release_checked_on_a_bc250_..."""
+    if request.node.name.startswith("test_the_default_is_the_release_checked"):
+        return
+    monkeypatch.setattr(helixsr, "HELIXSR_TAG", "v1.8.1")
+    monkeypatch.setattr(helixsr, "HELIXSR_VERSION", "1.8.1")
+    monkeypatch.setattr(helixsr, "HELIXSR_SHA256", helixsr.HELIXSR_REVIEWED["v1.8.1"]["sha256"])
+
+
 
 def _calls(directory: Path) -> list[list[str]]:
     log = directory / "bridge.log"

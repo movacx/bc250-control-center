@@ -107,9 +107,8 @@ HELIXSR_REVIEWED: dict[str, dict] = {
     },
 }
 #: The release installed unless the user picks another: the newest stable
-#: one checked on a BC-250 with this module. 2.0.0 is reviewed and offered,
-#: and becomes the default once it has been through the same check.
-HELIXSR_TAG = "v1.8.1"
+#: one checked on a BC-250 with this module (2.0.0, tested by the maintainer).
+HELIXSR_TAG = "v2.0.0"
 HELIXSR_VERSION = HELIXSR_TAG.removeprefix("v")
 HELIXSR_SHA256 = HELIXSR_REVIEWED[HELIXSR_TAG]["sha256"]
 HELIXSR_DLL_SHA256 = HELIXSR_REVIEWED[HELIXSR_TAG]["dll_sha256"]

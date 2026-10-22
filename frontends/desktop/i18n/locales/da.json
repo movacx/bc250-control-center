@@ -5336,5 +5336,6 @@
   "Temperature reading": "Temperaturaflæsning",
   "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Hvor Cyan læser GPU-temperaturen. Begge giver samme værdi; sysfs holder ikke GPU-enheden åben kun til det. DRM er standard.",
   "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Denne Cyan-version læser ikke denne indstilling. Opdater den fra Forbered afhængigheder.",
-  "Hardware diagnostics": "Hardwarediagnostik"
+  "Hardware diagnostics": "Hardwarediagnostik",
+  "{reason} Maximum selectable frequency: {ceiling} MHz.": "{reason} Højeste valgbare frekvens: {ceiling} MHz."
 }

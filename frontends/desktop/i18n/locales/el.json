@@ -5336,5 +5336,6 @@
   "Temperature reading": "Ανάγνωση θερμοκρασίας",
   "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Από πού διαβάζει το Cyan τη θερμοκρασία της GPU. Και τα δύο δίνουν την ίδια τιμή· το sysfs δεν κρατά ανοιχτή τη συσκευή GPU μόνο γι' αυτό. Προεπιλογή είναι το DRM.",
   "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Αυτή η έκδοση του Cyan δεν διαβάζει αυτή τη ρύθμιση. Ενημερώστε την από την Προετοιμασία εξαρτήσεων.",
-  "Hardware diagnostics": "Διαγνωστικά υλικού"
+  "Hardware diagnostics": "Διαγνωστικά υλικού",
+  "{reason} Maximum selectable frequency: {ceiling} MHz.": "{reason} Μέγιστη επιλέξιμη συχνότητα: {ceiling} MHz."
 }

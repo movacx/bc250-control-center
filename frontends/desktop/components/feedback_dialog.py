@@ -8,6 +8,7 @@ Diagnostics and from every red error window, which passes its code along.
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
 
 from PyQt6.QtCore import Qt
@@ -202,6 +203,17 @@ def _group(title: str) -> tuple[QFrame, QVBoxLayout]:
     heading.setProperty("feedbackGroupTitle", True)
     column.addWidget(heading)
     return frame, column
+
+
+def _breakable(text: str) -> str:
+    """Let long paths and function names wrap.
+
+    An origin such as ``gpu_governor_state.py:1053 · ...report_failure`` has no
+    space to break at, so the label claimed its whole width and pushed the
+    form under the scroll bar. A zero-width space after each separator gives
+    Qt a place to wrap without changing what is shown.
+    """
+    return re.sub(r"([._/:<>])", "\\1\u200b", str(text))
 
 
 def _scrolled(page: QWidget) -> QScrollArea:
@@ -592,7 +604,7 @@ class FeedbackDialog(QDialog):
         for row, (label, value) in enumerate(rows):
             name = QLabel(tr(label))
             name.setObjectName("DialogIdentityLabel")
-            data = QLabel(value)
+            data = QLabel(_breakable(value))
             data.setObjectName("DialogIdentityValue")
             data.setWordWrap(True)
             data.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)

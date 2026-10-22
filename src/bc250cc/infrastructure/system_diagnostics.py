@@ -18,7 +18,9 @@ import os
 import platform
 import re
 import shutil
+import json
 import subprocess
+import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -75,7 +77,7 @@ def _run(argv: list[str], *, merge: bool = False, timeout: float = COMMAND_TIMEO
     try:
         result = subprocess.run(
             argv, capture_output=True, text=True, timeout=timeout, check=False,
-            env={"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "LC_ALL": "C"},
+            env={"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "LC_ALL": "C", "HOME": str(Path.home())},
         )
     except (OSError, subprocess.SubprocessError):
         return ""
@@ -300,6 +302,98 @@ def _gpu() -> str:
     return "(no AMD GPU in /sys/class/drm)"
 
 
+def _system_setup_helper() -> str:
+    """Explain the protected helper's decisions without changing the machine."""
+    from bc250cc.infrastructure import system_setup
+
+    state = system_setup.inventory()
+    lines = [
+        f"helper_available: {state.get('helper_available', False)}",
+        f"reason: {state.get('reason') or '—'}",
+    ]
+    memory = state.get("memory") if isinstance(state.get("memory"), dict) else {}
+    for key in ("supported", "reason", "policies", "policy_reasons", "configured_policy", "phase", "steamos", "zram", "zswap", "swap"):
+        value = memory.get(key)
+        if value not in (None, "", (), [], {}):
+            lines.append(f"memory.{key}: {value}")
+    for name in ("ttm", "vram"):
+        values = state.get(name) if isinstance(state.get(name), dict) else {}
+        for key in (("supported", "managed", "reason") if name == "ttm" else ("supported", "reason")):
+            value = values.get(key)
+            if value not in (None, "", (), [], {}):
+                lines.append(f"{name}.{key}: {value}")
+    lines.append("[raw helper run]")
+    lines.extend(_raw_helper_run())
+    return "\n".join(lines)
+
+
+def _raw_helper_run() -> list[str]:
+    """Run the helper exactly as the app does, but keep what inventory() swallows."""
+    from bc250cc.infrastructure import system_setup
+
+    helper = system_setup.HELPER
+    try:
+        info = helper.stat()
+    except OSError:
+        return [f"helper file: {helper} (missing)"]
+    lines = [
+        f"helper file: {helper} (owner uid {info.st_uid}, mode {info.st_mode & 0o7777:04o}, "
+        f"symlink {helper.is_symlink()})",
+        "python3: /usr/bin/python3",
+    ]
+    argv = ["/usr/bin/python3", "-I", str(helper), "status"]
+    started = time.monotonic()
+    try:
+        result = subprocess.run(argv, capture_output=True, text=True, timeout=20, check=False)
+    except subprocess.TimeoutExpired:
+        return lines + ["exit code: none (timed out after 20 s)"]
+    except (OSError, subprocess.SubprocessError) as error:
+        return lines + [f"could not run: {error}"]
+    elapsed = time.monotonic() - started
+    lines.append(f"exit code: {result.returncode}")
+    lines.append(f"elapsed: {elapsed:.2f} s")
+    if elapsed > 8:
+        lines.append("NOTE: slower than the app's 8 s limit; the app would disable the memory/TTM controls.")
+    stderr = "\n".join((result.stderr or "").strip().splitlines()[-40:])
+    if stderr:
+        lines.append("stderr (last lines):\n" + stderr)
+    try:
+        json.loads(result.stdout)
+    except ValueError:
+        lines.append("stdout (not valid JSON):\n" + (result.stdout or "").strip()[:1500])
+    return lines
+
+
+def _is_steamos() -> bool:
+    return bool(re.search(r'^ID="?steamos"?\s*$', _read("/etc/os-release"), re.MULTILINE))
+
+
+def _steamos() -> str:
+    if not _is_steamos():
+        return "(not SteamOS)"
+    fields = dict(re.findall(r"^(VERSION_ID|BUILD_ID)=(.*)$", _read("/etc/os-release"), re.MULTILINE))
+    lines = [f"{key}: {fields.get(key, '—').strip(chr(34))}" for key in ("VERSION_ID", "BUILD_ID")]
+    lines.append("steamos-readonly: " + (_run(["steamos-readonly", "status"], merge=True) or "unavailable"))
+    # status-json is explicitly read-only; never use the setup/install commands
+    # here, because a diagnostics report must never prompt for a password.
+    from bc250cc.infrastructure.steamos_graphics_runtime import STEAMOS_GRAPHICS_BACKEND
+    if STEAMOS_GRAPHICS_BACKEND.is_file():
+        lines.append("[BC-250 graphics stack]")
+        lines.append(_run(["/usr/bin/bash", str(STEAMOS_GRAPHICS_BACKEND), "status-json"], merge=True) or "status unavailable")
+    else:
+        lines.append("BC-250 graphics stack: backend not staged")
+    return "\n".join(lines)
+
+
+def _graphics_stack() -> str:
+    lines = [f"VK_ICD_FILENAMES: {os.environ.get('VK_ICD_FILENAMES') or '(not set)'}"]
+    manifests = sorted(glob.glob("/usr/share/vulkan/icd.d/*.json"))
+    lines.extend(f"ICD: {path}\n{_read(path, 2048) or '(unreadable)'}" for path in manifests)
+    summary = _run(["vulkaninfo", "--summary"], merge=True)
+    lines.append("[vulkaninfo --summary]\n" + (summary or "vulkaninfo is not installed or did not answer"))
+    return "\n".join(lines)
+
+
 def _services() -> str:
     lines = []
     if shutil.which("systemctl") and Path("/run/systemd/system").exists():
@@ -409,6 +503,9 @@ SECTIONS = (
     ("sensors", _sensors),
     ("Kernel log: GPU and crashes", _kernel_log),
     ("GPU", _gpu),
+    ("Graphics stack", _graphics_stack),
+    ("System setup helper", _system_setup_helper),
+    ("SteamOS", _steamos),
     ("Services", _services),
     ("Last workflow log", _last_workflow_log),
     ("Packages", _packages),

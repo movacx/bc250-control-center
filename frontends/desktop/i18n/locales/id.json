@@ -5336,5 +5336,6 @@
   "Temperature reading": "Pembacaan suhu",
   "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Dari mana Cyan membaca suhu GPU. Keduanya memberi nilai yang sama; sysfs tidak membiarkan perangkat GPU terbuka hanya untuk itu. DRM adalah bawaan.",
   "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Versi Cyan ini tidak membaca pengaturan ini. Perbarui dari Siapkan dependensi.",
-  "Hardware diagnostics": "Diagnostik perangkat keras"
+  "Hardware diagnostics": "Diagnostik perangkat keras",
+  "{reason} Maximum selectable frequency: {ceiling} MHz.": "{reason} Frekuensi maksimum yang dapat dipilih: {ceiling} MHz."
 }

@@ -46,6 +46,7 @@ from .dashboard_widgets import (  # noqa: E402
 from .system_setup_controls import (
     VRAM_SIZE_CHOICES,
     is_bazzite_host,
+    is_steamos_host,
     vram_size_label,
 )
 from .wheel_guard import GuardedComboBox
@@ -301,7 +302,11 @@ class PreparationPagesMixin:
         setup = _mapping(tools.get("system_setup"))
         memory = _mapping(setup.get("memory"))
         runtime = _mapping(tools.get("memory_runtime"))
-        host_label = "Bazzite" if is_bazzite_host(tools) else tr("Generic Linux host")
+        host_label = (
+            "Bazzite" if is_bazzite_host(tools)
+            else "SteamOS" if is_steamos_host(tools)
+            else tr("Generic Linux host")
+        )
 
         physical = self._report_gib(runtime.get("physical_ram_bytes"), default=tr("unknown"))
         zram_active = bool(runtime.get("zram_active"))
@@ -335,7 +340,16 @@ class PreparationPagesMixin:
             if swap_active and isinstance(used_bytes, (int, float))
             else tr("Not in use right now")
         )
-        configured_policy = str(memory.get("configured_policy") or "") or tr("none applied yet")
+        configured_id = str(memory.get("configured_policy") or "")
+        # The policy's own label from the list ("Advanced · ZSWAP + 32 GiB
+        # swapfile"), not its id; the id when the list does not offer it.
+        policy_combo, ttm_combo = self.memory_policy_combo, self.ttm_limit_combo
+        find = getattr(policy_combo, "findData", None)
+        index = find(configured_id) if configured_id and find else -1
+        configured_policy = (
+            self.memory_policy_combo.itemText(index) if index >= 0 and configured_id != "preserve"
+            else configured_id or tr("none applied yet")
+        )
         reboot_pending = any(
             memory.get(key)
             for key in ("restore_pending", "zram_pending", "zram_restore_pending", "zswap_pending")
@@ -343,6 +357,14 @@ class PreparationPagesMixin:
 
         selected_policy = self.memory_policy_combo.currentText()
         selected_ttm = self.ttm_limit_combo.currentText()
+        # "Keep current" says what is kept, so a choice just applied does not
+        # read as if nothing had been picked.
+        policy_data = getattr(policy_combo, "currentData", lambda: None)()
+        ttm_data = getattr(ttm_combo, "currentData", lambda: None)()
+        if policy_data == "preserve" and configured_id not in {"", "preserve"}:
+            selected_policy = f"{selected_policy} ({configured_policy})"
+        if ttm_data == 0 and isinstance(ttm_bytes, (int, float)) and ttm_bytes:
+            selected_ttm = f"{selected_ttm} ({ttm_line})"
         selected_vram = self.vram_size_combo.currentText()
 
         lines: list[str] = []

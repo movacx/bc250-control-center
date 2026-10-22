@@ -1834,10 +1834,13 @@ class _UpscalingGames(SectionCard):
                     continue
                 if label in self.FG_TOGGLE:
                     # One switch for frame generation, checked while it is on.
-                    button = QPushButton(tr("Frame generation"))
+                    # While on it names what pressing it does, so it is not
+                    # read as a state label.
+                    active = label == "Turn off frame generation"
+                    button = QPushButton(tr("Turn off frame generation" if active else "Frame generation"))
                     button.setProperty("toggleAction", True)
                     button.setCheckable(True)
-                    button.setChecked(label == "Turn off frame generation")
+                    button.setChecked(active)
                     button.setToolTip(tr(label))
                 else:
                     button = QPushButton(tr(label))

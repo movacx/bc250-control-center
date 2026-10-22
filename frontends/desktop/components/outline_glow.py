@@ -12,6 +12,7 @@ from PyQt6.QtCore import (
     QObject,
     QRectF,
     QSequentialAnimationGroup,
+    Qt,
     QVariantAnimation,
 )
 from PyQt6.QtGui import QColor, QPainter, QPen
@@ -24,8 +25,10 @@ REPORT_AMBER = QColor(245, 166, 35)
 class OutlineGlow(QObject):
     """Drives the glow level of one button; the button paints it."""
 
-    EDGE_ALPHA = 210
-    TINT_ALPHA = 34
+    EDGE_ALPHA = 255
+    TINT_ALPHA = 70
+    #: A softer second ring just inside the edge, so the glow reads as light.
+    HALO_ALPHA = 110
     #: One glow every two seconds: in, out, and a short rest.
     FADE_MS = 700
     PAUSE_MS = 600
@@ -82,6 +85,10 @@ class OutlineGlow(QObject):
         radius = min(radius, button.height() / 2)
         rect = QRectF(button.rect()).adjusted(0.75, 0.75, -0.75, -0.75)
         painter.setBrush(QColor(color.red(), color.green(), color.blue(), round(self.TINT_ALPHA * self.level)))
-        painter.setPen(QPen(QColor(color.red(), color.green(), color.blue(), round(self.EDGE_ALPHA * self.level)), 1.5))
+        painter.setPen(QPen(QColor(color.red(), color.green(), color.blue(), round(self.EDGE_ALPHA * self.level)), 2.0))
         painter.drawRoundedRect(rect, radius, radius)
+        halo = rect.adjusted(2.5, 2.5, -2.5, -2.5)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.setPen(QPen(QColor(color.red(), color.green(), color.blue(), round(self.HALO_ALPHA * self.level)), 3.0))
+        painter.drawRoundedRect(halo, max(radius - 2.5, 0), max(radius - 2.5, 0))
         painter.end()
