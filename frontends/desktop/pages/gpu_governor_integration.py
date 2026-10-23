@@ -3,8 +3,8 @@
 Destination: ``frontends/desktop/pages/gpu_governor_integration.py``
 
 Strategy: ``gpu_governor.py`` is **not rewritten** (6400+ lines of already
-tested logic). Only what is shown gets replaced — and only for the Cyan
-backend; Oberon keeps its original screen untouched, per project policy.
+tested logic). Only what is shown gets replaced: the new view serves both the
+Cyan and the Oberon backend, and the original screen stays built but hidden.
 
 ``GpuGovernorPage`` already has:
 
@@ -48,6 +48,11 @@ from bc250cc.domain.gpu.oberon import (
     OBERON_REFERENCE_VOLTAGE_MV,
 )
 
+from ..core.decky_export_feedback import (
+    export_and_check_plugin,
+    export_message,
+    export_tone,
+)
 from ..i18n import tr, tr_format
 from .gpu_governor_view import (
     DEFAULT_PROFILES,
@@ -151,27 +156,24 @@ def _persist_profile(page, profile: GpuProfile) -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _run(page, view: GpuGovernorView, operation: Callable, summary: str,
-         error_title: str, *, controls: tuple[QWidget, ...] = (),
-         toast_title: str = "") -> None:
-    """Runs a controller operation with the page's own plumbing.
-
-    ``toast_title`` also reports the outcome in a toast, for an action whose
-    result is not visible anywhere on the page (an export, for instance).
-    """
+         error_title: str, *, controls: tuple[QWidget, ...] = ()) -> None:
+    """Runs a controller operation with the page's own plumbing."""
 
     def success(result: object) -> None:
         message = str(result) if isinstance(result, str) and result else summary
         if isinstance(result, dict):
             message = str(result.get("operation_message") or summary)
-        page._last_operation_summary = message
-        last_line = getattr(page, "last_operation_line", None)
-        if last_line is not None:
-            last_line.set_values(tr("Last operation"), message)
-        page._append_console(message)
-        if toast_title:
-            page._show_info(toast_title, summary, tone="green")
+        _report(page, message)
 
     page._run_backend_action(operation, success, error_title, controls=controls)
+
+
+def _report(page, message: str) -> None:
+    page._last_operation_summary = message
+    last_line = getattr(page, "last_operation_line", None)
+    if last_line is not None:
+        last_line.set_values(tr("Last operation"), message)
+    page._append_console(message)
 
 
 def _apply_range(page, view: GpuGovernorView, minimum: int, maximum: int) -> None:
@@ -214,21 +216,29 @@ def _export_profiles_to_decky(page, view: GpuGovernorView) -> None:
     console) without touching ``_run_backend_action``'s cache-invalidation
     path meant for GPU state changes.
     """
-    # Decky shows the names as sent, so they go in the panel's language.
+    # The stored names go as they are: a shipped default is still its English
+    # source, which Decky shows in its own language, and the owner's own name
+    # is kept exactly as typed.
     payload = [
-        {"key": profile.key, "name": tr(profile.name), "min": profile.minimum, "max": profile.maximum}
+        {"key": profile.key, "name": profile.name, "min": profile.minimum, "max": profile.maximum}
         for profile in view.profiles()
     ]
-    _run(
-        page,
-        view,
-        lambda: page.controller.exportar_perfiles_gpu_decky(payload),
-        tr("Profiles exported to Decky Quick Access."),
-        "Could not export profiles to Decky",
-        controls=(view._export_decky_button,),
+
+    def success(plugin_installed: object) -> None:
+        installed = plugin_installed if isinstance(plugin_installed, bool) else None
+        message = export_message(installed)
+        _report(page, message)
         # Nothing on the page changes after an export, so without this the
         # click looked ignored; the CPU and Fans pages already said so.
-        toast_title=tr("Export to Decky"),
+        page._show_info(tr("Export to Decky"), message, tone=export_tone(installed))
+
+    page._run_backend_action(
+        lambda: export_and_check_plugin(
+            page.controller, lambda: page.controller.exportar_perfiles_gpu_decky(payload)
+        ),
+        success,
+        "Could not export profiles to Decky",
+        controls=(view._export_decky_button,),
     )
 
 
@@ -282,6 +292,7 @@ def _apply_compatibility(page, view: GpuGovernorView, options: dict) -> None:
             usage_method,
             bool(options.get("metrics")),
             bool(options.get("frequencies")),
+            options.get("temp_read"),
         ),
         tr("Cyan compatibility updated."),
         "Could not update Cyan compatibility settings",
@@ -438,15 +449,3 @@ def install_redesigned_gpu_view(page) -> GpuGovernorView:
         )
     return view
 
-
-def uninstall_redesigned_gpu_view(page) -> None:
-    """Reverts to the original screen (useful for comparing during rollout)."""
-    view = getattr(page, _ATTRIBUTE, None)
-    if view is None:
-        return
-    view.setParent(None)
-    view.deleteLater()
-    delattr(page, _ATTRIBUTE)
-    legacy_scroll = getattr(page, "overview_scroll", None)
-    if legacy_scroll is not None:
-        legacy_scroll.show()

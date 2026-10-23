@@ -137,7 +137,9 @@ EXTERNAL_TOOLS: dict[str, ExternalToolSpec] = {
         key="cyan_smu",
         upstream="https://github.com/filippor/cyan-skillfish-governor",
         license="MIT",
-        reviewed_revision="7f34882ed28ab2065e478df9fb904b5e0a924afc",
+        # v0.4.14, installed as upstream publishes it: the official release
+        # binary, or this commit built unmodified where its glibc is too old.
+        reviewed_revision="7b08fdcf542d1edd82f3a9077c902038019c9842",
         privilege_class="service-config",
         hardware_writes=True,
         automated=True,
@@ -230,7 +232,7 @@ EXTERNAL_TOOLS: dict[str, ExternalToolSpec] = {
         key="fsr4_opticlient",
         upstream="https://github.com/daniel-h-0/bc250-fsr4-fork",
         license="GPL-3.0-or-later (OptiScaler Client) · MIT (BC250 additions)",
-        reviewed_revision="b1c46717827815cab371504789149e703edd1e95",
+        reviewed_revision="528f13b17e48bfba5b153f17ec4ebdfb3afa5bcb",
         privilege_class="userspace",
         hardware_writes=False,
         automated=True,
@@ -306,13 +308,17 @@ EXTERNAL_TOOLS: dict[str, ExternalToolSpec] = {
         key="gddr6_memory_temp",
         upstream="https://github.com/pan-Rijovich/bc250-memory-temperature",
         license="MIT",
-        reviewed_revision="b7e6bffcb5d592fc03edde375b7598ddc79aa846",
+        # 4a2221d (Oct 14, 2026): the payload gives up on a chip that does not
+        # answer instead of waiting forever, rejects a chip index above 7, and
+        # reads four chips per message; patch_smu.py checks the SMU firmware
+        # version and verifies the handlers it writes.
+        reviewed_revision="4a2221d1da387fa2e738bb9368b39594e242ba4b",
         privilege_class="live-hardware-firmware",
         hardware_writes=True,
         automated=True,
         rollback=(
             "The SMU patch lives in volatile SMU RAM only; a full power cycle "
-            "restores the factory Queue 3 / Message 5 handler. No persistent "
+            "restores the factory Queue 3 handlers. No persistent "
             "or flash state is written."
         ),
         validation_level="reverse-engineered-community-reported-hardware-gate-pending",
@@ -330,6 +336,34 @@ EXTERNAL_TOOLS: dict[str, ExternalToolSpec] = {
         automated=True,
         rollback="Disable and remove the managed service and binary; no board state is kept.",
         validation_level="code-reviewed-hardware-gate-pending",
+    ),
+    # Listed so the community's work on kernel-side sensors is on record. Control
+    # Center neither installs nor runs these: a person who wants them follows the
+    # upstream README. The revision is the upstream main at the time of listing,
+    # NOT a code review, which is what validation_level says.
+    "bc250_vrm_dkms": ExternalToolSpec(
+        key="bc250_vrm_dkms",
+        upstream="https://github.com/Hexxeh/bc250-vrm-dkms",
+        license="GPL-2.0",
+        reviewed_revision="fb842fa765bf3f67f559c7e63129f2326a72c6f7",
+        privilege_class="kernel-module-reference",
+        hardware_writes=False,
+        automated=False,
+        rollback="Nothing is installed by Control Center; remove the DKMS module following upstream.",
+        validation_level="reference-only-listed-not-code-reviewed",
+        payload_distribution="reference-only",
+    ),
+    "bc250_memory_dkms": ExternalToolSpec(
+        key="bc250_memory_dkms",
+        upstream="https://github.com/Hexxeh/bc250-memory-dkms",
+        license="GPL-2.0",
+        reviewed_revision="de4740c9b60b93c36f3ff6c85789e4aea3cefe31",
+        privilege_class="kernel-module-reference",
+        hardware_writes=False,
+        automated=False,
+        rollback="Nothing is installed by Control Center; remove the DKMS module following upstream.",
+        validation_level="reference-only-listed-not-code-reviewed",
+        payload_distribution="reference-only",
     ),
 }
 
@@ -358,8 +392,8 @@ def _lifecycle(
 
 EXTERNAL_TOOL_LIFECYCLES: dict[str, ExternalToolLifecycle] = {
     "cyan_smu": _lifecycle(
-        "Install the reviewed governor and managed service/config overlay.",
-        "Verify binary revision, service state, D-Bus range and telemetry overlay.",
+        "Install the reviewed upstream release, unmodified, and the managed service/config overlay.",
+        "Verify the binary's release, service state, D-Bus range and telemetry overlay.",
         "Disable the service, remove managed overlay and restore prior configuration.",
         conflicts=("oberon-governor.service",),
         vocabulary="GPU governor and frequency range",
@@ -486,6 +520,20 @@ EXTERNAL_TOOL_LIFECYCLES: dict[str, ExternalToolLifecycle] = {
             "physical I2C modification described in the project's hardware.md."
         ),
     ),
+    "bc250_vrm_dkms": _lifecycle(
+        "Not installed by Control Center. Reference only: follow the upstream README to build the DKMS module.",
+        "No health check: Control Center does not run this project.",
+        "Nothing to remove; Control Center keeps no state for it.",
+        vocabulary="VRM temperature kernel module (reference)",
+        actions=(LifecycleAction.CHECK,),
+    ),
+    "bc250_memory_dkms": _lifecycle(
+        "Not installed by Control Center. Reference only: follow the upstream README to build the DKMS module.",
+        "No health check: Control Center does not run this project.",
+        "Nothing to remove; Control Center keeps no state for it.",
+        vocabulary="GDDR6 memory temperature kernel module (reference)",
+        actions=(LifecycleAction.CHECK,),
+    ),
 }
 
 
@@ -604,6 +652,9 @@ EXTERNAL_TOOL_DIRECTORIES = {
     "gfx1013_direct": "bc250-gfx1013-fix",
     "gddr6_memory_temp": "bc250-memory-temperature",
     "apu_telemetry": "bc250-telemetry",
+    # Reference only: never checked out by Control Center, listed for the record.
+    "bc250_vrm_dkms": "bc250-vrm-dkms",
+    "bc250_memory_dkms": "bc250-memory-dkms",
 }
 
 

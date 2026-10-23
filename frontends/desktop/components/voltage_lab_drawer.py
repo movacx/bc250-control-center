@@ -44,6 +44,7 @@ from bc250cc.domain.gpu.voltage_profiles import (
 
 from ..i18n import tr
 from .buttons import WrappingButton as QPushButton
+from .style_state import set_style_property
 from .widgets import icon
 
 #: Table columns, shared by the header row and every data row so the numbers
@@ -195,9 +196,7 @@ class _DrawerCurveRow(QFrame):
 
     def _show_delta(self, added: int | None) -> None:
         self.delta.setText(self._delta_text(added))
-        self.delta.setProperty("deltaTone", self._delta_tone(added))
-        self.delta.style().unpolish(self.delta)
-        self.delta.style().polish(self.delta)
+        set_style_property(self.delta, "deltaTone", self._delta_tone(added))
 
     @staticmethod
     def _delta_text(value: int | None) -> str:
@@ -317,8 +316,10 @@ class VoltageLabDrawer(QWidget):
         self.summary_added = _SummaryValue("Above governor default")
         for item in (self.summary_changed, self.summary_peak, self.summary_added):
             summary_layout.addWidget(item, 1)
+        # Kept for the footer text, not shown: the table's Δ column already
+        # says what changes, and the strip pushed the presets down.
         root.addWidget(summary)
-        root.addWidget(_separator())
+        summary.hide()
 
         # --- presets ---------------------------------------------------
         self.profiles_card = QWidget()
@@ -611,7 +612,9 @@ class VoltageLabDrawer(QWidget):
         window = self.window()
         if window is None:
             return 0
-        bar = window.findChild(QFrame, "GamepadHintBar")
+        # The legend is a child of the window itself (see gamepad.py). A
+        # search of the whole window ran on every resize, for each drawer.
+        bar = window.findChild(QFrame, "GamepadHintBar", Qt.FindChildOption.FindDirectChildrenOnly)
         if bar is None or not bar.isVisible():
             return 0
         return bar.height() + 12

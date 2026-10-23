@@ -77,7 +77,8 @@ from ..components.buttons import WrappingButton as QPushButton
 from ..components.card_navigation import EditableCardNavigation
 from ..components.core_monitor import CoreGrid, CoreReading
 from ..components.page_widgets import SectionCard, caption, subpanel
-from ..components.widgets import PillLabel, icon
+from ..components.style_state import set_style_property
+from ..components.widgets import icon
 from ..i18n import shipped_name, tr, tr_format
 from ..theme import COLORS
 
@@ -477,6 +478,16 @@ class CheckLine(QWidget):
 # Profile card — click selects, pencil edits
 # ─────────────────────────────────────────────────────────────────────────────
 
+def snap_to_step(spin: QSpinBox) -> None:
+    """Rounds a spin box to the nearest step counted from its minimum."""
+    step = spin.singleStep()
+    minimum = spin.minimum()
+    snapped = minimum + (spin.value() - minimum + step // 2) // step * step
+    snapped = max(minimum, min(spin.maximum(), snapped))
+    if snapped != spin.value():
+        spin.setValue(snapped)
+
+
 class CpuProfileCard(EditableCardNavigation, QFrame):
     """A click selects the profile; the pencil edits its name and values."""
 
@@ -507,9 +518,6 @@ class CpuProfileCard(EditableCardNavigation, QFrame):
         self._name_label.setProperty("profileTitle", True)
         self._name_label.setMinimumWidth(0)
         head.addWidget(self._name_label, 1)
-        self._active_pill = PillLabel(tr("Active"), "blue")
-        self._active_pill.setVisible(False)
-        head.addWidget(self._active_pill, 0)
         self._edit_button = QPushButton()
         self._edit_button.setIcon(icon("edit_gray"))
         self._edit_button.setFixedSize(24, 24)
@@ -594,6 +602,9 @@ class CpuProfileCard(EditableCardNavigation, QFrame):
         spin = QSpinBox()
         spin.setRange(minimum, maximum)
         spin.setSingleStep(step)
+        # A typed 3125 MHz is not a step the CPU tool or Decky accepts; it is
+        # rounded to the nearest one as soon as the field is left or saved.
+        spin.editingFinished.connect(lambda: snap_to_step(spin))
         spin.setValue(value)
         spin.setMinimumWidth(70)
         return spin
@@ -621,10 +632,8 @@ class CpuProfileCard(EditableCardNavigation, QFrame):
         self._sync_view()
 
     def set_active(self, active: bool) -> None:
-        self._active_pill.setVisible(active)
-        self.setProperty("selectedProfile", active)
-        self.style().unpolish(self)
-        self.style().polish(self)
+        # The selected card's outline says it is the active one.
+        set_style_property(self, "selectedProfile", active)
 
     def begin_edit(self) -> None:
         # The field shows what the card shows; a shipped name stays a
@@ -667,6 +676,9 @@ class CpuProfileCard(EditableCardNavigation, QFrame):
         )
 
     def _commit(self) -> None:
+        # The save button can be pressed straight from a field that never lost focus.
+        for spin in (self._frequency_spin, self._vid_spin):
+            snap_to_step(spin)
         name = cpu_profile_name(self._default.key, self._name_edit.text())
         self._profile = replace(
             self._profile,

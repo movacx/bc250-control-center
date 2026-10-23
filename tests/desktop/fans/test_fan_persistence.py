@@ -177,8 +177,9 @@ def test_daemon_does_not_write_on_its_first_cycle_when_hardware_already_matches(
     })
     monkeypatch.setattr("bc250cc.infrastructure.daemon.time.monotonic", lambda: 10.0)
 
+    # 50 C sits on the first point: 70 %, the 178/255 the hardware reads back.
     daemon.aplicar_ventilador_persistente_si_corresponde(
-        {"gpu_temp": 52.0}, {"fan_curve": curve},
+        {"gpu_temp": 50.0}, {"fan_curve": curve},
     )
 
     assert writes == [], f"unnecessary privileged write on the daemon's first cycle: {writes}"
@@ -289,7 +290,8 @@ def test_eight_point_curve_is_sorted_and_used_by_daemon_math():
 
     assert curve["point_count"] == 8
     assert [point["temperature"] for point in curve["points"]] == [35, 40, 45, 50, 60, 70, 80, 90]
-    assert fan_curve_percent_for_temp(75, curve) == 80
+    # Halfway between 70 C / 80 % and 80 C / 90 %.
+    assert fan_curve_percent_for_temp(75, curve) == 85
 
 
 def test_fan_curve_validation_rejects_duplicate_temperatures_and_bad_size():
@@ -330,7 +332,8 @@ def test_daemon_uses_all_custom_curve_points(monkeypatch):
         {"fan_curve": curve, "fan_preset": {"enabled": False}},
     )
 
-    assert applied == [(2, round(80 * 255 / 100))]
+    # 72 C is a fifth of the way from 70 C / 80 % to 80 C / 100 %: 84 %.
+    assert applied == [(2, round(84 * 255 / 100))]
 
 
 def _daemon_for_write_tests(applied, readback=None):
@@ -521,3 +524,22 @@ def test_daemon_health_file_is_atomic_and_private(tmp_path, monkeypatch):
     assert payload["status"] == "healthy"
     assert payload["fan_pwm"] == 2
     assert path.stat().st_mode & 0o077 == 0
+
+
+def test_the_curve_is_a_line_between_points_and_flat_outside_them():
+    """Reported in the problem form: the curve went in steps, so the fan
+    jumped from one speed to the next instead of following the temperature."""
+    from bc250cc.domain.fan.persistence import interpolate_fan_curve
+
+    points = [(40, 30), (60, 70), (80, 100)]
+
+    assert interpolate_fan_curve(points, 20.0) == 30, "below the first point"
+    assert interpolate_fan_curve(points, 40.0) == 30
+    assert interpolate_fan_curve(points, 50.0) == 50, "halfway is half the rise"
+    assert interpolate_fan_curve(points, 45.5) == 41
+    assert interpolate_fan_curve(points, 60.0) == 70
+    assert interpolate_fan_curve(points, 70.0) == 85
+    assert interpolate_fan_curve(points, 95.0) == 100, "above the last point"
+    speeds = [interpolate_fan_curve(points, t / 10) for t in range(300, 900)]
+    assert speeds == sorted(speeds), "never slower when hotter"
+    assert max(b - a for a, b in zip(speeds, speeds[1:])) <= 1, "no jumps"

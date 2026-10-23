@@ -160,6 +160,18 @@ def test_the_fsr4_client_repair_and_update():
     assert _keys(_with(fsr4={"state": "invalid", "installer_available": False})) == []
 
 
+def test_an_older_cyan_of_control_centers_own_recommends_the_update():
+    cyan = {"supported_gpu_governors": {"cyan-skillfish-governor-smu": {"detected": True, "active": True}}}
+    notices = attention_items(_with(**cyan, cyan_runtime_update_available=True))
+    assert [item.key for item in notices] == ["cyan-update"] and notices[0].tone == "blue"
+    assert "Update / repair" in notices[0].message
+    # Compatibility is a tab of Additional settings, not of the Dashboard.
+    assert "Additional settings › Compatibility" in notices[0].message
+    # Current, or not installed at all: nothing to say.
+    assert _keys(_with(**cyan, cyan_runtime_update_available=False)) == []
+    assert _keys(_with(cyan_runtime_update_available=True)) == []
+
+
 # ------------------------------------------------------------- helper probe
 
 

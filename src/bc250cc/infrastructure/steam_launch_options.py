@@ -257,17 +257,6 @@ def merge_dll_override(options: str, dll: str) -> str:
 
 # ------------------------------------------------------------------ the files
 
-def launch_options_for(appid: str, home: Path | None = None) -> dict[Path, str]:
-    """Each Steam profile's current launch options for the app."""
-    result = {}
-    for path in localconfig_files(home):
-        try:
-            result[path] = read_launch_options(path.read_text(encoding="utf-8"), appid)
-        except (OSError, UnicodeDecodeError, SteamConfigError):
-            continue
-    return result
-
-
 def add_dll_override(appid: str, dll: str, *, home: Path | None = None,
                      proc: Path = Path("/proc")) -> dict:
     """Write the override into every Steam profile that knows this game."""
@@ -501,6 +490,38 @@ def steam_shortcut_game_folders(home: Path | None = None) -> list[dict]:
                     "appid": f"shortcut-{appid}", "name": name, "path": folder, "stamp": stamp,
                 })
     return sorted(games.values(), key=lambda game: game["name"].lower())
+
+
+def steam_shortcut_names(home: Path | None = None) -> dict[int, str]:
+    """Every non-Steam shortcut's name, by Steam's 32-bit id for it.
+
+    A running shortcut carries that id in ``SteamLaunch AppId=`` and, shifted
+    up 32 bits, in its 64-bit ``SteamGameId``.
+    """
+    home = home or Path.home()
+    names: dict[int, str] = {}
+    for root in steam_roots(home):
+        for path in sorted((root / "userdata").glob("*/config/shortcuts.vdf")):
+            try:
+                shortcuts = _binary_vdf(path.read_bytes()).get("shortcuts", {})
+            except (OSError, ValueError):
+                continue
+            if not isinstance(shortcuts, dict):
+                continue
+            for entry in shortcuts.values():
+                if not isinstance(entry, dict):
+                    continue
+                values = {str(key).lower(): value for key, value in entry.items()}
+                appid = values.get("appid")
+                if not isinstance(appid, int):
+                    continue
+                name = str(values.get("appname") or "").strip()
+                if not name:
+                    exe = str(values.get("exe") or "").strip().strip('"')
+                    name = os.path.basename(exe).rsplit(".", 1)[0]
+                if name:
+                    names.setdefault(appid & 0xFFFFFFFF, name)
+    return names
 
 
 def _locate_apps(text: str) -> tuple[dict, dict[str, dict]]:

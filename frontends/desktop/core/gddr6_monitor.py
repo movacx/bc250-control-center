@@ -45,6 +45,8 @@ LIVE_SESSION_SECONDS = 600
 
 #: Where the readings came from when BC250-Telemetry's collector took them.
 EXTERNAL_SOURCE = "bc250-telemetry"
+#: ...and when the kernel's own bc250_memory driver did (MastaG's kernels).
+KERNEL_SOURCE = "bc250_memory"
 
 _EXTERNAL_INTERRUPTED = (
     "BC250-Telemetry's memory service stopped in the middle of an SMU "
@@ -54,6 +56,19 @@ _EXTERNAL_INTERRUPTED = (
 _GOVERNOR_STARTING = (
     "The GPU governor is starting, and while it starts it uses the same SMU "
     "queue as these readings. They resume once it is running."
+)
+_PATCH_UNKNOWN = (
+    "The SMU already has a memory-temperature patch this version does not "
+    "recognise, or one that did not finish installing. Power the board off "
+    "completely before reading memory temperature again."
+)
+_KERNEL_NO_SENSOR = (
+    "The kernel's bc250_memory driver is loaded but publishes no memory "
+    "temperatures. Check it with: sensors bc250_memory-*"
+)
+_NO_CHIP_ANSWERED = (
+    "No memory chip answered, so live monitoring stopped. Try again later; if "
+    "it keeps happening, power the board off completely."
 )
 _GOVERNOR_RESTARTING = (
     "The GPU governor keeps restarting, and every restart uses the same SMU "
@@ -79,6 +94,8 @@ _SESSION_ERRORS = (
         "Another BC-250 tool is using the SMU right now. Wait for it to finish "
         "and try again.",
     ),
+    ("GDDR6_PATCH_UNKNOWN", _PATCH_UNKNOWN),
+    ("GDDR6_NO_CHIP_ANSWERED", _NO_CHIP_ANSWERED),
 )
 
 
@@ -143,6 +160,11 @@ class Gddr6Reading:
 
     hardware_detected: bool = False
     repository_ready: bool = False
+    #: The official clone is there but at an earlier reviewed revision.
+    repository_outdated: bool = False
+    #: The kernel's bc250_memory driver owns the SMU patch: readings come from
+    #: its sensors, nothing is patched and no checkout is needed.
+    kernel_driver: bool = False
     reader_ready: bool = False
     helper_ready: bool = False
     payload_present: bool = False
@@ -169,6 +191,9 @@ class Gddr6Reading:
     governor_state: str = ""
     #: Why the helper's last sample held back, when it did.
     blocked_reason: str = ""
+    #: Chips that did not answer the last sample: the payload gave up on
+    #: them instead of waiting forever, and they are left out of ``chips``.
+    unanswered_chips: tuple[int, ...] = ()
     #: The user switched off the SMU channel check in Settings, knowing the
     #: risk: sampling is then allowed while the GPU governor is starting or
     #: BC250-Telemetry's collector is idle. Firmware and interrupted-operation
@@ -189,6 +214,7 @@ class Gddr6Reading:
             and self.payload_present
             and self.firmware_supported
             and not self.patch_active
+            and not self.kernel_driver
         )
 
     @property
@@ -199,7 +225,9 @@ class Gddr6Reading:
         the same round trip, so nothing has to spend a prompt just to ask.
         """
         return bool(
-            self.hardware_detected and self.repository_ready and self.reader_ready
+            self.hardware_detected
+            and (self.repository_ready or self.kernel_driver)
+            and self.reader_ready
         )
 
     @property
@@ -221,7 +249,9 @@ class Gddr6Reading:
             return False
         if self.channel_blocked and not self.manual_override:
             return False
-        return bool(self.can_read and (self.patch_active or self.can_apply))
+        return bool(
+            self.can_read and (self.patch_active or self.can_apply or self.kernel_driver)
+        )
 
     def blocker(self) -> str:
         """The single most useful thing to say about why this is not running.
@@ -248,11 +278,16 @@ class Gddr6Reading:
                 return _GOVERNOR_STARTING
         if not self.hardware_detected:
             return "No BC-250 hardware was detected on this machine."
-        if not self.repository_ready:
+        if not self.repository_ready and not self.kernel_driver:
+            if self.repository_outdated:
+                return (
+                    "This version uses a newer reviewed release of the memory-temperature "
+                    "tool. Press Prepare readings to update the checkout."
+                )
             return "The reviewed upstream checkout is not prepared yet."
         if not (self.reader_ready and self.helper_ready):
             return "Reinstall BC250 Control Center to install the privileged helpers."
-        if not self.firmware_supported:
+        if not self.firmware_supported and not self.kernel_driver:
             return firmware_blocker(self.bios_version)
         if not self.patch_active:
             return (
@@ -261,10 +296,24 @@ class Gddr6Reading:
             )
         return ""
 
+    def unanswered_notice(self) -> str:
+        """Which chips the last sample had to leave out, or ""."""
+        if not self.unanswered_chips:
+            return ""
+        if len(self.unanswered_chips) == 1:
+            return tr_format(
+                "Chip {chip} did not answer this time. The other chips are shown.",
+                chip=self.unanswered_chips[0],
+            )
+        return tr_format(
+            "Chips {chips} did not answer this time. The other chips are shown.",
+            chips=", ".join(str(chip) for chip in self.unanswered_chips),
+        )
+
     def notice(self) -> str:
         """The one sentence to show under the devices, or "" for none."""
         if self.chips:
-            return ""
+            return self.unanswered_notice()
         if self.manual_override and self.channel_blocked and self.can_monitor:
             return (
                 "Manual mode: the SMU channel check is off. Readings can hang the "
@@ -272,6 +321,10 @@ class Gddr6Reading:
             )
         if self.blocked_reason == "GDDR6_GOVERNOR_UNSETTLED":
             return _GOVERNOR_RESTARTING if self.governor_state == "restarting" else _GOVERNOR_STARTING
+        if self.blocked_reason == "GDDR6_PATCH_UNKNOWN":
+            return _PATCH_UNKNOWN
+        if self.blocked_reason == "GDDR6_KERNEL_DRIVER_NO_SENSOR":
+            return _KERNEL_NO_SENSOR
         for code, message in _SESSION_ERRORS:
             if code in self.error:
                 return message
@@ -335,10 +388,17 @@ class Gddr6Monitor(QObject):
             for entry in (sample.get("chips") or [])
             if isinstance(entry, dict) and int(_number(entry.get("chip"), -1)) >= 0
         )
+        unanswered = tuple(
+            int(_number(entry.get("chip"), -1))
+            for entry in (sample.get("chip_errors") or [])
+            if isinstance(entry, dict) and int(_number(entry.get("chip"), -1)) >= 0
+        )
         hotspot_chip = sample.get("hotspot_chip")
         self._reading = Gddr6Reading(
             hardware_detected=bool(status.get("hardware_detected")),
             repository_ready=bool(status.get("repository_ready")),
+            repository_outdated=bool(status.get("repository_outdated")),
+            kernel_driver=bool(status.get("kernel_driver") or sample.get("kernel_driver")),
             reader_ready=bool(status.get("reader_ready")),
             helper_ready=bool(status.get("helper_ready")),
             payload_present=bool(status.get("payload_present")),
@@ -359,6 +419,7 @@ class Gddr6Monitor(QObject):
                 sample.get("governor_state") or status.get("governor_state") or ""
             ),
             blocked_reason=str(sample.get("blocked_reason") or ""),
+            unanswered_chips=unanswered,
             manual_override=self._manual_override,
         )
         self.changed.emit(self._reading)

@@ -46,6 +46,16 @@ STATE_FILE = STATE_DIR / 'fan-last-applied.json'
 # nothing at login has to ask for a password. The status and override files
 # live on /run: they describe this boot only.
 POLICY_FILE = STATE_DIR / 'fan-policy.json'
+# The fan handed to another program (CoolerControl, fancontrol, fan2go...).
+# While this file exists nothing in BC250 Control Center writes a PWM or a
+# pwm_enable: no session write, no boot replay, no service, no Decky preset,
+# and no "back to automatic" on the way out, which would take the channel
+# from that program too. Root-owned and world-readable, like the policy.
+EXTERNAL_FILE = STATE_DIR / 'fan-external.json'
+EXTERNAL_REFUSAL = (
+    'ERR FAN_EXTERNAL: the fan is handed to another program. '
+    'Take control back on the Fans page first.'
+)
 RUNTIME_DIR = Path('/run/bc250-control-center')
 STATUS_FILE = RUNTIME_DIR / 'fan-control.json'
 OVERRIDE_FILE = RUNTIME_DIR / 'fan-override.json'
@@ -170,6 +180,13 @@ def _save_state(state: dict) -> None:
     except OSError:
         with suppress(FileNotFoundError):
             os.unlink(temporary)
+
+
+def fan_external() -> bool:
+    try:
+        return EXTERNAL_FILE.is_file()
+    except OSError:
+        return False
 
 
 def _remember_applied(channel: int, value: int) -> None:
@@ -483,12 +500,20 @@ def load_policy() -> dict | None:
 
 
 def curve_percent(points: list, temperature: float) -> int:
-    """Step curve: the speed of the last point at or below the temperature."""
-    target = int(points[0][1])
-    for point_temperature, speed in points:
-        if temperature >= point_temperature:
-            target = int(speed)
-    return max(0, min(100, target))
+    """Continuous curve: a straight line between neighbouring points, flat
+    below the first and above the last. Mirrors interpolate_fan_curve() in
+    bc250cc.domain.fan.persistence."""
+    first_temperature, first_speed = points[0]
+    if temperature <= first_temperature:
+        return max(0, min(100, int(first_speed)))
+    for (low_temperature, low_speed), (high_temperature, high_speed) in zip(points, points[1:]):
+        if temperature < high_temperature:
+            span = high_temperature - low_temperature
+            if span <= 0:
+                return max(0, min(100, int(high_speed)))
+            value = low_speed + (high_speed - low_speed) * (temperature - low_temperature) / span
+            return max(0, min(100, math.floor(value + 0.5)))
+    return max(0, min(100, int(points[-1][1])))
 
 
 def _read_temperature(path: Path) -> float | None:
@@ -707,6 +732,11 @@ class FanController:
 
     def step(self) -> None:
         now = self.clock()
+        if fan_external():
+            self.channel = None
+            self.state = 'external'
+            self.snapshot = {}
+            return
         self.reload_policy()
         if self.policy is None:
             if self.channel is not None:
@@ -760,7 +790,8 @@ class FanController:
     def release(self) -> None:
         """Hand a channel this service drove back to firmware automatic mode."""
         channel, self.channel = self.channel, None
-        if channel is None:
+        if channel is None or fan_external():
+            # Handed to another program: the channel is that program's now.
             return
         with suppress(RuntimeError, OSError):
             with fan_operation_lock():
@@ -967,6 +998,35 @@ def disable_control_service() -> str:
     return 'OK CONTROL DISABLED'
 
 
+def external_command(on: bool) -> str:
+    """Hand the fan to another program, or take it back.
+
+    Handing it over writes nothing to the fan: the system service is
+    removed (its exit leaves the channel alone, see release()), the policy,
+    the Decky takeover and the duty replayed at boot are forgotten, so the
+    other program finds the fan exactly as it left it. Taking it back only
+    removes the marker: the fan stays as that program left it until the user
+    applies something on the Fans page.
+    """
+    if not on:
+        with suppress(FileNotFoundError):
+            EXTERNAL_FILE.unlink()
+        return 'OK EXTERNAL OFF'
+    _write_json_atomic(EXTERNAL_FILE, {'schema': 1, 'since': int(time.time())})
+    if control_service_enabled() or CONTROL_UNIT_PATH.exists():
+        result = disable_control_service()
+        if not result.startswith('OK'):
+            return result
+    for path in (POLICY_FILE, OVERRIDE_FILE):
+        with suppress(FileNotFoundError):
+            path.unlink()
+    state = _load_state()
+    if state.get('channels'):
+        state['channels'] = {}
+        _save_state(state)
+    return 'OK EXTERNAL ON'
+
+
 def session_policy_command(line: str) -> str:
     if line == 'POLICY-CLEAR':
         with suppress(FileNotFoundError):
@@ -1009,6 +1069,12 @@ def session() -> int:
             print('BYE', flush=True)
             return 0
         try:
+            if line in {'EXTERNAL ON', 'EXTERNAL OFF'}:
+                print(external_command(line == 'EXTERNAL ON'), flush=True)
+                continue
+            if fan_external() and line not in {'POLICY-CLEAR', 'CONTROL DISABLE'}:
+                print(EXTERNAL_REFUSAL, flush=True)
+                continue
             if line == 'POLICY-CLEAR' or line.startswith('POLICY '):
                 print(session_policy_command(line), flush=True)
                 continue
@@ -1058,6 +1124,9 @@ def restore_boot_state() -> int:
             flush=True,
         )
         return 19
+    if fan_external():
+        print('OK the fan is handed to another program', flush=True)
+        return 0
     if control_service_enabled() and load_policy() is not None:
         # The system fan control service follows the saved policy from boot;
         # replaying an older one-off duty here would only race it.

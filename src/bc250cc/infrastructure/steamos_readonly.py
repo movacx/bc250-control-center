@@ -36,6 +36,56 @@ STEAMOS_PASSWORD_GUARD = r"""bc250_require_password() {
 }"""
 
 
+# SteamOS' /var is a small partition (about 230 MB) that also backs the overlay of
+# /etc. When it fills up, pacman dies half way and blames "/etc too full". This
+# stops before anything is written, names what takes the room, and says how much
+# the work needs. ``bc250_require_var_space MEGABYTES`` is the call.
+STEAMOS_VAR_SPACE_GUARD = r"""bc250_require_var_space() {
+  bc250_need="${1:-100}"
+  bc250_free="$(df -Pm /var 2>/dev/null | awk 'NR==2 {print $4}')"
+  case "$bc250_free" in ''|*[!0-9]*) return 0 ;; esac
+  if [ "$bc250_free" -lt "$bc250_need" ]; then
+    echo "ERROR: /var has only ${bc250_free} MB free and this needs about ${bc250_need} MB."
+    echo "SteamOS keeps /var small, and a full /var breaks package installs half way. What takes the room:"
+    du -xh --max-depth=2 /var 2>/dev/null | sort -rh | head -6
+    echo "Free some space (journalctl --vacuum-size=50M, pacman -Sc) and try again."
+    exit 75
+  fi
+  if [ "$bc250_free" -lt 250 ]; then
+    echo "[WARN] /var has only ${bc250_free} MB free; it works now, but keep an eye on it."
+  fi
+}"""
+
+# Signed SteamOS packages, the way every workflow that needs one does it: the
+# read-only protection is lifted for the install and put back whatever happens
+# (an interrupted run included); the keyring is initialised, because an update
+# resets it. ``bc250_pacman_install PACKAGE...`` is the call; it runs in a
+# subshell so its traps do not replace the caller's.
+STEAMOS_PACMAN_INSTALL = r"""bc250_pacman_install() (
+  bc250_readonly_was=0
+  bc250_restore_readonly() {
+    bc250_rc=${1:-$?}
+    trap - EXIT INT TERM HUP
+    if [ "$bc250_readonly_was" -eq 1 ]; then sudo steamos-readonly enable || bc250_rc=1; fi
+    exit "$bc250_rc"
+  }
+  trap bc250_restore_readonly EXIT
+  trap 'bc250_restore_readonly 130' INT
+  trap 'bc250_restore_readonly 143' TERM
+  trap 'bc250_restore_readonly 129' HUP
+  for bc250_tool in steamos-readonly pacman pacman-key; do
+    command -v "$bc250_tool" >/dev/null 2>&1 || { echo "ERROR: $bc250_tool is required to install signed SteamOS packages."; exit 69; }
+  done
+  if steamos-readonly status 2>/dev/null | grep -qi enabled; then
+    sudo steamos-readonly disable
+    bc250_readonly_was=1
+  fi
+  sudo pacman-key --init
+  sudo pacman-key --populate archlinux holo 2>/dev/null || sudo pacman-key --populate
+  sudo pacman -S "$@" || { echo "[INFO] Refreshing the package databases (a SteamOS update resets them) and trying once more."; sudo pacman -Syy --noconfirm && sudo pacman -S "$@"; }
+)"""
+
+
 def _state_from(output: str) -> str:
     text = str(output or "")
     if re.search(r"(^|[^A-Za-z])disabled([^A-Za-z]|$)", text, re.IGNORECASE):

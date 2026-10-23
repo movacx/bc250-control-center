@@ -218,6 +218,27 @@ def normalize_fan_preset(value: object) -> dict[str, object]:
     }
 
 
+def interpolate_fan_curve(points, temperature: float) -> int:
+    """The duty at ``temperature`` on a curve of ``(temperature, speed)`` points.
+
+    Continuous: a straight line between two neighbouring points, flat at the
+    first point's speed below it and at the last one's above it. Points must
+    be sorted by temperature. The root helper's curve_percent() is the same
+    formula; a parity test keeps them in step.
+    """
+    first_temperature, first_speed = points[0]
+    if temperature <= first_temperature:
+        return max(0, min(100, int(first_speed)))
+    for (low_temperature, low_speed), (high_temperature, high_speed) in pairwise(points):
+        if temperature < high_temperature:
+            span = high_temperature - low_temperature
+            if span <= 0:
+                return max(0, min(100, int(high_speed)))
+            value = low_speed + (high_speed - low_speed) * (temperature - low_temperature) / span
+            return max(0, min(100, math.floor(value + 0.5)))
+    return max(0, min(100, int(points[-1][1])))
+
+
 def fan_curve_percent_for_temp(temp: object, curve: object) -> int | None:
     try:
         temperature = float(temp)
@@ -226,12 +247,11 @@ def fan_curve_percent_for_temp(temp: object, curve: object) -> int | None:
     if not math.isfinite(temperature):
         return None
     config = normalize_fan_curve(curve)
-    points = config.get("points") or []
-    target = int(points[0]["speed"])
-    for point in points:
-        if temperature >= int(point["temperature"]):
-            target = int(point["speed"])
-    return max(0, min(100, target))
+    points = [
+        (int(point["temperature"]), int(point["speed"]))
+        for point in config.get("points") or []
+    ]
+    return interpolate_fan_curve(points, temperature)
 
 
 def _temperature_readings(

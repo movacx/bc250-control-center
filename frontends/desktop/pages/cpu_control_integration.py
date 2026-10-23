@@ -57,6 +57,11 @@ from dataclasses import replace
 from PyQt6.QtCore import QProcess
 from PyQt6.QtWidgets import QVBoxLayout, QWidget
 
+from ..core.decky_export_feedback import (
+    export_and_check_plugin,
+    export_message,
+    export_tone,
+)
 from ..core.preferences import application_settings
 from ..i18n import tr, tr_format
 from .cpu_control_view import (
@@ -328,18 +333,30 @@ class CpuControlController:
         since nothing here touches the SMU.
         """
         page = self.page
-        # Decky shows the names as sent, so they go in the panel's language,
-        # the way the fan profiles already do.
+        # The stored names go as they are: a shipped default is still its
+        # English source, which Decky shows in its own language, and the
+        # owner's own name is kept exactly as typed.
         payload = [
-            {"key": profile.key, "name": tr(profile.name), "frequency": profile.frequency_mhz, "vid": profile.vid_mv}
+            {
+                "key": profile.key,
+                "name": profile.name,
+                "frequency": profile.frequency_mhz,
+                "vid": profile.vid_mv,
+                "temperature": profile.temperature_c,
+            }
             for profile in self.view.profiles()
         ]
+        # Same guard the GPU and Fans exports have: a second click while the
+        # first one waits for the password would open a second prompt.
+        button = self.view._export_decky_button
+        button.setEnabled(False)
 
-        def success(_result: object) -> None:
+        def success(plugin_installed: object) -> None:
+            installed = plugin_installed if isinstance(plugin_installed, bool) else None
             page._show_info(
                 tr("Export to Decky"),
-                tr("Profiles exported to Decky Quick Access."),
-                tone="green",
+                export_message(installed),
+                tone=export_tone(installed),
             )
 
         def failure(message: str) -> None:
@@ -347,9 +364,12 @@ class CpuControlController:
 
         page._background.start(
             "cpu-export-decky",
-            lambda: page.controller.exportar_perfiles_cpu_decky(payload),
+            lambda: export_and_check_plugin(
+                page.controller, lambda: page.controller.exportar_perfiles_cpu_decky(payload)
+            ),
             success,
             failure,
+            lambda: button.setEnabled(True),
         )
 
     def _persistence(self, action: str) -> None:

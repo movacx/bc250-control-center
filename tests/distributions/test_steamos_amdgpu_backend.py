@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -12,6 +13,9 @@ import bc250cc.infrastructure.steamos_amdgpu_backend as backend
 from bc250cc.infrastructure.steamos_amdgpu import (
     build_steamos_amdgpu_diagnostic_command,
 )
+
+pytestmark = pytest.mark.skipif(shutil.which("git") is None, reason="git is not installed")
+
 
 
 def _git(command: list[str], cwd: Path) -> str:
@@ -262,71 +266,3 @@ def test_diagnostic_refuses_a_staged_backend_from_an_old_reviewed_revision(tmp_p
     assert "protected SteamOS AMDGPU backend is unavailable or untrusted" in result.stdout
     assert "SHOULD_NOT_RUN" not in result.stdout
 
-
-def test_health_backend_status_requires_exact_protected_revision(tmp_path, monkeypatch):
-    root = tmp_path / "protected" / "backend"
-    root.mkdir(parents=True)
-    audio = root / "bc250-audio-fix"
-    audio.mkdir()
-    for name in ("patch-driver.sh", "boot-config.sh"):
-        path = audio / name
-        path.write_text("#!/usr/bin/bash\n", encoding="utf-8")
-        path.chmod(0o755)
-    marker = root / ".bc250-control-center-reviewed-revision"
-    marker.write_text("a" * 40 + "\n", encoding="ascii")
-    # Temporary test files cannot be root-owned.  Isolate the ownership
-    # predicate so this test still exercises marker parsing and exact revision
-    # matching without inspecting a host protected path.
-    monkeypatch.setattr(backend, "_protected_path", lambda *_args, **_kwargs: True)
-
-    assert backend.protected_backend_status_ready(root, reviewed_revision="a" * 40) == (
-        True, "protected staged backend matches the reviewed revision"
-    )
-    ready, reason = backend.protected_backend_status_ready(root, reviewed_revision="b" * 40)
-    assert ready is False
-    assert "does not match" in reason
-
-
-def test_health_backend_status_rejects_an_unprotected_intermediate_directory(tmp_path, monkeypatch):
-    root = tmp_path / "protected" / "backend"
-    audio = root / "bc250-audio-fix"
-    audio.mkdir(parents=True)
-    for name in ("patch-driver.sh", "boot-config.sh"):
-        path = audio / name
-        path.write_text("#!/usr/bin/bash\n", encoding="utf-8")
-        path.chmod(0o755)
-    (root / ".bc250-control-center-reviewed-revision").write_text(
-        "a" * 40 + "\n", encoding="ascii"
-    )
-
-    def protected(path, **_kwargs):
-        return Path(path).name != "bc250-audio-fix"
-
-    monkeypatch.setattr(backend, "_protected_path", protected)
-    ready, reason = backend.protected_backend_status_ready(
-        root, reviewed_revision="a" * 40
-    )
-
-    assert ready is False
-    assert "directory" in reason
-    assert "bc250-audio-fix" in reason
-
-
-def test_health_backend_status_rejects_an_oversized_revision_marker(tmp_path, monkeypatch):
-    root = tmp_path / "protected" / "backend"
-    root.mkdir(parents=True)
-    audio = root / "bc250-audio-fix"
-    audio.mkdir()
-    for name in ("patch-driver.sh", "boot-config.sh"):
-        (audio / name).write_text("#!/usr/bin/bash\n", encoding="utf-8")
-    (root / ".bc250-control-center-reviewed-revision").write_text(
-        "a" * 200, encoding="ascii"
-    )
-    monkeypatch.setattr(backend, "_protected_path", lambda *_args, **_kwargs: True)
-
-    ready, reason = backend.protected_backend_status_ready(
-        root, reviewed_revision="a" * 40
-    )
-
-    assert ready is False
-    assert "bounded format" in reason

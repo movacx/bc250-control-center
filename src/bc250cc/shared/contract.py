@@ -67,8 +67,8 @@ CONTRACT_REVISION = 1
 # reading, Fix metrics, Fix frequencies) and the gpu_compatibility status field.
 QUICK_ACCESS_PROTOCOL = 21
 CPU_SMU_HELPER_PROTOCOL = 8
-GOVERNOR_CONFIG_PROTOCOL = 6
-STEAMOS_GAME_HELPER_PROTOCOL = 21
+GOVERNOR_CONFIG_PROTOCOL = 7
+STEAMOS_GAME_HELPER_PROTOCOL = 22
 
 # Shape of the /run snapshot the Quick Access helper publishes for the desktop.
 QUICK_ACCESS_CU_RUNTIME_SCHEMA = 1
@@ -133,6 +133,11 @@ def cu_targets() -> tuple[int, ...]:
     return tuple(range(low, high + 1, CU_TARGET_STEP))
 
 
+def vram_size_choices() -> tuple[int, ...]:
+    """The VRAM presets the interfaces offer and the helpers accept."""
+    return tuple(size for size in VRAM_SIZE_PRESETS_MB if size not in VRAM_SIZE_BLOCKED_MB)
+
+
 # ------------------------------------------------------------------------ GPU
 
 OBERON_REFERENCE_VOLTAGE_MV = 1000
@@ -189,12 +194,21 @@ QUICK_ACCESS_FAN_PERCENT_STEP = 5
 
 # ----------------------------------------------------------- VRAM (UMA_SIZE)
 
-# Fixed CMOS presets (2048 MiB is left out on purpose: the BC-250 documentation
-# warns that Linux does not boot with that split), aligned to the 16 MiB granularity the firmware itself
+# Fixed CMOS presets, aligned to the 16 MiB granularity the firmware itself
 # enforces (github.com/fanoush/bc250_memcfg). Below 1 GiB the desktop's label
 # stays in MiB; every other preset here is an exact GiB multiple. Kept as one
 # ladder so the desktop dropdown and the Quick Access dropdown can never
 # offer different sizes for the same preset.
+#
+# This tuple is the one 1.21.0 and 1.21.1 shipped, 2048 included, and it has
+# to stay that way: a Quick Access plugin installed in ~/homebrew compares its
+# own copy with it and refuses every action when they differ, and updating
+# the package does not replace that plugin. What is offered and accepted is
+# vram_size_choices().
 VRAM_SIZE_PRESETS_MB: tuple[int, ...] = (
-    256, 512, 1024, 3072, 4096, 5120, 6144, 7168, 8192, 12288,
+    256, 512, 1024, 2048, 3072, 4096, 5120, 6144, 7168, 8192, 12288,
 )
+# The BC-250 documentation warns that Linux does not boot with a 2048 MiB
+# split: it is never offered or written (the system-setup helper refuses it
+# as well), and a plugin that still lists it gets it refused by the helper.
+VRAM_SIZE_BLOCKED_MB: tuple[int, ...] = (2048,)

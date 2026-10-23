@@ -4,7 +4,8 @@ set -euo pipefail
 CONFIG="${BC250_GPU_CONFIG:-/etc/cyan-skillfish-governor-smu/config.toml}"
 SERVICE="cyan-skillfish-governor-smu.service"
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
-CURVE_EDITOR="${BC250_GOVERNOR_TOML_EDITOR:-${SCRIPT_DIR}/../../Repository/governor_toml.py}"
+CURVE_EDITOR="${BC250_GOVERNOR_TOML_EDITOR:-${SCRIPT_DIR}/../../src/bc250cc/infrastructure/gpu/governor_toml.py}"
+export PYTHONPATH="${SCRIPT_DIR}/../../src${PYTHONPATH:+:$PYTHONPATH}"
 
 usage() {
   cat <<'EOF'

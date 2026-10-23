@@ -11,7 +11,6 @@ read-only diagnostics.
 
 from __future__ import annotations
 
-import os
 import re
 import shlex
 import stat
@@ -95,59 +94,6 @@ def _protected_path(path: Path, *, directory: bool = False, executable: bool = F
         and not metadata.st_mode & 0o022
         and (not executable or bool(metadata.st_mode & stat.S_IXUSR))
     )
-
-
-def protected_backend_status_ready(
-    root: str | Path = STEAMOS_AMDGPU_BACKEND_ROOT,
-    *,
-    reviewed_revision: str,
-) -> tuple[bool, str]:
-    """Return whether Health may safely run the staged read-only status tool.
-
-    No command is executed and no path is modified.  A revision mismatch is
-    treated as untrusted rather than falling back to a mutable checkout.
-    """
-    revision = _reviewed_revision(reviewed_revision)
-    backend_root = Path(root)
-    if not _protected_path(backend_root, directory=True):
-        return False, "backend directory is missing, symbolic or not root-owned"
-    for relative in BACKEND_STATUS_EXECUTABLES:
-        # Checking a regular root-owned script alone is insufficient: a
-        # group-writable intermediate directory could unlink and replace it.
-        # Validate every directory between the protected stage root and the
-        # final executable without following symlinks.
-        parent = backend_root
-        for component in Path(relative).parent.parts:
-            parent /= component
-            if not _protected_path(parent, directory=True):
-                return False, f"{component} directory is missing, symbolic or not protected"
-        path = backend_root / relative
-        if not _protected_path(path, executable=True):
-            return False, f"{relative} is missing, symbolic or not protected"
-    marker = backend_root / ".bc250-control-center-reviewed-revision"
-    if not _protected_path(marker):
-        return False, "revision marker is missing, symbolic or not protected"
-    descriptor = -1
-    try:
-        descriptor = os.open(
-            marker,
-            os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0),
-        )
-        content = os.read(descriptor, 128)
-        if os.read(descriptor, 1):
-            return False, "revision marker exceeds its bounded format"
-    except OSError:
-        return False, "revision marker could not be read safely"
-    finally:
-        if descriptor >= 0:
-            os.close(descriptor)
-    try:
-        observed = content.decode("ascii", errors="strict").strip().lower()
-    except UnicodeDecodeError:
-        return False, "revision marker is not ASCII"
-    if observed != revision:
-        return False, "revision marker does not match this Control Center build"
-    return True, "protected staged backend matches the reviewed revision"
 
 
 def protected_backend_guard(

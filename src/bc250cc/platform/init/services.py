@@ -148,23 +148,8 @@ def service_key(service: str) -> str:
     return value
 
 
-def service_display_name(service: str, manager: str) -> str:
-    key = service_key(service)
-    return key if manager == "openrc" else f"{key}.service"
-
-
 def openrc_status_argv(service: str) -> tuple[str, ...]:
     return ("rc-service", service_key(service), "status")
-
-
-def openrc_start_argv(service: str, action: str) -> tuple[str, ...]:
-    if action not in {"start", "stop", "restart"}:
-        raise ValueError("Unsupported OpenRC service action")
-    return ("rc-service", service_key(service), action)
-
-
-def openrc_enable_argv(service: str, enabled: bool) -> tuple[str, ...]:
-    return ("rc-update", "add" if enabled else "del", service_key(service), "default")
 
 
 def parse_openrc_status(returncode: int, output: str) -> str:

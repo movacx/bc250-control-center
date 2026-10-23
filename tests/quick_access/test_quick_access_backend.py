@@ -85,6 +85,41 @@ def test_backend_gpu_profile_skips_the_redundant_full_status_preflight(monkeypat
     assert calls == [("gpu-profile", "benchmark")]
 
 
+def test_backend_passes_the_temperature_reading_and_rejects_invalid_values(monkeypatch):
+    module = _backend_module(monkeypatch)
+    plugin = module.Plugin()
+    calls: list[tuple[str, ...]] = []
+
+    async def immediate_to_thread(callback, *args, **kwargs):
+        return callback(*args, **kwargs)
+
+    monkeypatch.setattr(module.asyncio, "to_thread", immediate_to_thread)
+    monkeypatch.setattr(plugin, "_run", lambda *args, **_kwargs: calls.append(args) or {"ok": True})
+
+    result = asyncio.run(plugin.apply_gpu_compatibility("smu", "busy-flag", True, False, "sysfs"))
+
+    assert result["ok"] is True
+    assert calls == [("gpu-compat", "smu", "busy-flag", "1", "0", "sysfs")]
+    invalid = asyncio.run(plugin.apply_gpu_compatibility("smu", "busy-flag", True, False, "hwmon"))
+    assert invalid["ok"] is False
+    assert calls == [("gpu-compat", "smu", "busy-flag", "1", "0", "sysfs")]
+
+
+def test_stale_exported_gpu_profile_is_marked_unavailable_without_clamping(monkeypatch):
+    module = _backend_module(monkeypatch)
+    profiles = module._apply_custom_profile_names(
+        [{"key": "benchmark", "name": "Benchmark", "min": 1000, "max": 2000}],
+        [{"key": "benchmark", "name": "High", "min": 1000, "max": 2200}],
+        500,
+        2000,
+    )
+
+    assert profiles == [{
+        "key": "benchmark", "name": "High", "min": 1000, "max": 2200,
+        "unavailable_reason": "QUICK_ACCESS_GPU_ALLOWED",
+    }]
+
+
 def test_backend_safe_point_delegates_advertisement_validation_to_root_helper(monkeypatch):
     module = _backend_module(monkeypatch)
     plugin = module.Plugin()
@@ -475,15 +510,15 @@ def test_cpu_profiles_default_to_the_desktop_tiers_until_exported(monkeypatch):
     module = _backend_module(monkeypatch)
 
     defaults = module._validated_cpu_profiles(None)
-    assert [(p["key"], p["frequency"], p["vid"]) for p in defaults] == [
-        ("board_average", 3550, 1050), ("mid_point", 3850, 1150), ("safe_maximum", 4000, 1275),
+    assert [(p["key"], p["frequency"], p["vid"], p["temperature"]) for p in defaults] == [
+        ("board_average", 3550, 1050, 90), ("mid_point", 3850, 1150, 90), ("safe_maximum", 4000, 1275, 90),
     ]
     assert all(p["default"] for p in defaults)
 
     exported = module._validated_cpu_profiles([
         {"key": "mid_point", "name": "Mine", "frequency": 3900, "vid": 1160},
     ])
-    assert exported[1] == {"key": "mid_point", "name": "Mine", "frequency": 3900, "vid": 1160}
+    assert exported[1] == {"key": "mid_point", "name": "Mine", "frequency": 3900, "vid": 1160, "temperature": 90}
     assert exported[0]["default"] and exported[2]["default"]
 
 

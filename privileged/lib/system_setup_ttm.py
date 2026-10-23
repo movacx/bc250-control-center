@@ -51,8 +51,9 @@ OSTREE_STATE = "/etc/bc250-control-center/ttm-kargs.original"
 OSTREE_MARKER = "# Managed by BC250 Control Center"
 _KARG = re.compile(r"ttm\.pages_limit=[0-9]+")
 _STEAMOS = (
-    "This SteamOS has no GRUB that reads /etc/default/grub.d, so a GPU memory "
-    "limit set here would not survive. It needs the ttm.pages_limit kernel argument."
+    "This SteamOS has no GRUB that reads /etc/default/grub.d, or its boot menu "
+    "(/efi/EFI/steamos/grub.cfg) is missing, so a GPU memory limit set here would "
+    "not survive. It needs the ttm.pages_limit kernel argument."
 )
 
 

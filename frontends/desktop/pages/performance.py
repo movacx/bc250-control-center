@@ -8,7 +8,8 @@ from html import escape
 from math import log10
 from typing import Callable, Iterable
 
-from PyQt6.QtCore import QPointF, QRect, QRectF, QSize, Qt, QTimer, pyqtSignal
+from PyQt6 import sip
+from PyQt6.QtCore import QPointF, QRect, QRectF, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import (
     QBrush,
     QColor,
@@ -50,16 +51,15 @@ from ..components.chart_axes import (
     zoomed_percent_axis,
 )
 from ..components.chart_strokes import draw_series, fill_area
+from ..components.flow_layout import FlowLayout
 from ..components.responsive import (
     clear_grid,
     configure_responsive_scroll_area,
     effective_viewport_width,
 )
 from ..components.widgets import (
-    IconBadge,
     PillLabel,
     apply_shadow,
-    icon,
     readable_text_on,
 )
 from ..core.gddr6_monitor import gddr6_monitor_for
@@ -98,17 +98,23 @@ QWidget[performancePage='true'] QLabel[railTitle='true'] {{
 QWidget[performancePage='true'] QLabel[railHint='true'] {{
     color: {c['muted']}; font-size: 9px;
 }}
-QWidget[performancePage='true'] QFrame[resourceTile='true'] {{
-    background: {c['panel']}; border: 1px solid transparent; border-radius: 12px;
+QWidget[performancePage='true'] QFrame[resourceBar='true'] {{
+    background: transparent; border: none; border-bottom: 1px solid {c['border_soft']};
 }}
-QWidget[performancePage='true'] QFrame[resourceTile='true']:hover {{
-    background: {c['control_hover']}; border-color: {c['border']};
+QWidget[performancePage='true'] QFrame[resourceTile='true'] {{
+    background: transparent; border: none; border-bottom: 2px solid transparent; border-radius: 0px;
 }}
 QWidget[performancePage='true'] QFrame[resourceTile='true'][selected='true'] {{
-    background: {c['blue_soft']}; border: 1px solid {c['blue_border']};
+    border-bottom: 2px solid {c['blue']};
 }}
 QWidget[performancePage='true'] QLabel[resourceTitle='true'] {{
-    color: {c['text']}; font-size: 11px; font-weight: 820;
+    color: {c['muted']}; font-size: 12px; font-weight: 700; background: transparent;
+}}
+QWidget[performancePage='true'] QFrame[resourceTile='true']:hover QLabel[resourceTitle='true'] {{
+    color: {c['text']};
+}}
+QWidget[performancePage='true'] QFrame[resourceTile='true'][selected='true'] QLabel[resourceTitle='true'] {{
+    color: {c['text']}; font-weight: 780;
 }}
 QWidget[performancePage='true'] QLabel[resourceValue='true'] {{
     color: {c['text']}; font-size: 15px; font-weight: 860;
@@ -378,6 +384,14 @@ RESOURCE_DEFINITIONS = (
     ),
 )
 RESOURCE_BY_KEY = {definition.key: definition for definition in RESOURCE_DEFINITIONS}
+#: The sensor list's tab, before the resources'. It has no chart of its own.
+SENSORS_TAB = ResourceDefinition("sensors", "Sensors", "", "", "", (), ("", "", "", ""))
+#: The sensor list's layouts, offered in its tab's menu like a part's views.
+SENSOR_VIEWS = (
+    MetricView("list", "sensors", "List", "Every sensor with its minimum, average and maximum."),
+    MetricView("split", "sensors", "List + graphs", "The list, with the sensors you tick drawn beside it."),
+    MetricView("graphs", "sensors", "Graphs", "Only the graphs of the sensors you tick, larger."),
+)
 
 #: The smallest range a view's axis spans, so an idle reading is not blown up
 #: into a jagged line filling the plot.
@@ -473,26 +487,27 @@ class ResourceTile(QFrame):
     #: the context-menu key, a right click.
     views_requested = pyqtSignal(str)
 
-    def __init__(self, definition: ResourceDefinition, history: MetricHistory, parent: QWidget | None = None):
+    def __init__(self, definition: ResourceDefinition, history: MetricHistory, parent: QWidget | None = None,
+                 *, views: tuple[MetricView, ...] | None = None):
         super().__init__(parent)
         self.definition = definition
         self.history = history
+        self.views = tuple(views) if views is not None else tuple(views_for(definition.key))
         self.reading: tuple[str, str] = ("--", "")
         self.setProperty("resourceTile", True)
         self.setProperty("selected", False)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        self.setMinimumHeight(50)
-        self.setMaximumHeight(56)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        # A tab, as the Processes and Fans pages draw theirs: the word,
+        # underlined when chosen, on the rail's hairline.
+        self.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
 
         root = QHBoxLayout(self)
-        root.setContentsMargins(12, 8, 12, 8)
-        root.setSpacing(8)
-        root.addWidget(IconBadge(definition.icon_name, definition.icon_background, 28, radius=8), 0, Qt.AlignmentFlag.AlignVCenter)
+        root.setContentsMargins(2, 8, 2, 7)
+        root.setSpacing(0)
         self.title = QLabel(tr(definition.title))
         self.title.setProperty("resourceTitle", True)
-        root.addWidget(self.title, 1)
+        root.addWidget(self.title, 0)
 
     def set_values(self, primary: str, context: str) -> None:
         self.reading = (primary, context)
@@ -502,7 +517,7 @@ class ResourceTile(QFrame):
             self.setToolTip(f"{tr(self.definition.title)}\n{primary}\n{context}")
 
     def has_views(self) -> bool:
-        return len(views_for(self.definition.key)) > 1
+        return len(self.views) > 1
 
     def enterEvent(self, event) -> None:  # noqa: N802
         super().enterEvent(event)
@@ -534,8 +549,9 @@ class ResourceTile(QFrame):
         if bool(self.property("selected")) == bool(selected):
             return
         self.setProperty("selected", bool(selected))
-        self.style().unpolish(self)
-        self.style().polish(self)
+        for widget in (self, self.title):
+            widget.style().unpolish(widget)
+            widget.style().polish(widget)
         self.update()
 
     def gamepad_activate(self) -> None:
@@ -642,13 +658,14 @@ class ResourceViewFlyout(QFrame):
         current: str,
         available: set[str],
         anchor: QRect,
+        views: tuple[MetricView, ...] | None = None,
     ) -> None:
         if resource != self.resource:
             for row in self.rows:
                 row.setParent(None)
                 row.deleteLater()
             self.rows = []
-            for view in views_for(resource):
+            for view in (views if views is not None else views_for(resource)):
                 row = _ViewRow(view, self)
                 row.chosen.connect(lambda key, owner=resource: self.view_chosen.emit(owner, key))
                 self._layout.addWidget(row)
@@ -883,6 +900,18 @@ class DetailGraph(QWidget):
         return font
 
     def paintEvent(self, event) -> None:  # pragma: no cover - visual rendering
+        # A paint queued before the widget was torn down can still be delivered
+        # while Qt destroys it. Painting then raises, and letting that exception
+        # leave a virtual override has taken the whole process down in the tests.
+        if sip.isdeleted(self):
+            return
+        try:
+            self._paint(event)
+        except RuntimeError:
+            if not sip.isdeleted(self):
+                raise
+
+    def _paint(self, event) -> None:  # pragma: no cover - visual rendering
         key = self._cache_key()
         if self._cache is None or key != self._cache_key_value:
             ratio = self.devicePixelRatioF()
@@ -1231,9 +1260,6 @@ def series_statistics(history: MetricHistory, name: str) -> tuple[float, float, 
 
 
 class DetailPanel(QFrame):
-    #: The Sensors button: show the full sensor list in this panel's place.
-    sensors_requested = pyqtSignal()
-
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self.setProperty("detailPanel", True)
@@ -1244,6 +1270,11 @@ class DetailPanel(QFrame):
         self.root = QVBoxLayout(self)
         self.root.setContentsMargins(18, 16, 18, 14)
         self.root.setSpacing(10)
+
+        # The page's tabs go first (the page puts them in rail_slot).
+        self.rail_slot = QHBoxLayout()
+        self.rail_slot.setContentsMargins(0, 0, 0, 0)
+        self.root.addLayout(self.rail_slot)
 
         # One line for the resource, its live reading and what goes with it,
         # with the scale choice at its end; the description and the window
@@ -1287,17 +1318,6 @@ class DetailPanel(QFrame):
             self.scale_buttons.addButton(button)
             self.scale_mode_buttons[mode] = button
             top_row.addWidget(button, 0, Qt.AlignmentFlag.AlignVCenter)
-        # Every sensor in a list, loaded in this panel's place.
-        self.sensors_button = QPushButton(tr("Sensors"))
-        self.sensors_button.setProperty("viewSwitch", True)
-        self.sensors_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.sensors_button.setToolTip(tr("Every sensor in a list, with minimum, average and maximum"))
-        # An arrow says it leads somewhere; plain text read as a label.
-        self.sensors_button.setIcon(icon("chevron_right_blue"))
-        self.sensors_button.setIconSize(QSize(14, 14))
-        self.sensors_button.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
-        self.sensors_button.clicked.connect(self.sensors_requested.emit)
-        top_row.addWidget(self.sensors_button, 0, Qt.AlignmentFlag.AlignVCenter)
         self.root.addLayout(top_row)
         self.root.addLayout(self.scale_row)
 
@@ -1386,10 +1406,6 @@ class DetailPanel(QFrame):
             button.setVisible(
                 definition is None or (not definition.rate_scale and definition.form != "heatmap")
             )
-        # The Sensors switch stays last on whichever row holds the scale.
-        self.sensors_button.setParent(None)
-        target.addWidget(self.sensors_button, 0, Qt.AlignmentFlag.AlignVCenter)
-        self.sensors_button.show()
 
     def _legend_html(self) -> str:
         history = self.graph.history
@@ -1529,14 +1545,18 @@ class PerformancePage(QWidget):
         self.resource_host.setProperty("resourceBar", True)
         self.resource_host.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         rail_layout = QVBoxLayout(self.resource_host)
-        rail_layout.setContentsMargins(14, 12, 14, 12)
+        rail_layout.setContentsMargins(0, 0, 0, 0)
         rail_layout.setSpacing(0)
-        self.resource_grid = QGridLayout()
-        self.resource_grid.setContentsMargins(0, 0, 0, 0)
-        self.resource_grid.setHorizontalSpacing(10)
-        self.resource_grid.setVerticalSpacing(10)
-        rail_layout.addLayout(self.resource_grid)
+        # The tabs wrap onto a second line when the card is narrow.
+        self.tab_strip = QWidget()
+        self.resource_grid = FlowLayout(self.tab_strip, spacing=22)
+        rail_layout.addWidget(self.tab_strip)
 
+        # Every sensor, the page's first view, as a tab of its own.
+        self.sensors_tab = ResourceTile(SENSORS_TAB, MetricHistory(SENSORS_TAB), views=SENSOR_VIEWS)
+        self.sensors_tab.activated.connect(lambda _key: self.show_sensors())
+        self.sensors_tab.hover_changed.connect(self._tile_hovered)
+        self.sensors_tab.views_requested.connect(self._open_views)
         self.tiles: dict[str, ResourceTile] = {}
         for definition in RESOURCE_DEFINITIONS:
             tile = ResourceTile(definition, self.histories[definition.key])
@@ -1561,10 +1581,9 @@ class PerformancePage(QWidget):
 
         self.detail = DetailPanel()
         self.detail.select_resource(RESOURCE_BY_KEY[self._selected_key], self.histories[self._selected_key])
-        self.detail.sensors_requested.connect(self.show_sensors)
         self.tiles[self._selected_key].set_selected(True)
         self.sensor_board = SensorBoard(self.sensor_log)
-        self.sensor_board.back_requested.connect(self.show_chart)
+        self.sensor_board.mode_changed.connect(lambda _mode: self.flyout.hide())
         # The chart and the sensor list share one place on the page.
         self.body = QStackedWidget()
         self.body.addWidget(self.detail)
@@ -1603,6 +1622,8 @@ class PerformancePage(QWidget):
             self._sample_failed,
         )
         self._reflow(1400)
+        # The page opens on the sensor list; a resource tile opens its chart.
+        self.show_sensors()
 
     def _collect_sample(self) -> dict:
         """One sample for the tiles and, from the same moment, every sensor.
@@ -1668,18 +1689,13 @@ class PerformancePage(QWidget):
         clear_grid(layout)
 
     def _reflow(self, width: int) -> None:
-        columns = 6 if width >= 1320 else 3 if width >= 760 else 2 if width >= 480 else 1
-        if columns == self._layout_mode:
+        if self._layout_mode == 1:
             return
-        self._layout_mode = columns
+        self._layout_mode = 1
         self._clear_grid(self.workspace)
-        self._clear_grid(self.resource_grid)
-        for index, definition in enumerate(RESOURCE_DEFINITIONS):
-            row, column = divmod(index, columns)
-            self.resource_grid.addWidget(self.tiles[definition.key], row, column)
-            self.resource_grid.setColumnStretch(column, 1)
-        self.workspace.addWidget(self.resource_host, 0, 0)
-        self.workspace.addWidget(self.body, 1, 0)
+        for tab in (self.sensors_tab, *(self.tiles[definition.key] for definition in RESOURCE_DEFINITIONS)):
+            self.resource_grid.addWidget(tab)
+        self.workspace.addWidget(self.body, 0, 0)
         self.workspace.setColumnStretch(0, 1)
         self.flyout.hide()
 
@@ -1693,9 +1709,10 @@ class PerformancePage(QWidget):
         self.view_histories.clear()
         self.flyout.resource = ""
         self.sensor_board.retranslate()
-        if self.body.currentWidget() is self.sensor_board:
-            return
+        sensors = self.body.currentWidget() is self.sensor_board
         self._select_resource(self._selected_key)
+        if sensors:
+            self.show_sensors()
 
     # ---------------------------------------------------------------- views
 
@@ -1716,10 +1733,12 @@ class PerformancePage(QWidget):
             return
         self._selected_key = key
         self.flyout.hide()
+        self._place_rail(self.detail)
         if self.body.currentWidget() is not self.detail:
             self.body.setCurrentWidget(self.detail)
         for tile_key, tile in self.tiles.items():
             tile.set_selected(tile_key == key)
+        self.sensors_tab.set_selected(False)
         view_key = self._current_view(key)
         if view_key == key:
             self.detail.select_resource(RESOURCE_BY_KEY[key], self.histories[key])
@@ -1733,6 +1752,14 @@ class PerformancePage(QWidget):
         self._refresh_detail()
 
     def _choose_view(self, resource: str, view_key: str) -> None:
+        if resource == SENSORS_TAB.key:
+            from_menu = QApplication.focusWidget() in self.flyout.rows
+            self.flyout.hide()
+            self.sensor_board.set_mode(view_key)
+            self.show_sensors()
+            if from_menu:
+                self.sensors_tab.setFocus(Qt.FocusReason.OtherFocusReason)
+            return
         if view_key not in VIEW_BY_KEY or VIEW_BY_KEY[view_key].resource != resource:
             return
         # Chosen with the keyboard or a controller: the focus goes back to
@@ -1747,7 +1774,8 @@ class PerformancePage(QWidget):
     def _tile_hovered(self, key: str, inside: bool) -> None:
         if self._flyout_pinned:
             return
-        if inside and len(views_for(key)) > 1:
+        tab = self._tab(key)
+        if inside and tab is not None and tab.has_views():
             self._flyout_hide_timer.stop()
             self._flyout_pending = key
             if self.flyout.isVisible() and self.flyout.resource != key:
@@ -1767,13 +1795,27 @@ class PerformancePage(QWidget):
         else:
             self._flyout_hide_timer.start()
 
+    def _tab(self, key: str) -> ResourceTile | None:
+        return self.sensors_tab if key == SENSORS_TAB.key else self.tiles.get(key)
+
     def _show_flyout(self, key: str) -> None:
-        tile = self.tiles.get(key)
+        tile = self._tab(key)
         if tile is None or not tile.isVisible():
+            return
+        top_left = tile.mapTo(self.content, tile.rect().topLeft())
+        if tile is self.sensors_tab:
+            # The sensor list's layouts, as the other tabs offer their views.
+            self.flyout.present(
+                key,
+                heading=" · ".join(part for part in (tr("Sensors"), self.sensor_board.summary.text()) if part),
+                current=self.sensor_board.mode,
+                available={view.key for view in SENSOR_VIEWS},
+                anchor=QRect(top_left, tile.size()),
+                views=SENSOR_VIEWS,
+            )
             return
         primary, context = tile.reading
         heading = " · ".join(part for part in (tr(tile.definition.title), primary, context) if part and part != "--")
-        top_left = tile.mapTo(self.content, tile.rect().topLeft())
         self.flyout.present(
             key,
             heading=heading,
@@ -1802,7 +1844,7 @@ class PerformancePage(QWidget):
         self.flyout.focus_current()
 
     def _flyout_dismissed(self) -> None:
-        tile = self.tiles.get(self.flyout.resource)
+        tile = self._tab(self.flyout.resource)
         if tile is not None:
             tile.setFocus(Qt.FocusReason.OtherFocusReason)
 
@@ -1819,12 +1861,20 @@ class PerformancePage(QWidget):
 
     # -------------------------------------------------------------- sensors
 
+    def _place_rail(self, view: QWidget) -> None:
+        """The tabs head whichever card is on screen, chart or sensor list."""
+        slot = view.rail_slot
+        if slot.indexOf(self.resource_host) < 0:
+            slot.addWidget(self.resource_host, 1)
+
     def show_sensors(self) -> None:
         """Every sensor, in the chart's place."""
         self.flyout.hide()
+        self._place_rail(self.sensor_board)
         self.body.setCurrentWidget(self.sensor_board)
         for tile in self.tiles.values():
             tile.set_selected(False)
+        self.sensors_tab.set_selected(True)
         self.sensor_board.refresh()
 
     def show_chart(self) -> None:

@@ -35,7 +35,7 @@ printf 'MemTotal:       15500000 kB\nMemAvailable:   12000000 kB\n' > proc/memin
 python3 -c "open('devport','wb').write(bytes(0x80))"
 
 E="$QA/enter.sh"
-"$E" archlinux-current --persist -- bash -c 'pacman-key --init >/dev/null 2>&1; pacman-key --populate archlinux >/dev/null 2>&1; pacman -Sy --noconfirm --needed --disable-sandbox python grub sudo diffutils rpm-tools dpkg zstd binutils'
+"$E" archlinux-current --persist -- bash -c 'pacman-key --init >/dev/null 2>&1; pacman-key --populate archlinux >/dev/null 2>&1; pacman -Sy --noconfirm --needed --disable-sandbox python grub sudo diffutils rpm-tools dpkg zstd binutils; gpgconf --homedir /etc/pacman.d/gnupg --kill all 2>/dev/null || true'
 for d in debian-trixie ubuntu-noble; do
   "$E" $d --persist -- bash -c 'apt-get -o APT::Sandbox::User=root update -qq; DEBIAN_FRONTEND=noninteractive apt-get -o APT::Sandbox::User=root install -y -qq --no-install-recommends python3 python3-venv python3-pip grub-common sudo diffutils'
 done

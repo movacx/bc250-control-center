@@ -195,3 +195,87 @@ def test_an_unrecognised_helper_failure_is_shown_not_swallowed(qtbot):
         "bc250_smu package files must belong to the desktop user "
         "and not be writable by group or others."
     )
+
+
+PARTIAL = {
+    "patch_active": True,
+    "chips": [
+        {"chip": index, "code": 0x31, "temperature_c": 58.0}
+        for index in range(8)
+        if index not in (2, 5)
+    ],
+    "chip_errors": [
+        {"chip": 2, "raw": 0xFF, "error": "stage1_timeout"},
+        {"chip": 5, "raw": 0xFE, "error": "stage2_timeout"},
+    ],
+    "average_c": 58.0,
+    "hotspot_c": 58.0,
+    "hotspot_chip": 0,
+}
+
+
+def test_chips_that_did_not_answer_are_named_under_the_others(qtbot):
+    monitor = _monitor(qtbot, SessionController())
+    monitor._state.sample = dict(PARTIAL)
+    monitor._rebuild()
+    reading = monitor.reading
+
+    assert [chip.index for chip in reading.chips] == [0, 1, 3, 4, 6, 7]
+    assert reading.unanswered_chips == (2, 5)
+    assert reading.notice() == "Chips 2, 5 did not answer this time. The other chips are shown."
+
+    monitor._state.sample = dict(PARTIAL, chip_errors=PARTIAL["chip_errors"][:1])
+    monitor._rebuild()
+    assert monitor.reading.notice() == "Chip 2 did not answer this time. The other chips are shown."
+
+    monitor._state.sample = dict(SAMPLE)
+    monitor._rebuild()
+    assert monitor.reading.notice() == ""
+
+
+class SilentChipsController(SessionController):
+    """A session that ends because no chip answered (see the helper)."""
+
+    def comando_monitorizar_vram(self, seconds=LIVE_SESSION_SECONDS):
+        script = (
+            "import sys\n"
+            "print('ERROR: GDDR6_NO_CHIP_ANSWERED: no memory chip answered, so live '"
+            "'monitoring stopped.', file=sys.stderr)\n"
+            "sys.exit(1)\n"
+        )
+        return [sys.executable, "-c", script]
+
+
+def test_a_session_that_found_no_chip_says_so(qtbot):
+    monitor = _monitor(qtbot, SilentChipsController())
+
+    monitor.start_live()
+    qtbot.waitUntil(lambda: not monitor.reading.live, timeout=8000)
+
+    assert monitor.reading.notice() == (
+        "No memory chip answered, so live monitoring stopped. Try again later; if "
+        "it keeps happening, power the board off completely."
+    )
+
+
+def test_an_unrecognised_patch_is_explained(qtbot):
+    monitor = _monitor(qtbot, SessionController())
+    monitor._state.sample = {"patch_active": False, "blocked_reason": "GDDR6_PATCH_UNKNOWN"}
+    monitor._rebuild()
+
+    assert "Power the board off completely" in monitor.reading.notice()
+
+
+def test_an_outdated_checkout_points_at_the_prepare_button(qtbot):
+    monitor = _monitor(qtbot, SessionController())
+    monitor._state.status = dict(READY, repository_ready=False, repository_outdated=True)
+    monitor._rebuild()
+
+    assert monitor.reading.blocker() == (
+        "This version uses a newer reviewed release of the memory-temperature tool. "
+        "Press Prepare readings to update the checkout."
+    )
+
+    monitor._state.status = dict(READY, repository_ready=False)
+    monitor._rebuild()
+    assert monitor.reading.blocker() == "The reviewed upstream checkout is not prepared yet."

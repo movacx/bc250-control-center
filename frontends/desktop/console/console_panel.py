@@ -17,6 +17,7 @@ window.
 from __future__ import annotations
 
 import logging
+import re
 from pathlib import Path
 
 from PyQt6.QtCore import (
@@ -40,8 +41,8 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from ..components.widgets import icon
-from ..i18n import tr
+from ..components.widgets import ReportButton, icon
+from ..i18n import tr, tr_format
 from .console_tab import ConsoleTab
 from .user_shell import shell_environment, user_shell
 
@@ -64,6 +65,8 @@ AUTO_HIDE_DELAY_MS = 2200
 MAXIMUM_TABS = 5
 # From this width the header actions show their word beside the icon.
 HEADER_LABELS_WIDTH = 900
+# The code a failure block prints after its heading, whatever the language.
+_DIAGNOSTIC_CODE = re.compile(r":\s*(BC250-[A-Z0-9]+(?:-[A-Z0-9]+)*)")
 
 
 class ConsolePanel(QFrame):
@@ -130,6 +133,15 @@ class ConsolePanel(QFrame):
             tr("Stop"), header_layout, icon_name="stop_red"
         )
         self.stop_button.clicked.connect(self._stop_workflow)
+        # Only after a failed run: the way from the output to the report form.
+        self.report_button = ReportButton(tr("Report this problem"))
+        self.report_button.setObjectName("consoleHeaderButton")
+        self.report_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.report_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.report_button.clicked.connect(self._report_failure)
+        self.report_button.setVisible(False)
+        header_layout.addWidget(self.report_button)
+        self._failed_tab: ConsoleTab | None = None
         self.copy_button = self._header_button(
             tr("Copy"), header_layout, icon_name="copy_gray", icon_only=True
         )
@@ -323,9 +335,6 @@ class ConsolePanel(QFrame):
             if not tab.running:
                 return tab
         return None
-
-    def tab_count(self) -> int:
-        return len(self._tabs)
 
     def running_count(self) -> int:
         return sum(1 for tab in self._tabs if tab.running_workflow)
@@ -656,6 +665,8 @@ class ConsolePanel(QFrame):
             return False
         self._activate(tab)
         self.stop_button.setEnabled(True)
+        self._failed_tab = None
+        self.report_button.setVisible(False)
         self.slide_in()
         self._announce_running_count()
         self.workflow_started.emit()
@@ -789,6 +800,9 @@ class ConsolePanel(QFrame):
             self.input_row.setVisible(False)
             self.input_field.clear()
             self.view.set_input_elsewhere(False)
+        # Offered for the last run only; a success or a new run takes it back.
+        self._failed_tab = tab if code != 0 else None
+        self.report_button.setVisible(code != 0 and tab is self._active)
         if code == 0 and self._auto_hide and not self.busy:
             # Only when the last one is done: withdrawing the panel over a
             # workflow that is still printing would hide the running one.
@@ -811,6 +825,27 @@ class ConsolePanel(QFrame):
         if clipboard is not None and self.active_tab.log_file:
             clipboard.setText(self.active_tab.log_file)
 
+    def _report_failure(self) -> None:
+        """Open the report form with this run's whole output and its code."""
+        tab = self._failed_tab or self.active_tab
+        text = tab.view.screen.full_text() or ""
+        if not text and tab.log_file:
+            try:
+                text = Path(tab.log_file).read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                text = ""
+        found = _DIAGNOSTIC_CODE.search(text)
+        from ..components.feedback_dialog import open_feedback
+
+        title = tab.title or tr("The workflow")
+        open_feedback(
+            self.window(),
+            opened_from="Terminal",
+            summary=tr_format("{title} failed", title=title),
+            terminal=text,
+            code=found.group(1) if found else "",
+        )
+
     def _open_external_terminal(self) -> None:
         if self.active_tab.launch_path:
             self.external_terminal_requested.emit(self.active_tab.launch_path)
@@ -820,6 +855,7 @@ class ConsolePanel(QFrame):
         self.send_button.setText(tr("Send"))
         self.stop_button.setText(tr("Stop"))
         self.stop_button.setToolTip(tr("Stop"))
+        self.report_button.setText(tr("Report this problem"))
         for button, label in self._labelled_actions:
             button.setToolTip(tr(label))
             button.setAccessibleName(tr(label))
@@ -841,3 +877,6 @@ class ConsolePanel(QFrame):
         for tab in self._tabs:
             tab.shutdown()
         self._announce_running_count()
+
+    def tab_count(self) -> int:
+        return len(self._tabs)

@@ -44,3 +44,22 @@ def test_steamos_acpi_runs_with_the_root_unlocked_for_boot():
     other = _repository("arch")
     other.gestionar_acpi("acpi-install")
     assert "with-steamos-writable-root.sh" not in other.opened[0][0]
+
+
+@pytest.mark.parametrize("mode", ["on", "off"])
+def test_smt_is_switched_through_the_protected_helper_in_the_terminal(mode):
+    repository = _repository("steamos")
+    repository.gestionar_smt_vivo(mode)
+    command, title = repository.opened[0]
+    assert f"smt-live --smt {mode}" in command and "SMT" in title
+
+
+def test_anything_but_on_or_off_is_refused_for_smt():
+    from bc250cc.infrastructure.system_setup import command
+
+    repository = _repository("arch")
+    with pytest.raises(ValueError):
+        repository.gestionar_smt_vivo("forceoff; reboot")
+    with pytest.raises(ValueError):
+        command("smt-live", smt="")
+    assert repository.opened == []

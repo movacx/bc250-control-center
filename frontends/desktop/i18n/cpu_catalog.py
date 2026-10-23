@@ -820,7 +820,7 @@ CPU_TRANSLATIONS = dict([
         "~{vid} mV szacowane · {temperature} °C",
     ),
     _cpu(
-        "Automatic detection · {temperature} °C",
+        "Applied by automatic detection · {temperature} °C · until restart",
         "Detección automática · {temperature} °C",
         "Detecção automática · {temperature} °C",
         "Автоматическое определение · {temperature} °C",

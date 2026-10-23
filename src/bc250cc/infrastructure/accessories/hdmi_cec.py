@@ -19,6 +19,13 @@ and runs from the user's tools folder as a user service, like the upstream
 unit; the only system files are the two uaccess udev rules upstream
 installs, so the logged-in user can reach /dev/cecN and /dev/uinput.
 
+cecd wakes the TV when the console resumes from suspend and nothing more: not
+at a cold boot, not at power-off. Two optional pieces cover that, ported from
+keyboardspecialist/bc250-steamos (public domain): a user service that wakes the
+TV once per session start, and a system unit that puts it in standby on a real
+power-off (not a reboot, not a suspend). Both are polite: when another device
+holds the input of a TV that is on, they leave it alone.
+
 The locked dependencies need Rust 1.87 (zbus 5.18). Arch, CachyOS, Manjaro
 and Fedora ship a newer one and build natively. Where the distribution's
 Rust is older (Debian 13 and Ubuntu 25.10 carry 1.85, Ubuntu 24.04 1.75) and
@@ -34,7 +41,15 @@ import os
 import shlex
 from pathlib import Path
 
-from ._shared import UNIT_DIRECTORY, command_output, shell_header, user_service_state
+from .. import container_network
+from ..steamos_readonly import STEAMOS_PASSWORD_GUARD
+from ._shared import (
+    UNIT_DIRECTORY,
+    command_output,
+    shell_header,
+    user_service_state,
+    user_unit_path,
+)
 
 REPOSITORY = "https://gitlab.steamos.cloud/holo/linux-cec"
 VERSION = "0.3.0"
@@ -49,6 +64,16 @@ SYSTEM_SERVICE = "cecd.service"
 SYSTEM_BINARY = Path("/usr/bin/cecd")
 UDEV_RULE = Path("/etc/udev/rules.d/60-bc250-control-center-cec.rules")
 CONFIG_NAME = "50-bc250-control-center.toml"
+WAKE_SERVICE = "bc250-control-center-cec-wake.service"
+WAKE_HELPER = ".local/bin/bc250-control-center-cec-wake"
+POWEROFF_SERVICE = "bc250-control-center-cec-poweroff.service"
+POWEROFF_UNIT = Path("/etc/systemd/system") / POWEROFF_SERVICE
+POWEROFF_WANTS = Path("/etc/systemd/system/multi-user.target.wants") / POWEROFF_SERVICE
+POWEROFF_HELPER = Path("/var/lib/bc250-control-center/cec/poweroff-standby")
+POWEROFF_KEEP = Path("/etc/atomic-update.conf.d/bc250-control-center-cec.conf")
+#: The same two pieces from keyboardspecialist/bc250-steamos; never both.
+FOREIGN_WAKE = "bc250-cec-boot-wake.service"
+FOREIGN_POWEROFF = Path("/etc/systemd/system/bc250-cec-poweroff-standby.service")
 CEC_CLASS = Path("/sys/class/cec")
 KERNEL_OPTIONS = ("CONFIG_DRM_DISPLAY_DP_AUX_CEC=y", "CONFIG_DRM_DP_CEC=y")
 #: The Rust toolchain, pkg-config, libudev headers and git, per distribution.
@@ -140,10 +165,6 @@ def config_path() -> Path:
     return _config_home() / "cecd" / "config.d" / CONFIG_NAME
 
 
-def dbus_service_path() -> Path:
-    return _data_home() / "dbus-1" / "services" / f"{BUS_NAME}.service"
-
-
 def adapters(root: Path = CEC_CLASS) -> list[str]:
     try:
         return sorted(path.name for path in root.iterdir() if path.name.startswith("cec"))
@@ -185,6 +206,7 @@ def inventory(family: str, tool_dir: Path) -> dict:
         "supported": ok, "reason": reason, "version": VERSION,
         "device": bool(adapters()), "adapters": adapters(),
         "mode": "system" if family == "steamos" or system_cecd() else "bundled",
+        "automation": automation_state(),
     }
     if not ok:
         return {**base, "state": "unsupported"}
@@ -206,6 +228,21 @@ def inventory(family: str, tool_dir: Path) -> dict:
     else:
         state = "installed"
     return {**base, "state": state, "service": service, "installed_version": installed_version}
+
+
+def automation_state() -> dict:
+    """The TV waking at session start and standing by at power-off: ``absent``, ``installed`` or ``foreign``."""
+    wake = "absent"
+    if user_unit_path(FOREIGN_WAKE).is_file() and not user_unit_path(WAKE_SERVICE).is_file():
+        wake = "foreign"
+    elif MARKER in _read(user_unit_path(WAKE_SERVICE)):
+        wake = "installed"
+    poweroff = "absent"
+    if FOREIGN_POWEROFF.is_file() and not POWEROFF_UNIT.is_file():
+        poweroff = "foreign"
+    elif MARKER in _read(POWEROFF_UNIT):
+        poweroff = "installed"
+    return {"wake": wake, "poweroff": poweroff}
 
 
 def _config_lines(*, follow_console: bool) -> list[str]:
@@ -262,7 +299,8 @@ def _container_lines(family: str) -> list[str]:
         f'echo "== Building cecd in {BUILD_IMAGE} (a few minutes, about 1 GB downloaded the first time; nothing is installed yet) =="',
         'mkdir -p "$bc250_stage/out"',
         "bc250_podman=podman; podman info >/dev/null 2>&1 || bc250_podman='sudo podman'",
-        f'$bc250_podman run --rm --pull=missing -v "$bc250_stage/out":/out:Z {BUILD_IMAGE} bash -c {shlex.quote(build)}',
+        *container_network.setup_lines('"$bc250_podman"'),
+        f'$bc250_podman run --rm $bc250_net --pull=missing -v "$bc250_stage/out":/out:Z {BUILD_IMAGE} bash -c {shlex.quote(build)}',
     ]
 
 
@@ -421,23 +459,200 @@ def remove_command(family: str, tool_dir: Path) -> str:
     return "\n".join(commands)
 
 
-def test_command(family: str, tool_dir: Path) -> str:
-    """Ask cecd to wake the TV and switch it to this input."""
-    commands = shell_header("TV control · test")
+# --------------------------------------------------------------- automation
+
+#: The device object cecd exports for the first adapter (/dev/cec0).
+DEVICE_PATH_SHELL = '/com/steampowered/CecDaemon1/Devices/Cec$bc250_n'
+
+
+def wake_helper_text(mode: str) -> str:
+    """The script the user service runs once at session start."""
+    return f"""#!/bin/bash
+{MARKER}
+# Wakes the TV at session start. Regenerated by Control Center; do not edit.
+MODE={mode}
+n=$(ls /sys/class/cec 2>/dev/null | sed -n 's/^cec//p' | head -n 1)
+bc250_n=${{n:-0}}
+D=(busctl --user --timeout=5 call {BUS_NAME} {DEVICE_PATH_SHELL} {BUS_NAME}.CecDevice1)
+# The TV's power state (<Give Device Power Status> 0x8f, reply 0x90), retried
+# while the adapter settles after boot.
+st=""
+for i in 1 2 3 4 5; do
+    out=$("${{D[@]}}" SendReceiveRawMessage ayyyq 1 143 0 144 1500 2>/dev/null) && {{ st=${{out##* }}; break; }}
+    sleep 2
+done
+if [ -z "$st" ]; then
+    echo "TV power probe got no reply; trying the wake anyway" | systemd-cat -t bc250-cec-wake -p warning
+fi
+# Polite: a TV that is on, with another device holding the input, is left alone.
+if [ "$MODE" = polite ] && {{ [ "$st" = 0 ] || [ "$st" = 2 ]; }}; then
+    if "${{D[@]}}" SendReceiveRawMessage ayyyq 1 133 15 130 2000 >/dev/null 2>&1; then
+        exit 0
+    fi
+fi
+# Wake powers the TV on and switches its input; Wake alone does not broadcast
+# the active-source claim, so it is sent too.
+"${{D[@]}}" Wake || true
+"${{D[@]}}" SetActiveSource i -- -1 || true
+exit 0
+"""
+
+
+def wake_unit_text(helper: str, cecd_unit: str) -> str:
+    return f"""{MARKER}
+[Unit]
+Description=BC-250: wake the TV at session start
+After={cecd_unit}
+Wants={cecd_unit}
+
+[Service]
+Type=oneshot
+ExecStart={helper}
+
+[Install]
+WantedBy=graphical-session.target
+"""
+
+
+def poweroff_helper_text() -> str:
+    return f"""#!/bin/bash
+{MARKER}
+# TV standby on a real power-off. Regenerated by Control Center; do not edit.
+# Real power-off or halt only: a reboot and a suspend leave the TV alone.
+systemctl list-jobs | grep -qE '(poweroff|halt)\\.target.*start' || exit 0
+dev=$(ls -d /dev/cec* 2>/dev/null | head -n 1)
+[ -n "$dev" ] || exit 0
+command -v cec-ctl >/dev/null 2>&1 || exit 0
+# Polite: when another device holds the input, someone is still watching.
+own=$(cec-ctl -d "$dev" 2>/dev/null | sed -n 's/.*Physical Address *: *//p' | head -n 1)
+act=$(cec-ctl -s -d "$dev" --request-active-source 2>/dev/null | sed -n 's/.*phys-addr: *\\([0-9a-f.]*\\).*/\\1/p' | head -n 1)
+if [ -n "$act" ] && [ "$act" != "$own" ]; then
+    exit 0
+fi
+# Logical address 0 is the TV.
+cec-ctl -s -d "$dev" --to 0 --standby || true
+exit 0
+"""
+
+
+def poweroff_unit_text() -> str:
+    return f"""{MARKER}
+[Unit]
+Description=BC-250: TV standby on power-off
+After=local-fs.target
+RequiresMountsFor={POWEROFF_HELPER.parent}
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/true
+ExecStop={POWEROFF_HELPER}
+TimeoutStopSec=10
+
+[Install]
+WantedBy=multi-user.target
+"""
+
+
+def _cecd_unit(family: str) -> str:
+    return SYSTEM_SERVICE if family == "steamos" or system_cecd() else SERVICE
+
+
+def wake_install_command(family: str, mode: str = "polite") -> str:
+    family = str(family or "").strip().lower()
+    if mode not in {"polite", "grab"}:
+        raise ValueError(f"Unsupported wake mode: {mode or '--'}")
+    helper = f"$HOME/{WAKE_HELPER}"
+    unit = f"{UNIT_DIRECTORY}/{WAKE_SERVICE}"
+    commands = shell_header("TV control · wake the TV at start")
     commands += [
-        f"bc250_adapters=\"$(ls {shlex.quote(str(CEC_CLASS))} 2>/dev/null || true)\"",
-        'if [ -z "$bc250_adapters" ]; then',
-        "  echo 'ERROR: no CEC adapter is connected. CEC needs a DisplayPort-to-HDMI adapter that tunnels it (Club3D CAC-1080/CAC-1085, Parade PS176/PS186).'",
-        "  exit 1",
+        f'if [ -e "{UNIT_DIRECTORY}/{FOREIGN_WAKE}" ]; then',
+        f"  echo 'ERROR: {FOREIGN_WAKE} (another toolkit) already wakes the TV. Remove it first.'; exit 65",
         "fi",
-        'echo "[INFO] CEC adapters: $bc250_adapters"',
-        "command -v busctl >/dev/null 2>&1 || { echo 'ERROR: busctl (systemd) is required.'; exit 69; }",
-        f"if ! busctl --user --timeout=5 call {BUS_NAME} {DAEMON_PATH} org.freedesktop.DBus.Peer Ping >/dev/null 2>&1; then",
-        "  echo 'ERROR: cecd is not running. Install TV control first, or start it: systemctl --user start "
-        + (SYSTEM_SERVICE if family == "steamos" or system_cecd() else SERVICE) + "'",
-        "  exit 1",
+        f'if [ -e "{unit}" ] && ! grep -qxF {shlex.quote(MARKER)} "{unit}"; then',
+        f"  echo 'ERROR: {WAKE_SERVICE} was changed by hand; it was left untouched.'; exit 65",
         "fi",
-        f"busctl --user --timeout=10 call {BUS_NAME} {DAEMON_PATH} {BUS_NAME}.Daemon1 Wake",
-        "echo 'OK: the TV was asked to turn on and switch to this input. If nothing happened, the TV or the adapter does not pass CEC.'",
+        f'mkdir -p "$(dirname "{helper}")" "{UNIT_DIRECTORY}"',
+        f"printf '%s' {shlex.quote(wake_helper_text(mode))} > \"{helper}\"",
+        f'chmod 0755 "{helper}"',
+        f"printf '%s' {shlex.quote(wake_unit_text('%h/' + WAKE_HELPER, _cecd_unit(family)))} > \"{unit}\"",
+        "systemctl --user daemon-reload",
+        f"systemctl --user enable {WAKE_SERVICE}",
+        "echo "
+        + shlex.quote(
+            "OK: the TV wakes when this session starts."
+            + (" If another device is already showing on a TV that is on, the input is left alone."
+               if mode == "polite" else " It always switches to the BC-250.")
+        ),
+    ]
+    return "\n".join(commands)
+
+
+def wake_remove_command() -> str:
+    helper = f"$HOME/{WAKE_HELPER}"
+    unit = f"{UNIT_DIRECTORY}/{WAKE_SERVICE}"
+    commands = shell_header("TV control · stop waking the TV at start")
+    commands += [
+        f'if [ -e "{unit}" ] && ! grep -qxF {shlex.quote(MARKER)} "{unit}"; then',
+        f"  echo 'ERROR: {WAKE_SERVICE} belongs to another tool; it was left untouched.'; exit 65",
+        "fi",
+        f"systemctl --user disable {WAKE_SERVICE} 2>/dev/null || true",
+        f'rm -f "{unit}" "{helper}"',
+        "systemctl --user daemon-reload",
+        "echo 'OK: the TV is no longer woken when the session starts.'",
+    ]
+    return "\n".join(commands)
+
+
+def poweroff_install_command(family: str) -> str:
+    family = str(family or "").strip().lower()
+    steamos = family == "steamos"
+    helper = shlex.quote(str(POWEROFF_HELPER))
+    unit = shlex.quote(str(POWEROFF_UNIT))
+    commands = shell_header("TV control · standby at power-off")
+    commands += [
+        f"if [ -e {shlex.quote(str(FOREIGN_POWEROFF))} ]; then",
+        f"  echo 'ERROR: {FOREIGN_POWEROFF} (another toolkit) already does this. Remove it first.'; exit 65",
+        "fi",
+        f"if [ -e {unit} ] && ! grep -qxF {shlex.quote(MARKER)} {unit}; then",
+        f"  echo 'ERROR: {POWEROFF_UNIT} belongs to another tool; it was left untouched.'; exit 65",
+        "fi",
+        "command -v cec-ctl >/dev/null 2>&1 || { echo 'ERROR: cec-ctl (v4l-utils) is needed to talk to the TV at shutdown.'; exit 69; }",
+        *((STEAMOS_PASSWORD_GUARD, "bc250_require_password") if steamos else ()),
+        "sudo -v",
+        f"sudo install -d -m 0755 {shlex.quote(str(POWEROFF_HELPER.parent))}",
+        f"printf '%s' {shlex.quote(poweroff_helper_text())} | sudo tee {helper} >/dev/null",
+        f"sudo chmod 0755 {helper}",
+        f"printf '%s' {shlex.quote(poweroff_unit_text())} | sudo tee {unit} >/dev/null",
+        f"sudo chmod 0644 {unit}",
+        *((
+            f"sudo install -d -m 0755 {shlex.quote(str(POWEROFF_KEEP.parent))}",
+            f"printf '%s' {shlex.quote(f'{MARKER}{chr(10)}{POWEROFF_UNIT}{chr(10)}{POWEROFF_WANTS}{chr(10)}')} "
+            f"| sudo tee {shlex.quote(str(POWEROFF_KEEP))} >/dev/null",
+        ) if steamos else ()),
+        "sudo systemctl daemon-reload",
+        f"sudo systemctl enable --now {POWEROFF_SERVICE}",
+        "echo 'OK: the TV goes to standby when this computer powers off (not on a reboot or a suspend),'",
+        "echo '    unless another device holds its input.'",
+    ]
+    return "\n".join(commands)
+
+
+def poweroff_remove_command(family: str) -> str:
+    steamos = str(family or "").strip().lower() == "steamos"
+    helper = shlex.quote(str(POWEROFF_HELPER))
+    unit = shlex.quote(str(POWEROFF_UNIT))
+    commands = shell_header("TV control · no standby at power-off")
+    commands += [
+        f"if [ -e {unit} ] && ! grep -qxF {shlex.quote(MARKER)} {unit}; then",
+        f"  echo 'ERROR: {POWEROFF_UNIT} belongs to another tool; it was left untouched.'; exit 65",
+        "fi",
+        *((STEAMOS_PASSWORD_GUARD, "bc250_require_password") if steamos else ()),
+        "sudo -v",
+        f"sudo systemctl disable --now {POWEROFF_SERVICE} 2>/dev/null || true",
+        f"sudo rm -f {unit} {helper} {shlex.quote(str(POWEROFF_WANTS))}"
+        + (f" {shlex.quote(str(POWEROFF_KEEP))}" if steamos else ""),
+        "sudo systemctl daemon-reload",
+        "echo 'OK: the TV is no longer put in standby at power-off.'",
     ]
     return "\n".join(commands)

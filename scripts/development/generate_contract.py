@@ -90,10 +90,13 @@ DATA_NAMES = (
     "QUICK_ACCESS_FAN_PERCENT_RANGE",
     "QUICK_ACCESS_FAN_PERCENT_STEP",
     "VRAM_SIZE_PRESETS_MB",
+    "VRAM_SIZE_BLOCKED_MB",
 )
 
 # Functions copied verbatim, so the arithmetic has exactly one definition.
-FUNCTION_NAMES = ("cpu_frequency_ladder", "cpu_vid_ladder", "estimated_vid", "cu_targets")
+FUNCTION_NAMES = (
+    "cpu_frequency_ladder", "cpu_vid_ladder", "estimated_vid", "cu_targets", "vram_size_choices",
+)
 
 
 def _python_artefact() -> str:

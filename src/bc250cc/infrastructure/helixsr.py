@@ -39,11 +39,13 @@ import re
 import shlex
 import shutil
 import struct
+import subprocess
 import sys
 import time
 from pathlib import Path
 
 from .steam_launch_options import (
+    add_dll_override,
     installed_steam_game_folders,
     steam_libraries,
     steam_shortcut_game_folders,
@@ -58,6 +60,15 @@ HELIXSR_REPOSITORY = "https://github.com/lonewolf0622/HelixSR"
 #: aside. 1.2 to 1.4 keep the network in two files beside the DLL, 1.7 builds
 #: it the same way and 1.8 appends it to the DLL.
 HELIXSR_REVIEWED: dict[str, dict] = {
+    # 2.0 moved the DLL into HELIXSR_BUILD_FOLDER (helixsr_dll_folder finds
+    # it) and builds DLSS frame generation there too, which this module asks
+    # the setup to skip (see _setup_block).
+    "v2.0.0": {
+        "archive": "HelixSR-2.0.0.zip",
+        "sha256": "0d60686eddbb0abd680b27d12a088344b212464ebf0a2dc18d10387e1c817f52",
+        "size": 136_997_025,
+        "dll_sha256": "82b612a73759117d4203f0ca76f18b325e1c6f3c61c64481c94750abce392a09",
+    },
     "v1.8.1": {
         "archive": "HelixSR-1.8.1.zip",
         "sha256": "abab32b16acf2536b39663763c355f3cfd35c4876c90297d6b5481bd9ad03a19",
@@ -96,8 +107,8 @@ HELIXSR_REVIEWED: dict[str, dict] = {
     },
 }
 #: The release installed unless the user picks another: the newest stable
-#: one reviewed here.
-HELIXSR_TAG = "v1.8.1"
+#: one checked on a BC-250 with this module (2.0.0, tested by the maintainer).
+HELIXSR_TAG = "v2.0.0"
 HELIXSR_VERSION = HELIXSR_TAG.removeprefix("v")
 HELIXSR_SHA256 = HELIXSR_REVIEWED[HELIXSR_TAG]["sha256"]
 HELIXSR_DLL_SHA256 = HELIXSR_REVIEWED[HELIXSR_TAG]["dll_sha256"]
@@ -114,7 +125,14 @@ HELIXSR_DLL_DIGESTS = frozenset({
 HELIXSR_RELEASES_API = "https://api.github.com/repos/lonewolf0622/HelixSR/releases?per_page=50"
 #: GitHub's answer for 50 releases with their notes is well under this.
 _RELEASES_LIMIT = 4 * 1024 * 1024
+#: The release archive: ``HelixSR-1.9.3.zip``, ``HelixSR-1.9.0.2.zip``. A
+#: version follows the dash, so ``HelixSR-Scaler-1.0.6.zip`` is not one.
+_RELEASE_ARCHIVE = re.compile(r"HelixSR-[0-9][0-9A-Za-z._-]*\.zip")
 HELIXSR_DLL = "amd_fidelityfx_dx12.dll"
+#: Since 2.0 the release keeps HelixSR's DLL, its helixsr.ini and the DLSS
+#: frame generation the setup builds in this folder; earlier releases keep
+#: the DLL at the top of the release.
+HELIXSR_BUILD_FOLDER = "HelixSR-fsrfg"
 HELIXSR_SETUP = "helixsr-setup.sh"
 HELIXSR_MARKER = ".bc250-archive-sha256"
 HELIXSR_DLL_MARKER = ".bc250-dll-sha256"
@@ -185,8 +203,10 @@ def _published_release(entry: dict) -> dict | None:
     """One release from GitHub's list, if it can be installed here.
 
     It needs a plain version tag no older than HELIXSR_OLDEST and exactly one
-    ``HelixSR-*.zip`` asset whose SHA-256 GitHub published. That digest is
-    what the terminal checks the download against.
+    ``HelixSR-<version>.zip`` asset whose SHA-256 GitHub published. That digest
+    is what the terminal checks the download against. Since 1.9 a release also
+    carries ``HelixSR-Scaler-*.zip``, a separate desktop app: it is not the
+    release archive and does not count.
     """
     if not isinstance(entry, dict) or entry.get("draft"):
         return None
@@ -196,8 +216,7 @@ def _published_release(entry: dict) -> dict | None:
         return None
     archives = [
         asset for asset in entry.get("assets") or ()
-        if isinstance(asset, dict) and str(asset.get("name") or "").startswith("HelixSR-")
-        and str(asset.get("name") or "").endswith(".zip")
+        if isinstance(asset, dict) and _RELEASE_ARCHIVE.fullmatch(str(asset.get("name") or ""))
     ]
     if len(archives) != 1:
         return None
@@ -274,6 +293,13 @@ def helixsr_url(release: dict) -> str:
 
 def helixsr_directory() -> Path:
     return helixsr_root() / helixsr_release()["version"]
+
+
+def helixsr_dll_folder(directory: Path | None = None) -> Path:
+    """Where the release keeps HelixSR's DLL: HELIXSR_BUILD_FOLDER since 2.0."""
+    directory = helixsr_directory() if directory is None else directory
+    built = directory / HELIXSR_BUILD_FOLDER
+    return built if (built / HELIXSR_DLL).is_file() else directory
 
 
 def _digests_path() -> Path:
@@ -1078,7 +1104,7 @@ def install_helixsr_optiscaler(appid: str) -> dict:
     original = ini.read_bytes()
     text = original.decode("utf-8", errors="surrogateescape")
     fsr4 = _optiscaler_upscaler(root, text)
-    source = helixsr_directory()
+    source = helixsr_dll_folder()
     backup = _optiscaler_path() / appid / OPTISCALER_INI
     backup.parent.mkdir(parents=True, exist_ok=True)
     backup.write_bytes(original)
@@ -1197,9 +1223,9 @@ def helixsr_state(*, machine: str | None = None) -> dict:
         marker == release["sha256"]
         and expected
         and (directory / HELIXSR_SETUP).is_file()
-        and _is_helixsr(directory / HELIXSR_DLL, frozenset({expected}))
+        and _is_helixsr(helixsr_dll_folder(directory) / HELIXSR_DLL, frozenset({expected}))
     )
-    network_ready = current and _carries_network(directory / HELIXSR_DLL)
+    network_ready = current and _carries_network(helixsr_dll_folder(directory) / HELIXSR_DLL)
     try:
         others = sorted(
             entry.name for entry in helixsr_root().iterdir()
@@ -1232,6 +1258,7 @@ def helixsr_state(*, machine: str | None = None) -> dict:
     # Recorded games are listed even when the release folder is gone: they
     # still carry HelixSR and must stay removable.
     games = helixsr_games(optiscaler=network_ready)
+    scaler_rows = helixsr_scaler_rows() if network_ready else _recorded_scaler_rows()
     return {
         "provider": "helixsr",
         "version": release["version"],
@@ -1256,17 +1283,52 @@ def helixsr_state(*, machine: str | None = None) -> dict:
         "wine_available": wine_available(),
         "local_dlss": bool(local_dlss_candidates()),
         "games": games,
-        "installed_games": sum(1 for game in games if game["state"] != "available"),
+        # The release's bridge removes HelixSR Scaler again: games keep it in use.
+        "installed_games": sum(1 for game in games if game["state"] != "available")
+        + sum(1 for row in scaler_rows if row["state"] == "installed"),
+        "scaler_supported": bool(current and network_ready and helixsr_scaler_supported(directory)),
+        "fg_ready": bool(current and helixsr_fg_ready(directory)),
+        "scaler_games": scaler_rows,
         "int8_supported": _reads_int8(release["tag"]),
+        "fast_output_supported": _reads_fast_output(release["tag"]),
         "settings": helixsr_settings(),
         "settings_defaults": helixsr_defaults(),
+        # Settings this release's helixsr.ini has and the form above does not
+        # know yet, and HelixSR Scaler's own (its bridge's list).
+        "settings_extra": helixsr_extra_settings() if current else [],
+        "scaler_settings": helixsr_scaler_settings() if current else [],
+        # The newest stable release on offer, when it is newer than this one.
+        "newer": _newer_release(release) if current else None,
+        "outdated_games": _outdated_games(games, scaler_rows),
     }
+
+
+def _newer_release(release: dict) -> dict | None:
+    """The newest release that is not a pre-release, if newer than ``release``."""
+    mine = _version(release["tag"]) or ()
+    for entry in helixsr_releases():
+        if entry["prerelease"] or (_version(entry["tag"]) or ()) <= mine:
+            continue
+        return {key: entry[key] for key in ("tag", "version", "reviewed")}
+    return None
+
+
+def _outdated_games(games: list[dict], scaler_rows: list[dict]) -> int:
+    """Games whose HelixSR is another release than the installed one."""
+    return (sum(1 for game in games if game.get("state") == "installed" and game.get("outdated"))
+            + sum(1 for row in scaler_rows if row.get("state") == "installed" and row.get("outdated")))
 
 
 def _reads_int8(tag: str) -> bool:
     """Upscaling.Int8 is read by HelixSR 1.9 and newer; earlier releases skip it."""
     numbers = tuple(int(part) for part in re.findall(r"\d+", str(tag))[:2])
     return numbers >= (1, 9)
+
+
+def _reads_fast_output(tag: str) -> bool:
+    """Upscaling.FastOutput is read by HelixSR 2.0 and newer."""
+    numbers = tuple(int(part) for part in re.findall(r"\d+", str(tag))[:2])
+    return numbers >= (2, 0)
 
 
 def _recorded_digest(directory: Path) -> str:
@@ -1309,6 +1371,9 @@ HELIXSR_SETTINGS: tuple[tuple[str, str, str, object, tuple], ...] = (
     ("Upscaling", "NetworkResolution", "choice", "auto", ("auto", "fast", "full")),
     # 1.9.0 and newer; earlier releases ignore the key.
     ("Upscaling", "Int8", "choice", "auto", ("auto", "on", "off")),
+    # 2.0.0 and newer: faster builds of the network's output kernels, same
+    # image; off keeps the earlier ones. Earlier releases ignore the key.
+    ("Upscaling", "FastOutput", "choice", "on", ("on", "off")),
     ("ModelE", "Network", "choice", "auto", ("auto", "nvidia", "main", "ultraperformance")),
     ("ModelE", "UseReactiveMask", "bool", False, ()),
     ("ModelE", "DilateDisplayMotionVectors", "bool", False, ()),
@@ -1351,7 +1416,169 @@ def _setting_id(section: str, key: str) -> str:
 
 
 def helixsr_defaults() -> dict[str, object]:
-    return {_setting_id(section, key): default for section, key, _kind, default, _choices in HELIXSR_SETTINGS}
+    values = {_setting_id(section, key): default for section, key, _kind, default, _choices in HELIXSR_SETTINGS}
+    values.update(_extra_defaults())
+    values.update({row["id"]: row["default"] for row in _scaler_rows_safely()})
+    return values
+
+
+# ------------------------------------------- settings a release adds
+
+#: A key = value line of helixsr.ini; the value stops at a comment.
+_INI_ENTRY = re.compile(r"^([A-Za-z][A-Za-z0-9_]*)\s*=\s*([^;#\r\n]*?)\s*$")
+#: "c = NVIDIA's light mode; full = ..." names the values a key takes.
+_NAMED_VALUE = re.compile(r"(?:^|[\s;,(])([A-Za-z0-9][A-Za-z0-9.]*)\s+=\s")
+#: "0.0 - 1.0" in a comment is the number's range.
+_RANGE = re.compile(r"(-?\d+(?:\.\d+)?)\s*[-–]\s*(-?\d+(?:\.\d+)?)")
+#: What may be written for a key the form does not know: one plain word.
+_PLAIN_VALUE = re.compile(r"[A-Za-z0-9._-]{1,32}")
+#: Sections the form leaves out. Frame generation runs only in HelixSR
+#: Scaler, which writes [DlssFrameGeneration] from its own OptiScaler.ini at
+#: every game start: its settings are the Scaler's (helixsr_scaler_settings).
+_NOT_IN_FORM = frozenset({"DlssFrameGeneration"})
+
+
+def _ini_entries(text: str) -> list[tuple[str, str, str, str]]:
+    """(section, key, value, the comment above it) for every key in ``text``."""
+    entries, section, comment = [], "", []
+    for raw in text.splitlines():
+        line = raw.strip()
+        if line.startswith((";", "#")):
+            comment.append(line.lstrip(";# ").strip())
+            continue
+        if line.startswith("[") and line.endswith("]"):
+            section, comment = line[1:-1].strip(), []
+            continue
+        match = _INI_ENTRY.match(line)
+        if match and section:
+            entries.append((section, match.group(1), match.group(2), " ".join(comment)))
+        comment = []
+    return entries
+
+
+def _choices_in(comment: str, value: str) -> tuple[str, ...]:
+    """The values a comment names: "a = ...; b = ..." or "...: a, b or c"."""
+    named = [word for word in _NAMED_VALUE.findall(comment) if not word.replace(".", "").isdigit()]
+    if len(named) < 2 and ":" in comment:
+        tail = re.sub(r"\([^)]*\)", "", comment.rsplit(":", 1)[1])
+        named = [word.strip(" .") for word in re.split(r",|\bor\b", tail)]
+        named = [word for word in named if re.fullmatch(r"[A-Za-z0-9]+", word)]
+    choices = tuple(dict.fromkeys(word.lower() for word in named))
+    return choices if len(choices) >= 2 and value.lower() in choices else ()
+
+
+def helixsr_extra_settings() -> list[dict]:
+    """The keys this release's helixsr.ini has and HELIXSR_SETTINGS does not.
+
+    Each with what its own comment says: a switch for true/false, a number
+    (in the comment's range), one of the values the comment names, or a
+    plain word. A new release brings its new settings to the form without a
+    new version of Control Center; the text is HelixSR's own, in English.
+    """
+    known = {_setting_id(section, key) for section, key, _kind, _default, _choices in HELIXSR_SETTINGS}
+    known.add("Sharpening.Mode")
+    rows = []
+    for section, key, value, comment in _ini_entries(_release_ini()):
+        name = _setting_id(section, key)
+        if name in known or section in _NOT_IN_FORM or not _PLAIN_VALUE.fullmatch(value):
+            continue
+        known.add(name)
+        row = {"id": name, "section": section, "key": key, "help": comment[:400]}
+        if value.lower() in {"true", "false"}:
+            row.update(kind="bool", default=value.lower() == "true", choices=())
+        elif re.fullmatch(r"-?\d+(?:\.\d+)?", value):
+            found = _RANGE.search(comment)
+            low, high = (float(found.group(1)), float(found.group(2))) if found else (0.0, max(1.0, float(value) * 4))
+            row.update(kind="float", default=float(value), choices=(min(low, high), max(low, high)))
+        elif choices := _choices_in(comment, value):
+            row.update(kind="choice", default=value.lower(), choices=choices)
+        else:
+            row.update(kind="text", default=value, choices=())
+        rows.append(row)
+    return rows
+
+
+def _extra_defaults() -> dict[str, object]:
+    return {row["id"]: row["default"] for row in _extra_rows_safely()}
+
+
+def _extra_rows_safely() -> list[dict]:
+    try:
+        return helixsr_extra_settings()
+    except OSError:
+        return []
+
+
+def _valid_extra(row: dict, value: object) -> object:
+    if row["kind"] == "text":
+        text = str(value).strip()
+        if not _PLAIN_VALUE.fullmatch(text):
+            raise ValueError(value)
+        return text
+    return _valid_setting(row["kind"], tuple(row["choices"]), value)
+
+
+# ------------------------------------------- HelixSR Scaler's own settings
+
+
+#: The bridge's literals by (path, size, mtime): it is parsed once per release.
+_BRIDGE_LITERALS: dict[tuple, dict[str, object]] = {}
+
+
+def _bridge_constant(name: str) -> object:
+    """A literal from the installed release's bridge, read without running it."""
+    import ast
+
+    path = helixsr_directory() / HELIXSR_BRIDGE
+    try:
+        info = path.stat()
+        key = (str(path), info.st_size, info.st_mtime_ns)
+        if key not in _BRIDGE_LITERALS:
+            literals: dict[str, object] = {}
+            for node in ast.parse(path.read_text(encoding="utf-8")).body:
+                if (isinstance(node, ast.Assign) and len(node.targets) == 1
+                        and isinstance(node.targets[0], ast.Name) and node.targets[0].id.isupper()):
+                    try:
+                        literals[node.targets[0].id] = ast.literal_eval(node.value)
+                    except Exception:  # noqa: BLE001 - a downloaded file: any odd literal is skipped
+                        continue
+            _BRIDGE_LITERALS.clear()
+            _BRIDGE_LITERALS[key] = literals
+    except (OSError, SyntaxError, ValueError, RecursionError, MemoryError):
+        return None
+    return _BRIDGE_LITERALS[key].get(name)
+
+
+def helixsr_scaler_settings() -> list[dict]:
+    """HelixSR Scaler's settings (in each game's OptiScaler.ini, [HelixSR]),
+    as the release's bridge lists them: a release that adds one brings it."""
+    allowed, defaults = _bridge_constant("SCALER_SETTINGS"), _bridge_constant("SCALER_DEFAULTS")
+    if not isinstance(allowed, dict) or not isinstance(defaults, dict):
+        return []
+    rows = []
+    for name, choices in allowed.items():
+        if (not isinstance(name, str) or "." not in name or not isinstance(choices, (tuple, list)) or not choices
+                or not all(isinstance(choice, str) and _PLAIN_VALUE.fullmatch(choice) for choice in choices)):
+            continue
+        default = str(defaults.get(name) or choices[0])
+        rows.append({"id": f"Scaler:{name}", "name": name, "kind": "choice",
+                     "default": default if default in choices else choices[0], "choices": tuple(choices)})
+    return rows
+
+
+def _scaler_rows_safely() -> list[dict]:
+    try:
+        return helixsr_scaler_settings()
+    except OSError:
+        return []
+
+
+def _scaler_values(values: dict[str, object]) -> dict[str, str]:
+    """The Scaler settings to send; QuickFlow runs only with the full preset."""
+    sent = {row["name"]: str(values.get(row["id"], row["default"])) for row in _scaler_rows_safely()}
+    if sent.get("HelixSR.FGPreset", "full") != "full" and "HelixSR.QuickFlow" in sent:
+        sent["HelixSR.QuickFlow"] = "off"
+    return sent
 
 
 def _valid_setting(kind: str, choices: tuple, value: object) -> object:
@@ -1387,6 +1614,15 @@ def helixsr_settings() -> dict[str, object]:
                 values[name] = _valid_setting(kind, choices, saved[name])
             except (TypeError, ValueError):
                 pass
+    for row in _extra_rows_safely():
+        if row["id"] in saved:
+            try:
+                values[row["id"]] = _valid_extra(row, saved[row["id"]])
+            except (TypeError, ValueError):
+                pass
+    for row in _scaler_rows_safely():
+        value = str(saved.get(row["id"], row["default"]))
+        values[row["id"]] = value if value in row["choices"] else row["default"]
     return values
 
 
@@ -1408,14 +1644,23 @@ def _settings_text(base: str, values: dict[str, object]) -> str:
     for section, key, _kind, _default, _choices in HELIXSR_SETTINGS:
         text = _ini_set(text, section, key, _format_setting(values[_setting_id(section, key)]),
                         separator=" = ")
+    for row in _extra_rows_safely():
+        if row["id"] in values:
+            text = _ini_set(text, row["section"], row["key"], _format_setting(values[row["id"]]),
+                            separator=" = ")
     return _ini_set(text, "Sharpening", "Mode", _legacy_mode(values), separator=" = ")
 
 
 def _release_ini() -> str:
-    """The release's commented helixsr.ini: 1.7 and newer write it beside the
-    built DLL in fsr3-drop-in; 1.3 shipped it at the top of the release."""
+    """The release's commented helixsr.ini: 2.0 ships it beside the DLL in
+    HELIXSR_BUILD_FOLDER, 1.7 to 1.9 write it beside the built DLL in
+    fsr3-drop-in, and 1.3 shipped it at the top of the release."""
     directory = helixsr_directory()
-    for path in (directory / HELIXSR_DROP_IN / HELIXSR_INI, directory / HELIXSR_INI):
+    for path in (
+        directory / HELIXSR_BUILD_FOLDER / HELIXSR_INI,
+        directory / HELIXSR_DROP_IN / HELIXSR_INI,
+        directory / HELIXSR_INI,
+    ):
         try:
             return path.read_text(encoding="utf-8")
         except OSError:
@@ -1453,6 +1698,17 @@ def save_helixsr_settings(values: dict) -> dict:
                 clean[name] = _valid_setting(kind, choices, values[name])
             except (TypeError, ValueError):
                 raise ValueError("Invalid HelixSR settings.") from None
+    for row in helixsr_extra_settings():
+        if row["id"] in values:
+            try:
+                clean[row["id"]] = _valid_extra(row, values[row["id"]])
+            except (TypeError, ValueError):
+                raise ValueError("Invalid HelixSR settings.") from None
+    for row in helixsr_scaler_settings():
+        if row["id"] in values:
+            if str(values[row["id"]]) not in row["choices"]:
+                raise ValueError("Invalid HelixSR settings.")
+            clean[row["id"]] = str(values[row["id"]])
     if clean["Sharpening.MotionThreshold"] >= clean["Sharpening.MotionLimit"]:
         # HelixSR fades the sharpening between the two: the start comes first.
         raise ValueError("Invalid HelixSR settings.")
@@ -1486,6 +1742,19 @@ def save_helixsr_settings(values: dict) -> dict:
             skipped.append(str(record.get("name") or appid))
             continue
         _write_settings(root / OPTISCALER_FOLDER, clean)
+        applied += 1
+    # HelixSR Scaler keeps its settings in OptiScaler.ini: the bridge writes them.
+    scaler = _scaler_values(clean)
+    for appid, record in _scaler_records().items():
+        if not scaler or _scaler_state(record) != "installed":
+            continue
+        folder = Path(str(record.get("folder") or ""))
+        try:
+            _refuse_running(folder)
+            _run_bridge("settings-set", "--game", str(folder), "--values", json.dumps(scaler))
+        except RuntimeError:
+            skipped.append(str(record.get("name") or appid))
+            continue
         applied += 1
     return {"settings": clean, "games": applied, "skipped": skipped}
 
@@ -1616,23 +1885,35 @@ echo "The shaders compile through Wine, for several minutes on a BC-250. The cou
 echo
 # Upstream looks for Proton only in native Steam's folders, then for wine on
 # PATH: the one found above (Flatpak or Snap Steam, another library) is that.
-bc250_shim="$(mktemp -d "${{TMPDIR:-/tmp}}/bc250-helixsr-wine.XXXXXX")"
-ln -s -- "$bc250_wine" "$bc250_shim/wine"
+# A fixed place, kept: the setup writes this wine's path into dxc-wine.sh,
+# which Build frame generation runs later. A temporary folder was gone by
+# then, and frame generation failed with "wine: No such file or directory".
+bc250_shim="${{XDG_DATA_HOME:-$HOME/.local/share}}/HelixSR/wine-shim"
+mkdir -p -- "$bc250_shim"
+ln -sfn -- "$bc250_wine" "$bc250_shim/wine"
 bc250_work="$(mktemp -d "${{TMPDIR:-/tmp}}/bc250-helixsr-build.XXXXXX")"
+# 2.0 would go on to DLSS frame generation, downloading NVIDIA's Streamline
+# SDK and driver package after asking; with no input it would stop there.
+# Build frame generation runs that part on its own (build_helixsr_fg_command).
+bc250_fg_args=()
+test ! -d {target}/{HELIXSR_BUILD_FOLDER} || bc250_fg_args=(--no-fg)
 {_shader_progress('"$bc250_work"')}
-if ! TMPDIR="$bc250_work" PATH="$bc250_shim:$PATH" HELIXSR_FORCE_PORTABLE="$bc250_portable" bash {target}/{HELIXSR_SETUP} "${{bc250_dlss_args[@]}}" </dev/null; then
+if ! TMPDIR="$bc250_work" PATH="$bc250_shim:$PATH" HELIXSR_FORCE_PORTABLE="$bc250_portable" bash {target}/{HELIXSR_SETUP} "${{bc250_dlss_args[@]}}" "${{bc250_fg_args[@]}}" </dev/null; then
   kill "$bc250_progress" 2>/dev/null || true
-  rm -rf -- "$bc250_dlss_dir" "$bc250_shim" "$bc250_work"
+  rm -rf -- "$bc250_dlss_dir" "$bc250_work"
   echo
   echo "The network was not built. HelixSR is installed; use Build network files to try again."
   exit 1
 fi
 kill "$bc250_progress" 2>/dev/null || true
-rm -rf -- "$bc250_dlss_dir" "$bc250_shim" "$bc250_work"
+rm -rf -- "$bc250_dlss_dir" "$bc250_work"
 echo
 echo "(The setup's own list of games above stops by design: Control Center adds HelixSR to games itself.)"
-# 1.8 and newer append the network to the DLL; older releases write two files.
-test "$(tail -c {_EMBED_FOOTER} {target}/{HELIXSR_DLL} | head -c {len(HELIXSR_EMBED_MAGIC)})" = {HELIXSR_EMBED_MAGIC.decode()} \\
+# 1.8 and newer append the network to the DLL (2.0 the one in its build
+# folder); older releases write two files.
+bc250_built={target}
+test ! -f {target}/{HELIXSR_BUILD_FOLDER}/{HELIXSR_DLL} || bc250_built={target}/{HELIXSR_BUILD_FOLDER}
+test "$(tail -c {_EMBED_FOOTER} "$bc250_built/{HELIXSR_DLL}" | head -c {len(HELIXSR_EMBED_MAGIC)})" = {HELIXSR_EMBED_MAGIC.decode()} \\
   || {{ test -s {target}/{HELIXSR_NETWORK_FILES[0]} && test -s {target}/{HELIXSR_NETWORK_FILES[1]}; }} || {{
   echo "ERROR: the setup finished without building the network."; exit 1; }}
 echo
@@ -1661,13 +1942,13 @@ def build_helixsr_install_command() -> str:
     python = shlex.quote(sys.executable or "python3")
     label = " (pre-release)" if release["prerelease"] else ""
     if release["reviewed"]:
-        check = f'''printf '%s  %s\\n' {release['dll_sha256']} "$bc250_stage/{HELIXSR_DLL}" | sha256sum -c - >/dev/null || {{
+        check = f'''printf '%s  %s\\n' {release['dll_sha256']} "$bc250_dll" | sha256sum -c - >/dev/null || {{
   echo "ERROR: the HelixSR DLL in the archive is not the reviewed one."; exit 29; }}'''
         source = "Checking the reviewed SHA-256..."
     else:
         # Not reviewed here: the archive is the one GitHub lists for the
         # release. The DLL's digest is kept so games given it stay known.
-        check = f'''test -f "$bc250_stage/{HELIXSR_DLL}" || {{ echo "ERROR: the archive has no {HELIXSR_DLL}."; exit 29; }}
+        check = f'''test -f "$bc250_dll" || {{ echo "ERROR: the archive has no {HELIXSR_DLL}."; exit 29; }}
 echo "This release is newer than the ones Control Center was reviewed with."'''
         source = "Checking the SHA-256 GitHub published for this release..."
     return f'''set -Eeuo pipefail
@@ -1707,10 +1988,14 @@ print(next(iter(tops)))
 BC250_UNZIP
 )"
 bc250_stage="$bc250_work/$bc250_top"
+# 2.0 keeps the DLL in {HELIXSR_BUILD_FOLDER}; earlier releases at the top.
+bc250_dll="$bc250_stage/{HELIXSR_DLL}"
+test ! -f "$bc250_stage/{HELIXSR_BUILD_FOLDER}/{HELIXSR_DLL}" || bc250_dll="$bc250_stage/{HELIXSR_BUILD_FOLDER}/{HELIXSR_DLL}"
 {check}
-chmod +x "$bc250_stage/{HELIXSR_SETUP}" "$bc250_stage/setup/lib/model/launch_synth"
+chmod +x "$bc250_stage/{HELIXSR_SETUP}"
+test ! -f "$bc250_stage/setup/lib/model/launch_synth" || chmod +x "$bc250_stage/setup/lib/model/launch_synth"
 printf '%s\\n' {release['sha256']} > "$bc250_stage/{HELIXSR_MARKER}"
-sha256sum "$bc250_stage/{HELIXSR_DLL}" | cut -d' ' -f1 > "$bc250_stage/{HELIXSR_DLL_MARKER}"
+sha256sum "$bc250_dll" | cut -d' ' -f1 > "$bc250_stage/{HELIXSR_DLL_MARKER}"
 mkdir -p {root}
 if test -L {target}; then echo "ERROR: refusing to replace a symlink at {target}."; exit 29; fi
 bc250_previous=""
@@ -1769,9 +2054,10 @@ else
   bc250_fetch "$bc250_work/releases.json" {shlex.quote(HELIXSR_RELEASES_API)}
 fi
 mkdir -p {root}
-"$bc250_python" -I - "$bc250_work/releases.json" {root}/releases.json {_RELEASES_LIMIT} <<'BC250_RELEASES'
-import json, os, sys, time
+"$bc250_python" -I - "$bc250_work/releases.json" {root}/releases.json {_RELEASES_LIMIT} {shlex.quote(_RELEASE_ARCHIVE.pattern)} <<'BC250_RELEASES'
+import json, os, re, sys, time
 source, destination, limit = sys.argv[1], sys.argv[2], int(sys.argv[3])
+archive = re.compile(sys.argv[4])
 if os.path.getsize(source) > limit:
     sys.exit("ERROR: GitHub's answer is larger than expected.")
 listed = json.load(open(source, encoding="utf-8"))
@@ -1796,7 +2082,9 @@ with open(staged, "w", encoding="utf-8") as handle:
 os.replace(staged, destination)
 for entry in kept:
     if not entry["draft"]:
-        print("  " + entry["tag_name"] + ("  (pre-release)" if entry["prerelease"] else ""))
+        found = sum(1 for a in entry["assets"] if archive.fullmatch(a["name"]))
+        print("  " + entry["tag_name"] + ("  (pre-release)" if entry["prerelease"] else "")
+              + ("" if found == 1 else "  (no single HelixSR archive: not offered)"))
 BC250_RELEASES
 echo "OK: the version list is up to date. Pick a version in the HelixSR section, then Install or Update."
 '''
@@ -1863,7 +2151,7 @@ def install_helixsr_game(appid: str) -> dict:
             raise RuntimeError("HelixSR is already in this game, copied there by hand. Use Steam > Verify integrity of game files to put the game's own file back first.")
         if _backup_for(target).exists():
             raise RuntimeError("This game already has an *.original.dll backup from an earlier manual install. Remove it by hand, or keep that install as it is.")
-    source = helixsr_directory()
+    source = helixsr_dll_folder()
     undo: list = []
     files: list[dict] = []
     try:
@@ -1983,7 +2271,7 @@ def update_helixsr_game(appid: str) -> dict:
     if not helixsr_state()["network_ready"]:
         raise RuntimeError("Install HelixSR and build its network files first.")
     appid = str(appid or "").strip()
-    source = helixsr_directory()
+    source = helixsr_dll_folder()
     version = helixsr_release()["version"]
     records = _records()
     record = records.get(appid)
@@ -2022,3 +2310,375 @@ def update_helixsr_game(appid: str) -> dict:
     record["version"] = version
     _write_json(_optiscaler_path() / "games.json", records)
     return {"game": str(record.get("name") or appid), "version": version}
+
+
+# ---------------------------------------------------------------- HelixSR Scaler
+#
+# HelixSR 2.0's own build of OptiScaler (GPL-3.0, shipped in the release) is
+# the only way to its DLSS frame generation: OptiScaler Client's build does
+# not know HelixSR as a frame-generation provider. Control Center drives it
+# through the release's bridge, the command line HelixSR's own app uses, so
+# the files and the records in each game are upstream's and either side can
+# update or remove what the other installed. A game has one OptiScaler only:
+# HelixSR Scaler is never put over OptiScaler Client's, nor next to HelixSR
+# added as the FSR drop-in or through OptiScaler.
+
+HELIXSR_BRIDGE = "setup/helixsr_bridge.py"
+HELIXSR_SCALER = "helixsr-scaler"
+HELIXSR_FG_FOLDER = "helixsr-fg"
+#: What HelixSR Scaler's install leaves in the game's .exe folder.
+SCALER_FILES = "HelixSR-Scaler.files"
+#: NVIDIA's NGX core, the last file the frame-generation build adds.
+_FG_BUILT = "_nvngx.dll"
+#: Installing or removing copies a few hundred megabytes into a game folder.
+_BRIDGE_TIMEOUT = 900
+
+
+def _scaler_records_path() -> Path:
+    return helixsr_root() / "scaler.json"
+
+
+def _scaler_records() -> dict[str, dict]:
+    records = _read_json(_scaler_records_path(), {})
+    return records if isinstance(records, dict) else {}
+
+
+def helixsr_scaler_supported(directory: Path | None = None) -> bool:
+    """The installed release ships HelixSR Scaler and the bridge (2.0 and newer)."""
+    directory = helixsr_directory() if directory is None else directory
+    return bool(
+        (directory / HELIXSR_BRIDGE).is_file()
+        and (directory / HELIXSR_SCALER / "OptiScaler.dll").is_file()
+        and (directory / HELIXSR_BUILD_FOLDER / HELIXSR_DLL).is_file()
+    )
+
+
+def helixsr_fg_ready(directory: Path | None = None) -> bool:
+    """HelixSR's setup built DLSS frame generation into the release."""
+    folder = helixsr_dll_folder(directory) / HELIXSR_FG_FOLDER
+    return (folder / _FG_BUILT).is_file()
+
+
+def _run_bridge(*arguments: str) -> dict:
+    """One bridge command; its JSON answer, or its own error as RuntimeError."""
+    directory = helixsr_directory()
+    bridge = directory / HELIXSR_BRIDGE
+    if not bridge.is_file():
+        raise RuntimeError("This HelixSR release has no HelixSR Scaler. Install HelixSR 2.0 or newer.")
+    python = shutil.which("python3") or sys.executable or "python3"
+    try:
+        result = subprocess.run(
+            [python, "-I", str(bridge), str(directory), *arguments],
+            capture_output=True, text=True, timeout=_BRIDGE_TIMEOUT, check=False,
+        )
+    except subprocess.TimeoutExpired:
+        raise RuntimeError("HelixSR's bridge did not finish in time.") from None
+    answers = [line for line in result.stdout.splitlines() if line.lstrip().startswith("{")]
+    try:
+        payload = json.loads(answers[-1]) if answers else {}
+    except ValueError:
+        payload = {}
+    if not isinstance(payload, dict) or not payload.get("ok"):
+        error = payload.get("error") if isinstance(payload, dict) else ""
+        raise RuntimeError(str(error or result.stderr.strip() or "HelixSR's bridge failed."))
+    return payload
+
+
+def _steam_game(appid: str) -> dict:
+    game = next((g for g in installed_steam_game_folders() if str(g["appid"]) == str(appid)), None)
+    if game is None:
+        raise RuntimeError("This Steam game was not found.")
+    return game
+
+
+def _scaler_state(record: dict) -> str:
+    exe = Path(str(record.get("exe_folder") or ""))
+    if not str(exe) or not exe.parent.is_dir():
+        return "missing"
+    return "installed" if (exe / SCALER_FILES).is_file() else "restored"
+
+
+def helixsr_scaler_rows() -> list[dict]:
+    """Every installed Steam game, with HelixSR Scaler's state in it.
+
+    Read from Control Center's own record and the file HelixSR Scaler leaves
+    in the game: the bridge, which scans every library, runs only on a click.
+    """
+    if not helixsr_scaler_supported():
+        return []
+    records = _scaler_records()
+    rows: list[dict] = []
+    seen: set[str] = set()
+    for game in installed_steam_game_folders():
+        appid = str(game["appid"])
+        seen.add(appid)
+        record = records.get(appid)
+        rows.append({
+            "appid": appid,
+            "name": str(game["name"]),
+            "state": _scaler_state(record) if record else "available",
+            "frame_generation": bool(record and record.get("frame_generation") == "on"),
+            "fg_possible": record.get("fg_possible") if record else None,
+            "launch_options": str(record.get("launch_options") or "") if record else "",
+            **_scaler_versions(record),
+        })
+    for appid, record in records.items():
+        if appid not in seen:
+            rows.append({"appid": appid, "name": str(record.get("name") or appid), "state": "missing",
+                         "frame_generation": False, "fg_possible": None, "launch_options": ""})
+    return rows
+
+
+def _scaler_versions(record: dict | None) -> dict:
+    """The release a game's HelixSR Scaler has, against the installed one,
+    and the one its last update kept for going back."""
+    if not record:
+        return {"version": "", "outdated": False, "older": False, "previous": ""}
+    given = str(record.get("version") or "")
+    version = helixsr_release()["version"]
+    return {"version": given, "outdated": given != version, "older": _older(given, version),
+            "previous": str(record.get("previous") or "")}
+
+
+def _recorded_scaler_rows() -> list[dict]:
+    """Games given HelixSR Scaler, listed while the release cannot add it."""
+    return [
+        {"appid": appid, "name": str(record.get("name") or appid), "state": _scaler_state(record),
+         "frame_generation": record.get("frame_generation") == "on", "fg_possible": record.get("fg_possible"),
+         "launch_options": str(record.get("launch_options") or ""), **_scaler_versions(record)}
+        for appid, record in _scaler_records().items()
+    ]
+
+
+def _refuse_other_helixsr(appid: str, folder: Path) -> None:
+    """One OptiScaler and one HelixSR per game."""
+    if appid in _records():
+        raise RuntimeError("HelixSR is already in this game as the FSR drop-in. Remove it first.")
+    if appid in _optiscaler_records():
+        raise RuntimeError("HelixSR is already in this game through its OptiScaler. Remove it first.")
+    if _optiscaler_ini_folders(folder):
+        raise RuntimeError(
+            "This game already has OptiScaler (OptiScaler Client's, for FSR4, or one added by hand). "
+            "A game can only have one: remove that one first."
+        )
+
+
+def _scaler_result(appid: str, name: str, folder: Path, payload: dict) -> dict:
+    game = payload.get("game") if isinstance(payload.get("game"), dict) else {}
+    record = {
+        "name": name,
+        "folder": str(folder),
+        "exe_folder": str(game.get("exe_folder") or ""),
+        "scaler_dll": str(game.get("scaler_dll") or ""),
+        "frame_generation": str(game.get("frame_generation") or "off"),
+        "fg_possible": game.get("fg_possible"),
+        "launch_options": str(game.get("launch_options") or ""),
+        "version": str(game.get("version") or ""),
+        # What the bridge keeps from the last update, for going back.
+        "previous": str((game.get("previous") or {}).get("version") or "")
+        if isinstance(game.get("previous"), dict) else "",
+    }
+    records = _scaler_records()
+    records[appid] = record
+    _write_json(_scaler_records_path(), records)
+    return record
+
+
+def install_helixsr_scaler(appid: str, *, frame_generation: bool = False) -> dict:
+    """HelixSR Scaler into a Steam game, through the release's bridge."""
+    appid = str(appid).strip()
+    game = _steam_game(appid)
+    folder = Path(game["path"])
+    directory = helixsr_directory()
+    if not helixsr_scaler_supported(directory):
+        raise RuntimeError("Install HelixSR 2.0 or newer first: earlier releases have no HelixSR Scaler.")
+    if appid not in _scaler_records():
+        _refuse_other_helixsr(appid, folder)
+    if frame_generation and not helixsr_fg_ready(directory):
+        raise RuntimeError("Build HelixSR's frame generation first (Build frame generation, on the HelixSR card).")
+    _refuse_running(folder)
+    payload = _run_bridge(
+        "install", "--game", str(folder), "--way", "scaler",
+        "--scaler", str(directory / HELIXSR_SCALER), "--fg", "on" if frame_generation else "off",
+    )
+    record = _scaler_result(appid, str(game["name"]), folder, payload)
+    result = {"game": str(game["name"]), "frame_generation": record["frame_generation"],
+              "messages": list(payload.get("messages") or ()), "launch_options": record["launch_options"],
+              "launch_option_added": False, "launch_option_error": ""}
+    # Proton loads dxgi.dll from the game folder by itself; any other name
+    # HelixSR Scaler had to take needs Steam's override for it.
+    if record["launch_options"] and record["scaler_dll"]:
+        try:
+            add_dll_override(appid, Path(record["scaler_dll"]).stem)
+            result["launch_option_added"] = True
+        except (OSError, RuntimeError, ValueError) as error:
+            result["launch_option_error"] = str(error)
+    return result
+
+
+def set_helixsr_scaler_frame_generation(appid: str, enabled: bool) -> dict:
+    appid = str(appid).strip()
+    record = _scaler_records().get(appid)
+    if record is None or _scaler_state(record) != "installed":
+        raise RuntimeError("HelixSR Scaler is not installed in this game.")
+    if enabled and not helixsr_fg_ready():
+        raise RuntimeError("Build HelixSR's frame generation first (Build frame generation, on the HelixSR card).")
+    folder = Path(str(record["folder"]))
+    _refuse_running(folder)
+    payload = _run_bridge("scaler-fg", "--game", str(folder), "--on", "true" if enabled else "false")
+    record = _scaler_result(appid, str(record.get("name") or appid), folder, payload)
+    return {"game": record["name"], "frame_generation": record["frame_generation"]}
+
+
+def update_helixsr_scaler(appid: str) -> dict:
+    """The installed release into a game that has HelixSR Scaler from another.
+
+    The bridge's own install, which keeps the game's current version in
+    HelixSR-previous.zip (Go back puts it back). Frame generation stays as
+    the game has it.
+    """
+    appid = str(appid).strip()
+    record = _scaler_records().get(appid)
+    if record is None or _scaler_state(record) != "installed":
+        raise RuntimeError("HelixSR Scaler is not installed in this game.")
+    directory = helixsr_directory()
+    if not helixsr_scaler_supported(directory):
+        raise RuntimeError("Install HelixSR 2.0 or newer first: earlier releases have no HelixSR Scaler.")
+    folder = Path(str(record["folder"]))
+    _refuse_running(folder)
+    fg = "on" if record.get("frame_generation") == "on" and helixsr_fg_ready(directory) else "off"
+    payload = _run_bridge(
+        "install", "--game", str(folder), "--way", "scaler",
+        "--scaler", str(directory / HELIXSR_SCALER), "--fg", fg,
+    )
+    record = _scaler_result(appid, str(record.get("name") or appid), folder, payload)
+    return {"game": record["name"], "version": record["version"], "previous": record["previous"]}
+
+
+def rollback_helixsr_scaler(appid: str) -> dict:
+    """Back to the version the game's last update kept; the bridge keeps the
+    current one in its place, so this can be undone the same way."""
+    appid = str(appid).strip()
+    record = _scaler_records().get(appid)
+    if record is None or _scaler_state(record) != "installed":
+        raise RuntimeError("HelixSR Scaler is not installed in this game.")
+    if not record.get("previous"):
+        raise RuntimeError("This game has no earlier HelixSR version kept. One is kept from its next update on.")
+    folder = Path(str(record["folder"]))
+    _refuse_running(folder)
+    payload = _run_bridge("rollback", "--game", str(folder))
+    record = _scaler_result(appid, str(record.get("name") or appid), folder, payload)
+    return {"game": record["name"], "version": record["version"], "previous": record["previous"]}
+
+
+def update_all_helixsr_games() -> dict:
+    """Every game with another HelixSR release than the installed one, updated.
+
+    A game that is running, or that fails, is skipped and named; the rest
+    still go through.
+    """
+    state = helixsr_state()
+    if not state["network_ready"]:
+        raise RuntimeError("Install HelixSR and build its network files first.")
+    updated: list[str] = []
+    skipped: list[str] = []
+    for game in state["games"]:
+        if game.get("state") != "installed" or not game.get("outdated"):
+            continue
+        try:
+            update_helixsr_game(str(game["appid"]))
+            updated.append(str(game.get("name") or game["appid"]))
+        except (OSError, RuntimeError, ValueError):
+            skipped.append(str(game.get("name") or game["appid"]))
+    for row in state["scaler_games"]:
+        if row.get("state") != "installed" or not row.get("outdated"):
+            continue
+        try:
+            update_helixsr_scaler(str(row["appid"]))
+            updated.append(str(row.get("name") or row["appid"]))
+        except (OSError, RuntimeError, ValueError):
+            skipped.append(str(row.get("name") or row["appid"]))
+    return {"updated": updated, "skipped": skipped, "version": state["version"]}
+
+
+def remove_helixsr_scaler(appid: str) -> dict:
+    """Upstream's own removal: every file it replaced comes back."""
+    appid = str(appid).strip()
+    records = _scaler_records()
+    record = records.get(appid)
+    if record is None:
+        raise RuntimeError("HelixSR Scaler is not recorded for this game.")
+    folder = Path(str(record["folder"]))
+    name = str(record.get("name") or appid)
+    if _scaler_state(record) == "installed":
+        _refuse_running(folder)
+        _run_bridge("remove", "--game", str(folder))
+    records.pop(appid, None)
+    _write_json(_scaler_records_path(), records)
+    return {"game": name}
+
+
+def _helixsr_python() -> str:
+    """The setup's way to find Python 3 with numpy, for the frame-generation build."""
+    return '''bc250_data="${XDG_DATA_HOME:-$HOME/.local/share}/HelixSR"
+bc250_py=""
+for bc250_candidate in "$bc250_data/python/bin/python3" python3; do
+  if command -v "$bc250_candidate" >/dev/null 2>&1 \\
+     && "$bc250_candidate" -c 'import numpy, sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)' >/dev/null 2>&1; then
+    bc250_py="$(command -v "$bc250_candidate")"; break
+  fi
+done
+test -n "$bc250_py" || { echo "ERROR: build HelixSR's network first: it sets up the Python this build uses."; exit 66; }
+test -x "$bc250_data/dxc-wine.sh" || { echo "ERROR: build HelixSR's network first: it sets up the shader compiler this build uses."; exit 66; }'''
+
+
+def build_helixsr_fg_command() -> str:
+    """Build DLSS frame generation into the installed release, in the terminal.
+
+    HelixSR's setup asks before each download from NVIDIA (the frame
+    generation DLLs from the Streamline SDK and the NGX core from NVIDIA's
+    Linux driver package) and from Intel; answering no to one leaves
+    upscaling exactly as it was. Nothing in any game changes.
+    """
+    target = shlex.quote(str(helixsr_directory()))
+    built = shlex.quote(str(helixsr_directory() / HELIXSR_BUILD_FOLDER))
+    return f'''set -Eeuo pipefail
+echo "== HelixSR {helixsr_release()['version']} · DLSS frame generation =="
+echo "HelixSR's setup builds NVIDIA's DLSS frame generation on this PC, for HelixSR Scaler."
+echo "It asks before each download: NVIDIA's frame-generation DLLs (from NVIDIA's Streamline SDK on GitHub,"
+echo "only those files) and NVIDIA's NGX core (from NVIDIA's Linux driver package, about 400 MB, only that"
+echo "file is kept). Answer no to any of them and upscaling stays exactly as it is."
+echo "The files built hold NVIDIA's software: they are for this PC only, never share or upload them."
+echo
+test -f {built}/{HELIXSR_DLL} || {{ echo "ERROR: HelixSR 2.0 or newer is not installed."; exit 66; }}
+{_helixsr_python()}
+if ! "$bc250_py" -c 'import compression.zstd' >/dev/null 2>&1 && ! command -v zstd >/dev/null 2>&1; then
+  echo "ERROR: NVIDIA's NGX core comes out of a zstd package: install the zstd program first, then retry."
+  exit 69
+fi
+bc250_dxc="$bc250_data/dxc-wine.sh"
+bc250_dxc_fix=""
+# Networks built before the wine shim had a fixed place point dxc-wine.sh at a
+# temporary folder that no longer exists: give this build a copy that uses
+# the wine found now.
+bc250_old_wine="$(grep -m1 -o '/[^ "]*bc250-helixsr-wine\\.[A-Za-z0-9]*/wine' "$bc250_dxc" || true)"
+if test -n "$bc250_old_wine" && test ! -x "$bc250_old_wine"; then
+{_wine_check()}
+  bc250_dxc_fix="$(mktemp -d "${{TMPDIR:-/tmp}}/bc250-helixsr-dxc.XXXXXX")"
+  sed "s|$bc250_old_wine|$bc250_wine|g" "$bc250_dxc" > "$bc250_dxc_fix/dxc-wine.sh"
+  chmod +x "$bc250_dxc_fix/dxc-wine.sh"
+  bc250_dxc="$bc250_dxc_fix/dxc-wine.sh"
+  echo "[helixsr-fg] the shader compiler pointed at a removed Wine folder; using $bc250_wine"
+fi
+bc250_rc=0
+"$bc250_py" -I {target}/setup/helixsr_setup.py {built} --dxc "$bc250_dxc" --fg-only || bc250_rc=$?
+test -z "$bc250_dxc_fix" || rm -rf -- "$bc250_dxc_fix"
+rm -rf -- "$bc250_data/wineprefix"
+test -f {built}/{HELIXSR_FG_FOLDER}/{_FG_BUILT} || {{
+  echo
+  echo "Frame generation was not built (exit $bc250_rc). Upscaling works as before; run this again to retry."
+  exit 1
+}}
+echo
+echo "OK: DLSS frame generation is ready. Turn it on per game, in a game with HelixSR Scaler."'''
+

@@ -36,25 +36,6 @@ def test_checkout_builders_generate_valid_bash(tmp_path, builder, args):
     assert completed.returncode == 0, completed.stderr
 
 
-def test_repository_checkout_methods_delegate_without_output_change(tmp_path):
-    repository = DependenciasRepository()
-    destination = tmp_path / "tool"
-    assert repository._clone_or_update_command(URL, destination) == clone_or_update(URL, destination)
-    assert repository._clone_or_update_branch_command(URL, destination, "main") == clone_or_update_branch(URL, destination, "main")
-    assert repository._clone_or_update_commit_command(URL, destination, COMMIT) == clone_or_update_commit(URL, destination, COMMIT)
-    assert repository._clone_or_update_commit_with_archive_command(URL, destination, COMMIT) == clone_or_update_commit_with_archive(URL, destination, COMMIT)
-    assert repository._clone_or_update_with_archive_command(URL, destination) == clone_or_update_with_archive(URL, destination)
-
-
-def test_hardware_checkout_fails_closed_for_unregistered_upstream(tmp_path):
-    repository = DependenciasRepository()
-    repository._clone_or_update_command = lambda *_args: pytest.fail(
-        "mutable checkout must never be used for hardware source"
-    )
-    with pytest.raises(ValueError, match="immutable reviewed revision"):
-        repository._hardware_source_checkout_command(URL, tmp_path / "tool")
-
-
 def test_hardware_checkout_uses_manifest_revision_on_every_distribution(tmp_path):
     from bc250cc.infrastructure.external_tools.catalog import EXTERNAL_TOOLS
 

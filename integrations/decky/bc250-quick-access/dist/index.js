@@ -168,15 +168,6 @@ const tokens = {
 
 var codes = [
 	{
-		code: "BC250-GFX-001",
-		markers: [
-			"a release is already installed"
-		],
-		exit_statuses: [
-		],
-		retryable: false
-	},
-	{
 		code: "BC250-CMD-001",
 		markers: [
 		],
@@ -207,18 +198,17 @@ var codes = [
 		retryable: false
 	},
 	{
-		code: "BC250-STORAGE-001",
+		code: "BC250-GENERAL-001",
 		markers: [
 		],
 		exit_statuses: [
-			73,
-			74
 		],
 		retryable: false
 	},
 	{
-		code: "BC250-GENERAL-001",
+		code: "BC250-GFX-001",
 		markers: [
+			"a release is already installed"
 		],
 		exit_statuses: [
 		],
@@ -236,20 +226,20 @@ var codes = [
 		retryable: false
 	},
 	{
-		code: "BC250-BUSY-001",
+		code: "BC250-UMR-001",
 		markers: [
-			"smu returned status 0x00",
-			"smu returned status 0xFC"
+			"UMR still does not start",
+			"umr is installed but does not start"
 		],
 		exit_statuses: [
-			75
 		],
 		retryable: false
 	},
 	{
 		code: "BC250-CONFIG-001",
 		markers: [
-			"QUICK_ACCESS_GPU_CONFIG"
+			"QUICK_ACCESS_GPU_CONFIG",
+			"QUICK_ACCESS_GPU_SAFE_POINT: invalid TOML ceiling"
 		],
 		exit_statuses: [
 			78
@@ -274,9 +264,22 @@ var codes = [
 		retryable: false
 	},
 	{
+		code: "BC250-STORAGE-001",
+		markers: [
+			"MB free and this needs",
+			"SteamOS keeps /var small"
+		],
+		exit_statuses: [
+			73,
+			74
+		],
+		retryable: false
+	},
+	{
 		code: "BC250-TIMEOUT-001",
 		markers: [
-			"QUICK_ACCESS_TIMEOUT"
+			"QUICK_ACCESS_TIMEOUT",
+			"GDDR6 patch did not finish in time"
 		],
 		exit_statuses: [
 			124,
@@ -305,6 +308,43 @@ var codes = [
 		retryable: false
 	},
 	{
+		code: "BC250-IMMUTABLE-001",
+		markers: [
+			"SteamOS reports a writable root",
+			"SteamOS read-only state",
+			"read-only protection",
+			"systemd-sysext or another immutable layer"
+		],
+		exit_statuses: [
+		],
+		retryable: false
+	},
+	{
+		code: "BC250-KERNEL-001",
+		markers: [
+			"kernel and headers do not match",
+			"headers for exactly",
+			"headers for another kernel",
+			"exact Neptune headers",
+			"replaced the running kernel",
+			"Module/kernel mismatch",
+			"Could not read vermagic",
+			"installed for the active kernel",
+			"match the active immutable kernel",
+			"nct6687 build failed",
+			"DKMS installation did not produce a module",
+			"PWM build prerequisites",
+			"nct6687.ko was not produced",
+			"nct6687 is not available for",
+			"kernel-devel mismatch",
+			"matching kernel-devel is unavailable",
+			"rebuilt nct6687 has vermagic"
+		],
+		exit_statuses: [
+		],
+		retryable: false
+	},
+	{
 		code: "BC250-CPUTOOL-001",
 		markers: [
 			"CPU_PAYLOAD_REFUSED"
@@ -318,6 +358,17 @@ var codes = [
 		markers: [
 			"returned error: 404",
 			"failed to synchronize all databases"
+		],
+		exit_statuses: [
+		],
+		retryable: false
+	},
+	{
+		code: "BC250-NET-001",
+		markers: [
+			"Unable to download",
+			"Reviewed source commit is unavailable after fetch",
+			"Reviewed source revision could not be checked out"
 		],
 		exit_statuses: [
 		],
@@ -346,7 +397,6 @@ var codes = [
 		code: "BC250-DBUS-001",
 		markers: [
 			"QUICK_ACCESS_GPU_DBUS",
-			"QUICK_ACCESS_GPU_ALLOWED",
 			"D-Bus name is unavailable",
 			"Cyan D-Bus policy",
 			"busctl is required for Cyan"
@@ -371,20 +421,6 @@ var codes = [
 			"QUICK_ACCESS_TTM"
 		],
 		exit_statuses: [
-		],
-		retryable: false
-	},
-	{
-		code: "BC250-FAN-001",
-		markers: [
-			"QUICK_ACCESS_FAN"
-		],
-		exit_statuses: [
-			25,
-			26,
-			27,
-			40,
-			46
 		],
 		retryable: false
 	},
@@ -460,9 +496,31 @@ var codes = [
 			"HELPER_PRIVILEGE",
 			"CPU_BACKEND_UNTRUSTED",
 			"QUICK_ACCESS_GPU_HELPER",
-			"HELPER_UNTRUSTED"
+			"HELPER_UNTRUSTED",
+			"reviewed root-owned SteamOS graphics backend is unavailable or changed",
+			"protected BC250 OpenRC service helper is missing",
+			"protected GDDR6 patch helper is not installed"
 		],
 		exit_statuses: [
+		],
+		retryable: false
+	},
+	{
+		code: "BC250-FAN-001",
+		markers: [
+			"QUICK_ACCESS_FAN",
+			"fan/PWM hwmon",
+			"usable nct6687 module",
+			"nct6687d PWM driver workflow",
+			"nct6687 could not be loaded",
+			"persisted nct6687 source is missing"
+		],
+		exit_statuses: [
+			25,
+			26,
+			27,
+			40,
+			46
 		],
 		retryable: false
 	},
@@ -472,7 +530,9 @@ var codes = [
 			"QUICK_ACCESS_GPU_PROFILE",
 			"QUICK_ACCESS_GPU_SAFE_POINT",
 			"QUICK_ACCESS_GPU_HIGH_POINTS",
+			"QUICK_ACCESS_GPU_ALLOWED",
 			"QUICK_ACCESS_GPU_VOLTAGE",
+			"target must be an even value from 24 through 40",
 			"QUICK_ACCESS_GPU_VERIFY",
 			"QUICK_ACCESS_CPU_SCALE",
 			"Frequency must be between",
@@ -500,6 +560,29 @@ var codes = [
 			45,
 			56,
 			92
+		],
+		retryable: false
+	},
+	{
+		code: "BC250-FAN-002",
+		markers: [
+			"FAN_EXTERNAL",
+			"QUICK_ACCESS_FAN_EXTERNAL"
+		],
+		exit_statuses: [
+			58
+		],
+		retryable: false
+	},
+	{
+		code: "BC250-BUSY-001",
+		markers: [
+			"smu returned status 0x00",
+			"smu returned status 0xFC",
+			"SMU_IN_USE"
+		],
+		exit_statuses: [
+			75
 		],
 		retryable: false
 	},
@@ -550,69 +633,108 @@ var codes = [
 	}
 ];
 var markers_longest_first = [
+	"reviewed root-owned SteamOS graphics backend is unavailable or changed",
 	"shared contract is not a protected root-owned file",
 	"Manual scale must reuse the detected thermal limit",
 	"bc250-detect returned values outside the requested",
 	"bc250-detect did not produce a valid configuration",
+	"QUICK_ACCESS_GPU_SAFE_POINT: invalid TOML ceiling",
+	"Reviewed source commit is unavailable after fetch",
+	"Reviewed source revision could not be checked out",
+	"protected BC250 OpenRC service helper is missing",
+	"target must be an even value from 24 through 40",
 	"Run automatic detection at this exact frequency",
+	"protected GDDR6 patch helper is not installed",
+	"DKMS installation did not produce a module",
+	"systemd-sysext or another immutable layer",
+	"matching kernel-devel is unavailable",
+	"umr is installed but does not start",
+	"persisted nct6687 source is missing",
 	"failed to synchronize all databases",
+	"GDDR6 patch did not finish in time",
 	"stress is required by bc250-detect",
 	"shared contract could not be read",
+	"match the active immutable kernel",
 	"disagrees with this system about",
 	"shared contract is not installed",
 	"was built for contract revision",
 	"QUICK_ACCESS_CU_SERVICE_PROFILE",
+	"kernel and headers do not match",
+	"installed for the active kernel",
+	"SteamOS reports a writable root",
 	"QAM CPU detection uses a fixed",
 	"QUICK_ACCESS_CU_SERVICE_REMOVE",
 	"QUICK_ACCESS_CU_SERVICE_VERIFY",
 	"a release is already installed",
 	"QUICK_ACCESS_CPU_SCALE_VERIFY",
 	"QUICK_ACCESS_GPU_HIGH_POINTS",
+	"nct6687d PWM driver workflow",
+	"nct6687 is not available for",
+	"rebuilt nct6687 has vermagic",
 	"busctl is required for Cyan",
 	"QUICK_ACCESS_GPU_SAFE_POINT",
 	"Temperature must be between",
+	"nct6687 could not be loaded",
+	"replaced the running kernel",
+	"nct6687.ko was not produced",
+	"headers for another kernel",
 	"QUICK_ACCESS_GPU_CONFLICT",
 	"does not accept arguments",
 	"QUICK_ACCESS_CPU_SERVICE:",
 	"D-Bus name is unavailable",
 	"Frequency must be between",
 	"QAM CPU frequency must be",
+	"QUICK_ACCESS_FAN_EXTERNAL",
 	"QUICK_ACCESS_GPU_SERVICE",
+	"SteamOS keeps /var small",
 	"smu returned status 0x00",
 	"smu returned status 0xFC",
 	"QUICK_ACCESS_CU_SERVICE:",
 	"protocol is incompatible",
-	"QUICK_ACCESS_GPU_ALLOWED",
 	"QUICK_ACCESS_GPU_PROFILE",
+	"QUICK_ACCESS_GPU_ALLOWED",
 	"QUICK_ACCESS_GPU_VOLTAGE",
+	"UMR still does not start",
 	"QUICK_ACCESS_CPU_SERVICE",
 	"QUICK_ACCESS_GPU_CONFIG",
 	"are different versions.",
 	"QUICK_ACCESS_GPU_VERIFY",
 	"QUICK_ACCESS_CU_BACKEND",
+	"Could not read vermagic",
+	"PWM build prerequisites",
 	"QUICK_ACCESS_CPU_VERIFY",
 	"QUICK_ACCESS_GPU_HELPER",
+	"SteamOS read-only state",
 	"QUICK_ACCESS_PRIVILEGE",
+	"MB free and this needs",
 	"QUICK_ACCESS_CPU_SCALE",
 	"QUICK_ACCESS_CU_KERNEL",
 	"QUICK_ACCESS_CU_VERIFY",
+	"Module/kernel mismatch",
 	"smu returned status 0x",
 	"QUICK_ACCESS_GPU_DBUS",
 	"QUICK_ACCESS_CU_TABLE",
 	"QUICK_ACCESS_CU_STATE",
+	"usable nct6687 module",
+	"exact Neptune headers",
+	"kernel-devel mismatch",
 	"QUICK_ACCESS_GPU_BUSY",
 	"CPU_BACKEND_UNTRUSTED",
 	"QUICK_ACCESS_TIMEOUT",
 	"patched_freq_metrics",
 	"QUICK_ACCESS_CU_MODE",
+	"nct6687 build failed",
 	"QUICK_ACCESS_CONTEXT",
 	"CU_BACKEND_UNTRUSTED",
+	"read-only protection",
 	"patched_gpu_metrics",
 	"VID must be between",
 	"QAM CPU VID must be",
+	"headers for exactly",
 	"CPU_PAYLOAD_REFUSED",
 	"CPU_BACKEND_MISSING",
 	"returned error: 404",
+	"Unable to download",
 	"QUICK_ACCESS_GDDR6",
 	"QUICK_ACCESS_VRAM",
 	"Cyan D-Bus policy",
@@ -627,10 +749,13 @@ var markers_longest_first = [
 	"HELPER_UNTRUSTED",
 	"Missing action.",
 	"Unknown action.",
+	"fan/PWM hwmon",
 	"accepts only",
 	"HELPER_USAGE",
 	"mount --bind",
 	"HELPER_RANGE",
+	"FAN_EXTERNAL",
+	"SMU_IN_USE",
 	"move_mount",
 	"expects:"
 ];
@@ -674,6 +799,7 @@ var compatNeedsCyan$7 = "Installiere Cyan (oder stoppe Oberon) im Desktop-Modus,
 var compatProcessWarning$7 = "Die Messung process geht jede offene Datei jedes Programms durch. Solange ein Spiel läuft, antwortet Cyan nicht mehr: Bereich, +2000-MHz-Punkte und Spannungslabor funktionieren erst wieder, wenn das Spiel beendet ist. busy-flag ist die Voreinstellung.";
 var compatSetMethod$7 = "Governor-Methode";
 var compatTitle$7 = "Kompatibilität";
+var compatTemperature$7 = "Temperaturmessung";
 var compatUsage$7 = "Auslastungsmessung";
 var compute$7 = "RECHENEINHEITEN";
 var controller$7 = "Controller";
@@ -731,6 +857,7 @@ var fanCause$7 = "Der NCT-Treiber, die hwmon-Route, der PWM-Kanal oder das Schre
 var fanGuidance$7 = "Setzen Sie den Kanal wieder auf „Automatisch“ und versuchen Sie es erneut.";
 var fanOperationFailed$7 = "Der Lüfterbetrieb ist fehlgeschlagen.";
 var fanPresets$7 = "Voreinstellungen";
+var fanPresetsHint$7 = "Jede Voreinstellung stellt alle aktiven Systemlüfter (PWM3–PWM8) gemeinsam ein, nie PWM2. Drehzahlen beginnen bei 20 %.";
 var fanQuiet$7 = "Leise";
 var fanRpmObserved$7 = "RPMbeobachtet";
 var fanUnverified$7 = "Verkabelung nicht überprüft";
@@ -921,6 +1048,46 @@ var vramTtmConflict$7 = "Das für den nächsten Start gesetzte GPU-Speicherlimit
 var ttmFailed$7 = "Das GPU-Speicherlimit konnte nicht geändert werden.";
 var ttmCause$7 = "Dieses System kann das Bootargument nicht behalten, ein anderes Werkzeug hat das Limit bereits gesetzt, oder der Bootloader bzw. rpm-ostree hat die Änderung abgelehnt.";
 var ttmAction$7 = "Den Grund unter GPU-Speicherlimit lesen und erneut versuchen, sobald Bootloader oder rpm-ostree frei sind.";
+var gpuResets$7 = "GPU-Resets";
+var gpuResetsNone$7 = "Keine seit dem Start";
+var gpuResetsHint$7 = "Das Kernel-Protokoll zeigt, dass die GPU seit dem Start hing. Die Details stehen unter GPU › Details.";
+var privilegeFailed$7 = "Der Schnellzugriff läuft nicht mit Root-Rechten.";
+var privilegeAction$7 = "Starten Sie Decky Loader neu; wiederholt es sich, installieren Sie den Schnellzugriff im Desktop-Modus neu.";
+var contextFailed$7 = "Dieses System kann den Schnellzugriff nicht ausführen.";
+var contextAction$7 = "Verwenden Sie auf diesem System das BC250 Control Center im Desktop-Modus.";
+var hardwareFailed$7 = "Die BC-250-Hardware wurde nicht erkannt.";
+var hardwareAction$7 = "Starten Sie mit dem BC250-Kernel neu und prüfen Sie, ob die GPU (1002:13fe) aufgeführt ist.";
+var requestFailed$7 = "Das Panel hat einen Wert angefordert, der nicht angeboten wird.";
+var requestAction$7 = "Schließen und öffnen Sie den Schnellzugriff erneut und wählen Sie einen der angezeigten Werte.";
+var internalFailed$7 = "Der Helfer wurde unerwartet beendet.";
+var internalAction$7 = "Versuchen Sie es einmal erneut; wiederholt es sich, kopieren Sie die Details für den Support.";
+var backendFailed$7 = "Das Plugin-Backend hatte einen unerwarteten Fehler.";
+var noResponseFailed$7 = "Das Plugin-Backend hat nicht geantwortet.";
+var noResponseAction$7 = "Schließen und öffnen Sie den Schnellzugriff erneut; wiederholt es sich, starten Sie Decky Loader neu.";
+var gpuServiceFailed$7 = "Der Dienst des GPU-Governors hat sich nicht geändert.";
+var gpuServiceAction$7 = "Lassen Sie im Desktop-Modus nur einen Governor aktiviert und prüfen Sie den Status seines Dienstes.";
+var gpuConflictFailed$7 = "Cyan und Oberon sind gleichzeitig aktiv.";
+var gpuVerifyFailed$7 = "Die GPU hat die Änderung nicht bestätigt.";
+var gpuVoltageFailed$7 = "Die Spannungskurve der GPU wurde nicht geändert.";
+var gpuBusyFailed$7 = "Die GPU ist nicht im Leerlauf.";
+var cuKernelFailed$7 = "Der Kernel verwaltet die Compute Units.";
+var cuKernelAction$7 = "Schalten Sie die Kernel-CU-Freischaltung im Desktop-Modus aus, um das Routing hier zu ändern.";
+var fanExternalFailed$7 = "Der Lüfter ist an ein anderes Programm übergeben.";
+var fanExternalAction$7 = "Holen Sie sich zuerst auf der Lüfter-Seite des Desktops die Kontrolle zurück.";
+var cpuServiceFailed$7 = "Der CPU-Startdienst hat sich nicht geändert.";
+var cpuServiceAction$7 = "Installieren Sie ihn erst, nachdem das genaue Profil in diesem Start seinen Live-Test bestanden hat.";
+var vramFailed$7 = "Die VRAM-Größe konnte nicht geändert werden.";
+var vramAction$7 = "Wählen Sie eine der angebotenen Größen; wiederholt es sich, wenden Sie sie im Desktop-Modus an.";
+var gddr6Failed$7 = "Der GDDR6-Temperaturpatch wurde nicht angewendet.";
+var gddr6Action$7 = "Er benötigt P3.0-Firmware und einen GPU-Governor, der fertig gestartet ist.";
+var gameProfilesFailed$7 = "Das spielbezogene Profil wurde nicht gespeichert.";
+var gameProfilesAction$7 = "Entfernen Sie ein Spiel, das Sie nicht mehr spielen, und speichern Sie erneut.";
+var desktopCode$7 = "Desktop-Code";
+var exitStatus$7 = "Exit-Status";
+var copyDetails$7 = "Details kopieren";
+var copied$7 = "Details kopiert";
+var copyFailed$7 = "Kopieren ist hier nicht verfügbar";
+var pythonAction$7 = "Der Helfer benötigt Python 3.11 oder neuer; aktualisieren Sie das System und installieren Sie im Desktop-Modus neu.";
 var de = {
 	accentBlue: accentBlue$7,
 	accentColor: accentColor$7,
@@ -957,6 +1124,7 @@ var de = {
 	compatProcessWarning: compatProcessWarning$7,
 	compatSetMethod: compatSetMethod$7,
 	compatTitle: compatTitle$7,
+	compatTemperature: compatTemperature$7,
 	compatUsage: compatUsage$7,
 	compute: compute$7,
 	controller: controller$7,
@@ -1014,6 +1182,7 @@ var de = {
 	fanGuidance: fanGuidance$7,
 	fanOperationFailed: fanOperationFailed$7,
 	fanPresets: fanPresets$7,
+	fanPresetsHint: fanPresetsHint$7,
 	fanQuiet: fanQuiet$7,
 	fanRpmObserved: fanRpmObserved$7,
 	fanUnverified: fanUnverified$7,
@@ -1203,7 +1372,47 @@ var de = {
 	vramTtmConflict: vramTtmConflict$7,
 	ttmFailed: ttmFailed$7,
 	ttmCause: ttmCause$7,
-	ttmAction: ttmAction$7
+	ttmAction: ttmAction$7,
+	gpuResets: gpuResets$7,
+	gpuResetsNone: gpuResetsNone$7,
+	gpuResetsHint: gpuResetsHint$7,
+	privilegeFailed: privilegeFailed$7,
+	privilegeAction: privilegeAction$7,
+	contextFailed: contextFailed$7,
+	contextAction: contextAction$7,
+	hardwareFailed: hardwareFailed$7,
+	hardwareAction: hardwareAction$7,
+	requestFailed: requestFailed$7,
+	requestAction: requestAction$7,
+	internalFailed: internalFailed$7,
+	internalAction: internalAction$7,
+	backendFailed: backendFailed$7,
+	noResponseFailed: noResponseFailed$7,
+	noResponseAction: noResponseAction$7,
+	gpuServiceFailed: gpuServiceFailed$7,
+	gpuServiceAction: gpuServiceAction$7,
+	gpuConflictFailed: gpuConflictFailed$7,
+	gpuVerifyFailed: gpuVerifyFailed$7,
+	gpuVoltageFailed: gpuVoltageFailed$7,
+	gpuBusyFailed: gpuBusyFailed$7,
+	cuKernelFailed: cuKernelFailed$7,
+	cuKernelAction: cuKernelAction$7,
+	fanExternalFailed: fanExternalFailed$7,
+	fanExternalAction: fanExternalAction$7,
+	cpuServiceFailed: cpuServiceFailed$7,
+	cpuServiceAction: cpuServiceAction$7,
+	vramFailed: vramFailed$7,
+	vramAction: vramAction$7,
+	gddr6Failed: gddr6Failed$7,
+	gddr6Action: gddr6Action$7,
+	gameProfilesFailed: gameProfilesFailed$7,
+	gameProfilesAction: gameProfilesAction$7,
+	desktopCode: desktopCode$7,
+	exitStatus: exitStatus$7,
+	copyDetails: copyDetails$7,
+	copied: copied$7,
+	copyFailed: copyFailed$7,
+	pythonAction: pythonAction$7
 };
 
 var accentBlue$6 = "Blue";
@@ -1241,6 +1450,7 @@ var compatNeedsCyan$6 = "Install Cyan (or stop Oberon) from Desktop Mode to chan
 var compatProcessWarning$6 = "The process reading goes through every open file of every program. With a game open, Cyan stops answering: the range, the +2000 MHz points and the voltage lab stop working until the game closes. busy-flag is the default.";
 var compatSetMethod$6 = "Governor method";
 var compatTitle$6 = "Compatibility";
+var compatTemperature$6 = "Temperature reading";
 var compatUsage$6 = "Usage reading";
 var compute$6 = "COMPUTE UNITS";
 var controller$6 = "Controller";
@@ -1298,6 +1508,7 @@ var fanCause$6 = "The NCT driver, hwmon route, PWM channel, or write read-back i
 var fanGuidance$6 = "Return the channel to Automatic and retry.";
 var fanOperationFailed$6 = "The fan operation failed.";
 var fanPresets$6 = "Presets";
+var fanPresetsHint$6 = "Each preset sets every active system fan (PWM3–PWM8) together and never PWM2. Speeds start at 20 %.";
 var fanQuiet$6 = "Quiet";
 var fanRpmObserved$6 = "RPM observed";
 var fanUnverified$6 = "wiring unverified";
@@ -1488,6 +1699,46 @@ var vramTtmConflict$6 = "The GPU memory limit set for the next boot ({limit}) is
 var ttmFailed$6 = "The GPU memory limit could not be changed.";
 var ttmCause$6 = "This system cannot keep the boot argument, another tool already set the limit, or the boot loader or rpm-ostree refused the change.";
 var ttmAction$6 = "Read the reason under GPU memory limit, then retry once the boot loader or rpm-ostree is idle.";
+var gpuResets$6 = "GPU resets";
+var gpuResetsNone$6 = "None this boot";
+var gpuResetsHint$6 = "The kernel log shows the GPU hung since this boot started. The details are under GPU › Details.";
+var privilegeFailed$6 = "Quick Access is not running with root rights.";
+var privilegeAction$6 = "Restart Decky Loader; if it repeats, reinstall Quick Access from Desktop Mode.";
+var contextFailed$6 = "This system cannot run Quick Access.";
+var contextAction$6 = "Use BC250 Control Center in Desktop Mode on this system.";
+var hardwareFailed$6 = "BC-250 hardware was not detected.";
+var hardwareAction$6 = "Restart into the BC250 kernel and check that the GPU (1002:13fe) is listed.";
+var requestFailed$6 = "The panel asked for a value that is not offered.";
+var requestAction$6 = "Close and reopen Quick Access, then choose one of the values shown.";
+var internalFailed$6 = "The helper stopped unexpectedly.";
+var internalAction$6 = "Retry once; if it repeats, copy the details for support.";
+var backendFailed$6 = "The plugin backend hit an unexpected error.";
+var noResponseFailed$6 = "The plugin backend did not answer.";
+var noResponseAction$6 = "Close and reopen Quick Access; if it repeats, restart Decky Loader.";
+var gpuServiceFailed$6 = "The GPU governor service did not change.";
+var gpuServiceAction$6 = "In Desktop Mode, keep only one governor enabled and check its service status.";
+var gpuConflictFailed$6 = "Cyan and Oberon are both active.";
+var gpuVerifyFailed$6 = "The GPU did not confirm the change.";
+var gpuVoltageFailed$6 = "The GPU voltage curve was not changed.";
+var gpuBusyFailed$6 = "The GPU is not idle.";
+var cuKernelFailed$6 = "The kernel manages the Compute Units.";
+var cuKernelAction$6 = "Turn the kernel CU unlock off in Desktop Mode to change routing here.";
+var fanExternalFailed$6 = "The fan is handed to another program.";
+var fanExternalAction$6 = "Take control back on the Desktop's Fans page first.";
+var cpuServiceFailed$6 = "The CPU boot service did not change.";
+var cpuServiceAction$6 = "Install it only after the exact profile passed its live test in this boot.";
+var vramFailed$6 = "The VRAM size could not be changed.";
+var vramAction$6 = "Choose one of the offered sizes; if it repeats, apply it from Desktop Mode.";
+var gddr6Failed$6 = "The GDDR6 temperature patch was not applied.";
+var gddr6Action$6 = "It needs P3.0 firmware and a GPU governor that has finished starting.";
+var gameProfilesFailed$6 = "The per-game profile was not saved.";
+var gameProfilesAction$6 = "Remove a game you no longer play, then save again.";
+var desktopCode$6 = "Desktop code";
+var exitStatus$6 = "Exit status";
+var copyDetails$6 = "Copy details";
+var copied$6 = "Details copied";
+var copyFailed$6 = "Copying is not available here";
+var pythonAction$6 = "The helper needs Python 3.11 or newer; update the system, then reinstall from Desktop Mode.";
 var en = {
 	accentBlue: accentBlue$6,
 	accentColor: accentColor$6,
@@ -1524,6 +1775,7 @@ var en = {
 	compatProcessWarning: compatProcessWarning$6,
 	compatSetMethod: compatSetMethod$6,
 	compatTitle: compatTitle$6,
+	compatTemperature: compatTemperature$6,
 	compatUsage: compatUsage$6,
 	compute: compute$6,
 	controller: controller$6,
@@ -1581,6 +1833,7 @@ var en = {
 	fanGuidance: fanGuidance$6,
 	fanOperationFailed: fanOperationFailed$6,
 	fanPresets: fanPresets$6,
+	fanPresetsHint: fanPresetsHint$6,
 	fanQuiet: fanQuiet$6,
 	fanRpmObserved: fanRpmObserved$6,
 	fanUnverified: fanUnverified$6,
@@ -1770,7 +2023,47 @@ var en = {
 	vramTtmConflict: vramTtmConflict$6,
 	ttmFailed: ttmFailed$6,
 	ttmCause: ttmCause$6,
-	ttmAction: ttmAction$6
+	ttmAction: ttmAction$6,
+	gpuResets: gpuResets$6,
+	gpuResetsNone: gpuResetsNone$6,
+	gpuResetsHint: gpuResetsHint$6,
+	privilegeFailed: privilegeFailed$6,
+	privilegeAction: privilegeAction$6,
+	contextFailed: contextFailed$6,
+	contextAction: contextAction$6,
+	hardwareFailed: hardwareFailed$6,
+	hardwareAction: hardwareAction$6,
+	requestFailed: requestFailed$6,
+	requestAction: requestAction$6,
+	internalFailed: internalFailed$6,
+	internalAction: internalAction$6,
+	backendFailed: backendFailed$6,
+	noResponseFailed: noResponseFailed$6,
+	noResponseAction: noResponseAction$6,
+	gpuServiceFailed: gpuServiceFailed$6,
+	gpuServiceAction: gpuServiceAction$6,
+	gpuConflictFailed: gpuConflictFailed$6,
+	gpuVerifyFailed: gpuVerifyFailed$6,
+	gpuVoltageFailed: gpuVoltageFailed$6,
+	gpuBusyFailed: gpuBusyFailed$6,
+	cuKernelFailed: cuKernelFailed$6,
+	cuKernelAction: cuKernelAction$6,
+	fanExternalFailed: fanExternalFailed$6,
+	fanExternalAction: fanExternalAction$6,
+	cpuServiceFailed: cpuServiceFailed$6,
+	cpuServiceAction: cpuServiceAction$6,
+	vramFailed: vramFailed$6,
+	vramAction: vramAction$6,
+	gddr6Failed: gddr6Failed$6,
+	gddr6Action: gddr6Action$6,
+	gameProfilesFailed: gameProfilesFailed$6,
+	gameProfilesAction: gameProfilesAction$6,
+	desktopCode: desktopCode$6,
+	exitStatus: exitStatus$6,
+	copyDetails: copyDetails$6,
+	copied: copied$6,
+	copyFailed: copyFailed$6,
+	pythonAction: pythonAction$6
 };
 
 var accentBlue$5 = "Azul";
@@ -1808,6 +2101,7 @@ var compatNeedsCyan$5 = "Instala Cyan (o detén Oberon) desde Modo Escritorio pa
 var compatProcessWarning$5 = "La lectura process recorre cada archivo abierto de cada programa. Con un juego abierto, Cyan deja de responder: el rango, los puntos +2000 MHz y el laboratorio de voltaje no funcionan hasta que el juego se cierra. busy-flag es la opción predeterminada.";
 var compatSetMethod$5 = "Método del governor";
 var compatTitle$5 = "Compatibilidad";
+var compatTemperature$5 = "LECTURA DE TEMPERATURA";
 var compatUsage$5 = "Lectura de uso";
 var compute$5 = "COMPUTE UNITS";
 var controller$5 = "Controlador";
@@ -1865,6 +2159,7 @@ var fanCause$5 = "El driver NCT, la ruta hwmon, el canal PWM o la verificación 
 var fanGuidance$5 = "Devuelve el canal a Automático y vuelve a intentarlo.";
 var fanOperationFailed$5 = "Falló la operación del ventilador.";
 var fanPresets$5 = "Preajustes";
+var fanPresetsHint$5 = "Cada preajuste ajusta a la vez todos los ventiladores del sistema activos (PWM3–PWM8) y nunca PWM2. Las velocidades empiezan en 20 %.";
 var fanQuiet$5 = "Silencio";
 var fanRpmObserved$5 = "RPM observadas";
 var fanUnverified$5 = "cableado sin verificar";
@@ -2055,6 +2350,46 @@ var vramTtmConflict$5 = "El límite de memoria GPU fijado para el próximo arran
 var ttmFailed$5 = "No se pudo cambiar el límite de memoria GPU.";
 var ttmCause$5 = "Este sistema no puede conservar el argumento de arranque, otra herramienta ya fijó el límite, o el gestor de arranque o rpm-ostree rechazó el cambio.";
 var ttmAction$5 = "Lee el motivo bajo Límite de memoria GPU y reintenta cuando el gestor de arranque o rpm-ostree esté libre.";
+var gpuResets$5 = "Reinicios de GPU";
+var gpuResetsNone$5 = "Ninguno desde el arranque";
+var gpuResetsHint$5 = "El registro del kernel muestra que la GPU se colgó desde que arrancó el equipo. Los detalles están en GPU › Detalles.";
+var privilegeFailed$5 = "Quick Access no se está ejecutando con permisos de root.";
+var privilegeAction$5 = "Reinicia Decky Loader; si se repite, reinstala Quick Access desde Modo Escritorio.";
+var contextFailed$5 = "Este sistema no puede ejecutar Quick Access.";
+var contextAction$5 = "Usa BC250 Control Center en Modo Escritorio en este sistema.";
+var hardwareFailed$5 = "No se detectó el hardware BC-250.";
+var hardwareAction$5 = "Reinicia con el kernel BC250 y comprueba que la GPU (1002:13fe) aparece.";
+var requestFailed$5 = "El panel pidió un valor que no se ofrece.";
+var requestAction$5 = "Cierra y vuelve a abrir Quick Access, y elige uno de los valores mostrados.";
+var internalFailed$5 = "El helper se detuvo de forma inesperada.";
+var internalAction$5 = "Inténtalo una vez más; si se repite, copia los detalles para soporte.";
+var backendFailed$5 = "El backend del plugin tuvo un error inesperado.";
+var noResponseFailed$5 = "El backend del plugin no respondió.";
+var noResponseAction$5 = "Cierra y vuelve a abrir Quick Access; si se repite, reinicia Decky Loader.";
+var gpuServiceFailed$5 = "El servicio del gobernador de GPU no cambió.";
+var gpuServiceAction$5 = "En Modo Escritorio, deja un solo gobernador activado y revisa el estado de su servicio.";
+var gpuConflictFailed$5 = "Cyan y Oberon están activos a la vez.";
+var gpuVerifyFailed$5 = "La GPU no confirmó el cambio.";
+var gpuVoltageFailed$5 = "La curva de voltaje de la GPU no se cambió.";
+var gpuBusyFailed$5 = "La GPU no está en reposo.";
+var cuKernelFailed$5 = "El kernel gestiona las Compute Units.";
+var cuKernelAction$5 = "Desactiva el desbloqueo de CU del kernel en Modo Escritorio para cambiar el enrutado aquí.";
+var fanExternalFailed$5 = "El ventilador está cedido a otro programa.";
+var fanExternalAction$5 = "Primero recupera el control en la página Ventiladores del escritorio.";
+var cpuServiceFailed$5 = "El servicio de arranque de la CPU no cambió.";
+var cpuServiceAction$5 = "Instálalo solo después de que el perfil exacto pase su prueba en vivo en este arranque.";
+var vramFailed$5 = "No se pudo cambiar el tamaño de VRAM.";
+var vramAction$5 = "Elige uno de los tamaños ofrecidos; si se repite, aplícalo desde Modo Escritorio.";
+var gddr6Failed$5 = "No se aplicó el parche de temperatura GDDR6.";
+var gddr6Action$5 = "Necesita firmware P3.0 y un gobernador de GPU que ya haya terminado de arrancar.";
+var gameProfilesFailed$5 = "No se guardó el perfil por juego.";
+var gameProfilesAction$5 = "Quita un juego que ya no uses y vuelve a guardar.";
+var desktopCode$5 = "Código de escritorio";
+var exitStatus$5 = "Estado de salida";
+var copyDetails$5 = "Copiar detalles";
+var copied$5 = "Detalles copiados";
+var copyFailed$5 = "Copiar no está disponible aquí";
+var pythonAction$5 = "El helper necesita Python 3.11 o posterior; actualiza el sistema y reinstala desde Modo Escritorio.";
 var es = {
 	accentBlue: accentBlue$5,
 	accentColor: accentColor$5,
@@ -2091,6 +2426,7 @@ var es = {
 	compatProcessWarning: compatProcessWarning$5,
 	compatSetMethod: compatSetMethod$5,
 	compatTitle: compatTitle$5,
+	compatTemperature: compatTemperature$5,
 	compatUsage: compatUsage$5,
 	compute: compute$5,
 	controller: controller$5,
@@ -2148,6 +2484,7 @@ var es = {
 	fanGuidance: fanGuidance$5,
 	fanOperationFailed: fanOperationFailed$5,
 	fanPresets: fanPresets$5,
+	fanPresetsHint: fanPresetsHint$5,
 	fanQuiet: fanQuiet$5,
 	fanRpmObserved: fanRpmObserved$5,
 	fanUnverified: fanUnverified$5,
@@ -2337,7 +2674,47 @@ var es = {
 	vramTtmConflict: vramTtmConflict$5,
 	ttmFailed: ttmFailed$5,
 	ttmCause: ttmCause$5,
-	ttmAction: ttmAction$5
+	ttmAction: ttmAction$5,
+	gpuResets: gpuResets$5,
+	gpuResetsNone: gpuResetsNone$5,
+	gpuResetsHint: gpuResetsHint$5,
+	privilegeFailed: privilegeFailed$5,
+	privilegeAction: privilegeAction$5,
+	contextFailed: contextFailed$5,
+	contextAction: contextAction$5,
+	hardwareFailed: hardwareFailed$5,
+	hardwareAction: hardwareAction$5,
+	requestFailed: requestFailed$5,
+	requestAction: requestAction$5,
+	internalFailed: internalFailed$5,
+	internalAction: internalAction$5,
+	backendFailed: backendFailed$5,
+	noResponseFailed: noResponseFailed$5,
+	noResponseAction: noResponseAction$5,
+	gpuServiceFailed: gpuServiceFailed$5,
+	gpuServiceAction: gpuServiceAction$5,
+	gpuConflictFailed: gpuConflictFailed$5,
+	gpuVerifyFailed: gpuVerifyFailed$5,
+	gpuVoltageFailed: gpuVoltageFailed$5,
+	gpuBusyFailed: gpuBusyFailed$5,
+	cuKernelFailed: cuKernelFailed$5,
+	cuKernelAction: cuKernelAction$5,
+	fanExternalFailed: fanExternalFailed$5,
+	fanExternalAction: fanExternalAction$5,
+	cpuServiceFailed: cpuServiceFailed$5,
+	cpuServiceAction: cpuServiceAction$5,
+	vramFailed: vramFailed$5,
+	vramAction: vramAction$5,
+	gddr6Failed: gddr6Failed$5,
+	gddr6Action: gddr6Action$5,
+	gameProfilesFailed: gameProfilesFailed$5,
+	gameProfilesAction: gameProfilesAction$5,
+	desktopCode: desktopCode$5,
+	exitStatus: exitStatus$5,
+	copyDetails: copyDetails$5,
+	copied: copied$5,
+	copyFailed: copyFailed$5,
+	pythonAction: pythonAction$5
 };
 
 var accentBlue$4 = "Azul";
@@ -2375,6 +2752,7 @@ var compatNeedsCyan$4 = "Instala Cyan (o detén Oberon) desde Modo Escritorio pa
 var compatProcessWarning$4 = "La lectura process recorre cada archivo abierto de cada programa. Con un juego abierto, Cyan deja de responder: el rango, los puntos +2000 MHz y el laboratorio de voltaje no funcionan hasta que el juego se cierra. busy-flag es la opción predeterminada.";
 var compatSetMethod$4 = "Método del governor";
 var compatTitle$4 = "Compatibilidad";
+var compatTemperature$4 = "LECTURA DE TEMPERATURA";
 var compatUsage$4 = "Lectura de uso";
 var compute$4 = "COMPUTE UNITS";
 var controller$4 = "Controlador";
@@ -2432,6 +2810,7 @@ var fanCause$4 = "El driver NCT, la ruta hwmon, el canal PWM o la verificación 
 var fanGuidance$4 = "Devuelve el canal a Automático y vuelve a intentarlo.";
 var fanOperationFailed$4 = "Falló la operación del ventilador.";
 var fanPresets$4 = "Preajustes";
+var fanPresetsHint$4 = "Cada preajuste ajusta a la vez todos los ventiladores del sistema activos (PWM3–PWM8) y nunca PWM2. Las velocidades empiezan en 20 %.";
 var fanQuiet$4 = "Silencio";
 var fanRpmObserved$4 = "RPM observadas";
 var fanUnverified$4 = "cableado sin verificar";
@@ -2622,6 +3001,46 @@ var vramTtmConflict$4 = "El límite de memoria GPU fijado para el próximo arran
 var ttmFailed$4 = "No se pudo cambiar el límite de memoria GPU.";
 var ttmCause$4 = "Este sistema no puede conservar el argumento de arranque, otra herramienta ya fijó el límite, o el gestor de arranque o rpm-ostree rechazó el cambio.";
 var ttmAction$4 = "Lee el motivo bajo Límite de memoria GPU y vuelve a intentar cuando el gestor de arranque o rpm-ostree esté libre.";
+var gpuResets$4 = "Reinicios de GPU";
+var gpuResetsNone$4 = "Ninguno desde el arranque";
+var gpuResetsHint$4 = "El registro del kernel muestra que la GPU se colgó desde que arrancó el equipo. Los detalles están en GPU › Detalles.";
+var privilegeFailed$4 = "Quick Access no se está ejecutando con permisos de root.";
+var privilegeAction$4 = "Reinicia Decky Loader; si se repite, reinstala Quick Access desde Modo Escritorio.";
+var contextFailed$4 = "Este sistema no puede ejecutar Quick Access.";
+var contextAction$4 = "Usa BC250 Control Center en Modo Escritorio en este sistema.";
+var hardwareFailed$4 = "No se detectó el hardware BC-250.";
+var hardwareAction$4 = "Reinicia con el kernel BC250 y comprueba que la GPU (1002:13fe) aparece.";
+var requestFailed$4 = "El panel pidió un valor que no se ofrece.";
+var requestAction$4 = "Cierra y vuelve a abrir Quick Access, y elige uno de los valores mostrados.";
+var internalFailed$4 = "El helper se detuvo de forma inesperada.";
+var internalAction$4 = "Inténtalo una vez más; si se repite, copia los detalles para soporte.";
+var backendFailed$4 = "El backend del plugin tuvo un error inesperado.";
+var noResponseFailed$4 = "El backend del plugin no respondió.";
+var noResponseAction$4 = "Cierra y vuelve a abrir Quick Access; si se repite, reinicia Decky Loader.";
+var gpuServiceFailed$4 = "El servicio del gobernador de GPU no cambió.";
+var gpuServiceAction$4 = "En Modo Escritorio, deja un solo gobernador activado y revisa el estado de su servicio.";
+var gpuConflictFailed$4 = "Cyan y Oberon están activos a la vez.";
+var gpuVerifyFailed$4 = "La GPU no confirmó el cambio.";
+var gpuVoltageFailed$4 = "La curva de voltaje de la GPU no se cambió.";
+var gpuBusyFailed$4 = "La GPU no está en reposo.";
+var cuKernelFailed$4 = "El kernel gestiona las Compute Units.";
+var cuKernelAction$4 = "Desactiva el desbloqueo de CU del kernel en Modo Escritorio para cambiar el enrutado aquí.";
+var fanExternalFailed$4 = "El ventilador está cedido a otro programa.";
+var fanExternalAction$4 = "Primero recupera el control en la página Ventiladores del escritorio.";
+var cpuServiceFailed$4 = "El servicio de arranque de la CPU no cambió.";
+var cpuServiceAction$4 = "Instálalo solo después de que el perfil exacto pase su prueba en vivo en este arranque.";
+var vramFailed$4 = "No se pudo cambiar el tamaño de VRAM.";
+var vramAction$4 = "Elige uno de los tamaños ofrecidos; si se repite, aplícalo desde Modo Escritorio.";
+var gddr6Failed$4 = "No se aplicó el parche de temperatura GDDR6.";
+var gddr6Action$4 = "Necesita firmware P3.0 y un gobernador de GPU que ya haya terminado de arrancar.";
+var gameProfilesFailed$4 = "No se guardó el perfil por juego.";
+var gameProfilesAction$4 = "Quita un juego que ya no uses y vuelve a guardar.";
+var desktopCode$4 = "Código de escritorio";
+var exitStatus$4 = "Estado de salida";
+var copyDetails$4 = "Copiar detalles";
+var copied$4 = "Detalles copiados";
+var copyFailed$4 = "Copiar no está disponible aquí";
+var pythonAction$4 = "El helper necesita Python 3.11 o posterior; actualiza el sistema y reinstala desde Modo Escritorio.";
 var es419 = {
 	accentBlue: accentBlue$4,
 	accentColor: accentColor$4,
@@ -2658,6 +3077,7 @@ var es419 = {
 	compatProcessWarning: compatProcessWarning$4,
 	compatSetMethod: compatSetMethod$4,
 	compatTitle: compatTitle$4,
+	compatTemperature: compatTemperature$4,
 	compatUsage: compatUsage$4,
 	compute: compute$4,
 	controller: controller$4,
@@ -2715,6 +3135,7 @@ var es419 = {
 	fanGuidance: fanGuidance$4,
 	fanOperationFailed: fanOperationFailed$4,
 	fanPresets: fanPresets$4,
+	fanPresetsHint: fanPresetsHint$4,
 	fanQuiet: fanQuiet$4,
 	fanRpmObserved: fanRpmObserved$4,
 	fanUnverified: fanUnverified$4,
@@ -2904,7 +3325,47 @@ var es419 = {
 	vramTtmConflict: vramTtmConflict$4,
 	ttmFailed: ttmFailed$4,
 	ttmCause: ttmCause$4,
-	ttmAction: ttmAction$4
+	ttmAction: ttmAction$4,
+	gpuResets: gpuResets$4,
+	gpuResetsNone: gpuResetsNone$4,
+	gpuResetsHint: gpuResetsHint$4,
+	privilegeFailed: privilegeFailed$4,
+	privilegeAction: privilegeAction$4,
+	contextFailed: contextFailed$4,
+	contextAction: contextAction$4,
+	hardwareFailed: hardwareFailed$4,
+	hardwareAction: hardwareAction$4,
+	requestFailed: requestFailed$4,
+	requestAction: requestAction$4,
+	internalFailed: internalFailed$4,
+	internalAction: internalAction$4,
+	backendFailed: backendFailed$4,
+	noResponseFailed: noResponseFailed$4,
+	noResponseAction: noResponseAction$4,
+	gpuServiceFailed: gpuServiceFailed$4,
+	gpuServiceAction: gpuServiceAction$4,
+	gpuConflictFailed: gpuConflictFailed$4,
+	gpuVerifyFailed: gpuVerifyFailed$4,
+	gpuVoltageFailed: gpuVoltageFailed$4,
+	gpuBusyFailed: gpuBusyFailed$4,
+	cuKernelFailed: cuKernelFailed$4,
+	cuKernelAction: cuKernelAction$4,
+	fanExternalFailed: fanExternalFailed$4,
+	fanExternalAction: fanExternalAction$4,
+	cpuServiceFailed: cpuServiceFailed$4,
+	cpuServiceAction: cpuServiceAction$4,
+	vramFailed: vramFailed$4,
+	vramAction: vramAction$4,
+	gddr6Failed: gddr6Failed$4,
+	gddr6Action: gddr6Action$4,
+	gameProfilesFailed: gameProfilesFailed$4,
+	gameProfilesAction: gameProfilesAction$4,
+	desktopCode: desktopCode$4,
+	exitStatus: exitStatus$4,
+	copyDetails: copyDetails$4,
+	copied: copied$4,
+	copyFailed: copyFailed$4,
+	pythonAction: pythonAction$4
 };
 
 var accentBlue$3 = "Niebieski";
@@ -2942,6 +3403,7 @@ var compatNeedsCyan$3 = "Zainstaluj Cyan (lub zatrzymaj Oberon) w trybie pulpitu
 var compatProcessWarning$3 = "Odczyt process przechodzi przez każdy otwarty plik każdego programu. Gdy gra jest otwarta, Cyan przestaje odpowiadać: zakres, punkty +2000 MHz i laboratorium napięcia nie działają, dopóki gra się nie zamknie. busy-flag jest ustawieniem domyślnym.";
 var compatSetMethod$3 = "Metoda governora";
 var compatTitle$3 = "Zgodność";
+var compatTemperature$3 = "Odczyt temperatury";
 var compatUsage$3 = "Odczyt użycia";
 var compute$3 = "JEDNOSTKI OBLICZENIOWE";
 var controller$3 = "Kontroler";
@@ -2999,6 +3461,7 @@ var fanCause$3 = "Sterownik NCT, trasa hwmon, kanał PWM lub funkcja odczytu zap
 var fanGuidance$3 = "Przywróć kanał do trybu automatycznego i spróbuj ponownie.";
 var fanOperationFailed$3 = "Działanie wentylatora nie powiodło się.";
 var fanPresets$3 = "Ustawienia wstępne";
+var fanPresetsHint$3 = "Każde ustawienie zmienia jednocześnie wszystkie aktywne wentylatory systemowe (PWM3–PWM8), nigdy PWM2. Prędkości zaczynają się od 20 %.";
 var fanQuiet$3 = "Cichy";
 var fanRpmObserved$3 = "RPMzauważony";
 var fanUnverified$3 = "okablowanie niezweryfikowane";
@@ -3189,6 +3652,46 @@ var vramTtmConflict$3 = "Limit pamięci GPU ustawiony na następny rozruch ({lim
 var ttmFailed$3 = "Nie udało się zmienić limitu pamięci GPU.";
 var ttmCause$3 = "Ten system nie może zachować argumentu rozruchu, inne narzędzie już ustawiło limit albo program rozruchowy lub rpm-ostree odrzucił zmianę.";
 var ttmAction$3 = "Przeczytaj przyczynę w sekcji Limit pamięci GPU i spróbuj ponownie, gdy program rozruchowy lub rpm-ostree będzie wolny.";
+var gpuResets$3 = "Resety GPU";
+var gpuResetsNone$3 = "Brak od uruchomienia";
+var gpuResetsHint$3 = "Dziennik jądra pokazuje, że GPU zawieszał się od startu systemu. Szczegóły są w GPU › Szczegóły.";
+var privilegeFailed$3 = "Szybki dostęp nie działa z uprawnieniami roota.";
+var privilegeAction$3 = "Uruchom ponownie Decky Loader; jeśli to się powtórzy, zainstaluj ponownie Szybki dostęp z trybu pulpitu.";
+var contextFailed$3 = "Ten system nie może uruchomić Szybkiego dostępu.";
+var contextAction$3 = "Na tym systemie używaj Centrum sterowania BC250 w trybie pulpitu.";
+var hardwareFailed$3 = "Nie wykryto sprzętu BC-250.";
+var hardwareAction$3 = "Uruchom ponownie z jądrem BC250 i sprawdź, czy GPU (1002:13fe) jest na liście.";
+var requestFailed$3 = "Panel poprosił o wartość, która nie jest oferowana.";
+var requestAction$3 = "Zamknij i otwórz ponownie Szybki dostęp, a potem wybierz jedną z pokazanych wartości.";
+var internalFailed$3 = "Pomocnik zatrzymał się nieoczekiwanie.";
+var internalAction$3 = "Spróbuj jeszcze raz; jeśli to się powtórzy, skopiuj szczegóły dla wsparcia.";
+var backendFailed$3 = "Backend wtyczki napotkał nieoczekiwany błąd.";
+var noResponseFailed$3 = "Backend wtyczki nie odpowiedział.";
+var noResponseAction$3 = "Zamknij i otwórz ponownie Szybki dostęp; jeśli to się powtórzy, uruchom ponownie Decky Loader.";
+var gpuServiceFailed$3 = "Usługa governora GPU nie zmieniła się.";
+var gpuServiceAction$3 = "W trybie pulpitu zostaw włączony tylko jeden governor i sprawdź stan jego usługi.";
+var gpuConflictFailed$3 = "Cyan i Oberon są aktywne jednocześnie.";
+var gpuVerifyFailed$3 = "GPU nie potwierdziło zmiany.";
+var gpuVoltageFailed$3 = "Krzywa napięcia GPU nie została zmieniona.";
+var gpuBusyFailed$3 = "GPU nie jest bezczynne.";
+var cuKernelFailed$3 = "Jądro zarządza jednostkami Compute Units.";
+var cuKernelAction$3 = "Wyłącz odblokowanie CU w jądrze w trybie pulpitu, aby zmienić tu routing.";
+var fanExternalFailed$3 = "Wentylator jest przekazany innemu programowi.";
+var fanExternalAction$3 = "Najpierw odzyskaj kontrolę na stronie Wentylatory w trybie pulpitu.";
+var cpuServiceFailed$3 = "Usługa rozruchowa CPU nie zmieniła się.";
+var cpuServiceAction$3 = "Zainstaluj ją dopiero, gdy dokładny profil przejdzie test na żywo w tym uruchomieniu.";
+var vramFailed$3 = "Nie udało się zmienić rozmiaru VRAM.";
+var vramAction$3 = "Wybierz jeden z oferowanych rozmiarów; jeśli to się powtórzy, zastosuj go z trybu pulpitu.";
+var gddr6Failed$3 = "Łatka temperatury GDDR6 nie została zastosowana.";
+var gddr6Action$3 = "Wymaga firmware P3.0 i governora GPU, który zakończył uruchamianie.";
+var gameProfilesFailed$3 = "Profil dla gry nie został zapisany.";
+var gameProfilesAction$3 = "Usuń grę, w którą już nie grasz, i zapisz ponownie.";
+var desktopCode$3 = "Kod pulpitu";
+var exitStatus$3 = "Kod wyjścia";
+var copyDetails$3 = "Kopiuj szczegóły";
+var copied$3 = "Skopiowano szczegóły";
+var copyFailed$3 = "Kopiowanie nie jest tu dostępne";
+var pythonAction$3 = "Pomocnik wymaga Pythona 3.11 lub nowszego; zaktualizuj system i zainstaluj ponownie z trybu pulpitu.";
 var pl = {
 	accentBlue: accentBlue$3,
 	accentColor: accentColor$3,
@@ -3225,6 +3728,7 @@ var pl = {
 	compatProcessWarning: compatProcessWarning$3,
 	compatSetMethod: compatSetMethod$3,
 	compatTitle: compatTitle$3,
+	compatTemperature: compatTemperature$3,
 	compatUsage: compatUsage$3,
 	compute: compute$3,
 	controller: controller$3,
@@ -3282,6 +3786,7 @@ var pl = {
 	fanGuidance: fanGuidance$3,
 	fanOperationFailed: fanOperationFailed$3,
 	fanPresets: fanPresets$3,
+	fanPresetsHint: fanPresetsHint$3,
 	fanQuiet: fanQuiet$3,
 	fanRpmObserved: fanRpmObserved$3,
 	fanUnverified: fanUnverified$3,
@@ -3471,7 +3976,47 @@ var pl = {
 	vramTtmConflict: vramTtmConflict$3,
 	ttmFailed: ttmFailed$3,
 	ttmCause: ttmCause$3,
-	ttmAction: ttmAction$3
+	ttmAction: ttmAction$3,
+	gpuResets: gpuResets$3,
+	gpuResetsNone: gpuResetsNone$3,
+	gpuResetsHint: gpuResetsHint$3,
+	privilegeFailed: privilegeFailed$3,
+	privilegeAction: privilegeAction$3,
+	contextFailed: contextFailed$3,
+	contextAction: contextAction$3,
+	hardwareFailed: hardwareFailed$3,
+	hardwareAction: hardwareAction$3,
+	requestFailed: requestFailed$3,
+	requestAction: requestAction$3,
+	internalFailed: internalFailed$3,
+	internalAction: internalAction$3,
+	backendFailed: backendFailed$3,
+	noResponseFailed: noResponseFailed$3,
+	noResponseAction: noResponseAction$3,
+	gpuServiceFailed: gpuServiceFailed$3,
+	gpuServiceAction: gpuServiceAction$3,
+	gpuConflictFailed: gpuConflictFailed$3,
+	gpuVerifyFailed: gpuVerifyFailed$3,
+	gpuVoltageFailed: gpuVoltageFailed$3,
+	gpuBusyFailed: gpuBusyFailed$3,
+	cuKernelFailed: cuKernelFailed$3,
+	cuKernelAction: cuKernelAction$3,
+	fanExternalFailed: fanExternalFailed$3,
+	fanExternalAction: fanExternalAction$3,
+	cpuServiceFailed: cpuServiceFailed$3,
+	cpuServiceAction: cpuServiceAction$3,
+	vramFailed: vramFailed$3,
+	vramAction: vramAction$3,
+	gddr6Failed: gddr6Failed$3,
+	gddr6Action: gddr6Action$3,
+	gameProfilesFailed: gameProfilesFailed$3,
+	gameProfilesAction: gameProfilesAction$3,
+	desktopCode: desktopCode$3,
+	exitStatus: exitStatus$3,
+	copyDetails: copyDetails$3,
+	copied: copied$3,
+	copyFailed: copyFailed$3,
+	pythonAction: pythonAction$3
 };
 
 var accentBlue$2 = "Azul";
@@ -3509,6 +4054,7 @@ var compatNeedsCyan$2 = "Instale o Cyan (ou pare o Oberon) no Modo Desktop para 
 var compatProcessWarning$2 = "A leitura process percorre cada ficheiro aberto de cada programa. Com um jogo aberto, o Cyan deixa de responder: a gama, os pontos +2000 MHz e o laboratório de tensão deixam de funcionar até o jogo fechar. busy-flag é a predefinição.";
 var compatSetMethod$2 = "Método do governor";
 var compatTitle$2 = "Compatibilidade";
+var compatTemperature$2 = "Leitura de temperatura";
 var compatUsage$2 = "Leitura de uso";
 var compute$2 = "UNIDADES DE COMPUTAÇÃO";
 var controller$2 = "Controlador";
@@ -3566,6 +4112,7 @@ var fanCause$2 = "O driver NCT, a rota hwmon, o canal PWM ou a leitura de grava�
 var fanGuidance$2 = "Retorne o canal para Automático e tente novamente.";
 var fanOperationFailed$2 = "A operação do ventilador falhou.";
 var fanPresets$2 = "Predefinições";
+var fanPresetsHint$2 = "Cada predefinição ajusta ao mesmo tempo todos os ventiladores do sistema ativos (PWM3–PWM8) e nunca o PWM2. As velocidades começam em 20 %.";
 var fanQuiet$2 = "Silencioso";
 var fanRpmObserved$2 = "RPM observadas";
 var fanUnverified$2 = "fiação não verificada";
@@ -3756,6 +4303,46 @@ var vramTtmConflict$2 = "O limite de memória da GPU definido para a próxima in
 var ttmFailed$2 = "Não foi possível alterar o limite de memória da GPU.";
 var ttmCause$2 = "Este sistema não consegue manter o argumento de inicialização, outra ferramenta já definiu o limite, ou o carregador de inicialização ou o rpm-ostree recusou a alteração.";
 var ttmAction$2 = "Leia o motivo em Limite de memória da GPU e tente de novo quando o carregador de inicialização ou o rpm-ostree estiver livre.";
+var gpuResets$2 = "Reinícios da GPU";
+var gpuResetsNone$2 = "Nenhum desde o arranque";
+var gpuResetsHint$2 = "O registo do kernel mostra que a GPU bloqueou desde que o sistema arrancou. Os detalhes estão em GPU › Detalhes.";
+var privilegeFailed$2 = "O acesso rápido não está sendo executado com permissões de root.";
+var privilegeAction$2 = "Reinicie o Decky Loader; se repetir, reinstale o acesso rápido no modo Desktop.";
+var contextFailed$2 = "Este sistema não pode executar o acesso rápido.";
+var contextAction$2 = "Use o BC250 Control Center no modo Desktop neste sistema.";
+var hardwareFailed$2 = "O hardware BC-250 não foi detectado.";
+var hardwareAction$2 = "Reinicie com o kernel BC250 e verifique se a GPU (1002:13fe) aparece.";
+var requestFailed$2 = "O painel pediu um valor que não é oferecido.";
+var requestAction$2 = "Feche e reabra o acesso rápido e escolha um dos valores exibidos.";
+var internalFailed$2 = "O auxiliar parou inesperadamente.";
+var internalAction$2 = "Tente mais uma vez; se repetir, copie os detalhes para o suporte.";
+var backendFailed$2 = "O backend do plugin encontrou um erro inesperado.";
+var noResponseFailed$2 = "O backend do plugin não respondeu.";
+var noResponseAction$2 = "Feche e reabra o acesso rápido; se repetir, reinicie o Decky Loader.";
+var gpuServiceFailed$2 = "O serviço do governador da GPU não mudou.";
+var gpuServiceAction$2 = "No modo Desktop, mantenha apenas um governador ativado e verifique o estado do serviço.";
+var gpuConflictFailed$2 = "Cyan e Oberon estão ativos ao mesmo tempo.";
+var gpuVerifyFailed$2 = "A GPU não confirmou a alteração.";
+var gpuVoltageFailed$2 = "A curva de tensão da GPU não foi alterada.";
+var gpuBusyFailed$2 = "A GPU não está ociosa.";
+var cuKernelFailed$2 = "O kernel gerencia as Compute Units.";
+var cuKernelAction$2 = "Desative o desbloqueio de CU do kernel no modo Desktop para alterar o roteamento aqui.";
+var fanExternalFailed$2 = "A ventoinha foi entregue a outro programa.";
+var fanExternalAction$2 = "Primeiro retome o controle na página Ventoinhas do Desktop.";
+var cpuServiceFailed$2 = "O serviço de inicialização da CPU não mudou.";
+var cpuServiceAction$2 = "Instale-o somente depois que o perfil exato passar no teste ao vivo nesta inicialização.";
+var vramFailed$2 = "Não foi possível alterar o tamanho da VRAM.";
+var vramAction$2 = "Escolha um dos tamanhos oferecidos; se repetir, aplique-o no modo Desktop.";
+var gddr6Failed$2 = "O patch de temperatura GDDR6 não foi aplicado.";
+var gddr6Action$2 = "Ele precisa do firmware P3.0 e de um governador da GPU que já terminou de iniciar.";
+var gameProfilesFailed$2 = "O perfil por jogo não foi salvo.";
+var gameProfilesAction$2 = "Remova um jogo que você não joga mais e salve novamente.";
+var desktopCode$2 = "Código do Desktop";
+var exitStatus$2 = "Código de saída";
+var copyDetails$2 = "Copiar detalhes";
+var copied$2 = "Detalhes copiados";
+var copyFailed$2 = "Copiar não está disponível aqui";
+var pythonAction$2 = "O auxiliar precisa do Python 3.11 ou mais recente; atualize o sistema e reinstale no modo Desktop.";
 var pt = {
 	accentBlue: accentBlue$2,
 	accentColor: accentColor$2,
@@ -3792,6 +4379,7 @@ var pt = {
 	compatProcessWarning: compatProcessWarning$2,
 	compatSetMethod: compatSetMethod$2,
 	compatTitle: compatTitle$2,
+	compatTemperature: compatTemperature$2,
 	compatUsage: compatUsage$2,
 	compute: compute$2,
 	controller: controller$2,
@@ -3849,6 +4437,7 @@ var pt = {
 	fanGuidance: fanGuidance$2,
 	fanOperationFailed: fanOperationFailed$2,
 	fanPresets: fanPresets$2,
+	fanPresetsHint: fanPresetsHint$2,
 	fanQuiet: fanQuiet$2,
 	fanRpmObserved: fanRpmObserved$2,
 	fanUnverified: fanUnverified$2,
@@ -4038,7 +4627,47 @@ var pt = {
 	vramTtmConflict: vramTtmConflict$2,
 	ttmFailed: ttmFailed$2,
 	ttmCause: ttmCause$2,
-	ttmAction: ttmAction$2
+	ttmAction: ttmAction$2,
+	gpuResets: gpuResets$2,
+	gpuResetsNone: gpuResetsNone$2,
+	gpuResetsHint: gpuResetsHint$2,
+	privilegeFailed: privilegeFailed$2,
+	privilegeAction: privilegeAction$2,
+	contextFailed: contextFailed$2,
+	contextAction: contextAction$2,
+	hardwareFailed: hardwareFailed$2,
+	hardwareAction: hardwareAction$2,
+	requestFailed: requestFailed$2,
+	requestAction: requestAction$2,
+	internalFailed: internalFailed$2,
+	internalAction: internalAction$2,
+	backendFailed: backendFailed$2,
+	noResponseFailed: noResponseFailed$2,
+	noResponseAction: noResponseAction$2,
+	gpuServiceFailed: gpuServiceFailed$2,
+	gpuServiceAction: gpuServiceAction$2,
+	gpuConflictFailed: gpuConflictFailed$2,
+	gpuVerifyFailed: gpuVerifyFailed$2,
+	gpuVoltageFailed: gpuVoltageFailed$2,
+	gpuBusyFailed: gpuBusyFailed$2,
+	cuKernelFailed: cuKernelFailed$2,
+	cuKernelAction: cuKernelAction$2,
+	fanExternalFailed: fanExternalFailed$2,
+	fanExternalAction: fanExternalAction$2,
+	cpuServiceFailed: cpuServiceFailed$2,
+	cpuServiceAction: cpuServiceAction$2,
+	vramFailed: vramFailed$2,
+	vramAction: vramAction$2,
+	gddr6Failed: gddr6Failed$2,
+	gddr6Action: gddr6Action$2,
+	gameProfilesFailed: gameProfilesFailed$2,
+	gameProfilesAction: gameProfilesAction$2,
+	desktopCode: desktopCode$2,
+	exitStatus: exitStatus$2,
+	copyDetails: copyDetails$2,
+	copied: copied$2,
+	copyFailed: copyFailed$2,
+	pythonAction: pythonAction$2
 };
 
 var accentBlue$1 = "Синий";
@@ -4076,6 +4705,7 @@ var compatNeedsCyan$1 = "Установите Cyan (или остановите 
 var compatProcessWarning$1 = "Чтение process перебирает каждый открытый файл каждой программы. Пока открыта игра, Cyan перестаёт отвечать: диапазон, точки +2000 МГц и лаборатория напряжения не работают, пока игра не закроется. busy-flag — значение по умолчанию.";
 var compatSetMethod$1 = "Метод governor";
 var compatTitle$1 = "Совместимость";
+var compatTemperature$1 = "Чтение температуры";
 var compatUsage$1 = "Чтение загрузки";
 var compute$1 = "ВЫЧИСЛИТЕЛЬНЫЕ БЛОКИ";
 var controller$1 = "Контроллер";
@@ -4133,6 +4763,7 @@ var fanCause$1 = "Драйвер NCT, маршрут hwmon, канал PWM ил�
 var fanGuidance$1 = "Верните канал в автоматический режим и повторите попытку.";
 var fanOperationFailed$1 = "Сбой в работе вентилятора.";
 var fanPresets$1 = "Пресеты";
+var fanPresetsHint$1 = "Каждый пресет задаёт сразу все активные системные вентиляторы (PWM3–PWM8) и никогда не трогает PWM2. Скорость — от 20 %.";
 var fanQuiet$1 = "Тихий";
 var fanRpmObserved$1 = "RPMнаблюдал";
 var fanUnverified$1 = "проводка не проверена";
@@ -4323,6 +4954,46 @@ var vramTtmConflict$1 = "Лимит памяти GPU для следующей �
 var ttmFailed$1 = "Не удалось изменить лимит памяти GPU.";
 var ttmCause$1 = "Эта система не может сохранить параметр загрузки, лимит уже задан другим инструментом, или загрузчик либо rpm-ostree отклонили изменение.";
 var ttmAction$1 = "Прочитайте причину в разделе «Лимит памяти GPU» и повторите, когда загрузчик или rpm-ostree освободятся.";
+var gpuResets$1 = "Сбросы GPU";
+var gpuResetsNone$1 = "Нет с момента загрузки";
+var gpuResetsHint$1 = "Журнал ядра показывает, что GPU зависал с момента загрузки. Подробности — в разделе GPU › Подробности.";
+var privilegeFailed$1 = "Быстрый доступ запущен без прав root.";
+var privilegeAction$1 = "Перезапустите Decky Loader; если ошибка повторится, переустановите быстрый доступ из режима рабочего стола.";
+var contextFailed$1 = "Эта система не может запустить быстрый доступ.";
+var contextAction$1 = "На этой системе используйте BC250 Центр управления в режиме рабочего стола.";
+var hardwareFailed$1 = "Оборудование BC-250 не обнаружено.";
+var hardwareAction$1 = "Перезагрузитесь с ядром BC250 и проверьте, что GPU (1002:13fe) есть в списке.";
+var requestFailed$1 = "Панель запросила значение, которое не предлагается.";
+var requestAction$1 = "Закройте и снова откройте быстрый доступ, затем выберите одно из показанных значений.";
+var internalFailed$1 = "Помощник неожиданно остановился.";
+var internalAction$1 = "Повторите попытку один раз; если ошибка повторится, скопируйте подробности для поддержки.";
+var backendFailed$1 = "Бэкенд плагина столкнулся с неожиданной ошибкой.";
+var noResponseFailed$1 = "Бэкенд плагина не ответил.";
+var noResponseAction$1 = "Закройте и снова откройте быстрый доступ; если ошибка повторится, перезапустите Decky Loader.";
+var gpuServiceFailed$1 = "Служба регулятора GPU не изменилась.";
+var gpuServiceAction$1 = "В режиме рабочего стола оставьте включённым только один регулятор и проверьте состояние его службы.";
+var gpuConflictFailed$1 = "Cyan и Oberon активны одновременно.";
+var gpuVerifyFailed$1 = "GPU не подтвердил изменение.";
+var gpuVoltageFailed$1 = "Кривая напряжения GPU не изменена.";
+var gpuBusyFailed$1 = "GPU не находится в простое.";
+var cuKernelFailed$1 = "Вычислительными блоками управляет ядро.";
+var cuKernelAction$1 = "Отключите разблокировку CU в ядре в режиме рабочего стола, чтобы менять маршрутизацию здесь.";
+var fanExternalFailed$1 = "Вентилятор передан другой программе.";
+var fanExternalAction$1 = "Сначала верните управление на странице «Вентиляторы» в режиме рабочего стола.";
+var cpuServiceFailed$1 = "Служба загрузки CPU не изменилась.";
+var cpuServiceAction$1 = "Устанавливайте её только после того, как точный профиль прошёл живой тест в этой загрузке.";
+var vramFailed$1 = "Не удалось изменить размер VRAM.";
+var vramAction$1 = "Выберите один из предложенных размеров; если ошибка повторится, примените его из режима рабочего стола.";
+var gddr6Failed$1 = "Патч температуры GDDR6 не применён.";
+var gddr6Action$1 = "Нужны прошивка P3.0 и регулятор GPU, который уже полностью запустился.";
+var gameProfilesFailed$1 = "Профиль для игры не сохранён.";
+var gameProfilesAction$1 = "Удалите игру, в которую больше не играете, и сохраните снова.";
+var desktopCode$1 = "Код рабочего стола";
+var exitStatus$1 = "Код выхода";
+var copyDetails$1 = "Копировать подробности";
+var copied$1 = "Подробности скопированы";
+var copyFailed$1 = "Копирование здесь недоступно";
+var pythonAction$1 = "Помощнику нужен Python 3.11 или новее; обновите систему и переустановите из режима рабочего стола.";
 var ru = {
 	accentBlue: accentBlue$1,
 	accentColor: accentColor$1,
@@ -4359,6 +5030,7 @@ var ru = {
 	compatProcessWarning: compatProcessWarning$1,
 	compatSetMethod: compatSetMethod$1,
 	compatTitle: compatTitle$1,
+	compatTemperature: compatTemperature$1,
 	compatUsage: compatUsage$1,
 	compute: compute$1,
 	controller: controller$1,
@@ -4416,6 +5088,7 @@ var ru = {
 	fanGuidance: fanGuidance$1,
 	fanOperationFailed: fanOperationFailed$1,
 	fanPresets: fanPresets$1,
+	fanPresetsHint: fanPresetsHint$1,
 	fanQuiet: fanQuiet$1,
 	fanRpmObserved: fanRpmObserved$1,
 	fanUnverified: fanUnverified$1,
@@ -4605,7 +5278,47 @@ var ru = {
 	vramTtmConflict: vramTtmConflict$1,
 	ttmFailed: ttmFailed$1,
 	ttmCause: ttmCause$1,
-	ttmAction: ttmAction$1
+	ttmAction: ttmAction$1,
+	gpuResets: gpuResets$1,
+	gpuResetsNone: gpuResetsNone$1,
+	gpuResetsHint: gpuResetsHint$1,
+	privilegeFailed: privilegeFailed$1,
+	privilegeAction: privilegeAction$1,
+	contextFailed: contextFailed$1,
+	contextAction: contextAction$1,
+	hardwareFailed: hardwareFailed$1,
+	hardwareAction: hardwareAction$1,
+	requestFailed: requestFailed$1,
+	requestAction: requestAction$1,
+	internalFailed: internalFailed$1,
+	internalAction: internalAction$1,
+	backendFailed: backendFailed$1,
+	noResponseFailed: noResponseFailed$1,
+	noResponseAction: noResponseAction$1,
+	gpuServiceFailed: gpuServiceFailed$1,
+	gpuServiceAction: gpuServiceAction$1,
+	gpuConflictFailed: gpuConflictFailed$1,
+	gpuVerifyFailed: gpuVerifyFailed$1,
+	gpuVoltageFailed: gpuVoltageFailed$1,
+	gpuBusyFailed: gpuBusyFailed$1,
+	cuKernelFailed: cuKernelFailed$1,
+	cuKernelAction: cuKernelAction$1,
+	fanExternalFailed: fanExternalFailed$1,
+	fanExternalAction: fanExternalAction$1,
+	cpuServiceFailed: cpuServiceFailed$1,
+	cpuServiceAction: cpuServiceAction$1,
+	vramFailed: vramFailed$1,
+	vramAction: vramAction$1,
+	gddr6Failed: gddr6Failed$1,
+	gddr6Action: gddr6Action$1,
+	gameProfilesFailed: gameProfilesFailed$1,
+	gameProfilesAction: gameProfilesAction$1,
+	desktopCode: desktopCode$1,
+	exitStatus: exitStatus$1,
+	copyDetails: copyDetails$1,
+	copied: copied$1,
+	copyFailed: copyFailed$1,
+	pythonAction: pythonAction$1
 };
 
 var accentBlue = "Синій";
@@ -4643,6 +5356,7 @@ var compatNeedsCyan = "Встановіть Cyan (або зупиніть Oberon
 var compatProcessWarning = "Читання process перебирає кожен відкритий файл кожної програми. Поки відкрита гра, Cyan перестає відповідати: діапазон, точки +2000 МГц і лабораторія напруги не працюють, доки гра не закриється. busy-flag — типове значення.";
 var compatSetMethod = "Метод governor";
 var compatTitle = "Сумісність";
+var compatTemperature = "Зчитування температури";
 var compatUsage = "Зчитування навантаження";
 var compute = "ОБЧИСЛЮВАЛЬНІ БЛОКИ";
 var controller = "Контролер";
@@ -4700,6 +5414,7 @@ var fanCause = "Драйвер NCT, маршрут hwmon, канал PWM або 
 var fanGuidance = "Поверніть канал до автоматичного режиму та повторіть спробу.";
 var fanOperationFailed = "Помилка роботи вентилятора.";
 var fanPresets = "Пресети";
+var fanPresetsHint = "Кожен пресет задає одразу всі активні системні вентилятори (PWM3–PWM8) і ніколи не змінює PWM2. Швидкість — від 20 %.";
 var fanQuiet = "Тихий";
 var fanRpmObserved = "RPMспостерігається";
 var fanUnverified = "проводка неперевірена";
@@ -4890,6 +5605,46 @@ var vramTtmConflict = "Ліміт пам'яті GPU на наступне зав
 var ttmFailed = "Не вдалося змінити ліміт пам'яті GPU.";
 var ttmCause = "Ця система не може зберегти параметр завантаження, інший інструмент уже задав ліміт, або завантажувач чи rpm-ostree відхилили зміну.";
 var ttmAction = "Прочитайте причину в розділі «Ліміт пам'яті GPU» і повторіть, коли завантажувач або rpm-ostree звільняться.";
+var gpuResets = "Скидання GPU";
+var gpuResetsNone = "Немає від запуску";
+var gpuResetsHint = "Журнал ядра показує, що GPU зависав від запуску системи. Подробиці — у розділі GPU › Подробиці.";
+var privilegeFailed = "Quick Access працює без прав root.";
+var privilegeAction = "Перезапустіть Decky Loader; якщо помилка повториться, перевстановіть Quick Access із робочого режиму.";
+var contextFailed = "Ця система не може запустити Quick Access.";
+var contextAction = "На цій системі використовуйте BC250 Control Center у робочому режимі.";
+var hardwareFailed = "Обладнання BC-250 не виявлено.";
+var hardwareAction = "Перезавантажтеся з ядром BC250 і перевірте, що GPU (1002:13fe) є у списку.";
+var requestFailed = "Панель запросила значення, яке не пропонується.";
+var requestAction = "Закрийте й знову відкрийте Quick Access, потім виберіть одне з показаних значень.";
+var internalFailed = "Помічник несподівано зупинився.";
+var internalAction = "Повторіть спробу один раз; якщо помилка повториться, скопіюйте подробиці для підтримки.";
+var backendFailed = "Бекенд плагіна натрапив на неочікувану помилку.";
+var noResponseFailed = "Бекенд плагіна не відповів.";
+var noResponseAction = "Закрийте й знову відкрийте Quick Access; якщо помилка повториться, перезапустіть Decky Loader.";
+var gpuServiceFailed = "Служба регулятора GPU не змінилася.";
+var gpuServiceAction = "У робочому режимі залиште ввімкненим лише один регулятор і перевірте стан його служби.";
+var gpuConflictFailed = "Cyan і Oberon активні одночасно.";
+var gpuVerifyFailed = "GPU не підтвердив зміну.";
+var gpuVoltageFailed = "Криву напруги GPU не змінено.";
+var gpuBusyFailed = "GPU не перебуває в простої.";
+var cuKernelFailed = "Обчислювальними блоками керує ядро.";
+var cuKernelAction = "Вимкніть розблокування CU в ядрі в робочому режимі, щоб змінювати маршрутизацію тут.";
+var fanExternalFailed = "Вентилятор передано іншій програмі.";
+var fanExternalAction = "Спершу поверніть керування на сторінці «Вентилятори» в робочому режимі.";
+var cpuServiceFailed = "Служба завантаження CPU не змінилася.";
+var cpuServiceAction = "Встановлюйте її лише після того, як точний профіль пройшов живий тест у цьому завантаженні.";
+var vramFailed = "Не вдалося змінити розмір VRAM.";
+var vramAction = "Виберіть один із запропонованих розмірів; якщо помилка повториться, застосуйте його з робочого режиму.";
+var gddr6Failed = "Патч температури GDDR6 не застосовано.";
+var gddr6Action = "Потрібні прошивка P3.0 і регулятор GPU, який уже повністю запустився.";
+var gameProfilesFailed = "Профіль для гри не збережено.";
+var gameProfilesAction = "Видаліть гру, у яку більше не граєте, і збережіть знову.";
+var desktopCode = "Код робочого режиму";
+var exitStatus = "Код виходу";
+var copyDetails = "Копіювати подробиці";
+var copied = "Подробиці скопійовано";
+var copyFailed = "Копіювання тут недоступне";
+var pythonAction = "Помічнику потрібен Python 3.11 або новіший; оновіть систему й перевстановіть із робочого режиму.";
 var uk = {
 	accentBlue: accentBlue,
 	accentColor: accentColor,
@@ -4926,6 +5681,7 @@ var uk = {
 	compatProcessWarning: compatProcessWarning,
 	compatSetMethod: compatSetMethod,
 	compatTitle: compatTitle,
+	compatTemperature: compatTemperature,
 	compatUsage: compatUsage,
 	compute: compute,
 	controller: controller,
@@ -4983,6 +5739,7 @@ var uk = {
 	fanGuidance: fanGuidance,
 	fanOperationFailed: fanOperationFailed,
 	fanPresets: fanPresets,
+	fanPresetsHint: fanPresetsHint,
 	fanQuiet: fanQuiet,
 	fanRpmObserved: fanRpmObserved,
 	fanUnverified: fanUnverified,
@@ -5172,7 +5929,47 @@ var uk = {
 	vramTtmConflict: vramTtmConflict,
 	ttmFailed: ttmFailed,
 	ttmCause: ttmCause,
-	ttmAction: ttmAction
+	ttmAction: ttmAction,
+	gpuResets: gpuResets,
+	gpuResetsNone: gpuResetsNone,
+	gpuResetsHint: gpuResetsHint,
+	privilegeFailed: privilegeFailed,
+	privilegeAction: privilegeAction,
+	contextFailed: contextFailed,
+	contextAction: contextAction,
+	hardwareFailed: hardwareFailed,
+	hardwareAction: hardwareAction,
+	requestFailed: requestFailed,
+	requestAction: requestAction,
+	internalFailed: internalFailed,
+	internalAction: internalAction,
+	backendFailed: backendFailed,
+	noResponseFailed: noResponseFailed,
+	noResponseAction: noResponseAction,
+	gpuServiceFailed: gpuServiceFailed,
+	gpuServiceAction: gpuServiceAction,
+	gpuConflictFailed: gpuConflictFailed,
+	gpuVerifyFailed: gpuVerifyFailed,
+	gpuVoltageFailed: gpuVoltageFailed,
+	gpuBusyFailed: gpuBusyFailed,
+	cuKernelFailed: cuKernelFailed,
+	cuKernelAction: cuKernelAction,
+	fanExternalFailed: fanExternalFailed,
+	fanExternalAction: fanExternalAction,
+	cpuServiceFailed: cpuServiceFailed,
+	cpuServiceAction: cpuServiceAction,
+	vramFailed: vramFailed,
+	vramAction: vramAction,
+	gddr6Failed: gddr6Failed,
+	gddr6Action: gddr6Action,
+	gameProfilesFailed: gameProfilesFailed,
+	gameProfilesAction: gameProfilesAction,
+	desktopCode: desktopCode,
+	exitStatus: exitStatus,
+	copyDetails: copyDetails,
+	copied: copied,
+	copyFailed: copyFailed,
+	pythonAction: pythonAction
 };
 
 const catalogs = {
@@ -5310,8 +6107,63 @@ function diagnoseError(value) {
         return { code: code || "BC250-GENERAL-001", summary: text.error, cause: text.unknownCause, action: text.retryGuidance };
     return { code, ...wording() };
 }
-const localizedErrorSummary = (value) => diagnoseError(value).summary;
-const failed = (error) => ({ ok: false, error: error instanceof Error ? error.message : text.error });
+const CODE_TOKEN = /\b(QUICK_ACCESS_[A-Z0-9_]+|HARDWARE_CONTEXT)(?=:)/;
+const localized = (key, fallback) => text[key] || fallback;
+function describeFailure(failure) {
+    const raw = String(failure.error ?? "");
+    const given = failure.diagnosis;
+    if (given?.code) {
+        return { code: given.code, title: localized(given.title, text.error), hint: localized(given.hint, text.retryGuidance), desktopCode: given.desktop_code ?? "", exitCode: given.exit_code, raw };
+    }
+    const legacy = diagnoseError(raw);
+    return { code: failure.error_code || CODE_TOKEN.exec(raw)?.[1] || "QUICK_ACCESS_OPERATION_FAILED", title: legacy.summary, hint: legacy.action, desktopCode: legacy.code, raw };
+}
+// One line for a toast or a compact note: what failed and the code to quote.
+const failureLine = (failure) => { const view = describeFailure(failure); return `${view.title} · ${view.code}`; };
+function failureDetails(view) {
+    const lines = [`${text.diagnosticCode}: ${view.code}`];
+    if (view.desktopCode)
+        lines.push(`${text.desktopCode}: ${view.desktopCode}`);
+    if (view.exitCode != null)
+        lines.push(`${text.exitStatus}: ${view.exitCode}`);
+    return `${lines.join("\n")}\n\n${view.raw}`;
+}
+// A call that never came back as a result: the backend crashed, Decky
+// restarted it, or the panel gave up waiting. The backend turns its own
+// exceptions into QUICK_ACCESS_BACKEND, so a rejection always means this.
+// Mirrors QUICK_ACCESS_NO_RESPONSE in main.py's ERROR_CODES (a test compares).
+const NO_RESPONSE = { code: "QUICK_ACCESS_NO_RESPONSE", title: "noResponseFailed", hint: "noResponseAction", desktop_code: "BC250-GENERAL-001" };
+const failed = (error) => ({ ok: false, error: error instanceof Error ? error.message : String(error ?? text.error), error_code: NO_RESPONSE.code, diagnosis: NO_RESPONSE });
+// status() can wait behind a long write, but a call that never settles must
+// not stop polling for the rest of the session.
+const STATUS_TIMEOUT_MS = 60000;
+function withTimeout(promise, ms) {
+    return new Promise((resolve, reject) => {
+        const timer = globalThis.setTimeout(() => reject(new Error(`No answer within ${ms / 1000} s`)), ms);
+        promise.then((value) => { globalThis.clearTimeout(timer); resolve(value); }, (error) => { globalThis.clearTimeout(timer); reject(error); });
+    });
+}
+async function copyText(value) {
+    try {
+        await globalThis.navigator.clipboard.writeText(value);
+        return true;
+    }
+    catch { /* Steam's browser may refuse; try the older route */ }
+    try {
+        const area = document.createElement("textarea");
+        area.value = value;
+        area.style.position = "fixed";
+        area.style.opacity = "0";
+        document.body.appendChild(area);
+        area.select();
+        const copied = document.execCommand("copy");
+        area.remove();
+        return copied;
+    }
+    catch {
+        return false;
+    }
+}
 const validMasks = (value) => Array.isArray(value) && value.length === 4 && value.every((mask) => Number.isInteger(mask) && mask >= 0 && mask <= 31);
 const countWgps = (masks) => masks.reduce((total, mask) => total + [0, 1, 2, 3, 4].filter((bit) => Boolean(mask & (1 << bit))).length, 0);
 const sameMasks = (a, b) => a.length === b.length && a.every((mask, index) => mask === b[index]);
@@ -5363,13 +6215,16 @@ function appName(appId) {
     catch { /* the Steam store can be unavailable for a moment */ }
     return `App ${appId}`;
 }
+// The desktop Fans page's default names (DEFAULT_FAN_PROFILES), by Decky preset key.
+const SHIPPED_FAN_NAMES = { quiet: "Quiet", balanced: "Balanced", boost: "Maximum" };
 function presetLabel(key, presets) {
     if (!key)
         return text.unchanged;
     if (key === "automatic")
         return text.automatic;
     const exported = presets?.find((preset) => preset.key === key)?.name;
-    if (exported)
+    // A Fans-page name left at its default arrives in English: use the panel's own.
+    if (exported && SHIPPED_FAN_NAMES[key] !== exported)
         return exported;
     return key === "quiet" ? text.fanQuiet : key === "balanced" ? text.fanBalanced : key === "boost" ? text.fanBoost : key;
 }
@@ -5401,12 +6256,12 @@ async function onGameStart(appId, name, refresh = false) {
     try {
         const result = await gameStarted(appId, name, refresh);
         if (result.ok === false)
-            toaster.toast({ title: `BC250 · ${name}`, body: `${text.gameProfileNotApplied}: ${localizedErrorSummary(result.error ?? text.error)}` });
+            toaster.toast({ title: `BC250 · ${name}`, body: `${text.gameProfileNotApplied}: ${failureLine(result)}` });
         else if (result.applied)
             toaster.toast({ title: `BC250 · ${name}`, body: `${text.gameProfileApplied}${result.gpu ? ` · GPU ${gpuLabel(result.gpu)}` : ""}${result.fan ? ` · ${text.fans} ${presetLabel(result.fan)}` : ""}` });
     }
     catch (error) {
-        toaster.toast({ title: `BC250 · ${name}`, body: `${text.gameProfileNotApplied}: ${localizedErrorSummary(failed(error).error ?? text.error)}` });
+        toaster.toast({ title: `BC250 · ${name}`, body: `${text.gameProfileNotApplied}: ${failureLine(failed(error))}` });
     }
     finally {
         notifyGameStore();
@@ -5418,12 +6273,12 @@ async function onGameStop(appId) {
     try {
         const result = await gameStopped(appId);
         if (result.ok === false)
-            toaster.toast({ title: "BC250", body: localizedErrorSummary(result.error ?? text.error) });
+            toaster.toast({ title: "BC250", body: failureLine(result) });
         else if (result.restored)
             toaster.toast({ title: `BC250 · ${result.name || appName(Number(appId))}`, body: text.gameProfileRestored });
     }
     catch (error) {
-        toaster.toast({ title: "BC250", body: localizedErrorSummary(failed(error).error ?? text.error) });
+        toaster.toast({ title: "BC250", body: failureLine(failed(error)) });
     }
     finally {
         notifyGameStore();
@@ -5571,10 +6426,21 @@ function SectionTitle({ kind, title, trailing }) {
     }[kind];
     return SP_JSX.jsxs("div", { style: { alignItems: "center", display: "flex", gap: 6, margin: "0 2px 6px" }, children: [SP_JSX.jsx("span", { style: { alignItems: "center", background: data[2], borderRadius: 4, color: data[1], display: "flex", fontSize: 10, height: 16, justifyContent: "center", width: 16 }, children: data[0] }), SP_JSX.jsx("span", { style: { color: tokens.colors.subtle, flex: 1, fontSize: 10, fontWeight: 650, letterSpacing: ".05em" }, children: title }), trailing] });
 }
-function Notice({ value, dismiss }) {
+const noticeButton = { fontSize: 10, minHeight: 30, padding: "4px 8px" };
+function Notice({ failure, dismiss }) {
     const [open, setOpen] = SP_REACT.useState(false);
-    const diagnosis = diagnoseError(value);
-    return SP_JSX.jsxs("div", { role: "alert", style: { background: tokens.colors.red_soft, border: `1px solid ${tokens.colors.red}`, borderRadius: 8, marginBottom: 10, padding: 9 }, children: [SP_JSX.jsxs("div", { style: { display: "flex", gap: 7 }, children: [SP_JSX.jsx(FaExclamationTriangle, { color: tokens.colors.red }), SP_JSX.jsxs("div", { children: [SP_JSX.jsx("b", { children: text.error }), SP_JSX.jsx("div", { style: { color: tokens.colors.red, fontSize: 11, marginTop: 3 }, children: diagnosis.summary }), SP_JSX.jsxs("div", { style: { color: tokens.colors.muted, fontSize: 10, marginTop: 4 }, children: [SP_JSX.jsxs("b", { children: [text.likelyCause, ":"] }), " ", diagnosis.cause] }), SP_JSX.jsxs("div", { style: { color: tokens.colors.muted, fontSize: 10, marginTop: 4 }, children: [SP_JSX.jsxs("b", { children: [text.next, ":"] }), " ", diagnosis.action] })] })] }), SP_JSX.jsxs("div", { style: { display: "flex", gap: 6, marginTop: 7 }, children: [SP_JSX.jsx(PadButton, { onActivate: () => setOpen(!open), style: { fontSize: 10, minHeight: 30, padding: "4px 8px" }, children: open ? text.hide : text.details }), SP_JSX.jsx(PadButton, { onActivate: dismiss, style: { fontSize: 10, minHeight: 30, padding: "4px 8px" }, children: text.close })] }), open ? SP_JSX.jsxs("pre", { style: { background: tokens.colors.console_bg, color: tokens.colors.red, fontSize: 9, margin: "7px 0 0", overflowWrap: "anywhere", padding: 6, whiteSpace: "pre-wrap" }, children: [text.diagnosticCode, ": ", diagnosis.code, "\n", value] }) : null] });
+    const view = describeFailure(failure);
+    const details = failureDetails(view);
+    const copy = async () => { toaster.toast({ title: view.code, body: await copyText(details) ? text.copied : text.copyFailed }); };
+    return SP_JSX.jsxs("div", { role: "alert", style: { background: tokens.colors.red_soft, border: `1px solid ${tokens.colors.red}`, borderRadius: 8, marginBottom: 10, padding: 9 }, children: [SP_JSX.jsxs("div", { style: { display: "flex", gap: 7 }, children: [SP_JSX.jsx(FaExclamationTriangle, { color: tokens.colors.red, style: { flexShrink: 0, marginTop: 2 } }), SP_JSX.jsxs("div", { style: { minWidth: 0 }, children: [SP_JSX.jsx("b", { style: { fontSize: 11 }, children: view.title }), SP_JSX.jsx("div", { style: { color: tokens.colors.red, fontFamily: "monospace", fontSize: 9, marginTop: 3, overflowWrap: "anywhere" }, children: view.code }), SP_JSX.jsxs("div", { style: { color: tokens.colors.muted, fontSize: 10, marginTop: 4 }, children: [SP_JSX.jsxs("b", { children: [text.next, ":"] }), " ", view.hint] })] })] }), SP_JSX.jsxs(DFL.Focusable, { "flow-children": "row", style: { display: "flex", gap: 6, marginTop: 7 }, children: [SP_JSX.jsx(PadButton, { onActivate: () => setOpen(!open), style: noticeButton, children: open ? text.hide : text.details }), open ? SP_JSX.jsx(PadButton, { onActivate: () => void copy(), style: noticeButton, children: text.copyDetails }) : null, SP_JSX.jsx(PadButton, { onActivate: dismiss, style: noticeButton, children: text.close })] }), open ? SP_JSX.jsx("pre", { style: { background: tokens.colors.console_bg, color: tokens.colors.red, fontSize: 9, margin: "7px 0 0", overflowWrap: "anywhere", padding: 6, whiteSpace: "pre-wrap" }, children: details }) : null] });
+}
+// The same failure where a full notice would crowd a card: title and code,
+// optionally the helper's own reason, and the next step. Details stay in the
+// notice at the top of the panel.
+function InlineError({ failure, reason = false }) {
+    const view = describeFailure(failure);
+    const said = reason ? view.raw.replace(/^(?:ERR\s+)?(?:(?:QUICK_ACCESS_[A-Z0-9_]+|HARDWARE_CONTEXT):\s*)+/, "") : "";
+    return SP_JSX.jsxs("div", { style: { background: tokens.colors.red_soft, border: `1px solid ${tokens.colors.red}`, borderRadius: 6, color: tokens.colors.red, fontSize: 9, lineHeight: 1.35, marginBottom: 7, overflowWrap: "anywhere", padding: "6px 8px" }, children: [SP_JSX.jsx("b", { children: view.title }), " \u00B7 ", SP_JSX.jsx("span", { style: { fontFamily: "monospace" }, children: view.code }), said ? SP_JSX.jsx("div", { style: { color: tokens.colors.muted, marginTop: 3 }, children: said }) : null, SP_JSX.jsx("div", { style: { color: tokens.colors.muted, marginTop: 3 }, children: view.hint })] });
 }
 // The installed governor's service, under the frequency controls it serves.
 // Every change is confirmed first and read back by the root helper, which
@@ -5734,8 +6600,8 @@ function Gddr6Panel({ state }) {
     const chips = state.gddr6_chips ?? [];
     const available = Boolean(state.gddr6_available) && chips.length > 0;
     return SP_JSX.jsxs("div", { style: { marginBottom: 6 }, children: [SP_JSX.jsx(Gddr6Switch, {}), SP_JSX.jsx(ScrollStop, { children: !available
-                    ? state.gddr6_patch_error
-                        ? SP_JSX.jsx("div", { style: { color: tokens.colors.red, fontSize: 9, lineHeight: 1.35, margin: "0 2px 6px", overflowWrap: "anywhere" }, children: state.gddr6_patch_error.replace(/^QUICK_ACCESS_GDDR6:\s*/, "") })
+                    ? state.gddr6_patch_failure
+                        ? SP_JSX.jsx(InlineError, { failure: state.gddr6_patch_failure, reason: true })
                         : SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 6px" }, children: state.gddr6_reason === "GDDR6_PATCH_INACTIVE" ? text.gddr6Patching : text.gddr6Unavailable })
                     : SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(MetricGrid, { tiles: [
                                     { label: "AVG", value: state.gddr6_average_c != null ? `${state.gddr6_average_c.toFixed(1)} °C` : "—" },
@@ -5807,12 +6673,13 @@ const VOLTAGE_MAX_ABOVE_DEFAULT_MV = 60;
 // busy-flag from here is how it recovers without leaving Game Mode.
 const COMPAT_SET_METHODS = ["smu", "kernel"];
 const COMPAT_USAGE_METHODS = ["busy-flag", "process", "kernel"];
+const COMPAT_TEMP_READ_METHODS = ["drm", "sysfs"];
 function CyanCompatibility({ state, busy, execute }) {
     ACCENT_SWATCHES[SP_REACT.useContext(SettingsContext).settings.accent];
     const current = state.gpu_compatibility ?? null;
     const [open, setOpen] = SP_REACT.useState(false);
     const [draft, setDraft] = SP_REACT.useState(null);
-    const keyOf = (value) => `${value.set_method}:${value.usage_method}:${value.fix_metrics}:${value.fix_frequency}`;
+    const keyOf = (value) => `${value.set_method}:${value.usage_method}:${value.fix_metrics}:${value.fix_frequency}:${value.temp_read}`;
     const signature = current ? keyOf(current) : "";
     SP_REACT.useEffect(() => { setDraft(null); }, [signature]);
     if (state.gpu_governor === "oberon" || !current)
@@ -5825,8 +6692,8 @@ function CyanCompatibility({ state, busy, execute }) {
     const cyanActive = state.gpu_governor !== "conflict" && state.gpu_service_target === "cyan" && Boolean(state.gpu_service_installed);
     const cyanRunningNow = state.gpu_governor === "cyan";
     const choose = (patch) => setDraft({ ...value, ...patch });
-    const confirm = () => DFL.showModal(SP_JSX.jsx(DFL.ConfirmModal, { strTitle: text.compatTitle, strDescription: text.compatConfirm, strOKButtonText: text.compatApply, onOK: () => void execute(`GPU · ${text.compatTitle}`, () => applyGpuCompatibility(value.set_method, value.usage_method, value.fix_metrics, value.fix_frequency), "gpu") }));
-    return SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(DisclosureRow, { label: text.compatTitle, value: `${current.set_method === "smu" ? "SMU" : "Kernel"} · ${current.usage_method}`, open: open, warn: current.usage_method === "process", onActivate: () => setOpen(!open) }), open ? SP_JSX.jsxs(Drawer, { children: [!cyanActive ? SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 9, margin: "0 2px 6px" }, children: text.compatNeedsCyan }) : null, cyanActive && !cyanRunningNow ? SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 9, margin: "0 2px 6px" }, children: text.compatStaged }) : null, SP_JSX.jsx(DrawerLabel, { children: text.compatSetMethod }), SP_JSX.jsx(Segmented, { disabled: busy || !cyanActive, value: value.set_method, onChange: (method) => choose({ set_method: method }), options: COMPAT_SET_METHODS.map((method) => ({ key: method, label: method === "smu" ? "SMU" : "Kernel" })) }), SP_JSX.jsx(DrawerLabel, { children: text.compatUsage }), SP_JSX.jsx(Segmented, { disabled: busy || !cyanActive, value: value.usage_method, onChange: (method) => choose({ usage_method: method }), options: COMPAT_USAGE_METHODS.map((method) => ({ key: method, label: method })) }), value.usage_method === "process" ? SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 9, lineHeight: 1.35, margin: "-2px 2px 6px" }, children: text.compatProcessWarning }) : null, SP_JSX.jsx(Divider, {}), SP_JSX.jsx(SwitchRow, { label: text.compatFixMetrics, checked: value.fix_metrics, disabled: busy || !cyanActive, onChange: (checked) => choose({ fix_metrics: checked }) }), SP_JSX.jsx(SwitchRow, { label: text.compatFixFrequency, checked: value.fix_frequency, disabled: busy || !cyanActive, onChange: (checked) => choose({ fix_frequency: checked }) }), SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, lineHeight: 1.35, margin: "2px 8px 8px" }, children: text.compatHint }), SP_JSX.jsxs(ActionRow, { marginBottom: 2, children: [SP_JSX.jsx(Action, { label: text.compatApply, primary: true, disabled: busy || !cyanActive || !changed, onActivate: confirm }), SP_JSX.jsx(Action, { label: text.voltageDiscard, disabled: busy || !changed, onActivate: () => setDraft(null) })] })] }) : null] });
+    const confirm = () => DFL.showModal(SP_JSX.jsx(DFL.ConfirmModal, { strTitle: text.compatTitle, strDescription: text.compatConfirm, strOKButtonText: text.compatApply, onOK: () => void execute(`GPU · ${text.compatTitle}`, () => applyGpuCompatibility(value.set_method, value.usage_method, value.fix_metrics, value.fix_frequency, value.temp_read), "gpu") }));
+    return SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(DisclosureRow, { label: text.compatTitle, value: `${current.set_method === "smu" ? "SMU" : "Kernel"} · ${current.usage_method}`, open: open, warn: current.usage_method === "process", onActivate: () => setOpen(!open) }), open ? SP_JSX.jsxs(Drawer, { children: [!cyanActive ? SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 9, margin: "0 2px 6px" }, children: text.compatNeedsCyan }) : null, cyanActive && !cyanRunningNow ? SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 9, margin: "0 2px 6px" }, children: text.compatStaged }) : null, SP_JSX.jsx(DrawerLabel, { children: text.compatSetMethod }), SP_JSX.jsx(Segmented, { disabled: busy || !cyanActive, value: value.set_method, onChange: (method) => choose({ set_method: method }), options: COMPAT_SET_METHODS.map((method) => ({ key: method, label: method === "smu" ? "SMU" : "Kernel" })) }), SP_JSX.jsx(DrawerLabel, { children: text.compatUsage }), SP_JSX.jsx(Segmented, { disabled: busy || !cyanActive, value: value.usage_method, onChange: (method) => choose({ usage_method: method }), options: COMPAT_USAGE_METHODS.map((method) => ({ key: method, label: method })) }), SP_JSX.jsx(DrawerLabel, { children: text.compatTemperature }), SP_JSX.jsx(Segmented, { disabled: busy || !cyanActive, value: value.temp_read, onChange: (method) => choose({ temp_read: method }), options: COMPAT_TEMP_READ_METHODS.map((method) => ({ key: method, label: method === "drm" ? "DRM" : "sysfs" })) }), value.usage_method === "process" ? SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 9, lineHeight: 1.35, margin: "-2px 2px 6px" }, children: text.compatProcessWarning }) : null, SP_JSX.jsx(Divider, {}), SP_JSX.jsx(SwitchRow, { label: text.compatFixMetrics, checked: value.fix_metrics, disabled: busy || !cyanActive, onChange: (checked) => choose({ fix_metrics: checked }) }), SP_JSX.jsx(SwitchRow, { label: text.compatFixFrequency, checked: value.fix_frequency, disabled: busy || !cyanActive, onChange: (checked) => choose({ fix_frequency: checked }) }), SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, lineHeight: 1.35, margin: "2px 8px 8px" }, children: text.compatHint }), SP_JSX.jsxs(ActionRow, { marginBottom: 2, children: [SP_JSX.jsx(Action, { label: text.compatApply, primary: true, disabled: busy || !cyanActive || !changed, onActivate: confirm }), SP_JSX.jsx(Action, { label: text.voltageDiscard, disabled: busy || !changed, onActivate: () => setDraft(null) })] })] }) : null] });
 }
 // The desktop voltage drawer, cut down to what a controller can do safely:
 // the governor curve or +10/+20/+30 mV on the points from 2000 MHz up, and a
@@ -5863,8 +6730,10 @@ function VoltageLab({ state, busy, execute }) {
                                 return SP_JSX.jsxs(DFL.Focusable, { "flow-children": "row", style: { alignItems: "center", borderTop: index ? `1px solid ${tokens.colors.border_soft}` : "none", display: "grid", gap: 6, gridTemplateColumns: "1fr 28px 64px 28px", padding: "5px 0" }, children: [SP_JSX.jsxs("span", { style: { color: tokens.colors.muted, fontSize: 10, fontWeight: 650 }, children: [ghz(point.frequency), " GHz"] }), SP_JSX.jsx(PadButton, { label: "-5 mV", disabled: busy || !cyanRunning || value <= floorOf(point), onActivate: () => nudge(point, -VOLTAGE_STEP_MV), style: { borderRadius: 14, fontSize: 13, height: 26, padding: 0, width: "100%" }, children: "\u2212" }), SP_JSX.jsxs("span", { style: { color: moved ? accent.focus : tokens.colors.text, fontSize: 11, fontWeight: 650, textAlign: "center" }, children: [value, " mV"] }), SP_JSX.jsx(PadButton, { label: "+5 mV", disabled: busy || !cyanRunning || value >= floorOf(point) + VOLTAGE_MAX_ABOVE_DEFAULT_MV, onActivate: () => nudge(point, VOLTAGE_STEP_MV), style: { borderRadius: 14, fontSize: 13, height: 26, padding: 0, width: "100%" }, children: "+" })] }, point.frequency);
                             }) }) }), SP_JSX.jsx("div", { style: { height: 8 } }), SP_JSX.jsxs(ActionRow, { marginBottom: 2, children: [SP_JSX.jsx(Action, { label: text.voltageApplyPoints, primary: true, disabled: busy || !cyanRunning || !changed.length, onActivate: confirmPoints }), SP_JSX.jsx(Action, { label: text.voltageDiscard, disabled: busy || !changed.length, onActivate: () => setDraft({}) })] })] }) : null] });
 }
-// Desktop defaults arrive with an English name; show them in the panel's language.
-const cpuPresetName = (preset) => preset.default ? { board_average: text.cpuPresetBoardAverage, mid_point: text.cpuPresetMidPoint, safe_maximum: text.cpuPresetSafeMaximum }[preset.key] ?? preset.name : preset.name;
+// Desktop defaults arrive with an English name, built in or exported with the
+// card's name left untouched; show them in the panel's language.
+const SHIPPED_CPU_NAMES = { board_average: "Average board", mid_point: "Mid point", safe_maximum: "Safe maximum" };
+const cpuPresetName = (preset) => preset.default || SHIPPED_CPU_NAMES[preset.key] === preset.name ? { board_average: text.cpuPresetBoardAverage, mid_point: text.cpuPresetMidPoint, safe_maximum: text.cpuPresetSafeMaximum }[preset.key] ?? preset.name : preset.name;
 // Monitoring › CPU: what a CPU run is doing while it runs, then the result on top.
 // The player is not moved here; the run's progress is also in the CPU settings.
 function cpuRunNotice(state, cpuRun) {
@@ -5912,7 +6781,7 @@ function CpuOcCard({ state }) {
         [active?.mode === "manual" ? text.cpuScale : text.cpuEstimatedVid, !active ? "—" : active.mode === "manual" ? String(active.scale) : `${active.estimated_vid} mV`],
         // "persistable" only means it may be installed; the boot service decides.
         [text.cpuOnBoot, state.cpu_service_enabled === true ? text.enabled : text.disabled],
-        [text.cpuThermalLimit, `${state.cpu_tuning_temperature ?? "—"} °C`],
+        [text.cpuThermalLimit, `${active?.temperature ?? state.cpu_tuning_temperature ?? "—"} °C`],
     ];
     return SP_JSX.jsx(DetailCard, { title: text.cpuOcTitle, status: active ? text.enabled : text.disabled, statusOn: Boolean(active), rows: rows });
 }
@@ -5933,6 +6802,22 @@ function AceMeter({ state }) {
     const who = active ? (game?.name || state.ace_process || "") : "";
     return SP_JSX.jsxs("div", { title: who || undefined, style: { alignItems: "center", background: tokens.colors.panel_alt, borderRadius: 6, display: "flex", fontSize: 9, gap: 8, marginBottom: 8, padding: "6px 10px" }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.subtle, whiteSpace: "nowrap" }, children: "Async compute" }), SP_JSX.jsx("div", { style: { background: tokens.colors.panel, borderRadius: 2, flex: 1, height: 3, overflow: "hidden" }, children: SP_JSX.jsx("div", { style: { background: accent.focus, height: "100%", transition: "width .4s ease", width: `${active ? Math.max(2, Math.min(100, percent ?? 0)) : 0}%` } }) }), SP_JSX.jsx("b", { style: { color: active ? accent.focus : tokens.colors.subtle, minWidth: 26, textAlign: "right" }, children: !available || percent == null ? "—" : `${percent}%` })] });
 }
+// How many hangs the kernel log shows this boot: a full reset is the one that
+// loses the VRAM; without one, the ring timeouts and failed ring resets.
+const resetCount = (resets) => resets ? (resets.full_resets || resets.ring_timeouts + resets.ring_resets_failed) : 0;
+function resetsText(resets) {
+    if (!resets)
+        return "—";
+    return resetCount(resets) ? resets.label : text.gpuResetsNone;
+}
+// Shown only after a hang, in the amber reserved for "needs attention".
+function GpuResetNotice({ state }) {
+    const resets = state.gpu_resets;
+    const count = resetCount(resets);
+    if (!resets || !count)
+        return null;
+    return SP_JSX.jsxs("div", { title: `${text.gpuResetsHint}\n${resets.label}`, style: { alignItems: "center", background: tokens.colors.amber_soft, borderRadius: 6, color: tokens.colors.amber, display: "flex", fontSize: 9, gap: 8, justifyContent: "space-between", marginBottom: 8, padding: "6px 10px" }, children: [SP_JSX.jsx("span", { children: text.gpuResets }), SP_JSX.jsx("b", { children: count })] });
+}
 function GpuDetails({ state }) {
     const accent = useAccent();
     const mhz = (value) => value != null ? `${value} MHz` : "—";
@@ -5947,6 +6832,7 @@ function GpuDetails({ state }) {
         [text.gpuFabricClock, mhz(state.gpu_fabric_clock_mhz)],
         ["PCIe", state.gpu_pcie_link || "—"],
         ["VBIOS", state.gpu_vbios_version || "—"],
+        [text.gpuResets, resetsText(state.gpu_resets)],
     ];
     const mib = 1024 * 1024;
     return SP_JSX.jsx(DetailCard, { title: text.gpuDetails, rows: rows, children: SP_JSX.jsxs("div", { style: { borderTop: `1px solid ${tokens.colors.border}`, paddingTop: 6 }, children: [SP_JSX.jsx(UsageBar, { label: "VRAM", used: state.gpu_vram_used_mib != null ? state.gpu_vram_used_mib * mib : null, total: state.gpu_vram_total_mib != null ? state.gpu_vram_total_mib * mib : null, color: accent.focus }), SP_JSX.jsx(UsageBar, { label: "GTT", used: state.gpu_gtt_used_mib != null ? state.gpu_gtt_used_mib * mib : null, total: state.gpu_gtt_total_mib != null ? state.gpu_gtt_total_mib * mib : null, color: tokens.colors.cyan })] }) });
@@ -6009,7 +6895,7 @@ function MonitorTab({ state, cpuRun }) {
                     { key: "cpu", label: "CPU", icon: SP_JSX.jsx(LuCpu, { strokeWidth: NAV_STROKE }), color: accent.focus, colorSoft: accent.focus_soft },
                     { key: "gpu", label: "GPU", icon: SP_JSX.jsx(LuMicrochip, { strokeWidth: NAV_STROKE }), color: accent.focus, colorSoft: accent.focus_soft },
                     { key: "all", label: text.allSensors, icon: SP_JSX.jsx(LuLayoutGrid, { strokeWidth: NAV_STROKE }), color: accent.focus, colorSoft: accent.focus_soft },
-                ] }), section === "cpu" ? SP_JSX.jsxs(DFL.Focusable, { "flow-children": "down", children: [cpuRunNotice(state, cpuRun), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(CpuOverview, { state: state }), SP_JSX.jsx(CpuOcCard, { state: state })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(CoreGrid, { cores: state.cpu_cores ?? [], slots: state.cpu_physical_slots }) }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(RailVrm, { state: state, label: "VRM CPU", tiles: cpuVrmTiles }) }), SP_JSX.jsx(ScrollStop, { end: true })] }) : null, section === "gpu" ? SP_JSX.jsxs(DFL.Focusable, { "flow-children": "down", children: [SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(GpuOverview, { state: state }), SP_JSX.jsx(AceMeter, { state: state })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(GpuDetails, { state: state }) }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(RailVrm, { state: state, label: "VRM GPU", tiles: gpuVrmTiles }) }), SP_JSX.jsx(Gddr6Panel, { state: state }), SP_JSX.jsx(ScrollStop, { end: true })] }) : null, section === "all" ? SP_JSX.jsx("section", { children: SP_JSX.jsxs(DFL.Focusable, { "flow-children": "down", children: [SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "cpu", title: "CPU" }), SP_JSX.jsx(CpuOverview, { state: state }), SP_JSX.jsx(CpuOcCard, { state: state })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(CoreGrid, { cores: state.cpu_cores ?? [], slots: state.cpu_physical_slots }) }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(RailVrm, { state: state, label: "VRM CPU", tiles: cpuVrmTiles }) }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "gpu", title: "GPU" }), SP_JSX.jsx(GpuOverview, { state: state }), SP_JSX.jsx(AceMeter, { state: state })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(GpuDetails, { state: state }) }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(RailVrm, { state: state, label: "VRM GPU", tiles: gpuVrmTiles }) }), SP_JSX.jsx(Gddr6Panel, { state: state }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "fan", title: text.fan }), SP_JSX.jsx(FanCard, { state: state })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(BoardCard, { state: state }) }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "power", title: text.power }), SP_JSX.jsx(RailVrm, { state: state, label: "VRM", tiles: powerTiles })] }), SP_JSX.jsx(ScrollStop, { end: true })] }) }) : null] });
+                ] }), section === "cpu" ? SP_JSX.jsxs(DFL.Focusable, { "flow-children": "down", children: [cpuRunNotice(state, cpuRun), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(CpuOverview, { state: state }), SP_JSX.jsx(CpuOcCard, { state: state })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(CoreGrid, { cores: state.cpu_cores ?? [], slots: state.cpu_physical_slots }) }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(RailVrm, { state: state, label: "VRM CPU", tiles: cpuVrmTiles }) }), SP_JSX.jsx(ScrollStop, { end: true })] }) : null, section === "gpu" ? SP_JSX.jsxs(DFL.Focusable, { "flow-children": "down", children: [SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(GpuOverview, { state: state }), SP_JSX.jsx(AceMeter, { state: state }), SP_JSX.jsx(GpuResetNotice, { state: state })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(GpuDetails, { state: state }) }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(RailVrm, { state: state, label: "VRM GPU", tiles: gpuVrmTiles }) }), SP_JSX.jsx(Gddr6Panel, { state: state }), SP_JSX.jsx(ScrollStop, { end: true })] }) : null, section === "all" ? SP_JSX.jsx("section", { children: SP_JSX.jsxs(DFL.Focusable, { "flow-children": "down", children: [SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "cpu", title: "CPU" }), SP_JSX.jsx(CpuOverview, { state: state }), SP_JSX.jsx(CpuOcCard, { state: state })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(CoreGrid, { cores: state.cpu_cores ?? [], slots: state.cpu_physical_slots }) }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(RailVrm, { state: state, label: "VRM CPU", tiles: cpuVrmTiles }) }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "gpu", title: "GPU" }), SP_JSX.jsx(GpuOverview, { state: state }), SP_JSX.jsx(AceMeter, { state: state }), SP_JSX.jsx(GpuResetNotice, { state: state })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(GpuDetails, { state: state }) }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(RailVrm, { state: state, label: "VRM GPU", tiles: gpuVrmTiles }) }), SP_JSX.jsx(Gddr6Panel, { state: state }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "fan", title: text.fan }), SP_JSX.jsx(FanCard, { state: state })] }), SP_JSX.jsx(ScrollStop, { children: SP_JSX.jsx(BoardCard, { state: state }) }), SP_JSX.jsxs(ScrollStop, { children: [SP_JSX.jsx(SectionTitle, { kind: "power", title: text.power }), SP_JSX.jsx(RailVrm, { state: state, label: "VRM", tiles: powerTiles })] }), SP_JSX.jsx(ScrollStop, { end: true })] }) }) : null] });
 }
 function GpuMemoryLimit({ ttm, error, busy, execute, onState }) {
     const pageSize = ttm?.page_size ?? 4096;
@@ -6077,14 +6963,14 @@ function MemoryTab({ state, busy, execute }) {
         try {
             const reply = await getTtmState();
             if (reply.ok === false || !reply.ttm) {
-                setTtmError(localizedErrorSummary(reply.error ?? text.error));
+                setTtmError(failureLine(reply));
                 return;
             }
             setTtmError(null);
             setTtm(reply.ttm);
         }
         catch (error) {
-            setTtmError(localizedErrorSummary(failed(error).error ?? text.error));
+            setTtmError(failureLine(failed(error)));
         }
     }, []);
     // Once on mount, and again when the VRAM size changes: a new size changes how
@@ -6190,6 +7076,8 @@ function Content() {
     const busy = busyLocal || Boolean(state.operation_in_progress);
     const [stale, setStale] = SP_REACT.useState(false);
     const [feedback, setFeedback] = SP_REACT.useState(null);
+    // Why the last refresh failed, so "stale" can say which code it is.
+    const [staleFailure, setStaleFailure] = SP_REACT.useState(null);
     const [highOpen, setHighOpen] = SP_REACT.useState(true);
     const [highSelection, setHighSelection] = SP_REACT.useState(0);
     const [cuDraft, setCuDraft] = SP_REACT.useState(masksFromTarget(24));
@@ -6199,6 +7087,7 @@ function Content() {
     const [fanDuty, setFanDuty] = SP_REACT.useState(50);
     const [cpuFrequency, setCpuFrequency] = SP_REACT.useState(3100);
     const [cpuVid, setCpuVid] = SP_REACT.useState(1150);
+    const [cpuTemperature, setCpuTemperature] = SP_REACT.useState(90);
     const [cpuScale, setCpuScale] = SP_REACT.useState(-30);
     const [cpuManual, setCpuManual] = SP_REACT.useState(false);
     const [cpuError, setCpuError] = SP_REACT.useState(null);
@@ -6229,12 +7118,13 @@ function Content() {
             return;
         refreshing.current = true;
         try {
-            const result = await getStatus();
+            const result = await withTimeout(getStatus(), STATUS_TIMEOUT_MS);
             if (result.ok === false) {
                 setLoaded(true);
                 setStale(true);
+                setStaleFailure(result);
                 if (reason === "initial")
-                    setFeedback(result.error ?? text.error);
+                    setFeedback(result);
                 return;
             }
             // A merge, not a replace: status() no longer carries cpu_cores,
@@ -6248,6 +7138,7 @@ function Content() {
             setState((current) => ({ ...current, ...result, gpu_busy_percent: result.gpu_busy_percent ?? current.gpu_busy_percent }));
             setLoaded(true);
             setStale(false);
+            setStaleFailure(null);
             if (validMasks(result.cu_masks))
                 setCuDraft((existing) => { if (dirty.current.cu && reason !== "after") {
                     if (!sameMasks(existing, result.cu_masks))
@@ -6291,20 +7182,24 @@ function Content() {
                 const selectedFrequency = active?.mode === "manual" ? active.frequency : result.cpu_detected_profile.requested_frequency;
                 setCpuFrequency(Math.max(lowFreq, Math.min(highFreq, selectedFrequency)));
                 setCpuVid(Math.max(lowVid, Math.min(highVid, result.cpu_detected_profile.requested_vid)));
+                setCpuTemperature(result.cpu_detected_profile.requested_temperature);
                 setCpuScale(Math.max(lowScale, Math.min(highScale, active?.scale ?? result.cpu_detected_profile.scale)));
                 setCpuManual(active?.mode === "manual");
             }
             else if (!dirty.current.cpu && result.cpu_saved_profile) {
                 setCpuFrequency(Math.max(lowFreq, Math.min(highFreq, Math.round(result.cpu_saved_profile.frequency / freqStep) * freqStep)));
                 setCpuScale(Math.max(lowScale, Math.min(highScale, result.cpu_saved_profile.scale)));
+                setCpuTemperature(result.cpu_saved_profile.temperature);
             }
         }
         catch (error) {
+            const failure = failed(error);
             if (reason === "initial")
                 setLoaded(true);
             setStale(true);
+            setStaleFailure(failure);
             if (reason === "initial")
-                setFeedback(failed(error).error ?? text.error);
+                setFeedback(failure);
         }
         finally {
             refreshing.current = false;
@@ -6355,7 +7250,7 @@ function Content() {
             return;
         monitorSensorsRefreshing.current = true;
         try {
-            const { ok: _ok, protocol: _protocol, error: _error, ...fields } = await getMonitorSnapshot();
+            const { ok: _ok, protocol: _protocol, error: _error, error_code: _code, diagnosis: _diagnosis, ...fields } = await getMonitorSnapshot();
             setState((current) => ({ ...current, ...fields }));
         }
         catch {
@@ -6375,6 +7270,16 @@ function Content() {
         const timer = globalThis.setInterval(() => void sampleMonitorSensors(), settings.refreshIntervalMs);
         return () => globalThis.clearInterval(timer);
     }, [sampleMonitorSensors, settings.refreshIntervalMs]);
+    // Everything on screen predates a suspend, and the timers above only fire
+    // again on their next tick: flag it stale and read the board now.
+    SP_REACT.useEffect(() => {
+        const registration = globalThis.SteamClient?.System?.RegisterForOnResumeFromSuspend?.(() => {
+            setStale(true);
+            void refresh("poll");
+            void sampleMonitorSensors();
+        });
+        return () => { registration?.unregister?.(); };
+    }, [refresh, sampleMonitorSensors]);
     const [gddr6Now, setGddr6Now] = SP_REACT.useState(() => Date.now());
     const gddr6Live = gddr6Now < gddr6LiveUntil;
     // A CPU run holds the SMU: the session waits instead of queuing behind it.
@@ -6392,7 +7297,7 @@ function Content() {
             return;
         gddr6Refreshing.current = true;
         try {
-            const { ok: _ok, protocol: _protocol, error: _error, ...fields } = await getGddr6Sensors();
+            const { ok: _ok, protocol: _protocol, error: _error, error_code: _code, diagnosis: _diagnosis, ...fields } = await getGddr6Sensors();
             setState((current) => ({ ...current, ...fields }));
         }
         catch {
@@ -6429,14 +7334,14 @@ function Content() {
             try {
                 const result = await applyGddr6Patch();
                 if (result.ok === false)
-                    setState((current) => ({ ...current, gddr6_patch_error: result.error ?? text.error }));
+                    setState((current) => ({ ...current, gddr6_patch_failure: result }));
                 else {
                     const { ok: _ok, protocol: _protocol, error: _error, ...fields } = result;
-                    setState((current) => ({ ...current, ...fields, gddr6_patch_error: null }));
+                    setState((current) => ({ ...current, ...fields, gddr6_patch_failure: null }));
                 }
             }
             catch (error) {
-                setState((current) => ({ ...current, gddr6_patch_error: failed(error).error ?? text.error }));
+                setState((current) => ({ ...current, gddr6_patch_failure: failed(error) }));
             }
         })();
     }, [gddr6Live, gddr6Paused, state.gddr6_reason, state.gddr6_firmware_supported]);
@@ -6452,11 +7357,10 @@ function Content() {
         try {
             const result = await operation();
             if (result.ok === false) {
-                const message = result.error ?? text.error;
                 if (kind === "cpu")
-                    setCpuError(message);
-                setFeedback(message);
-                toaster.toast({ title, body: localizedErrorSummary(message) });
+                    setCpuError(result);
+                setFeedback(result);
+                toaster.toast({ title, body: failureLine(result) });
             }
             else {
                 setState((current) => ({ ...current, ...result }));
@@ -6473,11 +7377,10 @@ function Content() {
         }
         catch (error) {
             const result = failed(error);
-            const message = result.error ?? text.error;
             if (kind === "cpu")
-                setCpuError(message);
-            setFeedback(message);
-            toaster.toast({ title, body: localizedErrorSummary(message) });
+                setCpuError(result);
+            setFeedback(result);
+            toaster.toast({ title, body: failureLine(result) });
         }
         finally {
             void sampleCpuTelemetry();
@@ -6499,8 +7402,9 @@ function Content() {
     const governorName = state.gpu_governor === "oberon" ? "Oberon" : state.gpu_governor === "cyan" ? "Cyan" : "";
     const activeGpuProfiles = state.gpu_profiles ?? [];
     const cpuReady = Boolean(state.cpu_tuning_ready);
-    const cpuLimit = state.cpu_tuning_temperature ?? 90;
     const detectedCpu = state.cpu_detected_profile;
+    // The cap the next run uses: the card's own, or the detection's for a manual scale.
+    const cpuLimit = cpuManual ? (detectedCpu?.temperature ?? cpuTemperature) : cpuTemperature;
     const activeCpu = state.cpu_active_profile ?? detectedCpu?.active_profile;
     const manualReady = Boolean(detectedCpu?.ready && detectedCpu.same_boot && (state.cpu_manual_scale_ready ?? detectedCpu.manual_scale_ready));
     const manualFrequencyReady = Boolean(manualReady && detectedCpu?.frequency === cpuFrequency);
@@ -6540,16 +7444,16 @@ function Content() {
     const selectedEstimatedVid = estimateCpuVid(cpuFrequency, cpuScale, cpuBounds?.vid_model);
     const activeMatchesTarget = cpuManual
         ? Boolean(activeCpu?.persistable && activeCpu.mode === "manual" && activeCpu.frequency === cpuFrequency && activeCpu.scale === cpuScale)
-        : Boolean(activeCpu?.persistable && activeCpu.mode === "automatic" && detectedCpu?.requested_frequency === cpuFrequency && detectedCpu.requested_vid === cpuVid);
+        : Boolean(activeCpu?.persistable && activeCpu.mode === "automatic" && detectedCpu?.requested_frequency === cpuFrequency && detectedCpu.requested_vid === cpuVid && detectedCpu.requested_temperature === cpuTemperature);
     const confirmCpu = (mode) => DFL.showModal(SP_JSX.jsx(DFL.ConfirmModal, { strTitle: mode === "detect" ? (cpuManual ? text.cpuApplyManual : text.cpuApplyAuto) : text.install, strDescription: mode === "detect"
             ? cpuManual
                 ? `${cpuFrequency} MHz · ${text.cpuScale} ${cpuScale} · VID ${text.estimated} ${selectedEstimatedVid} mV · ${cpuLimit}°C. ${text.manualApplyWarning}`
                 : `${cpuFrequency} MHz · ${text.cpuVoltage} ${cpuVid} mV · ${cpuLimit}°C. ${text.automaticApplyWarning}`
             : `${activeCpu?.frequency ?? "—"} MHz · ${text.cpuScale} ${activeCpu?.scale ?? "—"} · ${activeCpu?.estimated_vid ?? "—"} mV ${text.estimated} · ${activeCpu?.temperature ?? cpuLimit}°C. ${text.installExactProfile}`, strOKButtonText: mode === "detect" ? (cpuManual ? text.cpuApplyManual : text.cpuApplyAuto) : text.install, onOK: () => {
             // The player stays where they are: this tab shows the run's progress itself.
-            void execute("BC250 CPU", mode === "detect" ? (cpuManual ? () => applyCpuScale(cpuFrequency, cpuScale) : () => applyCpuTuning(cpuFrequency, cpuVid)) : installCpuService, "cpu", mode === "detect" ? { target: cpuFrequency, manual: cpuManual } : undefined);
+            void execute("BC250 CPU", mode === "detect" ? (cpuManual ? () => applyCpuScale(cpuFrequency, cpuScale) : () => applyCpuTuning(cpuFrequency, cpuVid, cpuTemperature)) : installCpuService, "cpu", mode === "detect" ? { target: cpuFrequency, manual: cpuManual } : undefined);
         } }));
-    return SP_JSX.jsx(DFL.Focusable, { "flow-children": "down", style: { background: tokens.colors.panel, border: `1px solid ${tokens.colors.border}`, borderRadius: 12, boxSizing: "border-box", color: tokens.colors.text, minHeight: "100vh", padding: "12px 14px 72px", width: "100%" }, children: SP_JSX.jsxs(SettingsContext.Provider, { value: { settings, setSettings, gddr6: gddr6Session }, children: [SP_JSX.jsx("div", { ref: topRef }), stale ? SP_JSX.jsxs("div", { style: { alignItems: "center", background: tokens.colors.amber_soft, border: `1px solid ${tokens.colors.amber}`, borderRadius: 6, color: tokens.colors.amber, display: "flex", fontSize: 10, gap: 6, marginBottom: 10, padding: "6px 9px" }, children: [SP_JSX.jsx(FaClock, {}), text.stale] }) : null, feedback ? SP_JSX.jsx(Notice, { value: feedback, dismiss: () => setFeedback(null) }) : null, SP_JSX.jsx(DFL.Focusable, { "flow-children": "row", style: { background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 8, display: "grid", gap: 4, gridTemplateColumns: "repeat(4,minmax(0,1fr))", marginBottom: 12, padding: 4 }, children: [
+    return SP_JSX.jsx(DFL.Focusable, { "flow-children": "down", style: { background: tokens.colors.panel, border: `1px solid ${tokens.colors.border}`, borderRadius: 12, boxSizing: "border-box", color: tokens.colors.text, minHeight: "100vh", padding: "12px 14px 72px", width: "100%" }, children: SP_JSX.jsxs(SettingsContext.Provider, { value: { settings, setSettings, gddr6: gddr6Session }, children: [SP_JSX.jsx("div", { ref: topRef }), stale ? SP_JSX.jsxs("div", { style: { alignItems: "center", background: tokens.colors.amber_soft, border: `1px solid ${tokens.colors.amber}`, borderRadius: 6, color: tokens.colors.amber, display: "flex", fontSize: 10, gap: 6, marginBottom: 10, padding: "6px 9px" }, children: [SP_JSX.jsx(FaClock, {}), text.stale, staleFailure ? SP_JSX.jsxs("span", { style: { fontFamily: "monospace" }, children: ["\u00B7 ", describeFailure(staleFailure).code] }) : null] }) : null, feedback ? SP_JSX.jsx(Notice, { failure: feedback, dismiss: () => setFeedback(null) }) : null, SP_JSX.jsx(DFL.Focusable, { "flow-children": "row", style: { background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border}`, borderRadius: 8, display: "grid", gap: 4, gridTemplateColumns: "repeat(4,minmax(0,1fr))", marginBottom: 12, padding: 4 }, children: [
                         ["board", text.boardSetup, SP_JSX.jsx(LuSlidersHorizontal, { strokeWidth: NAV_STROKE })],
                         ["monitor", text.monitoring, SP_JSX.jsx(LuActivity, { strokeWidth: NAV_STROKE })],
                         ["memory", text.memoryAndVideo, SP_JSX.jsx(LuMemoryStick, { strokeWidth: NAV_STROKE })],
@@ -6562,24 +7466,25 @@ function Content() {
                                 { key: "cpu", label: "CPU", icon: SP_JSX.jsx(LuCpu, { strokeWidth: NAV_STROKE }), color: accent.focus, colorSoft: accent.focus_soft },
                                 { key: "cu", label: text.compute, icon: SP_JSX.jsx(LuGrid3X3, { strokeWidth: NAV_STROKE }), color: accent.focus, colorSoft: accent.focus_soft },
                                 { key: "fan", label: text.fan, icon: SP_JSX.jsx(LuFan, { strokeWidth: NAV_STROKE }), color: accent.focus, colorSoft: accent.focus_soft },
-                            ] }), busy && boardSection !== "cpu" ? SP_JSX.jsxs("div", { style: { alignItems: "center", background: accent.focus_soft, border: `1px solid ${accent.focus}`, borderRadius: 7, color: accent.focus, display: "flex", fontSize: 10, gap: 6, marginBottom: 10, padding: "7px 9px" }, children: [SP_JSX.jsx(FaClock, {}), text.operationInProgress] }) : null, boardSection === "gpu" ? SP_JSX.jsxs("section", { style: { marginBottom: 12 }, children: [SP_JSX.jsx(SectionTitle, { kind: "gpu", title: "GPU", trailing: governorName ? SP_JSX.jsx("span", { style: { color: tokens.colors.subtle, fontSize: 9 }, children: governorName }) : undefined }), !loaded ? SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 10, marginBottom: 6 }, children: text.loadingGpu }) : SP_JSX.jsxs(SP_JSX.Fragment, { children: [gpuReady && state.gpu_dbus_responsive === false ? SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 9, marginBottom: 6 }, children: text.governorUnresponsive }) : null, !gpuReady ? SP_JSX.jsx("div", { style: { color: state.gpu_governor === "conflict" ? tokens.colors.red : tokens.colors.amber, fontSize: 9, marginBottom: 6 }, children: state.gpu_governor === "conflict" ? text.governorConflict : state.gpu_service_installed ? text.governorStopped : text.governorMissing }) : null, SP_JSX.jsx(DFL.Focusable, { "flow-children": "grid", navEntryPreferPosition: DFL.NavEntryPositionPreferences.PREFERRED_CHILD, style: { display: "grid", gap: 6, gridTemplateColumns: `repeat(${activeGpuProfiles.length || 1},minmax(0,1fr))`, marginBottom: 6 }, children: activeGpuProfiles.map((profile) => {
+                            ] }), busy && boardSection !== "cpu" ? SP_JSX.jsxs("div", { style: { alignItems: "center", background: accent.focus_soft, border: `1px solid ${accent.focus}`, borderRadius: 7, color: accent.focus, display: "flex", fontSize: 10, gap: 6, marginBottom: 10, padding: "7px 9px" }, children: [SP_JSX.jsx(FaClock, {}), text.operationInProgress] }) : null, boardSection === "gpu" ? SP_JSX.jsxs("section", { style: { marginBottom: 12 }, children: [SP_JSX.jsx(SectionTitle, { kind: "gpu", title: "GPU", trailing: governorName ? SP_JSX.jsx("span", { style: { color: tokens.colors.subtle, fontSize: 9 }, children: governorName }) : undefined }), !loaded ? SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 10, marginBottom: 6 }, children: text.loadingGpu }) : SP_JSX.jsxs(SP_JSX.Fragment, { children: [gpuReady && state.gpu_dbus_responsive === false ? SP_JSX.jsxs("div", { style: { color: tokens.colors.amber, fontSize: 9, marginBottom: 6 }, children: [text.governorUnresponsive, " ", SP_JSX.jsx("span", { style: { fontFamily: "monospace" }, children: state.gpu_dbus_diagnosis?.code ?? "QUICK_ACCESS_GPU_DBUS" })] }) : null, !gpuReady ? SP_JSX.jsx("div", { style: { color: state.gpu_governor === "conflict" ? tokens.colors.red : tokens.colors.amber, fontSize: 9, marginBottom: 6 }, children: state.gpu_governor === "conflict" ? text.governorConflict : state.gpu_service_installed ? text.governorStopped : text.governorMissing }) : null, SP_JSX.jsx(DFL.Focusable, { "flow-children": "grid", navEntryPreferPosition: DFL.NavEntryPositionPreferences.PREFERRED_CHILD, style: { display: "grid", gap: 6, gridTemplateColumns: `repeat(${activeGpuProfiles.length || 1},minmax(0,1fr))`, marginBottom: 6 }, children: activeGpuProfiles.map((profile) => {
                                                 const current = state.gpu_range?.[0] === profile.min && state.gpu_range?.[1] === profile.max && (state.gpu_governor !== "cyan" || state.gpu_performance_enabled === false);
-                                                const allowed = Boolean(state.gpu_allowed_range && state.gpu_allowed_range[0] <= profile.min && profile.max <= state.gpu_allowed_range[1]);
-                                                return SP_JSX.jsx(ProfileCard, { title: gpuProfileName(profile), detail: `${ghz(profile.min)}–${ghz(profile.max)} GHz`, current: current, disabled: busy || !gpuReady || !allowed, preferredFocus: profile.key === (state.gpu_governor === "oberon" ? "oberon-1850" : "balanced"), onActivate: () => { void execute(`GPU · ${profile.name}`, () => applyGpuProfile(profile.key), "gpu"); } }, profile.key);
+                                                const unavailable = profile.unavailable_reason ?? (!state.gpu_allowed_range || state.gpu_allowed_range[0] > profile.min || profile.max > state.gpu_allowed_range[1] ? "QUICK_ACCESS_GPU_ALLOWED" : undefined);
+                                                return SP_JSX.jsx(ProfileCard, { title: gpuProfileName(profile), detail: `${ghz(profile.min)}–${ghz(profile.max)} GHz${unavailable ? ` · ${text.unavailable} (${unavailable})` : ""}`, current: current, disabled: busy || !gpuReady || Boolean(unavailable), preferredFocus: profile.key === (state.gpu_governor === "oberon" ? "oberon-1850" : "balanced"), onActivate: () => { void execute(`GPU · ${profile.name}`, () => applyGpuProfile(profile.key), "gpu"); } }, profile.key);
                                             }) }), points.length || state.gpu_governor === "cyan" ? SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(DisclosureRow, { label: text.more, value: points.length ? text.enabled : text.disabled, open: highOpen, disabled: busy || !gpuReady, onActivate: () => setHighOpen(!highOpen) }), highOpen ? SP_JSX.jsxs(Drawer, { children: [SP_JSX.jsx(HighPointsSwitch, { state: state, busy: busy, execute: execute }), points.length ? SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(Divider, {}), SP_JSX.jsx(DrawerLabel, { children: text.advanced }), SP_JSX.jsx(DFL.Focusable, { "flow-children": "grid", navEntryPreferPosition: DFL.NavEntryPositionPreferences.PREFERRED_CHILD, style: { display: "grid", gap: 5, gridTemplateColumns: "repeat(3,minmax(0,1fr))", marginBottom: 4 }, children: points.map((point, index) => {
                                                                         const current = point.frequency === liveHighPoint?.frequency;
                                                                         const allowed = Boolean(state.gpu_allowed_range && point.frequency <= state.gpu_allowed_range[1]);
                                                                         return SP_JSX.jsxs(PadButton, { label: `${ghz(point.frequency)} GHz`, disabled: busy || !gpuReady || !allowed, preferredFocus: current || (!liveHighPoint && index === 0), onActivate: () => { if (!current)
                                                                                 void execute(`GPU · ${governorName || text.advanced}`, () => applyGpuSafePoint(point.frequency), "gpu"); }, style: { alignItems: "center", background: current ? accent.focus_soft : tokens.colors.panel, border: `1px solid ${current ? accent.focus : tokens.colors.border_soft}`, display: "flex", flexDirection: "column", gap: 1, height: 42, justifyContent: "center", padding: "3px 2px", width: "100%" }, children: [SP_JSX.jsxs("span", { style: { color: current ? accent.focus : tokens.colors.text, fontSize: 11, fontWeight: 700 }, children: [ghz(point.frequency), " GHz"] }), SP_JSX.jsxs("span", { style: { color: tokens.colors.subtle, fontSize: 8.5 }, children: [point.voltage, " mV"] })] }, point.frequency);
-                                                                    }) })] }) : null] }) : null] }) : null, SP_JSX.jsx(VoltageLab, { state: state, busy: busy, execute: execute }), SP_JSX.jsx(CyanCompatibility, { state: state, busy: busy, execute: execute }), SP_JSX.jsx(GovernorServiceRow, { state: state, busy: busy, execute: execute })] })] }) : null, boardSection === "cu" ? SP_JSX.jsxs("section", { style: { marginBottom: 12 }, children: [SP_JSX.jsx(SectionTitle, { kind: "cu", title: text.compute, trailing: SP_JSX.jsxs("b", { style: { color: accent.focus, fontSize: 11 }, children: [draftCUs, "/40 ", text.target] }) }), state.cu_kernel_managed ? SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 10, marginBottom: 6 }, children: text.cuKernelManaged }) : null, state.cu_snapshot_warning ? SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 10, marginBottom: 6 }, children: text.snapshotWarning }) : null, cuConflict ? SP_JSX.jsxs("div", { style: { background: tokens.colors.amber_soft, border: `1px solid ${tokens.colors.amber}`, borderRadius: 6, color: tokens.colors.amber, fontSize: 10, marginBottom: 6, padding: 6 }, children: [text.external, SP_JSX.jsx("div", { style: { marginTop: 5 }, children: SP_JSX.jsxs(ActionRow, { children: [SP_JSX.jsx(Action, { label: text.restore, disabled: busy, onActivate: () => { dirty.current.cu = false; setCuConflict(false); setCuDraft(liveMasks); } }), SP_JSX.jsx(Action, { label: text.keep, disabled: busy, onActivate: () => setCuConflict(false) })] }) })] }) : null, topology ? SP_JSX.jsx(CuMatrix, { live: liveMasks, driver: driverMasks, draft: cuDraft, disabled: busy || (!state.cu_backend_ready || Boolean(state.cu_kernel_managed)), change: (masks) => { dirty.current.cu = true; setCuConflict(false); setCuDraft(masks); }, minimum: () => setFeedback(text.safeCuMinimum) }) : SP_JSX.jsx("div", { style: { color: loaded ? tokens.colors.amber : tokens.colors.subtle, fontSize: 10, marginBottom: 6 }, children: loaded ? text.topologyUnavailable : text.loadingTopology }), SP_JSX.jsxs("div", { style: { minHeight: 78, width: "100%" }, children: [SP_JSX.jsxs(ActionRow, { marginBottom: 6, children: [SP_JSX.jsx(Action, { label: text.applyChanges, primary: true, disabled: busy || !topology || (!state.cu_backend_ready || Boolean(state.cu_kernel_managed)) || sameMasks(cuDraft, liveMasks), onActivate: () => void execute("BC250 CU", () => applyCuTable(cuDraft), "cu") }), SP_JSX.jsx(Action, { label: text.save, disabled: busy || !topology || (!state.cu_backend_ready || Boolean(state.cu_kernel_managed)), onActivate: () => void execute("BC250 CU", () => saveCuTable(cuDraft), "cu") })] }), SP_JSX.jsxs(ActionRow, { children: [SP_JSX.jsx(Action, { label: text.install, disabled: busy || Boolean(state.cu_kernel_managed) || Boolean(state.cu_service_installed) || !validMasks(state.cu_saved_masks ?? undefined), onActivate: () => void execute("BC250 CU", installCuService, "cu") }), SP_JSX.jsx(Action, { label: text.remove, danger: true, disabled: busy || !state.cu_service_installed, onActivate: () => DFL.showModal(SP_JSX.jsx(DFL.ConfirmModal, { strTitle: text.remove, strDescription: text.liveRoutingUnchanged, strOKButtonText: text.remove, bDestructiveWarning: true, onOK: () => void execute("BC250 CU", removeCuService, "cu") })) })] })] })] }) : null, boardSection === "cpu" ? SP_JSX.jsxs("section", { style: { marginBottom: 12 }, children: [SP_JSX.jsx(SectionTitle, { kind: "cpu", title: "CPU" }), cpuError ? SP_JSX.jsx("div", { style: { background: tokens.colors.red_soft, border: `1px solid ${tokens.colors.red}`, borderRadius: 6, color: tokens.colors.red, fontSize: 9, lineHeight: 1.35, marginBottom: 7, overflowWrap: "anywhere", padding: "6px 8px" }, children: localizedErrorSummary(cpuError) }) : null, cpuOperation ? SP_JSX.jsxs("div", { role: "status", "aria-live": "polite", style: { background: accent.focus_soft, border: `1px solid ${accent.focus}`, borderRadius: 7, marginBottom: 7, padding: "8px 9px" }, children: [SP_JSX.jsxs("div", { style: { alignItems: "center", display: "flex", gap: 7 }, children: [SP_JSX.jsx("span", { style: { background: accent.focus, borderRadius: "50%", boxShadow: `0 0 0 3px ${accent.focus_soft}`, height: 7, width: 7 } }), SP_JSX.jsx("b", { style: { color: accent.focus, flex: 1, fontSize: 11 }, children: text.cpuApplying }), SP_JSX.jsxs("span", { style: { color: tokens.colors.subtle, fontSize: 9 }, children: [text.elapsed, ": ", cpuElapsed, "s"] })] }), SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "4px 0 7px 14px" }, children: text.cpuPleaseWait }), SP_JSX.jsxs("div", { style: { display: "grid", gap: 5, gridTemplateColumns: "1fr 1fr" }, children: [SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_alt, borderRadius: 5, padding: "5px 7px" }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.muted, display: "block", fontSize: 8 }, children: text.cpuLiveClock }), SP_JSX.jsxs("b", { style: { fontSize: 12 }, children: [state.cpu_frequency_mhz ?? "—", " MHz"] })] }), SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_alt, borderRadius: 5, padding: "5px 7px" }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.muted, display: "block", fontSize: 8 }, children: text.cpuTarget }), SP_JSX.jsxs("b", { style: { fontSize: 12 }, children: [cpuOperation.target, " MHz"] })] })] })] }) : null, !loaded ? SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 7px" }, children: text.loadingCpu })
+                                                                    }) })] }) : null] }) : null] }) : null, SP_JSX.jsx(VoltageLab, { state: state, busy: busy, execute: execute }), SP_JSX.jsx(CyanCompatibility, { state: state, busy: busy, execute: execute }), SP_JSX.jsx(GovernorServiceRow, { state: state, busy: busy, execute: execute })] })] }) : null, boardSection === "cu" ? SP_JSX.jsxs("section", { style: { marginBottom: 12 }, children: [SP_JSX.jsx(SectionTitle, { kind: "cu", title: text.compute, trailing: SP_JSX.jsxs("b", { style: { color: accent.focus, fontSize: 11 }, children: [draftCUs, "/40 ", text.target] }) }), state.cu_kernel_managed ? SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 10, marginBottom: 6 }, children: text.cuKernelManaged }) : null, state.cu_snapshot_warning ? SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 10, marginBottom: 6 }, children: text.snapshotWarning }) : null, cuConflict ? SP_JSX.jsxs("div", { style: { background: tokens.colors.amber_soft, border: `1px solid ${tokens.colors.amber}`, borderRadius: 6, color: tokens.colors.amber, fontSize: 10, marginBottom: 6, padding: 6 }, children: [text.external, SP_JSX.jsx("div", { style: { marginTop: 5 }, children: SP_JSX.jsxs(ActionRow, { children: [SP_JSX.jsx(Action, { label: text.restore, disabled: busy, onActivate: () => { dirty.current.cu = false; setCuConflict(false); setCuDraft(liveMasks); } }), SP_JSX.jsx(Action, { label: text.keep, disabled: busy, onActivate: () => setCuConflict(false) })] }) })] }) : null, topology ? SP_JSX.jsx(CuMatrix, { live: liveMasks, driver: driverMasks, draft: cuDraft, disabled: busy || (!state.cu_backend_ready || Boolean(state.cu_kernel_managed)), change: (masks) => { dirty.current.cu = true; setCuConflict(false); setCuDraft(masks); }, minimum: () => toaster.toast({ title: text.compute, body: text.safeCuMinimum }) }) : SP_JSX.jsx("div", { style: { color: loaded ? tokens.colors.amber : tokens.colors.subtle, fontSize: 10, marginBottom: 6 }, children: loaded ? text.topologyUnavailable : text.loadingTopology }), SP_JSX.jsxs("div", { style: { minHeight: 78, width: "100%" }, children: [SP_JSX.jsxs(ActionRow, { marginBottom: 6, children: [SP_JSX.jsx(Action, { label: text.applyChanges, primary: true, disabled: busy || !topology || (!state.cu_backend_ready || Boolean(state.cu_kernel_managed)) || sameMasks(cuDraft, liveMasks), onActivate: () => void execute("BC250 CU", () => applyCuTable(cuDraft), "cu") }), SP_JSX.jsx(Action, { label: text.save, disabled: busy || !topology || (!state.cu_backend_ready || Boolean(state.cu_kernel_managed)), onActivate: () => void execute("BC250 CU", () => saveCuTable(cuDraft), "cu") })] }), SP_JSX.jsxs(ActionRow, { children: [SP_JSX.jsx(Action, { label: text.install, disabled: busy || Boolean(state.cu_kernel_managed) || Boolean(state.cu_service_installed) || !validMasks(state.cu_saved_masks ?? undefined), onActivate: () => void execute("BC250 CU", installCuService, "cu") }), SP_JSX.jsx(Action, { label: text.remove, danger: true, disabled: busy || !state.cu_service_installed, onActivate: () => DFL.showModal(SP_JSX.jsx(DFL.ConfirmModal, { strTitle: text.remove, strDescription: text.liveRoutingUnchanged, strOKButtonText: text.remove, bDestructiveWarning: true, onOK: () => void execute("BC250 CU", removeCuService, "cu") })) })] })] })] }) : null, boardSection === "cpu" ? SP_JSX.jsxs("section", { style: { marginBottom: 12 }, children: [SP_JSX.jsx(SectionTitle, { kind: "cpu", title: "CPU" }), cpuError ? SP_JSX.jsx(InlineError, { failure: cpuError }) : null, cpuOperation ? SP_JSX.jsxs("div", { role: "status", "aria-live": "polite", style: { background: accent.focus_soft, border: `1px solid ${accent.focus}`, borderRadius: 7, marginBottom: 7, padding: "8px 9px" }, children: [SP_JSX.jsxs("div", { style: { alignItems: "center", display: "flex", gap: 7 }, children: [SP_JSX.jsx("span", { style: { background: accent.focus, borderRadius: "50%", boxShadow: `0 0 0 3px ${accent.focus_soft}`, height: 7, width: 7 } }), SP_JSX.jsx("b", { style: { color: accent.focus, flex: 1, fontSize: 11 }, children: text.cpuApplying }), SP_JSX.jsxs("span", { style: { color: tokens.colors.subtle, fontSize: 9 }, children: [text.elapsed, ": ", cpuElapsed, "s"] })] }), SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "4px 0 7px 14px" }, children: text.cpuPleaseWait }), SP_JSX.jsxs("div", { style: { display: "grid", gap: 5, gridTemplateColumns: "1fr 1fr" }, children: [SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_alt, borderRadius: 5, padding: "5px 7px" }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.muted, display: "block", fontSize: 8 }, children: text.cpuLiveClock }), SP_JSX.jsxs("b", { style: { fontSize: 12 }, children: [state.cpu_frequency_mhz ?? "—", " MHz"] })] }), SP_JSX.jsxs("div", { style: { background: tokens.colors.panel_alt, borderRadius: 5, padding: "5px 7px" }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.muted, display: "block", fontSize: 8 }, children: text.cpuTarget }), SP_JSX.jsxs("b", { style: { fontSize: 12 }, children: [cpuOperation.target, " MHz"] })] })] })] }) : null, !loaded ? SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 7px" }, children: text.loadingCpu })
                                     : !cpuReady ? SP_JSX.jsx("div", { style: { color: state.cpu_tuning_source === "detector-required" ? tokens.colors.subtle : tokens.colors.red, fontSize: 9, margin: "0 2px 7px" }, children: state.cpu_tuning_source === "stress-unavailable" ? text.stressMissing : (state.cpu_tuning_source === "detector-required" ? text.cpuNeedsDetection : (state.cpu_tuning_source === "helper-unavailable" ? text.cpuHelperUnavailable : text.cpuStatusUnavailable)) })
-                                        : null, loaded && !cpuReady && state.cpu_tuning_error && state.cpu_tuning_source !== "detector-required" ? SP_JSX.jsx("div", { style: { color: tokens.colors.muted, fontSize: 8, margin: "-3px 2px 7px", overflowWrap: "anywhere" }, children: localizedErrorSummary(state.cpu_tuning_error) }) : null, state.cpu_profiles?.length ? SP_JSX.jsx(DFL.Focusable, { "flow-children": "grid", navEntryPreferPosition: DFL.NavEntryPositionPreferences.PREFERRED_CHILD, style: { display: "grid", gap: 6, gridTemplateColumns: `repeat(${state.cpu_profiles.length},minmax(0,1fr))`, marginBottom: 7 }, children: state.cpu_profiles.map((preset) => {
-                                        const current = !cpuManual && cpuFrequency === preset.frequency && cpuVid === preset.vid;
-                                        return SP_JSX.jsx(ProfileCard, { title: cpuPresetName(preset), detail: `${ghz(preset.frequency)} GHz`, current: current, disabled: busy || !cpuReady, onActivate: () => { setCpuFrequency(preset.frequency); setCpuVid(preset.vid); setCpuManual(false); dirty.current.cpu = true; } }, preset.key);
-                                    }) }) : null, detectedCpu?.ready ? SP_JSX.jsxs("div", { style: { alignItems: "center", background: tokens.colors.green_soft, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, display: "flex", fontSize: 9, gap: 6, justifyContent: "space-between", marginBottom: 6, padding: "6px 8px" }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.subtle }, children: text.cpuDetected }), SP_JSX.jsx("b", { style: { color: tokens.colors.green }, children: detectedCpuSummary })] }) : null, SP_JSX.jsxs("div", { style: { borderTop: `1px solid ${tokens.colors.border_soft}`, paddingTop: 7 }, children: [SP_JSX.jsx(CompactSlider, { label: text.cpuFrequency, value: cpuFrequency, suffix: " MHz", min: cpuMin, max: cpuMax, step: cpuStep, disabled: busy || !cpuReady, onChange: (value) => { setCpuFrequency(Math.max(cpuMin, Math.min(cpuMax, Math.round(value / cpuStep) * cpuStep))); dirty.current.cpu = true; } }), SP_JSX.jsx(CompactSlider, { label: text.cpuVoltage, value: cpuVid, suffix: " mV", min: vidMin, max: vidMax, step: vidStep, disabled: busy || !cpuReady || cpuManual, onChange: (value) => { setCpuVid(Math.max(vidMin, Math.min(vidMax, Math.round(value / 5) * 5))); dirty.current.cpu = true; } }), !cpuManual && cpuVid >= vidMax - 25 ? SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 8, lineHeight: 1.3, margin: "-2px 2px 7px" }, children: text.cpuVidCeiling }) : null, SP_JSX.jsx("div", { title: manualScaleDescription, style: { background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, fontSize: 11, marginBottom: 4, overflow: "hidden" }, children: SP_JSX.jsx(SwitchRow, { label: text.cpuManual, checked: cpuManual, disabled: busy || !manualReady, onChange: (checked) => { setCpuManual(checked); if (checked && detectedCpu) {
+                                        : null, loaded && !cpuReady && state.cpu_tuning_error && state.cpu_tuning_source !== "detector-required" ? SP_JSX.jsx("div", { style: { color: tokens.colors.muted, fontSize: 8, margin: "-3px 2px 7px", overflowWrap: "anywhere" }, children: failureLine({ error: state.cpu_tuning_error, diagnosis: state.cpu_tuning_diagnosis }) }) : null, state.cpu_profiles?.length ? SP_JSX.jsx(DFL.Focusable, { "flow-children": "grid", navEntryPreferPosition: DFL.NavEntryPositionPreferences.PREFERRED_CHILD, style: { display: "grid", gap: 6, gridTemplateColumns: `repeat(${state.cpu_profiles.length},minmax(0,1fr))`, marginBottom: 7 }, children: state.cpu_profiles.map((preset) => {
+                                        const presetTemperature = preset.temperature ?? 90;
+                                        const current = !cpuManual && cpuFrequency === preset.frequency && cpuVid === preset.vid && cpuTemperature === presetTemperature;
+                                        return SP_JSX.jsx(ProfileCard, { title: cpuPresetName(preset), detail: `${ghz(preset.frequency)} GHz · ${presetTemperature}°C`, current: current, disabled: busy || !cpuReady, onActivate: () => { setCpuFrequency(preset.frequency); setCpuVid(preset.vid); setCpuTemperature(presetTemperature); setCpuManual(false); dirty.current.cpu = true; } }, preset.key);
+                                    }) }) : null, detectedCpu?.ready ? SP_JSX.jsxs("div", { style: { alignItems: "center", background: tokens.colors.green_soft, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, display: "flex", fontSize: 9, gap: 6, justifyContent: "space-between", marginBottom: 6, padding: "6px 8px" }, children: [SP_JSX.jsx("span", { style: { color: tokens.colors.subtle }, children: text.cpuDetected }), SP_JSX.jsx("b", { style: { color: tokens.colors.green }, children: detectedCpuSummary })] }) : null, SP_JSX.jsxs("div", { style: { borderTop: `1px solid ${tokens.colors.border_soft}`, paddingTop: 7 }, children: [SP_JSX.jsx(CompactSlider, { label: text.cpuFrequency, value: cpuFrequency, suffix: " MHz", min: cpuMin, max: cpuMax, step: cpuStep, disabled: busy || !cpuReady, onChange: (value) => { setCpuFrequency(Math.max(cpuMin, Math.min(cpuMax, Math.round(value / cpuStep) * cpuStep))); dirty.current.cpu = true; } }), SP_JSX.jsx(CompactSlider, { label: text.cpuVoltage, value: cpuVid, suffix: " mV", min: vidMin, max: vidMax, step: vidStep, disabled: busy || !cpuReady || cpuManual, onChange: (value) => { setCpuVid(Math.max(vidMin, Math.min(vidMax, Math.round(value / vidStep) * vidStep))); dirty.current.cpu = true; } }), !cpuManual && cpuVid >= vidMax - 25 ? SP_JSX.jsx("div", { style: { color: tokens.colors.amber, fontSize: 8, lineHeight: 1.3, margin: "-2px 2px 7px" }, children: text.cpuVidCeiling }) : null, SP_JSX.jsx("div", { title: manualScaleDescription, style: { background: tokens.colors.panel_alt, border: `1px solid ${tokens.colors.border_soft}`, borderRadius: 6, fontSize: 11, marginBottom: 4, overflow: "hidden" }, children: SP_JSX.jsx(SwitchRow, { label: text.cpuManual, checked: cpuManual, disabled: busy || !manualReady, onChange: (checked) => { setCpuManual(checked); if (checked && detectedCpu) {
                                                     setCpuScale(activeCpu?.frequency === detectedCpu.frequency ? (activeCpu.scale ?? detectedCpu.scale) : detectedCpu.scale);
-                                                } dirty.current.cpu = true; } }) }), cpuManual && detectedCpu && !manualFrequencyReady ? SP_JSX.jsxs("div", { style: { color: tokens.colors.amber, fontSize: 9, lineHeight: 1.3, margin: "-2px 2px 7px" }, children: [text.cpuManualHelp, " \u00B7 ", detectedCpu.frequency, " MHz"] }) : null, SP_JSX.jsx(CompactSlider, { label: text.cpuScale, value: cpuScale, suffix: "", min: scaleMin, max: scaleMax, step: 1, disabled: busy || !cpuManual || !manualFrequencyReady, onChange: (value) => { setCpuScale(Math.max(-50, Math.min(0, Math.round(value)))); dirty.current.cpu = true; } }), cpuManual ? SP_JSX.jsxs("div", { style: { color: tokens.colors.disabled_text, display: "flex", fontSize: 9, justifyContent: "space-between", margin: "0 2px 7px" }, children: [SP_JSX.jsx("span", { children: `${text.cpuScale}: ${scaleMin}…${scaleMax}` }), SP_JSX.jsx("span", { children: `~${selectedEstimatedVid ?? "—"} mV` })] }) : null, SP_JSX.jsx(ActionRow, { children: SP_JSX.jsx(Action, { label: cpuManual ? text.cpuApplyManual : text.cpuApplyAuto, primary: true, disabled: busy || !cpuReady || (cpuManual && (!manualFrequencyReady || (selectedEstimatedVid ?? 0) > vidMax)), onActivate: () => confirmCpu("detect") }) })] }), SP_JSX.jsx("div", { style: { marginTop: 6, minHeight: 36 }, children: SP_JSX.jsxs(ActionRow, { children: [SP_JSX.jsx(Action, { label: text.install, disabled: busy || !activeMatchesTarget || Boolean(state.cpu_service_enabled), onActivate: () => confirmCpu("install") }), SP_JSX.jsx(Action, { label: text.remove, danger: true, disabled: busy || (!state.cpu_service_installed && !state.cpu_service_enabled), onActivate: () => DFL.showModal(SP_JSX.jsx(DFL.ConfirmModal, { strTitle: text.remove, strDescription: text.serviceRemovedBootProfile, strOKButtonText: text.remove, bDestructiveWarning: true, onOK: () => void execute("BC250 CPU", removeCpuService, "cpu") })) })] }) })] }) : null, boardSection === "fan" ? SP_JSX.jsxs("section", { style: { marginBottom: 12 }, children: [SP_JSX.jsx(SectionTitle, { kind: "fan", title: text.fan }), SP_JSX.jsx(FanPresetRow, { state: state, busy: busy, execute: execute }), SP_JSX.jsxs(PadButton, { disabled: busy, onActivate: () => setFanOpen(!fanOpen), style: { alignItems: "center", display: "flex", fontSize: 11, height: 34, justifyContent: "space-between", marginBottom: 6, padding: "5px 9px", width: "100%" }, children: [SP_JSX.jsxs("span", { children: [liveFan?.label ?? `PWM ${fanChannel}`, " \u00B7 ", fanDetected ? text.detected : text.unavailable] }), SP_JSX.jsx("span", { style: { color: accent.focus }, children: fanOpen ? "▴" : "▾" })] }), fanOpen ? SP_JSX.jsx(DFL.Focusable, { "flow-children": "grid", navEntryPreferPosition: DFL.NavEntryPositionPreferences.PREFERRED_CHILD, style: { display: "grid", gap: 5, gridTemplateColumns: "1fr 1fr", marginBottom: 7 }, children: fanChannels.map((channel) => { const option = state.fan_channel_options?.find((item) => item.channel === channel); const available = detectedFans.includes(channel); return SP_JSX.jsxs(PadButton, { disabled: busy || !available, preferredFocus: channel === fanChannel, onActivate: () => { selectionRef.current.fan = channel; setFanChannel(channel); setFanOpen(false); dirty.current.fan = false; const percent = option?.percent; if (percent != null)
-                                            setFanDuty(percent); }, style: { background: channel === fanChannel ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${channel === fanChannel ? accent.focus : tokens.colors.border}`, color: channel === fanChannel ? accent.focus : tokens.colors.text, fontSize: 10, height: 34, padding: 4, width: "100%" }, children: ["PWM ", channel, " \u00B7 ", available ? `${option?.percent ?? "—"}%` : text.unavailable] }, channel); }) }) : null, liveFan ? SP_JSX.jsx("div", { style: { color: liveFan.rpm_observed ? tokens.colors.subtle : tokens.colors.amber, fontSize: 9, lineHeight: 1.3, margin: "0 2px 6px" }, children: liveFan.rpm_observed ? `${text.fanRpmObserved}: ${liveFan.rpm} RPM` : `${text.fanUnverified}. ${fanChannel === 2 ? text.fanWiring : ""}` }) : null, SP_JSX.jsx(DFL.SliderField, { label: text.speed, value: fanDuty, min: fanMin, max: fanMax, step: fanStep, minimumDpadGranularity: fanStep, showValue: true, valueSuffix: "%", disabled: busy || !fanDetected, onChange: (value) => { dirty.current.fan = true; setFanDuty(Math.max(20, Math.min(100, Math.round(value / 5) * 5))); } }), SP_JSX.jsxs(DFL.Focusable, { "flow-children": "grid", style: { display: "grid", gap: 6, gridTemplateColumns: "1fr 1fr", marginTop: 6 }, children: [SP_JSX.jsx(Action, { label: text.apply, primary: true, disabled: busy || !fanDetected, onActivate: () => void execute(`PWM ${fanChannel}`, () => applyFanChannel(fanChannel, fanDuty), "fan") }), SP_JSX.jsx(Action, { label: text.automatic, disabled: busy || !fanDetected, onActivate: () => void execute(`PWM ${fanChannel}`, () => applyFanChannel(fanChannel, "automatic"), "fan") })] })] }) : null] }) : null] }) });
+                                                } dirty.current.cpu = true; } }) }), cpuManual && detectedCpu && !manualFrequencyReady ? SP_JSX.jsxs("div", { style: { color: tokens.colors.amber, fontSize: 9, lineHeight: 1.3, margin: "-2px 2px 7px" }, children: [text.cpuManualHelp, " \u00B7 ", detectedCpu.frequency, " MHz"] }) : null, SP_JSX.jsx(CompactSlider, { label: text.cpuScale, value: cpuScale, suffix: "", min: scaleMin, max: scaleMax, step: 1, disabled: busy || !cpuManual || !manualFrequencyReady, onChange: (value) => { setCpuScale(Math.max(scaleMin, Math.min(scaleMax, Math.round(value)))); dirty.current.cpu = true; } }), cpuManual ? SP_JSX.jsxs("div", { style: { color: tokens.colors.disabled_text, display: "flex", fontSize: 9, justifyContent: "space-between", margin: "0 2px 7px" }, children: [SP_JSX.jsx("span", { children: `${text.cpuScale}: ${scaleMin}…${scaleMax}` }), SP_JSX.jsx("span", { children: `~${selectedEstimatedVid ?? "—"} mV` })] }) : null, SP_JSX.jsx(ActionRow, { children: SP_JSX.jsx(Action, { label: cpuManual ? text.cpuApplyManual : text.cpuApplyAuto, primary: true, disabled: busy || !cpuReady || (cpuManual && (!manualFrequencyReady || (selectedEstimatedVid ?? 0) > vidMax)), onActivate: () => confirmCpu("detect") }) })] }), SP_JSX.jsx("div", { style: { marginTop: 6, minHeight: 36 }, children: SP_JSX.jsxs(ActionRow, { children: [SP_JSX.jsx(Action, { label: text.install, disabled: busy || !activeMatchesTarget || Boolean(state.cpu_service_enabled), onActivate: () => confirmCpu("install") }), SP_JSX.jsx(Action, { label: text.remove, danger: true, disabled: busy || (!state.cpu_service_installed && !state.cpu_service_enabled), onActivate: () => DFL.showModal(SP_JSX.jsx(DFL.ConfirmModal, { strTitle: text.remove, strDescription: text.serviceRemovedBootProfile, strOKButtonText: text.remove, bDestructiveWarning: true, onOK: () => void execute("BC250 CPU", removeCpuService, "cpu") })) })] }) })] }) : null, boardSection === "fan" ? SP_JSX.jsxs("section", { style: { marginBottom: 12 }, children: [SP_JSX.jsx(SectionTitle, { kind: "fan", title: text.fan }), SP_JSX.jsx(FanPresetRow, { state: state, busy: busy, execute: execute }), SP_JSX.jsxs(PadButton, { disabled: busy, onActivate: () => setFanOpen(!fanOpen), style: { alignItems: "center", display: "flex", fontSize: 11, height: 34, justifyContent: "space-between", marginBottom: 6, padding: "5px 9px", width: "100%" }, children: [SP_JSX.jsxs("span", { children: [liveFan?.label ?? `PWM ${fanChannel}`, " \u00B7 ", fanDetected ? text.detected : text.unavailable] }), SP_JSX.jsx("span", { style: { color: accent.focus }, children: fanOpen ? "▴" : "▾" })] }), fanOpen ? SP_JSX.jsx(DFL.Focusable, { "flow-children": "grid", navEntryPreferPosition: DFL.NavEntryPositionPreferences.PREFERRED_CHILD, style: { display: "grid", gap: 5, gridTemplateColumns: "1fr 1fr", marginBottom: 7 }, children: fanChannels.map((channel) => { const option = state.fan_channel_options?.find((item) => item.channel === channel); const available = detectedFans.includes(channel); return SP_JSX.jsxs(PadButton, { disabled: busy || !available, preferredFocus: channel === fanChannel, onActivate: () => { selectionRef.current.fan = channel; setFanChannel(channel); setFanOpen(false); dirty.current.fan = false; const percent = option?.percent; if (percent != null)
+                                            setFanDuty(percent); }, style: { background: channel === fanChannel ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${channel === fanChannel ? accent.focus : tokens.colors.border}`, color: channel === fanChannel ? accent.focus : tokens.colors.text, fontSize: 10, height: 34, padding: 4, width: "100%" }, children: ["PWM ", channel, " \u00B7 ", available ? `${option?.percent ?? "—"}%` : text.unavailable] }, channel); }) }) : null, liveFan ? SP_JSX.jsx("div", { style: { color: liveFan.rpm_observed ? tokens.colors.subtle : tokens.colors.amber, fontSize: 9, lineHeight: 1.3, margin: "0 2px 6px" }, children: liveFan.rpm_observed ? `${text.fanRpmObserved}: ${liveFan.rpm} RPM` : `${text.fanUnverified}. ${fanChannel === 2 ? text.fanWiring : ""}` }) : null, SP_JSX.jsx(DFL.SliderField, { label: text.speed, value: fanDuty, min: fanMin, max: fanMax, step: fanStep, minimumDpadGranularity: fanStep, showValue: true, valueSuffix: "%", disabled: busy || !fanDetected, onChange: (value) => { dirty.current.fan = true; setFanDuty(Math.max(fanMin, Math.min(fanMax, Math.round(value / fanStep) * fanStep))); } }), SP_JSX.jsxs(DFL.Focusable, { "flow-children": "grid", style: { display: "grid", gap: 6, gridTemplateColumns: "1fr 1fr", marginTop: 6 }, children: [SP_JSX.jsx(Action, { label: text.apply, primary: true, disabled: busy || !fanDetected, onActivate: () => void execute(`PWM ${fanChannel}`, () => applyFanChannel(fanChannel, fanDuty), "fan") }), SP_JSX.jsx(Action, { label: text.automatic, disabled: busy || !fanDetected, onActivate: () => void execute(`PWM ${fanChannel}`, () => applyFanChannel(fanChannel, "automatic"), "fan") })] })] }) : null] }) : null] }) });
 }
 // Decky's system-fan presets, named and tuned from the desktop's Fans page
 // when the player exported them there. They never touch the pump channel.
@@ -6590,7 +7495,7 @@ function FanPresetRow({ state, busy, execute }) {
     ];
     const available = (state.system_fan_channels ?? []).length > 0;
     const options = [...presets.map((preset) => ({ key: preset.key, label: presetLabel(preset.key, presets), detail: `${preset.percent}%` })), { key: "automatic", label: text.automatic, detail: "BIOS" }];
-    return SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 4px" }, children: text.fanPresets }), SP_JSX.jsx(DFL.Focusable, { "flow-children": "grid", navEntryPreferPosition: DFL.NavEntryPositionPreferences.PREFERRED_CHILD, style: { display: "grid", gap: 5, gridTemplateColumns: "repeat(4,minmax(0,1fr))", marginBottom: 8 }, children: options.map((option) => {
+    return SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, margin: "0 2px 4px" }, children: text.fanPresets }), SP_JSX.jsx("div", { style: { color: tokens.colors.subtle, fontSize: 9, lineHeight: 1.35, margin: "0 2px 4px" }, children: text.fanPresetsHint }), SP_JSX.jsx(DFL.Focusable, { "flow-children": "grid", navEntryPreferPosition: DFL.NavEntryPositionPreferences.PREFERRED_CHILD, style: { display: "grid", gap: 5, gridTemplateColumns: "repeat(4,minmax(0,1fr))", marginBottom: 8 }, children: options.map((option) => {
                     const current = state.system_fan_preset === option.key;
                     return SP_JSX.jsxs(PadButton, { disabled: busy || !available, preferredFocus: current, onActivate: () => { if (!current)
                             void execute(`${text.fans} · ${option.label}`, () => applySystemFanPreset(option.key), "fan"); }, style: { alignItems: "center", background: current ? accent.focus_soft : tokens.colors.panel_raised, border: `1px solid ${current ? accent.focus : tokens.colors.border}`, display: "flex", flexDirection: "column", gap: 1, height: 44, justifyContent: "center", minWidth: 0, padding: "4px 3px", width: "100%" }, children: [SP_JSX.jsx("span", { style: { color: current ? accent.focus : tokens.colors.text, fontSize: 10, fontWeight: 650, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }, children: option.label }), SP_JSX.jsx("span", { style: { color: current ? accent.focus : tokens.colors.subtle, fontSize: 9 }, children: option.detail })] }, option.key);
@@ -6606,6 +7511,7 @@ function GameProfileCard({ state, busy }) {
     const [editing, setEditing] = SP_REACT.useState(false);
     const [listOpen, setListOpen] = SP_REACT.useState(false);
     const [working, setWorking] = SP_REACT.useState(false);
+    const workingRef = SP_REACT.useRef(false);
     const [draftGpu, setDraftGpu] = SP_REACT.useState(null);
     const [draftFan, setDraftFan] = SP_REACT.useState(null);
     const load = SP_REACT.useCallback(async () => {
@@ -6625,18 +7531,20 @@ function GameProfileCard({ state, busy }) {
     const gpuProfiles = state.gpu_profiles ?? [];
     const fanPresets = state.fan_profiles ?? [];
     const run = async (operation) => {
-        if (working)
+        if (workingRef.current)
             return;
+        workingRef.current = true;
         setWorking(true);
         try {
             const result = await operation();
             if (result.ok === false)
-                toaster.toast({ title: text.perGameProfiles, body: localizedErrorSummary(result.error ?? text.error) });
+                toaster.toast({ title: text.perGameProfiles, body: failureLine(result) });
         }
         catch (error) {
-            toaster.toast({ title: text.perGameProfiles, body: localizedErrorSummary(failed(error).error ?? text.error) });
+            toaster.toast({ title: text.perGameProfiles, body: failureLine(failed(error)) });
         }
         finally {
+            workingRef.current = false;
             setWorking(false);
             await load();
         }

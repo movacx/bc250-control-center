@@ -96,13 +96,14 @@ def _fan_owner(fan: dict[str, Any], cache: "ControllerStateCache") -> str:
     try:
         snapshot = read_system_fan_control()
         system_owned = system_fan_control_owns_fan(snapshot) and snapshot.get("state") != "override"
+        external = bool(snapshot.get("external"))
     except Exception:
-        system_owned = False
+        system_owned = external = False
     try:
         config = cache.config()
     except Exception:
         config = {}
-    return dashboard_fan_owner(fan, system_owned=system_owned, config=config)
+    return dashboard_fan_owner(fan, system_owned=system_owned, config=config, external=external)
 
 
 def _number(value: Any, default: float = 0.0) -> float:
@@ -681,7 +682,10 @@ class DashboardState:
     def _pool_summary(used: int, total: int) -> str:
         if total <= 0:
             return "Not detected"
-        return f"{_format_binary_bytes(used)} / {_format_binary_bytes(total)}"
+        # A pool that exists but holds nothing (swap on a machine with RAM to
+        # spare) is "0 MB" of its total, never "Not detected".
+        used_text = _format_binary_bytes(used) if used > 0 else "0 MB"
+        return f"{used_text} / {_format_binary_bytes(total)}"
 
     @property
     def vram_summary(self) -> str:
@@ -696,20 +700,6 @@ class DashboardState:
         if self.gpu_gtt_used_bytes > 0 and self.gpu_gtt_total_bytes > 0:
             return f"{_format_binary_bytes(self.gpu_gtt_used_bytes)} / {total}"
         return total
-
-    @property
-    def dpm_summary(self) -> str:
-        force = self.gpu_dpm_force_level.strip()
-        state = self.gpu_dpm_state.strip()
-        return force or state or "Not detected"
-
-    @property
-    def power_tooltip(self) -> str:
-        if self.power_is_total:
-            return "Dedicated total-board power sensor detected."
-        if self.power_scope == "gpu_soc":
-            return "AMDGPU hwmon reports SoC package power; total board power is not exposed."
-        return "No live power sensor is exposed by the current kernel drivers."
 
     @classmethod
     def from_controller(cls, controller: Any, cache: ControllerStateCache | None = None) -> DashboardState:
@@ -915,3 +905,9 @@ class DashboardState:
             vram_total_bytes=_integer(gpu.get("vram_total"), 0),
             activities=activity_items,
         )
+
+    @property
+    def dpm_summary(self) -> str:
+        force = self.gpu_dpm_force_level.strip()
+        state = self.gpu_dpm_state.strip()
+        return force or state or "Not detected"

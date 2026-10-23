@@ -1,9 +1,10 @@
 import pytest
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QFrame, QPushButton, QScrollArea
+from PyQt6.QtWidgets import QFrame, QLabel, QPushButton, QScrollArea
 
 from frontends.desktop.i18n import tr
 from frontends.desktop.pages import gpu_governor as gpu_governor_module
+from frontends.desktop.pages import gpu_governor_widgets
 from frontends.desktop.pages.gpu_governor import (
     DependencyPreparationDialog,
     GpuGovernorPage,
@@ -450,11 +451,12 @@ def test_bazzite_upstream_button_opens_the_bazzite_async_compute_project(
     qtbot.addWidget(dialog)
 
     opened = []
-    monkeypatch.setattr(
-        gpu_governor_module,
-        "open_external_url",
-        lambda url: (opened.append(url) or True, ""),
-    )
+    for module in (gpu_governor_widgets, gpu_governor_module):
+        monkeypatch.setattr(
+            module,
+            "open_external_url",
+            lambda url: (opened.append(url) or True, ""),
+        )
     upstream = next(
         button
         for button in dialog.findChildren(QPushButton)
@@ -658,3 +660,71 @@ def test_debian_kernel_button_requests_the_install_action(qtbot):
     )
     button.click()
     assert dialog.action == "debian_kernel_install"
+
+
+@pytest.mark.parametrize(
+    ("install_kernel", "says"),
+    ((True, "newer Mesa and kernel"), (False, "installs the newer Mesa from Debian backports")),
+)
+def test_debian_card_says_what_it_installs(qtbot, install_kernel, says):
+    tools = _tools()
+    tools["gfx1013_compute"] = {
+        "reason_key": "manual-patches-only",
+        "source": {"supported": True, "installed": False, "hide_offer": False},
+        "kernel_upgrade": {
+            "offered": True, "state": "available", "install_kernel": install_kernel, "install_mesa": True,
+        },
+    }
+    dialog = DependencyPreparationDialog(tools, "cyan-skillfish-governor-smu")
+    qtbot.addWidget(dialog)
+    texts = [label.text() for label in dialog.debian_kernel_card.findChildren(QLabel)]
+    assert any(says in text for text in texts)
+    button = next(
+        b for b in dialog.debian_kernel_card.findChildren(QPushButton)
+        if b.objectName() == "PrimaryAction"
+    )
+    assert button.text() == "Install from backports"
+
+
+class _RecordedConfirm:
+    shown: list = []
+
+    def __init__(self, title, message, *, summary=(), confirm_text="", **_kwargs):
+        _RecordedConfirm.shown.append((title, message, [label for label, _ in summary], confirm_text))
+
+    def exec(self):
+        return 0
+
+
+@pytest.mark.parametrize(
+    ("install_kernel", "says", "rows"),
+    (
+        (True, "a newer Mesa, a newer kernel with its headers", ["Source", "Current kernel", "Restart"]),
+        (False, "installs the newer Mesa from it", ["Source", "Restart"]),
+    ),
+)
+def test_debian_confirmation_lists_only_what_is_installed(monkeypatch, install_kernel, says, rows):
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(gpu_governor_module, "ConfirmDialog", _RecordedConfirm)
+    _RecordedConfirm.shown.clear()
+    page = SimpleNamespace(
+        current_state={"tools": {"gfx1013_compute": {"kernel_upgrade": {"install_kernel": install_kernel}}}}
+    )
+    GpuGovernorPage._manage_debian_kernel(page, dialog_parent=None)
+    title, message, labels, confirm_text = _RecordedConfirm.shown[0]
+    assert title == confirm_text == "Install from backports"
+    assert says in message
+    assert labels == rows
+
+
+def test_mesa_confirmation_names_the_third_party_source_and_the_restart(monkeypatch):
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(gpu_governor_module, "ConfirmDialog", _RecordedConfirm)
+    _RecordedConfirm.shown.clear()
+    GpuGovernorPage._manage_mesa_ppa(SimpleNamespace(current_state={}), dialog_parent=None)
+    title, message, labels, confirm_text = _RecordedConfirm.shown[0]
+    assert title == confirm_text == "Update Mesa"
+    assert "third-party source" in message and "signing key is the expected one" in message
+    assert labels == ["Source", "Restart"]

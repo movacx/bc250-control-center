@@ -36,10 +36,12 @@ from bc250cc.infrastructure.bc250_fsr4 import (
 )
 from bc250cc.infrastructure.bc250_opticlient import (
     build_opticlient_install_command,
+    build_opticlient_releases_command,
     build_opticlient_remove_command,
     launch_opticlient,
     opticlient_games,
     opticlient_state,
+    select_opticlient_release,
 )
 from bc250cc.infrastructure.cachyos_bc250_kernel import (
     build_cachyos_bc250_kernel_command,
@@ -52,6 +54,9 @@ from bc250cc.infrastructure.cu_privileged_backend import (
     generic_cu_backend_status,
     steamos_cu_backend_status,
 )
+from bc250cc.infrastructure.cyan_governor_runtime import (
+    managed_runtime_update_available,
+)
 from bc250cc.infrastructure.debian_kernel_upgrade import (
     build_debian_kernel_command,
     debian_kernel_upgrade_state,
@@ -61,6 +66,31 @@ from bc250cc.infrastructure.decky_quick_access import (
     build_decky_bootstrap_command,
     build_plugin_install_command,
 )
+from bc250cc.infrastructure.dependencias_constants import (  # noqa: F401  (re-exported for callers and tests)
+    CORE_UNLOCK_DIRECTORY,
+    CORE_UNLOCK_REPOSITORY,
+    CORE_UNLOCK_SCRIPT,
+    CYAN_GOVERNOR_BRANCH,
+    CYAN_GOVERNOR_DIRECTORY,
+    CYAN_GOVERNOR_REPOSITORY,
+    CYAN_REVIEWED_RELEASE,
+    OBERON_DIRECTORY,
+    OBERON_REPOSITORY,
+    OBERON_REVIEWED_COMMIT,
+    OBERON_YAML_CPP_REVIEWED_COMMIT,
+    STANDARD_CU_REVIEWED_COMMIT,
+    STEAMOS_CORE_UNLOCK_REVIEWED_COMMIT,
+    STEAMOS_CU_REVIEWED_COMMIT,
+    STEAMOS_CYAN_REVIEWED_COMMIT,
+    STEAMOS_CYAN_REVIEWED_RELEASE,
+    STEAMOS_FIX_DIRECTORY,
+    STEAMOS_FIX_REPOSITORY,
+    STEAMOS_FIX_REVIEWED_COMMIT,
+    STEAMOS_FIX_SCRIPT,
+    STEAMOS_FIX_SUBDIRECTORY,
+    STEAMOS_SMU_OC_REVIEWED_COMMIT,
+)
+from bc250cc.infrastructure.dependencias_steamos import SteamosDependenciesMixin
 from bc250cc.infrastructure.external_tools.catalog import (
     EXTERNAL_TOOL_DIRECTORIES,
     EXTERNAL_TOOLS,
@@ -103,6 +133,7 @@ from bc250cc.infrastructure.governor_install_shell import (
 from bc250cc.infrastructure.helixsr import (
     add_helixsr_folder,
     add_optiscaler_folder,
+    build_helixsr_fg_command,
     build_helixsr_install_command,
     build_helixsr_network_command,
     build_helixsr_releases_command,
@@ -111,14 +142,28 @@ from bc250cc.infrastructure.helixsr import (
     helixsr_state,
     install_helixsr_game,
     install_helixsr_optiscaler,
+    install_helixsr_scaler,
     remove_helixsr_game,
     remove_helixsr_optiscaler,
+    remove_helixsr_scaler,
+    rollback_helixsr_scaler,
     save_helixsr_settings,
     scan_helixsr_games,
     select_helixsr_release,
+    set_helixsr_scaler_frame_generation,
+    update_all_helixsr_games,
     update_helixsr_game,
+    update_helixsr_scaler,
 )
 from bc250cc.infrastructure.memory_runtime import read_memory_runtime_state
+from bc250cc.infrastructure.mesa_desktop import (
+    build_mesa_ppa_command,
+    mesa_desktop_state,
+)
+from bc250cc.infrastructure.opticlient_undo import (
+    remove_opticlient_installation,
+    restore_opticlient_backup,
+)
 from bc250cc.infrastructure.preparation_workflow import (
     PreparationContext,
     build_preparation_command,
@@ -131,40 +176,14 @@ from bc250cc.infrastructure.radv_async_compute import (
     radv_async_supported,
 )
 from bc250cc.infrastructure.source_checkout import (
-    clone_or_update,
-    clone_or_update_branch,
     clone_or_update_commit,
     clone_or_update_commit_with_archive,
-    clone_or_update_with_archive,
 )
 from bc250cc.infrastructure.steam_launch_options import (
     add_dll_override,
     add_dll_override_to_library,
 )
-from bc250cc.infrastructure.steamos_amdgpu import (
-    build_steamos_amdgpu_diagnostic_command,
-    build_steamos_compatibility_command,
-    gpu_points_above_module_limit,
-)
-from bc250cc.infrastructure.steamos_amdgpu_backend import (
-    STEAMOS_AMDGPU_AUDIO_FIX_ROOT,
-    STEAMOS_AMDGPU_BACKEND,
-    STEAMOS_AMDGPU_BOOT_CONFIG,
-    protected_backend_guard,
-    stage_backend_command,
-)
-from bc250cc.infrastructure.steamos_cu_shell import (
-    cu_backend_prepare_command,
-    cu_env_shell,
-    database_repair_command,
-    generic_privileged_backend_stage_command,
-    privileged_backend_stage_command,
-    service_backend_update_command,
-    status_probe_command,
-    umr_database_path,
-)
 from bc250cc.infrastructure.steamos_graphics_runtime import (
-    build_steamos_graphics_command,
     probe_steamos_graphics_runtime,
 )
 from bc250cc.infrastructure.steamos_readonly import (
@@ -182,38 +201,14 @@ from bc250cc.infrastructure.vaapi_video import (
     build_vaapi_command,
     vaapi_state,
     vaapi_supported,
+    vaapi_supported32,
 )
 from bc250cc.platform.init.services import detect_init_manager, openrc_preflight
 from bc250cc.platform.packages.strategies import create_os_repository
 from bc250cc.platform.packages.strategies.detector import read_os_release
 
-CORE_UNLOCK_REPOSITORY = EXTERNAL_TOOLS["core_unlock"].upstream
-CORE_UNLOCK_DIRECTORY = "bc250-core-unlock"
-CORE_UNLOCK_SCRIPT = "bc250-unlock-cores.py"
-CYAN_GOVERNOR_REPOSITORY = EXTERNAL_TOOLS["cyan_smu"].upstream
-CYAN_GOVERNOR_DIRECTORY = "cyan-skillfish-governor-smu"
-CYAN_GOVERNOR_BRANCH = "smu"
-STEAMOS_FIX_REPOSITORY = EXTERNAL_TOOLS["steamos_amdgpu"].upstream
-STEAMOS_FIX_REVIEWED_COMMIT = EXTERNAL_TOOLS["steamos_amdgpu"].reviewed_revision
-STEAMOS_FIX_DIRECTORY = "bc250-steamos"
-STEAMOS_FIX_SUBDIRECTORY = "bc250-audio-fix"
-STEAMOS_FIX_SCRIPT = "patch-driver.sh"
-STEAMOS_CU_REVIEWED_COMMIT = EXTERNAL_TOOLS["cu_manager_steamos"].reviewed_revision
-STANDARD_CU_REVIEWED_COMMIT = EXTERNAL_TOOLS["cu_manager_standard"].reviewed_revision
-STEAMOS_SMU_OC_REVIEWED_COMMIT = EXTERNAL_TOOLS["cpu_smu_oc"].reviewed_revision
-STEAMOS_CORE_UNLOCK_REVIEWED_COMMIT = EXTERNAL_TOOLS["core_unlock"].reviewed_revision
-STEAMOS_CYAN_REVIEWED_COMMIT = EXTERNAL_TOOLS["cyan_smu"].reviewed_revision
-CYAN_REVIEWED_RELEASE = "v0.4.13"
-# Retain the former SteamOS-specific spelling for callers that still import it.
-# The executable release is now fixed on every supported distribution.
-STEAMOS_CYAN_REVIEWED_RELEASE = CYAN_REVIEWED_RELEASE
-OBERON_REPOSITORY = EXTERNAL_TOOLS["oberon_governor"].upstream
-OBERON_REVIEWED_COMMIT = EXTERNAL_TOOLS["oberon_governor"].reviewed_revision
-OBERON_YAML_CPP_REVIEWED_COMMIT = "f7320141120f720aecc4c32be25586e7da9eb978"
-OBERON_DIRECTORY = "oberon-governor"
 
-
-class DependenciasRepository:
+class DependenciasRepository(SteamosDependenciesMixin):
     @staticmethod
     def _join_shell_commands(commands):
         """Join complete top-level shell fragments without producing `;;`.
@@ -257,19 +252,28 @@ class DependenciasRepository:
         return self._abrir_terminal(command, 'Configurar memoria BC250 en Bazzite')
 
     def preparar_memoria(self, policy: str, ttm_gib: int, *, takeover_zram: bool = False, target_mount: str = ''):
+        os_repository = self._os_repository()
         if int(ttm_gib) and policy in {'preserve', 'current'}:
             # The GPU memory limit alone: one implementation, the one the
             # Decky panel uses too (system_setup_ttm.py), on every family
             # including Bazzite, so both read and restore the same state.
             return self._abrir_terminal(
-                system_setup_command('ttm-apply', ttm_gib=int(ttm_gib)),
+                wrap_steamos_writable_command(
+                    system_setup_command('ttm-apply', ttm_gib=int(ttm_gib)),
+                    family=os_repository.family,
+                ),
                 'BC250 GPU memory limit',
             )
-        if self._os_repository().family == 'bazzite':
+        if os_repository.family == 'bazzite':
             return self.preparar_memoria_bazzite(policy, ttm_gib)
         return self._abrir_terminal(
-            system_setup_command('memory-apply', policy, ttm_gib,
-                                  takeover_zram=takeover_zram, target_mount=target_mount),
+            wrap_steamos_writable_command(
+                system_setup_command(
+                    'memory-apply', policy, ttm_gib,
+                    takeover_zram=takeover_zram, target_mount=target_mount,
+                ),
+                family=os_repository.family,
+            ),
             'BC250 Memory & Swap',
         )
 
@@ -307,6 +311,13 @@ class DependenciasRepository:
             system_setup_command('kernel-options-set', kernel_options=tuple(options)),
             'BC250 kernel boot options',
         )
+
+    def gestionar_smt_vivo(self, mode: str):
+        """Switch simultaneous multithreading now; the next boot starts as its boot options say."""
+        mode = str(mode or "").strip().lower()
+        if mode not in {"on", "off"}:
+            raise ValueError("Unsupported SMT action.")
+        return self._abrir_terminal(system_setup_command('smt-live', smt=mode), 'BC250 SMT (now)')
 
     def gestionar_acpi(self, action: str):
         # SteamOS keeps the archive beside the kernel in /boot, which is part
@@ -432,6 +443,10 @@ class DependenciasRepository:
                 return candidate
         return None
 
+    def estado_quick_access_decky(self) -> dict:
+        """The Decky/plugin inventory alone: a few stat() calls, no probes."""
+        return quick_access_inventory(os_family=str(self._os_repository().family)).to_dict()
+
     def preparar_quick_access_steamos(self, *, install_decky: bool) -> object:
         """Open the explicit Game Mode Decky/BC250 Quick Access workflow.
 
@@ -508,6 +523,11 @@ class DependenciasRepository:
         action = str(action or '').strip().lower()
         if action == 'launch':
             return launch_opticlient()
+        if action.startswith('select:'):
+            # Only the pick is saved; Install/Update downloads it.
+            result = select_opticlient_release(action.partition(':')[2])
+            self.estado_herramientas_cache = None
+            return result
         if action == 'steam_option_all':
             # One launch option for the whole library, so the client only has
             # to copy files into a new game. dxgi is the client's default.
@@ -528,10 +548,26 @@ class DependenciasRepository:
             result = add_dll_override(appid, adapter.removesuffix('.dll'))
             self.estado_herramientas_cache = None
             return {**result, 'game': game.get('name', '')}
+        if action.startswith('undo:'):
+            # The client's own Restore, done through the real folder.
+            result = remove_opticlient_installation(action.partition(':')[2])
+            self.estado_herramientas_cache = None
+            return result
+        if action.startswith('backup_restore:'):
+            result = restore_opticlient_backup(action.partition(':')[2])
+            self.estado_herramientas_cache = None
+            return result
+        if action.startswith('upgrade:'):
+            # The newer build in one step: picked, then installed in the terminal.
+            select_opticlient_release(action.partition(':')[2])
+            self.estado_herramientas_cache = None
+            action = 'install'
         if action == 'install':
             if not opticlient_state().get('installer_available'):
                 raise RuntimeError('OptiScaler Client is built for x86_64 Linux only.')
             command, title = build_opticlient_install_command(), 'FSR4 · OptiScaler Client BC250'
+        elif action == 'releases':
+            command, title = build_opticlient_releases_command(), 'FSR4 · releases'
         elif action == 'uninstall':
             command, title = build_opticlient_remove_command(), 'FSR4 · remove OptiScaler Client'
         elif action == 'legacy_uninstall':
@@ -604,6 +640,30 @@ class DependenciasRepository:
             result = remove_helixsr_optiscaler(action.partition(':')[2])
             self.estado_herramientas_cache = None
             return result
+        # HelixSR Scaler, through the release's own bridge (HelixSR 2.0 on).
+        scaler = {
+            'scaler_install:': lambda game: install_helixsr_scaler(game),
+            'scaler_install_fg:': lambda game: install_helixsr_scaler(game, frame_generation=True),
+            'scaler_remove:': remove_helixsr_scaler,
+            'scaler_fg_on:': lambda game: set_helixsr_scaler_frame_generation(game, True),
+            'scaler_fg_off:': lambda game: set_helixsr_scaler_frame_generation(game, False),
+            'scaler_update:': update_helixsr_scaler,
+            'scaler_rollback:': rollback_helixsr_scaler,
+        }
+        for prefix, operation in scaler.items():
+            if action.startswith(prefix):
+                result = operation(action.partition(':')[2])
+                self.estado_herramientas_cache = None
+                return result
+        if action == 'update_all':
+            result = update_all_helixsr_games()
+            self.estado_herramientas_cache = None
+            return result
+        if action.startswith('upgrade:'):
+            # The newer release in one step: picked, then installed in the terminal.
+            select_helixsr_release(action.partition(':')[2])
+            self.estado_herramientas_cache = None
+            action = 'install'
         state = helixsr_state()
         if action == 'install':
             if not state.get('installer_available'):
@@ -613,6 +673,10 @@ class DependenciasRepository:
             if not state.get('current'):
                 raise RuntimeError('Install HelixSR first.')
             command, title = build_helixsr_network_command(), 'HelixSR · network files'
+        elif action == 'fg':
+            if not state.get('scaler_supported'):
+                raise RuntimeError('Install HelixSR 2.0 or newer and build its network first.')
+            command, title = build_helixsr_fg_command(), 'HelixSR · frame generation'
         elif action == 'releases':
             command, title = build_helixsr_releases_command(), 'HelixSR · releases'
         elif action == 'uninstall':
@@ -868,7 +932,7 @@ class DependenciasRepository:
         )
 
     def gestionar_kernel_debian(self, action: str) -> object:
-        """Install a newer kernel from the Debian backports, in the terminal."""
+        """Install the newer kernel and Mesa still missing from the Debian backports, in the terminal."""
         info = self._os_repository().info
         action = str(action or '').strip().lower()
         state = debian_kernel_upgrade_state(
@@ -881,8 +945,13 @@ class DependenciasRepository:
             raise RuntimeError(state['reason'] or 'A newer kernel is not offered on this system.')
         self.estado_herramientas_cache = None
         return self._abrir_terminal(
-            build_debian_kernel_command(action, state['codename']),
-            'Debian · newer kernel from backports',
+            build_debian_kernel_command(
+                action,
+                state['codename'],
+                kernel=state['install_kernel'],
+                mesa=state['install_mesa'],
+            ),
+            'Debian · kernel and Mesa from backports',
         )
 
     def gestionar_radv_async(self, action: str) -> object:
@@ -921,15 +990,39 @@ class DependenciasRepository:
             supported, reason = vaapi_supported(family=family)
             if not supported:
                 raise RuntimeError(reason or 'The VA-API driver is not available on this system.')
+        elif action == 'install32':
+            supported, reason = vaapi_supported32(family)
+            if not supported:
+                raise RuntimeError(reason)
         titles = {
             'install': 'Hardware video · build and install',
             'test': 'Hardware video · test',
             'uninstall': 'Hardware video · remove',
+            'install32': 'Hardware video · 32-bit driver',
+            'flatpak': 'Hardware video · Flatpak apps',
+            'flatpak-remove': 'Hardware video · Flatpak apps · remove',
         }
         if action not in titles:
             raise ValueError('Unsupported VA-API action.')
         self.estado_herramientas_cache = None
         return self._abrir_terminal(build_vaapi_command(action, family=family), titles[action])
+
+    def gestionar_mesa_desktop(self, action: str) -> object:
+        """Update Mesa from the kisak-mesa PPA (Ubuntu and derivatives), in the terminal."""
+        info = self._os_repository().info
+        action = str(action or '').strip().lower()
+        state = mesa_desktop_state(
+            family=info.family,
+            distro_id=info.distro_id,
+            immutable=bool(getattr(info, 'immutable', False)),
+        )
+        if state['route'] != 'ppa':
+            raise RuntimeError(state['reason'] or 'A newer Mesa is not offered on this system.')
+        self.estado_herramientas_cache = None
+        return self._abrir_terminal(
+            build_mesa_ppa_command(action, state['codename']),
+            'Mesa · kisak-mesa PPA',
+        )
 
     def gestionar_apu_telemetry(self, action: str) -> object:
         """Install, check or remove the BC250-Telemetry daemon behind the Power delivery band."""
@@ -1053,6 +1146,8 @@ class DependenciasRepository:
         )
         resultado = {
             'governor_cmd': governor_probe['command'],
+            # Prepare would move the managed Cyan to the reviewed upstream release.
+            'cyan_runtime_update_available': managed_runtime_update_available(),
             'governor_pkg': bool(governor_probe['command']),
             'governor_backend': selected_governor,
             'governor_detected_backend': str(
@@ -1121,6 +1216,21 @@ class DependenciasRepository:
             'vaapi_video': self._optional_inventory_probe(
                 lambda: vaapi_state(family=os_info.family),
                 {'supported': False, 'state': 'not-installed', 'installed': False},
+            ),
+            # Where the desktop is still drawn by the CPU for want of Mesa 26.1.
+            'mesa_desktop': self._optional_inventory_probe(
+                lambda: mesa_desktop_state(
+                    family=os_info.family,
+                    distro_id=os_info.distro_id,
+                    immutable=bool(getattr(os_info, 'immutable', False)),
+                    debian_upgrade=debian_kernel_upgrade_state(
+                        family=os_info.family,
+                        distro_id=os_info.distro_id,
+                        kernel=platform.release(),
+                        immutable=bool(getattr(os_info, 'immutable', False)),
+                    ),
+                ),
+                {'offered': False, 'route': '', 'action': ''},
             ),
             'init_manager': init_manager.kind,
             'init_manager_available': init_manager.available,
@@ -1500,341 +1610,6 @@ class DependenciasRepository:
         }
         return result
 
-    def _es_steamos(self, os_info=None):
-        if os_info is not None:
-            texto = ' '.join([
-                os_info.get('ID', ''), os_info.get('ID_LIKE', ''), os_info.get('VARIANT_ID', ''),
-                os_info.get('NAME', ''), os_info.get('PRETTY_NAME', ''),
-            ]).lower()
-            return any(token in texto for token in ('steamos', 'steamdeck', 'holo'))
-        return self._os_repository().info.family == 'steamos'
-
-    def _cu_script_local(self, carpeta):
-        base = self._tool_dir() / carpeta
-        nombres = ['bc250-cu-live-manager.sh']
-        if carpeta == 'bc250-cu-live-manager-steamos':
-            nombres.insert(0, 'bc250-cu-live-manager-bc250.sh')
-        for nombre in nombres:
-            ruta = base / nombre
-            if ruta.exists():
-                return str(ruta)
-        return ''
-
-    def _cu_script_backend(self, ruta):
-        if not ruta:
-            return ''
-        try:
-            path = Path(ruta)
-            if not path.is_file():
-                return ''
-            texto = path.read_text(encoding='utf-8', errors='ignore')[:262144]
-        except OSError:
-            return ''
-        if 'UMR_DATABASE_PATH' in texto and (
-            'ensure_umr_database' in texto
-            or 'umr_database_default_path' in texto
-            or 'bc250-cu-live-manager-SteamOS' in texto
-        ):
-            return 'steamos'
-        if 'BC-250 live CU/WGP manager' in texto and 'enable-wgp' in texto and 'write-service-table' in texto:
-            return 'standard'
-        return ''
-
-    def _cu_steamos_installed_script(self, preferred=''):
-        candidatos = []
-        if preferred:
-            candidatos.append(Path(preferred))
-        candidatos.extend([
-            Path('/usr/local/bin/bc250-cu-live-manager'),
-            Path('/var/usrlocal/bin/bc250-cu-live-manager'),
-            Path('/var/lib/bc250-cu-live-manager/umr/bc250-cu-live-manager'),
-        ])
-        vistos = set()
-        for ruta in candidatos:
-            try:
-                resolved = ruta.expanduser().resolve()
-            except OSError:
-                resolved = ruta.expanduser()
-            if str(resolved) in vistos:
-                continue
-            vistos.add(str(resolved))
-            if self._cu_script_backend(resolved) == 'steamos':
-                return str(resolved)
-        return ''
-
-    def _cu_manager_spec(self, os_repository=None):
-        os_repository = os_repository or self._os_repository()
-        is_steamos = os_repository.info.family == 'steamos'
-        folder = 'bc250-cu-live-manager-steamos' if is_steamos else 'bc250-cu-live-manager'
-        repository = (
-            EXTERNAL_TOOLS['cu_manager_steamos'].upstream
-            if is_steamos
-            else EXTERNAL_TOOLS['cu_manager_standard'].upstream
-        )
-        destination = self._tool_dir() / folder
-        upstream_script = destination / 'bc250-cu-live-manager.sh'
-        runtime_script = (
-            destination / 'bc250-cu-live-manager-bc250.sh'
-            if is_steamos
-            else upstream_script
-        )
-        return {
-            'is_steamos': is_steamos,
-            'folder': folder,
-            'repository': repository,
-            'reviewed_commit': (
-                STEAMOS_CU_REVIEWED_COMMIT
-                if is_steamos else STANDARD_CU_REVIEWED_COMMIT
-            ),
-            'destination': destination,
-            'upstream_script': upstream_script,
-            'script': runtime_script,
-        }
-
-    def _steamos_cu_backend_prepare_command(self, spec):
-        patcher = Path(__file__).resolve().parents[3] / 'scripts' / 'system' / 'prepare-steamos-cu-backend.py'
-        return cu_backend_prepare_command(spec, patcher)
-
-    def _steamos_umr_database_path(self):
-        # SteamOS /var is only a few hundred MiB on many images. The complete
-        # UMR database is kept in the user's large /home-backed data directory
-        # so atomic refreshes cannot fill /var and corrupt cyan_skillfish.asic.
-        return umr_database_path(self._tool_dir())
-
-
-    def _steamos_cu_env_shell(self):
-        repair = Path(__file__).resolve().parents[3] / 'scripts' / 'system' / 'repair-steamos-umr-database.py'
-        return cu_env_shell(self._steamos_umr_database_path(), repair)
-
-
-    def _steamos_umr_database_repair_command(self, check_only=False):
-        repair = Path(__file__).resolve().parents[3] / 'scripts' / 'system' / 'repair-steamos-umr-database.py'
-        return database_repair_command(
-            self._steamos_umr_database_path(), repair, check_only=check_only
-        )
-
-
-    def _steamos_cu_service_backend_update_command(self, script):
-        _ = script
-        return service_backend_update_command(STEAMOS_CU_BACKEND)
-
-    def _steamos_cu_privileged_backend_stage_command(self, script):
-        return privileged_backend_stage_command(script, self._steamos_umr_database_path())
-
-    def _generic_cu_privileged_backend_stage_command(self, script):
-        return generic_privileged_backend_stage_command(script)
-
-
-    def _steamos_cu_status_probe_command(self, script):
-        # Validate the exact protected executable used by the desktop Polkit
-        # helper.  Probing the user-owned F5GO checkout can succeed while a
-        # stale /usr/libexec copy still makes every GUI action fail.
-        _ = script
-        return status_probe_command(
-            STEAMOS_CU_BACKEND,
-            environment_shell=self._steamos_cu_env_shell(),
-            check_database_command=self._steamos_umr_database_repair_command(check_only=True),
-        )
-
-    def _steamos_compatibility_stage_command(self, *, install=True):
-        """Stage/check, or explicitly install, the audited SteamOS kernel fixes.
-
-        Generic dependency preparation only clones the reviewed SteamOS toolkit
-        and reports status. ``install=True`` is reserved for the explicit
-        compatibility action/Health Repair because it can rebuild amdgpu,
-        regenerate initramfs and require a reboot.
-
-        SteamOS can regenerate its GRUB file as a side effect of the final
-        mkinitcpio pass. The reviewed upstream installer writes/validates the
-        scheduler policy *before* that pass, so a good module can be left with
-        a missing amdgpu.sched_policy=2 afterwards. Control Center therefore
-        reapplies the upstream boot-config transaction after mkinitcpio and can
-        repair that policy alone without rebuilding an already verified module.
-        """
-        destination = self._tool_dir() / STEAMOS_FIX_DIRECTORY
-        script = STEAMOS_AMDGPU_BACKEND
-        boot_config = STEAMOS_AMDGPU_BOOT_CONFIG
-        # The toolkit is built exactly as reviewed. Earlier builds staged an
-        # app-owned overlay that widened the module's GPU clock telemetry to
-        # 2400 MHz; the governor editors now keep the GPU within the module's
-        # own 2230 MHz instead (``gpu_frequency_ceiling``).
-        #
-        # Upstream's patch-driver is intentionally a normal-user build
-        # workflow: it creates its lock, dependency cache and kernel tree next
-        # to the script.  The protected /usr/libexec stage must therefore be
-        # used only for root-facing validation/install scripts.  Build in the
-        # pinned ResourceTools checkout, then copy only the two attested build
-        # products into the protected stage before invoking its root-owned
-        # installer.
-        user_audio_root = destination / STEAMOS_FIX_SUBDIRECTORY
-        q_user_audio = shlex.quote(str(user_audio_root))
-        q_protected_audio = shlex.quote(str(STEAMOS_AMDGPU_AUDIO_FIX_ROOT))
-        build_install_command = '; '.join((
-            f'sudo /usr/bin/bash {q_protected_audio}/ensure-build-prereqs.sh',
-            'echo; echo "== Downloading exact Valve kernel sources and build dependencies =="; '
-            'echo "[INFO] This step can remain quiet for several minutes while Git is working. Do not close this window; the process is still running."',
-            f'/usr/bin/bash {q_user_audio}/fetch-sources.sh',
-            'echo "[OK] Kernel sources and build dependencies are ready."; echo; '
-            'echo "== Building the BC250 AMDGPU module =="; '
-            'echo "[INFO] Configuration and compilation can take a while. Do not close this window; compiler output will appear as work progresses."',
-            # build.sh exits 75 when the kernel tree is not in a state it
-            # recognises, typically one patched by an earlier toolkit
-            # revision. Like upstream's patch-driver, clean the tree (cached
-            # downloads are kept) and build once more.
-            f'bc250_build_rc=0; /usr/bin/bash {q_user_audio}/build.sh || bc250_build_rc=$?',
-            'if [ "$bc250_build_rc" = 75 ]; then '
-            'echo "[INFO] The kernel tree was prepared by an earlier toolkit revision; cleaning it and building again. Cached downloads are kept."; '
-            f'/usr/bin/bash {q_user_audio}/clean.sh; '
-            f'/usr/bin/bash {q_user_audio}/fetch-sources.sh; '
-            f'/usr/bin/bash {q_user_audio}/build.sh; '
-            'elif [ "$bc250_build_rc" != 0 ]; then exit "$bc250_build_rc"; fi',
-            f'for artifact in amdgpu.ko.zst amdgpu.gfx1013.attestation; do '
-            f'source_artifact={q_user_audio}/$artifact; '
-            'test -f "$source_artifact" && test ! -L "$source_artifact" && '
-            '[ "$(stat -c %u "$source_artifact")" = "$(id -u)" ] && '
-            '! find "$source_artifact" -prune -perm /022 -print -quit | grep -q . || '
-            '{ echo "ERROR: SteamOS build produced an unsafe artifact: $source_artifact"; exit 38; }; '
-            f'sudo install -o root -g root -m 0644 "$source_artifact" {q_protected_audio}/$artifact; '
-            'done',
-            f'sudo /usr/bin/bash {q_protected_audio}/install.sh',
-        ))
-        if install:
-            checkout_command = self._clone_or_update_commit_command(
-                STEAMOS_FIX_REPOSITORY, destination, STEAMOS_FIX_REVIEWED_COMMIT
-            ) + '; ' + wrap_steamos_writable_command(
-                stage_backend_command(
-                    destination,
-                    STEAMOS_FIX_REVIEWED_COMMIT,
-                    subtree=STEAMOS_FIX_SUBDIRECTORY,
-                ),
-                family='steamos',
-            )
-        else:
-            # Diagnostics must never clone, stage or invoke user-writable
-            # ResourceTools. They inspect only a previously staged runtime.
-            checkout_command = ':'
-        return build_steamos_compatibility_command(
-            script=script,
-            boot_config=boot_config,
-            checkout_command=checkout_command,
-            install=install,
-            module_install_command=build_install_command if install else '',
-            backend_guard=protected_backend_guard(
-                reviewed_revision=STEAMOS_FIX_REVIEWED_COMMIT
-            ),
-        )
-
-
-    def _steamos_module_frequency_blocker(self):
-        return gpu_points_above_module_limit(
-            cyan_config=Path(GOVERNOR_SPECS[CYAN_GOVERNOR]['config_path']),
-            oberon_config=Path(GOVERNOR_SPECS[OBERON_GOVERNOR]['config_path']),
-        )
-
-    def preparar_compatibilidad_steamos(self):
-        os_repository = self._os_repository()
-        if os_repository.info.family != 'steamos':
-            raise RuntimeError('The dedicated SteamOS compatibility workflow is available only on SteamOS.')
-        blocker = self._steamos_module_frequency_blocker()
-        if blocker:
-            raise RuntimeError(blocker)
-        command = self._join_shell_commands((
-            'set -Eeuo pipefail',
-            'export LC_ALL=C LANG=C',
-            self._steamos_compatibility_stage_command(install=True),
-        ))
-        # The reviewed upstream patch-driver owns its privileged windows: its
-        # prerequisite installer and amdgpu installer both restore SteamOS
-        # read-only protection with EXIT traps.  Do not keep /usr writable
-        # during the potentially long kernel build.
-        self.estado_herramientas_cache = None
-        return self._abrir_terminal(command, 'Preparar compatibilidad SteamOS BC250')
-
-    def gestionar_graficos_steamos(self, action):
-        """Install, verify or remove the matched SteamOS RADV/FSR4 stage."""
-        os_repository = self._os_repository()
-        if os_repository.info.family != 'steamos':
-            raise RuntimeError(
-                'The dedicated SteamOS graphics workflow is available only on SteamOS.'
-            )
-        action = str(action or '').strip().lower()
-        destination = self._tool_dir() / STEAMOS_FIX_DIRECTORY
-        if action == 'status':
-            checkout_command = ':'
-        else:
-            checkout_command = self._clone_or_update_commit_command(
-                STEAMOS_FIX_REPOSITORY,
-                destination,
-                STEAMOS_FIX_REVIEWED_COMMIT,
-            ) + '; ' + wrap_steamos_writable_command(
-                stage_backend_command(
-                    destination,
-                    STEAMOS_FIX_REVIEWED_COMMIT,
-                    subtree=STEAMOS_FIX_SUBDIRECTORY,
-                ),
-                family='steamos',
-            )
-        command = self._join_shell_commands((
-            'set -Eeuo pipefail',
-            'export LC_ALL=C LANG=C',
-            build_steamos_graphics_command(
-                action,
-                checkout_command=checkout_command,
-                backend_guard=protected_backend_guard(
-                    reviewed_revision=STEAMOS_FIX_REVIEWED_COMMIT
-                ),
-            ),
-        ))
-        self.estado_herramientas_cache = None
-        titles = {
-            'status': 'Estado de gráficos SteamOS BC250',
-            'install': 'Instalar Mesa RADV SteamOS BC250',
-            'install-fsr4': 'Instalar FSR4 SteamOS BC250',
-            'uninstall': 'Desinstalar Mesa RADV SteamOS BC250',
-            'uninstall-fsr4': 'Desinstalar FSR4 SteamOS BC250',
-        }
-        if action not in titles:
-            raise ValueError(f'Unsupported SteamOS graphics action: {action}')
-        return self._abrir_terminal(command, titles[action])
-
-    def diagnostico_steamos(self):
-        """Run Control Center's native SteamOS checks without toolkit ownership."""
-        os_repository = self._os_repository()
-        if os_repository.info.family != 'steamos':
-            raise RuntimeError('SteamOS toolkit diagnostics are available only on SteamOS.')
-        patch_status = STEAMOS_AMDGPU_BACKEND
-        cu_spec = self._cu_manager_spec(os_repository)
-        cu_script = cu_spec['script']
-        command = self._join_shell_commands((
-            'set -Eeuo pipefail',
-            'export LC_ALL=C LANG=C',
-            'echo "== Native BC250 Control Center SteamOS diagnostics =="',
-            'echo "[INFO] Community toolkits are references; this report validates Control Center-owned paths and services."',
-            'echo "== Active kernel and scheduler =="',
-            'printf "Kernel: %s\\n" "$(uname -r)"',
-            build_steamos_amdgpu_diagnostic_command(
-                script=patch_status,
-                backend_guard=protected_backend_guard(
-                    reviewed_revision=STEAMOS_FIX_REVIEWED_COMMIT
-                ),
-            ),
-            'echo "== Control Center services =="',
-            'for unit in cyan-skillfish-governor-smu.service bc250-cu-live-manager.service nct6687-load.service bc250-smu-oc.service; do enabled="$(systemctl is-enabled "$unit" 2>/dev/null || true)"; active="$(systemctl is-active "$unit" 2>/dev/null || true)"; printf "%s: enabled=%s active=%s\\n" "$unit" "${enabled:-not-found}" "${active:-not-found}"; done',
-            'echo "== Control Center UMR / CU backend =="',
-            f'test -x {shlex.quote(str(cu_script))} || {{ echo "ERROR: Control Center SteamOS CU backend is missing"; exit 39; }}',
-            self._steamos_cu_status_probe_command(cu_script),
-            'echo "== NCT hardware monitor =="',
-            'if [ -r /sys/class/hwmon ]; then for node in /sys/class/hwmon/hwmon*/name; do [ -r "$node" ] && printf "%s: %s\\n" "${node%/name}" "$(cat "$node")"; done; fi',
-            'echo "[OK] Native SteamOS diagnostics completed; no system setting was changed."',
-        ))
-        return self._abrir_terminal(command, 'Diagnóstico SteamOS BC250')
-
-    # Compatibility alias for controllers from builds that briefly exposed the
-    # upstream-oriented name. The implementation is fully native.
-    diagnostico_toolkit_steamos = diagnostico_steamos
-
-
-
     @staticmethod
     def _accept_reboot_required(command, message):
         """Treat the rpm-ostree pending-deployment exit code as success."""
@@ -2108,72 +1883,6 @@ class DependenciasRepository:
         self.estado_herramientas_cache = None
         return self._abrir_terminal(self._join_shell_commands(commands), 'Prepare bc250-core-unlock')
 
-    def instalar_cu_manager(self):
-        tools = self.estado_herramientas_bc250()
-        os_repository = self._os_repository()
-        spec = self._cu_manager_spec(os_repository)
-        if (
-            spec['is_steamos']
-            and Path(spec['script']).exists()
-            and tools.get('cu_privileged_backend_ready')
-        ):
-            return True
-        if not spec['is_steamos'] and tools['cu_manager_exists']:
-            return True
-
-        destination = spec['destination']
-        upstream_script = spec['upstream_script']
-        script = spec['script']
-        prepare_backend = self._steamos_cu_backend_prepare_command(spec)
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        commands = [
-            'set -Eeuo pipefail',
-            'export LC_ALL=C LANG=C',
-            'echo "== Preparing bc250-cu-live-manager =="',
-        ]
-        if os_repository.info.family == 'bazzite':
-            commands.append(self._clone_or_update_commit_with_archive_command(
-                spec['repository'], destination, spec['reviewed_commit']
-            ))
-        else:
-            runtime = os_repository.prepare_dependencies_command('runtime')
-            commands.append(f'command -v git >/dev/null 2>&1 || {{ {runtime}; }}')
-            commands.append(self._hardware_source_checkout_command(spec['repository'], destination, os_repository))
-        commands.extend([
-            f'test -x {shlex.quote(str(upstream_script))} || {{ echo "ERROR: upstream bc250-cu-live-manager.sh was not found"; exit 1; }}',
-        ])
-        if prepare_backend:
-            commands.append(prepare_backend)
-        else:
-            # Every non-SteamOS action path uses the same protected backend,
-            # regardless of whether the host booted systemd or OpenRC.  The
-            # former OpenRC-only staging branch let a systemd host finish
-            # "Prepare Live Manager" with only the mutable ResourceTools
-            # checkout, after which CU controls correctly refused to run.
-            commands.append(self._generic_cu_privileged_backend_stage_command(script))
-        commands.extend([
-            f'chmod 0755 {shlex.quote(str(script))}',
-            f'test -x {shlex.quote(str(script))} || {{ echo "ERROR: BC250 SteamOS CU runtime backend was not generated"; exit 1; }}',
-        ])
-        if spec['is_steamos']:
-            commands.extend([
-                self._steamos_umr_database_repair_command(),
-                wrap_steamos_writable_command(
-                    self._steamos_cu_privileged_backend_stage_command(script),
-                    family='steamos',
-                ),
-                wrap_steamos_writable_command(
-                    self._steamos_cu_service_backend_update_command(script),
-                    family='steamos',
-                ),
-                self._steamos_cu_status_probe_command(script),
-            ])
-        commands.append(
-            f'echo "OK: 40CU manager is ready at {shlex.quote(str(script))}"'
-        )
-        self.estado_herramientas_cache = None
-        return self._abrir_terminal(self._join_shell_commands(commands), 'Prepare bc250-cu-live-manager')
-
     def instalar_dependencias_bc250(
         self,
         confirmar_conflictos=False,
@@ -2251,9 +1960,6 @@ class DependenciasRepository:
         return self._abrir_terminal(command, 'Preparar dependencias BC250')
 
 
-    def _clone_or_update_with_archive_command(self, repository_url, destination, branch='main'):
-        return clone_or_update_with_archive(repository_url, destination, branch)
-
     def _clone_or_update_commit_command(self, repository_url, destination, commit):
         """Fetch one reviewed Git commit and leave the worktree detached there.
 
@@ -2268,24 +1974,8 @@ class DependenciasRepository:
     ):
         return clone_or_update_commit_with_archive(repository_url, destination, commit)
 
-    def _clone_or_update_command(self, repository_url, destination):
-        return clone_or_update(repository_url, destination)
-
-    def _clone_or_update_branch_command(self, repository_url, destination, branch):
-        return clone_or_update_branch(repository_url, destination, branch)
-
-    def _comando_instalar_governor_smu(self):
-        return self._os_repository().install_governor_command()
-
     def _comando_instalar_stress(self):
         return self._os_repository().install_stress_command()
-
-    def instalar_stress_cpu(self):
-        if self._command_path('stress'):
-            return True
-        comando = self._comando_instalar_stress()
-        self.estado_herramientas_cache = None
-        return self._abrir_terminal(comando, 'Install stress for CPU OC')
 
     def instalar_umr(self):
         os_repository = self._os_repository()
@@ -2353,10 +2043,3 @@ class DependenciasRepository:
         commands.append('if [ "$BC250_REBOOT_REQUIRED" = "1" ]; then echo "== UMR staged; reboot required =="; else echo "== UMR installation verified =="; fi')
         self.estado_herramientas_cache = None
         return self._abrir_terminal(self._join_shell_commands(commands), 'Instalar UMR')
-
-    def _comando_instalar_umr(self, tools=None):
-        tools = tools or self.estado_herramientas_bc250()
-        script = tools.get('cu_manager') or ''
-        if tools.get('is_steamos') and tools.get('cu_manager_steamos_path'):
-            script = tools.get('cu_manager_steamos_path') or script
-        return self._os_repository().install_umr_command(script)

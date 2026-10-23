@@ -47,12 +47,13 @@ def test_the_badge_is_absent_until_there_is_something_to_say(footer):
 
 
 def test_it_sits_with_the_other_links(footer):
-    """One row: this leads, then repositories, contact, report, support."""
+    """One row: this leads, then repositories, Discord, Telegram, report, support."""
     order = [footer.layout.itemAt(i).widget() for i in range(footer.layout.count())]
     assert order == [
         footer.update_button,
         footer.repositories_button,
         footer.contact_button,
+        footer.telegram_button,
         footer.report_button,
         footer.support_button,
     ]

@@ -188,12 +188,17 @@ bc250_nct6687_ready() {
         ;;
     esac
   done
-  sensors 2>/dev/null | awk '/nct6686-isa/{seen=1} seen && /(Fan|fan|pwm)[ #0-9]*:/ {ok=1} END{exit ok?0:1}'
+  # awk reads all of sensors' output, so this pipe cannot hit SIGPIPE.
+  sensors 2>/dev/null | awk '/nct668[67]-isa/{seen=1} seen && /(Fan|fan|pwm)[ #0-9]*:/ {ok=1} END{exit ok?0:1}'
 }
 bc250_wait_for_nct6687_ready() {
   local attempt
-  for attempt in {1..5}; do
-    if lsmod | grep -q '^nct6687 ' && bc250_nct6687_ready; then
+  # /proc/modules, not lsmod piped into grep -q: under pipefail grep stops at the
+  # first match and lsmod dies of SIGPIPE, so a freshly loaded nct6687 (listed
+  # first) read as not loaded and a working fan driver was reported as failed.
+  # The hwmon device can also take several seconds to register.
+  for attempt in {1..15}; do
+    if grep -q '^nct6687 ' /proc/modules 2>/dev/null && bc250_nct6687_ready; then
       return 0
     fi
     sleep 1
@@ -221,8 +226,16 @@ fi
 if ! bc250_wait_for_nct6687_ready; then
   error "nct6687 load verification failed or the fan/PWM hwmon is not ready"
   cat "$load_error" || true
-  journalctl -u nct6687-load.service -b --no-pager | tail -120 2>/dev/null || true
+  # The load service only exists after a reboot, so its journal is usually
+  # empty here; show what the kernel and hwmon actually report instead.
+  info "Diagnostics: kernel $(uname -r)"
+  grep -E '^nct66' /proc/modules || info "No nct66xx module is loaded"
+  for node in /sys/class/hwmon/hwmon*/name; do
+    [[ -r "$node" ]] && printf '  %s: %s\n' "${node%/name}" "$(cat "$node" 2>/dev/null)"
+  done
+  as_root dmesg 2>/dev/null | grep -iE 'nct66|super.?i/?o' | tail -20 || true
+  journalctl -u nct6687-load.service -b --no-pager 2>/dev/null | tail -40 || true
   exit 22
 fi
-sensors | sed -n '/nct6686/,+45p' || true
+sensors | sed -n '/nct668[67]/,+45p' || true
 info "SteamOS nct6687 PWM module is ready and the NCT fan/PWM hwmon is visible"

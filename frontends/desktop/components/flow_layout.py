@@ -30,9 +30,6 @@ class FlowLayout(QLayout):
     def takeAt(self, index: int) -> QLayoutItem | None:  # noqa: N802 - Qt API name
         return self._items.pop(index) if 0 <= index < len(self._items) else None
 
-    def expandingDirections(self) -> Qt.Orientation:  # noqa: N802 - Qt API name
-        return Qt.Orientation(0)
-
     def hasHeightForWidth(self) -> bool:  # noqa: N802 - Qt API name
         return True
 
@@ -70,3 +67,6 @@ class FlowLayout(QLayout):
             x += hint.width() + self._spacing
             row_height = max(row_height, hint.height())
         return y + row_height - rect.y() + margins.bottom()
+
+    def expandingDirections(self) -> Qt.Orientation:  # noqa: N802 - Qt API name
+        return Qt.Orientation(0)

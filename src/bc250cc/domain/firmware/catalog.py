@@ -418,39 +418,6 @@ def archives_of(source: Source) -> RemoteFile:
     return source.archive if isinstance(source, ArchivedFile) else source
 
 
-def catalog_problems() -> list[str]:
-    """Everything wrong with the catalog, for the tests that guard it."""
-    problems: list[str] = []
-    keys: set[str] = set()
-    for family in FIRMWARE_FAMILIES:
-        if family.key in keys:
-            problems.append(f"duplicate family key {family.key}")
-        keys.add(family.key)
-        if family.origin not in {"modded", "stock"}:
-            problems.append(f"{family.key}: unknown origin {family.origin}")
-        if not family.project_url.startswith("https://"):
-            problems.append(f"{family.key}: project URL is not https")
-        image_keys = [image.key for image in family.images]
-        if len(set(image_keys)) != len(image_keys):
-            problems.append(f"{family.key}: duplicate image keys")
-        if family.has_variants and family.default_image not in image_keys:
-            problems.append(f"{family.key}: default image is not one of its images")
-        if family.boot_logos and family.boot_logos != len(family.images):
-            problems.append(f"{family.key}: boot logo count does not match its images")
-        if not 6 <= family.cpu_cores <= 8:
-            problems.append(f"{family.key}: a BC-250 runs six to eight CPU cores")
-        if not 1 <= len(family.highlights) <= MAX_HIGHLIGHTS or not all(
-            line.strip() for line in family.highlights
-        ):
-            problems.append(f"{family.key}: one to {MAX_HIGHLIGHTS} highlights, none of them empty")
-        for image in family.images:
-            for source in sources_for(family, image):
-                problems.extend(_source_problems(f"{family.key}/{image.key}", source))
-    if sum(family.recommended for family in FIRMWARE_FAMILIES) != 1:
-        problems.append("exactly one family must be recommended")
-    return problems
-
-
 def _source_problems(owner: str, source: Source) -> list[str]:
     problems: list[str] = []
     remote = archives_of(source)

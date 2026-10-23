@@ -163,13 +163,17 @@ command -v python3 >/dev/null 2>&1 || {
   exit 12
 }
 
+python3 -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 1)' || {
+  echo "ERROR: BC250 Control Center needs Python 3.11 or newer; this system has $(python3 -V 2>&1)." >&2
+  exit 13
+}
+
 python3 - "$PROJECT_ROOT" <<'PY'
 import ast
 import pathlib
 import re
 import sys
 import zipfile
-import xml.etree.ElementTree as ET
 
 root = pathlib.Path(sys.argv[1]).resolve()
 for tree in (root / "src", root / "frontends", root / "privileged"):
@@ -196,6 +200,7 @@ with zipfile.ZipFile(archive) as bundle:
 license_text = (root / "LICENSE").read_text(encoding="utf-8")
 if not license_text.startswith("MIT License\n"):
     raise SystemExit("ERROR: unsupported or unrecognized project LICENSE text")
+import xml.etree.ElementTree as ET  # imported here: minimal Pythons (Photon) ship without xml
 metadata = ET.parse(
     root / "packaging/common/io.github.movacx.bc250-control-center.metainfo.xml"
 ).getroot()

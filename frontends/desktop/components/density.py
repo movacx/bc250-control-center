@@ -90,11 +90,23 @@ def _locked(layout: QLayout, locks: list[QWidget]) -> bool:
     return any(lock is owner or lock.isAncestorOf(owner) for lock in locks)
 
 
+#: Whether any pass has tightened a layout since the application started.
+#: Until one has, Comfortable has nothing to undo, and the window calls this
+#: on every page switch: walking every widget and layout of a page for
+#: nothing was a visible part of that switch.
+_tightened = False
+
+
 def apply_layout_density(root: QWidget | None, compact: bool | None = None) -> int:
     """Tighten (or restore) every layout under ``root``. Returns how many changed."""
+    global _tightened
     if root is None:
         return 0
     compact = is_compact() if compact is None else bool(compact)
+    if not compact and not _tightened:
+        return 0
+    if compact:
+        _tightened = True
     locks = [widget for widget in root.findChildren(QWidget) if widget.property(LOCK_PROPERTY)]
     if root.property(LOCK_PROPERTY):
         return 0

@@ -134,39 +134,3 @@ def _existing(paths, root: Path) -> tuple[str, ...]:
             continue
     return tuple(found)
 
-
-def detect_foreign_toolkits(*, root: Path | str = "/") -> tuple[dict[str, object], ...]:
-    """Return evidence for every known toolkit present on this system.
-
-    Passive and side-effect free, so it is safe to call during a status refresh.
-    """
-    base = Path(root)
-    detections = []
-    for spec in KNOWN_TOOLKITS:
-        evidence = _existing(spec.markers, base)
-        if not evidence:
-            continue
-        detections.append(
-            ToolkitDetection(
-                identifier=spec.identifier,
-                display_name=spec.display_name,
-                upstream=spec.upstream,
-                evidence=evidence,
-                overlapping_areas=spec.overlapping_areas,
-                shared_paths=_existing(SHARED_CONFIGURATION, base),
-            ).to_dict()
-        )
-    return tuple(detections)
-
-
-def describe_toolkit_conflict(detections) -> str:
-    """One bounded sentence naming what else manages this hardware."""
-    names = ", ".join(str(item.get("display_name") or item.get("identifier")) for item in detections)
-    if not names:
-        return ""
-    return (
-        f"Another BC-250 toolkit is installed: {names}. "
-        "Both it and Control Center manage the same services and configuration files, "
-        "so a change applied here can be replaced at the next boot. "
-        "Keep only one of them responsible for each area."
-    )

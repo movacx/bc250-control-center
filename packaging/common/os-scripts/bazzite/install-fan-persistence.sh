@@ -72,7 +72,7 @@ module_matches_kernel() {
 
 build_for_current_kernel() {
   [[ -f "$SOURCE_DIR/Makefile" && -f "$SOURCE_DIR/nct6687.c" ]] || {
-    echo "ERROR: persisted nct6687 source is missing" >&2
+    echo "[ERROR] persisted nct6687 source is missing" >&2
     return 1
   }
   local build_dir="" declared="" candidate vermagic module_release
@@ -84,30 +84,30 @@ build_for_current_kernel() {
       declared=""
     fi
     if [[ -n "$declared" && "$declared" != "$KVER" ]]; then
-      echo "ERROR: kernel-devel mismatch: $candidate belongs to $declared but the running kernel is $KVER" >&2
+      echo "[ERROR] kernel-devel mismatch: $candidate belongs to $declared but the running kernel is $KVER" >&2
       continue
     fi
     build_dir="$candidate"
     break
   done
   [[ -n "$build_dir" ]] || {
-    echo "ERROR: matching kernel-devel is unavailable for $KVER" >&2
+    echo "[ERROR] matching kernel-devel is unavailable for $KVER" >&2
     echo "Update Bazzite, reboot into the matching deployment, then run Prepare PWM driver again." >&2
     return 1
   }
-  command -v make >/dev/null 2>&1 || { echo "ERROR: make is unavailable" >&2; return 1; }
+  command -v make >/dev/null 2>&1 || { echo "[ERROR] make is unavailable" >&2; return 1; }
   command -v gcc >/dev/null 2>&1 || command -v clang >/dev/null 2>&1 || {
-    echo "ERROR: no kernel compiler is available" >&2
+    echo "[ERROR] no kernel compiler is available" >&2
     return 1
   }
   echo "Building nct6687 for $KVER with verified headers at $build_dir" >&2
   make -C "$SOURCE_DIR" kver="$KVER" build
-  [[ -f "$BUILD_OUTPUT" ]] || { echo "ERROR: build did not produce $BUILD_OUTPUT" >&2; return 1; }
+  [[ -f "$BUILD_OUTPUT" ]] || { echo "[ERROR] build did not produce $BUILD_OUTPUT" >&2; return 1; }
   if [[ -n "$MODINFO" ]]; then
     vermagic="$($MODINFO -F vermagic "$BUILD_OUTPUT" 2>/dev/null || true)"
     module_release="${vermagic%% *}"
     [[ "$module_release" == "$KVER" ]] || {
-      echo "ERROR: rebuilt nct6687 has vermagic $module_release, expected $KVER; refusing to install it" >&2
+      echo "[ERROR] rebuilt nct6687 has vermagic $module_release, expected $KVER; refusing to install it" >&2
       return 1
     }
   fi
@@ -159,7 +159,7 @@ try_packaged_module() {
   : >"$ERRLOG"
   "$MODPROBE" nct6687 force=true 2>>"$ERRLOG" || "$MODPROBE" nct6687 2>>"$ERRLOG" || return 1
   settle_hwmon
-  "$LSMOD" | grep -q '^nct6687 ' && is_ready
+  grep -q '^nct6687 ' /proc/modules && is_ready
 }
 
 load_custom_module() {
@@ -169,7 +169,7 @@ load_custom_module() {
     "$INSMOD" "$MODULE_PATH" 2>>"$ERRLOG"
 }
 
-if "$LSMOD" | grep -q '^nct6687 '; then
+if grep -q '^nct6687 ' /proc/modules; then
   settle_hwmon
   is_ready && exit 0
 fi
@@ -188,7 +188,7 @@ for attempt in $(seq 1 12); do
   unload_conflicts
   if load_custom_module; then
     settle_hwmon
-    if "$LSMOD" | grep -q '^nct6687 ' && is_ready; then
+    if grep -q '^nct6687 ' /proc/modules && is_ready; then
       exit 0
     fi
   fi
@@ -201,7 +201,7 @@ if command -v getenforce >/dev/null 2>&1; then echo "SELinux: $(getenforce)" >&2
 if [[ -r "$MODULE_PATH" ]]; then
   ls -lZ "$MODULE_PATH" >&2 2>/dev/null || ls -l "$MODULE_PATH" >&2 || true
 fi
-echo "ERROR: nct6687 could not be loaded for $KVER" >&2
+echo "[ERROR] nct6687 could not be loaded for $KVER" >&2
 exit 1
 LOADER
 as_root chmod 0755 "$LOADER_PATH"

@@ -69,6 +69,11 @@ FSR4_REPAIR_MESSAGE = (
     "Its folder is incomplete or was changed. Press {button} in {section}; "
     "your game backups are kept."
 )
+CYAN_UPDATE_TITLE = "A newer Cyan governor is recommended"
+CYAN_UPDATE_MESSAGE = (
+    "The Cyan that Control Center installed is an older release. Press {button} "
+    "on the Cyan card in {section} to move to the reviewed one."
+)
 FSR4_UPDATE_TITLE = "An FSR4 client update is ready"
 FSR4_UPDATE_MESSAGE = "Press {button} in {section}. Your games and backups are kept."
 
@@ -145,7 +150,8 @@ def attention_items(tools: Mapping) -> tuple[Attention, ...]:
         return ()
     items: list[Attention] = []
 
-    compatibility = _where("Prepare BC250 system", "Compatibility")
+    # Compatibility is a tab of Additional settings (Components stays on the Dashboard).
+    compatibility = _where("Additional settings", "Compatibility")
     upscaling = _where("Additional settings", "Upscaling")
     helpers = _mapping(tools.get("privileged_install"))
     if helpers.get("state") == "outdated":
@@ -195,6 +201,14 @@ def attention_items(tools: Mapping) -> tuple[Attention, ...]:
         items.append(Attention("steamos-radv-invalid", STEAMOS_RADV_TITLE, _say(
             STEAMOS_RADV_MESSAGE, section=compatibility,
         )))
+
+    # Only Control Center's own copy, and only when it is installed: a Cyan
+    # from the distribution or upstream's installer is the package manager's.
+    cyan = _mapping(_mapping(tools.get("supported_gpu_governors")).get("cyan-skillfish-governor-smu"))
+    if cyan.get("detected") and tools.get("cyan_runtime_update_available"):
+        items.append(Attention("cyan-update", CYAN_UPDATE_TITLE, _say(
+            CYAN_UPDATE_MESSAGE, button=tr("Update / repair"), section=compatibility,
+        ), "blue"))
 
     fsr4 = _mapping(tools.get("fsr4"))
     if fsr4.get("installer_available"):

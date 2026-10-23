@@ -12,10 +12,13 @@ cleanup_cyan_root() {
 }
 trap cleanup_cyan_root EXIT
 
-# Install the reviewed, checksummed Cyan SMU release as a reversible init-service
-# override whenever Control Center prepares Cyan. Compatibility switches are
-# user-controlled: updates validate but never overwrite gpu.set-method,
-# gpu-usage.method, gpu-usage.fix-metrics, or gpu-usage.fix-freq.
+# Install the reviewed, checksummed Cyan SMU release, unmodified, as a
+# reversible init-service override whenever Control Center prepares Cyan. The
+# official release binary is used wherever it runs; a host whose C library is
+# older than the one it was built against gets the same reviewed commit built
+# from source, still unmodified. Compatibility switches are user-controlled:
+# updates validate but never overwrite gpu.set-method, gpu-usage.method,
+# gpu-usage.fix-metrics, or gpu-usage.fix-freq.
 
 SOURCE_DIR="${1:-}"
 SERVICE="cyan-skillfish-governor-smu.service"
@@ -31,12 +34,14 @@ DBUS_POLICY="/etc/dbus-1/system.d/com.cyanskillfish.Governor.conf"
 PERFORMANCE_MODE="/usr/local/bin/cyan-skillfish-performance-mode"
 REPOSITORY="https://github.com/filippor/cyan-skillfish-governor"
 MARKER="GPU frequency fix enabled"
-REVIEWED_RELEASE_TAG="v0.4.13"
-REVIEWED_COMMIT="7f34882ed28ab2065e478df9fb904b5e0a924afc"
-REVIEWED_ARCHIVE_SHA256="94a3c45438db39ec84037ec9c75ea34266fbc9c89c9bac13f70b0f86db058603"
-BC250CC_RUNTIME_REVISION="bc250cc.2"
-BC250CC_PATCHER="$SCRIPT_DIR/patch-cyan-bc250cc-runtime.py"
-BC250CC_RUNTIME_MARKER="BC250CC_RUNTIME_PATCH=${BC250CC_RUNTIME_REVISION}"
+REVIEWED_RELEASE_TAG="v0.4.14"
+REVIEWED_COMMIT="7b08fdcf542d1edd82f3a9077c902038019c9842"
+REVIEWED_ARCHIVE_SHA256="57fda5438d5f1856e9638300a60ba8c54c39f356ada749381275b836e8b1c787"
+# The official release binary needs this C library or newer (GLIBC_2.39 is the
+# newest symbol version it imports): Debian 12 and Ubuntu 22.04 are older.
+RELEASE_MIN_GLIBC="2.39"
+# Left by releases before 1.21.2, which built Cyan with a Control Center patch.
+LEGACY_STATE_FILES=(runtime-revision upstream-commit patcher-sha256 binary-sha256)
 
 info() { printf '[INFO] %s\n' "$*"; }
 error() { printf '[ERROR] %s\n' "$*" >&2; }
@@ -182,84 +187,90 @@ if not match or tuple(map(int, match.groups())) < (1, 88, 0):
 PY
 }
 
-build_bc250cc_runtime() (
-  local workdir source_copy output_dir image binary version binary_sha patcher_sha
-  [[ -x "$BC250CC_PATCHER" ]] || die "BC250CC Cyan patch helper is missing: $BC250CC_PATCHER"
+build_upstream_source() (
+  # The reviewed commit, built as upstream builds it, for a C library too old
+  # for the official binary. Nothing in the source is changed.
+  local workdir source_copy binary version
   [[ ${EUID:-$(id -u)} -ne 0 ]] || die "Run preparation as your desktop user; only installation uses administrator privileges"
-  if [[ "$target_family" == "bazzite" ]]; then
-    have podman || die "podman is required to build the reviewed BC250CC Cyan runtime on Bazzite"
-  else
-    prepare_native_build_tools
-  fi
-  have python3 || die "python3 is required to apply the reviewed Cyan runtime patch"
+  [[ "$target_family" != "bazzite" ]] || die "This Bazzite deployment's C library is older than the official Cyan release needs"
+  prepare_native_build_tools
   have git || die "git is required to materialize the reviewed Cyan source tree"
   have tar || die "tar is required to materialize the reviewed Cyan source tree"
 
-  # Never patch the user's checked-out third-party source in place. Build from
-  # an exact git-archive copy of the reviewed commit so repeated Prepare runs
-  # stay idempotent and the source checkout remains clean/auditable.
+  # Never build in the user's checkout: an exact git-archive copy of the
+  # reviewed commit keeps repeated Prepare runs idempotent and the checkout
+  # clean and auditable.
   workdir="$(mktemp -d /tmp/bc250-cyan-build.XXXXXX)"
   trap 'rm -rf -- "$workdir"' EXIT
   source_copy="$workdir/source"
-  output_dir="$workdir/output"
-  mkdir -p "$source_copy" "$output_dir"
+  mkdir -p "$source_copy" "$workdir/output"
   git -C "$SOURCE_DIR" archive --format=tar "$REVIEWED_COMMIT" | tar -xf - -C "$source_copy" ||
     die "The reviewed Cyan source tree could not be materialized"
 
-  info "Applying BC250 Control Center Cyan runtime patch ${BC250CC_RUNTIME_REVISION} to an isolated source copy"
-  python3 "$BC250CC_PATCHER" "$source_copy" ||
-    die "The reviewed Cyan runtime patch could not be applied"
-  LC_ALL=C grep -Fq "$BC250CC_RUNTIME_MARKER" "$source_copy/src/governor.rs" ||
-    die "The Cyan governor source does not contain the expected BC250CC runtime marker"
-  LC_ALL=C grep -Fq "$BC250CC_RUNTIME_MARKER" "$source_copy/src/gpu.rs" ||
-    die "The Cyan GPU source does not contain the expected BC250CC runtime marker"
+  info "This C library is older than ${RELEASE_MIN_GLIBC}: building the official Cyan ${REVIEWED_RELEASE_TAG} source, unmodified"
+  (
+    cd "$source_copy"
+    # Upstream's build.rs reads this variable for the version it reports, as
+    # its own release builds do.
+    CARGO_TARGET_DIR="$workdir/output" \
+    CYAN_SKILLFISH_GOVERNOR_VERSION="$REVIEWED_RELEASE_TAG" \
+      cargo build --locked --release
+  ) || die "The Cyan build failed; the existing governor was not replaced"
 
-  # The container writes Cargo output as its own uid mapping. Only the output
-  # directory needs broad write permission; the patched source stays read-only.
-  if [[ "$target_family" == "bazzite" ]]; then
-    chmod 0777 "$output_dir"
-    image="registry.fedoraproject.org/fedora:44"
-    info "Building Cyan ${REVIEWED_RELEASE_TAG}-${BC250CC_RUNTIME_REVISION} in an isolated Fedora container"
-    podman run --rm \
-    -v "$source_copy:/src:ro,Z" \
-    -v "$output_dir:/out:Z" \
-    -w /src \
-    -e "CARGO_TARGET_DIR=/out" \
-    -e "CYAN_SKILLFISH_GOVERNOR_VERSION=${REVIEWED_RELEASE_TAG}-${BC250CC_RUNTIME_REVISION}" \
-    "$image" bash -lc \
-    'dnf install -y cargo rust gcc libdrm-devel pkgconf-pkg-config git && cargo build --locked --release' ||
-      die "The reviewed BC250CC Cyan runtime build failed"
-  else
-    info "Building patched Cyan against the native $target_family runtime"
-    (
-      cd "$source_copy"
-      CARGO_TARGET_DIR="$output_dir" \
-      CYAN_SKILLFISH_GOVERNOR_VERSION="${REVIEWED_RELEASE_TAG}-${BC250CC_RUNTIME_REVISION}" \
-        cargo build --locked --release
-    ) || die "The reviewed native Cyan build failed; the existing governor was not replaced"
-  fi
-
-  binary="$output_dir/release/cyan-skillfish-governor-smu"
-  [[ -x "$binary" ]] || die "The BC250CC Cyan build did not produce a governor binary"
+  binary="$workdir/output/release/cyan-skillfish-governor-smu"
+  [[ -x "$binary" ]] || die "The Cyan build did not produce a governor binary"
   supports_frequency_fix "$binary" ||
-    die "The BC250CC Cyan binary lost the upstream GPU frequency-reporting fix"
-  version="$($binary --version 2>&1 | head -n 1)"
-  [[ "$version" == *"${BC250CC_RUNTIME_REVISION}"* ]] ||
-    die "The BC250CC Cyan binary does not expose its runtime revision: $version"
+    die "The Cyan build lacks the upstream GPU frequency-reporting fix"
+  version="$($binary --version 2>&1 || true)"; version="${version%%$'\n'*}"
+  [[ "$version" == *"${REVIEWED_RELEASE_TAG}"* ]] ||
+    die "The built binary version does not match ${REVIEWED_RELEASE_TAG}: ${version}"
+  stage_managed_binary "$binary" "$REVIEWED_RELEASE_TAG" "source build of ${REVIEWED_COMMIT}"
+)
 
+forget_legacy_runtime() {
+  # A runtime built by an older Control Center with its own patch: the state
+  # it left describes a binary that is about to be replaced.
+  local name
+  for name in "${LEGACY_STATE_FILES[@]}"; do
+    [[ -e "$STATE_DIR/$name" ]] && as_root rm -f -- "$STATE_DIR/$name"
+  done
+  return 0
+}
+
+stage_managed_binary() (
+  # Install the checked binary as the one the service runs, keeping the
+  # distribution package and the TOML exactly as they are.
+  local binary="$1" release_tag="$2" origin="$3" workdir config_before=""
+  workdir="$(mktemp -d /tmp/bc250-cyan-stage.XXXXXX)"
+  trap 'rm -rf -- "$workdir"' EXIT
+  if [[ -f "$CONFIG" ]]; then
+    config_before="$(sha256sum "$CONFIG" | awk '{print $1}')"
+  fi
   as_root install -D -m 0755 "$binary" "$MANAGED_BINARY"
   as_root install -d -m 0755 "$STATE_DIR"
-  printf '%s\n' "$BC250CC_RUNTIME_REVISION" >"$workdir/runtime-revision"
-  printf '%s\n' "$REVIEWED_COMMIT" >"$workdir/upstream-commit"
-  patcher_sha="$(sha256sum "$BC250CC_PATCHER" | awk '{print $1}')"
-  printf '%s\n' "$patcher_sha" >"$workdir/patcher-sha256"
-  binary_sha="$(sha256sum "$binary" | awk '{print $1}')"
-  printf '%s\n' "$binary_sha" >"$workdir/binary-sha256"
-  as_root install -m 0644 "$workdir/runtime-revision" "$STATE_DIR/runtime-revision"
-  as_root install -m 0644 "$workdir/upstream-commit" "$STATE_DIR/upstream-commit"
-  as_root install -m 0644 "$workdir/patcher-sha256" "$STATE_DIR/patcher-sha256"
-  as_root install -m 0644 "$workdir/binary-sha256" "$STATE_DIR/binary-sha256"
-  info "BC250CC Cyan runtime ${BC250CC_RUNTIME_REVISION} built and staged"
+  if ! is_openrc; then
+    as_root install -d -m 0755 "$DROPIN_DIR"
+    printf '%s\n' \
+      '# Managed by BC250 Control Center. The distro package and TOML are preserved.' \
+      '[Service]' \
+      'ExecStart=' \
+      "ExecStart=$MANAGED_BINARY $CONFIG" >"$workdir/override.conf"
+    as_root install -m 0644 "$workdir/override.conf" "$DROPIN"
+  fi
+  printf '%s\n' "$release_tag" >"$workdir/release"
+  printf '%s\n' "$REPOSITORY/tree/smu ($origin)" >"$workdir/source"
+  as_root install -m 0644 "$workdir/release" "$STATE_DIR/release"
+  as_root install -m 0644 "$workdir/source" "$STATE_DIR/source"
+  forget_legacy_runtime
+  ensure_base_installation "$MANAGED_BINARY"
+  if ! is_openrc; then as_root systemctl daemon-reload; fi
+  if [[ -n "$config_before" ]]; then
+    [[ "$(sha256sum "$CONFIG" | awk '{print $1}')" == "$config_before" ]] ||
+      die "The governor TOML changed during the binary update"
+  fi
+  supports_frequency_fix "$MANAGED_BINARY" ||
+    die "The installed Cyan binary failed the frequency-fix capability check"
+  info "Cyan ${release_tag} staged (${origin}); the existing TOML and service enable state were preserved"
 )
 ensure_base_installation() (
   local binary="$1" workdir load_state
@@ -385,36 +396,7 @@ install_release() (
   [[ "$version" == *"${release_tag}"* ]] ||
     die "The downloaded binary version does not match ${release_tag}: ${version}"
 
-  local config_before=""
-  if [[ -f "$CONFIG" ]]; then
-    config_before="$(sha256sum "$CONFIG" | awk '{print $1}')"
-  fi
-
-  as_root install -D -m 0755 "$binary" "$MANAGED_BINARY"
-  as_root install -d -m 0755 "$STATE_DIR"
-  if ! is_openrc; then
-    as_root install -d -m 0755 "$DROPIN_DIR"
-    printf '%s\n' \
-      '# Managed by BC250 Control Center. The distro package and TOML are preserved.' \
-      '[Service]' \
-      'ExecStart=' \
-      "ExecStart=$MANAGED_BINARY $CONFIG" >"$workdir/override.conf"
-    as_root install -m 0644 "$workdir/override.conf" "$DROPIN"
-  fi
-  printf '%s\n' "$release_tag" >"$workdir/release"
-  printf '%s\n' "$REPOSITORY/tree/smu" >"$workdir/source"
-  as_root install -m 0644 "$workdir/release" "$STATE_DIR/release"
-  as_root install -m 0644 "$workdir/source" "$STATE_DIR/source"
-  ensure_base_installation "$MANAGED_BINARY"
-  if ! is_openrc; then as_root systemctl daemon-reload; fi
-
-  if [[ -n "$config_before" ]]; then
-    [[ "$(sha256sum "$CONFIG" | awk '{print $1}')" == "$config_before" ]] ||
-      die "The governor TOML changed during the binary update"
-  fi
-  supports_frequency_fix "$MANAGED_BINARY" ||
-    die "The installed Cyan binary failed the frequency-fix capability check"
-  info "Cyan ${release_tag} staged; the existing TOML and service enable state were preserved"
+  stage_managed_binary "$binary" "$release_tag" "official release archive"
 )
 
 [[ "$(uname -m)" == "x86_64" ]] || die "The official Cyan release is available only for x86_64"
@@ -436,62 +418,35 @@ fi
 release_tag="$REVIEWED_RELEASE_TAG"
 info "Using Control Center reviewed Cyan release $release_tag"
 target_family="${BC250_CYAN_TARGET_FAMILY:-unknown}"
-case "$target_family" in
-  bazzite|arch|cachyos|manjaro|debian|ubuntu|fedora|steamos) patched_runtime=1 ;;
-  *) patched_runtime=0 ;;
-esac
-if [[ "$patched_runtime" -eq 1 ]]; then
-  runtime_ready=0
-  current_patcher_sha="$(sha256sum "$BC250CC_PATCHER" | awk '{print $1}')"
-  managed_version="$($MANAGED_BINARY --version 2>/dev/null | head -n 1 || true)"
-  if supports_frequency_fix "$MANAGED_BINARY" && \
-     [[ "$managed_version" == *"${BC250CC_RUNTIME_REVISION}"* ]] && \
-     [[ -r "$STATE_DIR/runtime-revision" ]] && \
-     [[ "$(<"$STATE_DIR/runtime-revision")" == "$BC250CC_RUNTIME_REVISION" ]] && \
-     [[ -r "$STATE_DIR/upstream-commit" ]] && \
-     [[ "$(<"$STATE_DIR/upstream-commit")" == "$REVIEWED_COMMIT" ]] && \
-     [[ -r "$STATE_DIR/patcher-sha256" ]] && \
-     [[ "$current_patcher_sha" == "$(<"$STATE_DIR/patcher-sha256")" ]] && \
-     [[ -r "$STATE_DIR/binary-sha256" ]] && \
-     [[ "$(sha256sum "$MANAGED_BINARY" | awk '{print $1}')" == "$(<"$STATE_DIR/binary-sha256")" ]]; then
-    runtime_ready=1
-  fi
-  if [[ "$runtime_ready" -eq 1 ]]; then
-    info "BC250CC Cyan runtime ${BC250CC_RUNTIME_REVISION} is already staged; no rebuild needed"
-  else
-    build_bc250cc_runtime
-  fi
-  # Install/preserve config, D-Bus policy and service binding exactly as the
-  # upstream release path does, but use the locally reviewed patched binary.
+
+release_runs_here() {
+  # The official binary links against the host's glibc.
+  local version
+  version="$(getconf GNU_LIBC_VERSION 2>/dev/null | awk '{print $2}')"
+  [[ -n "$version" ]] || return 1
+  [[ "$(printf '%s\n' "$RELEASE_MIN_GLIBC" "$version" | sort -V | head -n 1)" == "$RELEASE_MIN_GLIBC" ]]
+}
+
+managed_version="$("$MANAGED_BINARY" --version 2>/dev/null | head -n 1 || true)"
+legacy_runtime=0
+for legacy_file in "${LEGACY_STATE_FILES[@]}"; do
+  [[ -e "$STATE_DIR/$legacy_file" ]] && legacy_runtime=1
+done
+if supports_frequency_fix "$MANAGED_BINARY" && \
+   [[ "$legacy_runtime" -eq 0 ]] && \
+   [[ -r "$STATE_DIR/release" ]] && \
+   [[ "$(<"$STATE_DIR/release")" == "$release_tag" ]] && \
+   [[ "$managed_version" == *"$release_tag"* ]] && \
+   { is_openrc || [[ -r "$DROPIN" ]]; }; then
+  info "Cyan ${release_tag} is already staged; no files changed"
   ensure_base_installation "$MANAGED_BINARY"
-  if ! is_openrc; then
-    as_root install -d -m 0755 "$DROPIN_DIR"
-    override_tmp="$(mktemp /tmp/bc250-cyan-override.XXXXXX)"
-    printf '%s\n' \
-      '# Managed by BC250 Control Center. The distro package and TOML are preserved.' \
-      '[Service]' \
-      'ExecStart=' \
-      "ExecStart=$MANAGED_BINARY $CONFIG" >"$override_tmp"
-    if ! as_root install -m 0644 "$override_tmp" "$DROPIN"; then
-      rm -f -- "$override_tmp"
-      die "The Cyan systemd override could not be installed"
-    fi
-    rm -f -- "$override_tmp"
-    as_root systemctl daemon-reload
-  fi
+elif release_runs_here; then
+  install_release "$release_tag"
 else
-  if supports_frequency_fix "$MANAGED_BINARY" && \
-     [[ -r "$STATE_DIR/release" ]] && \
-     [[ "$(<"$STATE_DIR/release")" == "$release_tag" ]] && \
-     { is_openrc || [[ -r "$DROPIN" ]]; }; then
-    info "Cyan ${release_tag} frequency fix is already staged; no files changed"
-  else
-    install_release "$release_tag"
-  fi
-  ensure_base_installation "$MANAGED_BINARY"
+  build_upstream_source
 fi
 validate_compatibility_switches
 
 printf 'BC250_CYAN_RELEASE=%s\n' "$release_tag"
 printf 'BC250_CYAN_BINARY=%s\n' "$MANAGED_BINARY"
-printf 'BC250_CYAN_RUNTIME_REVISION=%s\n' "$(if [[ "$patched_runtime" -eq 1 ]]; then printf '%s' "$BC250CC_RUNTIME_REVISION"; else printf '%s' upstream; fi)"
+printf 'BC250_CYAN_RUNTIME_REVISION=%s\n' upstream

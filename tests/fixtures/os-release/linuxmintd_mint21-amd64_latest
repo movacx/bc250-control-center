@@ -1,0 +1,12 @@
+NAME="Linux Mint"
+VERSION="21 (Vanessa)"
+ID=linuxmint
+ID_LIKE=ubuntu
+PRETTY_NAME="Linux Mint 21"
+VERSION_ID="21"
+HOME_URL="https://www.linuxmint.com/"
+SUPPORT_URL="https://forums.linuxmint.com/"
+BUG_REPORT_URL="http://linuxmint-troubleshooting-guide.readthedocs.io/en/latest/"
+PRIVACY_POLICY_URL="https://www.linuxmint.com/"
+VERSION_CODENAME=vanessa
+UBUNTU_CODENAME=jammy

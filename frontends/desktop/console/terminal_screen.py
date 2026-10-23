@@ -178,10 +178,6 @@ class TerminalScreen:
     def cursor(self) -> _Cursor:
         return self._buffer.cursor
 
-    @property
-    def in_alternate_screen(self) -> bool:
-        return self._alternate is not None
-
     def resize(self, columns: int, rows: int) -> None:
         """Change the grid size, keeping the content anchored at the top left.
 
@@ -861,10 +857,6 @@ class TerminalScreen:
 
     # ------------------------------------------------------------------ views
 
-    def visible_text(self) -> str:
-        """The screen as plain text, trailing blanks removed."""
-        return "\n".join(_line_text(line) for line in self.lines)
-
     def full_text(self) -> str:
         """Scrollback plus screen, for copying an entire run."""
         rendered = [_line_text(line) for line in self.scrollback]
@@ -914,6 +906,14 @@ class TerminalScreen:
             column += 1
         if buffer:
             yield start, "".join(buffer), current or DEFAULT_STYLE
+
+    @property
+    def in_alternate_screen(self) -> bool:
+        return self._alternate is not None
+
+    def visible_text(self) -> str:
+        """The screen as plain text, trailing blanks removed."""
+        return "\n".join(_line_text(line) for line in self.lines)
 
 
 def _line_text(line: list[Cell]) -> str:

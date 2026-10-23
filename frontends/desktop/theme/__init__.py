@@ -602,6 +602,10 @@ def scale_stylesheet(stylesheet: str, scale: int | None = None) -> str:
 
     def replace(match: re.Match[str]) -> str:
         value = float(match.group(1))
+        if value == 0:
+            # Zero stays zero: lifted to one pixel, a margin or a hidden
+            # arrow button left a hairline that translucent dialogs paint black.
+            return "0px"
         scaled = max(1.0, value * factor)
         prefix = match.string[max(0, match.start() - 24):match.start()]
         # Improve legibility without inflating card margins or spacing. Small
@@ -627,14 +631,16 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     # is not reachable from QSS. Kept as POSIX separators, which Qt
     # accepts on every platform it builds for.
     icon_dir = (Path(__file__).resolve().parent / "icons").as_posix()
-    # This tab's cards, hairlines, fields and title bands take the greys of the
-    # Compatibility tab in both themes; the title bands are a step darker.
-    upscaling_card, upscaling_field = c['panel_alt'], c['control']
+    # This tab's cards, hairlines, fields and title bands. In the light theme
+    # grey cards on the grey window read as one wash: the cards are white,
+    # outlined, with the title bands and table heads a faint tint. The dark
+    # themes keep the Compatibility tab's greys, title bands a step darker.
+    light = ACTIVE_MODE == "light"
+    upscaling_card = c['panel'] if light else c['panel_alt']
+    upscaling_field = c['control']
     upscaling_line, upscaling_line_strong = c['border_soft'], c['border']
-    upscaling_head = (
-        c['control_pressed'] if ACTIVE_MODE == "light"
-        else _blend(c['panel_alt'], c['window'], 0.5)
-    )
+    upscaling_outline = c['border'] if light else c['border_soft']
+    upscaling_head = c['panel_alt'] if light else _blend(c['panel_alt'], c['window'], 0.5)
     # Glass, for the first-run panel: the card has to be translucent for the
     # frosted portrait behind it to mean anything, and Qt takes that as an
     # rgba() rather than as a palette entry. Light glass on a light palette,
@@ -687,6 +693,12 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     }}
     QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
         height: 0px;
+    }}
+    /* The track itself. Left out, Breeze paints it solid black beside every
+       scrolled form, and the bar reads as if it cut the fields off. */
+    QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
+        background: transparent;
+        border: none;
     }}
     QFrame#Sidebar {{
         background: {c['panel']};
@@ -788,7 +800,7 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         border-color: {c['blue_border']};
         color: {c['blue']};
     }}
-    QFrame[card='true'], QFrame[sectionCard='true'], QFrame[moduleCard='true'] {{
+    QFrame[card='true'] {{
         background: {c['panel']};
         border: 1px solid {c['border']};
         border-radius: 20px;
@@ -802,25 +814,11 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         color: {c['muted']};
         font-size: 11px;
     }}
-    QLabel[metricLabel='true'] {{
-        color: {c['muted']};
-        font-size: 11px;
-        font-weight: 600;
-    }}
-    QLabel[metricValue='true'] {{
-        font-size: 20px;
-        font-weight: 830;
-        color: {c['text']};
-    }}
     QLabel[pill='true'] {{
         border-radius: 8px;
         padding: 4px 9px;
         font-size: 10px;
         font-weight: 780;
-    }}
-    QLabel[pill='true'][prominentPill='true'] {{
-        padding: 5px 10px;
-        font-size: 12px;
     }}
     QPushButton[cardAction='true'] {{
         background: {c['panel_alt']};
@@ -889,15 +887,6 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         font-size: 12px;
         font-weight: 680;
     }}
-    QFrame[quickActionRow='true'] {{
-        background: {c['panel_alt']};
-        border: 1px solid {c['border_soft']};
-        border-radius: 11px;
-    }}
-    QFrame[quickActionRow='true'][hovered='true'] {{
-        background: {c['blue_soft']};
-        border: 1px solid {c['blue_border']};
-    }}
     QLabel[actionTitle='true'] {{
         font-size: 12px;
         font-weight: 760;
@@ -911,14 +900,6 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         background: {c['green_soft']};
         border: 1px solid {c['green_border']};
         border-radius: 8px;
-    }}
-    QLabel[rowLabel='true'], QLabel[activityText='true'] {{
-        color: {c['muted']};
-        font-size: 11px;
-    }}
-    QLabel[activityTime='true'] {{
-        color: {c['subtle']};
-        font-size: 10px;
     }}
     QLabel#ReadinessSubtitle {{
         font-size: 11px;
@@ -935,11 +916,6 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         background: {c['orange']};
         border-radius: 4px;
     }}
-    QFrame#SystemSummaryBar {{
-        background: {c['panel']};
-        border: 1px solid {c['border']};
-        border-radius: 18px;
-    }}
     QLabel#SummaryLabel {{
         color: {c['muted']};
         font-size: 10px;
@@ -950,19 +926,10 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         font-size: 14px;
         font-weight: 830;
     }}
-    QFrame[dashboardHero='true'],
-    QFrame[dashboardModule='true'],
     QFrame[dashboardPreparation='true'] {{
         background: {c['panel']};
         border: 1px solid {c['border']};
         border-radius: 14px;
-    }}
-    QFrame[dashboardEvidence='true'] {{
-        background: {c['panel']};
-        border: none;
-        border-left: 1px solid {c['border_soft']};
-        border-top-right-radius: 13px;
-        border-bottom-right-radius: 13px;
     }}
     QLabel[dashboardCardTitle='true'] {{
         color: {c['text']};
@@ -984,78 +951,8 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QFrame[dashboardMetricTile='true'][tone='orange'] {{
         border-color: {c['orange_border']};
     }}
-    QLabel[dashboardMetricLabel='true'] {{
-        color: {c['muted']};
-        font-size: 10px;
-        font-weight: 650;
-    }}
-    QLabel[dashboardMetricValue='true'] {{
-        color: {c['text']};
-        font-size: 15px;
-        font-weight: 750;
-    }}
-    QLabel[dashboardMetricDetail='true'] {{
-        color: {c['muted']};
-        font-size: 9px;
-    }}
     /* One shape for every reading on the dashboard: quiet name, the number,
        its unit, and an optional word of context. */
-    QFrame[sensorCell='true'] {{
-        background: {c['panel_alt']};
-        border: 1px solid {c['border_soft']};
-        border-radius: 10px;
-    }}
-    QFrame[sensorCell='true'][tone='warning'] {{
-        background: {c['orange_soft']};
-        border-color: {c['orange_border']};
-    }}
-    QFrame[sensorCell='true'][tone='danger'] {{
-        background: {c['red_soft']};
-        border-color: {c['red_border']};
-    }}
-    QLabel[sensorCellLabel='true'] {{
-        color: {c['muted']};
-        font-size: 10px;
-        font-weight: 650;
-        letter-spacing: 0.3px;
-    }}
-    QLabel[sensorCellValue='true'] {{
-        color: {c['text']};
-        font-size: 17px;
-        font-weight: 760;
-    }}
-    QLabel[sensorCellUnit='true'] {{
-        color: {c['muted']};
-        font-size: 10px;
-        font-weight: 650;
-        padding-bottom: 2px;
-    }}
-    QLabel[sensorCellDetail='true'] {{
-        color: {c['muted']};
-        font-size: 9px;
-    }}
-    QLabel[sensorCellValue='true'][empty='true'] {{
-        color: {c['subtle']};
-        font-size: 13px;
-        font-weight: 650;
-    }}
-    QFrame[sensorCell='true'][tone='warning'] QLabel[sensorCellValue='true'] {{
-        color: {c['orange']};
-    }}
-    QFrame[sensorCell='true'][tone='danger'] QLabel[sensorCellValue='true'] {{
-        color: {c['red']};
-    }}
-    QFrame[dashboardBand='true'] {{
-        background: {c['panel']};
-        border: 1px solid {c['border_soft']};
-        border-radius: 14px;
-    }}
-    QLabel[sensorBoardTitle='true'] {{
-        color: {c['muted']};
-        font-size: 10px;
-        font-weight: 750;
-        letter-spacing: 0.6px;
-    }}
     /* The dot that opens a group of readings, and the rule and chip that
        frame the graphics card's groups. */
     QLabel[sensorBoardDot='true'] {{
@@ -1091,29 +988,6 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     }}
     QFrame[dashboardMetricTile='true'][flat='true'] QFrame[dashboardCoreCell='true'] {{
         background: transparent;
-    }}
-    QFrame[dashboardDivider='true'] {{
-        background: {c['border_soft']};
-        border: none;
-    }}
-    QFrame[identityChip='true'] {{
-        background: {c['panel_alt']};
-        border: 1px solid {c['border_soft']};
-        border-radius: 9px;
-    }}
-    QLabel[identityChipLabel='true'] {{
-        color: {c['muted']};
-        font-size: 10px;
-        font-weight: 700;
-    }}
-    QLabel[identityChipValue='true'] {{
-        color: {c['text']};
-        font-size: 12px;
-        font-weight: 750;
-    }}
-    QLabel[identityChipDetail='true'] {{
-        color: {c['muted']};
-        font-size: 10px;
     }}
     /* Dashboard instruments (dashboard_instruments.py). Rows, not cells:
        a column of right-aligned figures is read by running down it, and the
@@ -1255,59 +1129,6 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         color: {c['muted']};
         font-size: 10px;
     }}
-    QLabel[dashboardFrequencyValue='true'] {{
-        color: {c['text']};
-        font-size: 64px;
-        font-weight: 800;
-    }}
-    QLabel[dashboardFrequencyUnit='true'] {{
-        color: {c['muted']};
-        font-size: 18px;
-        font-weight: 780;
-        padding-bottom: 9px;
-    }}
-    QLabel[dashboardFrequencyEyebrow='true'] {{
-        color: {c['muted']};
-        font-size: 10px;
-        font-weight: 820;
-    }}
-    QLabel[dashboardFrequencyCopy='true'] {{
-        color: {c['muted']};
-        font-size: 10px;
-    }}
-    QLabel[dashboardEvidenceLabel='true'] {{
-        color: {c['muted']};
-        font-size: 10px;
-    }}
-    QLabel[dashboardEvidenceValue='true'] {{
-        color: {c['text']};
-        font-size: 10px;
-        font-weight: 760;
-    }}
-    QPushButton[dashboardPrimaryAction='true'] {{
-        min-height: 22px;
-        padding: 8px 12px;
-        background: {c['blue']};
-        border: 1px solid {c['blue']};
-        border-radius: 9px;
-        color: {c['on_blue']};
-        font-weight: 790;
-    }}
-    QPushButton[dashboardPrimaryAction='true']:hover {{
-        background: {c['blue_hover']};
-        border-color: {c['blue_hover']};
-    }}
-    QLabel[dashboardModuleHeadline='true'] {{
-        color: {c['text']};
-        font-size: 26px;
-        font-weight: 780;
-    }}
-    QLabel[dashboardModuleUnit='true'] {{
-        color: {c['muted']};
-        font-size: 13px;
-        font-weight: 730;
-        padding-bottom: 4px;
-    }}
     QPushButton[dashboardCardAction='true'] {{
         min-height: 20px;
         padding: 6px 10px;
@@ -1421,11 +1242,6 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     }}
     QWidget[dashboardPreparationTabs='true'] {{
         background: transparent;
-        border-top: 1px solid {c['border_soft']};
-        border-bottom: 1px solid {c['border_soft']};
-    }}
-    QFrame[dashboardPreparationSystem='true'] {{
-        background: {c['panel_alt']};
         border-top: 1px solid {c['border_soft']};
         border-bottom: 1px solid {c['border_soft']};
     }}
@@ -1566,32 +1382,6 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         color: {c['muted']};
         font-size: 9px;
     }}
-    QLabel[dashboardDeckyPreview='true'] {{
-        background: {c['panel']};
-        border: 1px solid {c['border_soft']};
-        border-radius: 10px;
-        padding: 8px;
-    }}
-    QPushButton[dashboardComponentCheck='true'] {{
-        width: 26px;
-        height: 26px;
-        min-width: 26px;
-        max-width: 26px;
-        min-height: 26px;
-        max-height: 26px;
-        padding: 0px;
-        border: 1px solid {c['border_strong']};
-        border-radius: 6px;
-        background: {c['control_pressed']};
-        color: transparent;
-        font-size: 11px;
-        font-weight: 900;
-    }}
-    QPushButton[dashboardComponentCheck='true']:checked {{
-        background: {c['panel_raised']};
-        border-color: {c['border_strong']};
-        color: {c['text']};
-    }}
     QFrame[dashboardMemoryNote='true'],
     QFrame[dashboardMemoryPanel='true'] {{
         background: {c['panel_alt']};
@@ -1680,29 +1470,6 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         border: 5px solid {c['blue']};
         background: {c['panel_alt']};
     }}
-    QPushButton[dashboardMemoryChip='true'] {{
-        background: {c['window']};
-        border: 1px solid {c['border']};
-        border-radius: 9px;
-        padding: 7px 12px;
-        color: {c['muted']};
-        font-size: 12px;
-        font-weight: 700;
-    }}
-    QPushButton[dashboardMemoryChip='true']:hover {{
-        border-color: {c['border_strong']};
-    }}
-    QPushButton[dashboardMemoryChip='true']:checked {{
-        background: {c['blue_soft']};
-        border: 1.5px solid {c['blue']};
-        color: {c['blue']};
-        font-weight: 800;
-    }}
-    QPushButton[dashboardMemoryChip='true']:disabled {{
-        color: {c['disabled_text']};
-        background: {c['disabled_bg']};
-        border-color: {c['border_soft']};
-    }}
     QWidget[dashboardPreparationFooter='true'] {{
         border-top: 1px solid {c['border_soft']};
     }}
@@ -1788,16 +1555,6 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QPushButton[dashboardFooterAction='true']:pressed {{
         background: {c['control_pressed']};
     }}
-    QPushButton[dashboardGhostAction='true'] {{
-        min-height: 22px;
-        padding: 7px 10px;
-        background: transparent;
-        border: 1px solid {c['border']};
-        border-radius: 9px;
-        color: {c['muted']};
-        font-size: 10px;
-        font-weight: 720;
-    }}
     QFrame#SummaryDivider {{
         background: {c['border_soft']};
         border: none;
@@ -1841,7 +1598,33 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QFrame#ControlDialogCard {{
         background: {c['panel']};
         border: 1px solid {c['border']};
-        border-radius: 18px;
+        border-radius: 12px;
+    }}
+    /* Dialogs are translucent windows: a transparent track shows through to
+       nothing and Breeze paints it black. The card's own colour hides it. */
+    QFrame#ControlDialogCard QScrollBar:vertical {{
+        background: {c['panel']};
+        border: none;
+        margin: 0px;
+    }}
+    QFrame#ControlDialogCard QScrollBar::add-line:vertical,
+    QFrame#ControlDialogCard QScrollBar::sub-line:vertical,
+    QFrame#ControlDialogCard QScrollBar::add-page:vertical,
+    QFrame#ControlDialogCard QScrollBar::sub-page:vertical {{
+        background: none;
+        border: none;
+    }}
+    QFrame#DialogHeader {{
+        background: transparent;
+        border: none;
+        border-bottom: 1px solid {c['border_soft']};
+    }}
+    QFrame#DialogFooter {{
+        background: {c['panel_alt']};
+        border: none;
+        border-top: 1px solid {c['border_soft']};
+        border-bottom-left-radius: 12px;
+        border-bottom-right-radius: 12px;
     }}
     QLabel#DialogEyebrow {{
         font-size: 10px;
@@ -1850,22 +1633,130 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     }}
     QLabel#DialogTitle {{
         color: {c['text']};
-        font-size: 19px;
-        font-weight: 800;
+        font-size: 16px;
+        font-weight: 750;
+    }}
+    QLabel#DialogSubtitle {{
+        color: {c['muted']};
+        font-size: 12px;
+        font-weight: 500;
+    }}
+    QLabel#DialogSectionLabel {{
+        color: {c['text']};
+        font-size: 12px;
+        font-weight: 700;
     }}
     QLabel#DialogBody {{
         color: {c['muted']};
         font-size: 13px;
     }}
+    QFrame#DialogDetail {{
+        background: {c['panel_alt']};
+        border: 1px solid {c['border_soft']};
+        border-radius: 8px;
+    }}
+    QLabel#DialogDetailText {{
+        color: {c['text']};
+        font-family: 'JetBrains Mono', 'Noto Sans Mono', monospace;
+        font-size: 11px;
+    }}
     QFrame#DialogNotice {{
         background: {c['blue_soft']};
         border: 1px solid {c['blue_border']};
-        border-radius: 10px;
+        border-radius: 8px;
     }}
     QLabel#DialogNoticeText {{
         color: {c['muted']};
         font-size: 12px;
+        font-weight: 500;
+    }}
+    QFrame#DialogIdentity {{
+        background: {c['panel_alt']};
+        border: 1px solid {c['border_soft']};
+        border-radius: 8px;
+    }}
+    QLabel#DialogIdentityLabel {{
+        color: {c['muted']};
+        font-size: 11px;
         font-weight: 600;
+        padding-top: 1px;
+    }}
+    QLabel#DialogIdentityValue {{
+        color: {c['text']};
+        font-family: 'JetBrains Mono', 'Noto Sans Mono', monospace;
+        font-size: 11px;
+    }}
+    QPlainTextEdit#DialogTrace {{
+        background: {c['console_bg']};
+        color: {c['console_text']};
+        border: 1px solid {c['console_border']};
+        border-radius: 6px;
+        padding: 6px;
+        font-family: 'JetBrains Mono', 'Noto Sans Mono', monospace;
+        font-size: 10px;
+        selection-background-color: {c['selection']};
+    }}
+    /* An error window's way to the report form: the one coloured action
+       besides Close, so it is seen without competing with it. */
+    QPushButton#DialogReport {{
+        background: {c['orange_soft']};
+        color: {c['orange']};
+        border: 1px solid {c['orange_border']};
+        border-radius: 8px;
+        padding: 7px 14px;
+        font-weight: 700;
+    }}
+    QPushButton#DialogReport:hover {{
+        background: {c['orange']};
+        color: {c['on_orange']};
+        border-color: {c['orange']};
+    }}
+    /* The I2C modification guide: a manual page, not a card stack. */
+    QLabel#GuideStep {{
+        color: {c['text']};
+        font-size: 14px;
+        font-weight: 750;
+    }}
+    QLabel#GuideTableHead {{
+        color: {c['muted']};
+        font-size: 11px;
+        font-weight: 700;
+    }}
+    QLabel#GuideCaption {{
+        color: {c['muted']};
+        font-size: 12px;
+    }}
+    QLabel#GuideWarning {{
+        color: {c['text']};
+        font-size: 12px;
+        font-weight: 600;
+    }}
+    QFrame#GuidePanel {{
+        background: {c['panel']};
+        border: 1px solid {c['border_soft']};
+        border-radius: 10px;
+    }}
+    QWidget#GuidePanelContent {{
+        background: transparent;
+    }}
+    QFrame#GuideRule {{
+        background: {c['border_soft']};
+        border: none;
+    }}
+    QLabel#GuidePhoto {{
+        background: transparent;
+        border: none;
+    }}
+    QPushButton#DialogSecondary {{
+        background: {c['control']};
+        color: {c['text']};
+        border: 1px solid {c['border']};
+        border-radius: 8px;
+        padding: 7px 14px;
+        font-weight: 650;
+    }}
+    QPushButton#DialogSecondary:hover {{
+        background: {c['control_hover']};
     }}
     QPushButton#DialogClose {{
         background: transparent;
@@ -1883,9 +1774,9 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         background: {c['blue']};
         color: {c['on_blue']};
         border: 1px solid {c['blue']};
-        border-radius: 9px;
-        padding: 10px 18px;
-        font-weight: 750;
+        border-radius: 8px;
+        padding: 7px 16px;
+        font-weight: 700;
     }}
     QPushButton#DialogPrimary:hover {{
         background: {c['blue_hover']};
@@ -1895,13 +1786,125 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         background: {c['blue_pressed']};
         border-color: {c['blue_pressed']};
     }}
+    /* The in-app report form. */
+    QFrame[feedbackForm='true'] QLabel[feedbackLabel='true'] {{
+        color: {c['text']};
+        font-size: 12px;
+        font-weight: 700;
+    }}
+    QFrame[feedbackForm='true'] QLabel[feedbackHint='true'] {{
+        color: {c['muted']};
+        font-size: 11px;
+    }}
+    QFrame[feedbackForm='true'] QLabel[feedbackGroupTitle='true'] {{
+        color: {c['text']};
+        font-size: 13px;
+        font-weight: 800;
+    }}
+    QFrame[feedbackForm='true'] QFrame[feedbackGroup='true'] {{
+        background: {c['panel_alt']};
+        border: 1px solid {c['border_soft']};
+        border-radius: 12px;
+    }}
+    QFrame[feedbackForm='true'] QLineEdit, QFrame[feedbackForm='true'] QComboBox {{
+        padding: 7px 10px;
+        font-weight: 500;
+    }}
+    QFrame[feedbackForm='true'] QComboBox::drop-down {{
+        border: none;
+        background: transparent;
+        width: 26px;
+    }}
+    QFrame[feedbackForm='true'] QComboBox::down-arrow {{
+        image: url({icon_dir}/chevron_down_gray.svg);
+        width: 12px;
+        height: 12px;
+    }}
+    QFrame[feedbackForm='true'] QComboBox QLineEdit {{
+        background: transparent;
+        border: none;
+        padding: 0px;
+        min-height: 0px;
+    }}
+    QFrame[feedbackForm='true'] QCheckBox::indicator {{
+        width: 16px;
+        height: 16px;
+        border: 1px solid {c['border']};
+        border-radius: 5px;
+        background: {c['control']};
+    }}
+    QFrame[feedbackForm='true'] QCheckBox::indicator:hover {{
+        border-color: {c['blue']};
+    }}
+    QFrame[feedbackForm='true'] QCheckBox::indicator:checked {{
+        background: {c['blue']};
+        border-color: {c['blue']};
+        image: url({icon_dir}/check_white.svg);
+    }}
+    QFrame[feedbackForm='true'] QPlainTextEdit[feedbackText='true'] {{
+        background: {c['control']};
+        border: 1px solid {c['border']};
+        border-radius: 11px;
+        padding: 6px 8px;
+        selection-background-color: {c['blue_soft']};
+    }}
+    QFrame[feedbackForm='true'] QPlainTextEdit[feedbackText='true']:focus {{
+        border-color: {c['focus']};
+    }}
+    QFrame[feedbackForm='true'] QCheckBox[feedbackCheck='true'] {{
+        color: {c['text']};
+        font-size: 12px;
+        spacing: 8px;
+    }}
+    QFrame[feedbackForm='true'] QPushButton[feedbackKind] {{
+        background: {c['control']};
+        color: {c['muted']};
+        border: 1px solid {c['border']};
+        padding: 8px 14px;
+        font-weight: 700;
+    }}
+    QFrame[feedbackForm='true'] QPushButton[feedbackKind='first'] {{
+        border-top-left-radius: 10px;
+        border-bottom-left-radius: 10px;
+        border-right: none;
+    }}
+    QFrame[feedbackForm='true'] QPushButton[feedbackKind='last'] {{
+        border-top-right-radius: 10px;
+        border-bottom-right-radius: 10px;
+    }}
+    QFrame[feedbackForm='true'] QPushButton[feedbackKind]:hover {{
+        background: {c['control_hover']};
+    }}
+    QFrame[feedbackForm='true'] QPushButton[feedbackKind]:checked {{
+        background: {c['blue_soft']};
+        color: {c['blue']};
+        border-color: {c['blue_border']};
+    }}
+    QFrame[feedbackForm='true'] QLabel[feedbackStatus] {{
+        border-radius: 10px;
+        padding: 9px 12px;
+        font-size: 12px;
+        font-weight: 600;
+    }}
+    QFrame[feedbackForm='true'] QLabel[feedbackStatus='info'] {{
+        background: {c['blue_soft']};
+        color: {c['text']};
+    }}
+    QFrame[feedbackForm='true'] QLabel[feedbackStatus='warning'] {{
+        background: {c['orange_soft']};
+        color: {c['text']};
+    }}
+    QFrame[feedbackForm='true'] QLabel[feedbackStatus='error'] {{
+        background: {c['red_soft']};
+        color: {c['text']};
+    }}
     QPushButton#DialogDanger {{
         background: {c['orange']};
         color: {c['on_orange']};
         border: 1px solid {c['orange']};
-        border-radius: 9px;
-        padding: 10px 18px;
-        font-weight: 750;
+        border-radius: 8px;
+        padding: 7px 16px;
+        font-weight: 700;
     }}
     QPushButton#DialogDanger:hover {{
         background: {c['orange_hover']};
@@ -1984,7 +1987,7 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QFrame[pageCard='true'][upscalingGames='true'],
     QFrame[pageCard='true'][helixsrSettings='true'] {{
         background: {upscaling_card};
-        border: 1px solid {upscaling_line};
+        border: 1px solid {upscaling_outline};
         border-radius: 10px;
     }}
     QFrame[pageCard='true'][upscalerSection='true'] QPushButton[compactAction='true'],
@@ -2115,6 +2118,173 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         font-size: 12px;
         padding: 0px;
     }}
+    /* An upscaler card's figures: one strip, a small label over each value,
+       a hairline between them. */
+    QFrame[upscalerStats='true'] {{
+        background: transparent;
+        border: none;
+        padding: 10px 0px 4px 0px;
+    }}
+    QFrame[statTile='true'] {{
+        background: transparent;
+        border: none;
+        border-left: 1px solid {upscaling_line};
+        border-radius: 0px;
+    }}
+    QFrame[statTile='true'][statFirst='true'] {{
+        border-left: none;
+    }}
+    QLabel[statLabel='true'] {{
+        color: {c['muted']};
+        font-size: 11px;
+        padding: 0px;
+    }}
+    QLabel[statValue='true'] {{
+        color: {c['text']};
+        font-size: 14px;
+        font-weight: 650;
+        padding: 0px;
+    }}
+    QLabel[statValue='true'][tone='good'] {{ color: {c['green']}; }}
+    QLabel[statValue='true'][tone='warning'] {{ color: {c['orange']}; }}
+    QLabel[statValue='true'][tone='danger'] {{ color: {c['red']}; }}
+    /* The guide: a quiet link in the head, not a button. */
+    QFrame[upscalerHead='true'] QPushButton[guideLink='true'],
+    QFrame[upscalerHead='true'] QPushButton[guideLink='true']:hover {{
+        background: transparent;
+        border: none;
+        padding: 0px 2px;
+        min-height: 0px;
+        color: {c['muted']};
+        font-size: 12px;
+        font-weight: 600;
+    }}
+    QFrame[upscalerHead='true'] QPushButton[guideLink='true']:hover {{
+        color: {c['blue']};
+    }}
+    /* A quiet link inside a dialog: the report entry of an error window. */
+    QFrame#ControlDialogCard QPushButton[dialogLink='true'],
+    QFrame#ControlDialogCard QPushButton[dialogLink='true']:hover {{
+        background: transparent;
+        border: none;
+        padding: 4px 2px;
+        min-height: 0px;
+        color: {c['muted']};
+        font-size: 12px;
+        font-weight: 650;
+    }}
+    QFrame#ControlDialogCard QPushButton[dialogLink='true']:hover {{
+        color: {c['blue']};
+    }}
+    /* Square buttons that carry only an icon: refresh, copy, a row's menu. */
+    QFrame[pageCard='true'][upscalerSection='true'] QPushButton[iconAction='true'],
+    QFrame[pageCard='true'][upscalingGames='true'] QPushButton[iconAction='true'] {{
+        min-width: 28px;
+        max-width: 28px;
+        min-height: 28px;
+        max-height: 28px;
+        padding: 0px;
+    }}
+    QFrame[pageCard='true'][upscalerSection='true'] QComboBox {{
+        background: {upscaling_field};
+        border: 1px solid {upscaling_line_strong};
+        border-radius: 7px;
+        min-height: 18px;
+        padding: 4px 10px;
+        font-size: 12px;
+        font-weight: 500;
+    }}
+    QFrame[launchStrip='true'] {{
+        background: {upscaling_head};
+        border: 1px solid {upscaling_line};
+        border-radius: 8px;
+    }}
+    QFrame[launchStrip='true'] QLabel[settingHint='true'] {{
+        color: {c['subtle']};
+        font-size: 11px;
+    }}
+    QFrame[launchStrip='true'] QLineEdit[launchOption='true'],
+    QFrame[pageCard='true'][upscalerSection='true'] QLineEdit[launchOption='true'] {{
+        background: {upscaling_field};
+        border: 1px solid {upscaling_line};
+        border-radius: 7px;
+        min-height: 18px;
+        padding: 4px 10px;
+        font-family: 'JetBrains Mono', 'Noto Sans Mono', monospace;
+        font-size: 12px;
+    }}
+    QPushButton[menuAction='true'] {{
+        padding-left: 10px;
+        padding-right: 8px;
+    }}
+    /* Frame generation in a game: a switch, tinted while it is on. */
+    QFrame[pageCard='true'][upscalingGames='true'] QPushButton[toggleAction='true']:checked {{
+        background: {c['blue_soft']};
+        border-color: {c['blue_border']};
+        color: {c['blue']};
+    }}
+    /* Every pop-up menu, not only the ones that asked: left to Breeze, a
+       picker's menu came up as a dark box over a light page. */
+    QMenu {{
+        background: {c['panel_raised']};
+        color: {c['text']};
+        border: 1px solid {c['border']};
+        border-radius: 8px;
+        /* The popup's items must reach both edges.  Padding here creates a
+           visible, but non-selectable, gutter around every PickerRow choice. */
+        padding: 0px;
+        min-width: 120px;
+    }}
+    QMenu::item {{
+        background: transparent;
+        color: {c['text']};
+        padding: 7px 18px 7px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+    }}
+    QMenu::item:selected {{
+        background: {c['control_hover']};
+        color: {c['text']};
+    }}
+    QMenu::item:disabled {{
+        color: {c['disabled_text']};
+    }}
+    QMenu::item:checked {{
+        color: {c['blue']};
+        font-weight: 700;
+    }}
+    QMenu::indicator {{
+        width: 0px;
+    }}
+    QMenu::separator {{
+        height: 1px;
+        background: {c['border']};
+        margin: 4px 6px;
+    }}
+    QMenu[upscalingMenu='true'] {{
+        background: {c['panel_raised']};
+        color: {c['text']};
+        border: 1px solid {c['border']};
+        border-radius: 8px;
+        padding: 4px;
+    }}
+    QMenu[upscalingMenu='true']::item {{
+        background: transparent;
+        padding: 7px 18px 7px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+    }}
+    QMenu[upscalingMenu='true']::item:selected {{
+        background: {c['control_hover']};
+    }}
+    QMenu[upscalingMenu='true']::item:disabled {{
+        color: {c['disabled_text']};
+    }}
+    QMenu[upscalingMenu='true']::separator {{
+        height: 1px;
+        background: {c['border']};
+        margin: 4px 6px;
+    }}
     QFrame[gameTable='true'] {{
         background: transparent;
         border: 1px solid {upscaling_line};
@@ -2219,14 +2389,6 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         color: {c['muted']};
         font-size: 10px;
     }}
-    QLabel[valueChip='true'] {{
-        color: {c['muted']};
-        border: 1px solid {c['border_soft']};
-        border-radius: 7px;
-        padding: 4px 7px;
-        font-size: 9px;
-        font-weight: 700;
-    }}
     QLabel[fieldLabel='true'] {{
         color: {c['muted']};
         font-size: 10px;
@@ -2237,22 +2399,6 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
            light surfaces it takes the firmer grey to stay above 4.5:1. */
         color: {c['muted'] if ACTIVE_MODE == 'light' else c['subtle']};
         font-size: 9px;
-    }}
-    QLabel[workflowStepNumber='true'] {{
-        color: {c['blue']};
-        background: transparent;
-        border: none;
-        font-size: 15px;
-        font-weight: 850;
-    }}
-    QLabel[workflowStepTitle='true'] {{
-        color: {c['text']};
-        font-size: 12px;
-        font-weight: 800;
-    }}
-    QLabel[workflowStepDetail='true'] {{
-        color: {c['muted']};
-        font-size: 10px;
     }}
     QSpinBox, QComboBox, QLineEdit {{
         background: {c['control']};
@@ -2845,53 +2991,9 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         font-size: 9px;
         font-weight: 800;
     }}
-    QFrame[heroTelemetry='true'] {{
-        background: {c['panel']};
-        border: 1px solid {c['border']};
-        border-radius: 22px;
-    }}
-    QFrame[heroTelemetry='true'][tone='blue'] {{
-        border-left: 4px solid {c['blue']};
-    }}
-    QFrame[heroTelemetry='true'][tone='purple'] {{
-        border-left: 4px solid {c['purple']};
-    }}
     QFrame#HeroDivider {{
         background: {c['border_soft']};
         border: none;
-    }}
-    QLabel[heroTitle='true'] {{
-        color: {c['text']};
-        font-size: 14px;
-        font-weight: 800;
-    }}
-    QLabel[heroPrimaryLabel='true'] {{
-        color: {c['muted']};
-        font-size: 10px;
-        font-weight: 750;
-    }}
-    QLabel[heroPrimaryValue='true'] {{
-        color: {c['text']};
-        font-size: 36px;
-        font-weight: 860;
-    }}
-    QLabel[heroPrimaryDetail='true'] {{
-        color: {c['subtle']};
-        font-size: 10px;
-    }}
-    QLabel[heroStatLabel='true'] {{
-        color: {c['muted']};
-        font-size: 9px;
-        font-weight: 750;
-    }}
-    QLabel[heroStatValue='true'] {{
-        color: {c['text']};
-        font-size: 17px;
-        font-weight: 820;
-    }}
-    QLabel[heroStatDetail='true'] {{
-        color: {c['subtle']};
-        font-size: 9px;
     }}
     QFrame[gpuSummaryStrip='true'] {{
         background: {c['panel']};
@@ -2963,15 +3065,6 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     QLabel[runtimeStatDetail='true'] {{
         color: {c['subtle']};
         font-size: 8px;
-    }}
-    QFrame[frequencySelect='true'] {{
-        background: {c['panel_alt']};
-        border: 1px solid {c['border_soft']};
-        border-radius: 11px;
-    }}
-    QFrame[frequencySelect='true']:hover {{
-        background: {c['panel']};
-        border-color: {c['border_strong']};
     }}
     QFrame[sliderControl='true'] {{
         background: {c['panel_alt']};
@@ -3083,12 +3176,6 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         padding: 11px 14px;
         font-size: 11px;
         font-weight: 740;
-    }}
-    QWidget[redesignedModule='true'] QPushButton[gpuFrequencyAction='true'] {{
-        min-height: 20px;
-        padding: 8px 12px;
-        font-size: 12px;
-        font-weight: 800;
     }}
     QWidget[redesignedModule='true'] QLineEdit[frequencyInput='true'] {{
         min-height: 22px;
@@ -3325,24 +3412,6 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         background: {c['control_hover']};
         border-color: {c['blue_border']};
     }}
-    QWidget[redesignedModule='true'] QPushButton[toggleChip='true'] {{
-        background: {c['panel_alt']};
-        border: 1px solid {c['border']};
-        border-radius: 9px;
-        padding: 8px 13px;
-        font-size: 12px;
-        font-weight: 700;
-        color: {c['muted']};
-    }}
-    QWidget[redesignedModule='true'] QPushButton[toggleChip='true']:hover {{
-        border-color: {c['border_strong']};
-        color: {c['text']};
-    }}
-    QWidget[redesignedModule='true'] QPushButton[toggleChip='true']:checked {{
-        background: {c['blue_soft']};
-        border-color: {c['blue_border']};
-        color: {c['blue']};
-    }}
     QWidget[redesignedModule='true'] QPushButton[accentAction='true'] {{
         background: {c['blue_soft']};
         border: 1px solid {c['blue_border']};
@@ -3366,6 +3435,11 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         border-color: {c['blue']};
         color: {c['on_blue']};
         min-height: 22px;
+    }}
+    QWidget[redesignedModule='true'] QPushButton#PrimaryAction[ghostSized='true'] {{
+        padding: 9px 14px;
+        font-size: 12px;
+        min-height: 0px;
     }}
     QWidget[redesignedModule='true'] QPushButton#PrimaryAction:hover {{
         background: {c['blue_hover']};
@@ -3455,6 +3529,9 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
     }}
     QWidget[redesignedModule='true'] QFrame[pickerRow='true']:hover {{
         border-color: {c['border_strong']};
+    }}
+    QWidget[redesignedModule='true'] QFrame[pickerRow='true']:disabled QLabel {{
+        color: {c['subtle']};
     }}
     QWidget[redesignedModule='true'] QLabel[pickerCaption='true'] {{
         color: {c['muted']};
@@ -3584,11 +3661,6 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         color: {c['muted']};
         font-size: 10px;
         font-weight: 700;
-    }}
-    QLabel[voltageDrawerLegend='true'] {{
-        color: {c['subtle']};
-        font-size: 9px;
-        font-weight: 640;
     }}
     QFrame[voltageDrawerCompatibility='true'] {{
         background: {c['panel_alt']};
@@ -3749,197 +3821,9 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         border-color: {c['blue']};
         color: {c['on_blue']};
     }}
-    QFrame[voltageLabToolbar='true'] {{
-        background: {c['panel']};
-        border: 1px solid {c['border']};
-        border-radius: 16px;
-    }}
-    QLabel[voltageToolbarTitle='true'] {{
-        color: {c['text']};
-        font-size: 16px;
-        font-weight: 850;
-    }}
-    QPushButton[voltageToolbarButton='true'] {{
-        padding: 6px 13px;
-        font-size: 11px;
-        font-weight: 790;
-    }}
-    QLabel[voltageToolbarSubtitle='true'] {{
-        color: {c['muted']};
-        font-size: 9px;
-        font-weight: 620;
-    }}
-    QWidget[voltageLabPage='true'] QFrame[pageCard='true'] {{
-        border-radius: 14px;
-    }}
-    QWidget[voltageLabPage='true'] QFrame[compactPageCard='true'] QLabel[cardTitle='true'] {{
-        font-size: 14px;
-        font-weight: 830;
-    }}
-    QWidget[voltageLabPage='true'] QFrame[compactPageCard='true'] QLabel[sectionSubtitle='true'] {{
-        font-size: 9px;
-        font-weight: 620;
-    }}
     QFrame[compactPageCard='true'] QFrame#CardDivider {{
         margin-top: 0px;
         margin-bottom: 0px;
-    }}
-    QPushButton[voltageProfileButton='true'] {{
-        background: {c['panel_alt']};
-        border: 1px solid {c['border_soft']};
-        border-radius: 10px;
-        padding: 8px 11px;
-        text-align: left;
-        color: {c['text']};
-        font-size: 11px;
-        font-weight: 760;
-    }}
-    QPushButton[voltageProfileButton='true']:hover {{
-        background: {c['panel_raised']};
-        border-color: {c['border_strong']};
-    }}
-    QPushButton[voltageProfileButton='true']:checked {{
-        background: {c['blue_soft']};
-        border: 2px solid {c['blue']};
-        color: {c['blue']};
-    }}
-    QPushButton[voltageProfileButton='true'][profileTone='green']:checked {{
-        background: {c['green_soft']};
-        border-color: {c['green_border']};
-        color: {c['green']};
-    }}
-    QPushButton[voltageProfileButton='true'][profileTone='orange']:checked {{
-        background: {c['orange_soft']};
-        border-color: {c['orange_border']};
-        color: {c['orange']};
-    }}
-    QPushButton[voltageProfileButton='true'][profileTone='purple']:checked {{
-        background: {c['purple_soft']};
-        border-color: {c['purple_border']};
-        color: {c['purple']};
-    }}
-    QLabel[voltageProfileDetail='true'] {{
-        color: {c['muted']};
-        background: {c['panel_alt']};
-        border: 1px solid {c['border_soft']};
-        border-radius: 9px;
-        padding: 7px 10px;
-        font-size: 10px;
-        font-weight: 640;
-    }}
-    QFrame[voltageCurveGrid='true'] {{
-        background: {c['panel_alt']};
-        border: 1px solid {c['border_soft']};
-        border-radius: 11px;
-    }}
-    QFrame[voltageGridHeader='true'] {{
-        background: {c['neutral_soft']};
-        border: 1px solid {c['border_soft']};
-        border-radius: 7px;
-    }}
-    QLabel[voltageGridHeaderTitle='true'] {{
-        color: {c['text']};
-        background: transparent;
-        border: none;
-        font-size: 11px;
-        font-weight: 830;
-    }}
-    QLabel[voltageGridHeaderDetail='true'] {{
-        color: {c['subtle']};
-        background: transparent;
-        border: none;
-        font-size: 9px;
-        font-weight: 680;
-    }}
-    QFrame[voltageGridCell='true'] {{
-        background: {c['panel_alt']};
-        border: 1px solid {c['border_soft']};
-        border-radius: 7px;
-    }}
-    QFrame[voltageGridCell='true'][cellRole='frequency'] {{
-        background: {c['blue_soft']};
-        border-color: {c['blue_border']};
-    }}
-    QFrame[voltageGridCell='true'][cellRole='proposed'] {{
-        background: {c['cyan_soft']};
-        border-color: {c['cyan_border']};
-    }}
-    QFrame[voltageGridCell='true'][cellRole='safe'] {{
-        background: {c['green_soft']};
-        border-color: {c['green_border']};
-    }}
-    QFrame[voltageGridCell='true'][cellRole='positive'] {{
-        background: {c['green_soft']};
-        border-color: {c['green_border']};
-    }}
-    QFrame[voltageGridCell='true'][cellRole='warning'] {{
-        background: {c['orange_soft']};
-        border-color: {c['orange_border']};
-    }}
-    QFrame[voltageGridCell='true'][cellRole='custom'] {{
-        background: {c['purple_soft']};
-        border-color: {c['purple_border']};
-    }}
-    QFrame[voltageGridCell='true'][cellRole='muted'] {{
-        background: {c['neutral_soft']};
-        border-color: {c['border_soft']};
-    }}
-    QLabel[voltageGridValue='true'] {{
-        color: {c['text']};
-        background: transparent;
-        border: none;
-        font-size: 12px;
-        font-weight: 830;
-    }}
-    QLabel[voltageGridDetail='true'] {{
-        color: {c['subtle']};
-        background: transparent;
-        border: none;
-        font-size: 9px;
-        font-weight: 650;
-    }}
-    QSpinBox[voltageEditor='true'] {{
-        min-width: 116px;
-        padding: 4px 8px;
-        border: 1px solid {c['purple_border']};
-        border-radius: 8px;
-        background: {c['panel_raised']};
-        color: {c['purple']};
-        font-size: 11px;
-        font-weight: 820;
-    }}
-    QSpinBox[voltageEditor='true']:disabled {{
-        background: {c['purple_soft']};
-        color: {c['disabled_text']};
-        border-color: {c['purple_border']};
-    }}
-    QFrame[voltageWorkflowPanel='true'] {{
-        background: {c['panel_alt']};
-        border: 1px solid {c['border_soft']};
-        border-radius: 10px;
-    }}
-    QFrame[voltageStepItem='true'] {{
-        background: {c['panel_raised']};
-        border: 1px solid {c['border_soft']};
-        border-radius: 8px;
-    }}
-    QLabel[voltageStepBadge='true'] {{
-        color: {c['blue']};
-        background: {c['blue_soft']};
-        border: 1px solid {c['blue_border']};
-        border-radius: 10px;
-        font-size: 8px;
-        font-weight: 850;
-    }}
-    QLabel[voltageStepText='true'] {{
-        color: {c['text']};
-        font-size: 10px;
-        font-weight: 700;
-    }}
-    QPushButton[voltageApplyButton='true'] {{
-        padding: 7px 14px;
-        font-size: 11px;
-        font-weight: 820;
     }}
     QFrame[compactStatusLine='true'] QLabel[statusLineLabel='true'] {{
         font-size: 9px;
@@ -4120,13 +4004,6 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         font-size: 10px;
         font-weight: 690;
     }}
-    QPushButton[registerToggle='true'] {{
-        min-height: 20px;
-        max-height: 30px;
-        padding: 2px 9px;
-        border-radius: 8px;
-        font-size: 10px;
-    }}
     QFrame[cuAdvancedRegisters='true'] {{
         background: {c['panel_alt']};
         border: 1px solid {c['border_soft']};
@@ -4200,61 +4077,20 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         font-size: 9px;
         font-weight: 760;
     }}
-    QFrame[cuActivityDot='true'] {{
-        background: {c['green']};
-        border: none;
-        border-radius: 4px;
-    }}
     QFrame[cuActivityDot='true'][tone='blue'] {{ background: {c['blue']}; }}
     QFrame[cuActivityDot='true'][tone='purple'] {{ background: {c['purple']}; }}
     QFrame[cuActivityDot='true'][tone='red'] {{ background: {c['red']}; }}
     QFrame[cuActivityDot='true'][tone='gray'] {{ background: {c['subtle']}; }}
-    QLabel[cuActivityTitle='true'] {{
-        color: {c['text']};
-        font-size: 10px;
-        font-weight: 760;
-    }}
-    QLabel[cuActivityDetail='true'] {{
-        color: {c['muted']};
-        font-size: 9px;
-    }}
     QWidget[computeUnitsPage='true'] QPushButton[compactAction='true']:disabled, QWidget[computeUnitsPage='true'] QPushButton[dangerAction='true']:disabled {{
         background: {c['neutral_soft']};
         color: {c['disabled_text']};
         border-color: {c['border_soft']};
     }}
 
-    QFrame[curvePoint='true'] {{
-        background: {c['panel_alt']};
-        border: 1px solid {c['border_soft']};
-        border-radius: 14px;
-    }}
-    QFrame[curvePoint='true']:hover {{
-        background: {c['panel_raised']};
-        border-color: {c['border_strong']};
-    }}
     QLabel[curvePointTitle='true'] {{
         color: {c['text']};
         font-size: 11px;
         font-weight: 800;
-    }}
-    QLabel[curvePointBadge='true'] {{
-        color: {c['purple']};
-        background: {c['purple_soft']};
-        border: 1px solid {c['purple_border']};
-        border-radius: 7px;
-        padding: 3px 7px;
-        font-size: 8px;
-        font-weight: 800;
-    }}
-    QFrame[fanChannelRow='true'] {{
-        background: {c['panel_alt']};
-        border: 1px solid {c['border_soft']};
-        border-radius: 12px;
-    }}
-    QFrame[fanChannelRow='true']:hover {{
-        background: {c['panel_raised']};
-        border-color: {c['border_strong']};
     }}
     QLabel[fanChannelTitle='true'] {{
         color: {c['text']};
@@ -4269,12 +4105,6 @@ def application_stylesheet(mode: str | None = None, accent: str | None = None, d
         color: {c['text']};
         font-size: 10px;
         font-weight: 780;
-    }}
-    QLabel[fanChannelHeader='true'] {{
-        color: {c['muted']};
-        font-size: 8px;
-        font-weight: 800;
-        padding: 0 8px;
     }}
     QLabel[fanAccess='write'] {{
         color: {c['green']};

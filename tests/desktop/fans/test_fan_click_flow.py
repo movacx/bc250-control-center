@@ -9,6 +9,7 @@ only a speed low enough to overheat the board asks first.
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 
 from PyQt6.QtCore import QObject, pyqtSignal
 from PyQt6.QtWidgets import QDialog
@@ -54,6 +55,14 @@ class _Controller:
     def restaurar_pwm_automatico(self, pwm):
         self.writes.append((pwm, "auto"))
         return {"pwm": pwm, "verified": {"pwm": pwm, "enable": 2}, "automatic": True}
+
+    def ceder_fan_a_otro_programa(self, ceder):
+        self.writes.append(("external", ceder))
+        return {"salida": "OK EXTERNAL ON" if ceder else "OK EXTERNAL OFF", "external": ceder}
+
+    def sincronizar_control_fan_sistema(self, policy):
+        self.writes.append(("policy", policy["mode"] if policy else None))
+        return {"salida": "OK POLICY x"}
 
     def exportar_perfiles_fan_decky(self, profiles):
         self.exports.append(profiles)
@@ -175,3 +184,108 @@ def test_a_bad_file_is_an_error_dialog_not_a_half_import(qtbot, monkeypatch, tmp
 
     assert notices["dialogs"] == ["Could not import fan profiles"]
     assert [card.profile.name for card in page.manual_preset_buttons] == names
+
+
+def test_handing_the_fan_to_coolercontrol_locks_every_write_until_taken_back(qtbot, monkeypatch):
+    page, controller, notices = _page(qtbot, monkeypatch)
+    page._system_fan_control = {"managers": ["CoolerControl"]}
+    page._render_system_control()
+    page._update_action_availability()
+    assert page.external_button.text() == "Hand off to CoolerControl"
+    assert page.apply_pwm_button.isEnabled() and page.restore_auto_button.isEnabled()
+
+    page._toggle_external_control()
+    qtbot.waitUntil(lambda: page._fan_external(), timeout=3000)
+    qtbot.waitUntil(lambda: any("fan_curve" in payload for payload in controller.saved), timeout=3000)
+
+    assert notices["confirms"] == ["Hand off the fan"]
+    assert controller.writes == [("external", True)], "no PWM written on the way out"
+    saved = next(payload for payload in reversed(controller.saved) if "fan_curve" in payload)
+    assert saved["fan_curve"]["enabled"] is False and saved["fan_preset"]["enabled"] is False
+    page._update_action_availability()
+    assert not page.apply_pwm_button.isEnabled()
+    assert not page.restore_auto_button.isEnabled()
+    assert not page.curve_enabled.isEnabled()
+    assert page.external_button.text() == "Take control back"
+    assert page.system_control_chip.text() == "Another program"
+    page._maybe_apply_curve()
+    page.restore_automatic_pwm()
+    page._run_pwm_write(2, 80, source="manual")
+    assert controller.writes == [("external", True)], "a call that skips the disabled button writes nothing"
+
+    qtbot.waitUntil(lambda: not page._background.is_running("fan-external-control"), timeout=3000)
+    page._toggle_external_control()
+    qtbot.waitUntil(lambda: not page._fan_external(), timeout=3000)
+
+    assert controller.writes[-1] == ("external", False)
+    assert notices["confirms"] == ["Hand off the fan"], "taking it back asks nothing"
+    page._update_action_availability()
+    assert page.apply_pwm_button.isEnabled()
+
+
+def test_applying_the_curve_while_the_service_owns_the_fan_hands_it_the_curve(qtbot, monkeypatch):
+    """Apply curve used to write a fixed duty through pkexec, which paused the
+    service; when that write landed after the policy sync the service stayed
+    paused on that duty instead of following the curve."""
+    page, controller, notices = _page(qtbot, monkeypatch)
+    page.performance_state = {"gpu_temp": 55.0}
+    page._curve_target_pwm = 2
+    page.curve_enabled.setChecked(True)
+    page._system_fan_control = {
+        "enabled": True, "policy": {"mode": "curve"}, "state": "override", "policy_digest": "old",
+    }
+    controller.writes.clear()
+
+    page.apply_curve_now()
+    qtbot.waitUntil(lambda: ("policy", "curve") in controller.writes, timeout=3000)
+
+    assert all(not isinstance(write[0], int) for write in controller.writes), "no direct PWM write"
+    assert notices["toasts"][-1][0] == "Fan curve applied"
+
+
+def _export_to_decky(qtbot, page, controller):
+    page.export_profiles_to_decky()
+    qtbot.waitUntil(lambda: bool(controller.exports), timeout=3000)
+    qtbot.waitUntil(page.profiles_decky_button.isEnabled, timeout=3000)
+
+
+def test_a_decky_export_says_which_fans_and_which_speeds_were_raised(qtbot, monkeypatch):
+    """Decky drives PWM3–PWM8 and starts at 20 %; the page used to say neither."""
+    page, controller, notices = _page(qtbot, monkeypatch)
+    quiet = page.manual_preset_buttons[0]
+    quiet.set_profile(replace(quiet.profile, percent=10))
+    controller.estado_quick_access_decky = lambda: {"decky_detected": True, "plugin_present": True}
+
+    _export_to_decky(qtbot, page, controller)
+
+    assert controller.exports[0][0]["percent"] == 20
+    title, message = notices["toasts"][-1]
+    assert title == "Export to Decky"
+    assert message.startswith("Profiles exported to Decky Quick Access.")
+    assert "PWM3–PWM8" in message and "never PWM2" in message
+    assert "Quiet: 10 % → 20 % in Decky." in message
+    assert "PWM3–PWM8" in page.profiles_decky_button.toolTip()
+
+
+def test_a_decky_export_without_the_plugin_does_not_claim_decky_has_it(qtbot, monkeypatch):
+    page, controller, notices = _page(qtbot, monkeypatch)
+    controller.estado_quick_access_decky = lambda: {"decky_detected": True, "plugin_present": False}
+
+    _export_to_decky(qtbot, page, controller)
+
+    _title, message = notices["toasts"][-1]
+    assert "the plugin is not installed yet" in message
+    assert "Profiles exported to Decky Quick Access." not in message
+    assert " → " not in message  # every default speed is within Decky's range
+
+
+def test_default_fan_names_reach_decky_untranslated_and_custom_ones_as_typed(qtbot, monkeypatch):
+    """Decky localizes a default name itself; a translated one froze its language."""
+    monkeypatch.setattr(fans_module, "tr", lambda text, *_args, **_kwargs: f"<{text}>")
+    page, controller, _notices = _page(qtbot, monkeypatch)
+    balanced = page.manual_preset_buttons[1]
+    balanced.set_profile(replace(balanced.profile, name="Night"))
+
+    _export_to_decky(qtbot, page, controller)
+
+    assert [entry["name"] for entry in controller.exports[0]] == ["Quiet", "Night", "Maximum"]

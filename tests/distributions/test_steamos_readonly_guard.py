@@ -107,3 +107,25 @@ def test_unknown_readonly_state_fails_closed_before_host_write(tmp_path):
     assert not marker.exists()
     assert final_state == "mystery"
     assert "refusing host filesystem changes" in result.stderr
+
+
+def test_a_full_var_stops_the_install_before_the_protection_is_touched(tmp_path):
+    marker = tmp_path / "must-not-run"
+    env, state_file = _fake_environment(tmp_path, "enabled")
+    env["BC250_STEAMOS_MIN_VAR_MB"] = "999999999"
+    env["BC250_STEAMOS_VAR_DIR"] = str(tmp_path)
+    result = subprocess.run(["bash", str(WRAPPER), "bash", "-c", f"touch {marker}"], env=env,
+                            text=True, capture_output=True, check=False)
+    assert result.returncode == 75
+    assert not marker.exists()
+    assert state_file.read_text(encoding="utf-8").strip() == "enabled", "nothing was unlocked"
+    assert "MB free" in result.stderr and "/var" in result.stderr
+
+
+def test_a_var_with_room_changes_nothing(tmp_path):
+    env, _state = _fake_environment(tmp_path, "enabled")
+    env["BC250_STEAMOS_MIN_VAR_MB"] = "1"
+    env["BC250_STEAMOS_VAR_DIR"] = str(tmp_path)
+    result = subprocess.run(["bash", str(WRAPPER), "bash", "-c", "true"], env=env,
+                            text=True, capture_output=True, check=False)
+    assert result.returncode == 0, result.stderr

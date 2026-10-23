@@ -267,7 +267,7 @@ cleanup_application_swap() {
   if [[ "$status" -ne 0 && "$APP_SWAP_COMPLETE" -eq 1 ]]; then
     echo "Installation failed; rolling back the application code." >&2
     for component in "${APP_COMPONENTS[@]}" "${LEGACY_COMPONENTS[@]}"; do
-      rm -rf -- "$APP_DIR/$component"
+      rm -rf -- "${APP_DIR:?}/$component"
       if [[ -d "$APP_BACKUP/$component" ]]; then
         mv -- "$APP_BACKUP/$component" "$APP_DIR/$component"
       fi
@@ -360,7 +360,7 @@ if [[ -f "$APP_DIR/VERSION" ]]; then
 fi
 APP_SWAP_COMPLETE=1
 for component in "${APP_COMPONENTS[@]}" "${LEGACY_COMPONENTS[@]}"; do
-  rm -rf -- "$APP_DIR/$component"
+  rm -rf -- "${APP_DIR:?}/$component"
 done
 rm -f -- "$APP_DIR/VERSION"
 for component in "${APP_COMPONENTS[@]}"; do

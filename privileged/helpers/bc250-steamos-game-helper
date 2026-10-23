@@ -33,19 +33,22 @@ STEAMOS_CU_STAGED_DATABASE = pathlib.Path('/usr/libexec/bc250-control-center/bc2
 GENERIC_CU_STAGED_BACKEND = pathlib.Path('/var/lib/bc250-control-center/bc250-cu-live-manager')
 CU_SERVICE_UNIT = pathlib.Path('/etc/systemd/system/bc250-cu-live-manager.service')
 CU_SERVICE_CONFIG = pathlib.Path('/etc/bc250-cu-live-manager.conf')
+# Protocol 22 adds the optional gpu-usage.temp-read to Cyan compatibility.
 # Protocol 21 adds the reviewed GPU voltage ladder levels 1 through 5.
 # Protocol 20 adds gpu-usage.method to the bounded Cyan compatibility action.
 # Protocol 19 adds the bounded CPU boot-service action. Protocol 18 hardened
 # fan-pwm against NCT6687's asynchronous automatic ->
 # manual transition.  Do not silently accept protocol 16: it acknowledged a
 # duty write that PWM4 could still ignore while its mode register settled.
-BC250_HELPER_PROTOCOL=21
+BC250_HELPER_PROTOCOL=22
 PWM_MODE_VERIFY_ATTEMPTS = 10
 PWM_MODE_VERIFY_INTERVAL_SECONDS = 0.05
 PWM_MODE_SETTLE_SECONDS = 0.15
 PWM_DUTY_VERIFY_ATTEMPTS = 16
 PWM_DUTY_VERIFY_INTERVAL_SECONDS = 0.10
 FAN_OPERATION_LOCK = pathlib.Path('/run/bc250-control-center-fan.lock')
+#: The fan handed to another program (see bc250-fan-pwm-helper): no PWM write.
+FAN_EXTERNAL_FILE = pathlib.Path('/var/lib/bc250-control-center/fan-external.json')
 CU_OPERATION_LOCK = pathlib.Path('/run/bc250-control-center-cu.lock')
 OPERATION_LOCK_TIMEOUT_SECONDS = 3.0
 
@@ -897,13 +900,17 @@ def action_governor_config(args: Sequence[str]) -> int:
         )
     elif action in boolean_actions:
         valid = len(values) == 1 and values[0] in {'0', '1'}
+    elif action in {'set-decky-gpu-profiles', 'set-decky-cpu-profiles', 'set-decky-fan-profiles'}:
+        # Shape only: governor_toml validates every entry again as root.
+        valid = len(values) == 1 and 0 < len(values[0]) <= 16384
     elif action == 'set-cyan-compatibility':
         valid = (
-            len(values) == 4
+            len(values) in {4, 5}
             and values[0] in {'smu', 'kernel'}
             and values[1] in {'busy-flag', 'process', 'kernel'}
             and values[2] in {'0', '1'}
             and values[3] in {'0', '1'}
+            and (len(values) == 4 or values[4] in {'drm', 'sysfs'})
         )
     elif action == 'set-cyan-custom-voltages':
         valid = bool(values) and all(
@@ -1552,6 +1559,12 @@ def main(argv: Sequence[str]) -> int:
         if persistent_error:
             return persistent_error
     try:
+        if action in {'fan-pwm', 'fan-daemon-pwm', 'fan-pwm-auto'} and FAN_EXTERNAL_FILE.is_file():
+            return fail(
+                'FAN_EXTERNAL: the fan is handed to another program. '
+                'Take control back on the Fans page first.',
+                58,
+            )
         if action in {'fan-pwm', 'fan-daemon-pwm'}:
             with operation_lock(FAN_OPERATION_LOCK, 'fan'):
                 return action_fan_pwm(args)

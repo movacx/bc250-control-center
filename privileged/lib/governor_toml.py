@@ -7,11 +7,18 @@ import re
 import stat
 import sys
 import tempfile
-import tomllib
 from contextlib import suppress
 from dataclasses import dataclass
 from itertools import pairwise
 from pathlib import Path
+
+try:
+    import tomllib
+except ModuleNotFoundError as _missing:  # Python 3.10: Ubuntu 22.04, Linux Mint 21
+    raise RuntimeError(
+        "The governor TOML editor needs Python 3.11 or newer. "
+        "Use Ubuntu 24.04 / Linux Mint 22 or newer."
+    ) from _missing
 
 _TABLE_RE = re.compile(r"^\s*\[([^\[\]]+)\]\s*(?:#.*)?$")
 _COMMENTED_TABLE_RE = re.compile(
@@ -75,9 +82,14 @@ _KEY_RE = re.compile(
     r"(?P<spacing>\s*=\s*)(?P<value>[0-9][0-9_]*)?(?P<tail>\s*(?:#.*)?)$"
 )
 _GPU_USAGE_KEY_RE = re.compile(
-    r"^(?P<indent>\s*)(?P<comment>#\s*)?(?P<key>fix-metrics|fix-freq|fix_freq|method)"
+    r"^(?P<indent>\s*)(?P<comment>#\s*)?(?P<key>fix-metrics|fix-freq|fix_freq|method|temp-read|temp_read)"
     r"(?P<spacing>\s*=\s*)(?P<value>[^#\r\n]+?)(?P<tail>\s*(?:#.*)?)$"
 )
+#: Cyan accepts the underscore spelling too; edits write the dashed one.
+_GPU_USAGE_ALIASES = {"fix_freq": "fix-freq", "temp_read": "temp-read"}
+#: Where Cyan reads the GPU temperature: the DRM sensor ioctl or hwmon in
+#: sysfs. Same sensor either way; sysfs keeps no DRM client open for it.
+CYAN_TEMP_READ_METHODS = ("drm", "sysfs")
 _GPU_KEY_RE = re.compile(
     r"^(?P<indent>\s*)(?P<comment>#\s*)?(?P<key>set-method)"
     r"(?P<spacing>\s*=\s*)(?P<value>[^#\r\n]+?)(?P<tail>\s*(?:#.*)?)$"
@@ -428,8 +440,35 @@ def _require_root_owned(path: Path, what: str) -> None:
 #: the Decky helper re-validates against the live D-Bus envelope before ever
 #: applying it, so a stale or hand-edited copy can be rejected but never used
 #: to push a range the hardware has not already advertised as allowed.
+def _checked_decky_entries(
+    profiles: object, keys: tuple[str, ...], fields: frozenset[str], label: str
+) -> None:
+    """Apply the request check's structure rules again, as root.
+
+    The helper can be called directly, not only through the app, so an
+    unknown field, a repeated or unknown key, or an empty or overlong name
+    is refused here instead of being published under /etc.
+    """
+    if not isinstance(profiles, list) or not 1 <= len(profiles) <= len(keys):
+        raise GovernorTomlError(f"{label} payload must be a JSON array of one to three entries.")
+    seen: set[str] = set()
+    for entry in profiles:
+        if (
+            not isinstance(entry, dict)
+            or not set(entry) <= fields
+            or entry.get("key") not in keys
+            or entry["key"] in seen
+            or not isinstance(entry.get("name"), str)
+            or not entry["name"].strip()
+            or len(entry["name"]) > 40
+        ):
+            raise GovernorTomlError(f"{label} payload has an invalid entry.")
+        seen.add(entry["key"])
+
+
 DECKY_GPU_PROFILES_PATH = Path("/etc/bc250-control-center/decky-gpu-profiles.json")
 DECKY_GPU_PROFILES_SCHEMA = 1
+DECKY_GPU_PROFILE_KEYS = ("balanced", "gaming", "benchmark")
 
 
 def write_decky_gpu_profiles(
@@ -448,8 +487,9 @@ def write_decky_gpu_profiles(
         raise GovernorTomlError(
             f"Decky GPU profile payload is not valid JSON: {error}"
         ) from error
-    if not isinstance(profiles, list):
-        raise GovernorTomlError("Decky GPU profile payload must be a JSON array.")
+    _checked_decky_entries(
+        profiles, DECKY_GPU_PROFILE_KEYS, frozenset({"key", "name", "min", "max"}), "Decky GPU profile",
+    )
     for entry in profiles:
         if (
             not isinstance(entry, dict)
@@ -461,48 +501,12 @@ def write_decky_gpu_profiles(
             or not isinstance(entry.get("max"), int)
         ):
             raise GovernorTomlError("Decky GPU profile payload has an invalid entry.")
+        if not 100 <= entry["min"] <= entry["max"] <= 3000:
+            raise GovernorTomlError("Decky GPU profile payload has an invalid range.")
 
-    target = Path(path)
-    if not target.parent.is_dir():
-        target.parent.mkdir(mode=0o755, parents=True, exist_ok=True)
-        with suppress(PermissionError):
-            os.chown(target.parent, 0, 0)
-    _require_root_owned(target, "Decky GPU profile file")
-
-    document = json.dumps(
-        {"schema": DECKY_GPU_PROFILES_SCHEMA, "profiles": profiles}, indent=2
-    ) + "\n"
-    try:
-        original = target.read_text(encoding="utf-8") if target.is_file() else ""
-    except (OSError, UnicodeError):
-        original = ""
-    if document == original:
-        return TomlEditResult(changed=False)
-
-    descriptor, temporary_name = tempfile.mkstemp(
-        prefix=f".{target.name}.", suffix=".tmp", dir=str(target.parent),
+    return _publish_decky_profiles(
+        Path(path), DECKY_GPU_PROFILES_SCHEMA, profiles, "Decky GPU profile file",
     )
-    temporary = Path(temporary_name)
-    try:
-        with os.fdopen(descriptor, "w", encoding="utf-8", newline="") as handle:
-            handle.write(document)
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.chmod(temporary, 0o644)
-        with suppress(PermissionError):
-            os.chown(temporary, 0, 0)
-        if target.is_symlink():
-            raise GovernorTomlError(
-                "Decky GPU profile file changed to a symlink during the edit."
-            )
-        os.replace(temporary, target)
-    except OSError as error:
-        with suppress(OSError):
-            temporary.unlink()
-        raise GovernorTomlError(
-            f"Decky GPU profile file could not be updated: {error}"
-        ) from error
-    return TomlEditResult(changed=True)
 
 
 #: Same convention as the GPU sibling above: read by the Decky Quick Access
@@ -514,6 +518,12 @@ def write_decky_gpu_profiles(
 #: used to reach a value neither side already allows.
 DECKY_CPU_PROFILES_PATH = Path("/etc/bc250-control-center/decky-cpu-profiles.json")
 DECKY_CPU_PROFILES_SCHEMA = 1
+DECKY_CPU_FREQUENCY_RANGE = (3100, 4200)
+DECKY_CPU_FREQUENCY_STEP = 50
+DECKY_CPU_VID_RANGE = (950, 1325)
+DECKY_CPU_VID_STEP = 5
+DECKY_CPU_TEMPERATURE_RANGE = (70, 90)
+DECKY_CPU_PROFILE_KEYS = ("board_average", "mid_point", "safe_maximum")
 
 
 def write_decky_cpu_profiles(
@@ -532,8 +542,10 @@ def write_decky_cpu_profiles(
         raise GovernorTomlError(
             f"Decky CPU profile payload is not valid JSON: {error}"
         ) from error
-    if not isinstance(profiles, list):
-        raise GovernorTomlError("Decky CPU profile payload must be a JSON array.")
+    _checked_decky_entries(
+        profiles, DECKY_CPU_PROFILE_KEYS,
+        frozenset({"key", "name", "frequency", "vid", "temperature"}), "Decky CPU profile",
+    )
     for entry in profiles:
         if (
             not isinstance(entry, dict)
@@ -545,48 +557,34 @@ def write_decky_cpu_profiles(
             or not isinstance(entry.get("vid"), int)
         ):
             raise GovernorTomlError("Decky CPU profile payload has an invalid entry.")
-
-    target = Path(path)
-    if not target.parent.is_dir():
-        target.parent.mkdir(mode=0o755, parents=True, exist_ok=True)
-        with suppress(PermissionError):
-            os.chown(target.parent, 0, 0)
-    _require_root_owned(target, "Decky CPU profile file")
-
-    document = json.dumps(
-        {"schema": DECKY_CPU_PROFILES_SCHEMA, "profiles": profiles}, indent=2
-    ) + "\n"
-    try:
-        original = target.read_text(encoding="utf-8") if target.is_file() else ""
-    except (OSError, UnicodeError):
-        original = ""
-    if document == original:
-        return TomlEditResult(changed=False)
-
-    descriptor, temporary_name = tempfile.mkstemp(
-        prefix=f".{target.name}.", suffix=".tmp", dir=str(target.parent),
-    )
-    temporary = Path(temporary_name)
-    try:
-        with os.fdopen(descriptor, "w", encoding="utf-8", newline="") as handle:
-            handle.write(document)
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.chmod(temporary, 0o644)
-        with suppress(PermissionError):
-            os.chown(temporary, 0, 0)
-        if target.is_symlink():
+        # Same bounds the request check and both readers apply: a value off
+        # its step or outside its range would be dropped without a word by
+        # Decky and show the built-in profile instead.
+        if (
+            not DECKY_CPU_FREQUENCY_RANGE[0] <= entry["frequency"] <= DECKY_CPU_FREQUENCY_RANGE[1]
+            or (entry["frequency"] - DECKY_CPU_FREQUENCY_RANGE[0]) % DECKY_CPU_FREQUENCY_STEP
+            or not DECKY_CPU_VID_RANGE[0] <= entry["vid"] <= DECKY_CPU_VID_RANGE[1]
+            or (entry["vid"] - DECKY_CPU_VID_RANGE[0]) % DECKY_CPU_VID_STEP
+        ):
             raise GovernorTomlError(
-                "Decky CPU profile file changed to a symlink during the edit."
+                "Decky CPU profile values must be 3100-4200 MHz in 50 MHz steps "
+                "and 950-1325 mV in 5 mV steps."
             )
-        os.replace(temporary, target)
-    except OSError as error:
-        with suppress(OSError):
-            temporary.unlink()
-        raise GovernorTomlError(
-            f"Decky CPU profile file could not be updated: {error}"
-        ) from error
-    return TomlEditResult(changed=True)
+        # Optional so an export from before the cap existed still publishes;
+        # the stored entry always carries it, 90 C being what Decky used.
+        temperature = entry.get("temperature", DECKY_CPU_TEMPERATURE_RANGE[1])
+        if (
+            isinstance(temperature, bool)
+            or not isinstance(temperature, int)
+            or not DECKY_CPU_TEMPERATURE_RANGE[0] <= temperature <= DECKY_CPU_TEMPERATURE_RANGE[1]
+        ):
+            raise GovernorTomlError(
+                "Decky CPU profile values must keep the temperature within 70-90 C."
+            )
+        entry["temperature"] = temperature
+    return _publish_decky_profiles(
+        Path(path), DECKY_CPU_PROFILES_SCHEMA, profiles, "Decky CPU profile file",
+    )
 
 
 
@@ -597,6 +595,8 @@ def write_decky_cpu_profiles(
 #: can change a label or a duty inside that range and nothing else.
 DECKY_FAN_PROFILES_PATH = Path("/etc/bc250-control-center/decky-fan-profiles.json")
 DECKY_FAN_PROFILES_SCHEMA = 1
+DECKY_FAN_PROFILE_KEYS = ("quiet", "balanced", "boost")
+DECKY_FAN_PERCENT_RANGE = (20, 100)
 
 
 def write_decky_fan_profiles(
@@ -613,8 +613,9 @@ def write_decky_fan_profiles(
         raise GovernorTomlError(
             f"Decky fan profile payload is not valid JSON: {error}"
         ) from error
-    if not isinstance(profiles, list):
-        raise GovernorTomlError("Decky fan profile payload must be a JSON array.")
+    _checked_decky_entries(
+        profiles, DECKY_FAN_PROFILE_KEYS, frozenset({"key", "name", "percent"}), "Decky fan profile",
+    )
     for entry in profiles:
         if (
             not isinstance(entry, dict)
@@ -624,6 +625,8 @@ def write_decky_fan_profiles(
             or not isinstance(entry.get("percent"), int)
         ):
             raise GovernorTomlError("Decky fan profile payload has an invalid entry.")
+        if not DECKY_FAN_PERCENT_RANGE[0] <= entry["percent"] <= DECKY_FAN_PERCENT_RANGE[1]:
+            raise GovernorTomlError("Decky fan profile speeds must be 20-100 %.")
     return _publish_decky_profiles(
         Path(path), DECKY_FAN_PROFILES_SCHEMA, profiles, "Decky fan profile file",
     )
@@ -693,7 +696,10 @@ class GovernorTomlEditor:
         if metadata.st_size > 2 * 1024 * 1024:
             raise GovernorTomlError("Governor configuration is unexpectedly large.")
         try:
-            return self.path.read_text(encoding="utf-8")
+            # Keep CRLF documents byte-stable outside the keys being edited.
+            # Path.read_text() uses universal-newline decoding by default.
+            with self.path.open("r", encoding="utf-8", newline="") as handle:
+                return handle.read()
         except (OSError, UnicodeError) as error:
             raise GovernorTomlError(
                 f"Governor configuration could not be read: {error}"
@@ -789,7 +795,7 @@ class GovernorTomlEditor:
             match = _GPU_USAGE_KEY_RE.match(body) if inside else None
             if match is None:
                 continue
-            key = "fix-freq" if match.group("key") == "fix_freq" else match.group("key")
+            key = _GPU_USAGE_ALIASES.get(match.group("key"), match.group("key"))
             if key in keys:
                 raise GovernorTomlError(
                     f"Duplicate gpu-usage.{key} key in governor TOML."
@@ -964,8 +970,13 @@ class GovernorTomlEditor:
         usage_method: str,
         fix_metrics: bool,
         fix_frequency: bool,
+        temp_read: str | None = None,
     ) -> TomlEditResult:
-        """Atomically set Cyan's independent backend and usage switches."""
+        """Atomically set Cyan's independent backend and usage switches.
+
+        ``temp_read`` is left as it is when not given: older callers, and the
+        Game Mode plugin, do not know it.
+        """
         normalized_set_method = str(set_method).strip().lower()
         if normalized_set_method not in {"smu", "kernel"}:
             raise GovernorTomlError("Cyan gpu.set-method must be smu or kernel.")
@@ -974,18 +985,20 @@ class GovernorTomlEditor:
             raise GovernorTomlError(
                 "Cyan gpu-usage.method must be busy-flag, process or kernel."
             )
+        desired = {
+            "fix-metrics": "true" if bool(fix_metrics) else "false",
+            "fix-freq": "true" if bool(fix_frequency) else "false",
+            "method": f'"{normalized_usage_method}"',
+        }
+        if temp_read is not None:
+            normalized_temp_read = str(temp_read).strip().lower()
+            if normalized_temp_read not in CYAN_TEMP_READ_METHODS:
+                raise GovernorTomlError("Cyan gpu-usage.temp-read must be drm or sysfs.")
+            desired["temp-read"] = f'"{normalized_temp_read}"'
         original = self._read()
         self._validate(original)
         lines = original.splitlines(keepends=True)
-        self._apply_gpu_usage_values(
-            lines,
-            {
-                "fix-metrics": "true" if bool(fix_metrics) else "false",
-                "fix-freq": "true" if bool(fix_frequency) else "false",
-                "method": f'"{normalized_usage_method}"',
-            },
-            original,
-        )
+        self._apply_gpu_usage_values(lines, desired, original)
         self._apply_gpu_values(
             lines, {"set-method": f'"{normalized_set_method}"'}, original
         )
@@ -1009,6 +1022,9 @@ class GovernorTomlEditor:
                 section.get("fix-freq", section.get("fix_freq", False))
             ),
             "method": method,
+            "temp_read": str(
+                section.get("temp-read", section.get("temp_read")) or "drm"
+            ).strip().lower(),
             "set_method": set_method,
             "valid": (
                 method in {"busy-flag", "process", "kernel"}

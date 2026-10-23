@@ -1,7 +1,7 @@
 from PyQt6.QtWidgets import QLabel
 
 from bc250cc.platform.init.services import InitManagerState
-from frontends.desktop.pages import fans
+from frontends.desktop.pages import fans, fans_widgets
 
 
 def _dialog_text(dialog) -> str:
@@ -10,7 +10,7 @@ def _dialog_text(dialog) -> str:
 
 def test_paths_dialog_reports_only_paths_from_the_sensor_snapshot(qtbot, monkeypatch):
     monkeypatch.setattr(
-        fans,
+        fans_widgets,
         "detect_init_manager",
         lambda: InitManagerState("openrc", True, "OpenRC runlevel management is available."),
     )
@@ -37,7 +37,7 @@ def test_paths_dialog_reports_only_paths_from_the_sensor_snapshot(qtbot, monkeyp
 
 def test_paths_dialog_uses_openrc_guidance_without_systemctl(qtbot, monkeypatch):
     monkeypatch.setattr(
-        fans,
+        fans_widgets,
         "detect_init_manager",
         lambda: InitManagerState("openrc", True, "OpenRC runlevel management is available."),
     )
@@ -54,7 +54,7 @@ def test_paths_dialog_uses_openrc_guidance_without_systemctl(qtbot, monkeypatch)
 
 def test_paths_dialog_uses_systemd_guidance_only_when_systemd_is_active(qtbot, monkeypatch):
     monkeypatch.setattr(
-        fans,
+        fans_widgets,
         "detect_init_manager",
         lambda: InitManagerState("systemd", True, "systemd unit management is available."),
     )

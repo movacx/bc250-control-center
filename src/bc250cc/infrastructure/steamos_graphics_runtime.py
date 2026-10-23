@@ -282,14 +282,26 @@ def build_steamos_graphics_command(
         "uninstall-fsr4": f"/usr/bin/bash {qscript} uninstall --fsr4-legacy",
     }[action]
     mutation = action != "status"
+    # The protected toolkit is deliberately staged only by the explicit
+    # compatibility preparation.  A package installation is therefore a
+    # normal, useful "not prepared yet" state, not a corrupted helper.  Once
+    # its directory exists, however, every missing or altered member remains
+    # a fail-closed HELPER-001 error.
+    unstaged_status = (
+        f'if ! test -d {shlex.quote(str(script.parent))}; then '
+        'echo "[WARN] SteamOS graphics backend is not staged yet; prepare SteamOS compatibility before checking it."; '
+        'exit 0; fi'
+    )
     steps = [
         'echo "== SteamOS BC-250 graphics stack =="',
         'grep -Eiq "steamos|steamdeck|holo" /etc/os-release || { echo "ERROR: this workflow is available only on SteamOS"; exit 39; }',
     ]
     if mutation:
         steps.append(str(checkout_command or ":").strip())
+    else:
+        steps.append(unstaged_status)
     steps.extend((
-        f'{guard} || {{ echo "ERROR: the reviewed root-owned SteamOS graphics backend is unavailable or changed"; exit 38; }}',
+        f'{guard} || {{ echo "[ERROR] the reviewed root-owned SteamOS graphics backend is unavailable or changed"; exit 38; }}',
         command,
     ))
     if mutation:

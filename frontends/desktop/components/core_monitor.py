@@ -23,6 +23,7 @@ from PyQt6.QtWidgets import (
 
 from ..i18n import tr
 from ..theme import COLORS
+from .style_state import set_style_sheet
 
 #: Every BC-250 has eight physical core positions. A stock firmware exposes
 #: six of them to Linux, and the other two are the point of the unlock.
@@ -161,22 +162,25 @@ class CoreRow(QFrame):
             "border:none;" if self._first
             else f"border:none; border-top:1px solid {COLORS['border_soft']};"
         )
-        self.setStyleSheet(f"QFrame {{ background:transparent; {border} }}")
+        set_style_sheet(self, f"QFrame {{ background:transparent; {border} }}")
 
     def set_reading(self, reading: CoreReading) -> None:
-        self.name.setStyleSheet(
+        set_style_sheet(
+            self.name,
             f"color:{COLORS['muted']}; font-size:11px; font-weight:800;"
-            " background:transparent; border:none;"
+            " background:transparent; border:none;",
         )
         self.frequency.setText(_frequency_text(reading.frequency_mhz))
-        self.frequency.setStyleSheet(
+        set_style_sheet(
+            self.frequency,
             f"color:{COLORS['text']}; font-size:12px; font-weight:750;"
-            " background:transparent; border:none;"
+            " background:transparent; border:none;",
         )
         self.usage.setText(f"{reading.usage_percent:.0f} %")
-        self.usage.setStyleSheet(
+        set_style_sheet(
+            self.usage,
             f"color:{COLORS['muted']}; font-size:11px; font-weight:700;"
-            " background:transparent; border:none;"
+            " background:transparent; border:none;",
         )
         self.bar.set_usage(reading.usage_percent, active=True)
         # Composed rather than formatted through a catalogue key: the label
@@ -188,11 +192,12 @@ class CoreRow(QFrame):
 
     def set_offline(self) -> None:
         for label in (self.name, self.frequency, self.usage):
-            label.setStyleSheet(
+            set_style_sheet(
+                label,
                 # Quiet but readable: a hidden core is information, not a
                 # disabled control (the disabled grey measured 3:1 in light).
                 f"color:{COLORS['subtle']}; font-size:11px; font-weight:700;"
-                " background:transparent; border:none;"
+                " background:transparent; border:none;",
             )
         self.frequency.setText(tr("Hidden"))
         # The word changes with the language; the column follows it.

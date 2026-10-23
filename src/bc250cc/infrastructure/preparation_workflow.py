@@ -266,6 +266,8 @@ def _mutable_source_commands(context: PreparationContext) -> list[str]:
             '{ echo "ERROR: the reviewed bc250_smu package is missing"; exit 37; }',
             f'test -f {shlex.quote(str(context.gddr6_destination / "SMUPayload.bin"))} || '
             '{ echo "ERROR: SMUPayload.bin is missing"; exit 37; }',
+            f'test -f {shlex.quote(str(context.gddr6_destination / "SMUPayload.symbols"))} || '
+            '{ echo "ERROR: SMUPayload.symbols is missing"; exit 37; }',
         ])
     if 'cu_manager' in selected:
         commands.extend([

@@ -25,6 +25,8 @@ def helper_module():
     # Nor on the host's own kernel CU unlock (a linux-cachyos-bc250 board
     # running bc250_cc_write_mode=3 would refuse every CU write test).
     module.CU_WRITE_MODE_PARAMETER = Path("/nonexistent/bc250_cc_write_mode")
+    # Nor on the preset this host's panel applied last.
+    module.SYSTEM_FAN_LAST_PRESET = Path("/nonexistent/fan-last-preset.json")
     # Nor on profiles the developer exported to Decky from this machine: the
     # loader reads a fixed /etc path, and a real export there changed which
     # range "gaming" meant and failed an unrelated test on that host only.
@@ -361,6 +363,70 @@ def test_system_fan_state_reports_a_named_manual_preset(helper_module, tmp_path,
     assert helper_module.system_fan_preset_state(sensor) == ("balanced", 153)
 
 
+def _equal_quiet_and_balanced(helper_module, tmp_path, monkeypatch):
+    """Quiet and Balanced exported at the same speed (60 % -> duty 153)."""
+    sensor = tmp_path / "hwmon12"
+    sensor.mkdir()
+    for channel in (3, 4):
+        (sensor / f"pwm{channel}").write_text("214\n", encoding="ascii")
+        (sensor / f"pwm{channel}_enable").write_text("2\n", encoding="ascii")
+    monkeypatch.setattr(helper_module, "nct_sensor", lambda: sensor)
+    monkeypatch.setattr(helper_module.time, "sleep", lambda _seconds: None)
+    monkeypatch.setattr(helper_module, "SYSTEM_FAN_LAST_PRESET", tmp_path / "run" / "fan-last-preset.json")
+    monkeypatch.setattr(
+        helper_module, "effective_fan_presets",
+        lambda: {"quiet": 153, "balanced": 153, "boost": 204, "automatic": None},
+    )
+    return sensor
+
+
+def test_equal_presets_report_the_one_applied_last(helper_module, tmp_path, monkeypatch):
+    """The first match used to win, so pressing Balanced highlighted Quiet."""
+    sensor = _equal_quiet_and_balanced(helper_module, tmp_path, monkeypatch)
+
+    assert helper_module.fan_system_preset("balanced") == 0
+    assert helper_module.system_fan_preset_state(sensor) == ("balanced", 153)
+    assert helper_module.fan_system_preset("quiet") == 0
+    assert helper_module.system_fan_preset_state(sensor) == ("quiet", 153)
+
+
+def test_equal_presets_name_none_without_a_matching_last_preset(helper_module, tmp_path, monkeypatch):
+    sensor = _equal_quiet_and_balanced(helper_module, tmp_path, monkeypatch)
+    for channel in (3, 4):
+        (sensor / f"pwm{channel}").write_text("153\n", encoding="ascii")
+        (sensor / f"pwm{channel}_enable").write_text("1\n", encoding="ascii")
+
+    # Nothing applied from the panel: the duty is reported, no preset is.
+    assert helper_module.system_fan_preset_state(sensor) == (None, 153)
+
+    # The preset applied last no longer matches what the fans run at.
+    helper_module.note_fan_preset("boost", 204)
+    assert helper_module.system_fan_preset_state(sensor) == (None, 153)
+
+    # A distinct duty still names its preset, whatever was applied last.
+    for channel in (3, 4):
+        (sensor / f"pwm{channel}").write_text("204\n", encoding="ascii")
+    helper_module.note_fan_preset("quiet", 153)
+    assert helper_module.system_fan_preset_state(sensor) == ("boost", 204)
+
+
+def test_a_malformed_last_preset_record_is_ignored(helper_module, tmp_path, monkeypatch):
+    sensor = _equal_quiet_and_balanced(helper_module, tmp_path, monkeypatch)
+    for channel in (3, 4):
+        (sensor / f"pwm{channel}").write_text("153\n", encoding="ascii")
+        (sensor / f"pwm{channel}_enable").write_text("1\n", encoding="ascii")
+    record = helper_module.SYSTEM_FAN_LAST_PRESET
+    record.parent.mkdir()
+
+    for content in ("not json", '["quiet", 153]', '{"preset": "quiet", "duty": "153"}'):
+        record.write_text(content, encoding="utf-8")
+        assert helper_module.system_fan_preset_state(sensor) == (None, 153)
+    record.unlink()
+    record.symlink_to(tmp_path / "elsewhere.json")
+    (tmp_path / "elsewhere.json").write_text('{"preset": "quiet", "duty": 153}', encoding="utf-8")
+    assert helper_module.system_fan_preset_state(sensor) == (None, 153)
+
+
 def test_gpu_profile_resets_adaptive_mode_when_cyan_bounds_already_match(helper_module, monkeypatch, capsys):
     calls = []
     monkeypatch.setattr(helper_module, "run", lambda command, **_kwargs: calls.append(command) or type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})())
@@ -372,6 +438,32 @@ def test_gpu_profile_resets_adaptive_mode_when_cyan_bounds_already_match(helper_
     assert helper_module.gpu_profile("gaming") == 0
     assert sum("SetRange" in command for command in calls) == 1
     assert '"gpu_performance_enabled": false' in capsys.readouterr().out
+
+
+def test_fixed_clock_gpu_profile_override_is_accepted(helper_module, monkeypatch):
+    monkeypatch.setattr(
+        helper_module, "_load_gpu_profile_overrides",
+        lambda: {"balanced": {"name": "Fixed", "min": 1500, "max": 1500}},
+    )
+    monkeypatch.setattr(helper_module, "active_gpu_governor", lambda: "cyan")
+    applied = []
+    monkeypatch.setattr(helper_module, "apply_gpu_range", lambda bounds: applied.append(bounds) or 0)
+
+    assert helper_module.gpu_profile("balanced") == 0
+    assert applied == [(1500, 1500)]
+
+
+def test_stale_gpu_profile_override_reports_the_same_allowed_code(helper_module, monkeypatch, capsys):
+    monkeypatch.setattr(
+        helper_module, "_load_gpu_profile_overrides",
+        lambda: {"benchmark": {"name": "High", "min": 1000, "max": 2200}},
+    )
+    monkeypatch.setattr(helper_module, "active_gpu_governor", lambda: "cyan")
+    monkeypatch.setattr(helper_module, "cyan_range", lambda: (1000, 2000))
+    monkeypatch.setattr(helper_module, "cyan_allowed_range", lambda: (500, 2000))
+
+    assert helper_module.gpu_profile("benchmark") == 22
+    assert "QUICK_ACCESS_GPU_ALLOWED" in capsys.readouterr().err
 
 
 def test_decky_reads_cyan_after_all_four_desktop_compatibility_controls_change(
@@ -1953,7 +2045,7 @@ def _write_cyan_config(path, body):
     path.write_text(body, encoding="utf-8")
 
 
-def test_cyan_compatibility_reads_the_four_settings_with_the_governors_defaults(
+def test_cyan_compatibility_reads_the_settings_with_the_governors_defaults(
     helper_module, tmp_path, monkeypatch
 ):
     monkeypatch.setattr(helper_module, "trusted_directory", lambda _path: True)
@@ -1962,15 +2054,15 @@ def test_cyan_compatibility_reads_the_four_settings_with_the_governors_defaults(
     _write_cyan_config(config, "[gpu]\n")
     assert helper_module.cyan_compatibility(config) == {
         "set_method": "smu", "usage_method": "busy-flag",
-        "fix_metrics": True, "fix_frequency": False,
+        "fix_metrics": True, "fix_frequency": False, "temp_read": "drm",
     }
     _write_cyan_config(
         config,
-        '[gpu]\nset-method = "kernel"\n[gpu-usage]\nmethod = "process"\nfix-metrics = false\nfix-freq = true\n',
+        '[gpu]\nset-method = "kernel"\n[gpu-usage]\nmethod = "process"\nfix-metrics = false\nfix-freq = true\ntemp-read = "sysfs"\n',
     )
     assert helper_module.cyan_compatibility(config) == {
         "set_method": "kernel", "usage_method": "process",
-        "fix_metrics": False, "fix_frequency": True,
+        "fix_metrics": False, "fix_frequency": True, "temp_read": "sysfs",
     }
     _write_cyan_config(config, '[gpu-usage]\nmethod = "bogus"\n')
     assert helper_module.cyan_compatibility(config) is None
@@ -1978,13 +2070,15 @@ def test_cyan_compatibility_reads_the_four_settings_with_the_governors_defaults(
 
 def _compat_systemd(helper_module, monkeypatch, *, active, enabled=True, starts=lambda settings: True):
     """Fake systemd + governor-config helper for gpu_compatibility()."""
-    state = {"active": active, "settings": ("smu", "busy-flag", "1", "0")}
+    state = {"active": active, "settings": ("smu", "busy-flag", "1", "0", "drm")}
     calls = []
 
     def fake_run(command, **_kwargs):
         calls.append(list(command))
-        if command[-5:-4] == ["set-cyan-compatibility"]:
-            state["settings"] = tuple(command[-4:])
+        if command[-6:-5] == ["set-cyan-compatibility"]:
+            state["settings"] = tuple(command[-5:])
+        elif command[-5:-4] == ["set-cyan-compatibility"]:
+            state["settings"] = (*command[-4:], "drm")
         elif command[1:3] == ["restart", "--no-block"]:
             state["active"] = starts(state["settings"])
         return subprocess.CompletedProcess(command, 0, "", "")
@@ -1999,6 +2093,7 @@ def _compat_systemd(helper_module, monkeypatch, *, active, enabled=True, starts=
     monkeypatch.setattr(helper_module, "cyan_compatibility", lambda *_a, **_k: {
         "set_method": state["settings"][0], "usage_method": state["settings"][1],
         "fix_metrics": state["settings"][2] == "1", "fix_frequency": state["settings"][3] == "1",
+        "temp_read": state["settings"][4],
     })
     monkeypatch.setattr(helper_module, "cyan_kernel_usage_supported", lambda: False)
     monkeypatch.setattr(helper_module, "cyan_kernel_set_supported", lambda: False)
@@ -2016,7 +2111,7 @@ def test_gpu_compat_refuses_bad_values_and_restarts_cyan_even_when_it_does_not_a
 
     state, calls = _compat_systemd(helper_module, monkeypatch, active=True)
     assert helper_module.gpu_compatibility(["smu", "process", "1", "0"]) == 0
-    assert state["settings"] == ("smu", "process", "1", "0")
+    assert state["settings"] == ("smu", "process", "1", "0", "drm")
     assert ["/usr/bin/systemctl", "restart", "--no-block", helper_module.CYAN_SERVICE] in calls
     assert json.loads(capsys.readouterr().out)["ok"] is True
 
@@ -2024,7 +2119,7 @@ def test_gpu_compat_refuses_bad_values_and_restarts_cyan_even_when_it_does_not_a
 def test_gpu_compat_can_be_changed_while_cyan_is_stopped(helper_module, monkeypatch, capsys):
     state, calls = _compat_systemd(helper_module, monkeypatch, active=False, enabled=False)
     assert helper_module.gpu_compatibility(["smu", "busy-flag", "0", "1"]) == 0
-    assert state["settings"] == ("smu", "busy-flag", "0", "1")
+    assert state["settings"] == ("smu", "busy-flag", "0", "1", "drm")
     assert not any(call[1:2] == ["restart"] for call in calls)
     assert "next start" in json.loads(capsys.readouterr().out)["message"]
 
@@ -2043,7 +2138,7 @@ def test_gpu_compat_rolls_back_settings_cyan_cannot_start_on(helper_module, monk
         helper_module, monkeypatch, active=True, starts=lambda settings: settings[3] == "0",
     )
     assert helper_module.gpu_compatibility(["smu", "busy-flag", "1", "1"]) == 24
-    assert state["settings"] == ("smu", "busy-flag", "1", "0")
+    assert state["settings"] == ("smu", "busy-flag", "1", "0", "drm")
     assert state["active"] is True
     assert "previous settings were restored" in capsys.readouterr().err
 
@@ -2052,8 +2147,16 @@ def test_gpu_compat_refuses_kernel_options_this_kernel_lacks(helper_module, monk
     state, calls = _compat_systemd(helper_module, monkeypatch, active=True)
     assert helper_module.gpu_compatibility(["smu", "kernel", "1", "0"]) == 20
     assert helper_module.gpu_compatibility(["kernel", "busy-flag", "1", "0"]) == 20
-    assert state["settings"] == ("smu", "busy-flag", "1", "0")
+    assert state["settings"] == ("smu", "busy-flag", "1", "0", "drm")
     assert calls == []
+
+
+def test_gpu_compat_accepts_temp_read_and_rejects_an_invalid_value(helper_module, monkeypatch, capsys):
+    state, _calls = _compat_systemd(helper_module, monkeypatch, active=False, enabled=False)
+    assert helper_module.gpu_compatibility(["smu", "busy-flag", "1", "0", "sysfs"]) == 0
+    assert state["settings"] == ("smu", "busy-flag", "1", "0", "sysfs")
+    assert helper_module.gpu_compatibility(["smu", "busy-flag", "1", "0", "hwmon"]) == 20
+    assert "drm|sysfs" in capsys.readouterr().err
 
 
 def test_kernel_set_probe_rejects_placeholder_overdrive_table(helper_module, tmp_path):
@@ -2159,3 +2262,17 @@ def test_gddr6_patch_reports_the_helpers_own_refusal(helper_module, monkeypatch,
     err = capsys.readouterr().err
     assert "QUICK_ACCESS_GDDR6: GDDR6_FIRMWARE_UNSUPPORTED" in err
     assert len(runs) == 1  # a board refusal is not retried on another checkout
+
+
+def test_vram_2048_stays_in_the_contract_but_is_never_offered_or_written(helper_module, monkeypatch, capsys):
+    """Listed so a 1.21.0 or 1.21.1 plugin keeps agreeing; refused all the same."""
+    written = []
+    monkeypatch.setattr(helper_module, "vram_apply", lambda size: written.append(size) or {})
+
+    assert 2048 in helper_module.VRAM_SIZE_PRESETS_MB
+    assert 2048 not in helper_module._contract_payload()["vram"]["presets"]
+    assert helper_module.vram_apply_action("2048") != 0
+    assert "QUICK_ACCESS_VRAM" in capsys.readouterr().err + capsys.readouterr().out
+    assert written == []
+    assert helper_module.vram_apply_action("4096") == 0
+    assert written == [4096]

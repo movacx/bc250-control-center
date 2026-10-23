@@ -9,10 +9,10 @@ validation fails.
 
 from __future__ import annotations
 
-import json
 import shlex
 from pathlib import Path
 
+from . import container_network
 from .source_checkout import clone_or_update_commit
 
 BC250_FSR4_REPOSITORY = "https://github.com/dmorazasanchez/bc250-fsr4"
@@ -69,162 +69,6 @@ def _fsr4_source_build_mode(
     ):
         return "fedora44-podman-source"
     return ""
-
-
-def fsr4_runtime_state(
-    family: str,
-    distro_id: str = "",
-    version_id: str = "",
-    *,
-    compute_kernel_ready: bool | None = None,
-) -> dict:
-    """Validate the shape of the upstream-managed per-user runtime."""
-
-    library = BC250_FSR4_PREFIX / "libvulkan_radeon.so"
-    revision_file = BC250_FSR4_PREFIX / ".bc250-upstream-revision"
-    build_kind_file = BC250_FSR4_PREFIX / ".bc250-build-kind"
-    artifacts_present = library.exists() or BC250_FSR4_ICD.exists()
-    valid_icd = False
-    if (
-        library.is_file()
-        and not library.is_symlink()
-        and BC250_FSR4_ICD.is_file()
-        and not BC250_FSR4_ICD.is_symlink()
-    ):
-        try:
-            manifest = json.loads(BC250_FSR4_ICD.read_text(encoding="utf-8"))
-            icd = manifest.get("ICD", {})
-            valid_icd = (
-                manifest.get("file_format_version") == "1.0.0"
-                and icd.get("library_path") == str(library)
-                and icd.get("api_version") == "1.4.0"
-            )
-        except (OSError, ValueError, TypeError):
-            pass
-    revision = ""
-    try:
-        revision = revision_file.read_text(encoding="utf-8").strip()
-    except OSError:
-        pass
-    build_kind = ""
-    try:
-        build_kind = build_kind_file.read_text(encoding="utf-8").strip()
-    except OSError:
-        pass
-    if build_kind.endswith("-podman-source"):
-        matching_libdrm = BC250_FSR4_PREFIX / "lib/libdrm.so.2"
-        matching_amdgpu = BC250_FSR4_PREFIX / "lib/libdrm_amdgpu.so.1"
-        valid_icd = bool(
-            valid_icd
-            and matching_libdrm.is_file()
-            and not matching_libdrm.is_symlink()
-            and matching_amdgpu.is_file()
-            and not matching_amdgpu.is_symlink()
-        )
-    runtime_current = bool(
-        valid_icd and revision == BC250_FSR4_REVIEWED_COMMIT
-    )
-    documented, experimental = _fsr4_platform_mode(
-        family=family,
-        distro_id=distro_id,
-    )
-    source_build_mode = _fsr4_source_build_mode(
-        family=family,
-        distro_id=distro_id,
-        version_id=version_id,
-    )
-    source_build_supported = bool(source_build_mode)
-    supported_platform = bool(documented or experimental or source_build_supported)
-    compute_kernel_required = supported_platform
-    kernel_ready = bool(compute_kernel_ready) if compute_kernel_required else True
-    current = bool(runtime_current and supported_platform and kernel_ready)
-    return {
-        "repository": BC250_FSR4_REPOSITORY,
-        "branch": BC250_FSR4_BRANCH,
-        "version": "upstream-v3",
-        "upstream_revision": revision,
-        "build_kind": build_kind,
-        "steam_launch_option": fsr4_steam_launch_option(build_kind),
-        "upstream_managed": True,
-        "prefix": str(BC250_FSR4_PREFIX),
-        "icd": str(BC250_FSR4_ICD),
-        "installed": artifacts_present,
-        "runtime_current": runtime_current,
-        "current": current,
-        "state": (
-            "ready"
-            if current
-            else "kernel-required"
-            if runtime_current and compute_kernel_required
-            else "invalid"
-            if artifacts_present
-            else "not-installed"
-        ),
-        "precompiled_supported": documented,
-        "experimental_precompiled": experimental,
-        "source_build_supported": source_build_supported,
-        "build_mode": source_build_mode or "precompiled",
-        "installer_available": bool(supported_platform and kernel_ready),
-        "source_build_required": source_build_supported or not (documented or experimental),
-        "compute_kernel_required": compute_kernel_required,
-        "compute_kernel_ready": kernel_ready,
-    }
-
-
-def build_fsr4_v3_install_command(destination: str | Path) -> str:
-    """Update the official V3 branch and run its installer unchanged."""
-
-    destination = Path(destination)
-    checkout = clone_or_update_commit(
-        BC250_FSR4_REPOSITORY,
-        destination,
-        BC250_FSR4_REVIEWED_COMMIT,
-    )
-    qdest = shlex.quote(str(destination))
-    return f'''set -euo pipefail
-echo; echo "=========================================================================="; echo "  BC-250 FSR4 - per-game RADV runtime"; echo "  official upstream branch v3"; echo "=========================================================================="; echo
-test -r /etc/os-release || {{ echo "ERROR: /etc/os-release is unavailable."; exit 64; }}
-. /etc/os-release
-case "${{ID:-}}" in
-  arch|cachyos|cachy) ;;
-  *) echo "ERROR: The reviewed precompiled V3 runtime requires Arch or CachyOS with the matched BC-250 kernel."; exit 64 ;;
-esac
-case "$(uname -r)" in
-  *bc250*) ;;
-  *) echo "ERROR: Boot the matched BC-250 kernel before installing or using the FSR4 RADV runtime."; exit 64 ;;
-esac
-command -v git >/dev/null 2>&1 || {{ echo "ERROR: git is required to update the official FSR4 source."; exit 69; }}
-command -v lspci >/dev/null 2>&1 || {{ echo "ERROR: lspci (pciutils) is required to verify BC-250 hardware."; exit 69; }}
-lspci -Dn | grep -qiE '1002:13fe' || {{ echo "ERROR: AMD BC-250 PCI ID 1002:13FE was not detected."; exit 64; }}
-{checkout}
-test -f {qdest}/install-v3.sh || {{ echo "ERROR: official upstream install-v3.sh is missing."; exit 29; }}
-test -f {qdest}/uninstall-v3.sh || {{ echo "ERROR: official upstream uninstall-v3.sh is missing."; exit 29; }}
-test -f {qdest}/bc250-fsr4-v3.patch || {{ echo "ERROR: official upstream V3 patch is missing."; exit 29; }}
-bc250_prefix="$HOME/.local/share/bc250-fsr4/v3"
-bc250_parent="$HOME/.local/share/bc250-fsr4"
-bc250_backup=''
-mkdir -p "$bc250_parent"
-if test -e "$bc250_prefix"; then
-  bc250_backup="$(mktemp -d "$bc250_parent/.v3.backup.XXXXXX")"
-  rmdir "$bc250_backup"
-  mv -- "$bc250_prefix" "$bc250_backup"
-fi
-if BC250_FSR4_PREFIX="$bc250_prefix" bash {qdest}/install-v3.sh; then
-  test -z "$bc250_backup" || rm -rf -- "$bc250_backup"
-else
-  bc250_result=$?
-  rm -rf -- "$bc250_prefix"
-  if test -n "$bc250_backup" && test -e "$bc250_backup"; then
-    mv -- "$bc250_backup" "$bc250_prefix"
-  fi
-  echo "ERROR: The official upstream installer failed; the previous per-user runtime was restored."
-  exit "$bc250_result"
-fi
-git -C {qdest} rev-parse HEAD > "$bc250_prefix/.bc250-upstream-revision"
-echo "OK: official upstream FSR4 V3 installed per-user at revision $(cat "$bc250_prefix/.bc250-upstream-revision")."
-echo "Portable Steam launch option:"
-printf '%s\n' 'VK_DRIVER_FILES="$HOME/.local/share/bc250-fsr4/v3/radv-bc250-fsr4-v3.json" %command%'
-'''
 
 
 def _build_fsr4_v3_podman_install_command(
@@ -297,6 +141,7 @@ fi'''
         BC250_FSR4_REVIEWED_COMMIT,
     )
     qdest = shlex.quote(str(destination))
+    network_setup = "\n".join(container_network.setup_lines("podman"))
     return f'''set -euo pipefail
 echo "== BC-250 FSR4 official V3 source build for {platform_label} =="
 test -r /etc/os-release || {{ echo "ERROR: /etc/os-release is unavailable."; exit 64; }}
@@ -309,6 +154,7 @@ for bc250_command in git lspci podman python3 ldd vulkaninfo; do
 done
 lspci -Dn | grep -qiE '1002:13fe' || {{ echo "ERROR: AMD BC-250 PCI ID 1002:13FE was not detected."; exit 64; }}
 podman info >/dev/null || {{ echo "ERROR: rootless Podman is not ready for the current user."; exit 69; }}
+{network_setup}
 {checkout}
 for bc250_file in Dockerfile build-bc250.sh bc250-fsr4-v3.patch mesa-commit.txt; do
   test -f {qdest}/"$bc250_file" || {{ echo "ERROR: official upstream $bc250_file is missing."; exit 29; }}
@@ -333,9 +179,9 @@ else
   rm -f -- "$bc250_build_revision"
   mkdir -p "$bc250_build"
   echo "Building the official Fedora 44 image with Podman. The first build can take several minutes."
-  podman build --tag "$bc250_image" --build-arg "MESA_COMMIT=$bc250_mesa_commit" {qdest}
+  podman build $bc250_net --tag "$bc250_image" --build-arg "MESA_COMMIT=$bc250_mesa_commit" {qdest}
   echo "Compiling the official FSR4 V3 RADV runtime..."
-  podman run --rm \
+  podman run --rm $bc250_net \
     --env VARIANT=patch \
     --volume {qdest}:/workspace:ro,Z \
     --volume "$bc250_build":/build:Z \
@@ -345,12 +191,12 @@ else
 fi
 if ! podman image exists "$bc250_image"; then
   echo "Restoring the official Fedora 44 image required for the private FSR4 runtime libraries."
-  podman build --tag "$bc250_image" --build-arg "MESA_COMMIT=$bc250_mesa_commit" {qdest}
+  podman build $bc250_net --tag "$bc250_image" --build-arg "MESA_COMMIT=$bc250_mesa_commit" {qdest}
 fi
 bc250_runtime_libs="$bc250_build/runtime-libs"
 rm -rf -- "$bc250_runtime_libs"
 mkdir -p "$bc250_runtime_libs"
-podman run --rm \
+podman run --rm $bc250_net \
   --entrypoint /bin/sh \
   --volume "$bc250_runtime_libs":/out:Z \
   "$bc250_image" \
@@ -425,32 +271,6 @@ echo "OK: official upstream FSR4 V3 was source-built and installed per-user at r
 echo "Steam launch option:"
 printf '%s\n' 'LD_LIBRARY_PATH="$HOME/.local/share/bc250-fsr4/v3/lib${{LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}}" VK_DRIVER_FILES="$HOME/.local/share/bc250-fsr4/v3/radv-bc250-fsr4-v3.json" %command%'
 '''
-
-
-def build_fsr4_v3_bazzite_install_command(destination: str | Path) -> str:
-    """Build official V3 with rootless Podman and install it per-user on Bazzite."""
-
-    return _build_fsr4_v3_podman_install_command(
-        destination, platform_mode="bazzite"
-    )
-
-
-def build_fsr4_v3_debian_install_command(destination: str | Path) -> str:
-    """Refuse FSR4 until Debian/Ubuntu has a matched kernel lifecycle."""
-
-    del destination
-    raise RuntimeError(
-        "FSR4 is unavailable on Debian/Ubuntu until a matching repaired "
-        "GFX1013 kernel can be installed and verified."
-    )
-
-
-def build_fsr4_v3_fedora44_install_command(destination: str | Path) -> str:
-    """Build official V3 per-user after the Fedora GFX1013 kernel repair."""
-
-    return _build_fsr4_v3_podman_install_command(
-        destination, platform_mode="fedora44"
-    )
 
 
 def build_fsr4_v3_uninstall_command(destination: str | Path) -> str:

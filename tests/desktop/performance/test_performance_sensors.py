@@ -320,8 +320,10 @@ def test_the_sensors_switch_loads_the_list_in_the_charts_place(qtbot):
     qtbot.addWidget(page)
     page.resize(1400, 900)
     page.show()
-    page.detail.sensors_button.click()
+    page._select_resource("cpu")
+    page.sensors_tab.gamepad_activate()
     assert page.body.currentWidget() is page.sensor_board
+    assert page.sensor_board.rail_slot.indexOf(page.resource_host) >= 0, "the tabs head the sensor list"
     assert page.gamepad_back() is True
     assert page.body.currentWidget() is page.detail
     page.show_sensors()
@@ -362,3 +364,43 @@ def test_a_third_column_of_graphs_gets_its_share_of_the_width(qtbot):
     qtbot.wait(50)
     widths = [trace.width() for trace in board.plots.traces.values()]
     assert min(widths) > 300, widths
+
+
+def test_a_narrow_board_gives_its_buttons_lines_of_their_own(qtbot):
+    board = SensorBoard(_log_with_sensors())
+    qtbot.addWidget(board)
+    board.resize(1400, 700)
+    board.show()
+    qtbot.wait(5)
+    assert not board._compact and board.splitter.orientation() == Qt.Orientation.Horizontal
+    board.resize(340, 900)
+    qtbot.wait(5)
+    assert board._compact and board.splitter.orientation() == Qt.Orientation.Vertical
+    assert board.tool_row.y() > board.filter_field.y()
+    for button in (board.reset_button,):
+        assert button.sizeHint().width() <= button.width() + 3, button.text()
+    board.resize(1400, 700)
+    qtbot.wait(5)
+    assert not board._compact
+
+
+def test_the_sensors_tab_menu_chooses_the_lists_layout(qtbot):
+    page = PerformancePage(object())
+    qtbot.addWidget(page)
+    page.resize(1400, 900)
+    page.show()
+    qtbot.wait(5)
+    assert page.sensors_tab.has_views()
+    page._select_resource("gpu")
+    assert page.detail.rail_slot.indexOf(page.resource_host) >= 0, "the tabs head the chart too"
+    page._open_views("sensors")
+    assert page.flyout.isVisible() and page.flyout.resource == "sensors"
+    assert [row.view.key for row in page.flyout.rows] == ["list", "split", "graphs"]
+    page.flyout.rows[2].gamepad_activate()
+    assert page.body.currentWidget() is page.sensor_board
+    assert page.sensor_board.mode == "graphs" and page.sensor_board.tree.isHidden()
+    assert not page.flyout.isVisible()
+    page._open_views("sensors")
+    assert [bool(row.property("current")) for row in page.flyout.rows] == [False, False, True]
+    page._open_views("cpu")
+    assert page.flyout.resource == "cpu", "a part's tab still offers its own views"

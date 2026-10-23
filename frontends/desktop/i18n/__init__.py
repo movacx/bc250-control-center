@@ -1500,24 +1500,3 @@ def translation_coverage(strings: Iterable[str], languages: Iterable[str] | None
         if unresolved:
             missing[source] = unresolved
     return missing
-
-
-def strict_translation_coverage(strings: Iterable[str], languages: Iterable[str] | None = None) -> dict[str, list[str]]:
-    """Report sources without an exact interface or backend translation."""
-    # Materialized for the same reason as translation_coverage above.
-    languages = tuple(
-        languages if languages is not None
-        else (code for code in COMPLETE_LOCALES if code != "en")
-    )
-    missing: dict[str, list[str]] = {}
-    for source in strings:
-        source = str(source)
-        if not re.search(r"[A-Za-z]{3}", source):
-            continue
-        unresolved: list[str] = []
-        for language in languages:
-            if source not in load_locale_catalog(language):
-                unresolved.append(language)
-        if unresolved:
-            missing[source] = unresolved
-    return missing

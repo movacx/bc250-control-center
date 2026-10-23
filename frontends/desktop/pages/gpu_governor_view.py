@@ -25,7 +25,7 @@ screen (``gpu_governor.py``) untouched.
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
-from typing import Iterable, Sequence
+from typing import Sequence
 
 from PyQt6.QtCore import QRectF, QSize, Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QPainter, QPainterPath, QPen
@@ -37,7 +37,6 @@ from PyQt6.QtWidgets import (
     QLabel,
     QLineEdit,
     QMenu,
-    QPlainTextEdit,
     QScrollArea,
     QSizePolicy,
     QSpinBox,
@@ -57,7 +56,8 @@ from ..components.page_widgets import (
     caption,
     subpanel,
 )
-from ..components.widgets import PillLabel, icon
+from ..components.style_state import set_style_properties, set_style_property
+from ..components.widgets import icon
 from ..i18n import governor_fix_label, shipped_name, tr, tr_format
 from ..theme import COLORS
 
@@ -104,8 +104,9 @@ def ceiling_for(*, unlocked: bool) -> int:
     return ABSOLUTE_CEILING if unlocked else SAFE_CEILING
 
 
-def offered_points(*, unlocked: bool) -> list[int]:
-    return [point for point in ALL_POINTS if point <= ceiling_for(unlocked=unlocked)]
+def offered_points(*, unlocked: bool, maximum_mhz: int | None = None) -> list[int]:
+    ceiling = min(ceiling_for(unlocked=unlocked), maximum_mhz or ABSOLUTE_CEILING)
+    return [point for point in ALL_POINTS if point <= ceiling]
 
 
 def voltage_for(frequency: int) -> int:
@@ -363,7 +364,7 @@ class PickerRow(QFrame):
     # -- interaction ---------------------------------------------------------
     def open_options(self) -> None:
         """Show the choices. Reached by a click, a controller, or Enter."""
-        if not self._items:
+        if not self._items or not self.isEnabled():
             return
         menu = QMenu(self)
         for index, (text, _data) in enumerate(self._items):
@@ -516,6 +517,7 @@ class ProfileCardEditable(EditableCardNavigation, QFrame):
         self._profile = profile
         self._default = replace(profile)
         self._unlocked = False
+        self._maximum_mhz: int | None = None
         self.setProperty("profileCard", True)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
@@ -536,9 +538,6 @@ class ProfileCardEditable(EditableCardNavigation, QFrame):
         self._name_label.setProperty("profileTitle", True)
         self._name_label.setMinimumWidth(0)
         head.addWidget(self._name_label, 1)
-        self._active_pill = PillLabel(tr("Active"), "blue")
-        self._active_pill.setVisible(False)
-        head.addWidget(self._active_pill, 0)
         self._edit_button = QPushButton()
         self._edit_button.setIcon(icon("edit_gray"))
         self._edit_button.setFixedSize(24, 24)
@@ -641,18 +640,25 @@ class ProfileCardEditable(EditableCardNavigation, QFrame):
         self._sync_view()
 
     def set_active(self, active: bool) -> None:
-        self._active_pill.setVisible(active)
-        self.setProperty("selectedProfile", active)
-        self.style().unpolish(self)
-        self.style().polish(self)
+        # The selected card's outline says it is the active one.
+        set_style_property(self, "selectedProfile", active)
 
     def set_unlocked(self, unlocked: bool) -> None:
         self._unlocked = unlocked
         self._sync_view()
 
+    def set_maximum_mhz(self, maximum_mhz: int | None) -> None:
+        self._maximum_mhz = maximum_mhz
+        ceiling = maximum_mhz or ABSOLUTE_CEILING
+        self._minimum_spin.setMaximum(ceiling)
+        self._maximum_spin.setMaximum(ceiling)
+        self._sync_view()
+
     def is_blocked(self) -> bool:
         """Asks for more than the TOML currently allows."""
-        return self._profile.is_risky() and not self._unlocked
+        return self._profile.maximum > min(
+            ceiling_for(unlocked=self._unlocked), self._maximum_mhz or ABSOLUTE_CEILING
+        )
 
     def begin_edit(self) -> None:
         self._name_edit.setText(self._profile.shown_name())
@@ -714,11 +720,8 @@ class ProfileCardEditable(EditableCardNavigation, QFrame):
         self._range_label.setText(profile.summary())
         self._voltage_label.setText(f"{profile.voltage} mV")
         blocked = self.is_blocked()
-        self._range_label.setProperty("danger", blocked)
-        self.setProperty("blockedProfile", blocked)
-        for widget in (self._range_label, self):
-            widget.style().unpolish(widget)
-            widget.style().polish(widget)
+        set_style_property(self._range_label, "danger", blocked)
+        set_style_property(self, "blockedProfile", blocked)
         self.setToolTip(
             tr("Uncomment the +2000 MHz points to use this profile")
             if self.is_blocked()
@@ -763,6 +766,7 @@ class SafePointRail(QWidget):
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self._unlocked = False
+        self._maximum_mhz: int | None = None
         self._minimum = 1000
         self._maximum = 1850
         self._dragging = ""
@@ -783,6 +787,13 @@ class SafePointRail(QWidget):
             self._minimum = min(self._minimum, self._maximum)
         self.update()
 
+    def set_maximum_mhz(self, maximum_mhz: int | None) -> None:
+        self._maximum_mhz = maximum_mhz
+        ceiling = min(ceiling_for(unlocked=self._unlocked), maximum_mhz or ABSOLUTE_CEILING)
+        self._maximum = min(self._maximum, ceiling)
+        self._minimum = min(self._minimum, self._maximum)
+        self.update()
+
     def set_range(self, minimum: int, maximum: int) -> None:
         self._minimum, self._maximum = minimum, maximum
         self.update()
@@ -791,9 +802,6 @@ class SafePointRail(QWidget):
         return self._minimum, self._maximum
 
     # -- controller and keyboard -------------------------------------------
-    def active_handle(self) -> str:
-        return self._active
-
     def set_active_handle(self, handle: str) -> None:
         if handle in ("minimum", "maximum") and handle != self._active:
             self._active = handle
@@ -824,7 +832,7 @@ class SafePointRail(QWidget):
 
     def step_active_handle(self, delta: int) -> None:
         """Move the active handle by whole safe-points, never between them."""
-        points = offered_points(unlocked=self._unlocked)
+        points = offered_points(unlocked=self._unlocked, maximum_mhz=self._maximum_mhz)
         if not points:
             return
         current = self._minimum if self._active == "minimum" else self._maximum
@@ -844,7 +852,7 @@ class SafePointRail(QWidget):
             event.accept()
             return
         if key in (Qt.Key.Key_Home, Qt.Key.Key_End):
-            points = offered_points(unlocked=self._unlocked)
+            points = offered_points(unlocked=self._unlocked, maximum_mhz=self._maximum_mhz)
             if points:
                 self.step_active_handle(-len(points) if key == Qt.Key.Key_Home else len(points))
             event.accept()
@@ -875,7 +883,7 @@ class SafePointRail(QWidget):
         return self._MARGIN + usable * fraction
 
     def _frequency_at(self, x: float) -> int:
-        return min(offered_points(unlocked=self._unlocked),
+        return min(offered_points(unlocked=self._unlocked, maximum_mhz=self._maximum_mhz),
                    key=lambda point: abs(self._x_for(point) - x))
 
     # -- interaction --------------------------------------------------------
@@ -1000,63 +1008,13 @@ class SafePointRail(QWidget):
         super().focusOutEvent(event)
         self.update()
 
+    def active_handle(self) -> str:
+        return self._active
+
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Console, point table and contract
+# Point table and contract
 # ─────────────────────────────────────────────────────────────────────────────
-
-class OperationsConsole(QFrame):
-    """Console that fills the full height of its column.
-
-    Kept on purpose, empty and without actions: service output now runs in
-    the application's terminal, and this panel is reserved for later use.
-    """
-
-    def __init__(self, parent: QWidget | None = None):
-        super().__init__(parent)
-        self.setProperty("subPanel", True)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        root = QVBoxLayout(self)
-        root.setContentsMargins(0, 0, 0, 0)
-        root.setSpacing(0)
-
-        head = QWidget()
-        # Scoped to the header itself: a bare declaration also underlined every
-        # label inside it and restyled their tooltips.
-        head.setObjectName("gpuPanelHead")
-        head.setStyleSheet(
-            f"QWidget#gpuPanelHead {{ border-bottom:1px solid {COLORS['border_soft']}; }}"
-        )
-        head_row = QHBoxLayout(head)
-        head_row.setContentsMargins(14, 11, 14, 11)
-        head_row.setSpacing(10)
-        title = QLabel(tr("Operations console"))
-        title.setProperty("cardTitle", True)
-        head_row.addWidget(title, 1)
-        root.addWidget(head)
-
-        self.output = QPlainTextEdit()
-        self.output.setReadOnly(True)
-        self.output.setFrameShape(QFrame.Shape.NoFrame)
-        self.output.setMinimumHeight(300)
-        self.output.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        self.output.setStyleSheet(
-            f"QPlainTextEdit {{ background:{COLORS['console_bg']};"
-            f" color:{COLORS['console_text']}; border:none; padding:10px 13px;"
-            " border-bottom-left-radius:12px; border-bottom-right-radius:12px;"
-            " font-family:'JetBrains Mono','DejaVu Sans Mono',monospace; font-size:12px; }"
-        )
-        root.addWidget(self.output, 1)
-
-    def append(self, line: str) -> None:
-        self.output.appendPlainText(line)
-
-    def set_lines(self, lines: Iterable[str]) -> None:
-        self.output.setPlainText("\n".join(lines))
-
-    def text(self) -> str:
-        return self.output.toPlainText()
-
 
 class _SafePointRow(QFrame):
     """One frequency/voltage entry of the safe-point table.
@@ -1327,6 +1285,11 @@ class GpuViewState:
     usage_method: str = "busy-flag"
     fix_metrics: bool = True
     fix_frequency: bool = False
+    temp_read: str = "drm"
+    #: None: unknown (no binary found); False: this Cyan ignores temp-read.
+    temp_read_supported: bool | None = None
+    frequency_ceiling_mhz: int | None = None
+    frequency_ceiling_reason: str = ""
 
     @classmethod
     def from_backend(cls, gpu: dict, telemetry: dict | None = None) -> "GpuViewState":
@@ -1387,6 +1350,10 @@ class GpuViewState:
             usage_method=str(cyan.get("method") or "busy-flag"),
             fix_metrics=bool(cyan.get("fix_metrics", True)),
             fix_frequency=bool(cyan.get("fix_frequency", False)),
+            temp_read=str(cyan.get("temp_read") or "drm"),
+            temp_read_supported=cyan.get("temp_read_supported"),
+            frequency_ceiling_mhz=integer(high_points.get("ceiling_mhz")) or None,
+            frequency_ceiling_reason=str(high_points.get("ceiling_reason") or ""),
         )
 
 
@@ -1412,7 +1379,6 @@ class GpuGovernorView(QWidget):
 
         apply_state(GpuViewState)
         set_profiles(profiles)
-        set_console_lines(lines) / append_console_line(line)
     """
 
     range_apply_requested = pyqtSignal(int, int)
@@ -1599,7 +1565,12 @@ class GpuGovernorView(QWidget):
         self.usage_method_combo = PickerRow("Usage reading")
         for usage_method in ("busy-flag", "process", "kernel"):
             self.usage_method_combo.addItem(usage_method, usage_method)
-        for picker in (self.set_method_combo, self.usage_method_combo):
+        # gpu-usage.temp-read: the same sensor through the DRM ioctl or hwmon
+        # in sysfs; sysfs keeps no DRM client open just for the temperature.
+        self.temp_read_combo = PickerRow("Temperature reading")
+        self.temp_read_combo.addItem("DRM", "drm")
+        self.temp_read_combo.addItem("sysfs", "sysfs")
+        for picker in (self.set_method_combo, self.usage_method_combo, self.temp_read_combo):
             picker.currentIndexChanged.connect(self._mark_compatibility_dirty)
             methods.addWidget(picker, 1)
         compat_box.addLayout(methods)
@@ -1657,6 +1628,9 @@ class GpuGovernorView(QWidget):
         self.apply_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.apply_button.clicked.connect(self._confirm_and_apply)
         actions.addWidget(self.apply_button, 2)
+        # Beside "Save for startup", so it takes that button's measurements:
+        # the regular primary padding left it a few pixels taller.
+        self.apply_button.setProperty("ghostSized", True)
         card.body.addLayout(actions)
         card.body.addStretch(1)
         return card
@@ -1809,8 +1783,7 @@ class GpuGovernorView(QWidget):
     def _build_advanced_card(self) -> SectionCard:
         card = SectionCard(
             "Advanced GPU diagnostics",
-            "TOML safe-point controls, voltage validation, hardware details, "
-            "and operation output.",
+            "TOML safe-point controls, voltage validation and hardware details.",
             icon_name="",
         )
         # add_header_button keeps SectionCard's own bookkeeping in sync; adding
@@ -1843,13 +1816,9 @@ class GpuGovernorView(QWidget):
         left_box.addWidget(self._safe_point_table)
         left_box.addWidget(self._contract)
         left_box.addStretch(1)
-
-        self.console = OperationsConsole()
-
+        # Service output runs in the application's terminal: the table and
+        # the contract take the card's whole width.
         body.addWidget(left, 0, 0)
-        body.addWidget(self.console, 0, 1)
-        body.setColumnStretch(0, 13)
-        body.setColumnStretch(1, 10)
         self._advanced_body.setVisible(False)
         card.root.addWidget(self._advanced_body)
         return card
@@ -1881,6 +1850,7 @@ class GpuGovernorView(QWidget):
         self._frequencies_toggle.setText(governor_fix_label("frequency"))
         self.set_method_combo.retranslate()
         self.usage_method_combo.retranslate()
+        self.temp_read_combo.retranslate()
         self._refresh_risk_caption()
         self._busy_badge.retranslate()
         self._advanced_toggle.setText(
@@ -1896,10 +1866,9 @@ class GpuGovernorView(QWidget):
         self.service_toggle.setText(
             tr("Stop governor") if running else tr("Start governor")
         )
-        self.service_toggle.setProperty("dangerAction", running)
-        self.service_toggle.setProperty("successAction", not running)
-        self.service_toggle.style().unpolish(self.service_toggle)
-        self.service_toggle.style().polish(self.service_toggle)
+        set_style_properties(
+            self.service_toggle, {"dangerAction": running, "successAction": not running}
+        )
 
     # ── safe mode banner ───────────────────────────────────────────────────
     def _sync_safe_mode(self, state: "GpuViewState") -> None:
@@ -1942,6 +1911,12 @@ class GpuGovernorView(QWidget):
             "usage_method": str(self.usage_method_combo.currentData() or "busy-flag"),
             "metrics": self._metrics_toggle.isChecked(),
             "frequencies": self._frequencies_toggle.isChecked(),
+            # Only for a Cyan that reads it; otherwise the line stays as is.
+            "temp_read": (
+                str(self.temp_read_combo.currentData() or "drm")
+                if self.temp_read_combo.isEnabled()
+                else None
+            ),
         }
 
     def _sync_compatibility(self, state: "GpuViewState") -> None:
@@ -1950,6 +1925,7 @@ class GpuGovernorView(QWidget):
         widgets = (
             self.set_method_combo,
             self.usage_method_combo,
+            self.temp_read_combo,
             self._metrics_toggle,
             self._frequencies_toggle,
         )
@@ -1959,12 +1935,25 @@ class GpuGovernorView(QWidget):
             usage_index = self.usage_method_combo.findData(state.usage_method)
             self.set_method_combo.setCurrentIndex(max(0, set_index))
             self.usage_method_combo.setCurrentIndex(max(0, usage_index))
+            self.temp_read_combo.setCurrentIndex(max(0, self.temp_read_combo.findData(state.temp_read)))
             self._metrics_toggle.setChecked(state.fix_metrics)
             self._frequencies_toggle.setChecked(state.fix_frequency)
         finally:
             for widget, previous in zip(widgets, blocked, strict=True):
                 widget.blockSignals(previous)
         self._sync_process_method_warning()
+        # An older Cyan ignores temp-read: shown, so the option is known, but
+        # not sent. Unknown (no binary found) is left usable.
+        supported = state.temp_read_supported is not False
+        self.temp_read_combo.setEnabled(supported)
+        self.temp_read_combo.setToolTip(
+            tr(
+                "Where Cyan reads the GPU temperature. Both give the same value; "
+                "sysfs keeps no GPU device open just for it. DRM is the default."
+            )
+            if supported
+            else tr("This Cyan version does not read this setting. Update it from Prepare dependencies.")
+        )
 
     # ── interaction ────────────────────────────────────────────────────────
     def _toggle_advanced(self, checked: bool) -> None:
@@ -2175,7 +2164,13 @@ class GpuGovernorView(QWidget):
             else tr("Uncomment +2000 MHz points")
         )
         self._locked_label.setText(
-            ""
+            tr_format(
+                "{reason} Maximum selectable frequency: {ceiling} MHz.",
+                reason=state.frequency_ceiling_reason,
+                ceiling=state.frequency_ceiling_mhz,
+            )
+            if state.frequency_ceiling_mhz is not None
+            else ""
             if unlocked
             else tr_format(
                 "{minimum}–{maximum} MHz COMMENTED IN THE TOML",
@@ -2187,8 +2182,10 @@ class GpuGovernorView(QWidget):
         self._sync_safe_mode(state)
         self._sync_compatibility(state)
         self._rail.set_unlocked(unlocked)
+        self._rail.set_maximum_mhz(state.frequency_ceiling_mhz)
         for profile_card in self._profile_cards:
             profile_card.set_unlocked(unlocked)
+            profile_card.set_maximum_mhz(state.frequency_ceiling_mhz)
         self._sync_selection()
 
     def sync_active_range(self, minimum: int, maximum: int) -> None:
@@ -2207,7 +2204,10 @@ class GpuGovernorView(QWidget):
 
     def _sync_selection(self) -> None:
         unlocked = self._state.unlocked
-        ceiling = ceiling_for(unlocked=unlocked)
+        ceiling = min(
+            ceiling_for(unlocked=unlocked),
+            self._state.frequency_ceiling_mhz or ABSOLUTE_CEILING,
+        )
         self._selected_maximum = min(self._selected_maximum, ceiling)
         self._selected_minimum = min(self._selected_minimum, self._selected_maximum)
 
@@ -2215,12 +2215,17 @@ class GpuGovernorView(QWidget):
         self._range_readout.setText(
             f"{self._selected_minimum} – {self._selected_maximum} MHz"
         )
-        self._range_subtitle.setText(
-            tr_format(
-                "Fine-tune over the TOML points · current ceiling {ceiling} MHz.",
-                ceiling=ceiling,
-            )
+        subtitle = tr_format(
+            "Fine-tune over the TOML points · current ceiling {ceiling} MHz.",
+            ceiling=ceiling,
         )
+        if self._state.frequency_ceiling_mhz is not None:
+            subtitle = tr_format(
+                "{reason} Maximum selectable frequency: {ceiling} MHz.",
+                reason=self._state.frequency_ceiling_reason,
+                ceiling=ceiling,
+            ) + " " + subtitle
+        self._range_subtitle.setText(subtitle)
         self._minimum_line.set_values(str(self._selected_minimum))
         self._maximum_line.set_values(
             str(self._selected_maximum),
@@ -2267,15 +2272,6 @@ class GpuGovernorView(QWidget):
             )
         )
 
-    def set_console_lines(self, lines: Iterable[str]) -> None:
-        self.console.set_lines(lines)
-
-    def append_console_line(self, line: str) -> None:
-        self.console.append(line)
-
-    def console_text(self) -> str:
-        return self.console.text()
-
     # ── lifecycle ──────────────────────────────────────────────────────────
     def showEvent(self, event) -> None:  # noqa: N802 (Qt)
         super().showEvent(event)
@@ -2307,16 +2303,6 @@ class GpuGovernorView(QWidget):
             self._workspace.removeWidget(self._telemetry)
             self._workspace.addWidget(self._telemetry, 0, 1)
             self._workspace.setColumnStretch(1, 12)
-
-        console_stacked = self._advanced_grid.itemAtPosition(1, 0) is not None
-        if stacked and not console_stacked:
-            self._advanced_grid.removeWidget(self.console)
-            self._advanced_grid.addWidget(self.console, 1, 0)
-            self._advanced_grid.setColumnStretch(1, 0)
-        elif not stacked and console_stacked:
-            self._advanced_grid.removeWidget(self.console)
-            self._advanced_grid.addWidget(self.console, 0, 1)
-            self._advanced_grid.setColumnStretch(1, 10)
 
         columns = 1 if width < 700 else 3
         current = 1 if self._profiles_grid.itemAtPosition(1, 0) is not None else 3
@@ -2352,14 +2338,6 @@ def _demo() -> None:  # pragma: no cover
     view.resize(1600, 980)
     # An f-string keeps this developer-only title out of the i18n catalogs.
     view.setWindowTitle(f"BC250 · GPU module ({mode} preview)")
-    view.set_console_lines(
-        (
-            "10:41:58 governor → cyan-skillfish-governor-smu ready",
-            f"10:41:58 toml → {len(SAFE_POINTS)} safe-points loaded",
-            "10:42:06 dbus → SetRange(1000, 1850)",
-            "10:42:06 ok range accepted · max 1850 MHz",
-        )
-    )
     view.show()
 
     def tick() -> None:
@@ -2387,16 +2365,8 @@ def _demo() -> None:  # pragma: no cover
     timer.start(1600)
     tick()
 
-    view.range_apply_requested.connect(
-        lambda low, high: view.append_console_line(f"dbus → SetRange({low}, {high})")
-    )
     view.high_points_toggle_requested.connect(
-        lambda enabled: (
-            view.apply_state(replace(view._state, unlocked=enabled)),
-            view.append_console_line(
-                f"toml → +2000 points {'uncommented' if enabled else 'commented out'}"
-            ),
-        )
+        lambda enabled: view.apply_state(replace(view._state, unlocked=enabled))
     )
     sys.exit(app.exec())
 

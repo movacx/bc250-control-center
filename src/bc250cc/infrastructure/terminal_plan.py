@@ -56,10 +56,6 @@ def set_translator(translate=None) -> None:
     _TRANSLATOR = translate if callable(translate) else _identity
 
 
-def active_translator():
-    return _TRANSLATOR
-
-
 def exit_explanation_shell(translate=None) -> str:
     """Shell fragment explaining a failing status, with a traceable code.
 
@@ -113,16 +109,24 @@ def exit_explanation_shell(translate=None) -> str:
             marker.replace("\\", "\\\\").replace("|", "\\|") for marker in entry.markers
         )
         text_rules.append(
-            f'if printf "%s" "$evidence" | grep -qiE {shlex.quote(patterns)}; then '
+            f'if printf "%s" "$target" | grep -qiE {shlex.quote(patterns)}; then '
             f'summary={shlex.quote(translate(entry.summary))}; '
             f'cause={shlex.quote(translate(entry.cause))}; '
             f'action={shlex.quote(translate(entry.action))}; '
             f'diagnostic={shlex.quote(entry.code)}; matched=1; fi; '
         )
 
+    workflow = error_catalog.BY_CODE[_WORKFLOW_REPORTED_CODE]
+    workflow_action = shlex.quote(translate(workflow.action))
     return (
         'if [ "$status" -ne 0 ]; then '
         'matched=0; '
+        # When the script explained itself, its own [ERROR] lines are what a
+        # rule is matched against: the tail of the log can hold an earlier,
+        # unrelated step. Rules run in catalog order and a later match wins.
+        'target=$evidence; '
+        'if [ -n "$first_error" ]; then '
+        'target=$(printf "%s\\n%s" "$first_error" "$error_hints"); fi; '
         + "".join(text_rules)
         + 'if [ "$matched" -eq 0 ]; then '
         'case "$status" in '
@@ -139,9 +143,14 @@ def exit_explanation_shell(translate=None) -> str:
         # and printing both invites the two to contradict each other.
         'if [ -n "$first_error" ]; then summary=$first_error; '
         # A rule matched from the exit status would misattribute a failure the
-        # workflow already explained, so fall back to the neutral identifier.
-        f'diagnostic={_WORKFLOW_REPORTED_CODE}; fi; '
-        'if [ -n "$error_hints" ]; then cause=""; action=$error_hints; fi; '
+        # workflow already explained: scripts reuse numbers that mean
+        # something else for a helper (22 is a Cyan D-Bus fault there), which
+        # once called a fan driver failure "Cyan is stopped". Only a rule
+        # matched from the script's own words keeps its code and cause.
+        'if [ "$matched" -eq 0 ]; then '
+        f'diagnostic={_WORKFLOW_REPORTED_CODE}; cause=""; action={workflow_action}; fi; fi; '
+        'if [ -n "$error_hints" ]; then '
+        'if [ "$matched" -eq 0 ]; then cause=""; fi; action=$error_hints; fi; '
         # Framed block: in a long scrolling log the diagnosis has to be
         # findable at a glance, not another indistinguishable line of output.
         f'echo; echo "{_RULE}"; '
@@ -156,6 +165,10 @@ def exit_explanation_shell(translate=None) -> str:
     )
 
 
+#: How far back the workflow's own [ERROR] lines are looked for.
+ERROR_SCAN_LINES = 120
+
+
 def _evidence_capture_shell(log_path: object) -> str:
     """Shell fragment that captures the tail of the workflow log as evidence.
 
@@ -163,7 +176,15 @@ def _evidence_capture_shell(log_path: object) -> str:
     so it reflects only the command's own output, not the summary text.
     """
     log = shlex.quote(str(log_path))
-    return f"evidence=$(tail -n 12 {log} 2>/dev/null)"
+    # The script's own [ERROR] lines are looked for further back than the tail
+    # that is shown: a script may print diagnostics after its error (the
+    # SteamOS fan script prints modules, hwmon and dmesg), and with only the
+    # last 12 lines the error fell out, the exit status 22 took over, and a fan
+    # driver failure was reported as a Cyan D-Bus fault.
+    return (
+        f"evidence=$(tail -n 12 {log} 2>/dev/null); "
+        f"error_scan=$(tail -n {ERROR_SCAN_LINES} {log} 2>/dev/null)"
+    )
 
 
 def _first_error_shell(translate=None) -> str:
@@ -178,13 +199,13 @@ def _first_error_shell(translate=None) -> str:
     """
     translate = translate if callable(translate) else _TRANSLATOR
     return (
-        'if [ "$status" -ne 0 ] && [ -n "$evidence" ]; then '
+        'if [ "$status" -ne 0 ] && [ -n "$error_scan" ]; then '
         # First ERROR/FATAL line: what happened.
-        'first_error=$(printf "%s\\n" "$evidence" '
+        'first_error=$(printf "%s\\n" "$error_scan" '
         '| grep -m1 -E "^[[:space:]]*\\[(ERROR|FATAL)\\][: ]*" '
         '| sed -E "s/^[[:space:]]*\\[(ERROR|FATAL)\\][: ]*//" || true); '
         # Remaining ERROR lines: the script's own remediation steps.
-        'error_hints=$(printf "%s\\n" "$evidence" '
+        'error_hints=$(printf "%s\\n" "$error_scan" '
         '| grep -E "^[[:space:]]*\\[(ERROR|FATAL)\\][: ]*" '
         '| tail -n +2 '
         '| sed -E "s/^[[:space:]]*\\[(ERROR|FATAL)\\][: ]*/  /" || true); '

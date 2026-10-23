@@ -1,5 +1,9 @@
 #!/usr/bin/env sh
 set -eu
+if ! python3 -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 1)' >/dev/null 2>&1; then
+  echo "BC250 Control Center needs Python 3.11 or newer; this system has $(python3 -V 2>&1 || echo 'no python3')." >&2
+  exit 2
+fi
 XDG_DATA_BASE="${XDG_DATA_HOME:-$HOME/.local/share}"
 for APP_DIR in \
   "${BC250_CONTROL_CENTER_DIR:-}" \

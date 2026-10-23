@@ -91,40 +91,6 @@ def test_missing_packaged_point_aborts_without_partial_write(tmp_path):
     assert path.read_text(encoding="utf-8") == original
 
 
-def test_the_voltage_levels_follow_the_shared_profile_rules(qtbot):
-    """The "Original"/"Proposed" column headers this test used to pin belonged
-    to ``VoltageCurveGrid``, the table of the deleted voltage-lab page.  The
-    drawer that replaced it shows one editable value per row and no such
-    columns, so there is nothing left to assert about them.  What does still
-    matter — which voltage each profile level maps a frequency to — is below.
-    """
-    page = GpuGovernorPage(object())
-    qtbot.addWidget(page)
-
-    assert page._voltage_for_level(2200, 3) == 1080
-    assert page._voltage_for_level(2230, 3) == 1115
-    assert page._voltage_for_level(2400, 6) == 1210
-
-
-def test_high_oc_range_requires_every_level_three_point(qtbot):
-    page = GpuGovernorPage(object())
-    qtbot.addWidget(page)
-    page.safe_voltage_map = dict(GOVERNOR_DEFAULT_SAFE_POINTS)
-
-    gaps = page._high_oc_voltage_gaps(2200)
-
-    assert [frequency for frequency, _required, _current in gaps] == [
-        2000,
-        2050,
-        2100,
-        2125,
-        2150,
-        2200,
-    ]
-    page.safe_voltage_map = voltage_profile(3)
-    assert page._high_oc_voltage_gaps(2400) == ()
-
-
 def test_high_oc_range_validation_warns_for_partial_curve_without_blocking(qtbot, monkeypatch):
     page = GpuGovernorPage(object())
     qtbot.addWidget(page)

@@ -43,6 +43,7 @@ from ..components.responsive import (
     configure_responsive_scroll_area,
     effective_viewport_width,
 )
+from ..components.style_state import set_style_property
 from ..components.toast import show_toast
 from ..components.widgets import (
     InfoDialog,
@@ -56,6 +57,7 @@ from ..core.compute_units_presenter import (
     present_compute_units_state,
 )
 from ..core.cu_balance import balanced_masks, engine_balance
+from ..core.raw_errors import remember
 from ..core.state import state_cache_for
 from ..i18n import count_label, localize_widget_tree, tr, tr_format
 from ..theme import COLORS, application_stylesheet
@@ -114,6 +116,7 @@ class CuTask(QThread):
         try:
             self.succeeded.emit(self.operation())
         except Exception as error:  # pragma: no cover - exercised on hardware
+            remember(error)
             self.failed.emit(str(error))
 
 
@@ -300,12 +303,10 @@ class WgpToggleButton(QPushButton):
         else:
             state, token, sub = "off", "--", "OFF"
             meaning = "This WGP pair is not routed."
-        self.setProperty("routeState", state)
+        set_style_property(self, "routeState", state)
         self.setText(f"{token}\n{tr(sub)}")
         pair = WGP_CU_PAIRS[self.wgp_index]
         self.setToolTip(f"WGP{self.wgp_index} · CU{pair}\n{tr(meaning)}")
-        self.style().unpolish(self)
-        self.style().polish(self)
         self.update()
 
 

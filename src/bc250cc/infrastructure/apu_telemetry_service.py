@@ -40,6 +40,7 @@ from __future__ import annotations
 import shlex
 from pathlib import Path
 
+from . import container_network
 from .source_checkout import clone_or_update_commit
 from .steamos_readonly import STEAMOS_PASSWORD_GUARD
 from .vrm_telemetry_reader import KERNEL_VRM_MODULE, kernel_vrm_driver_present
@@ -181,8 +182,10 @@ def _container_build(quoted_checkout: str) -> tuple[tuple[str, ...], tuple[str, 
     return (
         "command -v podman >/dev/null 2>&1 || { echo 'ERROR: Podman is required to build the daemon on SteamOS.'; exit 29; }",
         "podman info >/dev/null 2>&1 || { echo 'ERROR: rootless Podman is not ready for the current user.'; exit 29; }",
+        *container_network.setup_lines("podman"),
     ), (
-        f'podman run --rm --network=none --userns=keep-id -v {quoted_checkout}:/src:ro '
+        # No network for the build, unless the overlay on /sys leaves no other way to start it.
+        f'podman run --rm ${{bc250_net:---network=none}} --userns=keep-id -v {quoted_checkout}:/src:ro '
         f'-v "$bc250_stage":/out {image} '
         "g++ -std=c++17 -O2 -static -o /out/apu_telemetry /src/bc250_telemetry.cpp || "
         "{ echo 'ERROR: the daemon did not build; nothing was installed.'; exit 30; }",
@@ -240,7 +243,13 @@ def _install(checkout: Path, family: str = "") -> str:
         'rm -rf "$bc250_stage"; mkdir -p "$bc250_stage"',
         *(_pull_build_image() if steamos else ()),
         'echo "== Building the daemon =="',
+        # The compiler is silent for a while; a heartbeat shows it is not stuck.
+        'bc250_hb_start=$SECONDS',
+        '( while sleep 15; do echo "[INFO] still building... $((SECONDS - bc250_hb_start)) s"; done ) &',
+        "bc250_heartbeat=$!",
+        "trap 'kill \"$bc250_sudo_keepalive\" \"$bc250_heartbeat\" 2>/dev/null || true' EXIT",
         *build_steps,
+        'kill "$bc250_heartbeat" 2>/dev/null || true',
         'test -x "$bc250_stage/apu_telemetry" || { echo "ERROR: the built daemon is missing."; exit 30; }',
         # Our marker first, then upstream's unit with its binary path filled in.
         f'{{ printf \'%s\\n\' {marker}; sed "s|TELEMETRY_BIN_PATH|{binary_path}|g" {quoted_checkout}/apu-telemetry.service; }} '

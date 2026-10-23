@@ -51,6 +51,18 @@ when A is pressed without turning every datum into a coloured card.
    chooser, avoiding Decky dropdown popup behavior that failed on the target
    Steam client. PWM 2 remains the default.
 
+## Failures
+
+- Every failure reaches the player as a short title, a stable code
+  (`QUICK_ACCESS_*`, the helper's own prefixes plus a few only the backend or
+  panel can see) and one next step. The raw helper text, the Desktop's
+  `BC250-AREA-NNN` code and the exit status sit behind Details, with Copy.
+- One table decides all of it: `ERROR_CODES` in `main.py`. Every public RPC is
+  wrapped so a failed result, or a backend exception, carries its diagnosis;
+  the panel never classifies raw text itself except for an older backend
+  still running after an update.
+- Codes are quoted by players: add new ones, never rename one.
+
 ## Explicit non-goals
 
 - Do not bring back Live Scenes or turn telemetry into another write surface.

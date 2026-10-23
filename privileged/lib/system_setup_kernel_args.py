@@ -104,11 +104,29 @@ def _read_exact(host: Host, name: str) -> str:
         return ""
 
 
+def _steamos_menu_present(host: Host) -> bool:
+    """SteamOS's boot menu on the EFI partition.
+
+    The unprivileged status cannot look inside /efi/EFI/steamos (root only):
+    Path.is_file() raises there instead of answering, and that one error took
+    the whole status down, so every memory, swap and TTM control was locked.
+    A menu hidden from this user is taken as present; the privileged apply
+    checks it again before writing anything.
+    """
+    try:
+        return host.path(STEAMOS_GRUB_OUTPUT).is_file()
+    except PermissionError:
+        return True
+
+
 def _backend(host: Host) -> str:
     if host.steamos():
         # Only a GRUB that reads the drop-in directory: SteamOS's own
         # /etc/default/grub belongs to the image and is never edited.
-        if host.command("grub-mkconfig") and grub_reads_dropins(host):
+        # And its boot menu on the EFI partition, which every write regenerates:
+        # without it the status offered a limit that the first apply refused.
+        if (host.command("grub-mkconfig") and grub_reads_dropins(host)
+                and _steamos_menu_present(host)):
             return "steamos-grub"
         return "unsupported"
     if host.immutable_image():
@@ -164,12 +182,6 @@ def _configured_tokens(host: Host, backend: str) -> set[str]:
     return _tokens(text)
 
 
-def _configured(host: Host, backend: str) -> set[str]:
-    """Arguments the boot configuration asks for, whoever wrote them."""
-    tokens = _configured_tokens(host, backend)
-    return {argument for argument in ARGUMENTS if argument in tokens}
-
-
 def _other_cu_mode(tokens: set[str]) -> bool:
     """The write mode set to something other than 3, by somebody else."""
     return any(token.startswith(CU_UNLOCK_PREFIX) and token != CU_UNLOCK for token in tokens)
@@ -216,6 +228,31 @@ def _stale(host: Host, backend: str, saved: dict, configured_tokens: set[str] | 
     if configured_tokens is None:
         configured_tokens = _configured_tokens(host, backend)
     return managed - configured_tokens
+
+
+def smt_status(host: Host) -> dict:
+    """Whether SMT can be switched while the system runs, and what it is now.
+
+    The kernel reports ``on``, ``off``, ``forceoff`` (``nosmt=force`` on the
+    command line: it cannot be switched back without a reboot),
+    ``notsupported`` or ``notimplemented``.
+    """
+    control = host.read(SMT_CONTROL).strip()
+    return {"control": control, "supported": control in {"on", "off"} and host.writable_parameter(SMT_CONTROL)}
+
+
+def smt_live(host: Host, mode: str) -> dict:
+    """Switch SMT on or off now. It is not saved: the next boot starts as its boot options say."""
+    if mode not in {"on", "off"}:
+        raise SetupError("SMT can only be switched on or off")
+    current = smt_status(host)
+    if not current["supported"]:
+        raise SetupError(
+            f"SMT cannot be switched while the system runs here (the kernel reports "
+            f"{current['control'] or 'no SMT control'})"
+        )
+    host.parameter(SMT_CONTROL, mode)
+    return {"smt": smt_status(host)}
 
 
 def status(host: Host) -> dict:
@@ -270,6 +307,7 @@ def status(host: Host) -> dict:
         }
     mode = host.read(CU_UNLOCK_PARAMETER).strip()
     return {
+        "smt": smt_status(host),
         "backend": backend,
         "available": backend != "unsupported" and host.bc250(),
         # The switches this host's boot loader takes; SteamOS not the CU unlock.

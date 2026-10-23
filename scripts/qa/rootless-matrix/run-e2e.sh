@@ -2,7 +2,7 @@
 # run-e2e.sh [kind...] -- the whole chain as a desktop user: install-local.sh,
 # install-decky-quick-access.sh, then Game Mode's plugin against the installed
 # root helpers, then the uninstaller. Rootless.
-here=$(cd "$(dirname "$0")" && pwd); QA=${BC250_QA:-$HOME/.cache/bc250-qa}
+here=$(cd "$(dirname "$0")" && pwd); export BC250_REPO=${BC250_REPO:-$(cd "$here/../../.." && pwd)}; QA=${BC250_QA:-$HOME/.cache/bc250-qa}
 declare -A ROOTFS=( [arch-grub-new]=archlinux-current [cachyos-limine]=archlinux-current [steamos]=archlinux-current
   [debian-grub]=debian-trixie [ubuntu-grub]=ubuntu-noble [mint-grub]=ubuntu-noble [py310-refused]=mint-zena [fedora-grubby]=fedora-44
   [nobara-grubby]=fedora-44 [bazzite]=fedora-44 )
@@ -12,7 +12,9 @@ rc=0
 for kind in "${kinds[@]}"; do
   echo "=== e2e $kind"
   args=(); [ -n "${OSREL[$kind]:-}" ] && args=(--os-release "$here/os-release/${OSREL[$kind]}")
-  flag=""; [ "$kind" = steamos ] && flag="--unsupported"
+  # SteamOS keeps the GPU memory limit through its own GRUB since c7444c1, so
+  # it walks the same panel flow as every other family.
+  flag=""
   if [ "$kind" = py310-refused ]; then
     BC250_QA=$QA "$here/enter-user.sh" "${ROOTFS[$kind]}" "${args[@]}" --root "/src/scripts/qa/rootless-matrix/prep.sh $kind" \
       --user "BC250_SKIP_DEPENDENCY_INSTALL=1 bash /src/scripts/install-local.sh 2>&1 | tail -n 3 | grep -q 'needs Python 3.11' && echo '  PASS  Python 3.10 systems are refused with a clear message' || { echo '  FAIL  Python 3.10 was not refused cleanly'; exit 1; }" || rc=1

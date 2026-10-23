@@ -309,7 +309,7 @@ def _cpu_applied_text(
         )
     if source == "live":
         return value, _text("~{vid} mV estimated · {temperature} °C · live test", **detail_values)
-    return value, _text("Automatic detection · {temperature} °C", temperature=detail_values["temperature"])
+    return value, _text("Applied by automatic detection · {temperature} °C · until restart", temperature=detail_values["temperature"])
 
 
 def _cpu_override_status(

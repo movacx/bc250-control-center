@@ -21,6 +21,7 @@ import subprocess
 import sys
 import tempfile
 import time
+
 try:
     import tomllib
 except ModuleNotFoundError:  # Python 3.10: Ubuntu 22.04, Linux Mint 21
@@ -77,6 +78,7 @@ CPU_CONFIG = pathlib.Path("/etc/bc250-smu-oc.conf")
 CPU_SERVICE_NAME = "bc250-smu-oc.service"
 CPU_SERVICE_UNIT = pathlib.Path("/etc/systemd/system/bc250-smu-oc.service")
 CPU_QAM_TEMPERATURE = 90
+CPU_QAM_TEMPERATURE_RANGE = (70, 90)
 CPU_STRESS_PATHS = (
     pathlib.Path("/usr/bin/stress"),
     pathlib.Path("/bin/stress"),
@@ -157,7 +159,7 @@ def _load_gpu_profile_overrides(
             or not isinstance(name, str) or not 1 <= len(name) <= 40
             or isinstance(minimum, bool) or not isinstance(minimum, int)
             or isinstance(maximum, bool) or not isinstance(maximum, int)
-            or not 100 <= minimum < maximum <= 3000
+            or not 100 <= minimum <= maximum <= 3000
         ):
             continue
         overrides[key] = {"name": name, "min": minimum, "max": maximum}
@@ -205,6 +207,9 @@ def _load_cpu_profile_overrides(
         name = entry.get("name")
         frequency = entry.get("frequency")
         vid = entry.get("vid")
+        # Absent in a file exported before the cap travelled with it: Decky
+        # then ran at its fixed limit, which stays the default.
+        temperature = entry.get("temperature", CPU_QAM_TEMPERATURE)
         if (
             key not in DECKY_CPU_PROFILE_KEYS
             or not isinstance(name, str) or not 1 <= len(name) <= 40
@@ -212,9 +217,13 @@ def _load_cpu_profile_overrides(
             or isinstance(vid, bool) or not isinstance(vid, int)
             or not (3100 <= frequency <= 4200 and frequency % 50 == 0)
             or not (950 <= vid <= 1325 and vid % 5 == 0)
+            or isinstance(temperature, bool) or not isinstance(temperature, int)
+            or not CPU_QAM_TEMPERATURE_RANGE[0] <= temperature <= CPU_QAM_TEMPERATURE_RANGE[1]
         ):
             continue
-        overrides[key] = {"name": name, "frequency": frequency, "vid": vid}
+        overrides[key] = {
+            "name": name, "frequency": frequency, "vid": vid, "temperature": temperature,
+        }
     return overrides
 
 
@@ -326,9 +335,12 @@ SYSTEM_FAN_CHANNELS = tuple(range(3, 9))
 QAM_FAN_CHANNELS = (2, 3, 4, 5)
 QAM_FAN_MIN_PERCENT = 20
 QAM_FAN_MAX_PERCENT = 100
-# Same fixed ladder the desktop's own VRAM control offers. Checked against
-# the shared contract in load_contract() before anything touches CMOS.
-VRAM_SIZE_PRESETS_MB = (256, 512, 1024, 3072, 4096, 5120, 6144, 7168, 8192, 12288)
+# The shared contract's ladder, checked against it in load_contract() before
+# anything touches CMOS. 2048 stays listed so a plugin from 1.21.0 or 1.21.1
+# keeps agreeing with the contract; it is refused below and never offered.
+VRAM_SIZE_PRESETS_MB = (256, 512, 1024, 2048, 3072, 4096, 5120, 6144, 7168, 8192, 12288)
+# Linux does not boot on a BC-250 with this split.
+VRAM_SIZE_BLOCKED_MB = (2048,)
 PWM_MODE_VERIFY_ATTEMPTS = 10
 PWM_MODE_VERIFY_INTERVAL_SECONDS = 0.05
 PWM_DUTY_VERIFY_ATTEMPTS = 16
@@ -621,7 +633,7 @@ def vram_apply_action(raw_size_mb: str) -> int:
         size_mb = int(raw_size_mb)
     except ValueError:
         return fail("QUICK_ACCESS_VRAM: Invalid VRAM size.", 2)
-    if size_mb not in VRAM_SIZE_PRESETS_MB:
+    if size_mb not in VRAM_SIZE_PRESETS_MB or size_mb in VRAM_SIZE_BLOCKED_MB:
         return fail("QUICK_ACCESS_VRAM: Unsupported VRAM size.", 2)
     try:
         result = vram_apply(size_mb)
@@ -1280,6 +1292,9 @@ GDDR6_REPOSITORY_RELATIVE = pathlib.Path(
 )
 GDDR6_HOME_ROOTS = (pathlib.Path("/home"), pathlib.Path("/var/home"))
 GDDR6_MIN_DESKTOP_UID = 1000
+#: MastaG's kernels carry Hexxeh's bc250_memory driver; loaded, it owns the
+#: SMU patch and the reader relays its hwmon readings (see that helper).
+GDDR6_KERNEL_DRIVER = pathlib.Path("/sys/module/bc250_memory")
 
 
 GDDR6_PATCH_HELPER_PATHS = (
@@ -1360,7 +1375,9 @@ def _gddr6_repository_candidates() -> list[tuple[pathlib.Path, int]]:
             if not stat.S_ISDIR(info.st_mode) or info.st_uid < GDDR6_MIN_DESKTOP_UID:
                 continue
             repository = home / GDDR6_REPOSITORY_RELATIVE
-            if (repository / ".git").is_dir():
+            # With the kernel's bc250_memory driver loaded the reader reads
+            # its sensors and opens no checkout, so a home without one counts.
+            if (repository / ".git").is_dir() or GDDR6_KERNEL_DRIVER.is_dir():
                 candidates.append((repository, info.st_uid))
     return candidates
 
@@ -2233,10 +2250,11 @@ def cyan_set_method(config: pathlib.Path = CYAN_CONFIG) -> str | None:
 
 
 CYAN_USAGE_METHODS = ("busy-flag", "process", "kernel")
+CYAN_TEMP_READ_METHODS = ("drm", "sysfs")
 
 
 def cyan_compatibility(config: pathlib.Path = CYAN_CONFIG) -> dict[str, object] | None:
-    """The four Cyan kernel-compatibility settings, read from the protected TOML.
+    """Cyan kernel-compatibility settings, read from the protected TOML.
 
     Defaults follow the governor's own: SMU writes, the busy-flag usage reading
     (the only one that never walks every open file), Fix metrics on and Fix
@@ -2254,7 +2272,12 @@ def cyan_compatibility(config: pathlib.Path = CYAN_CONFIG) -> dict[str, object] 
         usage = parsed.get("gpu_usage") if isinstance(parsed.get("gpu_usage"), dict) else {}
     set_method = str(gpu.get("set-method") or "smu").strip().lower()
     usage_method = str(usage.get("method") or "busy-flag").strip().lower()
-    if set_method not in {"smu", "kernel"} or usage_method not in CYAN_USAGE_METHODS:
+    temp_read = str(usage.get("temp-read") or usage.get("temp_read") or "drm").strip().lower()
+    if (
+        set_method not in {"smu", "kernel"}
+        or usage_method not in CYAN_USAGE_METHODS
+        or temp_read not in CYAN_TEMP_READ_METHODS
+    ):
         return None
     fix_metrics = usage.get("fix-metrics", True)
     fix_frequency = usage.get("fix-freq", usage.get("fix_freq", False))
@@ -2263,6 +2286,7 @@ def cyan_compatibility(config: pathlib.Path = CYAN_CONFIG) -> dict[str, object] 
         "usage_method": usage_method,
         "fix_metrics": bool(fix_metrics),
         "fix_frequency": bool(fix_frequency),
+        "temp_read": temp_read,
     }
 
 
@@ -2331,15 +2355,21 @@ def gpu_compatibility(arguments: Sequence[str]) -> int:
       with the new settings; if it does not stay up, the previous settings
       are written back and Cyan restarted on them.
     """
-    set_method, usage_method, fix_metrics, fix_frequency = arguments
+    if len(arguments) not in {4, 5}:
+        return fail(
+            "QUICK_ACCESS_GPU_CONFIG: expected smu|kernel, busy-flag|process|kernel, two 0/1 flags and optional drm|sysfs.", 20,
+        )
+    set_method, usage_method, fix_metrics, fix_frequency = arguments[:4]
+    temp_read = arguments[4] if len(arguments) == 5 else None
     if (
         set_method not in {"smu", "kernel"}
         or usage_method not in CYAN_USAGE_METHODS
         or fix_metrics not in {"0", "1"}
         or fix_frequency not in {"0", "1"}
+        or (temp_read is not None and temp_read not in CYAN_TEMP_READ_METHODS)
     ):
         return fail(
-            "QUICK_ACCESS_GPU_CONFIG: expected smu|kernel, busy-flag|process|kernel and two 0/1 flags.", 20,
+            "QUICK_ACCESS_GPU_CONFIG: expected smu|kernel, busy-flag|process|kernel, two 0/1 flags and optional drm|sysfs.", 20,
         )
     if service_active(OBERON_SERVICE):
         return fail("QUICK_ACCESS_GPU_SERVICE: Oberon is the active governor; Cyan settings are not used.", 21)
@@ -2368,7 +2398,10 @@ def gpu_compatibility(arguments: Sequence[str]) -> int:
     def write(values: Sequence[str]) -> subprocess.CompletedProcess[str]:
         return run([str(GOVERNOR_CONFIG_HELPER), "set-cyan-compatibility", *values], timeout=20)
 
-    result = write((set_method, usage_method, fix_metrics, fix_frequency))
+    requested = (set_method, usage_method, fix_metrics, fix_frequency)
+    if temp_read is not None:
+        requested += (temp_read,)
+    result = write(requested)
     if result.returncode != 0:
         return fail(result.stderr.strip() or result.stdout.strip() or "Governor configuration update failed.", 22)
     if not should_run:
@@ -2388,6 +2421,7 @@ def gpu_compatibility(arguments: Sequence[str]) -> int:
                 str(previous_settings["set_method"]), str(previous_settings["usage_method"]),
                 "1" if previous_settings["fix_metrics"] else "0",
                 "1" if previous_settings["fix_frequency"] else "0",
+                str(previous_settings["temp_read"]),
             ))
             run(["/usr/bin/systemctl", "reset-failed", CYAN_SERVICE], timeout=15)
             run(["/usr/bin/systemctl", "restart", "--no-block", CYAN_SERVICE], timeout=30)
@@ -3258,6 +3292,40 @@ def nct_sensor(hwmon_root: pathlib.Path = pathlib.Path("/sys/class/hwmon")) -> p
 #: looks, instead of being silently undone on its next verify.
 SYSTEM_FAN_POLICY = pathlib.Path("/var/lib/bc250-control-center/fan-policy.json")
 SYSTEM_FAN_OVERRIDE = pathlib.Path("/run/bc250-control-center/fan-override.json")
+#: The Desktop's "Another program controls the fan" marker (see
+#: bc250-fan-pwm-helper): while it exists no fan preset is applied from here.
+SYSTEM_FAN_EXTERNAL = pathlib.Path("/var/lib/bc250-control-center/fan-external.json")
+#: The preset this panel applied last. Two exported presets can share a
+#: duty, and the PWM read-back alone cannot tell them apart; this only breaks
+#: that tie, it never names a preset the hardware does not match.
+SYSTEM_FAN_LAST_PRESET = pathlib.Path("/run/bc250-control-center/fan-last-preset.json")
+
+
+def note_fan_preset(preset: str, duty: int | None) -> None:
+    try:
+        SYSTEM_FAN_LAST_PRESET.parent.mkdir(mode=0o755, parents=True, exist_ok=True)
+        temporary = SYSTEM_FAN_LAST_PRESET.with_name(f".{SYSTEM_FAN_LAST_PRESET.name}.{os.getpid()}")
+        temporary.write_text(json.dumps({"preset": preset, "duty": duty}) + "\n", encoding="utf-8")
+        os.chmod(temporary, 0o644)
+        os.replace(temporary, SYSTEM_FAN_LAST_PRESET)
+    except OSError:
+        return
+
+
+def last_fan_preset() -> tuple[str, int] | None:
+    try:
+        metadata = SYSTEM_FAN_LAST_PRESET.lstat()
+        if not stat.S_ISREG(metadata.st_mode) or metadata.st_size > 1024:
+            return None
+        document = json.loads(SYSTEM_FAN_LAST_PRESET.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, ValueError):
+        return None
+    if not isinstance(document, dict):
+        return None
+    preset, duty = document.get("preset"), document.get("duty")
+    if not isinstance(preset, str) or type(duty) is not int:
+        return None
+    return preset, duty
 
 
 def note_fan_takeover(channels: Sequence[object]) -> None:
@@ -3302,7 +3370,11 @@ def system_fan_ownership() -> dict[str, bool]:
         override = isinstance(document, dict) and bool(document.get("channels"))
     except (OSError, ValueError):
         override = False
-    return {"system_fan_policy": policy, "system_fan_override": override}
+    return {
+        "system_fan_policy": policy,
+        "system_fan_override": override,
+        "system_fan_external": SYSTEM_FAN_EXTERNAL.is_file(),
+    }
 
 
 def fan_resume() -> int:
@@ -3384,9 +3456,17 @@ def system_fan_preset_state(sensor: pathlib.Path | None = None) -> tuple[str | N
         return "automatic", None
     if all(mode == "1" for mode in modes) and len(set(duties)) == 1:
         duty = duties[0]
-        for preset, expected_duty in effective_fan_presets().items():
-            if expected_duty == duty:
-                return preset, duty
+        matches = [
+            preset for preset, expected_duty in effective_fan_presets().items()
+            if expected_duty == duty
+        ]
+        if len(matches) == 1:
+            return matches[0], duty
+        # Presets exported at the same speed: name the one applied last, or
+        # none, rather than highlighting whichever comes first.
+        last = last_fan_preset()
+        if last is not None and last[1] == duty and last[0] in matches:
+            return last[0], duty
         return None, duty
     return None, duties[0] if len(set(duties)) == 1 else None
 
@@ -3705,6 +3785,8 @@ def fan_system_preset(preset: str) -> int:
                     pass
             fallback = f" Automatic fallback requested for PWM {restored}."
         return fail(f"QUICK_ACCESS_FAN: {exc}.{fallback}", 48)
+    if duty is not None:
+        note_fan_preset(str(preset), duty)
     print(json.dumps({
         "ok": True,
         "fan_channels": channels,
@@ -3794,8 +3876,14 @@ def cpu_tuning_context() -> dict[str, object]:
     }
 
 
-def cpu_detection_candidate(frequency_raw: str, vid_raw: str) -> dict[str, int]:
-    """Validate the two real upstream bc250-detect inputs exposed by QAM."""
+def cpu_detection_candidate(
+    frequency_raw: str, vid_raw: str, temperature_raw: str | None = None
+) -> dict[str, int]:
+    """Validate the real upstream bc250-detect inputs exposed by QAM.
+
+    The thermal cap is optional (a bare ``cpu-detect <frequency> <vid>`` is the
+    older call) and then the fixed 90 C the panel always used.
+    """
     if re.fullmatch(r"[0-9]{4}", str(frequency_raw)) is None:
         raise ValueError("CPU frequency must be a four-digit integer.")
     if re.fullmatch(r"[0-9]{3,4}", str(vid_raw)) is None:
@@ -3806,13 +3894,20 @@ def cpu_detection_candidate(frequency_raw: str, vid_raw: str) -> dict[str, int]:
         raise ValueError("CPU frequency must be 3100–4200 MHz in 50 MHz steps.")
     if not 950 <= vid <= 1325 or vid % 5:
         raise ValueError("CPU VID must be 950–1325 mV in 5 mV steps.")
+    temperature = CPU_QAM_TEMPERATURE
+    if temperature_raw is not None:
+        if re.fullmatch(r"[0-9]{2}", str(temperature_raw)) is None:
+            raise ValueError("CPU thermal limit must be an integer.")
+        temperature = int(temperature_raw)
+        if not CPU_QAM_TEMPERATURE_RANGE[0] <= temperature <= CPU_QAM_TEMPERATURE_RANGE[1]:
+            raise ValueError("CPU thermal limit must be 70–90 C.")
     context = cpu_tuning_context()
     if context["cpu_tuning_ready"] is not True:
         raise ValueError("The protected CPU detector and stress dependency are not ready.")
     return {
         "frequency": frequency,
         "vid": vid,
-        "temperature": CPU_QAM_TEMPERATURE,
+        "temperature": temperature,
     }
 
 
@@ -3838,10 +3933,14 @@ def cpu_scale_candidate(frequency_raw: str, scale_raw: str) -> dict[str, int]:
     voltage = cpu_estimated_vid(frequency, scale)
     if voltage > 1325:
         raise ValueError(f"Estimated VID ~{voltage} mV exceeds the 1325 mV ceiling.")
+    # The scale is bound to the cap the detection ran with, whichever one it was.
+    temperature = detected.get("temperature", CPU_QAM_TEMPERATURE)
+    if isinstance(temperature, bool) or not isinstance(temperature, int):
+        raise ValueError("The detected CPU thermal limit is not available.")
     return {
         "frequency": frequency,
         "scale": scale,
-        "temperature": CPU_QAM_TEMPERATURE,
+        "temperature": temperature,
         "estimated_vid": voltage,
     }
 
@@ -3861,9 +3960,11 @@ def cpu_service_state() -> dict[str, object]:
     }
 
 
-def cpu_detect_tuning(frequency_raw: str, vid_raw: str) -> int:
+def cpu_detect_tuning(
+    frequency_raw: str, vid_raw: str, temperature_raw: str | None = None
+) -> int:
     try:
-        candidate = cpu_detection_candidate(frequency_raw, vid_raw)
+        candidate = cpu_detection_candidate(frequency_raw, vid_raw, temperature_raw)
     except ValueError as exc:
         return fail(f"QUICK_ACCESS_CPU: {exc}", 50)
     result = run(
@@ -4058,7 +4159,8 @@ def _contract_payload() -> dict:
             "percent_range": list(shared.QUICK_ACCESS_FAN_PERCENT_RANGE),
             "percent_step": shared.QUICK_ACCESS_FAN_PERCENT_STEP,
         },
-        "vram": {"presets": list(shared.VRAM_SIZE_PRESETS_MB)},
+        # What the panel offers: an older plugin builds its slider from this.
+        "vram": {"presets": list(shared.vram_size_choices())},
     }
 
 
@@ -4270,6 +4372,7 @@ def load_contract():
                 tuple(sorted(module.OBERON_DESKTOP_PROFILES)),
             ),
             ("VRAM presets", VRAM_SIZE_PRESETS_MB, tuple(module.VRAM_SIZE_PRESETS_MB)),
+            ("blocked VRAM presets", VRAM_SIZE_BLOCKED_MB, tuple(module.VRAM_SIZE_BLOCKED_MB)),
         )
         if mine != theirs
     ]
@@ -4294,12 +4397,13 @@ def main(argv: Sequence[str]) -> int:
         len(argv) == 2
         or (len(argv) == 3 and argv[1] in {"gpu-profile", "gpu-safe-point", "gpu-high-points", "gpu-service", "gpu-voltage-level", "cu-mode", "cu-service", "fan-auto", "fan-system", "cpu-service", "vram-apply", "ttm-apply"})
         or (3 <= len(argv) <= 20 and argv[1] == "gpu-voltage-custom")
-        or (len(argv) == 6 and argv[1] == "gpu-compat")
+        or (len(argv) in {6, 7} and argv[1] == "gpu-compat")
         or (len(argv) == 4 and argv[1] in {"fan-channel", "cpu-detect", "cpu-scale"})
+        or (len(argv) == 5 and argv[1] == "cpu-detect")
         or (len(argv) == 6 and argv[1] in {"cu-table", "cu-save"})
     )
     if not valid_arity:
-        return fail("Usage: status | cpu-telemetry | qam-sensors | gddr6-sensors | gddr6-patch | gpu-profile <name> | gpu-safe-point <toml-mhz> | gpu-high-points <0|1> | gpu-service <enable|disable> | gpu-voltage-level <0-3> | gpu-voltage-custom <mhz=mv>... | gpu-compat <smu|kernel> <busy-flag|process|kernel> <0|1> <0|1> | cu-mode <name> | cu-table <m0> <m1> <m2> <m3> | cu-save <m0> <m1> <m2> <m3> | cu-service <install|remove> | fan-auto <channel> | fan-system <preset> | fan-resume | fan-channel <2-5> <automatic|20-100> | cpu-apply-saved | cpu-detect <frequency> <vid> | cpu-scale <frequency> <scale> | cpu-service <install|remove> | vram-apply <mb> | ttm-status | ttm-apply <8|10|12|default>", 2)
+        return fail("Usage: status | cpu-telemetry | qam-sensors | gddr6-sensors | gddr6-patch | gpu-profile <name> | gpu-safe-point <toml-mhz> | gpu-high-points <0|1> | gpu-service <enable|disable> | gpu-voltage-level <0-3> | gpu-voltage-custom <mhz=mv>... | gpu-compat <smu|kernel> <busy-flag|process|kernel> <0|1> <0|1> [drm|sysfs] | cu-mode <name> | cu-table <m0> <m1> <m2> <m3> | cu-save <m0> <m1> <m2> <m3> | cu-service <install|remove> | fan-auto <channel> | fan-system <preset> | fan-resume | fan-channel <2-5> <automatic|20-100> | cpu-apply-saved | cpu-detect <frequency> <vid> [<temperature>] | cpu-scale <frequency> <scale> | cpu-service <install|remove> | vram-apply <mb> | ttm-status | ttm-apply <8|10|12|default>", 2)
     action = argv[1]
     if action == "status" and len(argv) == 2:
         return status()
@@ -4323,7 +4427,7 @@ def main(argv: Sequence[str]) -> int:
         return gpu_voltage_level(argv[2])
     if action == "gpu-voltage-custom":
         return gpu_voltage_custom(argv[2:])
-    if action == "gpu-compat" and len(argv) == 6:
+    if action == "gpu-compat" and len(argv) in {6, 7}:
         return gpu_compatibility(argv[2:])
     if action in {"cu-mode", "cu-table", "cu-save"} or (action == "cu-service" and argv[2:3] == ["install"]):
         if kernel_cu_unlock_active():
@@ -4350,6 +4454,12 @@ def main(argv: Sequence[str]) -> int:
             with operation_lock(CU_OPERATION_LOCK, "CU"):
                 return cu_remove_service()
         return fail("QUICK_ACCESS_CU_SERVICE: action must be install or remove.", 2)
+    if action in {"fan-auto", "fan-system", "fan-channel"} and SYSTEM_FAN_EXTERNAL.is_file():
+        return fail(
+            "QUICK_ACCESS_FAN_EXTERNAL: the fan is handed to another program. "
+            "Take control back on the Desktop's Fans page first.",
+            58,
+        )
     if action == "fan-auto" and len(argv) == 3:
         with operation_lock(FAN_OPERATION_LOCK, "fan"):
             code = fan_auto(argv[2])
@@ -4373,8 +4483,8 @@ def main(argv: Sequence[str]) -> int:
         return code
     if action == "cpu-apply-saved" and len(argv) == 2:
         return cpu_apply_saved_profile()
-    if action == "cpu-detect" and len(argv) == 4:
-        return cpu_detect_tuning(argv[2], argv[3])
+    if action == "cpu-detect" and len(argv) in {4, 5}:
+        return cpu_detect_tuning(*argv[2:])
     if action == "cpu-scale" and len(argv) == 4:
         return cpu_apply_manual_scale(argv[2], argv[3])
     if action == "cpu-service":

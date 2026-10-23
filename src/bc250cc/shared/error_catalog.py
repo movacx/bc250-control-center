@@ -67,7 +67,7 @@ _CODES: tuple[ErrorCode, ...] = (
         "A service, hardware read-back, package download, or external toolkit stopped responding or needed longer than expected.",
         "Check whether the terminal or service is still active, then review its log. Retry only after the previous process has ended.",
         exit_statuses=(124, 125),
-        markers=('QUICK_ACCESS_TIMEOUT',),
+        markers=('QUICK_ACCESS_TIMEOUT', 'GDDR6 patch did not finish in time'),
     ),
     ErrorCode(
         "BC250-DATA-001",
@@ -113,7 +113,8 @@ _CODES: tuple[ErrorCode, ...] = (
         "The target filesystem, temporary directory, boot partition, or user quota is full.",
         "Free space on the filesystem named in the technical detail, then retry. Kernel installs also require free space in /boot.",
         exit_statuses=(73, 74),
-        markers=(),
+        # steamos-root.sh: /var or the root filesystem is too full to install.
+        markers=('MB free and this needs', 'SteamOS keeps /var small'),
     ),
     ErrorCode(
         "BC250-BUSY-001",
@@ -124,7 +125,9 @@ _CODES: tuple[ErrorCode, ...] = (
         # The SMU mailbox gave no answer in time (0x00) or said it was busy
         # (0xFC). The CPU/SMU helper exits 70 for it, which alone reads as a
         # helper version mismatch and sent users to reinstall.
-        markers=('smu returned status 0x00', 'smu returned status 0xFC'),
+        markers=('smu returned status 0x00', 'smu returned status 0xFC',
+                 # The CPU helper exits 44 (a RANGE status) for it.
+                 'SMU_IN_USE'),
     ),
     ErrorCode(
         "BC250-CONFIG-001",
@@ -132,7 +135,7 @@ _CODES: tuple[ErrorCode, ...] = (
         "A manual edit, older toolkit, interrupted write, or unsupported option left syntax or values the current component cannot read.",
         "Open the named file from the application, correct the first reported line or restore the module defaults, then apply the settings again.",
         exit_statuses=(78,),
-        markers=('QUICK_ACCESS_GPU_CONFIG',),
+        markers=('QUICK_ACCESS_GPU_CONFIG', 'QUICK_ACCESS_GPU_SAFE_POINT: invalid TOML ceiling'),
     ),
     ErrorCode(
         "BC250-PROTOCOL-001",
@@ -164,7 +167,7 @@ _CODES: tuple[ErrorCode, ...] = (
         exit_statuses=(22,),
         # Cyan's own start steps exit 62, which Compute Units owns; without
         # these a governor that would not start was reported as a CU fault.
-        markers=('QUICK_ACCESS_GPU_DBUS', 'QUICK_ACCESS_GPU_ALLOWED',
+        markers=('QUICK_ACCESS_GPU_DBUS',
                  'D-Bus name is unavailable', 'Cyan D-Bus policy',
                  'busctl is required for Cyan'),
     ),
@@ -186,7 +189,9 @@ _CODES: tuple[ErrorCode, ...] = (
         "Choose a value currently offered by the application. Refresh first if another toolkit or a restart may have changed the live limits.",
         exit_statuses=(20, 21, 23, 24, 34, 35, 37, 38, 39, 41, 42, 43, 44, 45, 56, 92),
         markers=('QUICK_ACCESS_GPU_PROFILE', 'QUICK_ACCESS_GPU_SAFE_POINT',
-                 'QUICK_ACCESS_GPU_HIGH_POINTS', 'QUICK_ACCESS_GPU_VOLTAGE', 'QUICK_ACCESS_GPU_VERIFY', 'QUICK_ACCESS_CPU_SCALE', 'Frequency must be between', 'VID must be between', 'Temperature must be between', 'QAM CPU frequency must be', 'QAM CPU VID must be', 'QAM CPU detection uses a fixed', 'HELPER_RANGE'),
+                 'QUICK_ACCESS_GPU_HIGH_POINTS', 'QUICK_ACCESS_GPU_ALLOWED', 'QUICK_ACCESS_GPU_VOLTAGE',
+                 # Longer than QUICK_ACCESS_CU_MODE, so a numeric check is not a CU fault.
+                 'target must be an even value from 24 through 40', 'QUICK_ACCESS_GPU_VERIFY', 'QUICK_ACCESS_CPU_SCALE', 'Frequency must be between', 'VID must be between', 'Temperature must be between', 'QAM CPU frequency must be', 'QAM CPU VID must be', 'QAM CPU detection uses a fixed', 'HELPER_RANGE'),
     ),
     ErrorCode(
         "BC250-CU-001",
@@ -201,13 +206,63 @@ _CODES: tuple[ErrorCode, ...] = (
             'QUICK_ACCESS_CU_SERVICE_VERIFY',
         ),
     ),
+    # Prepare dependencies rebuilt UMR and it still does not start. After
+    # BC250-CU-001 so the more precise rule wins.
+    ErrorCode(
+        "BC250-UMR-001",
+        'UMR is not working.',
+        'UMR is the program Control Center uses to read and change the Compute Units. It does not start or cannot read the GPU, usually because a system update replaced a library it needs.',
+        'Reinstall UMR by following these steps:',
+        markers=(
+            'UMR still does not start',
+            'umr is installed but does not start',
+        ),
+    ),
     ErrorCode(
         "BC250-FAN-001",
         "The fan control path is unavailable or rejected the write.",
         "The NCT driver may be read-only, the hwmon number may have changed, the selected PWM channel may not exist, or another fan service is controlling it.",
         "Refresh fan detection, confirm the physical channel, prepare NCT6687 PWM support, and stop other fan-control tools before retrying.",
         exit_statuses=(25, 26, 27, 40, 46),
-        markers=('QUICK_ACCESS_FAN',),
+        markers=('QUICK_ACCESS_FAN', 'fan/PWM hwmon', 'usable nct6687 module',
+                 'nct6687d PWM driver workflow', 'nct6687 could not be loaded',
+                 'persisted nct6687 source is missing'),
+    ),
+    ErrorCode(
+        "BC250-FAN-002",
+        "The fan is handed to another program.",
+        "On the Fans page the fan was handed to another program, such as CoolerControl, so BC250 Control Center does not write to it.",
+        "Use that program to change the fan, or press Take control back on the Fans page first.",
+        exit_statuses=(58,),
+        markers=('FAN_EXTERNAL', 'QUICK_ACCESS_FAN_EXTERNAL'),
+    ),
+    # Our own driver scripts: a kernel, header or module-build mismatch. After
+    # BC250-FAN-001 on purpose: a later text rule wins, so a PWM build that
+    # stopped on headers is not reported as a fan fault.
+    ErrorCode(
+        "BC250-KERNEL-001",
+        'The running kernel and its driver or headers do not match.',
+        'The machine may still be running the old kernel, headers may be missing, Secure Boot may reject the module, or a partial update mixed versions.',
+        'Restart into the intended BC250 kernel, verify its matching headers, then repair the affected driver. Review Secure Boot only if the module log names it.',
+        markers=(
+            'kernel and headers do not match',
+            'headers for exactly',
+            'headers for another kernel',
+            'exact Neptune headers',
+            'replaced the running kernel',
+            'Module/kernel mismatch',
+            'Could not read vermagic',
+            'installed for the active kernel',
+            'match the active immutable kernel',
+            'nct6687 build failed',
+            'DKMS installation did not produce a module',
+            'PWM build prerequisites',
+            'nct6687.ko was not produced',
+            'nct6687 is not available for',
+            'kernel-devel mismatch',
+            'matching kernel-devel is unavailable',
+            'rebuilt nct6687 has vermagic',
+        ),
     ),
     ErrorCode(
         "BC250-CPU-001",
@@ -263,6 +318,9 @@ _CODES: tuple[ErrorCode, ...] = (
             'CU_HELPER_MISSING', 'CU_BACKEND_UNTRUSTED', 'CPU_BACKEND_MISSING',
             'HELPER_PRIVILEGE', 'CPU_BACKEND_UNTRUSTED', 'QUICK_ACCESS_GPU_HELPER',
             'HELPER_UNTRUSTED',
+            'reviewed root-owned SteamOS graphics backend is unavailable or changed',
+            'protected BC250 OpenRC service helper is missing',
+            'protected GDDR6 patch helper is not installed',
         ),
     ),
     # An upstream release that hosts a pacman repository can be removed or
@@ -276,6 +334,31 @@ _CODES: tuple[ErrorCode, ...] = (
         markers=(
             "returned error: 404",
             "failed to synchronize all databases",
+        ),
+    ),
+    # SteamOS refused to unlock, or failed to relock, its read-only root.
+    ErrorCode(
+        "BC250-IMMUTABLE-001",
+        'The immutable system deployment is not ready for this change.',
+        'Bazzite or SteamOS may have a pending update, rollback, rebase, or restart, or the selected workflow is intended for a mutable distribution.',
+        'Finish the pending deployment and restart. Then use the Bazzite or SteamOS workflow shown by the compatibility filter.',
+        markers=(
+            'SteamOS reports a writable root',
+            'SteamOS read-only state',
+            'read-only protection',
+            'systemd-sysext or another immutable layer',
+        ),
+    ),
+    # A pinned release or reviewed source revision could not be fetched.
+    ErrorCode(
+        "BC250-NET-001",
+        'A required download could not be reached or verified.',
+        'The network, DNS, proxy, system clock, certificate store, or upstream server interrupted the download.',
+        'Confirm internet access and the system date, then retry. If a proxy or filtered network is in use, test the repository URL in a browser.',
+        markers=(
+            'Unable to download',
+            'Reviewed source commit is unavailable after fetch',
+            'Reviewed source revision could not be checked out',
         ),
     ),
     # The workflow printed its own [ERROR] lines, so its wording is shown
@@ -355,12 +438,20 @@ _MARKERS_BY_LENGTH: tuple[tuple[str, ErrorCode], ...] = tuple(
 
 
 def for_marker(text: object) -> ErrorCode | None:
-    """Return the code a helper's ``PREFIX:`` stderr marker means."""
+    """Return the code a helper's ``PREFIX:`` stderr marker means.
+
+    A helper that wraps another's error reads ``QUICK_ACCESS_CPU: SMU_IN_USE:
+    ...``: the inner marker is the cause, so the one that starts last wins, and
+    at the same place the longest (QUICK_ACCESS_CPU_VERIFY over
+    QUICK_ACCESS_CPU).
+    """
     detail = str(text or "")
+    best: tuple[int, int, ErrorCode] | None = None
     for marker, entry in _MARKERS_BY_LENGTH:
-        if marker in detail:
-            return entry
-    return None
+        start = detail.rfind(marker)
+        if start >= 0 and (best is None or (start, len(marker)) > best[:2]):
+            best = (start, len(marker), entry)
+    return best[2] if best else None
 
 
 def known_exit_statuses() -> frozenset[int]:

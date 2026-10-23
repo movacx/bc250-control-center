@@ -25,6 +25,8 @@ JOURNAL_NAME = "diagnostics.jsonl"
 MAX_ENTRIES = 300
 #: Detail kept per entry; the terminal log keeps the rest.
 MAX_DETAIL = 1500
+#: The end of a traceback is where it failed; the start is kept out.
+MAX_RAW = 4000
 #: The same error shown twice this close together is one event.
 DUPLICATE_WINDOW_S = 5.0
 
@@ -42,6 +44,12 @@ class DiagnosticEntry:
     cause: str
     action: str
     detail: str = ""
+    #: The screen action that showed it: "GPU-0142 · gpu_governor.py:812 · Page.run".
+    origin: str = ""
+    #: The function of ours that raised, in the same form.
+    raised: str = ""
+    #: The exception as Python printed it, bounded.
+    raw: str = ""
 
 
 def journal_path(env: dict | None = None) -> Path:
@@ -71,6 +79,9 @@ def read(limit: int = MAX_ENTRIES, path: Path | None = None) -> list[DiagnosticE
                 cause=str(data.get("cause") or ""),
                 action=str(data.get("action") or ""),
                 detail=str(data.get("detail") or ""),
+                origin=str(data.get("origin") or ""),
+                raised=str(data.get("raised") or ""),
+                raw=str(data.get("raw") or ""),
             ))
         except (ValueError, KeyError, TypeError):
             continue
@@ -88,6 +99,9 @@ def record(
     cause: str,
     action: str,
     detail: str = "",
+    origin: str = "",
+    raised: str = "",
+    raw: str = "",
     path: Path | None = None,
     now: float | None = None,
 ) -> DiagnosticEntry | None:
@@ -102,6 +116,9 @@ def record(
         cause=str(cause),
         action=str(action),
         detail=str(detail)[:MAX_DETAIL],
+        origin=str(origin)[:300],
+        raised=str(raised)[:300],
+        raw=str(raw)[-MAX_RAW:],
     )
     latest = read(1, path)
     if latest and (

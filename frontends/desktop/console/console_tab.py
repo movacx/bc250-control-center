@@ -291,8 +291,7 @@ class ConsoleTab(QWidget):
         # No state word: the title already says what this is, and every state
         # this tab has means something about a running workflow.
         self.set_state("", "plain")
-        # A captured log has its own line endings; a terminal needs both halves.
-        self.view.feed(str(text).replace("\r\n", "\n").replace("\n", "\r\n").encode())
+        self.view.set_static_text(text)
         # Nothing is listening, so nothing should look like it is waiting for
         # a keystroke.
         self.view.screen.cursor_visible = False

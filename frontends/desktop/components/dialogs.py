@@ -105,7 +105,9 @@ def reflow_wrapped_labels(root: QWidget) -> None:
         return
 
     for label in labels:
-        if not label.wordWrap():
+        # ``naturalHeight`` labels keep Qt's own heightForWidth: a measure
+        # taken before the dialog has its width would leave a gap under them.
+        if not label.wordWrap() or label.property("naturalHeight"):
             continue
         try:
             label.setMinimumHeight(0)
@@ -151,7 +153,7 @@ def fit_dialog_to_content(dialog: QDialog) -> None:
     dialog.setMaximumSize(maximum_width, maximum_height)
 
     for label in dialog.findChildren(QLabel):
-        if label.wordWrap():
+        if label.wordWrap() and not label.property("naturalHeight"):
             label.setMinimumWidth(0)
             label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
             label.updateGeometry()

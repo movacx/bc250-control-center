@@ -22,12 +22,44 @@ CYAN_PACKAGED_BINARY = Path("/usr/bin/cyan-skillfish-governor-smu")
 CYAN_SERVICE = "cyan-skillfish-governor-smu.service"
 CYAN_CONFIG = Path("/etc/cyan-skillfish-governor-smu/config.toml")
 CYAN_STATE_DIR = Path("/var/lib/bc250-control-center/cyan-governor")
-CYAN_BC250CC_RUNTIME_REVISION = "bc250cc.2"
-CYAN_REVIEWED_UPSTREAM_COMMIT = "7f34882ed28ab2065e478df9fb904b5e0a924afc"
-CYAN_BC250CC_PATCHER = (
-    Path(__file__).resolve().parents[3]
-    / "packaging/common/os-scripts/common/patch-cyan-bc250cc-runtime.py"
-)
+#: The release Prepare installs: upstream's own, unmodified (see
+#: install-cyan-upstream-release.sh). Releases before 1.21.2 built it with a
+#: Control Center patch and left these files behind; their presence marks
+#: that runtime.
+CYAN_REVIEWED_RELEASE = "v0.4.14"
+CYAN_LEGACY_STATE_FILES = ("runtime-revision", "upstream-commit", "patcher-sha256", "binary-sha256")
+
+
+def managed_runtime_update_available(
+    state_dir: Path = CYAN_STATE_DIR,
+    managed_binary: Path = CYAN_MANAGED_BINARY,
+) -> bool:
+    """Whether Prepare would replace the Cyan binary Control Center manages.
+
+    Read from the files Prepare leaves, without running anything, so the
+    dependency snapshot can afford it: an older release, or the patched build
+    of a Control Center before 1.21.2. A governor installed only by the
+    distribution or by upstream's own installer is never flagged.
+    """
+    try:
+        if not managed_binary.is_file():
+            return False
+        if any((state_dir / name).exists() for name in CYAN_LEGACY_STATE_FILES):
+            return True
+        release = (state_dir / "release").read_text(encoding="utf-8").strip()
+    except OSError:
+        return False
+    if not release or release == CYAN_REVIEWED_RELEASE:
+        return False
+    # Only an older release: a newer one built by hand is not "updated" back.
+    mine, reviewed = _release_numbers(release), _release_numbers(CYAN_REVIEWED_RELEASE)
+    return mine is None or mine < reviewed
+
+
+def _release_numbers(release: str) -> tuple[int, ...] | None:
+    """``v0.4.14`` -> (0, 4, 14); None for anything that is not a plain release."""
+    match = re.fullmatch(r"v?(\d{1,4})\.(\d{1,4})(?:\.(\d{1,4}))?", release.strip())
+    return tuple(int(part) for part in match.groups() if part is not None) if match else None
 
 
 @lru_cache(maxsize=8)
@@ -132,6 +164,36 @@ def _sha256_file(path: str | Path) -> str:
         return ""
 
 
+@lru_cache(maxsize=8)
+def _mentions_cached(path: str, size: int, mtime_ns: int, needle: bytes) -> bool:
+    del size, mtime_ns  # They intentionally participate in the cache key.
+    tail = b""
+    with Path(path).open("rb") as handle:
+        while chunk := handle.read(1024 * 1024):
+            if needle in tail + chunk:
+                return True
+            tail = chunk[-len(needle):]
+    return False
+
+
+def binary_understands(path: str | Path, key: str) -> bool | None:
+    """Whether Cyan's binary knows a config key: its name is in the binary.
+
+    None when there is no binary to look at. A newer option written for an
+    older Cyan is ignored by it, so the panel only offers what this one reads.
+    """
+    candidate = Path(path)
+    try:
+        metadata = candidate.stat()
+        if not candidate.is_file() or metadata.st_size > 64 * 1024 * 1024:
+            return None
+        return _mentions_cached(
+            str(candidate), metadata.st_size, metadata.st_mtime_ns, key.encode("ascii")
+        )
+    except OSError:
+        return None
+
+
 def detect_cyan_runtime_identity(repository) -> dict[str, object]:
     """Return the executable and TOML actually selected by the active service.
 
@@ -203,24 +265,9 @@ def detect_cyan_runtime_identity(repository) -> dict[str, object]:
         except OSError:
             return ""
 
-    runtime_revision = read_state("runtime-revision")
-    upstream_commit = read_state("upstream-commit")
-    expected_binary_sha256 = read_state("binary-sha256")
-    expected_patcher_sha256 = read_state("patcher-sha256")
-    patcher_sha256 = _sha256_file(CYAN_BC250CC_PATCHER)
-    runtime_hash_matches = bool(
-        binary_sha256
-        and expected_binary_sha256
-        and binary_sha256 == expected_binary_sha256
-    )
-    runtime_patcher_matches = bool(
-        patcher_sha256
-        and expected_patcher_sha256
-        and patcher_sha256 == expected_patcher_sha256
-    )
-    runtime_version_matches = bool(
-        version and CYAN_BC250CC_RUNTIME_REVISION in version
-    )
+    managed_release = read_state("release")
+    legacy_patched = any((CYAN_STATE_DIR / name).exists() for name in CYAN_LEGACY_STATE_FILES)
+    managed = service_path == str(CYAN_MANAGED_BINARY)
     return {
         "init_manager": manager,
         "binary_path": service_path,
@@ -228,23 +275,18 @@ def detect_cyan_runtime_identity(repository) -> dict[str, object]:
         "version": version,
         "config_path": config_path,
         "config_matches_managed_path": Path(config_path) == CYAN_CONFIG,
-        "runtime_revision": runtime_revision,
-        "runtime_upstream_commit": upstream_commit,
-        "runtime_expected_binary_sha256": expected_binary_sha256,
-        "runtime_hash_matches": runtime_hash_matches,
-        "runtime_patcher_sha256": patcher_sha256,
-        "runtime_expected_patcher_sha256": expected_patcher_sha256,
-        "runtime_patcher_matches": runtime_patcher_matches,
-        "runtime_version_matches": runtime_version_matches,
-        "runtime_bc250cc_verified": bool(
-            runtime_revision == CYAN_BC250CC_RUNTIME_REVISION
-            and upstream_commit == CYAN_REVIEWED_UPSTREAM_COMMIT
-            and runtime_hash_matches
-            and runtime_patcher_matches
-            and runtime_version_matches
-            and service_path == str(CYAN_MANAGED_BINARY)
+        # The service runs the binary Prepare installs, rather than the
+        # distribution's package or an upstream install of its own.
+        "runtime_managed": managed,
+        "runtime_release": managed_release,
+        "runtime_legacy_patched": legacy_patched,
+        # What Prepare would change: an older release, or the patched build
+        # of an earlier Control Center, is still the one the service runs.
+        "runtime_update_available": bool(
+            managed and (legacy_patched or (managed_release and managed_release != CYAN_REVIEWED_RELEASE))
         ),
         "raw_exec": raw_exec,
+        "temp_read_supported": binary_understands(service_path, "temp-read") if service_path else None,
     }
 
 def detect_cyan_frequency_fix_runtime(repository) -> dict[str, object]:

@@ -16,15 +16,6 @@ GIB = 1024 ** 3
 TTM_GIB_PRESETS = (8, 10, 12)
 
 
-def ttm_pages_for_gib(gib: int, *, page_size: int = 4096) -> int:
-    """Convert a visible GiB target to the TTM module's page count."""
-    if type(gib) is not int or gib not in TTM_GIB_PRESETS:
-        raise ValueError("TTM target must be one of the reviewed 8, 10, or 12 GiB presets.")
-    if type(page_size) is not int or page_size <= 0 or GIB % page_size:
-        raise ValueError("The running kernel page size cannot represent a whole GiB target.")
-    return gib * GIB // page_size
-
-
 def _read_text(path: Path) -> str:
     try:
         return path.read_text(encoding="utf-8", errors="strict").strip()
@@ -47,6 +38,30 @@ def _enabled(path: Path) -> bool | None:
     if value in {"0", "n", "no", "false"}:
         return False
     return None
+
+
+def active_choice(payload: str) -> str:
+    """The bracketed entry of a sysfs choice list (``lzo [lz4] zstd``), or
+    the value itself when the file holds a single one (zswap's compressor)."""
+    text = str(payload or "").strip()
+    match = re.search(r"\[([^\]]+)\]", text)
+    if match:
+        return match.group(1)
+    return text if text and " " not in text else ""
+
+
+def zram_algorithms(proc_swaps_payload: str, sys_block: Path = Path("/sys/block")) -> list[str]:
+    """The compression algorithm of each zram device in use as swap."""
+    algorithms: list[str] = []
+    for raw_line in str(proc_swaps_payload or "").splitlines()[1:]:
+        columns = raw_line.split()
+        name = Path(columns[0]).name if columns else ""
+        if not name.startswith("zram"):
+            continue
+        algorithm = active_choice(_read_text(sys_block / name / "comp_algorithm"))
+        if algorithm and algorithm not in algorithms:
+            algorithms.append(algorithm)
+    return algorithms
 
 
 def parse_proc_swaps(payload: str) -> dict[str, int | bool]:
@@ -104,12 +119,15 @@ def read_memory_runtime_state(
     proc_meminfo: Path = Path("/proc/meminfo"),
     zswap_enabled: Path = Path("/sys/module/zswap/parameters/enabled"),
     zswap_pool_percent: Path = Path("/sys/module/zswap/parameters/max_pool_percent"),
+    zswap_compressor: Path = Path("/sys/module/zswap/parameters/compressor"),
+    sys_block: Path = Path("/sys/block"),
     ttm_pages_limit: Path = Path("/sys/module/ttm/parameters/pages_limit"),
     page_size: int | None = None,
 ) -> dict[str, object]:
     """Return a bounded read-only snapshot; absent kernel features stay absent."""
     page_size = int(page_size or os.sysconf("SC_PAGE_SIZE"))
-    swap = parse_proc_swaps(_read_text(proc_swaps))
+    swaps_payload = _read_text(proc_swaps)
+    swap = parse_proc_swaps(swaps_payload)
     pages = _integer(ttm_pages_limit)
     runtime_bytes = pages * page_size if pages is not None and pages >= 0 else None
     boot_raw = kernel_argument(_read_text(proc_cmdline), "ttm.pages_limit")
@@ -122,6 +140,10 @@ def read_memory_runtime_state(
         **swap,
         "zswap_enabled": _enabled(zswap_enabled),
         "zswap_max_pool_percent": _integer(zswap_pool_percent),
+        # The compressor actually in use: the kernel's built-in default until
+        # Control Center's tuning (lz4 first) runs at boot.
+        "zswap_compressor": active_choice(_read_text(zswap_compressor)),
+        "zram_algorithms": zram_algorithms(swaps_payload, sys_block),
         "ttm_pages_limit": pages,
         "ttm_limit_bytes": runtime_bytes,
         "ttm_boot_pages_limit": boot_pages,

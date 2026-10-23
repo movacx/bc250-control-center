@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import hashlib
 import os
+import shutil
+import struct
 import subprocess
 import zipfile
 from pathlib import Path
@@ -20,8 +22,22 @@ import pytest
 from bc250cc.infrastructure import helixsr
 from bc250cc.infrastructure.dependencias_repository import DependenciasRepository
 
+needs_cmp = pytest.mark.skipif(shutil.which("cmp") is None, reason="the fake DLL check uses cmp (diffutils)")
+
 DLL = b"MZ helixsr test dll"
 ORIGINAL = b"MZ the game's own FSR 3.1 dll"
+
+@pytest.fixture(autouse=True)
+def _list_tests_keep_1_8_1_as_the_default(request, monkeypatch):
+    """These tests are about how releases are listed, picked and updated, and
+    their fixtures are newer releases than the default. The default itself
+    is checked in test_the_default_is_the_release_checked_on_a_bc250_..."""
+    if request.node.name.startswith("test_the_default_is_the_release_checked"):
+        return
+    monkeypatch.setattr(helixsr, "HELIXSR_TAG", "v1.8.1")
+    monkeypatch.setattr(helixsr, "HELIXSR_VERSION", "1.8.1")
+    monkeypatch.setattr(helixsr, "HELIXSR_SHA256", helixsr.HELIXSR_REVIEWED["v1.8.1"]["sha256"])
+
 
 
 def _sha(data: bytes) -> str:
@@ -217,6 +233,7 @@ def _run_install(home: Path, archive: Path, monkeypatch, *, pin: bool = True,
     )
 
 
+@needs_cmp
 def test_the_install_verifies_unpacks_and_builds_the_network(home, monkeypatch):
     result = _run_install(home, _release_zip(home / "release.zip"), monkeypatch)
     assert result.returncode == 0, result.stdout + result.stderr
@@ -225,6 +242,7 @@ def test_the_install_verifies_unpacks_and_builds_the_network(home, monkeypatch):
     assert os.access(helixsr.helixsr_directory() / "setup/lib/model/launch_synth", os.X_OK)
 
 
+@needs_cmp
 def test_the_long_shader_step_is_announced_and_its_progress_watched(home, monkeypatch):
     """Step 5/5 prints nothing for ~10 minutes: the setup's own temp folder
     is ours, so its finished shaders can be counted, and both go at the end."""
@@ -242,7 +260,7 @@ def test_the_long_shader_step_is_announced_and_its_progress_watched(home, monkey
 @pytest.mark.parametrize("entry, message", [
     ("../escape.txt", "not one HelixSR folder"),
     ("OtherTop/file.txt", "not one HelixSR folder"),
-    (f"HelixSR-{helixsr.HELIXSR_VERSION}/../x", "unexpected archive entry"),
+    ("HelixSR-1.8.1/../x", "unexpected archive entry"),  # the default these tests pin
 ])
 def test_the_install_refuses_entries_outside_the_release_folder(home, monkeypatch, entry, message):
     result = _run_install(home, _release_zip(home / "release.zip", extra=entry), monkeypatch)
@@ -636,9 +654,10 @@ def _next_release(monkeypatch) -> None:
     monkeypatch.setattr(helixsr, "HELIXSR_DLL_DIGESTS", frozenset({_sha(DLL), _sha(NEW_DLL)}))
 
 
-def test_the_default_is_the_newest_reviewed_stable_release_and_every_dll_is_known():
-    assert helixsr.HELIXSR_VERSION == "1.8.1"
-    assert helixsr.HELIXSR_TAG == max(helixsr.HELIXSR_REVIEWED, key=helixsr._version)
+def test_the_default_is_the_release_checked_on_a_bc250_and_every_dll_is_known():
+    # 2.0.0 went through the same check on a BC-250 that 1.8.1 did.
+    assert helixsr.HELIXSR_VERSION == "2.0.0"
+    assert max(helixsr.HELIXSR_REVIEWED, key=helixsr._version) == "v2.0.0"
     for release in helixsr.HELIXSR_REVIEWED.values():
         assert release["dll_sha256"] in helixsr.HELIXSR_DLL_DIGESTS
         assert release["archive"].startswith("HelixSR-") and release["size"] > 0
@@ -738,6 +757,7 @@ def _setup_args() -> list[str]:
     return (helixsr.helixsr_directory() / ".setup-args").read_text(encoding="utf-8").split()
 
 
+@needs_cmp
 def test_the_client_copy_of_dlss_spares_the_nvidia_download(home, monkeypatch):
     payload = _client_dlss(home, monkeypatch, DLSS)
     assert helixsr.helixsr_state(machine="x86_64")["local_dlss"] is True
@@ -765,6 +785,7 @@ def test_a_changed_client_copy_is_skipped_and_nothing_is_downloaded_without_a_ye
     assert helixsr.helixsr_state(machine="x86_64")["state"] == "needs-network"
 
 
+@needs_cmp
 def test_without_the_client_the_dll_is_downloaded_after_a_yes_and_checked(home, monkeypatch):
     monkeypatch.setenv("XDG_CONFIG_HOME", str(home / "config"))
     monkeypatch.setattr(helixsr, "DLSS_DLL_SHA256", _sha(DLSS))
@@ -881,7 +902,7 @@ FULL_INI = RELEASE_INI.replace(
     "MotionAdaptive = true\nUseGameSlider = false\nMotionThreshold = 2\nMotionLimit = 16\n"
     "MotionReduction = 0.6\nMode = off\n",
 ).replace(
-    "NetworkResolution = auto\n", "NetworkResolution = auto\nInt8 = auto\n",
+    "NetworkResolution = auto\n", "NetworkResolution = auto\nInt8 = auto\nFastOutput = on\n",
 ).replace(
     "MotionVectorFrontEnd = false\n",
     "MotionVectorFrontEnd = false\nUseReactiveMask = false\nDilateDisplayMotionVectors = false\n"
@@ -1211,6 +1232,24 @@ def test_githubs_list_adds_newer_releases_and_drops_withdrawn_ones(home, monkeyp
     assert releases[0]["sha256"] == _sha(b"new") and releases[0]["dll_sha256"] == ""
 
 
+def test_the_scaler_app_published_beside_a_release_is_not_its_archive(home):
+    """Since 1.9 each release also carries HelixSR-Scaler-*.zip (and a desktop
+    app); those used to make the release look like it had two archives."""
+    release = _listed("v1.9.3", b"helixsr 1.9.3")
+    release["assets"] += [
+        {"name": "HelixSR-Scaler-1.0.6.zip", "size": 99, "digest": "sha256:" + "a" * 64},
+        {"name": "HelixSR-Scaler-1.0.6-linux.tar.gz", "size": 99, "digest": "sha256:" + "b" * 64},
+        {"name": "SHA256SUMS.txt", "size": 9, "digest": "sha256:" + "c" * 64},
+    ]
+    _github(home, release, _listed(helixsr.HELIXSR_TAG, _pinned()["sha256"]))
+
+    newest = helixsr.helixsr_releases()[0]
+
+    assert (newest["tag"], newest["archive"], newest["sha256"]) == (
+        "v1.9.3", "HelixSR-1.9.3.zip", _sha(b"helixsr 1.9.3"),
+    )
+
+
 def test_a_pick_is_saved_and_falls_back_to_the_default_once_withdrawn(home):
     _github(home, _listed("v2.0.0", b"new", prerelease=True), _listed(helixsr.HELIXSR_TAG, _pinned()["sha256"]))
     with pytest.raises(ValueError, match="not on offer"):
@@ -1226,6 +1265,7 @@ def test_a_pick_is_saved_and_falls_back_to_the_default_once_withdrawn(home):
     assert helixsr.helixsr_release()["tag"] == helixsr.HELIXSR_TAG
 
 
+@needs_cmp
 def test_a_release_from_githubs_list_is_checked_by_its_published_digest(home, monkeypatch):
     """1.9.0's archive is HelixSR-1.9.0.2.zip with HelixSR-1.9.0 inside."""
     other = b"MZ helixsr from github"
@@ -1288,6 +1328,7 @@ def test_the_release_list_is_read_in_the_terminal_and_kept_small(home):
     import json
     answer.write_text(json.dumps([
         {**_listed("v2.0.0", b"new", prerelease=True), "body": "notes " * 1000, "author": {"login": "x"}},
+        _listed("v1.9.9", b"x", name="setup.exe"),
     ]), encoding="utf-8")
     curl = bin_dir / "curl"
     curl.write_text(
@@ -1302,12 +1343,14 @@ def test_the_release_list_is_read_in_the_terminal_and_kept_small(home):
                             timeout=60, check=False)
 
     assert result.returncode == 0, result.stdout + result.stderr
-    assert "v2.0.0  (pre-release)" in result.stdout
+    assert "v2.0.0  (pre-release)\n" in result.stdout
+    assert "v1.9.9  (no single HelixSR archive: not offered)" in result.stdout
     saved = json.loads(helixsr._releases_path().read_text(encoding="utf-8"))
     assert set(saved["releases"][0]) == {"tag_name", "draft", "prerelease", "assets"}
     assert "v2.0.0" in [r["tag"] for r in helixsr.helixsr_releases()]
 
 
+@needs_cmp
 def test_a_built_network_inside_the_dll_is_recognised_and_copied_alone(home, monkeypatch):
     """1.8 appends the network to HelixSR's DLL: the DLL is still the
     reviewed one once that part is set aside, and no network files follow."""
@@ -1484,3 +1527,67 @@ def test_only_1_9_and_newer_read_the_int8_setting(home):
     assert helixsr.helixsr_state(machine="x86_64")["int8_supported"] is False
     assert [helixsr._reads_int8(tag) for tag in ("v1.8.1", "v1.3.0", "v1.9.0", "v2.0.0", "v1.10.0")] == [
         False, False, True, True, True]
+
+
+# ------------------------------------------------------------ HelixSR 2.0
+
+
+def _release_2(directory: Path) -> Path:
+    """A 2.0 release: the DLL, with the network appended, in its build folder."""
+    built = directory / helixsr.HELIXSR_BUILD_FOLDER
+    built.mkdir(parents=True)
+    network = b"weights" + b"kernels"
+    footer = helixsr.HELIXSR_EMBED_MAGIC + struct.pack("<QQQ", 7, 7, 1)
+    (built / helixsr.HELIXSR_DLL).write_bytes(DLL + network + footer)
+    (built / helixsr.HELIXSR_INI).write_text("[Upscaling]\nInt8 = auto\nNetworkResolution = fast\n", encoding="utf-8")
+    (directory / helixsr.HELIXSR_SETUP).write_text("#!/bin/sh\n", encoding="utf-8")
+    (directory / helixsr.HELIXSR_MARKER).write_text(_pinned()["sha256"] + "\n", encoding="ascii")
+    return built
+
+
+def test_a_2_0_release_is_found_in_its_build_folder(home):
+    built = _release_2(helixsr.helixsr_directory())
+
+    assert helixsr.helixsr_dll_folder() == built
+    state = helixsr.helixsr_state(machine="x86_64")
+    assert state["current"] and state["network_ready"]
+    assert helixsr._release_ini().startswith("[Upscaling]")
+
+
+def test_an_earlier_release_keeps_its_dll_at_the_top(home):
+    _ready(home)
+    assert helixsr.helixsr_dll_folder() == helixsr.helixsr_directory()
+
+
+def test_a_game_gets_the_2_0_dll_with_its_network(home):
+    built = _release_2(helixsr.helixsr_directory())
+    install = _steam_game(home, "100", "Space Game", {"Bin": (helixsr.UPSCALER_DLL,)})
+
+    helixsr.install_helixsr_game("100")
+
+    given = (install / "Bin" / helixsr.UPSCALER_DLL).read_bytes()
+    assert given == (built / helixsr.HELIXSR_DLL).read_bytes()
+    assert not any((install / "Bin" / name).exists() for name in helixsr.HELIXSR_NETWORK_FILES)
+    assert helixsr.helixsr_state(machine="x86_64")["games"][0]["state"] == "installed"
+
+
+def test_the_2_0_setup_skips_frame_generation_and_checks_the_built_dll(home):
+    command = helixsr.build_helixsr_network_command()
+
+    assert f"test ! -d {helixsr.helixsr_directory()}/{helixsr.HELIXSR_BUILD_FOLDER} || bc250_fg_args=(--no-fg)" in command
+    assert '"${bc250_fg_args[@]}" </dev/null' in command
+    assert f'{helixsr.HELIXSR_BUILD_FOLDER}/{helixsr.HELIXSR_DLL} || bc250_built=' in command
+
+
+def test_the_install_finds_the_dll_where_the_archive_keeps_it(home):
+    command = helixsr.build_helixsr_install_command()
+
+    assert f'bc250_dll="$bc250_stage/{helixsr.HELIXSR_BUILD_FOLDER}/{helixsr.HELIXSR_DLL}"' in command
+    assert 'sha256sum "$bc250_dll"' in command
+    assert 'test ! -f "$bc250_stage/setup/lib/model/launch_synth" ||' in command
+
+
+def test_fast_output_is_read_from_2_0_on():
+    assert helixsr._reads_fast_output("v2.0.0") and helixsr._reads_fast_output("v2.1.3")
+    assert not helixsr._reads_fast_output("v1.9.3") and not helixsr._reads_fast_output("v1.8.1")
+    assert helixsr.helixsr_defaults()["Upscaling.FastOutput"] == "on"

@@ -42,3 +42,31 @@ def test_the_glow_is_on_unless_settings_switch_it_off(monkeypatch):
     assert preferences.report_glow_enabled()
     monkeypatch.setattr(preferences, "application_settings", lambda: Stored("false"))
     assert not preferences.report_glow_enabled()
+
+
+def test_an_error_window_glows_like_the_dashboard_and_stops_once_pressed(qtbot, monkeypatch):
+    from frontends.desktop.components import widgets
+    from frontends.desktop.components.outline_glow import OutlineGlow
+
+    monkeypatch.setattr(widgets, "report_glow_enabled", lambda: True)
+    button = widgets.ReportButton("Report this problem")
+    qtbot.addWidget(button)
+    button.show()
+    qtbot.waitExposed(button)
+    assert button.glowing()
+    assert isinstance(button._outline, OutlineGlow)
+    assert button._outline.cycle.state() == QAbstractAnimation.State.Running
+
+    button.click()
+    assert not button.glowing()
+    assert button._outline.cycle.state() == QAbstractAnimation.State.Stopped
+
+
+def test_the_settings_switch_also_quiets_error_windows(qtbot, monkeypatch):
+    from frontends.desktop.components import widgets
+
+    monkeypatch.setattr(widgets, "report_glow_enabled", lambda: False)
+    button = widgets.ReportButton("Report this problem")
+    qtbot.addWidget(button)
+    button.show()
+    assert not button.glowing()

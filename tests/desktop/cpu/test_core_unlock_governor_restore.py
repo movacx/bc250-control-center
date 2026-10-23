@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import os
 import runpy
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -74,8 +75,7 @@ class _NoOpenRC:
 
 def _unlock(monkeypatch, tmp_path, system: _Systemd) -> tuple[list, BaseException | None]:
     helper = runpy.run_path(str(HELPER))["main"].__globals__
-    script = tmp_path / "script.py"
-    script.write_text("", encoding="utf-8")
+    monkeypatch.setitem(helper, "STAGING_PARENT", str(tmp_path))
     reboots: list = []
     monkeypatch.setattr(os, "geteuid", lambda: 0)
     monkeypatch.setattr(subprocess, "run", system.run)
@@ -84,7 +84,7 @@ def _unlock(monkeypatch, tmp_path, system: _Systemd) -> tuple[list, BaseExceptio
         "_bc250_identity_present": lambda: True,
         "Path": _NoOpenRC,
         "_invoking_user": lambda: (1000, 1000, tmp_path),
-        "_validate_repository": lambda *_: os.open(script, os.O_RDONLY),
+        "_validate_repository": lambda *_: b"",
         "_reboot_after_core_unlock": lambda: reboots.append(True),
     }.items():
         monkeypatch.setitem(helper, name, fake)
@@ -215,17 +215,20 @@ def test_openrc_gets_its_runlevel_and_service_back(monkeypatch, tmp_path):
             return Path_(f"{self.path}/{other}")
 
     helper = runpy.run_path(str(HELPER))["main"].__globals__
-    monkeypatch.setitem(helper, "shutil", type("S", (), {"which": staticmethod(lambda name: f"/sbin/{name}")}))
+    monkeypatch.setitem(
+        helper,
+        "shutil",
+        type("S", (), {"which": staticmethod(lambda name: f"/sbin/{name}"), "rmtree": staticmethod(shutil.rmtree)}),
+    )
+    monkeypatch.setitem(helper, "STAGING_PARENT", str(tmp_path))
     monkeypatch.setattr(subprocess, "run", system.run)
-    script = tmp_path / "script.py"
-    script.write_text("", encoding="utf-8")
     monkeypatch.setattr(os, "geteuid", lambda: 0)
     for name, fake in {
         "Path": Path_,
         "_trusted_self": lambda: True,
         "_bc250_identity_present": lambda: True,
         "_invoking_user": lambda: (1000, 1000, tmp_path),
-        "_validate_repository": lambda *_: os.open(script, os.O_RDONLY),
+        "_validate_repository": lambda *_: b"",
         "_reboot_after_core_unlock": lambda: None,
     }.items():
         monkeypatch.setitem(helper, name, fake)

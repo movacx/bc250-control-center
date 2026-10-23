@@ -184,3 +184,181 @@ def test_open_goes_through_the_verified_launcher(home, monkeypatch):
     )
     assert repository.gestionar_fsr4_bc250("launch") == {"launched": True}
     assert calls == [True]
+
+
+# ------------------------------------------------------------------ versions
+
+
+def _listed(version: str, digest: str = "a" * 64, *, name: str = "", prerelease: bool = True,
+            prefix: str = "opticlient-v", **extra) -> dict:
+    return {"tag_name": prefix + version, "draft": False, "prerelease": prerelease, "assets": [
+        {"name": name or f"bc250-opticlient-{version}-linux-x64.tar.gz", "size": 1234,
+         "digest": f"sha256:{digest}"},
+        {"name": "bc250-fsr4-dll-4.0.0-rc11-docs2.zip", "size": 9, "digest": "sha256:" + "f" * 64},
+        {"name": "SHA256SUMS", "size": 9, "digest": "sha256:" + "e" * 64},
+    ], **extra}
+
+
+def _github(*entries: dict) -> None:
+    """GitHub's release list as Check for new releases saves it."""
+    import json
+
+    path = opticlient._releases_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"time": 1, "releases": list(entries)}), encoding="utf-8")
+
+
+def test_without_a_check_only_the_reviewed_build_is_offered(home):
+    state = opticlient.opticlient_state(machine="x86_64", games=False)
+    assert [r["tag"] for r in state["releases"]] == [opticlient.OPTICLIENT_TAG]
+    assert state["tag"] == opticlient.OPTICLIENT_TAG and not state["releases_checked"]
+
+
+def test_githubs_list_adds_client_builds_and_skips_everything_else(home):
+    _github(
+        _listed("1.0.8-bc250.1", "b" * 64),
+        _listed("1.0.7-bc250.5", "c" * 64),  # another archive under the reviewed tag
+        _listed("1.0.7-bc250.4", "d" * 64),
+        _listed("4.0.0-rc11", prefix="v"),  # the older runtime, not a client build
+        _listed("1.0.9-bc250.1", "not a digest"),
+        _listed("1.0.9-bc250.2", name="setup.exe"),
+        _listed("1.1.0-bc250.1", draft=True),
+        _listed("latest"),
+    )
+
+    releases = opticlient.opticlient_releases()
+
+    assert [(r["version"], r["reviewed"], r["default"]) for r in releases] == [
+        ("1.0.8-bc250.1", False, False),
+        (opticlient.OPTICLIENT_VERSION, True, True),
+        ("1.0.7-bc250.4", False, False),
+    ]
+    assert releases[1]["sha256"] == opticlient.OPTICLIENT_SHA256, "the reviewed digest stays"
+    assert releases[0]["archive"] == "bc250-opticlient-1.0.8-bc250.1-linux-x64.tar.gz"
+
+
+def test_a_picked_build_is_what_install_downloads_and_checks(home):
+    _github(_listed("1.0.8-bc250.1", "b" * 64), _listed(opticlient.OPTICLIENT_VERSION))
+    with pytest.raises(ValueError, match="not on offer"):
+        opticlient.select_opticlient_release("opticlient-v9.9.9-bc250.1")
+
+    assert opticlient.select_opticlient_release("opticlient-v1.0.8-bc250.1") == {
+        "tag": "opticlient-v1.0.8-bc250.1", "version": "1.0.8-bc250.1",
+    }
+    command = opticlient.build_opticlient_install_command()
+
+    assert opticlient.opticlient_directory().name == "1.0.8-bc250.1"
+    assert ("releases/download/opticlient-v1.0.8-bc250.1/"
+            "bc250-opticlient-1.0.8-bc250.1-linux-x64.tar.gz") in command
+    assert "b" * 64 in command and opticlient.OPTICLIENT_SHA256 not in command
+    assert "bc250-opticlient-1.0.8-bc250.1-linux-x64|bc250-opticlient-1.0.8-bc250.1-linux-x64/*" in command
+    assert "newer than the ones Control Center was reviewed with" in command
+    result = subprocess.run(["bash", "-n"], input=command, text=True, capture_output=True, check=False)
+    assert result.returncode == 0, result.stderr
+
+    _github(_listed(opticlient.OPTICLIENT_VERSION))  # upstream withdrew 1.0.8
+    assert opticlient.opticlient_release()["tag"] == opticlient.OPTICLIENT_TAG
+
+
+def test_picking_an_older_build_is_not_called_an_update(home):
+    _github(_listed(opticlient.OPTICLIENT_VERSION), _listed("1.0.7-bc250.4", "d" * 64))
+    _install_fake(opticlient.opticlient_directory())
+    assert opticlient.opticlient_state(machine="x86_64", games=False)["state"] == "ready"
+
+    opticlient.select_opticlient_release("opticlient-v1.0.7-bc250.4")
+    state = opticlient.opticlient_state(machine="x86_64", games=False)
+
+    assert (state["state"], state["version"], state["current"]) == ("other-version", "1.0.7-bc250.4", False)
+
+
+def test_the_release_list_is_read_in_the_terminal_and_kept_small(home):
+    import json
+    import os
+
+    command = opticlient.build_opticlient_releases_command()
+    assert opticlient.OPTICLIENT_RELEASES_API in command
+    bin_dir = home / "bin"
+    bin_dir.mkdir()
+    answer = home / "answer.json"
+    answer.write_text(json.dumps([
+        {**_listed("1.0.8-bc250.1", "b" * 64), "body": "notes " * 1000, "author": {"login": "x"}},
+        _listed("4.0.0-rc11", prefix="v"),
+        _listed("1.0.9-bc250.2", name="setup.exe"),
+    ]), encoding="utf-8")
+    curl = bin_dir / "curl"
+    curl.write_text(
+        '#!/bin/sh\nwhile [ $# -gt 0 ]; do case "$1" in -o) out="$2"; shift;; esac; shift; done\n'
+        f'cp "{answer}" "$out"\n', encoding="utf-8",
+    )
+    curl.chmod(0o755)
+    environment = dict(os.environ, PATH=f"{bin_dir}:{os.environ['PATH']}", TMPDIR=str(home), LC_ALL="C")
+
+    result = subprocess.run(["bash", "-c", command], env=environment, capture_output=True, text=True,
+                            timeout=60, check=False)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "1.0.8-bc250.1  (pre-release)\n" in result.stdout
+    assert "4.0.0-rc11" not in result.stdout, "the older runtime is not listed as a client build"
+    assert "1.0.9-bc250.2  (pre-release)  (no client archive: not offered)" in result.stdout
+    saved = json.loads(opticlient._releases_path().read_text(encoding="utf-8"))
+    assert set(saved["releases"][0]) == {"tag_name", "draft", "prerelease", "assets"}
+    assert "opticlient-v1.0.8-bc250.1" in [r["tag"] for r in opticlient.opticlient_releases()]
+
+
+def test_the_backend_saves_a_pick_and_opens_the_release_list(home, monkeypatch):
+    _github(_listed("1.0.8-bc250.1", "b" * 64), _listed(opticlient.OPTICLIENT_VERSION))
+    repository = object.__new__(DependenciasRepository)
+    opened = []
+    monkeypatch.setattr(repository, "_abrir_terminal", lambda command, title: opened.append(title) or {}, raising=False)
+
+    assert repository.gestionar_fsr4_bc250("select:opticlient-v1.0.8-bc250.1")["version"] == "1.0.8-bc250.1"
+    repository.gestionar_fsr4_bc250("releases")
+
+    assert opticlient.opticlient_release()["tag"] == "opticlient-v1.0.8-bc250.1"
+    assert opened == ["FSR4 · releases"]
+
+
+def test_a_newer_build_from_githubs_list_installs_end_to_end(home):
+    """The terminal script itself: download, digest, layout, SHA256SUMS, install."""
+    import hashlib
+    import os
+    import tarfile
+
+    version = "1.0.8-bc250.1"
+    top = f"bc250-opticlient-{version}-linux-x64"
+    stage = home / "build" / top
+    stage.mkdir(parents=True)
+    for name in (opticlient.OPTICLIENT_BINARY, opticlient.OPTICLIENT_LAUNCHER):
+        (stage / name).write_text("#!/bin/sh\n", encoding="utf-8")
+        (stage / name).chmod(0o755)
+    sums = "".join(
+        f"{hashlib.sha256((stage / name).read_bytes()).hexdigest()}  {name}\n"
+        for name in (opticlient.OPTICLIENT_BINARY, opticlient.OPTICLIENT_LAUNCHER)
+    )
+    (stage / "SHA256SUMS").write_text(sums, encoding="utf-8")
+    archive = home / f"{top}.tar.gz"
+    with tarfile.open(archive, "w:gz") as bundle:
+        bundle.add(stage, arcname=top)
+    digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+    _github(_listed(version, digest), _listed(opticlient.OPTICLIENT_VERSION))
+    opticlient.select_opticlient_release(f"opticlient-v{version}")
+    _install_fake(opticlient.opticlient_root() / opticlient.OPTICLIENT_VERSION)
+    assert opticlient.opticlient_state(machine="x86_64", games=False)["state"] == "update-available"
+
+    bin_dir = home / "bin"
+    bin_dir.mkdir()
+    curl = bin_dir / "curl"
+    curl.write_text(
+        '#!/bin/sh\nwhile [ $# -gt 0 ]; do case "$1" in -o) out="$2"; shift;; esac; shift; done\n'
+        f'cp "{archive}" "$out"\n', encoding="utf-8",
+    )
+    curl.chmod(0o755)
+    environment = dict(os.environ, PATH=f"{bin_dir}:{os.environ['PATH']}", TMPDIR=str(home), LC_ALL="C")
+
+    result = subprocess.run(["bash", "-c", opticlient.build_opticlient_install_command()],
+                            env=environment, capture_output=True, text=True, timeout=60, check=False)
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "newer than the ones Control Center was reviewed with" in result.stdout
+    state = opticlient.opticlient_state(machine="x86_64", games=False)
+    assert (state["state"], state["version"], state["other_versions"]) == ("ready", version, [])

@@ -76,12 +76,18 @@ status = helper_json("status")
 check("status answers with a ttm section", "ttm" in status, str(status.get("_error")))
 
 if kind == "steamos":
+    # SteamOS (beta) is managed through its own GRUB layout since c7444c1: the
+    # GPU memory limit, mitigations=off and nosmt, never the CU unlock.
     state = ttm()
-    check("SteamOS is reported as not managed, with the reason", state.get("supported") is False and "SteamOS" in state.get("reason", ""), json.dumps(state)[:200])
-    code, _out, err = helper("ttm-apply", "--ttm", "8")
-    check("SteamOS refuses ttm-apply and changes nothing", code != 0 and not STATE_DIR.exists() or not list(STATE_DIR.glob("kernel-options.json")), err[-160:])
-    kernel = helper_json("kernel-options-set", "--kernel-options", "nosmt")
-    check("SteamOS kernel options are refused too", "_error" in kernel, str(kernel)[:160])
+    check("SteamOS is managed through its own GRUB", state.get("supported") is True and state.get("backend") == "steamos-grub", json.dumps(state)[:200])
+    status_args = helper_json("status").get("kernel_options", {}) or {}
+    allowed = status_args.get("allowed")
+    if allowed is not None:
+        check("SteamOS offers only mitigations=off and nosmt", sorted(allowed) == ["mitigations=off", "nosmt"], str(allowed))
+    result = helper_json("ttm-apply", "--ttm", "8")
+    check("ttm-apply 8 saves the limit for the next boot", result.get("configured_pages") == PAGES[8] and result.get("managed") is True, str(result)[:240])
+    result = helper_json("ttm-apply", "--ttm", "-1")
+    check("ttm-apply -1 restores the kernel default", result.get("managed") is False and result.get("configured_pages") is None, str(result)[:240])
     sys.exit(1 if failures else 0)
 
 check("unprivileged-style status has the shared fields", all(k in status["ttm"] for k in ("managed", "external", "reboot_required", "configured_pages")))

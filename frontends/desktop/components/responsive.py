@@ -82,11 +82,3 @@ def clear_grid(layout: QGridLayout, *, reset_columns: int = 12, reset_rows: int 
         layout.setRowStretch(row, 0)
         layout.setRowMinimumHeight(row, 0)
 
-
-def responsive_columns(width: int, *breakpoints: tuple[int, int], fallback: int = 1) -> int:
-    """Choose a column count from descending ``(minimum_width, columns)`` pairs."""
-
-    for minimum_width, columns in breakpoints:
-        if width >= minimum_width:
-            return max(1, int(columns))
-    return max(1, int(fallback))

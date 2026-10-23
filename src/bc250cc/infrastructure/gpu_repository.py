@@ -1,4 +1,3 @@
-import os
 import re
 import shlex
 import subprocess
@@ -19,8 +18,8 @@ from bc250cc.infrastructure.cyan_governor_runtime import (
     detect_cyan_runtime_identity,
 )
 from bc250cc.infrastructure.governor_config_request import (
-    GOVERNOR_CONFIG_HELPER_PROTOCOL,
-    governor_config_helper_protocol,
+    find_governor_config_helper,
+    missing_governor_config_helper_message,
     plan_governor_config_request,
 )
 from bc250cc.infrastructure.governor_conflicts import (
@@ -323,55 +322,6 @@ class GPURepository:
         self._restart_governor(service)
         return True
 
-    def asegurar_telemetria_gpu_cyan(self):
-        """Validate Cyan telemetry without overriding either explicit switch."""
-        telemetry = self._cyan_configuration_state()[-1]
-        result = self._editar_governor_toml(
-            "ensure-cyan-telemetry", bool(telemetry.get("fix_frequency"))
-        )
-        restarted = self._restart_governor_if_active(
-            str(GOVERNOR_SPECS[CYAN_GOVERNOR]["service"])
-        )
-        self.estado_bc250_cache = None
-        return result + (" Active Cyan service restarted." if restarted else "")
-
-    def desactivar_fix_metricas_gpu_cyan(self):
-        """Disable Cyan's optional metrics overlay without changing live clocks.
-
-        Editing ``fix-metrics`` is configuration-only, but an active Cyan
-        service must restart before the overlay disappears.  A restart can
-        otherwise reset an operator's selected min/max clock range, so this
-        follows the same read-before-write / restore-after-restart contract as
-        the voltage and high-point operations.  If the current range cannot
-        be read, leave both the file and service untouched.
-        """
-        service = str(GOVERNOR_SPECS[CYAN_GOVERNOR]["service"])
-        was_active = self._service_is_active(service)
-        previous_range = None
-        if was_active:
-            previous_range = self._leer_rango_governor("Current")
-            if previous_range is None:
-                raise RuntimeError(
-                    "The active Cyan range could not be read through D-Bus. "
-                    "The optional metrics overlay was not changed because "
-                    "restarting now could reset the current GPU range."
-                )
-        result = self._editar_governor_toml("set-cyan-metrics-fix", False)
-        if not was_active:
-            self.estado_bc250_cache = None
-            return (
-                result + " Cyan is inactive; fix-metrics will remain disabled "
-                "when the service is next started."
-            )
-        if not self._restart_governor_if_active(service):
-            raise RuntimeError("The active Cyan governor could not be restarted.")
-        restored = self._restaurar_rango_governor(previous_range)
-        self.estado_bc250_cache = None
-        return (
-            f"{result} Runtime range preserved at "
-            f"{restored[0]}-{restored[1]} MHz after the Cyan restart."
-        )
-
     def _cyan_metrics_overlay_available(self):
         """Return whether this kernel exposes Cyan's bind-mount destination.
 
@@ -449,7 +399,7 @@ class GPURepository:
         )
 
     def configurar_compatibilidad_gpu_cyan(
-        self, set_method, usage_method, fix_metrics, fix_frequency
+        self, set_method, usage_method, fix_metrics, fix_frequency, temp_read=None
     ):
         """Apply Cyan's four compatibility switches without overriding user intent.
 
@@ -504,12 +454,15 @@ class GPURepository:
         # told so. Cyan comes back on the TOML's own [frequency-range], which
         # is a value this application wrote.
         previous_range = self._leer_rango_governor("Current") if was_active else None
+        # The temperature source goes along only when one was chosen: None
+        # leaves gpu-usage.temp-read exactly as it is in the TOML.
         result = self._editar_governor_toml(
             "set-cyan-compatibility",
             set_method,
             usage_method,
             bool(fix_metrics),
             bool(fix_frequency),
+            *(() if temp_read is None else (temp_read,)),
         )
         if not was_active:
             self.estado_bc250_cache = None
@@ -773,8 +726,8 @@ class GPURepository:
             # Game Mode's helper needs no password: apply it right here.
             try:
                 self._editar_governor_toml(request.action, set_method, usage_method, False, False)
-            except Exception:
-                pass
+            except (OSError, ValueError, RuntimeError) as exc:
+                return f"Could not apply the governor setting: {exc}"
             return ""
         helper = self._governor_config_helper_path()
         if not helper:
@@ -930,34 +883,7 @@ class GPURepository:
         return prefix + " ".join(steps)
 
     def _governor_config_helper_path(self):
-        candidates = (
-            Path("/usr/libexec/bc250-control-center/bc250-governor-config-helper"),
-            Path(
-                "/usr/local/libexec/bc250-control-center/bc250-governor-config-helper"
-            ),
-        )
-        for candidate in candidates:
-            try:
-                metadata = candidate.stat(follow_symlinks=False)
-            except OSError:
-                continue
-            if candidate.is_symlink() or not candidate.is_file():
-                continue
-            if metadata.st_uid != 0 or metadata.st_mode & 0o022:
-                continue
-            if not os.access(candidate, os.X_OK):
-                continue
-            try:
-                source = candidate.read_text(encoding="utf-8", errors="strict")
-            except (OSError, UnicodeError):
-                continue
-            if (
-                governor_config_helper_protocol(source)
-                != GOVERNOR_CONFIG_HELPER_PROTOCOL
-            ):
-                continue
-            return str(candidate)
-        return ""
+        return find_governor_config_helper()[0]
 
     def _cyan_runtime_identity(self):
         return detect_cyan_runtime_identity(self)
@@ -976,32 +902,6 @@ class GPURepository:
             )
         return path
 
-    def _require_cyan_runtime_for_live_control(self):
-        """Require the reviewed BC250CC Cyan runtime on Bazzite live writes."""
-
-        family = ""
-        os_repository_factory = getattr(self, "_os_repository", None)
-        if callable(os_repository_factory):
-            try:
-                family = str(os_repository_factory().info.family or "").lower()
-            except (AttributeError, OSError, RuntimeError, TypeError, ValueError):
-                family = ""
-        if family != "bazzite":
-            return self._cyan_runtime_identity()
-
-        identity = self._cyan_runtime_identity()
-        if not identity.get("config_matches_managed_path"):
-            raise RuntimeError(
-                "Bazzite Cyan is running with a TOML that BC250 Control Center does not manage. "
-                "Run Prepare dependencies to repair the service/config binding before changing GPU frequency."
-            )
-        if not identity.get("runtime_bc250cc_verified"):
-            raise RuntimeError(
-                "Bazzite GPU control requires the reviewed BC250CC Cyan runtime. "
-                "Run Prepare dependencies to build and verify the managed Cyan runtime before applying a live GPU range."
-            )
-        return identity
-
     def _editar_governor_toml(self, action, *arguments):
         request = plan_governor_config_request(action, arguments)
         if action not in {"set-oberon-operating-points", "set-decky-gpu-profiles"}:
@@ -1018,10 +918,7 @@ class GPURepository:
             return result
         helper = self._governor_config_helper_path()
         if not helper:
-            raise RuntimeError(
-                "The privileged governor configuration helper is not installed. "
-                "Reinstall BC250 Control Center locally or from its package before editing /etc."
-            )
+            raise RuntimeError(missing_governor_config_helper_message("editing /etc"))
         rc, out, err = self._ejecutar(request.argv(helper), timeout=120)
         if rc != 0:
             raise RuntimeError(describe_failure(rc, out, err))
@@ -1050,27 +947,6 @@ class GPURepository:
             self._cyan_runtime_config_path()
         ).frequency_range_state()
 
-    def _cyan_high_points_enabled(self):
-        return bool(
-            GovernorTomlEditor(self._cyan_runtime_config_path())
-            .high_frequency_state()
-            .get("enabled")
-        )
-
-    def _cyan_set_method(self) -> str:
-        try:
-            state = GovernorTomlEditor(
-                self._cyan_runtime_config_path()
-            ).gpu_telemetry_state()
-        except (OSError, RuntimeError, ValueError) as error:
-            raise RuntimeError(
-                "The Cyan GPU backend could not be validated before changing frequency."
-            ) from error
-        method = str(state.get("set_method") or "").strip().lower()
-        if method not in {"smu", "kernel"}:
-            raise RuntimeError("Cyan gpu.set-method must be smu or kernel.")
-        return method
-
     def aplicar_perfil_gpu(self, minimo, maximo):
         """Apply a live GPU profile without rewriting persistent TOML limits.
 
@@ -1081,7 +957,6 @@ class GPURepository:
         if self._selected_gpu_governor() == OBERON_GOVERNOR:
             return self.aplicar_rango_bc250(minimo, maximo)
         minimo, maximo = int(minimo), int(maximo)
-        self._require_cyan_runtime_for_live_control()
         self._ensure_cyan_frequency_range_loaded(minimo, maximo)
         return self._apply_cyan_runtime_range(minimo, maximo)
 
@@ -1097,7 +972,6 @@ class GPURepository:
             raise RuntimeError(
                 "Startup range persistence is available only for the Cyan governor."
             )
-        self._require_cyan_runtime_for_live_control()
         current = self._leer_rango_governor("Current")
         if current is None or len(current) != 2:
             raise RuntimeError(
@@ -1137,8 +1011,7 @@ class GPURepository:
         live governor envelope before applying, so this never needs the Cyan
         runtime checks a live frequency change requires.
         """
-        result = self._editar_governor_toml("set-decky-gpu-profiles", list(profiles))
-        return result
+        return self._exportar_perfiles_decky("set-decky-gpu-profiles", profiles)
 
     def _ensure_cyan_frequency_range_loaded(self, minimo: int, maximo: int) -> None:
         """Ensure the running Cyan process has loaded a requested high point.
@@ -1346,34 +1219,6 @@ class GPURepository:
         if minimo is None or maximo is None or minimo > maximo:
             return None
         return int(minimo), int(maximo)
-
-    def _esperar_rango_governor(self, expected, *, timeout=1.5):
-        expected = int(expected[0]), int(expected[1])
-        deadline = time.monotonic() + max(0.1, float(timeout))
-        current = None
-        while time.monotonic() < deadline:
-            current = self._leer_rango_governor("Current")
-            if current == expected:
-                return current
-            time.sleep(0.05)
-        return current
-
-    def _require_cyan_runtime_range_ready(self):
-        """Block a new live request while Cyan is still recovering its D-Bus API.
-
-        A voltage-curve transaction restarts Cyan and restores the previous
-        range before it returns.  If that transaction reports a failure, the
-        system-bus objects can still be absent while SteamOS retries the
-        hwmon/fix-freq path.  Sending another SetRange at that point only
-        produces a second, less useful failure and obscures the first one.
-        """
-        current = self._leer_rango_governor("Current")
-        if current is None:
-            raise RuntimeError(
-                "Cyan D-Bus runtime range is not ready after a governor restart. "
-                "Wait for Cyan to recover, then refresh GPU status before applying a new range."
-            )
-        return current
 
     @staticmethod
     def _limitar_rango_governor(previous, allowed):
@@ -1707,19 +1552,16 @@ class GPURepository:
                 ),
                 "runtime_version": str(identity.get("version") or ""),
                 "runtime_binary_sha256": str(identity.get("binary_sha256") or ""),
-                "runtime_revision": str(identity.get("runtime_revision") or ""),
-                "runtime_upstream_commit": str(
-                    identity.get("runtime_upstream_commit") or ""
-                ),
-                "runtime_hash_matches": bool(identity.get("runtime_hash_matches")),
-                "runtime_bc250cc_verified": bool(
-                    identity.get("runtime_bc250cc_verified")
+                "runtime_release": str(identity.get("runtime_release") or ""),
+                "runtime_update_available": bool(
+                    identity.get("runtime_update_available")
                 ),
                 "runtime_binary": runtime.get("binary_path", ""),
                 "runtime_frequency_fix_supported": bool(
                     runtime.get("supports_frequency_fix")
                 ),
                 "runtime_managed_override": bool(runtime.get("managed_override")),
+                "temp_read_supported": identity.get("temp_read_supported"),
                 "runtime_metrics_fix_error": bool(
                     runtime.get("metrics_fix_runtime_error")
                 ),
@@ -1733,6 +1575,13 @@ class GPURepository:
                 "frequencies": (),
                 "enabled_frequencies": (),
                 "enabled": False,
+            }
+        ceiling, ceiling_reason = gpu_frequency_ceiling()
+        if ceiling is not None:
+            high_points = {
+                **high_points,
+                "ceiling_mhz": int(ceiling),
+                "ceiling_reason": str(ceiling_reason),
             }
         try:
             frequency_range = editor.frequency_range_state()
@@ -1831,6 +1680,21 @@ class GPURepository:
             return False
         return True
 
+    #: How long the OD table read is reused. On the BC-250 every read of
+    #: pp_od_clk_voltage logs eight "Unsupported clock type" kernel errors, and
+    #: the table only changes when a kernel or a governor configuration does.
+    OD_TEXT_TTL_S = 60.0
+
+    def _od_text(self, gpu):
+        key = str(gpu)
+        cached = getattr(self, "_od_cache", None)
+        now = time.monotonic()
+        if cached and cached[0] == key and now - cached[1] < self.OD_TEXT_TTL_S:
+            return cached[2]
+        text = self._leer_texto(gpu / "pp_od_clk_voltage")
+        self._od_cache = (key, now, text)
+        return text
+
     def _gpu_device_evidence(self, gpu):
         """Read one coherent sysfs sample without mixing governor decisions."""
         if not gpu:
@@ -1853,7 +1717,7 @@ class GPURepository:
             )
         sclk_text = self._leer_texto(gpu / "pp_dpm_sclk")
         mclk_text = self._leer_texto(gpu / "pp_dpm_mclk")
-        od = self._parse_od(self._leer_texto(gpu / "pp_od_clk_voltage"))
+        od = self._parse_od(self._od_text(gpu))
         hwmon_sclk, hwmon_vddgfx = self._gpu_hwmon_live_metrics(gpu)
         return GpuDeviceEvidence(
             path=str(gpu),
@@ -2015,7 +1879,6 @@ class GPURepository:
     def _apply_cyan_runtime_range(self, minimo, maximo):
         """Apply and verify one Cyan adaptive range request."""
 
-        self._require_cyan_runtime_for_live_control()
         self._validar_curva_oc_alta(maximo)
         result = CyanGpuEngine(self).apply_range(minimo, maximo)
         self._raise_if_cyan_hardware_rejected(result, fixed=False)
@@ -2058,7 +1921,6 @@ class GPURepository:
                 " Active Oberon service restarted." if restarted else ""
             )
             return state
-        self._require_cyan_runtime_for_live_control()
         current = self._leer_rango_governor("Current")
         allowed = self._leer_rango_governor("Allowed")
         if allowed is None:

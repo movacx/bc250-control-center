@@ -13,8 +13,8 @@ from __future__ import annotations
 CONTRACT_REVISION = 1
 QUICK_ACCESS_PROTOCOL = 21
 CPU_SMU_HELPER_PROTOCOL = 8
-GOVERNOR_CONFIG_PROTOCOL = 6
-STEAMOS_GAME_HELPER_PROTOCOL = 21
+GOVERNOR_CONFIG_PROTOCOL = 7
+STEAMOS_GAME_HELPER_PROTOCOL = 22
 QUICK_ACCESS_CU_RUNTIME_SCHEMA = 1
 CPU_FREQUENCY_RANGE = (3100, 4200)
 CPU_FREQUENCY_STEP_MHZ = 50
@@ -38,7 +38,8 @@ QUICK_ACCESS_FAN_PRESET_DUTY = {'quiet': 102, 'balanced': 153, 'boost': 204, 'au
 QUICK_ACCESS_FAN_CHANNELS = (2, 3, 4, 5)
 QUICK_ACCESS_FAN_PERCENT_RANGE = (20, 100)
 QUICK_ACCESS_FAN_PERCENT_STEP = 5
-VRAM_SIZE_PRESETS_MB = (256, 512, 1024, 3072, 4096, 5120, 6144, 7168, 8192, 12288)
+VRAM_SIZE_PRESETS_MB = (256, 512, 1024, 2048, 3072, 4096, 5120, 6144, 7168, 8192, 12288)
+VRAM_SIZE_BLOCKED_MB = (2048,)
 
 
 def cpu_frequency_ladder() -> tuple[int, ...]:
@@ -71,3 +72,8 @@ def estimated_vid(frequency: int, scale: int) -> int | None:
 def cu_targets() -> tuple[int, ...]:
     low, high = CU_TARGET_RANGE
     return tuple(range(low, high + 1, CU_TARGET_STEP))
+
+
+def vram_size_choices() -> tuple[int, ...]:
+    """The VRAM presets the interfaces offer and the helpers accept."""
+    return tuple(size for size in VRAM_SIZE_PRESETS_MB if size not in VRAM_SIZE_BLOCKED_MB)

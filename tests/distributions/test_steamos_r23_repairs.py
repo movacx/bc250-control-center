@@ -1,11 +1,9 @@
-import os
 import subprocess
 from pathlib import Path
 
 from bc250cc.infrastructure.dependencias_repository import DependenciasRepository
 from bc250cc.infrastructure.gpu_repository import GPURepository
 from bc250cc.infrastructure.terminal_plan import workflow_wrapper
-from bc250cc.infrastructure.terminal_repository import TerminalRepository
 
 
 def test_cyan_installer_reloads_system_dbus_policy():
@@ -186,36 +184,28 @@ def test_a_workflow_shown_in_the_console_does_not_wait_for_a_key_press():
         assert wrapper.rstrip().endswith('exit "$status"')
 
 
-def test_manual_terminal_log_is_complete_and_preserves_failure(tmp_path, monkeypatch):
-    monkeypatch.setenv('XDG_STATE_HOME', str(tmp_path))
-    script = TerminalRepository()._manual_terminal_script(
-        "printf 'stdout-line\\n'; printf 'stderr-line\\n' >&2; exit 17",
-        'Logging test',
-    )
-
-    completed = subprocess.run(
-        ['bash', str(script)], capture_output=True, text=True, check=False,
-        env={**os.environ, 'XDG_STATE_HOME': str(tmp_path)},
-    )
-    assert completed.returncode == 17
-    logs = list((tmp_path / 'bc250-control-center' / 'terminal').glob('workflow-*.log'))
-    assert len(logs) == 1
-    log = logs[0].read_text(encoding='utf-8')
-    assert 'stdout-line' in log
-    assert 'stderr-line' in log
-    assert 'Process finished with exit code 17' in log
-    assert f'Full log saved to: {logs[0]}' in log
-
-
 def test_steamos_nct6687_install_waits_before_reporting_load_error():
     source = Path(
         'packaging/common/os-scripts/steamos/prepare-fan-pwm.sh'
     ).read_text(encoding='utf-8')
 
     assert 'bc250_wait_for_nct6687_ready()' in source
-    assert 'for attempt in {1..5}' in source
+    assert 'for attempt in {1..15}' in source
+    # Under pipefail `lsmod | grep -q` can read a loaded module as missing
+    # (SIGPIPE); the check reads /proc/modules instead.
+    assert "grep -q '^nct6687 ' /proc/modules" in source
+    assert 'lsmod | grep -q' not in source
     assert 'insmod /var/lib/nct6687/nct6687.ko force=1' in source
     assert source.count('udevadm trigger --subsystem-match=hwmon') == 2
     assert source.index('bc250_wait_for_nct6687_ready()') < source.index(
         'nct6687 load verification failed'
     )
+
+
+def test_no_fan_script_pipes_lsmod_into_grep_q():
+    # The SteamOS report showed nct6687 loaded and hwmon ready while the
+    # script said it was not: grep -q closing the pipe killed lsmod.
+    for path in Path('packaging/common/os-scripts').rglob('*.sh'):
+        text = path.read_text(encoding='utf-8')
+        assert 'lsmod | grep -q' not in text, path
+        assert '"$LSMOD" | grep -q' not in text, path

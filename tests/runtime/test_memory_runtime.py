@@ -1,7 +1,5 @@
 from pathlib import Path
 
-import pytest
-
 from bc250cc.infrastructure.memory_runtime import (
     GIB,
     kernel_argument,
@@ -9,16 +7,7 @@ from bc250cc.infrastructure.memory_runtime import (
     parse_proc_swaps,
     read_memory_runtime_state,
     supported_ttm_gib_presets,
-    ttm_pages_for_gib,
 )
-
-
-def test_ttm_presets_are_real_gib_values_not_ambiguous_vram_labels():
-    assert ttm_pages_for_gib(8) == 2_097_152
-    assert ttm_pages_for_gib(10) == 2_621_440
-    assert ttm_pages_for_gib(12) == 3_145_728
-    with pytest.raises(ValueError):
-        ttm_pages_for_gib(9)
 
 
 def test_proc_swaps_separates_zram_from_the_backing_swap_zswap_requires():
@@ -57,6 +46,10 @@ def test_memory_runtime_reports_live_and_boot_ttm_without_mutating(tmp_path: Pat
     pool.write_text("20\n", encoding="utf-8")
     pages.write_text("2621440\n", encoding="utf-8")
     meminfo.write_text("MemTotal: 12582912 kB\n", encoding="utf-8")
+    compressor = tmp_path / "compressor"
+    compressor.write_text("lz4\n", encoding="utf-8")
+    (tmp_path / "block/zram0").mkdir(parents=True)
+    (tmp_path / "block/zram0/comp_algorithm").write_text("lzo lzo-rle lz4 lz4hc 842 [zstd]\n", encoding="utf-8")
 
     state = read_memory_runtime_state(
         proc_swaps=swaps,
@@ -64,15 +57,39 @@ def test_memory_runtime_reports_live_and_boot_ttm_without_mutating(tmp_path: Pat
         proc_meminfo=meminfo,
         zswap_enabled=zswap,
         zswap_pool_percent=pool,
+        zswap_compressor=compressor,
+        sys_block=tmp_path / "block",
         ttm_pages_limit=pages,
         page_size=4096,
     )
 
     assert state["zram_total_bytes"] == 4 * GIB
     assert state["zswap_enabled"] is True
+    assert state["zswap_compressor"] == "lz4"
+    assert state["zram_algorithms"] == ["zstd"], "the bracketed entry is the one in use"
     assert state["ttm_limit_bytes"] == 10 * GIB
     assert state["ttm_boot_limit_bytes"] == 12 * GIB
     assert state["ttm_runtime_differs_from_boot"] is True
     assert state["physical_ram_bytes"] == 12 * GIB
     assert state["supported_ttm_gib_presets"] == (8, 10, 12)
     assert kernel_argument("ttm.pages_limit=1 quiet ttm.pages_limit=2", "ttm.pages_limit") == "2"
+
+
+def test_the_memory_report_names_the_compressor_in_use():
+    from types import SimpleNamespace
+
+    from frontends.desktop.components.dashboard_widgets import PreparationSidebar
+
+    combo = SimpleNamespace(currentText=lambda: "—")
+    fake = SimpleNamespace(
+        _tools_snapshot={"memory_runtime": {
+            "zswap_enabled": True, "zswap_compressor": "lz4", "backing_swap_active": True,
+            "zram_active": True, "zram_total_bytes": 4 * GIB, "zram_algorithms": ["zstd"],
+        }},
+        _tools={}, memory_policy_combo=combo, ttm_limit_combo=combo, vram_size_combo=combo,
+    )
+    for name in ("_report_gib", "_report_banner", "_report_heading", "_report_field", "_report_paragraph"):
+        setattr(fake, name, getattr(PreparationSidebar, name))
+    report = PreparationSidebar._build_memory_status_report(fake)
+    assert "Active · lz4" in report
+    assert "4.0 GiB · zstd" in report

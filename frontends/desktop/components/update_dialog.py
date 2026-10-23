@@ -51,6 +51,7 @@ from bc250cc.infrastructure.self_update import (
 )
 from bc250cc.shared.version import application_version
 
+from ..core.raw_errors import remember
 from ..core.workflow_watch import EMBEDDED_TERMINAL_NAME
 from ..i18n import localize_widget_tree, tr, tr_format
 from ..theme import COLORS, application_stylesheet
@@ -413,9 +414,11 @@ class _DownloadThread(QThread):
         try:
             path = download_asset(self._asset, progress=progress, cancelled=lambda: self._cancel)
         except UpdateError as error:
+            remember(error)
             self.failed.emit(str(error))
             return
         except Exception as error:  # noqa: BLE001 - reported in the dialog
+            remember(error)
             self.failed.emit(str(error) or error.__class__.__name__)
             return
         self.completed.emit(str(path))

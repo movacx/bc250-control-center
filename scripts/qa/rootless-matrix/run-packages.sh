@@ -1,7 +1,7 @@
 #!/bin/bash
 # run-packages.sh -- build the four release packages (in an Arch rootfs) and
 # install/remove each one with its own package manager. Rootless.
-here=$(cd "$(dirname "$0")" && pwd); QA=${BC250_QA:-$HOME/.cache/bc250-qa}; out=$QA/out; rc=0
+here=$(cd "$(dirname "$0")" && pwd); export BC250_REPO=${BC250_REPO:-$(cd "$here/../../.." && pwd)}; QA=${BC250_QA:-$HOME/.cache/bc250-qa}; out=$QA/out; rc=0
 if [ "$1" != "--no-build" ]; then
   "$QA/enter.sh" archlinux-current --bind "$out" /out -- bash -c 'pacman -S --noconfirm --needed --disable-sandbox rpm-tools dpkg zstd binutils >/dev/null 2>&1; cd /src && bash packaging/scripts/build-release.sh /out >/tmp/build.log 2>&1 && echo "  PASS  build-release.sh built the four packages" || { echo "  FAIL  build-release.sh"; tail -n 20 /tmp/build.log; exit 1; }' || exit 1
 fi

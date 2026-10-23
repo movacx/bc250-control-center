@@ -56,7 +56,12 @@ EOG
     printf '# GRUB Environment Block\nsaved_entry=0123456789abcdef-6.1.0-1.fc44.x86_64\n' > /boot/grub2/grubenv
     ln -sf ../boot/grub2/grubenv /etc/grub2.cfg || true
     ;;
-  steamos) :;;
+  steamos)
+    # SteamOS boots from the menu Valve's GRUB writes to the EFI partition;
+    # Control Center regenerates that file, so it has to be there.
+    arch_grub
+    mkdir -p /efi/EFI/steamos
+    printf "menuentry 'SteamOS A' {\n  linux /boot/vmlinuz-linux quiet splash\n}\n" > /efi/EFI/steamos/grub.cfg;;
   *) echo "unknown kind $kind" >&2; exit 2;;
 esac
 [ "$kind" = bazzite ] && { install -m755 "$here/stubs/rpm-ostree" /usr/bin/rpm-ostree; mkdir -p /run; : > /run/ostree-booted; }

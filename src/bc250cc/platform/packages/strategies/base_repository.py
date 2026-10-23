@@ -54,9 +54,6 @@ class BaseOSRepository:
                 return candidate
         return candidates[0]
 
-    def command_path(self, name: str) -> str:
-        return self.host._command_path(name)
-
     def tool_dir(self) -> Path:
         return self.host._tool_dir()
 
@@ -122,3 +119,6 @@ class BaseOSRepository:
                 "BC250_NCT6687_SOURCE_DIR": tools_dir,
             },
         )
+
+    def command_path(self, name: str) -> str:
+        return self.host._command_path(name)

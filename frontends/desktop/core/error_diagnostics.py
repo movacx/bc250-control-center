@@ -195,14 +195,27 @@ _RULES = (
          r"\.original\.dll backup", r"not installed in steam", r"invalid steam app id",
          r"optiscaler client list", r"optiscaler is not installed in this game",
          r"optiscaler's settings file", r"helixsr folder that", r"close this game before",
-         r"steam's non-steam games", r"helixsr release is not on offer"),
+         r"steam's non-steam games", r"helixsr release is not on offer",
+         # Undoing OptiScaler Client's install (opticlient_undo): every
+         # refusal leaves the game and the client's record as they were.
+         r"nothing was touched", r"everything was put back",
+         r"optiscaler client (?:has (?:no|a) record|was interrupted|operation is still)",
+         r"close optiscaler client first", r"unknown backup", r"that backup is no longer",
+         r"this backup (?:is incomplete|holds only)", r"could not create a backup folder",
+         r"the game's folder is gone", r"unsafe path in the installation record",
+         # Only with "game file/folder" in front: the same words close fan,
+         # Cyan and firmware messages that have nothing to do with a game.
+         r"game (?:file|folder)\b.*(?:it was not (?:moved|touched|replaced|used)|did not verify)",
+         r"still in the game folder"),
         "The game's upscaler files were not changed.",
         "The per-game upscaler found the game in a state it does not change safely: the tool is not installed or prepared yet, the game is not where Steam says, or its files were already changed by hand. Nothing in the game folder was changed.",
         "Read the technical detail below: it names the step that is missing. Usually that is installing or preparing the tool first, closing the game, or using Steam > Verify integrity of game files to put the game's own files back.",
     ),
     _Rule(
         "BC250-AUTH-001",
-        (r"textual authentication agent", r"/dev/tty.*no such device", r"controlling terminal"),
+        (r"textual authentication agent", r"/dev/tty.*no such device", r"controlling terminal",
+         r"a terminal is required", r"no tty present", r"must be run from a terminal",
+         r"pkexec:.*terminal"),
         "The authorization window could not be opened.",
         "The application was started from a session that Polkit cannot attach its password prompt to.",
         "Close this copy, start BC250 Control Center from the desktop application menu, and try again. If it continues, reinstall the protected helpers.",
@@ -231,7 +244,7 @@ _RULES = (
     ),
     _Rule(
         "BC250-HELPER-001",
-        (r"helper.*(?:missing|not found|unavailable)", r"protected helper", r"unsafe ownership", r"unsafe.*permissions"),
+        (r"helper.*(?:missing|not found|unavailable)", r"protected helper", r"unsafe ownership", r"unsafe.*permissions", r"traceback \(most recent call last\)", r"helper is not installed"),
         "A protected BC250 helper is missing or failed its safety check.",
         "The application and its root-owned helper are from different installs, or another toolkit changed the helper's owner, mode, or path.",
         "Reinstall BC250 Control Center. Do not copy a helper manually into /usr/libexec.",
@@ -246,7 +259,7 @@ _RULES = (
     ),
     _Rule(
         "BC250-BUSY-001",
-        (r"already.*(?:running|applying|in progress)", r"operation.*still.*(?:running|progress)", r"resource busy", r"device or resource busy",
+        (r"\A(?!.*(?:pacman|apt(?:-get)?|dnf|zypper|rpmdb|rpm-ostree|apk|emerge|xbps)).*already.*(?:running|applying|in progress)", r"operation.*still.*(?:running|progress)", r"resource busy", r"device or resource busy",
          r"smu returned status 0x(?:00|fc)\b"),
         "Another operation is still using this component.",
         "A previous BC250 action, package manager, service restart, or external toolkit still holds the required lock.",
@@ -275,14 +288,14 @@ _RULES = (
     ),
     _Rule(
         "BC250-SERVICE-003",
-        (r"systemctl.*(?:failed|exited)", r"rc-service.*(?:failed|exited)", r"service.*failed", r"failed to start", r"job for .*(?:failed|exited)", r"control process exited", r"invalid openrc .*action", r"requires an active systemd", r"boot persistence is not supported", r"no service action was run", r"invalid .*service action"),
+        (r"systemctl.*(?:failed|exited)", r"rc-service.*(?:failed|exited)", r"service.*failed", r"failed to start", r"job for .*(?:failed|exited)", r"control process exited", r"invalid openrc .*action", r"requires an active systemd", r"boot persistence is not supported", r"no service action was run", r"invalid .*service action", r"journalctl.*(?:failed|error|cannot)", r"failed.*(?:unit|job)"),
         "The service manager could not complete the requested change.",
         "The service configuration is invalid, its executable is missing, or the selected init system does not match the installed service files.",
         "Open the service status and read the first reported error. Repair the module from the Dashboard before enabling it again.",
     ),
     _Rule(
         "BC250-PKG-001",
-        (r"unable to lock", r"database is locked", r"could not get lock", r"another app is currently holding", r"transaction.*lock", r"lock-?frontend", r"could not lock database", r"dpkg.*lock"),
+        (r"unable to lock", r"failed to lock", r"database is locked", r"could not get lock", r"another app is currently holding", r"transaction.*lock", r"lock-?frontend", r"could not lock database", r"dpkg.*lock", r"pacman.*(?:lock|busy)", r"zypper.*(?:lock|locked)", r"rpmdb.*(?:locked|busy)", r"apk.*database.*locked", r"emerge.*(?:lock|another emerge)", r"xbps.*(?:lock|locked)"),
         "The package manager is busy.",
         "A system update, software center, or another terminal is already changing packages.",
         "Let that update finish, close the other package tool, and retry. Do not delete package-manager lock files by hand.",
@@ -310,8 +323,16 @@ _RULES = (
         "Wait for the upstream rebuild to finish and run the workflow again later; the currently installed kernel keeps working meanwhile. Only report the diagnostic code if it still fails after a day.",
     ),
     _Rule(
+        "BC250-REPORT-001",
+        (r"report form could not be read", r"report form changed since", r"google forms (?:did not confirm|answered with an error|could not be reached)",
+         r"a required answer is empty", r"a report was sent a moment ago"),
+        "The report was not sent.",
+        "Google Forms could not be reached or did not confirm it, or the form changed since this version of the app.",
+        "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.",
+    ),
+    _Rule(
         "BC250-NET-001",
-        (r"could not resolve", r"temporary failure in name resolution", r"network is unreachable", r"connection.*(?:timed out|refused|reset)", r"ssl|certificate verify|tls", r"curl: \(\d+\)"),
+        (r"could not resolve", r"temporary failure in name resolution", r"network is unreachable", r"connection.*(?:timed out|refused|reset)", r"ssl|certificate verify|tls", r"curl: \(\d+\)", r"git.*(?:could not resolve host|unable to access|failed to connect|connection timed out)", r"failed to fetch.*(?:mirror|repository)", r"mirror.*(?:unavailable|not found|failed)", r"could not resolve host"),
         "A required download could not be reached or verified.",
         "The network, DNS, proxy, system clock, certificate store, or upstream server interrupted the download.",
         "Confirm internet access and the system date, then retry. If a proxy or filtered network is in use, test the repository URL in a browser.",
@@ -332,7 +353,7 @@ _RULES = (
     ),
     _Rule(
         "BC250-CMD-001",
-        (r"command not found", r"no such file or directory", r"executable.*not found", r"returned an empty command", r": command not found", r"needs one boolean", r"does not accept additional arguments", r"not prepared", r"is not installed", r"was not found", r"does not exist at", r"is missing from", r"unavailable in this build", r"terminal integration is required", r"qualification", r"bundle error", r"refusing .*without --", r"evidence error", r"expects a .*path", r"command is required", r"no custom values", r"integration script", r"requires --", r"runner is unavailable", r"executor is invalid", r"path is invalid"),
+        (r"command not found", r"no such file or directory", r"executable.*not found", r"returned an empty command", r": command not found", r"needs one boolean", r"does not accept additional arguments", r"not prepared", r"is not installed", r"was not found", r"does not exist at", r"is missing from", r"unavailable in this build", r"terminal integration is required", r"qualification", r"bundle error", r"refusing .*without --", r"evidence error", r"expects a .*path", r"command is required", r"no custom values", r"integration script", r"requires --", r"runner is unavailable", r"executor is invalid", r"path is invalid", r"cargo.*(?:command not found|failed)", r"rustc.*(?:not found|error)", r"make: \*\*\*", r"cmake.*(?:error|failed)", r"fatal error: .*\.(?:h|hpp):", r"(?:gcc|g\+\+|cc): command not found"),
         "A required program or generated command is missing.",
         "Dependencies were not prepared, a toolkit was removed, or the active distribution provides the program under a different package or path.",
         "Return to the Dashboard and prepare the affected module.",
@@ -546,6 +567,97 @@ _RULES = (
 )
 
 
+# Raise messages that used to fall to BC250-GENERAL-001, each sorted to the rule
+# whose explanation stays true for it. Kept apart from the rules above so the
+# reason every pattern is here stays visible: the corpus test in
+# tests/desktop/test_error_diagnostics_coverage.py reads these messages.
+_MORE_PATTERNS: dict[str, tuple[str, ...]] = {
+    # Wording our own scripts print, found by the error-code audit: without
+    # these the desktop fell back to GENERAL/PLATFORM/FAN for each of them.
+    "BC250-KERNEL-001": (
+        r"headers for another kernel", r"exact neptune headers", r"nct6687 build failed",
+        r"nct6687\.ko was not produced", r"nct6687 is not available for",
+        r"was not installed for the active kernel", r"dkms installation did not produce a module",
+        r"kernel-devel mismatch", r"matching kernel-devel is unavailable", r"rebuilt nct6687 has vermagic",
+    ),
+    "BC250-STORAGE-001": (r"mb free and this needs", r"steamos keeps /var small"),
+    "BC250-IMMUTABLE-001": (
+        r"steamos reports a writable root", r"steamos read-only state", r"read-only protection",
+        r"systemd-sysext or another immutable layer",
+    ),
+    "BC250-NET-001": (
+        r"unable to download", r"reviewed source commit is unavailable after fetch",
+        r"reviewed source revision could not be checked out",
+    ),
+    "BC250-FAN-001": (
+        r"fan/pwm hwmon", r"usable nct6687 module", r"nct6687 could not be loaded",
+        r"persisted nct6687 source is missing",
+    ),
+    "BC250-HELPER-001": (
+        r"protected bc250 openrc service helper is missing", r"protected gddr6 patch helper is not installed",
+        r"reviewed root-owned steamos graphics backend is unavailable or changed",
+    ),
+    "BC250-PLATFORM-001": (
+        r"unsupported accessory", r"openlinkhub.*x86_64", r"trcc.*(?:no package|not installed)",
+        r"debian release.*backports kernel", r"kernel boot options.*managed differently",
+        r"only mitigations=off", r"optiscaler client.*x86_64",
+    ),
+    "BC250-COLLISION-001": (r"openlinkhub.*already installed another way",),
+    "BC250-UPSCALE-001": (
+        r"(?:optiscaler client|that build).*not on offer", r"install optiscaler client first",
+        r"choose the game's folder", r"that folder does not exist", r"choose the game's own folder",
+        r"this folder is not on the list", r"no optiscaler\.ini was found", r"more than one optiscaler\.ini",
+        r"helixsr's own folder", r"game already has optiscaler", r"build helixsr's frame generation first",
+        r"no earlier helixsr version kept", r"helixsr scaler is not recorded",
+    ),
+    "BC250-FAN-001": (r"\bfan\b.*does not exist",),
+    "BC250-CONFIG-001": (
+        # Both governors' own files, read, checked and rewritten by the helper.
+        r"oberon yaml", r"(?:governor|oberon) configuration (?:is unavailable|could not be (?:read|updated)|changed to a symlink)",
+        r"oberon minimum (?:frequency|voltage) cannot exceed",
+        r"frequency floor cannot exceed", r"high-frequency safe-point", r"safe startup range.*preserved",
+        r"persisted range.*safe-point", r"active safe-point is not a toml table", r"every active safe-point",
+        r"duplicate active safe-point frequency", r"invalid helixsr settings", r"metrics format must be jsonl or csv",
+        r"bundle contains", r"profile bundle", r"evidence manifest", r"artifact (?:path|sha256|hash)",
+        r"keys mismatch", r"unknown requirement", r"duplicate requirement", r"invalid check status",
+        r"passed requirement", r"invalid dll name", r"nested too deep", r"truncated value",
+    ),
+    "BC250-RANGE-001": (
+        r"no custom voltage values", r"duplicate voltage frequency", r"voltage outside (?:the )?editor range",
+    ),
+    "BC250-CMD-001": (r"(?:preview-voltage-level|apply-voltage-level|status) expects one",),
+    "BC250-SERVICE-003": (r"systemctl is not available", r"openrc is not the active", r"rc-service is not available"),
+    "BC250-GPU-001": (r"no recorded metrics", r"current metrics sample could not be recorded", r"temp-read"),
+    "BC250-AUTH-003": (r"pkexec is not available",),
+    "BC250-TERMINAL-001": (r"requested terminal workflow is empty",),
+}
+_RULES = tuple(
+    _Rule(rule.code, rule.patterns + _MORE_PATTERNS.get(rule.code, ()), rule.summary, rule.cause, rule.action)
+    for rule in _RULES
+)
+# Two faults no rule above describes; first, as their patterns name nothing else.
+_RULES = (
+    _Rule(
+        "BC250-RECOVERY-002",
+        (r"recovery (?:file|entry|backup|manifest|files)", r"source changed and is no longer a regular file",
+         r"non-captured recovery entry"),
+        "The recovery snapshot could not be verified.",
+        "A snapshot file changed, has unsafe metadata, is outside the approved paths, or does not match the recovery manifest.",
+        "Discard that snapshot and create a new one. Do not restore a file that could not be verified.",
+    ),
+    _Rule(
+        "BC250-UPDATE-001",
+        (r"github (?:returned|answered|could not be reached|release information)", r"release has no version tag",
+         r"only https addresses.*updates", r"published checksum", r"package (?:is larger|name is not)",
+         r"download (?:failed|answered|ended|is larger)", r"downloaded package does not match",
+         r"update package is not in the application updates folder"),
+        "The Control Center update could not be downloaded or verified.",
+        "GitHub returned incomplete release data, or the downloaded file did not match its published size or checksum.",
+        "Check the network and the system date, then try the update again. If it keeps failing, install the package from the release page.",
+    ),
+) + _RULES
+
+
 _CONTEXT_FALLBACKS = (
     ("BC250-GPU-900", ("gpu", "governor", "cyan", "oberon"), "The GPU operation could not be completed.", "The active governor, its service, configuration, or live hardware state did not accept the request.", "Refresh GPU status, verify the selected governor, and retry with a profile offered by the current page."),
     ("BC250-CPU-900", ("cpu", "smu"), "The CPU operation could not be completed.", "The CPU helper, detector, stress test, or live profile did not return a verified result.", "Refresh CPU status and repeat the guided detect, test, and save sequence."),
@@ -585,14 +697,18 @@ DIAGNOSTIC_SOURCES = tuple(dict.fromkeys((
 )))
 
 
-def diagnosis_for(code: str) -> ErrorDiagnosis:
-    """One rule's explanation by code, for a screen that already knows the fault."""
-    rule = next(rule for rule in _RULES if rule.code == code)
-    return ErrorDiagnosis(rule.code, rule.summary, rule.cause, rule.action)
+_SECTION_CODE = re.compile(r"BC250-([A-Z0-9]+)-000")
 
 
 def explain_code(code: str) -> ErrorDiagnosis | None:
     """The explanation behind a code already printed somewhere, or None."""
+    section = _SECTION_CODE.fullmatch(str(code or ""))
+    if section is not None:
+        from bc250cc.shared.error_origins import SECTION_NAMES
+
+        name = SECTION_NAMES.get(section.group(1))
+        if name:
+            return with_section(ErrorDiagnosis("BC250-GENERAL-001", "", "", ""), (section.group(1), name))
     for rule in _RULES:
         if rule.code == code:
             return ErrorDiagnosis(rule.code, rule.summary, rule.cause, rule.action)
@@ -614,6 +730,18 @@ def _clean_detail(value: object) -> str:
     return detail or "No additional technical detail was returned."
 
 
+#: The helper prefixes themselves (``QUICK_ACCESS_GPU_ALLOWED:``), not the
+#: catalog's plain-language markers, which the desktop rules already cover.
+_PREFIX_MARKER = re.compile(
+    "|".join(
+        re.escape(marker)
+        for entry in error_catalog.all_codes()
+        for marker in entry.markers
+        if re.fullmatch(r"[A-Z][A-Z0-9_]{3,}", marker)
+    )
+)
+
+
 def diagnose_error(message: object, *, context: object = "") -> ErrorDiagnosis:
     """Classify a failure, letting the message outrank where it came from.
 
@@ -627,6 +755,12 @@ def diagnose_error(message: object, *, context: object = "") -> ErrorDiagnosis:
     """
     detail = _clean_detail(message)
     message_only = detail.casefold()
+    # A helper's own ``PREFIX:`` (QUICK_ACCESS_VRAM, SMU_IN_USE, ...) names the
+    # fault exactly; the shared catalog maps it the same way the terminal does,
+    # so a broad desktop word ("gpu", "range") cannot outrank it.
+    marked = error_catalog.for_marker(detail)
+    if marked is not None and _PREFIX_MARKER.search(detail):
+        return ErrorDiagnosis(marked.code, marked.summary, marked.cause, marked.action)
     for rule in _RULES:
         if rule.matches(message_only):
             return ErrorDiagnosis(rule.code, rule.summary, rule.cause, rule.action)
@@ -688,20 +822,86 @@ def format_error_for_user(
     context: object = "",
     translate: Translator = str,
     os_family: str | None = None,
+    section: tuple[str, str] | None = None,
 ) -> str:
     """Return a human explanation while preserving bounded technical evidence."""
+    explained = error_sections(message, context=context, translate=translate, os_family=os_family, section=section)
+    if explained is None:
+        return _clean_detail(message)
+    sections, code = explained
+    rendered = "\n\n".join(f"{heading}\n{body}" for heading, body in sections)
+    return f"{rendered}\n\n{translate('Diagnostic code')}: {code}"
+
+
+#: When no rule knows a failure, the part of the app it came from still does:
+#: ``BC250-<SECTION>-000`` (``BC250-UPS-000``) instead of one code for everything.
+SECTION_SUMMARY = "{area}: the operation could not be completed."
+SECTION_CAUSE = "This failure has no specific explanation yet. The origin code and the raw error say exactly where it came from."
+SECTION_ACTION = "Read the raw error below. If it does not make the cause clear, press Report this problem: the code, the origin and the raw error go with it."
+
+
+def section_code(section: str) -> str:
+    return f"BC250-{section}-000"
+
+
+def with_section(
+    diagnosis: ErrorDiagnosis, section: tuple[str, str] | None, translate: Translator = str,
+) -> ErrorDiagnosis:
+    """A generic diagnosis given the section's own code and words.
+
+    ``section`` is ``(code, name)`` from ``error_origins``. A specific rule's
+    diagnosis is returned as it is.
+    """
+    if section is None or diagnosis.code not in GENERIC_CODES:
+        return diagnosis
+    code, name = section
+    return ErrorDiagnosis(
+        section_code(code),
+        translate(SECTION_SUMMARY).replace("{area}", translate(name)),
+        translate(SECTION_CAUSE),
+        translate(SECTION_ACTION),
+    )
+
+
+GENERIC_CODES = frozenset({"BC250-GENERAL-001"})
+
+
+def error_sections(
+    message: object,
+    *,
+    context: object = "",
+    translate: Translator = str,
+    os_family: str | None = None,
+    section: tuple[str, str] | None = None,
+) -> tuple[tuple[tuple[str, str], ...], str] | None:
+    """The explanation as (heading, text) pairs and its code, for a dialog to lay out.
+
+    None for a message that already carries its own explanation.
+    """
     detail = _clean_detail(message)
     if "Diagnostic code:" in detail or "Código de diagnóstico:" in detail:
-        return detail
+        return None
     diagnosis = diagnose_error(detail, context=context)
-    action = translate(diagnosis.action)
+    if section is not None and diagnosis.code in GENERIC_CODES:
+        # Already translated by with_section; the rest of the path translates.
+        diagnosis = with_section(diagnosis, section, translate)
+        translate_text = str
+    else:
+        translate_text = translate
+    action = translate_text(diagnosis.action)
     if diagnosis.code == UMR_REPAIR_CODE:
         action = f"{action}\n{_umr_repair_steps(os_family or _os_family(), translate)}"
     sections = (
-        (translate("What happened"), translate(diagnosis.summary)),
-        (translate("Likely cause"), translate(diagnosis.cause)),
+        (translate("What happened"), translate_text(diagnosis.summary)),
+        (translate("Likely cause"), translate_text(diagnosis.cause)),
         (translate("How to fix it"), action),
         (translate("Technical detail"), translate(detail)),
     )
-    rendered = "\n\n".join(f"{heading}\n{body}" for heading, body in sections)
-    return f"{rendered}\n\n{translate('Diagnostic code')}: {diagnosis.code}"
+    return sections, diagnosis.code
+
+
+
+def diagnosis_for(code: str) -> ErrorDiagnosis:
+    """One rule's explanation by code, for a screen that already knows the fault."""
+    rule = next(rule for rule in _RULES if rule.code == code)
+    return ErrorDiagnosis(rule.code, rule.summary, rule.cause, rule.action)

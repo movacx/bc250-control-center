@@ -73,6 +73,7 @@ from ..components.responsive import (
 )
 from ..components.toast import show_toast
 from ..components.toggle_switch import ToggleSwitch
+from ..components.wheel_guard import GuardedComboBox
 from ..components.widgets import IconBadge, InfoDialog, PillLabel, apply_shadow, icon
 from ..core.diagnostic_history import (
     clear_history,
@@ -82,6 +83,7 @@ from ..core.diagnostic_history import (
 )
 from ..core.external_links import open_external_url
 from ..core.preferences import REPORT_GLOW_KEY, application_settings
+from ..core.raw_errors import remember
 from ..core.state import state_cache_for
 from ..i18n import (
     LANGUAGE_OPTIONS,
@@ -138,6 +140,8 @@ OFFICIAL_REPOSITORIES = (
     ("pappl-retrofit printing reference", "OpenPrinting/pappl-retrofit", "https://github.com/OpenPrinting/pappl-retrofit"),
     ("BlueZ Bluetooth reference", "bluez/bluez", "https://github.com/bluez/bluez"),
 )
+#: Repositories whose owner has archived them: still the reference for what they were, no longer updated.
+ARCHIVED_REPOSITORIES = frozenset({"duggasco/bc250-40cu-unlock"})
 CONTACT_URL = "https://discord.com/channels/1315924807128449065/1526169299490836510"
 
 
@@ -610,6 +614,7 @@ class SettingsTask(QThread):
         try:
             self.succeeded.emit(self.operation())
         except Exception as error:
+            remember(error)
             self.failed.emit(str(error))
 
 
@@ -654,19 +659,19 @@ class RepositoriesDialog(QDialog):
         self.setStyleSheet(application_stylesheet() + settings_stylesheet())
         enable_adaptive_dialog(
             self,
-            preferred_width=760,
-            preferred_height=540,
-            minimum_width=460,
-            minimum_height=360,
+            preferred_width=640,
+            preferred_height=500,
+            minimum_width=420,
+            minimum_height=320,
         )
         self.setProperty("settingsPage", True)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 18, 20, 18)
-        layout.setSpacing(12)
+        layout.setContentsMargins(16, 14, 16, 12)
+        layout.setSpacing(8)
         header = QHBoxLayout()
         header.setSpacing(12)
-        header_icon = IconBadge("github", "neutral_soft", 42, radius=12)
+        header_icon = IconBadge("github", "neutral_soft", 36, radius=10)
         header.addWidget(header_icon)
         header_copy = QVBoxLayout()
         header_copy.setContentsMargins(0, 0, 0, 0)
@@ -675,6 +680,7 @@ class RepositoriesDialog(QDialog):
         header_title.setProperty("bannerTitle", True)
         header_subtitle = QLabel(tr("Build information, local paths, project scope, and official repositories."))
         header_subtitle.setProperty("bannerText", True)
+        header_subtitle.setProperty("naturalHeight", True)
         header_subtitle.setWordWrap(True)
         header_copy.addWidget(header_title)
         header_copy.addWidget(header_subtitle)
@@ -690,23 +696,37 @@ class RepositoriesDialog(QDialog):
         )
         intro.setWordWrap(True)
         intro.setProperty("bannerText", True)
+        intro.setProperty("naturalHeight", True)
         layout.addWidget(intro)
+
+        self.search = QLineEdit()
+        self.search.setPlaceholderText(tr("Search repositories"))
+        self.search.setAccessibleName(tr("Search repositories"))
+        self.search.setClearButtonEnabled(True)
+        self.search.textChanged.connect(self._filter)
+        layout.addWidget(self.search)
+        self._count = count
 
         repository_scroll = QScrollArea()
         repository_scroll.setWidgetResizable(True)
         repository_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        # 39 rows must not size the dialog: the list scrolls inside whatever
+        # height is left, instead of stretching the window to the screen.
+        repository_scroll.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Ignored)
+        repository_scroll.setMinimumHeight(160)
         repository_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         repository_body = QWidget()
         repository_layout = QVBoxLayout(repository_body)
         repository_layout.setContentsMargins(0, 0, 0, 0)
-        repository_layout.setSpacing(6)
+        repository_layout.setSpacing(4)
         repository_scroll.setWidget(repository_body)
+        self._rows: list[tuple[QFrame, str]] = []
         for index, (name, repository, url) in enumerate(OFFICIAL_REPOSITORIES, start=1):
             row = QFrame()
             row.setProperty("repositoryRow", True)
             row_layout = QGridLayout(row)
-            row_layout.setContentsMargins(12, 8, 10, 8)
-            row_layout.setHorizontalSpacing(12)
+            row_layout.setContentsMargins(10, 5, 8, 5)
+            row_layout.setHorizontalSpacing(10)
             index_label = QLabel(f"{index:02d}")
             index_label.setProperty("repositoryIndex", True)
             index_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -716,25 +736,43 @@ class RepositoriesDialog(QDialog):
             copy.setSpacing(1)
             name_label = QLabel(name)
             name_label.setProperty("repositoryName", True)
+            archived = repository in ARCHIVED_REPOSITORIES
             address_label = QLabel(repository)
             address_label.setProperty("repositoryAddress", True)
             address_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-            copy.addWidget(name_label)
+            if archived:
+                title_row = QHBoxLayout()
+                title_row.setSpacing(8)
+                title_row.addWidget(name_label)
+                title_row.addWidget(PillLabel(tr("Archived"), "gray"))
+                title_row.addStretch(1)
+                copy.addLayout(title_row)
+            else:
+                copy.addWidget(name_label)
             copy.addWidget(address_label)
             button = QPushButton("Open")
             button.setProperty("ghostAction", True)
-            button.setMinimumWidth(88)
+            button.setMinimumWidth(72)
+            button.setFixedHeight(28)
             button.clicked.connect(lambda _checked=False, target=url: self._open_repository(target))
             row_layout.addWidget(index_label, 0, 0)
             row_layout.addLayout(copy, 0, 1)
             row_layout.addWidget(button, 0, 2, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             row_layout.setColumnStretch(1, 1)
             repository_layout.addWidget(row)
+            tags = " archived" if archived else ""
+            self._rows.append((row, f"{name} {repository} {url}{tags}".casefold()))
+        self._no_match = QLabel(tr("No repository matches the search."))
+        self._no_match.setProperty("bannerText", True)
+        self._no_match.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._no_match.hide()
+        repository_layout.addWidget(self._no_match)
         repository_layout.addStretch(1)
         layout.addWidget(repository_scroll, 1)
 
         note = QLabel("If Firefox reports a locked profile when opened from a terminal, use the buttons in this window or copy the URL into the browser that is already running.")
         note.setProperty("bannerText", True)
+        note.setProperty("naturalHeight", True)
         note.setWordWrap(True)
         layout.addWidget(note)
         footer = QHBoxLayout()
@@ -745,6 +783,17 @@ class RepositoriesDialog(QDialog):
         footer.addWidget(close)
         layout.addLayout(footer)
         localize_widget_tree(self)
+
+    def _filter(self, text: str) -> None:
+        """Show the repositories whose name, address or URL has every word typed."""
+        words = text.casefold().split()
+        shown = 0
+        for row, haystack in self._rows:
+            match = all(word in haystack for word in words)
+            row.setVisible(match)
+            shown += match
+        self._no_match.setVisible(shown == 0)
+        self._count.setText(str(shown))
 
     def _open_repository(self, url: str) -> None:
         if QDesktopServices.openUrl(QUrl(url)):
@@ -958,7 +1007,7 @@ class SettingsPage(QWidget):
         default: object,
         callback=None,
     ) -> QComboBox:
-        combo = QComboBox()
+        combo = GuardedComboBox()
         combo.setProperty("settingsCombo", True)
         popup = combo.view()
         popup.setProperty("settingsComboPopup", True)
@@ -1011,33 +1060,6 @@ class SettingsPage(QWidget):
         button.setProperty("primaryAction" if primary else "ghostAction", True)
         button.clicked.connect(callback)
         return button
-
-    def _banner(self, title: str, text: str, button_text: str, callback) -> QFrame:
-        card = QFrame()
-        card.setProperty("banner", True)
-        layout = QVBoxLayout(card)
-        layout.setContentsMargins(14, 12, 14, 12)
-        layout.setSpacing(8)
-        header = QHBoxLayout()
-        header.setSpacing(10)
-        header.addWidget(IconBadge("shield_green", COLORS["green_soft"], 38, radius=11), 0, Qt.AlignmentFlag.AlignTop)
-        copy = QVBoxLayout()
-        copy.setSpacing(2)
-        title_label = QLabel(tr(title))
-        title_label.setProperty("bannerTitle", True)
-        title_label.setWordWrap(True)
-        title_label.setMinimumWidth(0)
-        text_label = QLabel(tr(text))
-        text_label.setProperty("bannerText", True)
-        text_label.setWordWrap(True)
-        copy.addWidget(title_label)
-        copy.addWidget(text_label)
-        header.addLayout(copy, 1)
-        layout.addLayout(header)
-        action = self._button(button_text, callback)
-        action.setProperty("bannerAction", True)
-        layout.addWidget(action, 0, Qt.AlignmentFlag.AlignLeft)
-        return card
 
     def _build_page_frame(self, title: str, subtitle: str) -> tuple[QWidget, QVBoxLayout]:
         page = QWidget()
@@ -1624,6 +1646,18 @@ class SettingsPage(QWidget):
             if not supported and state.get("blocked_reason"):
                 button.setToolTip(str(state["blocked_reason"]))
 
+    def install_apu_telemetry(self) -> None:
+        """Start the install from elsewhere (the power delivery guide).
+
+        Only when the button here would install: a service already managed or
+        installed separately is left as it is.
+        """
+        button = getattr(self, "apu_telemetry_button", None)
+        state = self._apu_telemetry_state()
+        if button is None or not button.isEnabled() or state.get("managed") or state.get("state") == "external":
+            return
+        self._apu_telemetry_clicked()
+
     def _apu_telemetry_clicked(self) -> None:
         action = "uninstall" if self._apu_telemetry_state().get("managed") else "install"
         if action == "install":
@@ -1734,35 +1768,6 @@ class SettingsPage(QWidget):
         )
         return dialog.exec() == QDialog.DialogCode.Accepted
 
-    def _build_notifications_page(self) -> QWidget:
-        # Kept for a future feature branch, but deliberately unreachable from
-        # the navigation and incapable of re-enabling notifications.
-        self.app_settings.setValue("settings/smart_alerts", "false")
-        self.app_settings.setValue("settings/desktop_notifications", "false")
-        page, layout = self._build_page_frame(
-            "Notifications",
-            "Notifications are currently disabled.",
-        )
-        group = SettingsGroup("Safety monitoring")
-        group.add_row(SettingRow(
-            "Smart safety alerts",
-            "This reserved feature is disabled and cannot run.",
-            PillLabel("Disabled", "gray"),
-        ))
-        group.add_row(SettingRow(
-            "Desktop notifications",
-            "Desktop notification delivery is disabled.",
-            PillLabel("Disabled", "gray"),
-        ))
-        group.add_row(SettingRow(
-            "Operation results",
-            "Success, failure, and mandatory safety confirmation dialogs are always shown.",
-            PillLabel("Always shown", "green"),
-        ))
-        layout.addWidget(group)
-        layout.addStretch(1)
-        return page
-
     def _build_security_page(self) -> QWidget:
         # Security policies remain mandatory. The page documents the behavior
         # without presenting controls that could falsely imply safety bypasses.
@@ -1855,13 +1860,17 @@ class SettingsPage(QWidget):
             "Diagnostics",
             "This system at a glance and every error Control Center explained, ready to paste into a problem report.",
         )
-        actions = ActionGrid(columns=3)
-        self.diagnostics_copy_button = self._button(
-            "Copy for a problem report", self._copy_diagnostic_report, primary=True
-        )
+        actions = ActionGrid(columns=4)
+        self.diagnostics_send_button = self._button("Send a report", self._send_problem_report, primary=True)
+        self.diagnostics_copy_button = self._button("Copy for a problem report", self._copy_diagnostic_report)
         self.diagnostics_refresh_button = self._button("Refresh", self._refresh_diagnostics)
         self.diagnostics_clear_button = self._button("Clear history", self._clear_diagnostic_history)
-        for button in (self.diagnostics_copy_button, self.diagnostics_refresh_button, self.diagnostics_clear_button):
+        for button in (
+            self.diagnostics_send_button,
+            self.diagnostics_copy_button,
+            self.diagnostics_refresh_button,
+            self.diagnostics_clear_button,
+        ):
             actions.addWidget(button)
         self._action_grids.append(actions)
         layout.addWidget(actions)
@@ -2262,34 +2271,6 @@ class SettingsPage(QWidget):
                 tone="red",
             ).exec()
 
-    def _show_local_paths(self) -> None:
-        paths = self._paths()
-        if not paths:
-            InfoDialog(
-                "Local paths unavailable",
-                "The application backend did not return its shared configuration paths.",
-                icon_name="warning_orange",
-                parent=self,
-                eyebrow="LOCAL PATH",
-                notice="No hardware command was executed.",
-                tone="red",
-            ).exec()
-            return
-        preferred = ("config", "perfiles", "historial", "estabilidad", "metricas_runtime", "tools", "data", "resource_tools")
-        labels = {
-            "config": "Configuration", "perfiles": "Profiles", "historial": "History",
-            "estabilidad": "Stability data", "metricas_runtime": "Runtime metrics",
-            "tools": "Installed tools", "data": "Application data", "resource_tools": "Bundled tool sources",
-        }
-        lines: list[str] = []
-        for key in preferred:
-            value = paths.get(key)
-            if value:
-                lines.append(f"{tr(labels.get(key, key))}:\n{value}")
-        for key in sorted(set(paths) - set(preferred)):
-            lines.append(f"{key}:\n{paths[key]}")
-        TextDetailsDialog("Local paths", "\n\n".join(lines), self).exec()
-
     @staticmethod
     def _format_bytes(value: object) -> str:
         try:
@@ -2306,57 +2287,6 @@ class SettingsPage(QWidget):
             number /= 1024
         return f"{number:.1f} {unit}"
 
-    def _evaluate_memory_pressure(self) -> None:
-        button = getattr(self, "memory_pressure_button", None)
-        if isinstance(button, QPushButton):
-            button.setText(tr("Evaluating…"))
-
-        def operation() -> object:
-            return self.controller.proteccion_memoria(aplicar=False) or {}
-
-        def success(payload: object) -> None:
-            if isinstance(button, QPushButton):
-                button.setText(tr("Evaluate memory pressure"))
-            result = payload if isinstance(payload, dict) else {}
-            state = result.get("estado") or {}
-            candidates = list(result.get("candidatos") or [])
-            games = list(state.get("juegos_detectados") or [])
-            level = str(state.get("nivel") or "unknown").capitalize()
-            lines = [
-                f"{tr('Level')}: {tr(level)}",
-                f"{tr('RAM used')}: {float(state.get('ram_percent') or 0):.1f} %",
-                f"{tr('RAM available')}: {self._format_bytes(state.get('ram_available'))}",
-                f"{tr('Swap used')}: {float(state.get('swap_percent') or 0):.1f} %",
-                f"{tr('Detected games')}: {len(games)}",
-                f"{tr('Suggested applications')}: {len(candidates)}",
-                "",
-                tr("This evaluation is read-only. No process was closed and no cache command was executed."),
-            ]
-            if candidates:
-                lines.extend(("", tr("Largest suggested applications:")))
-                for item in candidates[:8]:
-                    name = item.get("nombre") or tr("Process")
-                    lines.append(
-                        f"• {name} · {float(item.get('memoria_mb') or 0):.1f} MiB · PID {item.get('pid', '--')}"
-                    )
-            TextDetailsDialog("Memory pressure", "\n".join(lines), self).exec()
-
-        def failure(message: str) -> None:
-            if isinstance(button, QPushButton):
-                button.setText(tr("Evaluate memory pressure"))
-            InfoDialog(
-                "Memory evaluation failed",
-                message,
-                icon_name="warning_orange",
-                parent=self,
-                eyebrow="MEMORY",
-                notice="No process was closed and no cache command was executed.",
-                tone="red",
-            ).exec()
-
-        controls = (button,) if isinstance(button, QWidget) else ()
-        self._start_task(operation, success, failure, controls=controls)
-
     def _open_settings_folder(self) -> None:
         self._open_directory(Path(self._path_for("config")).expanduser().resolve().parent, tr("Settings folder"))
 
@@ -2365,99 +2295,6 @@ class SettingsPage(QWidget):
 
     def _portable_start_directory(self) -> str:
         return str(Path(self._path_for("config")).expanduser().resolve().parent)
-
-    def _export_profile_bundle(self) -> None:
-        destination, _selected_filter = QFileDialog.getSaveFileName(
-            self,
-            tr("Export settings and profiles"),
-            str(Path(self._portable_start_directory()) / "bc250-settings-profiles.json"),
-            tr("BC250 profile bundle (*.json)"),
-        )
-        if not destination:
-            return
-
-        def success(result: object) -> None:
-            show_toast(
-                self,
-                "Export completed",
-                tr_format("Portable settings and profiles were saved to {path}.", path=result),
-                tone="green",
-            )
-
-        def failure(message: str) -> None:
-            InfoDialog(
-                "Export failed", message, icon_name="warning_orange", parent=self,
-                eyebrow="DATA PORTABILITY",
-                notice="No hardware or system setting was changed.", tone="red",
-            ).exec()
-
-        self._start_task(
-            lambda: self.settings_service.export_profile_bundle(destination),
-            success,
-            failure,
-            controls=(self.profile_export_button,),
-        )
-
-    def _import_profile_bundle(self) -> None:
-        source, _selected_filter = QFileDialog.getOpenFileName(
-            self,
-            tr("Import settings and profiles"),
-            self._portable_start_directory(),
-            tr("BC250 profile bundle (*.json)"),
-        )
-        if not source:
-            return
-
-        def preview_ready(payload: object) -> None:
-            preview = payload if isinstance(payload, dict) else {}
-            config_count = len(preview.get("config_keys") or ())
-            profile_count = len(preview.get("profile_sections") or ())
-            dialog = ConfirmDialog(
-                "Import portable settings and profiles",
-                "The bundle checksum is valid. Current user settings and profiles will be backed up before the transactional import. Nothing is applied to live hardware.",
-                summary=(
-                    ("File", source),
-                    ("Configuration keys", str(config_count)),
-                    ("Profile sections", str(profile_count)),
-                ),
-                confirm_text="Import bundle",
-                eyebrow="CONFIRM USER DATA IMPORT",
-                tone="orange",
-                parent=self,
-            )
-            if dialog.exec() != QDialog.DialogCode.Accepted:
-                return
-
-            def imported(result: object) -> None:
-                show_toast(
-                    self,
-                    "Import completed",
-                    tr_format("Settings and profiles were imported. Backup: {path}", path=result),
-                    tone="green",
-                )
-
-            self._start_task(
-                lambda: self.settings_service.import_profile_bundle(source),
-                imported,
-                lambda message: InfoDialog(
-                    "Import failed", message, icon_name="warning_orange", parent=self,
-                    eyebrow="DATA PORTABILITY",
-                    notice="The transaction attempted to restore the previous user configuration.",
-                    tone="red",
-                ).exec(),
-                controls=(self.profile_import_button,),
-            )
-
-        self._start_task(
-            lambda: self.settings_service.preview_profile_bundle(source),
-            preview_ready,
-            lambda message: InfoDialog(
-                "Bundle validation failed", message, icon_name="warning_orange", parent=self,
-                eyebrow="DATA PORTABILITY",
-                notice="The selected file was not imported.", tone="red",
-            ).exec(),
-            controls=(self.profile_import_button,),
-        )
 
     def _export_runtime_metrics(self, format_name: str) -> None:
         # Settings intentionally exposes one interoperable report format.
@@ -2661,6 +2498,13 @@ class SettingsPage(QWidget):
         if entry.detail:
             parts.append(f"{tr('Technical detail')}\n{entry.detail}")
         self.diagnostics_detail.setPlainText("\n\n".join(parts))
+
+    def _send_problem_report(self) -> None:
+        from ..components.feedback_dialog import FeedbackDialog
+
+        # The report carries the recent errors; which one it is about is the
+        # owner's to say, so no code is guessed here.
+        FeedbackDialog(self, opened_from="Settings › Diagnostics").exec()
 
     def _copy_diagnostic_report(self) -> None:
         report = diagnostic_report(self._system_rows, self._diagnostic_entries)

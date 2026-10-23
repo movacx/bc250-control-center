@@ -16,6 +16,8 @@ Optional Game Mode panel for BC250 Control Center. It is designed for controller
 - Fans: manual PWM 2–5 control and return to automatic mode.
 - Memory & video: VRAM size (CMOS) and the GPU memory limit (TTM `pages_limit`, how much system memory the GPU may use as GTT). Both take effect at the next reboot, and a change made in Desktop Mode shows up here as pending too.
 
+GPU hangs: the GPU card shows an amber counter when the kernel log has a GPU hang or reset since this boot (a ring timeout, a failed ring reset or a full reset that loses the VRAM), and the GPU details list when it happened and which process was on the ring. It is read-only, from `journalctl -k`; the desktop app's diagnostic report carries the same line plus the Vulkan driver in use.
+
 The panel shows live status while it is open and keeps Desktop and Quick Access CU and memory state synchronized. Advanced GPU voltage editing, arbitrary commands, firmware work, swap/zram/zswap policy and fan curves remain in the desktop application or are intentionally unavailable.
 
 ### GPU memory limit (TTM)

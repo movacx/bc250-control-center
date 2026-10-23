@@ -44,6 +44,9 @@ class FakeRepository(Gddr6MemoryTempRepository):
     def _board_bios_version(self):
         return self._bios_version_value
 
+    def _gddr6_kernel_driver_loaded(self):
+        return getattr(self, "kernel_driver", False)
+
     def _external_memory_telemetry(self):
         # The host's own /run/apu_telemetry.json must not leak into tests.
         return getattr(self, "external_value", {"state": "", "chips": []})
@@ -88,6 +91,10 @@ def test_status_reports_ready_for_a_clean_reviewed_checkout(tmp_path):
     (destination / "SMUPayload.bin").write_bytes(b"\x00")
     repository = FakeRepository(tmp_path, responses=_clean_repo_responses(destination))
 
+    # patch_smu.py takes the handler addresses from the symbol table, so the
+    # payload is not usable without it.
+    assert repository.estado_gddr6_memory_temp()["payload_present"] is False
+    (destination / "SMUPayload.symbols").write_text("umc_read_temp_packed T 0003ac34 0000011e\n")
     status = repository.estado_gddr6_memory_temp()
 
     assert status["repository_ready"] is True
@@ -104,6 +111,16 @@ def test_status_rejects_a_checkout_at_the_wrong_revision(tmp_path):
     status = repository.estado_gddr6_memory_temp()
 
     assert status["repository_ready"] is False
+    # An official clean clone at another revision is what an update leaves
+    # behind: the same Prepare button fetches the reviewed one.
+    assert status["repository_outdated"] is True
+
+
+def test_a_missing_checkout_is_not_reported_as_outdated(tmp_path):
+    status = FakeRepository(tmp_path).estado_gddr6_memory_temp()
+
+    assert status["repository_ready"] is False
+    assert status["repository_outdated"] is False
 
 
 def test_read_command_refuses_when_reader_is_not_installed(tmp_path):

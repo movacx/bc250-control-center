@@ -3,18 +3,77 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from dataclasses import dataclass
+from pathlib import Path
 
 from bc250cc.infrastructure.polkit_session import pkexec_argv
 
-GOVERNOR_CONFIG_HELPER_PROTOCOL = 6
+GOVERNOR_CONFIG_HELPER_PROTOCOL = 7
 _PROTOCOL_PATTERN = re.compile(r"^BC250_GOVERNOR_CONFIG_PROTOCOL\s*=\s*(\d+)\s*$", re.MULTILINE)
 
 
 def governor_config_helper_protocol(source: object) -> int | None:
     match = _PROTOCOL_PATTERN.search(str(source or ""))
     return int(match.group(1)) if match else None
+
+
+GOVERNOR_CONFIG_HELPER_CANDIDATES = (
+    Path("/usr/libexec/bc250-control-center/bc250-governor-config-helper"),
+    Path("/usr/local/libexec/bc250-control-center/bc250-governor-config-helper"),
+)
+
+
+def find_governor_config_helper(candidates=GOVERNOR_CONFIG_HELPER_CANDIDATES) -> tuple[str, int | None]:
+    """The trusted helper speaking this protocol, and any other one seen.
+
+    Returns ``(path, None)`` when one matches, ``("", protocol)`` when only a
+    trusted helper of another version is installed (an install older or newer
+    than this application), and ``("", None)`` when there is none at all.
+    """
+    other: int | None = None
+    for candidate in candidates:
+        try:
+            metadata = candidate.stat(follow_symlinks=False)
+        except OSError:
+            continue
+        if candidate.is_symlink() or not candidate.is_file():
+            continue
+        if metadata.st_uid != 0 or metadata.st_mode & 0o022:
+            continue
+        if not os.access(candidate, os.X_OK):
+            continue
+        try:
+            source = candidate.read_text(encoding="utf-8", errors="strict")
+        except (OSError, UnicodeError):
+            continue
+        protocol = governor_config_helper_protocol(source)
+        if protocol == GOVERNOR_CONFIG_HELPER_PROTOCOL:
+            return str(candidate), None
+        if other is None:
+            other = protocol if protocol is not None else 0
+    return "", other
+
+
+def missing_governor_config_helper_message(purpose: str, candidates=GOVERNOR_CONFIG_HELPER_CANDIDATES) -> str:
+    """Why no helper can be used: absent, or installed by another version.
+
+    Both used to read "is not installed", which sent people looking for a
+    missing file when the real fix was reinstalling after an update.
+    """
+    _path, other = find_governor_config_helper(candidates)
+    if other is not None:
+        installed = f"protocol {other}" if other else "an unversioned build"
+        return (
+            "The installed privileged helper is older than this application "
+            f"({installed}, this version needs protocol {GOVERNOR_CONFIG_HELPER_PROTOCOL}). "
+            f"Reinstall BC250 Control Center locally or from its package before {purpose}."
+        )
+    return (
+        "The privileged governor configuration helper is not installed. "
+        f"Reinstall BC250 Control Center locally or from its package before {purpose}."
+    )
 
 
 NO_ARGUMENT_ACTIONS = frozenset({
@@ -87,10 +146,10 @@ def _decky_gpu_profiles_argument(arguments: tuple[object, ...]) -> tuple[str, ..
             raise ValueError("Decky GPU profile names must be 1-40 characters.")
         minimum = _exact_integer(entry.get("min"), "Decky GPU profile bounds must be integers.")
         maximum = _exact_integer(entry.get("max"), "Decky GPU profile bounds must be integers.")
-        if not DECKY_PROFILE_MIN_MHZ <= minimum < maximum <= DECKY_PROFILE_MAX_MHZ:
+        if not DECKY_PROFILE_MIN_MHZ <= minimum <= maximum <= DECKY_PROFILE_MAX_MHZ:
             raise ValueError(
                 f"Decky GPU profile range must be within {DECKY_PROFILE_MIN_MHZ}-"
-                f"{DECKY_PROFILE_MAX_MHZ} MHz with minimum below maximum."
+                f"{DECKY_PROFILE_MAX_MHZ} MHz with minimum not above maximum."
             )
         normalized.append({"key": key, "name": name, "min": minimum, "max": maximum})
     return (json.dumps(normalized, separators=(",", ":"), sort_keys=True),)
@@ -105,6 +164,15 @@ DECKY_CPU_PROFILE_MIN_MHZ = 3100
 DECKY_CPU_PROFILE_MAX_MHZ = 4200
 DECKY_CPU_PROFILE_MIN_VID = 950
 DECKY_CPU_PROFILE_MAX_VID = 1325
+#: The same steps cpu-detect and Decky's CPU_FREQUENCIES/CPU_VIDS ladders
+#: accept; a value between two steps used to be stored here and then dropped
+#: without a word by the readers.
+DECKY_CPU_PROFILE_FREQUENCY_STEP = 50
+DECKY_CPU_PROFILE_VID_STEP = 5
+#: The cap of the desktop's CPU cards. Optional in a request (an older caller
+#: never sent it) and then 90 C, the limit Decky always used before.
+DECKY_CPU_PROFILE_MIN_TEMPERATURE = 70
+DECKY_CPU_PROFILE_MAX_TEMPERATURE = 90
 DECKY_CPU_PROFILE_KEYS = ("board_average", "mid_point", "safe_maximum")
 
 
@@ -175,7 +243,26 @@ def _decky_cpu_profiles_argument(arguments: tuple[object, ...]) -> tuple[str, ..
                 f"Decky CPU profile VID must be within {DECKY_CPU_PROFILE_MIN_VID}-"
                 f"{DECKY_CPU_PROFILE_MAX_VID} mV."
             )
-        normalized.append({"key": key, "name": name, "frequency": frequency, "vid": vid})
+        if (
+            (frequency - DECKY_CPU_PROFILE_MIN_MHZ) % DECKY_CPU_PROFILE_FREQUENCY_STEP
+            or (vid - DECKY_CPU_PROFILE_MIN_VID) % DECKY_CPU_PROFILE_VID_STEP
+        ):
+            raise ValueError(
+                f"Decky CPU profile values must be on the {DECKY_CPU_PROFILE_FREQUENCY_STEP} MHz "
+                f"and {DECKY_CPU_PROFILE_VID_STEP} mV steps."
+            )
+        temperature = _exact_integer(
+            entry.get("temperature", DECKY_CPU_PROFILE_MAX_TEMPERATURE),
+            "Decky CPU profile values must be integers.",
+        )
+        if not DECKY_CPU_PROFILE_MIN_TEMPERATURE <= temperature <= DECKY_CPU_PROFILE_MAX_TEMPERATURE:
+            raise ValueError(
+                f"Decky CPU profile values must keep the temperature within {DECKY_CPU_PROFILE_MIN_TEMPERATURE}-"
+                f"{DECKY_CPU_PROFILE_MAX_TEMPERATURE} C."
+            )
+        normalized.append(
+            {"key": key, "name": name, "frequency": frequency, "vid": vid, "temperature": temperature}
+        )
     return (json.dumps(normalized, separators=(",", ":"), sort_keys=True),)
 
 
@@ -247,12 +334,14 @@ def plan_governor_config_request(
             raise ValueError("Cyan metrics fix flag must be boolean.")
         return GovernorConfigRequest(action, ("1" if flag else "0",))
     if action == "set-cyan-compatibility":
-        if len(arguments) != 4:
+        if len(arguments) not in {4, 5}:
             raise ValueError(
                 "set-cyan-compatibility needs set-method, usage-method, "
-                "fix-metrics and fix-freq."
+                "fix-metrics, fix-freq and optionally temp-read."
             )
-        set_method, usage_method, fix_metrics, fix_frequency = arguments
+        set_method, usage_method, fix_metrics, fix_frequency = arguments[:4]
+        # Optional and last; None leaves the TOML line as it is.
+        temp_read = arguments[4] if len(arguments) == 5 else None
         normalized_set_method = str(set_method).strip().lower()
         if normalized_set_method not in {"smu", "kernel"}:
             raise ValueError("Cyan set-method must be smu or kernel.")
@@ -263,15 +352,18 @@ def plan_governor_config_request(
             )
         if not isinstance(fix_metrics, bool) or not isinstance(fix_frequency, bool):
             raise ValueError("Cyan compatibility fix flags must be boolean.")
-        return GovernorConfigRequest(
-            action,
-            (
-                normalized_set_method,
-                normalized_usage_method,
-                "1" if fix_metrics else "0",
-                "1" if fix_frequency else "0",
-            ),
+        values = (
+            normalized_set_method,
+            normalized_usage_method,
+            "1" if fix_metrics else "0",
+            "1" if fix_frequency else "0",
         )
+        if temp_read is not None:
+            normalized_temp_read = str(temp_read).strip().lower()
+            if normalized_temp_read not in {"drm", "sysfs"}:
+                raise ValueError("Cyan temp-read must be drm or sysfs.")
+            values += (normalized_temp_read,)
+        return GovernorConfigRequest(action, values)
     if action == "set-cyan-voltage-level":
         request = _integers(
             action,

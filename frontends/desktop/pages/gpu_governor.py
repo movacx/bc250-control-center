@@ -1,72 +1,46 @@
 from __future__ import annotations
 
 import json
-import re
-import time
-from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QIntValidator
 from PyQt6.QtWidgets import (
-    QAbstractItemView,
     QApplication,
-    QButtonGroup,
-    QCheckBox,
-    QComboBox,
     QDialog,
     QFileDialog,
-    QFrame,
     QGridLayout,
-    QHBoxLayout,
-    QHeaderView,
-    QLabel,
-    QLineEdit,
-    QPlainTextEdit,
     QScrollArea,
     QSizePolicy,
     QStackedWidget,
-    QTableWidget,
-    QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
 
 from bc250cc.application.gpu.diagnostics import (
     DiagnosticText,
-    present_gpu_diagnostics,
 )
 from bc250cc.application.gpu.range_policy import (
     RangeEvidence,
     RangeNotice,
-    high_oc_voltage_gaps,
     validate_gpu_range,
 )
-from bc250cc.application.gpu.runtime import RuntimeText, present_gpu_runtime
-from bc250cc.application.gpu.safe_points import SafePointRow, build_safe_point_plan
-from bc250cc.application.gpu.safety import SafetyMessage, present_gpu_safety
+from bc250cc.application.gpu.runtime import RuntimeText
+from bc250cc.application.gpu.safe_points import build_safe_point_plan
+from bc250cc.application.gpu.safety import SafetyMessage
 from bc250cc.application.gpu.service_action import plan_gpu_service_action
 from bc250cc.application.gpu.telemetry import (
     TelemetryText,
-    format_bytes,
     present_gpu_telemetry,
 )
 from bc250cc.application.gpu.voltage_apply import plan_voltage_apply
-from bc250cc.application.gpu.voltage_lab_state import (
-    build_voltage_lab_state,
-    voltage_for_level,
-)
-from bc250cc.application.gpu.voltage_table import build_voltage_table_plan
 from bc250cc.application.preparation.gpu_dependency_plan import (
     DEFAULT_PREPARATION_COMPONENTS,
     GpuDependencyPlan,
-    build_gpu_dependency_plan,
 )
-from bc250cc.domain.gpu.oberon import OBERON_DESKTOP_PROFILES, OBERON_SAFE_PROFILES
+from bc250cc.domain.gpu.oberon import OBERON_DESKTOP_PROFILES
 from bc250cc.domain.gpu.profiles import (
     default_cyan_profiles,
-    profiles_for_allowed_range,
 )
 from bc250cc.infrastructure.bazzite_async_compute import (
     BAZZITE_ASYNC_COMPUTE_REPOSITORY,
@@ -76,19 +50,13 @@ from bc250cc.infrastructure.gpu.governor_toml import (
     SUPPORTED_VOLTAGE_LEVELS,
     VOLTAGE_BOOST_START_MHZ,
 )
-from bc250cc.infrastructure.radv_async_compute import RADV_ASYNC_REVIEWED_COMMIT
 from bc250cc.infrastructure.system_setup import CU_UNLOCK_OPTION, CU_UNLOCK_THERMAL_NOTE
 
 from ..components.async_tools import AsyncRefresh, BackgroundExecutor
-from ..components.buttons import WrappingButton as QPushButton
-from ..components.dialogs import enable_adaptive_dialog
 from ..components.page_widgets import (
     ConfirmDialog,
     ControlPageHeader,
-    MetricTile,
     PresetButton,
-    SectionCard,
-    StatusLine,
 )
 from ..components.responsive import (
     clear_grid,
@@ -97,22 +65,12 @@ from ..components.responsive import (
 )
 from ..components.system_setup_controls import (
     MEMORY_OPTIONS,
-    VRAM_SIZE_PRESETS_MB,
-    bazzite_ui_preview_enabled,
-    is_bazzite_host,
-    update_memory_controls,
     vram_size_label,
 )
 from ..components.toast import show_toast
 from ..components.voltage_lab_drawer import VoltageLabDrawer
-from ..components.widgets import IconBadge, InfoDialog, PillLabel, apply_shadow, icon
-from ..core.action_session import ActionSession
+from ..components.widgets import InfoDialog
 from ..core.external_links import open_external_url, open_local_file
-from ..core.feature_visibility import (
-    GFX1013_FSR4_UI_ENABLED,
-    GPU_REFERENCE_PANELS_ENABLED,
-    mastag_stack_replaces_gfx1013_card,
-)
 from ..core.gfx1013_presenter import RADV_ROUTE_SECOND_FIX, present_gfx1013
 from ..core.operation_gate import OperationGate
 from ..core.preferences import application_settings
@@ -122,35 +80,16 @@ from ..core.voltage_keypad_guard import (
     voltage_keypad_edit_active,
 )
 from ..i18n import shipped_name, tr, tr_format
-from ..theme import COLORS, application_stylesheet
-
-
-def _dict(value):
-    if hasattr(value, "to_dict"):
-        return value.to_dict()
-    try:
-        return dict(value or {})
-    except (TypeError, ValueError):
-        return {}
-
-
-def _number(value, default=0.0):
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return float(default)
-
-
-def _integer(value, default=0):
-    try:
-        return int(float(value))
-    except (TypeError, ValueError):
-        return int(default)
-
-
-def _format_bytes(value) -> str:
-    return format_bytes(value)
-
+from .gpu_governor_helpers import (  # noqa: F401  (re-exported: other modules and tests import them from here)
+    _dict,
+    _integer,
+)
+from .gpu_governor_widgets import (  # noqa: F401  (re-exported: other modules and tests import them from here)
+    DependencyPreparationDialog,
+    DynamicSafetyNotice,
+    GpuProfileEditDialog,
+    GpuSummaryStrip,
+)
 
 # Custom Cyan operating profiles (name + reference safe-point + range) are
 # small enough to live directly in the shared UI settings file rather than a
@@ -203,1708 +142,12 @@ def _save_custom_gpu_profile(settings, index: int, profile: dict) -> None:
     settings.sync()
 
 
-class GpuSummaryItem(QFrame):
-    """One compact value inside the shared GPU telemetry strip."""
 
-    def __init__(
-        self,
-        label: str,
-        value: str,
-        detail: str,
-        icon_name: str,
-        background: str,
-        parent=None,
-        *,
-        compact: bool = False,
-    ):
-        super().__init__(parent)
-        self.setProperty("gpuSummaryItem", True)
-        if compact:
-            self.setProperty("compactVoltageSummaryItem", True)
-        self.setMinimumHeight(56 if compact else 68)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        row = QHBoxLayout(self)
-        if compact:
-            row.setContentsMargins(8, 6, 8, 6)
-        else:
-            row.setContentsMargins(12, 10, 12, 10)
-        row.setSpacing(7 if compact else 10)
-        row.addWidget(
-            IconBadge(
-                icon_name, background, 26 if compact else 30, radius=7 if compact else 8
-            )
-        )
-        text = QVBoxLayout()
-        text.setSpacing(0)
-        self.label = QLabel(tr(label))
-        self.label.setWordWrap(True)
-        self.label.setProperty("gpuSummaryLabel", True)
-        self.value = QLabel(tr(value))
-        self.value.setProperty("gpuSummaryValue", True)
-        self.value.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        self.detail = QLabel(tr(detail))
-        self.detail.setProperty("gpuSummaryDetail", True)
-        self.detail.setWordWrap(True)
-        text.addWidget(self.label)
-        text.addWidget(self.value)
-        text.addWidget(self.detail)
-        row.addLayout(text, 1)
 
-    def set_values(self, value: str, detail: str | None = None) -> None:
-        self.value.setText(tr(value))
-        if detail is not None:
-            self.detail.setText(tr(detail))
+from .gpu_governor_state import GpuGovernorStateMixin  # noqa: E402  (needs names defined above, so imported here)
 
 
-class GpuSummaryStrip(QFrame):
-    """Low-profile GPU summary that expands across the complete viewport."""
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setProperty("gpuSummaryStrip", True)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        apply_shadow(self, blur=16, y=3, alpha=10)
-        self.grid = QGridLayout(self)
-        self.grid.setContentsMargins(8, 8, 8, 8)
-        self.grid.setHorizontalSpacing(8)
-        self.grid.setVerticalSpacing(8)
-        self.items = [
-            GpuSummaryItem(
-                "Governor",
-                "Checking",
-                "service and boot state",
-                "settings_blue",
-                COLORS["blue_soft"],
-            ),
-            GpuSummaryItem(
-                "GPU SCLK",
-                "-- MHz",
-                "real-time core clock",
-                "gpu_purple",
-                COLORS["purple_soft"],
-            ),
-            GpuSummaryItem(
-                "Active range",
-                "--",
-                "runtime D-Bus target",
-                "compute_blue",
-                COLORS["blue_soft"],
-            ),
-            GpuSummaryItem(
-                "GPU load",
-                "-- %",
-                "passive utilization",
-                "activity_purple",
-                COLORS["purple_soft"],
-            ),
-            GpuSummaryItem(
-                "Temperature",
-                "-- °C",
-                "GPU edge sensor",
-                "warning_orange",
-                COLORS["orange_soft"],
-            ),
-        ]
-        self.columns = 0
-        self.set_columns(5)
-
-    def set_columns(self, columns: int) -> None:
-        columns = max(1, int(columns))
-        if columns == self.columns and self.grid.count():
-            return
-        self.columns = columns
-        while self.grid.count():
-            item = self.grid.takeAt(0)
-            if item.widget() is not None:
-                item.widget().setParent(None)
-        for index, widget in enumerate(self.items):
-            self.grid.addWidget(widget, index // columns, index % columns)
-        for column in range(columns):
-            self.grid.setColumnStretch(column, 1)
-
-
-class DependencyPreparationDialog(QDialog):
-    """Visible, distro-aware setup chooser for both supported governors."""
-
-    def __init__(
-        self,
-        tools: dict,
-        selected_governor: str,
-        parent=None,
-        *,
-        controller=None,
-    ):
-        super().__init__(parent)
-        self.setObjectName("DependencyPreparationDialog")
-        self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint)
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
-        self.setStyleSheet(application_stylesheet())
-        self.setWindowTitle(tr("Prepare BC250 system"))
-        self.setModal(True)
-        self.action = ""
-        self.governor = ""
-        self.selected_components: set[str] = set()
-        self.memory_policy = "current"
-        self.memory_ttm_gib = 0
-        self.vram_uma_size_mb = 0
-        self.tools = _dict(tools)
-        self.controller = controller
-        self.component_capabilities = _dict(self.tools.get("prepare_components"))
-        self.governor_states = _dict(self.tools.get("supported_gpu_governors"))
-        enable_adaptive_dialog(
-            self,
-            preferred_width=780,
-            preferred_height=610,
-            minimum_width=560,
-            minimum_height=500,
-        )
-
-        outer = QVBoxLayout(self)
-        outer.setContentsMargins(18, 18, 18, 18)
-        panel = QFrame()
-        panel.setObjectName("ControlDialogCard")
-        apply_shadow(panel, blur=34, y=10, alpha=55)
-        outer.addWidget(panel)
-
-        root = QVBoxLayout(panel)
-        root.setContentsMargins(22, 18, 22, 16)
-        root.setSpacing(12)
-
-        heading = QHBoxLayout()
-        heading.setSpacing(12)
-        heading.addWidget(
-            IconBadge("download_blue", COLORS["blue_soft"], 40, radius=11)
-        )
-        heading_copy = QVBoxLayout()
-        heading_copy.setSpacing(3)
-        title = QLabel(tr("Prepare BC250 system"))
-        title.setProperty("dialogTitle", True)
-        subtitle = QLabel(
-            tr("Install what you need and choose the features you want to use.")
-        )
-        subtitle.setProperty("dialogBody", True)
-        subtitle.setWordWrap(False)
-        heading_copy.addWidget(title)
-        heading_copy.addWidget(subtitle)
-        heading.addLayout(heading_copy, 1)
-        close = QPushButton()
-        close.setObjectName("DialogClose")
-        close.setIcon(icon("close_gray"))
-        close.setFixedSize(34, 34)
-        close.setToolTip(tr("Close"))
-        close.clicked.connect(self.reject)
-        heading.addWidget(close, 0, Qt.AlignmentFlag.AlignTop)
-        root.addLayout(heading)
-
-        system = QFrame()
-        system.setProperty("dependencySystemBar", True)
-        system_row = QHBoxLayout(system)
-        system_row.setContentsMargins(12, 8, 10, 8)
-        system_row.setSpacing(9)
-        system_row.addWidget(
-            IconBadge("shield_green", COLORS["green_soft"], 26, radius=7)
-        )
-        distribution = str(self.tools.get("os_label") or tr("Unknown distribution"))
-        family = str(self.tools.get("os_family") or tr("Unknown family"))
-        system_identity = distribution
-        if family.lower() not in distribution.lower():
-            system_identity = f"{distribution} · {family}"
-        system_text = QLabel(
-            tr_format("Detected system: {distribution}", distribution=system_identity)
-        )
-        system_text.setProperty("dependencySystemText", True)
-        system_text.setWordWrap(False)
-        system_row.addWidget(system_text, 1)
-        system_row.addWidget(
-            PillLabel(
-                "Immutable" if self.tools.get("os_immutable") else "Detected",
-                "orange" if self.tools.get("os_immutable") else "green",
-            )
-        )
-        root.addWidget(system)
-
-        section_nav = QHBoxLayout()
-        section_nav.setSpacing(6)
-        self.section_buttons = []
-        self.section_stack = QStackedWidget()
-        section_labels = [
-            ("components", "Components"),
-            ("compatibility", "Compatibility and governors"),
-        ]
-        if bool(_dict(self.tools.get("quick_access")).get("supported")):
-            section_labels.append(("decky", "Decky Loader"))
-        section_labels.append(("drivers", "Drivers"))
-        self.section_keys = [key for key, _label in section_labels]
-        for index, (_key, label) in enumerate(section_labels):
-            display_label = tr(label)
-            button = QPushButton(display_label)
-            button.setCheckable(True)
-            button.setProperty("dependencySectionTab", True)
-            button.setToolTip(tr(label))
-            button.clicked.connect(
-                lambda _checked=False, page=index: self._select_dependency_section(page)
-            )
-            section_nav.addWidget(button, 1)
-            self.section_buttons.append(button)
-        root.addLayout(section_nav)
-        root.addWidget(self.section_stack, 1)
-
-        components_page = QWidget()
-        components_layout = QVBoxLayout(components_page)
-        components_layout.setContentsMargins(0, 0, 0, 0)
-        components_layout.setSpacing(10)
-
-        automatic = QFrame()
-        automatic.setProperty("dependencyActionTile", True)
-        automatic.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        automatic_layout = QHBoxLayout(automatic)
-        automatic.setProperty("dependencyLeadTile", True)
-        automatic_layout.setContentsMargins(14, 11, 12, 11)
-        automatic_layout.setSpacing(10)
-        automatic_layout.addWidget(
-            IconBadge("settings_blue", COLORS["blue_soft"], 34, radius=9)
-        )
-        automatic_copy = QVBoxLayout()
-        automatic_copy.setSpacing(2)
-        automatic_title = QLabel(tr("Automatic setup"))
-        automatic_title.setProperty("sectionTitle", True)
-        detected_family = str(self.tools.get("os_family") or "")
-        if detected_family == "steamos":
-            automatic_text = tr(
-                "Install or update the SteamOS user-space/runtime components, Cyan, UMR and BC-250 tools. The high-impact amdgpu/initramfs compatibility repair stays a separate explicit action."
-            )
-        elif detected_family in {"debian", "ubuntu"}:
-            automatic_text = tr(
-                "Prepare the Debian/Ubuntu runtime and selected GPU governor. Optional UMR, 40CU, CPU and PWM tools remain explicit selections below."
-            )
-        else:
-            automatic_text = tr(
-                "Install or update all required BC250 components. With Cyan selected, its configuration and frequency-reporting fix are prepared now. Prepare does not start the governor: use Start governor afterward to start it now and at every boot."
-            )
-        automatic_detail = QLabel(
-            "Runtime · GPU"
-            if detected_family in {"debian", "ubuntu"}
-            else "GPU · CPU · 40CU · PWM"
-        )
-        automatic_detail.setProperty("sectionSubtitle", True)
-        automatic_detail.setWordWrap(False)
-        automatic_detail.setToolTip(automatic_text)
-        automatic_copy.addWidget(automatic_title)
-        automatic_copy.addWidget(automatic_detail)
-        automatic_layout.addLayout(automatic_copy, 1)
-        auto_button = QPushButton(tr("Prepare selected"))
-        auto_button.setObjectName("PrimaryAction")
-        auto_button.setProperty("dependencyPrepareButton", True)
-        auto_button.clicked.connect(lambda: self._choose("prepare", "auto"))
-        self.auto_button = auto_button
-        automatic_layout.addWidget(auto_button)
-        components_layout.addWidget(automatic)
-
-        self.component_panel = self._component_selector()
-        components_layout.addWidget(self.component_panel)
-        if is_bazzite_host(self.tools) or bazzite_ui_preview_enabled():
-            components_layout.addWidget(self._bazzite_mitigations_card())
-        components_layout.addWidget(self._memory_component_card())
-        self.section_stack.addWidget(components_page)
-
-        advanced_content = QWidget()
-        advanced_layout = QVBoxLayout(advanced_content)
-        advanced_layout.setContentsMargins(0, 0, 6, 0)
-        advanced_layout.setSpacing(10)
-        self.gfx1013_card = self._gfx1013_card()
-        gfx_state = _dict(self.tools.get("gfx1013_compute"))
-        self.gfx1013_card.setVisible(
-            not mastag_stack_replaces_gfx1013_card(self.tools)
-            # Debian family on a kernel too old for any route: nothing to offer.
-            and not bool(_dict(gfx_state.get("source")).get("hide_offer"))
-        )
-        advanced_layout.addWidget(self.gfx1013_card)
-        kernel_upgrade = _dict(gfx_state.get("kernel_upgrade"))
-        self.debian_kernel_card = self._debian_kernel_card(kernel_upgrade)
-        self.debian_kernel_card.setVisible(bool(kernel_upgrade.get("offered")))
-        advanced_layout.addWidget(self.debian_kernel_card)
-        advanced_layout.addWidget(
-            self._cachyos_kernel_card(
-                supported=bool(self.tools.get("masta_bc250_stack_supported"))
-            )
-        )
-
-        governor_label = QLabel(tr("GPU governor"))
-        governor_label.setProperty("sectionTitle", True)
-        advanced_layout.addWidget(governor_label)
-
-        governor_grid = QGridLayout()
-        governor_grid.setContentsMargins(0, 0, 0, 0)
-        governor_grid.setHorizontalSpacing(10)
-        governor_grid.setVerticalSpacing(10)
-        self.governor_cards = {}
-        for column, (identifier, display_name, detail) in enumerate(
-            (
-                (
-                    "cyan-skillfish-governor-smu",
-                    "Cyan Skillfish Governor (SMU)",
-                    "Recommended backend with D-Bus range control and BC-250 telemetry repair.",
-                ),
-                (
-                    "oberon-governor",
-                    "Oberon Governor",
-                    "Alternative YAML-based backend. GPU telemetry repair remains a separate compatibility step.",
-                ),
-            )
-        ):
-            card = self._governor_card(
-                identifier, display_name, detail, identifier == selected_governor
-            )
-            governor_grid.addWidget(card, 0, column)
-            governor_grid.setColumnStretch(column, 1)
-            self.governor_cards[identifier] = card
-        governor_container = QWidget()
-        governor_container.setLayout(governor_grid)
-        advanced_layout.addWidget(governor_container)
-
-        governor_container.setToolTip(
-            tr(
-                "Only one GPU governor can be enabled at a time. Preparing another governor will ask before stopping the active one."
-            )
-        )
-        advanced_layout.addStretch(1)
-
-        advanced_scroll = QScrollArea()
-        advanced_scroll.setFrameShape(QFrame.Shape.NoFrame)
-        advanced_scroll.setWidgetResizable(True)
-        advanced_scroll.setHorizontalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
-        )
-        advanced_scroll.setWidget(advanced_content)
-        self.section_stack.addWidget(advanced_scroll)
-        if bool(_dict(self.tools.get("quick_access")).get("supported")):
-            self.section_stack.addWidget(self._quick_access_page())
-        self.section_stack.addWidget(self._drivers_page())
-        self._select_dependency_section(0)
-
-        footer = QHBoxLayout()
-        footer.setContentsMargins(0, 0, 0, 0)
-        footer.addStretch(1)
-        cancel = QPushButton(tr("Cancel"))
-        cancel.setProperty("compactAction", True)
-        cancel.clicked.connect(self.reject)
-        footer.addWidget(cancel)
-        root.addLayout(footer)
-
-    def _select_dependency_section(self, index: int) -> None:
-        previous_key = (
-            self.section_keys[self.section_stack.currentIndex()]
-            if self.section_keys
-            and 0 <= self.section_stack.currentIndex() < len(self.section_keys)
-            else ""
-        )
-        self.section_stack.setCurrentIndex(index)
-        for button_index, button in enumerate(self.section_buttons):
-            button.setChecked(button_index == index)
-            button.style().unpolish(button)
-            button.style().polish(button)
-        if previous_key == "drivers" and hasattr(self, "drivers_page"):
-            self.drivers_page.set_updates_active(False)
-        if self.section_keys[index] == "drivers" and hasattr(self, "drivers_page"):
-            self.drivers_page.set_updates_active(True)
-
-    def _drivers_page(self) -> QWidget:
-        """Embed driver inventory where system preparation already lives."""
-        if self.controller is None:
-            page = QWidget()
-            layout = QVBoxLayout(page)
-            layout.setContentsMargins(0, 0, 0, 0)
-            note = QLabel(
-                tr(
-                    "Driver inventory is loaded when this dialog is opened from the application."
-                )
-            )
-            note.setProperty("sectionSubtitle", True)
-            note.setWordWrap(True)
-            layout.addWidget(note)
-            layout.addStretch(1)
-            return page
-        from .drivers import DriversPage
-
-        self.drivers_page = DriversPage(self.controller, embedded=True)
-        return self.drivers_page
-
-    def _component_selector(self) -> QFrame:
-        panel = QFrame()
-        panel.setProperty("dependencyActionTile", True)
-        panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        panel.setStyleSheet(f"""
-            QCheckBox[componentSwitch='true'] {{
-                min-height: 28px; spacing: 9px; color: {COLORS["text"]};
-                font-size: 12px; font-weight: 650;
-            }}
-            QCheckBox[componentSwitch='true']::indicator {{
-                width: 18px; height: 18px; border-radius: 5px;
-                border: 1px solid {COLORS["border_strong"]};
-                background: {COLORS["control_pressed"]};
-            }}
-            QCheckBox[componentSwitch='true']::indicator:checked {{
-                background: {COLORS["blue"]}; border-color: {COLORS["blue"]};
-            }}
-            QCheckBox[componentSwitch='true']::indicator:disabled {{ opacity: 0.65; }}
-        """)
-        layout = QVBoxLayout(panel)
-        layout.setContentsMargins(14, 11, 14, 11)
-        layout.setSpacing(6)
-
-        header = QHBoxLayout()
-        title = QLabel(tr("Components to prepare"))
-        title.setProperty("sectionTitle", True)
-        header.addWidget(title, 1)
-        self.component_summary = PillLabel("", "blue")
-        header.addWidget(self.component_summary)
-        layout.addLayout(header)
-
-        grid = QGridLayout()
-        grid.setHorizontalSpacing(18)
-        grid.setVerticalSpacing(3)
-        self.component_switches: dict[str, QCheckBox] = {}
-        components = (
-            ("runtime", "Base dependencies", True, False),
-            ("governor", "Selected GPU governor", True, True),
-            ("cpu_oc", "CPU OC tools", True, True),
-            ("core_unlock", "CPU Core Unlock source", True, True),
-            ("umr", "UMR database", True, True),
-            ("cu_manager", "40CU manager", True, True),
-            ("fan_pwm", "NCT sensors and PWM", True, True),
-        )
-        family = str(self.tools.get("os_family") or "")
-        debian_family = family in {"debian", "ubuntu"}
-        for index, (key, label, checked, enabled) in enumerate(components):
-            capability = _dict(self.component_capabilities.get(key))
-            available = bool(capability.get("available", True))
-            switch_label = tr(label)
-            if capability.get("installed"):
-                switch_label = tr_format("{component} · Ready", component=switch_label)
-            switch = QCheckBox(switch_label)
-            switch.setProperty("componentSwitch", True)
-            switch.setProperty("componentInstalled", bool(capability.get("installed")))
-            # UMR is not packaged by every Debian/Ubuntu release. Its fallback
-            # installs LLVM and builds from source, so optional hardware tools
-            # must be an explicit selection instead of a surprising default.
-            default_checked = checked and (
-                not debian_family or key in {"runtime", "governor"}
-            )
-            switch.setChecked(default_checked and available)
-            switch.setEnabled(enabled and available)
-            detail_text = tr(str(capability.get("detail") or ""))
-            if capability.get("reboot"):
-                detail_text = (
-                    detail_text + " " + tr("A reboot may be required.")
-                ).strip()
-            if capability.get("installed"):
-                detail_text = (
-                    detail_text
-                    + " "
-                    + tr(
-                        "Already prepared; selecting it checks for updates and repairs missing files."
-                    )
-                ).strip()
-            if debian_family and key in {"umr", "cu_manager"}:
-                detail_text = (
-                    detail_text
-                    + " "
-                    + tr(
-                        "On Debian/Ubuntu, UMR may need a large LLVM toolchain and a source build. Select it only when preparing Compute Units."
-                    )
-                ).strip()
-            if not available:
-                detail_text = (
-                    detail_text + " " + tr("Unavailable on the detected system.")
-                ).strip()
-            if detail_text:
-                switch.setToolTip(detail_text)
-            switch.toggled.connect(self._update_component_summary)
-            grid.addWidget(switch, index // 2, index % 2)
-            self.component_switches[key] = switch
-        self.component_switches["cu_manager"].toggled.connect(
-            self._sync_component_dependencies
-        )
-        self.component_switches["umr"].toggled.connect(
-            self._sync_component_dependencies
-        )
-        layout.addLayout(grid)
-        panel.setToolTip(
-            tr(
-                "Select only the tools this system needs. Dangerous hardware actions remain separate and are never enabled by these switches."
-            )
-        )
-        self._update_component_summary()
-        return panel
-
-    def _update_component_summary(self) -> None:
-        selected = {
-            key for key, switch in self.component_switches.items() if switch.isChecked()
-        }
-        self.selected_components = selected
-        self.component_summary.setText(
-            tr_format("{count} selected", count=len(selected))
-        )
-        if hasattr(self, "auto_button"):
-            self.auto_button.setText(
-                tr_format("Prepare selected ({count})", count=len(selected))
-            )
-            runtime_ready = self.component_switches.get("runtime")
-            self.auto_button.setEnabled(
-                bool(selected) and bool(runtime_ready and runtime_ready.isChecked())
-            )
-
-    def _sync_component_dependencies(self) -> None:
-        manager = self.component_switches.get("cu_manager")
-        umr = self.component_switches.get("umr")
-        if manager is None or umr is None:
-            return
-        sender = self.sender()
-        if sender is manager and manager.isChecked() and not umr.isChecked():
-            umr.setChecked(True)
-        elif sender is umr and not umr.isChecked() and manager.isChecked():
-            manager.setChecked(False)
-        self._update_component_summary()
-
-    def _memory_component_card(self) -> QFrame:
-        """Build the one explicit Bazzite memory and TTM boot workflow."""
-        state = _dict(self.tools.get("memory_runtime"))
-        self._memory_state = state
-        card = QFrame()
-        card.setProperty("dependencyActionTile", True)
-        layout = QVBoxLayout(card)
-        layout.setContentsMargins(14, 11, 14, 11)
-        layout.setSpacing(8)
-
-        header = QHBoxLayout()
-        header.setSpacing(9)
-        header.addWidget(IconBadge("memory_green", COLORS["green_soft"], 30, radius=8))
-        copy = QVBoxLayout()
-        copy.setSpacing(1)
-        title = QLabel(tr("Memory & Swap"))
-        title.setProperty("sectionTitle", True)
-        zram = (
-            _format_bytes(state.get("zram_total_bytes"))
-            if state.get("zram_active")
-            else tr("Disabled")
-        )
-        zswap = tr("Active") if state.get("zswap_enabled") is True else tr("Disabled")
-        backing = (
-            _format_bytes(state.get("backing_swap_total_bytes"))
-            if state.get("backing_swap_active")
-            else tr("None")
-        )
-        detail = QLabel(
-            tr_format(
-                "Active now: ZRAM {zram} · disk swap {backing} · ZSWAP {zswap}",
-                zram=zram,
-                backing=backing,
-                zswap=zswap,
-            )
-        )
-        detail.setProperty("sectionSubtitle", True)
-        copy.addWidget(title)
-        copy.addWidget(detail)
-        header.addLayout(copy, 1)
-        actionable = is_bazzite_host(self.tools)
-        header.addWidget(
-            PillLabel(
-                tr("Bazzite") if actionable else tr("Testing"),
-                "green" if actionable else "gray",
-            )
-        )
-        layout.addLayout(header)
-
-        controls = QGridLayout()
-        controls.setContentsMargins(0, 2, 0, 0)
-        controls.setHorizontalSpacing(10)
-        controls.setVerticalSpacing(8)
-        swap_label = QLabel(tr("Swap and compression"))
-        swap_label.setProperty("fieldLabel", True)
-        controls.addWidget(swap_label, 0, 0)
-        self.memory_policy_combo = QComboBox()
-        self.memory_policy_combo.setProperty("settingsCombo", True)
-        for label, value in (
-            ("Keep Bazzite default (ZRAM)", "current"),
-            ("Recommended · ZRAM + 16 GiB emergency swap", "zram-swap-16"),
-            ("Advanced · ZSWAP + 16 GiB swapfile", "zswap-16"),
-            ("Advanced heavy loads · ZSWAP + 32 GiB swapfile", "zswap-32"),
-        ):
-            self.memory_policy_combo.addItem(tr(label), value)
-        controls.addWidget(self.memory_policy_combo, 0, 1)
-        self.memory_swap_apply_button = QPushButton(tr("Apply Swap"))
-        self.memory_swap_apply_button.setObjectName("PrimaryAction")
-        self.memory_swap_apply_button.clicked.connect(
-            lambda: self._choose("memory_swap", "")
-        )
-        controls.addWidget(self.memory_swap_apply_button, 0, 2)
-
-        ttm_label = QLabel(tr("Dynamic GPU Memory Limit (TTM)"))
-        ttm_label.setProperty("fieldLabel", True)
-        controls.addWidget(ttm_label, 1, 0)
-        self.ttm_limit_combo = QComboBox()
-        self.ttm_limit_combo.setProperty("settingsCombo", True)
-        self.ttm_limit_combo.addItem(tr("Keep current TTM limit"), 0)
-        self.ttm_limit_combo.addItem(tr("Kernel default (remove BC250 TTM limit)"), -1)
-        current_gib = round(_integer(state.get("ttm_limit_bytes"), 0) / (1024**3))
-        for target in (8, 10, 12):
-            self.ttm_limit_combo.addItem(
-                tr_format("Limit GPU allocations to {size} GiB", size=target), target
-            )
-        if current_gib in {8, 10, 12}:
-            self.ttm_limit_combo.setCurrentIndex((8, 10, 12).index(current_gib) + 2)
-        controls.addWidget(self.ttm_limit_combo, 1, 1)
-        self.memory_ttm_apply_button = QPushButton(tr("Apply TTM"))
-        self.memory_ttm_apply_button.setObjectName("PrimaryAction")
-        self.memory_ttm_apply_button.clicked.connect(
-            lambda: self._choose("memory_ttm", "")
-        )
-        controls.addWidget(self.memory_ttm_apply_button, 1, 2)
-
-        vram_label = QLabel(tr("VRAM size (UMA_SIZE)"))
-        vram_label.setProperty("fieldLabel", True)
-        controls.addWidget(vram_label, 2, 0)
-        self.vram_size_combo = QComboBox()
-        self.vram_size_combo.setProperty("settingsCombo", True)
-        self.vram_size_combo.addItem(tr("Keep current VRAM size"), 0)
-        for target in VRAM_SIZE_PRESETS_MB:
-            self.vram_size_combo.addItem(vram_size_label(target), target)
-        controls.addWidget(self.vram_size_combo, 2, 1)
-        self.vram_apply_button = QPushButton(tr("Apply VRAM"))
-        self.vram_apply_button.setObjectName("PrimaryAction")
-        self.vram_apply_button.clicked.connect(lambda: self._choose("vram_apply", ""))
-        controls.addWidget(self.vram_apply_button, 2, 2)
-
-        controls.setColumnStretch(1, 1)
-        layout.addLayout(controls)
-
-        self.memory_policy_combo.currentIndexChanged.connect(
-            self._update_memory_apply_availability
-        )
-        self.ttm_limit_combo.currentIndexChanged.connect(
-            self._update_memory_apply_availability
-        )
-        self.vram_size_combo.currentIndexChanged.connect(
-            self._update_memory_apply_availability
-        )
-        self._update_memory_apply_availability()
-        return card
-
-    def _bazzite_mitigations_card(self) -> QFrame:
-        actionable = is_bazzite_host(self.tools)
-        mitigations = _dict(self.tools.get("bazzite_mitigations"))
-        configured = bool(mitigations.get("configured"))
-        managed = bool(mitigations.get("managed"))
-        available = bool(mitigations.get("available"))
-        mitigation_action = "restore" if managed else "disable"
-
-        card = QFrame()
-        self.mitigations_card = card
-        card.setProperty("dependencyActionTile", True)
-        layout = QHBoxLayout(card)
-        layout.setContentsMargins(14, 11, 14, 11)
-        layout.setSpacing(10)
-
-        layout.addWidget(IconBadge("cpu_blue", COLORS["blue_soft"], 30, radius=8))
-        copy = QVBoxLayout()
-        copy.setSpacing(2)
-        title = QLabel(tr("CPU security mitigations"))
-        title.setProperty("sectionTitle", True)
-        copy.addWidget(title)
-        detail = QLabel(
-            tr(
-                "Disabling CPU security mitigations can improve some workloads but exposes the system to additional CPU vulnerabilities."
-            )
-        )
-        detail.setProperty("sectionSubtitle", True)
-        detail.setWordWrap(True)
-        copy.addWidget(detail)
-        layout.addLayout(copy, 1)
-
-        mitigation_status = (
-            tr("Unavailable")
-            if not actionable
-            else tr("Reboot required")
-            if mitigations.get("reboot_required")
-            else tr("Disabled")
-            if configured
-            else tr("Enabled")
-            if available
-            else tr("Not detected")
-        )
-        self.mitigations_status = PillLabel(
-            mitigation_status,
-            "gray"
-            if not actionable
-            else "orange"
-            if configured or mitigations.get("reboot_required")
-            else "green",
-        )
-        self.mitigations_status.setVisible(actionable)
-        layout.addWidget(self.mitigations_status)
-
-        self.mitigations_apply_button = QPushButton(
-            tr(
-                "Managed externally"
-                if configured and not managed
-                else "Restore mitigations"
-                if mitigation_action == "restore"
-                else "Disable mitigations"
-            )
-        )
-        self.mitigations_apply_button.setProperty(
-            "dangerAction", mitigation_action == "disable"
-        )
-        self.mitigations_apply_button.clicked.connect(
-            lambda: self._choose(f"bazzite_mitigations_{mitigation_action}", "")
-        )
-        self.mitigations_apply_button.setEnabled(
-            actionable and available and (not configured or managed)
-        )
-        if configured and not managed:
-            self.mitigations_apply_button.setToolTip(
-                tr(
-                    "mitigations=off was configured outside Control Center and is preserved."
-                )
-            )
-        elif not actionable:
-            self.mitigations_apply_button.setToolTip(
-                tr("This workflow is available only on Bazzite.")
-            )
-        layout.addWidget(self.mitigations_apply_button)
-        return card
-
-    def _update_memory_apply_availability(self) -> None:
-        if not hasattr(self, "memory_swap_apply_button"):
-            return
-        self._update_vram_apply_availability()
-        if update_memory_controls(self, self.tools):
-            return
-        actionable = str(self.tools.get("os_family") or "") == "bazzite"
-        policy = str(self.memory_policy_combo.currentData() or "current")
-        swap_selected = policy != "current"
-        if policy == "current":
-            swap_selected = bool(
-                self._memory_state.get("backing_swap_active")
-                or self._memory_state.get("zswap_enabled") is True
-            )
-        ttm_selected = _integer(self.ttm_limit_combo.currentData(), 0) != 0
-        self.memory_swap_apply_button.setEnabled(actionable and swap_selected)
-        self.memory_ttm_apply_button.setEnabled(actionable and ttm_selected)
-        if not actionable:
-            tooltip = tr("This memory workflow is currently validated only on Bazzite.")
-            self.memory_swap_apply_button.setToolTip(tooltip)
-            self.memory_ttm_apply_button.setToolTip(tooltip)
-
-    def _update_vram_apply_availability(self) -> None:
-        """VRAM (UMA_SIZE) is written straight to CMOS; it needs no distro adapter."""
-        if not hasattr(self, "vram_apply_button"):
-            return
-        setup = _dict(self.tools.get("system_setup"))
-        vram = _dict(setup.get("vram"))
-        supported = bool(setup.get("helper_available") and vram.get("supported"))
-        selected = _integer(self.vram_size_combo.currentData(), 0) != 0
-        self.vram_apply_button.setEnabled(supported and selected)
-        reason = str(setup.get("reason") or vram.get("reason") or "")
-        tooltip = (
-            tr(reason)
-            if reason
-            else tr("Written to CMOS immediately; takes effect after the next reboot.")
-        )
-        self.vram_size_combo.setToolTip(tooltip)
-        self.vram_apply_button.setToolTip(tooltip)
-
-    def _show_memory_policy_preview(self) -> None:
-        selected = str(self.memory_policy_combo.currentData() or "current")
-        descriptions = {
-            "current": "The current ZRAM, ZSWAP and backing-swap configuration would be preserved.",
-            "zram": "ZRAM would remain the compressed in-memory swap device; no disk swapfile would be created.",
-            "zram-swap-16": "ZRAM remains primary and a verified 16 GiB disk swapfile is used only as an emergency fallback.",
-            "zswap-16": "A verified 16 GiB backing swapfile would be required before enabling ZSWAP and disabling ZRAM.",
-            "zswap-32": "A verified 32 GiB backing swapfile would be required before enabling ZSWAP and disabling ZRAM.",
-        }
-        family = str(self.tools.get("os_family") or "Linux")
-        message = (
-            tr(descriptions[selected])
-            + "\n\n"
-            + tr_format(
-                "Detected platform: {platform}. The final action remains unavailable until its transactional rollback backend is validated.",
-                platform=family,
-            )
-        )
-        InfoDialog(
-            "Memory configuration preview",
-            message,
-            icon_name="memory_green",
-            eyebrow="MEMORY AND SWAP",
-            notice="No swap, boot or kernel setting will be changed.",
-            tone="green",
-            parent=self,
-        ).exec()
-
-    def _ttm_memory_card(self) -> QFrame:
-        """Present reviewed TTM targets beside GPU compatibility controls."""
-        state = _dict(self.tools.get("memory_runtime"))
-        limit_bytes = max(0, _integer(state.get("ttm_limit_bytes"), 0))
-        current_gib = round(limit_bytes / (1024**3)) if limit_bytes else 0
-        card = QFrame()
-        card.setProperty("dependencyActionTile", True)
-        layout = QVBoxLayout(card)
-        layout.setContentsMargins(14, 11, 14, 11)
-        layout.setSpacing(8)
-
-        header = QHBoxLayout()
-        header.setSpacing(9)
-        header.addWidget(IconBadge("vram_gray", COLORS["purple_soft"], 30, radius=8))
-        copy = QVBoxLayout()
-        copy.setSpacing(1)
-        title = QLabel(tr("GPU memory limit (TTM)"))
-        title.setProperty("sectionTitle", True)
-        current = tr_format(
-            "Current runtime limit: {limit}",
-            limit=(f"{current_gib} GiB" if current_gib else "--"),
-        )
-        detail = QLabel(current)
-        detail.setProperty("sectionSubtitle", True)
-        detail.setToolTip(
-            tr("TTM limits managed GPU pages; it is not a guaranteed VRAM reservation.")
-        )
-        copy.addWidget(title)
-        copy.addWidget(detail)
-        header.addLayout(copy, 1)
-        header.addWidget(PillLabel(tr("Preview only"), "blue"))
-        layout.addLayout(header)
-
-        controls = QHBoxLayout()
-        controls.setSpacing(7)
-        self.ttm_limit_combo = QComboBox()
-        self.ttm_limit_combo.setProperty("settingsCombo", True)
-        self.ttm_limit_combo.addItem(tr("Keep current configuration"), 0)
-        for target in (8, 10, 12):
-            self.ttm_limit_combo.addItem(
-                tr_format("{size} GiB TTM limit", size=target), target
-            )
-        if current_gib in {8, 10, 12}:
-            self.ttm_limit_combo.setCurrentIndex((8, 10, 12).index(current_gib) + 1)
-        controls.addWidget(self.ttm_limit_combo, 1)
-        review = QPushButton(tr("Review requirements"))
-        review.setProperty("compactAction", True)
-        review.clicked.connect(self._show_ttm_preview)
-        controls.addWidget(review)
-        layout.addLayout(controls)
-        return card
-
-    def _show_ttm_preview(self) -> None:
-        target = _integer(self.ttm_limit_combo.currentData(), 0)
-        if target:
-            pages = target * (1024**3) // 4096
-            selection = tr_format(
-                "Selected target: {size} GiB ({pages} pages).", size=target, pages=pages
-            )
-        else:
-            selection = tr("The current kernel argument would be preserved.")
-        InfoDialog(
-            "GPU memory limit preview",
-            selection
-            + "\n\n"
-            + tr(
-                "This is a TTM page-management ceiling, not a fixed VRAM allocation. Applying it will require a distribution-specific boot transaction and reboot verification."
-            ),
-            icon_name="vram_gray",
-            eyebrow="GPU MEMORY POLICY",
-            notice="No swap, boot or kernel setting will be changed.",
-            tone="purple",
-            parent=self,
-        ).exec()
-
-    def _quick_access_page(self) -> QScrollArea:
-        """Build the explicit, optional SteamOS/Bazzite/CachyOS Decky page.
-
-        Decky is intentionally not represented as a regular preparation
-        component: it is a separate third-party root-plugin environment and
-        needs a dedicated confirmation path.
-        """
-        inventory = _dict(self.tools.get("quick_access"))
-        ready = bool(inventory.get("ready"))
-        decky_detected = bool(inventory.get("decky_detected"))
-        decky_frontend_compatible = bool(
-            inventory.get("decky_frontend_compatible", True)
-        )
-        page = QWidget()
-        layout = QVBoxLayout(page)
-        layout.setContentsMargins(0, 0, 6, 0)
-        layout.setSpacing(12)
-
-        card = QFrame()
-        card.setProperty("dependencyActionTile", True)
-        card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        card_layout = QVBoxLayout(card)
-        card_layout.setContentsMargins(16, 14, 16, 14)
-        card_layout.setSpacing(10)
-
-        header = QHBoxLayout()
-        header.addWidget(IconBadge("compute_blue", COLORS["blue_soft"], 38, radius=10))
-        title_box = QVBoxLayout()
-        title_box.setSpacing(2)
-        title = QLabel(tr("Game Mode Quick Access (Beta)"))
-        title.setProperty("sectionTitle", True)
-        subtitle_text = tr(
-            "Optional Game Mode controls for safe live GPU, CU, system-fan and saved CPU-profile actions."
-        )
-        subtitle = QLabel("GPU · CU · PWM · CPU")
-        subtitle.setProperty("sectionSubtitle", True)
-        subtitle.setToolTip(subtitle_text)
-        title_box.addWidget(title)
-        title_box.addWidget(subtitle)
-        header.addLayout(title_box, 1)
-        if ready:
-            status = PillLabel(tr("Ready"), "green")
-        elif decky_detected:
-            status = PillLabel(tr("Decky detected"), "blue")
-        else:
-            status = PillLabel(tr("Decky not installed"), "orange")
-        header.addWidget(status)
-        card_layout.addLayout(header)
-
-        if ready:
-            detail_text = "Quick Access is ready. Restart Game Mode or reload Decky if the panel is not visible yet."
-        elif not decky_detected:
-            detail_text = "Decky is optional. It is never installed by generic dependency preparation."
-        elif not decky_frontend_compatible:
-            detail_text = "Decky must be updated because this Steam client uses the renamed initialization API."
-        elif not bool(inventory.get("decky_plugin_root_safe", True)):
-            detail_text = "Decky uses a symbolic-link plugin directory. Choose a real plugin directory before installing BC250 Quick Access."
-        else:
-            detail_text = "Decky is detected, but the BC250 Quick Access plugin or its protected helper needs installation or repair."
-        detail = QLabel(tr(detail_text))
-        detail.setProperty("warningText" if not ready else "sectionSubtitle", True)
-        detail.setWordWrap(True)
-        card_layout.addWidget(detail)
-
-        actions = QHBoxLayout()
-        actions.addStretch(1)
-        install = QPushButton(
-            tr(
-                "Install / repair BC250 Quick Access"
-                if decky_detected and decky_frontend_compatible
-                else "Install Decky + Quick Access (Beta)"
-            )
-        )
-        install.setObjectName("PrimaryAction")
-        install.setToolTip(
-            tr(
-                "Beta boundary: after your explicit confirmation in this dialog, this workflow downloads the official Decky stable installer and displays its SHA-256. On Steam clients that require the renamed initialization API, it may then use the official Decky prerelease compatibility installer. It finally installs the local BC250 panel and never changes GPU voltage, custom clocks, boot settings or hardware state."
-            )
-        )
-        install.clicked.connect(
-            lambda: self._choose(
-                "quick_access_plugin"
-                if decky_detected and decky_frontend_compatible
-                else "quick_access_install_decky",
-                "",
-            )
-        )
-        actions.addWidget(install)
-        card_layout.addLayout(actions)
-
-        layout.addWidget(card)
-        layout.addStretch(1)
-        scroll = QScrollArea()
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setWidgetResizable(True)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll.setWidget(page)
-        return scroll
-
-    def _gfx1013_card(self) -> QFrame:
-        state = _dict(self.tools.get("gfx1013_compute"))
-        presentation = present_gfx1013(
-            state, include_fsr4=GFX1013_FSR4_UI_ENABLED
-        )
-
-        card = QFrame()
-        card.setProperty("dependencyActionTile", True)
-        layout = QVBoxLayout(card)
-        layout.setContentsMargins(14, 12, 14, 12)
-        layout.setSpacing(10)
-
-        header = QHBoxLayout()
-        header.setSpacing(10)
-        header.addWidget(IconBadge("compute_blue", COLORS["blue_soft"], 34, radius=9))
-        title = QLabel(tr("GFX1013 async compute"))
-        title.setProperty("sectionTitle", True)
-        header.addWidget(title, 1)
-
-        compact_status = {
-            "Kernel half ready": "Kernel partial",
-        }.get(presentation.status, presentation.status)
-        status = PillLabel(tr(compact_status), presentation.tone)
-        header.addWidget(status)
-        layout.addLayout(header)
-
-        complete_detail = " ".join(
-            tr_format(part, **presentation.detail_values) for part in presentation.detail
-        )
-
-        card.setToolTip(complete_detail)
-        route = presentation.radv_route
-        reviewed = tr_format(
-            "Reviewed upstream: {version} · {commit}",
-            version=(
-                f"RADV {route.values.get('version', '')}"
-                if route is not None
-                else str(state.get("reviewed_version") or "0.2.0-alpha")
-            ),
-            commit=(
-                RADV_ASYNC_REVIEWED_COMMIT
-                if route is not None
-                else str(state.get("reviewed_commit") or "")
-            )[:7],
-        )
-        card.setToolTip(f"{complete_detail}\n{reviewed}".strip())
-
-        actions = QHBoxLayout()
-        actions.setSpacing(7)
-        if presentation.steamos_actions:
-            compatibility = QPushButton(tr(presentation.compatibility_action))
-            compatibility.setProperty("dependencyGfxAction", True)
-            compatibility.setProperty("dependencyGfxPrimary", True)
-            compatibility.clicked.connect(lambda: self._choose("steamos_compat", ""))
-            actions.addWidget(compatibility, 1)
-            radv = QPushButton(tr("2 · Install / repair Mesa RADV"))
-            radv.setProperty("dependencyGfxAction", True)
-            radv.setEnabled(bool(state.get("steamos_kernel_ready")))
-            radv.clicked.connect(
-                lambda: self._choose("steamos_graphics_install", "")
-            )
-            actions.addWidget(radv, 1)
-            status_action = QPushButton(tr("Check full stack"))
-            status_action.setProperty("dependencyGfxAction", True)
-            status_action.clicked.connect(
-                lambda: self._choose("steamos_graphics_status", "")
-            )
-            actions.addWidget(status_action, 1)
-        if presentation.fedora_actions:
-            if not bool(state.get("dryhopped_installed")):
-                install = QPushButton(tr("Install / update"))
-                install.setProperty("dependencyGfxAction", True)
-                install.setProperty("dependencyGfxPrimary", True)
-                install.clicked.connect(
-                    lambda: self._choose("gfx1013_fedora_install", "")
-                )
-                actions.addWidget(install, 1)
-            else:
-                # Upstream boots the patched entry once; these switch it on.
-                patched_boot = bool(state.get("dryhopped_boot_active"))
-                boot_action = (
-                    "gfx1013_fedora_activate" if patched_boot else "gfx1013_fedora_boot_patched"
-                )
-                boot = QPushButton(
-                    tr("Make the fix the default" if patched_boot else "Boot with the fix")
-                )
-                boot.setProperty("dependencyGfxAction", True)
-                boot.setProperty("dependencyGfxPrimary", True)
-                boot.clicked.connect(lambda: self._choose(boot_action, ""))
-                actions.addWidget(boot, 1)
-                uninstall = QPushButton(tr("Uninstall"))
-                uninstall.setProperty("dangerAction", True)
-                uninstall.setProperty("dependencyGfxAction", True)
-                uninstall.clicked.connect(
-                    lambda: self._choose("gfx1013_fedora_uninstall", "")
-                )
-                actions.addWidget(uninstall, 1)
-        if route is not None:
-            # Fedora on kernel 7.2+: the patched RADV alone.
-            radv_action = (
-                "radv_async_install"
-                if route.build
-                else "radv_async_disable"
-                if route.enabled
-                else "radv_async_enable"
-            )
-            primary = QPushButton(tr(
-                "Build and install"
-                if route.build
-                else "Switch off"
-                if route.enabled
-                else "Switch on"
-            ))
-            primary.setProperty("dependencyGfxAction", True)
-            primary.setProperty("dependencyGfxPrimary", True)
-            primary.clicked.connect(lambda: self._choose(radv_action, ""))
-            actions.addWidget(primary, 1)
-            if route.testable:
-                test = QPushButton(tr("Test async compute"))
-                test.setProperty("dependencyGfxAction", True)
-                test.clicked.connect(lambda: self._choose("radv_async_test", ""))
-                actions.addWidget(test, 1)
-            if route.installed:
-                remove = QPushButton(tr("Remove"))
-                remove.setProperty("dangerAction", True)
-                remove.setProperty("dependencyGfxAction", True)
-                remove.clicked.connect(lambda: self._choose("radv_async_uninstall", ""))
-                actions.addWidget(remove, 1)
-            if route.remove_fix_action:
-                remove_fix = QPushButton(tr("Remove the kernel-side fix"))
-                remove_fix.setProperty("dangerAction", True)
-                remove_fix.setProperty("dependencyGfxAction", True)
-                remove_fix.clicked.connect(
-                    lambda: self._choose(route.remove_fix_action, "")
-                )
-                actions.addWidget(remove_fix, 1)
-        if presentation.bazzite_actions:
-            if not bool(state.get("bazzite_async_installed")):
-                install = QPushButton(tr("Install / update"))
-                install.setProperty("dependencyGfxAction", True)
-                install.setProperty("dependencyGfxPrimary", True)
-                install.setEnabled(bool(state.get("direct_installer_allowed")))
-                if not install.isEnabled():
-                    install.setToolTip(complete_detail)
-                install.clicked.connect(
-                    lambda: self._choose("gfx1013_bazzite_install", "")
-                )
-                actions.addWidget(install, 1)
-            else:
-                repair = QPushButton(tr("Repair / update"))
-                repair.setProperty("dependencyGfxAction", True)
-                repair.setProperty("dependencyGfxPrimary", True)
-                repair.setEnabled(bool(state.get("direct_installer_allowed")))
-                repair.clicked.connect(
-                    lambda: self._choose("gfx1013_bazzite_install", "")
-                )
-                actions.addWidget(repair, 1)
-                uninstall = QPushButton(tr("Uninstall"))
-                uninstall.setProperty("dangerAction", True)
-                uninstall.setProperty("dependencyGfxAction", True)
-                uninstall.clicked.connect(
-                    lambda: self._choose("gfx1013_bazzite_uninstall", "")
-                )
-                actions.addWidget(uninstall, 1)
-                status_action = QPushButton(tr("Check status"))
-                status_action.setProperty("dependencyGfxAction", True)
-                status_action.clicked.connect(
-                    lambda: self._choose("gfx1013_bazzite_status", "")
-                )
-                actions.addWidget(status_action, 1)
-        upstream = QPushButton(tr("Open upstream project"))
-        upstream.setProperty("dependencyGfxAction", True)
-        upstream.clicked.connect(self._open_gfx1013_upstream)
-        actions.addWidget(upstream, 1)
-        layout.addLayout(actions)
-        return card
-
-    def _debian_kernel_card(self, upgrade: dict) -> QFrame:
-        """Debian 13: the stock kernel and Mesa cannot drive the GPU; backports can."""
-        pending_restart = str(upgrade.get("state") or "") == "reboot-required"
-        card = QFrame()
-        card.setProperty("dependencyActionTile", True)
-        layout = QVBoxLayout(card)
-        layout.setContentsMargins(14, 12, 14, 12)
-        layout.setSpacing(9)
-
-        header = QHBoxLayout()
-        header.setSpacing(10)
-        header.addWidget(IconBadge("shield_green", COLORS["green_soft"], 34, radius=9))
-        copy = QVBoxLayout()
-        copy.setSpacing(2)
-        title = QLabel(tr("Newer kernel for the BC-250"))
-        title.setProperty("sectionTitle", True)
-        subtitle = QLabel(tr("Debian backports · needed for GPU acceleration"))
-        subtitle.setProperty("sectionSubtitle", True)
-        subtitle.setWordWrap(True)
-        copy.addWidget(title)
-        copy.addWidget(subtitle)
-        header.addLayout(copy, 1)
-        header.addWidget(
-            PillLabel(
-                tr("Restart required") if pending_restart else tr("Recommended"),
-                "blue" if pending_restart else "orange",
-            )
-        )
-        layout.addLayout(header)
-
-        warning = QLabel(
-            tr(
-                "A newer kernel is already installed. Restart to use it, then build the GFX1013 fix."
-            )
-            if pending_restart
-            else tr(
-                "Optional. The Debian kernel and Mesa do not recognize the BC-250 GPU, so the desktop is drawn by the CPU and feels slow. This installs a newer kernel from Debian backports beside the current one, which stays in the boot menu."
-            )
-        )
-        warning.setProperty("warningText", True)
-        warning.setWordWrap(True)
-        layout.addWidget(warning)
-
-        actions = QHBoxLayout()
-        actions.addStretch(1)
-        install = QPushButton(tr("Install newer kernel"))
-        install.setObjectName("PrimaryAction")
-        install.setEnabled(not pending_restart)
-        install.clicked.connect(lambda: self._choose("debian_kernel_install", ""))
-        actions.addWidget(install)
-        layout.addLayout(actions)
-        return card
-
-    def _cachyos_kernel_card(self, *, supported: bool) -> QFrame:
-        """Expose the reviewed external BC-250 kernel as an explicit choice."""
-        card = QFrame()
-        card.setProperty("dependencyActionTile", True)
-        layout = QVBoxLayout(card)
-        layout.setContentsMargins(14, 12, 14, 12)
-        layout.setSpacing(9)
-
-        header = QHBoxLayout()
-        header.setSpacing(10)
-        header.addWidget(IconBadge("shield_green", COLORS["green_soft"], 34, radius=9))
-        copy = QVBoxLayout()
-        copy.setSpacing(2)
-        title = QLabel(tr("CachyOS BC-250 kernel"))
-        title.setProperty("sectionTitle", True)
-        subtitle = QLabel(
-            tr(
-                "MastaG external kernel · telemetry, GFX clock range, NCT and GFX1013 fixes"
-            )
-        )
-        subtitle.setProperty("sectionSubtitle", True)
-        subtitle.setWordWrap(True)
-        copy.addWidget(title)
-        copy.addWidget(subtitle)
-        header.addLayout(copy, 1)
-        header.addWidget(PillLabel(tr("External / reboot"), "orange"))
-        layout.addLayout(header)
-
-        warning = QLabel(
-            tr(
-                "Optional only. This adds MastaG's unsigned pacman repository (Optional TrustAll) and installs linux-cachyos-bc250 plus headers. Your normal CachyOS kernel is kept as the boot fallback."
-            )
-        )
-        warning.setProperty("warningText", True)
-        warning.setWordWrap(True)
-        layout.addWidget(warning)
-
-        actions = QHBoxLayout()
-        actions.addStretch(1)
-        upstream = QPushButton(tr("Open upstream project"))
-        upstream.setProperty("dependencyGfxAction", True)
-        upstream.clicked.connect(
-            lambda: open_external_url("https://github.com/MastaG/linux-cachyos-bc250")
-        )
-        actions.addWidget(upstream)
-        install = QPushButton(tr("Install BC-250 kernel"))
-        install.setObjectName("PrimaryAction")
-        install.setEnabled(supported)
-        if not supported:
-            install.setToolTip(
-                tr("Available only on plain Arch Linux or CachyOS")
-            )
-        install.clicked.connect(lambda: self._choose("cachyos_bc250_kernel", ""))
-        actions.addWidget(install)
-        layout.addLayout(actions)
-        return card
-
-    def _open_gfx1013_upstream(self) -> None:
-        state = _dict(self.tools.get("gfx1013_compute"))
-        url = (
-            BAZZITE_ASYNC_COMPUTE_REPOSITORY
-            if str(state.get("reason_key") or "").startswith("bazzite-release-")
-            # Fedora's patched-RADV route builds that project's patches.
-            or present_gfx1013(state).radv_route is not None
-            else str(
-                state.get("upstream_url")
-                or "https://github.com/DryhoppedIPA/bc250-gfx1013-fix"
-            )
-        )
-        opened, _error = open_external_url(url)
-        if opened:
-            return
-        InfoDialog(
-            tr("Could not open upstream project"),
-            tr(
-                "The upstream project link could not be opened by this desktop session."
-            ),
-            tone="orange",
-            parent=self,
-        ).exec()
-
-    def _governor_card(
-        self, identifier: str, display_name: str, detail: str, selected: bool
-    ) -> QFrame:
-        state = _dict(self.governor_states.get(identifier))
-        detected = bool(state.get("detected"))
-        active = bool(state.get("active"))
-        enabled = bool(state.get("enabled"))
-        card = QFrame()
-        card.setProperty("metricTile", True)
-        layout = QVBoxLayout(card)
-        layout.setContentsMargins(14, 13, 14, 13)
-        layout.setSpacing(8)
-        header = QHBoxLayout()
-        name = QLabel(tr(display_name))
-        name.setProperty("sectionTitle", True)
-        header.addWidget(name, 1)
-        if active:
-            status = PillLabel("Active", "green")
-        elif enabled:
-            status = PillLabel("Enabled", "blue")
-        elif detected:
-            status = PillLabel("Installed", "blue")
-        else:
-            status = PillLabel("Not installed", "gray")
-        header.addWidget(status)
-        layout.addLayout(header)
-        compact_detail = (
-            "D-Bus · BC250 telemetry"
-            if identifier == "cyan-skillfish-governor-smu"
-            else "YAML · alternative backend"
-        )
-        description = QLabel(tr(compact_detail))
-        description.setProperty("sectionSubtitle", True)
-        description.setWordWrap(False)
-        description.setToolTip(tr(detail))
-        layout.addWidget(description)
-        if selected:
-            card.setProperty("dependencyGovernorSelected", True)
-        layout.addStretch(1)
-        actions = QHBoxLayout()
-        prepare = QPushButton(tr("Install / update"))
-        prepare.setProperty("compactAction", True)
-        prepare.setProperty("dependencyGovernorAction", True)
-        prepare.clicked.connect(lambda: self._choose("prepare", identifier))
-        actions.addWidget(prepare, 1)
-        remove = QPushButton(tr("Uninstall"))
-        remove.setProperty("dangerAction", True)
-        remove.setProperty("dependencyGovernorAction", True)
-        remove.setEnabled(detected)
-        if not detected:
-            remove.setToolTip(tr("Not installed"))
-        remove.clicked.connect(lambda: self._choose("remove", identifier))
-        actions.addWidget(remove, 1)
-        layout.addLayout(actions)
-        return card
-
-    def _choose(self, action: str, governor: str) -> None:
-        self.action = action
-        self.governor = governor
-        if action == "memory_swap":
-            self.memory_policy = str(
-                self.memory_policy_combo.currentData() or "current"
-            )
-            self.memory_ttm_gib = 0
-        elif action == "memory_ttm":
-            self.memory_policy = "preserve"
-            self.memory_ttm_gib = _integer(self.ttm_limit_combo.currentData(), 0)
-        elif action == "vram_apply":
-            self.vram_uma_size_mb = _integer(self.vram_size_combo.currentData(), 0)
-        if action == "prepare" and hasattr(self, "component_switches"):
-            self.selected_components = {
-                key
-                for key, switch in self.component_switches.items()
-                if switch.isChecked()
-            }
-        self.accept()
-
-
-class FrequencyField(QFrame):
-    """Direct numeric GPU range field with no slider or increment rail."""
-
-    def __init__(self, label: str, hint: str, value: int, parent=None):
-        super().__init__(parent)
-        self.setProperty("frequencyField", True)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        self.minimum = 0
-        self.maximum = 9999
-        row = QHBoxLayout(self)
-        row.setContentsMargins(12, 10, 12, 10)
-        row.setSpacing(10)
-        copy = QVBoxLayout()
-        copy.setSpacing(1)
-        title = QLabel(tr(label))
-        title.setProperty("fieldLabel", True)
-        title.setWordWrap(True)
-        title.setMinimumWidth(0)
-        detail = QLabel(tr(hint))
-        detail.setProperty("fieldHint", True)
-        detail.setWordWrap(True)
-        copy.addWidget(title)
-        copy.addWidget(detail)
-        row.addLayout(copy, 1)
-        self.input = QLineEdit(str(int(value)))
-        self.input.setProperty("frequencyInput", True)
-        self.input.setAlignment(Qt.AlignmentFlag.AlignRight)
-        self.input.setMinimumWidth(88)
-        self.input.setMaximumWidth(128)
-        self.input.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
-        self.input.setValidator(QIntValidator(self.minimum, self.maximum, self.input))
-        row.addWidget(self.input, 0, Qt.AlignmentFlag.AlignVCenter)
-        unit = QLabel("MHz")
-        unit.setProperty("frequencyUnit", True)
-        row.addWidget(unit, 0, Qt.AlignmentFlag.AlignVCenter)
-
-    def value(self) -> int:
-        return _integer(self.input.text(), 0)
-
-    def setValue(self, value: int) -> None:
-        self.input.setText(str(int(value)))
-
-    def set_limits(self, minimum: int, maximum: int) -> None:
-        self.minimum = int(minimum)
-        self.maximum = max(self.minimum, int(maximum))
-        self.input.setValidator(QIntValidator(self.minimum, self.maximum, self.input))
-
-
-class RuntimeStat(QFrame):
-    """Compact status tile used for the runtime state summary."""
-
-    def __init__(self, label: str, value: str, detail: str = "", parent=None):
-        super().__init__(parent)
-        self.setProperty("runtimeStatCard", True)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        self.setMinimumHeight(72)
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(12, 10, 12, 10)
-        layout.setSpacing(2)
-        label_widget = QLabel(tr(label))
-        label_widget.setWordWrap(True)
-        label_widget.setProperty("runtimeStatLabel", True)
-        self.value = QLabel(tr(value))
-        self.value.setProperty("runtimeStatValue", True)
-        self.detail = QLabel(tr(detail))
-        self.detail.setProperty("runtimeStatDetail", True)
-        self.detail.setWordWrap(True)
-        layout.addWidget(label_widget)
-        layout.addWidget(self.value)
-        layout.addWidget(self.detail)
-
-    def set_values(self, value: str, detail: str | None = None) -> None:
-        self.value.setText(tr(value))
-        if detail is not None:
-            self.detail.setText(tr(detail))
-
-
-class DynamicSafetyNotice(QFrame):
-    """Safety banner whose title, message, and tone can change after refresh."""
-
-    def __init__(
-        self,
-        title: str,
-        message: str,
-        *,
-        tone: str = "blue",
-        compact: bool = False,
-        parent=None,
-    ):
-        super().__init__(parent)
-        self._tone = ""
-        self._compact = bool(compact)
-        if self._compact:
-            self.setProperty("compactSafetyNotice", True)
-        row = QHBoxLayout(self)
-        if self._compact:
-            row.setContentsMargins(9, 2, 9, 2)
-        else:
-            row.setContentsMargins(13, 11, 13, 11)
-        row.setSpacing(7 if self._compact else 10)
-        # IconBadge has a fixed 8 px inset; below 30 px the actual SVG becomes
-        # too small and looks empty. Keep the banner thin while preserving a
-        # readable icon.
-        badge_size = 30 if self._compact else 34
-        self.badge = IconBadge(
-            "info_blue",
-            COLORS["blue_soft"],
-            badge_size,
-            radius=8 if self._compact else 10,
-        )
-        row.addWidget(self.badge, 0, Qt.AlignmentFlag.AlignVCenter)
-        text = QVBoxLayout()
-        text.setSpacing(1 if self._compact else 2)
-        self.title = QLabel(tr(title))
-        self.title.setProperty("noticeTitle", True)
-        self.title.setWordWrap(True)
-        self.title.setMinimumWidth(0)
-        self.body = QLabel(tr(message))
-        self.body.setProperty("noticeBody", True)
-        self.body.setWordWrap(True)
-        text.addWidget(self.title)
-        text.addWidget(self.body)
-        row.addLayout(text, 1)
-        self.set_notice(title, message, tone=tone)
-
-    def set_notice(self, title: str, message: str, *, tone: str = "blue") -> None:
-        tone = tone if tone in {"blue", "orange", "red"} else "orange"
-        self.title.setText(tr(title))
-        self.body.setText(tr(message))
-        if tone == self._tone:
-            return
-        self._tone = tone
-        self.setProperty("safetyNotice", tone)
-        self.badge.setParent(None)
-        layout = self.layout()
-        success_notice = tone == "blue" and any(
-            token in str(title).lower()
-            for token in ("safe mode", "profiles ready", "protected")
-        )
-        self.badge = IconBadge(
-            "check_green" if success_notice else "info_blue" if tone == "blue" else "warning_orange",
-            COLORS["blue_soft"]
-            if tone == "blue"
-            else COLORS["red_soft"]
-            if tone == "red"
-            else COLORS["orange_soft"],
-            30 if self._compact else 34,
-            radius=8 if self._compact else 10,
-        )
-        layout.insertWidget(0, self.badge, 0, Qt.AlignmentFlag.AlignVCenter)
-        self.badge.show()
-        self.style().unpolish(self)
-        self.style().polish(self)
-        self.update()
-
-
-class GpuProfileEditDialog(QDialog):
-    """Rename a Cyan operating profile and pick its safe-point-based range.
-
-    The voltage always comes from the same validated safe-point list the
-    rest of this page uses (never a free-typed value), matching the
-    conservative "Safe mode" this page advertises everywhere else.
-    """
-
-    def __init__(
-        self,
-        *,
-        name: str,
-        minimum_mhz: int,
-        maximum_mhz: int,
-        reference_frequency: int,
-        safe_points: list[tuple[int, int]],
-        allowed_min: int,
-        allowed_max: int,
-        parent: QWidget | None = None,
-    ):
-        super().__init__(parent)
-        self.setObjectName("InfoDialog")
-        self.setModal(True)
-        self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint)
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
-        self.setStyleSheet(application_stylesheet())
-        self.setWindowTitle(tr("Edit profile"))
-        enable_adaptive_dialog(
-            self, preferred_width=460, preferred_height=440,
-            minimum_width=360, minimum_height=380,
-        )
-
-        outer = QVBoxLayout(self)
-        outer.setContentsMargins(18, 18, 18, 18)
-        panel = QFrame()
-        panel.setObjectName("ControlDialogCard")
-        apply_shadow(panel, blur=34, y=10, alpha=55)
-        outer.addWidget(panel)
-
-        root = QVBoxLayout(panel)
-        root.setContentsMargins(22, 18, 22, 16)
-        root.setSpacing(12)
-
-        heading = QHBoxLayout()
-        heading.setSpacing(12)
-        heading.addWidget(IconBadge("settings_blue", COLORS["blue_soft"], 40, radius=11))
-        heading_copy = QVBoxLayout()
-        heading_copy.setSpacing(3)
-        title = QLabel(tr("Edit profile"))
-        title.setProperty("dialogTitle", True)
-        subtitle = QLabel(
-            tr("Pick a validated safe-point and set the range this profile applies.")
-        )
-        subtitle.setProperty("dialogBody", True)
-        subtitle.setWordWrap(True)
-        heading_copy.addWidget(title)
-        heading_copy.addWidget(subtitle)
-        heading.addLayout(heading_copy, 1)
-        close = QPushButton()
-        close.setObjectName("DialogClose")
-        close.setIcon(icon("close_gray"))
-        close.setFixedSize(34, 34)
-        close.setToolTip(tr("Close"))
-        close.clicked.connect(self.reject)
-        heading.addWidget(close, 0, Qt.AlignmentFlag.AlignTop)
-        root.addLayout(heading)
-
-        divider = QFrame()
-        divider.setObjectName("CardDivider")
-        divider.setFixedHeight(1)
-        root.addWidget(divider)
-
-        name_label = QLabel(tr("Profile name"))
-        name_label.setProperty("fieldLabel", True)
-        root.addWidget(name_label)
-        self.name_input = QLineEdit(name)
-        self.name_input.setMaxLength(30)
-        root.addWidget(self.name_input)
-
-        point_label = QLabel(tr("Reference safe-point (frequency and voltage)"))
-        point_label.setProperty("fieldLabel", True)
-        root.addWidget(point_label)
-        self.point_combo = QComboBox()
-        for frequency, voltage in safe_points:
-            self.point_combo.addItem(
-                f"{frequency} MHz · {voltage} mV" if voltage else f"{frequency} MHz",
-                (frequency, voltage),
-            )
-        preselect = self.point_combo.findData(
-            next((pair for pair in safe_points if pair[0] == reference_frequency), None)
-        )
-        if preselect < 0 and self.point_combo.count():
-            preselect = 0
-        if preselect >= 0:
-            self.point_combo.setCurrentIndex(preselect)
-        root.addWidget(self.point_combo)
-
-        self.minimum_field = FrequencyField(
-            "Minimum frequency", "Governor floor for this profile.", minimum_mhz
-        )
-        self.minimum_field.set_limits(allowed_min, allowed_max)
-        self.maximum_field = FrequencyField(
-            "Maximum frequency", "Governor ceiling for this profile.", maximum_mhz
-        )
-        self.maximum_field.set_limits(allowed_min, allowed_max)
-        root.addWidget(self.minimum_field)
-        root.addWidget(self.maximum_field)
-
-        footer = QHBoxLayout()
-        footer.addStretch(1)
-        cancel = QPushButton(tr("Cancel"))
-        cancel.setProperty("compactAction", True)
-        cancel.clicked.connect(self.reject)
-        save = QPushButton(tr("Save profile"))
-        save.setObjectName("DialogPrimary")
-        save.setDefault(True)
-        save.clicked.connect(self._validate_and_accept)
-        footer.addWidget(cancel)
-        footer.addWidget(save)
-        root.addLayout(footer)
-
-    def _validate_and_accept(self) -> None:
-        minimum = self.minimum_field.value()
-        maximum = self.maximum_field.value()
-        if minimum > maximum:
-            minimum, maximum = maximum, minimum
-            self.minimum_field.setValue(minimum)
-            self.maximum_field.setValue(maximum)
-        self.accept()
-
-    def result_profile(self) -> dict:
-        frequency, voltage = self.point_combo.currentData() or (0, 0)
-        # The source, not its translation: the card translates it when shown.
-        name = self.name_input.text().strip() or "Custom"
-        return {
-            "name": name,
-            "min": self.minimum_field.value(),
-            "max": self.maximum_field.value(),
-            "frequency": int(frequency),
-            "voltage": int(voltage),
-        }
-
-
-class GpuGovernorPage(QWidget):
+class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
     """Complete GPU control studio using the validated cyan-skillfish governor backend."""
 
     #: True while a hardware operation is in flight, False once it has ended.
@@ -2055,9 +298,8 @@ class GpuGovernorPage(QWidget):
         layout.addStretch(1)
 
 
-        # The complete legacy workspace is intentionally retained above for
-        # future reuse. The normal GPU action opens this compact overlay and
-        # delegates every write to the same validated apply path.
+        # The normal GPU action opens this compact overlay and delegates every
+        # write to the same validated apply path.
         self.voltage_lab_drawer = VoltageLabDrawer(self)
         self.voltage_lab_drawer.profile_requested.connect(
             self._select_drawer_voltage_profile
@@ -2084,247 +326,13 @@ class GpuGovernorPage(QWidget):
             self._refresh_failed,
         )
 
-        # Redesigned Cyan GPU view (Claude Design). Mounts inside
-        # overview_page and hides overview_scroll only while the detected
-        # backend is Cyan; Oberon keeps this original screen untouched.
+        # Redesigned GPU view. Mounts inside overview_page and hides
+        # overview_scroll for every backend (Cyan and Oberon); the original
+        # widgets stay built because the apply logic still reads them.
         # Delete these two lines to roll back to the legacy layout.
         from .gpu_governor_integration import install_redesigned_gpu_view
         install_redesigned_gpu_view(self)
 
-    def _build_configuration_card(self) -> SectionCard:
-        card = SectionCard(
-            "GPU configuration",
-            "Select a validated profile or stage an explicit D-Bus range. Every hardware change is reviewed before execution.",
-            icon_name="settings_blue",
-            icon_background=COLORS["blue_soft"],
-            status=None,
-        )
-        self.configuration_status = card.status
-
-        self.safety_notice = DynamicSafetyNotice(
-            "Safe mode enabled",
-            "Every active TOML safe-point is visible. Points above 2000 MHz will appear automatically when they are enabled in the TOML.",
-            tone="blue",
-            compact=True,
-        )
-        self.safety_notice.setMaximumHeight(64)
-        self.safety_notice.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-        )
-        self.safety_notice.title.setProperty("prominentNoticeTitle", True)
-        self.safety_notice.body.setProperty("prominentNoticeBody", True)
-        notice_style = self.safety_notice.title.style()
-        notice_style.unpolish(self.safety_notice.title)
-        notice_style.polish(self.safety_notice.title)
-        body_style = self.safety_notice.body.style()
-        body_style.unpolish(self.safety_notice.body)
-        body_style.polish(self.safety_notice.body)
-        card.body.addWidget(self.safety_notice)
-
-        self.cyan_compatibility_panel = QFrame()
-        self.cyan_compatibility_panel.setProperty("compactPanel", True)
-        compatibility_layout = QGridLayout(self.cyan_compatibility_panel)
-        compatibility_layout.setContentsMargins(12, 10, 12, 10)
-        compatibility_layout.setHorizontalSpacing(10)
-        compatibility_layout.setVerticalSpacing(8)
-        compatibility_title = QLabel(tr("Cyan kernel compatibility"))
-        compatibility_title.setWordWrap(True)
-        compatibility_title.setProperty("fieldLabel", True)
-        compatibility_layout.addWidget(compatibility_title, 0, 0, 1, 2)
-        self.cyan_set_method = QComboBox()
-        self.cyan_set_method.addItem(tr("Governor method: SMU"), "smu")
-        self.cyan_set_method.addItem(tr("Governor method: Kernel"), "kernel")
-        self.cyan_usage_method = QComboBox()
-        for usage_method in ("busy-flag", "process", "kernel"):
-            self.cyan_usage_method.addItem(
-                f"gpu-usage.method: {usage_method}", usage_method
-            )
-        self.cyan_fix_metrics = QCheckBox()
-        self.cyan_fix_frequency = QCheckBox()
-        self._retranslate_cyan_compatibility_labels()
-        self.cyan_set_method.currentIndexChanged.connect(
-            lambda _index: setattr(self, "_cyan_compatibility_dirty", True)
-        )
-        self.cyan_usage_method.currentIndexChanged.connect(
-            lambda _index: setattr(self, "_cyan_compatibility_dirty", True)
-        )
-        self.cyan_fix_metrics.toggled.connect(
-            lambda _checked: setattr(self, "_cyan_compatibility_dirty", True)
-        )
-        self.cyan_fix_frequency.toggled.connect(
-            lambda _checked: setattr(self, "_cyan_compatibility_dirty", True)
-        )
-        compatibility_layout.addWidget(self.cyan_set_method, 1, 0)
-        compatibility_layout.addWidget(self.cyan_usage_method, 1, 1)
-        compatibility_layout.addWidget(self.cyan_fix_metrics, 2, 0)
-        compatibility_layout.addWidget(self.cyan_fix_frequency, 2, 1)
-        self.apply_cyan_compatibility = QPushButton(tr("Apply compatibility"))
-        self.apply_cyan_compatibility.setProperty("compactAction", True)
-        self.apply_cyan_compatibility.clicked.connect(self._request_cyan_compatibility)
-        compatibility_layout.addWidget(self.apply_cyan_compatibility, 3, 0, 1, 2)
-        compatibility_layout.setColumnStretch(0, 1)
-        compatibility_layout.setColumnStretch(1, 1)
-        card.body.addWidget(self.cyan_compatibility_panel)
-
-        # Quick access to the same validated safe-point list the advanced
-        # TOML laboratory uses, without leaving the main configuration card.
-        # Selecting a point here and in the advanced panel stays in sync
-        # (see _sync_paired_safe_point_combo), and "Apply selected range"
-        # reuses the exact same validated apply path.
-        self.quick_range_panel = QFrame()
-        self.quick_range_panel.setProperty("compactPanel", True)
-        quick_range_layout = QVBoxLayout(self.quick_range_panel)
-        quick_range_layout.setContentsMargins(12, 10, 12, 10)
-        quick_range_layout.setSpacing(8)
-        quick_range_title = QLabel(tr("Validated frequency points"))
-        quick_range_title.setProperty("fieldLabel", True)
-        quick_range_title.setWordWrap(True)
-        quick_range_hint = QLabel(
-            tr("Pick an already-tested frequency and voltage point. No manual typing needed.")
-        )
-        quick_range_hint.setProperty("fieldHint", True)
-        quick_range_hint.setWordWrap(True)
-        quick_range_layout.addWidget(quick_range_title)
-        quick_range_layout.addWidget(quick_range_hint)
-        self.quick_safe_point_combo = QComboBox()
-        self.quick_safe_point_combo.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-        )
-        self.quick_safe_point_combo.currentIndexChanged.connect(
-            self._quick_safe_point_changed
-        )
-        quick_range_layout.addWidget(self.quick_safe_point_combo)
-        quick_range_actions = QGridLayout()
-        quick_range_actions.setHorizontalSpacing(8)
-        quick_range_actions.setVerticalSpacing(8)
-        quick_range_actions.setColumnStretch(0, 1)
-        quick_range_actions.setColumnStretch(1, 1)
-        self.quick_apply_button = QPushButton(tr("Apply active range · select a ceiling"))
-        self.quick_apply_button.setObjectName("PrimaryAction")
-        self.quick_apply_button.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        self.quick_apply_button.setProperty("gamepadEntry", True)
-        self.quick_apply_button.setEnabled(False)
-        self.quick_apply_button.clicked.connect(self._request_selected_safe_point_range)
-        self.quick_save_button = QPushButton(tr("Save active range for startup"))
-        self.quick_save_button.setProperty("compactAction", True)
-        self.quick_save_button.clicked.connect(self._use_active_range)
-        quick_range_actions.addWidget(self.quick_apply_button, 0, 0)
-        quick_range_actions.addWidget(self.quick_save_button, 0, 1)
-        quick_range_layout.addLayout(quick_range_actions)
-        card.body.addWidget(self.quick_range_panel)
-
-        profile_panel = QFrame()
-        profile_panel.setProperty("compactPanel", True)
-        profile_panel.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred
-        )
-        profile_layout = QVBoxLayout(profile_panel)
-        profile_layout.setContentsMargins(12, 10, 12, 10)
-        profile_layout.setSpacing(8)
-        profile_label = QLabel(tr("Operating profile"))
-        profile_label.setProperty("fieldLabel", True)
-        profile_layout.addWidget(profile_label)
-
-        self.preset_grid = QGridLayout()
-        self.preset_grid.setContentsMargins(0, 0, 0, 0)
-        self.preset_grid.setHorizontalSpacing(8)
-        self.preset_grid.setVerticalSpacing(6)
-        self.preset_group = QButtonGroup(self)
-        self.preset_group.setExclusive(True)
-        self.preset_buttons: list[PresetButton] = []
-        self.preset_tiles: list[QFrame] = []
-        self.preset_edit_buttons: list[QPushButton] = []
-        for slot_index, (title, summary, payload) in enumerate(self.PROFILE_VALUES):
-            button = PresetButton(title, summary, payload)
-            button.setProperty("gpuFrequencyPreset", True)
-            button.setMinimumHeight(56)
-            button.clicked.connect(
-                lambda checked, b=button: self._select_preset(b) if checked else None
-            )
-            self.preset_group.addButton(button)
-            self.preset_buttons.append(button)
-
-            tile = QFrame()
-            tile_layout = QHBoxLayout(tile)
-            tile_layout.setContentsMargins(0, 0, 0, 0)
-            tile_layout.setSpacing(4)
-            tile_layout.addWidget(button, 1)
-            edit_button = QPushButton()
-            edit_button.setIcon(icon("edit_gray"))
-            edit_button.setFixedSize(28, 28)
-            edit_button.setProperty("compactAction", True)
-            edit_button.setToolTip(tr("Rename this profile and change its range"))
-            edit_button.clicked.connect(
-                lambda _checked=False, i=slot_index: self._edit_profile(i)
-            )
-            tile_layout.addWidget(edit_button, 0, Qt.AlignmentFlag.AlignTop)
-            self.preset_edit_buttons.append(edit_button)
-            self.preset_tiles.append(tile)
-        self._reflow_presets(1400)
-        profile_layout.addLayout(self.preset_grid)
-        card.body.addWidget(profile_panel)
-
-        # Keep the frequency fields visually separated from the profile panel
-        # without restoring the large explanatory block removed below.
-        card.body.addSpacing(5)
-        self.range_fields_grid = QGridLayout()
-        self.range_fields_grid.setContentsMargins(0, 0, 0, 0)
-        self.range_fields_grid.setHorizontalSpacing(10)
-        self.range_fields_grid.setVerticalSpacing(10)
-        self.minimum_control = FrequencyField(
-            "Minimum frequency",
-            "Governor floor applied through the validated D-Bus interface.",
-            500,
-        )
-        self.maximum_control = FrequencyField(
-            "Maximum frequency",
-            "The ceiling must exist in the active TOML safe-point table.",
-            1500,
-        )
-        self.range_fields = [self.minimum_control, self.maximum_control]
-        self.minimum_control.input.textChanged.connect(self._mark_custom_range)
-        self.maximum_control.input.textChanged.connect(self._mark_custom_range)
-        self._reflow_range_fields(1400)
-        card.body.addLayout(self.range_fields_grid)
-
-        # Retain the label as a non-rendered update target for compatibility
-        # with the refresh path; the verbose range legend is intentionally not
-        # part of the compact configuration card anymore.
-        self.range_recommendation = QLabel()
-        self.range_recommendation.hide()
-
-        # Anchor the configuration actions to the card's lower edge.  The
-        # telemetry card remains untouched; the shared grid row supplies the
-        # height, while this stretch absorbs only the configuration column's
-        # spare space so both action feet finish on the same baseline.
-        card.body.addStretch(1)
-        self.range_footer = QFrame()
-        self.range_footer.setProperty("configurationFooter", True)
-        apply_row = QGridLayout(self.range_footer)
-        # Keep the footer baseline aligned with untouched telemetry while
-        # lifting the two controls slightly away from the card edge.
-        apply_row.setContentsMargins(0, 0, 0, 6)
-        apply_row.setSpacing(8)
-        self.range_actions_grid = apply_row
-        self._range_action_mode = ""
-        self.use_active_button = QPushButton(tr("Save active range for startup"))
-        self.use_active_button.setProperty("compactAction", True)
-        self.use_active_button.clicked.connect(self._use_active_range)
-        apply_row.addWidget(self.use_active_button, 0, 0)
-        self.apply_range_button = QPushButton(tr("Review and apply range"))
-        self.apply_range_button.setObjectName("PrimaryAction")
-        self.apply_range_button.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        self.apply_range_button.setProperty("gamepadEntry", True)
-        self.apply_range_button.clicked.connect(self._request_custom_range)
-        for button in (self.use_active_button, self.apply_range_button):
-            button.setMinimumHeight(40)
-            button.setSizePolicy(
-                QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-            )
-        apply_row.addWidget(self.apply_range_button, 0, 2)
-        apply_row.setColumnStretch(1, 1)
-        card.body.addWidget(self.range_footer)
-        return card
 
     def _request_cyan_compatibility(self) -> None:
         set_method = str(self.cyan_set_method.currentData() or "smu")
@@ -2369,238 +377,7 @@ class GpuGovernorPage(QWidget):
             controls=(self.apply_cyan_compatibility,),
         )
 
-    def _build_fixed_safe_point_panel(self) -> QFrame:
-        """Advanced fixed-frequency controls kept out of the normal GPU workspace."""
 
-        fixed_panel = QFrame()
-        fixed_panel.setProperty("compactPanel", True)
-        fixed_panel.setProperty("advancedSafePointPanel", True)
-        fixed_layout = QVBoxLayout(fixed_panel)
-        fixed_layout.setContentsMargins(12, 10, 12, 10)
-        fixed_layout.setSpacing(8)
-        fixed_header = QHBoxLayout()
-        fixed_copy = QVBoxLayout()
-        fixed_copy.setSpacing(1)
-        fixed_title = QLabel(tr("TOML safe-point laboratory"))
-        self.fixed_title = fixed_title
-        fixed_title.setProperty("fieldLabel", True)
-        fixed_title.setWordWrap(True)
-        fixed_hint = QLabel(
-            tr(
-                "Inspect every active safe-point, including +2000 MHz entries, with conservative voltage validation."
-            )
-        )
-        self.fixed_hint = fixed_hint
-        fixed_hint.setProperty("fieldHint", True)
-        fixed_hint.setWordWrap(True)
-        fixed_copy.addWidget(fixed_title)
-        fixed_copy.addWidget(fixed_hint)
-        fixed_header.addLayout(fixed_copy, 1)
-        fixed_layout.addLayout(fixed_header)
-
-        fixed_actions = QGridLayout()
-        self.fixed_actions = fixed_actions
-        fixed_actions.setHorizontalSpacing(8)
-        fixed_actions.setVerticalSpacing(8)
-        fixed_actions.setColumnStretch(0, 1)
-        fixed_actions.setColumnStretch(1, 1)
-
-        active_range_label = QLabel(tr("Active range"))
-        active_range_label.setProperty("fieldLabel", True)
-        active_range_label.setWordWrap(True)
-        fixed_actions.addWidget(active_range_label, 0, 0)
-        toml_actions_label = QLabel(tr("TOML configuration"))
-        self.config_actions_label = toml_actions_label
-        toml_actions_label.setProperty("fieldLabel", True)
-        toml_actions_label.setWordWrap(True)
-        fixed_actions.addWidget(toml_actions_label, 0, 1)
-
-        self.oc_frequency = QComboBox()
-        self.oc_frequency.setSizePolicy(
-            QSizePolicy.Policy.Expanding,
-            QSizePolicy.Policy.Fixed,
-        )
-        self.oc_frequency.currentIndexChanged.connect(self._update_selected_safe_point)
-        fixed_actions.addWidget(self.oc_frequency, 1, 0)
-        self.safe_point_detail = QLabel(tr("Refresh to load safe-points."))
-        self.safe_point_detail.hide()
-        self.high_points_button = QPushButton(tr("Enable +2000 MHz TOML points"))
-        self.high_points_button.setProperty("dangerAction", True)
-        self.high_points_button.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-        )
-        self.high_points_button.setToolTip(
-            tr(
-                "This edits only the TOML safe-point blocks above 2000 MHz and validates the complete file. These frequencies are experimental, are not guaranteed stable, and can crash the display or system. This does not reload Cyan or change the live GPU range; use Apply active range explicitly after selecting a point."
-            )
-        )
-        self.high_points_button.clicked.connect(self._request_high_points_toggle)
-        fixed_actions.addWidget(self.high_points_button, 2, 1)
-        self.telemetry_guide_button = QPushButton(
-            tr("Open Oberon Governor repository")
-        )
-        self.telemetry_guide_button.setProperty("dangerAction", True)
-        self.telemetry_guide_button.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-        )
-        self.telemetry_guide_button.clicked.connect(self._open_telemetry_guide)
-        self.telemetry_guide_button.hide()
-        fixed_actions.addWidget(self.telemetry_guide_button, 2, 1)
-
-        self.open_toml_button = QPushButton(tr("Open config.toml"))
-        self.open_toml_button.setProperty("compactAction", True)
-        self.open_toml_button.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        self.open_toml_button.setProperty("gamepadEntry", True)
-        self.open_toml_button.setToolTip(
-            tr(
-                "Open the governor TOML in the system's default text or code editor. "
-                "Saving may require administrator privileges."
-            )
-        )
-        self.open_toml_button.clicked.connect(self._open_governor_config)
-        fixed_actions.addWidget(self.open_toml_button, 1, 1)
-
-        self.apply_selected_range_button = QPushButton(
-            tr("Apply active range · select a ceiling")
-        )
-        self.apply_selected_range_button.setObjectName("PrimaryAction")
-        self.apply_selected_range_button.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        self.apply_selected_range_button.setProperty("gamepadEntry", True)
-        self.apply_selected_range_button.setSizePolicy(
-            QSizePolicy.Policy.Expanding,
-            QSizePolicy.Policy.Fixed,
-        )
-        self.apply_selected_range_button.setEnabled(False)
-        self.apply_selected_range_button.clicked.connect(
-            self._request_selected_safe_point_range
-        )
-        fixed_actions.addWidget(self.apply_selected_range_button, 2, 0)
-        fixed_layout.addLayout(fixed_actions)
-        return fixed_panel
-
-    def _build_metrics_card(self) -> SectionCard:
-        card = SectionCard(
-            "Live GPU telemetry",
-            "Read-only sensor data refreshed from amdgpu, the governor backend, and the existing performance service.",
-            icon_name="gpu_purple",
-            icon_background=COLORS["purple_soft"],
-            status=("Passive", "green"),
-        )
-        self.metrics_status = card.status
-
-        self.metrics_grid = QGridLayout()
-        self.metrics_grid.setContentsMargins(0, 0, 0, 0)
-        self.metrics_grid.setHorizontalSpacing(10)
-        self.metrics_grid.setVerticalSpacing(10)
-        self.sclk_metric = MetricTile(
-            "Core clock",
-            "-- MHz",
-            "",
-            icon_name="gpu_purple",
-            icon_background=COLORS["purple_soft"],
-            compact=True,
-        )
-        self.voltage_metric = MetricTile(
-            "GPU voltage",
-            "-- mV",
-            "",
-            icon_name="bolt_blue",
-            icon_background=COLORS["orange_soft"],
-            compact=True,
-        )
-        self.temperature_metric = MetricTile(
-            "Temperature",
-            "-- °C",
-            "",
-            icon_name="warning_orange",
-            icon_background=COLORS["orange_soft"],
-            compact=True,
-        )
-        self.utilization_metric = MetricTile(
-            "GPU load",
-            "-- %",
-            "",
-            icon_name="activity_purple",
-            icon_background=COLORS["purple_soft"],
-            compact=True,
-        )
-        self.mclk_metric = MetricTile(
-            "Memory clock",
-            "-- MHz",
-            "",
-            icon_name="compute_blue",
-            icon_background=COLORS["blue_soft"],
-            compact=True,
-        )
-        self.vram_metric = MetricTile(
-            "VRAM usage",
-            "--",
-            "",
-            icon_name="vram_gray",
-            icon_background="neutral_soft",
-            compact=True,
-        )
-        # Cyan exposes a validated D-Bus range API that Oberon does not, so
-        # these two live in the same tile slots the core clock and VRAM
-        # tiles use for Oberon, instead of adding a 7th/8th slot -- they
-        # carry the same information the runtime status row below used to
-        # show as small text pills (see runtime_stats_panel), just promoted
-        # into the main telemetry grid where it is easier to notice.
-        self.dbus_metric = MetricTile(
-            "D-Bus API",
-            "--",
-            "",
-            icon_name="app_blue",
-            icon_background=COLORS["blue_soft"],
-            compact=True,
-        )
-        self.active_range_metric = MetricTile(
-            "Active range",
-            "--",
-            "",
-            icon_name="compute_blue",
-            icon_background=COLORS["blue_soft"],
-            compact=True,
-        )
-        self.metric_tiles_oberon = [
-            self.sclk_metric,
-            self.voltage_metric,
-            self.temperature_metric,
-            self.utilization_metric,
-            self.mclk_metric,
-            self.vram_metric,
-        ]
-        self.metric_tiles_cyan = [
-            self.dbus_metric,
-            self.voltage_metric,
-            self.temperature_metric,
-            self.utilization_metric,
-            self.mclk_metric,
-            self.active_range_metric,
-        ]
-        # Oberon is the historical default here; _set_backend_profile_mode
-        # corrects this to whichever backend is actually detected as soon as
-        # the first refresh completes.
-        self.metric_tiles = self.metric_tiles_oberon
-        self.dbus_metric.hide()
-        self.active_range_metric.hide()
-        for tile in (*self.metric_tiles_oberon, *self.metric_tiles_cyan):
-            tile.setSizePolicy(
-                QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
-            )
-            tile.setMinimumHeight(58)
-        self._reflow_metric_tiles(1400)
-        card.body.addLayout(self.metrics_grid)
-        self.memory_clocks_line = QLabel()
-        self.memory_clocks_line.setWordWrap(True)
-        self.memory_clocks_line.setProperty("fieldHint", True)
-        card.body.addWidget(self.memory_clocks_line)
-
-        note = QLabel(tr("Passive readings · hardware changes require confirmation."))
-        note.setProperty("fieldHint", True)
-        note.setWordWrap(True)
-        card.body.addWidget(note)
-        return card
 
     def _merge_runtime_into_metrics(self) -> None:
         """Place governor evidence and actions directly below live telemetry."""
@@ -2627,237 +404,7 @@ class GpuGovernorPage(QWidget):
         panel.show()
 
 
-    def _build_runtime_card(self) -> SectionCard:
-        card = SectionCard(
-            "Governor runtime",
-            "Service state, boot persistence, D-Bus health, active range, and the complete service workflow from the original GUI.",
-            icon_name="shield_green",
-            icon_background=COLORS["green_soft"],
-            status=("Checking", "gray"),
-        )
 
-        stats_panel = QFrame()
-        self.runtime_stats_panel = stats_panel
-        stats_panel.setProperty("compactPanel", True)
-        stats_panel_layout = QVBoxLayout(stats_panel)
-        stats_panel_layout.setContentsMargins(10, 10, 10, 10)
-        stats_panel_layout.setSpacing(0)
-        self.runtime_stats_grid = QGridLayout()
-        self.runtime_stats_grid.setContentsMargins(0, 0, 0, 0)
-        self.runtime_stats_grid.setHorizontalSpacing(10)
-        self.runtime_stats_grid.setVerticalSpacing(10)
-
-        self.service_stat = RuntimeStat(
-            "Service", "Checking", "cyan-skillfish-governor-smu.service"
-        )
-        self.boot_stat = RuntimeStat(
-            "Boot persistence", "Checking", "systemd UnitFileState"
-        )
-        self.dbus_stat = RuntimeStat("D-Bus API", "Checking", "runtime range interface")
-        self.profile_stat = RuntimeStat("Active range", "--", "current governor target")
-        self.points_stat = RuntimeStat(
-            "Validated points", "Checking", "active TOML entries"
-        )
-        self.runtime_stats = [
-            self.service_stat,
-            self.boot_stat,
-            self.dbus_stat,
-            self.profile_stat,
-            self.points_stat,
-        ]
-        self._reflow_runtime_stats(1400)
-        stats_panel_layout.addLayout(self.runtime_stats_grid)
-        card.body.addWidget(stats_panel)
-
-        controls_panel = QFrame()
-        self.runtime_controls_panel = controls_panel
-        controls_panel.setProperty("compactPanel", True)
-        controls_layout = QVBoxLayout(controls_panel)
-        controls_layout.setContentsMargins(12, 10, 12, 10)
-        controls_layout.setSpacing(8)
-        controls_title = QLabel(tr("Governor service actions"))
-        controls_title.setWordWrap(True)
-        controls_title.setProperty("fieldLabel", True)
-        controls_copy = QLabel(
-            tr(
-                "Enable starts the governor now and at boot. Disable stops it and removes persistence. "
-                "Status output is shown inside the application console."
-            )
-        )
-        controls_copy.setProperty("fieldHint", True)
-        controls_copy.setWordWrap(True)
-        controls_layout.addWidget(controls_title)
-        controls_layout.addWidget(controls_copy)
-
-        self.runtime_actions_grid = QGridLayout()
-        self.runtime_actions_grid.setContentsMargins(0, 0, 0, 0)
-        self.runtime_actions_grid.setHorizontalSpacing(8)
-        self.runtime_actions_grid.setVerticalSpacing(8)
-
-        self.enable_button = QPushButton(tr("Start governor"))
-        self.enable_button.setProperty("compactAction", True)
-        self.enable_button.setIcon(icon("rocket_blue"))
-        self.enable_button.clicked.connect(lambda: self._service_action("activar"))
-
-        self.disable_button = QPushButton(tr("Stop governor"))
-        self.disable_button.setProperty("dangerAction", True)
-        self.disable_button.clicked.connect(lambda: self._service_action("desactivar"))
-
-        self.restart_button = QPushButton(tr("Restart service"))
-        self.restart_button.setProperty("compactAction", True)
-        self.restart_button.setIcon(icon("refresh_gray"))
-        self.restart_button.clicked.connect(lambda: self._service_action("reiniciar"))
-
-        self.status_button = QPushButton(tr("View service status"))
-        self.status_button.setProperty("compactAction", True)
-        self.status_button.clicked.connect(self.read_service_status)
-
-        self.voltage_lab_button = QPushButton(tr("Open voltage laboratory"))
-        self.voltage_lab_button.setProperty("compactAction", True)
-        self.voltage_lab_button.setProperty("voltageLabLauncher", True)
-        self.voltage_lab_button.setIcon(icon("bolt_blue"))
-        self.voltage_lab_button.setToolTip(
-            tr("Open the compact voltage curve laboratory without leaving GPU control.")
-        )
-        self.voltage_lab_button.clicked.connect(self.open_voltage_lab)
-
-        self.runtime_action_buttons = [
-            self.enable_button,
-            self.status_button,
-            self.restart_button,
-            self.disable_button,
-            self.voltage_lab_button,
-        ]
-        for button in self.runtime_action_buttons:
-            button.setMinimumHeight(38)
-            button.setSizePolicy(
-                QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-            )
-        self._reflow_runtime_actions(1400)
-        controls_layout.addLayout(self.runtime_actions_grid)
-        card.body.addWidget(controls_panel)
-        return card
-
-    def _build_advanced_card(self) -> SectionCard:
-        card = SectionCard(
-            "Advanced GPU diagnostics",
-            "TOML safe-point controls, voltage validation, hardware details, and operation output.",
-            icon_name="logs_gray",
-            icon_background="neutral_soft",
-        )
-        card.add_header_button("Clear console", self._clear_console)
-        card.add_header_button("Copy diagnostics", self._copy_apu_diagnostics)
-
-        self.advanced_grid = QGridLayout()
-        self.advanced_grid.setContentsMargins(0, 0, 0, 0)
-        self.advanced_grid.setHorizontalSpacing(12)
-        self.advanced_grid.setVerticalSpacing(12)
-
-        self.fixed_safe_point_panel = self._build_fixed_safe_point_panel()
-
-        self.safe_points_panel = QFrame()
-        self.safe_points_panel.setProperty("compactPanel", True)
-        safe_layout = QVBoxLayout(self.safe_points_panel)
-        safe_layout.setContentsMargins(12, 12, 12, 12)
-        safe_layout.setSpacing(8)
-        safe_header = QLabel(tr("Active TOML safe-points"))
-        self.safe_header = safe_header
-        safe_header.setProperty("fieldLabel", True)
-        safe_header.setWordWrap(True)
-        safe_layout.addWidget(safe_header)
-        self.points_table = QTableWidget(0, 4)
-        self.points_table.setHorizontalHeaderLabels(
-            tuple(
-                tr(label)
-                for label in (
-                    "Frequency",
-                    "Voltage",
-                    "Original voltage",
-                    "Role / validation",
-                )
-            )
-        )
-        self.points_table.setAlternatingRowColors(True)
-        self.points_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        self.points_table.setSelectionBehavior(
-            QAbstractItemView.SelectionBehavior.SelectRows
-        )
-        self.points_table.verticalHeader().setVisible(False)
-        header = self.points_table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
-        self.points_table.setMinimumHeight(250)
-        safe_layout.addWidget(self.points_table, 1)
-
-        self.diagnostics_panel = QFrame()
-        self.diagnostics_panel.setProperty("compactPanel", True)
-        diagnostics_layout = QVBoxLayout(self.diagnostics_panel)
-        diagnostics_layout.setContentsMargins(12, 12, 12, 12)
-        diagnostics_layout.setSpacing(8)
-        diagnostics_header = QLabel(tr("Governor and hardware contract"))
-        diagnostics_header.setProperty("fieldLabel", True)
-        diagnostics_header.setWordWrap(True)
-        diagnostics_layout.addWidget(diagnostics_header)
-        self.device_line = StatusLine("Device", "--", "PCI vendor / device")
-        self.driver_line = StatusLine("Driver", "--", "amdgpu path")
-        self.config_line = StatusLine("Governor config", "--", "active TOML")
-        self.curve_line = StatusLine(
-            "Voltage curve", "Checking", "monotonic validation"
-        )
-        self.missing_line = StatusLine(
-            "Missing voltage", "Checking", "safe-points without active voltage"
-        )
-        self.duplicates_line = StatusLine(
-            "Duplicates", "Checking", "duplicate frequency entries"
-        )
-        self.power_state_line = StatusLine("Power state", "--", "DPM performance level")
-        self.last_operation_line = StatusLine(
-            "Last operation", "None", self._last_operation_summary
-        )
-        for line in (
-            self.device_line,
-            self.driver_line,
-            self.config_line,
-            self.curve_line,
-            self.missing_line,
-            self.duplicates_line,
-            self.power_state_line,
-            self.last_operation_line,
-        ):
-            diagnostics_layout.addWidget(line)
-
-        self.safe_points_panel.setVisible(GPU_REFERENCE_PANELS_ENABLED)
-        self.diagnostics_panel.setVisible(GPU_REFERENCE_PANELS_ENABLED)
-
-        self.console_panel = QFrame()
-        self.console_panel.setProperty("compactPanel", True)
-        self.console_panel.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
-        )
-        console_layout = QVBoxLayout(self.console_panel)
-        console_layout.setContentsMargins(12, 12, 12, 12)
-        console_layout.setSpacing(8)
-        console_header = QLabel(tr("Governor console"))
-        console_header.setProperty("fieldLabel", True)
-        console_layout.addWidget(console_header)
-        self.console = QPlainTextEdit()
-        self.console.setObjectName("OperationConsole")
-        self.console.setReadOnly(True)
-        self.console.setMinimumHeight(330)
-        self.console.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
-        )
-        self.console.setPlainText(
-            tr("GPU Governor console ready. No hardware command has been executed.")
-        )
-        console_layout.addWidget(self.console)
-
-        self._reflow_advanced(1400)
-        card.body.addLayout(self.advanced_grid)
-        self.advanced_status = card.status
-        return card
 
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
@@ -2919,150 +466,15 @@ class GpuGovernorPage(QWidget):
             )
             self.workspace.setColumnStretch(0, 1)
 
-    def _reflow_presets(self, width: int) -> None:
-        if self._profile_backend == "oberon":
-            columns = 3 if width >= 620 else 2 if width >= 420 else 1
-        else:
-            columns = 3 if width >= 620 else 1
-        if columns == self._preset_columns and self.preset_grid.count():
-            return
-        self._preset_columns = columns
-        self._clear_grid(self.preset_grid)
-        visible_tiles = [
-            tile
-            for tile, button in zip(self.preset_tiles, self.preset_buttons, strict=True)
-            if not button.isHidden()
-        ]
-        for index, tile in enumerate(visible_tiles):
-            self.preset_grid.addWidget(tile, index // columns, index % columns)
-        for column in range(columns):
-            self.preset_grid.setColumnStretch(column, 1)
-
-    def _reflow_range_fields(self, width: int) -> None:
-        columns = 2 if width >= 680 else 1
-        if columns == self._field_columns and self.range_fields_grid.count():
-            return
-        self._field_columns = columns
-        self._clear_grid(self.range_fields_grid)
-        for index, field in enumerate(self.range_fields):
-            self.range_fields_grid.addWidget(field, index // columns, index % columns)
-        for column in range(columns):
-            self.range_fields_grid.setColumnStretch(column, 1)
-
-    def _reflow_range_actions(self, width: int) -> None:
-        mode = (
-            "oberon"
-            if self._profile_backend == "oberon"
-            else "wide"
-            if width >= 420
-            else "stack"
-        )
-        if mode == self._range_action_mode and self.range_actions_grid.count():
-            return
-        self._range_action_mode = mode
-        self._clear_grid(self.range_actions_grid)
-        self.range_actions_grid.setColumnStretch(0, 0)
-        self.range_actions_grid.setColumnStretch(1, 0)
-        self.range_actions_grid.setColumnStretch(2, 0)
-        self.use_active_button.setVisible(mode != "oberon")
-        self.apply_range_button.setVisible(True)
-        if mode == "oberon":
-            self.range_actions_grid.addWidget(self.apply_range_button, 0, 0)
-            self.range_actions_grid.setColumnStretch(0, 1)
-        elif mode == "wide":
-            self.range_actions_grid.addWidget(self.use_active_button, 0, 0)
-            self.range_actions_grid.addWidget(self.apply_range_button, 0, 1)
-            self.range_actions_grid.setColumnStretch(0, 1)
-            self.range_actions_grid.setColumnStretch(1, 1)
-        else:
-            self.range_actions_grid.addWidget(self.use_active_button, 0, 0)
-            self.range_actions_grid.addWidget(self.apply_range_button, 1, 0)
-            self.range_actions_grid.setColumnStretch(0, 1)
-
-    def _reflow_metric_tiles(self, width: int) -> None:
-        if not hasattr(self, "metrics_grid"):
-            return
-        columns = 3 if width >= 1080 else 2 if width >= 560 else 1
-        if columns == self._metric_columns and self.metrics_grid.count():
-            return
-        self._metric_columns = columns
-        self._clear_grid(self.metrics_grid)
-        for row in range(len(self.metric_tiles)):
-            self.metrics_grid.setRowStretch(row, 0)
-        for index, tile in enumerate(self.metric_tiles):
-            self.metrics_grid.addWidget(tile, index // columns, index % columns)
-        for column in range(columns):
-            self.metrics_grid.setColumnStretch(column, 1)
-        rows = (len(self.metric_tiles) + columns - 1) // columns
-        for row in range(rows):
-            self.metrics_grid.setRowStretch(row, 1)
 
 
 
 
-    def _reflow_runtime_stats(self, width: int) -> None:
-        columns = (
-            5 if width >= 1260 else 3 if width >= 760 else 2 if width >= 480 else 1
-        )
-        if columns == self._runtime_columns and self.runtime_stats_grid.count():
-            return
-        self._runtime_columns = columns
-        self._clear_grid(self.runtime_stats_grid)
-        for index, stat in enumerate(self.runtime_stats):
-            self.runtime_stats_grid.addWidget(stat, index // columns, index % columns)
-        for column in range(columns):
-            self.runtime_stats_grid.setColumnStretch(column, 1)
 
-    def _reflow_runtime_actions(self, width: int) -> None:
-        # Actions form a balanced grid.  The voltage-lab action spans the two
-        # remaining cells on wide layouts now that the hide-diagnostics action
-        # has been removed.
-        columns = 3 if width >= 1080 else 2 if width >= 520 else 1
-        if (
-            columns == self._runtime_action_columns
-            and self.runtime_actions_grid.count()
-        ):
-            return
-        self._runtime_action_columns = columns
-        self._clear_grid(self.runtime_actions_grid)
-        if columns >= 3:
-            for index, button in enumerate(self.runtime_action_buttons[:3]):
-                self.runtime_actions_grid.addWidget(button, 0, index)
-            self.runtime_actions_grid.addWidget(self.disable_button, 1, 0)
-            self.runtime_actions_grid.addWidget(self.voltage_lab_button, 1, 1, 1, 2)
-        else:
-            for index, button in enumerate(self.runtime_action_buttons):
-                self.runtime_actions_grid.addWidget(button, index // columns, index % columns)
-        for column in range(columns):
-            self.runtime_actions_grid.setColumnStretch(column, 0)
 
-    def _reflow_advanced(self, width: int) -> None:
-        columns = 2 if width >= 1080 else 1
-        if columns == self._advanced_columns and self.advanced_grid.count():
-            return
-        self._advanced_columns = columns
-        self._clear_grid(self.advanced_grid)
-        if columns == 2:
-            self.advanced_grid.addWidget(self.fixed_safe_point_panel, 0, 0, 1, 2)
-            next_row = 1
-            if GPU_REFERENCE_PANELS_ENABLED:
-                self.advanced_grid.addWidget(self.safe_points_panel, next_row, 0)
-                self.advanced_grid.addWidget(self.diagnostics_panel, next_row, 1)
-                next_row += 1
-            self.advanced_grid.addWidget(self.console_panel, next_row, 0, 1, 2)
-            self.advanced_grid.setRowStretch(next_row, 1)
-            self.advanced_grid.setColumnStretch(0, 7)
-            self.advanced_grid.setColumnStretch(1, 5)
-        else:
-            self.advanced_grid.addWidget(self.fixed_safe_point_panel, 0, 0)
-            next_row = 1
-            if GPU_REFERENCE_PANELS_ENABLED:
-                self.advanced_grid.addWidget(self.safe_points_panel, next_row, 0)
-                self.advanced_grid.addWidget(self.diagnostics_panel, next_row + 1, 0)
-                next_row += 2
-            self.advanced_grid.addWidget(self.console_panel, next_row, 0)
-            self.advanced_grid.setRowStretch(next_row, 1)
-            self.advanced_grid.setColumnStretch(0, 1)
+
+
+
 
     @staticmethod
     def _clear_grid(layout: QGridLayout) -> None:
@@ -3166,198 +578,9 @@ class GpuGovernorPage(QWidget):
             button.setChecked(False)
         self.preset_group.setExclusive(True)
 
-    def _set_backend_profile_mode(self, is_oberon: bool) -> None:
-        backend = "oberon" if is_oberon else "cyan"
-        if backend == self._profile_backend:
-            return
-        self._profile_backend = backend
-        self._range_user_dirty = False
-        self._controls_initialized = False
-        self._active_range_signature = None
-        specs = self.OBERON_PROFILE_VALUES if is_oberon else self.CYAN_PROFILE_VALUES
-        self._clear_profile_checks()
-        for index, button in enumerate(self.preset_buttons):
-            if index < len(specs):
-                title, summary, payload = specs[index]
-                button.payload = payload
-                button.setText(f"{tr(title)}\n{tr(summary)}")
-                button.show()
-                self.preset_tiles[index].show()
-                self.preset_edit_buttons[index].setVisible(not is_oberon)
-            else:
-                button.hide()
-                self.preset_tiles[index].hide()
-        self._apply_profile_overrides()
-        for field in self.range_fields:
-            field.setVisible(not is_oberon)
-        self.use_active_button.setVisible(not is_oberon)
-        self.apply_range_button.setText(
-            tr(
-                "Review and apply Oberon profile"
-                if is_oberon
-                else "Review and apply range"
-            )
-        )
-        # The quick frequency picker and its buttons duplicate part of the
-        # advanced TOML laboratory; Oberon does not use TOML safe-points at
-        # all, so this panel (and the now-empty runtime status row it frees
-        # up space from) only makes sense for Cyan. Oberon keeps its original
-        # five-pill runtime status row exactly as before.
-        self.quick_range_panel.setVisible(not is_oberon)
-        self.runtime_stats_panel.setVisible(is_oberon)
-        self.metric_tiles = (
-            self.metric_tiles_oberon if is_oberon else self.metric_tiles_cyan
-        )
-        for tile in self.metric_tiles_oberon:
-            tile.setVisible(is_oberon)
-        for tile in self.metric_tiles_cyan:
-            tile.setVisible(not is_oberon)
-        self._metric_columns = 0
-        self._preset_columns = 0
-        self._range_action_mode = ""
-        self._workspace_columns = 0
-        self._update_backend_config_copy(is_oberon=is_oberon)
-        self._place_runtime_actions(oberon=is_oberon)
-        self._reflow(max(1, effective_viewport_width(self, self.overview_scroll)))
 
-    def _update_backend_config_copy(self, *, is_oberon: bool) -> None:
-        """Keep configuration labels truthful when switching Cyan ↔ Oberon."""
-        if is_oberon:
-            self.fixed_title.setText(tr("YAML endpoint laboratory"))
-            self.fixed_hint.setText(
-                tr("Inspect Oberon YAML endpoints and their protected voltage values.")
-            )
-            self.config_actions_label.setText(tr("YAML configuration"))
-            self.open_toml_button.setText(tr("Open oberon-config.yaml"))
-            self.open_toml_button.setToolTip(
-                tr("Open /etc/oberon-config.yaml in the system's default editor.")
-            )
-            self.safe_header.setText(tr("Active YAML endpoints"))
-        else:
-            self.fixed_title.setText(tr("TOML safe-point laboratory"))
-            self.fixed_hint.setText(
-                tr(
-                    "Inspect every active safe-point, including +2000 MHz entries, with conservative voltage validation."
-                )
-            )
-            self.config_actions_label.setText(tr("TOML configuration"))
-            self.open_toml_button.setText(tr("Open config.toml"))
-            self.open_toml_button.setToolTip(
-                tr(
-                    "Open the governor TOML in the system's default text or code editor. Saving may require administrator privileges."
-                )
-            )
-            self.safe_header.setText(tr("Active TOML safe-points"))
 
-    def _run_backend_action(
-        self,
-        operation,
-        on_success,
-        error_title: str,
-        *,
-        controls: tuple[QWidget, ...] = (),
-        refresh: bool = True,
-        keep_voltage_lab: bool = False,
-        error_parent: QWidget | None = None,
-    ) -> bool:
-        token = self._action_gate.begin()
-        if token is None:
-            self._show_operation_in_progress()
-            return False
-        self._action_busy = True
-        self._set_operation_busy(True)
-        control_states = tuple((control, control.isEnabled()) for control in controls)
-        for control in controls:
-            control.setEnabled(False)
 
-        def report_failure(message: str) -> None:
-            # This range failure is emitted by the repository with live values.
-            # Translate the explanatory shell around those values while keeping
-            # the measured backend range intact.
-            range_failure = re.search(
-                r"Cyan restarted but D-Bus did not expose the requested (\d+)-(\d+) MHz high safe-point range \(allowed (.+?)\)\. The TOML was saved; inspect the governor service status before retrying\.",
-                message,
-            )
-            if range_failure:
-                minimum, maximum, allowed = range_failure.groups()
-                localized = tr_format(
-                    "Cyan could not expose the requested {minimum}-{maximum} MHz range; the active backend allows {allowed}. This is a kernel/driver limit, not a TOML save failure. The TOML was saved; use SMU or a BC-250 patched kernel for a wider range.",
-                    minimum=minimum,
-                    maximum=maximum,
-                    allowed=allowed,
-                )
-            else:
-                localized = tr(message)
-            self._show_info(error_title, localized, tone="red", parent=error_parent)
-            self._append_console(f"{error_title}: {localized}")
-
-        def callback_error(error: Exception) -> None:
-            report_failure(
-                tr_format("Result handling failed: {error}", error=str(error))
-            )
-
-        def refresh_page() -> None:
-            self._action_busy = False
-            self.refresh()
-
-        session = ActionSession(
-            gate=self._action_gate,
-            token=token,
-            controls=control_states,
-            on_success=on_success,
-            on_failure=report_failure,
-            on_callback_error=callback_error,
-            invalidate=lambda: self._state_cache.invalidate(
-                "gpu", "performance", "tools"
-            ),
-            refresh=refresh_page,
-            refresh_enabled=refresh,
-            after_success=(
-                lambda: (
-                    self.voltage_lab_drawer.raise_()
-                    if keep_voltage_lab
-                    and getattr(self, "voltage_lab_drawer", None) is not None
-                    and self.voltage_lab_drawer.is_open()
-                    else None
-                )
-            ),
-        )
-
-        def finished() -> None:
-            session.finished()
-            if not self._action_gate.busy:
-                self._action_busy = False
-                self._set_operation_busy(False)
-
-        start_error: Exception | None = None
-        try:
-            started = self._background.start(
-                "gpu-hardware-action",
-                operation,
-                session.success,
-                session.failure,
-                finished,
-            )
-        except (RuntimeError, TypeError, ValueError) as error:
-            started = False
-            start_error = error
-            self._show_info(error_title, str(error), tone="red", parent=error_parent)
-        if not started:
-            session.abort()
-            self._action_busy = False
-            self._set_operation_busy(False)
-            if start_error is None:
-                self._show_operation_in_progress()
-        return started
-
-    def _set_operation_busy(self, active: bool) -> None:
-        """Show the small progress ring only while an operation is pending."""
-        text = "GPU operation in progress"
-        self.configuration_card.set_busy(active, text)
-        view = getattr(self, "_redesigned_gpu_view", None)
-        if view is not None:
-            view.set_operation_busy(active, text)
-        self.operation_busy_changed.emit(bool(active))
 
     def _show_operation_in_progress(self) -> None:
         """Ask the user to wait, and stop asking the moment they can act.
@@ -3600,31 +823,6 @@ class GpuGovernorPage(QWidget):
             controls=(self.high_points_button,),
         )
 
-    def _apply_high_points_toggle_feedback(self, enabled: bool) -> None:
-        """Reflect a confirmed TOML edit immediately while the full refresh runs."""
-
-        state = dict(_dict(self.current_state.get("high_frequency_points")))
-        # Under a kernel clock limit only the points within it are enabled.
-        frequencies = tuple(
-            state.get("allowed_frequencies") or state.get("frequencies") or ()
-        )
-        state["enabled"] = bool(enabled)
-        state["enabled_frequencies"] = frequencies if enabled else ()
-        self.current_state["high_frequency_points"] = state
-        self.high_points_button.setText(
-            tr(
-                "Disable +2000 MHz TOML points"
-                if enabled
-                else "Enable +2000 MHz TOML points"
-            )
-        )
-        self._update_safety_notice(self.current_state)
-
-    def _high_oc_voltage_gaps(
-        self, maximum: int
-    ) -> tuple[tuple[int, int, int | None], ...]:
-        """Return high-OC points that do not meet the complete Level 3 curve."""
-        return high_oc_voltage_gaps(int(maximum), self._range_evidence())
 
     def _range_evidence(self) -> RangeEvidence:
         busy_raw = self.current_state.get("gpu_busy")
@@ -3725,171 +923,6 @@ class GpuGovernorPage(QWidget):
             vram_uma_size_mb=getattr(dialog, "vram_uma_size_mb", 0),
         )
 
-    def execute_dependency_action(
-        self,
-        *,
-        action: str,
-        preference: str,
-        selected_components: set[str],
-        dialog_parent: QWidget | None = None,
-        memory_policy: str = "current",
-        memory_ttm_gib: int = 0,
-        memory_takeover_zram: bool = False,
-        memory_target_mount: str = "",
-        vram_uma_size_mb: int = 0,
-        kernel_options: tuple[str, ...] = (),
-        kernel_option_changed: str = "",
-        helixsr_settings: dict | None = None,
-    ) -> None:
-        """Execute a dialog or dashboard preparation request through one route."""
-        tools = _dict(self.current_state.get("tools"))
-        if action == "helixsr_settings":
-            self._save_helixsr_settings(dict(helixsr_settings or {}), dialog_parent=dialog_parent)
-            return
-        if action in {"acpi-install", "acpi-update", "acpi-uninstall", "acpi-status"}:
-            self._manage_acpi(action, dialog_parent)
-            return
-        if action in {"memory_swap", "memory_ttm"}:
-            self._prepare_bazzite_memory_tuning(
-                policy=memory_policy,
-                ttm_gib=memory_ttm_gib,
-                scope="swap" if action == "memory_swap" else "ttm",
-                takeover_zram=memory_takeover_zram,
-                target_mount=memory_target_mount,
-                dialog_parent=dialog_parent,
-            )
-            return
-        if action == "vram_apply":
-            self._prepare_vram(uma_size_mb=vram_uma_size_mb, dialog_parent=dialog_parent)
-            return
-        if action.startswith("bazzite_mitigations_"):
-            self._prepare_bazzite_mitigations(
-                action.removeprefix("bazzite_mitigations_"),
-                dialog_parent=dialog_parent,
-            )
-            return
-        if action == "kernel_options_set":
-            self._manage_kernel_options(
-                kernel_options, changed=kernel_option_changed, dialog_parent=dialog_parent
-            )
-            return
-        if action.startswith("steamos_readonly_"):
-            self._manage_steamos_readonly(
-                action.removeprefix("steamos_readonly_"),
-                dialog_parent=dialog_parent,
-            )
-            return
-        if action in {"quick_access_install_decky", "quick_access_plugin"}:
-            self._prepare_steamos_quick_access(
-                install_decky=action == "quick_access_install_decky",
-                dialog_parent=dialog_parent,
-            )
-            return
-        if action in {
-            "cachyos_bc250_kernel",
-            "cachyos_bc250_mesa",
-            "cachyos_bc250_full",
-        }:
-            self._prepare_cachyos_bc250(
-                action.removeprefix("cachyos_bc250_"), dialog_parent=dialog_parent
-            )
-            return
-        if action == "fsr4_steam_option_all":
-            self._add_fsr4_steam_option_to_library(dialog_parent=dialog_parent)
-            return
-        if action.startswith("fsr4_steam_option:"):
-            self._add_fsr4_steam_option(
-                action.partition(":")[2], dialog_parent=dialog_parent
-            )
-            return
-        if action in {"fsr4_install", "fsr4_uninstall", "fsr4_legacy_uninstall", "fsr4_launch"}:
-            self._manage_fsr4_bc250(
-                action.removeprefix("fsr4_"), dialog_parent=dialog_parent
-            )
-            return
-        if action == "fsr4_upstream":
-            self._open_fsr4_upstream(dialog_parent=dialog_parent)
-            return
-        if action.startswith("helixsr_") and action != "helixsr_upstream":
-            self._manage_helixsr(
-                action.removeprefix("helixsr_"), dialog_parent=dialog_parent
-            )
-            return
-        if action in {
-            "acpi_upstream",
-            "helixsr_upstream",
-            "vaapi_upstream",
-            "gfx1013_upstream",
-            "bazzite_async_upstream",
-            "bazzite_image_upstream",
-        }:
-            self._open_compatibility_upstream(action, dialog_parent=dialog_parent)
-            return
-        if action == "steamos_graphics_upstream":
-            self._open_steamos_graphics_upstream(dialog_parent=dialog_parent)
-            return
-        if action.startswith("steamos_graphics_"):
-            graphics_action = {
-                "steamos_graphics_status": "status",
-                "steamos_graphics_install": "install",
-                "steamos_graphics_fsr4_install": "install-fsr4",
-                "steamos_graphics_uninstall": "uninstall",
-                "steamos_graphics_fsr4_uninstall": "uninstall-fsr4",
-            }.get(action)
-            if graphics_action is None:
-                raise ValueError("Unsupported SteamOS graphics action.")
-            self._manage_steamos_graphics(
-                graphics_action, dialog_parent=dialog_parent
-            )
-            return
-        if action.startswith("gfx1013_source_"):
-            self._manage_gfx1013_source(
-                action.removeprefix("gfx1013_source_"), dialog_parent=dialog_parent
-            )
-            return
-        if action == "debian_kernel_install":
-            self._manage_debian_kernel(dialog_parent=dialog_parent)
-            return
-        if action.startswith("vaapi_"):
-            self._manage_vaapi(action.removeprefix("vaapi_"), dialog_parent=dialog_parent)
-            return
-        if action.startswith("radv_async_"):
-            self._manage_radv_async(
-                action.removeprefix("radv_async_"), dialog_parent=dialog_parent
-            )
-            return
-        if action in {
-            "gfx1013_fedora_install",
-            "gfx1013_fedora_uninstall",
-            "gfx1013_fedora_boot_patched",
-            "gfx1013_fedora_activate",
-        }:
-            self._manage_gfx1013_fedora(
-                action.removeprefix("gfx1013_fedora_").replace("_", "-"),
-                dialog_parent=dialog_parent,
-            )
-            return
-        if action.startswith("gfx1013_bazzite_"):
-            self._manage_gfx1013_bazzite(
-                action.removeprefix("gfx1013_bazzite_"),
-                dialog_parent=dialog_parent,
-            )
-            return
-        plan = build_gpu_dependency_plan(
-            tools,
-            current_governor=self.current_state.get("governor_backend"),
-            action=action,
-            preference=preference,
-            selected_components=selected_components or DEFAULT_PREPARATION_COMPONENTS,
-        )
-        route = {
-            "compatibility": GpuGovernorPage._prepare_steamos_compatibility,
-            "diagnostics": GpuGovernorPage._prepare_steamos_diagnostics,
-            "remove": GpuGovernorPage._prepare_governor_removal,
-            "shared": GpuGovernorPage._prepare_governor_installation,
-            "governor": GpuGovernorPage._prepare_governor_installation,
-        }[plan.route]
-        route(self, plan, dialog_parent)
 
     def _prepare_bazzite_memory_tuning(
         self,
@@ -4103,6 +1136,37 @@ class GpuGovernorPage(QWidget):
                 tr("The change was staged. Reboot after the terminal reports success."),
             ),
             tr("Could not change the kernel boot options"),
+            controls=(),
+            error_parent=dialog_parent,
+        )
+
+    def _manage_smt_live(self, mode: str, *, dialog_parent: QWidget | None) -> None:
+        """Switch simultaneous multithreading now; it is not kept across a reboot."""
+        mode = str(mode or "").strip().lower()
+        if mode not in {"on", "off"}:
+            raise ValueError("Unsupported SMT action.")
+        if mode == "off":
+            confirmation = ConfirmDialog(
+                tr("Turn SMT off now"),
+                tr(
+                    "The CPU runs one thread per core until you turn it back on or restart: some games run smoother, others slower. "
+                    "Nothing is saved: the next boot starts as the kernel boot options say."
+                ),
+                summary=((tr("Applies"), tr("Right now, until the next boot")),),
+                confirm_text=tr("Turn SMT off now"),
+                tone="orange",
+                parent=dialog_parent or self,
+            )
+            if confirmation.exec() != QDialog.DialogCode.Accepted:
+                return
+        self._run_backend_action(
+            lambda: self.controller.gestionar_smt_vivo(mode),
+            lambda _result: GpuGovernorPage._record_preparation_result(
+                self,
+                tr("SMT"),
+                tr("The terminal shows the new state."),
+            ),
+            tr("Could not switch SMT"),
             controls=(),
             error_parent=dialog_parent,
         )
@@ -4336,40 +1400,84 @@ class GpuGovernorPage(QWidget):
                 error_parent=dialog_parent,
             )
             return
-        copy = {
-            "install": (
-                "Install FSR4 (OptiScaler Client)",
-                "Downloads the pinned BC250 build of OptiScaler Client, checks the published SHA-256 and every file inside, and installs it in your user folder. No password is needed and nothing outside your home folder changes. Games are only patched later, by you, from the client.",
-                "Install",
-                "blue",
-            ),
-            "uninstall": (
-                "Remove OptiScaler Client",
-                "Removes the client program only. The backups of every game it patched stay in ~/.config/OptiscalerClient-BC250. To put games back as they were, use Restore / recover selected in the client before removing it.",
-                "Remove client",
-                "orange",
-            ),
-            "legacy_uninstall": (
-                "Remove the old FSR4 V3 runtime",
-                "Removes the older per-game RADV runtime (dmorazasanchez V3) that the OptiScaler Client replaces. Remove its VK_DRIVER_FILES launch option from any game that still uses it.",
-                "Remove V3 runtime",
-                "orange",
-            ),
-        }.get(action)
-        if copy is None:
-            raise ValueError("Unsupported FSR4 action.")
+        if action == "releases":
+            # Only GitHub's list of client builds is read; nothing is installed.
+            self._run_backend_action(
+                lambda: self.controller.gestionar_fsr4_bc250("releases"),
+                lambda _result: GpuGovernorPage._record_preparation_result(
+                    self, "FSR4 · OptiScaler Client", "Opened the FSR4 workflow in the terminal.",
+                ),
+                "Could not manage FSR4",
+                controls=(),
+                error_parent=dialog_parent,
+            )
+            return
+        if action.startswith("select:"):
+            # Only the pick is saved: Install or Update downloads it.
+            tag = action.partition(":")[2]
+            self._run_backend_action(
+                lambda: self.controller.gestionar_fsr4_bc250(f"select:{tag}"),
+                lambda result: GpuGovernorPage._record_preparation_result(
+                    self,
+                    "FSR4 · OptiScaler Client",
+                    tr_format(
+                        "OptiScaler Client {version} is selected. Install or Update brings it in.",
+                        version=str(_dict(result).get("version") or tag),
+                    ),
+                ),
+                "Could not manage FSR4",
+                controls=(),
+                error_parent=dialog_parent,
+            )
+            return
         from bc250cc.infrastructure.bc250_opticlient import OPTICLIENT_TAG
 
+        fsr4 = _dict(_dict(self.current_state.get("tools")).get("fsr4"))
+        release_tag = str(fsr4.get("tag") or OPTICLIENT_TAG)
+        if action.startswith("upgrade:"):
+            newer = _dict(fsr4.get("newer"))
+            release_tag = action.partition(":")[2]
+            version = str(newer.get("version") or release_tag)
+            copy = (
+                tr_format("Update OptiScaler Client to {version}", version=version),
+                tr("Downloads the new build from GitHub, checks it and replaces the current one. Your games keep what the client installed in them.")
+                + ("" if newer.get("reviewed") else " " + tr("This build has not been reviewed with Control Center yet.")),
+                "Update",
+                "blue",
+            )
+        else:
+            copy = {
+                "install": (
+                    "Install OptiScaler Client",
+                    "Downloads the client from GitHub, checks it and installs it in your user folder. You add games from the client afterwards.",
+                    "Install",
+                    "blue",
+                ),
+                "uninstall": (
+                    "Remove OptiScaler Client",
+                    "Removes the client. What it installed in your games stays, and so do its backups in ~/.config/OptiscalerClient-BC250.",
+                    "Remove client",
+                    "orange",
+                ),
+                "legacy_uninstall": (
+                    "Remove the old FSR4 V3 runtime",
+                    "Removes the old V3 runtime. Also remove its VK_DRIVER_FILES launch option from any game that still has it.",
+                    "Remove V3 runtime",
+                    "orange",
+                ),
+            }.get(action)
+        if copy is None:
+            raise ValueError("Unsupported FSR4 action.")
         title, body, confirm, tone = copy
         confirmation = ConfirmDialog(
             title,
             tr(body),
             summary=(
                 (tr("Source"), "github.com/daniel-h-0/bc250-fsr4-fork"),
-                (tr("Release"), OPTICLIENT_TAG),
-                (tr("Scope"), tr("Your user folder; games only when you choose them")),
+                (tr("Version"), release_tag.removeprefix("opticlient-v")),
             ),
             confirm_text=confirm,
+            eyebrow="FSR4 INT8",
             tone=tone,
             parent=dialog_parent or self,
         )
@@ -4489,6 +1597,9 @@ class GpuGovernorPage(QWidget):
                 error_parent=dialog_parent,
             )
             return
+        if action == "update_all":
+            self._update_all_helixsr_games(dialog_parent=dialog_parent)
+            return
         game_action, _sep, appid = action.partition(":")
         if game_action == "select":
             # Only the pick is saved: Install or Update downloads it.
@@ -4545,6 +1656,9 @@ class GpuGovernorPage(QWidget):
         if game_action in {"opti_install", "opti_remove"}:
             self._manage_helixsr_optiscaler(action, dialog_parent=dialog_parent)
             return
+        if game_action.startswith("scaler_"):
+            self._manage_helixsr_scaler(action, dialog_parent=dialog_parent)
+            return
         if game_action in {"game_install", "game_remove"}:
             helixsr = _dict(_dict(self.current_state.get("tools")).get("helixsr"))
             game = next(
@@ -4558,15 +1672,13 @@ class GpuGovernorPage(QWidget):
             confirmation = ConfirmDialog(
                 "Add HelixSR to this game" if installing else "Remove HelixSR from this game",
                 tr(
-                    "The game's FSR 3.1 DLL is renamed to *.original.dll and HelixSR takes its place, with its network files beside it. Close the game first, then choose AMD FSR as the upscaler in its settings."
+                    "HelixSR replaces the game's FSR 3.1 file; the original is kept. In the game, choose AMD FSR."
                     if installing else
-                    "HelixSR's files are removed from the game folder and the game's own FSR DLL is renamed back. Close the game first."
-                ),
-                summary=(
-                    (tr("Game"), str(game.get("name") or appid)),
-                    *((tr("File"), str(path)) for path in list(game.get("files") or ())[:3]),
-                ),
+                    "The game gets its own FSR file back."
+                ) + " " + tr("Close the game first."),
+                summary=((tr("Game"), str(game.get("name") or appid)),),
                 confirm_text="Add HelixSR" if installing else "Remove",
+                eyebrow="HelixSR",
                 tone="blue" if installing else "orange",
                 parent=dialog_parent or self,
             )
@@ -4589,55 +1701,60 @@ class GpuGovernorPage(QWidget):
                 error_parent=dialog_parent,
             )
             return
-        copy = {
-            "install": (
-                "Install HelixSR",
-                "Downloads the official HelixSR release, checks its SHA-256 and installs it in your user folder. HelixSR's own setup then builds the network files on this PC from NVIDIA's DLSS DLL, which it downloads from NVIDIA's GitHub only after you agree in the terminal. It takes 4-5 minutes and needs no password. HelixSR is an independent project, not affiliated with NVIDIA or AMD.",
-                "Install",
+        helixsr = _dict(_dict(self.current_state.get("tools")).get("helixsr"))
+        release = str(helixsr.get("tag") or HELIXSR_TAG)
+        if action.startswith("upgrade:"):
+            newer = _dict(helixsr.get("newer"))
+            release = action.partition(":")[2]
+            version = str(newer.get("version") or release.removeprefix("v"))
+            copy = (
+                tr_format("Update HelixSR to {version}", version=version),
+                tr("Downloads the new release from GitHub and builds its network on this PC; the terminal asks before it downloads NVIDIA's DLSS file. Your games keep their current version until you update them.")
+                + ("" if newer.get("reviewed") else " " + tr("This release has not been reviewed with Control Center yet.")),
+                "Update",
                 "blue",
-            ),
-            "network": (
-                "Build HelixSR network files",
-                "HelixSR's own setup builds the network files on this PC from NVIDIA's DLSS DLL, which it downloads from NVIDIA's GitHub only after you agree in the terminal. It takes 4-5 minutes and needs no password.",
-                "Build network files",
-                "blue",
-            ),
-            "uninstall": (
-                "Remove HelixSR",
-                "Removes the HelixSR release, its network files and its setup cache (portable Python and shader compiler). Games must not use HelixSR any more: remove it from each game first.",
-                "Remove HelixSR",
-                "orange",
-            ),
-        }.get(action)
+            )
+        else:
+            copy = {
+                "install": (
+                    "Install HelixSR",
+                    "Downloads HelixSR from GitHub and builds its network on this PC. The terminal asks before it downloads NVIDIA's DLSS file. It takes about five minutes.",
+                    "Install",
+                    "blue",
+                ),
+                "network": (
+                    "Build network files",
+                    "Builds HelixSR's network on this PC. The terminal asks before it downloads NVIDIA's DLSS file. It takes about five minutes.",
+                    "Build network files",
+                    "blue",
+                ),
+                "fg": (
+                    "Build frame generation",
+                    "Builds DLSS frame generation for games with HelixSR Scaler. The terminal asks before each download from NVIDIA (about 400 MB). No game is changed.",
+                    "Build frame generation",
+                    "blue",
+                ),
+                "uninstall": (
+                    "Remove HelixSR",
+                    "Removes HelixSR and everything it built on this PC. Remove it from your games first.",
+                    "Remove HelixSR",
+                    "orange",
+                ),
+            }.get(action)
         if copy is None:
             raise ValueError("Unsupported HelixSR action.")
         title, body, confirm, tone = copy
-        helixsr = _dict(_dict(self.current_state.get("tools")).get("helixsr"))
-        release = str(helixsr.get("tag") or HELIXSR_TAG)
-        if helixsr.get("prerelease"):
+        if helixsr.get("prerelease") and not action.startswith("upgrade:"):
             release = tr_format("{version} (pre-release)", version=release)
         confirmation = ConfirmDialog(
             title,
             tr(body),
             summary=(
                 (tr("Source"), "github.com/lonewolf0622/HelixSR"),
-                (tr("Release"), release),
-                (tr("Scope"), tr("Your user folder; games only when you choose them")),
-                *(
-                    ()
-                    if action == "uninstall"
-                    else ((
-                        tr("NVIDIA DLSS DLL"),
-                        tr("OptiScaler Client's copy, checked by SHA-256; nothing is downloaded from NVIDIA")
-                        if helixsr.get("local_dlss")
-                        else tr("Downloaded from NVIDIA's GitHub after you agree in the terminal"),
-                    ),)
-                ),
+                (tr("Version"), release.removeprefix("v")),
             ),
-            notice=""
-            if action == "uninstall"
-            else "The network files hold NVIDIA's network. They stay on this PC: never share or upload them.",
             confirm_text=confirm,
+            eyebrow="HelixSR",
             tone=tone,
             parent=dialog_parent or self,
         )
@@ -4649,6 +1766,118 @@ class GpuGovernorPage(QWidget):
                 self, label, "Opened the HelixSR workflow in the terminal.",
             ),
             "Could not manage HelixSR",
+            controls=(),
+            error_parent=dialog_parent,
+        )
+
+    def _manage_helixsr_scaler(self, action: str, *, dialog_parent: QWidget | None) -> None:
+        """HelixSR Scaler in a Steam game, through the HelixSR release's own bridge."""
+        game_action, _sep, appid = action.partition(":")
+        helixsr = _dict(_dict(self.current_state.get("tools")).get("helixsr"))
+        game = next(
+            (dict(item) for item in helixsr.get("scaler_games") or ()
+             if str(_dict(item).get("appid")) == appid),
+            {"appid": appid, "name": appid},
+        )
+        name = str(game.get("name") or appid)
+        version = str(helixsr.get("version") or "")
+        copy = {
+            "scaler_install": (
+                "Add HelixSR Scaler to this game",
+                "HelixSR Scaler goes next to the game and keeps any file it replaces. In the game, choose DLSS. Don't use it in online games with anti-cheat.",
+                "Add HelixSR Scaler", "blue",
+            ),
+            "scaler_remove": (
+                "Remove HelixSR Scaler from this game",
+                "Every file HelixSR Scaler replaced is put back.",
+                "Remove", "orange",
+            ),
+            "scaler_update": (
+                tr_format("Update HelixSR Scaler to {version}", version=version),
+                tr_format("The game keeps version {version} so you can go back to it.", version=str(game.get("version") or "?")),
+                "Update", "blue",
+            ),
+            "scaler_rollback": (
+                tr_format("Go back to HelixSR {version}", version=str(game.get("previous") or "?")),
+                "The game gets back the version it had before its last update. You can undo this the same way.",
+                "Go back", "orange",
+            ),
+        }.get(game_action)
+        if copy is not None:
+            title, body, confirm, tone = copy
+            confirmation = ConfirmDialog(
+                title,
+                tr(body) + " " + tr("Close the game first."),
+                summary=((tr("Game"), name),),
+                confirm_text=confirm,
+                eyebrow="HelixSR",
+                tone=tone,
+                parent=dialog_parent or self,
+            )
+            if confirmation.exec() != QDialog.DialogCode.Accepted:
+                return
+
+        def done(result: object) -> None:
+            result = _dict(result)
+            game_name = str(result.get("game") or name)
+            if game_action == "scaler_install":
+                message = tr_format(
+                    "HelixSR Scaler was added to {game}. In the game, choose DLSS as the upscaler.", game=game_name
+                )
+                if result.get("launch_option_error"):
+                    message = f"{message} " + tr_format(
+                        "Steam also needs this launch option for it: {option}", option=str(result.get("launch_options"))
+                    )
+            elif game_action == "scaler_remove":
+                message = tr_format("HelixSR Scaler was removed from {game}; its own files are back.", game=game_name)
+            elif game_action in {"scaler_update", "scaler_rollback"}:
+                message = tr_format("{game} now has HelixSR {version}.", game=game_name,
+                                    version=str(result.get("version") or "?"))
+            elif game_action == "scaler_fg_on":
+                message = tr_format(
+                    "Frame generation is on in {game}. Turn on DLSS Frame Generation in the game.", game=game_name
+                )
+            else:
+                message = tr_format("Frame generation is off in {game}.", game=game_name)
+            GpuGovernorPage._record_preparation_result(self, "HelixSR", message)
+
+        self._run_backend_action(
+            lambda: self.controller.gestionar_helixsr(action),
+            done,
+            "Could not change the game's files",
+            controls=(),
+            error_parent=dialog_parent,
+        )
+
+    def _update_all_helixsr_games(self, *, dialog_parent: QWidget | None) -> None:
+        """Every game with another HelixSR release, given the installed one."""
+        helixsr = _dict(_dict(self.current_state.get("tools")).get("helixsr"))
+        version = str(helixsr.get("version") or "")
+        count = int(helixsr.get("outdated_games") or 0)
+        confirmation = ConfirmDialog(
+            tr_format("Update {count} games to HelixSR {version}", count=count, version=version),
+            tr("Games that are open are skipped; close them and update them later. Games with HelixSR Scaler keep their current version to go back to."),
+            confirm_text="Update",
+            eyebrow="HelixSR",
+            tone="blue",
+            parent=dialog_parent or self,
+        )
+        if confirmation.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        def done(result: object) -> None:
+            result = _dict(result)
+            message = tr_format("{count} games now have HelixSR {version}.",
+                                count=len(result.get("updated") or ()), version=str(result.get("version") or version))
+            skipped = [str(name) for name in result.get("skipped") or ()]
+            if skipped:
+                message += " " + tr_format("Not updated: {games}. Close them and try again.", games=", ".join(skipped))
+            GpuGovernorPage._record_preparation_result(self, "HelixSR", message)
+
+        self._run_backend_action(
+            lambda: self.controller.gestionar_helixsr("update_all"),
+            done,
+            "Could not change the game's files",
             controls=(),
             error_parent=dialog_parent,
         )
@@ -4669,12 +1898,13 @@ class GpuGovernorPage(QWidget):
         confirmation = ConfirmDialog(
             "Use HelixSR in OptiScaler" if installing else "Remove HelixSR from OptiScaler",
             tr(
-                "A HelixSR folder is added next to OptiScaler and OptiScaler.ini is pointed at it; the previous OptiScaler.ini is saved first. If the FSR4 client's DLL is there, FSR4 stays selectable in OptiScaler's menu next to HelixSR. Close the game first. While HelixSR is in use, remove it here before you update or restore this game in OptiScaler Client."
+                "This game's OptiScaler is pointed at HelixSR; its settings are saved first. In the game, press Insert and pick FSR HelixSR."
                 if installing else
-                "OptiScaler.ini is put back exactly as it was and the HelixSR folder is removed. Close the game first."
-            ),
+                "OptiScaler's settings are put back as they were."
+            ) + " " + tr("Close the game first."),
             summary=((tr("Game"), name),),
             confirm_text="Use HelixSR in OptiScaler" if installing else "Remove",
+            eyebrow="HelixSR",
             tone="blue" if installing else "orange",
             parent=dialog_parent or self,
         )
@@ -4697,6 +1927,77 @@ class GpuGovernorPage(QWidget):
             error_parent=dialog_parent,
         )
 
+    def _manage_opticlient_files(self, action: str, *, dialog_parent: QWidget | None) -> None:
+        """Undo OptiScaler Client's install in a game into a backup, or put it back."""
+        verb, _sep, target = action.partition(":")
+        fsr4 = _dict(_dict(self.current_state.get("tools")).get("fsr4"))
+        if verb == "undo":
+            record = next(
+                (dict(item) for item in fsr4.get("installations") or ()
+                 if str(_dict(item).get("key")) == target),
+                {"name": "", "files": 0},
+            )
+            clear = record.get("state") == "removed"
+            title, body, confirm = (
+                ("Clear OptiScaler Client's record",
+                 "OptiScaler's files are already gone. The client's record moves into a backup, so the client can install the game again. Close OptiScaler Client first.",
+                 "Clear record")
+                if clear else
+                ("Remove OptiScaler from this game",
+                 "OptiScaler Client's files move into a backup and any game file they replaced comes back. Close the game and OptiScaler Client first.",
+                 "Remove, keep a backup")
+            )
+            summary = [(tr("Game"), str(record.get("name") or tr("Unknown")))]
+            if not clear:
+                summary.append((tr("Files"), str(record.get("files") or 0)))
+        else:
+            record = next(
+                (dict(item) for item in fsr4.get("backups") or ()
+                 if str(_dict(item).get("id")) == target),
+                {"name": "", "files": 0, "path": ""},
+            )
+            title, body, confirm = (
+                "Put OptiScaler back",
+                "The files and the client's record go back exactly as they were. Close the game and OptiScaler Client first.",
+                "Put back",
+            )
+            summary = [
+                (tr("Game"), str(record.get("name") or tr("Unknown"))),
+                (tr("Files"), str(record.get("files") or 0)),
+                (tr("Backup folder"), str(record.get("path") or "")),
+            ]
+        confirmation = ConfirmDialog(
+            title, tr(body), summary=tuple(summary), confirm_text=confirm, eyebrow="FSR4 INT8",
+            tone="blue" if verb != "undo" else "orange", parent=dialog_parent or self,
+        )
+        if confirmation.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        def done(result: object) -> None:
+            result = _dict(result)
+            game = str(result.get("game") or record.get("name") or "")
+            if verb != "undo":
+                message = tr_format("OptiScaler is back in {game}.", game=game)
+            elif result.get("record_only"):
+                message = tr_format(
+                    "OptiScaler Client's record of {game} was cleared. It is kept in {path}.",
+                    game=game, path=str(result.get("backup") or ""),
+                )
+            else:
+                message = tr_format(
+                    "OptiScaler was removed from {game}. Its {count} files are kept in {path}.",
+                    game=game, count=int(result.get("files") or 0), path=str(result.get("backup") or ""),
+                )
+            GpuGovernorPage._record_preparation_result(self, "FSR4 · OptiScaler Client", message)
+
+        self._run_backend_action(
+            lambda: self.controller.gestionar_fsr4_bc250(action),
+            done,
+            "Could not change the game's files",
+            controls=(),
+            error_parent=dialog_parent,
+        )
+
     def _add_fsr4_steam_option_to_library(self, *, dialog_parent: QWidget | None) -> None:
         """The same option for every installed Steam game, asked for on Reddit."""
         from bc250cc.infrastructure.steam_launch_options import installed_steam_games
@@ -4705,10 +2006,8 @@ class GpuGovernorPage(QWidget):
         confirmation = ConfirmDialog(
             "Add the launch option to every Steam game",
             tr(
-                "Every installed Steam game gets the option that lets Proton load OptiScaler, so "
-                "after this the client only has to copy files into a game. Games without "
-                "OptiScaler run as before. What each game already had stays. Close Steam "
-                "completely first; the previous Steam settings file is kept beside it as a backup."
+                "Every installed Steam game gets the option OptiScaler needs. What each game already had stays, "
+                "and games without OptiScaler run as before. Close Steam first."
             ),
             summary=(
                 (tr("Games"), str(len(games))),
@@ -4759,11 +2058,7 @@ class GpuGovernorPage(QWidget):
         after = merge_dll_override(before, dll)
         confirmation = ConfirmDialog(
             "Add the launch option to Steam",
-            tr(
-                "Steam will start this game with the option that makes Proton load OptiScaler. "
-                "What you already had stays. Close Steam completely first; the previous "
-                "Steam settings file is kept beside it as a backup."
-            ),
+            tr("This game gets the option OptiScaler needs. What it already had stays. Close Steam first."),
             summary=(
                 (tr("Game"), str(game.get("name") or appid)),
                 (tr("Now"), before or tr("(empty)")),
@@ -4856,18 +2151,28 @@ class GpuGovernorPage(QWidget):
         )
 
     def _manage_debian_kernel(self, *, dialog_parent: QWidget | None) -> None:
-        """A newer kernel from Debian backports: confirm, then run it in the terminal."""
+        """Kernel and Mesa from Debian backports: confirm, then run it in the terminal."""
+        upgrade = _dict(
+            _dict(_dict(self.current_state.get("tools")).get("gfx1013_compute")).get("kernel_upgrade")
+        )
+        with_kernel = bool(upgrade.get("install_kernel", True))
+        summary = [(tr("Source"), "deb.debian.org · backports")]
+        if with_kernel:
+            summary.append((tr("Current kernel"), tr("Kept; choose it in the boot menu to go back")))
+        summary.append((tr("Restart"), tr("Required")))
         confirmation = ConfirmDialog(
-            "Install a newer kernel",
-            tr(
-                "Debian 13 ships a kernel and a Mesa that do not know the BC-250 GPU, so the desktop is drawn by the CPU. This adds the Debian backports suite in its own source file and installs the newer kernel, its headers and the GPU firmware from it. The current kernel stays installed and in the boot menu under Advanced options. Restart afterwards, then build the GFX1013 fix from this same card. Needs your password and an internet connection."
+            "Install from backports",
+            (
+                tr(
+                    "Debian 13 ships a kernel and a Mesa that do not know the BC-250 GPU, so the desktop is drawn by the CPU. This adds the Debian backports suite in its own source file and installs from it a newer Mesa, a newer kernel with its headers and the GPU firmware. The current kernel stays installed and in the boot menu under Advanced options. Restart afterwards, then build the GFX1013 fix from this same card. Needs your password and an internet connection."
+                )
+                if with_kernel
+                else tr(
+                    "Debian 13 ships a Mesa that does not know the BC-250 GPU, so the desktop is drawn by the CPU. This adds the Debian backports suite in its own source file and installs the newer Mesa from it. Restart afterwards. Needs your password and an internet connection."
+                )
             ),
-            summary=(
-                (tr("Source"), "deb.debian.org · backports"),
-                (tr("Current kernel"), tr("Kept; choose it in the boot menu to go back")),
-                (tr("Restart"), tr("Required")),
-            ),
-            confirm_text="Install kernel",
+            summary=tuple(summary),
+            confirm_text="Install from backports",
             tone="orange",
             parent=dialog_parent or self,
         )
@@ -4877,10 +2182,39 @@ class GpuGovernorPage(QWidget):
             lambda: self.controller.gestionar_kernel_debian("install"),
             lambda _result: GpuGovernorPage._record_preparation_result(
                 self,
-                "Debian kernel",
-                "Opened the newer-kernel workflow in the terminal.",
+                "Debian backports",
+                "Opened the backports workflow in the terminal.",
             ),
-            "Could not install the newer kernel",
+            "Could not install from backports",
+            controls=(),
+            error_parent=dialog_parent,
+        )
+
+    def _manage_mesa_ppa(self, *, dialog_parent: QWidget | None) -> None:
+        """A newer Mesa from the kisak-mesa PPA: confirm what is added, then run it in the terminal."""
+        confirmation = ConfirmDialog(
+            "Update Mesa",
+            tr(
+                "This adds the kisak-mesa PPA (ppa:kisak/kisak-mesa), a third-party source, in its own source file after checking that its signing key is the expected one, and updates Mesa and, if present, its 32-bit libraries from it. Other packages are not touched. To go back, delete the source file and key and downgrade Mesa; the terminal prints the commands. Restart afterwards. Needs your password and an internet connection."
+            ),
+            summary=(
+                (tr("Source"), "ppa.launchpadcontent.net · kisak/kisak-mesa"),
+                (tr("Restart"), tr("Required")),
+            ),
+            confirm_text="Update Mesa",
+            tone="orange",
+            parent=dialog_parent or self,
+        )
+        if confirmation.exec() != QDialog.DialogCode.Accepted:
+            return
+        self._run_backend_action(
+            lambda: self.controller.gestionar_mesa_desktop("install"),
+            lambda _result: GpuGovernorPage._record_preparation_result(
+                self,
+                "Mesa",
+                "Opened the Mesa update in the terminal.",
+            ),
+            "Could not update Mesa",
             controls=(),
             error_parent=dialog_parent,
         )
@@ -4892,6 +2226,18 @@ class GpuGovernorPage(QWidget):
                 "Install hardware video",
                 "Downloads simpmix's VA-API driver at a reviewed version, checks it, and builds it in a container: about 5 minutes and a few hundred MB the first time. It is switched on only after it starts and offers H.264 and HEVC. Programs that use VA-API (Sunshine, OBS, Steam Remote Play, ffmpeg, browsers) then encode and decode with it. For streaming while you play, choose H.264: HEVC encodes mostly on the CPU. Log out and back in afterwards.",
                 "Build and install",
+                "orange",
+            ),
+            "install32": (
+                "Add the 32-bit video driver",
+                "Steam Remote Play and Steam Link are 32-bit programs and use software video without a 32-bit driver. This installs the signed 32-bit libraries (on SteamOS it turns the read-only protection off for the install and back on), builds the 32-bit driver in a container from the same reviewed source, checks it starts on this GPU, and only then adds it beside the 64-bit one. A SteamOS update removes the 32-bit libraries; this button then reads Repair 32-bit driver and brings them back without rebuilding. Log out and back in afterwards.",
+                "Add",
+                "orange",
+            ),
+            "flatpak": (
+                "Allow Flatpak apps to use hardware video",
+                "Flatpak apps (GPU Screen Recorder, OBS, Steam) run in a sandbox that cannot see the driver, so they list H.264 as not available. This gives them read-only access to the driver folder and the two libva variables, for your user only. Restart those apps afterwards.",
+                "Allow",
                 "orange",
             ),
             "uninstall": (
@@ -4913,7 +2259,7 @@ class GpuGovernorPage(QWidget):
                 summary=(
                     (tr("Source"), "github.com/simpmix/bc250-encoding-decoding-fix"),
                     (tr("License"), "GPL-3.0"),
-                    (tr("Apply"), tr("Log out and back in")),
+                    (tr("Apply"), tr("Restart the app") if action == "flatpak" else tr("Log out and back in")),
                 ),
                 confirm_text=confirm,
                 tone=tone,
@@ -5176,6 +2522,31 @@ class GpuGovernorPage(QWidget):
         plan: GpuDependencyPlan,
         dialog_parent: QWidget | None,
     ) -> None:
+        high_points = _dict(self.current_state.get("high_frequency_points"))
+        high_point_frequencies = tuple(
+            int(value)
+            for value in high_points.get("enabled_frequencies")
+            or high_points.get("frequencies")
+            or ()
+            if str(value).isdigit() and int(value) > 2230
+        )
+        needs_module_safe_points = bool(high_points.get("enabled")) and bool(
+            high_point_frequencies
+        )
+
+        def start_preparation() -> None:
+            self._run_backend_action(
+                self.controller.preparar_compatibilidad_steamos,
+                lambda _result: GpuGovernorPage._record_preparation_result(
+                    self,
+                    "SteamOS compatibility",
+                    "Opened the explicit SteamOS kernel compatibility workflow. Review the terminal result and reboot only when it reports a successful installation.",
+                ),
+                "Could not prepare SteamOS compatibility",
+                controls=(),
+                error_parent=dialog_parent,
+            )
+
         if plan.requires_kernel_confirmation:
             confirmation = ConfirmDialog(
                 "Prepare SteamOS kernel compatibility",
@@ -5188,6 +2559,9 @@ class GpuGovernorPage(QWidget):
                     ("Kernel change", "amdgpu override + initramfs"),
                     ("RADV mesh/task", "Not installed"),
                     ("Reboot", "Required after installation"),
+                    *((
+                        ("Safe-points", "Disable +2000 MHz TOML points"),
+                    ) if needs_module_safe_points else ()),
                 ),
                 confirm_text="Prepare SteamOS compatibility",
                 tone="orange",
@@ -5195,14 +2569,35 @@ class GpuGovernorPage(QWidget):
             )
             if confirmation.exec() != QDialog.DialogCode.Accepted:
                 return
-        self._run_backend_action(
-            self.controller.preparar_compatibilidad_steamos,
-            lambda _result: GpuGovernorPage._record_preparation_result(
-                self,
-                "SteamOS compatibility",
-                "Opened the explicit SteamOS kernel compatibility workflow. Review the terminal result and reboot only when it reports a successful installation.",
+        if not needs_module_safe_points:
+            start_preparation()
+            return
+
+        confirmation = ConfirmDialog(
+            "Disable advanced +2000 MHz points",
+            "This comments the TOML safe-point blocks above 2000 MHz and validates the complete "
+            "file. Active 3D workloads must be stopped first. This does not reload Cyan or "
+            "change the live GPU range.",
+            summary=(
+                ("Safe-points", ", ".join(map(str, high_point_frequencies))),
+                ("Requested state", "Commented"),
+                ("Service", "No restart or clock change"),
             ),
-            "Could not prepare SteamOS compatibility",
+            confirm_text="Disable +2000 MHz TOML points",
+            tone="orange",
+            parent=dialog_parent or self,
+        )
+        if confirmation.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        def disabled_points(_result: object) -> None:
+            self._apply_high_points_toggle_feedback(False)
+            start_preparation()
+
+        self._run_backend_action(
+            lambda: self.controller.alternar_puntos_gpu_altos(False),
+            disabled_points,
+            "Could not update advanced safe-points",
             controls=(),
             error_parent=dialog_parent,
         )
@@ -5447,24 +2842,6 @@ class GpuGovernorPage(QWidget):
             return
         self._run_service_plan(plan, reset_cyan_fix_flags=reset_cyan_fix_flags)
 
-    def _run_service_plan(self, plan, *, reset_cyan_fix_flags: bool = False) -> None:
-        def success(_result: object) -> None:
-            self._last_operation_summary = f"Opened service workflow: {plan.label}."
-            self.last_operation_line.set_values(
-                "Service action", self._last_operation_summary
-            )
-            self._append_console(self._last_operation_summary)
-
-        self._run_backend_action(
-            lambda: self.controller.controlar_governor(
-                plan.action,
-                plan.has_conflicts,
-                plan.has_conflicts,
-                reset_cyan_fix_flags=reset_cyan_fix_flags,
-            ),
-            success,
-            "Governor service action failed",
-        )
 
     def read_service_status(self) -> None:
         def success(result: object) -> None:
@@ -5522,13 +2899,6 @@ class GpuGovernorPage(QWidget):
             return True
         return False
 
-    def _voltage_for_level(self, frequency: int, level: int) -> int | None:
-        return voltage_for_level(
-            frequency,
-            level,
-            is_oberon=bool(getattr(self, "_is_oberon_backend", False)),
-        )
-
     def _voltage_keypad_edit_active(self) -> bool:
         drawer = getattr(self, "voltage_lab_drawer", None)
         drawer_editors = drawer.editors() if drawer is not None else ()
@@ -5536,103 +2906,7 @@ class GpuGovernorPage(QWidget):
             drawer_editors, application=QApplication.instance()
         )
 
-    def _sync_voltage_lab(self, gpu: dict) -> None:
-        # The guard used to ask whether the page's curve grid had been built.
-        # The drawer is the surface now, and an in-progress keypad edit still
-        # owns the values: refreshing over it would discard what is being typed.
-        if getattr(self, "voltage_lab_drawer", None) is None:
-            return
-        if self._voltage_keypad_edit_active():
-            return
-        state = build_voltage_lab_state(
-            gpu,
-            active_min_default=self.active_min,
-            active_max_default=self.active_max,
-            levels=self.VOLTAGE_PROFILE_LEVELS,
-            lab_frequencies=self.VOLTAGE_LAB_FREQUENCIES,
-        )
-        self._is_oberon_backend = state.is_oberon
-        self._voltage_points = list(state.points)
-        self._voltage_current_map = dict(state.current_voltages)
-        self._voltage_editable_frequencies = set(state.editable_frequencies)
-        self._voltage_profile_frequencies = set(state.profile_frequencies)
-        self._voltage_detected_level = state.detected_level
-        self._voltage_applied_level = state.applied_level
 
-        # The custom editor starts from the curve on disk and follows it: a
-        # value set once used to stay forever, so after another level was
-        # applied, Custom offered the old curve and applying it undid the
-        # level without saying so. Only points typed and not applied keep
-        # what was typed.
-        edited = {
-            frequency: voltage
-            for frequency, voltage in self._voltage_custom_values.items()
-            if frequency in self._voltage_custom_edited
-        }
-        self._voltage_custom_values = {
-            frequency: edited.get(frequency, voltage)
-            for frequency, voltage in state.custom_defaults
-        }
-        self._voltage_custom_edited &= set(self._voltage_custom_values)
-        self._voltage_lab_initialized = True
-
-        # The drawer is the only voltage surface. The page this method used to
-        # feed as well was never reachable: ``open_voltage_lab`` returns the
-        # stack to the overview and opens the drawer instead.
-        self._sync_voltage_drawer()
-
-    def _sync_voltage_drawer(self) -> None:
-        drawer = getattr(self, "voltage_lab_drawer", None)
-        if drawer is None or not hasattr(self, "_voltage_points"):
-            return
-        selected_level = int(drawer.selected_level())
-        plan = build_voltage_table_plan(
-            points=list(self._voltage_points),
-            selected_level=selected_level,
-            editable_frequencies=self._voltage_editable_frequencies,
-            profile_frequencies=self._voltage_profile_frequencies,
-            custom_values=self._voltage_custom_values,
-            packaged_voltages=self.VOLTAGE_LAB_BASE,
-            detected_level=self._voltage_detected_level,
-            is_oberon=bool(getattr(self, "_is_oberon_backend", False)),
-        )
-        is_oberon = bool(getattr(self, "_is_oberon_backend", False))
-        drawer.set_oberon_mode(is_oberon)
-        rows = plan.rows
-        if is_oberon:
-            rows = tuple(
-                replace(
-                    row,
-                    original=None,
-                    proposed=row.current or None,
-                    added=None,
-                    custom_available=False,
-                    editor_value=row.current,
-                )
-                for row in plan.rows
-            )
-            detail = tr(
-                "Oberon uses two YAML endpoints. They are shown below for reference; "
-                "curve editing is unavailable for this governor."
-            )
-        elif plan.custom_mode:
-            detail = tr(
-                "Adjust the safe points currently active in the governor configuration."
-            )
-        else:
-            detail = tr_format(
-                "+{added} mV is added only to the high-frequency curve from "
-                "{start} MHz. Lower-frequency values return to governor defaults.",
-                added=selected_level * 10,
-                start=VOLTAGE_BOOST_START_MHZ,
-            )
-        drawer.set_curve(
-            rows,
-            custom_mode=plan.custom_mode and not is_oberon,
-            detail=detail,
-            apply_enabled=bool(plan.active_frequencies) and not is_oberon,
-            read_only=is_oberon,
-        )
 
     def _select_drawer_voltage_profile(self, level: int) -> None:
         self._clear_stale_voltage_keypad_state()
@@ -5820,15 +3094,6 @@ class GpuGovernorPage(QWidget):
         self._state_cache.invalidate("gpu", "performance")
         self.refresh()
 
-    def set_updates_active(self, active: bool) -> None:
-        self._updates_active = bool(active)
-        if self._updates_active:
-            if not self.timer.isActive():
-                self.timer.start()
-            self._refresher.activate(fresh_for=1.5)
-        else:
-            self._refresher.set_active(False)
-            self.timer.stop()
 
     def _fetch_refresh_payload(self) -> dict[str, dict]:
         # state_cache.gpu() delegates to controller.estado_bc250() in a worker;
@@ -5846,53 +3111,7 @@ class GpuGovernorPage(QWidget):
     def _refresh_failed(self, message: str) -> None:
         self._append_console(f"GPU refresh warning: {message}")
 
-    def _apply_refresh_payload(self, payload: object) -> None:
-        data = payload if isinstance(payload, dict) else {}
-        gpu = _dict(data.get("gpu"))
-        perf = _dict(data.get("performance"))
-        self.current_state = gpu
-        self.current_perf = perf
-        self._apply_state(gpu, perf)
 
-    def _sync_range_state(self, gpu: dict) -> tuple[int, int, int, int]:
-        frequency = _integer(gpu.get("sclk_actual"), 0)
-        mclk = _integer(gpu.get("mclk_actual"), 0)
-        minimum = _integer(gpu.get("current_min"), 0)
-        maximum = _integer(gpu.get("current_max"), 0)
-        is_oberon = str(gpu.get("governor_backend") or "") == "oberon-governor"
-        allowed_min = 1000 if is_oberon else _integer(gpu.get("allowed_min"), 300)
-        allowed_max = (
-            2000
-            if is_oberon
-            else _integer(
-                gpu.get("allowed_max"),
-                gpu.get("config_max_frequency") or maximum or 2000,
-            )
-        )
-        self.allowed_min = max(0, allowed_min)
-        self.allowed_max = max(self.allowed_min, allowed_max)
-        self.active_min = minimum or self.active_min
-        self.active_max = maximum or self.active_max
-        self.minimum_control.set_limits(self.allowed_min, self.allowed_max)
-        self.maximum_control.set_limits(self.allowed_min, self.allowed_max)
-
-        points = list(
-            gpu.get("safe_points_with_voltage") or gpu.get("safe_points") or []
-        )
-        self._populate_points(points, frequency)
-        runtime_signature = (minimum, maximum)
-        if not self._controls_initialized or (
-            not self._range_user_dirty
-            and runtime_signature != self._active_range_signature
-        ):
-            self._stage_range(
-                self.active_min,
-                self.active_max,
-                preset=self._profile_name(self.active_min, self.active_max),
-            )
-            self._controls_initialized = True
-        self._active_range_signature = runtime_signature
-        return frequency, mclk, minimum, maximum
 
     @staticmethod
     def _telemetry_copy(gpu: dict, perf: dict) -> dict[str, object]:
@@ -5934,101 +3153,6 @@ class GpuGovernorPage(QWidget):
             else tr_format(value.template, **dict(value.values))
         )
 
-    def _update_metric_widgets(
-        self,
-        telemetry: dict[str, object],
-        *,
-        frequency: int,
-        mclk: int,
-        minimum: int,
-        maximum: int,
-        running: bool,
-        active: str,
-        enabled: str,
-    ) -> None:
-        idle_without_sclk = (
-            not frequency and running and telemetry.get("utilization") == 0
-        )
-        frequency_text = (
-            f"{frequency} MHz"
-            if frequency
-            else tr("Not sampled at idle")
-            if idle_without_sclk
-            else tr("Not detected")
-        )
-        range_text = (
-            f"{minimum}–{maximum} MHz" if minimum or maximum else tr("Not available")
-        )
-        temperature = _number(telemetry["temperature"], 0)
-        self.summary.items[0].set_values(
-            tr("Active") if running else tr(active.capitalize()),
-            tr_format("boot: {state}", state=tr(enabled.capitalize())),
-        )
-        self.summary.items[1].set_values(frequency_text, tr("real-time SCLK"))
-        self.summary.items[2].set_values(
-            range_text,
-            tr_format(
-                "allowed {minimum}–{maximum}",
-                minimum=self.allowed_min,
-                maximum=self.allowed_max,
-            ),
-        )
-        self.summary.items[3].set_values(
-            str(telemetry["utilization_text"]), tr("current GPU load")
-        )
-        self.summary.items[4].set_values(
-            str(telemetry["temperature_text"]), self._temperature_status(temperature)
-        )
-
-        self.sclk_metric.set_values(
-            frequency_text,
-            tr("AMDGPU did not expose a current SCLK sample.")
-            if idle_without_sclk
-            else tr("Current SCLK state"),
-        )
-        self.voltage_metric.set_values(
-            str(telemetry["voltage_text"]), tr("AMDGPU hwmon sensor")
-        )
-        self.temperature_metric.set_values(
-            str(telemetry["temperature_text"]), self._temperature_status(temperature)
-        )
-        self.utilization_metric.set_values(
-            str(telemetry["utilization_text"]), tr("amdgpu busy percentage")
-        )
-        self.mclk_metric.set_values(
-            f"{mclk} MHz" if mclk else tr("Not detected"), tr("Current MCLK state")
-        )
-        self.vram_metric.set_values(
-            str(telemetry["vram_value"]), str(telemetry["vram_detail"])
-        )
-        diagnostic = _dict(self.current_state.get("apu_telemetry"))
-        readings = _dict(diagnostic.get("metrics"))
-        sampled_at = _number(diagnostic.get("sampled_at_monotonic"), 0)
-        age = time.monotonic() - sampled_at
-        stale = bool(diagnostic) and (sampled_at <= 0 or age < 0 or age > 6)
-        clock_parts = []
-        for name in ("mclk", "fclk", "uclk"):
-            item = _dict(readings.get(name))
-            value = item.get("value") if item.get("status") == "valid" and not stale else None
-            clock_parts.append(
-                f"{name.upper()}: {value} MHz" if value is not None
-                else f"{name.upper()}: {tr('Not available')}"
-            )
-        self.memory_clocks_line.setText(" · ".join(clock_parts))
-        self.memory_clocks_line.setToolTip(tr("Independent memory clocks require a verified source."))
-        for name, widget in (
-            ("sclk", self.sclk_metric), ("voltage", self.voltage_metric),
-            ("temperature", self.temperature_metric), ("mclk", self.mclk_metric),
-        ):
-            item = _dict(readings.get(name))
-            if stale or item.get("status") == "invalid":
-                widget.set_values(tr("Stale" if stale else "Invalid"), tr("Advanced GPU diagnostics"))
-            widget.setToolTip(str(item.get("source") or ""))
-        if self.metrics_status is not None:
-            degraded = stale or diagnostic.get("status") in {"invalid", "unavailable"}
-            self.metrics_status.setText(tr("Warning" if degraded else "Live"))
-            self.metrics_status.set_tone("orange" if degraded else "green")
-            self.metrics_status.setToolTip(tr("Advanced GPU diagnostics") if diagnostic.get("layout_mismatch_suspected") else "")
 
     @staticmethod
     def _persistent_range_copy(frequency_range: dict) -> str:
@@ -6051,64 +3175,6 @@ class GpuGovernorPage(QWidget):
             maximum=(persistent_maximum or tr("unlimited")),
         )
 
-    def _update_runtime_status_cards(
-        self,
-        gpu: dict,
-        *,
-        is_oberon: bool,
-        running: bool,
-        enabled_at_boot: bool,
-        range_control_ok: bool,
-        active: str,
-        enabled: str,
-        dbus_ok: bool,
-        range_text: str,
-        profile_name: str,
-    ) -> None:
-        presentation = present_gpu_runtime(
-            gpu,
-            is_oberon=is_oberon,
-            running=running,
-            enabled_at_boot=enabled_at_boot,
-            range_control_ok=range_control_ok,
-            active=active,
-            enabled=enabled,
-            dbus_ok=dbus_ok,
-            range_text=range_text,
-            profile_name=profile_name,
-            safe_point_count=len(self.safe_frequencies),
-        )
-        widgets = (
-            self.service_stat,
-            self.boot_stat,
-            self.dbus_stat,
-            self.profile_stat,
-            self.points_stat,
-        )
-        # The presenter retains the timestamp line for API compatibility, but
-        # the redundant passive tile is intentionally not rendered in the UI.
-        for widget, line in zip(widgets, presentation.lines[: len(widgets)], strict=True):
-            widget.set_values(
-                self._render_runtime_text(line.value),
-                self._render_runtime_text(line.detail),
-            )
-        # Cyan shows this same D-Bus/active-range information promoted into
-        # the main telemetry grid instead of the pill row above (see
-        # metric_tiles_cyan); keep both tiles fed regardless of backend since
-        # they simply stay hidden and unused for Oberon.
-        self.dbus_metric.set_values(
-            self._render_runtime_text(presentation.lines[2].value),
-            self._render_runtime_text(presentation.lines[2].detail),
-        )
-        self.active_range_metric.set_values(
-            self._render_runtime_text(presentation.lines[3].value),
-            self._render_runtime_text(presentation.lines[3].detail),
-        )
-        if self.runtime_card.status is not None:
-            self.runtime_card.status.setText(
-                self._render_runtime_text(presentation.card_status)
-            )
-            self.runtime_card.status.set_tone(presentation.card_tone)
 
     @staticmethod
     def _render_runtime_text(value: RuntimeText) -> str:
@@ -6118,198 +3184,10 @@ class GpuGovernorPage(QWidget):
             else tr_format(value.template, **dict(value.values))
         )
 
-    def _update_governor_action_buttons(
-        self,
-        gpu: dict,
-        *,
-        is_oberon: bool,
-        running: bool,
-        enabled_at_boot: bool,
-        range_control_ok: bool,
-        conflict_blocked: bool,
-    ) -> None:
-        self.enable_button.setEnabled(not (running and enabled_at_boot))
-        self.disable_button.setEnabled(running or enabled_at_boot)
-        self.restart_button.setEnabled(running)
-        self.apply_range_button.setEnabled(range_control_ok and not conflict_blocked)
-        high_points_state = _dict(gpu.get("high_frequency_points"))
-        high_points_enabled = bool(high_points_state.get("enabled"))
-        self.high_points_button.setText(
-            tr(
-                "Disable +2000 MHz TOML points"
-                if high_points_enabled
-                else "Enable +2000 MHz TOML points"
-            )
-        )
-        self.high_points_button.setEnabled(
-            bool(high_points_state.get("available")) and not conflict_blocked
-        )
-        self.high_points_button.setVisible(not is_oberon)
-        self.telemetry_guide_button.setVisible(is_oberon)
 
-    def _update_range_recommendation(
-        self,
-        frequency_range: dict,
-        *,
-        is_oberon: bool,
-        minimum: int,
-        maximum: int,
-    ) -> None:
-        persistent_text = self._persistent_range_copy(frequency_range)
-        template = (
-            "Oberon allowed: {allowed_min}–{allowed_max} MHz · configured endpoints: "
-            "{minimum}–{maximum} MHz · persistent YAML: {persistent}."
-            if is_oberon
-            else "D-Bus allowed: {allowed_min}–{allowed_max} MHz · active runtime: "
-            "{minimum}–{maximum} MHz · persistent TOML: {persistent}."
-        )
-        self.range_recommendation.setText(
-            tr_format(
-                template,
-                allowed_min=self.allowed_min,
-                allowed_max=self.allowed_max,
-                minimum=minimum,
-                maximum=maximum,
-                persistent=persistent_text,
-            )
-        )
 
-    def _update_backend_controls(
-        self,
-        gpu: dict,
-        *,
-        is_oberon: bool,
-        running: bool,
-        enabled_at_boot: bool,
-        range_control_ok: bool,
-        conflict_blocked: bool,
-        minimum: int,
-        maximum: int,
-        active: str,
-        enabled: str,
-        dbus_ok: bool,
-    ) -> None:
-        range_text = (
-            f"{minimum}–{maximum} MHz" if minimum or maximum else tr("Not available")
-        )
-        frequency_range = _dict(gpu.get("frequency_range"))
-        persistent_custom = bool(
-            frequency_range.get("valid") and frequency_range.get("enabled")
-        )
-        profile_name = (
-            tr("Custom persistent range")
-            if persistent_custom
-            else self._profile_name(minimum, maximum)
-        )
-        if persistent_custom:
-            self._clear_profile_checks()
 
-        self._update_runtime_status_cards(
-            gpu,
-            is_oberon=is_oberon,
-            running=running,
-            enabled_at_boot=enabled_at_boot,
-            range_control_ok=range_control_ok,
-            active=active,
-            enabled=enabled,
-            dbus_ok=dbus_ok,
-            range_text=range_text,
-            profile_name=profile_name,
-        )
-        self._update_governor_action_buttons(
-            gpu,
-            is_oberon=is_oberon,
-            running=running,
-            enabled_at_boot=enabled_at_boot,
-            range_control_ok=range_control_ok,
-            conflict_blocked=conflict_blocked,
-        )
-        self._update_range_recommendation(
-            frequency_range,
-            is_oberon=is_oberon,
-            minimum=minimum,
-            maximum=maximum,
-        )
 
-    def _apply_state(self, gpu: dict, perf: dict) -> None:
-        governor_backend = str(
-            gpu.get("governor_backend") or "cyan-skillfish-governor-smu"
-        )
-        is_oberon = governor_backend == "oberon-governor"
-        self.use_active_button.setText(tr("Save active range for startup"))
-        self.use_active_button.setToolTip(
-            tr(
-                "Write the live Cyan range to [frequency-range] for the next startup."
-            )
-        )
-        self._set_backend_profile_mode(is_oberon)
-        self._sync_cyan_compatibility(gpu, is_oberon=is_oberon)
-        frequency, mclk, minimum, maximum = self._sync_range_state(gpu)
-        telemetry = self._telemetry_copy(gpu, perf)
-
-        active = str(gpu.get("service_active") or "not-found")
-        enabled = str(gpu.get("service_enabled") or "not-found")
-        dbus_ok = bool(gpu.get("dbus_ok"))
-        range_control_ok = bool(gpu.get("range_control_ok", dbus_ok))
-        running = active.lower() in {"active", "running"}
-        enabled_at_boot = enabled.lower() in {"enabled", "enabled-runtime", "static"}
-        governor_conflicts = list(
-            _dict(gpu.get("tools")).get("incompatible_gpu_governors") or []
-        )
-        conflict_blocked = bool(governor_conflicts)
-        self._update_metric_widgets(
-            telemetry,
-            frequency=frequency,
-            mclk=mclk,
-            minimum=minimum,
-            maximum=maximum,
-            running=running,
-            active=active,
-            enabled=enabled,
-        )
-        self._update_backend_controls(
-            gpu,
-            is_oberon=is_oberon,
-            running=running,
-            enabled_at_boot=enabled_at_boot,
-            range_control_ok=range_control_ok,
-            conflict_blocked=conflict_blocked,
-            minimum=minimum,
-            maximum=maximum,
-            active=active,
-            enabled=enabled,
-            dbus_ok=dbus_ok,
-        )
-        self._update_profile_availability()
-        self._update_safety_notice(gpu)
-        self._update_diagnostics(gpu)
-        self._sync_voltage_lab(gpu)
-
-    def _sync_cyan_compatibility(self, gpu: dict, *, is_oberon: bool) -> None:
-        self.cyan_compatibility_panel.setVisible(not is_oberon)
-        self.apply_cyan_compatibility.setEnabled(not is_oberon)
-        if is_oberon or self._cyan_compatibility_dirty:
-            return
-        state = _dict(gpu.get("cyan_telemetry"))
-        set_method = str(state.get("set_method") or "smu")
-        usage_method = str(state.get("method") or "busy-flag")
-        set_index = self.cyan_set_method.findData(set_method)
-        usage_index = self.cyan_usage_method.findData(usage_method)
-        widgets = (
-            self.cyan_set_method,
-            self.cyan_usage_method,
-            self.cyan_fix_metrics,
-            self.cyan_fix_frequency,
-        )
-        previous = tuple(widget.blockSignals(True) for widget in widgets)
-        try:
-            self.cyan_set_method.setCurrentIndex(max(0, set_index))
-            self.cyan_usage_method.setCurrentIndex(max(0, usage_index))
-            self.cyan_fix_metrics.setChecked(bool(state.get("fix_metrics", True)))
-            self.cyan_fix_frequency.setChecked(bool(state.get("fix_frequency", False)))
-        finally:
-            for widget, blocked in zip(widgets, previous, strict=True):
-                widget.blockSignals(blocked)
 
     def _retranslate_cyan_compatibility_labels(self) -> None:
         """Keep compact Cyan correction labels accurate after a live language switch."""
@@ -6350,67 +3228,7 @@ class GpuGovernorPage(QWidget):
             self._sync_safe_point_combo(cleaned, current)
         self._update_selected_safe_point()
 
-    def _update_safe_points_table(
-        self,
-        rows: tuple[SafePointRow, ...],
-    ) -> None:
-        self.points_table.setRowCount(len(rows))
-        for row, item in enumerate(rows):
-            self.points_table.setItem(row, 0, QTableWidgetItem(f"{item.frequency} MHz"))
-            self.points_table.setItem(
-                row,
-                1,
-                QTableWidgetItem(
-                    f"{item.voltage} mV" if item.voltage else tr("Not specified")
-                ),
-            )
-            self.points_table.setItem(
-                row,
-                2,
-                QTableWidgetItem(
-                    f"{item.original_voltage} mV"
-                    if item.original_voltage is not None
-                    else "n/a"
-                ),
-            )
-            self.points_table.setItem(row, 3, QTableWidgetItem(tr(item.role)))
 
-    def _sync_safe_point_combo(
-        self,
-        cleaned: list[tuple[int, int]],
-        current: int,
-    ) -> None:
-        signature = tuple(cleaned)
-        if signature == self._safe_point_combo_signature:
-            return
-        selectable = [frequency for frequency, _voltage in cleaned]
-        combos = [self.oc_frequency]
-        if hasattr(self, "quick_safe_point_combo"):
-            combos.append(self.quick_safe_point_combo)
-        for combo in combos:
-            previous = _integer(combo.currentData(), 0)
-            combo.blockSignals(True)
-            combo.clear()
-            for frequency, voltage in cleaned:
-                combo.addItem(
-                    f"{frequency} MHz · {voltage} mV" if voltage else f"{frequency} MHz",
-                    frequency,
-                )
-            desired = (
-                previous
-                if previous in selectable
-                else current
-                if current in selectable
-                else selectable[0]
-                if selectable
-                else None
-            )
-            if desired is not None:
-                index = combo.findData(desired)
-                if index >= 0:
-                    combo.setCurrentIndex(index)
-            combo.blockSignals(False)
-        self._safe_point_combo_signature = signature
 
     def _safe_point_popup_visible(self) -> bool:
         try:
@@ -6418,69 +3236,7 @@ class GpuGovernorPage(QWidget):
         except (RuntimeError, TypeError):
             return False
 
-    def _update_selected_safe_point(self, _index: int = 0) -> None:
-        frequency = _integer(self.oc_frequency.currentData(), 0)
-        if frequency > 0:
-            self.apply_selected_range_button.setText(
-                tr_format(
-                    "Apply active range · 1000–{maximum} MHz",
-                    maximum=frequency,
-                )
-            )
-        else:
-            self.apply_selected_range_button.setText(
-                tr("Apply active range · select a ceiling")
-            )
-        tools = _dict(self.current_state.get("tools"))
-        conflicts = list(tools.get("incompatible_gpu_governors") or [])
-        can_apply = (
-            frequency >= self.SELECTED_RANGE_FLOOR
-            and frequency in self.safe_frequencies
-            and bool(
-                self.current_state.get(
-                    "range_control_ok", self.current_state.get("dbus_ok")
-                )
-            )
-            and not conflicts
-        )
-        self.apply_selected_range_button.setEnabled(can_apply)
-        self._sync_quick_safe_point_selection(frequency, can_apply)
-        if frequency <= 0:
-            self.safe_point_detail.setText(tr("No selectable safe-point is available."))
-            return
-        voltage = self.safe_voltage_map.get(frequency)
-        original = self.PACKAGED_DEFAULT_VOLTAGES.get(frequency)
-        if original is None:
-            status = tr("No packaged original voltage is defined.")
-        elif voltage is None:
-            status = tr_format(
-                "Voltage missing; packaged original {original} mV.", original=original
-            )
-        elif voltage >= original:
-            status = tr_format(
-                "TOML {voltage} mV · packaged original {original} mV · baseline check passed.",
-                voltage=voltage,
-                original=original,
-            )
-        else:
-            status = tr_format(
-                "TOML {voltage} mV · packaged original {original} mV · undervolt laboratory condition.",
-                voltage=voltage,
-                original=original,
-            )
-        self.safe_point_detail.setText(status)
 
-    def _sync_quick_safe_point_selection(self, frequency: int, can_apply: bool) -> None:
-        """Mirror the advanced safe-point pick into the quick range panel."""
-        if not hasattr(self, "quick_safe_point_combo"):
-            return
-        index = self.quick_safe_point_combo.findData(frequency) if frequency > 0 else -1
-        if index >= 0 and self.quick_safe_point_combo.currentIndex() != index:
-            self.quick_safe_point_combo.blockSignals(True)
-            self.quick_safe_point_combo.setCurrentIndex(index)
-            self.quick_safe_point_combo.blockSignals(False)
-        self.quick_apply_button.setText(self.apply_selected_range_button.text())
-        self.quick_apply_button.setEnabled(can_apply)
 
     def _quick_safe_point_changed(self, _index: int = 0) -> None:
         frequency = _integer(self.quick_safe_point_combo.currentData(), 0)
@@ -6502,29 +3258,6 @@ class GpuGovernorPage(QWidget):
             for frequency in self.safe_frequencies
         ]
 
-    def _apply_profile_overrides(self) -> None:
-        """Re-apply saved custom names/ranges on top of the default specs.
-
-        _set_backend_profile_mode always resets the three preset buttons to
-        their default title/range first (Cyan defaults or Oberon's fixed
-        pair), so this runs right after it to restore whatever the user
-        renamed/edited, without touching Oberon (which is never editable).
-        """
-        if self._profile_backend == "oberon":
-            return
-        for index, button in enumerate(self.preset_buttons):
-            override = self._custom_profile_overrides.get(index)
-            if override is None:
-                continue
-            button.payload = (override["min"], override["max"])
-            reference = (
-                f"{override['frequency']} MHz · {override['voltage']} mV\n"
-                if override.get("frequency")
-                else ""
-            )
-            button.setText(
-                f"{tr(override['name'])}\n{reference}{override['min']}–{override['max']} MHz"
-            )
 
     def _edit_profile(self, index: int) -> None:
         if index < 0 or index >= len(self.preset_buttons):
@@ -6561,61 +3294,7 @@ class GpuGovernorPage(QWidget):
         self._apply_profile_overrides()
         self._update_profile_availability()
 
-    def _update_profile_availability(self) -> None:
-        safe = set(self.safe_frequencies)
-        is_oberon = (
-            str(self.current_state.get("governor_backend") or "") == "oberon-governor"
-        )
-        dynamic_profiles = {}
-        if not is_oberon:
-            dynamic_profiles = {
-                profile.key: profile
-                for profile in profiles_for_allowed_range(
-                    self.allowed_min, self.allowed_max, governor="cyan"
-                )
-            }
-        for index, button in enumerate(self.preset_buttons):
-            override = None if is_oberon else self._custom_profile_overrides.get(index)
-            if is_oberon:
-                preset_minimum, preset_maximum = button.payload
-                available = tuple(button.payload) in OBERON_SAFE_PROFILES
-            elif override is not None:
-                # A renamed/edited profile keeps the range the user picked in
-                # the editor instead of the dynamically computed Balanced /
-                # Gaming / Benchmark defaults below.
-                preset_minimum, preset_maximum = button.payload
-                available = not safe or preset_maximum in safe
-            else:
-                profile_key = ("balanced", "gaming", "benchmark")[index]
-                profile = dynamic_profiles.get(profile_key)
-                if profile is None:
-                    available = False
-                else:
-                    button.payload = (profile.minimum_mhz, profile.maximum_mhz)
-                    button.setText(
-                        f"{tr(profile.label)}\n"
-                        f"{profile.minimum_mhz}–{profile.maximum_mhz} MHz"
-                    )
-                    preset_minimum, preset_maximum = button.payload
-                    available = not safe or preset_maximum in safe
-            button.setEnabled(available)
-            button.setToolTip(
-                ""
-                if available
-                else tr(
-                    "This profile ceiling is not available in the active governor safe-point table or D-Bus range."
-                )
-            )
 
-    def _update_safety_notice(self, gpu: dict) -> None:
-        notice = present_gpu_safety(gpu, safe_frequencies=self.safe_frequencies)
-        detail = GpuGovernorPage._render_safety_message(notice.message)
-        for suffix in notice.suffixes:
-            detail += " " + GpuGovernorPage._render_safety_message(suffix)
-        self.safety_notice.set_notice(notice.title, detail, tone=notice.tone)
-        if self.configuration_status is not None:
-            self.configuration_status.setText(tr(notice.status))
-            self.configuration_status.set_tone(notice.status_tone)
 
     @staticmethod
     def _render_safety_message(message: SafetyMessage) -> str:
@@ -6623,10 +3302,6 @@ class GpuGovernorPage(QWidget):
             return message.template
         return tr_format(message.template, **dict(message.values))
 
-    def set_detailed_diagnostics(self, enabled: bool) -> None:
-        self._detailed_diagnostics = bool(enabled)
-        if self.current_state:
-            self._update_diagnostics(self.current_state)
 
     def _copy_apu_diagnostics(self) -> None:
         payload = dict(self.current_state.get("apu_telemetry") or {})
@@ -6636,25 +3311,6 @@ class GpuGovernorPage(QWidget):
         }
         QApplication.clipboard().setText(json.dumps(payload, indent=2, ensure_ascii=False))
 
-    def _update_diagnostics(self, gpu: dict) -> None:
-        presentation = present_gpu_diagnostics(
-            gpu,
-            detailed=self._detailed_diagnostics,
-        )
-        bindings = (
-            (self.device_line, presentation.device),
-            (self.driver_line, presentation.driver),
-            (self.config_line, presentation.config),
-            (self.curve_line, presentation.curve),
-            (self.missing_line, presentation.missing),
-            (self.duplicates_line, presentation.duplicates),
-            (self.power_state_line, presentation.power),
-        )
-        for widget, line in bindings:
-            widget.set_values(
-                self._render_diagnostic_text(line.value),
-                self._render_diagnostic_text(line.detail),
-            )
 
     @staticmethod
     def _render_diagnostic_text(value: DiagnosticText) -> str:

@@ -363,6 +363,22 @@ def test_debian_13_shows_the_backports_kernel_in_the_card_instead_of_hiding_it()
     assert sidebar.gfx_primary_button.request_payload["action"] == "debian_kernel_install"
 
 
+def test_the_dashboard_card_names_the_mesa_it_installs_with_the_kernel():
+    sidebar = _sidebar_for(sidebar_state_with_upgrade(
+        {"offered": True, "state": "available", "install_kernel": True, "install_mesa": True}
+    ))
+    assert "newer Mesa and kernel" in sidebar.gfx_card.detail.text()
+    assert sidebar.gfx_primary_button.text() == "Install from backports"
+
+
+def test_the_dashboard_card_offers_only_the_mesa_when_the_kernel_is_waiting():
+    sidebar = _sidebar_for(sidebar_state_with_upgrade(
+        {"offered": True, "state": "available", "install_kernel": False, "install_mesa": True}
+    ))
+    assert "installs the newer Mesa from Debian backports" in sidebar.gfx_card.detail.text()
+    assert sidebar.gfx_primary_button.isEnabled()
+
+
 def test_without_a_backports_kernel_the_card_still_steps_aside():
     sidebar = _sidebar_for(sidebar_state_with_upgrade({"offered": False, "state": "not-offered"}))
     assert sidebar.gfx_card.isHidden()

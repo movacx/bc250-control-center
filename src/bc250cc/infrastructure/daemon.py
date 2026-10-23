@@ -14,7 +14,6 @@ from bc250cc.application.system.daemon_policy import (
     build_runtime_metric,
     governor_warning_needed,
     plan_daemon_cycle,
-    safe_bool,
     safe_number,
 )
 from bc250cc.application.system.settings_service import SettingsService
@@ -137,20 +136,12 @@ class BC250ControlCenterDaemon:
             value, default, minimum, maximum, integer=integer
         )
 
-    @staticmethod
-    def _safe_bool(value, default=False):
-        return safe_bool(value, default)
-
     def notificar(self, titulo, mensaje, urgencia='normal'):
         # Retained as a compatibility entry point, but desktop notifications
         # are currently disabled globally.  Do not invoke notify-send even if
         # stale user configuration requests alerts.
         del titulo, mensaje, urgencia
         return False
-
-    def porcentaje_a_pwm(self, porcentaje):
-        percent = self._safe_number(porcentaje, 0, 0, 100, integer=True)
-        return max(0, min(255, round(percent * 255 / 100)))
 
     def fan_curve_percent_for_temp(self, temp, fan_config):
         result = fan_curve_percent_for_temp(temp, fan_config)
@@ -320,6 +311,10 @@ class BC250ControlCenterDaemon:
         # policy from boot, this per-user loop must not write at all -- every
         # write here goes through pkexec and could ask for a password.
         snapshot = self._system_fan_control_snapshot()
+        if snapshot.get('external'):
+            # Handed to another program (CoolerControl...): never write.
+            self._write_health(fan_owner='external', fan_error='')
+            return
         if system_fan_control_owns_fan(snapshot):
             self._write_health(
                 fan_owner='system', fan_system_state=snapshot.get('state', ''),
@@ -337,10 +332,6 @@ class BC250ControlCenterDaemon:
             self.ultimo_fan_curve_apply = ahora
         elif decision.action in {'verify', 'apply'}:
             self._execute_fan_decision(decision, ahora)
-    def aplicar_curva_fan_si_corresponde(self, metrica, config):
-        """Backward-compatible entry point for older callers/tests."""
-        return self.aplicar_ventilador_persistente_si_corresponde(metrica, config)
-
     def _governor_state_for_cycle(self, plan, ahora):
         state = getattr(self, 'estado_bc250_cache', {})
         if not plan.governor_due:
@@ -441,4 +432,8 @@ class BC250ControlCenterDaemon:
 
 
 if __name__ == '__main__':
+    import sys
+    if any(arg in ('-h', '--help') for arg in sys.argv[1:]):
+        print('Usage: bc250-control-centerd\n\nBackground monitor of BC250 Control Center. Takes no options; stop it with SIGTERM.')
+        raise SystemExit(0)
     BC250ControlCenterDaemon().run()

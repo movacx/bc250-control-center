@@ -15,6 +15,7 @@ from PyQt6.QtWidgets import QVBoxLayout, QWidget
 
 from ..components.dashboard_widgets import DashboardScrollArea, PreparationSidebar
 from ..components.responsive import configure_responsive_scroll_area
+from ..components.style_state import offscreen_in_shown_window
 
 
 class AdditionalSettingsPage(QWidget):
@@ -51,7 +52,23 @@ class AdditionalSettingsPage(QWidget):
         layout.addWidget(self.scroll)
 
     def apply_state(self, state) -> None:
-        self.panel.set_state(state)
+        # The Dashboard hands over every state it applies, and this page is
+        # rarely the one on screen: only the latest is kept, and drawn when
+        # the page is shown. Drawing every one of them made each switch
+        # between the other pages wait for this panel.
+        self._pending_state = state
+        if not offscreen_in_shown_window(self):
+            self._render_pending_state()
+
+    def showEvent(self, event) -> None:  # noqa: N802 (Qt)
+        super().showEvent(event)
+        self._render_pending_state()
+
+    def _render_pending_state(self) -> None:
+        state = getattr(self, "_pending_state", None)
+        self._pending_state = None
+        if state is not None:
+            self.panel.set_state(state)
 
     def set_updates_active(self, active: bool) -> None:
         if self._state_feed is not None:

@@ -152,6 +152,39 @@ def test_every_row_is_there_even_when_a_fact_cannot_be_read(monkeypatch, tmp_pat
     assert rows["Mesa"] == snapshot_module.UNKNOWN
 
 
+VULKANINFO = """\
+Devices:
+========
+GPU0:
+\tapiVersion         = 1.4.318
+\tdriverVersion      = 26.1.6
+\tdeviceName         = AMD Radeon Graphics (RADV GFX1013)
+\tdriverID           = DRIVER_ID_MESA_RADV
+\tdriverName         = radv
+\tdriverInfo         = Mesa 26.1.6
+GPU1:
+\tdeviceName         = llvmpipe (LLVM 21.1.0, 256 bits)
+\tdriverInfo         = Mesa 26.1.6 (LLVM 21.1.0)
+"""
+
+
+def test_the_vulkan_driver_row_names_the_gpu_not_the_software_renderer(monkeypatch):
+    monkeypatch.setattr(snapshot_module, "_run", lambda argv: VULKANINFO)
+    assert snapshot_module._vulkan_driver() == "AMD Radeon Graphics (RADV GFX1013) · Mesa 26.1.6"
+
+
+def test_a_machine_without_vulkaninfo_gets_a_dash_not_a_guess(monkeypatch):
+    monkeypatch.setattr(snapshot_module, "_run", lambda argv: "")
+    assert snapshot_module._vulkan_driver() == snapshot_module.UNKNOWN
+
+
+def test_the_sheet_reports_gpu_resets_and_a_dash_when_the_log_is_unreadable(monkeypatch, tmp_path):
+    monkeypatch.setattr(snapshot_module, "read_gpu_resets", lambda: None)
+    rows = dict(snapshot_module.system_snapshot(project_root=tmp_path))
+    assert rows["GPU resets"] == snapshot_module.UNKNOWN
+    assert "Vulkan driver" in rows
+
+
 # -------------------------------------------------------------- report
 
 

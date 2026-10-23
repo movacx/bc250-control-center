@@ -66,11 +66,14 @@ ZSWAP_TUNING = (
     ("max_pool_percent", ("25",)),
     ("shrinker_enabled", ("Y",)),
 )
-#: SteamOS (keyboardspecialist/bc250-steamos, v0.32): Zstandard, a pool of 10 %
-#: of RAM and the memory shrinker, which writes cold pages back to the disk
-#: swapfile so the pool cannot hold on to them. The zpool is left to the kernel.
+#: SteamOS (keyboardspecialist/bc250-steamos): a pool of 10 % of RAM and the
+#: memory shrinker, which writes cold pages back to the disk swapfile so the
+#: pool cannot hold on to them. The zpool is left to the kernel. Compression
+#: is LZ4 first, as that toolkit has had it since v0.34 (it started on
+#: Zstandard, which compresses harder and costs more CPU); Zstandard and
+#: lzo-rle remain the fallbacks.
 STEAMOS_ZSWAP_TUNING = (
-    ("compressor", ("zstd", "lz4", "lzo-rle")),
+    ("compressor", ("lz4", "zstd", "lzo-rle")),
     ("max_pool_percent", ("10",)),
     ("shrinker_enabled", ("Y",)),
 )
@@ -114,6 +117,7 @@ STEAMOS_KEEP_PATHS = (
     ZRAM,
     SYSCTL,
     "/etc/systemd/system/systemd-zram-setup@*.service.d/90-bc250-zswap.conf",
+    "/etc/systemd/system/dev-zram*.swap.d/90-bc250-zswap.conf",
     FOREIGN_ZRAM_MARKER,
     STEAMOS_ZSWAP_TMPFILES,
 )
@@ -428,6 +432,20 @@ def zram_takeover_available(host: Host, state: dict) -> bool:
                 and (zram_present(host) or zram_foreign_config(host)))
 
 
+def _zram_swap_dropin(name: str) -> str:
+    return f"/etc/systemd/system/dev-{name}.swap.d/90-bc250-zswap.conf"
+
+
+def _hold_zram_swap_units(host: Host, units) -> None:
+    """The generated dev-zramN.swap waits on the same marker.
+
+    Skipping only systemd-zram-setup left the swap unit to activate a device
+    nobody had set up, and SteamOS listed dev-zram0.swap as failed at boot.
+    """
+    for name in units:
+        host.managed(_zram_swap_dropin(name), f"[Unit]\nConditionPathExists=!{FOREIGN_ZRAM_MARKER}\n")
+
+
 def disable_foreign_zram(host: Host, state: dict) -> None:
     """Stop a foreign ZRAM from coming back, without editing its own files.
 
@@ -442,6 +460,7 @@ def disable_foreign_zram(host: Host, state: dict) -> None:
             f"/etc/systemd/system/systemd-zram-setup@{name}.service.d/90-bc250-zswap.conf",
             f"[Unit]\nConditionPathExists=!{FOREIGN_ZRAM_MARKER}\n",
         )
+    _hold_zram_swap_units(host, units)
     for name in units:
         if f"/dev/{name}" in swaps(host):
             try:
@@ -461,6 +480,7 @@ def restore_foreign_zram(host: Host, state: dict) -> None:
         host.remove_managed(
             f"/etc/systemd/system/systemd-zram-setup@{name}.service.d/90-bc250-zswap.conf"
         )
+        host.remove_managed(_zram_swap_dropin(name))
     host.remove_managed(FOREIGN_ZRAM_MARKER)
     host.run("systemctl", "daemon-reload")
     state.pop("foreign_zram_disabled", None)
@@ -947,6 +967,9 @@ def boot(host: Host) -> dict:
         raise SetupError("Incomplete memory setup; restore or retry from Control Center")
     if state.get("restore_pending"):
         restore_swap(host, state)
+    if state.get("foreign_zram_disabled"):
+        # Repairs takeovers made before the swap unit was held as well.
+        _hold_zram_swap_units(host, state.get("foreign_zram_units") or ["zram0"])
     if state.get("owns_swap_dir") and state.get("swap_dir"):
         # Repairs swap directories created before they were relabeled.
         _relabel_swap_dir(host, state["swap_dir"])

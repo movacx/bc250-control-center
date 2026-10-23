@@ -71,32 +71,6 @@ def cu_mode(key: str | int) -> int:
     return target
 
 
-def safe_fan_channel(value: object) -> int:
-    """Validate one selectable QAM channel; never accept a sysfs suffix."""
-    if isinstance(value, bool) or type(value) not in {int, str}:
-        raise ValueError("Fan channel must be an integer.")
-    try:
-        channel = int(value)
-    except (TypeError, ValueError, OverflowError) as exc:
-        raise ValueError("Fan channel must be an integer.") from exc
-    if str(channel) != str(value) or channel not in QAM_FAN_CHANNELS:
-        raise ValueError("Quick Access fan channel must be PWM 2, 3, 4, or 5.")
-    return channel
-
-
-def safe_fan_percent(value: object) -> int:
-    """Validate a thermally conservative temporary manual duty percentage."""
-    if isinstance(value, bool) or type(value) not in {int, str}:
-        raise ValueError("Fan percentage must be an integer.")
-    try:
-        percent = int(value)
-    except (TypeError, ValueError, OverflowError) as exc:
-        raise ValueError("Fan percentage must be an integer.") from exc
-    if str(percent) != str(value) or not QAM_FAN_MIN_PERCENT <= percent <= QAM_FAN_MAX_PERCENT:
-        raise ValueError("Quick Access fan percentage must be between 20 and 100.")
-    return percent
-
-
 def fan_system_preset(key: str) -> tuple[str, int | None]:
     """Return a named system-fan action; never a caller-provided duty value."""
     try:

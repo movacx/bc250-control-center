@@ -300,7 +300,7 @@ def test_steamos_cyan_source_and_release_are_pinned_for_reproducible_clean_insta
 
     assert dependencies_module.STEAMOS_CYAN_REVIEWED_COMMIT in command
     assert f"BC250_CYAN_RELEASE_TAG={dependencies_module.STEAMOS_CYAN_REVIEWED_RELEASE}" in command
-    assert dependencies_module.STEAMOS_CYAN_REVIEWED_RELEASE == "v0.4.13"
+    assert dependencies_module.STEAMOS_CYAN_REVIEWED_RELEASE == "v0.4.14"
 
 
 def test_the_kernel_module_waits_until_gpu_points_above_its_limit_are_off(tmp_path, monkeypatch):

@@ -35,6 +35,55 @@ os.environ["XDG_STATE_HOME"] = _ISOLATED_STATE
 atexit.register(shutil.rmtree, _ISOLATED_STATE, ignore_errors=True)
 
 
+@pytest.fixture(autouse=True)
+def _keep_qtbot_widgets_until_closed(request):
+    """Hold every widget given to ``qtbot.addWidget`` until pytest-qt closes it.
+
+    pytest-qt keeps only a weak reference. A page whose signals point back at
+    itself outlives the test function as a reference cycle, still shown, and
+    pytest-qt's event processing right after the call paints it; Python's
+    garbage collector could then run in the middle of that paint and destroy
+    the page under it. Running the i18n tests before the GPU ones did exactly
+    that to the GPU governor view: "wrapped C/C++ object has been deleted",
+    then a segmentation fault. Held here, each widget stays alive until
+    pytest-qt's teardown has closed it and deleted it through the event loop.
+    """
+    if "qtbot" not in request.fixturenames:
+        yield
+        return
+    qtbot = request.getfixturevalue("qtbot")
+    held = request.node._bc250_held_widgets = []
+    add_widget = qtbot.addWidget
+
+    def add_and_hold(widget, *args, **kwargs):
+        held.append(widget)
+        return add_widget(widget, *args, **kwargs)
+
+    qtbot.addWidget = add_and_hold
+    yield
+    held.clear()
+
+
+@pytest.hookimpl(hookwrapper=True, tryfirst=True)
+def pytest_runtest_teardown(item):
+    """Forget held widgets a test destroyed on purpose before pytest-qt closes.
+
+    Without the hold their weak references had died and pytest-qt skipped
+    them; held, it would call close() on a deleted object.
+    """
+    held = getattr(item, "_bc250_held_widgets", None)
+    if held:
+        from PyQt6 import sip
+
+        destroyed = {id(widget) for widget in held if sip.isdeleted(widget)}
+        if destroyed:
+            item.qt_widgets = [
+                entry for entry in getattr(item, "qt_widgets", [])
+                if id(entry[0]()) not in destroyed
+            ]
+    yield
+
+
 # Nor may they see the machine's own root fan service (GitHub #15). With
 # "control from boot" switched on, the real /var/lib and /run files say the
 # system service owns the fan, and every daemon test expecting a desktop write

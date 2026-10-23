@@ -13,12 +13,15 @@ from bc250cc.infrastructure.fan_transport import (
     select_pwm_transport,
     validate_pwm_request,
 )
-from bc250cc.infrastructure.governor_config_request import plan_governor_config_request
 from bc250cc.infrastructure.polkit_session import normalize_polkit_error, pkexec_argv
 from bc250cc.infrastructure.steamos_shell import wrap_steamos_writable_command
-from bc250cc.infrastructure.system_fan_control import read_system_fan_control
+from bc250cc.infrastructure.system_fan_control import (
+    FAN_EXTERNAL_MESSAGE,
+    fan_handed_to_external,
+    read_system_fan_control,
+    running_fan_managers,
+)
 from bc250cc.platform.init.services import detect_init_manager
-from bc250cc.shared.failure_text import describe_failure
 
 logger = logging.getLogger(__name__)
 
@@ -386,8 +389,16 @@ class FanRepository:
             'verified': confirmed,
         }
 
+    @staticmethod
+    def _rechazar_si_fan_externo():
+        # Every route below -- a user-writable sysfs file included, which no
+        # root helper sees -- stops here while another program has the fan.
+        if fan_handed_to_external():
+            raise RuntimeError(FAN_EXTERNAL_MESSAGE)
+
     def aplicar_pwm_fan(self, pwm, valor):
         pwm, valor = validate_pwm_request(pwm, valor)
+        self._rechazar_si_fan_externo()
         daemon_helper = self._usar_steamos_fan_daemon_helper()
         game_helper = not daemon_helper and self._usar_steamos_game_helper()
         initial = (
@@ -444,6 +455,7 @@ class FanRepository:
             raise RuntimeError('Invalid PWM channel.') from None
         if pwm < 1 or pwm > 12:
             raise RuntimeError('Invalid PWM channel.')
+        self._rechazar_si_fan_externo()
 
         if self._usar_steamos_game_helper():
             output = self._ejecutar_steamos_game_helper('fan-pwm-auto', pwm, timeout=120)
@@ -578,6 +590,7 @@ class FanRepository:
     def estado_control_fan_sistema(self):
         """Read-only: what the root fan service is doing, with no prompt."""
         snapshot = read_system_fan_control()
+        snapshot['managers'] = running_fan_managers()
         snapshot['available'] = bool(
             self._fan_pwm_packaged_helper_path() is not None
             and detect_init_manager().kind in {'systemd', 'openrc'}
@@ -604,6 +617,28 @@ class FanRepository:
         self._requerir_helper_control_sistema()
         return {'servicio': self._comando_fan_helper('CONTROL DISABLE', timeout=150)}
 
+    def ceder_fan_a_otro_programa(self, ceder):
+        """Hand the fan to another program (True), or take it back (False).
+
+        Nothing is written to the fan either way: the root helper removes the
+        system service, the policy and the duty replayed at boot, and from
+        then on every BC250 writer refuses until the fan is taken back.
+        """
+        self._requerir_helper_control_sistema()
+        linea = 'EXTERNAL ON' if ceder else 'EXTERNAL OFF'
+        try:
+            salida = self._comando_fan_helper(linea, timeout=150)
+        except RuntimeError as error:
+            # A helper from before this command reads the line as a PWM write.
+            if 'invalid literal for int()' in str(error):
+                raise RuntimeError(
+                    'The installed fan helper is older than this application. '
+                    'Reinstall BC250 Control Center to hand the fan to another program.'
+                ) from None
+            raise
+        self.estado_herramientas_cache = None
+        return {'salida': salida, 'external': bool(ceder)}
+
     def exportar_perfiles_fan_decky(self, profiles):
         """Publish the three fan profiles for Decky Quick Access's presets.
 
@@ -611,24 +646,7 @@ class FanRepository:
         metadata writer the GPU and CPU exports use; no fan is touched here,
         and the Decky helper bounds every speed again before it applies one.
         """
-        request = plan_governor_config_request("set-decky-fan-profiles", (list(profiles),))
-        helper = self._governor_config_helper_path()
-        if not helper:
-            raise RuntimeError(
-                "The privileged governor configuration helper is not installed. "
-                "Reinstall BC250 Control Center locally or from its package before exporting."
-            )
-        rc, out, err = self._ejecutar(request.argv(helper), timeout=120)
-        if rc != 0:
-            if "Unsupported governor configuration action" in f"{out}\n{err}":
-                # A helper installed by an older build: every other export
-                # still works, this one needs the matching helper.
-                raise RuntimeError(
-                    "The installed privileged helper is older than this application. "
-                    "Reinstall BC250 Control Center to export fan profiles to Decky."
-                )
-            raise RuntimeError(describe_failure(rc, out, err))
-        return (out or "").strip()
+        return self._exportar_perfiles_decky("set-decky-fan-profiles", profiles)
 
     def _escribir_pwm_auto_con_helper(self, pwm):
         proceso = self._obtener_fan_pwm_helper()
@@ -953,10 +971,6 @@ for line in sys.stdin:
 
 
 
-    def _parece_permiso_denegado(self, out, err):
-        texto = f'{out}\n{err}'.lower()
-        return any(x in texto for x in ['permission denied', 'permiso denegado', 'read-only file system', 'solo lectura'])
-
     def _leer_sensores_nct(self):
         self._buscar_sensores()
         salida = {'chip': '', 'path': '', 'fans': [], 'temps': [], 'pwms': []}
@@ -1066,20 +1080,8 @@ for line in sys.stdin:
             'raw': '\n'.join(line for line in texto.splitlines() if line.startswith(('nct6683 ', 'nct6687 ', 'nct6687d '))),
         }
 
-    def _comando_instalar_nct6687(self):
-        tools_dir = str(self._tool_dir() / 'nct6687d')
-        return self._os_repository().install_fan_pwm_command(tools_dir)
-
     def _comando_instalar_lm_sensors(self):
         return self._os_repository().install_lm_sensors_command()
-
-
-    def _comando_servicio_nct6687_persistente(self):
-        tools_dir = str(self._tool_dir() / 'nct6687d')
-        return self._os_repository().install_fan_persistence_command(tools_dir)
-
-
-
 
 
     def _resumen_fan(self, sensores, modulos):

@@ -32,7 +32,7 @@ def inventory() -> dict:
         if info.st_uid != 0 or info.st_mode & 0o022 or HELPER.is_symlink():
             raise ValueError("System setup helper must be root-owned")
         result = subprocess.run(["/usr/bin/python3", "-I", str(HELPER), "status"],
-                                capture_output=True, text=True, timeout=8, check=True)
+                                capture_output=True, text=True, timeout=20, check=True)
         data = json.loads(result.stdout)
         if data.get("protocol") != 2:
             raise ValueError("Unsupported system setup protocol")
@@ -43,11 +43,11 @@ def inventory() -> dict:
 
 def command(action: str, policy: str = "preserve", ttm_gib: int = 0, uma_size_mb: int = 0,
             takeover_zram: bool = False, target_mount: str = "",
-            kernel_options: tuple[str, ...] = ()) -> str:
+            kernel_options: tuple[str, ...] = (), smt: str = "") -> str:
     if action not in {
         "memory-apply", "acpi-install", "acpi-update", "acpi-uninstall", "acpi-check",
         "telemetry-fix", "telemetry-restore", "vram-read", "vram-apply",
-        "kernel-options-set", "ttm-apply",
+        "kernel-options-set", "ttm-apply", "smt-live",
     }:
         raise ValueError("Unsupported system setup action")
     kernel_options = tuple(kernel_options or ())
@@ -60,6 +60,8 @@ def command(action: str, policy: str = "preserve", ttm_gib: int = 0, uma_size_mb
     ):
         # 2048 MB: the BC-250 documentation warns that Linux does not boot with it.
         raise ValueError("Invalid VRAM setup request")
+    if action == "smt-live" and smt not in {"on", "off"}:
+        raise ValueError("Unsupported SMT action.")
     target_mount = str(target_mount or "")
     if target_mount and not re.fullmatch(r"/[A-Za-z0-9_./-]*", target_mount):
         raise ValueError("Invalid swap target mount")
@@ -75,6 +77,8 @@ def command(action: str, policy: str = "preserve", ttm_gib: int = 0, uma_size_mb
         args = f" --ttm {ttm_gib}"
     elif action == "vram-apply":
         args = f" --uma-size {uma_size_mb}"
+    elif action == "smt-live":
+        args = f" --smt {smt}"
     elif action == "kernel-options-set":
         wanted = ",".join(option for option in KERNEL_OPTIONS if option in kernel_options)
         args = f" --kernel-options {shlex.quote(wanted)}"

@@ -183,7 +183,11 @@ binary_runs() {
   path="$(command -v "$1" 2>/dev/null)" || return 1
   if have ldd; then
     # A static binary prints "not a dynamic executable", which is fine.
-    ! ldd "$path" 2>/dev/null | grep -q 'not found'
+    # Read all of ldd first: under pipefail grep -q closing the pipe early
+    # kills ldd, and the ! turned that into "the binary works".
+    local linked
+    linked="$(ldd "$path" 2>/dev/null || true)"
+    ! grep -q 'not found' <<<"$linked"
     return
   fi
   output="$("$path" --help 2>&1 </dev/null || true)"
@@ -235,7 +239,7 @@ bc250_nct6687_already_usable() {
   if grep -q '^nct6687 ' "$proc_modules" 2>/dev/null; then
     if bc250_running_kernel_replaced "$release"; then
       info "nct6687 is loaded and working in this session; a system update replaced the running kernel ($release)."
-      if have dkms && dkms status nct6687d 2>/dev/null | grep -q 'installed'; then
+      if have dkms && grep -q 'installed' <<<"$(dkms status nct6687d 2>/dev/null || true)"; then
         info "DKMS already builds nct6687 for the installed kernels:"
         dkms status nct6687d 2>/dev/null | sed 's/^/  /'
         info "Reboot into the updated kernel when convenient; nothing needs to be compiled now."
@@ -292,9 +296,9 @@ bc250_kernel_release_from_tree() {
   if [[ -r "$tree/include/config/kernel.release" ]]; then
     IFS= read -r release < "$tree/include/config/kernel.release" || true
   elif [[ -r "$tree/include/generated/utsrelease.h" ]]; then
-    release="$(sed -n 's/^#define[[:space:]]\+UTS_RELEASE[[:space:]]\+"\([^"]*\)".*/\1/p' "$tree/include/generated/utsrelease.h" | head -n 1)"
+    release="$(sed -n 's/^#define[[:space:]]\+UTS_RELEASE[[:space:]]\+"\([^"]*\)".*/\1/p;T;q' "$tree/include/generated/utsrelease.h")"
   elif [[ -r "$tree/include/linux/utsrelease.h" ]]; then
-    release="$(sed -n 's/^#define[[:space:]]\+UTS_RELEASE[[:space:]]\+"\([^"]*\)".*/\1/p' "$tree/include/linux/utsrelease.h" | head -n 1)"
+    release="$(sed -n 's/^#define[[:space:]]\+UTS_RELEASE[[:space:]]\+"\([^"]*\)".*/\1/p;T;q' "$tree/include/linux/utsrelease.h")"
   fi
   printf '%s\n' "$release"
 }

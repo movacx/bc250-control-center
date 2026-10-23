@@ -2,8 +2,9 @@
 """Narrow privileged launcher for the official bc250-memory-temperature patch.
 
 This helper never re-implements the upstream SMU/UMC protocol. It only
-validates that a reviewed, unmodified checkout is present and then executes
-the exact upstream ``patch_smu.py`` with root privileges.
+validates that a reviewed, unmodified checkout is present, copies the exact
+upstream ``patch_smu.py``, what it imports and what it writes into a private
+directory, and executes that copy with root privileges.
 
 Reading is deliberately *not* here: it lives in ``bc250-gddr6-temp-reader``,
 a binary with no write path at all, so the read action can use a cached
@@ -25,10 +26,12 @@ import json
 import os
 import pathlib
 import pwd
+import shutil
 import stat
 import struct
 import subprocess
 import sys
+import tempfile
 import time
 
 REPOSITORY_NAME = "bc250-memory-temperature"
@@ -72,8 +75,9 @@ GOVERNOR_UNIT = "cyan-skillfish-governor-smu.service"
 GOVERNOR_SETTLE_SECONDS = 5.0
 
 #: BC250-Telemetry (github.com/onlinermm/BC250-Telemetry) can install an
-#: optional root service, bc250-memory.service, that patches the SMU with this
-#: same payload at boot and then polls Queue 3 / Message 5 every three seconds.
+#: optional root service, bc250-memory.service, that patches the SMU with the
+#: first version of this payload at boot and then polls Queue 3 / Message 5
+#: every three seconds.
 #: It serialises itself with its own lock file, never with SMN_WINDOW_PATH, so
 #: the two samplers used to run straight into each other: interleaved
 #: index/data writes land in the wrong registers, the payload is handed a chip
@@ -90,12 +94,23 @@ EXTERNAL_COLLECTOR_MARKERS = (
 #: The collector's own rule for its per-boot guard file: anything but a clean
 #: "ready" means an SMU operation was interrupted and its firmware side may
 #: still be running, so it leaves the SMU alone until a power cycle. This
-#: helper follows the same rule. The one exception is a rejection its later
-#: version migrates itself, raised before anything was written.
+#: helper follows the same rule. The exceptions are rejections raised after
+#: reads only, before anything was written: one its later version migrates
+#: itself, and the three it gives when it finds the payload this helper
+#: installs (or one written over its own) instead of the one it bundles.
 EXTERNAL_GUARD_BENIGN = (
     {"state": "ready"},
     {"state": "failed", "error": "unexpected original Q3/5 handler: 0x00000000"},
+    {"state": "failed", "error": "unexpected original Q3/5 handler: 0x0003ab34"},
+    {"state": "failed", "error": "SMU patch changed during this boot; reboot before retrying"},
+    {"state": "failed", "error": "Q3/5 points at an unexpected payload; reboot before retrying"},
 )
+
+#: Hexxeh's bc250_memory driver, built into MastaG's BC-250 kernels and off
+#: by default there. Loaded, it installs the first payload itself and sends
+#: Queue 3 messages from the kernel without the locks above, so this helper
+#: never patches next to it: the reader relays the driver's hwmon readings.
+KERNEL_DRIVER_MODULE = pathlib.Path("/sys/module/bc250_memory")
 
 #: A monitoring session is bounded on purpose. One Polkit prompt buys this
 #: much live sampling and no more: an authenticated root process that samples
@@ -111,12 +126,45 @@ OFFICIAL_ORIGINS = frozenset({
     "https://github.com/pan-Rijovich/bc250-memory-temperature",
     "https://github.com/pan-Rijovich/bc250-memory-temperature.git",
 })
-REVIEWED_REVISION = "b7e6bffcb5d592fc03edde375b7598ddc79aa846"
+REVIEWED_REVISION = "4a2221d1da387fa2e738bb9368b39594e242ba4b"
 PATCH_SCRIPT = "patch_smu.py"
 PAYLOAD_FILE = "SMUPayload.bin"
+#: patch_smu.py takes the handler addresses from here, not from constants.
+SYMBOLS_FILE = "SMUPayload.symbols"
 REVIEWED_SCRIPT_SHA256 = {
-    PATCH_SCRIPT: "c6c0b17f3f2dad415f7814035a1918331068ab1827269a97254df0ddb554ca6e",
+    PATCH_SCRIPT: "04e69ef1e4c1ec3051d97ed8c3cb68eb31b43c2be3cdb921f1d3957f99aa32ed",
 }
+#: What patch_smu.py imports from its own directory: ``unlock`` and every file
+#: of the ``bc250_smu`` package (the reader pins the same package files).
+REVIEWED_MODULE_SHA256 = {
+    "unlock.py": "86bc1aaa3265c7a62d28570953e6a47047a6aaa95661c6c649a5822a4165e3b4",
+    "bc250_smu/__init__.py": "ad87f03cc35aaa0da4e75d6e45bd56bc5baa7c1e680a25b528c3c6fce480884a",
+    "bc250_smu/api.py": "7fe9beed4fa12bb8625096859ff32e8ee64ee8b9cb1265f1546b5cc7127422fc",
+    "bc250_smu/api_q0.py": "b1e0afa14b2a75a73d30308019ee7199733a59ad946210fae91ee2d675256ad1",
+    "bc250_smu/api_q1.py": "811de63b7e3c3eb23808971ae7c6b0cc661cc52fc0d9c9b7a055aa25cfb9b31a",
+    "bc250_smu/api_q2.py": "cc3db581a1c8136664d4520d6d96c35449c768df621eea3c3a1c5101fa612e78",
+    "bc250_smu/api_q3.py": "e5f5021643d866c78a9117e15f7f085edcd19173d1e26c5282ff7b8cc660e7c3",
+    "bc250_smu/api_q4.py": "011baa51294b043b7e636b3e7e441184061fe9a37534125330e28afc6fc5d2ff",
+    "bc250_smu/codec.py": "bb747622598b92ff43f10583ef93803bda4d6ae59b2480e74fc2abf6751db116",
+    "bc250_smu/errors.py": "eec00a893b809d64f176cfd375179be84643221628b571ea5b5a3bc0e753d7c4",
+    "bc250_smu/mailbox.py": "2efaaa10f2d7285c2587c892f9633000ea400c93d8492d4fbf7ed1e54de3622c",
+    "bc250_smu/primitives.py": "8ea7262d4b548933530889858d40fac5eeb3aaaa42dbb167e4bdeaec36b6f50b",
+    "bc250_smu/transport.py": "8030084a9aae7c20e8ea787fca72f2a2bc75d9c2305d62047d6f0a5b2fe2d39d",
+}
+#: What patch_smu.py writes into SMU RAM, and where it points Queue 3.
+REVIEWED_ARTIFACT_SHA256 = {
+    PAYLOAD_FILE: "32ab902bb07a5a00cdb54f8686b8944fed8cb30abf394c395d5e8d421f756529",
+    SYMBOLS_FILE: "16c3baadae4a6790c315c71107e7ca9343dedd0d624d5bdaa507dc00ffe655a1",
+}
+#: Where the private copy of all of the above is made, and what the script
+#: actually runs from (see ``staged_checkout``).
+STAGING_PARENT = "/run"
+#: No reviewed file comes close; anything bigger is not one of them.
+STAGED_FILE_MAX_BYTES = 1 << 20
+#: patch_smu.py refuses to write over a payload that is already installed
+#: unless it is given this. It is passed for one case only: the reader found
+#: the first payload, byte for byte, and nothing else in the payload area.
+FORCE_FLAG = "-f"
 
 #: The payload writes fixed SMU addresses that are only correct for the board
 #: firmware it was built against. The upstream README is explicit: "Do not use
@@ -461,51 +509,89 @@ def _validate_repository(raw_path: str, uid: int, gid: int, home: pathlib.Path) 
     return repository
 
 
-def _open_verified_script(repository: pathlib.Path, name: str, uid: int, gid: int) -> int:
-    """Open one reviewed script by fd, after checking ownership and content hash."""
-    script = repository / name
-    if script.is_symlink() or not script.is_file():
-        raise RuntimeError(f"The official {name} script was not found.")
-
-    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
-    fd = os.open(script, flags)
-    metadata = os.fstat(fd)
+def _require_user_owned(metadata: os.stat_result, name: str, uid: int) -> None:
+    """The same per-file ownership guard the other helpers use."""
     if metadata.st_uid != uid or metadata.st_mode & 0o022:
-        os.close(fd)
         raise RuntimeError(
             f"{name} must belong to the desktop user and not be writable by group or others."
         )
-    working_bytes = os.read(fd, metadata.st_size + 1)
 
-    git = [
-        "/usr/bin/git",
-        "-c", f"safe.directory={repository}",
-        "-C", str(repository),
-    ]
-    committed = subprocess.run(
-        git + ["show", f"{REVIEWED_REVISION}:{name}"],
-        capture_output=True,
-        check=False,
-        timeout=15,
-        user=uid,
-        group=gid,
-        env={
-            "PATH": "/usr/bin:/bin", "LANG": "C", "LC_ALL": "C",
-            "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_NOSYSTEM": "1",
-        },
-    )
-    if committed.returncode != 0:
-        os.close(fd)
-        raise RuntimeError(f"The committed {name} could not be read.")
 
-    expected = REVIEWED_SCRIPT_SHA256[name]
-    working_hash = hashlib.sha256(working_bytes).hexdigest()
-    committed_hash = hashlib.sha256(committed.stdout).hexdigest()
-    if working_hash != expected or committed_hash != expected:
-        os.close(fd)
-        raise RuntimeError(f"The opened {name} does not match the independently reviewed payload.")
-    os.lseek(fd, 0, os.SEEK_SET)
-    return fd
+def _read_checkout_file(root_fd: int, name: str, uid: int) -> bytes:
+    """One file of the checkout, reached through no symbolic link at any level.
+
+    ``O_NONBLOCK`` keeps a FIFO left in a file's place from hanging a root
+    process at ``open``; it changes nothing for a regular file.
+    """
+    flags = os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW | os.O_NONBLOCK
+    *directories, leaf = name.split("/")
+    opened: list[int] = []
+    try:
+        parent = root_fd
+        for directory in directories:
+            parent = os.open(directory, flags | os.O_DIRECTORY, dir_fd=parent)
+            opened.append(parent)
+            _require_user_owned(os.fstat(parent), directory, uid)
+        fd = os.open(leaf, flags, dir_fd=parent)
+        opened.append(fd)
+        metadata = os.fstat(fd)
+        if not stat.S_ISREG(metadata.st_mode) or metadata.st_size > STAGED_FILE_MAX_BYTES:
+            raise RuntimeError(f"{name} in the reviewed checkout is not a regular file.")
+        _require_user_owned(metadata, name, uid)
+        return os.read(fd, metadata.st_size + 1)
+    except OSError as error:
+        raise RuntimeError(
+            f"{name} was not found in the reviewed checkout, or is behind a symbolic link."
+        ) from error
+    finally:
+        for fd in reversed(opened):
+            os.close(fd)
+
+
+@contextlib.contextmanager
+def staged_checkout(repository: pathlib.Path, uid: int, reviewed: dict[str, str]):
+    """Yield a private copy of the ``reviewed`` files, each one its reviewed bytes.
+
+    The checkout belongs to the desktop user, so whatever was validated there
+    holds only until that user's next write. An open fd does not change that:
+    it pins the inode, and the owner can still rewrite its bytes in place.
+    patch_smu.py then imports ``unlock`` and ``bc250_smu`` and reads the
+    payload by path, from its own directory. Nor does a clean ``git status``
+    mean only reviewed code is there: upstream ignores ``__pycache__``, and
+    git ignores whatever ``.git/info/exclude`` names. So root takes nothing
+    from the checkout but bytes: each file is read once, compared with its
+    pinned SHA-256 and written into a fresh directory only root can enter.
+    The script runs from there, and the directory is removed on the way out.
+    """
+    staging = pathlib.Path(tempfile.mkdtemp(prefix="bc250-gddr6-patch-", dir=STAGING_PARENT))
+    try:
+        try:
+            root_fd = os.open(
+                repository, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
+            )
+        except OSError as error:
+            raise RuntimeError("The reviewed checkout could not be opened.") from error
+        try:
+            for name, expected in reviewed.items():
+                content = _read_checkout_file(root_fd, name, uid)
+                if hashlib.sha256(content).hexdigest() != expected:
+                    raise RuntimeError(
+                        f"{name} does not match the independently reviewed payload."
+                    )
+                target = staging / name
+                target.parent.mkdir(mode=0o700, exist_ok=True)
+                fd = os.open(
+                    target,
+                    os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC,
+                    0o600,
+                )
+                with open(fd, "wb") as handle:
+                    handle.write(content)
+        finally:
+            os.close(root_fd)
+        yield staging
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
 
 
 def _trusted_self() -> bool:
@@ -528,9 +614,67 @@ def _trusted_self() -> bool:
     return True
 
 
+def _reviewed_files() -> dict[str, str]:
+    """Everything patch_smu.py runs, imports or reads, with its pinned SHA-256."""
+    return {**REVIEWED_SCRIPT_SHA256, **REVIEWED_MODULE_SHA256, **REVIEWED_ARTIFACT_SHA256}
+
+
+def _patch_status(repository: pathlib.Path, uid: int, *, ignore_governor: bool) -> dict:
+    """What the reader finds installed, before deciding how to patch."""
+    return _read_once(
+        _installed_reader(), repository, uid, "status", ignore_governor=ignore_governor
+    )
+
+
+def kernel_driver_loaded(module: pathlib.Path | None = None) -> bool:
+    """Whether the kernel's own bc250_memory driver owns the SMU patch."""
+    return (module or KERNEL_DRIVER_MODULE).is_dir()
+
+
+def _patch_arguments(status: dict) -> tuple[str, ...] | None:
+    """patch_smu.py's arguments for what is installed, or None: nothing to do.
+
+    Raises when patching must not be attempted at all.
+    """
+    if status.get("kernel_driver"):
+        return None
+    if status.get("external_collector"):
+        raise ExternalCollectorActive("BC250-Telemetry's memory collector is sampling the SMU.")
+    if status.get("deferred"):
+        raise RuntimeError(
+            "GDDR6_GOVERNOR_UNSETTLED: the GPU governor is "
+            f"{status.get('governor_state') or 'starting'} and uses the SMU queue this "
+            "patch goes through while it does. Try again once it is running."
+        )
+    installed = str(status.get("payload") or "")
+    if installed == "unknown":
+        raise RuntimeError(
+            "GDDR6_PATCH_UNKNOWN: Queue 3 already points into the payload area, but "
+            "not at a payload this version recognises (or one that did not finish "
+            "installing). Power the board off completely before trying again."
+        )
+    if installed == "current" or status.get("patch_active"):
+        # The reviewed payload, or the first one kept for BC250-Telemetry.
+        return None
+    # The first payload waits for a chip with no time limit; the reviewed one
+    # replaces it under both locks, so no message can reach it mid-write.
+    return (FORCE_FLAG,) if installed == "legacy" else ()
+
+
 def _do_apply(
-    repository: pathlib.Path, uid: int, gid: int, *, ignore_governor: bool = False
+    repository: pathlib.Path,
+    uid: int,
+    gid: int,
+    *,
+    ignore_governor: bool = False,
+    status: dict | None = None,
 ) -> int:
+    if kernel_driver_loaded():
+        print(
+            "The kernel's bc250_memory driver installs and reads the SMU patch "
+            "itself; Control Center reads its sensors instead of patching."
+        )
+        return 0
     detected = bios_version()
     if detected.strip().lower() not in SUPPORTED_BIOS_VERSIONS:
         raise RuntimeError(
@@ -538,57 +682,56 @@ def _do_apply(
             f"firmware P3.0; this board reports {detected or 'an unknown version'}. "
             "Writing it here could place the patch at the wrong addresses."
         )
-    payload = repository / PAYLOAD_FILE
-    if payload.is_symlink() or not payload.is_file():
-        raise RuntimeError(f"{PAYLOAD_FILE} was not found in the reviewed checkout.")
-    metadata = payload.stat(follow_symlinks=False)
-    if metadata.st_uid != uid or metadata.st_mode & 0o022:
-        raise RuntimeError(f"{PAYLOAD_FILE} must belong to the desktop user and not be group/other writable.")
-
-    script_fd = _open_verified_script(repository, PATCH_SCRIPT, uid, gid)
     try:
-        # Held across the whole patch run: the payload is written one 32-bit
-        # word at a time, and another SMU client redirecting the window
-        # mid-write would scatter it across the wrong addresses.
-        with external_collector_lock(), smn_window_lock():
-            # The user's manual override (Settings) skips only this check;
-            # both locks above are still held for the whole patch run.
-            governor = "" if ignore_governor else governor_unsettled()
-            if governor:
-                raise RuntimeError(
-                    f"GDDR6_GOVERNOR_UNSETTLED: the GPU governor is {governor} and uses "
-                    "the SMU queue this patch goes through while it does. Try again "
-                    "once it is running."
+        with staged_checkout(repository, uid, _reviewed_files()) as staging:
+            if status is None:
+                status = _patch_status(repository, uid, ignore_governor=ignore_governor)
+            arguments = _patch_arguments(status)
+            if arguments is None:
+                print("The runtime SMU patch is already active for this boot.")
+                return 0
+            # Held across the whole patch run: the payload is written one 32-bit
+            # word at a time, and another SMU client redirecting the window
+            # mid-write would scatter it across the wrong addresses.
+            with external_collector_lock(), smn_window_lock():
+                # The user's manual override (Settings) skips only this check;
+                # both locks above are still held for the whole patch run.
+                governor = "" if ignore_governor else governor_unsettled()
+                if governor:
+                    raise RuntimeError(
+                        f"GDDR6_GOVERNOR_UNSETTLED: the GPU governor is {governor} and uses "
+                        "the SMU queue this patch goes through while it does. Try again "
+                        "once it is running."
+                    )
+                # The staged copy, by path: patch_smu.py finds unlock,
+                # bc250_smu and the payload next to its own __file__. -I keeps
+                # every other directory off sys.path, so nothing outside the
+                # copy can stand in for a module it imports.
+                result = subprocess.run(
+                    ["/usr/bin/python3", "-I", str(staging / PATCH_SCRIPT), *arguments],
+                    text=True,
+                    capture_output=True,
+                    check=False,
+                    timeout=30,
+                    cwd=str(staging),
+                    env={
+                        "PATH": "/usr/sbin:/usr/bin:/sbin:/bin",
+                        "LANG": "C", "LC_ALL": "C",
+                    },
                 )
-            result = subprocess.run(
-                ["/usr/bin/python3", f"/proc/self/fd/{script_fd}"],
-                text=True,
-                capture_output=True,
-                check=False,
-                timeout=30,
-                pass_fds=(script_fd,),
-                cwd=str(repository),
-                env={
-                    "PATH": "/usr/sbin:/usr/bin:/sbin:/bin",
-                    "LANG": "C", "LC_ALL": "C",
-                    "PYTHONPATH": str(repository),
-                },
-            )
     except ExternalCollectorActive:
         raise RuntimeError(
             "GDDR6_EXTERNAL_COLLECTOR: BC250-Telemetry's memory collector already "
             "patched the SMU and is reading these chips. Control Center shows its "
             "readings instead of patching again."
         ) from None
-    finally:
-        os.close(script_fd)
     if result.stdout:
         print(result.stdout.rstrip())
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or "The official patch_smu.py tool failed.")
     print(
         "Runtime SMU patch applied. This lives in volatile SMU RAM only; a full "
-        "power cycle restores the factory Queue 3 / Message 5 handler."
+        "power cycle restores the factory Queue 3 handlers."
     )
     return 0
 
@@ -679,7 +822,7 @@ def _do_monitor(
         and not status.get("deferred")
         and not status.get("patch_active")
     ):
-        _do_apply(repository, uid, gid, ignore_governor=ignore_governor)
+        _do_apply(repository, uid, gid, ignore_governor=ignore_governor, status=status)
 
     deadline = time.monotonic() + max(0.0, float(seconds))
     while True:
@@ -695,6 +838,15 @@ def _do_monitor(
         ):
             # The patch went away underneath us; sampling cannot recover.
             break
+        if sample.get("blocked_reason") == "GDDR6_NO_CHIP_ANSWERED":
+            # Every chip timed out. Each one held the SMU for the payload's
+            # whole wait, so stop asking rather than repeat that every few
+            # seconds; the user can start again.
+            raise RuntimeError(
+                "GDDR6_NO_CHIP_ANSWERED: no memory chip answered, so live monitoring "
+                "stopped. Try again later; if it keeps happening, power the board off "
+                "completely."
+            )
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             break
@@ -735,11 +887,14 @@ def main(argv: list[str]) -> int:
             )
     if not _bc250_identity_present():
         raise RuntimeError("AMD BC-250 hardware identity was not detected.")
-    if not pathlib.Path("/usr/bin/git").is_file():
-        raise RuntimeError("git is required to validate the official upstream clone.")
-
     uid, gid, home = _invoking_user()
-    repository = _validate_repository(argv[2], uid, gid, home)
+    if kernel_driver_loaded():
+        # Nothing of the checkout is imported or run: the kernel reads.
+        repository = pathlib.Path(argv[2])
+    else:
+        if not pathlib.Path("/usr/bin/git").is_file():
+            raise RuntimeError("git is required to validate the official upstream clone.")
+        repository = _validate_repository(argv[2], uid, gid, home)
 
     if action == "monitor":
         return _do_monitor(

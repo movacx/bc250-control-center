@@ -2,27 +2,24 @@
 
 from __future__ import annotations
 
+import re
 import shlex
 import textwrap
 from collections.abc import Iterable, Mapping
 from pathlib import Path
 
 from PyQt6.QtCore import (
-    QEasingCurve,
     QEvent,
     QPoint,
     QPointF,
-    QPropertyAnimation,
     QRectF,
-    QSequentialAnimationGroup,
     QSize,
     Qt,
     QTimer,
-    QVariantAnimation,
     pyqtSignal,
     pyqtSlot,
 )
-from PyQt6.QtGui import QColor, QIcon, QPainter, QPainterPath, QPen, QPixmap, QPolygonF
+from PyQt6.QtGui import QColor, QPainter, QPainterPath, QPen, QPixmap
 from PyQt6.QtWidgets import (
     QAbstractButton,
     QApplication,
@@ -35,7 +32,7 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QProgressBar,
+    QMenu,
     QScrollArea,
     QSizePolicy,
     QToolButton,
@@ -45,32 +42,25 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtWidgets import QPushButton as IconButton
 
-from bc250cc.infrastructure.bazzite_async_compute import BAZZITE_ASYNC_COMPUTE_ICD
-from bc250cc.infrastructure.system_setup import CU_UNLOCK_OPTION, CU_UNLOCK_THERMAL_NOTE
+from bc250cc.infrastructure.system_setup import CU_UNLOCK_OPTION
 from bc250cc.infrastructure.terminal_repository import TerminalRepository
 
 from .. import theme
-from ..core.feature_visibility import (
-    FSR4_UI_ENABLED,
-    GFX1013_FSR4_UI_ENABLED,
-    HELIXSR_UI_ENABLED,
-)
-from ..core.gfx1013_presenter import present_gfx1013, present_radv_route
 from ..core.preferences import application_settings
 from ..i18n import tr, tr_format
 from .buttons import WrappingButton as QPushButton
-from .dashboard_instruments import HeadingLabel, Reading, ReadingGroup
+from .dashboard_instruments import HeadingLabel
 from .page_widgets import SectionCard
-from .responsive import clear_grid
+from .style_state import repolish
 from .system_setup_controls import (
-    VRAM_SIZE_PRESETS_MB,
     bazzite_ui_preview_enabled,
     is_bazzite_host,
     is_steamos_host,
     update_memory_controls,
-    vram_size_label,
 )
-from .widgets import ICON_DIR, IconBadge, InfoDialog, PillLabel, apply_shadow, icon
+from .wheel_guard import GuardedComboBox
+from .widgets import IconBadge, InfoDialog, PillLabel
+from .widgets import icon as theme_icon
 
 
 def _label(text: str, property_name: str, *, wrap: bool = True) -> QLabel:
@@ -341,17 +331,8 @@ DECKY_PREVIEW_IMAGE = (
 )
 
 
-class _ClickOnlyComboBox(QComboBox):
-    """Do not let incidental scrolling change a saved compatibility choice."""
-
-    def wheelEvent(self, event) -> None:  # noqa: N802 - Qt API name
-        # Let the parent scroll area receive the wheel event when the pointer
-        # merely crosses this control.  Selecting remains an explicit click.
-        event.ignore()
-
-
 class _DeckyScreenshotDialog(QDialog):
-    """Static Decky screenshot preview; the older interactive overlay is retained."""
+    """Static Decky screenshot preview."""
 
     def __init__(self, parent: QWidget) -> None:
         super().__init__(parent)
@@ -474,16 +455,6 @@ GDDR6_HOT_C = 95.0
 #: The BC-250 carries eight GDDR6 devices, so the strip is a fixed size and
 #: its cells can be built once and refreshed in place.
 GDDR6_CHIP_COUNT = 8
-
-
-def gddr6_tone(temperature: float | None) -> str:
-    if temperature is None:
-        return "gray"
-    if temperature >= GDDR6_HOT_C:
-        return "red"
-    if temperature >= GDDR6_WARM_C:
-        return "orange"
-    return "green"
 
 
 class _MemoryChipCell(QFrame):
@@ -917,8 +888,89 @@ class PreparationComponentCard(QFrame):
         # over, on every five-second dashboard tick, and changed nothing.
 
 
+#: FSR4 states in which OptiScaler (OptiScaler Client's) is in the game.
+_OPTISCALER_IN_GAME = frozenset({"needs-launch-option", "ready", "other-launcher", "unknown-adapter"})
+
+
+#: OptiScaler Client's record per state, when the game table has no FSR4
+#: reading of its own (the client is not installed): (text, tone).
+_FSR4_RECORD_CELL = {
+    "intact": ("OptiScaler installed", ""),
+    "partial": ("OptiScaler installed", ""),
+    "removed": ("Record left", "orange"),
+    "changed": ("Check the files", "orange"),
+    "helixsr": ("OptiScaler installed", ""),
+    "pending": ("Interrupted", "orange"),
+    "interrupted": ("Interrupted", "orange"),
+    "backup-broken": ("Check the files", "orange"),
+    "unsupported": ("Check the files", "orange"),
+}
+
+
+def _undo_rows(row_for, installations: Iterable[Mapping], backups: Iterable[Mapping]) -> None:
+    """What OptiScaler Client recorded per game, and Control Center's backups.
+
+    Any game the client recorded gets "Remove OptiScaler, keep a backup",
+    whichever way it was added; a game whose files are already gone gets
+    "Clear the client's record", which is what keeps the client from
+    installing it again. The newest backup of a game the client no longer
+    records gets "Put OptiScaler back".
+    """
+    copy = PreparationSidebar._FSR4_UNDO_COPY
+    recorded: set[str] = set()
+    for record in installations:
+        state = str(record.get("state") or "unsupported")
+        key = str(record.get("key") or "")
+        if state == "missing" or not key:
+            continue  # the game is gone; nothing in the table to act on
+        appid = str(record.get("appid") or "")
+        row = row_for(appid, str(record.get("name") or appid))
+        recorded.add(appid or row["name"])
+        row["fsr4_recorded"] = state != "removed"
+        if state == "interrupted":
+            # Control Center's own removal was cut short: its backup goes back first.
+            action = ("Put OptiScaler back", f"fsr4_backup_restore:{record.get('backup')}", True)
+        else:
+            label = "Clear the client's record" if state == "removed" else "Remove OptiScaler, keep a backup"
+            action = (label, f"fsr4_undo:{key}", bool(record.get("removable")))
+        note = tr(copy.get(state, copy["unsupported"]))
+        linked = str(record.get("linked_path") or "")
+        if linked and record.get("removable"):
+            note = f"{tr_format(copy['linked'], link=linked)} {note}"
+        cell = row["fsr4"]
+        if cell is None or state in {"removed", "interrupted"}:
+            text, tone = _FSR4_RECORD_CELL.get(state, _FSR4_RECORD_CELL["unsupported"])
+            row["fsr4"] = (text, tone, note, (*(cell[3] if cell else ()), action))
+        else:
+            row["fsr4"] = (cell[0], cell[1], f"{cell[2]} {note}", (*cell[3], action))
+    for backup in backups:
+        appid = str(backup.get("appid") or "")
+        name = str(backup.get("name") or appid)
+        # An interrupted one too: cut short at the very end, it holds the record.
+        if (appid or name) in recorded or backup.get("state") not in {"ready", "interrupted"}:
+            continue
+        recorded.add(appid or name)
+        row = row_for(appid, name)
+        note = tr_format(copy["backup"], date=str(backup.get("created") or "")[:10],
+                         path=str(backup.get("path") or ""))
+        action = ("Put OptiScaler back", f"fsr4_backup_restore:{backup.get('id')}", True)
+        cell = row["fsr4"]
+        if cell is None:
+            row["fsr4"] = ("In a backup", "", note, (action,))
+        else:
+            row["fsr4"] = (cell[0], cell[1], f"{cell[2]} {note}", (*cell[3], action))
+
+
 def game_matrix_rows(
-    helixsr_games: list[Mapping], fsr4_games: list[Mapping], *, helixsr_ready: bool
+    helixsr_games: list[Mapping],
+    fsr4_games: list[Mapping],
+    *,
+    helixsr_ready: bool,
+    scaler_games: Iterable[Mapping] = (),
+    scaler_ready: bool = False,
+    fg_ready: bool = False,
+    fsr4_installations: Iterable[Mapping] = (),
+    fsr4_backups: Iterable[Mapping] = (),
 ) -> list[dict]:
     """One row per Steam game, with what HelixSR and FSR4 each do in it.
 
@@ -1012,6 +1064,50 @@ def game_matrix_rows(
         if state == "needs-launch-option" and game.get("steam"):
             actions = (("Add FSR4 to Steam", f"fsr4_steam_option:{appid}", True),)
         row["fsr4"] = (text, tone, tooltip, actions)
+        row["fsr4_state"] = state
+    _undo_rows(row_for, fsr4_installations, fsr4_backups)
+    scaler_copy = PreparationSidebar._HELIXSR_SCALER_COPY
+    for game in scaler_games:
+        appid = str(game.get("appid") or "")
+        state = str(game.get("state") or "available")
+        if not appid or (state == "available" and not scaler_ready):
+            continue
+        row = row_for(appid, str(game.get("name") or appid))
+        remove = ("Remove HelixSR Scaler", f"helixsr_scaler_remove:{appid}", True)
+        if state == "installed":
+            actions: list[tuple[str, str, bool]] = []
+            text, tone, copy = "Active via HelixSR Scaler", "green", scaler_copy["installed"]
+            if game.get("outdated"):
+                # Still working with the release it was given; one click
+                # brings it the installed one, keeping this one to go back to.
+                text, tone = ("Update available" if game.get("older", True) else "Other version"), "orange"
+                copy = tr_format(scaler_copy["outdated"], version=str(game.get("version") or "?"))
+                actions.append(("Update HelixSR", f"helixsr_scaler_update:{appid}", scaler_ready))
+            if game.get("frame_generation"):
+                actions.append(("Turn off frame generation", f"helixsr_scaler_fg_off:{appid}", True))
+            elif game.get("fg_possible") is not False:
+                # False: HelixSR's bridge found no DLSS Frame Generation in the
+                # game, nothing to switch on. None: it could not tell, and
+                # refuses on its own if not.
+                actions.append(("Turn on frame generation", f"helixsr_scaler_fg_on:{appid}", fg_ready))
+            if game.get("previous"):
+                actions.append(("Go back to the previous version", f"helixsr_scaler_rollback:{appid}", True))
+            row["helixsr"] = (text, tone, copy, (*actions, remove))
+            continue
+        if state in {"restored", "missing"}:
+            text = "HelixSR Scaler changed" if state == "restored" else "Game not found"
+            row["helixsr"] = (text, "orange", scaler_copy[state], (remove,))
+            continue
+        cell = row["helixsr"]
+        # HelixSR is in the game another way, or OptiScaler Client's
+        # OptiScaler is: a game has one of each.
+        if cell and any(label.startswith("Remove") for label, _action, _enabled in cell[3]):
+            continue
+        if (row.get("fsr4_state") in _OPTISCALER_IN_GAME or row.get("fsr4_recorded")
+                or (cell and cell[0] == "Via OptiScaler")):
+            continue
+        add = ("Add HelixSR Scaler", f"helixsr_scaler_install:{appid}", True)
+        row["helixsr"] = (*cell[:3], (*cell[3], add)) if cell else ("", "", scaler_copy["available"], (add,))
 
     def rank(row: dict) -> tuple:
         tones = {cell[1] for cell in (row["helixsr"], row["fsr4"]) if cell}
@@ -1162,15 +1258,23 @@ class PreparationInfoCard(QFrame):
             # A link takes the room it needs and no more, so it does not sit
             # centred in an empty half of the row.
             is_link = bool(button.property("linkAction"))
+            accented = index == 0 and primary_gets_accent
+            # Every state refresh comes through here for every button of
+            # every card; restyling the ones whose look did not change made
+            # switching pages stutter. linkAction is in the key because
+            # update_action sets it just before calling this.
+            look = (is_link, accented, bool(button.property("dangerAction")))
+            if getattr(button, "_bc250_action_look", None) == look:
+                continue
+            button._bc250_action_look = look
             self.actions.setStretchFactor(button, 0 if is_link else 1)
             # The same button swaps between an action and a link as the state
             # changes, so the alignment is set both ways, never left behind.
             self.actions.setAlignment(
                 button, Qt.AlignmentFlag.AlignLeft if is_link else Qt.AlignmentFlag(0)
             )
-            button.setProperty("accented", index == 0 and primary_gets_accent)
-            button.style().unpolish(button)
-            button.style().polish(button)
+            button.setProperty("accented", accented)
+            repolish(button)
 
     def add_action(
         self,
@@ -1290,13 +1394,41 @@ class PreparationInfoCard(QFrame):
         self.scope.show()
 
 
+class _StatTile(QFrame):
+    """One figure of an upscaler card: a small label over its value."""
+
+    def __init__(self, label: str) -> None:
+        super().__init__()
+        self.setProperty("statTile", True)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(14, 2, 14, 2)
+        layout.setSpacing(2)
+        self.label = _label(label, "statLabel", wrap=False)
+        self.value = QLabel("—")
+        self.value.setProperty("statValue", True)
+        self.value.setProperty("tone", "")
+        layout.addWidget(self.label)
+        layout.addWidget(self.value)
+
+    def set_value(self, value: str) -> None:
+        self.value.setText(tr(value))
+
+    def set_tone(self, tone: str) -> None:
+        if self.value.property("tone") != tone:
+            self.setProperty("tone", tone)
+            self.value.setProperty("tone", tone)
+            repolish(self.value)
+
+
 class _UpscalerSection(SectionCard):
     """One upscaler on the Upscaling tab, built like the GPU page's cards.
 
-    A rule in the engine's colour across the top, its release beside its
-    name, its state as readings, a sentence when something is missing and
-    a footer: the other actions on the left, the next step as the blue
-    button on the right. Its games are rows of the shared games table.
+    The head carries the name, the release and the state; the body a few
+    readings, each a label on the left and its value or control on the
+    right; the footer the next step as the one solid button, with what is
+    done rarely (reinstall, rebuild, remove) behind More. Both upscalers'
+    cards are built alike so they line up side by side. Their games are
+    rows of the shared games table.
     """
 
     TONES = {"green": "good", "orange": "warning", "red": "danger"}
@@ -1333,11 +1465,15 @@ class _UpscalerSection(SectionCard):
         title_row.addWidget(self.version, 0, Qt.AlignmentFlag.AlignVCenter)
         title_row.addStretch(1)
         title_box.insertLayout(0, title_row)
-        # The card's title already names the tool: the readings need no heading.
-        self.facts = ReadingGroup("State")
-        self.facts.title.hide()
-        self.facts.layout().setContentsMargins(0, 0, 0, 0)
-        self.rows: dict[str, Reading] = {}
+        self._version_in_header = False
+        # The readings as one strip of small figures, side by side: a card
+        # with two and a card with three stay the same height.
+        self.facts = QFrame()
+        self.facts.setProperty("upscalerStats", True)
+        self._stats = QHBoxLayout(self.facts)
+        self._stats.setContentsMargins(0, 0, 0, 0)
+        self._stats.setSpacing(0)
+        self.rows: dict[str, _StatTile] = {}
         self.body.addWidget(self.facts)
         self.notice = _label("", "fieldHint")
         self.notice.hide()
@@ -1353,35 +1489,127 @@ class _UpscalerSection(SectionCard):
         self.footer.setHorizontalSpacing(8)
         self.footer.setVerticalSpacing(8)
         self.body.addWidget(self.footer_panel)
+        # What is done rarely: listed behind More. The buttons themselves
+        # stay the cards' (text, state, payload), kept out of sight here.
+        self._menu_holder = QWidget(self)
+        self._menu_holder.hide()
+        self._menu_buttons: list[QPushButton] = []
+        self.more_button = QPushButton(tr("More"))
+        self.more_button.setProperty("compactAction", True)
+        self.more_button.setProperty("menuAction", True)
+        self.more_button.setIcon(theme_icon("chevron_down_gray"))
+        self.more_button.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+        self.more_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.more_button.setAccessibleName(tr("More actions"))
+        self.more_button.clicked.connect(self._open_menu)
+        self.more_button.hide()
+
+    def set_header_control(self, control: QWidget) -> None:
+        """A control in the head, before the guide: the version picker. The
+        release then shows there, not again beside the name."""
+        self._header_buttons.insert(0, control)
+        self._version_in_header = True
+        self.version.hide()
+        self._layout_header(force=True)
+
+    def set_status(self, text: str, tone: str = "") -> None:
+        """The state, as the strip's first figure."""
+        if text:
+            self.set_fact("state", "State", text, tone)
+            # Always first, whenever it was set.
+            self._stats.removeWidget(self.rows["state"])
+            self._stats.insertWidget(0, self.rows["state"], 1)
+            self._mark_first()
+        else:
+            self.remove_fact("state")
 
     def set_version(self, version: str) -> None:
         self.version.setText(version)
-        self.version.setVisible(bool(version))
+        self.version.setVisible(bool(version) and not self._version_in_header)
 
     def set_fact(self, key: str, label: str, value: str, tone: str = "") -> None:
-        """A reading of the state group, added the first time it is set."""
+        """A figure of the strip, added the first time it is set."""
         row = self.rows.get(key)
         if row is None:
-            row = self.facts.add(key, label)
-            row.LONGEST_VALUE = 34
+            row = _StatTile(label)
             self.rows[key] = row
+            self._stats.addWidget(row, 1)
         row.set_value(value)
         row.set_tone(self.TONES.get(tone, ""))
+        row.setVisible(True)
+        self._mark_first()
+
+    def remove_fact(self, key: str) -> None:
+        """Hide a figure that no longer applies (it comes back with set_fact)."""
+        row = self.rows.get(key)
+        if row is not None:
+            row.setVisible(False)
+            self._mark_first()
+
+    def _mark_first(self) -> None:
+        """Only the figures after the first are set off by a rule."""
+        first = True
+        for index in range(self._stats.count()):
+            tile = self._stats.itemAt(index).widget()
+            if tile is None or tile.isHidden():
+                continue
+            if tile.property("statFirst") != first:
+                tile.setProperty("statFirst", first)
+                # The first figure lines up with the card's edge, as the footer does.
+                tile.layout().setContentsMargins(0 if first else 14, 2, 14, 2)
+                repolish(tile)
+            first = False
 
     def set_notice(self, text: str) -> None:
         self.notice.setText(tr(text))
         self.notice.setVisible(bool(text))
 
-    def set_actions(self, secondary: list[QPushButton], primary: QPushButton | None) -> None:
-        """The footer: ``secondary`` left to right, ``primary`` at the end."""
+    def set_actions(
+        self,
+        secondary: list[QPushButton],
+        primary: QPushButton | None,
+        more: list[QPushButton] = (),
+    ) -> None:
+        """The footer: More first, then ``secondary``, ``primary`` at the end.
+
+        ``more`` lists buttons whose action is offered in the More menu while
+        they are not hidden; the menu shows their text and runs their click.
+        """
+        self._menu_buttons = list(more)
+        for button in self._menu_buttons:
+            if button.parent() is not self._menu_holder:
+                button.setParent(self._menu_holder)
+            if button.objectName():
+                # A former next step listed in More is an ordinary entry now.
+                button.setObjectName("")
         for button in (*secondary, *([primary] if primary else [])):
             name = "PrimaryAction" if button is primary else ""
             if button.objectName() != name:
                 button.setObjectName(name)
                 button.style().unpolish(button)
                 button.style().polish(button)
-        self._footer_buttons = (list(secondary), primary)
+        self.more_button.setVisible(any(not button.isHidden() for button in self._menu_buttons))
+        self._footer_buttons = ([self.more_button, *secondary], primary)
         self._lay_footer(force=True)
+
+    def _open_menu(self) -> None:
+        """The rare actions, as a menu under More; removals last, set apart."""
+        menu = QMenu(self.more_button)
+        menu.setProperty("upscalingMenu", True)
+        shown = [button for button in self._menu_buttons if not button.isHidden()]
+        plain = [b for b in shown if not b.property("dangerAction")]
+        danger = [b for b in shown if b.property("dangerAction")]
+        for group in (plain, danger):
+            if group and not menu.isEmpty():
+                menu.addSeparator()
+            for button in group:
+                action = menu.addAction(button.text())
+                action.setEnabled(button.isEnabled())
+                action.setToolTip(button.toolTip())
+                action.triggered.connect(lambda _checked=False, source=button: source.click())
+        # Shown, not run: nothing waits on the menu, and it stays referenced.
+        self._menu = menu
+        menu.popup(self.more_button.mapToGlobal(self.more_button.rect().bottomLeft()))
 
     def _lay_footer(self, *, force: bool = False) -> None:
         """One row while it fits; otherwise the next step moves to a row of
@@ -1597,22 +1825,69 @@ class _UpscalingGames(SectionCard):
         box.setSpacing(6)
         box.addStretch(1)
         buttons = []
+        overflow: list[tuple[str, str, bool]] = []
         for tool in getattr(self, "_tools", ("fsr4", "helixsr")):
             for label, action, enabled in (row[tool] or {}).get("actions") or ():
-                button = QPushButton(tr(label))
+                if label.startswith(self.OVERFLOW):
+                    # Removing and going back are rare: behind the row's menu.
+                    overflow.append((label, action, enabled))
+                    continue
+                if label in self.FG_TOGGLE:
+                    # One switch for frame generation, checked while it is on.
+                    # While on it names what pressing it does, so it is not
+                    # read as a state label.
+                    active = label == "Turn off frame generation"
+                    button = QPushButton(tr("Turn off frame generation" if active else "Frame generation"))
+                    button.setProperty("toggleAction", True)
+                    button.setCheckable(True)
+                    button.setChecked(active)
+                    button.setToolTip(tr(label))
+                else:
+                    button = QPushButton(tr(label))
                 button.setProperty("compactAction", True)
-                button.setProperty("dangerAction", label.startswith("Remove HelixSR"))
                 button.setCursor(Qt.CursorShape.PointingHandCursor)
                 button.setEnabled(bool(enabled))
                 button.clicked.connect(
-                    lambda _checked=False, value=action: self.action_requested.emit(
-                        {"action": value, "governor": ""}
-                    )
+                    lambda _checked=False, value=action, source=button: self._row_action(value, source)
                 )
                 box.addWidget(button)
                 buttons.append(button)
+        if overflow:
+            more = QPushButton("⋯")
+            more.setProperty("compactAction", True)
+            more.setProperty("iconAction", True)
+            more.setCursor(Qt.CursorShape.PointingHandCursor)
+            more.setToolTip(tr("More actions"))
+            more.setAccessibleName(tr("More actions"))
+            more.setProperty("rowActions", [label for label, _action, _enabled in overflow])
+            more.clicked.connect(lambda _checked=False, source=more, items=tuple(overflow): self._row_menu(source, items))
+            box.addWidget(more)
+            buttons.append(more)
         self.controls[row["key"]] = buttons
         return host
+
+    #: Row actions offered behind the row's menu rather than as buttons.
+    OVERFLOW = ("Remove", "Go back")
+    #: The two labels of HelixSR Scaler's frame-generation switch.
+    FG_TOGGLE = frozenset({"Turn on frame generation", "Turn off frame generation"})
+
+    def _row_action(self, action: str, source: QPushButton) -> None:
+        if source.isCheckable():
+            # The switch shows the state the game has until the change lands.
+            source.setChecked(not source.isChecked())
+        self.action_requested.emit({"action": action, "governor": ""})
+
+    def _row_menu(self, source: QPushButton, items: tuple) -> None:
+        menu = QMenu(source)
+        menu.setProperty("upscalingMenu", True)
+        for label, action, enabled in items:
+            entry = menu.addAction(tr(label))
+            entry.setEnabled(bool(enabled))
+            entry.triggered.connect(
+                lambda _checked=False, value=action: self.action_requested.emit({"action": value, "governor": ""})
+            )
+        self._menu = menu
+        menu.popup(source.mapToGlobal(source.rect().bottomRight()) - QPoint(menu.sizeHint().width(), 0))
 
     def _filter(self) -> None:
         query = self.search.text().strip().casefold()
@@ -1681,6 +1956,9 @@ class _HelixSRSettings(SectionCard):
             ("Upscaling.Int8", "8-bit network",
              "HelixSR 1.9 and newer. Auto runs most of the network with 8-bit math on GPUs that are fast at it, a little faster with a nearly identical image. Turn it off if something looks wrong.",
              (("auto", "Auto"), ("on", "On"), ("off", "Off"))),
+            ("Upscaling.FastOutput", "Fast output",
+             "HelixSR 2.0 and newer. Faster builds of the network's last step, with an identical image: about 15 to 18% less GPU time at DLAA and Ultra Quality. Turn it off only if a game shows a problem with it.",
+             (("on", "On"), ("off", "Off"))),
         )),
         ("Compatibility", (
             ("Compatibility.WaveSize", "Wave size",
@@ -1704,15 +1982,17 @@ class _HelixSRSettings(SectionCard):
     def __init__(self) -> None:
         super().__init__(
             "HelixSR settings",
-            "Written to helixsr.ini next to HelixSR in every game that has it, and in every game you add it to.",
+            "Saved into every game that has HelixSR, and into every game you add it to. In games with HelixSR Scaler, sharpening is set in its own menu (Insert).",
             icon_name="",
         )
         self.setProperty("helixsrSettings", True)
         self.controls: dict[str, QWidget] = {}
         self._defaults: dict[str, object] = {}
         self._saved: dict[str, object] = {}
-        #: Releases before 1.9 ignore Upscaling.Int8; the row stays but is off.
+        #: Releases before 1.9 ignore Upscaling.Int8, and before 2.0
+        #: Upscaling.FastOutput; their rows stay but are off.
         self._int8_supported = True
+        self._fast_output_supported = True
         # One list, as on the Compatibility tab: a row per group that opens
         # on demand, with what it is set to on the closed row.
         self.groups_box = QFrame()
@@ -1722,6 +2002,10 @@ class _HelixSRSettings(SectionCard):
         groups_layout.setSpacing(0)
         #: Each group's (title row, chevron, body, summary label, fields).
         self.groups: dict[str, tuple[QWidget, QToolButton, QWidget, QLabel, tuple]] = {}
+        self._numbers = set(self.NUMBERS)
+        self._groups_layout = groups_layout
+        self._dynamic_groups: list[str] = []
+        self._release_signature: tuple | None = None
         for index, (title, fields) in enumerate(self.GROUPS):
             groups_layout.addWidget(self._group(title, fields, first=index == 0))
         self.body.addWidget(self.groups_box)
@@ -1809,7 +2093,7 @@ class _HelixSRSettings(SectionCard):
             grid.addWidget(caption, 0, 0)
             grid.addWidget(_label(hint, "settingHint"), 1, 0)
             if options:
-                control = QComboBox()
+                control = GuardedComboBox()
                 control.setFixedWidth(150)
                 for value, text in options:
                     control.addItem(tr(text) if not text[:1].isdigit() else text, value)
@@ -1825,6 +2109,71 @@ class _HelixSRSettings(SectionCard):
             self.controls[name] = control
         self.set_group_expanded(title, False)
         return group
+
+    #: HelixSR Scaler's settings this form can name; others show their key.
+    SCALER_COPY = {
+        "HelixSR.WaveSize": ("Wave size", "The same as above, for games with HelixSR Scaler.", {"auto": "Auto"}),
+        "HelixSR.FGPreset": (
+            "Frame generation quality",
+            "Light mode is NVIDIA's lighter frame generation and runs faster. Full is NVIDIA's full frame generation.",
+            {"c": "Light mode", "full": "Full"},
+        ),
+        "HelixSR.QuickFlow": (
+            "QuickFlow", "Faster frame generation. Only with Full quality.",
+            {"off": "Off", "fast": "Fast", "fastest": "Fastest"},
+        ),
+    }
+
+    def set_release_settings(self, scaler: list, extra: list, *, scaler_games: int) -> None:
+        """The groups the installed release brings: HelixSR Scaler's own
+        settings while a game has it, and any helixsr.ini setting this form
+        does not know yet, as HelixSR's own comment describes it."""
+        scaler = [dict(row) for row in scaler or () if isinstance(row, Mapping)] if scaler_games else []
+        extra = [dict(row) for row in extra or () if isinstance(row, Mapping) and row.get("kind") != "text"]
+        signature = (
+            tuple((row["id"], tuple(row.get("choices") or ())) for row in scaler),
+            tuple((row["id"], row.get("kind"), tuple(row.get("choices") or ())) for row in extra),
+        )
+        if signature == self._release_signature:
+            return
+        self._release_signature = signature
+        for title in self._dynamic_groups:
+            head, _toggle, _body, _summary, fields = self.groups.pop(title)
+            group = head.parentWidget()
+            group.hide()
+            group.setParent(None)
+            group.deleteLater()
+            for name, *_rest in fields:
+                self.controls.pop(name, None)
+                self._numbers.discard(name)
+        self._dynamic_groups = []
+        if scaler:
+            fields = []
+            for row in scaler:
+                key = str(row.get("name") or row["id"]).split(".", 1)[-1]
+                label, hint, names = self.SCALER_COPY.get(str(row.get("name")), (key, "", {}))
+                fields.append((row["id"], label, hint, tuple((c, names.get(c, c)) for c in row["choices"])))
+            self._add_group("HelixSR Scaler", tuple(fields))
+        if extra:
+            fields = []
+            for row in extra:
+                label = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", str(row.get("key") or row["id"]))
+                if row.get("kind") == "bool":
+                    options = ()
+                elif row.get("kind") == "float":
+                    low, high = (float(v) for v in row["choices"])
+                    options = tuple((f"{low + (high - low) * step / 10:g}",) * 2 for step in range(11))
+                    self._numbers.add(row["id"])
+                else:
+                    options = tuple((c, c) for c in row.get("choices") or ())
+                fields.append((row["id"], label, str(row.get("help") or ""), options))
+            self._add_group("Other settings in this release", tuple(fields))
+        if self._saved or self._defaults:
+            self._show({**self._defaults, **self._saved})
+
+    def _add_group(self, title: str, fields: tuple) -> None:
+        self._groups_layout.addWidget(self._group(title, fields))
+        self._dynamic_groups.append(title)
 
     def is_group_expanded(self, title: str) -> bool:
         return not self.groups[title][2].isHidden()
@@ -1859,7 +2208,7 @@ class _HelixSRSettings(SectionCard):
                 values[name] = control.isChecked()
             else:
                 data = control.currentData()
-                values[name] = float(data) if name in self.NUMBERS else data
+                values[name] = float(data) if name in self._numbers else data
         return values
 
     def set_int8_supported(self, supported: bool) -> None:
@@ -1867,6 +2216,13 @@ class _HelixSRSettings(SectionCard):
         supported = bool(supported)
         if supported != self._int8_supported:
             self._int8_supported = supported
+            self._changed()
+
+    def set_fast_output_supported(self, supported: bool) -> None:
+        """Whether the release in use reads Upscaling.FastOutput (2.0 and newer)."""
+        supported = bool(supported)
+        if supported != self._fast_output_supported:
+            self._fast_output_supported = supported
             self._changed()
 
     def set_settings(self, saved: Mapping[str, object], defaults: Mapping[str, object]) -> None:
@@ -1890,9 +2246,9 @@ class _HelixSRSettings(SectionCard):
             if isinstance(control, QCheckBox):
                 control.setChecked(bool(value))
             else:
-                text = f"{float(value):g}" if name in self.NUMBERS else str(value)
+                text = f"{float(value):g}" if name in self._numbers else str(value)
                 index = control.findData(text)
-                if index < 0 and name in self.NUMBERS:
+                if index < 0 and name in self._numbers:
                     # A value saved by hand between two steps stays as it is.
                     control.addItem(f"{float(value):g}", text)
                     index = control.count() - 1
@@ -1937,13 +2293,22 @@ class _HelixSRSettings(SectionCard):
             self.controls[name].setEnabled(in_motion)
         if "Upscaling.Int8" in self.controls:
             self.controls["Upscaling.Int8"].setEnabled(self._int8_supported)
+        if "Upscaling.FastOutput" in self.controls:
+            self.controls["Upscaling.FastOutput"].setEnabled(self._fast_output_supported)
+        # HelixSR Scaler runs QuickFlow only with the full preset.
+        if "Scaler:HelixSR.QuickFlow" in self.controls and "Scaler:HelixSR.FGPreset" in self.controls:
+            self.controls["Scaler:HelixSR.QuickFlow"].setEnabled(values["Scaler:HelixSR.FGPreset"] == "full")
         # The reduction fades in between the two speeds: the start comes first.
         ordered = values["Sharpening.MotionThreshold"] < values["Sharpening.MotionLimit"]
-        changed = bool(self._saved) and values != self._saved
+        # Only the settings on the form count: the saved ones also hold
+        # HelixSR Scaler's while no game has it and its group is not shown.
+        changed = bool(self._saved) and any(values[name] != self._saved.get(name) for name in values)
         self.save_button.setEnabled(changed and ordered)
         if hasattr(self, "reapply_button"):
             self.reapply_button.setEnabled(bool(self._saved) and not changed and self._games_with_helixsr > 0)
-        self.defaults_button.setEnabled(bool(self._defaults) and values != self._defaults)
+        self.defaults_button.setEnabled(
+            bool(self._defaults) and any(values[name] != self._defaults.get(name) for name in values)
+        )
         if not ordered:
             message = "The motion where it starts must be below the motion where it is complete."
         else:
@@ -1954,12 +2319,18 @@ class _HelixSRSettings(SectionCard):
             self._summaries()
 
 
-class PreparationSidebar(QFrame):
+from .preparation_pages import PreparationPagesMixin  # noqa: E402  (needs names defined above, so imported here)
+from .preparation_render import PreparationRenderMixin  # noqa: E402  (needs names defined above, so imported here)
+
+
+class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, QFrame):
     """Compact in-dashboard adaptation of DependencyPreparationDialog."""
 
     prepare_requested = pyqtSignal(object)
     dependency_action_requested = pyqtSignal(object)
     driver_support_requested = pyqtSignal(str)
+    #: The key (TAB_KEYS) of the tab just selected, by a click or by code.
+    tab_selected = pyqtSignal(str)
 
     COMPONENTS = (
         ("runtime", "Base dependencies", "Runtime files and packages."),
@@ -2138,53 +2509,7 @@ class PreparationSidebar(QFrame):
         )
         actions.show()
 
-    def _components_page(self) -> QWidget:
-        page = QWidget()
-        layout = QVBoxLayout(page)
-        layout.setContentsMargins(16, 10, 16, 10)
-        layout.setSpacing(10)
 
-        self.components_host = QWidget()
-        self.components_grid = QGridLayout(self.components_host)
-        self.components_grid.setContentsMargins(0, 0, 0, 0)
-        self.components_grid.setHorizontalSpacing(8)
-        self.components_grid.setVerticalSpacing(8)
-        self.component_cards: dict[str, PreparationComponentCard] = {}
-        for index, (key, title, detail) in enumerate(self.COMPONENTS):
-            card = PreparationComponentCard(key, title, detail)
-            card.setProperty("gamepadHorizontalIndex", index)
-            card.checkbox.toggled.connect(self._sync_components)
-            self.component_cards[key] = card
-        # Mitigations, read-only mode and kernel options are not dependency
-        # preparation. They live on Additional settings > Compatibility; the
-        # Dashboard keeps the panels built (their state is still written) but
-        # inside a holder that is never shown.
-        self._boot_panels = (
-            self._bazzite_mitigations_panel(),
-            self._steamos_readonly_panel(),
-            self._kernel_options_panel(),
-        )
-        self._boot_holder = QWidget()
-        holder_layout = QVBoxLayout(self._boot_holder)
-        holder_layout.setContentsMargins(0, 0, 0, 0)
-        holder_layout.setSpacing(8)
-        for boot_panel in self._boot_panels:
-            holder_layout.addWidget(boot_panel)
-        self._boot_holder.hide()
-        if not self._standalone:
-            layout.addWidget(self._boot_holder)
-        layout.addWidget(self.components_host)
-        layout.addStretch(1)
-        return page
-
-    def _memory_page(self) -> QWidget:
-        page = QWidget()
-        layout = QVBoxLayout(page)
-        layout.setContentsMargins(14, 12, 14, 10)
-        layout.setSpacing(8)
-        layout.addWidget(self._build_memory_panel())
-        layout.addStretch(1)
-        return page
 
     def _memory_summary_tile(self, label: str, value: str) -> QFrame:
         tile = QFrame()
@@ -2213,192 +2538,6 @@ class PreparationSidebar(QFrame):
         layout.addLayout(header)
         return card, layout, header
 
-    def _build_memory_panel(self) -> QFrame:
-        self.memory_panel = QFrame()
-        memory_layout = QVBoxLayout(self.memory_panel)
-        memory_layout.setContentsMargins(0, 0, 0, 0)
-        memory_layout.setSpacing(16)
-
-        panel_header = QHBoxLayout()
-        panel_header.setSpacing(10)
-        header_copy = QVBoxLayout()
-        header_copy.setSpacing(3)
-        header_copy.addWidget(_label("Memory & Swap", "dashboardCardTitle"))
-        self.memory_detail = _label("Not detected", "dashboardCardSubtitle")
-        header_copy.addWidget(self.memory_detail)
-        panel_header.addLayout(header_copy, 1)
-        self.memory_status_button = QPushButton(tr("View detailed status"))
-        self.memory_status_button.setProperty("dashboardCardAction", True)
-        self.memory_status_button.setIcon(icon("terminal_blue"))
-        self.memory_status_button.setToolTip(
-            tr("Opens a full technical report of the current memory and swap state in the built-in terminal.")
-        )
-        self.memory_status_button.clicked.connect(self._show_memory_status_report)
-        panel_header.addWidget(self.memory_status_button, 0, Qt.AlignmentFlag.AlignTop)
-        memory_layout.addLayout(panel_header)
-
-        summary = QGridLayout()
-        summary.setContentsMargins(0, 0, 0, 0)
-        summary.setHorizontalSpacing(10)
-        summary.setVerticalSpacing(10)
-        self.memory_ram_tile = self._memory_summary_tile("Physical RAM", "—")
-        self.memory_zram_tile = self._memory_summary_tile("ZRAM", "—")
-        self.memory_backing_tile = self._memory_summary_tile("Disk swap", "—")
-        self.memory_zswap_tile = self._memory_summary_tile("ZSWAP", "—")
-        for column, tile in enumerate(
-            (
-                self.memory_ram_tile,
-                self.memory_zram_tile,
-                self.memory_backing_tile,
-                self.memory_zswap_tile,
-            )
-        ):
-            summary.addWidget(tile, 0, column)
-            summary.setColumnStretch(column, 1)
-        memory_layout.addLayout(summary)
-
-        # ---- Swap and compression ----
-        swap_card, swap_layout, swap_header = self._memory_card(
-            "memory_green", "green_soft", "Swap and compression"
-        )
-        self.memory_swap_card = swap_card
-        self.memory_scope = PillLabel("Bazzite only", "gray")
-        swap_header.addWidget(self.memory_scope)
-
-        self.memory_option_rows_host = QWidget()
-        self.memory_option_rows_layout = QVBoxLayout(self.memory_option_rows_host)
-        self.memory_option_rows_layout.setContentsMargins(0, 0, 0, 0)
-        self.memory_option_rows_layout.setSpacing(8)
-        self.memory_option_rows: list[_MemoryOptionRow] = []
-        swap_layout.addWidget(self.memory_option_rows_host)
-
-        self.memory_swap_target_label = _label(
-            "Swapfile location", "dashboardMemoryControlLabel"
-        )
-        self.memory_swap_target_combo = QComboBox()
-        self.memory_swap_target_combo.setProperty("dashboardMemoryCombo", True)
-        self.memory_swap_target_combo.addItem(tr("Default (/var/lib)"), "")
-        swap_layout.addWidget(self.memory_swap_target_label)
-        swap_layout.addWidget(self.memory_swap_target_combo)
-        self.memory_swap_target_label.hide()
-        self.memory_swap_target_combo.hide()
-
-        self.memory_zram_warning_frame = QFrame()
-        self.memory_zram_warning_frame.setProperty("dashboardMemoryNote", True)
-        self.memory_zram_warning_frame.setProperty("tone", "orange")
-        warning_row = QHBoxLayout(self.memory_zram_warning_frame)
-        warning_row.setContentsMargins(10, 8, 10, 8)
-        warning_row.setSpacing(8)
-        warning_row.addWidget(IconBadge("warning_orange", "orange_soft", 32))
-        self.memory_zram_warning = _label("", "dashboardMemoryWarning")
-        self.memory_zram_warning.setWordWrap(True)
-        warning_row.addWidget(self.memory_zram_warning, 1)
-        self.memory_zram_warning_frame.hide()
-        swap_layout.addWidget(self.memory_zram_warning_frame)
-
-        usage_row = QHBoxLayout()
-        usage_row.setSpacing(8)
-        self.memory_swap_usage_bar = QProgressBar()
-        self.memory_swap_usage_bar.setProperty("dashboardMemoryUsage", True)
-        self.memory_swap_usage_bar.setTextVisible(False)
-        self.memory_swap_usage_bar.setRange(0, 100)
-        self.memory_swap_usage_bar.setFixedHeight(6)
-        usage_row.addWidget(self.memory_swap_usage_bar, 1)
-        self.memory_swap_usage_label = _label("", "dashboardMemoryDetail", wrap=False)
-        usage_row.addWidget(self.memory_swap_usage_label)
-        self.memory_usage_row = usage_row
-        self.memory_swap_usage_bar.hide()
-        self.memory_swap_usage_label.hide()
-        swap_layout.addLayout(usage_row)
-
-        self.memory_policy_combo = QComboBox()
-        self.memory_policy_combo.setProperty("dashboardMemoryCombo", True)
-        for label, value in (
-            ("Keep Bazzite default (ZRAM)", "current"),
-            ("Recommended · ZRAM + 16 GiB emergency swap", "zram-swap-16"),
-            ("Advanced · ZSWAP + 16 GiB swapfile", "zswap-16"),
-            ("Advanced heavy loads · ZSWAP + 32 GiB swapfile", "zswap-32"),
-        ):
-            self.memory_policy_combo.addItem(tr(label), value)
-        # The combo stays the real, tested source of truth for the selected
-        # policy; _MemoryOptionRow is only its on-screen presentation.
-        self.memory_policy_combo.hide()
-        swap_actions = QHBoxLayout()
-        swap_actions.addStretch(1)
-        self.memory_swap_apply_button = QPushButton(tr("Apply Swap"))
-        self.memory_swap_apply_button.setProperty("dashboardCardAction", True)
-        self.memory_swap_apply_button.clicked.connect(self._request_memory_swap)
-        swap_actions.addWidget(self.memory_swap_apply_button)
-        swap_layout.addLayout(swap_actions)
-        memory_layout.addWidget(swap_card)
-
-        # ---- TTM + VRAM ----
-        gpu_row = QGridLayout()
-        gpu_row.setHorizontalSpacing(16)
-        gpu_row.setVerticalSpacing(16)
-        gpu_row.setColumnStretch(0, 1)
-        gpu_row.setColumnStretch(1, 1)
-
-        ttm_card, ttm_layout, _ttm_header = self._memory_card(
-            "gpu_purple", "purple_soft", "Dynamic GPU Memory Limit (TTM)"
-        )
-        self.memory_ttm_card = ttm_card
-        self.memory_ttm_readout = _label("—", "metricTileValue", wrap=False)
-        ttm_layout.addWidget(self.memory_ttm_readout)
-        # What the next boot will use, from the state Game Mode shares.
-        self.memory_ttm_state = _label("", "dashboardMemoryDetail")
-        ttm_layout.addWidget(self.memory_ttm_state)
-        self.ttm_limit_combo = QComboBox()
-        self.ttm_limit_combo.setProperty("dashboardMemoryCombo", True)
-        self.ttm_limit_combo.addItem(tr("Keep current TTM limit"), 0)
-        self.ttm_limit_combo.addItem(tr("Kernel default (remove BC250 TTM limit)"), -1)
-        for target in (8, 10, 12):
-            self.ttm_limit_combo.addItem(
-                tr_format("Limit GPU allocations to {size} GiB", size=target), target
-            )
-        self.ttm_limit_combo.hide()
-        self.ttm_limit_combo.currentIndexChanged.connect(self._update_ttm_readout)
-        self.memory_ttm_timeline = _AllocationTimeline(self.ttm_limit_combo)
-        ttm_layout.addWidget(self.memory_ttm_timeline)
-        ttm_layout.addWidget(
-            _label(
-                "TTM limits managed GPU pages; it is not a guaranteed VRAM reservation.",
-                "dashboardMemoryDetail",
-            )
-        )
-        self.memory_ttm_apply_button = QPushButton(tr("Apply TTM"))
-        self.memory_ttm_apply_button.setProperty("dashboardCardAction", True)
-        self.memory_ttm_apply_button.clicked.connect(self._request_memory_ttm)
-        ttm_layout.addWidget(self.memory_ttm_apply_button)
-        gpu_row.addWidget(ttm_card, 0, 0)
-
-        vram_card, vram_layout, _vram_header = self._memory_card(
-            "vram_gray", "cyan_soft", "VRAM size (UMA_SIZE)"
-        )
-        self.memory_vram_card = vram_card
-        self.memory_vram_readout = _label("—", "metricTileValue", wrap=False)
-        vram_layout.addWidget(self.memory_vram_readout)
-        self._tools_snapshot: Mapping[str, object] = {}
-        self.vram_size_combo = QComboBox()
-        self.vram_size_combo.setProperty("dashboardMemoryCombo", True)
-        self.vram_size_combo.addItem(tr("Keep current VRAM size"), 0)
-        for target in VRAM_SIZE_PRESETS_MB:
-            self.vram_size_combo.addItem(vram_size_label(target), target)
-        self.vram_size_combo.hide()
-        self.vram_size_combo.currentIndexChanged.connect(self._update_vram_control)
-        self.memory_vram_timeline = _AllocationTimeline(self.vram_size_combo)
-        vram_layout.addWidget(self.memory_vram_timeline)
-        self.vram_apply_button = QPushButton(tr("Apply VRAM"))
-        self.vram_apply_button.setProperty("dashboardCardAction", True)
-        self.vram_apply_button.clicked.connect(self._request_vram_apply)
-        vram_layout.addWidget(self.vram_apply_button)
-        gpu_row.addWidget(vram_card, 0, 1)
-        memory_layout.addLayout(gpu_row)
-
-        self._sync_memory_option_rows()
-        self._update_ttm_readout()
-        self._update_vram_readout()
-        return self.memory_panel
 
     def _sync_memory_option_rows(self) -> None:
         combo = self.memory_policy_combo
@@ -2507,86 +2646,6 @@ class PreparationSidebar(QFrame):
             initial_indent=indent, subsequent_indent=indent,
         ) or [""]
 
-    def _build_memory_status_report(self) -> str:
-        """Compose the human-readable report shown in the embedded terminal.
-
-        Pulled entirely from the state already cached for the on-screen
-        tiles/combos, so opening it never waits on the privileged helper or
-        touches the system — it is read-only by construction.
-        """
-        tools = _mapping(self._tools_snapshot) or _mapping(self._tools)
-        setup = _mapping(tools.get("system_setup"))
-        memory = _mapping(setup.get("memory"))
-        runtime = _mapping(tools.get("memory_runtime"))
-        host_label = "Bazzite" if is_bazzite_host(tools) else tr("Generic Linux host")
-
-        physical = self._report_gib(runtime.get("physical_ram_bytes"), default=tr("unknown"))
-        zram_active = bool(runtime.get("zram_active"))
-        zram_line = (
-            self._report_gib(runtime.get("zram_total_bytes"), default=tr("unknown"))
-            if zram_active else tr("Disabled")
-        )
-        backing_line = tr("Active") if runtime.get("backing_swap_active") else tr("None")
-        zswap_line = tr("Active") if runtime.get("zswap_enabled") is True else tr("Disabled")
-        ttm_bytes = runtime.get("ttm_limit_bytes")
-        ttm_line = (
-            self._report_gib(ttm_bytes, default=tr("unknown"))
-            if isinstance(ttm_bytes, (int, float)) and ttm_bytes
-            else tr("Kernel default (no BC250 limit set)")
-        )
-
-        used_bytes = memory.get("swap_used_bytes")
-        swap_active = bool(memory.get("swap_active"))
-        usage_line = (
-            tr_format(
-                "{used} in use",
-                used=self._report_gib(used_bytes, default=tr("unknown")),
-            )
-            if swap_active and isinstance(used_bytes, (int, float))
-            else tr("Not in use right now")
-        )
-        configured_policy = str(memory.get("configured_policy") or "") or tr("none applied yet")
-        reboot_pending = any(
-            memory.get(key)
-            for key in ("restore_pending", "zram_pending", "zram_restore_pending", "zswap_pending")
-        )
-
-        selected_policy = self.memory_policy_combo.currentText()
-        selected_ttm = self.ttm_limit_combo.currentText()
-        selected_vram = self.vram_size_combo.currentText()
-
-        lines: list[str] = []
-        lines += self._report_banner(tr("BC250 CONTROL CENTER - MEMORY & SWAP STATUS"))
-
-        lines += self._report_heading(tr("Current state"))
-        lines.append(self._report_field(tr("Detected system"), host_label))
-        lines.append(self._report_field(tr("Physical RAM"), physical))
-        lines.append("")
-        lines.append(self._report_field(tr("ZRAM (compressed RAM swap)"), zram_line))
-        lines.append(self._report_field(tr("Disk swap (swapfile on disk)"), backing_line))
-        lines.append(self._report_field(tr("ZSWAP (compressed cache before swap)"), zswap_line))
-        lines.append(self._report_field(tr("Swap usage right now"), usage_line))
-        lines.append("")
-        lines.append(self._report_field(tr("Active swap policy"), tr(configured_policy)))
-        lines.append(self._report_field(tr("GPU memory limit (TTM) applied"), ttm_line))
-        if reboot_pending:
-            lines.append("")
-            lines += self._report_paragraph(
-                tr("[!] A change is saved but needs a REBOOT before it takes full effect.")
-            )
-
-        lines += self._report_heading(tr("Selected in the UI (not applied yet)"))
-        lines.append(self._report_field(tr("Swap option"), selected_policy))
-        lines.append(self._report_field(tr("TTM limit"), selected_ttm))
-        lines.append(self._report_field(tr("VRAM size"), selected_vram))
-        lines.append("")
-        lines += self._report_paragraph(
-            tr(
-                "Nothing above changes anything by itself: press \"Apply Swap\", "
-                "\"Apply TTM\" or \"Apply VRAM\" in the dashboard to actually apply it."
-            )
-        )
-        return "\n".join(lines)
 
     def _show_memory_status_report(self) -> None:
         report = self._build_memory_status_report()
@@ -2730,80 +2789,16 @@ class PreparationSidebar(QFrame):
     #: compute units gives nothing up: it is the BC-250 kernel's own method.
     KERNEL_OPTION_NEUTRAL = frozenset({CU_UNLOCK_OPTION})
 
-    def _kernel_options_panel(self) -> QFrame:
-        """mitigations=off, nosmt and the kernel's CU unlock for mutable distributions.
 
-        Bazzite keeps its own mitigations card, so this panel only appears
-        where the protected helper reports a Limine, GRUB, grubby or SteamOS
-        boot configuration it can manage. SteamOS has no CU unlock row.
-        """
-        panel = QFrame()
-        self.kernel_options_panel = panel
-        panel.setProperty("dashboardMemoryPanel", True)
-        panel.setProperty("dashboardBootPanel", True)
-        panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        root = QVBoxLayout(panel)
-        root.setContentsMargins(12, 10, 12, 10)
-        root.setSpacing(8)
-        root.addWidget(_label("Kernel boot options", "dashboardComponentTitle", wrap=False))
-        detail = _label(
-            "Both apply at the next boot and can be restored here. Disabling mitigations exposes the system to CPU vulnerabilities; disabling SMT leaves one thread per core.",
-            "dashboardMemoryDetail",
+    def _request_smt_live(self) -> None:
+        self.dependency_action_requested.emit(
+            {
+                "action": "smt_live",
+                "governor": "",
+                "selected_components": self.selected_components,
+                "smt_mode": self._smt_live_target,
+            }
         )
-        detail.setWordWrap(True)
-        root.addWidget(detail)
-        self.kernel_option_controls: dict[str, tuple[QLabel, PillLabel, QPushButton]] = {}
-        # Each option is one row: its name, then its state and its action side
-        # by side in two columns of fixed width, so the eye does not cross the
-        # whole panel to connect a state with the button that changes it.
-        grid = QGridLayout()
-        grid.setContentsMargins(0, 2, 0, 0)
-        grid.setHorizontalSpacing(8)
-        grid.setVerticalSpacing(0)
-        grid.setColumnStretch(0, 1)
-        root.addLayout(grid)
-        self.kernel_option_grid = grid
-        self.kernel_option_rows: dict[str, int] = {}
-        self.kernel_option_rules: dict[str, QFrame] = {}
-        for index, (option, title, _disable, _restore) in enumerate(self.KERNEL_OPTION_ROWS):
-            row = index * 2
-            if index:
-                rule = QFrame()
-                rule.setObjectName("ListDivider")
-                rule.setFixedHeight(1)
-                grid.addWidget(rule, row - 1, 0, 1, 3)
-                self.kernel_option_rules[option] = rule
-            name = _label(title, "dashboardComponentTitle", wrap=False)
-            pill = PillLabel("Checking", "gray")
-            pill.setMinimumWidth(self._KERNEL_STATE_WIDTH)
-            button = QPushButton(tr(_disable))
-            button.setProperty("dashboardCardAction", True)
-            button.setMinimumWidth(self._KERNEL_ACTION_WIDTH)
-            button.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
-            button.clicked.connect(lambda _checked=False, value=option: self._request_kernel_option(value))
-            grid.addWidget(name, row, 0, Qt.AlignmentFlag.AlignVCenter)
-            grid.addWidget(pill, row, 1, Qt.AlignmentFlag.AlignVCenter)
-            grid.addWidget(button, row, 2, Qt.AlignmentFlag.AlignVCenter)
-            grid.setRowMinimumHeight(row, self._KERNEL_ROW_HEIGHT)
-            self.kernel_option_rows[option] = row
-            self.kernel_option_controls[option] = (name, pill, button)
-        # Said once, under the rows, and only while the unlock row is shown.
-        self.kernel_cu_note = _label(
-            "The kernel unlocks the compute units itself, so umr and the CU live manager are not needed: turn the live manager's boot service off so only one of them sets the CUs. If your board has a damaged CU pair, not all 40 will work; mask the pair with amdgpu.disable_cu (see the linux-cachyos-bc250 README). Applies at the next boot.",
-            "dashboardMemoryDetail",
-        )
-        self.kernel_cu_note.setWordWrap(True)
-        self.kernel_cu_note.hide()
-        root.addWidget(self.kernel_cu_note)
-        # Power and heat are the real cost of the extra units, so they are said
-        # next to the unlock and not only when it is confirmed.
-        self.kernel_cu_heat = _label(CU_UNLOCK_THERMAL_NOTE, "dashboardMemoryDetail")
-        self.kernel_cu_heat.setWordWrap(True)
-        self.kernel_cu_heat.hide()
-        root.addWidget(self.kernel_cu_heat)
-        self._kernel_options_state: dict[str, object] = {}
-        panel.hide()
-        return panel
 
     def _request_kernel_option(self, option: str) -> None:
         arguments = _mapping(self._kernel_options_state.get("arguments"))
@@ -2876,6 +2871,16 @@ class PreparationSidebar(QFrame):
             button.style().unpolish(button)
             button.style().polish(button)
             button.setEnabled(not item.get("external"))
+        smt = _mapping(state.get("smt"))
+        live = bool(smt.get("supported")) and "nosmt" in allowed
+        self.smt_live_rule.setVisible(live)
+        self.smt_live_row.setVisible(live)
+        if live:
+            is_on = str(smt.get("control") or "") == "on"
+            self._smt_live_target = "off" if is_on else "on"
+            self.smt_live_pill.setText(tr("Enabled" if is_on else "Disabled"))
+            self.smt_live_pill.set_tone("green" if is_on else "orange")
+            self.smt_live_button.setText(tr("Turn SMT off now" if is_on else "Turn SMT on now"))
 
     def _request_steamos_readonly(self) -> None:
         self.dependency_action_requested.emit(
@@ -2905,560 +2910,12 @@ class PreparationSidebar(QFrame):
         )
         self.readonly_button.setEnabled(mode in {"enabled", "disabled"})
 
-    def _compatibility_page(self) -> QWidget:
-        page = QWidget()
-        layout = QVBoxLayout(page)
-        layout.setContentsMargins(14, 12, 14, 10)
-        layout.setSpacing(8)
 
-        self.compatibility_filter_panel = QFrame()
-        self.compatibility_filter_panel.setProperty(
-            "dashboardCompatibilityFilter", True
-        )
-        filter_layout = QHBoxLayout(self.compatibility_filter_panel)
-        filter_layout.setContentsMargins(12, 8, 12, 8)
-        filter_layout.setSpacing(8)
-        filter_layout.addWidget(
-            _label("Show compatibility for", "dashboardCompatibilityLabel", wrap=False)
-        )
-        self.compatibility_filter = _ClickOnlyComboBox()
-        self.compatibility_filter.setProperty("dashboardMemoryCombo", True)
-        self.compatibility_filter.setProperty("gamepadEntry", True)
-        self.compatibility_filter.setMinimumWidth(0)
-        self.compatibility_filter.setSizePolicy(
-            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
-        )
-        self.compatibility_filter.setAccessibleName(
-            tr("Compatibility distribution filter")
-        )
-        self.compatibility_filter.setToolTip(
-            tr(
-                "The detected distribution is selected by default. Your last filter is remembered."
-            )
-        )
-        self.compatibility_filter_entries = (
-            ("Detected system", "detected"),
-            ("All distributions", "all"),
-            ("SteamOS", "steamos"),
-            ("Bazzite", "bazzite"),
-            ("Arch Linux / CachyOS / Manjaro", "arch"),
-            ("Fedora", "fedora"),
-            ("Ubuntu / Debian", "debian"),
-            ("Other distributions", "other"),
-        )
-        for label, identifier in self.compatibility_filter_entries:
-            self.compatibility_filter.addItem(tr(label), identifier)
-        stored_filter = str(
-            self._settings.value("compatibility/distribution_filter", "detected")
-            or "detected"
-        )
-        selected_index = self.compatibility_filter.findData(stored_filter)
-        self.compatibility_filter.setCurrentIndex(max(0, selected_index))
-        self.compatibility_filter.currentIndexChanged.connect(
-            self._compatibility_filter_changed
-        )
-        filter_layout.addWidget(self.compatibility_filter, 1)
-        layout.addWidget(self.compatibility_filter_panel)
-        # The distribution filter stays wired (settings, tests, and the
-        # "detected" default all still go through it) but is not shown: it
-        # sat above every card fighting for attention, and "detected" is
-        # already the right choice for the one system this window is on.
-        self.compatibility_filter_panel.hide()
-        self.acpi_card = PreparationInfoCard(
-            "CPU power management · ACPI",
-            "Upstream CPU idle and frequency tables. The original boot entry remains available for recovery.",
-            scope_text="Validated · Arch / CachyOS / Manjaro",
-            status_text="Not installed",
-        )
-        self.acpi_card.action_requested.connect(self._forward_dependency_action)
-        self.acpi_detail = self.acpi_card.detail
-        self.acpi_status = self.acpi_card.status
-        self.acpi_install_button = self.acpi_card.add_action(
-            "Install correction", {"action": "acpi-install"}
-        )
-        self.acpi_update_button = self.acpi_card.add_action(
-            "Update correction", {"action": "acpi-update"}
-        )
-        self.acpi_remove_button = self.acpi_card.add_action(
-            "Uninstall", {"action": "acpi-uninstall"}, danger=True
-        )
-        self.acpi_check_button = self.acpi_card.add_action(
-            "Check status", {"action": "acpi-status"}
-        )
-        self.acpi_upstream_button = self.acpi_card.add_action(
-            "Open upstream project", {"action": "acpi_upstream"}
-        )
-        self.acpi_install_button.setEnabled(False)
-        self.acpi_update_button.setEnabled(False)
-        self.acpi_update_button.setVisible(False)
-        self.acpi_remove_button.setEnabled(False)
-        layout.addWidget(self.acpi_card)
-        self.cyan_card = PreparationInfoCard(
-            "Cyan Skillfish Governor",
-            "Recommended GPU governor. Supports SMU or patched-kernel controls, selectable load monitoring and D-Bus ranges.",
-            action_text="Install / update",
-            payload={"action": "prepare", "governor": "cyan-skillfish-governor-smu"},
-            secondary_action_text="Uninstall",
-            secondary_payload={
-                "action": "remove",
-                "governor": "cyan-skillfish-governor-smu",
-            },
-            scope_text="Arch · Fedora · Debian/Ubuntu · Bazzite",
-            status_text="Not installed",
-        )
-        self.oberon_card = PreparationInfoCard(
-            "Oberon Governor",
-            "Alternative YAML-based backend. GPU telemetry repair remains a separate compatibility step.",
-            action_text="Install / update",
-            payload={"action": "prepare", "governor": "oberon-governor"},
-            secondary_action_text="Uninstall",
-            secondary_payload={"action": "remove", "governor": "oberon-governor"},
-            scope_text="Alternative backend",
-            status_text="Not installed",
-        )
-        for card in (self.cyan_card, self.oberon_card):
-            card.action_requested.connect(self._forward_dependency_action)
-            layout.addWidget(card)
-        self.gfx_card = PreparationInfoCard(
-            "GFX1013 async compute",
-            "Kernel and Mesa must be matched. The interface enables installation only on a reviewed distribution path.",
-            scope_text="Detecting distribution",
-            status_text="Checking",
-        )
-        self.gfx_primary_button = self.gfx_card.add_action(
-            "Open upstream project", {"action": "gfx1013_upstream", "governor": ""}
-        )
-        self.gfx_secondary_button = self.gfx_card.add_action(
-            "Open upstream project", {"action": "gfx1013_upstream", "governor": ""}
-        )
-        self.gfx_tertiary_button = self.gfx_card.add_action(
-            "Open upstream project", {"action": "gfx1013_upstream", "governor": ""}
-        )
-        self.gfx_quaternary_button = self.gfx_card.add_action(
-            "Open upstream project", {"action": "gfx1013_upstream", "governor": ""}
-        )
-        self.gfx_quinary_button = self.gfx_card.add_action(
-            "Open upstream project",
-            {"action": "gfx1013_upstream", "governor": ""},
-            danger=True,
-        )
-        self.gfx_secondary_button.hide()
-        self.gfx_tertiary_button.hide()
-        self.gfx_tertiary_button.setEnabled(GFX1013_FSR4_UI_ENABLED)
-        self.gfx_quaternary_button.hide()
-        self.gfx_quinary_button.hide()
-        self.gfx_card.primary_button = self.gfx_primary_button
-        self.gfx_card.secondary_button = self.gfx_secondary_button
-        self.gfx_card.action_requested.connect(self._forward_dependency_action)
-        self.steamos_graphics_state = QFrame()
-        self.steamos_graphics_state.setProperty("dashboardCompatibilityState", True)
-        steamos_state_layout = QHBoxLayout(self.steamos_graphics_state)
-        steamos_state_layout.setContentsMargins(9, 6, 9, 6)
-        steamos_state_layout.setSpacing(8)
-        self.steamos_kernel_status = PillLabel("Not installed", "gray")
-        self.steamos_radv_status = PillLabel("Not installed", "gray")
-        self.steamos_fsr4_status = PillLabel("Not installed", "gray")
-        steamos_graphics_rows = [
-            ("Kernel / AMDGPU", self.steamos_kernel_status),
-            ("Mesa / RADV", self.steamos_radv_status),
-        ]
-        if GFX1013_FSR4_UI_ENABLED:
-            steamos_graphics_rows.append(
-                ("FSR4 per game", self.steamos_fsr4_status)
-            )
-        for label, pill in steamos_graphics_rows:
-            steamos_state_layout.addWidget(
-                _label(label, "dashboardCompatibilityLabel", wrap=False)
-            )
-            steamos_state_layout.addWidget(pill)
-        steamos_state_layout.addStretch(1)
-        self.gfx_card.layout().insertWidget(2, self.steamos_graphics_state)
-        self.steamos_graphics_state.hide()
-        self.steamos_fsr4_launch_row = QFrame()
-        self.steamos_fsr4_launch_row.setProperty("fsr4LaunchOption", True)
-        steamos_fsr4_launch_layout = QHBoxLayout(self.steamos_fsr4_launch_row)
-        steamos_fsr4_launch_layout.setContentsMargins(8, 5, 6, 5)
-        steamos_fsr4_launch_layout.setSpacing(7)
-        steamos_fsr4_launch_layout.addWidget(
-            _label("Steam launch option", "dashboardCompatibilityLabel", wrap=False)
-        )
-        steamos_fsr4_launch_layout.addStretch(1)
-        self.steamos_fsr4_copy_button = IconButton("⧉")
-        self.steamos_fsr4_copy_button.setProperty("fsr4LaunchCopy", True)
-        self.steamos_fsr4_copy_button.setFixedSize(30, 30)
-        self.steamos_fsr4_copy_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.steamos_fsr4_copy_button.setAccessibleName(
-            tr("Copy Steam launch option")
-        )
-        self.steamos_fsr4_copy_button.setToolTip(tr("Copy Steam launch option"))
-        self.steamos_fsr4_copy_button.clicked.connect(
-            self._copy_steamos_fsr4_launch_option
-        )
-        steamos_fsr4_launch_layout.addWidget(self.steamos_fsr4_copy_button)
-        if GFX1013_FSR4_UI_ENABLED:
-            self.gfx_card.layout().insertWidget(3, self.steamos_fsr4_launch_row)
-        self.steamos_fsr4_launch_row.hide()
-        self._steamos_fsr4_launch_option = ""
-        # Always-on is off by default after install: without it, async compute
-        # only applies to processes launched with VK_DRIVER_FILES set, so the
-        # enable command and the per-game launch option both need a quick copy.
-        # The value is upstream's own driver_files(): the patched 64-bit ICD,
-        # the stock 32-bit one for Proton's helpers, and llvmpipe as the only
-        # Vulkan left should amdgpu ever fail to load.
-        self._bazzite_async_enable_command = "sudo bc250-async-compute always enable"
-        self._bazzite_async_launch_option = (
-            f"VK_DRIVER_FILES={BAZZITE_ASYNC_COMPUTE_ICD}:"
-            "/usr/share/vulkan/icd.d/radeon_icd.i686.json:"
-            "/usr/share/vulkan/icd.d/lvp_icd.x86_64.json %command%"
-        )
-        self.bazzite_enable_row, self.bazzite_enable_copy_button = self._copy_row(
-            "Always-on enable command", "Copy enable command",
-            lambda: self._bazzite_async_enable_command,
-        )
-        self.bazzite_launch_row, self.bazzite_launch_copy_button = self._copy_row(
-            "Per-game launch option", "Copy launch option",
-            lambda: self._bazzite_async_launch_option,
-        )
-        # Above the action buttons, whichever optional rows came before.
-        gfx_layout = self.gfx_card.layout()
-        actions_index = gfx_layout.indexOf(self.gfx_card.actions_panel)
-        gfx_layout.insertWidget(actions_index, self.bazzite_launch_row)
-        gfx_layout.insertWidget(actions_index, self.bazzite_enable_row)
-        layout.addWidget(self.gfx_card)
-        self.cachyos_stack_card = PreparationInfoCard(
-            "Arch / CachyOS BC-250 graphics stack · includes GFX1013 fix",
-            "MastaG's matched kernel and Mesa/RADV include the GFX1013 async-compute fix. They can be installed separately or together; the current kernel stays as a boot fallback.",
-            scope_text="Arch Linux · CachyOS",
-            status_text="Checking",
-        )
-        cachyos_state = QFrame()
-        cachyos_state.setProperty("dashboardCompatibilityState", True)
-        cachyos_state_layout = QHBoxLayout(cachyos_state)
-        cachyos_state_layout.setContentsMargins(9, 6, 9, 6)
-        cachyos_state_layout.setSpacing(10)
-        cachyos_state_layout.addWidget(
-            _label("Kernel", "dashboardCompatibilityLabel", wrap=False)
-        )
-        self.cachyos_kernel_status = PillLabel("Not installed", "gray")
-        cachyos_state_layout.addWidget(self.cachyos_kernel_status)
-        cachyos_state_layout.addSpacing(8)
-        cachyos_state_layout.addWidget(
-            _label("Mesa / RADV", "dashboardCompatibilityLabel", wrap=False)
-        )
-        self.cachyos_mesa_status = PillLabel("Not installed", "gray")
-        cachyos_state_layout.addWidget(self.cachyos_mesa_status)
-        cachyos_state_layout.addStretch(1)
-        self.cachyos_stack_card.layout().insertWidget(2, cachyos_state)
-        self.cachyos_kernel_button = self.cachyos_stack_card.add_action(
-            "Install kernel", {"action": "cachyos_bc250_kernel", "governor": ""}
-        )
-        self.cachyos_mesa_button = self.cachyos_stack_card.add_action(
-            "Install Mesa", {"action": "cachyos_bc250_mesa", "governor": ""}
-        )
-        self.cachyos_full_button = self.cachyos_stack_card.add_action(
-            "Install kernel + Mesa", {"action": "cachyos_bc250_full", "governor": ""}
-        )
-        self.cachyos_stack_card.primary_button = self.cachyos_kernel_button
-        self.cachyos_stack_card.secondary_button = self.cachyos_mesa_button
-        self.cachyos_stack_card.action_requested.connect(
-            self._forward_dependency_action
-        )
-        # Compatibility aliases for callers that previously addressed three cards.
-        self.cachyos_kernel_card = self.cachyos_stack_card
-        self.cachyos_mesa_card = self.cachyos_stack_card
-        self.cachyos_full_card = self.cachyos_stack_card
 
-        # FSR4 INT8 through the BC250 build of OptiScaler Client
-        # (daniel-h-0/bc250-fsr4-fork). It patches games with OptiScaler and
-        # the optimised DLL, keeps its own backups, and needs no kernel, Mesa
-        # or root -- so one workflow serves every distribution.
-        self.fsr4_card = PreparationInfoCard(
-            "FSR4 INT8 · OptiScaler Client",
-            "Installs OptiScaler and the BC250 FSR4 DLL into the games you choose, with a backup of every file it replaces. Your driver and Proton stay as they are.",
-            scope_text="All distributions · per game · no root",
-            status_text="Checking",
-        )
-        self._fsr4_launch_option = ""
-        self.fsr4_install_button = self.fsr4_card.add_action(
-            "Install FSR4", {"action": "fsr4_install", "governor": ""}
-        )
-        self.fsr4_launch_button = self.fsr4_card.add_action(
-            "Open OptiScaler Client", {"action": "fsr4_launch", "governor": ""}
-        )
-        self.fsr4_steam_all_button = self.fsr4_card.add_action(
-            "Add to every Steam game", {"action": "fsr4_steam_option_all", "governor": ""}
-        )
-        self.fsr4_remove_button = self.fsr4_card.add_action(
-            "Remove",
-            {"action": "fsr4_uninstall", "governor": ""},
-            danger=True,
-        )
-        self.fsr4_legacy_button = self.fsr4_card.add_action(
-            "Remove old FSR4 V3 runtime",
-            {"action": "fsr4_legacy_uninstall", "governor": ""},
-            danger=True,
-        )
-        self.fsr4_upstream_button = self.fsr4_card.add_action(
-            "Step-by-step guide", {"action": "fsr4_upstream", "governor": ""}
-        )
-        self.fsr4_card.action_requested.connect(self._forward_dependency_action)
-        self.fsr4_card.setEnabled(FSR4_UI_ENABLED)
-        self.cachyos_cards = (self.cachyos_stack_card,)
-        self._build_helixsr_card()
-        for card in self.cachyos_cards:
-            layout.addWidget(card)
-        self._build_vaapi_card()
-        layout.addWidget(self.vaapi_card)
-        layout.addStretch(1)
-        if self._standalone:
-            self._organise_compatibility(layout)
-        return page
 
-    def _build_vaapi_card(self) -> None:
-        """simpmix's VA-API driver: the video block the BC-250 does not have."""
-        self.vaapi_card = PreparationInfoCard(
-            "Hardware video · VA-API",
-            "The BC-250 has no working video block, so programs fall back to software video. This driver encodes H.264 on the GPU and HEVC mostly on the CPU, and decodes both, for Sunshine, OBS, Steam Remote Play, ffmpeg and browsers.",
-            scope_text="Beta",
-            status_text="Not installed",
-        )
-        self.vaapi_card.action_requested.connect(self._forward_dependency_action)
-        self.vaapi_install_button = self.vaapi_card.add_action(
-            "Install", {"action": "vaapi_install", "governor": ""}
-        )
-        self.vaapi_test_button = self.vaapi_card.add_action(
-            "Test", {"action": "vaapi_test", "governor": ""}
-        )
-        self.vaapi_remove_button = self.vaapi_card.add_action(
-            "Remove", {"action": "vaapi_uninstall", "governor": ""}, danger=True
-        )
-        self.vaapi_upstream_button = self.vaapi_card.add_action(
-            "Open upstream project", {"action": "vaapi_upstream", "governor": ""}
-        )
 
-    def _render_vaapi(self, tools: Mapping[str, object]) -> None:
-        if not hasattr(self, "vaapi_card"):
-            return
-        vaapi = _mapping(tools.get("vaapi_video"))
-        state = str(vaapi.get("state") or "not-installed")
-        supported = bool(vaapi.get("supported"))
-        status, tone, detail = {
-            "active": ("Active", "green",
-                       "Programs that use VA-API encode and decode with it. For streaming while you play, choose H.264."),
-            "relogin-required": ("Log out to apply", "orange",
-                                 "Installed. Log out and back in (or restart) so programs pick it up."),
-            "outdated": ("Update available", "orange",
-                         "A newer reviewed version is available. Install builds and switches to it."),
-            "invalid": ("Incomplete", "orange",
-                        "The files that switch it on are there but the driver is missing. Install it again or remove it."),
-            "managed-elsewhere": ("Managed externally", "blue",
-                                  "Another installer already switches this driver on (its own scripts or the SteamOS toolkit). Remove that one first to manage it here."),
-            "hardware-vcn": ("Not needed", "gray",
-                             "The kernel's experimental hardware video block is on (amdgpu.bc250_vcn=1), and radeonsi drives it."),
-        }.get(state, ("Not installed" if supported else "Not compatible", "gray", ""))
-        installed = bool(vaapi.get("installed"))
-        self.vaapi_card.set_status(status, tone)
-        reason = str(vaapi.get("blocked_reason") or "")
-        if detail:
-            self.vaapi_card.detail.setText(tr(detail))
-        elif not supported and reason:
-            self.vaapi_card.detail.setText(tr(reason))
-        else:
-            self.vaapi_card.detail.setText(tr(
-                "The BC-250 has no working video block, so programs fall back to software video. This driver encodes H.264 on the GPU and HEVC mostly on the CPU, and decodes both, for Sunshine, OBS, Steam Remote Play, ffmpeg and browsers."
-            ))
-        can_install = supported and state not in {"managed-elsewhere", "hardware-vcn", "active", "relogin-required"}
-        self.vaapi_card.update_action(
-            self.vaapi_install_button,
-            text="Update" if state == "outdated" else "Reinstall" if state == "invalid" else "Install",
-            enabled=can_install,
-            visible=state not in {"active", "relogin-required", "managed-elsewhere", "hardware-vcn"},
-            tooltip="" if supported else reason,
-        )
-        self.vaapi_card.update_action(
-            self.vaapi_test_button, text="Test", visible=installed and state != "invalid",
-        )
-        self.vaapi_card.update_action(
-            self.vaapi_remove_button, text="Remove", visible=installed,
-        )
 
-    def _build_helixsr_card(self) -> None:
-        """HelixSR (lonewolf0622/HelixSR): DLSS Model E behind an FSR 3.1 DLL.
 
-        The card owns HelixSR's actions and their state; the Upscaling tab
-        lays them out in its own section (see ``_upscaling_page``).
-        """
-        self.helixsr_card = PreparationInfoCard(
-            "HelixSR",
-            "DLSS's neural network running on this GPU, in place of a game's FSR 3.1 upscaler.",
-            status_text="Checking",
-        )
-        self.helixsr_scan_button = self.helixsr_card.add_action(
-            "Find FSR 3.1 games", {"action": "helixsr_scan", "governor": ""}
-        )
-        self.helixsr_network_button = self.helixsr_card.add_action(
-            "Build network files", {"action": "helixsr_network", "governor": ""}
-        )
-        self.helixsr_install_button = self.helixsr_card.add_action(
-            "Install HelixSR", {"action": "helixsr_install", "governor": ""}
-        )
-        self.helixsr_remove_button = self.helixsr_card.add_action(
-            "Remove",
-            {"action": "helixsr_uninstall", "governor": ""},
-            danger=True,
-        )
-        self.helixsr_upstream_button = self.helixsr_card.add_action(
-            "Open upstream project", {"action": "helixsr_upstream", "governor": ""}
-        )
-        self.helixsr_card.action_requested.connect(self._forward_dependency_action)
-        self.helixsr_card.setEnabled(HELIXSR_UI_ENABLED)
-        self.helixsr_card.setVisible(HELIXSR_UI_ENABLED)
-
-    def _upscaling_page(self) -> QWidget:
-        """Additional settings > Upscaling, in the GPU page's style.
-
-        One page card per upscaler, side by side: its state as readings,
-        its games, and a footer with the next step as the blue button on
-        the right. The FSR4 and HelixSR cards stay the owners of every
-        action button (text, state, payload); they are only kept out of
-        sight while their buttons sit in these sections.
-        """
-        page = QWidget()
-        page.setProperty("upscalingPage", True)
-        page.setProperty("redesignedModule", True)
-        layout = QVBoxLayout(page)
-        layout.setContentsMargins(16, 14, 16, 14)
-        layout.setSpacing(0)
-        self.upscaling_sources = QWidget(page)
-        sources = QVBoxLayout(self.upscaling_sources)
-        for card in (self.fsr4_card, self.helixsr_card):
-            sources.addWidget(card)
-        self.upscaling_sources.hide()
-
-        self.fsr4_section = _UpscalerSection(
-            "FSR4 INT8", "AMD's FSR 4 in INT8, installed per game by OptiScaler Client.", "fsr4"
-        )
-        self.fsr4_guide_button = self.fsr4_section.add_header_button(
-            "OptiScaler Client guide", lambda: self.fsr4_upstream_button.click()
-        )
-        self.fsr4_guide_button.setToolTip(tr(
-            "Step by step on GitHub (daniel-h-0/bc250-fsr4-fork): installing OptiScaler in a game, the Steam launch option and undoing it."
-        ))
-        # The Steam launch option: always in view at the head of the games
-        # table, where each game says whether it has it, with a copy.
-        self.fsr4_launch_panel = QFrame()
-        self.fsr4_launch_panel.setProperty("compactPanel", True)
-        launch_row = QHBoxLayout(self.fsr4_launch_panel)
-        launch_row.setContentsMargins(10, 3, 3, 3)
-        launch_row.setSpacing(8)
-        launch_row.addWidget(_label("Steam launch option", "fieldLabel", wrap=False))
-        self.fsr4_launch_field = _FittedLineEdit()
-        self.fsr4_launch_field.setAccessibleName(tr("Steam launch option"))
-        self.fsr4_launch_field.setToolTip(
-            tr("Steam loads OptiScaler only with this option. Close Steam before adding it.")
-        )
-        self.fsr4_launch_field.setReadOnly(True)
-        self.fsr4_launch_field.setProperty("i18nLiteral", True)
-        launch_row.addWidget(self.fsr4_launch_field, 1)
-        self.fsr4_copy_button = QPushButton(tr("Copy"))
-        self.fsr4_copy_button.setProperty("compactAction", True)
-        self.fsr4_copy_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.fsr4_copy_button.setToolTip(tr("Copy Steam launch option"))
-        self.fsr4_copy_button.setAccessibleName(tr("Copy Steam launch option"))
-        self.fsr4_copy_button.clicked.connect(self._copy_fsr4_launch_option)
-        launch_row.addWidget(self.fsr4_copy_button)
-
-        self.helixsr_section = _UpscalerSection(
-            "HelixSR",
-            "DLSS's neural network on this GPU, installed per game in place of FSR 3.1.",
-            "helixsr",
-        )
-        self.helixsr_guide_button = self.helixsr_section.add_header_button(
-            "HelixSR guide", lambda: self.helixsr_upstream_button.click()
-        )
-        self.helixsr_guide_button.setToolTip(tr(
-            "HelixSR's own guide on GitHub (lonewolf0622/HelixSR): its network files, each game, OptiScaler and every helixsr.ini setting."
-        ))
-        # The release Install or Update brings in: the recommended one unless
-        # the user picks an older one or a pre-release.
-        version_row = QHBoxLayout()
-        version_row.setSpacing(8)
-        version_row.addWidget(_label("Version", "readingLabel", wrap=False))
-        self.helixsr_version_combo = _ClickOnlyComboBox()
-        self.helixsr_version_combo.setAccessibleName(tr("HelixSR version"))
-        self.helixsr_version_combo.setToolTip(tr(
-            "The HelixSR release Install or Update brings in. The recommended one is the release this version of Control Center was checked with."
-        ))
-        self.helixsr_version_combo.activated.connect(self._select_helixsr_release)
-        version_row.addWidget(self.helixsr_version_combo, 1)
-        self.helixsr_releases_button = QPushButton(tr("Check for new releases"))
-        self.helixsr_releases_button.setProperty("compactAction", True)
-        self.helixsr_releases_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.helixsr_releases_button.setToolTip(tr(
-            "Reads HelixSR's list of releases on GitHub, in the terminal, so newer releases and pre-releases can be picked. Nothing is installed."
-        ))
-        self.helixsr_releases_button.clicked.connect(
-            lambda: self._forward_dependency_action({"action": "helixsr_releases", "governor": ""})
-        )
-        version_row.addWidget(self.helixsr_releases_button)
-        self.helixsr_section.extra.addLayout(version_row)
-        # Every game against both upscalers, across the page.
-        self.upscaling_games = _UpscalingGames()
-        self.upscaling_games.action_requested.connect(self._forward_dependency_action)
-        # Games Steam does not know: the user points at the game's folder.
-        self.helixsr_folder_button = self.upscaling_games.add_header_button(
-            "Add game folder",
-            lambda: self._forward_dependency_action(
-                {"action": "helixsr_add_folder", "governor": ""}
-            ),
-        )
-        self.helixsr_folder_button.setToolTip(
-            tr("For games outside Steam, choose the game's folder.")
-        )
-        # OptiScaler put in a game by hand, not by OptiScaler Client.
-        self.helixsr_opti_folder_button = self.upscaling_games.add_header_button(
-            "Add OptiScaler game",
-            lambda: self._forward_dependency_action(
-                {"action": "helixsr_add_opti_folder", "governor": ""}
-            ),
-        )
-        self.helixsr_opti_folder_button.setToolTip(
-            tr("For a game where you installed OptiScaler yourself: choose the game's folder and HelixSR can upscale through it.")
-        )
-        # The launch option leads the header, before the buttons.
-        self.upscaling_games._header_buttons.insert(0, self.fsr4_launch_panel)
-        self.upscaling_games._layout_header(force=True)
-        for button in (
-            self.fsr4_install_button, self.fsr4_launch_button, self.fsr4_remove_button,
-            self.fsr4_steam_all_button,
-            self.fsr4_legacy_button, self.helixsr_install_button, self.helixsr_network_button,
-            self.helixsr_scan_button, self.helixsr_remove_button,
-        ):
-            self._adopt(button, "compactAction")
-
-        self.upscaling_row = QBoxLayout(QBoxLayout.Direction.LeftToRight)
-        self.upscaling_row.setSpacing(14)
-        self.upscaling_row.addWidget(self.fsr4_section, 1)
-        self.upscaling_row.addWidget(self.helixsr_section, 1)
-        layout.addLayout(self.upscaling_row)
-        layout.addSpacing(14)
-        layout.addWidget(self.upscaling_games)
-        layout.addSpacing(14)
-        # helixsr.ini, once for every game.
-        self.helixsr_settings = _HelixSRSettings()
-        self.helixsr_settings.save_requested.connect(
-            lambda values: self._forward_dependency_action(
-                {"action": "helixsr_settings", "helixsr_settings": values, "governor": ""}
-            )
-        )
-        if hasattr(self, "_helixsr_settings_state"):
-            self.helixsr_settings.set_int8_supported(getattr(self, "_helixsr_int8", True))
-            self.helixsr_settings.set_settings(*self._helixsr_settings_state)
-            self.helixsr_settings.set_game_count(getattr(self, "_helixsr_game_count", 0))
-        layout.addWidget(self.helixsr_settings)
-        layout.addStretch(1)
-        self._render_upscaling()
-        return page
 
     @staticmethod
     def _adopt(button: QPushButton, role: str) -> None:
@@ -3484,7 +2941,8 @@ class PreparationSidebar(QFrame):
         self.compatibility_groups = (
             ("System", (self.acpi_card,)),
             ("GPU governor", (self.cyan_card, self.oberon_card)),
-            ("Kernel and graphics", (self.gfx_card, *self.cachyos_cards)),
+            # Mesa first: it is what leaves the desktop on the CPU, whatever the kernel does.
+            ("Kernel and graphics", (self.mesa_card, self.gfx_card, *self.cachyos_cards)),
             ("Video", (self.vaapi_card,)),
         )
         layout.setSpacing(0)
@@ -3493,7 +2951,8 @@ class PreparationSidebar(QFrame):
         layout.insertWidget(layout.count() - 1, self._boot_holder)
         self._compatibility_headings = []
         for title, cards in self.compatibility_groups:
-            index = layout.indexOf(cards[0])
+            # The earliest of its cards, whatever order they are listed in.
+            index = min(layout.indexOf(card) for card in cards)
             box = QFrame()
             box.setProperty("dashboardCompatibilityGroupBox", True)
             box_layout = QVBoxLayout(box)
@@ -3531,24 +2990,6 @@ class PreparationSidebar(QFrame):
                     card.style().unpolish(card)
                     card.style().polish(card)
 
-    def _decky_page(self) -> QWidget:
-        page = QWidget()
-        layout = QVBoxLayout(page)
-        layout.setContentsMargins(14, 12, 14, 10)
-        layout.setSpacing(8)
-        self.decky_card = PreparationInfoCard(
-            "Game Mode Quick Access (Beta)",
-            "Decky is optional. It is never installed by generic dependency preparation.",
-            action_text="Install Decky + Quick Access (Beta)",
-            payload={"action": "quick_access_install_decky", "governor": ""},
-        )
-        self.decky_preview_button = self.decky_card.add_action(
-            "Preview", {"action": "decky_preview", "governor": ""}
-        )
-        self.decky_card.action_requested.connect(self._handle_decky_action)
-        layout.addWidget(self.decky_card)
-        layout.addStretch(1)
-        return page
 
     def _handle_decky_action(self, payload: object) -> None:
         values = dict(payload) if isinstance(payload, Mapping) else {}
@@ -3570,109 +3011,7 @@ class PreparationSidebar(QFrame):
         # Qt disconnects this receiver during destruction of its parent page.
         self._decky_screenshot_dialog = None
 
-    def _drivers_page(self) -> QWidget:
-        page = QWidget()
-        layout = QVBoxLayout(page)
-        layout.setContentsMargins(14, 10, 14, 10)
-        layout.setSpacing(8)
-        self.network_driver_card = PreparationInfoCard(
-            "Wi-Fi and Bluetooth support",
-            # Keep this source aligned with the complete driver catalog so the
-            # Wi-Fi and Bluetooth preparation copy is available in every locale.
-            "Active kernel drivers and official firmware packages.",
-            action_text="Install support",
-        )
-        self.network_driver_card.action_requested.connect(
-            lambda _payload: self.driver_support_requested.emit("connectivity")
-        )
-        self.printing_driver_card = PreparationInfoCard(
-            "Printing support",
-            "Driverless printing with CUPS, IPP and IPP-over-USB. Existing queues are preserved.",
-            action_text="Install support",
-        )
-        self.printing_driver_card.action_requested.connect(
-            lambda _payload: self.driver_support_requested.emit("printing")
-        )
-        layout.addWidget(self.network_driver_card)
-        layout.addWidget(self.printing_driver_card)
-        self._build_accessory_cards(layout)
-        layout.addWidget(
-            PreparationInfoCard(
-                "External drivers",
-                "Device-specific kernel modules are not generic driver packs.",
-            )
-        )
-        layout.addStretch(1)
-        return page
 
-    def _build_accessory_cards(self, layout: QVBoxLayout) -> None:
-        """Hardware a BC-250 case may carry beside the board.
-
-        Neither card touches the board itself: one drives a cooler's LCD, the
-        other a Corsair hub. Both install a pinned release and keep running
-        through a user service, so they work in Desktop and Game Mode alike.
-        """
-        self.thermalright_card = PreparationInfoCard(
-            "Thermalright cooler display",
-            "TRCC Linux drives the LCD on Thermalright coolers. After you save a theme once, "
-            "it plays in Desktop and Game Mode without any window open.",
-            scope_text="Case accessory",
-            status_text="Checking",
-        )
-        self.corsair_card = PreparationInfoCard(
-            "Corsair fans and RGB",
-            "OpenLinkHub replaces iCUE on Linux for Corsair hubs, AIOs, fans and lighting, "
-            "with its own control panel. The NexGen3D Steam Machine PRO case uses it for its Commander Duo.",
-            scope_text="Case accessory",
-            status_text="Checking",
-        )
-        # The receiver and the TV: neither needs a program window, both are
-        # settings of the sound server and of a daemon SteamOS already runs.
-        self.hdmi_ac3_card = PreparationInfoCard(
-            "HDMI audio · Dolby Digital 5.1",
-            "Encodes 5.1 sound to AC-3 in real time for receivers and soundbars that only take "
-            "Dolby Digital over HDMI, with PipeWire's own AC-3 profile and ALSA's a52 encoder.",
-            scope_text="Audio and TV",
-            status_text="Checking",
-        )
-        self.hdmi_cec_card = PreparationInfoCard(
-            "TV control · HDMI-CEC",
-            "Valve's cecd, the CEC daemon SteamOS uses: the TV turns on when the BC-250 wakes and "
-            "sleeps when it suspends, and its remote works as input. Needs a DisplayPort-to-HDMI "
-            "adapter that passes CEC.",
-            scope_text="Audio and TV",
-            status_text="Checking",
-        )
-        self.accessory_buttons: dict[str, dict[str, QPushButton]] = {}
-        # One line under the description for what the current state asks of
-        # the owner (restart, log out, plug the device in). Empty most of the time.
-        self._accessory_notes: dict[str, QLabel] = {}
-        self._accessory_cards = {
-            "thermalright": self.thermalright_card,
-            "corsair": self.corsair_card,
-            "hdmi_ac3": self.hdmi_ac3_card,
-            "hdmi_cec": self.hdmi_cec_card,
-        }
-        for key, card, configure_text in (
-            ("thermalright", self.thermalright_card, "Open configuration"),
-            ("corsair", self.corsair_card, "Open control panel"),
-            ("hdmi_ac3", self.hdmi_ac3_card, "Open configuration"),
-            ("hdmi_cec", self.hdmi_cec_card, "Test TV control"),
-        ):
-            buttons = {
-                "install": card.add_action("Install", {"accessory": key, "op": "install"}),
-                "configure": card.add_action(configure_text, {"accessory": key, "op": "configure"}),
-                "remove": card.add_action("Remove", {"accessory": key, "op": "remove"}, danger=True),
-                "upstream": card.add_action("Open upstream project", {"accessory": key, "op": "upstream"}),
-            }
-            self.accessory_buttons[key] = buttons
-            note = _label("", "dashboardComponentDetail")
-            note.setProperty("accessoryNote", True)
-            note.hide()
-            card.layout().insertWidget(2, note)
-            self._accessory_notes[key] = note
-            card.action_requested.connect(self._forward_accessory_action)
-            layout.addWidget(card)
 
     def _forward_accessory_action(self, payload: object) -> None:
         values = dict(payload) if isinstance(payload, Mapping) else {}
@@ -3712,56 +3051,9 @@ class PreparationSidebar(QFrame):
         "thermalright": "Open configuration",
         "corsair": "Open control panel",
         "hdmi_ac3": "",
-        "hdmi_cec": "Test TV control",
+        "hdmi_cec": "Open TV control",
     }
 
-    def _render_accessories(self, accessories: Mapping[str, object]) -> None:
-        for key, card in self._accessory_cards.items():
-            info = _mapping(accessories.get(key))
-            state = str(info.get("state") or "")
-            buttons = self.accessory_buttons[key]
-            if state not in self._ACCESSORY_STATES:
-                card.set_status("Checking", "gray")
-                for name in ("install", "configure", "remove"):
-                    buttons[name].hide()
-                self._accessory_notes[key].hide()
-                continue
-            status, tone, install_text = self._ACCESSORY_STATES[state]
-            installed = state in {"update-available", "relogin-required", "installed", "active"}
-            if state == "not-installed" and info.get("device"):
-                # The hardware is there and only the software is missing.
-                status, tone = "Device detected", "blue"
-            card.set_status(status, tone)
-            note = self._ACCESSORY_NOTES.get((key, state), "")
-            if key == "hdmi_ac3" and state == "installed":
-                # Set up, but the owner picked another output since.
-                install_text = "Use 5.1 output"
-            if key == "hdmi_ac3" and state in {"installed", "active"} and not info.get("device"):
-                note = "The connected display does not list Dolby Digital. Connect a receiver or soundbar that decodes AC-3."
-            elif state in {"installed", "active"} and not info.get("device"):
-                note = "Nothing is plugged in right now; it starts by itself when the device is connected."
-            elif key == "hdmi_cec" and state == "not-installed" and not info.get("device"):
-                note = "No CEC adapter is connected. CEC needs a DisplayPort-to-HDMI adapter that passes it, such as a Club3D CAC-1080 or CAC-1085."
-            card.update_action(
-                buttons["install"],
-                text=install_text or "Install",
-                payload={"accessory": key, "op": "install"},
-                visible=bool(install_text),
-            )
-            configure_text = self._ACCESSORY_CONFIGURE.get(key, "")
-            card.update_action(
-                buttons["configure"],
-                text=configure_text or "Open configuration",
-                payload={"accessory": key, "op": "configure"},
-                visible=bool(configure_text) and (installed or state == "managed-elsewhere"),
-                enabled=state != "relogin-required",
-            )
-            card.update_action(
-                buttons["remove"], text="Remove",
-                payload={"accessory": key, "op": "remove"}, visible=installed,
-            )
-            self._accessory_notes[key].setText(tr(note))
-            self._accessory_notes[key].setVisible(bool(note))
 
     #: Stable names for the tabs, in order. The guided tour used to address
     #: them by position and pointed at the wrong one after "Memory & Swap"
@@ -3780,101 +3072,8 @@ class PreparationSidebar(QFrame):
             button.setChecked(button_index == index)
             button.style().unpolish(button)
             button.style().polish(button)
-
-    def _reflow(self, width: int) -> None:
-        tab_columns = (
-            len(self.tab_buttons) - len(self._hidden_tabs)
-            if width >= 620
-            else 3 if width >= 420 else 2
-        )
-        self.system_layout.setDirection(
-            QBoxLayout.Direction.TopToBottom
-            if width < 480
-            else QBoxLayout.Direction.LeftToRight
-        )
-        self.system_layout.setAlignment(self.status, Qt.AlignmentFlag.AlignLeft)
-        # Content-sized actions must recover their single-line width after a
-        # compact layout. WrappingButton's visible sizeHint follows its width.
-        self.prepare_button.setMinimumWidth(
-            min(max(0, width - 34), IconButton.sizeHint(self.prepare_button).width())
-        )
-        for button in (
-            self.memory_swap_apply_button,
-            self.memory_ttm_apply_button,
-            self.mitigations_apply_button,
-            self.readonly_button,
-        ):
-            button.setMinimumWidth(
-                min(max(0, (width - 64) // 3), IconButton.sizeHint(button).width())
-            )
-        compact_mitigations = width < 660
-        for panel_layout, panel_button in (
-            (self.mitigations_layout, self.mitigations_apply_button),
-            (self.readonly_layout, self.readonly_button),
-        ):
-            panel_layout.setDirection(
-                QBoxLayout.Direction.TopToBottom
-                if compact_mitigations
-                else QBoxLayout.Direction.LeftToRight
-            )
-            panel_layout.setAlignment(
-                panel_button,
-                Qt.AlignmentFlag.AlignLeft
-                if compact_mitigations
-                else Qt.AlignmentFlag.AlignVCenter,
-            )
-        if hasattr(self, "upscaling_row"):
-            # Side by side only while each card keeps its header on one row.
-            self.upscaling_row.setDirection(
-                QBoxLayout.Direction.LeftToRight
-                if width >= 1180
-                else QBoxLayout.Direction.TopToBottom
-            )
-            self._match_upscaler_headers()
-        component_columns = (
-            4 if width >= 1280 else 3 if width >= 980 else 2 if width >= 650 else 1
-        )
-        if tab_columns != self._tab_columns:
-            self._tab_columns = tab_columns
-            clear_grid(self.tabs_grid, reset_columns=6, reset_rows=3)
-            shown = [
-                self.tab_buttons[i] for i in self.TAB_ORDER if i not in self._hidden_tabs
-            ]
-            for index, button in enumerate(shown):
-                self.tabs_grid.addWidget(
-                    button, index // tab_columns, index % tab_columns
-                )
-            for column in range(tab_columns):
-                self.tabs_grid.setColumnStretch(column, 1)
-        if component_columns != self._component_columns:
-            self._component_columns = component_columns
-            clear_grid(self.components_grid, reset_columns=4, reset_rows=8)
-            if component_columns == 1:
-                row = 0
-                for key, card in self.component_cards.items():
-                    self.components_grid.addWidget(card, row, 0)
-                    row += 1
-                    if key == "core_unlock":
-                        self.components_grid.addWidget(self.prepare_footer, row, 0)
-                        row += 1
-            else:
-                last = component_columns - 1
-                self.components_grid.addWidget(
-                    self.component_cards["core_unlock"], 0, last
-                )
-                self.components_grid.addWidget(self.prepare_footer, 1, last)
-                positions = (
-                    (r, c)
-                    for r in range(7)
-                    for c in range(component_columns)
-                    if (r, c) not in {(0, last), (1, last)}
-                )
-                for key, card in self.component_cards.items():
-                    if key != "core_unlock":
-                        row, column = next(positions)
-                        self.components_grid.addWidget(card, row, column)
-            for column in range(component_columns):
-                self.components_grid.setColumnStretch(column, 1)
+        if 0 <= index < len(self.TAB_KEYS):
+            self.tab_selected.emit(self.TAB_KEYS[index])
 
     def resizeEvent(self, event) -> None:  # noqa: N802
         super().resizeEvent(event)
@@ -4096,162 +3295,8 @@ class PreparationSidebar(QFrame):
         values.setdefault("selected_components", self.selected_components)
         self.dependency_action_requested.emit(values)
 
-    def _render_gfx1013_source(self, source: Mapping[str, object], masta_supported: bool) -> None:
-        """Status and actions of the independent GFX1013 source build."""
-        state = str(source.get("state") or "not-installed")
-        kernel = str(source.get("kernel") or "")
-        installed = bool(source.get("installed"))
-        enabled = bool(source.get("enabled"))
-        self.gfx_card.set_scope("Built for this kernel · independent of MastaG", "blue")
-        copy = {
-            "not-installed": (
-                "Source build available", "blue",
-                tr_format(
-                    "Builds DryhoppedIPA's V33 amdgpu patches for kernel {kernel} and RADV with the "
-                    "compute-queue patch, and installs them beside the stock driver. If a boot with "
-                    "the fix fails, the next boot uses the stock driver and switches the fix off by "
-                    "itself. Building takes 15-30 minutes.",
-                    kernel=kernel,
-                ),
-            ),
-            "active": (
-                "Active", "green",
-                tr("The patched amdgpu and RADV are in use on this boot. Test stability game by game: async compute raises GPU load."),
-            ),
-            "reboot-required": (
-                "Restart required", "blue",
-                tr("Installed and switched on. Restart to load the patched driver."),
-            ),
-            "rebuild-needed": (
-                "Rebuild needed", "orange",
-                tr_format(
-                    "Kernel {kernel} has no patched module yet, so the stock driver is in use. "
-                    "Rebuilding only the module takes a few minutes.",
-                    kernel=kernel,
-                ),
-            ),
-            "switched-off": (
-                "Switched off", "gray",
-                tr("Installed but switched off: the stock amdgpu and system Mesa are in use."),
-            ),
-            "fell-back": (
-                "Switched off after a failed boot", "orange",
-                tr("A boot with the fix did not finish, so the stock driver took over and the fix was switched off. Switch it on again only after checking what failed."),
-            ),
-            "blocked-early-load": (
-                "Loaded too early", "orange",
-                tr("amdgpu was loaded from the initramfs before the boot service could choose it. Remove amdgpu from MODULES in the initramfs configuration and rebuild the initramfs."),
-            ),
-        }.get(state)
-        if copy is None:
-            copy = ("Checking", "gray", "")
-        status, tone, detail = copy
-        if masta_supported and state == "not-installed":
-            detail = f"{detail} {tr('Use either this or the MastaG kernel below, not both.')}"
-        self.gfx_card.set_status(status, tone)
-        self.gfx_card.detail.setText(detail)
-        if not installed:
-            primary = ("Build and install the fix", "gfx1013_source_install")
-        elif state == "rebuild-needed":
-            primary = ("Rebuild for this kernel", "gfx1013_source_rebuild")
-        elif enabled:
-            primary = ("Switch off", "gfx1013_source_disable")
-        else:
-            primary = ("Switch on", "gfx1013_source_enable")
-        self.gfx_card.update_action(
-            self.gfx_primary_button,
-            text=primary[0],
-            payload={"action": primary[1], "governor": ""},
-        )
-        self.gfx_card.update_action(
-            self.gfx_secondary_button,
-            text="Remove the fix",
-            payload={"action": "gfx1013_source_uninstall", "governor": ""},
-            visible=installed,
-        )
-        self.gfx_card.update_action(
-            self.gfx_tertiary_button if installed else self.gfx_secondary_button,
-            text="Open upstream project",
-            payload={"action": "gfx1013_upstream", "governor": ""},
-        )
 
-    def _render_debian_kernel(self, upgrade: Mapping[str, object]) -> None:
-        """Debian 13: install a newer kernel from backports, then the GFX1013 build."""
-        pending_restart = str(upgrade.get("state") or "") == "reboot-required"
-        self.gfx_card.set_scope("Debian · Kernel too old for the GPU", "orange")
-        self.gfx_card.set_status(
-            "Restart required" if pending_restart else "Newer kernel needed",
-            "blue" if pending_restart else "orange",
-        )
-        self.gfx_card.detail.setText(
-            tr("A newer kernel is already installed. Restart to use it, then build the GFX1013 fix.")
-            if pending_restart
-            else tr(
-                "Optional. The Debian kernel and Mesa do not recognize the BC-250 GPU, so the desktop is drawn by the CPU and feels slow. This installs a newer kernel from Debian backports beside the current one, which stays in the boot menu."
-            )
-        )
-        self.gfx_card.update_action(
-            self.gfx_primary_button,
-            text="Install newer kernel",
-            payload={"action": "debian_kernel_install", "governor": ""},
-            enabled=not pending_restart,
-        )
 
-    def _render_radv_async(
-        self,
-        radv: Mapping[str, object],
-        source: Mapping[str, object],
-        *,
-        dryhopped_installed: bool = False,
-        fedora: bool = False,
-    ) -> None:
-        """Async compute from the patched RADV alone, on a kernel 7.2+ (Arch family or Fedora)."""
-        route = present_radv_route(
-            radv,
-            source_installed=bool(source.get("installed")),
-            dryhopped_installed=dryhopped_installed,
-            fedora=fedora,
-        )
-        self.gfx_card.set_scope(route.scope, "blue")
-        self.gfx_card.set_status(route.status, route.tone)
-        self.gfx_card.detail.setText(
-            " ".join(tr_format(part, **route.values) for part in route.detail)
-        )
-        if route.build:
-            self.gfx_card.update_action(
-                self.gfx_primary_button,
-                text="Build and install",
-                payload={"action": "radv_async_install", "governor": ""},
-            )
-        else:
-            self.gfx_card.update_action(
-                self.gfx_primary_button,
-                text="Switch off" if route.enabled else "Switch on",
-                payload={"action": "radv_async_disable" if route.enabled else "radv_async_enable", "governor": ""},
-            )
-        self.gfx_card.update_action(
-            self.gfx_secondary_button,
-            text="Test async compute",
-            payload={"action": "radv_async_test", "governor": ""},
-            visible=route.testable,
-        )
-        self.gfx_card.update_action(
-            self.gfx_tertiary_button,
-            text="Remove",
-            payload={"action": "radv_async_uninstall", "governor": ""},
-            visible=route.installed,
-        )
-        self.gfx_card.update_action(
-            self.gfx_quaternary_button,
-            text="Remove the kernel-side fix",
-            payload={"action": route.remove_fix_action, "governor": ""},
-            visible=bool(route.remove_fix_action),
-        )
-        self.gfx_card.update_action(
-            self.gfx_quinary_button,
-            text="Open upstream project",
-            payload={"action": "bazzite_async_upstream", "governor": ""},
-        )
 
     _FSR4_GAME_COPY = {
         "ready": ("Ready", "green",
@@ -4275,6 +3320,13 @@ class PreparationSidebar(QFrame):
         "available": "Add HelixSR to replace this game's FSR 3.1 upscaler. The original file is kept as a backup.",
         "missing": "The game's folder is gone: it was uninstalled or moved. Remove HelixSR forgets it here.",
     }
+    _HELIXSR_SCALER_COPY = {
+        "installed": "In the game choose DLSS; Insert opens HelixSR Scaler's menu. Frame generation runs in games with DLSS Frame Generation: turn it on here, then in the game. Remove puts every file it replaced back.",
+        "restored": "A game update or Steam's file check changed HelixSR Scaler's files. Remove cleans up; add it again if you want it.",
+        "available": "HelixSR Scaler is HelixSR inside its own OptiScaler: the game's DLSS option runs HelixSR, with DLSS frame generation if you turn it on. Not for online games or games with anti-cheat.",
+        "missing": "The game's folder is gone: it was uninstalled or moved. Remove forgets it here.",
+        "outdated": "This game has HelixSR Scaler {version}. Update HelixSR gives it the installed release and keeps {version} to go back to.",
+    }
     _HELIXSR_NETWORK_MISSING_COPY = (
         "HelixSR is in this game but its network files are not, so it only does a simple upscale. Update HelixSR copies them back."
     )
@@ -4283,6 +3335,21 @@ class PreparationSidebar(QFrame):
         "restored": "OptiScaler's settings no longer point to HelixSR, usually after OptiScaler Client updated or restored this game. Remove cleans up HelixSR's folder.",
         "available": "OptiScaler is in this game, so HelixSR can upscale through it, even when the game only offers DLSS or XeSS.",
         "missing": "The game's folder is gone: it was uninstalled or moved. Remove HelixSR forgets it here.",
+    }
+
+    #: OptiScaler Client's own record of a game, per state: the tooltip.
+    _FSR4_UNDO_COPY = {
+        "intact": "OptiScaler Client installed these files. Remove OptiScaler, keep a backup moves them into a backup folder and puts back any game file they replaced; Put OptiScaler back returns them.",
+        "partial": "Some of OptiScaler's files were deleted by hand. Remove OptiScaler, keep a backup moves the rest into a backup folder and clears the client's record.",
+        "removed": "OptiScaler's files are gone, but OptiScaler Client still records them, so it refuses to install, update or restore this game. Clear the client's record to start again; the record is kept in a backup folder.",
+        "changed": "Some of OptiScaler's files changed after the client installed them (a game update or a hand edit). Nothing was touched.",
+        "helixsr": "HelixSR uses this game's OptiScaler. Remove HelixSR from it first.",
+        "pending": "OptiScaler Client was interrupted in this game. Open the client and use Restore / recover selected first.",
+        "backup-broken": "OptiScaler Client's copy of a game file changed, so the game's own file could not come back. Nothing was touched.",
+        "unsupported": "This installation record is not one Control Center can read. Nothing was touched.",
+        "interrupted": "Control Center was interrupted while taking OptiScaler out of this game. Put OptiScaler back returns the files it had already moved; then try again.",
+        "linked": "OptiScaler Client recorded this game through a linked folder ({link}), so its own Restore cannot undo it. This panel can.",
+        "backup": "Control Center took OptiScaler out of this game on {date}. Put OptiScaler back returns it as it was. The backup is in {path}.",
     }
 
     #: FSR4 per game, as the game table shows it: (text, tone).
@@ -4295,98 +3362,7 @@ class PreparationSidebar(QFrame):
         "linked-folder": ("Linked folder", "orange"),
     }
 
-    def _render_helixsr(self, helixsr: Mapping) -> None:
-        """HelixSR's datasheet and actions, from ``helixsr_state``."""
-        available = bool(helixsr.get("installer_available"))
-        installed = bool(helixsr.get("installed"))
-        current = bool(helixsr.get("current"))
-        ready = bool(helixsr.get("network_ready"))
-        wine = bool(helixsr.get("wine_available", True))
-        state = str(helixsr.get("state") or "not-installed")
-        games = [dict(game) for game in helixsr.get("games") or () if isinstance(game, Mapping)]
-        detail = "DLSS's neural network running on this GPU, in place of a game's FSR 3.1 upscaler."
-        if ready:
-            status, tone = "Ready", "green"
-        elif not available:
-            status, tone = "Unavailable", "gray"
-            detail = "HelixSR's setup runs on x86_64 Linux only."
-        elif not wine:
-            status, tone = "Proton required", "orange"
-            detail = "HelixSR's setup compiles its shaders through Proton. Install Proton from Steam first: setting any game to use Proton installs it."
-        elif current:
-            status, tone = "Network files missing", "orange"
-            detail = (
-                "HelixSR is installed, but its network files are not built yet. They are built from the copy of NVIDIA's DLSS DLL already on this PC."
-                if helixsr.get("local_dlss") else
-                "HelixSR is installed, but its network files are not built yet. The setup asks before it downloads NVIDIA's DLSS DLL."
-            )
-        elif state == "invalid":
-            status, tone = "Repair required", "orange"
-            detail = "The HelixSR folder is incomplete or was changed. Reinstall it."
-        elif state == "update-available":
-            status, tone = "Update available", "blue"
-            detail = "A newer HelixSR release is available. Games that already use HelixSR keep working."
-        elif state == "other-version":
-            status, tone = "Other version selected", "blue"
-            detail = "The selected HelixSR release is not installed yet. Install brings it in; games that already use HelixSR keep working."
-        else:
-            status, tone = "Not installed", "gray"
-            detail = "Downloads the official release, checks it, and installs it in your user folder. Then build its network files and pick your games."
-        self.helixsr_card.set_status(status, tone)
-        self.helixsr_card.detail.setText(tr(detail))
-        self._helixsr_view = {
-            "state": helixsr, "status": status, "tone": tone, "detail": detail,
-            "version": str(helixsr.get("version") or "") if current else "",
-        }
 
-        self.helixsr_card.update_action(
-            self.helixsr_scan_button, text="Find FSR 3.1 games", visible=ready,
-        )
-        self.helixsr_card.update_action(
-            self.helixsr_network_button,
-            text="Build network files",
-            enabled=wine,
-            visible=current and not ready,
-        )
-        self.helixsr_card.update_action(
-            self.helixsr_install_button,
-            text="Repair HelixSR" if state == "invalid"
-            else "Update HelixSR" if state == "update-available"
-            else "Reinstall" if current
-            else "Install HelixSR",
-            enabled=available and (wine or current),
-            visible=available,
-        )
-        self.helixsr_card.update_action(
-            self.helixsr_remove_button, text="Remove", visible=installed,
-        )
-        self.helixsr_upstream_button.show()
-        self.helixsr_card._refresh_action_styles()
-        self._helixsr_games = (games if HELIXSR_UI_ENABLED else [], ready)
-        self._helixsr_settings_state = (
-            _mapping(helixsr.get("settings")), _mapping(helixsr.get("settings_defaults"))
-        )
-        self._helixsr_game_count = sum(
-            1 for game in games if str(_mapping(game).get("state") or "") == "installed"
-        )
-        self._helixsr_int8 = bool(helixsr.get("int8_supported", True))
-        if hasattr(self, "helixsr_settings"):
-            self.helixsr_settings.set_int8_supported(self._helixsr_int8)
-            self.helixsr_settings.set_settings(*self._helixsr_settings_state)
-            self.helixsr_settings.set_game_count(self._helixsr_game_count)
-
-    def _render_upscaling(self) -> None:
-        """Both upscalers' cards, then the games table shared by both."""
-        if not hasattr(self, "fsr4_section"):
-            return
-        helixsr_games, ready = getattr(self, "_helixsr_games", ([], False))
-        rows = game_matrix_rows(
-            helixsr_games, getattr(self, "_fsr4_games", []), helixsr_ready=ready
-        )
-        self._render_fsr4_section()
-        self._render_helixsr_section()
-        self._render_upscaling_games(rows, ready)
-        self._match_upscaler_headers()
 
     def _match_upscaler_headers(self) -> None:
         """Side by side, both cards start their readings on the same line."""
@@ -4401,47 +3377,12 @@ class PreparationSidebar(QFrame):
         """Games where the upscaler works, of the games it can go into."""
         return f"{active} / {total}" if installed else "—"
 
-    def _render_fsr4_section(self) -> None:
-        """FSR4 INT8: state, the Steam launch option, its games, next step."""
-        view = getattr(self, "_fsr4_view", None) or {
-            "state": {}, "status": "Checking", "tone": "", "detail": "", "version": "",
-        }
-        fsr4 = view["state"]
-        current = bool(fsr4.get("current"))
-        games = list(getattr(self, "_fsr4_games", []))
-        missing = [g for g in games if g.get("state") == "needs-launch-option" and g.get("steam")]
-        patched = [g for g in games if g.get("state") not in {"not-installed", "linked-folder"}]
-        active = [g for g in games if g.get("state") == "ready"]
-        section = self.fsr4_section
-        section.set_version(view["version"])
-        section.set_fact("state", "State", view["status"], view["tone"])
-        if not current or not patched:
-            option, tone = "—", ""
-        elif missing:
-            option, tone = "Missing in some games", "orange"
-        else:
-            option, tone = "In every game", ""
-        section.set_fact("prepare", "Steam launch option", option, tone)
-        section.set_fact("games", "Active games", self._games_reading(len(active), len(games), current))
-        section.set_notice("" if current else view["detail"])
-        # The option is shown where it is missing, with a copy for by hand.
-        self.fsr4_launch_panel.setVisible(current and bool(self._fsr4_launch_option))
-        self.fsr4_launch_field.setText(self._fsr4_launch_option)
-        self.fsr4_launch_field.setCursorPosition(0)
-        self.fsr4_launch_field.updateGeometry()
-        self.upscaling_games._layout_header(force=True)
-        if not current:
-            secondary = [self.fsr4_remove_button, self.fsr4_legacy_button]
-            primary = self.fsr4_install_button
-        elif missing:
-            secondary = [self.fsr4_install_button, self.fsr4_remove_button,
-                         self.fsr4_legacy_button, self.fsr4_launch_button]
-            primary = self.fsr4_steam_all_button
-        else:
-            secondary = [self.fsr4_install_button, self.fsr4_remove_button, self.fsr4_legacy_button]
-            primary = self.fsr4_launch_button
-        self.fsr4_steam_all_button.setVisible(current and bool(missing))
-        section.set_actions(secondary, primary)
+
+    def _select_fsr4_release(self, index: int) -> None:
+        tag = str(self.fsr4_version_combo.itemData(index) or "")
+        fsr4 = _mapping(_mapping(getattr(self, "_fsr4_view", {})).get("state"))
+        if tag and tag != str(fsr4.get("tag") or ""):
+            self._forward_dependency_action({"action": f"fsr4_select:{tag}", "governor": ""})
 
     def _select_helixsr_release(self, index: int) -> None:
         tag = str(self.helixsr_version_combo.itemData(index) or "")
@@ -4449,118 +3390,9 @@ class PreparationSidebar(QFrame):
         if tag and tag != str(helixsr.get("tag") or ""):
             self._forward_dependency_action({"action": f"helixsr_select:{tag}", "governor": ""})
 
-    def _render_helixsr_versions(self, helixsr: Mapping) -> None:
-        """The releases on offer, newest first, the picked one shown."""
-        combo = self.helixsr_version_combo
-        releases = [_mapping(item) for item in helixsr.get("releases") or () if isinstance(item, Mapping)]
-        combo.blockSignals(True)
-        combo.clear()
-        for release in releases:
-            version = str(release.get("version") or "")
-            if release.get("default"):
-                text = tr_format("{version} (recommended)", version=version)
-            elif release.get("prerelease"):
-                text = tr_format("{version} (pre-release)", version=version)
-            else:
-                text = version
-            combo.addItem(text, str(release.get("tag") or ""))
-        combo.setCurrentIndex(max(combo.findData(str(helixsr.get("tag") or "")), 0))
-        combo.blockSignals(False)
-        combo.setEnabled(bool(helixsr.get("installer_available")) and combo.count() > 1)
-        self.helixsr_releases_button.setEnabled(bool(helixsr.get("installer_available")))
 
-    def _render_helixsr_section(self) -> None:
-        """HelixSR: state, its network files, its games, next step."""
-        view = getattr(self, "_helixsr_view", None) or {
-            "state": {}, "status": "Checking", "tone": "", "detail": "", "version": "",
-        }
-        helixsr = view["state"]
-        current = bool(helixsr.get("current"))
-        ready = bool(helixsr.get("network_ready"))
-        games = game_matrix_rows(
-            [dict(g) for g in helixsr.get("games") or () if isinstance(g, Mapping)], [],
-            helixsr_ready=ready,
-        )
-        active = [row for row in games if row["helixsr"] and row["helixsr"][1] == "green"]
-        section = self.helixsr_section
-        section.set_version(view["version"])
-        self._render_helixsr_versions(helixsr)
-        section.set_fact("state", "State", view["status"], view["tone"])
-        section.set_fact(
-            "prepare", "Network files",
-            "Built on this PC" if ready else "Not built yet" if current else "—",
-            "" if ready or not current else "orange",
-        )
-        section.set_fact(
-            "games", "Active games", self._games_reading(len(active), len(games), current and (ready or bool(games)))
-        )
-        section.set_notice("" if ready else view["detail"])
-        if not current:
-            secondary, primary = [self.helixsr_remove_button], self.helixsr_install_button
-        elif not ready:
-            secondary = [self.helixsr_install_button, self.helixsr_remove_button]
-            primary = self.helixsr_network_button
-        else:
-            secondary = [self.helixsr_install_button, self.helixsr_remove_button]
-            primary = self.helixsr_scan_button
-        section.set_actions(secondary, primary)
 
-    def _render_upscaling_games(self, rows: list[dict], ready: bool) -> None:
-        """One column per upscaler that is set up, in the cards' order."""
-        helixsr = _mapping(_mapping(getattr(self, "_helixsr_view", {})).get("state"))
-        fsr4 = _mapping(_mapping(getattr(self, "_fsr4_view", {})).get("state"))
-        helixsr_games, _ready = getattr(self, "_helixsr_games", ([], False))
-        # HelixSR's column once it can go into games, or while a game still
-        # has it (to update or remove it).
-        helixsr_on = HELIXSR_UI_ENABLED and bool(helixsr.get("current")) and (ready or bool(helixsr_games))
-        fsr4_on = FSR4_UI_ENABLED and bool(fsr4.get("current"))
-        columns = tuple(key for key, on in (("fsr4", fsr4_on), ("helixsr", helixsr_on)) if on)
-        table = []
-        for row in rows:
-            folder = row.get("folder") or ""
-            helixsr_cell = None
-            if helixsr_on and row["helixsr"] is not None:
-                text, tone, tooltip, actions = row["helixsr"]
-                # HelixSR is in the game whenever one of its actions removes it.
-                on = any(label.startswith("Remove") for label, _action, _enabled in actions)
-                helixsr_cell = {
-                    "text": text or "Available", "tone": tone, "tooltip": tooltip,
-                    "actions": (
-                        *actions,
-                        # A folder added by hand can leave the list while HelixSR is not in it.
-                        *((("Remove from list", f"helixsr_forget_folder:{row['appid']}", True),)
-                          if folder and not on else ()),
-                    ),
-                }
-            fsr4_cell = None
-            if fsr4_on and row["fsr4"] is not None:
-                text, tone, tooltip, actions = row["fsr4"]
-                fsr4_cell = {"text": text or "Available", "tone": tone, "tooltip": tooltip,
-                             "actions": actions}
-            if helixsr_cell is None and fsr4_cell is None:
-                continue
-            table.append({
-                "key": row["appid"] or row["name"], "name": row["name"],
-                "detail": (row.get("folder_detail") or "Outside Steam") if folder else "", "tooltip": folder,
-                "helixsr": helixsr_cell, "fsr4": fsr4_cell,
-            })
-        self.upscaling_games.set_rows(
-            table,
-            "No games yet. Find FSR 3.1 games looks through your Steam library." if helixsr_on
-            else "No games yet. Add OptiScaler to a game in OptiScaler Client.",
-            columns,
-        )
-        self.upscaling_games.setVisible(bool(columns))
-        for button in (self.helixsr_folder_button, self.helixsr_opti_folder_button):
-            button.setVisible(helixsr_on and ready)
-            # The header keeps each label on one line.
-            button.setProperty("headerActionWidth", IconButton.sizeHint(button).width())
-        self.upscaling_games._layout_header(force=True)
-        self.helixsr_settings.setVisible(HELIXSR_UI_ENABLED and bool(helixsr.get("current")))
 
-    def _render_fsr4_games(self, games: list[dict]) -> None:
-        """FSR4's games are rows of its section on the Upscaling tab."""
-        self._fsr4_games = list(games)
 
     def _copy_row(self, label: str, action: str, value) -> tuple[QFrame, IconButton]:
         """A compact "label ··· ⧉" row that copies ``value()`` when pressed."""
@@ -4653,1123 +3485,14 @@ class PreparationSidebar(QFrame):
                 button.setToolTip("")
         self._preview_button_states = {}
 
-    def _apply_compatibility_filter(self) -> None:
-        self._restore_compatibility_preview_actions()
-        actual = self._distribution_group(str(self._tools.get("os_family") or ""))
-        choice = str(self.compatibility_filter.currentData() or "detected")
-        selected = actual if choice == "detected" else choice
-        show_all = selected == "all"
-        preview = choice not in {"detected", "all"} and selected != actual
-        labels = {
-            "steamos": "SteamOS",
-            "bazzite": "Bazzite",
-            "arch": "Arch / CachyOS / Manjaro",
-            "fedora": "Fedora",
-            "debian": "Ubuntu / Debian",
-            "other": "Other distributions",
-        }
-        self.acpi_card.setVisible(show_all or selected in {"arch", "bazzite", "steamos"})
-        # Bazzite takes the same tables through grubenv, SteamOS through GRUB's
-        # early initrd list (both beta).
-        self.acpi_card.set_scope(
-            "Beta · Bazzite" if selected == "bazzite"
-            else "Beta · SteamOS" if selected == "steamos"
-            else "Validated · Arch / CachyOS / Manjaro"
-        )
-        self.cyan_card.setVisible(True)
-        self.oberon_card.setVisible(True)
-        self.gfx_card.setVisible(
-            (
-                show_all or selected != "arch"
-                or (selected == actual and bool(getattr(self, "_gfx_source_offered", False)))
-            )
-            # Debian family on a kernel too old for any route: nothing to offer.
-            and not (selected == actual and bool(getattr(self, "_gfx_hidden_old_kernel", False)))
-        )
-        self.cachyos_stack_card.setVisible(show_all or selected == "arch")
-        self.fsr4_card.setVisible(FSR4_UI_ENABLED)
-        self.helixsr_card.setVisible(HELIXSR_UI_ENABLED)
-        self._refresh_compatibility_summary()
 
-        if not preview:
-            return
 
-        self.gfx_card.set_scope(labels.get(selected, "Compatibility preview"), "blue")
-        self.gfx_card.set_status("Preview only", "blue")
-        preview_copy = {
-            "steamos": "SteamOS 3.8/3.9 provides a reviewed two-stage path: install the matching AMDGPU module, reboot, then install the matched Mesa/RADV runtime.",
-            "bazzite": "Bazzite is immutable. Direct kernel/Mesa patching is blocked; use a BC-250 image or a matching rpm-ostree package instead.",
-            "arch": "Available only on plain Arch Linux or CachyOS",
-            "fedora": "Fedora uses DryhoppedIPA's official current GFX1013 workflow. Control Center adds local safety gates, then leaves kernel and Mesa compatibility checks to upstream.",
-            "debian": "Ubuntu and Debian can build the GFX1013 fix from source when the running kernel is 6.14 or newer (Ubuntu 25.04 and later, 24.04 with the HWE kernel, Debian with a backports kernel). Older kernels keep the manual upstream path.",
-            "other": "This distribution can use common governors when its packages are available. Kernel/Mesa compatibility stays manual until a reviewed path exists.",
-        }
-        self.gfx_card.detail.setText(tr(preview_copy[selected]))
-        self.steamos_graphics_state.setVisible(selected == "steamos")
-        self.steamos_fsr4_launch_row.hide()
-        if selected == "steamos":
-            pills = [
-                self.steamos_kernel_status,
-                self.steamos_radv_status,
-            ]
-            if GFX1013_FSR4_UI_ENABLED:
-                pills.append(self.steamos_fsr4_status)
-            for pill in pills:
-                pill.setText(tr("Available on SteamOS"))
-                pill.set_tone("gray")
-            self.gfx_card.update_action(
-                self.gfx_primary_button,
-                text="1 · Install kernel",
-                payload={"action": "steamos_compat", "governor": ""},
-                enabled=False,
-            )
-            self.gfx_card.update_action(
-                self.gfx_secondary_button,
-                text="2 · Install Mesa RADV",
-                payload={"action": "steamos_graphics_install", "governor": ""},
-                enabled=False,
-            )
-            if GFX1013_FSR4_UI_ENABLED:
-                self.gfx_card.update_action(
-                    self.gfx_tertiary_button,
-                    text="3 · Install per-game FSR4",
-                    payload={
-                        "action": "steamos_graphics_fsr4_install",
-                        "governor": "",
-                    },
-                    enabled=False,
-                )
-            self.gfx_card.update_action(
-                self.gfx_quaternary_button,
-                text="Open upstream project",
-                payload={"action": "gfx1013_upstream", "governor": ""},
-            )
-            self.gfx_quinary_button.hide()
-        else:
-            self.gfx_card.update_action(
-                self.gfx_primary_button,
-                text="Open upstream project",
-                payload={"action": "gfx1013_upstream", "governor": ""},
-            )
-            for button in (
-                self.gfx_secondary_button,
-                self.gfx_tertiary_button,
-                self.gfx_quaternary_button,
-                self.gfx_quinary_button,
-            ):
-                button.hide()
-        if selected == "arch":
-            self.cachyos_stack_card.set_status("Available on Arch family", "blue")
-        # A filter is allowed to demonstrate coverage, never to run another
-        # distribution's installer on the detected host. Keep documentation
-        # links usable and disable every mutating preview action.
-        for card in (
-            self.acpi_card,
-            self.cyan_card,
-            self.oberon_card,
-            self.gfx_card,
-            self.cachyos_stack_card,
-        ):
-            for button in card.findChildren(QPushButton):
-                action = str(getattr(button, "request_payload", {}).get("action") or "")
-                if "upstream" not in action and "diagnostic" not in action:
-                    self._preview_button_states[button] = button.isEnabled()
-                    button.setEnabled(False)
-                    button.setToolTip(
-                        tr(
-                            "Preview only: select the detected system to install or change components."
-                        )
-                    )
 
-    def set_state(self, state) -> None:
-        # Restore the last authoritative enabled states before new runtime
-        # evidence updates the buttons. Otherwise leaving preview mode could
-        # reapply an older disabled snapshot over freshly detected components.
-        self._restore_compatibility_preview_actions()
-        self._last_preparation_state = state
-        tools = _mapping(getattr(state, "preparation_tools", {}))
-        self._tools = tools
-        setup = _mapping(tools.get("system_setup"))
-        acpi = _mapping(setup.get("acpi"))
-        status_text = {
-            "active": "Active",
-            "pending-reboot": "Reboot required",
-            "not-active": "Not active",
-            "incomplete": "Incomplete",
-            "managed-elsewhere": "Managed externally",
-            "needs-check": "Not verified",
-            "outdated": "Update available",
-            "needs-repair": "Repair required",
-        }.get(acpi.get("status"), "Not installed")
-        acpi_tone = (
-            "green"
-            if acpi.get("status") == "active"
-            else "orange"
-            if acpi.get("status") in {"pending-reboot", "incomplete", "not-active", "outdated", "needs-repair"}
-            else "blue"
-            if acpi.get("status") == "managed-elsewhere"
-            else "gray"
-        )
-        self._render_vaapi(tools)
-        self.acpi_card.set_status(status_text, acpi_tone)
-        reason = str(setup.get("reason") or acpi.get("reason") or "")
-        self.acpi_install_button.setEnabled(
-            bool(
-                setup.get("helper_available")
-                and acpi.get("available")
-                and not acpi.get("installed")
-            )
-        )
-        self.acpi_remove_button.setEnabled(
-            bool(setup.get("helper_available") and acpi.get("installed"))
-        )
-        self.acpi_install_button.setVisible(not bool(acpi.get("installed")))
-        # An earlier pinned release: v1.1.0's C3 idle state freezes the board.
-        # On SteamOS the same action writes the tables back after an update.
-        outdated = acpi.get("status") in {"outdated", "needs-repair"}
-        self.acpi_update_button.setText(
-            tr("Repair correction" if acpi.get("status") == "needs-repair" else "Update correction")
-        )
-        self.acpi_update_button.setEnabled(bool(setup.get("helper_available") and outdated))
-        self.acpi_update_button.setVisible(outdated)
-        self.acpi_remove_button.setVisible(bool(acpi.get("installed")))
-        self.acpi_card.setToolTip(tr(reason))
-        capabilities = _mapping(tools.get("prepare_components"))
-        fallback = {
-            "runtime": bool(getattr(state, "dependencies_ready", False)),
-            "governor": bool(getattr(state, "governor_tool_ready", False)),
-            "cpu_oc": bool(getattr(state, "cpu_tools_ready", False)),
-            "core_unlock": bool(getattr(state, "core_unlock_ready", False)),
-            "umr": bool(getattr(state, "umr_ready", False)),
-            "cu_manager": bool(getattr(state, "cu_manager_ready", False)),
-            "fan_pwm": bool(getattr(state, "nct_ready", False)),
-        }
-        installed_values = []
-        for key, card in self.component_cards.items():
-            capability = _mapping(capabilities.get(key))
-            if not capability:
-                capability = {"available": True, "installed": fallback[key]}
-            card.set_capability(capability)
-            installed_values.append(bool(capability.get("installed")))
-        all_ready = bool(installed_values) and all(installed_values)
-        known = (
-            bool(tools)
-            or bool(getattr(state, "tools_state_available", False))
-            or any(installed_values)
-        )
-        self.status.setText(
-            "Operational" if all_ready else "Attention" if known else "Not detected"
-        )
-        self.status.set_tone("green" if all_ready else "orange" if known else "gray")
-
-        os_label = str(tools.get("os_label") or tr("Not detected"))
-        family = str(tools.get("os_family") or "")
-        system_identity = (
-            os_label
-            if family.lower() in os_label.lower()
-            else (f"{os_label} · {family}" if family else os_label)
-        )
-        self.system_label.setText(
-            tr_format("Detected system: {distribution}", distribution=system_identity)
-        )
-        detected = bool(tools.get("os_label") or family)
-        self.system_status.setText("Detected" if detected else "Not detected")
-        self.system_status.set_tone("green" if detected else "gray")
-        self._update_memory_controls(tools)
-
-        family = str(tools.get("os_family") or "").lower()
-        detected_governors = _mapping(tools.get("supported_gpu_governors"))
-        for identifier, card in (
-            ("cyan-skillfish-governor-smu", self.cyan_card),
-            ("oberon-governor", self.oberon_card),
-        ):
-            if card.secondary_button is None:
-                continue
-            evidence = _mapping(detected_governors.get(identifier))
-            installed = bool(evidence.get("detected"))
-            active = bool(evidence.get("active"))
-            card.set_status(
-                "Active" if active else "Installed" if installed else "Not installed",
-                "green" if active else "blue" if installed else "gray",
-            )
-            if card.primary_button is not None:
-                card.update_action(
-                    card.primary_button,
-                    text="Update / repair" if installed else "Install / update",
-                    enabled=True,
-                )
-            card.secondary_button.setEnabled(installed)
-            card.secondary_button.setVisible(installed)
-            card.secondary_button.setToolTip("" if installed else tr("Not installed"))
-        masta = _mapping(tools.get("masta_bc250_stack"))
-        masta_supported = bool(
-            masta.get("supported", tools.get("masta_bc250_stack_supported"))
-        )
-        kernel_installed = bool(masta.get("kernel_installed"))
-        kernel_active = bool(masta.get("kernel_active"))
-        mesa_installed = bool(masta.get("mesa_installed"))
-        if not masta_supported:
-            self.cachyos_stack_card.set_status("Not compatible", "gray")
-        elif kernel_installed and mesa_installed and kernel_active:
-            self.cachyos_stack_card.set_status("Full stack installed", "green")
-        elif kernel_installed and mesa_installed:
-            self.cachyos_stack_card.set_status("Installed · reboot required", "orange")
-        elif kernel_installed or mesa_installed:
-            self.cachyos_stack_card.set_status("Partially installed", "orange")
-        else:
-            self.cachyos_stack_card.set_status("Available", "blue")
-        kernel_text = (
-            tr("Active")
-            if kernel_active
-            else tr("Installed")
-            if kernel_installed
-            else tr("Not installed")
-        )
-        # RC and BORE are installed by hand beside the stable kernel; name the
-        # one in use so "Active" is not read as the stable build.
-        variant = {"rc": "RC", "bore": "BORE"}.get(str(masta.get("kernel_variant") or ""))
-        if kernel_installed and variant:
-            kernel_text = f"{kernel_text} · {variant}"
-        self.cachyos_kernel_status.setText(kernel_text)
-        self.cachyos_kernel_status.set_tone(
-            "green" if kernel_active else "gray"
-        )
-        self.cachyos_mesa_status.setText(
-            tr("Patched installed") if mesa_installed else tr("Not installed")
-        )
-        self.cachyos_mesa_status.set_tone("green" if mesa_installed else "gray")
-        unsupported_tip = "Available only on plain Arch Linux or CachyOS"
-        self.cachyos_stack_card.update_action(
-            self.cachyos_kernel_button,
-            text="Update / repair kernel" if kernel_installed else "Install kernel",
-            enabled=masta_supported,
-            tooltip="" if masta_supported else unsupported_tip,
-        )
-        self.cachyos_stack_card.update_action(
-            self.cachyos_mesa_button,
-            text="Update / repair Mesa" if mesa_installed else "Install Mesa",
-            enabled=masta_supported,
-            tooltip="" if masta_supported else unsupported_tip,
-        )
-        self.cachyos_stack_card.update_action(
-            self.cachyos_full_button,
-            text="Update / repair full stack"
-            if kernel_installed and mesa_installed
-            else "Install kernel + Mesa",
-            enabled=masta_supported,
-            tooltip="" if masta_supported else unsupported_tip,
-        )
-
-        gfx_state = _mapping(tools.get("gfx1013_compute"))
-        # On the Arch family this card normally steps aside for MastaG's
-        # stack card. The independent source build is rendered into it, so
-        # the card has to stay visible whenever that build is on offer.
-        self._gfx_source_offered = False
-        kernel_upgrade = _mapping(gfx_state.get("kernel_upgrade"))
-        self._gfx_hidden_old_kernel = (
-            bool(_mapping(gfx_state.get("source")).get("hide_offer"))
-            and not _mapping(gfx_state.get("radv_async")).get("supported")
-            and not bool(gfx_state.get("masta_async_compute_ready"))
-            # Debian 13 gets the backports kernel in this card instead.
-            and not bool(kernel_upgrade.get("offered"))
-        )
-        gfx = present_gfx1013(gfx_state, include_fsr4=GFX1013_FSR4_UI_ENABLED)
-        reason_key = str(gfx_state.get("reason_key") or "manual-patches-only")
-        gfx_scope = {
-            "steamos-dedicated-backend": "SteamOS · BC-250 toolkit",
-            "fedora-upstream-managed": "Fedora · Official upstream main",
-            "arch-family-manual-untested": (
-                "Arch / CachyOS · Included in MastaG stack"
-                if masta_supported
-                else "Arch family · Manual only"
-            ),
-            "bazzite-release-managed": "Bazzite 44 · Reviewed v0.2.4 release",
-            "bazzite-release-kernel-unsupported": "Bazzite 44 · Compatible kernel required",
-            "bazzite-release-version-unsupported": "Bazzite · Version not supported",
-        }.get(reason_key, "Ubuntu / Debian / other · Manual only")
-        self.gfx_card.set_scope(
-            gfx_scope,
-            "blue"
-            if reason_key in {"steamos-dedicated-backend", "fedora-upstream-managed", "bazzite-release-managed"}
-            or masta_supported
-            else "gray",
-        )
-        self.gfx_card.set_status(gfx.status, gfx.tone)
-        self.gfx_card.detail.setText(
-            " ".join(tr_format(part, **gfx.detail_values) for part in gfx.detail)
-        )
-        for button in (
-            self.gfx_primary_button,
-            self.gfx_secondary_button,
-            self.gfx_tertiary_button,
-            self.gfx_quaternary_button,
-            self.gfx_quinary_button,
-        ):
-            button.hide()
-        self.steamos_graphics_state.setVisible(
-            reason_key == "steamos-dedicated-backend"
-        )
-        self._steamos_fsr4_launch_option = ""
-        self.steamos_fsr4_launch_row.hide()
-        self.bazzite_enable_row.hide()
-        self.bazzite_launch_row.hide()
-        if reason_key == "steamos-dedicated-backend":
-            kernel_ready = bool(gfx_state.get("steamos_kernel_ready"))
-            kernel_installed = bool(gfx_state.get("steamos_kernel_installed"))
-            radv_state = str(
-                gfx_state.get("steamos_external_radv_state") or "not-installed"
-            )
-            radv_current = bool(gfx_state.get("steamos_external_radv_current"))
-            fsr4_state = str(
-                gfx_state.get("steamos_external_fsr4_state") or "not-installed"
-            )
-            fsr4_current = bool(gfx_state.get("steamos_external_fsr4_current"))
-            self._steamos_fsr4_launch_option = str(
-                gfx_state.get("steamos_external_fsr4_launch_option") or ""
-            )
-            self.steamos_fsr4_launch_row.setVisible(
-                GFX1013_FSR4_UI_ENABLED
-                and fsr4_current
-                and bool(self._steamos_fsr4_launch_option)
-            )
-            self.steamos_fsr4_copy_button.setText("⧉")
-            self.steamos_fsr4_copy_button.setToolTip(
-                tr("Copy Steam launch option")
-            )
-            self.steamos_kernel_status.setText(
-                tr("Active")
-                if kernel_ready
-                else tr("Reboot required")
-                if kernel_installed
-                else tr("Not installed")
-            )
-            self.steamos_kernel_status.set_tone(
-                "green" if kernel_ready else "orange" if kernel_installed else "gray"
-            )
-            self.steamos_radv_status.setText(
-                tr("Ready")
-                if radv_current
-                else tr("Repair required")
-                if radv_state == "invalid"
-                else tr("Not installed")
-            )
-            self.steamos_radv_status.set_tone(
-                "green"
-                if radv_current
-                else "orange"
-                if radv_state == "invalid"
-                else "gray"
-            )
-            self.steamos_fsr4_status.setText(
-                tr("Ready")
-                if fsr4_current
-                else tr("Repair required")
-                if fsr4_state == "invalid"
-                else tr("Optional")
-            )
-            self.steamos_fsr4_status.set_tone(
-                "green"
-                if fsr4_current
-                else "orange"
-                if fsr4_state == "invalid"
-                else "gray"
-            )
-            self.gfx_card.update_action(
-                self.gfx_primary_button,
-                text=gfx.compatibility_action,
-                payload={"action": "steamos_compat", "governor": ""},
-            )
-            self.gfx_card.update_action(
-                self.gfx_secondary_button,
-                text="2 · Repair Mesa RADV"
-                if radv_state != "not-installed"
-                else "2 · Install Mesa RADV",
-                payload={"action": "steamos_graphics_install", "governor": ""},
-                enabled=kernel_ready,
-                tooltip="Install the kernel and reboot first."
-                if not kernel_ready
-                else "",
-            )
-            if GFX1013_FSR4_UI_ENABLED:
-                self.gfx_card.update_action(
-                    self.gfx_tertiary_button,
-                    text="Update per-game FSR4"
-                    if fsr4_current
-                    else "3 · Install per-game FSR4",
-                    payload={
-                        "action": "steamos_graphics_fsr4_install",
-                        "governor": "",
-                    },
-                    enabled=kernel_ready and radv_current,
-                    tooltip="Install and activate the matched Mesa/RADV stage first."
-                    if not (kernel_ready and radv_current)
-                    else "",
-                )
-            self.gfx_card.update_action(
-                self.gfx_quaternary_button,
-                text="Check full stack",
-                payload={"action": "steamos_graphics_status", "governor": ""},
-            )
-            self.gfx_card.update_action(
-                self.gfx_quinary_button,
-                text=(
-                    "Remove FSR4"
-                    if GFX1013_FSR4_UI_ENABLED and fsr4_state != "not-installed"
-                    else "Remove Mesa RADV"
-                ),
-                payload={
-                    "action": "steamos_graphics_fsr4_uninstall"
-                    if GFX1013_FSR4_UI_ENABLED and fsr4_state != "not-installed"
-                    else "steamos_graphics_uninstall",
-                    "governor": "",
-                },
-                visible=(
-                    (GFX1013_FSR4_UI_ENABLED and fsr4_state != "not-installed")
-                    or radv_state != "not-installed"
-                ),
-            )
-        elif reason_key == "fedora-upstream-managed" and gfx.radv_route is None:
-            # Fedora on a kernel older than 7.2: DryhoppedIPA's installer. On
-            # 7.2 or newer the patched RADV alone takes over (below).
-            installed = bool(gfx_state.get("dryhopped_installed"))
-            patched_boot = installed and bool(gfx_state.get("dryhopped_boot_active"))
-            buttons = iter((
-                self.gfx_primary_button,
-                self.gfx_secondary_button,
-                self.gfx_tertiary_button,
-                self.gfx_quaternary_button,
-            ))
-            if installed:
-                # Upstream boots the patched entry once; these switch it on.
-                self.gfx_card.update_action(
-                    next(buttons),
-                    text="Make the fix the default" if patched_boot else "Boot with the fix",
-                    payload={
-                        "action": "gfx1013_fedora_activate"
-                        if patched_boot
-                        else "gfx1013_fedora_boot_patched",
-                        "governor": "",
-                    },
-                )
-            self.gfx_card.update_action(
-                next(buttons),
-                text="Install / update",
-                payload={"action": "gfx1013_fedora_install", "governor": ""},
-            )
-            if installed:
-                self.gfx_card.update_action(
-                    next(buttons),
-                    text="Uninstall",
-                    payload={"action": "gfx1013_fedora_uninstall", "governor": ""},
-                )
-            self.gfx_card.update_action(
-                next(buttons),
-                text="Open upstream project",
-                payload={"action": "gfx1013_upstream", "governor": ""},
-            )
-        elif reason_key.startswith("bazzite-release-"):
-            installed = bool(gfx_state.get("bazzite_async_installed"))
-            installer_allowed = bool(gfx_state.get("direct_installer_allowed"))
-            self.gfx_card.update_action(
-                self.gfx_primary_button,
-                text="Repair / update" if installed else "Install / update",
-                payload={"action": "gfx1013_bazzite_install", "governor": ""},
-                enabled=installer_allowed,
-                tooltip="" if installer_allowed else "Requires Bazzite 44 with kernel 7.2.0-ogc4.1 or newer.",
-            )
-            self.gfx_card.update_action(
-                self.gfx_secondary_button,
-                text="Uninstall",
-                payload={"action": "gfx1013_bazzite_uninstall", "governor": ""},
-                visible=installed,
-            )
-            status_button = (
-                self.gfx_tertiary_button if installed else self.gfx_secondary_button
-            )
-            self.gfx_card.update_action(
-                status_button,
-                text="Check status" if installed else "Open upstream project",
-                payload={
-                    "action": "gfx1013_bazzite_status"
-                    if installed
-                    else "bazzite_async_upstream",
-                    "governor": "",
-                },
-            )
-            self.gfx_card.update_action(
-                self.gfx_quaternary_button,
-                text="Open upstream project",
-                payload={"action": "bazzite_async_upstream", "governor": ""},
-                visible=installed,
-            )
-            # Only while the reviewed driver is in place but not always-on:
-            # a damaged install needs Repair first, and an enabled one needs
-            # neither the command nor a launch option.
-            per_game = bool(gfx_state.get("bazzite_async_current")) and not bool(
-                gfx_state.get("bazzite_async_enabled")
-            )
-            self.bazzite_enable_row.setVisible(per_game)
-            self.bazzite_launch_row.setVisible(per_game)
-        elif (
-            _mapping(gfx_state.get("radv_async")).get("supported")
-            and not bool(gfx_state.get("masta_async_compute_ready"))
-        ):
-            # Linux 7.2 or newer on the Arch family or Fedora: the patched RADV
-            # alone, on the stock amdgpu that Bazzite's async-compute release uses.
-            self._gfx_source_offered = True
-            self._render_radv_async(
-                _mapping(gfx_state.get("radv_async")),
-                _mapping(gfx_state.get("source")),
-                # Its uninstall runs DryhoppedIPA's Fedora-only installer.
-                dryhopped_installed=reason_key == "fedora-upstream-managed"
-                and bool(gfx_state.get("dryhopped_installed")),
-                fedora=reason_key == "fedora-upstream-managed",
-            )
-        elif (
-            _mapping(gfx_state.get("source")).get("supported")
-            and not bool(gfx_state.get("masta_async_compute_ready"))
-        ):
-            # The independent source build: DryhoppedIPA's V33 patches for the
-            # running kernel plus the patched RADV, beside the stock driver.
-            self._gfx_source_offered = True
-            self._render_gfx1013_source(_mapping(gfx_state.get("source")), masta_supported)
-        elif (
-            bool(kernel_upgrade.get("offered"))
-            and bool(_mapping(gfx_state.get("source")).get("hide_offer"))
-        ):
-            # Debian 13: kernel 6.12 and Mesa 25.0 cannot drive the GPU, so the
-            # desktop runs on the CPU. The backports kernel is the way out.
-            self._render_debian_kernel(kernel_upgrade)
-        else:
-            if masta_supported:
-                if not bool(gfx_state.get("masta_async_compute_ready")):
-                    self.gfx_card.set_status("Available in stack below", "blue")
-                    self.gfx_card.detail.setText(
-                        tr(
-                            "Use the matched MastaG kernel and Mesa buttons below. Installing only one half can hang the GPU."
-                        )
-                    )
-            self.gfx_card.update_action(
-                self.gfx_primary_button,
-                text="View original GFX1013 project"
-                if masta_supported
-                else "Open upstream manual path",
-                payload={"action": "gfx1013_upstream", "governor": ""},
-            )
-
-        fsr4 = _mapping(tools.get("fsr4"))
-        fsr4_available = bool(fsr4.get("installer_available"))
-        fsr4_installed = bool(fsr4.get("installed"))
-        fsr4_current = bool(fsr4.get("current"))
-        fsr4_state = str(fsr4.get("state") or "not-installed")
-        self._fsr4_launch_option = str(fsr4.get("steam_launch_option") or "")
-        self.fsr4_card.set_scope("All distributions · per game · no root", "purple")
-        if fsr4_current:
-            status, tone = ("Open" if fsr4.get("running") else "Ready"), "green"
-            detail = tr(
-                "Open the client, choose Scan Games, select games and press Install / update selected. "
-                "Then add the launch option below to each game in Steam. Restore / recover selected undoes it."
-            )
-        elif fsr4_state == "invalid":
-            status, tone = "Repair required", "orange"
-            detail = tr("The client folder is incomplete or was changed. Reinstall it; your game backups are kept.")
-        elif fsr4_state == "update-available":
-            status, tone = "Update available", "blue"
-            detail = tr("A newer BC250 build of the client is available. Updating keeps your games and backups.")
-        elif not fsr4_available:
-            status, tone = "Unavailable", "gray"
-            detail = tr("The client is built for x86_64 Linux only.")
-        else:
-            status, tone = "Not installed", "gray"
-            detail = tr(
-                "Downloads the pinned BC250 release, checks every file, and installs it in your user folder. "
-                "Then open it and pick your games."
-            )
-        self.fsr4_card.set_status(status, tone)
-        self.fsr4_card.detail.setText(detail)
-        self._fsr4_view = {
-            "state": fsr4, "status": status, "tone": tone, "detail": detail,
-            "version": str(fsr4.get("version") or "") if fsr4_installed else "",
-        }
-        self.fsr4_card.update_action(
-            self.fsr4_install_button,
-            text="Repair FSR4 client" if fsr4_state == "invalid"
-            else "Update FSR4 client" if fsr4_state == "update-available"
-            else "Reinstall" if fsr4_current
-            else "Install FSR4",
-            enabled=fsr4_available,
-            visible=fsr4_available,
-        )
-        self.fsr4_card.update_action(
-            self.fsr4_launch_button,
-            text="Open OptiScaler Client",
-            visible=fsr4_current,
-            enabled=not fsr4.get("running"),
-        )
-        self.fsr4_card.update_action(
-            self.fsr4_steam_all_button,
-            text="Add to every Steam game",
-            visible=fsr4_current,
-        )
-        self.fsr4_card.update_action(
-            self.fsr4_remove_button, text="Remove", visible=fsr4_installed,
-        )
-        self.fsr4_card.update_action(
-            self.fsr4_legacy_button,
-            text="Remove old FSR4 V3 runtime",
-            visible=bool(fsr4.get("legacy_v3_installed")),
-        )
-        self.fsr4_upstream_button.show()
-        games = [dict(game) for game in fsr4.get("games") or () if isinstance(game, Mapping)]
-        self._render_fsr4_games(games if FSR4_UI_ENABLED and fsr4_current else [])
-
-        self._render_helixsr(_mapping(tools.get("helixsr")))
-        self._render_upscaling()
-
-        self._render_accessories(_mapping(tools.get("accessories")))
-
-        quick = _mapping(tools.get("quick_access"))
-        if quick:
-            ready = bool(quick.get("ready"))
-            decky_detected = bool(quick.get("decky_detected"))
-            decky_frontend_compatible = bool(
-                quick.get("decky_frontend_compatible", True)
-            )
-            self.decky_card.detail.setText(
-                tr(
-                    "Quick Access is ready. Restart Game Mode or reload Decky if the panel is not visible yet."
-                    if ready
-                    else "Decky must be updated because this Steam client uses the renamed initialization API."
-                    if decky_detected and not decky_frontend_compatible
-                    else "Decky is detected, but the BC250 Quick Access plugin or its protected helper needs installation or repair."
-                    if decky_detected
-                    else "Decky is optional. It is never installed by generic dependency preparation."
-                )
-            )
-        self._apply_compatibility_filter()
-
-
-class _FooterActionButton(IconButton):
-    """Icon-only action with translated discovery and keyboard accessibility."""
-
-    def __init__(self, text: str) -> None:
-        super().__init__()
-        self.setAccessibleName(tr(text))
-        self.setToolTip(tr(text))
-        self.setProperty("i18nSourceAccessibleName", text)
-        self.setProperty("i18nSourceToolTip", text)
-        self.setProperty("dashboardFooterAction", True)
-        self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        self._refresh_palette()
-        apply_shadow(self, blur=4, y=1, alpha=10)
-        self._lift = QPropertyAnimation(self.graphicsEffect(), b"blurRadius", self)
-        self._lift.setDuration(160)
-        self._lift.setEasingCurve(QEasingCurve.Type.OutCubic)
-
-    def _refresh_palette(self) -> None:
-        edge = round(22 * theme.ACTIVE_SCALE / 100)
-        self.setIconSize(QSize(edge, edge))
-
-    def changeEvent(self, event) -> None:
-        super().changeEvent(event)
-        if event.type() == QEvent.Type.StyleChange:
-            self._refresh_palette()
-
-    def _animate_lift(self, active: bool) -> None:
-        self._lift.stop()
-        self._lift.setStartValue(self.graphicsEffect().blurRadius())
-        self._lift.setEndValue(16.0 if active else 4.0)
-        self._lift.start()
-
-    def enterEvent(self, event) -> None:
-        super().enterEvent(event)
-        self._animate_lift(True)
-
-    def leaveEvent(self, event) -> None:
-        super().leaveEvent(event)
-        self._animate_lift(self.hasFocus())
-
-    def focusInEvent(self, event) -> None:
-        super().focusInEvent(event)
-        self._animate_lift(True)
-
-    def focusOutEvent(self, event) -> None:
-        super().focusOutEvent(event)
-        self._animate_lift(self.underMouse())
-
-    def hideEvent(self, event) -> None:
-        self._lift.stop()
-        self.graphicsEffect().setBlurRadius(4.0)
-        super().hideEvent(event)
-
-
-class _GlowingFooterButton(_FooterActionButton):
-    """A footer button whose outline lights up softly every two seconds.
-
-    The edge and a faint tint fade in and out inside the button's own
-    outline: nothing moves, blinks or grows, nothing is drawn outside the
-    row (a drop-shadow halo was cut off by the header), and it rests while
-    the button is hidden or under the pointer.
-    """
-
-    EDGE_ALPHA = 210
-    TINT_ALPHA = 34
-    #: One glow every two seconds: in, out, and a short rest.
-    FADE_MS = 700
-    PAUSE_MS = 600
-
-    def __init__(self, text: str) -> None:
-        super().__init__(text)
-        self._glowing = False
-        self._level = 0.0
-        self._glow = QSequentialAnimationGroup(self)
-        for start, end in ((0.0, 1.0), (1.0, 0.0)):
-            fade = QVariantAnimation(self)
-            fade.setDuration(self.FADE_MS)
-            fade.setStartValue(start)
-            fade.setEndValue(end)
-            fade.setEasingCurve(QEasingCurve.Type.InOutSine)
-            fade.valueChanged.connect(self._set_level)
-            self._glow.addAnimation(fade)
-        self._glow.addPause(self.PAUSE_MS)
-        self._glow.setLoopCount(-1)
-
-    def glow_color(self) -> QColor:
-        raise NotImplementedError
-
-    def glowing(self) -> bool:
-        return self._glowing
-
-    def _set_level(self, value) -> None:
-        self._level = float(value)
-        self.update()
-
-    def set_glow(self, enabled: bool) -> None:
-        enabled = bool(enabled)
-        if enabled == self._glowing:
-            return
-        self._glowing = enabled
-        if enabled and self.isVisible():
-            self._glow.start()
-        elif not enabled:
-            self._glow.stop()
-            self._set_level(0.0)
-
-    def showEvent(self, event) -> None:  # noqa: N802 - Qt API name
-        super().showEvent(event)
-        if self._glowing and self._glow.state() != QSequentialAnimationGroup.State.Running:
-            self._glow.start()
-
-    def hideEvent(self, event) -> None:  # noqa: N802 - Qt API name
-        super().hideEvent(event)
-        self._glow.stop()
-        self._level = 0.0
-
-    def paintEvent(self, event) -> None:  # noqa: N802 - Qt API name
-        super().paintEvent(event)
-        if self._level <= 0.0 or self.underMouse() or self.hasFocus():
-            return
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        # The button's own corner (17 px in the stylesheet, halved by formal).
-        radius = 17.0 * (theme.FORMAL_RADIUS_FACTOR if theme.ACTIVE_STYLE == "formal" else 1.0)
-        radius = min(radius * theme.ACTIVE_SCALE / 100, self.height() / 2)
-        rect = QRectF(self.rect()).adjusted(0.75, 0.75, -0.75, -0.75)
-        color = self.glow_color()
-        painter.setBrush(QColor(color.red(), color.green(), color.blue(), round(self.TINT_ALPHA * self._level)))
-        painter.setPen(QPen(QColor(color.red(), color.green(), color.blue(), round(self.EDGE_ALPHA * self._level)), 1.5))
-        painter.drawRoundedRect(rect, radius, radius)
-        painter.end()
-
-
-class _UpdateBadgeButton(_GlowingFooterButton):
-    """Appears only when a newer release exists, and glows so it is noticed.
-
-    The other footer buttons are always there, so one appearing in the same
-    row is easy to miss on a glance. It lights up like the report button, in
-    the active accent, every two seconds while it is shown; hidden, it costs
-    nothing because the animation stops with the widget.
-    """
-
-    def __init__(self) -> None:
-        super().__init__("A newer version is available")
-        self.setProperty("updateAvailable", True)
-        self.setIcon(QIcon(str(ICON_DIR / "update_badge.png")))
-        self._published = ""
-        self.hide()
-        self.set_glow(True)
-
-    def glow_color(self) -> QColor:
-        return QColor(theme.COLORS["blue"])
-
-    def announce(self, published: str) -> None:
-        """Show the badge for a specific version, or hide it for none."""
-        published = str(published or "")
-        self._published = published
-        if not published:
-            self.setVisible(False)
-            return
-        detail = tr_format("Version {version} is available", version=published)
-        self.setToolTip(detail)
-        self.setAccessibleName(detail)
-        # The translated text is built here, so the generic retranslation pass
-        # must not overwrite it with the untranslated source string.
-        self.setProperty("i18nSourceToolTip", None)
-        self.setProperty("i18nSourceAccessibleName", None)
-        self.setVisible(True)
-
-    @property
-    def published_version(self) -> str:
-        return self._published
-
-
-class UpdateCallout(QFrame):
-    """A speech bubble that points at the update badge and says what to do.
-
-    A pulsing icon says "look here" and nothing else. This says the rest: that
-    a newer version exists, which one, and — the part that actually matters —
-    the right way to get it for *this* install. Telling someone who installed
-    from the AUR to download a tarball would walk around their package manager.
-
-    It floats as a child of the window rather than sitting in a layout, so it
-    can overlap the content beneath it without reserving space or shifting
-    anything, and it is drawn rather than styled because a tail pointing at a
-    specific widget is not something a stylesheet can express.
-
-    Shown once per session, and again whenever the badge is clicked. The badge
-    keeps pulsing either way, so dismissing this is not the same as forgetting.
-    """
-
-    #: Height of the triangular tail, in logical pixels.
-    TAIL = 8
-    #: Half-width of its base.
-    TAIL_HALF_WIDTH = 9
-    RADIUS = 10
-
-    action_clicked = pyqtSignal()
-    dismissed = pyqtSignal()
-
-    def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-        self.setObjectName("updateCallout")
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
-        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        self._tail_x = 0
-
-        self._tail_below = False
-        self._root = QVBoxLayout(self)
-        # Room for the tail on whichever edge it will be drawn on.
-        self._root.setContentsMargins(13, 11 + self.TAIL, 11, 11)
-        self._root.setSpacing(3)
-        root = self._root
-
-        head = QHBoxLayout()
-        head.setSpacing(8)
-        self.title = QLabel(tr("New update available"))
-        self.title.setProperty("updateCalloutTitle", True)
-        head.addWidget(self.title, 1)
-        self.close_button = QPushButton("")
-        self.close_button.setObjectName("updateCalloutClose")
-        self.close_button.setIcon(icon("close_gray"))
-        self.close_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.close_button.setFixedSize(18, 18)
-        self.close_button.setToolTip(tr("Close"))
-        self.close_button.setProperty("i18nSourceToolTip", "Close")
-        self.close_button.clicked.connect(self._dismiss)
-        head.addWidget(self.close_button, 0, Qt.AlignmentFlag.AlignTop)
-        root.addLayout(head)
-
-        self.detail = QLabel("")
-        self.detail.setProperty("updateCalloutDetail", True)
-        self.detail.setWordWrap(True)
-        root.addWidget(self.detail)
-
-        self.action_button = QPushButton("")
-        self.action_button.setObjectName("updateCalloutAction")
-        self.action_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.action_button.clicked.connect(self.action_clicked)
-        root.addWidget(self.action_button)
-        self.hide()
-
-    # ------------------------------------------------------------- contents
-
-    def set_message(self, *, version: str, detail: str, action: str) -> None:
-        self.detail.setText(detail)
-        self.action_button.setText(action)
-        # Built from a version number, so the generic retranslation pass must
-        # not overwrite either with an untranslated source string.
-        self.setProperty("updateVersion", version)
-        self.detail.setProperty("i18nSourceText", None)
-        self.action_button.setProperty("i18nSourceText", None)
-        self.adjustSize()
-
-    def retranslate(self) -> None:
-        self.title.setText(tr("New update available"))
-        self.close_button.setToolTip(tr("Close"))
-
-    # ------------------------------------------------------------ placement
-
-    def _set_tail_side(self, *, below: bool) -> None:
-        """Reserve the tail's room on the edge it will be drawn on.
-
-        Margins change the size hint, so this has to settle before the bubble
-        is measured and placed.
-        """
-        if below == self._tail_below and self._root.contentsMargins().top() > 0:
-            return
-        self._tail_below = below
-        top = 11 if below else 11 + self.TAIL
-        bottom = 11 + self.TAIL if below else 11
-        self._root.setContentsMargins(13, top, 11, bottom)
-
-    def point_at(self, anchor: QWidget) -> bool:
-        """Hang off ``anchor`` with the tail pointing at it.
-
-        Below it when there is room, above it when there is not — a bubble that
-        clamps itself to the bottom of the window ends up covering the very
-        thing its tail is pointing at.
-
-        Returns False when there is no window to float in yet, which happens
-        while the dashboard is still being built.
-        """
-        window = anchor.window()
-        if window is None or window is anchor:
-            return False
-        if self.parentWidget() is not window:
-            self.setParent(window)
-
-        top_left = anchor.mapTo(window, QPoint(0, 0))
-        centre_x = top_left.x() + anchor.width() // 2
-        below_y = top_left.y() + anchor.height() + 4
-
-        # Below if it fits, above if that fits instead, and otherwise not at
-        # all. The old rule flipped above whenever below was short and then
-        # clamped the result back on screen, which for a badge near the top of
-        # the viewport landed the bubble squarely on top of the badge — a
-        # label covering the very thing its tail points at.
-        self._set_tail_side(below=False)
-        self.adjustSize()
-        fits_below = below_y + self.height() <= window.height() - 8
-        if fits_below:
-            y = below_y
-        else:
-            self._set_tail_side(below=True)
-            self.adjustSize()
-            above_y = top_left.y() - self.height() - 4
-            if above_y < 8:
-                # Neither side has room. The badge keeps pulsing on its own,
-                # and clicking it asks for the bubble again once there is
-                # somewhere to put it.
-                self.hide()
-                return False
-            y = above_y
-
-        # Keep the whole bubble on screen horizontally; the tail then slides
-        # within it rather than the bubble hanging off the edge.
-        x = max(8, min(centre_x - self.width() // 2, window.width() - self.width() - 8))
-        self.move(x, y)
-        self._tail_x = max(
-            self.RADIUS + self.TAIL_HALF_WIDTH,
-            min(centre_x - x, self.width() - self.RADIUS - self.TAIL_HALF_WIDTH),
-        )
-        self.show()
-        self.raise_()
-        return True
-
-    # --------------------------------------------------------------- drawing
-
-    def paintEvent(self, event) -> None:  # noqa: N802 - Qt API name
-        del event
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-
-        if self._tail_below:
-            body = self.rect().adjusted(0, 0, -1, -self.TAIL - 1)
-            edge, tip = float(body.bottom()), float(self.rect().bottom())
-        else:
-            body = self.rect().adjusted(0, self.TAIL, -1, -1)
-            edge, tip = float(body.top()), 0.0
-        shape = QPainterPath()
-        shape.addRoundedRect(float(body.x()), float(body.y()), float(body.width()),
-                             float(body.height()), self.RADIUS, self.RADIUS)
-        # QPointF, not QPoint: QPolygonF refuses the integer type, and the
-        # refusal happens inside paintEvent — a reimplemented C++ virtual,
-        # where PyQt6 turns an unhandled exception into qFatal and aborts the
-        # whole process rather than logging it.
-        tail = QPolygonF([
-            QPointF(float(self._tail_x - self.TAIL_HALF_WIDTH), edge),
-            QPointF(float(self._tail_x), tip),
-            QPointF(float(self._tail_x + self.TAIL_HALF_WIDTH), edge),
-        ])
-        shape.addPolygon(tail)
-        shape = shape.simplified()
-
-        painter.setBrush(QColor(theme.COLORS["panel_raised"]))
-        border = QColor(theme.COLORS["blue"])
-        painter.setPen(border)
-        painter.drawPath(shape)
-
-    # --------------------------------------------------------------- closing
-
-    def _dismiss(self) -> None:
-        self.hide()
-        self.dismissed.emit()
-
-
-class _ReportButton(_GlowingFooterButton):
-    """The report button, in the amber of its icon, so it is found.
-
-    Settings > General switches the glow off (``settings/report_glow``).
-    """
-
-    def glow_color(self) -> QColor:
-        return QColor(245, 166, 35)
-
-
-class DashboardFooter(QWidget):
-    """Compact external links embedded in the preparation header."""
-
-    contact_clicked = pyqtSignal()
-    report_clicked = pyqtSignal()
-    support_clicked = pyqtSignal()
-    repositories_clicked = pyqtSignal()
-    update_clicked = pyqtSignal()
-
-    def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-        self.setProperty("dashboardHeaderActions", True)
-        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        self.layout = QHBoxLayout(self)
-        self.layout.setContentsMargins(0, 0, 0, 0)
-        self.layout.setSpacing(5)
-        # First in the row, ahead of the always-present links: it only exists
-        # at all when there is something to act on, so it earns the lead spot.
-        self.update_button = _UpdateBadgeButton()
-        self.update_button.clicked.connect(self.update_clicked)
-        self.layout.addWidget(self.update_button)
-        self.repositories_button = _FooterActionButton("Official repositories")
-        self.repositories_button.setIcon(icon("github"))
-        self.repositories_button.clicked.connect(self.repositories_clicked)
-        self.layout.addWidget(self.repositories_button)
-        self.contact_button = _FooterActionButton("BC250 community on Discord")
-        self.contact_button.setIcon(icon("discord"))
-        self.contact_button.clicked.connect(self.contact_clicked)
-        self.layout.addWidget(self.contact_button)
-        self.report_button = _ReportButton("Report a problem or suggest an idea")
-        self.report_button.setIcon(icon("report_amber"))
-        self.report_button.clicked.connect(self.report_clicked)
-        self.layout.addWidget(self.report_button)
-        self.support_button = _FooterActionButton("Buy me a coffee")
-        self.support_button.setProperty("donation", True)
-        # Official, bundled Ko-fi artwork: no network access needed by the UI.
-        self.support_button.setIcon(QIcon(str(ICON_DIR / "kofi_cup.png")))
-        self.support_button.clicked.connect(self.support_clicked)
-        self.layout.addWidget(self.support_button)
-
-    def set_report_glow(self, enabled: bool) -> None:
-        self.report_button.set_glow(enabled)
-
-    def announce_update(self, published: str) -> None:
-        """Show or hide the update badge. Empty string means nothing to show."""
-        self.update_button.announce(published)
+from .dashboard_footer import (  # noqa: E402,F401  (re-exported: pages and tests import them from here)
+    DashboardFooter,
+    UpdateCallout,
+    _FooterActionButton,
+    _GlowingFooterButton,
+    _ReportButton,
+    _UpdateBadgeButton,
+)

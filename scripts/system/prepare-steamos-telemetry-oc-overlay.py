@@ -183,6 +183,9 @@ def apply_overlay(toolkit_root: Path) -> bool:
 
 
 def main(argv: list[str]) -> int:
+    if len(argv) == 2 and argv[1] in ("-h", "--help"):
+        print(f"Usage: {argv[0]} <bc250-steamos-toolkit-root>")
+        return 0
     if len(argv) != 2:
         print(f"Usage: {argv[0]} <bc250-steamos-toolkit-root>", file=sys.stderr)
         return 2

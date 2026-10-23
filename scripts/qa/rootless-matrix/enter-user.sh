@@ -4,17 +4,19 @@
 # working sudo, for the installers that refuse to run as root. Rootless: a user
 # namespace mapping uid 0 to you and uid 1000 to your subordinate range.
 QA=${BC250_QA:-$HOME/.cache/bc250-qa}; base=$QA/rootfs/$1; shift
+# The checkout this script lives in, wherever it was cloned.
+REPO=${BC250_REPO:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)}
 osr=""; rootcmd=":"; usercmd=":"; cmdline="$(cat $QA/hw/proc/cmdline)"; devport="$QA/hw/devport"
 while [ $# -gt 0 ]; do case "$1" in
   --os-release) osr="$2"; shift 2;; --root) rootcmd="$2"; shift 2;; --user) usercmd="$2"; shift 2;;
   --devport) devport="$2"; shift 2;; *) echo bad arg $1; exit 2;; esac; done
-root=$(mktemp -d $QA/run.XXXXXX); rmdir $root; cp -a --reflink=always $base $root
+root=$(mktemp -d $QA/run.XXXXXX); rmdir $root; cp -a --reflink=auto $base $root
 map=(--user --map-users=0:$(id -u):1 --map-users=1:100000:65535 --map-groups=0:$(id -g):1 --map-groups=1:100000:65535)
 cleanup() { unshare "${map[@]}" rm -rf "$root" 2>/dev/null; rm -rf "$root" 2>/dev/null; }
 trap cleanup EXIT
 [ -n "$osr" ] && { rm -f "$root/etc/os-release"; cp "$osr" "$root/etc/os-release"; }
 cmdfile=$(mktemp); echo "$cmdline" > "$cmdfile"
-export QA root rootcmd usercmd devport cmdfile
+export QA REPO root rootcmd usercmd devport cmdfile
 unshare "${map[@]}" --mount --pid --fork --kill-child bash -c '
 set -e
 mount --make-rprivate /
@@ -26,10 +28,11 @@ ln -s /proc/self/fd "$root/dev/fd"; ln -s /proc/self/fd/0 "$root/dev/stdin"; ln 
 touch "$root/dev/port"; mount --bind "$devport" "$root/dev/port"
 mount --bind "$QA/hw/sys" "$root/sys"
 mount --bind "$cmdfile" "$root/proc/cmdline"; mount --bind "$QA/hw/proc/meminfo" "$root/proc/meminfo"
-mkdir -p "$root/src"; mount --bind /home/deck/Documentos/GitHub/bc250-control-center "$root/src"
+mkdir -p "$root/src"; mount --bind "$REPO" "$root/src"
+grep -q "$(hostname)" "$root/etc/hosts" 2>/dev/null || echo "127.0.1.1 $(hostname)" >> "$root/etc/hosts"
 grep -q "^deck:" "$root/etc/passwd" || { echo "deck:x:1000:1000:deck:/home/deck:/bin/bash" >> "$root/etc/passwd"; echo "deck:x:1000:" >> "$root/etc/group"; }
 mkdir -p "$root/home/deck"; chown 1000:1000 "$root/home/deck"
-mkdir -p "$root/etc/sudoers.d"; echo "deck ALL=(ALL) NOPASSWD: ALL" > "$root/etc/sudoers.d/deck"; chmod 440 "$root/etc/sudoers.d/deck"
+mkdir -p "$root/etc/sudoers.d"; printf "Defaults !use_pty\ndeck ALL=(ALL) NOPASSWD: ALL\n" > "$root/etc/sudoers.d/deck"; chmod 440 "$root/etc/sudoers.d/deck"
 for s in "$root/usr/bin/sudo" "$root/usr/sbin/sudo"; do [ -f "$s" ] && chmod 4111 "$s"; done
 printf "auth sufficient pam_permit.so\naccount sufficient pam_permit.so\nsession sufficient pam_permit.so\n" > "$root/etc/pam.d/sudo"
 export PATH=/usr/sbin:/usr/bin:/sbin:/bin

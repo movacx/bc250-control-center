@@ -178,6 +178,7 @@ def test_steamos_prepare_honors_selected_user_space_components(tmp_path, monkeyp
     assert result.returncode == 0, result.stderr
 
 
+@pytest.mark.skipif(__import__("shutil").which("git") is None, reason="git is not installed")
 def test_cpu_checkout_security_ignores_untracked_runtime_artifacts(tmp_path):
     checkout = tmp_path / "bc250_smu_oc"
     checkout.mkdir()
@@ -480,45 +481,6 @@ def test_bazzite_defers_pwm_module_build_until_the_layered_dkms_deployment_is_bo
     assert _bash_syntax(command).returncode == 0
 
 
-def test_bazzite_standalone_cpu_cu_and_umr_workflows_use_reviewed_archives(
-    tmp_path
-):
-    host = FakeHost(
-        {
-            "ID": "bazzite",
-            "ID_LIKE": "fedora",
-            "VARIANT_ID": "bazzite",
-            "PRETTY_NAME": "Bazzite",
-        },
-        tmp_path,
-        True,
-    )
-    os_repository = create_os_repository(host)
-    repository = DependenciasRepository()
-    repository._os_repository = lambda: os_repository
-    repository._tool_dir = host._tool_dir
-    repository._command_path = lambda _name: ""
-    repository.estado_herramientas_bc250 = lambda: {
-        "bc250_detect": "",
-        "smu_oc_exists": False,
-        "cu_manager_exists": False,
-    }
-    repository._abrir_terminal = lambda command, _title: command
-
-    cpu = repository.instalar_cpu_oc()
-    cu = repository.instalar_cu_manager()
-    umr = repository.instalar_umr()
-
-    assert STEAMOS_SMU_OC_REVIEWED_COMMIT in cpu
-    assert STANDARD_CU_REVIEWED_COMMIT in cu
-    assert STANDARD_CU_REVIEWED_COMMIT in umr
-    assert "Staging protected generic CU backend" in umr
-    assert "/var/lib/bc250-control-center/bc250-cu-live-manager" in umr
-    for command in (cpu, cu, umr):
-        assert ".bc250-source-revision" in command
-        assert "/archive/refs/heads/main.tar.gz" not in command
-
-
 def test_cachyos_installed_umr_still_repairs_a_missing_protected_backend(tmp_path):
     host = FakeHost(
         {"ID": "cachyos", "ID_LIKE": "arch", "PRETTY_NAME": "CachyOS"},
@@ -564,32 +526,6 @@ def test_steamos_install_umr_repairs_and_probes_protected_f5go_backend(tmp_path)
     assert "Staging protected SteamOS CU backend" in command
     assert f"sudo chmod 0755 {protected}" in command
     assert f"{protected} status" in command
-    assert _bash_syntax(command).returncode == 0
-
-
-def test_steamos_existing_checkout_does_not_hide_unready_protected_backend(tmp_path):
-    host = FakeHost(
-        {"ID": "steamos", "ID_LIKE": "arch", "PRETTY_NAME": "SteamOS"},
-        tmp_path,
-        False,
-    )
-    repository = DependenciasRepository()
-    repository._os_repository = lambda: create_os_repository(host)
-    repository._tool_dir = host._tool_dir
-    spec = repository._cu_manager_spec()
-    spec["script"].parent.mkdir(parents=True, exist_ok=True)
-    spec["script"].write_text("#!/bin/bash\n", encoding="utf-8")
-    spec["script"].chmod(0o755)
-    repository.estado_herramientas_bc250 = lambda: {
-        "cu_privileged_backend_ready": False,
-    }
-    repository._abrir_terminal = lambda command, _title: command
-
-    command = repository.instalar_cu_manager()
-
-    assert isinstance(command, str)
-    assert "Staging protected SteamOS CU backend" in command
-    assert "/usr/libexec/bc250-control-center/bc250-cu-live-manager status" in command
     assert _bash_syntax(command).returncode == 0
 
 

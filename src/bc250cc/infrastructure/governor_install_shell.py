@@ -5,6 +5,8 @@ from __future__ import annotations
 import shlex
 from pathlib import Path
 
+from . import container_network
+
 
 def cyan_upstream_runtime_command(
     os_repository,
@@ -186,7 +188,11 @@ def oberon_install_command(
         )
         mount = shlex.quote(f"{destination}:/source:Z")
         build_command = (
-            f"podman run --rm -v {mount} -w /source "
+            container_network.FUNCTION
+            + "\n"
+            + container_network.setup_lines("podman")[1]
+            + "\n"
+            + f"podman run --rm $bc250_net -v {mount} -w /source "
             "registry.fedoraproject.org/fedora:latest bash -lc "
             + shlex.quote(
                 "dnf install -y git cmake gcc-c++ make libdrm-devel pkgconf-pkg-config && "

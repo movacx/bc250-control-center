@@ -86,6 +86,18 @@ def _footer(section):
     return [grid.itemAt(i).widget() for i in range(grid.count())]
 
 
+def _menu(section) -> list[str]:
+    """What More offers: the rare actions not hidden."""
+    return [button.text() for button in section._menu_buttons if not button.isHidden()]
+
+
+def _figures(section) -> list[str]:
+    """The card's figures in the order they stand, visible ones only."""
+    order = [section._stats.itemAt(i).widget() for i in range(section._stats.count())]
+    by_tile = {tile: key for key, tile in section.rows.items()}
+    return [by_tile[tile] for tile in order if not tile.isHidden()]
+
+
 def test_not_installed_offers_the_install_as_the_blue_button():
     sidebar = _sidebar()
     sidebar.set_state(_state(_helixsr()))
@@ -124,16 +136,17 @@ def test_ready_shows_the_readings_and_puts_the_search_last():
     sidebar = _sidebar()
     sidebar.set_state(_state(_ready()))
     section = sidebar.helixsr_section
-    values = {key: row.value.text() for key, row in section.rows.items()}
-    assert values == {"state": "Ready", "prepare": "Built on this PC", "games": "0 / 0"}
+    # Built network files are no news: only figures that say something.
+    assert _figures(section) == ["state", "games"]
+    assert section.rows["state"].value.text() == "Ready" and section.rows["games"].value.text() == "0 / 0"
     assert section.version.text() == "1.2.0"
     assert section.rows["state"].property("tone") == "good"
     assert section.notice.isHidden()
     footer = _footer(section)
-    assert footer[-1] is sidebar.helixsr_scan_button
+    assert footer[0] is section.more_button and footer[-1] is sidebar.helixsr_scan_button
     assert sidebar.helixsr_scan_button.objectName() == "PrimaryAction"
-    assert sidebar.helixsr_install_button.text() == "Reinstall"
-    assert sidebar.helixsr_remove_button in footer
+    # Reinstalling and removing are rare: behind More.
+    assert _menu(section) == ["Reinstall", "Remove"]
 
 
 def test_each_helixsr_game_has_its_add_or_remove_button():
@@ -144,16 +157,14 @@ def test_each_helixsr_game_has_its_add_or_remove_button():
     ]
     sidebar.set_state(_state(_ready(games)))
     controls = sidebar.upscaling_games.controls
-    assert [b.text() for b in controls["1"]] == ["Remove HelixSR"]
+    # Removal sits behind the row's menu; adding is a button.
+    assert [b.text() for b in controls["1"]] == ["⋯"]
+    assert controls["1"][0].property("rowActions") == ["Remove HelixSR"]
     assert [b.text() for b in controls["2"]] == ["Add HelixSR"]
     requested = []
     sidebar.dependency_action_requested.connect(requested.append)
-    controls["1"][0].click()
     controls["2"][0].click()
-    assert [item["action"] for item in requested] == [
-        "helixsr_game_remove:1",
-        "helixsr_opti_install:2",
-    ]
+    assert [item["action"] for item in requested] == ["helixsr_opti_install:2"]
 
 
 def test_a_game_outside_steam_is_marked_and_can_leave_the_list():
@@ -165,12 +176,10 @@ def test_a_game_outside_steam_is_marked_and_can_leave_the_list():
     assert "Outside Steam" in [label.text() for label in table.table.findChildren(QLabel)]
     requested = []
     sidebar.dependency_action_requested.connect(requested.append)
-    for button in table.controls["folder-abc"]:
-        button.click()
-    assert [item["action"] for item in requested] == [
-        "helixsr_game_install:folder-abc",
-        "helixsr_forget_folder:folder-abc",
-    ]
+    add, more = table.controls["folder-abc"]
+    assert more.property("rowActions") == ["Remove from list"]
+    add.click()
+    assert [item["action"] for item in requested] == ["helixsr_game_install:folder-abc"]
 
 
 def test_the_folder_button_asks_the_page_for_a_folder():
@@ -203,7 +212,7 @@ def test_a_rebuilt_list_leaves_nothing_of_the_old_one_on_screen():
         {"appid": "1", "kind": "game", "name": "One", "state": "installed", "files": ["/a.dll"]},
     ])))
     assert old.parentWidget().isHidden()
-    assert sidebar.upscaling_games.controls["1"][0].text() == "Remove HelixSR"
+    assert sidebar.upscaling_games.controls["1"][0].property("rowActions") == ["Remove HelixSR"]
 
 
 def _fsr4_ready(**overrides) -> dict:
@@ -224,13 +233,13 @@ def test_fsr4_spells_out_the_launch_option_where_a_game_misses_it():
     assert not sidebar.fsr4_launch_panel.isHidden()
     assert sidebar.fsr4_launch_field.text() == 'WINEDLLOVERRIDES="dxgi=n,b" %command%'
     assert sidebar.fsr4_launch_field.cursorPosition() == 0, "the start of the option in view"
-    assert sidebar.fsr4_copy_button.text() == "Copy"
+    assert sidebar.fsr4_copy_button.accessibleName() == "Copy Steam launch option"
     assert section.version.text() == "1.0.7"
-    assert section.rows["prepare"].value.text() == "Missing in some games"
-    assert section.rows["prepare"].property("tone") == "warning"
-    assert _footer(section)[-1] is sidebar.fsr4_steam_all_button
-    assert sidebar.fsr4_steam_all_button.objectName() == "PrimaryAction"
-    assert sidebar.fsr4_launch_button in _footer(section)
+    assert section.notice.text() == "1 Steam games do not have the launch option yet."
+    # The fix for every game sits with the option, above the games.
+    assert sidebar.fsr4_launch_panel.isAncestorOf(sidebar.fsr4_steam_all_button)
+    assert not sidebar.fsr4_steam_all_button.isHidden()
+    assert _footer(section)[-1] is sidebar.fsr4_launch_button
 
 
 def test_fsr4_with_every_game_loading_opens_the_client_as_the_next_step():
@@ -241,8 +250,10 @@ def test_fsr4_with_every_game_loading_opens_the_client_as_the_next_step():
     section = sidebar.fsr4_section
     assert not sidebar.fsr4_launch_panel.isHidden(), "always in view, at the head of the games"
     assert sidebar.upscaling_games.isAncestorOf(sidebar.fsr4_launch_panel)
-    values = {key: row.value.text() for key, row in section.rows.items()}
-    assert values == {"state": "Ready", "prepare": "In every game", "games": "1 / 2"}
+    assert {key: section.rows[key].value.text() for key in _figures(section)} == {
+        "state": "Ready", "games": "1 / 2",
+    }
+    assert section.notice.isHidden()
     assert _footer(section)[-1] is sidebar.fsr4_launch_button
     assert sidebar.fsr4_launch_button.objectName() == "PrimaryAction"
     assert sidebar.fsr4_steam_all_button.isHidden()
@@ -252,26 +263,25 @@ def test_both_cards_read_the_same_way():
     sidebar = _sidebar()
     sidebar.set_state(_state(_ready(), _fsr4_ready()))
     fsr4, helixsr = sidebar.fsr4_section, sidebar.helixsr_section
-    assert list(fsr4.rows) == list(helixsr.rows) == ["state", "prepare", "games"]
-    labels = [[row.label.text() for row in section.rows.values()] for section in (fsr4, helixsr)]
-    assert labels[0][0] == labels[1][0] == "State"
-    assert labels[0][2] == labels[1][2] == "Active games"
+    assert _figures(fsr4) == _figures(helixsr) == ["state", "games"]
     for section in (fsr4, helixsr):
+        assert [section.rows[key].label.text() for key in _figures(section)] == ["State", "Active games"]
         footer = _footer(section)
-        assert footer[0].text() == "Reinstall" and footer[1].text() == "Remove"
-        assert footer[-1].objectName() == "PrimaryAction"
+        assert footer[0] is section.more_button and footer[-1].objectName() == "PrimaryAction"
+        assert "Reinstall" in _menu(section) and _menu(section)[-1] == "Remove"
 
 
 def test_a_narrow_card_moves_the_next_step_to_its_own_row_instead_of_cutting_labels():
     sidebar = _sidebar()
-    sidebar.set_state(_state(_helixsr(), _fsr4_ready()))
+    newer = {"tag": "opticlient-v9.0.0-bc250.1", "version": "9.0.0-bc250.1", "reviewed": False}
+    sidebar.set_state(_state(_helixsr(), _fsr4_ready(newer=newer)))
     sidebar.select_tab(sidebar.tab_index("upscaling"))
-    sidebar.resize(460, 900)
+    sidebar.resize(420, 900)
     sidebar.show()
     QApplication.processEvents()
     section = sidebar.fsr4_section
     assert section._footer_wrapped
-    index = section.footer.indexOf(sidebar.fsr4_steam_all_button)
+    index = section.footer.indexOf(sidebar.fsr4_upgrade_button)
     assert section.footer.getItemPosition(index)[0] == 1
     for button in _footer(section):
         if not button.isHidden():
@@ -403,7 +413,8 @@ def test_an_update_sits_beside_removal_with_its_own_label():
     sidebar.set_state(_state(_ready(games)))
     controls = sidebar.upscaling_games.controls
     for key in ("1", "2"):
-        assert [b.text() for b in controls[key]] == ["Update HelixSR", "Remove HelixSR"]
+        assert [b.text() for b in controls[key]] == ["Update HelixSR", "⋯"]
+        assert controls[key][1].property("rowActions") == ["Remove HelixSR"]
     requested = []
     sidebar.dependency_action_requested.connect(requested.append)
     controls["2"][0].click()
@@ -428,6 +439,11 @@ def test_missing_games_and_network_files_are_named():
     assert by_name["Bare"]["helixsr"][3][0] == ("Update HelixSR", "helixsr_game_update:3", True)
 
 
+def _on_form(form, values: dict) -> dict:
+    """The settings the form shows (HelixSR Scaler's only while a game has it)."""
+    return {name: value for name, value in values.items() if name in form.controls}
+
+
 def _settings(**overrides) -> dict:
     from bc250cc.infrastructure.helixsr import helixsr_defaults
 
@@ -442,7 +458,7 @@ def test_the_settings_form_shows_saves_and_restores():
     sidebar.set_state(_state(_ready(settings=_settings(**{"Sharpening.Sharpener": "nvidia",
                                                             "Sharpening.Sharpness": 0.5}),
                                     settings_defaults=helixsr_defaults())))
-    assert form.values() == _settings(**{"Sharpening.Sharpener": "nvidia", "Sharpening.Sharpness": 0.5})
+    assert form.values() == _on_form(form, _settings(**{"Sharpening.Sharpener": "nvidia", "Sharpening.Sharpness": 0.5}))
     assert not form.save_button.isEnabled(), "nothing to save yet"
     assert form.defaults_button.isEnabled()
     assert form.controls["Sharpening.Sharpness"].isEnabled()
@@ -458,7 +474,7 @@ def test_the_settings_form_shows_saves_and_restores():
     assert requested[-1]["helixsr_settings"]["ModelE.InvertJitter"] is True
 
     form.defaults_button.click()
-    assert form.values() == helixsr_defaults()
+    assert form.values() == _on_form(form, helixsr_defaults())
     assert not form.controls["Sharpening.Sharpness"].isEnabled(), "Off does not sharpen"
 
 
@@ -508,15 +524,14 @@ def test_an_optiscaler_folder_added_by_hand_is_marked_and_can_leave_the_list():
     sidebar.set_state(_state(_ready(games)))
     assert not sidebar.helixsr_opti_folder_button.isHidden()
     controls = sidebar.upscaling_games.controls["optifolder-abc"]
-    assert [b.text() for b in controls] == ["Add HelixSR", "Remove from list"]
+    assert [b.text() for b in controls] == ["Add HelixSR", "⋯"]
+    assert controls[1].property("rowActions") == ["Remove from list"]
     requested = []
     sidebar.dependency_action_requested.connect(requested.append)
     controls[0].click()
-    controls[1].click()
     sidebar.helixsr_opti_folder_button.click()
     assert [item["action"] for item in requested] == [
         "helixsr_opti_install:optifolder-abc",
-        "helixsr_forget_folder:optifolder-abc",
         "helixsr_add_opti_folder",
     ]
     rows = game_matrix_rows(games, [], helixsr_ready=True)
@@ -640,3 +655,110 @@ def test_the_int8_row_is_off_for_a_release_that_does_not_read_it():
     assert not form.controls["Upscaling.Int8"].isEnabled()
     sidebar.set_state(_state(_ready(int8_supported=True)))
     assert form.controls["Upscaling.Int8"].isEnabled()
+
+
+def _fsr4(**overrides) -> dict:
+    state = {
+        "provider": "opticlient", "installer_available": True, "installed": True, "current": True,
+        "state": "ready", "version": "1.0.7-bc250.5", "tag": "opticlient-v1.0.7-bc250.5",
+        "games": [], "steam_launch_option": 'WINEDLLOVERRIDES="dxgi=n,b" %command%',
+    }
+    state.update(overrides)
+    return state
+
+
+def _client_releases(*versions: str) -> list[dict]:
+    return [{"tag": "opticlient-v" + version, "version": version, "prerelease": True,
+             "reviewed": version == "1.0.7-bc250.5", "default": version == "1.0.7-bc250.5"}
+            for version in versions]
+
+
+def test_the_fsr4_client_build_is_picked_like_helixsrs():
+    sidebar = _sidebar()
+    sidebar.set_state(_state(_helixsr(), _fsr4(
+        releases=_client_releases("1.0.8-bc250.1", "1.0.7-bc250.5", "1.0.7-bc250.4"),
+    )))
+    combo = sidebar.fsr4_version_combo
+    assert sidebar.fsr4_section.isAncestorOf(combo)
+    assert [combo.itemText(i) for i in range(combo.count())] == [
+        "1.0.8-bc250.1 (pre-release)", "1.0.7-bc250.5 (recommended)", "1.0.7-bc250.4 (pre-release)",
+    ]
+    assert combo.currentData() == "opticlient-v1.0.7-bc250.5" and combo.isEnabled()
+    requested = []
+    sidebar.dependency_action_requested.connect(requested.append)
+
+    combo.activated.emit(1)                      # already picked: nothing to do
+    combo.activated.emit(0)
+    sidebar.fsr4_releases_button.click()
+
+    assert [item["action"] for item in requested] == [
+        "fsr4_select:opticlient-v1.0.8-bc250.1", "fsr4_releases",
+    ]
+
+
+def test_an_older_client_build_picked_on_purpose_is_not_offered_as_an_update():
+    sidebar = _sidebar()
+    sidebar.set_state(_state(_helixsr(), _fsr4(
+        current=False, state="other-version", version="1.0.7-bc250.4",
+        tag="opticlient-v1.0.7-bc250.4",
+        releases=_client_releases("1.0.7-bc250.5", "1.0.7-bc250.4"),
+    )))
+    assert sidebar.fsr4_card.status.text() == "Other version selected"
+    assert sidebar.fsr4_install_button.text() == "Install FSR4"
+
+
+def test_settings_a_release_does_not_read_stay_on_the_form_but_off():
+    """Int8 is read from 1.9, FastOutput from 2.0: earlier releases skip them."""
+    from bc250cc.infrastructure.helixsr import helixsr_defaults
+
+    sidebar = _sidebar()
+    form = sidebar.helixsr_settings
+    defaults = helixsr_defaults()
+    sidebar.set_state(_state(_ready(settings=defaults, settings_defaults=defaults,
+                                    int8_supported=False, fast_output_supported=False)))
+    assert not form.controls["Upscaling.Int8"].isEnabled()
+    assert not form.controls["Upscaling.FastOutput"].isEnabled()
+    assert form.values()["Upscaling.FastOutput"] == "on"
+
+    sidebar.set_state(_state(_ready(settings=defaults, settings_defaults=defaults,
+                                    int8_supported=True, fast_output_supported=True)))
+    assert form.controls["Upscaling.Int8"].isEnabled()
+    assert form.controls["Upscaling.FastOutput"].isEnabled()
+
+
+def test_more_and_the_rows_menu_run_the_actions_they_list():
+    sidebar = _sidebar()
+    games = [{"appid": "1", "kind": "game", "name": "Active", "state": "installed", "files": ["/a.dll"]}]
+    sidebar.set_state(_state(_ready(games)))
+    requested = []
+    sidebar.dependency_action_requested.connect(requested.append)
+
+    section = sidebar.helixsr_section
+    section._open_menu()
+    entries = {action.text(): action for action in section._menu.actions() if action.text()}
+    assert list(entries) == ["Reinstall", "Remove"]
+    entries["Remove"].trigger()
+    assert requested[-1]["action"] == "helixsr_uninstall"
+
+    table = sidebar.upscaling_games
+    table.controls["1"][0].click()
+    [remove] = table._menu.actions()
+    assert remove.text() == "Remove HelixSR"
+    remove.trigger()
+    assert requested[-1]["action"] == "helixsr_game_remove:1"
+
+
+def test_frame_generation_is_one_switch_in_its_row():
+    sidebar = _sidebar()
+    scaler = [{"appid": "7", "name": "Racer", "state": "installed", "frame_generation": True,
+               "fg_possible": True, "version": "1.2.0"}]
+    sidebar.set_state(_state(_ready(scaler_games=scaler, scaler_supported=True, fg_ready=True)))
+    switch, more = sidebar.upscaling_games.controls["7"]
+    # While on, it says what pressing it does.
+    assert switch.text() == "Turn off frame generation" and switch.isCheckable() and switch.isChecked()
+    assert more.property("rowActions") == ["Remove HelixSR Scaler"]
+    requested = []
+    sidebar.dependency_action_requested.connect(requested.append)
+    switch.click()
+    assert requested[-1]["action"] == "helixsr_scaler_fg_off:7"
+    assert switch.isChecked(), "it shows the game's state until the change lands"

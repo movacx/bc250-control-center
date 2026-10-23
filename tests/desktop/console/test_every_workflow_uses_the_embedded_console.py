@@ -48,9 +48,9 @@ def _python_files() -> list[Path]:
     return sorted(files)
 
 
-# Naming a terminal is harmless on its own: the Processes page lists "Konsole"
-# as a friendly name, and the service module lists it among the processes it
-# must never offer to kill. Running ``subprocess.run`` is harmless too — most
+# Naming a terminal is harmless on its own: the process inventory and the
+# service module list terminals among the programs they must never offer to
+# kill. Running ``subprocess.run`` is harmless too — most
 # of the infrastructure reads system state that way. What is not harmless is an
 # emulator name reaching a call that starts a process, so that is what is
 # measured, on the syntax tree rather than on the text.
@@ -110,7 +110,7 @@ def test_only_the_terminal_repository_can_start_an_emulator():
 
 def test_the_two_modules_that_only_name_a_terminal_never_start_one():
     """Pins *why* the known mentions are safe, not merely that they exist."""
-    for name in ("frontends/desktop/pages/processes.py",
+    for name in ("src/bc250cc/infrastructure/process_inventory.py",
                  "src/bc250cc/infrastructure/system_service.py"):
         path = Path(name)
         text = path.read_text(encoding="utf-8")
@@ -207,8 +207,8 @@ def test_the_list_of_modules_that_even_mention_a_terminal_is_closed():
     expected = {
         # Builds the candidate list. Starts nothing itself.
         "src/bc250cc/infrastructure/terminal_plan.py",
-        # Friendly names for the process list.
-        "frontends/desktop/pages/processes.py",
+        # Terminals the process inventory protects and shows under System.
+        "src/bc250cc/infrastructure/process_inventory.py",
         # Processes that must never be offered for termination.
         "src/bc250cc/infrastructure/system_service.py",
     }
