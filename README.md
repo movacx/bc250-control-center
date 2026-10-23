@@ -21,6 +21,10 @@ It covers the GPU governor, CPU tuning, Compute Units, fans, memory, BIOS update
   <a href="docs/readmes/README.ja.md"><img src="https://img.shields.io/badge/%E6%97%A5%E6%9C%AC%E8%AA%9E-0550ae?style=for-the-badge" alt="日本語で読む"></a>
 </p>
 
+<p align="center">
+  <a href="https://ko-fi.com/movacx"><img src="https://img.shields.io/badge/Ko--fi-Donate-ff5e5b?style=for-the-badge&logo=kofi&logoColor=white" alt="Donate on Ko-fi"></a>
+</p>
+
 More screenshots are in the [gallery](https://movacx.github.io/bc250-control-center/gallery/).
 
 ## Features
@@ -89,6 +93,21 @@ sudo apt install ./bc250-control-center_*.deb
 ```
 
 Use `apt install` rather than `dpkg -i` so that dependencies are installed. If a package was left half-installed by `dpkg -i`, run `sudo apt --fix-broken install`.
+
+### SteamOS
+
+SteamOS keeps its system partition read-only, so the package can only be installed while that protection is off. Open Konsole in Desktop Mode and run:
+
+```bash
+sudo steamos-readonly disable
+sudo pacman-key --init
+sudo pacman-key --populate archlinux holo
+sudo pacman -Syy
+sudo pacman -U ./bc250-control-center-*-any.pkg.tar.zst
+sudo steamos-readonly enable
+```
+
+The `pacman-key` and `pacman -Syy` lines refresh the keyring and the package databases, which a SteamOS update resets. If you have not set a password for the `deck` user yet, run `passwd` first. After a SteamOS update, **Reinstall BC250 Control Center** in the Desktop Mode menu does these steps for you.
 
 ### From source
 
@@ -197,35 +216,35 @@ This project builds on the work of the BC-250 community. The projects below belo
 - [bc250-bazzite-suite](https://github.com/RobertoTorino/bc250-bazzite-suite) (GPL-3.0): Bazzite setup suite
 - [bc250-vcn-research](https://github.com/Shalasere/bc250-vcn-research) and [amdgpu-wddm](https://github.com/D-Ogi/amdgpu-wddm): VCN video encoding research and an open Windows driver (no license declared; linked only)
 
-## Estructura del proyecto
+## Project structure
 
 ```text
 bc250-control-center/
-├── src/bc250cc/              El núcleo, sin interfaz gráfica
-│   ├── domain/               Reglas y límites de cada módulo (GPU, CPU, CU, ventiladores, firmware…)
-│   ├── application/          Casos de uso que combinan esas reglas
-│   ├── infrastructure/       Acceso al sistema: sensores, servicios, paquetes, GitHub
-│   ├── platform/             Diferencias entre distribuciones y sistemas de arranque
-│   └── shared/               Versión, rutas y contratos compartidos por todos los procesos
+├── src/bc250cc/              The core, with no graphical interface
+│   ├── domain/               Rules and limits for each module (GPU, CPU, CU, fans, firmware…)
+│   ├── application/          Use cases that combine those rules
+│   ├── infrastructure/       System access: sensors, services, packages, GitHub
+│   ├── platform/             Differences between distributions and boot systems
+│   └── shared/               Version, paths and contracts shared by every process
 ├── frontends/
-│   ├── desktop/              Aplicación de escritorio en Qt
-│   │   ├── pages/            Un archivo por módulo (panel, GPU, CPU, ventiladores, firmware…)
-│   │   ├── components/       Piezas reutilizables de la interfaz
-│   │   ├── onboarding/       Pantalla de bienvenida y tour guiado
-│   │   ├── console/          Terminal integrada
-│   │   ├── theme/            Temas, estilos, colores e iconos
-│   │   └── i18n/             Traducciones a 30 idiomas
-│   └── cli.py                Modo de línea de comandos
-├── integrations/decky/       Plugin Decky Quick Access para el modo Juego
-├── privileged/               Lo que se ejecuta como root, aislado y revisado
-│   ├── helpers/              Un ayudante por tarea privilegiada
-│   ├── lib/                  Código compartido por esos ayudantes
-│   └── policies/             Permisos de Polkit
-├── packaging/                Paquetes .pkg.tar.zst, .rpm y .deb, y el PKGBUILD del AUR
-├── scripts/                  Lanzadores, instalador local y utilidades de sistema
-├── assets/                   Iconos, capturas y galería web
-├── docs/                     Documentación, avisos de terceros y traducciones de este README
-└── tests/                    Más de 5000 pruebas automáticas, con os-release de 37 distribuciones reales
+│   ├── desktop/              Qt desktop application
+│   │   ├── pages/            One file per module (dashboard, GPU, CPU, fans, firmware…)
+│   │   ├── components/       Reusable interface pieces
+│   │   ├── onboarding/       Welcome screen and guided tour
+│   │   ├── console/          Built-in terminal
+│   │   ├── theme/            Themes, styles, colors and icons
+│   │   └── i18n/             Translations into 30 languages
+│   └── cli.py                Command-line mode
+├── integrations/decky/       Decky Quick Access plugin for Game Mode
+├── privileged/               What runs as root, isolated and reviewed
+│   ├── helpers/              One helper per privileged task
+│   ├── lib/                  Code shared by those helpers
+│   └── policies/             Polkit permissions
+├── packaging/                .pkg.tar.zst, .rpm and .deb packages, and the AUR PKGBUILD
+├── scripts/                  Launchers, local installer and system utilities
+├── assets/                   Icons, screenshots and the web gallery
+├── docs/                     Documentation, third-party notices and README translations
+└── tests/                    More than 5000 automated tests, with os-release files from 37 real distributions
 ```
 
 
