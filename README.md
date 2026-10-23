@@ -109,14 +109,6 @@ sudo steamos-readonly enable
 
 The `pacman-key` and `pacman -Syy` lines refresh the keyring and the package databases, which a SteamOS update resets. If you have not set a password for the `deck` user yet, run `passwd` first. After a SteamOS update, **Reinstall BC250 Control Center** in the Desktop Mode menu does these steps for you.
 
-### From source
-
-```bash
-git clone https://github.com/movacx/bc250-control-center.git
-cd bc250-control-center
-./run.sh                          # run from the checkout
-bash scripts/install-local.sh     # or install it for the current user
-```
 
 ## Updating
 
