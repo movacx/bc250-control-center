@@ -5337,5 +5337,8 @@
   "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Honnan olvassa a Cyan a GPU hőmérsékletét. Mindkettő ugyanazt az értéket adja; a sysfs nem tartja nyitva a GPU-eszközt csak emiatt. Az alapértelmezett a DRM.",
   "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Ez a Cyan-verzió nem olvassa ezt a beállítást. Frissítsd a Függőségek előkészítése menüpontban.",
   "Hardware diagnostics": "Hardverdiagnosztika",
-  "{reason} Maximum selectable frequency: {ceiling} MHz.": "{reason} Legnagyobb választható frekvencia: {ceiling} MHz."
+  "{reason} Maximum selectable frequency: {ceiling} MHz.": "{reason} Legnagyobb választható frekvencia: {ceiling} MHz.",
+  "{title} failed": "{title} sikertelen",
+  "The workflow": "A munkafolyamat",
+  "Linux may ask for your password once to read the kernel log for this report. If you cancel it, the report is still sent, without that log.": "A Linux egyszer jelszót kérhet, hogy elolvassa a kernelnaplót ehhez a jelentéshez. Ha megszakítja, a jelentés a napló nélkül is elmegy."
 }

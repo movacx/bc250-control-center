@@ -128,3 +128,20 @@ def test_raw_helper_run_reports_exit_code_and_stderr(monkeypatch, tmp_path):
     assert "exit code: 3" in text and "boom" in text and "not valid JSON" in text
     monkeypatch.setattr("bc250cc.infrastructure.system_setup.HELPER", tmp_path / "none")
     assert "missing" in "\n".join(diag._raw_helper_run())
+
+
+def test_the_kernel_log_needs_a_password_only_when_nothing_reads_it(monkeypatch):
+    monkeypatch.setattr(diag, "_run", lambda argv, **kwargs: "")
+    assert diag.kernel_log_needs_password() is True
+    monkeypatch.setattr(diag, "_run", lambda argv, **kwargs: "line" if argv[0] == "dmesg" else "")
+    assert diag.kernel_log_needs_password() is False
+    monkeypatch.setattr(diag, "_run", lambda argv, **kwargs: "line" if argv[0] == "journalctl" else "")
+    assert diag.kernel_log_needs_password() is False
+
+
+def test_the_password_check_never_raises(monkeypatch):
+    def broken(*_args, **_kwargs):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(diag, "_run", broken)
+    assert diag.kernel_log_needs_password() is False

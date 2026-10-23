@@ -456,3 +456,24 @@ def test_every_line_of_a_workflow_survives_the_opening_animation(qtbot, panel):
     text = panel.view.screen.full_text()
     for index in (1, 6, 12):
         assert f"paso {index}" in text
+
+
+def test_a_failed_run_offers_the_report_and_a_new_run_takes_it_back(qtbot, panel):
+    run_and_wait(qtbot, panel, "echo 'Diagnostic code: BC250-TEST-001'; exit 3", title="Prueba")
+    assert panel.report_button.isVisibleTo(panel)
+    run_and_wait(qtbot, panel, "exit 0")
+    assert not panel.report_button.isVisibleTo(panel)
+
+
+def test_the_report_button_sends_the_output_and_the_code(qtbot, panel, monkeypatch):
+    sent = {}
+    monkeypatch.setattr(
+        "frontends.desktop.components.feedback_dialog.open_feedback",
+        lambda parent=None, **kwargs: sent.update(kwargs) or 0,
+    )
+    run_and_wait(qtbot, panel, "echo 'Código de diagnóstico: BC250-TEST-001'; exit 3", title="Prueba")
+    panel.report_button.click()
+    assert sent["opened_from"] == "Terminal"
+    assert sent["code"] == "BC250-TEST-001"
+    assert "BC250-TEST-001" in sent["terminal"]
+    assert "Prueba" in sent["summary"]

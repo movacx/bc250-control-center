@@ -5337,5 +5337,8 @@
   "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Cyan'ın GPU sıcaklığını nereden okuduğu. İkisi de aynı değeri verir; sysfs yalnızca bunun için GPU aygıtını açık tutmaz. Varsayılan DRM'dir.",
   "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Bu Cyan sürümü bu ayarı okumuyor. Bağımlılıkları hazırla bölümünden güncelleyin.",
   "Hardware diagnostics": "Donanım tanılaması",
-  "{reason} Maximum selectable frequency: {ceiling} MHz.": "{reason} Seçilebilir en yüksek frekans: {ceiling} MHz."
+  "{reason} Maximum selectable frequency: {ceiling} MHz.": "{reason} Seçilebilir en yüksek frekans: {ceiling} MHz.",
+  "{title} failed": "{title} başarısız oldu",
+  "The workflow": "İş akışı",
+  "Linux may ask for your password once to read the kernel log for this report. If you cancel it, the report is still sent, without that log.": "Linux, bu rapor için çekirdek günlüğünü okumak üzere parolanızı bir kez isteyebilir. İptal ederseniz rapor yine de o günlük olmadan gönderilir."
 }

@@ -424,8 +424,10 @@ def _request(url: str, data: bytes | None = None) -> urllib.request.Request:
 #: Long answers in the order they give up room when the body is too big: the
 #: first one is cut first. What the owner typed comes last.
 _SHRINK_ORDER = (
-    ("recent_errors", False), ("terminal", True), ("details", False), ("specs", False),
-    ("hardware", False), ("raw", True), ("where", False), ("steps", False),
+    ("recent_errors", False), ("details", False), ("specs", False), ("hardware", False),
+    # The terminal output is what a report from the terminal is about: it
+    # gives up room after the hardware diagnosis, not before it.
+    ("terminal", True), ("raw", True), ("where", False), ("steps", False),
     ("diagnostics", False), ("ideas", False),
 )
 CUT_NOTE = "\n… (cut to fit the form; the full text is in Open in browser)"

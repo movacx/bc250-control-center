@@ -2017,6 +2017,7 @@
    "_hwmon_number": "CORE-0058",
    "_hwmon": "CORE-0059",
    "_kernel_text": "CORE-0060",
+   "kernel_log_needs_password": "CORE-0085",
    "_kernel_cached": "CORE-0061",
    "_filtered": "CORE-0062",
    "_fan_log": "CORE-0063",
@@ -2914,6 +2915,7 @@
   },
   "frontends/desktop/components/feedback_dialog.py": {
    "_read_report": "DIAG-0001",
+   "_needs_password": "DIAG-0129",
    "_Choice.__init__": "DIAG-0002",
    "_Choice.value": "DIAG-0003",
    "_Choice.set_value": "DIAG-0004",
@@ -3354,6 +3356,7 @@
    "ConsolePanel._on_failed_tab": "CON-0072",
    "ConsolePanel._on_finished": "CON-0073",
    "ConsolePanel._copy_everything": "CON-0074",
+   "ConsolePanel._report_failure": "CON-0262",
    "ConsolePanel._open_external_terminal": "CON-0075",
    "ConsolePanel.retranslate": "CON-0076",
    "ConsolePanel.apply_theme": "CON-0077",

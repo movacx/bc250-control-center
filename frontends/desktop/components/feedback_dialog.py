@@ -92,6 +92,16 @@ def _read_report() -> dict[str, object]:
     }
 
 
+def _needs_password() -> bool:
+    """Whether reading the kernel log will make Linux ask for a password."""
+    try:
+        from bc250cc.infrastructure.system_diagnostics import kernel_log_needs_password
+
+        return bool(kernel_log_needs_password())
+    except Exception:  # noqa: BLE001 - a note is never worth a failed form
+        return False
+
+
 class _Choice(GuardedComboBox):
     """A form choice: the English label is the data, the text is translated."""
 
@@ -245,6 +255,7 @@ class FeedbackDialog(QDialog):
         raw: str = "",
         opened_from: str = "",
         read_report=_read_report,
+        needs_password=_needs_password,
         submit=form.submit,
     ):
         super().__init__(parent)
@@ -324,6 +335,7 @@ class FeedbackDialog(QDialog):
         localize_widget_tree(self)
         # Sending waits for the automatic report: a quick press used to post
         # it with no specifications and no recent errors.
+        self.polkit_note.setVisible(needs_password())
         self._reading = True
         self.send_button.setEnabled(False)
         self.send_button.setToolTip(tr("Still reading this system…"))
@@ -407,6 +419,16 @@ class FeedbackDialog(QDialog):
         attach.addWidget(self.preview)
         attach.addStretch(1)
         rows.addLayout(attach)
+        # Shown before the report is read, so the password dialog that may
+        # follow is not a surprise.
+        self.polkit_note = QLabel(tr(
+            "Linux may ask for your password once to read the kernel log for this report. "
+            "If you cancel it, the report is still sent, without that log."
+        ))
+        self.polkit_note.setProperty("feedbackHint", True)
+        self.polkit_note.setWordWrap(True)
+        self.polkit_note.hide()
+        rows.addWidget(self.polkit_note)
         column.addWidget(automatic)
 
         self.problem_contact = _line("@name")

@@ -5337,5 +5337,8 @@
   "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Odkud Cyan čte teplotu GPU. Obě možnosti dávají stejnou hodnotu; sysfs kvůli tomu nedrží zařízení GPU otevřené. Výchozí je DRM.",
   "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Tato verze Cyanu toto nastavení nečte. Aktualizujte ji v Připravit závislosti.",
   "Hardware diagnostics": "Diagnostika hardwaru",
-  "{reason} Maximum selectable frequency: {ceiling} MHz.": "{reason} Maximální volitelná frekvence: {ceiling} MHz."
+  "{reason} Maximum selectable frequency: {ceiling} MHz.": "{reason} Maximální volitelná frekvence: {ceiling} MHz.",
+  "{title} failed": "{title} selhalo",
+  "The workflow": "Pracovní postup",
+  "Linux may ask for your password once to read the kernel log for this report. If you cancel it, the report is still sent, without that log.": "Linux se vás může jednou zeptat na heslo, aby pro toto hlášení přečetl log jádra. Pokud ho zrušíte, hlášení se odešle i tak, jen bez tohoto logu."
 }

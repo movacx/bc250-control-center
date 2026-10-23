@@ -5337,5 +5337,8 @@
   "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Откъде Cyan чете температурата на GPU. И двете дават една и съща стойност; sysfs не държи GPU устройството отворено само за това. DRM е по подразбиране.",
   "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Тази версия на Cyan не чете тази настройка. Обновете я от Подготовка на зависимости.",
   "Hardware diagnostics": "Хардуерна диагностика",
-  "{reason} Maximum selectable frequency: {ceiling} MHz.": "{reason} Максимална избираема честота: {ceiling} MHz."
+  "{reason} Maximum selectable frequency: {ceiling} MHz.": "{reason} Максимална избираема честота: {ceiling} MHz.",
+  "{title} failed": "{title} не успя",
+  "The workflow": "Процесът",
+  "Linux may ask for your password once to read the kernel log for this report. If you cancel it, the report is still sent, without that log.": "Linux може да поиска паролата ви веднъж, за да прочете журнала на ядрото за този доклад. Ако откажете, докладът пак се изпраща, но без този журнал."
 }

@@ -176,6 +176,20 @@ def _kernel_text(boot: str = "0") -> tuple[str, str]:
     return text, "dmesg via polkit"
 
 
+def kernel_log_needs_password() -> bool:
+    """True when only polkit could read the running boot's kernel log.
+
+    Cheap and unprivileged, so the report form can warn before the password
+    dialog appears. Never raises.
+    """
+    try:
+        if _run(["journalctl", "-k", "-b", "-n", "1", "-q", "--no-pager"], timeout=1):
+            return False
+        return not _run(["dmesg"], timeout=1)
+    except Exception:  # noqa: BLE001 - a warning must never break the form
+        return False
+
+
 _KERNEL_CACHE: dict[str, tuple[str, str]] = {}
 
 

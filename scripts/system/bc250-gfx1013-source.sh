@@ -33,6 +33,10 @@
 #   bc250-gfx1013-source.sh status
 
 set -Eeuo pipefail
+# Debian and Ubuntu leave /usr/sbin and /sbin out of a user's PATH, so the
+# build step (run as the user) found no modinfo, read no vermagic, and reported
+# a module built correctly as "does not match kernel".
+export PATH="${PATH:-/usr/bin:/bin}:/usr/sbin:/sbin"
 
 MESA_VERSION=26.2.0-rc3
 MESA_SHA256=f733c005660d342a51c6727d1ad481f43d05b4c601ac72247fa641e1d73a8ad1
@@ -50,7 +54,7 @@ CONFIRM_TIMER=/etc/systemd/system/bc250cc-gfx1013-confirm.timer
 GENERATOR=/usr/lib/systemd/user-environment-generators/60-bc250cc-gfx1013
 KVER="$(uname -r)"
 
-die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
+die() { printf '[ERROR] %s\n' "$*" >&2; exit 1; }
 say() { printf '== %s\n' "$*"; }
 
 require_root() { [[ ${EUID} -eq 0 ]] || die "this step needs root; run it with sudo"; }

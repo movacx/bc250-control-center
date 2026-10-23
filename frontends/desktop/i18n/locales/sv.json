@@ -5337,5 +5337,8 @@
   "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Var Cyan läser GPU-temperaturen. Båda ger samma värde; sysfs håller inte GPU-enheten öppen bara för det. DRM är standard.",
   "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Den här Cyan-versionen läser inte den här inställningen. Uppdatera den från Förbered beroenden.",
   "Hardware diagnostics": "Hårdvarudiagnostik",
-  "{reason} Maximum selectable frequency: {ceiling} MHz.": "{reason} Högsta valbara frekvens: {ceiling} MHz."
+  "{reason} Maximum selectable frequency: {ceiling} MHz.": "{reason} Högsta valbara frekvens: {ceiling} MHz.",
+  "{title} failed": "{title} misslyckades",
+  "The workflow": "Arbetsflödet",
+  "Linux may ask for your password once to read the kernel log for this report. If you cancel it, the report is still sent, without that log.": "Linux kan fråga efter ditt lösenord en gång för att läsa kärnloggen till den här rapporten. Avbryter du skickas rapporten ändå, utan den loggen."
 }

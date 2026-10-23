@@ -51,7 +51,7 @@ MIN_MAJOR=7
 MIN_MINOR=2
 KVER="$(uname -r)"
 
-die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
+die() { printf '[ERROR] %s\n' "$*" >&2; exit 1; }
 say() { printf '== %s\n' "$*"; }
 
 require_root() { [[ ${EUID} -eq 0 ]] || die "this step needs root; run it with sudo"; }

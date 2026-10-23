@@ -5337,5 +5337,8 @@
   "Where Cyan reads the GPU temperature. Both give the same value; sysfs keeps no GPU device open just for it. DRM is the default.": "Dari mana Cyan membaca suhu GPU. Kedua-duanya memberi nilai yang sama; sysfs tidak membiarkan peranti GPU terbuka hanya untuk itu. DRM ialah lalai.",
   "This Cyan version does not read this setting. Update it from Prepare dependencies.": "Versi Cyan ini tidak membaca tetapan ini. Kemas kininya daripada Sediakan kebergantungan.",
   "Hardware diagnostics": "Diagnostik perkakasan",
-  "{reason} Maximum selectable frequency: {ceiling} MHz.": "{reason} Frekuensi maksimum yang boleh dipilih: {ceiling} MHz."
+  "{reason} Maximum selectable frequency: {ceiling} MHz.": "{reason} Frekuensi maksimum yang boleh dipilih: {ceiling} MHz.",
+  "{title} failed": "{title} gagal",
+  "The workflow": "Aliran kerja",
+  "Linux may ask for your password once to read the kernel log for this report. If you cancel it, the report is still sent, without that log.": "Linux mungkin meminta kata laluan anda sekali untuk membaca log kernel bagi laporan ini. Jika dibatalkan, laporan tetap dihantar, tanpa log itu."
 }

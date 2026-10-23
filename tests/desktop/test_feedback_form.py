@@ -374,3 +374,20 @@ def test_submit_never_posts_more_than_google_accepts():
 
     form.submit(_problem(recent_errors="z" * 20000, hardware="h" * 32000, specs="s" * 20000), fetch=fetch)
     assert posted and posted[0] <= form.MAX_POST_BYTES
+
+
+def test_the_password_note_shows_only_when_polkit_will_ask(qtbot):
+    for needed in (True, False):
+        dialog = FeedbackDialog(read_report=lambda: {}, needs_password=lambda needed=needed: needed)
+        qtbot.addWidget(dialog)
+        assert dialog.polkit_note.isHidden() is (not needed)
+
+
+def test_the_terminal_output_outlives_the_hardware_diagnosis():
+    # A report opened from the terminal arrived with its terminal output cut
+    # away while the hardware diagnosis took the room.
+    shape = form.parse_form(form_page())
+    report = _problem(terminal="[ERROR] the real failure\n" * 300, hardware="h" * 32000)
+    fitted = form.fit_report(report, shape)
+    assert "[ERROR] the real failure" in fitted.terminal
+    assert len(fitted.hardware) < len(report.hardware)

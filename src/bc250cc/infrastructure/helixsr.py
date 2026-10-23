@@ -1885,8 +1885,12 @@ echo "The shaders compile through Wine, for several minutes on a BC-250. The cou
 echo
 # Upstream looks for Proton only in native Steam's folders, then for wine on
 # PATH: the one found above (Flatpak or Snap Steam, another library) is that.
-bc250_shim="$(mktemp -d "${{TMPDIR:-/tmp}}/bc250-helixsr-wine.XXXXXX")"
-ln -s -- "$bc250_wine" "$bc250_shim/wine"
+# A fixed place, kept: the setup writes this wine's path into dxc-wine.sh,
+# which Build frame generation runs later. A temporary folder was gone by
+# then, and frame generation failed with "wine: No such file or directory".
+bc250_shim="${{XDG_DATA_HOME:-$HOME/.local/share}}/HelixSR/wine-shim"
+mkdir -p -- "$bc250_shim"
+ln -sfn -- "$bc250_wine" "$bc250_shim/wine"
 bc250_work="$(mktemp -d "${{TMPDIR:-/tmp}}/bc250-helixsr-build.XXXXXX")"
 # 2.0 would go on to DLSS frame generation, downloading NVIDIA's Streamline
 # SDK and driver package after asking; with no input it would stop there.
@@ -1896,13 +1900,13 @@ test ! -d {target}/{HELIXSR_BUILD_FOLDER} || bc250_fg_args=(--no-fg)
 {_shader_progress('"$bc250_work"')}
 if ! TMPDIR="$bc250_work" PATH="$bc250_shim:$PATH" HELIXSR_FORCE_PORTABLE="$bc250_portable" bash {target}/{HELIXSR_SETUP} "${{bc250_dlss_args[@]}}" "${{bc250_fg_args[@]}}" </dev/null; then
   kill "$bc250_progress" 2>/dev/null || true
-  rm -rf -- "$bc250_dlss_dir" "$bc250_shim" "$bc250_work"
+  rm -rf -- "$bc250_dlss_dir" "$bc250_work"
   echo
   echo "The network was not built. HelixSR is installed; use Build network files to try again."
   exit 1
 fi
 kill "$bc250_progress" 2>/dev/null || true
-rm -rf -- "$bc250_dlss_dir" "$bc250_shim" "$bc250_work"
+rm -rf -- "$bc250_dlss_dir" "$bc250_work"
 echo
 echo "(The setup's own list of games above stops by design: Control Center adds HelixSR to games itself.)"
 # 1.8 and newer append the network to the DLL (2.0 the one in its build
@@ -2652,8 +2656,23 @@ if ! "$bc250_py" -c 'import compression.zstd' >/dev/null 2>&1 && ! command -v zs
   echo "ERROR: NVIDIA's NGX core comes out of a zstd package: install the zstd program first, then retry."
   exit 69
 fi
+bc250_dxc="$bc250_data/dxc-wine.sh"
+bc250_dxc_fix=""
+# Networks built before the wine shim had a fixed place point dxc-wine.sh at a
+# temporary folder that no longer exists: give this build a copy that uses
+# the wine found now.
+bc250_old_wine="$(grep -m1 -o '/[^ "]*bc250-helixsr-wine\\.[A-Za-z0-9]*/wine' "$bc250_dxc" || true)"
+if test -n "$bc250_old_wine" && test ! -x "$bc250_old_wine"; then
+{_wine_check()}
+  bc250_dxc_fix="$(mktemp -d "${{TMPDIR:-/tmp}}/bc250-helixsr-dxc.XXXXXX")"
+  sed "s|$bc250_old_wine|$bc250_wine|g" "$bc250_dxc" > "$bc250_dxc_fix/dxc-wine.sh"
+  chmod +x "$bc250_dxc_fix/dxc-wine.sh"
+  bc250_dxc="$bc250_dxc_fix/dxc-wine.sh"
+  echo "[helixsr-fg] the shader compiler pointed at a removed Wine folder; using $bc250_wine"
+fi
 bc250_rc=0
-"$bc250_py" -I {target}/setup/helixsr_setup.py {built} --dxc "$bc250_data/dxc-wine.sh" --fg-only || bc250_rc=$?
+"$bc250_py" -I {target}/setup/helixsr_setup.py {built} --dxc "$bc250_dxc" --fg-only || bc250_rc=$?
+test -z "$bc250_dxc_fix" || rm -rf -- "$bc250_dxc_fix"
 rm -rf -- "$bc250_data/wineprefix"
 test -f {built}/{HELIXSR_FG_FOLDER}/{_FG_BUILT} || {{
   echo
