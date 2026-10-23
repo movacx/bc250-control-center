@@ -197,28 +197,35 @@ This project builds on the work of the BC-250 community. The projects below belo
 - [bc250-bazzite-suite](https://github.com/RobertoTorino/bc250-bazzite-suite) (GPL-3.0): Bazzite setup suite
 - [bc250-vcn-research](https://github.com/Shalasere/bc250-vcn-research) and [amdgpu-wddm](https://github.com/D-Ogi/amdgpu-wddm): VCN video encoding research and an open Windows driver (no license declared; linked only)
 
-## Development
+## Estructura del proyecto
 
 ```text
-src/bc250cc/          Core library without a graphical interface (domain, application, infrastructure, platform)
-frontends/desktop/    PyQt6 desktop application
-integrations/decky/   Decky Quick Access plugin
-privileged/           Helpers that run as root, and their polkit policies
-packaging/            Arch, RPM and Debian packaging, and the AUR PKGBUILD
-scripts/              Launchers, local installer, system scripts and the distribution test matrix
-tests/                Automated test suite
+bc250-control-center/
+├── src/bc250cc/              El núcleo, sin interfaz gráfica
+│   ├── domain/               Reglas y límites de cada módulo (GPU, CPU, CU, ventiladores, firmware…)
+│   ├── application/          Casos de uso que combinan esas reglas
+│   ├── infrastructure/       Acceso al sistema: sensores, servicios, paquetes, GitHub
+│   ├── platform/             Diferencias entre distribuciones y sistemas de arranque
+│   └── shared/               Versión, rutas y contratos compartidos por todos los procesos
+├── frontends/
+│   ├── desktop/              Aplicación de escritorio en Qt
+│   │   ├── pages/            Un archivo por módulo (panel, GPU, CPU, ventiladores, firmware…)
+│   │   ├── components/       Piezas reutilizables de la interfaz
+│   │   ├── onboarding/       Pantalla de bienvenida y tour guiado
+│   │   ├── console/          Terminal integrada
+│   │   ├── theme/            Temas, estilos, colores e iconos
+│   │   └── i18n/             Traducciones a 30 idiomas
+│   └── cli.py                Modo de línea de comandos
+├── integrations/decky/       Plugin Decky Quick Access para el modo Juego
+├── privileged/               Lo que se ejecuta como root, aislado y revisado
+│   ├── helpers/              Un ayudante por tarea privilegiada
+│   ├── lib/                  Código compartido por esos ayudantes
+│   └── policies/             Permisos de Polkit
+├── packaging/                Paquetes .pkg.tar.zst, .rpm y .deb, y el PKGBUILD del AUR
+├── scripts/                  Lanzadores, instalador local y utilidades de sistema
+├── assets/                   Iconos, capturas y galería web
+├── docs/                     Documentación, avisos de terceros y traducciones de este README
+└── tests/                    Más de 5000 pruebas automáticas, con os-release de 37 distribuciones reales
 ```
 
-Run the test suite:
 
-```bash
-python -m venv .venv && . .venv/bin/activate
-pip install -r requirements-dev.txt
-QT_QPA_PLATFORM=offscreen python -m pytest
-```
-
-The distribution matrix in `scripts/qa/rootless-matrix` tests boot options, installation, the Decky plugin and the release packages on Arch, Debian, Ubuntu, Linux Mint and Fedora root filesystems without root privileges. See its [README](scripts/qa/rootless-matrix/README.md).
-
-## License
-
-[MIT](LICENSE)
