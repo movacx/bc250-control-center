@@ -31,11 +31,16 @@ def test_masta_stack_state_reports_kernel_and_repository_mesa(monkeypatch, tmp_p
         )
 
     monkeypatch.setattr(module.subprocess, "run", run)
+    monkeypatch.setattr(module, "_fallback_kernels", lambda _release: ["7.1.4-1-cachyos"])
     state = masta_bc250_stack_state(distro_id="cachyos", family="cachyos")
 
     assert state == {
         "supported": True,
         "repository_configured": True,
+        "kernel_release": "7.1.5-cachyos-bc250",
+        "kernel_is_bc250": True,
+        "kernel_fallbacks": ["7.1.4-1-cachyos"],
+        "proton_installed": {"native": True, "ge": True, "slr": True},
         "kernel_installed": True,
         "kernel_active": True,
         "kernel_variant": "stable",
@@ -110,7 +115,7 @@ def test_cachyos_mesa_and_full_workflows_keep_their_scopes_explicit():
     mesa = build_cachyos_bc250_kernel_command("mesa")
     full = build_cachyos_bc250_kernel_command("full")
 
-    assert CACHYOS_BC250_ACTIONS == {"kernel", "mesa", "full"}
+    assert {"kernel", "mesa", "full"} <= CACHYOS_BC250_ACTIONS
     assert "Installing stable BC-250 patched Mesa" in mesa
     assert "bc250-cachyos/mesa bc250-cachyos/vulkan-radeon" in mesa
     assert 'sudo pacman -Syu "${bc250_scope_guard[@]}" "${bc250_packages[@]}"' in mesa
@@ -284,3 +289,19 @@ def test_masta_stack_counts_an_rc_kernel_installed_alone(monkeypatch, tmp_path):
 
     assert state["kernel_installed"] and state["kernel_active"]
     assert state["kernel_variant"] == "rc"
+
+
+def test_proton_install_touches_only_the_chosen_package_and_removal_needs_no_repository():
+    install = build_cachyos_bc250_kernel_command("proton-native")
+    assert "bc250_packages=(bc250-cachyos/proton-cachyos-native-bc250)" in install
+    assert "linux-cachyos-bc250*" in install and "mesa*" in install  # kept out of the transaction
+    assert "Optional TrustAll" in install and "MastaG" in install
+    assert "Kernel Manager" not in install
+    removal = build_cachyos_bc250_kernel_command("remove-proton-ge")
+    assert "pacman -Rns protonge-latest-bc250" in removal
+    assert "Include =" not in removal and "-Syu" not in removal
+
+
+def test_kernel_workflow_says_the_kernel_manager_does_not_list_it():
+    command = build_cachyos_bc250_kernel_command("kernel")
+    assert "Kernel Manager" in command and "uname -r" in command

@@ -740,8 +740,18 @@ class PreparationPagesMixin:
         )
         self.cachyos_mesa_status = PillLabel("Not installed", "gray")
         cachyos_state_layout.addWidget(self.cachyos_mesa_status)
+        cachyos_state_layout.addSpacing(8)
+        cachyos_state_layout.addWidget(
+            _label("Proton BC-250", "dashboardCompatibilityLabel", wrap=False)
+        )
+        self.cachyos_proton_status = PillLabel("Not installed", "gray")
+        cachyos_state_layout.addWidget(self.cachyos_proton_status)
         cachyos_state_layout.addStretch(1)
         self.cachyos_stack_card.layout().insertWidget(2, cachyos_state)
+        # Which kernel is running, whether it is the BC-250 one, and what
+        # stays behind as the boot fallback.
+        self.cachyos_kernel_detail = _label("", "dashboardCompatibilityLabel", wrap=True)
+        self.cachyos_stack_card.layout().insertWidget(3, self.cachyos_kernel_detail)
         self.cachyos_kernel_button = self.cachyos_stack_card.add_action(
             "Install kernel", {"action": "cachyos_bc250_kernel", "governor": ""}
         )
@@ -750,6 +760,18 @@ class PreparationPagesMixin:
         )
         self.cachyos_full_button = self.cachyos_stack_card.add_action(
             "Install kernel + Mesa", {"action": "cachyos_bc250_full", "governor": ""}
+        )
+        self.cachyos_proton_native_button = self.cachyos_stack_card.add_action(
+            "Install Proton BC-250 (recommended)",
+            {"action": "cachyos_bc250_proton-native", "governor": ""},
+        )
+        self.cachyos_proton_ge_button = self.cachyos_stack_card.add_action(
+            "Install Proton-GE BC-250",
+            {"action": "cachyos_bc250_proton-ge", "governor": ""},
+        )
+        self.cachyos_proton_remove_button = self.cachyos_stack_card.add_action(
+            "Remove Proton BC-250",
+            {"action": "cachyos_bc250_remove-proton", "governor": ""},
         )
         self.cachyos_stack_card.primary_button = self.cachyos_kernel_button
         self.cachyos_stack_card.secondary_button = self.cachyos_mesa_button

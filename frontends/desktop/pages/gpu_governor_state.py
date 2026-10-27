@@ -1209,10 +1209,22 @@ class GpuGovernorStateMixin:
             "cachyos_bc250_kernel",
             "cachyos_bc250_mesa",
             "cachyos_bc250_full",
+            "cachyos_bc250_proton-native",
+            "cachyos_bc250_proton-ge",
+            "cachyos_bc250_proton-slr",
+            "cachyos_bc250_remove-proton",
         }:
-            self._prepare_cachyos_bc250(
-                action.removeprefix("cachyos_bc250_"), dialog_parent=dialog_parent
-            )
+            chosen = action.removeprefix("cachyos_bc250_")
+            if chosen == "remove-proton":
+                # Remove whichever BC-250 Proton is installed, recommended first.
+                installed = _dict(
+                    _dict(_dict(self.current_state.get("tools")).get("masta_bc250_stack")).get("proton_installed")
+                )
+                chosen = "remove-proton-" + next(
+                    (key for key in ("native", "ge", "slr") if installed.get(key)),
+                    "native",
+                )
+            self._prepare_cachyos_bc250(chosen, dialog_parent=dialog_parent)
             return
         if action == "fsr4_steam_option_all":
             self._add_fsr4_steam_option_to_library(dialog_parent=dialog_parent)

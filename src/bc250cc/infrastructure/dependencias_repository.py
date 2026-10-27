@@ -206,6 +206,7 @@ from bc250cc.infrastructure.vaapi_video import (
 from bc250cc.platform.init.services import detect_init_manager, openrc_preflight
 from bc250cc.platform.packages.strategies import create_os_repository
 from bc250cc.platform.packages.strategies.detector import read_os_release
+from bc250cc.shared.errors import ActionNeeded
 
 
 class DependenciasRepository(SteamosDependenciesMixin):
@@ -505,6 +506,9 @@ class DependenciasRepository(SteamosDependenciesMixin):
             'mesa': 'Install BC-250 Mesa for Arch/CachyOS',
             'full': 'Install BC-250 kernel and Mesa for Arch/CachyOS',
         }
+        for key in ('native', 'ge', 'slr'):
+            labels[f'proton-{key}'] = 'Install BC-250 Proton for Arch/CachyOS'
+            labels[f'remove-proton-{key}'] = 'Remove BC-250 Proton for Arch/CachyOS'
         if action not in labels:
             raise ValueError('Unsupported CachyOS BC-250 action.')
         return self._abrir_terminal(
@@ -675,13 +679,13 @@ class DependenciasRepository(SteamosDependenciesMixin):
             command, title = build_helixsr_network_command(), 'HelixSR · network files'
         elif action == 'fg':
             if not state.get('scaler_supported'):
-                raise RuntimeError('Install HelixSR 2.0 or newer and build its network first.')
+                raise ActionNeeded('Install HelixSR 2.0 or newer and build its network first.')
             command, title = build_helixsr_fg_command(), 'HelixSR · frame generation'
         elif action == 'releases':
             command, title = build_helixsr_releases_command(), 'HelixSR · releases'
         elif action == 'uninstall':
             if state.get('installed_games'):
-                raise RuntimeError('Remove HelixSR from your games first, so each one gets its own FSR file back.')
+                raise ActionNeeded('Remove HelixSR from your games first, so each one gets its own FSR file back.')
             command, title = build_helixsr_remove_command(), 'HelixSR · remove'
         else:
             raise ValueError('Unsupported HelixSR action.')
