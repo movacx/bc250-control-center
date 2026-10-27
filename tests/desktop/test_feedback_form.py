@@ -395,3 +395,10 @@ def test_a_code_from_the_window_rules_is_explained_too(qtbot):
                      reference="BC250-GPU-007 @ GPU-0172", raw="Traceback\nGovernorTomlError: config.toml missing")
     error = dialog.report().error
     assert error.what.startswith("Cyan is not installed") and error.fix
+
+
+def test_the_contact_the_owner_typed_is_never_redacted(monkeypatch):
+    monkeypatch.setattr(report_attachments.getpass, "getuser", lambda: "alice")
+    document = form.payload(form.Report(summary="x", contact="@alice", steps="/home/alice/game"))
+    assert document["contact"] == "@alice"
+    assert "alice" not in document["problem"]["steps"]

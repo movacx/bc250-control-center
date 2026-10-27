@@ -250,11 +250,13 @@ def payload(report: Report, *, now: datetime | None = None) -> dict:
             "opened_from": _short(report.opened_from),
             "language": _short(report.language),
         },
-        "contact": _short(report.contact),
     }
+    # Typed by the owner so the answer reaches them: never redacted. A handle
+    # equal to the Linux account name arrived as "@<user>".
+    contact = _short(report.contact)
     if not report.is_problem:
         document["idea"] = _long(report.notes)
-        return _clean(document)
+        return _with_contact(_clean(document), contact)
     document["problem"] = {
         "area": _short(report.area),
         "seen": [_short(item) for item in report.seen],
@@ -299,7 +301,13 @@ def payload(report: Report, *, now: datetime | None = None) -> dict:
         {"name": _short(name), "text": _long(text, keep_end=name.lower().startswith(("last workflow", "kernel log")))}
         for name, text in report.attachments
     ]
-    return _clean(document)
+    return _with_contact(_clean(document), contact)
+
+
+def _with_contact(document: dict, contact: str) -> dict:
+    if contact:
+        document["contact"] = contact
+    return document
 
 
 def post_report(document: dict, *, url: str = REPORT_ENDPOINT, timeout: float = TIMEOUT_S) -> None:

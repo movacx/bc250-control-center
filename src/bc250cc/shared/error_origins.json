@@ -1712,6 +1712,7 @@
    "_long": "DIAG-0156",
    "_clean": "DIAG-0157",
    "payload": "DIAG-0158",
+   "_with_contact": "DIAG-0176",
    "post_report": "DIAG-0159",
    "saved_directory": "DIAG-0160",
    "save_copy": "DIAG-0161",
