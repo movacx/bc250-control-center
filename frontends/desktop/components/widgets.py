@@ -275,7 +275,16 @@ def tighten_dialog(dialog: QDialog, scroll: QScrollArea) -> None:
         width = scroll.width() - scroll.verticalScrollBar().sizeHint().width()
         if content is None or content.layout() is None or width <= 1:
             return
-        needed = content.layout().totalHeightForWidth(width) + 2
+        # Word-wrapped labels can under-report their height for a width; the
+        # content's own hint is the floor, or a short notice showed two lines
+        # behind a scrollbar.
+        needed = content.layout().totalHeightForWidth(width)
+        for label in content.findChildren(QLabel):
+            if label.wordWrap() and label.isVisible():
+                # A wrapped label's own answer for its real width.
+                needed = max(needed, label.heightForWidth(label.width()) + content.layout().contentsMargins().top()
+                             + content.layout().contentsMargins().bottom())
+        needed += 2
         cap = int(dialog.property("contentCap") or 440)
         # Fixed, not only capped: QScrollArea's own size hint stops at 24 text
         # lines, which cut a long error short with room left on the screen.

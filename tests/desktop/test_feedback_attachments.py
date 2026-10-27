@@ -59,7 +59,7 @@ def test_a_report_and_its_attachments_share_one_id(monkeypatch):
     posts = [request for request in sent if request.data is not None]
     main, *attachments = posts
     details = _fields(main)[f"entry.{form.ENTRY_DETAILS}"][0]
-    report_id = details.rsplit("Report ID: ", 1)[1]
+    report_id = details.split("\n", 1)[0].removeprefix("Report ID: ")
     assert report_id.startswith("R-")
     assert attachments
     names = []
@@ -135,3 +135,64 @@ def test_the_machine_name_account_and_addresses_stay_home(monkeypatch):
 def test_a_default_host_name_keeps_the_distribution_name(monkeypatch):
     monkeypatch.setattr(report_attachments.socket, "gethostname", lambda: "bazzite")
     assert report_attachments.redact_machine("Bazzite on bazzite") == "Bazzite on bazzite"
+
+
+def test_the_report_service_takes_the_whole_report_in_one_request(monkeypatch):
+    monkeypatch.setattr(form, "_last_sent", 0.0)
+    payloads, google = [], []
+    report = form.FeedbackReport(
+        summary="CU failed", code="BC250-CU-001", details="Sent from: Control Center",
+        attachments=[("System state", "== Storage ==\n" + "x" * 90_000)],
+    )
+
+    def endpoint(payload):
+        payloads.append(payload)
+        return True
+
+    form.submit(report, fetch=lambda request: google.append(request), clock=lambda: 5000.0, endpoint=endpoint)
+    assert google == []
+    (payload,) = payloads
+    assert payload["id"].startswith("R-") and payload["kind"] == "problem"
+    assert payload["fields"]["Report details"].startswith("Report ID: " + payload["id"])
+    assert payload["attachments"][0]["text"].endswith("x" * 1000)
+
+
+def test_when_the_service_fails_the_form_takes_the_report(monkeypatch):
+    monkeypatch.setattr(form, "_last_sent", 0.0)
+    posts = []
+
+    def fetch(request):
+        if request.data is None:
+            return live_page()
+        posts.append(request)
+        return CONFIRMED
+
+    form.submit(form.FeedbackReport(summary="x"), fetch=fetch, clock=lambda: 6000.0, endpoint=lambda _payload: False)
+    assert len(posts) == 1
+
+
+def test_attachments_go_even_when_the_report_details_are_cut(monkeypatch):
+    # 1.21.3: a big report had its details cut to fit, the Report ID line at
+    # their end went with them, and not one attachment was sent.
+    monkeypatch.setattr(form, "_last_sent", 0.0)
+    monkeypatch.setattr(form.time, "sleep", lambda _s: None)
+    posts = []
+
+    def fetch(request):
+        if request.data is None:
+            return live_page()
+        posts.append(request)
+        return CONFIRMED
+
+    report = form.FeedbackReport(
+        summary="Cyan compatibility", details="Sent from: Control Center\n" + "detail line\n" * 400,
+        hardware="h" * 32_000, recent_errors="e" * 20_000, specs="s" * 20_000,
+        attachments=[("System state", "state\n" * 3000)],
+    )
+    form.submit(report, fetch=fetch, clock=lambda: 7000.0)
+    main, *attachments = posts
+    details = _fields(main)[f"entry.{form.ENTRY_DETAILS}"][0]
+    assert details.startswith("Report ID: R-")
+    assert attachments
+    report_id = details.split("\n", 1)[0].removeprefix("Report ID: ")
+    assert all(_fields(r)[f"entry.{form.ENTRY_ATTACH_REPORT}"] == [report_id] for r in attachments)

@@ -14,6 +14,7 @@ and only to ``docs.google.com``.
 
 from __future__ import annotations
 
+import gzip
 import html
 import json
 import re
@@ -31,6 +32,11 @@ from bc250cc.infrastructure.report_attachments import redact_machine
 FORM_ID = "1FAIpQLSe3M1stf3bpCoorb4hCWFX9YC_TZ_Gv6WHWQDRe1AV5rJT6rA"
 FORM_URL = f"https://docs.google.com/forms/d/e/{FORM_ID}/viewform"
 RESPONSE_URL = f"https://docs.google.com/forms/d/e/{FORM_ID}/formResponse"
+#: The maintainer's report service (integrations/report-endpoint): the whole
+#: report in one request. Google Forms stays the fallback.
+REPORT_ENDPOINT = "https://bc250-reports.report-endpoint.workers.dev/v1/reports"
+#: Off until the service's address is final and every send path is tested.
+REPORT_ENDPOINT_ENABLED = False
 TIMEOUT_S = 15
 MAX_PAGE_BYTES = 2 * 1024 * 1024
 #: Long answers are cut here: a report is read by a person, not archived.
@@ -486,15 +492,29 @@ def submit(
     *,
     fetch: Callable[[urllib.request.Request], str] = _open,
     clock: Callable[[], float] = time.monotonic,
+    endpoint: Callable[[dict], bool] | None = None,
 ) -> None:
-    """Send the report, or raise ``FeedbackError`` saying why it was not sent."""
+    """Send the report, or raise ``FeedbackError`` saying why it was not sent.
+
+    The report service gets it first; Google Forms takes it when the service
+    cannot. Injecting ``fetch`` (tests) leaves the service out unless an
+    ``endpoint`` is given too.
+    """
     global _last_sent
     missing = report.missing()
     if missing:
         raise FeedbackError("A required answer is empty.", fallback=False)
+    if endpoint is None and fetch is _open and REPORT_ENDPOINT_ENABLED:
+        endpoint = post_report
     with _sent_lock:
         if _last_sent and clock() - _last_sent < MIN_SECONDS_BETWEEN:
             raise FeedbackError("A report was sent a moment ago. Wait a few seconds.", fallback=False)
+        if endpoint is not None:
+            # One request with everything; any failure falls back to the form.
+            report = replace(report, details=_with_id_line(report.details, report_id_of(report) or new_report_id()))
+            if endpoint(endpoint_payload(report)):
+                _last_sent = clock()
+                return
         shape = parse_form(fetch(_request(f"{FORM_URL}?hl=en")))
         if not shape.attachment_pages:
             report = replace(report, attachments=[])
@@ -512,6 +532,59 @@ def submit(
     send_attachments(report, fitted, shape, fetch=fetch)
 
 
+def _with_id_line(details: str, report_id: str) -> str:
+    if re.search(r"^Report ID: ", details or "", re.M):
+        return details
+    # First line: cutting the details to fit the form keeps their beginning.
+    return f"Report ID: {report_id}" + ("\n" + details.strip() if details else "")
+
+
+#: The report's answers under the form's own headings, for the service.
+_FIELD_LABELS = (
+    ("summary", "What went wrong?"), ("area", "Which part of the app?"), ("seen", "What did you see?"),
+    ("code", "Error code"), ("frequency", "How often does it happen?"), ("worked_before", "Did it work before?"),
+    ("steps", "Steps to reproduce"), ("distribution", "Distribution"), ("version", "Control Center version"),
+    ("install", "How did you install it?"), ("bios", "BIOS"), ("cores", "CPU cores"), ("cus", "GPU compute units"),
+    ("other_tools", "Other BC-250 tools"), ("media", "Screenshot or video link"), ("contact", "Telegram or Discord username"),
+    ("ideas", "Suggestions and ideas"), ("reference", "Error reference"), ("where", "Where it happened"),
+    ("raw", "Raw error"), ("terminal", "Terminal output"), ("specs", "System specifications"),
+    ("recent_errors", "Recent errors"), ("details", "Report details"), ("hardware", "Hardware diagnostics"),
+)
+
+
+def endpoint_payload(report: FeedbackReport) -> dict:
+    """The whole report for the service, redacted like every form answer."""
+    fields = {}
+    for attribute, label in _FIELD_LABELS:
+        value = getattr(report, attribute)
+        if value:
+            fields[label] = list(value) if isinstance(value, list) else redact_machine(value)
+    return {
+        "id": report_id_of(report),
+        "kind": "problem" if report.is_problem else "idea",
+        "summary": redact_machine(report.summary if report.is_problem else report.ideas)[:300],
+        "code": report.code[:60],
+        "distribution": report.distribution[:60],
+        "version": report.version[:30],
+        "fields": fields,
+        "attachments": [{"name": name, "text": redact_machine(text)} for name, text in report.attachments],
+    }
+
+
+def post_report(payload: dict, *, url: str = REPORT_ENDPOINT, timeout: float = 25) -> bool:
+    """True when the service stored the report; any failure is False."""
+    body = gzip.compress(json.dumps(payload, ensure_ascii=False).encode("utf-8"))
+    request = urllib.request.Request(url, data=body, method="POST")
+    request.add_header("Content-Type", "application/json")
+    request.add_header("User-Agent", "BC250-Control-Center")
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310 - fixed https host
+            answer = json.loads(response.read(65536).decode("utf-8", "replace"))
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError):
+        return False
+    return bool(isinstance(answer, dict) and answer.get("ok") and answer.get("id") == payload.get("id"))
+
+
 def new_report_id() -> str:
     return "R-" + secrets.token_hex(4)
 
@@ -525,9 +598,7 @@ def with_report_id(report: FeedbackReport, report_id: str | None = None) -> Feed
     """The report naming the ID its attachments carry (only when it has some)."""
     if not report.attachments or report_id_of(report):
         return report
-    report_id = report_id or new_report_id()
-    details = (report.details.rstrip() + "\n" if report.details else "") + f"Report ID: {report_id}"
-    return replace(report, details=details)
+    return replace(report, details=_with_id_line(report.details, report_id or new_report_id()))
 
 
 def attachment_list(original: FeedbackReport, fitted: FeedbackReport) -> list[tuple[str, str]]:
@@ -605,7 +676,9 @@ def send_attachments(
     Best effort: the report itself is already stored, so a refused part is
     skipped, never raised. Each part names its attachment and "part i/n".
     """
-    report_id = report_id_of(fitted)
+    # From the report as written: the fit to the size limit may cut the
+    # details that carry it (1.21.3 lost every attachment that way).
+    report_id = report_id_of(original) or report_id_of(fitted)
     items = attachment_list(original, fitted)
     if not report_id or not items or not shape.attachment_pages:
         return 0

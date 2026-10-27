@@ -5363,5 +5363,6 @@
   "Open removal terminal": "Apri il terminale di rimozione",
   "Restart Steam after installation": "Riavvia Steam dopo l'installazione",
   "Open Proton installation terminal": "Apri il terminale di installazione di Proton",
-  "Proton BC-250": "Proton BC-250"
+  "Proton BC-250": "Proton BC-250",
+  "gpu-usage.method=kernel was requested, but the active BC-250 kernel does not expose a readable gpu_busy_percent interface. Nothing was changed. Select busy-flag/process or boot a compatible patched kernel.": "È stato scelto gpu-usage.method=kernel, ma il kernel BC-250 attivo non espone un'interfaccia gpu_busy_percent leggibile. Non è stato cambiato nulla. Scegli busy-flag o process, oppure avvia un kernel con patch compatibile."
 }
