@@ -14,11 +14,11 @@ because desktop users in the wheel or systemd-journal group may read it.
 from __future__ import annotations
 
 import glob
+import json
 import os
 import platform
 import re
 import shutil
-import json
 import subprocess
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -402,7 +402,13 @@ def _steamos() -> str:
 def _graphics_stack() -> str:
     lines = [f"VK_ICD_FILENAMES: {os.environ.get('VK_ICD_FILENAMES') or '(not set)'}"]
     manifests = sorted(glob.glob("/usr/share/vulkan/icd.d/*.json"))
-    lines.extend(f"ICD: {path}\n{_read(path, 2048) or '(unreadable)'}" for path in manifests)
+    # Only an AMD driver can run on the BC-250: the others (asahi, broadcom,
+    # intel...) filled half the section in every report, so they are named.
+    amd = [path for path in manifests if re.search(r"radeon|amd|radv", Path(path).name, re.I)]
+    lines.extend(f"ICD: {path}\n{_read(path, 2048) or '(unreadable)'}" for path in amd)
+    others = [Path(path).name for path in manifests if path not in amd]
+    if others:
+        lines.append("other ICDs: " + ", ".join(others))
     summary = _run(["vulkaninfo", "--summary"], merge=True)
     lines.append("[vulkaninfo --summary]\n" + (summary or "vulkaninfo is not installed or did not answer"))
     return "\n".join(lines)
@@ -547,8 +553,19 @@ def _clip_tail(text: str, limit: int) -> str:
     return head + "\n(… earlier lines cut)\n" + rest[-(limit - len(head) - 40):].split("\n", 1)[-1]
 
 
-def collect_diagnostics(sections=SECTIONS) -> str:
-    """Every section as plain text, redacted and bounded for the form."""
+def collect_diagnostics(
+    sections=SECTIONS,
+    *,
+    section_limit: int = SECTION_LIMIT,
+    log_limit: int = LOG_SECTION_LIMIT,
+    total_limit: int = TOTAL_LIMIT,
+    fresh: bool = True,
+) -> str:
+    """Every section as plain text, redacted and bounded for the form.
+
+    The limits fit the report's own answer; the attachment sent after it
+    asks for the same sections with far more room.
+    """
     def one(item):
         title, read = item
         try:
@@ -557,15 +574,18 @@ def collect_diagnostics(sections=SECTIONS) -> str:
             body = f"(could not be read: {type(error).__name__})"
         if title in _TAIL_SECTIONS or title == "Previous boot":
             clip = _clip_tail if title in _TAIL_SECTIONS else _clip
-            return f"== {title} ==\n{clip(body, LOG_SECTION_LIMIT)}"
-        return f"== {title} ==\n{_clip(body, SECTION_LIMIT)}"
+            return f"== {title} ==\n{clip(body, log_limit)}"
+        return f"== {title} ==\n{_clip(body, section_limit)}"
 
     # Read once, before the sections run in parallel: a system that needs
     # polkit for the kernel log asks for the password a single time.
-    _KERNEL_CACHE.clear()
+    # ``fresh=False`` reuses the log the report just read: on a system that
+    # needs polkit for it, the full diagnosis must not ask a second time.
+    if fresh:
+        _KERNEL_CACHE.clear()
     if any(read in _KERNEL_READERS for _title, read in sections):
         _kernel_cached("0")
         _kernel_cached("-1")
     with ThreadPoolExecutor(max_workers=6) as pool:
         parts = list(pool.map(one, sections))
-    return _clip(redact("\n\n".join(parts)), TOTAL_LIMIT)
+    return _clip(redact("\n\n".join(parts)), total_limit)
