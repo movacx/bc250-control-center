@@ -92,6 +92,16 @@
       "retryable": false
     },
     {
+      "code": "BC250-RESOURCE-001",
+      "markers": [
+        "fork: retry: Resource temporarily unavailable",
+        "fork: Resource temporarily unavailable",
+        "Cannot allocate memory"
+      ],
+      "exit_statuses": [],
+      "retryable": false
+    },
+    {
       "code": "BC250-STORAGE-001",
       "markers": [
         "MB free and this needs",
@@ -188,11 +198,25 @@
       "retryable": false
     },
     {
+      "code": "BC250-PKG-001",
+      "markers": [
+        "unable to lock database",
+        "could not lock database",
+        "Could not get lock",
+        "database is locked",
+        "Waiting for cache lock",
+        "System management is locked by the application"
+      ],
+      "exit_statuses": [],
+      "retryable": false
+    },
+    {
       "code": "BC250-NET-001",
       "markers": [
         "Unable to download",
         "Reviewed source commit is unavailable after fetch",
-        "Reviewed source revision could not be checked out"
+        "Reviewed source revision could not be checked out",
+        "computed checksum did NOT match"
       ],
       "exit_statuses": [],
       "retryable": false
@@ -245,6 +269,19 @@
       "code": "BC250-TTM-001",
       "markers": [
         "QUICK_ACCESS_TTM"
+      ],
+      "exit_statuses": [],
+      "retryable": false
+    },
+    {
+      "code": "BC250-PKG-004",
+      "markers": [
+        "nothing provides",
+        "has unmet dependencies",
+        "Unmet dependencies",
+        "unable to satisfy dependency",
+        "could not satisfy dependencies",
+        "error: target not found"
       ],
       "exit_statuses": [],
       "retryable": false
@@ -474,11 +511,14 @@
     "protected BC250 OpenRC service helper is missing",
     "target must be an even value from 24 through 40",
     "Run automatic detection at this exact frequency",
+    "System management is locked by the application",
+    "fork: retry: Resource temporarily unavailable",
     "protected GDDR6 patch helper is not installed",
     "the reviewed SteamOS kernel backend supports",
     "DKMS installation did not produce a module",
     "systemd-sysext or another immutable layer",
     "Another git process seems to be running",
+    "fork: Resource temporarily unavailable",
     "The GPU driver (amdgpu) did not start",
     "invalid ip discovery binary signature",
     "matching kernel-devel is unavailable",
@@ -498,11 +538,14 @@
     "installed for the active kernel",
     "probe with driver amdgpu failed",
     "SteamOS reports a writable root",
+    "computed checksum did NOT match",
+    "could not satisfy dependencies",
     "QAM CPU detection uses a fixed",
     "QUICK_ACCESS_CU_SERVICE_REMOVE",
     "QUICK_ACCESS_CU_SERVICE_VERIFY",
     "a release is already installed",
     "QUICK_ACCESS_CPU_SCALE_VERIFY",
+    "unable to satisfy dependency",
     "QUICK_ACCESS_GPU_HIGH_POINTS",
     "nct6687d PWM driver workflow",
     "nct6687 is not available for",
@@ -534,6 +577,9 @@
     "QUICK_ACCESS_GPU_VOLTAGE",
     "UMR still does not start",
     "QUICK_ACCESS_CPU_SERVICE",
+    "unable to lock database",
+    "could not lock database",
+    "error: target not found",
     "Transaction in progress",
     "QUICK_ACCESS_GPU_CONFIG",
     "are different versions.",
@@ -545,6 +591,9 @@
     "QUICK_ACCESS_GPU_HELPER",
     "SteamOS read-only state",
     "QUICK_ACCESS_PRIVILEGE",
+    "Cannot allocate memory",
+    "Waiting for cache lock",
+    "has unmet dependencies",
     "MB free and this needs",
     "QUICK_ACCESS_CPU_SCALE",
     "QUICK_ACCESS_CU_KERNEL",
@@ -573,6 +622,9 @@
     "CPU_PAYLOAD_REFUSED",
     "CPU_BACKEND_MISSING",
     "returned error: 404",
+    "Could not get lock",
+    "database is locked",
+    "Unmet dependencies",
     "Unable to download",
     "QUICK_ACCESS_GDDR6",
     "QUICK_ACCESS_VRAM",
@@ -580,6 +632,7 @@
     "QUICK_ACCESS_AUTH",
     "CU_HELPER_MISSING",
     "QUICK_ACCESS_TTM",
+    "nothing provides",
     "QUICK_ACCESS_FAN",
     "QUICK_ACCESS_CPU",
     "HARDWARE_CONTEXT",

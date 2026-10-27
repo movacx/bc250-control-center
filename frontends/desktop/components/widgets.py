@@ -39,7 +39,7 @@ from ..core.error_diagnostics import (
 )
 from ..core.preferences import report_glow_enabled
 from ..core.raw_errors import find as find_raw_error
-from ..i18n import localize_widget_tree, tr
+from ..i18n import canonical_source, localize_widget_tree, tr
 from ..theme import COLORS, application_stylesheet, palette_color, semantic_color_key
 from .busy_spinner import BusySpinner
 from .buttons import WrappingButton as QPushButton
@@ -275,7 +275,16 @@ def tighten_dialog(dialog: QDialog, scroll: QScrollArea) -> None:
         width = scroll.width() - scroll.verticalScrollBar().sizeHint().width()
         if content is None or content.layout() is None or width <= 1:
             return
-        needed = content.layout().totalHeightForWidth(width) + 2
+        # Word-wrapped labels can under-report their height for a width; the
+        # content's own hint is the floor, or a short notice showed two lines
+        # behind a scrollbar.
+        needed = content.layout().totalHeightForWidth(width)
+        for label in content.findChildren(QLabel):
+            if label.wordWrap() and label.isVisible():
+                # A wrapped label's own answer for its real width.
+                needed = max(needed, label.heightForWidth(label.width()) + content.layout().contentsMargins().top()
+                             + content.layout().contentsMargins().bottom())
+        needed += 2
         cap = int(dialog.property("contentCap") or 440)
         # Fixed, not only capped: QScrollArea's own size hint stops at 24 text
         # lines, which cut a long error short with room left on the screen.
@@ -374,7 +383,7 @@ def _raw_error_block(detail: str, raw) -> QWidget:
 
 def _asks_for_an_action(message: object) -> bool:
     raw = find_raw_error(message)
-    return raw is not None and raw.kind == ActionNeeded.__name__
+    return raw is not None and (raw.asks_for_action or raw.kind == ActionNeeded.__name__)
 
 
 class InfoDialog(QDialog):
@@ -424,15 +433,17 @@ class InfoDialog(QDialog):
                 message, context=context, title=raw_title, origin=self.origin, raw=self.raw_error,
             )
             section = failure_section(self.origin, self.raw_error)
-            report_code = window_diagnosis(message, context=context, section=section).code
+            # The rules read English; a page may have translated the message.
+            english = self.raw_error.message if self.raw_error is not None else canonical_source(message)
+            report_code = window_diagnosis(english, context=context, section=section).code
             # A broken UMR gets its reinstall command on a footer button: the
             # steps point at it, so it must not hide under the scrolled detail.
             if not copy_text:
                 umr_command = umr_repair_command(message, context=context)
-            explained = error_sections(message, context=context, translate=tr, section=section)
+            explained = error_sections(message, context=context, translate=tr, section=section, classify=english)
             if explained is not None:
                 sections, report_code = explained
-            message = format_error_for_user(message, context=context, translate=tr, section=section)
+            message = format_error_for_user(message, context=context, translate=tr, section=section, classify=english)
         title = tr(title)
         message = tr(message)
         eyebrow = tr(eyebrow)
@@ -577,18 +588,24 @@ class InfoDialog(QDialog):
             self.report_button = report
 
             def open_report() -> None:
+                from bc250cc.application.system.feedback import reports as form
+
                 from .feedback_dialog import FeedbackDialog
 
                 FeedbackDialog(
                     self,
                     code=self.report_code,
-                    summary=raw_title,
+                    # In English whatever the interface language: a page
+                    # that translated its title first sent it in German.
+                    summary=canonical_source(raw_title),
                     context=context,
-                    area_hint=self.origin.section if self.origin is not None else "",
+                    # Where it failed names the part better than the page
+                    # that showed it: HelixSR fails on the GPU governor page.
+                    area_hint=form.area_section(getattr(self.raw_error, "site", None), self.origin),
                     reference=self.reference(),
                     where=self.where(),
-                    raw=self.raw_error.text if self.raw_error is not None else raw_message,
-                    opened_from=f"Error window: {raw_title}",
+                    raw=self.raw_error.text if self.raw_error is not None else canonical_source(raw_message),
+                    opened_from=f"Error window: {canonical_source(raw_title)}",
                 ).exec()
 
             report.clicked.connect(open_report)

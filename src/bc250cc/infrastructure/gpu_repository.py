@@ -429,7 +429,9 @@ class GPURepository:
             and str(usage_method).strip().lower() == "kernel"
             and self._cyan_kernel_usage_available() is False
         ):
-            raise RuntimeError(
+            # Refused before anything changed: a choice this kernel cannot
+            # serve, not a failure (it was reported as BC250-GPU-001).
+            raise ActionNeeded(
                 "gpu-usage.method=kernel was requested, but the active BC-250 "
                 "kernel does not expose a readable gpu_busy_percent interface. "
                 "Nothing was changed. Select busy-flag/process or boot a compatible "

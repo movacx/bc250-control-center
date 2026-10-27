@@ -130,6 +130,7 @@ from bc250cc.infrastructure.governor_install_shell import (
     cyan_upstream_runtime_command,
     oberon_install_command,
 )
+from bc250cc.infrastructure.gpu_driver_probe import gpu_driver_state
 from bc250cc.infrastructure.helixsr import (
     add_helixsr_folder,
     add_optiscaler_folder,
@@ -1274,6 +1275,9 @@ class DependenciasRepository(SteamosDependenciesMixin):
             'memory_runtime': memory_runtime,
             'bazzite_mitigations': bazzite_mitigations,
             'bazzite_reboot_pending': bazzite_reboot_pending,
+            'gpu_driver': self._optional_inventory_probe(
+                gpu_driver_state, {'present': False, 'bound': False, 'driver': ''},
+            ),
             'steamos_readonly': steamos_readonly,
             'system_setup': system_setup,
             'privileged_install': self._optional_inventory_probe(

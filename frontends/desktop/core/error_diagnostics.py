@@ -230,7 +230,9 @@ _RULES = (
     ),
     _Rule(
         "BC250-AUTH-003",
-        (r"pkexec.*not found", r"polkit.*not found", r"polkit/pkexec"),
+        (r"pkexec.*not found", r"polkit.*not found", r"polkit/pkexec",
+         # pkexec is there but the polkit daemon is not answering.
+         r"error getting authority", r"error initializing authority"),
         "The system authorization service is missing.",
         "BC250 Control Center needs Polkit for protected changes, but pkexec is not installed or cannot be found.",
         "Install the Polkit package for this distribution, sign out and back in, then retry the action.",
@@ -259,11 +261,21 @@ _RULES = (
     ),
     _Rule(
         "BC250-BUSY-001",
-        (r"\A(?!.*(?:pacman|apt(?:-get)?|dnf|zypper|rpmdb|rpm-ostree|apk|emerge|xbps)).*already.*(?:running|applying|in progress)", r"operation.*still.*(?:running|progress)", r"resource busy", r"device or resource busy",
+        (r"\A(?!.*(?:pacman|apt(?:-get)?|dnf|zypper|rpmdb|rpm-ostree|apk|emerge|xbps)).*\balready (?:running|applying|in progress)", r"operation.*still.*(?:running|progress)", r"resource busy", r"device or resource busy",
          r"smu returned status 0x(?:00|fc)\b"),
         "Another operation is still using this component.",
         "A previous BC250 action, package manager, service restart, or external toolkit still holds the required lock.",
         "Wait for the current terminal or progress indicator to finish, refresh the page, and retry once. Close other BC250 toolkits if the lock remains.",
+    ),
+    # Before the generic "is not installed" / "no such file": a missing
+    # governor is a step to take, not a broken program.
+    _Rule(
+        "BC250-GPU-007",
+        (r"cyan is not installed", r"cyan-skillfish-governor-smu/config\.toml.*no such file",
+         r"no such file.*cyan-skillfish-governor-smu/config\.toml", r"governor configuration is unavailable.*no such file"),
+        "Cyan is not installed or its configuration is missing.",
+        "The Cyan governor or its configuration file is not on this system: dependencies were not prepared, or Cyan was removed.",
+        "Press Prepare dependencies on the Dashboard, then start Cyan from the governor card.",
     ),
     _Rule(
         "BC250-DBUS-001",
@@ -315,6 +327,21 @@ _RULES = (
         "Review the named repository in the package-manager configuration, remove or reconcile the old entry, then run the BC250 workflow again.",
     ),
     _Rule(
+        "BC250-RESOURCE-001",
+        (r"fork: (?:retry: )?resource temporarily unavailable", r"cannot allocate memory"),
+        "The system could not start another process.",
+        "The system reached its limit of running processes, or it is out of memory, so a step of the workflow could not start.",
+        "Close programs you do not need, or restart the computer, then run the action again.",
+    ),
+    _Rule(
+        "BC250-PKG-004",
+        (r"nothing provides", r"unmet dependencies", r"unable to satisfy dependenc", r"could not satisfy dependencies",
+         r"error: target not found"),
+        "A required package is not available from the enabled repositories.",
+        "The package, or one of its dependencies, is not published for this distribution or release, or the repository that provides it is not enabled.",
+        "Read the package named in the output. Enable the repository that provides it, or report the workflow with this code so the package list can be fixed.",
+    ),
+    _Rule(
         "BC250-UPSTREAM-404",
         (r"returned error: 404", r"\b404\b.*not found", r"failed retrieving file.*\.db",
          r"failed to synchronize all databases", r"failed retrieving file from repo", r"http 404"),
@@ -324,11 +351,11 @@ _RULES = (
     ),
     _Rule(
         "BC250-REPORT-001",
-        (r"report form could not be read", r"report form changed since", r"google forms (?:did not confirm|answered with an error|could not be reached)",
+        (r"report service (?:could not be reached|is busy|did not confirm|gave an unreadable|refused)",
          r"a required answer is empty", r"a report was sent a moment ago"),
         "The report was not sent.",
-        "Google Forms could not be reached or did not confirm it, or the form changed since this version of the app.",
-        "Press Open in the browser: the same answers open in the form there, and the long ones are copied for pasting.",
+        "The report service could not be reached, was busy, or did not confirm the report.",
+        "Check the internet connection and press Send again. A copy of the report was kept on this computer.",
     ),
     _Rule(
         "BC250-NET-001",
@@ -625,7 +652,7 @@ _MORE_PATTERNS: dict[str, tuple[str, ...]] = {
         r"no custom voltage values", r"duplicate voltage frequency", r"voltage outside (?:the )?editor range",
     ),
     "BC250-CMD-001": (r"(?:preview-voltage-level|apply-voltage-level|status) expects one",),
-    "BC250-SERVICE-003": (r"systemctl is not available", r"openrc is not the active", r"rc-service is not available"),
+    "BC250-SERVICE-003": (r"systemctl is not available", r"service management is not supported", r"openrc is not the active", r"rc-service is not available"),
     "BC250-GPU-001": (r"no recorded metrics", r"current metrics sample could not be recorded", r"temp-read"),
     "BC250-AUTH-003": (r"pkexec is not available",),
     "BC250-TERMINAL-001": (r"requested terminal workflow is empty",),
@@ -822,9 +849,12 @@ def format_error_for_user(
     translate: Translator = str,
     os_family: str | None = None,
     section: tuple[str, str] | None = None,
+    classify: object = "",
 ) -> str:
     """Return a human explanation while preserving bounded technical evidence."""
-    explained = error_sections(message, context=context, translate=translate, os_family=os_family, section=section)
+    explained = error_sections(
+        message, context=context, translate=translate, os_family=os_family, section=section, classify=classify,
+    )
     if explained is None:
         return _clean_detail(message)
     sections, code = explained
@@ -872,15 +902,18 @@ def error_sections(
     translate: Translator = str,
     os_family: str | None = None,
     section: tuple[str, str] | None = None,
+    classify: object = "",
 ) -> tuple[tuple[tuple[str, str], ...], str] | None:
     """The explanation as (heading, text) pairs and its code, for a dialog to lay out.
 
-    None for a message that already carries its own explanation.
+    None for a message that already carries its own explanation. ``classify``
+    is the same failure in English, when the message is already translated:
+    the rules are English, so a Polish message fell to the generic code.
     """
     detail = _clean_detail(message)
     if "Diagnostic code:" in detail or "Código de diagnóstico:" in detail:
         return None
-    diagnosis = diagnose_error(detail, context=context)
+    diagnosis = diagnose_error(_clean_detail(classify) if str(classify or "").strip() else detail, context=context)
     if section is not None and diagnosis.code in GENERIC_CODES:
         # Already translated by with_section; the rest of the path translates.
         diagnosis = with_section(diagnosis, section, translate)

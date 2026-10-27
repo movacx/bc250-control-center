@@ -50,3 +50,77 @@ def test_a_proton_game_passes_the_native_check(tmp_path):
     (tmp_path / "Binaries" / "Win64").mkdir(parents=True)
     (tmp_path / "Binaries" / "Win64" / "Game.EXE").write_bytes(b"MZ")
     helixsr._refuse_native_game(tmp_path)
+
+
+def test_a_translated_notice_still_finds_its_exception(monkeypatch):
+    from frontends.desktop.core import raw_errors
+
+    raw_errors.clear()
+    english = "Cyan is not installed. Press Prepare dependencies on the Dashboard, then start Cyan from the governor card."
+    try:
+        raise ActionNeeded(english)
+    except ActionNeeded as error:
+        raw_errors.remember(error)
+    monkeypatch.setattr("frontends.desktop.i18n.tr", lambda text: "Cyan no está instalado." if text == english else text)
+    found = raw_errors.find("No se pudo guardar: Cyan no está instalado.")
+    assert found is not None and found.kind == "ActionNeeded"
+
+
+def test_a_report_from_a_translated_window_is_titled_in_english(qtbot, monkeypatch):
+    from frontends.desktop.i18n import set_language, tr
+
+    opened = {}
+    import frontends.desktop.components.feedback_dialog as feedback_module
+
+    class Form:
+        def __init__(self, _parent, **kwargs):
+            opened.update(kwargs)
+
+        def exec(self):
+            return 0
+
+    monkeypatch.setattr(feedback_module, "FeedbackDialog", Form)
+    set_language("de")
+    try:
+        title = tr("Could not export profiles to Decky")
+        dialog = widgets.InfoDialog(title, "RuntimeError: helper missing", tone="red")
+        qtbot.addWidget(dialog)
+        dialog.report_button.click()
+    finally:
+        set_language("en")
+    assert opened["summary"] == "Could not export profiles to Decky"
+
+
+def test_a_translated_error_gets_the_code_of_its_english_original(qtbot):
+    from frontends.desktop.i18n import set_language, tr
+
+    raw_errors.clear()
+    english = "The privileged governor configuration helper is not installed. Reinstall BC250 Control Center locally or from its package before editing /etc."
+    try:
+        raise RuntimeError(english)
+    except RuntimeError as error:
+        raw_errors.remember(error)
+    set_language("pl")
+    try:
+        dialog = widgets.InfoDialog("Could not update advanced safe-points", tr(english), tone="red")
+        qtbot.addWidget(dialog)
+    finally:
+        set_language("en")
+    assert dialog.report_code == "BC250-HELPER-001"
+
+
+def test_a_cpu_target_above_the_voltage_ceiling_says_which_scale_fits(qtbot):
+    from bc250cc.infrastructure.cpu_command_policy import (
+        CpuVoltageCeiling,
+        validate_scale_target,
+    )
+
+    raw_errors.clear()
+    with pytest.raises(CpuVoltageCeiling) as raised:
+        validate_scale_target(4000, -10, 85)
+    assert isinstance(raised.value, ValueError)
+    assert "Nothing was changed" in str(raised.value) and "Use scale -" in str(raised.value)
+    raw_errors.remember(raised.value)
+    dialog = widgets.InfoDialog("Could not enable CPU persistence", str(raised.value), tone="red")
+    qtbot.addWidget(dialog)
+    assert getattr(dialog, "report_button", None) is None

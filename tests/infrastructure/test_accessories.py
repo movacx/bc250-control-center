@@ -87,10 +87,10 @@ def test_bazzite_reports_the_pending_deployment(monkeypatch, no_usb):
 @pytest.mark.parametrize(
     ("family", "asset", "installer"),
     [
-        ("cachyos", "trcc-linux-9.10.4-1-any.pkg.tar.zst", "sudo pacman -U --needed --noconfirm"),
-        ("fedora", "trcc-linux-9.10.4-1.fc44.noarch.rpm", "sudo dnf install -y"),
-        ("ubuntu", "trcc-linux_9.10.4-1_all.deb", "sudo apt-get install -y"),
-        ("bazzite", "trcc-linux-9.10.4-1.fc44.noarch.rpm", "sudo rpm-ostree install"),
+        ("cachyos", "trcc-linux-9.11.2-1-any.pkg.tar.zst", "sudo pacman -U --needed --noconfirm"),
+        ("fedora", "trcc-linux-9.11.2-1.fc44.noarch.rpm", "sudo dnf install -y"),
+        ("ubuntu", "trcc-linux_9.11.2-1_all.deb", "sudo apt-get install -y"),
+        ("bazzite", "trcc-linux-9.11.2-1.fc44.noarch.rpm", "sudo rpm-ostree install"),
     ],
 )
 def test_the_package_is_checked_before_it_is_installed(family, asset, installer):
@@ -191,8 +191,9 @@ def test_openlinkhub_is_verified_and_skips_upstreams_chmod(olh):
     command = openlinkhub.install_command(olh)
     assert command.index(openlinkhub.ARCHIVE_SHA256) < command.index("tar -xzf")
     assert f"/releases/download/{openlinkhub.VERSION}/{openlinkhub.ARCHIVE}" in command
-    # Upstream's installer strips the execute bit from /etc/udev/rules.d.
-    assert "chmod" not in command
+    # Upstream's installer strips the execute bit from /etc/udev/rules.d; the
+    # only chmod allowed is the download folder's, so apt can read it.
+    assert command.replace('chmod 755 "$bc250_stage"', "").count("chmod") == 0
     assert 'GROUP=\\"openlinkhub\\"' in command or 'GROUP="openlinkhub"' in command
     assert "groupadd -r openlinkhub" in command and "usermod -aG openlinkhub" in command
     assert "BC250_RELOGIN_REQUIRED=1" in command
@@ -220,3 +221,22 @@ def test_the_package_dispatch(olh):
     assert "OpenLinkHub" in accessories.accessory_command("corsair", "remove", family="fedora", tool_dir=olh)
     with pytest.raises(ValueError):
         accessories.accessory_command("thermalright", "configure", family="fedora", tool_dir=olh)
+
+
+def test_trcc_on_a_release_without_pyside6_takes_the_package_that_brings_its_own():
+    from bc250cc.infrastructure.accessories import thermalright
+
+    command = thermalright.install_command("ubuntu")
+    legacy, legacy_sha256 = thermalright.LEGACY_DEB
+    assert "apt-cache show python3-pyside6.qtcore" in command
+    assert legacy in command and legacy_sha256 in command
+    assert 'sudo apt-get install -y "$bc250_package"' in command
+
+
+def test_trcc_says_so_when_there_is_no_systemd_user_manager():
+    from bc250cc.infrastructure.accessories import thermalright
+
+    command = thermalright.install_command("arch")
+    check = command.index("systemctl --user show-environment")
+    assert check < command.index("systemctl --user daemon-reload")
+    assert "no systemd user manager" in command and "exit 66" in command

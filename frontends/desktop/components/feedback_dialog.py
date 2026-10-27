@@ -1,20 +1,20 @@
 """The problem report form, answered inside the app.
 
-The same questions as the maintainer's Google Form, already filled with what
-the app knows (version, distribution, installation, the diagnostic report),
-sent with one press. Opened from the dashboard footer, from Settings ›
-Diagnostics and from every red error window, which passes its code along.
+Asks only what the app cannot know, with what it can already filled in
+(version, distribution, BIOS, installation, the diagnosis), and sends the
+report to the maintainer's report service with one press. Opened from the
+dashboard footer, from Settings › Diagnostics, from every red error window
+(which passes its code along) and from a failed workflow in the terminal.
 """
 
 from __future__ import annotations
 
+import json
 import re
-from datetime import datetime
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QAbstractScrollArea,
-    QApplication,
     QButtonGroup,
     QCheckBox,
     QDialog,
@@ -30,19 +30,11 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from bc250cc.application.system.feedback import form
-from bc250cc.shared.error_origins import redact
+from bc250cc.application.system.feedback import reports as form
 from bc250cc.shared.version import application_version
 
-from ..core.diagnostic_history import (
-    diagnostic_report,
-    history_entries,
-    recent_errors_text,
-    record_diagnosis,
-    system_sheet_text,
-)
-from ..core.error_diagnostics import diagnose_error
-from ..core.external_links import open_external_url
+from ..core.diagnostic_history import history_entries, record_diagnosis
+from ..core.error_diagnostics import diagnose_error, explain_code
 from ..i18n import current_language, localize_widget_tree, tr, tr_format
 from ..theme import COLORS, application_stylesheet
 from .async_tools import BackgroundExecutor
@@ -56,15 +48,16 @@ UNANSWERED = "Choose…"
 
 
 def _read_report() -> dict[str, object]:
-    """Everything the automatic report carries, read off the UI thread.
+    """Everything the app knows about this system, read off the UI thread.
 
     Every read fails to a blank rather than raising: a system without one of
     the files still sends the rest.
     """
     from bc250cc.application.system.feedback import (
         collect_attachments,
-        collect_diagnostics,
         os_release,
+        read_board_firmware,
+        read_installed_bios,
         system_snapshot,
     )
 
@@ -79,20 +72,30 @@ def _read_report() -> dict[str, object]:
             })
     except OSError:
         pass
-    entries = history_entries()
+    release = os_release()
+    firmware: dict[str, str] = {}
+    try:
+        board = read_board_firmware()
+        installed = read_installed_bios()
+        firmware = {
+            "board": board.board, "vendor": board.vendor, "version": board.version, "date": board.date,
+            "variant": installed.variant, "evidence": installed.evidence,
+        }
+    except Exception:  # noqa: BLE001 - the report goes without it
+        firmware = {}
     return {
-        "report": diagnostic_report(rows, entries),
-        "specs": system_sheet_text(rows),
-        "recent": recent_errors_text(entries),
-        "hardware": collect_diagnostics(),
-        # The full state, sent after the report as attachments (it does not
-        # fit in one response): unfiltered kernel log, service journals,
-        # configuration, storage, the last workflow logs.
+        # The version is the report's own, and the BIOS is in ``firmware``.
+        "system": {str(label): str(value) for label, value in rows if label not in ("Control Center", "BIOS")},
+        "os_release": form.os_release_subset(release),
+        "firmware": firmware,
+        "history": history_entries(),
+        # The diagnosis, one entry per section: the unfiltered kernel log,
+        # service journals, configuration, storage, the last workflow logs.
         "attachments": _attachments_or_none(collect_attachments),
-        "session": str(facts.get("Session", "")),
         "version": str(facts.get("Control Center", "")),
         "install": form.suggested_install(str(facts.get("Installation", ""))),
-        "distribution": form.suggested_distribution(os_release()),
+        "distribution": form.suggested_distribution(release),
+        "bios": form.suggested_bios(firmware.get("variant", "")),
         "cores": form.suggested_cores(cores),
     }
 
@@ -172,6 +175,44 @@ class _Checks(QWidget):
                 box.setChecked(True)
 
 
+class _ChoiceOther(QWidget):
+    """A choice whose "Other (not listed)" opens a box to type the answer."""
+
+    def __init__(self, choices: tuple[str, ...], placeholder: str):
+        super().__init__()
+        column = QVBoxLayout(self)
+        column.setContentsMargins(0, 0, 0, 0)
+        column.setSpacing(6)
+        self.choice = _Choice(choices)
+        self.other = _line(placeholder)
+        self.other.hide()
+        column.addWidget(self.choice)
+        column.addWidget(self.other)
+        self.choice.currentIndexChanged.connect(self._changed)
+
+    def _changed(self, *_args) -> None:
+        typed = self.choice.value() == form.OTHER
+        self.other.setVisible(typed)
+        if typed:
+            self.other.setFocus()
+
+    def value(self) -> str:
+        chosen = self.choice.value()
+        if chosen == form.OTHER:
+            return self.other.text().strip()
+        return chosen
+
+    def set_value(self, label: str) -> None:
+        if not label:
+            return
+        if self.choice.findData(label) >= 0:
+            self.choice.set_value(label)
+            return
+        self.choice.set_value(form.OTHER)
+        self.other.setText(label)
+        self.other.setVisible(True)
+
+
 def _field(label: str, widget: QWidget, *, hint: str = "", required: bool = False) -> QWidget:
     holder = QWidget()
     column = QVBoxLayout(holder)
@@ -198,6 +239,20 @@ def _text_box(placeholder: str, height: int) -> QPlainTextEdit:
     return box
 
 
+def _hint() -> QLabel:
+    label = QLabel()
+    label.setProperty("feedbackHint", True)
+    label.setWordWrap(True)
+    label.hide()
+    return label
+
+
+def _with_hint(field_widget: QWidget, hint: QLabel) -> QWidget:
+    """A field with what the app detected written under it."""
+    field_widget.layout().addWidget(hint)
+    return field_widget
+
+
 def _line(placeholder: str = "") -> QLineEdit:
     line = QLineEdit()
     line.setPlaceholderText(tr(placeholder))
@@ -211,7 +266,8 @@ def _row(*widgets: QWidget) -> QWidget:
     row.setContentsMargins(0, 0, 0, 0)
     row.setSpacing(14)
     for widget in widgets:
-        row.addWidget(widget, 1)
+        # Top-aligned: a field with a "Detected" line under it is taller.
+        row.addWidget(widget, 1, Qt.AlignmentFlag.AlignTop)
     return holder
 
 
@@ -272,12 +328,13 @@ class FeedbackDialog(QDialog):
     ):
         super().__init__(parent)
         self._submit = submit
-        self._diagnostics = ""
         self._facts: dict[str, object] = {}
         # From the error window that opened the form, when one did.
         self._reference = reference.strip()
         self._where = where.strip()
         self._raw = raw.strip()
+        self._code = code.strip()
+        self._title = summary.strip() if (reference or raw or terminal) else ""
         self._opened_from = opened_from or ("Error window" if reference else "Report button")
         self._executor = BackgroundExecutor(self)
         self.setObjectName("InfoDialog")
@@ -300,7 +357,7 @@ class FeedbackDialog(QDialog):
         frame.addWidget(dialog_header(
             self,
             tr("Report a problem or suggest an idea"),
-            tr("Goes to the developer's Google Form. Only the developer sees it."),
+            tr("Goes straight to the developer. Only the developer sees it."),
             "report_amber",
             COLORS["orange_soft"],
         ))
@@ -363,7 +420,7 @@ class FeedbackDialog(QDialog):
 
         self.summary = _line('Example: "GPU governor stops after a few seconds"')
         column.addWidget(_field("What went wrong?", self.summary, required=True))
-        self.area = _Choice(form.AREAS, editable=True)
+        self.area = _ChoiceOther(form.AREAS, "Type the part of the app")
         self.code = _line("BC250-…")
         column.addWidget(_row(_field("Which part of the app?", self.area), _field("Error code", self.code)))
         self.frequency = _Choice(form.FREQUENCIES)
@@ -376,18 +433,28 @@ class FeedbackDialog(QDialog):
         column.addWidget(_field("What did you see?", self.seen))
         self.steps = _text_box("1. Open …  2. Press …  3. …", 84)
         column.addWidget(_field("Steps to reproduce", self.steps))
+        self.expected = _text_box('Example: "The governor keeps running after a restart"', 64)
+        column.addWidget(_field("What did you expect to happen?", self.expected))
 
         system, rows = _group("Your system")
         note = QLabel(tr("Filled in from this system. Change anything that is wrong."))
         note.setProperty("feedbackHint", True)
         note.setWordWrap(True)
         rows.addWidget(note)
-        self.distribution = _Choice(form.DISTRIBUTIONS, editable=True)
+        self.distribution = _ChoiceOther(form.DISTRIBUTIONS, "Type your distribution")
+        self.distribution_detected = _hint()
         self.version = _line()
-        rows.addWidget(_row(_field("Distribution", self.distribution), _field("Control Center version", self.version)))
+        rows.addWidget(_row(
+            _with_hint(_field("Distribution", self.distribution), self.distribution_detected),
+            _field("Control Center version", self.version),
+        ))
         self.install = _Choice(form.INSTALLS)
-        self.bios = _Choice(form.BIOSES)
-        rows.addWidget(_row(_field("How did you install it?", self.install), _field("BIOS", self.bios)))
+        self.bios = _ChoiceOther(form.BIOSES, "Type your BIOS")
+        self.bios_detected = _hint()
+        rows.addWidget(_row(
+            _field("How did you install it?", self.install),
+            _with_hint(_field("BIOS", self.bios), self.bios_detected),
+        ))
         self.cores = _Choice(form.CORES)
         self.cus = _Choice(form.CUS)
         rows.addWidget(_row(_field("CPU cores", self.cores), _field("GPU compute units", self.cus)))
@@ -496,10 +563,6 @@ class FeedbackDialog(QDialog):
         footer.setContentsMargins(22, 12, 22, 12)
         footer.setSpacing(8)
         footer.addStretch(1)
-        self.browser_button = QPushButton(tr("Open in the browser"))
-        self.browser_button.setObjectName("DialogSecondary")
-        self.browser_button.clicked.connect(self._open_in_browser)
-        self.browser_button.hide()
         self.cancel_button = QPushButton(tr("Cancel"))
         self.cancel_button.setObjectName("DialogSecondary")
         self.cancel_button.setProperty("gamepadCancel", True)
@@ -509,7 +572,7 @@ class FeedbackDialog(QDialog):
         self.send_button.setMinimumWidth(96)
         self.send_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.send_button.clicked.connect(self._send)
-        for button in (self.browser_button, self.cancel_button, self.send_button):
+        for button in (self.cancel_button, self.send_button):
             footer.addWidget(button)
         return footer_frame
 
@@ -519,15 +582,21 @@ class FeedbackDialog(QDialog):
         self.version.setText(application_version())
         if code:
             self.code.setText(code)
+        # A failed workflow is reported from the terminal, even when its log
+        # carries a code; only an error window shows one by itself.
+        if terminal:
+            self.seen.check(form.SEEN[1])
+        elif code:
             self.seen.check(form.SEEN[0])
         if summary:
             self.summary.setText(summary)
         # The section the error came from is exact; the window's words a guess.
-        area = form.AREA_BY_SECTION.get(area_hint) or form.suggested_area(context)
+        # A terminal report has no section: its workflow's name says the part.
+        area = form.AREA_BY_SECTION.get(area_hint) or form.suggested_area(context) or form.suggested_area(summary)
         if area:
             self.area.set_value(area)
         if terminal:
-            self.terminal.setPlainText(terminal)
+            self.terminal.setPlainText(form.clean_log(terminal))
 
     def _report_ready(self, facts: object) -> None:
         facts = facts if isinstance(facts, dict) else {}
@@ -536,12 +605,24 @@ class FeedbackDialog(QDialog):
         if self.send_button.text() == tr("Send"):
             self.send_button.setEnabled(True)
             self.send_button.setToolTip("")
-        self._diagnostics = str(facts.get("report") or "")
         if not self.version.text():
             self.version.setText(str(facts.get("version") or ""))
-        for choice, key in ((self.install, "install"), (self.cores, "cores"), (self.distribution, "distribution")):
+        for choice, key in (
+            (self.install, "install"), (self.cores, "cores"), (self.distribution, "distribution"), (self.bios, "bios"),
+        ):
             if not choice.value() and facts.get(key):
                 choice.set_value(str(facts[key]))
+        system = facts.get("system") or {}
+        detected_os = " · ".join(
+            part for part in (str(system.get("Operating system") or ""), str(system.get("Kernel") or "")) if part
+        )
+        firmware = facts.get("firmware") or {}
+        detected_bios = " · ".join(
+            part for part in (firmware.get("version"), firmware.get("date"), firmware.get("variant")) if part
+        )
+        for label, value in ((self.distribution_detected, detected_os), (self.bios_detected, detected_bios)):
+            label.setText(tr_format("Detected: {value}", value=value))
+            label.setVisible(bool(value))
         self._show_captured()
 
     def _kind_changed(self, *_args) -> None:
@@ -550,99 +631,94 @@ class FeedbackDialog(QDialog):
         self.pages.setCurrentIndex(0 if self.kind_problem.isChecked() else 1)
         self._set_status("")
 
-    def report(self) -> form.FeedbackReport:
+    def report(self) -> form.Report:
+        automatic = self.attach.isChecked()
+        common = {
+            "version": self.version.text() or str(self._facts.get("version") or application_version()),
+            "opened_from": self._opened_from,
+            "language": current_language(),
+        }
         if not self.kind_problem.isChecked():
-            return form.FeedbackReport(
-                kind=form.KIND_IDEA,
-                ideas=self.ideas.toPlainText(),
-                contact=self.idea_contact.text(),
+            return form.Report(
+                kind=form.KIND_IDEA, notes=self.ideas.toPlainText(), contact=self.idea_contact.text(), **common,
             )
-        return form.FeedbackReport(
+        terminal = self.terminal.toPlainText()
+        return form.Report(
             kind=form.KIND_PROBLEM,
             summary=self.summary.text(),
-            # The pasted-report field is for the browser; the app fills the
-            # automatic page, one answer per column.
-            diagnostics="",
             area=self.area.value(),
             seen=self.seen.values(),
-            code=self.code.text(),
             frequency=self.frequency.value(),
             worked_before=self.worked_before.value(),
             steps=self.steps.toPlainText(),
+            expected=self.expected.toPlainText(),
+            media=self.media.text(),
+            contact=self.problem_contact.text(),
+            notes=self.problem_ideas.toPlainText(),
             distribution=self.distribution.value(),
-            version=self.version.text(),
             install=self.install.value(),
             bios=self.bios.value(),
             cores=self.cores.value(),
             cus=self.cus.value(),
             other_tools=self.other_tools.values(),
-            terminal=self.terminal.toPlainText(),
-            media=self.media.text(),
-            contact=self.problem_contact.text(),
-            ideas=self.problem_ideas.toPlainText(),
-            attachments=self._attachments(),
-            **self._automatic(),
+            error=self._error_evidence(),
+            workflow_title=(self._title or self.summary.text()) if terminal.strip() else "",
+            workflow_log=form.clean_log(terminal),
+            **common,
+            **(self._automatic() if automatic else {}),
         )
 
-    def _attachments(self) -> list[tuple[str, str]]:
-        """Sent only with the automatic report, under the same tick."""
-        if not self.attach.isChecked():
-            return []
-        return [(name, str(text)) for name, text in self._facts.get("attachments") or ()]
+    def _error_evidence(self) -> form.ErrorEvidence:
+        """The error the report is about, explained by its code."""
+        code = self.code.text().strip()
+        message = self._raw or self._title or self.summary.text()
+        what = cause = fix = ""
+        if not code and self._raw:
+            code = diagnose_error(message).code
+        # By its code, from the catalog or the window rules alike: a raw
+        # traceback matched as text can fall to a different rule.
+        known = explain_code(code) if code else None
+        if known is not None:
+            what, cause, fix = known.summary, known.cause, known.action
+        return form.ErrorEvidence(
+            code=code, title=self._title, what=what, cause=cause, fix=fix,
+            reference=self._reference, where=self._where, raw=self._raw,
+        )
 
-    def _automatic(self) -> dict[str, str]:
-        """The "Automatic report" answers, or none when the owner unticked it."""
-        if not self.attach.isChecked():
-            return {}
-        values = {
-            "reference": self._reference,
-            "where": self._where,
-            "raw": self._raw,
-            "specs": str(self._facts.get("specs") or ""),
-            "recent_errors": str(self._facts.get("recent") or ""),
-            "details": self._details(),
-            "hardware": str(self._facts.get("hardware") or ""),
+    def _automatic(self) -> dict[str, object]:
+        """What the app read by itself; left out when the owner unticked it."""
+        return {
+            "system": dict(self._facts.get("system") or {}),
+            "os_release": dict(self._facts.get("os_release") or {}),
+            "firmware": dict(self._facts.get("firmware") or {}),
+            "history": form.history_items(
+                self._facts.get("history") or (), exclude_raw=self._raw, exclude_title=self._title,
+            ),
+            "attachments": [(str(name), str(text)) for name, text in self._facts.get("attachments") or ()],
         }
-        # The preview shows exactly what is sent: home folders already ~.
-        return {key: form.redact_machine(value) for key, value in values.items()}
-
-    def _details(self) -> str:
-        stamp = datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S %z")
-        version = str(self._facts.get("version") or application_version())
-        lines = [
-            f"Sent from: Control Center {version}, in-app form",
-            f"Opened from: {self._opened_from}",
-            f"Interface language: {current_language()}",
-            f"Session: {self._facts.get('session') or '—'}",
-            f"Sent at: {stamp}",
-        ]
-        return "\n".join(lines)
 
     def _show_captured(self) -> None:
         rows = []
-        if self._reference:
-            rows.append(("Error reference", self._reference))
+        if self._code or self._title:
+            rows.append(("Error code", " · ".join(part for part in (self._code, self._title) if part)))
         for line in self._where.splitlines():
             label, _, value = line.partition(": ")
             rows.append((label, value or line))
         if self._raw:
             rows.append(("Raw error", self._raw.strip().splitlines()[-1]))
-        rows.append(("System specifications", tr("Included") if self._facts.get("specs") else "…"))
-        rows.append(("Hardware diagnostics", tr("Included") if self._facts.get("hardware") else "…"))
+        system = self._facts.get("system") or {}
+        rows.append(("System specifications", tr("Included") if system else "…"))
         attachments = self._facts.get("attachments") or ()
         size = sum(len(str(text)) for _name, text in attachments) // 1024
         rows.append((
-            "Full system state (sent after the report)",
-            f"{tr('Included')} · {size} KB" if attachments else "…",
+            "Hardware diagnostics",
+            tr_format("{count} sections · {size} KB", count=len(attachments), size=size) if attachments else "…",
         ))
-        recent = str(self._facts.get("recent") or "")
-        count = sum(1 for line in recent.splitlines() if line and not line.startswith(" "))
         if not self._facts:
             rows.append(("Recent errors", "…"))
-        elif recent and recent != "None recorded.":
-            rows.append(("Recent errors", str(count)))
         else:
-            rows.append(("Recent errors", tr("None recorded")))
+            earlier = form.history_items(self._facts.get("history") or (), exclude_raw=self._raw, exclude_title=self._title)
+            rows.append(("Recent errors", str(len(earlier)) if earlier else tr("None recorded")))
         grid = self._captured_grid
         while grid.count():
             item = grid.takeAt(0)
@@ -676,13 +752,12 @@ class FeedbackDialog(QDialog):
         self.send_button.setText(tr("Sending…"))
         self._sending = True
         self.cancel_button.setEnabled(False)
-        self.browser_button.hide()
         self._set_status("")
         self._executor.start(
             "send",
             lambda: self._submit(report),
             lambda _result: self._sent(),
-            self._failed,
+            lambda message: self._failed(message, report),
         )
 
     def reject(self) -> None:  # noqa: D401 - Qt API
@@ -695,7 +770,7 @@ class FeedbackDialog(QDialog):
     def _sent(self) -> None:
         self._sending = False
         self.pages.setCurrentIndex(2)
-        for widget in (self.kind_problem, self.kind_idea, self.cancel_button, self.browser_button):
+        for widget in (self.kind_problem, self.kind_idea, self.cancel_button):
             widget.hide()
         self.send_button.setEnabled(True)
         self.send_button.setText(tr("Close"))
@@ -703,65 +778,22 @@ class FeedbackDialog(QDialog):
         self.send_button.clicked.connect(self.accept)
         self._set_status("")
 
-    def _failed(self, message: str) -> None:
+    def _failed(self, message: str, report: form.Report | None = None) -> None:
         # Kept in Settings › Diagnostics like any other failure, with its code.
         record_diagnosis(diagnose_error(message), source="window", title="Report form", detail=message)
         self._sending = False
         self.cancel_button.setEnabled(True)
         self.send_button.setEnabled(True)
         self.send_button.setText(tr("Send"))
-        self._set_status(
-            tr_format("It was not sent: {reason}. What you wrote is still here.", reason=tr(message).rstrip(".")),
-            "error",
-        )
-        self.browser_button.show()
-
-    def _open_in_browser(self) -> None:
-        """The same answers in the browser; long texts go to the clipboard."""
-        report = self.report()
-        long_texts = [
-            (tr("Suggestions and ideas"), report.ideas),
-            (tr("Steps to reproduce"), report.steps),
-            (tr("Terminal output"), report.terminal),
-            (tr("Where it happened"), report.where),
-            (tr("Raw error"), report.raw),
-            (tr("System specifications"), report.specs),
-            (tr("Recent errors"), report.recent_errors),
-            (tr("Report details"), report.details),
-            (tr("Hardware diagnostics"), report.hardware),
-        ]
-        # The same rule as the POST: no home folder leaves through the clipboard either.
-        clipboard = "\n\n".join(
-            f"== {title} ==\n{redact(text).strip()}" for title, text in long_texts if text.strip()
-        )
-        if clipboard and QApplication.clipboard() is not None:
-            QApplication.clipboard().setText(clipboard)
-        opened, _message = open_external_url(form.prefill_url(report))
-        if not opened:
-            self._set_status(tr_format("Copy this address manually: {url}", url=form.FORM_URL), "error")
-            return
-        if clipboard:
-            self._set_status(tr("The long answers were copied. Paste them into the form in the browser."), "info")
+        text = tr_format("It was not sent: {reason}. What you wrote is still here.", reason=tr(message).rstrip("."))
+        saved = form.saved_directory() / f"{report.id}.json" if report is not None else None
+        if saved is not None and saved.exists():
+            text += " " + tr_format("A copy was saved to {path}.", path=form.redact_machine(str(saved)))
+        self._set_status(text, "error")
 
     def preview_text(self) -> str:
-        """Exactly what the automatic page sends, under the form's own headings."""
-        values = self._automatic() or {
-            key: "" for key in ("reference", "where", "raw", "specs", "recent_errors", "details", "hardware")
-        }
-        sections = (
-            ("Error reference", values["reference"]),
-            ("Where it happened", values["where"]),
-            ("Raw error", values["raw"]),
-            ("System specifications", values["specs"]),
-            ("Recent errors", values["recent_errors"]),
-            ("Report details", values["details"]),
-            ("Hardware diagnostics", values["hardware"]),
-        )
-        text = "\n\n".join(f"== {title} ==\n{text or '—'}" for title, text in sections) + "\n"
-        # The attachments too, as they leave: nothing is sent that is not shown.
-        for name, body in self._attachments():
-            text += f"\n\n######## {name} ########\n{form.redact_machine(body)}\n"
-        return text
+        """Exactly the document that is sent, as JSON."""
+        return json.dumps(form.payload(self.report()), ensure_ascii=False, indent=2) + "\n"
 
     def _show_report(self) -> None:
         from ..pages.settings import TextDetailsDialog

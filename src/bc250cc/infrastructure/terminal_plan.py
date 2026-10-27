@@ -199,16 +199,18 @@ def _first_error_shell(translate=None) -> str:
     """
     translate = translate if callable(translate) else _TRANSLATOR
     return (
+        "bc250_error_re='^[[:space:]]*(\\\\[(ERROR|FATAL)\\\\][: ]*|ERROR: )'; "
         'if [ "$status" -ne 0 ] && [ -n "$error_scan" ]; then '
-        # First ERROR/FATAL line: what happened.
-        'first_error=$(printf "%s\\n" "$error_scan" '
-        '| grep -m1 -E "^[[:space:]]*(\\[(ERROR|FATAL)\\][: ]*|ERROR: )" '
-        '| sed -E "s/^[[:space:]]*(\\[(ERROR|FATAL)\\][: ]*|ERROR: )//" || true); '
-        # Remaining ERROR lines: the script's own remediation steps.
-        'error_hints=$(printf "%s\\n" "$error_scan" '
-        '| grep -E "^[[:space:]]*(\\[(ERROR|FATAL)\\][: ]*|ERROR: )" '
-        '| tail -n +2 '
-        '| sed -E "s/^[[:space:]]*(\\[(ERROR|FATAL)\\][: ]*|ERROR: )/  /" || true); '
+        # The last run of ERROR/FATAL lines is the failure that stopped the
+        # workflow; an earlier one may have been recovered from (the AUR build
+        # failing before the official Cyan release is installed instead).
+        'error_block=$(printf "%s\\n" "$error_scan" | awk -v re="$bc250_error_re" '
+        "'{ if ($0 ~ re) { if (!run) n = 0; run = 1; sub(re, \"\"); lines[++n] = $0 } else run = 0 } "
+        "END { for (i = 1; i <= n; i++) print lines[i] }' || true); "
+        # Its first line: what happened.
+        'first_error=$(printf "%s\\n" "$error_block" | head -n 1); '
+        # The rest: the script's own remediation steps.
+        'error_hints=$(printf "%s\\n" "$error_block" | tail -n +2 | sed "s/^/  /"); '
         'fi'
     )
 

@@ -57,6 +57,34 @@ def test_wrapper_explains_configuration_exit_status(tmp_path):
     assert "Diagnostic code: BC250-DATA-001" in result.stdout
 
 
+def _run_wrapper(tmp_path, command):
+    wrapped = workflow_wrapper(command, tmp_path / "status", tmp_path / "log")
+    return subprocess.run(["/usr/bin/bash", "-c", wrapped], input="\n", check=False, capture_output=True, text=True)
+
+
+def test_wrapper_explains_the_error_that_stopped_the_workflow(tmp_path):
+    # The AUR build failed and was recovered from; Cyan failed later.
+    result = _run_wrapper(tmp_path, (
+        "echo '[ERROR] AUR/makepkg builds must run as a regular user, not root.'; "
+        "echo '[WARN] The AUR build failed; the official Cyan release is installed next instead'; "
+        "echo 'ERROR: active init service is not prepared to use the validated Cyan binary'; exit 61"
+    ))
+    explanation = result.stdout.split("What happened:")[1].split("Last lines from the workflow output:")[0]
+    assert "active init service is not prepared" in explanation
+    assert "makepkg" not in explanation
+
+
+def test_wrapper_keeps_the_scripts_own_remediation_lines(tmp_path):
+    result = _run_wrapper(tmp_path, "echo '[ERROR] Headers do not match 7.1'; echo '[ERROR] Install linux-headers'; exit 61")
+    assert "What happened: Headers do not match 7.1" in result.stdout
+    assert "  Install linux-headers" in result.stdout
+
+
+def test_a_corrupt_download_is_explained_as_one(tmp_path):
+    result = _run_wrapper(tmp_path, "echo 'sha256sum: WARNING: 1 computed checksum did NOT match'; exit 1")
+    assert "Diagnostic code: BC250-NET-001" in result.stdout
+
+
 @pytest.mark.parametrize(
     ("terminal_env", "prefix"),
     (
@@ -139,3 +167,18 @@ def test_empty_workflow_is_rejected_before_any_launch(tmp_path, monkeypatch):
     )
     with pytest.raises(RuntimeError, match="empty"):
         repository._abrir_terminal("  ")
+
+
+def test_a_package_the_repositories_do_not_have_is_explained_as_one(tmp_path):
+    result = _run_wrapper(tmp_path, "echo ' - nothing provides python3-sounddevice needed by trcc-linux'; exit 1")
+    assert "Diagnostic code: BC250-PKG-004" in result.stdout
+
+
+def test_a_locked_package_database_is_explained_as_busy(tmp_path):
+    result = _run_wrapper(tmp_path, "echo 'error: failed to init transaction (unable to lock database)'; exit 1")
+    assert "Diagnostic code: BC250-PKG-001" in result.stdout
+
+
+def test_a_system_out_of_processes_is_explained_as_one(tmp_path):
+    result = _run_wrapper(tmp_path, "echo 'bash: fork: retry: Resource temporarily unavailable'; exit 254")
+    assert "Diagnostic code: BC250-RESOURCE-001" in result.stdout

@@ -1,0 +1,18 @@
+name = "bc250-reports"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+workers_dev = true
+
+[[kv_namespaces]]
+binding = "REPORTS"
+id = "b0abcb62ddb54ad395415ec5d0ec13ef"
+
+# A few reports per minute per address: enough for a person, not for a flood.
+[[ratelimits]]
+name = "LIMITER"
+namespace_id = "2501"
+simple = { limit = 4, period = 60 }
+
+# Secrets (wrangler secret put): ADMIN_TOKEN for /admin; optional
+# TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID for a message per report.
+

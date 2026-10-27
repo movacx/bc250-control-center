@@ -16,6 +16,7 @@ from collections import deque
 from dataclasses import dataclass
 
 from bc250cc.shared.error_origins import Origin, format_raw, raise_site
+from bc250cc.shared.errors import ActionNeeded
 
 #: Enough for the failures of one burst of work; older ones are not asked for.
 KEEP = 32
@@ -30,6 +31,8 @@ class RawError:
     text: str
     site: Origin | None
     at: float
+    #: An ``ActionNeeded`` or a subclass of it: the window asks for one step.
+    asks_for_action: bool = False
 
 
 _lock = threading.Lock()
@@ -43,6 +46,7 @@ def capture(error: BaseException) -> RawError:
         text=format_raw(error),
         site=raise_site(error),
         at=time.time(),
+        asks_for_action=isinstance(error, ActionNeeded),
     )
 
 
@@ -68,9 +72,21 @@ def find(message: object) -> RawError | None:
     with _lock:
         recent = list(_recent)
     for raw in reversed(recent):
-        if len(raw.message) >= MIN_MATCH and raw.message in text:
+        if len(raw.message) >= MIN_MATCH and (raw.message in text or _translated(raw.message) in text):
             return raw
     return None
+
+
+def _translated(message: str) -> str:
+    """The message as a window shows it in the interface language: pages
+    translate it before it reaches the window, so in Spanish the English
+    message was never found and an "action needed" notice turned red."""
+    try:
+        from ..i18n import tr
+
+        return tr(message)
+    except Exception:  # noqa: BLE001 - matching must never raise
+        return message
 
 
 def clear() -> None:

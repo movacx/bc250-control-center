@@ -77,6 +77,13 @@ CYAN_UPDATE_MESSAGE = (
 FSR4_UPDATE_TITLE = "An FSR4 client update is ready"
 FSR4_UPDATE_MESSAGE = "Press {button} in {section}. Your games and backups are kept."
 
+GPU_DRIVER_TITLE = "The GPU driver did not start in this boot"
+GPU_DRIVER_MESSAGE = (
+    "Linux sees the BC-250 GPU, but amdgpu did not start, so the GPU, Cyan and "
+    "Compute Units pages cannot work. Turn the BC-250 off completely, unplug it "
+    "for a few seconds and start it again."
+)
+
 
 def _where(*labels: str) -> str:
     """A path through the interface, in the words the interface uses."""
@@ -153,6 +160,10 @@ def attention_items(tools: Mapping) -> tuple[Attention, ...]:
     # Compatibility is a tab of Additional settings (Components stays on the Dashboard).
     compatibility = _where("Additional settings", "Compatibility")
     upscaling = _where("Additional settings", "Upscaling")
+    gpu = _mapping(tools.get("gpu_driver"))
+    if gpu.get("present") and not gpu.get("bound"):
+        # First: every GPU notice below would only be a symptom of this.
+        items.append(Attention("gpu-driver-missing", GPU_DRIVER_TITLE, tr(GPU_DRIVER_MESSAGE), tone="red"))
     helpers = _mapping(tools.get("privileged_install"))
     if helpers.get("state") == "outdated":
         # A package still owns these files: a local install would overwrite

@@ -32,28 +32,35 @@ from ._shared import (
 )
 
 REPOSITORY = "https://github.com/Lexonight1/thermalright-trcc-linux"
-VERSION = "9.10.4"
+VERSION = "9.11.2"
 TAG = f"v{VERSION}"
 #: The tag's commit, for the external tools manifest.
-REVIEWED_REVISION = "72457586c82d879e1864b3fc03f0d3844774e998"
+REVIEWED_REVISION = "19253ca34cdecf93b07bd8d83c9001b893b0301e"
 PACKAGE = "trcc-linux"
 BINARY = Path("/usr/bin/trcc")
 
 #: Release asset and the SHA-256 GitHub published for it, per package format.
 ASSETS = {
     "pacman": (
-        "trcc-linux-9.10.4-1-any.pkg.tar.zst",
-        "9d412d9712182d429f2c7a82f93a2aa57e89f3c65e781ed739ce9b79bec4317f",
+        "trcc-linux-9.11.2-1-any.pkg.tar.zst",
+        "ac8f523361b9c0bfdb91e20b8ef8ffbf7a8c0308d27ea6970b176d288a4a524a",
     ),
     "rpm": (
-        "trcc-linux-9.10.4-1.fc44.noarch.rpm",
-        "3d3ddd915ba625e74b355e1c81231e58886afbc3e443de7791b6fc12616a7719",
+        "trcc-linux-9.11.2-1.fc44.noarch.rpm",
+        "fae0c1ab19a88b54603cde6254b4d9969cce766b607445d77e9fbd3696759145",
     ),
     "deb": (
-        "trcc-linux_9.10.4-1_all.deb",
-        "bc25685024e7cfafb6a8be9b13a83ac384c3da21443beffc9fc1a2018b558e8c",
+        "trcc-linux_9.11.2-1_all.deb",
+        "2923149262a3263e8a812a40ff03d0c1bc9bb46bf31d89d65aab825f13afb081",
     ),
 }
+#: For a release without PySide6 packages (Ubuntu 24.04, Debian 12): the
+#: same program, its Python libraries in a venv. The plain .deb asks apt for
+#: python3-pyside6.* there and apt refuses ("held broken packages").
+LEGACY_DEB = (
+    "trcc-linux_9.11.2-1.legacy_all.deb",
+    "4dca552f44ce9d965ab05c7d0f82f6a9f48fb3bf1279fad73a69288fdc8532c8",
+)
 #: How each distribution family installs it.
 ROUTES = {
     "arch": "pacman",
@@ -156,6 +163,11 @@ def inventory(family: str) -> dict:
 def _enable_service_steps(*, start_now: bool) -> list[str]:
     unit_path = f'"{UNIT_DIRECTORY}/{SERVICE}"'
     steps = [
+        # Without a systemd user manager (OpenRC, runit, a session started
+        # outside systemd) the steps below fail without a word.
+        "systemctl --user show-environment >/dev/null 2>&1 || { "
+        "echo '[ERROR] TRCC is installed, but this session has no systemd user manager to run its display service.'; "
+        "echo '[ERROR] Start TRCC from the desktop menu, or sign in to a systemd session and press Install again.'; exit 66; }",
         f'mkdir -p "{UNIT_DIRECTORY}"',
         f"printf '%s' {shlex.quote(UNIT)} > {unit_path}",
         "systemctl --user daemon-reload",
@@ -171,6 +183,10 @@ def _enable_service_steps(*, start_now: bool) -> list[str]:
     return steps
 
 
+def _asset_url(asset: str) -> str:
+    return f"{REPOSITORY}/releases/download/{TAG}/{asset}"
+
+
 def install_command(family: str) -> str:
     route = route_for(family)
     if not route:
@@ -178,19 +194,26 @@ def install_command(family: str) -> str:
             "TRCC has no package for this distribution. Its install guide covers the manual routes."
         )
     asset, sha256 = ASSETS[_FORMAT[route]]
-    url = f"{REPOSITORY}/releases/download/{TAG}/{asset}"
     commands = shell_header(f"Thermalright LCD · TRCC Linux {VERSION}")
-    commands += download_and_verify(url, asset, sha256)
     package = f'"$bc250_stage/{asset}"'
     reboot = False
+    if route == "apt":
+        legacy, legacy_sha256 = LEGACY_DEB
+        commands.append("if apt-cache show python3-pyside6.qtcore >/dev/null 2>&1; then")
+        commands += [f"  {line}" for line in download_and_verify(_asset_url(asset), asset, sha256)]
+        commands += [f'  bc250_package="$bc250_stage/{asset}"', "else"]
+        commands.append("  echo 'This release has no PySide6 packages: installing the TRCC package that brings its own.'")
+        commands += [f"  {line}" for line in download_and_verify(_asset_url(legacy), legacy, legacy_sha256)]
+        commands += [f'  bc250_package="$bc250_stage/{legacy}"', "fi"]
+        # apt reads a local file only through a path, which this is.
+        commands.append('sudo apt-get install -y "$bc250_package"')
+    else:
+        commands += download_and_verify(_asset_url(asset), asset, sha256)
     if route == "pacman":
         commands.append(f"sudo pacman -U --needed --noconfirm {package}")
     elif route == "dnf":
         commands.append(f"sudo dnf install -y {package}")
-    elif route == "apt":
-        # apt reads a local file only through a path, which this is.
-        commands.append(f"sudo apt-get install -y {package}")
-    else:
+    elif route == "rpm-ostree":
         # A layered older copy has to be swapped in one transaction: a plain
         # install next to it fails with "cannot install both".
         commands += [

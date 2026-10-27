@@ -646,9 +646,14 @@ done
 if command -v curl >/dev/null 2>&1; then
   bc250_fetch() {{ curl -fL --retry 3 --connect-timeout 20 --progress-bar -o "$1" "$2"; }}
 elif command -v wget >/dev/null 2>&1; then
-  bc250_fetch() {{ wget -q --show-progress -O "$1" "$2"; }}
+  # BusyBox wget (Alpine) has no --show-progress and refuses the download.
+  if wget --help 2>&1 | grep -q -- --show-progress; then
+    bc250_fetch() {{ wget -q --show-progress -O "$1" "$2"; }}
+  else
+    bc250_fetch() {{ wget -q -O "$1" "$2"; }}
+  fi
 else
-  echo "ERROR: curl or wget is required to download the client."; exit 69
+  echo "ERROR: curl or wget is required to download the client. Run Prepare dependencies on the Dashboard, or install curl with the package manager."; exit 69
 fi
 bc250_work="$(mktemp -d "${{TMPDIR:-/tmp}}/bc250-opticlient.XXXXXX")"
 trap 'rm -rf -- "$bc250_work"' EXIT
@@ -741,7 +746,7 @@ if command -v curl >/dev/null 2>&1; then
 elif command -v wget >/dev/null 2>&1; then
   wget -q -O "$bc250_work/releases.json" {shlex.quote(OPTICLIENT_RELEASES_API)}
 else
-  echo "ERROR: curl or wget is required."; exit 69
+  echo "ERROR: curl or wget is required. Run Prepare dependencies on the Dashboard, or install curl with the package manager."; exit 69
 fi
 mkdir -p {root}
 "$bc250_python" -I - "$bc250_work/releases.json" {root}/releases.json {_RELEASES_LIMIT} {shlex.quote(OPTICLIENT_TAG_PREFIX)} <<'BC250_RELEASES'

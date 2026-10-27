@@ -320,3 +320,13 @@ def test_nothing_is_announced_over_the_welcome_screen_or_the_tour(page, monkeypa
     presenting[0] = False
     page.announce_pending_attention()
     assert len(page.shown) == 1
+
+
+def test_a_gpu_without_its_driver_is_said_first():
+    # Two reports: amdgpu failed at boot and every GPU page showed errors
+    # that hid it.
+    items = attention_items(_with(gpu_driver={"present": True, "bound": False, "driver": ""}))
+    assert items[0].key == "gpu-driver-missing" and items[0].tone == "red"
+    assert not any(item.key == "gpu-driver-missing" for item in attention_items(
+        _with(gpu_driver={"present": True, "bound": True, "driver": "amdgpu"})
+    ))

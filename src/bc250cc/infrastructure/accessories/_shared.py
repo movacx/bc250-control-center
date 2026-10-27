@@ -87,9 +87,12 @@ def download_and_verify(url: str, asset: str, sha256: str) -> list[str]:
     """
     return [
         "for bc250_command in curl sha256sum; do",
-        '  command -v "$bc250_command" >/dev/null 2>&1 || { echo "ERROR: $bc250_command is required."; exit 69; }',
+        '  command -v "$bc250_command" >/dev/null 2>&1 || { echo "ERROR: $bc250_command is required. Run Prepare dependencies on the Dashboard, or install it with the package manager."; exit 69; }',
         "done",
         'bc250_stage="$(mktemp -d /tmp/bc250-accessory.XXXXXX)"',
+        # apt fetches a local package as its own _apt user: a private folder
+        # makes it warn and fall back to root.
+        'chmod 755 "$bc250_stage"',
         "trap 'rm -rf -- \"$bc250_stage\"' EXIT",
         f'curl --fail --location --proto "=https" --retry 2 --output "$bc250_stage/{asset}" {shlex.quote(url)}',
         f"printf '%s  %s\\n' {sha256} \"$bc250_stage/{asset}\" | sha256sum --check --status "
