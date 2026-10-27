@@ -337,7 +337,9 @@ def apply(host: Host, gib: int, *, next_boot_ram: int | None = None) -> dict:
             )
         pages = pages_for(gib)
     elif not current["managed"] and current["legacy_pages"] is None:
-        raise SetupError("No GPU memory limit set by Control Center to restore")
+        # Asking for the default when the default is already in place is not
+        # a failure: nothing to restore, nothing changed.
+        return current
     if kind == "rpm-ostree":
         tokens = _apply_ostree(host, gib, tokens or [], pages if gib != DEFAULT else 0)
     else:

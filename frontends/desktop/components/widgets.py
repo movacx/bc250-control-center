@@ -23,6 +23,7 @@ from PyQt6.QtWidgets import (
 )
 
 from bc250cc.shared.error_origins import caller_origin
+from bc250cc.shared.errors import ActionNeeded
 
 from .. import theme as theme_module
 from ..core.diagnostic_history import (
@@ -371,6 +372,11 @@ def _raw_error_block(detail: str, raw) -> QWidget:
     return holder
 
 
+def _asks_for_an_action(message: object) -> bool:
+    raw = find_raw_error(message)
+    return raw is not None and raw.kind == ActionNeeded.__name__
+
+
 class InfoDialog(QDialog):
     """Compact frameless modal used by the control center.
 
@@ -406,6 +412,11 @@ class InfoDialog(QDialog):
         self.origin = None
         self.raw_error = None
         self.opened_at = time.time()
+        if tone == "red" and _asks_for_an_action(message):
+            # Refused before anything changed until the user does one thing
+            # (close Steam, prepare dependencies): say what to do, without an
+            # error code that invites a problem report.
+            tone, icon_name = "orange", "warning_orange"
         if tone == "red":
             self.origin = caller_origin()
             self.raw_error = find_raw_error(message)

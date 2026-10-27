@@ -54,6 +54,31 @@ def test_apt_status_bar_is_not_glued_onto_the_line_it_interrupted(tmp_path):
     assert text == "Setting up cmake (4.2.3) ...\nSetting up llvm-21 (1:21.1.8) ...\n"
 
 
+def test_an_unclosed_sequence_does_not_swallow_the_rest_of_the_log(tmp_path):
+    # Two reports lost every line after the sudo prompt, the failure too: a
+    # sequence that was never closed kept the log from reading anything.
+    text = transcript(
+        tmp_path,
+        b"[sudo] password for user: \x1b]0;title never closed\r\n",
+        b"error: Transaction in progress: upgrade\r\n",
+    )
+    assert text.endswith("error: Transaction in progress: upgrade\n")
+
+
+def test_a_cursor_save_never_restored_does_not_swallow_later_lines(tmp_path):
+    text = transcript(tmp_path, b"\x1b7status drawn elsewhere\r\n", b"ERROR: what failed\r\n")
+    assert text == "ERROR: what failed\n"
+
+
+def test_the_sync_request_still_works_after_an_unclosed_sequence(tmp_path):
+    path = tmp_path / "workflow.log"
+    log = TranscriptLog(path)
+    log.write(b"\x1bPdcs never closed\nlast line\n" + f"\x1b]{LOG_SYNC_OSC}\x07".encode())
+    assert path.read_text(encoding="utf-8").strip() == "last line"
+    assert log_sync_path(path).exists()
+    log.close()
+
+
 def test_a_utf8_character_split_across_reads_survives(tmp_path):
     encoded = "Qué ocurrió\n".encode()
     assert transcript(tmp_path, encoded[:3], encoded[3:]) == "Qué ocurrió\n"

@@ -380,6 +380,8 @@ def build_preparation_command(context: PreparationContext) -> str:
         'export LC_ALL=C LANG=C',
         'if command -v flock >/dev/null 2>&1; then exec 9>"${XDG_RUNTIME_DIR:-/tmp}/bc250-control-center-$(id -u).lock"; flock -n 9 || { echo "ERROR: another BC250 system preparation is already running"; exit 40; }; fi',
         'BC250_REBOOT_REQUIRED=0',
+        'export BC250_CREDITS_MARK="${XDG_RUNTIME_DIR:-/tmp}/bc250-credits-$$"',
+        'rm -f "$BC250_CREDITS_MARK"; trap \'rm -f "$BC250_CREDITS_MARK"\' EXIT',
         f'mkdir -p {shlex.quote(str(context.tool_dir))}',
         # A framed header with the detected system and the plan, so the user
         # can see what is about to happen instead of watching raw tool output

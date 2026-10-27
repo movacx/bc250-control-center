@@ -41,7 +41,10 @@ fi
 # deployment through modprobe. A per-kernel module under /var is a fallback for
 # kernels where Bazzite does not ship nct6687, and persisted source can rebuild
 # that fallback after a kernel upgrade.
-as_root tee "$LOADER_PATH" >/dev/null <<'LOADER'
+# Written beside the loader and renamed over it: nct6687-load.service restarts
+# on failure, and bash reading a loader that tee was still rewriting failed
+# with "syntax error near unexpected token &&" on a real Bazzite board.
+as_root tee "$LOADER_PATH.new" >/dev/null <<'LOADER'
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
@@ -204,7 +207,8 @@ fi
 echo "[ERROR] nct6687 could not be loaded for $KVER" >&2
 exit 1
 LOADER
-as_root chmod 0755 "$LOADER_PATH"
+as_root chmod 0755 "$LOADER_PATH.new"
+as_root mv -f "$LOADER_PATH.new" "$LOADER_PATH"
 
 if [[ -f "$MODULE_PATH" ]] && have chcon; then
   as_root chcon -t modules_object_t "$MODULE_PATH" || warn "Could not apply SELinux module label"

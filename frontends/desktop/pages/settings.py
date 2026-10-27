@@ -1359,7 +1359,7 @@ class SettingsPage(QWidget):
             "The register, in any theme. Standard keeps the rounded, lively look. Formal uses deeper, quieter colours, squarer corners and flat cards.",
             self._coded_combo(
                 [("Standard", "standard"), ("Formal", "formal")],
-                "settings/style", "standard", self._appearance_control_changed,
+                "settings/style", "formal", self._appearance_control_changed,
             ),
         ))
         colors.add_row(SettingRow(
@@ -2637,7 +2637,7 @@ class SettingsPage(QWidget):
             "settings/density": "comfortable",
             "settings/scale": 100,
             "settings/accent": "blue",
-            "settings/style": "standard",
+            "settings/style": "formal",
             "settings/language": "auto",
             "settings/smart_alerts": "false",
             "settings/desktop_notifications": "false",

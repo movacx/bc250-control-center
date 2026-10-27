@@ -98,7 +98,7 @@ All BIOS files are downloaded from one pinned commit per source, verified agains
 
 **[bc250-gfx1013-fix](https://github.com/DryhoppedIPA/bc250-gfx1013-fix)**. GFX1013 compute queue, kernel and Mesa/RADV stack. External install; Control Center updates official `main`, applies only the reviewed Fedora 44 RPM 6 source-path compatibility repair when its exact upstream line is present, and runs the complete upstream lifecycle after local safety checks.
 
-**[linux-cachyos-bc250](https://github.com/MastaG/linux-cachyos-bc250)** (GPL-2.0). Matched Arch and CachyOS kernel and Mesa/RADV with GFX1013 async-compute fixes, added as an opt-in package repository. Not enabled on Manjaro.
+**[linux-cachyos-bc250](https://github.com/MastaG/linux-cachyos-bc250)** (GPL-2.0). Matched Arch and CachyOS kernel and Mesa/RADV with GFX1013 async-compute fixes, plus the Proton BC-250 builds (proton-cachyos-native-bc250, protonge-latest-bc250, proton-cachyos-slr-bc250), added as an opt-in unsigned package repository. The BC-250 toolkit by redbeard1083 (https://github.com/redbeard1083/bc250-toolkit) was the reference for the Proton packages. Not enabled on Manjaro.
 
 **[kisak-mesa PPA](https://launchpad.net/~kisak/+archive/ubuntu/kisak-mesa)**. Mesa 26.1 or newer for Ubuntu and its derivatives, so that the desktop is drawn by the BC-250 GPU instead of the CPU. Offered on the Compatibility tab only where Mesa is older than 26.1, and after confirmation. The source and its signing key are added in separate files under `/etc/apt`; the key is refused unless its fingerprint is `EB8B81E14DA65431D7504EA8F63F0F2B90935439`, and only the Mesa packages (and their 32-bit counterparts when present) are installed from it.
 

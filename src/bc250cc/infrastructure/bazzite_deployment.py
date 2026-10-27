@@ -78,3 +78,21 @@ def probe_bazzite_reboot_pending(
         return {"available": False, "pending": False, "packages": []}
     packages = pending_prepared_packages(status)
     return {"available": True, "pending": bool(packages), "packages": list(packages)}
+
+
+#: Runs before a workflow on an rpm-ostree system. Bazzite's automatic update
+#: (or another workflow's ``rpm-ostree kargs``) holds rpm-ostree for minutes,
+#: and every install or kargs call then failed at once with "Transaction in
+#: progress": three reports in one week. Waiting is what the user would do.
+RPM_OSTREE_IDLE_WAIT = (
+    "if command -v rpm-ostree >/dev/null 2>&1; then "
+    "bc250_ostree_waited=0; "
+    "while rpm-ostree status --json 2>/dev/null | python3 -c "
+    "'import json,sys; sys.exit(0 if json.load(sys.stdin).get(\"transaction\") else 1)' 2>/dev/null; do "
+    'if [ "$bc250_ostree_waited" -eq 0 ]; then '
+    'echo "Another rpm-ostree transaction (usually an automatic system update) is running; waiting for it to finish..."; fi; '
+    "bc250_ostree_waited=$((bc250_ostree_waited + 1)); "
+    'if [ "$bc250_ostree_waited" -ge 180 ]; then '
+    'echo "[ERROR] rpm-ostree stayed busy for 15 minutes. Try again once the system update has finished."; exit 75; fi; '
+    "sleep 5; done; fi"
+)

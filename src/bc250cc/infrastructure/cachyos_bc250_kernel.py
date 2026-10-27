@@ -30,7 +30,19 @@ CACHYOS_BC250_KERNEL_VARIANTS = {
     "bore": "linux-cachyos-bore-bc250",
 }
 CACHYOS_BC250_MESA_PACKAGES = ("mesa", "vulkan-radeon")
-CACHYOS_BC250_ACTIONS = {"kernel", "mesa", "full"}
+#: Proton builds the same repository ships for the BC-250 (patched for its
+#: GPU). Fixed names: nothing from the UI ever reaches the pacman command.
+CACHYOS_BC250_PROTON_PACKAGES = {
+    "native": "proton-cachyos-native-bc250",
+    "ge": "protonge-latest-bc250",
+    "slr": "proton-cachyos-slr-bc250",
+}
+CACHYOS_BC250_KERNEL_ACTIONS = {"kernel", "mesa", "full"}
+CACHYOS_BC250_ACTIONS = (
+    CACHYOS_BC250_KERNEL_ACTIONS
+    | {f"proton-{key}" for key in CACHYOS_BC250_PROTON_PACKAGES}
+    | {f"remove-proton-{key}" for key in CACHYOS_BC250_PROTON_PACKAGES}
+)
 MASTA_BC250_SUPPORTED_IDS = frozenset({"arch", "cachyos", "cachy"})
 
 
@@ -144,15 +156,38 @@ def masta_bc250_stack_state(*, distro_id: str, family: str) -> dict:
             )
         except (OSError, subprocess.SubprocessError):
             pass
+    release = platform.release()
+    boot_fallbacks = _fallback_kernels(release)
     return {
         "supported": supported,
         "repository_configured": repository_configured,
+        "kernel_release": release,
+        "kernel_is_bc250": bool(running_variant),
+        "kernel_fallbacks": boot_fallbacks,
+        "proton_installed": {
+            key: installed(package)
+            for key, package in CACHYOS_BC250_PROTON_PACKAGES.items()
+        },
         "kernel_installed": bool(installed_variants),
         "kernel_active": running_variant in installed_variants,
         "kernel_variant": running_variant if running_variant in installed_variants
         else (installed_variants[0] if installed_variants else ""),
         "mesa_installed": mesa_from_bc250_repository,
     }
+
+
+def _fallback_kernels(running_release: str) -> list[str]:
+    """Other kernels still installed in /usr/lib/modules: the boot fallbacks."""
+    try:
+        names = sorted(
+            entry.name
+            for entry in Path("/usr/lib/modules").iterdir()
+            if entry.is_dir() and entry.name != running_release
+            and (entry / "vmlinuz").exists()
+        )
+    except OSError:
+        return []
+    return names
 
 
 def running_bc250_kernel_variant(release: str) -> str:
@@ -178,15 +213,28 @@ def build_cachyos_bc250_kernel_command(action: str = "kernel") -> str:
     action = str(action or "kernel").strip().lower()
     if action not in CACHYOS_BC250_ACTIONS:
         raise ValueError("Unsupported CachyOS BC-250 action.")
+    if action.startswith("remove-proton-"):
+        return _build_proton_removal_command(action.removeprefix("remove-proton-"))
+    proton_package = CACHYOS_BC250_PROTON_PACKAGES.get(action.removeprefix("proton-")) if action.startswith("proton-") else None
     include = CACHYOS_BC250_INCLUDE
     repository = CACHYOS_BC250_PACMAN_REPOSITORY
     selected = []
+    if proton_package:
+        selected.append(proton_package)
     if action in {"kernel", "full"}:
         selected.extend(CACHYOS_BC250_PACKAGES)
     if action in {"mesa", "full"}:
         selected.extend(CACHYOS_BC250_MESA_PACKAGES)
     targets = " ".join(f"{repository}/{name}" for name in selected)
-    if action == "kernel":
+    if proton_package:
+        # Only the chosen Proton: neither the BC-250 kernel nor the patched
+        # Mesa of this repository is touched as a side effect.
+        scope_guard = (
+            "bc250_scope_guard=(--ignore 'linux-cachyos-bc250*,linux-cachyos-rc-bc250*,"
+            "linux-cachyos-bore-bc250*,mesa*,lib32-mesa*,vulkan-*,lib32-vulkan-*,"
+            "opencl-mesa,lib32-opencl-mesa')"
+        )
+    elif action == "kernel":
         # This repository also has higher-priority Mesa split packages.  Keep
         # the explicit kernel-only action honest while still performing the
         # full Arch system upgrade required by pacman.
@@ -215,17 +263,30 @@ echo "BC250_REBOOT_REQUIRED=1"'''
         if action in {"kernel", "full"}
         else ""
     )
+    proton_step = (
+        f'''pacman -Q {proton_package}
+echo "[INFO] Restart Steam; pick this Proton in a game's Compatibility settings."'''
+        if proton_package
+        else ""
+    )
     mesa_step = (
         '''pacman -Q mesa vulkan-radeon
 echo "[INFO] Log out/restart games after Mesa changes; reboot is recommended when combined with the kernel."'''
         if action in {"mesa", "full"}
         else ""
     )
+    kernel_notice = (
+        '''echo "[INFO] Booted kernel now: $(uname -r)"
+echo "[INFO] CachyOS Kernel Manager only lists kernels from CachyOS's own repositories, so the BC-250 kernel (from MastaG's repository) does not appear there."
+echo "[INFO] After rebooting, verify with: uname -r  (it must end in -cachyos-bc250). Your previous kernel stays as a boot fallback."'''
+        if action in {"kernel", "full"}
+        else ""
+    )
     return f'''set -euo pipefail
 export LANG=C LC_ALL=C
 echo
 echo "=========================================================================="
-echo "  BC-250 kernel and Mesa - Arch/CachyOS"
+echo "  BC-250 kernel, Mesa and Proton - Arch/CachyOS"
 echo "  {action} workflow - external upstream repository"
 echo "=========================================================================="
 echo 
@@ -243,6 +304,7 @@ getent ahosts github.com >/dev/null 2>&1 || {{ echo "ERROR: DNS cannot resolve g
 echo "[WARN] External source: {CACHYOS_BC250_REPOSITORY}"
 echo "[WARN] Its pacman repository uses Optional TrustAll (unsigned packages)."
 echo "[INFO] The current kernel is not removed; keep its boot entry as a recovery fallback."
+echo "[INFO] Credit: MastaG (linux-cachyos-bc250) builds and hosts these packages; this app only runs pacman."
 echo "[WARN] Pacman performs a full system upgrade. Other installed packages, including Mesa, may update from this repository."
 bc250_packages=({targets})
 {scope_guard}
@@ -310,4 +372,33 @@ for bc250_target in "${{bc250_packages[@]}}"; do
 done
 {kernel_step}
 {mesa_step}
+{proton_step}
+{kernel_notice}
 echo "OK: Arch/CachyOS BC-250 {action} workflow completed. Review package output before rebooting."'''
+
+
+def _build_proton_removal_command(key: str) -> str:
+    """Remove one BC-250 Proton package; the repository stays configured."""
+    package = CACHYOS_BC250_PROTON_PACKAGES.get(key)
+    if package is None:
+        raise ValueError("Unsupported CachyOS BC-250 action.")
+    return f'''set -euo pipefail
+export LANG=C LC_ALL=C
+echo
+echo "=========================================================================="
+echo "  Remove BC-250 Proton - Arch/CachyOS"
+echo "=========================================================================="
+test -r /etc/os-release || {{ echo "ERROR: /etc/os-release is unavailable."; exit 64; }}
+. /etc/os-release
+case "${{ID:-}}" in
+  arch|cachyos|cachy) ;;
+  *) echo "ERROR: This optional workflow is supported only on plain Arch Linux or CachyOS."; exit 64 ;;
+esac
+command -v pacman >/dev/null 2>&1 || {{ echo "ERROR: pacman is required on Arch/CachyOS."; exit 69; }}
+if ! pacman -Qq {package} >/dev/null 2>&1; then
+  echo "[INFO] {package} is not installed; nothing to remove."
+  exit 0
+fi
+sudo pacman -Rns {package}
+! pacman -Qq {package} >/dev/null 2>&1 || {{ echo "ERROR: {package} is still installed."; exit 74; }}
+echo "OK: {package} removed. Restart Steam; games that used it will ask for another Proton."'''

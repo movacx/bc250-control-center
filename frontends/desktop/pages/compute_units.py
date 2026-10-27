@@ -1282,6 +1282,12 @@ class ComputeUnitsPage(QWidget):
                 self.current_state.get("privileged_backend_reason")
                 or "CU write actions are locked until a verified root-owned backend is installed."
             )
+            if "missing" in reason.lower():
+                # Not prepared yet is not a failure: five reports were this
+                # window, opened by the refresh button before any preparation.
+                self._record_action("Not prepared", reason, "orange")
+                self._show_not_prepared(reason)
+                return
             self._record_action("Operation failed", reason, "red")
             self._show_error("Compute Units operation failed", reason)
             return
@@ -1908,6 +1914,17 @@ class ComputeUnitsPage(QWidget):
     def _show_info(self, title: str, message: str) -> None:
         # "Nothing to apply"-style notes: a toast, not a window to close.
         show_toast(self, title, message, tone="blue")
+
+    def _show_not_prepared(self, reason: str) -> None:
+        InfoDialog(
+            "Prepare Compute Units tools",
+            "Prepare the CU tools, then press Unlock / Sync to read the live WGP table.",
+            icon_name="warning_orange",
+            parent=self,
+            eyebrow="COMPUTE UNITS",
+            notice=reason,
+            tone="orange",
+        ).exec()
 
     def _show_error(self, title: str, message: str) -> None:
         normalized = str(message or "").lower()

@@ -21,6 +21,8 @@ import shutil
 import time
 from pathlib import Path
 
+from bc250cc.shared.errors import ActionNeeded
+
 APPS_PATH = ("userlocalconfigstore", "software", "valve", "steam", "apps")
 STEAM_PROCESSES = frozenset({"steam", "steamwebhelper"})
 BACKUP_SUFFIX = ".bc250-backup-"
@@ -266,7 +268,7 @@ def add_dll_override(appid: str, dll: str, *, home: Path | None = None,
     if not re.fullmatch(r"[A-Za-z0-9_.-]+", dll):
         raise ValueError("Invalid DLL name.")
     if steam_running(proc):
-        raise RuntimeError("Close Steam completely first (Steam > Exit), then try again: Steam rewrites its settings when it closes.")
+        raise ActionNeeded("Close Steam completely first (Steam > Exit), then try again: Steam rewrites its settings when it closes.")
     files = localconfig_files(home)
     if not files:
         raise RuntimeError("No Steam profile was found in this home folder.")
@@ -600,7 +602,7 @@ def add_dll_override_to_library(dll: str = "dxgi", *, home: Path | None = None,
     if not re.fullmatch(r"[A-Za-z0-9_.-]+", dll):
         raise ValueError("Invalid DLL name.")
     if steam_running(proc):
-        raise RuntimeError("Close Steam completely first (Steam > Exit), then try again: Steam rewrites its settings when it closes.")
+        raise ActionNeeded("Close Steam completely first (Steam > Exit), then try again: Steam rewrites its settings when it closes.")
     games = installed_steam_games(home)
     if not games:
         raise RuntimeError("No installed Steam game was found.")

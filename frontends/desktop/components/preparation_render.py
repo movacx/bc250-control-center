@@ -1071,6 +1071,50 @@ class PreparationRenderMixin:
         )
         self.cachyos_mesa_status.set_tone("green" if mesa_installed else "gray")
         unsupported_tip = "Available only on plain Arch Linux or CachyOS"
+        proton = _mapping(masta.get("proton_installed"))
+        proton_names = {"native": "Proton BC-250", "ge": "Proton-GE BC-250", "slr": "Proton SLR BC-250"}
+        proton_have = [name for key, name in proton_names.items() if proton.get(key)]
+        self.cachyos_proton_status.setText(
+            ", ".join(proton_have) if proton_have else tr("Not installed")
+        )
+        self.cachyos_proton_status.set_tone("green" if proton_have else "gray")
+        release = str(masta.get("kernel_release") or "")
+        if masta_supported and release:
+            fallbacks = [str(item) for item in masta.get("kernel_fallbacks") or []]
+            kernel_line = tr_format(
+                "Running kernel: {release} ({kind}).",
+                release=release,
+                kind=tr("BC-250 kernel") if masta.get("kernel_is_bc250") else tr("not the BC-250 kernel"),
+            )
+            if fallbacks:
+                kernel_line += " " + tr_format(
+                    "Boot fallback kept: {fallbacks}.", fallbacks=", ".join(fallbacks[:3])
+                )
+            kernel_line += " " + tr(
+                "CachyOS's Kernel Manager lists only CachyOS's own repositories, so the BC-250 kernel does not appear there; check with uname -r."
+            )
+            self.cachyos_kernel_detail.setText(kernel_line)
+            self.cachyos_kernel_detail.show()
+        else:
+            self.cachyos_kernel_detail.hide()
+        self.cachyos_stack_card.update_action(
+            self.cachyos_proton_native_button,
+            text="Update / repair Proton BC-250" if proton.get("native") else "Install Proton BC-250 (recommended)",
+            enabled=masta_supported,
+            tooltip="" if masta_supported else unsupported_tip,
+        )
+        self.cachyos_stack_card.update_action(
+            self.cachyos_proton_ge_button,
+            text="Update / repair Proton-GE BC-250" if proton.get("ge") else "Install Proton-GE BC-250",
+            enabled=masta_supported,
+            tooltip="" if masta_supported else unsupported_tip,
+        )
+        self.cachyos_stack_card.update_action(
+            self.cachyos_proton_remove_button,
+            text="Remove Proton BC-250",
+            enabled=masta_supported and bool(proton_have),
+            visible=bool(proton_have),
+        )
         self.cachyos_stack_card.update_action(
             self.cachyos_kernel_button,
             text="Update / repair kernel" if kernel_installed else "Install kernel",

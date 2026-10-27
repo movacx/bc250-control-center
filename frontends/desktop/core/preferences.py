@@ -112,6 +112,11 @@ class UiPreferences:
     }
     DENSITY_VALUES = {"comfortable", "compact"}
     STYLE_VALUES = {"standard", "formal"}
+    #: Formal became the default look in 1.21.3. Every installation is moved
+    #: to it once, upgrades included; after that the choice in Settings is
+    #: the user's and is never overridden again.
+    DEFAULT_STYLE = "formal"
+    STYLE_DEFAULT_MIGRATION_KEY = "settings/style_default_formal_applied"
 
     def __init__(self, settings: QSettings | None = None) -> None:
         self.settings = settings or application_settings()
@@ -125,6 +130,7 @@ class UiPreferences:
             self.settings.setValue("settings/appearance", "system")
 
         self._migrate_legacy_safety_preferences()
+        self._apply_formal_default_once()
         self._normalize_stored_codes()
         self.settings.sync()
         return PreferenceMigrationState(missing_language, missing_appearance)
@@ -143,12 +149,12 @@ class UiPreferences:
 
     def style(self) -> str:
         """The interface style: the standard look or the formal one."""
-        return self.normalize_style(self.settings.value("settings/style", "standard"))
+        return self.normalize_style(self.settings.value("settings/style", self.DEFAULT_STYLE))
 
     @classmethod
     def normalize_style(cls, value: object) -> str:
         normalized = str(value or "").strip().lower()
-        return normalized if normalized in cls.STYLE_VALUES else "standard"
+        return normalized if normalized in cls.STYLE_VALUES else cls.DEFAULT_STYLE
 
     def scale(self) -> int:
         try:
@@ -231,6 +237,12 @@ class UiPreferences:
 
         for legacy_key in ("zoom_ui", "alertas_activas", "modo_discreto"):
             self.settings.remove(legacy_key)
+
+    def _apply_formal_default_once(self) -> None:
+        if self.bool_value(self.STYLE_DEFAULT_MIGRATION_KEY, False):
+            return
+        self.settings.setValue("settings/style", self.DEFAULT_STYLE)
+        self.settings.setValue(self.STYLE_DEFAULT_MIGRATION_KEY, "true")
 
     def _normalize_stored_codes(self) -> None:
         self.settings.setValue(

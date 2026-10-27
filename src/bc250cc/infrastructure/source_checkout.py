@@ -25,13 +25,25 @@ def _inputs(repository_url, destination) -> tuple[str, Path, str, str]:
     return url, destination, shlex.quote(url), shlex.quote(str(destination))
 
 
+def _clear_stale_lock(qdest: str) -> str:
+    """An interrupted earlier run leaves .git/index.lock behind, and every
+    later preparation then failed on "Unable to create index.lock". It is
+    removed only while no git process runs at all."""
+    return (
+        f"if [ -e {qdest}/.git/index.lock ] && ! pgrep -x git >/dev/null 2>&1; then "
+        f"rm -f {qdest}/.git/index.lock; "
+        'echo "[INFO] Removed a stale git lock left by an interrupted earlier run"; fi; '
+    )
+
+
 def clone_or_update(repository_url, destination) -> str:
     _url, destination, qurl, qdest = _inputs(repository_url, destination)
     qparent = shlex.quote(str(destination.parent))
     return (
         f"mkdir -p {qparent}; "
         f"if [ -d {qdest}/.git ]; then "
-        f"git -C {qdest} pull --ff-only; "
+        + _clear_stale_lock(qdest)
+        + f"git -C {qdest} pull --ff-only; "
         f"else rm -rf {qdest}; git clone --depth 1 {qurl} {qdest}; fi"
     )
 
@@ -46,7 +58,8 @@ def clone_or_update_branch(repository_url, destination, branch) -> str:
     return (
         f"mkdir -p {qparent}; "
         f"if [ -d {qdest}/.git ]; then "
-        f"git -C {qdest} remote set-url origin {qurl}; "
+        + _clear_stale_lock(qdest)
+        + f"git -C {qdest} remote set-url origin {qurl}; "
         f"git -C {qdest} fetch --depth 1 origin {qbranch}; "
         f"git -C {qdest} checkout -B {qbranch} FETCH_HEAD; "
         f"git -C {qdest} reset --hard FETCH_HEAD; "
@@ -69,7 +82,8 @@ def clone_or_update_commit(repository_url, destination, commit) -> str:
         f"mkdir -p {qparent}; "
         f"if [ ! -d {qdest}/.git ]; then "
         f"rm -rf {qdest}; git clone --depth 1 {qurl} {qdest}; fi; "
-        f"git -C {qdest} remote set-url origin {qurl}; "
+        + _clear_stale_lock(qdest)
+        + f"git -C {qdest} remote set-url origin {qurl}; "
         f"git -C {qdest} fetch --depth 1 origin {qcommit}; "
         # Builders may deliberately patch a reviewed worktree before
         # compiling it (for example, Oberon's yaml-cpp pin).  A retry after a
@@ -135,7 +149,8 @@ def clone_or_update_with_archive(repository_url, destination, branch="main") -> 
         f"mkdir -p {qparent}; "
         f"if command -v git >/dev/null 2>&1; then "
         f"if [ -d {qdest}/.git ]; then "
-        f"git -C {qdest} fetch --depth 1 origin {qbranch}; "
+        + _clear_stale_lock(qdest)
+        + f"git -C {qdest} fetch --depth 1 origin {qbranch}; "
         f"git -C {qdest} checkout {qbranch}; "
         f"git -C {qdest} merge --ff-only FETCH_HEAD; "
         f"else rm -rf {qdest}; git clone --depth 1 --branch {qbranch} {qurl} {qdest}; fi; "

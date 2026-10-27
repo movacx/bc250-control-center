@@ -1333,3 +1333,24 @@ def test_decky_installer_updates_cpu_detector_and_vendor_in_same_transaction():
     assert 'sudo install -Dm644 "$CPU_VENDOR_SOURCE" "$CPU_VENDOR_DEST"' in installer
     assert "previous-cpu-helper" in installer
     assert "previous-cpu-vendor" in installer
+
+
+def test_removing_a_cu_service_that_never_existed_succeeds(tmp_path, monkeypatch):
+    # Bazzite's systemd says "does not exist" (not "not found") for a unit
+    # that was never installed; disabling CU failed on it every time.
+    namespace = runpy.run_path(str(PRIVILEGED / "bc250-steamos-game-helper"))
+    remove = namespace["remove_cu_service"]
+    monkeypatch.setitem(remove.__globals__, "CU_SERVICE_UNIT", tmp_path / "unit")
+    monkeypatch.setitem(remove.__globals__, "CU_SERVICE_CONFIG", tmp_path / "config")
+
+    class Result:
+        def __init__(self, returncode, stderr=""):
+            self.returncode, self.stdout, self.stderr = returncode, "", stderr
+
+    def run(command, **_kwargs):
+        if "disable" in command:
+            return Result(1, "Failed to disable unit: Unit bc250-cu-live-manager.service does not exist\n")
+        return Result(0)
+
+    monkeypatch.setattr(remove.__globals__["subprocess"], "run", run)
+    assert remove() == 0

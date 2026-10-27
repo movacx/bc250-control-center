@@ -1347,6 +1347,43 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
                 tr("Stock CachyOS kernel remains installed"),
             ),
         }
+        proton_packages = {
+            "proton-native": "proton-cachyos-native-bc250",
+            "proton-ge": "protonge-latest-bc250",
+            "proton-slr": "proton-cachyos-slr-bc250",
+        }
+        for key, package in proton_packages.items():
+            actions[key] = (
+                "Install external Arch/CachyOS BC-250 Proton",
+                package,
+                tr("Kernel and Mesa are not changed"),
+            )
+        if action.startswith("remove-proton-"):
+            package = proton_packages.get(action.removeprefix("remove-"))
+            if package is None:
+                raise ValueError("Unsupported CachyOS BC-250 action.")
+            removal = ConfirmDialog(
+                "Remove Proton BC-250",
+                tr("This removes the Proton package from your system. Games that used it will ask for another Proton."),
+                summary=((tr("Packages"), package),),
+                confirm_text=tr("Open removal terminal"),
+                tone="orange",
+                parent=dialog_parent or self,
+            )
+            if removal.exec() != QDialog.DialogCode.Accepted:
+                return
+            self._run_backend_action(
+                lambda: self.controller.preparar_cachyos_bc250(action),
+                lambda _result: GpuGovernorPage._record_preparation_result(
+                    self,
+                    "Arch/CachyOS BC-250 Proton",
+                    "Opened the removal terminal. Review its output, then restart Steam.",
+                ),
+                "Could not prepare the BC-250 Proton removal",
+                controls=(),
+                error_parent=dialog_parent,
+            )
+            return
         if action not in actions:
             raise ValueError("Unsupported CachyOS BC-250 action.")
         title, packages, recovery = actions[action]
@@ -1363,9 +1400,9 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
                     tr("Unsigned external repository (Optional TrustAll)"),
                 ),
                 (tr("Recovery"), recovery),
-                (tr("Reboot"), tr("Required after installation") if action != "mesa" else tr("Recommended after Mesa changes")),
+                (tr("Reboot"), tr("Restart Steam after installation") if action.startswith("proton-") else tr("Required after installation") if action != "mesa" else tr("Recommended after Mesa changes")),
             ),
-            confirm_text=tr("Open kernel installation terminal"),
+            confirm_text=tr("Open Proton installation terminal") if action.startswith("proton-") else tr("Open kernel installation terminal"),
             tone="red",
             parent=dialog_parent or self,
         )

@@ -62,6 +62,7 @@ def _read_report() -> dict[str, object]:
     the files still sends the rest.
     """
     from bc250cc.application.system.feedback import (
+        collect_attachments,
         collect_diagnostics,
         os_release,
         system_snapshot,
@@ -84,6 +85,10 @@ def _read_report() -> dict[str, object]:
         "specs": system_sheet_text(rows),
         "recent": recent_errors_text(entries),
         "hardware": collect_diagnostics(),
+        # The full state, sent after the report as attachments (it does not
+        # fit in one response): unfiltered kernel log, service journals,
+        # configuration, storage, the last workflow logs.
+        "attachments": _attachments_or_none(collect_attachments),
         "session": str(facts.get("Session", "")),
         "version": str(facts.get("Control Center", "")),
         "install": form.suggested_install(str(facts.get("Installation", ""))),
@@ -92,10 +97,17 @@ def _read_report() -> dict[str, object]:
     }
 
 
+def _attachments_or_none(collect) -> list[tuple[str, str]]:
+    try:
+        return list(collect())
+    except Exception:  # noqa: BLE001 - the report goes without them
+        return []
+
+
 def _needs_password() -> bool:
     """Whether reading the kernel log will make Linux ask for a password."""
     try:
-        from bc250cc.infrastructure.system_diagnostics import kernel_log_needs_password
+        from bc250cc.application.system.feedback import kernel_log_needs_password
 
         return bool(kernel_log_needs_password())
     except Exception:  # noqa: BLE001 - a note is never worth a failed form
@@ -568,8 +580,15 @@ class FeedbackDialog(QDialog):
             media=self.media.text(),
             contact=self.problem_contact.text(),
             ideas=self.problem_ideas.toPlainText(),
+            attachments=self._attachments(),
             **self._automatic(),
         )
+
+    def _attachments(self) -> list[tuple[str, str]]:
+        """Sent only with the automatic report, under the same tick."""
+        if not self.attach.isChecked():
+            return []
+        return [(name, str(text)) for name, text in self._facts.get("attachments") or ()]
 
     def _automatic(self) -> dict[str, str]:
         """The "Automatic report" answers, or none when the owner unticked it."""
@@ -585,7 +604,7 @@ class FeedbackDialog(QDialog):
             "hardware": str(self._facts.get("hardware") or ""),
         }
         # The preview shows exactly what is sent: home folders already ~.
-        return {key: redact(value) for key, value in values.items()}
+        return {key: form.redact_machine(value) for key, value in values.items()}
 
     def _details(self) -> str:
         stamp = datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S %z")
@@ -610,6 +629,12 @@ class FeedbackDialog(QDialog):
             rows.append(("Raw error", self._raw.strip().splitlines()[-1]))
         rows.append(("System specifications", tr("Included") if self._facts.get("specs") else "…"))
         rows.append(("Hardware diagnostics", tr("Included") if self._facts.get("hardware") else "…"))
+        attachments = self._facts.get("attachments") or ()
+        size = sum(len(str(text)) for _name, text in attachments) // 1024
+        rows.append((
+            "Full system state (sent after the report)",
+            f"{tr('Included')} · {size} KB" if attachments else "…",
+        ))
         recent = str(self._facts.get("recent") or "")
         count = sum(1 for line in recent.splitlines() if line and not line.startswith(" "))
         if not self._facts:
@@ -732,7 +757,11 @@ class FeedbackDialog(QDialog):
             ("Report details", values["details"]),
             ("Hardware diagnostics", values["hardware"]),
         )
-        return "\n\n".join(f"== {title} ==\n{text or '—'}" for title, text in sections) + "\n"
+        text = "\n\n".join(f"== {title} ==\n{text or '—'}" for title, text in sections) + "\n"
+        # The attachments too, as they leave: nothing is sent that is not shown.
+        for name, body in self._attachments():
+            text += f"\n\n######## {name} ########\n{form.redact_machine(body)}\n"
+        return text
 
     def _show_report(self) -> None:
         from ..pages.settings import TextDetailsDialog

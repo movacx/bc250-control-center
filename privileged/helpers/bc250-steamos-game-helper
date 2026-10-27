@@ -1404,7 +1404,10 @@ def remove_cu_service() -> int:
         text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=30, check=False,
     )
     errors = []
-    if stop.returncode and 'not found' not in (stop.stderr or '').lower():
+    # Removing a service that is already gone is success. systemd says "not
+    # found" in older releases and "does not exist" in newer ones.
+    missing = ('not found', 'does not exist', 'not loaded')
+    if stop.returncode and not any(text in (stop.stderr or '').lower() for text in missing):
         errors.append(stop.stderr.strip() or 'systemctl could not disable the CU service')
     for path in (CU_SERVICE_UNIT, CU_SERVICE_CONFIG):
         try:

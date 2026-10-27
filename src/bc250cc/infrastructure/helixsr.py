@@ -44,6 +44,8 @@ import sys
 import time
 from pathlib import Path
 
+from bc250cc.shared.errors import ActionNeeded
+
 from .steam_launch_options import (
     add_dll_override,
     installed_steam_game_folders,
@@ -669,7 +671,7 @@ def add_helixsr_folder(path: str) -> dict:
         raise RuntimeError("Choose the game's own folder, not a whole drive or your home folder.")
     targets = _fsr_folders(folder)
     if not targets:
-        raise RuntimeError("No FSR 3.1 DLL was found in this game. HelixSR replaces amd_fidelityfx_upscaler_dx12.dll or amd_fidelityfx_dx12.dll.")
+        raise ActionNeeded("No FSR 3.1 DLL was found in this game. HelixSR replaces amd_fidelityfx_upscaler_dx12.dll or amd_fidelityfx_dx12.dll.")
     key = _folder_id(folder)
     folders = _folders()
     folders[key] = {"name": folder.name, "path": str(folder), "files": [str(t) for t in targets]}
@@ -1094,7 +1096,7 @@ def install_helixsr_optiscaler(appid: str) -> dict:
     appid = str(appid or "").strip()
     records = _optiscaler_records()
     if appid in records:
-        raise RuntimeError("HelixSR is already recorded for this game. Remove it first, then add it again.")
+        raise ActionNeeded("HelixSR is already recorded for this game. Remove it first, then add it again.")
     game, root = _optiscaler_root(appid)
     _refuse_running(root)
     folder = root / OPTISCALER_FOLDER
@@ -1201,7 +1203,7 @@ def _refuse_running(folder: Path, proc: Path = Path("/proc")) -> None:
             continue
         command = command.replace("\\", "/")
         if any(spelling in command for spelling in spellings):
-            raise RuntimeError("Close this game before changing its files.")
+            raise ActionNeeded("Close this game before changing its files.")
 
 
 # ---------------------------------------------------------------- state
@@ -2141,16 +2143,16 @@ def install_helixsr_game(appid: str) -> dict:
     install = Path(game["path"])
     records = _records()
     if str(appid) in records:
-        raise RuntimeError("HelixSR is already recorded for this game. Remove it first, then add it again.")
+        raise ActionNeeded("HelixSR is already recorded for this game. Remove it first, then add it again.")
     _refuse_running(install)
     targets = _fsr_folders(install)
     if not targets:
-        raise RuntimeError("No FSR 3.1 DLL was found in this game. HelixSR replaces amd_fidelityfx_upscaler_dx12.dll or amd_fidelityfx_dx12.dll.")
+        raise ActionNeeded("No FSR 3.1 DLL was found in this game. HelixSR replaces amd_fidelityfx_upscaler_dx12.dll or amd_fidelityfx_dx12.dll.")
     for target in targets:
         if _is_helixsr(target):
-            raise RuntimeError("HelixSR is already in this game, copied there by hand. Use Steam > Verify integrity of game files to put the game's own file back first.")
+            raise ActionNeeded("HelixSR is already in this game, copied there by hand. Use Steam > Verify integrity of game files to put the game's own file back first.")
         if _backup_for(target).exists():
-            raise RuntimeError("This game already has an *.original.dll backup from an earlier manual install. Remove it by hand, or keep that install as it is.")
+            raise ActionNeeded("This game already has an *.original.dll backup from an earlier manual install. Remove it by hand, or keep that install as it is.")
     source = helixsr_dll_folder()
     undo: list = []
     files: list[dict] = []
@@ -2450,14 +2452,32 @@ def _recorded_scaler_rows() -> list[dict]:
     ]
 
 
+def _refuse_native_game(folder: Path) -> None:
+    """HelixSR Scaler goes next to a Windows .exe that runs through Proton.
+
+    A native Linux game (Counter-Strike 2, Dota 2) has none, and the bridge
+    only said "no game (.exe) found".
+    """
+    if not folder.is_dir():
+        return
+    has_exe = any(
+        name.lower().endswith(".exe") for _root, _dirs, names in os.walk(folder) for name in names
+    )
+    if not has_exe:
+        raise ActionNeeded(
+            "This game runs natively on Linux: it has no Windows .exe. "
+            "HelixSR only works with games that run through Proton."
+        )
+
+
 def _refuse_other_helixsr(appid: str, folder: Path) -> None:
     """One OptiScaler and one HelixSR per game."""
     if appid in _records():
-        raise RuntimeError("HelixSR is already in this game as the FSR drop-in. Remove it first.")
+        raise ActionNeeded("HelixSR is already in this game as the FSR drop-in. Remove it first.")
     if appid in _optiscaler_records():
-        raise RuntimeError("HelixSR is already in this game through its OptiScaler. Remove it first.")
+        raise ActionNeeded("HelixSR is already in this game through its OptiScaler. Remove it first.")
     if _optiscaler_ini_folders(folder):
-        raise RuntimeError(
+        raise ActionNeeded(
             "This game already has OptiScaler (OptiScaler Client's, for FSR4, or one added by hand). "
             "A game can only have one: remove that one first."
         )
@@ -2491,11 +2511,12 @@ def install_helixsr_scaler(appid: str, *, frame_generation: bool = False) -> dic
     folder = Path(game["path"])
     directory = helixsr_directory()
     if not helixsr_scaler_supported(directory):
-        raise RuntimeError("Install HelixSR 2.0 or newer first: earlier releases have no HelixSR Scaler.")
+        raise ActionNeeded("Install HelixSR 2.0 or newer first: earlier releases have no HelixSR Scaler.")
     if appid not in _scaler_records():
         _refuse_other_helixsr(appid, folder)
     if frame_generation and not helixsr_fg_ready(directory):
-        raise RuntimeError("Build HelixSR's frame generation first (Build frame generation, on the HelixSR card).")
+        raise ActionNeeded("Build HelixSR's frame generation first (Build frame generation, on the HelixSR card).")
+    _refuse_native_game(folder)
     _refuse_running(folder)
     payload = _run_bridge(
         "install", "--game", str(folder), "--way", "scaler",
@@ -2522,7 +2543,7 @@ def set_helixsr_scaler_frame_generation(appid: str, enabled: bool) -> dict:
     if record is None or _scaler_state(record) != "installed":
         raise RuntimeError("HelixSR Scaler is not installed in this game.")
     if enabled and not helixsr_fg_ready():
-        raise RuntimeError("Build HelixSR's frame generation first (Build frame generation, on the HelixSR card).")
+        raise ActionNeeded("Build HelixSR's frame generation first (Build frame generation, on the HelixSR card).")
     folder = Path(str(record["folder"]))
     _refuse_running(folder)
     payload = _run_bridge("scaler-fg", "--game", str(folder), "--on", "true" if enabled else "false")
@@ -2543,7 +2564,7 @@ def update_helixsr_scaler(appid: str) -> dict:
         raise RuntimeError("HelixSR Scaler is not installed in this game.")
     directory = helixsr_directory()
     if not helixsr_scaler_supported(directory):
-        raise RuntimeError("Install HelixSR 2.0 or newer first: earlier releases have no HelixSR Scaler.")
+        raise ActionNeeded("Install HelixSR 2.0 or newer first: earlier releases have no HelixSR Scaler.")
     folder = Path(str(record["folder"]))
     _refuse_running(folder)
     fg = "on" if record.get("frame_generation") == "on" and helixsr_fg_ready(directory) else "off"

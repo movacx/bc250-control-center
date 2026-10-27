@@ -456,19 +456,19 @@ def test_unlock_sync_explains_when_protected_backend_is_missing(qtbot):
         privileged_backend_reason="The staged CU backend is missing. Run Prepare dependencies.",
     )
     errors = []
+    notices = []
     passive_refreshes = []
     page._show_error = lambda *args: errors.append(args)
+    page._show_not_prepared = notices.append
     page.refresh = lambda: passive_refreshes.append(True)
 
     page.refresh_authorized()
 
+    # Not prepared yet is a notice, not an error window with a code: five
+    # reports of the first week were this button pressed before preparing.
     assert passive_refreshes == []
-    assert errors == [
-        (
-            "Compute Units operation failed",
-            "The staged CU backend is missing. Run Prepare dependencies.",
-        )
-    ]
+    assert errors == []
+    assert notices == ["The staged CU backend is missing. Run Prepare dependencies."]
 
 
 def test_prepare_cu_tools_requests_only_manager_and_its_dependencies(qtbot, monkeypatch):

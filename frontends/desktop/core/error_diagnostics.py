@@ -591,7 +591,7 @@ _MORE_PATTERNS: dict[str, tuple[str, ...]] = {
     ),
     "BC250-FAN-001": (
         r"fan/pwm hwmon", r"usable nct6687 module", r"nct6687 could not be loaded",
-        r"persisted nct6687 source is missing",
+        r"persisted nct6687 source is missing", r"\bfan\b.*does not exist",
     ),
     "BC250-HELPER-001": (
         r"protected bc250 openrc service helper is missing", r"protected gddr6 patch helper is not installed",
@@ -610,7 +610,6 @@ _MORE_PATTERNS: dict[str, tuple[str, ...]] = {
         r"helixsr's own folder", r"game already has optiscaler", r"build helixsr's frame generation first",
         r"no earlier helixsr version kept", r"helixsr scaler is not recorded",
     ),
-    "BC250-FAN-001": (r"\bfan\b.*does not exist",),
     "BC250-CONFIG-001": (
         # Both governors' own files, read, checked and rewritten by the helper.
         r"oberon yaml", r"(?:governor|oberon) configuration (?:is unavailable|could not be (?:read|updated)|changed to a symlink)",

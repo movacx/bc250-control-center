@@ -476,6 +476,12 @@ component_is() {
 }
 
 print_credits() {
+  # One preparation runs this script once per component: the credits are
+  # shown once per run, not once per component (they filled the log).
+  if [[ -n "${BC250_CREDITS_MARK:-}" ]]; then
+    [[ -e "$BC250_CREDITS_MARK" ]] && return 0
+    : >"$BC250_CREDITS_MARK" 2>/dev/null || true
+  fi
   bold "Third-party credits"
   echo "Explicit workflows and credited references use their official upstream projects. Availability depends on the distribution and the workflow's safety checks."
   echo "- cyan-skillfish-governor (SMU): https://github.com/filippor/cyan-skillfish-governor/tree/smu"
@@ -491,7 +497,8 @@ print_credits() {
   echo "- BC250 ACPI compatibility workflow: https://github.com/e-tho/bc250-acpi-fix"
   echo "- SteamOS ASIC fallback reference: https://github.com/rpf16rj/bc250-steamos-real-toolkit"
   echo "- Bazzite BC-250 patched image reference: https://github.com/62fixolab/Latest-Bazzite-AMD-BC-250-Patched-Images"
-  echo "- CachyOS BC-250 kernel (explicit opt-in repository): https://github.com/MastaG/linux-cachyos-bc250"
+  echo "- CachyOS BC-250 kernel, Mesa and Proton builds (explicit opt-in repository): https://github.com/MastaG/linux-cachyos-bc250"
+  echo "- BC-250 toolkit (reference for the Proton BC-250 packages): https://github.com/redbeard1083/bc250-toolkit"
   echo "- nct6687d (kernel-module workflow): https://github.com/Fred78290/nct6687d"
 }
 

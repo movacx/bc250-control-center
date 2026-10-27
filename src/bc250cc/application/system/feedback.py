@@ -8,8 +8,15 @@ every other use case, so it never imports infrastructure directly.
 from __future__ import annotations
 
 from bc250cc.infrastructure import feedback_form as form
-from bc250cc.infrastructure.system_diagnostics import collect_diagnostics
+from bc250cc.infrastructure.report_attachments import collect_attachments
+from bc250cc.infrastructure.system_diagnostics import (
+    collect_diagnostics,
+    kernel_log_needs_password,
+)
 from bc250cc.infrastructure.system_snapshot import _os_release as os_release
 from bc250cc.infrastructure.system_snapshot import system_snapshot
 
-__all__ = ["collect_diagnostics", "form", "os_release", "system_snapshot"]
+__all__ = [
+    "collect_attachments", "collect_diagnostics", "form", "kernel_log_needs_password",
+    "os_release", "system_snapshot",
+]

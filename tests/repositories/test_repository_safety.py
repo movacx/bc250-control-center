@@ -664,3 +664,41 @@ def test_busctl_properties_require_the_expected_typed_format():
     assert repository._dbus_bool_property("/", "iface", "Enabled") is True
     repository._ejecutar = lambda *_args, **_kwargs: (0, "Enabled: true", "")
     assert repository._dbus_bool_property("/", "iface", "Enabled") is None
+
+
+@pytest.mark.parametrize(
+    "installed,toml,service,expected",
+    [
+        (False, "[dbus]\nenabled = true\n", "inactive", "Cyan is not installed"),
+        (True, "[gpu]\nset-method = \"smu\"\n", "active", r"\[dbus\] enabled = true"),
+        (True, "[dbus]\nenabled = true\n", "inactive", "Cyan is not running"),
+    ],
+)
+def test_a_silent_cyan_says_what_the_user_must_do(tmp_path, monkeypatch, installed, toml, service, expected):
+    # Six reports of the first week: Apply with Cyan missing, stopped, or
+    # started from a TOML without its D-Bus switch, shown as a red error.
+    from bc250cc.shared.errors import ActionNeeded
+
+    config = tmp_path / "config.toml"
+    config.write_text(toml, encoding="utf-8")
+
+    class Repository(GPURepository):
+        def _selected_gpu_governor(self):
+            return "cyan-skillfish-governor-smu"
+
+        def _cyan_runtime_config_path(self, *, require_managed=False):
+            return config
+
+        def _leer_rango_governor(self, kind):
+            return None
+
+        def _command_path(self, name):
+            return "/usr/local/bin/" + name if installed else None
+
+    class Completed:
+        stdout = service + "\n"
+
+    monkeypatch.setattr("bc250cc.infrastructure.gpu_repository.subprocess.run", lambda *a, **k: Completed())
+    monkeypatch.setattr("bc250cc.infrastructure.gpu_repository.gpu_frequency_ceiling", lambda: (None, ""))
+    with pytest.raises(ActionNeeded, match=expected):
+        Repository().aplicar_perfil_gpu(1000, 1850)

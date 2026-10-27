@@ -17,6 +17,7 @@ from __future__ import annotations
 import html
 import json
 import re
+import secrets
 import threading
 import time
 import urllib.error
@@ -25,7 +26,7 @@ import urllib.request
 from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 
-from bc250cc.shared.error_origins import redact
+from bc250cc.infrastructure.report_attachments import redact_machine
 
 FORM_ID = "1FAIpQLSe3M1stf3bpCoorb4hCWFX9YC_TZ_Gv6WHWQDRe1AV5rJT6rA"
 FORM_URL = f"https://docs.google.com/forms/d/e/{FORM_ID}/viewform"
@@ -47,6 +48,8 @@ OTHER = "__other_option__"
 
 KIND_PROBLEM = "Report a problem"
 KIND_IDEA = "Just a suggestion or idea"
+#: A further response of the same report: what did not fit in its answers.
+KIND_ATTACHMENT = "Attachment to a report (sent by the app)"
 
 # Question ids of the live form (entry.<id>), with the exact choice labels.
 ENTRY_KIND = 580341729
@@ -77,6 +80,12 @@ ENTRY_SPECS = 1028547932
 ENTRY_RECENT = 309991622
 ENTRY_DETAILS = 552182803
 ENTRY_HARDWARE = 897848333
+# The "Attachment" page: one part of one attachment per response.
+ENTRY_ATTACH_REPORT = 1038110014
+ENTRY_ATTACH_NAME = 370663833
+ENTRY_ATTACH_CONTENT = 1250628252
+#: Every attachment part is one more response: a report never sends more.
+MAX_ATTACHMENT_POSTS = 12
 
 AREAS = (
     "Dashboard / Prepare dependencies",
@@ -218,6 +227,8 @@ class FeedbackReport:
     hardware: str = ""
     contact: str = ""
     ideas: str = ""
+    #: (name, text) sent after the report as attachments; never a form answer.
+    attachments: list[tuple[str, str]] = field(default_factory=list)
 
     @property
     def is_problem(self) -> bool:
@@ -242,6 +253,8 @@ class FormShape:
     #: sections and from where the "idea" answer jumps to.
     problem_pages: str = PAGES_PROBLEM
     idea_pages: str = PAGES_IDEA
+    #: Empty when the live form has no attachment page.
+    attachment_pages: str = ""
 
 
 def _clip(text: str, limit: int) -> str:
@@ -268,6 +281,7 @@ def parse_form(page_text: str) -> FormShape:
     page = 0
     section_pages: dict[int, int] = {}
     idea_jump = None
+    attachment_jump = None
     for item in items:
         if not isinstance(item, list) or len(item) < 4:
             continue
@@ -283,6 +297,8 @@ def parse_form(page_text: str) -> FormShape:
                 for choice in question[1] or []:
                     if choice and choice[0] == KIND_IDEA and len(choice) > 2 and isinstance(choice[2], int):
                         idea_jump = choice[2]
+                    if choice and choice[0] == KIND_ATTACHMENT and len(choice) > 2 and isinstance(choice[2], int):
+                        attachment_jump = choice[2]
             if not question or not isinstance(question[0], int):
                 continue
             raw = question[1] if len(question) > 1 and question[1] else []
@@ -291,14 +307,19 @@ def parse_form(page_text: str) -> FormShape:
             has_other = any(len(choice) > 4 and choice[4] == 1 for choice in raw if choice)
             questions[question[0]] = (labels, has_other)
     token = _FBZX.search(page_text)
-    problem_pages = ",".join(str(number) for number in range(page + 1))
-    idea_from = section_pages.get(idea_jump, page) if idea_jump is not None else page
-    idea_pages = ",".join(str(number) for number in [0, *range(idea_from, page + 1)])
+    # The attachment page is the last one and only an attachment walks it:
+    # a problem or an idea ends on the page before it.
+    attachment_page = section_pages.get(attachment_jump) if attachment_jump is not None else None
+    last = attachment_page - 1 if attachment_page == page else page
+    problem_pages = ",".join(str(number) for number in range(last + 1))
+    idea_from = section_pages.get(idea_jump, last) if idea_jump is not None else last
+    idea_pages = ",".join(str(number) for number in [0, *range(idea_from, last + 1)])
     return FormShape(
         questions=questions,
         token=html.unescape(token.group(1)) if token else "",
         problem_pages=problem_pages if page else PAGES_PROBLEM,
         idea_pages=idea_pages if page else PAGES_IDEA,
+        attachment_pages=f"0,{attachment_page}" if attachment_page else "",
     )
 
 
@@ -322,7 +343,8 @@ def _pairs(report: FeedbackReport) -> list[tuple[int, object]]:
             (ENTRY_CORES, report.cores),
             (ENTRY_CUS, report.cus),
             (ENTRY_OTHER_TOOLS, list(report.other_tools)),
-            (ENTRY_TERMINAL, _clip(report.terminal, MAX_LONG_TEXT)),
+            # A workflow fails at its end: a long log keeps its last lines.
+            (ENTRY_TERMINAL, _clip_tail(report.terminal, MAX_LONG_TEXT)),
             (ENTRY_MEDIA, _clip(report.media, MAX_SHORT_TEXT)),
             (ENTRY_REFERENCE, _clip(report.reference, MAX_SHORT_TEXT)),
             (ENTRY_WHERE, _clip(report.where, MAX_LONG_TEXT)),
@@ -338,7 +360,7 @@ def _pairs(report: FeedbackReport) -> list[tuple[int, object]]:
     ]
     # Nothing leaves the machine with the user's home folder (and name) in it.
     return [
-        (entry, value if isinstance(value, list) else redact(value))
+        (entry, value if isinstance(value, list) else redact_machine(value))
         for entry, value in pairs if value
     ]
 
@@ -474,7 +496,11 @@ def submit(
         if _last_sent and clock() - _last_sent < MIN_SECONDS_BETWEEN:
             raise FeedbackError("A report was sent a moment ago. Wait a few seconds.", fallback=False)
         shape = parse_form(fetch(_request(f"{FORM_URL}?hl=en")))
-        body = _body(fit_report(report, shape), shape)
+        if not shape.attachment_pages:
+            report = replace(report, attachments=[])
+        report = with_report_id(report)
+        fitted = fit_report(report, shape)
+        body = _body(fitted, shape)
         answer = fetch(_request(f"{RESPONSE_URL}?hl=en", body))
         # Google answers 200 for a rejected response too, with the form drawn
         # again; only the confirmation page, without the form in it, means
@@ -482,6 +508,126 @@ def submit(
         if not confirmed(answer):
             raise FeedbackError("Google Forms did not confirm the report.")
         _last_sent = clock()
+    # The report is stored: an attachment that fails now costs only itself.
+    send_attachments(report, fitted, shape, fetch=fetch)
+
+
+def new_report_id() -> str:
+    return "R-" + secrets.token_hex(4)
+
+
+def report_id_of(report: FeedbackReport) -> str:
+    match = re.search(r"^Report ID: (R-[0-9a-f]{8})$", report.details or "", re.M)
+    return match.group(1) if match else ""
+
+
+def with_report_id(report: FeedbackReport, report_id: str | None = None) -> FeedbackReport:
+    """The report naming the ID its attachments carry (only when it has some)."""
+    if not report.attachments or report_id_of(report):
+        return report
+    report_id = report_id or new_report_id()
+    details = (report.details.rstrip() + "\n" if report.details else "") + f"Report ID: {report_id}"
+    return replace(report, details=details)
+
+
+def attachment_list(original: FeedbackReport, fitted: FeedbackReport) -> list[tuple[str, str]]:
+    """What the attachments carry: the gathered ones, then every answer the
+    fit to Google's size limit had to cut, whole."""
+    items = list(original.attachments)
+    for name, attribute in (
+        ("Terminal output (full)", "terminal"),
+        ("Raw error (full)", "raw"),
+        ("Recent errors (full)", "recent_errors"),
+        ("Steps to reproduce (full)", "steps"),
+    ):
+        text = str(getattr(original, attribute) or "")
+        # Cut by the fit to the size limit, or by the answer's own length.
+        cut = text.strip() != str(getattr(fitted, attribute) or "").strip() or len(text.strip()) > MAX_LONG_TEXT
+        if text and cut:
+            items.append((name, text))
+    return items
+
+
+def _encoded(value: str) -> int:
+    return len(urllib.parse.quote_plus(value))
+
+
+def split_attachment(text: str, budget: int) -> list[str]:
+    """Parts whose URL-encoded size stays within ``budget``, cut at lines."""
+    parts: list[str] = []
+    current: list[str] = []
+    size = 0
+    for line in text.splitlines(keepends=True):
+        while _encoded(line) > budget:  # one huge line: cut it by characters
+            cut = max(1, len(line) * budget // max(1, _encoded(line)) - 1)
+            parts.extend(["".join(current)] if current else [])
+            current, size = [], 0
+            parts.append(line[:cut])
+            line = line[cut:]
+        cost = _encoded(line)
+        if current and size + cost > budget:
+            parts.append("".join(current))
+            current, size = [], 0
+        current.append(line)
+        size += cost
+    if current:
+        parts.append("".join(current))
+    return [part for part in parts if part.strip()]
+
+
+def attachment_fields(report_id: str, name: str, content: str, shape: FormShape) -> list[tuple[str, str]]:
+    for entry in (ENTRY_ATTACH_REPORT, ENTRY_ATTACH_NAME, ENTRY_ATTACH_CONTENT):
+        if entry not in shape.questions:
+            raise FeedbackError("The report form has no attachment page.", fallback=False)
+    fields = [
+        (f"entry.{ENTRY_KIND}", KIND_ATTACHMENT),
+        (f"entry.{ENTRY_ATTACH_REPORT}", report_id),
+        (f"entry.{ENTRY_ATTACH_NAME}", _clip(name, MAX_SHORT_TEXT)),
+        (f"entry.{ENTRY_ATTACH_CONTENT}", content),
+        ("fvv", "1"),
+        ("pageHistory", shape.attachment_pages),
+    ]
+    if shape.token:
+        fields += [("fbzx", shape.token), ("partialResponse", json.dumps([None, None, shape.token], separators=(",", ":")))]
+    return fields
+
+
+def send_attachments(
+    original: FeedbackReport,
+    fitted: FeedbackReport,
+    shape: FormShape,
+    *,
+    fetch: Callable[[urllib.request.Request], str] = _open,
+    pause: Callable[[float], None] = time.sleep,
+) -> int:
+    """Send every attachment of a stored report; return how many parts went.
+
+    Best effort: the report itself is already stored, so a refused part is
+    skipped, never raised. Each part names its attachment and "part i/n".
+    """
+    report_id = report_id_of(fitted)
+    items = attachment_list(original, fitted)
+    if not report_id or not items or not shape.attachment_pages:
+        return 0
+    overhead = len(urllib.parse.urlencode(attachment_fields(report_id, "x" * 80, "", shape)))
+    budget = MAX_POST_BYTES - overhead - 200
+    sent = posts = 0
+    for name, text in items:
+        parts = split_attachment(redact_machine(text), budget)
+        for number, part in enumerate(parts, 1):
+            if posts >= MAX_ATTACHMENT_POSTS:
+                return sent
+            posts += 1
+            label = f"{name} · part {number}/{len(parts)}" if len(parts) > 1 else name
+            body = urllib.parse.urlencode(attachment_fields(report_id, label, part, shape)).encode("utf-8")
+            try:
+                if posts > 1:
+                    pause(1.0)
+                if confirmed(fetch(_request(f"{RESPONSE_URL}?hl=en", body))):
+                    sent += 1
+            except FeedbackError:
+                continue
+    return sent
 
 
 # --- Answers the app already knows -------------------------------------------------

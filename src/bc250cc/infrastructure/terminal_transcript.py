@@ -124,6 +124,12 @@ class TranscriptLog:
             self._pending_cr = True
             return
         if self._detached:
+            if code != 0x0A:
+                return
+            # A cursor save that was never restored: a program printing whole
+            # lines is not drawing a status somewhere else any more.
+            self._detached = False
+            self._line.clear()
             return
         if code == 0x0A:
             self._end_line()
@@ -150,7 +156,17 @@ class TranscriptLog:
                 self._detached = False
 
     def _string_sequence(self, character: str) -> None:
-        if character == "\x07" or (character == "\\" and self._string.endswith("\x1b")):
+        if character in "\n\x18\x1a":
+            # A sequence nobody closed. Left open, it swallowed every later
+            # line until the wrapper's own BEL: two reports lost the lines
+            # after the sudo prompt, the failure included. A line feed never
+            # belongs to a title or a status string; CAN and SUB cancel.
+            self._string = ""
+            self._state = "ground"
+            if character == "\n":
+                self._ground(character)
+            return
+        if character in "\x07\x9c" or (character == "\\" and self._string.endswith("\x1b")):
             payload = self._string.rstrip("\x1b")
             self._string = ""
             self._state = "ground"

@@ -202,13 +202,13 @@ def _first_error_shell(translate=None) -> str:
         'if [ "$status" -ne 0 ] && [ -n "$error_scan" ]; then '
         # First ERROR/FATAL line: what happened.
         'first_error=$(printf "%s\\n" "$error_scan" '
-        '| grep -m1 -E "^[[:space:]]*\\[(ERROR|FATAL)\\][: ]*" '
-        '| sed -E "s/^[[:space:]]*\\[(ERROR|FATAL)\\][: ]*//" || true); '
+        '| grep -m1 -E "^[[:space:]]*(\\[(ERROR|FATAL)\\][: ]*|ERROR: )" '
+        '| sed -E "s/^[[:space:]]*(\\[(ERROR|FATAL)\\][: ]*|ERROR: )//" || true); '
         # Remaining ERROR lines: the script's own remediation steps.
         'error_hints=$(printf "%s\\n" "$error_scan" '
-        '| grep -E "^[[:space:]]*\\[(ERROR|FATAL)\\][: ]*" '
+        '| grep -E "^[[:space:]]*(\\[(ERROR|FATAL)\\][: ]*|ERROR: )" '
         '| tail -n +2 '
-        '| sed -E "s/^[[:space:]]*\\[(ERROR|FATAL)\\][: ]*/  /" || true); '
+        '| sed -E "s/^[[:space:]]*(\\[(ERROR|FATAL)\\][: ]*|ERROR: )/  /" || true); '
         'fi'
     )
 
