@@ -23,9 +23,29 @@ npx wrangler deploy
 npx wrangler secret put ADMIN_TOKEN
 ```
 
-Optional message per report on Telegram:
+## Notifications
+
+Each new report can post a short message with a link to `/admin#<id>`.
+Both channels are optional.
+
+Telegram: create a bot with @BotFather, send it any message, then:
 
 ```bash
 npx wrangler secret put TELEGRAM_BOT_TOKEN
+curl -H "authorization: Bearer $(cat ~/.config/bc250-reports-admin-token)" \
+  https://bc250-reports.report-endpoint.workers.dev/v1/admin/telegram-chats
 npx wrangler secret put TELEGRAM_CHAT_ID
+```
+
+Discord: Channel settings → Integrations → Webhooks → New webhook → Copy URL:
+
+```bash
+npx wrangler secret put DISCORD_WEBHOOK_URL
+```
+
+Test both:
+
+```bash
+curl -X POST -H "authorization: Bearer $(cat ~/.config/bc250-reports-admin-token)" \
+  https://bc250-reports.report-endpoint.workers.dev/v1/admin/notify-test
 ```

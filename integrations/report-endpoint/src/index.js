@@ -7,6 +7,8 @@
 // GET  /v1/admin/reports[?cursor=]      list (Bearer ADMIN_TOKEN)
 // GET  /v1/admin/reports/<id>           one report, as JSON
 // DELETE /v1/admin/reports/<id>         remove it
+// GET  /v1/admin/telegram-chats         chats that wrote to the bot (to find TELEGRAM_CHAT_ID)
+// POST /v1/admin/notify-test            send a test message to Telegram and Discord
 //
 // Nothing here runs code from a report or shows it as HTML: the page renders
 // every field as text.
@@ -80,7 +82,7 @@ async function receive(request, env, ctx) {
     bytes: compressed.byteLength,
   };
   await env.REPORTS.put(key, compressed, { metadata, expirationTtl: KEEP_SECONDS });
-  ctx.waitUntil(notify(env, metadata));
+  ctx.waitUntil(notify(env, metadata, new URL(request.url).origin));
   return json({ ok: true, id: report.id });
 }
 
@@ -138,6 +140,11 @@ function timingSafeEqual(a, b) {
 
 async function admin(request, env, url) {
   const parts = url.pathname.split("/").filter(Boolean); // v1 admin reports [id]
+  if (parts[2] === "telegram-chats") return await telegramChats(env);
+  if (parts[2] === "notify-test" && request.method === "POST") {
+    const sent = await notify(env, { id: "R-00000000", kind: "test", summary: "Test notification from the report service" }, url.origin);
+    return json({ ok: true, sent });
+  }
   if (parts[2] !== "reports") return json({ ok: false, error: "not found" }, 404);
   const id = parts[3];
   if (!id) {
@@ -158,22 +165,58 @@ async function admin(request, env, url) {
   return json({ ok: true, metadata: stored.metadata, report });
 }
 
-async function notify(env, meta) {
-  if (!env.TELEGRAM_BOT_TOKEN || !env.TELEGRAM_CHAT_ID) return;
-  const text = [
-    `New BC250 report ${meta.id}`,
-    `${meta.kind} · ${meta.code || "no code"} · ${meta.distribution || "?"} · ${meta.version || "?"}`,
-    meta.summary || "",
-  ].join("\n");
+// Every channel is optional; a missed notification never loses the report.
+async function notify(env, meta, origin) {
+  const link = `${origin}/admin#${meta.id}`;
+  const line = `${meta.kind} · ${meta.code || "no code"} · ${meta.distribution || "?"} · ${meta.version || "?"}`;
+  const sent = {};
+  if (env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID) {
+    const text = [`New BC250 report ${meta.id}`, line, meta.summary || "", link].join("\n");
+    sent.telegram = await post(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      chat_id: env.TELEGRAM_CHAT_ID,
+      text,
+      disable_web_page_preview: true,
+    });
+  }
+  if (env.DISCORD_WEBHOOK_URL) {
+    sent.discord = await post(env.DISCORD_WEBHOOK_URL, {
+      username: "BC250 Control Center Reports",
+      allowed_mentions: { parse: [] },
+      embeds: [{
+        title: `New report ${meta.id}`,
+        url: link,
+        description: clip(meta.summary || "(no summary)", 300),
+        footer: { text: line },
+        color: meta.kind === "idea" ? 0x2f9e5b : 0xd9822b,
+      }],
+    });
+  }
+  return sent;
+}
+
+async function post(target, body) {
   try {
-    await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+    const response = await fetch(target, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ chat_id: env.TELEGRAM_CHAT_ID, text, disable_web_page_preview: true }),
+      body: JSON.stringify(body),
     });
+    return response.status;
   } catch (error) {
-    // A missed notification never loses the report.
+    return 0;
   }
+}
+
+async function telegramChats(env) {
+  if (!env.TELEGRAM_BOT_TOKEN) return json({ ok: false, error: "TELEGRAM_BOT_TOKEN is not set" }, 400);
+  const response = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/getUpdates`);
+  const data = await response.json();
+  const chats = new Map();
+  for (const update of data.result || []) {
+    const chat = (update.message || update.channel_post || update.my_chat_member || {}).chat;
+    if (chat) chats.set(chat.id, { id: chat.id, type: chat.type, name: chat.title || chat.username || chat.first_name || "" });
+  }
+  return json({ ok: Boolean(data.ok), chats: [...chats.values()] });
 }
 
 function clip(value, limit) {
@@ -229,5 +272,6 @@ const fields=rep.fields||{};for(const [name,value] of Object.entries(fields)){if
 const box=el("details");box.open=String(value).length<4000;box.append(el("summary",name));box.append(el("pre",Array.isArray(value)?value.join(", "):String(value)));v.append(box)}
 for(const a of rep.attachments||[]){const box=el("details");box.append(el("summary",a.name+" ("+Math.round(a.text.length/1024)+" KB)"));box.append(el("pre",a.text));v.append(box)}}
 $("#save").onclick=()=>{try{localStorage.setItem(tokenKey,$("#token").value)}catch{};load().catch(e=>alert(e.message))};
-$("#filter").oninput=draw;if(token())load().catch(e=>{$("#view").replaceChildren(el("p",e.message,"meta"))});
+$("#filter").oninput=draw;const wanted=location.hash.slice(1);
+if(token())load().then(()=>{if(/^R-[0-9a-f]{8}$/.test(wanted))open(wanted)}).catch(e=>{$("#view").replaceChildren(el("p",e.message,"meta"))});
 </script></body></html>`;
