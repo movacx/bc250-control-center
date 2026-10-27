@@ -117,11 +117,7 @@ def test_the_script_runs_from_a_private_copy_with_the_checkout_off_sys_path(unlo
     fd = os.open(repository / "bc250-unlock-cores.py", os.O_RDONLY)
     try:
         subprocess.run(
-            [sys.executable, f"/proc/self/fd/{fd}"], pass_fds=(fd,), capture_output=True, check=True,
-            # Without this the planted struct.py leaves a __pycache__ in the
-            # checkout on a machine that writes bytecode, and the tree is no
-            # longer clean for the helper.
-            env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+            [sys.executable, f"/proc/self/fd/{fd}"], pass_fds=(fd,), capture_output=True, check=True
         )
     finally:
         os.close(fd)
