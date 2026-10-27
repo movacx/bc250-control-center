@@ -5364,5 +5364,7 @@
   "Restart Steam after installation": "Khởi động lại Steam sau khi cài",
   "Open Proton installation terminal": "Mở terminal cài đặt Proton",
   "Proton BC-250": "Proton BC-250",
-  "gpu-usage.method=kernel was requested, but the active BC-250 kernel does not expose a readable gpu_busy_percent interface. Nothing was changed. Select busy-flag/process or boot a compatible patched kernel.": "Đã chọn gpu-usage.method=kernel, nhưng kernel BC-250 đang chạy không có giao diện gpu_busy_percent đọc được. Không có gì bị thay đổi. Hãy chọn busy-flag hoặc process, hoặc khởi động bằng kernel đã vá tương thích."
+  "gpu-usage.method=kernel was requested, but the active BC-250 kernel does not expose a readable gpu_busy_percent interface. Nothing was changed. Select busy-flag/process or boot a compatible patched kernel.": "Đã chọn gpu-usage.method=kernel, nhưng kernel BC-250 đang chạy không có giao diện gpu_busy_percent đọc được. Không có gì bị thay đổi. Hãy chọn busy-flag hoặc process, hoặc khởi động bằng kernel đã vá tương thích.",
+  "The GPU driver did not start in this boot": "Trình điều khiển GPU không khởi động trong lần khởi động này",
+  "Linux sees the BC-250 GPU, but amdgpu did not start, so the GPU, Cyan and Compute Units pages cannot work. Turn the BC-250 off completely, unplug it for a few seconds and start it again.": "Linux thấy GPU của BC-250 nhưng amdgpu không khởi động, nên các trang GPU, Cyan và Compute Units không thể hoạt động. Hãy tắt hẳn BC-250, rút điện vài giây rồi bật lại."
 }

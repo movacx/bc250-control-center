@@ -5364,5 +5364,7 @@
   "Restart Steam after installation": "Riavvia Steam dopo l'installazione",
   "Open Proton installation terminal": "Apri il terminale di installazione di Proton",
   "Proton BC-250": "Proton BC-250",
-  "gpu-usage.method=kernel was requested, but the active BC-250 kernel does not expose a readable gpu_busy_percent interface. Nothing was changed. Select busy-flag/process or boot a compatible patched kernel.": "È stato scelto gpu-usage.method=kernel, ma il kernel BC-250 attivo non espone un'interfaccia gpu_busy_percent leggibile. Non è stato cambiato nulla. Scegli busy-flag o process, oppure avvia un kernel con patch compatibile."
+  "gpu-usage.method=kernel was requested, but the active BC-250 kernel does not expose a readable gpu_busy_percent interface. Nothing was changed. Select busy-flag/process or boot a compatible patched kernel.": "È stato scelto gpu-usage.method=kernel, ma il kernel BC-250 attivo non espone un'interfaccia gpu_busy_percent leggibile. Non è stato cambiato nulla. Scegli busy-flag o process, oppure avvia un kernel con patch compatibile.",
+  "The GPU driver did not start in this boot": "Il driver della GPU non è partito a questo avvio",
+  "Linux sees the BC-250 GPU, but amdgpu did not start, so the GPU, Cyan and Compute Units pages cannot work. Turn the BC-250 off completely, unplug it for a few seconds and start it again.": "Linux vede la GPU del BC-250, ma amdgpu non è partito, quindi le pagine GPU, Cyan e Compute Units non funzionano. Spegni completamente il BC-250, staccalo dalla corrente per qualche secondo e riaccendilo."
 }

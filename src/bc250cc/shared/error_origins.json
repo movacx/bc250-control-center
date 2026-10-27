@@ -1276,6 +1276,9 @@
    "_print_status": "GPU-0532",
    "main": "GPU-0533"
   },
+  "bc250cc/infrastructure/gpu_driver_probe.py": {
+   "gpu_driver_state": "GPU-0635"
+  },
   "bc250cc/infrastructure/gpu_fdinfo.py": {
    "_engine_counters": "GPU-0534",
    "DrmFdinfoSampler.__init__": "GPU-0535",

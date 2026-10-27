@@ -5364,5 +5364,7 @@
   "Restart Steam after installation": "Start Steam på nytt etter installasjonen",
   "Open Proton installation terminal": "Åpne terminal for Proton-installasjon",
   "Proton BC-250": "Proton BC-250",
-  "gpu-usage.method=kernel was requested, but the active BC-250 kernel does not expose a readable gpu_busy_percent interface. Nothing was changed. Select busy-flag/process or boot a compatible patched kernel.": "gpu-usage.method=kernel ble valgt, men den aktive BC-250-kjernen har ikke et lesbart gpu_busy_percent-grensesnitt. Ingenting ble endret. Velg busy-flag eller process, eller start en kompatibel patchet kjerne."
+  "gpu-usage.method=kernel was requested, but the active BC-250 kernel does not expose a readable gpu_busy_percent interface. Nothing was changed. Select busy-flag/process or boot a compatible patched kernel.": "gpu-usage.method=kernel ble valgt, men den aktive BC-250-kjernen har ikke et lesbart gpu_busy_percent-grensesnitt. Ingenting ble endret. Velg busy-flag eller process, eller start en kompatibel patchet kjerne.",
+  "The GPU driver did not start in this boot": "GPU-driveren startet ikke ved denne oppstarten",
+  "Linux sees the BC-250 GPU, but amdgpu did not start, so the GPU, Cyan and Compute Units pages cannot work. Turn the BC-250 off completely, unplug it for a few seconds and start it again.": "Linux ser BC-250-GPU-en, men amdgpu startet ikke, så sidene GPU, Cyan og Compute Units fungerer ikke. Slå av BC-250 helt, trekk ut strømmen i noen sekunder og start den igjen."
 }

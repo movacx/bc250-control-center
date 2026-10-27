@@ -5364,5 +5364,7 @@
   "Restart Steam after installation": "설치 후 Steam을 다시 시작하세요",
   "Open Proton installation terminal": "Proton 설치 터미널 열기",
   "Proton BC-250": "Proton BC-250",
-  "gpu-usage.method=kernel was requested, but the active BC-250 kernel does not expose a readable gpu_busy_percent interface. Nothing was changed. Select busy-flag/process or boot a compatible patched kernel.": "gpu-usage.method=kernel을 선택했지만 현재 BC-250 커널에는 읽을 수 있는 gpu_busy_percent 인터페이스가 없습니다. 아무것도 변경되지 않았습니다. busy-flag 또는 process를 선택하거나 호환되는 패치 커널로 부팅하세요."
+  "gpu-usage.method=kernel was requested, but the active BC-250 kernel does not expose a readable gpu_busy_percent interface. Nothing was changed. Select busy-flag/process or boot a compatible patched kernel.": "gpu-usage.method=kernel을 선택했지만 현재 BC-250 커널에는 읽을 수 있는 gpu_busy_percent 인터페이스가 없습니다. 아무것도 변경되지 않았습니다. busy-flag 또는 process를 선택하거나 호환되는 패치 커널로 부팅하세요.",
+  "The GPU driver did not start in this boot": "이번 부팅에서 GPU 드라이버가 시작되지 않았습니다",
+  "Linux sees the BC-250 GPU, but amdgpu did not start, so the GPU, Cyan and Compute Units pages cannot work. Turn the BC-250 off completely, unplug it for a few seconds and start it again.": "Linux가 BC-250 GPU를 인식하지만 amdgpu가 시작되지 않아 GPU, Cyan, Compute Units 페이지가 작동하지 않습니다. BC-250을 완전히 끄고 몇 초간 전원을 뽑았다가 다시 켜세요."
 }
