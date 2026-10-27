@@ -132,17 +132,17 @@ def test_a_nested_callback_reports_the_function_that_started_it():
 
 
 def _raise_from_backend():
-    from bc250cc.infrastructure import feedback_form
+    from bc250cc.infrastructure import problem_report
 
-    feedback_form.parse_form("<html></html>")
+    problem_report.submit(problem_report.Report(summary=""))
 
 
 def test_the_raise_site_is_the_innermost_function_of_ours():
     with pytest.raises(Exception) as caught:
         _raise_from_backend()
     site = raise_site(caught.value)
-    assert site.module == "bc250cc/infrastructure/feedback_form.py"
-    assert site.function == "parse_form" and site.line > 0
+    assert site.module == "bc250cc/infrastructure/problem_report.py"
+    assert site.function == "submit" and site.line > 0
     assert site.code.startswith("DIAG-")
 
 
@@ -151,8 +151,8 @@ def test_the_raw_error_keeps_the_type_and_hides_the_home_folder(monkeypatch, tmp
     with pytest.raises(Exception) as caught:
         _raise_from_backend()
     text = format_raw(caught.value)
-    assert "FeedbackError: The report form could not be read." in text
-    assert 'File "bc250cc/infrastructure/feedback_form.py"' in text
+    assert "ReportError: A required answer is empty." in text
+    assert 'File "bc250cc/infrastructure/problem_report.py"' in text
     # This test file is not ours to shorten; its home part still goes.
     assert str(ROOT.parent) not in text and f'File "~/{ROOT.name}/tests/' in text
 
@@ -183,8 +183,8 @@ def test_a_worker_hands_its_exception_over_before_it_becomes_text(qtbot, journal
     task.signals.failed.connect(messages.append)
     task.run()
     raw = raw_errors.find(f"Could not do it: {messages[0]}")
-    assert raw is not None and raw.kind == "FeedbackError"
-    assert raw.site.function == "parse_form"
+    assert raw is not None and raw.kind == "ReportError"
+    assert raw.site.function == "submit"
 
 
 def test_a_window_inside_an_unrelated_except_does_not_borrow_that_exception(journal_file):
@@ -207,14 +207,14 @@ def test_nothing_leaves_the_machine_with_a_home_folder_in_it(text, expected):
     assert error_origins.redact(text) == expected
 
 
-def test_the_form_redacts_every_answer_it_sends():
-    from bc250cc.infrastructure import feedback_form as form
+def test_the_report_redacts_everything_it_sends():
+    from bc250cc.infrastructure import problem_report as form
 
-    report = form.FeedbackReport(
-        summary="Crash reading /home/alice/x", raw="OSError: /home/alice/y", specs="Installation  Script (/home/alice/app)",
+    report = form.Report(
+        summary="Crash reading /home/alice/x", error=form.ErrorEvidence(raw="OSError: /home/alice/y"),
+        system={"Installation": "Script (/home/alice/app)"},
     )
-    values = [value for _entry, value in form._pairs(report) if isinstance(value, str)]
-    assert values and not any("alice" in value for value in values)
+    assert "alice" not in json.dumps(form.payload(report))
 
 
 def test_the_copied_report_has_no_home_folder(journal_file):
@@ -248,16 +248,16 @@ def test_an_error_window_shows_where_it_happened_and_the_raw_exception(qtbot, jo
 
     identity = [label.text() for label in dialog.findChildren(QLabel) if label.objectName() == "DialogIdentityValue"]
     assert any("gpu_governor.py" in text and "GpuGovernorPage._install_helixsr_game" in text for text in identity)
-    assert any(text.startswith("DIAG-") and "parse_form" in text for text in identity)
+    assert any(text.startswith("DIAG-") and "submit" in text for text in identity)
     assert dialog.reference().endswith(f"@ {dialog.origin.code}")
-    assert "FeedbackError" in dialog.evidence() and "Raised in: DIAG-" in dialog.evidence()
+    assert "ReportError" in dialog.evidence() and "Raised in: DIAG-" in dialog.evidence()
 
     report = next(button for button in dialog.findChildren(QPushButton) if button.objectName() == "DialogReport")
     assert report.isVisibleTo(dialog)
 
     entry = history_entries()[0]
     assert "GpuGovernorPage._install_helixsr_game" in entry.origin
-    assert "parse_form" in entry.raised and "FeedbackError" in entry.raw
+    assert "submit" in entry.raised and "ReportError" in entry.raw
     text = diagnostic_report([], [entry])
     assert "Origin: GPU-" in text and "Raised in: DIAG-" in text and "Raw error:" in text
 
@@ -279,7 +279,7 @@ def test_copy_details_carries_the_evidence(qtbot, journal_file):
     qtbot.addWidget(dialog)
     button = next(b for b in dialog.findChildren(QPushButton) if b.objectName() == "DialogSecondary")
     button.click()
-    assert "FeedbackError" in QApplication.clipboard().text()
+    assert "ReportError" in QApplication.clipboard().text()
 
 
 def test_informational_windows_have_no_report_button_nor_hardware_notice(qtbot):

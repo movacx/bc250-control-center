@@ -7,6 +7,28 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from bc250cc.infrastructure.cpu_oc_config import estimated_vid
+from bc250cc.shared.errors import ActionNeeded
+
+#: The upstream detector's VID ceiling.
+VID_CEILING_MV = 1325
+
+
+class CpuVoltageCeiling(ActionNeeded, ValueError):
+    """A frequency and scale the CPU would need too much voltage for.
+
+    A refusal before anything changed, not a failure: a Bazzite report sent
+    "~1444 mV at 4000 MHz" as a red error with a code. Still a ValueError
+    for the callers that catch one.
+    """
+
+
+def _scale_within_ceiling(frequency: int) -> int | None:
+    """The least negative scale that keeps ``frequency`` under the ceiling."""
+    for scale in range(0, -51, -1):
+        voltage = estimated_vid(frequency, scale)
+        if voltage is not None and voltage <= VID_CEILING_MV:
+            return scale
+    return None
 
 
 @dataclass(frozen=True)
@@ -57,10 +79,15 @@ def validate_scale_target(frequency, scale, temperature) -> CPUScaleTarget:
     if not 70 <= temperature <= 90:
         raise ValueError("CPU temperature limit must be between 70 and 90 C")
     voltage = estimated_vid(frequency, scale)
-    if voltage is not None and voltage > 1325:
-        raise ValueError(
-            f"CPU scale would estimate ~{voltage} mV at {frequency} MHz, "
-            "above the upstream 1325 mV ceiling"
+    if voltage is not None and voltage > VID_CEILING_MV:
+        fitting = _scale_within_ceiling(frequency)
+        advice = (
+            f"Use scale {fitting} or lower at {frequency} MHz, or choose a lower frequency."
+            if fitting is not None else "Choose a lower frequency."
+        )
+        raise CpuVoltageCeiling(
+            f"CPU scale {scale} would need ~{voltage} mV at {frequency} MHz, above the upstream "
+            f"{VID_CEILING_MV} mV ceiling. Nothing was changed. {advice}"
         )
     return CPUScaleTarget(frequency, scale, temperature, voltage)
 

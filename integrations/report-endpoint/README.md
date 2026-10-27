@@ -2,7 +2,7 @@
 
 Cloudflare Worker that receives problem reports from Control Center in one
 request (gzip JSON, attachments included) and keeps them in Workers KV for
-about six months. Google Forms stays the app's fallback.
+about six months. When it cannot be reached the app keeps the report on disk.
 
 - `POST /v1/reports`: used by the app (`REPORT_ENDPOINT` in
   `src/bc250cc/infrastructure/feedback_form.py`). 4 reports per minute per

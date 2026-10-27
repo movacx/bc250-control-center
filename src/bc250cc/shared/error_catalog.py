@@ -107,6 +107,36 @@ _CODES: tuple[ErrorCode, ...] = (
         "Read the reason in the Memory section. On SteamOS, systemd-boot or rEFInd add the ttm.pages_limit argument yourself; elsewhere retry once the boot loader or rpm-ostree is idle.",
         markers=('QUICK_ACCESS_TTM',),
     ),
+    # bash's "fork: retry: Resource temporarily unavailable": a process limit
+    # or no memory left, not a problem of the step that could not start.
+    ErrorCode(
+        "BC250-RESOURCE-001",
+        "The system could not start another process.",
+        "The system reached its limit of running processes, or it is out of memory, so a step of the workflow could not start.",
+        "Close programs you do not need, or restart the computer, then run the action again.",
+        markers=("fork: retry: Resource temporarily unavailable", "fork: Resource temporarily unavailable", "Cannot allocate memory"),
+    ),
+    # The terminal's side of the window rule: a workflow that meets another
+    # package manager's lock said "the operation could not be completed".
+    ErrorCode(
+        "BC250-PKG-001",
+        "The package manager is busy.",
+        "A system update, software center, or another terminal is already changing packages.",
+        "Let that update finish, close the other package tool, and retry. Do not delete package-manager lock files by hand.",
+        markers=(
+            "unable to lock database", "could not lock database", "Could not get lock", "database is locked",
+            "Waiting for cache lock", "System management is locked by the application",
+        ),
+    ),
+    # dnf "nothing provides", apt "unmet dependencies", pacman "target not
+    # found", zypper/apk "unable to satisfy": the package is not there.
+    ErrorCode(
+        "BC250-PKG-004",
+        "A required package is not available from the enabled repositories.",
+        "The package, or one of its dependencies, is not published for this distribution or release, or the repository that provides it is not enabled.",
+        "Read the package named in the output. Enable the repository that provides it, or report the workflow with this code so the package list can be fixed.",
+        markers=('nothing provides', 'has unmet dependencies', 'Unmet dependencies', 'unable to satisfy dependency', 'could not satisfy dependencies', 'error: target not found',),
+    ),
     ErrorCode(
         "BC250-STORAGE-001",
         "There is not enough writable storage.",
@@ -359,6 +389,8 @@ _CODES: tuple[ErrorCode, ...] = (
             'Unable to download',
             'Reviewed source commit is unavailable after fetch',
             'Reviewed source revision could not be checked out',
+            # sha256sum -c on a downloaded update package.
+            'computed checksum did NOT match',
         ),
     ),
     # The workflow printed its own [ERROR] lines, so its wording is shown

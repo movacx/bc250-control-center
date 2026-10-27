@@ -15,3 +15,4 @@ simple = { limit = 4, period = 60 }
 
 # Secrets (wrangler secret put): ADMIN_TOKEN for /admin; optional
 # TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID for a message per report.
+

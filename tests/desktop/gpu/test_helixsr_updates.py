@@ -246,12 +246,12 @@ def _list_releases(*tags: tuple[str, bool]) -> None:
 
 
 def test_a_newer_release_is_offered_but_not_a_pre_release(home, release):  # noqa: F811
-    _list_releases((helixsr.HELIXSR_TAG, False), ("v9.0.0", True))
+    _list_releases((helixsr.HELIXSR_TAG, False), ("v2.9.0", True))
     assert helixsr.helixsr_state(machine="x86_64")["newer"] is None
 
-    _list_releases((helixsr.HELIXSR_TAG, False), ("v9.0.0", True), ("v8.1.0", False))
+    _list_releases((helixsr.HELIXSR_TAG, False), ("v2.9.0", True), ("v2.8.1", False))
     newer = helixsr.helixsr_state(machine="x86_64")["newer"]
-    assert newer == {"tag": "v8.1.0", "version": "8.1.0", "reviewed": False}
+    assert newer == {"tag": "v2.8.1", "version": "2.8.1", "reviewed": False}
 
 
 def test_the_repository_routes_the_new_actions(home, release, tmp_path, monkeypatch):  # noqa: F811
@@ -262,10 +262,10 @@ def test_the_repository_routes_the_new_actions(home, release, tmp_path, monkeypa
     assert repository.gestionar_helixsr("scaler_update:100")["previous"] == "1.9.2"
     assert repository.gestionar_helixsr("scaler_rollback:100")["version"] == "1.9.2"
     assert repository.gestionar_helixsr("update_all")["updated"] == ["Space Game"]
-    _list_releases((helixsr.HELIXSR_TAG, False), ("v8.1.0", False))
-    title, _command = repository.gestionar_helixsr("upgrade:v8.1.0")
+    _list_releases((helixsr.HELIXSR_TAG, False), ("v2.8.1", False))
+    title, _command = repository.gestionar_helixsr("upgrade:v2.8.1")
     assert title == "HelixSR · install"
-    assert helixsr.helixsr_release()["tag"] == "v8.1.0"
+    assert helixsr.helixsr_release()["tag"] == "v2.8.1"
 
 
 def test_a_newer_client_build_is_offered(home, monkeypatch):  # noqa: F811

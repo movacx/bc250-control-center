@@ -42,7 +42,7 @@ from PyQt6.QtWidgets import (
 )
 
 from ..components.widgets import ReportButton, icon
-from ..i18n import tr, tr_format
+from ..i18n import canonical_source, tr
 from .console_tab import ConsoleTab
 from .user_shell import shell_environment, user_shell
 
@@ -837,11 +837,12 @@ class ConsolePanel(QFrame):
         found = _DIAGNOSTIC_CODE.search(text)
         from ..components.feedback_dialog import open_feedback
 
-        title = tab.title or tr("The workflow")
+        # In English whatever the interface language, like an error window's.
+        title = canonical_source(tab.title) if tab.title else "The workflow"
         open_feedback(
             self.window(),
             opened_from="Terminal",
-            summary=tr_format("{title} failed", title=title),
+            summary=f"{title} failed",
             terminal=text,
             code=found.group(1) if found else "",
         )

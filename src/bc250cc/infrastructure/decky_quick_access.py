@@ -97,7 +97,7 @@ def build_decky_bootstrap_command(installer: str | Path) -> str:
         "set -Eeuo pipefail",
         "test \"$(id -u)\" -ne 0 || { echo 'ERROR: run this workflow as the Desktop Mode user, not root'; exit 60; }",
         f"test -x {_quoted(install_path)} || {{ echo 'ERROR: BC250 Quick Access installer is unavailable'; exit 61; }}",
-        "command -v curl >/dev/null 2>&1 || { echo 'ERROR: curl is required to download the official Decky installer'; exit 62; }",
+        "command -v curl >/dev/null 2>&1 || { echo 'ERROR: curl is required to download the official Decky installer. Run Prepare dependencies on the Dashboard, or install curl with the package manager.'; exit 62; }",
         f"/usr/bin/bash {_quoted(install_path)} --preflight-immutable-host",
         # Decky's official installer uses jq.  Prepare the missing runtime
         # through the available package manager instead of downloading a
@@ -154,7 +154,7 @@ def build_bazzite_decky_bootstrap_command(installer: str | Path) -> str:
         "set -Eeuo pipefail",
         "test \"$(id -u)\" -ne 0 || { echo 'ERROR: run this workflow as the Desktop Mode user, not root'; exit 60; }",
         f"test -x {_quoted(install_path)} || {{ echo 'ERROR: BC250 Quick Access installer is unavailable'; exit 61; }}",
-        "command -v curl >/dev/null 2>&1 || { echo 'ERROR: curl is required to install Decky'; exit 62; }",
+        "command -v curl >/dev/null 2>&1 || { echo 'ERROR: curl is required to install Decky. Run Prepare dependencies on the Dashboard, or install curl with the package manager.'; exit 62; }",
         "test -r /etc/os-release || { echo 'ERROR: /etc/os-release is unavailable'; exit 64; }",
         ". /etc/os-release",
         "test \"${ID:-}\" = bazzite || { echo 'ERROR: the native ujust Decky workflow is available only on Bazzite'; exit 64; }",

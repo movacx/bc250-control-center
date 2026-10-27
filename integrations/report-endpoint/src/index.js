@@ -18,6 +18,7 @@ const MAX_EXPANDED = 6 << 20; // 6 MiB once decompressed
 const KEEP_SECONDS = 180 * 24 * 3600; // reports expire after ~6 months
 const ID = /^R-[0-9a-f]{8}$/;
 const KINDS = new Set(["problem", "idea"]);
+const MAX_ATTACHMENTS = 60;
 
 export default {
   async fetch(request, env, ctx) {
@@ -70,14 +71,19 @@ async function receive(request, env, ctx) {
     return json({ ok: true, id: report.id, duplicate: true });
   }
   const received = new Date().toISOString();
+  const system = report.system || {};
+  const owner = report.owner || {};
+  const error = report.error || {};
   const metadata = {
     id: report.id,
     received,
+    schema: Number(report.schema || 1),
     kind: report.kind,
-    code: clip(report.code, 40),
+    code: clip(error.code || report.code, 40),
     summary: clip(report.summary, 160),
-    distribution: clip(report.distribution, 40),
-    version: clip(report.version, 20),
+    distribution: clip(system["Operating system"] || owner.distribution || report.distribution, 60),
+    version: clip((report.app || {}).version || report.version, 20),
+    source: clip((report.app || {}).opened_from, 60),
     attachments: (report.attachments || []).length,
     bytes: compressed.byteLength,
   };
@@ -90,9 +96,12 @@ function validate(report) {
   if (!report || typeof report !== "object") return "report must be an object";
   if (!ID.test(String(report.id || ""))) return "invalid report id";
   if (!KINDS.has(report.kind)) return "invalid kind";
-  if (report.fields && typeof report.fields !== "object") return "fields must be an object";
+  for (const part of ["app", "problem", "error", "workflow", "system", "os_release", "firmware", "owner", "fields"]) {
+    if (report[part] !== undefined && (typeof report[part] !== "object" || Array.isArray(report[part]))) return `${part} must be an object`;
+  }
+  if (report.history !== undefined && (!Array.isArray(report.history) || report.history.length > 50)) return "invalid history";
   if (report.attachments !== undefined) {
-    if (!Array.isArray(report.attachments) || report.attachments.length > 20) return "invalid attachments";
+    if (!Array.isArray(report.attachments) || report.attachments.length > MAX_ATTACHMENTS) return "invalid attachments";
     for (const item of report.attachments) {
       if (!item || typeof item.name !== "string" || typeof item.text !== "string") return "invalid attachment";
     }
@@ -128,7 +137,10 @@ function concat(chunks, total) {
 function authorized(request, env) {
   const header = request.headers.get("authorization") || "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : "";
-  return Boolean(env.ADMIN_TOKEN) && token.length > 0 && timingSafeEqual(token, env.ADMIN_TOKEN);
+  // ADMIN_PASSWORD is an optional second key the maintainer can type on a phone.
+  return [env.ADMIN_TOKEN, env.ADMIN_PASSWORD].some(
+    (key) => typeof key === "string" && key.length >= 12 && token.length > 0 && timingSafeEqual(token, key),
+  );
 }
 
 function timingSafeEqual(a, b) {
@@ -171,7 +183,7 @@ async function notify(env, meta, origin) {
   const line = `${meta.kind} · ${meta.code || "no code"} · ${meta.distribution || "?"} · ${meta.version || "?"}`;
   const sent = {};
   if (env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID) {
-    const text = [`New BC250 report ${meta.id}`, line, meta.summary || "", link].join("\n");
+    const text = [`New BC250 report ${meta.id}`, line, meta.source ? `From: ${meta.source}` : "", meta.summary || "", link].filter(Boolean).join("\n");
     sent.telegram = await post(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
       chat_id: env.TELEGRAM_CHAT_ID,
       text,
@@ -235,43 +247,76 @@ const ADMIN_PAGE = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>BC250 reports</title>
 <style>
-:root{color-scheme:light dark;--bg:#f6f7f9;--card:#fff;--text:#16181d;--muted:#5b6170;--line:#d9dde4;--accent:#2f5bd3}
-@media (prefers-color-scheme:dark){:root{--bg:#111318;--card:#1a1d24;--text:#e7e9ee;--muted:#9aa1ae;--line:#2b303b;--accent:#7d9cff}}
-body{margin:0;font:14px/1.45 system-ui,sans-serif;background:var(--bg);color:var(--text)}
-header{display:flex;gap:8px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
-h1{font-size:16px;margin:0 12px 0 0}input,button{font:inherit;padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--text)}
-button{cursor:pointer}main{display:grid;grid-template-columns:minmax(260px,420px) 1fr;min-height:calc(100vh - 58px)}
-#list{border-right:1px solid var(--line);overflow:auto;max-height:calc(100vh - 58px)}
-.row{padding:10px 16px;border-bottom:1px solid var(--line);cursor:pointer}.row:hover,.row.on{background:var(--card)}
-.meta{color:var(--muted);font-size:12px}#view{padding:16px;overflow:auto;max-height:calc(100vh - 90px)}
-pre{white-space:pre-wrap;word-break:break-word;background:var(--card);border:1px solid var(--line);border-radius:6px;padding:10px;font:12px/1.4 ui-monospace,monospace}
-details{margin:8px 0}summary{cursor:pointer;font-weight:600}
-@media (max-width:760px){main{grid-template-columns:1fr}#list{max-height:40vh;border-right:0}}
+:root{color-scheme:light dark;--bg:#f4f5f7;--card:#fff;--soft:#eef0f4;--text:#15171c;--muted:#5d6472;--line:#dde1e8;--accent:#2f5bd3;--red:#c0392b;--amber:#b7791f;--green:#2f855a}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1115;--card:#171a20;--soft:#1e222a;--text:#e6e8ec;--muted:#98a0ad;--line:#2a2f39;--accent:#7d9cff;--red:#ff7b6b;--amber:#f2b552;--green:#68d391}}
+*{box-sizing:border-box}body{margin:0;font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--text)}
+header{position:sticky;top:0;z-index:2;display:flex;gap:8px;align-items:center;padding:10px 16px;background:var(--card);border-bottom:1px solid var(--line);flex-wrap:wrap}
+h1{font-size:15px;margin:0 10px 0 0;letter-spacing:.2px}input,button{font:inherit;padding:6px 10px;border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--text)}
+button{cursor:pointer}button:hover{border-color:var(--accent)}button.danger{color:var(--red)}
+main{display:grid;grid-template-columns:minmax(260px,400px) 1fr;height:calc(100vh - 53px)}
+#list{border-right:1px solid var(--line);overflow:auto}
+.row{padding:10px 14px;border-bottom:1px solid var(--line);cursor:pointer}.row:hover{background:var(--soft)}.row.on{background:var(--soft);box-shadow:inset 3px 0 var(--accent)}
+.row .t{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.meta{color:var(--muted);font-size:12px}#view{overflow:auto;padding:18px 22px}
+.chip{display:inline-block;padding:1px 8px;margin:2px 4px 2px 0;border-radius:999px;background:var(--soft);border:1px solid var(--line);font-size:12px}
+.chip.code{font-family:ui-monospace,monospace;color:var(--red)}.chip.idea{color:var(--green)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:0 0 14px}
+.card h3{margin:0 0 10px;font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted)}
+h2{margin:0 0 6px;font-size:19px}
+dl{display:grid;grid-template-columns:minmax(120px,190px) 1fr;gap:6px 14px;margin:0}dt{color:var(--muted)}dd{margin:0;white-space:pre-wrap;word-break:break-word}
+pre{white-space:pre-wrap;word-break:break-word;background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:10px;margin:6px 0 0;font:12px/1.45 ui-monospace,monospace;max-height:520px;overflow:auto}
+details{border-top:1px solid var(--line);padding:6px 0}details:first-of-type{border-top:0}summary{cursor:pointer;font-weight:600}summary .meta{font-weight:400}
+table{width:100%;border-collapse:collapse;font-size:13px}td,th{text-align:left;padding:5px 8px;border-bottom:1px solid var(--line);vertical-align:top}th{color:var(--muted);font-weight:500}
+.fix{border-left:3px solid var(--green);padding-left:10px}
+.actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+@media (max-width:820px){main{grid-template-columns:1fr;height:auto}#list{max-height:38vh;border-right:0;border-bottom:1px solid var(--line)}#view{padding:14px}dl{grid-template-columns:1fr}dt{font-size:12px}}
 </style></head><body>
-<header><h1>BC250 reports</h1><input id="filter" placeholder="Filter: code, distro, text"><span id="count" class="meta"></span>
-<span style="flex:1"></span><input id="token" type="password" placeholder="Admin token"><button id="save">Open</button></header>
+<header><h1>BC250 reports</h1><input id="filter" placeholder="Filter: code, distro, text" style="flex:1;min-width:160px"><span id="count" class="meta"></span>
+<input id="token" type="password" placeholder="Admin token or password" style="width:200px"><button id="save">Open</button></header>
 <main><div id="list"></div><div id="view"><p class="meta">Choose a report.</p></div></main>
 <script>
-const $=s=>document.querySelector(s);let reports=[],current=null;
+const $=s=>document.querySelector(s);let reports=[],current=null,loaded=null;
 const tokenKey="bc250-admin-token";
 function token(){try{return localStorage.getItem(tokenKey)||""}catch{return ""}}
-async function api(path,options={}){const r=await fetch(path,{...options,headers:{authorization:"Bearer "+token()}});if(r.status===401)throw new Error("Wrong admin token");return r.json()}
-function el(tag,text,cls){const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e}
+async function api(path,options={}){const r=await fetch(path,{...options,headers:{authorization:"Bearer "+token()}});if(r.status===401)throw new Error("Wrong admin token or password");return r.json()}
+function el(tag,text,cls){const e=document.createElement(tag);if(text!==undefined&&text!==null)e.textContent=String(text);if(cls)e.className=cls;return e}
+function when(iso){return (iso||"").replace("T"," ").slice(0,16)}
 async function load(){reports=[];let cursor=null;do{const d=await api("/v1/admin/reports"+(cursor?"?cursor="+encodeURIComponent(cursor):""));reports.push(...d.reports);cursor=d.cursor}while(cursor);draw()}
 function draw(){const q=$("#filter").value.toLowerCase();const list=$("#list");list.replaceChildren();
 const shown=reports.filter(r=>JSON.stringify(r).toLowerCase().includes(q));$("#count").textContent=shown.length+" of "+reports.length;
-for(const r of shown){const row=el("div",undefined,"row"+(r.id===current?" on":""));row.append(el("div",(r.code||r.kind||"")+" · "+(r.summary||"(no summary)")));
-row.append(el("div",[r.id,r.distribution,r.version,(r.received||"").replace("T"," ").slice(0,16),r.attachments+" attachments"].filter(Boolean).join(" · "),"meta"));
-row.onclick=()=>open(r.id);list.append(row)}}
+for(const r of shown){const row=el("div",undefined,"row"+(r.id===current?" on":""));
+const top=el("div");if(r.code)top.append(el("span",r.code,"chip code"));else top.append(el("span",r.kind,"chip"+(r.kind==="idea"?" idea":"")));row.append(top);
+row.append(el("div",r.summary||"(no summary)","t"));
+row.append(el("div",[r.distribution,r.version&&("v"+r.version),when(r.received),r.source].filter(Boolean).join(" · "),"meta"));
+row.onclick=()=>{location.hash=r.id;open(r.id)};list.append(row)}}
+function card(title){const c=el("section",undefined,"card");c.append(el("h3",title));return c}
+function pairs(obj,labels){const dl=el("dl");let any=false;for(const [k,label] of labels){const v=obj&&obj[k];if(v===undefined||v===null||v===""||(Array.isArray(v)&&!v.length))continue;any=true;dl.append(el("dt",label));dl.append(el("dd",Array.isArray(v)?v.join("\\n"):v))}return any?dl:null}
+function table(obj){const t=el("table");let any=false;for(const [k,v] of Object.entries(obj||{})){if(v===""||v==null)continue;any=true;const tr=el("tr");tr.append(el("th",k));tr.append(el("td",v));t.append(tr)}return any?t:null}
+function block(title,text,open){const d=el("details");d.open=!!open;const s=el("summary",title+" ");s.append(el("span","("+Math.max(1,Math.round(String(text).length/1024))+" KB)","meta"));d.append(s);d.append(el("pre",text));return d}
 async function open(id){current=id;draw();const v=$("#view");v.replaceChildren(el("p","Loading…","meta"));
-const d=await api("/v1/admin/reports/"+id);const rep=d.report;v.replaceChildren();
-const top=el("div");top.append(el("h2",(rep.code||rep.kind)+" · "+(rep.summary||"")));const del=el("button","Delete");
-del.onclick=async()=>{if(!confirm("Delete "+id+"?"))return;await api("/v1/admin/reports/"+id,{method:"DELETE"});reports=reports.filter(r=>r.id!==id);current=null;v.replaceChildren();draw()};
-top.append(del);v.append(top);
-const fields=rep.fields||{};for(const [name,value] of Object.entries(fields)){if(!value||(Array.isArray(value)&&!value.length))continue;
-const box=el("details");box.open=String(value).length<4000;box.append(el("summary",name));box.append(el("pre",Array.isArray(value)?value.join(", "):String(value)));v.append(box)}
-for(const a of rep.attachments||[]){const box=el("details");box.append(el("summary",a.name+" ("+Math.round(a.text.length/1024)+" KB)"));box.append(el("pre",a.text));v.append(box)}}
-$("#save").onclick=()=>{try{localStorage.setItem(tokenKey,$("#token").value)}catch{};load().catch(e=>alert(e.message))};
+const d=await api("/v1/admin/reports/"+id);if(!d.ok){v.replaceChildren(el("p",d.error||"Not found","meta"));return}loaded=d.report;const rep=d.report,m=d.metadata||{};v.replaceChildren();
+const head=card(rep.kind==="idea"?"Idea":"Problem report");head.append(el("h2",rep.summary||"(no summary)"));
+const chips=el("div");const err=rep.error||{};
+for(const [text,cls] of [[err.code||rep.code,"chip code"],[m.distribution,"chip"],[(rep.app||{}).version&&("v"+(rep.app||{}).version),"chip"],[when(rep.sent_at||m.received),"chip"],[(rep.app||{}).opened_from,"chip"],[(rep.app||{}).language,"chip"],[rep.id,"chip"]])if(text)chips.append(el("span",text,cls));
+head.append(chips);if(rep.contact)head.append(el("p","Contact: "+rep.contact,"meta"));
+const actions=el("div",undefined,"actions");const dl=el("button","Download JSON");dl.onclick=()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(rep,null,2)],{type:"application/json"}));a.download=id+".json";a.click()};
+const cp=el("button","Copy JSON");cp.onclick=async()=>{await navigator.clipboard.writeText(JSON.stringify(rep,null,2));cp.textContent="Copied"};
+const del=el("button","Delete","danger");del.onclick=async()=>{if(!confirm("Delete "+id+"?"))return;await api("/v1/admin/reports/"+id,{method:"DELETE"});reports=reports.filter(r=>r.id!==id);current=null;v.replaceChildren();draw()};
+actions.append(dl,cp,del);head.append(actions);v.append(head);
+if(rep.idea){const c=card("Idea");c.append(el("dd",rep.idea));v.append(c)}
+const p=pairs(rep.problem,[["area","Area"],["seen","What they saw"],["frequency","How often"],["worked_before","Worked before"],["steps","Steps"],["expected","Expected"],["media","Media"],["notes","Notes"]]);if(p){const c=card("What the user reports");c.append(p);v.append(c)}
+if(rep.error){const c=card("Error");const e=pairs(err,[["code","Code"],["title","Window"],["what","What happened"],["cause","Likely cause"]]);if(e)c.append(e);if(err.fix)c.append(el("p",err.fix,"fix"));const w=pairs(err,[["reference","Reference"],["where","Where"]]);if(w)c.append(w);if(err.raw)c.append(block("Raw error",err.raw,true));v.append(c)}
+const wf=rep.workflow||{};if(wf.log||wf.title){const c=card("Failed workflow");if(wf.title)c.append(el("p",wf.title));if(wf.log)c.append(block("Log",wf.log,true));v.append(c)}
+const sysT=table(rep.system);const fw=table(rep.firmware);const os=table(rep.os_release);
+if(sysT||fw||os){const c=card("System (detected)");if(sysT)c.append(sysT);if(fw){c.append(el("h3","BIOS"));c.append(fw)}if(os){c.append(el("h3","os-release"));c.append(os)}v.append(c)}
+const ow=pairs(rep.owner,[["distribution","Distribution"],["install","Installed with"],["bios","BIOS"],["cores","CPU cores"],["cus","GPU CUs"],["other_tools","Other tools"]]);if(ow){const c=card("User answers");c.append(ow);v.append(c)}
+if((rep.history||[]).length){const c=card("Earlier errors ("+rep.history.length+")");const t=el("table");const h=el("tr");for(const x of ["When","Code","Where","Title","Detail"])h.append(el("th",x));t.append(h);
+for(const e of rep.history){const tr=el("tr");for(const x of [when(e.at),e.code,e.source,e.title,e.detail])tr.append(el("td",x||""));t.append(tr)}c.append(t);v.append(c)}
+if((rep.attachments||[]).length){const total=rep.attachments.reduce((n,a)=>n+a.text.length,0);const c=card("Diagnosis · "+rep.attachments.length+" sections · "+Math.round(total/1024)+" KB");for(const a of rep.attachments)c.append(block(a.name,a.text,false));v.append(c)}
+if(rep.fields){const c=card("Form answers (old format)");for(const [name,value] of Object.entries(rep.fields)){if(!value||(Array.isArray(value)&&!value.length))continue;c.append(block(name,Array.isArray(value)?value.join(", "):String(value),String(value).length<3000))}v.append(c)}
+v.scrollTop=0}
+$("#save").onclick=()=>{try{localStorage.setItem(tokenKey,$("#token").value)}catch{};load().then(()=>{if(current)open(current)}).catch(e=>alert(e.message))};
 $("#filter").oninput=draw;const wanted=location.hash.slice(1);
+if(!token())$("#view").replaceChildren(el("p","Type the admin token or password above and press Open.","meta"));
 if(token())load().then(()=>{if(/^R-[0-9a-f]{8}$/.test(wanted))open(wanted)}).catch(e=>{$("#view").replaceChildren(el("p",e.message,"meta"))});
 </script></body></html>`;

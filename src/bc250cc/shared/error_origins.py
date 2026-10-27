@@ -39,7 +39,7 @@ SKIPPED = ("frontends/desktop/i18n/*catalog.py",)
 #: Patterns match the module's key (``bc250cc/...`` or ``frontends/desktop/...``).
 SECTIONS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
     ("DIAG", "Diagnostics and reports", (
-        "*/diagnostic_*", "*/error_*", "*/failure_text.py", "*/feedback_*", "*/system_snapshot.py",
+        "*/diagnostic_*", "*/error_*", "*/failure_text.py", "*/feedback_*", "*/problem_report.py", "*/report_attachments.py", "*/system_snapshot.py",
         "*/shared/errors.py",
     )),
     ("CON", "Built-in terminal", ("*/console/*",)),

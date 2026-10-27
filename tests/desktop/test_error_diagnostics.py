@@ -151,3 +151,28 @@ def test_umr_dialog_puts_its_copy_button_in_the_footer_where_the_steps_point(qtb
     copy.click()
     assert QApplication.clipboard().text() == umr_repair_command(UMR_WGP_READ_FAILED, os_family="cachyos")
     assert copy.text() == "Copied"
+
+
+#: Errors a virtual user met in clean containers (Fedora 43/44), with the
+#: code each one deserves: the first-matching generic rules gave them
+#: "another operation is still running" and "a program is missing".
+@pytest.mark.parametrize(
+    ("message", "code"),
+    (
+        ("GPU governor service management is not supported on unknown init. Live GPU telemetry and an "
+         "already-running Cyan D-Bus range remain readable.", "BC250-SERVICE-003"),
+        ("Error getting authority: Error initializing authority: Could not connect: No such file or directory",
+         "BC250-AUTH-003"),
+        ("Governor configuration is unavailable: [Errno 2] No such file or directory: "
+         "'/etc/cyan-skillfish-governor-smu/config.toml'", "BC250-GPU-007"),
+        ("Cyan is not installed. Press Prepare dependencies on the Dashboard, then start Cyan from the governor card.",
+         "BC250-GPU-007"),
+        ("Another update is already running for this component.", "BC250-BUSY-001"),
+        # Thermalright LCD on Fedora 43: trcc-linux needs a package Fedora does not ship.
+        ("Problem: conflicting requests\n - nothing provides python3-sounddevice needed by "
+         "trcc-linux-9.10.4-1.fc44.noarch from @commandline", "BC250-PKG-004"),
+        ("The following packages have unmet dependencies:", "BC250-PKG-004"),
+    ),
+)
+def test_errors_from_clean_systems_get_the_code_they_deserve(message, code):
+    assert diagnose_error(message).code == code

@@ -186,6 +186,18 @@ def _version(tag: str) -> tuple[int, ...] | None:
     return tuple(int(part) for part in parts)
 
 
+#: The newest HelixSR major whose archive layout this installer knows. 3.0.0
+#: (a pre-release) ships helixsr.dll and its own setup instead of the one
+#: amd_fidelityfx_dx12.dll, and its install stopped with "the archive has
+#: no amd_fidelityfx_dx12.dll".
+SUPPORTED_MAJOR = 2
+
+
+def _supported_layout(tag: str) -> bool:
+    version = _version(tag)
+    return version is None or version[0] <= SUPPORTED_MAJOR
+
+
 def _older(given: str, version: str) -> bool:
     """A game given ``given`` has an older release than ``version``; a
     version that cannot be read (a record from before versions) is older."""
@@ -252,6 +264,8 @@ def helixsr_releases() -> list[dict]:
             if release is not None:
                 found.setdefault(release["tag"], release)
         for tag, release in found.items():
+            if tag not in releases and not _supported_layout(tag):
+                continue
             if tag in releases:
                 releases[tag]["prerelease"] = release["prerelease"]
             else:
@@ -1930,15 +1944,25 @@ done
 if command -v curl >/dev/null 2>&1; then
   bc250_fetch() { curl -fL --retry 3 --connect-timeout 20 --progress-bar -o "$1" "$2"; }
 elif command -v wget >/dev/null 2>&1; then
-  bc250_fetch() { wget -q --show-progress -O "$1" "$2"; }
+  # BusyBox wget (Alpine) has no --show-progress and refuses the download.
+  if wget --help 2>&1 | grep -q -- --show-progress; then
+    bc250_fetch() { wget -q --show-progress -O "$1" "$2"; }
+  else
+    bc250_fetch() { wget -q -O "$1" "$2"; }
+  fi
 else
-  echo "ERROR: curl or wget is required to download HelixSR."; exit 69
+  echo "ERROR: curl or wget is required to download HelixSR. Run Prepare dependencies on the Dashboard, or install curl with the package manager."; exit 69
 fi'''
 
 
 def build_helixsr_install_command() -> str:
     """Download, verify and unpack the picked release, then build the network."""
     release = helixsr_release()
+    if not _supported_layout(release["tag"]):
+        raise ActionNeeded(
+            f"HelixSR {release['tag'].removeprefix('v')} uses a new package layout that this version of "
+            f"Control Center does not install yet. Choose HelixSR {HELIXSR_TAG.removeprefix('v')} in the HelixSR section."
+        )
     root = shlex.quote(str(helixsr_root()))
     target = shlex.quote(str(helixsr_directory()))
     python = shlex.quote(sys.executable or "python3")
@@ -2085,8 +2109,10 @@ os.replace(staged, destination)
 for entry in kept:
     if not entry["draft"]:
         found = sum(1 for a in entry["assets"] if archive.fullmatch(a["name"]))
+        major = entry["tag_name"].lstrip("v").split(".")[0]
         print("  " + entry["tag_name"] + ("  (pre-release)" if entry["prerelease"] else "")
-              + ("" if found == 1 else "  (no single HelixSR archive: not offered)"))
+              + ("" if found == 1 else "  (no single HelixSR archive: not offered)")
+              + ("  (new package layout: not offered by this version)" if major.isdigit() and int(major) > {SUPPORTED_MAJOR} else ""))
 BC250_RELEASES
 echo "OK: the version list is up to date. Pick a version in the HelixSR section, then Install or Update."
 '''

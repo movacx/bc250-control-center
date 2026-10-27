@@ -1,11 +1,10 @@
-"""The full system state a problem report carries after its own answer.
+"""The diagnosis a problem report carries, one attachment per section.
 
-Google Forms refuses a response body over about 32 KB, so the report itself
-keeps a bounded diagnosis. What did not fit, and what the first week of
-reports showed was missing (the end of a long workflow, the unfiltered kernel
-log, why a service exits, what fills SteamOS's /var, the config a governor
-started from), goes in "attachments": further responses of the same form,
-tied to the report by its Report ID.
+The hardware diagnosis (``system_diagnostics``) and the system state read
+here (the unfiltered kernel log, why a service exits, what fills SteamOS's
+/var, the config a governor started from, the last workflow logs) are joined
+into one list. A section both could read is taken once, from the one that
+reads more of it.
 
 Read-only and without privileges, like ``system_diagnostics``: nothing here
 writes, asks for a password or reads a file outside the system and this
@@ -42,7 +41,17 @@ _GENERIC_HOSTS = frozenset({
     "localhost", "bazzite", "steamdeck", "fedora", "cachyos", "cachyos-x8664",
     "archlinux", "ubuntu", "debian", "manjaro", "bc250", "bc-250", "linux",
 })
-_IPV4 = re.compile(r"\b(?!127\.0\.0\.1\b)(?:\d{1,3}\.){3}\d{1,3}\b")
+_OCTET = r"(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)"
+#: Not glued to a hyphen, letter, colon or dot: a package version such as
+#: "2.4.11.1-1" or "1:2.0.0.1" is four numbers too, and was sent as "<ip>-1".
+_IPV4 = re.compile(rf"(?<![\w.:-])(?!127\.0\.0\.1\b)(?:{_OCTET}\.){{3}}{_OCTET}(?![\w.-])")
+#: Account names that say nothing about the person and are also words of
+#: this app's own paths: with the account "bc250", every "bc250" of a report
+#: (bc250-control-center, /tmp/bc250-helixsr) became "<user>".
+_GENERIC_USERS = frozenset({
+    "root", "deck", "bazzite", "bc250", "bc-250", "steam", "user", "gamer", "admin", "linux",
+    "guest", "player", "ubuntu", "fedora", "arch", "cachyos", "manjaro", "debian",
+})
 _MAC = re.compile(r"\b(?:[0-9a-f]{2}:){5}[0-9a-f]{2}\b", re.I)
 
 
@@ -60,7 +69,7 @@ def redact_machine(text: object) -> str:
         user = getpass.getuser().strip()
     except Exception:  # noqa: BLE001 - no name to remove
         user = ""
-    if len(user) >= 3 and user not in {"root", "deck", "bazzite"}:
+    if len(user) >= 3 and user.lower() not in _GENERIC_USERS:
         text = re.sub(rf"(?<![\w]){re.escape(user)}(?![\w])", "<user>", text)
     text = _IPV4.sub("<ip>", text)
     return _MAC.sub("<mac>", text)
@@ -193,7 +202,9 @@ def _workflow_logs() -> str:
     logs = sorted(diag.workflow_log_directory().glob("workflow-*.log"), key=_mtime, reverse=True)[:3]
     blocks = []
     for path in logs:
-        tail = diag._ANSI.sub("", diag._read(path, 400_000)).splitlines()[-150:]
+        from bc250cc.infrastructure.problem_report import clean_log
+
+        tail = clean_log(diag._ANSI.sub("", diag._read(path, 400_000))).splitlines()[-150:]
         blocks.append(f"[{path.name}]\n" + "\n".join(tail))
     return "\n\n".join(blocks) or "(no workflow has been run from the app yet)"
 
@@ -212,6 +223,53 @@ def _packages_full() -> str:
     return text
 
 
+#: Lines of the application's own log a report carries: the end, where the
+#: failure is.
+APP_LOG_LINES = 400
+
+
+def _application_log() -> str:
+    from bc250cc.shared.logging_config import log_path
+
+    path = log_path()
+    text = diag._read(f"{path}.1", 200_000) + diag._read(path, 400_000)
+    lines = text.splitlines()[-APP_LOG_LINES:]
+    return "\n".join(lines) or "(the application has not logged anything yet)"
+
+
+def _settings() -> str:
+    """The app's own settings: fan curve, governor, alerts, daemon intervals,
+    interface. Nothing personal is kept there; the report redacts it anyway."""
+    import json
+
+    config = Path.home() / ".config/bc250-control-center"
+    blocks = []
+    raw = diag._read(config / "config.json", 40_000)
+    if raw.strip():
+        try:
+            raw = json.dumps(json.loads(raw), indent=1, sort_keys=True)
+        except ValueError:
+            pass
+        blocks.append(f"[config.json]\n{raw.strip()}")
+    ui = diag._read(config / "ui.conf", 20_000)
+    if ui.strip():
+        blocks.append(f"[ui.conf]\n{ui.strip()}")
+    return "\n\n".join(blocks) or "(no settings saved yet)"
+
+
+def _helper_logs() -> str:
+    """What the protected helpers refused, in their own words (SteamOS)."""
+    from bc250cc.shared.paths import state_root
+
+    folder = state_root() / "bc250-control-center"
+    blocks = []
+    for path in sorted(folder.glob("*-helper.log")):
+        tail = diag._read(path, 200_000).splitlines()[-80:]
+        if tail:
+            blocks.append(f"[{path.name}]\n" + "\n".join(tail))
+    return "\n\n".join(blocks) or "(no helper log)"
+
+
 STATE_SECTIONS = (
     ("Boot and deployments", _boot),
     ("GPU device", _gpu_device),
@@ -222,6 +280,9 @@ STATE_SECTIONS = (
     ("Control Center files and tools", _application_files),
     ("Packages", _packages_full),
     ("Last workflow logs", _workflow_logs),
+    ("Application log", _application_log),
+    ("Control Center settings", _settings),
+    ("Helper logs", _helper_logs),
 )
 
 
@@ -241,13 +302,32 @@ def collect_system_state(sections=STATE_SECTIONS) -> str:
     return redact_machine("\n\n".join(parts))
 
 
-def collect_attachments() -> list[tuple[str, str]]:
-    """(name, text) of every attachment the app gathers by itself."""
-    full = diag.collect_diagnostics(
-        section_limit=FULL_SECTION_LIMIT, log_limit=FULL_LOG_LIMIT, total_limit=FULL_TOTAL_LIMIT,
-        fresh=False,
-    )
+#: Hardware sections the system state reads more fully.
+_COVERED_BY_STATE = {"Last workflow log", "Packages", "Storage", "Control Center files"}
+_HEADING = re.compile(r"^== (.+?) ==$", re.M)
+
+
+def split_sections(text: str) -> list[tuple[str, str]]:
+    """(title, body) of every ``== title ==`` section of a diagnosis."""
+    parts = _HEADING.split(text)
     return [
-        ("Hardware diagnosis (full)", redact_machine(full)),
-        ("System state", collect_system_state()),
+        (parts[index].strip(), parts[index + 1].strip() or "—")
+        for index in range(1, len(parts) - 1, 2)
     ]
+
+
+def collect_attachments() -> list[tuple[str, str]]:
+    """(section title, text) of every part of the diagnosis, each once."""
+    hardware = [item for item in diag.SECTIONS if item[0] not in _COVERED_BY_STATE]
+    full = diag.collect_diagnostics(
+        hardware, section_limit=FULL_SECTION_LIMIT, log_limit=FULL_LOG_LIMIT, total_limit=FULL_TOTAL_LIMIT,
+    )
+    sections = split_sections(redact_machine(full)) + split_sections(collect_system_state())
+    seen: set[str] = set()
+    unique = []
+    for title, body in sections:
+        if title.lower() in seen:
+            continue
+        seen.add(title.lower())
+        unique.append((title, body))
+    return unique

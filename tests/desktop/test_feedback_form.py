@@ -1,55 +1,36 @@
-"""The problem report form, answered and sent from inside the app.
+"""The problem report: the form, the document it becomes, and how it is sent.
 
-The answers go to the maintainer's Google Form exactly as the browser would
-send them, after checking the live form still asks the same questions. When it
-does not, or Google cannot be reached, nothing written is lost: the browser
-takes over with the short answers filled in and the long ones on the clipboard.
+The document goes to the maintainer's report service in one request. These
+tests hold the parts that matter for whoever reads a report: every fact has
+one place, what the app detected is never asked again, an "Other" answer is
+typed, and a report that cannot be sent is kept on disk.
 """
 
 from __future__ import annotations
 
 import json
-import urllib.parse
+import threading
+from datetime import datetime, timezone
+from types import SimpleNamespace
 
 import pytest
-from PyQt6.QtWidgets import QApplication
 
-from bc250cc.infrastructure import feedback_form as form
+from bc250cc.infrastructure import problem_report as form
+from bc250cc.infrastructure import report_attachments
 from frontends.desktop.components.feedback_dialog import FeedbackDialog
 
-ALL_ENTRIES = [value for name, value in vars(form).items() if name.startswith("ENTRY_")]
-OPEN_CHOICES = {form.ENTRY_AREA, form.ENTRY_SEEN, form.ENTRY_DISTRIBUTION, form.ENTRY_OTHER_TOOLS}
-CHOICES = {
-    form.ENTRY_KIND: (form.KIND_PROBLEM, form.KIND_IDEA),
-    form.ENTRY_AREA: form.AREAS,
-    form.ENTRY_SEEN: form.SEEN,
-    form.ENTRY_FREQUENCY: form.FREQUENCIES,
-    form.ENTRY_WORKED_BEFORE: form.WORKED_BEFORE,
-    form.ENTRY_DISTRIBUTION: form.DISTRIBUTIONS,
-    form.ENTRY_INSTALL: form.INSTALLS,
-    form.ENTRY_BIOS: form.BIOSES,
-    form.ENTRY_CORES: form.CORES,
-    form.ENTRY_CUS: form.CUS,
-    form.ENTRY_OTHER_TOOLS: form.OTHER_TOOLS,
+FACTS = {
+    "system": {"Operating system": "Manjaro Linux", "Kernel": "7.1.13", "Session": "KDE · wayland"},
+    "os_release": {"ID": "manjaro", "ID_LIKE": "arch"},
+    "firmware": {"version": "P3.00", "date": "12/09/2021", "variant": "MeiMeiDXE v3"},
+    "history": [],
+    "attachments": [("Modules", "nct6687  61440  0"), ("Storage", "/dev/nvme0n1p2 ext4 50%")],
+    "version": "1.21.3",
+    "install": form.INSTALLS[2],
+    "distribution": "Manjaro",
+    "bios": "MeiMeiDXE v3",
+    "cores": form.CORES[0],
 }
-
-
-def form_page(entries=ALL_ENTRIES, token="-123") -> str:
-    """A viewform page shaped like Google's: questions in FB_PUBLIC_LOAD_DATA_."""
-    items = []
-    for entry in entries:
-        choices = [[label, None, None] for label in CHOICES.get(entry, ())]
-        if entry in OPEN_CHOICES:
-            choices.append([None, None, None, None, 1])
-        items.append([entry + 7, f"Q{entry}", None, 2 if choices else 0, [[entry, choices or None, 0]]])
-    data = [None, [None, items]]
-    return (
-        f'<form><input name="fbzx" value="{token}"></form>'
-        f"<script>var FB_PUBLIC_LOAD_DATA_ = {json.dumps(data)};</script>"
-    )
-
-
-CONFIRMED = '<div class="freebirdFormviewerViewResponseConfirmationMessage">Recorded</div>'
 
 
 @pytest.fixture(autouse=True)
@@ -57,333 +38,323 @@ def fresh_rate_limit(monkeypatch):
     monkeypatch.setattr(form, "_last_sent", 0.0)
 
 
-def _problem(**extra) -> form.FeedbackReport:
-    values = {"summary": "GPU governor stops", "area": form.AREAS[2], "distribution": "Manjaro Linux"}
-    values.update(extra)
-    return form.FeedbackReport(**values)
+def _entry(at, code, title, detail="", raw="", source="window"):
+    return SimpleNamespace(at=at, code=code, title=title, detail=detail, raw=raw, source=source)
 
 
-def test_the_live_form_is_read_with_its_choices_and_session_token():
-    shape = form.parse_form(form_page())
-    assert set(ALL_ENTRIES) <= set(shape.questions)
-    labels, has_other = shape.questions[form.ENTRY_AREA]
-    assert labels == frozenset(form.AREAS) and has_other
-    assert shape.token == "-123"
+def _dialog(qtbot, facts=None, **kwargs):
+    facts = dict(FACTS if facts is None else facts)
+    kwargs.setdefault("needs_password", lambda: False)
+    dialog = FeedbackDialog(read_report=lambda: facts, **kwargs)
+    qtbot.addWidget(dialog)
+    qtbot.waitUntil(lambda: bool(dialog._facts))
+    return dialog
 
 
-def test_a_choice_the_form_does_not_list_goes_into_its_other_box():
-    fields = dict(form.form_fields(_problem(), form.parse_form(form_page())))
-    assert fields[f"entry.{form.ENTRY_DISTRIBUTION}"] == form.OTHER
-    assert fields[f"entry.{form.ENTRY_DISTRIBUTION}.other_option_response"] == "Manjaro Linux"
-    assert fields[f"entry.{form.ENTRY_AREA}"] == form.AREAS[2]
-    assert fields["pageHistory"] == form.PAGES_PROBLEM
-    assert fields["fbzx"] == "-123"
+# --- The document -------------------------------------------------------------------
 
 
-def test_an_idea_walks_only_the_first_and_last_pages():
-    report = form.FeedbackReport(kind=form.KIND_IDEA, ideas="A dark theme for the charts", contact="@me")
-    fields = form.form_fields(report, form.parse_form(form_page()))
-    names = {name for name, _value in fields}
-    assert dict(fields)["pageHistory"] == form.PAGES_IDEA
-    assert f"entry.{form.ENTRY_SUMMARY}" not in names
-    assert dict(fields)[f"entry.{form.ENTRY_IDEAS}"] == "A dark theme for the charts"
+def test_every_fact_has_one_place_in_the_document():
+    report = form.Report(
+        summary="Fans stop", version="1.21.3",
+        system={"Operating system": "Fedora Linux 44", "Kernel": "7.1"},
+        firmware={"version": "P3.00", "variant": "MeiMeiDXE v3"},
+        distribution="Fedora", bios="MeiMeiDXE v3",
+        error=form.ErrorEvidence(code="BC250-FAN-001", raw="RuntimeError: no pwm"),
+        attachments=[("Modules", "nct6687")],
+    )
+    document = form.payload(report, now=datetime(2026, 10, 27, tzinfo=timezone.utc))
+    assert document["schema"] == form.SCHEMA and document["id"] == report.id
+    assert document["app"]["version"] == "1.21.3"
+    assert document["system"]["Operating system"] == "Fedora Linux 44"
+    assert document["firmware"]["variant"] == "MeiMeiDXE v3"
+    assert document["owner"] == {"distribution": "Fedora", "bios": "MeiMeiDXE v3"}
+    assert document["error"] == {"code": "BC250-FAN-001", "raw": "RuntimeError: no pwm"}
+    assert document["attachments"] == [{"name": "Modules", "text": "nct6687"}]
+    # Nothing empty is sent: no blank workflow, no blank history.
+    assert "workflow" not in document and "history" not in document
 
 
-def test_a_question_the_form_lost_stops_the_send_instead_of_misfiling_it():
-    shape = form.parse_form(form_page([entry for entry in ALL_ENTRIES if entry != form.ENTRY_SUMMARY]))
-    with pytest.raises(form.FeedbackError) as caught:
-        form.form_fields(_problem(), shape)
-    assert caught.value.fallback
+def test_an_idea_carries_only_the_idea():
+    document = form.payload(form.Report(kind=form.KIND_IDEA, notes="Dark mode for the LCD\nmore", contact="@me"))
+    assert document["idea"] == "Dark mode for the LCD\nmore"
+    assert document["summary"] == "Dark mode for the LCD"
+    assert not {"problem", "error", "system", "attachments"} & document.keys()
 
 
-def test_long_answers_are_bounded():
-    fields = dict(form.form_fields(_problem(terminal="x" * 50000), form.parse_form(form_page())))
-    assert len(fields[f"entry.{form.ENTRY_TERMINAL}"]) == form.MAX_LONG_TEXT
+def test_a_long_log_keeps_its_end_where_it_failed():
+    log = "step\n" * 60000 + "ERROR: the real failure"
+    document = form.payload(form.Report(summary="x", workflow_title="Prepare", workflow_log=log))
+    assert len(document["workflow"]["log"]) <= form.MAX_LONG_TEXT
+    assert document["workflow"]["log"].endswith("ERROR: the real failure")
 
 
-def test_a_long_terminal_output_keeps_its_end():
-    # Four reports from long workflows arrived with the banner and credits
-    # but without the line that said what failed.
-    terminal = "== banner ==\n" + "noise\n" * 6000 + "ERROR: what really failed"
-    fields = dict(form.form_fields(_problem(terminal=terminal), form.parse_form(form_page())))
-    sent = fields[f"entry.{form.ENTRY_TERMINAL}"]
-    assert sent.endswith("ERROR: what really failed")
-    assert len(sent) == form.MAX_LONG_TEXT
+def test_the_machine_name_account_and_addresses_stay_home(monkeypatch):
+    monkeypatch.setattr(report_attachments.socket, "gethostname", lambda: "alices-pc.fritz.box")
+    monkeypatch.setattr(report_attachments.getpass, "getuser", lambda: "alice")
+    report = form.Report(
+        summary="x",
+        workflow_log="Linux alices-pc.fritz.box 7.2.9\n[sudo] password for alice:\ninet 192.168.1.20 ether aa:bb:cc:dd:ee:ff",
+        attachments=[("Kernel", "/home/alice/.local/share/app 127.0.0.1")],
+    )
+    text = json.dumps(form.payload(report))
+    for secret in ("alices-pc", "alice", "192.168.1.20", "aa:bb:cc"):
+        assert secret not in text
+    assert "127.0.0.1" in text
 
 
-def test_submit_posts_to_the_form_and_needs_googles_confirmation():
-    requests = []
-
-    def fetch(request):
-        requests.append(request)
-        return form_page() if request.data is None else CONFIRMED
-
-    form.submit(_problem(), fetch=fetch, clock=lambda: 1000.0)
-    post = requests[1]
-    assert post.full_url.startswith(form.RESPONSE_URL) and post.get_method() == "POST"
-    body = urllib.parse.parse_qs(post.data.decode())
-    assert body[f"entry.{form.ENTRY_SUMMARY}"] == ["GPU governor stops"]
-    assert all(r.full_url.startswith("https://docs.google.com/") for r in requests)
+def test_a_default_host_name_keeps_the_distribution_name(monkeypatch):
+    monkeypatch.setattr(report_attachments.socket, "gethostname", lambda: "bazzite")
+    assert report_attachments.redact_machine("Bazzite on bazzite") == "Bazzite on bazzite"
 
 
-def test_a_redrawn_form_means_the_answers_were_refused():
-    def fetch(request):
-        return form_page()
+def test_the_current_error_is_not_repeated_in_the_history():
+    entries = [
+        _entry(30, "BC250-GPU-001", "Could not update Cyan", raw="RuntimeError: kernel"),
+        _entry(20, "BC250-FAN-001", "Fan PWM failed", detail="pwm1 missing"),
+        _entry(19, "BC250-FAN-001", "Fan PWM failed", detail="pwm1 missing"),
+        _entry(10, "BC250-NET-001", "Update failed", detail="x" * 900),
+    ]
+    items = form.history_items(entries, exclude_raw="RuntimeError: kernel")
+    assert [item["code"] for item in items] == ["BC250-FAN-001", "BC250-NET-001"]
+    assert len(items[1]["detail"]) <= 300
 
-    with pytest.raises(form.FeedbackError, match="did not confirm"):
-        form.submit(_problem(), fetch=fetch, clock=lambda: 1000.0)
+
+def test_workflow_logs_lose_terminal_strings_and_the_credits():
+    log = (
+        "== Third-party credits ==\nExplicit workflows use upstream projects.\n- cyan: https://x\n- oberon: https://y\n"
+        "[INFO] Installing\n\x1b]777;bc250-log-sync\x07ERROR: failed"
+    )
+    assert form.clean_log(log) == "[INFO] Installing\nERROR: failed"
+
+
+# --- Sending ------------------------------------------------------------------------
+
+
+def test_submit_posts_the_document_once_and_returns_its_id():
+    posted = []
+    report = form.Report(summary="Fans stop")
+    assert form.submit(report, post=posted.append) == report.id
+    assert len(posted) == 1 and posted[0]["id"] == report.id
+
+
+def test_a_report_the_service_did_not_take_is_saved_on_disk(tmp_path):
+    def refuse(_document):
+        raise form.ReportError("The report service could not be reached. Check the internet connection.")
+
+    report = form.Report(summary="Fans stop")
+    with pytest.raises(form.ReportError) as raised:
+        form.submit(report, post=refuse, save=lambda document: form.save_copy(document, tmp_path))
+    assert raised.value.saved == tmp_path / f"{report.id}.json"
+    assert json.loads(raised.value.saved.read_text())["summary"] == "Fans stop"
 
 
 def test_a_second_press_right_after_does_not_send_twice():
-    def fetch(request):
-        return form_page() if request.data is None else CONFIRMED
-
-    form.submit(_problem(), fetch=fetch, clock=lambda: 1000.0)
-    with pytest.raises(form.FeedbackError) as caught:
-        form.submit(_problem(), fetch=fetch, clock=lambda: 1005.0)
-    assert not caught.value.fallback
+    posted = []
+    form.submit(form.Report(summary="a"), post=posted.append, clock=lambda: 100.0)
+    with pytest.raises(form.ReportError):
+        form.submit(form.Report(summary="b"), post=posted.append, clock=lambda: 110.0)
+    assert len(posted) == 1
 
 
 def test_the_required_answer_is_checked_before_anything_is_sent():
-    def fetch(request):  # pragma: no cover - must not be reached
-        raise AssertionError("sent without a summary")
+    posted = []
+    with pytest.raises(form.ReportError):
+        form.submit(form.Report(summary="  "), post=posted.append)
+    assert not posted
 
-    with pytest.raises(form.FeedbackError):
-        form.submit(form.FeedbackReport(summary="  "), fetch=fetch)
+
+def test_the_service_answer_must_name_the_same_report(monkeypatch):
+    class Answer:
+        status = 200
+
+        def __init__(self, body):
+            self.body = body
+
+        def read(self, _limit):
+            return json.dumps(self.body).encode()
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+    monkeypatch.setattr(form.urllib.request, "urlopen", lambda *_a, **_k: Answer({"ok": True, "id": "R-00000000"}))
+    with pytest.raises(form.ReportError):
+        form.post_report({"id": "R-12345678"})
+    monkeypatch.setattr(form.urllib.request, "urlopen", lambda *_a, **_k: Answer({"ok": True, "id": "R-12345678"}))
+    form.post_report({"id": "R-12345678"})
 
 
-def test_the_browser_fallback_carries_the_short_answers_only():
-    url = form.prefill_url(_problem(steps="1. open\n2. press", diagnostics="big report"))
-    query = urllib.parse.parse_qs(urllib.parse.urlparse(url).query)
-    assert query[f"entry.{form.ENTRY_SUMMARY}"] == ["GPU governor stops"]
-    assert query[f"entry.{form.ENTRY_DISTRIBUTION}"] == [form.OTHER]
-    assert f"entry.{form.ENTRY_STEPS}" not in query and f"entry.{form.ENTRY_DIAGNOSTICS}" not in query
+# --- What the app already knows -------------------------------------------------------
 
 
 @pytest.mark.parametrize(
     ("release", "expected"),
     (
         ({"ID": "bazzite", "ID_LIKE": "fedora"}, "Bazzite"),
+        ({"ID": "fedora", "VARIANT_ID": "nobara"}, "Nobara"),
+        ({"ID": "manjaro", "ID_LIKE": "arch"}, "Manjaro"),
         ({"ID": "arch"}, "Arch Linux"),
-        ({"ID": "cachyos", "ID_LIKE": "arch"}, "CachyOS"),
-        ({"ID": "manjaro", "ID_LIKE": "arch", "PRETTY_NAME": "Manjaro Linux"}, "Manjaro Linux"),
+        ({"ID": "fedora", "PRETTY_NAME": "Fedora Linux 44"}, "Fedora"),
+        # A derivative not listed answers with its own name, under "Other".
+        ({"ID": "pop", "ID_LIKE": "ubuntu debian", "PRETTY_NAME": "Pop!_OS 24.04 LTS"}, "Pop!_OS 24.04 LTS"),
     ),
 )
 def test_the_distribution_is_answered_from_os_release(release, expected):
     assert form.suggested_distribution(release) == expected
 
 
+def test_the_bios_variant_read_from_the_board_is_the_answer():
+    assert form.suggested_bios("MeiMeiDXE v3") == "MeiMeiDXE v3"
+    assert form.suggested_bios("ASRock") == "Stock BIOS"
+    # DMI cannot tell the P3.00 images apart: the owner answers.
+    assert form.suggested_bios("") == ""
+
+
 def test_the_installation_row_maps_to_the_forms_choice():
-    assert form.suggested_install("Source checkout") == form.INSTALLS[2]
     assert form.suggested_install("Package (pacman: bc250-control-center)") == form.INSTALLS[0]
-    assert form.suggested_install("install-local.sh (/home/a/.local)") == form.INSTALLS[1]
+    assert form.suggested_install("Source checkout") == form.INSTALLS[2]
 
 
-def _dialog(qtbot, **kwargs):
-    facts = {"report": "BC250 diagnostic report", "specs": "Kernel  7.1.13\nBIOS    P3.00",
-             "recent": "2026-10-20 22:41:03 · BC250-UPSCALE-001 · window · HelixSR\n  What happened: x",
-             "hardware": "== Modules ==\nnct6687  61440  0", "session": "KDE · wayland", "version": "1.21.2", "install": form.INSTALLS[2],
-             "distribution": "Manjaro Linux", "cores": form.CORES[0]}
-    dialog = FeedbackDialog(read_report=lambda: facts, **kwargs)
-    qtbot.addWidget(dialog)
-    qtbot.waitUntil(lambda: bool(dialog._diagnostics))
-    return dialog
+def test_the_diagnosis_is_one_attachment_per_section_and_none_twice(monkeypatch):
+    monkeypatch.setattr(
+        report_attachments.diag, "collect_diagnostics",
+        lambda sections, **_kwargs: "\n\n".join(f"== {title} ==\nhw {title}" for title, _read in sections),
+    )
+    monkeypatch.setattr(
+        report_attachments, "collect_system_state",
+        lambda: "== Storage ==\nstate storage\n\n== Kernel ==\nduplicate\n\n== Packages ==\nstate packages",
+    )
+    titles = [title for title, _text in report_attachments.collect_attachments()]
+    assert len(titles) == len({title.lower() for title in titles})
+    assert "Storage" in titles and "Packages" in titles
+    assert dict(report_attachments.collect_attachments())["Storage"] == "state storage"
 
 
-def test_an_error_window_opens_the_form_already_filled(qtbot):
+# --- The dialog ---------------------------------------------------------------------
+
+
+def test_an_error_window_opens_the_form_already_filled_and_explained(qtbot):
     dialog = _dialog(
-        qtbot, code="BC250-UPSCALE-001", summary="HelixSR could not be installed",
-        context="HelixSR", area_hint="UPS", reference="BC250-UPSCALE-001 @ GPU-0142",
-        where="Origin: GPU-0142 · gpu_governor.py:812 · Page.run\nRaised in: UPS-0181 · helixsr.py:640 · install",
-        raw="Traceback (most recent call last):\nRuntimeError: bridge failed",
+        qtbot, code="BC250-GPU-001", summary="Could not update Cyan compatibility settings",
+        context="GPU governor", area_hint="GPU", reference="BC250-GPU-001 @ GPU-0172",
+        where="Origin: GPU-0172 · gpu_governor_state.py:1053 · report_failure",
+        raw="Traceback (most recent call last):\nRuntimeError: gpu-usage.method=kernel was requested",
     )
     report = dialog.report()
-    assert report.code == "BC250-UPSCALE-001"
-    assert report.area == "FSR4 / OptiScaler"
+    assert report.area == "GPU governor (Cyan)"
     assert form.SEEN[0] in report.seen
-    assert report.install == form.INSTALLS[2] and report.cores == form.CORES[0]
-    assert report.distribution == "Manjaro Linux"
-    # The automatic page: one answer per column, none of it typed.
-    assert report.reference == "BC250-UPSCALE-001 @ GPU-0142"
-    assert "Raised in: UPS-0181" in report.where
-    assert report.raw.endswith("RuntimeError: bridge failed")
-    assert report.specs.startswith("Kernel") and "BC250-UPSCALE-001" in report.recent_errors
-    assert "Opened from: Error window" in report.details and "Interface language:" in report.details
-    assert report.diagnostics == "" and report.terminal == ""
-    fields = dict(form.form_fields(report, form.parse_form(form_page())))
-    assert fields[f"entry.{form.ENTRY_RAW}"].endswith("bridge failed")
-    assert fields[f"entry.{form.ENTRY_SPECS}"].startswith("Kernel")
-    assert "nct6687" in fields[f"entry.{form.ENTRY_HARDWARE}"]
+    assert report.error.code == "BC250-GPU-001"
+    assert report.error.what and report.error.fix
+    assert report.error.raw.endswith("was requested")
+    assert report.distribution == "Manjaro" and report.bios == "MeiMeiDXE v3"
+    assert report.firmware["date"] == "12/09/2021"
 
 
-def test_the_preview_is_exactly_what_the_automatic_page_sends(qtbot):
-    dialog = _dialog(qtbot, summary="x", reference="BC250-FAN-001 @ FAN-0007")
-    text = dialog.preview_text()
-    for heading in ("Error reference", "Where it happened", "Raw error", "System specifications",
-                    "Recent errors", "Report details", "Hardware diagnostics"):
-        assert f"== {heading} ==" in text
-    assert "BC250-FAN-001 @ FAN-0007" in text and "Kernel  7.1.13" in text
+def test_the_detected_system_is_shown_under_the_answers(qtbot):
+    dialog = _dialog(qtbot)
+    assert "Manjaro Linux" in dialog.distribution_detected.text()
+    assert "MeiMeiDXE v3" in dialog.bios_detected.text()
 
 
-def test_the_route_through_the_pages_is_read_from_the_live_form():
-    items = [
-        [1, "Kind", None, 2, [[form.ENTRY_KIND, [[form.KIND_PROBLEM, None, 10], [form.KIND_IDEA, None, 40]], 1]]],
-        [10, "The problem", None, 8],
-        [11, "What went wrong?", None, 0, [[form.ENTRY_SUMMARY, None, 1]]],
-        [20, "Your system", None, 8],
-        [30, "Automatic report", None, 8],
-        [40, "Contact and ideas", None, 8],
-        [41, "Ideas", None, 1, [[form.ENTRY_IDEAS]]],
-    ]
-    page = f"<script>var FB_PUBLIC_LOAD_DATA_ = {json.dumps([None, [None, items]])};</script>"
-    shape = form.parse_form(page)
-    assert shape.problem_pages == "0,1,2,3,4"
-    assert shape.idea_pages == "0,4"
+def test_a_distribution_not_listed_is_typed_under_other(qtbot):
+    facts = dict(FACTS, distribution="Pop!_OS 24.04 LTS")
+    dialog = _dialog(qtbot, facts)
+    assert dialog.distribution.choice.value() == form.OTHER
+    assert not dialog.distribution.other.isHidden()
+    assert dialog.report().distribution == "Pop!_OS 24.04 LTS"
+
+
+def test_choosing_other_opens_a_box_for_the_answer(qtbot):
+    dialog = _dialog(qtbot, dict(FACTS, bios=""))
+    assert dialog.bios.other.isHidden()
+    dialog.bios.choice.set_value(form.OTHER)
+    assert not dialog.bios.other.isHidden()
+    dialog.bios.other.setText("P5.00 with my own mod")
+    assert dialog.report().bios == "P5.00 with my own mod"
+
+
+def test_a_terminal_report_carries_the_workflow_log(qtbot):
+    dialog = _dialog(qtbot, summary="Update failed", terminal="sha256sum: FAILED\nDiagnostic code: BC250-NET-001",
+                     code="BC250-NET-001", opened_from="Terminal")
+    report = dialog.report()
+    assert form.SEEN[1] in report.seen and form.SEEN[0] not in report.seen
+    assert report.workflow_title == "Update failed"
+    assert report.workflow_log.startswith("sha256sum: FAILED")
+    assert report.error.code == "BC250-NET-001" and report.error.what
+
+
+def test_the_preview_is_the_document_that_is_sent(qtbot):
+    dialog = _dialog(qtbot, summary="Fans stop")
+    document = json.loads(dialog.preview_text())
+    assert document["summary"] == "Fans stop"
+    assert [item["name"] for item in document["attachments"]] == ["Modules", "Storage"]
 
 
 def test_the_automatic_report_can_be_left_out(qtbot):
-    dialog = _dialog(qtbot, summary="x", reference="BC250-FAN-001 @ FAN-0007", raw="ValueError: x")
+    dialog = _dialog(qtbot, summary="x")
     dialog.attach.setChecked(False)
-    report = dialog.report()
-    assert not (report.reference or report.raw or report.specs or report.recent_errors or report.details or report.hardware)
+    document = json.loads(dialog.preview_text())
+    assert not {"system", "firmware", "attachments", "history"} & document.keys()
 
 
 def test_send_without_the_required_answer_points_at_it(qtbot):
     sent = []
     dialog = _dialog(qtbot, submit=sent.append)
-    dialog.summary.clear()
     dialog._send()
-    assert not sent and dialog.status.isVisibleTo(dialog)
+    assert not sent and not dialog.status.isHidden()
 
 
 def test_a_sent_report_shows_the_thanks_page(qtbot):
-    sent = []
-    dialog = _dialog(qtbot, summary="Fans stop", submit=sent.append)
+    dialog = _dialog(qtbot, summary="Fans stop", submit=lambda report: report.id)
     dialog._send()
     qtbot.waitUntil(lambda: dialog.pages.currentIndex() == 2)
-    assert sent[0].summary == "Fans stop"
 
 
-def test_a_failed_send_keeps_the_text_and_offers_the_browser(qtbot, monkeypatch):
-    def fail(_report):
-        raise form.FeedbackError("Google Forms could not be reached. Check the internet connection.")
+def test_a_failed_send_keeps_the_text_and_says_where_the_copy_is(qtbot, monkeypatch, tmp_path):
+    monkeypatch.setattr(form, "saved_directory", lambda: tmp_path)
 
-    opened = []
-    monkeypatch.setattr(
-        "frontends.desktop.components.feedback_dialog.open_external_url",
-        lambda url: (opened.append(url), (True, ""))[1],
-    )
+    def fail(report):
+        form.save_copy(form.payload(report), tmp_path)
+        raise form.ReportError("The report service could not be reached. Check the internet connection.")
+
     dialog = _dialog(qtbot, summary="Fans stop", submit=fail)
-    dialog.steps.setPlainText("1. Open Fans")
     dialog._send()
-    qtbot.waitUntil(lambda: dialog.browser_button.isVisibleTo(dialog))
+    qtbot.waitUntil(lambda: dialog.send_button.isEnabled())
     assert dialog.summary.text() == "Fans stop"
-    dialog.browser_button.click()
-    assert opened and opened[0].startswith(form.FORM_URL)
-    assert "1. Open Fans" in QApplication.clipboard().text()
+    assert str(tmp_path.name) in dialog.status.text() or "~" in dialog.status.text()
 
 
 def test_an_idea_needs_only_the_idea(qtbot):
     sent = []
     dialog = _dialog(qtbot, idea=True, submit=sent.append)
-    dialog.ideas.setPlainText("Per-game fan curves")
+    dialog.ideas.setPlainText("Dark mode for the LCD")
     dialog._send()
     qtbot.waitUntil(lambda: bool(sent))
-    assert sent[0].kind == form.KIND_IDEA and sent[0].ideas == "Per-game fan curves"
-
-
-def test_a_page_that_still_carries_the_form_is_not_a_confirmation():
-    # A rejected answer comes back as the form again, whatever else it holds.
-    assert not form.confirmed(form_page() + '<div class="vHW8K">x</div>')
-    assert form.confirmed(CONFIRMED)
-    assert form.confirmed("<p>Your response has been recorded.</p>")
-    assert not form.confirmed("<html>Something went wrong</html>")
-
-
-def test_the_forms_own_confirmation_message_counts_even_with_the_form_data():
-    # Google now also carries the form data on the "recorded" page, and the
-    # form uses its own confirmation message instead of Google's sentence.
-    shown = '<div class="vHW8K">Thanks, received. I read every one of them. If you left a contact I may write to you.</div>'
-    assert form.confirmed(form_page() + shown)
-    assert form.confirmed(form_page() + "<p>Your response has been recorded.</p>")
-
-
-def test_the_message_inside_the_form_data_is_not_a_confirmation():
-    # The viewform page holds the confirmation message in its scripts; a
-    # rejected answer drawn again must not pass for a stored one.
-    hidden = "<script>var FB_PUBLIC_LOAD_DATA_ = [null,[\"Thanks, received. I read every one of them.\"]];</script>"
-    assert not form.confirmed(form_page() + hidden)
+    assert sent[0].kind == form.KIND_IDEA and sent[0].notes == "Dark mode for the LCD"
 
 
 def test_send_waits_for_the_automatic_report(qtbot):
-    import threading
-
     gate = threading.Event()
-    facts = {"report": "r", "specs": "Kernel 7.1"}
-    dialog = FeedbackDialog(read_report=lambda: (gate.wait(5), facts)[1], summary="x")
+    dialog = FeedbackDialog(read_report=lambda: (gate.wait(5), FACTS)[1], summary="x", needs_password=lambda: False)
     qtbot.addWidget(dialog)
     assert not dialog.send_button.isEnabled()
     gate.set()
     qtbot.waitUntil(dialog.send_button.isEnabled)
-    assert dialog.report().specs == "Kernel 7.1"
+    assert dialog.report().system["Kernel"] == "7.1.13"
 
 
 def test_a_report_on_its_way_cannot_be_cancelled(qtbot):
-    import threading
-
     gate = threading.Event()
     dialog = _dialog(qtbot, summary="Fans stop", submit=lambda report: gate.wait(5))
     dialog._send()
     assert not dialog.cancel_button.isEnabled()
     dialog.reject()
-    assert dialog.isVisible() or dialog.result() == 0
     assert dialog._sending
     gate.set()
     qtbot.waitUntil(lambda: dialog.pages.currentIndex() == 2)
-
-
-def test_the_browser_fallback_clipboard_has_no_home_folder(qtbot, monkeypatch):
-    monkeypatch.setattr(
-        "frontends.desktop.components.feedback_dialog.open_external_url", lambda url: (True, ""),
-    )
-    dialog = _dialog(qtbot, summary="x")
-    dialog.terminal.setPlainText("Traceback in /home/alice/projects/app.py")
-    dialog._open_in_browser()
-    assert "alice" not in QApplication.clipboard().text()
-
-
-def test_a_report_too_big_for_google_is_cut_to_fit_least_important_first():
-    # Google answers 413 over ~32 KB; fifteen tracebacks and the hardware
-    # diagnosis together went over it and the report was never stored.
-    shape = form.parse_form(form_page())
-    trace = '  File "bc250cc/infrastructure/gpu_repository.py", line 921, in _editar_governor_toml\n'
-    report = _problem(recent_errors=trace * 300, hardware="== Kernel ==\nLinux 7.1\n" + "x" * 25000,
-                      raw="Traceback\n" + "y" * 5000 + "\nRuntimeError: the real cause")
-    fitted = form.fit_report(report, shape)
-    body = urllib.parse.urlencode(form.form_fields(fitted, shape)).encode()
-    assert len(body) <= form.MAX_POST_BYTES
-    assert fitted.recent_errors.endswith(form.CUT_NOTE)
-    assert fitted.summary == report.summary
-    assert fitted.raw.endswith("RuntimeError: the real cause")
-
-
-def test_a_report_that_fits_is_sent_untouched():
-    shape = form.parse_form(form_page())
-    report = _problem(hardware="== Kernel ==\nLinux 7.1")
-    assert form.fit_report(report, shape) == report
-
-
-def test_submit_never_posts_more_than_google_accepts():
-    posted = []
-
-    def fetch(request):
-        if request.data:
-            posted.append(len(request.data))
-            return CONFIRMED
-        return form_page()
-
-    form.submit(_problem(recent_errors="z" * 20000, hardware="h" * 32000, specs="s" * 20000), fetch=fetch)
-    assert posted and posted[0] <= form.MAX_POST_BYTES
 
 
 def test_the_password_note_shows_only_when_polkit_will_ask(qtbot):
@@ -393,11 +364,34 @@ def test_the_password_note_shows_only_when_polkit_will_ask(qtbot):
         assert dialog.polkit_note.isHidden() is (not needed)
 
 
-def test_the_terminal_output_outlives_the_hardware_diagnosis():
-    # A report opened from the terminal arrived with its terminal output cut
-    # away while the hardware diagnosis took the room.
-    shape = form.parse_form(form_page())
-    report = _problem(terminal="[ERROR] the real failure\n" * 300, hardware="h" * 32000)
-    fitted = form.fit_report(report, shape)
-    assert "[ERROR] the real failure" in fitted.terminal
-    assert len(fitted.hardware) < len(report.hardware)
+def test_the_area_is_where_it_failed_not_the_page_that_showed_it():
+    shown = SimpleNamespace(section="GPU")
+    # HelixSR runs from the GPU governor page; its failures are upscaling.
+    assert form.AREA_BY_SECTION[form.area_section(SimpleNamespace(section="UPS"), shown)].startswith("Upscaling")
+    # Code every part shares (the terminal launcher) says nothing: the page does.
+    assert form.area_section(SimpleNamespace(section="SYS"), shown) == "GPU"
+    assert form.area_section(None, None) == ""
+
+
+def test_every_section_a_person_would_recognise_has_an_area():
+    from bc250cc.shared.error_origins import SECTIONS
+
+    named = {code for code, _name, _patterns in SECTIONS} - form.GENERIC_SECTIONS - {"SYS"}
+    assert named <= form.AREA_BY_SECTION.keys()
+    assert set(form.AREA_BY_SECTION.values()) <= set(form.AREAS)
+    assert form.suggested_area("HelixSR could not be installed") == "Upscaling (FSR4, HelixSR, OptiScaler)"
+    assert form.suggested_area("BC250 GDDR6 memory temperature failed") == "Telemetry, sensors and performance"
+    assert form.suggested_area("Apply TTM failed") == "Memory (VRAM, TTM, swap)"
+    assert form.suggested_area("Corsair devices (OpenLinkHub) failed") == "Drivers, accessories and TV control"
+
+
+def test_a_terminal_report_takes_its_area_from_the_workflow_name(qtbot):
+    dialog = _dialog(qtbot, summary="Thermalright LCD failed", terminal="nothing provides x", opened_from="Terminal")
+    assert dialog.report().area == "Drivers, accessories and TV control"
+
+
+def test_a_code_from_the_window_rules_is_explained_too(qtbot):
+    dialog = _dialog(qtbot, code="BC250-GPU-007", summary="Could not update Cyan compatibility settings",
+                     reference="BC250-GPU-007 @ GPU-0172", raw="Traceback\nGovernorTomlError: config.toml missing")
+    error = dialog.report().error
+    assert error.what.startswith("Cyan is not installed") and error.fix
