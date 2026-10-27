@@ -35,8 +35,8 @@ RESPONSE_URL = f"https://docs.google.com/forms/d/e/{FORM_ID}/formResponse"
 #: The maintainer's report service (integrations/report-endpoint): the whole
 #: report in one request. Google Forms stays the fallback.
 REPORT_ENDPOINT = "https://bc250-reports.report-endpoint.workers.dev/v1/reports"
-#: Off until the service's address is final and every send path is tested.
-REPORT_ENDPOINT_ENABLED = False
+#: Google Forms takes the report whenever the service cannot.
+REPORT_ENDPOINT_ENABLED = True
 TIMEOUT_S = 15
 MAX_PAGE_BYTES = 2 * 1024 * 1024
 #: Long answers are cut here: a report is read by a person, not archived.
