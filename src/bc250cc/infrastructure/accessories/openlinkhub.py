@@ -169,6 +169,12 @@ def install_command(tool_dir: Path) -> str:
             "' bc250-openlinkhub \"$bc250_user\" \"$bc250_stage/rules\""
         ),
         f'mkdir -p "{UNIT_DIRECTORY}"',
+        # Another toolkit run with sudo can leave the user's unit folder, or
+        # an old copy of this unit, owned by root: the write then failed with
+        # "Permission denied". Both belong to the desktop user.
+        f'if [ ! -w "{UNIT_DIRECTORY}" ]; then sudo chown "$bc250_user": "{UNIT_DIRECTORY}"; fi',
+        f'if [ -e "{UNIT_DIRECTORY}/{SERVICE}" ] && [ ! -w "{UNIT_DIRECTORY}/{SERVICE}" ]; then '
+        f'sudo rm -f "{UNIT_DIRECTORY}/{SERVICE}"; fi',
         f"printf '%s' {shlex.quote(unit_text(folder))} > \"{UNIT_DIRECTORY}/{SERVICE}\"",
         "systemctl --user daemon-reload",
         f"systemctl --user enable {SERVICE}",

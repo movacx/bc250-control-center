@@ -8,6 +8,7 @@ from pathlib import Path
 
 import psutil
 
+from bc250cc.infrastructure.bazzite_deployment import probe_bazzite_reboot_pending
 from bc250cc.infrastructure.core_unlock_persistence import (
     detect_core_unlock_persistence,
 )
@@ -44,6 +45,7 @@ from bc250cc.platform.init.services import (
     parse_openrc_status,
     service_key,
 )
+from bc250cc.shared.errors import ActionNeeded
 
 CORE_UNLOCK_REPOSITORY = EXTERNAL_TOOLS['core_unlock'].upstream
 CORE_UNLOCK_DIRECTORY = 'bc250-core-unlock'
@@ -52,6 +54,16 @@ CORE_UNLOCK_ORIGINS = {
     CORE_UNLOCK_REPOSITORY,
     f'{CORE_UNLOCK_REPOSITORY}.git',
 }
+
+
+def _refuse_stress_waiting_for_reboot() -> None:
+    """On Bazzite, Prepare dependencies layers stress into the next deployment:
+    it is installed, but only exists after a restart. Say that, not "missing"."""
+    if 'stress' in probe_bazzite_reboot_pending().get('packages', ()):
+        raise ActionNeeded(
+            'stress is installed in the Bazzite update that waits for the next boot. '
+            'Restart the PC, then use CPU OC.'
+        )
 
 class CPURepository:
     _CPU_OC_SYSTEM_CONFIG = Path('/etc/bc250-smu-oc.conf')
@@ -841,7 +853,8 @@ class CPURepository:
 
         tools = self.estado_herramientas_bc250()
         if not tools.get('stress'):
-            raise RuntimeError('stress is missing. Press Prepare dependencies or install the stress package before using CPU OC.')
+            _refuse_stress_waiting_for_reboot()
+            raise ActionNeeded('stress is missing. Press Prepare dependencies or install the stress package before using CPU OC.')
         if not tools.get('smu_oc_exists'):
             raise RuntimeError(
                 'The local bc250_smu_oc repository was not found. Use Prepare dependencies first so '
@@ -972,7 +985,8 @@ class CPURepository:
             )
         tools = self.estado_herramientas_bc250()
         if not tools.get('stress'):
-            raise RuntimeError(
+            _refuse_stress_waiting_for_reboot()
+            raise ActionNeeded(
                 'stress is missing. Press Prepare dependencies or install the stress package '
                 'before testing a manual CPU scale.'
             )

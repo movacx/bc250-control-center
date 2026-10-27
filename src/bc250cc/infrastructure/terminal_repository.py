@@ -10,6 +10,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
+from bc250cc.infrastructure.bazzite_deployment import RPM_OSTREE_IDLE_WAIT
 from bc250cc.infrastructure.terminal_plan import (
     terminal_candidates,
     workflow_wrapper,
@@ -167,6 +168,8 @@ class TerminalRepository:
             return None
 
     def _abrir_terminal(self, comando, titulo="BC250 Control Center"):
+        if shutil.which("rpm-ostree"):
+            comando = f"{RPM_OSTREE_IDLE_WAIT}; {comando}"
         state_dir = self._terminal_state_dir()
         run_id = time.time_ns()
         status_path = state_dir / f"status-{run_id}.txt"

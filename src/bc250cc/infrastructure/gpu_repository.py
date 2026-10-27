@@ -59,6 +59,7 @@ from bc250cc.platform.init.services import (
     parse_openrc_status,
     service_key,
 )
+from bc250cc.shared.errors import ActionNeeded
 from bc250cc.shared.failure_text import describe_failure
 
 
@@ -651,7 +652,7 @@ class GPURepository:
         if accion not in {"activar", "desactivar", "reiniciar"}:
             raise ValueError("Invalid governor action.")
         if not self._command_path(str(spec["binary"])):
-            raise RuntimeError(
+            raise ActionNeeded(
                 f"{selected} is not installed. Use Prepare dependencies first."
             )
         conflicts = []
@@ -751,7 +752,17 @@ class GPURepository:
             "done;",
             'if [ "$bc250_cyan_dbus_ready" -ne 1 ]; then',
             f"  journalctl -b -u {service} -n 80 --no-pager || true;",
-            f'  echo "ERROR: {failure_message}";',
+            # A Cyan that exits at once never publishes its name; the cause is
+            # then not D-Bus. Two reports had no GPU driver at all this boot.
+            "  if ! grep -qsx 0x1002 /sys/class/drm/card*/device/vendor; then",
+            '    echo "ERROR: The GPU driver (amdgpu) did not start in this boot, so Cyan has nothing to control. '
+            'Turn the BC-250 off completely, unplug it for a few seconds and start it again.";',
+            f'  elif ! systemctl is-active --quiet {service} || '
+            f'[ "$(systemctl show {service} -p NRestarts --value 2>/dev/null || echo 0)" != 0 ]; then',
+            '    echo "ERROR: Cyan stops right after it starts; its own error is in the log above.";',
+            "  else",
+            f'    echo "ERROR: {failure_message}";',
+            "  fi;",
             "  exit 62;",
             "fi;",
             'echo "OK: Cyan service and D-Bus interface are active.";',
@@ -925,6 +936,44 @@ class GPURepository:
         self.estado_bc250_cache = None
         return (out or "").strip()
 
+    def _refuse_when_cyan_cannot_answer(self) -> None:
+        """Say why Cyan's D-Bus is silent when the reason is one the user fixes.
+
+        Six reports of the first week pressed Apply with Cyan not installed,
+        stopped, or running from a configuration without its D-Bus switch,
+        and got a red "D-Bus range unavailable" error with a code.
+        """
+        binary = str(GOVERNOR_SPECS[CYAN_GOVERNOR]["binary"])
+        if not self._command_path(binary):
+            raise ActionNeeded(
+                "Cyan is not installed. Press Prepare dependencies on the Dashboard, "
+                "then start Cyan from the governor card."
+            )
+        try:
+            import tomllib
+
+            with open(self._cyan_runtime_config_path(), "rb") as handle:
+                dbus = tomllib.load(handle).get("dbus")
+        except Exception:  # noqa: BLE001 - an unreadable TOML has its own errors
+            dbus = {}
+        if not isinstance(dbus, dict) or dbus.get("enabled") is not True:
+            raise ActionNeeded(
+                "Cyan's configuration does not turn on its D-Bus controls ([dbus] enabled = true). "
+                "Press Prepare dependencies on the Dashboard: it adds the missing switch."
+            )
+        try:
+            state = subprocess.run(
+                ["systemctl", "is-active", str(GOVERNOR_SPECS[CYAN_GOVERNOR]["service"])],
+                capture_output=True, text=True, timeout=5, check=False,
+            ).stdout.strip()
+        except (OSError, subprocess.SubprocessError):
+            return
+        if state in {"inactive", "failed"}:
+            raise ActionNeeded(
+                "Cyan is not running. Start it from the governor card, wait a few seconds, "
+                "then apply again."
+            )
+
     def _cyan_dbus_unavailable_detail(self) -> str:
         """Why Cyan's D-Bus did not answer, when this application can tell."""
         try:
@@ -974,6 +1023,7 @@ class GPURepository:
             )
         current = self._leer_rango_governor("Current")
         if current is None or len(current) != 2:
+            self._refuse_when_cyan_cannot_answer()
             raise RuntimeError(
                 "Cyan's active D-Bus range could not be read. Nothing was written."
             )
@@ -1029,6 +1079,7 @@ class GPURepository:
             raise ValueError(f"{reason} Choose {ceiling} MHz or lower.")
         allowed = self._leer_rango_governor("Allowed")
         if allowed is None:
+            self._refuse_when_cyan_cannot_answer()
             raise RuntimeError(
                 "Cyan D-Bus Allowed range is unavailable. Refresh the governor "
                 "status before applying a GPU frequency."
@@ -1317,7 +1368,7 @@ class GPURepository:
         spec = GOVERNOR_SPECS[selected]
         servicio = str(spec["service"])
         if not self._command_path(str(spec["binary"])):
-            raise RuntimeError(
+            raise ActionNeeded(
                 f"{selected} is not installed. Use Prepare dependencies first."
             )
         init_manager = detect_init_manager()
@@ -1924,6 +1975,7 @@ class GPURepository:
         current = self._leer_rango_governor("Current")
         allowed = self._leer_rango_governor("Allowed")
         if allowed is None:
+            self._refuse_when_cyan_cannot_answer()
             raise RuntimeError(
                 "Cyan D-Bus Allowed range is unavailable."
                 + self._cyan_dbus_unavailable_detail()

@@ -754,10 +754,14 @@ class CURepository:
         estado = self.parsear_dashboard_cu(texto, source='live')
         estado['source_kind'] = 'live'
         if not estado.get('available'):
-            raise RuntimeError(
+            reason = (
                 estado.get('parse_error')
                 or 'The 40CU live-manager output did not contain a validated topology table.'
             )
+            # The output that could not be read goes with the error: a report
+            # said only "four rows could not be parsed", not what came instead.
+            raw = '\n'.join(str(texto or '').strip().splitlines()[-40:])
+            raise RuntimeError(f'{reason}\n--- live-manager output ---\n{raw or "(empty)"}')
         tools = self.estado_herramientas_bc250()
         estado['privileged_backend_ready'] = bool(tools.get('cu_privileged_backend_ready'))
         estado['privileged_backend_reason'] = str(tools.get('cu_privileged_backend_reason') or '')

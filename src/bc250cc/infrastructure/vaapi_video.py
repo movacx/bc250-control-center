@@ -599,6 +599,13 @@ def _test() -> str:
         '  echo "== Encoding 1080p60 with $bc250_codec (300 frames) =="',
         f'  ffmpeg -hide_banner -loglevel error -stats -vaapi_device "$bc250_node" -f lavfi -i {sample} '
         "-vf 'format=nv12,hwupload' -c:v \"$bc250_codec\" -b:v 15M -frames:v 300 -y \"$bc250_test/$bc250_codec.mp4\" 2>&1 | tr '\\r' '\\n' | tail -1",
+        # Fedora's ffmpeg-free has no HEVC decoder: the decode then stopped
+        # with "Error opening output files" and failed the whole test.
+        '  bc250_decoder="${bc250_codec%_vaapi}"',
+        '  if ! ffmpeg -hide_banner -decoders 2>/dev/null | grep -qE "^ *V[^ ]* +${bc250_decoder}( |$)"; then',
+        '    echo "[INFO] This ffmpeg has no ${bc250_decoder} decoder (Fedora\'s ffmpeg-free leaves HEVC out): the decode test is skipped. Encoding works."',
+        "    continue",
+        "  fi",
         '  echo "== Decoding it =="',
         '  ffmpeg -hide_banner -loglevel error -stats -hwaccel vaapi -hwaccel_device "$bc250_node" '
         "-i \"$bc250_test/$bc250_codec.mp4\" -f null - 2>&1 | tr '\\r' '\\n' | tail -1",

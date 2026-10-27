@@ -125,7 +125,7 @@ _CODES: tuple[ErrorCode, ...] = (
         # The SMU mailbox gave no answer in time (0x00) or said it was busy
         # (0xFC). The CPU/SMU helper exits 70 for it, which alone reads as a
         # helper version mismatch and sent users to reinstall.
-        markers=('smu returned status 0x00', 'smu returned status 0xFC',
+        markers=('Transaction in progress', "index.lock': File exists", 'Another git process seems to be running', 'smu returned status 0x00', 'smu returned status 0xFC',
                  # The CPU helper exits 44 (a RANGE status) for it.
                  'SMU_IN_USE'),
     ),
@@ -281,7 +281,7 @@ _CODES: tuple[ErrorCode, ...] = (
         "The password dialog was cancelled, closed, timed out, or rejected the supplied password.",
         "Run the action again and finish the administrator password dialog. No hardware change was applied.",
         exit_statuses=(),
-        markers=('QUICK_ACCESS_AUTH',),
+        markers=('sudo: timed out reading password', 'sudo: a password is required', 'Error executing command as another user: Not authorized', 'QUICK_ACCESS_AUTH',),
     ),
     # Quick Access refuses to run at all: not root, no systemd host, or no
     # BC-250 present. All three exit 10, so the marker decides which applies.
@@ -291,7 +291,7 @@ _CODES: tuple[ErrorCode, ...] = (
         "The AMDGPU device is unavailable, the application is running in a container or remote session, or the active kernel did not bind the BC-250 GPU.",
         "Verify that lspci shows 1002:13fe and that AMDGPU is loaded. Restart into the BC250 kernel if the device is present without a driver.",
         exit_statuses=(10, 12, 18, 19),
-        markers=("HARDWARE_CONTEXT", "QUICK_ACCESS_CONTEXT"),
+        markers=('probe with driver amdgpu failed', 'The GPU driver (amdgpu) did not start', 'invalid ip discovery binary signature', "HARDWARE_CONTEXT", "QUICK_ACCESS_CONTEXT"),
     ),
     ErrorCode(
         "BC250-GPU-001",
@@ -372,7 +372,7 @@ _CODES: tuple[ErrorCode, ...] = (
         # Quick Access runs the reviewed GDDR6 patch helper, whose own error
         # (unsupported firmware, governor starting, SMU busy) is the message.
         exit_statuses=(66,),
-        markers=('QUICK_ACCESS_GDDR6',),
+        markers=('per-game install unexpectedly enabled the driver system-wide', 'the reviewed SteamOS kernel backend supports', 'QUICK_ACCESS_GDDR6',),
     ),
     # DryhoppedIPA's install.sh refuses to install over a release. Fedora's
     # Install / update now removes the old release after the build, so this is

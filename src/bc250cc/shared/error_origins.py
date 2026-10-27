@@ -230,10 +230,13 @@ def redact(text: object) -> str:
     home is replaced exactly; any other home path by pattern.
     """
     text = str(text or "")
+    # The pattern first: on Bazzite the home is /home/<name> but paths read
+    # /var/home/<name>, and replacing the exact home first left "/var~".
+    text = _HOME_PATH.sub("~", text)
     home = str(Path.home())
     if home and home not in ("/", "/root"):
         text = text.replace(home, "~")
-    return _HOME_PATH.sub("~", text)
+    return text
 
 
 def _short_path(match: re.Match) -> str:

@@ -101,6 +101,16 @@ def test_long_answers_are_bounded():
     assert len(fields[f"entry.{form.ENTRY_TERMINAL}"]) == form.MAX_LONG_TEXT
 
 
+def test_a_long_terminal_output_keeps_its_end():
+    # Four reports from long workflows arrived with the banner and credits
+    # but without the line that said what failed.
+    terminal = "== banner ==\n" + "noise\n" * 6000 + "ERROR: what really failed"
+    fields = dict(form.form_fields(_problem(terminal=terminal), form.parse_form(form_page())))
+    sent = fields[f"entry.{form.ENTRY_TERMINAL}"]
+    assert sent.endswith("ERROR: what really failed")
+    assert len(sent) == form.MAX_LONG_TEXT
+
+
 def test_submit_posts_to_the_form_and_needs_googles_confirmation():
     requests = []
 

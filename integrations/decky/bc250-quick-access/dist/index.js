@@ -377,6 +377,8 @@ var codes = [
 	{
 		code: "BC250-WORKFLOW-001",
 		markers: [
+			"per-game install unexpectedly enabled the driver system-wide",
+			"the reviewed SteamOS kernel backend supports",
 			"QUICK_ACCESS_GDDR6"
 		],
 		exit_statuses: [
@@ -409,6 +411,9 @@ var codes = [
 	{
 		code: "BC250-AUTH-002",
 		markers: [
+			"sudo: timed out reading password",
+			"sudo: a password is required",
+			"Error executing command as another user: Not authorized",
 			"QUICK_ACCESS_AUTH"
 		],
 		exit_statuses: [
@@ -466,6 +471,9 @@ var codes = [
 	{
 		code: "BC250-HW-001",
 		markers: [
+			"probe with driver amdgpu failed",
+			"The GPU driver (amdgpu) did not start",
+			"invalid ip discovery binary signature",
 			"HARDWARE_CONTEXT",
 			"QUICK_ACCESS_CONTEXT"
 		],
@@ -577,6 +585,9 @@ var codes = [
 	{
 		code: "BC250-BUSY-001",
 		markers: [
+			"Transaction in progress",
+			"index.lock': File exists",
+			"Another git process seems to be running",
 			"smu returned status 0x00",
 			"smu returned status 0xFC",
 			"SMU_IN_USE"
@@ -634,6 +645,8 @@ var codes = [
 ];
 var markers_longest_first = [
 	"reviewed root-owned SteamOS graphics backend is unavailable or changed",
+	"per-game install unexpectedly enabled the driver system-wide",
+	"Error executing command as another user: Not authorized",
 	"shared contract is not a protected root-owned file",
 	"Manual scale must reuse the detected thermal limit",
 	"bc250-detect returned values outside the requested",
@@ -645,8 +658,12 @@ var markers_longest_first = [
 	"target must be an even value from 24 through 40",
 	"Run automatic detection at this exact frequency",
 	"protected GDDR6 patch helper is not installed",
+	"the reviewed SteamOS kernel backend supports",
 	"DKMS installation did not produce a module",
 	"systemd-sysext or another immutable layer",
+	"Another git process seems to be running",
+	"The GPU driver (amdgpu) did not start",
+	"invalid ip discovery binary signature",
 	"matching kernel-devel is unavailable",
 	"umr is installed but does not start",
 	"persisted nct6687 source is missing",
@@ -657,10 +674,12 @@ var markers_longest_first = [
 	"match the active immutable kernel",
 	"disagrees with this system about",
 	"shared contract is not installed",
+	"sudo: timed out reading password",
 	"was built for contract revision",
 	"QUICK_ACCESS_CU_SERVICE_PROFILE",
 	"kernel and headers do not match",
 	"installed for the active kernel",
+	"probe with driver amdgpu failed",
 	"SteamOS reports a writable root",
 	"QAM CPU detection uses a fixed",
 	"QUICK_ACCESS_CU_SERVICE_REMOVE",
@@ -671,6 +690,7 @@ var markers_longest_first = [
 	"nct6687d PWM driver workflow",
 	"nct6687 is not available for",
 	"rebuilt nct6687 has vermagic",
+	"sudo: a password is required",
 	"busctl is required for Cyan",
 	"QUICK_ACCESS_GPU_SAFE_POINT",
 	"Temperature must be between",
@@ -687,6 +707,7 @@ var markers_longest_first = [
 	"QUICK_ACCESS_FAN_EXTERNAL",
 	"QUICK_ACCESS_GPU_SERVICE",
 	"SteamOS keeps /var small",
+	"index.lock': File exists",
 	"smu returned status 0x00",
 	"smu returned status 0xFC",
 	"QUICK_ACCESS_CU_SERVICE:",
@@ -696,6 +717,7 @@ var markers_longest_first = [
 	"QUICK_ACCESS_GPU_VOLTAGE",
 	"UMR still does not start",
 	"QUICK_ACCESS_CPU_SERVICE",
+	"Transaction in progress",
 	"QUICK_ACCESS_GPU_CONFIG",
 	"are different versions.",
 	"QUICK_ACCESS_GPU_VERIFY",

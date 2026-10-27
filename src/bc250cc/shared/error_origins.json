@@ -579,8 +579,10 @@
    "_resolved_repository_valid": "DIST-0011",
    "masta_bc250_stack_supported": "DIST-0012",
    "masta_bc250_stack_state": "DIST-0013",
+   "_fallback_kernels": "DIST-0127",
    "running_bc250_kernel_variant": "DIST-0014",
-   "build_cachyos_bc250_kernel_command": "DIST-0015"
+   "build_cachyos_bc250_kernel_command": "DIST-0015",
+   "_build_proton_removal_command": "DIST-0128"
   },
   "bc250cc/infrastructure/container_network.py": {
    "setup_lines": "DIST-0016"
@@ -624,6 +626,7 @@
    "classify_cpu_persistence_service": "CPU-0237"
   },
   "bc250cc/infrastructure/cpu_repository.py": {
+   "_refuse_stress_waiting_for_reboot": "CPU-0296",
    "CPURepository._estimated_vid": "CPU-0238",
    "CPURepository._read_cpu_oc_config": "CPU-0239",
    "CPURepository.estado_cpu_qam_runtime": "CPU-0240",
@@ -1030,6 +1033,14 @@
    "_body": "DIAG-0126",
    "fit_report": "DIAG-0127",
    "submit": "DIAG-0067",
+   "new_report_id": "DIAG-0132",
+   "report_id_of": "DIAG-0133",
+   "with_report_id": "DIAG-0134",
+   "attachment_list": "DIAG-0135",
+   "_encoded": "DIAG-0136",
+   "split_attachment": "DIAG-0137",
+   "attachment_fields": "DIAG-0138",
+   "send_attachments": "DIAG-0139",
    "suggested_distribution": "DIAG-0068",
    "suggested_install": "DIAG-0069",
    "suggested_area": "DIAG-0070",
@@ -1308,6 +1319,7 @@
    "GPURepository._cyan_runtime_identity": "GPU-0572",
    "GPURepository._cyan_runtime_config_path": "GPU-0573",
    "GPURepository._editar_governor_toml": "GPU-0574",
+   "GPURepository._refuse_when_cyan_cannot_answer": "GPU-0634",
    "GPURepository._cyan_dbus_unavailable_detail": "GPU-0575",
    "GPURepository._frequency_range_state": "GPU-0576",
    "GPURepository.aplicar_perfil_gpu": "GPU-0577",
@@ -1473,6 +1485,7 @@
    "helixsr_scaler_rows": "UPS-0193",
    "_scaler_versions": "UPS-0194",
    "_recorded_scaler_rows": "UPS-0195",
+   "_refuse_native_game": "UPS-0272",
    "_refuse_other_helixsr": "UPS-0196",
    "_scaler_result": "UPS-0197",
    "install_helixsr_scaler": "UPS-0198",
@@ -1793,6 +1806,22 @@
    "_installable_version": "UPD-0058",
    "check_for_update": "UPD-0059"
   },
+  "bc250cc/infrastructure/report_attachments.py": {
+   "redact_machine": "CORE-0086",
+   "_boot": "CORE-0087",
+   "_gpu_device": "CORE-0088",
+   "_kernel_log_full": "CORE-0089",
+   "_service_journals": "CORE-0090",
+   "_configuration": "CORE-0091",
+   "_storage_detail": "CORE-0092",
+   "_size_key": "CORE-0093",
+   "_application_files": "CORE-0094",
+   "_workflow_logs": "CORE-0095",
+   "_mtime": "CORE-0096",
+   "_packages_full": "CORE-0097",
+   "collect_system_state": "CORE-0098",
+   "collect_attachments": "CORE-0099"
+  },
   "bc250cc/infrastructure/script_presentation.py": {
    "banner": "SYS-0079",
    "step": "SYS-0080",
@@ -1915,6 +1944,7 @@
   },
   "bc250cc/infrastructure/source_checkout.py": {
    "_inputs": "UPD-0079",
+   "_clear_stale_lock": "UPD-0085",
    "clone_or_update": "UPD-0080",
    "clone_or_update_branch": "UPD-0081",
    "clone_or_update_commit": "UPD-0082",
@@ -2915,6 +2945,7 @@
   },
   "frontends/desktop/components/feedback_dialog.py": {
    "_read_report": "DIAG-0001",
+   "_attachments_or_none": "DIAG-0130",
    "_needs_password": "DIAG-0129",
    "_Choice.__init__": "DIAG-0002",
    "_Choice.value": "DIAG-0003",
@@ -2938,6 +2969,7 @@
    "FeedbackDialog._report_ready": "DIAG-0020",
    "FeedbackDialog._kind_changed": "DIAG-0021",
    "FeedbackDialog.report": "DIAG-0022",
+   "FeedbackDialog._attachments": "DIAG-0131",
    "FeedbackDialog._automatic": "DIAG-0115",
    "FeedbackDialog._details": "DIAG-0116",
    "FeedbackDialog._show_captured": "DIAG-0117",
@@ -3268,6 +3300,7 @@
    "tighten_dialog": "UI-0291",
    "_error_identity": "UI-0532",
    "_raw_error_block": "UI-0533",
+   "_asks_for_an_action": "UI-0553",
    "InfoDialog.__init__": "UI-0292",
    "InfoDialog.showEvent": "UI-0293",
    "InfoDialog._tighten": "UI-0294",
@@ -3973,6 +4006,7 @@
    "UiPreferences.normalize_accent": "SET-0012",
    "UiPreferences.normalize_density": "SET-0013",
    "UiPreferences._migrate_legacy_safety_preferences": "SET-0014",
+   "UiPreferences._apply_formal_default_once": "SET-0255",
    "UiPreferences._normalize_stored_codes": "SET-0015",
    "report_glow_enabled": "SET-0016"
   },
@@ -4375,6 +4409,7 @@
    "ComputeUnitsPage._record_action": "CU-0102",
    "ComputeUnitsPage.show_raw_status": "CU-0103",
    "ComputeUnitsPage._show_info": "CU-0104",
+   "ComputeUnitsPage._show_not_prepared": "CU-0182",
    "ComputeUnitsPage._show_error": "CU-0105"
   },
   "frontends/desktop/pages/cpu_control_integration.py": {

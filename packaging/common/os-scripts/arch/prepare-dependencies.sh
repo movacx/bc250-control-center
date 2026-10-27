@@ -48,8 +48,23 @@ install_runtime() {
 install_governor() {
   # AUR helpers compare the installed package with the current PKGBUILD and
   # update it when needed. --needed keeps an already-current build idempotent.
-  install_aur_package cyan-skillfish-governor-smu
+  # The AUR package builds Cyan with Rust; the reviewed official release that
+  # Prepare installs right after this step brings its own binary, unit,
+  # D-Bus policy and default configuration. A failed build (a mirror that
+  # answered 404 for rust, in one report) must not stop that.
+  local aur_status=0 saved_err_trap
+  saved_err_trap="$(trap -p ERR)"
+  trap - ERR
+  set +e
+  (set -e; install_aur_package cyan-skillfish-governor-smu)
+  aur_status=$?
+  set -e
+  eval "$saved_err_trap"
   hash -r
+  if [[ "$aur_status" -ne 0 ]]; then
+    warn "The AUR cyan-skillfish-governor-smu build failed (exit $aur_status); the reviewed official Cyan release is installed next instead"
+    return 0
+  fi
   verify_command cyan-skillfish-governor-smu
 }
 

@@ -72,6 +72,53 @@ supports_frequency_fix() {
   [[ -f "$binary" ]] && LC_ALL=C grep -aFq "$MARKER" "$binary"
 }
 
+# A configuration left by an older Cyan package can lack switches the reviewed
+# release needs: without [dbus] enabled the governor runs with no D-Bus
+# controls, and without fix-freq the verification refused it. Only a missing
+# key is added, with upstream's default-config.toml value; a value the user
+# set is never changed.
+complete_missing_switches() {
+  [[ -f "$CONFIG" ]] || return 0
+  local completed
+  completed="$(mktemp /tmp/bc250-cyan-config.XXXXXX)"
+  if python3 - "$CONFIG" "$completed" <<'PY'
+import re, sys, tomllib
+source, target = sys.argv[1], sys.argv[2]
+text = open(source, encoding="utf-8").read()
+config = tomllib.loads(text)
+# (section names, key names, line written when it is missing)
+wanted = (
+    (("gpu-usage", "gpu_usage"), ("fix-metrics",), "fix-metrics = true"),
+    (("gpu-usage", "gpu_usage"), ("fix-freq", "fix_freq"), "fix-freq = false"),
+    (("dbus",), ("enabled",), "enabled = true"),
+)
+added = []
+for sections, keys, line in wanted:
+    present = next((name for name in sections if isinstance(config.get(name), dict)), None)
+    if present is not None and any(key in config[present] for key in keys):
+        continue
+    if present is None:
+        text = text.rstrip("\n") + f"\n\n[{sections[0]}]\n{line}\n"
+    else:
+        header = re.compile(rf"^[ \t]*\[{re.escape(present)}\][ \t]*(#.*)?$", re.M)
+        match = header.search(text)
+        if match is None:
+            raise SystemExit(f"cannot place {line!r} in [{present}]")
+        text = text[:match.end()] + "\n" + line + text[match.end():]
+    added.append(f"[{present or sections[0]}] {line}")
+if not added:
+    raise SystemExit(3)
+tomllib.loads(text)
+open(target, "w", encoding="utf-8").write(text)
+print("; ".join(added))
+PY
+  then
+    info "Cyan configuration was missing switches; added upstream defaults without changing other values"
+    as_root install -m 0644 "$completed" "$CONFIG"
+  fi
+  rm -f -- "$completed"
+}
+
 validate_compatibility_switches() {
   python3 - "$CONFIG" <<'PY'
 import sys, tomllib
@@ -445,6 +492,7 @@ elif release_runs_here; then
 else
   build_upstream_source
 fi
+complete_missing_switches
 validate_compatibility_switches
 
 printf 'BC250_CYAN_RELEASE=%s\n' "$release_tag"

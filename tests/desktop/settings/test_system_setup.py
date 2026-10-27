@@ -1905,6 +1905,15 @@ def test_the_limit_and_the_switches_share_one_limine_block_and_never_disturb_eac
     assert sandbox.host.path(kernel_args.LIMINE_CONFIG).read_text() == original
 
 
+def test_restoring_the_default_when_nothing_was_set_changes_nothing_and_succeeds(sandbox):
+    # Reported from Bazzite: "No GPU memory limit set by Control Center to
+    # restore" was shown as a failed workflow for a request already satisfied.
+    sandbox.put(kernel_args.LIMINE_CONFIG, "TIMEOUT=5\n")
+    state = ttm_setup.apply(sandbox.host, ttm_setup.DEFAULT)
+    assert not state["managed"] and state["configured_pages"] is None
+    assert sandbox.host.read(kernel_args.LIMINE_CONFIG).strip() == "TIMEOUT=5"
+
+
 def test_the_state_says_what_the_next_boot_uses_and_that_a_reboot_is_needed(sandbox):
     sandbox.put(kernel_args.LIMINE_CONFIG, "TIMEOUT=5\n")
     sandbox.put("/proc/cmdline", "BOOT_IMAGE=/vmlinuz-linux-cachyos root=UUID=aaa rw")
