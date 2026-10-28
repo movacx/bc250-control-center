@@ -193,7 +193,7 @@ def build_mesa_ppa_command(action: str, codename: str, *, source: Path = SOURCE_
         '  echo "       Details: apt-get install -s $packages"',
         "  exit 29",
         "fi",
-        f'mesa_candidate="$(apt-cache policy {MESA_PACKAGES[1]} | awk \'/Candidate:/ {{print $2; exit}}\')"',
+        f'mesa_candidate="$(LC_ALL=C apt-cache policy {MESA_PACKAGES[1]} | awk \'/Candidate:/ {{print $2; exit}}\')"',
         f'dpkg --compare-versions "$mesa_candidate" ge {".".join(str(part) for part in MESA_MIN)} || '
         f'{{ echo "ERROR: the newest Mesa on offer is $mesa_candidate, older than {".".join(str(part) for part in MESA_MIN)}."; exit 29; }}',
         'echo "[INFO] Installing Mesa $mesa_candidate."',

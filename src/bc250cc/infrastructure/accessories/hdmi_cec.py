@@ -337,7 +337,7 @@ def _build_lines(family: str) -> list[str]:
             'if [ "$bc250_rust_ok" = 1 ]; then',
             "  sudo apt-get update && sudo apt-get install -y --no-install-recommends pkg-config libudev-dev git",
             "else",
-            '  bc250_candidate="$(apt-cache policy rustc 2>/dev/null | sed -n \'s/^ *Candidate: //p\' || true)"',
+            '  bc250_candidate="$(LC_ALL=C apt-cache policy rustc 2>/dev/null | sed -n \'s/^ *Candidate: //p\' || true)"',
             f'  if [ -n "$bc250_candidate" ] && [ "$bc250_candidate" != "(none)" ] && [ "$(printf \'%s\\n%s\\n\' {MIN_RUST} "$bc250_candidate" | sort -V | head -n 1)" = {MIN_RUST} ]; then',
             f"    {BUILD_PACKAGES[family]}",
             f"    {_rust_check()}",
