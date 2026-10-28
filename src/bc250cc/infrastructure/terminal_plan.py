@@ -204,8 +204,13 @@ def _first_error_shell(translate=None) -> str:
         # The last run of ERROR/FATAL lines is the failure that stopped the
         # workflow; an earlier one may have been recovered from (the AUR build
         # failing before the official Cyan release is installed instead).
+        # The ERR trap of common.sh closes every failed script with
+        # "Operation failed at line N with exit code X". It says nothing the
+        # exit status did not, and as the last [ERROR] line it used to replace
+        # the script's own explanation, so no rule matched it.
         'error_block=$(printf "%s\\n" "$error_scan" | awk -v re="$bc250_error_re" '
-        "'{ if ($0 ~ re) { if (!run) n = 0; run = 1; sub(re, \"\"); lines[++n] = $0 } else run = 0 } "
+        '-v generic="Operation failed at line [0-9]+ with exit code" '
+        "'{ if ($0 ~ generic) next; if ($0 ~ re) { if (!run) n = 0; run = 1; sub(re, \"\"); lines[++n] = $0 } else run = 0 } "
         "END { for (i = 1; i <= n; i++) print lines[i] }' || true); "
         # Its first line: what happened.
         'first_error=$(printf "%s\\n" "$error_block" | head -n 1); '

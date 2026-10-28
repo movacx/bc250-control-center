@@ -95,7 +95,8 @@ bc250_steamos_require_var_space() {
   if (( free < need )); then
     printf '[ERROR] %s has only %s MB free and this needs about %s MB.\n' "$directory" "$free" "$need" >&2
     printf '[ERROR] SteamOS keeps /var small, and a full /var breaks package installs half way. What takes the room:\n' >&2
-    du -xh --max-depth=2 "$directory" 2>/dev/null | sort -rh | head -6 >&2 || true
+    # Prefixed so the whole explanation stays one [ERROR] block for the terminal.
+    du -xh --max-depth=2 "$directory" 2>/dev/null | sort -rh | head -6 | sed 's/^/[ERROR]   /' >&2 || true
     printf '[ERROR] Free some space (journalctl --vacuum-size=50M, pacman -Sc) and try again.\n' >&2
     return 75
   fi

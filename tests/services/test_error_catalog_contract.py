@@ -269,6 +269,41 @@ def test_a_wrapped_helper_error_is_explained_by_its_inner_cause(outer):
     assert diagnose_error(message).code == "BC250-BUSY-001"
 
 
+def test_the_generic_failure_line_does_not_replace_the_scripts_own_explanation(tmp_path: Path) -> None:
+    """R-bc2d99b9: common.sh closes every failure with "Operation failed at line N".
+
+    As the last [ERROR] line it was taken for the failure, the real cause was
+    dropped and the storage rule never matched.
+    """
+    output = _run_workflow(tmp_path, (
+        "echo '[ERROR] /var has only 78 MB free and this needs about 100 MB.'; "
+        "echo '[ERROR] SteamOS keeps /var small, and a full /var breaks package installs half way.'; "
+        "echo '[ERROR]   136M /var'; "
+        "echo '[ERROR] Free some space (journalctl --vacuum-size=50M, pacman -Sc) and try again.'; "
+        "echo 'BC250_RESULT status=error component=stress code=75 message=apply\\ failed'; "
+        "echo '[ERROR] Operation failed at line 26 with exit code 75'; exit 75"
+    ))
+    assert "BC250-STORAGE-001" in output
+    assert "What happened: /var has only 78 MB free" in output
+    assert "What happened: Operation failed at line" not in output
+
+
+def test_a_failure_with_only_the_generic_line_keeps_the_neutral_code(tmp_path: Path) -> None:
+    output = _run_workflow(tmp_path, "echo '[ERROR] Operation failed at line 9 with exit code 1'; exit 1")
+    assert "BC250-STORAGE-001" not in output
+
+
+def test_the_var_space_report_is_one_error_block(tmp_path: Path) -> None:
+    script = Path(__file__).resolve().parents[2] / "packaging/common/os-scripts/common/steamos-root.sh"
+    result = subprocess.run(
+        ["bash", "-c", f'source "{script}"; BC250_STEAMOS_MIN_VAR_MB=999999999 bc250_steamos_require_var_space'],
+        capture_output=True, text=True, check=False,
+    )
+    assert result.returncode == 75
+    lines = [line for line in result.stderr.splitlines() if line.strip()]
+    assert lines and all(line.startswith("[ERROR]") for line in lines), result.stderr
+
+
 def test_diagnostics_printed_after_the_error_do_not_hide_it(tmp_path: Path) -> None:
     """The SteamOS fan script prints modules, hwmon and dmesg after its error.
 
