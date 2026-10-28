@@ -5,6 +5,8 @@ from pathlib import Path
 
 import pytest
 
+from bc250cc.shared.errors import ActionNeeded
+
 import bc250cc.infrastructure.dependencias_repository as dependencies_module
 from bc250cc.infrastructure.dependencias_repository import (
     STEAMOS_CORE_UNLOCK_REVIEWED_COMMIT,
@@ -307,7 +309,8 @@ def test_the_kernel_module_waits_until_gpu_points_above_its_limit_are_off(tmp_pa
     repository = _repository(tmp_path, monkeypatch)
     repository._steamos_module_frequency_blocker = lambda: "turn the points off first"
 
-    with pytest.raises(RuntimeError, match="turn the points off first"):
+    # An instruction for the user, not an error window with a code (R-dce0d0a0).
+    with pytest.raises(ActionNeeded, match="turn the points off first"):
         repository.preparar_compatibilidad_steamos()
 
 

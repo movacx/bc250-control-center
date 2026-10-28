@@ -3,6 +3,8 @@
 import shlex
 from pathlib import Path
 
+from bc250cc.shared.errors import ActionNeeded
+
 from bc250cc.infrastructure.cu_privileged_backend import (
     STEAMOS_CU_BACKEND,
 )
@@ -290,7 +292,10 @@ class SteamosDependenciesMixin:
             raise RuntimeError('The dedicated SteamOS compatibility workflow is available only on SteamOS.')
         blocker = self._steamos_module_frequency_blocker()
         if blocker:
-            raise RuntimeError(blocker)
+            # Waiting for the user to switch some points off is a step, not a fault:
+            # R-dce0d0a0 got a red RANGE-001 window whose advice ("choose a value
+            # offered by the application") hid the instruction in its own message.
+            raise ActionNeeded(blocker)
         command = self._join_shell_commands((
             'set -Eeuo pipefail',
             'export LC_ALL=C LANG=C',
