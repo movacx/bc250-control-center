@@ -173,3 +173,45 @@ def test_graphics_status_includes_extended_bc250_telemetry(tmp_path):
     assert "Fan preset             Balanced" in result.stdout
     assert "Fan output             60% (PWM 153)" in result.stdout
     assert "Fan speeds             PWM 2: 1800 RPM, PWM 3: 1450 RPM" in result.stdout
+
+
+def _run_uninstall(tmp_path, toolkit_body, action="uninstall"):
+    import subprocess
+
+    stub = tmp_path / "toolkit.sh"
+    stub.write_text(f'#!/bin/bash\ncase "$1" in uninstall) {toolkit_body};; *) echo "{{}}";; esac\n')
+    command = build_steamos_graphics_command(action, backend_guard="true", script=stub)
+    # The distribution check reads this machine's /etc/os-release; the tests run anywhere.
+    command = command.replace('grep -Eiq "steamos|steamdeck|holo" /etc/os-release', "true")
+    # The status report probes the system helper through sudo, which would wait for a password.
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir(exist_ok=True)
+    (bin_dir / "sudo").write_text("#!/bin/bash\nexit 1\n")
+    (bin_dir / "sudo").chmod(0o755)
+    return subprocess.run(
+        ["bash", "-c", command], capture_output=True, text=True, check=False, timeout=60,
+        env={"PATH": f"{bin_dir}:/usr/bin:/bin"}, stdin=subprocess.DEVNULL,
+    )
+
+
+def test_an_uninstall_that_waits_for_a_reboot_is_not_a_failure(tmp_path):
+    """R-7191a2f0: the toolkit stops on purpose until the scheduler policy is off."""
+    result = _run_uninstall(tmp_path, (
+        'echo "[bc250-mesh] amdgpu.sched_policy=2 remains active for this boot. '
+        'Reboot to deactivate it, then rerun uninstall; the patched RADV runtime was left intact."; exit 1'
+    ))
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "BC250_REBOOT_REQUIRED=1" in result.stdout
+    assert "Reboot to deactivate it" in result.stdout
+
+
+def test_any_other_uninstall_failure_keeps_its_status(tmp_path):
+    result = _run_uninstall(tmp_path, 'echo "[bc250-mesh] could not remove the runtime"; exit 7')
+    assert result.returncode == 7
+    assert "BC250_REBOOT_REQUIRED" not in result.stdout
+
+
+def test_a_successful_uninstall_does_not_ask_for_a_reboot(tmp_path):
+    result = _run_uninstall(tmp_path, 'echo done; exit 0')
+    assert result.returncode == 0
+    assert "BC250_REBOOT_REQUIRED" not in result.stdout

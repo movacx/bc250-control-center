@@ -251,6 +251,34 @@ else:
     )
 
 
+#: What the toolkit's uninstall says when it has removed the scheduler policy
+#: from the boot configuration but the running kernel still has it. It dies on
+#: purpose so the runtime is not removed under an active policy: reboot, then
+#: run uninstall again. That is a step of the removal, not a failure.
+UNINSTALL_REBOOT_MARKER = "Reboot to deactivate it, then rerun uninstall"
+
+
+def _until_reboot_is_allowed(command: str) -> str:
+    """Run an uninstall and report its "reboot, then run it again" stop as such.
+
+    R-7191a2f0: the stop was shown as BC250-GENERAL-001, "The operation could
+    not be completed", to a user whose removal was working as designed. Any other
+    failure of the toolkit keeps its status.
+    """
+    marker = shlex.quote(UNINSTALL_REBOOT_MARKER)
+    return (
+        'bc250_uninstall_log=$(mktemp); '
+        f'{command} 2>&1 | tee "$bc250_uninstall_log"; bc250_uninstall_status=${{PIPESTATUS[0]}}; '
+        'if [ "$bc250_uninstall_status" -ne 0 ] && '
+        f'grep -qF {marker} "$bc250_uninstall_log"; then '
+        'rm -f "$bc250_uninstall_log"; '
+        'echo "[WARN] The removal is half done: reboot, then run Uninstall again to finish it. This is expected, not a failure."; '
+        "echo 'BC250_REBOOT_REQUIRED=1'; "
+        'else rm -f "$bc250_uninstall_log"; '
+        '[ "$bc250_uninstall_status" -eq 0 ] || exit "$bc250_uninstall_status"; fi'
+    )
+
+
 def build_steamos_graphics_command(
     action: str,
     *,
@@ -278,8 +306,8 @@ def build_steamos_graphics_command(
             'echo "ERROR: the toolkit retired the per-game FSR4 V3 profile; only removing it is supported."; '
             "exit 2"
         ),
-        "uninstall": f"/usr/bin/bash {qscript} uninstall",
-        "uninstall-fsr4": f"/usr/bin/bash {qscript} uninstall --fsr4-legacy",
+        "uninstall": _until_reboot_is_allowed(f"/usr/bin/bash {qscript} uninstall"),
+        "uninstall-fsr4": _until_reboot_is_allowed(f"/usr/bin/bash {qscript} uninstall --fsr4-legacy"),
     }[action]
     mutation = action != "status"
     # The protected toolkit is deliberately staged only by the explicit
