@@ -119,8 +119,11 @@ def build_bazzite_memory_tuning_command(policy: str, ttm_gib: int) -> str:
     if policy in {**ZSWAP_POLICIES, **ZRAM_SWAP_POLICIES}:
         size_gib = {**ZSWAP_POLICIES, **ZRAM_SWAP_POLICIES}[policy]
         lines.extend((
-            "findmnt -no FSTYPE /var | grep -qx btrfs || { echo 'ERROR: BC250 zswap setup currently supports only Btrfs /var; no change was made'; exit 63; }",
-            "command -v btrfs >/dev/null 2>&1 || { echo 'ERROR: btrfs-progs is required to create a safe Btrfs swapfile'; exit 64; }",
+            # Bazzite installs on Btrfs by default, but Ext4 is a normal choice too.
+            # The mutable adapter (privileged/lib/system_setup_memory.py) takes the same two.
+            "bc250_var_fs=$(findmnt -no FSTYPE /var)",
+            "case \"$bc250_var_fs\" in btrfs|ext4) ;; *) echo \"ERROR: BC250 swap setup supports Btrfs or Ext4 /var, but /var is ${bc250_var_fs:-unknown}; no change was made\"; exit 63 ;; esac",
+            "if [ \"$bc250_var_fs\" = btrfs ]; then command -v btrfs >/dev/null 2>&1 || { echo 'ERROR: btrfs-progs is required to create a safe Btrfs swapfile'; exit 64; }; fi",
             "swap_path=/var/swap/bc250-zswap.swap",
             f"swap_bytes=$(({size_gib} * 1024 * 1024 * 1024))",
             "swap_unit=$(systemd-escape --path --suffix=swap \"$swap_path\")",
@@ -151,8 +154,15 @@ def build_bazzite_memory_tuning_command(policy: str, ttm_gib: int) -> str:
             "  test \"$(sudo stat -c %s \"$swap_path\")\" -eq \"$swap_bytes\" || { echo 'ERROR: the existing BC250 swapfile has a different size; choose its current size or remove it manually only after recovery review'; exit 66; }",
             f"  echo '[INFO] Reusing the existing verified {size_gib} GiB BC250 swapfile'",
             "else",
-            f"  echo '[INFO] Creating {size_gib} GiB Btrfs-safe backing swapfile'",
-            "  sudo btrfs filesystem mkswapfile --size \"${swap_bytes}\" \"$swap_path\"",
+            f"  echo \"[INFO] Creating {size_gib} GiB backing swapfile on $bc250_var_fs\"",
+            "  if [ \"$bc250_var_fs\" = btrfs ]; then",
+            "    sudo btrfs filesystem mkswapfile --size \"${swap_bytes}\" \"$swap_path\"",
+            "  else",
+            # Every block is allocated up front (a sparse swapfile is refused by
+            # swapon), and a half-made file is removed so the next run starts clean.
+            "    sudo install -m 0600 /dev/null \"$swap_path\"",
+            "    if ! { sudo fallocate -l \"${swap_bytes}\" \"$swap_path\" && sudo mkswap \"$swap_path\" >/dev/null; }; then sudo rm -f \"$swap_path\"; echo 'ERROR: the swapfile could not be allocated; nothing was left behind'; exit 66; fi",
+            "  fi",
             "fi",
             # A .swap unit name is not arbitrary: systemd requires the escaped
             # path of What=.  The original bc250-swapfile.swap name therefore

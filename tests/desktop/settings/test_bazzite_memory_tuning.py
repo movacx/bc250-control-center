@@ -33,6 +33,30 @@ def test_zswap_policy_builds_a_btrfs_backed_reboot_transaction():
     assert subprocess.run(["bash", "-n", "-c", command]).returncode == 0
 
 
+@pytest.mark.parametrize("policy", ["zswap-16", "zram-swap-16"])
+def test_swap_policies_accept_btrfs_and_ext4_but_name_any_other_filesystem(policy):
+    """R-10c45cc3: Bazzite installed on Ext4 was refused with "supports only Btrfs"."""
+    command = build_bazzite_memory_tuning_command(policy, 8)
+
+    assert "case \"$bc250_var_fs\" in btrfs|ext4)" in command
+    assert "supports only Btrfs" not in command
+    assert "fallocate -l" in command
+    assert "mkswap" in command
+    assert subprocess.run(["bash", "-n", "-c", command]).returncode == 0
+
+
+def test_the_creation_branch_uses_fallocate_on_ext4_and_mkswapfile_on_btrfs():
+    command = build_bazzite_memory_tuning_command("zram-swap-16", 0)
+    lines = command.splitlines()
+    start = next(i for i, line in enumerate(lines) if "backing swapfile on $bc250_var_fs" in line)
+    block = "\n".join(lines[start:start + 9])
+
+    assert block.index("btrfs filesystem mkswapfile") < block.index("fallocate -l")
+    assert 'sudo install -m 0600 /dev/null "$swap_path"' in block
+    # A half-made file is removed, so the next run does not see an "unclaimed swapfile".
+    assert 'sudo rm -f "$swap_path"; echo \'ERROR: the swapfile could not be allocated' in block
+
+
 def test_preserve_policy_does_not_change_zswap_when_only_ttm_is_requested():
     command = build_bazzite_memory_tuning_command("preserve", 12)
 
