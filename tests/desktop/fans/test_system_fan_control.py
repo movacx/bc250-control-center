@@ -9,6 +9,7 @@ the root loop that follows it, and the desktop side standing aside.
 
 from __future__ import annotations
 
+import fcntl
 import json
 import random
 import runpy
@@ -87,6 +88,7 @@ def board(tmp_path, monkeypatch):
     monkeypatch.setitem(g, "STATUS_FILE", run / "fan-control.json")
     monkeypatch.setitem(g, "OVERRIDE_FILE", run / "fan-override.json")
     monkeypatch.setitem(g, "EXTERNAL_FILE", state / "fan-external.json")
+    monkeypatch.setitem(g, "SMU_RUN_LOCK", run / "bc250-smu-run.lock")
     monkeypatch.setattr(g["time"], "sleep", lambda _seconds: None)
 
     @contextmanager
@@ -194,6 +196,140 @@ def test_chips_the_curve_does_not_use_are_never_read(board, monkeypatch):
 
     assert readings == {"gpu": 48.0, "cpu": 52.0, "vrm": 44.5, "board": 45.0}
     assert read and not [path for path in read if memory in path.parents]
+
+
+def _regulator(g, cpu=60000, gpu=100000) -> Path:
+    """A wired bc250_vrm: temp1 is "CPU VRM Temp", temp2 "GPU VRM Temp"."""
+    regulator = g["HWMON_BASE"] / "hwmon5"
+    _write(regulator / "name", "bc250_vrm")
+    for index, (label, value) in enumerate(
+        (("CPU VRM Temp", cpu), ("GPU VRM Temp", gpu)), start=1
+    ):
+        (regulator / f"temp{index}_label").write_text(label + "\n", encoding="utf-8")
+        _write(regulator / f"temp{index}_input", value)
+    return regulator
+
+
+def _recording_reads(g, monkeypatch) -> list[Path]:
+    read = []
+    original = g["_read_temperature"]
+
+    def recording(path):
+        read.append(path)
+        return original(path)
+
+    monkeypatch.setitem(g, "_read_temperature", recording)
+    return read
+
+
+def test_the_gpu_regulator_drives_the_vrm_input(board):
+    # kevin-board, 2200 MHz GPU load: the GPU VRM reached 100 C while edge,
+    # Tctl and "VRM MOS" stayed under 70 C, so the curve never saw it.
+    module, g, nct, _k10 = board
+    _regulator(g, cpu=61000, gpu=100000)
+    module["save_policy"](_policy())
+    clock = iter(range(0, 10_000, 10)).__next__
+    controller = module["FanController"](clock=clock)
+
+    controller.step()
+
+    assert controller.snapshot["readings"]["vrm"] == 100.0
+    assert controller.snapshot["sensor"] == "vrm"
+    assert controller.snapshot["vrm_source"] == "bc250_vrm"
+    assert (nct / "pwm2").read_text().strip() == "255"
+
+
+def test_a_regulator_past_its_critical_limit_is_an_emergency(board):
+    module, g, nct, _k10 = board
+    _regulator(g, gpu=106000)
+    module["save_policy"](_policy())
+    controller = module["FanController"](clock=lambda: 0.0)
+
+    controller.step()
+
+    assert controller.snapshot["source"] == "critical"
+    assert controller.snapshot["sensor"] == "vrm"
+    assert (nct / "pwm2").read_text().strip() == "255"
+
+
+def test_the_regulator_is_read_on_its_own_slow_clock(board, monkeypatch):
+    # Every bc250_vrm read is an I2C transaction: never on the 2 s tick.
+    module, g, _nct, _k10 = board
+    regulator = _regulator(g)
+    module["save_policy"](_policy())
+    read = _recording_reads(g, monkeypatch)
+    moments = iter([float(second) for second in range(0, 32, 2)])
+    controller = module["FanController"](clock=lambda: next(moments))
+
+    reads_per_tick = []
+    for _ in range(16):
+        before = len([path for path in read if regulator in path.parents])
+        controller.step()
+        after = len([path for path in read if regulator in path.parents])
+        reads_per_tick.append(after - before)
+        assert controller.snapshot["readings"]["vrm"] == 100.0
+
+    # t=0 and t=16: two inputs each, nothing in between.
+    assert reads_per_tick == [2] + [0] * 7 + [2] + [0] * 7
+    # The 2 s scan itself still skips the chip, as before.
+    read.clear()
+    module["read_temperatures"](g["HWMON_BASE"])
+    assert read and not [path for path in read if regulator in path.parents]
+
+
+def test_without_the_regulator_the_vrm_input_stays_on_the_nuvoton(board):
+    module, _g, _nct, _k10 = board
+    module["save_policy"](_policy())
+    controller = module["FanController"](clock=lambda: 0.0)
+
+    controller.step()
+
+    assert controller.state == "active"
+    assert controller.snapshot["source"] == "curve"
+    assert controller.snapshot["readings"]["vrm"] == 44.5
+    assert controller.snapshot["vrm_source"] == "nct"
+
+
+def test_a_failing_regulator_keeps_its_last_sample_then_falls_back(board):
+    module, g, _nct, _k10 = board
+    regulator = _regulator(g, gpu=90000)
+    module["save_policy"](_policy())
+    moments = iter([0.0, 16.0, 44.0, 46.0])
+    controller = module["FanController"](clock=lambda: next(moments))
+    controller.step()
+    assert controller.snapshot["readings"]["vrm"] == 90.0
+    for path in regulator.glob("temp*_input"):
+        path.unlink()  # the driver answering EIO, or unloaded
+
+    controller.step()  # t=16: a failed read, the t=0 sample stands in
+    assert controller.snapshot["readings"]["vrm"] == 90.0
+    controller.step()  # t=44: still inside the stale window
+    assert controller.snapshot["readings"]["vrm"] == 90.0
+    controller.step()  # t=46: too old, back to "VRM MOS", no failsafe
+    assert controller.snapshot["readings"]["vrm"] == 44.5
+    assert controller.snapshot["vrm_source"] == "nct"
+    assert controller.snapshot["source"] == "curve"
+
+
+def test_the_regulator_is_left_alone_during_a_cpu_tuning_run(board, monkeypatch):
+    module, g, _nct, _k10 = board
+    regulator = _regulator(g)
+    module["save_policy"](_policy())
+    read = _recording_reads(g, monkeypatch)
+    moments = iter([0.0, 2.0])
+    controller = module["FanController"](clock=lambda: next(moments))
+    lock = g["SMU_RUN_LOCK"]
+    lock.parent.mkdir(parents=True, exist_ok=True)
+
+    with lock.open("w") as run:
+        fcntl.flock(run, fcntl.LOCK_EX)
+        controller.step()
+        fcntl.flock(run, fcntl.LOCK_UN)
+    assert not [path for path in read if regulator in path.parents]
+    assert controller.snapshot["readings"]["vrm"] == 44.5
+
+    controller.step()  # the run is over: read now, not 15 s later
+    assert controller.snapshot["readings"]["vrm"] == 100.0
 
 
 def test_the_loop_follows_the_curve_from_firmware_mode(board):
