@@ -135,7 +135,9 @@ def build_bazzite_memory_tuning_command(policy: str, ttm_gib: int) -> str:
             # to the edge by a swapfile.
             "reserve_bytes=$((filesystem_bytes / 20)); [ \"$reserve_bytes\" -ge 2147483648 ] || reserve_bytes=2147483648",
             "required_bytes=$((swap_bytes + reserve_bytes))",
-            "test \"$available_bytes\" -ge \"$required_bytes\" || { echo \"ERROR: insufficient free space; $((reserve_bytes / 1073741824)) GiB must remain free after creating swap\"; exit 65; }",
+            # Say what is needed and what there is: "11 GiB must remain free" alone
+            # left a user with a full disk guessing how much to delete.
+            f"test \"$available_bytes\" -ge \"$required_bytes\" || {{ echo \"ERROR: not enough free space on /var: the {size_gib} GiB swapfile needs $(((reserve_bytes + 1073741823) / 1073741824)) GiB kept free after it, $(((required_bytes + 1073741823) / 1073741824)) GiB in all, and /var has $((available_bytes / 1073741824)) GiB\"; exit 65; }}",
             "if sudo test -e /var/swap; then",
             "  sudo test ! -L /var/swap && sudo test -d /var/swap || { echo 'ERROR: /var/swap is not a safe directory'; exit 65; }",
             "  test \"$(sudo stat -c %u /var/swap)\" -eq 0 || { echo 'ERROR: /var/swap is not root-owned'; exit 65; }",

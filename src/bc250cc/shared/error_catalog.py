@@ -144,7 +144,9 @@ _CODES: tuple[ErrorCode, ...] = (
         "Free space on the filesystem named in the technical detail, then retry. Kernel installs also require free space in /boot.",
         exit_statuses=(73, 74),
         # steamos-root.sh: /var or the root filesystem is too full to install.
-        markers=('MB free and this needs', 'SteamOS keeps /var small'),
+        markers=('MB free and this needs', 'SteamOS keeps /var small',
+                 # bazzite_memory_tuning.py and the mutable adapter's swapfile check.
+                 'not enough free space on', 'Insufficient disk space'),
     ),
     ErrorCode(
         "BC250-BUSY-001",
@@ -155,7 +157,7 @@ _CODES: tuple[ErrorCode, ...] = (
         # The SMU mailbox gave no answer in time (0x00) or said it was busy
         # (0xFC). The CPU/SMU helper exits 70 for it, which alone reads as a
         # helper version mismatch and sent users to reinstall.
-        markers=('Transaction in progress', "index.lock': File exists", 'Another git process seems to be running', 'smu returned status 0x00', 'smu returned status 0xFC',
+        markers=('Transaction in progress', 'another BC250 system preparation is already running', "index.lock': File exists", 'Another git process seems to be running', 'smu returned status 0x00', 'smu returned status 0xFC',
                  # The CPU helper exits 44 (a RANGE status) for it.
                  'SMU_IN_USE'),
     ),

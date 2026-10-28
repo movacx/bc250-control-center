@@ -607,7 +607,7 @@ _MORE_PATTERNS: dict[str, tuple[str, ...]] = {
         r"was not installed for the active kernel", r"dkms installation did not produce a module",
         r"kernel-devel mismatch", r"matching kernel-devel is unavailable", r"rebuilt nct6687 has vermagic",
     ),
-    "BC250-STORAGE-001": (r"mb free and this needs", r"steamos keeps /var small"),
+    "BC250-STORAGE-001": (r"mb free and this needs", r"steamos keeps /var small", r"not enough free space on", r"insufficient disk space"),
     "BC250-IMMUTABLE-001": (
         r"steamos reports a writable root", r"steamos read-only state", r"read-only protection",
         r"systemd-sysext or another immutable layer",

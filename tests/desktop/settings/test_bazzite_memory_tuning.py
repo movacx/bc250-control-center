@@ -16,7 +16,8 @@ def test_zswap_policy_builds_a_btrfs_backed_reboot_transaction():
     assert 'enable --now "$swap_unit"' in command
     assert "Options=pri=-2" in command
     assert "if sudo test -e \"$swap_path\"; then" in command
-    assert "must remain free after creating swap" in command
+    assert "not enough free space on /var" in command
+    assert "GiB in all, and /var has" in command
     assert "reserve_bytes=$((filesystem_bytes / 20))" in command
     # The pool is tuned the same way the mutable adapter tunes it.
     assert "--append-if-missing=zswap.compressor=lz4" in command
