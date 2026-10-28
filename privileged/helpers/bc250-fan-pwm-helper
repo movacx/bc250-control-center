@@ -66,6 +66,21 @@ HWMON_BASE = Path('/sys/class/hwmon')
 # messages, outside the SMN window lock the other SMU clients share, and this
 # loop runs every CONTROL_INTERVAL_SECONDS from boot, next to the governor.
 TEMPERATURE_CHIPS = ('amdgpu', 'k10temp', 'zenpower', 'nct')
+# The BC-250's PMBus regulator driver. It stays out of TEMPERATURE_CHIPS: every
+# temperature it reports is an I2C transaction with the regulator, so the loop
+# reads it on its own clock (RegulatorSampler), never on the 2 s tick. It only
+# registers an hwmon device when a wired regulator answers; nothing here opens
+# an I2C bus itself. temp1 is "CPU VRM Temp", temp2 "GPU VRM Temp".
+REGULATOR_CHIP = 'bc250_vrm'
+REGULATOR_INPUTS = ('temp1_input', 'temp2_input')
+REGULATOR_POLL_SECONDS = 15.0
+# A sample older than this is dropped and the vrm input falls back to the
+# Nuvoton "VRM MOS" channel, as if the driver were not there.
+REGULATOR_STALE_SECONDS = 45.0
+# Held exclusively by a CPU tuning run (bc250-cpu-smu-helper). PMBus traffic
+# shares the bus with the SMU, so the regulator is not read while it is held;
+# the desktop reader (vrm_telemetry_reader) stands aside the same way.
+SMU_RUN_LOCK = Path('/run/bc250-smu-run.lock')
 CONTROL_UNIT_NAME = 'bc250-fan-control.service'
 CONTROL_UNIT_PATH = Path('/etc/systemd/system') / CONTROL_UNIT_NAME
 CONTROL_UNIT_WANTS = Path('/etc/systemd/system/multi-user.target.wants') / CONTROL_UNIT_NAME
@@ -532,7 +547,8 @@ def read_temperatures(base: Path | None = None) -> dict:
     back to the Nuvoton channel labelled exactly ``CPU``; board and VRM come
     only from explicitly labelled NCT channels. Disconnected 0 °C inputs are
     rejected, never guessed. Chips outside ``TEMPERATURE_CHIPS`` are never
-    read at all.
+    read at all; the control loop replaces VRM with bc250_vrm when it has a
+    sample (see RegulatorSampler).
     """
     base = HWMON_BASE if base is None else base
     gpu = None
@@ -585,6 +601,74 @@ def read_temperatures(base: Path | None = None) -> dict:
     return readings
 
 
+def _smu_run_in_progress(lock: Path) -> bool:
+    """Whether a CPU tuning run holds the SMU right now. Never waits."""
+    try:
+        fd = os.open(lock, os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW)
+    except OSError:
+        return False
+    try:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_SH | fcntl.LOCK_NB)
+        except OSError:
+            return True
+        fcntl.flock(fd, fcntl.LOCK_UN)
+        return False
+    finally:
+        os.close(fd)
+
+
+def read_regulator_temperature(base: Path | None = None) -> float | None:
+    """The hotter of the two bc250_vrm rails, or None.
+
+    None when the driver has no device (not loaded, or no regulator wired) or
+    neither rail answers; the driver returns EIO for a glitched transaction.
+    """
+    base = HWMON_BASE if base is None else base
+    try:
+        hwmons = sorted(base.glob('hwmon*'))
+    except OSError:
+        return None
+    for hwmon in hwmons:
+        try:
+            name = (hwmon / 'name').read_text(encoding='utf-8').strip()
+        except (OSError, UnicodeError):
+            continue
+        if name != REGULATOR_CHIP:
+            continue
+        values = [
+            value for value in (_read_temperature(hwmon / entry) for entry in REGULATOR_INPUTS)
+            if value is not None
+        ]
+        return max(values) if values else None
+    return None
+
+
+class RegulatorSampler:
+    """bc250_vrm on a slow clock: one read per REGULATOR_POLL_SECONDS at most.
+
+    Between reads the last good sample stands in; once it is older than
+    REGULATOR_STALE_SECONDS it is dropped and the caller falls back to the
+    Nuvoton channel. A missing driver is just "no sample", never a failsafe.
+    """
+
+    def __init__(self) -> None:
+        self.attempted_at: float | None = None
+        self.sampled_at: float | None = None
+        self.value: float | None = None
+
+    def temperature(self, now: float) -> float | None:
+        due = self.attempted_at is None or now - self.attempted_at >= REGULATOR_POLL_SECONDS
+        if due and not _smu_run_in_progress(SMU_RUN_LOCK):
+            self.attempted_at = now
+            value = read_regulator_temperature()
+            if value is not None:
+                self.value, self.sampled_at = value, now
+        if self.sampled_at is None or now - self.sampled_at > REGULATOR_STALE_SECONDS:
+            return None
+        return self.value
+
+
 def override_channels() -> set[int]:
     """Channels another BC250 control (Quick Access, a manual write) owns now."""
     try:
@@ -624,6 +708,7 @@ class FanController:
         self.digest = ''
         self.policy_stamp: tuple | None = None
         self.channel: int | None = None
+        self.regulator = RegulatorSampler()
         self.reset_memory()
         self.state = 'starting'
         self.error = ''
@@ -748,6 +833,12 @@ class FanController:
             self.state = 'waiting-driver'
             return
         readings = read_temperatures()
+        # The regulator's own rails replace the Nuvoton "VRM MOS" channel,
+        # which on a BC-250 tracks the board, not the regulator. Same choice
+        # as the desktop daemon's vrm_temp.
+        regulator = self.regulator.temperature(now)
+        if regulator is not None:
+            readings['vrm'] = regulator
         decision = self.plan(readings, now)
         if decision is None:
             self.state = 'waiting-sensor'
@@ -762,6 +853,10 @@ class FanController:
             'sensor': sensor or '', 'readings': {
                 name: round(value, 1) for name, value in sorted(readings.items())
             },
+            'vrm_source': (
+                REGULATOR_CHIP if regulator is not None
+                else 'nct' if 'vrm' in readings else ''
+            ),
         }
         if channel in override_channels():
             if not emergency:
