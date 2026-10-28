@@ -239,6 +239,44 @@ def test_cyan_upstream_installer_preserves_switches_across_core_unlock():
     assert 'release_tag="$REVIEWED_RELEASE_TAG"' in script
 
 
+def _installer_python(function):
+    script = Path(
+        "packaging/common/os-scripts/common/install-cyan-upstream-release.sh"
+    ).read_text(encoding="utf-8")
+    body = script.split(f"{function}() {{", 1)[1]
+    return body.split("<<'PY'\n", 1)[1].split("\nPY\n", 1)[0]
+
+
+def test_cyan_installer_completes_an_old_config_without_any_switch_section(tmp_path):
+    # A Bazzite owner's config from an older package: no [gpu-usage], [gpu]
+    # or [dbus]. Adding two keys to [gpu-usage] declared it twice.
+    config = tmp_path / "config.toml"
+    config.write_text(
+        "# us\n[timing.intervals]\nsample = 500\nadjust = 200_000\n\n"
+        "[timing]\nburst-samples = 20\ndown-events = 5\n\n"
+        "[[safe-points]]\nfrequency = 1000\nvoltage = 800\n",
+        encoding="utf-8",
+    )
+    completed = tmp_path / "completed.toml"
+
+    added = subprocess.run(
+        ["python3", "-", str(config), str(completed)],
+        input=_installer_python("complete_missing_switches"), text=True, capture_output=True,
+    )
+    assert added.returncode == 0, added.stderr
+    checked = subprocess.run(
+        ["python3", "-", str(completed)],
+        input=_installer_python("validate_compatibility_switches"), text=True, capture_output=True,
+    )
+
+    assert checked.returncode == 0, checked.stderr
+    text = completed.read_text(encoding="utf-8")
+    assert text.count("[gpu-usage]") == 1
+    assert "fix-metrics = true" in text and "fix-freq = false" in text
+    assert 'set-method = "smu"' in text and "enabled = true" in text
+    assert "voltage = 800" in text
+
+
 def test_cyan_runtime_verification_is_core_count_independent_and_validates_switches():
     command = DependenciasRepository._cyan_runtime_verification_command()
 

@@ -74,7 +74,7 @@ supports_frequency_fix() {
 
 # A configuration left by an older Cyan package can lack switches the reviewed
 # release needs: without [dbus] enabled the governor runs with no D-Bus
-# controls, and without fix-freq the verification refused it. Only a missing
+# controls, and without fix-freq or [gpu] the verification refused it. Only a missing
 # key is added, with upstream's default-config.toml value; a value the user
 # set is never changed.
 complete_missing_switches() {
@@ -90,6 +90,7 @@ config = tomllib.loads(text)
 wanted = (
     (("gpu-usage", "gpu_usage"), ("fix-metrics",), "fix-metrics = true"),
     (("gpu-usage", "gpu_usage"), ("fix-freq", "fix_freq"), "fix-freq = false"),
+    (("gpu",), ("set-method",), 'set-method = "smu"'),
     (("dbus",), ("enabled",), "enabled = true"),
 )
 added = []
@@ -106,6 +107,8 @@ for sections, keys, line in wanted:
             raise SystemExit(f"cannot place {line!r} in [{present}]")
         text = text[:match.end()] + "\n" + line + text[match.end():]
     added.append(f"[{present or sections[0]}] {line}")
+    # The next switch can belong to the section just written.
+    config = tomllib.loads(text)
 if not added:
     raise SystemExit(3)
 tomllib.loads(text)
