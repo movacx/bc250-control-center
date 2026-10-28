@@ -35,7 +35,13 @@ from bc250cc.shared.version import application_version
 
 from ..core.diagnostic_history import history_entries, record_diagnosis
 from ..core.error_diagnostics import diagnose_error, explain_code
-from ..i18n import current_language, localize_widget_tree, tr, tr_format
+from ..i18n import (
+    canonical_source,
+    current_language,
+    localize_widget_tree,
+    tr,
+    tr_format,
+)
 from ..theme import COLORS, application_stylesheet
 from .async_tools import BackgroundExecutor
 from .buttons import WrappingButton as QPushButton
@@ -691,9 +697,13 @@ class FeedbackDialog(QDialog):
             "system": dict(self._facts.get("system") or {}),
             "os_release": dict(self._facts.get("os_release") or {}),
             "firmware": dict(self._facts.get("firmware") or {}),
-            "history": form.history_items(
-                self._facts.get("history") or (), exclude_raw=self._raw, exclude_title=self._title,
-            ),
+            "history": [
+                # Recorded in the interface language; the report is English.
+                {**item, "title": canonical_source(item["title"])}
+                for item in form.history_items(
+                    self._facts.get("history") or (), exclude_raw=self._raw, exclude_title=self._title,
+                )
+            ],
             "attachments": [(str(name), str(text)) for name, text in self._facts.get("attachments") or ()],
         }
 

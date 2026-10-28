@@ -45,6 +45,9 @@ if ! bc250_find_matching_kernel_build_dir "$KERNEL_RELEASE" && [[ -n "$kernel_pa
 fi
 if ! bc250_find_matching_kernel_build_dir "$KERNEL_RELEASE"; then
   case "$KERNEL_RELEASE" in
+    # SteamOS 3.9.5 runs neptune-72 (kernel 7.2): its headers are their own package.
+    *neptune-72*) as_root pacman -S --needed --noconfirm linux-neptune-72-headers 2>/dev/null || true ;;
+    *neptune-618*) as_root pacman -S --needed --noconfirm linux-neptune-618-headers 2>/dev/null || true ;;
     *neptune-616*) as_root pacman -S --needed --noconfirm linux-neptune-616-headers 2>/dev/null || true ;;
     *neptune-61*) as_root pacman -S --needed --noconfirm linux-neptune-61-headers 2>/dev/null || true ;;
     *neptune*) as_root pacman -S --needed --noconfirm linux-neptune-headers 2>/dev/null || true ;;

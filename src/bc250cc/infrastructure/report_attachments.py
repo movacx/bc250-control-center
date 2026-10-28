@@ -304,16 +304,26 @@ def collect_system_state(sections=STATE_SECTIONS) -> str:
 
 #: Hardware sections the system state reads more fully.
 _COVERED_BY_STATE = {"Last workflow log", "Packages", "Storage", "Control Center files"}
-_HEADING = re.compile(r"^== (.+?) ==$", re.M)
+_HEADING = re.compile(r"== (.+?) ==")
 
 
-def split_sections(text: str) -> list[tuple[str, str]]:
-    """(title, body) of every ``== title ==`` section of a diagnosis."""
-    parts = _HEADING.split(text)
-    return [
-        (parts[index].strip(), parts[index + 1].strip() or "—")
-        for index in range(1, len(parts) - 1, 2)
-    ]
+def split_sections(text: str, titles) -> list[tuple[str, str]]:
+    """(title, body) of every ``== title ==`` section of a diagnosis.
+
+    Only the diagnosis's own titles start a section: a workflow log inside
+    one prints ``== Staging protected SteamOS AMDGPU backend ==`` too, and
+    was cut into sections of its own (a SteamOS report kept 34 characters of
+    "Last workflow logs").
+    """
+    known = {str(title) for title in titles}
+    sections: list[tuple[str, list[str]]] = []
+    for line in text.splitlines():
+        match = _HEADING.fullmatch(line)
+        if match and match.group(1).strip() in known:
+            sections.append((match.group(1).strip(), []))
+        elif sections:
+            sections[-1][1].append(line)
+    return [(title, "\n".join(body).strip() or "—") for title, body in sections]
 
 
 def collect_attachments() -> list[tuple[str, str]]:
@@ -322,7 +332,10 @@ def collect_attachments() -> list[tuple[str, str]]:
     full = diag.collect_diagnostics(
         hardware, section_limit=FULL_SECTION_LIMIT, log_limit=FULL_LOG_LIMIT, total_limit=FULL_TOTAL_LIMIT,
     )
-    sections = split_sections(redact_machine(full)) + split_sections(collect_system_state())
+    sections = (
+        split_sections(redact_machine(full), (title for title, _read in hardware))
+        + split_sections(collect_system_state(), (title for title, _read in STATE_SECTIONS))
+    )
     seen: set[str] = set()
     unique = []
     for title, body in sections:
