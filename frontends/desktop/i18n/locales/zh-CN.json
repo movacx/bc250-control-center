@@ -5400,5 +5400,6 @@
   "Read the package named in the output. Enable the repository that provides it, or report the workflow with this code so the package list can be fixed.": "查看输出中提到的软件包。启用提供它的软件源，或使用此代码报告该流程以便修正软件包列表。",
   "The system could not start another process.": "系统无法再启动新的进程。",
   "The system reached its limit of running processes, or it is out of memory, so a step of the workflow could not start.": "系统已达到运行进程数上限或内存不足，因此流程中的某一步无法启动。",
-  "Close programs you do not need, or restart the computer, then run the action again.": "关闭不需要的程序或重启电脑，然后再次执行该操作。"
+  "Close programs you do not need, or restart the computer, then run the action again.": "关闭不需要的程序或重启电脑，然后再次执行该操作。",
+  "Privacy: this report goes to the maintainer's service on Cloudflare, is kept for about six months and is read only to fix problems. User name, computer name, IP and MAC addresses are removed from the text; your IP is used only to limit how often you can send and is not stored. Use “See what is sent” to check it first.": "隐私：此报告会发送到维护者在 Cloudflare 上的服务，保存约六个月，仅用于修复问题。文本中的用户名、计算机名以及 IP 和 MAC 地址会被移除；您的 IP 仅用于限制发送频率，不会被保存。可先点击“查看发送内容”进行检查。"
 }

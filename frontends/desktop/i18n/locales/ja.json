@@ -5400,5 +5400,6 @@
   "Read the package named in the output. Enable the repository that provides it, or report the workflow with this code so the package list can be fixed.": "出力に表示されたパッケージを確認してください。それを提供するリポジトリを有効にするか、このコードでワークフローを報告してパッケージ一覧を修正してもらってください。",
   "The system could not start another process.": "システムが新しいプロセスを起動できませんでした。",
   "The system reached its limit of running processes, or it is out of memory, so a step of the workflow could not start.": "実行中プロセスの上限に達したかメモリが不足しているため、ワークフローの手順を開始できませんでした。",
-  "Close programs you do not need, or restart the computer, then run the action again.": "不要なプログラムを閉じるかコンピューターを再起動してから、もう一度実行してください。"
+  "Close programs you do not need, or restart the computer, then run the action again.": "不要なプログラムを閉じるかコンピューターを再起動してから、もう一度実行してください。",
+  "Privacy: this report goes to the maintainer's service on Cloudflare, is kept for about six months and is read only to fix problems. User name, computer name, IP and MAC addresses are removed from the text; your IP is used only to limit how often you can send and is not stored. Use “See what is sent” to check it first.": "プライバシー：このレポートは Cloudflare 上のメンテナーのサービスに送信され、約6か月間保存され、問題の修正のためにのみ読まれます。ユーザー名、コンピューター名、IP アドレス、MAC アドレスはテキストから削除されます。IP は送信頻度の制限にのみ使われ、保存されません。事前に「送信内容を見る」で確認できます。"
 }

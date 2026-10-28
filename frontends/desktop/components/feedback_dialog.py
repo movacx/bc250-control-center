@@ -498,6 +498,15 @@ class FeedbackDialog(QDialog):
         attach.addWidget(self.preview)
         attach.addStretch(1)
         rows.addLayout(attach)
+        privacy = QLabel(tr(
+            "Privacy: this report goes to the maintainer's service on Cloudflare, is kept for about six months "
+            "and is read only to fix problems. User name, computer name, IP and MAC addresses are removed from "
+            "the text; your IP is used only to limit how often you can send and is not stored. "
+            "Use \u201cSee what is sent\u201d to check it first."
+        ))
+        privacy.setProperty("feedbackHint", True)
+        privacy.setWordWrap(True)
+        rows.addWidget(privacy)
         # Shown before the report is read, so the password dialog that may
         # follow is not a surprise.
         self.polkit_note = QLabel(tr(

@@ -5400,5 +5400,6 @@
   "Read the package named in the output. Enable the repository that provides it, or report the workflow with this code so the package list can be fixed.": "출력에 표시된 패키지를 확인하세요. 해당 패키지를 제공하는 저장소를 활성화하거나, 이 코드로 워크플로를 보고하여 패키지 목록을 수정하게 하세요.",
   "The system could not start another process.": "시스템이 새 프로세스를 시작하지 못했습니다.",
   "The system reached its limit of running processes, or it is out of memory, so a step of the workflow could not start.": "실행 중인 프로세스 한도에 도달했거나 메모리가 부족해 워크플로 단계를 시작할 수 없었습니다.",
-  "Close programs you do not need, or restart the computer, then run the action again.": "필요 없는 프로그램을 닫거나 컴퓨터를 다시 시작한 뒤 작업을 다시 실행하세요."
+  "Close programs you do not need, or restart the computer, then run the action again.": "필요 없는 프로그램을 닫거나 컴퓨터를 다시 시작한 뒤 작업을 다시 실행하세요.",
+  "Privacy: this report goes to the maintainer's service on Cloudflare, is kept for about six months and is read only to fix problems. User name, computer name, IP and MAC addresses are removed from the text; your IP is used only to limit how often you can send and is not stored. Use “See what is sent” to check it first.": "개인정보: 이 보고서는 Cloudflare에 있는 관리자의 서비스로 전송되어 약 6개월간 보관되며 문제 해결 목적으로만 열람됩니다. 사용자 이름, 컴퓨터 이름, IP 및 MAC 주소는 텍스트에서 제거되며, 사용자의 IP는 전송 빈도 제한에만 쓰이고 저장되지 않습니다. 먼저 “전송되는 내용 보기”로 확인하세요."
 }

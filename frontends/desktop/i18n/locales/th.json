@@ -5400,5 +5400,6 @@
   "Read the package named in the output. Enable the repository that provides it, or report the workflow with this code so the package list can be fixed.": "อ่านชื่อแพ็กเกจในผลลัพธ์ เปิดใช้งานคลังที่ให้แพ็กเกจนั้น หรือรายงานขั้นตอนพร้อมรหัสนี้เพื่อให้แก้ไขรายการแพ็กเกจ",
   "The system could not start another process.": "ระบบไม่สามารถเริ่มกระบวนการใหม่ได้",
   "The system reached its limit of running processes, or it is out of memory, so a step of the workflow could not start.": "ระบบถึงขีดจำกัดจำนวนกระบวนการที่ทำงานอยู่หรือหน่วยความจำหมด ขั้นตอนหนึ่งของเวิร์กโฟลว์จึงเริ่มไม่ได้",
-  "Close programs you do not need, or restart the computer, then run the action again.": "ปิดโปรแกรมที่ไม่จำเป็นหรือรีสตาร์ตคอมพิวเตอร์ แล้วเรียกใช้การดำเนินการอีกครั้ง"
+  "Close programs you do not need, or restart the computer, then run the action again.": "ปิดโปรแกรมที่ไม่จำเป็นหรือรีสตาร์ตคอมพิวเตอร์ แล้วเรียกใช้การดำเนินการอีกครั้ง",
+  "Privacy: this report goes to the maintainer's service on Cloudflare, is kept for about six months and is read only to fix problems. User name, computer name, IP and MAC addresses are removed from the text; your IP is used only to limit how often you can send and is not stored. Use “See what is sent” to check it first.": "ความเป็นส่วนตัว: รายงานนี้จะส่งไปยังบริการของผู้ดูแลบน Cloudflare เก็บไว้ประมาณหกเดือน และอ่านเพื่อแก้ไขปัญหาเท่านั้น ชื่อผู้ใช้ ชื่อคอมพิวเตอร์ และที่อยู่ IP และ MAC จะถูกลบออกจากข้อความ IP ของคุณใช้เพื่อจำกัดความถี่ในการส่งเท่านั้นและไม่ถูกจัดเก็บ ใช้ “ดูสิ่งที่ส่ง” เพื่อตรวจสอบก่อนได้"
 }
