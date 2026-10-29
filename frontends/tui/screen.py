@@ -23,9 +23,10 @@ from .support import available_version, report
 
 MIN_WIDTH, MIN_HEIGHT = 60, 14
 TOUCH_WIDTH = 110  # narrower than this, and no choice saved: the phone / tablet layout
-#: The on-screen keys a phone keyboard lacks: (label, key name). Two rows of six.
-KEYBAR = (("Menu", "menu"), ("Esc", "esc"), ("Tab", "tab"), ("PgUp", "pgup"), ("PgDn", "pgdn"), ("Enter", "enter"),
-          ("←", "left"), ("↑", "up"), ("↓", "down"), ("→", "right"), ("Search", "/"), ("Quit", "q"))
+#: The on-screen keys a phone keyboard lacks: (label, key name), one slim row.
+#: In order of need: what does not fit a narrow screen goes from the end (a swipe already scrolls).
+KEYBAR = (("Menu", "menu"), ("Esc", "esc"), ("Enter", "enter"), ("←", "left"), ("↑", "up"), ("↓", "down"),
+          ("→", "right"), ("Tab", "tab"), ("Search", "/"), ("Quit", "q"), ("PgUp", "pgup"), ("PgDn", "pgdn"))
 TOAST_SECONDS = 6.0
 TONE_PAIRS = {"ok": 1, "warn": 2, "bad": 3, "accent": 4}
 #: The desktop sidebar: its groups, in its order.
@@ -192,7 +193,7 @@ class Screen:
         return self.touch and self.ctx.state("ui").get("keybar", True) is not False
 
     def _bottom(self) -> int:
-        return 2 if self.keybar else 1
+        return 1
 
     def sidebar_width(self, width: int) -> int:
         longest = max(cell_width(tr(self.pages[key].title)) for key in self.order) + 5
@@ -250,7 +251,7 @@ class Screen:
         else:
             self._draw_content(height, width)
             self._draw_footer(height, width)
-        if self.keybar:
+        if self.keybar and not (self.toast and self.toast[2] > time.monotonic()):
             self._draw_keybar(height, width)
         self.stdscr.noutrefresh()
 
@@ -273,15 +274,25 @@ class Screen:
                 break
 
     def _draw_keybar(self, height: int, width: int) -> None:
-        """Two rows of on-screen keys at the foot; each cell is a tap target."""
-        per_row = len(KEYBAR) // 2
-        cell = width // per_row
-        for index, (label, key) in enumerate(KEYBAR):
-            y, column = height - 2 + index // per_row, (index % per_row) * cell
-            text = tr(label) if label in ("Menu", "Search", "Quit") else label
-            self.put(y, column, clip(text, cell - 1).center(cell - 1), curses.A_REVERSE | (self.attrs["accent"] if
-                     key == "menu" else 0))
+        """One slim toolbar of on-screen keys at the foot; every key is a tap target.
+
+        Each key is as wide as its label plus an even share of the spare room;
+        the ones that do not fit a narrow screen are left out from the end
+        (Termux and Termius add their own Esc, Tab and arrows above the keyboard).
+        """
+        y = height - 1
+        labels = [(tr(label) if label in ("Menu", "Search", "Quit") else label, key) for label, key in KEYBAR]
+        while len(labels) > 4 and sum(cell_width(text) + 2 for text, _key in labels) > width - 1:
+            labels.pop()
+        spare = (width - 1 - sum(cell_width(text) + 2 for text, _key in labels)) // len(labels)
+        self.put(y, 0, " " * (width - 1), self.attrs["dim"] | curses.A_REVERSE)
+        column = 0
+        for text, key in labels:
+            cell = cell_width(text) + 2 + spare
+            self.put(y, column, text.center(cell),
+                     (self.attrs["accent"] if key == "menu" else 0) | curses.A_REVERSE | curses.A_BOLD)
             self._hits.append((y, column, column + cell, key))
+            column += cell
 
     def _draw_title(self, width: int) -> None:
         metrics = self.ctx.metrics or {}
@@ -371,6 +382,12 @@ class Screen:
             if row.choice is not None:
                 self._row_at[y] = (x, "".join(text for text, _tone in row.spans))
             for text, tone in row.spans:
+                if tone.startswith("btn:"):  # a touch button: the bar is the colour, its text the background
+                    attr = self.attrs.get(tone[4:], 0) | curses.A_REVERSE | curses.A_BOLD
+                    attr = attr & ~curses.A_REVERSE if selected else attr
+                    self.put(y, column, text, attr, limit=width - column - 1)
+                    column += cell_width(text)
+                    continue
                 attr = self.attrs.get(tone, 0) | (curses.A_BOLD if row.bold else 0)
                 if selected and not row.plain:
                     attr |= curses.A_REVERSE
@@ -401,10 +418,8 @@ class Screen:
         return hints + [("Esc", "Back"), ("?", "Help")]
 
     def _draw_footer(self, height: int, width: int) -> None:
-        y = height - self._bottom()  # above the on-screen keys, a toast still shows
-        if self.toast and self.toast[2] > time.monotonic():
-            self.put(y if self.keybar else height - 1, 1, pad(self.toast[0], width - 2),
-                     self.attrs.get(self.toast[1], 0) | curses.A_BOLD)
+        if self.toast and self.toast[2] > time.monotonic():  # over the keys for its few seconds
+            self.put(height - 1, 1, pad(self.toast[0], width - 2), self.attrs.get(self.toast[1], 0) | curses.A_BOLD)
         elif not self.keybar:
             self._draw_hints(self._hints())
 
@@ -726,6 +741,8 @@ class Screen:
             code = self.stdscr.getch()
             if code == -1:
                 continue
+            if code == 3:  # Ctrl+C leaves any dialog, whatever it was asking
+                return "esc"
             key = name_of(code)
             if key != "mouse":
                 return key
@@ -803,7 +820,12 @@ class Screen:
         caret = "▏" if self.unicode else "_"
         while True:
             self.draw()
-            self._box(label, [value[:cursor] + caret + value[cursor:]], width=50, footer="Enter · Esc")
+            lines = [value[:cursor] + caret + value[cursor:]]
+            if self.touch:  # answers to tap; the phone keyboard types the value
+                lines += ["", f"[ {tr('Apply')} ]".center(23) + f"[ {tr('Cancel')} ]".center(23)]
+            top, left, box_h, box_w = self._box(label, lines, width=50, footer="Enter · Esc")
+            for y in range(top + box_h - 3, top + box_h):
+                self._hits += [(y, left, left + box_w // 2, "enter"), (y, left + box_w // 2, left + box_w, "esc")]
             self.stdscr.refresh()
             key = self._modal_key()
             if key == "enter":
@@ -968,7 +990,7 @@ class Screen:
             curses.set_escdelay(25)
         with contextlib.suppress(curses.error):
             curses.mouseinterval(0)  # a press is the click: no wait to tell it from a double click
-            curses.mousemask(curses.BUTTON1_PRESSED | getattr(curses, "BUTTON4_PRESSED", 0)
+            curses.mousemask(curses.BUTTON1_PRESSED | curses.BUTTON1_CLICKED | getattr(curses, "BUTTON4_PRESSED", 0)
                              | getattr(curses, "BUTTON5_PRESSED", 0))
         dirty = True
         while True:

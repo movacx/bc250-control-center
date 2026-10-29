@@ -101,3 +101,20 @@ def test_touch_is_forced_by_the_flag_or_the_environment_and_otherwise_remembered
     assert touch_choice(args, {"tui_touch": True}) is False
     monkeypatch.delenv("BC250_TUI_TOUCH")
     assert touch_choice(args, {"tui_touch": True}) is True and touch_choice(args, {}) is None
+
+
+def test_ctrl_c_leaves_any_dialog_and_a_text_field_has_answers_to_tap(monkeypatch):
+    window, screen = touch_screen()
+    window.queue = [ord("9"), ord("0"), ord("9"), 3]  # an out-of-range value, then Ctrl+C
+    assert screen.ask_int("Temperature", 70, 90, 90) is None
+    window.queue = [-1]
+    real = screen._modal_key
+
+    def tap_cancel():
+        y, x0, _x1, _key = next(hit for hit in screen._hits if hit[3] == "esc" and hit[0] > 3)
+        monkeypatch.setattr(curses, "getmouse", lambda: (0, x0 + 1, y, 0, curses.BUTTON1_PRESSED))
+        window.queue = [curses.KEY_MOUSE]
+        return real()
+
+    monkeypatch.setattr(screen, "_modal_key", tap_cancel)
+    assert screen.ask_text("Name", "x") is None

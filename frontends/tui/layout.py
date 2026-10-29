@@ -247,12 +247,8 @@ def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int
             button = not (detail or block.adjust or block.label.startswith(("(", "[")) or block.label.endswith("›"))
             if button:
                 tone = (tone or "accent") if block.enabled else "dim"
-            if button and touch:  # a finger needs a target three rows tall
-                text = clip(block.label, width - 4)
-                edge = glyphs.h * (cell_width(text) + 2)
-                for line in (glyphs.top[0] + edge + glyphs.top[2], f"{glyphs.v} {text} {glyphs.v}",
-                             glyphs.bottom[0] + edge + glyphs.bottom[2]):
-                    add([(line, tone)], choice=index)
+            if button and touch:  # a full-width bar, as a phone app draws a button
+                add([(pad(f"  {clip(block.label, width - 4)}", width), "btn:" + (tone or "accent"))], choice=index)
             else:
                 if button:
                     label = f"[ {clip(block.label, width - 4)} ]"  # a button: it does something, it is not a value
