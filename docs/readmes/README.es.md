@@ -158,6 +158,10 @@ systemctl --user stop bc250-black-box
 
 El registro se guarda en `~/.local/state/bc250-control-center/black-box/`. `bc250-control-center-cli diagnose` muestra el mismo diagnóstico de hardware que envía el informe.
 
+No hace falta la terminal: abre **Caja negra** en la barra lateral (encima de Firmware (BIOS)) para iniciar y detener la grabación, ver en una tabla las últimas filas que escribió y activar *Iniciar con la sesión* para que corra en cada inicio de sesión (solo con systemd). Una grabación cortada por un reinicio o un cuelgue se marca ahí.
+
+Para leer todo lo que adjunta un informe antes de enviarlo, abre **Ajustes › Diagnóstico › Ver diagnóstico completo**: cada sección (kernel, arranque anterior, caja negra, sensores, GPU, servicios, configuración, paquetes, registros) se expande, está ordenada en pestañas, se puede buscar y se puede copiar o guardar como archivo. La terminal imprime lo mismo con `bc250-control-center-cli diagnose --full`.
+
 Los problemas en GitHub también son bienvenidos. Incluye tu distribución, la versión del kernel y la salida de la terminal.
 
 ## Seguridad

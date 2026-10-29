@@ -186,6 +186,7 @@ class ControlCenterWindow(QMainWindow):
         # Import modules only after the selected palette is configured. Their
         # existing functional widgets therefore keep the correct initial colors.
         from .pages.additional_settings import AdditionalSettingsPage
+        from .pages.blackbox import BlackBoxPage
         from .pages.compute_units import ComputeUnitsPage
         from .pages.cpu_smu import CpuSmuPage
         from .pages.dashboard import DashboardPage
@@ -220,6 +221,7 @@ class ControlCenterWindow(QMainWindow):
             activity_service=activity_service,
         )
         self.performance_page = PerformancePage(controller)
+        self.blackbox_page = BlackBoxPage(controller)
         self.firmware_page = FirmwarePage(controller)
         self.settings_dialog: SettingsDialog | None = None
         self.current_page_key = "dashboard"
@@ -234,6 +236,7 @@ class ControlCenterWindow(QMainWindow):
             "performance": self.performance_page,
             "fans": self.fans_page,
             "processes": self.processes_page,
+            "black_box": self.blackbox_page,
             "firmware": self.firmware_page,
         }
         self.dashboard.module_requested.connect(self.navigate)

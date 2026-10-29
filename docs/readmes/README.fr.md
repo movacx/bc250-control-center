@@ -158,6 +158,10 @@ systemctl --user stop bc250-black-box
 
 Le journal est conservé dans `~/.local/state/bc250-control-center/black-box/`. `bc250-control-center-cli diagnose` affiche le même diagnostic matériel que celui envoyé avec le rapport.
 
+Le terminal n’est pas nécessaire : ouvrez **Boîte noire** dans la barre latérale (au-dessus de Firmware (BIOS)) pour démarrer et arrêter l’enregistrement, voir dans un tableau les dernières lignes écrites et activer *Démarrer avec la session* pour qu’elle tourne à chaque connexion (systemd uniquement). Un enregistrement interrompu par un redémarrage ou un blocage y est signalé.
+
+Pour lire tout ce qu’un rapport joint avant de l’envoyer, ouvrez **Réglages › Diagnostic › Voir le diagnostic complet** : chaque section (noyau, démarrage précédent, boîte noire, capteurs, GPU, services, configuration, paquets, journaux) se déplie, est rangée en onglets, se recherche et peut être copiée ou enregistrée dans un fichier. Le terminal affiche la même chose avec `bc250-control-center-cli diagnose --full`.
+
 Les problèmes signalés sur GitHub sont également les bienvenus. Indiquez votre distribution, la version du noyau et la sortie du terminal.
 
 ## Sécurité

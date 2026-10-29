@@ -158,6 +158,10 @@ systemctl --user stop bc250-black-box
 
 Log znajduje się w `~/.local/state/bc250-control-center/black-box/`. `bc250-control-center-cli diagnose` wypisuje tę samą diagnostykę sprzętu, którą wysyła raport.
 
+Terminal nie jest potrzebny: otwórz **Czarną skrzynkę** na pasku bocznym (nad Firmware (BIOS)), aby uruchamiać i zatrzymywać nagrywanie, zobaczyć w tabeli ostatnio zapisane wiersze i włączyć *Uruchamiaj z sesją*, by działała przy każdym logowaniu (tylko systemd). Nagranie przerwane restartem lub zawieszeniem jest tam oznaczone.
+
+Aby przeczytać wszystko, co raport dołącza, przed wysłaniem, otwórz **Ustawienia › Diagnostyka › Pokaż pełną diagnostykę**: każda sekcja (jądro, poprzedni rozruch, czarna skrzynka, czujniki, GPU, usługi, konfiguracja, pakiety, logi) rozwija się, jest podzielona na karty, można ją przeszukać, skopiować lub zapisać do pliku. Terminal wypisuje to samo poleceniem `bc250-control-center-cli diagnose --full`.
+
 Zgłoszenia na GitHubie są również mile widziane. Podaj swoją dystrybucję, wersję jądra i wynik terminala.
 
 ## Bezpieczeństwo

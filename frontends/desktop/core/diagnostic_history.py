@@ -273,5 +273,8 @@ def diagnostic_report(system_rows, entries, *, now: float | None = None) -> str:
     lines.append(system_sheet_text(system_rows))
     lines += ["", f"== Recent errors ({min(len(entries), REPORT_ENTRIES)} of {len(entries)}) =="]
     lines.append(recent_errors_text(entries))
-    # Pasted into a public form: no home folder, so no user name.
-    return redact("\n".join(lines)) + "\n"
+    # Pasted into a public form: no home folder, no user name, and neither the
+    # machine's name, nor an address, nor an id that says which machine it is.
+    from bc250cc.infrastructure.privacy import redact_machine
+
+    return redact_machine("\n".join(lines)) + "\n"

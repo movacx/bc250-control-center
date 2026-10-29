@@ -496,6 +496,34 @@ class SistemaService:
     def gestionar_mensajes_arranque_bazzite(self, action: str):
         return self.repo.gestionar_mensajes_arranque_bazzite(action)
 
+    # -- black box ---------------------------------------------------------
+
+    def blackbox_estado(self, filas: int | None = None):
+        from bc250cc.infrastructure import blackbox_control
+
+        return blackbox_control.status(rows=filas)
+
+    def diagnostico_completo(self):
+        """Every section a problem report attaches, as (title, text) pairs."""
+        from bc250cc.infrastructure.report_attachments import collect_attachments
+
+        return collect_attachments()
+
+    def blackbox_iniciar(self):
+        from bc250cc.infrastructure import blackbox_control
+
+        return blackbox_control.start()
+
+    def blackbox_detener(self):
+        from bc250cc.infrastructure import blackbox_control
+
+        return blackbox_control.stop()
+
+    def blackbox_con_la_sesion(self, activar: bool):
+        from bc250cc.infrastructure import blackbox_control
+
+        return blackbox_control.set_autostart(bool(activar))
+
     def gestionar_smt_bazzite(self, action: str):
         return self.repo.gestionar_smt_bazzite(action)
 

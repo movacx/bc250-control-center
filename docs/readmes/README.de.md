@@ -158,6 +158,10 @@ systemctl --user stop bc250-black-box
 
 Das Protokoll wird in `~/.local/state/bc250-control-center/black-box/` gespeichert. `bc250-control-center-cli diagnose` gibt dieselbe Hardware-Diagnose aus, die der Bericht sendet.
 
+Das Terminal ist nicht nötig: Öffne **Blackbox** in der Seitenleiste (über Firmware (BIOS)), um die Aufnahme zu starten und zu beenden, die zuletzt geschriebenen Zeilen in einer Tabelle zu sehen und *Mit der Sitzung starten* zu aktivieren, damit sie bei jeder Anmeldung läuft (nur systemd). Eine durch Neustart oder Absturz abgebrochene Aufnahme wird dort markiert.
+
+Um alles zu lesen, was ein Bericht anhängt, bevor du ihn sendest, öffne **Einstellungen › Diagnose › Vollständige Diagnose anzeigen**: Jeder Abschnitt (Kernel, vorheriger Start, Blackbox, Sensoren, GPU, Dienste, Konfiguration, Pakete, Protokolle) ist aufklappbar, nach Tabs sortiert, durchsuchbar und lässt sich kopieren oder als Datei speichern. Das Terminal gibt dasselbe mit `bc250-control-center-cli diagnose --full` aus.
+
 Probleme auf GitHub sind ebenfalls willkommen. Bitte gib deine Distribution, die Kernelversion und die Terminalausgabe an.
 
 ## Sicherheit

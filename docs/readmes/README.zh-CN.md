@@ -158,6 +158,10 @@ systemctl --user stop bc250-black-box
 
 日志保存在 `~/.local/state/bc250-control-center/black-box/`。`bc250-control-center-cli diagnose` 会输出报告所发送的同一份硬件诊断。
 
+无需终端：在侧边栏打开**黑匣子**（位于 Firmware (BIOS) 上方）即可开始和停止记录，在表格中查看最后写入的几行，并开启*随会话启动*，让它在每次登录时运行（仅限 systemd）。被重启或死机中断的记录会在那里标出。
+
+要在发送前阅读报告附带的全部内容，请打开**设置 › 诊断 › 查看完整诊断**：每个部分（内核、上次启动、黑匣子、传感器、GPU、服务、配置、软件包、日志）都可展开，按标签页分类，可搜索，并可复制或另存为文件。终端中用 `bc250-control-center-cli diagnose --full` 输出相同内容。
+
 也欢迎在 GitHub 上提交 issue。请附上你的发行版、内核版本和终端输出。
 
 ## 安全

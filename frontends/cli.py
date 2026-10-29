@@ -141,7 +141,11 @@ def _parser() -> argparse.ArgumentParser:
         help="Record GPU clock, load, temperatures, voltage and fans 4 times a second until Ctrl+C; "
              "the next problem report attaches the last seconds before a freeze",
     )
-    commands.add_parser("diagnose", help="Print the hardware diagnosis a problem report attaches")
+    diagnose = commands.add_parser("diagnose", help="Print the hardware diagnosis a problem report attaches")
+    diagnose.add_argument(
+        "--full", action="store_true",
+        help="Print every section a report attaches, the way Settings > Diagnostics > View full diagnosis shows them",
+    )
     metrics = commands.add_parser("metrics", help="Read or export recorded runtime metrics")
     metrics.add_argument("action", choices=("list", "export"))
     metrics.add_argument("--path")
@@ -188,6 +192,11 @@ def main(argv: list[str] | None = None, *, host=None, runner=subprocess.run) -> 
 
         return record()
     if args.command == "diagnose":
+        if args.full:
+            from bc250cc.infrastructure.report_attachments import collect_attachments
+
+            print("\n\n".join(f"== {title} ==\n{body}" for title, body in collect_attachments()))
+            return 0
         from bc250cc.infrastructure.system_diagnostics import collect_diagnostics
 
         print(collect_diagnostics())
