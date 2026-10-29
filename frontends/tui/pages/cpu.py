@@ -16,7 +16,6 @@ TEMPERATURE_C = (70, 90)
 SCALE = (-50, 0)
 PROFILES = (
     ("Mid board", 3550, 1050, 90),
-    ("Balanced", 3700, 1150, 90),
     ("Mid point", 3850, 1150, 90),
     ("Maximum", 4000, 1275, 90),
 )
@@ -46,18 +45,18 @@ class CpuPage(Page):
         unlock = (data or {}).get("unlock") or {}
         run_shell = make_runner(tr)
 
-        out = [Heading(tr("Live core monitor")),
-               load_meter(tr("CPU usage"), cpu.get("usage_percent")),
-               Field(tr("Frequency"), number(cpu.get("frequency_mhz"), "MHz")),
+        out = [Heading(tr("Live")),
+               Field(tr("Current frequency"), number(cpu.get("frequency_mhz"), "MHz")),
                temperature_meter(tr("Temperature"), cpu.get("temperature_c")),
+               load_meter(tr("CPU usage"), cpu.get("usage_percent")),
                Field(tr("Topology"), f"{cpu.get('physical_cores', '--')} / {cpu.get('logical_cores', '--')}"),
-               trend(ctx, tr("Frequency"), "cpu_clock", "MHz")]
+               trend(ctx, tr("Frequency"), "cpu_clock", "MHz"), Gap(), Heading(tr("Live core monitor"))]
         clocks = cpu.get("per_core_frequency_mhz") or []
         for index, value in enumerate((cpu.get("per_core_percent") or [])[:8]):
             freq = clocks[index] if index < len(clocks) else None
             out.append(Meter(f"N{index + 1}", percent(value), f"{number(freq, 'MHz')}  {number(value, '%')}"))
 
-        # -- operating profile
+        # -- operating profile: the three shipped ones, like the GPU page
         out += [Gap(), Heading(tr("Operating profile"))]
         for name, freq, vid, limit in PROFILES:
             def pick(ui_, freq=freq, vid=vid, limit=limit):
@@ -76,7 +75,7 @@ class CpuPage(Page):
                 if value is not None:
                     target[key] = value
 
-            return Choice(label, edit, f"◀ {target[key]} {unit} ▶" if ui.unicode else f"< {target[key]} {unit} >", adjust=adjust)
+            return Choice(label, edit, f"< {target[key]} {unit} >", adjust=adjust)
 
         out += [Track(tr("Frequency"), FREQUENCY_MHZ[0], FREQUENCY_MHZ[1], FREQUENCY_MHZ[0], target["freq"],
                       f"{target['freq']} MHz", "warn" if target["freq"] > 3850 else "accent"),
@@ -143,15 +142,4 @@ class CpuPage(Page):
                       "ok" if unlock.get("unlocked") else ""),
                 Choice(f"[{'x' if target['force_mask'] else ' '}] {tr('Force a non-standard core mask (-f)')}", toggle_mask),
                 Choice(tr("Unlock CPU cores and restart"), unlock_cores, tone="bad")]
-
-        def install(call, label):
-            def handler(ui_):
-                if ui_.confirm(tr("Install {name}").format(name=label)):
-                    guarded(ui_, label, call)
-            return handler
-
-        out += [Gap(), Heading(tr("Components")),
-                Choice(tr("Install {name}").format(name="bc250_smu_oc"), install(service.instalar_cpu_oc, "bc250_smu_oc")),
-                Choice(tr("Prepare bc250-core-unlock"), install(service.instalar_core_unlock, "bc250-core-unlock")),
-                Choice(tr("Install UMR"), install(service.instalar_umr, "UMR"))]
         return out

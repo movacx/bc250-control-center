@@ -15,18 +15,32 @@ from bc250cc.infrastructure.bazzite_deployment import RPM_OSTREE_IDLE_WAIT
 from bc250cc.shared.failure_text import describe_failure
 
 
-def make_runner(translate: Callable[[str], str] = str) -> Callable[..., str]:
+def make_runner(
+    translate: Callable[[str], str] = str,
+    execute: Callable[[str], int] | None = None,
+) -> Callable[..., str]:
+    """A runner for reviewed workflows.
+
+    ``execute`` runs the command somewhere the interface can show it (an
+    in-screen console) and returns its exit status; without it the command
+    runs on this process's own terminal.
+    """
     def run(command, title="BC250 Control Center"):
         if shutil.which("rpm-ostree"):
             command = f"{RPM_OSTREE_IDLE_WAIT}; {command}"
-        completed = subprocess.run(["bash", "-c", command], check=False)  # nosec B603 B607
-        if completed.returncode != 0:
-            raise RuntimeError(describe_failure(completed.returncode, "", "", translate=translate))
+        if execute is not None:
+            status = execute(command)
+        else:
+            status = subprocess.run(["bash", "-c", command], check=False).returncode  # nosec B603 B607
+        if status != 0:
+            raise RuntimeError(describe_failure(status, "", "", translate=translate))
         return f"{title}: OK"
 
     return run
 
 
-def use_inline_terminal(repository, translate: Callable[[str], str] = str) -> None:
+def use_inline_terminal(
+    repository, translate: Callable[[str], str] = str, execute: Callable[[str], int] | None = None,
+) -> None:
     """Make ``repository`` run its workflows in this terminal instead of a new window."""
-    repository._abrir_terminal = make_runner(translate)
+    repository._abrir_terminal = make_runner(translate, execute)

@@ -156,12 +156,51 @@ def test_compute_units_grid_moves_in_two_dimensions_and_reports_the_edges():
     assert ctx.state("cu")["cursor"][1] == 4 and grid.move(0, 1) is False
 
 
-def test_fans_set_duty_converts_percent_to_pwm():
+def test_fans_manual_apply_writes_the_pwm_and_saves_the_speed_as_the_preset():
     service = FakeService()
     ctx, ui = make_context(service), FakeUI(ints=[100])
-    layout = render(build_pages()["fans"], ctx, ui)
-    next(c for c in layout.choices if c.label.startswith("Apply PWM")).handler(ui)
+    saved = []
+    ctx.settings.save_local_config = saved.append
+    page = build_pages()["fans"]
+    layout = render(page, ctx, ui, "manual")
+    choice(layout, "Fan speed").handler(ui)  # type 100 %
+    choice(render(page, ctx, ui, "manual"), "Apply PWM").handler(ui)
     assert ("aplicar_pwm_fan", (2, 255), {}) in service.calls
+    assert saved[-1]["fan_preset"]["percent"] == 100 and saved[-1]["fan_curve"]["enabled"] is False
+
+
+def test_fans_low_duty_needs_an_explicit_dangerous_confirmation():
+    service = FakeService()
+    ctx, ui = make_context(service), FakeUI(ints=[10])
+    page = build_pages()["fans"]
+    choice(render(page, ctx, ui, "manual"), "Fan speed").handler(ui)
+    choice(render(page, ctx, ui, "manual"), "Apply PWM").handler(ui)
+    assert ui.confirmations[-1][1] is True
+
+
+def test_fans_curve_editor_validates_saves_and_enables_the_curve():
+    ctx, ui = make_context(), FakeUI()
+    saved = []
+    ctx.settings.save_local_config = saved.append
+    page = build_pages()["fans"]
+    choice(render(page, ctx, ui, "curve"), "Balanced").handler(ui)  # preset selects five points and enables
+    layout = render(page, ctx, ui, "curve")
+    assert "100 %" in text_of(layout)
+    choice(layout, "Save curve").handler(ui)
+    body = saved[-1]["fan_curve"]
+    assert body["enabled"] and len(body["points"]) == 5 and body["t1"] == 40
+    assert saved[-1]["fan_preset"]["enabled"] is False
+
+
+def test_fans_boot_service_turns_on_with_the_policy_after_confirmation():
+    service = FakeService()
+    service.estado_control_fan_sistema = lambda: {"enabled": False, "available": True, "state": "off"}
+    ctx, ui = make_context(service), FakeUI()
+    ctx.settings.read_local_config = lambda: {"fan_curve": {"enabled": True, "pwm": 2, "points": [
+        {"temperature": 40, "speed": 50}, {"temperature": 60, "speed": 75}, {"temperature": 74, "speed": 100}]}}
+    choice(render(build_pages()["fans"], ctx, ui, "boot"), "Turn on").handler(ui)
+    call = next(c for c in service.calls if c[0] == "activar_control_fan_sistema")
+    assert call[1][0]["mode"] == "curve" and call[1][0]["pwm"] == 2
 
 
 def test_protected_processes_cannot_be_acted_on():

@@ -36,6 +36,9 @@ class FakeWindow:
     def noutrefresh(self):
         pass
 
+    def clearok(self, flag):
+        pass
+
     def refresh(self):
         pass
 

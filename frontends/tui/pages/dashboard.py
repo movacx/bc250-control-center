@@ -24,7 +24,6 @@ from ..content import (
     heat_tone,
     number,
     percent,
-    size,
 )
 from ..i18n import tr
 from .base import (
@@ -57,13 +56,21 @@ def _safe(call):
     return value if isinstance(value, dict) else None
 
 
+def compact_size(value: float) -> str:
+    gib = value / 2**30
+    return f"{gib:.1f} GiB" if gib >= 1 else f"{value / 2**20:.0f} MiB"
+
+
 def memory_meter(label: str, used: object, total: object) -> Meter:
     try:
         fraction = float(used) / float(total)
     except (TypeError, ValueError, ZeroDivisionError):
         return Meter(label, None, "--")
     tone = "bad" if fraction >= 0.95 else "warn" if fraction >= 0.85 else "ok"
-    return Meter(label, fraction, f"{size(used)} / {size(total)}", tone)
+    first, second = compact_size(float(used)), compact_size(float(total))
+    if first[-3:] == second[-3:]:
+        first = first[:-4]  # "389 / 512 MiB": the unit once
+    return Meter(label, fraction, f"{first} / {second}", tone)
 
 
 def pump_row(fans) -> dict:
@@ -120,17 +127,20 @@ class DashboardPage(Page):
             cores.append(Meter(f"N{index + 1}", percent(value), f"{number(freq, 'MHz')} {number(value, '%')}"))
         cpu_card = Card(tr("Processor"), [
             Field(tr("Core temperature"), number(cpu.get("temperature_c"), "°C", 1), heat_tone(cpu.get("temperature_c"))),
-            Field("VRM CPU", number(sensors.get("vrm_cpu_temperature_c"), "°C", 1, tr("Not detected"))),
+            *([Field("VRM CPU", number(sensors.get("vrm_cpu_temperature_c"), "°C", 1))]
+              if sensors.get("vrm_cpu_temperature_c") is not None else []),
             load_meter(tr("CPU usage"), cpu.get("usage_percent")),
-            trend(ctx, tr("Usage"), "cpu_load", "%"),
+            Gap(),
             Heading(tr("Live core monitor")),
             Field(tr("Topology"), f"{cpu.get('physical_cores', '--')} / {cpu.get('logical_cores', '--')}"),
             *cores,
         ], number(cpu.get("frequency_mhz", 0) / 1000 if cpu.get("frequency_mhz") else None, "GHz", 2))
         gpu_card = Card(tr("Graphics"), [
             temperature_meter(tr("Temperature"), gpu.get("temperature_c")),
-            Field("VRM MOS", number(sensors.get("vrm_mos_temperature_c"), "°C", 1, tr("Not detected"))),
-            Field("VRM GPU", number(sensors.get("vrm_gpu_temperature_c"), "°C", 1, tr("Not detected"))),
+            *([Field("VRM MOS", number(sensors.get("vrm_mos_temperature_c"), "°C", 1))]
+              if sensors.get("vrm_mos_temperature_c") is not None else []),
+            *([Field("VRM GPU", number(sensors.get("vrm_gpu_temperature_c"), "°C", 1))]
+              if sensors.get("vrm_gpu_temperature_c") is not None else []),
             Field(tr("GPU power"), number(power.get("value_w", gpu.get("power_w")), "W", 0)),
             Field(tr("GPU voltage"), number((gpu.get("voltage_mv") or 0) / 1000 if gpu.get("voltage_mv") else None, "V", 3)),
             Field("MCLK", number(gpu.get("memory_frequency_mhz"), "MHz")),
@@ -152,7 +162,7 @@ class DashboardPage(Page):
         cool_card = Card(tr("Cooling"), [
             Field(tr("PWM duty"), number(duty, "%")),
             Field(tr("PWM mode"), {2: "Firmware (BIOS)", 1: tr("Manual")}.get(pump.get("pwm_enable"), "--")),
-            Field(tr("Controller"), str(pump.get("label") or "--")),
+            Field(tr("Controller"), str(pump.get("label") or "--")[:22]),
             temperature_meter(tr("Board temperature"), sensors.get("board_temperature_c")),
             Heading(tr("M.2 drive")),
             temperature_meter(tr("Temperature"), sensors.get("nvme_temperature_c")),
@@ -163,7 +173,7 @@ class DashboardPage(Page):
             Field(tr("Version"), str(data.get("bios") or ctx.state(self.key).get("bios") or self._bios(ctx))),
         ], number(pump.get("rpm"), "RPM"))
 
-        out = [Columns([cpu_card, gpu_card, cool_card], minimum=38)]
+        out = [Columns([cpu_card, gpu_card, cool_card], minimum=46), Gap()]
         out += self._gddr6(ctx, data.get("gddr6") or {}, ui)
         out += self._power(sensors)
         out += self._prepare(ctx, data, ui)
@@ -195,9 +205,12 @@ class DashboardPage(Page):
         out = [Heading(tr("GDDR6 memory temperature")
                        + (f"   {number(average, '°C', 1)}   {tr('Hotspot')} {number(hotspot, '°C', 1)}" if average is not None else ""))]
         if chips:
-            out.append(Grid([f"Chip {c.get('chip')}" for c in chips[:8]],
-                            [[f"{number(c.get('temperature_c'), '°C', 1)} MR3 0x{int(c.get('code', 0)):02X}"
-                              for c in chips[:8]]]))
+            for first in range(0, len(chips[:8]), 4):
+                group = chips[first:first + 4]
+                out.append(Grid([f"Chip {c.get('chip')}" for c in group],
+                                [[f"{number(c.get('temperature_c'), '°C', 1)}  MR3 0x{int(c.get('code', 0)):02X}" for c in group]],
+                                gap=6))
+                out.append(Gap())
         else:
             reason = status.get("governor_state") or ""
             out.append(Note(sample.get("error") or (tr("Not detected") if not status.get("reader_ready")

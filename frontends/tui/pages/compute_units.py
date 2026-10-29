@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from bc250cc.domain.compute_units import WgpMaskTable
 
-from ..content import Choice, Field, Gap, Heading, Note, Pad, PadCell, PadRow, Raw
+from ..content import Choice, Field, Gap, Heading, Note, Pad, PadCell, PadRow
 from ..i18n import tr
 from .base import Page, guarded
 
@@ -123,9 +123,6 @@ class ComputeUnitsPage(Page):
             Choice(tr("Remove boot restore service"), action("remove_service", tr("Remove boot restore service"))),
             Choice(tr("Refresh"), lambda ui_: self._read_live(ctx, ui_)),
         ]
-        raw = str(data.get("raw") or "").splitlines()
-        if raw:
-            out += [Gap(), Heading(tr("Live Dispatch")), Raw(raw, "dim")]
         return out
 
     def _read_live(self, ctx, ui):

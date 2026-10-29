@@ -110,6 +110,7 @@ class Grid:
     headers: Sequence[str]
     rows: Sequence[Sequence[str]]
     tones: Sequence[str] = ()
+    gap: int = 2
 
 
 @dataclass(slots=True)

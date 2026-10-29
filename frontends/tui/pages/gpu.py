@@ -14,9 +14,7 @@ from bc250cc.domain.gpu.voltage_profiles import (
 from frontends.desktop.i18n import governor_fix_label
 
 from ..content import (
-    Card,
     Choice,
-    Columns,
     Field,
     Gap,
     Grid,
@@ -92,32 +90,31 @@ class GpuPage(Page):
         is_cyan = backend.startswith("cyan")
 
         busy = gpu.get("usage_percent") if gpu.get("usage_percent") is not None else gpu.get("compute_busy_percent")
-        tiles = Columns([
-            Card(tr("Core clock"), [Field(tr("Current frequency"), number(state.get("sclk_actual", gpu.get("frequency_mhz")), "MHz"))]),
-            Card(tr("GPU voltage"), [Field(tr("Voltage"), number(state.get("voltaje_actual", gpu.get("voltage_mv")), "mV"))]),
-            Card(tr("Temperature"), [temperature_meter(tr("Temperature"), gpu.get("temperature_c"))]),
-            Card(tr("GPU load"), [load_meter(tr("Usage"), busy)]),
-            Card(tr("Memory clock"), [Field(tr("Memory"), number(state.get("mclk_actual", gpu.get("memory_frequency_mhz")), "MHz"))]),
-            Card(tr("Active range"), [Field(tr("Range"), f"{current_min}–{current_max} MHz")]),
-        ], minimum=30)
+        live = [
+            Heading(tr("Live")),
+            Field(tr("Current frequency"), number(state.get("sclk_actual", gpu.get("frequency_mhz")), "MHz")),
+            Field(tr("Voltage"), number(state.get("voltaje_actual", gpu.get("voltage_mv")), "mV")),
+            temperature_meter(tr("Temperature"), gpu.get("temperature_c")),
+            load_meter(tr("GPU load"), busy),
+            Field(tr("Memory"), number(state.get("mclk_actual", gpu.get("memory_frequency_mhz")), "MHz")),
+            Field(tr("Active range"), f"{current_min}–{current_max} MHz"),
+        ]
 
-        # -- profiles: one press sets the range
-        out = [tiles, Heading(tr("Operating profile"))]
+        # -- the three shipped profiles; one press sets the range
+        out = [*live, Gap(), Heading(tr("Operating profile"))]
         for profile in profiles_for_allowed_range(low, high, governor="oberon" if backend.startswith("oberon") else "cyan"):
             def apply_profile(ui_, profile=profile):
                 if ui_.confirm(f"{tr(profile.label)}: {profile.minimum_mhz}–{profile.maximum_mhz} MHz"):
                     guarded(ui_, tr(profile.label), lambda: service.aplicar_perfil_gpu(profile.minimum_mhz, profile.maximum_mhz))
 
             active = (profile.minimum_mhz, profile.maximum_mhz) == (current_min, current_max)
-            out.append(Choice(("● " if ui.unicode else "* ") + tr(profile.label) if active else "  " + tr(profile.label),
-                              apply_profile, f"{profile.minimum_mhz}–{profile.maximum_mhz} MHz",
-                              tone="ok" if active else ""))
+            out.append(Choice(f"({'x' if active else ' '}) {tr(profile.label)}", apply_profile,
+                              f"{profile.minimum_mhz}–{profile.maximum_mhz} MHz", tone="ok" if active else ""))
 
         def export(ui_):
             payload = profiles_payload(low, high, governor="oberon" if backend.startswith("oberon") else "cyan")
             guarded(ui_, tr("Export to Decky"), lambda: service.exportar_perfiles_gpu_decky(payload))
 
-        out.append(Choice(tr("Export to Decky"), export))
 
         # -- range: two sliders over the safe points
         def step(which, delta):
@@ -142,8 +139,8 @@ class GpuPage(Page):
         out += [Gap(), Heading(tr("Frequency range")),
                 Track(tr("Range"), low, high, want_min, want_max, f"{want_min} – {want_max} MHz",
                       "warn" if (want_min, want_max) != (current_min, current_max) else "accent"),
-                Choice(tr("Minimum frequency"), None, f"◀ {want_min} MHz ▶" if ui.unicode else f"< {want_min} MHz >", adjust=step("min", 0)),
-                Choice(tr("Maximum frequency"), None, f"◀ {want_max} MHz ▶" if ui.unicode else f"< {want_max} MHz >", adjust=step("max", 0)),
+                Choice(tr("Minimum frequency"), None, f"< {want_min} MHz >", adjust=step("min", 0)),
+                Choice(tr("Maximum frequency"), None, f"< {want_max} MHz >", adjust=step("max", 0)),
                 Choice(tr("Review and apply range"), apply_range, tone="accent",
                        enabled=(want_min, want_max) != (current_min, current_max)),
                 Choice(tr("Save active range for startup"), save_boot)]
@@ -159,6 +156,7 @@ class GpuPage(Page):
             guarded(ui_, tr("View status"), service.status_governor)
 
         out += [Gap(), Heading(tr("Governor service")),
+                Choice(tr("Export to Decky"), export),
                 Field(tr("Backend"), backend or tr("Not detected")),
                 Field(tr("Service"), f"{state.get('service_active', '--')} / {state.get('service_enabled', '--')}",
                       "ok" if state.get("service_active") == "active" else "warn"),
@@ -183,7 +181,7 @@ class GpuPage(Page):
                     if picked is not None:
                         opts[key] = picked
                 names = dict(options)
-                return Choice(label, choose, f"◀ {names[opts[key]]} ▶" if ui.unicode else f"< {names[opts[key]]} >", adjust=adjust)
+                return Choice(label, choose, f"< {names[opts[key]]} >", adjust=adjust)
 
             def flag(key, label):
                 def toggle(ui_):

@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import contextlib
 import curses
 import locale
 import os
+import subprocess  # nosec B404 - fallback for a terminal without a graphical session
+import threading
 import time
 from collections.abc import Callable
 from typing import Any
 
+from .console import Console
 from .content import cell_width, clip, pad, wrap
 from .i18n import tr
 from .keys import ALIASES, name_of
@@ -68,7 +72,8 @@ class Screen:
         self.unicode = self._unicode_ok()
         self.glyphs = Glyphs.for_terminal(unicode_ok=self.unicode)
         self.attrs: dict[str, int] = {}
-        self._foreground = foreground or self._suspend_and_run
+        self._foreground = foreground
+        self.active_console: Console | None = None
         self._layout: Layout | None = None
         self._layout_key: tuple | None = None
         self.running = True
@@ -271,7 +276,10 @@ class Screen:
                 self.put(y, column, marker, self.attrs["accent"])
             column += 2
             for text, tone in row.spans:
-                attr = self.attrs.get(tone, 0) | (curses.A_BOLD if row.bold and tone != "accent" else 0)
+                if tone.startswith("bar:"):
+                    attr = self.attrs.get(tone[4:], 0) | curses.A_REVERSE
+                else:
+                    attr = self.attrs.get(tone, 0) | (curses.A_BOLD if row.bold and tone != "accent" else 0)
                 if selected and not row.plain:
                     attr |= curses.A_REVERSE
                 if tone == "sel" and self.focus != "content":
@@ -294,6 +302,8 @@ class Screen:
     # ------------------------------------------------------------- input
 
     def handle(self, code: int) -> None:
+        if code == 3:
+            raise Quit
         key = name_of(code)
         if key in ALIASES and self.focus in ("sidebar", "content"):
             key = ALIASES[key]
@@ -328,6 +338,7 @@ class Screen:
     def _go(self, index: int) -> None:
         self.section = max(0, min(len(self.order) - 1, index))
         self._layout_key = None
+        self._repaint()
         if self.poller:
             self.poller.show(self.page_key, self._tab_key())
 
@@ -353,6 +364,13 @@ class Screen:
         self._layout_key = None
         if self.poller:
             self.poller.show(self.page_key, keys[index])
+
+    def _repaint(self) -> None:
+        """Ask curses to redraw every cell, so stale ones cannot linger in the terminal."""
+        try:
+            self.stdscr.clearok(True)
+        except (AttributeError, curses.error):
+            pass
 
     def goto(self, page_key: str) -> None:
         if page_key in self.order:
@@ -594,7 +612,94 @@ class Screen:
     # ---------------------------------------------------------- foreground
 
     def run(self, label: str, work: Callable[[], Any]) -> tuple[bool, Any]:
-        return self._foreground(label, work)
+        """Run a service call or workflow. It reports inside the interface when it can.
+
+        A privilege prompt (pkexec) needs a graphical Polkit agent to stay off
+        this screen; on a bare TTY there is none, so the screen is handed to the
+        terminal for the call instead.
+        """
+        if self._foreground is not None:
+            return self._foreground(label, work)
+        if os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"):
+            return self._run_in_console(label, work)
+        return self._suspend_and_run(label, work)
+
+    def execute(self, command: str) -> int:
+        """Run a reviewed workflow command: in the console pane, else on this terminal."""
+        console = self.active_console
+        if console is None:
+            return subprocess.run(["bash", "-c", command], check=False).returncode  # nosec B603 B607
+        height, width = self.size()
+        return console.run_command(command, (max(5, height - 2), max(20, width - 2)))
+
+    def _run_in_console(self, label: str, work: Callable[[], Any]) -> tuple[bool, Any]:
+        console = Console(label)
+        self.active_console = console
+
+        def job() -> None:
+            try:
+                with contextlib.redirect_stdout(console):
+                    console.result = work()
+            except Exception as error:
+                console.ok, console.result = False, error
+            finally:
+                console.done.set()
+
+        threading.Thread(target=job, name="bc250-tui-job", daemon=True).start()
+        shown, finished_text = False, False
+        try:
+            while True:
+                finished = console.done.is_set()
+                if finished and not finished_text:
+                    finished_text = True
+                    if console.ok and isinstance(console.result, str) and console.result.strip():
+                        console.write(("\n" if console.has_output else "") + console.result.strip() + "\n")
+                    elif not console.ok:
+                        from .runtime import describe_error
+                        console.write(("\n" if console.has_output else "") + describe_error(console.result) + "\n")
+                if finished and console.ok and not console.has_output:
+                    break  # nothing worth reading: the toast says it
+                shown = shown or finished or console.has_output or time.monotonic() - console.started > 0.6
+                if shown:
+                    self._draw_console(console, finished)
+                code = self.stdscr.getch()
+                if code == -1:
+                    continue
+                key = name_of(code)
+                if finished:
+                    if key in ("esc", "enter", "q"):
+                        break
+                    continue
+                if code == 3:
+                    console.interrupt()
+                elif console.input_fd is not None:
+                    data = {"enter": b"\n", "backspace": b"\x7f", "space": b" ", "tab": b"\t"}.get(key)
+                    if data is None and len(key) == 1:
+                        data = key.encode("utf-8")
+                    if data:
+                        console.send(data)
+        finally:
+            self.active_console = None
+            self._layout_key = None
+            self.stdscr.clearok(True)
+        return console.ok, console.result
+
+    def _draw_console(self, console: Console, finished: bool) -> None:
+        height, width = self.size()
+        self.stdscr.erase()
+        self.put(0, 0, pad(f" {console.label}", width), self.attrs["accent"] | curses.A_REVERSE)
+        lines = console.snapshot()
+        while lines and not lines[-1].strip() and len(lines) > 1 and finished:
+            lines.pop()
+        view = max(1, height - 2)
+        for index, line in enumerate(lines[-view:]):
+            self.put(1 + index, 0, line.replace("\x00", ""))
+        if finished:
+            footer = ("OK" if console.ok else tr("Error")) + f" · Esc {tr('Back')}"
+        else:
+            footer = f"{tr('Waiting for data…')}  ·  Ctrl+C"
+        self.put(height - 1, 1, pad(footer, width - 2), self.attrs["dim"])
+        self.stdscr.refresh()
 
     def _suspend_and_run(self, label: str, work: Callable[[], Any]) -> tuple[bool, Any]:
         """Hand the terminal back for ``work``: privilege prompts and output need it."""
@@ -623,6 +728,7 @@ class Screen:
 
     def loop(self) -> None:
         self.stdscr.keypad(True)
+        curses.raw()  # Ctrl+C arrives as a key: it interrupts a running command, never kills the screen
         self.stdscr.timeout(200)
         try:
             curses.curs_set(0)
