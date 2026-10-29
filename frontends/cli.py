@@ -73,6 +73,11 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON")
     commands = parser.add_subparsers(dest="command", required=True)
+    web = commands.add_parser(
+        "web", help="Start the local web interface (dashboard, telemetry, hardware controls)"
+    )
+    web.add_argument("--host", default="", help="Host interface to bind (default: 127.0.0.1 or LAN)")
+    web.add_argument("--port", type=int, default=0, help="Port to listen on (default: 8250)")
     tui = commands.add_parser(
         "tui", help="Open the interactive terminal interface (sidebar, live telemetry, every setting)"
     )
@@ -193,6 +198,15 @@ def _run_dependencies(args, host, runner) -> int:
 
 def main(argv: list[str] | None = None, *, host=None, runner=subprocess.run) -> int:
     args = _parser().parse_args(argv)
+    if args.command == "web":
+        from frontends.web.server import main as web_main
+
+        web_argv = []
+        if args.host:
+            web_argv.extend(["--host", args.host])
+        if args.port:
+            web_argv.extend(["--port", str(args.port)])
+        return web_main(web_argv)
     if args.command == "tui":
         from frontends.tui.app import main as tui_main
 

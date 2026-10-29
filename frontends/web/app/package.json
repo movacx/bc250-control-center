@@ -1,0 +1,9 @@
+{
+  "name": "bc250-web-app",
+  "private": true,
+  "type": "module",
+  "description": "Source of the local web interface. Only needed to rebuild ../dist (scripts/build-web.sh); users never need Node.",
+  "scripts": { "build": "node build.mjs" },
+  "dependencies": { "react": "19.1.0", "react-dom": "19.1.0" },
+  "devDependencies": { "esbuild": "0.25.5" }
+}

@@ -45,6 +45,7 @@ cp -a -- "$ROOT_DIR/integrations/decky/bc250-quick-access" \
 # access while preserving executability of scripts that were already marked
 # executable.
 chmod -R a+rX "$DESTDIR/usr/share/bc250-control-center"
+rm -rf -- "$DESTDIR/usr/share/bc250-control-center/frontends/web/app/node_modules"
 rm -rf -- "$DESTDIR/usr/share/bc250-control-center/integrations/decky/bc250-quick-access/node_modules"
 find "$DESTDIR/usr/share/bc250-control-center/integrations/decky/bc250-quick-access" \
   -type d -name __pycache__ -prune -exec rm -rf -- {} +

@@ -6,10 +6,15 @@ if ! python3 -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 11) e
 fi
 XDG_DATA_BASE="${XDG_DATA_HOME:-$HOME/.local/share}"
 # "bc250-control-center tui" opens the terminal interface instead of the window.
+# "bc250-control-center web" starts the local web interface.
 if [ "${1:-}" = "tui" ]; then
   shift
   APP_ENTRY="frontends/tui/app.py"
   APP_MODULE="frontends.tui"
+elif [ "${1:-}" = "web" ]; then
+  shift
+  APP_ENTRY="frontends/web/server.py"
+  APP_MODULE="frontends.web"
 else
   APP_ENTRY="frontends/desktop/main.py"
   APP_MODULE="frontends.desktop.main"

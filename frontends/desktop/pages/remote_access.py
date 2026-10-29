@@ -6,17 +6,18 @@ says, in four short steps, what to install on the phone and what to type.
 
 from __future__ import annotations
 
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QGuiApplication
-from PyQt6.QtWidgets import QHBoxLayout, QLabel, QScrollArea, QSizePolicy, QVBoxLayout, QWidget
+from PyQt6.QtCore import Qt, QUrl
+from PyQt6.QtGui import QDesktopServices, QGuiApplication
+from PyQt6.QtWidgets import QGridLayout, QHBoxLayout, QLabel, QScrollArea, QSizePolicy, QVBoxLayout, QWidget
 
-from bc250cc.application.system import remote_access
+from bc250cc.application.system import remote_access, web_access
 
 from ..components.async_tools import BackgroundExecutor
 from ..components.buttons import WrappingButton as QPushButton
 from ..components.page_widgets import SectionCard
 from ..components.responsive import configure_responsive_scroll_area
 from ..components.toast import show_toast
+from ..components.toggle_switch import ToggleSwitch
 from ..components.tui_preview_dialog import TuiPreviewDialog
 from ..i18n import tr, tr_format
 from ..theme import COLORS, scale_stylesheet
@@ -38,6 +39,8 @@ class RemoteAccessPage(QWidget):
         self.setProperty("processPage", True)
         self._background = BackgroundExecutor(self)
         self._state: dict = {}
+        self._web_state: dict = {}
+        self._syncing_web = False
         self._code_boxes: list[QLabel] = []
 
         outer = QVBoxLayout(self)
@@ -103,6 +106,95 @@ class RemoteAccessPage(QWidget):
         steps.body.addWidget(self._label(
             "Use it only on a network you trust, and do not open the SSH port to the internet."
         ))
+
+        # -- Web Telemetry ----------------------------------------------------
+        self.web_card = SectionCard(
+            "Web telemetry",
+            "Open Control Center on your phone, tablet or another computer of your network, in a web page.",
+            icon_name="",
+        )
+        root.addWidget(self.web_card)
+
+        self.web_state_label = self._label("")
+        self.web_card.body.addWidget(self.web_state_label)
+
+        self.web_switch_button = QPushButton(tr("Open web telemetry"))
+        self.web_switch_button.setProperty("processButton", "secondary")
+        self.web_switch_button.setProperty("PrimaryAction", True)
+        self.web_switch_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.web_switch_button.clicked.connect(lambda _checked=False: self._toggle_web())
+
+        self.web_open_button = QPushButton(tr("Open in browser"))
+        self.web_open_button.setProperty("processButton", "secondary")
+        self.web_open_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.web_open_button.clicked.connect(lambda _checked=False: self._open_web())
+
+        self.web_autostart_switch = ToggleSwitch()
+        self.web_autostart_switch.setAccessibleName(tr("Start with the session"))
+        self.web_autostart_switch.toggled.connect(self._autostart_web_toggled)
+
+        self.web_autostart_label = QLabel(tr("Start with the session"))
+        self.web_autostart_label.setProperty("readingLabel", True)
+        self.web_autostart_label.setToolTip(tr("Starts the web interface at every login with a systemd user service."))
+
+        web_controls = QHBoxLayout()
+        web_controls.addWidget(self.web_switch_button)
+        web_controls.addWidget(self.web_open_button)
+        web_controls.addStretch(1)
+        web_controls.addWidget(self.web_autostart_switch)
+        web_controls.addWidget(self.web_autostart_label)
+        self.web_card.body.addLayout(web_controls)
+
+        self.web_details_widget = QWidget()
+        web_details = QVBoxLayout(self.web_details_widget)
+        web_details.setContentsMargins(0, 8, 0, 0)
+        web_details.setSpacing(8)
+
+        self.web_url_label = self._label("Address", strong=True)
+        self.web_url_box = self._code("")
+        self.web_copy_url_button = QPushButton(tr("Copy address"))
+        self.web_copy_url_button.setProperty("processButton", "secondary")
+        self.web_copy_url_button.clicked.connect(lambda _checked=False: self._copy_web_url())
+
+        url_row = QHBoxLayout()
+        url_row.addWidget(self.web_url_box, 1)
+        url_row.addWidget(self.web_copy_url_button)
+
+        self.web_pin_label = self._label("Access key", strong=True)
+        self.web_pin_box = self._code("")
+        self.web_copy_pin_button = QPushButton(tr("Copy access key"))
+        self.web_copy_pin_button.setProperty("processButton", "secondary")
+        self.web_copy_pin_button.clicked.connect(lambda _checked=False: self._copy_web_pin())
+
+        pin_row = QHBoxLayout()
+        pin_row.addWidget(self.web_pin_box, 1)
+        pin_row.addWidget(self.web_copy_pin_button)
+
+        self.web_lan_switch = ToggleSwitch()
+        self.web_lan_switch.setAccessibleName(tr("Reachable from the local network"))
+        self.web_lan_switch.toggled.connect(lambda checked: self._web_option("lan", checked))
+        self.web_password_switch = ToggleSwitch()
+        self.web_password_switch.setAccessibleName(tr("Accept the administrator password from the network (not encrypted: only on a network you trust)"))
+        self.web_password_switch.toggled.connect(lambda checked: self._web_option("lan_password", checked))
+        self.web_new_key_button = QPushButton(tr("New access key"))
+        self.web_new_key_button.setProperty("processButton", "secondary")
+        self.web_new_key_button.clicked.connect(lambda _checked=False: self._new_web_key())
+        options = QGridLayout()
+        options.addWidget(self.web_lan_switch, 0, 0)
+        options.addWidget(self._label("Reachable from the local network", strong=True), 0, 1)
+        options.addWidget(self.web_password_switch, 1, 0)
+        options.addWidget(self._label("Accept the administrator password from the network (not encrypted: only on a network you trust)", strong=True), 1, 1)
+        options.setColumnStretch(1, 1)
+
+        web_details.addWidget(self.web_url_label)
+        web_details.addLayout(url_row)
+        web_details.addWidget(self.web_pin_label)
+        web_details.addLayout(pin_row)
+        web_details.addWidget(self.web_new_key_button)
+        web_details.addWidget(self._label("It is not encrypted: use it only on a network you trust and never open its port to the internet."))
+        self.web_card.body.addLayout(options)
+        self.web_card.body.addWidget(self.web_details_widget)
+
         root.addStretch(1)
         self.apply_appearance()
 
@@ -141,9 +233,15 @@ class RemoteAccessPage(QWidget):
 
     def refresh(self) -> None:
         self._background.start("status", remote_access.status, on_success=self._apply, on_error=lambda _m: None)
+        self._background.start("web_status", web_access.status, on_success=self._apply_web, on_error=lambda _m: None)
 
     def retranslate_dynamic_copy(self) -> None:
         self._render()
+        self._render_web()
+
+    def _apply_web(self, state: dict) -> None:
+        self._web_state = dict(state or {})
+        self._render_web()
 
     def _apply(self, state: dict) -> None:
         self._state = dict(state or {})
@@ -206,3 +304,105 @@ class RemoteAccessPage(QWidget):
     def _copy(self) -> None:
         QGuiApplication.clipboard().setText(self._command())
         show_toast(self, tr("Copied"), self._command(), tone="green")
+
+    # -- web actions & render -------------------------------------------------
+
+    def _render_web(self) -> None:
+        state = self._web_state
+        if not state:
+            return
+        running = bool(state.get("running"))
+        urls = state.get("urls") or []
+        local_url = state.get("local_url", "")
+        key = state.get("key", "")
+        autostart = state.get("autostart") or {}
+
+        if running:
+            display_url = urls[0] if urls else local_url
+            self.web_state_label.setText(tr_format("The web interface is running on {address}", address=display_url))
+        else:
+            self.web_state_label.setText(tr("The web interface is stopped."))
+
+        self.web_switch_button.setEnabled(not self._background.is_running("switch_web"))
+        self.web_switch_button.setText(tr("Stop web telemetry" if running else "Open web telemetry"))
+        self.web_switch_button.setProperty("PrimaryAction", not running)
+        self.web_switch_button.style().unpolish(self.web_switch_button)
+        self.web_switch_button.style().polish(self.web_switch_button)
+
+        self.web_open_button.setVisible(running)
+
+        all_urls = ([local_url] if local_url else []) + urls
+        self.web_url_box.setText(" · ".join(all_urls) if all_urls else "–")
+        self.web_pin_box.setText(key or "–")
+        self.web_details_widget.setVisible(running)
+
+        self._syncing_web = True
+        try:
+            self.web_lan_switch.setChecked(bool(state.get("lan")))
+            self.web_password_switch.setChecked(bool(state.get("lan_password")))
+            self.web_password_switch.setEnabled(bool(state.get("lan")))
+            self.web_autostart_switch.setEnabled(bool(autostart.get("supported")) and not autostart.get("foreign"))
+            self.web_autostart_switch.setChecked(bool(autostart.get("enabled")))
+        finally:
+            self._syncing_web = False
+
+    def _toggle_web(self) -> None:
+        running = bool(self._web_state.get("running"))
+        self.web_switch_button.setEnabled(False)
+
+        def failed(message: str) -> None:
+            show_toast(self, tr("Web telemetry"), tr(message), tone="red")
+            self.refresh()
+
+        action = web_access.stop if running else web_access.start
+        self._background.start("switch_web", action, on_success=lambda _r: self.refresh(), on_error=failed)
+
+    def _open_web(self) -> None:
+        url = self._web_state.get("local_url") or "http://127.0.0.1:8250"
+        QDesktopServices.openUrl(QUrl(url))
+
+    def _autostart_web_toggled(self, checked: bool) -> None:
+        if self._syncing_web:
+            return
+        self.web_autostart_switch.setEnabled(False)
+
+        def failed(message: str) -> None:
+            show_toast(self, tr("Web telemetry"), tr(message), tone="red")
+            self.refresh()
+
+        self._background.start(
+            "web_autostart",
+            lambda: web_access.set_autostart(checked),
+            on_success=lambda _r: self.refresh(),
+            on_error=failed,
+        )
+
+    def _copy_web_url(self) -> None:
+        urls = self._web_state.get("urls") or []
+        target = urls[0] if urls else self._web_state.get("local_url", "")
+        if target:
+            QGuiApplication.clipboard().setText(target)
+            show_toast(self, tr("Copied"), target, tone="green")
+
+    def _web_option(self, name: str, checked: bool) -> None:
+        """A changed option reaches the running server only when it starts again."""
+        if self._syncing_web:
+            return
+
+        def apply() -> None:
+            web_access.save_settings(**{name: checked})
+            if self._web_state.get("running"):
+                web_access.stop()
+                web_access.start()
+
+        self._background.start("web_option", apply, on_success=lambda _r: self.refresh(), on_error=lambda _m: self.refresh())
+
+    def _new_web_key(self) -> None:
+        self._background.start("web_key", lambda: web_access.access_key(renew=True),
+                               on_success=lambda _r: self.refresh(), on_error=lambda _m: None)
+
+    def _copy_web_pin(self) -> None:
+        key = self._web_state.get("key", "")
+        if key:
+            QGuiApplication.clipboard().setText(key)
+            show_toast(self, tr("Copied"), key, tone="green")
