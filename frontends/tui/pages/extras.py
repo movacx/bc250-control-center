@@ -15,7 +15,6 @@ from ..i18n import tr
 from .base import Page, guarded, os_family
 
 ALL = None
-IMMUTABLE_RPM = ("bazzite",)
 
 MEMORY_POLICIES = (
     ("current", "Keep current configuration"),

@@ -37,9 +37,9 @@ SCROLLBACK_ALL = 10**6
 
 #: One-for-one replacements (same column width) for terminals without Unicode.
 ASCII_MAP = str.maketrans({
-    "…": ".", "·": "|", "│": "|", "─": "-", "┌": "+", "┐": "+", "└": "+", "┘": "+", "├": "+", "┤": "+", "┬": "+",
+    "…": ".", "·": "-", "│": "|", "─": "-", "┌": "+", "┐": "+", "└": "+", "┘": "+", "├": "+", "┤": "+", "┬": "+",
     "┴": "+", "┼": "+", "▲": "^", "▼": "v", "↑": "^", "↓": "v", "→": ">", "←": "<", "–": "-", "▏": "_", "›": ">",
-    "•": "*", "█": "#", "░": "-", "━": "=", "°": "o", "✓": "+", "✗": "x",
+    "•": "*", "█": "#", "░": "-", "━": "=", "┃": "#", "°": "o", "✓": "+", "✗": "x",
 })
 
 
@@ -166,7 +166,12 @@ class Screen:
         self.toast = (message, tone, time.monotonic() + TOAST_SECONDS)
 
     def refresh(self) -> None:
+        """Read everything again now, including what pages only poll every few seconds."""
         self._layout_key = None
+        with self.ctx.lock:
+            for state in self.ctx.page_state.values():
+                for key in [key for key in state if key.endswith("_at")]:
+                    del state[key]
         if self.poller:
             self.poller.refresh()
 
@@ -316,9 +321,13 @@ class Screen:
                     attr = self.attrs["accent"]
                 self.put(y, column, text, attr, limit=width - column - 1)
                 column += cell_width(text)
-        if len(layout.rows) > view:
-            self.put(top, width - 1, "▲" if offset else " ", self.attrs["dim"])
-            self.put(top + view - 1, width - 1, "▼" if offset + view < len(layout.rows) else " ", self.attrs["dim"])
+        if len(layout.rows) > view:  # a scrollbar: the thumb is where this view sits on the page
+            size = max(1, view * view // len(layout.rows))
+            start = round(offset * (view - size) / max(1, len(layout.rows) - view))
+            for line in range(view):
+                thumb = start <= line < start + size
+                self.put(top + line, width - 1, "┃" if thumb else self.glyphs.v,
+                         self.attrs["accent" if thumb else "dim"])
 
     def _hints(self) -> list[tuple[str, str]]:
         if self.focus == "sidebar":
@@ -366,9 +375,15 @@ class Screen:
             mark, tone = ("✓", "ok") if console.succeeded else ("✗", "bad")
         elapsed = int((console.finished_at or time.monotonic()) - console.started)
         clock = f"{elapsed // 60:02d}:{elapsed % 60:02d}"
-        self.put(1, x, f"{mark} {console.label}", self.attrs[tone] | curses.A_BOLD, content_width - 8)
+        status = (tr("Completed") if console.succeeded else tr("The workflow did not finish successfully.")) if done else ""
+        # Top: what ran, how it ended and how long it took; below it, where the full log is.
+        self.put(1, x, f"{mark} {console.label}" + (f"  ·  {status}" if status else ""), self.attrs[tone] | curses.A_BOLD,
+                 content_width - 8)
         self.put(1, width - 1 - len(clock), clock, self.attrs["dim"])
-        self.put(2, x, self.glyphs.h * content_width, self.attrs["dim"])
+        home = os.path.expanduser("~")
+        log = f"{tr('Full log saved to')} {console.log_file.replace(home, '~', 1)}" if console.log_file else ""
+        rule = clip(log, content_width) if log else ""
+        self.put(2, x, rule + self.glyphs.h * (content_width - cell_width(rule)), self.attrs["dim"])
         view = self._console_size()[0]
         console.resize(view, content_width)
         lines, self.console_scroll = console.view(view, self.console_scroll)
@@ -378,11 +393,10 @@ class Screen:
                 self.put(3 + index, column, text, self.attrs.get(run_tone, 0) | (curses.A_BOLD if bold else 0),
                          limit=width - column - 1)
                 column += cell_width(text)
-        status = (tr("Completed") if console.succeeded else tr("The workflow did not finish successfully.")) if done else ""
         hints = [("Enter Esc", "Close")] if done else [("Ctrl+C", "Interrupt")]
         if done and not console.succeeded:
             hints.append(("r", "Report this problem"))
-        self._draw_hints(hints + [("PgUp PgDn", "Scroll")], status, self.attrs[tone] | curses.A_BOLD)
+        self._draw_hints(hints + [("PgUp PgDn", "Scroll")])
 
     # ------------------------------------------------------------- input
 
@@ -795,6 +809,7 @@ class Screen:
         console = self.active_console
         if console is None:
             return None  # nothing on screen to show it in: the repository decides
+        console.log_file = request.log_file or console.log_file
         status = console.run(list(request.argv), request.log_file)
         console.failed = console.failed or status != 0
         return TerminalLaunchResult(terminal=EMBEDDED_TERMINAL_NAME, title=request.title,

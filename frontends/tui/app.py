@@ -73,9 +73,10 @@ def main(argv: list[str] | None = None) -> int:
     from bc250cc.application.system.workflow_console import (
         TERMINAL_AUTH_ENV,
         set_embedded_terminal_launcher,
+        set_translator,
     )
 
-    from .i18n import set_language
+    from .i18n import set_language, tr
     from .pages import build_pages
     from .runtime import Context, Poller
     from .screen import SIDEBAR_ORDER, Screen
@@ -93,6 +94,7 @@ def main(argv: list[str] | None = None) -> int:
     except Exception:  # an unreadable config must not stop the interface
         logging.getLogger(__name__).warning("Could not read the saved settings", exc_info=True)
     set_language(args.lang or config.get("idioma", "auto"))
+    set_translator(tr)  # what the workflow wrapper prints (Completed, the log path) in this language
     ctx = Context(
         service=container.system_service, settings=container.settings_service,
         activity=container.activity_service, platform=container.platform, config=config,

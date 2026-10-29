@@ -26,6 +26,7 @@ from .content import (
 
 LABEL_MAX = 30
 BAR_MAX = 24
+MIN_BAR = 4
 
 
 @dataclass(slots=True)
@@ -93,41 +94,56 @@ def gauge(start: float, end: float, width: int, tone: str, glyphs: Glyphs) -> li
 
 
 def _join_columns(card_layouts: list[Layout], widths: list[int], gap: str) -> list[Row]:
-    height = max(len(item.rows) for item in card_layouts)
+    """Cards side by side; every row is cut or padded to exactly its card's width."""
     rows = []
-    for line in range(height):
+    for line in range(max(len(item.rows) for item in card_layouts)):
         spans: list[tuple[str, str]] = []
         for index, item in enumerate(card_layouts):
             if index:
                 spans.append((gap, "dim"))
-            if line < len(item.rows):
-                used = 0
-                for text, tone in item.rows[line].spans:
-                    spans.append((text, tone))
-                    used += cell_width(text)
-                spans.append((" " * max(0, widths[index] - used), ""))
-            else:
-                spans.append((" " * widths[index], ""))
+            room = widths[index]
+            for text, tone in item.rows[line].spans if line < len(item.rows) else []:
+                if room <= 0:
+                    break
+                text = clip(text, room) if cell_width(text) > room else text
+                spans.append((text, tone))
+                room -= cell_width(text)
+            spans.append((" " * room, ""))
         rows.append(Row(spans))
     return rows
 
 
-def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int = LABEL_MAX) -> Layout:
+def _columns(blocks, width: int, label_cap: int) -> tuple[int, int]:
+    """(label width, value-text width) for ``blocks``: the two columns every row lines up on."""
+    label_width = min(label_cap, max(12, width // 2), max(
+        [cell_width(b.label) for b in blocks if isinstance(b, (Field, Meter, Trend, Track)) or (
+            isinstance(b, Choice) and b.detail)] + [8]))
+    return label_width, max([cell_width(b.text) for b in blocks if isinstance(b, (Meter, Track, Trend))] + [0])
+
+
+def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int = LABEL_MAX, *,
+                 card: bool = False, columns: tuple[int, int] | None = None) -> Layout:
+    """Rows for ``blocks``. Inside a card a Heading is a group label (THERMAL, POWER…), as on the desktop.
+
+    ``columns`` fixes the label and value widths, so cards side by side (or
+    stacked) line up with each other.
+    """
     layout = Layout()
     width = max(20, width)
-    label_width = min(
-        label_cap, max(12, width // 2),
-        max([cell_width(b.label) for b in blocks if isinstance(b, (Field, Meter, Trend, Track)) or (
-            isinstance(b, Choice) and b.detail)] + [8]),
-    )
-    meter_text = max([cell_width(b.text) for b in blocks if isinstance(b, (Meter, Track))] + [0])
-    bar_width = max(6, min(BAR_MAX, width - label_width - meter_text - 4))
+    label_width, meter_text = columns or _columns(blocks, width, label_cap)
+    # A narrow column gives up bar first, then label: the reading itself is never cut.
+    label_width = max(8, min(label_width, width - meter_text - 4 - MIN_BAR))
+    bar_width = max(MIN_BAR, min(BAR_MAX, width - label_width - meter_text - 4))
 
     def add(spans, choice=None, bold=False):
         layout.rows.append(Row(spans, choice, bold))
 
     for block in blocks:
-        if isinstance(block, Heading):  # one row: the title, then a rule to the edge
+        if isinstance(block, Heading) and card:
+            if layout.rows:
+                add([("", "")])
+            add([(clip(block.text.upper(), width), "dim")], bold=True)
+        elif isinstance(block, Heading):  # one row: the title, then a rule to the edge
             title = clip(block.text, width - 2)
             add([(title, "accent"), (" " + glyphs.rule * (width - cell_width(title) - 1), "dim")], bold=True)
         elif isinstance(block, Gap):
@@ -142,12 +158,10 @@ def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int
             add([(pad(block.label, label_width), "dim"), ("  ", ""),
                  *gauge(0, block.fraction or 0, bar_width, block.tone, glyphs),
                  ("  ", ""), (block.text.rjust(meter_text), block.tone if block.fraction is not None else "dim")])
-        elif isinstance(block, Trend):
-            text_width = cell_width(block.text)
-            spark_width = max(6, min(60, width - label_width - text_width - 6))
+        elif isinstance(block, Trend):  # the same columns as a bar: label, graph, reading
             add([(pad(block.label, label_width), "dim"), ("  ", ""),
-                 (sparkline(block.values, spark_width, glyphs).ljust(spark_width), block.tone),
-                 ("  ", ""), (block.text, "")])
+                 (sparkline(block.values, bar_width, glyphs).ljust(bar_width), block.tone),
+                 ("  ", ""), (block.text.rjust(meter_text), "")])
         elif isinstance(block, Note):
             for line in wrap(block.text, width):
                 add([(line, block.tone)])
@@ -172,16 +186,17 @@ def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int
             count = len(block.cards)
             fit = max(1, min(count, (width + 3) // (block.minimum + 3)))
             each = (width - 3 * (fit - 1)) // fit  # a card left alone keeps the grid's width
+            shared = _columns([b for item in block.cards for b in item.blocks], each, each * 11 // 20)
             for first in range(0, count, fit):
                 group = block.cards[first:first + fit]
                 parts = []
-                for card in group:
-                    inner = build_layout([Heading(card.title)] + list(card.blocks), each, glyphs, each // 2)
+                for item in group:
+                    inner = build_layout(list(item.blocks), each, glyphs, card=True, columns=shared)
                     # The headline reading sits on the title row, over a rule the card's width.
-                    title = clip(card.title, each - cell_width(card.value) - 1)
-                    inner.rows[0:1] = [
-                        Row([(title, "accent"), (" " * (each - cell_width(title) - cell_width(card.value)), ""),
-                             (card.value, "accent")], bold=True),
+                    title = clip(item.title, each - cell_width(item.value) - 1)
+                    inner.rows[0:0] = [
+                        Row([(title, "accent"), (" " * (each - cell_width(title) - cell_width(item.value)), ""),
+                             (item.value, "accent")], bold=True),
                         Row([(glyphs.rule * each, "dim")])]
                     parts.append(inner)
                 layout.rows.extend(_join_columns(parts, [each] * len(group), " | " if glyphs.rule == "-" else " │ "))
@@ -228,6 +243,10 @@ def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int
             label = (pad(block.label, label_width + 2) if cell_width(block.label) <= label_width
                      else block.label + "  ") if detail else clip(block.label, width)
             tone = block.tone if block.enabled else "dim"
+            # A button does something; "( )"/"[x]" are options and "›" opens a menu of its own.
+            if not (detail or block.adjust or block.label.startswith(("(", "[")) or block.label.endswith("›")):
+                label = f"[ {clip(block.label, width - 4)} ]"  # a button: it does something, it is not a value
+                tone = (tone or "accent") if block.enabled else "dim"
             add([(label, tone), (clip(detail, max(0, width - cell_width(label))), "accent" if block.adjust else "dim")],
                 choice=index)
     return layout

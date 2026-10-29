@@ -14,7 +14,6 @@ from ..i18n import tr
 from .base import Page, guarded
 
 PAGE_ROWS = 12
-LINES_PER_SECTION = 400
 
 
 class BlackBoxPage(Page):

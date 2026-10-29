@@ -29,7 +29,6 @@ from .base import (
     metric_blocks,
     os_family,
     temperature_meter,
-    trend,
 )
 
 COMPONENTS = (
@@ -41,7 +40,8 @@ COMPONENTS = (
     ("cu_manager", "40CU manager"),
     ("fan_pwm", "NCT sensors and PWM"),
 )
-SLOW_SECONDS = 20.0
+MEDIUM_SECONDS = 15.0
+SLOW_SECONDS = 60.0
 
 
 def _safe(call):
@@ -53,21 +53,17 @@ def _safe(call):
     return value if isinstance(value, dict) else None
 
 
-def compact_size(value: float) -> str:
-    gib = value / 2**30
-    return f"{gib:.1f} GiB" if gib >= 1 else f"{value / 2**20:.0f} MiB"
-
-
 def memory_meter(label: str, used: object, total: object) -> Meter:
+    """``used/total`` in the total's unit (MiB below 1 GiB, else GiB): "0.98/7.4 GiB", short enough for a card."""
     try:
-        fraction = float(used) / float(total)
+        used_b, total_b = float(used), float(total)
+        fraction = used_b / total_b
     except (TypeError, ValueError, ZeroDivisionError):
         return Meter(label, None, "--")
     tone = "bad" if fraction >= 0.95 else "warn" if fraction >= 0.85 else "ok"
-    first, second = compact_size(float(used)), compact_size(float(total))
-    if first[-3:] == second[-3:]:
-        first = first[:-4]  # "389 / 512 MiB": the unit once
-    return Meter(label, fraction, f"{first} / {second}", tone)
+    scale, unit, digits = (2**30, "GiB", 1) if total_b >= 2**30 else (2**20, "MiB", 0)
+    shown = f"{used_b / scale:.{2 if used_b < scale else digits}f}/{total_b / scale:.{digits}f} {unit}"
+    return Meter(label, fraction, shown, tone)
 
 
 def pump_row(fans) -> dict:
@@ -87,16 +83,20 @@ class DashboardPage(Page):
     def load(self, ctx):
         service = ctx.service
         state = ctx.state(self.key)
-        data = {
-            "daemon": _safe(service.estado_bc250_daemon),
-            "fans": _safe(service.estado_fans_bc250),
-            "cu": _safe(service.obtener_estado_cu_cache),
-        }
-        if time.monotonic() - state.get("slow_at", 0) > SLOW_SECONDS:  # tool probes shell out
-            state["slow_at"] = time.monotonic()
-            state["tools"] = _safe(service.estado_herramientas_bc250) or {}
-            state["gddr6"] = _safe(service.estado_gddr6_memory_temp) or {}
-        data["tools"], data["gddr6"] = state.get("tools", {}), state.get("gddr6", {})
+        now = time.monotonic()
+        # Each reading at the pace it changes: the fans are sysfs reads; the
+        # daemon and CU state ask systemd and D-Bus; the tool inventory runs
+        # package managers and git. Polling those every few seconds was most of
+        # the interface's idle CPU.
+        for keys, seconds, reads in (
+            (("daemon", "cu"), MEDIUM_SECONDS, (service.estado_bc250_daemon, service.obtener_estado_cu_cache)),
+            (("tools", "gddr6"), SLOW_SECONDS, (service.estado_herramientas_bc250, service.estado_gddr6_memory_temp)),
+        ):
+            if now - state.get(f"{keys[0]}_at", -seconds) >= seconds or ctx.page_data.get(self.key) is None:
+                state[f"{keys[0]}_at"] = now
+                state.update({key: _safe(read) or {} for key, read in zip(keys, reads)})
+        data = {key: state.get(key, {}) for key in ("daemon", "cu", "tools", "gddr6")}
+        data["fans"] = _safe(service.estado_fans_bc250)
         data["sample"] = _safe(service.ultima_temperatura_vram) or {}
         return data
 
@@ -118,54 +118,60 @@ class DashboardPage(Page):
         for index, value in enumerate(usage[:8]):
             freq = clocks[index] if index < len(clocks) else None
             cores.append(Meter(f"N{index + 1}", percent(value), f"{number(freq, 'MHz')} {number(value, '%')}", load_tone(value)))
+        # One rule for every card: a bar only for a reading with a known ceiling (a
+        # temperature, a percentage, memory used of total); clocks, power,
+        # voltages and names are plain values. Absent sensors are left out.
+        def heat(label, value):
+            return [temperature_meter(label, value)] if value is not None else []
+
         cpu_card = Card(tr("Processor"), [
-            Field(tr("Core temperature"), number(cpu.get("temperature_c"), "°C", 1), heat_tone(cpu.get("temperature_c"))),
-            *([Field("VRM CPU", number(sensors.get("vrm_cpu_temperature_c"), "°C", 1))]
-              if sensors.get("vrm_cpu_temperature_c") is not None else []),
+            Heading(tr("Thermal")),
+            *heat(tr("Core temperature"), cpu.get("temperature_c")), *heat("VRM CPU", sensors.get("vrm_cpu_temperature_c")),
+            Heading(tr("Activity")),
             load_meter(tr("CPU usage"), cpu.get("usage_percent")),
-            Gap(),
-            Heading(tr("Live core monitor")),
             Field(tr("Topology"), f"{cpu.get('physical_cores', '--')} / {cpu.get('logical_cores', '--')}"),
-            *cores,
+            Heading(tr("Live core monitor")), *cores,
         ], number(cpu.get("frequency_mhz", 0) / 1000 if cpu.get("frequency_mhz") else None, "GHz", 2))
         gpu_card = Card(tr("Graphics"), [
-            temperature_meter(tr("Temperature"), gpu.get("temperature_c")),
-            *([Field("VRM MOS", number(sensors.get("vrm_mos_temperature_c"), "°C", 1))]
-              if sensors.get("vrm_mos_temperature_c") is not None else []),
-            *([Field("VRM GPU", number(sensors.get("vrm_gpu_temperature_c"), "°C", 1))]
-              if sensors.get("vrm_gpu_temperature_c") is not None else []),
+            Heading(tr("Thermal")),
+            *heat(tr("Temperature"), gpu.get("temperature_c")), *heat("VRM MOS", sensors.get("vrm_mos_temperature_c")),
+            *heat("VRM GPU", sensors.get("vrm_gpu_temperature_c")),
+            Heading(tr("Power")),
             Field(tr("GPU power"), number(power.get("value_w", gpu.get("power_w")), "W", 0)),
             Field(tr("GPU voltage"), number((gpu.get("voltage_mv") or 0) / 1000 if gpu.get("voltage_mv") else None, "V", 3)),
+            Heading(tr("Clocks")),
             Field("MCLK", number(gpu.get("memory_frequency_mhz"), "MHz")),
             Field("SOCCLK", number(gpu.get("soc_frequency_mhz"), "MHz")),
             Field("FCLK", number(gpu.get("fabric_frequency_mhz"), "MHz")),
+            Heading(tr("Memory")),
             memory_meter("VRAM", gpu.get("vram_used"), gpu.get("vram_total")),
             memory_meter("GTT", gpu.get("gtt_used"), gpu.get("gtt_total")),
             memory_meter(tr("System memory"), memory.get("used"), memory.get("total")),
+            Heading(tr("Status")),
             load_meter(tr("GPU load"), busy),
             Field(tr("Compute units"), f"{active_cus} / 40" if active_cus is not None else "--"),
             Field(tr("Governor"), str(daemon.get("governor_backend") or "--").replace("-skillfish-governor-smu", "")),
             Field(tr("Requested range"), f"{daemon.get('current_min', '--')} – {daemon.get('current_max', '--')} MHz"),
             Field(tr("PCIe link"), str(gpu.get("pcie_link") or "--")),
             Field("VBIOS", str(gpu.get("vbios_version") or "--")),
-            trend(ctx, tr("Frequency"), "gpu_clock", "MHz"),
         ], number(gpu.get("frequency_mhz"), "MHz"))
         fan_cycle = pump.get("pwm")
         duty = round(int(fan_cycle) * 100 / 255) if isinstance(fan_cycle, int) else None
         cool_card = Card(tr("Cooling"), [
-            Field(tr("PWM duty"), number(duty, "%")),
+            Heading(tr("Fan")),
+            Meter(tr("PWM duty"), percent(duty), number(duty, "%"), "accent"),
             Field(tr("PWM mode"), {2: "Firmware (BIOS)", 1: tr("Manual")}.get(pump.get("pwm_enable"), "--")),
-            Field(tr("Controller"), str(pump.get("label") or "--")[:22]),
-            temperature_meter(tr("Board temperature"), sensors.get("board_temperature_c")),
+            Field(tr("Controller"), str(pump.get("label") or "--")),
+            *heat(tr("Board temperature"), sensors.get("board_temperature_c")),
             Heading(tr("M.2 drive")),
-            temperature_meter(tr("Temperature"), sensors.get("nvme_temperature_c")),
-            Field(tr("Hotspot"), number(sensors.get("nvme_hotspot_temperature_c"), "°C", 1)),
+            *heat(tr("Temperature"), sensors.get("nvme_temperature_c")),
+            *heat(tr("Hotspot"), sensors.get("nvme_hotspot_temperature_c")),
             memory_meter("Swap", memory.get("swap_used"), memory.get("swap_total")),
             Heading("BIOS"),
-            Field(tr("Version"), str(data.get("bios") or ctx.state(self.key).get("bios") or self._bios(ctx))),
+            Field(tr("Release"), str(data.get("bios") or ctx.state(self.key).get("bios") or self._bios(ctx))),
         ], number(pump.get("rpm"), "RPM"))
 
-        out = [Columns([cpu_card, gpu_card, cool_card], minimum=46), Gap()]
+        out = [Columns([cpu_card, gpu_card, cool_card], minimum=40), Gap()]
         out += self._gddr6(ctx, data.get("gddr6") or {}, data.get("sample") or {})
         out += self._power(sensors)
         out += self._prepare(ctx, data, ui)
@@ -194,37 +200,31 @@ class DashboardPage(Page):
         chips = sample.get("chips") or external.get("chips") or []
         average = sample.get("average_c", external.get("average_c"))
         hotspot = sample.get("hotspot_c", external.get("hotspot_c"))
-        out = [Heading(tr("GDDR6 memory temperature")
-                       + (f"   {number(average, '°C', 1)}   {tr('Hotspot')} {number(hotspot, '°C', 1)}" if average is not None else ""))]
-        if chips:
-            for first in range(0, len(chips[:8]), 4):
-                group = chips[first:first + 4]
-                out.append(Grid([f"Chip {c.get('chip')}" for c in group],
-                                [[f"{number(c.get('temperature_c'), '°C', 1)}  MR3 0x{int(c.get('code', 0)):02X}" for c in group]],
-                                gap=6))
-                out.append(Gap())
+        out = [Heading(tr("GDDR6 memory temperature"))]
+        if average is not None:
+            reading, tone = f"{number(average, '°C', 1)}   {tr('Hotspot')} {number(hotspot, '°C', 1)}", heat_tone(hotspot)
         else:
-            reason = status.get("governor_state") or ""
-            out.append(Note(sample.get("error") or (tr("Not detected") if not status.get("reader_ready")
-                                                      else tr("Waiting for data…")), "dim"))
-            if reason:
-                out.append(Note(str(reason), "dim"))
+            reading, tone = sample.get("error") or status.get("governor_state") or tr("Waiting for data…"), "dim"
+        out.append(Field(tr("Status"), str(reading), tone))
+        for first in range(0, len(chips[:8]), 4):
+            group = chips[first:first + 4]
+            out.append(Grid([f"Chip {c.get('chip')}" for c in group],
+                            [[f"{number(c.get('temperature_c'), '°C', 1)}  MR3 0x{int(c.get('code', 0)):02X}" for c in group]],
+                            gap=6))
 
         def read(ui_):
-            if not ui_.confirm(tr("GDDR6 memory temperature")):
-                return
             ok, result = ui_.run(tr("GDDR6 memory temperature"), lambda: service.leer_temperatura_vram(chips=True))
             if ok and isinstance(result, dict):
                 state["gddr6_sample"] = result
             ui_.refresh()
 
         def prepare(ui_):
-            if ui_.confirm(tr("Prepare the VRAM reader")):
+            if ui_.confirm(tr("Prepare readings")):
                 guarded(ui_, tr("GDDR6 memory temperature"), service.comando_preparar_gddr6_memory_temp)
 
-        out.append(Choice(tr("Refresh") + " · " + tr("GDDR6 memory temperature"), read, enabled=bool(status.get("reader_ready", True))))
-        out.append(Choice(tr("Prepare the VRAM reader"), prepare,
-                          tr("Installed") if status.get("repository_ready") else tr("Not detected")))
+        out.append(Choice(tr("Refresh"), read, enabled=bool(status.get("reader_ready", True))))
+        if not status.get("repository_ready"):
+            out.append(Choice(tr("Prepare readings"), prepare))
         return out + [Gap()]
 
     # -- power rails ------------------------------------------------------------
@@ -240,7 +240,7 @@ class DashboardPage(Page):
             (tr("Total board power"), number(sensors.get("vrm_total_power_w"), "W", 1)),
         ]
         if all(value == "--" for _label, value in rails):
-            return [Heading(tr("Power")), Note(tr("Not detected"), "dim"), Gap()]
+            return [Heading(tr("Power")), Field(tr("Status"), tr("Not detected"), "dim"), Gap()]
         return [Heading(tr("Power")), *[Field(label, value) for label, value in rails], Gap()]
 
     # -- system preparation ------------------------------------------------------

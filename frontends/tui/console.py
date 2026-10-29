@@ -41,6 +41,7 @@ class Console:
         self.ok = True
         self.failed = False  # a workflow it ran exited non-zero
         self.printed = False
+        self.log_file = ""  # the last workflow's full log, named in the pane's header
         self.result: object = None
         self.process: subprocess.Popen | None = None
         self.master: int | None = None
