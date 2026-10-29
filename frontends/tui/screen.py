@@ -487,7 +487,7 @@ class Screen:
                 self.put(top + 2 + index, column, text, self.attrs.get(run_tone, 0) | (curses.A_BOLD if bold else 0),
                          limit=width - column - 1)
                 column += cell_width(text)
-        hints = [("Enter Esc", "Close")] if done else [("Ctrl+C", "Interrupt")]
+        hints = [("Enter Esc", "Close")] if done else [("Esc Ctrl+C", "Cancel")]
         if done and not console.succeeded:
             hints.append(("r", "Report this problem"))
         self._draw_hints(hints + [("PgUp PgDn", "Scroll")], y=height - self._bottom() - (1 if self.keybar else 0))
@@ -1002,7 +1002,7 @@ class Screen:
                 return "report"
             if key in ("up", "down", "home", "end"):
                 self.console_scroll += {"up": 1, "down": -1, "home": 10**6, "end": -10**6}[key]
-        elif code == 3:
+        elif code == 3 or key == "esc":  # Esc cancels too: a phone has no Ctrl key to hand
             console.interrupt()
         elif key in PTY_KEYS:
             console.send(PTY_KEYS[key])

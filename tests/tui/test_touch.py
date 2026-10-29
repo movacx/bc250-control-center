@@ -159,3 +159,13 @@ def test_a_tap_on_a_compute_unit_cell_toggles_that_cell(monkeypatch):
     tap(monkeypatch, screen, x0 + 1, y)
     assert screen.ctx.state("cu")["cursor"] == (row, column)
     assert screen.ctx.state("cu")["masks"][row] == 31 ^ (1 << column)
+
+
+def test_esc_cancels_a_running_job_as_ctrl_c_does():
+    _window, screen = touch_screen()
+    sent = []
+    console = type("Running", (), {"done": type("Never", (), {"is_set": lambda self: False})(),
+                                    "interrupt": lambda self: sent.append("interrupt"),
+                                    "send": lambda self, data: sent.append(data)})()
+    assert screen._console_key(console, 27) == ""
+    assert sent == ["interrupt"]  # not a raw escape byte the password prompt would ignore
