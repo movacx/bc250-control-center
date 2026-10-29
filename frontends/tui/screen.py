@@ -957,9 +957,8 @@ class Screen:
                 if isinstance(result, str) and result.strip() and console.has_output:
                     console.write(f"\n{result.strip()}\n")
                 console.finish(True, result)
-            except Exception as error:
-                if console.has_output:
-                    console.write(f"\n{describe_error(error)}\n")
+            except Exception as error:  # said in the console even when nothing else was: never an empty failure
+                console.write(f"\n{describe_error(error)}\n")
                 console.finish(False, error)
 
         threading.Thread(target=job, name="bc250-tui-job", daemon=True).start()
