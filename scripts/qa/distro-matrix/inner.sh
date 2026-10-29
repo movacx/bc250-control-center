@@ -23,6 +23,9 @@ g cli-help bc250-control-center-cli --help
 g cli-version bc250-control-center-cli --version
 t daemon-help bc250-control-centerd --help
 g gui-help bc250-control-center --help
+g install-tui bash $R/scripts/install-tui.sh
+g tui-help bc250-control-center-tui --help
+t tui-needs-a-terminal sh -c 'bc250-control-center-tui; rc=$?; [ $rc -eq 2 ] || [ $rc -eq 3 ]'
 t repo-entry-cli sh $R/scripts/entrypoints/bc250-control-center-cli --help
 t update-local-help bash $R/scripts/maintenance/update-local.sh --help
 t update-local-run bash $R/scripts/maintenance/update-local.sh --source $R --prefix $HOME/.local

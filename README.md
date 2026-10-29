@@ -42,6 +42,7 @@ More screenshots are in the [gallery](https://movacx.github.io/bc250-control-cen
 - Compatibility fixes for GFX1013, async compute, ACPI and Mesa; Dolby Digital 5.1 over HDMI; TV control over HDMI-CEC
 - In-app problem reports with error codes, origin codes and the raw error attached
 - 30 languages, light and dark themes, UI scaling and controller navigation
+- Terminal mode (`bc250-control-center tui`): the same sections, live telemetry and actions over SSH or a plain TTY, with no extra dependencies
 
 ## Supported distributions
 
@@ -133,6 +134,63 @@ bash scripts/uninstall-local.sh
 2. Optionally take the guided tour, which explains what each module changes on the board.
 3. On the Dashboard, run **Prepare BC250 system**. It shows what will be installed for your distribution and runs it in the built-in terminal.
 4. Read the status line of a module before applying changes; it reports what is ready and what is missing.
+
+## Terminal mode
+
+The same control center runs inside a terminal, with no window system: over SSH, on a plain TTY, in Konsole or in a Game Mode console. It needs only Python's standard `curses` module, so there is nothing to install on top of the application and it behaves the same on Fedora, Bazzite, SteamOS, Arch, CachyOS, Ubuntu, Linux Mint and Debian.
+
+```bash
+bc250-control-center tui          # or: bc250-control-center-tui
+bc250-control-center-cli tui --page gpu --theme mono
+```
+
+The normal installation already includes it. For a server, a TTY or an SSH-only machine, install just the terminal interface, without PyQt6, a desktop entry or icons:
+
+```bash
+scripts/install-tui.sh
+```
+
+It needs Python 3.11 or newer with `curses` and `psutil`, and installs whichever of those is missing with the system package manager (`dnf`, `rpm-ostree`, `apt-get`, `pacman`, `zypper` or `apk`). As a normal user it installs to `~/.local`, so it works on Bazzite and SteamOS, where `/` is read-only. It asks for `sudo` only for those packages and for the privileged helpers that hardware actions use. Running it again updates the installation in place. To remove it:
+
+```bash
+scripts/install-tui.sh --uninstall
+```
+
+From a source checkout, without installing, run `scripts/entrypoints/bc250-control-center-tui`.
+
+It has the desktop's sidebar, grouped and ordered the same way: Dashboard; Hardware (CPU / SMU, Compute Units, GPU Governor, Additional settings); Monitoring (Performance, Fans, Processes, Black box); Firmware (BIOS) and Settings. The title bar keeps the GPU and CPU clock and temperature in view on every page.
+
+It does not reimplement anything: every reading and every action goes through the same service layer, privileged helpers and error catalog as the desktop application. Anything that changes the system asks for confirmation first (dangerous ones need an explicit `y`). Workflows the desktop runs in its console panel run in a console pane inside the interface: the output and progress appear live, a `sudo` or Polkit password is typed right there, `Ctrl+C` stops the command, and the result and the path of the full log stay on screen until you close the pane. No other terminal is opened and the interface is never suspended.
+
+The title bar names a newer release when there is one (the same check as the desktop, and the same switch turns it off); **Settings › About** installs it through the plan that fits this installation, or checks again. The same tab sends a problem report or an idea with the desktop's report form, and after a failed workflow `r` reports it with its log attached.
+
+| Key | Action |
+| --- | --- |
+| `↑` `↓` or `j` `k` | Move |
+| `Enter`, `→` or `l` | Open a section / run an action |
+| `Esc`, `←` or `h`, `Tab` | Back to the sidebar |
+| `[` `]` or `←` `→` | Previous / next tab of a section (`←` `→` change a value on an adjustable row) |
+| `1`–`9`, `0`, `,` | Jump to a section (from anywhere; `,` is Settings) |
+| `/` | Search an item on the page, or a section |
+| `PgUp` `PgDn` | Scroll a page or the console pane |
+| Mouse | Click a section or tab; click an item to select it, again to open it; the wheel scrolls |
+| `r` | Refresh |
+| `?` | Help |
+| `q` | Quit |
+
+### Using the TUI from a phone over SSH
+
+From Termux (Android) or Termius (Android, iOS), connect with a terminal and start the interface directly:
+
+```bash
+ssh -t user@board-ip bc250-control-center-tui
+```
+
+Below 110 columns the interface switches to its touch layout by itself; `--touch` or `BC250_TUI_TOUCH=1` forces it, and **Settings › General › Touch mode (phone / tablet)**, the first entry there, saves the choice. In touch mode there is no sidebar: a strip at the top lists the sections and **Menu** opens them as a full-screen list. Buttons are three rows tall, a tap opens an item at once, a tap on `<` or `>` steps a value, and a swipe scrolls. Two rows of on-screen keys (Menu, Esc, Tab, PgUp, PgDn, Enter, arrows, Search, Quit) stand in for what a phone keyboard lacks; **On-screen keys** hides them. Dialogs answer to taps too, and the phone keyboard types into text fields as usual.
+
+Actions that need the administrator password ask for it inside the interface's console, over SSH as at the board; Esc or Ctrl+C cancels. Compute Unit routing and the Game Mode helper stay limited to the local session.
+
+The interface draws no background colour, so it follows a light or dark terminal on its own; `--theme mono` (or `NO_COLOR`) removes colour. It uses the language chosen in Settings (`--lang` overrides it) and falls back to ASCII on the Linux console. If this Python was built without `curses` the command says so and points to the desktop application. Errors are logged to `~/.local/state/bc250-control-center/tui.log`, never over the screen.
 
 ## Decky plugin
 
@@ -230,6 +288,7 @@ bc250-control-center/
 │   │   ├── console/          Built-in terminal
 │   │   ├── theme/            Themes, styles, colors and icons
 │   │   └── i18n/             Translations into 30 languages
+│   ├── tui/                  Terminal interface (curses): pages, layout, screen
 │   └── cli.py                Command-line mode
 ├── integrations/decky/       Decky Quick Access plugin for Game Mode
 ├── privileged/               What runs as root, isolated and reviewed

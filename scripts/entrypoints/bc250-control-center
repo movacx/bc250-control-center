@@ -5,6 +5,15 @@ if ! python3 -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 11) e
   exit 2
 fi
 XDG_DATA_BASE="${XDG_DATA_HOME:-$HOME/.local/share}"
+# "bc250-control-center tui" opens the terminal interface instead of the window.
+if [ "${1:-}" = "tui" ]; then
+  shift
+  APP_ENTRY="frontends/tui/app.py"
+  APP_MODULE="frontends.tui"
+else
+  APP_ENTRY="frontends/desktop/main.py"
+  APP_MODULE="frontends.desktop.main"
+fi
 for APP_DIR in \
   "${BC250_CONTROL_CENTER_DIR:-}" \
   "${MODO_JUEGO_RAM_DIR:-}" \
@@ -14,10 +23,10 @@ for APP_DIR in \
   "$XDG_DATA_BASE/bc250-control-center" \
   /usr/share/bc250-control-center \
   /usr/local/share/bc250-control-center; do
-  if [ -n "$APP_DIR" ] && [ -f "$APP_DIR/frontends/desktop/main.py" ]; then
+  if [ -n "$APP_DIR" ] && [ -f "$APP_DIR/$APP_ENTRY" ]; then
     cd "$APP_DIR"
     export PYTHONPATH="$APP_DIR/src${PYTHONPATH:+:$PYTHONPATH}"
-    exec python3 -m frontends.desktop.main "$@"
+    exec python3 -m "$APP_MODULE" "$@"
   fi
 done
 echo "No se encontro la instalacion de BC250 Control Center" >&2

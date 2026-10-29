@@ -43,6 +43,10 @@
    "validate_pwm": "FAN-0219",
    "request_from_percent": "FAN-0220"
   },
+  "bc250cc/application/firmware/__init__.py": {
+   "firmware_snapshot": "FW-0236",
+   "prepare_update_usb": "FW-0237"
+  },
   "bc250cc/application/gpu/diagnostics.py": {
    "_literal": "GPU-0345",
    "_text": "GPU-0346",
@@ -186,6 +190,9 @@
    "plan_daemon_cycle": "SYS-0015",
    "build_runtime_metric": "SYS-0016",
    "governor_warning_needed": "SYS-0017"
+  },
+  "bc250cc/application/system/diagnostics.py": {
+   "collect_diagnostics": "CORE-0137"
   },
   "bc250cc/application/system/process_termination_policy.py": {
    "authorize_process_termination": "PROC-0090"
@@ -3022,8 +3029,6 @@
    "_int_property": "UI-0156"
   },
   "frontends/desktop/components/feedback_dialog.py": {
-   "_read_report": "DIAG-0001",
-   "_attachments_or_none": "DIAG-0130",
    "_needs_password": "DIAG-0129",
    "_Choice.__init__": "DIAG-0002",
    "_Choice.value": "DIAG-0003",
@@ -3081,9 +3086,6 @@
    "FlowLayout.expandingDirections": "UI-0168"
   },
   "frontends/desktop/components/full_diagnosis_dialog.py": {
-   "section_group": "UI-0574",
-   "size_kb": "UI-0575",
-   "as_text": "UI-0576",
    "_stylesheet": "UI-0577",
    "ResizeGrip.__init__": "UI-0620",
    "ResizeGrip.mousePressEvent": "UI-0621",
@@ -3426,6 +3428,7 @@
    "InfoDialog.evidence": "UI-0535"
   },
   "frontends/desktop/console/__init__.py": {
+   "__getattr__": "CON-0263",
    "console_for": "CON-0001"
   },
   "frontends/desktop/console/beacon.py": {
@@ -3813,6 +3816,11 @@
    "export_tone": "DECKY-0044",
    "fan_export_notes": "DECKY-0045"
   },
+  "frontends/desktop/core/diagnosis_groups.py": {
+   "section_group": "UI-0645",
+   "size_kb": "UI-0646",
+   "as_text": "UI-0647"
+  },
   "frontends/desktop/core/diagnostic_history.py": {
    "current_wording": "DIAG-0031",
    "record_diagnosis": "DIAG-0032",
@@ -4084,6 +4092,26 @@
    "OperationGate.is_current": "UI-0465",
    "OperationGate.finish": "UI-0466"
   },
+  "frontends/desktop/core/performance_model.py": {
+   "_number": "TEL-0374",
+   "_nice_ceiling": "TEL-0375",
+   "view_definition": "TEL-0376",
+   "MetricHistory.__init__": "TEL-0377",
+   "MetricHistory.append": "TEL-0378",
+   "MetricHistory.peak": "TEL-0379",
+   "MetricHistory.average": "TEL-0380",
+   "MetricHistory.low": "TEL-0381",
+   "MetricHistory.maximum": "TEL-0382",
+   "series_statistics": "TEL-0383",
+   "view_summary": "TEL-0384",
+   "sensor_label": "TEL-0385",
+   "search_text": "TEL-0386",
+   "group_title": "TEL-0387",
+   "PerformanceRecorder.__init__": "TEL-0388",
+   "PerformanceRecorder.read": "TEL-0389",
+   "PerformanceRecorder.record": "TEL-0390",
+   "PerformanceRecorder.history": "TEL-0391"
+  },
   "frontends/desktop/core/performance_sample_presenter.py": {
    "_number": "TEL-0078",
    "format_bytes": "TEL-0079",
@@ -4133,6 +4161,10 @@
    "find": "UI-0538",
    "_translated": "UI-0554",
    "clear": "UI-0539"
+  },
+  "frontends/desktop/core/report_facts.py": {
+   "read_report_facts": "UI-0648",
+   "_attachments_or_none": "UI-0649"
   },
   "frontends/desktop/core/sensor_log.py": {
    "format_sensor_value": "TEL-0098",
@@ -5454,18 +5486,9 @@
   },
   "frontends/desktop/pages/performance.py": {
    "performance_stylesheet": "TEL-0108",
-   "_number": "TEL-0109",
    "_integer": "TEL-0110",
    "_format_bytes": "TEL-0111",
    "_format_rate": "TEL-0112",
-   "_nice_ceiling": "TEL-0113",
-   "view_definition": "TEL-0114",
-   "MetricHistory.__init__": "TEL-0115",
-   "MetricHistory.append": "TEL-0116",
-   "MetricHistory.peak": "TEL-0117",
-   "MetricHistory.average": "TEL-0118",
-   "MetricHistory.low": "TEL-0119",
-   "MetricHistory.maximum": "TEL-0120",
    "rate_axis": "TEL-0121",
    "_tick_text": "TEL-0122",
    "ResourceTile.__init__": "TEL-0123",
@@ -5514,7 +5537,6 @@
    "DetailGraph._render_lines": "TEL-0166",
    "DetailGraph._paint_readout": "TEL-0167",
    "DetailGraph._paint_readout_box": "TEL-0168",
-   "series_statistics": "TEL-0169",
    "DetailPanel.__init__": "TEL-0170",
    "DetailPanel._reflow_stats": "TEL-0171",
    "DetailPanel.resizeEvent": "TEL-0172",
@@ -5563,9 +5585,6 @@
    "PerformancePage._view_summary": "TEL-0215"
   },
   "frontends/desktop/pages/performance_sensors.py": {
-   "sensor_label": "TEL-0216",
-   "_search_text": "TEL-0217",
-   "_group_title": "TEL-0218",
    "_kind_mark": "TEL-0219",
    "_tabular": "TEL-0220",
    "SensorTableModel.__init__": "TEL-0221",
@@ -5887,6 +5906,7 @@
  "retired": [
   "CORE-0086",
   "DASH-0012",
+  "DIAG-0001",
   "DIAG-0027",
   "DIAG-0057",
   "DIAG-0058",
@@ -5908,6 +5928,7 @@
   "DIAG-0119",
   "DIAG-0126",
   "DIAG-0127",
+  "DIAG-0130",
   "DIAG-0131",
   "DIAG-0132",
   "DIAG-0133",
@@ -5922,9 +5943,25 @@
   "DIAG-0142",
   "DIST-0129",
   "SET-0256",
+  "TEL-0109",
+  "TEL-0113",
+  "TEL-0114",
+  "TEL-0115",
+  "TEL-0116",
+  "TEL-0117",
+  "TEL-0118",
+  "TEL-0119",
+  "TEL-0120",
+  "TEL-0169",
+  "TEL-0216",
+  "TEL-0217",
+  "TEL-0218",
   "TEL-0365",
   "TEL-0366",
   "UI-0564",
+  "UI-0574",
+  "UI-0575",
+  "UI-0576",
   "UI-0582",
   "UI-0583",
   "UI-0584",

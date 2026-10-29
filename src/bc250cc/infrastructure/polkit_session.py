@@ -23,6 +23,9 @@ AUTH_AGENT_MESSAGE = (
     "does not appear, check that your desktop has an active authentication agent."
 )
 
+#: Set by the terminal interface: authenticate on its console, never in a window.
+TERMINAL_AUTH_ENV = "BC250_TERMINAL_AUTH"
+
 _AGENT_MARKERS = (
     "hyprpolkitagent",
     "polkit-kde-authentication-agent",
@@ -158,10 +161,15 @@ def ensure_graphical_polkit_agent(
     compositors can reuse any supported agent that is present on the host.
     """
     global _DEFAULT_READY_STATE
+    env = dict(os.environ if environment is None else environment)
+    if env.get(TERMINAL_AUTH_ENV) == "1":
+        # The terminal interface registers its own textual agent (pkttyagent)
+        # for its process: a desktop window would be the wrong place to ask,
+        # and on a bare TTY there is none to show.
+        return PolkitAgentState(False, "terminal", "The terminal interface asks for the password itself.")
     default_probe = environment is None and proc_root == Path("/proc")
     if default_probe and _DEFAULT_READY_STATE is not None:
         return _DEFAULT_READY_STATE
-    env = dict(os.environ if environment is None else environment)
     if os.geteuid() == 0:
         return PolkitAgentState(False, "root", "Root does not need a Polkit agent.")
     if not _graphical_session(env):

@@ -57,6 +57,7 @@ required=(
   scripts/system/steamos-root.sh
   scripts/entrypoints/bc250-control-center
   scripts/entrypoints/bc250-control-center-cli
+  scripts/entrypoints/bc250-control-center-tui
   scripts/entrypoints/bc250-control-centerd
   scripts/install-local.sh
   scripts/install-decky-quick-access.sh
@@ -76,6 +77,7 @@ done
 expected_root_scripts=(
   install-decky-quick-access.sh
   install-local.sh
+  install-tui.sh
   uninstall-local.sh
 )
 # Plain Bash rather than GNU find -printf: BusyBox find (Alpine) has no
@@ -89,7 +91,7 @@ mapfile -t actual_root_scripts < <(
   done | LC_ALL=C sort
 )
 if [[ "${actual_root_scripts[*]}" != "${expected_root_scripts[*]}" ]]; then
-  echo "ERROR: scripts/ root must contain only the three public installers." >&2
+  echo "ERROR: scripts/ root must contain only the public installers." >&2
   printf 'Expected: %s\n' "${expected_root_scripts[*]}" >&2
   printf 'Found:    %s\n' "${actual_root_scripts[*]}" >&2
   exit 10

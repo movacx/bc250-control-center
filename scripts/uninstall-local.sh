@@ -351,6 +351,7 @@ Files installed by install-local.sh will be removed from:
 - $APP_DIR
 - $BIN_DIR/bc250-control-center
 - $BIN_DIR/bc250-control-center-cli
+- $BIN_DIR/bc250-control-center-tui
 - $BIN_DIR/bc250-control-centerd
 - $DESKTOP_DIR/io.github.movacx.bc250-control-center.desktop
 - $METAINFO_DIR/io.github.movacx.bc250-control-center.metainfo.xml
@@ -387,6 +388,7 @@ fi
 
 remove_path "$BIN_DIR/bc250-control-center"
 remove_path "$BIN_DIR/bc250-control-center-cli"
+remove_path "$BIN_DIR/bc250-control-center-tui"
 remove_path "$BIN_DIR/bc250-control-centerd"
 remove_path "$DESKTOP_DIR/io.github.movacx.bc250-control-center.desktop"
 remove_path "$METAINFO_DIR/io.github.movacx.bc250-control-center.metainfo.xml"
