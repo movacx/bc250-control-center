@@ -24,7 +24,6 @@ def _literals() -> set[str]:
 
 def _table_labels() -> set[str]:
     from frontends.tui.pages import build_pages, extras, settings
-    from frontends.tui.pages.monitoring import SERIES
 
     labels = {title for _key, title in extras.TAB_TITLES} | {label for _k, label in extras.MEMORY_POLICIES}
     labels |= {label for _k, label in extras.DRIVER_COMPONENTS} | {label for _k, label in extras.STATUS_INSTALL}
@@ -34,9 +33,6 @@ def _table_labels() -> set[str]:
             labels |= {label for key, label in entry.actions if label != key}  # raw ids are shown untranslated
     labels |= {label for _k, label in settings.THEMES} | {label for _k, label in settings.TABS}
     labels |= {label for _k, label, _lo, _hi in settings.ALERT_FIELDS}
-    for group, rows in SERIES:
-        labels.add(group)
-        labels |= {label for _n, label, _u in rows}
     labels |= {page.title for page in build_pages().values()}
     return labels
 

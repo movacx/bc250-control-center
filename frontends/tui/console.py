@@ -145,7 +145,9 @@ class Console:
             os.setsid()
             fcntl.ioctl(0, termios.TIOCSCTTY, 0)
 
-        env = dict(os.environ, TERM="xterm-256color", COLUMNS=str(self.term.columns), LINES=str(self.term.rows))
+        # No pager: "systemctl status" would open less inside the pane and never end; the pane scrolls itself.
+        env = dict(os.environ, TERM="xterm-256color", COLUMNS=str(self.term.columns), LINES=str(self.term.rows),
+                   PAGER="cat", SYSTEMD_PAGER="cat", GIT_PAGER="cat", SYSTEMD_LESS="")
         process = subprocess.Popen(  # nosec B603
             argv, stdin=slave, stdout=slave, stderr=slave, env=env, pass_fds=pass_fds,
             preexec_fn=become_session_leader, close_fds=True)  # noqa: PLW1509

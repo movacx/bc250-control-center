@@ -40,11 +40,10 @@ def test_on_screen_keys_and_the_section_strip_are_taps(monkeypatch):
     tap(monkeypatch, screen, x0, y)
     assert screen.page_key == "cpu"
     screen.draw()
-    y, x0, _x1, key = next(hit for hit in screen._hits if hit[3] == "down")
-    before = screen.scroll.get(screen._slot(), 0), screen.cursor.get(screen._slot())
-    tap(monkeypatch, screen, x0, y)
-    assert (screen.scroll.get(screen._slot(), 0), screen.cursor.get(screen._slot())) != before
-    assert len(KEYBAR) == 12
+    before = screen.scroll.get(screen._slot(), 0)
+    tap(monkeypatch, screen, 10, 10, curses.BUTTON5_PRESSED)  # a swipe up the screen
+    assert screen.scroll.get(screen._slot(), 0) > before
+    assert [key for _label, key in KEYBAR] == ["menu", "esc", "enter", "tab", "/", "q"]
 
 
 def test_a_tap_opens_a_button_and_a_tap_on_the_arrows_steps_a_value(monkeypatch):
@@ -118,3 +117,35 @@ def test_ctrl_c_leaves_any_dialog_and_a_text_field_has_answers_to_tap(monkeypatc
 
     monkeypatch.setattr(screen, "_modal_key", tap_cancel)
     assert screen.ask_text("Name", "x") is None
+
+
+def test_esc_goes_back_to_the_previous_section_not_to_the_menu():
+    _window, screen = touch_screen()
+    screen.goto("gpu")
+    screen.goto("fans")
+    screen.handle(27)
+    assert screen.page_key == "gpu"
+    screen.handle(27)
+    screen.handle(27)  # nothing before the first section: stays
+    assert screen.page_key == "dashboard"
+
+
+def test_tapping_esc_on_screen_closes_a_finished_console(monkeypatch):
+    from types import SimpleNamespace
+
+    window, screen = touch_screen()
+    screen._foreground = None
+    taps = iter(range(1000))
+
+    def getch():
+        console = screen.active_console
+        if console is None or not console.done.is_set() or next(taps) < 2:
+            return -1
+        y, x0, _x1, _key = next(hit for hit in screen._hits if hit[3] == "esc")
+        monkeypatch.setattr(curses, "getmouse", lambda: (0, x0 + 1, y, 0, curses.BUTTON1_PRESSED))
+        return curses.KEY_MOUSE
+
+    window.getch = getch
+    request = SimpleNamespace(argv=("bash", "-c", "echo status"), title="x", status_file="", log_file="")
+    ok, _result = screen.run("Status", lambda: screen.launch_workflow(request))
+    assert ok and screen.active_console is None

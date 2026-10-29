@@ -24,9 +24,9 @@ from .support import available_version, report
 MIN_WIDTH, MIN_HEIGHT = 60, 14
 TOUCH_WIDTH = 110  # narrower than this, and no choice saved: the phone / tablet layout
 #: The on-screen keys a phone keyboard lacks: (label, key name), one slim row.
-#: In order of need: what does not fit a narrow screen goes from the end (a swipe already scrolls).
-KEYBAR = (("Menu", "menu"), ("Esc", "esc"), ("Enter", "enter"), ("←", "left"), ("↑", "up"), ("↓", "down"),
-          ("→", "right"), ("Tab", "tab"), ("Search", "/"), ("Quit", "q"), ("PgUp", "pgup"), ("PgDn", "pgdn"))
+#: The keys a phone keyboard lacks, in order of need. No arrows: a swipe scrolls, a tap selects,
+#: and Termux / Termius put their own arrows above the keyboard.
+KEYBAR = (("Menu", "menu"), ("Esc", "esc"), ("Enter", "enter"), ("Tab", "tab"), ("Search", "/"), ("Quit", "q"))
 TOAST_SECONDS = 6.0
 TONE_PAIRS = {"ok": 1, "warn": 2, "bad": 3, "accent": 4}
 #: The desktop sidebar: its groups, in its order.
@@ -76,6 +76,7 @@ class Screen:
         self.order = tuple(key for key in order if key in pages)
         self.focus = "sidebar"
         self.section = 0
+        self.visited: list[int] = []  # sections opened before, for Esc in the touch layout
         self.tab: dict[str, str] = {}
         self.cursor: dict[tuple[str, str], int] = {}
         self.scroll: dict[tuple[str, str], int] = {}
@@ -193,7 +194,7 @@ class Screen:
         return self.touch and self.ctx.state("ui").get("keybar", True) is not False
 
     def _bottom(self) -> int:
-        return 1
+        return 2 if self.keybar else 1
 
     def sidebar_width(self, width: int) -> int:
         longest = max(cell_width(tr(self.pages[key].title)) for key in self.order) + 5
@@ -274,25 +275,15 @@ class Screen:
                 break
 
     def _draw_keybar(self, height: int, width: int) -> None:
-        """One slim toolbar of on-screen keys at the foot; every key is a tap target.
-
-        Each key is as wide as its label plus an even share of the spare room;
-        the ones that do not fit a narrow screen are left out from the end
-        (Termux and Termius add their own Esc, Tab and arrows above the keyboard).
-        """
-        y = height - 1
+        """The on-screen keys: two rows tall and spread over the full width, a gap between keys."""
         labels = [(tr(label) if label in ("Menu", "Search", "Quit") else label, key) for label, key in KEYBAR]
-        while len(labels) > 4 and sum(cell_width(text) + 2 for text, _key in labels) > width - 1:
-            labels.pop()
-        spare = (width - 1 - sum(cell_width(text) + 2 for text, _key in labels)) // len(labels)
-        self.put(y, 0, " " * (width - 1), self.attrs["dim"] | curses.A_REVERSE)
-        column = 0
-        for text, key in labels:
-            cell = cell_width(text) + 2 + spare
-            self.put(y, column, text.center(cell),
-                     (self.attrs["accent"] if key == "menu" else 0) | curses.A_REVERSE | curses.A_BOLD)
-            self._hits.append((y, column, column + cell, key))
-            column += cell
+        for index, (text, key) in enumerate(labels):  # exact edges: the keys reach both sides, one column apart
+            column = index * (width - 1) // len(labels)
+            cell = (index + 1) * (width - 1) // len(labels) - column
+            attr = (self.attrs["accent"] if key == "menu" else 0) | curses.A_REVERSE | curses.A_BOLD
+            for y in (height - 2, height - 1):
+                self.put(y, column, clip(text, cell - 1).center(cell - 1) if y == height - 2 else " " * (cell - 1), attr)
+                self._hits.append((y, column, column + cell, key))
 
     def _draw_title(self, width: int) -> None:
         metrics = self.ctx.metrics or {}
@@ -495,6 +486,8 @@ class Screen:
 
     def handle_key(self, key: str) -> None:
         """One key by name, from the keyboard or from a tap on an on-screen key."""
+        if self.touch:
+            self.focus = "content"  # no sidebar to be on
         if key == "menu":
             self.section_menu()
         elif key.startswith("go:"):
@@ -568,8 +561,16 @@ class Screen:
         if not self._shown(layout, slot, self.cursor.get(slot, -1)):
             self.cursor[slot] = self._first_shown(layout, slot, step)
 
-    def _go(self, index: int) -> None:
-        self.section = max(0, min(len(self.order) - 1, index))
+    def _back(self) -> None:
+        """Esc on a phone: the section seen before this one (the menu has its own key)."""
+        if self.visited:
+            self._go(self.visited.pop(), remember=False)
+
+    def _go(self, index: int, *, remember: bool = True) -> None:
+        index = max(0, min(len(self.order) - 1, index))
+        if remember and index != self.section:
+            self.visited = (self.visited + [self.section])[-20:]
+        self.section = index
         self._layout_key = None
         self._repaint()
         if self.poller:
@@ -626,7 +627,7 @@ class Screen:
         elif key in ("left", "right") and self._tabs():
             self._switch_tab(1 if key == "right" else -1)
         elif key in ("esc", "left"):
-            self.section_menu() if self.touch else self._focus("sidebar")
+            self._back() if self.touch else self._focus("sidebar")
         elif key in ("up", "down", "pgup", "pgdn", "home", "end"):
             self._step(layout, slot, {"up": -1, "down": 1, "pgup": -view, "pgdn": view, "home": -10**6, "end": 10**6}[key])
         elif key in ("enter", "space") and current is not None:
@@ -655,9 +656,9 @@ class Screen:
         x, y, key = tap
         if key in ("up", "down") and self.active_console is not None:
             self.console_scroll += 3 if key == "up" else -3
-        elif key in ("up", "down"):
+        elif key in ("up", "down"):  # the wheel, or a swipe on a phone: the page moves, three rows at a time
             self.focus = "content"
-            self._content_key(key)
+            self._step(self.build(), self._slot(), 3 if key == "down" else -3)
         elif key:
             self.handle_key(key)
         elif self.active_console is not None:
@@ -935,9 +936,16 @@ class Screen:
     def _console_key(self, console: Console, code: int) -> str:
         """Keys while the console is up; "close" or "report" closes it (only once the job is done)."""
         key = name_of(code)
-        if key == "mouse":
-            self._mouse()
-        elif key in ("pgup", "pgdn"):
+        if key == "mouse":  # a tap on an on-screen key is that key, for the console (not the page behind)
+            tap = self._tap()
+            if tap is None or not tap[2]:
+                return ""
+            key = tap[2]
+            if key in ("up", "down"):  # the wheel: scroll the output
+                self.console_scroll += 3 if key == "up" else -3
+                return ""
+            code = {"esc": 27, "enter": 10, "tab": 9}.get(key, ord(key) if len(key) == 1 else 0)
+        if key in ("pgup", "pgdn"):
             self.console_scroll += (1 if key == "pgup" else -1) * max(1, self.size()[0] - 6)
         elif console.done.is_set():
             if key in ("esc", "enter", "q", "space"):

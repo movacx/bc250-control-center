@@ -127,10 +127,16 @@ class Poller:
             started = time.monotonic()
             try:
                 metrics = self.ctx.service.metricas_tiempo_real()
+                metrics = metrics if isinstance(metrics, dict) else {}
+                # Performance keeps its own two-minute histories once it has been opened, as the desktop does.
+                recorder = self.ctx.page_state.get("performance", {}).get("recorder")
+                readings = recorder.read(metrics) if recorder is not None else None
                 with self.ctx.lock:
-                    self.ctx.metrics = metrics if isinstance(metrics, dict) else {}
+                    self.ctx.metrics = metrics
                     self.ctx.metrics_error = ""
                     record_metrics(self.ctx, self.ctx.metrics)
+                    if recorder is not None:
+                        recorder.record(metrics, readings)
             except Exception as error:  # a failed read must not end the loop
                 logger.debug("metrics read failed", exc_info=True)
                 with self.ctx.lock:

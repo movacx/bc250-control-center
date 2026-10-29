@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 
 from .content import (
     Block,
+    Chart,
     Choice,
     Columns,
     Field,
@@ -79,6 +80,105 @@ def sparkline(values, width: int, glyphs: Glyphs) -> str:
     top = len(glyphs.spark) - 1
     body = "".join(glyphs.spark[round((value - low) / span * top)] for value in series)
     return body.rjust(width) if len(series) < width else body
+
+
+_BRAILLE = ((0x01, 0x08), (0x02, 0x10), (0x04, 0x20), (0x40, 0x80))
+_SHADES = (" ░▒▓█", " .:+#")
+
+
+def _runs(cells: list[tuple[str, str]]) -> list[tuple[str, str]]:
+    """(char, tone) cells as spans: consecutive cells of one tone share a span."""
+    spans: list[tuple[str, str]] = []
+    for char, tone in cells:
+        if spans and spans[-1][1] == tone:
+            spans[-1] = (spans[-1][0] + char, tone)
+        else:
+            spans.append((char, tone))
+    return spans
+
+
+def chart_rows(chart: Chart, width: int, glyphs: Glyphs) -> list[list[tuple[str, str]]]:
+    """``chart`` as rows of spans: the plot, its value axis on the right, the time axis below."""
+    braille = glyphs.rule == "─"
+    axis = max(cell_width(chart.show(value)) for value in (chart.low, chart.high)) + 3
+    plot = max(10, width - axis)
+    end = chart.times[-1] if chart.times else 0.0
+
+    def column(moment: float, scale: int) -> int:  # where a sample of that moment lands, in dots or cells
+        return round((moment - (end - chart.window)) / chart.window * (plot * scale - 1))
+
+    rows: list[list[tuple[str, str]]] = []
+    if chart.heatmap:  # one row per series, the shade is the value
+        shades = _SHADES[0 if braille else 1]
+        name_w = min(12, max(cell_width(name) for name, _v, _t in chart.series))
+        span = (chart.high - chart.low) or 1.0
+        for name, values, tone in chart.series:
+            cells = [" "] * (plot - name_w - 1)
+            for moment, value in zip(chart.times[-len(values):], values):
+                x = round((moment - (end - chart.window)) / chart.window * (len(cells) - 1))
+                if 0 <= x < len(cells):
+                    level = (min(max(value, chart.low), chart.high) - chart.low) / span
+                    cells[x] = shades[min(len(shades) - 1, round(level * (len(shades) - 1)))]
+            rows.append([(pad(name, name_w) + " ", "dim"), ("".join(cells), tone)])
+    else:
+        height = max(3, chart.height)
+        dots_x, dots_y = (2, 4) if braille else (1, 1)
+        masks = [[0] * plot for _ in range(height)]
+        tones = [[""] * plot for _ in range(height)]
+        span = (chart.high - chart.low) or 1.0
+
+        def y_of(value: float) -> int:
+            return height * dots_y - 1 - round((min(max(value, chart.low), chart.high) - chart.low) / span
+                                               * (height * dots_y - 1))
+
+        def dot(x: int, y: int, tone: str) -> None:
+            cx, cy = x // dots_x, y // dots_y
+            if 0 <= cx < plot and 0 <= cy < height:
+                masks[cy][cx] |= _BRAILLE[y % 4][x % 2] if braille else 1
+                tones[cy][cx] = tone
+
+        last_y = None
+        for _name, values, tone in chart.series:
+            previous = None
+            for moment, value in zip(chart.times[-len(values):], values):
+                x, y = column(moment, dots_x), y_of(value)
+                if previous is not None and 0 < x - previous[0] <= 4 * dots_x:  # join neighbours; a gap stays a gap
+                    for step in range(previous[0] + 1, x + 1):
+                        middle = round(previous[1] + (y - previous[1]) * (step - previous[0]) / (x - previous[0]))
+                        low, high = sorted((middle, previous[1] if step == previous[0] + 1 else middle))
+                        for yy in range(low, high + 1):
+                            dot(step, yy, tone)
+                dot(x, y, tone)
+                previous = (x, y)
+            last_y = previous[1] // dots_y if previous and last_y is None else last_y
+        average_row = y_of(chart.average) // dots_y if chart.average is not None else None
+        ticks = {y_of(tick) // dots_y: chart.show(tick) for tick in chart.ticks or (chart.low, chart.high)}
+        current = chart.series[0][1][-1] if chart.series and chart.series[0][1] else None
+        for r in range(height):
+            cells = []
+            for c in range(plot):
+                if masks[r][c]:
+                    cells.append((chr(0x2800 + masks[r][c]) if braille else "*", tones[r][c]))
+                elif r == average_row:  # the window's average, dashed
+                    cells.append(("┄" if braille else "-", "dim"))
+                elif r in ticks and c % 2 == 0:  # a faint rule at each labelled value
+                    cells.append(("·", "dim"))
+                else:
+                    cells.append((" ", ""))
+            if r == last_y and current is not None:
+                rows.append(_runs(cells) + [((" ◂ " if braille else " < ") + chart.show(current), "accent")])
+            else:
+                rows.append(_runs(cells) + [(f" {glyphs.v} {ticks.get(r, '')}", "dim")])
+    # time marks every 30 s, counted back from now, as on the desktop
+    line = [" "] * plot
+    for age in range(0, int(chart.window) + 1, 30):
+        text = chart.now if age == 0 else f"-{age // 60}:{age % 60:02d}"
+        x = plot - 1 - round(age / chart.window * (plot - 1))
+        start = max(0, min(plot - len(text), x - len(text) // 2))
+        if all(char == " " for char in line[max(0, start - 1):start + len(text) + 1]):
+            line[start:start + len(text)] = list(text)
+    rows.append([("".join(line), "dim")])
+    return rows
 
 
 def gauge(start: float, end: float, width: int, tone: str, glyphs: Glyphs) -> list[tuple[str, str]]:
@@ -201,6 +301,9 @@ def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int
                     parts.append(inner)
                 layout.rows.extend(_join_columns(parts, [each] * len(group), " | " if glyphs.rule == "-" else " │ "))
                 add([("", "")])
+        elif isinstance(block, Chart):
+            for spans in chart_rows(block, width, glyphs):
+                add(spans)
         elif isinstance(block, Pad):
             index = len(layout.choices)
             layout.choices.append(Choice("", block.toggle, pad=block))
@@ -247,8 +350,9 @@ def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int
             button = not (detail or block.adjust or block.label.startswith(("(", "[")) or block.label.endswith("›"))
             if button:
                 tone = (tone or "accent") if block.enabled else "dim"
-            if button and touch:  # a full-width bar, as a phone app draws a button
-                add([(pad(f"  {clip(block.label, width - 4)}", width), "btn:" + (tone or "accent"))], choice=index)
+            if button and touch and glyphs.rule == "─":  # a pill as wide as its words; the whole row is the target
+                text, tone = clip(block.label, width - 6), tone or "accent"
+                add([("▐", tone), (f" {text} ", "btn:" + tone), ("▌", tone)], choice=index)
             else:
                 if button:
                     label = f"[ {clip(block.label, width - 4)} ]"  # a button: it does something, it is not a value

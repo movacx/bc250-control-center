@@ -185,6 +185,27 @@ class Pad:
 
 
 @dataclass(slots=True)
+class Chart:
+    """The last ``window`` seconds of one or more series, placed by their sample times.
+
+    Lines are drawn in braille (2x4 dots a cell) with the axis on the right
+    and time underneath; ``heatmap`` draws one shaded row per series instead.
+    """
+
+    series: Sequence[tuple[str, Sequence[float], str]]  # (name, values, tone), aligned to the end of ``times``
+    times: Sequence[float]
+    low: float
+    high: float
+    height: int = 10
+    show: Callable[[float], str] = str
+    average: float | None = None
+    heatmap: bool = False
+    window: float = 120.0
+    ticks: Sequence[float] = ()  # round values to label and rule across the plot
+    now: str = "Now"
+
+
+@dataclass(slots=True)
 class Choice:
     """A selectable row. Enter runs ``handler``; left/right call ``adjust``."""
 
@@ -197,7 +218,7 @@ class Choice:
     pad: "Pad | None" = None
 
 
-Block = Heading | Field | Meter | Trend | Note | Grid | Raw | Gap | Choice | Card | Columns | Track | Pad
+Block = Heading | Field | Meter | Trend | Note | Grid | Raw | Gap | Choice | Card | Columns | Track | Pad | Chart
 
 
 def percent(value: object, default: float | None = None) -> float | None:

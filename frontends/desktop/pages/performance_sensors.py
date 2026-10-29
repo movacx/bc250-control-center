@@ -60,25 +60,31 @@ from bc250cc.infrastructure.sensor_inventory import (
     CURRENT,
     DATA,
     FAN,
-    GPU_DEVICE,
-    GROUP_CPU,
-    GROUP_GDDR6,
-    GROUP_GPU,
-    GROUP_MEMORY,
-    GROUP_NETWORK,
-    GROUP_STORAGE,
-    GROUP_VRM,
     POWER,
     RATE,
     TEMPERATURE,
     USAGE,
     VOLTAGE,
-    SensorReading,
 )
 
 from ..components.chart_axes import range_axis
 from ..components.chart_strokes import draw_series, fill_area
 from ..components.flow_layout import FlowLayout
+from ..core.performance_model import (
+    DEFAULT_PLOTTED,
+    KIND_FILTERS,
+    MODES,
+    sensor_label,
+)
+from ..core.performance_model import (
+    GROUP_RANK as _GROUP_RANK,
+)
+from ..core.performance_model import (
+    group_title as _group_title,
+)
+from ..core.performance_model import (
+    search_text as _search_text,
+)
 from ..core.preferences import application_settings
 from ..core.sensor_log import SensorEntry, SensorLog, format_sensor_value
 from ..i18n import tr, tr_format
@@ -88,33 +94,6 @@ from ..theme import COLORS
 COLUMNS = ("Sensor", "Value", "Min", "Avg", "Max")
 NAME, VALUE, MINIMUM, AVERAGE, MAXIMUM = range(len(COLUMNS))
 
-#: Rendered on first open, before the user has ticked anything.
-DEFAULT_PLOTTED = ("hwmon/k10temp/temp1", "cpu/usage")
-
-#: Filter choices: (label, kinds they keep). The first shows everything; the
-#: others are chips that can be combined, the way a hardware monitor's type
-#: buttons are: temperatures and fans together, say, while tuning a curve.
-KIND_FILTERS = (
-    ("All sensors", ()),
-    ("Temperatures", (TEMPERATURE,)),
-    ("Clocks", (CLOCK,)),
-    ("Usage", (USAGE,)),
-    ("Power", (POWER,)),
-    ("Voltages", (VOLTAGE,)),
-    ("Currents", (CURRENT,)),
-    ("Fans", (FAN,)),
-    ("Memory and throughput", (DATA, RATE)),
-)
-
-#: The view modes: the list, the list with its graphs, only the graphs.
-MODES = (("list", "List"), ("split", "List + graphs"), ("graphs", "Graphs"))
-
-#: Where each fixed group sits; hwmon chips go between the GPU parts and
-#: memory, where a hardware monitor lists the board.
-_GROUP_RANK = {
-    GROUP_CPU: 0, GROUP_GPU: 1, GROUP_GDDR6: 2, GROUP_VRM: 3,
-    GROUP_MEMORY: 5, GROUP_STORAGE: 6, GROUP_NETWORK: 7,
-}
 
 #: The one colour mark per kind of sensor, from the palette's series slots.
 _KIND_TONE = {
@@ -126,31 +105,6 @@ _KEY_ROLE = Qt.ItemDataRole.UserRole + 1
 _KIND_ROLE = Qt.ItemDataRole.UserRole + 2
 _ACTIVE_ROLE = Qt.ItemDataRole.UserRole + 3
 _SEARCH_ROLE = Qt.ItemDataRole.UserRole + 4
-
-
-def sensor_label(reading: SensorReading) -> str:
-    """The row's name: the kernel's label as is, or a translated template."""
-    if not reading.fields:
-        return tr(reading.label) if not reading.key.startswith("hwmon/") else reading.label
-    try:
-        return tr(reading.label).format(**dict(reading.fields))
-    except (KeyError, IndexError, ValueError):
-        return reading.label.format(**dict(reading.fields))
-
-
-def _search_text(reading: SensorReading) -> str:
-    """What the filter field is matched against, for the list and the graphs."""
-    return f"{sensor_label(reading)} {reading.device} {reading.label}".casefold()
-
-
-def _group_title(group: str, reading: SensorReading) -> str:
-    if group == GROUP_STORAGE:
-        return tr_format("Storage · {device}", device=reading.device)
-    if group == GROUP_NETWORK:
-        return tr_format("Network · {device}", device=reading.device)
-    if group in (GROUP_MEMORY, GROUP_GDDR6, GROUP_VRM, GROUP_GPU):
-        return tr(reading.device) if reading.device != GPU_DEVICE else reading.device
-    return reading.device
 
 
 _MARKS: dict[tuple[str, str], QPixmap] = {}
