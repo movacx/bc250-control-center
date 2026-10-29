@@ -2924,6 +2924,8 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, QFrame):
             self._smt_live_target = "off" if is_on else "on"
             self.smt_live_pill.setText(tr("Enabled" if is_on else "Disabled"))
             self.smt_live_pill.set_tone("green" if is_on else "orange")
+            # The button says it ("Turn SMT off now" means it is on).
+            self.smt_live_pill.setVisible(False)
             self.smt_live_button.setText(tr("Turn SMT off now" if is_on else "Turn SMT on now"))
 
     def _request_steamos_readonly(self) -> None:
@@ -2948,6 +2950,9 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, QFrame):
         }.get(mode, ("Unknown", "gray"))
         self.readonly_status.setText(tr(status))
         self.readonly_status.set_tone(tone)
+        # Protected / Writable is what the button says ("Disable read-only
+        # mode" means it is protected); only an unknown state is worth a pill.
+        self.readonly_status.setVisible(mode not in {"enabled", "disabled"})
         self._readonly_action = "enable" if mode == "disabled" else "disable"
         self.readonly_button.setText(
             tr("Turn read-only back on" if self._readonly_action == "enable" else "Disable read-only mode")
@@ -3236,6 +3241,8 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, QFrame):
         managed = bool(state.get("managed"))
         available = bool(state.get("available"))
         self.boot_messages_panel.setVisible(actionable)
+        # Same rule as the other boot options: only a pending reboot is shown.
+        self.boot_messages_status.setVisible(actionable and bool(state.get("reboot_required")))
         if not actionable:
             return
         if state.get("reboot_required"):
@@ -3278,7 +3285,10 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, QFrame):
         available = bool(state.get("available"))
         preview = not actionable and bazzite_ui_preview_enabled()
         self.mitigations_panel.setVisible(actionable or preview)
-        self.mitigations_status.setVisible(actionable)
+        # Enabled / Disabled is what the button already says ("Disable
+        # mitigations" means they are on). The pill stays only for what the
+        # button cannot say: a reboot that is still pending.
+        self.mitigations_status.setVisible(actionable and bool(state.get("reboot_required")))
         if not actionable:
             status = tr("Unavailable")
             tone = "gray"
