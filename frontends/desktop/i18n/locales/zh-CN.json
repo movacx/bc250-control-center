@@ -5484,5 +5484,9 @@
   "USB drives": "USB 驱动器",
   "Vendor": "厂商",
   "Waiting for data…": "正在等待数据…",
-  "Prepare the VRAM reader": "准备 VRAM 读取工具"
+  "Prepare the VRAM reader": "准备 VRAM 读取工具",
+  "Adjust": "调整",
+  "Interrupt": "中断",
+  "Search": "搜索",
+  "No results": "无结果"
 }

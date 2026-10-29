@@ -5484,5 +5484,9 @@
   "USB drives": "USB-enheter",
   "Vendor": "Tillverkare",
   "Waiting for data…": "Väntar på data…",
-  "Prepare the VRAM reader": "Förbered VRAM-läsaren"
+  "Prepare the VRAM reader": "Förbered VRAM-läsaren",
+  "Adjust": "Justera",
+  "Interrupt": "Avbryt",
+  "Search": "Sök",
+  "No results": "Inga resultat"
 }

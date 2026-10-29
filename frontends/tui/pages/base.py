@@ -7,7 +7,6 @@ from typing import Any, Protocol
 
 from ..content import (
     Block,
-    Field,
     Meter,
     Note,
     Trend,
@@ -31,6 +30,7 @@ class UI(Protocol):
     def choose(self, title: str, options: list[tuple[Any, str]]) -> Any: ...
     def notify(self, message: str, tone: str = "") -> None: ...
     def run(self, label: str, work: Callable[[], Any]) -> tuple[bool, Any]: ...
+    def shell(self, command: str) -> str: ...
     def show_text(self, title: str, text: str) -> None: ...
     def refresh(self) -> None: ...
     def apply_theme(self, theme: str) -> None: ...
@@ -60,17 +60,29 @@ class Page:
 
 
 def guarded(ui: UI, label: str, work: Callable[[], Any], *, success: str = "") -> None:
-    """Run a mutating service call in the foreground and report its outcome.
-
-    The screen is handed back to the terminal for the call, so a privilege
-    prompt (pkexec/sudo) can ask on the tty, and the person sees the output.
-    """
+    """Run a mutating service call in the console pane and report its outcome."""
     ok, result = ui.run(label, work)
     if isinstance(result, BaseException):
         ui.notify(describe_error(result), "bad")
     elif ok:
         ui.notify(describe_result(result) or success or tr("Done"), "ok")
     ui.refresh()
+
+
+def os_family(ctx: Context) -> tuple[str, str]:
+    """(family, display name) of this system, read once per session."""
+    state = ctx.state("system")
+    if "os" not in state:
+        import shutil
+
+        from bc250cc.platform.packages.strategies.detector import (
+            detect_os_info,
+            read_os_release,
+        )
+
+        info = detect_os_info(read_os_release(), has_rpm_ostree=bool(shutil.which("rpm-ostree")))
+        state["os"] = (info.family, info.pretty_name or info.name or info.family)
+    return state["os"]
 
 
 def metric_blocks(ctx: Context) -> dict[str, dict]:
@@ -103,7 +115,3 @@ def temperature_meter(label: str, celsius: object, ceiling: float = 110.0) -> Me
 
 def load_meter(label: str, value: object) -> Meter:
     return Meter(label, percent(value), number(value, "%", 0), load_tone(value))
-
-
-def field_or_dash(label: str, value: object, unit: str = "", digits: int = 0) -> Field:
-    return Field(label, number(value, unit, digits))

@@ -5484,5 +5484,9 @@
   "USB drives": "Dyski USB",
   "Vendor": "Producent",
   "Waiting for data…": "Oczekiwanie na dane…",
-  "Prepare the VRAM reader": "Przygotuj czytnik VRAM"
+  "Prepare the VRAM reader": "Przygotuj czytnik VRAM",
+  "Adjust": "Dostosuj",
+  "Interrupt": "Przerwij",
+  "Search": "Szukaj",
+  "No results": "Brak wyników"
 }

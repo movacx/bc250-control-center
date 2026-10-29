@@ -5484,5 +5484,9 @@
   "USB drives": "USB drives",
   "Vendor": "Vendor",
   "Waiting for data…": "Waiting for data…",
-  "Prepare the VRAM reader": "Prepare the VRAM reader"
+  "Prepare the VRAM reader": "Prepare the VRAM reader",
+  "Adjust": "Adjust",
+  "Interrupt": "Interrupt",
+  "Search": "Search",
+  "No results": "No results"
 }

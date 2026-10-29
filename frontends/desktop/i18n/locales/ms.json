@@ -5484,5 +5484,9 @@
   "USB drives": "Pemacu USB",
   "Vendor": "Pengeluar",
   "Waiting for data…": "Menunggu data…",
-  "Prepare the VRAM reader": "Sediakan pembaca VRAM"
+  "Prepare the VRAM reader": "Sediakan pembaca VRAM",
+  "Adjust": "Laraskan",
+  "Interrupt": "Ganggu",
+  "Search": "Cari",
+  "No results": "Tiada hasil"
 }

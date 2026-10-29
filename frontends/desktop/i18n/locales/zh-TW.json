@@ -5484,5 +5484,9 @@
   "USB drives": "USB 磁碟機",
   "Vendor": "廠商",
   "Waiting for data…": "正在等待資料…",
-  "Prepare the VRAM reader": "準備 VRAM 讀取工具"
+  "Prepare the VRAM reader": "準備 VRAM 讀取工具",
+  "Adjust": "調整",
+  "Interrupt": "中斷",
+  "Search": "搜尋",
+  "No results": "沒有結果"
 }

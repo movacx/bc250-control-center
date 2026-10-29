@@ -9,7 +9,7 @@ NAMES = {
     curses.KEY_ENTER: "enter", 10: "enter", 13: "enter", 27: "esc", 9: "tab", curses.KEY_BTAB: "btab",
     curses.KEY_PPAGE: "pgup", curses.KEY_NPAGE: "pgdn", curses.KEY_HOME: "home", curses.KEY_END: "end",
     curses.KEY_BACKSPACE: "backspace", 127: "backspace", 8: "backspace", curses.KEY_DC: "delete",
-    curses.KEY_RESIZE: "resize", 32: "space",
+    curses.KEY_RESIZE: "resize", curses.KEY_MOUSE: "mouse", 32: "space",
 }
 
 # Vim letters and WASD-free aliases, so a keyboard-less pad mapped to arrows

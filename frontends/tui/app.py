@@ -59,9 +59,11 @@ def main(argv: list[str] | None = None) -> int:
     _quiet_logging()
 
     from bc250cc.application import ApplicationContainer
-    from bc250cc.application.system.inline_terminal import use_inline_terminal
+    from bc250cc.application.system.workflow_console import (
+        set_embedded_terminal_launcher,
+    )
 
-    from .i18n import set_language, tr
+    from .i18n import set_language
     from .pages import build_pages
     from .runtime import Context, Poller
     from .screen import SIDEBAR_ORDER, Screen
@@ -76,11 +78,6 @@ def main(argv: list[str] | None = None) -> int:
     except Exception:  # an unreadable config must not stop the interface
         logging.getLogger(__name__).warning("Could not read the saved settings", exc_info=True)
     set_language(args.lang or config.get("idioma", "auto"))
-    holder: dict = {}
-    if container.system_repository is not None:
-        # The screen runs workflows in its console pane; it exists once curses has started.
-        use_inline_terminal(container.system_repository, tr, lambda command: holder["screen"].execute(command))
-
     ctx = Context(
         service=container.system_service, settings=container.settings_service,
         activity=container.activity_service, platform=container.platform, config=config,
@@ -90,7 +87,8 @@ def main(argv: list[str] | None = None) -> int:
 
     def start(stdscr) -> None:
         screen = Screen(stdscr, ctx, pages, poller, theme=args.theme)
-        holder["screen"] = screen
+        # Every repository offers its workflows here before any terminal emulator.
+        set_embedded_terminal_launcher(screen.launch_workflow)
         ctx.state("ui")["theme"] = args.theme
         if args.page in SIDEBAR_ORDER:
             screen.focus = "content"
@@ -99,6 +97,7 @@ def main(argv: list[str] | None = None) -> int:
         try:
             screen.loop()
         finally:
+            set_embedded_terminal_launcher(None)
             poller.stop()
 
     os.environ.setdefault("ESCDELAY", "25")

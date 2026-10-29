@@ -17,7 +17,7 @@ SERIES = (
 
 class MonitoringPage(Page):
     key = "performance"
-    title = "Monitoring"
+    title = "Performance"
     loads = False
 
     def build(self, ctx, data, tab, ui):

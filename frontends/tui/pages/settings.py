@@ -62,8 +62,7 @@ class SettingsPage(Page):
                     ui_.apply_theme(chosen)
                     ui_.notify(tr("Saved"), "ok")
 
-            out += [Field(tr("Language"), f"{config.get('idioma', 'auto')} ({current_language()})"),
-                    Choice(tr("Language"), language),
+            out += [Choice(tr("Language"), language, f"{config.get('idioma', 'auto')} ({current_language()})"),
                     Choice(tr("Theme"), theme, str(ctx.state("ui").get("theme", "auto")))]
         elif tab == "notifications":
             out.append(Field(tr("Alerts"), tr("Yes") if config.get("alertas_activas") else tr("No")))

@@ -24,19 +24,17 @@ from .content import (
     wrap,
 )
 
-LABEL_MAX = 20
+LABEL_MAX = 30
+BAR_MAX = 24
 
 
 @dataclass(slots=True)
 class Glyphs:
     """Characters the terminal can draw. The Linux console has a small font."""
 
-    full: str = "█"
-    empty: str = "░"
     spark: str = "▁▂▃▄▅▆▇█"
     cursor: str = "›"
     rule: str = "─"
-    bullet: str = "•"
     #: box drawing: horizontal, vertical, then corners/tees as (left, middle, right) per row kind
     h: str = "─"
     v: str = "│"
@@ -48,7 +46,7 @@ class Glyphs:
     def for_terminal(cls, *, unicode_ok: bool) -> "Glyphs":
         if unicode_ok:
             return cls()
-        return cls(full="#", empty="-", spark="._:-=+*#", cursor=">", rule="-", bullet="*", h="-", v="|",
+        return cls(spark="._:-=+*#", cursor=">", rule="-", h="-", v="|",
                    top=("+", "+", "+"), mid=("+", "+", "+"), bottom=("+", "+", "+"))
 
 
@@ -80,30 +78,15 @@ def sparkline(values, width: int, glyphs: Glyphs) -> str:
     return body.rjust(width) if len(series) < width else body
 
 
-def bar(fraction: float | None, width: int, glyphs: Glyphs) -> str:
-    if fraction is None:
-        return "·" * 0 + glyphs.empty * width if width > 0 else ""
-    filled = max(0, min(width, round(fraction * width)))
-    return glyphs.full * filled + glyphs.empty * (width - filled)
+def gauge(start: float, end: float, width: int, tone: str, glyphs: Glyphs) -> list[tuple[str, str]]:
+    """Cells ``start``..``end`` (fractions of ``width``) filled, the rest a thin rule.
 
-
-def track(low, high, start, end, width: int, glyphs: Glyphs) -> str:
-    """The scale as ``-----[=====]-----``; the bracketed part is the chosen range."""
-    if width < 5:
-        return ""
-    span = (high - low) or 1.0
-
-    def at(value):
-        return max(0, min(width - 1, round((value - low) / span * (width - 1))))
-
-    a, b = at(start), at(end)
-    cells = [glyphs.rule] * width
-    for index in range(a, b + 1):
-        cells[index] = "="
-    cells[a], cells[b] = "[", "]"
-    if a == b:
-        cells[a] = "|"
-    return "".join(cells)
+    Filled cells are reverse-video spaces, not block glyphs: every font draws
+    those the same height and width, so a bar never comes out distorted.
+    """
+    a = max(0, min(width, round(start * width)))
+    b = max(a, min(width, round(end * width)))
+    return [(glyphs.rule * a, "dim"), (" " * (b - a), "bar:" + tone), (glyphs.rule * (width - b), "dim")]
 
 
 def _join_columns(card_layouts: list[Layout], widths: list[int], gap: str) -> list[Row]:
@@ -130,20 +113,20 @@ def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int
     layout = Layout()
     width = max(20, width)
     label_width = min(
-        label_cap,
-        max([cell_width(b.label) for b in blocks if isinstance(b, (Field, Meter, Trend, Choice))] + [8]),
+        label_cap, max(12, width // 2),
+        max([cell_width(b.label) for b in blocks if isinstance(b, (Field, Meter, Trend, Track)) or (
+            isinstance(b, Choice) and b.detail)] + [8]),
     )
-
-    choice_col = min(38, max([cell_width(b.label) for b in blocks if isinstance(b, Choice) and b.detail] + [0]) + 3)
-    meter_text = max([cell_width(b.text) for b in blocks if isinstance(b, Meter)] + [0])
+    meter_text = max([cell_width(b.text) for b in blocks if isinstance(b, (Meter, Track))] + [0])
+    bar_width = max(6, min(BAR_MAX, width - label_width - meter_text - 4))
 
     def add(spans, choice=None, bold=False):
         layout.rows.append(Row(spans, choice, bold))
 
     for block in blocks:
-        if isinstance(block, Heading):
-            add([(block.text.upper(), "accent")], bold=True)
-            add([(glyphs.rule * min(width, max(8, cell_width(block.text))), "dim")])
+        if isinstance(block, Heading):  # one row: the title, then a rule to the edge
+            title = clip(block.text, width - 2)
+            add([(title, "accent"), (" " + glyphs.rule * (width - cell_width(title) - 1), "dim")], bold=True)
         elif isinstance(block, Gap):
             add([("", "")])
         elif isinstance(block, Field):
@@ -153,16 +136,9 @@ def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int
                 label = pad(block.label, label_width) if index == 0 else " " * label_width
                 add([(label, "dim"), ("  ", ""), (line, block.tone)])
         elif isinstance(block, Meter):
-            text = block.text
-            text_width = cell_width(text)
-            bar_width = max(4, min(36, width - label_width - meter_text - 6))
-            filled = 0 if block.fraction is None else max(0, min(bar_width, round(block.fraction * bar_width)))
-            # Filled cells are reverse-video spaces, not block glyphs: every font draws
-            # those the same height and width, so the bars never come out distorted.
-            fill_tone = "bar:" + (block.tone if block.fraction is not None else "dim")
-            add([(pad(block.label, label_width), "dim"), ("  ", ""), ("[", "dim"),
-                 (" " * filled, fill_tone), ("." * (bar_width - filled), "dim"), ("]", "dim"),
-                 ("  ", ""), (text, "")])
+            add([(pad(block.label, label_width), "dim"), ("  ", ""),
+                 *gauge(0, block.fraction or 0, bar_width, block.tone, glyphs),
+                 ("  ", ""), (block.text.rjust(meter_text), block.tone if block.fraction is not None else "dim")])
         elif isinstance(block, Trend):
             text_width = cell_width(block.text)
             spark_width = max(6, min(60, width - label_width - text_width - 6))
@@ -185,25 +161,25 @@ def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int
             for row in block.rows:
                 add([(gap.join(pad(str(c), widths[i]) for i, c in enumerate(row)), "")])
         elif isinstance(block, Track):
-            text_width = cell_width(block.text)
-            bar_width = max(10, min(50, width - label_width - text_width - 8))
+            span = (block.high - block.low) or 1.0
             add([(pad(block.label, label_width), "dim"), ("  ", ""),
-                 (track(block.low, block.high, block.start, block.end, bar_width, glyphs), block.tone),
-                 ("  ", ""), (block.text, "")])
+                 *gauge((block.start - block.low) / span, (block.end - block.low) / span, bar_width, block.tone, glyphs),
+                 ("  ", ""), (block.text.rjust(meter_text), block.tone)])
         elif isinstance(block, Columns):
             count = len(block.cards)
             fit = max(1, min(count, (width + 3) // (block.minimum + 3)))
+            each = (width - 3 * (fit - 1)) // fit  # a card left alone keeps the grid's width
             for first in range(0, count, fit):
                 group = block.cards[first:first + fit]
-                each = (width - 3 * (len(group) - 1)) // len(group)
                 parts = []
                 for card in group:
-                    inner = build_layout(
-                        [Heading(card.title)] + list(card.blocks), each, glyphs, 13)
-                    if card.value:  # the headline reading sits on the title row
-                        title, tone = inner.rows[0].spans[0]
-                        gap = max(1, each - cell_width(title) - cell_width(card.value))
-                        inner.rows[0].spans = [(title, tone), (" " * gap, ""), (card.value, "")]
+                    inner = build_layout([Heading(card.title)] + list(card.blocks), each, glyphs, each // 2)
+                    # The headline reading sits on the title row, over a rule the card's width.
+                    title = clip(card.title, each - cell_width(card.value) - 1)
+                    inner.rows[0:1] = [
+                        Row([(title, "accent"), (" " * (each - cell_width(title) - cell_width(card.value)), ""),
+                             (card.value, "accent")], bold=True),
+                        Row([(glyphs.rule * each, "dim")])]
                     parts.append(inner)
                 layout.rows.extend(_join_columns(parts, [each] * len(group), " | " if glyphs.rule == "-" else " │ "))
                 add([("", "")])
@@ -212,9 +188,9 @@ def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int
             layout.choices.append(Choice("", block.toggle, pad=block))
             layout.choice_rows.append(len(layout.rows))
             cols = len(block.headers)
-            name_w = max([cell_width(row.name) for row in block.rows] + [cell_width("")]) + 2
+            name_w = max(cell_width(row.name) for row in block.rows) + 2
             tail_w = max([cell_width(row.tail) for row in block.rows] + [cell_width(block.tail_header)]) + 2
-            cell_w = max(8, min(14, (width - name_w - tail_w - (cols + 3)) // max(1, cols)))
+            cell_w = max(4, min(10, (width - name_w - tail_w - (cols + 3)) // max(1, cols)))
             widths = [name_w] + [cell_w] * cols + [tail_w]
             g = glyphs
 
@@ -235,22 +211,20 @@ def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int
 
             rule(g.top)
             line([""] + [str(h) for h in block.headers] + [block.tail_header], ["dim"] * (cols + 2))
-            for r, prow in enumerate(block.rows):
-                rule(g.mid)
+            rule(g.mid)
+            for r, prow in enumerate(block.rows):  # one line a row: the token says the state, the colour repeats it
                 tones = ["accent"] + [("sel" if (r, c) == block.cursor else cell.tone) for c, cell in enumerate(prow.cells)]
-                line([prow.name] + [cell.top for cell in prow.cells] + [prow.tail], tones + [prow.tail_tone])
-                line([""] + [cell.bottom for cell in prow.cells] + [""],
-                     [""] + [("sel" if (r, c) == block.cursor else cell.tone) for c, cell in enumerate(prow.cells)] + [""])
+                line([prow.name] + [cell.text for cell in prow.cells] + [prow.tail], tones + [prow.tail_tone])
             rule(g.bottom)
         elif isinstance(block, Choice):
             index = len(layout.choices)
             layout.choices.append(block)
             layout.choice_rows.append(len(layout.rows))
             detail = block.detail
-            room = width - 3
-            # Label and value sit in two columns, so a value reads next to what it belongs to.
-            label = pad(block.label, choice_col) if detail else clip(block.label, room)
-            fill = ""
+            # A value sits in the same column as every Field's, so a section reads as one table.
+            label = (pad(block.label, label_width + 2) if cell_width(block.label) <= label_width
+                     else block.label + "  ") if detail else clip(block.label, width)
             tone = block.tone if block.enabled else "dim"
-            add([(label, tone), (fill, ""), (detail, "accent" if block.adjust else "dim")], choice=index)
+            add([(label, tone), (clip(detail, max(0, width - cell_width(label))), "accent" if block.adjust else "dim")],
+                choice=index)
     return layout

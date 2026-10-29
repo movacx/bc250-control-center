@@ -5484,5 +5484,9 @@
   "USB drives": "USB sürücüleri",
   "Vendor": "Üretici",
   "Waiting for data…": "Veri bekleniyor…",
-  "Prepare the VRAM reader": "VRAM okuyucuyu hazırla"
+  "Prepare the VRAM reader": "VRAM okuyucuyu hazırla",
+  "Adjust": "Ayarla",
+  "Interrupt": "Kes",
+  "Search": "Ara",
+  "No results": "Sonuç yok"
 }

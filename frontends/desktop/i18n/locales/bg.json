@@ -5484,5 +5484,9 @@
   "USB drives": "USB устройства",
   "Vendor": "Производител",
   "Waiting for data…": "Изчакване на данни…",
-  "Prepare the VRAM reader": "Подготви четеца на VRAM"
+  "Prepare the VRAM reader": "Подготви четеца на VRAM",
+  "Adjust": "Настройка",
+  "Interrupt": "Прекъсване",
+  "Search": "Търсене",
+  "No results": "Няма резултати"
 }

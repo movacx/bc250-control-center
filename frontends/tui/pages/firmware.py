@@ -13,7 +13,7 @@ from .base import Page, guarded
 
 class FirmwarePage(Page):
     key = "firmware"
-    title = "Firmware"
+    title = "Firmware (BIOS)"
     interval = 6.0
 
     def load(self, ctx):

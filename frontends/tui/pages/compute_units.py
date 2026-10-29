@@ -13,11 +13,12 @@ FULL_MASK = (1 << WGPS) - 1
 ROWS = 4
 #: What each cell says: the backend's token, then what it means.
 TOKEN_TONES = {"D+": "ok", "S+": "accent", "D!": "bad", "--": "dim"}
+LEGEND = (("D+", "Driver + routed"), ("S+", "Live unlock"), ("D!", "Driver blocked"), ("--", "Not routed"))
 
 
 class ComputeUnitsPage(Page):
     key = "cu"
-    title = "Compute units"
+    title = "Compute Units"
     interval = 4.0
 
     def load(self, ctx):
@@ -69,10 +70,7 @@ class ComputeUnitsPage(Page):
             for c in range(WGPS):
                 on = bool(mask & (1 << c))
                 token = tokens[r][c] if r < len(tokens) and c < len(tokens[r]) else ("D+" if on else "--")
-                if not on:
-                    cells.append(PadCell("--", tr("Not routed").upper(), "dim"))
-                else:
-                    cells.append(PadCell(token, tr("ROUTED"), TOKEN_TONES.get(token, "ok")))
+                cells.append(PadCell(token, TOKEN_TONES.get(token, "ok")) if on else PadCell("--", "dim"))
             pad_rows.append(PadRow(names[r], cells, f"{bin(mask).count('1') * 2} / 10",
                                    "warn" if mask != live[r] else "accent"))
         headers = [f"WGP{c}" for c in range(WGPS)]
@@ -80,11 +78,9 @@ class ComputeUnitsPage(Page):
             Heading(tr("Compute units")),
             Field(tr("Active CUs"), f"{active} / 40", "warn" if changed else "ok"),
             Field(tr("Source"), str(data.get("source") or "--")),
-            Note(tr("Live only until saved") if changed else "D+ " + tr("Driver + routed") + "   S+ "
-                 + tr("Live unlock") + "   D! " + tr("Driver blocked") + "   -- " + tr("Not routed"),
-                 "warn" if changed else "dim"),
-            Gap(),
             Pad(headers, pad_rows, cursor if cursor[0] < ROWS else (0, 0), move, toggle, "CUs"),
+            Note(tr("Live only until saved") if changed else " · ".join(
+                f"{token} {tr(label)}" for token, label in LEGEND), "warn" if changed else "dim"),
         ]
 
         def reset(ui_):

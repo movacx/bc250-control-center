@@ -56,7 +56,7 @@ def _cycle(options, current, step):
 
 class GpuPage(Page):
     key = "gpu"
-    title = "GPU"
+    title = "GPU Governor"
     interval = 3.0
 
     def tabs(self, ctx):
@@ -97,7 +97,6 @@ class GpuPage(Page):
             temperature_meter(tr("Temperature"), gpu.get("temperature_c")),
             load_meter(tr("GPU load"), busy),
             Field(tr("Memory"), number(state.get("mclk_actual", gpu.get("memory_frequency_mhz")), "MHz")),
-            Field(tr("Active range"), f"{current_min}–{current_max} MHz"),
         ]
 
         # -- the three shipped profiles; one press sets the range
@@ -115,6 +114,7 @@ class GpuPage(Page):
             payload = profiles_payload(low, high, governor="oberon" if backend.startswith("oberon") else "cyan")
             guarded(ui_, tr("Export to Decky"), lambda: service.exportar_perfiles_gpu_decky(payload))
 
+        out.append(Choice(tr("Export to Decky"), export))
 
         # -- range: two sliders over the safe points
         def step(which, delta):
@@ -137,7 +137,7 @@ class GpuPage(Page):
                 guarded(ui_, tr("Save active range for startup"), service.guardar_rango_gpu_arranque)
 
         out += [Gap(), Heading(tr("Frequency range")),
-                Track(tr("Range"), low, high, want_min, want_max, f"{want_min} – {want_max} MHz",
+                Track(tr("Active range"), low, high, want_min, want_max, f"{want_min} – {want_max} MHz",
                       "warn" if (want_min, want_max) != (current_min, current_max) else "accent"),
                 Choice(tr("Minimum frequency"), None, f"< {want_min} MHz >", adjust=step("min", 0)),
                 Choice(tr("Maximum frequency"), None, f"< {want_max} MHz >", adjust=step("max", 0)),
@@ -156,7 +156,6 @@ class GpuPage(Page):
             guarded(ui_, tr("View status"), service.status_governor)
 
         out += [Gap(), Heading(tr("Governor service")),
-                Choice(tr("Export to Decky"), export),
                 Field(tr("Backend"), backend or tr("Not detected")),
                 Field(tr("Service"), f"{state.get('service_active', '--')} / {state.get('service_enabled', '--')}",
                       "ok" if state.get("service_active") == "active" else "warn"),
@@ -245,7 +244,7 @@ class GpuPage(Page):
         edit_points = tr("Custom\nEdit active points").split("\n")[-1]
         out.append(Choice(f"({'x' if level == -1 else ' '}) {tr('Custom')}  {edit_points}", pick(-1),
                           tone="ok" if level == -1 else ""))
-        out += [Gap(), Heading(tr("Frequency") + " / " + tr("Current") + " / " + tr("Selected") + " / Δ")]
+        out.append(Gap())
         rows = []
         for row in table.rows:
             if table.custom_mode and row.custom_available:

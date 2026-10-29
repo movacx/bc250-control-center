@@ -144,17 +144,20 @@ bc250-control-center tui          # or: bc250-control-center-tui
 bc250-control-center-cli tui --page gpu --theme mono
 ```
 
-It has the desktop's sidebar and sections: Dashboard (GPU, CPU, memory and sensors with live trends), CPU, GPU governor, Additional settings (Components, Compatibility, Memory & Swap, Decky, Drivers, Upscaling, offered according to your distribution), Compute units (editable WGP table), Monitoring, Fans, Processes, Black box (with the full diagnosis in tabs), Firmware (including the BIOS update USB) and Settings.
+It has the desktop's sidebar, grouped and ordered the same way: Dashboard; Hardware (CPU / SMU, Compute Units, GPU Governor, Additional settings); Monitoring (Performance, Fans, Processes, Black box); Firmware (BIOS) and Settings. The title bar keeps the GPU and CPU clock and temperature in view on every page.
 
-It does not reimplement anything: every reading and every action goes through the same service layer, privileged helpers and error catalog as the desktop application. Anything that changes the system asks for confirmation first (dangerous ones need an explicit `y`), and the workflows that the desktop opens in a terminal window run in the terminal you already have, so `sudo`/Polkit prompts appear right there.
+It does not reimplement anything: every reading and every action goes through the same service layer, privileged helpers and error catalog as the desktop application. Anything that changes the system asks for confirmation first (dangerous ones need an explicit `y`). Workflows the desktop runs in its console panel run in a console pane inside the interface: the output and progress appear live, a `sudo` or Polkit password is typed right there, `Ctrl+C` stops the command, and the result and the path of the full log stay on screen until you close the pane. No other terminal is opened and the interface is never suspended.
 
 | Key | Action |
 | --- | --- |
 | `↑` `↓` or `j` `k` | Move |
 | `Enter`, `→` or `l` | Open a section / run an action |
 | `Esc`, `←` or `h`, `Tab` | Back to the sidebar |
-| `[` `]` or `←` `→` | Previous / next tab of a section |
-| `1`–`9`, `0` | Jump to a section |
+| `[` `]` or `←` `→` | Previous / next tab of a section (`←` `→` change a value on an adjustable row) |
+| `1`–`9`, `0`, `,` | Jump to a section (from anywhere; `,` is Settings) |
+| `/` | Search an item on the page, or a section |
+| `PgUp` `PgDn` | Scroll a page or the console pane |
+| Mouse | Click a section or tab; click an item to select it, again to open it; the wheel scrolls |
 | `r` | Refresh |
 | `?` | Help |
 | `q` | Quit |

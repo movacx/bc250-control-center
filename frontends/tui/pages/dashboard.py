@@ -2,14 +2,9 @@
 
 from __future__ import annotations
 
-import shutil
 import time
 
 from bc250cc.application.preparation.component_engine import component_capabilities
-from bc250cc.platform.packages.strategies.detector import (
-    detect_os_info,
-    read_os_release,
-)
 
 from ..content import (
     Card,
@@ -31,6 +26,7 @@ from .base import (
     guarded,
     load_meter,
     metric_blocks,
+    os_family,
     temperature_meter,
     trend,
 )
@@ -82,11 +78,6 @@ def pump_row(fans) -> dict:
     return next((row for row in rows if isinstance(row, dict) and row.get("rpm")), {})
 
 
-def os_family() -> tuple[str, str]:
-    info = detect_os_info(read_os_release(), has_rpm_ostree=bool(shutil.which("rpm-ostree")))
-    return info.family, info.pretty_name or info.name or info.family
-
-
 class DashboardPage(Page):
     key = "dashboard"
     title = "Dashboard"
@@ -105,6 +96,7 @@ class DashboardPage(Page):
             state["tools"] = _safe(service.estado_herramientas_bc250) or {}
             state["gddr6"] = _safe(service.estado_gddr6_memory_temp) or {}
         data["tools"], data["gddr6"] = state.get("tools", {}), state.get("gddr6", {})
+        data["sample"] = _safe(service.ultima_temperatura_vram) or {}
         return data
 
     def build(self, ctx, data, tab, ui):
@@ -167,14 +159,13 @@ class DashboardPage(Page):
             Heading(tr("M.2 drive")),
             temperature_meter(tr("Temperature"), sensors.get("nvme_temperature_c")),
             Field(tr("Hotspot"), number(sensors.get("nvme_hotspot_temperature_c"), "°C", 1)),
-            memory_meter("RAM", memory.get("used"), memory.get("total")),
             memory_meter("Swap", memory.get("swap_used"), memory.get("swap_total")),
             Heading("BIOS"),
             Field(tr("Version"), str(data.get("bios") or ctx.state(self.key).get("bios") or self._bios(ctx))),
         ], number(pump.get("rpm"), "RPM"))
 
         out = [Columns([cpu_card, gpu_card, cool_card], minimum=46), Gap()]
-        out += self._gddr6(ctx, data.get("gddr6") or {}, ui)
+        out += self._gddr6(ctx, data.get("gddr6") or {}, data.get("sample") or {})
         out += self._power(sensors)
         out += self._prepare(ctx, data, ui)
         return out
@@ -194,10 +185,10 @@ class DashboardPage(Page):
 
     # -- GDDR6 ---------------------------------------------------------------
 
-    def _gddr6(self, ctx, status, ui):
+    def _gddr6(self, ctx, status, last):
         service = ctx.service
         state = ctx.state(self.key)
-        sample = state.get("gddr6_sample") or service.ultima_temperatura_vram() or {}
+        sample = state.get("gddr6_sample") or last
         external = status.get("external") or {}
         chips = sample.get("chips") or external.get("chips") or []
         average = sample.get("average_c", external.get("average_c"))
@@ -256,7 +247,7 @@ class DashboardPage(Page):
     def _prepare(self, ctx, data, ui):
         service = ctx.service
         state = ctx.state(self.key)
-        family, name = os_family()
+        family, name = os_family(ctx)
         capabilities = component_capabilities(type("Info", (), {"family": family})())
         selected = state.setdefault("selected", {key for key, _label in COMPONENTS})
         tools = data.get("tools") or {}

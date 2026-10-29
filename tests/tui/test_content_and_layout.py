@@ -8,7 +8,7 @@ from frontends.tui.content import (
     clip,
     wrap,
 )
-from frontends.tui.layout import Glyphs, bar, build_layout, sparkline
+from frontends.tui.layout import Glyphs, build_layout, gauge, sparkline
 
 ASCII = Glyphs.for_terminal(unicode_ok=False)
 UNICODE = Glyphs.for_terminal(unicode_ok=True)
@@ -33,11 +33,18 @@ def test_wrap_never_exceeds_the_width_even_for_one_long_word():
     assert "".join(lines).replace(" ", "").count("x") == 25
 
 
-def test_bar_fills_proportionally_and_clamps():
-    assert bar(0.5, 10, ASCII) == "#####-----"
-    assert bar(2.0, 4, ASCII) == "####"
-    assert bar(-1, 4, ASCII) == "----"
-    assert len(bar(None, 6, UNICODE)) == 6
+def test_gauge_fills_proportionally_with_reverse_spaces_and_clamps():
+    assert gauge(0, 0.5, 10, "ok", ASCII) == [("", "dim"), ("     ", "bar:ok"), ("-----", "dim")]
+    assert gauge(0, 2.0, 4, "ok", ASCII)[1] == ("    ", "bar:ok")
+    assert gauge(0.25, 0.75, 8, "accent", ASCII) == [("--", "dim"), ("    ", "bar:accent"), ("--", "dim")]
+    assert sum(len(text) for text, _ in gauge(0, -1, 6, "", UNICODE)) == 6
+
+
+def test_a_section_heading_takes_one_row_and_meters_share_one_bar_width():
+    layout = build_layout([Heading("GPU"), Meter("Load", 0.1, "1 %"), Meter("Temperature", 0.9, "90.0 °C")], 50, ASCII)
+    assert len(layout.rows) == 3 and layout.rows[0].spans[0][0] == "GPU"
+    widths = [sum(len(t) for t, tone in row.spans if tone in ("dim", "") or tone.startswith("bar:")) for row in layout.rows[1:]]
+    assert widths[0] == widths[1]  # values right-aligned in one column
 
 
 def test_sparkline_scales_to_the_series_and_pads_to_width():

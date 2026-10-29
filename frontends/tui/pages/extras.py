@@ -12,7 +12,7 @@ from dataclasses import dataclass
 
 from ..content import Choice, Field, Gap, Heading, Note
 from ..i18n import tr
-from .base import Page, guarded
+from .base import Page, guarded, os_family
 
 ALL = None
 IMMUTABLE_RPM = ("bazzite",)
@@ -140,34 +140,19 @@ class AdditionalSettingsPage(Page):
             drivers = {}
         return {"tools": tools, "drivers": drivers}
 
-    def _family(self, ctx) -> str:
-        from bc250cc.platform.packages.strategies.detector import (
-            detect_os_info,
-            read_os_release,
-        )
-
-        state = ctx.state(self.key)
-        if "family" not in state:
-            import shutil
-
-            info = detect_os_info(read_os_release(), has_rpm_ostree=bool(shutil.which("rpm-ostree")))
-            state["family"], state["name"] = info.family, info.pretty_name or info.name
-        return state["family"]
-
     def build(self, ctx, data, tab, ui):
         tab = tab or "compatibility"
-        family = self._family(ctx)
-        out = [Heading(tr(dict(TAB_TITLES).get(tab, tab))),
-               Field(tr("System"), str(ctx.state(self.key).get("name") or family))]
+        family, name = os_family(ctx)
+        out = [Heading(tr(dict(TAB_TITLES).get(tab, tab))), Field(tr("System"), name)]
         if tab == "memory":
             out += self._memory(ctx)
         else:
             shown = [item for item in TABS.get(tab, ()) if item.families is None or family in item.families]
             if not shown:
                 out.append(Note(tr("Not available"), "dim"))
-            for item in shown:
-                out.append(Choice(tr(item.label), lambda ui_, item=item: run_entry(ctx, ui_, item),
-                                  tone="warn" if item.danger else ""))
+            for item in shown:  # "›": Enter opens the entry's actions
+                out.append(Choice(tr(item.label) + (" ›" if item.actions else ""),
+                                  lambda ui_, item=item: run_entry(ctx, ui_, item), tone="warn" if item.danger else ""))
         return out
 
     def _memory(self, ctx):

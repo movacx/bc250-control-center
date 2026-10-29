@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from bc250cc.application.system.inline_terminal import make_runner
-
 from ..content import Choice, Field, Gap, Heading, Meter, Note, Track, number, percent
 from ..i18n import tr
 from .base import Page, guarded, load_meter, metric_blocks, temperature_meter, trend
@@ -23,7 +21,7 @@ PROFILES = (
 
 class CpuPage(Page):
     key = "cpu"
-    title = "CPU"
+    title = "CPU / SMU"
     interval = 5.0
 
     def load(self, ctx):
@@ -43,7 +41,6 @@ class CpuPage(Page):
                                             "force_mask": False})
         persistent = (data or {}).get("persistent") or {}
         unlock = (data or {}).get("unlock") or {}
-        run_shell = make_runner(tr)
 
         out = [Heading(tr("Live")),
                Field(tr("Current frequency"), number(cpu.get("frequency_mhz"), "MHz")),
@@ -97,8 +94,8 @@ class CpuPage(Page):
             if target["manual"]:
                 text = f"{tr('Apply temporary OC + manual scale')}: {f} MHz · {t} °C · {scale}"
                 if ui_.confirm(text, danger=True):
-                    guarded(ui_, tr("CPU / SMU"), lambda: run_shell(service.comando_cpu_oc_manual_verificado_embebido(
-                        f, scale, t, confirm_manual=True), tr("CPU / SMU")))
+                    guarded(ui_, tr("CPU / SMU"), lambda: ui_.shell(service.comando_cpu_oc_manual_verificado_embebido(
+                        f, scale, t, confirm_manual=True)))
             elif ui_.confirm(f"{tr('Apply configuration + automatic scale')}: {f} MHz · {v} mV · {t} °C", danger=True):
                 guarded(ui_, tr("CPU / SMU"), lambda: service.ejecutar_cpu_oc_temporal(f, v, t))
 
@@ -108,8 +105,8 @@ class CpuPage(Page):
         # -- boot persistence
         def save_boot(ui_):
             if ui_.confirm(tr("Enable / update CPU persistence"), danger=True):
-                guarded(ui_, tr("Boot persistence"), lambda: run_shell(
-                    service.comando_cpu_oc_persistente_embebido(), tr("Boot persistence")))
+                guarded(ui_, tr("Boot persistence"), lambda: ui_.shell(
+                    service.comando_cpu_oc_persistente_embebido()))
 
         def review(ui_):
             ok, result = ui_.run(tr("Boot persistence"), service.estado_cpu_oc_persistente)
@@ -118,8 +115,8 @@ class CpuPage(Page):
 
         def remove(ui_):
             if ui_.confirm(tr("Disable CPU boot service"), danger=True):
-                guarded(ui_, tr("Boot persistence"), lambda: run_shell(
-                    service.comando_cpu_oc_desactivar_persistente_embebido(), tr("Boot persistence")))
+                guarded(ui_, tr("Boot persistence"), lambda: ui_.shell(
+                    service.comando_cpu_oc_desactivar_persistente_embebido()))
 
         out += [Gap(), Heading(tr("Boot persistence")),
                 Field(tr("State"), tr(str(persistent.get("ui_state") or "--")),
@@ -134,8 +131,8 @@ class CpuPage(Page):
 
         def unlock_cores(ui_):
             if ui_.confirm(tr("Unlock CPU cores and restart"), danger=True):
-                guarded(ui_, tr("Unlock cores"), lambda: run_shell(
-                    service.comando_desbloquear_nucleos_cpu(ignore_core_mask=target["force_mask"]), tr("Unlock cores")))
+                guarded(ui_, tr("Unlock cores"), lambda: ui_.shell(
+                    service.comando_desbloquear_nucleos_cpu(ignore_core_mask=target["force_mask"])))
 
         out += [Gap(), Heading(tr("Unlock cores")),
                 Field(tr("CPU cores"), f"{unlock.get('physical_cores', '--')} / {unlock.get('logical_cpus', '--')}",

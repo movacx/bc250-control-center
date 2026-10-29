@@ -17,7 +17,7 @@ from bc250cc.domain.fan.persistence import (
 from bc250cc.shared.contract import DESKTOP_FAN_PRESET_PERCENT
 from frontends.desktop.core.dashboard_presenter import FAN_OWNER_LABELS, fan_owner
 
-from ..content import Choice, Field, Gap, Heading, Meter, Note, Raw, Track, number
+from ..content import Choice, Field, Gap, Heading, Meter, Note, Raw, number
 from ..i18n import tr, tr_format
 from .base import Page, guarded, temperature_meter, trend
 
@@ -32,14 +32,14 @@ CURVE_PRESETS = {
 MAX_POINTS = 8
 LOW_DUTY_CONFIRM_PERCENT = 30
 PLOT_ROWS = 9
-PLOT_COLS = 48
+PLOT_COLS = 44  # with the axis labels, 50 columns: an 80x24 terminal's content
 
 
 def to_pwm(percent: int) -> int:
     return round(max(0, min(100, percent)) * 255 / 100)
 
 
-def plot(points, current_temp, glyphs_ok: bool) -> list[str]:
+def plot(points, current_temp) -> list[str]:
     """The curve as a small chart: duty on the vertical axis, temperature across."""
     if not points:
         return []
@@ -94,15 +94,11 @@ class FansPage(Page):
     def _curve(config):
         return normalize_fan_curve((config or {}).get("fan_curve"))
 
-    def _policy(self, config, mine):
-        merged = dict(config)
-        if "curve" in mine:
-            merged["fan_curve"] = mine["curve"]
-        return build_system_fan_policy(merged)
-
-    def _save(self, ctx, ui, payload: dict, system: dict, label: str) -> None:
-        """Save fan settings, then hand the new policy to the root service when it is on."""
+    def _save(self, ctx, ui, payload: dict, system: dict, label: str, first=None, message: str = "") -> None:
+        """Run ``first`` (a PWM write), save fan settings, then hand the new policy to the root service when it is on."""
         def work():
+            if first is not None:
+                first()
             ctx.settings.save_local_config(payload)
             config = dict(ctx.page_data.get(self.key, {}).get("config") or {})
             config.update(payload)
@@ -111,7 +107,7 @@ class FansPage(Page):
                 policy = build_system_fan_policy(config)
                 if policy is not None:
                     ctx.service.sincronizar_control_fan_sistema(policy)
-            return tr("Fan curve saved") if "fan_curve" in payload and "fan_preset" not in payload else tr("Saved")
+            return message or (tr("Fan curve saved") if "fan_curve" in payload and "fan_preset" not in payload else tr("Saved"))
 
         guarded(ui, label, work)
 
@@ -135,7 +131,7 @@ class FansPage(Page):
         out = self._overview(ctx, rows, selected, system, curve, preset, ui)
         tab = tab or "manual"
         if tab == "manual":
-            out += self._manual(ctx, ui, mine, rows, writable, selected, system, config, curve, preset)
+            out += self._manual(ctx, ui, mine, rows, writable, selected, system, curve, preset)
         elif tab == "curve":
             out += self._curve_tab(ctx, ui, mine, selected, system, config, curve)
         elif tab == "boot":
@@ -164,8 +160,7 @@ class FansPage(Page):
                 duty = max(0, min(100, round(int(pwm) * 100 / 255)))
             except (TypeError, ValueError):
                 duty = None
-            mark = ">" if row.get("index") == selected.get("index") else " "
-            out.append(Meter(f"{mark}PWM{row.get('index')} {row.get('label') or ''}".strip(),
+            out.append(Meter(f"PWM{row.get('index')} {row.get('label') or ''}".strip(),
                              None if duty is None else duty / 100.0,
                              f"{number(row.get('rpm'), 'RPM')}  {duty if duty is not None else '--'} %"))
         out += [temperature_meter("GPU", gpu.get("temperature_c")), temperature_meter("CPU", cpu.get("temperature_c")),
@@ -176,7 +171,7 @@ class FansPage(Page):
 
     # --------------------------------------------------------------- manual
 
-    def _manual(self, ctx, ui, mine, rows, writable, selected, system, config, curve, preset):
+    def _manual(self, ctx, ui, mine, rows, writable, selected, system, curve, preset):
         service = ctx.service
         percent = mine.setdefault("percent", int(preset.get("percent") or 60) if preset.get("enabled") else 60)
         chosen_preset = mine.get("preset", preset.get("preset") if preset.get("enabled") else "")
@@ -208,34 +203,20 @@ class FansPage(Page):
             if value is not None:
                 mine["percent"], mine["preset"] = value, ""
 
-        out += [Track(tr("Fan speed"), 0, 100, 0, percent, f"{percent} %  ({tr_format('Raw PWM {raw} / 255', raw=to_pwm(percent))})",
-                      "warn" if percent < LOW_DUTY_CONFIRM_PERCENT else "accent"),
-                Choice(tr("Fan speed"), edit, f"< {percent} % >", adjust=adjust)]
+        out.append(Choice(tr("Fan speed"), edit, f"< {percent} % >  " + tr_format("Raw PWM {raw} / 255", raw=to_pwm(percent)),
+                          adjust=adjust, tone="warn" if percent < LOW_DUTY_CONFIRM_PERCENT else ""))
 
         def apply(ui_):
             pwm, value = mine["pwm"], mine["percent"]
-            if percent < LOW_DUTY_CONFIRM_PERCENT and not ui_.confirm(
-                    f"{tr('Apply a low fan speed')}: PWM {pwm} · {percent} %", danger=True):
+            low = value < LOW_DUTY_CONFIRM_PERCENT
+            if not ui_.confirm(f"{tr('Apply a low fan speed') if low else tr('Apply PWM')}: PWM {pwm} · {value} %",
+                               danger=low):
                 return
-            if percent >= LOW_DUTY_CONFIRM_PERCENT and not ui_.confirm(f"{tr('Apply PWM')}: PWM {pwm} · {value} %"):
-                return
-
-            def write():
-                service.aplicar_pwm_fan(pwm, to_pwm(value))
-                # Manual mode is what the fan does now: the curve steps aside and the speed is saved.
-                curve_config = dict(curve, enabled=False)
-                preset_config = {"enabled": True, "preset": mine.get("preset") or CUSTOM_FAN_PRESET,
-                                 "percent": value, "pwm": pwm}
-                payload = {"fan_curve": curve_config, "fan_preset": preset_config}
-                ctx.settings.save_local_config(payload)
-                if system.get("enabled"):
-                    merged = dict(config, **payload)
-                    policy = build_system_fan_policy(merged)
-                    if policy is not None:
-                        service.sincronizar_control_fan_sistema(policy)
-                return tr_format("PWM {pwm} · {percent}%", pwm=pwm, percent=value)
-
-            guarded(ui_, tr("Apply PWM"), write)
+            # Manual mode is what the fan does now: the curve steps aside and the speed is saved.
+            payload = {"fan_curve": dict(curve, enabled=False), "fan_preset": {
+                "enabled": True, "preset": mine.get("preset") or CUSTOM_FAN_PRESET, "percent": value, "pwm": pwm}}
+            self._save(ctx, ui_, payload, system, tr("Apply PWM"), lambda: service.aplicar_pwm_fan(pwm, to_pwm(value)),
+                       tr_format("PWM {pwm} · {percent}%", pwm=pwm, percent=value))
 
         def automatic(ui_):
             if ui_.confirm(f"{tr('Restore automatic mode')}: PWM {mine['pwm']}"):
@@ -271,7 +252,7 @@ class FansPage(Page):
                Field(tr("Temperature"), f"{number(temp, '°C', 1)}  →  {target} %" if target is not None else "--")]
         if not valid:
             out.append(Note(tr(message), "bad"))
-        out.append(Raw(plot(sorted(points), temp, ui.unicode), "accent"))
+        out.append(Raw(plot(sorted(points), temp), "accent"))
 
         def toggle(ui_):
             mine["enabled"] = not enabled

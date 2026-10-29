@@ -77,16 +77,43 @@ def test_sidebar_lists_every_section_in_order_and_marks_the_open_one():
     assert "BC250 Control Center" in window.line(0)
 
 
-def test_arrow_keys_move_the_sidebar_and_digits_jump():
+def test_arrow_keys_move_the_sidebar_and_digits_jump_from_either_pane():
     _, screen = make_screen()
     press(screen, curses.KEY_DOWN, curses.KEY_DOWN)
-    assert screen.page_key == "gpu"
+    assert screen.page_key == "cu"  # the desktop's order: CPU, Compute Units, GPU
     press(screen, ord("1"))
     assert screen.page_key == "dashboard"
-    press(screen, ord("9"))
+    press(screen, 9, ord("9"))  # Tab into the content: digits still jump
     assert screen.page_key == "black_box"
-    press(screen, curses.KEY_UP)
-    assert screen.page_key == "processes"
+    press(screen, ord(","))
+    assert screen.page_key == "settings"
+    press(screen, 27, curses.KEY_UP)
+    assert screen.page_key == "firmware"
+
+
+def test_the_sidebar_groups_sections_like_the_desktop():
+    window, screen = make_screen()
+    screen.draw()
+    rows = [window.line(y) for y in range(window.height)]
+    hardware = next(i for i, row in enumerate(rows) if "HARDWARE" in row)
+    assert "CPU" in rows[hardware + 1] and "Compute Units" in rows[hardware + 2]
+    assert any("MONITORING" in row for row in rows)
+
+
+def test_search_jumps_to_an_item_or_a_section():
+    window, screen = make_screen()
+    window.queue = [ord(c) for c in "fans"] + [10]
+    press(screen, ord("/"))
+    assert screen.page_key == "fans"
+
+
+def test_the_mouse_opens_a_section_and_a_second_click_runs_an_item(monkeypatch):
+    window, screen = make_screen()
+    screen.draw()
+    y = next(y for y, index in screen._sidebar_at.items() if screen.order[index] == "gpu")
+    monkeypatch.setattr(curses, "getmouse", lambda: (0, 2, y, 0, curses.BUTTON1_PRESSED))
+    press(screen, curses.KEY_MOUSE)
+    assert screen.page_key == "gpu" and screen.focus == "sidebar"
 
 
 def test_vim_keys_and_tab_switch_panes():
@@ -101,7 +128,7 @@ def test_vim_keys_and_tab_switch_panes():
 
 def test_tabs_cycle_with_brackets_and_arrows_inside_the_content():
     _, screen = make_screen()
-    press(screen, ord("4"))
+    press(screen, ord("5"))
     assert screen.page_key == "extras" and screen._tab_key() == "compatibility"
     press(screen, ord("]"))
     assert screen._tab_key() == "memory"
@@ -116,7 +143,7 @@ def test_tabs_cycle_with_brackets_and_arrows_inside_the_content():
 def test_enter_runs_the_selected_action_and_asks_for_confirmation_first():
     _, screen = make_screen()
     service = screen.ctx.service
-    press(screen, ord("3"))  # GPU
+    press(screen, ord("4"))  # GPU
     press(screen, 10)
     layout = screen.build()
     index = next(i for i, c in enumerate(layout.choices) if c.label == "Start governor")
@@ -247,3 +274,23 @@ def test_without_unicode_everything_drawn_is_plain_ascii_for_the_english_interfa
     window.queue = [ord("n")]
     screen.confirm("Sure?")
     assert window.text().isascii()
+
+
+def test_a_long_page_scrolls_and_never_acts_on_an_item_off_screen():
+    window, screen = make_screen(height=24, width=80)
+    screen.ctx.page_data["dashboard"] = screen.pages["dashboard"].load(screen.ctx)
+    press(screen, 9)  # into the dashboard: its first item sits below the cards
+    screen.draw()
+    assert screen.scroll[screen._slot()] == 0  # the cards stay on screen
+    assert screen.current_choice() is None or screen._shown(screen.build(), screen._slot(), screen.cursor[screen._slot()])
+    before = list(screen.ctx.service.calls)
+    press(screen, 10)
+    assert screen.ctx.service.calls == before
+    press(screen, *[curses.KEY_DOWN] * 60)
+    assert screen.scroll[screen._slot()] > 0 and screen.current_choice() is not None
+
+
+def test_the_title_bar_carries_live_gpu_and_cpu_readings():
+    window, screen = make_screen()
+    screen.draw()
+    assert "GPU 1500 MHz" in window.line(0) and "CPU" in window.line(0)

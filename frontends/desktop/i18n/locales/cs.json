@@ -5484,5 +5484,9 @@
   "USB drives": "Jednotky USB",
   "Vendor": "Výrobce",
   "Waiting for data…": "Čekání na data…",
-  "Prepare the VRAM reader": "Připravit čtečku VRAM"
+  "Prepare the VRAM reader": "Připravit čtečku VRAM",
+  "Adjust": "Upravit",
+  "Interrupt": "Přerušit",
+  "Search": "Hledat",
+  "No results": "Žádné výsledky"
 }

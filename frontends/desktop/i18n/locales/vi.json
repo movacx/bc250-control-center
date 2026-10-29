@@ -5484,5 +5484,9 @@
   "USB drives": "Ổ USB",
   "Vendor": "Nhà sản xuất",
   "Waiting for data…": "Đang chờ dữ liệu…",
-  "Prepare the VRAM reader": "Chuẩn bị trình đọc VRAM"
+  "Prepare the VRAM reader": "Chuẩn bị trình đọc VRAM",
+  "Adjust": "Điều chỉnh",
+  "Interrupt": "Ngắt",
+  "Search": "Tìm kiếm",
+  "No results": "Không có kết quả"
 }

@@ -8,11 +8,10 @@ from __future__ import annotations
 
 import unicodedata
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
-# Tones map to terminal palette colours, so a light or dark terminal keeps its
-# own contrast: the interface never paints a background.
-TONES = ("", "ok", "warn", "bad", "dim", "accent")
+# Tones ("", ok, warn, bad, dim, accent) map to terminal palette colours, so a
+# light or dark terminal keeps its own contrast: no background is ever painted.
 
 
 def cell_width(text: str) -> int:
@@ -109,7 +108,6 @@ class Grid:
 
     headers: Sequence[str]
     rows: Sequence[Sequence[str]]
-    tones: Sequence[str] = ()
     gap: int = 2
 
 
@@ -158,8 +156,7 @@ class Track:
 
 @dataclass(slots=True)
 class PadCell:
-    top: str
-    bottom: str = ""
+    text: str
     tone: str = ""
 
 
@@ -197,8 +194,6 @@ class Choice:
     tone: str = ""
     enabled: bool = True
     adjust: Callable[[object, int], None] | None = None
-    key: str = ""
-    columns: Sequence[str] = field(default_factory=tuple)
     pad: "Pad | None" = None
 
 

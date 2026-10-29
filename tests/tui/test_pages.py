@@ -21,7 +21,7 @@ def text_of(layout):
 
 
 def choice(layout, label):
-    return next(c for c in layout.choices if c.label == label)
+    return next(c for c in layout.choices if c.label in (label, label + " ›"))
 
 
 def test_every_sidebar_page_builds_on_every_tab_without_a_service_error():
@@ -222,18 +222,18 @@ def test_closing_a_process_needs_a_choice_and_a_confirmation():
 def test_extras_only_offers_what_applies_to_the_detected_family():
     ctx, ui = make_context(), FakeUI()
     page = AdditionalSettingsPage()
-    ctx.state("extras").update(family="steamos", name="SteamOS")
-    labels = {c.label for c in render(page, ctx, ui, "compatibility").choices}
+    ctx.state("system")["os"] = ("steamos", "SteamOS")
+    labels = {c.label.removesuffix(" ›") for c in render(page, ctx, ui, "compatibility").choices}
     assert "SteamOS read-only mode" in labels and "Simultaneous multithreading (SMT)" not in labels
-    ctx.state("extras").update(family="bazzite", name="Bazzite")
-    labels = {c.label for c in render(page, ctx, ui, "compatibility").choices}
+    ctx.state("system")["os"] = ("bazzite", "Bazzite")
+    labels = {c.label.removesuffix(" ›") for c in render(page, ctx, ui, "compatibility").choices}
     assert "Simultaneous multithreading (SMT)" in labels and "SteamOS read-only mode" not in labels
 
 
 def test_extras_action_runs_the_selected_service_method_with_the_selected_action():
     service = FakeService()
     ctx, ui = make_context(service), FakeUI(choices=["disable"])
-    ctx.state("extras").update(family="bazzite", name="Bazzite")
+    ctx.state("system")["os"] = ("bazzite", "Bazzite")
     layout = render(AdditionalSettingsPage(), ctx, ui, "compatibility")
     choice(layout, "Simultaneous multithreading (SMT)").handler(ui)
     assert ("gestionar_smt_bazzite", ("disable",), {}) in service.calls

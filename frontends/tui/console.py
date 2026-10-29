@@ -1,9 +1,9 @@
-"""An output pane inside the interface, for work that used to take the terminal over.
+"""The console pane: a job's output and the pty its workflows run on.
 
-A service call, or a reviewed workflow command, runs on a worker thread while
-the screen shows what it prints. Commands run on a pseudo-terminal, so a
-``sudo`` or Polkit prompt appears in the pane and the person answers it there
-with the keyboard; nothing leaves the interface.
+Workflows draw progress with carriage returns and cursor moves, and ``sudo`` or
+pkexec ask for a password on the controlling terminal, so commands get a real
+pseudo-terminal and their bytes go through the desktop console's own terminal
+emulator and transcript log. Nothing leaves the interface.
 """
 
 from __future__ import annotations
@@ -11,7 +11,6 @@ from __future__ import annotations
 import errno
 import fcntl
 import os
-import re
 import select
 import signal
 import struct
@@ -20,70 +19,95 @@ import termios
 import threading
 import time
 
-MAX_LINES = 5000
-#: CSI, OSC and charset-select sequences: colours and titles mean nothing in this pane.
-ANSI = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[()][A-Za-z0-9]|\x1b[=>]")
+from bc250cc.application.system.workflow_console import TranscriptLog
+from frontends.desktop.console.terminal_screen import TerminalScreen
+
+SCROLLBACK = 5000
+#: ANSI colour (0-15) -> interface tone; anything else keeps the default colour.
+TONES = {1: "bad", 9: "bad", 2: "ok", 10: "ok", 3: "warn", 11: "warn", 4: "accent", 12: "accent", 6: "accent",
+         14: "accent"}
 
 
 class Console:
-    """Text a running job prints, plus the pty its command (if any) listens on."""
+    """Output of one job. ``print`` may target it; commands run on its pty."""
 
-    def __init__(self, label: str) -> None:
+    def __init__(self, label: str, rows: int = 24, columns: int = 80) -> None:
         self.label = label
-        self.lines: list[str] = [""]
+        self.term = TerminalScreen(columns, rows, scrollback=SCROLLBACK)
         self.lock = threading.Lock()
         self.done = threading.Event()
         self.ok = True
+        self.failed = False  # a workflow it ran exited non-zero
+        self.printed = False
         self.result: object = None
-        self.input_fd: int | None = None
         self.process: subprocess.Popen | None = None
+        self.master: int | None = None
         self.started = time.monotonic()
-        self.revision = 0
-        self._column = 0
+        self.finished_at: float | None = None
 
-    # -- a file-like object, so print() can target it ----------------------
+    # -- output ---------------------------------------------------------------
 
     def write(self, text: str) -> int:
-        text = ANSI.sub("", text)
-        with self.lock:
-            for char in text:
-                if char == "\n":
-                    self.lines.append("")
-                    self._column = 0
-                elif char == "\r":
-                    self._column = 0
-                elif char == "\b":
-                    self._column = max(0, self._column - 1)
-                elif char == "\t" or char >= " ":
-                    line = self.lines[-1]
-                    if char == "\t":
-                        char = " " * (8 - self._column % 8)
-                    self.lines[-1] = line[:self._column] + char + line[self._column + len(char):]
-                    self._column += len(char)
-            if len(self.lines) > MAX_LINES:
-                del self.lines[:len(self.lines) - MAX_LINES]
-            self.revision += 1
+        """File-like, for ``print``: a newline returns the carriage as a tty would."""
+        self._feed(text.replace("\r\n", "\n").replace("\n", "\r\n"))
         return len(text)
 
     def flush(self) -> None:
         pass
 
-    def snapshot(self) -> list[str]:
+    def _feed(self, data: bytes | str) -> None:
+        self.printed = self.printed or bool(data.strip())
         with self.lock:
-            return list(self.lines)
+            self.term.feed(data)
+            answer = self.term.take_response()  # cursor-position queries and the like
+        if answer and self.master is not None:
+            self.send(answer.encode())
+
+    def view(self, rows: int, scroll: int = 0) -> tuple[list[list[tuple[str, str, bool]]], int]:
+        """The ``rows`` lines ending ``scroll`` lines above the last printed one, as
+        (text, tone, bold) runs, and the scroll actually used. Only those lines
+        are converted: a redraw costs the same with 5000 lines of history."""
+        with self.lock:
+            grid = self.term.scrollback + self.term.lines
+            end = len(grid)
+            while end and not any(cell.text.strip() for cell in grid[end - 1]):
+                end -= 1
+            scroll = max(0, min(scroll, end - rows))
+            return [self._runs(row) for row in grid[max(0, end - scroll - rows):end - scroll]], scroll
+
+    @staticmethod
+    def _runs(row) -> list[tuple[str, str, bool]]:
+        runs: list[tuple[str, str, bool]] = []
+        for cell in row:
+            if cell.placeholder:
+                continue
+            style = cell.style
+            key = (TONES.get(style.foreground, "") if isinstance(style.foreground, int) else "", style.bold or style.inverse)
+            if runs and runs[-1][1:] == key:
+                runs[-1] = (runs[-1][0] + cell.text, *key)
+            else:
+                runs.append((cell.text, *key))
+        return runs
 
     @property
     def has_output(self) -> bool:
-        with self.lock:
-            return any(line.strip() for line in self.lines)
+        return self.printed
 
-    # -- keyboard -> command -------------------------------------------------
+    @property
+    def succeeded(self) -> bool:
+        return self.ok and not self.failed
+
+    def finish(self, ok: bool, result: object) -> None:
+        self.ok, self.result, self.finished_at = ok, result, time.monotonic()
+        self.done.set()
+
+    # -- keyboard -------------------------------------------------------------
 
     def send(self, data: bytes) -> bool:
-        if self.input_fd is None or self.done.is_set():
+        if self.master is None:
             return False
         try:
-            os.write(self.input_fd, data)
+            os.write(self.master, data)
         except OSError:
             return False
         return True
@@ -96,39 +120,53 @@ class Console:
             except OSError:
                 pass
 
-    # -- a command on a pty -----------------------------------------------------
+    def resize(self, rows: int, columns: int) -> None:
+        with self.lock:
+            if (rows, columns) == (self.term.rows, self.term.columns):
+                return
+            self.term.resize(columns, rows)
+        if self.master is not None:
+            fcntl.ioctl(self.master, termios.TIOCSWINSZ, struct.pack("HHHH", rows, columns, 0, 0))
 
-    def run_command(self, command: str, size: tuple[int, int] = (24, 80)) -> int:
+    # -- a command ------------------------------------------------------------
+
+    def run(self, argv: list[str], log_file: str = "") -> int:
+        """Run ``argv`` on a pty until it exits; its output lands here and in ``log_file``."""
         master, slave = os.openpty()
-        fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", size[0], size[1], 0, 0))
+        fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", self.term.rows, self.term.columns, 0, 0))
 
         def become_session_leader() -> None:  # the pty is the command's controlling terminal
             os.setsid()
             fcntl.ioctl(0, termios.TIOCSCTTY, 0)
 
-        env = dict(os.environ, TERM="xterm", COLUMNS=str(size[1]), LINES=str(size[0]))
-        self.process = subprocess.Popen(  # nosec B603 B607
-            ["bash", "-c", command], stdin=slave, stdout=slave, stderr=slave, env=env,
+        env = dict(os.environ, TERM="xterm-256color", COLUMNS=str(self.term.columns), LINES=str(self.term.rows))
+        self.process = subprocess.Popen(  # nosec B603
+            argv, stdin=slave, stdout=slave, stderr=slave, env=env,
             preexec_fn=become_session_leader, close_fds=True)  # noqa: PLW1509
         os.close(slave)
-        self.input_fd = master
+        self.master = master
+        log = TranscriptLog(log_file) if log_file else None
         try:
             while True:
                 ready, _, _ = select.select([master], [], [], 0.1)
-                if ready:
-                    try:
-                        chunk = os.read(master, 65536)
-                    except OSError as error:
-                        if error.errno == errno.EIO:  # the command closed its side
-                            chunk = b""
-                        else:
-                            raise
-                    if not chunk:
+                if not ready:
+                    if self.process.poll() is not None:
                         break
-                    self.write(chunk.decode("utf-8", "replace"))
-                elif self.process.poll() is not None:
+                    continue
+                try:
+                    chunk = os.read(master, 65536)
+                except OSError as error:
+                    if error.errno != errno.EIO:  # EIO: the command closed its side
+                        raise
+                    chunk = b""
+                if not chunk:
                     break
+                self._feed(chunk)
+                if log is not None:
+                    log.write(chunk)  # also answers the wrapper's log-sync request
             return self.process.wait()
         finally:
-            self.input_fd = None
+            self.master = None
             os.close(master)
+            if log is not None:
+                log.close()

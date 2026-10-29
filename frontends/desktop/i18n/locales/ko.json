@@ -5484,5 +5484,9 @@
   "USB drives": "USB 드라이브",
   "Vendor": "제조사",
   "Waiting for data…": "데이터를 기다리는 중…",
-  "Prepare the VRAM reader": "VRAM 리더 준비"
+  "Prepare the VRAM reader": "VRAM 리더 준비",
+  "Adjust": "조정",
+  "Interrupt": "중단",
+  "Search": "검색",
+  "No results": "결과 없음"
 }

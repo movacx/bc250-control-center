@@ -5484,5 +5484,9 @@
   "USB drives": "USB-накопители",
   "Vendor": "Производитель",
   "Waiting for data…": "Ожидание данных…",
-  "Prepare the VRAM reader": "Подготовить считыватель VRAM"
+  "Prepare the VRAM reader": "Подготовить считыватель VRAM",
+  "Adjust": "Настроить",
+  "Interrupt": "Прервать",
+  "Search": "Поиск",
+  "No results": "Нет результатов"
 }

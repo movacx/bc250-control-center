@@ -5484,5 +5484,9 @@
   "USB drives": "USB-meghajtók",
   "Vendor": "Gyártó",
   "Waiting for data…": "Adatokra várakozás…",
-  "Prepare the VRAM reader": "VRAM-olvasó előkészítése"
+  "Prepare the VRAM reader": "VRAM-olvasó előkészítése",
+  "Adjust": "Állítás",
+  "Interrupt": "Megszakítás",
+  "Search": "Keresés",
+  "No results": "Nincs találat"
 }

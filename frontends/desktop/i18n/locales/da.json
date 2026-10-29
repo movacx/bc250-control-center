@@ -5484,5 +5484,9 @@
   "USB drives": "USB-drev",
   "Vendor": "Producent",
   "Waiting for data…": "Venter på data…",
-  "Prepare the VRAM reader": "Klargør VRAM-læseren"
+  "Prepare the VRAM reader": "Klargør VRAM-læseren",
+  "Adjust": "Justér",
+  "Interrupt": "Afbryd",
+  "Search": "Søg",
+  "No results": "Ingen resultater"
 }

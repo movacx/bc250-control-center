@@ -5484,5 +5484,9 @@
   "USB drives": "USB ドライブ",
   "Vendor": "メーカー",
   "Waiting for data…": "データを待っています…",
-  "Prepare the VRAM reader": "VRAM リーダーを準備"
+  "Prepare the VRAM reader": "VRAM リーダーを準備",
+  "Adjust": "調整",
+  "Interrupt": "中断",
+  "Search": "検索",
+  "No results": "結果なし"
 }

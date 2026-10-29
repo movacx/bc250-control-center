@@ -5484,5 +5484,9 @@
   "USB drives": "Drive USB",
   "Vendor": "Produsen",
   "Waiting for data…": "Menunggu data…",
-  "Prepare the VRAM reader": "Siapkan pembaca VRAM"
+  "Prepare the VRAM reader": "Siapkan pembaca VRAM",
+  "Adjust": "Sesuaikan",
+  "Interrupt": "Hentikan",
+  "Search": "Cari",
+  "No results": "Tidak ada hasil"
 }

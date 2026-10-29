@@ -5484,5 +5484,9 @@
   "USB drives": "ไดรฟ์ USB",
   "Vendor": "ผู้ผลิต",
   "Waiting for data…": "กำลังรอข้อมูล…",
-  "Prepare the VRAM reader": "เตรียมตัวอ่าน VRAM"
+  "Prepare the VRAM reader": "เตรียมตัวอ่าน VRAM",
+  "Adjust": "ปรับ",
+  "Interrupt": "ขัดจังหวะ",
+  "Search": "ค้นหา",
+  "No results": "ไม่พบผลลัพธ์"
 }

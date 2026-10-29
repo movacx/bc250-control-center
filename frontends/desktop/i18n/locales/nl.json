@@ -5484,5 +5484,9 @@
   "USB drives": "USB-schijven",
   "Vendor": "Fabrikant",
   "Waiting for data…": "Wachten op gegevens…",
-  "Prepare the VRAM reader": "VRAM-lezer voorbereiden"
+  "Prepare the VRAM reader": "VRAM-lezer voorbereiden",
+  "Adjust": "Aanpassen",
+  "Interrupt": "Onderbreken",
+  "Search": "Zoeken",
+  "No results": "Geen resultaten"
 }

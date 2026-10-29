@@ -5484,5 +5484,9 @@
   "USB drives": "USB-asemat",
   "Vendor": "Valmistaja",
   "Waiting for data…": "Odotetaan tietoja…",
-  "Prepare the VRAM reader": "Valmistele VRAM-lukija"
+  "Prepare the VRAM reader": "Valmistele VRAM-lukija",
+  "Adjust": "Säädä",
+  "Interrupt": "Keskeytä",
+  "Search": "Haku",
+  "No results": "Ei tuloksia"
 }

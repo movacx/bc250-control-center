@@ -5484,5 +5484,9 @@
   "USB drives": "Unități USB",
   "Vendor": "Producător",
   "Waiting for data…": "Se așteaptă datele…",
-  "Prepare the VRAM reader": "Pregătește cititorul VRAM"
+  "Prepare the VRAM reader": "Pregătește cititorul VRAM",
+  "Adjust": "Ajustează",
+  "Interrupt": "Întrerupe",
+  "Search": "Caută",
+  "No results": "Niciun rezultat"
 }
