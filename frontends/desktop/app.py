@@ -195,6 +195,7 @@ class ControlCenterWindow(QMainWindow):
         from .pages.gpu_governor import GpuGovernorPage
         from .pages.performance import PerformancePage
         from .pages.processes import ProcessesPage
+        from .pages.remote_access import RemoteAccessPage
 
         self.stack = QStackedWidget()
         self.stack.setMinimumSize(0, 0)
@@ -222,6 +223,7 @@ class ControlCenterWindow(QMainWindow):
         )
         self.performance_page = PerformancePage(controller)
         self.blackbox_page = BlackBoxPage(controller)
+        self.remote_page = RemoteAccessPage()
         self.firmware_page = FirmwarePage(controller)
         self.settings_dialog: SettingsDialog | None = None
         self.current_page_key = "dashboard"
@@ -237,6 +239,7 @@ class ControlCenterWindow(QMainWindow):
             "fans": self.fans_page,
             "processes": self.processes_page,
             "black_box": self.blackbox_page,
+            "remote": self.remote_page,
             "firmware": self.firmware_page,
         }
         self.dashboard.module_requested.connect(self.navigate)

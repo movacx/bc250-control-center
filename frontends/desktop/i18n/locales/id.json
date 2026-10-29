@@ -5451,5 +5451,21 @@
   "Back to the recording": "Kembali ke rekaman",
   "Paused while you read. Go back to the top to follow the recording.": "Dijeda saat Anda membaca. Kembali ke atas untuk mengikuti rekaman.",
   "Drag to resize. Double-click to fit the text.": "Seret untuk mengubah ukuran. Klik dua kali untuk menyesuaikan dengan teks.",
-  "Serial numbers, disk and machine ids, e-mail addresses and Steam ids are hidden too. Read it before sharing it in public: only you know what else could point to you.": "Nomor seri, ID disk dan mesin, alamat email, serta ID Steam juga disembunyikan. Baca sebelum membagikannya secara publik: hanya Anda yang tahu apa lagi yang bisa menunjuk ke Anda."
+  "Serial numbers, disk and machine ids, e-mail addresses and Steam ids are hidden too. Read it before sharing it in public: only you know what else could point to you.": "Nomor seri, ID disk dan mesin, alamat email, serta ID Steam juga disembunyikan. Baca sebelum membagikannya secara publik: hanya Anda yang tahu apa lagi yang bisa menunjuk ke Anda.",
+  "Remote access": "Akses jarak jauh",
+  "Use Control Center from your phone or tablet through SSH.": "Gunakan Control Center dari ponsel atau tablet lewat SSH.",
+  "Turn on remote access": "Aktifkan akses jarak jauh",
+  "Turn off remote access": "Nonaktifkan akses jarak jauh",
+  "Connect from your phone": "Hubungkan dari ponsel",
+  "1. Turn on remote access with the button above.": "1. Aktifkan akses jarak jauh dengan tombol di atas.",
+  "2. Install a terminal app on the phone:": "2. Pasang aplikasi terminal di ponsel:",
+  "3. On the same Wi-Fi as the board, type:": "3. Di Wi-Fi yang sama dengan papan, ketik:",
+  "4. Enter your password and open the terminal interface:": "4. Masukkan kata sandi lalu buka antarmuka terminal:",
+  "Copy connection command": "Salin perintah koneksi",
+  "Address of this board: {address}": "Alamat papan ini: {address}",
+  "No SSH server is installed. Install the openssh-server package first.": "Server SSH belum terpasang. Pasang dulu paket openssh-server.",
+  "The SSH server is running.": "Server SSH sedang berjalan.",
+  "The SSH server is stopped.": "Server SSH dihentikan.",
+  "Use it only on a network you trust, and do not open the SSH port to the internet.": "Gunakan hanya di jaringan tepercaya dan jangan buka port SSH ke internet.",
+  "This system does not use systemd: start the SSH server yourself.": "Sistem ini tidak memakai systemd: jalankan server SSH sendiri."
 }

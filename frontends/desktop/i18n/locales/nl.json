@@ -5451,5 +5451,21 @@
   "Back to the recording": "Terug naar de opname",
   "Paused while you read. Go back to the top to follow the recording.": "Gepauzeerd terwijl je leest. Ga terug naar boven om de opname te volgen.",
   "Drag to resize. Double-click to fit the text.": "Sleep om de grootte te wijzigen. Dubbelklik past hem aan de tekst aan.",
-  "Serial numbers, disk and machine ids, e-mail addresses and Steam ids are hidden too. Read it before sharing it in public: only you know what else could point to you.": "Serienummers, schijf- en machine-id’s, e-mailadressen en Steam-id’s zijn ook verborgen. Lees het voordat je het openbaar deelt: alleen jij weet wat er nog naar jou kan wijzen."
+  "Serial numbers, disk and machine ids, e-mail addresses and Steam ids are hidden too. Read it before sharing it in public: only you know what else could point to you.": "Serienummers, schijf- en machine-id’s, e-mailadressen en Steam-id’s zijn ook verborgen. Lees het voordat je het openbaar deelt: alleen jij weet wat er nog naar jou kan wijzen.",
+  "Remote access": "Toegang op afstand",
+  "Use Control Center from your phone or tablet through SSH.": "Gebruik Control Center via SSH vanaf je telefoon of tablet.",
+  "Turn on remote access": "Toegang op afstand inschakelen",
+  "Turn off remote access": "Toegang op afstand uitschakelen",
+  "Connect from your phone": "Verbinden vanaf je telefoon",
+  "1. Turn on remote access with the button above.": "1. Schakel toegang op afstand in met de knop hierboven.",
+  "2. Install a terminal app on the phone:": "2. Installeer een terminal-app op de telefoon:",
+  "3. On the same Wi-Fi as the board, type:": "3. Typ op hetzelfde wifi-netwerk als het bord:",
+  "4. Enter your password and open the terminal interface:": "4. Voer je wachtwoord in en open de terminalinterface:",
+  "Copy connection command": "Verbindingsopdracht kopiëren",
+  "Address of this board: {address}": "Adres van dit bord: {address}",
+  "No SSH server is installed. Install the openssh-server package first.": "Geen SSH-server geïnstalleerd. Installeer eerst het pakket openssh-server.",
+  "The SSH server is running.": "De SSH-server draait.",
+  "The SSH server is stopped.": "De SSH-server is gestopt.",
+  "Use it only on a network you trust, and do not open the SSH port to the internet.": "Gebruik het alleen op een vertrouwd netwerk en open de SSH-poort niet naar internet.",
+  "This system does not use systemd: start the SSH server yourself.": "Dit systeem gebruikt geen systemd: start de SSH-server zelf."
 }

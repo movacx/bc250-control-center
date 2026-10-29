@@ -5451,5 +5451,21 @@
   "Back to the recording": "Back to the recording",
   "Paused while you read. Go back to the top to follow the recording.": "Paused while you read. Go back to the top to follow the recording.",
   "Drag to resize. Double-click to fit the text.": "Drag to resize. Double-click to fit the text.",
-  "Serial numbers, disk and machine ids, e-mail addresses and Steam ids are hidden too. Read it before sharing it in public: only you know what else could point to you.": "Serial numbers, disk and machine ids, e-mail addresses and Steam ids are hidden too. Read it before sharing it in public: only you know what else could point to you."
+  "Serial numbers, disk and machine ids, e-mail addresses and Steam ids are hidden too. Read it before sharing it in public: only you know what else could point to you.": "Serial numbers, disk and machine ids, e-mail addresses and Steam ids are hidden too. Read it before sharing it in public: only you know what else could point to you.",
+  "Remote access": "Remote access",
+  "Use Control Center from your phone or tablet through SSH.": "Use Control Center from your phone or tablet through SSH.",
+  "Turn on remote access": "Turn on remote access",
+  "Turn off remote access": "Turn off remote access",
+  "Connect from your phone": "Connect from your phone",
+  "1. Turn on remote access with the button above.": "1. Turn on remote access with the button above.",
+  "2. Install a terminal app on the phone:": "2. Install a terminal app on the phone:",
+  "3. On the same Wi-Fi as the board, type:": "3. On the same Wi-Fi as the board, type:",
+  "4. Enter your password and open the terminal interface:": "4. Enter your password and open the terminal interface:",
+  "Copy connection command": "Copy connection command",
+  "Address of this board: {address}": "Address of this board: {address}",
+  "No SSH server is installed. Install the openssh-server package first.": "No SSH server is installed. Install the openssh-server package first.",
+  "The SSH server is running.": "The SSH server is running.",
+  "The SSH server is stopped.": "The SSH server is stopped.",
+  "Use it only on a network you trust, and do not open the SSH port to the internet.": "Use it only on a network you trust, and do not open the SSH port to the internet.",
+  "This system does not use systemd: start the SSH server yourself.": "This system does not use systemd: start the SSH server yourself."
 }

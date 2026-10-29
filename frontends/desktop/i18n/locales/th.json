@@ -5451,5 +5451,21 @@
   "Back to the recording": "กลับไปที่การบันทึก",
   "Paused while you read. Go back to the top to follow the recording.": "หยุดชั่วคราวขณะที่คุณอ่าน กลับไปด้านบนเพื่อติดตามการบันทึก",
   "Drag to resize. Double-click to fit the text.": "ลากเพื่อปรับขนาด ดับเบิลคลิกเพื่อให้พอดีกับข้อความ",
-  "Serial numbers, disk and machine ids, e-mail addresses and Steam ids are hidden too. Read it before sharing it in public: only you know what else could point to you.": "หมายเลขซีเรียล รหัสประจำดิสก์และเครื่อง อีเมล และ Steam ID ก็ถูกซ่อนไว้เช่นกัน โปรดอ่านก่อนแชร์ต่อสาธารณะ เพราะมีแต่คุณที่รู้ว่ายังมีอะไรที่ชี้มาถึงคุณได้อีก"
+  "Serial numbers, disk and machine ids, e-mail addresses and Steam ids are hidden too. Read it before sharing it in public: only you know what else could point to you.": "หมายเลขซีเรียล รหัสประจำดิสก์และเครื่อง อีเมล และ Steam ID ก็ถูกซ่อนไว้เช่นกัน โปรดอ่านก่อนแชร์ต่อสาธารณะ เพราะมีแต่คุณที่รู้ว่ายังมีอะไรที่ชี้มาถึงคุณได้อีก",
+  "Remote access": "การเข้าถึงระยะไกล",
+  "Use Control Center from your phone or tablet through SSH.": "ใช้ Control Center จากโทรศัพท์หรือแท็บเล็ตผ่าน SSH",
+  "Turn on remote access": "เปิดการเข้าถึงระยะไกล",
+  "Turn off remote access": "ปิดการเข้าถึงระยะไกล",
+  "Connect from your phone": "เชื่อมต่อจากโทรศัพท์",
+  "1. Turn on remote access with the button above.": "1. เปิดการเข้าถึงระยะไกลด้วยปุ่มด้านบน",
+  "2. Install a terminal app on the phone:": "2. ติดตั้งแอปเทอร์มินัลบนโทรศัพท์:",
+  "3. On the same Wi-Fi as the board, type:": "3. เมื่ออยู่ใน Wi-Fi เดียวกับบอร์ด ให้พิมพ์:",
+  "4. Enter your password and open the terminal interface:": "4. ใส่รหัสผ่านแล้วเปิดอินเทอร์เฟซเทอร์มินัล:",
+  "Copy connection command": "คัดลอกคำสั่งเชื่อมต่อ",
+  "Address of this board: {address}": "ที่อยู่ของบอร์ดนี้: {address}",
+  "No SSH server is installed. Install the openssh-server package first.": "ยังไม่ได้ติดตั้งเซิร์ฟเวอร์ SSH ติดตั้งแพ็กเกจ openssh-server ก่อน",
+  "The SSH server is running.": "เซิร์ฟเวอร์ SSH กำลังทำงาน",
+  "The SSH server is stopped.": "เซิร์ฟเวอร์ SSH หยุดทำงาน",
+  "Use it only on a network you trust, and do not open the SSH port to the internet.": "ใช้เฉพาะในเครือข่ายที่เชื่อถือได้ และอย่าเปิดพอร์ต SSH สู่อินเทอร์เน็ต",
+  "This system does not use systemd: start the SSH server yourself.": "ระบบนี้ไม่ใช้ systemd: โปรดเริ่มเซิร์ฟเวอร์ SSH เอง"
 }

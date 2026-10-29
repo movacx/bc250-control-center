@@ -5451,5 +5451,21 @@
   "Back to the recording": "記録に戻る",
   "Paused while you read. Go back to the top to follow the recording.": "読んでいる間は一時停止しています。記録を追うには先頭に戻ってください。",
   "Drag to resize. Double-click to fit the text.": "ドラッグでサイズを変更。ダブルクリックでテキストに合わせます。",
-  "Serial numbers, disk and machine ids, e-mail addresses and Steam ids are hidden too. Read it before sharing it in public: only you know what else could point to you.": "シリアル番号、ディスクやマシンの ID、メールアドレス、Steam ID も非表示になります。公開の場で共有する前に必ず読んでください。ほかに何があなたを特定し得るかは、あなた自身にしか分かりません。"
+  "Serial numbers, disk and machine ids, e-mail addresses and Steam ids are hidden too. Read it before sharing it in public: only you know what else could point to you.": "シリアル番号、ディスクやマシンの ID、メールアドレス、Steam ID も非表示になります。公開の場で共有する前に必ず読んでください。ほかに何があなたを特定し得るかは、あなた自身にしか分かりません。",
+  "Remote access": "リモートアクセス",
+  "Use Control Center from your phone or tablet through SSH.": "スマートフォンやタブレットから SSH で Control Center を使います。",
+  "Turn on remote access": "リモートアクセスをオンにする",
+  "Turn off remote access": "リモートアクセスをオフにする",
+  "Connect from your phone": "スマートフォンから接続",
+  "1. Turn on remote access with the button above.": "1. 上のボタンでリモートアクセスをオンにします。",
+  "2. Install a terminal app on the phone:": "2. スマートフォンにターミナルアプリをインストールします:",
+  "3. On the same Wi-Fi as the board, type:": "3. ボードと同じ Wi-Fi に接続して入力します:",
+  "4. Enter your password and open the terminal interface:": "4. パスワードを入力し、ターミナルインターフェースを開きます:",
+  "Copy connection command": "接続コマンドをコピー",
+  "Address of this board: {address}": "このボードのアドレス: {address}",
+  "No SSH server is installed. Install the openssh-server package first.": "SSH サーバーがインストールされていません。先に openssh-server パッケージをインストールしてください。",
+  "The SSH server is running.": "SSH サーバーは動作中です。",
+  "The SSH server is stopped.": "SSH サーバーは停止しています。",
+  "Use it only on a network you trust, and do not open the SSH port to the internet.": "信頼できるネットワークでのみ使用し、SSH ポートをインターネットに公開しないでください。",
+  "This system does not use systemd: start the SSH server yourself.": "このシステムは systemd を使っていません。SSH サーバーは自分で起動してください。"
 }

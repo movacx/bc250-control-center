@@ -5451,5 +5451,21 @@
   "Back to the recording": "Назад към записа",
   "Paused while you read. Go back to the top to follow the recording.": "На пауза, докато четете. Върнете се най-горе, за да следите записа.",
   "Drag to resize. Double-click to fit the text.": "Плъзнете, за да промените размера. Двойно щракване — по размера на текста.",
-  "Serial numbers, disk and machine ids, e-mail addresses and Steam ids are hidden too. Read it before sharing it in public: only you know what else could point to you.": "Скрити са и серийните номера, идентификаторите на дискове и на машината, имейл адресите и Steam ID-тата. Прочетете преди да споделите публично: само вие знаете какво още може да сочи към вас."
+  "Serial numbers, disk and machine ids, e-mail addresses and Steam ids are hidden too. Read it before sharing it in public: only you know what else could point to you.": "Скрити са и серийните номера, идентификаторите на дискове и на машината, имейл адресите и Steam ID-тата. Прочетете преди да споделите публично: само вие знаете какво още може да сочи към вас.",
+  "Remote access": "Отдалечен достъп",
+  "Use Control Center from your phone or tablet through SSH.": "Използвайте Control Center от телефон или таблет през SSH.",
+  "Turn on remote access": "Включване на отдалечения достъп",
+  "Turn off remote access": "Изключване на отдалечения достъп",
+  "Connect from your phone": "Свързване от телефона",
+  "1. Turn on remote access with the button above.": "1. Включете отдалечения достъп с бутона по-горе.",
+  "2. Install a terminal app on the phone:": "2. Инсталирайте терминално приложение на телефона:",
+  "3. On the same Wi-Fi as the board, type:": "3. В същата Wi-Fi мрежа като платката въведете:",
+  "4. Enter your password and open the terminal interface:": "4. Въведете паролата си и отворете терминалния интерфейс:",
+  "Copy connection command": "Копиране на командата за връзка",
+  "Address of this board: {address}": "Адрес на тази платка: {address}",
+  "No SSH server is installed. Install the openssh-server package first.": "Няма инсталиран SSH сървър. Първо инсталирайте пакета openssh-server.",
+  "The SSH server is running.": "SSH сървърът работи.",
+  "The SSH server is stopped.": "SSH сървърът е спрян.",
+  "Use it only on a network you trust, and do not open the SSH port to the internet.": "Използвайте го само в доверена мрежа и не отваряйте SSH порта към интернет.",
+  "This system does not use systemd: start the SSH server yourself.": "Тази система не използва systemd: стартирайте SSH сървъра сами."
 }

@@ -5451,5 +5451,21 @@
   "Back to the recording": "Επιστροφή στην καταγραφή",
   "Paused while you read. Go back to the top to follow the recording.": "Σε παύση όσο διαβάζετε. Επιστρέψτε στην κορυφή για να παρακολουθείτε την καταγραφή.",
   "Drag to resize. Double-click to fit the text.": "Σύρετε για αλλαγή μεγέθους. Διπλό κλικ για προσαρμογή στο κείμενο.",
-  "Serial numbers, disk and machine ids, e-mail addresses and Steam ids are hidden too. Read it before sharing it in public: only you know what else could point to you.": "Κρύβονται επίσης οι σειριακοί αριθμοί, τα αναγνωριστικά δίσκων και μηχανήματος, οι διευθύνσεις email και τα αναγνωριστικά Steam. Διαβάστε το πριν το μοιραστείτε δημόσια: μόνο εσείς ξέρετε τι άλλο θα μπορούσε να σας υποδείξει."
+  "Serial numbers, disk and machine ids, e-mail addresses and Steam ids are hidden too. Read it before sharing it in public: only you know what else could point to you.": "Κρύβονται επίσης οι σειριακοί αριθμοί, τα αναγνωριστικά δίσκων και μηχανήματος, οι διευθύνσεις email και τα αναγνωριστικά Steam. Διαβάστε το πριν το μοιραστείτε δημόσια: μόνο εσείς ξέρετε τι άλλο θα μπορούσε να σας υποδείξει.",
+  "Remote access": "Απομακρυσμένη πρόσβαση",
+  "Use Control Center from your phone or tablet through SSH.": "Χρησιμοποιήστε το Control Center από το κινητό ή το tablet μέσω SSH.",
+  "Turn on remote access": "Ενεργοποίηση απομακρυσμένης πρόσβασης",
+  "Turn off remote access": "Απενεργοποίηση απομακρυσμένης πρόσβασης",
+  "Connect from your phone": "Σύνδεση από το κινητό",
+  "1. Turn on remote access with the button above.": "1. Ενεργοποιήστε την απομακρυσμένη πρόσβαση με το κουμπί παραπάνω.",
+  "2. Install a terminal app on the phone:": "2. Εγκαταστήστε μια εφαρμογή τερματικού στο κινητό:",
+  "3. On the same Wi-Fi as the board, type:": "3. Στο ίδιο Wi-Fi με την πλακέτα, πληκτρολογήστε:",
+  "4. Enter your password and open the terminal interface:": "4. Εισαγάγετε τον κωδικό σας και ανοίξτε τη διεπαφή τερματικού:",
+  "Copy connection command": "Αντιγραφή εντολής σύνδεσης",
+  "Address of this board: {address}": "Διεύθυνση αυτής της πλακέτας: {address}",
+  "No SSH server is installed. Install the openssh-server package first.": "Δεν υπάρχει εγκατεστημένος διακομιστής SSH. Εγκαταστήστε πρώτα το πακέτο openssh-server.",
+  "The SSH server is running.": "Ο διακομιστής SSH λειτουργεί.",
+  "The SSH server is stopped.": "Ο διακομιστής SSH έχει σταματήσει.",
+  "Use it only on a network you trust, and do not open the SSH port to the internet.": "Χρησιμοποιήστε το μόνο σε αξιόπιστο δίκτυο και μην ανοίγετε τη θύρα SSH στο διαδίκτυο.",
+  "This system does not use systemd: start the SSH server yourself.": "Αυτό το σύστημα δεν χρησιμοποιεί systemd: ξεκινήστε μόνοι σας τον διακομιστή SSH."
 }

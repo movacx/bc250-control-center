@@ -5451,5 +5451,21 @@
   "Back to the recording": "Назад до запису",
   "Paused while you read. Go back to the top to follow the recording.": "Пауза, поки ви читаєте. Поверніться нагору, щоб стежити за записом.",
   "Drag to resize. Double-click to fit the text.": "Перетягніть, щоб змінити розмір. Подвійний клік — за розміром тексту.",
-  "Serial numbers, disk and machine ids, e-mail addresses and Steam ids are hidden too. Read it before sharing it in public: only you know what else could point to you.": "Також приховано серійні номери, ідентифікатори дисків і комп’ютера, адреси пошти та ідентифікатори Steam. Прочитайте перед публікацією: лише ви знаєте, що ще може вказати на вас."
+  "Serial numbers, disk and machine ids, e-mail addresses and Steam ids are hidden too. Read it before sharing it in public: only you know what else could point to you.": "Також приховано серійні номери, ідентифікатори дисків і комп’ютера, адреси пошти та ідентифікатори Steam. Прочитайте перед публікацією: лише ви знаєте, що ще може вказати на вас.",
+  "Remote access": "Віддалений доступ",
+  "Use Control Center from your phone or tablet through SSH.": "Користуйтеся Control Center з телефона чи планшета через SSH.",
+  "Turn on remote access": "Увімкнути віддалений доступ",
+  "Turn off remote access": "Вимкнути віддалений доступ",
+  "Connect from your phone": "Підключення з телефона",
+  "1. Turn on remote access with the button above.": "1. Увімкніть віддалений доступ кнопкою вище.",
+  "2. Install a terminal app on the phone:": "2. Встановіть на телефон застосунок-термінал:",
+  "3. On the same Wi-Fi as the board, type:": "3. У тій самій мережі Wi-Fi, що й плата, введіть:",
+  "4. Enter your password and open the terminal interface:": "4. Введіть пароль і відкрийте термінальний інтерфейс:",
+  "Copy connection command": "Скопіювати команду підключення",
+  "Address of this board: {address}": "Адреса цієї плати: {address}",
+  "No SSH server is installed. Install the openssh-server package first.": "SSH-сервер не встановлено. Спершу встановіть пакет openssh-server.",
+  "The SSH server is running.": "SSH-сервер працює.",
+  "The SSH server is stopped.": "SSH-сервер зупинено.",
+  "Use it only on a network you trust, and do not open the SSH port to the internet.": "Користуйтеся лише в довіреній мережі й не відкривайте порт SSH в інтернет.",
+  "This system does not use systemd: start the SSH server yourself.": "Ця система не використовує systemd: запустіть SSH-сервер самостійно."
 }

@@ -37,7 +37,7 @@ def test_the_modules_keep_their_order_under_two_captions(qtbot):
     # LB/RB cycle through this order; the captions only label it.
     assert list(sidebar.buttons) == [
         "dashboard", "cpu", "cu", "gpu", "extras", "performance", "fans", "processes",
-        "black_box", "firmware", "settings",
+        "black_box", "remote", "firmware", "settings",
     ]
     hardware, monitoring = sidebar.sections
     assert hardware.label.text() == tr("Hardware").upper()
@@ -50,7 +50,7 @@ def test_the_modules_keep_their_order_under_two_captions(qtbot):
     # board's life, not every day.
     assert buttons["processes"].y() + buttons["processes"].height() < buttons["firmware"].y()
     # The black box sits right above it: a diagnostic, used when something froze.
-    assert buttons["processes"].y() < buttons["black_box"].y() < buttons["firmware"].y()
+    assert buttons["processes"].y() < buttons["black_box"].y() < buttons["remote"].y() < buttons["firmware"].y()
     assert buttons["firmware"].y() < sidebar.footer_rule.y()
 
 

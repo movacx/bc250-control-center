@@ -5451,5 +5451,21 @@
   "Back to the recording": "Kembali ke rakaman",
   "Paused while you read. Go back to the top to follow the recording.": "Dijeda semasa anda membaca. Kembali ke atas untuk mengikuti rakaman.",
   "Drag to resize. Double-click to fit the text.": "Seret untuk mengubah saiz. Klik dua kali untuk muatkan teks.",
-  "Serial numbers, disk and machine ids, e-mail addresses and Steam ids are hidden too. Read it before sharing it in public: only you know what else could point to you.": "Nombor siri, ID cakera dan mesin, alamat e-mel serta ID Steam juga disembunyikan. Baca sebelum berkongsi secara umum: hanya anda yang tahu apa lagi yang boleh menunjuk kepada anda."
+  "Serial numbers, disk and machine ids, e-mail addresses and Steam ids are hidden too. Read it before sharing it in public: only you know what else could point to you.": "Nombor siri, ID cakera dan mesin, alamat e-mel serta ID Steam juga disembunyikan. Baca sebelum berkongsi secara umum: hanya anda yang tahu apa lagi yang boleh menunjuk kepada anda.",
+  "Remote access": "Akses jauh",
+  "Use Control Center from your phone or tablet through SSH.": "Gunakan Control Center daripada telefon atau tablet melalui SSH.",
+  "Turn on remote access": "Hidupkan akses jauh",
+  "Turn off remote access": "Matikan akses jauh",
+  "Connect from your phone": "Sambung daripada telefon",
+  "1. Turn on remote access with the button above.": "1. Hidupkan akses jauh dengan butang di atas.",
+  "2. Install a terminal app on the phone:": "2. Pasang aplikasi terminal pada telefon:",
+  "3. On the same Wi-Fi as the board, type:": "3. Pada Wi-Fi yang sama dengan papan, taip:",
+  "4. Enter your password and open the terminal interface:": "4. Masukkan kata laluan dan buka antara muka terminal:",
+  "Copy connection command": "Salin arahan sambungan",
+  "Address of this board: {address}": "Alamat papan ini: {address}",
+  "No SSH server is installed. Install the openssh-server package first.": "Tiada pelayan SSH dipasang. Pasang pakej openssh-server dahulu.",
+  "The SSH server is running.": "Pelayan SSH sedang berjalan.",
+  "The SSH server is stopped.": "Pelayan SSH dihentikan.",
+  "Use it only on a network you trust, and do not open the SSH port to the internet.": "Gunakan hanya pada rangkaian yang dipercayai dan jangan buka port SSH ke internet.",
+  "This system does not use systemd: start the SSH server yourself.": "Sistem ini tidak menggunakan systemd: mulakan pelayan SSH sendiri."
 }

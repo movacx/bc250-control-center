@@ -5451,5 +5451,21 @@
   "Back to the recording": "Zurück zur Aufnahme",
   "Paused while you read. Go back to the top to follow the recording.": "Pausiert, solange du liest. Geh nach oben, um der Aufnahme zu folgen.",
   "Drag to resize. Double-click to fit the text.": "Ziehen, um die Größe zu ändern. Doppelklick passt sie dem Text an.",
-  "Serial numbers, disk and machine ids, e-mail addresses and Steam ids are hidden too. Read it before sharing it in public: only you know what else could point to you.": "Seriennummern, Datenträger- und Maschinen-IDs, E-Mail-Adressen und Steam-IDs sind ebenfalls ausgeblendet. Lies es vor dem öffentlichen Teilen: Nur du weißt, was sonst noch auf dich hinweisen könnte."
+  "Serial numbers, disk and machine ids, e-mail addresses and Steam ids are hidden too. Read it before sharing it in public: only you know what else could point to you.": "Seriennummern, Datenträger- und Maschinen-IDs, E-Mail-Adressen und Steam-IDs sind ebenfalls ausgeblendet. Lies es vor dem öffentlichen Teilen: Nur du weißt, was sonst noch auf dich hinweisen könnte.",
+  "Remote access": "Fernzugriff",
+  "Use Control Center from your phone or tablet through SSH.": "Nutze Control Center per SSH von Smartphone oder Tablet.",
+  "Turn on remote access": "Fernzugriff einschalten",
+  "Turn off remote access": "Fernzugriff ausschalten",
+  "Connect from your phone": "Vom Smartphone verbinden",
+  "1. Turn on remote access with the button above.": "1. Schalte den Fernzugriff mit der Schaltfläche oben ein.",
+  "2. Install a terminal app on the phone:": "2. Installiere eine Terminal-App auf dem Smartphone:",
+  "3. On the same Wi-Fi as the board, type:": "3. Gib im selben WLAN wie die Platine ein:",
+  "4. Enter your password and open the terminal interface:": "4. Gib dein Passwort ein und öffne die Terminal-Oberfläche:",
+  "Copy connection command": "Verbindungsbefehl kopieren",
+  "Address of this board: {address}": "Adresse dieser Platine: {address}",
+  "No SSH server is installed. Install the openssh-server package first.": "Kein SSH-Server installiert. Installiere zuerst das Paket openssh-server.",
+  "The SSH server is running.": "Der SSH-Server läuft.",
+  "The SSH server is stopped.": "Der SSH-Server ist gestoppt.",
+  "Use it only on a network you trust, and do not open the SSH port to the internet.": "Nutze es nur in einem vertrauenswürdigen Netzwerk und öffne den SSH-Port nicht zum Internet.",
+  "This system does not use systemd: start the SSH server yourself.": "Dieses System nutzt kein systemd: Starte den SSH-Server selbst."
 }

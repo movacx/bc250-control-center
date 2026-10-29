@@ -5451,5 +5451,21 @@
   "Back to the recording": "Torna alla registrazione",
   "Paused while you read. Go back to the top to follow the recording.": "In pausa mentre leggi. Torna in cima per seguire la registrazione.",
   "Drag to resize. Double-click to fit the text.": "Trascina per ridimensionare. Doppio clic per adattarlo al testo.",
-  "Serial numbers, disk and machine ids, e-mail addresses and Steam ids are hidden too. Read it before sharing it in public: only you know what else could point to you.": "Sono nascosti anche numeri di serie, identificatori di dischi e della macchina, e-mail e ID Steam. Leggilo prima di condividerlo in pubblico: solo tu sai cos’altro potrebbe indicarti."
+  "Serial numbers, disk and machine ids, e-mail addresses and Steam ids are hidden too. Read it before sharing it in public: only you know what else could point to you.": "Sono nascosti anche numeri di serie, identificatori di dischi e della macchina, e-mail e ID Steam. Leggilo prima di condividerlo in pubblico: solo tu sai cos’altro potrebbe indicarti.",
+  "Remote access": "Accesso remoto",
+  "Use Control Center from your phone or tablet through SSH.": "Usa Control Center dal telefono o dal tablet tramite SSH.",
+  "Turn on remote access": "Attiva l’accesso remoto",
+  "Turn off remote access": "Disattiva l’accesso remoto",
+  "Connect from your phone": "Connettiti dal telefono",
+  "1. Turn on remote access with the button above.": "1. Attiva l’accesso remoto con il pulsante qui sopra.",
+  "2. Install a terminal app on the phone:": "2. Installa un’app terminale sul telefono:",
+  "3. On the same Wi-Fi as the board, type:": "3. Sulla stessa Wi-Fi della scheda, digita:",
+  "4. Enter your password and open the terminal interface:": "4. Inserisci la password e apri l’interfaccia terminale:",
+  "Copy connection command": "Copia il comando di connessione",
+  "Address of this board: {address}": "Indirizzo di questa scheda: {address}",
+  "No SSH server is installed. Install the openssh-server package first.": "Nessun server SSH installato. Installa prima il pacchetto openssh-server.",
+  "The SSH server is running.": "Il server SSH è in esecuzione.",
+  "The SSH server is stopped.": "Il server SSH è fermo.",
+  "Use it only on a network you trust, and do not open the SSH port to the internet.": "Usalo solo su una rete fidata e non aprire la porta SSH a internet.",
+  "This system does not use systemd: start the SSH server yourself.": "Questo sistema non usa systemd: avvia tu il server SSH."
 }

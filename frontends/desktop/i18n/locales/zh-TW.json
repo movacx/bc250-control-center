@@ -5451,5 +5451,21 @@
   "Back to the recording": "返回記錄",
   "Paused while you read. Go back to the top to follow the recording.": "閱讀時已暫停。回到最上方即可繼續跟隨記錄。",
   "Drag to resize. Double-click to fit the text.": "拖曳以調整大小。按兩下可符合文字。",
-  "Serial numbers, disk and machine ids, e-mail addresses and Steam ids are hidden too. Read it before sharing it in public: only you know what else could point to you.": "序號、磁碟與機器識別碼、電子郵件地址以及 Steam ID 也會被隱藏。公開分享前請先閱讀：還有什麼可能暴露你的身分，只有你自己知道。"
+  "Serial numbers, disk and machine ids, e-mail addresses and Steam ids are hidden too. Read it before sharing it in public: only you know what else could point to you.": "序號、磁碟與機器識別碼、電子郵件地址以及 Steam ID 也會被隱藏。公開分享前請先閱讀：還有什麼可能暴露你的身分，只有你自己知道。",
+  "Remote access": "遠端存取",
+  "Use Control Center from your phone or tablet through SSH.": "透過 SSH 在手機或平板上使用 Control Center。",
+  "Turn on remote access": "開啟遠端存取",
+  "Turn off remote access": "關閉遠端存取",
+  "Connect from your phone": "從手機連線",
+  "1. Turn on remote access with the button above.": "1. 用上方按鈕開啟遠端存取。",
+  "2. Install a terminal app on the phone:": "2. 在手機上安裝終端機應用程式：",
+  "3. On the same Wi-Fi as the board, type:": "3. 在與開發板相同的 Wi-Fi 下輸入：",
+  "4. Enter your password and open the terminal interface:": "4. 輸入密碼並開啟終端機介面：",
+  "Copy connection command": "複製連線指令",
+  "Address of this board: {address}": "此開發板的位址：{address}",
+  "No SSH server is installed. Install the openssh-server package first.": "尚未安裝 SSH 伺服器。請先安裝 openssh-server 套件。",
+  "The SSH server is running.": "SSH 伺服器正在執行。",
+  "The SSH server is stopped.": "SSH 伺服器已停止。",
+  "Use it only on a network you trust, and do not open the SSH port to the internet.": "僅在可信任的網路使用，不要把 SSH 連接埠開放到網際網路。",
+  "This system does not use systemd: start the SSH server yourself.": "此系統不使用 systemd：請自行啟動 SSH 伺服器。"
 }

@@ -5451,5 +5451,21 @@
   "Back to the recording": "Vissza a felvételhez",
   "Paused while you read. Go back to the top to follow the recording.": "Szüneteltetve, amíg olvasol. Menj vissza a tetejére a felvétel követéséhez.",
   "Drag to resize. Double-click to fit the text.": "Húzással átméretezhető. Dupla kattintás a szöveghez igazítja.",
-  "Serial numbers, disk and machine ids, e-mail addresses and Steam ids are hidden too. Read it before sharing it in public: only you know what else could point to you.": "A sorozatszámok, a lemez- és gépazonosítók, az e-mail-címek és a Steam-azonosítók is el vannak rejtve. Nyilvános megosztás előtt olvasd át: csak te tudod, mi mutathat még rád."
+  "Serial numbers, disk and machine ids, e-mail addresses and Steam ids are hidden too. Read it before sharing it in public: only you know what else could point to you.": "A sorozatszámok, a lemez- és gépazonosítók, az e-mail-címek és a Steam-azonosítók is el vannak rejtve. Nyilvános megosztás előtt olvasd át: csak te tudod, mi mutathat még rád.",
+  "Remote access": "Távoli hozzáférés",
+  "Use Control Center from your phone or tablet through SSH.": "Használd a Control Centert telefonról vagy tabletről SSH-n keresztül.",
+  "Turn on remote access": "Távoli hozzáférés bekapcsolása",
+  "Turn off remote access": "Távoli hozzáférés kikapcsolása",
+  "Connect from your phone": "Csatlakozás telefonról",
+  "1. Turn on remote access with the button above.": "1. Kapcsold be a távoli hozzáférést a fenti gombbal.",
+  "2. Install a terminal app on the phone:": "2. Telepíts egy terminál alkalmazást a telefonra:",
+  "3. On the same Wi-Fi as the board, type:": "3. A lappal azonos Wi-Fi hálózaton írd be:",
+  "4. Enter your password and open the terminal interface:": "4. Add meg a jelszavad, és nyisd meg a terminálfelületet:",
+  "Copy connection command": "Csatlakozási parancs másolása",
+  "Address of this board: {address}": "A lap címe: {address}",
+  "No SSH server is installed. Install the openssh-server package first.": "Nincs telepítve SSH-szerver. Először telepítsd az openssh-server csomagot.",
+  "The SSH server is running.": "Az SSH-szerver fut.",
+  "The SSH server is stopped.": "Az SSH-szerver le van állítva.",
+  "Use it only on a network you trust, and do not open the SSH port to the internet.": "Csak megbízható hálózaton használd, és ne nyisd meg az SSH-portot az internet felé.",
+  "This system does not use systemd: start the SSH server yourself.": "Ez a rendszer nem használ systemd-t: indítsd el magad az SSH-szervert."
 }

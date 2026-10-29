@@ -5451,5 +5451,21 @@
   "Back to the recording": "Tillbaka till inspelningen",
   "Paused while you read. Go back to the top to follow the recording.": "Pausad medan du läser. Gå tillbaka till toppen för att följa inspelningen.",
   "Drag to resize. Double-click to fit the text.": "Dra för att ändra storleken. Dubbelklicka för att anpassa till texten.",
-  "Serial numbers, disk and machine ids, e-mail addresses and Steam ids are hidden too. Read it before sharing it in public: only you know what else could point to you.": "Serienummer, disk- och maskin-id:n, e-postadresser och Steam-id:n är också dolda. Läs det innan du delar det offentligt: bara du vet vad mer som kan peka på dig."
+  "Serial numbers, disk and machine ids, e-mail addresses and Steam ids are hidden too. Read it before sharing it in public: only you know what else could point to you.": "Serienummer, disk- och maskin-id:n, e-postadresser och Steam-id:n är också dolda. Läs det innan du delar det offentligt: bara du vet vad mer som kan peka på dig.",
+  "Remote access": "Fjärråtkomst",
+  "Use Control Center from your phone or tablet through SSH.": "Använd Control Center från mobilen eller surfplattan via SSH.",
+  "Turn on remote access": "Slå på fjärråtkomst",
+  "Turn off remote access": "Slå av fjärråtkomst",
+  "Connect from your phone": "Anslut från mobilen",
+  "1. Turn on remote access with the button above.": "1. Slå på fjärråtkomst med knappen ovan.",
+  "2. Install a terminal app on the phone:": "2. Installera en terminalapp på mobilen:",
+  "3. On the same Wi-Fi as the board, type:": "3. På samma Wi-Fi som kortet skriver du:",
+  "4. Enter your password and open the terminal interface:": "4. Ange lösenordet och öppna terminalgränssnittet:",
+  "Copy connection command": "Kopiera anslutningskommando",
+  "Address of this board: {address}": "Det här kortets adress: {address}",
+  "No SSH server is installed. Install the openssh-server package first.": "Ingen SSH-server är installerad. Installera paketet openssh-server först.",
+  "The SSH server is running.": "SSH-servern körs.",
+  "The SSH server is stopped.": "SSH-servern är stoppad.",
+  "Use it only on a network you trust, and do not open the SSH port to the internet.": "Använd det bara på ett betrott nätverk och öppna inte SSH-porten mot internet.",
+  "This system does not use systemd: start the SSH server yourself.": "Systemet använder inte systemd: starta SSH-servern själv."
 }

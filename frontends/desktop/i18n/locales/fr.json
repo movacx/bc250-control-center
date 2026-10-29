@@ -5451,5 +5451,21 @@
   "Back to the recording": "Retour à l’enregistrement",
   "Paused while you read. Go back to the top to follow the recording.": "En pause pendant la lecture. Remontez en haut pour suivre l’enregistrement.",
   "Drag to resize. Double-click to fit the text.": "Faites glisser pour redimensionner. Double-clic pour l’ajuster au texte.",
-  "Serial numbers, disk and machine ids, e-mail addresses and Steam ids are hidden too. Read it before sharing it in public: only you know what else could point to you.": "Les numéros de série, les identifiants de disques et de machine, les adresses e-mail et les identifiants Steam sont aussi masqués. Relisez avant de partager publiquement : vous seul savez ce qui pourrait encore vous désigner."
+  "Serial numbers, disk and machine ids, e-mail addresses and Steam ids are hidden too. Read it before sharing it in public: only you know what else could point to you.": "Les numéros de série, les identifiants de disques et de machine, les adresses e-mail et les identifiants Steam sont aussi masqués. Relisez avant de partager publiquement : vous seul savez ce qui pourrait encore vous désigner.",
+  "Remote access": "Accès à distance",
+  "Use Control Center from your phone or tablet through SSH.": "Utilisez Control Center depuis votre téléphone ou tablette via SSH.",
+  "Turn on remote access": "Activer l’accès à distance",
+  "Turn off remote access": "Désactiver l’accès à distance",
+  "Connect from your phone": "Se connecter depuis le téléphone",
+  "1. Turn on remote access with the button above.": "1. Activez l’accès à distance avec le bouton ci-dessus.",
+  "2. Install a terminal app on the phone:": "2. Installez une application de terminal sur le téléphone :",
+  "3. On the same Wi-Fi as the board, type:": "3. Sur le même Wi-Fi que la carte, tapez :",
+  "4. Enter your password and open the terminal interface:": "4. Saisissez votre mot de passe et ouvrez l’interface terminal :",
+  "Copy connection command": "Copier la commande de connexion",
+  "Address of this board: {address}": "Adresse de cette carte : {address}",
+  "No SSH server is installed. Install the openssh-server package first.": "Aucun serveur SSH installé. Installez d’abord le paquet openssh-server.",
+  "The SSH server is running.": "Le serveur SSH est en marche.",
+  "The SSH server is stopped.": "Le serveur SSH est arrêté.",
+  "Use it only on a network you trust, and do not open the SSH port to the internet.": "Utilisez-le uniquement sur un réseau de confiance et n’ouvrez pas le port SSH sur Internet.",
+  "This system does not use systemd: start the SSH server yourself.": "Ce système n’utilise pas systemd : démarrez le serveur SSH vous-même."
 }

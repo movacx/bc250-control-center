@@ -5451,5 +5451,21 @@
   "Back to the recording": "Înapoi la înregistrare",
   "Paused while you read. Go back to the top to follow the recording.": "Pus pe pauză cât citești. Revino sus ca să urmărești înregistrarea.",
   "Drag to resize. Double-click to fit the text.": "Trage pentru a redimensiona. Dublu clic îl potrivește textului.",
-  "Serial numbers, disk and machine ids, e-mail addresses and Steam ids are hidden too. Read it before sharing it in public: only you know what else could point to you.": "Sunt ascunse și numerele de serie, identificatorii discurilor și ai mașinii, adresele de e-mail și ID-urile Steam. Citește înainte să distribui public: doar tu știi ce altceva te-ar putea indica."
+  "Serial numbers, disk and machine ids, e-mail addresses and Steam ids are hidden too. Read it before sharing it in public: only you know what else could point to you.": "Sunt ascunse și numerele de serie, identificatorii discurilor și ai mașinii, adresele de e-mail și ID-urile Steam. Citește înainte să distribui public: doar tu știi ce altceva te-ar putea indica.",
+  "Remote access": "Acces la distanță",
+  "Use Control Center from your phone or tablet through SSH.": "Folosește Control Center de pe telefon sau tabletă prin SSH.",
+  "Turn on remote access": "Activează accesul la distanță",
+  "Turn off remote access": "Dezactivează accesul la distanță",
+  "Connect from your phone": "Conectare de pe telefon",
+  "1. Turn on remote access with the button above.": "1. Activează accesul la distanță cu butonul de mai sus.",
+  "2. Install a terminal app on the phone:": "2. Instalează pe telefon o aplicație de terminal:",
+  "3. On the same Wi-Fi as the board, type:": "3. În aceeași rețea Wi-Fi cu placa, scrie:",
+  "4. Enter your password and open the terminal interface:": "4. Introdu parola și deschide interfața de terminal:",
+  "Copy connection command": "Copiază comanda de conectare",
+  "Address of this board: {address}": "Adresa acestei plăci: {address}",
+  "No SSH server is installed. Install the openssh-server package first.": "Niciun server SSH instalat. Instalează mai întâi pachetul openssh-server.",
+  "The SSH server is running.": "Serverul SSH rulează.",
+  "The SSH server is stopped.": "Serverul SSH este oprit.",
+  "Use it only on a network you trust, and do not open the SSH port to the internet.": "Folosește-l doar într-o rețea de încredere și nu deschide portul SSH către internet.",
+  "This system does not use systemd: start the SSH server yourself.": "Acest sistem nu folosește systemd: pornește singur serverul SSH."
 }

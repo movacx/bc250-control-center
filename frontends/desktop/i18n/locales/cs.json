@@ -5451,5 +5451,21 @@
   "Back to the recording": "Zpět na nahrávku",
   "Paused while you read. Go back to the top to follow the recording.": "Pozastaveno během čtení. Vraťte se nahoru a sledujte nahrávku.",
   "Drag to resize. Double-click to fit the text.": "Tažením změníte velikost. Dvojklik ji přizpůsobí textu.",
-  "Serial numbers, disk and machine ids, e-mail addresses and Steam ids are hidden too. Read it before sharing it in public: only you know what else could point to you.": "Skryta jsou také sériová čísla, identifikátory disků a počítače, e-mailové adresy a ID Steamu. Před veřejným sdílením si to přečtěte: jen vy víte, co dalšího by mohlo ukazovat na vás."
+  "Serial numbers, disk and machine ids, e-mail addresses and Steam ids are hidden too. Read it before sharing it in public: only you know what else could point to you.": "Skryta jsou také sériová čísla, identifikátory disků a počítače, e-mailové adresy a ID Steamu. Před veřejným sdílením si to přečtěte: jen vy víte, co dalšího by mohlo ukazovat na vás.",
+  "Remote access": "Vzdálený přístup",
+  "Use Control Center from your phone or tablet through SSH.": "Používejte Control Center z telefonu nebo tabletu přes SSH.",
+  "Turn on remote access": "Zapnout vzdálený přístup",
+  "Turn off remote access": "Vypnout vzdálený přístup",
+  "Connect from your phone": "Připojení z telefonu",
+  "1. Turn on remote access with the button above.": "1. Zapněte vzdálený přístup tlačítkem výše.",
+  "2. Install a terminal app on the phone:": "2. Nainstalujte do telefonu terminálovou aplikaci:",
+  "3. On the same Wi-Fi as the board, type:": "3. Ve stejné síti Wi-Fi jako deska zadejte:",
+  "4. Enter your password and open the terminal interface:": "4. Zadejte heslo a otevřete terminálové rozhraní:",
+  "Copy connection command": "Kopírovat příkaz k připojení",
+  "Address of this board: {address}": "Adresa této desky: {address}",
+  "No SSH server is installed. Install the openssh-server package first.": "Není nainstalován server SSH. Nejprve nainstalujte balíček openssh-server.",
+  "The SSH server is running.": "Server SSH běží.",
+  "The SSH server is stopped.": "Server SSH je zastaven.",
+  "Use it only on a network you trust, and do not open the SSH port to the internet.": "Používejte jen v důvěryhodné síti a neotevírejte port SSH do internetu.",
+  "This system does not use systemd: start the SSH server yourself.": "Tento systém nepoužívá systemd: spusťte server SSH sami."
 }

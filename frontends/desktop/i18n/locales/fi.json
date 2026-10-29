@@ -5451,5 +5451,21 @@
   "Back to the recording": "Takaisin tallenteeseen",
   "Paused while you read. Go back to the top to follow the recording.": "Tauolla lukemisen ajan. Palaa ylös seurataksesi tallennetta.",
   "Drag to resize. Double-click to fit the text.": "Vedä muuttaaksesi kokoa. Kaksoisnapsautus sovittaa tekstiin.",
-  "Serial numbers, disk and machine ids, e-mail addresses and Steam ids are hidden too. Read it before sharing it in public: only you know what else could point to you.": "Myös sarjanumerot, levyjen ja koneen tunnisteet, sähköpostiosoitteet ja Steam-tunnukset on piilotettu. Lue ennen julkista jakamista: vain sinä tiedät, mikä muu voisi viitata sinuun."
+  "Serial numbers, disk and machine ids, e-mail addresses and Steam ids are hidden too. Read it before sharing it in public: only you know what else could point to you.": "Myös sarjanumerot, levyjen ja koneen tunnisteet, sähköpostiosoitteet ja Steam-tunnukset on piilotettu. Lue ennen julkista jakamista: vain sinä tiedät, mikä muu voisi viitata sinuun.",
+  "Remote access": "Etäkäyttö",
+  "Use Control Center from your phone or tablet through SSH.": "Käytä Control Centeriä puhelimella tai tabletilla SSH:n kautta.",
+  "Turn on remote access": "Ota etäkäyttö käyttöön",
+  "Turn off remote access": "Poista etäkäyttö käytöstä",
+  "Connect from your phone": "Yhdistä puhelimella",
+  "1. Turn on remote access with the button above.": "1. Ota etäkäyttö käyttöön yllä olevalla painikkeella.",
+  "2. Install a terminal app on the phone:": "2. Asenna puhelimeen pääteohjelma:",
+  "3. On the same Wi-Fi as the board, type:": "3. Kirjoita samassa Wi-Fi-verkossa kuin kortti:",
+  "4. Enter your password and open the terminal interface:": "4. Anna salasanasi ja avaa päätekäyttöliittymä:",
+  "Copy connection command": "Kopioi yhteyskomento",
+  "Address of this board: {address}": "Tämän kortin osoite: {address}",
+  "No SSH server is installed. Install the openssh-server package first.": "SSH-palvelinta ei ole asennettu. Asenna ensin openssh-server-paketti.",
+  "The SSH server is running.": "SSH-palvelin on käynnissä.",
+  "The SSH server is stopped.": "SSH-palvelin on pysäytetty.",
+  "Use it only on a network you trust, and do not open the SSH port to the internet.": "Käytä vain luotetussa verkossa äläkä avaa SSH-porttia internetiin.",
+  "This system does not use systemd: start the SSH server yourself.": "Tämä järjestelmä ei käytä systemd:tä: käynnistä SSH-palvelin itse."
 }

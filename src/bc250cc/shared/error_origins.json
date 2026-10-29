@@ -1857,6 +1857,14 @@
    "_installable_version": "UPD-0058",
    "check_for_update": "UPD-0059"
   },
+  "bc250cc/infrastructure/remote_access.py": {
+   "_systemctl": "CORE-0131",
+   "_unit": "CORE-0132",
+   "_port": "CORE-0133",
+   "addresses": "CORE-0134",
+   "status": "CORE-0135",
+   "set_enabled": "CORE-0136"
+  },
   "bc250cc/infrastructure/report_attachments.py": {
    "_boot": "CORE-0087",
    "_gpu_device": "CORE-0088",
@@ -5699,6 +5707,20 @@
    "ProcessesPage._confirm_and_end": "PROC-0087",
    "ProcessesPage.release_cache": "PROC-0088",
    "ProcessesPage._record_event": "PROC-0089"
+  },
+  "frontends/desktop/pages/remote_access.py": {
+   "RemoteAccessPage.__init__": "UI-0633",
+   "RemoteAccessPage._label": "UI-0634",
+   "RemoteAccessPage._code": "UI-0635",
+   "RemoteAccessPage.apply_appearance": "UI-0636",
+   "RemoteAccessPage.set_updates_active": "UI-0637",
+   "RemoteAccessPage.refresh": "UI-0638",
+   "RemoteAccessPage.retranslate_dynamic_copy": "UI-0639",
+   "RemoteAccessPage._apply": "UI-0640",
+   "RemoteAccessPage._command": "UI-0641",
+   "RemoteAccessPage._render": "UI-0642",
+   "RemoteAccessPage._toggle": "UI-0643",
+   "RemoteAccessPage._copy": "UI-0644"
   },
   "frontends/desktop/pages/settings.py": {
    "settings_stylesheet": "SET-0017",

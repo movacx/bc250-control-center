@@ -5451,5 +5451,21 @@
   "Back to the recording": "Quay lại bản ghi",
   "Paused while you read. Go back to the top to follow the recording.": "Tạm dừng khi bạn đang đọc. Quay lại đầu danh sách để theo dõi bản ghi.",
   "Drag to resize. Double-click to fit the text.": "Kéo để đổi kích thước. Nhấp đúp để vừa với văn bản.",
-  "Serial numbers, disk and machine ids, e-mail addresses and Steam ids are hidden too. Read it before sharing it in public: only you know what else could point to you.": "Số sê-ri, mã định danh ổ đĩa và máy, địa chỉ email và ID Steam cũng được ẩn. Hãy đọc trước khi chia sẻ công khai: chỉ bạn biết còn điều gì khác có thể chỉ đến bạn."
+  "Serial numbers, disk and machine ids, e-mail addresses and Steam ids are hidden too. Read it before sharing it in public: only you know what else could point to you.": "Số sê-ri, mã định danh ổ đĩa và máy, địa chỉ email và ID Steam cũng được ẩn. Hãy đọc trước khi chia sẻ công khai: chỉ bạn biết còn điều gì khác có thể chỉ đến bạn.",
+  "Remote access": "Truy cập từ xa",
+  "Use Control Center from your phone or tablet through SSH.": "Dùng Control Center từ điện thoại hoặc máy tính bảng qua SSH.",
+  "Turn on remote access": "Bật truy cập từ xa",
+  "Turn off remote access": "Tắt truy cập từ xa",
+  "Connect from your phone": "Kết nối từ điện thoại",
+  "1. Turn on remote access with the button above.": "1. Bật truy cập từ xa bằng nút phía trên.",
+  "2. Install a terminal app on the phone:": "2. Cài một ứng dụng terminal trên điện thoại:",
+  "3. On the same Wi-Fi as the board, type:": "3. Trên cùng mạng Wi-Fi với bo mạch, gõ:",
+  "4. Enter your password and open the terminal interface:": "4. Nhập mật khẩu rồi mở giao diện terminal:",
+  "Copy connection command": "Sao chép lệnh kết nối",
+  "Address of this board: {address}": "Địa chỉ của bo mạch này: {address}",
+  "No SSH server is installed. Install the openssh-server package first.": "Chưa cài máy chủ SSH. Hãy cài gói openssh-server trước.",
+  "The SSH server is running.": "Máy chủ SSH đang chạy.",
+  "The SSH server is stopped.": "Máy chủ SSH đã dừng.",
+  "Use it only on a network you trust, and do not open the SSH port to the internet.": "Chỉ dùng trong mạng tin cậy và đừng mở cổng SSH ra internet.",
+  "This system does not use systemd: start the SSH server yourself.": "Hệ thống này không dùng systemd: hãy tự khởi động máy chủ SSH."
 }

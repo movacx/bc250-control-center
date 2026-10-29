@@ -314,6 +314,7 @@ class Sidebar(QFrame):
             ("fans", "Fans", "nav_fans", "cyan_soft"),
             ("processes", "Processes", "nav_processes", "blue_soft"),
             ("black_box", "Black box", "nav_blackbox", "orange_soft"),
+            ("remote", "Remote access", "nav_remote", "cyan_soft"),
             ("firmware", "Firmware (BIOS)", "nav_firmware", "orange_soft"),
             ("settings", "Settings", "nav_settings", "blue_soft"),
         ]

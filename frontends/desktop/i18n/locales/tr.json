@@ -5451,5 +5451,21 @@
   "Back to the recording": "Kayda dön",
   "Paused while you read. Go back to the top to follow the recording.": "Okurken duraklatıldı. Kaydı izlemek için en üste dönün.",
   "Drag to resize. Double-click to fit the text.": "Boyutu değiştirmek için sürükleyin. Çift tıklama metne sığdırır.",
-  "Serial numbers, disk and machine ids, e-mail addresses and Steam ids are hidden too. Read it before sharing it in public: only you know what else could point to you.": "Seri numaraları, disk ve makine kimlikleri, e-posta adresleri ve Steam kimlikleri de gizlenir. Herkese açık paylaşmadan önce okuyun: sizi başka neyin ele verebileceğini yalnızca siz bilirsiniz."
+  "Serial numbers, disk and machine ids, e-mail addresses and Steam ids are hidden too. Read it before sharing it in public: only you know what else could point to you.": "Seri numaraları, disk ve makine kimlikleri, e-posta adresleri ve Steam kimlikleri de gizlenir. Herkese açık paylaşmadan önce okuyun: sizi başka neyin ele verebileceğini yalnızca siz bilirsiniz.",
+  "Remote access": "Uzaktan erişim",
+  "Use Control Center from your phone or tablet through SSH.": "Control Center’ı telefonunuzdan veya tabletinizden SSH ile kullanın.",
+  "Turn on remote access": "Uzaktan erişimi aç",
+  "Turn off remote access": "Uzaktan erişimi kapat",
+  "Connect from your phone": "Telefondan bağlan",
+  "1. Turn on remote access with the button above.": "1. Yukarıdaki düğmeyle uzaktan erişimi açın.",
+  "2. Install a terminal app on the phone:": "2. Telefona bir terminal uygulaması kurun:",
+  "3. On the same Wi-Fi as the board, type:": "3. Kartla aynı Wi-Fi ağındayken şunu yazın:",
+  "4. Enter your password and open the terminal interface:": "4. Parolanızı girin ve terminal arayüzünü açın:",
+  "Copy connection command": "Bağlantı komutunu kopyala",
+  "Address of this board: {address}": "Bu kartın adresi: {address}",
+  "No SSH server is installed. Install the openssh-server package first.": "SSH sunucusu kurulu değil. Önce openssh-server paketini kurun.",
+  "The SSH server is running.": "SSH sunucusu çalışıyor.",
+  "The SSH server is stopped.": "SSH sunucusu durdu.",
+  "Use it only on a network you trust, and do not open the SSH port to the internet.": "Yalnızca güvendiğiniz bir ağda kullanın ve SSH bağlantı noktasını internete açmayın.",
+  "This system does not use systemd: start the SSH server yourself.": "Bu sistem systemd kullanmıyor: SSH sunucusunu kendiniz başlatın."
 }

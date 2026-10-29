@@ -5451,5 +5451,21 @@
   "Back to the recording": "Назад к записи",
   "Paused while you read. Go back to the top to follow the recording.": "Пауза, пока вы читаете. Вернитесь наверх, чтобы следить за записью.",
   "Drag to resize. Double-click to fit the text.": "Перетащите, чтобы изменить размер. Двойной щелчок — по размеру текста.",
-  "Serial numbers, disk and machine ids, e-mail addresses and Steam ids are hidden too. Read it before sharing it in public: only you know what else could point to you.": "Также скрыты серийные номера, идентификаторы дисков и компьютера, адреса почты и идентификаторы Steam. Прочитайте перед публикацией: только вы знаете, что ещё может на вас указать."
+  "Serial numbers, disk and machine ids, e-mail addresses and Steam ids are hidden too. Read it before sharing it in public: only you know what else could point to you.": "Также скрыты серийные номера, идентификаторы дисков и компьютера, адреса почты и идентификаторы Steam. Прочитайте перед публикацией: только вы знаете, что ещё может на вас указать.",
+  "Remote access": "Удалённый доступ",
+  "Use Control Center from your phone or tablet through SSH.": "Используйте Control Center с телефона или планшета через SSH.",
+  "Turn on remote access": "Включить удалённый доступ",
+  "Turn off remote access": "Выключить удалённый доступ",
+  "Connect from your phone": "Подключение с телефона",
+  "1. Turn on remote access with the button above.": "1. Включите удалённый доступ кнопкой выше.",
+  "2. Install a terminal app on the phone:": "2. Установите на телефон приложение-терминал:",
+  "3. On the same Wi-Fi as the board, type:": "3. В той же сети Wi-Fi, что и плата, введите:",
+  "4. Enter your password and open the terminal interface:": "4. Введите пароль и откройте терминальный интерфейс:",
+  "Copy connection command": "Скопировать команду подключения",
+  "Address of this board: {address}": "Адрес этой платы: {address}",
+  "No SSH server is installed. Install the openssh-server package first.": "SSH-сервер не установлен. Сначала установите пакет openssh-server.",
+  "The SSH server is running.": "SSH-сервер работает.",
+  "The SSH server is stopped.": "SSH-сервер остановлен.",
+  "Use it only on a network you trust, and do not open the SSH port to the internet.": "Используйте только в доверенной сети и не открывайте порт SSH в интернет.",
+  "This system does not use systemd: start the SSH server yourself.": "Эта система не использует systemd: запустите SSH-сервер самостоятельно."
 }
