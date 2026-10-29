@@ -1185,6 +1185,12 @@ class GpuGovernorStateMixin:
                 dialog_parent=dialog_parent,
             )
             return
+        if action.startswith("bazzite_smt_"):
+            self._prepare_bazzite_smt(
+                action.removeprefix("bazzite_smt_"),
+                dialog_parent=dialog_parent,
+            )
+            return
         if action.startswith("bazzite_boot_messages_"):
             self._prepare_bazzite_boot_messages(
                 action.removeprefix("bazzite_boot_messages_"),

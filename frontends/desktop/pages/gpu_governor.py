@@ -1084,6 +1084,42 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
             error_parent=dialog_parent,
         )
 
+    def _prepare_bazzite_smt(
+        self, action: str, *, dialog_parent: QWidget | None
+    ) -> None:
+        action = str(action or "").strip().lower()
+        if action not in {"disable", "restore"}:
+            raise ValueError("Unsupported Bazzite SMT action.")
+        if action == "disable":
+            # Same question the other distributions ask; restoring needs none.
+            confirmation = ConfirmDialog(
+                tr("Disable simultaneous multithreading"),
+                tr(
+                    "The CPU runs one thread per core: 6 or 8 threads instead of 12 or 16. Some games run smoother, others slower; measure yours. The change applies after reboot and can be restored from Control Center."
+                ),
+                summary=(
+                    (tr("Platform"), "Bazzite"),
+                    (tr("Kernel argument"), "nosmt"),
+                    (tr("Reboot"), tr("Required to activate the selected configuration")),
+                ),
+                confirm_text=tr("Disable SMT"),
+                tone="orange",
+                parent=dialog_parent or self,
+            )
+            if confirmation.exec() != QDialog.DialogCode.Accepted:
+                return
+        self._run_backend_action(
+            lambda: self.controller.gestionar_smt_bazzite(action),
+            lambda _result: GpuGovernorPage._record_preparation_result(
+                self,
+                tr("Kernel boot options"),
+                tr("The change was staged. Reboot after the terminal reports success."),
+            ),
+            tr("Could not change the kernel boot options"),
+            controls=(),
+            error_parent=dialog_parent,
+        )
+
     def _prepare_bazzite_boot_messages(
         self, action: str, *, dialog_parent: QWidget | None
     ) -> None:

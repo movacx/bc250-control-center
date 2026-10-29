@@ -2739,6 +2739,47 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, QFrame):
         panel.hide()
         return panel
 
+    def _bazzite_smt_panel(self) -> QFrame:
+        """``nosmt`` on Bazzite, where the kernel options go through rpm-ostree."""
+        panel = QFrame()
+        self.smt_panel = panel
+        panel.setProperty("dashboardMemoryPanel", True)
+        panel.setProperty("dashboardBootPanel", True)
+        panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+
+        root = QBoxLayout(QBoxLayout.Direction.LeftToRight, panel)
+        self.smt_layout = root
+        root.setContentsMargins(12, 10, 12, 10)
+        root.setSpacing(10)
+
+        copy = QVBoxLayout()
+        copy.setSpacing(4)
+        header = QHBoxLayout()
+        header.setSpacing(8)
+        header.addWidget(_label("Simultaneous multithreading (SMT)", "dashboardComponentTitle"))
+        self.smt_status = PillLabel("Not detected", "gray")
+        header.addWidget(self.smt_status)
+        header.addStretch(1)
+        copy.addLayout(header)
+        self.smt_detail = _label(
+            "The CPU runs one thread per core: 6 or 8 threads instead of 12 or 16. Some games run smoother, others slower; measure yours. The change applies after reboot and can be restored from Control Center.",
+            "dashboardMemoryDetail",
+        )
+        self.smt_detail.setWordWrap(True)
+        copy.addWidget(self.smt_detail)
+        root.addLayout(copy, 1)
+
+        self.smt_apply_button = QPushButton(tr("Disable SMT"))
+        self.smt_apply_button.setProperty("dashboardCardAction", True)
+        self.smt_apply_button.setSizePolicy(
+            QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed
+        )
+        self.smt_apply_button.clicked.connect(self._request_smt_boot)
+        self._smt_boot_action = "disable"
+        root.addWidget(self.smt_apply_button)
+        panel.hide()
+        return panel
+
     def _bazzite_boot_messages_panel(self) -> QFrame:
         """Hide the kernel's boot messages (the RDSEED warning) on Bazzite."""
         panel = QFrame()
@@ -3224,6 +3265,45 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, QFrame):
             }
         )
 
+    def _request_smt_boot(self) -> None:
+        self.dependency_action_requested.emit(
+            {
+                "action": f"bazzite_smt_{self._smt_boot_action}",
+                "governor": "",
+                "selected_components": self.selected_components,
+            }
+        )
+
+    def _update_smt_boot_control(
+        self, tools: Mapping[str, object], *, actionable: bool
+    ) -> None:
+        state = _mapping(tools.get("bazzite_smt"))
+        configured = bool(state.get("configured"))
+        managed = bool(state.get("managed"))
+        available = bool(state.get("available"))
+        self.smt_panel.setVisible(actionable)
+        # Only a pending reboot is worth a pill: the button says the rest.
+        self.smt_status.setVisible(actionable and bool(state.get("reboot_required")))
+        if not actionable:
+            return
+        self.smt_status.setText(tr("Reboot required"))
+        self.smt_status.set_tone("orange")
+        self._smt_boot_action = "restore" if managed else "disable"
+        self.smt_apply_button.setText(
+            tr(
+                "Managed externally"
+                if configured and not managed
+                else "Restore SMT"
+                if self._smt_boot_action == "restore"
+                else "Disable SMT"
+            )
+        )
+        self.smt_apply_button.setProperty("dangerAction", False)
+        self.smt_apply_button.setEnabled(available and (not configured or managed))
+        self.smt_apply_button.setToolTip(
+            tr("Set outside Control Center") if configured and not managed else ""
+        )
+
     def _request_boot_messages(self) -> None:
         self.dependency_action_requested.emit(
             {
@@ -3340,6 +3420,7 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, QFrame):
         actionable = is_bazzite_host(tools)
         self._update_mitigation_control(tools, actionable=actionable)
         self._update_boot_messages_control(tools, actionable=actionable)
+        self._update_smt_boot_control(tools, actionable=actionable)
         self._update_steamos_readonly_control(tools)
         self._update_kernel_options_control(tools)
         runtime = _mapping(tools.get("memory_runtime"))

@@ -31,6 +31,7 @@ from bc250cc.infrastructure.bazzite_boot_messages import (
     build_bazzite_boot_messages_command,
     probe_bazzite_boot_messages,
 )
+from bc250cc.infrastructure.bazzite_smt import build_bazzite_smt_command, probe_bazzite_smt
 from bc250cc.infrastructure.bazzite_mitigations import (
     build_bazzite_mitigations_command,
     probe_bazzite_mitigations,
@@ -303,6 +304,14 @@ class DependenciasRepository(SteamosDependenciesMixin):
         return self._abrir_terminal(
             build_bazzite_boot_messages_command(action),
             'Configure kernel boot messages on Bazzite',
+        )
+
+    def gestionar_smt_bazzite(self, action: str):
+        if self._os_repository().family != 'bazzite':
+            raise RuntimeError('The SMT boot option is managed here only on Bazzite.')
+        return self._abrir_terminal(
+            build_bazzite_smt_command(action),
+            'Configure SMT on Bazzite',
         )
 
     def gestionar_solo_lectura_steamos(self, action: str):
@@ -1128,6 +1137,16 @@ class DependenciasRepository(SteamosDependenciesMixin):
             else {'available': False, 'active': False, 'configured': False,
                   'managed': False, 'reboot_required': False, 'state': 'unsupported'}
         )
+        bazzite_smt = (
+            self._optional_inventory_probe(
+                probe_bazzite_smt,
+                {'available': False, 'active': False, 'configured': False,
+                 'managed': False, 'reboot_required': False, 'state': 'unavailable'},
+            )
+            if os_info.family == 'bazzite'
+            else {'available': False, 'active': False, 'configured': False,
+                  'managed': False, 'reboot_required': False, 'state': 'unsupported'}
+        )
         # Packages Prepare dependencies layered that wait for the next boot.
         bazzite_reboot_pending = (
             self._optional_inventory_probe(
@@ -1297,6 +1316,7 @@ class DependenciasRepository(SteamosDependenciesMixin):
             'memory_runtime': memory_runtime,
             'bazzite_mitigations': bazzite_mitigations,
             'bazzite_boot_messages': bazzite_boot_messages,
+            'bazzite_smt': bazzite_smt,
             'bazzite_reboot_pending': bazzite_reboot_pending,
             'gpu_driver': self._optional_inventory_probe(
                 gpu_driver_state, {'present': False, 'bound': False, 'driver': ''},

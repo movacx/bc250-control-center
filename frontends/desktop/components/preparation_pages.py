@@ -79,6 +79,7 @@ class PreparationPagesMixin:
         # inside a holder that is never shown.
         self._boot_panels = (
             self._bazzite_mitigations_panel(),
+            self._bazzite_smt_panel(),
             self._bazzite_boot_messages_panel(),
             self._steamos_readonly_panel(),
             self._kernel_options_panel(),

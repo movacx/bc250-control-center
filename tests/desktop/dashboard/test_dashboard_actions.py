@@ -471,6 +471,50 @@ def test_dashboard_hides_and_shows_the_bazzite_boot_messages(qtbot):
     assert requests[-1]["action"] == "bazzite_boot_messages_restore"
 
 
+def test_dashboard_disables_and_restores_smt_on_bazzite_at_boot(qtbot):
+    """nosmt on Bazzite is a boot argument, set through rpm-ostree; there is no live switch."""
+    set_language("en")
+    page = DashboardPage(object())
+    qtbot.addWidget(page)
+    requests = []
+    page.dependency_action_requested.connect(requests.append)
+
+    def state(**flags):
+        return DashboardState(preparation_tools={
+            "os_family": "bazzite",
+            "bazzite_smt": {"available": True, "active": False, "configured": False,
+                            "managed": False, "reboot_required": False, **flags},
+        })
+
+    page.apply_state(state())
+    readiness = page.readiness
+    assert not readiness.smt_panel.isHidden()
+    assert readiness.smt_panel.parentWidget() is readiness._boot_holder
+    assert readiness.smt_status.isHidden()
+    assert readiness.smt_apply_button.text() == "Disable SMT"
+    readiness.smt_apply_button.click()
+    assert requests[-1]["action"] == "bazzite_smt_disable"
+
+    page.apply_state(state(configured=True, managed=True, reboot_required=True))
+    assert not readiness.smt_status.isHidden()
+    assert readiness.smt_status.text() == "Reboot required"
+    assert readiness.smt_apply_button.text() == "Restore SMT"
+    readiness.smt_apply_button.click()
+    assert requests[-1]["action"] == "bazzite_smt_restore"
+
+    page.apply_state(state(active=True, configured=True))
+    assert readiness.smt_apply_button.text() == "Managed externally"
+    assert not readiness.smt_apply_button.isEnabled()
+
+
+def test_the_bazzite_smt_panel_is_hidden_elsewhere(qtbot):
+    set_language("en")
+    page = DashboardPage(object())
+    qtbot.addWidget(page)
+    page.apply_state(DashboardState(preparation_tools={"os_family": "fedora"}))
+    assert page.readiness.smt_panel.isHidden()
+
+
 def test_dashboard_leaves_a_loglevel_set_outside_control_center_alone(qtbot):
     set_language("en")
     page = DashboardPage(object())
