@@ -226,3 +226,21 @@ def test_mutating_actions_leave_curses_through_the_foreground_hook():
     screen = Screen(window, ctx, build_pages(), None, foreground=lambda label, work: calls.append(label) or (True, work()))
     screen.run("Label", lambda: None)
     assert calls == ["Label"]
+
+
+def test_without_unicode_everything_drawn_is_plain_ascii_for_the_english_interface():
+    from frontends.tui.i18n import set_language
+
+    set_language("en")
+    window, screen = make_screen()
+    screen.unicode = False
+    from frontends.tui.layout import Glyphs
+    screen.glyphs = Glyphs.for_terminal(unicode_ok=False)
+    for key in screen.order:
+        screen._go(screen.order.index(key))
+        screen.focus = "content"
+        screen.draw()
+        assert window.text().isascii(), (key, [c for c in window.text() if not c.isascii()])
+    window.queue = [ord("n")]
+    screen.confirm("Sure?")
+    assert window.text().isascii()

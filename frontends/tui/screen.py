@@ -25,6 +25,13 @@ SIDEBAR_ORDER = (
 )
 
 
+#: One-for-one replacements (same column width) for terminals without Unicode.
+ASCII_MAP = str.maketrans({
+    "…": ".", "·": "|", "│": "|", "─": "-", "┌": "+", "┐": "+", "└": "+", "┘": "+", "▲": "^", "▼": "v",
+    "↑": "^", "↓": "v", "→": ">", "←": "<", "–": "-", "▏": "_", "›": ">", "•": "*", "█": "#", "░": "-", "°": "o",
+})
+
+
 class Quit(Exception):
     pass
 
@@ -58,7 +65,8 @@ class Screen:
         self.cursor: dict[tuple[str, str], int] = {}
         self.scroll: dict[tuple[str, str], int] = {}
         self.toast: tuple[str, str, float] | None = None
-        self.glyphs = Glyphs.for_terminal(unicode_ok=self._unicode_ok())
+        self.unicode = self._unicode_ok()
+        self.glyphs = Glyphs.for_terminal(unicode_ok=self.unicode)
         self.attrs: dict[str, int] = {}
         self._foreground = foreground or self._suspend_and_run
         self._layout: Layout | None = None
@@ -137,6 +145,8 @@ class Screen:
         if y == height - 1:
             room -= 1  # curses cannot write the bottom-right cell
         text = clip(text, room) if cell_width(text) > room else text
+        if not self.unicode:
+            text = text.translate(ASCII_MAP)
         try:
             self.stdscr.addstr(y, x, text, attr)
         except curses.error:
