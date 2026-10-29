@@ -67,6 +67,23 @@ def axis(values: list[float], unit: str, fixed: bool, rate: bool):
     return range_axis(min(values, default=0.0), peak, minimum_span=MINIMUM_SPAN.get(unit, 1.0))
 
 
+def view_options(views, current: str, available: set[str]) -> list[tuple[str, str]]:
+    """A view menu in two columns, name then what it shows; ● marks the open one, (--) one with no data yet."""
+    width = max(cell_width(tr(item.title)) for item in views)
+    return [(item.key, f"{'●' if item.key == current else ' '} {tr(item.title).ljust(width)}   {tr(item.hint)}"
+             + ("" if item.key in available else "  (--)")) for item in views]
+
+
+def chart_height(ui, choices: int, legend: int) -> int:
+    """The rows the plot can have: the content area less the header, legend, cards and status around it."""
+    rows = ui._view() if hasattr(ui, "_view") else 30
+    width = ui._content_box()[1] if hasattr(ui, "_content_box") else 100
+    touch = getattr(ui, "touch", False)
+    card_rows = 3 * -(-4 // max(1, min(4, (width + 3) // 19)))  # 4 stat cards, as many per row as fit
+    used = 2 + choices * (2 if touch else 1) + legend + 1 + card_rows + 2
+    return max(5, min(30, rows - used))
+
+
 class PerformancePage(Page):
     key = "performance"
     title = "Performance"
@@ -87,13 +104,12 @@ class PerformancePage(Page):
         recorder = self.recorder(ctx)
         if not recorder.plans:
             return [Note(tr("Waiting for first sample"), "dim")]
-        height = ui.size()[0] if hasattr(ui, "size") else 30
-        return self._sensors(ctx, recorder, ui, height) if (tab or "sensors") == "sensors" \
-            else self._resource(ctx, recorder, tab, height)
+        return self._sensors(ctx, recorder, ui) if (tab or "sensors") == "sensors" \
+            else self._resource(ctx, recorder, tab, ui)
 
     # -- a resource: its chart, in the view chosen from its menu --------------------------
 
-    def _resource(self, ctx, recorder, key, height):
+    def _resource(self, ctx, recorder, key, ui):
         state = ctx.state(self.key)
         definition = RESOURCE_BY_KEY[key]
         view = VIEW_BY_KEY.get(state.get(f"view:{key}", key), VIEW_BY_KEY.get(key))
@@ -115,9 +131,7 @@ class PerformancePage(Page):
         views = views_for(key)
         if len(views) > 1:
             def choose_view(ui_):
-                options = [(item.key, f"{tr(item.title)}  ·  {tr(item.hint)}"
-                            + ("" if item.key in recorder.available else "  (--)")) for item in views]
-                picked = ui_.choose(f"{tr(definition.title)} · {primary} · {context}", options)
+                picked = ui_.choose(tr(definition.title), view_options(views, view.key, recorder.available))
                 if picked is not None:
                     state[f"view:{key}"] = picked
 
@@ -143,9 +157,11 @@ class PerformancePage(Page):
         values = [value for _name, data, _tone in series for value in data]
         scale = axis(values, unit, fixed, rate)
         single = series[0][1] if len(series) == 1 else None
+        legend = len(series) if len(series) <= 8 and chart_def.form != "heatmap" else 0
         out.append(Chart(series, list(history.times), scale.minimum, scale.maximum,
-                         max(6, min(18, height - 20 - len(series))), show,
+                         chart_height(ui, len(out) - 2 - legend, legend), show,
                          average=sum(single) / len(single) if single else None,
+                         average_label=tr_format("avg {value}", value=show(sum(single) / len(single))) if single else "",
                          heatmap=chart_def.form == "heatmap", ticks=scale.ticks, now=tr("Now")))
         out.append(Columns([Card(tr(label), [], value) for label, value in zip(chart_def.stat_labels, stats)],
                            minimum=16))
@@ -155,7 +171,7 @@ class PerformancePage(Page):
 
     # -- the sensor list ------------------------------------------------------------------
 
-    def _sensors(self, ctx, recorder, ui, height):
+    def _sensors(self, ctx, recorder, ui):
         state = ctx.state(self.key)
         ticked = state.setdefault("ticked", set(DEFAULT_PLOTTED))
         query = state.get("filter", "")
@@ -179,15 +195,24 @@ class PerformancePage(Page):
                 state["kind"] = picked
 
         def pick_layout(ui_):
-            picked = ui_.choose(tr("Views"), [(item.key, f"{tr(item.title)}  ·  {tr(item.hint)}") for item in SENSOR_VIEWS])
+            picked = ui_.choose(tr("Views"), view_options(SENSOR_VIEWS, layout, {item.key for item in SENSOR_VIEWS}))
             if picked is not None:
                 state["layout"] = picked
 
-        out = [Choice(tr("Filter by name"), ask_filter, query or "--"),
-               Choice(tr("Type"), pick_kind, f"< {tr(KIND_FILTERS[kind][0])} >", adjust=step_kind),
-               Choice(f"[{'x' if hide else ' '}] {tr('Hide unused channels')}", lambda ui_: state.update(hide=not hide)),
-               Choice(tr("Reset min/max"), lambda ui_: log.reset_statistics()),
-               Choice(tr("Views"), pick_layout, f"{tr(dict((v.key, v.title) for v in SENSOR_VIEWS)[layout])} ›")]
+        controls = [Choice(tr("Filter by name"), ask_filter, query or "--"),
+                    Choice(tr("Type"), pick_kind, f"< {tr(KIND_FILTERS[kind][0])} >", adjust=step_kind),
+                    Choice(f"[{'x' if hide else ' '}] {tr('Hide unused channels')}",
+                           lambda ui_: state.update(hide=not hide)),
+                    Choice(tr("Reset min/max"), lambda ui_: log.reset_statistics()),
+                    Choice(tr("Views"), pick_layout, f"{tr(dict((v.key, v.title) for v in SENSOR_VIEWS)[layout])} ›")]
+        if narrow or getattr(ui, "touch", False):  # on a phone the list comes first; the controls fold away
+            opened = state.get("options", False)
+            summary = " · ".join(part for part in (query, tr(KIND_FILTERS[kind][0]),
+                                                    tr(dict((v.key, v.title) for v in SENSOR_VIEWS)[layout])) if part)
+            out = [Choice(tr("Options") + (" ▴" if opened else " ▾"), lambda ui_: state.update(options=not opened),
+                          summary)] + (controls if opened else [])
+        else:
+            out = controls
 
         kinds = KIND_FILTERS[kind][1]
         entries = [log.entries[key] for key in log.order]
@@ -218,7 +243,7 @@ class PerformancePage(Page):
                     ticked.symmetric_difference_update({key})
 
                 out.append(Choice(f"[{'x' if reading.key in ticked else ' '}] {sensor_label(reading)}", tick,
-                                  columns(*row)))
+                                  columns(*row), dense=True))
             out.append(Note(tr_format("{shown} of {count} sensors", shown=len(shown), count=len(entries)), "dim"))
         if layout != "list":
             plotted = [entry for entry in shown if entry.reading.key in ticked]

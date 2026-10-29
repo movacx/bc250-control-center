@@ -138,19 +138,26 @@ def chart_rows(chart: Chart, width: int, glyphs: Glyphs) -> list[list[tuple[str,
                 tones[cy][cx] = tone
 
         last_y = None
+        bottoms: dict[int, int] = {}  # dot column -> lowest line dot, for the area under a single series
         for _name, values, tone in chart.series:
             previous = None
             for moment, value in zip(chart.times[-len(values):], values):
                 x, y = column(moment, dots_x), y_of(value)
-                if previous is not None and 0 < x - previous[0] <= 4 * dots_x:  # join neighbours; a gap stays a gap
+                if previous is not None and 0 < x - previous[0] <= 4 * dots_x:
+                    # Join the samples: every dot column between them, and the rows between each step,
+                    # so the line reads as one stroke of even weight instead of loose dots.
+                    reached = previous[1]
                     for step in range(previous[0] + 1, x + 1):
-                        middle = round(previous[1] + (y - previous[1]) * (step - previous[0]) / (x - previous[0]))
-                        low, high = sorted((middle, previous[1] if step == previous[0] + 1 else middle))
-                        for yy in range(low, high + 1):
+                        target = round(previous[1] + (y - previous[1]) * (step - previous[0]) / (x - previous[0]))
+                        for yy in range(min(reached, target), max(reached, target) + 1):
                             dot(step, yy, tone)
+                        bottoms[step] = max(bottoms.get(step, -1), target)
+                        reached = target
                 dot(x, y, tone)
+                bottoms[x] = max(bottoms.get(x, -1), y)
                 previous = (x, y)
             last_y = previous[1] // dots_y if previous and last_y is None else last_y
+        area = len(chart.series) == 1 and braille
         average_row = y_of(chart.average) // dots_y if chart.average is not None else None
         ticks = {y_of(tick) // dots_y: chart.show(tick) for tick in chart.ticks or (chart.low, chart.high)}
         current = chart.series[0][1][-1] if chart.series and chart.series[0][1] else None
@@ -159,12 +166,18 @@ def chart_rows(chart: Chart, width: int, glyphs: Glyphs) -> list[list[tuple[str,
             for c in range(plot):
                 if masks[r][c]:
                     cells.append((chr(0x2800 + masks[r][c]) if braille else "*", tones[r][c]))
-                elif r == average_row:  # the window's average, dashed
-                    cells.append(("┄" if braille else "-", "dim"))
+                elif area and r * 4 > max(bottoms.get(2 * c, 10**6), bottoms.get(2 * c + 1, 10**6)) \
+                        and (2 * c in bottoms or 2 * c + 1 in bottoms):  # a faint fill under the line
+                    cells.append(("⡀" if r % 2 else "⢀", "dim"))
+                elif r == average_row:  # the window's average: a thin dotted rule, labelled at its left
+                    cells.append(("╌" if braille else "-", "dim") if c % 2 else (" ", ""))
                 elif r in ticks and c % 2 == 0:  # a faint rule at each labelled value
-                    cells.append(("·", "dim"))
+                    cells.append(("·" if braille else ".", "dim"))
                 else:
                     cells.append((" ", ""))
+            if r == average_row and chart.average is not None and chart.average_label:
+                label = f" {chart.average_label} "
+                cells[1:1 + len(label)] = [(char, "dim") for char in label]
             if r == last_y and current is not None:
                 rows.append(_runs(cells) + [((" ◂ " if braille else " < ") + chart.show(current), "accent")])
             else:
@@ -358,6 +371,6 @@ def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int
                     label = f"[ {clip(block.label, width - 4)} ]"  # a button: it does something, it is not a value
                 add([(label, tone), (clip(detail, max(0, width - cell_width(label))), "accent" if block.adjust else "dim")],
                     choice=index)
-            if touch:  # room between rows, and part of the same target
+            if touch and not block.dense:  # room between rows, and part of the same target
                 add([("", "")], choice=index)
     return layout

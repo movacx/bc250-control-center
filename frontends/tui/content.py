@@ -199,6 +199,7 @@ class Chart:
     height: int = 10
     show: Callable[[float], str] = str
     average: float | None = None
+    average_label: str = ""
     heatmap: bool = False
     window: float = 120.0
     ticks: Sequence[float] = ()  # round values to label and rule across the plot
@@ -216,6 +217,7 @@ class Choice:
     enabled: bool = True
     adjust: Callable[[object, int], None] | None = None
     pad: "Pad | None" = None
+    dense: bool = False  # a row of a long list: no touch spacing (the whole row is already the target)
 
 
 Block = Heading | Field | Meter | Trend | Note | Grid | Raw | Gap | Choice | Card | Columns | Track | Pad | Chart

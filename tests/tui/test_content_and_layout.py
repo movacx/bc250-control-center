@@ -63,3 +63,19 @@ def test_layout_tracks_selectable_rows_and_stays_within_width():
     assert [layout.rows[i].choice for i in layout.choice_rows] == [0, 1]
     for row in layout.rows:
         assert sum(cell_width(text) for text, _ in row.spans) <= 50
+
+
+def test_a_chart_line_is_one_stroke_with_round_ticks_and_a_labelled_average():
+    from frontends.tui.content import Chart
+    from frontends.tui.layout import chart_rows
+
+    times = list(range(120))
+    values = [10 + (i % 20) for i in times]
+    rows = chart_rows(Chart([("Usage", values, "accent")], times, 0, 30, 8, lambda v: f"{v:.0f}%",
+                            average=19.5, average_label="avg 19.5%", ticks=(0, 10, 20, 30)), 80, UNICODE)
+    text = ["".join(t for t, _ in row) for row in rows]
+    assert any("avg 19.5%" in line for line in text) and any(line.rstrip().endswith("│ 20%") for line in text)
+    plot = [line[:60] for line in text[:8]]
+    used = [any(0x2800 < ord(char) <= 0x28FF and char not in "⡀⢀" for char in column) for column in zip(*plot)]
+    assert all(used[10:60])  # no column of the stroke left empty: the samples are joined
+    assert text[-1].startswith("-2:00") and "-1:00" in text[-1]

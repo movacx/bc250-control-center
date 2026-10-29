@@ -153,3 +153,68 @@ def _no_host_gpu_frequency_ceiling(monkeypatch):
         "__defaults__",
         (governor_toml.Path("/nonexistent/bc250-host-root"), None),
     )
+
+
+# --- No test touches a real disk --------------------------------------------------
+#
+# A test once pressed every button of the terminal interface with a "yes" to every
+# question and reached the real BIOS-USB preparation: UDisks2 unmounted every
+# partition of the developer's USB disk before asking for the password that would
+# have erased it. Any process that mounts, unmounts, partitions, formats or writes
+# a block device now fails the test instead, and so does opening a disk for writing.
+
+DISK_TOOLS = frozenset({"mount", "umount", "udisksctl", "parted", "sfdisk", "sgdisk", "fdisk", "dd", "wipefs",
+                        "mkfs", "mkfs.vfat", "mkfs.fat", "mkfs.ext4", "mkfs.exfat", "mkdosfs", "blkdiscard"})
+DISK_PREFIXES = ("/dev/sd", "/dev/nvme", "/dev/mmcblk", "/dev/vd", "/dev/hd")
+
+
+class RealDiskAccess(AssertionError):
+    """A test tried to touch a real disk."""
+
+
+def disk_command(argv) -> str:
+    """Why ``argv`` would touch a disk, or ""."""
+    if isinstance(argv, (str, bytes)):
+        argv = [argv]
+    words = [os.fsdecode(word) if isinstance(word, bytes) else str(word) for word in argv]
+    first = 1 if words and os.path.basename(words[0]) in ("sudo", "pkexec", "doas", "run0") else 0
+    while first < len(words) and words[first].startswith("-"):
+        first += 1
+    tool = os.path.basename(words[first]) if first < len(words) else ""
+    if tool in DISK_TOOLS or tool.startswith("mkfs."):
+        return tool
+    if tool == "busctl" and "call" in words and any("UDisks2" in word for word in words):
+        return "a UDisks2 method call"
+    return ""
+
+
+@pytest.fixture(autouse=True)
+def _no_real_disk_access(monkeypatch):
+    import builtins
+    import subprocess
+
+    popen_init, real_open, os_open = subprocess.Popen.__init__, builtins.open, os.open
+
+    def guarded_popen(self, args, *rest, **kwargs):
+        reason = disk_command(args)
+        if reason:
+            raise RealDiskAccess(f"a test tried to run {reason}: {args!r}")
+        popen_init(self, args, *rest, **kwargs)
+
+    def writes_a_disk(path, writing: bool) -> bool:
+        return writing and isinstance(path, (str, bytes, os.PathLike)) and \
+            os.fsdecode(os.fspath(path)).startswith(DISK_PREFIXES)
+
+    def guarded_open(file, mode="r", *args, **kwargs):
+        if writes_a_disk(file, any(flag in mode for flag in "wax+")):
+            raise RealDiskAccess(f"a test tried to write {file}")
+        return real_open(file, mode, *args, **kwargs)
+
+    def guarded_os_open(path, flags, *args, **kwargs):
+        if writes_a_disk(path, bool(flags & (os.O_WRONLY | os.O_RDWR))):
+            raise RealDiskAccess(f"a test tried to write {path}")
+        return os_open(path, flags, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess.Popen, "__init__", guarded_popen)
+    monkeypatch.setattr(builtins, "open", guarded_open)
+    monkeypatch.setattr(os, "open", guarded_os_open)
