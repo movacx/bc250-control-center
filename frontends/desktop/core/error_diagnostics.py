@@ -262,7 +262,7 @@ _RULES = (
     _Rule(
         "BC250-BUSY-001",
         (r"\A(?!.*(?:pacman|apt(?:-get)?|dnf|zypper|rpmdb|rpm-ostree|apk|emerge|xbps)).*\balready (?:running|applying|in progress)", r"operation.*still.*(?:running|progress)", r"resource busy", r"device or resource busy",
-         r"smu returned status 0x(?:00|fc)\b"),
+         r"smu returned status 0x(?:00|fc)\b", r"smu timed out after"),
         "Another operation is still using this component.",
         "A previous BC250 action, package manager, service restart, or external toolkit still holds the required lock.",
         "Wait for the current terminal or progress indicator to finish, refresh the page, and retry once. Close other BC250 toolkits if the lock remains.",

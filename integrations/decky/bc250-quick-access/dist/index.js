@@ -634,6 +634,7 @@ var codes = [
 			"Another git process seems to be running",
 			"smu returned status 0x00",
 			"smu returned status 0xFC",
+			"smu timed out after",
 			"SMU_IN_USE"
 		],
 		exit_statuses: [
@@ -809,6 +810,7 @@ var markers_longest_first = [
 	"QUICK_ACCESS_CONTEXT",
 	"CU_BACKEND_UNTRUSTED",
 	"read-only protection",
+	"smu timed out after",
 	"patched_gpu_metrics",
 	"VID must be between",
 	"QAM CPU VID must be",

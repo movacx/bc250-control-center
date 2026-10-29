@@ -157,7 +157,7 @@ _CODES: tuple[ErrorCode, ...] = (
         # The SMU mailbox gave no answer in time (0x00) or said it was busy
         # (0xFC). The CPU/SMU helper exits 70 for it, which alone reads as a
         # helper version mismatch and sent users to reinstall.
-        markers=('Transaction in progress', 'another BC250 system preparation is already running', "index.lock': File exists", 'Another git process seems to be running', 'smu returned status 0x00', 'smu returned status 0xFC',
+        markers=('Transaction in progress', 'another BC250 system preparation is already running', "index.lock': File exists", 'Another git process seems to be running', 'smu returned status 0x00', 'smu returned status 0xFC', 'smu timed out after',
                  # The CPU helper exits 44 (a RANGE status) for it.
                  'SMU_IN_USE'),
     ),

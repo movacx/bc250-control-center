@@ -235,6 +235,8 @@ _AUDITED = {
     "QUICK_ACCESS_CU_MODE: target must be an even value from 24 through 40.": "BC250-RANGE-001",
     "QUICK_ACCESS_GPU_SAFE_POINT: invalid TOML ceiling.": "BC250-CONFIG-001",
     "SMU_IN_USE: another tool holds the SMU": "BC250-BUSY-001",
+    "smu returned status 0x00 for queue 3 msg 0x01": "BC250-BUSY-001",
+    "smu timed out after 5s for msg 0x3B (last status 0x00)": "BC250-BUSY-001",
     "QUICK_ACCESS_VRAM: unsupported size": "BC250-VRAM-001",
     "QUICK_ACCESS_GDDR6: the GDDR6 patch did not finish in time.": "BC250-TIMEOUT-001",
     "[ERROR] kernel-devel mismatch: a belongs to b but the running kernel is c": "BC250-KERNEL-001",
