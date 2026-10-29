@@ -2,7 +2,18 @@
 
 from __future__ import annotations
 
-from ..content import Choice, Field, Gap, Heading, Meter, Note, Track, number, percent
+from ..content import (
+    Choice,
+    Field,
+    Gap,
+    Heading,
+    Meter,
+    Note,
+    Track,
+    load_tone,
+    number,
+    percent,
+)
 from ..i18n import tr
 from .base import Page, guarded, load_meter, metric_blocks, temperature_meter, trend
 from .dashboard import _safe
@@ -39,6 +50,7 @@ class CpuPage(Page):
         mine = ctx.state(self.key)
         target = mine.setdefault("target", {"freq": 3550, "vid": 1050, "temp": 90, "scale": -34, "manual": False,
                                             "force_mask": False})
+        missing = tr("Waiting for data…") if data is None else "--"  # still loading reads differently from absent
         persistent = (data or {}).get("persistent") or {}
         unlock = (data or {}).get("unlock") or {}
 
@@ -51,7 +63,7 @@ class CpuPage(Page):
         clocks = cpu.get("per_core_frequency_mhz") or []
         for index, value in enumerate((cpu.get("per_core_percent") or [])[:8]):
             freq = clocks[index] if index < len(clocks) else None
-            out.append(Meter(f"N{index + 1}", percent(value), f"{number(freq, 'MHz')}  {number(value, '%')}"))
+            out.append(Meter(f"N{index + 1}", percent(value), f"{number(freq, 'MHz')}  {number(value, '%')}", load_tone(value)))
 
         # -- operating profile: the three shipped ones, like the GPU page
         out += [Gap(), Heading(tr("Operating profile"))]
@@ -119,9 +131,9 @@ class CpuPage(Page):
                     service.comando_cpu_oc_desactivar_persistente_embebido()))
 
         out += [Gap(), Heading(tr("Boot persistence")),
-                Field(tr("State"), tr(str(persistent.get("ui_state") or "--")),
+                Field(tr("State"), tr(str(persistent.get("ui_state") or missing)),
                       "ok" if persistent.get("applied") else ""),
-                Field(tr("Detail"), tr(str(persistent.get("ui_detail") or "--"))),
+                Field(tr("Detail"), tr(str(persistent.get("ui_detail") or missing))),
                 Choice(tr("Save for boot"), save_boot), Choice(tr("Review persistence"), review),
                 Choice(tr("Remove from boot"), remove, tone="warn")]
 
@@ -135,7 +147,7 @@ class CpuPage(Page):
                     service.comando_desbloquear_nucleos_cpu(ignore_core_mask=target["force_mask"])))
 
         out += [Gap(), Heading(tr("Unlock cores")),
-                Field(tr("CPU cores"), f"{unlock.get('physical_cores', '--')} / {unlock.get('logical_cpus', '--')}",
+                Field(tr("CPU cores"), f"{unlock['physical_cores']} / {unlock.get('logical_cpus', '--')}" if unlock.get("physical_cores") else missing,
                       "ok" if unlock.get("unlocked") else ""),
                 Choice(f"[{'x' if target['force_mask'] else ' '}] {tr('Force a non-standard core mask (-f)')}", toggle_mask),
                 Choice(tr("Unlock CPU cores and restart"), unlock_cores, tone="bad")]

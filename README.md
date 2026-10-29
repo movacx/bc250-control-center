@@ -144,6 +144,20 @@ bc250-control-center tui          # or: bc250-control-center-tui
 bc250-control-center-cli tui --page gpu --theme mono
 ```
 
+The normal installation already includes it. For a server, a TTY or an SSH-only machine, install just the terminal interface, without PyQt6, a desktop entry or icons:
+
+```bash
+scripts/install-tui.sh
+```
+
+It needs Python 3.11 or newer with `curses` and `psutil`, and installs whichever of those is missing with the system package manager (`dnf`, `rpm-ostree`, `apt-get`, `pacman`, `zypper` or `apk`). As a normal user it installs to `~/.local`, so it works on Bazzite and SteamOS, where `/` is read-only. It asks for `sudo` only for those packages and for the privileged helpers that hardware actions use. Running it again updates the installation in place. To remove it:
+
+```bash
+scripts/install-tui.sh --uninstall
+```
+
+From a source checkout, without installing, run `scripts/entrypoints/bc250-control-center-tui`.
+
 It has the desktop's sidebar, grouped and ordered the same way: Dashboard; Hardware (CPU / SMU, Compute Units, GPU Governor, Additional settings); Monitoring (Performance, Fans, Processes, Black box); Firmware (BIOS) and Settings. The title bar keeps the GPU and CPU clock and temperature in view on every page.
 
 It does not reimplement anything: every reading and every action goes through the same service layer, privileged helpers and error catalog as the desktop application. Anything that changes the system asks for confirmation first (dangerous ones need an explicit `y`). Workflows the desktop runs in its console panel run in a console pane inside the interface: the output and progress appear live, a `sudo` or Polkit password is typed right there, `Ctrl+C` stops the command, and the result and the path of the full log stay on screen until you close the pane. No other terminal is opened and the interface is never suspended.

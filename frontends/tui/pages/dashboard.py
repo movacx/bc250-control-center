@@ -17,6 +17,7 @@ from ..content import (
     Meter,
     Note,
     heat_tone,
+    load_tone,
     number,
     percent,
 )
@@ -116,7 +117,7 @@ class DashboardPage(Page):
         clocks = cpu.get("per_core_frequency_mhz") or []
         for index, value in enumerate(usage[:8]):
             freq = clocks[index] if index < len(clocks) else None
-            cores.append(Meter(f"N{index + 1}", percent(value), f"{number(freq, 'MHz')} {number(value, '%')}"))
+            cores.append(Meter(f"N{index + 1}", percent(value), f"{number(freq, 'MHz')} {number(value, '%')}", load_tone(value)))
         cpu_card = Card(tr("Processor"), [
             Field(tr("Core temperature"), number(cpu.get("temperature_c"), "°C", 1), heat_tone(cpu.get("temperature_c"))),
             *([Field("VRM CPU", number(sensors.get("vrm_cpu_temperature_c"), "°C", 1))]

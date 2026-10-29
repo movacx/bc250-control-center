@@ -22,7 +22,7 @@ from ..i18n import tr, tr_format
 from .base import Page, guarded, temperature_meter, trend
 
 TABS = (("manual", "Manual"), ("curve", "Automatic curve"), ("boot", "Fans from the moment it boots"),
-        ("driver", "PWM driver preparation"))
+        ("driver", "Driver"))
 #: Same values as the desktop's curve presets.
 CURVE_PRESETS = {
     "silent": ((45, 40), (55, 50), (65, 65), (72, 85), (78, 100)),
@@ -162,7 +162,7 @@ class FansPage(Page):
                 duty = None
             out.append(Meter(f"PWM{row.get('index')} {row.get('label') or ''}".strip(),
                              None if duty is None else duty / 100.0,
-                             f"{number(row.get('rpm'), 'RPM')}  {duty if duty is not None else '--'} %"))
+                             f"{number(row.get('rpm'), 'RPM')}  {duty if duty is not None else '--'} %", "accent"))
         out += [temperature_meter("GPU", gpu.get("temperature_c")), temperature_meter("CPU", cpu.get("temperature_c")),
                 temperature_meter("VRM", sensors.get("vrm_temperature_c")),
                 temperature_meter(tr("Board"), sensors.get("board_temperature_c")),

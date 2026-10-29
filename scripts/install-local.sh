@@ -42,6 +42,15 @@ if [[ -z "${PREFIX:-}" ]]; then
   fi
 fi
 
+# BC250_INSTALL_PROFILE=tui (scripts/install-tui.sh) installs the same tree,
+# launchers and helpers without PyQt6 or a desktop entry: the terminal
+# interface needs only Python's curses and psutil.
+INSTALL_PROFILE="${BC250_INSTALL_PROFILE:-desktop}"
+if [[ "$INSTALL_PROFILE" != "desktop" && "$INSTALL_PROFILE" != "tui" ]]; then
+  echo "Error: BC250_INSTALL_PROFILE must be desktop or tui, not '$INSTALL_PROFILE'." >&2
+  exit 64
+fi
+
 APP_DIR="$PREFIX/share/bc250-control-center"
 BIN_DIR="$PREFIX/bin"
 DESKTOP_DIR="$PREFIX/share/applications"
@@ -172,6 +181,11 @@ fi
 if ! command -v python3 >/dev/null 2>&1; then
   echo "Warning: python3 is not installed or is not in PATH." >&2
   python_gui_deps_missing=1
+elif [[ "$INSTALL_PROFILE" == "tui" ]]; then
+  if ! python3 -c 'import curses, psutil' >/dev/null 2>&1; then
+    echo "Warning: Python's curses module or psutil is missing; the terminal interface needs both." >&2
+    python_gui_deps_missing=1
+  fi
 elif ! python3 - <<'PY' >/dev/null 2>&1
 from PyQt6.QtGui import QImageReader
 from PyQt6.QtWidgets import QApplication
@@ -196,23 +210,34 @@ if command -v apt-get >/dev/null 2>&1 && {
   if command -v apt-cache >/dev/null 2>&1 && ! apt-cache show pkexec >/dev/null 2>&1; then
     debian_polkit_package="policykit-1"
   fi
-  missing_python_deps_command=(
-    apt-get install -y python3 python3-pyqt6 libqt6svg6 python3-psutil
-    "$debian_polkit_package" jq
-  )
+  missing_python_deps_command=(apt-get install -y python3 python3-psutil "$debian_polkit_package" jq)
+  [[ "$INSTALL_PROFILE" == "tui" ]] || missing_python_deps_command+=(python3-pyqt6 libqt6svg6)
   missing_python_deps=1
 elif [[ "$python_gui_deps_missing" -eq 1 ]]; then
+  # The GUI packages; the terminal profile drops them below. curses ships with
+  # Python everywhere except openSUSE, which splits it out.
+  gui_packages=()
   if [[ -e /run/ostree-booted ]] && command -v rpm-ostree >/dev/null 2>&1; then
-    missing_python_deps_command=(rpm-ostree install --idempotent python3-pyqt6 qt6-qtsvg python3-psutil)
+    missing_python_deps_command=(rpm-ostree install --idempotent python3-psutil)
+    gui_packages=(python3-pyqt6 qt6-qtsvg)
     missing_python_deps_reboot_notice=1
   elif command -v dnf >/dev/null 2>&1; then
-    missing_python_deps_command=(dnf install -y python3-pyqt6 qt6-qtsvg python3-psutil)
+    missing_python_deps_command=(dnf install -y python3-psutil)
+    gui_packages=(python3-pyqt6 qt6-qtsvg)
   elif command -v pacman >/dev/null 2>&1; then
-    missing_python_deps_command=(pacman -S --needed python-pyqt6 qt6-svg python-psutil)
+    missing_python_deps_command=(pacman -S --needed python-psutil)
+    gui_packages=(python-pyqt6 qt6-svg)
+  elif command -v zypper >/dev/null 2>&1; then
+    missing_python_deps_command=(zypper --non-interactive install python3-psutil python3-curses)
+    gui_packages=(python3-PyQt6)
   elif command -v apk >/dev/null 2>&1; then
     # The same packages the Alpine dependency preparation installs
     # (packaging/common/os-scripts/alpine/prepare-dependencies.sh).
-    missing_python_deps_command=(apk add --no-progress bash python3 py3-qt6 py3-psutil qt6-qtbase qt6-qtsvg jq polkit)
+    missing_python_deps_command=(apk add --no-progress bash python3 py3-psutil jq polkit)
+    gui_packages=(py3-qt6 qt6-qtbase qt6-qtsvg)
+  fi
+  if [[ "$INSTALL_PROFILE" == "desktop" && ${#missing_python_deps_command[@]} -gt 0 ]]; then
+    missing_python_deps_command+=("${gui_packages[@]}")
   fi
   missing_python_deps=1
 fi
@@ -225,7 +250,7 @@ fi
 
 if [[ ${#missing_python_deps_command[@]} -gt 0 && "${BC250_SKIP_DEPENDENCY_INSTALL:-0}" != "1" ]]; then
   prepare_steamos_pacman_install_local
-  echo "Installing missing Python GUI dependencies..."
+  echo "Installing missing Python dependencies..."
   if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
     "${missing_python_deps_command[@]}"
   elif command -v sudo >/dev/null 2>&1; then
@@ -248,7 +273,7 @@ if command -v python3 >/dev/null 2>&1 && \
   exit 2
 fi
 
-install -dm755 "$APP_DIR" "$BIN_DIR" "$DESKTOP_DIR" "$ICON_DIR" "$METAINFO_DIR" "$SYSTEMD_USER_DIR" "$DOC_DIR"
+install -dm755 "$APP_DIR" "$BIN_DIR" "$SYSTEMD_USER_DIR" "$DOC_DIR"
 
 # Validate a complete staging copy before replacing the installed Python tree.
 # Configuration, profiles and ResourceTools are never component names in this
@@ -641,6 +666,7 @@ install -Dm755 "$ROOT_DIR/scripts/entrypoints/bc250-control-center" "$BIN_DIR/bc
 install -Dm755 "$ROOT_DIR/scripts/entrypoints/bc250-control-center-cli" "$BIN_DIR/bc250-control-center-cli"
 install -Dm755 "$ROOT_DIR/scripts/entrypoints/bc250-control-center-tui" "$BIN_DIR/bc250-control-center-tui"
 install -Dm755 "$ROOT_DIR/scripts/entrypoints/bc250-control-centerd" "$BIN_DIR/bc250-control-centerd"
+if [[ "$INSTALL_PROFILE" == "desktop" ]]; then
 rm -f "$ICON_DIR/scalable/apps/bc250-control-center.svg"
 # 16 and 24 matter: the window manager and the task switcher ask for them,
 # and without an exact match they downscale 32 and lose the outline.
@@ -651,6 +677,7 @@ desktop_file="$DESKTOP_DIR/io.github.movacx.bc250-control-center.desktop"
 install -Dm644 "$ROOT_DIR/packaging/common/io.github.movacx.bc250-control-center.desktop" "$desktop_file"
 sed -i "s|^Exec=.*|Exec=$BIN_DIR/bc250-control-center|" "$desktop_file"
 install -Dm644 "$ROOT_DIR/packaging/common/io.github.movacx.bc250-control-center.metainfo.xml" "$METAINFO_DIR/io.github.movacx.bc250-control-center.metainfo.xml"
+fi
 
 # Tell the desktop that the icon changed.
 #
@@ -669,7 +696,7 @@ install -Dm644 "$ROOT_DIR/packaging/common/io.github.movacx.bc250-control-center
 # an icon cache into a staging root would leave a file behind that nothing
 # created on purpose and nothing removes.
 install_runtime_prefix=0
-case "$PREFIX" in
+[[ "$INSTALL_PROFILE" == "desktop" ]] && case "$PREFIX" in
   /usr|/usr/local|"$HOME/.local") install_runtime_prefix=1 ;;
 esac
 if [[ "$install_runtime_prefix" -eq 1 ]]; then
@@ -709,7 +736,7 @@ if [[ -d /run/systemd/system ]]; then
 fi
 
 echo "Installed in $PREFIX"
-echo "GUI: $BIN_DIR/bc250-control-center"
+[[ "$INSTALL_PROFILE" == "tui" ]] || echo "GUI: $BIN_DIR/bc250-control-center"
 echo "CLI: $BIN_DIR/bc250-control-center-cli"
 echo "Terminal interface: $BIN_DIR/bc250-control-center-tui"
 if [[ ! -d /run/systemd/system ]]; then
@@ -749,12 +776,12 @@ if [[ -d /run/systemd/system ]]; then
 fi
 echo "Uninstall: PREFIX=\"$PREFIX\" $APP_DIR/scripts/uninstall-local.sh"
 if [[ "$missing_python_deps" -eq 1 ]]; then
-  echo "Important: install the Python GUI dependencies above before opening the app."
+  echo "Important: install the Python dependencies above before opening the app."
   if [[ "$missing_python_deps_reboot_notice" -eq 1 ]]; then
     echo "Bazzite/Fedora Atomic note: reboot after rpm-ostree installs new packages, then open the app again."
   fi
 fi
 case ":$PATH:" in
   *":$BIN_DIR:"*) ;;
-  *) echo "Note: $BIN_DIR is not in PATH. Use the full GUI command above or add it to your shell PATH." ;;
+  *) echo "Note: $BIN_DIR is not in PATH. Use the full commands above or add it to your shell PATH." ;;
 esac

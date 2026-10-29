@@ -72,7 +72,8 @@ def sparkline(values, width: int, glyphs: Glyphs) -> str:
     if not series:
         return ""
     low, high = min(series), max(series)
-    span = (high - low) or 1.0
+    # A tenth of the value at least: 48-49 °C must not swing from floor to ceiling.
+    span = max(high - low, abs(high) * 0.1) or 1.0
     top = len(glyphs.spark) - 1
     body = "".join(glyphs.spark[round((value - low) / span * top)] for value in series)
     return body.rjust(width) if len(series) < width else body

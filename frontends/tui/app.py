@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import locale
 import logging
 import os
 import sys
@@ -10,6 +11,10 @@ from pathlib import Path
 
 from bc250cc.shared.version import __version__
 
+MISSING_PSUTIL = (
+    "The terminal interface needs psutil: python3-psutil (Fedora, Debian, Ubuntu, Mint) or python-psutil "
+    "(Arch, CachyOS, SteamOS). scripts/install-tui.sh installs it for you."
+)
 MISSING_CURSES = (
     "The terminal interface needs Python's curses module, which this Python was built without.\n"
     "Install it with your package manager (for example: python3-curses or python3-libs), "
@@ -49,14 +54,20 @@ def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
         import curses
-    except ImportError:
-        print(MISSING_CURSES, file=sys.stderr)
+
+        import psutil  # noqa: F401 - the service layer reads every sensor through it
+    except ImportError as error:
+        print(MISSING_CURSES if error.name in ("curses", "_curses") else MISSING_PSUTIL, file=sys.stderr)
         return 3
     if not (sys.stdin.isatty() and sys.stdout.isatty()):
         print("The terminal interface needs an interactive terminal. "
               "Use bc250-control-center-cli for scripts.", file=sys.stderr)
         return 2
     _quiet_logging()
+    try:  # the user's locale: "auto" picks its language, and curses draws UTF-8 with it
+        locale.setlocale(locale.LC_ALL, "")
+    except locale.Error:
+        pass
 
     from bc250cc.application import ApplicationContainer
     from bc250cc.application.system.workflow_console import (
