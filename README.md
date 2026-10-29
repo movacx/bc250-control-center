@@ -178,6 +178,16 @@ The title bar names a newer release when there is one (the same check as the des
 | `?` | Help |
 | `q` | Quit |
 
+### Using the TUI from a phone over SSH
+
+From Termux (Android) or Termius (Android, iOS), connect with a terminal and start the interface directly:
+
+```bash
+ssh -t user@board-ip bc250-control-center-tui
+```
+
+Below 110 columns the interface switches to its touch layout by itself; `--touch` or `BC250_TUI_TOUCH=1` forces it, and **Settings › General › Touch mode (phone / tablet)**, the first entry there, saves the choice. In touch mode there is no sidebar: a strip at the top lists the sections and **Menu** opens them as a full-screen list. Buttons are three rows tall, a tap opens an item at once, a tap on `<` or `>` steps a value, and a swipe scrolls. Two rows of on-screen keys (Menu, Esc, Tab, PgUp, PgDn, Enter, arrows, Search, Quit) stand in for what a phone keyboard lacks; **On-screen keys** hides them. Dialogs answer to taps too, and the phone keyboard types into text fields as usual.
+
 The interface draws no background colour, so it follows a light or dark terminal on its own; `--theme mono` (or `NO_COLOR`) removes colour. It uses the language chosen in Settings (`--lang` overrides it) and falls back to ASCII on the Linux console. If this Python was built without `curses` the command says so and points to the desktop application. Errors are logged to `~/.local/state/bc250-control-center/tui.log`, never over the screen.
 
 ## Decky plugin

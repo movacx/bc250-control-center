@@ -63,7 +63,20 @@ class SettingsPage(Page):
                     ui_.apply_theme(chosen)
                     ui_.notify(tr("Saved"), "ok")
 
-            out += [Choice(tr("Language"), language, f"{config.get('idioma', 'auto')} ({current_language()})"),
+            ui_state = ctx.state("ui")
+            touch = getattr(ui, "touch", False)
+
+            def toggle(key, now):
+                def handler(ui_):
+                    ui_state[key] = not now
+                    self._save(ctx, ui_, {f"tui_{key}": not now})
+                return handler
+
+            # First, so a phone that lands in the wrong layout finds the switch at once.
+            out += [Choice(f"[{'x' if touch else ' '}] {tr('Touch mode (phone / tablet)')}", toggle("touch", touch)),
+                    Choice(f"[{'x' if ui_state.get('keybar', True) is not False else ' '}] {tr('On-screen keys')}",
+                           toggle("keybar", ui_state.get("keybar", True) is not False), enabled=touch),
+                    Choice(tr("Language"), language, f"{config.get('idioma', 'auto')} ({current_language()})"),
                     Choice(tr("Theme"), theme, str(ctx.state("ui").get("theme", "auto")))]
         elif tab == "notifications":
             out.append(Field(tr("Alerts"), tr("Yes") if config.get("alertas_activas") else tr("No")))

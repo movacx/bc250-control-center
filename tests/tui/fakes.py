@@ -132,6 +132,7 @@ def make_context(service=None) -> Context:
         read_local_config=lambda: {"idioma": "en", "alertas_activas": True},
         save_local_config=lambda config: None), activity=None)
     ctx.metrics = METRICS
+    ctx.state("ui")["touch"] = False  # the desktop layout unless a test asks for the touch one
     for name, value in (("gpu_clock", 1500), ("gpu_temp", 60), ("cpu_load", 12), ("ram", 50)):
         ctx.record(name, value)
     return ctx

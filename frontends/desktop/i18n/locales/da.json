@@ -5489,5 +5489,8 @@
   "Interrupt": "Afbryd",
   "Search": "Søg",
   "No results": "Ingen resultater",
-  "Check for updates": "Søg efter opdateringer"
+  "Check for updates": "Søg efter opdateringer",
+  "Touch mode (phone / tablet)": "Berøringstilstand (telefon / tablet)",
+  "On-screen keys": "Taster på skærmen",
+  "Menu": "Menu"
 }

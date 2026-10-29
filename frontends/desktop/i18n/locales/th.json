@@ -5489,5 +5489,8 @@
   "Interrupt": "ขัดจังหวะ",
   "Search": "ค้นหา",
   "No results": "ไม่พบผลลัพธ์",
-  "Check for updates": "ตรวจสอบการอัปเดต"
+  "Check for updates": "ตรวจสอบการอัปเดต",
+  "Touch mode (phone / tablet)": "โหมดสัมผัส (โทรศัพท์ / แท็บเล็ต)",
+  "On-screen keys": "ปุ่มบนหน้าจอ",
+  "Menu": "เมนู"
 }

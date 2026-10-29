@@ -5489,5 +5489,8 @@
   "Interrupt": "중단",
   "Search": "검색",
   "No results": "결과 없음",
-  "Check for updates": "업데이트 확인"
+  "Check for updates": "업데이트 확인",
+  "Touch mode (phone / tablet)": "터치 모드(휴대폰 / 태블릿)",
+  "On-screen keys": "화면 키",
+  "Menu": "메뉴"
 }

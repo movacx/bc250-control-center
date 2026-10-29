@@ -5489,5 +5489,8 @@
   "Interrupt": "Прервать",
   "Search": "Поиск",
   "No results": "Нет результатов",
-  "Check for updates": "Проверить обновления"
+  "Check for updates": "Проверить обновления",
+  "Touch mode (phone / tablet)": "Сенсорный режим (телефон / планшет)",
+  "On-screen keys": "Экранные клавиши",
+  "Menu": "Меню"
 }

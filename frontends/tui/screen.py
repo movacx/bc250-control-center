@@ -22,6 +22,10 @@ from .runtime import Context, Poller, describe_error
 from .support import available_version, report
 
 MIN_WIDTH, MIN_HEIGHT = 60, 14
+TOUCH_WIDTH = 110  # narrower than this, and no choice saved: the phone / tablet layout
+#: The on-screen keys a phone keyboard lacks: (label, key name). Two rows of six.
+KEYBAR = (("Menu", "menu"), ("Esc", "esc"), ("Tab", "tab"), ("PgUp", "pgup"), ("PgDn", "pgdn"), ("Enter", "enter"),
+          ("←", "left"), ("↑", "up"), ("↓", "down"), ("→", "right"), ("Search", "/"), ("Quit", "q"))
 TOAST_SECONDS = 6.0
 TONE_PAIRS = {"ok": 1, "warn": 2, "bad": 3, "accent": 4}
 #: The desktop sidebar: its groups, in its order.
@@ -87,6 +91,8 @@ class Screen:
         self._sidebar_at: dict[int, int] = {}
         self._choice_at: dict[int, int] = {}
         self._tab_at: list[tuple[int, int, str]] = []
+        self._hits: list[tuple[int, int, int, str]] = []  # (y, x from, x to, key): taps on keys and strips
+        self._row_at: dict[int, tuple[int, str]] = {}  # y -> (x, text) of a drawn item, for "<" / ">" taps
         self.apply_theme(theme)
         if self.poller:
             self.poller.show(self.order[self.section], self._tab_key())
@@ -175,6 +181,19 @@ class Screen:
         if self.poller:
             self.poller.refresh()
 
+    @property
+    def touch(self) -> bool:
+        """The phone / tablet layout: the saved choice, else on for a narrow terminal."""
+        chosen = self.ctx.state("ui").get("touch")
+        return bool(chosen) if chosen is not None else self.size()[1] < TOUCH_WIDTH
+
+    @property
+    def keybar(self) -> bool:
+        return self.touch and self.ctx.state("ui").get("keybar", True) is not False
+
+    def _bottom(self) -> int:
+        return 2 if self.keybar else 1
+
     def sidebar_width(self, width: int) -> int:
         longest = max(cell_width(tr(self.pages[key].title)) for key in self.order) + 5
         return max(16, min(longest, width // 3))
@@ -182,7 +201,7 @@ class Screen:
     def _content_box(self) -> tuple[int, int]:
         """(x, width) of the content text: after the sidebar, its rule and the cursor column."""
         width = self.size()[1]
-        x = self.sidebar_width(width) + 4
+        x = 2 if self.touch else self.sidebar_width(width) + 4
         return x, max(20, width - x - 1)
 
     # -------------------------------------------------------------- draw
@@ -193,7 +212,7 @@ class Screen:
         with self.ctx.lock:
             data = self.ctx.page_data.get(self.page_key)
             state = self.ctx.page_state.get(self.page_key)
-            key = (self.page_key, tab, content_width, id(data), len(self.ctx.history.get("gpu_clock", ())),
+            key = (self.page_key, tab, content_width, self.touch, id(data), len(self.ctx.history.get("gpu_clock", ())),
                    self.ctx.metrics_error, self.ctx.page_error.get(self.page_key), id(self.ctx.metrics),
                    hash(repr(sorted(state.items()))) if state else 0)
             if key == self._layout_key and self._layout is not None:
@@ -204,7 +223,7 @@ class Screen:
                 from .content import Note
 
                 blocks = [Note(describe_error(error), "bad")]
-        self._layout = build_layout(blocks, content_width, self.glyphs)
+        self._layout = build_layout(blocks, content_width, self.glyphs, touch=self.touch)
         self._layout_key = key
         return self._layout
 
@@ -218,16 +237,51 @@ class Screen:
                 self.put(index, 1, line, self.attrs["warn"])
             self.stdscr.noutrefresh()
             return
-        side = self.sidebar_width(width)
+        self._hits, self._row_at = [], {}
         self._draw_title(width)
-        self._draw_sidebar(height, side)
+        if self.touch:
+            self.focus = "content"  # no sidebar: the strip and the menu choose the section
+            self._draw_strip(width)
+        else:
+            self._draw_sidebar(height, self.sidebar_width(width))
         console = self.active_console
         if console is not None and (console.has_output or time.monotonic() - console.started > 0.4):
             self._draw_console(console, height, width)
         else:
             self._draw_content(height, width)
             self._draw_footer(height, width)
+        if self.keybar:
+            self._draw_keybar(height, width)
         self.stdscr.noutrefresh()
+
+    def _draw_strip(self, width: int) -> None:
+        """Touch layout, row 1: Menu and the sections, scrolled so the open one shows."""
+        items = [("menu", f" {tr('Menu')} ")] + [(f"go:{index}", f" {tr(self.pages[key].title)} ")
+                                                   for index, key in enumerate(self.order)]
+        first = 1
+        while sum(cell_width(text) + 1 for _key, text in items[:1] + items[first:self.section + 2]) > width and \
+                first <= self.section:
+            first += 1
+        column = 0
+        for key, text in items[:1] + items[first:]:
+            selected = key == f"go:{self.section}"
+            attr = self.attrs["sel"] if selected else self.attrs["accent"] if key == "menu" else self.attrs["dim"]
+            self.put(1, column, text, attr)
+            self._hits.append((1, column, column + cell_width(text), key))
+            column += cell_width(text) + 1
+            if column >= width:
+                break
+
+    def _draw_keybar(self, height: int, width: int) -> None:
+        """Two rows of on-screen keys at the foot; each cell is a tap target."""
+        per_row = len(KEYBAR) // 2
+        cell = width // per_row
+        for index, (label, key) in enumerate(KEYBAR):
+            y, column = height - 2 + index // per_row, (index % per_row) * cell
+            text = tr(label) if label in ("Menu", "Search", "Quit") else label
+            self.put(y, column, clip(text, cell - 1).center(cell - 1), curses.A_REVERSE | (self.attrs["accent"] if
+                     key == "menu" else 0))
+            self._hits.append((y, column, column + cell, key))
 
     def _draw_title(self, width: int) -> None:
         metrics = self.ctx.metrics or {}
@@ -273,8 +327,9 @@ class Screen:
         """The tab strip; returns the first row below it."""
         self._tab_at = []
         tabs = self._tabs()
+        row = 2 if self.touch else 1  # below the touch layout's section strip
         if not tabs:
-            return 1
+            return row
         column, current = x, self._tab_key()
         keys = [key for key, _label in tabs]
         while sum(cell_width(label) + 3 for _key, label in tabs[:keys.index(current) + 1]) > width - x and len(tabs) > 1 \
@@ -285,21 +340,21 @@ class Screen:
             selected = key == current
             attr = (self.attrs["sel"] if self.focus == "content" else self.attrs["accent"] | curses.A_REVERSE) \
                 if selected else self.attrs["dim"]
-            self.put(1, column, text, attr, width - column)
-            self._tab_at.append((column, column + cell_width(text), key))
+            self.put(row, column, text, attr, width - column)
+            self._hits.append((row, column, column + cell_width(text), f"tab:{key}"))
             column += cell_width(text) + 1
-        self.put(2, x, self.glyphs.h * max(0, width - x - 1), self.attrs["dim"])
-        return 3
+        self.put(row + 1, x, self.glyphs.h * max(0, width - x - 1), self.attrs["dim"])
+        return row + 2
 
     def _view(self) -> int:
-        """Rows the content has below the tab strip."""
-        return self.size()[0] - (3 if self._tabs() else 1) - 1
+        """Rows the content has between the tab strip and the foot."""
+        return self.size()[0] - (1 + self.touch + 2 * bool(self._tabs())) - self._bottom()
 
     def _draw_content(self, height: int, width: int) -> None:
         x, _content_width = self._content_box()
         top = self._draw_tabs(x - 2, width)
         layout = self.build()
-        view, slot = height - top - 1, self._slot()
+        view, slot = height - top - self._bottom(), self._slot()
         cursor = self.cursor.get(slot, 0)
         offset = max(0, min(self.scroll.get(slot, 0), max(0, len(layout.rows) - view)))
         self.scroll[slot] = offset
@@ -313,6 +368,8 @@ class Screen:
                 if selected and first:
                     self.put(y, x - 2, self.glyphs.cursor, self.attrs["accent"])
             column = x
+            if row.choice is not None:
+                self._row_at[y] = (x, "".join(text for text, _tone in row.spans))
             for text, tone in row.spans:
                 attr = self.attrs.get(tone, 0) | (curses.A_BOLD if row.bold else 0)
                 if selected and not row.plain:
@@ -344,26 +401,35 @@ class Screen:
         return hints + [("Esc", "Back"), ("?", "Help")]
 
     def _draw_footer(self, height: int, width: int) -> None:
+        y = height - self._bottom()  # above the on-screen keys, a toast still shows
         if self.toast and self.toast[2] > time.monotonic():
-            self.put(height - 1, 1, pad(self.toast[0], width - 2), self.attrs.get(self.toast[1], 0) | curses.A_BOLD)
-        else:
+            self.put(y if self.keybar else height - 1, 1, pad(self.toast[0], width - 2),
+                     self.attrs.get(self.toast[1], 0) | curses.A_BOLD)
+        elif not self.keybar:
             self._draw_hints(self._hints())
 
-    def _draw_hints(self, hints: list[tuple[str, str]], tail: str = "", tail_attr: int = 0) -> None:
-        """The bottom row: each key in the accent colour, what it does dimmed; ``tail`` after them."""
+    def _draw_hints(self, hints: list[tuple[str, str]], tail: str = "", tail_attr: int = 0, *, y: int = -1) -> None:
+        """A row of keys in the accent colour with what they do dimmed (the bottom row by default).
+
+        A one-letter key is also a tap target, so ``r`` (report) works without a keyboard.
+        """
         height, width = self.size()
+        y = height - 1 if y < 0 else y
         column = 1
         for key, label in hints:
             text = tr(label)
             if column + cell_width(key) + cell_width(text) + 3 >= width:
                 break
-            self.put(height - 1, column, key, self.attrs["accent"])
-            self.put(height - 1, column + cell_width(key) + 1, text, self.attrs["dim"])
+            self.put(y, column, key, self.attrs["accent"])
+            self.put(y, column + cell_width(key) + 1, text, self.attrs["dim"])
+            if len(key) == 1:
+                self._hits.append((y, column, column + cell_width(key) + 1 + cell_width(text), key))
             column += cell_width(key) + cell_width(text) + 3
-        self.put(height - 1, column, tail, tail_attr)
+        self.put(y, column, tail, tail_attr)
 
     def _console_size(self) -> tuple[int, int]:
-        return max(1, self.size()[0] - 4), self._content_box()[1] + 2
+        rows = self.size()[0] - 3 - self.touch - self._bottom() - (1 if self.keybar else 0)
+        return max(1, rows), self._content_box()[1] + 2
 
     def _draw_console(self, console: Console, height: int, width: int) -> None:
         x, content_width = self._content_box()[0] - 2, self._console_size()[1]
@@ -377,26 +443,27 @@ class Screen:
         clock = f"{elapsed // 60:02d}:{elapsed % 60:02d}"
         status = (tr("Completed") if console.succeeded else tr("The workflow did not finish successfully.")) if done else ""
         # Top: what ran, how it ended and how long it took; below it, where the full log is.
-        self.put(1, x, f"{mark} {console.label}" + (f"  ·  {status}" if status else ""), self.attrs[tone] | curses.A_BOLD,
+        top = 1 + self.touch
+        self.put(top, x, f"{mark} {console.label}" + (f"  ·  {status}" if status else ""), self.attrs[tone] | curses.A_BOLD,
                  content_width - 8)
-        self.put(1, width - 1 - len(clock), clock, self.attrs["dim"])
+        self.put(top, width - 1 - len(clock), clock, self.attrs["dim"])
         home = os.path.expanduser("~")
         log = f"{tr('Full log saved to')} {console.log_file.replace(home, '~', 1)}" if console.log_file else ""
         rule = clip(log, content_width) if log else ""
-        self.put(2, x, rule + self.glyphs.h * (content_width - cell_width(rule)), self.attrs["dim"])
+        self.put(top + 1, x, rule + self.glyphs.h * (content_width - cell_width(rule)), self.attrs["dim"])
         view = self._console_size()[0]
         console.resize(view, content_width)
         lines, self.console_scroll = console.view(view, self.console_scroll)
         for index, runs in enumerate(lines):
             column = x
             for text, run_tone, bold in runs:
-                self.put(3 + index, column, text, self.attrs.get(run_tone, 0) | (curses.A_BOLD if bold else 0),
+                self.put(top + 2 + index, column, text, self.attrs.get(run_tone, 0) | (curses.A_BOLD if bold else 0),
                          limit=width - column - 1)
                 column += cell_width(text)
         hints = [("Enter Esc", "Close")] if done else [("Ctrl+C", "Interrupt")]
         if done and not console.succeeded:
             hints.append(("r", "Report this problem"))
-        self._draw_hints(hints + [("PgUp PgDn", "Scroll")])
+        self._draw_hints(hints + [("PgUp PgDn", "Scroll")], y=height - self._bottom() - (1 if self.keybar else 0))
 
     # ------------------------------------------------------------- input
 
@@ -409,10 +476,17 @@ class Screen:
     def handle(self, code: int) -> None:
         if code == 3:
             raise Quit
-        key = name_of(code)
-        if key in ALIASES:
-            key = ALIASES[key]
-        if key == "resize":
+        self.handle_key(ALIASES.get(name_of(code), name_of(code)))
+
+    def handle_key(self, key: str) -> None:
+        """One key by name, from the keyboard or from a tap on an on-screen key."""
+        if key == "menu":
+            self.section_menu()
+        elif key.startswith("go:"):
+            self._go(int(key[3:]))
+        elif key.startswith("tab:"):
+            self._switch_tab(0, key[4:])
+        elif key == "resize":
             self._layout_key = None
         elif key == "mouse":
             self._mouse()
@@ -537,42 +611,63 @@ class Screen:
         elif key in ("left", "right") and self._tabs():
             self._switch_tab(1 if key == "right" else -1)
         elif key in ("esc", "left"):
-            self._focus("sidebar")
+            self.section_menu() if self.touch else self._focus("sidebar")
         elif key in ("up", "down", "pgup", "pgdn", "home", "end"):
             self._step(layout, slot, {"up": -1, "down": 1, "pgup": -view, "pgdn": view, "home": -10**6, "end": 10**6}[key])
         elif key in ("enter", "space") and current is not None:
             self._activate(current)
 
-    def _mouse(self) -> None:
-        """Click a section, tab or item (a second click on an item opens it); the wheel scrolls."""
+    def _tap(self) -> tuple[int, int, str] | None:
+        """(x, y, what): what is "up"/"down" for the wheel (a swipe on a phone), the key a tap hit, or ""."""
         try:
             _id, x, y, _z, state = curses.getmouse()
         except curses.error:
-            return
-        wheel = {getattr(curses, "BUTTON4_PRESSED", 0): "up", getattr(curses, "BUTTON5_PRESSED", 0): "down"}
-        for button, key in wheel.items():
+            return None
+        for button, key in ((getattr(curses, "BUTTON4_PRESSED", 0), "up"), (getattr(curses, "BUTTON5_PRESSED", 0), "down")):
             if button and state & button:
-                if self.active_console is not None:
-                    self.console_scroll += 3 if key == "up" else -3
-                else:
-                    self.focus = "content"
-                    self._content_key(key)
-                return
-        if self.active_console is not None:
+                return x, y, key
+        return x, y, next((key for row, start, end, key in self._hits if row == y and start <= x < end), "")
+
+    def _mouse(self) -> None:
+        """A click or tap on a key, section, tab or item; the wheel (a swipe) scrolls.
+
+        With a mouse, a click selects an item and a second click opens it; a
+        tap opens it at once, and a tap on the "<" or ">" of a value steps it.
+        """
+        tap = self._tap()
+        if tap is None:
             return
-        if x < self.sidebar_width(self.size()[1]) and y in self._sidebar_at:
+        x, y, key = tap
+        if key in ("up", "down") and self.active_console is not None:
+            self.console_scroll += 3 if key == "up" else -3
+        elif key in ("up", "down"):
+            self.focus = "content"
+            self._content_key(key)
+        elif key:
+            self.handle_key(key)
+        elif self.active_console is not None:
+            return
+        elif not self.touch and x < self.sidebar_width(self.size()[1]) and y in self._sidebar_at:
             self.focus = "sidebar"
             self._go(self._sidebar_at[y])
-        elif y == 1 and self._tab_at:
-            for start, end, key in self._tab_at:
-                if start <= x < end:
-                    self._switch_tab(0, key)
         elif y in self._choice_at:
             slot, index = self._slot(), self._choice_at[y]
             again = self.focus == "content" and self.cursor.get(slot) == index
             self.focus, self.cursor[slot] = "content", index
-            if again:
-                self._activate(self.build().choices[index])
+            choice = self.build().choices[index]
+            left, text = self._row_at.get(y, (0, ""))
+            step = {"<": -1, ">": 1}.get(text[x - left:x - left + 1]) if choice.adjust else None
+            if step:
+                choice.adjust(self, step)
+                self._layout_key = None
+            elif again or self.touch:
+                self._activate(choice)
+
+    def section_menu(self) -> None:
+        """Menu: every section, as a list to tap or move through."""
+        index = self.choose(tr("Menu"), [(index, tr(self.pages[key].title)) for index, key in enumerate(self.order)])
+        if index is not None:
+            self._go(index)
 
     def search(self) -> None:
         """Jump to the first item, then section, whose name contains what was typed."""
@@ -602,8 +697,11 @@ class Screen:
         return "\n".join(f"{pad(key, 12)} {label}" for key, label in rows)
 
     def _box(self, title: str, lines: list[str], *, width: int = 0, footer: str = "", selected: int | None = None,
-             offset: int = 0) -> None:
+             offset: int = 0) -> tuple[int, int, int, int]:
         height, total = self.size()
+        if self.touch:  # on a small screen the page behind would read as part of the dialog
+            for y in range(1 + self.touch, height - self._bottom()):
+                self.put(y, 0, " " * total)
         inner = max([cell_width(line) for line in lines] + [cell_width(title), cell_width(footer)]) + 2
         box_w = min(total - 2, max(width, inner + 2, 30))
         box_h = min(height - 2, len(lines) + 2)
@@ -620,13 +718,20 @@ class Screen:
         self.put(top + box_h - 1, left, g.bottom[0] + g.h * (box_w - 2) + g.bottom[2], accent)
         if footer:
             self.put(top + box_h - 1, left + 2, f" {clip(footer, box_w - 6)} ", self.attrs["dim"])
+        return top, left, box_h, box_w
 
     def _modal_key(self) -> str:
-        """Block for one key (idle wake-ups are skipped)."""
+        """Block for one key (idle wake-ups are skipped). A tap on an on-screen key or target is that key."""
         while True:
             code = self.stdscr.getch()
-            if code != -1:
-                return name_of(code)
+            if code == -1:
+                continue
+            key = name_of(code)
+            if key != "mouse":
+                return key
+            tap = self._tap()
+            if tap is not None and tap[2]:
+                return tap[2]
 
     def _read(self) -> str:
         """One key for a dialog, with the vim aliases applied."""
@@ -637,8 +742,14 @@ class Screen:
         while True:
             width = min(self.size()[1] - 8, 64)
             self.draw()
-            self._box(tr("Confirm"), wrap(message, max(10, width - 4)), width=width,
-                      footer=f"y {tr('Yes')} · n {tr('No')}" + (" · !" if danger else ""))
+            lines = wrap(message, max(10, width - 4))
+            half = max(8, (width - 4) // 2)
+            if self.touch:  # two wide answers to tap, under the question
+                lines += ["", f"[ {tr('Yes')} ]".center(half) + f"[ {tr('No')} ]".center(half)]
+            top, left, box_h, box_w = self._box(tr("Confirm"), lines, width=width,
+                                                footer=f"y {tr('Yes')} · n {tr('No')}" + (" · !" if danger else ""))
+            for y in range(top + box_h - 3, top + box_h):
+                self._hits += [(y, left, left + 2 + half, "y"), (y, left + 2 + half, left + box_w, "n")]
             self.stdscr.refresh()
             key = self._modal_key()
             # A dangerous action needs an explicit "y": Enter alone is not consent.
@@ -654,19 +765,38 @@ class Screen:
         while True:
             labels = [label for _value, label in options]
             self.draw()
-            height = self.size()[0]
-            offset = max(0, min(index - (height - 8) // 2, max(0, len(labels) - (height - 6))))
-            self._box(title, labels, selected=index, offset=offset, footer="Enter · Esc")
+            if self.touch:
+                self._draw_choices_full(title, labels, index)
+            else:
+                height = self.size()[0]
+                offset = max(0, min(index - (height - 8) // 2, max(0, len(labels) - (height - 6))))
+                self._box(title, labels, selected=index, offset=offset, footer="Enter · Esc")
             self.stdscr.refresh()
             key = self._read()
             moves = {"up": index - 1, "down": index + 1, "pgup": 0, "home": 0, "pgdn": len(options) - 1,
                      "end": len(options) - 1}
+            if key.startswith("pick:"):
+                return options[int(key[5:])][0]
             if key in moves:
                 index = max(0, min(len(options) - 1, moves[key]))
             elif key in ("enter", "space", "right"):
                 return options[index][0]
-            elif key in ("esc", "left", "q"):
+            elif key in ("esc", "left", "q", "menu"):
                 return None
+
+    def _draw_choices_full(self, title: str, labels: list[str], index: int) -> None:
+        """A choice over the whole content area: one option every two rows, each row a tap target."""
+        height, width = self.size()
+        top, bottom = 1 + self.touch, height - self._bottom()
+        for y in range(top, bottom):
+            self.put(y, 0, " " * width)
+        self.put(top, 1, clip(title, width - 2), self.attrs["accent"] | curses.A_BOLD)
+        rows = max(1, (bottom - top - 2) // 2)
+        offset = max(0, min(index - rows // 2, len(labels) - rows))
+        for line, item in enumerate(range(offset, min(len(labels), offset + rows))):
+            y = top + 2 + line * 2
+            self.put(y, 1, pad(f" {labels[item]}", width - 2), self.attrs["sel"] if item == index else 0)
+            self._hits += [(y, 0, width, f"pick:{item}"), (y + 1, 0, width, f"pick:{item}")]
 
     def ask_text(self, label: str, default: str = "", *, numeric: bool = False) -> str | None:
         value, cursor = default, len(default)

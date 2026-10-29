@@ -5489,5 +5489,8 @@
   "Interrupt": "Перервати",
   "Search": "Пошук",
   "No results": "Немає результатів",
-  "Check for updates": "Перевірити оновлення"
+  "Check for updates": "Перевірити оновлення",
+  "Touch mode (phone / tablet)": "Сенсорний режим (телефон / планшет)",
+  "On-screen keys": "Екранні клавіші",
+  "Menu": "Меню"
 }

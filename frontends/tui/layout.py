@@ -122,7 +122,7 @@ def _columns(blocks, width: int, label_cap: int) -> tuple[int, int]:
 
 
 def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int = LABEL_MAX, *,
-                 card: bool = False, columns: tuple[int, int] | None = None) -> Layout:
+                 card: bool = False, columns: tuple[int, int] | None = None, touch: bool = False) -> Layout:
     """Rows for ``blocks``. Inside a card a Heading is a group label (THERMAL, POWER…), as on the desktop.
 
     ``columns`` fixes the label and value widths, so cards side by side (or
@@ -244,9 +244,20 @@ def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int
                      else block.label + "  ") if detail else clip(block.label, width)
             tone = block.tone if block.enabled else "dim"
             # A button does something; "( )"/"[x]" are options and "›" opens a menu of its own.
-            if not (detail or block.adjust or block.label.startswith(("(", "[")) or block.label.endswith("›")):
-                label = f"[ {clip(block.label, width - 4)} ]"  # a button: it does something, it is not a value
+            button = not (detail or block.adjust or block.label.startswith(("(", "[")) or block.label.endswith("›"))
+            if button:
                 tone = (tone or "accent") if block.enabled else "dim"
-            add([(label, tone), (clip(detail, max(0, width - cell_width(label))), "accent" if block.adjust else "dim")],
-                choice=index)
+            if button and touch:  # a finger needs a target three rows tall
+                text = clip(block.label, width - 4)
+                edge = glyphs.h * (cell_width(text) + 2)
+                for line in (glyphs.top[0] + edge + glyphs.top[2], f"{glyphs.v} {text} {glyphs.v}",
+                             glyphs.bottom[0] + edge + glyphs.bottom[2]):
+                    add([(line, tone)], choice=index)
+            else:
+                if button:
+                    label = f"[ {clip(block.label, width - 4)} ]"  # a button: it does something, it is not a value
+                add([(label, tone), (clip(detail, max(0, width - cell_width(label))), "accent" if block.adjust else "dim")],
+                    choice=index)
+            if touch:  # room between rows, and part of the same target
+                add([("", "")], choice=index)
     return layout

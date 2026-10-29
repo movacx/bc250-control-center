@@ -5489,5 +5489,8 @@
   "Interrupt": "Keskeytä",
   "Search": "Haku",
   "No results": "Ei tuloksia",
-  "Check for updates": "Tarkista päivitykset"
+  "Check for updates": "Tarkista päivitykset",
+  "Touch mode (phone / tablet)": "Kosketustila (puhelin / tabletti)",
+  "On-screen keys": "Näyttönäppäimet",
+  "Menu": "Valikko"
 }

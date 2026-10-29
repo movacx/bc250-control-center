@@ -32,6 +32,8 @@ def _parser() -> argparse.ArgumentParser:
                         help="auto follows the terminal; mono draws without colour")
     parser.add_argument("--lang", default="", help="Interface language code (default: the saved setting)")
     parser.add_argument("--page", default="", help="Open this section first (dashboard, cpu, gpu, ...)")
+    parser.add_argument("--touch", action="store_true",
+                        help="Phone / tablet layout (also BC250_TUI_TOUCH=1; on by itself below 110 columns)")
     return parser
 
 
@@ -48,6 +50,15 @@ def _quiet_logging() -> None:
     root = logging.getLogger()
     root.handlers[:] = [handler]
     root.setLevel(logging.WARNING)
+
+
+def touch_choice(args, config: dict) -> bool | None:
+    """The touch layout: forced by --touch or BC250_TUI_TOUCH, else the saved choice; None decides by width."""
+    forced = os.environ.get("BC250_TUI_TOUCH", "")
+    if args.touch or forced in ("1", "0"):
+        return args.touch or forced == "1"
+    saved = config.get("tui_touch")
+    return saved if isinstance(saved, bool) else None
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -108,6 +119,7 @@ def main(argv: list[str] | None = None) -> int:
         set_embedded_terminal_launcher(screen.launch_workflow)
         check_in_background(ctx)  # the title bar names a newer version when there is one
         ctx.state("ui")["theme"] = args.theme
+        ctx.state("ui").update(touch=touch_choice(args, config), keybar=config.get("tui_keybar", True))
         if args.page in SIDEBAR_ORDER:
             screen.focus = "content"
             screen._go(screen.order.index(args.page))
