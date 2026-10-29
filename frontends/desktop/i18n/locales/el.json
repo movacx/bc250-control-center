@@ -5508,5 +5508,8 @@
   "The SSH server is running.": "Ο διακομιστής SSH λειτουργεί.",
   "The SSH server is stopped.": "Ο διακομιστής SSH έχει σταματήσει.",
   "Use it only on a network you trust, and do not open the SSH port to the internet.": "Χρησιμοποιήστε το μόνο σε αξιόπιστο δίκτυο και μην ανοίγετε τη θύρα SSH στο διαδίκτυο.",
-  "This system does not use systemd: start the SSH server yourself.": "Αυτό το σύστημα δεν χρησιμοποιεί systemd: ξεκινήστε μόνοι σας τον διακομιστή SSH."
+  "This system does not use systemd: start the SSH server yourself.": "Αυτό το σύστημα δεν χρησιμοποιεί systemd: ξεκινήστε μόνοι σας τον διακομιστή SSH.",
+  "Terminal interface preview": "Προεπισκόπηση της διεπαφής τερματικού",
+  "Preview the terminal interface": "Προβολή της διεπαφής τερματικού",
+  "Previous": "Προηγούμενο"
 }

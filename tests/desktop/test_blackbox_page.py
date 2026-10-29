@@ -66,7 +66,6 @@ def test_the_table_has_the_columns_of_a_recorded_line(page):
 def test_a_recording_shows_its_rows_newest_first_and_says_it_is_recording(page):
     rows = [_row(3), _row(2), _row(1)]
     page._apply_state(_state(running=True, pid=4242, state="recording", rows=rows))
-    assert page.card.status.text() == "Recording"
     assert page.record_button.text() == "Stop recording"
     assert page.model.rowCount() == 3
     assert page.model.index(0, 0).data() == "12:00:03.250"
@@ -77,7 +76,6 @@ def test_a_recording_shows_its_rows_newest_first_and_says_it_is_recording(page):
 
 def test_a_recording_cut_off_by_a_freeze_is_called_out(page):
     page._apply_state(_state(state="cut-off", rows=[_row(9)]))
-    assert page.card.status.text() == "Stopped"
     assert "Cut off by a restart or a freeze" in page.state_label.text()
     assert "color" in page.state_label.styleSheet()
 
@@ -97,7 +95,6 @@ def test_a_missing_sensor_is_a_dash_not_an_empty_cell(page):
 
 def test_a_board_without_the_gpu_cannot_record(page):
     page._apply_state(_state(supported=False))
-    assert page.card.status.text() == "No BC-250 GPU"
     assert not page.record_button.isEnabled()
 
 
@@ -145,9 +142,8 @@ def test_updates_run_only_while_the_page_is_on_screen(page):
     assert not page.refresh_timer.isActive()
 
 
-def test_a_failed_read_does_not_open_a_window_every_second(page):
-    page._status_failed("boom")
-    assert page.card.status.text() == "Unavailable"
+def test_the_card_has_no_status_pill(page):
+    assert page.card.status is None
 
 
 def test_the_card_has_no_icon_the_title_stands_alone(page):
@@ -158,7 +154,6 @@ def test_the_card_has_no_icon_the_title_stands_alone(page):
 def test_a_recording_in_progress_always_offers_the_way_to_stop_it(page):
     """The reported case: "Stopped" in the corner, "Recording now" below it, and no Stop button."""
     page._apply_state(_state(running=True, state="recording", rows=[_row(1)]))
-    assert page.card.status.text() == "Recording"
     assert page.record_button.text() == "Stop recording"
     assert page.record_button.isEnabled()
 

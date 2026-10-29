@@ -5508,5 +5508,8 @@
   "The SSH server is running.": "SSH-servern körs.",
   "The SSH server is stopped.": "SSH-servern är stoppad.",
   "Use it only on a network you trust, and do not open the SSH port to the internet.": "Använd det bara på ett betrott nätverk och öppna inte SSH-porten mot internet.",
-  "This system does not use systemd: start the SSH server yourself.": "Systemet använder inte systemd: starta SSH-servern själv."
+  "This system does not use systemd: start the SSH server yourself.": "Systemet använder inte systemd: starta SSH-servern själv.",
+  "Terminal interface preview": "Förhandsvisning av terminalgränssnittet",
+  "Preview the terminal interface": "Visa terminalgränssnittet",
+  "Previous": "Föregående"
 }

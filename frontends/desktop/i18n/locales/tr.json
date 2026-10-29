@@ -5508,5 +5508,8 @@
   "The SSH server is running.": "SSH sunucusu çalışıyor.",
   "The SSH server is stopped.": "SSH sunucusu durdu.",
   "Use it only on a network you trust, and do not open the SSH port to the internet.": "Yalnızca güvendiğiniz bir ağda kullanın ve SSH bağlantı noktasını internete açmayın.",
-  "This system does not use systemd: start the SSH server yourself.": "Bu sistem systemd kullanmıyor: SSH sunucusunu kendiniz başlatın."
+  "This system does not use systemd: start the SSH server yourself.": "Bu sistem systemd kullanmıyor: SSH sunucusunu kendiniz başlatın.",
+  "Terminal interface preview": "Terminal arayüzü önizlemesi",
+  "Preview the terminal interface": "Terminal arayüzünü gör",
+  "Previous": "Önceki"
 }

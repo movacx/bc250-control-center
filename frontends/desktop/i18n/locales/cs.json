@@ -5508,5 +5508,8 @@
   "The SSH server is running.": "Server SSH běží.",
   "The SSH server is stopped.": "Server SSH je zastaven.",
   "Use it only on a network you trust, and do not open the SSH port to the internet.": "Používejte jen v důvěryhodné síti a neotevírejte port SSH do internetu.",
-  "This system does not use systemd: start the SSH server yourself.": "Tento systém nepoužívá systemd: spusťte server SSH sami."
+  "This system does not use systemd: start the SSH server yourself.": "Tento systém nepoužívá systemd: spusťte server SSH sami.",
+  "Terminal interface preview": "Náhled terminálového rozhraní",
+  "Preview the terminal interface": "Zobrazit terminálové rozhraní",
+  "Previous": "Předchozí"
 }

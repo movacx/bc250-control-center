@@ -5508,5 +5508,8 @@
   "The SSH server is running.": "De SSH-server draait.",
   "The SSH server is stopped.": "De SSH-server is gestopt.",
   "Use it only on a network you trust, and do not open the SSH port to the internet.": "Gebruik het alleen op een vertrouwd netwerk en open de SSH-poort niet naar internet.",
-  "This system does not use systemd: start the SSH server yourself.": "Dit systeem gebruikt geen systemd: start de SSH-server zelf."
+  "This system does not use systemd: start the SSH server yourself.": "Dit systeem gebruikt geen systemd: start de SSH-server zelf.",
+  "Terminal interface preview": "Voorbeeld van de terminalinterface",
+  "Preview the terminal interface": "Terminalinterface bekijken",
+  "Previous": "Vorige"
 }

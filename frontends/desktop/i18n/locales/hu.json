@@ -5508,5 +5508,8 @@
   "The SSH server is running.": "Az SSH-szerver fut.",
   "The SSH server is stopped.": "Az SSH-szerver le van állítva.",
   "Use it only on a network you trust, and do not open the SSH port to the internet.": "Csak megbízható hálózaton használd, és ne nyisd meg az SSH-portot az internet felé.",
-  "This system does not use systemd: start the SSH server yourself.": "Ez a rendszer nem használ systemd-t: indítsd el magad az SSH-szervert."
+  "This system does not use systemd: start the SSH server yourself.": "Ez a rendszer nem használ systemd-t: indítsd el magad az SSH-szervert.",
+  "Terminal interface preview": "A terminálfelület előnézete",
+  "Preview the terminal interface": "A terminálfelület megtekintése",
+  "Previous": "Előző"
 }

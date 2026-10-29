@@ -17,6 +17,7 @@ from ..components.buttons import WrappingButton as QPushButton
 from ..components.page_widgets import SectionCard
 from ..components.responsive import configure_responsive_scroll_area
 from ..components.toast import show_toast
+from ..components.tui_preview_dialog import TuiPreviewDialog
 from ..i18n import tr, tr_format
 from ..theme import COLORS, scale_stylesheet
 from .processes import process_stylesheet
@@ -56,7 +57,6 @@ class RemoteAccessPage(QWidget):
             "Remote access",
             "Use Control Center from your phone or tablet through SSH.",
             icon_name="",
-            status=("Checking", "gray"),
         )
         root.addWidget(self.card)
         self.state_label = self._label("")
@@ -66,8 +66,13 @@ class RemoteAccessPage(QWidget):
         self.switch_button.setProperty("PrimaryAction", True)
         self.switch_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.switch_button.clicked.connect(lambda _checked=False: self._toggle())
+        preview = QPushButton(tr("Preview the terminal interface"))
+        preview.setProperty("processButton", "secondary")
+        preview.setCursor(Qt.CursorShape.PointingHandCursor)
+        preview.clicked.connect(lambda _checked=False: self._preview())
         row = QHBoxLayout()
         row.addWidget(self.switch_button)
+        row.addWidget(preview)
         row.addStretch(1)
         self.card.body.addLayout(row)
         self.address_label = self._label("")
@@ -155,15 +160,13 @@ class RemoteAccessPage(QWidget):
         if not state:
             return
         if not state["systemd"]:
-            status, tone, note = "Not installed", "gray", "This system does not use systemd: start the SSH server yourself."
+            note = "This system does not use systemd: start the SSH server yourself."
         elif not state["unit"]:
-            status, tone, note = "Not installed", "gray", "No SSH server is installed. Install the openssh-server package first."
+            note = "No SSH server is installed. Install the openssh-server package first."
         elif state["active"]:
-            status, tone, note = "On", "green", "The SSH server is running."
+            note = "The SSH server is running."
         else:
-            status, tone, note = "Off", "gray", "The SSH server is stopped."
-        self.card.status.setText(tr(status))
-        self.card.status.set_tone(tone)
+            note = "The SSH server is stopped."
         self.state_label.setText(tr(note))
         usable = state["systemd"] and bool(state["unit"])
         self.switch_button.setVisible(usable)
@@ -194,6 +197,11 @@ class RemoteAccessPage(QWidget):
             on_success=lambda _result: self.refresh(),
             on_error=failed,
         )
+
+    def _preview(self) -> None:
+        dialog = TuiPreviewDialog(self.window())
+        dialog.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        dialog.show()
 
     def _copy(self) -> None:
         QGuiApplication.clipboard().setText(self._command())

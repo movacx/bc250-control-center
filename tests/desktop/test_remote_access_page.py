@@ -61,3 +61,19 @@ def test_turning_it_on_without_a_server_says_what_to_install(monkeypatch):
     monkeypatch.setattr(remote_access, "_unit", lambda: "")
     with pytest.raises(RuntimeError, match="not installed"):
         remote_access.set_enabled(True)
+
+
+def test_the_page_has_no_status_pill_and_previews_every_screenshot(qtbot):
+    from frontends.desktop.components.tui_preview_dialog import SCREENSHOTS, SHOTS, TuiPreviewDialog
+
+    page = RemoteAccessPage()
+    qtbot.addWidget(page)
+    assert page.card.status is None
+    assert all((SCREENSHOTS / name).exists() for name, _caption in SHOTS)
+    dialog = TuiPreviewDialog()
+    qtbot.addWidget(dialog)
+    dialog.next.click()
+    assert "2/5" in dialog.caption.text()
+    dialog.previous.click()
+    dialog.previous.click()
+    assert "5/5" in dialog.caption.text()

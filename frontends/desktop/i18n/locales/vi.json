@@ -5508,5 +5508,8 @@
   "The SSH server is running.": "Máy chủ SSH đang chạy.",
   "The SSH server is stopped.": "Máy chủ SSH đã dừng.",
   "Use it only on a network you trust, and do not open the SSH port to the internet.": "Chỉ dùng trong mạng tin cậy và đừng mở cổng SSH ra internet.",
-  "This system does not use systemd: start the SSH server yourself.": "Hệ thống này không dùng systemd: hãy tự khởi động máy chủ SSH."
+  "This system does not use systemd: start the SSH server yourself.": "Hệ thống này không dùng systemd: hãy tự khởi động máy chủ SSH.",
+  "Terminal interface preview": "Xem trước giao diện terminal",
+  "Preview the terminal interface": "Xem giao diện terminal",
+  "Previous": "Trước"
 }

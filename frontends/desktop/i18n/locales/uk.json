@@ -5508,5 +5508,8 @@
   "The SSH server is running.": "SSH-сервер працює.",
   "The SSH server is stopped.": "SSH-сервер зупинено.",
   "Use it only on a network you trust, and do not open the SSH port to the internet.": "Користуйтеся лише в довіреній мережі й не відкривайте порт SSH в інтернет.",
-  "This system does not use systemd: start the SSH server yourself.": "Ця система не використовує systemd: запустіть SSH-сервер самостійно."
+  "This system does not use systemd: start the SSH server yourself.": "Ця система не використовує systemd: запустіть SSH-сервер самостійно.",
+  "Terminal interface preview": "Попередній перегляд термінального інтерфейсу",
+  "Preview the terminal interface": "Переглянути термінальний інтерфейс",
+  "Previous": "Назад"
 }

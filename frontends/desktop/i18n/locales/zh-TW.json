@@ -5508,5 +5508,8 @@
   "The SSH server is running.": "SSH 伺服器正在執行。",
   "The SSH server is stopped.": "SSH 伺服器已停止。",
   "Use it only on a network you trust, and do not open the SSH port to the internet.": "僅在可信任的網路使用，不要把 SSH 連接埠開放到網際網路。",
-  "This system does not use systemd: start the SSH server yourself.": "此系統不使用 systemd：請自行啟動 SSH 伺服器。"
+  "This system does not use systemd: start the SSH server yourself.": "此系統不使用 systemd：請自行啟動 SSH 伺服器。",
+  "Terminal interface preview": "終端機介面預覽",
+  "Preview the terminal interface": "檢視終端機介面",
+  "Previous": "上一個"
 }

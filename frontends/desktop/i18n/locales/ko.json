@@ -5508,5 +5508,8 @@
   "The SSH server is running.": "SSH 서버가 실행 중입니다.",
   "The SSH server is stopped.": "SSH 서버가 중지되었습니다.",
   "Use it only on a network you trust, and do not open the SSH port to the internet.": "신뢰할 수 있는 네트워크에서만 사용하고 SSH 포트를 인터넷에 열지 마세요.",
-  "This system does not use systemd: start the SSH server yourself.": "이 시스템은 systemd를 사용하지 않습니다. SSH 서버를 직접 시작하세요."
+  "This system does not use systemd: start the SSH server yourself.": "이 시스템은 systemd를 사용하지 않습니다. SSH 서버를 직접 시작하세요.",
+  "Terminal interface preview": "터미널 인터페이스 미리보기",
+  "Preview the terminal interface": "터미널 인터페이스 보기",
+  "Previous": "이전"
 }

@@ -5508,5 +5508,8 @@
   "The SSH server is running.": "Server SSH sedang berjalan.",
   "The SSH server is stopped.": "Server SSH dihentikan.",
   "Use it only on a network you trust, and do not open the SSH port to the internet.": "Gunakan hanya di jaringan tepercaya dan jangan buka port SSH ke internet.",
-  "This system does not use systemd: start the SSH server yourself.": "Sistem ini tidak memakai systemd: jalankan server SSH sendiri."
+  "This system does not use systemd: start the SSH server yourself.": "Sistem ini tidak memakai systemd: jalankan server SSH sendiri.",
+  "Terminal interface preview": "Pratinjau antarmuka terminal",
+  "Preview the terminal interface": "Lihat antarmuka terminal",
+  "Previous": "Sebelumnya"
 }

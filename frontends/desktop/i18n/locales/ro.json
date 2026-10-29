@@ -5508,5 +5508,8 @@
   "The SSH server is running.": "Serverul SSH rulează.",
   "The SSH server is stopped.": "Serverul SSH este oprit.",
   "Use it only on a network you trust, and do not open the SSH port to the internet.": "Folosește-l doar într-o rețea de încredere și nu deschide portul SSH către internet.",
-  "This system does not use systemd: start the SSH server yourself.": "Acest sistem nu folosește systemd: pornește singur serverul SSH."
+  "This system does not use systemd: start the SSH server yourself.": "Acest sistem nu folosește systemd: pornește singur serverul SSH.",
+  "Terminal interface preview": "Previzualizare a interfeței de terminal",
+  "Preview the terminal interface": "Vezi interfața de terminal",
+  "Previous": "Anterior"
 }

@@ -5508,5 +5508,8 @@
   "The SSH server is running.": "SSH サーバーは動作中です。",
   "The SSH server is stopped.": "SSH サーバーは停止しています。",
   "Use it only on a network you trust, and do not open the SSH port to the internet.": "信頼できるネットワークでのみ使用し、SSH ポートをインターネットに公開しないでください。",
-  "This system does not use systemd: start the SSH server yourself.": "このシステムは systemd を使っていません。SSH サーバーは自分で起動してください。"
+  "This system does not use systemd: start the SSH server yourself.": "このシステムは systemd を使っていません。SSH サーバーは自分で起動してください。",
+  "Terminal interface preview": "ターミナルインターフェースのプレビュー",
+  "Preview the terminal interface": "ターミナルインターフェースを見る",
+  "Previous": "前へ"
 }

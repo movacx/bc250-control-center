@@ -5508,5 +5508,8 @@
   "The SSH server is running.": "The SSH server is running.",
   "The SSH server is stopped.": "The SSH server is stopped.",
   "Use it only on a network you trust, and do not open the SSH port to the internet.": "Use it only on a network you trust, and do not open the SSH port to the internet.",
-  "This system does not use systemd: start the SSH server yourself.": "This system does not use systemd: start the SSH server yourself."
+  "This system does not use systemd: start the SSH server yourself.": "This system does not use systemd: start the SSH server yourself.",
+  "Terminal interface preview": "Terminal interface preview",
+  "Preview the terminal interface": "Preview the terminal interface",
+  "Previous": "Previous"
 }

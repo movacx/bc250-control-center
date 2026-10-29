@@ -3312,6 +3312,13 @@
    "ToggleSwitch.knob_center": "UI-0274",
    "ToggleSwitch.hitButton": "UI-0275"
   },
+  "frontends/desktop/components/tui_preview_dialog.py": {
+   "TuiPreviewDialog.__init__": "UI-0650",
+   "TuiPreviewDialog._go": "UI-0651",
+   "TuiPreviewDialog._show": "UI-0652",
+   "TuiPreviewDialog._fit": "UI-0653",
+   "TuiPreviewDialog.resizeEvent": "UI-0654"
+  },
   "frontends/desktop/components/update_dialog.py": {
    "install_progress": "UPD-0001",
    "_format_size": "UPD-0002",
@@ -4487,7 +4494,6 @@
    "BlackBoxPage._button": "UI-0557",
    "BlackBoxPage.set_updates_active": "UI-0558",
    "BlackBoxPage.refresh": "UI-0559",
-   "BlackBoxPage._status_failed": "UI-0560",
    "BlackBoxPage._apply_state": "UI-0561",
    "BlackBoxPage.retranslate_dynamic_copy": "UI-0562",
    "BlackBoxPage._render": "UI-0563",
@@ -5739,6 +5745,7 @@
    "RemoteAccessPage._command": "UI-0641",
    "RemoteAccessPage._render": "UI-0642",
    "RemoteAccessPage._toggle": "UI-0643",
+   "RemoteAccessPage._preview": "UI-0655",
    "RemoteAccessPage._copy": "UI-0644"
   },
   "frontends/desktop/pages/settings.py": {
@@ -5958,6 +5965,7 @@
   "TEL-0218",
   "TEL-0365",
   "TEL-0366",
+  "UI-0560",
   "UI-0564",
   "UI-0574",
   "UI-0575",

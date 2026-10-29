@@ -5508,5 +5508,8 @@
   "The SSH server is running.": "SSH-palvelin on käynnissä.",
   "The SSH server is stopped.": "SSH-palvelin on pysäytetty.",
   "Use it only on a network you trust, and do not open the SSH port to the internet.": "Käytä vain luotetussa verkossa äläkä avaa SSH-porttia internetiin.",
-  "This system does not use systemd: start the SSH server yourself.": "Tämä järjestelmä ei käytä systemd:tä: käynnistä SSH-palvelin itse."
+  "This system does not use systemd: start the SSH server yourself.": "Tämä järjestelmä ei käytä systemd:tä: käynnistä SSH-palvelin itse.",
+  "Terminal interface preview": "Päätekäyttöliittymän esikatselu",
+  "Preview the terminal interface": "Katso päätekäyttöliittymä",
+  "Previous": "Edellinen"
 }

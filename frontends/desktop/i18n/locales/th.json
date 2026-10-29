@@ -5508,5 +5508,8 @@
   "The SSH server is running.": "เซิร์ฟเวอร์ SSH กำลังทำงาน",
   "The SSH server is stopped.": "เซิร์ฟเวอร์ SSH หยุดทำงาน",
   "Use it only on a network you trust, and do not open the SSH port to the internet.": "ใช้เฉพาะในเครือข่ายที่เชื่อถือได้ และอย่าเปิดพอร์ต SSH สู่อินเทอร์เน็ต",
-  "This system does not use systemd: start the SSH server yourself.": "ระบบนี้ไม่ใช้ systemd: โปรดเริ่มเซิร์ฟเวอร์ SSH เอง"
+  "This system does not use systemd: start the SSH server yourself.": "ระบบนี้ไม่ใช้ systemd: โปรดเริ่มเซิร์ฟเวอร์ SSH เอง",
+  "Terminal interface preview": "ตัวอย่างอินเทอร์เฟซเทอร์มินัล",
+  "Preview the terminal interface": "ดูอินเทอร์เฟซเทอร์มินัล",
+  "Previous": "ก่อนหน้า"
 }

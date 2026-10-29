@@ -159,7 +159,6 @@ QWidget[processPage='true'] QPushButton[processButton='back']:hover {{ border-co
             "Records the GPU clock, load, temperatures, voltage, power, fans, CPU clock and free memory four "
             "times a second, so the next problem report shows the seconds before a freeze.",
             icon_name="",
-            status=("Checking", "gray"),
         )
         self.card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         root.addWidget(self.card, 1)
@@ -281,13 +280,9 @@ QWidget[processPage='true'] QPushButton[processButton='back']:hover {{ border-co
             "status",
             lambda: self.controller.blackbox_estado(),
             on_success=self._apply_state,
-            on_error=self._status_failed,
+            # A read that fails once a second must not open a window each time.
+            on_error=lambda _message: None,
         )
-
-    def _status_failed(self, _message: str) -> None:
-        # A read that fails once a second must not open a window each time.
-        self.card.status.setText("Unavailable")
-        self.card.status.set_tone("gray")
 
     def _apply_state(self, state: dict) -> None:
         self._state = dict(state or {})
@@ -305,15 +300,6 @@ QWidget[processPage='true'] QPushButton[processButton='back']:hover {{ border-co
             return
         supported = bool(state.get("supported"))
         running = bool(state.get("running"))
-        if not supported:
-            status, tone = "No BC-250 GPU", "gray"
-        elif running:
-            status, tone = "Recording", "green"
-        else:
-            status, tone = "Stopped", "gray"
-        self.card.status.setText(status)
-        self.card.status.set_tone(tone)
-
         self.record_button.setText(tr("Stop recording" if running else "Start recording"))
         self.record_button.setProperty("PrimaryAction", not running)
         self.record_button.style().unpolish(self.record_button)
