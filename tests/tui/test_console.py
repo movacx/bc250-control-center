@@ -147,3 +147,30 @@ def test_r_on_a_failed_workflow_opens_the_report_with_its_log(screen, monkeypatc
                               log_file="")
     ok, _result = screen.run("Prepare", lambda: screen.launch_workflow(request))
     assert not ok and reported and reported[0][0] == "Prepare" and "broken package" in reported[0][1]
+
+
+def test_polkit_asks_in_the_console_through_a_textual_agent_for_this_process(tmp_path, monkeypatch):
+    """A stand-in pkttyagent: registers (closes the notify fd), asks, reads the answer."""
+    import os
+
+    agent = tmp_path / "pkttyagent"
+    agent.write_text(
+        "#!/bin/bash\n"
+        'echo "$@" > "$(dirname "$0")/args"\n'
+        'eval "exec $4>&-"\n'  # --process PID --notify-fd FD: close FD = registered
+        'printf "Password: "; read -r answer; echo "got:$answer" > "$(dirname "$0")/answer"; sleep 30\n')
+    agent.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{tmp_path}:{os.environ['PATH']}")
+    console = Console("auth")
+    with console.password_agent():
+        assert wait_for(lambda: "Password:" in text(console))
+        console.send(b"secret\r")
+        assert wait_for(lambda: (tmp_path / "answer").exists())
+    assert (tmp_path / "args").read_text().split()[:2] == ["--process", str(os.getpid())]
+    assert "got:secret" in (tmp_path / "answer").read_text()
+
+
+def test_without_pkttyagent_the_job_still_runs(monkeypatch):
+    monkeypatch.setattr("frontends.tui.console.shutil.which", lambda name: None)
+    with Console("x").password_agent():
+        pass

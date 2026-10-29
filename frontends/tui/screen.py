@@ -737,7 +737,7 @@ class Screen:
 
         def job() -> None:
             try:
-                with contextlib.redirect_stdout(console):
+                with console.password_agent(), contextlib.redirect_stdout(console):
                     result = work()
                 if isinstance(result, str) and result.strip() and console.has_output:
                     console.write(f"\n{result.strip()}\n")

@@ -8,10 +8,12 @@ emulator and transcript log. Nothing leaves the interface.
 
 from __future__ import annotations
 
+import contextlib
 import errno
 import fcntl
 import os
 import select
+import shutil
 import signal
 import struct
 import subprocess  # nosec B404 - the argv is the repository's reviewed workflow
@@ -113,6 +115,9 @@ class Console:
         return True
 
     def interrupt(self) -> None:
+        """Ctrl+C for whatever is waiting on the console (a command, or a password prompt)."""
+        if self.send(b"\x03"):  # the pty turns it into SIGINT for its foreground group
+            return
         process = self.process
         if process is not None and process.poll() is None:
             try:
@@ -128,29 +133,31 @@ class Console:
         if self.master is not None:
             fcntl.ioctl(self.master, termios.TIOCSWINSZ, struct.pack("HHHH", rows, columns, 0, 0))
 
-    # -- a command ------------------------------------------------------------
+    # -- commands -------------------------------------------------------------
 
-    def run(self, argv: list[str], log_file: str = "") -> int:
-        """Run ``argv`` on a pty until it exits; its output lands here and in ``log_file``."""
+    def _spawn(self, argv: list[str], pass_fds: tuple[int, ...] = ()) -> tuple[subprocess.Popen, int]:
+        """Start ``argv`` with a pty of this console as its controlling terminal."""
         master, slave = os.openpty()
         fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", self.term.rows, self.term.columns, 0, 0))
 
-        def become_session_leader() -> None:  # the pty is the command's controlling terminal
+        def become_session_leader() -> None:
             os.setsid()
             fcntl.ioctl(0, termios.TIOCSCTTY, 0)
 
         env = dict(os.environ, TERM="xterm-256color", COLUMNS=str(self.term.columns), LINES=str(self.term.rows))
-        self.process = subprocess.Popen(  # nosec B603
-            argv, stdin=slave, stdout=slave, stderr=slave, env=env,
+        process = subprocess.Popen(  # nosec B603
+            argv, stdin=slave, stdout=slave, stderr=slave, env=env, pass_fds=pass_fds,
             preexec_fn=become_session_leader, close_fds=True)  # noqa: PLW1509
         os.close(slave)
-        self.master = master
-        log = TranscriptLog(log_file) if log_file else None
+        return process, master
+
+    def _pump(self, process: subprocess.Popen, master: int, log: TranscriptLog | None = None) -> int:
+        """Show what ``process`` prints until it exits. The keyboard goes to whoever printed last."""
         try:
             while True:
                 ready, _, _ = select.select([master], [], [], 0.1)
                 if not ready:
-                    if self.process.poll() is not None:
+                    if process.poll() is not None:
                         break
                     continue
                 try:
@@ -161,12 +168,48 @@ class Console:
                     chunk = b""
                 if not chunk:
                     break
+                self.master = master
                 self._feed(chunk)
                 if log is not None:
                     log.write(chunk)  # also answers the wrapper's log-sync request
-            return self.process.wait()
+            return process.wait()
         finally:
-            self.master = None
+            if self.master == master:
+                self.master = None
             os.close(master)
             if log is not None:
                 log.close()
+
+    def run(self, argv: list[str], log_file: str = "") -> int:
+        """Run ``argv`` until it exits; its output lands here and in ``log_file``."""
+        self.process, self.master = self._spawn(argv)
+        return self._pump(self.process, self.master, TranscriptLog(log_file) if log_file else None)
+
+    @contextlib.contextmanager
+    def password_agent(self):
+        """While the job runs, Polkit asks for the password here, not in a desktop window.
+
+        pkexec authenticates its parent process, which for the helpers the
+        services call directly is this interface. A textual agent registered
+        for exactly this process (pkttyagent, part of polkit) takes those
+        requests on a pty of this console; the desktop's own agent keeps
+        serving the rest of the session, and a bare TTY, which has none,
+        works the same way.
+        """
+        agent = shutil.which("pkttyagent")
+        if agent is None:
+            yield
+            return
+        ready, notify = os.pipe()
+        process, master = self._spawn([agent, "--process", str(os.getpid()), "--notify-fd", str(notify)],
+                                      pass_fds=(notify,))
+        os.close(notify)
+        pump = threading.Thread(target=self._pump, args=(process, master), name="bc250-tui-polkit", daemon=True)
+        pump.start()
+        select.select([ready], [], [], 5)  # the agent closes its end once it is registered
+        os.close(ready)
+        try:
+            yield
+        finally:
+            process.terminate()
+            pump.join(2)

@@ -71,6 +71,7 @@ def main(argv: list[str] | None = None) -> int:
 
     from bc250cc.application import ApplicationContainer
     from bc250cc.application.system.workflow_console import (
+        TERMINAL_AUTH_ENV,
         set_embedded_terminal_launcher,
     )
 
@@ -80,6 +81,8 @@ def main(argv: list[str] | None = None) -> int:
     from .screen import SIDEBAR_ORDER, Screen
     from .support import check_in_background
 
+    # Passwords are asked in the console pane (pkttyagent, sudo), never in a desktop window.
+    os.environ[TERMINAL_AUTH_ENV] = "1"
     container = ApplicationContainer.production()
     if container.system_service is None or container.settings_service is None:
         print("The application services could not be built.", file=sys.stderr)
