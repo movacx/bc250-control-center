@@ -5483,5 +5483,6 @@
   "The value must be between {low} and {high}.": "Nilai mesti antara {low} dan {high}.",
   "USB drives": "Pemacu USB",
   "Vendor": "Pengeluar",
-  "Waiting for data…": "Menunggu data…"
+  "Waiting for data…": "Menunggu data…",
+  "Prepare the VRAM reader": "Sediakan pembaca VRAM"
 }

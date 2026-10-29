@@ -27,7 +27,7 @@ MEMORY_POLICIES = (
     ("zswap-32", "Heavy games · ZSWAP + 32 GiB swapfile"),
     ("restore", "Restore BC250 memory changes"),
 )
-COMPONENTS = ("runtime", "governor", "stress", "sensors", "umr")
+COMPONENTS = ("runtime", "governor", "cpu_oc", "core_unlock", "umr", "cu_manager", "fan_pwm")
 STATUS_INSTALL = (("status", "Status"), ("install", "Install"), ("uninstall", "Uninstall"))
 
 
@@ -80,7 +80,8 @@ TABS = {
     ),
     "memory": (),  # built by hand: it needs the live memory snapshot
     "decky": (
-        entry("Decky Quick Access", "preparar_quick_access_steamos", (), ("steamos", "bazzite", "cachyos")),
+        entry("Install Decky + Quick Access (Beta)", "preparar_quick_access_steamos", (), ("steamos", "bazzite", "cachyos")),
+        entry("Prepare the VRAM reader", "comando_preparar_gddr6_memory_temp", (), ALL),
     ),
     "drivers": (
         entry("Connectivity support", "install_driver_support", (), ALL),
@@ -114,6 +115,8 @@ def run_entry(ctx, ui, item: Entry) -> None:
         argument = ui.choose(tr(item.label), [(key, label if label == key else tr(label)) for key, label in item.actions])
         if argument is None:
             return
+    elif item.method == "preparar_quick_access_steamos":
+        method = lambda: service.preparar_quick_access_steamos(install_decky=True)  # noqa: E731
     elif item.method == "install_driver_support":
         argument = ui.choose(tr(item.label), [(key, tr(label)) for key, label in DRIVER_COMPONENTS])
         if argument is None:

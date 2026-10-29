@@ -5483,5 +5483,6 @@
   "The value must be between {low} and {high}.": "値は {low} から {high} の間で指定してください。",
   "USB drives": "USB ドライブ",
   "Vendor": "メーカー",
-  "Waiting for data…": "データを待っています…"
+  "Waiting for data…": "データを待っています…",
+  "Prepare the VRAM reader": "VRAM リーダーを準備"
 }

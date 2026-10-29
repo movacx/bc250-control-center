@@ -5483,5 +5483,6 @@
   "The value must be between {low} and {high}.": "값은 {low}에서 {high} 사이여야 합니다.",
   "USB drives": "USB 드라이브",
   "Vendor": "제조사",
-  "Waiting for data…": "데이터를 기다리는 중…"
+  "Waiting for data…": "데이터를 기다리는 중…",
+  "Prepare the VRAM reader": "VRAM 리더 준비"
 }

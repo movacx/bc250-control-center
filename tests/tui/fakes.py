@@ -32,6 +32,9 @@ class FakeService:
         self.calls: list[tuple] = []
 
     def __getattr__(self, name):
+        if name.startswith(("estado_", "ultima_")):
+            return lambda *a, **k: {}
+
         def call(*args, **kwargs):
             self.calls.append((name, args, kwargs))
             return f"{name} ok"
@@ -89,6 +92,7 @@ class FakeUI:
         self.confirmations: list[tuple[str, bool]] = []
         self.refreshed = 0
         self.theme = None
+        self.unicode = True
 
     def confirm(self, message, *, danger=False):
         self.confirmations.append((message, danger))

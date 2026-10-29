@@ -5483,5 +5483,6 @@
   "The value must be between {low} and {high}.": "Стойността трябва да е между {low} и {high}.",
   "USB drives": "USB устройства",
   "Vendor": "Производител",
-  "Waiting for data…": "Изчакване на данни…"
+  "Waiting for data…": "Изчакване на данни…",
+  "Prepare the VRAM reader": "Подготви четеца на VRAM"
 }

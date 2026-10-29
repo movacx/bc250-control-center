@@ -91,7 +91,8 @@ class Screen:
         except curses.error:  # curses was not started (tests)
             colours_available = False
         light = theme == "light" or (theme == "auto" and detect_light_background())
-        attrs = {"": curses.A_NORMAL, "dim": curses.A_DIM, "accent": curses.A_BOLD}
+        attrs = {"": curses.A_NORMAL, "dim": curses.A_DIM, "accent": curses.A_BOLD,
+                 "sel": curses.A_REVERSE | curses.A_BOLD}
         if colour and colours_available:
             try:
                 curses.use_default_colors()
@@ -164,7 +165,7 @@ class Screen:
 
     def build(self) -> Layout:
         height, width = self.size()
-        content_width = max(20, width - self.sidebar_width(width) - 3)
+        content_width = max(20, width - self.sidebar_width(width) - 6)
         tab = self._tab_key()
         with self.ctx.lock:
             data = self.ctx.page_data.get(self.page_key)
@@ -265,13 +266,16 @@ class Screen:
             column = x
             selected = row.choice is not None and row.choice == cursor and self.focus == "content"
             if row.choice is not None:
-                marker = self.glyphs.cursor if selected else " "
+                first = line == 0 or layout.rows[offset + line - 1].choice != row.choice
+                marker = self.glyphs.cursor if selected and first else " "
                 self.put(y, column, marker, self.attrs["accent"])
             column += 2
             for text, tone in row.spans:
                 attr = self.attrs.get(tone, 0) | (curses.A_BOLD if row.bold and tone != "accent" else 0)
-                if selected:
+                if selected and not row.plain:
                     attr |= curses.A_REVERSE
+                if tone == "sel" and self.focus != "content":
+                    attr = self.attrs["accent"]
                 self.put(y, column, text, attr, limit=width - column)
                 column += cell_width(text)
         if len(layout.rows) > view:
@@ -350,11 +354,21 @@ class Screen:
         if self.poller:
             self.poller.show(self.page_key, keys[index])
 
+    def goto(self, page_key: str) -> None:
+        if page_key in self.order:
+            self._go(self.order.index(page_key))
+
     def _content_key(self, key: str) -> None:
         layout = self.build()
         slot = self._slot()
         cursor = self.cursor.get(slot, 0)
         view = max(1, self.size()[0] - 4)
+        current = layout.choices[cursor] if layout.choices else None
+        if current is not None and current.pad is not None:
+            step = {"up": (-1, 0), "down": (1, 0), "left": (0, -1), "right": (0, 1)}.get(key)
+            if step and current.pad.move(*step):
+                self._layout_key = None
+                return
         if key in ("esc", "left") and not (key == "left" and layout.choices and layout.choices[cursor].adjust):
             if key == "left" and self._tabs():
                 self._switch_tab(-1)
@@ -537,18 +551,29 @@ class Screen:
             text = answer
 
     def show_text(self, title: str, text: str, *, compact: bool = False) -> None:
+        """A pager. Long text takes the whole screen; short text a small box."""
         offset = 0
         while True:
-            self.draw()
             height, width = self.size()
-            lines = []
+            lines: list[str] = []
             for line in text.splitlines() or [""]:
-                lines.extend(wrap(line, width - 8) or [""])
-            view = height - 4
-            offset = max(0, min(offset, max(0, len(lines) - view)))
-            self._box(title, lines, width=0 if compact else width - 4, offset=offset,
-                      footer=f"{offset + 1}-{min(len(lines), offset + view)}/{len(lines)} · Esc")
-            self.stdscr.refresh()
+                lines.extend(wrap(line, max(10, width - 4 if not compact else 60)) or [""])
+            if compact:
+                self.draw()
+                self._box(title, lines, offset=offset, footer="Esc")
+                self.stdscr.refresh()
+            else:
+                view = max(1, height - 3)
+                offset = max(0, min(offset, max(0, len(lines) - view)))
+                self.stdscr.erase()
+                self.put(0, 0, pad(f" {title}", width), self.attrs["accent"] | curses.A_REVERSE)
+                for index, line in enumerate(lines[offset:offset + view]):
+                    self.put(1 + index, 1, line)
+                self.put(height - 1, 1, pad(
+                    f"{offset + 1}-{min(len(lines), offset + view)}/{len(lines)}  "
+                    f"↑↓ {tr('Scroll')}  PgUp PgDn  Esc", width - 2), self.attrs["dim"])
+                self.stdscr.refresh()
+            view = max(1, height - 3)
             key = self._read()
             if key in ("esc", "q", "left", "enter"):
                 return
@@ -564,6 +589,7 @@ class Screen:
                 offset = 0
             elif key == "end":
                 offset = len(lines)
+            offset = max(0, min(offset, max(0, len(lines) - view)))
 
     # ---------------------------------------------------------- foreground
 

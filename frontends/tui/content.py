@@ -126,6 +126,67 @@ class Gap:
 
 
 @dataclass(slots=True)
+class Card:
+    """One titled column of a ``Columns`` block (read-only blocks only)."""
+
+    title: str
+    blocks: Sequence["Block"]
+    value: str = ""  # the card's headline reading, right-aligned on its title
+
+
+@dataclass(slots=True)
+class Columns:
+    """Cards side by side when the width allows, stacked when it does not."""
+
+    cards: Sequence[Card]
+    minimum: int = 36
+
+
+@dataclass(slots=True)
+class Track:
+    """A range drawn over its scale: ``500 |----[===]----| 2400``."""
+
+    label: str
+    low: float
+    high: float
+    start: float
+    end: float
+    text: str = ""
+    tone: str = "accent"
+
+
+@dataclass(slots=True)
+class PadCell:
+    top: str
+    bottom: str = ""
+    tone: str = ""
+
+
+@dataclass(slots=True)
+class PadRow:
+    name: str
+    cells: Sequence[PadCell]
+    tail: str = ""
+    tail_tone: str = ""
+
+
+@dataclass(slots=True)
+class Pad:
+    """A grid of cells moved with the arrows and toggled with Enter/Space.
+
+    The grid is one selectable item: the arrows move inside it until they run
+    out of cells, and only then leave it for the next item.
+    """
+
+    headers: Sequence[str]
+    rows: Sequence[PadRow]
+    cursor: tuple[int, int]
+    move: Callable[[int, int], bool]
+    toggle: Callable[[object], None]
+    tail_header: str = ""
+
+
+@dataclass(slots=True)
 class Choice:
     """A selectable row. Enter runs ``handler``; left/right call ``adjust``."""
 
@@ -137,9 +198,10 @@ class Choice:
     adjust: Callable[[object, int], None] | None = None
     key: str = ""
     columns: Sequence[str] = field(default_factory=tuple)
+    pad: "Pad | None" = None
 
 
-Block = Heading | Field | Meter | Trend | Note | Grid | Raw | Gap | Choice
+Block = Heading | Field | Meter | Trend | Note | Grid | Raw | Gap | Choice | Card | Columns | Track | Pad
 
 
 def percent(value: object, default: float | None = None) -> float | None:

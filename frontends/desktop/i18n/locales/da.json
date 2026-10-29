@@ -5483,5 +5483,6 @@
   "The value must be between {low} and {high}.": "Værdien skal være mellem {low} og {high}.",
   "USB drives": "USB-drev",
   "Vendor": "Producent",
-  "Waiting for data…": "Venter på data…"
+  "Waiting for data…": "Venter på data…",
+  "Prepare the VRAM reader": "Klargør VRAM-læseren"
 }

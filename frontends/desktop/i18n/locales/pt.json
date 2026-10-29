@@ -5483,5 +5483,6 @@
   "The value must be between {low} and {high}.": "O valor deve estar entre {low} e {high}.",
   "USB drives": "Unidades USB",
   "Vendor": "Fabricante",
-  "Waiting for data…": "A aguardar dados…"
+  "Waiting for data…": "A aguardar dados…",
+  "Prepare the VRAM reader": "Preparar o leitor de VRAM"
 }
