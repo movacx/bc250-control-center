@@ -48,3 +48,12 @@ No existe en `desarrollo/bc250-control-center`. Desde el primer diseño auditado
 ## Distribuciones
 
 La TUI no añade dependencias: `curses` es de la biblioteca estándar y `psutil` ya lo necesitaba la app. `scripts/install-tui.sh` instala solo lo que falte con dnf, rpm-ostree (Bazzite), apt (Debian/Ubuntu/Mint, más pkexec/jq), pacman (Arch/CachyOS; en SteamOS desbloquea y vuelve a bloquear la raíz), zypper (con `python3-curses`) o apk. Probado en un contenedor limpio de Fedora 44 con instalación real de dependencias. Sin imágenes locales de Debian, Ubuntu, Arch ni Alpine: esas ramas se revisaron a mano, no se ejecutaron.
+
+## Ronda: CPU, GPU, Compute Units y Ajustes adicionales como en escritorio
+
+| Hallazgo | Cambio |
+| --- | --- |
+| CPU, GPU y CU eran listas largas de filas, sin parecido con escritorio | Motor común en `content.py`/`layout.py`: `Panel` (tarjeta con título, insignia, botón de cabecera y zona de riesgo roja), `Tiles` (mosaicos; perfil seleccionable con «Editar»), `Buttons` (fila repartida, primario relleno, peligro en rojo; uno por fila en móvil), `Split` (columna izquierda/derecha, apilado bajo 110 columnas), `Slider` (carril de rango con paradas, rojo pasado 2000 MHz) y `Legend` |
+| Una fila solo podía tener un elemento seleccionable | `Row.owners`: cada tramo sabe de qué botón es; toques y flechas ←→ llegan a botones lado a lado; las celdas de CU se tocan una a una (`Row.cells`, `Pad.place`) |
+| Ajustes adicionales tenía pestaña Decky y listas de acciones sueltas | Pestañas de escritorio (Compatibilidad · Escalado · Memoria y swap · Controladores); grupos Sistema / Governor / Kernel y gráficos / Vídeo con estado de color, tarjetas «Reinicio requerido», y Controladores con Red, Impresión y externos. Decky ya estaba en el Panel; la telemetría pasó a Configuración, como en escritorio |
+| Pantallas y diálogos cargados de texto | Sin subtítulos ni textos de ayuda en mosaicos; CU sin telemetría duplicada; los diálogos llevan la acción como título y dos botones (Sí en rojo si es peligroso), sin pie de teclas |

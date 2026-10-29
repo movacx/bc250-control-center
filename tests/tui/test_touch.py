@@ -50,8 +50,7 @@ def test_a_tap_opens_a_button_and_a_tap_on_the_arrows_steps_a_value(monkeypatch)
     window, screen = touch_screen(height=60)
     screen.goto("gpu")
     screen.draw()
-    rows = {text.strip(): y for y, (_x, text) in screen._row_at.items()}
-    y = next(y for text, y in rows.items() if text.startswith("Maximum frequency"))
+    y = next(y for y, (_x, text) in screen._row_at.items() if "Maximum frequency" in text)
     x, text = screen._row_at[y]
     tap(monkeypatch, screen, x + text.index(">"), y)  # 1850 -> 2000
     screen.draw()
@@ -149,3 +148,14 @@ def test_tapping_esc_on_screen_closes_a_finished_console(monkeypatch):
     request = SimpleNamespace(argv=("bash", "-c", "echo status"), title="x", status_file="", log_file="")
     ok, _result = screen.run("Status", lambda: screen.launch_workflow(request))
     assert ok and screen.active_console is None
+
+
+def test_a_tap_on_a_compute_unit_cell_toggles_that_cell(monkeypatch):
+    window, screen = touch_screen(width=70, height=40)
+    screen.goto("cu")
+    screen.draw()
+    y, cells = next((y, cells) for y, cells in screen._cells_at.items() if cells)
+    x0, _x1, row, column = cells[3]
+    tap(monkeypatch, screen, x0 + 1, y)
+    assert screen.ctx.state("cu")["cursor"] == (row, column)
+    assert screen.ctx.state("cu")["masks"][row] == 31 ^ (1 << column)

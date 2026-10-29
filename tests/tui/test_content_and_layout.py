@@ -79,3 +79,45 @@ def test_a_chart_line_is_one_stroke_with_round_ticks_and_a_labelled_average():
     used = [any(0x2800 < ord(char) <= 0x28FF and char not in "⡀⢀" for char in column) for column in zip(*plot)]
     assert all(used[10:60])  # no column of the stroke left empty: the samples are joined
     assert text[-1].startswith("-2:00") and "-1:00" in text[-1]
+
+
+def test_cards_side_by_side_keep_every_button_and_each_row_knows_whose_span_is_whose():
+    from frontends.tui.content import Buttons, Panel, Split
+
+    pressed = []
+    left = Panel("Left", [Buttons([Choice("One", lambda ui: pressed.append(1)), Choice("Two", lambda ui: None)])])
+    right = Panel("Right", [Choice("Three", lambda ui: None)], action=Choice("Export", lambda ui: None))
+    layout = build_layout([Split([left], [right], minimum=60)], 100, UNICODE)
+    assert [c.label for c in layout.choices] == ["One", "Two", "Three", "Export"]
+    row = next(r for r in layout.rows if r.owners and 0 in r.owners and 1 in r.owners)  # both buttons on one row
+    texts = {owner: "".join(t for (t, _), o in zip(row.spans, row.owners) if o == owner) for owner in (0, 1)}
+    assert "One" in texts[0] and "Two" in texts[1]
+    assert all(cell_width("".join(t for t, _ in r.spans)) == 100 for r in layout.rows)  # nothing spills past the edge
+
+
+def test_buttons_share_the_row_on_a_wide_screen_and_stack_full_width_on_a_phone():
+    from frontends.tui.content import Buttons
+
+    block = Buttons([Choice("Save", lambda ui: None), Choice("Remove", lambda ui: None, tone="bad")])
+    wide = build_layout([block], 60, UNICODE)
+    assert len(wide.rows) == 1 and wide.choice_rows == [0, 0]
+    phone = build_layout([block], 40, UNICODE, touch=True)
+    assert phone.choice_rows == [0, 3] and cell_width("".join(t for t, _ in phone.rows[0].spans)) == 40
+
+
+def test_the_range_rail_marks_the_chosen_span_and_turns_red_past_the_danger_stop():
+    from frontends.tui.content import Slider
+
+    rail = build_layout([Slider([500, 1000, 2000, 2400], 500, 2000, 2000)], 40, UNICODE).rows[0]
+    tones = {tone for text, tone in rail.spans if "━" in text or "●" in text}
+    assert tones == {"accent"} and any(tone == "bad" for _text, tone in rail.spans)
+
+
+def test_a_pad_cell_is_a_tap_target_of_its_own():
+    from frontends.tui.content import Pad, PadCell, PadRow
+
+    placed = []
+    pad = Pad(["A", "B"], [PadRow("r0", [PadCell("x"), PadCell("y")], "1")], (0, 0), lambda r, c: False,
+              lambda ui: None, place=lambda r, c: placed.append((r, c)))
+    row = next(r for r in build_layout([pad], 40, UNICODE).rows if r.cells)
+    assert [(r, c) for _a, _b, r, c in row.cells] == [(0, 0), (0, 1)]

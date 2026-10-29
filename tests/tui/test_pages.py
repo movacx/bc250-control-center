@@ -1,8 +1,7 @@
 import pytest
 
 from frontends.tui.layout import Glyphs, build_layout
-from frontends.tui.pages import build_pages
-from frontends.tui.pages.extras import TABS as EXTRA_TABS
+from frontends.tui.pages import build_pages, extras
 from frontends.tui.pages.extras import AdditionalSettingsPage
 
 from .fakes import GPU_STATE, FakeService, FakeUI, make_context
@@ -87,7 +86,7 @@ def test_cancelling_a_prompt_changes_nothing():
             return None
 
     ui = Cancelling()
-    choice(render(build_pages()["cpu"], ctx, ui), "Frequency").handler(ui)
+    choice(render(build_pages()["cpu"], ctx, ui), "Edit").handler(ui)  # the profile pencil: name, then a cancelled number
     assert service.calls == []
 
 
@@ -125,7 +124,7 @@ def test_a_failing_service_call_is_reported_with_the_catalogue_text_not_a_traceb
             raise RuntimeError("helper exploded")
 
     ctx, ui = make_context(Broken()), FakeUI()
-    choice(render(build_pages()["gpu"], ctx, ui), "Save active range for startup").handler(ui)
+    choice(render(build_pages()["gpu"], ctx, ui), "Save for boot").handler(ui)
     message, tone = ui.notes[-1]
     assert tone == "bad" and "helper exploded" in message and "Traceback" not in message
 
@@ -140,7 +139,7 @@ def test_compute_units_grid_toggles_the_cell_under_the_cursor_and_applies_the_ed
     grid.toggle(ui)  # cursor starts on SE0.SH0 / WGP0
     layout = render(page, ctx, ui)
     assert "38 / 40" in text_of(layout)
-    choice(layout, "Apply live table").handler(ui)
+    choice(layout, "Apply now").handler(ui)
     applied = next(call for call in service.calls if call[0] == "aplicar_tabla_cu")
     assert applied[1][0] == [30, 31, 31, 31]
 
@@ -220,32 +219,43 @@ def test_closing_a_process_needs_a_choice_and_a_confirmation():
 
 
 def test_extras_only_offers_what_applies_to_the_detected_family():
-    ctx, ui = make_context(), FakeUI()
+    service = FakeService()
+    service.estado_herramientas_bc250 = lambda: {"bazzite_smt": {"available": True, "configured": False}}
+    ctx, ui = make_context(service), FakeUI()
     page = AdditionalSettingsPage()
     ctx.state("system")["os"] = ("steamos", "SteamOS")
-    labels = {c.label.removesuffix(" ›") for c in render(page, ctx, ui, "compatibility").choices}
-    assert "SteamOS read-only mode" in labels and "Simultaneous multithreading (SMT)" not in labels
+    text = text_of(render(page, ctx, ui, "compatibility"))
+    assert "SteamOS read-only mode" in text and "Disable SMT" in text  # the SMT card follows the snapshot
     ctx.state("system")["os"] = ("bazzite", "Bazzite")
-    labels = {c.label.removesuffix(" ›") for c in render(page, ctx, ui, "compatibility").choices}
-    assert "Simultaneous multithreading (SMT)" in labels and "SteamOS read-only mode" not in labels
+    assert "SteamOS read-only mode" not in text_of(render(page, ctx, ui, "compatibility"))
 
 
-def test_extras_action_runs_the_selected_service_method_with_the_selected_action():
+def test_extras_reboot_card_runs_its_service_method_after_a_dangerous_confirmation():
     service = FakeService()
-    ctx, ui = make_context(service), FakeUI(choices=["disable"])
-    ctx.state("system")["os"] = ("bazzite", "Bazzite")
+    service.estado_herramientas_bc250 = lambda: {"bazzite_smt": {"available": True, "configured": False,
+                                                                 "reboot_required": True}}
+    ctx, ui = make_context(service), FakeUI()
     layout = render(AdditionalSettingsPage(), ctx, ui, "compatibility")
-    choice(layout, "Simultaneous multithreading (SMT)").handler(ui)
+    assert "Reboot required" in text_of(layout)
+    choice(layout, "Disable SMT").handler(ui)
     assert ("gestionar_smt_bazzite", ("disable",), {}) in service.calls
     assert ui.confirmations[-1][1] is True  # disabling SMT is a dangerous action
+
+
+def test_extras_drivers_tab_lists_network_printing_and_external_drivers():
+    ctx, ui = make_context(), FakeUI()
+    text = text_of(render(AdditionalSettingsPage(), ctx, ui, "drivers"))
+    assert "Network" in text and "Printing" in text and "External drivers" in text and "Reference only" in text
+    assert "Decky" not in text
 
 
 def test_every_extras_entry_targets_a_method_the_real_service_has():
     from bc250cc.infrastructure.system_service import SistemaService
 
-    for entries in EXTRA_TABS.values():
-        for entry in entries:
-            assert hasattr(SistemaService, entry.method), entry.method
+    methods = [m for m, _a, _f in extras.GFX1013] + [card[3] for card in extras.REBOOT_CARDS] \
+        + [entry[1] for entry in extras.DISTRIBUTION]
+    for method in methods:
+        assert hasattr(SistemaService, method), method
 
 
 def test_every_service_method_the_pages_call_exists_on_the_real_service():

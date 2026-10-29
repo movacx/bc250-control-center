@@ -158,6 +158,7 @@ class Track:
 class PadCell:
     text: str
     tone: str = ""
+    note: str = ""  # a second line under the token, as the desktop's cells carry ("ROUTED")
 
 
 @dataclass(slots=True)
@@ -182,6 +183,8 @@ class Pad:
     move: Callable[[int, int], bool]
     toggle: Callable[[object], None]
     tail_header: str = ""
+    place: Callable[[int, int], None] | None = None  # a tap on a cell puts the cursor there first
+    corner: str = ""  # over the row names; any header may carry a second line after "\n"
 
 
 @dataclass(slots=True)
@@ -218,9 +221,82 @@ class Choice:
     adjust: Callable[[object, int], None] | None = None
     pad: "Pad | None" = None
     dense: bool = False  # a row of a long list: no touch spacing (the whole row is already the target)
+    badge: str = ""  # a status chip at the row's right edge (Active, Not installed…)
+    badge_tone: str = "dim"
 
 
-Block = Heading | Field | Meter | Trend | Note | Grid | Raw | Gap | Choice | Card | Columns | Track | Pad | Chart
+@dataclass(slots=True)
+class Panel:
+    """A bordered card: title, an optional badge or header button, a subtitle, then its blocks.
+
+    ``danger`` draws it as the desktop's red risk zone.
+    """
+
+    title: str
+    blocks: Sequence["Block"] = ()
+    subtitle: str = ""
+    badge: str = ""
+    badge_tone: str = "dim"
+    action: "Choice | None" = None  # a button on the title row (Export to Decky, Show ›)
+    danger: bool = False
+
+
+@dataclass(slots=True)
+class Tile:
+    """A small boxed reading: caption, value, hint. With ``handler`` it is a button (a profile)."""
+
+    label: str
+    value: str
+    hint: str = ""
+    tone: str = ""
+    handler: Callable[[object], None] | None = None
+    active: bool = False
+    edit: Callable[[object], None] | None = None  # the desktop's pencil, a word here: a glyph may be missing
+    edit_label: str = "Edit"
+
+
+@dataclass(slots=True)
+class Tiles:
+    tiles: Sequence[Tile]
+    minimum: int = 22  # columns a tile needs; as many per row as fit
+
+
+@dataclass(slots=True)
+class Buttons:
+    """Buttons side by side, sharing the width (stacked on a phone). Tone "primary" fills, "bad" is red."""
+
+    choices: Sequence["Choice"]
+
+
+@dataclass(slots=True)
+class Split:
+    """Two columns, as the desktop's left and right panels; one column below ``minimum``."""
+
+    left: Sequence["Block"]
+    right: Sequence["Block"]
+    ratio: float = 0.58
+    minimum: int = 110
+
+
+@dataclass(slots=True)
+class Slider:
+    """The desktop's range rail: evenly spaced stops, the chosen span heavy, stops past ``danger`` red."""
+
+    stops: Sequence[int]
+    start: int
+    end: int
+    danger: int | None = None
+
+
+@dataclass(slots=True)
+class Legend:
+    """Coloured chips with what they mean, wrapped across rows: ``(chip, meaning, tone)``."""
+
+    items: Sequence[tuple[str, str, str]]
+
+
+Block = Heading | Field | Meter | Trend | Note | Grid | Raw | Gap | Choice | Card | Columns | Track | Pad | Chart \
+    | Panel | Tiles | Buttons | Split | Slider | Legend
 
 
 def percent(value: object, default: float | None = None) -> float | None:

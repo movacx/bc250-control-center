@@ -119,8 +119,16 @@ class SettingsPage(Page):
                     lines.append(f"{event.get('fecha', '') if isinstance(event, dict) else ''} {title}: {detail}".strip())
                 ui_.show_text(tr("History & reports"), "\n".join(lines) or tr("(empty)"))
 
+            from .extras import INSTALL, run
+
             out += [Choice(tr("Diagnostics"), diagnose), Choice(tr("Recovery"), snapshots),
-                    Choice(tr("Create a recovery snapshot"), snapshot), Choice(tr("History & reports"), events)]
+                    Choice(tr("Create a recovery snapshot"), snapshot), Choice(tr("History & reports"), events),
+                    # The desktop keeps these two with its settings and dashboard, not with Additional settings.
+                    Choice(tr("BC250-Telemetry service") + " ›", lambda ui_: run(
+                        ui_, "BC250-Telemetry service", ctx.service.gestionar_apu_telemetry, INSTALL)),
+                    Choice(tr("Eight-core GPU telemetry") + " ›", lambda ui_: run(
+                        ui_, "Eight-core GPU telemetry", ctx.service.gestionar_acpi,
+                        (("telemetry-fix", "Install"), ("telemetry-restore", "Restore"))))]
         elif tab == "security":
             out.append(Field(tr("Discreet mode"), tr("Yes") if config.get("modo_discreto") else tr("No")))
         else:

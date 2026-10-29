@@ -26,11 +26,13 @@ def _table_labels() -> set[str]:
     from frontends.tui.pages import build_pages, extras, settings
 
     labels = {title for _key, title in extras.TAB_TITLES} | {label for _k, label in extras.MEMORY_POLICIES}
-    labels |= {label for _k, label in extras.DRIVER_COMPONENTS} | {label for _k, label in extras.STATUS_INSTALL}
-    for entries in extras.TABS.values():
-        for entry in entries:
-            labels.add(entry.label)
-            labels |= {label for key, label in entry.actions if label != key}  # raw ids are shown untranslated
+    labels |= {label for label, _tone in extras.ACPI_STATUS.values()}
+    labels |= {text for _id, _name, *texts in extras.GOVERNORS for text in texts}  # the names are product names
+    for _key, title, detail, _method, disable, restore in extras.REBOOT_CARDS:
+        labels |= {title, detail, disable[1], restore[1]}
+    actions = [a for _m, a, _f in extras.GFX1013] + [entry[2] for entry in extras.DISTRIBUTION]
+    labels |= {entry[0] for entry in extras.DISTRIBUTION}
+    labels |= {label for group in actions for key, label in group if label != key}  # raw ids are shown untranslated
     labels |= {label for _k, label in settings.THEMES} | {label for _k, label in settings.TABS}
     labels |= {label for _k, label, _lo, _hi in settings.ALERT_FIELDS}
     labels |= {page.title for page in build_pages().values()}

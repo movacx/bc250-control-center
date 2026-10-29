@@ -7,6 +7,7 @@ from typing import Any, Protocol
 
 from ..content import (
     Block,
+    Choice,
     Meter,
     Note,
     Trend,
@@ -35,6 +36,7 @@ class UI(Protocol):
     def refresh(self) -> None: ...
     def apply_theme(self, theme: str) -> None: ...
     def goto(self, page_key: str) -> None: ...
+    def show_tab(self, key: str) -> None: ...
 
 
 class Page:
@@ -115,3 +117,26 @@ def temperature_meter(label: str, celsius: object, ceiling: float = 110.0) -> Me
 
 def load_meter(label: str, value: object) -> Meter:
     return Meter(label, percent(value), number(value, "%", 0), load_tone(value))
+
+
+# -- pieces every hardware page draws the same way, as the desktop's shared components --------------
+
+
+def check(label: str, on: bool, toggle: Callable[[UI], None], *, enabled: bool = True) -> Choice:
+    """A checkbox row."""
+    return Choice(f"[{'x' if on else ' '}] {label}", toggle, enabled=enabled)
+
+
+def stepper(label: str, store: dict, key: str, low: int, high: int, step: int, unit: str, *,
+            enabled: bool = True) -> Choice:
+    """A number: arrows (or a tap on < >) step it, Enter types it."""
+    def adjust(ui_, direction):
+        store[key] = max(low, min(high, store[key] + step * direction))
+
+    def edit(ui_):
+        value = ui_.ask_int(f"{label} ({unit})", low, high, store[key])
+        if value is not None:
+            store[key] = value
+
+    return Choice(label, edit, f"< {store[key]} {unit} >", adjust=adjust, enabled=enabled)
+

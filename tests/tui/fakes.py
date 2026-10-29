@@ -123,6 +123,9 @@ class FakeUI:
     def refresh(self):
         self.refreshed += 1
 
+    def show_tab(self, key):
+        self.tab = key
+
     def apply_theme(self, theme):
         self.theme = theme
 

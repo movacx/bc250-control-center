@@ -131,9 +131,9 @@ def test_tabs_cycle_with_brackets_and_arrows_inside_the_content():
     press(screen, ord("5"))
     assert screen.page_key == "extras" and screen._tab_key() == "compatibility"
     press(screen, ord("]"))
-    assert screen._tab_key() == "memory"
+    assert screen._tab_key() == "upscaling"  # the desktop's order
     press(screen, ord("["), ord("["))
-    assert screen._tab_key() == "upscaling"  # wraps around
+    assert screen._tab_key() == "drivers"  # wraps around
     press(screen, 10)  # Enter: into the content
     assert screen.focus == "content"
     press(screen, curses.KEY_RIGHT)
@@ -146,15 +146,16 @@ def test_enter_runs_the_selected_action_and_asks_for_confirmation_first():
     press(screen, ord("4"))  # GPU
     press(screen, 10)
     layout = screen.build()
-    index = next(i for i, c in enumerate(layout.choices) if c.label == "Start governor")
+    index = next(i for i, c in enumerate(layout.choices) if c.label == "Restart")
     screen.cursor[screen._slot()] = index
+    screen._reveal(screen._slot(), layout.choice_rows[index])
     asked = []
     screen.confirm = lambda message, danger=False: asked.append(message) or False
     press(screen, 10)
     assert asked and not any(call[0] == "controlar_governor" for call in service.calls)
     screen.confirm = lambda message, danger=False: True
     press(screen, 10)
-    assert ("controlar_governor", ("activar",), {}) in service.calls
+    assert ("controlar_governor", ("reiniciar",), {}) in service.calls
 
 
 def test_quit_key_raises_the_quit_signal():

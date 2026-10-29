@@ -43,7 +43,7 @@ SCROLLBACK_ALL = 10**6
 #: One-for-one replacements (same column width) for terminals without Unicode.
 ASCII_MAP = str.maketrans({
     "…": ".", "·": "-", "│": "|", "─": "-", "┌": "+", "┐": "+", "└": "+", "┘": "+", "├": "+", "┤": "+", "┬": "+",
-    "┴": "+", "┼": "+", "▲": "^", "▼": "v", "↑": "^", "↓": "v", "→": ">", "←": "<", "–": "-", "▏": "_", "›": ">",
+    "┴": "+", "┼": "+", "▲": "^", "▼": "v", "↑": "^", "↓": "v", "→": ">", "←": "<", "–": "-", "—": "-", "▏": "_", "›": ">",
     "•": "*", "█": "#", "░": "-", "━": "=", "┃": "#", "▴": "^", "▾": "v", "●": "*", "°": "o", "✓": "+", "✗": "x",
 })
 
@@ -91,7 +91,8 @@ class Screen:
         self._layout_key: tuple | None = None
         # What the last draw put where, for the mouse: y -> page index / choice index, tab spans.
         self._sidebar_at: dict[int, int] = {}
-        self._choice_at: dict[int, int] = {}
+        self._choice_at: dict[int, list[tuple[int, int, int]]] = {}  # y -> (x0, x1, choice index)
+        self._cells_at: dict[int, list[tuple[int, int, int, int]]] = {}  # y -> Pad cells (x0, x1, row, column)
         self._tab_at: list[tuple[int, int, str]] = []
         self._hits: list[tuple[int, int, int, str]] = []  # (y, x from, x to, key): taps on keys and strips
         self._row_at: dict[int, tuple[int, str]] = {}  # y -> (x, text) of a drawn item, for "<" / ">" taps
@@ -125,6 +126,18 @@ class Screen:
                     curses.init_pair(pair, color, -1)  # -1: the terminal's own background
                 for tone, pair in TONE_PAIRS.items():
                     attrs[tone] = curses.color_pair(pair) | (curses.A_BOLD if tone in ("accent", "bad") else 0)
+                if curses.COLORS >= 256:  # softer tones, and buttons filled the way the desktop fills them
+                    text = (28, 130, 160, 61) if light else (114, 221, 210, 147)
+                    fills = {"ok": 29, "warn": 136, "bad": 167, "accent": 62, "dim": 240}
+                    for (tone, pair), color in zip(TONE_PAIRS.items(), text):
+                        curses.init_pair(pair, color, -1)
+                    for offset, (tone, color) in enumerate(fills.items()):
+                        curses.init_pair(10 + offset, 255, color)
+                        curses.init_pair(20 + offset, color, -1)
+                        attrs["btn:" + tone] = curses.color_pair(10 + offset)
+                        attrs["edge:" + tone] = curses.color_pair(20 + offset)
+                    curses.init_pair(30, 243 if light else 246, -1)  # secondary text: grey, not the font's dim
+                    attrs["dim"] = curses.color_pair(30)
             except curses.error:
                 pass
         self.attrs = attrs
@@ -280,7 +293,9 @@ class Screen:
         for index, (text, key) in enumerate(labels):  # exact edges: the keys reach both sides, one column apart
             column = index * (width - 1) // len(labels)
             cell = (index + 1) * (width - 1) // len(labels) - column
-            attr = (self.attrs["accent"] if key == "menu" else 0) | curses.A_REVERSE | curses.A_BOLD
+            fill = self.attrs.get("btn:accent" if key == "menu" else "btn:dim")
+            attr = (fill if fill is not None else (self.attrs["accent"] if key == "menu" else 0) | curses.A_REVERSE) \
+                | curses.A_BOLD
             for y in (height - 2, height - 1):
                 self.put(y, column, clip(text, cell - 1).center(cell - 1) if y == height - 2 else " " * (cell - 1), attr)
                 self._hits.append((y, column, column + cell, key))
@@ -360,32 +375,38 @@ class Screen:
         cursor = self.cursor.get(slot, 0)
         offset = max(0, min(self.scroll.get(slot, 0), max(0, len(layout.rows) - view)))
         self.scroll[slot] = offset
-        self._choice_at = {}
+        self._choice_at, self._cells_at = {}, {}
         for line, row in enumerate(layout.rows[offset:offset + view]):
             y = top + line
-            selected = row.choice is not None and row.choice == cursor and self.focus == "content"
+            owners = row.owned()
             if row.choice is not None:
-                self._choice_at[y] = row.choice
                 first = line == 0 or layout.rows[offset + line - 1].choice != row.choice
-                if selected and first:
+                if row.choice == cursor and self.focus == "content" and first:
                     self.put(y, x - 2, self.glyphs.cursor, self.attrs["accent"])
-            column = x
-            if row.choice is not None:
+            if any(owner is not None for owner in owners):
                 self._row_at[y] = (x, "".join(text for text, _tone in row.spans))
-            for text, tone in row.spans:
-                if tone.startswith("btn:"):  # a touch button: the bar is the colour, its text the background
-                    attr = self.attrs.get(tone[4:], 0) | curses.A_REVERSE | curses.A_BOLD
-                    attr = attr & ~curses.A_REVERSE if selected else attr
-                    self.put(y, column, text, attr, limit=width - column - 1)
-                    column += cell_width(text)
-                    continue
-                attr = self.attrs.get(tone, 0) | (curses.A_BOLD if row.bold else 0)
-                if selected and not row.plain:
-                    attr |= curses.A_REVERSE
-                if tone == "sel" and self.focus != "content":
-                    attr = self.attrs["accent"]
+            self._cells_at[y] = [(x + a, x + b, r, c) for a, b, r, c in row.cells]
+            column = x
+            for (text, tone), owner in zip(row.spans, owners):
+                width_ = cell_width(text)
+                if owner is not None:
+                    index = owner if owner >= 0 else -1 - owner
+                    self._choice_at.setdefault(y, []).append((column, column + width_, index))
+                selected = owner is not None and owner == cursor and self.focus == "content"  # a plain owner is < 0
+                bold = row.bold or tone.endswith("!")
+                tone = tone.rstrip("!")
+                if tone.startswith("btn:"):  # a filled button or badge: white words on its colour
+                    own = self.attrs.get(tone)
+                    attr = (own if own is not None else self.attrs.get(tone[4:], 0) | curses.A_REVERSE) | curses.A_BOLD
+                    attr ^= curses.A_REVERSE if selected else 0
+                elif tone.startswith("edge:"):  # the half blocks above and below a phone's button
+                    attr = self.attrs.get(tone, self.attrs.get(tone[5:], 0))
+                else:
+                    attr = self.attrs.get(tone, 0) | (curses.A_BOLD if bold else 0) | (curses.A_REVERSE if selected else 0)
+                    if tone == "sel" and self.focus != "content":
+                        attr = self.attrs["accent"]
                 self.put(y, column, text, attr, limit=width - column - 1)
-                column += cell_width(text)
+                column += width_
         if len(layout.rows) > view:  # a scrollbar: the thumb is where this view sits on the page
             size = max(1, view * view // len(layout.rows))
             start = round(offset * (view - size) / max(1, len(layout.rows) - view))
@@ -576,6 +597,10 @@ class Screen:
         if self.poller:
             self.poller.show(self.page_key, self._tab_key())
 
+    def show_tab(self, key: str) -> None:
+        """Open a tab of the page on screen (a button that leads to it, as "Open laboratory")."""
+        self._switch_tab(0, key)
+
     def goto(self, page_key: str) -> None:
         if page_key in self.order:
             self._go(self.order.index(page_key))
@@ -622,7 +647,12 @@ class Screen:
             if step and current.pad.move(*step):
                 self._layout_key = None
                 return
-        if key in ("left", "right") and current is not None and current.adjust:
+        sibling = self.cursor.get(slot, 0) + (1 if key == "right" else -1)
+        if key in ("left", "right") and current is not None and not current.adjust and current.pad is None \
+                and 0 <= sibling < len(layout.choices) \
+                and layout.choice_rows[sibling] == layout.choice_rows[self.cursor.get(slot, 0)]:
+            self.cursor[slot] = sibling  # buttons side by side: the arrows go along the row
+        elif key in ("left", "right") and current is not None and current.adjust:
             current.adjust(self, 1 if key == "right" else -1)
         elif key in ("left", "right") and self._tabs():
             self._switch_tab(1 if key == "right" else -1)
@@ -666,11 +696,17 @@ class Screen:
         elif not self.touch and x < self.sidebar_width(self.size()[1]) and y in self._sidebar_at:
             self.focus = "sidebar"
             self._go(self._sidebar_at[y])
-        elif y in self._choice_at:
-            slot, index = self._slot(), self._choice_at[y]
+        elif (index := next((i for a, b, i in self._choice_at.get(y, ()) if a <= x < b), None)) is not None:
+            slot = self._slot()
             again = self.focus == "content" and self.cursor.get(slot) == index
             self.focus, self.cursor[slot] = "content", index
             choice = self.build().choices[index]
+            cell = next(((r, c) for a, b, r, c in self._cells_at.get(y, ()) if a <= x < b), None)
+            if choice.pad is not None and choice.pad.place is not None:
+                if cell is None:
+                    return
+                choice.pad.place(*cell)  # the tapped cell, then toggle it
+                again = True
             left, text = self._row_at.get(y, (0, ""))
             step = {"<": -1, ">": 1}.get(text[x - left:x - left + 1]) if choice.adjust else None
             if step:
@@ -756,21 +792,36 @@ class Screen:
         key = self._modal_key()
         return ALIASES.get(key, key)
 
+    def _answers(self, y: int, left: int, box_w: int, answers: list[tuple[str, str, str]]) -> None:
+        """A dialog's answers as buttons sharing its bottom row: (label, key, tone); the first one filled."""
+        each = (box_w - 4 - 2 * (len(answers) - 1)) // len(answers)
+        for index, (label, key, tone) in enumerate(answers):
+            x = left + 2 + index * (each + 2)
+            text = clip(label, each - 2).center(each)
+            fill = self.attrs.get(f"btn:{tone}") if index == 0 else None
+            attr = (fill if fill is not None else self.attrs.get(tone, 0) | (curses.A_REVERSE if index == 0 else 0)) \
+                | curses.A_BOLD
+            self.put(y, x, text, attr)
+            if index:
+                self.put(y, x, "[", attr)
+                self.put(y, x + each - 1, "]", attr)
+            self._hits += [(row, x, x + each, key) for row in (y - 1, y, y + 1)]
+
     def confirm(self, message: str, *, danger: bool = False) -> bool:
+        """The action as the title, what it will do underneath, then Yes / No."""
+        title, _sep, body = message.partition(": ")
+        if not body or cell_width(title) > 48:
+            title, body = tr("Confirm"), message
         while True:
-            width = min(self.size()[1] - 8, 64)
+            width = min(self.size()[1] - 4, 56)
             self.draw()
-            lines = wrap(message, max(10, width - 4))
-            half = max(8, (width - 4) // 2)
-            if self.touch:  # two wide answers to tap, under the question
-                lines += ["", f"[ {tr('Yes')} ]".center(half) + f"[ {tr('No')} ]".center(half)]
-            top, left, box_h, box_w = self._box(tr("Confirm"), lines, width=width,
-                                                footer=f"y {tr('Yes')} · n {tr('No')}" + (" · !" if danger else ""))
-            for y in range(top + box_h - 3, top + box_h):
-                self._hits += [(y, left, left + 2 + half, "y"), (y, left + 2 + half, left + box_w, "n")]
+            lines = wrap(body, max(10, width - 4)) + ["", ""]
+            top, left, box_h, box_w = self._box(title, lines, width=width)
+            self._answers(top + box_h - 2, left, box_w, [(tr("Yes"), "y", "bad" if danger else "accent"),
+                                                         (tr("No"), "n", "dim")])
             self.stdscr.refresh()
             key = self._modal_key()
-            # A dangerous action needs an explicit "y": Enter alone is not consent.
+            # A dangerous action needs an explicit "y" (or the tap on Yes): Enter alone is not consent.
             if key in ("y", "Y") or (key == "enter" and not danger):
                 return True
             if key in ("n", "N", "esc", "q"):
@@ -788,7 +839,7 @@ class Screen:
             else:
                 height = self.size()[0]
                 offset = max(0, min(index - (height - 8) // 2, max(0, len(labels) - (height - 6))))
-                self._box(title, labels, selected=index, offset=offset, footer="Enter · Esc")
+                self._box(title, labels, selected=index, offset=offset)
             self.stdscr.refresh()
             key = self._read()
             moves = {"up": index - 1, "down": index + 1, "pgup": 0, "home": 0, "pgdn": len(options) - 1,
@@ -821,12 +872,9 @@ class Screen:
         caret = "▏" if self.unicode else "_"
         while True:
             self.draw()
-            lines = [value[:cursor] + caret + value[cursor:]]
-            if self.touch:  # answers to tap; the phone keyboard types the value
-                lines += ["", f"[ {tr('Apply')} ]".center(23) + f"[ {tr('Cancel')} ]".center(23)]
-            top, left, box_h, box_w = self._box(label, lines, width=50, footer="Enter · Esc")
-            for y in range(top + box_h - 3, top + box_h):
-                self._hits += [(y, left, left + box_w // 2, "enter"), (y, left + box_w // 2, left + box_w, "esc")]
+            lines = [value[:cursor] + caret + value[cursor:], "", ""]
+            top, left, box_h, box_w = self._box(label, lines, width=min(self.size()[1] - 4, 50))
+            self._answers(top + box_h - 2, left, box_w, [(tr("Apply"), "enter", "accent"), (tr("Cancel"), "esc", "dim")])
             self.stdscr.refresh()
             key = self._modal_key()
             if key == "enter":
