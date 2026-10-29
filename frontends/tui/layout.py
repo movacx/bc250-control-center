@@ -134,6 +134,7 @@ def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int
         max([cell_width(b.label) for b in blocks if isinstance(b, (Field, Meter, Trend, Choice))] + [8]),
     )
 
+    choice_col = min(38, max([cell_width(b.label) for b in blocks if isinstance(b, Choice) and b.detail] + [0]) + 3)
     meter_text = max([cell_width(b.text) for b in blocks if isinstance(b, Meter)] + [0])
 
     def add(spans, choice=None, bold=False):
@@ -247,8 +248,9 @@ def build_layout(blocks: list[Block], width: int, glyphs: Glyphs, label_cap: int
             layout.choice_rows.append(len(layout.rows))
             detail = block.detail
             room = width - 3
-            label = clip(block.label, max(8, room - cell_width(detail) - 2)) if detail else clip(block.label, room)
-            fill = " " * max(1, room - cell_width(label) - cell_width(detail)) if detail else ""
+            # Label and value sit in two columns, so a value reads next to what it belongs to.
+            label = pad(block.label, choice_col) if detail else clip(block.label, room)
+            fill = ""
             tone = block.tone if block.enabled else "dim"
-            add([(label, tone), (fill, ""), (detail, "dim")], choice=index)
+            add([(label, tone), (fill, ""), (detail, "accent" if block.adjust else "dim")], choice=index)
     return layout

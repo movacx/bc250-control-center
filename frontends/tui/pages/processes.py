@@ -20,7 +20,8 @@ class ProcessesPage(Page):
     def build(self, ctx, data, tab, ui):
         service = ctx.service
         processes = sorted(data or [], key=lambda proc: getattr(proc, "memoria", 0), reverse=True)[:MAX_ROWS]
-        out = [Heading(tr("Processes"))]
+        column = min(38, max([len(str(getattr(p, "nombre", ""))) for p in processes] + [len(tr("Name"))]) + 3)
+        out = [Heading(tr("Processes")), Note(f"{tr('Name'):<{column}}{'PID':>8}  {tr('Memory'):>10}", "dim")]
         if not processes:
             out.append(Note(ctx.page_error.get(self.key) or tr("Waiting for data…"), "dim"))
         for proc in processes:
@@ -43,7 +44,7 @@ class ProcessesPage(Page):
 
             out.append(Choice(
                 name, act if not protected else None,
-                f"{pid:>7}  {size(getattr(proc, 'memoria', None)):>10}" + ("  *" if protected else ""),
+                f"{pid:>8}  {size(getattr(proc, 'memoria', None)):>10}" + ("  *" if protected else ""),
                 enabled=not protected, tone="dim" if protected else "",
             ))
 

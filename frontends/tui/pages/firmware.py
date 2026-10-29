@@ -33,7 +33,7 @@ class FirmwarePage(Page):
         if installed.variant:
             out.append(Field(tr("Firmware"), installed.variant))
         if installed.evidence:
-            out.append(Note(installed.evidence, "dim"))
+            out.append(Note(tr(installed.evidence), "dim"))
         out += [Gap(), Heading(tr("USB drives"))]
         if not drives:
             out.append(Note(tr("Not detected"), "dim"))
@@ -46,7 +46,7 @@ class FirmwarePage(Page):
             def prepare(ui_, family=family):
                 self._prepare(ctx, ui_, family, drives)
 
-            out.append(Choice(family.title, prepare, tr("Recommended") if family.recommended else "",
+            out.append(Choice(family.title, prepare, f"{family.version} · {tr('Recommended')}" if family.recommended else family.version,
                               tone="ok" if family.recommended else ""))
         return out
 

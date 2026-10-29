@@ -102,15 +102,15 @@ def test_vim_keys_and_tab_switch_panes():
 def test_tabs_cycle_with_brackets_and_arrows_inside_the_content():
     _, screen = make_screen()
     press(screen, ord("4"))
-    assert screen.page_key == "extras"
+    assert screen.page_key == "extras" and screen._tab_key() == "compatibility"
     press(screen, ord("]"))
-    assert screen._tab_key() == "compatibility"
+    assert screen._tab_key() == "memory"
     press(screen, ord("["), ord("["))
     assert screen._tab_key() == "upscaling"  # wraps around
     press(screen, 10)  # Enter: into the content
     assert screen.focus == "content"
     press(screen, curses.KEY_RIGHT)
-    assert screen._tab_key() == "components"
+    assert screen._tab_key() == "compatibility"
 
 
 def test_enter_runs_the_selected_action_and_asks_for_confirmation_first():

@@ -27,7 +27,6 @@ MEMORY_POLICIES = (
     ("zswap-32", "Heavy games · ZSWAP + 32 GiB swapfile"),
     ("restore", "Restore BC250 memory changes"),
 )
-COMPONENTS = ("runtime", "governor", "cpu_oc", "core_unlock", "umr", "cu_manager", "fan_pwm")
 STATUS_INSTALL = (("status", "Status"), ("install", "Install"), ("uninstall", "Uninstall"))
 
 
@@ -46,7 +45,6 @@ def entry(label, method, actions=(), families=ALL, danger=False, note=""):
 
 
 TABS = {
-    "components": (),
     "compatibility": (
         entry("Simultaneous multithreading (SMT)", "gestionar_smt_bazzite",
               (("status", "Status"), ("disable", "Disable"), ("restore", "Restore")), ("bazzite",), True),
@@ -95,7 +93,6 @@ TABS = {
 }
 
 TAB_TITLES = (
-    ("components", "Components"),
     ("compatibility", "Compatibility"),
     ("memory", "Memory & Swap"),
     ("decky", "Decky"),
@@ -158,14 +155,11 @@ class AdditionalSettingsPage(Page):
         return state["family"]
 
     def build(self, ctx, data, tab, ui):
-        tab = tab or "components"
+        tab = tab or "compatibility"
         family = self._family(ctx)
         out = [Heading(tr(dict(TAB_TITLES).get(tab, tab))),
                Field(tr("System"), str(ctx.state(self.key).get("name") or family))]
-        tools = (data or {}).get("tools") or {}
-        if tab == "components":
-            out += self._components(ctx, tools)
-        elif tab == "memory":
+        if tab == "memory":
             out += self._memory(ctx)
         else:
             shown = [item for item in TABS.get(tab, ()) if item.families is None or family in item.families]
@@ -174,25 +168,6 @@ class AdditionalSettingsPage(Page):
             for item in shown:
                 out.append(Choice(tr(item.label), lambda ui_, item=item: run_entry(ctx, ui_, item),
                                   tone="warn" if item.danger else ""))
-        return out
-
-    def _components(self, ctx, tools):
-        service = ctx.service
-        def state(label, present):
-            return Field(label, tr("Installed") if present else tr("Not detected"), "ok" if present else "warn")
-
-        out = [state(tr("GPU governor"), tools.get("governor_pkg")), state("UMR", tools.get("umr")),
-               state(tr("Stress test"), tools.get("stress")), Gap(), Heading(tr("Actions"))]
-
-        def install(ui_):
-            names = [("all", tr("All"))] + [(name, name) for name in COMPONENTS]
-            chosen = ui_.choose(tr("Components"), names)
-            if chosen is None or not ui_.confirm(tr("Install {name}").format(name=chosen)):
-                return
-            components = None if chosen == "all" else [chosen]
-            guarded(ui_, tr("Components"), lambda: service.instalar_dependencias_bc250(components=components))
-
-        out.append(Choice(tr("Components: install what is missing"), install))
         return out
 
     def _memory(self, ctx):

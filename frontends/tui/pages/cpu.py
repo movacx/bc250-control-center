@@ -77,7 +77,7 @@ class CpuPage(Page):
 
             return Choice(label, edit, f"< {target[key]} {unit} >", adjust=adjust)
 
-        out += [Track(tr("Frequency"), FREQUENCY_MHZ[0], FREQUENCY_MHZ[1], FREQUENCY_MHZ[0], target["freq"],
+        out += [Track(tr("Range"), FREQUENCY_MHZ[0], FREQUENCY_MHZ[1], FREQUENCY_MHZ[0], target["freq"],
                       f"{target['freq']} MHz", "warn" if target["freq"] > 3850 else "accent"),
                 number_choice(tr("Frequency"), "freq", *FREQUENCY_MHZ, 50, "MHz"),
                 number_choice("VID", "vid", *VID_MV, 5, "mV"),
@@ -122,9 +122,9 @@ class CpuPage(Page):
                     service.comando_cpu_oc_desactivar_persistente_embebido(), tr("Boot persistence")))
 
         out += [Gap(), Heading(tr("Boot persistence")),
-                Field(tr("State"), str(persistent.get("ui_state") or "--"),
+                Field(tr("State"), tr(str(persistent.get("ui_state") or "--")),
                       "ok" if persistent.get("applied") else ""),
-                Field(tr("Detail"), str(persistent.get("ui_detail") or "--")),
+                Field(tr("Detail"), tr(str(persistent.get("ui_detail") or "--"))),
                 Choice(tr("Save for boot"), save_boot), Choice(tr("Review persistence"), review),
                 Choice(tr("Remove from boot"), remove, tone="warn")]
 
