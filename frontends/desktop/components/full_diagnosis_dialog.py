@@ -461,29 +461,3 @@ class FullDiagnosisView(QWidget):
             self.status.setText(tr_format("Could not save the file: {reason}", reason=str(error)))
             return
         show_toast(self, tr("Saved"), chosen, tone="green")
-
-
-class FullDiagnosisDialog(QDialog):
-    """The view in a window of its own, for Settings."""
-
-    def __init__(self, parent: QWidget | None = None, *, collect: Callable[[], list[tuple[str, str]]]):
-        super().__init__(parent)
-        self.setModal(True)
-        self.setWindowTitle(tr("Full diagnosis"))
-        self.setProperty("fullDiagnosisWindow", True)
-        self.setStyleSheet(application_stylesheet())
-        enable_adaptive_dialog(self, preferred_width=860, preferred_height=680, minimum_width=460, minimum_height=420)
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(18, 16, 18, 14)
-        layout.setSpacing(10)
-        self.view = FullDiagnosisView(self, collect=collect)
-        layout.addWidget(self.view, 1)
-        self.view.actions.addWidget(self._close_button())
-
-    def _close_button(self) -> QPushButton:
-        button = QPushButton(tr("Close"))
-        button.setProperty("diagButton", True)
-        button.setCursor(Qt.CursorShape.PointingHandCursor)
-        button.clicked.connect(self.accept)
-        self.close_button = button
-        return button

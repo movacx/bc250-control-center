@@ -3105,9 +3105,7 @@
    "FullDiagnosisView._expand": "UI-0604",
    "FullDiagnosisView.text": "UI-0605",
    "FullDiagnosisView._copy_all": "UI-0606",
-   "FullDiagnosisView._save": "UI-0607",
-   "FullDiagnosisDialog.__init__": "UI-0582",
-   "FullDiagnosisDialog._close_button": "UI-0608"
+   "FullDiagnosisView._save": "UI-0607"
   },
   "frontends/desktop/components/i2c_guide.py": {
    "_Photo.__init__": "TEL-0361",
@@ -5799,7 +5797,6 @@
    "SettingsPage._apply_diagnostic_history": "SET-0109",
    "SettingsPage._show_diagnostic_detail": "SET-0110",
    "SettingsPage._send_problem_report": "SET-0111",
-   "SettingsPage._view_full_diagnosis": "SET-0256",
    "SettingsPage._copy_diagnostic_report": "SET-0112",
    "SettingsPage._clear_diagnostic_history": "SET-0113",
    "SettingsPage._show_repositories": "SET-0114",
@@ -5902,9 +5899,11 @@
   "DIAG-0141",
   "DIAG-0142",
   "DIST-0129",
+  "SET-0256",
   "TEL-0365",
   "TEL-0366",
   "UI-0564",
+  "UI-0582",
   "UI-0583",
   "UI-0584",
   "UI-0585",
@@ -5916,6 +5915,7 @@
   "UI-0591",
   "UI-0592",
   "UI-0593",
-  "UI-0594"
+  "UI-0594",
+  "UI-0608"
  ]
 }

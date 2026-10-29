@@ -1863,13 +1863,11 @@ class SettingsPage(QWidget):
         actions = ActionGrid(columns=4)
         self.diagnostics_send_button = self._button("Send a report", self._send_problem_report, primary=True)
         self.diagnostics_copy_button = self._button("Copy for a problem report", self._copy_diagnostic_report)
-        self.diagnostics_full_button = self._button("View full diagnosis", self._view_full_diagnosis)
         self.diagnostics_refresh_button = self._button("Refresh", self._refresh_diagnostics)
         self.diagnostics_clear_button = self._button("Clear history", self._clear_diagnostic_history)
         for button in (
             self.diagnostics_send_button,
             self.diagnostics_copy_button,
-            self.diagnostics_full_button,
             self.diagnostics_refresh_button,
             self.diagnostics_clear_button,
         ):
@@ -2507,14 +2505,6 @@ class SettingsPage(QWidget):
         # The report carries the recent errors; which one it is about is the
         # owner's to say, so no code is guessed here.
         FeedbackDialog(self, opened_from="Settings › Diagnostics").exec()
-
-    def _view_full_diagnosis(self) -> None:
-        """Every section a problem report attaches, readable here before anything is sent."""
-        from bc250cc.infrastructure.report_attachments import collect_attachments
-
-        from ..components.full_diagnosis_dialog import FullDiagnosisDialog
-
-        FullDiagnosisDialog(self, collect=collect_attachments).exec()
 
     def _copy_diagnostic_report(self) -> None:
         report = diagnostic_report(self._system_rows, self._diagnostic_entries)

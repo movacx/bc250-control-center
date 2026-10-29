@@ -144,7 +144,7 @@ def _parser() -> argparse.ArgumentParser:
     diagnose = commands.add_parser("diagnose", help="Print the hardware diagnosis a problem report attaches")
     diagnose.add_argument(
         "--full", action="store_true",
-        help="Print every section a report attaches, the way Settings > Diagnostics > View full diagnosis shows them",
+        help="Print every section a report attaches, the way the Black box page shows them",
     )
     metrics = commands.add_parser("metrics", help="Read or export recorded runtime metrics")
     metrics.add_argument("action", choices=("list", "export"))

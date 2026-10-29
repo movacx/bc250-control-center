@@ -6,7 +6,7 @@ import pytest
 from PyQt6.QtWidgets import QApplication
 
 from frontends.desktop.components import full_diagnosis_dialog as module
-from frontends.desktop.components.full_diagnosis_dialog import FullDiagnosisDialog, FullDiagnosisView, section_group
+from frontends.desktop.components.full_diagnosis_dialog import FullDiagnosisView, section_group
 
 SECTIONS = [
     ("Kernel", "6.18.7-cachyos-bc250\nBC250 kernel"),
@@ -39,16 +39,6 @@ def dialog(qtbot):
 ])
 def test_each_section_belongs_to_one_tab(title, group):
     assert section_group(title) == group
-
-
-def test_the_dialog_wraps_the_same_view_and_can_be_closed(qtbot):
-    window = FullDiagnosisDialog(None, collect=lambda: list(SECTIONS))
-    qtbot.addWidget(window)
-    window.show()
-    qtbot.waitUntil(lambda: len(window.view._sections) == len(SECTIONS), timeout=3000)
-    assert window.view.summary.startswith("Diagnosis · 8 sections")
-    window.close_button.click()
-    assert not window.isVisible()
 
 
 def test_section_titles_are_the_ones_the_report_uses_in_every_language(dialog):
@@ -161,29 +151,14 @@ def test_refreshing_replaces_the_sections_instead_of_adding_to_them(dialog, qtbo
     assert dialog.sections_layout.count() == len(SECTIONS) + 1  # the sections and the closing stretch
 
 
-def test_settings_diagnostics_has_a_button_that_opens_it(monkeypatch):
+def test_settings_diagnostics_has_no_full_diagnosis_button():
     import inspect
-    from types import SimpleNamespace
 
-    from bc250cc.infrastructure.report_attachments import collect_attachments
     from frontends.desktop.pages import settings as settings_module
 
-    opened = []
-
-    class FakeDialog:
-        def __init__(self, parent, *, collect):
-            opened.append(collect)
-
-        def exec(self):
-            return 0
-
-    monkeypatch.setattr("frontends.desktop.components.full_diagnosis_dialog.FullDiagnosisDialog", FakeDialog)
-    settings_module.SettingsPage._view_full_diagnosis(SimpleNamespace())
-    # It shows what a report attaches: the same collection, not a shorter one.
-    assert opened == [collect_attachments]
-    builder = inspect.getsource(settings_module.SettingsPage._build_diagnostics_page)
-    assert '"View full diagnosis", self._view_full_diagnosis' in builder
-    assert "self.diagnostics_full_button," in builder
+    # The full diagnosis lives in the Black box page only.
+    assert not hasattr(settings_module.SettingsPage, "_view_full_diagnosis")
+    assert "diagnostics_full_button" not in inspect.getsource(settings_module.SettingsPage)
 
 
 def test_the_terminal_prints_the_same_sections_with_dash_dash_full(monkeypatch, capsys):
