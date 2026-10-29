@@ -5400,5 +5400,18 @@
   "Read the package named in the output. Enable the repository that provides it, or report the workflow with this code so the package list can be fixed.": "Посмотрите, какой пакет указан в выводе. Подключите репозиторий, который его предоставляет, или отправьте отчёт о процессе с этим кодом, чтобы исправить список пакетов.",
   "The system could not start another process.": "Системе не удалось запустить ещё один процесс.",
   "The system reached its limit of running processes, or it is out of memory, so a step of the workflow could not start.": "Система достигла предела запущенных процессов или исчерпала память, поэтому шаг процесса не удалось запустить.",
-  "Close programs you do not need, or restart the computer, then run the action again.": "Закройте ненужные программы или перезагрузите компьютер, затем повторите действие."
+  "Close programs you do not need, or restart the computer, then run the action again.": "Закройте ненужные программы или перезагрузите компьютер, затем повторите действие.",
+  "Boot messages (hides the RDSEED warning)": "Сообщения при загрузке (скрывает предупреждение RDSEED)",
+  "Hide boot messages": "Скрыть сообщения при загрузке",
+  "Show boot messages": "Показывать сообщения при загрузке",
+  "Hide the kernel's boot messages": "Скрыть сообщения ядра при загрузке",
+  "Show the kernel's boot messages": "Показывать сообщения ядра при загрузке",
+  "The BC-250's CPU makes the kernel print a warning about its random-number instructions (RDSEED) at every boot. This hides it by silencing all kernel messages on screen while the system starts, errors included, so a boot problem will show nothing there. It fixes nothing: the messages stay in dmesg and the system log. The change applies after reboot and can be restored from Control Center.": "Из-за процессора BC-250 ядро при каждой загрузке выводит предупреждение об инструкциях случайных чисел (RDSEED). Это скрывает его, отключая все сообщения ядра на экране во время запуска системы, включая ошибки, поэтому при проблеме с загрузкой там ничего не появится. Ничего не исправляется: сообщения остаются в dmesg и системном журнале. Изменение применяется после перезагрузки и может быть отменено в Control Center.",
+  "This restores the exact kernel log level that existed before Control Center hid the boot messages. The change applies after reboot.": "Это восстанавливает точный уровень журнала ядра, который был до того, как Control Center скрыл сообщения при загрузке. Изменение применяется после перезагрузки.",
+  "The BC-250's CPU makes the kernel print an RDSEED warning at every boot. This hides all kernel messages on screen while the system starts; they stay in dmesg.": "Из-за процессора BC-250 ядро при каждой загрузке выводит предупреждение RDSEED. Это скрывает все сообщения ядра на экране во время запуска; они остаются в dmesg.",
+  "loglevel=0 was configured outside Control Center and is preserved.": "loglevel=0 настроен вне Control Center и будет сохранён.",
+  "Shown": "Показываются",
+  "Boot messages": "Сообщения при загрузке",
+  "The boot-messages change was staged. Reboot after the terminal reports success.": "Изменение сообщений при загрузке подготовлено. Перезагрузитесь, когда терминал сообщит об успехе.",
+  "Could not update the kernel boot messages": "Не удалось изменить сообщения ядра при загрузке"
 }

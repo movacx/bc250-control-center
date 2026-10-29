@@ -5400,5 +5400,18 @@
   "Read the package named in the output. Enable the repository that provides it, or report the workflow with this code so the package list can be fixed.": "查看輸出中提到的套件。啟用提供它的軟體庫，或使用此代碼回報該流程以便修正套件清單。",
   "The system could not start another process.": "系統無法再啟動新的處理程序。",
   "The system reached its limit of running processes, or it is out of memory, so a step of the workflow could not start.": "系統已達到執行中處理程序的上限或記憶體不足，因此流程中的某一步無法啟動。",
-  "Close programs you do not need, or restart the computer, then run the action again.": "關閉不需要的程式或重新啟動電腦，然後再次執行該動作。"
+  "Close programs you do not need, or restart the computer, then run the action again.": "關閉不需要的程式或重新啟動電腦，然後再次執行該動作。",
+  "Boot messages (hides the RDSEED warning)": "開機訊息（隱藏 RDSEED 警告）",
+  "Hide boot messages": "隱藏開機訊息",
+  "Show boot messages": "顯示開機訊息",
+  "Hide the kernel's boot messages": "隱藏核心開機訊息",
+  "Show the kernel's boot messages": "顯示核心開機訊息",
+  "The BC-250's CPU makes the kernel print a warning about its random-number instructions (RDSEED) at every boot. This hides it by silencing all kernel messages on screen while the system starts, errors included, so a boot problem will show nothing there. It fixes nothing: the messages stay in dmesg and the system log. The change applies after reboot and can be restored from Control Center.": "BC-250 的 CPU 會讓核心在每次開機時輸出一則關於其亂數指令（RDSEED）的警告。此選項會在系統啟動期間壓制螢幕上所有核心訊息（包括錯誤）來隱藏該警告，因此發生開機問題時那裡也不會顯示任何內容。它不會修正任何問題：訊息仍保留在 dmesg 與系統日誌中。變更會在重新啟動後生效，並可在 Control Center 中還原。",
+  "This restores the exact kernel log level that existed before Control Center hid the boot messages. The change applies after reboot.": "這會精確還原 Control Center 隱藏開機訊息之前的核心日誌等級。變更會在重新啟動後生效。",
+  "The BC-250's CPU makes the kernel print an RDSEED warning at every boot. This hides all kernel messages on screen while the system starts; they stay in dmesg.": "BC-250 的 CPU 會讓核心在每次開機時輸出一則 RDSEED 警告。此選項會在開機期間隱藏螢幕上所有核心訊息；這些訊息仍保留在 dmesg 中。",
+  "loglevel=0 was configured outside Control Center and is preserved.": "loglevel=0 是在 Control Center 之外設定的，將予以保留。",
+  "Shown": "顯示中",
+  "Boot messages": "開機訊息",
+  "The boot-messages change was staged. Reboot after the terminal reports success.": "開機訊息的變更已準備好。終端機回報成功後請重新啟動。",
+  "Could not update the kernel boot messages": "無法更新核心開機訊息"
 }

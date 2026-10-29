@@ -5400,5 +5400,18 @@
   "Read the package named in the output. Enable the repository that provides it, or report the workflow with this code so the package list can be fixed.": "Çıktıda adı geçen paketi okuyun. Onu sağlayan depoyu etkinleştirin ya da paket listesinin düzeltilmesi için iş akışını bu kodla bildirin.",
   "The system could not start another process.": "Sistem başka bir işlem başlatamadı.",
   "The system reached its limit of running processes, or it is out of memory, so a step of the workflow could not start.": "Sistem çalışan işlem sınırına ulaştı veya belleği tükendi, bu yüzden iş akışının bir adımı başlatılamadı.",
-  "Close programs you do not need, or restart the computer, then run the action again.": "Gerekmeyen programları kapatın veya bilgisayarı yeniden başlatın, ardından işlemi tekrar çalıştırın."
+  "Close programs you do not need, or restart the computer, then run the action again.": "Gerekmeyen programları kapatın veya bilgisayarı yeniden başlatın, ardından işlemi tekrar çalıştırın.",
+  "Boot messages (hides the RDSEED warning)": "Önyükleme iletileri (RDSEED uyarısını gizler)",
+  "Hide boot messages": "Önyükleme iletilerini gizle",
+  "Show boot messages": "Önyükleme iletilerini göster",
+  "Hide the kernel's boot messages": "Çekirdeğin önyükleme iletilerini gizle",
+  "Show the kernel's boot messages": "Çekirdeğin önyükleme iletilerini göster",
+  "The BC-250's CPU makes the kernel print a warning about its random-number instructions (RDSEED) at every boot. This hides it by silencing all kernel messages on screen while the system starts, errors included, so a boot problem will show nothing there. It fixes nothing: the messages stay in dmesg and the system log. The change applies after reboot and can be restored from Control Center.": "BC-250’nin işlemcisi, çekirdeğin her açılışta rastgele sayı komutları (RDSEED) hakkında bir uyarı yazmasına neden olur. Bu seçenek, sistem başlarken ekrandaki tüm çekirdek iletilerini, hatalar dahil, susturarak uyarıyı gizler; bu yüzden bir önyükleme sorununda orada hiçbir şey görünmez. Hiçbir şeyi düzeltmez: iletiler dmesg’de ve sistem günlüğünde kalır. Değişiklik yeniden başlatmadan sonra uygulanır ve Control Center’dan geri alınabilir.",
+  "This restores the exact kernel log level that existed before Control Center hid the boot messages. The change applies after reboot.": "Bu, Control Center önyükleme iletilerini gizlemeden önce var olan çekirdek günlük düzeyini aynen geri yükler. Değişiklik yeniden başlatmadan sonra uygulanır.",
+  "The BC-250's CPU makes the kernel print an RDSEED warning at every boot. This hides all kernel messages on screen while the system starts; they stay in dmesg.": "BC-250’nin işlemcisi, çekirdeğin her açılışta bir RDSEED uyarısı yazmasına neden olur. Bu seçenek, önyükleme sırasında ekrandaki tüm çekirdek iletilerini gizler; iletiler dmesg’de kalır.",
+  "loglevel=0 was configured outside Control Center and is preserved.": "loglevel=0 Control Center dışında ayarlanmış ve korunuyor.",
+  "Shown": "Gösteriliyor",
+  "Boot messages": "Önyükleme iletileri",
+  "The boot-messages change was staged. Reboot after the terminal reports success.": "Önyükleme iletileri değişikliği hazırlandı. Terminal başarıyı bildirdikten sonra yeniden başlatın.",
+  "Could not update the kernel boot messages": "Çekirdeğin önyükleme iletileri güncellenemedi"
 }

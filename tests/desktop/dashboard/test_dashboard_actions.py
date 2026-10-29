@@ -427,6 +427,82 @@ def test_dashboard_stages_and_restores_bazzite_cpu_mitigations(qtbot):
     assert requests[-1]["action"] == "bazzite_mitigations_restore"
 
 
+def test_dashboard_hides_and_shows_the_bazzite_boot_messages(qtbot):
+    set_language("en")
+    page = DashboardPage(object())
+    qtbot.addWidget(page)
+    requests = []
+    page.dependency_action_requested.connect(requests.append)
+
+    page.apply_state(
+        DashboardState(
+            preparation_tools={
+                "os_family": "bazzite",
+                "bazzite_boot_messages": {
+                    "available": True, "active": False, "configured": False,
+                    "managed": False, "reboot_required": False,
+                },
+            }
+        )
+    )
+    readiness = page.readiness
+    assert not readiness.boot_messages_panel.isHidden()
+    assert readiness.boot_messages_panel.parentWidget() is readiness._boot_holder
+    assert readiness.boot_messages_status.text() == "Shown"
+    assert readiness.boot_messages_apply_button.text() == "Hide boot messages"
+    assert readiness.boot_messages_apply_button.isEnabled()
+    readiness.boot_messages_apply_button.click()
+    assert requests[-1]["action"] == "bazzite_boot_messages_hide"
+
+    page.apply_state(
+        DashboardState(
+            preparation_tools={
+                "os_family": "bazzite",
+                "bazzite_boot_messages": {
+                    "available": True, "active": False, "configured": True,
+                    "managed": True, "reboot_required": True,
+                },
+            }
+        )
+    )
+    assert readiness.boot_messages_status.text() == "Reboot required"
+    assert readiness.boot_messages_apply_button.text() == "Show boot messages"
+    readiness.boot_messages_apply_button.click()
+    assert requests[-1]["action"] == "bazzite_boot_messages_restore"
+
+
+def test_dashboard_leaves_a_loglevel_set_outside_control_center_alone(qtbot):
+    set_language("en")
+    page = DashboardPage(object())
+    qtbot.addWidget(page)
+
+    page.apply_state(
+        DashboardState(
+            preparation_tools={
+                "os_family": "bazzite",
+                "bazzite_boot_messages": {
+                    "available": True, "active": True, "configured": True,
+                    "managed": False, "reboot_required": False,
+                },
+            }
+        )
+    )
+    button = page.readiness.boot_messages_apply_button
+    assert button.text() == "Managed externally"
+    assert not button.isEnabled()
+    assert "configured outside" in button.toolTip()
+
+
+def test_the_bazzite_boot_messages_panel_is_hidden_elsewhere(qtbot):
+    set_language("en")
+    page = DashboardPage(object())
+    qtbot.addWidget(page)
+
+    page.apply_state(DashboardState(preparation_tools={"os_family": "fedora"}))
+
+    assert page.readiness.boot_messages_panel.isHidden()
+
+
 def test_dashboard_preserves_externally_configured_mitigations_off(qtbot):
     set_language("en")
     page = DashboardPage(object())

@@ -310,8 +310,8 @@ def test_steamos_gpu_memory_limit_goes_through_its_grub(sandbox):
     _steamos_grub(sandbox)
     pages = 12 * memory.GIB // os.sysconf("SC_PAGE_SIZE")
     assert kernel_args.backend(host) == "steamos-grub"
-    # SteamOS is offered mitigations=off and nosmt, not the CU unlock.
-    assert kernel_args.status(host)["allowed"] == ["mitigations=off", "nosmt"]
+    # SteamOS is offered mitigations=off, nosmt and loglevel=0, not the CU unlock.
+    assert kernel_args.status(host)["allowed"] == ["mitigations=off", "nosmt", "loglevel=0"]
     data = memory.apply(host, "preserve", 12)
     assert data["configured_ttm_pages"] == pages
     assert f"ttm.pages_limit={pages}" in host.read(kernel_args.GRUB_DROPIN)
@@ -1655,6 +1655,31 @@ def test_kernel_options_use_a_grub_dropin_and_leave_the_main_file_alone(sandbox)
     assert sandbox.host.read(kernel_args.GRUB_CONFIG) == main
 
 
+def test_hiding_the_boot_messages_is_one_more_reversible_option(sandbox):
+    """The RDSEED warning is a level 0 kernel message: loglevel=0 is the only level that hides it."""
+    sandbox.grub()
+    main = sandbox.host.read(kernel_args.GRUB_CONFIG)
+
+    applied = kernel_args.apply(sandbox.host, ["loglevel=0"])
+    dropin = sandbox.host.read(kernel_args.GRUB_DROPIN)
+    assert 'GRUB_CMDLINE_LINUX_DEFAULT="${GRUB_CMDLINE_LINUX_DEFAULT} loglevel=0"' in dropin
+    assert applied["arguments"]["loglevel=0"]["managed"] and applied["arguments"]["loglevel=0"]["configured"]
+    assert "loglevel=0" in kernel_args.status(sandbox.host)["allowed"]
+
+    kernel_args.apply(sandbox.host, [])
+    assert not sandbox.host.path(kernel_args.GRUB_DROPIN).exists()
+    assert sandbox.host.read(kernel_args.GRUB_CONFIG) == main
+
+
+def test_a_loglevel_set_outside_control_center_is_left_as_it_is(sandbox):
+    sandbox.grub()
+    sandbox.put("/proc/cmdline", "BOOT_IMAGE=/boot/vmlinuz-linux root=UUID=aaa-bbb rw quiet loglevel=0")
+    item = kernel_args.status(sandbox.host)["arguments"]["loglevel=0"]
+    assert item["external"] and not item["managed"]
+    with pytest.raises(SetupError, match="already set outside Control Center"):
+        kernel_args.apply(sandbox.host, ["loglevel=0"])
+
+
 def test_an_option_being_removed_is_not_called_somebody_elses(sandbox):
     sandbox.grub()
     kernel_args.apply(sandbox.host, ["nosmt"])
@@ -1747,14 +1772,14 @@ def test_steamos_takes_mitigations_and_smt_but_not_the_cu_unlock(sandbox):
     sandbox.put("/etc/os-release", "ID=steamos\nID_LIKE=arch\n")
     sandbox.put(kernel_args.STEAMOS_GRUB_OUTPUT, _steamos_menu())
     status = kernel_args.status(sandbox.host)
-    assert status["allowed"] == ["mitigations=off", "nosmt"]
+    assert status["allowed"] == ["mitigations=off", "nosmt", "loglevel=0"]
     with pytest.raises(SetupError, match="only mitigations=off, nosmt"):
         kernel_args.apply(sandbox.host, [kernel_args.CU_UNLOCK])
 
 
 def test_only_the_reviewed_arguments_exist(sandbox):
     sandbox.grub()
-    with pytest.raises(SetupError, match="Only mitigations=off, nosmt and amdgpu.bc250_cc_write_mode=3"):
+    with pytest.raises(SetupError, match="Only mitigations=off, nosmt, loglevel=0 and amdgpu.bc250_cc_write_mode=3"):
         kernel_args.apply(sandbox.host, ["init=/bin/sh"])
     with pytest.raises(SetupError, match="Only mitigations=off"):
         kernel_args.apply(sandbox.host, ["amdgpu.bc250_cc_write_mode=2"])

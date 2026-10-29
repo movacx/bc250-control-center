@@ -5400,5 +5400,18 @@
   "Read the package named in the output. Enable the repository that provides it, or report the workflow with this code so the package list can be fixed.": "Baca pakej yang disebut dalam output. Dayakan repositori yang menyediakannya, atau laporkan aliran kerja dengan kod ini supaya senarai pakej dibetulkan.",
   "The system could not start another process.": "Sistem tidak dapat memulakan proses lain.",
   "The system reached its limit of running processes, or it is out of memory, so a step of the workflow could not start.": "Sistem mencapai had proses yang berjalan atau kehabisan memori, jadi satu langkah aliran kerja tidak dapat dimulakan.",
-  "Close programs you do not need, or restart the computer, then run the action again.": "Tutup program yang tidak diperlukan atau mulakan semula komputer, kemudian jalankan tindakan itu sekali lagi."
+  "Close programs you do not need, or restart the computer, then run the action again.": "Tutup program yang tidak diperlukan atau mulakan semula komputer, kemudian jalankan tindakan itu sekali lagi.",
+  "Boot messages (hides the RDSEED warning)": "Mesej but (menyembunyikan amaran RDSEED)",
+  "Hide boot messages": "Sembunyikan mesej but",
+  "Show boot messages": "Tunjukkan mesej but",
+  "Hide the kernel's boot messages": "Sembunyikan mesej but kernel",
+  "Show the kernel's boot messages": "Tunjukkan mesej but kernel",
+  "The BC-250's CPU makes the kernel print a warning about its random-number instructions (RDSEED) at every boot. This hides it by silencing all kernel messages on screen while the system starts, errors included, so a boot problem will show nothing there. It fixes nothing: the messages stay in dmesg and the system log. The change applies after reboot and can be restored from Control Center.": "CPU BC-250 menyebabkan kernel mencetak amaran tentang arahan nombor rawaknya (RDSEED) pada setiap but. Pilihan ini menyembunyikannya dengan mendiamkan semua mesej kernel pada skrin semasa sistem bermula, termasuk ralat, jadi masalah but tidak akan memaparkan apa-apa di situ. Ia tidak membetulkan apa-apa: mesej kekal dalam dmesg dan log sistem. Perubahan berkuat kuasa selepas mula semula dan boleh dikembalikan daripada Control Center.",
+  "This restores the exact kernel log level that existed before Control Center hid the boot messages. The change applies after reboot.": "Ini memulihkan dengan tepat tahap log kernel yang wujud sebelum Control Center menyembunyikan mesej but. Perubahan berkuat kuasa selepas mula semula.",
+  "The BC-250's CPU makes the kernel print an RDSEED warning at every boot. This hides all kernel messages on screen while the system starts; they stay in dmesg.": "CPU BC-250 menyebabkan kernel mencetak amaran RDSEED pada setiap but. Pilihan ini menyembunyikan semua mesej kernel pada skrin semasa but; ia kekal dalam dmesg.",
+  "loglevel=0 was configured outside Control Center and is preserved.": "loglevel=0 ditetapkan di luar Control Center dan dikekalkan.",
+  "Shown": "Dipaparkan",
+  "Boot messages": "Mesej but",
+  "The boot-messages change was staged. Reboot after the terminal reports success.": "Perubahan mesej but telah disediakan. Mulakan semula selepas terminal melaporkan berjaya.",
+  "Could not update the kernel boot messages": "Tidak dapat mengemas kini mesej but kernel"
 }

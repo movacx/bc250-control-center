@@ -5400,5 +5400,18 @@
   "Read the package named in the output. Enable the repository that provides it, or report the workflow with this code so the package list can be fixed.": "Les pakken som nevnes i utdataene. Aktiver pakkebrønnen som leverer den, eller rapporter forløpet med denne koden slik at pakkelisten kan rettes.",
   "The system could not start another process.": "Systemet kunne ikke starte en ny prosess.",
   "The system reached its limit of running processes, or it is out of memory, so a step of the workflow could not start.": "Systemet har nådd grensen for kjørende prosesser eller er tomt for minne, så et trinn i forløpet kunne ikke starte.",
-  "Close programs you do not need, or restart the computer, then run the action again.": "Lukk programmer du ikke trenger, eller start datamaskinen på nytt, og kjør deretter handlingen igjen."
+  "Close programs you do not need, or restart the computer, then run the action again.": "Lukk programmer du ikke trenger, eller start datamaskinen på nytt, og kjør deretter handlingen igjen.",
+  "Boot messages (hides the RDSEED warning)": "Oppstartsmeldinger (skjuler RDSEED-advarselen)",
+  "Hide boot messages": "Skjul oppstartsmeldinger",
+  "Show boot messages": "Vis oppstartsmeldinger",
+  "Hide the kernel's boot messages": "Skjul kjernens oppstartsmeldinger",
+  "Show the kernel's boot messages": "Vis kjernens oppstartsmeldinger",
+  "The BC-250's CPU makes the kernel print a warning about its random-number instructions (RDSEED) at every boot. This hides it by silencing all kernel messages on screen while the system starts, errors included, so a boot problem will show nothing there. It fixes nothing: the messages stay in dmesg and the system log. The change applies after reboot and can be restored from Control Center.": "CPU-en i BC-250 får kjernen til å skrive ut en advarsel om instruksjonene sine for tilfeldige tall (RDSEED) ved hver oppstart. Dette skjuler den ved å dempe alle kjernemeldinger på skjermen mens systemet starter, feil inkludert, så et oppstartsproblem vil ikke vise noe der. Det løser ingenting: meldingene blir værende i dmesg og systemloggen. Endringen trer i kraft etter omstart og kan angres fra Control Center.",
+  "This restores the exact kernel log level that existed before Control Center hid the boot messages. The change applies after reboot.": "Dette gjenoppretter nøyaktig det kjernelognivået som fantes før Control Center skjulte oppstartsmeldingene. Endringen trer i kraft etter omstart.",
+  "The BC-250's CPU makes the kernel print an RDSEED warning at every boot. This hides all kernel messages on screen while the system starts; they stay in dmesg.": "CPU-en i BC-250 får kjernen til å skrive ut en RDSEED-advarsel ved hver oppstart. Dette skjuler alle kjernemeldinger på skjermen under oppstart; de blir værende i dmesg.",
+  "loglevel=0 was configured outside Control Center and is preserved.": "loglevel=0 ble satt utenfor Control Center og beholdes.",
+  "Shown": "Vist",
+  "Boot messages": "Oppstartsmeldinger",
+  "The boot-messages change was staged. Reboot after the terminal reports success.": "Endringen av oppstartsmeldinger er klargjort. Start på nytt når terminalen melder suksess.",
+  "Could not update the kernel boot messages": "Kunne ikke oppdatere kjernens oppstartsmeldinger"
 }

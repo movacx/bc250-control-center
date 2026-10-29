@@ -5400,5 +5400,18 @@
   "Read the package named in the output. Enable the repository that provides it, or report the workflow with this code so the package list can be fixed.": "Xem gói được nêu trong đầu ra. Bật kho cung cấp gói đó, hoặc báo cáo quy trình với mã này để danh sách gói được sửa.",
   "The system could not start another process.": "Hệ thống không thể khởi động thêm tiến trình.",
   "The system reached its limit of running processes, or it is out of memory, so a step of the workflow could not start.": "Hệ thống đã đạt giới hạn số tiến trình đang chạy hoặc hết bộ nhớ, nên một bước của quy trình không thể bắt đầu.",
-  "Close programs you do not need, or restart the computer, then run the action again.": "Đóng các chương trình không cần thiết hoặc khởi động lại máy tính, rồi chạy lại thao tác."
+  "Close programs you do not need, or restart the computer, then run the action again.": "Đóng các chương trình không cần thiết hoặc khởi động lại máy tính, rồi chạy lại thao tác.",
+  "Boot messages (hides the RDSEED warning)": "Thông báo khởi động (ẩn cảnh báo RDSEED)",
+  "Hide boot messages": "Ẩn thông báo khởi động",
+  "Show boot messages": "Hiện thông báo khởi động",
+  "Hide the kernel's boot messages": "Ẩn thông báo khởi động của nhân",
+  "Show the kernel's boot messages": "Hiện thông báo khởi động của nhân",
+  "The BC-250's CPU makes the kernel print a warning about its random-number instructions (RDSEED) at every boot. This hides it by silencing all kernel messages on screen while the system starts, errors included, so a boot problem will show nothing there. It fixes nothing: the messages stay in dmesg and the system log. The change applies after reboot and can be restored from Control Center.": "CPU của BC-250 khiến nhân in một cảnh báo về các lệnh số ngẫu nhiên của nó (RDSEED) ở mỗi lần khởi động. Tùy chọn này ẩn cảnh báo đó bằng cách tắt mọi thông báo của nhân trên màn hình trong lúc hệ thống khởi động, kể cả lỗi, nên nếu có sự cố khởi động thì ở đó sẽ không hiện gì. Nó không sửa được gì: các thông báo vẫn nằm trong dmesg và nhật ký hệ thống. Thay đổi có hiệu lực sau khi khởi động lại và có thể hoàn tác từ Control Center.",
+  "This restores the exact kernel log level that existed before Control Center hid the boot messages. The change applies after reboot.": "Thao tác này khôi phục đúng mức nhật ký của nhân đã có trước khi Control Center ẩn thông báo khởi động. Thay đổi có hiệu lực sau khi khởi động lại.",
+  "The BC-250's CPU makes the kernel print an RDSEED warning at every boot. This hides all kernel messages on screen while the system starts; they stay in dmesg.": "CPU của BC-250 khiến nhân in cảnh báo RDSEED ở mỗi lần khởi động. Tùy chọn này ẩn mọi thông báo của nhân trên màn hình lúc khởi động; chúng vẫn nằm trong dmesg.",
+  "loglevel=0 was configured outside Control Center and is preserved.": "loglevel=0 được đặt bên ngoài Control Center và được giữ nguyên.",
+  "Shown": "Đang hiện",
+  "Boot messages": "Thông báo khởi động",
+  "The boot-messages change was staged. Reboot after the terminal reports success.": "Đã chuẩn bị thay đổi thông báo khởi động. Hãy khởi động lại khi terminal báo thành công.",
+  "Could not update the kernel boot messages": "Không thể cập nhật thông báo khởi động của nhân"
 }

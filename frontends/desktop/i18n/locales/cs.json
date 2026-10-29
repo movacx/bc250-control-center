@@ -5400,5 +5400,18 @@
   "Read the package named in the output. Enable the repository that provides it, or report the workflow with this code so the package list can be fixed.": "Přečtěte si balíček uvedený ve výstupu. Povolte repozitář, který jej poskytuje, nebo nahlaste postup s tímto kódem, aby se seznam balíčků opravil.",
   "The system could not start another process.": "Systém nemohl spustit další proces.",
   "The system reached its limit of running processes, or it is out of memory, so a step of the workflow could not start.": "Systém dosáhl limitu běžících procesů nebo mu došla paměť, takže krok postupu nemohl začít.",
-  "Close programs you do not need, or restart the computer, then run the action again.": "Zavřete nepotřebné programy nebo restartujte počítač a akci spusťte znovu."
+  "Close programs you do not need, or restart the computer, then run the action again.": "Zavřete nepotřebné programy nebo restartujte počítač a akci spusťte znovu.",
+  "Boot messages (hides the RDSEED warning)": "Zprávy při startu (skryje varování RDSEED)",
+  "Hide boot messages": "Skrýt zprávy při startu",
+  "Show boot messages": "Zobrazit zprávy při startu",
+  "Hide the kernel's boot messages": "Skrýt zprávy jádra při startu",
+  "Show the kernel's boot messages": "Zobrazit zprávy jádra při startu",
+  "The BC-250's CPU makes the kernel print a warning about its random-number instructions (RDSEED) at every boot. This hides it by silencing all kernel messages on screen while the system starts, errors included, so a boot problem will show nothing there. It fixes nothing: the messages stay in dmesg and the system log. The change applies after reboot and can be restored from Control Center.": "Procesor BC-250 způsobuje, že jádro při každém startu vypíše varování o svých instrukcích pro náhodná čísla (RDSEED). Tato volba ho skryje tím, že během startu systému potlačí všechny zprávy jádra na obrazovce, včetně chyb, takže při problému se startem se tam nezobrazí nic. Nic neopravuje: zprávy zůstávají v dmesg a v systémovém protokolu. Změna se projeví po restartu a lze ji vrátit v Control Center.",
+  "This restores the exact kernel log level that existed before Control Center hid the boot messages. The change applies after reboot.": "Obnoví přesně tu úroveň protokolu jádra, která existovala předtím, než Control Center skryl zprávy při startu. Změna se projeví po restartu.",
+  "The BC-250's CPU makes the kernel print an RDSEED warning at every boot. This hides all kernel messages on screen while the system starts; they stay in dmesg.": "Procesor BC-250 způsobuje, že jádro při každém startu vypíše varování RDSEED. Tato volba skryje všechny zprávy jádra na obrazovce během startu; zůstanou v dmesg.",
+  "loglevel=0 was configured outside Control Center and is preserved.": "loglevel=0 bylo nastaveno mimo Control Center a zůstane zachováno.",
+  "Shown": "Zobrazeno",
+  "Boot messages": "Zprávy při startu",
+  "The boot-messages change was staged. Reboot after the terminal reports success.": "Změna zpráv při startu byla připravena. Restartujte, jakmile terminál ohlásí úspěch.",
+  "Could not update the kernel boot messages": "Zprávy jádra při startu se nepodařilo změnit"
 }

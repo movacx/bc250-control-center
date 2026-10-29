@@ -5400,5 +5400,18 @@
   "Read the package named in the output. Enable the repository that provides it, or report the workflow with this code so the package list can be fixed.": "查看输出中提到的软件包。启用提供它的软件源，或使用此代码报告该流程以便修正软件包列表。",
   "The system could not start another process.": "系统无法再启动新的进程。",
   "The system reached its limit of running processes, or it is out of memory, so a step of the workflow could not start.": "系统已达到运行进程数上限或内存不足，因此流程中的某一步无法启动。",
-  "Close programs you do not need, or restart the computer, then run the action again.": "关闭不需要的程序或重启电脑，然后再次执行该操作。"
+  "Close programs you do not need, or restart the computer, then run the action again.": "关闭不需要的程序或重启电脑，然后再次执行该操作。",
+  "Boot messages (hides the RDSEED warning)": "启动消息（隐藏 RDSEED 警告）",
+  "Hide boot messages": "隐藏启动消息",
+  "Show boot messages": "显示启动消息",
+  "Hide the kernel's boot messages": "隐藏内核启动消息",
+  "Show the kernel's boot messages": "显示内核启动消息",
+  "The BC-250's CPU makes the kernel print a warning about its random-number instructions (RDSEED) at every boot. This hides it by silencing all kernel messages on screen while the system starts, errors included, so a boot problem will show nothing there. It fixes nothing: the messages stay in dmesg and the system log. The change applies after reboot and can be restored from Control Center.": "BC-250 的 CPU 会让内核在每次启动时输出一条关于其随机数指令（RDSEED）的警告。此选项通过在系统启动期间屏蔽屏幕上的所有内核消息（包括错误）来隐藏该警告，因此出现启动问题时那里也不会显示任何内容。它不会修复任何问题：消息仍保留在 dmesg 和系统日志中。更改在重启后生效，并可在 Control Center 中还原。",
+  "This restores the exact kernel log level that existed before Control Center hid the boot messages. The change applies after reboot.": "这将精确还原 Control Center 隐藏启动消息之前的内核日志级别。更改在重启后生效。",
+  "The BC-250's CPU makes the kernel print an RDSEED warning at every boot. This hides all kernel messages on screen while the system starts; they stay in dmesg.": "BC-250 的 CPU 会让内核在每次启动时输出一条 RDSEED 警告。此选项会在启动期间隐藏屏幕上的所有内核消息；这些消息仍保留在 dmesg 中。",
+  "loglevel=0 was configured outside Control Center and is preserved.": "loglevel=0 是在 Control Center 之外设置的，将予以保留。",
+  "Shown": "显示中",
+  "Boot messages": "启动消息",
+  "The boot-messages change was staged. Reboot after the terminal reports success.": "启动消息的更改已准备好。终端报告成功后请重启。",
+  "Could not update the kernel boot messages": "无法更新内核启动消息"
 }

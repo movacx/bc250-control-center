@@ -493,6 +493,9 @@ class SistemaService:
     def gestionar_mitigaciones_bazzite(self, action: str):
         return self.repo.gestionar_mitigaciones_bazzite(action)
 
+    def gestionar_mensajes_arranque_bazzite(self, action: str):
+        return self.repo.gestionar_mensajes_arranque_bazzite(action)
+
     def gestionar_solo_lectura_steamos(self, action: str):
         return self.repo.gestionar_solo_lectura_steamos(action)
 

@@ -5400,5 +5400,18 @@
   "Read the package named in the output. Enable the repository that provides it, or report the workflow with this code so the package list can be fixed.": "Прочетете пакета, посочен в изхода. Активирайте хранилището, което го предоставя, или докладвайте процеса с този код, за да се поправи списъкът с пакети.",
   "The system could not start another process.": "Системата не успя да стартира още един процес.",
   "The system reached its limit of running processes, or it is out of memory, so a step of the workflow could not start.": "Системата достигна лимита на работещите процеси или остана без памет, затова стъпка от процеса не можа да започне.",
-  "Close programs you do not need, or restart the computer, then run the action again.": "Затворете ненужните програми или рестартирайте компютъра и изпълнете действието отново."
+  "Close programs you do not need, or restart the computer, then run the action again.": "Затворете ненужните програми или рестартирайте компютъра и изпълнете действието отново.",
+  "Boot messages (hides the RDSEED warning)": "Съобщения при зареждане (скрива предупреждението RDSEED)",
+  "Hide boot messages": "Скриване на съобщенията при зареждане",
+  "Show boot messages": "Показване на съобщенията при зареждане",
+  "Hide the kernel's boot messages": "Скриване на съобщенията на ядрото при зареждане",
+  "Show the kernel's boot messages": "Показване на съобщенията на ядрото при зареждане",
+  "The BC-250's CPU makes the kernel print a warning about its random-number instructions (RDSEED) at every boot. This hides it by silencing all kernel messages on screen while the system starts, errors included, so a boot problem will show nothing there. It fixes nothing: the messages stay in dmesg and the system log. The change applies after reboot and can be restored from Control Center.": "Процесорът на BC-250 кара ядрото да извежда при всяко зареждане предупреждение за своите инструкции за случайни числа (RDSEED). Тази опция го скрива, като заглушава всички съобщения на ядрото на екрана по време на стартиране на системата, включително грешките, така че при проблем със зареждането там нищо няма да се показва. Не поправя нищо: съобщенията остават в dmesg и в системния журнал. Промяната се прилага след рестарт и може да бъде отменена от Control Center.",
+  "This restores the exact kernel log level that existed before Control Center hid the boot messages. The change applies after reboot.": "Възстановява точно нивото на журнала на ядрото, което е съществувало, преди Control Center да скрие съобщенията при зареждане. Промяната се прилага след рестарт.",
+  "The BC-250's CPU makes the kernel print an RDSEED warning at every boot. This hides all kernel messages on screen while the system starts; they stay in dmesg.": "Процесорът на BC-250 кара ядрото да извежда предупреждение RDSEED при всяко зареждане. Тази опция скрива всички съобщения на ядрото на екрана по време на зареждане; те остават в dmesg.",
+  "loglevel=0 was configured outside Control Center and is preserved.": "loglevel=0 е зададен извън Control Center и се запазва.",
+  "Shown": "Показани",
+  "Boot messages": "Съобщения при зареждане",
+  "The boot-messages change was staged. Reboot after the terminal reports success.": "Промяната на съобщенията при зареждане е подготвена. Рестартирайте, след като терминалът съобщи за успех.",
+  "Could not update the kernel boot messages": "Съобщенията на ядрото при зареждане не можаха да бъдат обновени"
 }

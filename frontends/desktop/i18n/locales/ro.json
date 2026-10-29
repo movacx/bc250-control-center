@@ -5400,5 +5400,18 @@
   "Read the package named in the output. Enable the repository that provides it, or report the workflow with this code so the package list can be fixed.": "Citește pachetul numit în ieșire. Activează depozitul care îl oferă sau raportează fluxul cu acest cod ca lista de pachete să fie corectată.",
   "The system could not start another process.": "Sistemul nu a putut porni un alt proces.",
   "The system reached its limit of running processes, or it is out of memory, so a step of the workflow could not start.": "Sistemul a atins limita de procese în rulare sau a rămas fără memorie, așa că un pas al fluxului nu a putut porni.",
-  "Close programs you do not need, or restart the computer, then run the action again.": "Închide programele de care nu ai nevoie sau repornește computerul, apoi rulează din nou acțiunea."
+  "Close programs you do not need, or restart the computer, then run the action again.": "Închide programele de care nu ai nevoie sau repornește computerul, apoi rulează din nou acțiunea.",
+  "Boot messages (hides the RDSEED warning)": "Mesaje de pornire (ascunde avertismentul RDSEED)",
+  "Hide boot messages": "Ascunde mesajele de pornire",
+  "Show boot messages": "Afișează mesajele de pornire",
+  "Hide the kernel's boot messages": "Ascunde mesajele de pornire ale nucleului",
+  "Show the kernel's boot messages": "Afișează mesajele de pornire ale nucleului",
+  "The BC-250's CPU makes the kernel print a warning about its random-number instructions (RDSEED) at every boot. This hides it by silencing all kernel messages on screen while the system starts, errors included, so a boot problem will show nothing there. It fixes nothing: the messages stay in dmesg and the system log. The change applies after reboot and can be restored from Control Center.": "Procesorul BC-250 face ca nucleul să afișeze la fiecare pornire un avertisment despre instrucțiunile sale pentru numere aleatoare (RDSEED). Această opțiune îl ascunde dezactivând toate mesajele nucleului de pe ecran în timpul pornirii sistemului, inclusiv erorile, așa că în cazul unei probleme de pornire nu va apărea nimic acolo. Nu repară nimic: mesajele rămân în dmesg și în jurnalul sistemului. Modificarea se aplică după repornire și poate fi anulată din Control Center.",
+  "This restores the exact kernel log level that existed before Control Center hid the boot messages. The change applies after reboot.": "Restaurează exact nivelul de jurnal al nucleului care exista înainte ca Control Center să ascundă mesajele de pornire. Modificarea se aplică după repornire.",
+  "The BC-250's CPU makes the kernel print an RDSEED warning at every boot. This hides all kernel messages on screen while the system starts; they stay in dmesg.": "Procesorul BC-250 face ca nucleul să afișeze la fiecare pornire un avertisment RDSEED. Această opțiune ascunde toate mesajele nucleului de pe ecran în timpul pornirii; ele rămân în dmesg.",
+  "loglevel=0 was configured outside Control Center and is preserved.": "loglevel=0 a fost configurat în afara Control Center și este păstrat.",
+  "Shown": "Afișate",
+  "Boot messages": "Mesaje de pornire",
+  "The boot-messages change was staged. Reboot after the terminal reports success.": "Modificarea mesajelor de pornire a fost pregătită. Repornește după ce terminalul raportează succesul.",
+  "Could not update the kernel boot messages": "Nu s-au putut actualiza mesajele de pornire ale nucleului"
 }

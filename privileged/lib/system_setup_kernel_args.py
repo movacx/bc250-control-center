@@ -1,5 +1,5 @@
-"""Three reviewed kernel boot options: ``mitigations=off``, ``nosmt`` and
-``amdgpu.bc250_cc_write_mode=3``.
+"""Four reviewed kernel boot options: ``mitigations=off``, ``nosmt``,
+``amdgpu.bc250_cc_write_mode=3`` and ``loglevel=0``.
 
 Bazzite has its own reversible ``mitigations=off`` card through rpm-ostree;
 this is the same choice for mutable distributions, plus ``nosmt``, which
@@ -8,6 +8,10 @@ BC-250 amdgpu kernel driver unlock all 40 compute units itself, which replaces
 umr and the live CU manager; only a kernel that has that module parameter
 (linux-cachyos-bc250) is offered it. Only these arguments exist here: the
 caller names the set it wants managed, and anything else is refused.
+
+``loglevel=0`` hides the kernel's boot messages, among them the warning the
+BC-250's unreliable RDRAND/RDSEED makes it print (``pr_emerg``, level 0: no
+other level hides it). It fixes nothing; the messages stay in ``dmesg``.
 
 Each boot loader is changed the way the eight-core telemetry repair already
 does it:
@@ -56,9 +60,11 @@ CU_UNLOCK = "amdgpu.bc250_cc_write_mode=3"
 #: on any other kernel the argument would be ignored and never take effect.
 CU_UNLOCK_PARAMETER = "/sys/module/amdgpu/parameters/bc250_cc_write_mode"
 CU_UNLOCK_PREFIX = "amdgpu.bc250_cc_write_mode="
-ARGUMENTS = ("mitigations=off", "nosmt", CU_UNLOCK)
+#: Hides the kernel's boot messages, the RDSEED warning included.
+HIDE_BOOT_MESSAGES = "loglevel=0"
+ARGUMENTS = ("mitigations=off", "nosmt", CU_UNLOCK, HIDE_BOOT_MESSAGES)
 #: What SteamOS's boot menu takes among the switches.
-STEAMOS_ARGUMENTS = ("mitigations=off", "nosmt")
+STEAMOS_ARGUMENTS = ("mitigations=off", "nosmt", HIDE_BOOT_MESSAGES)
 #: Arguments that carry a value, and the only values each may have.
 VALUE_ARGUMENTS = {"ttm.pages_limit": re.compile(r"[1-9][0-9]{0,9}")}
 CMDLINE = "/proc/cmdline"
@@ -546,10 +552,10 @@ def apply(host: Host, wanted: list[str] | tuple[str, ...]) -> dict:
     """Make exactly ``wanted`` the set of switches this module manages."""
     wanted_set = set(wanted)
     if wanted_set - set(ARGUMENTS):
-        raise SetupError("Only mitigations=off, nosmt and amdgpu.bc250_cc_write_mode=3 can be managed here")
+        raise SetupError("Only mitigations=off, nosmt, loglevel=0 and amdgpu.bc250_cc_write_mode=3 can be managed here")
     current, backend, saved = _prepare(host)
     if backend == "steamos-grub" and wanted_set - set(STEAMOS_ARGUMENTS):
-        raise SetupError("On SteamOS only mitigations=off, nosmt and the GPU memory limit are set here")
+        raise SetupError("On SteamOS only mitigations=off, nosmt, loglevel=0 and the GPU memory limit are set here")
     for argument in wanted_set:
         if current["arguments"][argument]["external"]:
             raise SetupError(f"{argument} is already set outside Control Center and is left as it is")

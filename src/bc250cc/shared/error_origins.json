@@ -507,6 +507,11 @@
    "probe_bazzite_async_compute": "DIST-0002",
    "build_bazzite_async_compute_command": "DIST-0003"
   },
+  "bc250cc/infrastructure/bazzite_boot_messages.py": {
+   "_tokens": "DIST-0129",
+   "probe_bazzite_boot_messages": "DIST-0130",
+   "build_bazzite_boot_messages_command": "DIST-0131"
+  },
   "bc250cc/infrastructure/bazzite_deployment.py": {
    "_requested": "DIST-0004",
    "pending_prepared_packages": "DIST-0005",
@@ -820,6 +825,7 @@
    "DependenciasRepository.preparar_memoria": "PREP-0025",
    "DependenciasRepository.preparar_vram": "PREP-0026",
    "DependenciasRepository.gestionar_mitigaciones_bazzite": "PREP-0027",
+   "DependenciasRepository.gestionar_mensajes_arranque_bazzite": "PREP-0120",
    "DependenciasRepository.gestionar_solo_lectura_steamos": "PREP-0028",
    "DependenciasRepository.gestionar_opciones_kernel": "PREP-0029",
    "DependenciasRepository.gestionar_smt_vivo": "PREP-0030",
@@ -2019,6 +2025,7 @@
   },
   "bc250cc/infrastructure/steamos_graphics_runtime.py": {
    "_graphics_status_report_command": "DIST-0037",
+   "_until_reboot_is_allowed": "DIST-0132",
    "build_steamos_graphics_command": "DIST-0038",
    "_regular_file": "DIST-0039",
    "_regular_directory": "DIST-0040",
@@ -2124,6 +2131,7 @@
    "SistemaService.preparar_memoria": "SYS-0178",
    "SistemaService.preparar_vram": "SYS-0179",
    "SistemaService.gestionar_mitigaciones_bazzite": "SYS-0180",
+   "SistemaService.gestionar_mensajes_arranque_bazzite": "SYS-0318",
    "SistemaService.gestionar_solo_lectura_steamos": "SYS-0181",
    "SistemaService.gestionar_opciones_kernel": "SYS-0182",
    "SistemaService.gestionar_smt_vivo": "SYS-0183",
@@ -2894,6 +2902,7 @@
    "PreparationSidebar._report_paragraph": "DASH-0167",
    "PreparationSidebar._show_memory_status_report": "DASH-0168",
    "PreparationSidebar._bazzite_mitigations_panel": "DASH-0169",
+   "PreparationSidebar._bazzite_boot_messages_panel": "DASH-0310",
    "PreparationSidebar._steamos_readonly_panel": "DASH-0170",
    "PreparationSidebar._request_smt_live": "DASH-0171",
    "PreparationSidebar._request_kernel_option": "DASH-0172",
@@ -2917,6 +2926,8 @@
    "PreparationSidebar._request_vram_apply": "DASH-0190",
    "PreparationSidebar._update_vram_control": "DASH-0191",
    "PreparationSidebar._request_mitigations": "DASH-0192",
+   "PreparationSidebar._request_boot_messages": "DASH-0311",
+   "PreparationSidebar._update_boot_messages_control": "DASH-0312",
    "PreparationSidebar._update_mitigation_control": "DASH-0193",
    "PreparationSidebar._update_memory_controls": "DASH-0194",
    "PreparationSidebar._forward_dependency_action": "DASH-0195",
@@ -5024,6 +5035,7 @@
    "GpuGovernorPage._prepare_bazzite_memory_tuning": "GPU-0067",
    "GpuGovernorPage._prepare_vram": "GPU-0068",
    "GpuGovernorPage._prepare_bazzite_mitigations": "GPU-0069",
+   "GpuGovernorPage._prepare_bazzite_boot_messages": "GPU-0636",
    "GpuGovernorPage._manage_kernel_options": "GPU-0070",
    "GpuGovernorPage._manage_smt_live": "GPU-0071",
    "GpuGovernorPage._manage_steamos_readonly": "GPU-0072",

@@ -5400,5 +5400,18 @@
   "Read the package named in the output. Enable the repository that provides it, or report the workflow with this code so the package list can be fixed.": "Read the package named in the output. Enable the repository that provides it, or report the workflow with this code so the package list can be fixed.",
   "The system could not start another process.": "The system could not start another process.",
   "The system reached its limit of running processes, or it is out of memory, so a step of the workflow could not start.": "The system reached its limit of running processes, or it is out of memory, so a step of the workflow could not start.",
-  "Close programs you do not need, or restart the computer, then run the action again.": "Close programs you do not need, or restart the computer, then run the action again."
+  "Close programs you do not need, or restart the computer, then run the action again.": "Close programs you do not need, or restart the computer, then run the action again.",
+  "Boot messages (hides the RDSEED warning)": "Boot messages (hides the RDSEED warning)",
+  "Hide boot messages": "Hide boot messages",
+  "Show boot messages": "Show boot messages",
+  "Hide the kernel's boot messages": "Hide the kernel's boot messages",
+  "Show the kernel's boot messages": "Show the kernel's boot messages",
+  "The BC-250's CPU makes the kernel print a warning about its random-number instructions (RDSEED) at every boot. This hides it by silencing all kernel messages on screen while the system starts, errors included, so a boot problem will show nothing there. It fixes nothing: the messages stay in dmesg and the system log. The change applies after reboot and can be restored from Control Center.": "The BC-250's CPU makes the kernel print a warning about its random-number instructions (RDSEED) at every boot. This hides it by silencing all kernel messages on screen while the system starts, errors included, so a boot problem will show nothing there. It fixes nothing: the messages stay in dmesg and the system log. The change applies after reboot and can be restored from Control Center.",
+  "This restores the exact kernel log level that existed before Control Center hid the boot messages. The change applies after reboot.": "This restores the exact kernel log level that existed before Control Center hid the boot messages. The change applies after reboot.",
+  "The BC-250's CPU makes the kernel print an RDSEED warning at every boot. This hides all kernel messages on screen while the system starts; they stay in dmesg.": "The BC-250's CPU makes the kernel print an RDSEED warning at every boot. This hides all kernel messages on screen while the system starts; they stay in dmesg.",
+  "loglevel=0 was configured outside Control Center and is preserved.": "loglevel=0 was configured outside Control Center and is preserved.",
+  "Shown": "Shown",
+  "Boot messages": "Boot messages",
+  "The boot-messages change was staged. Reboot after the terminal reports success.": "The boot-messages change was staged. Reboot after the terminal reports success.",
+  "Could not update the kernel boot messages": "Could not update the kernel boot messages"
 }

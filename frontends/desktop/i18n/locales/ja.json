@@ -5400,5 +5400,18 @@
   "Read the package named in the output. Enable the repository that provides it, or report the workflow with this code so the package list can be fixed.": "出力に表示されたパッケージを確認してください。それを提供するリポジトリを有効にするか、このコードでワークフローを報告してパッケージ一覧を修正してもらってください。",
   "The system could not start another process.": "システムが新しいプロセスを起動できませんでした。",
   "The system reached its limit of running processes, or it is out of memory, so a step of the workflow could not start.": "実行中プロセスの上限に達したかメモリが不足しているため、ワークフローの手順を開始できませんでした。",
-  "Close programs you do not need, or restart the computer, then run the action again.": "不要なプログラムを閉じるかコンピューターを再起動してから、もう一度実行してください。"
+  "Close programs you do not need, or restart the computer, then run the action again.": "不要なプログラムを閉じるかコンピューターを再起動してから、もう一度実行してください。",
+  "Boot messages (hides the RDSEED warning)": "ブートメッセージ（RDSEED の警告を非表示）",
+  "Hide boot messages": "ブートメッセージを非表示にする",
+  "Show boot messages": "ブートメッセージを表示する",
+  "Hide the kernel's boot messages": "カーネルのブートメッセージを非表示にする",
+  "Show the kernel's boot messages": "カーネルのブートメッセージを表示する",
+  "The BC-250's CPU makes the kernel print a warning about its random-number instructions (RDSEED) at every boot. This hides it by silencing all kernel messages on screen while the system starts, errors included, so a boot problem will show nothing there. It fixes nothing: the messages stay in dmesg and the system log. The change applies after reboot and can be restored from Control Center.": "BC-250 の CPU の影響で、カーネルは起動のたびに乱数命令（RDSEED）に関する警告を出力します。この設定は、システム起動中の画面上のカーネルメッセージをエラーを含めてすべて抑えることで警告を隠します。そのため、起動の問題があってもそこには何も表示されません。何かを修正するものではなく、メッセージは dmesg とシステムログに残ります。変更は再起動後に適用され、Control Center から元に戻せます。",
+  "This restores the exact kernel log level that existed before Control Center hid the boot messages. The change applies after reboot.": "Control Center がブートメッセージを非表示にする前のカーネルのログレベルを、そのまま復元します。変更は再起動後に適用されます。",
+  "The BC-250's CPU makes the kernel print an RDSEED warning at every boot. This hides all kernel messages on screen while the system starts; they stay in dmesg.": "BC-250 の CPU の影響で、カーネルは起動のたびに RDSEED の警告を出力します。この設定は、起動中の画面上のカーネルメッセージをすべて隠します。メッセージは dmesg に残ります。",
+  "loglevel=0 was configured outside Control Center and is preserved.": "loglevel=0 は Control Center の外で設定されており、そのまま維持されます。",
+  "Shown": "表示中",
+  "Boot messages": "ブートメッセージ",
+  "The boot-messages change was staged. Reboot after the terminal reports success.": "ブートメッセージの変更を準備しました。ターミナルが成功を報告したら再起動してください。",
+  "Could not update the kernel boot messages": "カーネルのブートメッセージを更新できませんでした"
 }

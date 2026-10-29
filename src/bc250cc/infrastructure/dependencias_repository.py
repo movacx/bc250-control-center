@@ -27,6 +27,10 @@ from bc250cc.infrastructure.bazzite_deployment import probe_bazzite_reboot_pendi
 from bc250cc.infrastructure.bazzite_memory_tuning import (
     build_bazzite_memory_tuning_command,
 )
+from bc250cc.infrastructure.bazzite_boot_messages import (
+    build_bazzite_boot_messages_command,
+    probe_bazzite_boot_messages,
+)
 from bc250cc.infrastructure.bazzite_mitigations import (
     build_bazzite_mitigations_command,
     probe_bazzite_mitigations,
@@ -293,6 +297,14 @@ class DependenciasRepository(SteamosDependenciesMixin):
             'Configure CPU mitigations on Bazzite',
         )
 
+    def gestionar_mensajes_arranque_bazzite(self, action: str):
+        if self._os_repository().family != 'bazzite':
+            raise RuntimeError('Kernel boot messages are managed here only on Bazzite.')
+        return self._abrir_terminal(
+            build_bazzite_boot_messages_command(action),
+            'Configure kernel boot messages on Bazzite',
+        )
+
     def gestionar_solo_lectura_steamos(self, action: str):
         if self._os_repository().family != 'steamos':
             raise RuntimeError('The read-only switch is available only on SteamOS.')
@@ -306,9 +318,9 @@ class DependenciasRepository(SteamosDependenciesMixin):
         family = self._os_repository().family
         if family == 'bazzite':
             raise RuntimeError('Kernel boot options are managed differently on this system.')
-        if family == 'steamos' and set(options) - {'mitigations=off', 'nosmt'}:
+        if family == 'steamos' and set(options) - {'mitigations=off', 'nosmt', 'loglevel=0'}:
             # SteamOS's boot menu takes everything here except the CU unlock.
-            raise RuntimeError('Only mitigations=off and nosmt can be managed on SteamOS.')
+            raise RuntimeError('Only mitigations=off, nosmt and loglevel=0 can be managed on SteamOS.')
         return self._abrir_terminal(
             system_setup_command('kernel-options-set', kernel_options=tuple(options)),
             'BC250 kernel boot options',
@@ -1106,6 +1118,16 @@ class DependenciasRepository(SteamosDependenciesMixin):
             else {'available': False, 'active': False, 'configured': False,
                   'managed': False, 'reboot_required': False, 'state': 'unsupported'}
         )
+        bazzite_boot_messages = (
+            self._optional_inventory_probe(
+                probe_bazzite_boot_messages,
+                {'available': False, 'active': False, 'configured': False,
+                 'managed': False, 'reboot_required': False, 'state': 'unavailable'},
+            )
+            if os_info.family == 'bazzite'
+            else {'available': False, 'active': False, 'configured': False,
+                  'managed': False, 'reboot_required': False, 'state': 'unsupported'}
+        )
         # Packages Prepare dependencies layered that wait for the next boot.
         bazzite_reboot_pending = (
             self._optional_inventory_probe(
@@ -1274,6 +1296,7 @@ class DependenciasRepository(SteamosDependenciesMixin):
             'quick_access': quick_access,
             'memory_runtime': memory_runtime,
             'bazzite_mitigations': bazzite_mitigations,
+            'bazzite_boot_messages': bazzite_boot_messages,
             'bazzite_reboot_pending': bazzite_reboot_pending,
             'gpu_driver': self._optional_inventory_probe(
                 gpu_driver_state, {'present': False, 'bound': False, 'driver': ''},

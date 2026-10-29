@@ -5400,5 +5400,18 @@
   "Read the package named in the output. Enable the repository that provides it, or report the workflow with this code so the package list can be fixed.": "Katso tulosteessa mainittu paketti. Ota käyttöön sen tarjoava ohjelmistolähde tai raportoi työnkulku tällä koodilla, jotta pakettiluettelo korjataan.",
   "The system could not start another process.": "Järjestelmä ei pystynyt käynnistämään uutta prosessia.",
   "The system reached its limit of running processes, or it is out of memory, so a step of the workflow could not start.": "Järjestelmä saavutti käynnissä olevien prosessien rajan tai muisti loppui, joten työnkulun vaihe ei voinut käynnistyä.",
-  "Close programs you do not need, or restart the computer, then run the action again.": "Sulje tarpeettomat ohjelmat tai käynnistä tietokone uudelleen ja suorita toiminto sitten uudelleen."
+  "Close programs you do not need, or restart the computer, then run the action again.": "Sulje tarpeettomat ohjelmat tai käynnistä tietokone uudelleen ja suorita toiminto sitten uudelleen.",
+  "Boot messages (hides the RDSEED warning)": "Käynnistysviestit (piilottaa RDSEED-varoituksen)",
+  "Hide boot messages": "Piilota käynnistysviestit",
+  "Show boot messages": "Näytä käynnistysviestit",
+  "Hide the kernel's boot messages": "Piilota ytimen käynnistysviestit",
+  "Show the kernel's boot messages": "Näytä ytimen käynnistysviestit",
+  "The BC-250's CPU makes the kernel print a warning about its random-number instructions (RDSEED) at every boot. This hides it by silencing all kernel messages on screen while the system starts, errors included, so a boot problem will show nothing there. It fixes nothing: the messages stay in dmesg and the system log. The change applies after reboot and can be restored from Control Center.": "BC-250:n suoritin saa ytimen tulostamaan jokaisella käynnistyksellä varoituksen satunnaislukukäskyistään (RDSEED). Tämä piilottaa sen vaimentamalla kaikki ytimen viestit näytöllä järjestelmän käynnistyessä, virheet mukaan lukien, joten käynnistysongelmassa siellä ei näy mitään. Se ei korjaa mitään: viestit säilyvät dmesgissä ja järjestelmälokissa. Muutos tulee voimaan uudelleenkäynnistyksen jälkeen, ja sen voi kumota Control Centerissä.",
+  "This restores the exact kernel log level that existed before Control Center hid the boot messages. The change applies after reboot.": "Tämä palauttaa täsmälleen sen ytimen lokitason, joka oli ennen kuin Control Center piilotti käynnistysviestit. Muutos tulee voimaan uudelleenkäynnistyksen jälkeen.",
+  "The BC-250's CPU makes the kernel print an RDSEED warning at every boot. This hides all kernel messages on screen while the system starts; they stay in dmesg.": "BC-250:n suoritin saa ytimen tulostamaan RDSEED-varoituksen jokaisella käynnistyksellä. Tämä piilottaa kaikki ytimen viestit näytöllä käynnistyksen aikana; ne säilyvät dmesgissä.",
+  "loglevel=0 was configured outside Control Center and is preserved.": "loglevel=0 on määritetty Control Centerin ulkopuolella ja säilytetään.",
+  "Shown": "Näytetään",
+  "Boot messages": "Käynnistysviestit",
+  "The boot-messages change was staged. Reboot after the terminal reports success.": "Käynnistysviestien muutos on valmisteltu. Käynnistä uudelleen, kun pääte ilmoittaa onnistumisesta.",
+  "Could not update the kernel boot messages": "Ytimen käynnistysviestejä ei voitu päivittää"
 }

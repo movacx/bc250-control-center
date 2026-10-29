@@ -5400,5 +5400,18 @@
   "Read the package named in the output. Enable the repository that provides it, or report the workflow with this code so the package list can be fixed.": "출력에 표시된 패키지를 확인하세요. 해당 패키지를 제공하는 저장소를 활성화하거나, 이 코드로 워크플로를 보고하여 패키지 목록을 수정하게 하세요.",
   "The system could not start another process.": "시스템이 새 프로세스를 시작하지 못했습니다.",
   "The system reached its limit of running processes, or it is out of memory, so a step of the workflow could not start.": "실행 중인 프로세스 한도에 도달했거나 메모리가 부족해 워크플로 단계를 시작할 수 없었습니다.",
-  "Close programs you do not need, or restart the computer, then run the action again.": "필요 없는 프로그램을 닫거나 컴퓨터를 다시 시작한 뒤 작업을 다시 실행하세요."
+  "Close programs you do not need, or restart the computer, then run the action again.": "필요 없는 프로그램을 닫거나 컴퓨터를 다시 시작한 뒤 작업을 다시 실행하세요.",
+  "Boot messages (hides the RDSEED warning)": "부팅 메시지(RDSEED 경고 숨김)",
+  "Hide boot messages": "부팅 메시지 숨기기",
+  "Show boot messages": "부팅 메시지 표시",
+  "Hide the kernel's boot messages": "커널 부팅 메시지 숨기기",
+  "Show the kernel's boot messages": "커널 부팅 메시지 표시",
+  "The BC-250's CPU makes the kernel print a warning about its random-number instructions (RDSEED) at every boot. This hides it by silencing all kernel messages on screen while the system starts, errors included, so a boot problem will show nothing there. It fixes nothing: the messages stay in dmesg and the system log. The change applies after reboot and can be restored from Control Center.": "BC-250의 CPU 때문에 커널은 부팅할 때마다 난수 명령(RDSEED)에 대한 경고를 출력합니다. 이 옵션은 시스템이 시작되는 동안 화면의 모든 커널 메시지를 오류까지 포함해 억제하여 경고를 숨기므로, 부팅 문제가 있어도 그곳에는 아무것도 표시되지 않습니다. 아무것도 고치지 않으며, 메시지는 dmesg와 시스템 로그에 남습니다. 변경은 재부팅 후 적용되며 Control Center에서 되돌릴 수 있습니다.",
+  "This restores the exact kernel log level that existed before Control Center hid the boot messages. The change applies after reboot.": "Control Center가 부팅 메시지를 숨기기 전의 커널 로그 수준을 그대로 복원합니다. 변경은 재부팅 후 적용됩니다.",
+  "The BC-250's CPU makes the kernel print an RDSEED warning at every boot. This hides all kernel messages on screen while the system starts; they stay in dmesg.": "BC-250의 CPU 때문에 커널은 부팅할 때마다 RDSEED 경고를 출력합니다. 이 옵션은 부팅 중 화면의 모든 커널 메시지를 숨기며, 메시지는 dmesg에 남습니다.",
+  "loglevel=0 was configured outside Control Center and is preserved.": "loglevel=0은 Control Center 밖에서 설정되었으며 그대로 유지됩니다.",
+  "Shown": "표시 중",
+  "Boot messages": "부팅 메시지",
+  "The boot-messages change was staged. Reboot after the terminal reports success.": "부팅 메시지 변경이 준비되었습니다. 터미널이 성공을 알리면 재부팅하세요.",
+  "Could not update the kernel boot messages": "커널 부팅 메시지를 업데이트할 수 없습니다"
 }

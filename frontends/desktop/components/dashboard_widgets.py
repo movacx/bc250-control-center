@@ -42,7 +42,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtWidgets import QPushButton as IconButton
 
-from bc250cc.infrastructure.system_setup import CU_UNLOCK_OPTION
+from bc250cc.infrastructure.system_setup import CU_UNLOCK_OPTION, HIDE_BOOT_MESSAGES_OPTION
 from bc250cc.infrastructure.terminal_repository import TerminalRepository
 
 from .. import theme
@@ -2739,6 +2739,47 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, QFrame):
         panel.hide()
         return panel
 
+    def _bazzite_boot_messages_panel(self) -> QFrame:
+        """Hide the kernel's boot messages (the RDSEED warning) on Bazzite."""
+        panel = QFrame()
+        self.boot_messages_panel = panel
+        panel.setProperty("dashboardMemoryPanel", True)
+        panel.setProperty("dashboardBootPanel", True)
+        panel.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+
+        root = QBoxLayout(QBoxLayout.Direction.LeftToRight, panel)
+        self.boot_messages_layout = root
+        root.setContentsMargins(12, 10, 12, 10)
+        root.setSpacing(10)
+
+        copy = QVBoxLayout()
+        copy.setSpacing(4)
+        header = QHBoxLayout()
+        header.setSpacing(8)
+        header.addWidget(_label("Boot messages (hides the RDSEED warning)", "dashboardComponentTitle"))
+        self.boot_messages_status = PillLabel("Not detected", "gray")
+        header.addWidget(self.boot_messages_status)
+        header.addStretch(1)
+        copy.addLayout(header)
+        self.boot_messages_detail = _label(
+            "The BC-250's CPU makes the kernel print an RDSEED warning at every boot. This hides all kernel messages on screen while the system starts; they stay in dmesg.",
+            "dashboardMemoryDetail",
+        )
+        self.boot_messages_detail.setWordWrap(True)
+        copy.addWidget(self.boot_messages_detail)
+        root.addLayout(copy, 1)
+
+        self.boot_messages_apply_button = QPushButton(tr("Hide boot messages"))
+        self.boot_messages_apply_button.setProperty("dashboardCardAction", True)
+        self.boot_messages_apply_button.setSizePolicy(
+            QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed
+        )
+        self.boot_messages_apply_button.clicked.connect(self._request_boot_messages)
+        self._boot_messages_action = "hide"
+        root.addWidget(self.boot_messages_apply_button)
+        panel.hide()
+        return panel
+
     def _steamos_readonly_panel(self) -> QFrame:
         """SteamOS' read-only root, beside Bazzite's mitigations switch."""
         panel = QFrame()
@@ -2784,10 +2825,13 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, QFrame):
         ("mitigations=off", "CPU security mitigations", "Disable mitigations", "Restore mitigations"),
         ("nosmt", "Simultaneous multithreading (SMT)", "Disable SMT", "Restore SMT"),
         (CU_UNLOCK_OPTION, "Compute Units unlock (kernel)", "Unlock all 40 CUs", "Restore CU lock"),
+        (HIDE_BOOT_MESSAGES_OPTION, "Boot messages (hides the RDSEED warning)", "Hide boot messages", "Show boot messages"),
     )
     #: Options that give something up, and so are drawn as a warning. Unlocking
     #: compute units gives nothing up: it is the BC-250 kernel's own method.
-    KERNEL_OPTION_NEUTRAL = frozenset({CU_UNLOCK_OPTION})
+    #: Hiding boot messages risks nothing for the board; it is explained in its
+    #: confirmation, not painted red.
+    KERNEL_OPTION_NEUTRAL = frozenset({CU_UNLOCK_OPTION, HIDE_BOOT_MESSAGES_OPTION})
 
 
     def _request_smt_live(self) -> None:
@@ -3175,6 +3219,56 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, QFrame):
             }
         )
 
+    def _request_boot_messages(self) -> None:
+        self.dependency_action_requested.emit(
+            {
+                "action": f"bazzite_boot_messages_{self._boot_messages_action}",
+                "governor": "",
+                "selected_components": self.selected_components,
+            }
+        )
+
+    def _update_boot_messages_control(
+        self, tools: Mapping[str, object], *, actionable: bool
+    ) -> None:
+        state = _mapping(tools.get("bazzite_boot_messages"))
+        configured = bool(state.get("configured"))
+        managed = bool(state.get("managed"))
+        available = bool(state.get("available"))
+        self.boot_messages_panel.setVisible(actionable)
+        if not actionable:
+            return
+        if state.get("reboot_required"):
+            status, tone = tr("Reboot required"), "orange"
+        elif configured:
+            status, tone = tr("Hidden"), "orange"
+        else:
+            status = tr("Shown") if available else tr("Not detected")
+            tone = "green" if available else "gray"
+        self.boot_messages_status.setText(status)
+        self.boot_messages_status.set_tone(tone)
+
+        self._boot_messages_action = "restore" if managed else "hide"
+        self.boot_messages_apply_button.setText(
+            tr(
+                "Managed externally"
+                if configured and not managed
+                else "Show boot messages"
+                if self._boot_messages_action == "restore"
+                else "Hide boot messages"
+            )
+        )
+        self.boot_messages_apply_button.setEnabled(
+            available and (not configured or managed)
+        )
+        self.boot_messages_apply_button.setToolTip(
+            tr("loglevel=0 was configured outside Control Center and is preserved.")
+            if configured and not managed
+            else tr(
+                "The BC-250's CPU makes the kernel print an RDSEED warning at every boot. This hides all kernel messages on screen while the system starts; they stay in dmesg."
+            )
+        )
+
     def _update_mitigation_control(
         self, tools: Mapping[str, object], *, actionable: bool
     ) -> None:
@@ -3235,6 +3329,7 @@ class PreparationSidebar(PreparationRenderMixin, PreparationPagesMixin, QFrame):
         self._update_vram_control()
         actionable = is_bazzite_host(tools)
         self._update_mitigation_control(tools, actionable=actionable)
+        self._update_boot_messages_control(tools, actionable=actionable)
         self._update_steamos_readonly_control(tools)
         self._update_kernel_options_control(tools)
         runtime = _mapping(tools.get("memory_runtime"))

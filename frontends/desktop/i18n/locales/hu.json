@@ -5400,5 +5400,18 @@
   "Read the package named in the output. Enable the repository that provides it, or report the workflow with this code so the package list can be fixed.": "Nézd meg a kimenetben szereplő csomagot. Engedélyezd az azt biztosító tárolót, vagy jelentsd a folyamatot ezzel a kóddal, hogy a csomaglista javítva legyen.",
   "The system could not start another process.": "A rendszer nem tudott újabb folyamatot indítani.",
   "The system reached its limit of running processes, or it is out of memory, so a step of the workflow could not start.": "A rendszer elérte a futó folyamatok korlátját, vagy elfogyott a memória, ezért a folyamat egyik lépése nem indulhatott el.",
-  "Close programs you do not need, or restart the computer, then run the action again.": "Zárd be a felesleges programokat vagy indítsd újra a gépet, majd futtasd újra a műveletet."
+  "Close programs you do not need, or restart the computer, then run the action again.": "Zárd be a felesleges programokat vagy indítsd újra a gépet, majd futtasd újra a műveletet.",
+  "Boot messages (hides the RDSEED warning)": "Indítási üzenetek (elrejti az RDSEED-figyelmeztetést)",
+  "Hide boot messages": "Indítási üzenetek elrejtése",
+  "Show boot messages": "Indítási üzenetek megjelenítése",
+  "Hide the kernel's boot messages": "A kernel indítási üzeneteinek elrejtése",
+  "Show the kernel's boot messages": "A kernel indítási üzeneteinek megjelenítése",
+  "The BC-250's CPU makes the kernel print a warning about its random-number instructions (RDSEED) at every boot. This hides it by silencing all kernel messages on screen while the system starts, errors included, so a boot problem will show nothing there. It fixes nothing: the messages stay in dmesg and the system log. The change applies after reboot and can be restored from Control Center.": "A BC-250 processzora miatt a kernel minden indításkor figyelmeztetést ír ki a véletlenszám-utasításairól (RDSEED). Ez a beállítás elrejti, mégpedig úgy, hogy a rendszer indítása közben elnémítja a kernel összes képernyőüzenetét, a hibákat is, így indítási hibánál ott semmi sem jelenik meg. Nem old meg semmit: az üzenetek megmaradnak a dmesgben és a rendszernaplóban. A módosítás újraindítás után lép érvénybe, és a Control Centerből visszavonható.",
+  "This restores the exact kernel log level that existed before Control Center hid the boot messages. The change applies after reboot.": "Pontosan visszaállítja azt a kernelnapló-szintet, amely azelőtt volt, hogy a Control Center elrejtette az indítási üzeneteket. A módosítás újraindítás után lép érvénybe.",
+  "The BC-250's CPU makes the kernel print an RDSEED warning at every boot. This hides all kernel messages on screen while the system starts; they stay in dmesg.": "A BC-250 processzora miatt a kernel minden indításkor RDSEED-figyelmeztetést ír ki. Ez a beállítás elrejti a kernel összes képernyőüzenetét indítás közben; ezek megmaradnak a dmesgben.",
+  "loglevel=0 was configured outside Control Center and is preserved.": "A loglevel=0 beállítást a Control Centeren kívül adták meg, ezért megmarad.",
+  "Shown": "Megjelenítve",
+  "Boot messages": "Indítási üzenetek",
+  "The boot-messages change was staged. Reboot after the terminal reports success.": "Az indítási üzenetek módosítása előkészítve. Indítsd újra, ha a terminál sikert jelez.",
+  "Could not update the kernel boot messages": "Nem sikerült frissíteni a kernel indítási üzeneteit"
 }

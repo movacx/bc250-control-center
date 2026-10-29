@@ -5400,5 +5400,18 @@
   "Read the package named in the output. Enable the repository that provides it, or report the workflow with this code so the package list can be fixed.": "Διαβάστε το πακέτο που αναφέρεται στην έξοδο. Ενεργοποιήστε το αποθετήριο που το παρέχει ή αναφέρετε τη διαδικασία με αυτόν τον κωδικό ώστε να διορθωθεί η λίστα πακέτων.",
   "The system could not start another process.": "Το σύστημα δεν μπόρεσε να ξεκινήσει άλλη διεργασία.",
   "The system reached its limit of running processes, or it is out of memory, so a step of the workflow could not start.": "Το σύστημα έφτασε το όριο των διεργασιών σε εκτέλεση ή έμεινε χωρίς μνήμη, οπότε ένα βήμα της διαδικασίας δεν μπόρεσε να ξεκινήσει.",
-  "Close programs you do not need, or restart the computer, then run the action again.": "Κλείστε τα προγράμματα που δεν χρειάζεστε ή επανεκκινήστε τον υπολογιστή και εκτελέστε ξανά την ενέργεια."
+  "Close programs you do not need, or restart the computer, then run the action again.": "Κλείστε τα προγράμματα που δεν χρειάζεστε ή επανεκκινήστε τον υπολογιστή και εκτελέστε ξανά την ενέργεια.",
+  "Boot messages (hides the RDSEED warning)": "Μηνύματα εκκίνησης (κρύβει την προειδοποίηση RDSEED)",
+  "Hide boot messages": "Απόκρυψη μηνυμάτων εκκίνησης",
+  "Show boot messages": "Εμφάνιση μηνυμάτων εκκίνησης",
+  "Hide the kernel's boot messages": "Απόκρυψη των μηνυμάτων εκκίνησης του πυρήνα",
+  "Show the kernel's boot messages": "Εμφάνιση των μηνυμάτων εκκίνησης του πυρήνα",
+  "The BC-250's CPU makes the kernel print a warning about its random-number instructions (RDSEED) at every boot. This hides it by silencing all kernel messages on screen while the system starts, errors included, so a boot problem will show nothing there. It fixes nothing: the messages stay in dmesg and the system log. The change applies after reboot and can be restored from Control Center.": "Ο επεξεργαστής του BC-250 κάνει τον πυρήνα να εμφανίζει σε κάθε εκκίνηση μια προειδοποίηση για τις εντολές τυχαίων αριθμών (RDSEED). Η επιλογή την κρύβει σιγάζοντας όλα τα μηνύματα του πυρήνα στην οθόνη κατά την εκκίνηση του συστήματος, συμπεριλαμβανομένων των σφαλμάτων, οπότε σε περίπτωση προβλήματος εκκίνησης δεν θα εμφανιστεί τίποτα εκεί. Δεν διορθώνει τίποτα: τα μηνύματα παραμένουν στο dmesg και στο αρχείο καταγραφής του συστήματος. Η αλλαγή εφαρμόζεται μετά την επανεκκίνηση και μπορεί να αναιρεθεί από το Control Center.",
+  "This restores the exact kernel log level that existed before Control Center hid the boot messages. The change applies after reboot.": "Επαναφέρει ακριβώς το επίπεδο καταγραφής του πυρήνα που υπήρχε πριν το Control Center κρύψει τα μηνύματα εκκίνησης. Η αλλαγή εφαρμόζεται μετά την επανεκκίνηση.",
+  "The BC-250's CPU makes the kernel print an RDSEED warning at every boot. This hides all kernel messages on screen while the system starts; they stay in dmesg.": "Ο επεξεργαστής του BC-250 κάνει τον πυρήνα να εμφανίζει προειδοποίηση RDSEED σε κάθε εκκίνηση. Η επιλογή κρύβει όλα τα μηνύματα του πυρήνα στην οθόνη κατά την εκκίνηση· παραμένουν στο dmesg.",
+  "loglevel=0 was configured outside Control Center and is preserved.": "Το loglevel=0 ορίστηκε εκτός Control Center και διατηρείται.",
+  "Shown": "Εμφανίζονται",
+  "Boot messages": "Μηνύματα εκκίνησης",
+  "The boot-messages change was staged. Reboot after the terminal reports success.": "Η αλλαγή των μηνυμάτων εκκίνησης προετοιμάστηκε. Επανεκκινήστε όταν το τερματικό αναφέρει επιτυχία.",
+  "Could not update the kernel boot messages": "Δεν ήταν δυνατή η ενημέρωση των μηνυμάτων εκκίνησης του πυρήνα"
 }

@@ -5400,5 +5400,18 @@
   "Read the package named in the output. Enable the repository that provides it, or report the workflow with this code so the package list can be fixed.": "Lisez le nom du paquet indiqué dans la sortie. Activez le dépôt qui le fournit ou signalez la procédure avec ce code pour que la liste des paquets soit corrigée.",
   "The system could not start another process.": "Le système n'a pas pu lancer un autre processus.",
   "The system reached its limit of running processes, or it is out of memory, so a step of the workflow could not start.": "Le système a atteint sa limite de processus en cours ou manque de mémoire, si bien qu'une étape de la procédure n'a pas pu démarrer.",
-  "Close programs you do not need, or restart the computer, then run the action again.": "Fermez les programmes inutiles ou redémarrez l'ordinateur, puis relancez l'action."
+  "Close programs you do not need, or restart the computer, then run the action again.": "Fermez les programmes inutiles ou redémarrez l'ordinateur, puis relancez l'action.",
+  "Boot messages (hides the RDSEED warning)": "Messages de démarrage (masque l’avertissement RDSEED)",
+  "Hide boot messages": "Masquer les messages de démarrage",
+  "Show boot messages": "Afficher les messages de démarrage",
+  "Hide the kernel's boot messages": "Masquer les messages de démarrage du noyau",
+  "Show the kernel's boot messages": "Afficher les messages de démarrage du noyau",
+  "The BC-250's CPU makes the kernel print a warning about its random-number instructions (RDSEED) at every boot. This hides it by silencing all kernel messages on screen while the system starts, errors included, so a boot problem will show nothing there. It fixes nothing: the messages stay in dmesg and the system log. The change applies after reboot and can be restored from Control Center.": "Le processeur de la BC-250 fait afficher au noyau, à chaque démarrage, un avertissement sur ses instructions de nombres aléatoires (RDSEED). Cette option le masque en coupant tous les messages du noyau à l’écran pendant le démarrage, erreurs comprises : en cas de problème de démarrage, rien ne s’affichera. Elle ne corrige rien : les messages restent dans dmesg et le journal système. Le changement s’applique après le redémarrage et peut être annulé depuis Control Center.",
+  "This restores the exact kernel log level that existed before Control Center hid the boot messages. The change applies after reboot.": "Cela rétablit le niveau de journalisation du noyau exact qui existait avant que Control Center masque les messages de démarrage. Le changement s’applique après le redémarrage.",
+  "The BC-250's CPU makes the kernel print an RDSEED warning at every boot. This hides all kernel messages on screen while the system starts; they stay in dmesg.": "Le processeur de la BC-250 fait afficher au noyau un avertissement RDSEED à chaque démarrage. Cette option masque tous les messages du noyau à l’écran pendant le démarrage ; ils restent dans dmesg.",
+  "loglevel=0 was configured outside Control Center and is preserved.": "loglevel=0 a été configuré en dehors de Control Center et est conservé.",
+  "Shown": "Affichés",
+  "Boot messages": "Messages de démarrage",
+  "The boot-messages change was staged. Reboot after the terminal reports success.": "Le changement des messages de démarrage est préparé. Redémarrez une fois que le terminal indique le succès.",
+  "Could not update the kernel boot messages": "Impossible de modifier les messages de démarrage du noyau"
 }

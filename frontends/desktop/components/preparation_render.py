@@ -203,6 +203,7 @@ class PreparationRenderMixin:
             self.memory_swap_apply_button,
             self.memory_ttm_apply_button,
             self.mitigations_apply_button,
+            self.boot_messages_apply_button,
             self.readonly_button,
         ):
             button.setMinimumWidth(
@@ -211,6 +212,7 @@ class PreparationRenderMixin:
         compact_mitigations = width < 660
         for panel_layout, panel_button in (
             (self.mitigations_layout, self.mitigations_apply_button),
+            (self.boot_messages_layout, self.boot_messages_apply_button),
             (self.readonly_layout, self.readonly_button),
         ):
             panel_layout.setDirection(

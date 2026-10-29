@@ -5400,5 +5400,18 @@
   "Read the package named in the output. Enable the repository that provides it, or report the workflow with this code so the package list can be fixed.": "Lee el paquete que aparece en la salida. Habilita el repositorio que lo ofrece o reporta el flujo con este código para que se corrija la lista de paquetes.",
   "The system could not start another process.": "El sistema no pudo iniciar otro proceso.",
   "The system reached its limit of running processes, or it is out of memory, so a step of the workflow could not start.": "El sistema llegó a su límite de procesos en ejecución o se quedó sin memoria, así que un paso del flujo no pudo iniciarse.",
-  "Close programs you do not need, or restart the computer, then run the action again.": "Cierra los programas que no necesites o reinicia el equipo, y vuelve a ejecutar la acción."
+  "Close programs you do not need, or restart the computer, then run the action again.": "Cierra los programas que no necesites o reinicia el equipo, y vuelve a ejecutar la acción.",
+  "Boot messages (hides the RDSEED warning)": "Mensajes de arranque (oculta el aviso de RDSEED)",
+  "Hide boot messages": "Ocultar mensajes de arranque",
+  "Show boot messages": "Mostrar mensajes de arranque",
+  "Hide the kernel's boot messages": "Ocultar los mensajes de arranque del kernel",
+  "Show the kernel's boot messages": "Mostrar los mensajes de arranque del kernel",
+  "The BC-250's CPU makes the kernel print a warning about its random-number instructions (RDSEED) at every boot. This hides it by silencing all kernel messages on screen while the system starts, errors included, so a boot problem will show nothing there. It fixes nothing: the messages stay in dmesg and the system log. The change applies after reboot and can be restored from Control Center.": "La CPU de la BC-250 hace que el kernel muestre en cada arranque un aviso sobre sus instrucciones de números aleatorios (RDSEED). Esto lo oculta silenciando todos los mensajes del kernel en pantalla mientras arranca el sistema, errores incluidos, así que un problema de arranque no mostrará nada ahí. No arregla nada: los mensajes siguen en dmesg y en el registro del sistema. El cambio se aplica tras reiniciar y se puede revertir desde Control Center.",
+  "This restores the exact kernel log level that existed before Control Center hid the boot messages. The change applies after reboot.": "Esto restaura el nivel de registro del kernel exacto que existía antes de que Control Center ocultara los mensajes de arranque. El cambio se aplica tras reiniciar.",
+  "The BC-250's CPU makes the kernel print an RDSEED warning at every boot. This hides all kernel messages on screen while the system starts; they stay in dmesg.": "La CPU de la BC-250 hace que el kernel muestre un aviso de RDSEED en cada arranque. Esto oculta todos los mensajes del kernel en pantalla mientras arranca el sistema; siguen en dmesg.",
+  "loglevel=0 was configured outside Control Center and is preserved.": "loglevel=0 se configuró fuera de Control Center y se conservará.",
+  "Shown": "Visibles",
+  "Boot messages": "Mensajes de arranque",
+  "The boot-messages change was staged. Reboot after the terminal reports success.": "El cambio de mensajes de arranque quedó preparado. Reinicia cuando la terminal indique que terminó bien.",
+  "Could not update the kernel boot messages": "No se pudieron actualizar los mensajes de arranque del kernel"
 }

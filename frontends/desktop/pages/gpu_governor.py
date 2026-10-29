@@ -50,7 +50,11 @@ from bc250cc.infrastructure.gpu.governor_toml import (
     SUPPORTED_VOLTAGE_LEVELS,
     VOLTAGE_BOOST_START_MHZ,
 )
-from bc250cc.infrastructure.system_setup import CU_UNLOCK_OPTION, CU_UNLOCK_THERMAL_NOTE
+from bc250cc.infrastructure.system_setup import (
+    CU_UNLOCK_OPTION,
+    CU_UNLOCK_THERMAL_NOTE,
+    HIDE_BOOT_MESSAGES_OPTION,
+)
 
 from ..components.async_tools import AsyncRefresh, BackgroundExecutor
 from ..components.page_widgets import (
@@ -1080,6 +1084,43 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
             error_parent=dialog_parent,
         )
 
+    def _prepare_bazzite_boot_messages(
+        self, action: str, *, dialog_parent: QWidget | None
+    ) -> None:
+        action = str(action or "").strip().lower()
+        if action not in {"hide", "restore"}:
+            raise ValueError("Unsupported Bazzite boot-messages action.")
+        hiding = action == "hide"
+        confirmation = ConfirmDialog(
+            tr("Hide the kernel's boot messages" if hiding else "Show the kernel's boot messages"),
+            tr(
+                "The BC-250's CPU makes the kernel print a warning about its random-number instructions (RDSEED) at every boot. This hides it by silencing all kernel messages on screen while the system starts, errors included, so a boot problem will show nothing there. It fixes nothing: the messages stay in dmesg and the system log. The change applies after reboot and can be restored from Control Center."
+                if hiding
+                else "This restores the exact kernel log level that existed before Control Center hid the boot messages. The change applies after reboot."
+            ),
+            summary=(
+                (tr("Platform"), "Bazzite"),
+                (tr("Kernel argument"), "loglevel=0"),
+                (tr("Reboot"), tr("Required to activate the selected configuration")),
+            ),
+            confirm_text=tr("Hide boot messages" if hiding else "Show boot messages"),
+            tone="orange",
+            parent=dialog_parent or self,
+        )
+        if confirmation.exec() != QDialog.DialogCode.Accepted:
+            return
+        self._run_backend_action(
+            lambda: self.controller.gestionar_mensajes_arranque_bazzite(action),
+            lambda _result: GpuGovernorPage._record_preparation_result(
+                self,
+                tr("Boot messages"),
+                tr("The boot-messages change was staged. Reboot after the terminal reports success."),
+            ),
+            tr("Could not update the kernel boot messages"),
+            controls=(),
+            error_parent=dialog_parent,
+        )
+
     def _manage_kernel_options(
         self, options: tuple[str, ...], *, changed: str, dialog_parent: QWidget | None
     ) -> None:
@@ -1105,6 +1146,16 @@ class GpuGovernorPage(GpuGovernorStateMixin, QWidget):
                     "and can be restored from Control Center."
                 )
                 confirm_text, tone = "Disable mitigations", "red"
+            elif changed == HIDE_BOOT_MESSAGES_OPTION:
+                title = "Hide the kernel's boot messages"
+                body = (
+                    "The BC-250's CPU makes the kernel print a warning about its random-number "
+                    "instructions (RDSEED) at every boot. This hides it by silencing all kernel messages "
+                    "on screen while the system starts, errors included, so a boot problem will show "
+                    "nothing there. It fixes nothing: the messages stay in dmesg and the system log. "
+                    "The change applies after reboot and can be restored from Control Center."
+                )
+                confirm_text, tone = "Hide boot messages", "orange"
             else:
                 title = "Disable simultaneous multithreading"
                 body = (
