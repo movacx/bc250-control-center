@@ -639,6 +639,7 @@ fi
 # transactions succeeded. Old 1.18 launchers remain usable during rollback.
 install -Dm755 "$ROOT_DIR/scripts/entrypoints/bc250-control-center" "$BIN_DIR/bc250-control-center"
 install -Dm755 "$ROOT_DIR/scripts/entrypoints/bc250-control-center-cli" "$BIN_DIR/bc250-control-center-cli"
+install -Dm755 "$ROOT_DIR/scripts/entrypoints/bc250-control-center-tui" "$BIN_DIR/bc250-control-center-tui"
 install -Dm755 "$ROOT_DIR/scripts/entrypoints/bc250-control-centerd" "$BIN_DIR/bc250-control-centerd"
 rm -f "$ICON_DIR/scalable/apps/bc250-control-center.svg"
 # 16 and 24 matter: the window manager and the task switcher ask for them,
@@ -710,6 +711,7 @@ fi
 echo "Installed in $PREFIX"
 echo "GUI: $BIN_DIR/bc250-control-center"
 echo "CLI: $BIN_DIR/bc250-control-center-cli"
+echo "Terminal interface: $BIN_DIR/bc250-control-center-tui"
 if [[ ! -d /run/systemd/system ]]; then
   echo "Background daemon: not installed without an active systemd user manager; Desktop Mode refresh remains available."
 else

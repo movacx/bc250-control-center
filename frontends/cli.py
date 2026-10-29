@@ -73,6 +73,12 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON")
     commands = parser.add_subparsers(dest="command", required=True)
+    tui = commands.add_parser(
+        "tui", help="Open the interactive terminal interface (sidebar, live telemetry, every setting)"
+    )
+    tui.add_argument("--theme", choices=("auto", "light", "dark", "mono"), default="auto")
+    tui.add_argument("--lang", default="")
+    tui.add_argument("--page", default="")
     commands.add_parser("system", help="Show detected Linux strategy")
     commands.add_parser("telemetry", help="Read APU sensor validity, clocks and firmware diagnostics")
     commands.add_parser("components", help="Show preparation component capabilities")
@@ -187,6 +193,10 @@ def _run_dependencies(args, host, runner) -> int:
 
 def main(argv: list[str] | None = None, *, host=None, runner=subprocess.run) -> int:
     args = _parser().parse_args(argv)
+    if args.command == "tui":
+        from frontends.tui.app import main as tui_main
+
+        return tui_main(["--theme", args.theme, "--lang", args.lang, "--page", args.page])
     if args.command == "black-box":
         from bc250cc.infrastructure.blackbox import record
 

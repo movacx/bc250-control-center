@@ -76,6 +76,7 @@ def test_package_staging_contains_runtime_and_no_generated_or_retired_code(tmp_p
     _run("bash", ROOT / "packaging/scripts/stage-package-root.sh", stage)
 
     assert (stage / "usr/bin/bc250-control-center-cli").stat().st_mode & 0o111
+    assert (stage / "usr/bin/bc250-control-center-tui").stat().st_mode & 0o111
     assert (stage / "usr/libexec/bc250-control-center/bc250-cpu-smu-helper").stat().st_mode & 0o111
     assert (stage / "usr/libexec/bc250-control-center/bc250-service-helper").stat().st_mode & 0o111
     assert (stage / "usr/libexec/bc250-control-center/bc250-maintenance-helper").stat().st_mode & 0o111

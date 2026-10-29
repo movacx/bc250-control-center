@@ -42,6 +42,7 @@ More screenshots are in the [gallery](https://movacx.github.io/bc250-control-cen
 - Compatibility fixes for GFX1013, async compute, ACPI and Mesa; Dolby Digital 5.1 over HDMI; TV control over HDMI-CEC
 - In-app problem reports with error codes, origin codes and the raw error attached
 - 30 languages, light and dark themes, UI scaling and controller navigation
+- Terminal mode (`bc250-control-center tui`): the same sections, live telemetry and actions over SSH or a plain TTY, with no extra dependencies
 
 ## Supported distributions
 
@@ -133,6 +134,32 @@ bash scripts/uninstall-local.sh
 2. Optionally take the guided tour, which explains what each module changes on the board.
 3. On the Dashboard, run **Prepare BC250 system**. It shows what will be installed for your distribution and runs it in the built-in terminal.
 4. Read the status line of a module before applying changes; it reports what is ready and what is missing.
+
+## Terminal mode
+
+The same control center runs inside a terminal, with no window system: over SSH, on a plain TTY, in Konsole or in a Game Mode console. It needs only Python's standard `curses` module, so there is nothing to install on top of the application and it behaves the same on Fedora, Bazzite, SteamOS, Arch, CachyOS, Ubuntu, Linux Mint and Debian.
+
+```bash
+bc250-control-center tui          # or: bc250-control-center-tui
+bc250-control-center-cli tui --page gpu --theme mono
+```
+
+It has the desktop's sidebar and sections: Dashboard (GPU, CPU, memory and sensors with live trends), CPU, GPU governor, Additional settings (Components, Compatibility, Memory & Swap, Decky, Drivers, Upscaling, offered according to your distribution), Compute units (editable WGP table), Monitoring, Fans, Processes, Black box (with the full diagnosis in tabs), Firmware (including the BIOS update USB) and Settings.
+
+It does not reimplement anything: every reading and every action goes through the same service layer, privileged helpers and error catalog as the desktop application. Anything that changes the system asks for confirmation first (dangerous ones need an explicit `y`), and the workflows that the desktop opens in a terminal window run in the terminal you already have, so `sudo`/Polkit prompts appear right there.
+
+| Key | Action |
+| --- | --- |
+| `↑` `↓` or `j` `k` | Move |
+| `Enter`, `→` or `l` | Open a section / run an action |
+| `Esc`, `←` or `h`, `Tab` | Back to the sidebar |
+| `[` `]` or `←` `→` | Previous / next tab of a section |
+| `1`–`9`, `0` | Jump to a section |
+| `r` | Refresh |
+| `?` | Help |
+| `q` | Quit |
+
+The interface draws no background colour, so it follows a light or dark terminal on its own; `--theme mono` (or `NO_COLOR`) removes colour. It uses the language chosen in Settings (`--lang` overrides it) and falls back to ASCII on the Linux console. If this Python was built without `curses` the command says so and points to the desktop application. Errors are logged to `~/.local/state/bc250-control-center/tui.log`, never over the screen.
 
 ## Decky plugin
 
@@ -230,6 +257,7 @@ bc250-control-center/
 │   │   ├── console/          Built-in terminal
 │   │   ├── theme/            Themes, styles, colors and icons
 │   │   └── i18n/             Translations into 30 languages
+│   ├── tui/                  Terminal interface (curses): pages, layout, screen
 │   └── cli.py                Command-line mode
 ├── integrations/decky/       Decky Quick Access plugin for Game Mode
 ├── privileged/               What runs as root, isolated and reviewed

@@ -57,6 +57,7 @@ required=(
   scripts/system/steamos-root.sh
   scripts/entrypoints/bc250-control-center
   scripts/entrypoints/bc250-control-center-cli
+  scripts/entrypoints/bc250-control-center-tui
   scripts/entrypoints/bc250-control-centerd
   scripts/install-local.sh
   scripts/install-decky-quick-access.sh

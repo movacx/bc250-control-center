@@ -1,0 +1,27 @@
+"""Sidebar sections, in the order the desktop application lists them."""
+
+from __future__ import annotations
+
+from .base import Page
+from .blackbox import BlackBoxPage
+from .compute_units import ComputeUnitsPage
+from .cpu import CpuPage
+from .dashboard import DashboardPage
+from .extras import AdditionalSettingsPage
+from .fans import FansPage
+from .firmware import FirmwarePage
+from .gpu import GpuPage
+from .monitoring import MonitoringPage
+from .processes import ProcessesPage
+from .settings import SettingsPage
+
+
+def build_pages() -> dict[str, Page]:
+    pages = [
+        DashboardPage(), CpuPage(), GpuPage(), AdditionalSettingsPage(), ComputeUnitsPage(),
+        MonitoringPage(), FansPage(), ProcessesPage(), BlackBoxPage(), FirmwarePage(), SettingsPage(),
+    ]
+    return {page.key: page for page in pages}
+
+
+__all__ = ["Page", "build_pages"]
