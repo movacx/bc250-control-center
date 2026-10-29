@@ -188,6 +188,8 @@ ssh -t user@board-ip bc250-control-center-tui
 
 Below 110 columns the interface switches to its touch layout by itself; `--touch` or `BC250_TUI_TOUCH=1` forces it, and **Settings › General › Touch mode (phone / tablet)**, the first entry there, saves the choice. In touch mode there is no sidebar: a strip at the top lists the sections and **Menu** opens them as a full-screen list. Buttons are three rows tall, a tap opens an item at once, a tap on `<` or `>` steps a value, and a swipe scrolls. Two rows of on-screen keys (Menu, Esc, Tab, PgUp, PgDn, Enter, arrows, Search, Quit) stand in for what a phone keyboard lacks; **On-screen keys** hides them. Dialogs answer to taps too, and the phone keyboard types into text fields as usual.
 
+Actions that need the administrator password ask for it inside the interface's console, over SSH as at the board; Esc or Ctrl+C cancels. Compute Unit routing and the Game Mode helper stay limited to the local session.
+
 The interface draws no background colour, so it follows a light or dark terminal on its own; `--theme mono` (or `NO_COLOR`) removes colour. It uses the language chosen in Settings (`--lang` overrides it) and falls back to ASCII on the Linux console. If this Python was built without `curses` the command says so and points to the desktop application. Errors are logged to `~/.local/state/bc250-control-center/tui.log`, never over the screen.
 
 ## Decky plugin

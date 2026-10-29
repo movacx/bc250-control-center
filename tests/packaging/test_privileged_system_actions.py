@@ -57,7 +57,10 @@ def test_every_desktop_helper_has_an_explicit_polkit_action():
             continue
         defaults = action.find("defaults")
         assert defaults is not None
-        assert defaults.findtext("allow_any") == "no"
+        # A remote session (the terminal interface over SSH) may act, but only with the
+        # administrator password, exactly as an inactive local one; never without it.
+        assert defaults.findtext("allow_any") in {"no", defaults.findtext("allow_inactive")}
+        assert defaults.findtext("allow_any") in {"no", "auth_admin"}
         assert defaults.findtext("allow_active") in {"auth_admin", "auth_admin_keep"}
 
 
