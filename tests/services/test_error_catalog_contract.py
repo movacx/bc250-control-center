@@ -272,6 +272,17 @@ def test_a_wrapped_helper_error_is_explained_by_its_inner_cause(outer):
     assert diagnose_error(message).code == "BC250-BUSY-001"
 
 
+def test_an_unusable_cyan_config_is_not_blamed_on_dbus_by_an_earlier_log_line(tmp_path: Path) -> None:
+    """R-df49405e: "Installing the missing official Cyan D-Bus policy" is an INFO line, not the cause."""
+    output = _run_workflow(tmp_path, (
+        "echo '[INFO] Installing the missing official Cyan D-Bus policy'; "
+        "echo '[INFO] Reloading the system D-Bus policy for Cyan'; "
+        "echo '[ERROR] Cyan configuration is not usable: Cyan config requires [gpu-usage] and [gpu] sections'; exit 1"
+    ))
+    assert "BC250-CONFIG-001" in output
+    assert "BC250-DBUS-001" not in output
+
+
 def test_the_generic_failure_line_does_not_replace_the_scripts_own_explanation(tmp_path: Path) -> None:
     """R-bc2d99b9: common.sh closes every failure with "Operation failed at line N".
 

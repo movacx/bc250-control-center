@@ -638,6 +638,7 @@ _MORE_PATTERNS: dict[str, tuple[str, ...]] = {
         r"no earlier helixsr version kept", r"helixsr scaler is not recorded",
     ),
     "BC250-CONFIG-001": (
+        r"cyan configuration is not usable",
         # Both governors' own files, read, checked and rewritten by the helper.
         r"oberon yaml", r"(?:governor|oberon) configuration (?:is unavailable|could not be (?:read|updated)|changed to a symlink)",
         r"oberon minimum (?:frequency|voltage) cannot exceed",

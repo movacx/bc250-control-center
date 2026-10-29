@@ -277,6 +277,23 @@ def test_cyan_installer_completes_an_old_config_without_any_switch_section(tmp_p
     assert "voltage = 800" in text
 
 
+def test_cyan_installer_names_an_unusable_config_as_an_error_line(tmp_path):
+    """R-df49405e: the bare message was no [ERROR] line, so a D-Bus rule was guessed from the log."""
+    script = Path("packaging/common/os-scripts/common/install-cyan-upstream-release.sh").read_text(encoding="utf-8")
+    functions = "validate_compatibility_switches() {" + script.split("validate_compatibility_switches() {", 1)[1].split(
+        "require_source_checkout() {", 1
+    )[0]
+    config = tmp_path / "config.toml"
+    config.write_text("[timing]\nburst-samples = 20\n", encoding="utf-8")
+    result = subprocess.run(
+        ["bash", "-c", "error() { printf '[ERROR] %s\\n' \"$*\" >&2; }\n" + functions + "\nvalidate_compatibility_switches"],
+        env={"PATH": "/usr/bin:/bin", "CONFIG": str(config)}, text=True, capture_output=True,
+    )
+
+    assert result.returncode == 1
+    assert result.stderr.startswith("[ERROR] Cyan configuration is not usable: Cyan config requires [gpu-usage]")
+
+
 def test_cyan_runtime_verification_is_core_count_independent_and_validates_switches():
     command = DependenciasRepository._cyan_runtime_verification_command()
 

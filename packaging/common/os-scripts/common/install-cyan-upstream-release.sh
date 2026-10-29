@@ -122,7 +122,19 @@ PY
   rm -f -- "$completed"
 }
 
+# A failed check says so as an [ERROR] line: a bare SystemExit message was not
+# recognised as the cause, so the terminal went looking in the last lines of the
+# log and reported a D-Bus fault for a configuration problem (R-df49405e).
 validate_compatibility_switches() {
+  local output
+  if output="$(validate_compatibility_switches_python 2>&1)"; then
+    return 0
+  fi
+  error "Cyan configuration is not usable: $(printf '%s\n' "$output" | tail -n 1)"
+  return 1
+}
+
+validate_compatibility_switches_python() {
   python3 - "$CONFIG" <<'PY'
 import sys, tomllib
 with open(sys.argv[1], "rb") as handle:

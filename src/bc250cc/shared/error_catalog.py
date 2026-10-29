@@ -167,7 +167,7 @@ _CODES: tuple[ErrorCode, ...] = (
         "A manual edit, older toolkit, interrupted write, or unsupported option left syntax or values the current component cannot read.",
         "Open the named file from the application, correct the first reported line or restore the module defaults, then apply the settings again.",
         exit_statuses=(78,),
-        markers=('QUICK_ACCESS_GPU_CONFIG', 'QUICK_ACCESS_GPU_SAFE_POINT: invalid TOML ceiling'),
+        markers=('QUICK_ACCESS_GPU_CONFIG', 'Cyan configuration is not usable', 'QUICK_ACCESS_GPU_SAFE_POINT: invalid TOML ceiling'),
     ),
     ErrorCode(
         "BC250-PROTOCOL-001",
