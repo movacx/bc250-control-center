@@ -588,4 +588,7 @@ def collect_diagnostics(
         _kernel_cached("-1")
     with ThreadPoolExecutor(max_workers=6) as pool:
         parts = list(pool.map(one, sections))
-    return _clip(redact("\n\n".join(parts)), total_limit)
+    # Home folders, and also the machine's name, addresses and ids: this text is pasted in public.
+    from bc250cc.infrastructure.privacy import redact_machine
+
+    return _clip(redact_machine("\n\n".join(parts)), total_limit)

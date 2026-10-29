@@ -34,45 +34,9 @@ FULL_SECTION_LIMIT = 8000
 FULL_LOG_LIMIT = 16000
 FULL_TOTAL_LIMIT = 90000
 
-#: Default host names: replacing them would also erase the distribution's
-#: name everywhere it is written ("Bazzite", "steamdeck"), and they say
-#: nothing about the person.
-_GENERIC_HOSTS = frozenset({
-    "localhost", "bazzite", "steamdeck", "fedora", "cachyos", "cachyos-x8664",
-    "archlinux", "ubuntu", "debian", "manjaro", "bc250", "bc-250", "linux",
-})
-_OCTET = r"(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)"
-#: Not glued to a hyphen, letter, colon or dot: a package version such as
-#: "2.4.11.1-1" or "1:2.0.0.1" is four numbers too, and was sent as "<ip>-1".
-_IPV4 = re.compile(rf"(?<![\w.:-])(?!127\.0\.0\.1\b)(?:{_OCTET}\.){{3}}{_OCTET}(?![\w.-])")
-#: Account names that say nothing about the person and are also words of
-#: this app's own paths: with the account "bc250", every "bc250" of a report
-#: (bc250-control-center, /tmp/bc250-helixsr) became "<user>".
-_GENERIC_USERS = frozenset({
-    "root", "deck", "bazzite", "bc250", "bc-250", "steam", "user", "gamer", "admin", "linux",
-    "guest", "player", "ubuntu", "fedora", "arch", "cachyos", "manjaro", "debian",
-})
-_MAC = re.compile(r"\b(?:[0-9a-f]{2}:){5}[0-9a-f]{2}\b", re.I)
-
-
-def redact_machine(text: object) -> str:
-    """``redact`` plus the machine's name and its network addresses."""
-    text = redact(text)
-    host = socket.gethostname().strip()
-    names = {host, host.split(".", 1)[0]}
-    for name in sorted(names, key=len, reverse=True):
-        if len(name) >= 3 and name.lower() not in _GENERIC_HOSTS:
-            text = re.sub(rf"(?<![\w.-]){re.escape(name)}(?![\w-])", "<host>", text)
-    # The account name also shows outside the home folder (/var/tmp/pamac-
-    # build-<name>, "[sudo] password for <name>").
-    try:
-        user = getpass.getuser().strip()
-    except Exception:  # noqa: BLE001 - no name to remove
-        user = ""
-    if len(user) >= 3 and user.lower() not in _GENERIC_USERS:
-        text = re.sub(rf"(?<![\w]){re.escape(user)}(?![\w])", "<user>", text)
-    text = _IPV4.sub("<ip>", text)
-    return _MAC.sub("<mac>", text)
+# The rules that take the person out of a text live in privacy.py; these names
+# stay importable from here, where reports have always found them.
+from bc250cc.infrastructure.privacy import _GENERIC_HOSTS, _GENERIC_USERS, redact_machine  # noqa: E402,F401
 
 
 # --- Sections ---------------------------------------------------------------
