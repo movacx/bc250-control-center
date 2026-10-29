@@ -1810,6 +1810,14 @@ class DependenciasRepository(SteamosDependenciesMixin):
                 f'if pacman -Q {package} >/dev/null 2>&1; then '
                 f'sudo pacman -Rns --noconfirm {package}; fi'
             )
+            # A package of another name (an AUR build, a distribution's own) can own the
+            # executable that is left: remove it too, or the check below fails for nothing.
+            commands.append(
+                f'bc250_leftover="$(command -v {shlex.quote(binary_name)} 2>/dev/null || true)"; '
+                'if [ -n "$bc250_leftover" ]; then '
+                'bc250_owner="$(pacman -Qqo "$bc250_leftover" 2>/dev/null || true)"; '
+                f'case "$bc250_owner" in *{shlex.quote(binary_name)}*) sudo pacman -Rns --noconfirm "$bc250_owner";; esac; fi'
+            )
         elif family in {'fedora'}:
             commands.append(
                 f'if rpm -q {package} >/dev/null 2>&1; then sudo dnf remove -y {package}; fi'

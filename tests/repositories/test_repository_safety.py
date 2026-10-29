@@ -702,3 +702,25 @@ def test_a_silent_cyan_says_what_the_user_must_do(tmp_path, monkeypatch, install
     monkeypatch.setattr("bc250cc.infrastructure.gpu_repository.gpu_frequency_ceiling", lambda: (None, ""))
     with pytest.raises(ActionNeeded, match=expected):
         Repository().aplicar_perfil_gpu(1000, 1850)
+
+
+def test_arch_removal_also_removes_a_differently_named_package_that_owns_the_leftover_binary():
+    calls = []
+
+    class Repository(DependenciasRepository):
+        def __init__(self):
+            pass
+
+        def _os_repository(self):
+            info = type("Info", (), {"family": "cachyos"})()
+            return type("OSRepository", (), {"info": info})()
+
+        def _abrir_terminal(self, command, title=""):
+            calls.append(command)
+            return "terminal"
+
+    Repository().desinstalar_governor("oberon-governor")
+    command = calls[0]
+    assert 'pacman -Qqo "$bc250_leftover"' in command
+    assert 'case "$bc250_owner" in *oberon-governor*) sudo pacman -Rns --noconfirm "$bc250_owner"' in command
+    assert command.index("pacman -Qqo") < command.index("still has an executable")
