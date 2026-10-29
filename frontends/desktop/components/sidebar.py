@@ -318,7 +318,7 @@ class Sidebar(QFrame):
             ("firmware", "Firmware (BIOS)", "nav_firmware", "orange_soft"),
             ("settings", "Settings", "nav_settings", "blue_soft"),
         ]
-        section_before = {"cpu": "Hardware", "performance": "Monitoring"}
+        section_before = {"cpu": "Hardware", "performance": "Monitoring", "black_box": "System"}
         self.sections: list[SidebarSection] = []
         self.group = QButtonGroup(self)
         self.group.setExclusive(True)
