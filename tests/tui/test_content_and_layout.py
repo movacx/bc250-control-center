@@ -33,17 +33,17 @@ def test_wrap_never_exceeds_the_width_even_for_one_long_word():
     assert "".join(lines).replace(" ", "").count("x") == 25
 
 
-def test_gauge_fills_proportionally_with_reverse_spaces_and_clamps():
-    assert gauge(0, 0.5, 10, "ok", ASCII) == [("", "dim"), ("     ", "bar:ok"), ("-----", "dim")]
-    assert gauge(0, 2.0, 4, "ok", ASCII)[1] == ("    ", "bar:ok")
-    assert gauge(0.25, 0.75, 8, "accent", ASCII) == [("--", "dim"), ("    ", "bar:accent"), ("--", "dim")]
+def test_gauge_draws_a_heavy_line_over_a_hairline_and_clamps():
+    assert gauge(0, 0.5, 10, "ok", ASCII) == [("", "dim"), ("=====", "ok"), ("-----", "dim")]
+    assert gauge(0, 2.0, 4, "ok", ASCII)[1] == ("====", "ok")
+    assert gauge(0.25, 0.75, 8, "accent", UNICODE) == [("──", "dim"), ("━━━━", "accent"), ("──", "dim")]
     assert sum(len(text) for text, _ in gauge(0, -1, 6, "", UNICODE)) == 6
 
 
 def test_a_section_heading_takes_one_row_and_meters_share_one_bar_width():
     layout = build_layout([Heading("GPU"), Meter("Load", 0.1, "1 %"), Meter("Temperature", 0.9, "90.0 °C")], 50, ASCII)
     assert len(layout.rows) == 3 and layout.rows[0].spans[0][0] == "GPU"
-    widths = [sum(len(t) for t, tone in row.spans if tone in ("dim", "") or tone.startswith("bar:")) for row in layout.rows[1:]]
+    widths = [sum(len(t) for t, tone in row.spans if tone in ("dim", "", "ok")) for row in layout.rows[1:]]
     assert widths[0] == widths[1]  # values right-aligned in one column
 
 

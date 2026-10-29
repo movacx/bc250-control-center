@@ -35,6 +35,7 @@ class Glyphs:
     spark: str = "▁▂▃▄▅▆▇█"
     cursor: str = "›"
     rule: str = "─"
+    fill: str = "━"
     #: box drawing: horizontal, vertical, then corners/tees as (left, middle, right) per row kind
     h: str = "─"
     v: str = "│"
@@ -46,7 +47,7 @@ class Glyphs:
     def for_terminal(cls, *, unicode_ok: bool) -> "Glyphs":
         if unicode_ok:
             return cls()
-        return cls(spark="._:-=+*#", cursor=">", rule="-", h="-", v="|",
+        return cls(spark="._:-=+*#", cursor=">", rule="-", fill="=", h="-", v="|",
                    top=("+", "+", "+"), mid=("+", "+", "+"), bottom=("+", "+", "+"))
 
 
@@ -80,14 +81,15 @@ def sparkline(values, width: int, glyphs: Glyphs) -> str:
 
 
 def gauge(start: float, end: float, width: int, tone: str, glyphs: Glyphs) -> list[tuple[str, str]]:
-    """Cells ``start``..``end`` (fractions of ``width``) filled, the rest a thin rule.
+    """Cells ``start``..``end`` (fractions of ``width``) as a heavy line, the rest a dim hairline.
 
-    Filled cells are reverse-video spaces, not block glyphs: every font draws
-    those the same height and width, so a bar never comes out distorted.
+    A line, not a block: bars on consecutive rows (the cores) stay apart instead
+    of merging into one slab, and box-drawing lines are drawn by the terminal
+    itself in most emulators, so no font stretches them.
     """
     a = max(0, min(width, round(start * width)))
     b = max(a, min(width, round(end * width)))
-    return [(glyphs.rule * a, "dim"), (" " * (b - a), "bar:" + tone), (glyphs.rule * (width - b), "dim")]
+    return [(glyphs.rule * a, "dim"), (glyphs.fill * (b - a), tone), (glyphs.rule * (width - b), "dim")]
 
 
 def _join_columns(card_layouts: list[Layout], widths: list[int], gap: str) -> list[Row]:

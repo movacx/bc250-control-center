@@ -15,10 +15,11 @@ from bc250cc.shared.failure_text import describe_failure
 
 from .console import Console
 from .content import cell_width, clip, number, pad, wrap
-from .i18n import tr
+from .i18n import tr, tr_format
 from .keys import ALIASES, name_of
 from .layout import Glyphs, Layout, build_layout
 from .runtime import Context, Poller, describe_error
+from .support import available_version, report
 
 MIN_WIDTH, MIN_HEIGHT = 60, 14
 TOAST_SECONDS = 6.0
@@ -32,12 +33,13 @@ PTY_KEYS = {"enter": b"\r", "backspace": b"\x7f", "tab": b"\t", "esc": b"\x1b", 
             "down": b"\x1b[B", "right": b"\x1b[C", "left": b"\x1b[D", "delete": b"\x1b[3~"}
 SPINNER = ("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏", "|/-\\")
 EMBEDDED_TERMINAL_NAME = "bc250-tui-console"
+SCROLLBACK_ALL = 10**6
 
 #: One-for-one replacements (same column width) for terminals without Unicode.
 ASCII_MAP = str.maketrans({
     "…": ".", "·": "|", "│": "|", "─": "-", "┌": "+", "┐": "+", "└": "+", "┘": "+", "├": "+", "┤": "+", "┬": "+",
     "┴": "+", "┼": "+", "▲": "^", "▼": "v", "↑": "^", "↓": "v", "→": ">", "←": "<", "–": "-", "▏": "_", "›": ">",
-    "•": "*", "█": "#", "░": "-", "°": "o", "✓": "+", "✗": "x",
+    "•": "*", "█": "#", "░": "-", "━": "=", "°": "o", "✓": "+", "✗": "x",
 })
 
 
@@ -228,6 +230,9 @@ class Screen:
         status = (f"GPU {number(gpu.get('frequency_mhz'), 'MHz')} {number(gpu.get('temperature_c'), '°C')}   "
                   f"CPU {number(cpu.get('frequency_mhz'), 'MHz')} {number(cpu.get('temperature_c'), '°C')} ")
         title = " BC250 Control Center"
+        version = available_version(self.ctx)
+        if version:  # the desktop's update badge: Settings › About installs it
+            title += "   ↑ " + tr_format("Version {version} is available", version=version)
         gap = width - cell_width(title) - cell_width(status)
         self.put(0, 0, title + " " * gap + status if gap > 1 else pad(title, width), curses.A_REVERSE | curses.A_BOLD)
 
@@ -304,10 +309,7 @@ class Screen:
                     self.put(y, x - 2, self.glyphs.cursor, self.attrs["accent"])
             column = x
             for text, tone in row.spans:
-                if tone.startswith("bar:"):
-                    attr = self.attrs.get(tone[4:], 0) | curses.A_REVERSE
-                else:
-                    attr = self.attrs.get(tone, 0) | (curses.A_BOLD if row.bold else 0)
+                attr = self.attrs.get(tone, 0) | (curses.A_BOLD if row.bold else 0)
                 if selected and not row.plain:
                     attr |= curses.A_REVERSE
                 if tone == "sel" and self.focus != "content":
@@ -377,8 +379,10 @@ class Screen:
                          limit=width - column - 1)
                 column += cell_width(text)
         status = (tr("Completed") if console.succeeded else tr("The workflow did not finish successfully.")) if done else ""
-        self._draw_hints(([("Enter Esc", "Close")] if done else [("Ctrl+C", "Interrupt")]) + [("PgUp PgDn", "Scroll")],
-                         status, self.attrs[tone] | curses.A_BOLD)
+        hints = [("Enter Esc", "Close")] if done else [("Ctrl+C", "Interrupt")]
+        if done and not console.succeeded:
+            hints.append(("r", "Report this problem"))
+        self._draw_hints(hints + [("PgUp PgDn", "Scroll")], status, self.attrs[tone] | curses.A_BOLD)
 
     # ------------------------------------------------------------- input
 
@@ -744,21 +748,26 @@ class Screen:
                 console.finish(False, error)
 
         threading.Thread(target=job, name="bc250-tui-job", daemon=True).start()
+        closed_with = ""
         try:
             while not (console.done.is_set() and console.ok and not console.has_output):
                 self.draw()
                 self.stdscr.refresh()
                 code = self.stdscr.getch()
-                if code != -1 and self._console_key(console, code):
+                closed_with = self._console_key(console, code) if code != -1 else ""
+                if closed_with:
                     break
         finally:
             self.active_console = None
             self._layout_key = None
             self._repaint()
+        if closed_with == "report":  # the failed workflow's own log goes with the report
+            log = "\n".join("".join(run[0] for run in line).rstrip() for line in console.view(SCROLLBACK_ALL)[0])
+            report(self, title=label, log=log)
         return console.succeeded, console.result
 
-    def _console_key(self, console: Console, code: int) -> bool:
-        """Keys while the console is up; True closes it (only once the job is done)."""
+    def _console_key(self, console: Console, code: int) -> str:
+        """Keys while the console is up; "close" or "report" closes it (only once the job is done)."""
         key = name_of(code)
         if key == "mouse":
             self._mouse()
@@ -766,7 +775,9 @@ class Screen:
             self.console_scroll += (1 if key == "pgup" else -1) * max(1, self.size()[0] - 6)
         elif console.done.is_set():
             if key in ("esc", "enter", "q", "space"):
-                return True
+                return "close"
+            if key == "r" and not console.succeeded:
+                return "report"
             if key in ("up", "down", "home", "end"):
                 self.console_scroll += {"up": 1, "down": -1, "home": 10**6, "end": -10**6}[key]
         elif code == 3:
@@ -775,7 +786,7 @@ class Screen:
             console.send(PTY_KEYS[key])
         elif 0 < code < 32 or len(key) == 1:
             console.send(bytes([code]) if code < 32 else key.encode())
-        return False
+        return ""
 
     def launch_workflow(self, request):
         """The repositories' embedded launcher: the workflow runs in the open console pane."""

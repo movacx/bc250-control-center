@@ -162,6 +162,8 @@ It has the desktop's sidebar, grouped and ordered the same way: Dashboard; Hardw
 
 It does not reimplement anything: every reading and every action goes through the same service layer, privileged helpers and error catalog as the desktop application. Anything that changes the system asks for confirmation first (dangerous ones need an explicit `y`). Workflows the desktop runs in its console panel run in a console pane inside the interface: the output and progress appear live, a `sudo` or Polkit password is typed right there, `Ctrl+C` stops the command, and the result and the path of the full log stay on screen until you close the pane. No other terminal is opened and the interface is never suspended.
 
+The title bar names a newer release when there is one (the same check as the desktop, and the same switch turns it off); **Settings › About** installs it through the plan that fits this installation, or checks again. The same tab sends a problem report or an idea with the desktop's report form, and after a failed workflow `r` reports it with its log attached.
+
 | Key | Action |
 | --- | --- |
 | `↑` `↓` or `j` `k` | Move |

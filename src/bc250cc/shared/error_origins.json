@@ -43,6 +43,10 @@
    "validate_pwm": "FAN-0219",
    "request_from_percent": "FAN-0220"
   },
+  "bc250cc/application/firmware/__init__.py": {
+   "firmware_snapshot": "FW-0236",
+   "prepare_update_usb": "FW-0237"
+  },
   "bc250cc/application/gpu/diagnostics.py": {
    "_literal": "GPU-0345",
    "_text": "GPU-0346",
@@ -186,6 +190,9 @@
    "plan_daemon_cycle": "SYS-0015",
    "build_runtime_metric": "SYS-0016",
    "governor_warning_needed": "SYS-0017"
+  },
+  "bc250cc/application/system/diagnostics.py": {
+   "collect_diagnostics": "CORE-0131"
   },
   "bc250cc/application/system/process_termination_policy.py": {
    "authorize_process_termination": "PROC-0090"
@@ -3014,8 +3021,6 @@
    "_int_property": "UI-0156"
   },
   "frontends/desktop/components/feedback_dialog.py": {
-   "_read_report": "DIAG-0001",
-   "_attachments_or_none": "DIAG-0130",
    "_needs_password": "DIAG-0129",
    "_Choice.__init__": "DIAG-0002",
    "_Choice.value": "DIAG-0003",
@@ -3073,9 +3078,6 @@
    "FlowLayout.expandingDirections": "UI-0168"
   },
   "frontends/desktop/components/full_diagnosis_dialog.py": {
-   "section_group": "UI-0574",
-   "size_kb": "UI-0575",
-   "as_text": "UI-0576",
    "_stylesheet": "UI-0577",
    "ResizeGrip.__init__": "UI-0620",
    "ResizeGrip.mousePressEvent": "UI-0621",
@@ -3418,6 +3420,7 @@
    "InfoDialog.evidence": "UI-0535"
   },
   "frontends/desktop/console/__init__.py": {
+   "__getattr__": "CON-0263",
    "console_for": "CON-0001"
   },
   "frontends/desktop/console/beacon.py": {
@@ -3805,6 +3808,11 @@
    "export_tone": "DECKY-0044",
    "fan_export_notes": "DECKY-0045"
   },
+  "frontends/desktop/core/diagnosis_groups.py": {
+   "section_group": "UI-0633",
+   "size_kb": "UI-0634",
+   "as_text": "UI-0635"
+  },
   "frontends/desktop/core/diagnostic_history.py": {
    "current_wording": "DIAG-0031",
    "record_diagnosis": "DIAG-0032",
@@ -4125,6 +4133,10 @@
    "find": "UI-0538",
    "_translated": "UI-0554",
    "clear": "UI-0539"
+  },
+  "frontends/desktop/core/report_facts.py": {
+   "read_report_facts": "UI-0636",
+   "_attachments_or_none": "UI-0637"
   },
   "frontends/desktop/core/sensor_log.py": {
    "format_sensor_value": "TEL-0098",
@@ -5865,6 +5877,7 @@
  "retired": [
   "CORE-0086",
   "DASH-0012",
+  "DIAG-0001",
   "DIAG-0027",
   "DIAG-0057",
   "DIAG-0058",
@@ -5886,6 +5899,7 @@
   "DIAG-0119",
   "DIAG-0126",
   "DIAG-0127",
+  "DIAG-0130",
   "DIAG-0131",
   "DIAG-0132",
   "DIAG-0133",
@@ -5903,6 +5917,9 @@
   "TEL-0365",
   "TEL-0366",
   "UI-0564",
+  "UI-0574",
+  "UI-0575",
+  "UI-0576",
   "UI-0582",
   "UI-0583",
   "UI-0584",

@@ -134,3 +134,16 @@ def test_without_a_console_on_screen_the_launcher_declines():
 
     screen = Screen(FakeWindow(), make_context(), build_pages(), None)
     assert screen.launch_workflow(SimpleNamespace(argv=("true",), title="", status_file="", log_file="")) is None
+
+
+def test_r_on_a_failed_workflow_opens_the_report_with_its_log(screen, monkeypatch):
+    from types import SimpleNamespace
+
+    reported = []
+    monkeypatch.setattr("frontends.tui.screen.report", lambda ui, title="", log="": reported.append((title, log)))
+    window = screen.stdscr
+    window.getch = lambda: (time.sleep(0.02), ord("r") if screen.active_console.done.is_set() else -1)[1]
+    request = SimpleNamespace(argv=("bash", "-c", "echo E: broken package; exit 1"), title="x", status_file="",
+                              log_file="")
+    ok, _result = screen.run("Prepare", lambda: screen.launch_workflow(request))
+    assert not ok and reported and reported[0][0] == "Prepare" and "broken package" in reported[0][1]

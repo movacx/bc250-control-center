@@ -6,8 +6,9 @@ from bc250cc.shared.version import __version__
 from frontends.desktop.i18n import LANGUAGE_OPTIONS
 
 from ..content import Choice, Field, Gap, Heading, Note
-from ..i18n import current_language, set_language, tr
-from .base import Page, guarded
+from ..i18n import current_language, set_language, tr, tr_format
+from ..support import available_version, check_in_background, install_update, report
+from .base import Page, guarded, os_family
 
 THEMES = (("auto", "System"), ("light", "Light"), ("dark", "Dark"), ("mono", "No colour"))
 TABS = (("general", "General"), ("notifications", "Notifications"), ("history", "History & reports"),
@@ -110,6 +111,29 @@ class SettingsPage(Page):
         elif tab == "security":
             out.append(Field(tr("Discreet mode"), tr("Yes") if config.get("modo_discreto") else tr("No")))
         else:
-            out += [Field(tr("Version"), __version__), Field(tr("Terminal mode"), "curses"),
-                    Gap(), Note("https://github.com/movacx/bc250-control-center", "dim")]
+            out += self._about(ctx)
         return out
+
+    def _about(self, ctx):
+        status = ctx.state("ui").get("update")
+        newer = available_version(ctx)
+
+        def check(ui_):
+            check_in_background(ctx, force=True)
+            ui_.notify(tr("Checking…"))
+
+        def update(ui_):
+            if ui_.confirm(f"{tr('Update now')}: {__version__} → {newer}"):
+                guarded(ui_, tr("Update now"), lambda: install_update(ctx, os_family(ctx)[0]))
+
+        if newer:
+            state, tone = tr_format("Version {version} is available", version=newer), "warn"
+        elif status is not None:
+            state, tone = tr("You have the latest version."), "ok"
+        else:  # not asked yet, switched off, or no network: nothing to claim
+            state, tone = "", ""
+        return [Field(tr("Version"), f"{__version__}  ·  {state}" if state else __version__, tone),
+                Choice(tr("Update now"), update, enabled=bool(newer), tone="accent"),
+                Choice(tr("Check for updates"), check),
+                Choice(tr("Report a problem or suggest an idea"), report),
+                Gap(), Note("https://github.com/movacx/bc250-control-center", "dim")]

@@ -78,6 +78,7 @@ def main(argv: list[str] | None = None) -> int:
     from .pages import build_pages
     from .runtime import Context, Poller
     from .screen import SIDEBAR_ORDER, Screen
+    from .support import check_in_background
 
     container = ApplicationContainer.production()
     if container.system_service is None or container.settings_service is None:
@@ -100,6 +101,7 @@ def main(argv: list[str] | None = None) -> int:
         screen = Screen(stdscr, ctx, pages, poller, theme=args.theme)
         # Every repository offers its workflows here before any terminal emulator.
         set_embedded_terminal_launcher(screen.launch_workflow)
+        check_in_background(ctx)  # the title bar names a newer version when there is one
         ctx.state("ui")["theme"] = args.theme
         if args.page in SIDEBAR_ORDER:
             screen.focus = "content"
